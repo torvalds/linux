@@ -841,7 +841,7 @@ static int __devinit vt8231_pci_probe(struct pci_dev *dev,
 
 static int __init sm_vt8231_init(void)
 {
-	return pci_module_init(&vt8231_pci_driver);
+	return pci_register_driver(&vt8231_pci_driver);
 }
 
 static void __exit sm_vt8231_exit(void)

@@ -1666,6 +1666,7 @@ static int __devinit cyblafb_init(void)
 #endif
 	output("CyblaFB version %s initializing\n", VERSION);
 	return pci_module_init(&cyblafb_pci_driver);
+	return pci_register_driver(&cyblafb_pci_driver);
 }
 
 static void __exit cyblafb_exit(void)

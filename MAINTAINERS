@@ -1987,6 +1987,13 @@ M:	hch@infradead.org
 L:	linux-abi-devel@lists.sourceforge.net
 S:	Maintained
 
+PCI ERROR RECOVERY
+P:	Linas Vepstas
+M:	linas@austin.ibm.com
+L:	linux-kernel@vger.kernel.org
+L:	linux-pci@atrey.karlin.mff.cuni.cz
+S:	Supported
+
 PCI SOUND DRIVERS (ES1370, ES1371 and SONICVIBES)
 P:	Thomas Sailer
 M:	sailer@ife.ee.ethz.ch

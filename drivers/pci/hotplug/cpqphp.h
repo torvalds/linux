@@ -317,6 +317,7 @@ struct controller {
 	u16 vendor_id;
 	struct work_struct int_task_event;
 	wait_queue_head_t queue;	/* sleep & wake process */
+	struct dentry *dentry;		/* debugfs dentry */
 };
 
 struct irq_mapping {
@@ -399,8 +400,11 @@ struct resource_lists {
 #define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
 
 
-/* sysfs functions for the hotplug controller info */
-extern void cpqhp_create_ctrl_files		(struct controller *ctrl);
+/* debugfs functions for the hotplug controller info */
+extern void cpqhp_initialize_debugfs		(void);
+extern void cpqhp_shutdown_debugfs		(void);
+extern void cpqhp_create_debugfs_files		(struct controller *ctrl);
+extern void cpqhp_remove_debugfs_files		(struct controller *ctrl);
 
 /* controller functions */
 extern void	cpqhp_pushbutton_thread		(unsigned long event_pointer);

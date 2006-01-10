@@ -238,8 +238,8 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 	device->driver = NULL;
 	device->driver_data = NULL;
 	device->release = release_pcie_device;	/* callback to free pcie dev */
-	sprintf(&device->bus_id[0], "pcie%02x",
-		get_descriptor_id(port_type, service_type));
+	snprintf(device->bus_id, sizeof(device->bus_id), "%s:pcie%02x",
+		 pci_name(parent), get_descriptor_id(port_type, service_type));
 	device->parent = &parent->dev;
 }
 

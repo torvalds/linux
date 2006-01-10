@@ -1342,6 +1342,32 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	pci_do_fixups(dev, start, end);
 }
 
+/* Enable 1k I/O space granularity on the Intel P64H2 */
+static void __devinit quirk_p64h2_1k_io(struct pci_dev *dev)
+{
+	u16 en1k;
+	u8 io_base_lo, io_limit_lo;
+	unsigned long base, limit;
+	struct resource *res = dev->resource + PCI_BRIDGE_RESOURCES;
+
+	pci_read_config_word(dev, 0x40, &en1k);
+
+	if (en1k & 0x200) {
+		printk(KERN_INFO "PCI: Enable I/O Space to 1 KB Granularity\n");
+
+		pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
+		pci_read_config_byte(dev, PCI_IO_LIMIT, &io_limit_lo);
+		base = (io_base_lo & (PCI_IO_RANGE_MASK | 0x0c)) << 8;
+		limit = (io_limit_lo & (PCI_IO_RANGE_MASK | 0x0c)) << 8;
+
+		if (base <= limit) {
+			res->start = base;
+			res->end = limit + 0x3ff;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	0x1460,		quirk_p64h2_1k_io);
+
 EXPORT_SYMBOL(pcie_mch_quirk);
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pci_fixup_device);

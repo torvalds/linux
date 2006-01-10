@@ -413,6 +413,13 @@ static struct dmi_system_id __devinitdata toshiba_ohci1394_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "PSM4"),
 		},
 	},
+	{
+		.ident = "Toshiba A40 based laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "PSA40U"),
+		},
+	},
 	{ }
 };
 

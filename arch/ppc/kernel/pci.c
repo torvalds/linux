@@ -503,7 +503,7 @@ pcibios_allocate_resources(int pass)
 	u16 command;
 	struct resource *r;
 
-	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		pci_read_config_word(dev, PCI_COMMAND, &command);
 		for (idx = 0; idx < 6; idx++) {
 			r = &dev->resource[idx];
@@ -540,7 +540,7 @@ pcibios_assign_resources(void)
 	int idx;
 	struct resource *r;
 
-	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		int class = dev->class >> 8;
 
 		/* Don't touch classless devices and host bridges */
@@ -867,14 +867,15 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	 */
 	if (!pci_to_OF_bus_map)
 		return 0;
-	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		if (pci_to_OF_bus_map[dev->bus->number] != *bus)
-			continue;
-		if (dev->devfn != *devfn)
-			continue;
-		*bus = dev->bus->number;
-		return 0;
-	}
+
+	for_each_pci_dev(dev)
+		if (pci_to_OF_bus_map[dev->bus->number] == *bus &&
+				dev->devfn == *devfn) {
+			*bus = dev->bus->number;
+			pci_dev_put(dev);
+			return 0;
+		}
+
 	return -ENODEV;
 }
 EXPORT_SYMBOL(pci_device_from_OF_node);

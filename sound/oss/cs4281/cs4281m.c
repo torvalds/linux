@@ -4461,7 +4461,7 @@ static int __init cs4281_init_module(void)
 	printk(KERN_INFO "cs4281: version v%d.%02d.%d time " __TIME__ " "
 	       __DATE__ "\n", CS4281_MAJOR_VERSION, CS4281_MINOR_VERSION,
 	       CS4281_ARCH);
-	rtn = pci_module_init(&cs4281_pci_driver);
+	rtn = pci_register_driver(&cs4281_pci_driver);
 
 	CS_DBGOUT(CS_INIT | CS_FUNCTION, 2,
 		  printk(KERN_INFO "cs4281: cs4281_init_module()- (%d)\n",rtn));

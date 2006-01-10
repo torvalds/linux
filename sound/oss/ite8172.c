@@ -2206,7 +2206,7 @@ static struct pci_driver it8172_driver = {
 static int __init init_it8172(void)
 {
 	info("version v0.5 time " __TIME__ " " __DATE__);
-	return pci_module_init(&it8172_driver);
+	return pci_register_driver(&it8172_driver);
 }
 
 static void __exit cleanup_it8172(void)
