@@ -1,9 +1,5 @@
-#include <linux/config.h>
-#include <linux/init.h>
-
-#ifdef CONFIG_NETFILTER
-
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/ipv6.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -94,18 +90,7 @@ int __init ipv6_netfilter_init(void)
 	return nf_register_queue_rerouter(PF_INET6, &ip6_reroute);
 }
 
-void ipv6_netfilter_fini(void)
+void __exit ipv6_netfilter_fini(void)
 {
 	nf_unregister_queue_rerouter(PF_INET6);
 }
-
-#else /* CONFIG_NETFILTER */
-int __init ipv6_netfilter_init(void)
-{
-	return 0;
-}
-
-void ipv6_netfilter_fini(void)
-{
-}
-#endif /* CONFIG_NETFILTER */

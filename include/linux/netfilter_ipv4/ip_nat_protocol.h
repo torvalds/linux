@@ -42,13 +42,6 @@ struct ip_nat_protocol
 			    enum ip_nat_manip_type maniptype,
 			    const struct ip_conntrack *conntrack);
 
-	unsigned int (*print)(char *buffer,
-			      const struct ip_conntrack_tuple *match,
-			      const struct ip_conntrack_tuple *mask);
-
-	unsigned int (*print_range)(char *buffer,
-				    const struct ip_nat_range *range);
-
 	int (*range_to_nfattr)(struct sk_buff *skb,
 			       const struct ip_nat_range *range);
 

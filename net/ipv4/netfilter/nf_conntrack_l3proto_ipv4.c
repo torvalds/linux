@@ -277,7 +277,7 @@ static struct nf_hook_ops ipv4_conntrack_local_in_ops = {
 
 #ifdef CONFIG_SYSCTL
 /* From nf_conntrack_proto_icmp.c */
-extern unsigned long nf_ct_icmp_timeout;
+extern unsigned int nf_ct_icmp_timeout;
 static struct ctl_table_header *nf_ct_ipv4_sysctl_header;
 
 static ctl_table nf_ct_sysctl_table[] = {

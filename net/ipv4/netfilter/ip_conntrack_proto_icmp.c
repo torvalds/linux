@@ -22,7 +22,7 @@
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 
-unsigned long ip_ct_icmp_timeout = 30*HZ;
+unsigned int ip_ct_icmp_timeout = 30*HZ;
 
 #if 0
 #define DEBUGP printk
