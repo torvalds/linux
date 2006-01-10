@@ -80,9 +80,11 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void __kprobes arch_remove_kprobe(struct kprobe *p)
+void __kprobes arch_remove_kprobe(struct kprobe *p, struct semaphore *s)
 {
+	down(s);
 	free_insn_slot(p->ainsn.insn);
+	up(s);
 }
 
 static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)

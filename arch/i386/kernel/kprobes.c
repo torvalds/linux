@@ -77,10 +77,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void __kprobes arch_remove_kprobe(struct kprobe *p)
-{
-}
-
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();

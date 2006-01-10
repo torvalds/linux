@@ -78,6 +78,7 @@ static inline void restore_interrupts(struct pt_regs *regs)
 		local_irq_enable();
 }
 
+extern void arch_remove_kprobe(struct kprobe *p, struct semaphore *s);
 extern int post_kprobe_handler(struct pt_regs *regs);
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_handler(struct pt_regs *regs);

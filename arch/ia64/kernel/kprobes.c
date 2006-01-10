@@ -467,10 +467,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
 }
 
-void __kprobes arch_remove_kprobe(struct kprobe *p)
-{
-}
-
 /*
  * We are resuming execution after a single step fault, so the pt_regs
  * structure reflects the register state after we executed the instruction

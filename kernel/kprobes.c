@@ -532,9 +532,7 @@ valid_p:
 			list_del_rcu(&p->list);
 			kfree(old_p);
 		}
-		down(&kprobe_mutex);
-		arch_remove_kprobe(p);
-		up(&kprobe_mutex);
+		arch_remove_kprobe(p, &kprobe_mutex);
 	}
 }
 

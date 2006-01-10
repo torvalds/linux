@@ -50,6 +50,7 @@ typedef unsigned int kprobe_opcode_t;
 
 #define ARCH_SUPPORTS_KRETPROBES
 void kretprobe_trampoline(void);
+extern void arch_remove_kprobe(struct kprobe *p, struct semaphore *s);
 
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
