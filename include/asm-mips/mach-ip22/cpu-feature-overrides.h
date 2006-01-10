@@ -34,4 +34,9 @@
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
 
+#define cpu_has_mips32r1	0
+#define cpu_has_mips32r2	0
+#define cpu_has_mips64r1	0
+#define cpu_has_mips64r2	0
+
 #endif /* __ASM_MACH_IP22_CPU_FEATURE_OVERRIDES_H */

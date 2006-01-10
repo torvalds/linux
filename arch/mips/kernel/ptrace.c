@@ -280,12 +280,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				ret = -EIO;
 				goto out;
 			}
-			if (child->thread.dsp.used_dsp) {
-				dregs = __get_dsp_regs(child);
-				tmp = (unsigned long) (dregs[addr - DSP_BASE]);
-			} else {
-				tmp = -1;	/* DSP registers yet used  */
-			}
+			dregs = __get_dsp_regs(child);
+			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
 			break;
 		}
 		case DSP_CONTROL:

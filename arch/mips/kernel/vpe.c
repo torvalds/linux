@@ -99,9 +99,9 @@ struct vpe {
 
 	/* elfloader stuff */
 	void *load_addr;
-	u32 len;
+	unsigned long len;
 	char *pbuffer;
-	u32 plen;
+	unsigned long plen;
 
 	unsigned long __start;
 
@@ -253,11 +253,11 @@ void dump_mtregs(void)
 }
 
 /* Find some VPE program space  */
-static void *alloc_progmem(u32 len)
+static void *alloc_progmem(unsigned long len)
 {
 #ifdef CONFIG_MIPS_VPE_LOADER_TOM
 	/* this means you must tell linux to use less memory than you physically have */
-	return (void *)((max_pfn * PAGE_SIZE) + KSEG0);
+	return pfn_to_kaddr(max_pfn);
 #else
 	// simple grab some mem for now
 	return kmalloc(len, GFP_KERNEL);
