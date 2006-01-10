@@ -38,38 +38,9 @@ static __inline__ int timespec_equal(struct timespec *a, struct timespec *b)
 	return (a->tv_sec == b->tv_sec) && (a->tv_nsec == b->tv_nsec);
 } 
 
-/* Converts Gregorian date to seconds since 1970-01-01 00:00:00.
- * Assumes input in normal date format, i.e. 1980-12-31 23:59:59
- * => year=1980, mon=12, day=31, hour=23, min=59, sec=59.
- *
- * [For the Julian calendar (which was used in Russia before 1917,
- * Britain & colonies before 1752, anywhere else before 1582,
- * and is still in use by some communities) leave out the
- * -year/100+year/400 terms, and add 10.]
- *
- * This algorithm was first published by Gauss (I think).
- *
- * WARNING: this function will overflow on 2106-02-07 06:28:16 on
- * machines were long is 32-bit! (However, as time_t is signed, we
- * will already get problems at other places on 2038-01-19 03:14:08)
- */
-static inline unsigned long
-mktime (unsigned int year, unsigned int mon,
-	unsigned int day, unsigned int hour,
-	unsigned int min, unsigned int sec)
-{
-	if (0 >= (int) (mon -= 2)) {	/* 1..12 -> 11,12,1..10 */
-		mon += 12;		/* Puts Feb last since it has leap day */
-		year -= 1;
-	}
-
-	return (((
-		(unsigned long) (year/4 - year/100 + year/400 + 367*mon/12 + day) +
-			year*365 - 719499
-	    )*24 + hour /* now have hours */
-	  )*60 + min /* now have minutes */
-	)*60 + sec; /* finally seconds */
-}
+extern unsigned long mktime (unsigned int year, unsigned int mon,
+			     unsigned int day, unsigned int hour,
+			     unsigned int min, unsigned int sec);
 
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
@@ -79,6 +50,8 @@ static inline unsigned long get_seconds(void)
 { 
 	return xtime.tv_sec;
 }
+
+extern void set_normalized_timespec (struct timespec *ts, time_t sec, long nsec);
 
 struct timespec current_kernel_time(void);
 
@@ -98,21 +71,6 @@ extern void getnstimeofday (struct timespec *tv);
 extern void getnstimestamp(struct timespec *ts);
 
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
-
-static inline void
-set_normalized_timespec (struct timespec *ts, time_t sec, long nsec)
-{
-	while (nsec >= NSEC_PER_SEC) {
-		nsec -= NSEC_PER_SEC;
-		++sec;
-	}
-	while (nsec < 0) {
-		nsec += NSEC_PER_SEC;
-		--sec;
-	}
-	ts->tv_sec = sec;
-	ts->tv_nsec = nsec;
-}
 
 #endif /* __KERNEL__ */
 
