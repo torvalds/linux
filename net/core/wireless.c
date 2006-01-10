@@ -1506,7 +1506,7 @@ void wireless_spy_update(struct net_device *	dev,
 
 	/* Update all records that match */
 	for(i = 0; i < spydata->spy_number; i++)
-		if(!memcmp(address, spydata->spy_address[i], ETH_ALEN)) {
+		if(!compare_ether_addr(address, spydata->spy_address[i])) {
 			memcpy(&(spydata->spy_stat[i]), wstats,
 			       sizeof(struct iw_quality));
 			match = i;
