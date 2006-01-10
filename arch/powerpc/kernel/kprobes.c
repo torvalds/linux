@@ -60,13 +60,13 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		if (!p->ainsn.insn)
 			ret = -ENOMEM;
 	}
-	return ret;
-}
 
-void __kprobes arch_copy_kprobe(struct kprobe *p)
-{
-	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
-	p->opcode = *p->addr;
+	if (!ret) {
+		memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+		p->opcode = *p->addr;
+	}
+
+	return ret;
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -85,9 +85,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	down(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
-	up(&kprobe_mutex);
 }
 
 static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)

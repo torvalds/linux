@@ -42,8 +42,8 @@
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
-static DECLARE_MUTEX(kprobe_mutex);
 void jprobe_return_end(void);
+void __kprobes arch_copy_kprobe(struct kprobe *p);
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -69,12 +69,11 @@ static inline int is_IF_modifier(kprobe_opcode_t *insn)
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	/* insn: must be on special executable page on x86_64. */
-	down(&kprobe_mutex);
 	p->ainsn.insn = get_insn_slot();
-	up(&kprobe_mutex);
 	if (!p->ainsn.insn) {
 		return -ENOMEM;
 	}
+	arch_copy_kprobe(p);
 	return 0;
 }
 
@@ -223,9 +222,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	down(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
-	up(&kprobe_mutex);
 }
 
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)

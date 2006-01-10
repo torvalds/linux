@@ -110,11 +110,6 @@ struct arch_specific_insn {
  	unsigned short target_br_reg;
 };
 
-/* ia64 does not need this */
-static inline void arch_copy_kprobe(struct kprobe *p)
-{
-}
-
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 
