@@ -97,8 +97,6 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh, *tmp;
 	unsigned long flags;
-	LIST_HEAD(ah_list);
-	struct ipoib_ah *ah, *tah;
 
 	ipoib_dbg_mcast(netdev_priv(dev),
 			"deleting multicast group " IPOIB_GID_FMT "\n",
@@ -107,17 +105,20 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	list_for_each_entry_safe(neigh, tmp, &mcast->neigh_list, list) {
+		/*
+		 * It's safe to call ipoib_put_ah() inside priv->lock
+		 * here, because we know that mcast->ah will always
+		 * hold one more reference, so ipoib_put_ah() will
+		 * never do more than decrement the ref count.
+		 */
 		if (neigh->ah)
-			list_add_tail(&neigh->ah->list, &ah_list);
+			ipoib_put_ah(neigh->ah);
 		*to_ipoib_neigh(neigh->neighbour) = NULL;
 		neigh->neighbour->ops->destructor = NULL;
 		kfree(neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	list_for_each_entry_safe(ah, tah, &ah_list, list)
-		ipoib_put_ah(ah);
 
 	if (mcast->ah)
 		ipoib_put_ah(mcast->ah);
