@@ -81,6 +81,7 @@ __mutex_lock_slowpath(atomic_t *lock_count __IP_DECL__);
  */
 void fastcall __sched mutex_lock(struct mutex *lock)
 {
+	might_sleep();
 	/*
 	 * The locking fastpath is the 1->0 transition from
 	 * 'unlocked' into 'locked' state.
@@ -253,6 +254,7 @@ __mutex_lock_interruptible_slowpath(atomic_t *lock_count __IP_DECL__);
  */
 int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
 {
+	might_sleep();
 	return __mutex_fastpath_lock_retval
 			(&lock->count, __mutex_lock_interruptible_slowpath);
 }
