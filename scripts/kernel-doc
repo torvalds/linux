@@ -1405,6 +1405,7 @@ sub create_parameterlist($$$) {
     my $type;
     my $param;
 
+    # temporarily replace commas inside function pointer definition
     while ($args =~ /(\([^\),]+),/) {
         $args =~ s/(\([^\),]+),/$1#/g;
     }
@@ -1465,11 +1466,10 @@ sub push_parameter($$$) {
 	my $param_name = $param;
 	$param_name =~ s/\[.*//;
 
-	if ($type eq "" && $param eq "...")
+	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
 	    $type="";
-	    $param="...";
-	    $parameterdescs{"..."} = "variable arguments";
+	    $parameterdescs{$param} = "variable arguments";
 	}
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
@@ -1477,7 +1477,11 @@ sub push_parameter($$$) {
 	    $param="void";
 	    $parameterdescs{void} = "no arguments";
 	}
-	if (defined $type && $type && !defined $parameterdescs{$param_name}) {
+	# warn if parameter has no description
+	# (but ignore ones starting with # as these are no parameters
+	# but inline preprocessor statements
+	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
+
 	    $parameterdescs{$param_name} = $undescribed;
 
 	    if (($type eq 'function') || ($type eq 'enum')) {
