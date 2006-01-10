@@ -167,6 +167,8 @@ ieee80211softmac_assoc_work(void *d)
 	/* Search the ieee80211 networks for this network if we didn't find it */
 	if (!found)
 	{
+		s8 rssi = -128;	/* if I don't initialise, gcc emits an invalid warning
+				   because it cannot follow the best pointer logic. */
 		spin_lock_irqsave(&mac->ieee->lock, flags);
 		list_for_each_entry(net, &mac->ieee->network_list, list) {
 			/* we're supposed to find the network with
@@ -174,7 +176,7 @@ ieee80211softmac_assoc_work(void *d)
 			 * any network with a specific ESSID, and many
 			 * different ones could have that.
 			 *
-			 * I'll for now implement just finding one at all 
+			 * I'll for now just go with the reported rssi.
 			 *
 			 * We also should take into account the rateset
 			 * here to find the best BSSID to try.
@@ -182,15 +184,17 @@ ieee80211softmac_assoc_work(void *d)
 			if (network_matches_request(mac, net)) {
 				if (!best) {
 					best = net;
+					rssi = best->stats.rssi;
 					continue;
 				}
 				/* we already had a matching network, so
 				 * compare their properties to get the
 				 * better of the two ... (see above)
 				 */
-				/* TODO */
-				/* for now, just */
-				break;
+				if (rssi < net->stats.rssi) {
+					best = net;
+					rssi = best->stats.rssi;
+				}
 			}
 		}
 		/* if we unlock here, we might get interrupted and the `best'
