@@ -30,6 +30,8 @@
 #ifndef _VIA_DMABLIT_H
 #define _VIA_DMABLIT_H
 
+#include <linux/dma-mapping.h>
+
 #define VIA_NUM_BLIT_ENGINES 2
 #define VIA_NUM_BLIT_SLOTS 8
 
