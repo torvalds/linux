@@ -2475,6 +2475,49 @@ static int old_bridge_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg
 	return -EINVAL;
 }
 
+#define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
+#define RTC_IRQP_SET32		_IOW('p', 0x0c, compat_ulong_t)
+#define RTC_EPOCH_READ32	_IOR('p', 0x0d, compat_ulong_t)
+#define RTC_EPOCH_SET32		_IOW('p', 0x0e, compat_ulong_t)
+
+static int rtc_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
+{
+	mm_segment_t oldfs = get_fs();
+	compat_ulong_t val32;
+	unsigned long kval;
+	int ret;
+
+	switch (cmd) {
+	case RTC_IRQP_READ32:
+	case RTC_EPOCH_READ32:
+		set_fs(KERNEL_DS);
+		ret = sys_ioctl(fd, (cmd == RTC_IRQP_READ32) ?
+					RTC_IRQP_READ : RTC_EPOCH_READ,
+					(unsigned long)&kval);
+		set_fs(oldfs);
+		if (ret)
+			return ret;
+		val32 = kval;
+		return put_user(val32, (unsigned int __user *)arg);
+	case RTC_IRQP_SET32:
+	case RTC_EPOCH_SET32:
+		ret = get_user(val32, (unsigned int __user *)arg);
+		if (ret)
+			return ret;
+		kval = val32;
+
+		set_fs(KERNEL_DS);
+		ret = sys_ioctl(fd, (cmd == RTC_IRQP_SET32) ?
+				RTC_IRQP_SET : RTC_EPOCH_SET,
+				(unsigned long)&kval);
+		set_fs(oldfs);
+		return ret;
+	default:
+		/* unreached */
+		return -ENOIOCTLCMD;
+	}
+}
+
 #if defined(CONFIG_NCP_FS) || defined(CONFIG_NCP_FS_MODULE)
 struct ncp_ioctl_request_32 {
 	u32 function;
@@ -2858,6 +2901,10 @@ HANDLE_IOCTL(SIOCSIWENCODE, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWENCODE, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIFBR, old_bridge_ioctl)
 HANDLE_IOCTL(SIOCGIFBR, old_bridge_ioctl)
+HANDLE_IOCTL(RTC_IRQP_READ32, rtc_ioctl)
+HANDLE_IOCTL(RTC_IRQP_SET32, rtc_ioctl)
+HANDLE_IOCTL(RTC_EPOCH_READ32, rtc_ioctl)
+HANDLE_IOCTL(RTC_EPOCH_SET32, rtc_ioctl)
 
 #if defined(CONFIG_NCP_FS) || defined(CONFIG_NCP_FS_MODULE)
 HANDLE_IOCTL(NCP_IOC_NCPREQUEST_32, do_ncp_ncprequest)
