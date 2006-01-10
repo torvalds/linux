@@ -46,26 +46,10 @@ unknown_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-unknown_print(char *buffer,
-	      const struct ip_conntrack_tuple *match,
-	      const struct ip_conntrack_tuple *mask)
-{
-	return 0;
-}
-
-static unsigned int
-unknown_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	return 0;
-}
-
 struct ip_nat_protocol ip_nat_unknown_protocol = {
 	.name			= "unknown",
 	/* .me isn't set: getting a ref to this cannot fail. */
 	.manip_pkt		= unknown_manip_pkt,
 	.in_range		= unknown_in_range,
 	.unique_tuple		= unknown_unique_tuple,
-	.print			= unknown_print,
-	.print_range		= unknown_print_range
 };
