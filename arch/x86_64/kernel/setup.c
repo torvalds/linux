@@ -275,6 +275,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 {
 	char c = ' ', *to = command_line, *from = COMMAND_LINE;
 	int len = 0;
+	int userdef = 0;
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	memcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
@@ -357,6 +358,28 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "mem=", 4))
 			parse_memopt(from+4, &from); 
 
+		if (!memcmp(from, "memmap=", 7)) {
+			/* exactmap option is for used defined memory */
+			if (!memcmp(from+7, "exactmap", 8)) {
+#ifdef CONFIG_CRASH_DUMP
+				/* If we are doing a crash dump, we
+				 * still need to know the real mem
+				 * size before original memory map is
+				 * reset.
+				 */
+				saved_max_pfn = e820_end_of_ram();
+#endif
+				from += 8+7;
+				end_pfn_map = 0;
+				e820.nr_map = 0;
+				userdef = 1;
+			}
+			else {
+				parse_memmapopt(from+7, &from);
+				userdef = 1;
+			}
+		}
+
 #ifdef CONFIG_NUMA
 		if (!memcmp(from, "numa=", 5))
 			numa_setup(from+5); 
@@ -402,6 +425,10 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (COMMAND_LINE_SIZE <= ++len)
 			break;
 		*(to++) = c;
+	}
+	if (userdef) {
+		printk(KERN_INFO "user-defined physical RAM map:\n");
+		e820_print_map("user");
 	}
 	*to = '\0';
 	*cmdline_p = command_line;
