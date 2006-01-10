@@ -86,7 +86,7 @@ static int autofs4_root_readdir(struct file *file, void *dirent,
 
 /* Update usage from here to top of tree, so that scan of
    top-level directories will give a useful result */
-static void autofs4_update_usage(struct dentry *dentry)
+static void autofs4_update_usage(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct dentry *top = dentry->d_sb->s_root;
 
@@ -95,7 +95,7 @@ static void autofs4_update_usage(struct dentry *dentry)
 		struct autofs_info *ino = autofs4_dentry_ino(dentry);
 
 		if (ino) {
-			update_atime(dentry->d_inode);
+			touch_atime(mnt, dentry);
 			ino->last_used = jiffies;
 		}
 	}
@@ -289,10 +289,10 @@ out:
 	return autofs4_dcache_readdir(file, dirent, filldir);
 }
 
-static int try_to_fill_dentry(struct dentry *dentry, 
-			      struct super_block *sb,
-			      struct autofs_sb_info *sbi, int flags)
+static int try_to_fill_dentry(struct vfsmount *mnt, struct dentry *dentry, int flags)
 {
+	struct super_block *sb = mnt->mnt_sb;
+	struct autofs_sb_info *sbi = autofs4_sbi(sb);
 	struct autofs_info *de_info = autofs4_dentry_ino(dentry);
 	int status = 0;
 
@@ -367,7 +367,7 @@ static int try_to_fill_dentry(struct dentry *dentry,
 	/* We don't update the usages for the autofs daemon itself, this
 	   is necessary for recursive autofs mounts */
 	if (!autofs4_oz_mode(sbi))
-		autofs4_update_usage(dentry);
+		autofs4_update_usage(mnt, dentry);
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
@@ -392,7 +392,7 @@ static int autofs4_revalidate(struct dentry * dentry, struct nameidata *nd)
 	/* Pending dentry */
 	if (autofs4_ispending(dentry)) {
 		if (!oz_mode)
-			status = try_to_fill_dentry(dentry, dir->i_sb, sbi, flags);
+			status = try_to_fill_dentry(nd->mnt, dentry, flags);
 		return status;
 	}
 
@@ -409,14 +409,14 @@ static int autofs4_revalidate(struct dentry * dentry, struct nameidata *nd)
 			 dentry, dentry->d_name.len, dentry->d_name.name);
 		spin_unlock(&dcache_lock);
 		if (!oz_mode)
-			status = try_to_fill_dentry(dentry, dir->i_sb, sbi, flags);
+			status = try_to_fill_dentry(nd->mnt, dentry, flags);
 		return status;
 	}
 	spin_unlock(&dcache_lock);
 
 	/* Update the usage list */
 	if (!oz_mode)
-		autofs4_update_usage(dentry);
+		autofs4_update_usage(nd->mnt, dentry);
 
 	return 1;
 }
