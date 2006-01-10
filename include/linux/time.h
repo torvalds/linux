@@ -100,30 +100,25 @@ struct	itimerval {
 	struct	timeval it_value;	/* current value */
 };
 
-
 /*
  * The IDs of the various system clocks (for POSIX.1b interval timers).
  */
-#define CLOCK_REALTIME		 0
-#define CLOCK_MONOTONIC	  	 1
-#define CLOCK_PROCESS_CPUTIME_ID 2
-#define CLOCK_THREAD_CPUTIME_ID	 3
+#define CLOCK_REALTIME			0
+#define CLOCK_MONOTONIC			1
+#define CLOCK_PROCESS_CPUTIME_ID	2
+#define CLOCK_THREAD_CPUTIME_ID		3
 
 /*
  * The IDs of various hardware clocks
  */
-
-
-#define CLOCK_SGI_CYCLE 10
-#define MAX_CLOCKS 16
-#define CLOCKS_MASK  (CLOCK_REALTIME | CLOCK_MONOTONIC)
-#define CLOCKS_MONO (CLOCK_MONOTONIC)
+#define CLOCK_SGI_CYCLE			10
+#define MAX_CLOCKS			16
+#define CLOCKS_MASK			(CLOCK_REALTIME | CLOCK_MONOTONIC)
+#define CLOCKS_MONO			CLOCK_MONOTONIC
 
 /*
  * The various flags for setting POSIX.1b interval timers.
  */
-
-#define TIMER_ABSTIME 0x01
-
+#define TIMER_ABSTIME			0x01
 
 #endif
