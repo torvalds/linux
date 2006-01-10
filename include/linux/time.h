@@ -104,12 +104,10 @@ struct	itimerval {
 /*
  * The IDs of the various system clocks (for POSIX.1b interval timers).
  */
-#define CLOCK_REALTIME		  0
-#define CLOCK_MONOTONIC	  1
+#define CLOCK_REALTIME		 0
+#define CLOCK_MONOTONIC	  	 1
 #define CLOCK_PROCESS_CPUTIME_ID 2
 #define CLOCK_THREAD_CPUTIME_ID	 3
-#define CLOCK_REALTIME_HR	 4
-#define CLOCK_MONOTONIC_HR	  5
 
 /*
  * The IDs of various hardware clocks
@@ -118,9 +116,8 @@ struct	itimerval {
 
 #define CLOCK_SGI_CYCLE 10
 #define MAX_CLOCKS 16
-#define CLOCKS_MASK  (CLOCK_REALTIME | CLOCK_MONOTONIC | \
-                     CLOCK_REALTIME_HR | CLOCK_MONOTONIC_HR)
-#define CLOCKS_MONO (CLOCK_MONOTONIC & CLOCK_MONOTONIC_HR)
+#define CLOCKS_MASK  (CLOCK_REALTIME | CLOCK_MONOTONIC)
+#define CLOCKS_MONO (CLOCK_MONOTONIC)
 
 /*
  * The various flags for setting POSIX.1b interval timers.
