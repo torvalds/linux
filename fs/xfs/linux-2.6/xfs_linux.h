@@ -232,7 +232,7 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 #define xfs_itruncate_data(ip, off)	\
 	(-vmtruncate(LINVFS_GET_IP(XFS_ITOV(ip)), (off)))
 #define xfs_statvfs_fsid(statp, mp)	\
-	({ u64 id = huge_encode_dev((mp)->m_dev);	\
+	({ u64 id = huge_encode_dev((mp)->m_ddev_targp->bt_dev); \
 	   __kernel_fsid_t *fsid = &(statp)->f_fsid;	\
 	(fsid->val[0] = (u32)id, fsid->val[1] = (u32)(id >> 32)); })
 

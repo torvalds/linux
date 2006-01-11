@@ -233,8 +233,8 @@ xfs_read(
 		xfs_buftarg_t	*target =
 			(ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
-		if ((*offset & target->pbr_smask) ||
-		    (size & target->pbr_smask)) {
+		if ((*offset & target->bt_smask) ||
+		    (size & target->bt_smask)) {
 			if (*offset == ip->i_d.di_size) {
 				return (0);
 			}
@@ -618,7 +618,7 @@ xfs_write(
 			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 
-		if ((pos & target->pbr_smask) || (count & target->pbr_smask))
+		if ((pos & target->bt_smask) || (count & target->bt_smask))
 			return XFS_ERROR(-EINVAL);
 
 		if (!VN_CACHED(vp) && pos < i_size_read(inode))
@@ -938,7 +938,7 @@ xfs_bdstrat_cb(struct xfs_buf *bp)
 
 	mp = XFS_BUF_FSPRIVATE3(bp, xfs_mount_t *);
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		pagebuf_iorequest(bp);
+		xfs_buf_iorequest(bp);
 		return 0;
 	} else {
 		xfs_buftrace("XFS__BDSTRAT IOERROR", bp);
@@ -991,7 +991,7 @@ xfsbdstrat(
 		 * if (XFS_BUF_IS_GRIO(bp)) {
 		 */
 
-		pagebuf_iorequest(bp);
+		xfs_buf_iorequest(bp);
 		return 0;
 	}
 

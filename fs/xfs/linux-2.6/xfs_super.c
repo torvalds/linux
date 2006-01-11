@@ -309,7 +309,7 @@ xfs_mountfs_check_barriers(xfs_mount_t *mp)
 		return;
 	}
 
-	if (mp->m_ddev_targp->pbr_bdev->bd_disk->queue->ordered ==
+	if (mp->m_ddev_targp->bt_bdev->bd_disk->queue->ordered ==
 					QUEUE_ORDERED_NONE) {
 		xfs_fs_cmn_err(CE_NOTE, mp,
 		  "Disabling barriers, not supported by the underlying device");
@@ -330,7 +330,7 @@ void
 xfs_blkdev_issue_flush(
 	xfs_buftarg_t		*buftarg)
 {
-	blkdev_issue_flush(buftarg->pbr_bdev, NULL);
+	blkdev_issue_flush(buftarg->bt_bdev, NULL);
 }
 
 STATIC struct inode *
@@ -969,9 +969,9 @@ init_xfs_fs( void )
 	if (error < 0)
 		goto undo_zones;
 
-	error = pagebuf_init();
+	error = xfs_buf_init();
 	if (error < 0)
-		goto undo_pagebuf;
+		goto undo_buffers;
 
 	vn_init();
 	xfs_init();
@@ -985,9 +985,9 @@ init_xfs_fs( void )
 	return 0;
 
 undo_register:
-	pagebuf_terminate();
+	xfs_buf_terminate();
 
-undo_pagebuf:
+undo_buffers:
 	linvfs_destroy_zones();
 
 undo_zones:
@@ -1001,7 +1001,7 @@ exit_xfs_fs( void )
 	XFS_DM_EXIT(&xfs_fs_type);
 	unregister_filesystem(&xfs_fs_type);
 	xfs_cleanup();
-	pagebuf_terminate();
+	xfs_buf_terminate();
 	linvfs_destroy_zones();
 	ktrace_uninit();
 }

@@ -273,7 +273,7 @@ xfs_map_at_offset(
 
 	lock_buffer(bh);
 	bh->b_blocknr = bn;
-	bh->b_bdev = iomapp->iomap_target->pbr_bdev;
+	bh->b_bdev = iomapp->iomap_target->bt_bdev;
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
 }
@@ -982,7 +982,7 @@ __linvfs_get_block(
 	}
 
 	/* If this is a realtime file, data might be on a new device */
-	bh_result->b_bdev = iomap.iomap_target->pbr_bdev;
+	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
 
 	/* If we previously allocated a block out beyond eof and
 	 * we are now coming back to use it then we will need to
@@ -1097,7 +1097,7 @@ linvfs_direct_IO(
 	iocb->private = xfs_alloc_ioend(inode);
 
 	ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
-		iomap.iomap_target->pbr_bdev,
+		iomap.iomap_target->bt_bdev,
 		iov, offset, nr_segs,
 		linvfs_get_blocks_direct,
 		linvfs_end_io_direct);
