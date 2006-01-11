@@ -312,6 +312,8 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_NOUUID;
 	if (ap->flags & XFSMNT_BARRIER)
 		mp->m_flags |= XFS_MOUNT_BARRIER;
+	else
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 
 	return 0;
 }
@@ -654,6 +656,11 @@ xfs_mntupdate(
 		mp->m_flags |= XFS_MOUNT_NOATIME;
 	else
 		mp->m_flags &= ~XFS_MOUNT_NOATIME;
+
+	if (args->flags & XFSMNT_BARRIER)
+		mp->m_flags |= XFS_MOUNT_BARRIER;
+	else
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 
 	if ((vfsp->vfs_flag & VFS_RDONLY) &&
 	    !(*flags & MS_RDONLY)) {
@@ -1634,6 +1641,7 @@ xfs_vget(
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
 #define MNTOPT_BARRIER	"barrier"	/* use writer barriers for log write and
 					 * unwritten extent conversion */
+#define MNTOPT_NOBARRIER "nobarrier"	/* .. disable */
 #define MNTOPT_OSYNCISOSYNC "osyncisosync" /* o_sync is REALLY o_sync */
 #define MNTOPT_64BITINODE   "inode64"	/* inodes can be allocated anywhere */
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
@@ -1681,6 +1689,7 @@ xfs_parseargs(
 
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 	args->flags |= XFSMNT_COMPAT_ATTR;
+	args->flags |= XFSMNT_BARRIER;
 
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
 	args->flags |= XFSMNT_IDELETE; /* default to on */
@@ -1806,6 +1815,8 @@ xfs_parseargs(
 			args->flags |= XFSMNT_NOUUID;
 		} else if (!strcmp(this_char, MNTOPT_BARRIER)) {
 			args->flags |= XFSMNT_BARRIER;
+		} else if (!strcmp(this_char, MNTOPT_NOBARRIER)) {
+			args->flags &= ~XFSMNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
 			args->flags &= ~XFSMNT_IDELETE;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
@@ -1892,7 +1903,6 @@ xfs_showargs(
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
 		{ XFS_MOUNT_NORECOVERY,		"," MNTOPT_NORECOVERY },
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
-		{ XFS_MOUNT_BARRIER,		"," MNTOPT_BARRIER },
 		{ XFS_MOUNT_IDELETE,		"," MNTOPT_NOIKEEP },
 		{ 0, NULL }
 	};
@@ -1940,6 +1950,9 @@ xfs_showargs(
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);
+
+	if (!(vfsp->vfs_flag & XFS_MOUNT_BARRIER))
+		seq_printf(m, "," MNTOPT_NOBARRIER);
 
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
