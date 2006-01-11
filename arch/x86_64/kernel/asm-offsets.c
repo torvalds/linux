@@ -64,5 +64,9 @@ int main(void)
 	DEFINE(pbe_address, offsetof(struct pbe, address));
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));
 	DEFINE(pbe_next, offsetof(struct pbe, next));
+	BLANK();
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+	DEFINE(DEBUG_IST, DEBUG_STACK);
+#endif
 	return 0;
 }

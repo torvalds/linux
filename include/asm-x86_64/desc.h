@@ -114,6 +114,11 @@ static inline void set_system_gate(int nr, void *func)
 	_set_gate(&idt_table[nr], GATE_INTERRUPT, (unsigned long) func, 3, 0); 
 } 
 
+static inline void set_system_gate_ist(int nr, void *func, unsigned ist)
+{
+	_set_gate(&idt_table[nr], GATE_INTERRUPT, (unsigned long) func, 3, ist);
+}
+
 static inline void set_tssldt_descriptor(void *ptr, unsigned long tss, unsigned type, 
 					 unsigned size) 
 { 

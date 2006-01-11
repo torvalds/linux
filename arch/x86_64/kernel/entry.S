@@ -673,7 +673,10 @@ ENTRY(spurious_interrupt)
 
 	/* error code is on the stack already */
 	/* handle NMI like exceptions that can happen everywhere */
-	.macro paranoidentry sym
+#ifndef DEBUG_IST
+# define DEBUG_IST 0
+#endif
+	.macro paranoidentry sym, ist=0
 	SAVE_ALL
 	cld
 	movl $1,%ebx
@@ -683,10 +686,20 @@ ENTRY(spurious_interrupt)
 	js    1f
 	swapgs
 	xorl  %ebx,%ebx
-1:	movq %rsp,%rdi
+1:
+	.if \ist
+	movq	%gs:pda_data_offset, %rbp
+	.endif
+	movq %rsp,%rdi
 	movq ORIG_RAX(%rsp),%rsi
 	movq $-1,ORIG_RAX(%rsp)
+	.if \ist
+	subq	$EXCEPTION_STACK_SIZE, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
+	.endif
 	call \sym
+	.if \ist
+	addq	$EXCEPTION_STACK_SIZE, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
+	.endif
 	cli
 	.endm
 	
@@ -904,7 +917,7 @@ KPROBE_ENTRY(debug)
  	INTR_FRAME
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8		
-	paranoidentry do_debug
+	paranoidentry do_debug, DEBUG_IST
 	jmp paranoid_exit
 	CFI_ENDPROC
 	.previous .text
@@ -959,7 +972,12 @@ paranoid_schedule:
 	CFI_ENDPROC
 
 KPROBE_ENTRY(int3)
-	zeroentry do_int3	
+ 	INTR_FRAME
+ 	pushq $0
+ 	CFI_ADJUST_CFA_OFFSET 8
+ 	paranoidentry do_int3, DEBUG_IST
+ 	jmp paranoid_exit
+ 	CFI_ENDPROC
 	.previous .text
 
 ENTRY(overflow)

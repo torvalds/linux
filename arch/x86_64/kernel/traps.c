@@ -121,19 +121,31 @@ int printk_address(unsigned long address)
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 					unsigned *usedp, const char **idp)
 {
-	static const char ids[N_EXCEPTION_STACKS][8] = {
+	static char ids[][8] = {
 		[DEBUG_STACK - 1] = "#DB",
 		[NMI_STACK - 1] = "NMI",
 		[DOUBLEFAULT_STACK - 1] = "#DF",
 		[STACKFAULT_STACK - 1] = "#SS",
 		[MCE_STACK - 1] = "#MC",
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		[N_EXCEPTION_STACKS ... N_EXCEPTION_STACKS + DEBUG_STKSZ / EXCEPTION_STKSZ - 2] = "#DB[?]"
+#endif
 	};
 	unsigned k;
 
 	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
 		unsigned long end;
 
-		end = per_cpu(init_tss, cpu).ist[k];
+		switch (k + 1) {
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		case DEBUG_STACK:
+			end = cpu_pda[cpu].debugstack + DEBUG_STKSZ;
+			break;
+#endif
+		default:
+			end = per_cpu(init_tss, cpu).ist[k];
+			break;
+		}
 		if (stack >= end)
 			continue;
 		if (stack >= end - EXCEPTION_STKSZ) {
@@ -143,6 +155,22 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			*idp = ids[k];
 			return (unsigned long *)end;
 		}
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		if (k == DEBUG_STACK - 1 && stack >= end - DEBUG_STKSZ) {
+			unsigned j = N_EXCEPTION_STACKS - 1;
+
+			do {
+				++j;
+				end -= EXCEPTION_STKSZ;
+				ids[j][4] = '1' + (j - N_EXCEPTION_STACKS);
+			} while (stack < end - EXCEPTION_STKSZ);
+			if (*usedp & (1U << j))
+				break;
+			*usedp |= 1U << j;
+			*idp = ids[j];
+			return (unsigned long *)end;
+		}
+#endif
 	}
 	return NULL;
 }
@@ -613,6 +641,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		io_check_error(reason, regs);
 }
 
+/* runs on IST stack. */
 asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
@@ -894,7 +923,7 @@ void __init trap_init(void)
 	set_intr_gate(0,&divide_error);
 	set_intr_gate_ist(1,&debug,DEBUG_STACK);
 	set_intr_gate_ist(2,&nmi,NMI_STACK);
-	set_system_gate(3,&int3);
+ 	set_system_gate_ist(3,&int3,DEBUG_STACK); /* int3 can be called from all */
 	set_system_gate(4,&overflow);	/* int4 can be called from all */
 	set_intr_gate(5,&bounds);
 	set_intr_gate(6,&invalid_op);

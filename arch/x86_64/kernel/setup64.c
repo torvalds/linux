@@ -145,7 +145,7 @@ void pda_init(int cpu)
 	pda->irqstackptr += IRQSTACKSIZE-64;
 } 
 
-char boot_exception_stacks[N_EXCEPTION_STACKS * EXCEPTION_STKSZ] 
+char boot_exception_stacks[(N_EXCEPTION_STACKS - 2) * EXCEPTION_STKSZ + DEBUG_STKSZ]
 __attribute__((section(".bss.page_aligned")));
 
 /* May not be marked __init: used by software suspend */
@@ -236,13 +236,27 @@ void __cpuinit cpu_init (void)
 	 */
 	for (v = 0; v < N_EXCEPTION_STACKS; v++) {
 		if (cpu) {
-			estacks = (char *)__get_free_pages(GFP_ATOMIC, 
-						   EXCEPTION_STACK_ORDER);
+			static const unsigned int order[N_EXCEPTION_STACKS] = {
+				[0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
+				[DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+			};
+
+			estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
 			if (!estacks)
 				panic("Cannot allocate exception stack %ld %d\n",
 				      v, cpu); 
 		}
-		estacks += EXCEPTION_STKSZ;
+		switch (v + 1) {
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		case DEBUG_STACK:
+			cpu_pda[cpu].debugstack = (unsigned long)estacks;
+			estacks += DEBUG_STKSZ;
+			break;
+#endif
+		default:
+			estacks += EXCEPTION_STKSZ;
+			break;
+		}
 		t->ist[v] = (unsigned long)estacks;
 	}
 
