@@ -83,7 +83,8 @@
 ** bus number for each dino.
 */
 
-#define is_card_dino(id) ((id)->hw_type == HPHW_A_DMA)
+#define is_card_dino(id)	((id)->hw_type == HPHW_A_DMA)
+#define is_cujo(id)		((id)->hversion == 0x682)
 
 #define DINO_IAR0		0x004
 #define DINO_IODC_ADDR		0x008
@@ -682,7 +683,6 @@ dino_fixup_bus(struct pci_bus *bus)
 			printk(KERN_WARNING "Device %s has unassigned IRQ\n", pci_name(dev));
 #endif
 		} else {
-
 			/* Adjust INT_LINE for that busses region */
 			dino_assign_irq(dino_dev, dev->irq, &dev->irq);
 		}
@@ -888,7 +888,7 @@ static int __init dino_common_init(struct parisc_device *dev,
 
 	/* allocate I/O Port resource region */
 	res = &dino_dev->hba.io_space;
-	if (dev->id.hversion == 0x680 || is_card_dino(&dev->id)) {
+	if (!is_cujo(&dev->id)) {
 		res->name = "Dino I/O Port";
 	} else {
 		res->name = "Cujo I/O Port";
@@ -943,7 +943,7 @@ static int __init dino_probe(struct parisc_device *dev)
 	if (is_card_dino(&dev->id)) {
 		version = "3.x (card mode)";
 	} else {
-		if(dev->id.hversion == 0x680) {
+		if (!is_cujo(&dev->id)) {
 			if (dev->id.hversion_rev < 4) {
 				version = dino_vers[dev->id.hversion_rev];
 			}
