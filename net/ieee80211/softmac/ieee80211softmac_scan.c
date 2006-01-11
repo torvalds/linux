@@ -84,7 +84,6 @@ void ieee80211softmac_scan(void *d)
 
 		if (!invalid_channel) {
 			sm->set_channel(sm->dev, si->channels[current_channel_idx].channel);
-			//TODO: Probe the channel
 			// FIXME make this user configurable (active/passive)
 			if(ieee80211softmac_send_mgt_frame(sm, NULL, IEEE80211_STYPE_PROBE_REQ, 0))
 				printkl(KERN_DEBUG PFX "Sending Probe Request Failed\n");

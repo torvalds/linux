@@ -77,7 +77,7 @@ ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 	spin_unlock_irqrestore(&sm->lock, flags);
 	flush_scheduled_work();
 
-	// now we should be save and no longer need locking...
+	/* now we should be save and no longer need locking... */
 	spin_lock_irqsave(&sm->lock, flags);
 	/* Free all pending auth work items */
 	list_for_each_entry_safe(authptr, authtmp, &sm->auth_queue, list) {
