@@ -624,12 +624,13 @@ xfs_convert_page(
 	int			all_bh)
 {
 	struct buffer_head	*bh, *head;
-	unsigned long		p_offset, end_offset;
+	xfs_off_t		end_offset;
+	unsigned long		p_offset;
 	unsigned int		type;
 	int			bbits = inode->i_blkbits;
 	int			len, page_dirty;
 	int			count = 0, done = 0, uptodate = 1;
- 	xfs_off_t		f_offset = page_offset(page);
+ 	xfs_off_t		offset = page_offset(page);
 
 	if (page->index != tindex)
 		goto fail;
@@ -642,21 +643,33 @@ xfs_convert_page(
 	if (!xfs_is_delayed_page(page, (*ioendp)->io_type))
 		goto fail_unlock_page;
 
-	end_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1));
-
 	/*
 	 * page_dirty is initially a count of buffers on the page before
 	 * EOF and is decrememted as we move each into a cleanable state.
+	 *
+	 * Derivation:
+	 *
+	 * End offset is the highest offset that this page should represent.
+	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
+	 * hence give us the correct page_dirty count. On any other page,
+	 * it will be zero and in that case we need page_dirty to be the
+	 * count of buffers on the page.
 	 */
+	end_offset = min_t(unsigned long long,
+			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
+			i_size_read(inode));
+
 	len = 1 << inode->i_blkbits;
-	end_offset = max(end_offset, PAGE_CACHE_SIZE);
-	end_offset = roundup(end_offset, len);
-	page_dirty = end_offset / len;
+	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+					PAGE_CACHE_SIZE);
+	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
+	page_dirty = p_offset / len;
 
 	p_offset = 0;
 	bh = head = page_buffers(page);
 	do {
-		if (p_offset >= end_offset)
+		if (offset >= end_offset)
 			break;
 		if (!buffer_uptodate(bh))
 			uptodate = 0;
@@ -665,43 +678,45 @@ xfs_convert_page(
 			continue;
 		}
 
-		if (buffer_unwritten(bh))
-			type = IOMAP_UNWRITTEN;
-		else if (buffer_delay(bh))
-			type = IOMAP_DELAY;
-		else {
-			type = 0;
-			if (!(buffer_mapped(bh) && all_bh && startio)) {
+		if (buffer_unwritten(bh) || buffer_delay(bh)) {
+			if (buffer_unwritten(bh))
+				type = IOMAP_UNWRITTEN;
+			else
+				type = IOMAP_DELAY;
+
+			if (!xfs_iomap_valid(mp, offset)) {
 				done = 1;
-			} else if (startio) {
+				continue;
+			}
+
+			ASSERT(!(mp->iomap_flags & IOMAP_HOLE));
+			ASSERT(!(mp->iomap_flags & IOMAP_DELAY));
+
+			xfs_map_at_offset(bh, offset, bbits, mp);
+			if (startio) {
+				xfs_add_to_ioend(inode, bh, p_offset,
+						type, ioendp, done);
+			} else {
+				set_buffer_dirty(bh);
+				unlock_buffer(bh);
+				mark_buffer_dirty(bh);
+			}
+			page_dirty--;
+			count++;
+		} else {
+			type = 0;
+			if (buffer_mapped(bh) && all_bh && startio) {
 				lock_buffer(bh);
 				xfs_add_to_ioend(inode, bh, p_offset,
 						type, ioendp, done);
 				count++;
 				page_dirty--;
+			} else {
+				done = 1;
 			}
-			continue;
 		}
-
-		if (!xfs_iomap_valid(mp, f_offset + p_offset)) {
-			done = 1;
-			continue;
-		}
-		ASSERT(!(mp->iomap_flags & IOMAP_HOLE));
-		ASSERT(!(mp->iomap_flags & IOMAP_DELAY));
-
-		xfs_map_at_offset(bh, f_offset + p_offset, bbits, mp);
-		if (startio) {
-			xfs_add_to_ioend(inode, bh, p_offset,
-					type, ioendp, done);
-			count++;
-		} else {
-			set_buffer_dirty(bh);
-			unlock_buffer(bh);
-			mark_buffer_dirty(bh);
-		}
-		page_dirty--;
-	} while (p_offset += len, (bh = bh->b_this_page) != head);
+	} while (offset += len, p_offset += len,
+		 (bh = bh->b_this_page) != head);
 
 	if (uptodate && bh == head)
 		SetPageUptodate(page);
