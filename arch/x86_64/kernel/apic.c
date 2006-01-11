@@ -53,20 +53,17 @@ static void apic_pm_activate(void);
 
 void enable_NMI_through_LVT0 (void * dummy)
 {
-	unsigned int v, ver;
+	unsigned int v;
 	
-	ver = apic_read(APIC_LVR);
-	ver = GET_APIC_VERSION(ver);
 	v = APIC_DM_NMI;                        /* unmask and set to NMI */
-	apic_write_around(APIC_LVT0, v);
+	apic_write(APIC_LVT0, v);
 }
 
 int get_maxlvt(void)
 {
-	unsigned int v, ver, maxlvt;
+	unsigned int v, maxlvt;
 
 	v = apic_read(APIC_LVR);
-	ver = GET_APIC_VERSION(v);
 	maxlvt = GET_APIC_MAXLVT(v);
 	return maxlvt;
 }
@@ -84,33 +81,33 @@ void clear_local_APIC(void)
 	 */
 	if (maxlvt >= 3) {
 		v = ERROR_APIC_VECTOR; /* any non-zero vector will do */
-		apic_write_around(APIC_LVTERR, v | APIC_LVT_MASKED);
+		apic_write(APIC_LVTERR, v | APIC_LVT_MASKED);
 	}
 	/*
 	 * Careful: we have to set masks only first to deassert
 	 * any level-triggered sources.
 	 */
 	v = apic_read(APIC_LVTT);
-	apic_write_around(APIC_LVTT, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVTT, v | APIC_LVT_MASKED);
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v | APIC_LVT_MASKED);
 	v = apic_read(APIC_LVT1);
-	apic_write_around(APIC_LVT1, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT1, v | APIC_LVT_MASKED);
 	if (maxlvt >= 4) {
 		v = apic_read(APIC_LVTPC);
-		apic_write_around(APIC_LVTPC, v | APIC_LVT_MASKED);
+		apic_write(APIC_LVTPC, v | APIC_LVT_MASKED);
 	}
 
 	/*
 	 * Clean APIC state for other OSs:
 	 */
-	apic_write_around(APIC_LVTT, APIC_LVT_MASKED);
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED);
-	apic_write_around(APIC_LVT1, APIC_LVT_MASKED);
+	apic_write(APIC_LVTT, APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED);
+	apic_write(APIC_LVT1, APIC_LVT_MASKED);
 	if (maxlvt >= 3)
-		apic_write_around(APIC_LVTERR, APIC_LVT_MASKED);
+		apic_write(APIC_LVTERR, APIC_LVT_MASKED);
 	if (maxlvt >= 4)
-		apic_write_around(APIC_LVTPC, APIC_LVT_MASKED);
+		apic_write(APIC_LVTPC, APIC_LVT_MASKED);
 	v = GET_APIC_VERSION(apic_read(APIC_LVR));
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
@@ -155,7 +152,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		value &= ~APIC_VECTOR_MASK;
 		value |= APIC_SPIV_APIC_ENABLED;
 		value |= 0xf;
-		apic_write_around(APIC_SPIV, value);
+		apic_write(APIC_SPIV, value);
 
 		if (!virt_wire_setup) {
 			/* For LVT0 make it edge triggered, active high, external and enabled */
@@ -165,11 +162,11 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED );
 			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
 			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
-			apic_write_around(APIC_LVT0, value);
+			apic_write(APIC_LVT0, value);
 		}
 		else {
 			/* Disable LVT0 */
-			apic_write_around(APIC_LVT0, APIC_LVT_MASKED);
+			apic_write(APIC_LVT0, APIC_LVT_MASKED);
 		}
 
 		/* For LVT1 make it edge triggered, active high, nmi and enabled */
@@ -180,7 +177,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
 		value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
 		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
-		apic_write_around(APIC_LVT1, value);
+		apic_write(APIC_LVT1, value);
 	}
 }
 
@@ -196,7 +193,7 @@ void disable_local_APIC(void)
 	 */
 	value = apic_read(APIC_SPIV);
 	value &= ~APIC_SPIV_APIC_ENABLED;
-	apic_write_around(APIC_SPIV, value);
+	apic_write(APIC_SPIV, value);
 }
 
 /*
@@ -273,7 +270,7 @@ void __init sync_Arb_IDs(void)
 	apic_wait_icr_idle();
 
 	apic_printk(APIC_DEBUG, "Synchronizing Arb IDs.\n");
-	apic_write_around(APIC_ICR, APIC_DEST_ALLINC | APIC_INT_LEVELTRIG
+	apic_write(APIC_ICR, APIC_DEST_ALLINC | APIC_INT_LEVELTRIG
 				| APIC_DM_INIT);
 }
 
@@ -284,7 +281,7 @@ extern void __error_in_apic_c (void);
  */
 void __init init_bsp_APIC(void)
 {
-	unsigned int value, ver;
+	unsigned int value;
 
 	/*
 	 * Don't do the setup now if we have a SMP BIOS as the
@@ -294,7 +291,6 @@ void __init init_bsp_APIC(void)
 		return;
 
 	value = apic_read(APIC_LVR);
-	ver = GET_APIC_VERSION(value);
 
 	/*
 	 * Do not trust the local APIC being empty at bootup.
@@ -309,22 +305,21 @@ void __init init_bsp_APIC(void)
 	value |= APIC_SPIV_APIC_ENABLED;
 	value |= APIC_SPIV_FOCUS_DISABLED;
 	value |= SPURIOUS_APIC_VECTOR;
-	apic_write_around(APIC_SPIV, value);
+	apic_write(APIC_SPIV, value);
 
 	/*
 	 * Set up the virtual wire mode.
 	 */
-	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_DM_EXTINT);
 	value = APIC_DM_NMI;
-	apic_write_around(APIC_LVT1, value);
+	apic_write(APIC_LVT1, value);
 }
 
 void __cpuinit setup_local_APIC (void)
 {
-	unsigned int value, ver, maxlvt;
+	unsigned int value, maxlvt;
 
 	value = apic_read(APIC_LVR);
-	ver = GET_APIC_VERSION(value);
 
 	if ((SPURIOUS_APIC_VECTOR & 0x0f) != 0x0f)
 		__error_in_apic_c();
@@ -349,7 +344,7 @@ void __cpuinit setup_local_APIC (void)
 	 */
 	value = apic_read(APIC_TASKPRI);
 	value &= ~APIC_TPRI_MASK;
-	apic_write_around(APIC_TASKPRI, value);
+	apic_write(APIC_TASKPRI, value);
 
 	/*
 	 * Now that we are all set up, enable the APIC
@@ -391,7 +386,7 @@ void __cpuinit setup_local_APIC (void)
 	 * Set spurious IRQ vector
 	 */
 	value |= SPURIOUS_APIC_VECTOR;
-	apic_write_around(APIC_SPIV, value);
+	apic_write(APIC_SPIV, value);
 
 	/*
 	 * Set up LVT0, LVT1:
@@ -411,7 +406,7 @@ void __cpuinit setup_local_APIC (void)
 		value = APIC_DM_EXTINT | APIC_LVT_MASKED;
 		apic_printk(APIC_VERBOSE, "masked ExtINT on CPU#%d\n", smp_processor_id());
 	}
-	apic_write_around(APIC_LVT0, value);
+	apic_write(APIC_LVT0, value);
 
 	/*
 	 * only the BP should see the LINT1 NMI signal, obviously.
@@ -420,14 +415,14 @@ void __cpuinit setup_local_APIC (void)
 		value = APIC_DM_NMI;
 	else
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
-	apic_write_around(APIC_LVT1, value);
+	apic_write(APIC_LVT1, value);
 
 	{
 		unsigned oldvalue;
 		maxlvt = get_maxlvt();
 		oldvalue = apic_read(APIC_ESR);
 		value = ERROR_APIC_VECTOR;      // enables sending errors
-		apic_write_around(APIC_LVTERR, value);
+		apic_write(APIC_LVTERR, value);
 		/*
 		 * spec says clear errors after enabling vector.
 		 */
@@ -672,17 +667,17 @@ static void __setup_APIC_LVTT(unsigned int clocks)
 	if (cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask))
 		lvtt_value |= APIC_LVT_MASKED;
 
-	apic_write_around(APIC_LVTT, lvtt_value);
+	apic_write(APIC_LVTT, lvtt_value);
 
 	/*
 	 * Divide PICLK by 16
 	 */
 	tmp_value = apic_read(APIC_TDCR);
-	apic_write_around(APIC_TDCR, (tmp_value
+	apic_write(APIC_TDCR, (tmp_value
 				& ~(APIC_TDR_DIV_1 | APIC_TDR_DIV_TMBASE))
 				| APIC_TDR_DIV_16);
 
-	apic_write_around(APIC_TMICT, clocks/APIC_DIVISOR);
+	apic_write(APIC_TMICT, clocks/APIC_DIVISOR);
 }
 
 static void setup_APIC_timer(unsigned int clocks)
@@ -690,12 +685,6 @@ static void setup_APIC_timer(unsigned int clocks)
 	unsigned long flags;
 
 	local_irq_save(flags);
-
-	/* For some reasons this doesn't work on Simics, so fake it for now */ 
-	if (!strstr(boot_cpu_data.x86_model_id, "Screwdriver")) { 
-	__setup_APIC_LVTT(clocks);
-		return;
-	} 
 
 	/* wait for irq slice */
  	if (vxtime.hpet_address) {
@@ -709,7 +698,7 @@ static void setup_APIC_timer(unsigned int clocks)
 		outb_p(0x00, 0x43);
 		c2 = inb_p(0x40);
 		c2 |= inb_p(0x40) << 8;
-	do {
+		do {
 			c1 = c2;
 			outb_p(0x00, 0x43);
 			c2 = inb_p(0x40);
@@ -800,7 +789,7 @@ void disable_APIC_timer(void)
 		unsigned long v;
 
 		v = apic_read(APIC_LVTT);
-		apic_write_around(APIC_LVTT, v | APIC_LVT_MASKED);
+		apic_write(APIC_LVTT, v | APIC_LVT_MASKED);
 	}
 }
 
@@ -813,7 +802,7 @@ void enable_APIC_timer(void)
 		unsigned long v;
 
 		v = apic_read(APIC_LVTT);
-		apic_write_around(APIC_LVTT, v & ~APIC_LVT_MASKED);
+		apic_write(APIC_LVTT, v & ~APIC_LVT_MASKED);
 	}
 }
 
@@ -1066,7 +1055,7 @@ int __init APIC_init_uniprocessor (void)
 	connect_bsp_APIC();
 
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
-	apic_write_around(APIC_ID, SET_APIC_ID(boot_cpu_id));
+	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_id));
 
 	setup_local_APIC();
 

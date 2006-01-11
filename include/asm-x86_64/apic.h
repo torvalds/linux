@@ -52,10 +52,6 @@ static __inline__ void apic_wait_icr_idle(void)
 	while ( apic_read( APIC_ICR ) & APIC_ICR_BUSY );
 }
 
-#define FORCE_READ_AROUND_WRITE 0
-#define apic_read_around(x)
-#define apic_write_around(x,y) apic_write((x),(y))
-
 static inline void ack_APIC_irq(void)
 {
 	/*
@@ -66,7 +62,7 @@ static inline void ack_APIC_irq(void)
 	 */
 
 	/* Docs say use 0 for future compatibility */
-	apic_write_around(APIC_EOI, 0);
+	apic_write(APIC_EOI, 0);
 }
 
 extern int get_maxlvt (void);

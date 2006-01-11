@@ -910,7 +910,7 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	disable_8259A_irq(0);
 
 	/* mask LVT0 */
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 
 	/*
 	 * We use logical delivery to get the timer IRQ
@@ -1635,7 +1635,7 @@ static void enable_lapic_irq (unsigned int irq)
 	unsigned long v;
 
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v & ~APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v & ~APIC_LVT_MASKED);
 }
 
 static void disable_lapic_irq (unsigned int irq)
@@ -1643,7 +1643,7 @@ static void disable_lapic_irq (unsigned int irq)
 	unsigned long v;
 
 	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, v | APIC_LVT_MASKED);
 }
 
 static void ack_lapic_irq (unsigned int irq)
@@ -1769,7 +1769,7 @@ static inline void check_timer(void)
 	 * the 8259A which implies the virtual wire has to be
 	 * disabled in the local APIC.
 	 */
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
 	enable_8259A_irq(0);
 
@@ -1835,21 +1835,21 @@ static inline void check_timer(void)
 
 	disable_8259A_irq(0);
 	irq_desc[0].handler = &lapic_irq_type;
-	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
+	apic_write(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
 	if (timer_irq_works()) {
 		apic_printk(APIC_QUIET, " works.\n");
 		return;
 	}
-	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
+	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
 	apic_printk(APIC_VERBOSE," failed.\n");
 
 	apic_printk(APIC_VERBOSE, KERN_INFO "...trying to set up timer as ExtINT IRQ...");
 
 	init_8259A(0);
 	make_8259A_irq(0);
-	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
+	apic_write(APIC_LVT0, APIC_DM_EXTINT);
 
 	unlock_ExtINT_logic();
 
