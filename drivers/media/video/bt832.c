@@ -75,13 +75,13 @@ int bt832_hexdump(struct i2c_client *i2c_client_s, unsigned char *buf)
 
 	if(debug>1) {
 		int i;
-		v4l_dbg(2,i2c_client_s,"hexdump:");
+		v4l_dbg(2, debug,i2c_client_s,"hexdump:");
 		for(i=1;i<65;i++) {
 			if(i!=1) {
 				if(((i-1)%8)==0) printk(" ");
 				if(((i-1)%16)==0) {
 					printk("\n");
-					v4l_dbg(2,i2c_client_s,"hexdump:");
+					v4l_dbg(2, debug,i2c_client_s,"hexdump:");
 				}
 			}
 			printk(" %02x",buf[i]);

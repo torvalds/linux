@@ -49,9 +49,8 @@
 
 /* These three macros assume that the debug level is set with a module
    parameter called 'debug'. */
-#define v4l_dbg(level, client, fmt, arg...)				     \
+#define v4l_dbg(level, debug, client, fmt, arg...)			     \
 	do { 								     \
-		extern int debug;					     \
 		if (debug >= (level))					     \
 			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
 	} while (0)

@@ -48,12 +48,12 @@ struct msp_matrix {
 #define OPMODE_AUTOSELECT  2   /* use autodetect & autoselect (>= msp34xxG)   */
 
 /* module parameters */
-extern int debug;
-extern int once;
-extern int amsound;
-extern int standard;
-extern int dolby;
-extern int stereo_threshold;
+extern int msp_debug;
+extern int msp_once;
+extern int msp_amsound;
+extern int msp_standard;
+extern int msp_dolby;
+extern int msp_stereo_thresh;
 
 struct msp_state {
 	int rev1, rev2;
