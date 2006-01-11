@@ -53,6 +53,7 @@
 #include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_clnt.h"
+#include "xfs_fsops.h"
 
 STATIC int xfs_sync(bhv_desc_t *, int, cred_t *);
 
@@ -1967,6 +1968,7 @@ xfs_freeze(
 	/* Push the superblock and write an unmount record */
 	xfs_log_unmount_write(mp);
 	xfs_unmountfs_writesb(mp);
+	xfs_fs_log_dummy(mp);
 }
 
 
