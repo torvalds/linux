@@ -2578,7 +2578,6 @@ xfs_link(
 	int			cancel_flags;
 	int			committed;
 	vnode_t			*target_dir_vp;
-	bhv_desc_t		*src_bdp;
 	int			resblks;
 	char			*target_name = VNAME(dentry);
 	int			target_namelen;
@@ -2591,8 +2590,7 @@ xfs_link(
 	if (VN_ISDIR(src_vp))
 		return XFS_ERROR(EPERM);
 
-	src_bdp = vn_bhv_lookup_unlocked(VN_BHV_HEAD(src_vp), &xfs_vnodeops);
-	sip = XFS_BHVTOI(src_bdp);
+	sip = xfs_vtoi(src_vp);
 	tdp = XFS_BHVTOI(target_dir_bdp);
 	mp = tdp->i_mount;
 	if (XFS_FORCED_SHUTDOWN(mp))

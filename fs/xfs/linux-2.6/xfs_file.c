@@ -509,16 +509,14 @@ linvfs_open_exec(
 	vnode_t		*vp = LINVFS_GET_VP(inode);
 	xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
 	int		error = 0;
-	bhv_desc_t	*bdp;
 	xfs_inode_t	*ip;
 
 	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
-		bdp = vn_bhv_lookup(VN_BHV_HEAD(vp), &xfs_vnodeops);
-		if (!bdp) {
+		ip = xfs_vtoi(vp);
+		if (!ip) {
 			error = -EINVAL;
 			goto open_exec_out;
 		}
-		ip = XFS_BHVTOI(bdp);
 		if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ)) {
 			error = -XFS_SEND_DATA(mp, DM_EVENT_READ, vp,
 					       0, 0, 0, NULL);

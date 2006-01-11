@@ -54,7 +54,6 @@ xfs_page_trace(
 	int		mask)
 {
 	xfs_inode_t	*ip;
-	bhv_desc_t	*bdp;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
 	loff_t		isize = i_size_read(inode);
 	loff_t		offset = page_offset(page);
@@ -63,8 +62,7 @@ xfs_page_trace(
 	if (page_has_buffers(page))
 		xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
 
-	bdp = vn_bhv_lookup(VN_BHV_HEAD(vp), &xfs_vnodeops);
-	ip = XFS_BHVTOI(bdp);
+	ip = xfs_vtoi(vp);
 	if (!ip->i_rwtrace)
 		return;
 

@@ -145,13 +145,10 @@ xfs_find_handle(
 
 	if (cmd != XFS_IOC_PATH_TO_FSHANDLE) {
 		xfs_inode_t	*ip;
-		bhv_desc_t	*bhv;
 		int		lock_mode;
 
 		/* need to get access to the xfs_inode to read the generation */
-		bhv = vn_bhv_lookup_unlocked(VN_BHV_HEAD(vp), &xfs_vnodeops);
-		ASSERT(bhv);
-		ip = XFS_BHVTOI(bhv);
+		ip = xfs_vtoi(vp);
 		ASSERT(ip);
 		lock_mode = xfs_ilock_map_shared(ip);
 
