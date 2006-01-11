@@ -1649,14 +1649,13 @@ xfsbufd_wakeup(
 	int			priority,
 	gfp_t			mask)
 {
-	xfs_buftarg_t		*btp, *n;
+	xfs_buftarg_t		*btp;
 
 	spin_lock(&xfs_buftarg_lock);
-	list_for_each_entry_safe(btp, n, &xfs_buftarg_list, bt_list) {
+	list_for_each_entry(btp, &xfs_buftarg_list, bt_list) {
 		if (test_bit(XBT_FORCE_SLEEP, &btp->bt_flags))
 			continue;
 		set_bit(XBT_FORCE_FLUSH, &btp->bt_flags);
-		barrier();
 		wake_up_process(btp->bt_task);
 	}
 	spin_unlock(&xfs_buftarg_lock);
