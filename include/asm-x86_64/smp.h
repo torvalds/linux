@@ -35,6 +35,7 @@ extern cpumask_t cpu_present_mask;
 extern cpumask_t cpu_possible_map;
 extern cpumask_t cpu_online_map;
 extern cpumask_t cpu_callout_map;
+extern cpumask_t cpu_initialized;
 
 /*
  * Private routines/data
