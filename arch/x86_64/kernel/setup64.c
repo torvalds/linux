@@ -223,13 +223,6 @@ void __cpuinit cpu_init (void)
 	asm volatile("lidt %0" :: "m" (idt_descr));
 
 	memcpy(me->thread.tls_array, cpu_gdt_table[cpu], GDT_ENTRY_TLS_ENTRIES * 8);
-
-	/*
-	 * Delete NT
-	 */
-
-	asm volatile("pushfq ; popq %%rax ; btr $14,%%rax ; pushq %%rax ; popfq" ::: "eax");
-
 	syscall_init();
 
 	wrmsrl(MSR_FS_BASE, 0);
