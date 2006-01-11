@@ -2836,6 +2836,29 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
+	[BTTV_BOARD_MACHTV_MAGICTV] = {
+		/* Julian Calaby <julian.calaby@gmail.com>
+		 * Slightly different from original MachTV definition (0x60)
+
+		 * FIXME: RegSpy says gpiomask should be "0x001c800f", but it
+		 * stuffs up remote chip. Bug is a pin on the jaecs is not set
+		 * properly (methinks) causing no keyup bits being set */
+
+		.name           = "MagicTV", /* rebranded MachTV */
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = 2,
+		.gpiomask       = 7,
+		.muxsel         = { 2, 3, 1, 1 },
+		.audiomux       = { 0, 1, 2, 3, 4 },
+		.tuner_type     = TUNER_TEMIC_4009FR5_PAL,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.pll            = PLL_28,
+		.has_radio      = 1,
+		.has_remote     = 1,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
