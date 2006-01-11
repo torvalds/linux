@@ -12,6 +12,7 @@
 
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
+#include <linux/linkage.h>
 
 #include <asm/atomic.h>
 
