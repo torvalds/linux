@@ -1032,7 +1032,8 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 	if (c->x86 == 15)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
-	if (c->x86 >= 15)
+	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
+	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
  	c->x86_max_cores = intel_num_cpu_cores(c);
 
@@ -1273,7 +1274,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"tm",
 		"stc"
 		"?",
-		"constant_tsc",
+		/* nothing */	/* constant_tsc - moved to flags */
 	};
 
 
