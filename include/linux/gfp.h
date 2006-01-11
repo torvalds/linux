@@ -110,6 +110,10 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 	if (unlikely(order >= MAX_ORDER))
 		return NULL;
 
+	/* Unknown node is current node */
+	if (nid < 0)
+		nid = numa_node_id();
+
 	return __alloc_pages(gfp_mask, order,
 		NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_mask));
 }
