@@ -744,6 +744,13 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	};
 	DECLARE_WORK(work, do_fork_idle, &c_idle);
 
+	/* allocate memory for gdts of secondary cpus. Hotplug is considered */
+	if (!cpu_gdt_descr[cpu].address &&
+		!(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
+		printk(KERN_ERR "Failed to allocate GDT for CPU %d\n", cpu);
+		return -1;
+	}
+
 	c_idle.idle = get_idle_for_cpu(cpu);
 
 	if (c_idle.idle) {

@@ -213,16 +213,14 @@ void __cpuinit cpu_init (void)
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	if (cpu) {
-		memcpy(cpu_gdt_table[cpu], cpu_gdt_table[0], GDT_SIZE);
-	}	
+	if (cpu)
+ 		memcpy(cpu_gdt(cpu), cpu_gdt_table, GDT_SIZE);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE;
-	cpu_gdt_descr[cpu].address = (unsigned long)cpu_gdt_table[cpu];
 	asm volatile("lgdt %0" :: "m" (cpu_gdt_descr[cpu]));
 	asm volatile("lidt %0" :: "m" (idt_descr));
 
-	memcpy(me->thread.tls_array, cpu_gdt_table[cpu], GDT_ENTRY_TLS_ENTRIES * 8);
+	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
 	syscall_init();
 
 	wrmsrl(MSR_FS_BASE, 0);

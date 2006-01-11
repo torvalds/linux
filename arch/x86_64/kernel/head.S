@@ -379,7 +379,7 @@ gdt:
  * Also sysret mandates a special GDT layout 
  */
 		 		
-.align L1_CACHE_BYTES
+.align PAGE_SIZE
 
 /* The TLS descriptors are currently at a different place compared to i386.
    Hopefully nobody expects them at a fixed place (Wine?) */
@@ -401,10 +401,11 @@ ENTRY(cpu_gdt_table)
 gdt_end:	
 	/* asm/segment.h:GDT_ENTRIES must match this */	
 	/* This should be a multiple of the cache line size */
-	/* GDTs of other CPUs: */	
-	.fill (GDT_SIZE * NR_CPUS) - (gdt_end - cpu_gdt_table)
+	/* GDTs of other CPUs are now dynamically allocated */
 
-	.align  L1_CACHE_BYTES
+	/* zero the remaining page */
+	.fill PAGE_SIZE / 8 - GDT_ENTRIES,8,0
+
 ENTRY(idt_table)	
 	.rept   256
 	.quad   0
