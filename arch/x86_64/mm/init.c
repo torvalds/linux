@@ -255,14 +255,26 @@ static void __init phys_pud_init(pud_t *pud, unsigned long address, unsigned lon
 
 static void __init find_early_table_space(unsigned long end)
 {
-	unsigned long puds, pmds, tables;
+	unsigned long puds, pmds, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables = round_up(puds * sizeof(pud_t), PAGE_SIZE) +
 		 round_up(pmds * sizeof(pmd_t), PAGE_SIZE);
 
-	table_start = find_e820_area(0x8000, __pa_symbol(&_text), tables);
+	/* Put page tables beyond the DMA zones if possible.
+	   RED-PEN might be better to spread them out more over
+	   memory to avoid hotspots */
+	if (end > MAX_DMA32_PFN<<PAGE_SHIFT)
+		start = MAX_DMA32_PFN << PAGE_SHIFT;
+	else if (end > MAX_DMA_PFN << PAGE_SHIFT)
+		start = MAX_DMA_PFN << PAGE_SHIFT;
+	else
+		start = 0x8000;
+
+	table_start = find_e820_area(start, end, tables);
+	if (table_start == -1)
+		table_start = find_e820_area(0x8000, end, tables);
 	if (table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
