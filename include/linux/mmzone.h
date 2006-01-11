@@ -98,7 +98,7 @@ struct per_cpu_pageset {
 
 /*
  * On machines where it is needed (eg PCs) we divide physical memory
- * into multiple physical zones. On a PC we have 4 zones:
+ * into multiple physical zones. On a 32bit PC we have 4 zones:
  *
  * ZONE_DMA	  < 16 MB	ISA DMA capable memory
  * ZONE_DMA32	     0 MB 	Empty
