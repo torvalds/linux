@@ -243,10 +243,6 @@ static int __init mode_tt_setup(char *line, int *add)
 	return(0);
 }
 
-#else
-
-#error Either CONFIG_MODE_TT or CONFIG_MODE_SKAS must be enabled
-
 #endif
 #endif
 #endif
