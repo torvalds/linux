@@ -1298,6 +1298,10 @@ long do_fork(unsigned long clone_flags,
 	return pid;
 }
 
+#ifndef ARCH_MIN_MMSTRUCT_ALIGN
+#define ARCH_MIN_MMSTRUCT_ALIGN 0
+#endif
+
 void __init proc_caches_init(void)
 {
 	sighand_cachep = kmem_cache_create("sighand_cache",
@@ -1316,6 +1320,6 @@ void __init proc_caches_init(void)
 			sizeof(struct vm_area_struct), 0,
 			SLAB_PANIC, NULL, NULL);
 	mm_cachep = kmem_cache_create("mm_struct",
-			sizeof(struct mm_struct), 0,
+			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 }
