@@ -931,7 +931,8 @@ restart:
 	 *
 	 * The caller may dip into page reserves a bit more if the caller
 	 * cannot run direct reclaim, or if the caller has realtime scheduling
-	 * policy.
+	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
 	 */
 	alloc_flags = ALLOC_WMARK_MIN;
 	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
