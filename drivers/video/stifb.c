@@ -73,13 +73,8 @@
 #include "sticore.h"
 
 /* REGION_BASE(fb_info, index) returns the virtual address for region <index> */
-#ifdef __LP64__
-  #define REGION_BASE(fb_info, index) \
-	(fb_info->sti->glob_cfg->region_ptrs[index] | 0xffffffff00000000)
-#else
-  #define REGION_BASE(fb_info, index) \
-	fb_info->sti->glob_cfg->region_ptrs[index]
-#endif
+#define REGION_BASE(fb_info, index) \
+	F_EXTEND(fb_info->sti->glob_cfg->region_ptrs[index])
 
 #define NGLEDEVDEPROM_CRT_REGION 1
 
@@ -1250,12 +1245,10 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		memset(&fb->ngle_rom, 0, sizeof(fb->ngle_rom));
 		if ((fb->sti->regions_phys[0] & 0xfc000000) ==
 		    (fb->sti->regions_phys[2] & 0xfc000000))
-			sti_rom_address = fb->sti->regions_phys[0];
+			sti_rom_address = F_EXTEND(fb->sti->regions_phys[0]);
 		else
-			sti_rom_address = fb->sti->regions_phys[1];
-#ifdef __LP64__
-	        sti_rom_address |= 0xffffffff00000000;
-#endif
+			sti_rom_address = F_EXTEND(fb->sti->regions_phys[1]);
+
 		fb->deviceSpecificConfig = gsc_readl(sti_rom_address);
 		if (IS_24_DEVICE(fb)) {
 			if (bpp_pref == 8 || bpp_pref == 32)
