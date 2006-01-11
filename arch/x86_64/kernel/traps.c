@@ -345,7 +345,7 @@ void handle_BUG(struct pt_regs *regs)
 
 	if (user_mode(regs))
 		return; 
-	if (__copy_from_user(&f, (struct bug_frame *) regs->rip, 
+	if (__copy_from_user(&f, (const void __user *) regs->rip,
 			     sizeof(struct bug_frame)))
 		return; 
 	if (f.filename >= 0 ||
