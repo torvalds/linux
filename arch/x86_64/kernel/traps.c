@@ -70,7 +70,6 @@ asmlinkage void reserved(void);
 asmlinkage void alignment_check(void);
 asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
-asmlinkage void call_debug(void);
 
 struct notifier_block *die_chain;
 static DEFINE_SPINLOCK(die_notifier_lock);
@@ -139,7 +138,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 		switch (k + 1) {
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		case DEBUG_STACK:
-			end = cpu_pda[cpu].debugstack + DEBUG_STKSZ;
+			end = cpu_pda(cpu)->debugstack + DEBUG_STKSZ;
 			break;
 #endif
 		default:
@@ -186,7 +185,7 @@ void show_trace(unsigned long *stack)
 {
 	unsigned long addr;
 	const unsigned cpu = safe_smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *)cpu_pda[cpu].irqstackptr;
+	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	int i;
 	unsigned used = 0;
 
@@ -254,8 +253,8 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 	unsigned long *stack;
 	int i;
 	const int cpu = safe_smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *) (cpu_pda[cpu].irqstackptr);
-	unsigned long *irqstack = (unsigned long *) (cpu_pda[cpu].irqstackptr - IRQSTACKSIZE);    
+	unsigned long *irqstack_end = (unsigned long *) (cpu_pda(cpu)->irqstackptr);
+	unsigned long *irqstack = (unsigned long *) (cpu_pda(cpu)->irqstackptr - IRQSTACKSIZE);
 
 	// debugging aid: "show_stack(NULL, NULL);" prints the
 	// back trace for this cpu.
@@ -303,7 +302,7 @@ void show_registers(struct pt_regs *regs)
 	int in_kernel = !user_mode(regs);
 	unsigned long rsp;
 	const int cpu = safe_smp_processor_id(); 
-	struct task_struct *cur = cpu_pda[cpu].pcurrent; 
+	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
 
 		rsp = regs->rsp;
 

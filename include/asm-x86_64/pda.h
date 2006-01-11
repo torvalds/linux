@@ -27,7 +27,9 @@ struct x8664_pda {
 	unsigned apic_timer_irqs;
 } ____cacheline_aligned_in_smp;
 
-extern struct x8664_pda cpu_pda[];
+extern struct x8664_pda _cpu_pda[];
+
+#define cpu_pda(i) (&_cpu_pda[i])
 
 /* 
  * There is no fast way to get the base address of the PDA, all the accesses

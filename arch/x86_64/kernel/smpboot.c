@@ -792,7 +792,7 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 
 do_rest:
 
-	cpu_pda[cpu].pcurrent = c_idle.idle;
+	cpu_pda(cpu)->pcurrent = c_idle.idle;
 
 	start_rip = setup_trampoline();
 

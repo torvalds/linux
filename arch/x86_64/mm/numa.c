@@ -272,7 +272,7 @@ __cpuinit void numa_add_cpu(int cpu)
 
 void __cpuinit numa_set_node(int cpu, int node)
 {
-	cpu_pda[cpu].nodenumber = node;
+	cpu_pda(cpu)->nodenumber = node;
 	cpu_to_node[cpu] = node;
 }
 

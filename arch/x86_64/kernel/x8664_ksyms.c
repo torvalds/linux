@@ -96,7 +96,7 @@ EXPORT_SYMBOL(pci_mem_start);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
-EXPORT_SYMBOL(cpu_pda);
+EXPORT_SYMBOL(_cpu_pda);
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(cpu_data);
 EXPORT_SYMBOL(__write_lock_failed);

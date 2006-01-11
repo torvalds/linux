@@ -30,7 +30,7 @@ char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
-struct x8664_pda cpu_pda[NR_CPUS] __cacheline_aligned; 
+struct x8664_pda _cpu_pda[NR_CPUS] __cacheline_aligned;
 
 struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
 
@@ -110,18 +110,18 @@ void __init setup_per_cpu_areas(void)
 		}
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);
-		cpu_pda[i].data_offset = ptr - __per_cpu_start;
+		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
 } 
 
 void pda_init(int cpu)
 { 
-	struct x8664_pda *pda = &cpu_pda[cpu];
+	struct x8664_pda *pda = cpu_pda(cpu);
 
 	/* Setup up data that may be needed in __get_free_pages early */
 	asm volatile("movl %0,%%fs ; movl %0,%%gs" :: "r" (0)); 
-	wrmsrl(MSR_GS_BASE, cpu_pda + cpu);
+	wrmsrl(MSR_GS_BASE, pda);
 
 	pda->cpunumber = cpu; 
 	pda->irqcount = -1;

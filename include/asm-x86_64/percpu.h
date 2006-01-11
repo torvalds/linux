@@ -11,7 +11,7 @@
 
 #include <asm/pda.h>
 
-#define __per_cpu_offset(cpu) (cpu_pda[cpu].data_offset)
+#define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
 #define __my_cpu_offset() read_pda(data_offset)
 
 /* Separate out the type, so (int[3], foo) works. */
