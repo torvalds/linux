@@ -953,7 +953,7 @@ void __init time_init(void)
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
  */
-static __init int unsynchronized_tsc(void)
+__init int unsynchronized_tsc(void)
 {
 #ifdef CONFIG_SMP
 	if (oem_force_hpet_timer())
@@ -964,7 +964,7 @@ static __init int unsynchronized_tsc(void)
  		return 0;
 #endif
  	/* Assume multi socket systems are not synchronized */
- 	return num_online_cpus() > 1;
+ 	return num_present_cpus() > 1;
 }
 
 /*

@@ -89,6 +89,8 @@ extern void check_efer(void);
 
 extern int unhandled_signal(struct task_struct *tsk, int sig);
 
+extern int unsynchronized_tsc(void);
+
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 extern void gart_parse_options(char *);

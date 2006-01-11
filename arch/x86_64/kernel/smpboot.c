@@ -335,7 +335,13 @@ static __cpuinit void sync_tsc(unsigned int master)
 
 static void __cpuinit tsc_sync_wait(void)
 {
-	if (notscsync || !cpu_has_tsc)
+	/*
+	 * When the CPU has synchronized TSCs assume the BIOS
+  	 * or the hardware already synced.  Otherwise we could
+	 * mess up a possible perfect synchronization with a
+	 * not-quite-perfect algorithm.
+	 */
+	if (notscsync || !cpu_has_tsc || !unsynchronized_tsc())
 		return;
 	sync_tsc(0);
 }
