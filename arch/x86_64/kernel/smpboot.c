@@ -646,6 +646,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
 	} while (send_status && (timeout++ < 1000));
 
+	mb();
 	atomic_set(&init_deasserted, 1);
 
 	num_starts = 2;
