@@ -541,24 +541,6 @@ xfs_setattr(
 		}
 
 		/*
-		 * Can't set extent size unless the file is marked, or
-		 * about to be marked as a realtime file.
-		 *
-		 * This check will be removed when fixed size extents
-		 * with buffered data writes is implemented.
-		 *
-		 */
-		if ((mask & XFS_AT_EXTSIZE)			&&
-		    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) !=
-		     vap->va_extsize) &&
-		    (!((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ||
-		       ((mask & XFS_AT_XFLAGS) &&
-			(vap->va_xflags & XFS_XFLAG_REALTIME))))) {
-			code = XFS_ERROR(EINVAL);
-			goto error_return;
-		}
-
-		/*
 		 * Can't change realtime flag if any extents are allocated.
 		 */
 		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
@@ -820,13 +802,17 @@ xfs_setattr(
 					di_flags |= XFS_DIFLAG_RTINHERIT;
 				if (vap->va_xflags & XFS_XFLAG_NOSYMLINKS)
 					di_flags |= XFS_DIFLAG_NOSYMLINKS;
-			} else {
+				if (vap->va_xflags & XFS_XFLAG_EXTSZINHERIT)
+					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
+			} else if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
 				if (vap->va_xflags & XFS_XFLAG_REALTIME) {
 					di_flags |= XFS_DIFLAG_REALTIME;
 					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
 				} else {
 					ip->i_iocore.io_flags &= ~XFS_IOCORE_RT;
 				}
+				if (vap->va_xflags & XFS_XFLAG_EXTSIZE)
+					di_flags |= XFS_DIFLAG_EXTSIZE;
 			}
 			ip->i_d.di_flags = di_flags;
 		}
@@ -1568,7 +1554,8 @@ xfs_release(
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
 		     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0)) &&
 		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
-		    (!(ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC|XFS_DIFLAG_APPEND)))) {
+		    (!(ip->i_d.di_flags &
+				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
 			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
 				return (error);
 			/* Update linux inode block count after free above */
@@ -1644,9 +1631,10 @@ xfs_inactive(
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
 		     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0)) &&
-		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
-		    (!(ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC|XFS_DIFLAG_APPEND)) ||
-		     (ip->i_delayed_blks != 0))) {
+		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
+		     (!(ip->i_d.di_flags &
+				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||
+		      (ip->i_delayed_blks != 0)))) {
 			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
 				return (VN_INACTIVE_CACHE);
 			/* Update linux inode block count after free above */
@@ -3998,42 +3986,36 @@ xfs_alloc_file_space(
 	int			alloc_type,
 	int			attr_flags)
 {
+	xfs_mount_t		*mp = ip->i_mount;
+	xfs_off_t		count;
 	xfs_filblks_t		allocated_fsb;
 	xfs_filblks_t		allocatesize_fsb;
-	int			committed;
-	xfs_off_t		count;
-	xfs_filblks_t		datablocks;
-	int			error;
-	xfs_fsblock_t		firstfsb;
-	xfs_bmap_free_t		free_list;
-	xfs_bmbt_irec_t		*imapp;
-	xfs_bmbt_irec_t		imaps[1];
-	xfs_mount_t		*mp;
-	int			numrtextents;
-	int			reccount;
-	uint			resblks;
-	int			rt;
-	int			rtextsize;
+	xfs_extlen_t		extsz, temp;
 	xfs_fileoff_t		startoffset_fsb;
+	xfs_fsblock_t		firstfsb;
+	int			nimaps;
+	int			bmapi_flag;
+	int			quota_flag;
+	int			rt;
 	xfs_trans_t		*tp;
-	int			xfs_bmapi_flags;
+	xfs_bmbt_irec_t		imaps[1], *imapp;
+	xfs_bmap_free_t		free_list;
+	uint			qblocks, resblks, resrtextents;
+	int			committed;
+	int			error;
 
 	vn_trace_entry(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
-	mp = ip->i_mount;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	/*
-	 * determine if this is a realtime file
-	 */
-	if ((rt = XFS_IS_REALTIME_INODE(ip)) != 0) {
-		if (ip->i_d.di_extsize)
-			rtextsize = ip->i_d.di_extsize;
-		else
-			rtextsize = mp->m_sb.sb_rextsize;
-	} else
-		rtextsize = 0;
+	rt = XFS_IS_REALTIME_INODE(ip);
+	if (unlikely(rt)) {
+		if (!(extsz = ip->i_d.di_extsize))
+			extsz = mp->m_sb.sb_rextsize;
+	} else {
+		extsz = ip->i_d.di_extsize;
+	}
 
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
 		return error;
@@ -4044,8 +4026,8 @@ xfs_alloc_file_space(
 	count = len;
 	error = 0;
 	imapp = &imaps[0];
-	reccount = 1;
-	xfs_bmapi_flags = XFS_BMAPI_WRITE | (alloc_type ? XFS_BMAPI_PREALLOC : 0);
+	nimaps = 1;
+	bmapi_flag = XFS_BMAPI_WRITE | (alloc_type ? XFS_BMAPI_PREALLOC : 0);
 	startoffset_fsb	= XFS_B_TO_FSBT(mp, offset);
 	allocatesize_fsb = XFS_B_TO_FSB(mp, count);
 
@@ -4066,43 +4048,51 @@ xfs_alloc_file_space(
 	}
 
 	/*
-	 * allocate file space until done or until there is an error
+	 * Allocate file space until done or until there is an error
 	 */
 retry:
 	while (allocatesize_fsb && !error) {
-		/*
-		 * determine if reserving space on
-		 * the data or realtime partition.
-		 */
-		if (rt) {
-			xfs_fileoff_t s, e;
+		xfs_fileoff_t	s, e;
 
+		/*
+		 * Determine space reservations for data/realtime,
+		 */
+		if (unlikely(extsz)) {
 			s = startoffset_fsb;
-			do_div(s, rtextsize);
-			s *= rtextsize;
-			e = roundup_64(startoffset_fsb + allocatesize_fsb,
-				rtextsize);
-			numrtextents = (int)(e - s) / mp->m_sb.sb_rextsize;
-			datablocks = 0;
+			do_div(s, extsz);
+			s *= extsz;
+			e = startoffset_fsb + allocatesize_fsb;
+			if ((temp = do_mod(startoffset_fsb, extsz)))
+				e += temp;
+			if ((temp = do_mod(e, extsz)))
+				e += extsz - temp;
 		} else {
-			datablocks = allocatesize_fsb;
-			numrtextents = 0;
+			s = 0;
+			e = allocatesize_fsb;
+		}
+
+		if (unlikely(rt)) {
+			resrtextents = qblocks = (uint)(e - s);
+			resrtextents /= mp->m_sb.sb_rextsize;
+			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+			quota_flag = XFS_QMOPT_RES_RTBLKS;
+		} else {
+			resrtextents = 0;
+			resblks = qblocks = \
+				XFS_DIOSTRAT_SPACE_RES(mp, (uint)(e - s));
+			quota_flag = XFS_QMOPT_RES_REGBLKS;
 		}
 
 		/*
-		 * allocate and setup the transaction
+		 * Allocate and setup the transaction.
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-		resblks = XFS_DIOSTRAT_SPACE_RES(mp, datablocks);
-		error = xfs_trans_reserve(tp,
-					  resblks,
-					  XFS_WRITE_LOG_RES(mp),
-					  numrtextents,
+		error = xfs_trans_reserve(tp, resblks,
+					  XFS_WRITE_LOG_RES(mp), resrtextents,
 					  XFS_TRANS_PERM_LOG_RES,
 					  XFS_WRITE_LOG_COUNT);
-
 		/*
-		 * check for running out of space
+		 * Check for running out of space
 		 */
 		if (error) {
 			/*
@@ -4113,8 +4103,8 @@ retry:
 			break;
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = XFS_TRANS_RESERVE_QUOTA(mp, tp,
-				ip->i_udquot, ip->i_gdquot, resblks, 0, 0);
+		error = XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip,
+						      qblocks, 0, quota_flag);
 		if (error)
 			goto error1;
 
@@ -4122,19 +4112,19 @@ retry:
 		xfs_trans_ihold(tp, ip);
 
 		/*
-		 * issue the bmapi() call to allocate the blocks
+		 * Issue the xfs_bmapi() call to allocate the blocks
 		 */
 		XFS_BMAP_INIT(&free_list, &firstfsb);
 		error = xfs_bmapi(tp, ip, startoffset_fsb,
-				  allocatesize_fsb, xfs_bmapi_flags,
-				  &firstfsb, 0, imapp, &reccount,
+				  allocatesize_fsb, bmapi_flag,
+				  &firstfsb, 0, imapp, &nimaps,
 				  &free_list);
 		if (error) {
 			goto error0;
 		}
 
 		/*
-		 * complete the transaction
+		 * Complete the transaction
 		 */
 		error = xfs_bmap_finish(&tp, &free_list, firstfsb, &committed);
 		if (error) {
@@ -4149,7 +4139,7 @@ retry:
 
 		allocated_fsb = imapp->br_blockcount;
 
-		if (reccount == 0) {
+		if (nimaps == 0) {
 			error = XFS_ERROR(ENOSPC);
 			break;
 		}
@@ -4172,9 +4162,11 @@ dmapi_enospc_check:
 
 	return error;
 
- error0:
+error0:	/* Cancel bmap, unlock inode, unreserve quota blocks, cancel trans */
 	xfs_bmap_cancel(&free_list);
- error1:
+	XFS_TRANS_UNRESERVE_QUOTA_NBLKS(mp, tp, ip, qblocks, 0, quota_flag);
+
+error1:	/* Just cancel transaction */
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	goto dmapi_enospc_check;
@@ -4419,8 +4411,8 @@ xfs_free_file_space(
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = XFS_TRANS_RESERVE_QUOTA(mp, tp,
-				ip->i_udquot, ip->i_gdquot, resblks, 0, rt ?
-				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+				ip->i_udquot, ip->i_gdquot, resblks, 0,
+				XFS_QMOPT_RES_REGBLKS);
 		if (error)
 			goto error1;
 

@@ -809,6 +809,10 @@ _xfs_dic2xflags(
 			flags |= XFS_XFLAG_PROJINHERIT;
 		if (di_flags & XFS_DIFLAG_NOSYMLINKS)
 			flags |= XFS_XFLAG_NOSYMLINKS;
+		if (di_flags & XFS_DIFLAG_EXTSIZE)
+			flags |= XFS_XFLAG_EXTSIZE;
+		if (di_flags & XFS_DIFLAG_EXTSZINHERIT)
+			flags |= XFS_XFLAG_EXTSZINHERIT;
 	}
 
 	return flags;
@@ -1192,10 +1196,18 @@ xfs_ialloc(
 			if ((mode & S_IFMT) == S_IFDIR) {
 				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_RTINHERIT;
-			} else {
+				if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
+					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
+					ip->i_d.di_extsize = pip->i_d.di_extsize;
+				}
+			} else if ((mode & S_IFMT) == S_IFREG) {
 				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
 					di_flags |= XFS_DIFLAG_REALTIME;
 					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
+				}
+				if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
+					di_flags |= XFS_DIFLAG_EXTSIZE;
+					ip->i_d.di_extsize = pip->i_d.di_extsize;
 				}
 			}
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOATIME) &&
@@ -1262,7 +1274,7 @@ xfs_isize_check(
 	if ((ip->i_d.di_mode & S_IFMT) != S_IFREG)
 		return;
 
-	if ( ip->i_d.di_flags & XFS_DIFLAG_REALTIME )
+	if (ip->i_d.di_flags & (XFS_DIFLAG_REALTIME | XFS_DIFLAG_EXTSIZE))
 		return;
 
 	nimaps = 2;

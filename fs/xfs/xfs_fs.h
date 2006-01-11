@@ -65,6 +65,8 @@ struct fsxattr {
 #define XFS_XFLAG_RTINHERIT	0x00000100	/* create with rt bit set */
 #define XFS_XFLAG_PROJINHERIT	0x00000200	/* create with parents projid */
 #define XFS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
+#define XFS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
+#define XFS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
 #define XFS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
 
 /*
