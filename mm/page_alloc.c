@@ -137,9 +137,9 @@ static inline int bad_range(struct zone *zone, struct page *page)
 static void bad_page(struct page *page)
 {
 	printk(KERN_EMERG "Bad page state in process '%s'\n"
-		"page:%p flags:0x%0*lx mapping:%p mapcount:%d count:%d\n"
-		"Trying to fix it up, but a reboot is needed\n"
-		"Backtrace:\n",
+		KERN_EMERG "page:%p flags:0x%0*lx mapping:%p mapcount:%d count:%d\n"
+		KERN_EMERG "Trying to fix it up, but a reboot is needed\n"
+		KERN_EMERG "Backtrace:\n",
 		current->comm, page, (int)(2*sizeof(unsigned long)),
 		(unsigned long)page->flags, page->mapping,
 		page_mapcount(page), page_count(page));
