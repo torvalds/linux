@@ -474,12 +474,6 @@ static unsigned long __init build_iSeries_Memory_Map(void)
 			chunk_to_addr(hptFirstChunk), hptSizeChunks * 256);
 
 	/*
-	 * The actual hashed page table is in the hypervisor,
-	 * we have no direct access
-	 */
-	htab_address = NULL;
-
-	/*
 	 * Determine if absolute memory has any
 	 * holes so that we can interpret the
 	 * access map we get back from the hypervisor
