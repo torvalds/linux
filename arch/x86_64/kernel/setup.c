@@ -713,6 +713,8 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_init();
 #endif
 
+	init_cpu_to_node();
+
 #ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * get boot-time SMP configuration:

@@ -330,6 +330,31 @@ __init int numa_setup(char *opt)
 	return 1;
 } 
 
+/*
+ * Setup early cpu_to_node.
+ *
+ * Populate cpu_to_node[] only if x86_cpu_to_apicid[],
+ * and apicid_to_node[] tables have valid entries for a CPU.
+ * This means we skip cpu_to_node[] initialisation for NUMA
+ * emulation and faking node case (when running a kernel compiled
+ * for NUMA on a non NUMA box), which is OK as cpu_to_node[]
+ * is already initialized in a round robin manner at numa_init_array,
+ * prior to this call, and this initialization is good enough
+ * for the fake NUMA cases.
+ */
+void __init init_cpu_to_node(void)
+{
+	int i;
+ 	for (i = 0; i < NR_CPUS; i++) {
+		u8 apicid = x86_cpu_to_apicid[i];
+		if (apicid == BAD_APICID)
+			continue;
+		if (apicid_to_node[apicid] == NUMA_NO_NODE)
+			continue;
+ 		cpu_to_node[i] = apicid_to_node[apicid];
+	}
+}
+
 EXPORT_SYMBOL(cpu_to_node);
 EXPORT_SYMBOL(node_to_cpumask);
 EXPORT_SYMBOL(memnode_shift);
