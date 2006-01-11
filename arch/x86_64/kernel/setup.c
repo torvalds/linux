@@ -351,7 +351,9 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "noapic", 6)) 
 			skip_ioapic_setup = 1;
 
-		if (!memcmp(from, "apic", 4)) { 
+		/* Make sure to not confuse with apic= */
+		if (!memcmp(from, "apic", 4) &&
+			(from[4] == ' ' || from[4] == 0)) {
 			skip_ioapic_setup = 0;
 			ioapic_force = 1;
 		}
