@@ -92,10 +92,6 @@ void __init apic_intr_init(void)
 /* Using APIC to generate smp_local_timer_interrupt? */
 int using_apic_timer = 0;
 
-static DEFINE_PER_CPU(int, prof_multiplier) = 1;
-static DEFINE_PER_CPU(int, prof_old_multiplier) = 1;
-static DEFINE_PER_CPU(int, prof_counter) = 1;
-
 static int enabled_via_apicbase;
 
 void enable_NMI_through_LVT0 (void * dummy)
@@ -1092,34 +1088,6 @@ void enable_APIC_timer(void)
 	}
 }
 
-/*
- * the frequency of the profiling timer can be changed
- * by writing a multiplier value into /proc/profile.
- */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	int i;
-
-	/*
-	 * Sanity check. [at least 500 APIC cycles should be
-	 * between APIC interrupts as a rule of thumb, to avoid
-	 * irqs flooding us]
-	 */
-	if ( (!multiplier) || (calibration_result/multiplier < 500))
-		return -EINVAL;
-
-	/* 
-	 * Set the new multiplier for each CPU. CPUs don't start using the
-	 * new values until the next timer interrupt in which they do process
-	 * accounting. At that time they also adjust their APIC timers
-	 * accordingly.
-	 */
-	for (i = 0; i < NR_CPUS; ++i)
-		per_cpu(prof_multiplier, i) = multiplier;
-
-	return 0;
-}
-
 #undef APIC_DIVISOR
 
 /*
@@ -1134,32 +1102,10 @@ int setup_profiling_timer(unsigned int multiplier)
 
 inline void smp_local_timer_interrupt(struct pt_regs * regs)
 {
-	int cpu = smp_processor_id();
-
 	profile_tick(CPU_PROFILING, regs);
-	if (--per_cpu(prof_counter, cpu) <= 0) {
-		/*
-		 * The multiplier may have changed since the last time we got
-		 * to this point as a result of the user writing to
-		 * /proc/profile. In this case we need to adjust the APIC
-		 * timer accordingly.
-		 *
-		 * Interrupts are already masked off at this point.
-		 */
-		per_cpu(prof_counter, cpu) = per_cpu(prof_multiplier, cpu);
-		if (per_cpu(prof_counter, cpu) !=
-					per_cpu(prof_old_multiplier, cpu)) {
-			__setup_APIC_LVTT(
-					calibration_result/
-					per_cpu(prof_counter, cpu));
-			per_cpu(prof_old_multiplier, cpu) =
-						per_cpu(prof_counter, cpu);
-		}
-
 #ifdef CONFIG_SMP
-		update_process_times(user_mode_vm(regs));
+	update_process_times(user_mode_vm(regs));
 #endif
-	}
 
 	/*
 	 * We take the 'long' return path, and there every subsystem
@@ -1204,6 +1150,11 @@ fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
 	irq_enter();
 	smp_local_timer_interrupt(regs);
 	irq_exit();
+}
+
+int setup_profiling_timer(unsigned int multiplier)
+{
+	return -EINVAL;
 }
 
 /*
