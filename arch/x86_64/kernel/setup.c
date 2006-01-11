@@ -910,6 +910,10 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	} 
 	display_cacheinfo(c);
 
+	/* c->x86_power is 8000_0007 edx. Bit 8 is constant TSC */
+	if (c->x86_power & (1<<8))
+		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+
 	if (c->extended_cpuid_level >= 0x80000008) {
 		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
 		if (c->x86_max_cores & (c->x86_max_cores - 1))
@@ -1268,6 +1272,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"ttp",  /* thermal trip */
 		"tm",
 		"stc"
+		"?",
+		"constant_tsc",
 	};
 
 
