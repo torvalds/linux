@@ -41,7 +41,7 @@ struct proc_dir_entry *proc_vmcore = NULL;
 
 /* Reads a page from the oldmem device from given offset. */
 static ssize_t read_from_oldmem(char *buf, size_t count,
-			     loff_t *ppos, int userbuf)
+				u64 *ppos, int userbuf)
 {
 	unsigned long pfn, offset;
 	size_t nr_bytes;
