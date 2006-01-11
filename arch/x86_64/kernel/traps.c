@@ -489,7 +489,23 @@ DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 DO_ERROR(18, SIGSEGV, "reserved", reserved)
 DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
-DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
+
+asmlinkage void do_double_fault(struct pt_regs * regs, long error_code)
+{
+	static const char str[] = "double fault";
+	struct task_struct *tsk = current;
+
+	/* Return not checked because double check cannot be ignored */
+	notify_die(DIE_TRAP, str, regs, error_code, 8, SIGSEGV);
+
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 8;
+
+	/* This is always a kernel trap and never fixable (and thus must
+	   never return). */
+	for (;;)
+		die(str, regs, error_code);
+}
 
 asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 						long error_code)
