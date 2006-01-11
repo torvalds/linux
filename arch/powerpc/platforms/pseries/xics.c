@@ -381,7 +381,7 @@ int xics_get_irq(struct pt_regs *regs)
 
 #ifdef CONFIG_SMP
 
-irqreturn_t xics_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t xics_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 

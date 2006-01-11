@@ -86,7 +86,7 @@ static void pseries_dedicated_idle(void);
 
 struct mpic *pSeries_mpic;
 
-void pSeries_show_cpuinfo(struct seq_file *m)
+static void pSeries_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
