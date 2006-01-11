@@ -222,10 +222,15 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
 {
 	unsigned long flags = oops_begin();
+	struct task_struct *tsk;
 
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
 	       current->comm, address);
 	dump_pagetable(address);
+	tsk = current;
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
 	__die("Bad pagetable", regs, error_code);
 	oops_end(flags);
 	do_exit(SIGKILL);
@@ -521,6 +526,9 @@ no_context:
 	printk_address(regs->rip);
 	printk("\n");
 	dump_pagetable(address);
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
 	__die("Oops", regs, error_code);
 	/* Executive summary in case the body of the oops scrolled away */
 	printk(KERN_EMERG "CR2: %016lx\n", address);

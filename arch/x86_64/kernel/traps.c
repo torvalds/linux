@@ -382,7 +382,7 @@ void __die(const char * str, struct pt_regs * regs, long err)
 	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
-	notify_die(DIE_OOPS, (char *)str, regs, err, 255, SIGSEGV);
+	notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV);
 	show_registers(regs);
 	/* Executive summary in case the oops scrolled away */
 	printk(KERN_ALERT "RIP ");
@@ -421,19 +421,20 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 			      struct pt_regs * regs, long error_code,
 			      siginfo_t *info)
 {
+	struct task_struct *tsk = current;
+
 	conditional_sti(regs);
 
-	if (user_mode(regs)) {
-		struct task_struct *tsk = current;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = trapnr;
 
+	if (user_mode(regs)) {
 		if (exception_trace && unhandled_signal(tsk, signr))
 			printk(KERN_INFO
 			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid, str,
 			       regs->rip,regs->rsp,error_code); 
 
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = trapnr;
 		if (info)
 			force_sig_info(signr, info, tsk);
 		else
@@ -493,19 +494,20 @@ DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
 asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 						long error_code)
 {
+	struct task_struct *tsk = current;
+
 	conditional_sti(regs);
 
-	if (user_mode(regs)) {
-		struct task_struct *tsk = current;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 13;
 
+	if (user_mode(regs)) {
 		if (exception_trace && unhandled_signal(tsk, SIGSEGV))
 			printk(KERN_INFO
 		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid,
 			       regs->rip,regs->rsp,error_code); 
 
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = 13;
 		force_sig(SIGSEGV, tsk);
 		return;
 	} 
@@ -568,7 +570,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		reason = get_nmi_reason();
 
 	if (!(reason & 0xc0)) {
-		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 0, SIGINT)
+		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 2, SIGINT)
 								== NOTIFY_STOP)
 			return;
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -584,7 +586,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		unknown_nmi_error(reason, regs);
 		return;
 	}
-	if (notify_die(DIE_NMI, "nmi", regs, reason, 0, SIGINT) == NOTIFY_STOP)
+	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
 		return; 
 
 	/* AK: following checks seem to be broken on modern chipsets. FIXME */
@@ -693,7 +695,7 @@ clear_TF_reenable:
 	regs->eflags &= ~TF_MASK;
 }
 
-static int kernel_math_error(struct pt_regs *regs, char *str)
+static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
 {
 	const struct exception_table_entry *fixup;
 	fixup = search_exception_tables(regs->rip);
@@ -701,8 +703,9 @@ static int kernel_math_error(struct pt_regs *regs, char *str)
 		regs->rip = fixup->fixup;
 		return 1;
 	}
-	notify_die(DIE_GPF, str, regs, 0, 16, SIGFPE);
+	notify_die(DIE_GPF, str, regs, 0, trapnr, SIGFPE);
 	/* Illegal floating point operation in the kernel */
+	current->thread.trap_no = trapnr;
 	die(str, regs, 0);
 	return 0;
 }
@@ -721,7 +724,7 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 
 	conditional_sti(regs);
 	if (!user_mode(regs) &&
-	    kernel_math_error(regs, "kernel x87 math error"))
+	    kernel_math_error(regs, "kernel x87 math error", 16))
 		return;
 
 	/*
@@ -790,7 +793,7 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 
 	conditional_sti(regs);
 	if (!user_mode(regs) &&
-        	kernel_math_error(regs, "kernel simd math error"))
+        	kernel_math_error(regs, "kernel simd math error", 19))
 		return;
 
 	/*

@@ -169,7 +169,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	int panicm_found = 0;
 
 	if (regs)
-		notify_die(DIE_NMI, "machine check", regs, error_code, 255, SIGKILL);
+		notify_die(DIE_NMI, "machine check", regs, error_code, 18, SIGKILL);
 	if (!banks)
 		return;
 
