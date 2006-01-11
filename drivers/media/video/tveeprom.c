@@ -719,8 +719,7 @@ tveeprom_command(struct i2c_client *client,
 
 	switch (cmd) {
 	case 0:
-		buf = kmalloc(256,GFP_KERNEL);
-		memset(buf,0,256);
+		buf = kzalloc(256,GFP_KERNEL);
 		tveeprom_read(client,buf,256);
 		tveeprom_hauppauge_analog(client, &eeprom,buf);
 		kfree(buf);
@@ -743,10 +742,9 @@ tveeprom_detect_client(struct i2c_adapter *adapter,
 {
 	struct i2c_client *client;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (NULL == client)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_tveeprom;

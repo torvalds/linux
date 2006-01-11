@@ -1024,13 +1024,12 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	if (down_interruptible (&frontend_mutex))
 		return -ERESTARTSYS;
 
-	fe->frontend_priv = kmalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
+	fe->frontend_priv = kzalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
 	if (fe->frontend_priv == NULL) {
 		up(&frontend_mutex);
 		return -ENOMEM;
 	}
 	fepriv = fe->frontend_priv;
-	memset(fe->frontend_priv, 0, sizeof(struct dvb_frontend_private));
 
 	init_MUTEX (&fepriv->sem);
 	init_waitqueue_head (&fepriv->wait_queue);

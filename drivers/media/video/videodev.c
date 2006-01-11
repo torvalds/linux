@@ -52,10 +52,7 @@ struct video_device *video_device_alloc(void)
 {
 	struct video_device *vfd;
 
-	vfd = kmalloc(sizeof(*vfd),GFP_KERNEL);
-	if (NULL == vfd)
-		return NULL;
-	memset(vfd,0,sizeof(*vfd));
+	vfd = kzalloc(sizeof(*vfd),GFP_KERNEL);
 	return vfd;
 }
 

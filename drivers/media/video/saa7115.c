@@ -1249,10 +1249,9 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7115;
@@ -1272,13 +1271,12 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	}
 	v4l_info(client, "saa711%d found @ 0x%x (%s)\n", chip_id, address << 1, adapter->name);
 
-	state = kmalloc(sizeof(struct saa7115_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct saa7115_state), GFP_KERNEL);
 	i2c_set_clientdata(client, state);
 	if (state == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(state, 0, sizeof(struct saa7115_state));
 	state->std = V4L2_STD_NTSC;
 	state->input = -1;
 	state->enable = 1;

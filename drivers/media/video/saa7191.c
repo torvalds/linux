@@ -571,17 +571,14 @@ static int saa7191_attach(struct i2c_adapter *adap, int addr, int kind)
 	printk(KERN_INFO "Philips SAA7191 driver version %s\n",
 	       SAA7191_MODULE_VERSION);
 
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return -ENOMEM;
-	decoder = kmalloc(sizeof(*decoder), GFP_KERNEL);
+	decoder = kzalloc(sizeof(*decoder), GFP_KERNEL);
 	if (!decoder) {
 		err = -ENOMEM;
 		goto out_free_client;
 	}
-
-	memset(client, 0, sizeof(struct i2c_client));
-	memset(decoder, 0, sizeof(struct saa7191));
 
 	client->addr = addr;
 	client->adapter = adap;

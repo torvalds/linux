@@ -52,10 +52,9 @@ videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	struct page *pg;
 	int i;
 
-	sglist = kmalloc(sizeof(struct scatterlist)*nr_pages, GFP_KERNEL);
+	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
-	memset(sglist,0,sizeof(struct scatterlist)*nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
@@ -80,10 +79,9 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 
 	if (NULL == pages[0])
 		return NULL;
-	sglist = kmalloc(sizeof(*sglist) * nr_pages, GFP_KERNEL);
+	sglist = kcalloc(nr_pages, sizeof(*sglist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
-	memset(sglist, 0, sizeof(*sglist) * nr_pages);
 
 	if (NULL == pages[0])
 		goto nopage;
@@ -284,9 +282,8 @@ void* videobuf_alloc(unsigned int size)
 {
 	struct videobuf_buffer *vb;
 
-	vb = kmalloc(size,GFP_KERNEL);
+	vb = kzalloc(size,GFP_KERNEL);
 	if (NULL != vb) {
-		memset(vb,0,size);
 		videobuf_dma_init(&vb->dma);
 		init_waitqueue_head(&vb->done);
 		vb->magic     = MAGIC_BUFFER;

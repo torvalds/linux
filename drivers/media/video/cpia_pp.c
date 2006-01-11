@@ -702,12 +702,11 @@ static int cpia_pp_register(struct parport *port)
 		return -ENXIO;
 	}
 
-	cam = kmalloc(sizeof(struct pp_cam_entry), GFP_KERNEL);
+	cam = kzalloc(sizeof(struct pp_cam_entry), GFP_KERNEL);
 	if (cam == NULL) {
 		LOG("failed to allocate camera structure\n");
 		return -ENOMEM;
 	}
-	memset(cam,0,sizeof(struct pp_cam_entry));
 	
 	pdev = parport_register_device(port, "cpia_pp", NULL, NULL,
 	                               NULL, 0, cam);

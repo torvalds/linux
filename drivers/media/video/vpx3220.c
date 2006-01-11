@@ -621,12 +621,10 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 	    (adapter, I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == NULL) {
 		return -ENOMEM;
 	}
-
-	memset(client, 0, sizeof(struct i2c_client));
 
 	client->addr = address;
 	client->adapter = adapter;
@@ -675,12 +673,11 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 			sizeof(I2C_NAME(client)));
 	}
 
-	decoder = kmalloc(sizeof(struct vpx3220), GFP_KERNEL);
+	decoder = kzalloc(sizeof(struct vpx3220), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(decoder, 0, sizeof(struct vpx3220));
 	decoder->norm = VIDEO_MODE_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;

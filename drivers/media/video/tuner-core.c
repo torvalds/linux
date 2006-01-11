@@ -410,10 +410,9 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	client_template.adapter = adap;
 	client_template.addr = addr;
 
-	t = kmalloc(sizeof(struct tuner), GFP_KERNEL);
+	t = kzalloc(sizeof(struct tuner), GFP_KERNEL);
 	if (NULL == t)
 		return -ENOMEM;
-	memset(t, 0, sizeof(struct tuner));
 	memcpy(&t->i2c, &client_template, sizeof(struct i2c_client));
 	i2c_set_clientdata(&t->i2c, t);
 	t->type = UNSET;

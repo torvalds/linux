@@ -316,12 +316,11 @@ static int ovcamchip_attach(struct i2c_adapter *adap)
 	c->adapter = adap;
 	strcpy(c->name, "OV????");
 
-	ov = kmalloc(sizeof *ov, GFP_KERNEL);
+	ov = kzalloc(sizeof *ov, GFP_KERNEL);
 	if (!ov) {
 		rc = -ENOMEM;
 		goto no_ov;
 	}
-	memset(ov, 0, sizeof *ov);
 	i2c_set_clientdata(c, ov);
 
 	rc = ovcamchip_detect(c);

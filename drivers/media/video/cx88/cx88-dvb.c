@@ -657,10 +657,9 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 		goto fail_core;
 
 	err = -ENOMEM;
-	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
 		goto fail_core;
-	memset(dev,0,sizeof(*dev));
 	dev->pci = pci_dev;
 	dev->core = core;
 

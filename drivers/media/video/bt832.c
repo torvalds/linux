@@ -167,9 +167,8 @@ static int bt832_attach(struct i2c_adapter *adap, int addr, int kind)
 	client_template.adapter = adap;
 	client_template.addr    = addr;
 
-	if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
+	if (NULL == (t = kzalloc(sizeof(*t), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(t,0,sizeof(*t));
 	t->client = client_template;
 	i2c_set_clientdata(&t->client, t);
 	i2c_attach_client(&t->client);

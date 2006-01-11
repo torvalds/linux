@@ -689,11 +689,10 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
 
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7127;
@@ -712,7 +711,7 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 		kfree(client);
 		return 0;
 	}
-	state = kmalloc(sizeof(struct saa7127_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct saa7127_state), GFP_KERNEL);
 
 	if (state == NULL) {
 		kfree(client);
@@ -720,7 +719,6 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	i2c_set_clientdata(client, state);
-	memset(state, 0, sizeof(struct saa7127_state));
 
 	/* Configure Encoder */
 

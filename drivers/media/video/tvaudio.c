@@ -1468,10 +1468,9 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct CHIPSTATE *chip;
 	struct CHIPDESC  *desc;
 
-	chip = kmalloc(sizeof(*chip),GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip),GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
-	memset(chip,0,sizeof(*chip));
 	memcpy(&chip->c,&client_template,sizeof(struct i2c_client));
 	chip->c.adapter = adap;
 	chip->c.addr = addr;

@@ -782,10 +782,9 @@ struct dvb_frontend* bcm3510_attach(const struct bcm3510_config *config,
 	bcm3510_register_value v;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct bcm3510_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct bcm3510_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
-	memset(state,0,sizeof(struct bcm3510_state));
 
 	/* setup the state */
 

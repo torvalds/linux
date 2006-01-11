@@ -300,10 +300,9 @@ static int tda7432_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct tda7432 *t;
 	struct i2c_client *client;
 
-	t = kmalloc(sizeof *t,GFP_KERNEL);
+	t = kzalloc(sizeof *t,GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
-	memset(t,0,sizeof *t);
 
 	client = &t->c;
 	memcpy(client,&client_template,sizeof(struct i2c_client));

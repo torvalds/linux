@@ -1027,10 +1027,8 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dprintk(2, "dev: %p\n", dev);
 
-	if (!(budget_av = kmalloc(sizeof(struct budget_av), GFP_KERNEL)))
+	if (!(budget_av = kzalloc(sizeof(struct budget_av), GFP_KERNEL)))
 		return -ENOMEM;
-
-	memset(budget_av, 0, sizeof(struct budget_av));
 
 	budget_av->has_saa7113 = 0;
 	budget_av->budget.ci_present = 0;

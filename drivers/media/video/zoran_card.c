@@ -1050,7 +1050,7 @@ zr36057_init (struct zoran *zr)
 	/* allocate memory *before* doing anything to the hardware
 	 * in case allocation fails */
 	mem_needed = BUZ_NUM_STAT_COM * 4;
-	mem = (unsigned long) kmalloc(mem_needed, GFP_KERNEL);
+	mem = kzalloc(mem_needed, GFP_KERNEL);
 	vdev = (void *) kmalloc(sizeof(struct video_device), GFP_KERNEL);
 	if (!mem || !vdev) {
 		dprintk(1,
@@ -1061,7 +1061,6 @@ zr36057_init (struct zoran *zr)
 		kfree((void *)mem);
 		return -ENOMEM;
 	}
-	memset((void *) mem, 0, mem_needed);
 	zr->stat_com = (u32 *) mem;
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
 		zr->stat_com[j] = 1;	/* mark as unavailable to zr36057 */

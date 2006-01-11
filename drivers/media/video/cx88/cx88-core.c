@@ -1050,11 +1050,10 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 		up(&devlist);
 		return core;
 	}
-	core = kmalloc(sizeof(*core),GFP_KERNEL);
+	core = kzalloc(sizeof(*core),GFP_KERNEL);
 	if (NULL == core)
 		goto fail_unlock;
 
-	memset(core,0,sizeof(*core));
 	atomic_inc(&core->refcount);
 	core->pci_bus  = pci->bus->number;
 	core->pci_slot = PCI_SLOT(pci->devfn);

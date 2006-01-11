@@ -1861,12 +1861,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		em28xx_err(DRIVER_NAME ": out of memory!\n");
 		return -ENOMEM;
 	}
-	memset(dev, 0, sizeof(*dev));
 
 	/* compute alternate max packet sizes */
 	uif = udev->actconfig->interface[0];

@@ -714,10 +714,9 @@ struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 	u8 buf[1];
 
 	/* Allocate memory for the internal state */
-	state = (struct lgdt330x_state*) kmalloc(sizeof(struct lgdt330x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct lgdt330x_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
-	memset(state,0,sizeof(*state));
 
 	/* Setup the state */
 	state->config = config;

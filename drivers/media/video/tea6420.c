@@ -99,11 +99,10 @@ static int tea6420_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* allocate memory for client structure */
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (0 == client) {
 		return -ENOMEM;
 	}
-	memset(client, 0x0, sizeof(struct i2c_client));
 
 	/* fill client structure */
 	memcpy(client, &client_template, sizeof(struct i2c_client));

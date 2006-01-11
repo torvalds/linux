@@ -1264,10 +1264,9 @@ static int video_open(struct inode *inode, struct file *file)
 		v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
-	memset(fh,0,sizeof(*fh));
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;

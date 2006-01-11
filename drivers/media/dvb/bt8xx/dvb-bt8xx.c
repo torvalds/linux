@@ -786,10 +786,9 @@ static int dvb_bt8xx_probe(struct device *dev)
 	struct pci_dev* bttv_pci_dev;
 	int ret;
 
-	if (!(card = kmalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
+	if (!(card = kzalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
 		return -ENOMEM;
 
-	memset(card, 0, sizeof(*card));
 	init_MUTEX(&card->lock);
 	card->bttv_nr = sub->core->nr;
 	strncpy(card->card_name, sub->core->name, sizeof(sub->core->name));

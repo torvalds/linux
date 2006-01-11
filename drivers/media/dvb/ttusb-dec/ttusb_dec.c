@@ -1606,14 +1606,12 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 
 	udev = interface_to_usbdev(intf);
 
-	if (!(dec = kmalloc(sizeof(struct ttusb_dec), GFP_KERNEL))) {
+	if (!(dec = kzalloc(sizeof(struct ttusb_dec), GFP_KERNEL))) {
 		printk("%s: couldn't allocate memory.\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
 	usb_set_intfdata(intf, (void *)dec);
-
-	memset(dec, 0, sizeof(struct ttusb_dec));
 
 	switch (le16_to_cpu(id->idProduct)) {
 	case 0x1006:

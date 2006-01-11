@@ -511,9 +511,8 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct saa6752hs_state *h;
 
 
-	if (NULL == (h = kmalloc(sizeof(*h), GFP_KERNEL)))
+	if (NULL == (h = kzalloc(sizeof(*h), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(h,0,sizeof(*h));
 	h->client = client_template;
 	h->params = param_defaults;
 	h->client.adapter = adap;

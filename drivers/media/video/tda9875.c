@@ -232,10 +232,9 @@ static int tda9875_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct i2c_client *client;
 	dprintk("In tda9875_attach\n");
 
-	t = kmalloc(sizeof *t,GFP_KERNEL);
+	t = kzalloc(sizeof *t,GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
-	memset(t,0,sizeof *t);
 
 	client = &t->c;
 	memcpy(client,&client_template,sizeof(struct i2c_client));

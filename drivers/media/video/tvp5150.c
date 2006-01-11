@@ -1074,12 +1074,11 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 		return -ENOMEM;
 	memcpy(c, &client_template, sizeof(struct i2c_client));
 
-	core = kmalloc(sizeof(struct tvp5150), GFP_KERNEL);
+	core = kzalloc(sizeof(struct tvp5150), GFP_KERNEL);
 	if (core == 0) {
 		kfree(c);
 		return -ENOMEM;
 	}
-	memset(core, 0, sizeof(struct tvp5150));
 	i2c_set_clientdata(c, core);
 
 	rv = i2c_attach_client(c);
