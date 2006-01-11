@@ -224,7 +224,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		return;
 	if (!enable)
 		mutex_debug_check_no_locks_freed(page_address(page),
-						 page_address(page+numpages));
+						 numpages * PAGE_SIZE);
 
 	/* the return value is ignored - the calls cannot fail,
 	 * large pages are disabled at boot time.

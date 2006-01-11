@@ -333,9 +333,10 @@ void mutex_debug_check_no_locks_held(struct task_struct *task)
  * is destroyed or reinitialized - this code checks whether there is
  * any held lock in the memory range of <from> to <to>:
  */
-void mutex_debug_check_no_locks_freed(const void *from, const void *to)
+void mutex_debug_check_no_locks_freed(const void *from, unsigned long len)
 {
 	struct list_head *curr, *next;
+	const void *to = from + len;
 	unsigned long flags;
 	struct mutex *lock;
 	void *lock_addr;
@@ -437,7 +438,7 @@ void debug_mutex_init(struct mutex *lock, const char *name)
 	/*
 	 * Make sure we are not reinitializing a held lock:
 	 */
-	mutex_debug_check_no_locks_freed((void *)lock, (void *)(lock + 1));
+	mutex_debug_check_no_locks_freed((void *)lock, sizeof(*lock));
 	lock->owner = NULL;
 	INIT_LIST_HEAD(&lock->held_list);
 	lock->name = name;
