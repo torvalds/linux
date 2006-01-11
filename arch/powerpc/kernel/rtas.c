@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 
 #include <asm/prom.h>

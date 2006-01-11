@@ -55,6 +55,7 @@
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 #include <linux/binfmts.h>
+#include <linux/capability.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/ptrace.h>

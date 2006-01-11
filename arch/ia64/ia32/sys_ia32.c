@@ -48,6 +48,7 @@
 #include <linux/ptrace.h>
 #include <linux/stat.h>
 #include <linux/ipc.h>
+#include <linux/capability.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/mman.h>

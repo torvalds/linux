@@ -38,6 +38,7 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/rcupdate.h>
 
 #include <asm/errno.h>

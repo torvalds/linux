@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 
 #include <asm/rtc.h>

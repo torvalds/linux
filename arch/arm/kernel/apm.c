@@ -18,6 +18,7 @@
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
 #include <linux/apm_bios.h>
+#include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/device.h>

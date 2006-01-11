@@ -219,6 +219,7 @@
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/pm_legacy.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>

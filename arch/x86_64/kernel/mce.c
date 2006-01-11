@@ -15,6 +15,7 @@
 #include <linux/sysdev.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
+#include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/ctype.h>

@@ -9,6 +9,7 @@
  */
 #include <linux/config.h>
 #include <linux/a.out.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/mm.h>

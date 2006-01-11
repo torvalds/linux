@@ -70,6 +70,7 @@
  */
 
 //#define DEBUG /* pr_debug */
+#include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>

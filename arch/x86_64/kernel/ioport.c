@@ -7,6 +7,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/ioport.h>

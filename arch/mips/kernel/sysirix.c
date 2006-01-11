@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/binfmts.h>
+#include <linux/capability.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
 #include <linux/mm.h>
