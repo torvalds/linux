@@ -110,10 +110,6 @@
  * delalloc and these ondisk-uninitialised buffers.
  */
 BUFFER_FNS(PrivateStart, unwritten);
-static inline void set_buffer_unwritten_io(struct buffer_head *bh)
-{
-	bh->b_end_io = linvfs_unwritten_done;
-}
 
 #define restricted_chown	xfs_params.restrict_chown.val
 #define irix_sgid_inherit	xfs_params.sgid_inherit.val
