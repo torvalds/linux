@@ -1066,7 +1066,7 @@ int __init APIC_init_uniprocessor (void)
 	connect_bsp_APIC();
 
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
-	apic_write_around(APIC_ID, boot_cpu_id);
+	apic_write_around(APIC_ID, SET_APIC_ID(boot_cpu_id));
 
 	setup_local_APIC();
 
