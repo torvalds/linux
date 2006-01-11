@@ -1,7 +1,7 @@
 /*
  * net/tipc/dbg.c: TIPC print buffer routines for debuggign
  * 
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 1996-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
  *

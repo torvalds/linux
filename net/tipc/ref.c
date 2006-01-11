@@ -1,7 +1,7 @@
 /*
  * net/tipc/ref.c: TIPC object registry code
  * 
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 1991-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
  * All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*
  * net/tipc/net.c: TIPC network routing code
  * 
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 1995-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*
  * net/tipc/core.h: Include file for TIPC global declarations
  * 
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 2005-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*
  * net/tipc/zone.c: TIPC zone management routines
  * 
- * Copyright (c) 2003-2006, Ericsson AB
+ * Copyright (c) 2000-2006, Ericsson AB
  * Copyright (c) 2005, Wind River Systems
  * All rights reserved.
  *
