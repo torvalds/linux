@@ -66,8 +66,7 @@ static force_inline void do_vgettimeofday(struct timeval * tv)
 			(__jiffies - __wall_jiffies) * (1000000 / HZ);
 
 		if (__vxtime.mode != VXTIME_HPET) {
-			sync_core();
-			rdtscll(t);
+			t = get_cycles_sync();
 			if (t < __vxtime.last_tsc)
 				t = __vxtime.last_tsc;
 			usec += ((t - __vxtime.last_tsc) *

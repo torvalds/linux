@@ -71,14 +71,6 @@ unsigned long __wall_jiffies __section_wall_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
 
-static inline void rdtscll_sync(unsigned long *tsc)
-{
-#ifdef CONFIG_SMP
-	sync_core();
-#endif
-	rdtscll(*tsc);
-}
-
 /*
  * do_gettimeoffset() returns microseconds since last timer interrupt was
  * triggered by hardware. A memory read of HPET is slower than a register read
@@ -93,7 +85,7 @@ static inline unsigned int do_gettimeoffset_tsc(void)
 {
 	unsigned long t;
 	unsigned long x;
-	rdtscll_sync(&t);
+	t = get_cycles_sync();
 	if (t < vxtime.last_tsc) t = vxtime.last_tsc; /* hack */
 	x = ((t - vxtime.last_tsc) * vxtime.tsc_quot) >> 32;
 	return x;
@@ -309,8 +301,7 @@ unsigned long long monotonic_clock(void)
 			last_offset = vxtime.last_tsc;
 			base = monotonic_base;
 		} while (read_seqretry(&xtime_lock, seq));
-		sync_core();
-		rdtscll(this_offset);
+		this_offset = get_cycles_sync();
 		offset = (this_offset - last_offset)*1000/cpu_khz; 
 		return base + offset;
 	}
@@ -391,7 +382,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		delay = LATCH - 1 - delay;
 	}
 
-	rdtscll_sync(&tsc);
+	tsc = get_cycles_sync();
 
 	if (vxtime.mode == VXTIME_HPET) {
 		if (offset - vxtime.last > hpet_tick) {
@@ -700,8 +691,7 @@ static unsigned int __init hpet_calibrate_tsc(void)
 	do {
 		local_irq_disable();
 		hpet_now = hpet_readl(HPET_COUNTER);
-		sync_core();
-		rdtscl(tsc_now);
+		tsc_now = get_cycles_sync();
 		local_irq_restore(flags);
 	} while ((tsc_now - tsc_start) < TICK_COUNT &&
 		 (hpet_now - hpet_start) < TICK_COUNT);
@@ -731,11 +721,9 @@ static unsigned int __init pit_calibrate_tsc(void)
 	outb(0xb0, 0x43);
 	outb((PIT_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
 	outb((PIT_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	rdtscll(start);
-	sync_core();
+	start = get_cycles_sync();
 	while ((inb(0x61) & 0x20) == 0);
-	sync_core();
-	rdtscll(end);
+	end = get_cycles_sync();
 
 	spin_unlock_irqrestore(&i8253_lock, flags);
 	
@@ -939,7 +927,7 @@ void __init time_init(void)
 	vxtime.mode = VXTIME_TSC;
 	vxtime.quot = (1000000L << 32) / vxtime_hz;
 	vxtime.tsc_quot = (1000L << 32) / cpu_khz;
-	rdtscll_sync(&vxtime.last_tsc);
+	vxtime.last_tsc = get_cycles_sync();
 	setup_irq(0, &irq0);
 
 	set_cyc2ns_scale(cpu_khz);
