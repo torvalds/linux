@@ -546,7 +546,7 @@ linvfs_follow_link(
 	ASSERT(dentry);
 	ASSERT(nd);
 
-	link = (char *)kmalloc(MAXNAMELEN+1, GFP_KERNEL);
+	link = (char *)kmalloc(MAXPATHLEN+1, GFP_KERNEL);
 	if (!link) {
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
 		return NULL;
@@ -562,12 +562,12 @@ linvfs_follow_link(
 	vp = LINVFS_GET_VP(dentry->d_inode);
 
 	iov.iov_base = link;
-	iov.iov_len = MAXNAMELEN;
+	iov.iov_len = MAXPATHLEN;
 
 	uio->uio_iov = &iov;
 	uio->uio_offset = 0;
 	uio->uio_segflg = UIO_SYSSPACE;
-	uio->uio_resid = MAXNAMELEN;
+	uio->uio_resid = MAXPATHLEN;
 	uio->uio_iovcnt = 1;
 
 	VOP_READLINK(vp, uio, 0, NULL, error);
@@ -575,7 +575,7 @@ linvfs_follow_link(
 		kfree(link);
 		link = ERR_PTR(-error);
 	} else {
-		link[MAXNAMELEN - uio->uio_resid] = '\0';
+		link[MAXPATHLEN - uio->uio_resid] = '\0';
 	}
 	kfree(uio);
 
