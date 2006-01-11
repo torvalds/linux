@@ -68,7 +68,7 @@ void wait_stub_done(int pid, int sig, char * fname)
 
         if((n < 0) || !WIFSTOPPED(status) ||
            (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){
-		unsigned long regs[FRAME_SIZE];
+		unsigned long regs[HOST_FRAME_SIZE];
 		if(ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
 			printk("Failed to get registers from stub, "
 			       "errno = %d\n", errno);
@@ -76,7 +76,7 @@ void wait_stub_done(int pid, int sig, char * fname)
 			int i;
 
 			printk("Stub registers -\n");
-			for(i = 0; i < FRAME_SIZE; i++)
+			for(i = 0; i < HOST_FRAME_SIZE; i++)
 				printk("\t%d - %lx\n", i, regs[i]);
 		}
                 panic("%s : failed to wait for SIGUSR1/SIGTRAP, "
