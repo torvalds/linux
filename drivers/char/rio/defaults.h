@@ -37,13 +37,13 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_defaults_h_sccs = "@(#)defaults.h	1.1" ;
+static char *_rio_defaults_h_sccs = "@(#)defaults.h	1.1";
 #endif
 #endif
 
 
-#define MILLISECOND           (int) (1000/64)   /* 15.625 low ticks */
-#define SECOND                (int) 15625       /* Low priority ticks */
+#define MILLISECOND           (int) (1000/64)	/* 15.625 low ticks */
+#define SECOND                (int) 15625	/* Low priority ticks */
 
 #ifdef RTA
 #define RX_LIMIT       (ushort) 3
@@ -56,4 +56,3 @@ static char *_rio_defaults_h_sccs = "@(#)defaults.h	1.1" ;
 
 
 /*********** end of file ***********/
-

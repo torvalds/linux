@@ -21,7 +21,7 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_chan_h_sccs = "@(#)chan.h	1.1" ;
+static char *_rio_chan_h_sccs = "@(#)chan.h	1.1";
 #endif
 #endif
 

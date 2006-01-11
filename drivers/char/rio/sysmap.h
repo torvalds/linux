@@ -37,27 +37,26 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_sysmap_h_sccs = "@(#)sysmap.h	1.1" ;
+static char *_rio_sysmap_h_sccs = "@(#)sysmap.h	1.1";
 #endif
 #endif
 
-#define SYSTEM_MAP_LEN     64           /* Len of System Map array */
+#define SYSTEM_MAP_LEN     64	/* Len of System Map array */
 
 
-typedef struct SYS_MAP        SYS_MAP ;
-typedef struct SYS_MAP_LINK   SYS_MAP_LINK ;
+typedef struct SYS_MAP SYS_MAP;
+typedef struct SYS_MAP_LINK SYS_MAP_LINK;
 
 struct SYS_MAP_LINK {
-                        short id ;          /* Unit Id */
-                        short link ;        /* Id's Link */
-                        short been_here ;   /* Used by map_gen */
-                    } ;
+	short id;		/* Unit Id */
+	short link;		/* Id's Link */
+	short been_here;	/* Used by map_gen */
+};
 
 struct SYS_MAP {
-                   char         serial_num[4] ;
-                   SYS_MAP_LINK link[4] ;
-               } ;
+	char serial_num[4];
+	SYS_MAP_LINK link[4];
+};
 
 
 /*********** end of file ***********/
-

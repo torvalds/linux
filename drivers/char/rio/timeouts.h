@@ -37,15 +37,14 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_defaults_h_sccs = "@(#)timeouts.h	1.3" ;
+static char *_rio_defaults_h_sccs = "@(#)timeouts.h	1.3";
 #endif
 #endif
 
-#define MILLISECOND           (int) (1000/64)   /* 15.625 low ticks */
-#define SECOND                (int) 15625       /* Low priority ticks */
+#define MILLISECOND           (int) (1000/64)	/* 15.625 low ticks */
+#define SECOND                (int) 15625	/* Low priority ticks */
 
 #define TX_TIMEOUT          (int) (200 * MILLISECOND)
 
 
 /*********** end of file ***********/
-

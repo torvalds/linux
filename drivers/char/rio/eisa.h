@@ -60,7 +60,7 @@ static char *_eisa_h_sccs_ = "@(#)eisa.h	1.2";
 
 #define	EISA_PRODUCT_IDENT_LO		0xC80	/* where RIO_EISA_IDENT is */
 #define	EISA_PRODUCT_IDENT_HI		0xC81
-#define	EISA_PRODUCT_NUMBER		0xC82   /* where PROD_CODE is */
+#define	EISA_PRODUCT_NUMBER		0xC82	/* where PROD_CODE is */
 #define	EISA_REVISION_NUMBER		0xC83	/* revision (1dp) */
 #define	EISA_ENABLE			0xC84	/* set LSB to enable card */
 #define	EISA_UNIQUE_NUM_0		0xC88	/* vomit */
@@ -101,4 +101,4 @@ static char *_eisa_h_sccs_ = "@(#)eisa.h	1.2";
 #define	INBZ(z,x)	inb(((z)<<12) | (x))
 #define	OUTBZ(z,x,y)	outb((((z)<<12) | (x)), y)
 
-#endif /* __rio_eisa_h__ */
+#endif				/* __rio_eisa_h__ */

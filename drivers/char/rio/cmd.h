@@ -42,7 +42,7 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_cmd_h_sccs = "@(#)cmd.h	1.1" ;
+static char *_rio_cmd_h_sccs = "@(#)cmd.h	1.1";
 #endif
 #endif
 
@@ -52,7 +52,7 @@ static char *_rio_cmd_h_sccs = "@(#)cmd.h	1.1" ;
 
 #define CMD_IGNORE_PKT          ( (ushort) 0)
 #define CMD_STATUS_REQ          ( (ushort) 1)
-#define CMD_UNIT_STATUS_REQ     ( (ushort) 2)     /* Is this needed ??? */
+#define CMD_UNIT_STATUS_REQ     ( (ushort) 2)	/* Is this needed ??? */
 #define CMD_CONF_PORT           ( (ushort) 3)
 #define CMD_CONF_UNIT           ( (ushort) 4)
 #define CMD_ROUTE_MAP_REQ       ( (ushort) 5)
@@ -81,4 +81,3 @@ static char *_rio_cmd_h_sccs = "@(#)cmd.h	1.1" ;
 #endif
 
 /*********** end of file ***********/
-

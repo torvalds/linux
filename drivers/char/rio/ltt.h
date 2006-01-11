@@ -36,7 +36,7 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_ltt_h_sccs = "@(#)ltt.h	1.1" ;
+static char *_rio_ltt_h_sccs = "@(#)ltt.h	1.1";
 #endif
 #endif
 
@@ -45,11 +45,8 @@ static char *_rio_ltt_h_sccs = "@(#)ltt.h	1.1" ;
 #else
 #define LTT_STACK       (ushort) 200
 #endif
- 
+
 
 
 
 /*********** end of file ***********/
-
-
-

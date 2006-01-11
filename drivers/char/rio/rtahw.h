@@ -37,7 +37,7 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_rtahw_h_sccs = "@(#)rtahw.h	1.5" ;
+static char *_rio_rtahw_h_sccs = "@(#)rtahw.h	1.5";
 #endif
 #endif
 
@@ -58,12 +58,12 @@ static char *_rio_rtahw_h_sccs = "@(#)rtahw.h	1.5" ;
 ** Define the different types of modules we can have
 */
 enum module {
-    MOD_BLANK		= 0x0f,		/* Blank plate attached */
-    MOD_RS232DB25	= 0x00,		/* RS232 DB25 connector */
-    MOD_RS232RJ45	= 0x01,		/* RS232 RJ45 connector */
-    MOD_RS422DB25	= 0x02,		/* RS422 DB25 connector */
-    MOD_RS485DB25	= 0x03,		/* RS485 DB25 connector */
-    MOD_PARALLEL	= 0x04		/* Centronics parallel */
+	MOD_BLANK = 0x0f,	/* Blank plate attached */
+	MOD_RS232DB25 = 0x00,	/* RS232 DB25 connector */
+	MOD_RS232RJ45 = 0x01,	/* RS232 RJ45 connector */
+	MOD_RS422DB25 = 0x02,	/* RS422 DB25 connector */
+	MOD_RS485DB25 = 0x03,	/* RS485 DB25 connector */
+	MOD_PARALLEL = 0x04	/* Centronics parallel */
 };
 
 #define TYPE_HOST	0
