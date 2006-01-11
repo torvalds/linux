@@ -58,6 +58,24 @@
 	(S_ISDIR(inode->i_mode) && inode->i_sb->s_flags & MS_NODIRATIME))
 
 /*
+ * Bring the atime in the XFS inode uptodate.
+ * Used before logging the inode to disk or when the Linux inode goes away.
+ */
+void
+xfs_synchronize_atime(
+	xfs_inode_t	*ip)
+{
+	vnode_t		*vp;
+
+	vp = XFS_ITOV_NULL(ip);
+	if (vp) {
+		struct inode *inode = &vp->v_inode;
+		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
+	}
+}
+
+/*
  * Change the requested timestamp in the given inode.
  * We don't lock across timestamp updates, and we don't log them but
  * we do record the fact that there is dirty information in core.
@@ -75,23 +93,6 @@ xfs_ichgtime(
 {
 	struct inode	*inode = LINVFS_GET_IP(XFS_ITOV(ip));
 	timespec_t	tv;
-
-	/*
-	 * We're not supposed to change timestamps in readonly-mounted
-	 * filesystems.  Throw it away if anyone asks us.
-	 */
-	if (unlikely(IS_RDONLY(inode)))
-		return;
-
-	/*
-	 * Don't update access timestamps on reads if mounted "noatime".
-	 * Throw it away if anyone asks us.
-	 */
-	if (unlikely(
-	    (ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
-	    (flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG)) ==
-			XFS_ICHGTIME_ACC))
-		return;
 
 	nanotime(&tv);
 	if (flags & XFS_ICHGTIME_MOD) {
@@ -129,8 +130,6 @@ xfs_ichgtime(
  * Variant on the above which avoids querying the system clock
  * in situations where we know the Linux inode timestamps have
  * just been updated (and so we can update our inode cheaply).
- * We also skip the readonly and noatime checks here, they are
- * also catered for already.
  */
 void
 xfs_ichgtime_fast(
@@ -141,31 +140,22 @@ xfs_ichgtime_fast(
 	timespec_t	*tvp;
 
 	/*
+	 * Atime updates for read() & friends are handled lazily now, and
+	 * explicit updates must go through xfs_ichgtime()
+	 */
+	ASSERT((flags & XFS_ICHGTIME_ACC) == 0);
+
+	/*
 	 * We're not supposed to change timestamps in readonly-mounted
 	 * filesystems.  Throw it away if anyone asks us.
 	 */
 	if (unlikely(IS_RDONLY(inode)))
 		return;
 
-	/*
-	 * Don't update access timestamps on reads if mounted "noatime".
-	 * Throw it away if anyone asks us.
-	 */
-	if (unlikely(
-	    (ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
-	    ((flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG)) ==
-			XFS_ICHGTIME_ACC)))
-		return;
-
 	if (flags & XFS_ICHGTIME_MOD) {
 		tvp = &inode->i_mtime;
 		ip->i_d.di_mtime.t_sec = (__int32_t)tvp->tv_sec;
 		ip->i_d.di_mtime.t_nsec = (__int32_t)tvp->tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_ACC) {
-		tvp = &inode->i_atime;
-		ip->i_d.di_atime.t_sec = (__int32_t)tvp->tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)tvp->tv_nsec;
 	}
 	if (flags & XFS_ICHGTIME_CHG) {
 		tvp = &inode->i_ctime;

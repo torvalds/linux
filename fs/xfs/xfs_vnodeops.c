@@ -182,8 +182,8 @@ xfs_getattr(
 		break;
 	}
 
-	vap->va_atime.tv_sec = ip->i_d.di_atime.t_sec;
-	vap->va_atime.tv_nsec = ip->i_d.di_atime.t_nsec;
+	/* atime is only kept uptodate in the Linux inode */
+	vap->va_atime = vp->v_inode.i_atime;
 	vap->va_mtime.tv_sec = ip->i_d.di_mtime.t_sec;
 	vap->va_mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
 	vap->va_ctime.tv_sec = ip->i_d.di_ctime.t_sec;
@@ -980,10 +980,6 @@ xfs_readlink(
 	if (count <= 0) {
 		error = 0;
 		goto error_return;
-	}
-
-	if (!(ioflags & IO_INVIS)) {
-		xfs_ichgtime(ip, XFS_ICHGTIME_ACC);
 	}
 
 	/*
@@ -3226,7 +3222,6 @@ xfs_readdir(
 	xfs_trans_t	*tp = NULL;
 	int		error = 0;
 	uint		lock_mode;
-	xfs_off_t	start_offset;
 
 	vn_trace_entry(BHV_TO_VNODE(dir_bdp), __FUNCTION__,
 					       (inst_t *)__return_address);
@@ -3237,11 +3232,7 @@ xfs_readdir(
 	}
 
 	lock_mode = xfs_ilock_map_shared(dp);
-	start_offset = uiop->uio_offset;
 	error = XFS_DIR_GETDENTS(dp->i_mount, tp, dp, uiop, eofp);
-	if (start_offset != uiop->uio_offset) {
-		xfs_ichgtime(dp, XFS_ICHGTIME_ACC);
-	}
 	xfs_iunlock_map_shared(dp, lock_mode);
 	return error;
 }
@@ -3818,6 +3809,12 @@ xfs_reclaim(
 	vn_iowait(vp);
 
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
+
+	/*
+	 * Make sure the atime in the XFS inode is correct before freeing the
+	 * Linux inode.
+	 */
+	xfs_synchronize_atime(ip);
 
 	/* If we have nothing to flush with this inode then complete the
 	 * teardown now, otherwise break the link between the xfs inode

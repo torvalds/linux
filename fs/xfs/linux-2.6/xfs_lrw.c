@@ -281,9 +281,6 @@ xfs_read(
 
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
-	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime_fast(ip, inode, XFS_ICHGTIME_ACC);
-
 unlock_isem:
 	if (unlikely(ioflags & IO_ISDIRECT))
 		mutex_unlock(&inode->i_mutex);
@@ -345,9 +342,6 @@ xfs_sendfile(
 
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
-
-	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime_fast(ip, LINVFS_GET_IP(vp), XFS_ICHGTIME_ACC);
 
 	return ret;
 }

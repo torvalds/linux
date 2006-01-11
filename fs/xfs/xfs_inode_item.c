@@ -271,6 +271,11 @@ xfs_inode_item_format(
 	if (ip->i_update_size)
 		ip->i_update_size = 0;
 
+	/*
+	 * Make sure to get the latest atime from the Linux inode.
+	 */
+	xfs_synchronize_atime(ip);
+
 	vecp->i_addr = (xfs_caddr_t)&ip->i_d;
 	vecp->i_len  = sizeof(xfs_dinode_core_t);
 	XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_ICORE);
