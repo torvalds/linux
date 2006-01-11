@@ -470,13 +470,13 @@ xfs_map_at_offset(
 }
 
 /*
- * Look for a page at index which is unlocked and not mapped
- * yet - clustering for mmap write case.
+ * Look for a page at index that is suitable for clustering.
  */
 STATIC unsigned int
-xfs_probe_unmapped_page(
+xfs_probe_page(
 	struct page		*page,
-	unsigned int		pg_offset)
+	unsigned int		pg_offset,
+	int			mapped)
 {
 	int			ret = 0;
 
@@ -489,25 +489,28 @@ xfs_probe_unmapped_page(
 
 			bh = head = page_buffers(page);
 			do {
-				if (buffer_mapped(bh) || !buffer_uptodate(bh))
+				if (!buffer_uptodate(bh))
+					break;
+				if (mapped != buffer_mapped(bh))
 					break;
 				ret += bh->b_size;
 				if (ret >= pg_offset)
 					break;
 			} while ((bh = bh->b_this_page) != head);
 		} else
-			ret = PAGE_CACHE_SIZE;
+			ret = mapped ? 0 : PAGE_CACHE_SIZE;
 	}
 
 	return ret;
 }
 
 STATIC size_t
-xfs_probe_unmapped_cluster(
+xfs_probe_cluster(
 	struct inode		*inode,
 	struct page		*startpage,
 	struct buffer_head	*bh,
-	struct buffer_head	*head)
+	struct buffer_head	*head,
+	int			mapped)
 {
 	struct pagevec		pvec;
 	pgoff_t			tindex, tlast, tloff;
@@ -516,7 +519,7 @@ xfs_probe_unmapped_cluster(
 
 	/* First sum forwards in this page */
 	do {
-		if (buffer_mapped(bh))
+		if (mapped != buffer_mapped(bh))
 			return total;
 		total += bh->b_size;
 	} while ((bh = bh->b_this_page) != head);
@@ -550,7 +553,7 @@ xfs_probe_unmapped_cluster(
 				pg_offset = PAGE_CACHE_SIZE;
 
 			if (page->index == tindex && !TestSetPageLocked(page)) {
-				len = xfs_probe_unmapped_page(page, pg_offset);
+				len = xfs_probe_page(page, pg_offset, mapped);
 				unlock_page(page);
 			}
 
@@ -592,6 +595,8 @@ xfs_is_delayed_page(
 				acceptable = (type == IOMAP_UNWRITTEN);
 			else if (buffer_delay(bh))
 				acceptable = (type == IOMAP_DELAY);
+			else if (buffer_mapped(bh))
+				acceptable = (type == 0);
 			else
 				break;
 		} while ((bh = bh->b_this_page) != head);
@@ -804,6 +809,7 @@ xfs_page_state_convert(
 	ssize_t			size, len;
 	int			flags, err, iomap_valid = 0, uptodate = 1;
 	int			page_dirty, count = 0, trylock_flag = 0;
+	int			all_bh = unmapped;
 
 	/* wait for other IO threads? */
 	if (startio && wbc->sync_mode != WB_SYNC_NONE)
@@ -845,6 +851,8 @@ xfs_page_state_convert(
 
 	bh = head = page_buffers(page);
 	offset = page_offset(page);
+	flags = -1;
+	type = 0;
 
 	/* TODO: cleanup count and page_dirty */
 
@@ -878,6 +886,12 @@ xfs_page_state_convert(
 		if (buffer_unwritten(bh) || buffer_delay(bh) ||
 		    ((buffer_uptodate(bh) || PageUptodate(page)) &&
 		     !buffer_mapped(bh) && (unmapped || startio))) {
+		     	/*
+			 * Make sure we don't use a read-only iomap
+			 */
+		     	if (flags == BMAPI_READ)
+				iomap_valid = 0;
+
 			if (buffer_unwritten(bh)) {
 				type = IOMAP_UNWRITTEN;
 				flags = BMAPI_WRITE|BMAPI_IGNSTATE;
@@ -887,14 +901,14 @@ xfs_page_state_convert(
 				if (!startio)
 					flags |= trylock_flag;
 			} else {
-				type = 0;
+				type = IOMAP_NEW;
 				flags = BMAPI_WRITE|BMAPI_MMAP;
 			}
 
 			if (!iomap_valid) {
-				if (type == 0) {
-					size = xfs_probe_unmapped_cluster(inode,
-							page, bh, head);
+				if (type == IOMAP_NEW) {
+					size = xfs_probe_cluster(inode,
+							page, bh, head, 0);
 				} else {
 					size = len;
 				}
@@ -921,10 +935,27 @@ xfs_page_state_convert(
 				count++;
 			}
 		} else if (buffer_uptodate(bh) && startio) {
-			type = 0;
+			/*
+			 * we got here because the buffer is already mapped.
+			 * That means it must already have extents allocated
+			 * underneath it. Map the extent by reading it.
+			 */
+			if (!iomap_valid || type != 0) {
+				flags = BMAPI_READ;
+				size = xfs_probe_cluster(inode, page, bh,
+								head, 1);
+				err = xfs_map_blocks(inode, offset, size,
+						&iomap, flags);
+				if (err)
+					goto error;
+				iomap_valid = xfs_iomap_valid(&iomap, offset);
+			}
 
+			type = 0;
 			if (!test_and_set_bit(BH_Lock, &bh->b_state)) {
 				ASSERT(buffer_mapped(bh));
+				if (iomap_valid)
+					all_bh = 1;
 				xfs_add_to_ioend(inode, bh, offset, type,
 						&ioend, !iomap_valid);
 				page_dirty--;
@@ -953,7 +984,7 @@ xfs_page_state_convert(
 					PAGE_CACHE_SHIFT;
 		tlast = min_t(pgoff_t, offset, last_index);
 		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
-					wbc, startio, unmapped, tlast);
+					wbc, startio, all_bh, tlast);
 	}
 
 	if (iohead)
