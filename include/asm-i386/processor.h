@@ -281,9 +281,11 @@ static inline void clear_in_cr4 (unsigned long mask)
 	outb((data), 0x23); \
 } while (0)
 
-static inline void serialize_cpu(void)
+/* Stop speculative execution */
+static inline void sync_core(void)
 {
-	 __asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+	int tmp;
+	asm volatile("cpuid" : "=a" (tmp) : "0" (1) : "ebx","ecx","edx","memory");
 }
 
 static inline void __monitor(const void *eax, unsigned long ecx,
