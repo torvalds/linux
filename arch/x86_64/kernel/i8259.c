@@ -549,9 +549,8 @@ void __init init_IRQ(void)
 		int vector = FIRST_EXTERNAL_VECTOR + i;
 		if (i >= NR_IRQS)
 			break;
-		if (vector != IA32_SYSCALL_VECTOR && vector != KDB_VECTOR) { 
+		if (vector != IA32_SYSCALL_VECTOR)
 			set_intr_gate(vector, interrupt[i]);
-	}
 	}
 
 #ifdef CONFIG_SMP

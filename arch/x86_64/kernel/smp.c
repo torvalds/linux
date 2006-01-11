@@ -281,11 +281,6 @@ void flush_tlb_all(void)
 	on_each_cpu(do_flush_tlb_all, NULL, 1, 1);
 }
 
-void smp_kdb_stop(void)
-{
-	send_IPI_allbutself(KDB_VECTOR);
-}
-
 /*
  * this function sends a 'reschedule' IPI to another CPU.
  * it goes straight through and wastes no time serializing

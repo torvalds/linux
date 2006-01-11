@@ -910,11 +910,6 @@ asmlinkage void math_state_restore(void)
 	me->thread_info->status |= TS_USEDFPU;
 }
 
-void do_call_debug(struct pt_regs *regs) 
-{ 
-	notify_die(DIE_CALL, "debug call", regs, 0, 255, SIGINT); 
-}
-
 void __init trap_init(void)
 {
 	set_intr_gate(0,&divide_error);
@@ -943,8 +938,6 @@ void __init trap_init(void)
 #ifdef CONFIG_IA32_EMULATION
 	set_system_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
 #endif
-       
-	set_intr_gate(KDB_VECTOR, call_debug);
        
 	/*
 	 * Should be a barrier for any external CPU state.

@@ -1040,9 +1040,6 @@ ENTRY(machine_check)
 	CFI_ENDPROC
 #endif
 
-ENTRY(call_debug)
-       zeroentry do_call_debug
-
 ENTRY(call_softirq)
 	CFI_STARTPROC
 	movq %gs:pda_irqstackptr,%rax

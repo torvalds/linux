@@ -51,7 +51,8 @@ struct hw_interrupt_type;
 #define ERROR_APIC_VECTOR	0xfe
 #define RESCHEDULE_VECTOR	0xfd
 #define CALL_FUNCTION_VECTOR	0xfc
-#define KDB_VECTOR		0xfb	/* reserved for KDB */
+/* fb free - please don't readd KDB here because it's useless
+   (hint - think what a NMI bit does to a vector) */
 #define THERMAL_APIC_VECTOR	0xfa
 #define THRESHOLD_APIC_VECTOR   0xf9
 /* f8 free */
