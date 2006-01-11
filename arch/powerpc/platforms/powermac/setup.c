@@ -278,7 +278,7 @@ static void __init l2cr_init(void)
 }
 #endif
 
-void __init pmac_setup_arch(void)
+static void __init pmac_setup_arch(void)
 {
 	struct device_node *cpu, *ic;
 	int *fp;
