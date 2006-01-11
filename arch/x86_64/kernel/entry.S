@@ -1045,17 +1045,15 @@ ENTRY(call_debug)
 ENTRY(call_softirq)
 	CFI_STARTPROC
 	movq %gs:pda_irqstackptr,%rax
-	pushq %r15
-	CFI_ADJUST_CFA_OFFSET 8
-	movq %rsp,%r15
-	CFI_DEF_CFA_REGISTER	r15
+	movq %rsp,%rdx
+	CFI_DEF_CFA_REGISTER	rdx
 	incl %gs:pda_irqcount
 	cmove %rax,%rsp
+	pushq %rdx
+	/*todo CFI_DEF_CFA_EXPRESSION ...*/
 	call __do_softirq
-	movq %r15,%rsp
+	popq %rsp
 	CFI_DEF_CFA_REGISTER	rsp
 	decl %gs:pda_irqcount
-	popq %r15
-	CFI_ADJUST_CFA_OFFSET -8
 	ret
 	CFI_ENDPROC
