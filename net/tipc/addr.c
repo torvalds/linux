@@ -1,9 +1,8 @@
 /*
  * net/tipc/addr.c: TIPC address utility routines
  *     
- * Copyright (c) 2003-2005, Ericsson Research Canada
+ * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2004-2005, Wind River Systems
- * Copyright (c) 2005-2006, Ericsson AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

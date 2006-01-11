@@ -2,7 +2,6 @@
  * net/tipc/netlink.c: TIPC configuration handling
  * 
  * Copyright (c) 2005, Wind River Systems
- * Copyright (c) 2005-2006, Ericsson AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
