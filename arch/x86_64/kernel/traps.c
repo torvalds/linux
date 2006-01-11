@@ -726,11 +726,9 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_BRKPT;
-	if (!user_mode(regs))
-		goto clear_dr7; 
+	info.si_addr = user_mode(regs) ? (void __user *)regs->rip : NULL;
+	force_sig_info(SIGTRAP, &info, tsk);
 
-	info.si_addr = (void __user *)regs->rip;
-	force_sig_info(SIGTRAP, &info, tsk);	
 clear_dr7:
 	set_debugreg(0UL, 7);
 	return;
