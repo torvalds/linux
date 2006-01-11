@@ -42,11 +42,6 @@ static __inline void apic_write(unsigned long reg, unsigned int v)
 	*((volatile unsigned int *)(APIC_BASE+reg)) = v;
 }
 
-static __inline void apic_write_atomic(unsigned long reg, unsigned int v)
-{
-	xchg((volatile unsigned int *)(APIC_BASE+reg), v);
-}
-
 static __inline unsigned int apic_read(unsigned long reg)
 {
 	return *((volatile unsigned int *)(APIC_BASE+reg));
