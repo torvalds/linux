@@ -41,7 +41,7 @@ extern void __raw_bad_addr(const volatile void __iomem *addr);
 #define __raw_check_addr(addr)					\
 	if (((unsigned long)addr >> NYBBLE_SHIFT) != 0xe)	\
 		__raw_bad_addr(addr);			\
-	addr = (void *)((unsigned long)addr | (0xfUL << NYBBLE_SHIFT));
+	addr = (void __iomem *)((unsigned long)addr | (0xfUL << NYBBLE_SHIFT));
 #else
 #define gsc_check_addr(addr)
 #define __raw_check_addr(addr)
