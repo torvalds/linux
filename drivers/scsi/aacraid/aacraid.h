@@ -532,6 +532,13 @@ struct aac_driver_ident
 #define AAC_QUIRK_MASTER 0x0008
 
 /*
+ * Some adapter firmware perform poorly when it must split up scatter gathers
+ * in order to deal with the limits of the underlying CHIM. This limit in this
+ * class of adapters is 17 scatter gather elements.
+ */
+#define AAC_QUIRK_17SG	0x0010
+
+/*
  *	The adapter interface specs all queues to be located in the same
  *	physically contigous block. The host structure that defines the
  *	commuication queues will assume they are each a separate physically
