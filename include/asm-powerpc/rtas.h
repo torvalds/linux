@@ -161,7 +161,6 @@ extern struct rtas_t rtas;
 extern void enter_rtas(unsigned long);
 extern int rtas_token(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
-extern void call_rtas_display_status(unsigned char);
 extern void rtas_restart(char *cmd);
 extern void rtas_power_off(void);
 extern void rtas_halt(void);

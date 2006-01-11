@@ -155,7 +155,7 @@ void udbg_maple_real_putc(unsigned char c)
 	}
 }
 
-void udbg_init_maple_realmode(void)
+void __init udbg_init_maple_realmode(void)
 {
 	udbg_comport = (volatile struct NS16550 __iomem *)0xf40003f8;
 

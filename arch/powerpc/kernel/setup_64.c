@@ -70,37 +70,6 @@
 #define DBG(fmt...)
 #endif
 
-/*
- * Here are some early debugging facilities. You can enable one
- * but your kernel will not boot on anything else if you do so
- */
-
-/* For use on LPAR machines that support an HVC console on vterm 0 */
-extern void udbg_init_debug_lpar(void);
-
-/* This one is for use on Apple G5 machines */
-extern void udbg_init_pmac_realmode(void);
-
-/* That's RTAS panel debug */
-extern void call_rtas_display_status_delay(unsigned char c);
-
-/* Here's maple real mode debug */
-extern void udbg_init_maple_realmode(void);
-
-/* For iSeries - hit Ctrl-x Ctrl-x to see the output */
-extern void udbg_init_iseries(void);
-
-#define EARLY_DEBUG_INIT() do {} while(0)
-
-#if 0
-#define EARLY_DEBUG_INIT() udbg_init_debug_lpar()
-#define EARLY_DEBUG_INIT() udbg_init_iseries()
-#define EARLY_DEBUG_INIT() udbg_init_maple_realmode()
-#define EARLY_DEBUG_INIT() udbg_init_pmac_realmode()
-#define EARLY_DEBUG_INIT()						\
-	do { udbg_putc = call_rtas_display_status_delay; } while(0)
-#endif
-
 int have_of = 1;
 int boot_cpuid = 0;
 int boot_cpuid_phys = 0;
@@ -241,11 +210,8 @@ void __init early_setup(unsigned long dt_ptr)
 	struct paca_struct *lpaca = get_paca();
 	static struct machdep_calls **mach;
 
-	/*
-	 * Enable early debugging if any specified (see top of
-	 * this file)
-	 */
-	EARLY_DEBUG_INIT();
+	/* Enable early debugging if any specified (see udbg.h) */
+	udbg_early_init();
 
 	DBG(" -> early_setup()\n");
 
