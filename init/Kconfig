@@ -326,15 +326,6 @@ config BUG
           option for embedded systems with no facilities for reporting errors.
           Just say Y.
 
-config DOUBLEFAULT
-	depends X86
-	default y if X86
-	bool "Enable doublefault exception handler" if EMBEDDED
-	help
-          This option allows trapping of rare doublefault exceptions that
-          would otherwise cause a system to silently reboot. Disabling this
-          option saves about 4k.
-
 config ELF_CORE
 	default y
 	bool "Enable ELF core dumps" if EMBEDDED
