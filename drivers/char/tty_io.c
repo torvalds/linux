@@ -312,7 +312,7 @@ static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
 
 int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 {
-	struct tty_buffer *b = tty->buf.head, *n;
+	struct tty_buffer *b = tty->buf.tail, *n;
 	int left = 0;
 
 	/* OPTIMISATION: We could keep a per tty "zero" sized buffer to
@@ -326,7 +326,6 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 	n = tty_buffer_find(tty, size);
 	if(n == NULL)
 		return left;
-	n->next = b;
 	if(b != NULL)
 		b->next = n;
 	else
@@ -2751,6 +2750,8 @@ static void flush_to_ldisc(void *private_)
 	spin_lock_irqsave(&tty->read_lock, flags);
 	while((tbuf = tty->buf.head) != NULL) {
 		tty->buf.head = tbuf->next;
+		if (tty->buf.head == NULL)
+			tty->buf.tail = NULL;
 		spin_unlock_irqrestore(&tty->read_lock, flags);
 		/* printk("Process buffer %p for %d\n", tbuf, tbuf->used); */
 		disc->receive_buf(tty, tbuf->char_buf_ptr,
@@ -2759,7 +2760,6 @@ static void flush_to_ldisc(void *private_)
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty_buffer_free(tty, tbuf);
 	}
-	tty->buf.tail = NULL;
 	spin_unlock_irqrestore(&tty->read_lock, flags);
 out:
 	tty_ldisc_deref(disc);
