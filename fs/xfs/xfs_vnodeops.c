@@ -1213,7 +1213,8 @@ xfs_inactive_free_eofblocks(
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	if (!error && (nimaps != 0) &&
-	    (imap.br_startblock != HOLESTARTBLOCK)) {
+	    (imap.br_startblock != HOLESTARTBLOCK ||
+	     ip->i_delayed_blks)) {
 		/*
 		 * Attach the dquots to the inode up front.
 		 */
@@ -1548,7 +1549,8 @@ xfs_release(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-		     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0)) &&
+		     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0 ||
+		       ip->i_delayed_blks > 0)) &&
 		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 		    (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
@@ -1627,7 +1629,8 @@ xfs_inactive(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-		     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0)) &&
+                     ((ip->i_d.di_size > 0) || (VN_CACHED(vp) > 0 ||
+                       ip->i_delayed_blks > 0)) &&
 		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
 		     (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||

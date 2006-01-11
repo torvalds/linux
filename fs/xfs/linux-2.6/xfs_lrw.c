@@ -809,6 +809,10 @@ retry:
 		goto retry;
 	}
 
+	isize = i_size_read(inode);
+	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
+		*offset = isize;
+
 	if (*offset > xip->i_d.di_size) {
 		xfs_ilock(xip, XFS_ILOCK_EXCL);
 		if (*offset > xip->i_d.di_size) {
