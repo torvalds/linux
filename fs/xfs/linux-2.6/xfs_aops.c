@@ -806,7 +806,8 @@ xfs_page_state_convert(
 	unsigned int		type;
 	__uint64_t              end_offset;
 	pgoff_t                 end_index, last_index, tlast;
-	int			flags, len, err, iomap_valid = 0, uptodate = 1;
+	ssize_t			size, len;
+	int			flags, err, iomap_valid = 0, uptodate = 1;
 	int			page_dirty, count = 0, trylock_flag = 0;
 
 	/* wait for other IO threads? */
@@ -875,21 +876,36 @@ xfs_page_state_convert(
 		 *
 		 * Second case, allocate space for a delalloc buffer.
 		 * We can return EAGAIN here in the release page case.
-		 */
-		if (buffer_unwritten(bh) || buffer_delay(bh)) {
+		 *
+		 * Third case, an unmapped buffer was found, and we are
+		 * in a path where we need to write the whole page out.
+ 		 */
+		if (buffer_unwritten(bh) || buffer_delay(bh) ||
+		    ((buffer_uptodate(bh) || PageUptodate(page)) &&
+		     !buffer_mapped(bh) && (unmapped || startio))) {
 			if (buffer_unwritten(bh)) {
 				type = IOMAP_UNWRITTEN;
 				flags = BMAPI_WRITE|BMAPI_IGNSTATE;
-			} else {
+			} else if (buffer_delay(bh)) {
 				type = IOMAP_DELAY;
 				flags = BMAPI_ALLOCATE;
 				if (!startio)
 					flags |= trylock_flag;
+			} else {
+				type = 0;
+				flags = BMAPI_WRITE|BMAPI_MMAP;
 			}
 
 			if (!iomap_valid) {
-				err = xfs_map_blocks(inode, offset, len, &iomap,
-						flags);
+				if (type == 0) {
+					size = xfs_probe_unmapped_cluster(inode,
+							page, bh, head);
+				} else {
+					size = len;
+				}
+
+				err = xfs_map_blocks(inode, offset, size,
+						&iomap, flags);
 				if (err)
 					goto error;
 				iomap_valid = xfs_iomap_valid(&iomap, offset);
@@ -909,61 +925,22 @@ xfs_page_state_convert(
 				page_dirty--;
 				count++;
 			}
-		} else if ((buffer_uptodate(bh) || PageUptodate(page)) &&
-			   (unmapped || startio)) {
-
+		} else if (buffer_uptodate(bh) && startio) {
 			type = 0;
-			if (!buffer_mapped(bh)) {
 
-				/*
-				 * Getting here implies an unmapped buffer
-				 * was found, and we are in a path where we
-				 * need to write the whole page out.
-				 */
-				if (!iomap_valid) {
-					int	size;
-
-					size = xfs_probe_unmapped_cluster(
-							inode, page, bh, head);
-					err = xfs_map_blocks(inode, offset,
-							size, &iomap,
-							BMAPI_WRITE|BMAPI_MMAP);
-					if (err)
-						goto error;
-					iomap_valid = xfs_iomap_valid(&iomap,
-								     offset);
-				}
-				if (iomap_valid) {
-					xfs_map_at_offset(bh, offset,
-							inode->i_blkbits,
-							&iomap);
-					if (startio) {
-						xfs_add_to_ioend(inode,
-							bh, p_offset, type,
-							&ioend, !iomap_valid);
-					} else {
-						set_buffer_dirty(bh);
-						unlock_buffer(bh);
-						mark_buffer_dirty(bh);
-					}
-					page_dirty--;
-					count++;
-				}
-			} else if (startio) {
-				if (buffer_uptodate(bh) &&
-				    !test_and_set_bit(BH_Lock, &bh->b_state)) {
-					ASSERT(buffer_mapped(bh));
-					xfs_add_to_ioend(inode,
-							bh, p_offset, type,
-							&ioend, !iomap_valid);
-					page_dirty--;
-					count++;
-				} else {
-					iomap_valid = 0;
-				}
+			if (!test_and_set_bit(BH_Lock, &bh->b_state)) {
+				ASSERT(buffer_mapped(bh));
+				xfs_add_to_ioend(inode,
+						bh, p_offset, type,
+						&ioend, !iomap_valid);
+				page_dirty--;
+				count++;
 			} else {
 				iomap_valid = 0;
 			}
+		} else if ((buffer_uptodate(bh) || PageUptodate(page)) &&
+			   (unmapped || startio)) {
+			iomap_valid = 0;
 		}
 
 		if (!iohead)
