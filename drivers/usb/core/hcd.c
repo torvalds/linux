@@ -34,6 +34,7 @@
 #include <asm/scatterlist.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/mutex.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
 
@@ -93,7 +94,7 @@ struct usb_busmap {
 static struct usb_busmap busmap;
 
 /* used when updating list of hcds */
-DECLARE_MUTEX (usb_bus_list_lock);	/* exported only for usbfs */
+DEFINE_MUTEX(usb_bus_list_lock);	/* exported only for usbfs */
 EXPORT_SYMBOL_GPL (usb_bus_list_lock);
 
 /* used for controlling access to virtual root hubs */
@@ -761,14 +762,14 @@ static int usb_register_bus(struct usb_bus *bus)
 {
 	int busnum;
 
-	down (&usb_bus_list_lock);
+	mutex_lock(&usb_bus_list_lock);
 	busnum = find_next_zero_bit (busmap.busmap, USB_MAXBUS, 1);
 	if (busnum < USB_MAXBUS) {
 		set_bit (busnum, busmap.busmap);
 		bus->busnum = busnum;
 	} else {
 		printk (KERN_ERR "%s: too many buses\n", usbcore_name);
-		up(&usb_bus_list_lock);
+		mutex_unlock(&usb_bus_list_lock);
 		return -E2BIG;
 	}
 
@@ -776,7 +777,7 @@ static int usb_register_bus(struct usb_bus *bus)
 					     bus->controller, "usb_host%d", busnum);
 	if (IS_ERR(bus->class_dev)) {
 		clear_bit(busnum, busmap.busmap);
-		up(&usb_bus_list_lock);
+		mutex_unlock(&usb_bus_list_lock);
 		return PTR_ERR(bus->class_dev);
 	}
 
@@ -784,7 +785,7 @@ static int usb_register_bus(struct usb_bus *bus)
 
 	/* Add it to the local list of buses */
 	list_add (&bus->bus_list, &usb_bus_list);
-	up (&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_list_lock);
 
 	usb_notify_add_bus(bus);
 
@@ -809,9 +810,9 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	 * controller code, as well as having it call this when cleaning
 	 * itself up
 	 */
-	down (&usb_bus_list_lock);
+	mutex_lock(&usb_bus_list_lock);
 	list_del (&bus->bus_list);
-	up (&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_list_lock);
 
 	usb_notify_remove_bus(bus);
 
@@ -844,14 +845,14 @@ static int register_root_hub (struct usb_device *usb_dev,
 	set_bit (devnum, usb_dev->bus->devmap.devicemap);
 	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 
-	down (&usb_bus_list_lock);
+	mutex_lock(&usb_bus_list_lock);
 	usb_dev->bus->root_hub = usb_dev;
 
 	usb_dev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(64);
 	retval = usb_get_device_descriptor(usb_dev, USB_DT_DEVICE_SIZE);
 	if (retval != sizeof usb_dev->descriptor) {
 		usb_dev->bus->root_hub = NULL;
-		up (&usb_bus_list_lock);
+		mutex_unlock(&usb_bus_list_lock);
 		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
 				usb_dev->dev.bus_id, retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
@@ -863,7 +864,7 @@ static int register_root_hub (struct usb_device *usb_dev,
 		dev_err (parent_dev, "can't register root hub for %s, %d\n",
 				usb_dev->dev.bus_id, retval);
 	}
-	up (&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_list_lock);
 
 	if (retval == 0) {
 		spin_lock_irq (&hcd_root_hub_lock);
@@ -1891,9 +1892,9 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	hcd->rh_registered = 0;
 	spin_unlock_irq (&hcd_root_hub_lock);
 
-	down(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&hcd->self.root_hub);
-	up(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_list_lock);
 
 	hcd->poll_rh = 0;
 	del_timer_sync(&hcd->rh_timer);

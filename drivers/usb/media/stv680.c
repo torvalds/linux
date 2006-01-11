@@ -67,6 +67,7 @@
 #include <linux/errno.h>
 #include <linux/videodev.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 #include "stv680.h"
 
@@ -1258,22 +1259,22 @@ static int stv680_mmap (struct file *file, struct vm_area_struct *vma)
 	unsigned long size  = vma->vm_end-vma->vm_start;
 	unsigned long page, pos;
 
-	down (&stv680->lock);
+	mutex_lock(&stv680->lock);
 
 	if (stv680->udev == NULL) {
-		up (&stv680->lock);
+		mutex_unlock(&stv680->lock);
 		return -EIO;
 	}
 	if (size > (((STV680_NUMFRAMES * stv680->maxframesize) + PAGE_SIZE - 1)
 		    & ~(PAGE_SIZE - 1))) {
-		up (&stv680->lock);
+		mutex_unlock(&stv680->lock);
 		return -EINVAL;
 	}
 	pos = (unsigned long) stv680->fbuf;
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-			up (&stv680->lock);
+			mutex_unlock(&stv680->lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -1283,7 +1284,7 @@ static int stv680_mmap (struct file *file, struct vm_area_struct *vma)
 		else
 			size = 0;
 	}
-	up (&stv680->lock);
+	mutex_unlock(&stv680->lock);
 
 	return 0;
 }
@@ -1409,7 +1410,7 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 
 	memcpy (stv680->vdev->name, stv680->camera_name, strlen (stv680->camera_name));
 	init_waitqueue_head (&stv680->wq);
-	init_MUTEX (&stv680->lock);
+	mutex_init (&stv680->lock);
 	wmb ();
 
 	if (video_register_device (stv680->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {

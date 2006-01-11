@@ -364,7 +364,7 @@ extern void usb_set_device_state(struct usb_device *udev,
 /* exported only within usbcore */
 
 extern struct list_head usb_bus_list;
-extern struct semaphore usb_bus_list_lock;
+extern struct mutex usb_bus_list_lock;
 extern wait_queue_head_t usb_kill_urb_queue;
 
 extern struct usb_bus *usb_bus_get (struct usb_bus *bus);

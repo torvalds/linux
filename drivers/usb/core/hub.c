@@ -22,6 +22,7 @@
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/kthread.h>
+#include <linux/mutex.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -2162,7 +2163,7 @@ static int
 hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		int retry_counter)
 {
-	static DECLARE_MUTEX(usb_address0_sem);
+	static DEFINE_MUTEX(usb_address0_mutex);
 
 	struct usb_device	*hdev = hub->hdev;
 	int			i, j, retval;
@@ -2183,7 +2184,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (oldspeed == USB_SPEED_LOW)
 		delay = HUB_LONG_RESET_TIME;
 
-	down(&usb_address0_sem);
+	mutex_lock(&usb_address0_mutex);
 
 	/* Reset the device; full speed may morph to high speed */
 	retval = hub_port_reset(hub, port1, udev, delay);
@@ -2381,7 +2382,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 fail:
 	if (retval)
 		hub_port_disable(hub, port1, 0);
-	up(&usb_address0_sem);
+	mutex_unlock(&usb_address0_mutex);
 	return retval;
 }
 

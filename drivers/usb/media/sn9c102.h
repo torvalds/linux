@@ -33,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/param.h>
 #include <linux/rwsem.h>
+#include <linux/mutex.h>
 #include <asm/semaphore.h>
 
 #include "sn9c102_sensor.h"
@@ -109,7 +110,7 @@ struct sn9c102_module_param {
 	u8 force_munmap;
 };
 
-static DECLARE_MUTEX(sn9c102_sysfs_lock);
+static DEFINE_MUTEX(sn9c102_sysfs_lock);
 static DECLARE_RWSEM(sn9c102_disconnect);
 
 struct sn9c102_device {
@@ -141,7 +142,7 @@ struct sn9c102_device {
 	enum sn9c102_dev_state state;
 	u8 users;
 
-	struct semaphore dev_sem, fileop_sem;
+	struct mutex dev_mutex, fileop_mutex;
 	spinlock_t queue_lock;
 	wait_queue_head_t open, wait_frame, wait_stream;
 };
