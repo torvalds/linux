@@ -2945,6 +2945,8 @@ static int alc260_auto_init(struct hda_codec *codec)
  */
 static struct hda_board_config alc260_cfg_tbl[] = {
 	{ .modelname = "basic", .config = ALC260_BASIC },
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81bb,
+	  .config = ALC260_BASIC }, /* Sony VAIO */
 	{ .modelname = "hp", .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3010, .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3011, .config = ALC260_HP },
