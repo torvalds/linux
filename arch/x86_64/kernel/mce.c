@@ -26,7 +26,7 @@
 #include <asm/uaccess.h>
 
 #define MISC_MCELOG_MINOR 227
-#define NR_BANKS 5
+#define NR_BANKS 6
 
 static int mce_dont_init;
 
@@ -574,6 +574,10 @@ ACCESSOR(bank1ctl,bank[1],mce_restart())
 ACCESSOR(bank2ctl,bank[2],mce_restart())
 ACCESSOR(bank3ctl,bank[3],mce_restart())
 ACCESSOR(bank4ctl,bank[4],mce_restart())
+ACCESSOR(bank5ctl,bank[5],mce_restart())
+static struct sysdev_attribute * bank_attributes[NR_BANKS] = {
+	&attr_bank0ctl, &attr_bank1ctl, &attr_bank2ctl,
+	&attr_bank3ctl, &attr_bank4ctl, &attr_bank5ctl};
 ACCESSOR(tolerant,tolerant,)
 ACCESSOR(check_interval,check_interval,mce_restart())
 
@@ -581,6 +585,7 @@ ACCESSOR(check_interval,check_interval,mce_restart())
 static __cpuinit int mce_create_device(unsigned int cpu)
 {
 	int err;
+	int i;
 	if (!mce_available(&cpu_data[cpu]))
 		return -EIO;
 
@@ -590,11 +595,9 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	err = sysdev_register(&per_cpu(device_mce,cpu));
 
 	if (!err) {
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank0ctl);
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank1ctl);
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank2ctl);
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank3ctl);
-		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_bank4ctl);
+		for (i = 0; i < banks; i++)
+			sysdev_create_file(&per_cpu(device_mce,cpu),
+				bank_attributes[i]);
 		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_tolerant);
 		sysdev_create_file(&per_cpu(device_mce,cpu), &attr_check_interval);
 	}
@@ -604,11 +607,11 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static __cpuinit void mce_remove_device(unsigned int cpu)
 {
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank0ctl);
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank1ctl);
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank2ctl);
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank3ctl);
-	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_bank4ctl);
+	int i;
+
+	for (i = 0; i < banks; i++)
+		sysdev_remove_file(&per_cpu(device_mce,cpu),
+			bank_attributes[i]);
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_tolerant);
 	sysdev_remove_file(&per_cpu(device_mce,cpu), &attr_check_interval);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
