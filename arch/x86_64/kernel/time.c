@@ -251,8 +251,8 @@ static void set_rtc_mmss(unsigned long nowtime)
 #endif
 
 	{
-			BIN_TO_BCD(real_seconds);
-			BIN_TO_BCD(real_minutes);
+		BIN_TO_BCD(real_seconds);
+		BIN_TO_BCD(real_minutes);
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
 		CMOS_WRITE(real_minutes, RTC_MINUTES);
 	}
@@ -289,12 +289,11 @@ unsigned long long monotonic_clock(void)
 			last_offset = vxtime.last;
 			base = monotonic_base;
 			this_offset = hpet_readl(HPET_COUNTER);
-
 		} while (read_seqretry(&xtime_lock, seq));
 		offset = (this_offset - last_offset);
 		offset *=(NSEC_PER_SEC/HZ)/hpet_tick;
 		return base + offset;
-	}else{
+	} else {
 		do {
 			seq = read_seqbegin(&xtime_lock);
 
@@ -305,8 +304,6 @@ unsigned long long monotonic_clock(void)
 		offset = (this_offset - last_offset)*1000/cpu_khz; 
 		return base + offset;
 	}
-
-
 }
 EXPORT_SYMBOL(monotonic_clock);
 
@@ -530,36 +527,35 @@ unsigned long get_cmos_time(void)
 		timeout--;
 	}
 
-/*
- * Here we are safe to assume the registers won't change for a whole second, so
- * we just go ahead and read them.
-	 */
-
-		sec = CMOS_READ(RTC_SECONDS);
-		min = CMOS_READ(RTC_MINUTES);
-		hour = CMOS_READ(RTC_HOURS);
-		day = CMOS_READ(RTC_DAY_OF_MONTH);
-		mon = CMOS_READ(RTC_MONTH);
-		year = CMOS_READ(RTC_YEAR);
+	/*
+	 * Here we are safe to assume the registers won't change for a whole
+	 * second, so we just go ahead and read them.
+ 	 */
+	sec = CMOS_READ(RTC_SECONDS);
+	min = CMOS_READ(RTC_MINUTES);
+	hour = CMOS_READ(RTC_HOURS);
+	day = CMOS_READ(RTC_DAY_OF_MONTH);
+	mon = CMOS_READ(RTC_MONTH);
+	year = CMOS_READ(RTC_YEAR);
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-/*
- * We know that x86-64 always uses BCD format, no need to check the config
- * register.
- */
+	/*
+	 * We know that x86-64 always uses BCD format, no need to check the
+	 * config register.
+ 	*/
 
-	    BCD_TO_BIN(sec);
-	    BCD_TO_BIN(min);
-	    BCD_TO_BIN(hour);
-	    BCD_TO_BIN(day);
-	    BCD_TO_BIN(mon);
-	    BCD_TO_BIN(year);
+	BCD_TO_BIN(sec);
+	BCD_TO_BIN(min);
+	BCD_TO_BIN(hour);
+	BCD_TO_BIN(day);
+	BCD_TO_BIN(mon);
+	BCD_TO_BIN(year);
 
-/*
- * x86-64 systems only exists since 2002.
- * This will work up to Dec 31, 2100
- */
+	/*
+	 * x86-64 systems only exists since 2002.
+	 * This will work up to Dec 31, 2100
+	 */
 	year += 2000;
 
 	return mktime(year, mon, day, hour, min, sec);
@@ -737,7 +733,7 @@ static __init int late_hpet_init(void)
 	unsigned int 		ntimer;
 
 	if (!vxtime.hpet_address)
-          return -1;
+        	return -1;
 
 	memset(&hd, 0, sizeof (hd));
 
@@ -871,8 +867,6 @@ static struct irqaction irq0 = {
 	timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
-extern void __init config_acpi_tables(void);
-
 void __init time_init(void)
 {
 	char *timename;
@@ -992,6 +986,10 @@ __setup("report_lost_ticks", time_setup);
 static long clock_cmos_diff;
 static unsigned long sleep_start;
 
+/*
+ * sysfs support for the timer.
+ */
+
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
@@ -1033,7 +1031,6 @@ static struct sysdev_class timer_sysclass = {
 	.suspend = timer_suspend,
 	set_kset_name("timer"),
 };
-
 
 /* XXX this driverfs stuff should probably go elsewhere later -john */
 static struct sys_device device_timer = {
@@ -1276,8 +1273,6 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 #endif
 
-
-
 static int __init nohpet_setup(char *s) 
 { 
 	nohpet = 1;
@@ -1294,5 +1289,3 @@ static int __init notsc_setup(char *s)
 }
 
 __setup("notsc", notsc_setup);
-
-
