@@ -125,7 +125,7 @@ __mutex_fastpath_trylock(atomic_t *count, int (*fail_fn)(atomic_t *))
 	 * the mutex state would be.
 	 */
 #ifdef __HAVE_ARCH_CMPXCHG
-	if (likely(atomic_cmpxchg(count, 1, 0)) == 1)
+	if (likely(atomic_cmpxchg(count, 1, 0) == 1))
 		return 1;
 	return 0;
 #else
