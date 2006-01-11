@@ -55,9 +55,6 @@ struct gianfar_platform_data {
 };
 
 struct gianfar_mdio_data {
-	/* device specific information */
-	u32 paddr;
-
 	/* board specific information */
 	int irq[32];
 };
