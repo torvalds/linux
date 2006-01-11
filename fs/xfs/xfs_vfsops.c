@@ -291,8 +291,8 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_IDELETE;
 	if (ap->flags & XFSMNT_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-	if (ap->flags & XFSMNT_COMPAT_ATTR)
-		mp->m_flags |= XFS_MOUNT_COMPAT_ATTR;
+	if (ap->flags & XFSMNT_ATTR2)
+		mp->m_flags |= XFS_MOUNT_ATTR2;
 
 	if (ap->flags2 & XFSMNT2_COMPAT_IOSIZE)
 		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
@@ -350,6 +350,10 @@ xfs_finish_flags(
 		}
 	}
 
+	if (XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
+		mp->m_flags |= XFS_MOUNT_ATTR2;
+	}
+
 	/*
 	 * prohibit r/w mounts of read-only filesystems
 	 */
@@ -383,10 +387,6 @@ xfs_finish_flags(
 		 */
 		if (mp->m_sb.sb_shared_vn == 0 && (ap->flags & XFSMNT_DMAPI))
 			return XFS_ERROR(EINVAL);
-	}
-
-	if (XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
-		mp->m_flags &= ~XFS_MOUNT_COMPAT_ATTR;
 	}
 
 	return 0;
@@ -1690,7 +1690,6 @@ xfs_parseargs(
 	int			iosize;
 
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
-	args->flags |= XFSMNT_COMPAT_ATTR;
 	args->flags |= XFSMNT_BARRIER;
 
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
@@ -1828,9 +1827,9 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
 			args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_ATTR2)) {
-			args->flags &= ~XFSMNT_COMPAT_ATTR;
+			args->flags |= XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
-			args->flags |= XFSMNT_COMPAT_ATTR;
+			args->flags &= ~XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 printk("XFS: osyncisdsync is now the default, option is deprecated.\n");
@@ -1941,8 +1940,6 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_SWIDTH "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
-	if (!(mp->m_flags & XFS_MOUNT_COMPAT_ATTR))
-		seq_printf(m, "," MNTOPT_ATTR2);
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
 	if (!(mp->m_flags & XFS_MOUNT_BARRIER))

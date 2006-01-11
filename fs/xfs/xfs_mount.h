@@ -393,7 +393,7 @@ typedef struct xfs_mount {
 						   user */
 #define XFS_MOUNT_NOALIGN	(1ULL << 7)	/* turn off stripe alignment
 						   allocations */
-#define XFS_MOUNT_COMPAT_ATTR	(1ULL << 8)	/* do not use attr2 format */
+#define XFS_MOUNT_ATTR2		(1ULL << 8)	/* allow use of attr2 format */
 			     /*	(1ULL << 9)	-- currently unused */
 #define XFS_MOUNT_NORECOVERY	(1ULL << 10)	/* no recovery - dirty fs */
 #define XFS_MOUNT_SHARED	(1ULL << 11)	/* shared mount */
