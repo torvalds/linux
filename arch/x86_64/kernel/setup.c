@@ -478,6 +478,8 @@ static unsigned char *k8_nops[ASM_NOP_MAX+1] = {
      k8nops + 1 + 2 + 3 + 4 + 5 + 6 + 7,
 }; 
 
+extern char __vsyscall_0;
+
 /* Replace instructions with better alternatives for this CPU type.
 
    This runs before SMP is initialized to avoid SMP problems with
@@ -489,11 +491,17 @@ void apply_alternatives(void *start, void *end)
 	struct alt_instr *a; 
 	int diff, i, k;
 	for (a = start; (void *)a < end; a++) { 
+		u8 *instr;
+
 		if (!boot_cpu_has(a->cpuid))
 			continue;
 
 		BUG_ON(a->replacementlen > a->instrlen); 
-		__inline_memcpy(a->instr, a->replacement, a->replacementlen); 
+		instr = a->instr;
+		/* vsyscall code is not mapped yet. resolve it manually. */
+		if (instr >= (u8 *)VSYSCALL_START && instr < (u8*)VSYSCALL_END)
+			instr = __va(instr - (u8*)VSYSCALL_START + (u8*)__pa_symbol(&__vsyscall_0));
+		__inline_memcpy(instr, a->replacement, a->replacementlen);
 		diff = a->instrlen - a->replacementlen; 
 
 		/* Pad the rest with nops */
@@ -501,7 +509,7 @@ void apply_alternatives(void *start, void *end)
 			k = diff;
 			if (k > ASM_NOP_MAX)
 				k = ASM_NOP_MAX;
-			__inline_memcpy(a->instr + i, k8_nops[k], k); 
+			__inline_memcpy(instr + i, k8_nops[k], k);
 		} 
 	}
 } 
