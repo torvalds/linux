@@ -70,7 +70,7 @@ MODULE_DESCRIPTION("sysfs interface to HP PDC Stable Storage data");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PDCS_VERSION);
 
-static unsigned long pdcs_size = 0;
+static unsigned long pdcs_size __read_mostly;
 
 /* This struct defines what we need to deal with a parisc pdc path entry */
 struct pdcspath_entry {

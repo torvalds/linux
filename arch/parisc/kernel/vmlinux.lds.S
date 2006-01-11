@@ -105,6 +105,10 @@ SECTIONS
   . = ALIGN(16);
   .data.lock_aligned : { *(.data.lock_aligned) }
 
+  /* rarely changed data like cpu maps */
+  . = ALIGN(16);
+  .data.read_mostly : { *(.data.read_mostly) }
+
   _edata = .;			/* End of data section */
 
   . = ALIGN(16384); 		/* init_task */

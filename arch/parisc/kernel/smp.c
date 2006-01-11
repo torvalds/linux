@@ -58,9 +58,9 @@ DEFINE_SPINLOCK(smp_lock);
 
 volatile struct task_struct *smp_init_current_idle_task;
 
-static volatile int cpu_now_booting = 0;	/* track which CPU is booting */
+static volatile int cpu_now_booting __read_mostly = 0;	/* track which CPU is booting */
 
-static int parisc_max_cpus = 1;
+static int parisc_max_cpus __read_mostly = 1;
 
 /* online cpus are ones that we've managed to bring up completely
  * possible cpus are all valid cpu 
@@ -71,8 +71,8 @@ static int parisc_max_cpus = 1;
  * empty in the beginning.
  */
 
-cpumask_t cpu_online_map = CPU_MASK_NONE;	/* Bitmap of online CPUs */
-cpumask_t cpu_possible_map = CPU_MASK_ALL;	/* Bitmap of Present CPUs */
+cpumask_t cpu_online_map   __read_mostly = CPU_MASK_NONE;	/* Bitmap of online CPUs */
+cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;	/* Bitmap of Present CPUs */
 
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);

@@ -29,9 +29,9 @@
 #include <asm/processor.h>
 #include <asm/sections.h>
 
-int split_tlb;
-int dcache_stride;
-int icache_stride;
+int split_tlb __read_mostly;
+int dcache_stride __read_mostly;
+int icache_stride __read_mostly;
 EXPORT_SYMBOL(dcache_stride);
 
 
@@ -45,9 +45,9 @@ DEFINE_SPINLOCK(pa_tlb_lock);
 EXPORT_SYMBOL(pa_tlb_lock);
 #endif
 
-struct pdc_cache_info cache_info;
+struct pdc_cache_info cache_info __read_mostly;
 #ifndef CONFIG_PA20
-static struct pdc_btlb_info btlb_info;
+static struct pdc_btlb_info btlb_info __read_mostly;
 #endif
 
 #ifdef CONFIG_SMP
@@ -332,7 +332,7 @@ void clear_user_page_asm(void *page, unsigned long vaddr)
 }
 
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
-int parisc_cache_flush_threshold = FLUSH_THRESHOLD;
+int parisc_cache_flush_threshold __read_mostly = FLUSH_THRESHOLD;
 
 void parisc_setup_cache_timing(void)
 {

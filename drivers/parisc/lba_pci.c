@@ -167,7 +167,7 @@
 
 /* non-postable I/O port space, densely packed */
 #define LBA_PORT_BASE	(PCI_F_EXTEND | 0xfee00000UL)
-static void __iomem *astro_iop_base;
+static void __iomem *astro_iop_base __read_mostly;
 
 #define ELROY_HVERS	0x782
 #define MERCURY_HVERS	0x783

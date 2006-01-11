@@ -46,15 +46,15 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-char	command_line[COMMAND_LINE_SIZE];
+char	command_line[COMMAND_LINE_SIZE] __read_mostly;
 
 /* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
-struct proc_dir_entry * proc_runway_root = NULL;
-struct proc_dir_entry * proc_gsc_root = NULL;
-struct proc_dir_entry * proc_mckinley_root = NULL;
+struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
+struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
+struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 
 #if !defined(CONFIG_PA20) && (defined(CONFIG_IOMMU_CCIO) || defined(CONFIG_IOMMU_SBA))
-int parisc_bus_is_phys = 1;	/* Assume no IOMMU is present */
+int parisc_bus_is_phys __read_mostly = 1;	/* Assume no IOMMU is present */
 EXPORT_SYMBOL(parisc_bus_is_phys);
 #endif
 
