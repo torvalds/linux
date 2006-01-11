@@ -124,6 +124,7 @@
 
 #define DINO_IRQS 11		/* bits 0-10 are architected */
 #define DINO_IRR_MASK	0x5ff	/* only 10 bits are implemented */
+#define DINO_LOCAL_IRQS (DINO_IRQS+1)
 
 #define DINO_MASK_IRQ(x)	(1<<(x))
 
@@ -146,7 +147,7 @@ struct dino_device
 	unsigned long		txn_addr; /* EIR addr to generate interrupt */ 
 	u32			txn_data; /* EIR data assign to each dino */ 
 	u32 			imr;	  /* IRQ's which are enabled */ 
-	int			global_irq[12]; /* map IMR bit to global irq */
+	int			global_irq[DINO_LOCAL_IRQS]; /* map IMR bit to global irq */
 #ifdef DINO_DEBUG
 	unsigned int		dino_irr0; /* save most recent IRQ line stat */
 #endif
@@ -297,7 +298,7 @@ struct pci_port_ops dino_port_ops = {
 static void dino_disable_irq(unsigned int irq)
 {
 	struct dino_device *dino_dev = irq_desc[irq].handler_data;
-	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, irq);
+	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
 
@@ -309,7 +310,7 @@ static void dino_disable_irq(unsigned int irq)
 static void dino_enable_irq(unsigned int irq)
 {
 	struct dino_device *dino_dev = irq_desc[irq].handler_data;
-	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, irq);
+	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
