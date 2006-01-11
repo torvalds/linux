@@ -1634,17 +1634,17 @@ static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file)
 	ELF_CORE_WRITE_EXTRA_DATA;
 #endif
 
-	if ((off_t) file->f_pos != offset) {
+	if ((off_t)file->f_pos != offset) {
 		/* Sanity check */
-		printk("elf_core_dump: file->f_pos (%ld) != offset (%ld)\n",
-		       (off_t) file->f_pos, offset);
+		printk(KERN_WARNING "elf_core_dump: file->f_pos (%ld) != offset (%ld)\n",
+		       (off_t)file->f_pos, offset);
 	}
 
 end_coredump:
 	set_fs(fs);
 
 cleanup:
-	while(!list_empty(&thread_list)) {
+	while (!list_empty(&thread_list)) {
 		struct list_head *tmp = thread_list.next;
 		list_del(tmp);
 		kfree(list_entry(tmp, struct elf_thread_status, list));
