@@ -879,7 +879,6 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 static int __init init_amd(struct cpuinfo_x86 *c)
 {
 	int r;
-	int level;
 
 #ifdef CONFIG_SMP
 	unsigned long value;
@@ -902,11 +901,6 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
 	clear_bit(0*32+31, &c->x86_capability);
 	
-	/* C-stepping K8? */
-	level = cpuid_eax(1);
-	if ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58)
-		set_bit(X86_FEATURE_K8_C, &c->x86_capability);
-
 	r = get_model_name(c);
 	if (!r) { 
 		switch (c->x86) { 
