@@ -751,8 +751,7 @@ xfs_ioctl(
 			mp->m_rtdev_targp : mp->m_ddev_targp;
 
 		da.d_mem = da.d_miniosz = 1 << target->pbr_sshift;
-		/* The size dio will do in one go */
-		da.d_maxiosz = 64 * PAGE_CACHE_SIZE;
+		da.d_maxiosz = INT_MAX;
 
 		if (copy_to_user(arg, &da, sizeof(da)))
 			return -XFS_ERROR(EFAULT);
