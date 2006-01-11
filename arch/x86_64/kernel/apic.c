@@ -34,6 +34,7 @@
 #include <asm/pgalloc.h>
 #include <asm/mach_apic.h>
 #include <asm/nmi.h>
+#include <asm/idle.h>
 
 int apic_verbosity;
 
@@ -922,6 +923,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * Besides, if we don't timer interrupts ignore the global
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
+	exit_idle();
 	irq_enter();
 	smp_local_timer_interrupt(regs);
 	irq_exit();
@@ -981,6 +983,7 @@ __init int oem_force_hpet_timer(void)
 asmlinkage void smp_spurious_interrupt(void)
 {
 	unsigned int v;
+	exit_idle();
 	irq_enter();
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1016,6 +1019,7 @@ asmlinkage void smp_error_interrupt(void)
 {
 	unsigned int v, v1;
 
+	exit_idle();
 	irq_enter();
 	/* First tickle the hardware, only then report what went on. -- REW */
 	v = apic_read(APIC_ESR);

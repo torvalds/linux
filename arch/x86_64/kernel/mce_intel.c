@@ -10,6 +10,7 @@
 #include <asm/msr.h>
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
+#include <asm/idle.h>
 
 static DEFINE_PER_CPU(unsigned long, next_check);
 
@@ -19,6 +20,7 @@ asmlinkage void smp_thermal_interrupt(void)
 
 	ack_APIC_irq();
 
+	exit_idle();
 	irq_enter();
 	if (time_before(jiffies, __get_cpu_var(next_check)))
 		goto done;

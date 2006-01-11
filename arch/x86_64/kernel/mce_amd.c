@@ -27,6 +27,7 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/percpu.h>
+#include <asm/idle.h>
 
 #define PFX "mce_threshold: "
 #define VERSION "version 1.00.9"
@@ -140,6 +141,7 @@ asmlinkage void mce_threshold_interrupt(void)
 	struct mce m;
 
 	ack_APIC_irq();
+	exit_idle();
 	irq_enter();
 
 	memset(&m, 0, sizeof(m));

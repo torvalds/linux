@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/io_apic.h>
+#include <asm/idle.h>
 
 atomic_t irq_err_count;
 #ifdef CONFIG_X86_IO_APIC
@@ -98,6 +99,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	/* high bits used in ret_from_ code  */
 	unsigned irq = regs->orig_rax & 0xff;
 
+	exit_idle();
 	irq_enter();
 
 	__do_IRQ(irq, regs);

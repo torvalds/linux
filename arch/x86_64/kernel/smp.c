@@ -27,6 +27,7 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/apicdef.h>
+#include <asm/idle.h>
 
 /*
  *	Smarter SMP flushing macros. 
@@ -512,6 +513,7 @@ asmlinkage void smp_call_function_interrupt(void)
 	/*
 	 * At this point the info structure may be out of scope unless wait==1
 	 */
+	exit_idle();
 	irq_enter();
 	(*func)(info);
 	irq_exit();

@@ -36,6 +36,7 @@
 #include <linux/utsname.h>
 #include <linux/random.h>
 #include <linux/kprobes.h>
+#include <linux/notifier.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -50,6 +51,7 @@
 #include <asm/desc.h>
 #include <asm/proto.h>
 #include <asm/ia32.h>
+#include <asm/idle.h>
 
 asmlinkage extern void ret_from_fork(void);
 
@@ -63,6 +65,50 @@ EXPORT_SYMBOL(boot_option_idle_override);
  */
 void (*pm_idle)(void);
 static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
+
+static struct notifier_block *idle_notifier;
+static DEFINE_SPINLOCK(idle_notifier_lock);
+
+void idle_notifier_register(struct notifier_block *n)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&idle_notifier_lock, flags);
+	notifier_chain_register(&idle_notifier, n);
+	spin_unlock_irqrestore(&idle_notifier_lock, flags);
+}
+EXPORT_SYMBOL_GPL(idle_notifier_register);
+
+void idle_notifier_unregister(struct notifier_block *n)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&idle_notifier_lock, flags);
+	notifier_chain_unregister(&idle_notifier, n);
+	spin_unlock_irqrestore(&idle_notifier_lock, flags);
+}
+EXPORT_SYMBOL(idle_notifier_unregister);
+
+enum idle_state { CPU_IDLE, CPU_NOT_IDLE };
+static DEFINE_PER_CPU(enum idle_state, idle_state) = CPU_NOT_IDLE;
+
+void enter_idle(void)
+{
+	__get_cpu_var(idle_state) = CPU_IDLE;
+	notifier_call_chain(&idle_notifier, IDLE_START, NULL);
+}
+
+static void __exit_idle(void)
+{
+	__get_cpu_var(idle_state) = CPU_NOT_IDLE;
+	notifier_call_chain(&idle_notifier, IDLE_END, NULL);
+}
+
+/* Called from interrupts to signify idle end */
+void exit_idle(void)
+{
+	if (current->pid | read_pda(irqcount))
+		return;
+	__exit_idle();
+}
 
 /*
  * We use this if we don't have any better
@@ -180,7 +226,9 @@ void cpu_idle (void)
 				idle = default_idle;
 			if (cpu_is_offline(smp_processor_id()))
 				play_dead();
+			enter_idle();
 			idle();
+			__exit_idle();
 		}
 
 		preempt_enable_no_resched();
