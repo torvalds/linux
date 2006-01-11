@@ -69,6 +69,10 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config DMI
+	bool
+	default y
+
 source "init/Kconfig"
 
 

@@ -44,6 +44,7 @@
 #include <linux/mmzone.h>
 #include <linux/kexec.h>
 #include <linux/cpufreq.h>
+#include <linux/dmi.h>
 
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
@@ -1392,3 +1393,11 @@ struct seq_operations cpuinfo_op = {
 	.stop =	c_stop,
 	.show =	show_cpuinfo,
 };
+
+static int __init run_dmi_scan(void)
+{
+	dmi_scan_machine();
+	return 0;
+}
+core_initcall(run_dmi_scan);
+

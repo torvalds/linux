@@ -45,6 +45,7 @@
 #include <linux/nodemask.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
+#include <linux/dmi.h>
 
 #include <video/edid.h>
 
@@ -146,7 +147,6 @@ EXPORT_SYMBOL(ist_info);
 struct e820map e820;
 
 extern void early_cpu_init(void);
-extern void dmi_scan_machine(void);
 extern void generic_apic_probe(char *);
 extern int root_mountflags;
 
