@@ -121,6 +121,7 @@ config PARPORT_GSC
 	tristate
 	default GSC
 	depends on PARPORT
+	select PARPORT_NOT_PC
 
 config PARPORT_SUNBPP
 	tristate "Sparc hardware (EXPERIMENTAL)"
