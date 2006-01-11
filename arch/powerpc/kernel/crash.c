@@ -18,7 +18,6 @@
 #include <linux/kexec.h>
 #include <linux/bootmem.h>
 #include <linux/crash_dump.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
@@ -30,6 +29,7 @@
 #include <asm/kdump.h>
 #include <asm/lmb.h>
 #include <asm/firmware.h>
+#include <asm/smp.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
