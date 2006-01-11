@@ -333,10 +333,11 @@ xfs_finish_flags(
 
 	/* Fail a mount where the logbuf is smaller then the log stripe */
 	if (XFS_SB_VERSION_HASLOGV2(&mp->m_sb)) {
-		if ((ap->logbufsize == -1) &&
+		if ((ap->logbufsize <= 0) &&
 		    (mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE)) {
 			mp->m_logbsize = mp->m_sb.sb_logsunit;
-		} else if (ap->logbufsize < mp->m_sb.sb_logsunit) {
+		} else if (ap->logbufsize > 0 &&
+			   ap->logbufsize < mp->m_sb.sb_logsunit) {
 			cmn_err(CE_WARN,
 	"XFS: logbuf size must be greater than or equal to log stripe size");
 			return XFS_ERROR(EINVAL);
