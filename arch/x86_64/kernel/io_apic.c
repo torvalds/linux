@@ -260,9 +260,6 @@ __setup("apic", enable_ioapic_setup);
 void __init check_ioapic(void) 
 { 
 	int num,slot,func; 
-	if (ioapic_force) 
-		return; 
-
 	/* Poor man's PCI discovery */
 	for (num = 0; num < 32; num++) { 
 		for (slot = 0; slot < 32; slot++) { 
