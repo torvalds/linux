@@ -54,20 +54,20 @@ static struct pdc_btlb_info btlb_info __read_mostly;
 void
 flush_data_cache(void)
 {
-	on_each_cpu((void (*)(void *))flush_data_cache_local, NULL, 1, 1);
+	on_each_cpu(flush_data_cache_local, NULL, 1, 1);
 }
 void 
 flush_instruction_cache(void)
 {
-	on_each_cpu((void (*)(void *))flush_instruction_cache_local, NULL, 1, 1);
+	on_each_cpu(flush_instruction_cache_local, NULL, 1, 1);
 }
 #endif
 
 void
 flush_cache_all_local(void)
 {
-	flush_instruction_cache_local();
-	flush_data_cache_local();
+	flush_instruction_cache_local(NULL);
+	flush_data_cache_local(NULL);
 }
 EXPORT_SYMBOL(flush_cache_all_local);
 

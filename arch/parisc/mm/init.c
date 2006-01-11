@@ -998,7 +998,7 @@ void flush_tlb_all(void)
 void flush_tlb_all(void)
 {
 	spin_lock(&sid_lock);
-	flush_tlb_all_local();
+	flush_tlb_all_local(NULL);
 	recycle_sids();
 	spin_unlock(&sid_lock);
 }
