@@ -207,9 +207,19 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 
 	if (!sig)
 		regs->gpr[13] = save_r13;
-	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 	if (set != NULL)
 		err |=  __get_user(set->sig[0], &sc->oldmask);
+
+	/*
+	 * Do this before updating the thread state in
+	 * current->thread.fpr/vr.  That way, if we get preempted
+	 * and another task grabs the FPU/Altivec, it won't be
+	 * tempted to save the current CPU state into the thread_struct
+	 * and corrupt what we are writing there.
+	 */
+	discard_lazy_cpu_state();
+
+	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
@@ -229,14 +239,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 		current->thread.vrsave = 0;
 #endif /* CONFIG_ALTIVEC */
 
-#ifndef CONFIG_SMP
-	preempt_disable();
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-	preempt_enable();
-#endif
 	/* Force reload of FP/VEC */
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
 

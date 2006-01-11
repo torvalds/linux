@@ -133,6 +133,14 @@ extern int fix_alignment(struct pt_regs *);
 extern void cvt_fd(float *from, double *to, struct thread_struct *thread);
 extern void cvt_df(double *from, float *to, struct thread_struct *thread);
 
+#ifndef CONFIG_SMP
+extern void discard_lazy_cpu_state(void);
+#else
+static inline void discard_lazy_cpu_state(void)
+{
+}
+#endif
+
 #ifdef CONFIG_ALTIVEC
 extern void flush_altivec_to_thread(struct task_struct *);
 #else
