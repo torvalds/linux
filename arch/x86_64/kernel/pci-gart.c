@@ -772,7 +772,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
  nommu:
  	/* Should not happen anymore */
 	printk(KERN_ERR "PCI-DMA: More than 4GB of RAM and no IOMMU\n"
-	       KERN_ERR "PCI-DMA: 32bit PCI IO may malfunction."); 
+	       KERN_ERR "PCI-DMA: 32bit PCI IO may malfunction.\n");
 	return -1; 
 } 
 
