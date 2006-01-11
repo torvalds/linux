@@ -53,6 +53,7 @@
 
 #include <linux/xattr.h>
 #include <linux/namei.h>
+#include <linux/security.h>
 
 #define IS_NOATIME(inode) ((inode->i_sb->s_flags & MS_NOATIME) ||	\
 	(S_ISDIR(inode->i_mode) && inode->i_sb->s_flags & MS_NODIRATIME))
@@ -203,6 +204,39 @@ validate_fields(
 }
 
 /*
+ * Hook in SELinux.  This is not quite correct yet, what we really need
+ * here (as we do for default ACLs) is a mechanism by which creation of
+ * these attrs can be journalled at inode creation time (along with the
+ * inode, of course, such that log replay can't cause these to be lost).
+ */
+STATIC int
+linvfs_init_security(
+	struct vnode	*vp,
+	struct inode	*dir)
+{
+	struct inode	*ip = LINVFS_GET_IP(vp);
+	size_t		length;
+	void		*value;
+	char		*name;
+	int		error;
+
+	error = security_inode_init_security(ip, dir, &name, &value, &length);
+	if (error) {
+		if (error == -EOPNOTSUPP)
+			return 0;
+		return -error;
+	}
+
+	VOP_ATTR_SET(vp, name, value, length, ATTR_SECURE, NULL, error);
+	if (!error)
+		VMODIFY(vp);
+
+	kfree(name);
+	kfree(value);
+	return error;
+}
+
+/*
  * Determine whether a process has a valid fs_struct (kernel daemons
  * like knfsd don't have an fs_struct).
  *
@@ -266,6 +300,9 @@ linvfs_mknod(
 		error = EINVAL;
 		break;
 	}
+
+	if (!error)
+		error = linvfs_init_security(vp, dir);
 
 	if (default_acl) {
 		if (!error) {
