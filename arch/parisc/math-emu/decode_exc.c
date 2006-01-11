@@ -337,6 +337,7 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
 		}
 		break;
 	  case INVALIDEXCEPTION:
+	  case OPC_2E_INVALIDEXCEPTION:
 		update_trap_counts(Fpu_register, aflags, bflags, trap_counts);
 		return SIGNALCODE(SIGFPE, FPE_FLTINV);
 	  case DIVISIONBYZEROEXCEPTION:
