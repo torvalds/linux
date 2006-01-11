@@ -399,11 +399,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	oops_end(flags);
 	do_exit(SIGSEGV); 
 }
-static inline void die_if_kernel(const char * str, struct pt_regs * regs, long err)
-{
-	if (!(regs->eflags & VM_MASK) && (regs->cs == __KERNEL_CS))
-		die(str, regs, err);
-}
 
 void die_nmi(char *str, struct pt_regs *regs)
 {
