@@ -360,3 +360,39 @@ EXPORT_SYMBOL(node_to_cpumask);
 EXPORT_SYMBOL(memnode_shift);
 EXPORT_SYMBOL(memnodemap);
 EXPORT_SYMBOL(node_data);
+
+#ifdef CONFIG_DISCONTIGMEM
+/*
+ * Functions to convert PFNs from/to per node page addresses.
+ * These are out of line because they are quite big.
+ * They could be all tuned by pre caching more state.
+ * Should do that.
+ */
+
+/* Requires pfn_valid(pfn) to be true */
+struct page *pfn_to_page(unsigned long pfn)
+{
+	int nid = phys_to_nid(((unsigned long)(pfn)) << PAGE_SHIFT);
+	return (pfn - node_start_pfn(nid)) + NODE_DATA(nid)->node_mem_map;
+}
+EXPORT_SYMBOL(pfn_to_page);
+
+unsigned long page_to_pfn(struct page *page)
+{
+	return (long)(((page) - page_zone(page)->zone_mem_map) +
+		      page_zone(page)->zone_start_pfn);
+}
+EXPORT_SYMBOL(page_to_pfn);
+
+int pfn_valid(unsigned long pfn)
+{
+	unsigned nid;
+	if (pfn >= num_physpages)
+		return 0;
+	nid = pfn_to_nid(pfn);
+	if (nid == 0xff)
+		return 0;
+	return pfn >= node_start_pfn(nid) && (pfn) < node_end_pfn(nid);
+}
+EXPORT_SYMBOL(pfn_valid);
+#endif
