@@ -397,6 +397,22 @@ static __inline__ int fls64(__u64 x)
 }
 
 /**
+ * fls - find last bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs.
+ */
+static __inline__ int fls(int x)
+{
+	int r;
+
+	__asm__("bsrl %1,%0\n\t"
+		"cmovzl %2,%0"
+		: "=&r" (r) : "rm" (x), "rm" (-1));
+	return r+1;
+}
+
+/**
  * hweightN - returns the hamming weight of a N-bit word
  * @x: the word to weigh
  *
@@ -433,9 +449,6 @@ static __inline__ int fls64(__u64 x)
 #define minix_test_bit(nr,addr) test_bit(nr,(void*)addr)
 #define minix_find_first_zero_bit(addr,size) \
 	find_first_zero_bit((void*)addr,size)
-
-/* find last set bit */
-#define fls(x) generic_fls(x)
 
 #endif /* __KERNEL__ */
 
