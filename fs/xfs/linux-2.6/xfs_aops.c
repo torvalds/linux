@@ -722,8 +722,17 @@ xfs_convert_page(
 		SetPageUptodate(page);
 
 	if (startio) {
-		if (count)
-			wbc->nr_to_write--;
+		if (count) {
+			struct backing_dev_info *bdi;
+
+			bdi = inode->i_mapping->backing_dev_info;
+			if (bdi_write_congested(bdi)) {
+				wbc->encountered_congestion = 1;
+				done = 1;
+			} else if (--wbc->nr_to_write <= 0) {
+				done = 1;
+			}
+		}
 		xfs_start_page_writeback(page, wbc, !page_dirty, count);
 	}
 
@@ -812,7 +821,7 @@ xfs_page_state_convert(
 	int			all_bh = unmapped;
 
 	/* wait for other IO threads? */
-	if (startio && wbc->sync_mode != WB_SYNC_NONE)
+	if (startio && (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking))
 		trylock_flag |= BMAPI_TRYLOCK;
 
 	/* Is this page beyond the end of the file? */
