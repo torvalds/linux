@@ -334,6 +334,15 @@ int __kprobes kprobe_handler(struct pt_regs *regs)
 				return 1;
 			}
 		} else {
+			if (*addr != BREAKPOINT_INSTRUCTION) {
+			/* The breakpoint instruction was removed by
+			 * another cpu right after we hit, no further
+			 * handling of this interrupt is appropriate
+			 */
+				regs->rip = (unsigned long)addr;
+				ret = 1;
+				goto no_kprobe;
+			}
 			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;

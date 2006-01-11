@@ -638,6 +638,13 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;
 			}
+		} else if (!is_ia64_break_inst(regs)) {
+			/* The breakpoint instruction was removed by
+			 * another cpu right after we hit, no further
+			 * handling of this interrupt is appropriate
+			 */
+			ret = 1;
+			goto no_kprobe;
 		} else {
 			/* Not our break */
 			goto no_kprobe;

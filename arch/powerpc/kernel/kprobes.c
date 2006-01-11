@@ -179,6 +179,18 @@ static inline int kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		} else {
+			if (*addr != BREAKPOINT_INSTRUCTION) {
+				/* If trap variant, then it belongs not to us */
+				kprobe_opcode_t cur_insn = *addr;
+				if (is_trap(cur_insn))
+		       			goto no_kprobe;
+				/* The breakpoint instruction was removed by
+				 * another cpu right after we hit, no further
+				 * handling of this interrupt is appropriate
+				 */
+				ret = 1;
+				goto no_kprobe;
+			}
 			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;
