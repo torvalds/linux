@@ -480,6 +480,11 @@ EXPORT_SYMBOL_GPL(spi_busnum_to_master);
 
 /*-------------------------------------------------------------------------*/
 
+static void spi_complete(void *arg)
+{
+	complete(arg);
+}
+
 /**
  * spi_sync - blocking/synchronous SPI data transfers
  * @spi: device with which data will be exchanged
@@ -508,7 +513,7 @@ int spi_sync(struct spi_device *spi, struct spi_message *message)
 	DECLARE_COMPLETION(done);
 	int status;
 
-	message->complete = (void (*)(void *)) complete;
+	message->complete = spi_complete;
 	message->context = &done;
 	status = spi_async(spi, message);
 	if (status == 0)

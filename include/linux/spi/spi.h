@@ -374,7 +374,7 @@ struct spi_message {
 	 */
 
 	/* completion is reported through a callback */
-	void 			FASTCALL((*complete)(void *context));
+	void 			(*complete)(void *context);
 	void			*context;
 	unsigned		actual_length;
 	int			status;
