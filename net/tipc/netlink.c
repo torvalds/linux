@@ -100,7 +100,7 @@ int netlink_start(void)
 	genl_unregister_family(&family);
 	family_registered = 0;
  err:
-	err("Failed to register netlink interface");
+	err("Failed to register netlink interface\n");
 	return -EFAULT;
 }
 

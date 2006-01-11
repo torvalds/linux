@@ -1696,13 +1696,13 @@ int socket_init(void)
 
         res = proto_register(&tipc_proto, 1);
 	if (res) {
-		err("Unable to register TIPC protocol type\n");
+		err("Failed to register TIPC protocol type\n");
 		goto out;
 	}
 
 	res = sock_register(&tipc_family_ops);
 	if (res) {
-		err("Unable to register TIPC socket type\n");
+		err("Failed to register TIPC socket type\n");
 		proto_unregister(&tipc_proto);
 		goto out;
 	}

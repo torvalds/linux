@@ -117,9 +117,9 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
  * - debug messages are not printed
  */
 
-#define err(fmt, arg...)  printk(KERN_ERR "%s: " fmt "\n" , __FILE__ , ## arg)
-#define info(fmt, arg...) printk(KERN_INFO "%s: " fmt "\n" , __FILE__ , ## arg)
-#define warn(fmt, arg...) printk(KERN_WARNING "%s: " fmt "\n" , __FILE__ , ## arg)
+#define err(fmt, arg...)  printk(KERN_ERR "TIPC: " fmt , ## arg)
+#define info(fmt, arg...) printk(KERN_INFO "TIPC: " fmt , ## arg)
+#define warn(fmt, arg...) printk(KERN_WARNING "TIPC: " fmt , ## arg)
 
 #define dbg(fmt, arg...) do {} while (0)
 #define msg_dbg(msg,txt) do {} while (0)

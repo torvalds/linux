@@ -488,7 +488,7 @@ int subscr_start(void)
 	return 0;
 
 failed:
-	err("Unable to create subscription service\n");
+	err("Failed to create subscription service\n");
 	tipc_detach(topsrv.user_ref);
 	topsrv.user_ref = 0;
 	spin_unlock_bh(&topsrv.lock);
