@@ -494,63 +494,6 @@ typedef struct log {
 
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes -= (bytes);			\
-		if ((log)->l_grant_write_bytes < 0) {			\
-			(log)->l_grant_write_bytes += (log)->l_logsize;	\
-			(log)->l_grant_write_cycle--;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes -= (bytes);		\
-		if ((log)->l_grant_reserve_bytes < 0) {			\
-			(log)->l_grant_reserve_bytes += (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle--;			\
-		}							\
-	 }								\
-    }
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes += (bytes);			\
-		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_write_bytes -= (log)->l_logsize;	\
-			(log)->l_grant_write_cycle++;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes += (bytes);		\
-		if ((log)->l_grant_reserve_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_reserve_bytes -= (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle++;			\
-		}							\
-	 }								\
-    }
-#define XLOG_INS_TICKETQ(q, tic)			\
-    {							\
-	if (q) {					\
-		(tic)->t_next	    = (q);		\
-		(tic)->t_prev	    = (q)->t_prev;	\
-		(q)->t_prev->t_next = (tic);		\
-		(q)->t_prev	    = (tic);		\
-	} else {					\
-		(tic)->t_prev = (tic)->t_next = (tic);	\
-		(q) = (tic);				\
-	}						\
-	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
-    }
-#define XLOG_DEL_TICKETQ(q, tic)			\
-    {							\
-	if ((tic) == (tic)->t_next) {			\
-		(q) = NULL;				\
-	} else {					\
-		(q) = (tic)->t_next;			\
-		(tic)->t_next->t_prev = (tic)->t_prev;	\
-		(tic)->t_prev->t_next = (tic)->t_next;	\
-	}						\
-	(tic)->t_next = (tic)->t_prev = NULL;		\
-	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
-    }
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
