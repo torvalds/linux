@@ -46,8 +46,6 @@ struct hw_interrupt_type;
  *  some of the following vectors are 'rare', they are merged
  *  into a single vector (CALL_FUNCTION_VECTOR) to save vector space.
  *  TLB, reschedule and local APIC vectors are performance-critical.
- *
- *  Vectors 0xf0-0xf9 are free (reserved for future Linux use).
  */
 #define SPURIOUS_APIC_VECTOR	0xff
 #define ERROR_APIC_VECTOR	0xfe
@@ -56,8 +54,9 @@ struct hw_interrupt_type;
 #define KDB_VECTOR		0xfb	/* reserved for KDB */
 #define THERMAL_APIC_VECTOR	0xfa
 #define THRESHOLD_APIC_VECTOR   0xf9
-#define INVALIDATE_TLB_VECTOR_END	0xf8
-#define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f8 used for TLB flush */
+/* f8 free */
+#define INVALIDATE_TLB_VECTOR_END	0xf7
+#define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f7 used for TLB flush */
 
 #define NUM_INVALIDATE_TLB_VECTORS	8
 
