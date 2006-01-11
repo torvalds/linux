@@ -827,7 +827,8 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 
 	ipoib_mcast_stop_thread(dev, 0);
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&dev->xmit_lock, flags);
+	spin_lock(&priv->lock);
 
 	/*
 	 * Unfortunately, the networking core only gives us a list of all of
@@ -899,7 +900,9 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 			list_add_tail(&mcast->list, &remove_list);
 		}
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+
+	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&dev->xmit_lock, flags);
 
 	/* We have to cancel outside of the spinlock */
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
