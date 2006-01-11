@@ -927,8 +927,8 @@ int additional_cpus __initdata = -1;
  *
  * Three ways to find out the number of additional hotplug CPUs:
  * - If the BIOS specified disabled CPUs in ACPI/mptables use that.
- * - otherwise use half of the available CPUs or 2, whatever is more.
  * - The user can overwrite it with additional_cpus=NUM
+ * - Otherwise don't reserve additional CPUs.
  * We do this because additional CPUs waste a lot of memory.
  * -AK
  */
@@ -938,13 +938,10 @@ __init void prefill_possible_map(void)
 	int possible;
 
  	if (additional_cpus == -1) {
- 		if (disabled_cpus > 0) {
+ 		if (disabled_cpus > 0)
  			additional_cpus = disabled_cpus;
- 		} else {
- 			additional_cpus = num_processors / 2;
- 			if (additional_cpus == 0)
- 				additional_cpus = 2;
- 		}
+ 		else
+			additional_cpus = 0;
  	}
 	possible = num_processors + additional_cpus;
 	if (possible > NR_CPUS) 
