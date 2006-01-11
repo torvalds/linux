@@ -164,8 +164,11 @@ ieee80211softmac_assoc_work(void *d)
 	if (mac->associnfo.bssvalid)
 		found = ieee80211softmac_get_network_by_bssid(mac, mac->associnfo.bssid);	
 	
-	/* Search the ieee80211 networks for this network if we didn't find it */
-	if (!found)
+	/* Search the ieee80211 networks for this network if we didn't find it by bssid,
+	 * but only if we've scanned at least once (to get a better list of networks to
+	 * select from). If we have not scanned before, the !found logic below will be
+	 * invoked and will scan. */
+	if (!found && (mac->associnfo.scan_retry < IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT))
 	{
 		s8 rssi = -128;	/* if I don't initialise, gcc emits an invalid warning
 				   because it cannot follow the best pointer logic. */
@@ -218,12 +221,10 @@ ieee80211softmac_assoc_work(void *d)
 			 * NB: this also happens if we had no memory to copy the network info...
 			 * Maybe we can hope to have more memory after scanning finishes ;)
 			 */
-			dprintk(KERN_INFO PFX "Associate: Network not known, trying to initiate scan: ");
+			dprintk(KERN_INFO PFX "Associate: Scanning for networks first.\n");
 			ieee80211softmac_notify(mac->dev, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, ieee80211softmac_assoc_notify, NULL);
 			if (ieee80211softmac_start_scan(mac))
-				dprintk("failed.\n");
-			else
-				dprintk("ok.\n");
+				dprintk(KERN_INFO PFX "Associate: failed to initiate scan. Is device up?\n");
 			return;
 		}
 		else {
@@ -232,7 +233,7 @@ ieee80211softmac_assoc_work(void *d)
 			mac->associated = 0;
 			spin_unlock_irqrestore(&mac->lock, flags);
 
-			dprintk(KERN_INFO PFX "Unable to find network after scan!\n");
+			dprintk(KERN_INFO PFX "Unable to find matching network after scan!\n");
 			ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_NET_NOT_FOUND, NULL);
 			return;
 		}
