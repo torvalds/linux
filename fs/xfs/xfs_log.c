@@ -428,7 +428,7 @@ xfs_log_mount(xfs_mount_t	*mp,
 		if (readonly)
 			vfsp->vfs_flag &= ~VFS_RDONLY;
 
-		error = xlog_recover(mp->m_log, readonly);
+		error = xlog_recover(mp->m_log);
 
 		if (readonly)
 			vfsp->vfs_flag |= VFS_RDONLY;
