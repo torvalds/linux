@@ -1920,9 +1920,7 @@ xfs_qm_quotacheck(
 	 * at this point (because we intentionally didn't in dqget_noattach).
 	 */
 	if (error) {
-		xfs_qm_dqpurge_all(mp,
-				   XFS_QMOPT_UQUOTA|XFS_QMOPT_GQUOTA|
-				   XFS_QMOPT_PQUOTA|XFS_QMOPT_QUOTAOFF);
+		xfs_qm_dqpurge_all(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_QUOTAOFF);
 		goto error_return;
 	}
 	/*
@@ -2745,6 +2743,7 @@ xfs_qm_vop_dqattach_and_dqmod_newinode(
 		xfs_dqunlock(udqp);
 		ASSERT(ip->i_udquot == NULL);
 		ip->i_udquot = udqp;
+		ASSERT(XFS_IS_UQUOTA_ON(tp->t_mountp));
 		ASSERT(ip->i_d.di_uid == be32_to_cpu(udqp->q_core.d_id));
 		xfs_trans_mod_dquot(tp, udqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
@@ -2754,7 +2753,10 @@ xfs_qm_vop_dqattach_and_dqmod_newinode(
 		xfs_dqunlock(gdqp);
 		ASSERT(ip->i_gdquot == NULL);
 		ip->i_gdquot = gdqp;
-		ASSERT(ip->i_d.di_gid == be32_to_cpu(gdqp->q_core.d_id));
+		ASSERT(XFS_IS_OQUOTA_ON(tp->t_mountp));
+		ASSERT((XFS_IS_GQUOTA_ON(tp->t_mountp) ?
+			ip->i_d.di_gid : ip->i_d.di_projid) ==
+				be32_to_cpu(gdqp->q_core.d_id));
 		xfs_trans_mod_dquot(tp, gdqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
 }
