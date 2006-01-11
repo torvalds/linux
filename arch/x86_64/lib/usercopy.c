@@ -109,13 +109,10 @@ unsigned long clear_user(void __user *to, unsigned long n)
  * Return 0 on exception, a value greater than N if too long
  */
 
-long strnlen_user(const char __user *s, long n)
+long __strnlen_user(const char __user *s, long n)
 {
 	long res = 0;
 	char c;
-
-	if (!access_ok(VERIFY_READ, s, n))
-		return 0;
 
 	while (1) {
 		if (res>n)
@@ -127,6 +124,13 @@ long strnlen_user(const char __user *s, long n)
 		res++;
 		s++;
 	}
+}
+
+long strnlen_user(const char __user *s, long n)
+{
+	if (!access_ok(VERIFY_READ, s, n))
+		return 0;
+	return __strnlen_user(s, n);
 }
 
 long strlen_user(const char __user *s)

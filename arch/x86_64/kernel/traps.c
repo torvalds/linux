@@ -340,7 +340,8 @@ bad:
 void handle_BUG(struct pt_regs *regs)
 { 
 	struct bug_frame f;
-	char tmp;
+	long len;
+	const char *prefix = "";
 
 	if (user_mode(regs))
 		return; 
@@ -350,10 +351,15 @@ void handle_BUG(struct pt_regs *regs)
 	if (f.filename >= 0 ||
 	    f.ud2[0] != 0x0f || f.ud2[1] != 0x0b) 
 		return;
-	if (__get_user(tmp, (char *)(long)f.filename))
+	len = __strnlen_user((char *)(long)f.filename, PATH_MAX) - 1;
+	if (len < 0 || len >= PATH_MAX)
 		f.filename = (int)(long)"unmapped filename";
+	else if (len > 50) {
+		f.filename += len - 50;
+		prefix = "...";
+	}
 	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", (char *)(long)f.filename, f.line);
+	printk(KERN_ALERT "Kernel BUG at %s%.50s:%d\n", prefix, (char *)(long)f.filename, f.line);
 } 
 
 #ifdef CONFIG_BUG

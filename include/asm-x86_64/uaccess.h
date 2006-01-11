@@ -348,6 +348,7 @@ static inline int __copy_in_user(void __user *dst, const void __user *src, unsig
 long strncpy_from_user(char *dst, const char __user *src, long count);
 long __strncpy_from_user(char *dst, const char __user *src, long count);
 long strnlen_user(const char __user *str, long n);
+long __strnlen_user(const char __user *str, long n);
 long strlen_user(const char __user *str);
 unsigned long clear_user(void __user *mem, unsigned long len);
 unsigned long __clear_user(void __user *mem, unsigned long len);
