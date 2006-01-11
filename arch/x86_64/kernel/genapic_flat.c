@@ -83,12 +83,11 @@ static void flat_send_IPI_allbutself(int vector)
 		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
 #else
 	cpumask_t allbutme = cpu_online_map;
-	int me = get_cpu(); /* Ensure we are not preempted when we clear */
-	cpu_clear(me, allbutme);
+
+	cpu_clear(smp_processor_id(), allbutme);
 
 	if (!cpus_empty(allbutme))
 		flat_send_IPI_mask(allbutme, vector);
-	put_cpu();
 #endif
 }
 
@@ -149,10 +148,9 @@ static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
 static void physflat_send_IPI_allbutself(int vector)
 {
 	cpumask_t allbutme = cpu_online_map;
-	int me = get_cpu();
-	cpu_clear(me, allbutme);
+
+	cpu_clear(smp_processor_id(), allbutme);
 	physflat_send_IPI_mask(allbutme, vector);
-	put_cpu();
 }
 
 static void physflat_send_IPI_all(int vector)
