@@ -804,7 +804,7 @@ static int __init pci_iommu_init(void)
 	} 
 	
 	if (no_iommu ||
-	    (!force_iommu && end_pfn < 0xffffffff>>PAGE_SHIFT) ||
+	    (!force_iommu && (end_pfn-1) < 0xffffffff>>PAGE_SHIFT) ||
 	    !iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n"); 

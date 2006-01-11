@@ -23,6 +23,7 @@
 #include <asm/io.h>
 #include <asm/proto.h>
 #include <asm/pci-direct.h>
+#include <asm/dma.h>
 
 int iommu_aperture;
 int iommu_aperture_disabled __initdata = 0;
@@ -247,7 +248,7 @@ void __init iommu_hole_init(void)
 		/* Got the aperture from the AGP bridge */
 	} else if (swiotlb && !valid_agp) {
 		/* Do nothing */
-	} else if ((!no_iommu && end_pfn >= 0xffffffff>>PAGE_SHIFT) ||
+	} else if ((!no_iommu && end_pfn >= MAX_DMA32_PFN) ||
 		   force_iommu ||
 		   valid_agp ||
 		   fallback_aper_force) { 

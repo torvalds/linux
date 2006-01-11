@@ -37,6 +37,7 @@
 #include <asm/proto.h>
 #include <asm/mach_apic.h>
 #include <asm/acpi.h>
+#include <asm/dma.h>
 
 #define __apicdebuginit  __init
 
@@ -281,7 +282,7 @@ void __init check_ioapic(void)
 				switch (vendor) { 
 				case PCI_VENDOR_ID_VIA:
 #ifdef CONFIG_GART_IOMMU
-					if ((end_pfn >= (0xffffffff>>PAGE_SHIFT) ||
+					if ((end_pfn > MAX_DMA32_PFN ||
 					     force_iommu) &&
 					    !iommu_aperture_allowed) {
 						printk(KERN_INFO

@@ -424,7 +424,7 @@ void __init mem_init(void)
 
 #ifdef CONFIG_SWIOTLB
 	if (!iommu_aperture &&
-	    (end_pfn >= 0xffffffff>>PAGE_SHIFT || force_iommu))
+	    ((end_pfn-1) >= 0xffffffff>>PAGE_SHIFT || force_iommu))
 	       swiotlb = 1;
 	if (swiotlb)
 		swiotlb_init();	
