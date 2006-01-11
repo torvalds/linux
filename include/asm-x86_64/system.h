@@ -330,13 +330,6 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 
 void cpu_idle_wait(void);
 
-/*
- * disable hlt during certain critical i/o operations
- */
-#define HAVE_DISABLE_HLT
-void disable_hlt(void);
-void enable_hlt(void);
-
 extern unsigned long arch_align_stack(unsigned long sp);
 
 #endif

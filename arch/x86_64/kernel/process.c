@@ -55,8 +55,6 @@ asmlinkage extern void ret_from_fork(void);
 
 unsigned long kernel_thread_flags = CLONE_VM | CLONE_UNTRACED;
 
-static atomic_t hlt_counter = ATOMIC_INIT(0);
-
 unsigned long boot_option_idle_override = 0;
 EXPORT_SYMBOL(boot_option_idle_override);
 
@@ -66,20 +64,6 @@ EXPORT_SYMBOL(boot_option_idle_override);
 void (*pm_idle)(void);
 static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
 
-void disable_hlt(void)
-{
-	atomic_inc(&hlt_counter);
-}
-
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	atomic_dec(&hlt_counter);
-}
-
-EXPORT_SYMBOL(enable_hlt);
-
 /*
  * We use this if we don't have any better
  * idle routine..
@@ -88,21 +72,16 @@ void default_idle(void)
 {
 	local_irq_enable();
 
-	if (!atomic_read(&hlt_counter)) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb__after_clear_bit();
-		while (!need_resched()) {
-			local_irq_disable();
-			if (!need_resched())
-				safe_halt();
-			else
-				local_irq_enable();
-		}
-		set_thread_flag(TIF_POLLING_NRFLAG);
-	} else {
-		while (!need_resched())
-			cpu_relax();
+	clear_thread_flag(TIF_POLLING_NRFLAG);
+	smp_mb__after_clear_bit();
+	while (!need_resched()) {
+		local_irq_disable();
+		if (!need_resched())
+			safe_halt();
+		else
+			local_irq_enable();
 	}
+	set_thread_flag(TIF_POLLING_NRFLAG);
 }
 
 /*
