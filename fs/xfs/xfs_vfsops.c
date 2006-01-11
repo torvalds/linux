@@ -506,13 +506,14 @@ xfs_mount(
 	if (error)
 		goto error2;
 
+	if ((mp->m_flags & XFS_MOUNT_NOATIME) &&
+	    !(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY))
+		xfs_mountfs_check_barriers(mp);
+
 	error = XFS_IOINIT(vfsp, args, flags);
 	if (error)
 		goto error2;
 
-	if ((args->flags & XFSMNT_BARRIER) &&
-	    !(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY))
-		xfs_mountfs_check_barriers(mp);
 	return 0;
 
 error2:
