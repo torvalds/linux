@@ -132,6 +132,10 @@
  * 	TODO:
  * 	o several entry points race with dev->close
  * 	o check for tx-no-resources/stop Q races with tx clean/wake Q
+ *
+ *	FIXES:
+ * 2005/12/02 - Michael O'Donnell <Michael.ODonnell at stratus dot com>
+ *	- Stratus87247: protect MDI control register manipulations
  */
 
 #include <linux/config.h>
@@ -578,6 +582,7 @@ struct nic {
 	u16 leds;
 	u16 eeprom_wc;
 	u16 eeprom[256];
+	spinlock_t mdio_lock;
 };
 
 static inline void e100_write_flush(struct nic *nic)
@@ -876,15 +881,35 @@ static u16 mdio_ctrl(struct nic *nic, u32 addr, u32 dir, u32 reg, u16 data)
 {
 	u32 data_out = 0;
 	unsigned int i;
+	unsigned long flags;
 
+
+	/*
+	 * Stratus87247: we shouldn't be writing the MDI control
+	 * register until the Ready bit shows True.  Also, since
+	 * manipulation of the MDI control registers is a multi-step
+	 * procedure it should be done under lock.
+	 */
+	spin_lock_irqsave(&nic->mdio_lock, flags);
+	for (i = 100; i; --i) {
+		if (readl(&nic->csr->mdi_ctrl) & mdi_ready)
+			break;
+		udelay(20);
+	}
+	if (unlikely(!i)) {
+		printk("e100.mdio_ctrl(%s) won't go Ready\n",
+			nic->netdev->name );
+		spin_unlock_irqrestore(&nic->mdio_lock, flags);
+		return 0;		/* No way to indicate timeout error */
+	}
 	writel((reg << 16) | (addr << 21) | dir | data, &nic->csr->mdi_ctrl);
 
-	for(i = 0; i < 100; i++) {
+	for (i = 0; i < 100; i++) {
 		udelay(20);
-		if((data_out = readl(&nic->csr->mdi_ctrl)) & mdi_ready)
+		if ((data_out = readl(&nic->csr->mdi_ctrl)) & mdi_ready)
 			break;
 	}
-
+	spin_unlock_irqrestore(&nic->mdio_lock, flags);
 	DPRINTK(HW, DEBUG,
 		"%s:addr=%d, reg=%d, data_in=0x%04X, data_out=0x%04X\n",
 		dir == mdi_read ? "READ" : "WRITE", addr, reg, data, data_out);
@@ -2562,6 +2587,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	/* locks must be initialized before calling hw_reset */
 	spin_lock_init(&nic->cb_lock);
 	spin_lock_init(&nic->cmd_lock);
+	spin_lock_init(&nic->mdio_lock);
 
 	/* Reset the device before pci_set_master() in case device is in some
 	 * funky state and has an interrupt pending - hint: we don't have the
