@@ -40,6 +40,22 @@
 #undef XFS_NATIVE_HOST
 #endif
 
+#ifdef XFS_NATIVE_HOST
+#define cpu_to_be16(val)	((__be16)(val))
+#define cpu_to_be32(val)	((__be32)(val))
+#define cpu_to_be64(val)	((__be64)(val))
+#define be16_to_cpu(val)	((__uint16_t)(val)
+#define be32_to_cpu(val)	((__uint32_t)(val))
+#define be64_to_cpu(val)	((__uint64_t)(val))
+#else
+#define cpu_to_be16(val)	(__swab16((__uint16_t)(val)))
+#define cpu_to_be32(val)	(__swab32((__uint32_t)(val)))
+#define cpu_to_be64(val)	(__swab64((__uint64_t)(val)))
+#define be16_to_cpu(val)	(__swab16((__be16)(val)))
+#define be32_to_cpu(val)	(__swab32((__be32)(val)))
+#define be64_to_cpu(val)	(__swab64((__be64)(val)))
+#endif
+
 #endif	/* __KERNEL__ */
 
 /* do we need conversion? */
