@@ -299,7 +299,8 @@ int exception_trace = 1;
  *	bit 0 == 0 means no page found, 1 means protection fault
  *	bit 1 == 0 means read, 1 means write
  *	bit 2 == 0 means kernel, 1 means user-mode
- *      bit 3 == 1 means fault was an instruction fetch
+ *	bit 3 == 1 means use of reserved bit detected
+ *	bit 4 == 1 means fault was an instruction fetch
  */
 asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 					unsigned long error_code)
@@ -342,10 +343,10 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 *
 	 * This verifies that the fault happens in kernel space
 	 * (error_code & 4) == 0, and that the fault was not a
-	 * protection error (error_code & 1) == 0.
+	 * protection error (error_code & 9) == 0.
 	 */
 	if (unlikely(address >= TASK_SIZE64)) {
-		if (!(error_code & 5) &&
+		if (!(error_code & 0xd) &&
 		      ((address >= VMALLOC_START && address < VMALLOC_END) ||
 		       (address >= MODULES_VADDR && address < MODULES_END))) {
 			if (vmalloc_fault(address) < 0)
