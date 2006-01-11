@@ -632,7 +632,7 @@ out:
 	preempt_enable();
 }
 
-extern void add_input_randomness(unsigned int type, unsigned int code,
+void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value)
 {
 	static unsigned char last_value;
