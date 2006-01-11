@@ -757,6 +757,23 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 		return -1;
 	}
 
+	/* Allocate node local memory for AP pdas */
+	if (cpu_pda(cpu) == &boot_cpu_pda[cpu]) {
+		struct x8664_pda *newpda, *pda;
+		int node = cpu_to_node(cpu);
+		pda = cpu_pda(cpu);
+		newpda = kmalloc_node(sizeof (struct x8664_pda), GFP_ATOMIC,
+				      node);
+		if (newpda) {
+			memcpy(newpda, pda, sizeof (struct x8664_pda));
+			cpu_pda(cpu) = newpda;
+		} else
+			printk(KERN_ERR
+		"Could not allocate node local PDA for CPU %d on node %d\n",
+				cpu, node);
+	}
+
+
 	c_idle.idle = get_idle_for_cpu(cpu);
 
 	if (c_idle.idle) {

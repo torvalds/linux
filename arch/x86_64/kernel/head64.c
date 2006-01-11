@@ -92,6 +92,9 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	memcpy(init_level4_pgt, boot_level4_pgt, PTRS_PER_PGD*sizeof(pgd_t));
 	asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
 
+ 	for (i = 0; i < NR_CPUS; i++)
+ 		cpu_pda(i) = &boot_cpu_pda[i];
+
 	pda_init(0);
 	copy_bootdata(real_mode_data);
 #ifdef CONFIG_SMP

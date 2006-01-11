@@ -30,7 +30,8 @@ char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
-struct x8664_pda _cpu_pda[NR_CPUS] __cacheline_aligned;
+struct x8664_pda *_cpu_pda[NR_CPUS] __read_mostly;
+struct x8664_pda boot_cpu_pda[NR_CPUS] __cacheline_aligned;
 
 struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
 
