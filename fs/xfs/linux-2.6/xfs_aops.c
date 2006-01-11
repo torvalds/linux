@@ -40,6 +40,7 @@
 #include "xfs_rw.h"
 #include "xfs_iomap.h"
 #include <linux/mpage.h>
+#include <linux/pagevec.h>
 #include <linux/writeback.h>
 
 STATIC void xfs_count_page_state(struct page *, int *, int *, int *);
@@ -501,18 +502,13 @@ xfs_map_at_offset(
  */
 STATIC unsigned int
 xfs_probe_unmapped_page(
-	struct address_space	*mapping,
-	pgoff_t			index,
+	struct page		*page,
 	unsigned int		pg_offset)
 {
-	struct page		*page;
 	int			ret = 0;
 
-	page = find_trylock_page(mapping, index);
-	if (!page)
-		return 0;
 	if (PageWriteback(page))
-		goto out;
+		return 0;
 
 	if (page->mapping && PageDirty(page)) {
 		if (page_has_buffers(page)) {
@@ -530,8 +526,6 @@ xfs_probe_unmapped_page(
 			ret = PAGE_CACHE_SIZE;
 	}
 
-out:
-	unlock_page(page);
 	return ret;
 }
 
@@ -542,59 +536,75 @@ xfs_probe_unmapped_cluster(
 	struct buffer_head	*bh,
 	struct buffer_head	*head)
 {
-	size_t			len, total = 0;
+	struct pagevec		pvec;
 	pgoff_t			tindex, tlast, tloff;
-	unsigned int		pg_offset;
-	struct address_space	*mapping = inode->i_mapping;
+	size_t			total = 0;
+	int			done = 0, i;
 
 	/* First sum forwards in this page */
 	do {
 		if (buffer_mapped(bh))
-			break;
+			return total;
 		total += bh->b_size;
 	} while ((bh = bh->b_this_page) != head);
 
-	/* If we reached the end of the page, sum forwards in
-	 * following pages.
-	 */
-	if (bh == head) {
-		tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-		/* Prune this back to avoid pathological behavior */
-		tloff = min(tlast, startpage->index + 64);
-		for (tindex = startpage->index + 1; tindex < tloff; tindex++) {
-			len = xfs_probe_unmapped_page(mapping, tindex,
-							PAGE_CACHE_SIZE);
-			if (!len)
-				return total;
+	/* if we reached the end of the page, sum forwards in following pages */
+	tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
+	tindex = startpage->index + 1;
+
+	/* Prune this back to avoid pathological behavior */
+	tloff = min(tlast, startpage->index + 64);
+
+	pagevec_init(&pvec, 0);
+	while (!done && tindex <= tloff) {
+		unsigned len = min_t(pgoff_t, PAGEVEC_SIZE, tlast - tindex + 1);
+
+		if (!pagevec_lookup(&pvec, inode->i_mapping, tindex, len))
+			break;
+
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+			size_t pg_offset, len = 0;
+
+			if (tindex == tlast) {
+				pg_offset =
+				    i_size_read(inode) & (PAGE_CACHE_SIZE - 1);
+				if (!pg_offset)
+					break;
+			} else
+				pg_offset = PAGE_CACHE_SIZE;
+
+			if (page->index == tindex && !TestSetPageLocked(page)) {
+				len = xfs_probe_unmapped_page(page, pg_offset);
+				unlock_page(page);
+			}
+
+			if (!len) {
+				done = 1;
+				break;
+			}
+
 			total += len;
 		}
-		if (tindex == tlast &&
-		    (pg_offset = i_size_read(inode) & (PAGE_CACHE_SIZE - 1))) {
-			total += xfs_probe_unmapped_page(mapping,
-							tindex, pg_offset);
-		}
+
+		pagevec_release(&pvec);
+		cond_resched();
 	}
+
 	return total;
 }
 
 /*
- * Probe for a given page (index) in the inode and test if it is suitable
- * for writing as part of an unwritten or delayed allocate extent.
- * Returns page locked and with an extra reference count if so, else NULL.
+ * Test if a given page is suitable for writing as part of an unwritten
+ * or delayed allocate extent.
  */
-STATIC struct page *
-xfs_probe_delayed_page(
-	struct inode		*inode,
-	pgoff_t			index,
+STATIC int
+xfs_is_delayed_page(
+	struct page		*page,
 	unsigned int		type)
 {
-	struct page		*page;
-
-	page = find_trylock_page(inode->i_mapping, index);
-	if (!page)
-		return NULL;
 	if (PageWriteback(page))
-		goto out;
+		return 0;
 
 	if (page->mapping && page_has_buffers(page)) {
 		struct buffer_head	*bh, *head;
@@ -611,12 +621,10 @@ xfs_probe_delayed_page(
 		} while ((bh = bh->b_this_page) != head);
 
 		if (acceptable)
-			return page;
+			return 1;
 	}
 
-out:
-	unlock_page(page);
-	return NULL;
+	return 0;
 }
 
 /*
@@ -629,10 +637,10 @@ STATIC int
 xfs_convert_page(
 	struct inode		*inode,
 	struct page		*page,
+	loff_t			tindex,
 	xfs_iomap_t		*iomapp,
 	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
-	void			*private,
 	int			startio,
 	int			all_bh)
 {
@@ -643,6 +651,17 @@ xfs_convert_page(
 	int			bbits = inode->i_blkbits;
 	int			len, page_dirty;
 	int			count = 0, done = 0, uptodate = 1;
+
+	if (page->index != tindex)
+		goto fail;
+	if (TestSetPageLocked(page))
+		goto fail;
+	if (PageWriteback(page))
+		goto fail_unlock_page;
+	if (page->mapping != inode->i_mapping)
+		goto fail_unlock_page;
+	if (!xfs_is_delayed_page(page, (*ioendp)->io_type))
+		goto fail_unlock_page;
 
 	end_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1));
 
@@ -715,6 +734,10 @@ xfs_convert_page(
 	}
 
 	return done;
+ fail_unlock_page:
+	unlock_page(page);
+ fail:
+	return 1;
 }
 
 /*
@@ -732,16 +755,25 @@ xfs_cluster_write(
 	int			all_bh,
 	pgoff_t			tlast)
 {
-	struct page		*page;
-	unsigned int		type = (*ioendp)->io_type;
-	int			done;
+	struct pagevec		pvec;
+	int			done = 0, i;
 
-	for (done = 0; tindex <= tlast && !done; tindex++) {
-		page = xfs_probe_delayed_page(inode, tindex, type);
-		if (!page)
+	pagevec_init(&pvec, 0);
+	while (!done && tindex <= tlast) {
+		unsigned len = min_t(pgoff_t, PAGEVEC_SIZE, tlast - tindex + 1);
+
+		if (!pagevec_lookup(&pvec, inode->i_mapping, tindex, len))
 			break;
-		done = xfs_convert_page(inode, page, iomapp, ioendp,
-						wbc, NULL, startio, all_bh);
+
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			done = xfs_convert_page(inode, pvec.pages[i], tindex++,
+					iomapp, ioendp, wbc, startio, all_bh);
+			if (done)
+				break;
+		}
+
+		pagevec_release(&pvec);
+		cond_resched();
 	}
 }
 
