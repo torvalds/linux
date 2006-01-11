@@ -138,6 +138,7 @@ static inline struct thread_info *stack_thread_info(void)
  * have to worry about atomic accesses.
  */
 #define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
+#define TS_COMPAT		0x0002	/* 32bit syscall active */
 
 #endif /* __KERNEL__ */
 

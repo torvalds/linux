@@ -313,6 +313,7 @@ int_with_check:
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
 	jnz   int_careful
+	andl    $~TS_COMPAT,threadinfo_status(%rcx)
 	jmp   retint_swapgs
 
 	/* Either reschedule or signal or syscall exit tracking needed. */

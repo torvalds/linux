@@ -202,4 +202,9 @@ static __inline__ void __user *compat_alloc_user_space(long len)
 	return (void __user *)regs->rsp - len; 
 }
 
+static inline int is_compat_task(void)
+{
+	return current_thread_info()->status & TS_COMPAT;
+}
+
 #endif /* _ASM_X86_64_COMPAT_H */

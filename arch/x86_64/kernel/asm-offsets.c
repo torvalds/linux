@@ -33,6 +33,7 @@ int main(void)
 	ENTRY(flags);
 	ENTRY(addr_limit);
 	ENTRY(preempt_count);
+	ENTRY(status);
 	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(pda_ ## entry, offsetof(struct x8664_pda, entry))

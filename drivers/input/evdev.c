@@ -154,8 +154,10 @@ struct input_event_compat {
 	__s32 value;
 };
 
+/* Note to the author of this code: did it ever occur to
+   you why the ifdefs are needed? Think about it again. -AK */
 #ifdef CONFIG_X86_64
-#  define COMPAT_TEST test_thread_flag(TIF_IA32)
+#  define COMPAT_TEST is_compat_task()
 #elif defined(CONFIG_IA64)
 #  define COMPAT_TEST IS_IA32_PROCESS(ia64_task_regs(current))
 #elif defined(CONFIG_S390)
