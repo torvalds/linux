@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/capability.h>
 #include <linux/if_arp.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>

@@ -3,6 +3,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/seq_file.h>
 
 /* We are an ethernet device */

@@ -12,6 +12,7 @@
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>	/* CLIP_*ENCAP */
 #include <linux/atmarp.h>	/* manifest constants */
+#include <linux/capability.h>
 #include <linux/sonet.h>	/* for ioctls */
 #include <linux/atmsvc.h>
 #include <linux/atmmpc.h>

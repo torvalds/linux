@@ -24,6 +24,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <net/dst.h>

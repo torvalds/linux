@@ -7,6 +7,7 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 
 /* We are ethernet device */
 #include <linux/if_ether.h>

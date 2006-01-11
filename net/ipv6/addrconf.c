@@ -58,6 +58,7 @@
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/string.h>

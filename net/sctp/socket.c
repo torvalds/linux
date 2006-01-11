@@ -63,6 +63,7 @@
 #include <linux/wait.h>
 #include <linux/time.h>
 #include <linux/ip.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
 #include <linux/init.h>

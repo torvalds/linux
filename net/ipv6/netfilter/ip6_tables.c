@@ -14,6 +14,8 @@
  * 06 Jun 2002 Andras Kis-Szabo <kisza@sch.bme.hu>
  *      - new extension header parser code
  */
+
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>

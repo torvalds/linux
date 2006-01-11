@@ -18,6 +18,7 @@ Author: Marcell GAL, 2000, XDSL Ltd, Hungary
 #include <net/arp.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
+#include <linux/capability.h>
 #include <linux/seq_file.h>
 
 #include <linux/atmbr2684.h>

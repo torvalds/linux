@@ -34,6 +34,7 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 
+#include <linux/capability.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 

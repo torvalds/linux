@@ -33,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/mm.h>

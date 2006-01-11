@@ -116,13 +116,13 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/sched.h>
 #include <linux/unistd.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/init.h>

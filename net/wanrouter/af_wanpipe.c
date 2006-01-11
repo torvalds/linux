@@ -36,6 +36,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/socket.h>
 #include <linux/in.h>

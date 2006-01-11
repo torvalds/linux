@@ -14,6 +14,7 @@
  */
 #include <linux/config.h>
 #include <linux/cache.h>
+#include <linux/capability.h>
 #include <linux/skbuff.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
