@@ -27,7 +27,7 @@ static DEFINE_SPINLOCK(xfs_err_lock);
 /* Translate from CE_FOO to KERN_FOO, err_level(CE_FOO) == KERN_FOO */
 #define XFS_MAX_ERR_LEVEL	7
 #define XFS_ERR_MASK		((1 << 3) - 1)
-static char		*err_level[XFS_MAX_ERR_LEVEL+1] =
+static const char * const	err_level[XFS_MAX_ERR_LEVEL+1] =
 					{KERN_EMERG, KERN_ALERT, KERN_CRIT,
 					 KERN_ERR, KERN_WARNING, KERN_NOTICE,
 					 KERN_INFO, KERN_DEBUG};

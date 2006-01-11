@@ -51,7 +51,7 @@ STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
-static struct {
+static const struct {
     short offset;
     short type;     /* 0 = integer
 		* 1 = binary / string (no translation)
