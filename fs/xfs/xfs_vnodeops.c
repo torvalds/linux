@@ -1612,7 +1612,8 @@ xfs_inactive(
 	 * only one with a reference to the inode.
 	 */
 	truncate = ((ip->i_d.di_nlink == 0) &&
-	    ((ip->i_d.di_size != 0) || (ip->i_d.di_nextents > 0)) &&
+            ((ip->i_d.di_size != 0) || (ip->i_d.di_nextents > 0) ||
+             (ip->i_delayed_blks > 0)) &&
 	    ((ip->i_d.di_mode & S_IFMT) == S_IFREG));
 
 	mp = ip->i_mount;
