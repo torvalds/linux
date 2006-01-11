@@ -40,7 +40,6 @@
 #include "xfs_ialloc.h"
 #include "xfs_btree.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
