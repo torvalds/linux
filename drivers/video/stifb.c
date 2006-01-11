@@ -1483,7 +1483,3 @@ module_exit(stifb_cleanup);
 MODULE_AUTHOR("Helge Deller <deller@gmx.de>, Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_DESCRIPTION("Framebuffer driver for HP's NGLE series graphics cards in HP PARISC machines");
 MODULE_LICENSE("GPL v2");
-
-MODULE_PARM(bpp, "i");
-MODULE_PARM_DESC(mem, "Bits per pixel (default: 8)");
-
