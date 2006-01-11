@@ -96,7 +96,6 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 
 
 /* Region types for iovec's i_type */
-#if defined(XFS_LOG_RES_DEBUG)
 #define XLOG_REG_TYPE_BFORMAT		1
 #define XLOG_REG_TYPE_BCHUNK		2
 #define XLOG_REG_TYPE_EFI_FORMAT	3
@@ -117,21 +116,13 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XLOG_REG_TYPE_COMMIT		18
 #define XLOG_REG_TYPE_TRANSHDR		19
 #define XLOG_REG_TYPE_MAX		19
-#endif
 
-#if defined(XFS_LOG_RES_DEBUG)
 #define XLOG_VEC_SET_TYPE(vecp, t) ((vecp)->i_type = (t))
-#else
-#define XLOG_VEC_SET_TYPE(vecp, t)
-#endif
-
 
 typedef struct xfs_log_iovec {
 	xfs_caddr_t		i_addr;		/* beginning address of region */
 	int		i_len;		/* length in bytes of region */
-#if defined(XFS_LOG_RES_DEBUG)
- 	uint		i_type;		/* type of region */
-#endif
+	uint		i_type;		/* type of region */
 } xfs_log_iovec_t;
 
 typedef void* xfs_log_ticket_t;

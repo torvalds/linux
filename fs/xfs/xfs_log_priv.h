@@ -253,7 +253,6 @@ typedef __uint32_t xlog_tid_t;
 
 
 /* Ticket reservation region accounting */ 
-#if defined(XFS_LOG_RES_DEBUG)
 #define XLOG_TIC_LEN_MAX	15
 #define XLOG_TIC_RESET_RES(t) ((t)->t_res_num = \
 				(t)->t_res_arr_sum = (t)->t_res_num_ophdrs = 0)
@@ -278,15 +277,9 @@ typedef __uint32_t xlog_tid_t;
  * we don't care about.
  */
 typedef struct xlog_res {
-	uint	r_len;
-	uint	r_type;
+	uint	r_len;	/* region length		:4 */
+	uint	r_type;	/* region's transaction type	:4 */
 } xlog_res_t;
-#else
-#define XLOG_TIC_RESET_RES(t)
-#define XLOG_TIC_ADD_OPHDR(t)
-#define XLOG_TIC_ADD_REGION(t, len, type)
-#endif
-
 
 typedef struct xlog_ticket {
 	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
@@ -301,14 +294,12 @@ typedef struct xlog_ticket {
 	char		   t_flags;	 /* properties of reservation	 : 1  */
 	uint		   t_trans_type; /* transaction type             : 4  */
 
-#if defined (XFS_LOG_RES_DEBUG)
         /* reservation array fields */
 	uint		   t_res_num;                    /* num in array : 4 */
-	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : X */ 
 	uint		   t_res_num_ophdrs;		 /* num op hdrs  : 4 */
 	uint		   t_res_arr_sum;		 /* array sum    : 4 */
 	uint		   t_res_o_flow;		 /* sum overflow : 4 */
-#endif
+	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : 8 * 15 */ 
 } xlog_ticket_t;
 
 #endif

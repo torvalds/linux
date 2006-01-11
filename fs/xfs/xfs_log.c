@@ -1591,7 +1591,6 @@ xlog_state_finish_copy(xlog_t		*log,
  * print out info relating to regions written which consume
  * the reservation
  */
-#if defined(XFS_LOG_RES_DEBUG)
 STATIC void
 xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 {
@@ -1681,11 +1680,11 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 			ticket->t_res_arr_sum, ticket->t_res_o_flow,
 			ticket->t_res_num_ophdrs, ophdr_spc,
 			ticket->t_res_arr_sum + 
-			  ticket->t_res_o_flow + ophdr_spc,
+			ticket->t_res_o_flow + ophdr_spc,
 			ticket->t_res_num);
 
 	for (i = 0; i < ticket->t_res_num; i++) {
-	   	uint r_type = ticket->t_res_arr[i].r_type; 
+		uint r_type = ticket->t_res_arr[i].r_type; 
 		cmn_err(CE_WARN,
 			    "region[%u]: %s - %u bytes\n",
 			    i, 
@@ -1694,9 +1693,6 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 			    ticket->t_res_arr[i].r_len);
 	}
 }
-#else
-#define xlog_print_tic_res(mp, ticket)
-#endif
 
 /*
  * Write some region out to in-core log
