@@ -343,7 +343,9 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		    !memcmp(from, "disableapic", 11))
 			disable_apic = 1;
 
-		if (!memcmp(from, "noapic", 6)) 
+		/* Don't confuse with noapictimer */
+		if (!memcmp(from, "noapic", 6) &&
+			(from[6] == ' ' || from[6] == 0))
 			skip_ioapic_setup = 1;
 
 		/* Make sure to not confuse with apic= */
