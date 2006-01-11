@@ -100,7 +100,7 @@
  * Note that even if DMA is turned off we still support the 'dma' and  'use_dma'
  * module options so we don't break any startup scripts.
  */
-#ifndef CONFIG_ARCH_IXDP2X01
+#ifndef CONFIG_ISA_DMA_API
 #define ALLOW_DMA	0
 #else
 #define ALLOW_DMA	1
