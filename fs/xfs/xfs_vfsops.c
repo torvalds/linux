@@ -507,8 +507,7 @@ xfs_mount(
 	if (error)
 		goto error2;
 
-	if ((mp->m_flags & XFS_MOUNT_NOATIME) &&
-	    !(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY))
+	if ((mp->m_flags & XFS_MOUNT_BARRIER) && !(vfsp->vfs_flag & VFS_RDONLY))
 		xfs_mountfs_check_barriers(mp);
 
 	error = XFS_IOINIT(vfsp, args, flags);
@@ -1690,7 +1689,6 @@ xfs_parseargs(
 	int			iosize;
 
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
-	args->flags |= XFSMNT_BARRIER;
 
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
 	args->flags |= XFSMNT_IDELETE; /* default to on */
@@ -1942,8 +1940,8 @@ xfs_showargs(
 
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
-	if (!(mp->m_flags & XFS_MOUNT_BARRIER))
-		seq_printf(m, "," MNTOPT_NOBARRIER);
+	if (mp->m_flags & XFS_MOUNT_BARRIER)
+		seq_printf(m, "," MNTOPT_BARRIER);
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);
