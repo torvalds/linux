@@ -1584,7 +1584,7 @@ void __init setup_arch(char **cmdline_p)
 		if (s) {
 			extern void setup_early_printk(char *);
 
-			setup_early_printk(s);
+			setup_early_printk(strchr(s, '=') + 1);
 			printk("early console enabled\n");
 		}
 	}

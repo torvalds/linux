@@ -102,7 +102,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 #endif
 	s = strstr(saved_command_line, "earlyprintk=");
 	if (s != NULL)
-		setup_early_printk(s);
+		setup_early_printk(strchr(s, '=') + 1);
 #ifdef CONFIG_NUMA
 	s = strstr(saved_command_line, "numa=");
 	if (s != NULL)
