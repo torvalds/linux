@@ -449,19 +449,32 @@ static int __kprobes in_kprobes_functions(unsigned long addr)
 	return 0;
 }
 
-int __kprobes register_kprobe(struct kprobe *p)
+static int __kprobes __register_kprobe(struct kprobe *p,
+	unsigned long called_from)
 {
 	int ret = 0;
 	struct kprobe *old_p;
-	struct module *mod;
+	struct module *probed_mod;
 
 	if ((!kernel_text_address((unsigned long) p->addr)) ||
 		in_kprobes_functions((unsigned long) p->addr))
 		return -EINVAL;
 
-	if ((mod = module_text_address((unsigned long) p->addr)) &&
-			(unlikely(!try_module_get(mod))))
-		return -EINVAL;
+	p->mod_refcounted = 0;
+	/* Check are we probing a module */
+	if ((probed_mod = module_text_address((unsigned long) p->addr))) {
+		struct module *calling_mod = module_text_address(called_from);
+		/* We must allow modules to probe themself and
+		 * in this case avoid incrementing the module refcount,
+		 * so as to allow unloading of self probing modules.
+		 */
+		if (calling_mod && (calling_mod != probed_mod)) {
+			if (unlikely(!try_module_get(probed_mod)))
+				return -EINVAL;
+			p->mod_refcounted = 1;
+		} else
+			probed_mod = NULL;
+	}
 
 	p->nmissed = 0;
 	down(&kprobe_mutex);
@@ -483,9 +496,15 @@ int __kprobes register_kprobe(struct kprobe *p)
 out:
 	up(&kprobe_mutex);
 
-	if (ret && mod)
-		module_put(mod);
+	if (ret && probed_mod)
+		module_put(probed_mod);
 	return ret;
+}
+
+int __kprobes register_kprobe(struct kprobe *p)
+{
+	return __register_kprobe(p,
+		(unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_kprobe(struct kprobe *p)
@@ -524,7 +543,8 @@ valid_p:
 	up(&kprobe_mutex);
 
 	synchronize_sched();
-	if ((mod = module_text_address((unsigned long)p->addr)))
+	if (p->mod_refcounted &&
+	    (mod = module_text_address((unsigned long)p->addr)))
 		module_put(mod);
 
 	if (cleanup_p) {
@@ -547,7 +567,8 @@ int __kprobes register_jprobe(struct jprobe *jp)
 	jp->kp.pre_handler = setjmp_pre_handler;
 	jp->kp.break_handler = longjmp_break_handler;
 
-	return register_kprobe(&jp->kp);
+	return __register_kprobe(&jp->kp,
+		(unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_jprobe(struct jprobe *jp)
@@ -587,7 +608,8 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 
 	rp->nmissed = 0;
 	/* Establish function entry probe point */
-	if ((ret = register_kprobe(&rp->kp)) != 0)
+	if ((ret = __register_kprobe(&rp->kp,
+		(unsigned long)__builtin_return_address(0))) != 0)
 		free_rp_inst(rp);
 	return ret;
 }

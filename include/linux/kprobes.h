@@ -68,6 +68,9 @@ struct kprobe {
 	/* list of kprobes for multi-handler support */
 	struct list_head list;
 
+	/* Indicates that the corresponding module has been ref counted */
+	unsigned int mod_refcounted;
+
 	/*count the number of times this probe was temporarily disarmed */
 	unsigned long nmissed;
 
