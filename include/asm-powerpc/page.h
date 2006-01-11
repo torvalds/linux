@@ -178,7 +178,7 @@ typedef unsigned long pmd_t;
 #define pmd_val(x)	(x)
 #define __pmd(x)	(x)
 
-#ifndef CONFIG_PPC_64K_PAGES
+#if defined(CONFIG_PPC64) && !defined(CONFIG_PPC_64K_PAGES)
 typedef unsigned long pud_t;
 #define pud_val(x)	(x)
 #define __pud(x)	(x)
