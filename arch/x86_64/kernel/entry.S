@@ -754,7 +754,7 @@ error_exit:
 	jnz  retint_careful
 	swapgs 
 	RESTORE_ARGS 0,8,0						
-	iretq
+	jmp iret_label
 	CFI_ENDPROC
 
 error_kernelspace:
