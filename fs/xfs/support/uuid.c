@@ -27,6 +27,16 @@ uuid_init(void)
 	mutex_init(&uuid_monitor);
 }
 
+
+/* IRIX interpretation of an uuid_t */
+typedef struct {
+	__be32	uu_timelow;
+	__be16	uu_timemid;
+	__be16	uu_timehi;
+	__be16	uu_clockseq;
+	__be16	uu_node[3];
+} xfs_uu_t;
+
 /*
  * uuid_getnodeuniq - obtain the node unique fields of a UUID.
  *
@@ -36,16 +46,11 @@ uuid_init(void)
 void
 uuid_getnodeuniq(uuid_t *uuid, int fsid [2])
 {
-	char	*uu = (char *)uuid;
+	xfs_uu_t *uup = (xfs_uu_t *)uuid;
 
-	/* on IRIX, this function assumes big-endian fields within
-	 * the uuid, so we use INT_GET to get the same result on
-	 * little-endian systems
-	 */
-
-	fsid[0] = (INT_GET(*(u_int16_t*)(uu+8), ARCH_CONVERT) << 16) +
-		   INT_GET(*(u_int16_t*)(uu+4), ARCH_CONVERT);
-	fsid[1] =  INT_GET(*(u_int32_t*)(uu  ), ARCH_CONVERT);
+	fsid[0] = (be16_to_cpu(uup->uu_clockseq) << 16) |
+		   be16_to_cpu(uup->uu_timemid);
+	fsid[1] = be16_to_cpu(uup->uu_timelow);
 }
 
 void
