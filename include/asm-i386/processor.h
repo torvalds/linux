@@ -61,9 +61,11 @@ struct cpuinfo_x86 {
 	int 	x86_cache_size;  /* in KB - valid for CPUS which support this
 				    call  */
 	int 	x86_cache_alignment;	/* In bytes */
-	int	fdiv_bug;
-	int	f00f_bug;
-	int	coma_bug;
+	char	fdiv_bug;
+	char	f00f_bug;
+	char	coma_bug;
+	char	pad0;
+	int	x86_power;
 	unsigned long loops_per_jiffy;
 	unsigned char x86_max_cores;	/* cpuid returned max cores value */
 	unsigned char booted_cores;	/* number of cores as seen by OS */

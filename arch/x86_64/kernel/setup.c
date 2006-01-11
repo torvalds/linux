@@ -1233,7 +1233,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, "syscall", NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, "nx", NULL, "mmxext", NULL,
-		NULL, "fxsr_opt", NULL, NULL, NULL, "lm", "3dnowext", "3dnow",
+		NULL, "fxsr_opt", "rdtscp", NULL, NULL, "lm", "3dnowext", "3dnow",
 
 		/* Transmeta-defined */
 		"recovery", "longrun", NULL, "lrti", NULL, NULL, NULL, NULL,
@@ -1261,7 +1261,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* AMD-defined (#2) */
-		"lahf_lm", "cmp_legacy", NULL, NULL, NULL, NULL, NULL, NULL,
+		"lahf_lm", "cmp_legacy", "svm", NULL, "cr8_legacy", NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1272,8 +1272,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"vid",  /* voltage id control */
 		"ttp",  /* thermal trip */
 		"tm",
-		"stc"
-		"?",
+		"stc",
+		NULL,
 		/* nothing */	/* constant_tsc - moved to flags */
 	};
 
@@ -1354,8 +1354,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		unsigned i;
 		for (i = 0; i < 32; i++) 
 			if (c->x86_power & (1 << i)) {
-				if (i < ARRAY_SIZE(x86_power_flags))
-					seq_printf(m, " %s", x86_power_flags[i]);
+				if (i < ARRAY_SIZE(x86_power_flags) &&
+					x86_power_flags[i])
+					seq_printf(m, "%s%s",
+						x86_power_flags[i][0]?" ":"",
+						x86_power_flags[i]);
 				else
 					seq_printf(m, " [%d]", i);
 			}

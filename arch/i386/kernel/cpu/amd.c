@@ -217,8 +217,9 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	}
 
 	if (cpuid_eax(0x80000000) >= 0x80000007) {
-		if (cpuid_edx(0x80000007) & (1<<8))
-			set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+		c->x86_power = cpuid_edx(0x80000007);
+		if (c->x86_power & (1<<8))
+			set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
 	}
 
 #ifdef CONFIG_X86_HT
