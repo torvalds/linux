@@ -277,10 +277,6 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 	int len = 0;
 	int userdef = 0;
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	memcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
-	saved_command_line[COMMAND_LINE_SIZE-1] = '\0';
-
 	for (;;) {
 		if (c != ' ') 
 			goto next_char; 
