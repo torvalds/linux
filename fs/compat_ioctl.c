@@ -916,6 +916,40 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
+struct compat_sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
+	char req_state;
+	char orphan;
+	char sg_io_owned;
+	char problem;
+	int pack_id;
+	compat_uptr_t usr_ptr;
+	unsigned int duration;
+	int unused;
+};
+
+static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	int err, i;
+	sg_req_info_t *r;
+	struct compat_sg_req_info *o = (struct compat_sg_req_info *)arg;
+	r = compat_alloc_user_space(sizeof(sg_req_info_t)*SG_MAX_QUEUE);
+	err = sys_ioctl(fd,cmd,(unsigned long)r);
+	if (err < 0)
+		return err;
+	for (i = 0; i < SG_MAX_QUEUE; i++) {
+		void __user *ptr;
+		int d;
+
+		if (copy_in_user(o + i, r + i, offsetof(sg_req_info_t, usr_ptr)) ||
+		    get_user(ptr, &r[i].usr_ptr) ||
+		    get_user(d, &r[i].duration) ||
+		    put_user((u32)(unsigned long)(ptr), &o[i].usr_ptr) ||
+		    put_user(d, &o[i].duration))
+			return -EFAULT;
+	}
+	return err;
+}
+
 struct sock_fprog32 {
 	unsigned short	len;
 	compat_caddr_t	filter;
@@ -2794,6 +2828,7 @@ HANDLE_IOCTL(FDPOLLDRVSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDGETFDCSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDWERRORGET32, fd_ioctl_trans)
 HANDLE_IOCTL(SG_IO,sg_ioctl_trans)
+HANDLE_IOCTL(SG_GET_REQUEST_TABLE, sg_grt_trans)
 HANDLE_IOCTL(PPPIOCGIDLE32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSCOMPRESS32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSPASS32, ppp_sock_fprog_ioctl_trans)
