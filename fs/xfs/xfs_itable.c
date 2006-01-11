@@ -86,9 +86,7 @@ xfs_bulkstat_one_iget(
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
-	/* atime is only kept uptodate in the Linux inode */
-	buf->bs_atime.tv_sec = vp->v_inode.i_atime.tv_sec;
-	buf->bs_atime.tv_nsec = vp->v_inode.i_atime.tv_nsec;
+	vn_atime_to_bstime(vp, &buf->bs_atime);
 	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
 	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
 	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;

@@ -182,8 +182,7 @@ xfs_getattr(
 		break;
 	}
 
-	/* atime is only kept uptodate in the Linux inode */
-	vap->va_atime = vp->v_inode.i_atime;
+	vn_atime_to_timespec(vp, &vap->va_atime);
 	vap->va_mtime.tv_sec = ip->i_d.di_mtime.t_sec;
 	vap->va_mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
 	vap->va_ctime.tv_sec = ip->i_d.di_ctime.t_sec;
