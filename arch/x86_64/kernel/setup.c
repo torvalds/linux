@@ -45,6 +45,7 @@
 #include <linux/kexec.h>
 #include <linux/cpufreq.h>
 #include <linux/dmi.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
@@ -63,7 +64,9 @@
 #include <asm/setup.h>
 #include <asm/mach_apic.h>
 #include <asm/numa.h>
+#include <asm/swiotlb.h>
 #include <asm/sections.h>
+#include <asm/gart-mapping.h>
 
 /*
  * Machine setup..
@@ -87,11 +90,6 @@ int acpi_numa __initdata;
 int bootloader_type;
 
 unsigned long saved_video_mode;
-
-#ifdef CONFIG_SWIOTLB
-int swiotlb;
-EXPORT_SYMBOL(swiotlb);
-#endif
 
 /*
  * Setup options
@@ -389,11 +387,9 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 			numa_setup(from+5); 
 #endif
 
-#ifdef CONFIG_GART_IOMMU 
 		if (!memcmp(from,"iommu=",6)) { 
 			iommu_setup(from+6); 
 		}
-#endif
 
 		if (!memcmp(from,"oops=panic", 10))
 			panic_on_oops = 1;

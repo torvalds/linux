@@ -351,32 +351,24 @@ config HPET_EMULATE_RTC
 	depends on HPET_TIMER && RTC=y
 
 config GART_IOMMU
-	bool "IOMMU support"
+	bool "K8 GART IOMMU support"
 	default y
+	select SWIOTLB
 	depends on PCI
 	help
 	  Support the IOMMU. Needed to run systems with more than 3GB of memory
 	  properly with 32-bit PCI devices that do not support DAC (Double Address
 	  Cycle). The IOMMU can be turned off at runtime with the iommu=off parameter.
 	  Normally the kernel will take the right choice by itself.
-	  This option includes a driver for the AMD Opteron/Athlon64 IOMMU
-	  and a software emulation used on some other systems.
+	  This option includes a driver for the AMD Opteron/Athlon64 northbridge IOMMU
+	  and a software emulation used on other systems.
 	  If unsure, say Y.
 
 # need this always enabled with GART_IOMMU for the VIA workaround
 config SWIOTLB
-       bool
-       depends on GART_IOMMU
-       default y
-
-config DUMMY_IOMMU
 	bool
-	depends on !GART_IOMMU && !SWIOTLB
 	default y
-	help
-	  Don't use IOMMU code. This will cause problems when you have more than 4GB
-	  of memory and any 32-bit devices. Don't turn on unless you know what you
-	  are doing.
+	depends on GART_IOMMU
 
 config X86_MCE
 	bool "Machine check support" if EMBEDDED

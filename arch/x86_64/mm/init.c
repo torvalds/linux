@@ -23,6 +23,7 @@
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -38,10 +39,15 @@
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
+#include <asm/dma-mapping.h>
+#include <asm/swiotlb.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)
 #endif
+
+struct dma_mapping_ops* dma_ops;
+EXPORT_SYMBOL(dma_ops);
 
 static unsigned long dma_reserve __initdata;
 
@@ -423,12 +429,9 @@ void __init mem_init(void)
 	long codesize, reservedpages, datasize, initsize;
 
 #ifdef CONFIG_SWIOTLB
-	if (!iommu_aperture &&
-	    ((end_pfn-1) >= 0xffffffff>>PAGE_SHIFT || force_iommu))
-	       swiotlb = 1;
-	if (swiotlb)
-		swiotlb_init();	
+	pci_swiotlb_init();
 #endif
+	no_iommu_init();
 
 	/* How many end-of-memory variables you have, grandma! */
 	max_low_pfn = end_pfn;
