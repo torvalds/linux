@@ -107,33 +107,29 @@ ccw_uevent (struct device *dev, char **envp, int num_envp,
 	return 0;
 }
 
-struct bus_type ccw_bus_type = {
-	.name  = "ccw",
-	.match = &ccw_bus_match,
-	.uevent = &ccw_uevent,
-};
+struct bus_type ccw_bus_type;
 
-static int io_subchannel_probe (struct device *);
-static int io_subchannel_remove (struct device *);
+static int io_subchannel_probe (struct subchannel *);
+static int io_subchannel_remove (struct subchannel *);
 void io_subchannel_irq (struct device *);
 static int io_subchannel_notify(struct device *, int);
 static void io_subchannel_verify(struct device *);
 static void io_subchannel_ioterm(struct device *);
-static void io_subchannel_shutdown(struct device *);
+static void io_subchannel_shutdown(struct subchannel *);
 
 struct css_driver io_subchannel_driver = {
 	.subchannel_type = SUBCHANNEL_TYPE_IO,
 	.drv = {
 		.name = "io_subchannel",
 		.bus  = &css_bus_type,
-		.probe = &io_subchannel_probe,
-		.remove = &io_subchannel_remove,
-		.shutdown = &io_subchannel_shutdown,
 	},
 	.irq = io_subchannel_irq,
 	.notify = io_subchannel_notify,
 	.verify = io_subchannel_verify,
 	.termination = io_subchannel_ioterm,
+	.probe = io_subchannel_probe,
+	.remove = io_subchannel_remove,
+	.shutdown = io_subchannel_shutdown,
 };
 
 struct workqueue_struct *ccw_device_work;
@@ -803,14 +799,12 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 }
 
 static int
-io_subchannel_probe (struct device *pdev)
+io_subchannel_probe (struct subchannel *sch)
 {
-	struct subchannel *sch;
 	struct ccw_device *cdev;
 	int rc;
 	unsigned long flags;
 
-	sch = to_subchannel(pdev);
 	if (sch->dev.driver_data) {
 		/*
 		 * This subchannel already has an associated ccw_device.
@@ -846,7 +840,7 @@ io_subchannel_probe (struct device *pdev)
 	memset(cdev->private, 0, sizeof(struct ccw_device_private));
 	atomic_set(&cdev->private->onoff, 0);
 	cdev->dev = (struct device) {
-		.parent = pdev,
+		.parent = &sch->dev,
 		.release = ccw_device_release,
 	};
 	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
@@ -859,7 +853,7 @@ io_subchannel_probe (struct device *pdev)
 		return -ENODEV;
 	}
 
-	rc = io_subchannel_recog(cdev, to_subchannel(pdev));
+	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
 		spin_lock_irqsave(&sch->lock, flags);
 		sch->dev.driver_data = NULL;
@@ -883,17 +877,17 @@ ccw_device_unregister(void *data)
 }
 
 static int
-io_subchannel_remove (struct device *dev)
+io_subchannel_remove (struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 	unsigned long flags;
 
-	if (!dev->driver_data)
+	if (!sch->dev.driver_data)
 		return 0;
-	cdev = dev->driver_data;
+	cdev = sch->dev.driver_data;
 	/* Set ccw device to not operational and drop reference. */
 	spin_lock_irqsave(cdev->ccwlock, flags);
-	dev->driver_data = NULL;
+	sch->dev.driver_data = NULL;
 	cdev->private->state = DEV_STATE_NOT_OPER;
 	spin_unlock_irqrestore(cdev->ccwlock, flags);
 	/*
@@ -948,14 +942,12 @@ io_subchannel_ioterm(struct device *dev)
 }
 
 static void
-io_subchannel_shutdown(struct device *dev)
+io_subchannel_shutdown(struct subchannel *sch)
 {
-	struct subchannel *sch;
 	struct ccw_device *cdev;
 	int ret;
 
-	sch = to_subchannel(dev);
-	cdev = dev->driver_data;
+	cdev = sch->dev.driver_data;
 
 	if (cio_is_console(sch->schid))
 		return;
@@ -1129,6 +1121,14 @@ ccw_device_remove (struct device *dev)
 	return 0;
 }
 
+struct bus_type ccw_bus_type = {
+	.name   = "ccw",
+	.match  = ccw_bus_match,
+	.uevent = ccw_uevent,
+	.probe  = ccw_device_probe,
+	.remove = ccw_device_remove,
+};
+
 int
 ccw_driver_register (struct ccw_driver *cdriver)
 {
@@ -1136,8 +1136,6 @@ ccw_driver_register (struct ccw_driver *cdriver)
 
 	drv->bus = &ccw_bus_type;
 	drv->name = cdriver->name;
-	drv->probe = ccw_device_probe;
-	drv->remove = ccw_device_remove;
 
 	return driver_register(drv);
 }

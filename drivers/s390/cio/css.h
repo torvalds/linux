@@ -115,6 +115,7 @@ struct ccw_device_private {
  * Currently, we only care about I/O subchannels (type 0), these
  * have a ccw_device connected to them.
  */
+struct subchannel;
 struct css_driver {
 	unsigned int subchannel_type;
 	struct device_driver drv;
@@ -122,6 +123,9 @@ struct css_driver {
 	int (*notify)(struct device *, int);
 	void (*verify)(struct device *);
 	void (*termination)(struct device *);
+	int (*probe)(struct subchannel *);
+	int (*remove)(struct subchannel *);
+	void (*shutdown)(struct subchannel *);
 };
 
 /*
