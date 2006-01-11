@@ -48,6 +48,7 @@
 #include <net/sock.h>
 
 #include <linux/tipc.h>
+#include <linux/tipc_config.h>
 #include <net/tipc/tipc_msg.h>
 #include <net/tipc/tipc_port.h>
 

@@ -36,9 +36,35 @@
 
 #ifdef __KERNEL__
 
-#include <linux/tipc.h>
+#include <linux/tipc_config.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
+
+/*
+ * Identifiers of supported TIPC media types
+ */
+
+#define TIPC_MEDIA_TYPE_ETH	1
+
+struct tipc_media_addr {
+	__u32  type;
+	union {
+		__u8   eth_addr[6];	/* Ethernet bearer */ 
+#if 0
+		/* Prototypes for other possible bearer types */
+
+		struct {
+			__u16 sin_family;
+			__u16 sin_port;
+			struct {
+				__u32 s_addr;
+			} sin_addr;
+			char pad[4];
+		} addr_in;		/* IP-based bearer */
+		__u16  sock_descr;	/* generic socket bearer */
+#endif
+	} dev_addr;
+};
 
 /**
  * struct tipc_bearer - TIPC bearer info available to privileged users
