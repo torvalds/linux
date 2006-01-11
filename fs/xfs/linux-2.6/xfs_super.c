@@ -579,7 +579,7 @@ xfssyncd(
 		timeleft = schedule_timeout_interruptible(timeleft);
 		/* swsusp */
 		try_to_freeze();
-		if (kthread_should_stop())
+		if (kthread_should_stop() && list_empty(&vfsp->vfs_sync_list))
 			break;
 
 		spin_lock(&vfsp->vfs_sync_lock);
