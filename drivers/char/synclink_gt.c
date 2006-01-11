@@ -1,5 +1,5 @@
 /*
- * $Id: synclink_gt.c,v 4.20 2005/11/08 19:51:55 paulkf Exp $
+ * $Id: synclink_gt.c,v 4.22 2006/01/09 20:16:06 paulkf Exp $
  *
  * Device driver for Microgate SyncLink GT serial adapters.
  *
@@ -92,7 +92,7 @@
  * module identification
  */
 static char *driver_name     = "SyncLink GT";
-static char *driver_version  = "$Revision: 4.20 $";
+static char *driver_version  = "$Revision: 4.22 $";
 static char *tty_driver_name = "synclink_gt";
 static char *tty_dev_prefix  = "ttySLG";
 MODULE_LICENSE("GPL");
@@ -288,7 +288,6 @@ struct slgt_info {
 
 	unsigned char __iomem * reg_addr;  /* memory mapped registers address */
 	u32 phys_reg_addr;
-	u32 reg_offset;
 	int reg_addr_requested;
 
 	MGSL_PARAMS params;       /* communications parameters */
@@ -2976,14 +2975,13 @@ static int claim_resources(struct slgt_info *info)
 	else
 		info->reg_addr_requested = 1;
 
-	info->reg_addr = ioremap(info->phys_reg_addr, PAGE_SIZE);
+	info->reg_addr = ioremap(info->phys_reg_addr, SLGT_REG_SIZE);
 	if (!info->reg_addr) {
 		DBGERR(("%s cant map device registers, addr=%08X\n",
 			info->device_name, info->phys_reg_addr));
 		info->init_error = DiagStatus_CantAssignPciResources;
 		goto errout;
 	}
-	info->reg_addr += info->reg_offset;
 	return 0;
 
 errout:
@@ -3004,7 +3002,7 @@ static void release_resources(struct slgt_info *info)
 	}
 
 	if (info->reg_addr) {
-		iounmap(info->reg_addr - info->reg_offset);
+		iounmap(info->reg_addr);
 		info->reg_addr = NULL;
 	}
 }
@@ -3107,12 +3105,6 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->pdev = pdev;
 		info->irq_level = pdev->irq;
 		info->phys_reg_addr = pci_resource_start(pdev,0);
-
-		/* veremap works on page boundaries
-		 * map full page starting at the page boundary
-		 */
-		info->reg_offset    = info->phys_reg_addr & (PAGE_SIZE-1);
-		info->phys_reg_addr &= ~(PAGE_SIZE-1);
 
 		info->bus_type = MGSL_BUS_TYPE_PCI;
 		info->irq_flags = SA_SHIRQ;
