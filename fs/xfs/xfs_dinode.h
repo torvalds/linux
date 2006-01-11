@@ -199,10 +199,16 @@ typedef enum xfs_dinode_fmt
 
 #define XFS_DFORK_DSIZE(dip,mp) \
 	XFS_CFORK_DSIZE_DISK(&(dip)->di_core, mp)
+#define XFS_DFORK_DSIZE_HOST(dip,mp) \
+	XFS_CFORK_DSIZE(&(dip)->di_core, mp)
 #define XFS_DFORK_ASIZE(dip,mp) \
 	XFS_CFORK_ASIZE_DISK(&(dip)->di_core, mp)
+#define XFS_DFORK_ASIZE_HOST(dip,mp) \
+	XFS_CFORK_ASIZE(&(dip)->di_core, mp)
 #define	XFS_DFORK_SIZE(dip,mp,w) \
 	XFS_CFORK_SIZE_DISK(&(dip)->di_core, mp, w)
+#define	XFS_DFORK_SIZE_HOST(dip,mp,w) \
+	XFS_CFORK_SIZE(&(dip)->di_core, mp, w)
 
 #define	XFS_DFORK_Q(dip)                    XFS_CFORK_Q_DISK(&(dip)->di_core)
 #define	XFS_DFORK_BOFF(dip)		    XFS_CFORK_BOFF_DISK(&(dip)->di_core)
@@ -216,6 +222,7 @@ typedef enum xfs_dinode_fmt
 #define	XFS_CFORK_FMT_SET(dcp,w,n) \
 	((w) == XFS_DATA_FORK ? \
 		((dcp)->di_format = (n)) : ((dcp)->di_aformat = (n)))
+#define	XFS_DFORK_FORMAT(dip,w) XFS_CFORK_FORMAT(&(dip)->di_core, w)
 
 #define	XFS_CFORK_NEXTENTS_DISK(dcp,w) \
 	((w) == XFS_DATA_FORK ? \
@@ -223,12 +230,12 @@ typedef enum xfs_dinode_fmt
 	 	INT_GET((dcp)->di_anextents, ARCH_CONVERT))
 #define XFS_CFORK_NEXTENTS(dcp,w) \
 	((w) == XFS_DATA_FORK ? (dcp)->di_nextents : (dcp)->di_anextents)
+#define	XFS_DFORK_NEXTENTS(dip,w) XFS_CFORK_NEXTENTS_DISK(&(dip)->di_core, w)
+#define	XFS_DFORK_NEXTENTS_HOST(dip,w) XFS_CFORK_NEXTENTS(&(dip)->di_core, w)
 
 #define	XFS_CFORK_NEXT_SET(dcp,w,n) \
 	((w) == XFS_DATA_FORK ? \
 		((dcp)->di_nextents = (n)) : ((dcp)->di_anextents = (n)))
-
-#define	XFS_DFORK_NEXTENTS(dip,w) XFS_CFORK_NEXTENTS_DISK(&(dip)->di_core, w)
 
 #define	XFS_BUF_TO_DINODE(bp)	((xfs_dinode_t *)XFS_BUF_PTR(bp))
 

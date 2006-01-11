@@ -608,6 +608,7 @@ xfs_iomap_eof_want_preallocate(
 	count_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
 	while (count_fsb > 0) {
 		imaps = nimaps;
+		firstblock = NULLFSBLOCK;
 		error = XFS_BMAPI(mp, NULL, io, start_fsb, count_fsb,
 				  0, &firstblock, 0, imap, &imaps, NULL);
 		if (error)

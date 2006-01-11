@@ -3653,14 +3653,16 @@ xfs_bmap_search_extents(
 
 	ep = xfs_bmap_do_search_extents(base, lastx, nextents, bno, eofp,
 					  lastxp, gotp, prevp);
-	rt = ip->i_d.di_flags & XFS_DIFLAG_REALTIME;
-	if(!rt && !gotp->br_startblock && (*lastxp != NULLEXTNUM)) {
+	rt = (whichfork == XFS_DATA_FORK) && XFS_IS_REALTIME_INODE(ip);
+	if (unlikely(!rt && !gotp->br_startblock && (*lastxp != NULLEXTNUM))) {
                 cmn_err(CE_PANIC,"Access to block zero: fs: <%s> inode: %lld "
 			"start_block : %llx start_off : %llx blkcnt : %llx "
 			"extent-state : %x \n",
-			(ip->i_mount)->m_fsname,(long long)ip->i_ino,
-			gotp->br_startblock, gotp->br_startoff,
-			gotp->br_blockcount,gotp->br_state);
+			(ip->i_mount)->m_fsname, (long long)ip->i_ino,
+			(unsigned long long)gotp->br_startblock,
+			(unsigned long long)gotp->br_startoff,
+			(unsigned long long)gotp->br_blockcount,
+			gotp->br_state);
         }
         return ep;
 }
@@ -4883,19 +4885,18 @@ xfs_bmapi(
 					error = xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
 							-(indlen), rsvd);
-					if (error && rt) {
-						xfs_mod_incore_sb(ip->i_mount,
+					if (error && rt)
+						xfs_mod_incore_sb(mp,
 							XFS_SBS_FREXTENTS,
 							extsz, rsvd);
-					} else if (error) {
-						xfs_mod_incore_sb(ip->i_mount,
+					else if (error)
+						xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
 							alen, rsvd);
-					}
 				}
 
 				if (error) {
-					if (XFS_IS_QUOTA_ON(ip->i_mount))
+					if (XFS_IS_QUOTA_ON(mp))
 						/* unreserve the blocks now */
 						(void)
 						XFS_TRANS_UNRESERVE_QUOTA_NBLKS(

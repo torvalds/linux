@@ -4056,7 +4056,7 @@ retry:
 		xfs_fileoff_t	s, e;
 
 		/*
-		 * Determine space reservations for data/realtime,
+		 * Determine space reservations for data/realtime.
 		 */
 		if (unlikely(extsz)) {
 			s = startoffset_fsb;
