@@ -17,6 +17,7 @@
 #include <linux/topology.h>
 #include <asm/proto.h>
 #include <asm/numa.h>
+#include <asm/e820.h>
 
 static struct acpi_table_slit *acpi_slit;
 
@@ -196,12 +197,39 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	       nd->start, nd->end);
 }
 
+/* Sanity check to catch more bad SRATs (they are amazingly common).
+   Make sure the PXMs cover all memory. */
+static int nodes_cover_memory(void)
+{
+	int i;
+	unsigned long pxmram, e820ram;
+
+	pxmram = 0;
+	for_each_node_mask(i, nodes_parsed) {
+		unsigned long s = nodes[i].start >> PAGE_SHIFT;
+		unsigned long e = nodes[i].end >> PAGE_SHIFT;
+		pxmram += e - s;
+		pxmram -= e820_hole_size(s, e);
+	}
+
+	e820ram = end_pfn - e820_hole_size(0, end_pfn);
+	if (pxmram < e820ram) {
+		printk(KERN_ERR
+	"SRAT: PXMs only cover %luMB of your %luMB e820 RAM. Not used.\n",
+			(pxmram << PAGE_SHIFT) >> 20,
+			(e820ram << PAGE_SHIFT) >> 20);
+		return 0;
+	}
+	return 1;
+}
+
 void __init acpi_numa_arch_fixup(void) {}
 
 /* Use the information discovered above to actually set up the nodes. */
 int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 {
 	int i;
+
 	if (acpi_numa <= 0)
 		return -1;
 
@@ -210,6 +238,11 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		cutoff_node(i, start, end);
 		if (nodes[i].start == nodes[i].end)
 			node_clear(i, nodes_parsed);
+	}
+
+	if (!nodes_cover_memory()) {
+		bad_srat();
+		return -1;
 	}
 
 	memnode_shift = compute_hash_shift(nodes, nodes_weight(nodes_parsed));
