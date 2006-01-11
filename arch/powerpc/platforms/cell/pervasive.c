@@ -142,7 +142,7 @@ static void cbe_idle(void)
 	}
 }
 
-int cbe_system_reset_exception(struct pt_regs *regs)
+static int cbe_system_reset_exception(struct pt_regs *regs)
 {
 	switch (regs->msr & SRR1_WAKEMASK) {
 	case SRR1_WAKEEE:

@@ -57,7 +57,7 @@
 #define DBG(fmt...)
 #endif
 
-void cell_show_cpuinfo(struct seq_file *m)
+static void cell_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
