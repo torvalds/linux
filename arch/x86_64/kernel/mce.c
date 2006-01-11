@@ -92,6 +92,7 @@ void mce_log(struct mce *mce)
 static void print_mce(struct mce *m)
 {
 	printk(KERN_EMERG "\n"
+	       KERN_EMERG "HARDWARE ERROR\n"
 	       KERN_EMERG
 	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
 	       m->cpu, m->mcgstatus, m->bank, m->status);
@@ -110,6 +111,9 @@ static void print_mce(struct mce *m)
 	if (m->misc)
 		printk("MISC %Lx ", m->misc); 	
 	printk("\n");
+	printk(KERN_EMERG "This is not a software problem!\n");
+        printk(KERN_EMERG
+    "Run through mcelog --ascii to decode and contact your hardware vendor\n");
 }
 
 static void mce_panic(char *msg, struct mce *backup, unsigned long start)
