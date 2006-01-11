@@ -15,6 +15,7 @@
  * (c) 1999 Manfred Spraul <manfreds@colorfullife.com>
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/msg.h>

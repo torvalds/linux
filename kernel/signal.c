@@ -25,6 +25,7 @@
 #include <linux/posix-timers.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>

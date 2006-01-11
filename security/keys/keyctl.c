@@ -16,6 +16,7 @@
 #include <linux/syscalls.h>
 #include <linux/keyctl.h>
 #include <linux/fs.h>
+#include <linux/capability.h>
 #include <linux/err.h>
 #include <asm/uaccess.h>
 #include "internal.h"

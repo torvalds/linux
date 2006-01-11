@@ -11,6 +11,7 @@
  * This file is released under the GPL.
  */
 
+#include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>

@@ -1112,10 +1112,6 @@ static inline int sas_ss_flags(unsigned long sp)
 		: on_sig_stack(sp) ? SS_ONSTACK : 0);
 }
 
-
-/* code is in security.c or kernel/sys.c if !SECURITY */
-extern int capable(int cap);
-
 /*
  * Routines for handling mm_structs
  */

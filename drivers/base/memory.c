@@ -13,8 +13,8 @@
 #include <linux/sysdev.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>	/* capable() */
 #include <linux/topology.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/memory.h>
 #include <linux/kobject.h>

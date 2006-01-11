@@ -27,6 +27,7 @@
 #include <linux/smp_lock.h>
 #include <asm/mmu_context.h>
 #include <linux/interrupt.h>
+#include <linux/capability.h>
 #include <linux/completion.h>
 #include <linux/kernel_stat.h>
 #include <linux/security.h>

@@ -42,9 +42,9 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>		/* for capable() */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/capability.h>
 #include <linux/ctype.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>

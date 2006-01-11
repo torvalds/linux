@@ -15,6 +15,7 @@
 #include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/aio.h>
+#include <linux/capability.h>
 #include <linux/kernel_stat.h>
 #include <linux/mm.h>
 #include <linux/swap.h>

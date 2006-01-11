@@ -1,4 +1,4 @@
-#include <linux/sched.h>		/* for capable() */
+#include <linux/capability.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>

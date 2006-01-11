@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/capability.h>
 #include <linux/completion.h>
 #include <linux/cdrom.h>
 #include <linux/slab.h>

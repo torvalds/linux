@@ -65,11 +65,11 @@
  *   v0.01 release to linux-ia64@linuxia64.org
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/sched.h>		/* for capable() */
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/string.h>

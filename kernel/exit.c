@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/completion.h>
 #include <linux/personality.h>
 #include <linux/tty.h>

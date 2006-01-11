@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/utsname.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>

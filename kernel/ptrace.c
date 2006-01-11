@@ -7,6 +7,7 @@
  * to continually duplicate across every architecture.
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/errno.h>

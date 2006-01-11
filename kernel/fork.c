@@ -28,6 +28,7 @@
 #include <linux/binfmts.h>
 #include <linux/mman.h>
 #include <linux/fs.h>
+#include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/security.h>

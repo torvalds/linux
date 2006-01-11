@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/workqueue.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/key.h>
 #include <linux/times.h>

@@ -28,6 +28,7 @@
 #include <linux/syscalls.h>
 #include <linux/fcntl.h>
 #include <linux/rcupdate.h>
+#include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/moduleparam.h>
 #include <linux/errno.h>

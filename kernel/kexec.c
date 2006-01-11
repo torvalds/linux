@@ -6,6 +6,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/slab.h>
