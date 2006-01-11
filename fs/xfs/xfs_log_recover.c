@@ -2562,10 +2562,12 @@ xlog_recover_do_quotaoff_trans(
 
 	/*
 	 * The logitem format's flag tells us if this was user quotaoff,
-	 * group quotaoff or both.
+	 * group/project quotaoff or both.
 	 */
 	if (qoff_f->qf_flags & XFS_UQUOTA_ACCT)
 		log->l_quotaoffs_flag |= XFS_DQ_USER;
+	if (qoff_f->qf_flags & XFS_PQUOTA_ACCT)
+		log->l_quotaoffs_flag |= XFS_DQ_PROJ;
 	if (qoff_f->qf_flags & XFS_GQUOTA_ACCT)
 		log->l_quotaoffs_flag |= XFS_DQ_GROUP;
 
