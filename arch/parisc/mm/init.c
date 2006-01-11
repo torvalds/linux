@@ -300,6 +300,13 @@ static void __init setup_bootmem(void)
 			max_pfn = start_pfn + npages;
 	}
 
+	/* IOMMU is always used to access "high mem" on those boxes
+	 * that can support enough mem that a PCI device couldn't
+	 * directly DMA to any physical addresses.
+	 * ISA DMA support will need to revisit this.
+	 */
+	max_low_pfn = max_pfn;
+
 	if ((bootmap_pfn - bootmap_start_pfn) != bootmap_pages) {
 		printk(KERN_WARNING "WARNING! bootmap sizing is messed up!\n");
 		BUG();
