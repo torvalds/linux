@@ -228,29 +228,13 @@ xfs_map_blocks(
 	return -error;
 }
 
-/*
- * Finds the corresponding mapping in block @map array of the
- * given @offset within a @page.
- */
-STATIC xfs_iomap_t *
-xfs_offset_to_map(
-	struct page		*page,
+STATIC inline int
+xfs_iomap_valid(
 	xfs_iomap_t		*iomapp,
-	unsigned long		offset)
+	loff_t			offset)
 {
-	xfs_off_t		full_offset;	/* offset from start of file */
-
-	ASSERT(offset < PAGE_CACHE_SIZE);
-
-	full_offset = page->index;		/* NB: using 64bit number */
-	full_offset <<= PAGE_CACHE_SHIFT;	/* offset from file start */
-	full_offset += offset;			/* offset from page start */
-
-	if (full_offset < iomapp->iomap_offset)
-		return NULL;
-	if (iomapp->iomap_offset + (iomapp->iomap_bsize -1) >= full_offset)
-		return iomapp;
-	return NULL;
+	return offset >= iomapp->iomap_offset &&
+		offset < iomapp->iomap_offset + iomapp->iomap_bsize;
 }
 
 /*
@@ -461,31 +445,23 @@ xfs_add_to_ioend(
 
 STATIC void
 xfs_map_at_offset(
-	struct page		*page,
 	struct buffer_head	*bh,
-	unsigned long		offset,
+	loff_t			offset,
 	int			block_bits,
-	xfs_iomap_t		*iomapp,
-	xfs_ioend_t		*ioend)
+	xfs_iomap_t		*iomapp)
 {
 	xfs_daddr_t		bn;
-	xfs_off_t		delta;
 	int			sector_shift;
 
 	ASSERT(!(iomapp->iomap_flags & IOMAP_HOLE));
 	ASSERT(!(iomapp->iomap_flags & IOMAP_DELAY));
 	ASSERT(iomapp->iomap_bn != IOMAP_DADDR_NULL);
 
-	delta = page->index;
-	delta <<= PAGE_CACHE_SHIFT;
-	delta += offset;
-	delta -= iomapp->iomap_offset;
-	delta >>= block_bits;
-
 	sector_shift = block_bits - BBSHIFT;
-	bn = iomapp->iomap_bn >> sector_shift;
-	bn += delta;
-	BUG_ON(!bn && !(iomapp->iomap_flags & IOMAP_REALTIME));
+	bn = (iomapp->iomap_bn >> sector_shift) +
+	      ((offset - iomapp->iomap_offset) >> block_bits);
+
+	ASSERT(bn || (iomapp->iomap_flags & IOMAP_REALTIME));
 	ASSERT((bn << sector_shift) >= iomapp->iomap_bn);
 
 	lock_buffer(bh);
@@ -569,8 +545,10 @@ xfs_probe_unmapped_cluster(
 			if (tindex == tlast) {
 				pg_offset =
 				    i_size_read(inode) & (PAGE_CACHE_SIZE - 1);
-				if (!pg_offset)
+				if (!pg_offset) {
+					done = 1;
 					break;
+				}
 			} else
 				pg_offset = PAGE_CACHE_SIZE;
 
@@ -585,6 +563,7 @@ xfs_probe_unmapped_cluster(
 			}
 
 			total += len;
+			tindex++;
 		}
 
 		pagevec_release(&pvec);
@@ -638,19 +617,19 @@ xfs_convert_page(
 	struct inode		*inode,
 	struct page		*page,
 	loff_t			tindex,
-	xfs_iomap_t		*iomapp,
+	xfs_iomap_t		*mp,
 	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
 	int			startio,
 	int			all_bh)
 {
 	struct buffer_head	*bh, *head;
-	xfs_iomap_t		*mp = iomapp, *tmp;
 	unsigned long		p_offset, end_offset;
 	unsigned int		type;
 	int			bbits = inode->i_blkbits;
 	int			len, page_dirty;
 	int			count = 0, done = 0, uptodate = 1;
+ 	xfs_off_t		f_offset = page_offset(page);
 
 	if (page->index != tindex)
 		goto fail;
@@ -703,15 +682,15 @@ xfs_convert_page(
 			}
 			continue;
 		}
-		tmp = xfs_offset_to_map(page, mp, p_offset);
-		if (!tmp) {
+
+		if (!xfs_iomap_valid(mp, f_offset + p_offset)) {
 			done = 1;
 			continue;
 		}
-		ASSERT(!(tmp->iomap_flags & IOMAP_HOLE));
-		ASSERT(!(tmp->iomap_flags & IOMAP_DELAY));
+		ASSERT(!(mp->iomap_flags & IOMAP_HOLE));
+		ASSERT(!(mp->iomap_flags & IOMAP_DELAY));
 
-		xfs_map_at_offset(page, bh, p_offset, bbits, tmp, *ioendp);
+		xfs_map_at_offset(bh, f_offset + p_offset, bbits, mp);
 		if (startio) {
 			xfs_add_to_ioend(inode, bh, p_offset,
 					type, ioendp, done);
@@ -805,15 +784,14 @@ xfs_page_state_convert(
 	int		unmapped) /* also implies page uptodate */
 {
 	struct buffer_head	*bh, *head;
-	xfs_iomap_t		*iomp, iomap;
+	xfs_iomap_t		iomap;
 	xfs_ioend_t		*ioend = NULL, *iohead = NULL;
 	loff_t			offset;
 	unsigned long           p_offset = 0;
 	unsigned int		type;
 	__uint64_t              end_offset;
 	pgoff_t                 end_index, last_index, tlast;
-	int			flags, len, err, done = 1;
-	int			uptodate = 1;
+	int			flags, len, err, iomap_valid = 0, uptodate = 1;
 	int			page_dirty, count = 0, trylock_flag = 0;
 
 	/* wait for other IO threads? */
@@ -854,11 +832,9 @@ xfs_page_state_convert(
 	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
 	page_dirty = p_offset / len;
 
-	iomp = NULL;
 	bh = head = page_buffers(page);
 	offset = page_offset(page);
 
-	/* TODO: fix up "done" variable and iomap pointer (boolean) */
 	/* TODO: cleanup count and page_dirty */
 
 	do {
@@ -867,14 +843,16 @@ xfs_page_state_convert(
 		if (!buffer_uptodate(bh))
 			uptodate = 0;
 		if (!(PageUptodate(page) || buffer_uptodate(bh)) && !startio) {
-			done = 1;
+			/*
+			 * the iomap is actually still valid, but the ioend
+			 * isn't.  shouldn't happen too often.
+			 */
+			iomap_valid = 0;
 			continue;
 		}
 
-		if (iomp) {
-			iomp = xfs_offset_to_map(page, &iomap, p_offset);
-			done = (iomp == NULL);
-		}
+		if (iomap_valid)
+			iomap_valid = xfs_iomap_valid(&iomap, offset);
 
 		/*
 		 * First case, map an unwritten extent and prepare for
@@ -894,22 +872,20 @@ xfs_page_state_convert(
 					flags |= trylock_flag;
 			}
 
-			if (!iomp) {
-				done = 1;
+			if (!iomap_valid) {
 				err = xfs_map_blocks(inode, offset, len, &iomap,
 						flags);
 				if (err)
 					goto error;
-				iomp = xfs_offset_to_map(page, &iomap,
-								p_offset);
-				done = (iomp == NULL);
+				iomap_valid = xfs_iomap_valid(&iomap, offset);
 			}
-			if (iomp) {
-				xfs_map_at_offset(page, bh, p_offset,
-						inode->i_blkbits, iomp, ioend);
+			if (iomap_valid) {
+				xfs_map_at_offset(bh, offset,
+						inode->i_blkbits, &iomap);
 				if (startio) {
 					xfs_add_to_ioend(inode, bh, p_offset,
-						type, &ioend, done);
+							type, &ioend,
+							!iomap_valid);
 				} else {
 					set_buffer_dirty(bh);
 					unlock_buffer(bh);
@@ -917,8 +893,6 @@ xfs_page_state_convert(
 				}
 				page_dirty--;
 				count++;
-			} else {
-				done = 1;
 			}
 		} else if ((buffer_uptodate(bh) || PageUptodate(page)) &&
 			   (unmapped || startio)) {
@@ -931,7 +905,7 @@ xfs_page_state_convert(
 				 * was found, and we are in a path where we
 				 * need to write the whole page out.
 				 */
-				if (!iomp) {
+				if (!iomap_valid) {
 					int	size;
 
 					size = xfs_probe_unmapped_cluster(
@@ -939,21 +913,19 @@ xfs_page_state_convert(
 					err = xfs_map_blocks(inode, offset,
 							size, &iomap,
 							BMAPI_WRITE|BMAPI_MMAP);
-					if (err) {
+					if (err)
 						goto error;
-					}
-					iomp = xfs_offset_to_map(page, &iomap,
-								     p_offset);
-					done = (iomp == NULL);
+					iomap_valid = xfs_iomap_valid(&iomap,
+								     offset);
 				}
-				if (iomp) {
-					xfs_map_at_offset(page, bh, p_offset,
-							inode->i_blkbits, iomp,
-							ioend);
+				if (iomap_valid) {
+					xfs_map_at_offset(bh, offset,
+							inode->i_blkbits,
+							&iomap);
 					if (startio) {
 						xfs_add_to_ioend(inode,
 							bh, p_offset, type,
-							&ioend, done);
+							&ioend, !iomap_valid);
 					} else {
 						set_buffer_dirty(bh);
 						unlock_buffer(bh);
@@ -961,8 +933,6 @@ xfs_page_state_convert(
 					}
 					page_dirty--;
 					count++;
-				} else {
-					done = 1;
 				}
 			} else if (startio) {
 				if (buffer_uptodate(bh) &&
@@ -970,14 +940,14 @@ xfs_page_state_convert(
 					ASSERT(buffer_mapped(bh));
 					xfs_add_to_ioend(inode,
 							bh, p_offset, type,
-							&ioend, done);
+							&ioend, !iomap_valid);
 					page_dirty--;
 					count++;
 				} else {
-					done = 1;
+					iomap_valid = 0;
 				}
 			} else {
-				done = 1;
+				iomap_valid = 0;
 			}
 		}
 
@@ -992,11 +962,11 @@ xfs_page_state_convert(
 	if (startio)
 		xfs_start_page_writeback(page, wbc, 1, count);
 
-	if (ioend && iomp && !done) {
-		offset = (iomp->iomap_offset + iomp->iomap_bsize - 1) >>
+	if (ioend && iomap_valid) {
+		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
 					PAGE_CACHE_SHIFT;
 		tlast = min_t(pgoff_t, offset, last_index);
-		xfs_cluster_write(inode, page->index + 1, iomp, &ioend,
+		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
 					wbc, startio, unmapped, tlast);
 	}
 
