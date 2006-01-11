@@ -2673,6 +2673,14 @@ M:	dbrownell@users.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
+USB ET61X[12]51 DRIVER
+P:	Luca Risolia
+M:	luca.risolia@studio.unibo.it
+L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
+W:	http://www.linux-projects.org
+S:	Maintained
+
 USB HID/HIDBP DRIVERS
 P:	Vojtech Pavlik
 M:	vojtech@suse.cz
@@ -2836,6 +2844,7 @@ USB SN9C10x DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -2865,6 +2874,7 @@ USB W996[87]CF DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
