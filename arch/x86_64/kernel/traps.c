@@ -183,7 +183,6 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 
 void show_trace(unsigned long *stack)
 {
-	unsigned long addr;
 	const unsigned cpu = safe_smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	int i;
@@ -193,8 +192,14 @@ void show_trace(unsigned long *stack)
 
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
-		addr = *stack++; \
+		unsigned long addr = *stack++; \
 		if (kernel_text_address(addr)) { \
+			if (i > 50) { \
+				printk("\n       "); \
+				i = 0; \
+			} \
+			else \
+				i += printk(" "); \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
@@ -204,25 +209,19 @@ void show_trace(unsigned long *stack)
 			 * out the call path that was taken. \
 			 */ \
 			i += printk_address(addr); \
-			if (i > 50) { \
-				printk("\n       "); \
-				i = 0; \
-			} \
-			else \
-				i += printk(" "); \
 		} \
 	} while (0)
 
-	for(i = 0; ; ) {
+	for(i = 11; ; ) {
 		const char *id;
 		unsigned long *estack_end;
 		estack_end = in_exception_stack(cpu, (unsigned long)stack,
 						&used, &id);
 
 		if (estack_end) {
-			i += printk(" <%s> ", id);
+			i += printk(" <%s>", id);
 			HANDLE_STACK (stack < estack_end);
-			i += printk(" <EOE> ");
+			i += printk(" <EOE>");
 			stack = (unsigned long *) estack_end[-2];
 			continue;
 		}
@@ -232,11 +231,11 @@ void show_trace(unsigned long *stack)
 				(IRQSTACKSIZE - 64) / sizeof(*irqstack);
 
 			if (stack >= irqstack && stack < irqstack_end) {
-				i += printk(" <IRQ> ");
+				i += printk(" <IRQ>");
 				HANDLE_STACK (stack < irqstack_end);
 				stack = (unsigned long *) (irqstack_end[-1]);
 				irqstack_end = NULL;
-				i += printk(" <EOI> ");
+				i += printk(" <EOI>");
 				continue;
 			}
 		}
