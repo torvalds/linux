@@ -24,6 +24,7 @@
 #include <asm/mce.h>
 #include <asm/kdebug.h>
 #include <asm/uaccess.h>
+#include <asm/smp.h>
 
 #define MISC_MCELOG_MINOR 227
 #define NR_BANKS 6
@@ -178,7 +179,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		return;
 
 	memset(&m, 0, sizeof(struct mce));
-	m.cpu = hard_smp_processor_id();
+	m.cpu = safe_smp_processor_id();
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
 		kill_it = 1;
