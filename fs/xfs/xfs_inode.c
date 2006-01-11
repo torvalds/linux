@@ -1777,22 +1777,19 @@ xfs_igrow_start(
 	xfs_fsize_t	new_size,
 	cred_t		*credp)
 {
-	xfs_fsize_t	isize;
 	int		error;
 
 	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
 	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
 	ASSERT(new_size > ip->i_d.di_size);
 
-	error = 0;
-	isize = ip->i_d.di_size;
 	/*
 	 * Zero any pages that may have been created by
 	 * xfs_write_file() beyond the end of the file
 	 * and any blocks between the old and new file sizes.
 	 */
-	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size, isize,
-				new_size);
+	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size,
+			     ip->i_d.di_size, new_size);
 	return error;
 }
 
