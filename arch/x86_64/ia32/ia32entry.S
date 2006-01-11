@@ -35,6 +35,18 @@
 	movq	%rax,R8(%rsp)
 	.endm
 
+	.macro CFI_STARTPROC32 simple
+	CFI_STARTPROC	\simple
+	CFI_UNDEFINED	r8
+	CFI_UNDEFINED	r9
+	CFI_UNDEFINED	r10
+	CFI_UNDEFINED	r11
+	CFI_UNDEFINED	r12
+	CFI_UNDEFINED	r13
+	CFI_UNDEFINED	r14
+	CFI_UNDEFINED	r15
+	.endm
+
 /*
  * 32bit SYSENTER instruction entry.
  *
@@ -55,7 +67,7 @@
  * with the int 0x80 path.
  */ 	
 ENTRY(ia32_sysenter_target)
-	CFI_STARTPROC	simple
+	CFI_STARTPROC32	simple
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rsp,rbp
 	swapgs
@@ -161,7 +173,7 @@ sysenter_tracesys:
  * with the int 0x80 path.	
  */ 	
 ENTRY(ia32_cstar_target)
-	CFI_STARTPROC	simple
+	CFI_STARTPROC32	simple
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
@@ -318,7 +330,7 @@ quiet_ni_syscall:
 	jmp  ia32_ptregs_common	
 	.endm
 
-	CFI_STARTPROC
+	CFI_STARTPROC32
 
 	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
 	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
@@ -333,8 +345,19 @@ quiet_ni_syscall:
 
 ENTRY(ia32_ptregs_common)
 	popq %r11
-	CFI_ADJUST_CFA_OFFSET -8
-	CFI_REGISTER rip, r11
+	CFI_ENDPROC
+	CFI_STARTPROC32	simple
+	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
+	CFI_REL_OFFSET	rax,RAX-ARGOFFSET
+	CFI_REL_OFFSET	rcx,RCX-ARGOFFSET
+	CFI_REL_OFFSET	rdx,RDX-ARGOFFSET
+	CFI_REL_OFFSET	rsi,RSI-ARGOFFSET
+	CFI_REL_OFFSET	rdi,RDI-ARGOFFSET
+	CFI_REL_OFFSET	rip,RIP-ARGOFFSET
+/*	CFI_REL_OFFSET	cs,CS-ARGOFFSET*/
+/*	CFI_REL_OFFSET	rflags,EFLAGS-ARGOFFSET*/
+	CFI_REL_OFFSET	rsp,RSP-ARGOFFSET
+/*	CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
 	SAVE_REST
 	call *%rax
 	RESTORE_REST
