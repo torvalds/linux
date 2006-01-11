@@ -414,7 +414,7 @@ STATIC void
 xfs_add_to_ioend(
 	struct inode		*inode,
 	struct buffer_head	*bh,
-	unsigned int		p_offset,
+	xfs_off_t		offset,
 	unsigned int		type,
 	xfs_ioend_t		**result,
 	int			need_ioend)
@@ -423,10 +423,7 @@ xfs_add_to_ioend(
 
 	if (!ioend || need_ioend || type != ioend->io_type) {
 		xfs_ioend_t	*previous = *result;
-		xfs_off_t	offset;
 
-		offset = (xfs_off_t)bh->b_page->index << PAGE_CACHE_SHIFT;
-		offset += p_offset;
 		ioend = xfs_alloc_ioend(inode, type);
 		ioend->io_offset = offset;
 		ioend->io_buffer_head = bh;
@@ -666,7 +663,6 @@ xfs_convert_page(
 	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
 	page_dirty = p_offset / len;
 
-	p_offset = 0;
 	bh = head = page_buffers(page);
 	do {
 		if (offset >= end_offset)
@@ -694,7 +690,7 @@ xfs_convert_page(
 
 			xfs_map_at_offset(bh, offset, bbits, mp);
 			if (startio) {
-				xfs_add_to_ioend(inode, bh, p_offset,
+				xfs_add_to_ioend(inode, bh, offset,
 						type, ioendp, done);
 			} else {
 				set_buffer_dirty(bh);
@@ -707,7 +703,7 @@ xfs_convert_page(
 			type = 0;
 			if (buffer_mapped(bh) && all_bh && startio) {
 				lock_buffer(bh);
-				xfs_add_to_ioend(inode, bh, p_offset,
+				xfs_add_to_ioend(inode, bh, offset,
 						type, ioendp, done);
 				count++;
 				page_dirty--;
@@ -715,8 +711,7 @@ xfs_convert_page(
 				done = 1;
 			}
 		}
-	} while (offset += len, p_offset += len,
-		 (bh = bh->b_this_page) != head);
+	} while (offset += len, (bh = bh->b_this_page) != head);
 
 	if (uptodate && bh == head)
 		SetPageUptodate(page);
@@ -914,7 +909,7 @@ xfs_page_state_convert(
 				xfs_map_at_offset(bh, offset,
 						inode->i_blkbits, &iomap);
 				if (startio) {
-					xfs_add_to_ioend(inode, bh, p_offset,
+					xfs_add_to_ioend(inode, bh, offset,
 							type, &ioend,
 							!iomap_valid);
 				} else {
@@ -930,8 +925,7 @@ xfs_page_state_convert(
 
 			if (!test_and_set_bit(BH_Lock, &bh->b_state)) {
 				ASSERT(buffer_mapped(bh));
-				xfs_add_to_ioend(inode,
-						bh, p_offset, type,
+				xfs_add_to_ioend(inode, bh, offset, type,
 						&ioend, !iomap_valid);
 				page_dirty--;
 				count++;
