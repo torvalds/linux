@@ -551,8 +551,10 @@ xfs_iomap_write_direct(
                         "extent-state : %x \n",
                         (ip->i_mount)->m_fsname,
                         (long long)ip->i_ino,
-                        ret_imap->br_startblock, ret_imap->br_startoff,
-                        ret_imap->br_blockcount,ret_imap->br_state);
+                        (unsigned long long)ret_imap->br_startblock,
+			(unsigned long long)ret_imap->br_startoff,
+                        (unsigned long long)ret_imap->br_blockcount,
+			ret_imap->br_state);
         }
 	return 0;
 
@@ -722,8 +724,10 @@ retry:
                         "extent-state : %x \n",
                         (ip->i_mount)->m_fsname,
                         (long long)ip->i_ino,
-                        ret_imap->br_startblock, ret_imap->br_startoff,
-                        ret_imap->br_blockcount,ret_imap->br_state);
+                        (unsigned long long)ret_imap->br_startblock,
+			(unsigned long long)ret_imap->br_startoff,
+                        (unsigned long long)ret_imap->br_blockcount,
+			ret_imap->br_state);
 	}
 
 	*ret_imap = imap[0];
@@ -854,17 +858,21 @@ xfs_iomap_write_allocate(
 		 */
 
 		for (i = 0; i < nimaps; i++) {
-			if ( !(io->io_flags & XFS_IOCORE_RT)  && 
-				!imap[i].br_startblock) {
+			if (!(io->io_flags & XFS_IOCORE_RT)  &&
+			    !imap[i].br_startblock) {
 				cmn_err(CE_PANIC,"Access to block zero:  "
 					"fs <%s> inode: %lld "
-					"start_block : %llx start_off : %llx " 
+					"start_block : %llx start_off : %llx "
 					"blkcnt : %llx extent-state : %x \n",
 					(ip->i_mount)->m_fsname,
 					(long long)ip->i_ino,
-					imap[i].br_startblock,
-					imap[i].br_startoff,
-				        imap[i].br_blockcount,imap[i].br_state);
+					(unsigned long long)
+						imap[i].br_startblock,
+					(unsigned long long)
+						imap[i].br_startoff,
+					(unsigned long long)
+				        	imap[i].br_blockcount,
+					imap[i].br_state);
                         }
 			if ((offset_fsb >= imap[i].br_startoff) &&
 			    (offset_fsb < (imap[i].br_startoff +
@@ -970,8 +978,10 @@ xfs_iomap_write_unwritten(
 				"%llx blkcnt : %llx extent-state : %x \n",
 				(ip->i_mount)->m_fsname,
 				(long long)ip->i_ino,
-				imap.br_startblock,imap.br_startoff,
-				imap.br_blockcount,imap.br_state);
+				(unsigned long long)imap.br_startblock,
+				(unsigned long long)imap.br_startoff,
+				(unsigned long long)imap.br_blockcount,
+				imap.br_state);
         	}
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {
