@@ -154,7 +154,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	case _DRM_REGISTERS:
 	case _DRM_FRAME_BUFFER:
 #if !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__)
-		if (map->offset + map->size < map->offset ||
+		if (map->offset + (map->size-1) < map->offset ||
 		    map->offset < virt_to_phys(high_memory)) {
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			return -EINVAL;
