@@ -2359,13 +2359,6 @@ P:	Nicolas Pitre
 M:	nico@cam.org
 S:	Maintained
 
-SNA NETWORK LAYER
-P:	Jay Schulist
-M:	jschlst@samba.org
-L:	linux-sna@turbolinux.com
-W:	http://www.linux-sna.org
-S:	Supported
-
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
