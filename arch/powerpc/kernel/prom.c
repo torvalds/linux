@@ -1100,17 +1100,37 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 
 static void __init early_reserve_mem(void)
 {
-	unsigned long base, size;
-	unsigned long *reserve_map;
+	u64 base, size;
+	u64 *reserve_map;
 
-	reserve_map = (unsigned long *)(((unsigned long)initial_boot_params) +
+	reserve_map = (u64 *)(((unsigned long)initial_boot_params) +
 					initial_boot_params->off_mem_rsvmap);
+#ifdef CONFIG_PPC32
+	/* 
+	 * Handle the case where we might be booting from an old kexec
+	 * image that setup the mem_rsvmap as pairs of 32-bit values
+	 */
+	if (*reserve_map > 0xffffffffull) {
+		u32 base_32, size_32;
+		u32 *reserve_map_32 = (u32 *)reserve_map;
+
+		while (1) {
+			base_32 = *(reserve_map_32++);
+			size_32 = *(reserve_map_32++);
+			if (size_32 == 0)
+				break;
+			DBG("reserving: %lx -> %lx\n", base_32, size_32);
+			lmb_reserve(base_32, size_32);
+		}
+		return;
+	}
+#endif
 	while (1) {
 		base = *(reserve_map++);
 		size = *(reserve_map++);
 		if (size == 0)
 			break;
-		DBG("reserving: %lx -> %lx\n", base, size);
+		DBG("reserving: %llx -> %llx\n", base, size);
 		lmb_reserve(base, size);
 	}
 
