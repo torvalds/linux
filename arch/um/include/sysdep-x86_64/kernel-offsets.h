@@ -6,10 +6,10 @@
 #include <asm/page.h>
 
 #define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
-#define STR(x) #x
-#define DEFINE_STR(sym, val) asm volatile("\n->" #sym " " STR(val) " " #val: : )
+#define DEFINE_STR1(x) #x
+#define DEFINE_STR(sym, val) asm volatile("\n->" #sym " " DEFINE_STR1(val) " " #val: : )
 
 #define BLANK() asm volatile("\n->" : : )
 
@@ -18,7 +18,6 @@
 
 void foo(void)
 {
-	OFFSET(HOST_TASK_DEBUGREGS, task_struct, thread.arch.debugregs);
 #ifdef CONFIG_MODE_TT
 	OFFSET(HOST_TASK_EXTERN_PID, task_struct, thread.mode.tt.extern_pid);
 #endif
