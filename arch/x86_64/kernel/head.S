@@ -386,7 +386,7 @@ gdt:
 	
 ENTRY(cpu_gdt_table)
 	.quad	0x0000000000000000	/* NULL descriptor */
-	.quad	0x008f9a000000ffff	/* __KERNEL_COMPAT32_CS */	
+	.quad	0x0			/* unused */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x00cffa000000ffff	/* __USER32_CS */
@@ -396,8 +396,7 @@ ENTRY(cpu_gdt_table)
 	.quad	0,0			/* TSS */
 	.quad	0,0			/* LDT */
 	.quad   0,0,0			/* three TLS descriptors */ 
-	.quad	0x00009a000000ffff	/* __KERNEL16_CS - 16bit PM for S3 wakeup. */
-					/* base must be patched for real base address. */
+	.quad	0			/* unused */
 gdt_end:	
 	/* asm/segment.h:GDT_ENTRIES must match this */	
 	/* This should be a multiple of the cache line size */
