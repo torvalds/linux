@@ -342,12 +342,12 @@ void drm_exit(struct drm_driver *driver)
 		if (head->dev->driver != driver)
 			continue;
 		dev = head->dev;
-	}
-	if (dev) {
-		/* release the pci driver */
-		if (dev->pdev)
-			pci_dev_put(dev->pdev);
-		drm_cleanup(dev);
+		if (dev) {
+			/* release the pci driver */
+			if (dev->pdev)
+				pci_dev_put(dev->pdev);
+			drm_cleanup(dev);
+		}
 	}
 	DRM_INFO("Module unloaded\n");
 }
