@@ -308,7 +308,7 @@ ieee80211softmac_disassoc_deauth(struct ieee80211_disassoc **pkt,
 {
 	/* Allocate Packet */
 	(*pkt) = (struct ieee80211_disassoc *)ieee80211softmac_alloc_mgt(2);
-	if (unlikely(pkt == NULL))
+	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), type, net->bssid, net->bssid);
 	/* Reason */
