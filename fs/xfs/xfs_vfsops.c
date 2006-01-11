@@ -1924,36 +1924,30 @@ xfs_showargs(
 
 	if (mp->m_logbufs > 0)
 		seq_printf(m, "," MNTOPT_LOGBUFS "=%d", mp->m_logbufs);
-
 	if (mp->m_logbsize > 0)
 		seq_printf(m, "," MNTOPT_LOGBSIZE "=%dk", mp->m_logbsize >> 10);
 
 	if (mp->m_logname)
 		seq_printf(m, "," MNTOPT_LOGDEV "=%s", mp->m_logname);
-
 	if (mp->m_rtname)
 		seq_printf(m, "," MNTOPT_RTDEV "=%s", mp->m_rtname);
 
 	if (mp->m_dalign > 0)
 		seq_printf(m, "," MNTOPT_SUNIT "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_dalign));
-
 	if (mp->m_swidth > 0)
 		seq_printf(m, "," MNTOPT_SWIDTH "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_ATTR))
 		seq_printf(m, "," MNTOPT_ATTR2);
-
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
+	if (!(mp->m_flags & XFS_MOUNT_BARRIER))
+		seq_printf(m, "," MNTOPT_NOBARRIER);
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);
-
-	if (!(vfsp->vfs_flag & XFS_MOUNT_BARRIER))
-		seq_printf(m, "," MNTOPT_NOBARRIER);
-
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
 
