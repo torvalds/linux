@@ -25,6 +25,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
+#include <linux/module.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -37,6 +38,12 @@
 int apic_verbosity;
 
 int disable_apic_timer __initdata;
+
+/*
+ * cpu_mask that denotes the CPUs that needs timer interrupt coming in as
+ * IPIs in place of local APIC timers
+ */
+static cpumask_t timer_interrupt_broadcast_ipi_mask;
 
 /* Using APIC to generate smp_local_timer_interrupt? */
 int using_apic_timer = 0;
@@ -656,9 +663,14 @@ void __init init_apic_mappings(void)
 static void __setup_APIC_LVTT(unsigned int clocks)
 {
 	unsigned int lvtt_value, tmp_value, ver;
+	int cpu = smp_processor_id();
 
 	ver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	lvtt_value = APIC_LVT_TIMER_PERIODIC | LOCAL_TIMER_VECTOR;
+
+	if (cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask))
+		lvtt_value |= APIC_LVT_MASKED;
+
 	apic_write_around(APIC_LVTT, lvtt_value);
 
 	/*
@@ -781,7 +793,7 @@ void __cpuinit setup_secondary_APIC_clock(void)
 	local_irq_enable();
 }
 
-void __cpuinit disable_APIC_timer(void)
+void disable_APIC_timer(void)
 {
 	if (using_apic_timer) {
 		unsigned long v;
@@ -793,13 +805,52 @@ void __cpuinit disable_APIC_timer(void)
 
 void enable_APIC_timer(void)
 {
-	if (using_apic_timer) {
+	int cpu = smp_processor_id();
+
+	if (using_apic_timer &&
+	    !cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask)) {
 		unsigned long v;
 
 		v = apic_read(APIC_LVTT);
 		apic_write_around(APIC_LVTT, v & ~APIC_LVT_MASKED);
 	}
 }
+
+void switch_APIC_timer_to_ipi(void *cpumask)
+{
+	cpumask_t mask = *(cpumask_t *)cpumask;
+	int cpu = smp_processor_id();
+
+	if (cpu_isset(cpu, mask) &&
+	    !cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask)) {
+		disable_APIC_timer();
+		cpu_set(cpu, timer_interrupt_broadcast_ipi_mask);
+	}
+}
+EXPORT_SYMBOL(switch_APIC_timer_to_ipi);
+
+void smp_send_timer_broadcast_ipi(void)
+{
+	cpumask_t mask;
+
+	cpus_and(mask, cpu_online_map, timer_interrupt_broadcast_ipi_mask);
+	if (!cpus_empty(mask)) {
+		send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
+	}
+}
+
+void switch_ipi_to_APIC_timer(void *cpumask)
+{
+	cpumask_t mask = *(cpumask_t *)cpumask;
+	int cpu = smp_processor_id();
+
+	if (cpu_isset(cpu, mask) &&
+	    cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask)) {
+		cpu_clear(cpu, timer_interrupt_broadcast_ipi_mask);
+		enable_APIC_timer();
+	}
+}
+EXPORT_SYMBOL(switch_ipi_to_APIC_timer);
 
 int setup_profiling_timer(unsigned int multiplier)
 {

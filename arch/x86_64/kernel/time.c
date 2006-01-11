@@ -471,6 +471,11 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  
 	write_sequnlock(&xtime_lock);
 
+#ifdef CONFIG_X86_LOCAL_APIC
+	if (using_apic_timer)
+		smp_send_timer_broadcast_ipi();
+#endif
+
 	return IRQ_HANDLED;
 }
 

@@ -113,6 +113,12 @@ extern int disable_timer_pin_1;
 
 extern void setup_threshold_lvt(unsigned long lvt_off);
 
+void smp_send_timer_broadcast_ipi(void);
+void switch_APIC_timer_to_ipi(void *cpumask);
+void switch_ipi_to_APIC_timer(void *cpumask);
+
+#define ARCH_APICTIMER_STOPS_ON_C3	1
+
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 extern unsigned boot_cpu_id;
