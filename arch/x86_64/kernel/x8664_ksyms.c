@@ -44,8 +44,6 @@ extern struct drive_info_struct drive_info;
 EXPORT_SYMBOL(drive_info);
 #endif
 
-extern unsigned long get_cmos_time(void);
-
 /* platform dependent support */
 EXPORT_SYMBOL(boot_cpu_data);
 //EXPORT_SYMBOL(dump_fpu);
@@ -55,7 +53,6 @@ EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(pm_idle);
 EXPORT_SYMBOL(pm_power_off);
-EXPORT_SYMBOL(get_cmos_time);
 
 EXPORT_SYMBOL(__down_failed);
 EXPORT_SYMBOL(__down_failed_interruptible);

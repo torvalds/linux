@@ -502,7 +502,7 @@ unsigned long long sched_clock(void)
 	return cycles_2_ns(a);
 }
 
-unsigned long get_cmos_time(void)
+static unsigned long get_cmos_time(void)
 {
 	unsigned int timeout, year, mon, day, hour, min, sec;
 	unsigned char last, this;
