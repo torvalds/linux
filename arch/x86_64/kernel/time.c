@@ -504,8 +504,8 @@ unsigned long long sched_clock(void)
 
 static unsigned long get_cmos_time(void)
 {
-	unsigned int timeout, year, mon, day, hour, min, sec;
-	unsigned char last, this;
+	unsigned int timeout = 1000000, year, mon, day, hour, min, sec;
+	unsigned char uip = 0, this = 0;
 	unsigned long flags;
 
 /*
@@ -518,11 +518,8 @@ static unsigned long get_cmos_time(void)
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
-	timeout = 1000000;
-	last = this = 0;
-
-	while (timeout && last && !this) {
-		last = this;
+	while (timeout && (!uip || this)) {
+		uip |= this;
 		this = CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP;
 		timeout--;
 	}
