@@ -131,7 +131,7 @@ static void initDataEvent(struct viocharlpevent *viochar, HvLpIndex lp);
 
 static struct tty_driver *viotty_driver;
 
-void hvlog(char *fmt, ...)
+static void hvlog(char *fmt, ...)
 {
 	int i;
 	unsigned long flags;
@@ -147,7 +147,7 @@ void hvlog(char *fmt, ...)
 	spin_unlock_irqrestore(&consoleloglock, flags);
 }
 
-void hvlogOutput(const char *buf, int count)
+static void hvlogOutput(const char *buf, int count)
 {
 	unsigned long flags;
 	int begin;

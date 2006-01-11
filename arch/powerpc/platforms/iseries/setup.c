@@ -52,6 +52,7 @@
 #include <asm/iseries/mf.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
+#include <asm/udbg.h>
 
 #include "naca.h"
 #include "setup.h"
@@ -62,10 +63,8 @@
 #include "call_sm.h"
 #include "call_hpt.h"
 
-extern void hvlog(char *fmt, ...);
-
 #ifdef DEBUG
-#define DBG(fmt...) hvlog(fmt)
+#define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
 #endif
@@ -984,3 +983,16 @@ static int __init early_parsemem(char *p)
 	return 0;
 }
 early_param("mem", early_parsemem);
+
+static void hvputc(char c)
+{
+	if (c == '\n')
+		hvputc('\r');
+
+	HvCall_writeLogBuffer(&c, 1);
+}
+
+void __init udbg_init_iseries(void)
+{
+	udbg_putc = hvputc;
+}
