@@ -52,10 +52,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(ioremap_nocache);
 EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
-EXPORT_SYMBOL(disable_irq_nosync);
-EXPORT_SYMBOL(probe_irq_mask);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(pm_idle);
 EXPORT_SYMBOL(pm_power_off);
@@ -83,9 +79,6 @@ EXPORT_SYMBOL(__put_user_2);
 EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
 
-EXPORT_SYMBOL(strpbrk);
-EXPORT_SYMBOL(strstr);
-
 EXPORT_SYMBOL(strncpy_from_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(clear_user);
@@ -106,11 +99,9 @@ EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(cpu_pda);
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(cpu_data);
-EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(__write_lock_failed);
 EXPORT_SYMBOL(__read_lock_failed);
 
-EXPORT_SYMBOL(synchronize_irq);
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(cpu_callout_map);
 #endif
@@ -131,30 +122,17 @@ EXPORT_SYMBOL_GPL(unset_nmi_callback);
 #undef memcpy
 #undef memset
 #undef memmove
-#undef memchr
 #undef strlen
-#undef strncmp
-#undef strncpy
-#undef strchr	
 
 extern void * memset(void *,int,__kernel_size_t);
 extern size_t strlen(const char *);
 extern void * memmove(void * dest,const void *src,size_t count);
-extern void *memchr(const void *s, int c, size_t n);
 extern void * memcpy(void *,const void *,__kernel_size_t);
 extern void * __memcpy(void *,const void *,__kernel_size_t);
 
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(strncmp);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(memchr);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(__memcpy);
 
