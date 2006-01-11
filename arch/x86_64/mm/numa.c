@@ -46,8 +46,8 @@ int numa_off __initdata;
  * 0 if memnodmap[] too small (of shift too small)
  * -1 if node overlap or lost ram (shift too big)
  */
-static int __init populate_memnodemap(
-	const struct node *nodes, int numnodes, int shift)
+static int __init
+populate_memnodemap(const struct node *nodes, int numnodes, int shift)
 {
 	int i; 
 	int res = -1;
