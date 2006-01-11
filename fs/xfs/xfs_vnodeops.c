@@ -3829,7 +3829,6 @@ xfs_reclaim(
 	vn_iowait(vp);
 
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
-	ASSERT(VN_CACHED(vp) == 0);
 
 	/* If we have nothing to flush with this inode then complete the
 	 * teardown now, otherwise break the link between the xfs inode
