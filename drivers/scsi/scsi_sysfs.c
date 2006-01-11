@@ -745,9 +745,9 @@ void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 
-	down(&shost->scan_mutex);
+	mutex_lock(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
-	up(&shost->scan_mutex);
+	mutex_unlock(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_remove_device);
 

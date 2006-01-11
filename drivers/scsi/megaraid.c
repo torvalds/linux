@@ -4479,7 +4479,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 	 * serialized. This is so because we want to reserve maximum number of
 	 * available command ids for the I/O commands.
 	 */
-	down(&adapter->int_mtx);
+	mutex_lock(&adapter->int_mtx);
 
 	scb = &adapter->int_scb;
 	memset(scb, 0, sizeof(scb_t));
@@ -4527,7 +4527,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 			mc->cmd, mc->opcode, mc->subopcode, scmd->result);
 	}
 
-	up(&adapter->int_mtx);
+	mutex_unlock(&adapter->int_mtx);
 
 	return rval;
 }
@@ -4866,7 +4866,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		adapter->has_64bit_addr = 0;
 	}
 		
-	init_MUTEX(&adapter->int_mtx);
+	mutex_init(&adapter->int_mtx);
 	init_completion(&adapter->int_waitq);
 
 	adapter->this_id = DEFAULT_INITIATOR_ID;

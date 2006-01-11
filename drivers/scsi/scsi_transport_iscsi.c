@@ -24,6 +24,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/mempool.h>
+#include <linux/mutex.h>
 #include <net/tcp.h>
 
 #include <scsi/scsi.h>
@@ -46,7 +47,7 @@ struct iscsi_internal {
 	struct list_head sessions;
 	/*
 	 * lock to serialize access to the sessions list which must
-	 * be taken after the rx_queue_sema
+	 * be taken after the rx_queue_mutex
 	 */
 	spinlock_t session_lock;
 	/*
@@ -70,7 +71,7 @@ struct iscsi_internal {
 /*
  * list of registered transports and lock that must
  * be held while accessing list. The iscsi_transport_lock must
- * be acquired after the rx_queue_sema.
+ * be acquired after the rx_queue_mutex.
  */
 static LIST_HEAD(iscsi_transports);
 static DEFINE_SPINLOCK(iscsi_transport_lock);
@@ -145,7 +146,7 @@ static DECLARE_TRANSPORT_CLASS(iscsi_connection_class,
 
 static struct sock *nls;
 static int daemon_pid;
-static DECLARE_MUTEX(rx_queue_sema);
+static DEFINE_MUTEX(rx_queue_mutex);
 
 struct mempool_zone {
 	mempool_t *pool;
@@ -881,7 +882,7 @@ iscsi_if_rx(struct sock *sk, int len)
 {
 	struct sk_buff *skb;
 
-	down(&rx_queue_sema);
+	mutex_lock(&rx_queue_mutex);
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		while (skb->len >= NLMSG_SPACE(0)) {
 			int err;
@@ -923,7 +924,7 @@ iscsi_if_rx(struct sock *sk, int len)
 		}
 		kfree_skb(skb);
 	}
-	up(&rx_queue_sema);
+	mutex_unlock(&rx_queue_mutex);
 }
 
 /*
@@ -1159,7 +1160,7 @@ int iscsi_unregister_transport(struct iscsi_transport *tt)
 
 	BUG_ON(!tt);
 
-	down(&rx_queue_sema);
+	mutex_lock(&rx_queue_mutex);
 
 	priv = iscsi_if_transport_lookup(tt);
 	BUG_ON (!priv);
@@ -1167,7 +1168,7 @@ int iscsi_unregister_transport(struct iscsi_transport *tt)
 	spin_lock_irqsave(&priv->session_lock, flags);
 	if (!list_empty(&priv->sessions)) {
 		spin_unlock_irqrestore(&priv->session_lock, flags);
-		up(&rx_queue_sema);
+		mutex_unlock(&rx_queue_mutex);
 		return -EPERM;
 	}
 	spin_unlock_irqrestore(&priv->session_lock, flags);
@@ -1181,7 +1182,7 @@ int iscsi_unregister_transport(struct iscsi_transport *tt)
 
 	sysfs_remove_group(&priv->cdev.kobj, &iscsi_transport_group);
 	class_device_unregister(&priv->cdev);
-	up(&rx_queue_sema);
+	mutex_unlock(&rx_queue_mutex);
 
 	return 0;
 }

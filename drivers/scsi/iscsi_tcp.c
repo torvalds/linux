@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/kfifo.h>
 #include <linux/scatterlist.h>
+#include <linux/mutex.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -2300,10 +2301,10 @@ iscsi_xmitworker(void *data)
 	/*
 	 * serialize Xmit worker on a per-connection basis.
 	 */
-	down(&conn->xmitsema);
+	mutex_lock(&conn->xmitmutex);
 	if (iscsi_data_xmit(conn))
 		schedule_work(&conn->xmitwork);
-	up(&conn->xmitsema);
+	mutex_unlock(&conn->xmitmutex);
 }
 
 #define FAILURE_BAD_HOST		1
@@ -2367,11 +2368,11 @@ iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
 	spin_unlock(&session->lock);
 
-        if (!in_interrupt() && !down_trylock(&conn->xmitsema)) {
+        if (!in_interrupt() && mutex_trylock(&conn->xmitmutex)) {
 		spin_unlock_irq(host->host_lock);
 		if (iscsi_data_xmit(conn))
 			schedule_work(&conn->xmitwork);
-		up(&conn->xmitsema);
+		mutex_unlock(&conn->xmitmutex);
 		spin_lock_irq(host->host_lock);
 	} else
 		schedule_work(&conn->xmitwork);
@@ -2531,7 +2532,7 @@ iscsi_conn_create(iscsi_sessionh_t sessionh, uint32_t conn_idx)
 		goto max_recv_dlenght_alloc_fail;
 
 	init_timer(&conn->tmabort_timer);
-	init_MUTEX(&conn->xmitsema);
+	mutex_init(&conn->xmitmutex);
 	init_waitqueue_head(&conn->ehwait);
 
 	return iscsi_handle(conn);
@@ -2561,7 +2562,7 @@ iscsi_conn_destroy(iscsi_connh_t connh)
 	struct iscsi_conn *conn = iscsi_ptr(connh);
 	struct iscsi_session *session = conn->session;
 
-	down(&conn->xmitsema);
+	mutex_lock(&conn->xmitmutex);
 	set_bit(SUSPEND_BIT, &conn->suspend_tx);
 	if (conn->c_stage == ISCSI_CONN_INITIAL_STAGE && conn->sock) {
 		struct sock *sk = conn->sock->sk;
@@ -2592,7 +2593,7 @@ iscsi_conn_destroy(iscsi_connh_t connh)
 	}
 	spin_unlock_bh(&session->lock);
 
-	up(&conn->xmitsema);
+	mutex_unlock(&conn->xmitmutex);
 
 	/*
 	 * Block until all in-progress commands for this connection
@@ -2796,7 +2797,7 @@ iscsi_conn_stop(iscsi_connh_t connh, int flag)
 	set_bit(SUSPEND_BIT, &conn->suspend_rx);
 	write_unlock_bh(&sk->sk_callback_lock);
 
-	down(&conn->xmitsema);
+	mutex_lock(&conn->xmitmutex);
 
 	spin_lock_irqsave(session->host->host_lock, flags);
 	spin_lock(&session->lock);
@@ -2878,7 +2879,7 @@ iscsi_conn_stop(iscsi_connh_t connh, int flag)
 			conn->datadgst_en = 0;
 		}
 	}
-	up(&conn->xmitsema);
+	mutex_unlock(&conn->xmitmutex);
 }
 
 static int
@@ -3029,12 +3030,12 @@ iscsi_eh_abort(struct scsi_cmnd *sc)
 	 * 1) connection-level failure;
 	 * 2) recovery due protocol error;
 	 */
-	down(&conn->xmitsema);
+	mutex_lock(&conn->xmitmutex);
 	spin_lock_bh(&session->lock);
 	if (session->state != ISCSI_STATE_LOGGED_IN) {
 		if (session->state == ISCSI_STATE_TERMINATE) {
 			spin_unlock_bh(&session->lock);
-			up(&conn->xmitsema);
+			mutex_unlock(&conn->xmitmutex);
 			goto failed;
 		}
 		spin_unlock_bh(&session->lock);
@@ -3052,7 +3053,7 @@ iscsi_eh_abort(struct scsi_cmnd *sc)
 			 * 2) session was re-open during time out of ctask.
 			 */
 			spin_unlock_bh(&session->lock);
-			up(&conn->xmitsema);
+			mutex_unlock(&conn->xmitmutex);
 			goto success;
 		}
 		conn->tmabort_state = TMABORT_INITIAL;
@@ -3107,7 +3108,7 @@ iscsi_eh_abort(struct scsi_cmnd *sc)
 				    conn->tmabort_state == TMABORT_SUCCESS) {
 					conn->tmabort_state = TMABORT_INITIAL;
 					spin_unlock_bh(&session->lock);
-					up(&conn->xmitsema);
+					mutex_unlock(&conn->xmitmutex);
 					goto success;
 				}
 				conn->tmabort_state = TMABORT_INITIAL;
@@ -3116,7 +3117,7 @@ iscsi_eh_abort(struct scsi_cmnd *sc)
 			spin_unlock_bh(&session->lock);
 		}
 	}
-	up(&conn->xmitsema);
+	mutex_unlock(&conn->xmitmutex);
 
 
 	/*
@@ -3182,7 +3183,7 @@ failed:
 exit:
 	del_timer_sync(&conn->tmabort_timer);
 
-	down(&conn->xmitsema);
+	mutex_lock(&conn->xmitmutex);
 	if (conn->sock) {
 		struct sock *sk = conn->sock->sk;
 
@@ -3190,7 +3191,7 @@ exit:
 		iscsi_ctask_cleanup(conn, ctask);
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
-	up(&conn->xmitsema);
+	mutex_unlock(&conn->xmitmutex);
 	return rc;
 }
 
@@ -3601,9 +3602,9 @@ iscsi_conn_send_pdu(iscsi_connh_t connh, struct iscsi_hdr *hdr, char *data,
 	struct iscsi_conn *conn = iscsi_ptr(connh);
 	int rc;
 
-	down(&conn->xmitsema);
+	mutex_lock(&conn->xmitmutex);
 	rc = iscsi_conn_send_generic(conn, hdr, data, data_size);
-	up(&conn->xmitsema);
+	mutex_unlock(&conn->xmitmutex);
 
 	return rc;
 }

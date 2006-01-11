@@ -49,6 +49,7 @@
 #include <linux/blkpg.h>
 #include <linux/kref.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>
@@ -111,7 +112,7 @@ static DEFINE_SPINLOCK(sd_index_lock);
 /* This semaphore is used to mediate the 0->1 reference get in the
  * face of object destruction (i.e. we can't allow a get on an
  * object after last put) */
-static DECLARE_MUTEX(sd_ref_sem);
+static DEFINE_MUTEX(sd_ref_mutex);
 
 static int sd_revalidate_disk(struct gendisk *disk);
 static void sd_rw_intr(struct scsi_cmnd * SCpnt);
@@ -193,9 +194,9 @@ static struct scsi_disk *scsi_disk_get(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp;
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	sdkp = __scsi_disk_get(disk);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 	return sdkp;
 }
 
@@ -203,11 +204,11 @@ static struct scsi_disk *scsi_disk_get_from_dev(struct device *dev)
 {
 	struct scsi_disk *sdkp;
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	sdkp = dev_get_drvdata(dev);
 	if (sdkp)
 		sdkp = __scsi_disk_get(sdkp->disk);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 	return sdkp;
 }
 
@@ -215,10 +216,10 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
 {
 	struct scsi_device *sdev = sdkp->device;
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	kref_put(&sdkp->kref, scsi_disk_release);
 	scsi_device_put(sdev);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 }
 
 /**
@@ -1635,10 +1636,10 @@ static int sd_remove(struct device *dev)
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	dev_set_drvdata(dev, NULL);
 	kref_put(&sdkp->kref, scsi_disk_release);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 
 	return 0;
 }
@@ -1647,7 +1648,7 @@ static int sd_remove(struct device *dev)
  *	scsi_disk_release - Called to free the scsi_disk structure
  *	@kref: pointer to embedded kref
  *
- *	sd_ref_sem must be held entering this routine.  Because it is
+ *	sd_ref_mutex must be held entering this routine.  Because it is
  *	called on last put, you should always use the scsi_disk_get()
  *	scsi_disk_put() helpers which manipulate the semaphore directly
  *	and never do a direct kref_put().

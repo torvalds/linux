@@ -158,7 +158,7 @@ struct iscsi_conn {
 	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
 	struct kfifo		*xmitqueue;	/* data-path cmd queue */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
-	struct semaphore	xmitsema;	/* serializes connection xmit,
+	struct mutex		xmitmutex;	/* serializes connection xmit,
 						 * access to kfifos:	  *
 						 * xmitqueue, writequeue, *
 						 * immqueue, mgmtqueue    */
