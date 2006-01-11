@@ -14,7 +14,7 @@
    away for older version. 
  */
 
-#ifdef CONFIG_DEBUG_INFO
+#ifdef CONFIG_UNWIND_INFO
 
 #define CFI_STARTPROC .cfi_startproc
 #define CFI_ENDPROC .cfi_endproc

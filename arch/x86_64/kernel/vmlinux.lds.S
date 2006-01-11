@@ -189,7 +189,7 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ : {
 	*(.exitcall.exit)
-#ifndef CONFIG_DEBUG_INFO
+#ifndef CONFIG_UNWIND_INFO
 	*(.eh_frame)
 #endif
 	}
