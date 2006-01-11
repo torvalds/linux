@@ -223,7 +223,7 @@ STATIC void
 _xfs_buf_initialize(
 	xfs_buf_t		*bp,
 	xfs_buftarg_t		*target,
-	loff_t			range_base,
+	xfs_off_t		range_base,
 	size_t			range_length,
 	xfs_buf_flags_t		flags)
 {
@@ -348,7 +348,7 @@ _xfs_buf_lookup_pages(
 	gfp_t			gfp_mask = xb_to_gfp(flags);
 	unsigned short		page_count, i;
 	pgoff_t			first;
-	loff_t			end;
+	xfs_off_t		end;
 	int			error;
 
 	end = bp->b_file_offset + bp->b_buffer_length;
@@ -467,12 +467,12 @@ _xfs_buf_map_pages(
 xfs_buf_t *
 _xfs_buf_find(
 	xfs_buftarg_t		*btp,	/* block device target		*/
-	loff_t			ioff,	/* starting offset of range	*/
+	xfs_off_t		ioff,	/* starting offset of range	*/
 	size_t			isize,	/* length of range		*/
 	xfs_buf_flags_t		flags,
 	xfs_buf_t		*new_bp)
 {
-	loff_t			range_base;
+	xfs_off_t		range_base;
 	size_t			range_length;
 	xfs_bufhash_t		*hash;
 	xfs_buf_t		*bp, *n;
@@ -482,7 +482,7 @@ _xfs_buf_find(
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
 	ASSERT(!(range_length < (1 << btp->bt_sshift)));
-	ASSERT(!(range_base & (loff_t)btp->bt_smask));
+	ASSERT(!(range_base & (xfs_off_t)btp->bt_smask));
 
 	hash = &btp->bt_hash[hash_long((unsigned long)ioff, btp->bt_hashshift)];
 
@@ -561,7 +561,7 @@ found:
 xfs_buf_t *
 xfs_buf_get_flags(
 	xfs_buftarg_t		*target,/* target for buffer		*/
-	loff_t			ioff,	/* starting offset of range	*/
+	xfs_off_t		ioff,	/* starting offset of range	*/
 	size_t			isize,	/* length of range		*/
 	xfs_buf_flags_t		flags)
 {
@@ -617,7 +617,7 @@ xfs_buf_get_flags(
 xfs_buf_t *
 xfs_buf_read_flags(
 	xfs_buftarg_t		*target,
-	loff_t			ioff,
+	xfs_off_t		ioff,
 	size_t			isize,
 	xfs_buf_flags_t		flags)
 {
@@ -661,7 +661,7 @@ xfs_buf_read_flags(
 void
 xfs_buf_readahead(
 	xfs_buftarg_t		*target,
-	loff_t			ioff,
+	xfs_off_t		ioff,
 	size_t			isize,
 	xfs_buf_flags_t		flags)
 {
