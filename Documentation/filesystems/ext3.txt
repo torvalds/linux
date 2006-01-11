@@ -84,8 +84,6 @@ reservation
 
 noreservation
 
-resize=
-
 bsddf 		(*)	Make 'df' act like BSD.
 minixdf			Make 'df' act like Minix.
 
@@ -175,6 +173,7 @@ See manual pages to learn more.
 tune2fs: 	create a ext3 journal on a ext2 partition with the -j flag.
 mke2fs: 	create a ext3 partition with the -j flag.
 debugfs: 	ext2 and ext3 file system debugger.
+ext2online:	online (mounted) ext2 and ext3 filesystem resizer
 
 
 References
@@ -184,6 +183,7 @@ kernel source:	<file:fs/ext3/>
 		<file:fs/jbd/>
 
 programs: 	http://e2fsprogs.sourceforge.net/
+		http://ext2resize.sourceforge.net
 
 useful links:	http://www.zip.com.au/~akpm/linux/ext3/ext3-usage.html
 		http://www-106.ibm.com/developerworks/linux/library/l-fs7/
