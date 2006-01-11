@@ -20,8 +20,9 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
+#include <linux/cache.h>
 
-static struct cpu cpu_devices[NR_CPUS];
+static struct cpu cpu_devices[NR_CPUS] __read_mostly;
 
 static int __init topology_init(void)
 {

@@ -54,7 +54,7 @@
 #include <asm/uaccess.h>
 #include <asm/unwind.h>
 
-static int hlt_counter;
+static int hlt_counter __read_mostly;
 
 /*
  * Power off function, if any

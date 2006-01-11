@@ -551,6 +551,7 @@ static struct hp_hardware hp_hardware_list[] __initdata = {
 	{HPHW_BCPORT, 0x804, 0x0000C, 0x10, "REO I/O BC Merced Port"}, 
 	{HPHW_BCPORT, 0x782, 0x0000C, 0x00, "REO I/O BC Ropes Port"}, 
 	{HPHW_BCPORT, 0x784, 0x0000C, 0x00, "Pluto I/O BC Ropes Port"}, 
+	{HPHW_BRIDGE, 0x05D, 0x0000A, 0x00, "SummitHawk Dino PCI Bridge"}, 
 	{HPHW_BRIDGE, 0x680, 0x0000A, 0x00, "Dino PCI Bridge"}, 
 	{HPHW_BRIDGE, 0x682, 0x0000A, 0x00, "Cujo PCI Bridge"}, 
 	{HPHW_BRIDGE, 0x782, 0x0000A, 0x00, "Elroy PCI Bridge"}, 

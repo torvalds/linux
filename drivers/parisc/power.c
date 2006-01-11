@@ -2,7 +2,7 @@
  * linux/arch/parisc/kernel/power.c
  * HP PARISC soft power switch support driver
  *
- * Copyright (c) 2001-2002 Helge Deller <deller@gmx.de>
+ * Copyright (c) 2001-2005 Helge Deller <deller@gmx.de>
  * All rights reserved.
  *
  *
@@ -102,7 +102,7 @@ static DECLARE_WORK(poweroff_work, deferred_poweroff, NULL);
 
 static void poweroff(void)
 {
-	static int powering_off;
+	static int powering_off __read_mostly;
 
 	if (powering_off)
 		return;
@@ -113,7 +113,7 @@ static void poweroff(void)
 
 
 /* local time-counter for shutdown */
-static int shutdown_timer;
+static int shutdown_timer __read_mostly;
 
 /* check, give feedback and start shutdown after one second */
 static void process_shutdown(void)
@@ -139,7 +139,7 @@ static void process_shutdown(void)
 DECLARE_TASKLET_DISABLED(power_tasklet, NULL, 0);
 
 /* soft power switch enabled/disabled */
-int pwrsw_enabled = 1;
+int pwrsw_enabled __read_mostly = 1;
 
 /*
  * On gecko style machines (e.g. 712/xx and 715/xx) 
@@ -149,7 +149,7 @@ int pwrsw_enabled = 1;
  */
 static void gecko_tasklet_func(unsigned long unused)
 {
-	if (!pwrsw_enabled)
+	if (unlikely(!pwrsw_enabled))
 		return;
 
 	if (__getDIAG(25) & 0x80000000) {
@@ -173,7 +173,7 @@ static void polling_tasklet_func(unsigned long soft_power_reg)
 {
         unsigned long current_status;
 	
-	if (!pwrsw_enabled)
+	if (unlikely(!pwrsw_enabled))
 		return;
 
 	current_status = gsc_readl(soft_power_reg);

@@ -44,10 +44,10 @@
 #include <asm/irq.h>		/* for struct irq_region */
 #include <asm/parisc-device.h>
 
-struct system_cpuinfo_parisc boot_cpu_data;
+struct system_cpuinfo_parisc boot_cpu_data __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
 
-struct cpuinfo_parisc cpu_data[NR_CPUS];
+struct cpuinfo_parisc cpu_data[NR_CPUS] __read_mostly;
 
 /*
 **  	PARISC CPU driver - claim "device" and initialize CPU data structures.
@@ -378,12 +378,12 @@ show_cpuinfo (struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct parisc_device_id processor_tbl[] = {
+static struct parisc_device_id processor_tbl[] __read_mostly = {
 	{ HPHW_NPROC, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, SVERSION_ANY_ID },
 	{ 0, }
 };
 
-static struct parisc_driver cpu_driver = {
+static struct parisc_driver cpu_driver __read_mostly = {
 	.name		= "CPU",
 	.id_table	= processor_tbl,
 	.probe		= processor_probe

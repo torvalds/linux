@@ -122,7 +122,7 @@
 #define ERR_NOTHANDLED	-1
 #define ERR_PAGEFAULT	-2
 
-int unaligned_enabled = 1;
+int unaligned_enabled __read_mostly = 1;
 
 void die_if_kernel (char *str, struct pt_regs *regs, long err);
 
