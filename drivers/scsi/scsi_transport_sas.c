@@ -697,6 +697,8 @@ sas_rphy_delete(struct sas_rphy *rphy)
 	list_del(&rphy->list);
 	spin_unlock(&sas_host->lock);
 
+	parent->rphy = NULL;
+
 	put_device(&parent->dev);
 }
 EXPORT_SYMBOL(sas_rphy_delete);
