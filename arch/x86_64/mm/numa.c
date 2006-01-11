@@ -81,7 +81,7 @@ int __init compute_hash_shift(struct node *nodes, int numnodes)
 	while (populate_memnodemap(nodes, numnodes, shift + 1) >= 0)
 		shift++;
 
-	printk(KERN_DEBUG "Using %d for the hash shift.\n",
+	printk(KERN_DEBUG "NUMA: Using %d for the hash shift.\n",
 		shift);
 
 	if (populate_memnodemap(nodes, numnodes, shift) != 1) {
@@ -110,7 +110,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 
 	start = round_up(start, ZONE_ALIGN); 
 
-	printk("Bootmem setup node %d %016lx-%016lx\n", nodeid, start, end);
+	printk(KERN_INFO "Bootmem setup node %d %016lx-%016lx\n", nodeid, start, end);
 
 	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
@@ -156,7 +156,7 @@ void __init setup_node_zones(int nodeid)
  	start_pfn = node_start_pfn(nodeid);
  	end_pfn = node_end_pfn(nodeid);
 
-	Dprintk(KERN_INFO "setting up node %d %lx-%lx\n",
+	Dprintk(KERN_INFO "Setting up node %d %lx-%lx\n",
 		nodeid, start_pfn, end_pfn);
 
 	size_zones(zones, holes, start_pfn, end_pfn);
@@ -200,7 +200,7 @@ static int numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
  		while ((x << 1) < sz)
  			x <<= 1;
  		if (x < sz/2)
- 			printk("Numa emulation unbalanced. Complain to maintainer\n");
+ 			printk(KERN_ERR "Numa emulation unbalanced. Complain to maintainer\n");
  		sz = x;
  	}
 
