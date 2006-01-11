@@ -183,7 +183,7 @@ config VIDEO_STRADIS
 	help
 	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
 	  driver for PCI.  There is a product page at
-	  <http://www.stradis.com/decoder.html>.
+	  <http://www.stradis.com/>.
 
 config VIDEO_ZORAN
 	tristate "Zoran ZR36057/36067 Video For Linux"
