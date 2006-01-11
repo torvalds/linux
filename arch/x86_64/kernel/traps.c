@@ -508,7 +508,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 DO_ERROR_INFO( 0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->rip)
 DO_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid operand", invalid_op, ILL_ILLOPN, regs->rip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->rip)
 DO_ERROR( 7, SIGSEGV, "device not available", device_not_available)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
