@@ -3427,7 +3427,6 @@ out_iospace:
 		release_mem_region(card->ac97base_mmio_phys, 512);
 		release_mem_region(card->iobase_mmio_phys, 256);
 	}
-out_pio:	
 	release_region(card->ac97base, 256);
 out_region2:
 	release_region(card->iobase, 64);
