@@ -237,7 +237,7 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 }
 
 /*
- * Handle a fault on the vmalloc or module mapping area
+ * Handle a fault on the vmalloc area
  *
  * This assumes no large pages in there.
  */
@@ -283,7 +283,6 @@ static int vmalloc_fault(unsigned long address)
 	   that. */
 	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
 		BUG();
-	__flush_tlb_all();
 	return 0;
 }
 
@@ -346,9 +345,13 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 * protection error (error_code & 9) == 0.
 	 */
 	if (unlikely(address >= TASK_SIZE64)) {
+		/*
+		 * Don't check for the module range here: its PML4
+		 * is always initialized because it's shared with the main
+		 * kernel text. Only vmalloc may need PML4 syncups.
+		 */
 		if (!(error_code & 0xd) &&
-		      ((address >= VMALLOC_START && address < VMALLOC_END) ||
-		       (address >= MODULES_VADDR && address < MODULES_END))) {
+		      ((address >= VMALLOC_START && address < VMALLOC_END))) {
 			if (vmalloc_fault(address) < 0)
 				goto bad_area_nosemaphore;
 			return;
