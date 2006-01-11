@@ -8,6 +8,8 @@
 #include <asm/page.h>
 #include <linux/config.h>
 
+#undef i386	/* in case the preprocessor is a 32bit one */
+
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(phys_startup_64)
