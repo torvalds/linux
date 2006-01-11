@@ -14,7 +14,6 @@
 #include <linux/a.out.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
-#include <linux/proc_fs.h>
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
