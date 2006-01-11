@@ -18,9 +18,6 @@
 #ifndef	__XFS_ERROR_H__
 #define	__XFS_ERROR_H__
 
-#define prdev(fmt,targ,args...) \
-	printk("XFS: device %s - " fmt "\n", XFS_BUFTARG_NAME(targ), ## args)
-
 #define XFS_ERECOVER	1	/* Failure to recover log */
 #define XFS_ELOGSTAT	2	/* Failure to stat log in user space */
 #define XFS_ENOLOGSPACE	3	/* Reservation too large */
@@ -182,8 +179,11 @@ extern int xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud);
 struct xfs_mount;
 /* PRINTFLIKE4 */
 extern void xfs_cmn_err(int panic_tag, int level, struct xfs_mount *mp,
-			    char *fmt, ...);
+			char *fmt, ...);
 /* PRINTFLIKE3 */
 extern void xfs_fs_cmn_err(int level, struct xfs_mount *mp, char *fmt, ...);
+
+#define xfs_fs_repair_cmn_err(level, mp, fmt, args...) \
+	xfs_fs_cmn_err(level, mp, fmt "  Unmount and run xfs_repair.", ## args)
 
 #endif	/* __XFS_ERROR_H__ */

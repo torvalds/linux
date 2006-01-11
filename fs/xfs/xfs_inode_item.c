@@ -608,7 +608,7 @@ xfs_inode_item_trylock(
 		if (iip->ili_pushbuf_flag == 0) {
 			iip->ili_pushbuf_flag = 1;
 #ifdef DEBUG
-			iip->ili_push_owner = get_thread_id();
+			iip->ili_push_owner = current_pid();
 #endif
 			/*
 			 * Inode is left locked in shared mode.
@@ -787,7 +787,7 @@ xfs_inode_item_pushbuf(
 	 * trying to duplicate our effort.
 	 */
 	ASSERT(iip->ili_pushbuf_flag != 0);
-	ASSERT(iip->ili_push_owner == get_thread_id());
+	ASSERT(iip->ili_push_owner == current_pid());
 
 	/*
 	 * If flushlock isn't locked anymore, chances are that the

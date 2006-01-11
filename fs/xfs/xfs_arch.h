@@ -44,7 +44,7 @@
 #define cpu_to_be16(val)	((__be16)(val))
 #define cpu_to_be32(val)	((__be32)(val))
 #define cpu_to_be64(val)	((__be64)(val))
-#define be16_to_cpu(val)	((__uint16_t)(val)
+#define be16_to_cpu(val)	((__uint16_t)(val))
 #define be32_to_cpu(val)	((__uint32_t)(val))
 #define be64_to_cpu(val)	((__uint64_t)(val))
 #else

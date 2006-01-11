@@ -54,7 +54,6 @@ xfs_error_trap(int e)
 		if (e != xfs_etrap[i])
 			continue;
 		cmn_err(CE_NOTE, "xfs_error_trap: error %d", e);
-		debug_stop_all_cpus((void *)-1LL);
 		BUG();
 		break;
 	}

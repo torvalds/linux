@@ -4493,8 +4493,8 @@ xfs_bmap_read_extents(
 		num_recs = be16_to_cpu(block->bb_numrecs);
 		if (unlikely(i + num_recs > room)) {
 			ASSERT(i + num_recs <= room);
-			xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-				"corrupt dinode %Lu, (btree extents).  Unmount and run xfs_repair.",
+			xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+				"corrupt dinode %Lu, (btree extents).",
 				(unsigned long long) ip->i_ino);
 			XFS_ERROR_REPORT("xfs_bmap_read_extents(1)",
 					 XFS_ERRLEVEL_LOW,
