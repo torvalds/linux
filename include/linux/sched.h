@@ -1113,19 +1113,8 @@ static inline int sas_ss_flags(unsigned long sp)
 }
 
 
-#ifdef CONFIG_SECURITY
-/* code is in security.c */
+/* code is in security.c or kernel/sys.c if !SECURITY */
 extern int capable(int cap);
-#else
-static inline int capable(int cap)
-{
-	if (cap_raised(current->cap_effective, cap)) {
-		current->flags |= PF_SUPERPRIV;
-		return 1;
-	}
-	return 0;
-}
-#endif
 
 /*
  * Routines for handling mm_structs
