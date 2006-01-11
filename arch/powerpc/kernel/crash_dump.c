@@ -55,6 +55,7 @@ void __init kdump_setup(void)
 	DBG(" <- kdump_setup()\n");
 }
 
+#ifdef CONFIG_PROC_VMCORE
 static int __init parse_elfcorehdr(char *p)
 {
 	if (p)
@@ -63,6 +64,7 @@ static int __init parse_elfcorehdr(char *p)
 	return 0;
 }
 __setup("elfcorehdr=", parse_elfcorehdr);
+#endif
 
 static int __init parse_savemaxmem(char *p)
 {

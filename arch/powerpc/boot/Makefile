@@ -176,4 +176,4 @@ $(obj)/uImage: $(obj)/vmlinux.gz
 install: $(CONFIGURE) $(BOOTIMAGE)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" "$(BOOTIMAGE)"
 
-clean-files := $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip)
+clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip)

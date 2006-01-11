@@ -52,6 +52,7 @@
 #include <asm/iseries/mf.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
+#include <asm/udbg.h>
 
 #include "naca.h"
 #include "setup.h"
@@ -62,10 +63,8 @@
 #include "call_sm.h"
 #include "call_hpt.h"
 
-extern void hvlog(char *fmt, ...);
-
 #ifdef DEBUG
-#define DBG(fmt...) hvlog(fmt)
+#define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
 #endif
@@ -474,14 +473,6 @@ static unsigned long __init build_iSeries_Memory_Map(void)
 	printk("HPT absolute addr = %016lx, size = %dK\n",
 			chunk_to_addr(hptFirstChunk), hptSizeChunks * 256);
 
-	ppc64_pft_size = __ilog2(hptSizePages * HW_PAGE_SIZE);
-
-	/*
-	 * The actual hashed page table is in the hypervisor,
-	 * we have no direct access
-	 */
-	htab_address = NULL;
-
 	/*
 	 * Determine if absolute memory has any
 	 * holes so that we can interpret the
@@ -861,6 +852,11 @@ void dt_prop_u64_list(struct iseries_flat_dt *dt, char *name, u64 *data, int n)
 	dt_prop(dt, name, (char *)data, sizeof(u64) * n);
 }
 
+void dt_prop_u32_list(struct iseries_flat_dt *dt, char *name, u32 *data, int n)
+{
+	dt_prop(dt, name, (char *)data, sizeof(u32) * n);
+}
+
 void dt_prop_empty(struct iseries_flat_dt *dt, char *name)
 {
 	dt_prop(dt, name, NULL, 0);
@@ -872,6 +868,7 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	unsigned char *p;
 	unsigned int i, index;
 	struct IoHriProcessorVpd *d;
+	u32 pft_size[2];
 
 	/* yuck */
 	snprintf(buf, 32, "PowerPC,%s", cur_cpu_spec->cpu_name);
@@ -881,6 +878,9 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	dt_start_node(dt, "cpus");
 	dt_prop_u32(dt, "#address-cells", 1);
 	dt_prop_u32(dt, "#size-cells", 0);
+
+	pft_size[0] = 0; /* NUMA CEC cookie, 0 for non NUMA  */
+	pft_size[1] = __ilog2(HvCallHpt_getHptPages() * HW_PAGE_SIZE);
 
 	for (i = 0; i < NR_CPUS; i++) {
 		if (paca[i].lppaca.dyn_proc_status >= 2)
@@ -907,6 +907,8 @@ void dt_cpus(struct iseries_flat_dt *dt)
 			((1UL << 32) * 1000000) / d->xTimeBaseFreq);
 
 		dt_prop_u32(dt, "reg", i);
+
+		dt_prop_u32_list(dt, "ibm,pft-size", pft_size, 2);
 
 		dt_end_node(dt);
 	}
@@ -984,3 +986,16 @@ static int __init early_parsemem(char *p)
 	return 0;
 }
 early_param("mem", early_parsemem);
+
+static void hvputc(char c)
+{
+	if (c == '\n')
+		hvputc('\r');
+
+	HvCall_writeLogBuffer(&c, 1);
+}
+
+void __init udbg_init_iseries(void)
+{
+	udbg_putc = hvputc;
+}

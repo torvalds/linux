@@ -153,7 +153,7 @@ static void udbg_real_scc_putc(char c)
 		udbg_real_scc_putc('\r');
 }
 
-void udbg_init_pmac_realmode(void)
+void __init udbg_init_pmac_realmode(void)
 {
 	sccc = (volatile u8 __iomem *)0x80013020ul;
 	sccd = (volatile u8 __iomem *)0x80013030ul;

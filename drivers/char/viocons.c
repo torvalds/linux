@@ -131,7 +131,7 @@ static void initDataEvent(struct viocharlpevent *viochar, HvLpIndex lp);
 
 static struct tty_driver *viotty_driver;
 
-void hvlog(char *fmt, ...)
+static void hvlog(char *fmt, ...)
 {
 	int i;
 	unsigned long flags;
@@ -147,7 +147,7 @@ void hvlog(char *fmt, ...)
 	spin_unlock_irqrestore(&consoleloglock, flags);
 }
 
-void hvlogOutput(const char *buf, int count)
+static void hvlogOutput(const char *buf, int count)
 {
 	unsigned long flags;
 	int begin;
@@ -904,6 +904,7 @@ static void vioHandleData(struct HvLpEvent *event)
 	struct viocharlpevent *cevent = (struct viocharlpevent *)event;
 	struct port_info *pi;
 	int index;
+	int num_pushed;
 	u8 port = cevent->virtual_device;
 
 	if (port >= VTTY_PORTS) {
@@ -964,6 +965,7 @@ static void vioHandleData(struct HvLpEvent *event)
 	 * functionality will only work if built into the kernel and
 	 * then only if sysrq is enabled through the proc filesystem.
 	 */
+	num_pushed = 0;
 	for (index = 0; index < cevent->len; index++) {
 #ifdef CONFIG_MAGIC_SYSRQ
 		if (sysrq_enabled) {
@@ -997,11 +999,10 @@ static void vioHandleData(struct HvLpEvent *event)
 			printk(VIOCONS_KERN_WARN "input buffer overflow!\n");
 			break;
 		}
+		num_pushed++;
 	}
 
-	/* if cevent->len == 0 then no data was added to the buffer and flip.count == 0 */
-	if (tty->flip.count)
-		/* The next call resets flip.count when the data is flushed. */
+	if (num_pushed)
 		tty_flip_buffer_push(tty);
 }
 

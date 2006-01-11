@@ -169,11 +169,33 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
 	/* Save, Step 8:
-	 *     Read and save MFC_CNTL[Ss].
+	 *     Suspend DMA and save MFC_CNTL.
 	 */
-	if (csa) {
-		csa->priv2.mfc_control_RW = in_be64(&priv2->mfc_control_RW) &
-		    MFC_CNTL_SUSPEND_DMA_STATUS_MASK;
+	switch (in_be64(&priv2->mfc_control_RW) &
+	       MFC_CNTL_SUSPEND_DMA_STATUS_MASK) {
+	case MFC_CNTL_SUSPEND_IN_PROGRESS:
+		POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
+				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
+				 MFC_CNTL_SUSPEND_COMPLETE);
+		/* fall through */
+	case MFC_CNTL_SUSPEND_COMPLETE:
+		if (csa) {
+			csa->priv2.mfc_control_RW =
+				in_be64(&priv2->mfc_control_RW) |
+				MFC_CNTL_SUSPEND_DMA_QUEUE;
+		}
+		break;
+	case MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION:
+		out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE);
+		POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
+				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
+				 MFC_CNTL_SUSPEND_COMPLETE);
+		if (csa) {
+			csa->priv2.mfc_control_RW =
+				in_be64(&priv2->mfc_control_RW) &
+				~MFC_CNTL_SUSPEND_DMA_QUEUE;
+		}
+		break;
 	}
 }
 
@@ -237,6 +259,8 @@ static inline void save_mfc_decr(struct spu_state *csa, struct spu *spu)
 		eieio();
 		csa->spu_chnldata_RW[7] = in_be64(&priv2->spu_chnldata_RW);
 		eieio();
+	} else {
+		csa->priv2.mfc_control_RW &= ~MFC_CNTL_DECREMENTER_RUNNING;
 	}
 }
 

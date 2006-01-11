@@ -15,10 +15,35 @@
 #include <linux/sched.h>
 #include <linux/console.h>
 #include <asm/processor.h>
+#include <asm/udbg.h>
 
 void (*udbg_putc)(char c);
 int (*udbg_getc)(void);
 int (*udbg_getc_poll)(void);
+
+/*
+ * Early debugging facilities. You can enable _one_ of these via .config,
+ * if you do so your kernel _will not boot_ on anything else. Be careful.
+ */
+void __init udbg_early_init(void)
+{
+#if defined(CONFIG_PPC_EARLY_DEBUG_LPAR)
+	/* For LPAR machines that have an HVC console on vterm 0 */
+	udbg_init_debug_lpar();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_G5)
+	/* For use on Apple G5 machines */
+	udbg_init_pmac_realmode();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS)
+	/* RTAS panel debug */
+	udbg_init_rtas();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_MAPLE)
+	/* Maple real mode debug */
+	udbg_init_maple_realmode();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_ISERIES)
+	/* For iSeries - hit Ctrl-x Ctrl-x to see the output */
+	udbg_init_iseries();
+#endif
+}
 
 /* udbg library, used by xmon et al */
 void udbg_puts(const char *s)
