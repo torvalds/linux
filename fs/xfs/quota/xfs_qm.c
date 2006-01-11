@@ -1392,11 +1392,12 @@ xfs_qm_qino_alloc(
 {
 	xfs_trans_t	*tp;
 	int		error;
-	unsigned long s;
+	unsigned long	s;
 	cred_t		zerocr;
+	xfs_inode_t	zeroino;
 	int		committed;
 
-	tp = xfs_trans_alloc(mp,XFS_TRANS_QM_QINOCREATE);
+	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QINOCREATE);
 	if ((error = xfs_trans_reserve(tp,
 				      XFS_QM_QINOCREATE_SPACE_RES(mp),
 				      XFS_CREATE_LOG_RES(mp), 0,
@@ -1406,8 +1407,9 @@ xfs_qm_qino_alloc(
 		return (error);
 	}
 	memset(&zerocr, 0, sizeof(zerocr));
+	memset(&zeroino, 0, sizeof(zeroino));
 
-	if ((error = xfs_dir_ialloc(&tp, mp->m_rootip, S_IFREG, 1, 0,
+	if ((error = xfs_dir_ialloc(&tp, &zeroino, S_IFREG, 1, 0,
 				   &zerocr, 0, 1, ip, &committed))) {
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT);
