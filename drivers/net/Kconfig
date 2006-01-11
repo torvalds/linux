@@ -1397,7 +1397,7 @@ config CS89x0
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module will be
-	  called cs89x.
+	  called cs89x0.
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
