@@ -79,6 +79,24 @@ source "init/Kconfig"
 menu "Processor type and features"
 
 choice
+	prompt "Subarchitecture Type"
+	default X86_PC
+
+config X86_PC
+	bool "PC-compatible"
+	help
+	  Choose this option if your computer is a standard PC or compatible.
+
+config X86_VSMP
+	bool "Support for ScaleMP vSMP"
+	 help
+	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
+	  supposed to run on these EM64T-based machines.  Only choose this option
+	  if you have one of these machines.
+
+endchoice
+
+choice
 	prompt "Processor family"
 	default MK8
 
