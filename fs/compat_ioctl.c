@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/compat.h>
 #include <linux/kernel.h>
+#include <linux/capability.h>
 #include <linux/compiler.h>
 #include <linux/sched.h>
 #include <linux/smp.h>

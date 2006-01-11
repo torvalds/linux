@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/quotaops.h>
 #include <linux/acct.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/namespace.h>

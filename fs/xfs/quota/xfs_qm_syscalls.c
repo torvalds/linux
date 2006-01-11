@@ -15,6 +15,9 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+#include <linux/capability.h>
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_bit.h"

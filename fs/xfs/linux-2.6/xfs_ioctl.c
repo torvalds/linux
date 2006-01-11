@@ -52,6 +52,7 @@
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
 
+#include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>

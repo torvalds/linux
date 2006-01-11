@@ -16,6 +16,7 @@
 #include <linux/tty.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
+#include <linux/capability.h>
 #include <linux/security.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>

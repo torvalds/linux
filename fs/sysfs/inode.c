@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
+#include <linux/capability.h>
 #include "sysfs.h"
 
 extern struct super_block * sysfs_sb;

@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/smp_lock.h>
+#include <linux/capability.h>
 #include <linux/fsnotify.h>
 #include <linux/fcntl.h>
 #include <linux/quotaops.h>

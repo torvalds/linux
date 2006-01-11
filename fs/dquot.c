@@ -77,6 +77,7 @@
 #include <linux/kmod.h>
 #include <linux/namei.h>
 #include <linux/buffer_head.h>
+#include <linux/capability.h>
 #include <linux/quotaops.h>
 
 #include <asm/uaccess.h>

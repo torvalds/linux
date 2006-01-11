@@ -10,6 +10,7 @@
  *
  * ------------------------------------------------------------------------- */
 
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/stat.h>
 #include <linux/param.h>

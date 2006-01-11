@@ -17,6 +17,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>

@@ -2,6 +2,7 @@
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/time.h>

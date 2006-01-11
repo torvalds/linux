@@ -6,6 +6,7 @@
  *  regular file handling primitives for fat-based filesystems
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/msdos_fs.h>

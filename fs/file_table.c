@@ -16,6 +16,7 @@
 #include <linux/eventpoll.h>
 #include <linux/rcupdate.h>
 #include <linux/mount.h>
+#include <linux/capability.h>
 #include <linux/cdev.h>
 #include <linux/fsnotify.h>
 

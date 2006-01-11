@@ -28,6 +28,7 @@
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <linux/file.h>
 #include <asm/namei.h>
 #include <asm/uaccess.h>

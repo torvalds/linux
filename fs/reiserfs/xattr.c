@@ -30,6 +30,7 @@
  */
 
 #include <linux/reiserfs_fs.h>
+#include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/errno.h>

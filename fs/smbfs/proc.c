@@ -8,6 +8,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/fs.h>

@@ -1,3 +1,4 @@
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/posix_acl.h>
 #include <linux/reiserfs_fs.h>

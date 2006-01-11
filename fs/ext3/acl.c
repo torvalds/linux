@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/ext3_jbd.h>
 #include <linux/ext3_fs.h>

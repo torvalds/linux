@@ -23,6 +23,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/slab.h>

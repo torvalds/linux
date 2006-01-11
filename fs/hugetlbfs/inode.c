@@ -18,6 +18,7 @@
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/capability.h>
 #include <linux/backing-dev.h>
 #include <linux/hugetlb.h>
 #include <linux/pagevec.h>
