@@ -776,7 +776,7 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 
 	if (c_idle.idle) {
 		c_idle.idle->thread.rsp = (unsigned long) (((struct pt_regs *)
-			(THREAD_SIZE + (unsigned long) c_idle.idle->thread_info)) - 1);
+			(THREAD_SIZE +  task_stack_page(c_idle.idle))) - 1);
 		init_idle(c_idle.idle, cpu);
 		goto do_rest;
 	}

@@ -451,7 +451,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 	struct task_struct *me = current;
 
 	childregs = ((struct pt_regs *)
-			(THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
+			(THREAD_SIZE + task_stack_page(p))) - 1;
 	*childregs = *regs;
 
 	childregs->rax = 0;
@@ -590,7 +590,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	write_pda(oldrsp, next->userrsp); 
 	write_pda(pcurrent, next_p); 
 	write_pda(kernelstack,
-	    (unsigned long)next_p->thread_info + THREAD_SIZE - PDA_STACKOFFSET);
+		  task_stack_page(next_p) + THREAD_SIZE - PDA_STACKOFFSET);
 
 	/*
 	 * Now maybe reload the debug registers
@@ -704,7 +704,7 @@ unsigned long get_wchan(struct task_struct *p)
 
 	if (!p || p == current || p->state==TASK_RUNNING)
 		return 0; 
-	stack = (unsigned long)p->thread_info; 
+	stack = (unsigned long)task_stack_page(p);
 	if (p->thread.rsp < stack || p->thread.rsp > stack+THREAD_SIZE)
 		return 0;
 	fp = *(u64 *)(p->thread.rsp);
