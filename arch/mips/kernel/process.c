@@ -140,12 +140,12 @@ void flush_thread(void)
 int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	unsigned long unused, struct task_struct *p, struct pt_regs *regs)
 {
-	struct thread_info *ti = p->thread_info;
+	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
 	long childksp;
 	p->set_child_tid = p->clear_child_tid = NULL;
 
-	childksp = (unsigned long)ti + THREAD_SIZE - 32;
+	childksp = (unsigned long)task_stack_page(p) + THREAD_SIZE - 32;
 
 	preempt_disable();
 
@@ -407,7 +407,7 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
-	stack_page = (unsigned long)p->thread_info;
+	stack_page = (unsigned long)task_stack_page(p);
 	if (!stack_page || !mips_frame_info_initialized)
 		return 0;
 
