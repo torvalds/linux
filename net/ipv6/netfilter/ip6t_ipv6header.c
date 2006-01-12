@@ -124,7 +124,7 @@ ipv6header_match(const struct sk_buff *skb,
 
 static int
 ipv6header_checkentry(const char *tablename,
-		      const struct ip6t_ip6 *ip,
+		      const void *ip,
 		      void *matchinfo,
 		      unsigned int matchsize,
 		      unsigned int hook_mask)

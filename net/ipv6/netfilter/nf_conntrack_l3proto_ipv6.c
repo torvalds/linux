@@ -584,7 +584,7 @@ MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
 
 static int __init init(void)
 {
-	need_nf_conntrack();
+	need_conntrack();
 	return init_or_cleanup(1);
 }
 
@@ -595,9 +595,3 @@ static void __exit fini(void)
 
 module_init(init);
 module_exit(fini);
-
-void need_ip6_conntrack(void)
-{
-}
-
-EXPORT_SYMBOL(need_ip6_conntrack);

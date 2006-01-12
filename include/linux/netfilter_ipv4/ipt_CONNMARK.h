@@ -9,17 +9,11 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+#include <linux/netfilter/xt_CONNMARK.h>
+#define IPT_CONNMARK_SET	XT_CONNMARK_SET
+#define IPT_CONNMARK_SAVE	XT_CONNMARK_SAVE
+#define	IPT_CONNMARK_RESTORE	XT_CONNMARK_RESTORE
 
-enum {
-	IPT_CONNMARK_SET = 0,
-	IPT_CONNMARK_SAVE,
-	IPT_CONNMARK_RESTORE
-};
-
-struct ipt_connmark_target_info {
-	unsigned long mark;
-	unsigned long mask;
-	u_int8_t mode;
-};
+#define ipt_connmark_target_info xt_connmark_target_info
 
 #endif /*_IPT_CONNMARK_H_target*/

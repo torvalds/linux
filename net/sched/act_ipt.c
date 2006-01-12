@@ -62,7 +62,7 @@ ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int hook)
 	struct ipt_target *target;
 	int ret = 0;
 
-	target = ipt_find_target(t->u.user.name, t->u.user.revision);
+	target = xt_find_target(AF_INET, t->u.user.name, t->u.user.revision);
 	if (!target)
 		return -ENOENT;
 

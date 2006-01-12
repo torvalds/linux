@@ -575,7 +575,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	need_nf_conntrack();
+	need_conntrack();
 	return init_or_cleanup(1);
 }
 
@@ -587,9 +587,4 @@ static void __exit fini(void)
 module_init(init);
 module_exit(fini);
 
-void need_ip_conntrack(void)
-{
-}
-
-EXPORT_SYMBOL(need_ip_conntrack);
 EXPORT_SYMBOL(nf_ct_ipv4_gather_frags);

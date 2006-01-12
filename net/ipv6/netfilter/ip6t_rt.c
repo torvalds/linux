@@ -183,7 +183,7 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-          const struct ip6t_ip6 *ip,
+          const void *entry,
           void *matchinfo,
           unsigned int matchinfosize,
           unsigned int hook_mask)

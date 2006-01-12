@@ -1,24 +1,17 @@
 #ifndef _IPT_PHYSDEV_H
 #define _IPT_PHYSDEV_H
 
-#ifdef __KERNEL__
-#include <linux/if.h>
-#endif
+/* Backwards compatibility for old userspace */
 
-#define IPT_PHYSDEV_OP_IN		0x01
-#define IPT_PHYSDEV_OP_OUT		0x02
-#define IPT_PHYSDEV_OP_BRIDGED		0x04
-#define IPT_PHYSDEV_OP_ISIN		0x08
-#define IPT_PHYSDEV_OP_ISOUT		0x10
-#define IPT_PHYSDEV_OP_MASK		(0x20 - 1)
+#include <linux/netfilter/xt_physdev.h>
 
-struct ipt_physdev_info {
-	char physindev[IFNAMSIZ];
-	char in_mask[IFNAMSIZ];
-	char physoutdev[IFNAMSIZ];
-	char out_mask[IFNAMSIZ];
-	u_int8_t invert;
-	u_int8_t bitmask;
-};
+#define IPT_PHYSDEV_OP_IN		XT_PHYSDEV_OP_IN
+#define IPT_PHYSDEV_OP_OUT		XT_PHYSDEV_OP_OUT
+#define IPT_PHYSDEV_OP_BRIDGED		XT_PHYSDEV_OP_BRIDGED
+#define IPT_PHYSDEV_OP_ISIN		XT_PHYSDEV_OP_ISIN
+#define IPT_PHYSDEV_OP_ISOUT		XT_PHYSDEV_OP_ISOUT
+#define IPT_PHYSDEV_OP_MASK		XT_PHYSDEV_OP_MASK
+
+#define ipt_physdev_info xt_physdev_info
 
 #endif /*_IPT_PHYSDEV_H*/

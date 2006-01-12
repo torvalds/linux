@@ -1,10 +1,10 @@
 #ifndef _IPT_COMMENT_H
 #define _IPT_COMMENT_H
 
-#define IPT_MAX_COMMENT_LEN 256
+#include <linux/netfilter/xt_comment.h>
 
-struct ipt_comment_info {
-	unsigned char comment[IPT_MAX_COMMENT_LEN];
-};
+#define IPT_MAX_COMMENT_LEN XT_MAX_COMMENT_LEN
+
+#define ipt_comment_info xt_comment_info
 
 #endif /* _IPT_COMMENT_H */

@@ -28,7 +28,7 @@ match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
       const void *matchinfo,
-      int offset, int *hotdrop)
+      int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_iprange_info *info = matchinfo;
 	const struct iphdr *iph = skb->nh.iph;
@@ -63,7 +63,7 @@ match(const struct sk_buff *skb,
 }
 
 static int check(const char *tablename,
-		 const struct ipt_ip *ip,
+		 const void *inf,
 		 void *matchinfo,
 		 unsigned int matchsize,
 		 unsigned int hook_mask)

@@ -218,12 +218,13 @@ static unsigned int reject6_target(struct sk_buff **pskb,
 }
 
 static int check(const char *tablename,
-		 const struct ip6t_entry *e,
+		 const void *entry,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)
 {
  	const struct ip6t_reject_info *rejinfo = targinfo;
+	const struct ip6t_entry *e = entry;
 
  	if (targinfosize != IP6T_ALIGN(sizeof(struct ip6t_reject_info))) {
   		DEBUGP("ip6t_REJECT: targinfosize %u != 0\n", targinfosize);
