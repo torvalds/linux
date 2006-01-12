@@ -814,7 +814,7 @@ do_rest:
 	init_rsp = c_idle.idle->thread.rsp;
 	per_cpu(init_tss,cpu).rsp0 = init_rsp;
 	initial_code = start_secondary;
-	clear_ti_thread_flag(c_idle.idle->thread_info, TIF_FORK);
+	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
 
 	printk(KERN_INFO "Booting processor %d/%d APIC 0x%x\n", cpu,
 		cpus_weight(cpu_present_map),

@@ -463,7 +463,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 	p->thread.rsp0 = (unsigned long) (childregs+1);
 	p->thread.userrsp = me->thread.userrsp; 
 
-	set_ti_thread_flag(p->thread_info, TIF_FORK);
+	set_tsk_thread_flag(p, TIF_FORK);
 
 	p->thread.fs = me->thread.fs;
 	p->thread.gs = me->thread.gs;

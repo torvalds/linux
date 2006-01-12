@@ -30,7 +30,7 @@ extern int save_i387(struct _fpstate __user *buf);
  */
 
 #define unlazy_fpu(tsk) do { \
-	if ((tsk)->thread_info->status & TS_USEDFPU) \
+	if (task_thread_info(tsk)->status & TS_USEDFPU) \
 		save_init_fpu(tsk); \
 } while (0)
 
@@ -46,9 +46,9 @@ static inline void tolerant_fwait(void)
 }
 
 #define clear_fpu(tsk) do { \
-	if ((tsk)->thread_info->status & TS_USEDFPU) {		\
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {	\
 		tolerant_fwait();				\
-		(tsk)->thread_info->status &= ~TS_USEDFPU;	\
+		task_thread_info(tsk)->status &= ~TS_USEDFPU;	\
 		stts();						\
 	}							\
 } while (0)
@@ -170,10 +170,10 @@ static inline void kernel_fpu_end(void)
 	preempt_enable();
 }
 
-static inline void save_init_fpu( struct task_struct *tsk )
+static inline void save_init_fpu(struct task_struct *tsk)
 {
  	__fxsave_clear(tsk);
-	tsk->thread_info->status &= ~TS_USEDFPU;
+	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 	stts();
 }
 

@@ -133,7 +133,7 @@ static void end_8259A_irq (unsigned int irq)
 {
 	if (irq > 256) { 
 		char var;
-		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, current->thread_info); 
+		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, task_thread_info(current));
 
 		BUG(); 
 	}

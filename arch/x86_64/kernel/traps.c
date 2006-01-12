@@ -308,7 +308,7 @@ void show_registers(struct pt_regs *regs)
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
-		cur->comm, cur->pid, cur->thread_info, cur);
+		cur->comm, cur->pid, task_thread_info(cur), cur);
 
 	/*
 	 * When in-kernel, we also print out the stack and code at the
@@ -912,7 +912,7 @@ asmlinkage void math_state_restore(void)
 	if (!used_math())
 		init_fpu(me);
 	restore_fpu_checking(&me->thread.i387.fxsave);
-	me->thread_info->status |= TS_USEDFPU;
+	task_thread_info(me)->status |= TS_USEDFPU;
 }
 
 void __init trap_init(void)
