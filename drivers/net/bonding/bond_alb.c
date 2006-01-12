@@ -169,9 +169,9 @@ static void tlb_clear_slave(struct bonding *bond, struct slave *slave, int save_
 		index = next_index;
 	}
 
-	_unlock_tx_hashtbl(bond);
-
 	tlb_init_slave(slave);
+
+	_unlock_tx_hashtbl(bond);
 }
 
 /* Must be called before starting the monitor timer */

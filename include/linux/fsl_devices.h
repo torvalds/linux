@@ -50,14 +50,12 @@ struct gianfar_platform_data {
 
 	/* board specific information */
 	u32 board_flags;
-	const char *bus_id;
+	u32 bus_id;
+	u32 phy_id;
 	u8 mac_addr[6];
 };
 
 struct gianfar_mdio_data {
-	/* device specific information */
-	u32 paddr;
-
 	/* board specific information */
 	int irq[32];
 };
