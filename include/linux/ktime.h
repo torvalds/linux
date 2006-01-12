@@ -272,8 +272,8 @@ static inline u64 ktime_to_ns(const ktime_t kt)
  * idea of the (in)accuracy of timers. Timer values are rounded up to
  * this resolution values.
  */
-#define KTIME_REALTIME_RES	(NSEC_PER_SEC/HZ)
-#define KTIME_MONOTONIC_RES	(NSEC_PER_SEC/HZ)
+#define KTIME_REALTIME_RES	(ktime_t){ .tv64 = TICK_NSEC }
+#define KTIME_MONOTONIC_RES	(ktime_t){ .tv64 = TICK_NSEC }
 
 /* Get the monotonic time in timespec format: */
 extern void ktime_get_ts(struct timespec *ts);

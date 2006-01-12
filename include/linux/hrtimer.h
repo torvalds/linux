@@ -85,7 +85,7 @@ struct hrtimer_base {
 	spinlock_t		lock;
 	struct rb_root		active;
 	struct rb_node		*first;
-	unsigned long		resolution;
+	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
 	struct hrtimer		*curr_timer;
 };

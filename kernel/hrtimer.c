@@ -518,9 +518,8 @@ int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
 {
 	struct hrtimer_base *bases;
 
-	tp->tv_sec = 0;
 	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
-	tp->tv_nsec = bases[which_clock].resolution;
+	*tp = ktime_to_timespec(bases[which_clock].resolution);
 
 	return 0;
 }
