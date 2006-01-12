@@ -342,10 +342,10 @@ void flush_thread(void)
 void release_thread(struct task_struct *dead_task)
 {
 #if defined(CONFIG_VFP)
-	vfp_release_thread(&dead_task->thread_info->vfpstate);
+	vfp_release_thread(&task_thread_info(dead_task)->vfpstate);
 #endif
 #if defined(CONFIG_IWMMXT)
-	iwmmxt_task_release(dead_task->thread_info);
+	iwmmxt_task_release(task_thread_info(dead_task));
 #endif
 }
 

@@ -604,7 +604,7 @@ static int ptrace_setregs(struct task_struct *tsk, void __user *uregs)
  */
 static int ptrace_getfpregs(struct task_struct *tsk, void __user *ufp)
 {
-	return copy_to_user(ufp, &tsk->thread_info->fpstate,
+	return copy_to_user(ufp, &task_thread_info(tsk)->fpstate,
 			    sizeof(struct user_fp)) ? -EFAULT : 0;
 }
 
@@ -613,7 +613,7 @@ static int ptrace_getfpregs(struct task_struct *tsk, void __user *ufp)
  */
 static int ptrace_setfpregs(struct task_struct *tsk, void __user *ufp)
 {
-	struct thread_info *thread = tsk->thread_info;
+	struct thread_info *thread = task_thread_info(tsk);
 	thread->used_cp[1] = thread->used_cp[2] = 1;
 	return copy_from_user(&thread->fpstate, ufp,
 			      sizeof(struct user_fp)) ? -EFAULT : 0;
@@ -626,7 +626,7 @@ static int ptrace_setfpregs(struct task_struct *tsk, void __user *ufp)
  */
 static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
-	struct thread_info *thread = tsk->thread_info;
+	struct thread_info *thread = task_thread_info(tsk);
 	void *ptr = &thread->fpstate;
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
@@ -643,7 +643,7 @@ static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
  */
 static int ptrace_setwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
-	struct thread_info *thread = tsk->thread_info;
+	struct thread_info *thread = task_thread_info(tsk);
 	void *ptr = &thread->fpstate;
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
@@ -779,7 +779,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 
 		case PTRACE_GET_THREAD_AREA:
-			ret = put_user(child->thread_info->tp_value,
+			ret = put_user(task_thread_info(child)->tp_value,
 				       (unsigned long __user *) data);
 			break;
 
