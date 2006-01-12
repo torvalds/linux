@@ -18,11 +18,13 @@
 		.text
 
 		.macro	save_regs
+		mov	ip, sp
 		stmfd	sp!, {r1 - r2, r4 - r8, fp, ip, lr, pc}
+		sub	fp, ip, #4
 		.endm
 
-		.macro	load_regs,flags
-		ldm\flags	fp, {r1, r2, r4-r8, fp, sp, pc}
+		.macro	load_regs
+		ldmfd	sp, {r1, r2, r4-r8, fp, sp, pc}
 		.endm
 
 		.macro	load1b,	reg1
@@ -100,5 +102,5 @@
 6002:		teq	r2, r1
 		strneb	r0, [r1], #1
 		bne	6002b
-		load_regs	ea
+		load_regs
 		.previous

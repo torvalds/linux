@@ -18,11 +18,13 @@
  */
 
 		.macro	save_regs
+		mov	ip, sp
 		stmfd	sp!, {r1, r4 - r8, fp, ip, lr, pc}
+		sub	fp, ip, #4
 		.endm
 
-		.macro	load_regs,flags
-		LOADREGS(\flags,fp,{r1, r4 - r8, fp, sp, pc})
+		.macro	load_regs
+		ldmfd	sp, {r1, r4 - r8, fp, sp, pc}
 		.endm
 
 		.macro	load1b, reg1
