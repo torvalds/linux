@@ -1836,7 +1836,7 @@ spider_net_setup_phy(struct spider_net_card *card)
  * spider_net_download_firmware loads the firmware opened by
  * spider_net_init_firmware into the adapter.
  */
-static void
+static int
 spider_net_download_firmware(struct spider_net_card *card,
 			     const struct firmware *firmware)
 {
@@ -1857,8 +1857,13 @@ spider_net_download_firmware(struct spider_net_card *card,
 		}
 	}
 
+	if (spider_net_read_reg(card, SPIDER_NET_GSINIT))
+		return -EIO;
+
 	spider_net_write_reg(card, SPIDER_NET_GSINIT,
 			     SPIDER_NET_RUN_SEQ_VALUE);
+
+	return 0;
 }
 
 /**
@@ -1909,9 +1914,8 @@ spider_net_init_firmware(struct spider_net_card *card)
 		goto out;
 	}
 
-	spider_net_download_firmware(card, firmware);
-
-	err = 0;
+	if (!spider_net_download_firmware(card, firmware))
+		err = 0;
 out:
 	release_firmware(firmware);
 
