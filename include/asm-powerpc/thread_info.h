@@ -89,9 +89,6 @@ struct thread_info {
 
 #endif /* THREAD_SHIFT < PAGE_SHIFT */
 
-#define get_thread_info(ti)	get_task_struct((ti)->task)
-#define put_thread_info(ti)	put_task_struct((ti)->task)
-
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {

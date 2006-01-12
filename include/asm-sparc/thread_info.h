@@ -92,9 +92,6 @@ BTFIXUPDEF_CALL(struct thread_info *, alloc_thread_info, void)
 BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
 #define free_thread_info(ti) BTFIXUP_CALL(free_thread_info)(ti)
 
-#define get_thread_info(ti)	get_task_struct((ti)->task)
-#define put_thread_info(ti)	put_task_struct((ti)->task)
-
 #endif /* __ASSEMBLY__ */
 
 /*
