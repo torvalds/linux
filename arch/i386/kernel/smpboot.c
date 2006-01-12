@@ -1096,6 +1096,7 @@ static void smp_tune_scheduling (void)
 			cachesize = 16; /* Pentiums, 2x8kB cache */
 			bandwidth = 100;
 		}
+		max_cache_size = cachesize * 1024;
 	}
 }
 

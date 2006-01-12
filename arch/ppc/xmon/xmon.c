@@ -99,7 +99,7 @@ static void remove_bpts(void);
 static void insert_bpts(void);
 static struct bpt *at_breakpoint(unsigned pc);
 static void bpt_cmds(void);
-static void cacheflush(void);
+void cacheflush(void);
 #ifdef CONFIG_SMP
 static void cpu_cmd(void);
 #endif /* CONFIG_SMP */
