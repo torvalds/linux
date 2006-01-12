@@ -198,10 +198,9 @@ int copy_thread(int nr, unsigned long clone_flags,
 {
 	struct pt_regs * childregs;
 	struct switch_stack * childstack, *stack;
-	unsigned long stack_offset, *retp;
+	unsigned long *retp;
 
-	stack_offset = THREAD_SIZE - sizeof(struct pt_regs);
-	childregs = (struct pt_regs *) ((unsigned long) p->thread_info + stack_offset);
+	childregs = (struct pt_regs *) (task_stack_page(p) + THREAD_SIZE) - 1;
 
 	*childregs = *regs;
 	childregs->d0 = 0;
