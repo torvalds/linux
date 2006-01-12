@@ -2061,6 +2061,13 @@ static int snd_ensoniq_suspend(struct pci_dev *pci, pm_message_t state)
 #ifdef CHIP1371	
 	snd_ac97_suspend(ensoniq->u.es1371.ac97);
 #else
+	/* try to reset AK4531 */
+	outw(ES_1370_CODEC_WRITE(AK4531_RESET, 0x02), ES_REG(ensoniq, 1370_CODEC));
+	inw(ES_REG(ensoniq, 1370_CODEC));
+	udelay(100);
+	outw(ES_1370_CODEC_WRITE(AK4531_RESET, 0x03), ES_REG(ensoniq, 1370_CODEC));
+	inw(ES_REG(ensoniq, 1370_CODEC));
+	udelay(100);
 	snd_ak4531_suspend(ensoniq->u.es1370.ak4531);
 #endif	
 	pci_set_power_state(pci, PCI_D3hot);
