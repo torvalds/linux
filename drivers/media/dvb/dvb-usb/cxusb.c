@@ -451,6 +451,8 @@ static struct usb_device_id cxusb_table [] = {
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LGZ201_WARM) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_TH7579_COLD) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_TH7579_WARM) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DEE1601_COLD) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DEE1601_WARM) },
 		{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -567,11 +569,15 @@ static struct dvb_usb_properties cxusb_bluebird_dee1601_properties = {
 		}
 	},
 
-	.num_device_descs = 1,
+	.num_device_descs = 2,
 	.devices = {
 		{   "DViCO FusionHDTV DVB-T Dual USB",
 			{ &cxusb_table[3], NULL },
 			{ &cxusb_table[4], NULL },
+		},
+		{   "DigitalNow DVB-T Dual USB",
+			{ &cxusb_table[9],  NULL },
+			{ &cxusb_table[10], NULL },
 		},
 	}
 };
