@@ -2235,9 +2235,9 @@ static void alc850_update_jacks(struct snd_ac97 *ac97)
 	/* Vref disable (bit12), 1kOhm (bit13) */
 	snd_ac97_update_bits(ac97, AC97_ALC850_MISC1, (1<<12)|(1<<13),
 			     shared ? (1<<12) : (1<<13));
-	/* MIC-IN = 1, CENTER-LFE = 2 */
+	/* MIC-IN = 1, CENTER-LFE = 5 */
 	snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 4,
-			     shared ? (2<<4) : (1<<4));
+			     shared ? (5<<4) : (1<<4));
 }
 
 static const struct snd_kcontrol_new snd_ac97_controls_alc850[] = {
