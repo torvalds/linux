@@ -1799,6 +1799,7 @@ static int esp_do_data(struct NCR_ESP *esp, struct ESP_regs *eregs)
 		 */
 		int oldphase, i = 0; /* or where we left off last time ?? esp->current_data ?? */
 		int fifocnt = 0;
+		unsigned char *p = phys_to_virt((unsigned long)SCptr->SCp.ptr);
 
 		oldphase = esp_read(eregs->esp_status) & ESP_STAT_PMASK;
 
@@ -1860,7 +1861,7 @@ static int esp_do_data(struct NCR_ESP *esp, struct ESP_regs *eregs)
 
 				/* read fifo */
 				for(j=0;j<fifocnt;j++)
-					SCptr->SCp.ptr[i++] = esp_read(eregs->esp_fdata);
+					p[i++] = esp_read(eregs->esp_fdata);
 
 				ESPDATA(("(%d) ", i));
 
@@ -1882,7 +1883,7 @@ static int esp_do_data(struct NCR_ESP *esp, struct ESP_regs *eregs)
 
 				/* fill fifo */
 				for(j=0;j<this_count;j++)
-					esp_write(eregs->esp_fdata, SCptr->SCp.ptr[i++]);
+					esp_write(eregs->esp_fdata, p[i++]);
 
 				/* how many left if this goes out ?? */
 				hmuch -= this_count;
