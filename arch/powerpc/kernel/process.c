@@ -503,7 +503,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
-	unsigned long sp = (unsigned long)p->thread_info + THREAD_SIZE;
+	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 
 	CHECK_FULL_REGS(regs);
 	/* Copy registers */
@@ -588,10 +588,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	 * set.  Do it now.
 	 */
 	if (!current->thread.regs) {
-		unsigned long childregs = (unsigned long)current->thread_info +
-						THREAD_SIZE;
-		childregs -= sizeof(struct pt_regs);
-		current->thread.regs = (struct pt_regs *)childregs;
+		struct pt_regs *regs = task_stack_page(current) + THREAD_SIZE;
+		current->thread.regs = regs - 1;
 	}
 
 	memset(regs->gpr, 0, sizeof(regs->gpr));
@@ -767,7 +765,7 @@ out:
 static int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)
 {
-	unsigned long stack_page = (unsigned long)p->thread_info;
+	unsigned long stack_page = (unsigned long)task_stack_page(p);
 
 	if (sp >= stack_page + sizeof(struct thread_struct)
 	    && sp <= stack_page + THREAD_SIZE - nbytes)

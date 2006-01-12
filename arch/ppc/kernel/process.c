@@ -482,7 +482,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
-	unsigned long sp = (unsigned long)p->thread_info + THREAD_SIZE;
+	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	unsigned long childframe;
 
 	CHECK_FULL_REGS(regs);
@@ -702,8 +702,8 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 			sp = tsk->thread.ksp;
 	}
 
-	prev_sp = (unsigned long) (tsk->thread_info + 1);
-	stack_top = (unsigned long) tsk->thread_info + THREAD_SIZE;
+	prev_sp = (unsigned long) end_of_stack(tsk);
+	stack_top = (unsigned long) task_stack_page(tsk) + THREAD_SIZE;
 	while (count < 16 && sp > prev_sp && sp < stack_top && (sp & 3) == 0) {
 		if (count == 0) {
 			printk("Call trace:");
@@ -832,7 +832,7 @@ void __init ll_puts(const char *s)
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
-	unsigned long stack_page = (unsigned long) p->thread_info;
+	unsigned long stack_page = (unsigned long) task_stack_page(p);
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
