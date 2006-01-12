@@ -1742,7 +1742,7 @@ void __devinit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	unsigned long end_pfn = start_pfn + size;
 	unsigned long pfn;
 
-	for (pfn = start_pfn; pfn < end_pfn; pfn++, page++) {
+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		if (!early_pfn_valid(pfn))
 			continue;
 		page = pfn_to_page(pfn);
