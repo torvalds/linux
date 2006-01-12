@@ -131,10 +131,10 @@ struct el_common_EV6_mcheck {
 extern void halt(void) __attribute__((noreturn));
 #define __halt() __asm__ __volatile__ ("call_pal %0 #halt" : : "i" (PAL_halt))
 
-#define switch_to(P,N,L)						\
-  do {									\
-    (L) = alpha_switch_to(virt_to_phys(&(N)->thread_info->pcb), (P));	\
-    check_mmu_context();						\
+#define switch_to(P,N,L)						 \
+  do {									 \
+    (L) = alpha_switch_to(virt_to_phys(&task_thread_info(N)->pcb), (P)); \
+    check_mmu_context();						 \
   } while (0)
 
 struct task_struct;

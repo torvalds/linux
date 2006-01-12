@@ -493,7 +493,7 @@ unsigned long
 thread_saved_pc(task_t *t)
 {
 	unsigned long base = (unsigned long)t->thread_info;
-	unsigned long fp, sp = t->thread_info->pcb.ksp;
+	unsigned long fp, sp = task_thread_info(t)->pcb.ksp;
 
 	if (sp > base && sp+6*8 < base + 16*1024) {
 		fp = ((unsigned long*)sp)[6];
@@ -523,7 +523,7 @@ get_wchan(struct task_struct *p)
 
 	pc = thread_saved_pc(p);
 	if (in_sched_functions(pc)) {
-		schedule_frame = ((unsigned long *)p->thread_info->pcb.ksp)[6];
+		schedule_frame = ((unsigned long *)task_thread_info(p)->pcb.ksp)[6];
 		return ((unsigned long *)schedule_frame)[12];
 	}
 	return pc;
