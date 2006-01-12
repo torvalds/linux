@@ -805,7 +805,7 @@ static inline long strnlen_user(const char __user *src, long n)
 {
 	long res;
 
-	res = -(long)src;
+	res = -(unsigned long)src;
 	__asm__ __volatile__
 		("1:\n"
 		 "   tstl %2\n"
