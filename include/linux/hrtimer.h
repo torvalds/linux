@@ -49,8 +49,6 @@ struct hrtimer_base;
  * struct hrtimer - the basic hrtimer structure
  *
  * @node:	red black tree node for time ordered insertion
- * @list:	list head for easier access to the time ordered list,
- *		without walking the red black tree.
  * @expires:	the absolute expiry time in the hrtimers internal
  *		representation. The time is related to the clock on
  *		which the timer is based.
@@ -63,7 +61,6 @@ struct hrtimer_base;
  */
 struct hrtimer {
 	struct rb_node		node;
-	struct list_head	list;
 	ktime_t			expires;
 	enum hrtimer_state	state;
 	int			(*function)(void *);
@@ -78,7 +75,7 @@ struct hrtimer {
  *		to a base on another cpu.
  * @lock:	lock protecting the base and associated timers
  * @active:	red black tree root node for the active timers
- * @pending:	list of pending timers for simple time ordered access
+ * @first:	pointer to the timer node which expires first
  * @resolution:	the resolution of the clock, in nanoseconds
  * @get_time:	function to retrieve the current time of the clock
  * @curr_timer:	the timer which is executing a callback right now
@@ -87,7 +84,7 @@ struct hrtimer_base {
 	clockid_t		index;
 	spinlock_t		lock;
 	struct rb_root		active;
-	struct list_head	pending;
+	struct rb_node		*first;
 	unsigned long		resolution;
 	ktime_t			(*get_time)(void);
 	struct hrtimer		*curr_timer;

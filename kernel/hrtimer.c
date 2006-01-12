@@ -314,7 +314,6 @@ hrtimer_forward(struct hrtimer *timer, const ktime_t interval)
 static void enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 {
 	struct rb_node **link = &base->active.rb_node;
-	struct list_head *prev = &base->pending;
 	struct rb_node *parent = NULL;
 	struct hrtimer *entry;
 
@@ -330,22 +329,23 @@ static void enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 		 */
 		if (timer->expires.tv64 < entry->expires.tv64)
 			link = &(*link)->rb_left;
-		else {
+		else
 			link = &(*link)->rb_right;
-			prev = &entry->list;
-		}
 	}
 
 	/*
-	 * Insert the timer to the rbtree and to the sorted list:
+	 * Insert the timer to the rbtree and check whether it
+	 * replaces the first pending timer
 	 */
 	rb_link_node(&timer->node, parent, link);
 	rb_insert_color(&timer->node, &base->active);
-	list_add(&timer->list, prev);
 
 	timer->state = HRTIMER_PENDING;
-}
 
+	if (!base->first || timer->expires.tv64 <
+	    rb_entry(base->first, struct hrtimer, node)->expires.tv64)
+		base->first = &timer->node;
+}
 
 /*
  * __remove_hrtimer - internal function to remove a timer
@@ -355,9 +355,11 @@ static void enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 {
 	/*
-	 * Remove the timer from the sorted list and from the rbtree:
+	 * Remove the timer from the rbtree and replace the
+	 * first entry pointer if necessary.
 	 */
-	list_del(&timer->list);
+	if (base->first == &timer->node)
+		base->first = rb_next(&timer->node);
 	rb_erase(&timer->node, &base->active);
 }
 
@@ -529,16 +531,17 @@ int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
 static inline void run_hrtimer_queue(struct hrtimer_base *base)
 {
 	ktime_t now = base->get_time();
+	struct rb_node *node;
 
 	spin_lock_irq(&base->lock);
 
-	while (!list_empty(&base->pending)) {
+	while ((node = base->first)) {
 		struct hrtimer *timer;
 		int (*fn)(void *);
 		int restart;
 		void *data;
 
-		timer = list_entry(base->pending.next, struct hrtimer, list);
+		timer = rb_entry(node, struct hrtimer, node);
 		if (now.tv64 <= timer->expires.tv64)
 			break;
 
@@ -732,7 +735,6 @@ static void __devinit init_hrtimers_cpu(int cpu)
 
 	for (i = 0; i < MAX_HRTIMER_BASES; i++) {
 		spin_lock_init(&base->lock);
-		INIT_LIST_HEAD(&base->pending);
 		base++;
 	}
 }
