@@ -1234,7 +1234,8 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 	p_ptr->publ.connected = 1;
 	k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
 
-	nodesub_subscribe(&p_ptr->subscription,peer->node, (void *)ref,
+	nodesub_subscribe(&p_ptr->subscription,peer->node,
+			  (void *)(unsigned long)ref,
 			  (net_ev_handler)port_handle_node_down);
 	res = TIPC_OK;
 exit:

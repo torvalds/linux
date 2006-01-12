@@ -114,12 +114,12 @@ static inline u32 buf_seqno(struct sk_buff *buf)
 
 static inline u32 bcbuf_acks(struct sk_buff *buf)
 {
-	return (u32)TIPC_SKB_CB(buf)->handle;
+	return (u32)(unsigned long)TIPC_SKB_CB(buf)->handle;
 }
 
 static inline void bcbuf_set_acks(struct sk_buff *buf, u32 acks)
 {
-	TIPC_SKB_CB(buf)->handle = (void *)acks;
+	TIPC_SKB_CB(buf)->handle = (void *)(unsigned long)acks;
 }
 
 static inline void bcbuf_decr_acks(struct sk_buff *buf)

@@ -329,9 +329,10 @@ static void subscr_conn_shutdown_event(void *usr_handle,
 				       unsigned int size,
 				       int reason)
 {
-	struct subscriber *subscriber = ref_lock((u32)usr_handle);
+	struct subscriber *subscriber;
 	spinlock_t *subscriber_lock;
 
+	subscriber = ref_lock((u32)(unsigned long)usr_handle);
 	if (subscriber == NULL)
 		return;
 
@@ -350,9 +351,10 @@ static void subscr_conn_msg_event(void *usr_handle,
 				  const unchar *data,
 				  u32 size)
 {
-	struct subscriber *subscriber = ref_lock((u32)usr_handle);
+	struct subscriber *subscriber;
 	spinlock_t *subscriber_lock;
 
+	subscriber = ref_lock((u32)(unsigned long)usr_handle);
 	if (subscriber == NULL)
 		return;
 
@@ -409,7 +411,7 @@ static void subscr_named_msg_event(void *usr_handle,
 	/* Establish a connection to subscriber */
 
 	tipc_createport(topsrv.user_ref,
-			(void *)subscriber->ref,
+			(void *)(unsigned long)subscriber->ref,
 			importance,
 			0,
 			0,
