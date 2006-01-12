@@ -147,20 +147,11 @@ static void int_received(struct pci_event *event, struct pt_regs *regs)
 static void pci_event_handler(struct HvLpEvent *event, struct pt_regs *regs)
 {
 	if (event && (event->xType == HvLpEvent_Type_PciIo)) {
-		switch (event->xFlags.xFunction) {
-		case HvLpEvent_Function_Int:
+		if (hvlpevent_is_int(event))
 			int_received((struct pci_event *)event, regs);
-			break;
-		case HvLpEvent_Function_Ack:
+		else
 			printk(KERN_ERR
 				"pci_event_handler: unexpected ack received\n");
-			break;
-		default:
-			printk(KERN_ERR
-				"pci_event_handler: unexpected event function %d\n",
-				(int)event->xFlags.xFunction);
-			break;
-		}
 	} else if (event)
 		printk(KERN_ERR
 			"pci_event_handler: Unrecognized PCI event type 0x%x\n",

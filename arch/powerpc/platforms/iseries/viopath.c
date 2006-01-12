@@ -270,7 +270,7 @@ static void handleMonitorEvent(struct HvLpEvent *event)
 	 * First see if this is just a normal monitor message from the
 	 * other partition
 	 */
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		remoteLp = event->xSourceLp;
 		if (!viopathStatus[remoteLp].isActive)
 			sendMonMsg(remoteLp);
@@ -331,13 +331,12 @@ static void handleConfig(struct HvLpEvent *event)
 {
 	if (!event)
 		return;
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		printk(VIOPATH_KERN_WARN
 		       "unexpected config request from partition %d",
 		       event->xSourceLp);
 
-		if ((event->xFlags.xFunction == HvLpEvent_Function_Int) &&
-		    (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck)) {
+		if (hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}
@@ -377,7 +376,7 @@ static void vio_handleEvent(struct HvLpEvent *event, struct pt_regs *regs)
 	int subtype = (event->xSubtype & VIOMAJOR_SUBTYPE_MASK)
 		>> VIOMAJOR_SUBTYPE_SHIFT;
 
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		remoteLp = event->xSourceLp;
 		/*
 		 * The isActive is checked because if the hosting partition
@@ -436,8 +435,7 @@ static void vio_handleEvent(struct HvLpEvent *event, struct pt_regs *regs)
 		       "unexpected virtual io event subtype %d from partition %d\n",
 		       event->xSubtype, remoteLp);
 		/* No handler.  Ack if necessary */
-		if ((event->xFlags.xFunction == HvLpEvent_Function_Int) &&
-		    (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck)) {
+		if (hvlpevent_is_int(event) && hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}
