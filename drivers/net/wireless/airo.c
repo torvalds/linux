@@ -5783,7 +5783,7 @@ static int airo_get_essid(struct net_device *dev,
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */
-	dwrq->length = status_rid.SSIDlen + 1;
+	dwrq->length = status_rid.SSIDlen;
 	dwrq->flags = 1; /* active */
 
 	return 0;

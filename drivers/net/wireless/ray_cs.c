@@ -1256,7 +1256,7 @@ static int ray_get_essid(struct net_device *dev,
 	extra[IW_ESSID_MAX_SIZE] = '\0';
 
 	/* Push it out ! */
-	dwrq->length = strlen(extra) + 1;
+	dwrq->length = strlen(extra);
 	dwrq->flags = 1; /* active */
 
 	return 0;
