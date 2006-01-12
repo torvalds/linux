@@ -263,30 +263,25 @@ static int __init sharpsl_pcmcia_init(void)
 {
 	int ret;
 
-	sharpsl_pcmcia_ops.nr=platform_scoop_config->num_devs;
-	sharpsl_pcmcia_device = kzalloc(sizeof(*sharpsl_pcmcia_device), GFP_KERNEL);
+	sharpsl_pcmcia_ops.nr = platform_scoop_config->num_devs;
+	sharpsl_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
+
 	if (!sharpsl_pcmcia_device)
 		return -ENOMEM;
 
-	sharpsl_pcmcia_device->name = "pxa2xx-pcmcia";
 	sharpsl_pcmcia_device->dev.platform_data = &sharpsl_pcmcia_ops;
-	sharpsl_pcmcia_device->dev.parent=platform_scoop_config->devs[0].dev;
+	sharpsl_pcmcia_device->dev.parent = platform_scoop_config->devs[0].dev;
 
-	ret = platform_device_register(sharpsl_pcmcia_device);
+	ret = platform_device_add(sharpsl_pcmcia_device);
+
 	if (ret)
-		kfree(sharpsl_pcmcia_device);
+		platform_device_put(sharpsl_pcmcia_device);
 
 	return ret;
 }
 
 static void __exit sharpsl_pcmcia_exit(void)
 {
-	/*
-	 * This call is supposed to free our sharpsl_pcmcia_device.
-	 * Unfortunately platform_device don't have a free method, and
-	 * we can't assume it's free of any reference at this point so we
-	 * can't free it either.
-	 */
 	platform_device_unregister(sharpsl_pcmcia_device);
 }
 

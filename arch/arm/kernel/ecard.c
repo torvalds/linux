@@ -40,6 +40,7 @@
 #include <linux/proc_fs.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
@@ -206,7 +207,7 @@ static void ecard_task_readbytes(struct ecard_request *req)
 
 static DECLARE_WAIT_QUEUE_HEAD(ecard_wait);
 static struct ecard_request *ecard_req;
-static DECLARE_MUTEX(ecard_sem);
+static DEFINE_MUTEX(ecard_mutex);
 
 /*
  * Set up the expansion card daemon's page tables.
@@ -299,7 +300,7 @@ static void ecard_call(struct ecard_request *req)
 
 	req->complete = &completion;
 
-	down(&ecard_sem);
+	mutex_lock(&ecard_mutex);
 	ecard_req = req;
 	wake_up(&ecard_wait);
 
@@ -307,7 +308,7 @@ static void ecard_call(struct ecard_request *req)
 	 * Now wait for kecardd to run.
 	 */
 	wait_for_completion(&completion);
-	up(&ecard_sem);
+	mutex_unlock(&ecard_mutex);
 }
 
 /* ======================= Mid-level card control ===================== */

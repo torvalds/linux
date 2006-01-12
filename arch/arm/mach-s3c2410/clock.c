@@ -37,6 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/clk.h>
+#include <linux/mutex.h>
 
 #include <asm/hardware.h>
 #include <asm/atomic.h>
@@ -51,7 +52,7 @@
 /* clock information */
 
 static LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 
 /* old functions */
 
@@ -102,7 +103,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 	else
 		idno = to_platform_device(dev)->id;
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 
 	list_for_each_entry(p, &clocks, list) {
 		if (p->id == idno &&
@@ -126,7 +127,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 		}
 	}
 
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 	return clk;
 }
 
@@ -362,9 +363,9 @@ int s3c24xx_register_clock(struct clk *clk)
 
 	/* add to the list of available clocks */
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->list, &clocks);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return 0;
 }
