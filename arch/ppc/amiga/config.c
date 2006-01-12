@@ -281,7 +281,7 @@ static void __init amiga_identify(void)
     case CS_OCS:
     case CS_ECS:
     case CS_AGA:
-      switch (custom.deniseid & 0xf) {
+      switch (amiga_custom.deniseid & 0xf) {
       case 0x0c:
 	AMIGAHW_SET(DENISE_HR);
 	break;
@@ -294,7 +294,7 @@ static void __init amiga_identify(void)
       AMIGAHW_SET(DENISE);
       break;
     }
-    switch ((custom.vposr>>8) & 0x7f) {
+    switch ((amiga_custom.vposr>>8) & 0x7f) {
     case 0x00:
       AMIGAHW_SET(AGNUS_PAL);
       break;
@@ -432,9 +432,9 @@ void __init config_amiga(void)
   amiga_colorclock = 5*amiga_eclock;	/* 3.5 MHz */
 
   /* clear all DMA bits */
-  custom.dmacon = DMAF_ALL;
+  amiga_custom.dmacon = DMAF_ALL;
   /* ensure that the DMA master bit is set */
-  custom.dmacon = DMAF_SETCLR | DMAF_MASTER;
+  amiga_custom.dmacon = DMAF_SETCLR | DMAF_MASTER;
 
   /* request all RAM */
   for (i = 0; i < m68k_num_memory; i++) {
@@ -753,9 +753,9 @@ static void amiga_savekmsg_init(void)
 
 static void amiga_serial_putc(char c)
 {
-    custom.serdat = (unsigned char)c | 0x100;
+    amiga_custom.serdat = (unsigned char)c | 0x100;
     mb();
-    while (!(custom.serdatr & 0x2000))
+    while (!(amiga_custom.serdatr & 0x2000))
        ;
 }
 
@@ -785,11 +785,11 @@ int amiga_serial_console_wait_key(struct console *co)
 {
     int ch;
 
-    while (!(custom.intreqr & IF_RBF))
+    while (!(amiga_custom.intreqr & IF_RBF))
 	barrier();
-    ch = custom.serdatr & 0xff;
+    ch = amiga_custom.serdatr & 0xff;
     /* clear the interrupt, so that another character can be read */
-    custom.intreq = IF_RBF;
+    amiga_custom.intreq = IF_RBF;
     return ch;
 }
 

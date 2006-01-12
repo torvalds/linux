@@ -41,7 +41,7 @@ static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
 	unsigned short joy0dat, potgor;
 	int nx, ny, dx, dy;
 
-	joy0dat = custom.joy0dat;
+	joy0dat = amiga_custom.joy0dat;
 
 	nx = joy0dat & 0xff;
 	ny = joy0dat >> 8;
@@ -57,7 +57,7 @@ static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
 	amimouse_lastx = nx;
 	amimouse_lasty = ny;
 
-	potgor = custom.potgor;
+	potgor = amiga_custom.potgor;
 
 	input_regs(amimouse_dev, fp);
 
@@ -77,7 +77,7 @@ static int amimouse_open(struct input_dev *dev)
 {
 	unsigned short joy0dat;
 
-	joy0dat = custom.joy0dat;
+	joy0dat = amiga_custom.joy0dat;
 
 	amimouse_lastx = joy0dat & 0xff;
 	amimouse_lasty = joy0dat >> 8;

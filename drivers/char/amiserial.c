@@ -99,6 +99,7 @@ static char *serial_version = "4.30";
 #define _INLINE_ inline
 #endif
 
+#define custom amiga_custom
 static char *serial_name = "Amiga-builtin serial driver";
 
 static struct tty_driver *serial_driver;

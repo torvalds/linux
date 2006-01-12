@@ -194,6 +194,8 @@ static DECLARE_WAIT_QUEUE_HEAD(ms_wait);
  */
 #define MAX_ERRORS 12
 
+#define custom amiga_custom
+
 /* Prevent "aliased" accesses. */
 static int fd_ref[4] = { 0,0,0,0 };
 static int fd_device[4] = { 0, 0, 0, 0 };
