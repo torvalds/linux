@@ -87,6 +87,7 @@ struct device_node {
 	char	*full_name;
 
 	struct	property *properties;
+	struct  property *deadprops; /* removed properties */
 	struct	device_node *parent;
 	struct	device_node *child;
 	struct	device_node *sibling;
@@ -164,6 +165,10 @@ extern int prom_n_size_cells(struct device_node* np);
 extern int prom_n_intr_cells(struct device_node* np);
 extern void prom_get_irq_senses(unsigned char *senses, int off, int max);
 extern int prom_add_property(struct device_node* np, struct property* prop);
+extern int prom_remove_property(struct device_node *np, struct property *prop);
+extern int prom_update_property(struct device_node *np,
+				struct property *newprop,
+				struct property *oldprop);
 
 #ifdef CONFIG_PPC32
 /*
