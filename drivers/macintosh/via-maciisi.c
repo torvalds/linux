@@ -294,6 +294,24 @@ static void maciisi_sync(struct adb_request *req)
 		printk(KERN_ERR "maciisi_send_request: poll timed out!\n");
 }
 
+int
+maciisi_request(struct adb_request *req, void (*done)(struct adb_request *),
+	    int nbytes, ...)
+{
+	va_list list;
+	int i;
+
+	req->nbytes = nbytes;
+	req->done = done;
+	req->reply_expected = 0;
+	va_start(list, nbytes);
+	for (i = 0; i < nbytes; i++)
+		req->data[i++] = va_arg(list, int);
+	va_end(list);
+
+	return maciisi_send_request(req, 1);
+}
+
 /* Enqueue a request, and run the queue if possible */
 static int
 maciisi_write(struct adb_request* req)
