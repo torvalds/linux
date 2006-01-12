@@ -84,7 +84,7 @@
 		kputc	#'\n'
 		kphex	r5, 8		/* decompressed kernel start */
 		kputc	#'-'
-		kphex	r8, 8		/* decompressed kernel end  */
+		kphex	r9, 8		/* decompressed kernel end  */
 		kputc	#'>'
 		kphex	r4, 8		/* kernel execution address */
 		kputc	#'\n'
@@ -116,7 +116,7 @@ start:
 		.word	start			@ absolute load/run zImage address
 		.word	_edata			@ zImage end address
 1:		mov	r7, r1			@ save architecture ID
-		mov	r8, #0			@ save r0
+		mov	r8, r2			@ save atags pointer
 
 #ifndef __ARM_ARCH_2__
 		/*
@@ -144,7 +144,7 @@ not_angel:
 
 		/*
 		 * some architecture specific code can be inserted
-		 * by the linker here, but it should preserve r7 and r8.
+		 * by the linker here, but it should preserve r7, r8, and r9.
 		 */
 
 		.text
@@ -249,16 +249,17 @@ not_relocated:	mov	r0, #0
  * r5     = decompressed kernel start
  * r6     = processor ID
  * r7     = architecture ID
- * r8-r14 = unused
+ * r8     = atags pointer
+ * r9-r14 = corrupted
  */
 		add	r1, r5, r0		@ end of decompressed kernel
 		adr	r2, reloc_start
 		ldr	r3, LC1
 		add	r3, r2, r3
-1:		ldmia	r2!, {r8 - r13}		@ copy relocation code
-		stmia	r1!, {r8 - r13}
-		ldmia	r2!, {r8 - r13}
-		stmia	r1!, {r8 - r13}
+1:		ldmia	r2!, {r9 - r14}		@ copy relocation code
+		stmia	r1!, {r9 - r14}
+		ldmia	r2!, {r9 - r14}
+		stmia	r1!, {r9 - r14}
 		cmp	r2, r3
 		blo	1b
 
@@ -308,11 +309,12 @@ params:		ldr	r0, =params_phys
  *  r4 = kernel execution address
  *  r6 = processor ID
  *  r7 = architecture number
- *  r8 = run-time address of "start"
+ *  r8 = atags pointer
+ *  r9 = run-time address of "start"  (???)
  * On exit,
- *  r1, r2, r3, r8, r9, r12 corrupted
+ *  r1, r2, r3, r9, r10, r12 corrupted
  * This routine must preserve:
- *  r4, r5, r6, r7
+ *  r4, r5, r6, r7, r8
  */
 		.align	5
 cache_on:	mov	r3, #8			@ cache_on function
@@ -326,15 +328,15 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  * bits for the RAM area only.
  */
 		mov	r0, r3
-		mov	r8, r0, lsr #18
-		mov	r8, r8, lsl #18		@ start of RAM
-		add	r9, r8, #0x10000000	@ a reasonable RAM size
+		mov	r9, r0, lsr #18
+		mov	r9, r9, lsl #18		@ start of RAM
+		add	r10, r9, #0x10000000	@ a reasonable RAM size
 		mov	r1, #0x12
 		orr	r1, r1, #3 << 10
 		add	r2, r3, #16384
 1:		cmp	r1, r8			@ if virt > start of RAM
 		orrhs	r1, r1, #0x0c		@ set cacheable, bufferable
-		cmp	r1, r9			@ if virt > end of RAM
+		cmp	r1, r10			@ if virt > end of RAM
 		bichs	r1, r1, #0x0c		@ clear cacheable, bufferable
 		str	r1, [r0], #4		@ 1:1 mapping
 		add	r1, r1, #1048576
@@ -403,26 +405,28 @@ __common_cache_on:
  * r5     = decompressed kernel start
  * r6     = processor ID
  * r7     = architecture ID
- * r8-r14 = unused
+ * r8     = atags pointer
+ * r9-r14 = corrupted
  */
 		.align	5
-reloc_start:	add	r8, r5, r0
+reloc_start:	add	r9, r5, r0
 		debug_reloc_start
 		mov	r1, r4
 1:
 		.rept	4
-		ldmia	r5!, {r0, r2, r3, r9 - r13}	@ relocate kernel
-		stmia	r1!, {r0, r2, r3, r9 - r13}
+		ldmia	r5!, {r0, r2, r3, r10 - r14}	@ relocate kernel
+		stmia	r1!, {r0, r2, r3, r10 - r14}
 		.endr
 
-		cmp	r5, r8
+		cmp	r5, r9
 		blo	1b
 		debug_reloc_end
 
 call_kernel:	bl	cache_clean_flush
 		bl	cache_off
-		mov	r0, #0
+		mov	r0, #0			@ must be zero
 		mov	r1, r7			@ restore architecture number
+		mov	r2, r8			@ restore atags pointer
 		mov	pc, r4			@ call kernel
 
 /*
