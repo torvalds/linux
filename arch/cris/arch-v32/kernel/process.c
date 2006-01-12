@@ -157,7 +157,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 * The TLS is in $mof beacuse it is the 5th argument to sys_clone.
 	 */
 	if (p->mm && (clone_flags & CLONE_SETTLS)) {
-		p->thread_info->tls = regs->mof;
+		task_thread_info(p)->tls = regs->mof;
 	}
 
 	/* Put the switch stack right below the pt_regs. */
