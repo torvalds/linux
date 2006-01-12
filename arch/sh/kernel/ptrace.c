@@ -41,12 +41,7 @@ static inline int get_stack_long(struct task_struct *task, int offset)
 {
 	unsigned char *stack;
 
-	stack = (unsigned char *)
-		task->thread_info + THREAD_SIZE	- sizeof(struct pt_regs)
-#ifdef CONFIG_SH_DSP
-		- sizeof(struct pt_dspregs)
-#endif
-		- sizeof(unsigned long);
+	stack = (unsigned char *)task_pt_regs(task);
 	stack += offset;
 	return (*((int *)stack));
 }
@@ -59,12 +54,7 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 {
 	unsigned char *stack;
 
-	stack = (unsigned char *)
-		task->thread_info + THREAD_SIZE - sizeof(struct pt_regs)
-#ifdef CONFIG_SH_DSP
-		- sizeof(struct pt_dspregs)
-#endif
-		- sizeof(unsigned long);
+	stack = (unsigned char *)task_pt_regs(task);
 	stack += offset;
 	*(unsigned long *) stack = data;
 	return 0;
