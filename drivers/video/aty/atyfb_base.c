@@ -3501,7 +3501,7 @@ err_release_mem:
 
 static int __devinit atyfb_atari_probe(void)
 {
-	struct aty_par *par;
+	struct atyfb_par *par;
 	struct fb_info *info;
 	int m64_num;
 	u32 clock_r;
