@@ -1895,16 +1895,27 @@ spider_net_download_firmware(struct spider_net_card *card,
 static int
 spider_net_init_firmware(struct spider_net_card *card)
 {
-	const struct firmware *firmware;
+	struct firmware *firmware;
+	struct device_node *dn;
+	u8 *fw_prop;
 	int err = -EIO;
 
-	if (request_firmware(&firmware,
+	if (request_firmware((const struct firmware **)&firmware,
 			     SPIDER_NET_FIRMWARE_NAME, &card->pdev->dev) < 0) {
 		if (netif_msg_probe(card))
 			pr_err("Couldn't read in sequencer data file %s.\n",
 			       SPIDER_NET_FIRMWARE_NAME);
-		firmware = NULL;
-		goto out;
+
+		dn = pci_device_to_OF_node(card->pdev);
+		if (!dn)
+			goto out;
+
+		fw_prop = (u8 *)get_property(dn, "firmware", NULL);
+		if (!fw_prop)
+			goto out;
+
+		memcpy(firmware->data, fw_prop, 6 * SPIDER_NET_FIRMWARE_LEN * sizeof(u32));
+		firmware->size = 6 * SPIDER_NET_FIRMWARE_LEN * sizeof(u32);
 	}
 
 	if (firmware->size != 6 * SPIDER_NET_FIRMWARE_LEN * sizeof(u32)) {
