@@ -5203,13 +5203,13 @@ ahd_free(struct ahd_softc *ahd)
 		/* FALLTHROUGH */
 	case 4:
 		ahd_dmamap_unload(ahd, ahd->shared_data_dmat,
-				  ahd->shared_data_dmamap);
+				  ahd->shared_data_map.dmamap);
 		/* FALLTHROUGH */
 	case 3:
 		ahd_dmamem_free(ahd, ahd->shared_data_dmat, ahd->qoutfifo,
-				ahd->shared_data_dmamap);
+				ahd->shared_data_map.dmamap);
 		ahd_dmamap_destroy(ahd, ahd->shared_data_dmat,
-				   ahd->shared_data_dmamap);
+				   ahd->shared_data_map.dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		ahd_dma_tag_destroy(ahd, ahd->shared_data_dmat);
@@ -6088,7 +6088,6 @@ static const char *termstat_strings[] = {
 int
 ahd_init(struct ahd_softc *ahd)
 {
-	uint8_t		*base_vaddr;
 	uint8_t		*next_vaddr;
 	dma_addr_t	 next_baddr;
 	size_t		 driver_data_size;
@@ -6178,20 +6177,23 @@ ahd_init(struct ahd_softc *ahd)
 
 	/* Allocation of driver data */
 	if (ahd_dmamem_alloc(ahd, ahd->shared_data_dmat,
-			     (void **)&base_vaddr,
-			     BUS_DMA_NOWAIT, &ahd->shared_data_dmamap) != 0) {
+			     (void **)&ahd->shared_data_map.vaddr,
+			     BUS_DMA_NOWAIT,
+			     &ahd->shared_data_map.dmamap) != 0) {
 		return (ENOMEM);
 	}
 
 	ahd->init_level++;
 
 	/* And permanently map it in */
-	ahd_dmamap_load(ahd, ahd->shared_data_dmat, ahd->shared_data_dmamap,
-			base_vaddr, driver_data_size, ahd_dmamap_cb,
-			&ahd->shared_data_busaddr, /*flags*/0);
-	ahd->qoutfifo = (uint16_t *)base_vaddr;
+	ahd_dmamap_load(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
+			ahd->shared_data_map.vaddr, driver_data_size,
+			ahd_dmamap_cb, &ahd->shared_data_map.physaddr,
+			/*flags*/0);
+	ahd->qoutfifo = (uint16_t *)ahd->shared_data_map.vaddr;
 	next_vaddr = (uint8_t *)&ahd->qoutfifo[AHD_QOUT_SIZE];
-	next_baddr = ahd->shared_data_busaddr + AHD_QOUT_SIZE*sizeof(uint16_t);
+	next_baddr = ahd->shared_data_map.physaddr
+		   + AHD_QOUT_SIZE*sizeof(uint16_t);
 	if ((ahd->features & AHD_TARGETMODE) != 0) {
 		ahd->targetcmds = (struct target_cmd *)next_vaddr;
 		next_vaddr += AHD_TMODE_CMDS * sizeof(struct target_cmd);
@@ -6212,6 +6214,7 @@ ahd_init(struct ahd_softc *ahd)
 	 * specially from the DMA safe memory chunk used for the QOUTFIFO.
 	 */
 	ahd->next_queued_hscb = (struct hardware_scb *)next_vaddr;
+	ahd->next_queued_hscb_map = &ahd->shared_data_map;
 	ahd->next_queued_hscb->hscb_busaddr = ahd_htole32(next_baddr);
 
 	ahd->init_level++;
@@ -6557,12 +6560,13 @@ ahd_chip_init(struct ahd_softc *ahd)
 	/*
 	 * The Freeze Count is 0.
 	 */
+	ahd->qfreeze_cnt = 0;
 	ahd_outw(ahd, QFREEZE_COUNT, 0);
 
 	/*
 	 * Tell the sequencer where it can find our arrays in memory.
 	 */
-	busaddr = ahd->shared_data_busaddr;
+	busaddr = ahd->shared_data_map.physaddr;
 	ahd_outb(ahd, SHARED_DATA_ADDR, busaddr & 0xFF);
 	ahd_outb(ahd, SHARED_DATA_ADDR + 1, (busaddr >> 8) & 0xFF);
 	ahd_outb(ahd, SHARED_DATA_ADDR + 2, (busaddr >> 16) & 0xFF);
@@ -9651,7 +9655,7 @@ ahd_run_tqinfifo(struct ahd_softc *ahd, int paused)
 
 		cmd->cmd_valid = 0;
 		ahd_dmamap_sync(ahd, ahd->shared_data_dmat,
-				ahd->shared_data_dmamap,
+				ahd->shared_data_map.dmamap,
 				ahd_targetcmd_offset(ahd, ahd->tqinfifonext),
 				sizeof(struct target_cmd),
 				BUS_DMASYNC_PREREAD);
