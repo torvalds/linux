@@ -29,6 +29,7 @@
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
 #include <linux/if_vlan.h>
+#include <linux/in.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/ip.h>
