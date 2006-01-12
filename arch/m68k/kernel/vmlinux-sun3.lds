@@ -67,7 +67,7 @@ __init_begin = .;
 	__initramfs_end = .;
 	. = ALIGN(8192);
 	__init_end = .;
-	.init.task : { *(init_task) }
+	.data.init.task : { *(.data.init_task) }
 
 
   .bss : { *(.bss) }		/* BSS */
