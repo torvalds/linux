@@ -727,8 +727,8 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 		 * system pages needed.
 		 */
 		dev->fw.arbel.fw_pages =
-			(dev->fw.arbel.fw_pages + (1 << (PAGE_SHIFT - 12)) - 1) >>
-			(PAGE_SHIFT - 12);
+			ALIGN(dev->fw.arbel.fw_pages, PAGE_SIZE >> 12) >>
+				(PAGE_SHIFT - 12);
 
 		mthca_dbg(dev, "Clear int @ %llx, EQ arm @ %llx, EQ set CI @ %llx\n",
 			  (unsigned long long) dev->fw.arbel.clr_int_base,
@@ -1445,6 +1445,7 @@ int mthca_SET_ICM_SIZE(struct mthca_dev *dev, u64 icm_size, u64 *aux_pages,
 	 * pages needed.
 	 */
 	*aux_pages = (*aux_pages + (1 << (PAGE_SHIFT - 12)) - 1) >> (PAGE_SHIFT - 12);
+	*aux_pages = ALIGN(*aux_pages, PAGE_SIZE >> 12) >> (PAGE_SHIFT - 12);
 
 	return 0;
 }
