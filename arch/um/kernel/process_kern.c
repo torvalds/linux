@@ -107,7 +107,7 @@ void set_current(void *t)
 {
 	struct task_struct *task = t;
 
-	cpu_tasks[task->thread_info->cpu] = ((struct cpu_task) 
+	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
 		{ external_pid(task), task });
 }
 

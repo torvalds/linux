@@ -36,7 +36,7 @@ void switch_to_tt(void *prev, void *next)
 	from = prev;
 	to = next;
 
-	cpu = from->thread_info->cpu;
+	cpu = task_thread_info(from)->cpu;
 	if(cpu == 0)
 		forward_interrupts(to->thread.mode.tt.extern_pid);
 #ifdef CONFIG_SMP
@@ -343,7 +343,7 @@ int do_proc_op(void *t, int proc_id)
 		pid = thread->request.u.exec.pid;
 		do_exec(thread->mode.tt.extern_pid, pid);
 		thread->mode.tt.extern_pid = pid;
-		cpu_tasks[task->thread_info->cpu].pid = pid;
+		cpu_tasks[task_thread_info(task)->cpu].pid = pid;
 		break;
 	case OP_FORK:
 		attach_process(thread->request.u.fork.pid);
