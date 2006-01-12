@@ -52,16 +52,7 @@ extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 unsigned long get_wchan(struct task_struct *p);
 
-/* See arch/alpha/kernel/ptrace.c for details.  */
-#define PT_REG(reg) \
-  (PAGE_SIZE*2 - sizeof(struct pt_regs) + offsetof(struct pt_regs, reg))
-
-#define SW_REG(reg) \
- (PAGE_SIZE*2 - sizeof(struct pt_regs) - sizeof(struct switch_stack) \
-  + offsetof(struct switch_stack, reg))
-
-#define KSTK_EIP(tsk) \
-  (*(unsigned long *)(PT_REG(pc) + (unsigned long) ((tsk)->thread_info)))
+#define KSTK_EIP(tsk) (task_pt_regs(tsk)->pc)
 
 #define KSTK_ESP(tsk) \
   ((tsk) == current ? rdusp() : task_thread_info(tsk)->pcb.usp)

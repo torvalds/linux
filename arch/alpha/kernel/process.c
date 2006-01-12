@@ -428,30 +428,15 @@ dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt, struct thread_info *ti)
 int
 dump_elf_task(elf_greg_t *dest, struct task_struct *task)
 {
-	struct thread_info *ti;
-	struct pt_regs *pt;
-
-	ti = task->thread_info;
-	pt = (struct pt_regs *)((unsigned long)ti + 2*PAGE_SIZE) - 1;
-
-	dump_elf_thread(dest, pt, ti);
-
+	dump_elf_thread(dest, task_pt_regs(task), task_thread_info(task));
 	return 1;
 }
 
 int
 dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
 {
-	struct thread_info *ti;
-	struct pt_regs *pt;
-	struct switch_stack *sw;
-
-	ti = task->thread_info;
-	pt = (struct pt_regs *)((unsigned long)ti + 2*PAGE_SIZE) - 1;
-	sw = (struct switch_stack *)pt - 1;
-
+	struct switch_stack *sw = (struct switch_stack *)task_pt_regs(task) - 1;
 	memcpy(dest, sw->fp, 32 * 8);
-
 	return 1;
 }
 

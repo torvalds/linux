@@ -72,6 +72,13 @@ enum {
 	REG_R0 = 0, REG_F0 = 32, REG_FPCR = 63, REG_PC = 64
 };
 
+#define PT_REG(reg) \
+  (PAGE_SIZE*2 - sizeof(struct pt_regs) + offsetof(struct pt_regs, reg))
+
+#define SW_REG(reg) \
+ (PAGE_SIZE*2 - sizeof(struct pt_regs) - sizeof(struct switch_stack) \
+  + offsetof(struct switch_stack, reg))
+
 static int regoff[] = {
 	PT_REG(	   r0), PT_REG(	   r1), PT_REG(	   r2), PT_REG(	  r3),
 	PT_REG(	   r4), PT_REG(	   r5), PT_REG(	   r6), PT_REG(	  r7),
