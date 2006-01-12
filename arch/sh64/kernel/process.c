@@ -744,7 +744,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	}
 #endif
 	/* Copy from sh version */
-	childregs = ((struct pt_regs *)(THREAD_SIZE + (unsigned long) p->thread_info )) - 1;
+	childregs = (struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1;
 
 	*childregs = *regs;
 
@@ -752,7 +752,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->regs[15] = usp;
 		p->thread.uregs = childregs;
 	} else {
-		childregs->regs[15] = (unsigned long)p->thread_info + THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	}
 
 	childregs->regs[9] = 0; /* Set return value for child */
