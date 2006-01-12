@@ -517,7 +517,7 @@ int __init smp_boot_one_cpu(int cpuid)
 	if (IS_ERR(idle))
 		panic("SMP: fork failed for CPU:%d", cpuid);
 
-	idle->thread_info->cpu = cpuid;
+	task_thread_info(idle)->cpu = cpuid;
 
 	/* Let _start know what logical CPU we're booting
 	** (offset into init_tasks[],cpu_data[])
