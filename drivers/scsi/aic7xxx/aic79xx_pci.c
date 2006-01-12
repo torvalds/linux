@@ -38,9 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#77 $
- *
- * $FreeBSD$
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#89 $
  */
 
 #ifdef __linux__
@@ -114,6 +112,13 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		"Adaptec 29320ALP Ultra320 SCSI adapter",
 		ahd_aic7901_setup
 	},
+	/* aic7901A based controllers */
+	{
+		ID_AHA_29320LP,
+		ID_ALL_MASK,
+		"Adaptec 29320LP Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
+	},
 	/* aic7902 based controllers */	
 	{
 		ID_AHA_29320,
@@ -128,12 +133,6 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ahd_aic7902_setup
 	},
 	{
-		ID_AHA_29320LP,
-		ID_ALL_MASK,
-		"Adaptec 29320LP Ultra320 SCSI adapter",
-		ahd_aic7901A_setup
-	},
-	{
 		ID_AHA_39320,
 		ID_ALL_MASK,
 		"Adaptec 39320 Ultra320 SCSI adapter",
@@ -143,6 +142,12 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ID_AHA_39320_B,
 		ID_ALL_MASK,
 		"Adaptec 39320 Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_39320_B_DELL,
+		ID_ALL_MASK,
+		"Adaptec (Dell OEM) 39320 Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
 	{
@@ -668,6 +673,7 @@ ahd_configure_termination(struct ahd_softc *ahd, u_int adapter_control)
 	 * Now set the termination based on what we found.
 	 */
 	sxfrctl1 = ahd_inb(ahd, SXFRCTL1) & ~STPWEN;
+	ahd->flags &= ~AHD_TERM_ENB_A;
 	if ((termctl & FLX_TERMCTL_ENPRILOW) != 0) {
 		ahd->flags |= AHD_TERM_ENB_A;
 		sxfrctl1 |= STPWEN;
