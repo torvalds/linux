@@ -25,6 +25,7 @@
 #include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/arch/memory.h>
+#include <asm/sizes.h>
 
 #ifndef TASK_SIZE
 /*
@@ -45,6 +46,14 @@
  */
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET		UL(0xc0000000)
+#endif
+
+/*
+ * Size of DMA-consistent memory region.  Must be multiple of 2M,
+ * between 2MB and 14MB inclusive.
+ */
+#ifndef CONSISTENT_DMA_SIZE
+#define CONSISTENT_DMA_SIZE SZ_2M
 #endif
 
 /*
