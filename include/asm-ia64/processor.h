@@ -352,7 +352,7 @@ extern unsigned long get_wchan (struct task_struct *p);
 /* Return instruction pointer of blocked task TSK.  */
 #define KSTK_EIP(tsk)					\
   ({							\
-	struct pt_regs *_regs = ia64_task_regs(tsk);	\
+	struct pt_regs *_regs = task_pt_regs(tsk);	\
 	_regs->cr_iip + ia64_psr(_regs)->ri;		\
   })
 

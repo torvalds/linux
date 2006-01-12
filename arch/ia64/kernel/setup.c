@@ -801,7 +801,7 @@ cpu_init (void)
 #endif
 
 	/* Clear the stack memory reserved for pt_regs: */
-	memset(ia64_task_regs(current), 0, sizeof(struct pt_regs));
+	memset(task_pt_regs(current), 0, sizeof(struct pt_regs));
 
 	ia64_set_kr(IA64_KR_FPU_OWNER, 0);
 

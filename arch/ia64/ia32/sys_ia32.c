@@ -1482,7 +1482,7 @@ getreg (struct task_struct *child, int regno)
 {
 	struct pt_regs *child_regs;
 
-	child_regs = ia64_task_regs(child);
+	child_regs = task_pt_regs(child);
 	switch (regno / sizeof(int)) {
 	      case PT_EBX: return child_regs->r11;
 	      case PT_ECX: return child_regs->r9;
@@ -1510,7 +1510,7 @@ putreg (struct task_struct *child, int regno, unsigned int value)
 {
 	struct pt_regs *child_regs;
 
-	child_regs = ia64_task_regs(child);
+	child_regs = task_pt_regs(child);
 	switch (regno / sizeof(int)) {
 	      case PT_EBX: child_regs->r11 = value; break;
 	      case PT_ECX: child_regs->r9 = value; break;
@@ -1626,7 +1626,7 @@ save_ia32_fpstate (struct task_struct *tsk, struct ia32_user_i387_struct __user 
 	 *  Stack frames start with 16-bytes of temp space
 	 */
 	swp = (struct switch_stack *)(tsk->thread.ksp + 16);
-	ptp = ia64_task_regs(tsk);
+	ptp = task_pt_regs(tsk);
 	tos = (tsk->thread.fsr >> 11) & 7;
 	for (i = 0; i < 8; i++)
 		put_fpreg(i, &save->st_space[i], ptp, swp, tos);
@@ -1659,7 +1659,7 @@ restore_ia32_fpstate (struct task_struct *tsk, struct ia32_user_i387_struct __us
 	 *  Stack frames start with 16-bytes of temp space
 	 */
 	swp = (struct switch_stack *)(tsk->thread.ksp + 16);
-	ptp = ia64_task_regs(tsk);
+	ptp = task_pt_regs(tsk);
 	tos = (tsk->thread.fsr >> 11) & 7;
 	for (i = 0; i < 8; i++)
 		get_fpreg(i, &save->st_space[i], ptp, swp, tos);
@@ -1690,7 +1690,7 @@ save_ia32_fpxstate (struct task_struct *tsk, struct ia32_user_fxsr_struct __user
          *  Stack frames start with 16-bytes of temp space
          */
         swp = (struct switch_stack *)(tsk->thread.ksp + 16);
-        ptp = ia64_task_regs(tsk);
+        ptp = task_pt_regs(tsk);
 	tos = (tsk->thread.fsr >> 11) & 7;
         for (i = 0; i < 8; i++)
 		put_fpreg(i, (struct _fpreg_ia32 __user *)&save->st_space[4*i], ptp, swp, tos);
@@ -1734,7 +1734,7 @@ restore_ia32_fpxstate (struct task_struct *tsk, struct ia32_user_fxsr_struct __u
 	 *  Stack frames start with 16-bytes of temp space
 	 */
 	swp = (struct switch_stack *)(tsk->thread.ksp + 16);
-	ptp = ia64_task_regs(tsk);
+	ptp = task_pt_regs(tsk);
 	tos = (tsk->thread.fsr >> 11) & 7;
 	for (i = 0; i < 8; i++)
 	get_fpreg(i, (struct _fpreg_ia32 __user *)&save->st_space[4*i], ptp, swp, tos);
