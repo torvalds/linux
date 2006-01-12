@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/clk.h>
+#include <linux/mutex.h>
 
 #include <asm/semaphore.h>
 #include <asm/hardware/icst307.h>
@@ -22,20 +23,20 @@
 #include "clock.h"
 
 static LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {
 		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
 	}
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return clk;
 }
@@ -110,18 +111,18 @@ static struct clk mmci_clk = {
 
 int clk_register(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->node, &clocks);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
 
