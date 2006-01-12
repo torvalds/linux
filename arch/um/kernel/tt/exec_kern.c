@@ -39,7 +39,7 @@ void flush_thread_tt(void)
 		do_exit(SIGKILL);
 	}
 		
-	new_pid = start_fork_tramp(current->thread_info, stack, 0, exec_tramp);
+	new_pid = start_fork_tramp(task_stack_page(current), stack, 0, exec_tramp);
 	if(new_pid < 0){
 		printk(KERN_ERR 
 		       "flush_thread : new thread failed, errno = %d\n",
