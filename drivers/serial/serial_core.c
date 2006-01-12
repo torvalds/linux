@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/serial.h> /* for serial_state and serial_icounter_struct */
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -47,7 +48,7 @@
 /*
  * This is used to lock changes in serial line configuration.
  */
-static DECLARE_MUTEX(port_sem);
+static DEFINE_MUTEX(port_mutex);
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
@@ -1472,7 +1473,7 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 {
 	struct uart_state *state;
 
-	down(&port_sem);
+	mutex_lock(&port_mutex);
 	state = drv->state + line;
 	if (down_interruptible(&state->sem)) {
 		state = ERR_PTR(-ERESTARTSYS);
@@ -1509,7 +1510,7 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 	}
 
  out:
-	up(&port_sem);
+	mutex_unlock(&port_mutex);
 	return state;
 }
 
@@ -2219,7 +2220,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 
 	state = drv->state + port->line;
 
-	down(&port_sem);
+	mutex_lock(&port_mutex);
 	if (state->port) {
 		ret = -EINVAL;
 		goto out;
@@ -2255,7 +2256,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 		register_console(port->cons);
 
  out:
-	up(&port_sem);
+	mutex_unlock(&port_mutex);
 
 	return ret;
 }
@@ -2279,7 +2280,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 		printk(KERN_ALERT "Removing wrong port: %p != %p\n",
 			state->port, port);
 
-	down(&port_sem);
+	mutex_lock(&port_mutex);
 
 	/*
 	 * Remove the devices from devfs
@@ -2288,7 +2289,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 
 	uart_unconfigure_port(drv, state);
 	state->port = NULL;
-	up(&port_sem);
+	mutex_unlock(&port_mutex);
 
 	return 0;
 }

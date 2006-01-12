@@ -41,6 +41,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/nmi.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -2467,7 +2468,7 @@ static struct platform_device *serial8250_isa_devs;
  * 16x50 serial ports to be configured at run-time, to support PCMCIA
  * modems and PCI multiport cards.
  */
-static DECLARE_MUTEX(serial_sem);
+static DEFINE_MUTEX(serial_mutex);
 
 static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *port)
 {
@@ -2522,7 +2523,7 @@ int serial8250_register_port(struct uart_port *port)
 	if (port->uartclk == 0)
 		return -EINVAL;
 
-	down(&serial_sem);
+	mutex_lock(&serial_mutex);
 
 	uart = serial8250_find_match_or_unused(port);
 	if (uart) {
@@ -2544,7 +2545,7 @@ int serial8250_register_port(struct uart_port *port)
 		if (ret == 0)
 			ret = uart->port.line;
 	}
-	up(&serial_sem);
+	mutex_unlock(&serial_mutex);
 
 	return ret;
 }
@@ -2561,7 +2562,7 @@ void serial8250_unregister_port(int line)
 {
 	struct uart_8250_port *uart = &serial8250_ports[line];
 
-	down(&serial_sem);
+	mutex_lock(&serial_mutex);
 	uart_remove_one_port(&serial8250_reg, &uart->port);
 	if (serial8250_isa_devs) {
 		uart->port.flags &= ~UPF_BOOT_AUTOCONF;
@@ -2571,7 +2572,7 @@ void serial8250_unregister_port(int line)
 	} else {
 		uart->port.dev = NULL;
 	}
-	up(&serial_sem);
+	mutex_unlock(&serial_mutex);
 }
 EXPORT_SYMBOL(serial8250_unregister_port);
 
