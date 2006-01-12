@@ -296,7 +296,7 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	case PTRACE_GETREGS: {
 		struct pt_regs32 __user *pregs =
 			(struct pt_regs32 __user *) addr;
-		struct pt_regs *cregs = child->thread_info->kregs;
+		struct pt_regs *cregs = task_pt_regs(child);
 		int rval;
 
 		if (__put_user(tstate_to_psr(cregs->tstate), (&pregs->psr)) ||
@@ -320,7 +320,7 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 
 	case PTRACE_GETREGS64: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-		struct pt_regs *cregs = child->thread_info->kregs;
+		struct pt_regs *cregs = task_pt_regs(child);
 		unsigned long tpc = cregs->tpc;
 		int rval;
 
@@ -348,7 +348,7 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	case PTRACE_SETREGS: {
 		struct pt_regs32 __user *pregs =
 			(struct pt_regs32 __user *) addr;
-		struct pt_regs *cregs = child->thread_info->kregs;
+		struct pt_regs *cregs = task_pt_regs(child);
 		unsigned int psr, pc, npc, y;
 		int i;
 
@@ -381,7 +381,7 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 
 	case PTRACE_SETREGS64: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-		struct pt_regs *cregs = child->thread_info->kregs;
+		struct pt_regs *cregs = task_pt_regs(child);
 		unsigned long tstate, tpc, tnpc, y;
 		int i;
 
@@ -562,8 +562,8 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 #ifdef DEBUG_PTRACE
 		printk("CONT: %s [%d]: set exit_code = %x %lx %lx\n", child->comm,
 			child->pid, child->exit_code,
-			child->thread_info->kregs->tpc,
-			child->thread_info->kregs->tnpc);
+			task_pt_regs(child)->tpc,
+			task_pt_regs(child)->tnpc);
 		       
 #endif
 		wake_up_process(child);
