@@ -609,18 +609,19 @@ void __init macfb_setup(char *options)
 	}
 }
 
-void __init macfb_init(void)
+static int __init macfb_init(void)
 {
 	int video_cmap_len, video_is_nubus = 0;
 	struct nubus_dev* ndev = NULL;
 	char *option = NULL;
+	int err;
 
 	if (fb_get_options("macfb", &option))
 		return -ENODEV;
 	macfb_setup(option);
 
 	if (!MACH_IS_MAC) 
-		return;
+		return -ENODEV;
 
 	/* There can only be one internal video controller anyway so
 	   we're not too worried about this */
@@ -958,11 +959,11 @@ void __init macfb_init(void)
 
 	fb_alloc_cmap(&fb_info.cmap, video_cmap_len, 0);
 	
-	if (register_framebuffer(&fb_info) < 0)
-		return;
-
-	printk("fb%d: %s frame buffer device\n",
-	       fb_info.node, fb_info.fix.id);
+	err = register_framebuffer(&fb_info);
+	if (!err)
+		printk("fb%d: %s frame buffer device\n",
+		       fb_info.node, fb_info.fix.id);
+	return err;
 }
 
 module_init(macfb_init);

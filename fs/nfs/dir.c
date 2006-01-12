@@ -194,7 +194,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 	spin_unlock(&inode->i_lock);
 	/* Ensure consistent page alignment of the data.
 	 * Note: assumes we have exclusive access to this mapping either
-	 *	 through inode->i_sem or some other mechanism.
+	 *	 through inode->i_mutex or some other mechanism.
 	 */
 	if (page->index == 0)
 		invalidate_inode_pages2_range(inode->i_mapping, PAGE_CACHE_SIZE, -1);
@@ -573,7 +573,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 {
-	down(&filp->f_dentry->d_inode->i_sem);
+	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += filp->f_pos;
@@ -589,7 +589,7 @@ loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 		((struct nfs_open_context *)filp->private_data)->dir_cookie = 0;
 	}
 out:
-	up(&filp->f_dentry->d_inode->i_sem);
+	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -1001,7 +1001,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	openflags &= ~(O_CREAT|O_TRUNC);
 
 	/*
-	 * Note: we're not holding inode->i_sem and so may be racing with
+	 * Note: we're not holding inode->i_mutex and so may be racing with
 	 * operations that change the directory. We therefore save the
 	 * change attribute *before* we do the RPC call.
 	 */
@@ -1051,7 +1051,7 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		return dentry;
 	if (!desc->plus || !(entry->fattr->valid & NFS_ATTR_FATTR))
 		return NULL;
-	/* Note: caller is already holding the dir->i_sem! */
+	/* Note: caller is already holding the dir->i_mutex! */
 	dentry = d_alloc(parent, &name);
 	if (dentry == NULL)
 		return NULL;
@@ -1550,8 +1550,10 @@ go_ahead:
 	}
 	nfs_inode_return_delegation(old_inode);
 
-	if (new_inode)
+	if (new_inode != NULL) {
+		nfs_inode_return_delegation(new_inode);
 		d_delete(new_dentry);
+	}
 
 	nfs_begin_data_update(old_dir);
 	nfs_begin_data_update(new_dir);

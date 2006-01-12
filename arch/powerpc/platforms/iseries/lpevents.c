@@ -53,7 +53,7 @@ static struct HvLpEvent * get_next_hvlpevent(void)
 	struct HvLpEvent * event;
 	event = (struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
 
-	if (event->xFlags.xValid) {
+	if (hvlpevent_is_valid(event)) {
 		/* rmb() needed only for weakly consistent machines (regatta) */
 		rmb();
 		/* Set pointer to next potential event */
@@ -84,7 +84,7 @@ int hvlpevent_is_pending(void)
 
 	next_event = (struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
 
-	return next_event->xFlags.xValid |
+	return hvlpevent_is_valid(next_event) ||
 		hvlpevent_queue.xPlicOverflowIntPending;
 }
 
@@ -101,18 +101,18 @@ static void hvlpevent_clear_valid(struct HvLpEvent * event)
 	switch (extra) {
 	case 3:
 		tmp = (struct HvLpEvent*)((char*)event + 3 * LpEventAlign);
-		tmp->xFlags.xValid = 0;
+		hvlpevent_invalidate(tmp);
 	case 2:
 		tmp = (struct HvLpEvent*)((char*)event + 2 * LpEventAlign);
-		tmp->xFlags.xValid = 0;
+		hvlpevent_invalidate(tmp);
 	case 1:
 		tmp = (struct HvLpEvent*)((char*)event + 1 * LpEventAlign);
-		tmp->xFlags.xValid = 0;
+		hvlpevent_invalidate(tmp);
 	}
 
 	mb();
 
-	event->xFlags.xValid = 0;
+	hvlpevent_invalidate(event);
 }
 
 void process_hvlpevents(struct pt_regs *regs)

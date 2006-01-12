@@ -52,9 +52,6 @@ int atari_rtc_year_offset;
 
 /* local function prototypes */
 static void atari_reset( void );
-#ifdef CONFIG_ATARI_FLOPPY
-extern void atari_floppy_setup(char *, int *);
-#endif
 static void atari_get_model(char *model);
 static int atari_get_hardware_list(char *buffer);
 
@@ -244,12 +241,6 @@ void __init config_atari(void)
     mach_get_irq_list	 = show_atari_interrupts;
     mach_gettimeoffset   = atari_gettimeoffset;
     mach_reset           = atari_reset;
-#ifdef CONFIG_ATARI_FLOPPY
-    mach_floppy_setup	 = atari_floppy_setup;
-#endif
-#ifdef CONFIG_DUMMY_CONSOLE
-    conswitchp	         = &dummy_con;
-#endif
     mach_max_dma_address = 0xffffff;
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
     mach_beep          = atari_mksound;

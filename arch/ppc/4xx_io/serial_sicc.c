@@ -47,6 +47,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/capability.h>
 #include <linux/circ_buf.h>
 #include <linux/serial.h>
 #include <linux/console.h>

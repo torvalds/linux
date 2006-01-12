@@ -39,7 +39,7 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_poll_h_sccs = "@(#)poll.h	1.2" ;
+static char *_rio_poll_h_sccs = "@(#)poll.h	1.2";
 #endif
 #endif
 
@@ -54,23 +54,20 @@ static char *_rio_poll_h_sccs = "@(#)poll.h	1.2" ;
 #define POLL_PERIOD           (int) SECOND
 
 /* The various poll commands */
-#define POLL_POLL             0            /* We are connected and happy.. */
-#define POLL_INTRO            1            /* Introduction packet */
-#define POLL_TOPOLOGY         2            /* Topology update */
-#define POLL_ASSIGN           3            /* ID assign */
-#define POLL_FOAD             4            /* F*** Off And Die */
-#define POLL_LMD	      5		   /* Let Me Die */
-#define POLL_DYB	      6		   /* Die You Ba***** */
+#define POLL_POLL             0	/* We are connected and happy.. */
+#define POLL_INTRO            1	/* Introduction packet */
+#define POLL_TOPOLOGY         2	/* Topology update */
+#define POLL_ASSIGN           3	/* ID assign */
+#define POLL_FOAD             4	/* F*** Off And Die */
+#define POLL_LMD	      5	/* Let Me Die */
+#define POLL_DYB	      6	/* Die You Ba***** */
 
 /* The way data fields are split up for POLL packets */
-#define POLL_HOST_SERIAL      2            /* Host who booted me */
-#define POLL_MY_SERIAL        6            /* My serial number */
-#define POLL_YOUR_ID          1            /* Your ID number */
-#define POLL_TOPOLOGY_FIELDS  2            /* Topology maps */
+#define POLL_HOST_SERIAL      2	/* Host who booted me */
+#define POLL_MY_SERIAL        6	/* My serial number */
+#define POLL_YOUR_ID          1	/* Your ID number */
+#define POLL_TOPOLOGY_FIELDS  2	/* Topology maps */
 
 #endif
 
 /*********** end of file ***********/
-
-
-

@@ -92,10 +92,10 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		old_fops = file->f_op;
 		file->f_op = fops_get(dvbdev->fops);
 		if(file->f_op->open)
-		        err = file->f_op->open(inode,file);
+			err = file->f_op->open(inode,file);
 		if (err) {
-		        fops_put(file->f_op);
-		        file->f_op = fops_get(old_fops);
+			fops_put(file->f_op);
+			file->f_op = fops_get(old_fops);
 		}
 		fops_put(old_fops);
 		return err;
@@ -356,18 +356,18 @@ int dvb_usercopy(struct inode *inode, struct file *file,
 	case _IOC_WRITE:
 	case (_IOC_WRITE | _IOC_READ):
 		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
-		        parg = sbuf;
+			parg = sbuf;
 		} else {
-		        /* too big to allocate from stack */
-		        mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
-		        if (NULL == mbuf)
-		                return -ENOMEM;
-		        parg = mbuf;
+			/* too big to allocate from stack */
+			mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
+			if (NULL == mbuf)
+				return -ENOMEM;
+			parg = mbuf;
 		}
 
 		err = -EFAULT;
 		if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
-		        goto out;
+			goto out;
 		break;
 	}
 
@@ -384,7 +384,7 @@ int dvb_usercopy(struct inode *inode, struct file *file,
 	case _IOC_READ:
 	case (_IOC_WRITE | _IOC_READ):
 		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
-		        err = -EFAULT;
+			err = -EFAULT;
 		break;
 	}
 

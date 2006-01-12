@@ -40,6 +40,16 @@ Selecting Modes
 	None of the modes possible to select as startup modes are affected by
 	the problems described at the end of the next subsection.
 
+	For all startup modes cyblafb chooses a virtual x resolution of 2048,
+	the only exception is mode 1280x1024 in combination with 32 bpp. This
+	allows ywrap scrolling for all those modes if rotation is 0 or 2, and
+	also fast scrolling if rotation is 1 or 3. The default virtual y reso-
+	lution is 4096 for bpp == 8, 2048 for bpp==16 and 1024 for bpp == 32,
+	again with the only exception of 1280x1024 at 32 bpp.
+
+	Please do set your video memory size to 8 Mb in the Bios setup. Other
+	values will work, but performace is decreased for a lot of modes.
+
 	Mode changes using fbset
 	========================
 
@@ -54,20 +64,26 @@ Selecting Modes
 		- if a flat panel is found, cyblafb does not allow you
 		  to program a resolution higher than the physical
 		  resolution of the flat panel monitor
-		- cyblafb does not allow xres to differ from xres_virtual
 		- cyblafb does not allow vclk to exceed 230 MHz. As 32 bpp
 		  and (currently) 24 bit modes use a doubled vclk internally,
 		  the dotclock limit as seen by fbset is 115 MHz for those
 		  modes and 230 MHz for 8 and 16 bpp modes.
+		- cyblafb will allow you to select very high resolutions as
+		  long as the hardware can be programmed to these modes. The
+		  documented limit 1600x1200 is not enforced, but don't expect
+		  perfect signal quality.
 
-	Any request that violates the rules given above will be ignored and
-	fbset will return an error.
+	Any request that violates the rules given above will be either changed
+	to something the hardware supports or an error value will be returned.
 
 	If you program a virtual y resolution higher than the hardware limit,
 	cyblafb will silently decrease that value to the highest possible
-	value.
+	value. The same is true for a virtual x resolution that is not
+	supported by the hardware. Cyblafb tries to adapt vyres first because
+	vxres decides if ywrap scrolling is possible or not.
 
-	Attempts to disable acceleration are ignored.
+	Attempts to disable acceleration are ignored, I believe that this is
+	safe.
 
 	Some video modes that should work do not work as expected. If you use
 	the standard fb.modes, fbset 640x480-60 will program that mode, but
@@ -128,10 +144,6 @@ mode		640x480 or 800x600 or 1024x768 or 1280x1024
 
 verbosity	0 is the default, increase to at least 2 for every
 		bug report!
-
-vesafb		allows cyblafb to be loaded after vesafb has been
-		loaded. See sections "Module unloading ...".
-
 
 Development hints
 =================
@@ -195,7 +207,7 @@ a graphics mode.
 After booting, load cyblafb without any mode and bpp parameter and assign
 cyblafb to individual ttys using con2fb, e.g.:
 
-	modprobe cyblafb vesafb=1
+	modprobe cyblafb
 	con2fb /dev/fb1 /dev/tty1
 
 Unloading cyblafb works without problems after you assign vesafb to all
@@ -203,4 +215,3 @@ ttys again, e.g.:
 
 	con2fb /dev/fb0 /dev/tty1
 	rmmod cyblafb
-

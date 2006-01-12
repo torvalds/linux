@@ -17,6 +17,8 @@
 #include <linux/ctype.h>
 #include <linux/sched.h>	/* current */
 
+#include "capifs.h"
+
 MODULE_DESCRIPTION("CAPI4Linux: /dev/capi/ filesystem");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
@@ -136,7 +138,7 @@ static struct dentry *get_node(int num)
 {
 	char s[10];
 	struct dentry *root = capifs_root;
-	down(&root->d_inode->i_sem);
+	mutex_lock(&root->d_inode->i_mutex);
 	return lookup_one_len(s, root, sprintf(s, "%d", num));
 }
 
@@ -157,7 +159,7 @@ void capifs_new_ncci(unsigned int number, dev_t device)
 	dentry = get_node(number);
 	if (!IS_ERR(dentry) && !dentry->d_inode)
 		d_instantiate(dentry, inode);
-	up(&capifs_root->d_inode->i_sem);
+	mutex_unlock(&capifs_root->d_inode->i_mutex);
 }
 
 void capifs_free_ncci(unsigned int number)
@@ -173,7 +175,7 @@ void capifs_free_ncci(unsigned int number)
 		}
 		dput(dentry);
 	}
-	up(&capifs_root->d_inode->i_sem);
+	mutex_unlock(&capifs_root->d_inode->i_mutex);
 }
 
 static int __init capifs_init(void)

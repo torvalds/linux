@@ -34,6 +34,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/iseries/hv_call_xm.h>
 
+#include "iommu.h"
+
 extern struct list_head iSeries_Global_Device_List;
 
 

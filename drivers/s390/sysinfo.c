@@ -106,7 +106,7 @@ static inline int stsi (void *sysinfo,
 {
 	int cc, retv;
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	__asm__ __volatile__ (	"lr\t0,%2\n"
 				"\tlr\t1,%3\n"
 				"\tstsi\t0(%4)\n"

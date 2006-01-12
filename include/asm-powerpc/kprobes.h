@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
+#ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
  *
@@ -29,7 +30,10 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 
+#define  __ARCH_WANT_KPROBES_INSN_SLOT
+
 struct pt_regs;
+struct kprobe;
 
 typedef unsigned int kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0x7fe00008	/* trap */
@@ -47,6 +51,7 @@ typedef unsigned int kprobe_opcode_t;
 
 #define ARCH_SUPPORTS_KRETPROBES
 void kretprobe_trampoline(void);
+extern void arch_remove_kprobe(struct kprobe *p);
 
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
@@ -68,14 +73,7 @@ struct kprobe_ctlblk {
 	struct prev_kprobe prev_kprobe;
 };
 
-#ifdef CONFIG_KPROBES
 extern int kprobe_exceptions_notify(struct notifier_block *self,
-				    unsigned long val, void *data);
-#else				/* !CONFIG_KPROBES */
-static inline int kprobe_exceptions_notify(struct notifier_block *self,
-					   unsigned long val, void *data)
-{
-	return 0;
-}
-#endif
+					unsigned long val, void *data);
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KPROBES_H */

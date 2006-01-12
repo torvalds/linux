@@ -282,7 +282,7 @@ static inline void start_hz_timer(void)
 {
 	if (!cpu_isset(smp_processor_id(), nohz_cpu_mask))
 		return;
-	account_ticks(__KSTK_PTREGS(current));
+	account_ticks(task_pt_regs(current));
 	cpu_clear(smp_processor_id(), nohz_cpu_mask);
 }
 

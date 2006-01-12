@@ -156,16 +156,22 @@ void fastcall lru_cache_add_active(struct page *page)
 	put_cpu_var(lru_add_active_pvecs);
 }
 
-void lru_add_drain(void)
+static void __lru_add_drain(int cpu)
 {
-	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs);
+	struct pagevec *pvec = &per_cpu(lru_add_pvecs, cpu);
 
+	/* CPU is dead, so no locking needed. */
 	if (pagevec_count(pvec))
 		__pagevec_lru_add(pvec);
-	pvec = &__get_cpu_var(lru_add_active_pvecs);
+	pvec = &per_cpu(lru_add_active_pvecs, cpu);
 	if (pagevec_count(pvec))
 		__pagevec_lru_add_active(pvec);
-	put_cpu_var(lru_add_pvecs);
+}
+
+void lru_add_drain(void)
+{
+	__lru_add_drain(get_cpu());
+	put_cpu();
 }
 
 /*
@@ -378,6 +384,8 @@ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
 	return pagevec_count(pvec);
 }
 
+EXPORT_SYMBOL(pagevec_lookup);
+
 unsigned pagevec_lookup_tag(struct pagevec *pvec, struct address_space *mapping,
 		pgoff_t *index, int tag, unsigned nr_pages)
 {
@@ -412,17 +420,6 @@ void vm_acct_memory(long pages)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void lru_drain_cache(unsigned int cpu)
-{
-	struct pagevec *pvec = &per_cpu(lru_add_pvecs, cpu);
-
-	/* CPU is dead, so no locking needed. */
-	if (pagevec_count(pvec))
-		__pagevec_lru_add(pvec);
-	pvec = &per_cpu(lru_add_active_pvecs, cpu);
-	if (pagevec_count(pvec))
-		__pagevec_lru_add_active(pvec);
-}
 
 /* Drop the CPU's cached committed space back into the central pool. */
 static int cpu_swap_callback(struct notifier_block *nfb,
@@ -435,7 +432,7 @@ static int cpu_swap_callback(struct notifier_block *nfb,
 	if (action == CPU_DEAD) {
 		atomic_add(*committed, &vm_committed_space);
 		*committed = 0;
-		lru_drain_cache((long)hcpu);
+		__lru_add_drain((long)hcpu);
 	}
 	return NOTIFY_OK;
 }

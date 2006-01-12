@@ -1079,6 +1079,19 @@ static void redo_acsi_request( void )
  *
  ***********************************************************************/
 
+static int acsi_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct acsi_info_struct *aip = bdev->bd_disk->private_data;
+
+	/*
+	 * Just fake some geometry here, it's nonsense anyway
+	 * To make it easy, use Adaptec's usual 64/32 mapping
+	 */
+	geo->heads = 64;
+	geo->sectors = 32;
+	geo->cylinders = aip->size >> 11;
+	return 0;
+}
 
 static int acsi_ioctl( struct inode *inode, struct file *file,
 					   unsigned int cmd, unsigned long arg )
@@ -1086,18 +1099,6 @@ static int acsi_ioctl( struct inode *inode, struct file *file,
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct acsi_info_struct *aip = disk->private_data;
 	switch (cmd) {
-	  case HDIO_GETGEO:
-		/* HDIO_GETGEO is supported more for getting the partition's
-		 * start sector... */
-	  { struct hd_geometry *geo = (struct hd_geometry *)arg;
-	    /* just fake some geometry here, it's nonsense anyway; to make it
-		 * easy, use Adaptec's usual 64/32 mapping */
-	    put_user( 64, &geo->heads );
-	    put_user( 32, &geo->sectors );
-	    put_user( aip->size >> 11, &geo->cylinders );
-		put_user(get_start_sect(inode->i_bdev), &geo->start);
-		return 0;
-	  }
 	  case SCSI_IOCTL_GET_IDLUN:
 		/* SCSI compatible GET_IDLUN call to get target's ID and LUN number */
 		put_user( aip->target | (aip->lun << 8),
@@ -1592,6 +1593,7 @@ static struct block_device_operations acsi_fops = {
 	.open		= acsi_open,
 	.release	= acsi_release,
 	.ioctl		= acsi_ioctl,
+	.getgeo		= acsi_getgeo,
 	.media_changed	= acsi_media_change,
 	.revalidate_disk= acsi_revalidate,
 };

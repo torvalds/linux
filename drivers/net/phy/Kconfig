@@ -6,7 +6,7 @@ menu "PHY device support"
 
 config PHYLIB
 	tristate "PHY Device support and infrastructure"
-	depends on NET_ETHERNET && (BROKEN || !ARCH_S390)
+	depends on NET_ETHERNET && (BROKEN || !S390)
 	help
 	  Ethernet controllers are usually attached to PHY
 	  devices.  This option provides infrastructure for

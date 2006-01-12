@@ -22,6 +22,8 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/moduleparam.h>
@@ -64,15 +66,15 @@ MODULE_PARM_DESC(dma1, "DMA1 # for CS4231 driver.");
 module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for CS4231 driver.");
 
-static snd_card_t *snd_cs4231_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct platform_device *devices[SNDRV_CARDS];
 
 
-static int __init snd_card_cs4231_probe(int dev)
+static int __init snd_cs4231_probe(struct platform_device *pdev)
 {
-	snd_card_t *card;
-	struct snd_card_cs4231 *acard;
-	snd_pcm_t *pcm = NULL;
-	cs4231_t *chip;
+	int dev = pdev->id;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_cs4231 *chip;
 	int err;
 
 	if (port[dev] == SNDRV_AUTO_PORT) {
@@ -90,7 +92,6 @@ static int __init snd_card_cs4231_probe(int dev)
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
-	acard = (struct snd_card_cs4231 *)card->private_data;
 	if ((err = snd_cs4231_create(card, port[dev], -1,
 				     irq[dev],
 				     dma1[dev],
@@ -98,6 +99,7 @@ static int __init snd_card_cs4231_probe(int dev)
 				     CS4231_HW_DETECT,
 				     0, &chip)) < 0)
 		goto _err;
+	card->private_data = chip;
 
 	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0)
 		goto _err;
@@ -125,12 +127,12 @@ static int __init snd_card_cs4231_probe(int dev)
 			printk(KERN_WARNING "cs4231: MPU401 not detected\n");
 	}
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &pdev->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
-	snd_cs4231_cards[dev] = card;
+
+	platform_set_drvdata(pdev, card);
 	return 0;
 
  _err:
@@ -138,29 +140,97 @@ static int __init snd_card_cs4231_probe(int dev)
 	return err;
 }
 
+static int __devexit snd_cs4231_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int snd_cs4231_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct snd_card *card;
+	struct snd_cs4231 *chip;
+	card = platform_get_drvdata(dev);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	chip = card->private_data;
+	chip->suspend(chip);
+	return 0;
+}
+
+static int snd_cs4231_resume(struct platform_device *dev)
+{
+	struct snd_card *card;
+	struct snd_cs4231 *chip;
+	card = platform_get_drvdata(dev);
+	chip = card->private_data;
+	chip->resume(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+#define SND_CS4231_DRIVER	"snd_cs4231"
+
+static struct platform_driver snd_cs4231_driver = {
+	.probe		= snd_cs4231_probe,
+	.remove		= __devexit_p(snd_cs4231_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_cs4231_suspend,
+	.resume		= snd_cs4231_resume,
+#endif
+	.driver		= {
+		.name	= SND_CS4231_DRIVER
+	},
+};
+
+static void __init_or_module snd_cs4231_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_cs4231_driver);
+}
+
 static int __init alsa_card_cs4231_init(void)
 {
-	int dev, cards;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
-		if (snd_card_cs4231_probe(dev) >= 0)
-			cards++;
+	err = platform_driver_register(&snd_cs4231_driver);
+	if (err < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(SND_CS4231_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "CS4231 soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_cs4231_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_cs4231_exit(void)
 {
-	int idx;
-
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_cs4231_cards[idx]);
+	snd_cs4231_unregister_all();
 }
 
 module_init(alsa_card_cs4231_init)

@@ -22,6 +22,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
+#include <linux/firmware.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -29,6 +30,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 
+#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
 #if defined(CONFIG_SCSI_QLA21XX) || defined(CONFIG_SCSI_QLA21XX_MODULE)
 #define IS_QLA2100(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2100)
 #else
@@ -79,9 +81,23 @@
 #define IS_QLA2522(ha)	0
 #endif
 
+#else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
+
+#define IS_QLA2100(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2100)
+#define IS_QLA2200(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2200)
+#define IS_QLA2300(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2300)
+#define IS_QLA2312(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2312)
+#define IS_QLA2322(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2322)
+#define IS_QLA6312(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP6312)
+#define IS_QLA6322(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP6322)
+#define IS_QLA2422(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422)
+#define IS_QLA2432(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432)
+#define IS_QLA2512(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2512)
+#define IS_QLA2522(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2522)
+#endif
+
 #define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
     			 IS_QLA6312(ha) || IS_QLA6322(ha))
-
 #define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
 #define IS_QLA25XX(ha)	(IS_QLA2512(ha) || IS_QLA2522(ha))
 
@@ -2122,6 +2138,12 @@ struct qla_board_info {
 	struct qla_fw_info *fw_info;
 	char *fw_fname;
 	struct scsi_host_template *sht;
+};
+
+struct fw_blob {
+	char *name;
+	uint32_t segs[4];
+	const struct firmware *fw;
 };
 
 /* Return data from MBC_GET_ID_LIST call. */

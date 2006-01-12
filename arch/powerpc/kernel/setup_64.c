@@ -33,7 +33,9 @@
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/bootmem.h>
 #include <asm/io.h>
+#include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -67,33 +69,6 @@
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
-#endif
-
-/*
- * Here are some early debugging facilities. You can enable one
- * but your kernel will not boot on anything else if you do so
- */
-
-/* This one is for use on LPAR machines that support an HVC console
- * on vterm 0
- */
-extern void udbg_init_debug_lpar(void);
-/* This one is for use on Apple G5 machines
- */
-extern void udbg_init_pmac_realmode(void);
-/* That's RTAS panel debug */
-extern void call_rtas_display_status_delay(unsigned char c);
-/* Here's maple real mode debug */
-extern void udbg_init_maple_realmode(void);
-
-#define EARLY_DEBUG_INIT() do {} while(0)
-
-#if 0
-#define EARLY_DEBUG_INIT() udbg_init_debug_lpar()
-#define EARLY_DEBUG_INIT() udbg_init_maple_realmode()
-#define EARLY_DEBUG_INIT() udbg_init_pmac_realmode()
-#define EARLY_DEBUG_INIT()						\
-	do { udbg_putc = call_rtas_display_status_delay; } while(0)
 #endif
 
 int have_of = 1;
@@ -236,11 +211,8 @@ void __init early_setup(unsigned long dt_ptr)
 	struct paca_struct *lpaca = get_paca();
 	static struct machdep_calls **mach;
 
-	/*
-	 * Enable early debugging if any specified (see top of
-	 * this file)
-	 */
-	EARLY_DEBUG_INIT();
+	/* Enable early debugging if any specified (see udbg.h) */
+	udbg_early_init();
 
 	DBG(" -> early_setup()\n");
 
@@ -267,6 +239,10 @@ void __init early_setup(unsigned long dt_ptr)
 		for (;;);
 	}
 	ppc_md = **mach;
+
+#ifdef CONFIG_CRASH_DUMP
+	kdump_setup();
+#endif
 
 	DBG("Found, Initializing memory management...\n");
 
@@ -317,6 +293,7 @@ void early_setup_secondary(void)
 void smp_release_cpus(void)
 {
 	extern unsigned long __secondary_hold_spinloop;
+	unsigned long *ptr;
 
 	DBG(" -> smp_release_cpus()\n");
 
@@ -327,7 +304,9 @@ void smp_release_cpus(void)
 	 * This is useless but harmless on iSeries, secondaries are already
 	 * waiting on their paca spinloops. */
 
-	__secondary_hold_spinloop = 1;
+	ptr  = (unsigned long *)((unsigned long)&__secondary_hold_spinloop
+			- PHYSICAL_START);
+	*ptr = 1;
 	mb();
 
 	DBG(" <- smp_release_cpus()\n");
@@ -430,7 +409,7 @@ void __init setup_system(void)
 
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations
-	 * retreived from the device-tree. Need to be called before
+	 * retrieved from the device-tree. Need to be called before
 	 * finish_device_tree() since the later requires some of the
 	 * informations filled up here to properly parse the interrupt
 	 * tree.
@@ -459,15 +438,18 @@ void __init setup_system(void)
 	 */
 	ppc_md.init_early();
 
+ 	/*
+	 * We can discover serial ports now since the above did setup the
+	 * hash table management for us, thus ioremap works. We do that early
+	 * so that further code can be debugged
+	 */
+	find_legacy_serial_ports();
+
 	/*
 	 * "Finish" the device-tree, that is do the actual parsing of
 	 * some of the properties like the interrupt map
 	 */
 	finish_device_tree();
-
-#ifdef CONFIG_BOOTX_TEXT
-	init_boot_display();
-#endif
 
 	/*
 	 * Initialize xmon
@@ -507,6 +489,9 @@ void __init setup_system(void)
 	       ppc64_caches.iline_size);
 	printk("htab_address                  = 0x%p\n", htab_address);
 	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
+#if PHYSICAL_START > 0
+	printk("physical_start                = 0x%x\n", PHYSICAL_START);
+#endif
 	printk("-----------------------------------------------------\n");
 
 	mm_init_ppc64();
@@ -657,187 +642,6 @@ void ppc64_terminate_msg(unsigned int src, const char *msg)
 	printk("[terminate]%04x %s\n", src, msg);
 }
 
-#ifndef CONFIG_PPC_ISERIES
-/*
- * This function can be used by platforms to "find" legacy serial ports.
- * It works for "serial" nodes under an "isa" node, and will try to
- * respect the "ibm,aix-loc" property if any. It works with up to 8
- * ports.
- */
-
-#define MAX_LEGACY_SERIAL_PORTS	8
-static struct plat_serial8250_port serial_ports[MAX_LEGACY_SERIAL_PORTS+1];
-static unsigned int old_serial_count;
-
-void __init generic_find_legacy_serial_ports(u64 *physport,
-		unsigned int *default_speed)
-{
-	struct device_node *np;
-	u32 *sizeprop;
-
-	struct isa_reg_property {
-		u32 space;
-		u32 address;
-		u32 size;
-	};
-	struct pci_reg_property {
-		struct pci_address addr;
-		u32 size_hi;
-		u32 size_lo;
-	};                                                                        
-
-	DBG(" -> generic_find_legacy_serial_port()\n");
-
-	*physport = 0;
-	if (default_speed)
-		*default_speed = 0;
-
-	np = of_find_node_by_path("/");
-	if (!np)
-		return;
-
-	/* First fill our array */
-	for (np = NULL; (np = of_find_node_by_type(np, "serial"));) {
-		struct device_node *isa, *pci;
-		struct isa_reg_property *reg;
-		unsigned long phys_size, addr_size, io_base;
-		u32 *rangesp;
-		u32 *interrupts, *clk, *spd;
-		char *typep;
-		int index, rlen, rentsize;
-
-		/* Ok, first check if it's under an "isa" parent */
-		isa = of_get_parent(np);
-		if (!isa || strcmp(isa->name, "isa")) {
-			DBG("%s: no isa parent found\n", np->full_name);
-			continue;
-		}
-		
-		/* Now look for an "ibm,aix-loc" property that gives us ordering
-		 * if any...
-		 */
-	 	typep = (char *)get_property(np, "ibm,aix-loc", NULL);
-
-		/* Get the ISA port number */
-		reg = (struct isa_reg_property *)get_property(np, "reg", NULL);	
-		if (reg == NULL)
-			goto next_port;
-		/* We assume the interrupt number isn't translated ... */
-		interrupts = (u32 *)get_property(np, "interrupts", NULL);
-		/* get clock freq. if present */
-		clk = (u32 *)get_property(np, "clock-frequency", NULL);
-		/* get default speed if present */
-		spd = (u32 *)get_property(np, "current-speed", NULL);
-		/* Default to locate at end of array */
-		index = old_serial_count; /* end of the array by default */
-
-		/* If we have a location index, then use it */
-		if (typep && *typep == 'S') {
-			index = simple_strtol(typep+1, NULL, 0) - 1;
-			/* if index is out of range, use end of array instead */
-			if (index >= MAX_LEGACY_SERIAL_PORTS)
-				index = old_serial_count;
-			/* if our index is still out of range, that mean that
-			 * array is full, we could scan for a free slot but that
-			 * make little sense to bother, just skip the port
-			 */
-			if (index >= MAX_LEGACY_SERIAL_PORTS)
-				goto next_port;
-			if (index >= old_serial_count)
-				old_serial_count = index + 1;
-			/* Check if there is a port who already claimed our slot */
-			if (serial_ports[index].iobase != 0) {
-				/* if we still have some room, move it, else override */
-				if (old_serial_count < MAX_LEGACY_SERIAL_PORTS) {
-					DBG("Moved legacy port %d -> %d\n", index,
-					    old_serial_count);
-					serial_ports[old_serial_count++] =
-						serial_ports[index];
-				} else {
-					DBG("Replacing legacy port %d\n", index);
-				}
-			}
-		}
-		if (index >= MAX_LEGACY_SERIAL_PORTS)
-			goto next_port;
-		if (index >= old_serial_count)
-			old_serial_count = index + 1;
-
-		/* Now fill the entry */
-		memset(&serial_ports[index], 0, sizeof(struct plat_serial8250_port));
-		serial_ports[index].uartclk = clk ? *clk : BASE_BAUD * 16;
-		serial_ports[index].iobase = reg->address;
-		serial_ports[index].irq = interrupts ? interrupts[0] : 0;
-		serial_ports[index].flags = ASYNC_BOOT_AUTOCONF;
-
-		DBG("Added legacy port, index: %d, port: %x, irq: %d, clk: %d\n",
-		    index,
-		    serial_ports[index].iobase,
-		    serial_ports[index].irq,
-		    serial_ports[index].uartclk);
-
-		/* Get phys address of IO reg for port 1 */
-		if (index != 0)
-			goto next_port;
-
-		pci = of_get_parent(isa);
-		if (!pci) {
-			DBG("%s: no pci parent found\n", np->full_name);
-			goto next_port;
-		}
-
-		rangesp = (u32 *)get_property(pci, "ranges", &rlen);
-		if (rangesp == NULL) {
-			of_node_put(pci);
-			goto next_port;
-		}
-		rlen /= 4;
-
-		/* we need the #size-cells of the PCI bridge node itself */
-		phys_size = 1;
-		sizeprop = (u32 *)get_property(pci, "#size-cells", NULL);
-		if (sizeprop != NULL)
-			phys_size = *sizeprop;
-		/* we need the parent #addr-cells */
-		addr_size = prom_n_addr_cells(pci);
-		rentsize = 3 + addr_size + phys_size;
-		io_base = 0;
-		for (;rlen >= rentsize; rlen -= rentsize,rangesp += rentsize) {
-			if (((rangesp[0] >> 24) & 0x3) != 1)
-				continue; /* not IO space */
-			io_base = rangesp[3];
-			if (addr_size == 2)
-				io_base = (io_base << 32) | rangesp[4];
-		}
-		if (io_base != 0) {
-			*physport = io_base + reg->address;
-			if (default_speed && spd)
-				*default_speed = *spd;
-		}
-		of_node_put(pci);
-	next_port:
-		of_node_put(isa);
-	}
-
-	DBG(" <- generic_find_legacy_serial_port()\n");
-}
-
-static struct platform_device serial_device = {
-	.name	= "serial8250",
-	.id	= PLAT8250_DEV_PLATFORM,
-	.dev	= {
-		.platform_data = serial_ports,
-	},
-};
-
-static int __init serial_dev_init(void)
-{
-	return platform_device_register(&serial_device);
-}
-arch_initcall(serial_dev_init);
-
-#endif /* CONFIG_PPC_ISERIES */
-
 int check_legacy_ioport(unsigned long base_port)
 {
 	if (ppc_md.check_legacy_ioport == NULL)
@@ -851,3 +655,28 @@ void cpu_die(void)
 	if (ppc_md.cpu_die)
 		ppc_md.cpu_die();
 }
+
+#ifdef CONFIG_SMP
+void __init setup_per_cpu_areas(void)
+{
+	int i;
+	unsigned long size;
+	char *ptr;
+
+	/* Copy section for each CPU (we discard the original) */
+	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
+#ifdef CONFIG_MODULES
+	if (size < PERCPU_ENOUGH_ROOM)
+		size = PERCPU_ENOUGH_ROOM;
+#endif
+
+	for_each_cpu(i) {
+		ptr = alloc_bootmem_node(NODE_DATA(cpu_to_node(i)), size);
+		if (!ptr)
+			panic("Cannot allocate cpu data for CPU %d\n", i);
+
+		paca[i].data_offset = ptr - __per_cpu_start;
+		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+	}
+}
+#endif

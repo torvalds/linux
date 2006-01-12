@@ -1,0 +1,6 @@
+#
+# The xfs people like to share Makefile with 2.6 and 2.4.
+# Utilise file named Kbuild file which has precedence over Makefile.
+#
+
+include $(srctree)/$(obj)/Makefile-linux-2.6

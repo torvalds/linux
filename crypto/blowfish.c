@@ -19,8 +19,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define BF_BLOCK_SIZE 8
 #define BF_MIN_KEY_SIZE 4
@@ -451,6 +453,7 @@ static struct crypto_alg alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	BF_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct bf_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(alg.cra_list),
 	.cra_u			=	{ .cipher = {

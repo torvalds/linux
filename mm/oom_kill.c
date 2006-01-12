@@ -298,7 +298,8 @@ retry:
 
 	/*
 	 * Give "p" a good chance of killing itself before we
-	 * retry to allocate memory.
+	 * retry to allocate memory unless "p" is current
 	 */
-	schedule_timeout_interruptible(1);
+	if (!test_thread_flag(TIF_MEMDIE))
+		schedule_timeout_interruptible(1);
 }

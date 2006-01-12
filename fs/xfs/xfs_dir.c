@@ -176,7 +176,7 @@ xfs_dir_mount(xfs_mount_t *mp)
 	uint shortcount, leafcount, count;
 
 	mp->m_dirversion = 1;
-	if (mp->m_flags & XFS_MOUNT_COMPAT_ATTR) {
+	if (!(mp->m_flags & XFS_MOUNT_ATTR2)) {
 		shortcount = (mp->m_attroffset -
 				(uint)sizeof(xfs_dir_sf_hdr_t)) /
 				 (uint)sizeof(xfs_dir_sf_entry_t);

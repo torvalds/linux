@@ -274,7 +274,7 @@ struct CIA {
 #define ZTWO_VADDR(x) (((unsigned long)(x))+zTwoBase)
 
 #define CUSTOM_PHYSADDR     (0xdff000)
-#define custom ((*(volatile struct CUSTOM *)(zTwoBase+CUSTOM_PHYSADDR)))
+#define amiga_custom ((*(volatile struct CUSTOM *)(zTwoBase+CUSTOM_PHYSADDR)))
 
 #define CIAA_PHYSADDR	  (0xbfe001)
 #define CIAB_PHYSADDR	  (0xbfd000)
@@ -294,12 +294,12 @@ static inline void amifb_video_off(void)
 {
 	if (amiga_chipset == CS_ECS || amiga_chipset == CS_AGA) {
 		/* program Denise/Lisa for a higher maximum play rate */
-		custom.htotal = 113;        /* 31 kHz */
-		custom.vtotal = 223;        /* 70 Hz */
-		custom.beamcon0 = 0x4390;   /* HARDDIS, VAR{BEAM,VSY,HSY,CSY}EN */
+		amiga_custom.htotal = 113;        /* 31 kHz */
+		amiga_custom.vtotal = 223;        /* 70 Hz */
+		amiga_custom.beamcon0 = 0x4390;   /* HARDDIS, VAR{BEAM,VSY,HSY,CSY}EN */
 		/* suspend the monitor */
-		custom.hsstrt = custom.hsstop = 116;
-		custom.vsstrt = custom.vsstop = 226;
+		amiga_custom.hsstrt = amiga_custom.hsstop = 116;
+		amiga_custom.vsstrt = amiga_custom.vsstop = 226;
 		amiga_audio_min_period = 57;
 	}
 }

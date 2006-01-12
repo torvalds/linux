@@ -165,7 +165,7 @@ static int dsp56k_reset(void)
 	return 0;
 }
 
-static int dsp56k_upload(u_char *bin, int len)
+static int dsp56k_upload(u_char __user *bin, int len)
 {
 	int i;
 	u_char *p;
@@ -199,7 +199,7 @@ static int dsp56k_upload(u_char *bin, int len)
 	return 0;
 }
 
-static ssize_t dsp56k_read(struct file *file, char *buf, size_t count,
+static ssize_t dsp56k_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *ppos)
 {
 	struct inode *inode = file->f_dentry->d_inode;
@@ -225,10 +225,10 @@ static ssize_t dsp56k_read(struct file *file, char *buf, size_t count,
 		}
 		case 2:  /* 16 bit */
 		{
-			short *data;
+			short __user *data;
 
 			count /= 2;
-			data = (short*) buf;
+			data = (short __user *) buf;
 			handshake(count, dsp56k.maxio, dsp56k.timeout, DSP56K_RECEIVE,
 				  put_user(dsp56k_host_interface.data.w[1], data+n++));
 			return 2*n;
@@ -244,10 +244,10 @@ static ssize_t dsp56k_read(struct file *file, char *buf, size_t count,
 		}
 		case 4:  /* 32 bit */
 		{
-			long *data;
+			long __user *data;
 
 			count /= 4;
-			data = (long*) buf;
+			data = (long __user *) buf;
 			handshake(count, dsp56k.maxio, dsp56k.timeout, DSP56K_RECEIVE,
 				  put_user(dsp56k_host_interface.data.l, data+n++));
 			return 4*n;
@@ -262,7 +262,7 @@ static ssize_t dsp56k_read(struct file *file, char *buf, size_t count,
 	}
 }
 
-static ssize_t dsp56k_write(struct file *file, const char *buf, size_t count,
+static ssize_t dsp56k_write(struct file *file, const char __user *buf, size_t count,
 			    loff_t *ppos)
 {
 	struct inode *inode = file->f_dentry->d_inode;
@@ -287,10 +287,10 @@ static ssize_t dsp56k_write(struct file *file, const char *buf, size_t count,
 		}
 		case 2:  /* 16 bit */
 		{
-			const short *data;
+			const short __user *data;
 
 			count /= 2;
-			data = (const short *)buf;
+			data = (const short __user *)buf;
 			handshake(count, dsp56k.maxio, dsp56k.timeout, DSP56K_TRANSMIT,
 				  get_user(dsp56k_host_interface.data.w[1], data+n++));
 			return 2*n;
@@ -306,10 +306,10 @@ static ssize_t dsp56k_write(struct file *file, const char *buf, size_t count,
 		}
 		case 4:  /* 32 bit */
 		{
-			const long *data;
+			const long __user *data;
 
 			count /= 4;
-			data = (const long *)buf;
+			data = (const long __user *)buf;
 			handshake(count, dsp56k.maxio, dsp56k.timeout, DSP56K_TRANSMIT,
 				  get_user(dsp56k_host_interface.data.l, data+n++));
 			return 4*n;
@@ -328,6 +328,7 @@ static int dsp56k_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	int dev = iminor(inode) & 0x0f;
+	void __user *argp = (void __user *)arg;
 
 	switch(dev)
 	{
@@ -336,9 +337,9 @@ static int dsp56k_ioctl(struct inode *inode, struct file *file,
 		switch(cmd) {
 		case DSP56K_UPLOAD:
 		{
-			char *bin;
+			char __user *bin;
 			int r, len;
-			struct dsp56k_upload *binary = (struct dsp56k_upload *) arg;
+			struct dsp56k_upload __user *binary = argp;
     
 			if(get_user(len, &binary->len) < 0)
 				return -EFAULT;
@@ -372,7 +373,7 @@ static int dsp56k_ioctl(struct inode *inode, struct file *file,
 		case DSP56K_HOST_FLAGS:
 		{
 			int dir, out, status;
-			struct dsp56k_host_flags *hf = (struct dsp56k_host_flags*) arg;
+			struct dsp56k_host_flags __user *hf = argp;
     
 			if(get_user(dir, &hf->dir) < 0)
 				return -EFAULT;

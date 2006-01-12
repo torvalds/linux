@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/backing-dev.h>
+#include <linux/pagevec.h>
 
 #include <asm/pgtable.h>
 
@@ -140,7 +141,7 @@ void __delete_from_swap_cache(struct page *page)
  * Allocate swap space for the page and add the page to the
  * swap cache.  Caller needs to hold the page lock. 
  */
-int add_to_swap(struct page * page)
+int add_to_swap(struct page * page, gfp_t gfp_mask)
 {
 	swp_entry_t entry;
 	int err;
@@ -165,7 +166,7 @@ int add_to_swap(struct page * page)
 		 * Add it to the swap cache and mark it dirty
 		 */
 		err = __add_to_swap_cache(page, entry,
-				GFP_ATOMIC|__GFP_NOMEMALLOC|__GFP_NOWARN);
+				gfp_mask|__GFP_NOMEMALLOC|__GFP_NOWARN);
 
 		switch (err) {
 		case 0:				/* Success */
@@ -272,12 +273,11 @@ void free_page_and_swap_cache(struct page *page)
  */
 void free_pages_and_swap_cache(struct page **pages, int nr)
 {
-	int chunk = 16;
 	struct page **pagep = pages;
 
 	lru_add_drain();
 	while (nr) {
-		int todo = min(chunk, nr);
+		int todo = min(nr, PAGEVEC_SIZE);
 		int i;
 
 		for (i = 0; i < todo; i++)

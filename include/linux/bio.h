@@ -292,6 +292,8 @@ extern struct bio *bio_clone(struct bio *, gfp_t);
 extern void bio_init(struct bio *);
 
 extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+			   unsigned int, unsigned int);
 extern int bio_get_nr_vecs(struct block_device *);
 extern struct bio *bio_map_user(struct request_queue *, struct block_device *,
 				unsigned long, unsigned int, int);

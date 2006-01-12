@@ -40,7 +40,7 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_riotime_h_sccs = "@(#)riotime.h	1.1" ;
+static char *_rio_riotime_h_sccs = "@(#)riotime.h	1.1";
 #endif
 #endif
 
@@ -52,7 +52,7 @@ static char *_rio_riotime_h_sccs = "@(#)riotime.h	1.1" ;
 /**************************************
  * Convert a RIO tick (1/10th second)
  * into transputer low priority ticks
- *************************************/ 
+ *************************************/
 #define RioTimeToLow(time) (time*(100000 / 64))
 #define RioLowToTime(time) ((time*64)/100000)
 

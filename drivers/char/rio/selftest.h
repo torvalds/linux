@@ -38,36 +38,36 @@
 ** selftest on a booting RTA.
 */
 typedef struct {
-    short		magic;			/* Identifies packet type */
-    int			test;			/* Test number, see below */
-    unsigned int	result;			/* Result value */
-    unsigned int	dataIn;
-    unsigned int	dataOut;
-}selftestStruct;
+	short magic;		/* Identifies packet type */
+	int test;		/* Test number, see below */
+	unsigned int result;	/* Result value */
+	unsigned int dataIn;
+	unsigned int dataOut;
+} selftestStruct;
 
 /*
 ** The different tests are identified by the following data values.
 */
 enum test {
-    TESTS_COMPLETE	= 0x00,
-    MEMTEST_ADDR	= 0x01,
-    MEMTEST_BIT		= 0x02,
-    MEMTEST_FILL	= 0x03,
-    MEMTEST_DATABUS	= 0x04,
-    MEMTEST_ADDRBUS	= 0x05,
-    CD1400_INIT		= 0x10,
-    CD1400_LOOP		= 0x11,
-    CD1400_INTERRUPT    = 0x12
+	TESTS_COMPLETE = 0x00,
+	MEMTEST_ADDR = 0x01,
+	MEMTEST_BIT = 0x02,
+	MEMTEST_FILL = 0x03,
+	MEMTEST_DATABUS = 0x04,
+	MEMTEST_ADDRBUS = 0x05,
+	CD1400_INIT = 0x10,
+	CD1400_LOOP = 0x11,
+	CD1400_INTERRUPT = 0x12
 };
 
 enum result {
-    E_PORT		= 0x10,
-    E_TX		= 0x11,
-    E_RX		= 0x12,
-    E_EXCEPT		= 0x13,
-    E_COMPARE		= 0x14,
-    E_MODEM		= 0x15,
-    E_TIMEOUT		= 0x16,
-    E_INTERRUPT         = 0x17
+	E_PORT = 0x10,
+	E_TX = 0x11,
+	E_RX = 0x12,
+	E_EXCEPT = 0x13,
+	E_COMPARE = 0x14,
+	E_MODEM = 0x15,
+	E_TIMEOUT = 0x16,
+	E_INTERRUPT = 0x17
 };
-#endif	/* _selftests_h_ */
+#endif				/* _selftests_h_ */

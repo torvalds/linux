@@ -241,23 +241,6 @@ au1x00_pcmcia_get_status(struct pcmcia_socket *sock, unsigned int *status)
 	return 0;
 }
 
-/* au1x00_pcmcia_get_socket()
- * Implements the get_socket() operation for the in-kernel PCMCIA
- * service (formerly SS_GetSocket in Card Services). Not a very
- * exciting routine.
- *
- * Returns: 0
- */
-static int
-au1x00_pcmcia_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-  struct au1000_pcmcia_socket *skt = to_au1000_socket(sock);
-
-  debug("for sock %u\n", skt->nr);
-  *state = skt->cs_state;
-  return 0;
-}
-
 /* au1x00_pcmcia_set_socket()
  * Implements the set_socket() operation for the in-kernel PCMCIA
  * service (formerly SS_SetSocket in Card Services). We more or
@@ -352,7 +335,6 @@ static struct pccard_operations au1x00_pcmcia_operations = {
 	.init			= au1x00_pcmcia_sock_init,
 	.suspend		= au1x00_pcmcia_suspend,
 	.get_status		= au1x00_pcmcia_get_status,
-	.get_socket		= au1x00_pcmcia_get_socket,
 	.set_socket		= au1x00_pcmcia_set_socket,
 	.set_io_map		= au1x00_pcmcia_set_io_map,
 	.set_mem_map		= au1x00_pcmcia_set_mem_map,
@@ -372,13 +354,12 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 	struct skt_dev_info *sinfo;
 	int ret, i;
 
-	sinfo = kmalloc(sizeof(struct skt_dev_info), GFP_KERNEL);
+	sinfo = kzalloc(sizeof(struct skt_dev_info), GFP_KERNEL);
 	if (!sinfo) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(sinfo, 0, sizeof(struct skt_dev_info));
 	sinfo->nskt = nr;
 
 	/*

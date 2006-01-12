@@ -12,6 +12,7 @@
 #include <linux/sysctl.h>
 #include <linux/config.h>
 #include <linux/igmp.h>
+#include <linux/inetdevice.h>
 #include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>
@@ -22,6 +23,7 @@
 extern int sysctl_ip_nonlocal_bind;
 
 #ifdef CONFIG_SYSCTL
+static int zero;
 static int tcp_retr1_max = 255; 
 static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
@@ -612,6 +614,15 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 		.strategy	= &sysctl_jiffies
+	},
+	{
+		.ctl_name	= NET_IPV4_IPFRAG_MAX_DIST,
+		.procname	= "ipfrag_max_dist",
+		.data		= &sysctl_ipfrag_max_dist,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.extra1		= &zero
 	},
 	{
 		.ctl_name	= NET_TCP_NO_METRICS_SAVE,

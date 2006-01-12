@@ -41,16 +41,15 @@ static char *_unixrup_h_sccs_ = "@(#)unixrup.h	1.2";
 **    UnixRup data structure. This contains pointers to actual RUPs on the
 **    host card, and all the command/boot control stuff.
 */
-struct    UnixRup
-{
-    struct CmdBlk    *CmdsWaitingP;	/* Commands waiting to be done */
-    struct CmdBlk    *CmdPendingP;	/* The command currently being sent */
-    struct RUP       *RupP;		/* the Rup to send it to */
-    uint             Id;		/* Id number */
-    uint             BaseSysPort;	/* SysPort of first tty on this RTA */
-    uint             ModTypes;		/* Modules on this RTA */
-    spinlock_t	     RupLock;		/* Lock structure for MPX */
-/*    struct lockb     RupLock;	*/	/* Lock structure for MPX */
+struct UnixRup {
+	struct CmdBlk *CmdsWaitingP;	/* Commands waiting to be done */
+	struct CmdBlk *CmdPendingP;	/* The command currently being sent */
+	struct RUP *RupP;	/* the Rup to send it to */
+	uint Id;		/* Id number */
+	uint BaseSysPort;	/* SysPort of first tty on this RTA */
+	uint ModTypes;		/* Modules on this RTA */
+	spinlock_t RupLock;	/* Lock structure for MPX */
+	/*    struct lockb     RupLock;	*//* Lock structure for MPX */
 };
 
-#endif /* __rio_unixrup_h__ */
+#endif				/* __rio_unixrup_h__ */

@@ -52,6 +52,7 @@ static char *sensor_location[3] = {NULL, NULL, NULL};
 
 static int limit_adjust = 0;
 static int fan_speed = -1;
+static int verbose = 0;
 
 MODULE_AUTHOR("Colin Leroy <colin@colino.net>");
 MODULE_DESCRIPTION("Driver for ADT746x thermostat in iBook G4 and "
@@ -65,6 +66,10 @@ MODULE_PARM_DESC(limit_adjust,"Adjust maximum temperatures (50 sensor1, 70 senso
 module_param(fan_speed, int, 0644);
 MODULE_PARM_DESC(fan_speed,"Specify starting fan speed (0-255) "
 		 "(default 64)");
+
+module_param(verbose, bool, 0);
+MODULE_PARM_DESC(verbose,"Verbose log operations "
+		 "(default 0)");
 
 struct thermostat {
 	struct i2c_client	clt;
@@ -149,13 +154,13 @@ detach_thermostat(struct i2c_adapter *adapter)
 	if (thread_therm != NULL) {
 		kthread_stop(thread_therm);
 	}
-		
+
 	printk(KERN_INFO "adt746x: Putting max temperatures back from "
 			 "%d, %d, %d to %d, %d, %d\n",
 		th->limits[0], th->limits[1], th->limits[2],
 		th->initial_limits[0], th->initial_limits[1],
 		th->initial_limits[2]);
-	
+
 	for (i = 0; i < 3; i++)
 		write_reg(th, LIMIT_REG[i], th->initial_limits[i]);
 
@@ -171,9 +176,9 @@ detach_thermostat(struct i2c_adapter *adapter)
 }
 
 static struct i2c_driver thermostat_driver = {  
-	.owner		= THIS_MODULE,
-	.name		= "therm_adt746x",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "therm_adt746x",
+	},
 	.attach_adapter	= attach_thermostat,
 	.detach_adapter	= detach_thermostat,
 };
@@ -212,12 +217,14 @@ static void write_fan_speed(struct thermostat *th, int speed, int fan)
 		return;
 	
 	if (th->last_speed[fan] != speed) {
-		if (speed == -1)
-			printk(KERN_DEBUG "adt746x: Setting speed to automatic "
-				"for %s fan.\n", sensor_location[fan+1]);
-		else
-			printk(KERN_DEBUG "adt746x: Setting speed to %d "
-				"for %s fan.\n", speed, sensor_location[fan+1]);
+		if (verbose) {
+			if (speed == -1)
+				printk(KERN_DEBUG "adt746x: Setting speed to automatic "
+					"for %s fan.\n", sensor_location[fan+1]);
+			else
+				printk(KERN_DEBUG "adt746x: Setting speed to %d "
+					"for %s fan.\n", speed, sensor_location[fan+1]);
+		}
 	} else
 		return;
 	
@@ -298,10 +305,11 @@ static void update_fans_speed (struct thermostat *th)
 			if (new_speed > 255)
 				new_speed = 255;
 
-			printk(KERN_DEBUG "adt746x: setting fans speed to %d "
-					 "(limit exceeded by %d on %s) \n",
-					new_speed, var,
-					sensor_location[fan_number+1]);
+			if (verbose)
+				printk(KERN_DEBUG "adt746x: Setting fans speed to %d "
+						 "(limit exceeded by %d on %s) \n",
+						new_speed, var,
+						sensor_location[fan_number+1]);
 			write_both_fan_speed(th, new_speed);
 			th->last_var[fan_number] = var;
 		} else if (var < -2) {
@@ -309,8 +317,9 @@ static void update_fans_speed (struct thermostat *th)
 			 * so cold (lastvar >= -1) */
 			if (i == 2 && lastvar < -1) {
 				if (th->last_speed[fan_number] != 0)
-					printk(KERN_DEBUG "adt746x: Stopping "
-						"fans.\n");
+					if (verbose)
+						printk(KERN_DEBUG "adt746x: Stopping "
+							"fans.\n");
 				write_both_fan_speed(th, 0);
 			}
 		}
@@ -406,7 +415,7 @@ static int attach_one_thermostat(struct i2c_adapter *adapter, int addr,
 		th->initial_limits[i] = read_reg(th, LIMIT_REG[i]);
 		set_limit(th, i);
 	}
-	
+
 	printk(KERN_INFO "adt746x: Lowering max temperatures from %d, %d, %d"
 			 " to %d, %d, %d\n",
 			 th->initial_limits[0], th->initial_limits[1],

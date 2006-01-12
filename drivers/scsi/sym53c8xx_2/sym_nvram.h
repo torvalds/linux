@@ -194,12 +194,12 @@ struct sym_nvram {
 
 #if SYM_CONF_NVRAM_SUPPORT
 void sym_nvram_setup_host(struct Scsi_Host *shost, struct sym_hcb *np, struct sym_nvram *nvram);
-void sym_nvram_setup_target (struct sym_hcb *np, int target, struct sym_nvram *nvp);
+void sym_nvram_setup_target (struct sym_tcb *tp, int target, struct sym_nvram *nvp);
 int sym_read_nvram (struct sym_device *np, struct sym_nvram *nvp);
 char *sym_nvram_type(struct sym_nvram *nvp);
 #else
 static inline void sym_nvram_setup_host(struct Scsi_Host *shost, struct sym_hcb *np, struct sym_nvram *nvram) { }
-static inline void sym_nvram_setup_target(struct sym_hcb *np, struct sym_nvram *nvram) { }
+static inline void sym_nvram_setup_target(struct sym_tcb *tp, struct sym_nvram *nvram) { }
 static inline int sym_read_nvram(struct sym_device *np, struct sym_nvram *nvp)
 {
 	nvp->type = 0;

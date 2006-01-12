@@ -1245,7 +1245,7 @@ mptctl_gettargetinfo (unsigned long arg)
 	MPT_ADAPTER		*ioc;
 	struct Scsi_Host	*sh;
 	MPT_SCSI_HOST		*hd;
-	VirtDevice		*vdev;
+	VirtTarget		*vdev;
 	char			*pmem;
 	int			*pdata;
 	IOCPage2_t		*pIoc2;
@@ -1822,7 +1822,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
 		if (ioc->sh) {
 			SCSIIORequest_t *pScsiReq = (SCSIIORequest_t *) mf;
-			VirtDevice	*pTarget = NULL;
+			VirtTarget	*pTarget = NULL;
 			MPT_SCSI_HOST	*hd = NULL;
 			int qtag = MPI_SCSIIO_CONTROL_UNTAGGED;
 			int scsidir = 0;
@@ -2584,8 +2584,6 @@ static struct miscdevice mptctl_miscdev = {
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
 #ifdef CONFIG_COMPAT
-
-#include <linux/ioctl32.h>
 
 static int
 compat_mptfwxfer_ioctl(struct file *filp, unsigned int cmd,

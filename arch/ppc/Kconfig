@@ -8,9 +8,6 @@ config MMU
 	bool
 	default y
 
-config UID16
-	bool
-
 config GENERIC_HARDIRQS
 	bool
 	default y
@@ -745,6 +742,10 @@ config 83xx
 config MPC834x
 	bool
 	default y if MPC834x_SYS
+
+config PPC_83xx
+	bool
+	default y if 83xx
 
 config CPM1
 	bool

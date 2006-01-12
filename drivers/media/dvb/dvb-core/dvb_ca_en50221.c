@@ -1649,21 +1649,17 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 		return -EINVAL;
 
 	/* initialise the system data */
-	if ((ca =
-	     (struct dvb_ca_private *) kmalloc(sizeof(struct dvb_ca_private),
-					       GFP_KERNEL)) == NULL) {
+	if ((ca = kzalloc(sizeof(struct dvb_ca_private), GFP_KERNEL)) == NULL) {
 		ret = -ENOMEM;
 		goto error;
 	}
-	memset(ca, 0, sizeof(struct dvb_ca_private));
 	ca->pub = pubca;
 	ca->flags = flags;
 	ca->slot_count = slot_count;
-	if ((ca->slot_info = kmalloc(sizeof(struct dvb_ca_slot) * slot_count, GFP_KERNEL)) == NULL) {
+	if ((ca->slot_info = kcalloc(slot_count, sizeof(struct dvb_ca_slot), GFP_KERNEL)) == NULL) {
 		ret = -ENOMEM;
 		goto error;
 	}
-	memset(ca->slot_info, 0, sizeof(struct dvb_ca_slot) * slot_count);
 	init_waitqueue_head(&ca->wait_queue);
 	ca->thread_pid = 0;
 	init_waitqueue_head(&ca->thread_queue);
@@ -1745,9 +1741,7 @@ void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 
 	for (i = 0; i < ca->slot_count; i++) {
 		dvb_ca_en50221_slot_shutdown(ca, i);
-		if (ca->slot_info[i].rx_buffer.data != NULL) {
-			vfree(ca->slot_info[i].rx_buffer.data);
-		}
+		vfree(ca->slot_info[i].rx_buffer.data);
 	}
 	kfree(ca->slot_info);
 	dvb_unregister_device(ca->dvbdev);

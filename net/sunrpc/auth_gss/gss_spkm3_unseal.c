@@ -95,7 +95,7 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 		ret = GSS_S_DEFECTIVE_TOKEN;
 		code = make_checksum(CKSUMTYPE_RSA_MD5, ptr + 2, 
 					mic_hdrlen + 2, 
-		                        message_buffer, &md5cksum);
+		                        message_buffer, 0, &md5cksum);
 
 		if (code)
 			goto out;

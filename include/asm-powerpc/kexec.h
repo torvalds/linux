@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_KEXEC_H
 #define _ASM_POWERPC_KEXEC_H
+#ifdef __KERNEL__
 
 /*
  * Maximum page that is mapped directly into kernel memory.
@@ -30,21 +31,36 @@
 #define KEXEC_ARCH KEXEC_ARCH_PPC
 #endif
 
+#define HAVE_ARCH_COPY_OLDMEM_PAGE
+
 #ifndef __ASSEMBLY__
 
-#define MAX_NOTE_BYTES 1024
-typedef u32 note_buf_t[MAX_NOTE_BYTES / sizeof(u32)];
+#ifdef CONFIG_KEXEC
 
-extern note_buf_t crash_notes[];
+#define MAX_NOTE_BYTES 1024
 
 #ifdef __powerpc64__
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern void __init kexec_setup(void);
-#else
-struct kimage;
-extern void machine_kexec_simple(struct kimage *image);
-#endif
+extern int crashing_cpu;
+extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
+#endif /* __powerpc64 __ */
 
+struct kimage;
+struct pt_regs;
+extern void default_machine_kexec(struct kimage *image);
+extern int default_machine_kexec_prepare(struct kimage *image);
+extern void default_machine_crash_shutdown(struct pt_regs *regs);
+
+#endif /* !CONFIG_KEXEC */
+
+/*
+ * Provide a dummy definition to avoid build failures. Will remain
+ * empty till crash dump support is enabled.
+ */
+static inline void crash_setup_regs(struct pt_regs *newregs,
+					struct pt_regs *oldregs) { }
 #endif /* ! __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

@@ -37,7 +37,7 @@ inline long get_reg(struct task_struct *task, unsigned int regno)
 	if (regno == PT_USP)
 		return task->thread.usp;
 	else if (regno < PT_MAX)
-		return ((unsigned long *)user_regs(task->thread_info))[regno];
+		return ((unsigned long *)task_pt_regs(task))[regno];
 	else
 		return 0;
 }
@@ -51,7 +51,7 @@ inline int put_reg(struct task_struct *task, unsigned int regno,
 	if (regno == PT_USP)
 		task->thread.usp = data;
 	else if (regno < PT_MAX)
-		((unsigned long *)user_regs(task->thread_info))[regno] = data;
+		((unsigned long *)task_pt_regs(task))[regno] = data;
 	else
 		return -1;
 	return 0;

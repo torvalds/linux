@@ -17,6 +17,9 @@
 
 #define PREFIX "TEA5767 "
 
+/* from tuner-core.c */
+extern int tuner_debug;
+
 /*****************************************************************************/
 
 /******************************
@@ -264,7 +267,7 @@ static int tea5767_signal(struct i2c_client *c)
 	if (5 != (rc = i2c_master_recv(c, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
-	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << (13 - 4));
+	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << 8);
 }
 
 static int tea5767_stereo(struct i2c_client *c)

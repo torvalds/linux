@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 
 #include <linux/netfilter_ipv4/ipt_mac.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -33,8 +34,8 @@ match(const struct sk_buff *skb,
     return (skb->mac.raw >= skb->head
 	    && (skb->mac.raw + ETH_HLEN) <= skb->data
 	    /* If so, compare... */
-	    && ((memcmp(eth_hdr(skb)->h_source, info->srcaddr, ETH_ALEN)
-		== 0) ^ info->invert));
+	    && ((!compare_ether_addr(eth_hdr(skb)->h_source, info->srcaddr))
+		^ info->invert));
 }
 
 static int

@@ -88,15 +88,12 @@ typedef struct ide_info_t {
 } ide_info_t;
 
 static void ide_release(dev_link_t *);
-static int ide_event(event_t event, int priority,
-		     event_callback_args_t *args);
+static void ide_config(dev_link_t *);
 
-static dev_info_t dev_info = "ide-cs";
+static void ide_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *ide_attach(void);
-static void ide_detach(dev_link_t *);
 
-static dev_link_t *dev_list = NULL;
+
 
 /*======================================================================
 
@@ -106,18 +103,17 @@ static dev_link_t *dev_list = NULL;
 
 ======================================================================*/
 
-static dev_link_t *ide_attach(void)
+static int ide_attach(struct pcmcia_device *p_dev)
 {
     ide_info_t *info;
     dev_link_t *link;
-    client_reg_t client_reg;
-    int ret;
-    
+
     DEBUG(0, "ide_attach()\n");
 
     /* Create new ide device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return NULL;
+    if (!info)
+	return -ENOMEM;
     link = &info->link; link->priv = info;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -128,21 +124,14 @@ static dev_link_t *ide_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
-    
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	ide_detach(link);
-	return NULL;
-    }
-    
-    return link;
+
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    ide_config(link);
+
+    return 0;
 } /* ide_attach */
 
 /*======================================================================
@@ -154,32 +143,16 @@ static dev_link_t *ide_attach(void)
 
 ======================================================================*/
 
-static void ide_detach(dev_link_t *link)
+static void ide_detach(struct pcmcia_device *p_dev)
 {
-    dev_link_t **linkp;
-    int ret;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->state & DEV_CONFIG)
 	ide_release(link);
-    
-    if (link->handle) {
-	ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
-    }
-    
-    /* Unlink, free device structure */
-    *linkp = link->next;
+
     kfree(link->priv);
-    
 } /* ide_detach */
 
 static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
@@ -406,6 +379,28 @@ void ide_release(dev_link_t *link)
 
 } /* ide_release */
 
+static int ide_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int ide_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -415,48 +410,15 @@ void ide_release(dev_link_t *link)
     
 ======================================================================*/
 
-int ide_event(event_t event, int priority,
-	      event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "ide_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		ide_release(link);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	ide_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (DEV_OK(link))
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	break;
-    }
-    return 0;
-} /* ide_event */
-
 static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(4),
+	PCMCIA_DEVICE_MANF_CARD(0x0007, 0x0000),	/* Hitachi */
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x0704),
 	PCMCIA_DEVICE_MANF_CARD(0x0045, 0x0401),
 	PCMCIA_DEVICE_MANF_CARD(0x0098, 0x0000),	/* Toshiba */
 	PCMCIA_DEVICE_MANF_CARD(0x00a4, 0x002d),
 	PCMCIA_DEVICE_MANF_CARD(0x00ce, 0x0000),	/* Samsung */
+ 	PCMCIA_DEVICE_MANF_CARD(0x0319, 0x0000),	/* Hitachi */
 	PCMCIA_DEVICE_MANF_CARD(0x2080, 0x0001),
 	PCMCIA_DEVICE_MANF_CARD(0x4e01, 0x0200),	/* Lexar */
 	PCMCIA_DEVICE_PROD_ID123("Caravelle", "PSC-IDE ", "PSC000", 0x8c36137c, 0xd0693ab8, 0x2768a9f0),
@@ -471,6 +433,8 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("EXP   ", "CD-ROM", 0x0a5c52fd, 0x66536591),
 	PCMCIA_DEVICE_PROD_ID12("EXP   ", "PnPIDE", 0x0a5c52fd, 0x0c694728),
 	PCMCIA_DEVICE_PROD_ID12("FREECOM", "PCCARD-IDE", 0x5714cbf7, 0x48e0ab8e),
+	PCMCIA_DEVICE_PROD_ID12("HITACHI", "FLASH", 0xf4f43949, 0x9eb86aae),
+	PCMCIA_DEVICE_PROD_ID12("HITACHI", "microdrive", 0xf4f43949, 0xa6d76178),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "IBM17JSSFP20", 0xb569a6e5, 0xf2508753),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "CBIDE2      ", 0x547e66dc, 0x8671043b),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDE", 0x547e66dc, 0x5c5ab149),
@@ -494,10 +458,11 @@ static struct pcmcia_driver ide_cs_driver = {
 	.drv		= {
 		.name	= "ide-cs",
 	},
-	.attach		= ide_attach,
-	.event		= ide_event,
-	.detach		= ide_detach,
+	.probe		= ide_attach,
+	.remove		= ide_detach,
 	.id_table       = ide_ids,
+	.suspend	= ide_suspend,
+	.resume		= ide_resume,
 };
 
 static int __init init_ide_cs(void)
@@ -508,7 +473,6 @@ static int __init init_ide_cs(void)
 static void __exit exit_ide_cs(void)
 {
 	pcmcia_unregister_driver(&ide_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 late_initcall(init_ide_cs);

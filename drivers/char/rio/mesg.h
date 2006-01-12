@@ -38,4 +38,4 @@ static char *_mesg_h_sccs_ = "@(#)mesg.h	1.2";
 #endif
 
 
-#endif /* __rio_mesg_h__ */
+#endif				/* __rio_mesg_h__ */

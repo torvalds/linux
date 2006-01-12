@@ -60,8 +60,6 @@ static struct fasync_struct *hp_sdc_rtc_async_queue;
 
 static DECLARE_WAIT_QUEUE_HEAD(hp_sdc_rtc_wait);
 
-static loff_t hp_sdc_rtc_llseek(struct file *file, loff_t offset, int origin);
-
 static ssize_t hp_sdc_rtc_read(struct file *file, char *buf,
 			       size_t count, loff_t *ppos);
 
@@ -387,11 +385,6 @@ static int hp_sdc_rtc_set_i8042timer (struct timeval *setto, uint8_t setcmd)
 	return 0;
 }
 
-static loff_t hp_sdc_rtc_llseek(struct file *file, loff_t offset, int origin)
-{
-        return -ESPIPE;
-}
-
 static ssize_t hp_sdc_rtc_read(struct file *file, char *buf,
 			       size_t count, loff_t *ppos) {
 	ssize_t retval;
@@ -679,7 +672,7 @@ static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file,
 
 static struct file_operations hp_sdc_rtc_fops = {
         .owner =	THIS_MODULE,
-        .llseek =	hp_sdc_rtc_llseek,
+        .llseek =	no_llseek,
         .read =		hp_sdc_rtc_read,
         .poll =		hp_sdc_rtc_poll,
         .ioctl =	hp_sdc_rtc_ioctl,

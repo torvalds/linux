@@ -22,29 +22,12 @@ static void hfsplus_destroy_inode(struct inode *inode);
 
 #include "hfsplus_fs.h"
 
-void hfsplus_inode_check(struct super_block *sb)
-{
-#if 0
-	u32 cnt = atomic_read(&HFSPLUS_SB(sb).inode_cnt);
-	u32 last_cnt = HFSPLUS_SB(sb).last_inode_cnt;
-
-	if (cnt <= (last_cnt / 2) ||
-	    cnt >= (last_cnt * 2)) {
-		HFSPLUS_SB(sb).last_inode_cnt = cnt;
-		printk("inode_check: %u,%u,%u\n", cnt, last_cnt,
-			HFSPLUS_SB(sb).cat_tree ? HFSPLUS_SB(sb).cat_tree->node_hash_cnt : 0);
-	}
-#endif
-}
-
 static void hfsplus_read_inode(struct inode *inode)
 {
 	struct hfs_find_data fd;
 	struct hfsplus_vh *vhdr;
 	int err;
 
-	atomic_inc(&HFSPLUS_SB(inode->i_sb).inode_cnt);
-	hfsplus_inode_check(inode->i_sb);
 	INIT_LIST_HEAD(&HFSPLUS_I(inode).open_dir_list);
 	init_MUTEX(&HFSPLUS_I(inode).extents_lock);
 	HFSPLUS_I(inode).flags = 0;
@@ -155,12 +138,10 @@ static int hfsplus_write_inode(struct inode *inode, int unused)
 static void hfsplus_clear_inode(struct inode *inode)
 {
 	dprint(DBG_INODE, "hfsplus_clear_inode: %lu\n", inode->i_ino);
-	atomic_dec(&HFSPLUS_SB(inode->i_sb).inode_cnt);
 	if (HFSPLUS_IS_RSRC(inode)) {
 		HFSPLUS_I(HFSPLUS_I(inode).rsrc_inode).rsrc_inode = NULL;
 		iput(HFSPLUS_I(inode).rsrc_inode);
 	}
-	hfsplus_inode_check(inode->i_sb);
 }
 
 static void hfsplus_write_super(struct super_block *sb)
@@ -320,7 +301,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	/* temporarily use utf8 to correctly find the hidden dir below */
 	nls = sbi->nls;
 	sbi->nls = load_nls("utf8");
-	if (!nls) {
+	if (!sbi->nls) {
 		printk("HFS+: unable to load nls for utf8\n");
 		err = -EINVAL;
 		goto cleanup;

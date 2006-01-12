@@ -52,7 +52,7 @@
  *  Wavetable definitions
  */
 
-typedef struct gf1_wave {
+struct gf1_wave {
 	unsigned int share_id[4];	/* share id - zero = no sharing */
 	unsigned int format;		/* wave format */
 
@@ -88,7 +88,7 @@ typedef struct gf1_wave {
 	unsigned short scale_factor;	/* 0-2048 or 0-2 */
   
 	struct gf1_wave *next;
-} gf1_wave_t;
+};
 
 /*
  *  Instrument
@@ -103,7 +103,7 @@ typedef struct gf1_wave {
 #define IWFFFF_EFFECT_CHORUS		2
 #define IWFFFF_EFFECT_ECHO		3
 
-typedef struct {
+struct gf1_instrument {
 	unsigned short exclusion;
 	unsigned short exclusion_group;	/* 0 - none, 1-65535 */
 
@@ -112,8 +112,8 @@ typedef struct {
 	unsigned char effect2;		/* effect 2 */
 	unsigned char effect2_depth;	/* 0-127 */
 
-	gf1_wave_t *wave;		/* first waveform */
-} gf1_instrument_t;
+	struct gf1_wave *wave;		/* first waveform */
+};
 
 /*
  *
@@ -135,7 +135,7 @@ typedef struct {
  *  Wavetable definitions
  */
 
-typedef struct gf1_xwave {
+struct gf1_xwave {
 	__u32 stype;			/* structure type */
 
 	__u32 share_id[4];		/* share id - zero = no sharing */
@@ -165,13 +165,13 @@ typedef struct gf1_xwave {
 	__u8 vibrato_depth;
 	__u16 scale_frequency;
 	__u16 scale_factor;		/* 0-2048 or 0-2 */  
-} gf1_xwave_t;
+};
 
 /*
  *  Instrument
  */
 
-typedef struct gf1_xinstrument {
+struct gf1_xinstrument {
 	__u32 stype;
 	
 	__u16 exclusion;
@@ -181,7 +181,7 @@ typedef struct gf1_xinstrument {
 	__u8 effect1_depth;		/* 0-127 */
 	__u8 effect2;			/* effect 2 */
 	__u8 effect2_depth;		/* 0-127 */
-} gf1_xinstrument_t;
+};
 
 /*
  *  Instrument info
@@ -191,35 +191,39 @@ typedef struct gf1_xinstrument {
 #define GF1_INFO_TREMOLO		(1<<1)
 #define GF1_INFO_VIBRATO		(1<<2)
 
-typedef struct gf1_info {
+struct gf1_info {
 	unsigned char flags;		/* supported wave flags */
 	unsigned char pad[3];
 	unsigned int features;		/* supported features */
 	unsigned int max8_len;		/* maximum 8-bit wave length */
 	unsigned int max16_len;		/* maximum 16-bit wave length */
-} gf1_info_t;
+};
 
 #ifdef __KERNEL__
 
 #include "seq_instr.h"
 
-typedef struct {
+struct snd_gf1_ops {
 	void *private_data;
-	int (*info)(void *private_data, gf1_info_t *info);
-	int (*put_sample)(void *private_data, gf1_wave_t *wave,
+	int (*info)(void *private_data, struct gf1_info *info);
+	int (*put_sample)(void *private_data, struct gf1_wave *wave,
 	                  char __user *data, long len, int atomic);
-	int (*get_sample)(void *private_data, gf1_wave_t *wave,
+	int (*get_sample)(void *private_data, struct gf1_wave *wave,
 			  char __user *data, long len, int atomic);
-	int (*remove_sample)(void *private_data, gf1_wave_t *wave,
+	int (*remove_sample)(void *private_data, struct gf1_wave *wave,
 			     int atomic);
-	void (*notify)(void *private_data, snd_seq_kinstr_t *instr, int what);
-	snd_seq_kinstr_ops_t kops;
-} snd_gf1_ops_t;
+	void (*notify)(void *private_data, struct snd_seq_kinstr *instr, int what);
+	struct snd_seq_kinstr_ops kops;
+};
 
-int snd_seq_gf1_init(snd_gf1_ops_t *ops,
+int snd_seq_gf1_init(struct snd_gf1_ops *ops,
 		     void *private_data,
-		     snd_seq_kinstr_ops_t *next);
+		     struct snd_seq_kinstr_ops *next);
 
 #endif
+
+/* typedefs for compatibility to user-space */
+typedef struct gf1_xwave gf1_xwave_t;
+typedef struct gf1_xinstrument gf1_xinstrument_t;
 
 #endif /* __SOUND_AINSTR_GF1_H */

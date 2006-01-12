@@ -34,6 +34,7 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 
+#include <linux/capability.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 
@@ -480,13 +481,8 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 	BT_DBG("dlc %p tty %p len %d", dlc, tty, skb->len);
 
 	if (test_bit(TTY_DONT_FLIP, &tty->flags)) {
-		register int i;
-		for (i = 0; i < skb->len; i++) {
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				tty_flip_buffer_push(tty);
-
-			tty_insert_flip_char(tty, skb->data[i], 0);
-		}
+		tty_buffer_request_room(tty, skb->len);
+		tty_insert_flip_string(tty, skb->data, skb->len);
 		tty_flip_buffer_push(tty);
 	} else
 		tty->ldisc.receive_buf(tty, skb->data, NULL, skb->len);

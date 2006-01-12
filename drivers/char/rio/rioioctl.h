@@ -42,14 +42,14 @@ static char *_rioioctl_h_sccs_ = "@(#)rioioctl.h	1.2";
 */
 
 struct portStats {
-	int	port;
-	int	gather;
-	ulong	txchars;
-	ulong	rxchars;
-	ulong	opens;
-	ulong	closes;
-	ulong	ioctls;
-}; 
+	int port;
+	int gather;
+	ulong txchars;
+	ulong rxchars;
+	ulong opens;
+	ulong closes;
+	ulong ioctls;
+};
 
 
 #define rIOC	('r'<<8)
@@ -100,4 +100,4 @@ struct portStats {
 #define RIO_RESET_PORT_STATS	(RIOC | 194)
 #define RIO_GET_PORT_STATS	(RIOC | 195)
 
-#endif	/* __rioioctl_h__ */
+#endif				/* __rioioctl_h__ */

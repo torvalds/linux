@@ -72,6 +72,13 @@ enum {
 	REG_R0 = 0, REG_F0 = 32, REG_FPCR = 63, REG_PC = 64
 };
 
+#define PT_REG(reg) \
+  (PAGE_SIZE*2 - sizeof(struct pt_regs) + offsetof(struct pt_regs, reg))
+
+#define SW_REG(reg) \
+ (PAGE_SIZE*2 - sizeof(struct pt_regs) - sizeof(struct switch_stack) \
+  + offsetof(struct switch_stack, reg))
+
 static int regoff[] = {
 	PT_REG(	   r0), PT_REG(	   r1), PT_REG(	   r2), PT_REG(	  r3),
 	PT_REG(	   r4), PT_REG(	   r5), PT_REG(	   r6), PT_REG(	  r7),
@@ -103,14 +110,14 @@ get_reg_addr(struct task_struct * task, unsigned long regno)
 	unsigned long *addr;
 
 	if (regno == 30) {
-		addr = &task->thread_info->pcb.usp;
+		addr = &task_thread_info(task)->pcb.usp;
 	} else if (regno == 65) {
-		addr = &task->thread_info->pcb.unique;
+		addr = &task_thread_info(task)->pcb.unique;
 	} else if (regno == 31 || regno > 65) {
 		zero = 0;
 		addr = &zero;
 	} else {
-		addr = (void *)task->thread_info + regoff[regno];
+		addr = task_stack_page(task) + regoff[regno];
 	}
 	return addr;
 }
@@ -125,7 +132,7 @@ get_reg(struct task_struct * task, unsigned long regno)
 	if (regno == 63) {
 		unsigned long fpcr = *get_reg_addr(task, regno);
 		unsigned long swcr
-		  = task->thread_info->ieee_state & IEEE_SW_MASK;
+		  = task_thread_info(task)->ieee_state & IEEE_SW_MASK;
 		swcr = swcr_update_status(swcr, fpcr);
 		return fpcr | swcr;
 	}
@@ -139,8 +146,8 @@ static int
 put_reg(struct task_struct *task, unsigned long regno, unsigned long data)
 {
 	if (regno == 63) {
-		task->thread_info->ieee_state
-		  = ((task->thread_info->ieee_state & ~IEEE_SW_MASK)
+		task_thread_info(task)->ieee_state
+		  = ((task_thread_info(task)->ieee_state & ~IEEE_SW_MASK)
 		     | (data & IEEE_SW_MASK));
 		data = (data & FPCR_DYN_MASK) | ieee_swcr_to_fpcr(data);
 	}
@@ -188,35 +195,35 @@ ptrace_set_bpt(struct task_struct * child)
 		 * branch (emulation can be tricky for fp branches).
 		 */
 		displ = ((s32)(insn << 11)) >> 9;
-		child->thread_info->bpt_addr[nsaved++] = pc + 4;
+		task_thread_info(child)->bpt_addr[nsaved++] = pc + 4;
 		if (displ)		/* guard against unoptimized code */
-			child->thread_info->bpt_addr[nsaved++]
+			task_thread_info(child)->bpt_addr[nsaved++]
 			  = pc + 4 + displ;
 		DBG(DBG_BPT, ("execing branch\n"));
 	} else if (op_code == 0x1a) {
 		reg_b = (insn >> 16) & 0x1f;
-		child->thread_info->bpt_addr[nsaved++] = get_reg(child, reg_b);
+		task_thread_info(child)->bpt_addr[nsaved++] = get_reg(child, reg_b);
 		DBG(DBG_BPT, ("execing jump\n"));
 	} else {
-		child->thread_info->bpt_addr[nsaved++] = pc + 4;
+		task_thread_info(child)->bpt_addr[nsaved++] = pc + 4;
 		DBG(DBG_BPT, ("execing normal insn\n"));
 	}
 
 	/* install breakpoints: */
 	for (i = 0; i < nsaved; ++i) {
-		res = read_int(child, child->thread_info->bpt_addr[i],
+		res = read_int(child, task_thread_info(child)->bpt_addr[i],
 			       (int *) &insn);
 		if (res < 0)
 			return res;
-		child->thread_info->bpt_insn[i] = insn;
+		task_thread_info(child)->bpt_insn[i] = insn;
 		DBG(DBG_BPT, ("    -> next_pc=%lx\n",
-			      child->thread_info->bpt_addr[i]));
-		res = write_int(child, child->thread_info->bpt_addr[i],
+			      task_thread_info(child)->bpt_addr[i]));
+		res = write_int(child, task_thread_info(child)->bpt_addr[i],
 				BREAKINST);
 		if (res < 0)
 			return res;
 	}
-	child->thread_info->bpt_nsaved = nsaved;
+	task_thread_info(child)->bpt_nsaved = nsaved;
 	return 0;
 }
 
@@ -227,9 +234,9 @@ ptrace_set_bpt(struct task_struct * child)
 int
 ptrace_cancel_bpt(struct task_struct * child)
 {
-	int i, nsaved = child->thread_info->bpt_nsaved;
+	int i, nsaved = task_thread_info(child)->bpt_nsaved;
 
-	child->thread_info->bpt_nsaved = 0;
+	task_thread_info(child)->bpt_nsaved = 0;
 
 	if (nsaved > 2) {
 		printk("ptrace_cancel_bpt: bogus nsaved: %d!\n", nsaved);
@@ -237,8 +244,8 @@ ptrace_cancel_bpt(struct task_struct * child)
 	}
 
 	for (i = 0; i < nsaved; ++i) {
-		write_int(child, child->thread_info->bpt_addr[i],
-			  child->thread_info->bpt_insn[i]);
+		write_int(child, task_thread_info(child)->bpt_addr[i],
+			  task_thread_info(child)->bpt_insn[i]);
 	}
 	return (nsaved != 0);
 }
@@ -265,30 +272,16 @@ do_sys_ptrace(long request, long pid, long addr, long data,
 	lock_kernel();
 	DBG(DBG_MEM, ("request=%ld pid=%ld addr=0x%lx data=0x%lx\n",
 		      request, pid, addr, data));
-	ret = -EPERM;
 	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out_notsk;
-		ret = security_ptrace(current->parent, current);
-		if (ret)
-			goto out_notsk;
-		/* set the ptrace bit in the process ptrace flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
+		ret = ptrace_traceme();
 		goto out_notsk;
 	}
-	if (pid == 1)		/* you may not mess with init */
-		goto out_notsk;
 
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
 		goto out_notsk;
+	}
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);
@@ -369,7 +362,7 @@ do_sys_ptrace(long request, long pid, long addr, long data,
 		if (!valid_signal(data))
 			break;
 		/* Mark single stepping.  */
-		child->thread_info->bpt_nsaved = -1;
+		task_thread_info(child)->bpt_nsaved = -1;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;
 		wake_up_process(child);

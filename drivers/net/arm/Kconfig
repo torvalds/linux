@@ -31,16 +31,3 @@ config ARM_ETHERH
 	help
 	  If you have an Acorn system with one of these network cards, you
 	  should say Y to this option if you wish to use it with Linux.
-
-config ARM_ETHER00
-	tristate "Altera Ether00 support"
-	depends on NET_ETHERNET && ARM && ARCH_CAMELOT
-	help
-	  This is the driver for Altera's ether00 ethernet mac IP core. Say
-	  Y here if you want to build support for this into the kernel. It
-	  is also available as a module (say M here) that can be inserted/
-	  removed from the kernel at the same time as the PLD is configured.
-	  If this driver is running on an epxa10 development board then it
-	  will generate a suitable hw address based on the board serial
-	  number (MTD support is required for this). Otherwise you will
-	  need to set a suitable hw address using ifconfig.

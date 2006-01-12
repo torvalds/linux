@@ -24,14 +24,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/sysdev.h>
 #include <linux/interrupt.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/clcd.h>
 
 #include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/amba_clcd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst307.h>
 

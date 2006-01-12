@@ -22,8 +22,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define TEA_KEY_SIZE		16
 #define TEA_BLOCK_SIZE		8
@@ -34,9 +36,6 @@
 #define XTEA_BLOCK_SIZE		8
 #define XTEA_ROUNDS		32
 #define XTEA_DELTA		0x9e3779b9
-
-#define u32_in(x) le32_to_cpu(*(const __le32 *)(x))
-#define u32_out(to, from) (*(__le32 *)(to) = cpu_to_le32(from))
 
 struct tea_ctx {
 	u32 KEY[4];
@@ -49,8 +48,8 @@ struct xtea_ctx {
 static int tea_setkey(void *ctx_arg, const u8 *in_key,
                        unsigned int key_len, u32 *flags)
 { 
-
 	struct tea_ctx *ctx = ctx_arg;
+	const __le32 *key = (const __le32 *)in_key;
 	
 	if (key_len != 16)
 	{
@@ -58,10 +57,10 @@ static int tea_setkey(void *ctx_arg, const u8 *in_key,
 		return -EINVAL;
 	}
 
-	ctx->KEY[0] = u32_in (in_key);
-	ctx->KEY[1] = u32_in (in_key + 4);
-	ctx->KEY[2] = u32_in (in_key + 8);
-	ctx->KEY[3] = u32_in (in_key + 12);
+	ctx->KEY[0] = le32_to_cpu(key[0]);
+	ctx->KEY[1] = le32_to_cpu(key[1]);
+	ctx->KEY[2] = le32_to_cpu(key[2]);
+	ctx->KEY[3] = le32_to_cpu(key[3]);
 
 	return 0; 
 
@@ -73,9 +72,11 @@ static void tea_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 	u32 k0, k1, k2, k3;
 
 	struct tea_ctx *ctx = ctx_arg;
+	const __le32 *in = (const __le32 *)src;
+	__le32 *out = (__le32 *)dst;
 
-	y = u32_in (src);
-	z = u32_in (src + 4);
+	y = le32_to_cpu(in[0]);
+	z = le32_to_cpu(in[1]);
 
 	k0 = ctx->KEY[0];
 	k1 = ctx->KEY[1];
@@ -90,19 +91,20 @@ static void tea_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 		z += ((y << 4) + k2) ^ (y + sum) ^ ((y >> 5) + k3);
 	}
 	
-	u32_out (dst, y);
-	u32_out (dst + 4, z);
+	out[0] = cpu_to_le32(y);
+	out[1] = cpu_to_le32(z);
 }
 
 static void tea_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 { 
 	u32 y, z, n, sum;
 	u32 k0, k1, k2, k3;
-
 	struct tea_ctx *ctx = ctx_arg;
+	const __le32 *in = (const __le32 *)src;
+	__le32 *out = (__le32 *)dst;
 
-	y = u32_in (src);
-	z = u32_in (src + 4);
+	y = le32_to_cpu(in[0]);
+	z = le32_to_cpu(in[1]);
 
 	k0 = ctx->KEY[0];
 	k1 = ctx->KEY[1];
@@ -119,16 +121,15 @@ static void tea_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 		sum -= TEA_DELTA;
 	}
 	
-	u32_out (dst, y);
-	u32_out (dst + 4, z);
-
+	out[0] = cpu_to_le32(y);
+	out[1] = cpu_to_le32(z);
 }
 
 static int xtea_setkey(void *ctx_arg, const u8 *in_key,
                        unsigned int key_len, u32 *flags)
 { 
-
 	struct xtea_ctx *ctx = ctx_arg;
+	const __le32 *key = (const __le32 *)in_key;
 	
 	if (key_len != 16)
 	{
@@ -136,10 +137,10 @@ static int xtea_setkey(void *ctx_arg, const u8 *in_key,
 		return -EINVAL;
 	}
 
-	ctx->KEY[0] = u32_in (in_key);
-	ctx->KEY[1] = u32_in (in_key + 4);
-	ctx->KEY[2] = u32_in (in_key + 8);
-	ctx->KEY[3] = u32_in (in_key + 12);
+	ctx->KEY[0] = le32_to_cpu(key[0]);
+	ctx->KEY[1] = le32_to_cpu(key[1]);
+	ctx->KEY[2] = le32_to_cpu(key[2]);
+	ctx->KEY[3] = le32_to_cpu(key[3]);
 
 	return 0; 
 
@@ -147,14 +148,15 @@ static int xtea_setkey(void *ctx_arg, const u8 *in_key,
 
 static void xtea_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 { 
-
 	u32 y, z, sum = 0;
 	u32 limit = XTEA_DELTA * XTEA_ROUNDS;
 
 	struct xtea_ctx *ctx = ctx_arg;
+	const __le32 *in = (const __le32 *)src;
+	__le32 *out = (__le32 *)dst;
 
-	y = u32_in (src);
-	z = u32_in (src + 4);
+	y = le32_to_cpu(in[0]);
+	z = le32_to_cpu(in[1]);
 
 	while (sum != limit) {
 		y += ((z << 4 ^ z >> 5) + z) ^ (sum + ctx->KEY[sum&3]); 
@@ -162,19 +164,19 @@ static void xtea_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 		z += ((y << 4 ^ y >> 5) + y) ^ (sum + ctx->KEY[sum>>11 &3]); 
 	}
 	
-	u32_out (dst, y);
-	u32_out (dst + 4, z);
-
+	out[0] = cpu_to_le32(y);
+	out[1] = cpu_to_le32(z);
 }
 
 static void xtea_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 { 
-
 	u32 y, z, sum;
 	struct tea_ctx *ctx = ctx_arg;
+	const __le32 *in = (const __le32 *)src;
+	__le32 *out = (__le32 *)dst;
 
-	y = u32_in (src);
-	z = u32_in (src + 4);
+	y = le32_to_cpu(in[0]);
+	z = le32_to_cpu(in[1]);
 
 	sum = XTEA_DELTA * XTEA_ROUNDS;
 
@@ -184,22 +186,22 @@ static void xtea_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 		y -= ((z << 4 ^ z >> 5) + z) ^ (sum + ctx->KEY[sum & 3]);
 	}
 	
-	u32_out (dst, y);
-	u32_out (dst + 4, z);
-
+	out[0] = cpu_to_le32(y);
+	out[1] = cpu_to_le32(z);
 }
 
 
 static void xeta_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 { 
-
 	u32 y, z, sum = 0;
 	u32 limit = XTEA_DELTA * XTEA_ROUNDS;
 
 	struct xtea_ctx *ctx = ctx_arg;
+	const __le32 *in = (const __le32 *)src;
+	__le32 *out = (__le32 *)dst;
 
-	y = u32_in (src);
-	z = u32_in (src + 4);
+	y = le32_to_cpu(in[0]);
+	z = le32_to_cpu(in[1]);
 
 	while (sum != limit) {
 		y += (z << 4 ^ z >> 5) + (z ^ sum) + ctx->KEY[sum&3];
@@ -207,19 +209,19 @@ static void xeta_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 		z += (y << 4 ^ y >> 5) + (y ^ sum) + ctx->KEY[sum>>11 &3];
 	}
 	
-	u32_out (dst, y);
-	u32_out (dst + 4, z);
-
+	out[0] = cpu_to_le32(y);
+	out[1] = cpu_to_le32(z);
 }
 
 static void xeta_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 { 
-
 	u32 y, z, sum;
 	struct tea_ctx *ctx = ctx_arg;
+	const __le32 *in = (const __le32 *)src;
+	__le32 *out = (__le32 *)dst;
 
-	y = u32_in (src);
-	z = u32_in (src + 4);
+	y = le32_to_cpu(in[0]);
+	z = le32_to_cpu(in[1]);
 
 	sum = XTEA_DELTA * XTEA_ROUNDS;
 
@@ -229,9 +231,8 @@ static void xeta_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 		y -= (z << 4 ^ z >> 5) + (z ^ sum) + ctx->KEY[sum & 3];
 	}
 	
-	u32_out (dst, y);
-	u32_out (dst + 4, z);
-
+	out[0] = cpu_to_le32(y);
+	out[1] = cpu_to_le32(z);
 }
 
 static struct crypto_alg tea_alg = {
@@ -239,6 +240,7 @@ static struct crypto_alg tea_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	TEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct tea_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(tea_alg.cra_list),
 	.cra_u			=	{ .cipher = {
@@ -254,6 +256,7 @@ static struct crypto_alg xtea_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	XTEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct xtea_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(xtea_alg.cra_list),
 	.cra_u			=	{ .cipher = {
@@ -269,6 +272,7 @@ static struct crypto_alg xeta_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	XTEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct xtea_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(xtea_alg.cra_list),
 	.cra_u			=	{ .cipher = {

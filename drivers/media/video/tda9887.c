@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 
 
@@ -57,7 +57,6 @@ struct tda9887 {
 	v4l2_std_id        std;
 	enum tuner_mode    mode;
 	unsigned int       config;
-	unsigned int       pinnacle_id;
 	unsigned int       using_v4l2;
 	unsigned int 	   radio_mode;
 	unsigned char 	   data[4];
@@ -115,6 +114,9 @@ static struct i2c_client client_template;
 #define cAudioGain0             0x00    // bit c7
 #define cAudioGain6             0x80    // bit c7
 
+#define cTopMask                0x1f    // bit c0:4
+#define cTopPalSecamDefault	0x14 	// bit c0:4
+#define cTopNtscRadioDefault 	0x10 	// bit c0:4
 
 //// third reg (e)
 #define cAudioIF_4_5             0x00    // bit e0:1
@@ -146,13 +148,15 @@ static struct i2c_client client_template;
 
 static struct tvnorm tvnorms[] = {
 	{
-		.std   = V4L2_STD_PAL_BG,
-		.name  = "PAL-BG",
+		.std   = V4L2_STD_PAL_BG | V4L2_STD_PAL_H | V4L2_STD_PAL_N,
+		.name  = "PAL-BGHN",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_5_5   |
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_PAL_I,
@@ -160,8 +164,10 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_6_0   |
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_6_0   |
 			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_PAL_DK,
@@ -169,52 +175,80 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_6_5   |
-			   cVideoIF_38_00 ),
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_6_5   |
+			   cVideoIF_38_90 ),
 	},{
-		.std   = V4L2_STD_PAL_M | V4L2_STD_PAL_N,
-		.name  = "PAL-M/N",
+		.std   = V4L2_STD_PAL_M | V4L2_STD_PAL_Nc,
+		.name  = "PAL-M/Nc",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis75  ),
-		.e     = ( cAudioIF_4_5   |
+			   cDeemphasis75  |
+			   cTopNtscRadioDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
+	},{
+		.std   = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H,
+		.name  = "SECAM-BGH",
+		.b     = ( cPositiveAmTV  |
+			   cQSS           ),
+		.c     = ( cTopPalSecamDefault),
+		.e     = ( cGating_36	  |
+			   cAudioIF_5_5   |
+			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_SECAM_L,
 		.name  = "SECAM-L",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
+		.c     = ( cTopPalSecamDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
+	},{
+		.std   = V4L2_STD_SECAM_LC,
+		.name  = "SECAM-L'",
+		.b     = ( cOutputPort2Inactive |
+			   cPositiveAmTV  |
+			   cQSS           ),
+		.c     = ( cTopPalSecamDefault),
+		.e     = ( cGating_36	  |
+			   cAudioIF_6_5   |
+			   cVideoIF_33_90 ),
 	},{
 		.std   = V4L2_STD_SECAM_DK,
 		.name  = "SECAM-DK",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_6_5   |
-			   cVideoIF_38_00 ),
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_6_5   |
+			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_NTSC_M,
 		.name  = "NTSC-M",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis75  ),
+			   cDeemphasis75  |
+			   cTopNtscRadioDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
 	},{
 		.std   = V4L2_STD_NTSC_M_JP,
-		.name  = "NTSC-JP",
+		.name  = "NTSC-M-JP",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
+			   cDeemphasis50  |
+			   cTopNtscRadioDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_58_75 ),
@@ -226,8 +260,10 @@ static struct tvnorm radio_stereo = {
 	.b    = ( cFmRadio       |
 		  cQSS           ),
 	.c    = ( cDeemphasisOFF |
-		  cAudioGain6 ),
-	.e    = ( cAudioIF_5_5   |
+		  cAudioGain6    |
+		  cTopNtscRadioDefault),
+	.e    = ( cTunerGainLow  |
+		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
 };
 
@@ -236,8 +272,10 @@ static struct tvnorm radio_mono = {
 	.b    = ( cFmRadio       |
 		  cQSS           ),
 	.c    = ( cDeemphasisON  |
-		  cDeemphasis50),
-	.e    = ( cAudioIF_5_5   |
+		  cDeemphasis75  |
+		  cTopNtscRadioDefault),
+	.e    = ( cTunerGainLow  |
+		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
 };
 
@@ -400,7 +438,8 @@ static int tda9887_set_tvnorm(struct tda9887 *t, char *buf)
 static unsigned int port1  = UNSET;
 static unsigned int port2  = UNSET;
 static unsigned int qss    = UNSET;
-static unsigned int adjust = 0x10;
+static unsigned int adjust = UNSET;
+
 module_param(port1, int, 0644);
 module_param(port2, int, 0644);
 module_param(qss, int, 0644);
@@ -428,8 +467,10 @@ static int tda9887_set_insmod(struct tda9887 *t, char *buf)
 			buf[1] &= ~cQSS;
 	}
 
-	if (adjust >= 0x00 && adjust < 0x20)
+	if (adjust >= 0x00 && adjust < 0x20) {
+		buf[2] &= ~cTopMask;
 		buf[2] |= adjust;
+	}
 	return 0;
 }
 
@@ -465,6 +506,10 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 			break;
 		}
 	}
+	if (t->config & TDA9887_TOP_SET) {
+		buf[2] &= ~cTopMask;
+		buf[2] |= (t->config >> 8) & cTopMask;
+	}
 	if ((t->config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
 		buf[1] &= ~cQSS;
 	return 0;
@@ -472,38 +517,13 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_set_pinnacle(struct tda9887 *t, char *buf)
-{
-	unsigned int bCarrierMode = UNSET;
+static char pal[] = "--";
+static char secam[] = "--";
+static char ntsc[] = "-";
 
-	if (t->std & V4L2_STD_625_50) {
-		if ((1 == t->pinnacle_id) || (7 == t->pinnacle_id)) {
-			bCarrierMode = cIntercarrier;
-		} else {
-			bCarrierMode = cQSS;
-		}
-	}
-	if (t->std & V4L2_STD_525_60) {
-		if ((5 == t->pinnacle_id) || (6 == t->pinnacle_id)) {
-			bCarrierMode = cIntercarrier;
-		} else {
-			bCarrierMode = cQSS;
-		}
-	}
-
-	if (bCarrierMode != UNSET) {
-		buf[1] &= ~0x04;
-		buf[1] |= bCarrierMode;
-	}
-	return 0;
-}
-
-/* ---------------------------------------------------------------------- */
-
-static char pal[] = "-";
 module_param_string(pal, pal, sizeof(pal), 0644);
-static char secam[] = "-";
 module_param_string(secam, secam, sizeof(secam), 0644);
+module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
 
 static int tda9887_fixup_std(struct tda9887 *t)
 {
@@ -514,8 +534,17 @@ static int tda9887_fixup_std(struct tda9887 *t)
 		case 'B':
 		case 'g':
 		case 'G':
-			tda9887_dbg("insmod fixup: PAL => PAL-BG\n");
-			t->std = V4L2_STD_PAL_BG;
+		case 'h':
+		case 'H':
+		case 'n':
+		case 'N':
+			if (pal[1] == 'c' || pal[1] == 'C') {
+				tda9887_dbg("insmod fixup: PAL => PAL-Nc\n");
+				t->std = V4L2_STD_PAL_Nc;
+			} else {
+				tda9887_dbg("insmod fixup: PAL => PAL-BGHN\n");
+				t->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H | V4L2_STD_PAL_N;
+			}
 			break;
 		case 'i':
 		case 'I':
@@ -529,6 +558,11 @@ static int tda9887_fixup_std(struct tda9887 *t)
 			tda9887_dbg("insmod fixup: PAL => PAL-DK\n");
 			t->std = V4L2_STD_PAL_DK;
 			break;
+		case 'm':
+		case 'M':
+			tda9887_dbg("insmod fixup: PAL => PAL-M\n");
+			t->std = V4L2_STD_PAL_M;
+			break;
 		case '-':
 			/* default parameter, do nothing */
 			break;
@@ -539,6 +573,15 @@ static int tda9887_fixup_std(struct tda9887 *t)
 	}
 	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
 		switch (secam[0]) {
+		case 'b':
+		case 'B':
+		case 'g':
+		case 'G':
+		case 'h':
+		case 'H':
+			tda9887_dbg("insmod fixup: SECAM => SECAM-BGH\n");
+			t->std = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H;
+			break;
 		case 'd':
 		case 'D':
 		case 'k':
@@ -548,14 +591,39 @@ static int tda9887_fixup_std(struct tda9887 *t)
 			break;
 		case 'l':
 		case 'L':
-			tda9887_dbg("insmod fixup: SECAM => SECAM-L\n");
-			t->std = V4L2_STD_SECAM_L;
+			if (secam[1] == 'c' || secam[1] == 'C') {
+				tda9887_dbg("insmod fixup: SECAM => SECAM-L'\n");
+				t->std = V4L2_STD_SECAM_LC;
+			} else {
+				tda9887_dbg("insmod fixup: SECAM => SECAM-L\n");
+				t->std = V4L2_STD_SECAM_L;
+			}
 			break;
 		case '-':
 			/* default parameter, do nothing */
 			break;
 		default:
 			tda9887_info("secam= argument not recognised\n");
+			break;
+		}
+	}
+	if ((t->std & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
+		switch (ntsc[0]) {
+		case 'm':
+		case 'M':
+			tda9887_dbg("insmod fixup: NTSC => NTSC-M\n");
+			t->std = V4L2_STD_NTSC_M;
+			break;
+		case 'j':
+		case 'J':
+			tda9887_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
+			t->std = V4L2_STD_NTSC_M_JP;
+			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tda9887_info("ntsc= argument not recognised\n");
 			break;
 		}
 	}
@@ -581,19 +649,28 @@ static int tda9887_configure(struct tda9887 *t)
 	memset(t->data,0,sizeof(t->data));
 	tda9887_set_tvnorm(t,t->data);
 
+	/* A note on the port settings:
+	   These settings tend to depend on the specifics of the board.
+	   By default they are set to inactive (bit value 1) by this driver,
+	   overwriting any changes made by the tvnorm. This means that it
+	   is the responsibility of the module using the tda9887 to set
+	   these values in case of changes in the tvnorm.
+	   In many cases port 2 should be made active (0) when selecting
+	   SECAM-L, and port 2 should remain inactive (1) for SECAM-L'.
+
+	   For the other standards the tda9887 application note says that
+	   the ports should be set to active (0), but, again, that may
+	   differ depending on the precise hardware configuration.
+	 */
 	t->data[1] |= cOutputPort1Inactive;
 	t->data[1] |= cOutputPort2Inactive;
 
-	if (UNSET != t->pinnacle_id) {
-		tda9887_set_pinnacle(t,t->data);
-	}
 	tda9887_set_config(t,t->data);
 	tda9887_set_insmod(t,t->data);
 
 	if (t->mode == T_STANDBY) {
 		t->data[1] |= cForcedMuteAudioON;
 	}
-
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		t->data[1],t->data[2],t->data[3]);
@@ -619,13 +696,11 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
 	client_template.adapter = adap;
 	client_template.addr    = addr;
 
-	if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
+	if (NULL == (t = kzalloc(sizeof(*t), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(t,0,sizeof(*t));
 
 	t->client      = client_template;
 	t->std         = 0;
-	t->pinnacle_id = UNSET;
 	t->radio_mode = V4L2_TUNER_MODE_STEREO;
 
 	tda9887_info("chip found @ 0x%x (%s)\n", addr<<1, adap->name);
@@ -638,18 +713,8 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
 
 static int tda9887_probe(struct i2c_adapter *adap)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, tda9887_attach);
-#else
-	switch (adap->id) {
-	case I2C_HW_B_BT848:
-	case I2C_HW_B_RIVA:
-	case I2C_HW_SAA7134:
-		return i2c_probe(adap, &addr_data, tda9887_attach);
-		break;
-	}
-#endif
 	return 0;
 }
 
@@ -686,14 +751,6 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case TUNER_SET_STANDBY:
 	{
 		t->mode = T_STANDBY;
-		tda9887_configure(t);
-		break;
-	}
-	case AUDC_CONFIG_PINNACLE:
-	{
-		int *i = arg;
-
-		t->pinnacle_id = *i;
 		tda9887_configure(t);
 		break;
 	}
@@ -787,7 +844,7 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case VIDIOC_LOG_STATUS:
 	{
-		tda9887_info("Data bytes: b=%02x c=%02x e=%02x\n", t->data[1], t->data[2], t->data[3]);
+		tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", t->data[1], t->data[2], t->data[3]);
 		break;
 	}
 	default:
@@ -819,14 +876,12 @@ static int tda9887_resume(struct device * dev)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner          = THIS_MODULE,
-	.name           = "i2c tda9887 driver",
 	.id             = -1, /* FIXME */
-	.flags          = I2C_DF_NOTIFY,
 	.attach_adapter = tda9887_probe,
 	.detach_client  = tda9887_detach,
 	.command        = tda9887_command,
 	.driver = {
+		.name    = "tda9887",
 		.suspend = tda9887_suspend,
 		.resume  = tda9887_resume,
 	},
@@ -834,7 +889,6 @@ static struct i2c_driver driver = {
 static struct i2c_client client_template =
 {
 	.name      = "tda9887",
-	.flags     = I2C_CLIENT_ALLOW_USE,
 	.driver    = &driver,
 };
 

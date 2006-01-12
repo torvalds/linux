@@ -57,11 +57,20 @@ struct thread_info {
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
 #define alloc_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
+#define task_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
 #else
 #define current_thread_info()	((struct thread_info *) 0)
 #define alloc_thread_info(tsk)	((struct thread_info *) 0)
+#define task_thread_info(tsk)	((struct thread_info *) 0)
 #endif
 #define free_thread_info(ti)	/* nothing */
+#define task_stack_page(tsk)	((void *)(tsk))
+
+#define __HAVE_THREAD_FUNCTIONS
+#define setup_thread_stack(p, org) \
+	*task_thread_info(p) = *task_thread_info(org); \
+	task_thread_info(p)->task = (p);
+#define end_of_stack(p) (unsigned long *)((void *)(p) + IA64_RBS_OFFSET)
 
 #define __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
 #define alloc_task_struct()	((task_t *)__get_free_pages(GFP_KERNEL, KERNEL_STACK_SIZE_ORDER))

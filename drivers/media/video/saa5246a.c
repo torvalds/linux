@@ -83,13 +83,12 @@ static int saa5246a_attach(struct i2c_adapter *adap, int addr, int kind)
 	client_template.adapter = adap;
 	client_template.addr = addr;
 	memcpy(client, &client_template, sizeof(*client));
-	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if(t==NULL)
 	{
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(t, 0, sizeof(*t));
 	strlcpy(client->name, IF_NAME, I2C_NAME_SIZE);
 	init_MUTEX(&t->lock);
 
@@ -151,25 +150,18 @@ static int saa5246a_detach(struct i2c_client *client)
 	return 0;
 }
 
-static int saa5246a_command(struct i2c_client *device, unsigned int cmd,
-	void *arg)
-{
-	return -EINVAL;
-}
-
 /*
  *	I2C interfaces
  */
 
 static struct i2c_driver i2c_driver_videotext =
 {
-	.owner 		= THIS_MODULE,
-	.name 		= IF_NAME,		/* name */
+	.driver = {
+		.name 	= IF_NAME,		/* name */
+	},
 	.id 		= I2C_DRIVERID_SAA5249, /* in i2c.h */
-	.flags 		= I2C_DF_NOTIFY,
 	.attach_adapter = saa5246a_probe,
 	.detach_client  = saa5246a_detach,
-	.command 	= saa5246a_command
 };
 
 static struct i2c_client client_template = {

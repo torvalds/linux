@@ -11,6 +11,8 @@
  * Copyright (C) Hans-Joachim Hetscher DD8NE (dd8ne@bnv-bamberg.de)
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
+
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>

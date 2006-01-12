@@ -32,6 +32,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -58,6 +59,7 @@
 #endif
 #include <linux/kmod.h>
 
+#include <net/arp.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/ip_fib.h>

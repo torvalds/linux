@@ -131,7 +131,7 @@ static void initDataEvent(struct viocharlpevent *viochar, HvLpIndex lp);
 
 static struct tty_driver *viotty_driver;
 
-void hvlog(char *fmt, ...)
+static void hvlog(char *fmt, ...)
 {
 	int i;
 	unsigned long flags;
@@ -147,7 +147,7 @@ void hvlog(char *fmt, ...)
 	spin_unlock_irqrestore(&consoleloglock, flags);
 }
 
-void hvlogOutput(const char *buf, int count)
+static void hvlogOutput(const char *buf, int count)
 {
 	unsigned long flags;
 	int begin;
@@ -476,19 +476,19 @@ static struct port_info *get_port_data(struct tty_struct *tty)
  */
 static void initDataEvent(struct viocharlpevent *viochar, HvLpIndex lp)
 {
+	struct HvLpEvent *hev = &viochar->event;
+
 	memset(viochar, 0, sizeof(struct viocharlpevent));
 
-	viochar->event.xFlags.xValid = 1;
-	viochar->event.xFlags.xFunction = HvLpEvent_Function_Int;
-	viochar->event.xFlags.xAckInd = HvLpEvent_AckInd_NoAck;
-	viochar->event.xFlags.xAckType = HvLpEvent_AckType_DeferredAck;
-	viochar->event.xType = HvLpEvent_Type_VirtualIo;
-	viochar->event.xSubtype = viomajorsubtype_chario | viochardata;
-	viochar->event.xSourceLp = HvLpConfig_getLpIndex();
-	viochar->event.xTargetLp = lp;
-	viochar->event.xSizeMinus1 = sizeof(struct viocharlpevent);
-	viochar->event.xSourceInstanceId = viopath_sourceinst(lp);
-	viochar->event.xTargetInstanceId = viopath_targetinst(lp);
+	hev->flags = HV_LP_EVENT_VALID | HV_LP_EVENT_DEFERRED_ACK |
+		HV_LP_EVENT_INT;
+	hev->xType = HvLpEvent_Type_VirtualIo;
+	hev->xSubtype = viomajorsubtype_chario | viochardata;
+	hev->xSourceLp = HvLpConfig_getLpIndex();
+	hev->xTargetLp = lp;
+	hev->xSizeMinus1 = sizeof(struct viocharlpevent);
+	hev->xSourceInstanceId = viopath_sourceinst(lp);
+	hev->xTargetInstanceId = viopath_targetinst(lp);
 }
 
 /*
@@ -752,7 +752,7 @@ static void vioHandleOpenEvent(struct HvLpEvent *event)
 	struct port_info *pi;
 	int reject = 0;
 
-	if (event->xFlags.xFunction == HvLpEvent_Function_Ack) {
+	if (hvlpevent_is_ack(event)) {
 		if (port >= VTTY_PORTS)
 			return;
 
@@ -788,7 +788,7 @@ static void vioHandleOpenEvent(struct HvLpEvent *event)
 	}
 
 	/* This had better require an ack, otherwise complain */
-	if (event->xFlags.xAckInd != HvLpEvent_AckInd_DoAck) {
+	if (!hvlpevent_need_ack(event)) {
 		printk(VIOCONS_KERN_WARN "viocharopen without ack bit!\n");
 		return;
 	}
@@ -856,7 +856,7 @@ static void vioHandleCloseEvent(struct HvLpEvent *event)
 	struct viocharlpevent *cevent = (struct viocharlpevent *)event;
 	u8 port = cevent->virtual_device;
 
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		if (port >= VTTY_PORTS) {
 			printk(VIOCONS_KERN_WARN
 					"close message from invalid virtual device.\n");
@@ -904,6 +904,7 @@ static void vioHandleData(struct HvLpEvent *event)
 	struct viocharlpevent *cevent = (struct viocharlpevent *)event;
 	struct port_info *pi;
 	int index;
+	int num_pushed;
 	u8 port = cevent->virtual_device;
 
 	if (port >= VTTY_PORTS) {
@@ -964,6 +965,7 @@ static void vioHandleData(struct HvLpEvent *event)
 	 * functionality will only work if built into the kernel and
 	 * then only if sysrq is enabled through the proc filesystem.
 	 */
+	num_pushed = 0;
 	for (index = 0; index < cevent->len; index++) {
 #ifdef CONFIG_MAGIC_SYSRQ
 		if (sysrq_enabled) {
@@ -993,16 +995,14 @@ static void vioHandleData(struct HvLpEvent *event)
 		 * Don't attempt to copy more data into the buffer than we
 		 * have room for because it would fail without indication.
 		 */
-		if ((tty->flip.count + 1) > TTY_FLIPBUF_SIZE) {
+		if(tty_insert_flip_char(tty, cevent->data[index], TTY_NORMAL) == 0) {
 			printk(VIOCONS_KERN_WARN "input buffer overflow!\n");
 			break;
 		}
-		tty_insert_flip_char(tty, cevent->data[index], TTY_NORMAL);
+		num_pushed++;
 	}
 
-	/* if cevent->len == 0 then no data was added to the buffer and flip.count == 0 */
-	if (tty->flip.count)
-		/* The next call resets flip.count when the data is flushed. */
+	if (num_pushed)
 		tty_flip_buffer_push(tty);
 }
 
@@ -1056,8 +1056,7 @@ static void vioHandleCharEvent(struct HvLpEvent *event)
 		vioHandleConfig(event);
 		break;
 	default:
-		if ((event->xFlags.xFunction == HvLpEvent_Function_Int) &&
-		    (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck)) {
+		if (hvlpevent_is_int(event) && hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}

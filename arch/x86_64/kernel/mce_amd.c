@@ -27,6 +27,7 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/percpu.h>
+#include <asm/idle.h>
 
 #define PFX "mce_threshold: "
 #define VERSION "version 1.00.9"
@@ -140,6 +141,7 @@ asmlinkage void mce_threshold_interrupt(void)
 	struct mce m;
 
 	ack_APIC_irq();
+	exit_idle();
 	irq_enter();
 
 	memset(&m, 0, sizeof(m));
@@ -318,7 +320,7 @@ static struct kobj_type threshold_ktype = {
 static __cpuinit int threshold_create_bank(unsigned int cpu, int bank)
 {
 	int err = 0;
-	struct threshold_bank *b = 0;
+	struct threshold_bank *b = NULL;
 
 #ifdef CONFIG_SMP
 	if (cpu_core_id[cpu] && shared_bank[bank]) {	/* symlink */
@@ -407,7 +409,7 @@ static __cpuinit void threshold_remove_bank(unsigned int cpu, int bank)
 	if (shared_bank[bank] && atomic_read(&b->kobj.kref.refcount) > 2) {
 		sprintf(name, "bank%i", bank);
 		sysfs_remove_link(&per_cpu(device_threshold, cpu).kobj, name);
-		per_cpu(threshold_banks, cpu)[bank] = 0;
+		per_cpu(threshold_banks, cpu)[bank] = NULL;
 	} else {
 		kobject_unregister(&b->kobj);
 		kfree(per_cpu(threshold_banks, cpu)[bank]);

@@ -69,7 +69,7 @@ static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 static u8 svwks_ratemask (ide_drive_t *drive)
 {
 	struct pci_dev *dev     = HWIF(drive)->pci_dev;
-	u8 mode;
+	u8 mode = 0;
 
 	if (!svwks_revision)
 		pci_read_config_byte(dev, PCI_REVISION_ID, &svwks_revision);

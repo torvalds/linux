@@ -1,6 +1,6 @@
 config BINFMT_ELF
 	bool "Kernel support for ELF binaries"
-	depends on MMU
+	depends on MMU && (BROKEN || !FRV)
 	default y
 	---help---
 	  ELF (Executable and Linkable Format) is a format for libraries and

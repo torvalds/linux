@@ -40,4 +40,9 @@
 #define cpu_icache_line_size()	32
 #define cpu_scache_line_size()	32
 
+#define cpu_has_mips32r1	0
+#define cpu_has_mips32r2	0
+#define cpu_has_mips64r1	0
+#define cpu_has_mips64r2	0
+
 #endif /* __ASM_MACH_JA_CPU_FEATURE_OVERRIDES_H */

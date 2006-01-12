@@ -138,6 +138,9 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
 
 	int ret = -ENOMEM,cold=0;
 
+	if (du != NULL)
+		*du = NULL;
+
 	if ((desc = dvb_usb_find_device(udev,props,&cold)) == NULL) {
 		deb_err("something went very wrong, device was not found in current device list - let's see what comes next.\n");
 		return -ENODEV;
@@ -145,38 +148,38 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
 
 	if (cold) {
 		info("found a '%s' in cold state, will try to load a firmware",desc->name);
-		ret = usb_cypress_load_firmware(udev,props->firmware,props->usb_ctrl);
-	} else {
-		info("found a '%s' in warm state.",desc->name);
-		d = kmalloc(sizeof(struct dvb_usb_device),GFP_KERNEL);
-		if (d == NULL) {
-			err("no memory for 'struct dvb_usb_device'");
+		ret = dvb_usb_download_firmware(udev,props);
+		if (!props->no_reconnect)
 			return ret;
-		}
-		memset(d,0,sizeof(struct dvb_usb_device));
-
-		d->udev = udev;
-		memcpy(&d->props,props,sizeof(struct dvb_usb_properties));
-		d->desc = desc;
-		d->owner = owner;
-
-		if (d->props.size_of_priv > 0) {
-			d->priv = kmalloc(d->props.size_of_priv,GFP_KERNEL);
-			if (d->priv == NULL) {
-				err("no memory for priv in 'struct dvb_usb_device'");
-				kfree(d);
-				return -ENOMEM;
-			}
-			memset(d->priv,0,d->props.size_of_priv);
-		}
-
-		usb_set_intfdata(intf, d);
-
-		if (du != NULL)
-			*du = d;
-
-		ret = dvb_usb_init(d);
 	}
+
+	info("found a '%s' in warm state.",desc->name);
+		d = kzalloc(sizeof(struct dvb_usb_device),GFP_KERNEL);
+	if (d == NULL) {
+		err("no memory for 'struct dvb_usb_device'");
+		return ret;
+	}
+
+	d->udev = udev;
+	memcpy(&d->props,props,sizeof(struct dvb_usb_properties));
+	d->desc = desc;
+	d->owner = owner;
+
+	if (d->props.size_of_priv > 0) {
+			d->priv = kzalloc(d->props.size_of_priv,GFP_KERNEL);
+		if (d->priv == NULL) {
+			err("no memory for priv in 'struct dvb_usb_device'");
+			kfree(d);
+			return -ENOMEM;
+		}
+	}
+
+	usb_set_intfdata(intf, d);
+
+	if (du != NULL)
+		*du = d;
+
+	ret = dvb_usb_init(d);
 
 	if (ret == 0)
 		info("%s successfully initialized and connected.",desc->name);

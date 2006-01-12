@@ -65,6 +65,7 @@
 #include <asm/timex.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
+#include <asm/s390_rdev.h>
 
 #include "qeth.h"
 #include "qeth_mpc.h"
@@ -1396,7 +1397,7 @@ qeth_idx_activate_get_answer(struct qeth_channel *channel,
 	channel->ccw.cda = (__u32) __pa(iob->data);
 
 	wait_event(card->wait_q,
-		   atomic_compare_and_swap(0,1,&channel->irq_pending) == 0);
+		   atomic_cmpxchg(&channel->irq_pending, 0, 1) == 0);
 	QETH_DBF_TEXT(setup, 6, "noirqpnd");
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	rc = ccw_device_start(channel->ccwdev,
@@ -1463,7 +1464,7 @@ qeth_idx_activate_channel(struct qeth_channel *channel,
 	memcpy(QETH_IDX_ACT_QDIO_DEV_REALADDR(iob->data), &temp, 2);
 
 	wait_event(card->wait_q,
-		   atomic_compare_and_swap(0,1,&channel->irq_pending) == 0);
+		   atomic_cmpxchg(&channel->irq_pending, 0, 1) == 0);
 	QETH_DBF_TEXT(setup, 6, "noirqpnd");
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	rc = ccw_device_start(channel->ccwdev,
@@ -1616,7 +1617,7 @@ qeth_issue_next_read(struct qeth_card *card)
 	}
 	qeth_setup_ccw(&card->read, iob->data, QETH_BUFSIZE);
 	wait_event(card->wait_q,
-		   atomic_compare_and_swap(0,1,&card->read.irq_pending) == 0);
+		   atomic_cmpxchg(&card->read.irq_pending, 0, 1) == 0);
 	QETH_DBF_TEXT(trace, 6, "noirqpnd");
 	rc = ccw_device_start(card->read.ccwdev, &card->read.ccw,
 			      (addr_t) iob, 0, 0);
@@ -1882,7 +1883,7 @@ qeth_send_control_data(struct qeth_card *card, int len,
 	spin_unlock_irqrestore(&card->lock, flags);
 	QETH_DBF_HEX(control, 2, iob->data, QETH_DBF_CONTROL_LEN);
 	wait_event(card->wait_q,
-		   atomic_compare_and_swap(0,1,&card->write.irq_pending) == 0);
+		   atomic_cmpxchg(&card->write.irq_pending, 0, 1) == 0);
 	qeth_prepare_control_data(card, len, iob);
 	if (IS_IPA(iob->data))
 		timer.expires = jiffies + QETH_IPA_TIMEOUT;
@@ -1924,7 +1925,7 @@ qeth_osn_send_control_data(struct qeth_card *card, int len,
 	QETH_DBF_TEXT(trace, 5, "osndctrd");
 
 	wait_event(card->wait_q,
-		   atomic_compare_and_swap(0,1,&card->write.irq_pending) == 0);
+		   atomic_cmpxchg(&card->write.irq_pending, 0, 1) == 0);
 	qeth_prepare_control_data(card, len, iob);
 	QETH_DBF_TEXT(trace, 6, "osnoirqp");
 	spin_lock_irqsave(get_ccwdev_lock(card->write.ccwdev), flags);
@@ -4236,9 +4237,8 @@ qeth_do_send_packet_fast(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 	QETH_DBF_TEXT(trace, 6, "dosndpfa");
 
 	/* spin until we get the queue ... */
-	while (atomic_compare_and_swap(QETH_OUT_Q_UNLOCKED,
-				       QETH_OUT_Q_LOCKED,
-				       &queue->state));
+	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
+			      QETH_OUT_Q_LOCKED) != QETH_OUT_Q_UNLOCKED);
 	/* ... now we've got the queue */
 	index = queue->next_buf_to_fill;
 	buffer = &queue->bufs[queue->next_buf_to_fill];
@@ -4292,9 +4292,8 @@ qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 	QETH_DBF_TEXT(trace, 6, "dosndpkt");
 
 	/* spin until we get the queue ... */
-	while (atomic_compare_and_swap(QETH_OUT_Q_UNLOCKED,
-				       QETH_OUT_Q_LOCKED,
-				       &queue->state));
+	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
+			      QETH_OUT_Q_LOCKED) != QETH_OUT_Q_UNLOCKED);
 	start_index = queue->next_buf_to_fill;
 	buffer = &queue->bufs[queue->next_buf_to_fill];
 	/*

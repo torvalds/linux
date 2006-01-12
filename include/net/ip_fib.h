@@ -238,6 +238,8 @@ extern int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
 			       struct net_device *dev, u32 *spec_dst, u32 *itag);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
+struct rtentry;
+
 /* Exported by fib_semantics.c */
 extern int ip_fib_check_default(u32 gw, struct net_device *dev);
 extern int fib_sync_down(u32 local, struct net_device *dev, int force);

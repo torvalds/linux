@@ -308,9 +308,9 @@ static void adm1026_init_client(struct i2c_client *client);
 
 
 static struct i2c_driver adm1026_driver = {
-	.owner          = THIS_MODULE,
-	.name           = "adm1026",
-	.flags          = I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "adm1026",
+	},
 	.attach_adapter = adm1026_attach_adapter,
 	.detach_client  = adm1026_detach_client,
 };
@@ -1227,8 +1227,6 @@ static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr, c
 	struct adm1026_data *data = adm1026_update_device(dev);
 	return sprintf(buf,"%d\n", vid_from_reg(data->vid & 0x3f, data->vrm));
 }
-/* vid deprecated in favour of cpu0_vid, remove after 2005-11-11 */
-static DEVICE_ATTR(vid, S_IRUGO, show_vid_reg, NULL);
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
 static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1673,8 +1671,6 @@ static int adm1026_detect(struct i2c_adapter *adapter, int address,
 	device_create_file(&new_client->dev, &dev_attr_temp1_crit_enable);
 	device_create_file(&new_client->dev, &dev_attr_temp2_crit_enable);
 	device_create_file(&new_client->dev, &dev_attr_temp3_crit_enable);
-	/* vid deprecated in favour of cpu0_vid, remove after 2005-11-11 */
-	device_create_file(&new_client->dev, &dev_attr_vid);
 	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
 	device_create_file(&new_client->dev, &dev_attr_vrm);
 	device_create_file(&new_client->dev, &dev_attr_alarms);

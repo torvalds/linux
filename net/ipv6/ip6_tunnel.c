@@ -21,6 +21,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
@@ -243,7 +244,7 @@ ip6_tnl_create(struct ip6_tnl_parm *p, struct ip6_tnl **pt)
 	if (dev == NULL)
 		return -ENOMEM;
 
-	t = dev->priv;
+	t = netdev_priv(dev);
 	dev->init = ip6ip6_tnl_dev_init;
 	t->parms = *p;
 
@@ -308,7 +309,7 @@ ip6ip6_tnl_locate(struct ip6_tnl_parm *p, struct ip6_tnl **pt, int create)
 static void
 ip6ip6_tnl_dev_uninit(struct net_device *dev)
 {
-	struct ip6_tnl *t = dev->priv;
+	struct ip6_tnl *t = netdev_priv(dev);
 
 	if (dev == ip6ip6_fb_tnl_dev) {
 		write_lock_bh(&ip6ip6_lock);
@@ -510,7 +511,7 @@ static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
  **/
 
 static int 
-ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+ip6ip6_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct ipv6hdr *ipv6h;
@@ -623,7 +624,7 @@ ip6ip6_tnl_addr_conflict(struct ip6_tnl *t, struct ipv6hdr *hdr)
 static int 
 ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ip6_tnl *t = (struct ip6_tnl *) dev->priv;
+	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->stat;
 	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
 	struct ipv6_txoptions *opt = NULL;
@@ -933,11 +934,11 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				break;
 			}
 			if ((err = ip6ip6_tnl_locate(&p, &t, 0)) == -ENODEV)
-				t = (struct ip6_tnl *) dev->priv;
+				t = netdev_priv(dev);
 			else if (err)
 				break;
 		} else
-			t = (struct ip6_tnl *) dev->priv;
+			t = netdev_priv(dev);
 
 		memcpy(&p, &t->parms, sizeof (p));
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof (p))) {
@@ -955,7 +956,7 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			break;
 		}
 		if (!create && dev != ip6ip6_fb_tnl_dev) {
-			t = (struct ip6_tnl *) dev->priv;
+			t = netdev_priv(dev);
 		}
 		if (!t && (err = ip6ip6_tnl_locate(&p, &t, create))) {
 			break;
@@ -991,12 +992,12 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			err = ip6ip6_tnl_locate(&p, &t, 0);
 			if (err)
 				break;
-			if (t == ip6ip6_fb_tnl_dev->priv) {
+			if (t == netdev_priv(ip6ip6_fb_tnl_dev)) {
 				err = -EPERM;
 				break;
 			}
 		} else {
-			t = (struct ip6_tnl *) dev->priv;
+			t = netdev_priv(dev);
 		}
 		err = unregister_netdevice(t->dev);
 		break;
@@ -1016,7 +1017,7 @@ ip6ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static struct net_device_stats *
 ip6ip6_tnl_get_stats(struct net_device *dev)
 {
-	return &(((struct ip6_tnl *) dev->priv)->stat);
+	return &(((struct ip6_tnl *)netdev_priv(dev))->stat);
 }
 
 /**
@@ -1073,7 +1074,7 @@ static void ip6ip6_tnl_dev_setup(struct net_device *dev)
 static inline void
 ip6ip6_tnl_dev_init_gen(struct net_device *dev)
 {
-	struct ip6_tnl *t = (struct ip6_tnl *) dev->priv;
+	struct ip6_tnl *t = netdev_priv(dev);
 	t->fl.proto = IPPROTO_IPV6;
 	t->dev = dev;
 	strcpy(t->parms.name, dev->name);
@@ -1087,7 +1088,7 @@ ip6ip6_tnl_dev_init_gen(struct net_device *dev)
 static int
 ip6ip6_tnl_dev_init(struct net_device *dev)
 {
-	struct ip6_tnl *t = (struct ip6_tnl *) dev->priv;
+	struct ip6_tnl *t = netdev_priv(dev);
 	ip6ip6_tnl_dev_init_gen(dev);
 	ip6ip6_tnl_link_config(t);
 	return 0;
@@ -1103,7 +1104,7 @@ ip6ip6_tnl_dev_init(struct net_device *dev)
 static int 
 ip6ip6_fb_tnl_dev_init(struct net_device *dev)
 {
-	struct ip6_tnl *t = dev->priv;
+	struct ip6_tnl *t = netdev_priv(dev);
 	ip6ip6_tnl_dev_init_gen(dev);
 	dev_hold(dev);
 	tnls_wc[0] = t;

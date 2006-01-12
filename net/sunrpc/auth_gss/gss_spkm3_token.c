@@ -182,6 +182,7 @@ spkm3_mic_header(unsigned char **hdrbuf, unsigned int *hdrlen, unsigned char *ct
  * *tokp points to the beginning of the SPKM_MIC token  described 
  * in rfc 2025, section 3.2.1: 
  *
+ * toklen is the inner token length
  */
 void
 spkm3_make_mic_token(unsigned char **tokp, int toklen, struct xdr_netobj *mic_hdr, struct xdr_netobj *md5cksum, int md5elen, int md5zbit)
@@ -189,7 +190,7 @@ spkm3_make_mic_token(unsigned char **tokp, int toklen, struct xdr_netobj *mic_hd
 	unsigned char *ict = *tokp;
 
 	*(u8 *)ict++ = 0xa4;
-	*(u8 *)ict++ = toklen - 2; 
+	*(u8 *)ict++ = toklen;
 	memcpy(ict, mic_hdr->data, mic_hdr->len);
 	ict += mic_hdr->len;
 

@@ -224,7 +224,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 
 	mc_lst->ifindex = dev->ifindex;
 	mc_lst->sfmode = MCAST_EXCLUDE;
-	mc_lst->sflock = RW_LOCK_UNLOCKED;
+	rwlock_init(&mc_lst->sflock);
 	mc_lst->sflist = NULL;
 
 	/*
@@ -449,8 +449,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 
 		if (psl)
 			count += psl->sl_max;
-		newpsl = (struct ip6_sf_socklist *)sock_kmalloc(sk,
-			IP6_SFLSIZE(count), GFP_ATOMIC);
+		newpsl = sock_kmalloc(sk, IP6_SFLSIZE(count), GFP_ATOMIC);
 		if (!newpsl) {
 			err = -ENOBUFS;
 			goto done;
@@ -535,8 +534,8 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 		goto done;
 	}
 	if (gsf->gf_numsrc) {
-		newpsl = (struct ip6_sf_socklist *)sock_kmalloc(sk,
-				IP6_SFLSIZE(gsf->gf_numsrc), GFP_ATOMIC);
+		newpsl = sock_kmalloc(sk, IP6_SFLSIZE(gsf->gf_numsrc),
+							  GFP_ATOMIC);
 		if (!newpsl) {
 			err = -ENOBUFS;
 			goto done;
@@ -768,7 +767,7 @@ static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	 * for deleted items allows change reports to use common code with
 	 * non-deleted or query-response MCA's.
 	 */
-	pmc = (struct ifmcaddr6 *)kmalloc(sizeof(*pmc), GFP_ATOMIC);
+	pmc = kmalloc(sizeof(*pmc), GFP_ATOMIC);
 	if (!pmc)
 		return;
 	memset(pmc, 0, sizeof(*pmc));
@@ -1937,7 +1936,7 @@ static int ip6_mc_add1_src(struct ifmcaddr6 *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf) {
-		psf = (struct ip6_sf_list *)kmalloc(sizeof(*psf), GFP_ATOMIC);
+		psf = kmalloc(sizeof(*psf), GFP_ATOMIC);
 		if (!psf)
 			return -ENOBUFS;
 		memset(psf, 0, sizeof(*psf));

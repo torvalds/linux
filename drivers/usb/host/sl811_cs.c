@@ -38,7 +38,7 @@ MODULE_LICENSE("GPL");
 /* MACROS                                                             */
 /*====================================================================*/
 
-#if defined(DEBUG) || defined(CONFIG_USB_DEBUG) || defined(PCMCIA_DEBUG)
+#if defined(DEBUG) || defined(PCMCIA_DEBUG)
 
 static int pc_debug = 0;
 module_param(pc_debug, int, 0644);
@@ -66,12 +66,12 @@ module_param(pc_debug, int, 0644);
 
 static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
-static dev_link_t *dev_list = NULL;
-
 typedef struct local_info_t {
 	dev_link_t		link;
 	dev_node_t		node;
 } local_info_t;
+
+static void sl811_cs_release(dev_link_t * link);
 
 /*====================================================================*/
 
@@ -129,7 +129,8 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 	resources[2].end   = base_addr + 1;
 
 	/* The driver core will probe for us.  We know sl811-hcd has been
-	 * initialized already because of the link order dependency.
+	 * initialized already because of the link order dependency created
+	 * by referencing "sl811h_driver".
 	 */
 	platform_dev.name = sl811h_driver.name;
 	return platform_device_register(&platform_dev);
@@ -137,26 +138,16 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 
 /*====================================================================*/
 
-static void sl811_cs_detach(dev_link_t *link)
+static void sl811_cs_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	DBG(0, "sl811_cs_detach(0x%p)\n", link);
 
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next) {
-		if (*linkp == link)
-			break;
-	}
-	if (*linkp == NULL)
-		return;
+	link->state &= ~DEV_PRESENT;
+	if (link->state & DEV_CONFIG)
+		sl811_cs_release(link);
 
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
 	/* This points to the parent local_info_t struct */
 	kfree(link->priv);
 }
@@ -165,13 +156,6 @@ static void sl811_cs_release(dev_link_t * link)
 {
 
 	DBG(0, "sl811_cs_release(0x%p)\n", link);
-
-	if (link->open) {
-		DBG(1, "sl811_cs: release postponed, '%s' still open\n",
-		    link->dev->dev_name);
-		link->state |= DEV_STALE_CONFIG;
-		return;
-	}
 
 	/* Unlink the device chain */
 	link->dev = NULL;
@@ -183,9 +167,6 @@ static void sl811_cs_release(dev_link_t * link)
 	if (link->irq.AssignedIRQ)
 		pcmcia_release_irq(link->handle, &link->irq);
 	link->state &= ~DEV_CONFIG;
-
-	if (link->state & DEV_STALE_LINK)
-		sl811_cs_detach(link);
 }
 
 static void sl811_cs_config(dev_link_t *link)
@@ -322,55 +303,36 @@ cs_failed:
 	}
 }
 
-static int
-sl811_cs_event(event_t event, int priority, event_callback_args_t *args)
+static int sl811_suspend(struct pcmcia_device *dev)
 {
-	dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(dev);
 
-	DBG(1, "sl811_cs_event(0x%06x)\n", event);
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG)
-			sl811_cs_release(link);
-		break;
-
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		sl811_cs_config(link);
-		break;
-
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG)
-			pcmcia_request_configuration(link->handle, &link->conf);
-		DBG(0, "reset sl811-hcd here?\n");
-		break;
-	}
 	return 0;
 }
 
-static dev_link_t *sl811_cs_attach(void)
+static int sl811_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
+static int sl811_cs_attach(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
-		return NULL;
+		return -ENOMEM;
 	memset(local, 0, sizeof(local_info_t));
 	link = &local->link;
 	link->priv = local;
@@ -384,21 +346,13 @@ static dev_link_t *sl811_cs_attach(void)
 	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = (dev_info_t *) &driver_name;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		sl811_cs_detach(link);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	sl811_cs_config(link);
+
+	return 0;
 }
 
 static struct pcmcia_device_id sl811_ids[] = {
@@ -412,10 +366,11 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.drv		= {
 		.name	= (char *)driver_name,
 	},
-	.attach		= sl811_cs_attach,
-	.event		= sl811_cs_event,
-	.detach		= sl811_cs_detach,
+	.probe		= sl811_cs_attach,
+	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
+	.suspend	= sl811_suspend,
+	.resume		= sl811_resume,
 };
 
 /*====================================================================*/

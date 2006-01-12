@@ -36,7 +36,7 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_enable_h_sccs = "@(#)enable.h	1.1" ;
+static char *_rio_enable_h_sccs = "@(#)enable.h	1.1";
 #endif
 #endif
 
@@ -46,5 +46,3 @@ static char *_rio_enable_h_sccs = "@(#)enable.h	1.1" ;
 
 
 /*********** end of file ***********/
-
-

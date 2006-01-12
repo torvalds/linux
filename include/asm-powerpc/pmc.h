@@ -18,6 +18,7 @@
  */
 #ifndef _POWERPC_PMC_H
 #define _POWERPC_PMC_H
+#ifdef __KERNEL__
 
 #include <asm/ptrace.h>
 
@@ -44,4 +45,5 @@ void dump_pmcs(void);
 extern struct op_powerpc_model op_model_fsl_booke;
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _POWERPC_PMC_H */

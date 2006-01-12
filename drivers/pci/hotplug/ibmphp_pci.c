@@ -969,7 +969,7 @@ static int configure_bridge (struct pci_func **func_passed, u8 slotno)
 			debug ("io 32\n");
 			need_io_upper = TRUE;
 		}
-		if ((io_base & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64) {
+		if ((pfmem_base & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64) {
 			debug ("pfmem 64\n");
 			need_pfmem_upper = TRUE;
 		}

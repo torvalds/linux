@@ -14,6 +14,7 @@
  */
 #include <linux/config.h>
 #include <linux/cache.h>
+#include <linux/capability.h>
 #include <linux/skbuff.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
@@ -83,11 +84,6 @@ static DECLARE_MUTEX(ipt_mutex);
    context stops packets coming through and allows user context to read
    the counters or update the rules.
 
-   To be cache friendly on SMP, we arrange them like so:
-   [ n-entries ]
-   ... cache-align padding ...
-   [ n-entries ]
-
    Hence the start of any table is given by get_table() below.  */
 
 /* The table itself */
@@ -105,19 +101,14 @@ struct ipt_table_info
 	unsigned int underflow[NF_IP_NUMHOOKS];
 
 	/* ipt_entry tables: one per CPU */
-	char entries[0] ____cacheline_aligned;
+	void *entries[NR_CPUS];
 };
 
 static LIST_HEAD(ipt_target);
 static LIST_HEAD(ipt_match);
 static LIST_HEAD(ipt_tables);
+#define SET_COUNTER(c,b,p) do { (c).bcnt = (b); (c).pcnt = (p); } while(0)
 #define ADD_COUNTER(c,b,p) do { (c).bcnt += (b); (c).pcnt += (p); } while(0)
-
-#ifdef CONFIG_SMP
-#define TABLE_OFFSET(t,p) (SMP_ALIGN((t)->size)*(p))
-#else
-#define TABLE_OFFSET(t,p) 0
-#endif
 
 #if 0
 #define down(x) do { printk("DOWN:%u:" #x "\n", __LINE__); down(x); } while(0)
@@ -290,8 +281,7 @@ ipt_do_table(struct sk_buff **pskb,
 
 	read_lock_bh(&table->lock);
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
-	table_base = (void *)table->private->entries
-		+ TABLE_OFFSET(table->private, smp_processor_id());
+	table_base = (void *)table->private->entries[smp_processor_id()];
 	e = get_entry(table_base, table->private->hook_entry[hook]);
 
 #ifdef CONFIG_NETFILTER_DEBUG
@@ -563,7 +553,8 @@ unconditional(const struct ipt_ip *ip)
 /* Figures out from what hook each rule can be called: returns 0 if
    there are loops.  Puts hook bitmask in comefrom. */
 static int
-mark_source_chains(struct ipt_table_info *newinfo, unsigned int valid_hooks)
+mark_source_chains(struct ipt_table_info *newinfo,
+		   unsigned int valid_hooks, void *entry0)
 {
 	unsigned int hook;
 
@@ -572,7 +563,7 @@ mark_source_chains(struct ipt_table_info *newinfo, unsigned int valid_hooks)
 	for (hook = 0; hook < NF_IP_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct ipt_entry *e
-			= (struct ipt_entry *)(newinfo->entries + pos);
+			= (struct ipt_entry *)(entry0 + pos);
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
@@ -622,13 +613,13 @@ mark_source_chains(struct ipt_table_info *newinfo, unsigned int valid_hooks)
 						goto next;
 
 					e = (struct ipt_entry *)
-						(newinfo->entries + pos);
+						(entry0 + pos);
 				} while (oldpos == pos + e->next_offset);
 
 				/* Move along one */
 				size = e->next_offset;
 				e = (struct ipt_entry *)
-					(newinfo->entries + pos + size);
+					(entry0 + pos + size);
 				e->counters.pcnt = pos;
 				pos += size;
 			} else {
@@ -645,7 +636,7 @@ mark_source_chains(struct ipt_table_info *newinfo, unsigned int valid_hooks)
 					newpos = pos + e->next_offset;
 				}
 				e = (struct ipt_entry *)
-					(newinfo->entries + newpos);
+					(entry0 + newpos);
 				e->counters.pcnt = pos;
 				pos = newpos;
 			}
@@ -855,6 +846,7 @@ static int
 translate_table(const char *name,
 		unsigned int valid_hooks,
 		struct ipt_table_info *newinfo,
+		void *entry0,
 		unsigned int size,
 		unsigned int number,
 		const unsigned int *hook_entries,
@@ -875,11 +867,11 @@ translate_table(const char *name,
 	duprintf("translate_table: size %u\n", newinfo->size);
 	i = 0;
 	/* Walk through entries, checking offsets. */
-	ret = IPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+	ret = IPT_ENTRY_ITERATE(entry0, newinfo->size,
 				check_entry_size_and_hooks,
 				newinfo,
-				newinfo->entries,
-				newinfo->entries + size,
+				entry0,
+				entry0 + size,
 				hook_entries, underflows, &i);
 	if (ret != 0)
 		return ret;
@@ -907,27 +899,24 @@ translate_table(const char *name,
 		}
 	}
 
-	if (!mark_source_chains(newinfo, valid_hooks))
+	if (!mark_source_chains(newinfo, valid_hooks, entry0))
 		return -ELOOP;
 
 	/* Finally, each sanity check must pass */
 	i = 0;
-	ret = IPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+	ret = IPT_ENTRY_ITERATE(entry0, newinfo->size,
 				check_entry, name, size, &i);
 
 	if (ret != 0) {
-		IPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+		IPT_ENTRY_ITERATE(entry0, newinfo->size,
 				  cleanup_entry, &i);
 		return ret;
 	}
 
 	/* And one copy for every other CPU */
 	for_each_cpu(i) {
-		if (i == 0)
-			continue;
-		memcpy(newinfo->entries + SMP_ALIGN(newinfo->size) * i,
-		       newinfo->entries,
-		       SMP_ALIGN(newinfo->size));
+		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
+			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
 
 	return ret;
@@ -943,15 +932,12 @@ replace_table(struct ipt_table *table,
 
 #ifdef CONFIG_NETFILTER_DEBUG
 	{
-		struct ipt_entry *table_base;
-		unsigned int i;
+		int cpu;
 
-		for_each_cpu(i) {
-			table_base =
-				(void *)newinfo->entries
-				+ TABLE_OFFSET(newinfo, i);
-
-			table_base->comefrom = 0xdead57ac;
+		for_each_cpu(cpu) {
+			struct ipt_entry *table_base = newinfo->entries[cpu];
+			if (table_base)
+				table_base->comefrom = 0xdead57ac;
 		}
 	}
 #endif
@@ -986,16 +972,44 @@ add_entry_to_counter(const struct ipt_entry *e,
 	return 0;
 }
 
+static inline int
+set_entry_to_counter(const struct ipt_entry *e,
+		     struct ipt_counters total[],
+		     unsigned int *i)
+{
+	SET_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
+
+	(*i)++;
+	return 0;
+}
+
 static void
 get_counters(const struct ipt_table_info *t,
 	     struct ipt_counters counters[])
 {
 	unsigned int cpu;
 	unsigned int i;
+	unsigned int curcpu;
+
+	/* Instead of clearing (by a previous call to memset())
+	 * the counters and using adds, we set the counters
+	 * with data used by 'current' CPU
+	 * We dont care about preemption here.
+	 */
+	curcpu = raw_smp_processor_id();
+
+	i = 0;
+	IPT_ENTRY_ITERATE(t->entries[curcpu],
+			  t->size,
+			  set_entry_to_counter,
+			  counters,
+			  &i);
 
 	for_each_cpu(cpu) {
+		if (cpu == curcpu)
+			continue;
 		i = 0;
-		IPT_ENTRY_ITERATE(t->entries + TABLE_OFFSET(t, cpu),
+		IPT_ENTRY_ITERATE(t->entries[cpu],
 				  t->size,
 				  add_entry_to_counter,
 				  counters,
@@ -1012,24 +1026,29 @@ copy_entries_to_user(unsigned int total_size,
 	struct ipt_entry *e;
 	struct ipt_counters *counters;
 	int ret = 0;
+	void *loc_cpu_entry;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	   (other than comefrom, which userspace doesn't care
 	   about). */
 	countersize = sizeof(struct ipt_counters) * table->private->number;
-	counters = vmalloc(countersize);
+	counters = vmalloc_node(countersize, numa_node_id());
 
 	if (counters == NULL)
 		return -ENOMEM;
 
 	/* First, sum counters... */
-	memset(counters, 0, countersize);
 	write_lock_bh(&table->lock);
 	get_counters(table->private, counters);
 	write_unlock_bh(&table->lock);
 
-	/* ... then copy entire thing from CPU 0... */
-	if (copy_to_user(userptr, table->private->entries, total_size) != 0) {
+	/* choose the copy that is on our node/cpu, ...
+	 * This choice is lazy (because current thread is
+	 * allowed to migrate to another cpu)
+	 */
+	loc_cpu_entry = table->private->entries[raw_smp_processor_id()];
+	/* ... then copy entire thing ... */
+	if (copy_to_user(userptr, loc_cpu_entry, total_size) != 0) {
 		ret = -EFAULT;
 		goto free_counters;
 	}
@@ -1041,7 +1060,7 @@ copy_entries_to_user(unsigned int total_size,
 		struct ipt_entry_match *m;
 		struct ipt_entry_target *t;
 
-		e = (struct ipt_entry *)(table->private->entries + off);
+		e = (struct ipt_entry *)(loc_cpu_entry + off);
 		if (copy_to_user(userptr + off
 				 + offsetof(struct ipt_entry, counters),
 				 &counters[num],
@@ -1110,6 +1129,45 @@ get_entries(const struct ipt_get_entries *entries,
 	return ret;
 }
 
+static void free_table_info(struct ipt_table_info *info)
+{
+	int cpu;
+	for_each_cpu(cpu) {
+		if (info->size <= PAGE_SIZE)
+			kfree(info->entries[cpu]);
+		else
+			vfree(info->entries[cpu]);
+	}
+	kfree(info);
+}
+
+static struct ipt_table_info *alloc_table_info(unsigned int size)
+{
+	struct ipt_table_info *newinfo;
+	int cpu;
+
+	newinfo = kzalloc(sizeof(struct ipt_table_info), GFP_KERNEL);
+	if (!newinfo)
+		return NULL;
+
+	newinfo->size = size;
+
+	for_each_cpu(cpu) {
+		if (size <= PAGE_SIZE)
+			newinfo->entries[cpu] = kmalloc_node(size,
+				GFP_KERNEL,
+				cpu_to_node(cpu));
+		else
+			newinfo->entries[cpu] = vmalloc_node(size, cpu_to_node(cpu));
+		if (newinfo->entries[cpu] == 0) {
+			free_table_info(newinfo);
+			return NULL;
+		}
+	}
+
+	return newinfo;
+}
+
 static int
 do_replace(void __user *user, unsigned int len)
 {
@@ -1118,6 +1176,7 @@ do_replace(void __user *user, unsigned int len)
 	struct ipt_table *t;
 	struct ipt_table_info *newinfo, *oldinfo;
 	struct ipt_counters *counters;
+	void *loc_cpu_entry, *loc_cpu_old_entry;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1130,13 +1189,13 @@ do_replace(void __user *user, unsigned int len)
 	if ((SMP_ALIGN(tmp.size) >> PAGE_SHIFT) + 2 > num_physpages)
 		return -ENOMEM;
 
-	newinfo = vmalloc(sizeof(struct ipt_table_info)
-			  + SMP_ALIGN(tmp.size) * 
-			  	(highest_possible_processor_id()+1));
+	newinfo = alloc_table_info(tmp.size);
 	if (!newinfo)
 		return -ENOMEM;
 
-	if (copy_from_user(newinfo->entries, user + sizeof(tmp),
+	/* choose the copy that is our node/cpu */
+	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	if (copy_from_user(loc_cpu_entry, user + sizeof(tmp),
 			   tmp.size) != 0) {
 		ret = -EFAULT;
 		goto free_newinfo;
@@ -1147,10 +1206,9 @@ do_replace(void __user *user, unsigned int len)
 		ret = -ENOMEM;
 		goto free_newinfo;
 	}
-	memset(counters, 0, tmp.num_counters * sizeof(struct ipt_counters));
 
 	ret = translate_table(tmp.name, tmp.valid_hooks,
-			      newinfo, tmp.size, tmp.num_entries,
+			      newinfo, loc_cpu_entry, tmp.size, tmp.num_entries,
 			      tmp.hook_entry, tmp.underflow);
 	if (ret != 0)
 		goto free_newinfo_counters;
@@ -1189,8 +1247,9 @@ do_replace(void __user *user, unsigned int len)
 	/* Get the old counters. */
 	get_counters(oldinfo, counters);
 	/* Decrease module usage counts and free resource */
-	IPT_ENTRY_ITERATE(oldinfo->entries, oldinfo->size, cleanup_entry,NULL);
-	vfree(oldinfo);
+	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
+	IPT_ENTRY_ITERATE(loc_cpu_old_entry, oldinfo->size, cleanup_entry,NULL);
+	free_table_info(oldinfo);
 	if (copy_to_user(tmp.counters, counters,
 			 sizeof(struct ipt_counters) * tmp.num_counters) != 0)
 		ret = -EFAULT;
@@ -1202,11 +1261,11 @@ do_replace(void __user *user, unsigned int len)
 	module_put(t->me);
 	up(&ipt_mutex);
  free_newinfo_counters_untrans:
-	IPT_ENTRY_ITERATE(newinfo->entries, newinfo->size, cleanup_entry,NULL);
+	IPT_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry,NULL);
  free_newinfo_counters:
 	vfree(counters);
  free_newinfo:
-	vfree(newinfo);
+	free_table_info(newinfo);
 	return ret;
 }
 
@@ -1239,6 +1298,7 @@ do_add_counters(void __user *user, unsigned int len)
 	struct ipt_counters_info tmp, *paddc;
 	struct ipt_table *t;
 	int ret = 0;
+	void *loc_cpu_entry;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1246,7 +1306,7 @@ do_add_counters(void __user *user, unsigned int len)
 	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct ipt_counters))
 		return -EINVAL;
 
-	paddc = vmalloc(len);
+	paddc = vmalloc_node(len, numa_node_id());
 	if (!paddc)
 		return -ENOMEM;
 
@@ -1268,7 +1328,9 @@ do_add_counters(void __user *user, unsigned int len)
 	}
 
 	i = 0;
-	IPT_ENTRY_ITERATE(t->private->entries,
+	/* Choose the copy that is on our node */
+	loc_cpu_entry = t->private->entries[raw_smp_processor_id()];
+	IPT_ENTRY_ITERATE(loc_cpu_entry,
 			  t->private->size,
 			  add_counter_to_entry,
 			  paddc->counters,
@@ -1460,28 +1522,31 @@ int ipt_register_table(struct ipt_table *table, const struct ipt_replace *repl)
 	struct ipt_table_info *newinfo;
 	static struct ipt_table_info bootstrap
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
+	void *loc_cpu_entry;
 
-	newinfo = vmalloc(sizeof(struct ipt_table_info)
-			  + SMP_ALIGN(repl->size) * 
-			  		(highest_possible_processor_id()+1));
+	newinfo = alloc_table_info(repl->size);
 	if (!newinfo)
 		return -ENOMEM;
 
-	memcpy(newinfo->entries, repl->entries, repl->size);
+	/* choose the copy on our node/cpu
+	 * but dont care of preemption
+	 */
+	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
 	ret = translate_table(table->name, table->valid_hooks,
-			      newinfo, repl->size,
+			      newinfo, loc_cpu_entry, repl->size,
 			      repl->num_entries,
 			      repl->hook_entry,
 			      repl->underflow);
 	if (ret != 0) {
-		vfree(newinfo);
+		free_table_info(newinfo);
 		return ret;
 	}
 
 	ret = down_interruptible(&ipt_mutex);
 	if (ret != 0) {
-		vfree(newinfo);
+		free_table_info(newinfo);
 		return ret;
 	}
 
@@ -1510,20 +1575,23 @@ int ipt_register_table(struct ipt_table *table, const struct ipt_replace *repl)
 	return ret;
 
  free_unlock:
-	vfree(newinfo);
+	free_table_info(newinfo);
 	goto unlock;
 }
 
 void ipt_unregister_table(struct ipt_table *table)
 {
+	void *loc_cpu_entry;
+
 	down(&ipt_mutex);
 	LIST_DELETE(&ipt_tables, table);
 	up(&ipt_mutex);
 
 	/* Decrease module usage counts and free resources */
-	IPT_ENTRY_ITERATE(table->private->entries, table->private->size,
+	loc_cpu_entry = table->private->entries[raw_smp_processor_id()];
+	IPT_ENTRY_ITERATE(loc_cpu_entry, table->private->size,
 			  cleanup_entry, NULL);
-	vfree(table->private);
+	free_table_info(table->private);
 }
 
 /* Returns 1 if the port is matched by the range, 0 otherwise */

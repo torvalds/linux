@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_COMPAT_H
 #define _ASM_POWERPC_COMPAT_H
+#ifdef __KERNEL__
 /*
  * Architecture specific compatibility types
  */
@@ -202,4 +203,5 @@ struct compat_shmid64_ds {
 	compat_ulong_t __unused6;
 };
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_COMPAT_H */

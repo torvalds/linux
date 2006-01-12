@@ -18,6 +18,7 @@
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/capability.h>
 #include <linux/backing-dev.h>
 #include <linux/hugetlb.h>
 #include <linux/pagevec.h>
@@ -100,9 +101,6 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	loff_t len, vma_len;
 	int ret;
 
-	if ((vma->vm_flags & (VM_MAYSHARE | VM_WRITE)) == VM_WRITE)
-		return -EINVAL;
-
 	if (vma->vm_pgoff & (HPAGE_SIZE / PAGE_SIZE - 1))
 		return -EINVAL;
 
@@ -121,7 +119,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	file_accessed(file);
 	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
 	vma->vm_ops = &hugetlb_vm_ops;
@@ -136,7 +134,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (inode->i_size < len)
 		inode->i_size = len;
 out:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 	return ret;
 }

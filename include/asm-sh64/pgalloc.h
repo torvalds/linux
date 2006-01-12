@@ -38,14 +38,14 @@ static inline void pgd_init(unsigned long page)
  * if any.
  */
 
-extern __inline__ pgd_t *get_pgd_slow(void)
+static inline pgd_t *get_pgd_slow(void)
 {
 	unsigned int pgd_size = (USER_PTRS_PER_PGD * sizeof(pgd_t));
 	pgd_t *ret = (pgd_t *)kmalloc(pgd_size, GFP_KERNEL);
 	return ret;
 }
 
-extern __inline__ pgd_t *get_pgd_fast(void)
+static inline pgd_t *get_pgd_fast(void)
 {
 	unsigned long *ret;
 
@@ -62,14 +62,14 @@ extern __inline__ pgd_t *get_pgd_fast(void)
 	return (pgd_t *)ret;
 }
 
-extern __inline__ void free_pgd_fast(pgd_t *pgd)
+static inline void free_pgd_fast(pgd_t *pgd)
 {
 	*(unsigned long *)pgd = (unsigned long) pgd_quicklist;
 	pgd_quicklist = (unsigned long *) pgd;
 	pgtable_cache_size++;
 }
 
-extern __inline__ void free_pgd_slow(pgd_t *pgd)
+static inline void free_pgd_slow(pgd_t *pgd)
 {
 	kfree((void *)pgd);
 }
@@ -77,7 +77,7 @@ extern __inline__ void free_pgd_slow(pgd_t *pgd)
 extern pte_t *get_pte_slow(pmd_t *pmd, unsigned long address_preadjusted);
 extern pte_t *get_pte_kernel_slow(pmd_t *pmd, unsigned long address_preadjusted);
 
-extern __inline__ pte_t *get_pte_fast(void)
+static inline pte_t *get_pte_fast(void)
 {
 	unsigned long *ret;
 
@@ -89,7 +89,7 @@ extern __inline__ pte_t *get_pte_fast(void)
 	return (pte_t *)ret;
 }
 
-extern __inline__ void free_pte_fast(pte_t *pte)
+static inline void free_pte_fast(pte_t *pte)
 {
 	*(unsigned long *)pte = (unsigned long) pte_quicklist;
 	pte_quicklist = (unsigned long *) pte;
@@ -167,7 +167,7 @@ static __inline__ void pmd_free(pmd_t *pmd)
 
 extern int do_check_pgt_cache(int, int);
 
-extern inline void set_pgdir(unsigned long address, pgd_t entry)
+static inline void set_pgdir(unsigned long address, pgd_t entry)
 {
 	struct task_struct * p;
 	pgd_t *pgd;

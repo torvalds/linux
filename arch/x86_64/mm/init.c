@@ -23,6 +23,7 @@
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -38,10 +39,15 @@
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
+#include <asm/dma-mapping.h>
+#include <asm/swiotlb.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)
 #endif
+
+struct dma_mapping_ops* dma_ops;
+EXPORT_SYMBOL(dma_ops);
 
 static unsigned long dma_reserve __initdata;
 
@@ -249,14 +255,26 @@ static void __init phys_pud_init(pud_t *pud, unsigned long address, unsigned lon
 
 static void __init find_early_table_space(unsigned long end)
 {
-	unsigned long puds, pmds, tables;
+	unsigned long puds, pmds, tables, start;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables = round_up(puds * sizeof(pud_t), PAGE_SIZE) +
 		 round_up(pmds * sizeof(pmd_t), PAGE_SIZE);
 
-	table_start = find_e820_area(0x8000, __pa_symbol(&_text), tables);
+	/* Put page tables beyond the DMA zones if possible.
+	   RED-PEN might be better to spread them out more over
+	   memory to avoid hotspots */
+	if (end > MAX_DMA32_PFN<<PAGE_SHIFT)
+		start = MAX_DMA32_PFN << PAGE_SHIFT;
+	else if (end > MAX_DMA_PFN << PAGE_SHIFT)
+		start = MAX_DMA_PFN << PAGE_SHIFT;
+	else
+		start = 0x8000;
+
+	table_start = find_e820_area(start, end, tables);
+	if (table_start == -1)
+		table_start = find_e820_area(0x8000, end, tables);
 	if (table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
@@ -423,12 +441,9 @@ void __init mem_init(void)
 	long codesize, reservedpages, datasize, initsize;
 
 #ifdef CONFIG_SWIOTLB
-	if (!iommu_aperture &&
-	    (end_pfn >= 0xffffffff>>PAGE_SHIFT || force_iommu))
-	       swiotlb = 1;
-	if (swiotlb)
-		swiotlb_init();	
+	pci_swiotlb_init();
 #endif
+	no_iommu_init();
 
 	/* How many end-of-memory variables you have, grandma! */
 	max_low_pfn = end_pfn;
@@ -497,6 +512,29 @@ void free_initmem(void)
 	memset(__initdata_begin, 0xba, __initdata_end - __initdata_begin);
 	printk ("Freeing unused kernel memory: %luk freed\n", (__init_end - __init_begin) >> 10);
 }
+
+#ifdef CONFIG_DEBUG_RODATA
+
+extern char __start_rodata, __end_rodata;
+void mark_rodata_ro(void)
+{
+	unsigned long addr = (unsigned long)&__start_rodata;
+
+	for (; addr < (unsigned long)&__end_rodata; addr += PAGE_SIZE)
+		change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
+
+	printk ("Write protecting the kernel read-only data: %luk\n",
+			(&__end_rodata - &__start_rodata) >> 10);
+
+	/*
+	 * change_page_attr_addr() requires a global_flush_tlb() call after it.
+	 * We do this after the printk so that if something went wrong in the
+	 * change, the printk gets out at least to give a better debug hint
+	 * of who is the culprit.
+	 */
+	global_flush_tlb();
+}
+#endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)

@@ -58,6 +58,7 @@
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/string.h>
@@ -1195,7 +1196,7 @@ struct inet6_ifaddr * ipv6_get_ifaddr(struct in6_addr *addr, struct net_device *
 int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 {
 	const struct in6_addr *sk_rcv_saddr6 = &inet6_sk(sk)->rcv_saddr;
-	const struct in6_addr *sk2_rcv_saddr6 = tcp_v6_rcv_saddr(sk2);
+	const struct in6_addr *sk2_rcv_saddr6 = inet6_rcv_saddr(sk2);
 	u32 sk_rcv_saddr = inet_sk(sk)->rcv_saddr;
 	u32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
 	int sk_ipv6only = ipv6_only_sock(sk);
@@ -1228,7 +1229,7 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 
 /* Gets referenced address, destroys ifaddr */
 
-void addrconf_dad_stop(struct inet6_ifaddr *ifp)
+static void addrconf_dad_stop(struct inet6_ifaddr *ifp)
 {
 	if (ifp->flags&IFA_F_PERMANENT) {
 		spin_lock_bh(&ifp->lock);

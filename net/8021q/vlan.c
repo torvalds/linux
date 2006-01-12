@@ -19,6 +19,7 @@
  */
 
 #include <asm/uaccess.h> /* for copy_from_user */
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>

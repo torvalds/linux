@@ -11,7 +11,7 @@
 
 #include <linux/linkage.h>
 #include <linux/vmalloc.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <asm/io.h>
 #include <asm/page.h>
 

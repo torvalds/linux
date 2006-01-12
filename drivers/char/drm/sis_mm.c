@@ -86,7 +86,7 @@ static int sis_fb_alloc(DRM_IOCTL_ARGS)
 {
 	drm_sis_mem_t fb;
 	struct sis_memreq req;
-	drm_sis_mem_t __user *argp = (void __user *)data;
+	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *)data;
 	int retval = 0;
 
 	DRM_COPY_FROM_USER_IOCTL(fb, argp, sizeof(fb));
@@ -110,7 +110,7 @@ static int sis_fb_alloc(DRM_IOCTL_ARGS)
 
 	DRM_COPY_TO_USER_IOCTL(argp, fb, sizeof(fb));
 
-	DRM_DEBUG("alloc fb, size = %d, offset = %d\n", fb.size, req.offset);
+	DRM_DEBUG("alloc fb, size = %d, offset = %ld\n", fb.size, req.offset);
 
 	return retval;
 }
@@ -127,9 +127,9 @@ static int sis_fb_free(DRM_IOCTL_ARGS)
 
 	if (!del_alloc_set(fb.context, VIDEO_TYPE, fb.free))
 		retval = DRM_ERR(EINVAL);
-	sis_free((u32) fb.free);
+	sis_free(fb.free);
 
-	DRM_DEBUG("free fb, offset = %lu\n", fb.free);
+	DRM_DEBUG("free fb, offset = 0x%lx\n", fb.free);
 
 	return retval;
 }
@@ -176,7 +176,7 @@ static int sis_fb_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t __user *argp = (void __user *)data;
+	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *)data;
 	drm_sis_mem_t fb;
 	PMemBlock block;
 	int retval = 0;
@@ -267,7 +267,7 @@ static int sis_ioctl_agp_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	drm_sis_mem_t __user *argp = (void __user *)data;
+	drm_sis_mem_t __user *argp = (drm_sis_mem_t __user *)data;
 	drm_sis_mem_t agp;
 	PMemBlock block;
 	int retval = 0;
@@ -367,7 +367,7 @@ int sis_final_context(struct drm_device *dev, int context)
 
 	if (i < MAX_CONTEXT) {
 		set_t *set;
-		unsigned int item;
+		ITEM_TYPE item;
 		int retval;
 
 		DRM_DEBUG("find socket %d, context = %d\n", i, context);
@@ -376,7 +376,7 @@ int sis_final_context(struct drm_device *dev, int context)
 		set = global_ppriv[i].sets[0];
 		retval = setFirst(set, &item);
 		while (retval) {
-			DRM_DEBUG("free video memory 0x%x\n", item);
+			DRM_DEBUG("free video memory 0x%lx\n", item);
 #if defined(__linux__) && defined(CONFIG_FB_SIS)
 			sis_free(item);
 #else
@@ -390,7 +390,7 @@ int sis_final_context(struct drm_device *dev, int context)
 		set = global_ppriv[i].sets[1];
 		retval = setFirst(set, &item);
 		while (retval) {
-			DRM_DEBUG("free agp memory 0x%x\n", item);
+			DRM_DEBUG("free agp memory 0x%lx\n", item);
 			mmFreeMem((PMemBlock) item);
 			retval = setNext(set, &item);
 		}
@@ -403,12 +403,12 @@ int sis_final_context(struct drm_device *dev, int context)
 }
 
 drm_ioctl_desc_t sis_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)] = {sis_fb_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)] = {sis_fb_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)] = {sis_ioctl_agp_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = {sis_ioctl_agp_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)] = {sis_ioctl_agp_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)] = {sis_fb_init, 1, 1}
+	[DRM_IOCTL_NR(DRM_SIS_FB_ALLOC)] = {sis_fb_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_FB_FREE)] = {sis_fb_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_AGP_INIT)] = {sis_ioctl_agp_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_SIS_AGP_ALLOC)] = {sis_ioctl_agp_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_AGP_FREE)] = {sis_ioctl_agp_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SIS_FB_INIT)] = {sis_fb_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY}
 };
 
 int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);

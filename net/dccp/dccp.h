@@ -59,7 +59,7 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
 #define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
 
-extern struct proto dccp_v4_prot;
+extern struct proto dccp_prot;
 
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
@@ -228,6 +228,9 @@ extern int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				const struct dccp_hdr *dh, const unsigned len);
 
+extern int dccp_v4_init_sock(struct sock *sk);
+extern int dccp_v4_destroy_sock(struct sock *sk);
+
 extern void		dccp_close(struct sock *sk, long timeout);
 extern struct sk_buff	*dccp_make_response(struct sock *sk,
 					    struct dst_entry *dst,
@@ -238,6 +241,7 @@ extern struct sk_buff	*dccp_make_reset(struct sock *sk,
 
 extern int	   dccp_connect(struct sock *sk);
 extern int	   dccp_disconnect(struct sock *sk, int flags);
+extern void	   dccp_unhash(struct sock *sk);
 extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
 				   char __user *optval, int __user *optlen);
 extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
@@ -249,6 +253,13 @@ extern int	   dccp_recvmsg(struct kiocb *iocb, struct sock *sk,
 				struct msghdr *msg, size_t len, int nonblock,
 				int flags, int *addr_len);
 extern void	   dccp_shutdown(struct sock *sk, int how);
+extern int	   inet_dccp_listen(struct socket *sock, int backlog);
+extern unsigned int dccp_poll(struct file *file, struct socket *sock,
+			     poll_table *wait);
+extern void	   dccp_v4_send_check(struct sock *sk, int len,
+				      struct sk_buff *skb);
+extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
+				   int addr_len);
 
 extern int	   dccp_v4_checksum(const struct sk_buff *skb,
 				    const u32 saddr, const u32 daddr);
@@ -256,6 +267,17 @@ extern int	   dccp_v4_checksum(const struct sk_buff *skb,
 extern int	   dccp_v4_send_reset(struct sock *sk,
 				      enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
+extern int	   dccp_invalid_packet(struct sk_buff *skb);
+
+static inline int dccp_bad_service_code(const struct sock *sk,
+					const __u32 service)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+
+	if (dp->dccps_service == service)
+		return 0;
+	return !dccp_list_has_service(dp->dccps_service_list, service);
+}
 
 struct dccp_skb_cb {
 	__u8  dccpd_type:4;

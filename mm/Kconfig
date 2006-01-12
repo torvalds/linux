@@ -11,7 +11,7 @@ choice
 
 config FLATMEM_MANUAL
 	bool "Flat Memory"
-	depends on !ARCH_DISCONTIGMEM_ENABLE || ARCH_FLATMEM_ENABLE
+	depends on !(ARCH_DISCONTIGMEM_ENABLE || ARCH_SPARSEMEM_ENABLE) || ARCH_FLATMEM_ENABLE
 	help
 	  This option allows you to change some of the ways that
 	  Linux manages its memory internally.  Most users will
@@ -132,3 +132,10 @@ config SPLIT_PTLOCK_CPUS
 	default "4096" if ARM && !CPU_CACHE_VIPT
 	default "4096" if PARISC && !PA20
 	default "4"
+
+#
+# support for page migration
+#
+config MIGRATION
+	def_bool y if NUMA || SPARSEMEM || DISCONTIGMEM
+	depends on SWAP

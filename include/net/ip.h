@@ -24,14 +24,10 @@
 
 #include <linux/config.h>
 #include <linux/types.h>
-#include <linux/socket.h>
 #include <linux/ip.h>
 #include <linux/in.h>
-#include <linux/netdevice.h>
-#include <linux/inetdevice.h>
-#include <linux/in_route.h>
-#include <net/route.h>
-#include <net/arp.h>
+
+#include <net/inet_sock.h>
 #include <net/snmp.h>
 
 struct sock;
@@ -41,10 +37,10 @@ struct inet_skb_parm
 	struct ip_options	opt;		/* Compiled IP options		*/
 	unsigned char		flags;
 
-#define IPSKB_MASQUERADED	1
-#define IPSKB_TRANSLATED	2
-#define IPSKB_FORWARDED		4
-#define IPSKB_XFRM_TUNNEL_SIZE	8
+#define IPSKB_FORWARDED		1
+#define IPSKB_XFRM_TUNNEL_SIZE	2
+#define IPSKB_XFRM_TRANSFORMED	4
+#define IPSKB_FRAG_COMPLETE	8
 };
 
 struct ipcm_cookie
@@ -74,6 +70,13 @@ extern rwlock_t ip_ra_lock;
 
 #define IP_FRAG_TIME	(30 * HZ)		/* fragment lifetime	*/
 
+struct msghdr;
+struct net_device;
+struct packet_type;
+struct rtable;
+struct sk_buff;
+struct sockaddr;
+
 extern void		ip_mc_dropsocket(struct sock *);
 extern void		ip_mc_dropdevice(struct net_device *dev);
 extern int		igmp_mc_proc_init(void);
@@ -91,7 +94,6 @@ extern int		ip_local_deliver(struct sk_buff *skb);
 extern int		ip_mr_input(struct sk_buff *skb);
 extern int		ip_output(struct sk_buff *skb);
 extern int		ip_mc_output(struct sk_buff *skb);
-extern int		ip_fragment(struct sk_buff *skb, int (*out)(struct sk_buff*));
 extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
 extern int		ip_queue_xmit(struct sk_buff *skb, int ipfragok);
@@ -168,6 +170,7 @@ extern int sysctl_ipfrag_high_thresh;
 extern int sysctl_ipfrag_low_thresh;
 extern int sysctl_ipfrag_time;
 extern int sysctl_ipfrag_secret_interval;
+extern int sysctl_ipfrag_max_dist;
 
 /* From inetpeer.c */
 extern int inet_peer_threshold;
@@ -182,6 +185,8 @@ extern int sysctl_ip_dynaddr;
 extern void ipfrag_init(void);
 
 #ifdef CONFIG_INET
+#include <net/dst.h>
+
 /* The function in 2.2 was invalid, producing wrong result for
  * check=0xFEFF. It was noticed by Arthur Skawina _year_ ago. --ANK(000625) */
 static inline
@@ -310,7 +315,6 @@ enum ip_defrag_users
 	IP_DEFRAG_CALL_RA_CHAIN,
 	IP_DEFRAG_CONNTRACK_IN,
 	IP_DEFRAG_CONNTRACK_OUT,
-	IP_DEFRAG_NAT_OUT,
 	IP_DEFRAG_VS_IN,
 	IP_DEFRAG_VS_OUT,
 	IP_DEFRAG_VS_FWD

@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/capability.h>
 #include <linux/if_arp.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
@@ -68,18 +69,13 @@ struct arpt_table_info {
 	unsigned int initial_entries;
 	unsigned int hook_entry[NF_ARP_NUMHOOKS];
 	unsigned int underflow[NF_ARP_NUMHOOKS];
-	char entries[0] __attribute__((aligned(SMP_CACHE_BYTES)));
+	void *entries[NR_CPUS];
 };
 
 static LIST_HEAD(arpt_target);
 static LIST_HEAD(arpt_tables);
+#define SET_COUNTER(c,b,p) do { (c).bcnt = (b); (c).pcnt = (p); } while(0)
 #define ADD_COUNTER(c,b,p) do { (c).bcnt += (b); (c).pcnt += (p); } while(0)
-
-#ifdef CONFIG_SMP
-#define TABLE_OFFSET(t,p) (SMP_ALIGN((t)->size)*(p))
-#else
-#define TABLE_OFFSET(t,p) 0
-#endif
 
 static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 				      char *hdr_addr, int len)
@@ -269,9 +265,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	outdev = out ? out->name : nulldevname;
 
 	read_lock_bh(&table->lock);
-	table_base = (void *)table->private->entries
-		+ TABLE_OFFSET(table->private,
-			       smp_processor_id());
+	table_base = (void *)table->private->entries[smp_processor_id()];
 	e = get_entry(table_base, table->private->hook_entry[hook]);
 	back = get_entry(table_base, table->private->underflow[hook]);
 
@@ -462,7 +456,8 @@ static inline int unconditional(const struct arpt_arp *arp)
 /* Figures out from what hook each rule can be called: returns 0 if
  * there are loops.  Puts hook bitmask in comefrom.
  */
-static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int valid_hooks)
+static int mark_source_chains(struct arpt_table_info *newinfo,
+			      unsigned int valid_hooks, void *entry0)
 {
 	unsigned int hook;
 
@@ -472,7 +467,7 @@ static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int vali
 	for (hook = 0; hook < NF_ARP_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct arpt_entry *e
-			= (struct arpt_entry *)(newinfo->entries + pos);
+			= (struct arpt_entry *)(entry0 + pos);
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
@@ -514,13 +509,13 @@ static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int vali
 						goto next;
 
 					e = (struct arpt_entry *)
-						(newinfo->entries + pos);
+						(entry0 + pos);
 				} while (oldpos == pos + e->next_offset);
 
 				/* Move along one */
 				size = e->next_offset;
 				e = (struct arpt_entry *)
-					(newinfo->entries + pos + size);
+					(entry0 + pos + size);
 				e->counters.pcnt = pos;
 				pos += size;
 			} else {
@@ -537,7 +532,7 @@ static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int vali
 					newpos = pos + e->next_offset;
 				}
 				e = (struct arpt_entry *)
-					(newinfo->entries + newpos);
+					(entry0 + newpos);
 				e->counters.pcnt = pos;
 				pos = newpos;
 			}
@@ -689,6 +684,7 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
 static int translate_table(const char *name,
 			   unsigned int valid_hooks,
 			   struct arpt_table_info *newinfo,
+			   void *entry0,
 			   unsigned int size,
 			   unsigned int number,
 			   const unsigned int *hook_entries,
@@ -710,11 +706,11 @@ static int translate_table(const char *name,
 	i = 0;
 
 	/* Walk through entries, checking offsets. */
-	ret = ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+	ret = ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				 check_entry_size_and_hooks,
 				 newinfo,
-				 newinfo->entries,
-				 newinfo->entries + size,
+				 entry0,
+				 entry0 + size,
 				 hook_entries, underflows, &i);
 	duprintf("translate_table: ARPT_ENTRY_ITERATE gives %d\n", ret);
 	if (ret != 0)
@@ -743,29 +739,26 @@ static int translate_table(const char *name,
 		}
 	}
 
-	if (!mark_source_chains(newinfo, valid_hooks)) {
+	if (!mark_source_chains(newinfo, valid_hooks, entry0)) {
 		duprintf("Looping hook\n");
 		return -ELOOP;
 	}
 
 	/* Finally, each sanity check must pass */
 	i = 0;
-	ret = ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+	ret = ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				 check_entry, name, size, &i);
 
 	if (ret != 0) {
-		ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+		ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				   cleanup_entry, &i);
 		return ret;
 	}
 
 	/* And one copy for every other CPU */
 	for_each_cpu(i) {
-		if (i == 0)
-			continue;
-		memcpy(newinfo->entries + SMP_ALIGN(newinfo->size) * i,
-		       newinfo->entries,
-		       SMP_ALIGN(newinfo->size));
+		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
+			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
 
 	return ret;
@@ -807,15 +800,42 @@ static inline int add_entry_to_counter(const struct arpt_entry *e,
 	return 0;
 }
 
+static inline int set_entry_to_counter(const struct arpt_entry *e,
+				       struct arpt_counters total[],
+				       unsigned int *i)
+{
+	SET_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
+
+	(*i)++;
+	return 0;
+}
+
 static void get_counters(const struct arpt_table_info *t,
 			 struct arpt_counters counters[])
 {
 	unsigned int cpu;
 	unsigned int i;
+	unsigned int curcpu;
+
+	/* Instead of clearing (by a previous call to memset())
+	 * the counters and using adds, we set the counters
+	 * with data used by 'current' CPU
+	 * We dont care about preemption here.
+	 */
+	curcpu = raw_smp_processor_id();
+
+	i = 0;
+	ARPT_ENTRY_ITERATE(t->entries[curcpu],
+			   t->size,
+			   set_entry_to_counter,
+			   counters,
+			   &i);
 
 	for_each_cpu(cpu) {
+		if (cpu == curcpu)
+			continue;
 		i = 0;
-		ARPT_ENTRY_ITERATE(t->entries + TABLE_OFFSET(t, cpu),
+		ARPT_ENTRY_ITERATE(t->entries[cpu],
 				   t->size,
 				   add_entry_to_counter,
 				   counters,
@@ -831,6 +851,7 @@ static int copy_entries_to_user(unsigned int total_size,
 	struct arpt_entry *e;
 	struct arpt_counters *counters;
 	int ret = 0;
+	void *loc_cpu_entry;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	 * (other than comefrom, which userspace doesn't care
@@ -843,13 +864,13 @@ static int copy_entries_to_user(unsigned int total_size,
 		return -ENOMEM;
 
 	/* First, sum counters... */
-	memset(counters, 0, countersize);
 	write_lock_bh(&table->lock);
 	get_counters(table->private, counters);
 	write_unlock_bh(&table->lock);
 
-	/* ... then copy entire thing from CPU 0... */
-	if (copy_to_user(userptr, table->private->entries, total_size) != 0) {
+	loc_cpu_entry = table->private->entries[raw_smp_processor_id()];
+	/* ... then copy entire thing ... */
+	if (copy_to_user(userptr, loc_cpu_entry, total_size) != 0) {
 		ret = -EFAULT;
 		goto free_counters;
 	}
@@ -859,7 +880,7 @@ static int copy_entries_to_user(unsigned int total_size,
 	for (off = 0, num = 0; off < total_size; off += e->next_offset, num++){
 		struct arpt_entry_target *t;
 
-		e = (struct arpt_entry *)(table->private->entries + off);
+		e = (struct arpt_entry *)(loc_cpu_entry + off);
 		if (copy_to_user(userptr + off
 				 + offsetof(struct arpt_entry, counters),
 				 &counters[num],
@@ -911,6 +932,47 @@ static int get_entries(const struct arpt_get_entries *entries,
 	return ret;
 }
 
+static void free_table_info(struct arpt_table_info *info)
+{
+	int cpu;
+	for_each_cpu(cpu) {
+		if (info->size <= PAGE_SIZE)
+			kfree(info->entries[cpu]);
+		else
+			vfree(info->entries[cpu]);
+	}
+	kfree(info);
+}
+
+static struct arpt_table_info *alloc_table_info(unsigned int size)
+{
+	struct arpt_table_info *newinfo;
+	int cpu;
+	
+	newinfo = kzalloc(sizeof(struct arpt_table_info), GFP_KERNEL);
+	if (!newinfo)
+		return NULL;
+
+	newinfo->size = size;
+
+	for_each_cpu(cpu) {
+		if (size <= PAGE_SIZE)
+			newinfo->entries[cpu] = kmalloc_node(size,
+							GFP_KERNEL,
+							cpu_to_node(cpu));
+		else
+			newinfo->entries[cpu] = vmalloc_node(size,
+							     cpu_to_node(cpu));
+
+		if (newinfo->entries[cpu] == NULL) {
+			free_table_info(newinfo);
+			return NULL;
+		}
+	}
+
+	return newinfo;
+}
+
 static int do_replace(void __user *user, unsigned int len)
 {
 	int ret;
@@ -918,6 +980,7 @@ static int do_replace(void __user *user, unsigned int len)
 	struct arpt_table *t;
 	struct arpt_table_info *newinfo, *oldinfo;
 	struct arpt_counters *counters;
+	void *loc_cpu_entry, *loc_cpu_old_entry;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -930,13 +993,13 @@ static int do_replace(void __user *user, unsigned int len)
 	if ((SMP_ALIGN(tmp.size) >> PAGE_SHIFT) + 2 > num_physpages)
 		return -ENOMEM;
 
-	newinfo = vmalloc(sizeof(struct arpt_table_info)
-			  + SMP_ALIGN(tmp.size) *
-			  		(highest_possible_processor_id()+1));
+	newinfo = alloc_table_info(tmp.size);
 	if (!newinfo)
 		return -ENOMEM;
 
-	if (copy_from_user(newinfo->entries, user + sizeof(tmp),
+	/* choose the copy that is on our node/cpu */
+	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	if (copy_from_user(loc_cpu_entry, user + sizeof(tmp),
 			   tmp.size) != 0) {
 		ret = -EFAULT;
 		goto free_newinfo;
@@ -947,10 +1010,9 @@ static int do_replace(void __user *user, unsigned int len)
 		ret = -ENOMEM;
 		goto free_newinfo;
 	}
-	memset(counters, 0, tmp.num_counters * sizeof(struct arpt_counters));
 
 	ret = translate_table(tmp.name, tmp.valid_hooks,
-			      newinfo, tmp.size, tmp.num_entries,
+			      newinfo, loc_cpu_entry, tmp.size, tmp.num_entries,
 			      tmp.hook_entry, tmp.underflow);
 	if (ret != 0)
 		goto free_newinfo_counters;
@@ -989,8 +1051,10 @@ static int do_replace(void __user *user, unsigned int len)
 	/* Get the old counters. */
 	get_counters(oldinfo, counters);
 	/* Decrease module usage counts and free resource */
-	ARPT_ENTRY_ITERATE(oldinfo->entries, oldinfo->size, cleanup_entry,NULL);
-	vfree(oldinfo);
+	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
+	ARPT_ENTRY_ITERATE(loc_cpu_old_entry, oldinfo->size, cleanup_entry,NULL);
+
+	free_table_info(oldinfo);
 	if (copy_to_user(tmp.counters, counters,
 			 sizeof(struct arpt_counters) * tmp.num_counters) != 0)
 		ret = -EFAULT;
@@ -1002,11 +1066,11 @@ static int do_replace(void __user *user, unsigned int len)
 	module_put(t->me);
 	up(&arpt_mutex);
  free_newinfo_counters_untrans:
-	ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size, cleanup_entry, NULL);
+	ARPT_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, NULL);
  free_newinfo_counters:
 	vfree(counters);
  free_newinfo:
-	vfree(newinfo);
+	free_table_info(newinfo);
 	return ret;
 }
 
@@ -1030,6 +1094,7 @@ static int do_add_counters(void __user *user, unsigned int len)
 	struct arpt_counters_info tmp, *paddc;
 	struct arpt_table *t;
 	int ret = 0;
+	void *loc_cpu_entry;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1059,7 +1124,9 @@ static int do_add_counters(void __user *user, unsigned int len)
 	}
 
 	i = 0;
-	ARPT_ENTRY_ITERATE(t->private->entries,
+	/* Choose the copy that is on our node */
+	loc_cpu_entry = t->private->entries[smp_processor_id()];
+	ARPT_ENTRY_ITERATE(loc_cpu_entry,
 			   t->private->size,
 			   add_counter_to_entry,
 			   paddc->counters,
@@ -1220,30 +1287,32 @@ int arpt_register_table(struct arpt_table *table,
 	struct arpt_table_info *newinfo;
 	static struct arpt_table_info bootstrap
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
+	void *loc_cpu_entry;
 
-	newinfo = vmalloc(sizeof(struct arpt_table_info)
-			  + SMP_ALIGN(repl->size) *
-			  		(highest_possible_processor_id()+1));
+	newinfo = alloc_table_info(repl->size);
 	if (!newinfo) {
 		ret = -ENOMEM;
 		return ret;
 	}
-	memcpy(newinfo->entries, repl->entries, repl->size);
+
+	/* choose the copy on our node/cpu */
+	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
 	ret = translate_table(table->name, table->valid_hooks,
-			      newinfo, repl->size,
+			      newinfo, loc_cpu_entry, repl->size,
 			      repl->num_entries,
 			      repl->hook_entry,
 			      repl->underflow);
 	duprintf("arpt_register_table: translate table gives %d\n", ret);
 	if (ret != 0) {
-		vfree(newinfo);
+		free_table_info(newinfo);
 		return ret;
 	}
 
 	ret = down_interruptible(&arpt_mutex);
 	if (ret != 0) {
-		vfree(newinfo);
+		free_table_info(newinfo);
 		return ret;
 	}
 
@@ -1272,20 +1341,23 @@ int arpt_register_table(struct arpt_table *table,
 	return ret;
 
  free_unlock:
-	vfree(newinfo);
+	free_table_info(newinfo);
 	goto unlock;
 }
 
 void arpt_unregister_table(struct arpt_table *table)
 {
+	void *loc_cpu_entry;
+
 	down(&arpt_mutex);
 	LIST_DELETE(&arpt_tables, table);
 	up(&arpt_mutex);
 
 	/* Decrease module usage counts and free resources */
-	ARPT_ENTRY_ITERATE(table->private->entries, table->private->size,
+	loc_cpu_entry = table->private->entries[raw_smp_processor_id()];
+	ARPT_ENTRY_ITERATE(loc_cpu_entry, table->private->size,
 			   cleanup_entry, NULL);
-	vfree(table->private);
+	free_table_info(table->private);
 }
 
 /* The built-in targets: standard (NULL) and error. */

@@ -255,18 +255,17 @@ aes_enc_blk:
 	xor     8(%ebp),%r4
 	xor     12(%ebp),%r5
 
-	sub     $8,%esp           // space for register saves on stack
-	add     $16,%ebp          // increment to next round key
-	sub     $10,%r3          
-	je      4f              // 10 rounds for 128-bit key
-	add     $32,%ebp
-	sub     $2,%r3
-	je      3f              // 12 rounds for 128-bit key
-	add     $32,%ebp
+	sub     $8,%esp		// space for register saves on stack
+	add     $16,%ebp	// increment to next round key
+	cmp     $12,%r3
+	jb      4f		// 10 rounds for 128-bit key
+	lea     32(%ebp),%ebp
+	je      3f		// 12 rounds for 192-bit key
+	lea     32(%ebp),%ebp
 
-2:	fwd_rnd1( -64(%ebp) ,ft_tab)	// 14 rounds for 128-bit key
+2:	fwd_rnd1( -64(%ebp) ,ft_tab)	// 14 rounds for 256-bit key
 	fwd_rnd2( -48(%ebp) ,ft_tab)
-3:	fwd_rnd1( -32(%ebp) ,ft_tab)	// 12 rounds for 128-bit key
+3:	fwd_rnd1( -32(%ebp) ,ft_tab)	// 12 rounds for 192-bit key
 	fwd_rnd2( -16(%ebp) ,ft_tab)
 4:	fwd_rnd1(    (%ebp) ,ft_tab)	// 10 rounds for 128-bit key
 	fwd_rnd2( +16(%ebp) ,ft_tab)
@@ -334,18 +333,17 @@ aes_dec_blk:
 	xor     8(%ebp),%r4
 	xor     12(%ebp),%r5
 
-	sub     $8,%esp         // space for register saves on stack
-	sub     $16,%ebp        // increment to next round key
-	sub     $10,%r3          
-	je      4f              // 10 rounds for 128-bit key
-	sub     $32,%ebp
-	sub     $2,%r3
-	je      3f              // 12 rounds for 128-bit key
-	sub     $32,%ebp
+	sub     $8,%esp		// space for register saves on stack
+	sub     $16,%ebp	// increment to next round key
+	cmp     $12,%r3
+	jb      4f		// 10 rounds for 128-bit key
+	lea     -32(%ebp),%ebp
+	je      3f		// 12 rounds for 192-bit key
+	lea     -32(%ebp),%ebp
 
-2:	inv_rnd1( +64(%ebp), it_tab)	// 14 rounds for 128-bit key
+2:	inv_rnd1( +64(%ebp), it_tab)	// 14 rounds for 256-bit key
 	inv_rnd2( +48(%ebp), it_tab)
-3:	inv_rnd1( +32(%ebp), it_tab)	// 12 rounds for 128-bit key
+3:	inv_rnd1( +32(%ebp), it_tab)	// 12 rounds for 192-bit key
 	inv_rnd2( +16(%ebp), it_tab)
 4:	inv_rnd1(    (%ebp), it_tab)	// 10 rounds for 128-bit key
 	inv_rnd2( -16(%ebp), it_tab)

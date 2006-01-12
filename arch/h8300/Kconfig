@@ -21,10 +21,6 @@ config FPU
 	bool
 	default n
 
-config UID16
-	bool
-	default y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

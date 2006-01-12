@@ -263,7 +263,7 @@ static void do_machine_restart(void * __unused)
 	int cpu;
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
 		signal_processor(smp_processor_id(), sigp_stop);
 
 	/* Wait for all other cpus to enter stopped state */
@@ -313,7 +313,7 @@ static void do_machine_halt(void * __unused)
 {
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
 			cpcmd(vmhalt_cmd, NULL, 0, NULL);
@@ -332,7 +332,7 @@ static void do_machine_power_off(void * __unused)
 {
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
 			cpcmd(vmpoff_cmd, NULL, 0, NULL);
@@ -402,7 +402,7 @@ static void smp_ext_bitcall_others(ec_bit_sig sig)
         }
 }
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 /*
  * this function sends a 'purge tlb' signal to another CPU.
  */
@@ -416,7 +416,7 @@ void smp_ptlb_all(void)
         on_each_cpu(smp_ptlb_callback, NULL, 0, 1);
 }
 EXPORT_SYMBOL(smp_ptlb_all);
-#endif /* ! CONFIG_ARCH_S390X */
+#endif /* ! CONFIG_64BIT */
 
 /*
  * this function sends a 'reschedule' IPI to another CPU.
@@ -657,7 +657,7 @@ __cpu_up(unsigned int cpu)
 	idle = current_set[cpu];
         cpu_lowcore = lowcore_ptr[cpu];
 	cpu_lowcore->kernel_stack = (unsigned long)
-		idle->thread_info + (THREAD_SIZE);
+		task_stack_page(idle) + (THREAD_SIZE);
 	sf = (struct stack_frame *) (cpu_lowcore->kernel_stack
 				     - sizeof(struct pt_regs)
 				     - sizeof(struct stack_frame));
@@ -783,7 +783,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		if (stack == 0ULL)
 			panic("smp_boot_cpus failed to allocate memory\n");
 		lowcore_ptr[i]->panic_stack = stack + (PAGE_SIZE);
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 		if (MACHINE_HAS_IEEE) {
 			lowcore_ptr[i]->extended_save_area_addr =
 				(__u32) __get_free_pages(GFP_KERNEL,0);
@@ -793,7 +793,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		}
 #endif
 	}
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		ctl_set_bit(14, 29); /* enable extended save area */
 #endif

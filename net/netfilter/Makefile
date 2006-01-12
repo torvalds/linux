@@ -13,3 +13,6 @@ obj-$(CONFIG_NF_CONNTRACK_FTP) += nf_conntrack_ftp.o
 
 # SCTP protocol connection tracking
 obj-$(CONFIG_NF_CT_PROTO_SCTP) += nf_conntrack_proto_sctp.o
+
+# netlink interface for nf_conntrack
+obj-$(CONFIG_NF_CT_NETLINK) += nf_conntrack_netlink.o

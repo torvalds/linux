@@ -24,6 +24,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <net/dst.h>
@@ -457,7 +458,7 @@ void divert_frame(struct sk_buff *skb)
 	unsigned char			*skb_data_end = skb->data + skb->len;
 
 	/* Packet is already aimed at us, return */
-	if (!memcmp(eth, skb->dev->dev_addr, ETH_ALEN))
+	if (!compare_ether_addr(eth->h_dest, skb->dev->dev_addr))
 		return;
 	
 	/* proto is not IP, do nothing */

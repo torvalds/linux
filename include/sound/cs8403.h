@@ -36,7 +36,7 @@
 #endif
 
 
-SND_CS8403_DECL void SND_CS8403_DECODE(snd_aes_iec958_t *diga, unsigned char bits)
+SND_CS8403_DECL void SND_CS8403_DECODE(struct snd_aes_iec958 *diga, unsigned char bits)
 {
 	if (bits & 0x01) {	/* consumer */
 		if (!(bits & 0x02))
@@ -79,7 +79,7 @@ SND_CS8403_DECL void SND_CS8403_DECODE(snd_aes_iec958_t *diga, unsigned char bit
 	}
 }
 
-SND_CS8403_DECL unsigned char SND_CS8403_ENCODE(snd_aes_iec958_t *diga)
+SND_CS8403_DECL unsigned char SND_CS8403_ENCODE(struct snd_aes_iec958 *diga)
 {
 	unsigned char bits;
 
@@ -166,7 +166,7 @@ SND_CS8403_DECL unsigned char SND_CS8403_ENCODE(snd_aes_iec958_t *diga)
 #endif
 
 
-SND_CS8404_DECL void SND_CS8404_DECODE(snd_aes_iec958_t *diga, unsigned char bits)
+SND_CS8404_DECL void SND_CS8404_DECODE(struct snd_aes_iec958 *diga, unsigned char bits)
 {
 	if (bits & 0x10) {	/* consumer */
 		if (!(bits & 0x20))
@@ -205,7 +205,7 @@ SND_CS8404_DECL void SND_CS8404_DECODE(snd_aes_iec958_t *diga, unsigned char bit
 	}
 }
 
-SND_CS8404_DECL unsigned char SND_CS8404_ENCODE(snd_aes_iec958_t *diga)
+SND_CS8404_DECL unsigned char SND_CS8404_ENCODE(struct snd_aes_iec958 *diga)
 {
 	unsigned char bits;
 

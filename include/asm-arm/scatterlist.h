@@ -9,7 +9,6 @@ struct scatterlist {
 	unsigned int	offset;		/* buffer offset		 */
 	dma_addr_t	dma_address;	/* dma address			 */
 	unsigned int	length;		/* length			 */
-	char		*__address;	/* for set_dma_addr		 */
 };
 
 /*

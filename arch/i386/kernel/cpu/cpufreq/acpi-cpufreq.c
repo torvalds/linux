@@ -40,8 +40,6 @@
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 
-#include "speedstep-est-common.h"
-
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "acpi-cpufreq", msg)
 
 MODULE_AUTHOR("Paul Diefenbaugh, Dominik Brodowski");
@@ -367,6 +365,7 @@ acpi_cpufreq_cpu_init (
 	unsigned int		cpu = policy->cpu;
 	struct cpufreq_acpi_io	*data;
 	unsigned int		result = 0;
+	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
 
 	union acpi_object		arg0 = {ACPI_TYPE_BUFFER};
 	u32				arg0_buf[3];
@@ -390,7 +389,7 @@ acpi_cpufreq_cpu_init (
 	if (result)
 		goto err_free;
 
-	if (is_const_loops_cpu(cpu)) {
+	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
 

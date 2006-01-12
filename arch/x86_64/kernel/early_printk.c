@@ -216,7 +216,7 @@ void early_printk(const char *fmt, ...)
 	va_end(ap); 
 } 
 
-static int keep_early; 
+static int __initdata keep_early;
 
 int __init setup_early_printk(char *opt) 
 {  
@@ -225,8 +225,6 @@ int __init setup_early_printk(char *opt)
 
 	if (early_console_initialized)
 		return -1;
-
-	opt = strchr(opt, '=') + 1;
 
 	strlcpy(buf,opt,sizeof(buf)); 
 	space = strchr(buf, ' '); 

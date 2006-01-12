@@ -48,9 +48,7 @@ void __init pcibios_fixup_irqs(void)
 	struct pci_dev *dev = NULL;
 	uint8_t line, pin;
 
-	while (dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev),
-	       dev != NULL
-	       ) {
+	for_each_pci_dev(dev) {
 		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 		if (pin) {
 			dev->irq = pci_bus0_irq_routing[PCI_SLOT(dev->devfn)][pin - 1];

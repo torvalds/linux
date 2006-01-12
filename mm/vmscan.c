@@ -63,9 +63,6 @@ struct scan_control {
 
 	unsigned long nr_mapped;	/* From page_state */
 
-	/* How many pages shrink_cache() should reclaim */
-	int nr_to_reclaim;
-
 	/* Ask shrink_caches, or shrink_zone to scan at this priority */
 	unsigned int priority;
 
@@ -73,9 +70,6 @@ struct scan_control {
 	gfp_t gfp_mask;
 
 	int may_writepage;
-
-	/* Can pages be swapped as part of reclaim? */
-	int may_swap;
 
 	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
 	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
@@ -186,8 +180,7 @@ EXPORT_SYMBOL(remove_shrinker);
  *
  * Returns the number of slab objects which we shrunk.
  */
-static int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
-			unsigned long lru_pages)
+int shrink_slab(unsigned long scanned, gfp_t gfp_mask, unsigned long lru_pages)
 {
 	struct shrinker *shrinker;
 	int ret = 0;
@@ -275,9 +268,7 @@ static inline int is_page_cache_freeable(struct page *page)
 
 static int may_write_to_queue(struct backing_dev_info *bdi)
 {
-	if (current_is_kswapd())
-		return 1;
-	if (current_is_pdflush())	/* This is unlikely, but why not... */
+	if (current->flags & PF_SWAPWRITE)
 		return 1;
 	if (!bdi_write_congested(bdi))
 		return 1;
@@ -367,7 +358,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 		res = mapping->a_ops->writepage(page, &wbc);
 		if (res < 0)
 			handle_write_error(mapping, page, res);
-		if (res == WRITEPAGE_ACTIVATE) {
+		if (res == AOP_WRITEPAGE_ACTIVATE) {
 			ClearPageReclaim(page);
 			return PAGE_ACTIVATE;
 		}
@@ -380,6 +371,43 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 	}
 
 	return PAGE_CLEAN;
+}
+
+static int remove_mapping(struct address_space *mapping, struct page *page)
+{
+	if (!mapping)
+		return 0;		/* truncate got there first */
+
+	write_lock_irq(&mapping->tree_lock);
+
+	/*
+	 * The non-racy check for busy page.  It is critical to check
+	 * PageDirty _after_ making sure that the page is freeable and
+	 * not in use by anybody. 	(pagecache + us == 2)
+	 */
+	if (unlikely(page_count(page) != 2))
+		goto cannot_free;
+	smp_rmb();
+	if (unlikely(PageDirty(page)))
+		goto cannot_free;
+
+	if (PageSwapCache(page)) {
+		swp_entry_t swap = { .val = page_private(page) };
+		__delete_from_swap_cache(page);
+		write_unlock_irq(&mapping->tree_lock);
+		swap_free(swap);
+		__put_page(page);	/* The pagecache ref */
+		return 1;
+	}
+
+	__remove_from_page_cache(page);
+	write_unlock_irq(&mapping->tree_lock);
+	__put_page(page);
+	return 1;
+
+cannot_free:
+	write_unlock_irq(&mapping->tree_lock);
+	return 0;
 }
 
 /*
@@ -430,9 +458,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		 * Try to allocate it some swap space here.
 		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
-			if (!sc->may_swap)
-				goto keep_locked;
-			if (!add_to_swap(page))
+			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
 		}
 #endif /* CONFIG_SWAP */
@@ -515,36 +541,8 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 				goto free_it;
 		}
 
-		if (!mapping)
-			goto keep_locked;	/* truncate got there first */
-
-		write_lock_irq(&mapping->tree_lock);
-
-		/*
-		 * The non-racy check for busy page.  It is critical to check
-		 * PageDirty _after_ making sure that the page is freeable and
-		 * not in use by anybody. 	(pagecache + us == 2)
-		 */
-		if (unlikely(page_count(page) != 2))
-			goto cannot_free;
-		smp_rmb();
-		if (unlikely(PageDirty(page)))
-			goto cannot_free;
-
-#ifdef CONFIG_SWAP
-		if (PageSwapCache(page)) {
-			swp_entry_t swap = { .val = page_private(page) };
-			__delete_from_swap_cache(page);
-			write_unlock_irq(&mapping->tree_lock);
-			swap_free(swap);
-			__put_page(page);	/* The pagecache ref */
-			goto free_it;
-		}
-#endif /* CONFIG_SWAP */
-
-		__remove_from_page_cache(page);
-		write_unlock_irq(&mapping->tree_lock);
-		__put_page(page);
+		if (!remove_mapping(mapping, page))
+			goto keep_locked;
 
 free_it:
 		unlock_page(page);
@@ -552,10 +550,6 @@ free_it:
 		if (!pagevec_add(&freed_pvec, page))
 			__pagevec_release_nonlru(&freed_pvec);
 		continue;
-
-cannot_free:
-		write_unlock_irq(&mapping->tree_lock);
-		goto keep_locked;
 
 activate_locked:
 		SetPageActive(page);
@@ -573,6 +567,241 @@ keep:
 	sc->nr_reclaimed += reclaimed;
 	return reclaimed;
 }
+
+#ifdef CONFIG_MIGRATION
+static inline void move_to_lru(struct page *page)
+{
+	list_del(&page->lru);
+	if (PageActive(page)) {
+		/*
+		 * lru_cache_add_active checks that
+		 * the PG_active bit is off.
+		 */
+		ClearPageActive(page);
+		lru_cache_add_active(page);
+	} else {
+		lru_cache_add(page);
+	}
+	put_page(page);
+}
+
+/*
+ * Add isolated pages on the list back to the LRU
+ *
+ * returns the number of pages put back.
+ */
+int putback_lru_pages(struct list_head *l)
+{
+	struct page *page;
+	struct page *page2;
+	int count = 0;
+
+	list_for_each_entry_safe(page, page2, l, lru) {
+		move_to_lru(page);
+		count++;
+	}
+	return count;
+}
+
+/*
+ * swapout a single page
+ * page is locked upon entry, unlocked on exit
+ */
+static int swap_page(struct page *page)
+{
+	struct address_space *mapping = page_mapping(page);
+
+	if (page_mapped(page) && mapping)
+		if (try_to_unmap(page) != SWAP_SUCCESS)
+			goto unlock_retry;
+
+	if (PageDirty(page)) {
+		/* Page is dirty, try to write it out here */
+		switch(pageout(page, mapping)) {
+		case PAGE_KEEP:
+		case PAGE_ACTIVATE:
+			goto unlock_retry;
+
+		case PAGE_SUCCESS:
+			goto retry;
+
+		case PAGE_CLEAN:
+			; /* try to free the page below */
+		}
+	}
+
+	if (PagePrivate(page)) {
+		if (!try_to_release_page(page, GFP_KERNEL) ||
+		    (!mapping && page_count(page) == 1))
+			goto unlock_retry;
+	}
+
+	if (remove_mapping(mapping, page)) {
+		/* Success */
+		unlock_page(page);
+		return 0;
+	}
+
+unlock_retry:
+	unlock_page(page);
+
+retry:
+	return -EAGAIN;
+}
+/*
+ * migrate_pages
+ *
+ * Two lists are passed to this function. The first list
+ * contains the pages isolated from the LRU to be migrated.
+ * The second list contains new pages that the pages isolated
+ * can be moved to. If the second list is NULL then all
+ * pages are swapped out.
+ *
+ * The function returns after 10 attempts or if no pages
+ * are movable anymore because t has become empty
+ * or no retryable pages exist anymore.
+ *
+ * SIMPLIFIED VERSION: This implementation of migrate_pages
+ * is only swapping out pages and never touches the second
+ * list. The direct migration patchset
+ * extends this function to avoid the use of swap.
+ *
+ * Return: Number of pages not migrated when "to" ran empty.
+ */
+int migrate_pages(struct list_head *from, struct list_head *to,
+		  struct list_head *moved, struct list_head *failed)
+{
+	int retry;
+	int nr_failed = 0;
+	int pass = 0;
+	struct page *page;
+	struct page *page2;
+	int swapwrite = current->flags & PF_SWAPWRITE;
+	int rc;
+
+	if (!swapwrite)
+		current->flags |= PF_SWAPWRITE;
+
+redo:
+	retry = 0;
+
+	list_for_each_entry_safe(page, page2, from, lru) {
+		cond_resched();
+
+		rc = 0;
+		if (page_count(page) == 1)
+			/* page was freed from under us. So we are done. */
+			goto next;
+
+		/*
+		 * Skip locked pages during the first two passes to give the
+		 * functions holding the lock time to release the page. Later we
+		 * use lock_page() to have a higher chance of acquiring the
+		 * lock.
+		 */
+		rc = -EAGAIN;
+		if (pass > 2)
+			lock_page(page);
+		else
+			if (TestSetPageLocked(page))
+				goto next;
+
+		/*
+		 * Only wait on writeback if we have already done a pass where
+		 * we we may have triggered writeouts for lots of pages.
+		 */
+		if (pass > 0) {
+			wait_on_page_writeback(page);
+		} else {
+			if (PageWriteback(page))
+				goto unlock_page;
+		}
+
+		/*
+		 * Anonymous pages must have swap cache references otherwise
+		 * the information contained in the page maps cannot be
+		 * preserved.
+		 */
+		if (PageAnon(page) && !PageSwapCache(page)) {
+			if (!add_to_swap(page, GFP_KERNEL)) {
+				rc = -ENOMEM;
+				goto unlock_page;
+			}
+		}
+
+		/*
+		 * Page is properly locked and writeback is complete.
+		 * Try to migrate the page.
+		 */
+		rc = swap_page(page);
+		goto next;
+
+unlock_page:
+		unlock_page(page);
+
+next:
+		if (rc == -EAGAIN) {
+			retry++;
+		} else if (rc) {
+			/* Permanent failure */
+			list_move(&page->lru, failed);
+			nr_failed++;
+		} else {
+			/* Success */
+			list_move(&page->lru, moved);
+		}
+	}
+	if (retry && pass++ < 10)
+		goto redo;
+
+	if (!swapwrite)
+		current->flags &= ~PF_SWAPWRITE;
+
+	return nr_failed + retry;
+}
+
+static void lru_add_drain_per_cpu(void *dummy)
+{
+	lru_add_drain();
+}
+
+/*
+ * Isolate one page from the LRU lists and put it on the
+ * indicated list. Do necessary cache draining if the
+ * page is not on the LRU lists yet.
+ *
+ * Result:
+ *  0 = page not on LRU list
+ *  1 = page removed from LRU list and added to the specified list.
+ * -ENOENT = page is being freed elsewhere.
+ */
+int isolate_lru_page(struct page *page)
+{
+	int rc = 0;
+	struct zone *zone = page_zone(page);
+
+redo:
+	spin_lock_irq(&zone->lru_lock);
+	rc = __isolate_lru_page(page);
+	if (rc == 1) {
+		if (PageActive(page))
+			del_page_from_active_list(zone, page);
+		else
+			del_page_from_inactive_list(zone, page);
+	}
+	spin_unlock_irq(&zone->lru_lock);
+	if (rc == 0) {
+		/*
+		 * Maybe this page is still waiting for a cpu to drain it
+		 * from one of the lru lists?
+		 */
+		rc = schedule_on_each_cpu(lru_add_drain_per_cpu, NULL);
+		if (rc == 0 && PageLRU(page))
+			goto redo;
+	}
+	return rc;
+}
+#endif
 
 /*
  * zone->lru_lock is heavily contended.  Some of the functions that
@@ -602,20 +831,18 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
-		if (!TestClearPageLRU(page))
-			BUG();
-		list_del(&page->lru);
-		if (get_page_testone(page)) {
-			/*
-			 * It is being freed elsewhere
-			 */
-			__put_page(page);
-			SetPageLRU(page);
-			list_add(&page->lru, src);
-			continue;
-		} else {
-			list_add(&page->lru, dst);
+		switch (__isolate_lru_page(page)) {
+		case 1:
+			/* Succeeded to isolate page */
+			list_move(&page->lru, dst);
 			nr_taken++;
+			break;
+		case -ENOENT:
+			/* Not possible to isolate */
+			list_move(&page->lru, src);
+			break;
+		default:
+			BUG();
 		}
 	}
 
@@ -653,17 +880,17 @@ static void shrink_cache(struct zone *zone, struct scan_control *sc)
 			goto done;
 
 		max_scan -= nr_scan;
-		if (current_is_kswapd())
-			mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
-		else
-			mod_page_state_zone(zone, pgscan_direct, nr_scan);
 		nr_freed = shrink_list(&page_list, sc);
-		if (current_is_kswapd())
-			mod_page_state(kswapd_steal, nr_freed);
-		mod_page_state_zone(zone, pgsteal, nr_freed);
-		sc->nr_to_reclaim -= nr_freed;
 
-		spin_lock_irq(&zone->lru_lock);
+		local_irq_disable();
+		if (current_is_kswapd()) {
+			__mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
+			__mod_page_state(kswapd_steal, nr_freed);
+		} else
+			__mod_page_state_zone(zone, pgscan_direct, nr_scan);
+		__mod_page_state_zone(zone, pgsteal, nr_freed);
+
+		spin_lock(&zone->lru_lock);
 		/*
 		 * Put back any unfreeable pages.
 		 */
@@ -825,11 +1052,13 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 		}
 	}
 	zone->nr_active += pgmoved;
-	spin_unlock_irq(&zone->lru_lock);
-	pagevec_release(&pvec);
+	spin_unlock(&zone->lru_lock);
 
-	mod_page_state_zone(zone, pgrefill, pgscanned);
-	mod_page_state(pgdeactivate, pgdeactivate);
+	__mod_page_state_zone(zone, pgrefill, pgscanned);
+	__mod_page_state(pgdeactivate, pgdeactivate);
+	local_irq_enable();
+
+	pagevec_release(&pvec);
 }
 
 /*
@@ -861,8 +1090,6 @@ shrink_zone(struct zone *zone, struct scan_control *sc)
 	else
 		nr_inactive = 0;
 
-	sc->nr_to_reclaim = sc->swap_cluster_max;
-
 	while (nr_active || nr_inactive) {
 		if (nr_active) {
 			sc->nr_to_scan = min(nr_active,
@@ -876,8 +1103,6 @@ shrink_zone(struct zone *zone, struct scan_control *sc)
 					(unsigned long)sc->swap_cluster_max);
 			nr_inactive -= sc->nr_to_scan;
 			shrink_cache(zone, sc);
-			if (sc->nr_to_reclaim <= 0)
-				break;
 		}
 	}
 
@@ -910,7 +1135,7 @@ shrink_caches(struct zone **zones, struct scan_control *sc)
 	for (i = 0; zones[i] != NULL; i++) {
 		struct zone *zone = zones[i];
 
-		if (zone->present_pages == 0)
+		if (!populated_zone(zone))
 			continue;
 
 		if (!cpuset_zone_allowed(zone, __GFP_HARDWALL))
@@ -952,7 +1177,6 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 
 	sc.gfp_mask = gfp_mask;
 	sc.may_writepage = 0;
-	sc.may_swap = 1;
 
 	inc_page_state(allocstall);
 
@@ -1055,7 +1279,6 @@ loop_again:
 	total_reclaimed = 0;
 	sc.gfp_mask = GFP_KERNEL;
 	sc.may_writepage = 0;
-	sc.may_swap = 1;
 	sc.nr_mapped = read_page_state(nr_mapped);
 
 	inc_page_state(pageoutrun);
@@ -1084,7 +1307,7 @@ loop_again:
 			for (i = pgdat->nr_zones - 1; i >= 0; i--) {
 				struct zone *zone = pgdat->node_zones + i;
 
-				if (zone->present_pages == 0)
+				if (!populated_zone(zone))
 					continue;
 
 				if (zone->all_unreclaimable &&
@@ -1121,7 +1344,7 @@ scan:
 			struct zone *zone = pgdat->node_zones + i;
 			int nr_slab;
 
-			if (zone->present_pages == 0)
+			if (!populated_zone(zone))
 				continue;
 
 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
@@ -1238,7 +1461,7 @@ static int kswapd(void *p)
 	 * us from recursively trying to free more memory as we're
 	 * trying to free the first piece of memory in the first place).
 	 */
-	tsk->flags |= PF_MEMALLOC|PF_KSWAPD;
+	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
 
 	order = 0;
 	for ( ; ; ) {
@@ -1273,7 +1496,7 @@ void wakeup_kswapd(struct zone *zone, int order)
 {
 	pg_data_t *pgdat;
 
-	if (zone->present_pages == 0)
+	if (!populated_zone(zone))
 		return;
 
 	pgdat = zone->zone_pgdat;
@@ -1353,76 +1576,3 @@ static int __init kswapd_init(void)
 }
 
 module_init(kswapd_init)
-
-
-/*
- * Try to free up some pages from this zone through reclaim.
- */
-int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-{
-	struct scan_control sc;
-	int nr_pages = 1 << order;
-	int total_reclaimed = 0;
-
-	/* The reclaim may sleep, so don't do it if sleep isn't allowed */
-	if (!(gfp_mask & __GFP_WAIT))
-		return 0;
-	if (zone->all_unreclaimable)
-		return 0;
-
-	sc.gfp_mask = gfp_mask;
-	sc.may_writepage = 0;
-	sc.may_swap = 0;
-	sc.nr_mapped = read_page_state(nr_mapped);
-	sc.nr_scanned = 0;
-	sc.nr_reclaimed = 0;
-	/* scan at the highest priority */
-	sc.priority = 0;
-	disable_swap_token();
-
-	if (nr_pages > SWAP_CLUSTER_MAX)
-		sc.swap_cluster_max = nr_pages;
-	else
-		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
-
-	/* Don't reclaim the zone if there are other reclaimers active */
-	if (atomic_read(&zone->reclaim_in_progress) > 0)
-		goto out;
-
-	shrink_zone(zone, &sc);
-	total_reclaimed = sc.nr_reclaimed;
-
- out:
-	return total_reclaimed;
-}
-
-asmlinkage long sys_set_zone_reclaim(unsigned int node, unsigned int zone,
-				     unsigned int state)
-{
-	struct zone *z;
-	int i;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
-
-	if (node >= MAX_NUMNODES || !node_online(node))
-		return -EINVAL;
-
-	/* This will break if we ever add more zones */
-	if (!(zone & (1<<ZONE_DMA|1<<ZONE_NORMAL|1<<ZONE_HIGHMEM)))
-		return -EINVAL;
-
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		if (!(zone & 1<<i))
-			continue;
-
-		z = &NODE_DATA(node)->node_zones[i];
-
-		if (state)
-			z->reclaim_pages = 1;
-		else
-			z->reclaim_pages = 0;
-	}
-
-	return 0;
-}

@@ -35,7 +35,6 @@
 #include <asm/kdebug.h>
 #include <asm/sstep.h>
 
-static DECLARE_MUTEX(kprobe_mutex);
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
@@ -54,19 +53,17 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	/* insn must be on a special executable page on ppc64 */
 	if (!ret) {
-		down(&kprobe_mutex);
 		p->ainsn.insn = get_insn_slot();
-		up(&kprobe_mutex);
 		if (!p->ainsn.insn)
 			ret = -ENOMEM;
 	}
-	return ret;
-}
 
-void __kprobes arch_copy_kprobe(struct kprobe *p)
-{
-	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
-	p->opcode = *p->addr;
+	if (!ret) {
+		memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+		p->opcode = *p->addr;
+	}
+
+	return ret;
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -182,6 +179,18 @@ static inline int kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		} else {
+			if (*addr != BREAKPOINT_INSTRUCTION) {
+				/* If trap variant, then it belongs not to us */
+				kprobe_opcode_t cur_insn = *addr;
+				if (is_trap(cur_insn))
+		       			goto no_kprobe;
+				/* The breakpoint instruction was removed by
+				 * another cpu right after we hit, no further
+				 * handling of this interrupt is appropriate
+				 */
+				ret = 1;
+				goto no_kprobe;
+			}
 			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;

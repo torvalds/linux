@@ -52,6 +52,7 @@
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
 
+#include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -145,13 +146,10 @@ xfs_find_handle(
 
 	if (cmd != XFS_IOC_PATH_TO_FSHANDLE) {
 		xfs_inode_t	*ip;
-		bhv_desc_t	*bhv;
 		int		lock_mode;
 
 		/* need to get access to the xfs_inode to read the generation */
-		bhv = vn_bhv_lookup_unlocked(VN_BHV_HEAD(vp), &xfs_vnodeops);
-		ASSERT(bhv);
-		ip = XFS_BHVTOI(bhv);
+		ip = xfs_vtoi(vp);
 		ASSERT(ip);
 		lock_mode = xfs_ilock_map_shared(ip);
 
@@ -530,6 +528,8 @@ xfs_attrmulti_attr_set(
 	char			*kbuf;
 	int			error = EFAULT;
 
+	if (IS_RDONLY(&vp->v_inode))
+		return -EROFS;
 	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
 		return EPERM;
 	if (len > XATTR_SIZE_MAX)
@@ -557,6 +557,9 @@ xfs_attrmulti_attr_remove(
 {
 	int			error;
 
+
+	if (IS_RDONLY(&vp->v_inode))
+		return -EROFS;
 	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
 		return EPERM;
 
@@ -745,9 +748,8 @@ xfs_ioctl(
 			(ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
 			mp->m_rtdev_targp : mp->m_ddev_targp;
 
-		da.d_mem = da.d_miniosz = 1 << target->pbr_sshift;
-		/* The size dio will do in one go */
-		da.d_maxiosz = 64 * PAGE_CACHE_SIZE;
+		da.d_mem = da.d_miniosz = 1 << target->bt_sshift;
+		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
 
 		if (copy_to_user(arg, &da, sizeof(da)))
 			return -XFS_ERROR(EFAULT);

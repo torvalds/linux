@@ -1,6 +1,8 @@
 #ifndef S390_CIO_H
 #define S390_CIO_H
 
+#include "schid.h"
+
 /*
  * where we put the ssd info
  */
@@ -83,7 +85,7 @@ struct orb {
 
 /* subchannel data structure used by I/O subroutines */
 struct subchannel {
-	unsigned int irq;	/* aka. subchannel number */
+	struct subchannel_id schid;
 	spinlock_t lock;	/* subchannel lock */
 
 	enum {
@@ -114,7 +116,7 @@ struct subchannel {
 
 #define to_subchannel(n) container_of(n, struct subchannel, dev)
 
-extern int cio_validate_subchannel (struct subchannel *, unsigned int);
+extern int cio_validate_subchannel (struct subchannel *, struct subchannel_id);
 extern int cio_enable_subchannel (struct subchannel *, unsigned int);
 extern int cio_disable_subchannel (struct subchannel *);
 extern int cio_cancel (struct subchannel *);
@@ -127,14 +129,15 @@ extern int cio_cancel (struct subchannel *);
 extern int cio_set_options (struct subchannel *, int);
 extern int cio_get_options (struct subchannel *);
 extern int cio_modify (struct subchannel *);
+
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE
 extern struct subchannel *cio_probe_console(void);
 extern void cio_release_console(void);
-extern int cio_is_console(int irq);
+extern int cio_is_console(struct subchannel_id);
 extern struct subchannel *cio_get_console_subchannel(void);
 #else
-#define cio_is_console(irq) 0
+#define cio_is_console(schid) 0
 #define cio_get_console_subchannel() NULL
 #endif
 

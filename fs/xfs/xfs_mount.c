@@ -51,7 +51,7 @@ STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
-static struct {
+static const struct {
     short offset;
     short type;     /* 0 = integer
 		* 1 = binary / string (no translation)
@@ -117,7 +117,7 @@ xfs_mount_init(void)
 
 	AIL_LOCKINIT(&mp->m_ail_lock, "xfs_ail");
 	spinlock_init(&mp->m_sb_lock, "xfs_sb");
-	mutex_init(&mp->m_ilock, MUTEX_DEFAULT, "xfs_ilock");
+	mutex_init(&mp->m_ilock);
 	initnsema(&mp->m_growlock, 1, "xfs_grow");
 	/*
 	 * Initialize the AIL.
@@ -1077,8 +1077,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 
 	xfs_iflush_all(mp);
 
-	XFS_QM_DQPURGEALL(mp,
-		XFS_QMOPT_UQUOTA | XFS_QMOPT_GQUOTA | XFS_QMOPT_UMOUNTING);
+	XFS_QM_DQPURGEALL(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_UMOUNTING);
 
 	/*
 	 * Flush out the log synchronously so that we know for sure

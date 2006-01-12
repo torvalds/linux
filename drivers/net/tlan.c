@@ -2865,11 +2865,11 @@ void TLan_PhyMonitor( struct net_device *dev )
 	 *				for this device.
 	 *		phy		The address of the PHY to be queried.
 	 *		reg		The register whose contents are to be
-	 *				retreived.
+	 *				retrieved.
 	 *		val		A pointer to a variable to store the
 	 *				retrieved value.
 	 *
-	 *	This function uses the TLAN's MII bus to retreive the contents
+	 *	This function uses the TLAN's MII bus to retrieve the contents
 	 *	of a given register on a PHY.  It sends the appropriate info
 	 *	and then reads the 16-bit register value from the MII bus via
 	 *	the TLAN SIO register.

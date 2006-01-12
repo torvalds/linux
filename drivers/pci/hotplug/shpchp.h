@@ -98,6 +98,10 @@ struct controller {
 	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
+	u32 cap_offset;
+	unsigned long mmio_base;
+	unsigned long mmio_size;
+	volatile int cmd_busy;
 };
 
 struct hotplug_params {

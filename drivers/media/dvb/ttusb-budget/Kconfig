@@ -10,7 +10,7 @@ config DVB_TTUSB_BUDGET
 	  Support for external USB adapters designed by Technotrend and
 	  produced by Hauppauge, shipped under the brand name 'Nova-USB'.
 
-          These devices don't have a MPEG decoder built in, so you need
+	  These devices don't have a MPEG decoder built in, so you need
 	  an external software decoder to watch TV.
 
 	  Say Y if you own such a device and want to use it.

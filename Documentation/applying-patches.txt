@@ -2,8 +2,8 @@
 	Applying Patches To The Linux Kernel
 	------------------------------------
 
-	(Written by Jesper Juhl, August 2005)
-
+	Original by: Jesper Juhl, August 2005
+	Last update: 2006-01-05
 
 
 A frequently asked question on the Linux Kernel Mailing List is how to apply
@@ -76,7 +76,7 @@ instead:
 
 If you wish to uncompress the patch file by hand first before applying it
 (what I assume you've done in the examples below), then you simply run
-gunzip or bunzip2 on the file - like this:
+gunzip or bunzip2 on the file -- like this:
 	gunzip patch-x.y.z.gz
 	bunzip2 patch-x.y.z.bz2
 
@@ -94,7 +94,7 @@ Common errors when patching
 ---
  When patch applies a patch file it attempts to verify the sanity of the
 file in different ways.
-Checking that the file looks like a valid patch file, checking the code
+Checking that the file looks like a valid patch file & checking the code
 around the bits being modified matches the context provided in the patch are
 just two of the basic sanity checks patch does.
 
@@ -118,16 +118,16 @@ wrong.
 
 When patch encounters a change that it can't fix up with fuzz it rejects it
 outright and leaves a file with a .rej extension (a reject file). You can
-read this file to see exactely what change couldn't be applied, so you can
+read this file to see exactly what change couldn't be applied, so you can
 go fix it up by hand if you wish.
 
-If you don't have any third party patches applied to your kernel source, but
+If you don't have any third-party patches applied to your kernel source, but
 only patches from kernel.org and you apply the patches in the correct order,
 and have made no modifications yourself to the source files, then you should
 never see a fuzz or reject message from patch. If you do see such messages
 anyway, then there's a high risk that either your local source tree or the
 patch file is corrupted in some way. In that case you should probably try
-redownloading the patch and if things are still not OK then you'd be advised
+re-downloading the patch and if things are still not OK then you'd be advised
 to start with a fresh tree downloaded in full from kernel.org.
 
 Let's look a bit more at some of the messages patch can produce.
@@ -136,7 +136,7 @@ If patch stops and presents a "File to patch:" prompt, then patch could not
 find a file to be patched. Most likely you forgot to specify -p1 or you are
 in the wrong directory. Less often, you'll find patches that need to be
 applied with -p0 instead of -p1 (reading the patch file should reveal if
-this is the case - if so, then this is an error by the person who created
+this is the case -- if so, then this is an error by the person who created
 the patch but is not fatal).
 
 If you get "Hunk #2 succeeded at 1887 with fuzz 2 (offset 7 lines)." or a
@@ -167,22 +167,28 @@ the patch will in fact apply it.
 
 A message similar to "patch: **** unexpected end of file in patch" or "patch
 unexpectedly ends in middle of line" means that patch could make no sense of
-the file you fed to it. Either your download is broken or you tried to feed
-patch a compressed patch file without uncompressing it first.
+the file you fed to it. Either your download is broken, you tried to feed
+patch a compressed patch file without uncompressing it first, or the patch
+file that you are using has been mangled by a mail client or mail transfer
+agent along the way somewhere, e.g., by splitting a long line into two lines.
+Often these warnings can easily be fixed by joining (concatenating) the
+two lines that had been split.
 
 As I already mentioned above, these errors should never happen if you apply
 a patch from kernel.org to the correct version of an unmodified source tree.
 So if you get these errors with kernel.org patches then you should probably
-assume that either your patch file or your tree is broken and I'd advice you
+assume that either your patch file or your tree is broken and I'd advise you
 to start over with a fresh download of a full kernel tree and the patch you
 wish to apply.
 
 
 Are there any alternatives to `patch'?
 ---
- Yes there are alternatives. You can use the `interdiff' program
-(http://cyberelk.net/tim/patchutils/) to generate a patch representing the
-differences between two patches and then apply the result.
+ Yes there are alternatives.
+
+ You can use the `interdiff' program (http://cyberelk.net/tim/patchutils/) to
+generate a patch representing the differences between two patches and then
+apply the result.
 This will let you move from something like 2.6.12.2 to 2.6.12.3 in a single
 step. The -z flag to interdiff will even let you feed it patches in gzip or
 bzip2 compressed form directly without the use of zcat or bzcat or manual
@@ -197,10 +203,10 @@ do the additional steps since interdiff can get things wrong in some cases.
  Another alternative is `ketchup', which is a python script for automatic
 downloading and applying of patches (http://www.selenic.com/ketchup/).
 
-Other nice tools are diffstat which shows a summary of changes made by a
-patch, lsdiff which displays a short listing of affected files in a patch
-file, along with (optionally) the line numbers of the start of each patch
-and grepdiff which displays a list of the files modified by a patch where
+ Other nice tools are diffstat, which shows a summary of changes made by a
+patch; lsdiff, which displays a short listing of affected files in a patch
+file, along with (optionally) the line numbers of the start of each patch;
+and grepdiff, which displays a list of the files modified by a patch where
 the patch contains a given regular expression.
 
 
@@ -225,8 +231,8 @@ The -mm kernels live at
 In place of ftp.kernel.org you can use ftp.cc.kernel.org, where cc is a
 country code. This way you'll be downloading from a mirror site that's most
 likely geographically closer to you, resulting in faster downloads for you,
-less bandwidth used globally and less load on the main kernel.org servers -
-these are good things, do use mirrors when possible.
+less bandwidth used globally and less load on the main kernel.org servers --
+these are good things, so do use mirrors when possible.
 
 
 The 2.6.x kernels
@@ -234,14 +240,14 @@ The 2.6.x kernels
  These are the base stable releases released by Linus. The highest numbered
 release is the most recent.
 
-If regressions or other serious flaws are found then a -stable fix patch
+If regressions or other serious flaws are found, then a -stable fix patch
 will be released (see below) on top of this base. Once a new 2.6.x base
 kernel is released, a patch is made available that is a delta between the
 previous 2.6.x kernel and the new one.
 
-To apply a patch moving from 2.6.11 to 2.6.12 you'd do the following (note
+To apply a patch moving from 2.6.11 to 2.6.12, you'd do the following (note
 that such patches do *NOT* apply on top of 2.6.x.y kernels but on top of the
-base 2.6.x kernel - if you need to move from 2.6.x.y to 2.6.x+1 you need to
+base 2.6.x kernel -- if you need to move from 2.6.x.y to 2.6.x+1 you need to
 first revert the 2.6.x.y patch).
 
 Here are some examples:
@@ -258,12 +264,12 @@ $ patch -p1 -R < ../patch-2.6.11.1	# revert the 2.6.11.1 patch
 					# source dir is now 2.6.11
 $ patch -p1 < ../patch-2.6.12		# apply new 2.6.12 patch
 $ cd ..
-$ mv linux-2.6.11.1 inux-2.6.12		# rename source dir
+$ mv linux-2.6.11.1 linux-2.6.12		# rename source dir
 
 
 The 2.6.x.y kernels
 ---
- Kernels with 4 digit versions are -stable kernels. They contain small(ish)
+ Kernels with 4-digit versions are -stable kernels. They contain small(ish)
 critical fixes for security problems or significant regressions discovered
 in a given 2.6.x kernel.
 
@@ -274,9 +280,14 @@ versions.
 If no 2.6.x.y kernel is available, then the highest numbered 2.6.x kernel is
 the current stable kernel.
 
+ note: the -stable team usually do make incremental patches available as well
+ as patches against the latest mainline release, but I only cover the
+ non-incremental ones below. The incremental ones can be found at
+ ftp://ftp.kernel.org/pub/linux/kernel/v2.6/incr/
+
 These patches are not incremental, meaning that for example the 2.6.12.3
 patch does not apply on top of the 2.6.12.2 kernel source, but rather on top
-of the base 2.6.12 kernel source.
+of the base 2.6.12 kernel source .
 So, in order to apply the 2.6.12.3 patch to your existing 2.6.12.2 kernel
 source you have to first back out the 2.6.12.2 patch (so you are left with a
 base 2.6.12 kernel source) and then apply the new 2.6.12.3 patch.
@@ -342,12 +353,12 @@ The -git kernels
 repository, hence the name).
 
 These patches are usually released daily and represent the current state of
-Linus' tree. They are more experimental than -rc kernels since they are
+Linus's tree. They are more experimental than -rc kernels since they are
 generated automatically without even a cursory glance to see if they are
 sane.
 
 -git patches are not incremental and apply either to a base 2.6.x kernel or
-a base 2.6.x-rc kernel - you can see which from their name.
+a base 2.6.x-rc kernel -- you can see which from their name.
 A patch named 2.6.12-git1 applies to the 2.6.12 kernel source and a patch
 named 2.6.13-rc3-git2 applies to the source of the 2.6.13-rc3 kernel.
 
@@ -390,12 +401,12 @@ You should generally strive to get your patches into mainline via -mm to
 ensure maximum testing.
 
 This branch is in constant flux and contains many experimental features, a
-lot of debugging patches not appropriate for mainline etc and is the most
+lot of debugging patches not appropriate for mainline etc., and is the most
 experimental of the branches described in this document.
 
 These kernels are not appropriate for use on systems that are supposed to be
 stable and they are more risky to run than any of the other branches (make
-sure you have up-to-date backups - that goes for any experimental kernel but
+sure you have up-to-date backups -- that goes for any experimental kernel but
 even more so for -mm kernels).
 
 These kernels in addition to all the other experimental patches they contain
@@ -433,7 +444,11 @@ $ cd ..
 $ mv linux-2.6.12-mm1 linux-2.6.13-rc3-mm3	# rename the source dir
 
 
-This concludes this list of explanations of the various kernel trees and I
-hope you are now crystal clear on how to apply the various patches and help
-testing the kernel.
+This concludes this list of explanations of the various kernel trees.
+I hope you are now clear on how to apply the various patches and help testing
+the kernel.
+
+Thank you's to Randy Dunlap, Rolf Eike Beer, Linus Torvalds, Bodo Eggert,
+Johannes Stezenbach, Grant Coady, Pavel Machek and others that I may have
+forgotten for their reviews and contributions to this document.
 

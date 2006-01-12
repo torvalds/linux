@@ -141,8 +141,8 @@ struct reverse_heartbeat {
 };
 
 struct ibmasm_remote {
-	struct input_dev keybd_dev;
-	struct input_dev mouse_dev;
+	struct input_dev *keybd_dev;
+	struct input_dev *mouse_dev;
 };
 
 struct service_processor {
@@ -157,7 +157,7 @@ struct service_processor {
 	char			dirname[IBMASM_NAME_SIZE];
 	char			devname[IBMASM_NAME_SIZE];
 	unsigned int		number;
-	struct ibmasm_remote	*remote;
+	struct ibmasm_remote	remote;
 	int			serial_line;
 	struct device		*dev;
 };

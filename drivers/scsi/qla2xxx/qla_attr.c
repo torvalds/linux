@@ -232,7 +232,7 @@ static ssize_t
 qla2x00_isp_name_show(struct class_device *cdev, char *buf)
 {
 	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
-	return snprintf(buf, PAGE_SIZE, "%s\n", ha->brd_info->isp_name);
+	return snprintf(buf, PAGE_SIZE, "ISP%04X\n", ha->pdev->device);
 }
 
 static ssize_t

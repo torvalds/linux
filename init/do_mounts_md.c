@@ -17,7 +17,7 @@ static int __initdata raid_noautodetect, raid_autopart;
 static struct {
 	int minor;
 	int partitioned;
-	int pers;
+	int level;
 	int chunk;
 	char *device_names;
 } md_setup_args[MAX_MD_DEVS] __initdata;
@@ -47,7 +47,7 @@ extern int mdp_major;
  */
 static int __init md_setup(char *str)
 {
-	int minor, level, factor, fault, pers, partitioned = 0;
+	int minor, level, factor, fault, partitioned = 0;
 	char *pername = "";
 	char *str1;
 	int ent;
@@ -78,7 +78,7 @@ static int __init md_setup(char *str)
 	}
 	if (ent >= md_setup_ents)
 		md_setup_ents++;
-	switch (get_option(&str, &level)) {	/* RAID Personality */
+	switch (get_option(&str, &level)) {	/* RAID level */
 	case 2: /* could be 0 or -1.. */
 		if (level == 0 || level == LEVEL_LINEAR) {
 			if (get_option(&str, &factor) != 2 ||	/* Chunk Size */
@@ -86,16 +86,12 @@ static int __init md_setup(char *str)
 				printk(KERN_WARNING "md: Too few arguments supplied to md=.\n");
 				return 0;
 			}
-			md_setup_args[ent].pers = level;
+			md_setup_args[ent].level = level;
 			md_setup_args[ent].chunk = 1 << (factor+12);
-			if (level ==  LEVEL_LINEAR) {
-				pers = LINEAR;
+			if (level ==  LEVEL_LINEAR)
 				pername = "linear";
-			} else {
-				pers = RAID0;
+			else
 				pername = "raid0";
-			}
-			md_setup_args[ent].pers = pers;
 			break;
 		}
 		/* FALL THROUGH */
@@ -103,7 +99,7 @@ static int __init md_setup(char *str)
 		str = str1;
 		/* FALL THROUGH */
 	case 0:
-		md_setup_args[ent].pers = 0;
+		md_setup_args[ent].level = LEVEL_NONE;
 		pername="super-block";
 	}
 
@@ -190,10 +186,10 @@ static void __init md_setup_drive(void)
 			continue;
 		}
 
-		if (md_setup_args[ent].pers) {
+		if (md_setup_args[ent].level != LEVEL_NONE) {
 			/* non-persistent */
 			mdu_array_info_t ainfo;
-			ainfo.level = pers_to_level(md_setup_args[ent].pers);
+			ainfo.level = md_setup_args[ent].level;
 			ainfo.size = 0;
 			ainfo.nr_disks =0;
 			ainfo.raid_disks =0;

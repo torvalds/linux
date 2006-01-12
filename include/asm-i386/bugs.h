@@ -8,9 +8,6 @@
  *        <rreilova@ececs.uc.edu>
  *	- Channing Corn (tests & fixes),
  *	- Andrew D. Balsa (code cleanup).
- *
- *  Pentium III FXSR, SSE support
- *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
 
 /*
@@ -76,25 +73,7 @@ static void __init check_fpu(void)
 		return;
 	}
 
-/* Enable FXSR and company _before_ testing for FP problems. */
-	/*
-	 * Verify that the FXSAVE/FXRSTOR data will be 16-byte aligned.
-	 */
-	if (offsetof(struct task_struct, thread.i387.fxsave) & 15) {
-		extern void __buggy_fxsr_alignment(void);
-		__buggy_fxsr_alignment();
-	}
-	if (cpu_has_fxsr) {
-		printk(KERN_INFO "Enabling fast FPU save and restore... ");
-		set_in_cr4(X86_CR4_OSFXSR);
-		printk("done.\n");
-	}
-	if (cpu_has_xmm) {
-		printk(KERN_INFO "Enabling unmasked SIMD FPU exception support... ");
-		set_in_cr4(X86_CR4_OSXMMEXCPT);
-		printk("done.\n");
-	}
-
+/* trap_init() enabled FXSR and company _before_ testing for FP problems here. */
 	/* Test for the divl bug.. */
 	__asm__("fninit\n\t"
 		"fldl %1\n\t"

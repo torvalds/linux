@@ -11,6 +11,7 @@
  *		
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
@@ -22,6 +23,7 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
+#include <net/route.h>
 
 /* 
  * Write options to IP header, record destination address to

@@ -9,6 +9,8 @@
 #include "uml-config.h"
 #include "asm/types.h"
 #include "../os/include/file.h"
+#include "sysdep/ptrace.h"
+#include "kern_util.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -213,15 +215,24 @@ extern int run_helper_thread(int (*proc)(void *), void *arg,
 			     int stack_order);
 extern int helper_wait(int pid);
 
-#endif
+/* umid.c */
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+extern int umid_file_name(char *name, char *buf, int len);
+extern int set_umid(char *name);
+extern char *get_umid(void);
+
+/* signal.c */
+extern void set_sigstack(void *sig_stack, int size);
+extern void remove_sigstack(void);
+extern void set_handler(int sig, void (*handler)(int), int flags, ...);
+extern int change_sig(int signal, int on);
+extern void block_signals(void);
+extern void unblock_signals(void);
+extern int get_signals(void);
+extern int set_signals(int enable);
+
+/* trap.c */
+extern void os_fill_handlinfo(struct kern_handlers h);
+extern void do_longjmp(void *p, int val);
+
+#endif

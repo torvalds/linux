@@ -379,14 +379,14 @@ gdt:
  * Also sysret mandates a special GDT layout 
  */
 		 		
-.align L1_CACHE_BYTES
+.align PAGE_SIZE
 
 /* The TLS descriptors are currently at a different place compared to i386.
    Hopefully nobody expects them at a fixed place (Wine?) */
 	
 ENTRY(cpu_gdt_table)
 	.quad	0x0000000000000000	/* NULL descriptor */
-	.quad	0x008f9a000000ffff	/* __KERNEL_COMPAT32_CS */	
+	.quad	0x0			/* unused */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x00cffa000000ffff	/* __USER32_CS */
@@ -396,15 +396,15 @@ ENTRY(cpu_gdt_table)
 	.quad	0,0			/* TSS */
 	.quad	0,0			/* LDT */
 	.quad   0,0,0			/* three TLS descriptors */ 
-	.quad	0x00009a000000ffff	/* __KERNEL16_CS - 16bit PM for S3 wakeup. */
-					/* base must be patched for real base address. */
+	.quad	0			/* unused */
 gdt_end:	
 	/* asm/segment.h:GDT_ENTRIES must match this */	
 	/* This should be a multiple of the cache line size */
-	/* GDTs of other CPUs: */	
-	.fill (GDT_SIZE * NR_CPUS) - (gdt_end - cpu_gdt_table)
+	/* GDTs of other CPUs are now dynamically allocated */
 
-	.align  L1_CACHE_BYTES
+	/* zero the remaining page */
+	.fill PAGE_SIZE / 8 - GDT_ENTRIES,8,0
+
 ENTRY(idt_table)	
 	.rept   256
 	.quad   0

@@ -172,7 +172,7 @@ static int create_by_name(const char *name, mode_t mode,
 		return -EFAULT;
 	}
 
-	down(&parent->d_inode->i_sem);
+	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
@@ -181,7 +181,7 @@ static int create_by_name(const char *name, mode_t mode,
 			error = create(parent->d_inode, *dentry, mode);
 	} else
 		error = PTR_ERR(dentry);
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 
 	return error;
 }
@@ -302,7 +302,7 @@ void securityfs_remove(struct dentry *dentry)
 	if (!parent || !parent->d_inode)
 		return;
 
-	down(&parent->d_inode->i_sem);
+	mutex_lock(&parent->d_inode->i_mutex);
 	if (positive(dentry)) {
 		if (dentry->d_inode) {
 			if (S_ISDIR(dentry->d_inode->i_mode))
@@ -312,7 +312,7 @@ void securityfs_remove(struct dentry *dentry)
 			dput(dentry);
 		}
 	}
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 	simple_release_fs(&mount, &mount_count);
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);

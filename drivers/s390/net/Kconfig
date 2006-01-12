@@ -1,5 +1,5 @@
 menu "S/390 network device drivers"
-	depends on NETDEVICES && ARCH_S390
+	depends on NETDEVICES && S390
 
 config LCS
 	tristate "Lan Channel Station Interface"

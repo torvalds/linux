@@ -334,6 +334,7 @@ struct sst_spec {
 };
 
 struct sstfb_par {
+	u32 palette[16];
 	unsigned int yDim;
 	unsigned int hSyncOn;	/* hsync_len */
 	unsigned int hSyncOff;	/* left_margin + xres + right_margin */

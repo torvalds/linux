@@ -19,6 +19,7 @@
 #include <syslib/m8xx_wdt.h>
 
 static int wdt_timeout;
+int m8xx_has_internal_rtc = 0;
 
 static irqreturn_t m8xx_wdt_interrupt(int, void *, struct pt_regs *);
 static struct irqaction m8xx_wdt_irqaction = {
@@ -45,34 +46,14 @@ static irqreturn_t m8xx_wdt_interrupt(int irq, void *dev, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void __init m8xx_wdt_handler_install(bd_t * binfo)
+#define SYPCR_SWP 0x1
+#define SYPCR_SWE 0x4
+
+
+void __init m8xx_wdt_install_irq(volatile immap_t *imap, bd_t *binfo)
 {
-	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
 	u32 pitc;
-	u32 sypcr;
 	u32 pitrtclk;
-
-	sypcr = in_be32(&imap->im_siu_conf.sc_sypcr);
-
-	if (!(sypcr & 0x04)) {
-		printk(KERN_NOTICE "m8xx_wdt: wdt disabled (SYPCR: 0x%08X)\n",
-		       sypcr);
-		return;
-	}
-
-	m8xx_wdt_reset();
-
-	printk(KERN_NOTICE
-	       "m8xx_wdt: active wdt found (SWTC: 0x%04X, SWP: 0x%01X)\n",
-	       (sypcr >> 16), sypcr & 0x01);
-
-	wdt_timeout = (sypcr >> 16) & 0xFFFF;
-
-	if (!wdt_timeout)
-		wdt_timeout = 0xFFFF;
-
-	if (sypcr & 0x01)
-		wdt_timeout *= 2048;
 
 	/*
 	 * Fire trigger if half of the wdt ticked down 
@@ -97,6 +78,67 @@ void __init m8xx_wdt_handler_install(bd_t * binfo)
 
 	printk(KERN_NOTICE
 	       "m8xx_wdt: keep-alive trigger installed (PITC: 0x%04X)\n", pitc);
+
+}
+
+static void m8xx_wdt_timer_func(unsigned long data);
+
+static struct timer_list m8xx_wdt_timer =
+	TIMER_INITIALIZER(m8xx_wdt_timer_func, 0, 0);
+
+void m8xx_wdt_stop_timer(void)
+{
+	del_timer(&m8xx_wdt_timer);
+}
+
+void m8xx_wdt_install_timer(void)
+{
+	m8xx_wdt_timer.expires = jiffies + (HZ/2);
+	add_timer(&m8xx_wdt_timer);
+}
+
+static void m8xx_wdt_timer_func(unsigned long data)
+{
+	m8xx_wdt_reset();
+	m8xx_wdt_install_timer();
+}
+
+void __init m8xx_wdt_handler_install(bd_t * binfo)
+{
+	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
+	u32 sypcr;
+
+	sypcr = in_be32(&imap->im_siu_conf.sc_sypcr);
+
+	if (!(sypcr & SYPCR_SWE)) {
+		printk(KERN_NOTICE "m8xx_wdt: wdt disabled (SYPCR: 0x%08X)\n",
+		       sypcr);
+		return;
+	}
+
+	m8xx_wdt_reset();
+
+	printk(KERN_NOTICE
+	       "m8xx_wdt: active wdt found (SWTC: 0x%04X, SWP: 0x%01X)\n",
+	       (sypcr >> 16), sypcr & SYPCR_SWP);
+
+	wdt_timeout = (sypcr >> 16) & 0xFFFF;
+
+	if (!wdt_timeout)
+		wdt_timeout = 0xFFFF;
+
+	if (sypcr & SYPCR_SWP)
+		wdt_timeout *= 2048;
+
+	m8xx_has_internal_rtc = in_be16(&imap->im_sit.sit_rtcsc) & RTCSC_RTE;
+
+	/* if the internal RTC is off use a kernel timer */
+	if (!m8xx_has_internal_rtc) {
+		if (wdt_timeout < (binfo->bi_intfreq/HZ))
+			printk(KERN_ERR "m8xx_wdt: timeout too short for ktimer!\n");
+		m8xx_wdt_install_timer();
+	} else
+		m8xx_wdt_install_irq(imap, binfo);
 
 	wdt_timeout /= binfo->bi_intfreq;
 }

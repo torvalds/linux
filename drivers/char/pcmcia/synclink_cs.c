@@ -486,13 +486,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout);
 
 static void mgslpc_config(dev_link_t *link);
 static void mgslpc_release(u_long arg);
-static int  mgslpc_event(event_t event, int priority,
-			 event_callback_args_t *args);
-static dev_link_t *mgslpc_attach(void);
-static void mgslpc_detach(dev_link_t *);
-
-static dev_info_t dev_info = "synclink_cs";
-static dev_link_t *dev_list = NULL;
+static void mgslpc_detach(struct pcmcia_device *p_dev);
 
 /*
  * 1st function defined in .text section. Calling this function in
@@ -539,12 +533,10 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 	}
 }
 
-static dev_link_t *mgslpc_attach(void)
+static int mgslpc_attach(struct pcmcia_device *p_dev)
 {
     MGSLPC_INFO *info;
     dev_link_t *link;
-    client_reg_t client_reg;
-    int ret;
     
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
@@ -552,7 +544,7 @@ static dev_link_t *mgslpc_attach(void)
     info = (MGSLPC_INFO *)kmalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
     if (!info) {
 	    printk("Error can't allocate device instance data\n");
-	    return NULL;
+	    return -ENOMEM;
     }
 
     memset(info, 0, sizeof(MGSLPC_INFO));
@@ -587,24 +579,15 @@ static dev_link_t *mgslpc_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	    cs_error(link->handle, RegisterClient, ret);
-	    mgslpc_detach(link);
-	    return NULL;
-    }
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    mgslpc_config(link);
 
     mgslpc_add_device(info);
 
-    return link;
+    return 0;
 }
 
 /* Card has been inserted.
@@ -736,84 +719,49 @@ static void mgslpc_release(u_long arg)
 	    pcmcia_release_io(link->handle, &link->io);
     if (link->irq.AssignedIRQ)
 	    pcmcia_release_irq(link->handle, &link->irq);
-    if (link->state & DEV_STALE_LINK)
-	    mgslpc_detach(link);
 }
 
-static void mgslpc_detach(dev_link_t *link)
+static void mgslpc_detach(struct pcmcia_device *p_dev)
 {
-    dev_link_t **linkp;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_detach(0x%p)\n", link);
-    
-    /* find device */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	    if (*linkp == link) break;
-    if (*linkp == NULL)
-	    return;
 
     if (link->state & DEV_CONFIG) {
-	    /* device is configured/active, mark it so when
-	     * release() is called a proper detach() occurs.
-	     */
-	    if (debug_level >= DEBUG_LEVEL_INFO)
-		    printk(KERN_DEBUG "synclinkpc: detach postponed, '%s' "
-			   "still locked\n", link->dev->dev_name);
-	    link->state |= DEV_STALE_LINK;
-	    return;
+	    ((MGSLPC_INFO *)link->priv)->stop = 1;
+	    mgslpc_release((u_long)link);
     }
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	    pcmcia_deregister_client(link->handle);
-    
-    /* Unlink device structure, and free it */
-    *linkp = link->next;
     mgslpc_remove_device((MGSLPC_INFO *)link->priv);
 }
 
-static int mgslpc_event(event_t event, int priority,
-			event_callback_args_t *args)
+static int mgslpc_suspend(struct pcmcia_device *dev)
 {
-    dev_link_t *link = args->client_data;
-    MGSLPC_INFO *info = link->priv;
-    
-    if (debug_level >= DEBUG_LEVEL_INFO)
-	    printk("mgslpc_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	    link->state &= ~DEV_PRESENT;
-	    if (link->state & DEV_CONFIG) {
-		    ((MGSLPC_INFO *)link->priv)->stop = 1;
-		    mgslpc_release((u_long)link);
-	    }
-	    break;
-    case CS_EVENT_CARD_INSERTION:
-	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	    mgslpc_config(link);
-	    break;
-    case CS_EVENT_PM_SUSPEND:
-	    link->state |= DEV_SUSPEND;
-	    /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	    /* Mark the device as stopped, to block IO until later */
-	    info->stop = 1;
-	    if (link->state & DEV_CONFIG)
-		    pcmcia_release_configuration(link->handle);
-	    break;
-    case CS_EVENT_PM_RESUME:
-	    link->state &= ~DEV_SUSPEND;
-	    /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	    if (link->state & DEV_CONFIG)
-		    pcmcia_request_configuration(link->handle, &link->conf);
-	    info->stop = 0;
-	    break;
-    }
-    return 0;
+	dev_link_t *link = dev_to_instance(dev);
+	MGSLPC_INFO *info = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	info->stop = 1;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
 }
+
+static int mgslpc_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	MGSLPC_INFO *info = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+	info->stop = 0;
+
+	return 0;
+}
+
 
 static inline int mgslpc_paranoia_check(MGSLPC_INFO *info,
 					char *name, const char *routine)
@@ -1059,8 +1007,9 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 
 static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 {
-	unsigned char data, status;
+	unsigned char data, status, flag;
 	int fifo_count;
+	int work = 0;
  	struct tty_struct *tty = info->tty;
  	struct mgsl_icount *icount = &info->icount;
 
@@ -1075,20 +1024,16 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 			fifo_count = 32;
 	} else
 		fifo_count = 32;
-	
+
+	tty_buffer_request_room(tty, fifo_count);
 	/* Flush received async data to receive data buffer. */ 
 	while (fifo_count) {
 		data   = read_reg(info, CHA + RXFIFO);
 		status = read_reg(info, CHA + RXFIFO);
 		fifo_count -= 2;
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			break;
-			
-		*tty->flip.char_buf_ptr = data;
 		icount->rx++;
-		
-		*tty->flip.flag_buf_ptr = 0;
+		flag = TTY_NORMAL;
 
 		// if no frameing/crc error then save data
 		// BIT7:parity error
@@ -1107,26 +1052,23 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 			status &= info->read_status_mask;
 
 			if (status & BIT7)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (status & BIT6)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
-		
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		work += tty_insert_flip_char(tty, data, flag);
 	}
 	issue_command(info, CHA, CMD_RXFIFO);
 
 	if (debug_level >= DEBUG_LEVEL_ISR) {
-		printk("%s(%d):rx_ready_async count=%d\n",
-			__FILE__,__LINE__,tty->flip.count);
+		printk("%s(%d):rx_ready_async",
+			__FILE__,__LINE__);
 		printk("%s(%d):rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,icount->rx,icount->brk,
 			icount->parity,icount->frame,icount->overrun);
 	}
 			
-	if (tty->flip.count)
+	if (work)
 		tty_flip_buffer_push(tty);
 }
 
@@ -3091,10 +3033,11 @@ static struct pcmcia_driver mgslpc_driver = {
 	.drv		= {
 		.name	= "synclink_cs",
 	},
-	.attach		= mgslpc_attach,
-	.event		= mgslpc_event,
-	.detach		= mgslpc_detach,
+	.probe		= mgslpc_attach,
+	.remove		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
+	.suspend	= mgslpc_suspend,
+	.resume		= mgslpc_resume,
 };
 
 static struct tty_operations mgslpc_ops = {
@@ -3138,7 +3081,6 @@ static void synclink_cs_cleanup(void)
 	}
 
 	pcmcia_unregister_driver(&mgslpc_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 static int __init synclink_cs_init(void)
@@ -4057,7 +3999,7 @@ BOOLEAN register_test(MGSLPC_INFO *info)
 {
 	static unsigned char patterns[] = 
 	    { 0x00, 0xff, 0xaa, 0x55, 0x69, 0x96, 0x0f };
-	static unsigned int count = sizeof(patterns) / sizeof(patterns[0]);
+	static unsigned int count = ARRAY_SIZE(patterns);
 	unsigned int i;
 	BOOLEAN rc = TRUE;
 	unsigned long flags;
@@ -4068,7 +4010,7 @@ BOOLEAN register_test(MGSLPC_INFO *info)
 	for (i = 0; i < count; i++) {
 		write_reg(info, XAD1, patterns[i]);
 		write_reg(info, XAD2, patterns[(i + 1) % count]);
-		if ((read_reg(info, XAD1) != patterns[i]) || 
+		if ((read_reg(info, XAD1) != patterns[i]) ||
 		    (read_reg(info, XAD2) != patterns[(i + 1) % count])) {
 			rc = FALSE;
 			break;

@@ -129,7 +129,7 @@
  */
 #if defined(CONFIG_M5208EVB)
 #define	RAM_START	0x40020000
-#define	RAM_LENGTH	0x01e00000
+#define	RAM_LENGTH	0x01fe0000
 #endif
 
 /*

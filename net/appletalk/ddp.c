@@ -52,6 +52,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
@@ -63,7 +64,7 @@
 #include <linux/atalk.h>
 
 struct datalink_proto *ddp_dl, *aarp_dl;
-static struct proto_ops atalk_dgram_ops;
+static const struct proto_ops atalk_dgram_ops;
 
 /**************************************************************************\
 *                                                                          *
@@ -1763,7 +1764,7 @@ static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
  */
 static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	int rc = -EINVAL;
+	int rc = -ENOIOCTLCMD;
 	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *)arg;
 
@@ -1813,23 +1814,6 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			rc = atif_ioctl(cmd, argp);
 			rtnl_unlock();
 			break;
-		/* Physical layer ioctl calls */
-		case SIOCSIFLINK:
-		case SIOCGIFHWADDR:
-		case SIOCSIFHWADDR:
-		case SIOCGIFFLAGS:
-		case SIOCSIFFLAGS:
-		case SIOCGIFTXQLEN:
-		case SIOCSIFTXQLEN:
-		case SIOCGIFMTU:
-		case SIOCGIFCONF:
-		case SIOCADDMULTI:
-		case SIOCDELMULTI:
-		case SIOCGIFCOUNT:
-		case SIOCGIFINDEX:
-		case SIOCGIFNAME:
-			rc = dev_ioctl(cmd, argp);
-			break;
 	}
 
 	return rc;
@@ -1841,7 +1825,7 @@ static struct net_proto_family atalk_family_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
 	.family		= PF_APPLETALK,
 	.owner		= THIS_MODULE,
 	.release	= atalk_release,

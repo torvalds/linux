@@ -16,7 +16,7 @@
 
 static inline void *_port2addr(unsigned long port)
 {
-	return (void *)(port | (NONCACHE_OFFSET));
+	return (void *)(port | NONCACHE_OFFSET);
 }
 
 static inline  void *_port2addr_ne(unsigned long port)

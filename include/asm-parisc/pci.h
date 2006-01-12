@@ -84,11 +84,17 @@ static __inline__  int pci_is_lmmio(struct pci_hba_data *hba, unsigned long a)
 /*
 ** Convert between PCI (IO_VIEW) addresses and processor (PA_VIEW) addresses.
 ** See pcibios.c for more conversions used by Generic PCI code.
+**
+** Platform characteristics/firmware guarantee that
+**	(1) PA_VIEW - IO_VIEW = lmmio_offset for both LMMIO and ELMMIO
+**	(2) PA_VIEW == IO_VIEW for GMMIO
 */
 #define PCI_BUS_ADDR(hba,a)	(PCI_IS_LMMIO(hba,a)	\
 		?  ((a) - hba->lmmio_space_offset)	/* mangle LMMIO */ \
 		: (a))					/* GMMIO */
-#define PCI_HOST_ADDR(hba,a)	((a) + hba->lmmio_space_offset)
+#define PCI_HOST_ADDR(hba,a)	(((a) & PCI_F_EXTEND) == 0 \
+		? (a) + hba->lmmio_space_offset \
+		: (a))
 
 #else	/* !CONFIG_64BIT */
 

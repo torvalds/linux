@@ -20,6 +20,7 @@
 #include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
 #include <linux/rcupdate.h>

@@ -22,6 +22,7 @@
 #include <linux/cdev.h>
 #include <linux/bootmem.h>
 #include <linux/inotify.h>
+#include <linux/mount.h>
 
 /*
  * This is needed for the following functions:
@@ -192,7 +193,7 @@ void inode_init_once(struct inode *inode)
 	INIT_HLIST_NODE(&inode->i_hash);
 	INIT_LIST_HEAD(&inode->i_dentry);
 	INIT_LIST_HEAD(&inode->i_devices);
-	sema_init(&inode->i_sem, 1);
+	mutex_init(&inode->i_mutex);
 	init_rwsem(&inode->i_alloc_sem);
 	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
 	rwlock_init(&inode->i_data.tree_lock);
@@ -770,7 +771,7 @@ EXPORT_SYMBOL(igrab);
  *
  * Note, @test is called with the inode_lock held, so can't sleep.
  */
-static inline struct inode *ifind(struct super_block *sb,
+static struct inode *ifind(struct super_block *sb,
 		struct hlist_head *head, int (*test)(struct inode *, void *),
 		void *data, const int wait)
 {
@@ -804,7 +805,7 @@ static inline struct inode *ifind(struct super_block *sb,
  *
  * Otherwise NULL is returned.
  */
-static inline struct inode *ifind_fast(struct super_block *sb,
+static struct inode *ifind_fast(struct super_block *sb,
 		struct hlist_head *head, unsigned long ino)
 {
 	struct inode *inode;
@@ -1176,22 +1177,33 @@ sector_t bmap(struct inode * inode, sector_t block)
 EXPORT_SYMBOL(bmap);
 
 /**
- *	update_atime	-	update the access time
+ *	touch_atime	-	update the access time
+ *	@mnt: mount the inode is accessed on
  *	@inode: inode accessed
  *
  *	Update the accessed time on an inode and mark it for writeback.
  *	This function automatically handles read only file systems and media,
  *	as well as the "noatime" flag and inode specific "noatime" markers.
  */
-void update_atime(struct inode *inode)
+void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 {
+	struct inode *inode = dentry->d_inode;
 	struct timespec now;
 
-	if (IS_NOATIME(inode))
-		return;
-	if (IS_NODIRATIME(inode) && S_ISDIR(inode->i_mode))
-		return;
 	if (IS_RDONLY(inode))
+		return;
+
+	if ((inode->i_flags & S_NOATIME) ||
+	    (inode->i_sb->s_flags & MS_NOATIME) ||
+	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
+		return;
+
+	/*
+	 * We may have a NULL vfsmount when coming from NFSD
+	 */
+	if (mnt &&
+	    ((mnt->mnt_flags & MNT_NOATIME) ||
+	     ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))))
 		return;
 
 	now = current_fs_time(inode->i_sb);
@@ -1201,19 +1213,23 @@ void update_atime(struct inode *inode)
 	}
 }
 
-EXPORT_SYMBOL(update_atime);
+EXPORT_SYMBOL(touch_atime);
 
 /**
- *	inode_update_time	-	update mtime and ctime time
- *	@inode: inode accessed
- *	@ctime_too: update ctime too
+ *	file_update_time	-	update mtime and ctime time
+ *	@file: file accessed
  *
- *	Update the mtime time on an inode and mark it for writeback.
- *	When ctime_too is specified update the ctime too.
+ *	Update the mtime and ctime members of an inode and mark the inode
+ *	for writeback.  Note that this function is meant exclusively for
+ *	usage in the file write path of filesystems, and filesystems may
+ *	choose to explicitly ignore update via this function with the
+ *	S_NOCTIME inode flag, e.g. for network filesystem where these
+ *	timestamps are handled by the server.
  */
 
-void inode_update_time(struct inode *inode, int ctime_too)
+void file_update_time(struct file *file)
 {
+	struct inode *inode = file->f_dentry->d_inode;
 	struct timespec now;
 	int sync_it = 0;
 
@@ -1227,16 +1243,15 @@ void inode_update_time(struct inode *inode, int ctime_too)
 		sync_it = 1;
 	inode->i_mtime = now;
 
-	if (ctime_too) {
-		if (!timespec_equal(&inode->i_ctime, &now))
-			sync_it = 1;
-		inode->i_ctime = now;
-	}
+	if (!timespec_equal(&inode->i_ctime, &now))
+		sync_it = 1;
+	inode->i_ctime = now;
+
 	if (sync_it)
 		mark_inode_dirty_sync(inode);
 }
 
-EXPORT_SYMBOL(inode_update_time);
+EXPORT_SYMBOL(file_update_time);
 
 int inode_needs_sync(struct inode *inode)
 {

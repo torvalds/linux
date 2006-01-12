@@ -70,4 +70,4 @@ static char *_mca_h_sccs_ = "@(#)mca.h	1.2";
 
 #define	RIO_MCA_DEFAULT_MODE	SLOW_LINKS
 
-#endif	/* __rio_mca_h__ */
+#endif				/* __rio_mca_h__ */

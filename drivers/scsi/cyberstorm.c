@@ -223,7 +223,7 @@ static void dma_dump_state(struct NCR_ESP *esp)
 		esp->esp_id, ((struct cyber_dma_registers *)
 			      (esp->dregs))->cond_reg));
 	ESPLOG(("intreq:<%04x>, intena:<%04x>\n",
-		custom.intreqr, custom.intenar));
+		amiga_custom.intreqr, amiga_custom.intenar));
 }
 
 static void dma_init_read(struct NCR_ESP *esp, __u32 addr, int length)
@@ -322,7 +322,7 @@ static void dma_led_on(struct NCR_ESP *esp)
 
 static int dma_ports_p(struct NCR_ESP *esp)
 {
-	return ((custom.intenar) & IF_PORTS);
+	return ((amiga_custom.intenar) & IF_PORTS);
 }
 
 static void dma_setup(struct NCR_ESP *esp, __u32 addr, int count, int write)

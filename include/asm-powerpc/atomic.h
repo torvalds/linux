@@ -165,6 +165,7 @@ static __inline__ int atomic_dec_return(atomic_t *v)
 }
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
  * atomic_add_unless - add unless the number is a given value
@@ -402,5 +403,6 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
 
 #endif /* __powerpc64__ */
 
+#include <asm-generic/atomic.h>
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_ATOMIC_H_ */

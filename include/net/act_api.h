@@ -63,7 +63,7 @@ struct tc_action_ops
 	__u32   type; /* TBD to match kind */
 	__u32 	capab;  /* capabilities includes 4 bit version */
 	struct module		*owner;
-	int     (*act)(struct sk_buff **, struct tc_action *, struct tcf_result *);
+	int     (*act)(struct sk_buff *, struct tc_action *, struct tcf_result *);
 	int     (*get_stats)(struct sk_buff *, struct tc_action *);
 	int     (*dump)(struct sk_buff *, struct tc_action *,int , int);
 	int     (*cleanup)(struct tc_action *, int bind);

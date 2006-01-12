@@ -51,6 +51,7 @@
 #include <asm/pgtable.h>
 #include <asm/bitops.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
@@ -69,9 +70,6 @@
 #else
 #define DBG(fmt...)
 #endif
-
-extern void generic_find_legacy_serial_ports(u64 *physport,
-		unsigned int *default_speed);
 
 static void maple_restart(char *cmd)
 {
@@ -191,24 +189,10 @@ static void __init maple_init_early(void)
 	 */
 	hpte_init_native();
 
-	/* Find the serial port */
-	generic_find_legacy_serial_ports(&physport, &default_speed);
-
-	DBG("phys port addr: %lx\n", (long)physport);
-
-	if (physport) {
-		void *comport;
-		/* Map the uart for udbg. */
-		comport = (void *)ioremap(physport, 16);
-		udbg_init_uart(comport, default_speed);
-
-		DBG("Hello World !\n");
-	}
-
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
-	iommu_init_early_u3();
+	iommu_init_early_dart();
 
 	DBG(" <- maple_init_early\n");
 }
@@ -270,7 +254,7 @@ static int __init maple_probe(int platform)
 	 * occupies having to be broken up so the DART itself is not
 	 * part of the cacheable linar mapping
 	 */
-	alloc_u3_dart_table();
+	alloc_dart_table();
 
 	return 1;
 }
@@ -292,4 +276,9 @@ struct machdep_calls __initdata maple_md = {
       	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= maple_progress,
 	.idle_loop		= native_idle,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
+#endif
 };

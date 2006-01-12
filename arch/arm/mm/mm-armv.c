@@ -19,7 +19,6 @@
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
 

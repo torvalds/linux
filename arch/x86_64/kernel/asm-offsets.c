@@ -33,6 +33,7 @@ int main(void)
 	ENTRY(flags);
 	ENTRY(addr_limit);
 	ENTRY(preempt_count);
+	ENTRY(status);
 	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(pda_ ## entry, offsetof(struct x8664_pda, entry))
@@ -64,5 +65,9 @@ int main(void)
 	DEFINE(pbe_address, offsetof(struct pbe, address));
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));
 	DEFINE(pbe_next, offsetof(struct pbe, next));
+	BLANK();
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+	DEFINE(DEBUG_IST, DEBUG_STACK);
+#endif
 	return 0;
 }

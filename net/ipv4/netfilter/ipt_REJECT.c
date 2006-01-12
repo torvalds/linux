@@ -203,7 +203,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 						sizeof(struct tcphdr), 0));
 
 	/* Adjust IP TTL, DF */
-	nskb->nh.iph->ttl = MAXTTL;
+	nskb->nh.iph->ttl = dst_metric(nskb->dst, RTAX_HOPLIMIT);
 	/* Set DF, id = 0 */
 	nskb->nh.iph->frag_off = htons(IP_DF);
 	nskb->nh.iph->id = 0;

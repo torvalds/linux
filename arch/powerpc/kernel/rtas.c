@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 
 #include <asm/prom.h>
@@ -29,6 +30,7 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/lmb.h>
+#include <asm/udbg.h>
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
@@ -52,7 +54,7 @@ EXPORT_SYMBOL(rtas_flash_term_hook);
  * are designed only for very early low-level debugging, which
  * is why the token is hard-coded to 10.
  */
-void call_rtas_display_status(unsigned char c)
+static void call_rtas_display_status(char c)
 {
 	struct rtas_args *args = &rtas.args;
 	unsigned long s;
@@ -65,14 +67,14 @@ void call_rtas_display_status(unsigned char c)
 	args->nargs = 1;
 	args->nret  = 1;
 	args->rets  = (rtas_arg_t *)&(args->args[1]);
-	args->args[0] = (int)c;
+	args->args[0] = (unsigned char)c;
 
 	enter_rtas(__pa(args));
 
 	spin_unlock_irqrestore(&rtas.lock, s);
 }
 
-void call_rtas_display_status_delay(unsigned char c)
+static void call_rtas_display_status_delay(char c)
 {
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */
 	static int width = 16;
@@ -94,6 +96,11 @@ void call_rtas_display_status_delay(unsigned char c)
 			udelay(10000);
 		}
 	}
+}
+
+void __init udbg_init_rtas(void)
+{
+	udbg_putc = call_rtas_display_status_delay;
 }
 
 void rtas_progress(char *s, unsigned short hex)
@@ -632,7 +639,7 @@ void rtas_stop_self(void)
 }
 
 /*
- * Call early during boot, before mem init or bootmem, to retreive the RTAS
+ * Call early during boot, before mem init or bootmem, to retrieve the RTAS
  * informations from the device-tree and allocate the RMO buffer for userland
  * accesses.
  */

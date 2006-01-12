@@ -50,7 +50,7 @@ extern pgd_t *mmu_pdtp_cache;
  */
 #define MMU_VPN_MASK	0xfffff000
 
-extern __inline__ void
+static inline void
 get_new_mmu_context(struct mm_struct *mm)
 {
 	extern void flush_tlb_all(void);

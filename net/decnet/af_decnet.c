@@ -122,6 +122,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/flow.h>
 #include <asm/system.h>
 #include <asm/ioctls.h>
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -149,7 +150,7 @@ static void dn_keepalive(struct sock *sk);
 #define DN_SK_HASH_MASK (DN_SK_HASH_SIZE - 1)
 
 
-static struct proto_ops dn_proto_ops;
+static const struct proto_ops dn_proto_ops;
 static DEFINE_RWLOCK(dn_hash_lock);
 static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
@@ -1252,7 +1253,7 @@ static int dn_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		err = dev_ioctl(cmd, (void __user *)arg);
+		err = -ENOIOCTLCMD;
 		break;
 	}
 
@@ -2342,7 +2343,7 @@ static struct net_proto_family	dn_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops dn_proto_ops = {
+static const struct proto_ops dn_proto_ops = {
 	.family =	AF_DECnet,
 	.owner =	THIS_MODULE,
 	.release =	dn_release,

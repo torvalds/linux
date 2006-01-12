@@ -213,14 +213,13 @@ static int corgi_mci_init(struct device *dev, irqreturn_t (*corgi_detect_int)(in
 
 	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int, SA_INTERRUPT,
-			     "MMC card detect", data);
+	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int,
+			  SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "corgi_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
 		return -1;
 	}
-
-	set_irq_type(CORGI_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
 
 	return 0;
 }

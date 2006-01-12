@@ -92,6 +92,7 @@ static DECLARE_MUTEX(frontend_mutex);
 
 struct dvb_frontend_private {
 
+	/* thread/frontend values */
 	struct dvb_device *dvbdev;
 	struct dvb_frontend_parameters parameters;
 	struct dvb_fe_events events;
@@ -100,20 +101,25 @@ struct dvb_frontend_private {
 	wait_queue_head_t wait_queue;
 	pid_t thread_pid;
 	unsigned long release_jiffies;
-	int state;
-	int bending;
-	int lnb_drift;
-	int inversion;
-	int auto_step;
-	int auto_sub_step;
-	int started_auto_step;
-	int min_delay;
-	int max_drift;
-	int step_size;
-	int exit;
-	int wakeup;
+	unsigned int exit;
+	unsigned int wakeup;
 	fe_status_t status;
-	fe_sec_tone_mode_t tone;
+	unsigned long tune_mode_flags;
+	unsigned int delay;
+
+	/* swzigzag values */
+	unsigned int state;
+	unsigned int bending;
+	int lnb_drift;
+	unsigned int inversion;
+	unsigned int auto_step;
+	unsigned int auto_sub_step;
+	unsigned int started_auto_step;
+	unsigned int min_delay;
+	unsigned int max_drift;
+	unsigned int step_size;
+	int quality;
+	unsigned int check_wrapped;
 };
 
 
@@ -208,21 +214,21 @@ static void dvb_frontend_init(struct dvb_frontend *fe)
 		fe->ops->init(fe);
 }
 
-static void update_delay(int *quality, int *delay, int min_delay, int locked)
+static void dvb_frontend_swzigzag_update_delay(struct dvb_frontend_private *fepriv, int locked)
 {
-	    int q2;
+	int q2;
 
-	    dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __FUNCTION__);
 
-	    if (locked)
-		      (*quality) = (*quality * 220 + 36*256) / 256;
-	    else
-		      (*quality) = (*quality * 220 + 0) / 256;
+	if (locked)
+		(fepriv->quality) = (fepriv->quality * 220 + 36*256) / 256;
+	else
+		(fepriv->quality) = (fepriv->quality * 220 + 0) / 256;
 
-	    q2 = *quality - 128;
-	    q2 *= q2;
+	q2 = fepriv->quality - 128;
+	q2 *= q2;
 
-	    *delay = min_delay + q2 * HZ / (128*128);
+	fepriv->delay = fepriv->min_delay + q2 * HZ / (128*128);
 }
 
 /**
@@ -232,7 +238,7 @@ static void update_delay(int *quality, int *delay, int min_delay, int locked)
  * @param check_wrapped Checks if an iteration has completed. DO NOT SET ON THE FIRST ATTEMPT
  * @returns Number of complete iterations that have been performed.
  */
-static int dvb_frontend_autotune(struct dvb_frontend *fe, int check_wrapped)
+static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wrapped)
 {
 	int autoinversion;
 	int ready = 0;
@@ -321,6 +327,129 @@ static int dvb_frontend_autotune(struct dvb_frontend *fe, int check_wrapped)
 	return 0;
 }
 
+static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
+{
+	fe_status_t s;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+
+	/* if we've got no parameters, just keep idling */
+	if (fepriv->state & FESTATE_IDLE) {
+		fepriv->delay = 3*HZ;
+		fepriv->quality = 0;
+		return;
+	}
+
+	/* in SCAN mode, we just set the frontend when asked and leave it alone */
+	if (fepriv->tune_mode_flags & FE_TUNE_MODE_ONESHOT) {
+		if (fepriv->state & FESTATE_RETUNE) {
+			if (fe->ops->set_frontend)
+				fe->ops->set_frontend(fe, &fepriv->parameters);
+			fepriv->state = FESTATE_TUNED;
+		}
+		fepriv->delay = 3*HZ;
+		fepriv->quality = 0;
+		return;
+	}
+
+	/* get the frontend status */
+	if (fepriv->state & FESTATE_RETUNE) {
+		s = 0;
+	} else {
+		if (fe->ops->read_status)
+			fe->ops->read_status(fe, &s);
+		if (s != fepriv->status) {
+			dvb_frontend_add_event(fe, s);
+			fepriv->status = s;
+		}
+	}
+
+	/* if we're not tuned, and we have a lock, move to the TUNED state */
+	if ((fepriv->state & FESTATE_WAITFORLOCK) && (s & FE_HAS_LOCK)) {
+		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);
+		fepriv->state = FESTATE_TUNED;
+
+		/* if we're tuned, then we have determined the correct inversion */
+		if ((!(fe->ops->info.caps & FE_CAN_INVERSION_AUTO)) &&
+		    (fepriv->parameters.inversion == INVERSION_AUTO)) {
+			fepriv->parameters.inversion = fepriv->inversion;
+		}
+		return;
+	}
+
+	/* if we are tuned already, check we're still locked */
+	if (fepriv->state & FESTATE_TUNED) {
+		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);
+
+		/* we're tuned, and the lock is still good... */
+		if (s & FE_HAS_LOCK) {
+			return;
+		} else { /* if we _WERE_ tuned, but now don't have a lock */
+			fepriv->state = FESTATE_ZIGZAG_FAST;
+			fepriv->started_auto_step = fepriv->auto_step;
+			fepriv->check_wrapped = 0;
+		}
+	}
+
+	/* don't actually do anything if we're in the LOSTLOCK state,
+	 * the frontend is set to FE_CAN_RECOVER, and the max_drift is 0 */
+	if ((fepriv->state & FESTATE_LOSTLOCK) &&
+	    (fe->ops->info.caps & FE_CAN_RECOVER) && (fepriv->max_drift == 0)) {
+		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);
+		return;
+	}
+
+	/* don't do anything if we're in the DISEQC state, since this
+	 * might be someone with a motorized dish controlled by DISEQC.
+	 * If its actually a re-tune, there will be a SET_FRONTEND soon enough.	*/
+	if (fepriv->state & FESTATE_DISEQC) {
+		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);
+		return;
+	}
+
+	/* if we're in the RETUNE state, set everything up for a brand
+	 * new scan, keeping the current inversion setting, as the next
+	 * tune is _very_ likely to require the same */
+	if (fepriv->state & FESTATE_RETUNE) {
+		fepriv->lnb_drift = 0;
+		fepriv->auto_step = 0;
+		fepriv->auto_sub_step = 0;
+		fepriv->started_auto_step = 0;
+		fepriv->check_wrapped = 0;
+	}
+
+	/* fast zigzag. */
+	if ((fepriv->state & FESTATE_SEARCHING_FAST) || (fepriv->state & FESTATE_RETUNE)) {
+		fepriv->delay = fepriv->min_delay;
+
+		/* peform a tune */
+		if (dvb_frontend_swzigzag_autotune(fe, fepriv->check_wrapped)) {
+			/* OK, if we've run out of trials at the fast speed.
+			 * Drop back to slow for the _next_ attempt */
+			fepriv->state = FESTATE_SEARCHING_SLOW;
+			fepriv->started_auto_step = fepriv->auto_step;
+			return;
+		}
+		fepriv->check_wrapped = 1;
+
+		/* if we've just retuned, enter the ZIGZAG_FAST state.
+		 * This ensures we cannot return from an
+		 * FE_SET_FRONTEND ioctl before the first frontend tune
+		 * occurs */
+		if (fepriv->state & FESTATE_RETUNE) {
+			fepriv->state = FESTATE_TUNING_FAST;
+		}
+	}
+
+	/* slow zigzag */
+	if (fepriv->state & FESTATE_SEARCHING_SLOW) {
+		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);
+
+		/* Note: don't bother checking for wrapping; we stay in this
+		 * state until we get a lock */
+		dvb_frontend_swzigzag_autotune(fe, 0);
+	}
+}
+
 static int dvb_frontend_is_exiting(struct dvb_frontend *fe)
 {
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
@@ -330,7 +459,7 @@ static int dvb_frontend_is_exiting(struct dvb_frontend *fe)
 
 	if (fepriv->dvbdev->writers == 1)
 		if (time_after(jiffies, fepriv->release_jiffies +
-					dvb_shutdown_timeout * HZ))
+				  dvb_shutdown_timeout * HZ))
 			return 1;
 
 	return 0;
@@ -355,18 +484,14 @@ static void dvb_frontend_wakeup(struct dvb_frontend *fe)
 	wake_up_interruptible(&fepriv->wait_queue);
 }
 
-/*
- * FIXME: use linux/kthread.h
- */
 static int dvb_frontend_thread(void *data)
 {
 	struct dvb_frontend *fe = data;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	unsigned long timeout;
 	char name [15];
-	int quality = 0, delay = 3*HZ;
 	fe_status_t s;
-	int check_wrapped = 0;
+	struct dvb_frontend_parameters *params;
 
 	dprintk("%s\n", __FUNCTION__);
 
@@ -377,6 +502,9 @@ static int dvb_frontend_thread(void *data)
 	sigfillset(&current->blocked);
 	unlock_kernel();
 
+	fepriv->check_wrapped = 0;
+	fepriv->quality = 0;
+	fepriv->delay = 3*HZ;
 	fepriv->status = 0;
 	dvb_frontend_init(fe);
 	fepriv->wakeup = 0;
@@ -386,7 +514,7 @@ static int dvb_frontend_thread(void *data)
 
 		timeout = wait_event_interruptible_timeout(fepriv->wait_queue,
 							   dvb_frontend_should_wakeup(fe),
-							   delay);
+							   fepriv->delay);
 		if (0 != dvb_frontend_is_exiting(fe)) {
 			/* got signal or quitting */
 			break;
@@ -397,108 +525,22 @@ static int dvb_frontend_thread(void *data)
 		if (down_interruptible(&fepriv->sem))
 			break;
 
-		/* if we've got no parameters, just keep idling */
-		if (fepriv->state & FESTATE_IDLE) {
-			delay = 3*HZ;
-			quality = 0;
-			continue;
-		}
+		/* do an iteration of the tuning loop */
+		if (fe->ops->tune) {
+			/* have we been asked to retune? */
+			params = NULL;
+			if (fepriv->state & FESTATE_RETUNE) {
+				params = &fepriv->parameters;
+				fepriv->state = FESTATE_TUNED;
+			}
 
-		/* get the frontend status */
-		if (fepriv->state & FESTATE_RETUNE) {
-			s = 0;
-		} else {
-			if (fe->ops->read_status)
-				fe->ops->read_status(fe, &s);
+			fe->ops->tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
 			if (s != fepriv->status) {
 				dvb_frontend_add_event(fe, s);
 				fepriv->status = s;
 			}
-		}
-		/* if we're not tuned, and we have a lock, move to the TUNED state */
-		if ((fepriv->state & FESTATE_WAITFORLOCK) && (s & FE_HAS_LOCK)) {
-			update_delay(&quality, &delay, fepriv->min_delay, s & FE_HAS_LOCK);
-			fepriv->state = FESTATE_TUNED;
-
-			/* if we're tuned, then we have determined the correct inversion */
-			if ((!(fe->ops->info.caps & FE_CAN_INVERSION_AUTO)) &&
-			    (fepriv->parameters.inversion == INVERSION_AUTO)) {
-				fepriv->parameters.inversion = fepriv->inversion;
-			}
-			continue;
-		}
-
-		/* if we are tuned already, check we're still locked */
-		if (fepriv->state & FESTATE_TUNED) {
-			update_delay(&quality, &delay, fepriv->min_delay, s & FE_HAS_LOCK);
-
-			/* we're tuned, and the lock is still good... */
-			if (s & FE_HAS_LOCK)
-				continue;
-			else { /* if we _WERE_ tuned, but now don't have a lock */
-				fepriv->state = FESTATE_ZIGZAG_FAST;
-				fepriv->started_auto_step = fepriv->auto_step;
-				check_wrapped = 0;
-			}
-		}
-
-		/* don't actually do anything if we're in the LOSTLOCK state,
-		 * the frontend is set to FE_CAN_RECOVER, and the max_drift is 0 */
-		if ((fepriv->state & FESTATE_LOSTLOCK) &&
-		    (fe->ops->info.caps & FE_CAN_RECOVER) && (fepriv->max_drift == 0)) {
-			update_delay(&quality, &delay, fepriv->min_delay, s & FE_HAS_LOCK);
-			continue;
-		}
-
-		/* don't do anything if we're in the DISEQC state, since this
-		 * might be someone with a motorized dish controlled by DISEQC.
-		 * If its actually a re-tune, there will be a SET_FRONTEND soon enough.	*/
-		if (fepriv->state & FESTATE_DISEQC) {
-			update_delay(&quality, &delay, fepriv->min_delay, s & FE_HAS_LOCK);
-			continue;
-		}
-
-		/* if we're in the RETUNE state, set everything up for a brand
-		 * new scan, keeping the current inversion setting, as the next
-		 * tune is _very_ likely to require the same */
-		if (fepriv->state & FESTATE_RETUNE) {
-			fepriv->lnb_drift = 0;
-			fepriv->auto_step = 0;
-			fepriv->auto_sub_step = 0;
-			fepriv->started_auto_step = 0;
-			check_wrapped = 0;
-		}
-
-		/* fast zigzag. */
-		if ((fepriv->state & FESTATE_SEARCHING_FAST) || (fepriv->state & FESTATE_RETUNE)) {
-			delay = fepriv->min_delay;
-
-			/* peform a tune */
-			if (dvb_frontend_autotune(fe, check_wrapped)) {
-				/* OK, if we've run out of trials at the fast speed.
-				 * Drop back to slow for the _next_ attempt */
-				fepriv->state = FESTATE_SEARCHING_SLOW;
-				fepriv->started_auto_step = fepriv->auto_step;
-				continue;
-			}
-			check_wrapped = 1;
-
-			/* if we've just retuned, enter the ZIGZAG_FAST state.
-			 * This ensures we cannot return from an
-			 * FE_SET_FRONTEND ioctl before the first frontend tune
-			 * occurs */
-			if (fepriv->state & FESTATE_RETUNE) {
-				fepriv->state = FESTATE_TUNING_FAST;
-			}
-		}
-
-		/* slow zigzag */
-		if (fepriv->state & FESTATE_SEARCHING_SLOW) {
-			update_delay(&quality, &delay, fepriv->min_delay, s & FE_HAS_LOCK);
-
-			/* Note: don't bother checking for wrapping; we stay in this
-			 * state until we get a lock */
-			dvb_frontend_autotune(fe, 0);
+		} else {
+			dvb_frontend_swzigzag(fe);
 		}
 	}
 
@@ -733,7 +775,6 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			err = fe->ops->set_tone(fe, (fe_sec_tone_mode_t) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
-			fepriv->tone = (fe_sec_tone_mode_t) parg;
 		}
 		break;
 
@@ -747,7 +788,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_DISHNETWORK_SEND_LEGACY_CMD:
 		if (fe->ops->dishnetwork_send_legacy_command) {
-			err = fe->ops->dishnetwork_send_legacy_command(fe, (unsigned int) parg);
+			err = fe->ops->dishnetwork_send_legacy_command(fe, (unsigned long) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		} else if (fe->ops->set_voltage) {
@@ -767,13 +808,13 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			 * initialization, so parg is 8 bits and does not
 			 * include the initialization or start bit
 			 */
-			unsigned int cmd = ((unsigned int) parg) << 1;
+			unsigned long cmd = ((unsigned long) parg) << 1;
 			struct timeval nexttime;
 			struct timeval tv[10];
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
-				printk("%s switch command: 0x%04x\n", __FUNCTION__, cmd);
+				printk("%s switch command: 0x%04lx\n", __FUNCTION__, cmd);
 			do_gettimeofday(&nexttime);
 			if (dvb_frontend_debug)
 				memcpy(&tv[0], &nexttime, sizeof(struct timeval));
@@ -814,7 +855,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_ENABLE_HIGH_LNB_VOLTAGE:
 		if (fe->ops->enable_high_lnb_voltage)
-			err = fe->ops->enable_high_lnb_voltage(fe, (int) parg);
+			err = fe->ops->enable_high_lnb_voltage(fe, (long) parg);
 		break;
 
 	case FE_SET_FRONTEND: {
@@ -891,6 +932,10 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			err = fe->ops->get_frontend(fe, (struct dvb_frontend_parameters*) parg);
 		}
 		break;
+
+	case FE_SET_FRONTEND_TUNE_MODE:
+		fepriv->tune_mode_flags = (unsigned long) parg;
+		break;
 	};
 
 	up (&fepriv->sem);
@@ -932,6 +977,9 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 
 		/*  empty event queue */
 		fepriv->events.eventr = fepriv->events.eventw = 0;
+
+		/* normal tune mode when opened R/W */
+		fepriv->tune_mode_flags &= ~FE_TUNE_MODE_ONESHOT;
 	}
 
 	return ret;
@@ -976,13 +1024,12 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	if (down_interruptible (&frontend_mutex))
 		return -ERESTARTSYS;
 
-	fe->frontend_priv = kmalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
+	fe->frontend_priv = kzalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
 	if (fe->frontend_priv == NULL) {
 		up(&frontend_mutex);
 		return -ENOMEM;
 	}
 	fepriv = fe->frontend_priv;
-	memset(fe->frontend_priv, 0, sizeof(struct dvb_frontend_private));
 
 	init_MUTEX (&fepriv->sem);
 	init_waitqueue_head (&fepriv->wait_queue);
@@ -990,7 +1037,6 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	init_MUTEX (&fepriv->events.sem);
 	fe->dvb = dvb;
 	fepriv->inversion = INVERSION_OFF;
-	fepriv->tone = SEC_TONE_OFF;
 
 	printk ("DVB: registering frontend %i (%s)...\n",
 		fe->dvb->num,

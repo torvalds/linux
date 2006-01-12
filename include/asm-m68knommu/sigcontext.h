@@ -8,6 +8,7 @@ struct sigcontext {
 	unsigned long  sc_d1;
 	unsigned long  sc_a0;
 	unsigned long  sc_a1;
+	unsigned long  sc_a5;
 	unsigned short sc_sr;
 	unsigned long  sc_pc;
 	unsigned short sc_formatvec;

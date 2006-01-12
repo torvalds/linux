@@ -101,7 +101,7 @@ void __attribute__((naked)) set_fiq_regs(struct pt_regs *regs)
 	ldmia	%1, {r8 - r14}\n\
 	msr	cpsr_c, %0	@ return to SVC mode\n\
 	mov	r0, r0\n\
-	ldmea	fp, {fp, sp, pc}"
+	ldmfd	sp, {fp, sp, pc}"
 	: "=&r" (tmp)
 	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
 }
@@ -119,7 +119,7 @@ void __attribute__((naked)) get_fiq_regs(struct pt_regs *regs)
 	stmia	%1, {r8 - r14}\n\
 	msr	cpsr_c, %0	@ return to SVC mode\n\
 	mov	r0, r0\n\
-	ldmea	fp, {fp, sp, pc}"
+	ldmfd	sp, {fp, sp, pc}"
 	: "=&r" (tmp)
 	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
 }

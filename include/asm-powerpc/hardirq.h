@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_HARDIRQ_H
 #define _ASM_POWERPC_HARDIRQ_H
+#ifdef __KERNEL__
 
 #include <asm/irq.h>
 #include <asm/bug.h>
@@ -24,4 +25,5 @@ static inline void ack_bad_irq(int irq)
 	BUG();
 }
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_HARDIRQ_H */

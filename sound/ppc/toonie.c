@@ -101,10 +101,10 @@ static int read_audio_gpio(struct pmac_gpio *gp)
 
 enum { TOONIE_MUTE_HP, TOONIE_MUTE_AMP };
 
-static int toonie_get_mute_switch(snd_kcontrol_t *kcontrol,
-				  snd_ctl_elem_value_t *ucontrol)
+static int toonie_get_mute_switch(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct pmac_toonie *mix = chip->mixer_data;
 	struct pmac_gpio *gp;
 
@@ -124,10 +124,10 @@ static int toonie_get_mute_switch(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int toonie_put_mute_switch(snd_kcontrol_t *kcontrol,
-				   snd_ctl_elem_value_t *ucontrol)
+static int toonie_put_mute_switch(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct pmac_toonie *mix = chip->mixer_data;
 	struct pmac_gpio *gp;
 	int val;
@@ -156,7 +156,7 @@ static int toonie_put_mute_switch(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static snd_kcontrol_new_t toonie_hp_sw __initdata = {
+static struct snd_kcontrol_new toonie_hp_sw __initdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Headphone Playback Switch",
 	.info = snd_pmac_boolean_mono_info,
@@ -164,7 +164,7 @@ static snd_kcontrol_new_t toonie_hp_sw __initdata = {
 	.put = toonie_put_mute_switch,
 	.private_value = TOONIE_MUTE_HP,
 };
-static snd_kcontrol_new_t toonie_speaker_sw __initdata = {
+static struct snd_kcontrol_new toonie_speaker_sw __initdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PC Speaker Playback Switch",
 	.info = snd_pmac_boolean_mono_info,
@@ -176,7 +176,7 @@ static snd_kcontrol_new_t toonie_speaker_sw __initdata = {
 /*
  * auto-mute stuffs
  */
-static int toonie_detect_headphone(pmac_t *chip)
+static int toonie_detect_headphone(struct snd_pmac *chip)
 {
 	struct pmac_toonie *mix = chip->mixer_data;
 	int detect = 0;
@@ -186,8 +186,8 @@ static int toonie_detect_headphone(pmac_t *chip)
 	return detect;
 }
 
-static void toonie_check_mute(pmac_t *chip, struct pmac_gpio *gp, int val,
-			      int do_notify, snd_kcontrol_t *sw)
+static void toonie_check_mute(struct snd_pmac *chip, struct pmac_gpio *gp, int val,
+			      int do_notify, struct snd_kcontrol *sw)
 {
 	if (check_audio_gpio(gp) != val) {
 		write_audio_gpio(gp, val);
@@ -199,7 +199,7 @@ static void toonie_check_mute(pmac_t *chip, struct pmac_gpio *gp, int val,
 
 static void toonie_detect_handler(void *self)
 {
-	pmac_t *chip = (pmac_t*) self;
+	struct snd_pmac *chip = (struct snd_pmac *) self;
 	struct pmac_toonie *mix;
 	int headphone;
 
@@ -232,7 +232,7 @@ static void toonie_detect_handler(void *self)
 	}
 }
 
-static void toonie_update_automute(pmac_t *chip, int do_notify)
+static void toonie_update_automute(struct snd_pmac *chip, int do_notify)
 {
 	if (chip->auto_mute) {
 		struct pmac_toonie *mix;
@@ -246,7 +246,7 @@ static void toonie_update_automute(pmac_t *chip, int do_notify)
 /* interrupt - headphone plug changed */
 static irqreturn_t toonie_hp_intr(int irq, void *devid, struct pt_regs *regs)
 {
-	pmac_t *chip = devid;
+	struct snd_pmac *chip = devid;
 
 	if (chip->update_automute && chip->initialized) {
 		chip->update_automute(chip, 1);
@@ -325,7 +325,7 @@ static int find_audio_gpio(const char *name, const char *platform,
 	return (np->n_intrs > 0) ? np->intrs[0].line : 0;
 }
 
-static void toonie_cleanup(pmac_t *chip)
+static void toonie_cleanup(struct snd_pmac *chip)
 {
 	struct pmac_toonie *mix = chip->mixer_data;
 	if (! mix)
@@ -336,7 +336,7 @@ static void toonie_cleanup(pmac_t *chip)
 	chip->mixer_data = NULL;
 }
 
-int snd_pmac_toonie_init(pmac_t *chip)
+int snd_pmac_toonie_init(struct snd_pmac *chip)
 {
 	struct pmac_toonie *mix;
 

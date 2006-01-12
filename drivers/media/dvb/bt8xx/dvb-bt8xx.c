@@ -600,7 +600,6 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	struct dst_state* state = NULL;
 
 	switch(type) {
-#ifdef BTTV_BOARD_DVICO_DVBT_LITE
 	case BTTV_BOARD_DVICO_DVBT_LITE:
 		card->fe = mt352_attach(&thomson_dtt7579_config, card->i2c_adapter);
 		if (card->fe != NULL) {
@@ -608,22 +607,15 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 			card->fe->ops->info.frequency_max = 862000000;
 		}
 		break;
-#endif
 
-#ifdef BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE
 	case BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE:
 		lgdt330x_reset(card);
 		card->fe = lgdt330x_attach(&tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL)
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		break;
-#endif
 
-#ifdef BTTV_BOARD_TWINHAN_VP3021
-	case BTTV_BOARD_TWINHAN_VP3021:
-#else
 	case BTTV_BOARD_NEBULA_DIGITV:
-#endif
 		/*
 		 * It is possible to determine the correct frontend using the I2C bus (see the Nebula SDK);
 		 * this would be a cleaner solution than trying each frontend in turn.
@@ -794,10 +786,9 @@ static int dvb_bt8xx_probe(struct device *dev)
 	struct pci_dev* bttv_pci_dev;
 	int ret;
 
-	if (!(card = kmalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
+	if (!(card = kzalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
 		return -ENOMEM;
 
-	memset(card, 0, sizeof(*card));
 	init_MUTEX(&card->lock);
 	card->bttv_nr = sub->core->nr;
 	strncpy(card->card_name, sub->core->name, sizeof(sub->core->name));
@@ -812,9 +803,7 @@ static int dvb_bt8xx_probe(struct device *dev)
 		card->irq_err_ignore = 0;
 		break;
 
-#ifdef BTTV_BOARD_DVICO_DVBT_LITE
 	case BTTV_BOARD_DVICO_DVBT_LITE:
-#endif
 		card->gpio_mode = 0x0400C060;
 		card->op_sync_orin = 0;
 		card->irq_err_ignore = 0;
@@ -823,19 +812,13 @@ static int dvb_bt8xx_probe(struct device *dev)
 		 * DA_APP(parallel) */
 		break;
 
-#ifdef BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE
 	case BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE:
-#endif
 		card->gpio_mode = 0x0400c060;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
 		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		break;
 
-#ifdef BTTV_BOARD_TWINHAN_VP3021
-	case BTTV_BOARD_TWINHAN_VP3021:
-#else
 	case BTTV_BOARD_NEBULA_DIGITV:
-#endif
 	case BTTV_BOARD_AVDVBT_761:
 		card->gpio_mode = (1 << 26) | (1 << 14) | (1 << 5);
 		card->op_sync_orin = 0;

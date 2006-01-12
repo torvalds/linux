@@ -94,7 +94,7 @@ rpcauth_init_credcache(struct rpc_auth *auth, unsigned long expire)
 	struct rpc_cred_cache *new;
 	int i;
 
-	new = (struct rpc_cred_cache *)kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 	for (i = 0; i < RPC_CREDCACHE_NR; i++)

@@ -29,7 +29,7 @@ __setup("spin_retry=", spin_retry_setup);
 static inline void
 _diag44(void)
 {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	if (MACHINE_HAS_DIAG44)
 #endif
 		asm volatile("diag 0,0,0x44");

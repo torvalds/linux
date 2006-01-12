@@ -39,6 +39,8 @@
 #include <asm/nvram.h>
 #include <asm/xmon.h>
 #include <asm/time.h>
+#include <asm/serial.h>
+#include <asm/udbg.h>
 
 #include "setup.h"
 
@@ -172,12 +174,23 @@ void __init platform_init(void)
  */
 void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 {
+	/* If btext is enabled, we might have a BAT setup for early display,
+	 * thus we do enable some very basic udbg output
+	 */
+#ifdef CONFIG_BOOTX_TEXT
+	udbg_putc = btext_drawchar;
+#endif
+
+	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
 
+	/* Check default command line */
 #ifdef CONFIG_CMDLINE
-	strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
+	if (cmd_line[0] == 0)
+		strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
 #endif /* CONFIG_CMDLINE */
 
+	/* Base init based on machine type */
 	platform_init();
 
 #ifdef CONFIG_6xx
@@ -282,25 +295,20 @@ void __init setup_arch(char **cmdline_p)
 
 	unflatten_device_tree();
 	check_for_initrd();
+
+	if (ppc_md.init_early)
+		ppc_md.init_early();
+
+	find_legacy_serial_ports();
 	finish_device_tree();
 
 	smp_setup_cpu_maps();
 
-#ifdef CONFIG_BOOTX_TEXT
-	init_boot_display();
-#endif
-
-#ifdef CONFIG_PPC_PMAC
-	/* This could be called "early setup arch", it must be done
-	 * now because xmon need it
-	 */
-	if (_machine == _MACH_Pmac)
-		pmac_feature_init();	/* New cool way */
-#endif
-
 #ifdef CONFIG_XMON_DEFAULT
 	xmon_init(1);
 #endif
+	/* Register early console */
+	register_early_udbg_console();
 
 #if defined(CONFIG_KGDB)
 	if (ppc_md.kgdb_map_scc)

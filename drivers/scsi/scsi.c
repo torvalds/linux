@@ -69,7 +69,6 @@
 #include "scsi_logging.h"
 
 static void scsi_done(struct scsi_cmnd *cmd);
-static int scsi_retry_command(struct scsi_cmnd *cmd);
 
 /*
  * Definitions and constants.
@@ -752,7 +751,7 @@ static void scsi_done(struct scsi_cmnd *cmd)
  * isn't running --- used by scsi_times_out */
 void __scsi_done(struct scsi_cmnd *cmd)
 {
-	unsigned long flags;
+	struct request *rq = cmd->request;
 
 	/*
 	 * Set the serial numbers back to zero
@@ -763,71 +762,14 @@ void __scsi_done(struct scsi_cmnd *cmd)
 	if (cmd->result)
 		atomic_inc(&cmd->device->ioerr_cnt);
 
+	BUG_ON(!rq);
+
 	/*
-	 * Next, enqueue the command into the done queue.
-	 * It is a per-CPU queue, so we just disable local interrupts
-	 * and need no spinlock.
+	 * The uptodate/nbytes values don't matter, as we allow partial
+	 * completes and thus will check this in the softirq callback
 	 */
-	local_irq_save(flags);
-	list_add_tail(&cmd->eh_entry, &__get_cpu_var(scsi_done_q));
-	raise_softirq_irqoff(SCSI_SOFTIRQ);
-	local_irq_restore(flags);
-}
-
-/**
- * scsi_softirq - Perform post-interrupt processing of finished SCSI commands.
- *
- * This is the consumer of the done queue.
- *
- * This is called with all interrupts enabled.  This should reduce
- * interrupt latency, stack depth, and reentrancy of the low-level
- * drivers.
- */
-static void scsi_softirq(struct softirq_action *h)
-{
-	int disposition;
-	LIST_HEAD(local_q);
-
-	local_irq_disable();
-	list_splice_init(&__get_cpu_var(scsi_done_q), &local_q);
-	local_irq_enable();
-
-	while (!list_empty(&local_q)) {
-		struct scsi_cmnd *cmd = list_entry(local_q.next,
-						   struct scsi_cmnd, eh_entry);
-		/* The longest time any command should be outstanding is the
-		 * per command timeout multiplied by the number of retries.
-		 *
-		 * For a typical command, this is 2.5 minutes */
-		unsigned long wait_for 
-			= cmd->allowed * cmd->timeout_per_command;
-		list_del_init(&cmd->eh_entry);
-
-		disposition = scsi_decide_disposition(cmd);
-		if (disposition != SUCCESS &&
-		    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
-			sdev_printk(KERN_ERR, cmd->device,
-				    "timing out command, waited %lus\n",
-				    wait_for/HZ);
-			disposition = SUCCESS;
-		}
-			
-		scsi_log_completion(cmd, disposition);
-		switch (disposition) {
-		case SUCCESS:
-			scsi_finish_command(cmd);
-			break;
-		case NEEDS_RETRY:
-			scsi_retry_command(cmd);
-			break;
-		case ADD_TO_MLQUEUE:
-			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
-			break;
-		default:
-			if (!scsi_eh_scmd_add(cmd, 0))
-				scsi_finish_command(cmd);
-		}
-	}
+	rq->completion_data = cmd;
+	blk_complete_request(rq);
 }
 
 /*
@@ -840,7 +782,7 @@ static void scsi_softirq(struct softirq_action *h)
  *              level drivers should not become re-entrant as a result of
  *              this.
  */
-static int scsi_retry_command(struct scsi_cmnd *cmd)
+int scsi_retry_command(struct scsi_cmnd *cmd)
 {
 	/*
 	 * Restore the SCSI command state.
@@ -1273,38 +1215,6 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 }
 EXPORT_SYMBOL(scsi_device_cancel);
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int scsi_cpu_notify(struct notifier_block *self,
-			   unsigned long action, void *hcpu)
-{
-	int cpu = (unsigned long)hcpu;
-
-	switch(action) {
-	case CPU_DEAD:
-		/* Drain scsi_done_q. */
-		local_irq_disable();
-		list_splice_init(&per_cpu(scsi_done_q, cpu),
-				 &__get_cpu_var(scsi_done_q));
-		raise_softirq_irqoff(SCSI_SOFTIRQ);
-		local_irq_enable();
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block __devinitdata scsi_cpu_nb = {
-	.notifier_call	= scsi_cpu_notify,
-};
-
-#define register_scsi_cpu() register_cpu_notifier(&scsi_cpu_nb)
-#define unregister_scsi_cpu() unregister_cpu_notifier(&scsi_cpu_nb)
-#else
-#define register_scsi_cpu()
-#define unregister_scsi_cpu()
-#endif /* CONFIG_HOTPLUG_CPU */
-
 MODULE_DESCRIPTION("SCSI core");
 MODULE_LICENSE("GPL");
 
@@ -1338,8 +1248,6 @@ static int __init init_scsi(void)
 		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
 	devfs_mk_dir("scsi");
-	open_softirq(SCSI_SOFTIRQ, scsi_softirq, NULL);
-	register_scsi_cpu();
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
 	return 0;
 
@@ -1367,7 +1275,6 @@ static void __exit exit_scsi(void)
 	devfs_remove("scsi");
 	scsi_exit_procfs();
 	scsi_exit_queue();
-	unregister_scsi_cpu();
 }
 
 subsys_initcall(init_scsi);

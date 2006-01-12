@@ -69,6 +69,7 @@
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
+#include <net/xfrm.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/arp.h>
@@ -84,6 +85,8 @@
 #include <linux/tcp.h>
 
 int sysctl_ip_default_ttl = IPDEFTTL;
+
+static int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*));
 
 /* Generate a checksum for an outgoing IP datagram. */
 __inline__ void ip_send_check(struct iphdr *iph)
@@ -202,13 +205,16 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 
 static inline int ip_finish_output(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dst->dev;
-
-	skb->dev = dev;
-	skb->protocol = htons(ETH_P_IP);
-
-	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, dev,
-		       ip_finish_output2);
+#if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
+	/* Policy lookup after SNAT yielded a new policy */
+	if (skb->dst->xfrm != NULL)
+		return xfrm4_output_finish(skb);
+#endif
+	if (skb->len > dst_mtu(skb->dst) &&
+	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
+		return ip_fragment(skb, ip_finish_output2);
+	else
+		return ip_finish_output2(skb);
 }
 
 int ip_mc_output(struct sk_buff *skb)
@@ -265,21 +271,21 @@ int ip_mc_output(struct sk_buff *skb)
 				newskb->dev, ip_dev_loopback_xmit);
 	}
 
-	if (skb->len > dst_mtu(&rt->u.dst))
-		return ip_fragment(skb, ip_finish_output);
-	else
-		return ip_finish_output(skb);
+	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, skb->dev,
+		       ip_finish_output);
 }
 
 int ip_output(struct sk_buff *skb)
 {
+	struct net_device *dev = skb->dst->dev;
+
 	IP_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
 
-	if (skb->len > dst_mtu(skb->dst) &&
-		!(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
-		return ip_fragment(skb, ip_finish_output);
-	else
-		return ip_finish_output(skb);
+	skb->dev = dev;
+	skb->protocol = htons(ETH_P_IP);
+
+	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, dev,
+		       ip_finish_output);
 }
 
 int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
@@ -411,7 +417,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
  *	single device frame, and queue such a frame for sending.
  */
 
-int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
+static int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 {
 	struct iphdr *iph;
 	int raw = 0;
@@ -420,7 +426,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	struct sk_buff *skb2;
 	unsigned int mtu, hlen, left, len, ll_rs;
 	int offset;
-	int not_last_frag;
+	__be16 not_last_frag;
 	struct rtable *rt = (struct rtable*)skb->dst;
 	int err = 0;
 
@@ -445,6 +451,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 
 	hlen = iph->ihl * 4;
 	mtu = dst_mtu(&rt->u.dst) - hlen;	/* Size of data space */
+	IPCB(skb)->flags |= IPSKB_FRAG_COMPLETE;
 
 	/* When frag_list is given, use it. First, check its validity:
 	 * some transformers could create wrong frag_list or break existing
@@ -1181,7 +1188,7 @@ int ip_push_pending_frames(struct sock *sk)
 	struct ip_options *opt = NULL;
 	struct rtable *rt = inet->cork.rt;
 	struct iphdr *iph;
-	int df = 0;
+	__be16 df = 0;
 	__u8 ttl;
 	int err = 0;
 
@@ -1392,7 +1399,6 @@ void __init ip_init(void)
 #endif
 }
 
-EXPORT_SYMBOL(ip_fragment);
 EXPORT_SYMBOL(ip_generic_getfrag);
 EXPORT_SYMBOL(ip_queue_xmit);
 EXPORT_SYMBOL(ip_send_check);

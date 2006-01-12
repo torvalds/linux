@@ -52,19 +52,10 @@ extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 unsigned long get_wchan(struct task_struct *p);
 
-/* See arch/alpha/kernel/ptrace.c for details.  */
-#define PT_REG(reg) \
-  (PAGE_SIZE*2 - sizeof(struct pt_regs) + offsetof(struct pt_regs, reg))
-
-#define SW_REG(reg) \
- (PAGE_SIZE*2 - sizeof(struct pt_regs) - sizeof(struct switch_stack) \
-  + offsetof(struct switch_stack, reg))
-
-#define KSTK_EIP(tsk) \
-  (*(unsigned long *)(PT_REG(pc) + (unsigned long) ((tsk)->thread_info)))
+#define KSTK_EIP(tsk) (task_pt_regs(tsk)->pc)
 
 #define KSTK_ESP(tsk) \
-  ((tsk) == current ? rdusp() : (tsk)->thread_info->pcb.usp)
+  ((tsk) == current ? rdusp() : task_thread_info(tsk)->pcb.usp)
 
 #define cpu_relax()	barrier()
 
@@ -77,7 +68,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define spin_lock_prefetch(lock)  	do { } while (0)
 #endif
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
 extern inline void prefetch(const void *ptr)  
 { 
 	__builtin_prefetch(ptr, 0, 3);
@@ -94,25 +84,5 @@ extern inline void spin_lock_prefetch(const void *ptr)
 	__builtin_prefetch(ptr, 1, 3);
 }
 #endif
-
-#else
-extern inline void prefetch(const void *ptr)  
-{ 
-	__asm__ ("ldl $31,%0" : : "m"(*(char *)ptr)); 
-}
-
-extern inline void prefetchw(const void *ptr)  
-{
-	__asm__ ("ldq $31,%0" : : "m"(*(char *)ptr)); 
-}
-
-#ifdef CONFIG_SMP
-extern inline void spin_lock_prefetch(const void *ptr)  
-{
-	__asm__ ("ldq $31,%0" : : "m"(*(char *)ptr)); 
-}
-#endif
-
-#endif /* GCC 3.1 */
 
 #endif /* __ASM_ALPHA_PROCESSOR_H */

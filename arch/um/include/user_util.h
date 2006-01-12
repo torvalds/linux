@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -23,12 +23,7 @@ struct cpu_task {
 
 extern struct cpu_task cpu_tasks[];
 
-struct signal_info {
-	void (*handler)(int, union uml_pt_regs *);
-	int is_irq;
-};
-
-extern struct signal_info sig_info[];
+extern void (*sig_info[])(int, union uml_pt_regs *);
 
 extern unsigned long low_physmem;
 extern unsigned long high_physmem;
@@ -64,8 +59,6 @@ extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(void);
 extern void do_exec(int old_pid, int new_pid);
 extern void tracer_panic(char *msg, ...);
-extern char *get_umid(int only_if_set);
-extern void do_longjmp(void *p, int val);
 extern int detach(int pid, int sig);
 extern int attach(int pid);
 extern void kill_child_dead(int pid);

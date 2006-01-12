@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/highmem.h>
+#include <linux/module.h>
 
 void *kmap(struct page *page)
 {
@@ -17,6 +18,8 @@ void *kmap(struct page *page)
 		return page_address(page);
 	return kmap_high(page);
 }
+
+EXPORT_SYMBOL(kmap);
 
 void kunmap(struct page *page)
 {
@@ -27,7 +30,12 @@ void kunmap(struct page *page)
 	kunmap_high(page);
 }
 
+EXPORT_SYMBOL(kunmap);
+
 struct page *kmap_atomic_to_page(void *ptr)
 {
 	return virt_to_page(ptr);
 }
+
+
+EXPORT_SYMBOL(kmap_atomic_to_page);

@@ -31,7 +31,6 @@
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/pgtable.h>
 
 #include "../scsi.h"

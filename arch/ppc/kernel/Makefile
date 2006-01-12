@@ -13,7 +13,6 @@ extra-$(CONFIG_POWER4)		+= idle_power4.o
 extra-y				+= vmlinux.lds
 
 obj-y				:= entry.o traps.o idle.o time.o misc.o \
-					process.o \
 					setup.o \
 					ppc_htab.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
@@ -49,5 +48,4 @@ obj-$(CONFIG_TAU)		+= temp.o
 ifndef CONFIG_E200
 obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o
 endif
-obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 endif

@@ -126,12 +126,10 @@
 /*
  */
 
-typedef struct snd_usb_audio snd_usb_audio_t;
-
 struct snd_usb_audio {
 	int index;
 	struct usb_device *dev;
-	snd_card_t *card;
+	struct snd_card *card;
 	u32 usb_id;
 	int shutdown;
 	int num_interfaces;
@@ -171,9 +169,6 @@ enum quirk_type {
 
 	QUIRK_TYPE_COUNT
 };
-
-typedef struct snd_usb_audio_quirk snd_usb_audio_quirk_t;
-typedef struct snd_usb_midi_endpoint_info snd_usb_midi_endpoint_info_t;
 
 struct snd_usb_audio_quirk {
 	const char *vendor_name;
@@ -228,12 +223,15 @@ unsigned int snd_usb_combine_bytes(unsigned char *bytes, int size);
 void *snd_usb_find_desc(void *descstart, int desclen, void *after, u8 dtype);
 void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsubtype);
 
-int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u8 requesttype, __u16 value, __u16 index, void *data, __u16 size, int timeout);
+int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
+		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
+		    void *data, __u16 size, int timeout);
 
-int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif);
+int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif);
 void snd_usb_mixer_disconnect(struct list_head *p);
 
-int snd_usb_create_midi_interface(snd_usb_audio_t *chip, struct usb_interface *iface, const snd_usb_audio_quirk_t *quirk);
+int snd_usb_create_midi_interface(struct snd_usb_audio *chip, struct usb_interface *iface,
+				  const struct snd_usb_audio_quirk *quirk);
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
 void snd_usbmidi_disconnect(struct list_head *p);

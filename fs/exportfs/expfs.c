@@ -177,9 +177,9 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 			struct dentry *ppd;
 			struct dentry *npd;
 
-			down(&pd->d_inode->i_sem);
+			mutex_lock(&pd->d_inode->i_mutex);
 			ppd = CALL(nops,get_parent)(pd);
-			up(&pd->d_inode->i_sem);
+			mutex_unlock(&pd->d_inode->i_mutex);
 
 			if (IS_ERR(ppd)) {
 				err = PTR_ERR(ppd);
@@ -201,9 +201,9 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 				break;
 			}
 			dprintk("find_exported_dentry: found name: %s\n", nbuf);
-			down(&ppd->d_inode->i_sem);
+			mutex_lock(&ppd->d_inode->i_mutex);
 			npd = lookup_one_len(nbuf, ppd, strlen(nbuf));
-			up(&ppd->d_inode->i_sem);
+			mutex_unlock(&ppd->d_inode->i_mutex);
 			if (IS_ERR(npd)) {
 				err = PTR_ERR(npd);
 				dprintk("find_exported_dentry: lookup failed: %d\n", err);
@@ -242,9 +242,9 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 		struct dentry *nresult;
 		err = CALL(nops,get_name)(target_dir, nbuf, result);
 		if (!err) {
-			down(&target_dir->d_inode->i_sem);
+			mutex_lock(&target_dir->d_inode->i_mutex);
 			nresult = lookup_one_len(nbuf, target_dir, strlen(nbuf));
-			up(&target_dir->d_inode->i_sem);
+			mutex_unlock(&target_dir->d_inode->i_mutex);
 			if (!IS_ERR(nresult)) {
 				if (nresult->d_inode) {
 					dput(result);

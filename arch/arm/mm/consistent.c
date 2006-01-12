@@ -19,17 +19,26 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/tlbflush.h>
+#include <asm/sizes.h>
 
-#define CONSISTENT_BASE	(0xffc00000)
+/* Sanity check size */
+#if (CONSISTENT_DMA_SIZE % SZ_2M)
+#error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
+#endif
+
 #define CONSISTENT_END	(0xffe00000)
+#define CONSISTENT_BASE	(CONSISTENT_END - CONSISTENT_DMA_SIZE)
+
 #define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
+#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
+#define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
+
 
 /*
- * This is the page table (2MB) covering uncached, DMA consistent allocations
+ * These are the page tables (2MB each) covering uncached, DMA consistent allocations
  */
-static pte_t *consistent_pte;
+static pte_t *consistent_pte[NUM_CONSISTENT_PTES];
 static DEFINE_SPINLOCK(consistent_lock);
 
 /*
@@ -143,7 +152,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	unsigned long order;
 	u64 mask = ISA_DMA_THRESHOLD, limit;
 
-	if (!consistent_pte) {
+	if (!consistent_pte[0]) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
 		dump_stack();
 		return NULL;
@@ -206,9 +215,12 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	c = vm_region_alloc(&consistent_head, size,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
-		pte_t *pte = consistent_pte + CONSISTENT_OFFSET(c->vm_start);
+		pte_t *pte;
 		struct page *end = page + (1 << order);
+		int idx = CONSISTENT_PTE_INDEX(c->vm_start);
+		u32 off = CONSISTENT_OFFSET(c->vm_start) & (PTRS_PER_PTE-1);
 
+		pte = consistent_pte[idx] + off;
 		c->vm_pages = page;
 
 		/*
@@ -227,6 +239,11 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 			set_pte(pte, mk_pte(page, prot));
 			page++;
 			pte++;
+			off++;
+			if (off >= PTRS_PER_PTE) {
+				off = 0;
+				pte = consistent_pte[++idx];
+			}
 		} while (size -= PAGE_SIZE);
 
 		/*
@@ -328,6 +345,8 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	struct vm_region *c;
 	unsigned long flags, addr;
 	pte_t *ptep;
+	int idx;
+	u32 off;
 
 	WARN_ON(irqs_disabled());
 
@@ -348,7 +367,9 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 		size = c->vm_end - c->vm_start;
 	}
 
-	ptep = consistent_pte + CONSISTENT_OFFSET(c->vm_start);
+	idx = CONSISTENT_PTE_INDEX(c->vm_start);
+	off = CONSISTENT_OFFSET(c->vm_start) & (PTRS_PER_PTE-1);
+	ptep = consistent_pte[idx] + off;
 	addr = c->vm_start;
 	do {
 		pte_t pte = ptep_get_and_clear(&init_mm, addr, ptep);
@@ -356,6 +377,11 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 
 		ptep++;
 		addr += PAGE_SIZE;
+		off++;
+		if (off >= PTRS_PER_PTE) {
+			off = 0;
+			ptep = consistent_pte[++idx];
+		}
 
 		if (!pte_none(pte) && pte_present(pte)) {
 			pfn = pte_pfn(pte);
@@ -402,11 +428,12 @@ static int __init consistent_init(void)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
-	int ret = 0;
+	int ret = 0, i = 0;
+	u32 base = CONSISTENT_BASE;
 
 	do {
-		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
-		pmd = pmd_alloc(&init_mm, pgd, CONSISTENT_BASE);
+		pgd = pgd_offset(&init_mm, base);
+		pmd = pmd_alloc(&init_mm, pgd, base);
 		if (!pmd) {
 			printk(KERN_ERR "%s: no pmd tables\n", __func__);
 			ret = -ENOMEM;
@@ -414,15 +441,16 @@ static int __init consistent_init(void)
 		}
 		WARN_ON(!pmd_none(*pmd));
 
-		pte = pte_alloc_kernel(pmd, CONSISTENT_BASE);
+		pte = pte_alloc_kernel(pmd, base);
 		if (!pte) {
 			printk(KERN_ERR "%s: no pte tables\n", __func__);
 			ret = -ENOMEM;
 			break;
 		}
 
-		consistent_pte = pte;
-	} while (0);
+		consistent_pte[i++] = pte;
+		base += (1 << PGDIR_SHIFT);
+	} while (base < CONSISTENT_END);
 
 	return ret;
 }

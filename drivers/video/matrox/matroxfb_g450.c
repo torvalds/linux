@@ -20,6 +20,8 @@
 #include <asm/uaccess.h>
 #include <asm/div64.h>
 
+#include "matroxfb_g450.h"
+
 /* Definition of the various controls */
 struct mctl {
 	struct v4l2_queryctrl desc;

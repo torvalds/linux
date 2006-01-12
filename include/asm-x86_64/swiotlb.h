@@ -3,10 +3,14 @@
 
 #include <linux/config.h>
 
+#include <asm/dma-mapping.h>
+
 /* SWIOTLB interface */
 
-extern dma_addr_t swiotlb_map_single(struct device *hwdev, void *ptr, size_t size,
-				      int dir);
+extern dma_addr_t swiotlb_map_single(struct device *hwdev, void *ptr,
+				     size_t size, int dir);
+extern void *swiotlb_alloc_coherent(struct device *hwdev, size_t size,
+                       dma_addr_t *dma_handle, gfp_t flags);
 extern void swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
 				  size_t size, int dir);
 extern void swiotlb_sync_single_for_cpu(struct device *hwdev,
@@ -34,10 +38,10 @@ extern int swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg,
 extern void swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg,
 			 int nents, int direction);
 extern int swiotlb_dma_mapping_error(dma_addr_t dma_addr);
-extern void *swiotlb_alloc_coherent (struct device *hwdev, size_t size,
-				     dma_addr_t *dma_handle, gfp_t flags);
 extern void swiotlb_free_coherent (struct device *hwdev, size_t size,
 				   void *vaddr, dma_addr_t dma_handle);
+extern int swiotlb_dma_supported(struct device *hwdev, u64 mask);
+extern void swiotlb_init(void);
 
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
@@ -45,4 +49,6 @@ extern int swiotlb;
 #define swiotlb 0
 #endif
 
-#endif
+extern void pci_swiotlb_init(void);
+
+#endif /* _ASM_SWTIOLB_H */

@@ -1,6 +1,6 @@
 /* i915_drv.c -- i830,i845,i855,i865,i915 driver -*- linux-c -*-
  */
-/**************************************************************************
+/*
  *
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
@@ -25,7 +25,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- **************************************************************************/
+ */
 
 #include "drmP.h"
 #include "drm.h"
@@ -34,48 +34,22 @@
 
 #include "drm_pciids.h"
 
-static int postinit(struct drm_device *dev, unsigned long flags)
-{
-	dev->counters += 4;
-	dev->types[6] = _DRM_STAT_IRQ;
-	dev->types[7] = _DRM_STAT_PRIMARY;
-	dev->types[8] = _DRM_STAT_SECONDARY;
-	dev->types[9] = _DRM_STAT_DMA;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d: %s\n",
-		 DRIVER_NAME,
-		 DRIVER_MAJOR,
-		 DRIVER_MINOR,
-		 DRIVER_PATCHLEVEL,
-		 DRIVER_DATE, dev->primary.minor, pci_pretty_name(dev->pdev)
-	    );
-	return 0;
-}
-
-static int version(drm_version_t * version)
-{
-	int len;
-
-	version->version_major = DRIVER_MAJOR;
-	version->version_minor = DRIVER_MINOR;
-	version->version_patchlevel = DRIVER_PATCHLEVEL;
-	DRM_COPY(version->name, DRIVER_NAME);
-	DRM_COPY(version->date, DRIVER_DATE);
-	DRM_COPY(version->desc, DRIVER_DESC);
-	return 0;
-}
-
 static struct pci_device_id pciidlist[] = {
 	i915_PCI_IDS
 };
 
 static struct drm_driver driver = {
+	/* don't use mtrr's here, the Xserver or user space app should
+	 * deal with them for intel hardware.
+	 */
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | DRIVER_USE_MTRR |
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
-	.pretakedown = i915_driver_pretakedown,
-	.prerelease = i915_driver_prerelease,
+	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/
+	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_IRQ_VBL,
+	.load = i915_driver_load,
+	.lastclose = i915_driver_lastclose,
+	.preclose = i915_driver_preclose,
 	.device_is_agp = i915_driver_device_is_agp,
+	.vblank_wait = i915_driver_vblank_wait,
 	.irq_preinstall = i915_driver_irq_preinstall,
 	.irq_postinstall = i915_driver_irq_postinstall,
 	.irq_uninstall = i915_driver_irq_uninstall,
@@ -83,8 +57,6 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
-	.postinit = postinit,
-	.version = version,
 	.ioctls = i915_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,
@@ -97,11 +69,19 @@ static struct drm_driver driver = {
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = i915_compat_ioctl,
 #endif
-		 },
+	},
+
 	.pci_driver = {
-		       .name = DRIVER_NAME,
-		       .id_table = pciidlist,
-		       }
+		 .name = DRIVER_NAME,
+		 .id_table = pciidlist,
+	},
+	
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
 static int __init i915_init(void)

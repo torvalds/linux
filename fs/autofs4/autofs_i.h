@@ -209,7 +209,7 @@ static inline int simple_empty_nolock(struct dentry *dentry)
 	struct dentry *child;
 	int ret = 0;
 
-	list_for_each_entry(child, &dentry->d_subdirs, d_child)
+	list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child)
 		if (simple_positive(child))
 			goto out;
 	ret = 1;

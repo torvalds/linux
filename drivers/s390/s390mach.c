@@ -23,7 +23,7 @@
 
 static struct semaphore m_sem;
 
-extern int css_process_crw(int);
+extern int css_process_crw(int, int);
 extern int chsc_process_crw(void);
 extern int chp_process_crw(int, int);
 extern void css_reiterate_subchannels(void);
@@ -49,9 +49,10 @@ s390_handle_damage(char *msg)
 static int
 s390_collect_crw_info(void *param)
 {
-	struct crw crw;
+	struct crw crw[2];
 	int ccode, ret, slow;
 	struct semaphore *sem;
+	unsigned int chain;
 
 	sem = (struct semaphore *)param;
 	/* Set a nice name. */
@@ -59,25 +60,50 @@ s390_collect_crw_info(void *param)
 repeat:
 	down_interruptible(sem);
 	slow = 0;
+	chain = 0;
 	while (1) {
-		ccode = stcrw(&crw);
+		if (unlikely(chain > 1)) {
+			struct crw tmp_crw;
+
+			printk(KERN_WARNING"%s: Code does not support more "
+			       "than two chained crws; please report to "
+			       "linux390@de.ibm.com!\n", __FUNCTION__);
+			ccode = stcrw(&tmp_crw);
+			printk(KERN_WARNING"%s: crw reports slct=%d, oflw=%d, "
+			       "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
+			       __FUNCTION__, tmp_crw.slct, tmp_crw.oflw,
+			       tmp_crw.chn, tmp_crw.rsc, tmp_crw.anc,
+			       tmp_crw.erc, tmp_crw.rsid);
+			printk(KERN_WARNING"%s: This was crw number %x in the "
+			       "chain\n", __FUNCTION__, chain);
+			if (ccode != 0)
+				break;
+			chain = tmp_crw.chn ? chain + 1 : 0;
+			continue;
+		}
+		ccode = stcrw(&crw[chain]);
 		if (ccode != 0)
 			break;
 		DBG(KERN_DEBUG "crw_info : CRW reports slct=%d, oflw=%d, "
 		    "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
-		    crw.slct, crw.oflw, crw.chn, crw.rsc, crw.anc,
-		    crw.erc, crw.rsid);
+		    crw[chain].slct, crw[chain].oflw, crw[chain].chn,
+		    crw[chain].rsc, crw[chain].anc, crw[chain].erc,
+		    crw[chain].rsid);
 		/* Check for overflows. */
-		if (crw.oflw) {
+		if (crw[chain].oflw) {
 			pr_debug("%s: crw overflow detected!\n", __FUNCTION__);
 			css_reiterate_subchannels();
+			chain = 0;
 			slow = 1;
 			continue;
 		}
-		switch (crw.rsc) {
+		switch (crw[chain].rsc) {
 		case CRW_RSC_SCH:
-			pr_debug("source is subchannel %04X\n", crw.rsid);
-			ret = css_process_crw (crw.rsid);
+			if (crw[0].chn && !chain)
+				break;
+			pr_debug("source is subchannel %04X\n", crw[0].rsid);
+			ret = css_process_crw (crw[0].rsid,
+					       chain ? crw[1].rsid : 0);
 			if (ret == -EAGAIN)
 				slow = 1;
 			break;
@@ -85,18 +111,18 @@ repeat:
 			pr_debug("source is monitoring facility\n");
 			break;
 		case CRW_RSC_CPATH:
-			pr_debug("source is channel path %02X\n", crw.rsid);
-			switch (crw.erc) {
+			pr_debug("source is channel path %02X\n", crw[0].rsid);
+			switch (crw[0].erc) {
 			case CRW_ERC_IPARM: /* Path has come. */
-				ret = chp_process_crw(crw.rsid, 1);
+				ret = chp_process_crw(crw[0].rsid, 1);
 				break;
 			case CRW_ERC_PERRI: /* Path has gone. */
 			case CRW_ERC_PERRN:
-				ret = chp_process_crw(crw.rsid, 0);
+				ret = chp_process_crw(crw[0].rsid, 0);
 				break;
 			default:
 				pr_debug("Don't know how to handle erc=%x\n",
-					 crw.erc);
+					 crw[0].erc);
 				ret = 0;
 			}
 			if (ret == -EAGAIN)
@@ -115,6 +141,8 @@ repeat:
 			pr_debug("unknown source\n");
 			break;
 		}
+		/* chain is always 0 or 1 here. */
+		chain = crw[chain].chn ? chain + 1 : 0;
 	}
 	if (slow)
 		queue_work(slow_path_wq, &slow_path_work);
@@ -218,7 +246,7 @@ s390_revalidate_registers(struct mci *mci)
 		 */
 		kill_task = 1;
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	asm volatile("ld 0,0(%0)\n"
 		     "ld 2,8(%0)\n"
 		     "ld 4,16(%0)\n"
@@ -227,7 +255,7 @@ s390_revalidate_registers(struct mci *mci)
 #endif
 
 	if (MACHINE_HAS_IEEE) {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		fpt_save_area = &S390_lowcore.floating_pt_save_area;
 		fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
 #else
@@ -286,7 +314,7 @@ s390_revalidate_registers(struct mci *mci)
 		 */
 		s390_handle_damage("invalid control registers.");
 	else
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		asm volatile("lctlg 0,15,0(%0)"
 			     : : "a" (&S390_lowcore.cregs_save_area));
 #else
@@ -299,7 +327,7 @@ s390_revalidate_registers(struct mci *mci)
 	 * can't write something sensible into that register.
 	 */
 
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	/*
 	 * See if we can revalidate the TOD programmable register with its
 	 * old contents (should be zero) otherwise set it to zero.
@@ -356,7 +384,7 @@ s390_do_machine_check(struct pt_regs *regs)
 		if (mci->b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 			z_mcic = (1ULL<<63 | 1ULL<<59 | 1ULL<<29);
 			o_mcic = (1ULL<<43 | 1ULL<<42 | 1ULL<<41 | 1ULL<<40 |
 				  1ULL<<36 | 1ULL<<35 | 1ULL<<34 | 1ULL<<32 |

@@ -40,10 +40,9 @@ static char *_top_h_sccs_ = "@(#)top.h	1.2";
 /*
 ** Topology information
 */
-struct Top
-{
-    uchar Unit;
-    uchar Link;
+struct Top {
+	uchar Unit;
+	uchar Link;
 };
 
-#endif /* __rio_top_h__ */
+#endif				/* __rio_top_h__ */

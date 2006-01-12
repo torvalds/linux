@@ -519,11 +519,7 @@ sn_receive_chars(struct sn_cons_port *port, struct pt_regs *regs,
 
 		/* record the character to pass up to the tty layer */
 		if (tty) {
-			*tty->flip.char_buf_ptr = ch;
-			*tty->flip.flag_buf_ptr = TTY_NORMAL;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-			if (tty->flip.count == TTY_FLIPBUF_SIZE)
+			if(tty_insert_flip_char(tty, ch, TTY_NORMAL) == 0)
 				break;
 		}
 		port->sc_port.icount.rx++;

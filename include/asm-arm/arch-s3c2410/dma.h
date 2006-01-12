@@ -31,14 +31,6 @@
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
 
-/* according to the samsung port, we cannot use the regular
- * dma channels... we must therefore provide our own interface
- * for DMA, and allow our drivers to use that.
- */
-
-#define MAX_DMA_CHANNELS	0
-
-
 /* we have 4 dma channels */
 #define S3C2410_DMA_CHANNELS        (4)
 

@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/ccwgroup.c
  *  bus driver for ccwgroup
- *   $Revision: 1.32 $
+ *   $Revision: 1.33 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *                       IBM Corporation
@@ -45,7 +45,7 @@ ccwgroup_bus_match (struct device * dev, struct device_driver * drv)
 	return 0;
 }
 static int
-ccwgroup_hotplug (struct device *dev, char **envp, int num_envp, char *buffer,
+ccwgroup_uevent (struct device *dev, char **envp, int num_envp, char *buffer,
 		  int buffer_size)
 {
 	/* TODO */
@@ -55,7 +55,7 @@ ccwgroup_hotplug (struct device *dev, char **envp, int num_envp, char *buffer,
 static struct bus_type ccwgroup_bus_type = {
 	.name    = "ccwgroup",
 	.match   = ccwgroup_bus_match,
-	.hotplug = ccwgroup_hotplug,
+	.uevent = ccwgroup_uevent,
 };
 
 static inline void
@@ -263,7 +263,7 @@ ccwgroup_set_online(struct ccwgroup_device *gdev)
 	struct ccwgroup_driver *gdrv;
 	int ret;
 
-	if (atomic_compare_and_swap(0, 1, &gdev->onoff))
+	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
 		return -EAGAIN;
 	if (gdev->state == CCWGROUP_ONLINE) {
 		ret = 0;
@@ -289,7 +289,7 @@ ccwgroup_set_offline(struct ccwgroup_device *gdev)
 	struct ccwgroup_driver *gdrv;
 	int ret;
 
-	if (atomic_compare_and_swap(0, 1, &gdev->onoff))
+	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
 		return -EAGAIN;
 	if (gdev->state == CCWGROUP_OFFLINE) {
 		ret = 0;

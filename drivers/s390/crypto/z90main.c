@@ -30,11 +30,9 @@
 #include <linux/delay.h>       // mdelay
 #include <linux/init.h>
 #include <linux/interrupt.h>   // for tasklets
-#include <linux/ioctl32.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/kobject_uevent.h>
 #include <linux/proc_fs.h>
 #include <linux/syscalls.h>
 #include "z90crypt.h"
@@ -229,7 +227,7 @@ struct device_x {
  */
 struct device {
 	int		 dev_type;	    // PCICA, PCICC, PCIXCC_MCL2,
-					    // PCIXCC_MCL3, CEX2C
+					    // PCIXCC_MCL3, CEX2C, CEX2A
 	enum devstat	 dev_stat;	    // current device status
 	int		 dev_self_x;	    // Index in array
 	int		 disabled;	    // Set when device is in error
@@ -296,26 +294,30 @@ struct caller {
 /**
  * Function prototypes from z90hardware.c
  */
-enum hdstat query_online(int, int, int, int *, int *);
-enum devstat reset_device(int, int, int);
-enum devstat send_to_AP(int, int, int, unsigned char *);
-enum devstat receive_from_AP(int, int, int, unsigned char *, unsigned char *);
-int convert_request(unsigned char *, int, short, int, int, int *,
-		    unsigned char *);
-int convert_response(unsigned char *, unsigned char *, int *, unsigned char *);
+enum hdstat query_online(int deviceNr, int cdx, int resetNr, int *q_depth,
+			 int *dev_type);
+enum devstat reset_device(int deviceNr, int cdx, int resetNr);
+enum devstat send_to_AP(int dev_nr, int cdx, int msg_len, unsigned char *msg_ext);
+enum devstat receive_from_AP(int dev_nr, int cdx, int resplen,
+			     unsigned char *resp, unsigned char *psmid);
+int convert_request(unsigned char *buffer, int func, unsigned short function,
+		    int cdx, int dev_type, int *msg_l_p, unsigned char *msg_p);
+int convert_response(unsigned char *response, unsigned char *buffer,
+		     int *respbufflen_p, unsigned char *resp_buff);
 
 /**
  * Low level function prototypes
  */
-static int create_z90crypt(int *);
-static int refresh_z90crypt(int *);
-static int find_crypto_devices(struct status *);
-static int create_crypto_device(int);
-static int destroy_crypto_device(int);
+static int create_z90crypt(int *cdx_p);
+static int refresh_z90crypt(int *cdx_p);
+static int find_crypto_devices(struct status *deviceMask);
+static int create_crypto_device(int index);
+static int destroy_crypto_device(int index);
 static void destroy_z90crypt(void);
-static int refresh_index_array(struct status *, struct device_x *);
-static int probe_device_type(struct device *);
-static int probe_PCIXCC_type(struct device *);
+static int refresh_index_array(struct status *status_str,
+			       struct device_x *index_array);
+static int probe_device_type(struct device *devPtr);
+static int probe_PCIXCC_type(struct device *devPtr);
 
 /**
  * proc fs definitions
@@ -426,7 +428,7 @@ static struct miscdevice z90crypt_misc_device = {
 MODULE_AUTHOR("zSeries Linux Crypto Team: Robert H. Burroughs, Eric D. Rossman"
 	      "and Jochen Roehrig");
 MODULE_DESCRIPTION("zSeries Linux Cryptographic Coprocessor device driver, "
-		   "Copyright 2001, 2004 IBM Corporation");
+		   "Copyright 2001, 2005 IBM Corporation");
 MODULE_LICENSE("GPL");
 module_param(domain, int, 0);
 MODULE_PARM_DESC(domain, "domain index for device");
@@ -861,6 +863,12 @@ get_status_CEX2Ccount(void)
 }
 
 static inline int
+get_status_CEX2Acount(void)
+{
+	return z90crypt.hdware_info->type_mask[CEX2A].st_count;
+}
+
+static inline int
 get_status_requestq_count(void)
 {
 	return requestq_count;
@@ -1009,11 +1017,13 @@ static inline int
 select_device_type(int *dev_type_p, int bytelength)
 {
 	static int count = 0;
-	int PCICA_avail, PCIXCC_MCL3_avail, CEX2C_avail, index_to_use;
+	int PCICA_avail, PCIXCC_MCL3_avail, CEX2C_avail, CEX2A_avail,
+	    index_to_use;
 	struct status *stat;
 	if ((*dev_type_p != PCICC) && (*dev_type_p != PCICA) &&
 	    (*dev_type_p != PCIXCC_MCL2) && (*dev_type_p != PCIXCC_MCL3) &&
-	    (*dev_type_p != CEX2C) && (*dev_type_p != ANYDEV))
+	    (*dev_type_p != CEX2C) && (*dev_type_p != CEX2A) &&
+	    (*dev_type_p != ANYDEV))
 		return -1;
 	if (*dev_type_p != ANYDEV) {
 		stat = &z90crypt.hdware_info->type_mask[*dev_type_p];
@@ -1023,7 +1033,13 @@ select_device_type(int *dev_type_p, int bytelength)
 		return -1;
 	}
 
-	/* Assumption: PCICA, PCIXCC_MCL3, and CEX2C are all similar in speed */
+	/**
+	 * Assumption: PCICA, PCIXCC_MCL3, CEX2C, and CEX2A are all similar in
+	 * speed.
+	 *
+	 * PCICA and CEX2A do NOT co-exist, so it would be either one or the
+	 * other present.
+	 */
 	stat = &z90crypt.hdware_info->type_mask[PCICA];
 	PCICA_avail = stat->st_count -
 			(stat->disabled_count + stat->user_disabled_count);
@@ -1033,29 +1049,38 @@ select_device_type(int *dev_type_p, int bytelength)
 	stat = &z90crypt.hdware_info->type_mask[CEX2C];
 	CEX2C_avail = stat->st_count -
 			(stat->disabled_count + stat->user_disabled_count);
-	if (PCICA_avail || PCIXCC_MCL3_avail || CEX2C_avail) {
+	stat = &z90crypt.hdware_info->type_mask[CEX2A];
+	CEX2A_avail = stat->st_count -
+			(stat->disabled_count + stat->user_disabled_count);
+	if (PCICA_avail || PCIXCC_MCL3_avail || CEX2C_avail || CEX2A_avail) {
 		/**
-		 * bitlength is a factor, PCICA is the most capable, even with
-		 * the new MCL for PCIXCC.
+		 * bitlength is a factor, PCICA or CEX2A are the most capable,
+		 * even with the new MCL for PCIXCC.
 		 */
 		if ((bytelength < PCIXCC_MIN_MOD_SIZE) ||
 		    (!ext_bitlens && (bytelength < OLD_PCIXCC_MIN_MOD_SIZE))) {
-			if (!PCICA_avail)
-				return -1;
-			else {
+			if (PCICA_avail) {
 				*dev_type_p = PCICA;
 				return 0;
 			}
+			if (CEX2A_avail) {
+				*dev_type_p = CEX2A;
+				return 0;
+			}
+			return -1;
 		}
 
 		index_to_use = count % (PCICA_avail + PCIXCC_MCL3_avail +
-					CEX2C_avail);
+					CEX2C_avail + CEX2A_avail);
 		if (index_to_use < PCICA_avail)
 			*dev_type_p = PCICA;
 		else if (index_to_use < (PCICA_avail + PCIXCC_MCL3_avail))
 			*dev_type_p = PCIXCC_MCL3;
-		else
+		else if (index_to_use < (PCICA_avail + PCIXCC_MCL3_avail +
+					 CEX2C_avail))
 			*dev_type_p = CEX2C;
+		else
+			*dev_type_p = CEX2A;
 		count++;
 		return 0;
 	}
@@ -1360,7 +1385,7 @@ build_caller(struct work_element *we_p, short function)
 
 	if ((we_p->devtype != PCICC) && (we_p->devtype != PCICA) &&
 	    (we_p->devtype != PCIXCC_MCL2) && (we_p->devtype != PCIXCC_MCL3) &&
-	    (we_p->devtype != CEX2C))
+	    (we_p->devtype != CEX2C) && (we_p->devtype != CEX2A))
 		return SEN_NOT_AVAIL;
 
 	memcpy(caller_p->caller_id, we_p->caller_id,
@@ -1429,7 +1454,8 @@ get_crypto_request_buffer(struct work_element *we_p)
 
 	if ((we_p->devtype != PCICA) && (we_p->devtype != PCICC) &&
 	    (we_p->devtype != PCIXCC_MCL2) && (we_p->devtype != PCIXCC_MCL3) &&
-	    (we_p->devtype != CEX2C) && (we_p->devtype != ANYDEV)) {
+	    (we_p->devtype != CEX2C) && (we_p->devtype != CEX2A) &&
+	    (we_p->devtype != ANYDEV)) {
 		PRINTK("invalid device type\n");
 		return SEN_USER_ERROR;
 	}
@@ -1504,8 +1530,9 @@ get_crypto_request_buffer(struct work_element *we_p)
 
 	function = PCI_FUNC_KEY_ENCRYPT;
 	switch (we_p->devtype) {
-	/* PCICA does everything with a simple RSA mod-expo operation */
+	/* PCICA and CEX2A do everything with a simple RSA mod-expo operation */
 	case PCICA:
+	case CEX2A:
 		function = PCI_FUNC_KEY_ENCRYPT;
 		break;
 	/**
@@ -1663,7 +1690,8 @@ z90crypt_rsa(struct priv_data *private_data_p, pid_t pid,
 		 * trigger a fallback to software.
 		 */
 		case -EINVAL:
-			if (we_p->devtype != PCICA)
+			if ((we_p->devtype != PCICA) &&
+			    (we_p->devtype != CEX2A))
 				rv = -EGETBUFF;
 			break;
 		case -ETIMEOUT:
@@ -1776,6 +1804,12 @@ z90crypt_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case Z90STAT_CEX2CCOUNT:
 		tempstat = get_status_CEX2Ccount();
+		if (copy_to_user((int __user *)arg, &tempstat, sizeof(int)) != 0)
+			ret = -EFAULT;
+		break;
+
+	case Z90STAT_CEX2ACOUNT:
+		tempstat = get_status_CEX2Acount();
 		if (copy_to_user((int __user *)arg, &tempstat, sizeof(int)) != 0)
 			ret = -EFAULT;
 		break;
@@ -2020,6 +2054,8 @@ z90crypt_status(char *resp_buff, char **start, off_t offset,
 		get_status_PCIXCCMCL3count());
 	len += sprintf(resp_buff+len, "CEX2C count: %d\n",
 		get_status_CEX2Ccount());
+	len += sprintf(resp_buff+len, "CEX2A count: %d\n",
+		get_status_CEX2Acount());
 	len += sprintf(resp_buff+len, "requestq count: %d\n",
 		get_status_requestq_count());
 	len += sprintf(resp_buff+len, "pendingq count: %d\n",
@@ -2027,8 +2063,8 @@ z90crypt_status(char *resp_buff, char **start, off_t offset,
 	len += sprintf(resp_buff+len, "Total open handles: %d\n\n",
 		get_status_totalopen_count());
 	len += sprinthx(
-		"Online devices: 1: PCICA, 2: PCICC, 3: PCIXCC (MCL2), "
-		"4: PCIXCC (MCL3), 5: CEX2C",
+		"Online devices: 1=PCICA 2=PCICC 3=PCIXCC(MCL2) "
+		"4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A",
 		resp_buff+len,
 		get_status_status_mask(workarea),
 		Z90CRYPT_NUM_APS);
@@ -2141,6 +2177,7 @@ z90crypt_status_write(struct file *file, const char __user *buffer,
 		case '3':	// PCIXCC_MCL2
 		case '4':	// PCIXCC_MCL3
 		case '5':	// CEX2C
+		case '6':       // CEX2A
 			j++;
 			break;
 		case 'd':
@@ -3008,7 +3045,9 @@ create_crypto_device(int index)
 			z90crypt.hdware_info->device_type_array[index] = 4;
 		else if (deviceType == CEX2C)
 			z90crypt.hdware_info->device_type_array[index] = 5;
-		else
+		else if (deviceType == CEX2A)
+			z90crypt.hdware_info->device_type_array[index] = 6;
+		else // No idea how this would happen.
 			z90crypt.hdware_info->device_type_array[index] = -1;
 	}
 

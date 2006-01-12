@@ -103,7 +103,6 @@ typedef __u32 dspreg_t;
 struct mips_dsp_state {
 	dspreg_t        dspr[NUM_DSP_REGS];
 	unsigned int    dspcontrol;
-	unsigned short	used_dsp;
 };
 
 #define INIT_DSP {{0,},}
@@ -201,11 +200,11 @@ extern void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long 
 
 unsigned long get_wchan(struct task_struct *p);
 
-#define __PT_REG(reg) ((long)&((struct pt_regs *)0)->reg - sizeof(struct pt_regs))
-#define __KSTK_TOS(tsk) ((unsigned long)(tsk->thread_info) + THREAD_SIZE - 32)
-#define KSTK_EIP(tsk) (*(unsigned long *)(__KSTK_TOS(tsk) + __PT_REG(cp0_epc)))
-#define KSTK_ESP(tsk) (*(unsigned long *)(__KSTK_TOS(tsk) + __PT_REG(regs[29])))
-#define KSTK_STATUS(tsk) (*(unsigned long *)(__KSTK_TOS(tsk) + __PT_REG(cp0_status)))
+#define __KSTK_TOS(tsk) ((unsigned long)task_stack_page(tsk) + THREAD_SIZE - 32)
+#define task_pt_regs(tsk) ((struct pt_regs *)__KSTK_TOS(tsk) - 1)
+#define KSTK_EIP(tsk) (task_pt_regs(tsk)->cp0_epc)
+#define KSTK_ESP(tsk) (task_pt_regs(tsk)->regs[29])
+#define KSTK_STATUS(tsk) (task_pt_regs(tsk)->cp0_status)
 
 #define cpu_relax()	barrier()
 

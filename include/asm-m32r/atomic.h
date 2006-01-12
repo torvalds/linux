@@ -243,6 +243,7 @@ static __inline__ int atomic_dec_return(atomic_t *v)
 #define atomic_add_negative(i,v) (atomic_add_return((i), (v)) < 0)
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
  * atomic_add_unless - add unless the number is a given value
@@ -313,4 +314,5 @@ static __inline__ void atomic_set_mask(unsigned long  mask, atomic_t *addr)
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
 
+#include <asm-generic/atomic.h>
 #endif	/* _ASM_M32R_ATOMIC_H */

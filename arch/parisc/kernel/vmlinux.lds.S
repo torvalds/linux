@@ -68,7 +68,7 @@ SECTIONS
   RODATA
 
   /* writeable */
-  . = ALIGN(4096);		/* Make sure this is paged aligned so
+  . = ALIGN(4096);		/* Make sure this is page aligned so
   				   that we can properly leave these
 				   as writable */
   data_start = .;
@@ -104,6 +104,10 @@ SECTIONS
   /* PA-RISC locks requires 16-byte alignment */
   . = ALIGN(16);
   .data.lock_aligned : { *(.data.lock_aligned) }
+
+  /* rarely changed data like cpu maps */
+  . = ALIGN(16);
+  .data.read_mostly : { *(.data.read_mostly) }
 
   _edata = .;			/* End of data section */
 
@@ -194,14 +198,7 @@ SECTIONS
 #endif
 	}
 
-  /* Stabs debugging sections.  */
-  .stab 0 : { *(.stab) }
-  .stabstr 0 : { *(.stabstr) }
-  .stab.excl 0 : { *(.stab.excl) }
-  .stab.exclstr 0 : { *(.stab.exclstr) }
-  .stab.index 0 : { *(.stab.index) }
-  .stab.indexstr 0 : { *(.stab.indexstr) }
-  .comment 0 : { *(.comment) }
+  STABS_DEBUG
   .note 0 : { *(.note) }	
 
 }

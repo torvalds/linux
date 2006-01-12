@@ -51,12 +51,11 @@
 #define	UFOAD		( CONTROL + 4 )
 #define IWAIT		( CONTROL + 5 )
 
-#define	IFOAD_MAGIC	0xF0AD		/* of course */
+#define	IFOAD_MAGIC	0xF0AD	/* of course */
 #define	ZOMBIE_MAGIC	(~0xDEAD)	/* not dead -> zombie */
-#define	UFOAD_MAGIC	0xD1E		/* kill-your-neighbour */
-#define	IWAIT_MAGIC	0xB1DE		/* Bide your time */
+#define	UFOAD_MAGIC	0xD1E	/* kill-your-neighbour */
+#define	IWAIT_MAGIC	0xB1DE	/* Bide your time */
 
 #endif
 
 /*********** end of file ***********/
-

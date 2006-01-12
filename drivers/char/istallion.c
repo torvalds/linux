@@ -135,7 +135,7 @@ static stlconf_t	stli_brdconf[] = {
 	/*{ BRD_ECP, 0x2a0, 0, 0xcc000, 0, 0 },*/
 };
 
-static int	stli_nrbrds = sizeof(stli_brdconf) / sizeof(stlconf_t);
+static int	stli_nrbrds = ARRAY_SIZE(stli_brdconf);
 
 /*
  *	There is some experimental EISA board detection code in this driver.
@@ -406,7 +406,7 @@ static unsigned long	stli_eisamemprobeaddrs[] = {
 	0xff000000, 0xff010000, 0xff020000, 0xff030000,
 };
 
-static int	stli_eisamempsize = sizeof(stli_eisamemprobeaddrs) / sizeof(unsigned long);
+static int	stli_eisamempsize = ARRAY_SIZE(stli_eisamemprobeaddrs);
 
 /*
  *	Define the Stallion PCI vendor and device IDs.
@@ -899,15 +899,13 @@ static void stli_argbrds(void)
 {
 	stlconf_t	conf;
 	stlibrd_t	*brdp;
-	int		nrargs, i;
+	int		i;
 
 #ifdef DEBUG
 	printk("stli_argbrds()\n");
 #endif
 
-	nrargs = sizeof(stli_brdsp) / sizeof(char **);
-
-	for (i = stli_nrbrds; (i < nrargs); i++) {
+	for (i = stli_nrbrds; i < ARRAY_SIZE(stli_brdsp); i++) {
 		memset(&conf, 0, sizeof(conf));
 		if (stli_parsebrd(&conf, stli_brdsp[i]) == 0)
 			continue;
@@ -967,7 +965,7 @@ static unsigned long stli_atol(char *str)
 static int stli_parsebrd(stlconf_t *confp, char **argp)
 {
 	char	*sp;
-	int	nrbrdnames, i;
+	int	i;
 
 #ifdef DEBUG
 	printk("stli_parsebrd(confp=%x,argp=%x)\n", (int) confp, (int) argp);
@@ -979,14 +977,13 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 	for (sp = argp[0], i = 0; ((*sp != 0) && (i < 25)); sp++, i++)
 		*sp = TOLOWER(*sp);
 
-	nrbrdnames = sizeof(stli_brdstr) / sizeof(stlibrdtype_t);
-	for (i = 0; (i < nrbrdnames); i++) {
+	for (i = 0; i < ARRAY_SIZE(stli_brdstr); i++) {
 		if (strcmp(stli_brdstr[i].name, argp[0]) == 0)
 			break;
 	}
-	if (i >= nrbrdnames) {
+	if (i == ARRAY_SIZE(stli_brdstr)) {
 		printk("STALLION: unknown board name, %s?\n", argp[0]);
-		return(0);
+		return 0;
 	}
 
 	confp->brdtype = stli_brdstr[i].type;
@@ -2714,17 +2711,13 @@ static void stli_read(stlibrd_t *brdp, stliport_t *portp)
 		stlen = size - tail;
 	}
 
-	len = MIN(len, (TTY_FLIPBUF_SIZE - tty->flip.count));
+	len = tty_buffer_request_room(tty, len);
+	/* FIXME : iomap ? */
 	shbuf = (volatile char *) EBRDGETMEMPTR(brdp, portp->rxoffset);
 
 	while (len > 0) {
 		stlen = MIN(len, stlen);
-		memcpy(tty->flip.char_buf_ptr, (char *) (shbuf + tail), stlen);
-		memset(tty->flip.flag_buf_ptr, 0, stlen);
-		tty->flip.char_buf_ptr += stlen;
-		tty->flip.flag_buf_ptr += stlen;
-		tty->flip.count += stlen;
-
+		tty_insert_flip_string(tty, (char *)(shbuf + tail), stlen);
 		len -= stlen;
 		tail += stlen;
 		if (tail >= size) {
@@ -2909,16 +2902,12 @@ static int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
 
 		if ((nt.data & DT_RXBREAK) && (portp->rxmarkmsk & BRKINT)) {
 			if (tty != (struct tty_struct *) NULL) {
-				if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-					tty->flip.count++;
-					*tty->flip.flag_buf_ptr++ = TTY_BREAK;
-					*tty->flip.char_buf_ptr++ = 0;
-					if (portp->flags & ASYNC_SAK) {
-						do_SAK(tty);
-						EBRDENABLE(brdp);
-					}
-					tty_schedule_flip(tty);
+				tty_insert_flip_char(tty, 0, TTY_BREAK);
+				if (portp->flags & ASYNC_SAK) {
+					do_SAK(tty);
+					EBRDENABLE(brdp);
 				}
+				tty_schedule_flip(tty);
 			}
 		}
 
@@ -4943,7 +4932,7 @@ static int stli_portcmdstats(stliport_t *portp)
 	if (portp->tty != (struct tty_struct *) NULL) {
 		if (portp->tty->driver_data == portp) {
 			stli_comstats.ttystate = portp->tty->flags;
-			stli_comstats.rxbuffered = portp->tty->flip.count;
+			stli_comstats.rxbuffered = -1 /*portp->tty->flip.count*/;
 			if (portp->tty->termios != (struct termios *) NULL) {
 				stli_comstats.cflags = portp->tty->termios->c_cflag;
 				stli_comstats.iflags = portp->tty->termios->c_iflag;

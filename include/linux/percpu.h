@@ -19,7 +19,6 @@
 
 struct percpu_data {
 	void *ptrs[NR_CPUS];
-	void *blkp;
 };
 
 /* 
@@ -33,14 +32,14 @@ struct percpu_data {
         (__typeof__(ptr))__p->ptrs[(cpu)];	\
 })
 
-extern void *__alloc_percpu(size_t size, size_t align);
+extern void *__alloc_percpu(size_t size);
 extern void free_percpu(const void *);
 
 #else /* CONFIG_SMP */
 
 #define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
 
-static inline void *__alloc_percpu(size_t size, size_t align)
+static inline void *__alloc_percpu(size_t size)
 {
 	void *ret = kmalloc(size, GFP_KERNEL);
 	if (ret)
@@ -55,7 +54,6 @@ static inline void free_percpu(const void *ptr)
 #endif /* CONFIG_SMP */
 
 /* Simple wrapper for the common case: zeros memory. */
-#define alloc_percpu(type) \
-	((type *)(__alloc_percpu(sizeof(type), __alignof__(type))))
+#define alloc_percpu(type)	((type *)(__alloc_percpu(sizeof(type))))
 
 #endif /* __LINUX_PERCPU_H */

@@ -177,6 +177,8 @@ struct key {
 /*
  * kernel managed key type definition
  */
+typedef int (*request_key_actor_t)(struct key *key, struct key *authkey, const char *op);
+
 struct key_type {
 	/* name of the type */
 	const char *name;
@@ -192,14 +194,6 @@ struct key_type {
 	 *   user's quota will hold the payload
 	 */
 	int (*instantiate)(struct key *key, const void *data, size_t datalen);
-
-	/* duplicate a key of this type (optional)
-	 * - the source key will be locked against change
-	 * - the new description will be attached
-	 * - the quota will have been adjusted automatically from
-	 *   source->quotalen
-	 */
-	int (*duplicate)(struct key *key, const struct key *source);
 
 	/* update a key of this type (optional)
 	 * - this method should call key_payload_reserve() to recalculate the
@@ -225,6 +219,16 @@ struct key_type {
 	 * - shouldn't do the copy if the buffer is NULL
 	 */
 	long (*read)(const struct key *key, char __user *buffer, size_t buflen);
+
+	/* handle request_key() for this type instead of invoking
+	 * /sbin/request-key (optional)
+	 * - key is the key to instantiate
+	 * - authkey is the authority to assume when instantiating this key
+	 * - op is the operation to be done, usually "create"
+	 * - the call must not return until the instantiation process has run
+	 *   its course
+	 */
+	request_key_actor_t request_key;
 
 	/* internal fields */
 	struct list_head	link;		/* link in types list */

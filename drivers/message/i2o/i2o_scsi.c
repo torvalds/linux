@@ -70,7 +70,7 @@
 #include <scsi/sg_request.h>
 
 #define OSM_NAME	"scsi-osm"
-#define OSM_VERSION	"1.282"
+#define OSM_VERSION	"1.316"
 #define OSM_DESCRIPTION	"I2O SCSI Peripheral OSM"
 
 static struct i2o_driver i2o_scsi_driver;
@@ -113,7 +113,7 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
+		if (!i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
 		    && (type == 0x01))	/* SCSI bus */
 			max_channel++;
 	}
@@ -146,7 +146,7 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 	i = 0;
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
+		if (!i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
 		    && (type == 0x01))	/* only SCSI bus */
 			i2o_shost->channel[i++] = i2o_dev;
 
@@ -238,13 +238,15 @@ static int i2o_scsi_probe(struct device *dev)
 			u8 type;
 			struct i2o_device *d = i2o_shost->channel[0];
 
-			if (i2o_parm_field_get(d, 0x0000, 0, &type, 1)
+			if (!i2o_parm_field_get(d, 0x0000, 0, &type, 1)
 			    && (type == 0x01))	/* SCSI bus */
-				if (i2o_parm_field_get(d, 0x0200, 4, &id, 4)) {
+				if (!i2o_parm_field_get(d, 0x0200, 4, &id, 4)) {
 					channel = 0;
 					if (i2o_dev->lct_data.class_id ==
 					    I2O_CLASS_RANDOM_BLOCK_STORAGE)
-						lun = i2o_shost->lun++;
+						lun =
+						    cpu_to_le64(i2o_shost->
+								lun++);
 					else
 						lun = 0;
 				}
@@ -253,10 +255,10 @@ static int i2o_scsi_probe(struct device *dev)
 		break;
 
 	case I2O_CLASS_SCSI_PERIPHERAL:
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 3, &id, 4) < 0)
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 3, &id, 4))
 			return -EFAULT;
 
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 4, &lun, 8) < 0)
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 4, &lun, 8))
 			return -EFAULT;
 
 		parent = i2o_iop_find_device(c, i2o_dev->lct_data.parent_tid);
@@ -281,20 +283,22 @@ static int i2o_scsi_probe(struct device *dev)
 		return -EFAULT;
 	}
 
-	if (id >= scsi_host->max_id) {
-		osm_warn("SCSI device id (%d) >= max_id of I2O host (%d)", id,
-			 scsi_host->max_id);
+	if (le32_to_cpu(id) >= scsi_host->max_id) {
+		osm_warn("SCSI device id (%d) >= max_id of I2O host (%d)",
+			 le32_to_cpu(id), scsi_host->max_id);
 		return -EFAULT;
 	}
 
-	if (lun >= scsi_host->max_lun) {
-		osm_warn("SCSI device id (%d) >= max_lun of I2O host (%d)",
-			 (unsigned int)lun, scsi_host->max_lun);
+	if (le64_to_cpu(lun) >= scsi_host->max_lun) {
+		osm_warn("SCSI device lun (%lu) >= max_lun of I2O host (%d)",
+			 (long unsigned int)le64_to_cpu(lun),
+			 scsi_host->max_lun);
 		return -EFAULT;
 	}
 
 	scsi_dev =
-	    __scsi_add_device(i2o_shost->scsi_host, channel, id, lun, i2o_dev);
+	    __scsi_add_device(i2o_shost->scsi_host, channel, le32_to_cpu(id),
+			      le64_to_cpu(lun), i2o_dev);
 
 	if (IS_ERR(scsi_dev)) {
 		osm_warn("can not add SCSI device %03x\n",
@@ -305,8 +309,9 @@ static int i2o_scsi_probe(struct device *dev)
 	sysfs_create_link(&i2o_dev->device.kobj, &scsi_dev->sdev_gendev.kobj,
 			  "scsi");
 
-	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %d\n",
-		 i2o_dev->lct_data.tid, channel, id, (unsigned int)lun);
+	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %ld\n",
+		 i2o_dev->lct_data.tid, channel, le32_to_cpu(id),
+		 (long unsigned int)le64_to_cpu(lun));
 
 	return 0;
 };
@@ -510,8 +515,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	struct i2o_controller *c;
 	struct i2o_device *i2o_dev;
 	int tid;
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	/*
 	 * ENABLE_DISCONNECT
 	 * SIMPLE_TAG
@@ -519,7 +523,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 */
 	u32 scsi_flags = 0x20a00000;
 	u32 sgl_offset;
-	u32 __iomem *mptr;
+	u32 *mptr;
 	u32 cmd = I2O_CMD_SCSI_EXEC << 24;
 	int rc = 0;
 
@@ -576,8 +580,8 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 *      throw it back to the scsi layer
 	 */
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY) {
+	msg = i2o_msg_get(c);
+	if (IS_ERR(msg)) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 		goto exit;
 	}
@@ -617,16 +621,16 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		if (sgl_offset == SGL_OFFSET_10)
 			sgl_offset = SGL_OFFSET_12;
 		cmd = I2O_CMD_PRIVATE << 24;
-		writel(I2O_VENDOR_DPT << 16 | I2O_CMD_SCSI_EXEC, mptr++);
-		writel(adpt_flags | tid, mptr++);
+		*mptr++ = cpu_to_le32(I2O_VENDOR_DPT << 16 | I2O_CMD_SCSI_EXEC);
+		*mptr++ = cpu_to_le32(adpt_flags | tid);
 	}
 #endif
 
-	writel(cmd | HOST_TID << 12 | tid, &msg->u.head[1]);
-	writel(i2o_scsi_driver.context, &msg->u.s.icntxt);
+	msg->u.head[1] = cpu_to_le32(cmd | HOST_TID << 12 | tid);
+	msg->u.s.icntxt = cpu_to_le32(i2o_scsi_driver.context);
 
 	/* We want the SCSI control block back */
-	writel(i2o_cntxt_list_add(c, SCpnt), &msg->u.s.tcntxt);
+	msg->u.s.tcntxt = cpu_to_le32(i2o_cntxt_list_add(c, SCpnt));
 
 	/* LSI_920_PCI_QUIRK
 	 *
@@ -649,15 +653,15 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	   }
 	 */
 
-	writel(scsi_flags | SCpnt->cmd_len, mptr++);
+	*mptr++ = cpu_to_le32(scsi_flags | SCpnt->cmd_len);
 
 	/* Write SCSI command into the message - always 16 byte block */
-	memcpy_toio(mptr, SCpnt->cmnd, 16);
+	memcpy(mptr, SCpnt->cmnd, 16);
 	mptr += 4;
 
 	if (sgl_offset != SGL_OFFSET_0) {
 		/* write size of data addressed by SGL */
-		writel(SCpnt->request_bufflen, mptr++);
+		*mptr++ = cpu_to_le32(SCpnt->request_bufflen);
 
 		/* Now fill in the SGList and command */
 		if (SCpnt->use_sg) {
@@ -676,11 +680,11 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	}
 
 	/* Stick the headers on */
-	writel(I2O_MESSAGE_SIZE(mptr - &msg->u.head[0]) | sgl_offset,
-	       &msg->u.head[0]);
+	msg->u.head[0] =
+	    cpu_to_le32(I2O_MESSAGE_SIZE(mptr - &msg->u.head[0]) | sgl_offset);
 
 	/* Queue the message */
-	i2o_msg_post(c, m);
+	i2o_msg_post(c, msg);
 
 	osm_debug("Issued %ld\n", SCpnt->serial_number);
 
@@ -688,7 +692,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
       nomem:
 	rc = -ENOMEM;
-	i2o_msg_nop(c, m);
+	i2o_msg_nop(c, msg);
 
       exit:
 	return rc;
@@ -709,8 +713,7 @@ static int i2o_scsi_abort(struct scsi_cmnd *SCpnt)
 {
 	struct i2o_device *i2o_dev;
 	struct i2o_controller *c;
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	int tid;
 	int status = FAILED;
 
@@ -720,16 +723,16 @@ static int i2o_scsi_abort(struct scsi_cmnd *SCpnt)
 	c = i2o_dev->iop;
 	tid = i2o_dev->lct_data.tid;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_SCSI_ABORT << 24 | HOST_TID << 12 | tid,
-	       &msg->u.head[1]);
-	writel(i2o_cntxt_list_get_ptr(c, SCpnt), &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_SCSI_ABORT << 24 | HOST_TID << 12 | tid);
+	msg->body[0] = cpu_to_le32(i2o_cntxt_list_get_ptr(c, SCpnt));
 
-	if (i2o_msg_post_wait(c, m, I2O_TIMEOUT_SCSI_SCB_ABORT))
+	if (i2o_msg_post_wait(c, msg, I2O_TIMEOUT_SCSI_SCB_ABORT))
 		status = SUCCESS;
 
 	return status;

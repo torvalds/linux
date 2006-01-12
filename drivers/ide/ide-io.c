@@ -83,15 +83,12 @@ int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
 
 	if (!end_that_request_first(rq, uptodate, nr_sectors)) {
 		add_disk_randomness(rq->rq_disk);
-
-		if (blk_rq_tagged(rq))
-			blk_queue_end_tag(drive->queue, rq);
-
 		blkdev_dequeue_request(rq);
 		HWGROUP(drive)->rq = NULL;
-		end_that_request_last(rq);
+		end_that_request_last(rq, uptodate);
 		ret = 0;
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(__ide_end_request);
@@ -113,16 +110,17 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 	unsigned long flags;
 	int ret = 1;
 
+	/*
+	 * room for locking improvements here, the calls below don't
+	 * need the queue lock held at all
+	 */
 	spin_lock_irqsave(&ide_lock, flags);
 	rq = HWGROUP(drive)->rq;
 
 	if (!nr_sectors)
 		nr_sectors = rq->hard_cur_sectors;
 
-	if (blk_complete_barrier_rq_locked(drive->queue, rq, nr_sectors))
-		ret = rq->nr_sectors != 0;
-	else
-		ret = __ide_end_request(drive, rq, uptodate, nr_sectors);
+	ret = __ide_end_request(drive, rq, uptodate, nr_sectors);
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ret;
@@ -247,7 +245,7 @@ static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
 	}
 	blkdev_dequeue_request(rq);
 	HWGROUP(drive)->rq = NULL;
-	end_that_request_last(rq);
+	end_that_request_last(rq, 1);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
@@ -379,7 +377,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	blkdev_dequeue_request(rq);
 	HWGROUP(drive)->rq = NULL;
 	rq->errors = err;
-	end_that_request_last(rq);
+	end_that_request_last(rq, !rq->errors);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 

@@ -143,7 +143,37 @@ $(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote
 	@cp -f $< $@
 	$(call if_changed,addnote)
 
+#-----------------------------------------------------------
+# build u-boot images
+#-----------------------------------------------------------
+quiet_cmd_mygzip = GZIP $@
+cmd_mygzip = gzip -f -9 < $< > $@.$$$$ && mv $@.$$$$ $@
+
+quiet_cmd_objbin = OBJCOPY $@
+      cmd_objbin = $(OBJCOPY) -O binary $< $@
+
+quiet_cmd_uimage = UIMAGE $@
+      cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A ppc -O linux -T kernel \
+               -C gzip -a 00000000 -e 00000000 -n 'Linux-$(KERNELRELEASE)' \
+               -d $< $@
+
+MKIMAGE		:= $(srctree)/scripts/mkuboot.sh
+targets		+= uImage
+extra-y		+= vmlinux.bin vmlinux.gz
+
+$(obj)/vmlinux.bin: vmlinux FORCE
+	$(call if_changed,objbin)
+
+$(obj)/vmlinux.gz: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,mygzip)
+
+$(obj)/uImage: $(obj)/vmlinux.gz
+	$(Q)rm -f $@
+	$(call cmd,uimage)
+	@echo -n '  Image: $@ '
+	@if [ -f $@ ]; then echo 'is ready' ; else echo 'not made'; fi
+
 install: $(CONFIGURE) $(BOOTIMAGE)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" "$(BOOTIMAGE)"
 
-clean-files := $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip)
+clean-files += $(addprefix $(objtree)/, $(obj-boot) vmlinux.strip)

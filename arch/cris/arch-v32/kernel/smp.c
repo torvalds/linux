@@ -113,10 +113,10 @@ smp_boot_one_cpu(int cpuid)
 	if (IS_ERR(idle))
 		panic("SMP: fork failed for CPU:%d", cpuid);
 
-	idle->thread_info->cpu = cpuid;
+	task_thread_info(idle)->cpu = cpuid;
 
 	/* Information to the CPU that is about to boot */
-	smp_init_current_idle_thread = idle->thread_info;
+	smp_init_current_idle_thread = task_thread_info(idle);
 	cpu_now_booting = cpuid;
 
 	/* Wait for CPU to come online */

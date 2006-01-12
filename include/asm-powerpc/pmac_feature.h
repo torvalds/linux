@@ -121,6 +121,7 @@
 #define PMAC_TYPE_IMAC_G5		0x152	/* iMac G5 */
 #define PMAC_TYPE_XSERVE_G5		0x153	/* Xserve G5 */
 #define PMAC_TYPE_UNKNOWN_K2		0x19f	/* Any other K2 based */
+#define PMAC_TYPE_UNKNOWN_SHASTA       	0x19e	/* Any other Shasta based */
 
 /*
  * Motherboard flags
@@ -317,10 +318,6 @@ extern void pmac_register_agp_pm(struct pci_dev *bridge,
 extern void pmac_suspend_agp_for_card(struct pci_dev *dev);
 extern void pmac_resume_agp_for_card(struct pci_dev *dev);
 
-/* Used by the via-pmu driver for suspend/resume
- */
-extern void pmac_tweak_clock_spreading(int enable);
-
 /*
  * The part below is for use by macio_asic.c only, do not rely
  * on the data structures or constants below in a normal driver
@@ -341,6 +338,7 @@ enum {
 	macio_pangea,
 	macio_intrepid,
 	macio_keylargo2,
+	macio_shasta,
 };
 
 struct macio_chip
@@ -375,6 +373,25 @@ extern struct macio_chip* macio_find(struct device_node* child, int type);
 #define MACIO_BIC(r,v)		(MACIO_OUT32((r), MACIO_IN32(r) & ~(v)))
 #define MACIO_IN8(r)		(in_8(MACIO_FCR8(macio,r)))
 #define MACIO_OUT8(r,v)		(out_8(MACIO_FCR8(macio,r), (v)))
+
+/*
+ * Those are exported by pmac feature for internal use by arch code
+ * only like the platform function callbacks, do not use directly in drivers
+ */
+extern spinlock_t feature_lock;
+extern struct device_node *uninorth_node;
+extern u32 __iomem *uninorth_base;
+
+/*
+ * Uninorth reg. access. Note that Uni-N regs are big endian
+ */
+
+#define UN_REG(r)	(uninorth_base + ((r) >> 2))
+#define UN_IN(r)	(in_be32(UN_REG(r)))
+#define UN_OUT(r,v)	(out_be32(UN_REG(r), (v)))
+#define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
+#define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
+
 
 #endif /* __PPC_ASM_PMAC_FEATURE_H */
 #endif /* __KERNEL__ */

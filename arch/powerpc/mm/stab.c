@@ -40,7 +40,7 @@ static int make_ste(unsigned long stab, unsigned long esid, unsigned long vsid)
 	unsigned long entry, group, old_esid, castout_entry, i;
 	unsigned int global_entry;
 	struct stab_entry *ste, *castout_ste;
-	unsigned long kernel_segment = (esid << SID_SHIFT) >= KERNELBASE;
+	unsigned long kernel_segment = (esid << SID_SHIFT) >= PAGE_OFFSET;
 
 	vsid_data = vsid << STE_VSID_SHIFT;
 	esid_data = esid << SID_SHIFT | STE_ESID_KP | STE_ESID_V;
@@ -83,7 +83,7 @@ static int make_ste(unsigned long stab, unsigned long esid, unsigned long vsid)
 		}
 
 		/* Dont cast out the first kernel segment */
-		if ((castout_ste->esid_data & ESID_MASK) != KERNELBASE)
+		if ((castout_ste->esid_data & ESID_MASK) != PAGE_OFFSET)
 			break;
 
 		castout_entry = (castout_entry + 1) & 0xf;
@@ -122,7 +122,7 @@ static int __ste_allocate(unsigned long ea, struct mm_struct *mm)
 	unsigned long offset;
 
 	/* Kernel or user address? */
-	if (ea >= KERNELBASE) {
+	if (is_kernel_addr(ea)) {
 		vsid = get_kernel_vsid(ea);
 	} else {
 		if ((ea >= TASK_SIZE_USER64) || (! mm))
@@ -133,7 +133,7 @@ static int __ste_allocate(unsigned long ea, struct mm_struct *mm)
 
 	stab_entry = make_ste(get_paca()->stab_addr, GET_ESID(ea), vsid);
 
-	if (ea < KERNELBASE) {
+	if (!is_kernel_addr(ea)) {
 		offset = __get_cpu_var(stab_cache_ptr);
 		if (offset < NR_STAB_CACHE_ENTRIES)
 			__get_cpu_var(stab_cache[offset++]) = stab_entry;
@@ -190,7 +190,7 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 		     entry++, ste++) {
 			unsigned long ea;
 			ea = ste->esid_data & ESID_MASK;
-			if (ea < KERNELBASE) {
+			if (!is_kernel_addr(ea)) {
 				ste->esid_data = 0;
 			}
 		}
@@ -251,7 +251,7 @@ void stabs_alloc(void)
 			panic("Unable to allocate segment table for CPU %d.\n",
 			      cpu);
 
-		newstab += KERNELBASE;
+		newstab = (unsigned long)__va(newstab);
 
 		memset((void *)newstab, 0, HW_PAGE_SIZE);
 
@@ -270,11 +270,11 @@ void stabs_alloc(void)
  */
 void stab_initialize(unsigned long stab)
 {
-	unsigned long vsid = get_kernel_vsid(KERNELBASE);
+	unsigned long vsid = get_kernel_vsid(PAGE_OFFSET);
 	unsigned long stabreal;
 
 	asm volatile("isync; slbia; isync":::"memory");
-	make_ste(stab, GET_ESID(KERNELBASE), vsid);
+	make_ste(stab, GET_ESID(PAGE_OFFSET), vsid);
 
 	/* Order update */
 	asm volatile("sync":::"memory");

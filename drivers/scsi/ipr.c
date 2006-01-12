@@ -2132,7 +2132,7 @@ restart:
 	}
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
-	kobject_uevent(&ioa_cfg->host->shost_classdev.kobj, KOBJ_CHANGE, NULL);
+	kobject_uevent(&ioa_cfg->host->shost_classdev.kobj, KOBJ_CHANGE);
 	LEAVE;
 }
 
@@ -5887,7 +5887,12 @@ static int __devinit ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
 	ENTER;
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
 	dev_dbg(&ioa_cfg->pdev->dev, "ioa_cfg adx: 0x%p\n", ioa_cfg);
-	_ipr_initiate_ioa_reset(ioa_cfg, ipr_reset_enable_ioa, IPR_SHUTDOWN_NONE);
+	if (ioa_cfg->needs_hard_reset) {
+		ioa_cfg->needs_hard_reset = 0;
+		ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+	} else
+		_ipr_initiate_ioa_reset(ioa_cfg, ipr_reset_enable_ioa,
+					IPR_SHUTDOWN_NONE);
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
@@ -6264,6 +6269,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	unsigned long ipr_regs_pci;
 	void __iomem *ipr_regs;
 	u32 rc = PCIBIOS_SUCCESSFUL;
+	volatile u32 mask, uproc;
 
 	ENTER;
 
@@ -6355,6 +6361,15 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 			"Couldn't allocate enough memory for device driver!\n");
 		goto cleanup_nomem;
 	}
+
+	/*
+	 * If HRRQ updated interrupt is not masked, or reset alert is set,
+	 * the card is in an unknown state and needs a hard reset
+	 */
+	mask = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+	uproc = readl(ioa_cfg->regs.sense_uproc_interrupt_reg);
+	if ((mask & IPR_PCII_HRRQ_UPDATED) == 0 || (uproc & IPR_UPROCI_RESET_ALERT))
+		ioa_cfg->needs_hard_reset = 1;
 
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
 	rc = request_irq(pdev->irq, ipr_isr, SA_SHIRQ, IPR_NAME, ioa_cfg);

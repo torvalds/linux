@@ -1955,9 +1955,12 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	if ((ret = blkdev_get(pd->bdev, FMODE_READ, O_RDONLY)))
 		goto out;
 
+	if ((ret = bd_claim(pd->bdev, pd)))
+		goto out_putdev;
+
 	if ((ret = pkt_get_last_written(pd, &lba))) {
 		printk("pktcdvd: pkt_get_last_written failed\n");
-		goto out_putdev;
+		goto out_unclaim;
 	}
 
 	set_capacity(pd->disk, lba << 2);
@@ -1967,7 +1970,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	q = bdev_get_queue(pd->bdev);
 	if (write) {
 		if ((ret = pkt_open_write(pd)))
-			goto out_putdev;
+			goto out_unclaim;
 		/*
 		 * Some CDRW drives can not handle writes larger than one packet,
 		 * even if the size is a multiple of the packet size.
@@ -1982,13 +1985,15 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	}
 
 	if ((ret = pkt_set_segment_merging(pd, q)))
-		goto out_putdev;
+		goto out_unclaim;
 
 	if (write)
 		printk("pktcdvd: %lukB available on disc\n", lba << 1);
 
 	return 0;
 
+out_unclaim:
+	bd_release(pd->bdev);
 out_putdev:
 	blkdev_put(pd->bdev);
 out:
@@ -2007,6 +2012,7 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 	pkt_lock_door(pd, 0);
 
 	pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
+	bd_release(pd->bdev);
 	blkdev_put(pd->bdev);
 }
 

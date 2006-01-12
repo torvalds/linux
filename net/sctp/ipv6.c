@@ -866,7 +866,7 @@ static int sctp_inet6_supported_addrs(const struct sctp_sock *opt,
 	return 2;
 }
 
-static struct proto_ops inet6_seqpacket_ops = {
+static const struct proto_ops inet6_seqpacket_ops = {
 	.family     = PF_INET6,
 	.owner      = THIS_MODULE,
 	.release    = inet6_release,
@@ -905,7 +905,7 @@ static struct inet_protosw sctpv6_stream_protosw = {
 	.flags         = SCTP_PROTOSW_FLAG,
 };
 
-static int sctp6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int sctp6_rcv(struct sk_buff **pskb)
 {
 	return sctp_rcv(*pskb) ? -1 : 0;
 }

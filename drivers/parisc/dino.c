@@ -83,7 +83,8 @@
 ** bus number for each dino.
 */
 
-#define is_card_dino(id) ((id)->hw_type == HPHW_A_DMA)
+#define is_card_dino(id)	((id)->hw_type == HPHW_A_DMA)
+#define is_cujo(id)		((id)->hversion == 0x682)
 
 #define DINO_IAR0		0x004
 #define DINO_IODC_ADDR		0x008
@@ -124,6 +125,7 @@
 
 #define DINO_IRQS 11		/* bits 0-10 are architected */
 #define DINO_IRR_MASK	0x5ff	/* only 10 bits are implemented */
+#define DINO_LOCAL_IRQS (DINO_IRQS+1)
 
 #define DINO_MASK_IRQ(x)	(1<<(x))
 
@@ -146,7 +148,7 @@ struct dino_device
 	unsigned long		txn_addr; /* EIR addr to generate interrupt */ 
 	u32			txn_data; /* EIR data assign to each dino */ 
 	u32 			imr;	  /* IRQ's which are enabled */ 
-	int			global_irq[12]; /* map IMR bit to global irq */
+	int			global_irq[DINO_LOCAL_IRQS]; /* map IMR bit to global irq */
 #ifdef DINO_DEBUG
 	unsigned int		dino_irr0; /* save most recent IRQ line stat */
 #endif
@@ -297,7 +299,7 @@ struct pci_port_ops dino_port_ops = {
 static void dino_disable_irq(unsigned int irq)
 {
 	struct dino_device *dino_dev = irq_desc[irq].handler_data;
-	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, irq);
+	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
 
@@ -309,7 +311,7 @@ static void dino_disable_irq(unsigned int irq)
 static void dino_enable_irq(unsigned int irq)
 {
 	struct dino_device *dino_dev = irq_desc[irq].handler_data;
-	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, irq);
+	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
@@ -434,6 +436,21 @@ static void dino_choose_irq(struct parisc_device *dev, void *ctrl)
 
 	dino_assign_irq(dino, irq, &dev->irq);
 }
+
+
+/*
+ * Cirrus 6832 Cardbus reports wrong irq on RDI Tadpole PARISC Laptop (deller@gmx.de)
+ * (the irqs are off-by-one, not sure yet if this is a cirrus, dino-hardware or dino-driver problem...)
+ */
+static void __devinit quirk_cirrus_cardbus(struct pci_dev *dev)
+{
+	u8 new_irq = dev->irq - 1;
+	printk(KERN_INFO "PCI: Cirrus Cardbus IRQ fixup for %s, from %d to %d\n",
+			pci_name(dev), dev->irq, new_irq);
+	dev->irq = new_irq;
+}
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6832, quirk_cirrus_cardbus );
+
 
 static void __init
 dino_bios_init(void)
@@ -666,7 +683,6 @@ dino_fixup_bus(struct pci_bus *bus)
 			printk(KERN_WARNING "Device %s has unassigned IRQ\n", pci_name(dev));
 #endif
 		} else {
-
 			/* Adjust INT_LINE for that busses region */
 			dino_assign_irq(dino_dev, dev->irq, &dev->irq);
 		}
@@ -872,7 +888,7 @@ static int __init dino_common_init(struct parisc_device *dev,
 
 	/* allocate I/O Port resource region */
 	res = &dino_dev->hba.io_space;
-	if (dev->id.hversion == 0x680 || is_card_dino(&dev->id)) {
+	if (!is_cujo(&dev->id)) {
 		res->name = "Dino I/O Port";
 	} else {
 		res->name = "Cujo I/O Port";
@@ -927,7 +943,7 @@ static int __init dino_probe(struct parisc_device *dev)
 	if (is_card_dino(&dev->id)) {
 		version = "3.x (card mode)";
 	} else {
-		if(dev->id.hversion == 0x680) {
+		if (!is_cujo(&dev->id)) {
 			if (dev->id.hversion_rev < 4) {
 				version = dino_vers[dev->id.hversion_rev];
 			}

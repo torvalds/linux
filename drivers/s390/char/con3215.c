@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/vt_kern.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -432,8 +433,6 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 				if (count > slen)
 					count = slen;
 			} else
-			if (count >= TTY_FLIPBUF_SIZE - tty->flip.count)
-				count = TTY_FLIPBUF_SIZE - tty->flip.count - 1;
 			EBCASC(raw->inbuf, count);
 			cchar = ctrlchar_handle(raw->inbuf, count, tty);
 			switch (cchar & CTRLCHAR_MASK) {
@@ -441,28 +440,20 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 				break;
 
 			case CTRLCHAR_CTRL:
-				tty->flip.count++;
-				*tty->flip.flag_buf_ptr++ = TTY_NORMAL;
-				*tty->flip.char_buf_ptr++ = cchar;
+				tty_insert_flip_char(tty, cchar, TTY_NORMAL);
 				tty_flip_buffer_push(raw->tty);
 				break;
 
 			case CTRLCHAR_NONE:
-				memcpy(tty->flip.char_buf_ptr,
-				       raw->inbuf, count);
 				if (count < 2 ||
-				    (strncmp(raw->inbuf+count-2, "^n", 2) &&
-				    strncmp(raw->inbuf+count-2, "\252n", 2)) ) {
-					/* don't add the auto \n */
-					tty->flip.char_buf_ptr[count] = '\n';
-					memset(tty->flip.flag_buf_ptr,
-					       TTY_NORMAL, count + 1);
+				    (strncmp(raw->inbuf+count-2, "\252n", 2) &&
+				     strncmp(raw->inbuf+count-2, "^n", 2)) ) {
+					/* add the auto \n */
+					raw->inbuf[count] = '\n';
 					count++;
 				} else
-					count-=2;
-				tty->flip.char_buf_ptr += count;
-				tty->flip.flag_buf_ptr += count;
-				tty->flip.count += count;
+					count -= 2;
+				tty_insert_flip_string(tty, raw->inbuf, count);
 				tty_flip_buffer_push(raw->tty);
 				break;
 			}

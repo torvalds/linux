@@ -28,6 +28,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -57,7 +58,7 @@
 
 #define VERSION "2.8"
 
-static struct proto_ops l2cap_sock_ops;
+static const struct proto_ops l2cap_sock_ops;
 
 static struct bt_sock_list l2cap_sk_list = {
 	.lock = RW_LOCK_UNLOCKED
@@ -767,8 +768,9 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
-	if (sk->sk_err)
-		return sock_error(sk);
+	err = sock_error(sk);
+	if (err)
+		return err;
 
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
@@ -2160,7 +2162,7 @@ static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
 
 static CLASS_ATTR(l2cap, S_IRUGO, l2cap_sysfs_show, NULL);
 
-static struct proto_ops l2cap_sock_ops = {
+static const struct proto_ops l2cap_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= l2cap_sock_release,

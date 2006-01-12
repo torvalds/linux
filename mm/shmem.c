@@ -457,7 +457,7 @@ static void shmem_free_pages(struct list_head *next)
 	} while (next);
 }
 
-static void shmem_truncate(struct inode *inode)
+static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	unsigned long idx;
@@ -475,18 +475,27 @@ static void shmem_truncate(struct inode *inode)
 	long nr_swaps_freed = 0;
 	int offset;
 	int freed;
+	int punch_hole = 0;
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
-	idx = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	idx = (start + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (idx >= info->next_index)
 		return;
 
 	spin_lock(&info->lock);
 	info->flags |= SHMEM_TRUNCATE;
-	limit = info->next_index;
-	info->next_index = idx;
+	if (likely(end == (loff_t) -1)) {
+		limit = info->next_index;
+		info->next_index = idx;
+	} else {
+		limit = (end + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		if (limit > info->next_index)
+			limit = info->next_index;
+		punch_hole = 1;
+	}
+
 	topdir = info->i_indirect;
-	if (topdir && idx <= SHMEM_NR_DIRECT) {
+	if (topdir && idx <= SHMEM_NR_DIRECT && !punch_hole) {
 		info->i_indirect = NULL;
 		nr_pages_to_free++;
 		list_add(&topdir->lru, &pages_to_free);
@@ -573,11 +582,12 @@ static void shmem_truncate(struct inode *inode)
 			set_page_private(subdir, page_private(subdir) - freed);
 			if (offset)
 				spin_unlock(&info->lock);
-			BUG_ON(page_private(subdir) > offset);
+			if (!punch_hole)
+				BUG_ON(page_private(subdir) > offset);
 		}
 		if (offset)
 			offset = 0;
-		else if (subdir) {
+		else if (subdir && !page_private(subdir)) {
 			dir[diroff] = NULL;
 			nr_pages_to_free++;
 			list_add(&subdir->lru, &pages_to_free);
@@ -594,7 +604,7 @@ done2:
 		 * Also, though shmem_getpage checks i_size before adding to
 		 * cache, no recheck after: so fix the narrow window there too.
 		 */
-		truncate_inode_pages(inode->i_mapping, inode->i_size);
+		truncate_inode_pages_range(inode->i_mapping, start, end);
 	}
 
 	spin_lock(&info->lock);
@@ -612,6 +622,11 @@ done2:
 		pages_to_free.prev->next = NULL;
 		shmem_free_pages(pages_to_free.next);
 	}
+}
+
+static void shmem_truncate(struct inode *inode)
+{
+	shmem_truncate_range(inode, inode->i_size, (loff_t)-1);
 }
 
 static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
@@ -855,7 +870,7 @@ unlock:
 	swap_free(swap);
 redirty:
 	set_page_dirty(page);
-	return WRITEPAGE_ACTIVATE;	/* Return with the page locked */
+	return AOP_WRITEPAGE_ACTIVATE;	/* Return with the page locked */
 }
 
 #ifdef CONFIG_NUMA
@@ -1255,7 +1270,7 @@ out_nomem:
 	return retval;
 }
 
-static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
+int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	file_accessed(file);
 	vma->vm_ops = &shmem_vm_ops;
@@ -1355,7 +1370,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 
 	pos = *ppos;
 	written = 0;
@@ -1440,7 +1455,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (written)
 		err = written;
 out:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 
@@ -1476,7 +1491,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 
 		/*
 		 * We must evaluate after, since reads (unlike writes)
-		 * are called without i_sem protection against truncate
+		 * are called without i_mutex protection against truncate
 		 */
 		nr = PAGE_CACHE_SIZE;
 		i_size = i_size_read(inode);
@@ -2083,6 +2098,7 @@ static struct file_operations shmem_file_operations = {
 static struct inode_operations shmem_inode_operations = {
 	.truncate	= shmem_truncate,
 	.setattr	= shmem_notify_change,
+	.truncate_range	= shmem_truncate_range,
 };
 
 static struct inode_operations shmem_dir_inode_operations = {

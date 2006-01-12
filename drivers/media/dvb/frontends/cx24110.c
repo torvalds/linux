@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/jiffies.h>
 
 #include "dvb_frontend.h"
 #include "cx24110.h"
@@ -56,7 +55,7 @@ static int debug;
 
 static struct {u8 reg; u8 data;} cx24110_regdata[]=
 		      /* Comments beginning with @ denote this value should
-		         be the default */
+			 be the default */
 	{{0x09,0x01}, /* SoftResetAll */
 	 {0x09,0x00}, /* release reset */
 	 {0x01,0xe8}, /* MSB of code rate 27.5MS/s */
@@ -67,26 +66,26 @@ static struct {u8 reg; u8 data;} cx24110_regdata[]=
 	 {0x07,0x01}, /* @ Fclk, i.e. sampling clock, 60MHz */
 	 {0x0a,0x00}, /* @ partial chip disables, do not set */
 	 {0x0b,0x01}, /* set output clock in gapped mode, start signal low
-		         active for first byte */
+			 active for first byte */
 	 {0x0c,0x11}, /* no parity bytes, large hold time, serial data out */
 	 {0x0d,0x6f}, /* @ RS Sync/Unsync thresholds */
 	 {0x10,0x40}, /* chip doc is misleading here: write bit 6 as 1
-		         to avoid starting the BER counter. Reset the
-		         CRC test bit. Finite counting selected */
+			 to avoid starting the BER counter. Reset the
+			 CRC test bit. Finite counting selected */
 	 {0x15,0xff}, /* @ size of the limited time window for RS BER
-		         estimation. It is <value>*256 RS blocks, this
-		         gives approx. 2.6 sec at 27.5MS/s, rate 3/4 */
+			 estimation. It is <value>*256 RS blocks, this
+			 gives approx. 2.6 sec at 27.5MS/s, rate 3/4 */
 	 {0x16,0x00}, /* @ enable all RS output ports */
 	 {0x17,0x04}, /* @ time window allowed for the RS to sync */
 	 {0x18,0xae}, /* @ allow all standard DVB code rates to be scanned
-		         for automatically */
+			 for automatically */
 		      /* leave the current code rate and normalization
-		         registers as they are after reset... */
+			 registers as they are after reset... */
 	 {0x21,0x10}, /* @ during AutoAcq, search each viterbi setting
-		         only once */
+			 only once */
 	 {0x23,0x18}, /* @ size of the limited time window for Viterbi BER
-		         estimation. It is <value>*65536 channel bits, i.e.
-		         approx. 38ms at 27.5MS/s, rate 3/4 */
+			 estimation. It is <value>*65536 channel bits, i.e.
+			 approx. 38ms at 27.5MS/s, rate 3/4 */
 	 {0x24,0x24}, /* do not trigger Viterbi CRC test. Finite count window */
 		      /* leave front-end AGC parameters at default values */
 		      /* leave decimation AGC parameters at default values */

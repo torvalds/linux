@@ -66,7 +66,7 @@ static unsigned char cia_set_irq_private(struct ciabase *base,
 	else
 		base->icr_data &= ~mask;
 	if (base->icr_data & base->icr_mask)
-		custom.intreq = IF_SETCLR | base->int_mask;
+		amiga_custom.intreq = IF_SETCLR | base->int_mask;
 	return old & base->icr_mask;
 }
 
@@ -114,7 +114,7 @@ static unsigned char cia_able_irq_private(struct ciabase *base,
 	base->icr_mask &= CIA_ICR_ALL;
 
 	if (base->icr_data & base->icr_mask)
-		custom.intreq = IF_SETCLR | base->int_mask;
+		amiga_custom.intreq = IF_SETCLR | base->int_mask;
 	return old;
 }
 
@@ -145,7 +145,7 @@ static void cia_handler(int irq, void *dev_id, struct pt_regs *fp)
 	irq = base->cia_irq;
 	desc = irq_desc + irq;
 	ints = cia_set_irq_private(base, CIA_ICR_ALL);
-	custom.intreq = base->int_mask;
+	amiga_custom.intreq = base->int_mask;
 	for (i = 0; i < CIA_IRQS; i++, irq++) {
 		if (ints & 1) {
 			kstat_cpu(0).irqs[irq]++;
@@ -174,5 +174,5 @@ void __init cia_init_IRQ(struct ciabase *base)
 	action->name = base->name;
 	setup_irq(base->handler_irq, &amiga_sys_irqaction[base->handler_irq-IRQ_AMIGA_AUTO]);
 
-	custom.intena = IF_SETCLR | base->int_mask;
+	amiga_custom.intena = IF_SETCLR | base->int_mask;
 }

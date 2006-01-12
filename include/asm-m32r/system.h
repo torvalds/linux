@@ -68,13 +68,23 @@
 	last = __last; \
 } while(0)
 
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
+
 /* Interrupt Control */
-#if !defined(CONFIG_CHIP_M32102)
+#if !defined(CONFIG_CHIP_M32102) && !defined(CONFIG_CHIP_M32104)
 #define local_irq_enable() \
 	__asm__ __volatile__ ("setpsw #0x40 -> nop": : :"memory")
 #define local_irq_disable() \
 	__asm__ __volatile__ ("clrpsw #0x40 -> nop": : :"memory")
-#else	/* CONFIG_CHIP_M32102 */
+#else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 static inline void local_irq_enable(void)
 {
 	unsigned long tmpreg;
@@ -96,7 +106,7 @@ static inline void local_irq_disable(void)
 		"mvtc	%0, psw	\n\t"
 	: "=&r" (tmpreg0), "=&r" (tmpreg1) : : "cbit", "memory");
 }
-#endif	/* CONFIG_CHIP_M32102 */
+#endif	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 
 #define local_save_flags(x) \
 	__asm__ __volatile__("mvfc %0,psw" : "=r"(x) : /* no input */)
@@ -105,13 +115,13 @@ static inline void local_irq_disable(void)
 	__asm__ __volatile__("mvtc %0,psw" : /* no outputs */ \
 		: "r" (x) : "cbit", "memory")
 
-#if !defined(CONFIG_CHIP_M32102)
+#if !(defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_M32104))
 #define local_irq_save(x)				\
 	__asm__ __volatile__(				\
   		"mvfc	%0, psw;		\n\t"	\
 	  	"clrpsw	#0x40 -> nop;		\n\t"	\
   		: "=r" (x) : /* no input */ : "memory")
-#else	/* CONFIG_CHIP_M32102 */
+#else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 #define local_irq_save(x) 				\
 	({						\
 		unsigned long tmpreg;			\
@@ -124,7 +134,7 @@ static inline void local_irq_disable(void)
 			: "=r" (x), "=&r" (tmpreg)	\
 			: : "cbit", "memory");		\
 	})
-#endif	/* CONFIG_CHIP_M32102 */
+#endif	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 
 #define irqs_disabled()					\
 	({						\

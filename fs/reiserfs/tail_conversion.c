@@ -205,7 +205,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th, struct inode *p_s_in
 					 1) * p_s_sb->s_blocksize;
 	pos1 = pos;
 
-	// we are protected by i_sem. The tail can not disapper, not
+	// we are protected by i_mutex. The tail can not disapper, not
 	// append can be done either
 	// we are in truncate or packing tail in file_release
 

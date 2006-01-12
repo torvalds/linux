@@ -482,6 +482,7 @@ static inline void sci_receive_chars(struct uart_port *port,
 	struct tty_struct *tty = port->info->tty;
 	int i, count, copied = 0;
 	unsigned short status;
+	unsigned char flag;
 
 	status = sci_in(port, SCxSR);
 	if (!(status & SCxSR_RDxF(port)))
@@ -499,8 +500,7 @@ static inline void sci_receive_chars(struct uart_port *port,
 #endif
 
 		/* Don't copy more bytes than there is room for in the buffer */
-		if (tty->flip.count + count > TTY_FLIPBUF_SIZE)
-			count = TTY_FLIPBUF_SIZE - tty->flip.count;
+		count = tty_buffer_request_room(tty, count);
 
 		/* If for any reason we can't copy more data, we're done! */
 		if (count == 0)
@@ -512,8 +512,7 @@ static inline void sci_receive_chars(struct uart_port *port,
 			    || uart_handle_sysrq_char(port, c, regs)) {
 				count = 0;
 			} else {
-			    tty->flip.char_buf_ptr[0] = c;
-			    tty->flip.flag_buf_ptr[0] = TTY_NORMAL;
+			    tty_insert_flip_char(tty, c, TTY_NORMAL);
 			}
 		} else {
 			for (i=0; i<count; i++) {
@@ -542,26 +541,21 @@ static inline void sci_receive_chars(struct uart_port *port,
 				}
 
 				/* Store data and status */
-				tty->flip.char_buf_ptr[i] = c;
 				if (status&SCxSR_FER(port)) {
-					tty->flip.flag_buf_ptr[i] = TTY_FRAME;
+					flag = TTY_FRAME;
 					pr_debug("sci: frame error\n");
 				} else if (status&SCxSR_PER(port)) {
-					tty->flip.flag_buf_ptr[i] = TTY_PARITY;
+					flag = TTY_PARITY;
 					pr_debug("sci: parity error\n");
-				} else {
-					tty->flip.flag_buf_ptr[i] = TTY_NORMAL;
-				}
+				} else
+					flag = TTY_NORMAL;
+				tty_insert_flip_char(tty, c, flag);
 			}
 		}
 
 		sci_in(port, SCxSR); /* dummy read */
 		sci_out(port, SCxSR, SCxSR_RDxF_CLEAR(port));
 
-		/* Update the kernel buffer end */
-		tty->flip.count += count;
-		tty->flip.char_buf_ptr += count;
-		tty->flip.flag_buf_ptr += count;
 		copied += count;
 		port->icount.rx += count;
 	}
@@ -608,48 +602,45 @@ static inline int sci_handle_errors(struct uart_port *port)
 	unsigned short status = sci_in(port, SCxSR);
 	struct tty_struct *tty = port->info->tty;
 
-	if (status&SCxSR_ORER(port) && tty->flip.count<TTY_FLIPBUF_SIZE) {
+	if (status&SCxSR_ORER(port)) {
 		/* overrun error */
-		copied++;
-		*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
+		if(tty_insert_flip_char(tty, 0, TTY_OVERRUN))
+			copied++;
 		pr_debug("sci: overrun error\n");
 	}
 
-	if (status&SCxSR_FER(port) && tty->flip.count<TTY_FLIPBUF_SIZE) {
+	if (status&SCxSR_FER(port)) {
 		if (sci_rxd_in(port) == 0) {
 			/* Notify of BREAK */
 			struct sci_port * sci_port = (struct sci_port *)port;
-                       if(!sci_port->break_flag) {
-	                        sci_port->break_flag = 1;
-                               sci_schedule_break_timer((struct sci_port *)port);
+			if(!sci_port->break_flag) {
+	                	sci_port->break_flag = 1;
+	                	sci_schedule_break_timer((struct sci_port *)port);
 				/* Do sysrq handling. */
-				if(uart_handle_break(port)) {
+				if(uart_handle_break(port))
 					return 0;
-				}
 			        pr_debug("sci: BREAK detected\n");
-			        copied++;
-			        *tty->flip.flag_buf_ptr++ = TTY_BREAK;
+			        if(tty_insert_flip_char(tty, 0, TTY_BREAK))
+				        copied++;
                        }
 		}
 		else {
 			/* frame error */
-			copied++;
-			*tty->flip.flag_buf_ptr++ = TTY_FRAME;
+			if(tty_insert_flip_char(tty, 0, TTY_FRAME))
+				copied++;
 			pr_debug("sci: frame error\n");
 		}
 	}
 
-	if (status&SCxSR_PER(port) && tty->flip.count<TTY_FLIPBUF_SIZE) {
+	if (status&SCxSR_PER(port)) {
+		if(tty_insert_flip_char(tty, 0, TTY_PARITY))
+			copied++;
 		/* parity error */
-		copied++;
-		*tty->flip.flag_buf_ptr++ = TTY_PARITY;
 		pr_debug("sci: parity error\n");
 	}
 
-	if (copied) {
-		tty->flip.count += copied;
+	if (copied)
 		tty_flip_buffer_push(tty);
-	}
 
 	return copied;
 }
@@ -661,15 +652,14 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	struct tty_struct *tty = port->info->tty;
 	struct sci_port *s = &sci_ports[port->line];
 
-	if (!s->break_flag && status & SCxSR_BRK(port) &&
-	    tty->flip.count < TTY_FLIPBUF_SIZE) {
+	if (!s->break_flag && status & SCxSR_BRK(port))
 #if defined(CONFIG_CPU_SH3)
 		/* Debounce break */
 		s->break_flag = 1;
 #endif
 		/* Notify of BREAK */
-		copied++;
-		*tty->flip.flag_buf_ptr++ = TTY_BREAK;
+		if(tty_insert_flip_char(tty, 0, TTY_BREAK))
+			copied++;
 		pr_debug("sci: BREAK detected\n");
 	}
 
@@ -677,19 +667,15 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	/* XXX: Handle SCIF overrun error */
 	if (port->type == PORT_SCIF && (sci_in(port, SCLSR) & SCIF_ORER) != 0) {
 		sci_out(port, SCLSR, 0);
-		if(tty->flip.count<TTY_FLIPBUF_SIZE) {
+		if(tty_insert_flip_char(tty, 0, TTY_OVERRUN)) {
 			copied++;
-			*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
 			pr_debug("sci: overrun error\n");
 		}
 	}
 #endif
 
-	if (copied) {
-		tty->flip.count += copied;
+	if (copied)
 		tty_flip_buffer_push(tty);
-	}
-
 	return copied;
 }
 
@@ -732,12 +718,9 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr, struct pt_regs *regs)
 			struct tty_struct *tty = port->info->tty;
 
 			sci_out(port, SCLSR, 0);
-			if(tty->flip.count<TTY_FLIPBUF_SIZE) {
-				*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
-				tty->flip.count++;
-				tty_flip_buffer_push(tty);
-				pr_debug("scif: overrun error\n");
-			}
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_flip_buffer_push(tty);
+			pr_debug("scif: overrun error\n");
 		}
 #endif
 		sci_rx_interrupt(irq, ptr, regs);

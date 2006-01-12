@@ -26,12 +26,13 @@ Currently, these files are in /proc/sys/vm:
 - min_free_kbytes
 - laptop_mode
 - block_dump
+- drop-caches
 
 ==============================================================
 
 dirty_ratio, dirty_background_ratio, dirty_expire_centisecs,
 dirty_writeback_centisecs, vfs_cache_pressure, laptop_mode,
-block_dump, swap_token_timeout:
+block_dump, swap_token_timeout, drop-caches:
 
 See Documentation/filesystems/proc.txt
 
@@ -102,3 +103,20 @@ This is used to force the Linux VM to keep a minimum number
 of kilobytes free.  The VM uses this number to compute a pages_min
 value for each lowmem zone in the system.  Each lowmem zone gets 
 a number of reserved free pages based proportionally on its size.
+
+==============================================================
+
+percpu_pagelist_fraction
+
+This is the fraction of pages at most (high mark pcp->high) in each zone that
+are allocated for each per cpu page list.  The min value for this is 8.  It
+means that we don't allow more than 1/8th of pages in each zone to be
+allocated in any single per_cpu_pagelist.  This entry only changes the value
+of hot per cpu pagelists.  User can specify a number like 100 to allocate
+1/100th of each zone to each per cpu page list.
+
+The batch value of each per cpu pagelist is also updated as a result.  It is
+set to pcp->high/4.  The upper limit of batch is (PAGE_SHIFT * 8)
+
+The initial value is zero.  Kernel does not use this value at boot time to set
+the high water marks for each per cpu page list.

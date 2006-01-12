@@ -105,7 +105,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Each of top level sound card module takes the following options.
 
     index	- index (slot #) of sound card
-		- Values: 0 through 7 or negative
+		- Values: 0 through 31 or negative
 		- If nonnegative, assign that index number
                 - if negative, interpret as a bitmask of permissible
 		  indices; the first free permitted index is assigned
@@ -134,7 +134,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2	- second DMA # for AD1816A chip (PnP setup)
     clockfreq   - Clock frequency for AD1816A chip (default = 0, 33000Hz)
     
-    Module supports up to 8 cards, autoprobe and PnP.
+    This module supports multiple cards, autoprobe and PnP.
     
   Module snd-ad1848
   -----------------
@@ -145,9 +145,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ # for AD1848  chip
     dma1	- DMA # for AD1848 chip (0,1,3)
     
-    Module supports up to 8 cards. This module does not support autoprobe
+    This module supports multiple cards.  It does not support autoprobe
     thus main port must be specified!!! Other ports are optional.
     
+    The power-management is supported.
+
   Module snd-ad1889
   -----------------
 
@@ -156,7 +158,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     ac97_quirk  - AC'97 workaround for strange hardware
                   See the description of intel8x0 module for details.
 
-    This module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-ali5451
   ------------------
@@ -184,7 +186,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 (PnP setup)
     fm_port	- port # for OPL3 FM (PnP setup)
     
-    Module supports up to 8 cards, autoprobe and PnP.
+    This module supports multiple cards, autoprobe and PnP.
+
+    The power-management is supported.
 
   Module snd-als4000
   ------------------
@@ -194,7 +198,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     joystick_port - port # for legacy joystick support.
                     0 = disabled (default), 1 = auto-detect
     
-    Module supports up to 8 cards, autoprobe and PnP.
+    This module supports multiple cards, autoprobe and PnP.
+
+    The power-management is supported.
 
   Module snd-atiixp
   -----------------
@@ -213,6 +219,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     implementation depends on the motherboard, and you'll need to
     choose the correct one via spdif_aclink module option.
 
+    The power-management is supported.
+
   Module snd-atiixp-modem
   -----------------------
 
@@ -222,6 +230,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
+
+    The power-management is supported.
 
   Module snd-au8810, snd-au8820, snd-au8830
   -----------------------------------------
@@ -263,8 +273,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma1	- 1st DMA # for AZT2320 (WSS) chip (PnP setup)
     dma2	- 2nd DMA # for AZT2320 (WSS) chip (PnP setup)
     
-    Module supports up to 8 cards, PnP and autoprobe.
+    This module supports multiple cards, PnP and autoprobe.
     
+    The power-management is supported.
+
   Module snd-azt3328
   ------------------
 
@@ -272,7 +284,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     joystick	- Enable joystick (default off)
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-bt87x
   ----------------
@@ -282,7 +294,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     digital_rate - Override the default digital rate (Hz)
     load_all	- Load the driver even if the card model isn't known
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
@@ -292,7 +304,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for Creative Audigy LS and SB Live 24bit
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
 
   Module snd-cmi8330
@@ -308,7 +320,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     sbdma8	- 8bit DMA # for CMI8330 chip (SB16)
     sbdma16	- 16bit DMA # for CMI8330 chip (SB16)
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
+
+    The power-management is supported.
 
   Module snd-cmipci
   -----------------
@@ -321,8 +335,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                   (default = 1)
     joystick_port - Joystick port address (0 = disable, 1 = auto-detect)
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports autoprobe and multiple cards.
     
+    The power-management is supported.
+
   Module snd-cs4231
   -----------------
 
@@ -335,7 +351,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma1	- first DMA # for CS4231 chip
     dma2	- second DMA # for CS4231 chip
     
-    Module supports up to 8 cards. This module does not support autoprobe
+    This module supports multiple cards. This module does not support autoprobe
     thus main port must be specified!!! Other ports are optional.
 
     The power-management is supported.
@@ -355,7 +371,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2	- second DMA # for Yamaha CS4232 chip (0,1,3), -1 = disable
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
-    Module supports up to 8 cards. This module does not support autoprobe
+    This module supports multiple cards. This module does not support autoprobe
     thus main port must be specified!!! Other ports are optional.
 
     The power-management is supported.
@@ -376,7 +392,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2	- second DMA # for CS4236 chip (0,1,3), -1 = disable
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
-    Module supports up to 8 cards. This module does not support autoprobe
+    This module supports multiple cards. This module does not support autoprobe
     (if ISA PnP is not used) thus main port and control port must be
     specified!!! Other ports are optional.
 
@@ -389,7 +405,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     dual_codec	- Secondary codec ID (0 = disable, default)
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
     The power-management is supported.
 
@@ -403,13 +419,20 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     thinkpad         - Force to enable Thinkpad's CLKRUN control.
     mmap_valid       - Support OSS mmap mode (default = 0).
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
     Usually external amp and CLKRUN controls are detected automatically
     from PCI sub vendor/device ids.  If they don't work, give the options
     above explicitly.
 
     The power-management is supported.
     
+  Module snd-cs5535audio
+  ----------------------
+
+    Module for multifunction CS5535 companion PCI device
+
+    This module supports multiple cards.
+
   Module snd-dt019x
   -----------------
 
@@ -423,8 +446,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 (PnP setup)
     dma8	- DMA # (PnP setup)
 
-    Module supports up to 8 cards.  This module is enabled only with
+    This module supports multiple cards.  This module is enabled only with
     ISA PnP support.
+
+    The power-management is supported.
 
   Module snd-dummy
   ----------------
@@ -432,6 +457,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for the dummy sound card. This "card" doesn't do any output
     or input, but you may use this module for any application which
     requires a sound card (like RealPlayer).
+
+    The power-management is supported.
 
   Module snd-emu10k1
   ------------------
@@ -450,7 +477,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                        given in MB unit.  Default value is 128.
     enable_ir - enable IR
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
 
     Input & Output configurations 			[extin/extout]
 	* Creative Card wo/Digital out			[0x0003/0x1f03]
@@ -466,12 +493,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	* Creative Card 5.1 (c) 2003			[0x3fc3/0x7cff]
         * Creative Card all ins and outs		[0x3fff/0x7fff]
     
+    The power-management is supported.
+
   Module snd-emu10k1x
   -------------------
 
     Module for Creative Emu10k1X (SB Live Dell OEM version)
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-ens1370
   ------------------
@@ -482,7 +511,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     joystick		- Enable joystick (default off)
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
     
   Module snd-ens1371
   ------------------
@@ -495,7 +524,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     joystick_port	- port # for joystick (0x200,0x208,0x210,0x218),
 			  0 = disable (default), 1 = auto-detect
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
     
   Module snd-es968
   ----------------
@@ -506,8 +535,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ # for ES968 (SB8) chip (PnP setup)
     dma1	- DMA # for ES968 (SB8) chip (PnP setup)
     
-    Module supports up to 8 cards, PnP and autoprobe.
+    This module supports multiple cards, PnP and autoprobe.
     
+    The power-management is supported.
+
   Module snd-es1688
   -----------------
 
@@ -519,7 +550,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 port (5,7,9,10)
     dma8	- DMA # for ES-1688 chip (0,1,3)
 
-    Module supports up to 8 cards and autoprobe (without MPU-401 port).
+    This module supports multiple cards and autoprobe (without MPU-401 port).
 
   Module snd-es18xx
   -----------------
@@ -534,8 +565,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2	- first DMA # for ES-18xx chip (0,1,3)
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
 
-    Module supports up to 8 cards ISA PnP and autoprobe (without MPU-401 port
-    if native ISA PnP routines are not used).
+    This module supports multiple cards, ISA PnP and autoprobe (without MPU-401
+    port if native ISA PnP routines are not used).
     When dma2 is equal with dma1, the driver works as half-duplex.
 
     The power-management is supported.
@@ -545,7 +576,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on ESS Solo-1 (ES1938,ES1946) chips.
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
+
+    The power-management is supported.
 
   Module snd-es1968
   -----------------
@@ -561,7 +594,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     enable_mpu		- enable MPU401 (0 = off, 1 = on, 2 = auto (default))
     joystick		- enable joystick (default off)       
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
 
     The power-management is supported.
 
@@ -577,8 +610,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                           - High 16-bits are video (radio) device number + 1
                           - example: 0x10002 (MediaForte 256-PCPR, device 1)
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
     
+    The power-management is supported.
+
   Module snd-gusclassic
   ---------------------
 
@@ -592,7 +627,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     voices	- GF1 voices limit (14-32)
     pcm_voices	- reserved PCM voices
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
 
   Module snd-gusextreme
   ---------------------
@@ -611,7 +646,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     voices	- GF1 voices limit (14-32)
     pcm_voices	- reserved PCM voices
 
-    Module supports up to 8 cards and autoprobe (without MPU-401 port).
+    This module supports multiple cards and autoprobe (without MPU-401 port).
 
   Module snd-gusmax
   -----------------
@@ -626,7 +661,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     voices	- GF1 voices limit (14-32)
     pcm_voices	- reserved PCM voices
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
     
   Module snd-hda-intel
   --------------------
@@ -688,12 +723,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	    (Usually SD_LPLIB register is more accurate than the
 	    position buffer.)
 
+    The power-management is supported.
+
   Module snd-hdsp
   ---------------
 
     Module for RME Hammerfall DSP audio interface(s)
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
     Note: The firmware data can be automatically loaded via hotplug
           when CONFIG_FW_LOADER is set.  Otherwise, you need to load
@@ -751,7 +788,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transciever)
                      in msec resolution, default value is 500 (0.5 sec)
 
-    Module supports up to 8 cards and autoprobe. Note: The consumer part
+    This module supports multiple cards and autoprobe. Note: The consumer part
     is not used with all Envy24 based cards (for example in the MidiMan Delta
     serie).
 
@@ -787,7 +824,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		  aureon71, universe, k8x800, phase22, phase28, ms300,
 		  av710
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
 
     Note: The supported board is detected by reading EEPROM or PCI
 	  SSID (if EEPROM isn't available).  You can override the
@@ -839,6 +876,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
 
+    The power-management is supported.
+
   Module snd-interwave
   --------------------
 
@@ -855,7 +894,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     effect	- 1 = InterWave effects enable (default 0);
                   requires 8 voices
 
-    Module supports up to 8 cards, autoprobe and ISA PnP.
+    This module supports multiple cards, autoprobe and ISA PnP.
 
   Module snd-interwave-stb
   ------------------------
@@ -875,14 +914,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     effect	- 1 = InterWave effects enable (default 0);
                   requires 8 voices
 
-    Module supports up to 8 cards, autoprobe and ISA PnP.
+    This module supports multiple cards, autoprobe and ISA PnP.
 
   Module snd-korg1212
   -------------------
 
     Module for Korg 1212 IO PCI card
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-maestro3
   -------------------
@@ -894,7 +933,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                        -1 for default pin (8 for allegro, 1 for
                        others) 
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports autoprobe and multiple chips.
 
     Note: the binding of amplifier is dependent on hardware.
     If there is no sound even though all channels are unmuted, try to
@@ -909,7 +948,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for Digigram miXart8 sound cards.
 
-    Module supports multiple cards.
+    This module supports multiple cards.
     Note: One miXart8 board will be represented as 4 alsa cards.
           See MIXART.txt for details.
 
@@ -928,7 +967,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ number or -1 (disable)
     pnp		- PnP detection - 0 = disable, 1 = enable (default)
 
-    Module supports multiple devices (max 8) and PnP.
+    This module supports multiple devices and PnP.
     
   Module snd-mtpav
   ----------------
@@ -1014,7 +1053,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2	- second DMA # for Yamaha OPL3-SA chip (0,1,3), -1 = disable
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
-    Module supports up to 8 cards and ISA PnP. This module does not support
+    This module supports multiple cards and ISA PnP.  It does not support
     autoprobe (if ISA PnP is not used) thus all ports must be specified!!!
     
     The power-management is supported.
@@ -1064,6 +1103,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports only one card, autoprobe and PnP.
 
+  Module snd-pcxhr
+  ----------------
+
+    Module for Digigram PCXHR boards
+
+    This module supports multiple cards.
+
   Module snd-powermac (on ppc only)
   ---------------------------------
 
@@ -1084,20 +1130,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     For ARM architecture only.
 
+    The power-management is supported.
+
   Module snd-rme32
   ----------------
 
     Module for RME Digi32, Digi32 Pro and Digi32/8 (Sek'd Prodif32, 
     Prodif96 and Prodif Gold) sound cards.
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-rme96
   ----------------
 
     Module for RME Digi96, Digi96/8 and Digi96/8 PRO/PAD/PST sound cards.
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-rme9652
   ------------------
@@ -1107,7 +1155,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     precise_ptr	- Enable precise pointer (doesn't work reliably).
 		  (default = 0)
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
     Note: snd-page-alloc module does the job which snd-hammerfall-mem
           module did formerly.  It will allocate the buffers in advance
@@ -1124,6 +1172,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module supports only one card.
     Module has no enable and index options.
 
+    The power-management is supported.
+
   Module snd-sb8
   --------------
 
@@ -1135,8 +1185,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ # for SB DSP chip (5,7,9,10)
     dma8	- DMA # for SB DSP chip (1,3)
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
     
+    The power-management is supported.
+
   Module snd-sb16 and snd-sbawe
   -----------------------------
 
@@ -1155,7 +1207,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     csp		- ASP/CSP chip support - 0 = disable (default), 1 = enable
     isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
-    Module supports up to 8 cards, autoprobe and ISA PnP.
+    This module supports multiple cards, autoprobe and ISA PnP.
 
     Note: To use Vibra16X cards in 16-bit half duplex mode, you must
           disable 16bit DMA with dma16 = -1 module parameter.
@@ -1163,6 +1215,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           half duplex mode through 8-bit DMA channel by disabling their
           16-bit DMA channel.
     
+    The power-management is supported.
+
   Module snd-sgalaxy
   ------------------
 
@@ -1173,7 +1227,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ # (7,9,10,11)
     dma1	- DMA #
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
+
+    The power-management is supported.
 
   Module snd-sscape
   -----------------
@@ -1185,7 +1241,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- MPU-401 IRQ # (PnP setup)
     dma		- DMA # (PnP setup)
 
-    Module supports up to 8 cards.  ISA PnP must be enabled.
+    This module supports multiple cards.  ISA PnP must be enabled.
     You need sscape_ctl tool in alsa-tools package for loading
     the microcode.
 
@@ -1194,21 +1250,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for AMD7930 sound chips found on Sparcs.
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-sun-cs4231 (on sparc only)
   -------------------------------------
 
     Module for CS4231 sound chips found on Sparcs.
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-sun-dbri (on sparc only)
   -----------------------------------
 
     Module for DBRI sound chips found on Sparcs.
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-wavefront
   --------------------
@@ -1228,7 +1284,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2            - DMA2 # for CS4232 PCM interface.
     isapnp          - ISA PnP detection - 0 = disable, 1 = enable (default)
 
-    Module supports up to 8 cards and ISA PnP.
+    This module supports multiple cards and ISA PnP.
 
   Module snd-sonicvibes
   ---------------------
@@ -1240,7 +1296,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                   - SoundCard must have onboard SRAM for this.
     mge       - Mic Gain Enable - 1 = enable, 0 = disable (default)
     
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
 
   Module snd-serial-u16550
   ------------------------
@@ -1259,7 +1315,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                   0 = Soundcanvas, 1 = MS-124T, 2 = MS-124W S/A,
 		  3 = MS-124W M/B, 4 = Generic
     
-    Module supports up to 8 cards. This module does not support autoprobe
+    This module supports multiple cards. This module does not support autoprobe
     thus the main port must be specified!!! Other options are optional.
 
   Module snd-trident
@@ -1278,7 +1334,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     pcm_channels   - max channels (voices) reserved for PCM
     wavetable_size - max wavetable size in kB (4-?kb)
 
-    Module supports up to 8 cards and autoprobe.
+    This module supports multiple cards and autoprobe.
 
     The power-management is supported.
 
@@ -1290,14 +1346,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     vid             - Vendor ID for the device (optional)
     pid             - Product ID for the device (optional)
 
-    This module supports up to 8 cards, autoprobe and hotplugging.
+    This module supports multiple devices, autoprobe and hotplugging.
 
   Module snd-usb-usx2y
   --------------------
 
     Module for Tascam USB US-122, US-224 and US-428 devices.
 
-    This module supports up to 8 cards, autoprobe and hotplugging.
+    This module supports multiple devices, autoprobe and hotplugging.
 
     Note: you need to load the firmware via usx2yloader utility included
           in alsa-tools and alsa-firmware packages.
@@ -1356,6 +1412,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note: for the MPU401 on VIA823x, use snd-mpu401 driver
 	  additionally.  The mpu_port option is for VIA686 chips only.
 
+    The power-management is supported.
+
   Module snd-via82xx-modem
   ------------------------
 
@@ -1368,6 +1426,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
 
+    The power-management is supported.
+
   Module snd-virmidi
   ------------------
 
@@ -1375,9 +1435,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     This module creates virtual rawmidi devices which communicate
     to the corresponding ALSA sequencer ports.
 
-    midi_devs	- MIDI devices # (1-8, default=4)
+    midi_devs	- MIDI devices # (1-4, default=4)
     
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
   Module snd-vx222
   ----------------
@@ -1387,7 +1447,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mic		- Enable Microphone on V222 Mic (NYI)
     ibl		- Capture IBL size. (default = 0, minimum size)
 
-    Module supports up to 8 cards.
+    This module supports multiple cards.
 
     When the driver is compiled as a module and the hotplug firmware
     is supported, the firmware data is loaded via hotplug automatically.
@@ -1406,6 +1466,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     size is chosen.  The possible IBL values can be found in
     /proc/asound/cardX/vx-status proc file.
 
+    The power-management is supported.
+
   Module snd-vxpocket
   -------------------
 
@@ -1413,7 +1475,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     ibl      - Capture IBL size. (default = 0, minimum size)
 
-    Module supports up to 8 cards.  The module is compiled only when
+    This module supports multiple cards.  The module is compiled only when
     PCMCIA is supported on kernel.
 
     With the older 2.6.x kernel, to activate the driver via the card
@@ -1434,6 +1496,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note2: snd-vxp440 driver is merged to snd-vxpocket driver since
            ALSA 1.0.10.
 
+    The power-management is supported.
+
   Module snd-ymfpci
   -----------------
 
@@ -1447,7 +1511,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                     1 (auto-detect)
     rear_switch   - enable shared rear/line-in switch (bool)
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports autoprobe and multiple chips.
 
     The power-management is supported.
 
@@ -1457,6 +1521,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Sound Core PDAudioCF sound card.
 
     Note: the driver is build only when CONFIG_ISA is set.
+
+    The power-management is supported.
 
 
 AC97 Quirk Option
@@ -1474,7 +1540,7 @@ the proper value with this option.
 
 The following strings are accepted:
     - default	Don't override the default setting
-    - disable	Disable the quirk
+    - none	Disable the quirk
     - hp_only	Bind Master and Headphone controls as a single control
     - swap_hp	Swap headphone and master controls
     - swap_surround  Swap master and surround controls

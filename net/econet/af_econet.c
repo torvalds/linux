@@ -31,6 +31,7 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/skbuff.h>
+#include <linux/udp.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <linux/stat.h>
@@ -45,7 +46,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static struct proto_ops econet_ops;
+static const struct proto_ops econet_ops;
 static struct hlist_head econet_sklist;
 static DEFINE_RWLOCK(econet_lock);
 
@@ -56,7 +57,7 @@ static struct net_device *net2dev_map[256];
 #define EC_PORT_IP	0xd2
 
 #ifdef CONFIG_ECONET_AUNUDP
-static spinlock_t aun_queue_lock;
+static DEFINE_SPINLOCK(aun_queue_lock);
 static struct socket *udpsock;
 #define AUN_PORT	0x8000
 
@@ -686,7 +687,7 @@ static int econet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 			break;
 
 		default:
-			return dev_ioctl(cmd, argp);
+			return -ENOIOCTLCMD;
 	}
 	/*NOTREACHED*/
 	return 0;
@@ -698,7 +699,7 @@ static struct net_proto_family econet_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
 	.family =	PF_ECONET,
 	.owner =	THIS_MODULE,
 	.release =	econet_release,

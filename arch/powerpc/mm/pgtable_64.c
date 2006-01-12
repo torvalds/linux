@@ -174,7 +174,7 @@ void __iomem * __ioremap(unsigned long addr, unsigned long size,
 	pa = addr & PAGE_MASK;
 	size = PAGE_ALIGN(addr + size) - pa;
 
-	if (size == 0)
+	if ((size == 0) || (pa == 0))
 		return NULL;
 
 	if (mem_init_done) {

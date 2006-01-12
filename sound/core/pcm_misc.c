@@ -441,7 +441,7 @@ snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_end
  *
  * Returns zero if successful.
  */
-int snd_pcm_limit_hw_rates(snd_pcm_runtime_t *runtime)
+int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 {
 	static unsigned rates[] = {
 		/* ATTENTION: these values depend on the definition in pcm.h! */

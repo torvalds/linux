@@ -1657,13 +1657,10 @@ ret_sys_call:
 	/* Check if force_successful_syscall_return()
 	 * was invoked.
 	 */
-	ldub		[%curptr + TI_SYS_NOERROR], %l0
-	brz,pt		%l0, 1f
-	 nop
-	ba,pt		%xcc, 80f
+	ldub            [%curptr + TI_SYS_NOERROR], %l2
+	brnz,a,pn       %l2, 80f
 	 stb		%g0, [%curptr + TI_SYS_NOERROR]
 
-1:
 	cmp		%o0, -ERESTART_RESTARTBLOCK
 	bgeu,pn		%xcc, 1f
 	 andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %l6

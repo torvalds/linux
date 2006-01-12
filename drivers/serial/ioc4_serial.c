@@ -2327,19 +2327,13 @@ static void receive_chars(struct uart_port *the_port)
 	spin_lock_irqsave(&the_port->lock, pflags);
 	tty = info->tty;
 
-	if (request_count > TTY_FLIPBUF_SIZE - tty->flip.count)
-		request_count = TTY_FLIPBUF_SIZE - tty->flip.count;
+	request_count = tty_buffer_request_room(tty, IOC4_MAX_CHARS - 2);
 
 	if (request_count > 0) {
 		icount = &the_port->icount;
 		read_count = do_read(the_port, ch, request_count);
 		if (read_count > 0) {
-			flip = 1;
-			memcpy(tty->flip.char_buf_ptr, ch, read_count);
-			memset(tty->flip.flag_buf_ptr, TTY_NORMAL, read_count);
-			tty->flip.char_buf_ptr += read_count;
-			tty->flip.flag_buf_ptr += read_count;
-			tty->flip.count += read_count;
+			tty_insert_flip_string(tty, ch, read_count);
 			icount->rx += read_count;
 		}
 	}

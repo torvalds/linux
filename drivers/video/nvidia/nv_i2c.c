@@ -46,7 +46,7 @@ static void nvidia_gpio_setscl(void *data, int state)
 
 static void nvidia_gpio_setsda(void *data, int state)
 {
-	struct nvidia_i2c_chan *chan = (struct nvidia_i2c_chan *)data;
+	struct nvidia_i2c_chan *chan = data;
 	struct nvidia_par *par = chan->par;
 	u32 val;
 
@@ -64,7 +64,7 @@ static void nvidia_gpio_setsda(void *data, int state)
 
 static int nvidia_gpio_getscl(void *data)
 {
-	struct nvidia_i2c_chan *chan = (struct nvidia_i2c_chan *)data;
+	struct nvidia_i2c_chan *chan = data;
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
@@ -79,7 +79,7 @@ static int nvidia_gpio_getscl(void *data)
 
 static int nvidia_gpio_getsda(void *data)
 {
-	struct nvidia_i2c_chan *chan = (struct nvidia_i2c_chan *)data;
+	struct nvidia_i2c_chan *chan = data;
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
@@ -136,13 +136,13 @@ void nvidia_create_i2c_busses(struct nvidia_par *par)
 	par->chan[2].par = par;
 
 	par->chan[0].ddc_base = 0x3e;
-	nvidia_setup_i2c_bus(&par->chan[0], "BUS1");
+	nvidia_setup_i2c_bus(&par->chan[0], "nvidia #0");
 
 	par->chan[1].ddc_base = 0x36;
-	nvidia_setup_i2c_bus(&par->chan[1], "BUS2");
+	nvidia_setup_i2c_bus(&par->chan[1], "nvidia #1");
 
 	par->chan[2].ddc_base = 0x50;
-	nvidia_setup_i2c_bus(&par->chan[2], "BUS3");
+	nvidia_setup_i2c_bus(&par->chan[2], "nvidia #2");
 }
 
 void nvidia_delete_i2c_busses(struct nvidia_par *par)

@@ -76,8 +76,8 @@ static struct ieee80211_frag_entry *ieee80211_frag_cache_find(struct
 
 		if (entry->skb != NULL && entry->seq == seq &&
 		    (entry->last_frag + 1 == frag || frag == -1) &&
-		    memcmp(entry->src_addr, src, ETH_ALEN) == 0 &&
-		    memcmp(entry->dst_addr, dst, ETH_ALEN) == 0)
+		    !compare_ether_addr(entry->src_addr, src) &&
+		    !compare_ether_addr(entry->dst_addr, dst))
 			return entry;
 	}
 
@@ -243,12 +243,12 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 	/* check that the frame is unicast frame to us */
 	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 	    IEEE80211_FCTL_TODS &&
-	    memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0 &&
-	    memcmp(hdr->addr3, dev->dev_addr, ETH_ALEN) == 0) {
+	    !compare_ether_addr(hdr->addr1, dev->dev_addr) &&
+	    !compare_ether_addr(hdr->addr3, dev->dev_addr)) {
 		/* ToDS frame with own addr BSSID and DA */
 	} else if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		   IEEE80211_FCTL_FROMDS &&
-		   memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0) {
+		   !compare_ether_addr(hdr->addr1, dev->dev_addr)) {
 		/* FromDS frame with own addr as DA */
 	} else
 		return 0;
@@ -410,9 +410,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 1;
 	}
 
-	if ((is_multicast_ether_addr(hdr->addr1) ||
-	     is_broadcast_ether_addr(hdr->addr2)) ? ieee->host_mc_decrypt :
-	    ieee->host_decrypt) {
+	if (is_multicast_ether_addr(hdr->addr1)
+	    ? ieee->host_mc_decrypt : ieee->host_decrypt) {
 		int idx = 0;
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;
@@ -506,7 +505,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (ieee->iw_mode == IW_MODE_MASTER && !wds &&
 	    (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 	    IEEE80211_FCTL_FROMDS && ieee->stadev
-	    && memcmp(hdr->addr2, ieee->assoc_ap_addr, ETH_ALEN) == 0) {
+	    && !compare_ether_addr(hdr->addr2, ieee->assoc_ap_addr)) {
 		/* Frame from BSSID of the AP for which we are a client */
 		skb->dev = dev = ieee->stadev;
 		stats = hostap_get_stats(dev);
@@ -1232,7 +1231,7 @@ static inline int is_same_network(struct ieee80211_network *src,
 	 * as one network */
 	return ((src->ssid_len == dst->ssid_len) &&
 		(src->channel == dst->channel) &&
-		!memcmp(src->bssid, dst->bssid, ETH_ALEN) &&
+		!compare_ether_addr(src->bssid, dst->bssid) &&
 		!memcmp(src->ssid, dst->ssid, src->ssid_len));
 }
 

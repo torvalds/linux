@@ -1,6 +1,7 @@
-/* r128_cce.c -- ATI Rage 128 driver -*- linux-c -*-
+/* r128_cce.c -- ATI Rage 128 driver -*- linux-c -*- 
  * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com
- *
+ */
+/*
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
@@ -559,7 +560,8 @@ static int r128_do_init_cce(drm_device_t * dev, drm_r128_init_t * init)
 	if (dev_priv->is_pci) {
 #endif
 		dev_priv->gart_info.gart_table_location = DRM_ATI_GART_MAIN;
-		dev_priv->gart_info.addr = dev_priv->gart_info.bus_addr = 0;
+		dev_priv->gart_info.addr = NULL;
+		dev_priv->gart_info.bus_addr = 0;
 		dev_priv->gart_info.is_pcie = 0;
 		if (!drm_ati_pcigart_init(dev, &dev_priv->gart_info)) {
 			DRM_ERROR("failed to init PCI GART!\n");
@@ -601,15 +603,16 @@ int r128_do_cleanup_cce(drm_device_t * dev)
 				drm_core_ioremapfree(dev_priv->cce_ring, dev);
 			if (dev_priv->ring_rptr != NULL)
 				drm_core_ioremapfree(dev_priv->ring_rptr, dev);
-			if (dev->agp_buffer_map != NULL)
+			if (dev->agp_buffer_map != NULL) {
 				drm_core_ioremapfree(dev->agp_buffer_map, dev);
+				dev->agp_buffer_map = NULL;
+			}
 		} else
 #endif
 		{
 			if (dev_priv->gart_info.bus_addr)
 				if (!drm_ati_pcigart_cleanup(dev,
-							     &dev_priv->
-							     gart_info))
+							&dev_priv->gart_info))
 					DRM_ERROR
 					    ("failed to cleanup PCI GART!\n");
 		}

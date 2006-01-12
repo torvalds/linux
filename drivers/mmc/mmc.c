@@ -495,6 +495,7 @@ static void mmc_decode_cid(struct mmc_card *card)
 
 		case 2: /* MMC v2.0 - v2.2 */
 		case 3: /* MMC v3.1 - v3.3 */
+		case 4: /* MMC v4 */
 			card->cid.manfid	= UNSTUFF_BITS(resp, 120, 8);
 			card->cid.oemid		= UNSTUFF_BITS(resp, 104, 16);
 			card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
@@ -550,6 +551,11 @@ static void mmc_decode_csd(struct mmc_card *card)
 		csd->capacity	  = (1 + m) << (e + 2);
 
 		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+		csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
+		csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
+		csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
+		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
+		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
 	} else {
 		/*
 		 * We only understand CSD structure v1.1 and v1.2.
@@ -579,6 +585,11 @@ static void mmc_decode_csd(struct mmc_card *card)
 		csd->capacity	  = (1 + m) << (e + 2);
 
 		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+		csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
+		csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
+		csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
+		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
+		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
 	}
 }
 

@@ -40,7 +40,7 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_qbuf_h_sccs = "@(#)qbuf.h	1.1" ;
+static char *_rio_qbuf_h_sccs = "@(#)qbuf.h	1.1";
 #endif
 #endif
 
@@ -52,16 +52,15 @@ static char *_rio_qbuf_h_sccs = "@(#)qbuf.h	1.1" ;
 #define PKTS_PER_BUFFER    (220 / PKT_LENGTH)
 #endif
 
-typedef struct Q_BUF Q_BUF ;
-struct Q_BUF  {
-                  Q_BUF_ptr next ;
-                  Q_BUF_ptr prev ;
-                  PKT_ptr buf[PKTS_PER_BUFFER] ;
-              } ;
+typedef struct Q_BUF Q_BUF;
+struct Q_BUF {
+	Q_BUF_ptr next;
+	Q_BUF_ptr prev;
+	PKT_ptr buf[PKTS_PER_BUFFER];
+};
 
 
 #endif
 
 
 /*********** end of file ***********/
-

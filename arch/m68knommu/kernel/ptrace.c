@@ -101,7 +101,7 @@ void ptrace_disable(struct task_struct *child)
 	put_reg(child, PT_SR, tmp);
 }
 
-long arch_ptrace(truct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 

@@ -11,6 +11,8 @@
 #ifndef _LINUX_RTC_H_
 #define _LINUX_RTC_H_
 
+#include <linux/interrupt.h>
+
 /*
  * The struct used to pass data via the following ioctl. Similar to the
  * struct tm in <time.h>, but it needs to be here so that the kernel 
@@ -102,6 +104,7 @@ int rtc_register(rtc_task_t *task);
 int rtc_unregister(rtc_task_t *task);
 int rtc_control(rtc_task_t *t, unsigned int cmd, unsigned long arg);
 void rtc_get_rtc_time(struct rtc_time *rtc_tm);
+irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 #endif /* __KERNEL__ */
 

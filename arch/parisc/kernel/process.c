@@ -54,7 +54,7 @@
 #include <asm/uaccess.h>
 #include <asm/unwind.h>
 
-static int hlt_counter;
+static int hlt_counter __read_mostly;
 
 /*
  * Power off function, if any
@@ -295,7 +295,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	    struct task_struct * p, struct pt_regs * pregs)
 {
 	struct pt_regs * cregs = &(p->thread.regs);
-	struct thread_info *ti = p->thread_info;
+	void *stack = task_stack_page(p);
 	
 	/* We have to use void * instead of a function pointer, because
 	 * function pointers aren't a pointer to the function on 64-bit.
@@ -322,7 +322,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 */
 	if (usp == 1) {
 		/* kernel thread */
-		cregs->ksp = (((unsigned long)(ti)) + THREAD_SZ_ALGN);
+		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN;
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
 		 */
@@ -344,7 +344,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		 */
 
 		/* Use same stack depth as parent */
-		cregs->ksp = ((unsigned long)(ti))
+		cregs->ksp = (unsigned long)stack
 			+ (pregs->gr[21] & (THREAD_SIZE - 1));
 		cregs->gr[30] = usp;
 		if (p->personality == PER_HPUX) {

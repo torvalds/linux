@@ -24,14 +24,14 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 
 #include <asm/dma.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 
 #include "ucb1x00.h"
 
-static DECLARE_MUTEX(ucb1x00_sem);
+static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
 static LIST_HEAD(ucb1x00_devices);
 
@@ -507,14 +507,14 @@ static int ucb1x00_probe(struct mcp *mcp)
 		goto err_free;
 	}
 
-	ret = request_irq(ucb->irq, ucb1x00_irq, 0, "UCB1x00", ucb);
+	ret = request_irq(ucb->irq, ucb1x00_irq, SA_TRIGGER_RISING,
+			  "UCB1x00", ucb);
 	if (ret) {
 		printk(KERN_ERR "ucb1x00: unable to grab irq%d: %d\n",
 			ucb->irq, ret);
 		goto err_free;
 	}
 
-	set_irq_type(ucb->irq, IRQT_RISING);
 	mcp_set_drvdata(mcp, ucb);
 
 	ret = class_device_register(&ucb->cdev);
@@ -522,12 +522,12 @@ static int ucb1x00_probe(struct mcp *mcp)
 		goto err_irq;
 
 	INIT_LIST_HEAD(&ucb->devs);
-	down(&ucb1x00_sem);
+	mutex_lock(&ucb1x00_mutex);
 	list_add(&ucb->node, &ucb1x00_devices);
 	list_for_each_entry(drv, &ucb1x00_drivers, node) {
 		ucb1x00_add_dev(ucb, drv);
 	}
-	up(&ucb1x00_sem);
+	mutex_unlock(&ucb1x00_mutex);
 	goto out;
 
  err_irq:
@@ -545,13 +545,13 @@ static void ucb1x00_remove(struct mcp *mcp)
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct list_head *l, *n;
 
-	down(&ucb1x00_sem);
+	mutex_lock(&ucb1x00_mutex);
 	list_del(&ucb->node);
 	list_for_each_safe(l, n, &ucb->devs) {
 		struct ucb1x00_dev *dev = list_entry(l, struct ucb1x00_dev, dev_node);
 		ucb1x00_remove_dev(dev);
 	}
-	up(&ucb1x00_sem);
+	mutex_unlock(&ucb1x00_mutex);
 
 	free_irq(ucb->irq, ucb);
 	class_device_unregister(&ucb->cdev);
@@ -562,12 +562,12 @@ int ucb1x00_register_driver(struct ucb1x00_driver *drv)
 	struct ucb1x00 *ucb;
 
 	INIT_LIST_HEAD(&drv->devs);
-	down(&ucb1x00_sem);
+	mutex_lock(&ucb1x00_mutex);
 	list_add(&drv->node, &ucb1x00_drivers);
 	list_for_each_entry(ucb, &ucb1x00_devices, node) {
 		ucb1x00_add_dev(ucb, drv);
 	}
-	up(&ucb1x00_sem);
+	mutex_unlock(&ucb1x00_mutex);
 	return 0;
 }
 
@@ -575,13 +575,13 @@ void ucb1x00_unregister_driver(struct ucb1x00_driver *drv)
 {
 	struct list_head *n, *l;
 
-	down(&ucb1x00_sem);
+	mutex_lock(&ucb1x00_mutex);
 	list_del(&drv->node);
 	list_for_each_safe(l, n, &drv->devs) {
 		struct ucb1x00_dev *dev = list_entry(l, struct ucb1x00_dev, drv_node);
 		ucb1x00_remove_dev(dev);
 	}
-	up(&ucb1x00_sem);
+	mutex_unlock(&ucb1x00_mutex);
 }
 
 static int ucb1x00_suspend(struct mcp *mcp, pm_message_t state)
@@ -589,12 +589,12 @@ static int ucb1x00_suspend(struct mcp *mcp, pm_message_t state)
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct ucb1x00_dev *dev;
 
-	down(&ucb1x00_sem);
+	mutex_lock(&ucb1x00_mutex);
 	list_for_each_entry(dev, &ucb->devs, dev_node) {
 		if (dev->drv->suspend)
 			dev->drv->suspend(dev, state);
 	}
-	up(&ucb1x00_sem);
+	mutex_unlock(&ucb1x00_mutex);
 	return 0;
 }
 
@@ -603,12 +603,12 @@ static int ucb1x00_resume(struct mcp *mcp)
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct ucb1x00_dev *dev;
 
-	down(&ucb1x00_sem);
+	mutex_lock(&ucb1x00_mutex);
 	list_for_each_entry(dev, &ucb->devs, dev_node) {
 		if (dev->drv->resume)
 			dev->drv->resume(dev);
 	}
-	up(&ucb1x00_sem);
+	mutex_unlock(&ucb1x00_mutex);
 	return 0;
 }
 

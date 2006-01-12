@@ -103,7 +103,7 @@ static stlconf_t	stl_brdconf[] = {
 	/*{ BRD_EASYIO, 0x2a0, 0, 0, 10, 0 },*/
 };
 
-static int	stl_nrbrds = sizeof(stl_brdconf) / sizeof(stlconf_t);
+static int	stl_nrbrds = ARRAY_SIZE(stl_brdconf);
 
 /*****************************************************************************/
 
@@ -424,7 +424,7 @@ static stlpcibrd_t	stl_pcibrds[] = {
 	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87410, BRD_ECHPCI },
 };
 
-static int	stl_nrpcibrds = sizeof(stl_pcibrds) / sizeof(stlpcibrd_t);
+static int	stl_nrpcibrds = ARRAY_SIZE(stl_pcibrds);
 
 #endif
 
@@ -704,7 +704,7 @@ static unsigned int	sc26198_baudtable[] = {
 	230400, 460800, 921600
 };
 
-#define	SC26198_NRBAUDS		(sizeof(sc26198_baudtable) / sizeof(unsigned int))
+#define	SC26198_NRBAUDS		ARRAY_SIZE(sc26198_baudtable)
 
 /*****************************************************************************/
 
@@ -901,7 +901,7 @@ static unsigned long stl_atol(char *str)
 static int stl_parsebrd(stlconf_t *confp, char **argp)
 {
 	char	*sp;
-	int	nrbrdnames, i;
+	int	i;
 
 #ifdef DEBUG
 	printk("stl_parsebrd(confp=%x,argp=%x)\n", (int) confp, (int) argp);
@@ -913,14 +913,13 @@ static int stl_parsebrd(stlconf_t *confp, char **argp)
 	for (sp = argp[0], i = 0; ((*sp != 0) && (i < 25)); sp++, i++)
 		*sp = TOLOWER(*sp);
 
-	nrbrdnames = sizeof(stl_brdstr) / sizeof(stlbrdtype_t);
-	for (i = 0; (i < nrbrdnames); i++) {
+	for (i = 0; i < ARRAY_SIZE(stl_brdstr); i++) {
 		if (strcmp(stl_brdstr[i].name, argp[0]) == 0)
 			break;
 	}
-	if (i >= nrbrdnames) {
+	if (i == ARRAY_SIZE(stl_brdstr)) {
 		printk("STALLION: unknown board name, %s?\n", argp[0]);
-		return(0);
+		return 0;
 	}
 
 	confp->brdtype = stl_brdstr[i].type;
@@ -2902,7 +2901,8 @@ static int stl_getportstats(stlport_t *portp, comstats_t __user *cp)
 	if (portp->tty != (struct tty_struct *) NULL) {
 		if (portp->tty->driver_data == portp) {
 			portp->stats.ttystate = portp->tty->flags;
-			portp->stats.rxbuffered = portp->tty->flip.count;
+			/* No longer available as a statistic */
+			portp->stats.rxbuffered = 1; /*portp->tty->flip.count; */
 			if (portp->tty->termios != (struct termios *) NULL) {
 				portp->stats.cflags = portp->tty->termios->c_cflag;
 				portp->stats.iflags = portp->tty->termios->c_iflag;
@@ -4046,9 +4046,7 @@ static void stl_cd1400rxisr(stlpanel_t *panelp, int ioaddr)
 	if ((ioack & ACK_TYPMASK) == ACK_TYPRXGOOD) {
 		outb((RDCR + portp->uartaddr), ioaddr);
 		len = inb(ioaddr + EREG_DATA);
-		if ((tty == (struct tty_struct *) NULL) ||
-		    (tty->flip.char_buf_ptr == (char *) NULL) ||
-		    ((buflen = TTY_FLIPBUF_SIZE - tty->flip.count) == 0)) {
+		if (tty == NULL || (buflen = tty_buffer_request_room(tty, len)) == 0) {
 			len = MIN(len, sizeof(stl_unwanted));
 			outb((RDSR + portp->uartaddr), ioaddr);
 			insb((ioaddr + EREG_DATA), &stl_unwanted[0], len);
@@ -4057,12 +4055,10 @@ static void stl_cd1400rxisr(stlpanel_t *panelp, int ioaddr)
 		} else {
 			len = MIN(len, buflen);
 			if (len > 0) {
+				unsigned char *ptr;
 				outb((RDSR + portp->uartaddr), ioaddr);
-				insb((ioaddr + EREG_DATA), tty->flip.char_buf_ptr, len);
-				memset(tty->flip.flag_buf_ptr, 0, len);
-				tty->flip.flag_buf_ptr += len;
-				tty->flip.char_buf_ptr += len;
-				tty->flip.count += len;
+				tty_prepare_flip_string(tty, &ptr, len);
+				insb((ioaddr + EREG_DATA), ptr, len);
 				tty_schedule_flip(tty);
 				portp->stats.rxtotal += len;
 			}
@@ -4086,8 +4082,7 @@ static void stl_cd1400rxisr(stlpanel_t *panelp, int ioaddr)
 				portp->stats.txxoff++;
 			goto stl_rxalldone;
 		}
-		if ((tty != (struct tty_struct *) NULL) &&
-		    ((portp->rxignoremsk & status) == 0)) {
+		if (tty != NULL && (portp->rxignoremsk & status) == 0) {
 			if (portp->rxmarkmsk & status) {
 				if (status & ST_BREAK) {
 					status = TTY_BREAK;
@@ -4107,14 +4102,8 @@ static void stl_cd1400rxisr(stlpanel_t *panelp, int ioaddr)
 			} else {
 				status = 0;
 			}
-			if (tty->flip.char_buf_ptr != (char *) NULL) {
-				if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-					*tty->flip.flag_buf_ptr++ = status;
-					*tty->flip.char_buf_ptr++ = ch;
-					tty->flip.count++;
-				}
-				tty_schedule_flip(tty);
-			}
+			tty_insert_flip_char(tty, ch, status);
+			tty_schedule_flip(tty);
 		}
 	} else {
 		printk("STALLION: bad RX interrupt ack value=%x\n", ioack);
@@ -5013,9 +5002,7 @@ static void stl_sc26198rxisr(stlport_t *portp, unsigned int iack)
 	len = inb(ioaddr + XP_DATA) + 1;
 
 	if ((iack & IVR_TYPEMASK) == IVR_RXDATA) {
-		if ((tty == (struct tty_struct *) NULL) ||
-		    (tty->flip.char_buf_ptr == (char *) NULL) ||
-		    ((buflen = TTY_FLIPBUF_SIZE - tty->flip.count) == 0)) {
+		if (tty == NULL || (buflen = tty_buffer_request_room(tty, len)) == 0) {
 			len = MIN(len, sizeof(stl_unwanted));
 			outb(GRXFIFO, (ioaddr + XP_ADDR));
 			insb((ioaddr + XP_DATA), &stl_unwanted[0], len);
@@ -5024,12 +5011,10 @@ static void stl_sc26198rxisr(stlport_t *portp, unsigned int iack)
 		} else {
 			len = MIN(len, buflen);
 			if (len > 0) {
+				unsigned char *ptr;
 				outb(GRXFIFO, (ioaddr + XP_ADDR));
-				insb((ioaddr + XP_DATA), tty->flip.char_buf_ptr, len);
-				memset(tty->flip.flag_buf_ptr, 0, len);
-				tty->flip.flag_buf_ptr += len;
-				tty->flip.char_buf_ptr += len;
-				tty->flip.count += len;
+				tty_prepare_flip_string(tty, &ptr, len);
+				insb((ioaddr + XP_DATA), ptr, len);
 				tty_schedule_flip(tty);
 				portp->stats.rxtotal += len;
 			}
@@ -5097,14 +5082,8 @@ static inline void stl_sc26198rxbadch(stlport_t *portp, unsigned char status, ch
 			status = 0;
 		}
 
-		if (tty->flip.char_buf_ptr != (char *) NULL) {
-			if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-				*tty->flip.flag_buf_ptr++ = status;
-				*tty->flip.char_buf_ptr++ = ch;
-				tty->flip.count++;
-			}
-			tty_schedule_flip(tty);
-		}
+		tty_insert_flip_char(tty, ch, status);
+		tty_schedule_flip(tty);
 
 		if (status == 0)
 			portp->stats.rxtotal++;

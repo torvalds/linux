@@ -16,8 +16,10 @@
  * use either stdint.h or inttypes.h for the rest. */
 #if KERNEL_ELFCLASS == ELFCLASS32
 typedef Elf32_Addr	kernel_ulong_t;
+#define BITS_PER_LONG 32
 #else
 typedef Elf64_Addr	kernel_ulong_t;
+#define BITS_PER_LONG 64
 #endif
 #ifdef __sun__
 #include <inttypes.h>
@@ -35,6 +37,7 @@ typedef unsigned char	__u8;
  * even potentially has different endianness and word sizes, since 
  * we handle those differences explicitly below */
 #include "../../include/linux/mod_devicetable.h"
+#include "../../include/linux/input.h"
 
 #define ADD(str, sep, cond, field)                              \
 do {                                                            \
@@ -366,6 +369,61 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *i2c, char *a
 	return 1;
 }
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+static void do_input(char *alias,
+		     kernel_ulong_t *arr, unsigned int min, unsigned int max)
+{
+	unsigned int i;
+	for (i = min; i < max; i++) {
+		if (arr[i/BITS_PER_LONG] & (1 << (i%BITS_PER_LONG)))
+			sprintf(alias+strlen(alias), "%X,*", i);
+	}
+}
+
+/* input:b0v0p0e0-eXkXrXaXmXlXsXfXwX where X is comma-separated %02X. */
+static int do_input_entry(const char *filename, struct input_device_id *id,
+			  char *alias)
+{
+	sprintf(alias, "input:");
+
+	ADD(alias, "b", id->flags&INPUT_DEVICE_ID_MATCH_BUS, id->id.bustype);
+	ADD(alias, "v", id->flags&INPUT_DEVICE_ID_MATCH_VENDOR, id->id.vendor);
+	ADD(alias, "p", id->flags&INPUT_DEVICE_ID_MATCH_PRODUCT,
+	    id->id.product);
+	ADD(alias, "e", id->flags&INPUT_DEVICE_ID_MATCH_VERSION,
+	    id->id.version);
+
+	sprintf(alias + strlen(alias), "-e*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_EVBIT)
+		do_input(alias, id->evbit, 0, EV_MAX);
+	sprintf(alias + strlen(alias), "k*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_KEYBIT)
+		do_input(alias, id->keybit, KEY_MIN_INTERESTING, KEY_MAX);
+	sprintf(alias + strlen(alias), "r*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_RELBIT)
+		do_input(alias, id->relbit, 0, REL_MAX);
+	sprintf(alias + strlen(alias), "a*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_ABSBIT)
+		do_input(alias, id->absbit, 0, ABS_MAX);
+	sprintf(alias + strlen(alias), "m*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_MSCIT)
+		do_input(alias, id->mscbit, 0, MSC_MAX);
+	sprintf(alias + strlen(alias), "l*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_LEDBIT)
+		do_input(alias, id->ledbit, 0, LED_MAX);
+	sprintf(alias + strlen(alias), "s*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_SNDBIT)
+		do_input(alias, id->sndbit, 0, SND_MAX);
+	sprintf(alias + strlen(alias), "f*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_FFBIT)
+		do_input(alias, id->ffbit, 0, FF_MAX);
+	sprintf(alias + strlen(alias), "w*");
+	if (id->flags&INPUT_DEVICE_ID_MATCH_SWBIT)
+		do_input(alias, id->swbit, 0, SW_MAX);
+	return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -453,7 +511,9 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	else if (sym_is(symname, "__mod_i2c_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct i2c_device_id),
 			 do_i2c_entry, mod);
-
+	else if (sym_is(symname, "__mod_input_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct input_device_id),
+			 do_input_entry, mod);
 }
 
 /* Now add out buffered information to the generated C source */

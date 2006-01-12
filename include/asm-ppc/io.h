@@ -27,6 +27,8 @@
 
 #if defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
+#elif defined(CONFIG_PPC_MPC52xx)
+#include <asm/mpc52xx.h>
 #elif defined(CONFIG_8xx)
 #include <asm/mpc8xx.h>
 #elif defined(CONFIG_8260)

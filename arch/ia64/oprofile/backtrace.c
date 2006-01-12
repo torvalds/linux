@@ -32,7 +32,7 @@ typedef struct
 	u64 *prev_pfs_loc;	/* state for WAR for old spinlock ool code */
 } ia64_backtrace_t;
 
-#if __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
+#if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
 /*
  * Returns non-zero if the PC is in the spinlock contention out-of-line code
  * with non-standard calling sequence (on older compilers).

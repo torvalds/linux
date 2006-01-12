@@ -366,7 +366,7 @@ static inline void fp_submant(struct fp_ext *dest, struct fp_ext *src1,
 
 #define fp_mul64(desth, destl, src1, src2) ({				\
 	asm ("mulu.l %2,%1:%0" : "=d" (destl), "=d" (desth)		\
-		: "g" (src1), "0" (src2));				\
+		: "dm" (src1), "0" (src2));				\
 })
 #define fp_div64(quot, rem, srch, srcl, div)				\
 	asm ("divu.l %2,%1:%0" : "=d" (quot), "=d" (rem)		\

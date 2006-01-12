@@ -614,7 +614,7 @@ static void cdrom_end_request (ide_drive_t *drive, int uptodate)
 			 */
 			spin_lock_irqsave(&ide_lock, flags);
 			end_that_request_chunk(failed, 0, failed->data_len);
-			end_that_request_last(failed);
+			end_that_request_last(failed, 0);
 			spin_unlock_irqrestore(&ide_lock, flags);
 		}
 
@@ -1332,8 +1332,6 @@ static ide_startstop_t cdrom_start_read (ide_drive_t *drive, unsigned int block)
 	if (cdrom_read_from_buffer(drive))
 		return ide_stopped;
 
-	blk_attempt_remerge(drive->queue, rq);
-
 	/* Clear the local sector buffer. */
 	info->nsectors_buffered = 0;
 
@@ -1735,7 +1733,7 @@ end_request:
 
 	spin_lock_irqsave(&ide_lock, flags);
 	blkdev_dequeue_request(rq);
-	end_that_request_last(rq);
+	end_that_request_last(rq, 1);
 	HWGROUP(drive)->rq = NULL;
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ide_stopped;
@@ -1873,14 +1871,6 @@ static ide_startstop_t cdrom_start_write(ide_drive_t *drive, struct request *rq)
 		cdrom_end_request(drive, 0);
 		return ide_stopped;
 	}
-
-	/*
-	 * for dvd-ram and such media, it's a really big deal to get
-	 * big writes all the time. so scour the queue and attempt to
-	 * remerge requests, often the plugging will not have had time
-	 * to do this properly
-	 */
-	blk_attempt_remerge(drive->queue, rq);
 
 	info->nsectors_buffered = 0;
 
@@ -2905,6 +2895,8 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 		devinfo->mask |= CDC_CLOSE_TRAY;
 	if (!CDROM_CONFIG_FLAGS(drive)->mo_drive)
 		devinfo->mask |= CDC_MO_DRIVE;
+	if (!CDROM_CONFIG_FLAGS(drive)->ram)
+		devinfo->mask |= CDC_RAM;
 
 	devinfo->disk = info->disk;
 	return register_cdrom(devinfo);
@@ -3509,6 +3501,7 @@ static int __init ide_cdrom_init(void)
 	return driver_register(&ide_cdrom_driver.gen_driver);
 }
 
+MODULE_ALIAS("ide:*m-cdrom*");
 module_init(ide_cdrom_init);
 module_exit(ide_cdrom_exit);
 MODULE_LICENSE("GPL");

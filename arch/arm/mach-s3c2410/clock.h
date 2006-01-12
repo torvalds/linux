@@ -16,7 +16,6 @@ struct clk {
 	struct clk           *parent;
 	const char           *name;
 	int		      id;
-	atomic_t              used;
 	unsigned long         rate;
 	unsigned long         ctrlbit;
 	int		    (*enable)(struct clk *, int enable);

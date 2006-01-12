@@ -45,8 +45,8 @@ static inline void fat_dir_readahead(struct inode *dir, sector_t iblock,
 	if ((sbi->fat_bits != 32) && (dir->i_ino == MSDOS_ROOT_INO))
 		return;
 
-	bh = sb_getblk(sb, phys);
-	if (bh && !buffer_uptodate(bh)) {
+	bh = sb_find_get_block(sb, phys);
+	if (bh == NULL || !buffer_uptodate(bh)) {
 		for (sec = 0; sec < sbi->sec_per_clus; sec++)
 			sb_breadahead(sb, phys + sec);
 	}
@@ -68,8 +68,8 @@ static int fat__get_entry(struct inode *dir, loff_t *pos,
 {
 	struct super_block *sb = dir->i_sb;
 	sector_t phys, iblock;
-	int offset;
-	int err;
+	unsigned long mapped_blocks;
+	int err, offset;
 
 next:
 	if (*bh)
@@ -77,7 +77,7 @@ next:
 
 	*bh = NULL;
 	iblock = *pos >> sb->s_blocksize_bits;
-	err = fat_bmap(dir, iblock, &phys);
+	err = fat_bmap(dir, iblock, &phys, &mapped_blocks);
 	if (err || !phys)
 		return -1;	/* beyond EOF or error */
 
@@ -418,7 +418,7 @@ EODir:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_search_long);
+EXPORT_SYMBOL_GPL(fat_search_long);
 
 struct fat_ioctl_filldir_callback {
 	struct dirent __user *dirent;
@@ -729,13 +729,13 @@ static int fat_dir_ioctl(struct inode * inode, struct file * filp,
 
 	buf.dirent = d1;
 	buf.result = 0;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	ret = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		ret = __fat_readdir(inode, filp, &buf, fat_ioctl_filldir,
 				    short_only, both);
 	}
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	if (ret >= 0)
 		ret = buf.result;
 	return ret;
@@ -780,7 +780,7 @@ int fat_get_dotdot_entry(struct inode *dir, struct buffer_head **bh,
 	return -ENOENT;
 }
 
-EXPORT_SYMBOL(fat_get_dotdot_entry);
+EXPORT_SYMBOL_GPL(fat_get_dotdot_entry);
 
 /* See if directory is empty */
 int fat_dir_empty(struct inode *dir)
@@ -803,7 +803,7 @@ int fat_dir_empty(struct inode *dir)
 	return result;
 }
 
-EXPORT_SYMBOL(fat_dir_empty);
+EXPORT_SYMBOL_GPL(fat_dir_empty);
 
 /*
  * fat_subdirs counts the number of sub-directories of dir. It can be run
@@ -849,7 +849,7 @@ int fat_scan(struct inode *dir, const unsigned char *name,
 	return -ENOENT;
 }
 
-EXPORT_SYMBOL(fat_scan);
+EXPORT_SYMBOL_GPL(fat_scan);
 
 static int __fat_remove_entries(struct inode *dir, loff_t pos, int nr_slots)
 {
@@ -936,7 +936,7 @@ int fat_remove_entries(struct inode *dir, struct fat_slot_info *sinfo)
 	return 0;
 }
 
-EXPORT_SYMBOL(fat_remove_entries);
+EXPORT_SYMBOL_GPL(fat_remove_entries);
 
 static int fat_zeroed_cluster(struct inode *dir, sector_t blknr, int nr_used,
 			      struct buffer_head **bhs, int nr_bhs)
@@ -1048,7 +1048,7 @@ error:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_alloc_new_dir);
+EXPORT_SYMBOL_GPL(fat_alloc_new_dir);
 
 static int fat_add_new_entries(struct inode *dir, void *slots, int nr_slots,
 			       int *nr_cluster, struct msdos_dir_entry **de,
@@ -1264,4 +1264,4 @@ error_remove:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_add_entries);
+EXPORT_SYMBOL_GPL(fat_add_entries);

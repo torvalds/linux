@@ -53,17 +53,8 @@ struct grip_port {
 struct grip_mp {
 	struct gameport *gameport;
 	struct grip_port *port[GRIP_MAX_PORTS];
-//	struct input_dev *dev[4];
-//	int mode[4];
-//	int registered[4];
 	int reads;
 	int bads;
-
-	/* individual gamepad states */
-//	int buttons[4];
-//	int xaxes[4];
-//	int yaxes[4];
-//	int dirty[4];     /* has the state been updated? */
 };
 
 /*

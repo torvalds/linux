@@ -14,11 +14,11 @@
  */
 #ifndef _ASM_POWERPC_PACA_H
 #define _ASM_POWERPC_PACA_H
+#ifdef __KERNEL__
 
 #include	<linux/config.h>
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
-#include	<asm/iseries/it_lp_reg_save.h>
 #include	<asm/mmu.h>
 
 register struct paca_struct *local_paca asm("r13");
@@ -31,9 +31,9 @@ struct task_struct;
  *
  * This structure is not directly accessed by firmware or the service
  * processor except for the first two pointers that point to the
- * lppaca area and the ItLpRegSave area for this CPU.  Both the
- * lppaca and ItLpRegSave objects are currently contained within the
- * PACA but they do not need to be.
+ * lppaca area and the ItLpRegSave area for this CPU.  The lppaca
+ * object is currently contained within the PACA but it doesn't need
+ * to be.
  */
 struct paca_struct {
 	/*
@@ -48,7 +48,9 @@ struct paca_struct {
 	 * accessed by the firmware
 	 */
 	struct lppaca *lppaca_ptr;	/* Pointer to LpPaca for PLIC */
-	struct ItLpRegSave *reg_save_ptr; /* Pointer to LpRegSave for PLIC */
+#ifdef CONFIG_PPC_ISERIES
+	void *reg_save_ptr; /* Pointer to LpRegSave for PLIC */
+#endif /* CONFIG_PPC_ISERIES */
 
 	/*
 	 * MAGIC: the spinlock functions in arch/ppc64/lib/locks.c
@@ -59,11 +61,11 @@ struct paca_struct {
 	u16 lock_token;			/* Constant 0x8000, used in locks */
 	u16 paca_index;			/* Logical processor number */
 
-	u32 default_decr;		/* Default decrementer value */
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 stab_real;			/* Absolute address of segment table */
 	u64 stab_addr;			/* Virtual address of segment table */
 	void *emergency_sp;		/* pointer to emergency stack */
+	u64 data_offset;		/* per cpu data offset */
 	s16 hw_cpu_id;			/* Physical processor number */
 	u8 cpu_start;			/* At startup, processor spins until */
 					/* this becomes non-zero. */
@@ -90,13 +92,9 @@ struct paca_struct {
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
 	u64 stab_rr;			/* stab/slb round-robin counter */
-	u64 next_jiffy_update_tb;	/* TB value for next jiffy update */
 	u64 saved_r1;			/* r1 save for RTAS calls */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u8 proc_enabled;		/* irq soft-enable flag */
-
-	/* not yet used */
-	u64 exdsi[8];		/* used for linear mapping hash table misses */
 
 	/*
 	 * iSeries structure which the hypervisor knows about -
@@ -110,11 +108,9 @@ struct paca_struct {
 	 * cross a page boundary.
 	 */
 	struct lppaca lppaca __attribute__((__aligned__(0x400)));
-#ifdef CONFIG_PPC_ISERIES
-	struct ItLpRegSave reg_save;
-#endif
 };
 
 extern struct paca_struct paca[];
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PACA_H */

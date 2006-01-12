@@ -592,7 +592,7 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 		goto fail;
 	}
 	kaddr = kmap_atomic(page, KM_USER0);
-       memset(kaddr, 0, chunk_size);
+	memset(kaddr, 0, chunk_size);
 	de = (struct ext2_dir_entry_2 *)kaddr;
 	de->name_len = 1;
 	de->rec_len = cpu_to_le16(EXT2_DIR_REC_LEN(1));

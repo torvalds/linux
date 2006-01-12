@@ -47,18 +47,9 @@
 #define PMAC_SUPPORT_AUTOMUTE
 
 /*
- * typedefs
- */
-typedef struct snd_pmac pmac_t;
-typedef struct snd_pmac_stream pmac_stream_t;
-typedef struct snd_pmac_beep pmac_beep_t;
-typedef struct snd_pmac_dbdma pmac_dbdma_t;
-
-
-/*
  * DBDMA space
  */
-struct snd_pmac_dbdma {
+struct pmac_dbdma {
 	dma_addr_t dma_base;
 	dma_addr_t addr;
 	struct dbdma_cmd __iomem *cmds;
@@ -69,7 +60,7 @@ struct snd_pmac_dbdma {
 /*
  * playback/capture stream
  */
-struct snd_pmac_stream {
+struct pmac_stream {
 	int running;	/* boolean */
 
 	int stream;	/* PLAYBACK/CAPTURE */
@@ -79,10 +70,10 @@ struct snd_pmac_stream {
 	int buffer_size; /* in kbytes */
 	int nperiods, cur_period;
 
-	pmac_dbdma_t cmd;
+	struct pmac_dbdma cmd;
 	volatile struct dbdma_regs __iomem *dma;
 
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 
 	unsigned int cur_freqs;		/* currently available frequencies */
 	unsigned int cur_formats;	/* currently available formats */
@@ -98,7 +89,7 @@ enum snd_pmac_model {
 };
 
 struct snd_pmac {
-	snd_card_t *card;
+	struct snd_card *card;
 
 	/* h/w info */
 	struct device_node *node;
@@ -122,7 +113,8 @@ struct snd_pmac {
 	unsigned int initialized : 1;
 	unsigned int feature_is_set : 1;
 
-	unsigned int of_requested;
+	unsigned int requested;
+	struct resource rsrc[3];
 
 	int num_freqs;
 	int *freq_table;
@@ -140,75 +132,80 @@ struct snd_pmac {
 	unsigned char __iomem *latch_base;
 	unsigned char __iomem *macio_base;
 
-	pmac_stream_t playback;
-	pmac_stream_t capture;
+	struct pmac_stream playback;
+	struct pmac_stream capture;
 
-	pmac_dbdma_t extra_dma;
+	struct pmac_dbdma extra_dma;
 
 	int irq, tx_irq, rx_irq;
 
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 
-	pmac_beep_t *beep;
+	struct pmac_beep *beep;
 
 	unsigned int control_mask;	/* control mask */
 
 	/* mixer stuffs */
 	void *mixer_data;
-	void (*mixer_free)(pmac_t *);
-	snd_kcontrol_t *master_sw_ctl;
-	snd_kcontrol_t *speaker_sw_ctl;
-	snd_kcontrol_t *drc_sw_ctl;	/* only used for tumbler -ReneR */
-	snd_kcontrol_t *hp_detect_ctl;
-	snd_kcontrol_t *lineout_sw_ctl;
+	void (*mixer_free)(struct snd_pmac *);
+	struct snd_kcontrol *master_sw_ctl;
+	struct snd_kcontrol *speaker_sw_ctl;
+	struct snd_kcontrol *drc_sw_ctl;	/* only used for tumbler -ReneR */
+	struct snd_kcontrol *hp_detect_ctl;
+	struct snd_kcontrol *lineout_sw_ctl;
 
 	/* lowlevel callbacks */
-	void (*set_format)(pmac_t *chip);
-	void (*update_automute)(pmac_t *chip, int do_notify);
-	int (*detect_headphone)(pmac_t *chip);
+	void (*set_format)(struct snd_pmac *chip);
+	void (*update_automute)(struct snd_pmac *chip, int do_notify);
+	int (*detect_headphone)(struct snd_pmac *chip);
 #ifdef CONFIG_PM
-	void (*suspend)(pmac_t *chip);
-	void (*resume)(pmac_t *chip);
+	void (*suspend)(struct snd_pmac *chip);
+	void (*resume)(struct snd_pmac *chip);
 #endif
 
 };
 
 
 /* exported functions */
-int snd_pmac_new(snd_card_t *card, pmac_t **chip_return);
-int snd_pmac_pcm_new(pmac_t *chip);
-int snd_pmac_attach_beep(pmac_t *chip);
-void snd_pmac_detach_beep(pmac_t *chip);
-void snd_pmac_beep_stop(pmac_t *chip);
-unsigned int snd_pmac_rate_index(pmac_t *chip, pmac_stream_t *rec, unsigned int rate);
+int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return);
+int snd_pmac_pcm_new(struct snd_pmac *chip);
+int snd_pmac_attach_beep(struct snd_pmac *chip);
+void snd_pmac_detach_beep(struct snd_pmac *chip);
+void snd_pmac_beep_stop(struct snd_pmac *chip);
+unsigned int snd_pmac_rate_index(struct snd_pmac *chip, struct pmac_stream *rec, unsigned int rate);
 
-void snd_pmac_beep_dma_start(pmac_t *chip, int bytes, unsigned long addr, int speed);
-void snd_pmac_beep_dma_stop(pmac_t *chip);
+void snd_pmac_beep_dma_start(struct snd_pmac *chip, int bytes, unsigned long addr, int speed);
+void snd_pmac_beep_dma_stop(struct snd_pmac *chip);
+
+#ifdef CONFIG_PM
+void snd_pmac_suspend(struct snd_pmac *chip);
+void snd_pmac_resume(struct snd_pmac *chip);
+#endif
 
 /* initialize mixer */
-int snd_pmac_awacs_init(pmac_t *chip);
-int snd_pmac_burgundy_init(pmac_t *chip);
-int snd_pmac_daca_init(pmac_t *chip);
-int snd_pmac_tumbler_init(pmac_t *chip);
+int snd_pmac_awacs_init(struct snd_pmac *chip);
+int snd_pmac_burgundy_init(struct snd_pmac *chip);
+int snd_pmac_daca_init(struct snd_pmac *chip);
+int snd_pmac_tumbler_init(struct snd_pmac *chip);
 int snd_pmac_tumbler_post_init(void);
-int snd_pmac_toonie_init(pmac_t *chip);
+int snd_pmac_toonie_init(struct snd_pmac *chip);
 
 /* i2c functions */
-typedef struct snd_pmac_keywest {
+struct pmac_keywest {
 	int addr;
 	struct i2c_client *client;
 	int id;
-	int (*init_client)(struct snd_pmac_keywest *i2c);
+	int (*init_client)(struct pmac_keywest *i2c);
 	char *name;
-} pmac_keywest_t;
+};
 
-int snd_pmac_keywest_init(pmac_keywest_t *i2c);
-void snd_pmac_keywest_cleanup(pmac_keywest_t *i2c);
+int snd_pmac_keywest_init(struct pmac_keywest *i2c);
+void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c);
 
 /* misc */
-int snd_pmac_boolean_stereo_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo);
-int snd_pmac_boolean_mono_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo);
+int snd_pmac_boolean_stereo_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
+int snd_pmac_boolean_mono_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
 
-int snd_pmac_add_automute(pmac_t *chip);
+int snd_pmac_add_automute(struct snd_pmac *chip);
 
 #endif /* __PMAC_H */

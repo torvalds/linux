@@ -289,17 +289,14 @@ static int indycam_attach(struct i2c_adapter *adap, int addr, int kind)
 	printk(KERN_INFO "SGI IndyCam driver version %s\n",
 	       INDYCAM_MODULE_VERSION);
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (!client)
 		return -ENOMEM;
-	camera = kmalloc(sizeof(struct indycam), GFP_KERNEL);
+	camera = kzalloc(sizeof(struct indycam), GFP_KERNEL);
 	if (!camera) {
 		err = -ENOMEM;
 		goto out_free_client;
 	}
-
-	memset(client, 0, sizeof(struct i2c_client));
-	memset(camera, 0, sizeof(struct indycam));
 
 	client->addr = addr;
 	client->adapter = adap;
@@ -451,10 +448,10 @@ static int indycam_command(struct i2c_client *client, unsigned int cmd,
 }
 
 static struct i2c_driver i2c_driver_indycam = {
-	.owner		= THIS_MODULE,
-	.name		= "indycam",
+	.driver = {
+		.name 	= "indycam",
+	},
 	.id		= I2C_DRIVERID_INDYCAM,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter = indycam_probe,
 	.detach_client	= indycam_detach,
 	.command	= indycam_command,

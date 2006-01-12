@@ -8,6 +8,7 @@
  */
 #include <linux/config.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -130,6 +131,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 			sizeof(delegation->stateid.data));
 	delegation->type = res->delegation_type;
 	delegation->maxsize = res->maxsize;
+	delegation->change_attr = nfsi->change_attr;
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
 
@@ -156,8 +158,6 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *delegation)
 {
 	int res = 0;
-
-	__nfs_revalidate_inode(NFS_SERVER(inode), inode);
 
 	res = nfs4_proc_delegreturn(inode, delegation->cred, &delegation->stateid);
 	nfs_free_delegation(delegation);
@@ -229,6 +229,49 @@ restart:
 		goto restart;
 	}
 	spin_unlock(&clp->cl_lock);
+}
+
+int nfs_do_expire_all_delegations(void *ptr)
+{
+	struct nfs4_client *clp = ptr;
+	struct nfs_delegation *delegation;
+	struct inode *inode;
+
+	allow_signal(SIGKILL);
+restart:
+	spin_lock(&clp->cl_lock);
+	if (test_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) != 0)
+		goto out;
+	if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0)
+		goto out;
+	list_for_each_entry(delegation, &clp->cl_delegations, super_list) {
+		inode = igrab(delegation->inode);
+		if (inode == NULL)
+			continue;
+		spin_unlock(&clp->cl_lock);
+		nfs_inode_return_delegation(inode);
+		iput(inode);
+		goto restart;
+	}
+out:
+	spin_unlock(&clp->cl_lock);
+	nfs4_put_client(clp);
+	module_put_and_exit(0);
+}
+
+void nfs_expire_all_delegations(struct nfs4_client *clp)
+{
+	struct task_struct *task;
+
+	__module_get(THIS_MODULE);
+	atomic_inc(&clp->cl_count);
+	task = kthread_run(nfs_do_expire_all_delegations, clp,
+			"%u.%u.%u.%u-delegreturn",
+			NIPQUAD(clp->cl_addr));
+	if (!IS_ERR(task))
+		return;
+	nfs4_put_client(clp);
+	module_put(THIS_MODULE);
 }
 
 /*

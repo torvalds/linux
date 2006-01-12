@@ -456,12 +456,11 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	/* remove the read masks */
 	hvcsd->todo_mask &= ~(HVCS_READ_MASK);
 
-	if ((tty->flip.count + HVCS_BUFF_LEN) < TTY_FLIPBUF_SIZE) {
+	if (tty_buffer_request_room(tty, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
 		got = hvc_get_chars(unit_address,
 				&buf[0],
 				HVCS_BUFF_LEN);
-		for (i=0;got && i<got;i++)
-			tty_insert_flip_char(tty, buf[i], TTY_NORMAL);
+		tty_insert_flip_string(tty, buf, got);
 	}
 
 	/* Give the TTY time to process the data we just sent. */
@@ -469,10 +468,9 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 		hvcsd->todo_mask |= HVCS_QUICK_READ;
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	if (tty->flip.count) {
-		/* This is synch because tty->low_latency == 1 */
+	/* This is synch because tty->low_latency == 1 */
+	if(got)
 		tty_flip_buffer_push(tty);
-	}
 
 	if (!got) {
 		/* Do this _after_ the flip_buffer_push */

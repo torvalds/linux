@@ -1,17 +1,10 @@
 #ifndef __ASM_MACH_APIC_H
 #define __ASM_MACH_APIC_H
-#include <asm/smp.h>
 
-#define SEQUENTIAL_APICID
-#ifdef SEQUENTIAL_APICID
-#define xapic_phys_to_log_apicid(phys_apic) ( (1ul << ((phys_apic) & 0x3)) |\
-		((phys_apic<<2) & (~0xf)) )
-#elif CLUSTERED_APICID
-#define xapic_phys_to_log_apicid(phys_apic) ( (1ul << ((phys_apic) & 0x3)) |\
-		((phys_apic) & (~0xf)) )
-#endif
 
-#define NO_BALANCE_IRQ (1)
+extern u8 bios_cpu_apicid[];
+
+#define xapic_phys_to_log_apicid(cpu) (bios_cpu_apicid[cpu])
 #define esr_disable (1)
 
 static inline int apic_id_registered(void)
@@ -19,7 +12,6 @@ static inline int apic_id_registered(void)
 	return (1);
 }
 
-#define APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 /* Round robin the irqs amoung the online cpus */
 static inline cpumask_t target_cpus(void)
 { 
@@ -32,29 +24,34 @@ static inline cpumask_t target_cpus(void)
 	} while (cpu >= NR_CPUS);
 	return cpumask_of_cpu(cpu);
 }
-#define TARGET_CPUS	(target_cpus())
 
-#define INT_DELIVERY_MODE dest_Fixed
-#define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
+#undef APIC_DEST_LOGICAL
+#define APIC_DEST_LOGICAL 	0
+#define TARGET_CPUS		(target_cpus())
+#define APIC_DFR_VALUE		(APIC_DFR_FLAT)
+#define INT_DELIVERY_MODE	(dest_Fixed)
+#define INT_DEST_MODE		(0)    /* phys delivery to target proc */
+#define NO_BALANCE_IRQ		(0)
+#define WAKE_SECONDARY_VIA_INIT
+
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {
-	return 0;
+	return (0);
 }
 
-/* we don't use the phys_cpu_present_map to indicate apicid presence */
-static inline unsigned long check_apicid_present(int bit) 
+static inline unsigned long check_apicid_present(int bit)
 {
-	return 1;
+	return (1);
 }
 
-#define apicid_cluster(apicid) (apicid & 0xF0)
-
-static inline unsigned long calculate_ldr(unsigned long old)
+static inline unsigned long calculate_ldr(int cpu)
 {
-	unsigned long id;
-	id = xapic_phys_to_log_apicid(hard_smp_processor_id());
-	return ((old & ~APIC_LDR_MASK) | SET_APIC_LOGICAL_ID(id));
+	unsigned long val, id;
+	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
+	id = xapic_phys_to_log_apicid(cpu);
+	val |= SET_APIC_LOGICAL_ID(id);
+	return val;
 }
 
 /*
@@ -67,37 +64,35 @@ static inline unsigned long calculate_ldr(unsigned long old)
 static inline void init_apic_ldr(void)
 {
 	unsigned long val;
+	int cpu = smp_processor_id();
 
 	apic_write_around(APIC_DFR, APIC_DFR_VALUE);
-	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
-	val = calculate_ldr(val);
+	val = calculate_ldr(cpu);
 	apic_write_around(APIC_LDR, val);
 }
 
 static inline void clustered_apic_check(void)
 {
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
-		"Cluster", nr_ioapics);
+		"Physflat", nr_ioapics);
 }
 
 static inline int multi_timer_check(int apic, int irq)
 {
-	return 0;
+	return (0);
 }
 
 static inline int apicid_to_node(int logical_apicid)
 {
-	return 0;
+	return (0);
 }
-
-extern u8 bios_cpu_apicid[];
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < NR_CPUS)
-		return (int)bios_cpu_apicid[mps_cpu];
-	else
-		return BAD_APICID;
+		return (int) bios_cpu_apicid[mps_cpu];
+
+	return BAD_APICID;
 }
 
 static inline physid_mask_t apicid_to_cpu_present(int phys_apicid)
@@ -109,10 +104,10 @@ extern u8 cpu_2_logical_apicid[];
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
 {
-       if (cpu >= NR_CPUS)
-	       return BAD_APICID;
-       return (int)cpu_2_logical_apicid[cpu];
- }
+	if (cpu >= NR_CPUS)
+		return BAD_APICID;
+	return cpu_physical_id(cpu);
+}
 
 static inline int mpc_apic_id(struct mpc_config_processor *m,
 			struct mpc_config_translation *translation_record)
@@ -128,10 +123,8 @@ static inline int mpc_apic_id(struct mpc_config_processor *m,
 static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
-	return physids_promote(0xFUL);
+	return physids_promote(0xFFL);
 }
-
-#define WAKE_SECONDARY_VIA_INIT
 
 static inline void setup_portio_remap(void)
 {

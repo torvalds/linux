@@ -351,10 +351,10 @@ mpc85xx_cds_fixup_via(struct pci_controller *hose)
 void __init
 mpc85xx_cds_pcibios_fixup(void)
 {
-        struct pci_dev *dev = NULL;
+        struct pci_dev *dev;
 	u_char		c;
 
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_1, NULL))) {
                 /*
                  * U-Boot does not set the enable bits
@@ -371,21 +371,24 @@ mpc85xx_cds_pcibios_fixup(void)
 		 */
                 dev->irq = 14;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+		pci_dev_put(dev);
         }
 
 	/*
 	 * Force legacy USB interrupt routing
 	 */
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
                 dev->irq = 10;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
+		pci_dev_put(dev);
         }
 
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, dev))) {
                 dev->irq = 11;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+		pci_dev_put(dev);
         }
 }
 #endif /* CONFIG_PCI */

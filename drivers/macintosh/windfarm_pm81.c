@@ -26,7 +26,7 @@
  *    (typically the drive fan)
  *  - the main control (first control) gets the target value scaled with
  *    the first pair of factors, and is then modified as below
- *  - the value of the target of the CPU Fan control loop is retreived,
+ *  - the value of the target of the CPU Fan control loop is retrieved,
  *    scaled with the second pair of factors, and the max of that and
  *    the scaled target is applied to the main control.
  *

@@ -34,13 +34,12 @@
 #include <linux/ramfs.h>
 
 #include <asm/uaccess.h>
+#include "internal.h"
 
 /* some random number */
 #define RAMFS_MAGIC	0x858458f6
 
 static struct super_operations ramfs_ops;
-static struct address_space_operations ramfs_aops;
-static struct inode_operations ramfs_file_inode_operations;
 static struct inode_operations ramfs_dir_inode_operations;
 
 static struct backing_dev_info ramfs_backing_dev_info = {
@@ -141,25 +140,6 @@ static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char *
 	}
 	return error;
 }
-
-static struct address_space_operations ramfs_aops = {
-	.readpage	= simple_readpage,
-	.prepare_write	= simple_prepare_write,
-	.commit_write	= simple_commit_write
-};
-
-struct file_operations ramfs_file_operations = {
-	.read		= generic_file_read,
-	.write		= generic_file_write,
-	.mmap		= generic_file_mmap,
-	.fsync		= simple_sync_file,
-	.sendfile	= generic_file_sendfile,
-	.llseek		= generic_file_llseek,
-};
-
-static struct inode_operations ramfs_file_inode_operations = {
-	.getattr	= simple_getattr,
-};
 
 static struct inode_operations ramfs_dir_inode_operations = {
 	.create		= ramfs_create,

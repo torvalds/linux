@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
+#include <linux/tty_flip.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
@@ -482,16 +483,7 @@ sclp_vt220_receiver_fn(struct evbuf_header *evbuf)
 		/* Send input to line discipline */
 		buffer++;
 		count--;
-		/* Prevent buffer overrun by discarding input. Note that
-		 * because buffer_push works asynchronously, we cannot wait
-		 * for the buffer to be emptied. */
-		if (count + sclp_vt220_tty->flip.count > TTY_FLIPBUF_SIZE)
-			count = TTY_FLIPBUF_SIZE - sclp_vt220_tty->flip.count;
-		memcpy(sclp_vt220_tty->flip.char_buf_ptr, buffer, count);
-		memset(sclp_vt220_tty->flip.flag_buf_ptr, TTY_NORMAL, count);
-		sclp_vt220_tty->flip.char_buf_ptr += count;
-		sclp_vt220_tty->flip.flag_buf_ptr += count;
-		sclp_vt220_tty->flip.count += count;
+		tty_insert_flip_string(sclp_vt220_tty, buffer, count);
 		tty_flip_buffer_push(sclp_vt220_tty);
 		break;
 	}

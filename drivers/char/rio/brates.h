@@ -97,11 +97,10 @@
 
 #define MAX_RATE B2000
 
-struct    baud_rate            /* Tag for baud rates */
-{
-     /* short    host_rate,*/        /* As passed by the driver */
-     short    divisor,          /* The divisor */
-              prescaler;        /* The pre-scaler */
+struct baud_rate {		/* Tag for baud rates */
+	/* short    host_rate, *//* As passed by the driver */
+	short divisor,		/* The divisor */
+	 prescaler;		/* The pre-scaler */
 };
 
 #endif

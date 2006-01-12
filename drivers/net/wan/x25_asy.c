@@ -515,11 +515,6 @@ static int x25_asy_close(struct net_device *dev)
 	return 0;
 }
 
-static int x25_asy_receive_room(struct tty_struct *tty)
-{
-	return 65536;  /* We can handle an infinite amount of data. :-) */
-}
-
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
@@ -573,6 +568,7 @@ static int x25_asy_open_tty(struct tty_struct *tty)
 
 	sl->tty = tty;
 	tty->disc_data = sl;
+	tty->receive_room = 65536;
 	if (tty->driver->flush_buffer)  {
 		tty->driver->flush_buffer(tty);
 	}
@@ -779,7 +775,6 @@ static struct tty_ldisc x25_ldisc = {
 	.close		= x25_asy_close_tty,
 	.ioctl		= x25_asy_ioctl,
 	.receive_buf	= x25_asy_receive_buf,
-	.receive_room	= x25_asy_receive_room,
 	.write_wakeup	= x25_asy_write_wakeup,
 };
 

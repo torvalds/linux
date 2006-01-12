@@ -547,13 +547,13 @@ static int hfs_file_release(struct inode *inode, struct file *file)
 	if (atomic_read(&file->f_count) != 0)
 		return 0;
 	if (atomic_dec_and_test(&HFS_I(inode)->opencnt)) {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		hfs_file_truncate(inode);
 		//if (inode->i_flags & S_DEAD) {
 		//	hfs_delete_cat(inode->i_ino, HFSPLUS_SB(sb).hidden_dir, NULL);
 		//	hfs_delete_inode(inode);
 		//}
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	return 0;
 }

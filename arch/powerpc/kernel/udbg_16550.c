@@ -43,9 +43,11 @@ struct NS16550 {
 #define LSR_TEMT 0x40  /* Xmitter empty */
 #define LSR_ERR  0x80  /* Error */
 
+#define LCR_DLAB 0x80
+
 static volatile struct NS16550 __iomem *udbg_comport;
 
-static void udbg_550_putc(unsigned char c)
+static void udbg_550_putc(char c)
 {
 	if (udbg_comport) {
 		while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
@@ -67,37 +69,78 @@ static int udbg_550_getc_poll(void)
 	return -1;
 }
 
-static unsigned char udbg_550_getc(void)
+static int udbg_550_getc(void)
 {
 	if (udbg_comport) {
 		while ((in_8(&udbg_comport->lsr) & LSR_DR) == 0)
 			/* wait for char */;
 		return in_8(&udbg_comport->rbr);
 	}
-	return 0;
+	return -1;
 }
 
-void udbg_init_uart(void __iomem *comport, unsigned int speed)
+void udbg_init_uart(void __iomem *comport, unsigned int speed,
+		    unsigned int clock)
 {
-	u16 dll = speed ? (115200 / speed) : 12;
+	unsigned int dll, base_bauds = clock / 16;
+
+	if (speed == 0)
+		speed = 9600;
+	dll = base_bauds / speed;
 
 	if (comport) {
 		udbg_comport = (struct NS16550 __iomem *)comport;
 		out_8(&udbg_comport->lcr, 0x00);
 		out_8(&udbg_comport->ier, 0xff);
 		out_8(&udbg_comport->ier, 0x00);
-		out_8(&udbg_comport->lcr, 0x80);	/* Access baud rate */
-		out_8(&udbg_comport->dll, dll & 0xff);	/* 1 = 115200,  2 = 57600,
-							   3 = 38400, 12 = 9600 baud */
-		out_8(&udbg_comport->dlm, dll >> 8);	/* dll >> 8 which should be zero
-							   for fast rates; */
-		out_8(&udbg_comport->lcr, 0x03);	/* 8 data, 1 stop, no parity */
-		out_8(&udbg_comport->mcr, 0x03);	/* RTS/DTR */
-		out_8(&udbg_comport->fcr ,0x07);	/* Clear & enable FIFOs */
+		out_8(&udbg_comport->lcr, LCR_DLAB);
+		out_8(&udbg_comport->dll, dll & 0xff);
+		out_8(&udbg_comport->dlm, dll >> 8);
+		/* 8 data, 1 stop, no parity */
+		out_8(&udbg_comport->lcr, 0x03);
+		/* RTS/DTR */
+		out_8(&udbg_comport->mcr, 0x03);
+		/* Clear & enable FIFOs */
+		out_8(&udbg_comport->fcr ,0x07);
 		udbg_putc = udbg_550_putc;
 		udbg_getc = udbg_550_getc;
 		udbg_getc_poll = udbg_550_getc_poll;
 	}
+}
+
+unsigned int udbg_probe_uart_speed(void __iomem *comport, unsigned int clock)
+{
+	unsigned int dll, dlm, divisor, prescaler, speed;
+	u8 old_lcr;
+	volatile struct NS16550 __iomem *port = comport;
+
+	old_lcr = in_8(&port->lcr);
+
+	/* select divisor latch registers.  */
+	out_8(&port->lcr, LCR_DLAB);
+
+	/* now, read the divisor */
+	dll = in_8(&port->dll);
+	dlm = in_8(&port->dlm);
+	divisor = dlm << 8 | dll;
+
+	/* check prescaling */
+	if (in_8(&port->mcr) & 0x80)
+		prescaler = 4;
+	else
+		prescaler = 1;
+
+	/* restore the LCR */
+	out_8(&port->lcr, old_lcr);
+
+	/* calculate speed */
+	speed = (clock / prescaler) / (divisor * 16);
+
+	/* sanity check */
+	if (speed < 0 || speed > (clock / 16))
+		speed = 9600;
+
+	return speed;
 }
 
 #ifdef CONFIG_PPC_MAPLE
@@ -112,7 +155,7 @@ void udbg_maple_real_putc(unsigned char c)
 	}
 }
 
-void udbg_init_maple_realmode(void)
+void __init udbg_init_maple_realmode(void)
 {
 	udbg_comport = (volatile struct NS16550 __iomem *)0xf40003f8;
 

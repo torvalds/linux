@@ -19,15 +19,16 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include <linux/clk.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/clock.h>
 
 LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
@@ -40,14 +41,14 @@ struct clk * clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {
 		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
 	}
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return clk;
 }
@@ -249,11 +250,11 @@ void propagate_rate(struct clk * tclk)
 
 int clk_register(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->node, &clocks);
 	if (clk->init)
 		clk->init(clk);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return 0;
 }
@@ -261,9 +262,9 @@ EXPORT_SYMBOL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
 

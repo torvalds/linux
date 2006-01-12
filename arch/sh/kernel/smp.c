@@ -103,7 +103,7 @@ int __cpu_up(unsigned int cpu)
 	if (IS_ERR(tsk))
 		panic("Failed forking idle task for cpu %d\n", cpu);
 	
-	tsk->thread_info->cpu = cpu;
+	task_thread_info(tsk)->cpu = cpu;
 
 	cpu_set(cpu, cpu_online_map);
 

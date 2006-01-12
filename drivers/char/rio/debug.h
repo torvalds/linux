@@ -33,7 +33,7 @@
 #define	DBPACKET(pkt, opt, str, chn) 	debug_packet((pkt), (opt), (str), (chn))
 #else
 #define	DBPACKET(pkt, opt, str, c)
-#endif	/* DCIRRUS */
+#endif				/* DCIRRUS */
 
 
-#endif	/* _debug_h_ */
+#endif				/* _debug_h_ */

@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/completion.h>
 #include <linux/personality.h>
 #include <linux/tty.h>
@@ -29,6 +30,7 @@
 #include <linux/syscalls.h>
 #include <linux/signal.h>
 #include <linux/cn_proc.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -72,7 +74,6 @@ repeat:
 		__ptrace_unlink(p);
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
 	__exit_signal(p);
-	__exit_sighand(p);
 	/*
 	 * Note that the fastpath in sys_times depends on __exit_signal having
 	 * updated the counters before a task is removed from the tasklist of
@@ -258,7 +259,7 @@ static inline void reparent_to_init(void)
 
 void __set_special_pids(pid_t session, pid_t pgrp)
 {
-	struct task_struct *curr = current;
+	struct task_struct *curr = current->group_leader;
 
 	if (curr->signal->session != session) {
 		detach_pid(curr, PIDTYPE_SID);
@@ -842,7 +843,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	}
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
- 		del_timer_sync(&tsk->signal->real_timer);
+ 		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
 		acct_process(code);
 	}
@@ -870,6 +871,10 @@ fastcall NORET_TYPE void do_exit(long code)
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
+	/*
+	 * If DEBUG_MUTEXES is on, make sure we are holding no locks:
+	 */
+	mutex_debug_check_no_locks_held(tsk);
 
 	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();
@@ -926,7 +931,6 @@ do_group_exit(int exit_code)
 			/* Another thread got here before we took the lock.  */
 			exit_code = sig->group_exit_code;
 		else {
-			sig->flags = SIGNAL_GROUP_EXIT;
 			sig->group_exit_code = exit_code;
 			zap_other_threads(current);
 		}
@@ -1068,6 +1072,9 @@ static int wait_task_zombie(task_t *p, int noreap,
 	}
 
 	if (likely(p->real_parent == p->parent) && likely(p->signal)) {
+		struct signal_struct *psig;
+		struct signal_struct *sig;
+
 		/*
 		 * The resource counters for the group leader are in its
 		 * own task_struct.  Those for dead threads in the group
@@ -1084,24 +1091,26 @@ static int wait_task_zombie(task_t *p, int noreap,
 		 * here reaping other children at the same time.
 		 */
 		spin_lock_irq(&p->parent->sighand->siglock);
-		p->parent->signal->cutime =
-			cputime_add(p->parent->signal->cutime,
+		psig = p->parent->signal;
+		sig = p->signal;
+		psig->cutime =
+			cputime_add(psig->cutime,
 			cputime_add(p->utime,
-			cputime_add(p->signal->utime,
-				    p->signal->cutime)));
-		p->parent->signal->cstime =
-			cputime_add(p->parent->signal->cstime,
+			cputime_add(sig->utime,
+				    sig->cutime)));
+		psig->cstime =
+			cputime_add(psig->cstime,
 			cputime_add(p->stime,
-			cputime_add(p->signal->stime,
-				    p->signal->cstime)));
-		p->parent->signal->cmin_flt +=
-			p->min_flt + p->signal->min_flt + p->signal->cmin_flt;
-		p->parent->signal->cmaj_flt +=
-			p->maj_flt + p->signal->maj_flt + p->signal->cmaj_flt;
-		p->parent->signal->cnvcsw +=
-			p->nvcsw + p->signal->nvcsw + p->signal->cnvcsw;
-		p->parent->signal->cnivcsw +=
-			p->nivcsw + p->signal->nivcsw + p->signal->cnivcsw;
+			cputime_add(sig->stime,
+				    sig->cstime)));
+		psig->cmin_flt +=
+			p->min_flt + sig->min_flt + sig->cmin_flt;
+		psig->cmaj_flt +=
+			p->maj_flt + sig->maj_flt + sig->cmaj_flt;
+		psig->cnvcsw +=
+			p->nvcsw + sig->nvcsw + sig->cnvcsw;
+		psig->cnivcsw +=
+			p->nivcsw + sig->nivcsw + sig->cnivcsw;
 		spin_unlock_irq(&p->parent->sighand->siglock);
 	}
 

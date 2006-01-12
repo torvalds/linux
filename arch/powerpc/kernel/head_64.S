@@ -154,11 +154,15 @@ _GLOBAL(__secondary_hold)
 	bne	100b
 
 #ifdef CONFIG_HMT
-	b	.hmt_init
+	LOADADDR(r4, .hmt_init)
+	mtctr	r4
+	bctr
 #else
 #ifdef CONFIG_SMP
+	LOADADDR(r4, .pSeries_secondary_smp_init)
+	mtctr	r4
 	mr	r3,r24
-	b	.pSeries_secondary_smp_init
+	bctr
 #else
 	BUG_OPCODE
 #endif
@@ -200,6 +204,20 @@ exception_marker:
 #define EX_R3		64
 #define EX_LR		72
 
+/*
+ * We're short on space and time in the exception prolog, so we can't use
+ * the normal LOADADDR macro. Normally we just need the low halfword of the
+ * address, but for Kdump we need the whole low word.
+ */
+#ifdef CONFIG_CRASH_DUMP
+#define LOAD_HANDLER(reg, label)					\
+	oris	reg,reg,(label)@h;	/* virt addr of handler ... */	\
+	ori	reg,reg,(label)@l;	/* .. and the rest */
+#else
+#define LOAD_HANDLER(reg, label)					\
+	ori	reg,reg,(label)@l;	/* virt addr of handler ... */
+#endif
+
 #define EXCEPTION_PROLOG_PSERIES(area, label)				\
 	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
@@ -212,7 +230,7 @@ exception_marker:
 	clrrdi	r12,r13,32;		/* get high part of &label */	\
 	mfmsr	r10;							\
 	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
-	ori	r12,r12,(label)@l;	/* virt addr of handler */	\
+	LOAD_HANDLER(r12,label)						\
 	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
 	mtspr	SPRN_SRR0,r12;						\
 	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
@@ -553,6 +571,7 @@ slb_miss_user_pseries:
  * Vectors for the FWNMI option.  Share common code.
  */
 	.globl system_reset_fwnmi
+      .align 7
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
@@ -560,6 +579,7 @@ system_reset_fwnmi:
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 
 	.globl machine_check_fwnmi
+      .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
@@ -726,7 +746,8 @@ iSeries_secondary_smp_loop:
 decrementer_iSeries_masked:
 	li	r11,1
 	stb	r11,PACALPPACA+LPPACADECRINT(r13)
-	lwz	r12,PACADEFAULTDECR(r13)
+	LOADBASE(r12,tb_ticks_per_jiffy)
+	lwz	r12,OFF(tb_ticks_per_jiffy)(r12)
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
@@ -1345,7 +1366,7 @@ _GLOBAL(do_stab_bolted)
  * fixed address (the linker can't compute (u64)&initial_stab >>
  * PAGE_SHIFT).
  */
-	. = STAB0_PHYS_ADDR	/* 0x6000 */
+	. = STAB0_OFFSET	/* 0x6000 */
 	.globl initial_stab
 initial_stab:
 	.space	4096
@@ -1485,11 +1506,13 @@ _STATIC(__mmu_off)
  *
  */
 _GLOBAL(__start_initialization_multiplatform)
+#ifdef CONFIG_PPC_MULTIPLATFORM
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
 	 */
 	cmpldi	cr0,r5,0
 	bne	.__boot_from_prom		/* yes -> prom */
+#endif
 
 	/* Save parameters */
 	mr	r31,r3
@@ -1510,6 +1533,7 @@ _GLOBAL(__start_initialization_multiplatform)
 	bl	.__mmu_off
 	b	.__after_prom_start
 
+#ifdef CONFIG_PPC_MULTIPLATFORM
 _STATIC(__boot_from_prom)
 	/* Save parameters */
 	mr	r31,r3
@@ -1542,6 +1566,7 @@ _STATIC(__boot_from_prom)
 	bl	.prom_init
 	/* We never return */
 	trap
+#endif
 
 /*
  * At this point, r3 contains the physical address we are running at,
@@ -1550,7 +1575,7 @@ _STATIC(__boot_from_prom)
 _STATIC(__after_prom_start)
 
 /*
- * We need to run with __start at physical address 0.
+ * We need to run with __start at physical address PHYSICAL_START.
  * This will leave some code in the first 256B of
  * real memory, which are reserved for software use.
  * The remainder of the first page is loaded with the fixed
@@ -1565,7 +1590,7 @@ _STATIC(__after_prom_start)
 	mr	r26,r3
 	SET_REG_TO_CONST(r27,KERNELBASE)
 
-	li	r3,0			/* target addr */
+	LOADADDR(r3, PHYSICAL_START)	/* target addr */
 
 	// XXX FIXME: Use phys returned by OF (r30)
 	add	r4,r27,r26 		/* source addr			 */
@@ -1846,7 +1871,7 @@ _STATIC(start_here_multiplatform)
 	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
 	add	r13,r13,r26		/* convert to physical addr	 */
-	mtspr	SPRN_SPRG3,r13		/* PPPBBB: Temp... -Peter */
+	mtspr	SPRN_SPRG3,r13
 	
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/

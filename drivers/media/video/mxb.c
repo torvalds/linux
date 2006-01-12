@@ -26,6 +26,7 @@
 #include <media/saa7146_vv.h>
 #include <media/tuner.h>
 #include <linux/video_decoder.h>
+#include <media/v4l2-common.h>
 
 #include "mxb.h"
 #include "tea6415c.h"
@@ -176,12 +177,11 @@ static int mxb_probe(struct saa7146_dev* dev)
 		return -ENODEV;
 	}
 
-	mxb = (struct mxb*)kmalloc(sizeof(struct mxb), GFP_KERNEL);
+	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
 	if( NULL == mxb ) {
 		DEB_D(("not enough kernel memory.\n"));
 		return -ENOMEM;
 	}
-	memset(mxb, 0x0, sizeof(struct mxb));	
 
 	mxb->i2c_adapter = (struct i2c_adapter) {
 		.class = I2C_CLASS_TV_ANALOG,

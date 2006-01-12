@@ -4,7 +4,7 @@
 #include <linux/types.h>
 
 #ifdef __KERNEL__
-#include <linux/seqlock.h>
+# include <linux/seqlock.h>
 #endif
 
 #ifndef _STRUCT_TIMESPEC
@@ -13,7 +13,7 @@ struct timespec {
 	time_t	tv_sec;		/* seconds */
 	long	tv_nsec;	/* nanoseconds */
 };
-#endif /* _STRUCT_TIMESPEC */
+#endif
 
 struct timeval {
 	time_t		tv_sec;		/* seconds */
@@ -27,92 +27,102 @@ struct timezone {
 
 #ifdef __KERNEL__
 
-/* Parameters used to convert the timespec values */
-#define MSEC_PER_SEC (1000L)
-#define USEC_PER_SEC (1000000L)
-#define NSEC_PER_SEC (1000000000L)
-#define NSEC_PER_USEC (1000L)
+/* Parameters used to convert the timespec values: */
+#define MSEC_PER_SEC		1000L
+#define USEC_PER_SEC		1000000L
+#define NSEC_PER_SEC		1000000000L
+#define NSEC_PER_USEC		1000L
 
-static __inline__ int timespec_equal(struct timespec *a, struct timespec *b) 
-{ 
-	return (a->tv_sec == b->tv_sec) && (a->tv_nsec == b->tv_nsec);
-} 
-
-/* Converts Gregorian date to seconds since 1970-01-01 00:00:00.
- * Assumes input in normal date format, i.e. 1980-12-31 23:59:59
- * => year=1980, mon=12, day=31, hour=23, min=59, sec=59.
- *
- * [For the Julian calendar (which was used in Russia before 1917,
- * Britain & colonies before 1752, anywhere else before 1582,
- * and is still in use by some communities) leave out the
- * -year/100+year/400 terms, and add 10.]
- *
- * This algorithm was first published by Gauss (I think).
- *
- * WARNING: this function will overflow on 2106-02-07 06:28:16 on
- * machines were long is 32-bit! (However, as time_t is signed, we
- * will already get problems at other places on 2038-01-19 03:14:08)
- */
-static inline unsigned long
-mktime (unsigned int year, unsigned int mon,
-	unsigned int day, unsigned int hour,
-	unsigned int min, unsigned int sec)
+static __inline__ int timespec_equal(struct timespec *a, struct timespec *b)
 {
-	if (0 >= (int) (mon -= 2)) {	/* 1..12 -> 11,12,1..10 */
-		mon += 12;		/* Puts Feb last since it has leap day */
-		year -= 1;
-	}
-
-	return (((
-		(unsigned long) (year/4 - year/100 + year/400 + 367*mon/12 + day) +
-			year*365 - 719499
-	    )*24 + hour /* now have hours */
-	  )*60 + min /* now have minutes */
-	)*60 + sec; /* finally seconds */
+	return (a->tv_sec == b->tv_sec) && (a->tv_nsec == b->tv_nsec);
 }
+
+extern unsigned long mktime(const unsigned int year, const unsigned int mon,
+			    const unsigned int day, const unsigned int hour,
+			    const unsigned int min, const unsigned int sec);
+
+extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
+
+/*
+ * Returns true if the timespec is norm, false if denorm:
+ */
+#define timespec_valid(ts) \
+	(((ts)->tv_sec >= 0) && (((unsigned) (ts)->tv_nsec) < NSEC_PER_SEC))
+
+/*
+ * 64-bit nanosec type. Large enough to span 292+ years in nanosecond
+ * resolution. Ought to be enough for a while.
+ */
+typedef s64 nsec_t;
 
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock;
 
 static inline unsigned long get_seconds(void)
-{ 
+{
 	return xtime.tv_sec;
 }
 
 struct timespec current_kernel_time(void);
 
-#define CURRENT_TIME (current_kernel_time())
-#define CURRENT_TIME_SEC ((struct timespec) { xtime.tv_sec, 0 })
+#define CURRENT_TIME		(current_kernel_time())
+#define CURRENT_TIME_SEC	((struct timespec) { xtime.tv_sec, 0 })
 
 extern void do_gettimeofday(struct timeval *tv);
 extern int do_settimeofday(struct timespec *tv);
 extern int do_sys_settimeofday(struct timespec *tv, struct timezone *tz);
-extern void clock_was_set(void); // call when ever the clock is set
-extern int do_posix_clock_monotonic_gettime(struct timespec *tp);
-extern long do_utimes(char __user * filename, struct timeval * times);
+#define do_posix_clock_monotonic_gettime(ts) ktime_get_ts(ts)
+extern long do_utimes(char __user *filename, struct timeval *times);
 struct itimerval;
-extern int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue);
+extern int do_setitimer(int which, struct itimerval *value,
+			struct itimerval *ovalue);
 extern int do_getitimer(int which, struct itimerval *value);
-extern void getnstimeofday (struct timespec *tv);
-extern void getnstimestamp(struct timespec *ts);
+extern void getnstimeofday(struct timespec *tv);
 
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
 
-static inline void
-set_normalized_timespec (struct timespec *ts, time_t sec, long nsec)
+/**
+ * timespec_to_ns - Convert timespec to nanoseconds
+ * @ts:		pointer to the timespec variable to be converted
+ *
+ * Returns the scalar nanosecond representation of the timespec
+ * parameter.
+ */
+static inline nsec_t timespec_to_ns(const struct timespec *ts)
 {
-	while (nsec >= NSEC_PER_SEC) {
-		nsec -= NSEC_PER_SEC;
-		++sec;
-	}
-	while (nsec < 0) {
-		nsec += NSEC_PER_SEC;
-		--sec;
-	}
-	ts->tv_sec = sec;
-	ts->tv_nsec = nsec;
+	return ((nsec_t) ts->tv_sec * NSEC_PER_SEC) + ts->tv_nsec;
 }
+
+/**
+ * timeval_to_ns - Convert timeval to nanoseconds
+ * @ts:		pointer to the timeval variable to be converted
+ *
+ * Returns the scalar nanosecond representation of the timeval
+ * parameter.
+ */
+static inline nsec_t timeval_to_ns(const struct timeval *tv)
+{
+	return ((nsec_t) tv->tv_sec * NSEC_PER_SEC) +
+		tv->tv_usec * NSEC_PER_USEC;
+}
+
+/**
+ * ns_to_timespec - Convert nanoseconds to timespec
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the timespec representation of the nsec parameter.
+ */
+extern struct timespec ns_to_timespec(const nsec_t nsec);
+
+/**
+ * ns_to_timeval - Convert nanoseconds to timeval
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the timeval representation of the nsec parameter.
+ */
+extern struct timeval ns_to_timeval(const nsec_t nsec);
 
 #endif /* __KERNEL__ */
 
@@ -126,49 +136,41 @@ set_normalized_timespec (struct timespec *ts, time_t sec, long nsec)
 
 /*
  * Names of the interval timers, and structure
- * defining a timer setting.
+ * defining a timer setting:
  */
-#define	ITIMER_REAL	0
-#define	ITIMER_VIRTUAL	1
-#define	ITIMER_PROF	2
+#define	ITIMER_REAL		0
+#define	ITIMER_VIRTUAL		1
+#define	ITIMER_PROF		2
 
-struct  itimerspec {
-        struct  timespec it_interval;    /* timer period */
-        struct  timespec it_value;       /* timer expiration */
+struct itimerspec {
+	struct timespec it_interval;	/* timer period */
+	struct timespec it_value;	/* timer expiration */
 };
 
-struct	itimerval {
-	struct	timeval it_interval;	/* timer interval */
-	struct	timeval it_value;	/* current value */
+struct itimerval {
+	struct timeval it_interval;	/* timer interval */
+	struct timeval it_value;	/* current value */
 };
 
+/*
+ * The IDs of the various system clocks (for POSIX.1b interval timers):
+ */
+#define CLOCK_REALTIME			0
+#define CLOCK_MONOTONIC			1
+#define CLOCK_PROCESS_CPUTIME_ID	2
+#define CLOCK_THREAD_CPUTIME_ID		3
 
 /*
- * The IDs of the various system clocks (for POSIX.1b interval timers).
+ * The IDs of various hardware clocks:
  */
-#define CLOCK_REALTIME		  0
-#define CLOCK_MONOTONIC	  1
-#define CLOCK_PROCESS_CPUTIME_ID 2
-#define CLOCK_THREAD_CPUTIME_ID	 3
-#define CLOCK_REALTIME_HR	 4
-#define CLOCK_MONOTONIC_HR	  5
+#define CLOCK_SGI_CYCLE			10
+#define MAX_CLOCKS			16
+#define CLOCKS_MASK			(CLOCK_REALTIME | CLOCK_MONOTONIC)
+#define CLOCKS_MONO			CLOCK_MONOTONIC
 
 /*
- * The IDs of various hardware clocks
+ * The various flags for setting POSIX.1b interval timers:
  */
-
-
-#define CLOCK_SGI_CYCLE 10
-#define MAX_CLOCKS 16
-#define CLOCKS_MASK  (CLOCK_REALTIME | CLOCK_MONOTONIC | \
-                     CLOCK_REALTIME_HR | CLOCK_MONOTONIC_HR)
-#define CLOCKS_MONO (CLOCK_MONOTONIC & CLOCK_MONOTONIC_HR)
-
-/*
- * The various flags for setting POSIX.1b interval timers.
- */
-
-#define TIMER_ABSTIME 0x01
-
+#define TIMER_ABSTIME			0x01
 
 #endif

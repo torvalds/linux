@@ -86,16 +86,6 @@ config MOUSE_PC110PAD
 	  To compile this driver as a module, choose M here: the
 	  module will be called pc110pad.
 
-config MOUSE_MAPLE
-	tristate "Maple bus mouse"
-	depends on SH_DREAMCAST && MAPLE
-	help
-	  Say Y if you have a DreamCast console and a mouse attached to
-	  its Maple bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called maplemouse.
-
 config MOUSE_AMIGA
 	tristate "Amiga mouse"
 	depends on AMIGA

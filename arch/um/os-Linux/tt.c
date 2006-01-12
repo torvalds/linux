@@ -23,7 +23,6 @@
 #include "kern_util.h"
 #include "user.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"
@@ -48,6 +47,20 @@ int protect_memory(unsigned long addr, unsigned long len, int r, int w, int x,
 		else return(err);
 	}
 	return(0);
+}
+
+void kill_child_dead(int pid)
+{
+	kill(pid, SIGKILL);
+	kill(pid, SIGCONT);
+	do {
+		int n;
+		CATCH_EINTR(n = waitpid(pid, NULL, 0));
+		if (n > 0)
+			kill(pid, SIGCONT);
+		else
+			break;
+	} while(1);
 }
 
 /*

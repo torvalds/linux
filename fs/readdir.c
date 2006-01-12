@@ -30,13 +30,13 @@ int vfs_readdir(struct file *file, filldir_t filler, void *buf)
 	if (res)
 		goto out;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		res = file->f_op->readdir(file, buf, filler);
 		file_accessed(file);
 	}
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 out:
 	return res;
 }

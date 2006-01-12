@@ -382,7 +382,8 @@ typedef struct {
 #define VC2_IREG_CONTROL       0x10
 #define VC2_IREG_CONFIG        0x20
 
-extern __inline__ void newport_vc2_set(struct newport_regs *regs, unsigned char vc2ireg,
+static inline void newport_vc2_set(struct newport_regs *regs,
+				   unsigned char vc2ireg,
 				   unsigned short val)
 {
 	regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_INDEX | NPORT_DMODE_W3 |
@@ -390,7 +391,7 @@ extern __inline__ void newport_vc2_set(struct newport_regs *regs, unsigned char 
 	regs->set.dcbdata0.byword = (vc2ireg << 24) | (val << 8);
 }
 
-extern __inline__ unsigned short newport_vc2_get(struct newport_regs *regs,
+static inline unsigned short newport_vc2_get(struct newport_regs *regs,
 					     unsigned char vc2ireg)
 {
 	regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_INDEX | NPORT_DMODE_W1 |

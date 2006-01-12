@@ -1490,6 +1490,7 @@ static struct video_device zr36120_template=
 	.write		= zoran_write,
 	.poll		= zoran_poll,
 	.ioctl		= zoran_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.mmap		= zoran_mmap,
 	.minor		= -1,
 };

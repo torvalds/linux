@@ -467,10 +467,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
 }
 
-void __kprobes arch_remove_kprobe(struct kprobe *p)
-{
-}
-
 /*
  * We are resuming execution after a single step fault, so the pt_regs
  * structure reflects the register state after we executed the instruction
@@ -642,6 +638,13 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;
 			}
+		} else if (!is_ia64_break_inst(regs)) {
+			/* The breakpoint instruction was removed by
+			 * another cpu right after we hit, no further
+			 * handling of this interrupt is appropriate
+			 */
+			ret = 1;
+			goto no_kprobe;
 		} else {
 			/* Not our break */
 			goto no_kprobe;

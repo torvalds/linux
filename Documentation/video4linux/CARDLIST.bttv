@@ -141,3 +141,5 @@
 140 -> Osprey 440                                          [0070:ff07]
 141 -> Asound Skyeye PCTV
 142 -> Sabrent TV-FM (bttv version)
+143 -> Hauppauge ImpactVCB (bt878)                         [0070:13eb]
+144 -> MagicTV

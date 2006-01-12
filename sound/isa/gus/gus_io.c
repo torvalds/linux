@@ -25,7 +25,7 @@
 #include <sound/core.h>
 #include <sound/gus.h>
 
-void snd_gf1_delay(snd_gus_card_t * gus)
+void snd_gf1_delay(struct snd_gus_card * gus)
 {
 	int i;
 
@@ -44,7 +44,7 @@ void snd_gf1_delay(snd_gus_card_t * gus)
  *       big UltraClick (tm) elimination...
  */
 
-static inline void __snd_gf1_ctrl_stop(snd_gus_card_t * gus, unsigned char reg)
+static inline void __snd_gf1_ctrl_stop(struct snd_gus_card * gus, unsigned char reg)
 {
 	unsigned char value;
 
@@ -58,7 +58,7 @@ static inline void __snd_gf1_ctrl_stop(snd_gus_card_t * gus, unsigned char reg)
 	mb();
 }
 
-static inline void __snd_gf1_write8(snd_gus_card_t * gus,
+static inline void __snd_gf1_write8(struct snd_gus_card * gus,
 				    unsigned char reg,
 				    unsigned char data)
 {
@@ -68,7 +68,7 @@ static inline void __snd_gf1_write8(snd_gus_card_t * gus,
 	mb();
 }
 
-static inline unsigned char __snd_gf1_look8(snd_gus_card_t * gus,
+static inline unsigned char __snd_gf1_look8(struct snd_gus_card * gus,
 					    unsigned char reg)
 {
 	outb(reg, gus->gf1.reg_regsel);
@@ -76,7 +76,7 @@ static inline unsigned char __snd_gf1_look8(snd_gus_card_t * gus,
 	return inb(gus->gf1.reg_data8);
 }
 
-static inline void __snd_gf1_write16(snd_gus_card_t * gus,
+static inline void __snd_gf1_write16(struct snd_gus_card * gus,
 				     unsigned char reg, unsigned int data)
 {
 	outb(reg, gus->gf1.reg_regsel);
@@ -85,7 +85,7 @@ static inline void __snd_gf1_write16(snd_gus_card_t * gus,
 	mb();
 }
 
-static inline unsigned short __snd_gf1_look16(snd_gus_card_t * gus,
+static inline unsigned short __snd_gf1_look16(struct snd_gus_card * gus,
 					      unsigned char reg)
 {
 	outb(reg, gus->gf1.reg_regsel);
@@ -93,7 +93,7 @@ static inline unsigned short __snd_gf1_look16(snd_gus_card_t * gus,
 	return inw(gus->gf1.reg_data16);
 }
 
-static inline void __snd_gf1_adlib_write(snd_gus_card_t * gus,
+static inline void __snd_gf1_adlib_write(struct snd_gus_card * gus,
 					 unsigned char reg, unsigned char data)
 {
 	outb(reg, gus->gf1.reg_timerctrl);
@@ -104,7 +104,7 @@ static inline void __snd_gf1_adlib_write(snd_gus_card_t * gus,
 	inb(gus->gf1.reg_timerctrl);
 }
 
-static inline void __snd_gf1_write_addr(snd_gus_card_t * gus, unsigned char reg,
+static inline void __snd_gf1_write_addr(struct snd_gus_card * gus, unsigned char reg,
                                         unsigned int addr, int w_16bit)
 {
 	if (gus->gf1.enh_mode) {
@@ -117,7 +117,7 @@ static inline void __snd_gf1_write_addr(snd_gus_card_t * gus, unsigned char reg,
 	__snd_gf1_write16(gus, reg + 1, (unsigned short) (addr << 5));
 }
 
-static inline unsigned int __snd_gf1_read_addr(snd_gus_card_t * gus,
+static inline unsigned int __snd_gf1_read_addr(struct snd_gus_card * gus,
 					       unsigned char reg, short w_16bit)
 {
 	unsigned int res;
@@ -138,49 +138,49 @@ static inline unsigned int __snd_gf1_read_addr(snd_gus_card_t * gus,
  *  =======================================================================
  */
 
-void snd_gf1_ctrl_stop(snd_gus_card_t * gus, unsigned char reg)
+void snd_gf1_ctrl_stop(struct snd_gus_card * gus, unsigned char reg)
 {
 	__snd_gf1_ctrl_stop(gus, reg);
 }
 
-void snd_gf1_write8(snd_gus_card_t * gus,
+void snd_gf1_write8(struct snd_gus_card * gus,
 		    unsigned char reg,
 		    unsigned char data)
 {
 	__snd_gf1_write8(gus, reg, data);
 }
 
-unsigned char snd_gf1_look8(snd_gus_card_t * gus, unsigned char reg)
+unsigned char snd_gf1_look8(struct snd_gus_card * gus, unsigned char reg)
 {
 	return __snd_gf1_look8(gus, reg);
 }
 
-void snd_gf1_write16(snd_gus_card_t * gus,
+void snd_gf1_write16(struct snd_gus_card * gus,
 		     unsigned char reg,
 		     unsigned int data)
 {
 	__snd_gf1_write16(gus, reg, data);
 }
 
-unsigned short snd_gf1_look16(snd_gus_card_t * gus, unsigned char reg)
+unsigned short snd_gf1_look16(struct snd_gus_card * gus, unsigned char reg)
 {
 	return __snd_gf1_look16(gus, reg);
 }
 
-void snd_gf1_adlib_write(snd_gus_card_t * gus,
+void snd_gf1_adlib_write(struct snd_gus_card * gus,
                          unsigned char reg,
                          unsigned char data)
 {
 	__snd_gf1_adlib_write(gus, reg, data);
 }
 
-void snd_gf1_write_addr(snd_gus_card_t * gus, unsigned char reg,
+void snd_gf1_write_addr(struct snd_gus_card * gus, unsigned char reg,
                         unsigned int addr, short w_16bit)
 {
 	__snd_gf1_write_addr(gus, reg, addr, w_16bit);
 }
 
-unsigned int snd_gf1_read_addr(snd_gus_card_t * gus,
+unsigned int snd_gf1_read_addr(struct snd_gus_card * gus,
                                unsigned char reg,
                                short w_16bit)
 {
@@ -191,7 +191,7 @@ unsigned int snd_gf1_read_addr(snd_gus_card_t * gus,
 
  */
 
-void snd_gf1_i_ctrl_stop(snd_gus_card_t * gus, unsigned char reg)
+void snd_gf1_i_ctrl_stop(struct snd_gus_card * gus, unsigned char reg)
 {
 	unsigned long flags;
 
@@ -200,7 +200,7 @@ void snd_gf1_i_ctrl_stop(snd_gus_card_t * gus, unsigned char reg)
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-void snd_gf1_i_write8(snd_gus_card_t * gus,
+void snd_gf1_i_write8(struct snd_gus_card * gus,
 		      unsigned char reg,
                       unsigned char data)
 {
@@ -211,7 +211,7 @@ void snd_gf1_i_write8(snd_gus_card_t * gus,
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-unsigned char snd_gf1_i_look8(snd_gus_card_t * gus, unsigned char reg)
+unsigned char snd_gf1_i_look8(struct snd_gus_card * gus, unsigned char reg)
 {
 	unsigned long flags;
 	unsigned char res;
@@ -222,7 +222,7 @@ unsigned char snd_gf1_i_look8(snd_gus_card_t * gus, unsigned char reg)
 	return res;
 }
 
-void snd_gf1_i_write16(snd_gus_card_t * gus,
+void snd_gf1_i_write16(struct snd_gus_card * gus,
 		       unsigned char reg,
 		       unsigned int data)
 {
@@ -233,7 +233,7 @@ void snd_gf1_i_write16(snd_gus_card_t * gus,
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-unsigned short snd_gf1_i_look16(snd_gus_card_t * gus, unsigned char reg)
+unsigned short snd_gf1_i_look16(struct snd_gus_card * gus, unsigned char reg)
 {
 	unsigned long flags;
 	unsigned short res;
@@ -246,7 +246,7 @@ unsigned short snd_gf1_i_look16(snd_gus_card_t * gus, unsigned char reg)
 
 #if 0
 
-void snd_gf1_i_adlib_write(snd_gus_card_t * gus,
+void snd_gf1_i_adlib_write(struct snd_gus_card * gus,
 		           unsigned char reg,
 		           unsigned char data)
 {
@@ -257,7 +257,7 @@ void snd_gf1_i_adlib_write(snd_gus_card_t * gus,
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-void snd_gf1_i_write_addr(snd_gus_card_t * gus, unsigned char reg,
+void snd_gf1_i_write_addr(struct snd_gus_card * gus, unsigned char reg,
 			  unsigned int addr, short w_16bit)
 {
 	unsigned long flags;
@@ -270,7 +270,7 @@ void snd_gf1_i_write_addr(snd_gus_card_t * gus, unsigned char reg,
 #endif  /*  0  */
 
 #ifdef CONFIG_SND_DEBUG
-static unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus,
+static unsigned int snd_gf1_i_read_addr(struct snd_gus_card * gus,
 					unsigned char reg, short w_16bit)
 {
 	unsigned int res;
@@ -287,7 +287,7 @@ static unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus,
 
  */
 
-void snd_gf1_dram_addr(snd_gus_card_t * gus, unsigned int addr)
+void snd_gf1_dram_addr(struct snd_gus_card * gus, unsigned int addr)
 {
 	outb(0x43, gus->gf1.reg_regsel);
 	mb();
@@ -299,7 +299,7 @@ void snd_gf1_dram_addr(snd_gus_card_t * gus, unsigned int addr)
 	mb();
 }
 
-void snd_gf1_poke(snd_gus_card_t * gus, unsigned int addr, unsigned char data)
+void snd_gf1_poke(struct snd_gus_card * gus, unsigned int addr, unsigned char data)
 {
 	unsigned long flags;
 
@@ -316,7 +316,7 @@ void snd_gf1_poke(snd_gus_card_t * gus, unsigned int addr, unsigned char data)
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-unsigned char snd_gf1_peek(snd_gus_card_t * gus, unsigned int addr)
+unsigned char snd_gf1_peek(struct snd_gus_card * gus, unsigned int addr)
 {
 	unsigned long flags;
 	unsigned char res;
@@ -337,7 +337,7 @@ unsigned char snd_gf1_peek(snd_gus_card_t * gus, unsigned int addr)
 
 #if 0
 
-void snd_gf1_pokew(snd_gus_card_t * gus, unsigned int addr, unsigned short data)
+void snd_gf1_pokew(struct snd_gus_card * gus, unsigned int addr, unsigned short data)
 {
 	unsigned long flags;
 
@@ -360,7 +360,7 @@ void snd_gf1_pokew(snd_gus_card_t * gus, unsigned int addr, unsigned short data)
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-unsigned short snd_gf1_peekw(snd_gus_card_t * gus, unsigned int addr)
+unsigned short snd_gf1_peekw(struct snd_gus_card * gus, unsigned int addr)
 {
 	unsigned long flags;
 	unsigned short res;
@@ -385,7 +385,7 @@ unsigned short snd_gf1_peekw(snd_gus_card_t * gus, unsigned int addr)
 	return res;
 }
 
-void snd_gf1_dram_setmem(snd_gus_card_t * gus, unsigned int addr,
+void snd_gf1_dram_setmem(struct snd_gus_card * gus, unsigned int addr,
 			 unsigned short value, unsigned int count)
 {
 	unsigned long port;
@@ -415,7 +415,7 @@ void snd_gf1_dram_setmem(snd_gus_card_t * gus, unsigned int addr,
 
 #endif  /*  0  */
 
-void snd_gf1_select_active_voices(snd_gus_card_t * gus)
+void snd_gf1_select_active_voices(struct snd_gus_card * gus)
 {
 	unsigned short voices;
 
@@ -443,7 +443,7 @@ void snd_gf1_select_active_voices(snd_gus_card_t * gus)
 
 #ifdef CONFIG_SND_DEBUG
 
-void snd_gf1_print_voice_registers(snd_gus_card_t * gus)
+void snd_gf1_print_voice_registers(struct snd_gus_card * gus)
 {
 	unsigned char mode;
 	int voice, ctrl;
@@ -477,7 +477,7 @@ void snd_gf1_print_voice_registers(snd_gus_card_t * gus)
 
 #if 0
 
-void snd_gf1_print_global_registers(snd_gus_card_t * gus)
+void snd_gf1_print_global_registers(struct snd_gus_card * gus)
 {
 	unsigned char global_mode = 0x00;
 
@@ -504,7 +504,7 @@ void snd_gf1_print_global_registers(snd_gus_card_t * gus)
 	}
 }
 
-void snd_gf1_print_setup_registers(snd_gus_card_t * gus)
+void snd_gf1_print_setup_registers(struct snd_gus_card * gus)
 {
 	printk(KERN_INFO " -S- mix control                  = 0x%x\n", inb(GUSP(gus, MIXCNTRLREG)));
 	printk(KERN_INFO " -S- IRQ status                   = 0x%x\n", inb(GUSP(gus, IRQSTAT)));
@@ -523,7 +523,7 @@ void snd_gf1_print_setup_registers(snd_gus_card_t * gus)
 	}
 }
 
-void snd_gf1_peek_print_block(snd_gus_card_t * gus, unsigned int addr, int count, int w_16bit)
+void snd_gf1_peek_print_block(struct snd_gus_card * gus, unsigned int addr, int count, int w_16bit)
 {
 	if (!w_16bit) {
 		while (count-- > 0)

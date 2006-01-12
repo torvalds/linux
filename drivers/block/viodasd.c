@@ -247,43 +247,17 @@ static int viodasd_release(struct inode *ino, struct file *fil)
 
 /* External ioctl entry point.
  */
-static int viodasd_ioctl(struct inode *ino, struct file *fil,
-			 unsigned int cmd, unsigned long arg)
+static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	unsigned char sectors;
-	unsigned char heads;
-	unsigned short cylinders;
-	struct hd_geometry *geo;
-	struct gendisk *gendisk;
-	struct viodasd_device *d;
+	struct gendisk *disk = bdev->bd_disk;
+	struct viodasd_device *d = disk->private_data;
 
-	switch (cmd) {
-	case HDIO_GETGEO:
-		geo = (struct hd_geometry *)arg;
-		if (geo == NULL)
-			return -EINVAL;
-		if (!access_ok(VERIFY_WRITE, geo, sizeof(*geo)))
-			return -EFAULT;
-		gendisk = ino->i_bdev->bd_disk;
-		d = gendisk->private_data;
-		sectors = d->sectors;
-		if (sectors == 0)
-			sectors = 32;
-		heads = d->tracks;
-		if (heads == 0)
-			heads = 64;
-		cylinders = d->cylinders;
-		if (cylinders == 0)
-			cylinders = get_capacity(gendisk) / (sectors * heads);
-		if (__put_user(sectors, &geo->sectors) ||
-		    __put_user(heads, &geo->heads) ||
-		    __put_user(cylinders, &geo->cylinders) ||
-		    __put_user(get_start_sect(ino->i_bdev), &geo->start))
-			return -EFAULT;
-		return 0;
-	}
+	geo->sectors = d->sectors ? d->sectors : 0;
+	geo->heads = d->tracks ? d->tracks  : 64;
+	geo->cylinders = d->cylinders ? d->cylinders :
+		get_capacity(disk) / (geo->cylinders * geo->heads);
 
-	return -EINVAL;
+	return 0;
 }
 
 /*
@@ -293,7 +267,7 @@ static struct block_device_operations viodasd_fops = {
 	.owner = THIS_MODULE,
 	.open = viodasd_open,
 	.release = viodasd_release,
-	.ioctl = viodasd_ioctl,
+	.getgeo = viodasd_getgeo,
 };
 
 /*
@@ -305,7 +279,7 @@ static void viodasd_end_request(struct request *req, int uptodate,
 	if (end_that_request_first(req, uptodate, num_sectors))
 		return;
 	add_disk_randomness(req->rq_disk);
-	end_that_request_last(req);
+	end_that_request_last(req, uptodate);
 }
 
 /*
@@ -319,6 +293,7 @@ static int send_request(struct request *req)
 	u16 viocmd;
 	HvLpEvent_Rc hvrc;
 	struct vioblocklpevent *bevent;
+	struct HvLpEvent *hev;
 	struct scatterlist sg[VIOMAXBLOCKDMA];
 	int sgindex;
 	int statindex;
@@ -373,22 +348,19 @@ static int send_request(struct request *req)
 		 * token so we can match the response up later
 		 */
 		memset(bevent, 0, sizeof(struct vioblocklpevent));
-		bevent->event.xFlags.xValid = 1;
-		bevent->event.xFlags.xFunction = HvLpEvent_Function_Int;
-		bevent->event.xFlags.xAckInd = HvLpEvent_AckInd_DoAck;
-		bevent->event.xFlags.xAckType = HvLpEvent_AckType_ImmediateAck;
-		bevent->event.xType = HvLpEvent_Type_VirtualIo;
-		bevent->event.xSubtype = viocmd;
-		bevent->event.xSourceLp = HvLpConfig_getLpIndex();
-		bevent->event.xTargetLp = viopath_hostLp;
-		bevent->event.xSizeMinus1 =
+		hev = &bevent->event;
+		hev->flags = HV_LP_EVENT_VALID | HV_LP_EVENT_DO_ACK |
+			HV_LP_EVENT_INT;
+		hev->xType = HvLpEvent_Type_VirtualIo;
+		hev->xSubtype = viocmd;
+		hev->xSourceLp = HvLpConfig_getLpIndex();
+		hev->xTargetLp = viopath_hostLp;
+		hev->xSizeMinus1 =
 			offsetof(struct vioblocklpevent, u.rw_data.dma_info) +
 			(sizeof(bevent->u.rw_data.dma_info[0]) * nsg) - 1;
-		bevent->event.xSourceInstanceId =
-			viopath_sourceinst(viopath_hostLp);
-		bevent->event.xTargetInstanceId =
-			viopath_targetinst(viopath_hostLp);
-		bevent->event.xCorrelationToken = (u64)req;
+		hev->xSourceInstanceId = viopath_sourceinst(viopath_hostLp);
+		hev->xTargetInstanceId = viopath_targetinst(viopath_hostLp);
+		hev->xCorrelationToken = (u64)req;
 		bevent->version = VIOVERSION;
 		bevent->disk = DEVICE_NO(d);
 		bevent->u.rw_data.offset = start;
@@ -675,10 +647,10 @@ static void handle_block_event(struct HvLpEvent *event)
 		/* Notification that a partition went away! */
 		return;
 	/* First, we should NEVER get an int here...only acks */
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		printk(VIOD_KERN_WARNING
 		       "Yikes! got an int in viodasd event handler!\n");
-		if (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck) {
+		if (hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}
@@ -721,7 +693,7 @@ static void handle_block_event(struct HvLpEvent *event)
 
 	default:
 		printk(VIOD_KERN_WARNING "invalid subtype!");
-		if (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck) {
+		if (hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}

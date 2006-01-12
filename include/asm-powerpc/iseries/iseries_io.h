@@ -6,7 +6,7 @@
 #ifdef CONFIG_PPC_ISERIES
 #include <linux/types.h>
 /*
- * File iSeries_io.h created by Allan Trautman on Thu Dec 28 2000.
+ * Created by Allan Trautman on Thu Dec 28 2000.
  *
  * Remaps the io.h for the iSeries Io
  * Copyright (C) 2000  Allan H Trautman, IBM Corporation
@@ -32,6 +32,7 @@
  * End Change Activity
  */
 
+#ifdef CONFIG_PCI
 extern u8   iSeries_Read_Byte(const volatile void __iomem * IoAddress);
 extern u16  iSeries_Read_Word(const volatile void __iomem * IoAddress);
 extern u32  iSeries_Read_Long(const volatile void __iomem * IoAddress);
@@ -44,6 +45,17 @@ extern void iSeries_memcpy_toio(volatile void __iomem *dest, void *source,
 		size_t n);
 extern void iSeries_memcpy_fromio(void *dest,
 		const volatile void __iomem *source, size_t n);
+#else
+static inline u8 iSeries_Read_Byte(const volatile void __iomem *IoAddress)
+{
+	return 0xff;
+}
+
+static inline void iSeries_Write_Byte(u8 IoData,
+		volatile void __iomem *IoAddress)
+{
+}
+#endif	/* CONFIG_PCI */
 
 #endif /* CONFIG_PPC_ISERIES */
 #endif /* _ASM_POWERPC_ISERIES_ISERIES_IO_H */

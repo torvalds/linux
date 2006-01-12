@@ -26,10 +26,8 @@
 
 #define MAX_MIDI_EVENT_BUF	256
 
-typedef struct snd_midi_event_t snd_midi_event_t;
-
 /* midi status */
-struct snd_midi_event_t {
+struct snd_midi_event {
 	int qlen;		/* queue length */
 	int read;		/* chars read */
 	int type;		/* current event type */
@@ -40,15 +38,17 @@ struct snd_midi_event_t {
 	spinlock_t lock;
 };
 
-int snd_midi_event_new(int bufsize, snd_midi_event_t **rdev);
-void snd_midi_event_free(snd_midi_event_t *dev);
-void snd_midi_event_reset_encode(snd_midi_event_t *dev);
-void snd_midi_event_reset_decode(snd_midi_event_t *dev);
-void snd_midi_event_no_status(snd_midi_event_t *dev, int on);
+int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev);
+void snd_midi_event_free(struct snd_midi_event *dev);
+void snd_midi_event_reset_encode(struct snd_midi_event *dev);
+void snd_midi_event_reset_decode(struct snd_midi_event *dev);
+void snd_midi_event_no_status(struct snd_midi_event *dev, int on);
 /* encode from byte stream - return number of written bytes if success */
-long snd_midi_event_encode(snd_midi_event_t *dev, unsigned char *buf, long count, snd_seq_event_t *ev);
-int snd_midi_event_encode_byte(snd_midi_event_t *dev, int c, snd_seq_event_t *ev);
+long snd_midi_event_encode(struct snd_midi_event *dev, unsigned char *buf, long count,
+			   struct snd_seq_event *ev);
+int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c, struct snd_seq_event *ev);
 /* decode from event to bytes - return number of written bytes if success */
-long snd_midi_event_decode(snd_midi_event_t *dev, unsigned char *buf, long count, snd_seq_event_t *ev);
+long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long count,
+			   struct snd_seq_event *ev);
 
 #endif /* __SOUND_SEQ_MIDI_EVENT_H */

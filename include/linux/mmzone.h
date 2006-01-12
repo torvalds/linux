@@ -38,7 +38,7 @@ struct pglist_data;
 #if defined(CONFIG_SMP)
 struct zone_padding {
 	char x[0];
-} ____cacheline_maxaligned_in_smp;
+} ____cacheline_internodealigned_in_smp;
 #define ZONE_PADDING(name)	struct zone_padding name;
 #else
 #define ZONE_PADDING(name)
@@ -46,7 +46,6 @@ struct zone_padding {
 
 struct per_cpu_pages {
 	int count;		/* number of pages in the list */
-	int low;		/* low watermark, refill needed */
 	int high;		/* high watermark, emptying needed */
 	int batch;		/* chunk size for buddy add/remove */
 	struct list_head list;	/* the list of pages */
@@ -99,7 +98,7 @@ struct per_cpu_pageset {
 
 /*
  * On machines where it is needed (eg PCs) we divide physical memory
- * into multiple physical zones. On a PC we have 4 zones:
+ * into multiple physical zones. On a 32bit PC we have 4 zones:
  *
  * ZONE_DMA	  < 16 MB	ISA DMA capable memory
  * ZONE_DMA32	     0 MB 	Empty
@@ -234,7 +233,7 @@ struct zone {
 	 * rarely used fields:
 	 */
 	char			*name;
-} ____cacheline_maxaligned_in_smp;
+} ____cacheline_internodealigned_in_smp;
 
 
 /*
@@ -389,6 +388,11 @@ static inline struct zone *next_zone(struct zone *zone)
 #define for_each_zone(zone) \
 	for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
 
+static inline int populated_zone(struct zone *zone)
+{
+	return (!!zone->present_pages);
+}
+
 static inline int is_highmem_idx(int idx)
 {
 	return (idx == ZONE_HIGHMEM);
@@ -398,6 +402,7 @@ static inline int is_normal_idx(int idx)
 {
 	return (idx == ZONE_NORMAL);
 }
+
 /**
  * is_highmem - helper function to quickly check if a struct zone is a 
  *              highmem zone or not.  This is an attempt to keep references
@@ -414,6 +419,16 @@ static inline int is_normal(struct zone *zone)
 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
 }
 
+static inline int is_dma32(struct zone *zone)
+{
+	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
+}
+
+static inline int is_dma(struct zone *zone)
+{
+	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
+}
+
 /* These two functions are used to setup the per zone pages min values */
 struct ctl_table;
 struct file;
@@ -421,6 +436,8 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
 int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
+					void __user *, size_t *, loff_t *);
+int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 
 #include <linux/topology.h>
@@ -435,7 +452,6 @@ extern struct pglist_data contig_page_data;
 #define NODE_DATA(nid)		(&contig_page_data)
 #define NODE_MEM_MAP(nid)	mem_map
 #define MAX_NODES_SHIFT		1
-#define pfn_to_nid(pfn)		(0)
 
 #else /* CONFIG_NEED_MULTIPLE_NODES */
 
@@ -468,6 +484,10 @@ extern struct pglist_data contig_page_data;
 
 #ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
 #define early_pfn_to_nid(nid)  (0UL)
+#endif
+
+#ifdef CONFIG_FLATMEM
+#define pfn_to_nid(pfn)		(0)
 #endif
 
 #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
@@ -564,11 +584,6 @@ static inline int valid_section_nr(unsigned long nr)
 	return valid_section(__nr_to_section(nr));
 }
 
-/*
- * Given a kernel address, find the home node of the underlying memory.
- */
-#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
-
 static inline struct mem_section *__pfn_to_section(unsigned long pfn)
 {
 	return __nr_to_section(pfn_to_section_nr(pfn));
@@ -598,13 +613,14 @@ static inline int pfn_valid(unsigned long pfn)
  * this restriction.
  */
 #ifdef CONFIG_NUMA
-#define pfn_to_nid		early_pfn_to_nid
-#endif
-
-#define pfn_to_pgdat(pfn)						\
+#define pfn_to_nid(pfn)							\
 ({									\
-	NODE_DATA(pfn_to_nid(pfn));					\
+	unsigned long __pfn_to_nid_pfn = (pfn);				\
+	page_to_nid(pfn_to_page(__pfn_to_nid_pfn));			\
 })
+#else
+#define pfn_to_nid(pfn)		(0)
+#endif
 
 #define early_pfn_valid(pfn)	pfn_valid(pfn)
 void sparse_init(void);
@@ -612,12 +628,6 @@ void sparse_init(void);
 #define sparse_init()	do {} while (0)
 #define sparse_index_init(_sec, _nid)  do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
-
-#ifdef CONFIG_NODES_SPAN_OTHER_NODES
-#define early_pfn_in_nid(pfn, nid)	(early_pfn_to_nid(pfn) == (nid))
-#else
-#define early_pfn_in_nid(pfn, nid)	(1)
-#endif
 
 #ifndef early_pfn_valid
 #define early_pfn_valid(pfn)	(1)

@@ -24,6 +24,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 
+#include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/signal.h>
@@ -293,7 +294,7 @@ static inline int nl_pid_hash_dilute(struct nl_pid_hash *hash, int len)
 	return 0;
 }
 
-static struct proto_ops netlink_ops;
+static const struct proto_ops netlink_ops;
 
 static int netlink_insert(struct sock *sk, u32 pid)
 {
@@ -402,7 +403,7 @@ static int netlink_create(struct socket *sock, int protocol)
 	groups = nl_table[protocol].groups;
 	netlink_unlock_table();
 
-	if ((err = __netlink_create(sock, protocol) < 0))
+	if ((err = __netlink_create(sock, protocol)) < 0)
 		goto out_module;
 
 	nlk = nlk_sk(sock->sk);
@@ -1422,7 +1423,7 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 	while (skb->len >= nlmsg_total_size(0)) {
 		nlh = (struct nlmsghdr *) skb->data;
 
-		if (skb->len < nlh->nlmsg_len)
+		if (nlh->nlmsg_len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len)
 			return 0;
 
 		total_len = min(NLMSG_ALIGN(nlh->nlmsg_len), skb->len);
@@ -1656,7 +1657,7 @@ int netlink_unregister_notifier(struct notifier_block *nb)
 	return notifier_chain_unregister(&netlink_chain, nb);
 }
                 
-static struct proto_ops netlink_ops = {
+static const struct proto_ops netlink_ops = {
 	.family =	PF_NETLINK,
 	.owner =	THIS_MODULE,
 	.release =	netlink_release,

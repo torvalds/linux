@@ -33,7 +33,35 @@
 
 #include "power.h"
 
+struct pbe *pagedir_nosave;
+unsigned int nr_copy_pages;
+
 #ifdef CONFIG_HIGHMEM
+unsigned int count_highmem_pages(void)
+{
+	struct zone *zone;
+	unsigned long zone_pfn;
+	unsigned int n = 0;
+
+	for_each_zone (zone)
+		if (is_highmem(zone)) {
+			mark_free_pages(zone);
+			for (zone_pfn = 0; zone_pfn < zone->spanned_pages; zone_pfn++) {
+				struct page *page;
+				unsigned long pfn = zone_pfn + zone->zone_start_pfn;
+				if (!pfn_valid(pfn))
+					continue;
+				page = pfn_to_page(pfn);
+				if (PageReserved(page))
+					continue;
+				if (PageNosaveFree(page))
+					continue;
+				n++;
+			}
+		}
+	return n;
+}
+
 struct highmem_page {
 	char *data;
 	struct page *page;
@@ -149,17 +177,15 @@ static int saveable(struct zone *zone, unsigned long *zone_pfn)
 	BUG_ON(PageReserved(page) && PageNosave(page));
 	if (PageNosave(page))
 		return 0;
-	if (PageReserved(page) && pfn_is_nosave(pfn)) {
-		pr_debug("[nosave pfn 0x%lx]", pfn);
+	if (PageReserved(page) && pfn_is_nosave(pfn))
 		return 0;
-	}
 	if (PageNosaveFree(page))
 		return 0;
 
 	return 1;
 }
 
-static unsigned count_data_pages(void)
+unsigned int count_data_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
@@ -244,7 +270,7 @@ static inline void fill_pb_page(struct pbe *pbpage)
  *	of memory pages allocated with alloc_pagedir()
  */
 
-void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
+static inline void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 {
 	struct pbe *pbpage, *p;
 	unsigned int num = PBES_PER_PAGE;
@@ -261,7 +287,35 @@ void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 			p->next = p + 1;
 		p->next = NULL;
 	}
-	pr_debug("create_pbe_list(): initialized %d PBEs\n", num);
+}
+
+/**
+ *	On resume it is necessary to trace and eventually free the unsafe
+ *	pages that have been allocated, because they are needed for I/O
+ *	(on x86-64 we likely will "eat" these pages once again while
+ *	creating the temporary page translation tables)
+ */
+
+struct eaten_page {
+	struct eaten_page *next;
+	char padding[PAGE_SIZE - sizeof(void *)];
+};
+
+static struct eaten_page *eaten_pages = NULL;
+
+void release_eaten_pages(void)
+{
+	struct eaten_page *p, *q;
+
+	p = eaten_pages;
+	while (p) {
+		q = p->next;
+		/* We don't want swsusp_free() to free this page again */
+		ClearPageNosave(virt_to_page(p));
+		free_page((unsigned long)p);
+		p = q;
+	}
+	eaten_pages = NULL;
 }
 
 /**
@@ -282,9 +336,12 @@ static inline void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
 	if (safe_needed)
 		do {
 			res = (void *)get_zeroed_page(gfp_mask);
-			if (res && PageNosaveFree(virt_to_page(res)))
+			if (res && PageNosaveFree(virt_to_page(res))) {
 				/* This is for swsusp_free() */
 				SetPageNosave(virt_to_page(res));
+				((struct eaten_page *)res)->next = eaten_pages;
+				eaten_pages = res;
+			}
 		} while (res && PageNosaveFree(virt_to_page(res)));
 	else
 		res = (void *)get_zeroed_page(gfp_mask);
@@ -332,7 +389,8 @@ struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask, int safe_needed
 	if (!pbe) { /* get_zeroed_page() failed */
 		free_pagedir(pblist);
 		pblist = NULL;
-        }
+        } else
+        	create_pbe_list(pblist, nr_pages);
 	return pblist;
 }
 
@@ -370,8 +428,14 @@ void swsusp_free(void)
 
 static int enough_free_mem(unsigned int nr_pages)
 {
-	pr_debug("swsusp: available memory: %u pages\n", nr_free_pages());
-	return nr_free_pages() > (nr_pages + PAGES_FOR_IO +
+	struct zone *zone;
+	unsigned int n = 0;
+
+	for_each_zone (zone)
+		if (!is_highmem(zone))
+			n += zone->free_pages;
+	pr_debug("swsusp: available memory: %u pages\n", n);
+	return n > (nr_pages + PAGES_FOR_IO +
 		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
 }
 
@@ -395,7 +459,6 @@ static struct pbe *swsusp_alloc(unsigned int nr_pages)
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
 		return NULL;
 	}
-	create_pbe_list(pblist, nr_pages);
 
 	if (alloc_data_pages(pblist, GFP_ATOMIC | __GFP_COLD, 0)) {
 		printk(KERN_ERR "suspend: Allocating image pages failed.\n");
@@ -420,10 +483,6 @@ asmlinkage int swsusp_save(void)
 		 nr_pages,
 		 (nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE,
 		 PAGES_FOR_IO, nr_free_pages());
-
-	/* This is needed because of the fixed size of swsusp_info */
-	if (MAX_PBES < (nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE)
-		return -ENOSPC;
 
 	if (!enough_free_mem(nr_pages)) {
 		printk(KERN_ERR "swsusp: Not enough free memory\n");

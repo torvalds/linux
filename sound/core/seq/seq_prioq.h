@@ -26,37 +26,37 @@
 
 /* === PRIOQ === */
 
-typedef struct {
-	snd_seq_event_cell_t* head;      /* pointer to head of prioq */
-	snd_seq_event_cell_t* tail;      /* pointer to tail of prioq */
+struct snd_seq_prioq {
+	struct snd_seq_event_cell *head;      /* pointer to head of prioq */
+	struct snd_seq_event_cell *tail;      /* pointer to tail of prioq */
 	int cells;
 	spinlock_t lock;
-} prioq_t;
+};
 
 
 /* create new prioq (constructor) */
-extern prioq_t *snd_seq_prioq_new(void);
+struct snd_seq_prioq *snd_seq_prioq_new(void);
 
 /* delete prioq (destructor) */
-extern void snd_seq_prioq_delete(prioq_t **fifo);
+void snd_seq_prioq_delete(struct snd_seq_prioq **fifo);
 
 /* enqueue cell to prioq */
-extern int snd_seq_prioq_cell_in(prioq_t *f, snd_seq_event_cell_t *cell);
+int snd_seq_prioq_cell_in(struct snd_seq_prioq *f, struct snd_seq_event_cell *cell);
 
 /* dequeue cell from prioq */ 
-extern snd_seq_event_cell_t *snd_seq_prioq_cell_out(prioq_t *f);
+struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f);
 
 /* return number of events available in prioq */
-extern int snd_seq_prioq_avail(prioq_t *f);
+int snd_seq_prioq_avail(struct snd_seq_prioq *f);
 
 /* peek at cell at the head of the prioq */
-extern snd_seq_event_cell_t *snd_seq_prioq_cell_peek(prioq_t *f);
+struct snd_seq_event_cell *snd_seq_prioq_cell_peek(struct snd_seq_prioq *f);
 
 /* client left queue */
-extern void snd_seq_prioq_leave(prioq_t *f, int client, int timestamp);        
+void snd_seq_prioq_leave(struct snd_seq_prioq *f, int client, int timestamp);        
 
 /* Remove events */
-void snd_seq_prioq_remove_events(prioq_t * f, int client,
-	snd_seq_remove_events_t *info);
+void snd_seq_prioq_remove_events(struct snd_seq_prioq *f, int client,
+				 struct snd_seq_remove_events *info);
 
 #endif

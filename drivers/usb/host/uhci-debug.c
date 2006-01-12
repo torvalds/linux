@@ -2,8 +2,8 @@
  * UHCI-specific debugging code. Invaluable when something
  * goes wrong, but don't get in my face.
  *
- * Kernel visible pointers are surrounded in []'s and bus
- * visible pointers are surrounded in ()'s
+ * Kernel visible pointers are surrounded in []s and bus
+ * visible pointers are surrounded in ()s
  *
  * (C) Copyright 1999 Linus Torvalds
  * (C) Copyright 1999-2001 Johannes Erdfelt
@@ -19,7 +19,7 @@
 
 static struct dentry *uhci_debugfs_root = NULL;
 
-/* Handle REALLY large printk's so we don't overflow buffers */
+/* Handle REALLY large printks so we don't overflow buffers */
 static inline void lprintk(char *buf)
 {
 	char *p;
@@ -160,7 +160,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 			}
 
 			if (active && ni > i) {
-				out += sprintf(out, "%*s[skipped %d active TD's]\n", space, "", ni - i);
+				out += sprintf(out, "%*s[skipped %d active TDs]\n", space, "", ni - i);
 				tmp = ntmp;
 				td = ntd;
 				i = ni;
@@ -173,7 +173,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	if (list_empty(&urbp->queue_list) || urbp->queued)
 		goto out;
 
-	out += sprintf(out, "%*sQueued QH's:\n", -space, "--");
+	out += sprintf(out, "%*sQueued QHs:\n", -space, "--");
 
 	head = &urbp->queue_list;
 	tmp = head->next;
@@ -197,7 +197,7 @@ out:
 	}
 
 #ifdef CONFIG_PROC_FS
-static const char *qh_names[] = {
+static const char * const qh_names[] = {
   "skel_int128_qh", "skel_int64_qh",
   "skel_int32_qh", "skel_int16_qh",
   "skel_int8_qh", "skel_int4_qh",
@@ -464,7 +464,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 		} while (tmp != head);
 	}
 
-	out += sprintf(out, "Skeleton QH's\n");
+	out += sprintf(out, "Skeleton QHs\n");
 
 	for (i = 0; i < UHCI_NUM_SKELQH; ++i) {
 		int shown = 0;

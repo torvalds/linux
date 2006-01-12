@@ -288,7 +288,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Determine total amount of storage required for TXB packets */
 	bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
-	if (host_encrypt)
+	if (host_encrypt || host_build_iv)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		    IEEE80211_FCTL_PROTECTED;
 	else

@@ -168,8 +168,8 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
  */
 void __init prom_boot_secondary(int cpu, struct task_struct *idle)
 {
-	unsigned long gp = (unsigned long) idle->thread_info;
-	unsigned long sp = gp + THREAD_SIZE - 32;
+	unsigned long gp = (unsigned long)task_thread_info(idle);
+	unsigned long sp = __KSTK_TOS(idle);
 
 	LAUNCH_SLAVE(cputonasid(cpu),cputoslice(cpu),
 		(launch_proc_t)MAPPED_KERN_RW_TO_K0(smp_bootstrap),

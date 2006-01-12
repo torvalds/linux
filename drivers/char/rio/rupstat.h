@@ -39,7 +39,7 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_rupstat_h_sccs = "@(#)rupstat.h	1.1" ;
+static char *_rio_rupstat_h_sccs = "@(#)rupstat.h	1.1";
 #endif
 #endif
 
@@ -48,4 +48,3 @@ static char *_rio_rupstat_h_sccs = "@(#)rupstat.h	1.1" ;
 #define    STATUS_TOPOLOGY    2
 
 #endif
-

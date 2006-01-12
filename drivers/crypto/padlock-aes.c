@@ -99,9 +99,6 @@ byte(const uint32_t x, const unsigned n)
 	return x >> (n << 3);
 }
 
-#define uint32_t_in(x) le32_to_cpu(*(const uint32_t *)(x))
-#define uint32_t_out(to, from) (*(uint32_t *)(to) = cpu_to_le32(from))
-
 #define E_KEY ctx->E
 #define D_KEY ctx->D
 
@@ -294,6 +291,7 @@ static int
 aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t *flags)
 {
 	struct aes_ctx *ctx = aes_ctx(ctx_arg);
+	const __le32 *key = (const __le32 *)in_key;
 	uint32_t i, t, u, v, w;
 	uint32_t P[AES_EXTENDED_KEY_SIZE];
 	uint32_t rounds;
@@ -313,10 +311,10 @@ aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t
 	ctx->E = ctx->e_data;
 	ctx->D = ctx->e_data;
 
-	E_KEY[0] = uint32_t_in (in_key);
-	E_KEY[1] = uint32_t_in (in_key + 4);
-	E_KEY[2] = uint32_t_in (in_key + 8);
-	E_KEY[3] = uint32_t_in (in_key + 12);
+	E_KEY[0] = le32_to_cpu(key[0]);
+	E_KEY[1] = le32_to_cpu(key[1]);
+	E_KEY[2] = le32_to_cpu(key[2]);
+	E_KEY[3] = le32_to_cpu(key[3]);
 
 	/* Prepare control words. */
 	memset(&ctx->cword, 0, sizeof(ctx->cword));
@@ -343,17 +341,17 @@ aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t
 		break;
 
 	case 24:
-		E_KEY[4] = uint32_t_in (in_key + 16);
-		t = E_KEY[5] = uint32_t_in (in_key + 20);
+		E_KEY[4] = le32_to_cpu(key[4]);
+		t = E_KEY[5] = le32_to_cpu(key[5]);
 		for (i = 0; i < 8; ++i)
 			loop6 (i);
 		break;
 
 	case 32:
-		E_KEY[4] = uint32_t_in (in_key + 16);
-		E_KEY[5] = uint32_t_in (in_key + 20);
-		E_KEY[6] = uint32_t_in (in_key + 24);
-		t = E_KEY[7] = uint32_t_in (in_key + 28);
+		E_KEY[4] = le32_to_cpu(in_key[4]);
+		E_KEY[5] = le32_to_cpu(in_key[5]);
+		E_KEY[6] = le32_to_cpu(in_key[6]);
+		t = E_KEY[7] = le32_to_cpu(in_key[7]);
 		for (i = 0; i < 7; ++i)
 			loop8 (i);
 		break;
@@ -468,6 +466,8 @@ static unsigned int aes_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
+	.cra_driver_name	=	"aes-padlock",
+	.cra_priority		=	300,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct aes_ctx),

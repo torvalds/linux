@@ -9,6 +9,7 @@
  *	Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -199,6 +200,8 @@ struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, u32 label)
 	}
 	return NULL;
 }
+
+EXPORT_SYMBOL_GPL(fl6_sock_lookup);
 
 void fl6_free_socklist(struct sock *sk)
 {

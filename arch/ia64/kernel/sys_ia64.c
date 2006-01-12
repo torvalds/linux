@@ -151,7 +151,7 @@ out:
 asmlinkage long
 sys_pipe (void)
 {
-	struct pt_regs *regs = ia64_task_regs(current);
+	struct pt_regs *regs = task_pt_regs(current);
 	int fd[2];
 	int retval;
 

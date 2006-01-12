@@ -3,6 +3,7 @@
  *
  * Multiplexer Definitions
  *
+ *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,19 +24,35 @@
  *
  */
 
-/* structure to manage each RPC transaction */
+struct v9fs_mux_data;
 
-struct v9fs_rpcreq {
-	struct v9fs_fcall *tcall;
-	struct v9fs_fcall *rcall;
-	int err;	/* error code if response failed */
+/**
+ * v9fs_mux_req_callback - callback function that is called when the
+ * response of a request is received. The callback is called from
+ * a workqueue and shouldn't block.
+ *
+ * @a - the pointer that was specified when the request was send to be
+ *      passed to the callback
+ * @tc - request call
+ * @rc - response call
+ * @err - error code (non-zero if error occured)
+ */
+typedef void (*v9fs_mux_req_callback)(void *a, struct v9fs_fcall *tc,
+	struct v9fs_fcall *rc, int err);
 
-	/* XXX - could we put scatter/gather buffers here? */
+int v9fs_mux_global_init(void);
+void v9fs_mux_global_exit(void);
 
-	struct list_head next;
-};
+struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
+	unsigned char *extended);
+void v9fs_mux_destroy(struct v9fs_mux_data *);
 
-int v9fs_mux_init(struct v9fs_session_info *v9ses, const char *dev_name);
-long v9fs_mux_rpc(struct v9fs_session_info *v9ses,
-		  struct v9fs_fcall *tcall, struct v9fs_fcall **rcall);
-void v9fs_mux_cancel_requests(struct v9fs_session_info *v9ses, int err);
+int v9fs_mux_send(struct v9fs_mux_data *m, struct v9fs_fcall *tc);
+struct v9fs_fcall *v9fs_mux_recv(struct v9fs_mux_data *m);
+int v9fs_mux_rpc(struct v9fs_mux_data *m, struct v9fs_fcall *tc, struct v9fs_fcall **rc);
+int v9fs_mux_rpcnb(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
+	v9fs_mux_req_callback cb, void *a);
+
+void v9fs_mux_flush(struct v9fs_mux_data *m, int sendflush);
+void v9fs_mux_cancel(struct v9fs_mux_data *m, int err);
+int v9fs_errstr2errno(char *errstr, int len);

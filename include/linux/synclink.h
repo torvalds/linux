@@ -1,7 +1,7 @@
 /*
  * SyncLink Multiprotocol Serial Adapter Driver
  *
- * $Id: synclink.h,v 3.6 2002/02/20 21:58:20 paulkf Exp $
+ * $Id: synclink.h,v 3.10 2005/11/08 19:50:54 paulkf Exp $
  *
  * Copyright (C) 1998-2000 by Microgate Corporation
  *
@@ -128,10 +128,14 @@
 #define MGSL_BUS_TYPE_EISA	2
 #define MGSL_BUS_TYPE_PCI	5
 
+#define MGSL_INTERFACE_MASK     0xf
 #define MGSL_INTERFACE_DISABLE  0
 #define MGSL_INTERFACE_RS232    1
 #define MGSL_INTERFACE_V35      2
 #define MGSL_INTERFACE_RS422    3
+#define MGSL_INTERFACE_RTS_EN   0x10
+#define MGSL_INTERFACE_LL       0x20
+#define MGSL_INTERFACE_RL       0x40
 
 typedef struct _MGSL_PARAMS
 {
@@ -163,6 +167,9 @@ typedef struct _MGSL_PARAMS
 #define SYNCLINK_DEVICE_ID 0x0010
 #define MGSCC_DEVICE_ID 0x0020
 #define SYNCLINK_SCA_DEVICE_ID 0x0030
+#define SYNCLINK_GT_DEVICE_ID 0x0070
+#define SYNCLINK_GT4_DEVICE_ID 0x0080
+#define SYNCLINK_AC_DEVICE_ID  0x0090
 #define MGSL_MAX_SERIAL_NUMBER 30
 
 /*

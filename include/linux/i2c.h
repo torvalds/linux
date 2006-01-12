@@ -105,14 +105,14 @@ extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
  * A driver is capable of handling one or more physical devices present on
  * I2C adapters. This information is used to inform the driver of adapter
  * events.
+ *
+ * The driver.owner field should be set to the module owner of this driver.
+ * The driver.name field should be set to the name of this driver.
  */
 
 struct i2c_driver {
-	struct module *owner;
-	char name[32];
 	int id;
 	unsigned int class;
-	unsigned int flags;		/* div., see below		*/
 
 	/* Notifies the driver that a new bus has appeared. This routine
 	 * can be used by the driver to test if the bus meets its conditions
@@ -250,18 +250,7 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
 	dev_set_drvdata (&dev->dev, data);
 }
 
-/*flags for the driver struct: */
-#define I2C_DF_NOTIFY	0x01		/* notify on bus (de/a)ttaches 	*/
-#if 0
-/* this flag is gone -- there is a (optional) driver->detach_adapter
- * callback now which can be used instead */
-# define I2C_DF_DUMMY	0x02
-#endif
-
 /*flags for the client struct: */
-#define I2C_CLIENT_ALLOW_USE		0x01	/* Client allows access */
-#define I2C_CLIENT_ALLOW_MULTIPLE_USE 	0x02  	/* Allow multiple access-locks */
-						/* on an i2c_client */
 #define I2C_CLIENT_PEC  0x04			/* Use Packet Error Checking */
 #define I2C_CLIENT_TEN	0x10			/* we have a ten bit chip address	*/
 						/* Must equal I2C_M_TEN below */
@@ -302,26 +291,20 @@ struct i2c_client_address_data {
 extern int i2c_add_adapter(struct i2c_adapter *);
 extern int i2c_del_adapter(struct i2c_adapter *);
 
-extern int i2c_add_driver(struct i2c_driver *);
+extern int i2c_register_driver(struct module *, struct i2c_driver *);
 extern int i2c_del_driver(struct i2c_driver *);
+
+static inline int i2c_add_driver(struct i2c_driver *driver)
+{
+	return i2c_register_driver(THIS_MODULE, driver);
+}
 
 extern int i2c_attach_client(struct i2c_client *);
 extern int i2c_detach_client(struct i2c_client *);
 
-/* New function: This is to get an i2c_client-struct for controlling the 
-   client either by using i2c_control-function or having the 
-   client-module export functions that can be used with the i2c_client
-   -struct. */
-extern struct i2c_client *i2c_get_client(int driver_id, int adapter_id, 
-					struct i2c_client *prev);
-
-/* Should be used with new function
-   extern struct i2c_client *i2c_get_client(int,int,struct i2c_client *);
-   to make sure that client-struct is valid and that it is okay to access
-   the i2c-client. 
-   returns -EACCES if client doesn't allow use (default)
-   returns -EBUSY if client doesn't allow multiple use (default) and 
-   usage_count >0 */
+/* Should be used to make sure that client-struct is valid and that it
+   is okay to access the i2c-client.
+   returns -ENODEV if client has gone in the meantime */
 extern int i2c_use_client(struct i2c_client *);
 extern int i2c_release_client(struct i2c_client *);
 

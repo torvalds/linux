@@ -19,12 +19,11 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
-
-#include <asm/hardware/clock.h>
 
 /* TODO: Add support for SDRAM timing changes */
 

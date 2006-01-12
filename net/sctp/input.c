@@ -225,6 +225,7 @@ int sctp_rcv(struct sk_buff *skb)
 
 	if (!xfrm_policy_check(sk, XFRM_POLICY_IN, skb, family))
 		goto discard_release;
+	nf_reset(skb);
 
 	ret = sk_filter(sk, skb, 1);
 	if (ret)
@@ -305,18 +306,36 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			   struct sctp_transport *t, __u32 pmtu)
 {
-	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
-		printk(KERN_WARNING "%s: Reported pmtu %d too low, "
-		       "using default minimum of %d\n", __FUNCTION__, pmtu,
-		       SCTP_DEFAULT_MINSEGMENT);
-		pmtu = SCTP_DEFAULT_MINSEGMENT;
+	if (sock_owned_by_user(sk) || !t || (t->pathmtu == pmtu))
+		return;
+
+	if (t->param_flags & SPP_PMTUD_ENABLE) {
+		if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
+			printk(KERN_WARNING "%s: Reported pmtu %d too low, "
+			       "using default minimum of %d\n",
+			       __FUNCTION__, pmtu,
+			       SCTP_DEFAULT_MINSEGMENT);
+			/* Use default minimum segment size and disable
+			 * pmtu discovery on this transport.
+			 */
+			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
+			t->param_flags = (t->param_flags & ~SPP_HB) |
+				SPP_PMTUD_DISABLE;
+		} else {
+			t->pathmtu = pmtu;
+		}
+
+		/* Update association pmtu. */
+		sctp_assoc_sync_pmtu(asoc);
 	}
 
-	if (!sock_owned_by_user(sk) && t && (t->pmtu != pmtu)) {
-		t->pmtu = pmtu;
-		sctp_assoc_sync_pmtu(asoc);
-		sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
-	}
+	/* Retransmit with the new pmtu setting.
+	 * Normally, if PMTU discovery is disabled, an ICMP Fragmentation
+	 * Needed will never be sent, but if a message was sent before
+	 * PMTU discovery was disabled that was larger than the PMTU, it
+	 * would not be fragmented, so it must be re-transmitted fragmented.	 
+	 */
+	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
 }
 
 /*

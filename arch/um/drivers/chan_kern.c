@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -58,7 +58,7 @@ static void *not_configged_init(char *str, int device, struct chan_opts *opts)
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
-	return(NULL);
+	return NULL;
 }
 
 static int not_configged_open(int input, int output, int primary, void *data,
@@ -66,7 +66,7 @@ static int not_configged_open(int input, int output, int primary, void *data,
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
-	return(-ENODEV);
+	return -ENODEV;
 }
 
 static void not_configged_close(int fd, void *data)
@@ -79,21 +79,21 @@ static int not_configged_read(int fd, char *c_out, void *data)
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
-	return(-EIO);
+	return -EIO;
 }
 
 static int not_configged_write(int fd, const char *buf, int len, void *data)
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
-	return(-EIO);
+	return -EIO;
 }
 
 static int not_configged_console_write(int fd, const char *buf, int len)
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
-	return(-EIO);
+	return -EIO;
 }
 
 static int not_configged_window_size(int fd, void *data, unsigned short *rows,
@@ -101,7 +101,7 @@ static int not_configged_window_size(int fd, void *data, unsigned short *rows,
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
-	return(-ENODEV);
+	return -ENODEV;
 }
 
 static void not_configged_free(void *data)
@@ -135,17 +135,17 @@ int generic_read(int fd, char *c_out, void *unused)
 	n = os_read_file(fd, c_out, sizeof(*c_out));
 
 	if(n == -EAGAIN)
-		return(0);
+		return 0;
 	else if(n == 0)
-		return(-EIO);
-	return(n);
+		return -EIO;
+	return n;
 }
 
 /* XXX Trivial wrapper around os_write_file */
 
 int generic_write(int fd, const char *buf, int n, void *unused)
 {
-	return(os_write_file(fd, buf, n));
+	return os_write_file(fd, buf, n);
 }
 
 int generic_window_size(int fd, void *unused, unsigned short *rows_out,
@@ -156,14 +156,14 @@ int generic_window_size(int fd, void *unused, unsigned short *rows_out,
 
 	ret = os_window_size(fd, &rows, &cols);
 	if(ret < 0)
-		return(ret);
+		return ret;
 
 	ret = ((*rows_out != rows) || (*cols_out != cols));
 
 	*rows_out = rows;
 	*cols_out = cols;
 
-	return(ret);
+	return ret;
 }
 
 void generic_free(void *data)
@@ -186,25 +186,26 @@ static void tty_receive_char(struct tty_struct *tty, char ch)
 		}
 	}
 
-	if((tty->flip.flag_buf_ptr == NULL) || 
-	   (tty->flip.char_buf_ptr == NULL))
-		return;
 	tty_insert_flip_char(tty, ch, TTY_NORMAL);
 }
 
-static int open_one_chan(struct chan *chan, int input, int output, int primary)
+static int open_one_chan(struct chan *chan)
 {
 	int fd;
 
-	if(chan->opened) return(0);
-	if(chan->ops->open == NULL) fd = 0;
-	else fd = (*chan->ops->open)(input, output, primary, chan->data,
-				     &chan->dev);
-	if(fd < 0) return(fd);
+	if(chan->opened)
+		return 0;
+
+	if(chan->ops->open == NULL)
+		fd = 0;
+	else fd = (*chan->ops->open)(chan->input, chan->output, chan->primary,
+				     chan->data, &chan->dev);
+	if(fd < 0)
+		return fd;
 	chan->fd = fd;
 
 	chan->opened = 1;
-	return(0);
+	return 0;
 }
 
 int open_chan(struct list_head *chans)
@@ -215,11 +216,11 @@ int open_chan(struct list_head *chans)
 
 	list_for_each(ele, chans){
 		chan = list_entry(ele, struct chan, list);
-		ret = open_one_chan(chan, chan->input, chan->output,
-				    chan->primary);
-		if(chan->primary) err = ret;
+		ret = open_one_chan(chan);
+		if(chan->primary)
+			err = ret;
 	}
-	return(err);
+	return err;
 }
 
 void chan_enable_winch(struct list_head *chans, struct tty_struct *tty)
@@ -236,20 +237,65 @@ void chan_enable_winch(struct list_head *chans, struct tty_struct *tty)
 	}
 }
 
-void enable_chan(struct list_head *chans, struct tty_struct *tty)
+void enable_chan(struct line *line)
 {
 	struct list_head *ele;
 	struct chan *chan;
 
-	list_for_each(ele, chans){
+	list_for_each(ele, &line->chan_list){
 		chan = list_entry(ele, struct chan, list);
-		if(!chan->opened) continue;
+		if(open_one_chan(chan))
+			continue;
 
-		line_setup_irq(chan->fd, chan->input, chan->output, tty);
+		if(chan->enabled)
+			continue;
+		line_setup_irq(chan->fd, chan->input, chan->output, line,
+			       chan);
+		chan->enabled = 1;
 	}
 }
 
-void close_chan(struct list_head *chans)
+static LIST_HEAD(irqs_to_free);
+
+void free_irqs(void)
+{
+	struct chan *chan;
+
+	while(!list_empty(&irqs_to_free)){
+		chan = list_entry(irqs_to_free.next, struct chan, free_list);
+		list_del(&chan->free_list);
+
+		if(chan->input)
+			free_irq(chan->line->driver->read_irq, chan);
+		if(chan->output)
+			free_irq(chan->line->driver->write_irq, chan);
+		chan->enabled = 0;
+	}
+}
+
+static void close_one_chan(struct chan *chan, int delay_free_irq)
+{
+	if(!chan->opened)
+		return;
+
+	if(delay_free_irq){
+		list_add(&chan->free_list, &irqs_to_free);
+	}
+	else {
+		if(chan->input)
+			free_irq(chan->line->driver->read_irq, chan);
+		if(chan->output)
+			free_irq(chan->line->driver->write_irq, chan);
+		chan->enabled = 0;
+	}
+	if(chan->ops->close != NULL)
+		(*chan->ops->close)(chan->fd, chan->data);
+
+	chan->opened = 0;
+	chan->fd = -1;
+}
+
+void close_chan(struct list_head *chans, int delay_free_irq)
 {
 	struct chan *chan;
 
@@ -259,15 +305,37 @@ void close_chan(struct list_head *chans)
 	 * so it must be the last closed.
 	 */
 	list_for_each_entry_reverse(chan, chans, list) {
-		if(!chan->opened) continue;
-		if(chan->ops->close != NULL)
-			(*chan->ops->close)(chan->fd, chan->data);
-		chan->opened = 0;
-		chan->fd = -1;
+		close_one_chan(chan, delay_free_irq);
 	}
 }
 
-int write_chan(struct list_head *chans, const char *buf, int len, 
+void deactivate_chan(struct list_head *chans, int irq)
+{
+	struct list_head *ele;
+
+	struct chan *chan;
+	list_for_each(ele, chans) {
+		chan = list_entry(ele, struct chan, list);
+
+		if(chan->enabled && chan->input)
+			deactivate_fd(chan->fd, irq);
+	}
+}
+
+void reactivate_chan(struct list_head *chans, int irq)
+{
+	struct list_head *ele;
+	struct chan *chan;
+
+	list_for_each(ele, chans) {
+		chan = list_entry(ele, struct chan, list);
+
+		if(chan->enabled && chan->input)
+			reactivate_fd(chan->fd, irq);
+	}
+}
+
+int write_chan(struct list_head *chans, const char *buf, int len,
 	       int write_irq)
 {
 	struct list_head *ele;
@@ -285,7 +353,7 @@ int write_chan(struct list_head *chans, const char *buf, int len,
 				reactivate_fd(chan->fd, write_irq);
 		}
 	}
-	return(ret);
+	return ret;
 }
 
 int console_write_chan(struct list_head *chans, const char *buf, int len)
@@ -301,19 +369,18 @@ int console_write_chan(struct list_head *chans, const char *buf, int len)
 		n = chan->ops->console_write(chan->fd, buf, len);
 		if(chan->primary) ret = n;
 	}
-	return(ret);
+	return ret;
 }
 
-int console_open_chan(struct line *line, struct console *co, struct chan_opts *opts)
+int console_open_chan(struct line *line, struct console *co,
+		      struct chan_opts *opts)
 {
-	if (!list_empty(&line->chan_list))
-		return 0;
+	int err;
 
-	if (0 != parse_chan_pair(line->init_str, &line->chan_list,
-				 line->init_pri, co->index, opts))
-		return -1;
-	if (0 != open_chan(&line->chan_list))
-		return -1;
+	err = open_chan(&line->chan_list);
+	if(err)
+		return err;
+
 	printk("Console initialized on /dev/%s%d\n",co->name,co->index);
 	return 0;
 }
@@ -327,32 +394,36 @@ int chan_window_size(struct list_head *chans, unsigned short *rows_out,
 	list_for_each(ele, chans){
 		chan = list_entry(ele, struct chan, list);
 		if(chan->primary){
-			if(chan->ops->window_size == NULL) return(0);
-			return(chan->ops->window_size(chan->fd, chan->data,
-						      rows_out, cols_out));
+			if(chan->ops->window_size == NULL)
+				return 0;
+			return chan->ops->window_size(chan->fd, chan->data,
+						      rows_out, cols_out);
 		}
 	}
-	return(0);
+	return 0;
 }
 
-void free_one_chan(struct chan *chan)
+void free_one_chan(struct chan *chan, int delay_free_irq)
 {
 	list_del(&chan->list);
+
+	close_one_chan(chan, delay_free_irq);
+
 	if(chan->ops->free != NULL)
 		(*chan->ops->free)(chan->data);
-	free_irq_by_fd(chan->fd);
+
 	if(chan->primary && chan->output) ignore_sigio_fd(chan->fd);
 	kfree(chan);
 }
 
-void free_chan(struct list_head *chans)
+void free_chan(struct list_head *chans, int delay_free_irq)
 {
 	struct list_head *ele, *next;
 	struct chan *chan;
 
 	list_for_each_safe(ele, next, chans){
 		chan = list_entry(ele, struct chan, list);
-		free_one_chan(chan);
+		free_one_chan(chan, delay_free_irq);
 	}
 }
 
@@ -363,23 +434,23 @@ static int one_chan_config_string(struct chan *chan, char *str, int size,
 
 	if(chan == NULL){
 		CONFIG_CHUNK(str, size, n, "none", 1);
-		return(n);
+		return n;
 	}
 
 	CONFIG_CHUNK(str, size, n, chan->ops->type, 0);
 
 	if(chan->dev == NULL){
 		CONFIG_CHUNK(str, size, n, "", 1);
-		return(n);
+		return n;
 	}
 
 	CONFIG_CHUNK(str, size, n, ":", 0);
 	CONFIG_CHUNK(str, size, n, chan->dev, 0);
 
-	return(n);
+	return n;
 }
 
-static int chan_pair_config_string(struct chan *in, struct chan *out, 
+static int chan_pair_config_string(struct chan *in, struct chan *out,
 				   char *str, int size, char **error_out)
 {
 	int n;
@@ -390,7 +461,7 @@ static int chan_pair_config_string(struct chan *in, struct chan *out,
 
 	if(in == out){
 		CONFIG_CHUNK(str, size, n, "", 1);
-		return(n);
+		return n;
 	}
 
 	CONFIG_CHUNK(str, size, n, ",", 1);
@@ -399,10 +470,10 @@ static int chan_pair_config_string(struct chan *in, struct chan *out,
 	size -= n;
 	CONFIG_CHUNK(str, size, n, "", 1);
 
-	return(n);
+	return n;
 }
 
-int chan_config_string(struct list_head *chans, char *str, int size, 
+int chan_config_string(struct list_head *chans, char *str, int size,
 		       char **error_out)
 {
 	struct list_head *ele;
@@ -418,7 +489,7 @@ int chan_config_string(struct list_head *chans, char *str, int size,
 			out = chan;
 	}
 
-	return(chan_pair_config_string(in, out, str, size, error_out));
+	return chan_pair_config_string(in, out, str, size, error_out);
 }
 
 struct chan_type {
@@ -462,7 +533,7 @@ struct chan_type chan_table[] = {
 #endif
 };
 
-static struct chan *parse_chan(char *str, int pri, int device, 
+static struct chan *parse_chan(struct line *line, char *str, int device,
 			       struct chan_opts *opts)
 {
 	struct chan_type *entry;
@@ -484,36 +555,42 @@ static struct chan *parse_chan(char *str, int pri, int device,
 	if(ops == NULL){
 		my_printf("parse_chan couldn't parse \"%s\"\n",
 		       str);
-		return(NULL);
+		return NULL;
 	}
-	if(ops->init == NULL) return(NULL); 
+	if(ops->init == NULL)
+		return NULL;
 	data = (*ops->init)(str, device, opts);
-	if(data == NULL) return(NULL);
+	if(data == NULL)
+		return NULL;
 
 	chan = kmalloc(sizeof(*chan), GFP_ATOMIC);
-	if(chan == NULL) return(NULL);
+	if(chan == NULL)
+		return NULL;
 	*chan = ((struct chan) { .list	 	= LIST_HEAD_INIT(chan->list),
+				 .free_list 	=
+				 	LIST_HEAD_INIT(chan->free_list),
+				 .line		= line,
 				 .primary	= 1,
 				 .input		= 0,
 				 .output 	= 0,
 				 .opened  	= 0,
+				 .enabled  	= 0,
 				 .fd 		= -1,
-				 .pri 		= pri,
 				 .ops 		= ops,
 				 .data 		= data });
-	return(chan);
+	return chan;
 }
 
-int parse_chan_pair(char *str, struct list_head *chans, int pri, int device,
+int parse_chan_pair(char *str, struct line *line, int device,
 		    struct chan_opts *opts)
 {
+	struct list_head *chans = &line->chan_list;
 	struct chan *new, *chan;
 	char *in, *out;
 
 	if(!list_empty(chans)){
 		chan = list_entry(chans->next, struct chan, list);
-		if(chan->pri >= pri) return(0);
-		free_chan(chans);
+		free_chan(chans, 0);
 		INIT_LIST_HEAD(chans);
 	}
 
@@ -522,24 +599,30 @@ int parse_chan_pair(char *str, struct list_head *chans, int pri, int device,
 		in = str;
 		*out = '\0';
 		out++;
-		new = parse_chan(in, pri, device, opts);
-		if(new == NULL) return(-1);
+		new = parse_chan(line, in, device, opts);
+		if(new == NULL)
+			return -1;
+
 		new->input = 1;
 		list_add(&new->list, chans);
 
-		new = parse_chan(out, pri, device, opts);
-		if(new == NULL) return(-1);
+		new = parse_chan(line, out, device, opts);
+		if(new == NULL)
+			return -1;
+
 		list_add(&new->list, chans);
 		new->output = 1;
 	}
 	else {
-		new = parse_chan(str, pri, device, opts);
-		if(new == NULL) return(-1);
+		new = parse_chan(line, str, device, opts);
+		if(new == NULL)
+			return -1;
+
 		list_add(&new->list, chans);
 		new->input = 1;
 		new->output = 1;
 	}
-	return(0);
+	return 0;
 }
 
 int chan_out_fd(struct list_head *chans)
@@ -550,9 +633,9 @@ int chan_out_fd(struct list_head *chans)
 	list_for_each(ele, chans){
 		chan = list_entry(ele, struct chan, list);
 		if(chan->primary && chan->output)
-			return(chan->fd);
+			return chan->fd;
 	}
-	return(-1);
+	return -1;
 }
 
 void chan_interrupt(struct list_head *chans, struct work_struct *task,
@@ -567,9 +650,8 @@ void chan_interrupt(struct list_head *chans, struct work_struct *task,
 		chan = list_entry(ele, struct chan, list);
 		if(!chan->input || (chan->ops->read == NULL)) continue;
 		do {
-			if((tty != NULL) && 
-			   (tty->flip.count >= TTY_FLIPBUF_SIZE)){
-				schedule_work(task);
+			if (tty && !tty_buffer_request_room(tty, 1)) {
+				schedule_delayed_work(task, 1);
 				goto out;
 			}
 			err = chan->ops->read(chan->fd, &c, chan->data);
@@ -582,29 +664,12 @@ void chan_interrupt(struct list_head *chans, struct work_struct *task,
 			if(chan->primary){
 				if(tty != NULL)
 					tty_hangup(tty);
-				line_disable(tty, irq);
-				close_chan(chans);
-				free_chan(chans);
+				close_chan(chans, 1);
 				return;
 			}
-			else {
-				if(chan->ops->close != NULL)
-					chan->ops->close(chan->fd, chan->data);
-				free_one_chan(chan);
-			}
+			else close_one_chan(chan, 1);
 		}
 	}
  out:
 	if(tty) tty_flip_buffer_push(tty);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -75,7 +75,7 @@ static void slb_flush_and_rebolt(void)
 	vflags = SLB_VSID_KERNEL | virtual_llp;
 
 	ksp_esid_data = mk_esid_data(get_paca()->kstack, 2);
-	if ((ksp_esid_data & ESID_MASK) == KERNELBASE)
+	if ((ksp_esid_data & ESID_MASK) == PAGE_OFFSET)
 		ksp_esid_data &= ~SLB_ESID_V;
 
 	/* We need to do this all in asm, so we're sure we don't touch
@@ -87,8 +87,8 @@ static void slb_flush_and_rebolt(void)
 		     /* Slot 2 - kernel stack */
 		     "slbmte	%2,%3\n"
 		     "isync"
-		     :: "r"(mk_vsid_data(VMALLOCBASE, vflags)),
-		        "r"(mk_esid_data(VMALLOCBASE, 1)),
+		     :: "r"(mk_vsid_data(VMALLOC_START, vflags)),
+		        "r"(mk_esid_data(VMALLOC_START, 1)),
 		        "r"(mk_vsid_data(ksp_esid_data, lflags)),
 		        "r"(ksp_esid_data)
 		     : "memory");
@@ -134,14 +134,14 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	else
 		unmapped_base = TASK_UNMAPPED_BASE_USER64;
 
-	if (pc >= KERNELBASE)
+	if (is_kernel_addr(pc))
 		return;
 	slb_allocate(pc);
 
 	if (GET_ESID(pc) == GET_ESID(stack))
 		return;
 
-	if (stack >= KERNELBASE)
+	if (is_kernel_addr(stack))
 		return;
 	slb_allocate(stack);
 
@@ -149,7 +149,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	    || (GET_ESID(stack) == GET_ESID(unmapped_base)))
 		return;
 
-	if (unmapped_base >= KERNELBASE)
+	if (is_kernel_addr(unmapped_base))
 		return;
 	slb_allocate(unmapped_base);
 }
@@ -213,10 +213,10 @@ void slb_initialize(void)
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
-	create_slbe(KERNELBASE, lflags, 0);
+	create_slbe(PAGE_OFFSET, lflags, 0);
 
 	/* VMALLOC space has 4K pages always for now */
-	create_slbe(VMALLOCBASE, vflags, 1);
+	create_slbe(VMALLOC_START, vflags, 1);
 
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes

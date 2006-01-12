@@ -150,7 +150,8 @@ Getting the card going
 
    The frontend module sp887x.o, requires an external   firmware.
    Please use  the  command "get_dvb_firmware sp887x" to download
-   it. Then copy it to /usr/lib/hotplug/firmware.
+   it. Then copy it to /usr/lib/hotplug/firmware or /lib/firmware/
+   (depending on configuration of firmware hotplug).
 
 Receiving DVB-T in Australia
 

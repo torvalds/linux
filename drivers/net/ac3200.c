@@ -123,14 +123,6 @@ static int __init do_ac3200_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	/* Someday free_irq may be in ac_close_card() */
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, AC_IO_EXTENT);
-	iounmap(ei_status.mem);
-}
-
 #ifndef MODULE
 struct net_device * __init ac3200_probe(int unit)
 {
@@ -404,6 +396,14 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	/* Someday free_irq may be in ac_close_card() */
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, AC_IO_EXTENT);
+	iounmap(ei_status.mem);
 }
 
 void

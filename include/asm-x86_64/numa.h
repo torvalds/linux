@@ -20,6 +20,11 @@ extern int numa_off;
 extern void numa_set_node(int cpu, int node);
 
 extern unsigned char apicid_to_node[256];
+#ifdef CONFIG_NUMA
+extern void __init init_cpu_to_node(void);
+#else
+#define init_cpu_to_node() do {} while (0)
+#endif
 
 #define NUMA_NO_NODE 0xff
 

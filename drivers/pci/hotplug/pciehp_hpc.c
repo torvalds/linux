@@ -30,6 +30,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/signal.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
@@ -784,8 +787,13 @@ static int hpc_power_on_slot(struct slot * slot)
 
 	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_ON;
 
+	/* Enable detection that we turned off at slot power-off time */
 	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
+		slot_cmd = slot_cmd |
+		           PWR_FAULT_DETECT_ENABLE |
+		           MRL_DETECT_ENABLE |
+		           PRSN_DETECT_ENABLE |
+		           HP_INTR_ENABLE;
 
 	retval = pcie_write_cmd(slot, slot_cmd);
 
@@ -830,8 +838,18 @@ static int hpc_power_off_slot(struct slot * slot)
 
 	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_OFF;
 
+	/*
+	 * If we get MRL or presence detect interrupts now, the isr
+	 * will notice the sticky power-fault bit too and issue power
+	 * indicator change commands. This will lead to an endless loop
+	 * of command completions, since the power-fault bit remains on
+	 * till the slot is powered on again.
+	 */
 	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
+		slot_cmd = (slot_cmd &
+		            ~PWR_FAULT_DETECT_ENABLE &
+		            ~MRL_DETECT_ENABLE &
+		            ~PRSN_DETECT_ENABLE) | HP_INTR_ENABLE;
 
 	retval = pcie_write_cmd(slot, slot_cmd);
 

@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/in.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -3650,7 +3651,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			       TXD_FLAG_CPU_POST_DMA);
 
 		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = ntohs(mss + ip_tcp_len + tcp_opt_len);
+		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 			skb->h.th->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;

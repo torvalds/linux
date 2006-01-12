@@ -58,6 +58,7 @@ MODULE_PARM_DESC(dma8, "8-bit DMA # for es968 driver.");
 
 struct snd_card_es968 {
 	struct pnp_dev *dev;
+	struct snd_sb *chip;
 };
 
 static struct pnp_card_device_id snd_es968_pnpids[] = {
@@ -72,7 +73,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_es968_pnpids);
 static irqreturn_t snd_card_es968_interrupt(int irq, void *dev_id,
 					    struct pt_regs *regs)
 {
-	sb_t *chip = dev_id;
+	struct snd_sb *chip = dev_id;
 
 	if (chip->open & SB_OPEN_PCM) {
 		return snd_sb8dsp_interrupt(chip);
@@ -128,14 +129,14 @@ static int __init snd_card_es968_probe(int dev,
 					const struct pnp_card_device_id *pid)
 {
 	int error;
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_card_es968 *acard;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 				 sizeof(struct snd_card_es968))) == NULL)
 		return -ENOMEM;
-	acard = (struct snd_card_es968 *)card->private_data;
+	acard = card->private_data;
 	if ((error = snd_card_es968_pnp(dev, acard, pcard, pid))) {
 		snd_card_free(card);
 		return error;
@@ -151,6 +152,7 @@ static int __init snd_card_es968_probe(int dev,
 		snd_card_free(card);
 		return error;
 	}
+	acard->chip = chip;
 
 	if ((error = snd_sb8dsp_pcm(chip, 0, NULL)) < 0) {
 		snd_card_free(card);
@@ -200,11 +202,35 @@ static int __devinit snd_es968_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_es968_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
-
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
+
+#ifdef CONFIG_PM
+static int snd_es968_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+	struct snd_card_es968 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(chip->pcm);
+	snd_sbmixer_suspend(chip);
+	return 0;
+}
+
+static int snd_es968_pnp_resume(struct pnp_card_link *pcard)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+	struct snd_card_es968 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_sbdsp_reset(chip);
+	snd_sbmixer_resume(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
 
 static struct pnp_card_driver es968_pnpc_driver = {
 	.flags		= PNP_DRIVER_RES_DISABLE,
@@ -212,18 +238,23 @@ static struct pnp_card_driver es968_pnpc_driver = {
 	.id_table	= snd_es968_pnpids,
 	.probe		= snd_es968_pnp_detect,
 	.remove		= __devexit_p(snd_es968_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_es968_pnp_suspend,
+	.resume		= snd_es968_pnp_resume,
+#endif
 };
 
 static int __init alsa_card_es968_init(void)
 {
 	int cards = pnp_register_card_driver(&es968_pnpc_driver);
-#ifdef MODULE
-	if (cards == 0) {
+	if (cards <= 0) {
 		pnp_unregister_card_driver(&es968_pnpc_driver);
+#ifdef MODULE
 		snd_printk(KERN_ERR "no ES968 based soundcards found\n");
-	}
 #endif
-	return cards ? 0 : -ENODEV;
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_es968_exit(void)

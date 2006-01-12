@@ -29,6 +29,7 @@
  *   Replace some NR_CPUS by cpus_online, for hotplug cpu.
  */
 
+#include <linux/capability.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/module.h>

@@ -36,7 +36,7 @@
 
 #ifndef lint
 #ifdef SCCS_LABELS
-static char *_rio_lrt_h_sccs = "@(#)lrt.h	1.1" ;
+static char *_rio_lrt_h_sccs = "@(#)lrt.h	1.1";
 #endif
 #endif
 
@@ -50,6 +50,3 @@ static char *_rio_lrt_h_sccs = "@(#)lrt.h	1.1" ;
 
 
 /*********** end of file ***********/
-
-
-

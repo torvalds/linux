@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <asm/byteorder.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 /* Key is padded to the maximum of 256 bits before round key generation.
  * Any key length <= 256 bits (32 bytes) is allowed by the algorithm.
@@ -552,6 +553,7 @@ static struct crypto_alg tnepres_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct serpent_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(serpent_alg.cra_list),
 	.cra_u			=	{ .cipher = {

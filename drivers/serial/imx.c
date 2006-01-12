@@ -256,9 +256,6 @@ static irqreturn_t imx_rxint(int irq, void *dev_id, struct pt_regs *regs)
 	error_return:
 		tty_insert_flip_char(tty, rx, flg);
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			goto out;
-
 	ignore_char:
 		rx = URXD0((u32)sport->port.membase);
 	} while(rx & URXD_CHARRDY);

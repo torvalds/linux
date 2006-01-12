@@ -60,4 +60,4 @@ static char *_riscos_h_sccs_ = "@(#)riscos.h	1.2";
 #define RINDW(A)	(*(ushort *)(A))
 #define WINDW(A,V)	(*(ushort *)(A)=(ushort)(V))
 
-#endif /* __rio_riscos_h__ */
+#endif				/* __rio_riscos_h__ */

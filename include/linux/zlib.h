@@ -442,9 +442,11 @@ extern int deflateInit2 (z_streamp strm,
    not perform any compression: this will be done by deflate().
 */
                             
+#if 0
 extern int zlib_deflateSetDictionary (z_streamp strm,
 						     const Byte *dictionary,
 						     uInt  dictLength);
+#endif
 /*
      Initializes the compression dictionary from the given byte sequence
    without producing any compressed output. This function must be called
@@ -478,7 +480,10 @@ extern int zlib_deflateSetDictionary (z_streamp strm,
    perform any compression: this will be done by deflate().
 */
 
+#if 0
 extern int zlib_deflateCopy (z_streamp dest, z_streamp source);
+#endif
+
 /*
      Sets the destination stream as a complete copy of the source stream.
 
@@ -511,7 +516,9 @@ static inline unsigned long deflateBound(unsigned long s)
 	return s + ((s + 7) >> 3) + ((s + 63) >> 6) + 11;
 }
 
+#if 0
 extern int zlib_deflateParams (z_streamp strm, int level, int strategy);
+#endif
 /*
      Dynamically update the compression level and compression strategy.  The
    interpretation of level and strategy is as in deflateInit2.  This can be
@@ -571,7 +578,9 @@ extern int zlib_inflateSetDictionary (z_streamp strm,
    inflate().
 */
 
+#if 0
 extern int zlib_inflateSync (z_streamp strm);
+#endif
 /* 
     Skips invalid compressed data until a full flush point (see above the
   description of deflate with Z_FULL_FLUSH) can be found, or until all
@@ -636,7 +645,9 @@ extern int zlib_inflateInit2_ (z_streamp strm, int  windowBits,
 #endif
 
 extern const char  * zlib_zError           (int err);
+#if 0
 extern int           zlib_inflateSyncPoint (z_streamp z);
+#endif
 extern const uLong * zlib_get_crc_table    (void);
 
 #endif /* _ZLIB_H */

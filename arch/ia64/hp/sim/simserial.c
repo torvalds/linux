@@ -26,6 +26,7 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/serial.h>

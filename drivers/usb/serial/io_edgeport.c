@@ -184,7 +184,7 @@ struct divisor_table_entry {
 // These assume a 3.6864MHz crystal, the standard /16, and
 // MCR.7 = 0.
 //
-static struct divisor_table_entry divisor_table[] = {
+static const struct divisor_table_entry divisor_table[] = {
 	{   50,		4608},  
 	{   75,		3072},  
 	{   110,	2095},		/* 2094.545455 => 230450   => .0217 % over */
@@ -242,11 +242,11 @@ static void edge_shutdown		(struct usb_serial *serial);
 #include "io_tables.h"	/* all of the devices that this driver supports */
 
 static struct usb_driver io_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"io_edgeport",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* function prototypes for all of our local functions */
@@ -1965,20 +1965,14 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 	int cnt;
 
 	do {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				dev_err(dev, "%s - dropping data, %d bytes lost\n",
-					__FUNCTION__, length);
-				return;
-			}
+		cnt = tty_buffer_request_room(tty, length);
+		if (cnt < length) {
+			dev_err(dev, "%s - dropping data, %d bytes lost\n",
+					__FUNCTION__, length - cnt);
+			if(cnt == 0)
+				break;
 		}
-		cnt = min(length, TTY_FLIPBUF_SIZE - tty->flip.count);
-		memcpy(tty->flip.char_buf_ptr, data, cnt);
-		memset(tty->flip.flag_buf_ptr, 0, cnt);
-		tty->flip.char_buf_ptr += cnt;
-		tty->flip.flag_buf_ptr += cnt;
-		tty->flip.count += cnt;
+		tty_insert_flip_string(tty, data, cnt);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);
@@ -2353,7 +2347,7 @@ static int calc_baud_rate_divisor (int baudrate, int *divisor)
 
 	dbg("%s - %d", __FUNCTION__, baudrate);
 
-	for (i = 0; i < NUM_ENTRIES(divisor_table); i++) {
+	for (i = 0; i < ARRAY_SIZE(divisor_table); i++) {
 		if ( divisor_table[i].BaudRate == baudrate ) {
 			*divisor = divisor_table[i].Divisor;
 			return 0;

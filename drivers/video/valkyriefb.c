@@ -342,19 +342,19 @@ int __init valkyriefb_init(void)
 #else /* ppc (!CONFIG_MAC) */
 	{
 		struct device_node *dp;
+		struct resource r;
 
-		dp = find_devices("valkyrie");
+		dp = of_find_node_by_name(NULL, "valkyrie");
 		if (dp == 0)
 			return 0;
 
-		if (dp->n_addrs != 1) {
-			printk(KERN_ERR "expecting 1 address for valkyrie (got %d)\n",
-			       dp->n_addrs);
+		if (of_address_to_resource(dp, 0, &r)) {
+			printk(KERN_ERR "can't find address for valkyrie\n");
 			return 0;
 		}
 
-		frame_buffer_phys = dp->addrs[0].address;
-		cmap_regs_phys = dp->addrs[0].address+0x304000;
+		frame_buffer_phys = r.start;
+		cmap_regs_phys = r.start + 0x304000;
 		flags = _PAGE_WRITETHRU;
 	}
 #endif /* ppc (!CONFIG_MAC) */

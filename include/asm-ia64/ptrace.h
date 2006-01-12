@@ -248,7 +248,7 @@ struct switch_stack {
 })
 
   /* given a pointer to a task_struct, return the user's pt_regs */
-# define ia64_task_regs(t)		(((struct pt_regs *) ((char *) (t) + IA64_STK_OFFSET)) - 1)
+# define task_pt_regs(t)		(((struct pt_regs *) ((char *) (t) + IA64_STK_OFFSET)) - 1)
 # define ia64_psr(regs)			((struct ia64_psr *) &(regs)->cr_ipsr)
 # define user_mode(regs)		(((struct ia64_psr *) &(regs)->cr_ipsr)->cpl != 0)
 # define user_stack(task,regs)	((long) regs - (long) task == IA64_STK_OFFSET - sizeof(*regs))
@@ -271,7 +271,7 @@ struct switch_stack {
    *
    * On ia64, we can clear the user's pt_regs->r8 to force a successful syscall.
    */
-# define force_successful_syscall_return()	(ia64_task_regs(current)->r8 = 0)
+# define force_successful_syscall_return()	(task_pt_regs(current)->r8 = 0)
 
   struct task_struct;			/* forward decl */
   struct unw_frame_info;		/* forward decl */

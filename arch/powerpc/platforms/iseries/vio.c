@@ -22,6 +22,8 @@
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call_xm.h>
 
+#include "iommu.h"
+
 struct device *iSeries_vio_dev = &vio_bus_device.dev;
 EXPORT_SYMBOL(iSeries_vio_dev);
 

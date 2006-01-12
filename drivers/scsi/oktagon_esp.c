@@ -490,7 +490,7 @@ static void dma_led_on(struct NCR_ESP *esp)
 
 static int dma_ports_p(struct NCR_ESP *esp)
 {
-	return ((custom.intenar) & IF_PORTS);
+	return ((amiga_custom.intenar) & IF_PORTS);
 }
 
 static void dma_setup(struct NCR_ESP *esp, __u32 addr, int count, int write)

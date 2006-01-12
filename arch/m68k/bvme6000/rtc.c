@@ -11,6 +11,7 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -46,6 +47,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	unsigned char msr;
 	unsigned long flags;
 	struct rtc_time wtime;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case RTC_RD_TIME:	/* Read the time/date from RTC	*/
@@ -68,7 +70,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		} while (wtime.tm_sec != BCD2BIN(rtc->bcd_sec));
 		rtc->msr = msr;
 		local_irq_restore(flags);
-		return copy_to_user((void *)arg, &wtime, sizeof wtime) ?
+		return copy_to_user(argp, &wtime, sizeof wtime) ?
 								-EFAULT : 0;
 	}
 	case RTC_SET_TIME:	/* Set the RTC */
@@ -80,8 +82,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 
-		if (copy_from_user(&rtc_tm, (struct rtc_time*)arg,
-				   sizeof(struct rtc_time)))
+		if (copy_from_user(&rtc_tm, argp, sizeof(struct rtc_time)))
 			return -EFAULT;
 
 		yrs = rtc_tm.tm_year;

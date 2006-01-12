@@ -85,9 +85,11 @@ unsigned long get_wchan(struct task_struct *p);
  */
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
-#define KSTK_REGS(tsk)	(((struct pt_regs *)(THREAD_START_SP + (unsigned long)(tsk)->thread_info)) - 1)
-#define KSTK_EIP(tsk)	KSTK_REGS(tsk)->ARM_pc
-#define KSTK_ESP(tsk)	KSTK_REGS(tsk)->ARM_sp
+#define task_pt_regs(p) \
+	((struct pt_regs *)(THREAD_START_SP + task_stack_page(p)) - 1)
+
+#define KSTK_EIP(tsk)	task_pt_regs(tsk)->ARM_pc
+#define KSTK_ESP(tsk)	task_pt_regs(tsk)->ARM_sp
 
 /*
  * Prefetching support - only ARMv5.

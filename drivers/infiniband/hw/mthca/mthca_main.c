@@ -261,6 +261,10 @@ static int __devinit mthca_init_tavor(struct mthca_dev *mdev)
 	}
 
 	err = mthca_dev_lim(mdev, &dev_lim);
+	if (err) {
+		mthca_err(mdev, "QUERY_DEV_LIM command failed, aborting.\n");
+		goto err_disable;
+	}
 
 	profile = default_profile;
 	profile.num_uar   = dev_lim.uar_size / PAGE_SIZE;

@@ -26,21 +26,6 @@
 #include "pcm.h"
 #include "timer.h"
 
-#ifdef CONFIG_SBUS
-#define SBUS_SUPPORT
-#include <asm/sbus.h>
-#endif
-
-#if defined(CONFIG_PCI) && defined(CONFIG_SPARC64)
-#define EBUS_SUPPORT
-#include <linux/pci.h>
-#include <asm/ebus.h>
-#endif
-
-#if !defined(SBUS_SUPPORT) && !defined(EBUS_SUPPORT)
-#define LEGACY_SUPPORT
-#endif
-
 /* IO ports */
 
 #define CS4231P(x)		(c_d_c_CS4231##x)
@@ -232,18 +217,14 @@
 #define CS4231_HWSHARE_DMA1	(1<<1)
 #define CS4231_HWSHARE_DMA2	(1<<2)
 
-typedef struct _snd_cs4231 cs4231_t;
-
-struct _snd_cs4231 {
+struct snd_cs4231 {
 	unsigned long port;		/* base i/o port */
-#ifdef LEGACY_SUPPORT
 	struct resource *res_port;
 	unsigned long cport;		/* control base i/o port (CS4236) */
 	struct resource *res_cport;
 	int irq;			/* IRQ line */
 	int dma1;			/* playback DMA */
 	int dma2;			/* record DMA */
-#endif
 	unsigned short version;		/* version of CODEC chip */
 	unsigned short mode;		/* see to CS4231_MODE_XXXX */
 	unsigned short hardware;	/* see to CS4231_HW_XXXX */
@@ -251,29 +232,11 @@ struct _snd_cs4231 {
 	unsigned short single_dma:1,	/* forced single DMA mode (GUS 16-bit daughter board) or dma1 == dma2 */
 		       ebus_flag:1;	/* SPARC: EBUS present */
 
-#ifdef EBUS_SUPPORT
-	struct ebus_dma_info eb2c;
-        struct ebus_dma_info eb2p;
-#endif
-
-#if defined(SBUS_SUPPORT) || defined(EBUS_SUPPORT)
-	union {
-#ifdef SBUS_SUPPORT
-		struct sbus_dev         *sdev;
-#endif
-#ifdef EBUS_SUPPORT
-		struct pci_dev          *pdev;
-#endif
-	} dev_u;
-	unsigned int p_periods_sent;
-	unsigned int c_periods_sent;
-#endif
-
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
-	snd_timer_t *timer;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
+	struct snd_timer *timer;
 
 	unsigned char image[32];	/* registers image */
 	unsigned char eimage[32];	/* extended registers image */
@@ -281,63 +244,59 @@ struct _snd_cs4231 {
 	int mce_bit;
 	int calibrate_mute;
 	int sw_3d_bit;
-#ifdef LEGACY_SUPPORT
 	unsigned int p_dma_size;
 	unsigned int c_dma_size;
-#endif
 
 	spinlock_t reg_lock;
 	struct semaphore mce_mutex;
 	struct semaphore open_mutex;
 
-	int (*rate_constraint) (snd_pcm_runtime_t *runtime);
-	void (*set_playback_format) (cs4231_t *chip, snd_pcm_hw_params_t *hw_params, unsigned char pdfr);
-	void (*set_capture_format) (cs4231_t *chip, snd_pcm_hw_params_t *hw_params, unsigned char cdfr);
-	void (*trigger) (cs4231_t *chip, unsigned int what, int start);
+	int (*rate_constraint) (struct snd_pcm_runtime *runtime);
+	void (*set_playback_format) (struct snd_cs4231 *chip, struct snd_pcm_hw_params *hw_params, unsigned char pdfr);
+	void (*set_capture_format) (struct snd_cs4231 *chip, struct snd_pcm_hw_params *hw_params, unsigned char cdfr);
+	void (*trigger) (struct snd_cs4231 *chip, unsigned int what, int start);
 #ifdef CONFIG_PM
-	void (*suspend) (cs4231_t *chip);
-	void (*resume) (cs4231_t *chip);
+	void (*suspend) (struct snd_cs4231 *chip);
+	void (*resume) (struct snd_cs4231 *chip);
 #endif
 	void *dma_private_data;
-#ifdef LEGACY_SUPPORT
-	int (*claim_dma) (cs4231_t *chip, void *dma_private_data, int dma);
-	int (*release_dma) (cs4231_t *chip, void *dma_private_data, int dma);
-#endif
+	int (*claim_dma) (struct snd_cs4231 *chip, void *dma_private_data, int dma);
+	int (*release_dma) (struct snd_cs4231 *chip, void *dma_private_data, int dma);
 };
 
 /* exported functions */
 
-void snd_cs4231_out(cs4231_t *chip, unsigned char reg, unsigned char val);
-unsigned char snd_cs4231_in(cs4231_t *chip, unsigned char reg);
-void snd_cs4236_ext_out(cs4231_t *chip, unsigned char reg, unsigned char val);
-unsigned char snd_cs4236_ext_in(cs4231_t *chip, unsigned char reg);
-void snd_cs4231_mce_up(cs4231_t *chip);
-void snd_cs4231_mce_down(cs4231_t *chip);
+void snd_cs4231_out(struct snd_cs4231 *chip, unsigned char reg, unsigned char val);
+unsigned char snd_cs4231_in(struct snd_cs4231 *chip, unsigned char reg);
+void snd_cs4236_ext_out(struct snd_cs4231 *chip, unsigned char reg, unsigned char val);
+unsigned char snd_cs4236_ext_in(struct snd_cs4231 *chip, unsigned char reg);
+void snd_cs4231_mce_up(struct snd_cs4231 *chip);
+void snd_cs4231_mce_down(struct snd_cs4231 *chip);
 
 irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-const char *snd_cs4231_chip_id(cs4231_t *chip);
+const char *snd_cs4231_chip_id(struct snd_cs4231 *chip);
 
-int snd_cs4231_create(snd_card_t * card,
+int snd_cs4231_create(struct snd_card *card,
 		      unsigned long port,
 		      unsigned long cport,
 		      int irq, int dma1, int dma2,
 		      unsigned short hardware,
 		      unsigned short hwshare,
-		      cs4231_t ** rchip);
-int snd_cs4231_pcm(cs4231_t * chip, int device, snd_pcm_t **rpcm);
-int snd_cs4231_timer(cs4231_t * chip, int device, snd_timer_t **rtimer);
-int snd_cs4231_mixer(cs4231_t * chip);
+		      struct snd_cs4231 ** rchip);
+int snd_cs4231_pcm(struct snd_cs4231 * chip, int device, struct snd_pcm **rpcm);
+int snd_cs4231_timer(struct snd_cs4231 * chip, int device, struct snd_timer **rtimer);
+int snd_cs4231_mixer(struct snd_cs4231 * chip);
 
-int snd_cs4236_create(snd_card_t * card,
+int snd_cs4236_create(struct snd_card *card,
 		      unsigned long port,
 		      unsigned long cport,
 		      int irq, int dma1, int dma2,
 		      unsigned short hardware,
 		      unsigned short hwshare,
-		      cs4231_t ** rchip);
-int snd_cs4236_pcm(cs4231_t * chip, int device, snd_pcm_t **rpcm);
-int snd_cs4236_mixer(cs4231_t * chip);
+		      struct snd_cs4231 ** rchip);
+int snd_cs4236_pcm(struct snd_cs4231 * chip, int device, struct snd_pcm **rpcm);
+int snd_cs4236_mixer(struct snd_cs4231 * chip);
 
 /*
  *  mixer library
@@ -349,9 +308,9 @@ int snd_cs4236_mixer(cs4231_t * chip);
   .get = snd_cs4231_get_single, .put = snd_cs4231_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-int snd_cs4231_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo);
-int snd_cs4231_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol);
-int snd_cs4231_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol);
+int snd_cs4231_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
+int snd_cs4231_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
+int snd_cs4231_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 
 #define CS4231_DOUBLE(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
@@ -359,8 +318,8 @@ int snd_cs4231_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucon
   .get = snd_cs4231_get_double, .put = snd_cs4231_put_double, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
 
-int snd_cs4231_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo);
-int snd_cs4231_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol);
-int snd_cs4231_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol);
+int snd_cs4231_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
+int snd_cs4231_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
+int snd_cs4231_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 
 #endif /* __SOUND_CS4231_H */

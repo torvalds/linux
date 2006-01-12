@@ -124,7 +124,7 @@ enum
 	KERN_OVERFLOWUID=46,	/* int: overflow UID */
 	KERN_OVERFLOWGID=47,	/* int: overflow GID */
 	KERN_SHMPATH=48,	/* string: path to shm fs */
-	KERN_HOTPLUG=49,	/* string: path to hotplug policy agent */
+	KERN_HOTPLUG=49,	/* string: path to uevent helper (deprecated) */
 	KERN_IEEE_EMULATION_WARNINGS=50, /* int: unimplemented ieee instructions */
 	KERN_S390_USER_DEBUG_LOGGING=51,  /* int: dumps of user faults */
 	KERN_CORE_USES_PID=52,		/* int: use core or core.%pid */
@@ -180,6 +180,8 @@ enum
 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
 	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
+	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
+	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
 };
 
 
@@ -390,6 +392,7 @@ enum
 	NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR=109,
 	NET_TCP_CONG_CONTROL=110,
 	NET_TCP_ABC=111,
+	NET_IPV4_IPFRAG_MAX_DIST=112,
 };
 
 enum {

@@ -23,6 +23,9 @@ static inline void *__choose_mode(void *tt, void *skas) {
 
 #elif defined(UML_CONFIG_MODE_TT)
 #define CHOOSE_MODE(tt, skas) (tt)
+
+#else
+#error CONFIG_MODE_SKAS and CONFIG_MODE_TT are both disabled
 #endif
 
 #define CHOOSE_MODE_PROC(tt, skas, args...) \

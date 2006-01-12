@@ -24,6 +24,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/sb.h>
@@ -32,7 +34,6 @@
 #include <sound/opl3.h>
 #include <sound/emu8000.h>
 #include <sound/seq_device.h>
-#define SNDRV_LEGACY_AUTO_PROBE
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
@@ -127,8 +128,14 @@ module_param_array(seq_ports, int, NULL, 0444);
 MODULE_PARM_DESC(seq_ports, "Number of sequencer ports for WaveTable synth.");
 #endif
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
+#ifdef CONFIG_PNP
+static int pnp_registered;
+#endif
+
 struct snd_card_sb16 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
+	struct snd_sb *chip;
 #ifdef CONFIG_PNP
 	int dev_no;
 	struct pnp_dev *dev;
@@ -137,8 +144,6 @@ struct snd_card_sb16 {
 #endif
 #endif
 };
-
-static snd_card_t *snd_sb16_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -339,9 +344,9 @@ __wt_error:
 
 #endif /* CONFIG_PNP */
 
-static void snd_sb16_free(snd_card_t *card)
+static void snd_sb16_free(struct snd_card *card)
 {
-	struct snd_card_sb16 *acard = (struct snd_card_sb16 *)card->private_data;
+	struct snd_card_sb16 *acard = card->private_data;
         
 	if (acard == NULL)
 		return;
@@ -354,73 +359,32 @@ static void snd_sb16_free(snd_card_t *card)
 #define is_isapnp_selected(dev)		0
 #endif
 
-static int __init snd_sb16_probe(int dev,
-				 struct pnp_card_link *pcard,
-				 const struct pnp_card_device_id *pid)
+static struct snd_card *snd_sb16_card_new(int dev)
 {
-	static int possible_irqs[] = {5, 9, 10, 7, -1};
-	static int possible_dmas8[] = {1, 3, 0, -1};
-	static int possible_dmas16[] = {5, 6, 7, -1};
+	struct snd_card *card = snd_card_new(index[dev], id[dev], THIS_MODULE,
+					sizeof(struct snd_card_sb16));
+	if (card == NULL)
+		return NULL;
+	card->private_free = snd_sb16_free;
+	return card;
+}
+
+static int __init snd_sb16_probe(struct snd_card *card, int dev)
+{
 	int xirq, xdma8, xdma16;
-	sb_t *chip;
-	snd_card_t *card;
-	struct snd_card_sb16 *acard;
-	opl3_t *opl3;
-	snd_hwdep_t *synth = NULL;
+	struct snd_sb *chip;
+	struct snd_card_sb16 *acard = card->private_data;
+	struct snd_opl3 *opl3;
+	struct snd_hwdep *synth = NULL;
 #ifdef CONFIG_SND_SB16_CSP
-	snd_hwdep_t *xcsp = NULL;
+	struct snd_hwdep *xcsp = NULL;
 #endif
 	unsigned long flags;
 	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_card_sb16));
-	if (card == NULL)
-		return -ENOMEM;
-	acard = (struct snd_card_sb16 *) card->private_data;
-	card->private_free = snd_sb16_free;
-#ifdef CONFIG_PNP
-	if (isapnp[dev]) {
-		if ((err = snd_card_sb16_pnp(dev, acard, pcard, pid)))
-			goto _err;
-		snd_card_set_dev(card, &pcard->card->dev);
-	}
-#endif
-
 	xirq = irq[dev];
 	xdma8 = dma8[dev];
 	xdma16 = dma16[dev];
-	if (! is_isapnp_selected(dev)) {
-		if (xirq == SNDRV_AUTO_IRQ) {
-			if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
-				snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
-				err = -EBUSY;
-				goto _err;
-			}
-		}
-		if (xdma8 == SNDRV_AUTO_DMA) {
-			if ((xdma8 = snd_legacy_find_free_dma(possible_dmas8)) < 0) {
-				snd_printk(KERN_ERR PFX "unable to find a free 8-bit DMA\n");
-				err = -EBUSY;
-				goto _err;
-			}
-		}
-		if (xdma16 == SNDRV_AUTO_DMA) {
-			if ((xdma16 = snd_legacy_find_free_dma(possible_dmas16)) < 0) {
-				snd_printk(KERN_ERR PFX "unable to find a free 16-bit DMA\n");
-				err = -EBUSY;
-				goto _err;
-			}
-		}
-		/* non-PnP FM port address is hardwired with base port address */
-		fm_port[dev] = port[dev];
-		/* block the 0x388 port to avoid PnP conflicts */
-		acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
-#ifdef SNDRV_SBAWE_EMU8000
-		/* non-PnP AWE port address is hardwired with base port address */
-		awe_port[dev] = port[dev] + 0x400;
-#endif
-	}
 
 	if ((err = snd_sbdsp_create(card,
 				    port[dev],
@@ -430,19 +394,19 @@ static int __init snd_sb16_probe(int dev,
 				    xdma16,
 				    SB_HW_AUTO,
 				    &chip)) < 0)
-		goto _err;
+		return err;
 
+	acard->chip = chip;
 	if (chip->hardware != SB_HW_16) {
 		snd_printk(KERN_ERR PFX "SB 16 chip was not detected at 0x%lx\n", port[dev]);
-		err = -ENODEV;
-		goto _err;
+		return -ENODEV;
 	}
 	chip->mpu_port = mpu_port[dev];
 	if (! is_isapnp_selected(dev) && (err = snd_sb16dsp_configure(chip)) < 0)
-		goto _err;
+		return err;
 
-	if ((err = snd_sb16dsp_pcm(chip, 0, NULL)) < 0)
-		goto _err;
+	if ((err = snd_sb16dsp_pcm(chip, 0, &chip->pcm)) < 0)
+		return err;
 
 	strcpy(card->driver,
 #ifdef SNDRV_SBAWE_EMU8000
@@ -464,7 +428,7 @@ static int __init snd_sb16_probe(int dev,
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_SB,
 					       chip->mpu_port, 0,
 					       xirq, 0, &chip->rmidi)) < 0)
-			goto _err;
+			return err;
 		chip->rmidi_callback = snd_mpu401_uart_interrupt;
 	}
 
@@ -487,12 +451,12 @@ static int __init snd_sb16_probe(int dev,
 			int seqdev = 1;
 #endif
 			if ((err = snd_opl3_hwdep_new(opl3, 0, seqdev, &synth)) < 0)
-				goto _err;
+				return err;
 		}
 	}
 
 	if ((err = snd_sbmixer_new(chip)) < 0)
-		goto _err;
+		return err;
 
 #ifdef CONFIG_SND_SB16_CSP
 	/* CSP chip on SB16ASP/AWE32 */
@@ -512,7 +476,7 @@ static int __init snd_sb16_probe(int dev,
 					   seq_ports[dev], NULL)) < 0) {
 			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer not detected at 0x%lx\n", awe_port[dev]);
 
-			goto _err;
+			return err;
 		}
 	}
 #endif
@@ -524,56 +488,168 @@ static int __init snd_sb16_probe(int dev,
 		(mic_agc[dev] ? 0x00 : 0x01));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
-
 	if ((err = snd_card_register(card)) < 0)
-		goto _err;
+		return err;
 
-	if (pcard)
-		pnp_set_card_drvdata(pcard, card);
-	else
-		snd_sb16_legacy[dev] = card;
 	return 0;
-
- _err:
-	snd_card_free(card);
-	return err;
 }
 
-static int __init snd_sb16_probe_legacy_port(unsigned long xport)
+#ifdef CONFIG_PM
+static int snd_sb16_suspend(struct snd_card *card, pm_message_t state)
 {
-	static int dev;
-	int res;
+	struct snd_card_sb16 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
 
-	for ( ; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
-			continue;
-		if (is_isapnp_selected(dev))
-			continue;
-		port[dev] = xport;
-		res = snd_sb16_probe(dev, NULL, NULL);
-		if (res < 0)
-			port[dev] = SNDRV_AUTO_PORT;
-		return res;
-	}
-	return -ENODEV;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(chip->pcm);
+	snd_sbmixer_suspend(chip);
+	return 0;
 }
+
+static int snd_sb16_resume(struct snd_card *card)
+{
+	struct snd_card_sb16 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_sbdsp_reset(chip);
+	snd_sbmixer_resume(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+static int __init snd_sb16_nonpnp_probe1(int dev, struct platform_device *devptr)
+{
+	struct snd_card_sb16 *acard;
+	struct snd_card *card;
+	int err;
+
+	card = snd_sb16_card_new(dev);
+	if (! card)
+		return -ENOMEM;
+
+	acard = card->private_data;
+	/* non-PnP FM port address is hardwired with base port address */
+	fm_port[dev] = port[dev];
+	/* block the 0x388 port to avoid PnP conflicts */
+	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
+#ifdef SNDRV_SBAWE_EMU8000
+	/* non-PnP AWE port address is hardwired with base port address */
+	awe_port[dev] = port[dev] + 0x400;
+#endif
+
+	snd_card_set_dev(card, &devptr->dev);
+	if ((err = snd_sb16_probe(card, dev)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	platform_set_drvdata(devptr, card);
+	return 0;
+}
+
+
+static int __init snd_sb16_nonpnp_probe(struct platform_device *pdev)
+{
+	int dev = pdev->id;
+	int err;
+	static int possible_irqs[] = {5, 9, 10, 7, -1};
+	static int possible_dmas8[] = {1, 3, 0, -1};
+	static int possible_dmas16[] = {5, 6, 7, -1};
+
+	if (irq[dev] == SNDRV_AUTO_IRQ) {
+		if ((irq[dev] = snd_legacy_find_free_irq(possible_irqs)) < 0) {
+			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
+			return -EBUSY;
+		}
+	}
+	if (dma8[dev] == SNDRV_AUTO_DMA) {
+		if ((dma8[dev] = snd_legacy_find_free_dma(possible_dmas8)) < 0) {
+			snd_printk(KERN_ERR PFX "unable to find a free 8-bit DMA\n");
+			return -EBUSY;
+		}
+	}
+	if (dma16[dev] == SNDRV_AUTO_DMA) {
+		if ((dma16[dev] = snd_legacy_find_free_dma(possible_dmas16)) < 0) {
+			snd_printk(KERN_ERR PFX "unable to find a free 16-bit DMA\n");
+			return -EBUSY;
+		}
+	}
+
+	if (port[dev] != SNDRV_AUTO_PORT)
+		return snd_sb16_nonpnp_probe1(dev, pdev);
+	else {
+		static int possible_ports[] = {0x220, 0x240, 0x260, 0x280};
+		int i;
+		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
+			port[dev] = possible_ports[i];
+			err = snd_sb16_nonpnp_probe1(dev, pdev);
+			if (! err)
+				return 0;
+		}
+		return err;
+	}
+}
+
+static int __devexit snd_sb16_nonpnp_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int snd_sb16_nonpnp_suspend(struct platform_device *dev, pm_message_t state)
+{
+	return snd_sb16_suspend(platform_get_drvdata(dev), state);
+}
+
+static int snd_sb16_nonpnp_resume(struct platform_device *dev)
+{
+	return snd_sb16_resume(platform_get_drvdata(dev));
+}
+#endif
+
+#ifdef SNDRV_SBAWE
+#define SND_SB16_DRIVER	"snd_sbawe"
+#else
+#define SND_SB16_DRIVER	"snd_sb16"
+#endif
+
+static struct platform_driver snd_sb16_nonpnp_driver = {
+	.probe		= snd_sb16_nonpnp_probe,
+	.remove		= __devexit_p(snd_sb16_nonpnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_sb16_nonpnp_suspend,
+	.resume		= snd_sb16_nonpnp_resume,
+#endif
+	.driver		= {
+		.name	= SND_SB16_DRIVER
+	},
+};
+
 
 #ifdef CONFIG_PNP
 
-static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *card,
-					 const struct pnp_card_device_id *id)
+static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
+					 const struct pnp_card_device_id *pid)
 {
 	static int dev;
+	struct snd_card *card;
 	int res;
 
 	for ( ; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev] || !isapnp[dev])
 			continue;
-		res = snd_sb16_probe(dev, card, id);
-		if (res < 0)
+		card = snd_sb16_card_new(dev);
+		if (! card)
+			return -ENOMEM;
+		snd_card_set_dev(card, &pcard->card->dev);
+		if ((res = snd_card_sb16_pnp(dev, card->private_data, pcard, pid)) < 0 ||
+		    (res = snd_sb16_probe(card, dev)) < 0) {
+			snd_card_free(card);
 			return res;
+		}
+		pnp_set_card_drvdata(pcard, card);
 		dev++;
 		return 0;
 	}
@@ -583,57 +659,82 @@ static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_sb16_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
-
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
+
+#ifdef CONFIG_PM
+static int snd_sb16_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	return snd_sb16_suspend(pnp_get_card_drvdata(pcard), state);
+}
+static int snd_sb16_pnp_resume(struct pnp_card_link *pcard)
+{
+	return snd_sb16_resume(pnp_get_card_drvdata(pcard));
+}
+#endif
 
 static struct pnp_card_driver sb16_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
+#ifdef SNDRV_SBAWE
+	.name = "sbawe",
+#else
 	.name = "sb16",
+#endif
 	.id_table = snd_sb16_pnpids,
 	.probe = snd_sb16_pnp_detect,
 	.remove = __devexit_p(snd_sb16_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_sb16_pnp_suspend,
+	.resume = snd_sb16_pnp_resume,
+#endif
 };
 
 #endif /* CONFIG_PNP */
 
+static void __init_or_module snd_sb16_unregister_all(void)
+{
+	int i;
+
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&sb16_pnpc_driver);
+#endif
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_sb16_nonpnp_driver);
+}
+
 static int __init alsa_card_sb16_init(void)
 {
-	int dev, cards = 0, i;
-	static unsigned long possible_ports[] = {0x220, 0x240, 0x260, 0x280, -1};
+	int i, err, cards = 0;
 
-	/* legacy non-auto cards at first */
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || port[dev] == SNDRV_AUTO_PORT)
+	if ((err = platform_driver_register(&snd_sb16_nonpnp_driver)) < 0)
+		return err;
+
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		if (is_isapnp_selected(i))
 			continue;
-		if (is_isapnp_selected(dev))
-			continue;
-		if (!snd_sb16_probe(dev, NULL, NULL)) {
-			cards++;
-			continue;
+		device = platform_device_register_simple(SND_SB16_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
 		}
-#ifdef MODULE
-		snd_printk(KERN_ERR "Sound Blaster 16+ soundcard #%i not found at 0x%lx or device busy\n", dev, port[dev]);
-#endif
+		platform_devices[i] = device;
+		cards++;
 	}
-	/* legacy auto configured cards */
-	i = snd_legacy_auto_probe(possible_ports, snd_sb16_probe_legacy_port);
-	if (i > 0)
-		cards += i;
-
 #ifdef CONFIG_PNP
 	/* PnP cards at last */
 	i = pnp_register_card_driver(&sb16_pnpc_driver);
-	if (i >0)
+	if (i >= 0) {
+		pnp_registered = 1;
 		cards += i;
+	}
 #endif
 
 	if (!cards) {
-#ifdef CONFIG_PNP
-		pnp_unregister_card_driver(&sb16_pnpc_driver);
-#endif
 #ifdef MODULE
 		snd_printk(KERN_ERR "Sound Blaster 16 soundcard not found or device busy\n");
 #ifdef SNDRV_SBAWE_EMU8000
@@ -642,21 +743,19 @@ static int __init alsa_card_sb16_init(void)
 		snd_printk(KERN_ERR "In case, if you have AWE card, try snd-sbawe module\n");
 #endif
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_sb16_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_sb16_exit(void)
 {
-	int dev;
-
-#ifdef CONFIG_PNP
-	/* PnP cards first */
-	pnp_unregister_card_driver(&sb16_pnpc_driver);
-#endif
-	for (dev = 0; dev < SNDRV_CARDS; dev++)
-		snd_card_free(snd_sb16_legacy[dev]);
+	snd_sb16_unregister_all();
 }
 
 module_init(alsa_card_sb16_init)

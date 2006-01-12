@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/init.h>
 #include <asm/atomic.h>
 
@@ -34,14 +35,14 @@
 static atomic_t proc_event_num_listeners = ATOMIC_INIT(0);
 static struct cb_id cn_proc_event_id = { CN_IDX_PROC, CN_VAL_PROC };
 
-/* proc_counts is used as the sequence number of the netlink message */
+/* proc_event_counts is used as the sequence number of the netlink message */
 static DEFINE_PER_CPU(__u32, proc_event_counts) = { 0 };
 
 static inline void get_seq(__u32 *ts, int *cpu)
 {
 	*ts = get_cpu_var(proc_event_counts)++;
 	*cpu = smp_processor_id();
-	put_cpu_var(proc_counts);
+	put_cpu_var(proc_event_counts);
 }
 
 void proc_fork_connector(struct task_struct *task)
@@ -56,7 +57,7 @@ void proc_fork_connector(struct task_struct *task)
 	msg = (struct cn_msg*)buffer;
 	ev = (struct proc_event*)msg->data;
 	get_seq(&msg->seq, &ev->cpu);
-	getnstimestamp(&ev->timestamp);
+	ktime_get_ts(&ev->timestamp); /* get high res monotonic timestamp */
 	ev->what = PROC_EVENT_FORK;
 	ev->event_data.fork.parent_pid = task->real_parent->pid;
 	ev->event_data.fork.parent_tgid = task->real_parent->tgid;
@@ -82,7 +83,7 @@ void proc_exec_connector(struct task_struct *task)
 	msg = (struct cn_msg*)buffer;
 	ev = (struct proc_event*)msg->data;
 	get_seq(&msg->seq, &ev->cpu);
-	getnstimestamp(&ev->timestamp);
+	ktime_get_ts(&ev->timestamp);
 	ev->what = PROC_EVENT_EXEC;
 	ev->event_data.exec.process_pid = task->pid;
 	ev->event_data.exec.process_tgid = task->tgid;
@@ -116,7 +117,7 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	} else
 	     	return;
 	get_seq(&msg->seq, &ev->cpu);
-	getnstimestamp(&ev->timestamp);
+	ktime_get_ts(&ev->timestamp);
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */
@@ -136,7 +137,7 @@ void proc_exit_connector(struct task_struct *task)
 	msg = (struct cn_msg*)buffer;
 	ev = (struct proc_event*)msg->data;
 	get_seq(&msg->seq, &ev->cpu);
-	getnstimestamp(&ev->timestamp);
+	ktime_get_ts(&ev->timestamp);
 	ev->what = PROC_EVENT_EXIT;
 	ev->event_data.exit.process_pid = task->pid;
 	ev->event_data.exit.process_tgid = task->tgid;
@@ -169,7 +170,7 @@ static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
 	msg = (struct cn_msg*)buffer;
 	ev = (struct proc_event*)msg->data;
 	msg->seq = rcvd_seq;
-	getnstimestamp(&ev->timestamp);
+	ktime_get_ts(&ev->timestamp);
 	ev->cpu = -1;
 	ev->what = PROC_EVENT_NONE;
 	ev->event_data.ack.err = err;

@@ -8,12 +8,18 @@ please mail me.
 cpu_features.txt
 	- info on how we support a variety of CPUs with minimal compile-time
 	options.
+eeh-pci-error-recovery.txt
+	- info on PCI Bus EEH Error Recovery
+hvcs.txt
+	- IBM "Hypervisor Virtual Console Server" Installation Guide
+mpc52xx.txt
+	- Linux 2.6.x on MPC52xx family
 ppc_htab.txt
 	- info about the Linux/PPC /proc/ppc_htab entry
-smp.txt
-	- use and state info about Linux/PPC on MP machines
 SBC8260_memory_mapping.txt
 	- EST SBC8260 board info
+smp.txt
+	- use and state info about Linux/PPC on MP machines
 sound.txt
 	- info on sound support under Linux/PPC
 zImage_layout.txt

@@ -94,26 +94,27 @@ struct kiocb {
 	ssize_t			(*ki_retry)(struct kiocb *);
 	void			(*ki_dtor)(struct kiocb *);
 
-	struct list_head	ki_list;	/* the aio core uses this
-						 * for cancellation */
-
 	union {
 		void __user		*user;
 		struct task_struct	*tsk;
 	} ki_obj;
+
 	__u64			ki_user_data;	/* user's data for completion */
+	wait_queue_t		ki_wait;
 	loff_t			ki_pos;
+
+	void			*private;
 	/* State that we remember to be able to restart/retry  */
 	unsigned short		ki_opcode;
 	size_t			ki_nbytes; 	/* copy of iocb->aio_nbytes */
 	char 			__user *ki_buf;	/* remaining iocb->aio_buf */
 	size_t			ki_left; 	/* remaining bytes */
-	wait_queue_t		ki_wait;
 	long			ki_retried; 	/* just for testing */
 	long			ki_kicked; 	/* just for testing */
 	long			ki_queued; 	/* just for testing */
 
-	void			*private;
+	struct list_head	ki_list;	/* the aio core uses this
+						 * for cancellation */
 };
 
 #define is_sync_kiocb(iocb)	((iocb)->ki_key == KIOCB_SYNC_KEY)
@@ -126,6 +127,7 @@ struct kiocb {
 		(x)->ki_filp = (filp);			\
 		(x)->ki_ctx = NULL;			\
 		(x)->ki_cancel = NULL;			\
+		(x)->ki_retry = NULL;			\
 		(x)->ki_dtor = NULL;			\
 		(x)->ki_obj.tsk = tsk;			\
 		(x)->ki_user_data = 0;                  \

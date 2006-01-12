@@ -163,6 +163,9 @@ static int fuse_flush(struct file *file)
 	struct fuse_flush_in inarg;
 	int err;
 
+	if (is_bad_inode(inode))
+		return -EIO;
+
 	if (fc->no_flush)
 		return 0;
 
@@ -198,6 +201,9 @@ int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 	struct fuse_req *req;
 	struct fuse_fsync_in inarg;
 	int err;
+
+	if (is_bad_inode(inode))
+		return -EIO;
 
 	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
 		return 0;
@@ -272,16 +278,22 @@ static int fuse_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	loff_t pos = (loff_t) page->index << PAGE_CACHE_SHIFT;
-	struct fuse_req *req = fuse_get_request(fc);
-	int err = -EINTR;
+	struct fuse_req *req;
+	int err;
+
+	err = -EIO;
+	if (is_bad_inode(inode))
+		goto out;
+
+	err = -EINTR;
+	req = fuse_get_request(fc);
 	if (!req)
 		goto out;
 
 	req->out.page_zeroing = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
-	fuse_send_read(req, file, inode, pos, PAGE_CACHE_SIZE);
+	fuse_send_read(req, file, inode, page_offset(page), PAGE_CACHE_SIZE);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err)
@@ -295,7 +307,7 @@ static int fuse_readpage(struct file *file, struct page *page)
 static int fuse_send_readpages(struct fuse_req *req, struct file *file,
 			       struct inode *inode)
 {
-	loff_t pos = (loff_t) req->pages[0]->index << PAGE_CACHE_SHIFT;
+	loff_t pos = page_offset(req->pages[0]);
 	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
 	unsigned i;
 	req->out.page_zeroing = 1;
@@ -345,6 +357,10 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_readpages_data data;
 	int err;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
 	data.file = file;
 	data.inode = inode;
 	data.req = fuse_get_request(fc);
@@ -402,8 +418,13 @@ static int fuse_commit_write(struct file *file, struct page *page,
 	unsigned count = to - offset;
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	loff_t pos = ((loff_t) page->index << PAGE_CACHE_SHIFT) + offset;
-	struct fuse_req *req = fuse_get_request(fc);
+	loff_t pos = page_offset(page) + offset;
+	struct fuse_req *req;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
@@ -454,7 +475,7 @@ static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
 
 	nbytes = min(nbytes, (unsigned) FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
 	npages = (nbytes + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	npages = min(npages, FUSE_MAX_PAGES_PER_REQ);
+	npages = min(max(npages, 1), FUSE_MAX_PAGES_PER_REQ);
 	down_read(&current->mm->mmap_sem);
 	npages = get_user_pages(current, current->mm, user_addr, npages, write,
 				0, req->pages, NULL);
@@ -475,12 +496,16 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 	size_t nmax = write ? fc->max_write : fc->max_read;
 	loff_t pos = *ppos;
 	ssize_t res = 0;
-	struct fuse_req *req = fuse_get_request(fc);
+	struct fuse_req *req;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
 	while (count) {
-		size_t tmp;
 		size_t nres;
 		size_t nbytes = min(count, nmax);
 		int err = fuse_get_user_pages(req, buf, nbytes, !write);
@@ -488,8 +513,8 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 			res = err;
 			break;
 		}
-		tmp = (req->num_pages << PAGE_SHIFT) - req->page_offset;
-		nbytes = min(nbytes, tmp);
+		nbytes = (req->num_pages << PAGE_SHIFT) - req->page_offset;
+		nbytes = min(count, nbytes);
 		if (write)
 			nres = fuse_send_write(req, file, inode, pos, nbytes);
 		else
@@ -535,9 +560,9 @@ static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
 	struct inode *inode = file->f_dentry->d_inode;
 	ssize_t res;
 	/* Don't allow parallel writes to the same file */
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	res = fuse_direct_io(file, buf, count, ppos, 1);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return res;
 }
 

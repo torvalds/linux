@@ -1,5 +1,5 @@
 /*
- * $Id: cu3088.c,v 1.35 2005/03/30 19:28:52 richtera Exp $
+ * $Id: cu3088.c,v 1.36 2005/10/25 14:37:17 cohuck Exp $
  *
  * CTC / LCS ccw_device driver
  *
@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
+#include <asm/s390_rdev.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
 

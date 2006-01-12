@@ -511,22 +511,19 @@ saa7111_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7111;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	strlcpy(I2C_NAME(client), "saa7111", sizeof(I2C_NAME(client)));
 
-	decoder = kmalloc(sizeof(struct saa7111), GFP_KERNEL);
+	decoder = kzalloc(sizeof(struct saa7111), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(decoder, 0, sizeof(struct saa7111));
 	decoder->norm = VIDEO_MODE_NTSC;
 	decoder->input = 0;
 	decoder->enable = 1;
@@ -590,11 +587,11 @@ saa7111_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_saa7111 = {
-	.owner = THIS_MODULE,
-	.name = "saa7111",
+	.driver = {
+		.name = "saa7111",
+	},
 
 	.id = I2C_DRIVERID_SAA7111A,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = saa7111_attach_adapter,
 	.detach_client = saa7111_detach_client,

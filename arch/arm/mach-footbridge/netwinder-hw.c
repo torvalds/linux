@@ -601,6 +601,7 @@ EXPORT_SYMBOL(gpio_lock);
 EXPORT_SYMBOL(gpio_modify_op);
 EXPORT_SYMBOL(gpio_modify_io);
 EXPORT_SYMBOL(cpld_modify);
+EXPORT_SYMBOL(gpio_read);
 
 /*
  * Initialise any other hardware after we've got the PCI bus

@@ -27,6 +27,11 @@ echo shutdown > /sys/power/disk; echo disk > /sys/power/state
 
 echo platform > /sys/power/disk; echo disk > /sys/power/state
 
+If you want to limit the suspend image size to N megabytes, do
+
+echo N > /sys/power/image_size
+
+before suspend (it is limited to 500 MB by default).
 
 Encrypted suspend image:
 ------------------------
@@ -207,7 +212,7 @@ A: Try running
 
 cat `cat /proc/[0-9]*/maps | grep / | sed 's:.* /:/:' | sort -u` > /dev/null
 
-after resume. swapoff -a; swapon -a may also be usefull.
+after resume. swapoff -a; swapon -a may also be useful.
 
 Q: What happens to devices during swsusp? They seem to be resumed
 during system suspend?
@@ -318,7 +323,7 @@ to be useless to try to suspend to disk while that app is running?
 A: No, it should work okay, as long as your app does not mlock()
 it. Just prepare big enough swap partition.
 
-Q: What information is usefull for debugging suspend-to-disk problems?
+Q: What information is useful for debugging suspend-to-disk problems?
 
 A: Well, last messages on the screen are always useful. If something
 is broken, it is usually some kernel driver, therefore trying with as

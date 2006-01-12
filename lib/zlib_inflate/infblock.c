@@ -338,6 +338,7 @@ int zlib_inflate_blocks_free(
 }
 
 
+#if 0
 void zlib_inflate_set_dictionary(
 	inflate_blocks_statef *s,
 	const Byte *d,
@@ -347,15 +348,18 @@ void zlib_inflate_set_dictionary(
   memcpy(s->window, d, n);
   s->read = s->write = s->window + n;
 }
+#endif  /*  0  */
 
 
 /* Returns true if inflate is currently at the end of a block generated
  * by Z_SYNC_FLUSH or Z_FULL_FLUSH. 
  * IN assertion: s != NULL
  */
+#if 0
 int zlib_inflate_blocks_sync_point(
 	inflate_blocks_statef *s
 )
 {
   return s->mode == LENS;
 }
+#endif  /*  0  */

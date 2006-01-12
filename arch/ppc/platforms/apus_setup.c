@@ -55,9 +55,6 @@ int (*mach_hwclk) (int, struct hwclk_time*) = NULL;
 int (*mach_set_clock_mmss) (unsigned long) = NULL;
 void (*mach_reset)( void );
 long mach_max_dma_address = 0x00ffffff; /* default set to the lower 16MB */
-#if defined(CONFIG_AMIGA_FLOPPY)
-void (*mach_floppy_setup) (char *, int *) __initdata = NULL;
-#endif
 #ifdef CONFIG_HEARTBEAT
 void (*mach_heartbeat) (int) = NULL;
 extern void apus_heartbeat (void);
@@ -76,7 +73,6 @@ struct mem_info m68k_memory[NUM_MEMINFO];/* memory description */
 
 struct mem_info ramdisk;
 
-extern void amiga_floppy_setup(char *, int *);
 extern void config_amiga(void);
 
 static int __60nsram = 0;
@@ -304,16 +300,6 @@ __init
 void kbd_reset_setup(char *str, int *ints)
 {
 }
-
-/*********************************************************** FLOPPY */
-#if defined(CONFIG_AMIGA_FLOPPY)
-__init
-void floppy_setup(char *str, int *ints)
-{
-	if (mach_floppy_setup)
-		mach_floppy_setup (str, ints);
-}
-#endif
 
 /*********************************************************** MEMORY */
 #define KMAP_MAX 32
@@ -574,9 +560,9 @@ static __inline__ void ser_RTSon(void)
 
 int __debug_ser_out( unsigned char c )
 {
-	custom.serdat = c | 0x100;
+	amiga_custom.serdat = c | 0x100;
 	mb();
-	while (!(custom.serdatr & 0x2000))
+	while (!(amiga_custom.serdatr & 0x2000))
 		barrier();
 	return 1;
 }
@@ -586,11 +572,11 @@ unsigned char __debug_ser_in( void )
 	unsigned char c;
 
 	/* XXX: is that ok?? derived from amiga_ser.c... */
-	while( !(custom.intreqr & IF_RBF) )
+	while( !(amiga_custom.intreqr & IF_RBF) )
 		barrier();
-	c = custom.serdatr;
+	c = amiga_custom.serdatr;
 	/* clear the interrupt, so that another character can be read */
-	custom.intreq = IF_RBF;
+	amiga_custom.intreq = IF_RBF;
 	return c;
 }
 
@@ -601,10 +587,10 @@ int __debug_serinit( void )
 	local_irq_save(flags);
 
 	/* turn off Rx and Tx interrupts */
-	custom.intena = IF_RBF | IF_TBE;
+	amiga_custom.intena = IF_RBF | IF_TBE;
 
 	/* clear any pending interrupt */
-	custom.intreq = IF_RBF | IF_TBE;
+	amiga_custom.intreq = IF_RBF | IF_TBE;
 
 	local_irq_restore(flags);
 
@@ -617,7 +603,7 @@ int __debug_serinit( void )
 
 #ifdef CONFIG_KGDB
 	/* turn Rx interrupts on for GDB */
-	custom.intena = IF_SETCLR | IF_RBF;
+	amiga_custom.intena = IF_SETCLR | IF_RBF;
 	ser_RTSon();
 #endif
 

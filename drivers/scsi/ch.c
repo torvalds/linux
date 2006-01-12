@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/chio.h>			/* here are all the ioctls */
 
@@ -75,7 +74,7 @@ static int vendor_counts[CH_TYPES-4];
 module_param_array(vendor_firsts, int, NULL, 0444);
 module_param_array(vendor_counts, int, NULL, 0444);
 
-static char *vendor_labels[CH_TYPES-4] = {
+static const char * vendor_labels[CH_TYPES-4] = {
 	"v0", "v1", "v2", "v3"
 };
 // module_param_string_array(vendor_labels, NULL, 0444);
@@ -140,7 +139,7 @@ static struct file_operations changer_fops =
 #endif
 };
 
-static struct {
+static const struct {
 	unsigned char  sense;
 	unsigned char  asc;
 	unsigned char  ascq;

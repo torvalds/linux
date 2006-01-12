@@ -32,9 +32,6 @@ void __init ixdpg425_pci_preinit(void)
 	set_irq_type(IRQ_IXP4XX_GPIO6, IRQT_LOW);
 	set_irq_type(IRQ_IXP4XX_GPIO7, IRQT_LOW);
 
-	gpio_line_isr_clear(6);
-	gpio_line_isr_clear(7);
-
 	ixp4xx_pci_preinit();
 }
 

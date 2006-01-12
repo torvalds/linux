@@ -1,7 +1,6 @@
 /* i915_mem.c -- Simple agp/fb memory manager for i915 -*- linux-c -*-
  */
-/**************************************************************************
- *
+/*
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
  *
@@ -25,7 +24,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- **************************************************************************/
+ */
 
 #include "drmP.h"
 #include "drm.h"

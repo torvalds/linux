@@ -101,4 +101,4 @@ static char *_errors_h_sccs_ = "@(#)errors.h	1.2";
 #define	NOT_ENOUGH_CORE_FOR_PCI_COPY	53
 
 
-#endif /* __rio_errors_h__ */
+#endif				/* __rio_errors_h__ */

@@ -1,7 +1,7 @@
 /* Functions internal to the PCI core code */
 
-extern int pci_hotplug (struct device *dev, char **envp, int num_envp,
-			 char *buffer, int buffer_size);
+extern int pci_uevent(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);
@@ -26,20 +26,15 @@ extern int pci_user_write_config_dword(struct pci_dev *dev, int where, u32 val);
 #ifdef CONFIG_PROC_FS
 extern int pci_proc_attach_device(struct pci_dev *dev);
 extern int pci_proc_detach_device(struct pci_dev *dev);
-extern int pci_proc_attach_bus(struct pci_bus *bus);
 extern int pci_proc_detach_bus(struct pci_bus *bus);
 #else
 static inline int pci_proc_attach_device(struct pci_dev *dev) { return 0; }
 static inline int pci_proc_detach_device(struct pci_dev *dev) { return 0; }
-static inline int pci_proc_attach_bus(struct pci_bus *bus) { return 0; }
 static inline int pci_proc_detach_bus(struct pci_bus *bus) { return 0; }
 #endif
 
 /* Functions for PCI Hotplug drivers to use */
 extern unsigned int pci_do_scan_bus(struct pci_bus *bus);
-extern int pci_remove_device_safe(struct pci_dev *dev);
-extern unsigned char pci_max_busnr(void);
-extern unsigned char pci_bus_max_busnr(struct pci_bus *bus);
 extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
 
 extern void pci_remove_legacy_files(struct pci_bus *bus);

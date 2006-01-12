@@ -11,7 +11,7 @@ gconfig: $(obj)/gconf
 	$< arch/$(ARCH)/Kconfig
 
 menuconfig: $(obj)/mconf
-	$(Q)$(MAKE) $(build)=scripts/lxdialog
+	$(Q)$(MAKE) $(build)=scripts/kconfig/lxdialog
 	$< arch/$(ARCH)/Kconfig
 
 config: $(obj)/conf
@@ -115,6 +115,7 @@ endif
 
 clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
 		   .tmp_gtkcheck zconf.tab.c lex.zconf.c zconf.hash.c
+subdir- += lxdialog
 
 # Needed for systems without gettext
 KBUILD_HAVE_NLS := $(shell \
@@ -132,8 +133,8 @@ HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 HOSTLOADLIBES_qconf	= $(KC_QT_LIBS) -ldl
 HOSTCXXFLAGS_qconf.o	= $(KC_QT_CFLAGS) -D LKC_DIRECT_LINK
 
-HOSTLOADLIBES_gconf	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --libs`
-HOSTCFLAGS_gconf.o	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --cflags` \
+HOSTLOADLIBES_gconf	= `pkg-config --libs gtk+-2.0 gmodule-2.0 libglade-2.0`
+HOSTCFLAGS_gconf.o	= `pkg-config --cflags gtk+-2.0 gmodule-2.0 libglade-2.0` \
                           -D LKC_DIRECT_LINK
 
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
@@ -192,8 +193,8 @@ ifeq ($(gconf-target),1)
 
 # GTK needs some extra effort, too...
 $(obj)/.tmp_gtkcheck:
-	@if `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --exists`; then		\
-		if `pkg-config gtk+-2.0 --atleast-version=2.0.0`; then			\
+	@if `pkg-config --exists gtk+-2.0 gmodule-2.0 libglade-2.0`; then		\
+		if `pkg-config --atleast-version=2.0.0 gtk+-2.0`; then			\
 			touch $@;								\
 		else									\
 			echo "*"; 							\

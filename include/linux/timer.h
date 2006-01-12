@@ -96,6 +96,6 @@ static inline void add_timer(struct timer_list *timer)
 
 extern void init_timers(void);
 extern void run_local_timers(void);
-extern void it_real_fn(unsigned long);
+extern int it_real_fn(void *);
 
 #endif

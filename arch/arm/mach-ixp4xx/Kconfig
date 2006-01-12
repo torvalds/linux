@@ -71,6 +71,14 @@ config ARCH_PRPMC1100
 	  PrPCM1100 Processor Mezanine Module. For more information on
 	  this platform, see <file:Documentation/arm/IXP4xx>.
 
+config MACH_NAS100D
+	bool
+	prompt "NAS100D"
+	help
+	  Say 'Y' here if you want your kernel to support Iomega's
+	  NAS 100d device. For more information on this platform,
+	  see http://www.nslu2-linux.org/wiki/NAS100d/HomePage
+
 #
 # Avila and IXDP share the same source for now. Will change in future
 #

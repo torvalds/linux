@@ -1,6 +1,6 @@
 /***************************************************************************
  * binoffset.c
- * (C) 2002 Randy Dunlap <rddunlap@osdl.org>
+ * (C) 2002 Randy Dunlap <rdunlap@xenotime.net>
 
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by

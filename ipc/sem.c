@@ -73,6 +73,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
 #include "util.h"

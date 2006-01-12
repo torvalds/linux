@@ -41,7 +41,7 @@ typedef unsigned long kimage_entry_t;
 #define IND_DONE         0x4
 #define IND_SOURCE       0x8
 
-#define KEXEC_SEGMENT_MAX 8
+#define KEXEC_SEGMENT_MAX 16
 struct kexec_segment {
 	void __user *buf;
 	size_t bufsz;
@@ -125,6 +125,8 @@ extern struct kimage *kexec_image;
 /* Location of a reserved region to hold the crash kernel.
  */
 extern struct resource crashk_res;
+typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
+extern note_buf_t *crash_notes;
 
 #else /* !CONFIG_KEXEC */
 struct pt_regs;

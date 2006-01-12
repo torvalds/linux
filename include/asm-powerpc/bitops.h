@@ -310,6 +310,7 @@ static __inline__ int fls(unsigned int x)
 	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (x));
 	return 32 - lz;
 }
+#define fls64(x)   generic_fls64(x)
 
 /*
  * hweightN: returns the hamming weight (i.e. the number
