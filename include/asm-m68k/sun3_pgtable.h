@@ -211,7 +211,7 @@ static inline unsigned long pte_to_pgoff(pte_t pte)
 	return pte.pte & SUN3_PAGE_PGNUM_MASK;
 }
 
-static inline pte_t pgoff_to_pte(inline unsigned off)
+static inline pte_t pgoff_to_pte(unsigned off)
 {
 	pte_t pte = { off + SUN3_PAGE_ACCESSED };
 	return pte;
