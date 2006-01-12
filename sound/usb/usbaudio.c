@@ -475,6 +475,18 @@ static int retire_playback_sync_urb_hs(struct snd_usb_substream *subs,
 	return 0;
 }
 
+/* determine the number of frames in the next packet */
+static int snd_usb_audio_next_packet_size(struct snd_usb_substream *subs)
+{
+	if (subs->fill_max)
+		return subs->maxframesize;
+	else {
+		subs->phase = (subs->phase & 0xffff)
+			+ (subs->freqm << subs->datainterval);
+		return min(subs->phase >> 16, subs->maxframesize);
+	}
+}
+
 /*
  * Prepare urb for streaming before playback starts.
  *
@@ -492,16 +504,7 @@ static int prepare_startup_playback_urb(struct snd_usb_substream *subs,
 	urb->dev = ctx->subs->dev;
 	urb->number_of_packets = subs->packs_per_ms;
 	for (i = 0; i < subs->packs_per_ms; ++i) {
-		/* calculate the size of a packet */
-		if (subs->fill_max)
-			counts = subs->maxframesize; /* fixed */
-		else {
-			subs->phase = (subs->phase & 0xffff)
-				+ (subs->freqm << subs->datainterval);
-			counts = subs->phase >> 16;
-			if (counts > subs->maxframesize)
-				counts = subs->maxframesize;
-		}
+		counts = snd_usb_audio_next_packet_size(subs);
 		urb->iso_frame_desc[i].offset = offs * stride;
 		urb->iso_frame_desc[i].length = counts * stride;
 		offs += counts;
@@ -538,16 +541,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 	urb->number_of_packets = 0;
 	spin_lock_irqsave(&subs->lock, flags);
 	for (i = 0; i < ctx->packets; i++) {
-		/* calculate the size of a packet */
-		if (subs->fill_max)
-			counts = subs->maxframesize; /* fixed */
-		else {
-			subs->phase = (subs->phase & 0xffff)
-				+ (subs->freqm << subs->datainterval);
-			counts = subs->phase >> 16;
-			if (counts > subs->maxframesize)
-				counts = subs->maxframesize;
-		}
+		counts = snd_usb_audio_next_packet_size(subs);
 		/* set up descriptor */
 		urb->iso_frame_desc[i].offset = offs * stride;
 		urb->iso_frame_desc[i].length = counts * stride;
