@@ -445,8 +445,10 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	if (pd->uobject) {
 		context = to_mucontext(pd->uobject->context);
 
-		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
-			return ERR_PTR(-EFAULT);
+		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
+			err = -EFAULT;
+			goto err_free;
+		}
 
 		err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
 					context->db_tab, ucmd.db_index,
@@ -522,8 +524,10 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		if (pd->uobject) {
 			context = to_mucontext(pd->uobject->context);
 
-			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
+				kfree(qp);
 				return ERR_PTR(-EFAULT);
+			}
 
 			err = mthca_map_user_db(to_mdev(pd->device), &context->uar,
 						context->db_tab,
