@@ -309,7 +309,10 @@ int __init ip_ct_proto_gre_init(void)
 	return ip_conntrack_protocol_register(&gre);
 }
 
-void __exit ip_ct_proto_gre_fini(void)
+/* This cannot be __exit, as it is invoked from ip_conntrack_helper_pptp.c's
+ * init() code on errors.
+ */
+void ip_ct_proto_gre_fini(void)
 {
 	struct list_head *pos, *n;
 

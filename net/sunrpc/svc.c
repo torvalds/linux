@@ -32,7 +32,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize)
 	int vers;
 	unsigned int xdrsize;
 
-	if (!(serv = (struct svc_serv *) kmalloc(sizeof(*serv), GFP_KERNEL)))
+	if (!(serv = kmalloc(sizeof(*serv), GFP_KERNEL)))
 		return NULL;
 	memset(serv, 0, sizeof(*serv));
 	serv->sv_name      = prog->pg_name;

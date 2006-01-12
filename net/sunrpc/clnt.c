@@ -118,7 +118,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 		goto out_err;
 
 	err = -ENOMEM;
-	clnt = (struct rpc_clnt *) kmalloc(sizeof(*clnt), GFP_KERNEL);
+	clnt = kmalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
 	memset(clnt, 0, sizeof(*clnt));
@@ -225,7 +225,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 {
 	struct rpc_clnt *new;
 
-	new = (struct rpc_clnt *)kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out_no_clnt;
 	memcpy(new, clnt, sizeof(*new));

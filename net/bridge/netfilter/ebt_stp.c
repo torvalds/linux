@@ -10,6 +10,7 @@
 
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_stp.h>
+#include <linux/etherdevice.h>
 #include <linux/module.h>
 
 #define BPDU_TYPE_CONFIG 0

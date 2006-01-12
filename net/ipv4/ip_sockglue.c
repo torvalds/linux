@@ -621,7 +621,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				err = -ENOBUFS;
 				break;
 			}
-			msf = (struct ip_msfilter *)kmalloc(optlen, GFP_KERNEL);
+			msf = kmalloc(optlen, GFP_KERNEL);
 			if (msf == 0) {
 				err = -ENOBUFS;
 				break;
@@ -778,7 +778,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				err = -ENOBUFS;
 				break;
 			}
-			gsf = (struct group_filter *)kmalloc(optlen,GFP_KERNEL);
+			gsf = kmalloc(optlen,GFP_KERNEL);
 			if (gsf == 0) {
 				err = -ENOBUFS;
 				break;
@@ -798,7 +798,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				goto mc_msf_out;
 			}
 			msize = IP_MSFILTER_SIZE(gsf->gf_numsrc);
-			msf = (struct ip_msfilter *)kmalloc(msize,GFP_KERNEL);
+			msf = kmalloc(msize,GFP_KERNEL);
 			if (msf == 0) {
 				err = -ENOBUFS;
 				goto mc_msf_out;

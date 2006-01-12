@@ -1237,7 +1237,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 		goto done;
 
 	err = -ENOBUFS;
-	i = (struct packet_mclist *)kmalloc(sizeof(*i), GFP_KERNEL);
+	i = kmalloc(sizeof(*i), GFP_KERNEL);
 	if (i == NULL)
 		goto done;
 

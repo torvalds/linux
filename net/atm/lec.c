@@ -1811,8 +1811,7 @@ make_entry(struct lec_priv *priv, unsigned char *mac_addr)
 {
         struct lec_arp_table *to_return;
 
-        to_return = (struct lec_arp_table *) kmalloc(sizeof(struct lec_arp_table),
-						     GFP_ATOMIC);
+        to_return = kmalloc(sizeof(struct lec_arp_table), GFP_ATOMIC);
         if (!to_return) {
                 printk("LEC: Arp entry kmalloc failed\n");
                 return NULL;

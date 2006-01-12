@@ -549,7 +549,7 @@ done:
 			retv = -ENOBUFS;
 			break;
 		}
-		gsf = (struct group_filter *)kmalloc(optlen,GFP_KERNEL);
+		gsf = kmalloc(optlen,GFP_KERNEL);
 		if (gsf == 0) {
 			retv = -ENOBUFS;
 			break;

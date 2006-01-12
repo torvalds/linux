@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 
 #include <linux/netfilter_ipv6/ip6t_mac.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>

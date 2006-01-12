@@ -92,7 +92,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 #include <net/pkt_cls.h>
-#include <config/net/ematch/stack.h>
 
 static LIST_HEAD(ematch_ops);
 static DEFINE_RWLOCK(ematch_mod_lock);
