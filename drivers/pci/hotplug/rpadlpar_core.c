@@ -152,7 +152,7 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	pcibios_claim_one_bus(dev->bus);
 
 	/* ioremap() for child bus, which may or may not succeed */
-	(void) remap_bus_range(dev->bus);
+	remap_bus_range(dev->subordinate);
 
 	/* Add new devices to global lists.  Register in proc, sysfs. */
 	pci_bus_add_devices(phb->bus);
