@@ -208,6 +208,8 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		page = vm_normal_page(vma, addr, *pte);
 		if (!page)
 			continue;
+		if (PageReserved(page))
+			continue;
 		nid = page_to_nid(page);
 		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
 			continue;
@@ -290,7 +292,7 @@ static inline int check_pgd_range(struct vm_area_struct *vma,
 static inline int vma_migratable(struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & (
-		VM_LOCKED|VM_IO|VM_HUGETLB|VM_PFNMAP))
+		VM_LOCKED|VM_IO|VM_HUGETLB|VM_PFNMAP|VM_RESERVED))
 		return 0;
 	return 1;
 }
