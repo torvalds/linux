@@ -76,7 +76,7 @@ struct switch_stack {
 extern void show_regs(struct pt_regs *);
 
 #define alpha_task_regs(task) \
-  ((struct pt_regs *) ((long) (task)->thread_info + 2*PAGE_SIZE) - 1)
+  ((struct pt_regs *) (task_stack_page(task) + 2*PAGE_SIZE) - 1)
 
 #define force_successful_syscall_return() (alpha_task_regs(current)->r0 = 0)
 

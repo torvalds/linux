@@ -276,7 +276,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	extern void ret_from_fork(void);
 
-	struct thread_info *childti = p->thread_info;
+	struct thread_info *childti = task_thread_info(p);
 	struct pt_regs * childregs;
 	struct switch_stack * childstack, *stack;
 	unsigned long stack_offset, settls;
@@ -285,7 +285,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	if (!(regs->ps & 8))
 		stack_offset = (PAGE_SIZE-1) & (unsigned long) regs;
 	childregs = (struct pt_regs *)
-	  (stack_offset + PAGE_SIZE + (long) childti);
+	  (stack_offset + PAGE_SIZE + task_stack_page(p));
 		
 	*childregs = *regs;
 	settls = regs->r20;
@@ -492,7 +492,7 @@ out:
 unsigned long
 thread_saved_pc(task_t *t)
 {
-	unsigned long base = (unsigned long)t->thread_info;
+	unsigned long base = (unsigned long)task_stack_page(t);
 	unsigned long fp, sp = task_thread_info(t)->pcb.ksp;
 
 	if (sp > base && sp+6*8 < base + 16*1024) {

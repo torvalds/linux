@@ -110,7 +110,7 @@ get_reg_addr(struct task_struct * task, unsigned long regno)
 		zero = 0;
 		addr = &zero;
 	} else {
-		addr = (void *)task->thread_info + regoff[regno];
+		addr = task_stack_page(task) + regoff[regno];
 	}
 	return addr;
 }
