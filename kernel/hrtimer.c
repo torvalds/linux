@@ -275,7 +275,7 @@ void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
  * The number of overruns is added to the overrun field.
  */
 unsigned long
-hrtimer_forward(struct hrtimer *timer, const ktime_t interval)
+hrtimer_forward(struct hrtimer *timer, ktime_t interval)
 {
 	unsigned long orun = 1;
 	ktime_t delta, now;
@@ -286,6 +286,9 @@ hrtimer_forward(struct hrtimer *timer, const ktime_t interval)
 
 	if (delta.tv64 < 0)
 		return 0;
+
+	if (interval.tv64 < timer->base->resolution.tv64)
+		interval.tv64 = timer->base->resolution.tv64;
 
 	if (unlikely(delta.tv64 >= interval.tv64)) {
 		nsec_t incr = ktime_to_ns(interval);

@@ -122,8 +122,7 @@ static inline int hrtimer_active(const struct hrtimer *timer)
 }
 
 /* Forward a hrtimer so it expires after now: */
-extern unsigned long hrtimer_forward(struct hrtimer *timer,
-				     const ktime_t interval);
+extern unsigned long hrtimer_forward(struct hrtimer *timer, ktime_t interval);
 
 /* Precise sleep: */
 extern long hrtimer_nanosleep(struct timespec *rqtp,
