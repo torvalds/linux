@@ -6,7 +6,7 @@
 #ifdef CONFIG_PPC_ISERIES
 #include <linux/types.h>
 /*
- * File iSeries_io.h created by Allan Trautman on Thu Dec 28 2000.
+ * Created by Allan Trautman on Thu Dec 28 2000.
  *
  * Remaps the io.h for the iSeries Io
  * Copyright (C) 2000  Allan H Trautman, IBM Corporation

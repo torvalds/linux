@@ -1,5 +1,4 @@
 /*
- * mf.h
  * Copyright (C) 2001  Troy D. Armstrong IBM Corporation
  * Copyright (C) 2004  Stephen Rothwell IBM Corporation
  *

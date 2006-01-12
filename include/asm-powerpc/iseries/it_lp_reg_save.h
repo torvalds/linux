@@ -1,5 +1,4 @@
 /*
- * ItLpRegSave.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -83,4 +82,4 @@ struct ItLpRegSave {
 
 extern struct ItLpRegSave iseries_reg_save[];
 
-#endif /* _ITLPREGSAVE_H */
+#endif /* _ASM_POWERPC_ISERIES_IT_LP_REG_SAVE_H */
