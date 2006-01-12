@@ -1240,6 +1240,7 @@ static inline void task_unlock(struct task_struct *p)
 #ifndef __HAVE_THREAD_FUNCTIONS
 
 #define task_thread_info(task) (task)->thread_info
+#define task_stack_page(task) ((void*)((task)->thread_info))
 
 static inline void setup_thread_stack(struct task_struct *p, struct task_struct *org)
 {
