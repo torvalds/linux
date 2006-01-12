@@ -67,12 +67,6 @@ static inline unsigned long get_stack_long(struct task_struct *task, int offset)
 	return (*((unsigned long *)stack));
 }
 
-static inline struct pt_regs *get_child_regs(struct task_struct *task)
-{
-	struct pt_regs *regs = (void *)task->thread.rsp0;
-	return regs - 1;
-}
-
 /*
  * this routine will put a word on the processes privileged stack. 
  * the offset is how far from the base addr as stored in the TSS.  
@@ -170,7 +164,7 @@ static int is_at_popf(struct task_struct *child, struct pt_regs *regs)
 
 static void set_singlestep(struct task_struct *child)
 {
-	struct pt_regs *regs = get_child_regs(child);
+	struct pt_regs *regs = task_pt_regs(child);
 
 	/*
 	 * Always set TIF_SINGLESTEP - this guarantees that
@@ -208,7 +202,7 @@ static void clear_singlestep(struct task_struct *child)
 
 	/* But touch TF only if it was set by us.. */
 	if (child->ptrace & PT_DTRACE) {
-		struct pt_regs *regs = get_child_regs(child);
+		struct pt_regs *regs = task_pt_regs(child);
 		regs->eflags &= ~TRAP_FLAG;
 		child->ptrace &= ~PT_DTRACE;
 	}

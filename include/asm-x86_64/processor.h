@@ -321,8 +321,8 @@ extern long kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 #define thread_saved_pc(t) (*(unsigned long *)((t)->thread.rsp - 8))
 
 extern unsigned long get_wchan(struct task_struct *p);
-#define KSTK_EIP(tsk) \
-	(((struct pt_regs *)(tsk->thread.rsp0 - sizeof(struct pt_regs)))->rip)
+#define task_pt_regs(tsk) ((struct pt_regs *)(tsk)->thread.rsp0 - 1)
+#define KSTK_EIP(tsk) (task_pt_regs(tsk)->rip)
 #define KSTK_ESP(tsk) -1 /* sorry. doesn't work for syscall. */
 
 

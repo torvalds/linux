@@ -822,8 +822,7 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
 	struct pt_regs *pp, ptregs;
 
-	pp = (struct pt_regs *)(tsk->thread.rsp0);
-	--pp; 
+	pp = task_pt_regs(tsk);
 
 	ptregs = *pp; 
 	ptregs.cs &= 0xffff;

@@ -41,7 +41,7 @@
 static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 {
 	int i;
-	__u64 *stack = (__u64 *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
+	__u64 *stack = (__u64 *)task_pt_regs(child);
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
@@ -137,7 +137,7 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 
 static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 {
-	__u64 *stack = (__u64 *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
+	__u64 *stack = (__u64 *)task_pt_regs(child);
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
@@ -238,7 +238,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	if (ret < 0)
 		goto out;
 
-	childregs = (struct pt_regs *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
+	childregs = task_pt_regs(child);
 
 	switch (request) {
 	case PTRACE_PEEKDATA:

@@ -666,7 +666,7 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
 		;
 	/* Exception from user space */
 	else if (user_mode(eregs))
-		regs = ((struct pt_regs *)current->thread.rsp0) - 1;
+		regs = task_pt_regs(current);
 	/* Exception from kernel and interrupts are enabled. Move to
  	   kernel process stack. */
 	else if (eregs->eflags & X86_EFLAGS_IF)
