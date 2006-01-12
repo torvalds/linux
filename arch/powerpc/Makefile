@@ -139,9 +139,9 @@ drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
-defaultimage-$(CONFIG_PPC32)	:= zImage
+# Default to zImage, override when needed
+defaultimage-y			:= zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
-defaultimage-$(CONFIG_PPC_PSERIES) := zImage
 KBUILD_IMAGE := $(defaultimage-y)
 all: $(KBUILD_IMAGE)
 
