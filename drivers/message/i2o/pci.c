@@ -88,11 +88,6 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	struct device *dev = &pdev->dev;
 	int i;
 
-	if (pci_request_regions(pdev, OSM_DESCRIPTION)) {
-		printk(KERN_ERR "%s: device already claimed\n", c->name);
-		return -ENODEV;
-	}
-
 	for (i = 0; i < 6; i++) {
 		/* Skip I/O spaces */
 		if (!(pci_resource_flags(pdev, i) & IORESOURCE_IO)) {
@@ -317,6 +312,11 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		printk(KERN_WARNING "i2o: couldn't enable device %s\n",
 		       pci_name(pdev));
 		return rc;
+	}
+
+	if (pci_request_regions(pdev, OSM_DESCRIPTION)) {
+		printk(KERN_ERR "i2o: device already claimed\n", c->name);
+		return -ENODEV;
 	}
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {

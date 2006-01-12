@@ -899,6 +899,12 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	if(pci_enable_device(pDev)) {
 		return -EINVAL;
 	}
+
+	if (pci_request_regions(pDev, "dpt_i2o")) {
+		PERROR("dpti: adpt_config_hba: pci request region failed\n");
+		return -EINVAL;
+	}
+
 	pci_set_master(pDev);
 	if (pci_set_dma_mask(pDev, 0xffffffffffffffffULL) &&
 	    pci_set_dma_mask(pDev, 0xffffffffULL))
@@ -924,10 +930,6 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 		raptorFlag = TRUE;
 	}
 
-	if (pci_request_regions(pDev, "dpt_i2o")) {
-		PERROR("dpti: adpt_config_hba: pci request region failed\n");
-		return -EINVAL;
-	}
 	base_addr_virt = ioremap(base_addr0_phys,hba_map0_area_size);
 	if (!base_addr_virt) {
 		pci_release_regions(pDev);
