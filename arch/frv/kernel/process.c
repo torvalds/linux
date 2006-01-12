@@ -204,7 +204,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 
 	regs0 = __kernel_frame0_ptr;
 	childregs0 = (struct pt_regs *)
-		((unsigned long) p->thread_info + THREAD_SIZE - USER_CONTEXT_SIZE);
+		(task_stack_page(p) + THREAD_SIZE - USER_CONTEXT_SIZE);
 	childregs = childregs0;
 
 	/* set up the userspace frame (the only place that the USP is stored) */
@@ -220,7 +220,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 		*childregs = *regs;
 		childregs->sp = (unsigned long) childregs0;
 		childregs->next_frame = childregs0;
-		childregs->gr15 = (unsigned long) p->thread_info;
+		childregs->gr15 = (unsigned long) task_thread_info(p);
 		childregs->gr29 = (unsigned long) p;
 	}
 
