@@ -122,6 +122,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
+#include <linux/lp.h>
 
 /* Aiee. Someone does not find a difference between int and long */
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
@@ -2735,6 +2736,20 @@ static int do_ncp_setprivatedata(unsigned int fd, unsigned int cmd, unsigned lon
 }
 #endif
 
+static int
+lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_timeval *tc = (struct compat_timeval *)arg;
+	struct timeval *tn = compat_alloc_user_space(sizeof(struct timeval));
+	struct timeval ts;
+	if (get_user(ts.tv_sec, &tc->tv_sec) ||
+	    get_user(ts.tv_usec, &tc->tv_usec) ||
+	    put_user(ts.tv_sec, &tn->tv_sec) ||
+	    put_user(ts.tv_usec, &tn->tv_usec))
+		return -EFAULT;
+	return sys_ioctl(fd, cmd, (unsigned long)tn);
+}
+
 #define HANDLE_IOCTL(cmd,handler) \
 	{ (cmd), (ioctl_trans_handler_t)(handler) },
 
@@ -2962,6 +2977,20 @@ HANDLE_IOCTL(DMX_GET_EVENT, do_dmx_get_event)
 HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)
 HANDLE_IOCTL(VIDEO_STILLPICTURE, do_video_stillpicture)
 HANDLE_IOCTL(VIDEO_SET_SPU_PALETTE, do_video_set_spu_palette)
+
+/* parport */
+COMPATIBLE_IOCTL(LPTIME)
+COMPATIBLE_IOCTL(LPCHAR)
+COMPATIBLE_IOCTL(LPABORTOPEN)
+COMPATIBLE_IOCTL(LPCAREFUL)
+COMPATIBLE_IOCTL(LPWAIT)
+COMPATIBLE_IOCTL(LPSETIRQ)
+COMPATIBLE_IOCTL(LPGETSTATUS)
+COMPATIBLE_IOCTL(LPGETSTATUS)
+COMPATIBLE_IOCTL(LPRESET)
+/*LPGETSTATS not implemented, but no kernels seem to compile it in anyways*/
+COMPATIBLE_IOCTL(LPGETFLAGS)
+HANDLE_IOCTL(LPSETTIMEOUT, lp_timeout_trans)
 };
 
 int ioctl_table_size = ARRAY_SIZE(ioctl_start);
