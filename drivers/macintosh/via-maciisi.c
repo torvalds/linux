@@ -326,7 +326,7 @@ maciisi_write(struct adb_request* req)
 		req->complete = 1;
 		return -EINVAL;
 	}
-	req->next = 0;
+	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
 	req->reply_len = 0;
@@ -421,7 +421,7 @@ maciisi_poll(void)
 
 	local_irq_save(flags);
 	if (via[IFR] & SR_INT) {
-		maciisi_interrupt(0, 0, 0);
+		maciisi_interrupt(0, NULL, NULL);
 	}
 	else /* avoid calling this function too quickly in a loop */
 		udelay(ADB_DELAY);

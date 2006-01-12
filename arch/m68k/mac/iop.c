@@ -293,8 +293,8 @@ void __init iop_init(void)
 	}
 
 	for (i = 0 ; i < NUM_IOP_CHAN ; i++) {
-		iop_send_queue[IOP_NUM_SCC][i] = 0;
-		iop_send_queue[IOP_NUM_ISM][i] = 0;
+		iop_send_queue[IOP_NUM_SCC][i] = NULL;
+		iop_send_queue[IOP_NUM_ISM][i] = NULL;
 		iop_listeners[IOP_NUM_SCC][i].devname = NULL;
 		iop_listeners[IOP_NUM_SCC][i].handler = NULL;
 		iop_listeners[IOP_NUM_ISM][i].devname = NULL;

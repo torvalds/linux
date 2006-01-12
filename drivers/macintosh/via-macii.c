@@ -260,7 +260,7 @@ static int macii_write(struct adb_request *req)
 		return -EINVAL;
 	}
 	
-	req->next = 0;
+	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
 	req->reply_len = 0;
@@ -295,7 +295,7 @@ static void macii_poll(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	if (via[IFR] & SR_INT) macii_interrupt(0, 0, 0);
+	if (via[IFR] & SR_INT) macii_interrupt(0, NULL, NULL);
 	local_irq_restore(flags);
 }
 

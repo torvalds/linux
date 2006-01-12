@@ -46,7 +46,7 @@ asmlinkage irqreturn_t floppy_hardint(int irq, void *dev_id,
 
 static int virtual_dma_count=0;
 static int virtual_dma_residue=0;
-static char *virtual_dma_addr=0;
+static char *virtual_dma_addr=NULL;
 static int virtual_dma_mode=0;
 static int doing_pdma=0;
 
