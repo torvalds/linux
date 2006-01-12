@@ -533,23 +533,9 @@ static void savage_fake_dma_flush(drm_savage_private_t * dev_priv)
 	dev_priv->first_dma_page = dev_priv->current_dma_page = 0;
 }
 
-/*
- * Initalize mappings. On Savage4 and SavageIX the alignment
- * and size of the aperture is not suitable for automatic MTRR setup
- * in drm_addmap. Therefore we do it manually before the maps are
- * initialized. We also need to take care of deleting the MTRRs in
- * postcleanup.
- */
-int savage_preinit(drm_device_t * dev, unsigned long chipset)
+int savage_driver_load(drm_device_t *dev, unsigned long chipset)
 {
 	drm_savage_private_t *dev_priv;
-	unsigned long mmio_base, fb_base, fb_size, aperture_base;
-	/* fb_rsrc and aper_rsrc aren't really used currently, but still exist
-	 * in case we decide we need information on the BAR for BSD in the
-	 * future.
-	 */
-	unsigned int fb_rsrc, aper_rsrc;
-	int ret = 0;
 
 	dev_priv = drm_alloc(sizeof(drm_savage_private_t), DRM_MEM_DRIVER);
 	if (dev_priv == NULL)
@@ -557,7 +543,29 @@ int savage_preinit(drm_device_t * dev, unsigned long chipset)
 
 	memset(dev_priv, 0, sizeof(drm_savage_private_t));
 	dev->dev_private = (void *)dev_priv;
+
 	dev_priv->chipset = (enum savage_family)chipset;
+
+	return 0;
+}
+
+
+/*
+ * Initalize mappings. On Savage4 and SavageIX the alignment
+ * and size of the aperture is not suitable for automatic MTRR setup
+ * in drm_addmap. Therefore we add them manually before the maps are
+ * initialized, and tear them down on last close.
+ */
+int savage_driver_firstopen(drm_device_t *dev)
+{
+	drm_savage_private_t *dev_priv = dev->dev_private;
+	unsigned long mmio_base, fb_base, fb_size, aperture_base;
+	/* fb_rsrc and aper_rsrc aren't really used currently, but still exist
+	 * in case we decide we need information on the BAR for BSD in the
+	 * future.
+	 */
+	unsigned int fb_rsrc, aper_rsrc;
+	int ret = 0;
 
 	dev_priv->mtrr[0].handle = -1;
 	dev_priv->mtrr[1].handle = -1;
@@ -576,26 +584,24 @@ int savage_preinit(drm_device_t * dev, unsigned long chipset)
 			dev_priv->mtrr[0].base = fb_base;
 			dev_priv->mtrr[0].size = 0x01000000;
 			dev_priv->mtrr[0].handle =
-			    mtrr_add(dev_priv->mtrr[0].base,
-				     dev_priv->mtrr[0].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[0].base,
+				         dev_priv->mtrr[0].size, DRM_MTRR_WC);
 			dev_priv->mtrr[1].base = fb_base + 0x02000000;
 			dev_priv->mtrr[1].size = 0x02000000;
 			dev_priv->mtrr[1].handle =
-			    mtrr_add(dev_priv->mtrr[1].base,
-				     dev_priv->mtrr[1].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[1].base,
+					 dev_priv->mtrr[1].size, DRM_MTRR_WC);
 			dev_priv->mtrr[2].base = fb_base + 0x04000000;
 			dev_priv->mtrr[2].size = 0x04000000;
 			dev_priv->mtrr[2].handle =
-			    mtrr_add(dev_priv->mtrr[2].base,
-				     dev_priv->mtrr[2].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[2].base,
+					 dev_priv->mtrr[2].size, DRM_MTRR_WC);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08lx\n",
 				  drm_get_resource_len(dev, 0));
 		}
-	} else if (chipset != S3_SUPERSAVAGE && chipset != S3_SAVAGE2000) {
+	} else if (dev_priv->chipset != S3_SUPERSAVAGE &&
+		   dev_priv->chipset != S3_SAVAGE2000) {
 		mmio_base = drm_get_resource_start(dev, 0);
 		fb_rsrc = 1;
 		fb_base = drm_get_resource_start(dev, 1);
@@ -609,9 +615,8 @@ int savage_preinit(drm_device_t * dev, unsigned long chipset)
 			dev_priv->mtrr[0].base = fb_base;
 			dev_priv->mtrr[0].size = 0x08000000;
 			dev_priv->mtrr[0].handle =
-			    mtrr_add(dev_priv->mtrr[0].base,
-				     dev_priv->mtrr[0].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[0].base,
+					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08lx\n",
 				  drm_get_resource_len(dev, 1));
@@ -648,16 +653,21 @@ int savage_preinit(drm_device_t * dev, unsigned long chipset)
 /*
  * Delete MTRRs and free device-private data.
  */
-int savage_postcleanup(drm_device_t * dev)
+void savage_driver_lastclose(drm_device_t *dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	int i;
 
 	for (i = 0; i < 3; ++i)
 		if (dev_priv->mtrr[i].handle >= 0)
-			mtrr_del(dev_priv->mtrr[i].handle,
+			drm_mtrr_del(dev_priv->mtrr[i].handle,
 				 dev_priv->mtrr[i].base,
-				 dev_priv->mtrr[i].size);
+				 dev_priv->mtrr[i].size, DRM_MTRR_WC);
+}
+
+int savage_driver_unload(drm_device_t *dev)
+{
+	drm_savage_private_t *dev_priv = dev->dev_private;
 
 	drm_free(dev_priv, sizeof(drm_savage_private_t), DRM_MEM_DRIVER);
 
@@ -994,8 +1004,7 @@ static int savage_bci_event_wait(DRM_IOCTL_ARGS)
  * DMA buffer management
  */
 
-static int savage_bci_get_buffers(DRMFILE filp, drm_device_t * dev,
-				  drm_dma_t * d)
+static int savage_bci_get_buffers(DRMFILE filp, drm_device_t *dev, drm_dma_t *d)
 {
 	drm_buf_t *buf;
 	int i;
@@ -1057,7 +1066,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	return ret;
 }
 
-void savage_reclaim_buffers(drm_device_t * dev, DRMFILE filp)
+void savage_reclaim_buffers(drm_device_t *dev, DRMFILE filp)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
@@ -1090,10 +1099,10 @@ void savage_reclaim_buffers(drm_device_t * dev, DRMFILE filp)
 }
 
 drm_ioctl_desc_t savage_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_INIT)] = {savage_bci_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_CMDBUF)] = {savage_bci_cmdbuf, 1, 0},
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_EVENT_EMIT)] = {savage_bci_event_emit, 1, 0},
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_EVENT_WAIT)] = {savage_bci_event_wait, 1, 0},
+	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_INIT)] = {savage_bci_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_CMDBUF)] = {savage_bci_cmdbuf, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_EVENT_EMIT)] = {savage_bci_event_emit, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_EVENT_WAIT)] = {savage_bci_event_wait, DRM_AUTH},
 };
 
 int savage_max_ioctl = DRM_ARRAY_SIZE(savage_ioctls);

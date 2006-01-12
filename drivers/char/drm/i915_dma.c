@@ -1,7 +1,6 @@
 /* i915_dma.c -- DMA support for the I915 -*- linux-c -*-
  */
-/**************************************************************************
- *
+/*
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
  *
@@ -25,7 +24,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- **************************************************************************/
+ */
 
 #include "drmP.h"
 #include "drm.h"
@@ -196,7 +195,7 @@ static int i915_initialize(drm_device_t * dev,
 	return 0;
 }
 
-static int i915_resume(drm_device_t * dev)
+static int i915_dma_resume(drm_device_t * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
@@ -253,7 +252,7 @@ static int i915_dma_init(DRM_IOCTL_ARGS)
 		retcode = i915_dma_cleanup(dev);
 		break;
 	case I915_RESUME_DMA:
-		retcode = i915_resume(dev);
+		retcode = i915_dma_resume(dev);
 		break;
 	default:
 		retcode = -EINVAL;
@@ -654,6 +653,9 @@ static int i915_getparam(DRM_IOCTL_ARGS)
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 		value = dev_priv->allow_batchbuffer ? 1 : 0;
 		break;
+	case I915_PARAM_LAST_DISPATCH:
+		value = READ_BREADCRUMB(dev_priv);
+		break;
 	default:
 		DRM_ERROR("Unkown parameter %d\n", param.param);
 		return DRM_ERR(EINVAL);
@@ -699,7 +701,19 @@ static int i915_setparam(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-void i915_driver_pretakedown(drm_device_t * dev)
+int i915_driver_load(drm_device_t *dev, unsigned long flags)
+{
+	/* i915 has 4 more counters */
+	dev->counters += 4;
+	dev->types[6] = _DRM_STAT_IRQ;
+	dev->types[7] = _DRM_STAT_PRIMARY;
+	dev->types[8] = _DRM_STAT_SECONDARY;
+	dev->types[9] = _DRM_STAT_DMA;
+
+	return 0;
+}
+
+void i915_driver_lastclose(drm_device_t * dev)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
@@ -708,7 +722,7 @@ void i915_driver_pretakedown(drm_device_t * dev)
 	i915_dma_cleanup(dev);
 }
 
-void i915_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void i915_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
@@ -717,18 +731,18 @@ void i915_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 }
 
 drm_ioctl_desc_t i915_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_I915_INIT)] = {i915_dma_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_FLUSH)] = {i915_flush_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_FLIP)] = {i915_flip_bufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_BATCHBUFFER)] = {i915_batchbuffer, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_IRQ_EMIT)] = {i915_irq_emit, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_IRQ_WAIT)] = {i915_irq_wait, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_GETPARAM)] = {i915_getparam, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_SETPARAM)] = {i915_setparam, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, 1, 1},
-	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, 1, 0}
+	[DRM_IOCTL_NR(DRM_I915_INIT)] = {i915_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I915_FLUSH)] = {i915_flush_ioctl, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_FLIP)] = {i915_flip_bufs, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_BATCHBUFFER)] = {i915_batchbuffer, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_IRQ_EMIT)] = {i915_irq_emit, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_IRQ_WAIT)] = {i915_irq_wait, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_GETPARAM)] = {i915_getparam, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_SETPARAM)] = {i915_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, DRM_AUTH}
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

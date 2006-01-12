@@ -38,41 +38,6 @@
 #include "drm_pciids.h"
 
 static int mga_driver_device_is_agp(drm_device_t * dev);
-static int postinit(struct drm_device *dev, unsigned long flags)
-{
-	drm_mga_private_t *const dev_priv =
-	    (drm_mga_private_t *) dev->dev_private;
-
-	dev_priv->mmio_base = pci_resource_start(dev->pdev, 1);
-	dev_priv->mmio_size = pci_resource_len(dev->pdev, 1);
-
-	dev->counters += 3;
-	dev->types[6] = _DRM_STAT_IRQ;
-	dev->types[7] = _DRM_STAT_PRIMARY;
-	dev->types[8] = _DRM_STAT_SECONDARY;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d: %s\n",
-		 DRIVER_NAME,
-		 DRIVER_MAJOR,
-		 DRIVER_MINOR,
-		 DRIVER_PATCHLEVEL,
-		 DRIVER_DATE, dev->primary.minor, pci_pretty_name(dev->pdev)
-	    );
-	return 0;
-}
-
-static int version(drm_version_t * version)
-{
-	int len;
-
-	version->version_major = DRIVER_MAJOR;
-	version->version_minor = DRIVER_MINOR;
-	version->version_patchlevel = DRIVER_PATCHLEVEL;
-	DRM_COPY(version->name, DRIVER_NAME);
-	DRM_COPY(version->date, DRIVER_DATE);
-	DRM_COPY(version->desc, DRIVER_DESC);
-	return 0;
-}
 
 static struct pci_device_id pciidlist[] = {
 	mga_PCI_IDS
@@ -80,12 +45,12 @@ static struct pci_device_id pciidlist[] = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | DRIVER_USE_MTRR |
+	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA |
 	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
 	    DRIVER_IRQ_VBL,
-	.preinit = mga_driver_preinit,
-	.postcleanup = mga_driver_postcleanup,
-	.pretakedown = mga_driver_pretakedown,
+	.load = mga_driver_load,
+	.unload = mga_driver_unload,
+	.lastclose = mga_driver_lastclose,
 	.dma_quiescent = mga_driver_dma_quiescent,
 	.device_is_agp = mga_driver_device_is_agp,
 	.vblank_wait = mga_driver_vblank_wait,
@@ -96,8 +61,6 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
-	.postinit = postinit,
-	.version = version,
 	.ioctls = mga_ioctls,
 	.dma_ioctl = mga_dma_buffers,
 	.fops = {
@@ -113,9 +76,16 @@ static struct drm_driver driver = {
 #endif
 		 },
 	.pci_driver = {
-		       .name = DRIVER_NAME,
-		       .id_table = pciidlist,
-		       }
+		 .name = DRIVER_NAME,
+		 .id_table = pciidlist,
+	},
+
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
 static int __init mga_init(void)

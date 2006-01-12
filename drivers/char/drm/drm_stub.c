@@ -93,8 +93,8 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 
 	dev->driver = driver;
 
-	if (dev->driver->preinit)
-		if ((retcode = dev->driver->preinit(dev, ent->driver_data)))
+	if (dev->driver->load)
+		if ((retcode = dev->driver->load(dev, ent->driver_data)))
 			goto error_out_unreg;
 
 	if (drm_core_has_AGP(dev)) {
@@ -124,47 +124,10 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 	return 0;
 
       error_out_unreg:
-	drm_takedown(dev);
+	drm_lastclose(dev);
 	return retcode;
 }
 
-/**
- * File \c open operation.
- *
- * \param inode device inode.
- * \param filp file pointer.
- *
- * Puts the dev->fops corresponding to the device minor number into
- * \p filp, call the \c open method, and restore the file operations.
- */
-int drm_stub_open(struct inode *inode, struct file *filp)
-{
-	drm_device_t *dev = NULL;
-	int minor = iminor(inode);
-	int err = -ENODEV;
-	struct file_operations *old_fops;
-
-	DRM_DEBUG("\n");
-
-	if (!((minor >= 0) && (minor < drm_cards_limit)))
-		return -ENODEV;
-
-	if (!drm_heads[minor])
-		return -ENODEV;
-
-	if (!(dev = drm_heads[minor]->dev))
-		return -ENODEV;
-
-	old_fops = filp->f_op;
-	filp->f_op = fops_get(&dev->driver->fops);
-	if (filp->f_op->open && (err = filp->f_op->open(inode, filp))) {
-		fops_put(filp->f_op);
-		filp->f_op = fops_get(old_fops);
-	}
-	fops_put(old_fops);
-
-	return err;
-}
 
 /**
  * Get a secondary minor number.
@@ -200,11 +163,7 @@ static int drm_get_head(drm_device_t * dev, drm_head_t * head)
 				goto err_g1;
 			}
 
-			head->dev_class = drm_sysfs_device_add(drm_class,
-							       MKDEV(DRM_MAJOR,
-								     minor),
-							       &dev->pdev->dev,
-							       "card%d", minor);
+			head->dev_class = drm_sysfs_device_add(drm_class, head);
 			if (IS_ERR(head->dev_class)) {
 				printk(KERN_ERR
 				       "DRM: Error sysfs_device_add.\n");
@@ -258,11 +217,10 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	}
 	if ((ret = drm_get_head(dev, &dev->primary)))
 		goto err_g1;
-
-	/* postinit is a required function to display the signon banner */
-	/* drivers add secondary heads here if needed */
-	if ((ret = dev->driver->postinit(dev, ent->driver_data)))
-		goto err_g1;
+	
+	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
+		 driver->name, driver->major, driver->minor, driver->patchlevel,
+		 driver->date, dev->primary.minor);
 
 	return 0;
 
@@ -318,10 +276,9 @@ int drm_put_head(drm_head_t * head)
 	DRM_DEBUG("release secondary minor %d\n", minor);
 
 	drm_proc_cleanup(minor, drm_proc_root, head->dev_root);
-	drm_sysfs_device_remove(MKDEV(DRM_MAJOR, head->minor));
+	drm_sysfs_device_remove(head->dev_class);
 
-	*head = (drm_head_t) {
-	.dev = NULL};
+	*head = (drm_head_t) {.dev = NULL};
 
 	drm_heads[minor] = NULL;
 
