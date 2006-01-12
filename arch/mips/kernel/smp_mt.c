@@ -287,6 +287,7 @@ void prom_prepare_cpus(unsigned int max_cpus)
  */
 void prom_boot_secondary(int cpu, struct task_struct *idle)
 {
+	struct thread_info *gp = task_thread_info(idle);
 	dvpe();
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
@@ -307,11 +308,9 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 	write_tc_gpr_sp( __KSTK_TOS(idle));
 
 	/* global pointer */
-	write_tc_gpr_gp((unsigned long)idle->thread_info);
+	write_tc_gpr_gp((unsigned long)gp);
 
-	flush_icache_range((unsigned long)idle->thread_info,
-					   (unsigned long)idle->thread_info +
-					   sizeof(struct thread_info));
+	flush_icache_range((unsigned long)gp, (unsigned long)(gp + 1));
 
 	/* finally out of configuration and into chaos */
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);

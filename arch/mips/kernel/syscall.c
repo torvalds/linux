@@ -263,7 +263,7 @@ asmlinkage int sys_olduname(struct oldold_utsname * name)
 
 void sys_set_thread_area(unsigned long addr)
 {
-	struct thread_info *ti = current->thread_info;
+	struct thread_info *ti = task_thread_info(current);
 
 	ti->tp_value = addr;
 

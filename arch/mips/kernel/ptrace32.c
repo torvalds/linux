@@ -375,7 +375,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		break;
 
 	case PTRACE_GET_THREAD_AREA:
-		ret = put_user(child->thread_info->tp_value,
+		ret = put_user(task_thread_info(child)->tp_value,
 				(unsigned int __user *) (unsigned long) data);
 		break;
 
@@ -389,7 +389,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		break;
 
 	case PTRACE_GET_THREAD_AREA_3264:
-		ret = put_user(child->thread_info->tp_value,
+		ret = put_user(task_thread_info(child)->tp_value,
 				(unsigned long __user *) (unsigned long) data);
 		break;
 
