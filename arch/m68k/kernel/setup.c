@@ -100,6 +100,8 @@ void (*mach_beep)(unsigned int, unsigned int);
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
 int isa_type;
 int isa_sex;
+EXPORT_SYMBOL(isa_type);
+EXPORT_SYMBOL(isa_sex);
 #endif
 
 extern int amiga_parse_bootinfo(const struct bi_record *);
