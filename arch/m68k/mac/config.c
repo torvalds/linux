@@ -212,9 +212,6 @@ void __init config_mac(void)
 	mach_reset           = mac_reset;
 	mach_halt            = mac_poweroff;
 	mach_power_off       = mac_poweroff;
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp	         = &dummy_con;
-#endif
 	mach_max_dma_address = 0xffffffff;
 #if 0
 	mach_debug_init	 = mac_debug_init;

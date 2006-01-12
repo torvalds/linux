@@ -282,6 +282,10 @@ void __init setup_arch(char **cmdline_p)
 	    }
 	}
 
+#ifdef CONFIG_DUMMY_CONSOLE
+	conswitchp = &dummy_con;
+#endif
+
 	switch (m68k_machtype) {
 #ifdef CONFIG_AMIGA
 	    case MACH_AMIGA:

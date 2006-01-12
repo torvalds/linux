@@ -261,9 +261,6 @@ void __init config_hp300(void)
 #ifdef CONFIG_HEARTBEAT
 	mach_heartbeat       = hp300_pulse;
 #endif
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp	     = &dummy_con;
-#endif
 	mach_max_dma_address = 0xffffffff;
 
 	if (hp300_model >= HP_330 && hp300_model <= HP_433S && hp300_model != HP_350) {

@@ -194,9 +194,6 @@ void __init config_q40(void)
     mach_heartbeat = q40_heartbeat;
 #endif
     mach_halt = q40_halt;
-#ifdef CONFIG_DUMMY_CONSOLE
-    conswitchp = &dummy_con;
-#endif
 
     /* disable a few things that SMSQ might have left enabled */
     q40_disable_irqs();

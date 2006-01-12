@@ -247,9 +247,6 @@ void __init config_atari(void)
 #ifdef CONFIG_ATARI_FLOPPY
     mach_floppy_setup	 = atari_floppy_setup;
 #endif
-#ifdef CONFIG_DUMMY_CONSOLE
-    conswitchp	         = &dummy_con;
-#endif
     mach_max_dma_address = 0xffffff;
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
     mach_beep          = atari_mksound;
