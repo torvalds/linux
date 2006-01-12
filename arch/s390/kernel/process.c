@@ -217,8 +217,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
             struct pt_regs childregs;
           } *frame;
 
-        frame = ((struct fake_frame *)
-		 (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
+        frame = container_of(task_pt_regs(p), struct fake_frame, childregs);
         p->thread.ksp = (unsigned long) frame;
 	/* Store access registers to kernel stack of new process. */
         frame->childregs = *regs;

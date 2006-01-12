@@ -240,7 +240,7 @@ char *task_show_regs(struct task_struct *task, char *buffer)
 {
 	struct pt_regs *regs;
 
-	regs = __KSTK_PTREGS(task);
+	regs = task_pt_regs(task);
 	buffer += sprintf(buffer, "task: %p, ksp: %p\n",
 		       task, (void *)task->thread.ksp);
 	buffer += sprintf(buffer, "User PSW : %p %p\n",
