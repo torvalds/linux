@@ -233,6 +233,8 @@ struct cifsTconInfo {
 	atomic_t num_hardlinks;
 	atomic_t num_symlinks;
 	atomic_t num_locks;
+	atomic_t num_acl_get;
+	atomic_t num_acl_set;
 #ifdef CONFIG_CIFS_STATS2
 	unsigned long long time_writes;
 	unsigned long long time_reads;

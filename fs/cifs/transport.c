@@ -489,7 +489,6 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			receive_len, xid));
 		rc = -EIO;
 	} else {		/* rcvd frame is ok */
-
 		if (midQ->resp_buf && 
 			(midQ->midState == MID_RESPONSE_RECEIVED)) {
 

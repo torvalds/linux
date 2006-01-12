@@ -76,6 +76,7 @@ struct smb_vol {
 	unsigned setuids:1;
 	unsigned noperm:1;
 	unsigned no_psx_acl:1; /* set if posix acl support should be disabled */
+	unsigned cifs_acl:1;
 	unsigned no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	unsigned server_ino:1; /* use inode numbers from server ie UniqueId */
 	unsigned direct_io:1;
@@ -1159,6 +1160,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->server_ino = 1;
 		} else if (strnicmp(data, "noserverino",9) == 0) {
 			vol->server_ino = 0;
+		} else if (strnicmp(data, "cifsacl",7) == 0) {
+			vol->cifs_acl = 1;
+		} else if (strnicmp(data, "nocifsacl", 9) == 0) {
+			vol->cifs_acl = 0;
 		} else if (strnicmp(data, "acl",3) == 0) {
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl",5) == 0) {
@@ -1806,6 +1811,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 		if(volume_info.nobrl)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+		if(volume_info.cifs_acl)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
 
 		if(volume_info.direct_io) {
 			cFYI(1,("mounting share using direct i/o"));

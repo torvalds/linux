@@ -299,6 +299,9 @@ extern int CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon,
 		const char *fileName, const char * ea_name, 
 		const void * ea_value, const __u16 ea_value_len, 
 		const struct nls_table *nls_codepage, int remap_special_chars);
+extern int CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon,
+			__u16 fid, char *acl_inf, const int buflen,
+			const int acl_type /* ACCESS vs. DEFAULT */);
 extern int CIFSSMBGetPosixACL(const int xid, struct cifsTconInfo *tcon,
 		const unsigned char *searchName,
 		char *acl_inf, const int buflen,const int acl_type,

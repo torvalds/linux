@@ -1,7 +1,9 @@
 Version 1.40
 ------------
 Use fsuid (fsgid) more consistently instead of uid (gid). Improve performance
-of readpages by eliminating one extra memcpy.
+of readpages by eliminating one extra memcpy. Allow update of file size
+from remote server even if file is open for write as long as mount is
+directio.
 
 Version 1.39
 ------------

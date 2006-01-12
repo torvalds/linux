@@ -528,7 +528,7 @@ typedef union smb_com_session_setup_andx {
 		/* STRING PrimaryDomain */
 		/* STRING NativeOS */
 		/* STRING NativeLanMan */
-	} __attribute__((packed)) old_req;		/* pre-NTLM (LANMAN2.1) request format */
+	} __attribute__((packed)) old_req; /* pre-NTLM (LANMAN2.1) req format */
 
 	struct {		/* default (NTLM) response format */
 		struct smb_hdr hdr;	/* wct = 3 */
@@ -540,7 +540,7 @@ typedef union smb_com_session_setup_andx {
 		unsigned char NativeOS[1];	/* followed by */
 /*	unsigned char * NativeLanMan; */
 /*      unsigned char * PrimaryDomain; */
-	} __attribute__((packed)) old_resp;		/* pre-NTLM (LANMAN2.1) response format */
+	} __attribute__((packed)) old_resp; /* pre-NTLM (LANMAN2.1) response */
 } __attribute__((packed)) SESSION_SETUP_ANDX;
 
 #define CIFS_NETWORK_OPSYS "CIFS VFS Client for Linux"
@@ -1007,10 +1007,49 @@ typedef struct smb_com_setattr_rsp {
 
 /* empty wct response to setattr */
 
-/***************************************************/
-/* NT Transact structure defintions follow         */
-/* Currently only ioctl and notify are implemented */
-/***************************************************/
+/*******************************************************/
+/* NT Transact structure defintions follow             */
+/* Currently only ioctl, acl (get security descriptor) */  
+/* and notify are implemented                          */
+/*******************************************************/
+typedef struct smb_com_ntransact_req {
+        struct smb_hdr hdr; /* wct >= 19 */
+        __u8 MaxSetupCount;
+        __u16 Reserved;
+        __le32 TotalParameterCount;
+        __le32 TotalDataCount;
+        __le32 MaxParameterCount;
+        __le32 MaxDataCount;
+        __le32 ParameterCount;
+        __le32 ParameterOffset;
+        __le32 DataCount;
+        __le32 DataOffset;
+        __u8 SetupCount; /* four setup words follow subcommand */
+        /* SNIA spec incorrectly included spurious pad here */
+        __le16 SubCommand; /* 2 = IOCTL/FSCTL */
+	/* SetupCount words follow then */ 
+        __le16 ByteCount;
+        __u8 Pad[3];
+        __u8 Parms[0];
+} __attribute__((packed)) NTRANSACT_REQ;
+
+typedef struct smb_com_ntransact_rsp {
+	struct smb_hdr hdr;     /* wct = 18 */
+	__u8 Reserved[3];
+	__le32 TotalParameterCount;
+	__le32 TotalDataCount;
+	__le32 ParameterCount;
+	__le32 ParameterOffset;
+	__le32 ParameterDisplacement;
+	__le32 DataCount;
+	__le32 DataOffset;
+	__le32 DataDisplacement;
+	__u8 SetupCount;   /* 0 */
+	__u16 ByteCount;
+        /* __u8 Pad[3]; */
+	/* parms and data follow */
+} __attribute__((packed)) NTRANSACT_RSP;
+
 typedef struct smb_com_transaction_ioctl_req {
 	struct smb_hdr hdr;	/* wct = 23 */
 	__u8 MaxSetupCount;
@@ -1025,11 +1064,11 @@ typedef struct smb_com_transaction_ioctl_req {
 	__le32 DataOffset;
 	__u8 SetupCount; /* four setup words follow subcommand */
 	/* SNIA spec incorrectly included spurious pad here */
-	__le16 SubCommand;/* 2 = IOCTL/FSCTL */
+	__le16 SubCommand; /* 2 = IOCTL/FSCTL */
 	__le32 FunctionCode;
 	__u16 Fid;
-	__u8 IsFsctl;    /* 1 = File System Control, 0 = device control (IOCTL)*/
-	__u8 IsRootFlag; /* 1 = apply command to root of share (must be DFS share)*/
+	__u8 IsFsctl;  /* 1 = File System Control 0 = device control (IOCTL) */
+	__u8 IsRootFlag; /* 1 = apply command to root of share (must be DFS) */
 	__le16 ByteCount;
 	__u8 Pad[3];
 	__u8 Data[1];
@@ -1049,8 +1088,34 @@ typedef struct smb_com_transaction_ioctl_rsp {
 	__u8 SetupCount;	/* 1 */
 	__le16 ReturnedDataLen;
 	__u16 ByteCount;
-	__u8 Pad[3];
 } __attribute__((packed)) TRANSACT_IOCTL_RSP;
+
+#define CIFS_ACL_OWNER 1
+#define CIFS_ACL_GROUP 2
+#define CIFS_ACL_DACL  4
+#define CIFS_ACL_SACL  8
+
+typedef struct smb_com_transaction_qsec_req {
+	struct smb_hdr hdr;     /* wct = 19 */
+	__u8 MaxSetupCount;
+	__u16 Reserved;
+	__le32 TotalParameterCount;
+	__le32 TotalDataCount;
+	__le32 MaxParameterCount;
+	__le32 MaxDataCount;
+	__le32 ParameterCount;
+	__le32 ParameterOffset;
+	__le32 DataCount;
+	__le32 DataOffset;
+	__u8 SetupCount; /* no setup words follow subcommand */
+	/* SNIA spec incorrectly included spurious pad here */
+	__le16 SubCommand; /* 6 = QUERY_SECURITY_DESC */
+	__le16 ByteCount; /* bcc = 3 + 8 */
+	__u8 Pad[3];
+	__u16 Fid;
+	__u16 Reserved2;
+	__le32 AclFlags;
+} __attribute__((packed)) QUERY_SEC_DESC_REQ;
 
 typedef struct smb_com_transaction_change_notify_req {
 	struct smb_hdr hdr;     /* wct = 23 */
@@ -1072,10 +1137,12 @@ typedef struct smb_com_transaction_change_notify_req {
 	__u8 WatchTree;  /* 1 = Monitor subdirectories */
 	__u8 Reserved2;
 	__le16 ByteCount;
-/* __u8 Pad[3];*/
+/* 	__u8 Pad[3];*/
 /*	__u8 Data[1];*/
 } __attribute__((packed)) TRANSACT_CHANGE_NOTIFY_REQ;
 
+/* BB eventually change to use generic ntransact rsp struct 
+      and validation routine */
 typedef struct smb_com_transaction_change_notify_rsp {
 	struct smb_hdr hdr;	/* wct = 18 */
 	__u8 Reserved[3];
