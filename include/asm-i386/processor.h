@@ -574,7 +574,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(task)                                             \
 ({                                                                     \
        struct pt_regs *__regs__;                                       \
-       __regs__ = (struct pt_regs *)(KSTK_TOP((task)->thread_info)-8); \
+       __regs__ = (struct pt_regs *)(KSTK_TOP(task_stack_page(task))-8); \
        __regs__ - 1;                                                   \
 })
 
