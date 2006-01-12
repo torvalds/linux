@@ -457,7 +457,7 @@ void divert_frame(struct sk_buff *skb)
 	unsigned char			*skb_data_end = skb->data + skb->len;
 
 	/* Packet is already aimed at us, return */
-	if (!compare_ether_addr(eth, skb->dev->dev_addr))
+	if (!compare_ether_addr(eth->h_dest, skb->dev->dev_addr))
 		return;
 	
 	/* proto is not IP, do nothing */
