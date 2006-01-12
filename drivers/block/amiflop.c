@@ -1441,6 +1441,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 {
 	int drive = iminor(inode) & 3;
 	static struct floppy_struct getprm;
+	void __user *argp = (void __user *)param;
 
 	switch(cmd){
 	case FDFMTBEG:
@@ -1486,9 +1487,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		getprm.head=unit[drive].type->heads;
 		getprm.sect=unit[drive].dtype->sects * unit[drive].type->sect_mult;
 		getprm.size=unit[drive].blocks;
-		if (copy_to_user((void *)param,
-				 (void *)&getprm,
-				 sizeof(struct floppy_struct)))
+		if (copy_to_user(argp, &getprm, sizeof(struct floppy_struct)))
 			return -EFAULT;
 		break;
 	case FDSETPRM:
@@ -1500,8 +1499,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		break;
 #ifdef RAW_IOCTL
 	case IOCTL_RAW_TRACK:
-		if (copy_to_user((void *)param, raw_buf,
-				 unit[drive].type->read_size))
+		if (copy_to_user(argp, raw_buf, unit[drive].type->read_size))
 			return -EFAULT;
 		else
 			return unit[drive].type->read_size;
