@@ -1089,7 +1089,7 @@ static void rs_unthrottle(struct tty_struct * tty)
  */
 
 static int get_serial_info(struct async_struct * info,
-			   struct serial_struct * retinfo)
+			   struct serial_struct __user * retinfo)
 {
 	struct serial_struct tmp;
 	struct serial_state *state = info->state;
@@ -1113,7 +1113,7 @@ static int get_serial_info(struct async_struct * info,
 }
 
 static int set_serial_info(struct async_struct * info,
-			   struct serial_struct * new_info)
+			   struct serial_struct __user * new_info)
 {
 	struct serial_struct new_serial;
  	struct serial_state old_state, *state;
@@ -1194,7 +1194,7 @@ check_and_exit:
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space. 
  */
-static int get_lsr_info(struct async_struct * info, unsigned int *value)
+static int get_lsr_info(struct async_struct * info, unsigned int __user *value)
 {
 	unsigned char status;
 	unsigned int result;
@@ -1285,6 +1285,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	struct async_struct * info = (struct async_struct *)tty->driver_data;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
 	struct serial_icounter_struct icount;
+	void __user *argp = (void __user *)arg;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
@@ -1299,19 +1300,17 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 
 	switch (cmd) {
 		case TIOCGSERIAL:
-			return get_serial_info(info,
-					       (struct serial_struct *) arg);
+			return get_serial_info(info, argp);
 		case TIOCSSERIAL:
-			return set_serial_info(info,
-					       (struct serial_struct *) arg);
+			return set_serial_info(info, argp);
 		case TIOCSERCONFIG:
 			return 0;
 
 		case TIOCSERGETLSR: /* Get line status register */
-			return get_lsr_info(info, (unsigned int *) arg);
+			return get_lsr_info(info, argp);
 
 		case TIOCSERGSTRUCT:
-			if (copy_to_user((struct async_struct *) arg,
+			if (copy_to_user(argp,
 					 info, sizeof(struct async_struct)))
 				return -EFAULT;
 			return 0;
@@ -1370,7 +1369,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 			icount.brk = cnow.brk;
 			icount.buf_overrun = cnow.buf_overrun;
 
-			if (copy_to_user((void *)arg, &icount, sizeof(icount)))
+			if (copy_to_user(argp, &icount, sizeof(icount)))
 				return -EFAULT;
 			return 0;
 		case TIOCSERGWILD:
