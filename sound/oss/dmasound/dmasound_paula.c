@@ -157,7 +157,7 @@ static int AmiStateInfo(char *buffer, size_t space);
      *  Native format
      */
 
-static ssize_t ami_ct_s8(const u_char *userPtr, size_t userCount,
+static ssize_t ami_ct_s8(const u_char __user *userPtr, size_t userCount,
 			 u_char frame[], ssize_t *frameUsed, ssize_t frameLeft)
 {
 	ssize_t count, used;
@@ -190,7 +190,7 @@ static ssize_t ami_ct_s8(const u_char *userPtr, size_t userCount,
      */
 
 #define GENERATE_AMI_CT8(funcname, convsample)				\
-static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
+static ssize_t funcname(const u_char __user *userPtr, size_t userCount,	\
 			u_char frame[], ssize_t *frameUsed,		\
 			ssize_t frameLeft)				\
 {									\
@@ -241,11 +241,11 @@ GENERATE_AMI_CT8(ami_ct_u8, AMI_CT_U8)
      */
 
 #define GENERATE_AMI_CT_16(funcname, convsample)			\
-static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
+static ssize_t funcname(const u_char __user *userPtr, size_t userCount,	\
 			u_char frame[], ssize_t *frameUsed,		\
 			ssize_t frameLeft)				\
 {									\
-	const u_short *ptr = (const u_short *)userPtr;			\
+	const u_short __user *ptr = (const u_short __user *)userPtr;	\
 	ssize_t count, used;						\
 	u_short data;							\
 									\
