@@ -132,7 +132,7 @@ static void dump_instr(struct pt_regs *regs)
 
 /*static*/ void __dump_stack(struct task_struct *tsk, unsigned long sp)
 {
-	dump_mem("Stack: ", sp, 8192+(unsigned long)tsk->thread_info);
+	dump_mem("Stack: ", sp, 8192+(unsigned long)task_stack_page(tsk));
 }
 
 void dump_stack(void)
@@ -158,7 +158,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	} else if (verify_stack(fp)) {
 		printk("invalid frame pointer 0x%08x", fp);
 		ok = 0;
-	} else if (fp < (unsigned long)(tsk->thread_info + 1))
+	} else if (fp < (unsigned long)end_of_stack(tsk))
 		printk("frame pointer underflow");
 	printk("\n");
 
@@ -168,7 +168,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 
 /* FIXME - this is probably wrong.. */
 void show_stack(struct task_struct *task, unsigned long *sp) {
-	dump_mem("Stack: ", (unsigned long)sp, 8192+(unsigned long)task->thread_info);
+	dump_mem("Stack: ", (unsigned long)sp, 8192+(unsigned long)task_stack_page(task));
 }
 
 DEFINE_SPINLOCK(die_lock);
@@ -187,7 +187,7 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 	printk("CPU: %d\n", smp_processor_id());
 	show_regs(regs);
 	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
-		current->comm, current->pid, tsk->thread_info + 1);
+		current->comm, current->pid, end_of_stack(tsk));
 
 	if (!user_mode(regs) || in_interrupt()) {
 		__dump_stack(tsk, (unsigned long)(regs + 1));
