@@ -199,10 +199,16 @@ typedef enum xfs_dinode_fmt
 
 #define XFS_DFORK_DSIZE(dip,mp) \
 	XFS_CFORK_DSIZE_DISK(&(dip)->di_core, mp)
+#define XFS_DFORK_DSIZE_HOST(dip,mp) \
+	XFS_CFORK_DSIZE(&(dip)->di_core, mp)
 #define XFS_DFORK_ASIZE(dip,mp) \
 	XFS_CFORK_ASIZE_DISK(&(dip)->di_core, mp)
+#define XFS_DFORK_ASIZE_HOST(dip,mp) \
+	XFS_CFORK_ASIZE(&(dip)->di_core, mp)
 #define	XFS_DFORK_SIZE(dip,mp,w) \
 	XFS_CFORK_SIZE_DISK(&(dip)->di_core, mp, w)
+#define	XFS_DFORK_SIZE_HOST(dip,mp,w) \
+	XFS_CFORK_SIZE(&(dip)->di_core, mp, w)
 
 #define	XFS_DFORK_Q(dip)                    XFS_CFORK_Q_DISK(&(dip)->di_core)
 #define	XFS_DFORK_BOFF(dip)		    XFS_CFORK_BOFF_DISK(&(dip)->di_core)
@@ -216,6 +222,7 @@ typedef enum xfs_dinode_fmt
 #define	XFS_CFORK_FMT_SET(dcp,w,n) \
 	((w) == XFS_DATA_FORK ? \
 		((dcp)->di_format = (n)) : ((dcp)->di_aformat = (n)))
+#define	XFS_DFORK_FORMAT(dip,w) XFS_CFORK_FORMAT(&(dip)->di_core, w)
 
 #define	XFS_CFORK_NEXTENTS_DISK(dcp,w) \
 	((w) == XFS_DATA_FORK ? \
@@ -223,12 +230,12 @@ typedef enum xfs_dinode_fmt
 	 	INT_GET((dcp)->di_anextents, ARCH_CONVERT))
 #define XFS_CFORK_NEXTENTS(dcp,w) \
 	((w) == XFS_DATA_FORK ? (dcp)->di_nextents : (dcp)->di_anextents)
+#define	XFS_DFORK_NEXTENTS(dip,w) XFS_CFORK_NEXTENTS_DISK(&(dip)->di_core, w)
+#define	XFS_DFORK_NEXTENTS_HOST(dip,w) XFS_CFORK_NEXTENTS(&(dip)->di_core, w)
 
 #define	XFS_CFORK_NEXT_SET(dcp,w,n) \
 	((w) == XFS_DATA_FORK ? \
 		((dcp)->di_nextents = (n)) : ((dcp)->di_anextents = (n)))
-
-#define	XFS_DFORK_NEXTENTS(dip,w) XFS_CFORK_NEXTENTS_DISK(&(dip)->di_core, w)
 
 #define	XFS_BUF_TO_DINODE(bp)	((xfs_dinode_t *)XFS_BUF_PTR(bp))
 
@@ -246,8 +253,10 @@ typedef enum xfs_dinode_fmt
 #define XFS_DIFLAG_NOATIME_BIT   6	/* do not update atime */
 #define XFS_DIFLAG_NODUMP_BIT    7	/* do not dump */
 #define XFS_DIFLAG_RTINHERIT_BIT 8	/* create with realtime bit set */
-#define XFS_DIFLAG_PROJINHERIT_BIT  9	/* create with parents projid */
-#define XFS_DIFLAG_NOSYMLINKS_BIT  10	/* disallow symlink creation */
+#define XFS_DIFLAG_PROJINHERIT_BIT   9	/* create with parents projid */
+#define XFS_DIFLAG_NOSYMLINKS_BIT   10	/* disallow symlink creation */
+#define XFS_DIFLAG_EXTSIZE_BIT      11	/* inode extent size allocator hint */
+#define XFS_DIFLAG_EXTSZINHERIT_BIT 12	/* inherit inode extent size */
 #define XFS_DIFLAG_REALTIME      (1 << XFS_DIFLAG_REALTIME_BIT)
 #define XFS_DIFLAG_PREALLOC      (1 << XFS_DIFLAG_PREALLOC_BIT)
 #define XFS_DIFLAG_NEWRTBM       (1 << XFS_DIFLAG_NEWRTBM_BIT)
@@ -259,11 +268,14 @@ typedef enum xfs_dinode_fmt
 #define XFS_DIFLAG_RTINHERIT     (1 << XFS_DIFLAG_RTINHERIT_BIT)
 #define XFS_DIFLAG_PROJINHERIT   (1 << XFS_DIFLAG_PROJINHERIT_BIT)
 #define XFS_DIFLAG_NOSYMLINKS    (1 << XFS_DIFLAG_NOSYMLINKS_BIT)
+#define XFS_DIFLAG_EXTSIZE       (1 << XFS_DIFLAG_EXTSIZE_BIT)
+#define XFS_DIFLAG_EXTSZINHERIT  (1 << XFS_DIFLAG_EXTSZINHERIT_BIT)
 
 #define XFS_DIFLAG_ANY \
 	(XFS_DIFLAG_REALTIME | XFS_DIFLAG_PREALLOC | XFS_DIFLAG_NEWRTBM | \
 	 XFS_DIFLAG_IMMUTABLE | XFS_DIFLAG_APPEND | XFS_DIFLAG_SYNC | \
 	 XFS_DIFLAG_NOATIME | XFS_DIFLAG_NODUMP | XFS_DIFLAG_RTINHERIT | \
-	 XFS_DIFLAG_PROJINHERIT | XFS_DIFLAG_NOSYMLINKS)
+	 XFS_DIFLAG_PROJINHERIT | XFS_DIFLAG_NOSYMLINKS | XFS_DIFLAG_EXTSIZE | \
+	 XFS_DIFLAG_EXTSZINHERIT)
 
 #endif	/* __XFS_DINODE_H__ */

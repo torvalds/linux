@@ -238,6 +238,7 @@ xfs_bioerror_relse(
 	}
 	return (EIO);
 }
+
 /*
  * Prints out an ALERT message about I/O error.
  */
@@ -252,11 +253,9 @@ xfs_ioerror_alert(
  "I/O error in filesystem (\"%s\") meta-data dev %s block 0x%llx"
  "       (\"%s\") error %d buf count %zd",
 		(!mp || !mp->m_fsname) ? "(fs name not set)" : mp->m_fsname,
-		XFS_BUFTARG_NAME(bp->pb_target),
-		(__uint64_t)blkno,
-		func,
-		XFS_BUF_GETERROR(bp),
-		XFS_BUF_COUNT(bp));
+		XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
+		(__uint64_t)blkno, func,
+		XFS_BUF_GETERROR(bp), XFS_BUF_COUNT(bp));
 }
 
 /*

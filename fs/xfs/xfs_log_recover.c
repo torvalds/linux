@@ -783,8 +783,7 @@ int
 xlog_find_tail(
 	xlog_t			*log,
 	xfs_daddr_t		*head_blk,
-	xfs_daddr_t		*tail_blk,
-	int			readonly)
+	xfs_daddr_t		*tail_blk)
 {
 	xlog_rec_header_t	*rhead;
 	xlog_op_header_t	*op_head;
@@ -2563,10 +2562,12 @@ xlog_recover_do_quotaoff_trans(
 
 	/*
 	 * The logitem format's flag tells us if this was user quotaoff,
-	 * group quotaoff or both.
+	 * group/project quotaoff or both.
 	 */
 	if (qoff_f->qf_flags & XFS_UQUOTA_ACCT)
 		log->l_quotaoffs_flag |= XFS_DQ_USER;
+	if (qoff_f->qf_flags & XFS_PQUOTA_ACCT)
+		log->l_quotaoffs_flag |= XFS_DQ_PROJ;
 	if (qoff_f->qf_flags & XFS_GQUOTA_ACCT)
 		log->l_quotaoffs_flag |= XFS_DQ_GROUP;
 
@@ -3890,14 +3891,13 @@ xlog_do_recover(
  */
 int
 xlog_recover(
-	xlog_t		*log,
-	int		readonly)
+	xlog_t		*log)
 {
 	xfs_daddr_t	head_blk, tail_blk;
 	int		error;
 
 	/* find the tail of the log */
-	if ((error = xlog_find_tail(log, &head_blk, &tail_blk, readonly)))
+	if ((error = xlog_find_tail(log, &head_blk, &tail_blk)))
 		return error;
 
 	if (tail_blk != head_blk) {
