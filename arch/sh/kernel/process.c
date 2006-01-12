@@ -342,7 +342,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 	 */
 	asm volatile("ldc	%0, r7_bank"
 		     : /* no output */
-		     : "r" (next->thread_info));
+		     : "r" (task_thread_info(next)));
 
 #ifdef CONFIG_MMU
 	/* If no tasks are using the UBC, we're done */
