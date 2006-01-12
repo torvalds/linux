@@ -572,12 +572,13 @@ void mac_reset(void)
 		/* make a 1-to-1 mapping, using the transparent tran. reg. */
 		unsigned long virt = (unsigned long) mac_reset;
 		unsigned long phys = virt_to_phys(mac_reset);
+		unsigned long addr = (phys&0xFF000000)|0x8777;
 		unsigned long offset = phys-virt;
 		local_irq_disable(); /* lets not screw this up, ok? */
 		__asm__ __volatile__(".chip 68030\n\t"
 				     "pmove %0,%/tt0\n\t"
 				     ".chip 68k"
-				     : : "m" ((phys&0xFF000000)|0x8777));
+				     : : "m" (addr));
 		/* Now jump to physical address so we can disable MMU */
 		__asm__ __volatile__(
                     ".chip 68030\n\t"
