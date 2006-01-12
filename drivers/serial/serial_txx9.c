@@ -52,6 +52,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -1018,7 +1019,7 @@ static void serial_txx9_resume_port(int line)
 	uart_resume_port(&serial_txx9_reg, &serial_txx9_ports[line].port);
 }
 
-static DECLARE_MUTEX(serial_txx9_sem);
+static DEFINE_MUTEX(serial_txx9_mutex);
 
 /**
  *	serial_txx9_register_port - register a serial port
@@ -1037,7 +1038,7 @@ static int __devinit serial_txx9_register_port(struct uart_port *port)
 	struct uart_txx9_port *uart;
 	int ret = -ENOSPC;
 
-	down(&serial_txx9_sem);
+	mutex_lock(&serial_txx9_mutex);
 	for (i = 0; i < UART_NR; i++) {
 		uart = &serial_txx9_ports[i];
 		if (uart->port.type == PORT_UNKNOWN)
@@ -1058,7 +1059,7 @@ static int __devinit serial_txx9_register_port(struct uart_port *port)
 		if (ret == 0)
 			ret = uart->port.line;
 	}
-	up(&serial_txx9_sem);
+	mutex_unlock(&serial_txx9_mutex);
 	return ret;
 }
 
@@ -1073,7 +1074,7 @@ static void __devexit serial_txx9_unregister_port(int line)
 {
 	struct uart_txx9_port *uart = &serial_txx9_ports[line];
 
-	down(&serial_txx9_sem);
+	mutex_lock(&serial_txx9_mutex);
 	uart_remove_one_port(&serial_txx9_reg, &uart->port);
 	uart->port.flags = 0;
 	uart->port.type = PORT_UNKNOWN;
@@ -1082,7 +1083,7 @@ static void __devexit serial_txx9_unregister_port(int line)
 	uart->port.membase = 0;
 	uart->port.dev = NULL;
 	uart_add_one_port(&serial_txx9_reg, &uart->port);
-	up(&serial_txx9_sem);
+	mutex_unlock(&serial_txx9_mutex);
 }
 
 /*
