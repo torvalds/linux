@@ -245,6 +245,7 @@ static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
 			u_char frame[], ssize_t *frameUsed,		\
 			ssize_t frameLeft)				\
 {									\
+	const u_short *ptr = (const u_short *)userPtr;			\
 	ssize_t count, used;						\
 	u_short data;							\
 									\
@@ -254,7 +255,7 @@ static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
 		count = min_t(size_t, userCount, frameLeft)>>1 & ~1;	\
 		used = count*2;						\
 		while (count > 0) {					\
-			if (get_user(data, ((u_short *)userPtr)++))	\
+			if (get_user(data, ptr++))			\
 				return -EFAULT;				\
 			data = convsample(data);			\
 			*high++ = data>>8;				\
@@ -269,12 +270,12 @@ static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
 		count = min_t(size_t, userCount, frameLeft)>>2 & ~1;	\
 		used = count*4;						\
 		while (count > 0) {					\
-			if (get_user(data, ((u_short *)userPtr)++))	\
+			if (get_user(data, ptr++))			\
 				return -EFAULT;				\
 			data = convsample(data);			\
 			*lefth++ = data>>8;				\
 			*leftl++ = (data>>2) & 0x3f;			\
-			if (get_user(data, ((u_short *)userPtr)++))	\
+			if (get_user(data, ptr++))			\
 				return -EFAULT;				\
 			data = convsample(data);			\
 			*righth++ = data>>8;				\
