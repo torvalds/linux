@@ -64,25 +64,6 @@ extern void iommu_free_table(struct device_node *dn);
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
-#ifdef CONFIG_PPC_PSERIES
-
-/* Creates table for an individual device node */
-extern void iommu_devnode_init_pSeries(struct device_node *dn);
-
-#endif /* CONFIG_PPC_PSERIES */
-
-#ifdef CONFIG_PPC_ISERIES
-
-/* Creates table for an individual device node */
-extern void iommu_devnode_init_iSeries(struct device_node *dn);
-/* Get table parameters from HV */
-extern void iommu_table_getparms_iSeries(unsigned long busno,
-					 unsigned char slotno,
-					 unsigned char virtbus,
-					 struct iommu_table* tbl);
-
-#endif /* CONFIG_PPC_ISERIES */
-
 /* Initializes an iommu_table based in values set in the passed-in
  * structure
  */
