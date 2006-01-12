@@ -270,7 +270,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	if (user_mode(regs)) {
 		childregs->regs[15] = usp;
 	} else {
-		childregs->regs[15] = (unsigned long)p->thread_info + THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	}
         if (clone_flags & CLONE_SETTLS) {
 		childregs->gbr = childregs->regs[0];

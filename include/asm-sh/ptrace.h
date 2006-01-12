@@ -93,11 +93,11 @@ extern void show_regs(struct pt_regs *);
 
 #ifdef CONFIG_SH_DSP
 #define task_pt_regs(task) \
-	((struct pt_regs *) ((unsigned long)(task)->thread_info + THREAD_SIZE \
+	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
 		 - sizeof(struct pt_dspregs) - sizeof(unsigned long)) - 1)
 #else
 #define task_pt_regs(task) \
-	((struct pt_regs *) ((unsigned long)(task)->thread_info + THREAD_SIZE \
+	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
 		 - sizeof(unsigned long)) - 1)
 #endif
 
