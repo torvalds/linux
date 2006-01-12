@@ -242,13 +242,10 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 int copy_thread(int nr, unsigned long clone_flags, unsigned long spu,
 	unsigned long unused, struct task_struct *tsk, struct pt_regs *regs)
 {
-	struct pt_regs *childregs;
-	unsigned long sp = (unsigned long)tsk->thread_info + THREAD_SIZE;
+	struct pt_regs *childregs = task_pt_regs(tsk);
 	extern void ret_from_fork(void);
 
 	/* Copy registers */
-	sp -= sizeof (struct pt_regs);
-	childregs = (struct pt_regs *)sp;
 	*childregs = *regs;
 
 	childregs->spu = spu;

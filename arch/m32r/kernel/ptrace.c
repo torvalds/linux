@@ -35,23 +35,6 @@
 #include <asm/mmu_context.h>
 
 /*
- * Get the address of the live pt_regs for the specified task.
- * These are saved onto the top kernel stack when the process
- * is not running.
- *
- * Note: if a user thread is execve'd from kernel space, the
- * kernel stack will not be empty on entry to the kernel, so
- * ptracing these tasks will fail.
- */
-static inline struct pt_regs *
-get_user_regs(struct task_struct *task)
-{
-        return (struct pt_regs *)
-                ((unsigned long)task->thread_info + THREAD_SIZE
-                 - sizeof(struct pt_regs));
-}
-
-/*
  * This routine will get a word off of the process kernel stack.
  */
 static inline unsigned long int
@@ -59,7 +42,7 @@ get_stack_long(struct task_struct *task, int offset)
 {
 	unsigned long *stack;
 
-	stack = (unsigned long *)get_user_regs(task);
+	stack = (unsigned long *)task_pt_regs(task);
 
 	return stack[offset];
 }
@@ -72,7 +55,7 @@ put_stack_long(struct task_struct *task, int offset, unsigned long data)
 {
 	unsigned long *stack;
 
-	stack = (unsigned long *)get_user_regs(task);
+	stack = (unsigned long *)task_pt_regs(task);
 	stack[offset] = data;
 
 	return 0;
@@ -208,7 +191,7 @@ static int ptrace_write_user(struct task_struct *tsk, unsigned long off,
  */
 static int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
 {
-	struct pt_regs *regs = get_user_regs(tsk);
+	struct pt_regs *regs = task_pt_regs(tsk);
 
 	return copy_to_user(uregs, regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
 }
@@ -223,7 +206,7 @@ static int ptrace_setregs(struct task_struct *tsk, void __user *uregs)
 
 	ret = -EFAULT;
 	if (copy_from_user(&newregs, uregs, sizeof(struct pt_regs)) == 0) {
-		struct pt_regs *regs = get_user_regs(tsk);
+		struct pt_regs *regs = task_pt_regs(tsk);
 		*regs = newregs;
 		ret = 0;
 	}
