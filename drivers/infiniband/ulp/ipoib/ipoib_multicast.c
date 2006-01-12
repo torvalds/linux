@@ -742,50 +742,23 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	LIST_HEAD(remove_list);
-	struct ipoib_mcast *mcast, *tmcast, *nmcast;
+	struct ipoib_mcast *mcast, *tmcast;
 	unsigned long flags;
 
 	ipoib_dbg_mcast(priv, "flushing multicast list\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
+
 	list_for_each_entry_safe(mcast, tmcast, &priv->multicast_list, list) {
-		nmcast = ipoib_mcast_alloc(dev, 0);
-		if (nmcast) {
-			nmcast->flags =
-				mcast->flags & (1 << IPOIB_MCAST_FLAG_SENDONLY);
-
-			nmcast->mcmember.mgid = mcast->mcmember.mgid;
-
-			/* Add the new group in before the to-be-destroyed group */
-			list_add_tail(&nmcast->list, &mcast->list);
-			list_del_init(&mcast->list);
-
-			rb_replace_node(&mcast->rb_node, &nmcast->rb_node,
-					&priv->multicast_tree);
-
-			list_add_tail(&mcast->list, &remove_list);
-		} else {
-			ipoib_warn(priv, "could not reallocate multicast group "
-				   IPOIB_GID_FMT "\n",
-				   IPOIB_GID_ARG(mcast->mcmember.mgid));
-		}
+		list_del(&mcast->list);
+		rb_erase(&mcast->rb_node, &priv->multicast_tree);
+		list_add_tail(&mcast->list, &remove_list);
 	}
 
 	if (priv->broadcast) {
-		nmcast = ipoib_mcast_alloc(dev, 0);
-		if (nmcast) {
-			nmcast->mcmember.mgid = priv->broadcast->mcmember.mgid;
-
-			rb_replace_node(&priv->broadcast->rb_node,
-					&nmcast->rb_node,
-					&priv->multicast_tree);
-
-			list_add_tail(&priv->broadcast->list, &remove_list);
-			priv->broadcast = nmcast;
-		} else
-			ipoib_warn(priv, "could not reallocate broadcast group "
-                        	          IPOIB_GID_FMT "\n",
-                                	  IPOIB_GID_ARG(priv->broadcast->mcmember.mgid));
+ 		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
+		list_add_tail(&priv->broadcast->list, &remove_list);
+		priv->broadcast = NULL;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -793,24 +766,6 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
 		ipoib_mcast_leave(dev, mcast);
 		ipoib_mcast_free(mcast);
-	}
-}
-
-void ipoib_mcast_dev_down(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	unsigned long flags;
-
-	/* Delete broadcast since it will be recreated */
-	if (priv->broadcast) {
-		ipoib_dbg_mcast(priv, "deleting broadcast group\n");
-
-		spin_lock_irqsave(&priv->lock, flags);
-		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
-		spin_unlock_irqrestore(&priv->lock, flags);
-		ipoib_mcast_leave(dev, priv->broadcast);
-		ipoib_mcast_free(priv->broadcast);
-		priv->broadcast = NULL;
 	}
 }
 
