@@ -154,12 +154,11 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
 	}
 
 	info("found a '%s' in warm state.",desc->name);
-	d = kmalloc(sizeof(struct dvb_usb_device),GFP_KERNEL);
+		d = kzalloc(sizeof(struct dvb_usb_device),GFP_KERNEL);
 	if (d == NULL) {
 		err("no memory for 'struct dvb_usb_device'");
 		return ret;
 	}
-	memset(d,0,sizeof(struct dvb_usb_device));
 
 	d->udev = udev;
 	memcpy(&d->props,props,sizeof(struct dvb_usb_properties));
@@ -167,13 +166,12 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
 	d->owner = owner;
 
 	if (d->props.size_of_priv > 0) {
-		d->priv = kmalloc(d->props.size_of_priv,GFP_KERNEL);
+			d->priv = kzalloc(d->props.size_of_priv,GFP_KERNEL);
 		if (d->priv == NULL) {
 			err("no memory for priv in 'struct dvb_usb_device'");
 			kfree(d);
 			return -ENOMEM;
 		}
-		memset(d->priv,0,d->props.size_of_priv);
 	}
 
 	usb_set_intfdata(intf, d);

@@ -750,10 +750,9 @@ static int video_open(struct inode *inode, struct file *file)
 		minor,radio,v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
-	memset(fh,0,sizeof(*fh));
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1809,10 +1808,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	struct cx88_core *core;
 	int err;
 
-	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
 		return -ENOMEM;
-	memset(dev,0,sizeof(*dev));
 
 	/* pci init */
 	dev->pci = pci_dev;

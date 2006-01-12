@@ -193,8 +193,7 @@ static struct i2c_client client_template =
 static int __init
 tuner3036_init(void)
 {
-	i2c_add_driver(&i2c_driver_tuner);
-	return 0;
+	return i2c_add_driver(&i2c_driver_tuner);
 }
 
 static void __exit

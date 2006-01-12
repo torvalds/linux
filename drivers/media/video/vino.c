@@ -4499,13 +4499,11 @@ static int vino_init(void)
 	dma_addr_t dma_dummy_address;
 	int i;
 
-	vino_drvdata = (struct vino_settings *)
-		kmalloc(sizeof(struct vino_settings), GFP_KERNEL);
+	vino_drvdata = kzalloc(sizeof(struct vino_settings), GFP_KERNEL);
 	if (!vino_drvdata) {
 		vino_module_cleanup(vino_init_stage);
 		return -ENOMEM;
 	}
-	memset(vino_drvdata, 0, sizeof(struct vino_settings));
 	vino_init_stage++;
 
 	/* create a dummy dma descriptor */

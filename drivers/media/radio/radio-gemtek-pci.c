@@ -318,11 +318,10 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 	struct gemtek_pci_card *card;
 	struct video_device *devradio;
 
-	if ( (card = kmalloc( sizeof( struct gemtek_pci_card ), GFP_KERNEL )) == NULL ) {
+	if ( (card = kzalloc( sizeof( struct gemtek_pci_card ), GFP_KERNEL )) == NULL ) {
 		printk( KERN_ERR "gemtek_pci: out of memory\n" );
 		return -ENOMEM;
 	}
-	memset( card, 0, sizeof( struct gemtek_pci_card ) );
 
 	if ( pci_enable_device( pci_dev ) ) 
 		goto err_pci;

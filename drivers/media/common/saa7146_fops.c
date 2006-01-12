@@ -239,13 +239,12 @@ static int fops_open(struct inode *inode, struct file *file)
 	}
 
 	/* allocate per open data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh) {
 		DEB_S(("cannot allocate memory for per open data.\n"));
 		result = -ENOMEM;
 		goto out;
 	}
-	memset(fh,0,sizeof(*fh));
 
 	file->private_data = fh;
 	fh->dev = dev;
@@ -464,12 +463,11 @@ static struct video_device device_template =
 
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
-	struct saa7146_vv *vv = kmalloc (sizeof(struct saa7146_vv),GFP_KERNEL);
+	struct saa7146_vv *vv = kzalloc (sizeof(struct saa7146_vv),GFP_KERNEL);
 	if( NULL == vv ) {
 		ERR(("out of memory. aborting.\n"));
 		return -1;
 	}
-	memset(vv, 0x0, sizeof(*vv));
 
 	DEB_EE(("dev:%p\n",dev));
 

@@ -1539,10 +1539,9 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	dprintk(1,"open minor=%d\n",minor);
 
 	/* allocate + initialize per filehandle data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
-	memset(fh,0,sizeof(*fh));
 	file->private_data = fh;
 	fh->dev      = dev;
 
@@ -1678,10 +1677,9 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 		goto fail_core;
 
 	err = -ENOMEM;
-	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
 		goto fail_core;
-	memset(dev,0,sizeof(*dev));
 	dev->pci = pci_dev;
 	dev->core = core;
 	dev->width = 720;

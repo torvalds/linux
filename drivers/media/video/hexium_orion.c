@@ -224,12 +224,11 @@ static int hexium_probe(struct saa7146_dev *dev)
 		return -EFAULT;
 	}
 
-	hexium = (struct hexium *) kmalloc(sizeof(struct hexium), GFP_KERNEL);
+	hexium = kzalloc(sizeof(struct hexium), GFP_KERNEL);
 	if (NULL == hexium) {
 		printk("hexium_orion: hexium_probe: not enough kernel memory.\n");
 		return -ENOMEM;
 	}
-	memset(hexium, 0x0, sizeof(struct hexium));
 
 	/* enable i2c-port pins */
 	saa7146_write(dev, MC1, (MASK_08 | MASK_24 | MASK_10 | MASK_26));

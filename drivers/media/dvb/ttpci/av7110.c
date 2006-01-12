@@ -2565,13 +2565,11 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 	}
 
 	/* prepare the av7110 device struct */
-	av7110 = kmalloc(sizeof(struct av7110), GFP_KERNEL);
+	av7110 = kzalloc(sizeof(struct av7110), GFP_KERNEL);
 	if (!av7110) {
 		dprintk(1, "out of memory\n");
 		return -ENOMEM;
 	}
-
-	memset(av7110, 0, sizeof(struct av7110));
 
 	av7110->card_name = (char*) pci_ext->ext_priv;
 	av7110->dev = dev;

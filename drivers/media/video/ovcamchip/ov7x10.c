@@ -115,10 +115,9 @@ static int ov7x10_init(struct i2c_client *c)
 	if (rc < 0)
 		return rc;
 
-	ov->spriv = s = kmalloc(sizeof *s, GFP_KERNEL);
+	ov->spriv = s = kzalloc(sizeof *s, GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
-	memset(s, 0, sizeof *s);
 
 	s->auto_brt = 1;
 	s->auto_exp = 1;

@@ -227,8 +227,8 @@ static struct i2c_client client_template;
 static int tda7432_write(struct i2c_client *client, int subaddr, int val)
 {
 	unsigned char buffer[2];
-	v4l_dbg(2,client,"In tda7432_write\n");
-	v4l_dbg(1,client,"Writing %d 0x%x\n", subaddr, val);
+	v4l_dbg(2, debug,client,"In tda7432_write\n");
+	v4l_dbg(1, debug,client,"Writing %d 0x%x\n", subaddr, val);
 	buffer[0] = subaddr;
 	buffer[1] = val;
 	if (2 != i2c_master_send(client,buffer,2)) {
@@ -245,9 +245,9 @@ static int tda7432_set(struct i2c_client *client)
 {
 	struct tda7432 *t = i2c_get_clientdata(client);
 	unsigned char buf[16];
-	v4l_dbg(2,client,"In tda7432_set\n");
+	v4l_dbg(2, debug,client,"In tda7432_set\n");
 
-	v4l_dbg(1,client,
+	v4l_dbg(1, debug,client,
 		"tda7432: 7432_set(0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x)\n",
 		t->input,t->volume,t->bass,t->treble,t->lf,t->lr,t->rf,t->rr,t->loud);
 	buf[0]  = TDA7432_IN;
@@ -271,7 +271,7 @@ static int tda7432_set(struct i2c_client *client)
 static void do_tda7432_init(struct i2c_client *client)
 {
 	struct tda7432 *t = i2c_get_clientdata(client);
-	v4l_dbg(2,client,"In tda7432_init\n");
+	v4l_dbg(2, debug,client,"In tda7432_init\n");
 
 	t->input  = TDA7432_STEREO_IN |  /* Main (stereo) input   */
 		    TDA7432_BASS_SYM  |  /* Symmetric bass cut    */
@@ -300,10 +300,9 @@ static int tda7432_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct tda7432 *t;
 	struct i2c_client *client;
 
-	t = kmalloc(sizeof *t,GFP_KERNEL);
+	t = kzalloc(sizeof *t,GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
-	memset(t,0,sizeof *t);
 
 	client = &t->c;
 	memcpy(client,&client_template,sizeof(struct i2c_client));
@@ -340,7 +339,7 @@ static int tda7432_command(struct i2c_client *client,
 			   unsigned int cmd, void *arg)
 {
 	struct tda7432 *t = i2c_get_clientdata(client);
-	v4l_dbg(2,client,"In tda7432_command\n");
+	v4l_dbg(2, debug,client,"In tda7432_command\n");
 	if (debug>1)
 		v4l_i2c_print_ioctl(client,cmd);
 

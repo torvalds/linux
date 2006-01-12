@@ -141,11 +141,10 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
 
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
@@ -156,7 +155,7 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
 
-		v4l_dbg(1, client, "Read Reg %d %02x\n", i, v);
+		v4l_dbg(1, debug, client, "Read Reg %d %02x\n", i, v);
 	}
 
 	/* Set cs53l32a internal register for Adaptec 2010/2410 setup */
@@ -174,7 +173,7 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
 
-		v4l_dbg(1, client, "Read Reg %d %02x\n", i, v);
+		v4l_dbg(1, debug, client, "Read Reg %d %02x\n", i, v);
 	}
 
 	i2c_attach_client(client);

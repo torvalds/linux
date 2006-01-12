@@ -75,13 +75,13 @@ int bt832_hexdump(struct i2c_client *i2c_client_s, unsigned char *buf)
 
 	if(debug>1) {
 		int i;
-		v4l_dbg(2,i2c_client_s,"hexdump:");
+		v4l_dbg(2, debug,i2c_client_s,"hexdump:");
 		for(i=1;i<65;i++) {
 			if(i!=1) {
 				if(((i-1)%8)==0) printk(" ");
 				if(((i-1)%16)==0) {
 					printk("\n");
-					v4l_dbg(2,i2c_client_s,"hexdump:");
+					v4l_dbg(2, debug,i2c_client_s,"hexdump:");
 				}
 			}
 			printk(" %02x",buf[i]);
@@ -167,9 +167,8 @@ static int bt832_attach(struct i2c_adapter *adap, int addr, int kind)
 	client_template.adapter = adap;
 	client_template.addr    = addr;
 
-	if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
+	if (NULL == (t = kzalloc(sizeof(*t), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(t,0,sizeof(*t));
 	t->client = client_template;
 	i2c_set_clientdata(&t->client, t);
 	i2c_attach_client(&t->client);

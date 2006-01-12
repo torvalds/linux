@@ -803,10 +803,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	struct saa7134_mpeg_ops *mops;
 	int err;
 
-	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
 		return -ENOMEM;
-	memset(dev,0,sizeof(*dev));
 
 	/* pci init */
 	dev->pci = pci_dev;

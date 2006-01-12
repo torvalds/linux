@@ -19,7 +19,7 @@
  18 -> Hauppauge Nova-T DVB-T                              [0070:9002,0070:9001]
  19 -> Conexant DVB-T reference design                     [14f1:0187]
  20 -> Provideo PV259                                      [1540:2580]
- 21 -> DViCO FusionHDTV DVB-T Plus                         [18ac:db10]
+ 21 -> DViCO FusionHDTV DVB-T Plus                         [18ac:db10,18ac:db11]
  22 -> pcHDTV HD3000 HDTV                                  [7063:3000]
  23 -> digitalnow DNTV Live! DVB-T                         [17de:a8a6]
  24 -> Hauppauge WinTV 28xxx (Roslyn) models               [0070:2801]

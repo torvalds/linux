@@ -43,9 +43,9 @@ MODULE_LICENSE("GPL");
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
 
-int debug = 0;
+int cx25840_debug = 0;
 
-module_param(debug, bool, 0644);
+module_param_named(debug,cx25840_debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
 
@@ -265,7 +265,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 			   vid_input <= CX25840_COMPOSITE8);
 	u8 reg;
 
-	v4l_dbg(1, client, "decoder set video input %d, audio input %d\n",
+	v4l_dbg(1, cx25840_debug, client, "decoder set video input %d, audio input %d\n",
 			vid_input, aud_input);
 
 	if (is_composite) {
@@ -533,7 +533,7 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 		else
 			filter = 3;
 
-		v4l_dbg(1, client, "decoder set size %dx%d -> scale  %ux%u\n",
+		v4l_dbg(1, cx25840_debug, client, "decoder set size %dx%d -> scale  %ux%u\n",
 			    pix->width, pix->height, HSC, VSC);
 
 		/* HSCALE=HSC */
@@ -687,13 +687,13 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		return cx25840_audio(client, cmd, arg);
 
 	case VIDIOC_STREAMON:
-		v4l_dbg(1, client, "enable output\n");
+		v4l_dbg(1, cx25840_debug, client, "enable output\n");
 		cx25840_write(client, 0x115, 0x8c);
 		cx25840_write(client, 0x116, 0x07);
 		break;
 
 	case VIDIOC_STREAMOFF:
-		v4l_dbg(1, client, "disable output\n");
+		v4l_dbg(1, cx25840_debug, client, "disable output\n");
 		cx25840_write(client, 0x115, 0x00);
 		cx25840_write(client, 0x116, 0x00);
 		break;
@@ -862,17 +862,16 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
 
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_cx25840;
 	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
 
-	v4l_dbg(1, client, "detecting cx25840 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", address << 1);
 
 	device_id = cx25840_read(client, 0x101) << 8;
 	device_id |= cx25840_read(client, 0x100);
@@ -880,7 +879,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	/* The high byte of the device ID should be
 	 * 0x84 if chip is present */
 	if ((device_id & 0xff00) != 0x8400) {
-		v4l_dbg(1, client, "cx25840 not found\n");
+		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
 		kfree(client);
 		return 0;
 	}

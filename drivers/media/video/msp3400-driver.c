@@ -66,26 +66,26 @@ MODULE_LICENSE("GPL");
 
 /* module parameters */
 static int opmode   = OPMODE_AUTO;
-int debug    = 0;    /* debug output */
-int once     = 0;    /* no continous stereo monitoring */
-int amsound  = 0;    /* hard-wire AM sound at 6.5 Hz (france),
+int msp_debug    = 0;    /* msp_debug output */
+int msp_once     = 0;    /* no continous stereo monitoring */
+int msp_amsound  = 0;    /* hard-wire AM sound at 6.5 Hz (france),
 			       the autoscan seems work well only with FM... */
-int standard = 1;    /* Override auto detect of audio standard, if needed. */
-int dolby    = 0;
+int msp_standard = 1;    /* Override auto detect of audio msp_standard, if needed. */
+int msp_dolby    = 0;
 
-int stereo_threshold = 0x190; /* a2 threshold for stereo/bilingual
+int msp_stereo_thresh = 0x190; /* a2 threshold for stereo/bilingual
 					(msp34xxg only) 0x00a0-0x03c0 */
 
 /* read-only */
 module_param(opmode,           int, 0444);
 
 /* read-write */
-module_param(once,             bool, 0644);
-module_param(debug,            int, 0644);
-module_param(stereo_threshold, int, 0644);
-module_param(standard,         int, 0644);
-module_param(amsound,          bool, 0644);
-module_param(dolby,            bool, 0644);
+module_param_named(once,msp_once,                      bool, 0644);
+module_param_named(debug,msp_debug,                    int,  0644);
+module_param_named(stereo_threshold,msp_stereo_thresh, int,  0644);
+module_param_named(standard,msp_standard,              int,  0644);
+module_param_named(amsound,msp_amsound,                bool, 0644);
+module_param_named(dolby,msp_dolby,                    bool, 0644);
 
 MODULE_PARM_DESC(opmode, "Forces a MSP3400 opmode. 0=Manual, 1=Autodetect, 2=Autodetect and autoselect");
 MODULE_PARM_DESC(once, "No continuous stereo monitoring");
@@ -127,7 +127,7 @@ int msp_reset(struct i2c_client *client)
 		{ client->addr, I2C_M_RD, 2, read  },
 	};
 
-	v4l_dbg(3, client, "msp_reset\n");
+	v4l_dbg(3, msp_debug, client, "msp_reset\n");
 	if (i2c_transfer(client->adapter, &reset[0], 1) != 1 ||
 	    i2c_transfer(client->adapter, &reset[1], 1) != 1 ||
 	    i2c_transfer(client->adapter, test, 2) != 2) {
@@ -165,7 +165,7 @@ static int msp_read(struct i2c_client *client, int dev, int addr)
 		return -1;
 	}
 	retval = read[0] << 8 | read[1];
-	v4l_dbg(3, client, "msp_read(0x%x, 0x%x): 0x%x\n", dev, addr, retval);
+	v4l_dbg(3, msp_debug, client, "msp_read(0x%x, 0x%x): 0x%x\n", dev, addr, retval);
 	return retval;
 }
 
@@ -190,7 +190,7 @@ static int msp_write(struct i2c_client *client, int dev, int addr, int val)
 	buffer[3] = val  >> 8;
 	buffer[4] = val  &  0xff;
 
-	v4l_dbg(3, client, "msp_write(0x%x, 0x%x, 0x%x)\n", dev, addr, val);
+	v4l_dbg(3, msp_debug, client, "msp_write(0x%x, 0x%x, 0x%x)\n", dev, addr, val);
 	for (err = 0; err < 3; err++) {
 		if (i2c_master_send(client, buffer, 5) == 5)
 			break;
@@ -273,7 +273,7 @@ void msp_set_scart(struct i2c_client *client, int in, int out)
 	} else
 		state->acb = 0xf60; /* Mute Input and SCART 1 Output */
 
-	v4l_dbg(1, client, "scart switch: %s => %d (ACB=0x%04x)\n",
+	v4l_dbg(1, msp_debug, client, "scart switch: %s => %d (ACB=0x%04x)\n",
 						scart_names[in], out, state->acb);
 	msp_write_dsp(client, 0x13, state->acb);
 
@@ -285,7 +285,7 @@ void msp_set_mute(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 
-	v4l_dbg(1, client, "mute audio\n");
+	v4l_dbg(1, msp_debug, client, "mute audio\n");
 	msp_write_dsp(client, 0x0000, 0);
 	msp_write_dsp(client, 0x0007, 1);
 	if (state->has_scart2_out_volume)
@@ -303,7 +303,7 @@ void msp_set_audio(struct i2c_client *client)
 	if (!state->muted)
 		val = (state->volume * 0x7f / 65535) << 8;
 
-	v4l_dbg(1, client, "mute=%s volume=%d\n",
+	v4l_dbg(1, msp_debug, client, "mute=%s volume=%d\n",
 		state->muted ? "on" : "off", state->volume);
 
 	msp_write_dsp(client, 0x0000, val);
@@ -321,7 +321,7 @@ void msp_set_audio(struct i2c_client *client)
 	treble = ((state->treble - 32768) * 0x60 / 65535) << 8;
 	loudness = state->loudness ? ((5 * 4) << 8) : 0;
 
-	v4l_dbg(1, client, "balance=%d bass=%d treble=%d loudness=%d\n",
+	v4l_dbg(1, msp_debug, client, "balance=%d bass=%d treble=%d loudness=%d\n",
 		state->balance, state->bass, state->treble, state->loudness);
 
 	msp_write_dsp(client, 0x0001, bal << 8);
@@ -341,12 +341,12 @@ int msp_modus(struct i2c_client *client)
 	struct msp_state *state = i2c_get_clientdata(client);
 
 	if (state->radio) {
-		v4l_dbg(1, client, "video mode selected to Radio\n");
+		v4l_dbg(1, msp_debug, client, "video mode selected to Radio\n");
 		return 0x0003;
 	}
 
 	if (state->v4l2_std & V4L2_STD_PAL) {
-		v4l_dbg(1, client, "video mode selected to PAL\n");
+		v4l_dbg(1, msp_debug, client, "video mode selected to PAL\n");
 
 #if 1
 		/* experimental: not sure this works with all chip versions */
@@ -357,11 +357,11 @@ int msp_modus(struct i2c_client *client)
 #endif
 	}
 	if (state->v4l2_std & V4L2_STD_NTSC) {
-		v4l_dbg(1, client, "video mode selected to NTSC\n");
+		v4l_dbg(1, msp_debug, client, "video mode selected to NTSC\n");
 		return 0x2003;
 	}
 	if (state->v4l2_std & V4L2_STD_SECAM) {
-		v4l_dbg(1, client, "video mode selected to SECAM\n");
+		v4l_dbg(1, msp_debug, client, "video mode selected to SECAM\n");
 		return 0x0003;
 	}
 	return 0x0003;
@@ -619,7 +619,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	u16 *sarg = arg;
 	int scart = 0;
 
-	if (debug >= 2)
+	if (msp_debug >= 2)
 		v4l_i2c_print_ioctl(client, cmd);
 
 	switch (cmd) {
@@ -666,7 +666,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (state->radio)
 			return 0;
 		state->radio = 1;
-		v4l_dbg(1, client, "switching to radio mode\n");
+		v4l_dbg(1, msp_debug, client, "switching to radio mode\n");
 		state->watch_stereo = 0;
 		switch (state->opmode) {
 		case OPMODE_MANUAL:
@@ -937,7 +937,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (a->index < 0 || a->index > 2)
 			return -EINVAL;
 
-		v4l_dbg(1, client, "Setting audio out on msp34xx to input %i\n", a->index);
+		v4l_dbg(1, msp_debug, client, "Setting audio out on msp34xx to input %i\n", a->index);
 		msp_set_scart(client, state->in_scart, a->index + 1);
 
 		break;
@@ -947,7 +947,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		u32 *a = (u32 *)arg;
 
-		v4l_dbg(1, client, "Setting I2S speed to %d\n", *a);
+		v4l_dbg(1, msp_debug, client, "Setting I2S speed to %d\n", *a);
 
 		switch (*a) {
 			case 1024000:
@@ -1041,7 +1041,7 @@ static int msp_suspend(struct device * dev, pm_message_t state)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
-	v4l_dbg(1, client, "suspend\n");
+	v4l_dbg(1, msp_debug, client, "suspend\n");
 	msp_reset(client);
 	return 0;
 }
@@ -1050,7 +1050,7 @@ static int msp_resume(struct device * dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
-	v4l_dbg(1, client, "resume\n");
+	v4l_dbg(1, msp_debug, client, "resume\n");
 	msp_wake_thread(client);
 	return 0;
 }
@@ -1080,7 +1080,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	snprintf(client->name, sizeof(client->name) - 1, "msp3400");
 
 	if (msp_reset(client) == -1) {
-		v4l_dbg(1, client, "msp3400 not found\n");
+		v4l_dbg(1, msp_debug, client, "msp3400 not found\n");
 		kfree(client);
 		return -1;
 	}
@@ -1107,9 +1107,9 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->rev1 = msp_read_dsp(client, 0x1e);
 	if (state->rev1 != -1)
 		state->rev2 = msp_read_dsp(client, 0x1f);
-	v4l_dbg(1, client, "rev1=0x%04x, rev2=0x%04x\n", state->rev1, state->rev2);
+	v4l_dbg(1, msp_debug, client, "rev1=0x%04x, rev2=0x%04x\n", state->rev1, state->rev2);
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
-		v4l_dbg(1, client, "not an msp3400 (cannot read chip version)\n");
+		v4l_dbg(1, msp_debug, client, "not an msp3400 (cannot read chip version)\n");
 		kfree(state);
 		kfree(client);
 		return -1;

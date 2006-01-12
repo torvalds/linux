@@ -83,13 +83,12 @@ static int saa5246a_attach(struct i2c_adapter *adap, int addr, int kind)
 	client_template.adapter = adap;
 	client_template.addr = addr;
 	memcpy(client, &client_template, sizeof(*client));
-	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if(t==NULL)
 	{
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(t, 0, sizeof(*t));
 	strlcpy(client->name, IF_NAME, I2C_NAME_SIZE);
 	init_MUTEX(&t->lock);
 

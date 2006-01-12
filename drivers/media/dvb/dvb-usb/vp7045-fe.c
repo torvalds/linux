@@ -145,10 +145,9 @@ static struct dvb_frontend_ops vp7045_fe_ops;
 
 struct dvb_frontend * vp7045_fe_attach(struct dvb_usb_device *d)
 {
-	struct vp7045_fe_state *s = kmalloc(sizeof(struct vp7045_fe_state), GFP_KERNEL);
+	struct vp7045_fe_state *s = kzalloc(sizeof(struct vp7045_fe_state), GFP_KERNEL);
 	if (s == NULL)
 		goto error;
-	memset(s,0,sizeof(struct vp7045_fe_state));
 
 	s->d = d;
 	s->fe.ops = &vp7045_fe_ops;

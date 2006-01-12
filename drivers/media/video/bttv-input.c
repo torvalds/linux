@@ -583,6 +583,12 @@ int bttv_input_init(struct bttv *btv)
 		btv->custom_irq = bttv_rc5_irq;
 		ir->rc5_gpio = 1;
 		break;
+	case BTTV_BOARD_MACHTV_MAGICTV:
+		ir_codes         = ir_codes_apac_viewcomp;
+		ir->mask_keycode = 0x001F00;
+		ir->mask_keyup   = 0x004000;
+		ir->polling      = 50; /* ms */
+		break;
 	}
 	if (NULL == ir_codes) {
 		dprintk(KERN_INFO "Ooops: IR config error [card=%d]\n",btv->c.type);
