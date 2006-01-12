@@ -601,8 +601,8 @@ static inline void disable_tsc(struct task_struct *prev_p,
 	 * gcc should eliminate the ->thread_info dereference if
 	 * has_secure_computing returns 0 at compile time (SECCOMP=n).
 	 */
-	prev = prev_p->thread_info;
-	next = next_p->thread_info;
+	prev = task_thread_info(prev_p);
+	next = task_thread_info(next_p);
 
 	if (has_secure_computing(prev) || has_secure_computing(next)) {
 		/* slow path here */
