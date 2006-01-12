@@ -1244,6 +1244,11 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb50,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb11,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
+		/* Re-branded DViCO: UltraView DVB-T Plus */
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
