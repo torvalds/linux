@@ -513,6 +513,17 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
 	return written;
 }
 
+static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
+{
+	/* origin == SEEK_END => we must revalidate the cached file length */
+	if (origin == 2) {
+		int retval = cifs_revalidate(file->f_dentry);
+		if (retval < 0)
+			return (loff_t)retval;
+	}
+	return remote_llseek(file, offset, origin);
+}
+
 static struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
@@ -586,6 +597,7 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -609,7 +621,7 @@ struct file_operations cifs_file_direct_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
-
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
@@ -627,6 +639,7 @@ struct file_operations cifs_file_nobrl_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -649,7 +662,7 @@ struct file_operations cifs_file_direct_nobrl_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
-
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */

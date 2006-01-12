@@ -1835,10 +1835,20 @@ int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
 		open_file =  find_writable_file(cifsInode);
  
 	if(open_file) {
+		struct cifs_sb_info *cifs_sb;
+
 		/* there is not actually a write pending so let
 		this handle go free and allow it to
 		be closable if needed */
 		atomic_dec(&open_file->wrtPending);
+
+		cifs_sb = CIFS_SB(cifsInode->vfs_inode.i_sb);
+		if ( cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO ) {
+			/* since no page cache to corrupt on directio 
+			we can change size safely */
+			return 1;
+		}
+
 		return 0;
 	} else
 		return 1;
