@@ -60,7 +60,7 @@ do { \
 	register unsigned long pgd_cache asm("o4"); \
 	paddr = __pa((__mm)->pgd); \
 	pgd_cache = 0UL; \
-	if ((__tsk)->thread_info->flags & _TIF_32BIT) \
+	if (task_thread_info(__tsk)->flags & _TIF_32BIT) \
 		pgd_cache = get_pgd_cache((__mm)->pgd); \
 	__asm__ __volatile__("wrpr	%%g0, 0x494, %%pstate\n\t" \
 			     "mov	%3, %%g4\n\t" \

@@ -208,7 +208,7 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	/* If you are tempted to conditionalize the following */	\
 	/* so that ASI is only written if it changes, think again. */	\
 	__asm__ __volatile__("wr %%g0, %0, %%asi"			\
-	: : "r" (__thread_flag_byte_ptr(next->thread_info)[TI_FLAG_BYTE_CURRENT_DS]));\
+	: : "r" (__thread_flag_byte_ptr(task_thread_info(next))[TI_FLAG_BYTE_CURRENT_DS]));\
 	__asm__ __volatile__(						\
 	"mov	%%g4, %%g7\n\t"						\
 	"wrpr	%%g0, 0x95, %%pstate\n\t"				\
@@ -238,7 +238,7 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"b,a ret_from_syscall\n\t"					\
 	"1:\n\t"							\
 	: "=&r" (last)							\
-	: "0" (next->thread_info),					\
+	: "0" (task_thread_info(next)),					\
 	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_NEW_CHILD),            \
 	  "i" (TI_CWP), "i" (TI_TASK)					\
 	: "cc",								\
