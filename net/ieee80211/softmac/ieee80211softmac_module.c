@@ -71,6 +71,7 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	
 	return dev;
 }
+EXPORT_SYMBOL_GPL(alloc_ieee80211softmac);
 
 /* Clears the pending work queue items, stops all scans, etc. */
 void 
@@ -127,6 +128,7 @@ ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 
 	spin_unlock_irqrestore(&sm->lock, flags);
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_clear_pending_work);
 
 void free_ieee80211softmac(struct net_device *dev)
 {
@@ -136,6 +138,7 @@ void free_ieee80211softmac(struct net_device *dev)
 	kfree(sm->wpa.IE);
 	free_ieee80211(dev);
 }
+EXPORT_SYMBOL_GPL(free_ieee80211softmac);
 
 static void ieee80211softmac_start_check_rates(struct ieee80211softmac_device *mac)
 {
@@ -194,6 +197,7 @@ void ieee80211softmac_start(struct net_device *dev)
 	if (mac->txrates_change)
 		mac->txrates_change(dev, change, &oldrates);
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_start);
 
 void ieee80211softmac_stop(struct net_device *dev)
 {
@@ -201,6 +205,7 @@ void ieee80211softmac_stop(struct net_device *dev)
 
 	ieee80211softmac_clear_pending_work(mac);
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_stop);
 
 void ieee80211softmac_set_rates(struct net_device *dev, u8 count, u8 *rates)
 {
@@ -212,6 +217,7 @@ void ieee80211softmac_set_rates(struct net_device *dev, u8 count, u8 *rates)
 	mac->ratesinfo.count = count;
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_set_rates);
 
 static u8 raise_rate(struct ieee80211softmac_device *mac, u8 rate)
 {
@@ -294,6 +300,7 @@ void ieee80211softmac_fragment_lost(struct net_device *dev,
 
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
+EXPORT_SYMBOL_GPL(ieee80211softmac_fragment_lost);
 
 static int rate_cmp(const void *a_, const void *b_) {
 	u8 *a, *b;
@@ -447,11 +454,3 @@ MODULE_AUTHOR("Larry Finger");
 MODULE_AUTHOR("Danny van Dyk");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_DESCRIPTION("802.11 software MAC");
-
-EXPORT_SYMBOL_GPL(alloc_ieee80211softmac);
-EXPORT_SYMBOL_GPL(free_ieee80211softmac);
-EXPORT_SYMBOL_GPL(ieee80211softmac_set_rates);
-EXPORT_SYMBOL_GPL(ieee80211softmac_start);
-EXPORT_SYMBOL_GPL(ieee80211softmac_stop);
-EXPORT_SYMBOL_GPL(ieee80211softmac_fragment_lost);
-EXPORT_SYMBOL_GPL(ieee80211softmac_clear_pending_work);
