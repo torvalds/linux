@@ -542,10 +542,10 @@ static void vio_handle_cd_event(struct HvLpEvent *event)
 		/* Notification that a partition went away! */
 		return;
 	/* First, we should NEVER get an int here...only acks */
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		printk(VIOCD_KERN_WARNING
 				"Yikes! got an int in viocd event handler!\n");
-		if (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck) {
+		if (hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}
@@ -616,7 +616,7 @@ return_complete:
 		printk(VIOCD_KERN_WARNING
 				"message with invalid subtype %0x04X!\n",
 				event->xSubtype & VIOMINOR_SUBTYPE_MASK);
-		if (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck) {
+		if (hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}

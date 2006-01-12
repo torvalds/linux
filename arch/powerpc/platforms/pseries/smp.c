@@ -93,7 +93,7 @@ static int query_cpu_stopped(unsigned int pcpu)
 	return cpu_status;
 }
 
-int pSeries_cpu_disable(void)
+static int pSeries_cpu_disable(void)
 {
 	int cpu = smp_processor_id();
 
@@ -109,7 +109,7 @@ int pSeries_cpu_disable(void)
 	return 0;
 }
 
-void pSeries_cpu_die(unsigned int cpu)
+static void pSeries_cpu_die(unsigned int cpu)
 {
 	int tries;
 	int cpu_status;

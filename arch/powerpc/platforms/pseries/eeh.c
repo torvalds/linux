@@ -208,10 +208,11 @@ static void __eeh_mark_slot (struct device_node *dn, int mode_flag)
 {
 	while (dn) {
 		if (PCI_DN(dn)) {
-			PCI_DN(dn)->eeh_mode |= mode_flag;
-
 			/* Mark the pci device driver too */
 			struct pci_dev *dev = PCI_DN(dn)->pcidev;
+
+			PCI_DN(dn)->eeh_mode |= mode_flag;
+
 			if (dev && dev->driver)
 				dev->error_state = pci_channel_io_frozen;
 

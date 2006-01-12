@@ -476,19 +476,19 @@ static struct port_info *get_port_data(struct tty_struct *tty)
  */
 static void initDataEvent(struct viocharlpevent *viochar, HvLpIndex lp)
 {
+	struct HvLpEvent *hev = &viochar->event;
+
 	memset(viochar, 0, sizeof(struct viocharlpevent));
 
-	viochar->event.xFlags.xValid = 1;
-	viochar->event.xFlags.xFunction = HvLpEvent_Function_Int;
-	viochar->event.xFlags.xAckInd = HvLpEvent_AckInd_NoAck;
-	viochar->event.xFlags.xAckType = HvLpEvent_AckType_DeferredAck;
-	viochar->event.xType = HvLpEvent_Type_VirtualIo;
-	viochar->event.xSubtype = viomajorsubtype_chario | viochardata;
-	viochar->event.xSourceLp = HvLpConfig_getLpIndex();
-	viochar->event.xTargetLp = lp;
-	viochar->event.xSizeMinus1 = sizeof(struct viocharlpevent);
-	viochar->event.xSourceInstanceId = viopath_sourceinst(lp);
-	viochar->event.xTargetInstanceId = viopath_targetinst(lp);
+	hev->flags = HV_LP_EVENT_VALID | HV_LP_EVENT_DEFERRED_ACK |
+		HV_LP_EVENT_INT;
+	hev->xType = HvLpEvent_Type_VirtualIo;
+	hev->xSubtype = viomajorsubtype_chario | viochardata;
+	hev->xSourceLp = HvLpConfig_getLpIndex();
+	hev->xTargetLp = lp;
+	hev->xSizeMinus1 = sizeof(struct viocharlpevent);
+	hev->xSourceInstanceId = viopath_sourceinst(lp);
+	hev->xTargetInstanceId = viopath_targetinst(lp);
 }
 
 /*
@@ -752,7 +752,7 @@ static void vioHandleOpenEvent(struct HvLpEvent *event)
 	struct port_info *pi;
 	int reject = 0;
 
-	if (event->xFlags.xFunction == HvLpEvent_Function_Ack) {
+	if (hvlpevent_is_ack(event)) {
 		if (port >= VTTY_PORTS)
 			return;
 
@@ -788,7 +788,7 @@ static void vioHandleOpenEvent(struct HvLpEvent *event)
 	}
 
 	/* This had better require an ack, otherwise complain */
-	if (event->xFlags.xAckInd != HvLpEvent_AckInd_DoAck) {
+	if (!hvlpevent_need_ack(event)) {
 		printk(VIOCONS_KERN_WARN "viocharopen without ack bit!\n");
 		return;
 	}
@@ -856,7 +856,7 @@ static void vioHandleCloseEvent(struct HvLpEvent *event)
 	struct viocharlpevent *cevent = (struct viocharlpevent *)event;
 	u8 port = cevent->virtual_device;
 
-	if (event->xFlags.xFunction == HvLpEvent_Function_Int) {
+	if (hvlpevent_is_int(event)) {
 		if (port >= VTTY_PORTS) {
 			printk(VIOCONS_KERN_WARN
 					"close message from invalid virtual device.\n");
@@ -1056,8 +1056,7 @@ static void vioHandleCharEvent(struct HvLpEvent *event)
 		vioHandleConfig(event);
 		break;
 	default:
-		if ((event->xFlags.xFunction == HvLpEvent_Function_Int) &&
-		    (event->xFlags.xAckInd == HvLpEvent_AckInd_DoAck)) {
+		if (hvlpevent_is_int(event) && hvlpevent_need_ack(event)) {
 			event->xRc = HvLpEvent_Rc_InvalidSubtype;
 			HvCallEvent_ackLpEvent(event);
 		}

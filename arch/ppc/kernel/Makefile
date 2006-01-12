@@ -13,7 +13,6 @@ extra-$(CONFIG_POWER4)		+= idle_power4.o
 extra-y				+= vmlinux.lds
 
 obj-y				:= entry.o traps.o idle.o time.o misc.o \
-					process.o \
 					setup.o \
 					ppc_htab.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o

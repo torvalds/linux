@@ -201,13 +201,13 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 }
 #endif /* CONFIG_SPE */
 
+#ifndef CONFIG_SMP
 /*
  * If we are doing lazy switching of CPU state (FP, altivec or SPE),
  * and the current task has some state, discard it.
  */
-static inline void discard_lazy_cpu_state(void)
+void discard_lazy_cpu_state(void)
 {
-#ifndef CONFIG_SMP
 	preempt_disable();
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
@@ -220,9 +220,10 @@ static inline void discard_lazy_cpu_state(void)
 		last_task_used_spe = NULL;
 #endif
 	preempt_enable();
-#endif /* CONFIG_SMP */
 }
+#endif /* CONFIG_SMP */
 
+#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 int set_dabr(unsigned long dabr)
 {
 	if (ppc_md.set_dabr)
@@ -231,6 +232,7 @@ int set_dabr(unsigned long dabr)
 	mtspr(SPRN_DABR, dabr);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);

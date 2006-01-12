@@ -48,6 +48,8 @@
 extern void iSeries_smp_message_recv(struct pt_regs *);
 #endif
 
+#ifdef CONFIG_PCI
+
 enum pci_event_type {
 	pe_bus_created		= 0,	/* PHB has been created */
 	pe_bus_error		= 1,	/* PHB has failed */
@@ -147,20 +149,11 @@ static void int_received(struct pci_event *event, struct pt_regs *regs)
 static void pci_event_handler(struct HvLpEvent *event, struct pt_regs *regs)
 {
 	if (event && (event->xType == HvLpEvent_Type_PciIo)) {
-		switch (event->xFlags.xFunction) {
-		case HvLpEvent_Function_Int:
+		if (hvlpevent_is_int(event))
 			int_received((struct pci_event *)event, regs);
-			break;
-		case HvLpEvent_Function_Ack:
+		else
 			printk(KERN_ERR
 				"pci_event_handler: unexpected ack received\n");
-			break;
-		default:
-			printk(KERN_ERR
-				"pci_event_handler: unexpected event function %d\n",
-				(int)event->xFlags.xFunction);
-			break;
-		}
 	} else if (event)
 		printk(KERN_ERR
 			"pci_event_handler: Unrecognized PCI event type 0x%x\n",
@@ -334,6 +327,8 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 	return virtirq;
 }
 
+#endif /* CONFIG_PCI */
+
 /*
  * Get the next pending IRQ.
  */
@@ -353,6 +348,7 @@ int iSeries_get_irq(struct pt_regs *regs)
 	if (hvlpevent_is_pending())
 		process_hvlpevents(regs);
 
+#ifdef CONFIG_PCI
 	if (num_pending_irqs) {
 		spin_lock(&pending_irqs_lock);
 		for (irq = 0; irq < NR_IRQS; irq++) {
@@ -366,6 +362,7 @@ int iSeries_get_irq(struct pt_regs *regs)
 		if (irq >= NR_IRQS)
 			irq = -2;
 	}
+#endif
 
 	return irq;
 }

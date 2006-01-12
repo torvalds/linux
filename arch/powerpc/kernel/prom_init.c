@@ -137,8 +137,8 @@ struct prom_t {
 };
 
 struct mem_map_entry {
-	unsigned long	base;
-	unsigned long	size;
+	u64	base;
+	u64	size;
 };
 
 typedef u32 cell_t;
@@ -897,9 +897,9 @@ static unsigned long __init prom_next_cell(int s, cell_t **cellp)
  * If problems seem to show up, it would be a good start to track
  * them down.
  */
-static void reserve_mem(unsigned long base, unsigned long size)
+static void reserve_mem(u64 base, u64 size)
 {
-	unsigned long top = base + size;
+	u64 top = base + size;
 	unsigned long cnt = RELOC(mem_reserve_cnt);
 
 	if (size == 0)

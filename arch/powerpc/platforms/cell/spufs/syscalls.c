@@ -29,7 +29,9 @@
  * value of the spu_status register after the SPU has stopped.
  *
  */
-long do_spu_run(struct file *filp, __u32 __user *unpc, __u32 __user *ustatus)
+static long do_spu_run(struct file *filp,
+			__u32 __user *unpc,
+			__u32 __user *ustatus)
 {
 	long ret;
 	struct spufs_inode_info *i;

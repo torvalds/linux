@@ -590,9 +590,9 @@ static void veth_handle_event(struct HvLpEvent *event, struct pt_regs *regs)
 {
 	struct veth_lpevent *veth_event = (struct veth_lpevent *)event;
 
-	if (event->xFlags.xFunction == HvLpEvent_Function_Ack)
+	if (hvlpevent_is_ack(event))
 		veth_handle_ack(veth_event);
-	else if (event->xFlags.xFunction == HvLpEvent_Function_Int)
+	else
 		veth_handle_int(veth_event);
 }
 

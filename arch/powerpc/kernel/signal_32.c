@@ -497,6 +497,15 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (err)
 		return 1;
 
+	/*
+	 * Do this before updating the thread state in
+	 * current->thread.fpr/vr/evr.  That way, if we get preempted
+	 * and another task grabs the FPU/Altivec/SPE, it won't be
+	 * tempted to save the current CPU state into the thread_struct
+	 * and corrupt what we are writing there.
+	 */
+	discard_lazy_cpu_state();
+
 	/* force the process to reload the FP registers from
 	   current->thread when it next does FP instructions */
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1);
@@ -538,18 +547,6 @@ static long restore_user_regs(struct pt_regs *regs,
 		return 1;
 #endif /* CONFIG_SPE */
 
-#ifndef CONFIG_SMP
-	preempt_disable();
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-#ifdef CONFIG_SPE
-	if (last_task_used_spe == current)
-		last_task_used_spe = NULL;
-#endif
-	preempt_enable();
-#endif
 	return 0;
 }
 

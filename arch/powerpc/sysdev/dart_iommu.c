@@ -139,7 +139,6 @@ static void dart_build(struct iommu_table *tbl, long index,
 
 		*(dp++) = DARTMAP_VALID | (rpn & DARTMAP_RPNMASK);
 
-		rpn++;
 		uaddr += DART_PAGE_SIZE;
 	}
 

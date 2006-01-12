@@ -51,8 +51,6 @@
 
 #define DBG(fmt...)
 
-extern int is_python(struct device_node *);
-
 static void tce_build_pSeries(struct iommu_table *tbl, long index, 
 			      long npages, unsigned long uaddr, 
 			      enum dma_data_direction direction)
