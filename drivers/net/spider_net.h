@@ -373,9 +373,9 @@ enum spider_net_descr_status {
 
 struct spider_net_descr {
 	/* as defined by the hardware */
-	dma_addr_t buf_addr;
+	u32 buf_addr;
 	u32 buf_size;
-	dma_addr_t next_descr_addr;
+	u32 next_descr_addr;
 	u32 dmac_cmd_status;
 	u32 result_size;
 	u32 valid_size;	/* all zeroes for tx */

@@ -480,6 +480,7 @@ static int
 spider_net_prepare_rx_descr(struct spider_net_card *card,
 			    struct spider_net_descr *descr)
 {
+	dma_addr_t buf;
 	int error = 0;
 	int offset;
 	int bufsize;
@@ -510,10 +511,11 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 	if (offset)
 		skb_reserve(descr->skb, SPIDER_NET_RXBUF_ALIGN - offset);
 	/* io-mmu-map the skb */
-	descr->buf_addr = pci_map_single(card->pdev, descr->skb->data,
+	buf = pci_map_single(card->pdev, descr->skb->data,
 					 SPIDER_NET_MAX_MTU,
 					 PCI_DMA_BIDIRECTIONAL);
-	if (descr->buf_addr == DMA_ERROR_CODE) {
+	descr->buf_addr = buf;
+	if (buf == DMA_ERROR_CODE) {
 		dev_kfree_skb_any(descr->skb);
 		if (netif_msg_rx_err(card))
 			pr_err("Could not iommu-map rx buffer\n");
@@ -914,15 +916,16 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 			    struct spider_net_descr *descr,
 			    struct sk_buff *skb)
 {
-	descr->buf_addr = pci_map_single(card->pdev, skb->data,
-					 skb->len, PCI_DMA_BIDIRECTIONAL);
-	if (descr->buf_addr == DMA_ERROR_CODE) {
+	dma_addr_t buf = pci_map_single(card->pdev, skb->data,
+					skb->len, PCI_DMA_BIDIRECTIONAL);
+	if (buf == DMA_ERROR_CODE) {
 		if (netif_msg_tx_err(card))
 			pr_err("could not iommu-map packet (%p, %i). "
 				  "Dropping packet\n", skb->data, skb->len);
 		return -ENOMEM;
 	}
 
+	descr->buf_addr = buf;
 	descr->buf_size = skb->len;
 	descr->skb = skb;
 	descr->data_status = 0;
