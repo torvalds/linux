@@ -223,6 +223,7 @@ void discard_lazy_cpu_state(void)
 }
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 int set_dabr(unsigned long dabr)
 {
 	if (ppc_md.set_dabr)
@@ -231,6 +232,7 @@ int set_dabr(unsigned long dabr)
 	mtspr(SPRN_DABR, dabr);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
