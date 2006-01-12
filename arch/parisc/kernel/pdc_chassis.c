@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/notifier.h>
+#include <linux/cache.h>
 
 #include <asm/pdc_chassis.h>
 #include <asm/processor.h>
@@ -38,8 +39,8 @@
 
 
 #ifdef CONFIG_PDC_CHASSIS
-static int pdc_chassis_old = 0;	
-static unsigned int pdc_chassis_enabled = 1;
+static int pdc_chassis_old __read_mostly = 0;	
+static unsigned int pdc_chassis_enabled __read_mostly = 1;
 
 
 /**
@@ -132,7 +133,7 @@ void __init parisc_pdc_chassis_init(void)
 {
 #ifdef CONFIG_PDC_CHASSIS
 	int handle = 0;
-	if (pdc_chassis_enabled) {
+	if (likely(pdc_chassis_enabled)) {
 		DPRINTK(KERN_DEBUG "%s: parisc_pdc_chassis_init()\n", __FILE__);
 
 		/* Let see if we have something to handle... */
@@ -142,7 +143,7 @@ void __init parisc_pdc_chassis_init(void)
 			printk(KERN_INFO "Enabling PDC_PAT chassis codes support.\n");
 			handle = 1;
 		}
-		else if (pdc_chassis_old) {
+		else if (unlikely(pdc_chassis_old)) {
 			printk(KERN_INFO "Enabling old style chassis LED panel support.\n");
 			handle = 1;
 		}
@@ -178,7 +179,7 @@ int pdc_chassis_send_status(int message)
 	/* Maybe we should do that in an other way ? */
 	int retval = 0;
 #ifdef CONFIG_PDC_CHASSIS
-	if (pdc_chassis_enabled) {
+	if (likely(pdc_chassis_enabled)) {
 
 		DPRINTK(KERN_DEBUG "%s: pdc_chassis_send_status(%d)\n", __FILE__, message);
 
@@ -214,7 +215,7 @@ int pdc_chassis_send_status(int message)
 			}
 		} else retval = -1;
 #else
-		if (pdc_chassis_old) {
+		if (unlikely(pdc_chassis_old)) {
 			switch (message) {
 				case PDC_CHASSIS_DIRECT_BSTART:
 				case PDC_CHASSIS_DIRECT_BCOMPLETE:

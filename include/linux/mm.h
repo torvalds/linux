@@ -1027,7 +1027,7 @@ kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (!PageHighMem(page) && !enable)
 		mutex_debug_check_no_locks_freed(page_address(page),
-						 page_address(page + numpages));
+						 numpages * PAGE_SIZE);
 }
 #endif
 

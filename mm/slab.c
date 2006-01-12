@@ -3071,7 +3071,7 @@ void kfree(const void *objp)
 	local_irq_save(flags);
 	kfree_debugcheck(objp);
 	c = page_get_cache(virt_to_page(objp));
-	mutex_debug_check_no_locks_freed(objp, objp+obj_reallen(c));
+	mutex_debug_check_no_locks_freed(objp, obj_reallen(c));
 	__cache_free(c, (void *)objp);
 	local_irq_restore(flags);
 }

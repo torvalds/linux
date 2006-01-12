@@ -12,6 +12,7 @@
 
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
+#include <linux/linkage.h>
 
 #include <asm/atomic.h>
 
@@ -78,7 +79,7 @@ struct mutex_waiter {
 # define mutex_debug_show_all_locks()			do { } while (0)
 # define mutex_debug_show_held_locks(p)			do { } while (0)
 # define mutex_debug_check_no_locks_held(task)		do { } while (0)
-# define mutex_debug_check_no_locks_freed(from, to)	do { } while (0)
+# define mutex_debug_check_no_locks_freed(from, len)	do { } while (0)
 #endif
 
 #define __MUTEX_INITIALIZER(lockname) \

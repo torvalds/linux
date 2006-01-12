@@ -3,7 +3,7 @@
  * Low level Frame buffer driver for HP workstations with 
  * STI (standard text interface) video firmware.
  *
- * Copyright (C) 2001-2004 Helge Deller <deller@gmx.de>
+ * Copyright (C) 2001-2005 Helge Deller <deller@gmx.de>
  * Portions Copyright (C) 2001 Thomas Bogendoerfer <tsbogend@alpha.franken.de>
  * 
  * Based on:
@@ -73,15 +73,12 @@
 #include "sticore.h"
 
 /* REGION_BASE(fb_info, index) returns the virtual address for region <index> */
-#ifdef __LP64__
-  #define REGION_BASE(fb_info, index) \
-	(fb_info->sti->glob_cfg->region_ptrs[index] | 0xffffffff00000000)
-#else
-  #define REGION_BASE(fb_info, index) \
-	fb_info->sti->glob_cfg->region_ptrs[index]
-#endif
+#define REGION_BASE(fb_info, index) \
+	F_EXTEND(fb_info->sti->glob_cfg->region_ptrs[index])
 
 #define NGLEDEVDEPROM_CRT_REGION 1
+
+#define NR_PALETTE 256
 
 typedef struct {
 	__s32	video_config_reg;
@@ -112,7 +109,7 @@ struct stifb_info {
 	ngle_rom_t ngle_rom;
 	struct sti_struct *sti;
 	int deviceSpecificConfig;
-	u32 pseudo_palette[256];
+	u32 pseudo_palette[16];
 };
 
 static int __initdata stifb_bpp_pref[MAX_STI_ROMS];
@@ -352,10 +349,10 @@ ARTIST_ENABLE_DISABLE_DISPLAY(struct stifb_info *fb, int enable)
 #define IS_888_DEVICE(fb) \
 	(!(IS_24_DEVICE(fb)))
 
-#define GET_FIFO_SLOTS(fb, cnt, numslots)			\
-{	while (cnt < numslots) 					\
+#define GET_FIFO_SLOTS(fb, cnt, numslots)	\
+{	while (cnt < numslots) 			\
 		cnt = READ_WORD(fb, REG_34);	\
-	cnt -= numslots;					\
+	cnt -= numslots;			\
 }
 
 #define	    IndexedDcd	0	/* Pixel data is indexed (pseudo) color */
@@ -995,7 +992,7 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 	struct stifb_info *fb = (struct stifb_info *) info;
 	u32 color;
 
-	if (regno >= 256)  /* no. of hw registers */
+	if (regno >= NR_PALETTE)
 		return 1;
 
 	red   >>= 8;
@@ -1005,8 +1002,8 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 	DEBUG_OFF();
 
 	START_IMAGE_COLORMAP_ACCESS(fb);
-	
-	if (fb->info.var.grayscale) {
+
+	if (unlikely(fb->info.var.grayscale)) {
 		/* gray = 0.30*R + 0.59*G + 0.11*B */
 		color = ((red * 77) +
 			 (green * 151) +
@@ -1017,17 +1014,17 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 			 (blue));
 	}
 
-	if (info->var.bits_per_pixel == 32) {
-		((u32 *)(info->pseudo_palette))[regno] =
-			(red   << info->var.red.offset)   |
-			(green << info->var.green.offset) |
-			(blue  << info->var.blue.offset);
-	} else {
-		((u32 *)(info->pseudo_palette))[regno] = regno;
+	if (fb->info.fix.visual == FB_VISUAL_DIRECTCOLOR) {
+		struct fb_var_screeninfo *var = &fb->info.var;
+		if (regno < 16)
+			((u32 *)fb->info.pseudo_palette)[regno] =
+				regno << var->red.offset |
+				regno << var->green.offset |
+				regno << var->blue.offset;
 	}
 
 	WRITE_IMAGE_COLOR(fb, regno, color);
-	
+
 	if (fb->id == S9000_ID_HCRX) {
 		NgleLutBltCtl lutBltCtl;
 
@@ -1066,9 +1063,9 @@ stifb_blank(int blank_mode, struct fb_info *info)
 	case S9000_ID_HCRX:
 		HYPER_ENABLE_DISABLE_DISPLAY(fb, enable);
 		break;
-	case S9000_ID_A1659A:;	/* fall through */
-	case S9000_ID_TIMBER:;
-	case CRX24_OVERLAY_PLANES:;
+	case S9000_ID_A1659A:	/* fall through */
+	case S9000_ID_TIMBER:
+	case CRX24_OVERLAY_PLANES:
 	default:
 		ENABLE_DISABLE_DISPLAY(fb, enable);
 		break;
@@ -1250,12 +1247,10 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		memset(&fb->ngle_rom, 0, sizeof(fb->ngle_rom));
 		if ((fb->sti->regions_phys[0] & 0xfc000000) ==
 		    (fb->sti->regions_phys[2] & 0xfc000000))
-			sti_rom_address = fb->sti->regions_phys[0];
+			sti_rom_address = F_EXTEND(fb->sti->regions_phys[0]);
 		else
-			sti_rom_address = fb->sti->regions_phys[1];
-#ifdef __LP64__
-	        sti_rom_address |= 0xffffffff00000000;
-#endif
+			sti_rom_address = F_EXTEND(fb->sti->regions_phys[1]);
+
 		fb->deviceSpecificConfig = gsc_readl(sti_rom_address);
 		if (IS_24_DEVICE(fb)) {
 			if (bpp_pref == 8 || bpp_pref == 32)
@@ -1315,7 +1310,7 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		break;
 	    case 32:
 		fix->type = FB_TYPE_PACKED_PIXELS;
-		fix->visual = FB_VISUAL_TRUECOLOR;
+		fix->visual = FB_VISUAL_DIRECTCOLOR;
 		var->red.length = var->green.length = var->blue.length = var->transp.length = 8;
 		var->blue.offset = 0;
 		var->green.offset = 8;
@@ -1337,7 +1332,7 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	info->pseudo_palette = &fb->pseudo_palette;
 
 	/* This has to been done !!! */
-	fb_alloc_cmap(&info->cmap, 256, 0);
+	fb_alloc_cmap(&info->cmap, NR_PALETTE, 0);
 	stifb_init_display(fb);
 
 	if (!request_mem_region(fix->smem_start, fix->smem_len, "stifb fb")) {
@@ -1488,7 +1483,3 @@ module_exit(stifb_cleanup);
 MODULE_AUTHOR("Helge Deller <deller@gmx.de>, Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_DESCRIPTION("Framebuffer driver for HP's NGLE series graphics cards in HP PARISC machines");
 MODULE_LICENSE("GPL v2");
-
-MODULE_PARM(bpp, "i");
-MODULE_PARM_DESC(mem, "Bits per pixel (default: 8)");
-

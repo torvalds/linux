@@ -90,7 +90,10 @@ int __init ipv6_netfilter_init(void)
 	return nf_register_queue_rerouter(PF_INET6, &ip6_reroute);
 }
 
-void __exit ipv6_netfilter_fini(void)
+/* This can be called from inet6_init() on errors, so it cannot
+ * be marked __exit. -DaveM
+ */
+void ipv6_netfilter_fini(void)
 {
 	nf_unregister_queue_rerouter(PF_INET6);
 }

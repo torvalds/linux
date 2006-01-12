@@ -135,7 +135,7 @@ Cpusets extends these two mechanisms as follows:
 The implementation of cpusets requires a few, simple hooks
 into the rest of the kernel, none in performance critical paths:
 
- - in main/init.c, to initialize the root cpuset at system boot.
+ - in init/main.c, to initialize the root cpuset at system boot.
  - in fork and exit, to attach and detach a task from its cpuset.
  - in sched_setaffinity, to mask the requested CPUs by what's
    allowed in that tasks cpuset.
@@ -146,7 +146,7 @@ into the rest of the kernel, none in performance critical paths:
    and related changes in both sched.c and arch/ia64/kernel/domain.c
  - in the mbind and set_mempolicy system calls, to mask the requested
    Memory Nodes by what's allowed in that tasks cpuset.
- - in page_alloc, to restrict memory to allowed nodes.
+ - in page_alloc.c, to restrict memory to allowed nodes.
  - in vmscan.c, to restrict page recovery to the current cpuset.
 
 In addition a new file system, of type "cpuset" may be mounted,

@@ -22,6 +22,7 @@ extern spinlock_t pa_tlb_lock;
 #define purge_tlb_end(x) spin_unlock(&pa_tlb_lock)
 
 extern void flush_tlb_all(void);
+extern void flush_tlb_all_local(void *);
 
 /*
  * flush_tlb_mm()

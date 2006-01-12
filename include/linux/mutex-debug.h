@@ -18,6 +18,6 @@ extern void FASTCALL(mutex_destroy(struct mutex *lock));
 extern void mutex_debug_show_all_locks(void);
 extern void mutex_debug_show_held_locks(struct task_struct *filter);
 extern void mutex_debug_check_no_locks_held(struct task_struct *task);
-extern void mutex_debug_check_no_locks_freed(const void *from, const void *to);
+extern void mutex_debug_check_no_locks_freed(const void *from, unsigned long len);
 
 #endif

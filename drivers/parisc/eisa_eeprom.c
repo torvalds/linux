@@ -48,7 +48,7 @@ static loff_t eisa_eeprom_llseek(struct file *file, loff_t offset, int origin )
 }
 
 static ssize_t eisa_eeprom_read(struct file * file,
-			      char *buf, size_t count, loff_t *ppos )
+			      char __user *buf, size_t count, loff_t *ppos )
 {
 	unsigned char *tmp;
 	ssize_t ret;
