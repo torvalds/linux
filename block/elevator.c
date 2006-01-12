@@ -610,23 +610,23 @@ void elv_completed_request(request_queue_t *q, struct request *rq)
 	 * request is released from the driver, io must be done
 	 */
 	if (blk_account_rq(rq)) {
-		struct request *first_rq = list_entry_rq(q->queue_head.next);
-
 		q->in_flight--;
+		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
+			e->ops->elevator_completed_req_fn(q, rq);
+	}
 
-		/*
-		 * Check if the queue is waiting for fs requests to be
-		 * drained for flush sequence.
-		 */
-		if (q->ordseq && q->in_flight == 0 &&
+	/*
+	 * Check if the queue is waiting for fs requests to be
+	 * drained for flush sequence.
+	 */
+	if (unlikely(q->ordseq)) {
+		struct request *first_rq = list_entry_rq(q->queue_head.next);
+		if (q->in_flight == 0 &&
 		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
 		    blk_ordered_req_seq(first_rq) > QUEUE_ORDSEQ_DRAIN) {
 			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
 			q->request_fn(q);
 		}
-
-		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
-			e->ops->elevator_completed_req_fn(q, rq);
 	}
 }
 
