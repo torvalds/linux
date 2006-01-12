@@ -173,7 +173,7 @@ void __init smp4m_boot_cpus(void)
 			/* Cook up an idler for this guy. */
 			p = fork_idle(i);
 			cpucount++;
-			current_set[i] = p->thread_info;
+			current_set[i] = task_thread_info(p);
 			/* See trampoline.S for details... */
 			entry += ((i-1) * 3);
 

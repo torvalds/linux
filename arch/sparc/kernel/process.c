@@ -337,7 +337,7 @@ EXPORT_SYMBOL(dump_stack);
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	return tsk->thread_info->kpc;
+	return task_thread_info(tsk)->kpc;
 }
 
 /*
@@ -724,7 +724,7 @@ unsigned long get_wchan(struct task_struct *task)
             task->state == TASK_RUNNING)
 		goto out;
 
-	fp = task->thread_info->ksp + bias;
+	fp = task_thread_info(task)->ksp + bias;
 	do {
 		/* Bogus frame pointer? */
 		if (fp < (task_base + sizeof(struct thread_info)) ||

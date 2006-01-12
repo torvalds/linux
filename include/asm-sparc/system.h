@@ -155,7 +155,7 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	"here:\n"									\
         : "=&r" (last)									\
         : "r" (&(current_set[hard_smp_processor_id()])),	\
-	  "r" ((next)->thread_info),				\
+	  "r" (task_thread_info(next)),				\
 	  "i" (TI_KPSR),					\
 	  "i" (TI_KSP),						\
 	  "i" (TI_TASK)						\
