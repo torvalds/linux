@@ -136,6 +136,9 @@ extern struct device_node *of_find_all_nodes(struct device_node *prev);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
+extern struct property *of_find_property(struct device_node *np,
+					 const char *name,
+					 int *lenp);
 extern struct device_node *of_node_get(struct device_node *node);
 extern void of_node_put(struct device_node *node);
 

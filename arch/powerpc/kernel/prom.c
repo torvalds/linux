@@ -1779,12 +1779,8 @@ static int __init prom_reconfig_setup(void)
 __initcall(prom_reconfig_setup);
 #endif
 
-/*
- * Find a property with a given name for a given node
- * and return the value.
- */
-unsigned char *get_property(struct device_node *np, const char *name,
-			    int *lenp)
+struct property *of_find_property(struct device_node *np, const char *name,
+				  int *lenp)
 {
 	struct property *pp;
 
@@ -1797,6 +1793,17 @@ unsigned char *get_property(struct device_node *np, const char *name,
 		}
 	read_unlock(&devtree_lock);
 
+	return pp;
+}
+
+/*
+ * Find a property with a given name for a given node
+ * and return the value.
+ */
+unsigned char *get_property(struct device_node *np, const char *name,
+			    int *lenp)
+{
+	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;
 }
 EXPORT_SYMBOL(get_property);
