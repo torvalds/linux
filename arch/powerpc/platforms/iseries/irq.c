@@ -48,6 +48,8 @@
 extern void iSeries_smp_message_recv(struct pt_regs *);
 #endif
 
+#ifdef CONFIG_PCI
+
 enum pci_event_type {
 	pe_bus_created		= 0,	/* PHB has been created */
 	pe_bus_error		= 1,	/* PHB has failed */
@@ -325,6 +327,8 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 	return virtirq;
 }
 
+#endif /* CONFIG_PCI */
+
 /*
  * Get the next pending IRQ.
  */
@@ -344,6 +348,7 @@ int iSeries_get_irq(struct pt_regs *regs)
 	if (hvlpevent_is_pending())
 		process_hvlpevents(regs);
 
+#ifdef CONFIG_PCI
 	if (num_pending_irqs) {
 		spin_lock(&pending_irqs_lock);
 		for (irq = 0; irq < NR_IRQS; irq++) {
@@ -357,6 +362,7 @@ int iSeries_get_irq(struct pt_regs *regs)
 		if (irq >= NR_IRQS)
 			irq = -2;
 	}
+#endif
 
 	return irq;
 }
