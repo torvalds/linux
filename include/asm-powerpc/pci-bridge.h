@@ -142,8 +142,6 @@ void pcibios_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 
-extern void phbs_remap_io(void);
-
 static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 {
 	struct device_node *busdn = bus->sysdata;
