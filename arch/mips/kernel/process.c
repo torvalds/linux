@@ -229,9 +229,7 @@ void elf_dump_regs(elf_greg_t *gp, struct pt_regs *regs)
 
 int dump_task_regs (struct task_struct *tsk, elf_gregset_t *regs)
 {
-	struct thread_info *ti = tsk->thread_info;
-	long ksp = (unsigned long)ti + THREAD_SIZE - 32;
-	elf_dump_regs(&(*regs)[0], (struct pt_regs *) ksp - 1);
+	elf_dump_regs(*regs, task_pt_regs(tsk));
 	return 1;
 }
 
