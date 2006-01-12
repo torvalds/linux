@@ -441,6 +441,12 @@ ieee80211softmac_get_network_by_essid(struct ieee80211softmac_device *mac,
 }
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Johannes Berg");
+MODULE_AUTHOR("Joseph Jezak");
+MODULE_AUTHOR("Larry Finger");
+MODULE_AUTHOR("Danny van Dyk");
+MODULE_AUTHOR("Michael Buesch");
+MODULE_DESCRIPTION("802.11 software MAC");
 
 EXPORT_SYMBOL_GPL(alloc_ieee80211softmac);
 EXPORT_SYMBOL_GPL(free_ieee80211softmac);
