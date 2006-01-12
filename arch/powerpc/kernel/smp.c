@@ -338,8 +338,8 @@ static void __init smp_create_idle(unsigned int cpu)
 #ifdef CONFIG_PPC64
 	paca[cpu].__current = p;
 #endif
-	current_set[cpu] = p->thread_info;
-	p->thread_info->cpu = cpu;
+	current_set[cpu] = task_thread_info(p);
+	task_thread_info(p)->cpu = cpu;
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -375,7 +375,7 @@ void __devinit smp_prepare_boot_cpu(void)
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
-	current_set[boot_cpuid] = current->thread_info;
+	current_set[boot_cpuid] = task_thread_info(current);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

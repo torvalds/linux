@@ -318,7 +318,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		p = fork_idle(cpu);
 		if (IS_ERR(p))
 			panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-		p->thread_info->cpu = cpu;
+		task_thread_info(p)->cpu = cpu;
 		idle_tasks[cpu] = p;
 	}
 }
@@ -369,7 +369,7 @@ int __cpu_up(unsigned int cpu)
 	char buf[32];
 	int c;
 
-	secondary_ti = idle_tasks[cpu]->thread_info;
+	secondary_ti = task_thread_info(idle_tasks[cpu]);
 	mb();
 
 	/*

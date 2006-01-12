@@ -384,7 +384,7 @@ void show_regs(struct pt_regs * regs)
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: %08lX, DSISR: %08lX\n", regs->dar, regs->dsisr);
 	printk("TASK = %p[%d] '%s' THREAD: %p\n",
-	       current, current->pid, current->comm, current->thread_info);
+	       current, current->pid, current->comm, task_thread_info(current));
 	printk("Last syscall: %ld ", current->thread.last_syscall);
 
 #ifdef CONFIG_SMP

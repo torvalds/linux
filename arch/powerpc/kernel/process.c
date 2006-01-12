@@ -424,7 +424,7 @@ void show_regs(struct pt_regs * regs)
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
 	printk("TASK = %p[%d] '%s' THREAD: %p",
-	       current, current->pid, current->comm, current->thread_info);
+	       current, current->pid, current->comm, task_thread_info(current));
 
 #ifdef CONFIG_SMP
 	printk(" CPU: %d", smp_processor_id());
@@ -516,7 +516,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_PPC32
 		childregs->gpr[2] = (unsigned long) p;
 #else
-		clear_ti_thread_flag(p->thread_info, TIF_32BIT);
+		clear_tsk_thread_flag(p, TIF_32BIT);
 #endif
 		p->thread.regs = NULL;	/* no user register state */
 	} else {
