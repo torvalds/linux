@@ -278,9 +278,8 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long stack_start,
 	    unsigned long unused, struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *thread = task_thread_info(p);
-	struct pt_regs *childregs;
+	struct pt_regs *childregs = task_pt_regs(p);
 
-	childregs = __get_user_regs(thread);
 	*childregs = *regs;
 	childregs->ARM_r0 = 0;
 	childregs->ARM_sp = stack_start;
