@@ -86,7 +86,7 @@ unsigned long get_wchan(struct task_struct *p);
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 #define task_pt_regs(p) \
-	((struct pt_regs *)(THREAD_START_SP + (void *)(p)->thread_info) - 1)
+	((struct pt_regs *)(THREAD_START_SP + task_stack_page(p)) - 1)
 
 #define KSTK_EIP(tsk)	task_pt_regs(tsk)->ARM_pc
 #define KSTK_ESP(tsk)	task_pt_regs(tsk)->ARM_sp

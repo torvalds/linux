@@ -460,7 +460,7 @@ unsigned long get_wchan(struct task_struct *p)
 		return 0;
 
 	stack_start = (unsigned long)end_of_stack(p);
-	stack_end = ((unsigned long)p->thread_info) + THREAD_SIZE;
+	stack_end = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 
 	fp = thread_saved_fp(p);
 	do {
