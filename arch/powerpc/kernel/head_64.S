@@ -255,8 +255,9 @@ exception_marker:
 
 #define EXCEPTION_PROLOG_ISERIES_2					\
 	mfmsr	r10;							\
-	ld	r11,PACALPPACA+LPPACASRR0(r13);				\
-	ld	r12,PACALPPACA+LPPACASRR1(r13);				\
+	ld	r12,PACALPPACAPTR(r13);					\
+	ld	r11,LPPACASRR0(r12);					\
+	ld	r12,LPPACASRR1(r12);					\
 	ori	r10,r10,MSR_RI;						\
 	mtmsrd	r10,1
 
@@ -635,7 +636,8 @@ data_access_slb_iSeries:
 	std	r12,PACA_EXSLB+EX_R12(r13)
 	mfspr	r10,SPRN_SPRG1
 	std	r10,PACA_EXSLB+EX_R13(r13)
-	ld	r12,PACALPPACA+LPPACASRR1(r13);
+	ld	r12,PACALPPACAPTR(r13)
+	ld	r12,LPPACASRR1(r12)
 	b	.slb_miss_realmode
 
 	STD_EXCEPTION_ISERIES(0x400, instruction_access, PACA_EXGEN)
@@ -645,7 +647,8 @@ instruction_access_slb_iSeries:
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
 	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
-	ld	r3,PACALPPACA+LPPACASRR0(r13)	/* get SRR0 value */
+	ld	r3,PACALPPACAPTR(r13)
+	ld	r3,LPPACASRR0(r3)	/* get SRR0 value */
 	std	r9,PACA_EXSLB+EX_R9(r13)
 	mfcr	r9
 #ifdef __DISABLED__
@@ -657,7 +660,8 @@ instruction_access_slb_iSeries:
 	std	r12,PACA_EXSLB+EX_R12(r13)
 	mfspr	r10,SPRN_SPRG1
 	std	r10,PACA_EXSLB+EX_R13(r13)
-	ld	r12,PACALPPACA+LPPACASRR1(r13);
+	ld	r12,PACALPPACAPTR(r13)
+	ld	r12,LPPACASRR1(r12)
 	b	.slb_miss_realmode
 
 #ifdef __DISABLED__
@@ -746,7 +750,8 @@ iSeries_secondary_smp_loop:
 	.globl decrementer_iSeries_masked
 decrementer_iSeries_masked:
 	li	r11,1
-	stb	r11,PACALPPACA+LPPACADECRINT(r13)
+	ld	r12,PACALPPACAPTR(r13)
+	stb	r11,LPPACADECRINT(r12)
 	LOAD_REG_ADDRBASE(r12,tb_ticks_per_jiffy)
 	lwz	r12,ADDROFF(tb_ticks_per_jiffy)(r12)
 	mtspr	SPRN_DEC,r12
@@ -755,8 +760,9 @@ decrementer_iSeries_masked:
 	.globl hardware_interrupt_iSeries_masked
 hardware_interrupt_iSeries_masked:
 	mtcrf	0x80,r9		/* Restore regs */
-	ld	r11,PACALPPACA+LPPACASRR0(r13)
-	ld	r12,PACALPPACA+LPPACASRR1(r13)
+	ld	r12,PACALPPACAPTR(r13)
+	ld	r11,LPPACASRR0(r12)
+	ld	r12,LPPACASRR1(r12)
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
 	ld	r9,PACA_EXGEN+EX_R9(r13)
@@ -995,7 +1001,8 @@ _GLOBAL(slb_miss_realmode)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 #ifdef CONFIG_PPC_ISERIES
-	ld	r11,PACALPPACA+LPPACASRR0(r13)	/* get SRR0 value */
+	ld	r11,PACALPPACAPTR(r13)
+	ld	r11,LPPACASRR0(r11)		/* get SRR0 value */
 #endif /* CONFIG_PPC_ISERIES */
 
 	mtlr	r10

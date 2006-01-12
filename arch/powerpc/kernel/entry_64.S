@@ -511,7 +511,8 @@ restore:
 	cmpdi	0,r5,0
 	beq	4f
 	/* Check for pending interrupts (iSeries) */
-	ld	r3,PACALPPACA+LPPACAANYINT(r13)
+	ld	r3,PACALPPACAPTR(r13)
+	ld	r3,LPPACAANYINT(r3)
 	cmpdi	r3,0
 	beq+	4f			/* skip do_IRQ if no interrupts */
 

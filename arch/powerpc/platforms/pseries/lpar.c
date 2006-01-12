@@ -254,11 +254,11 @@ out:
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
-	unsigned long vpa = __pa(&paca[cpu].lppaca);
+	unsigned long vpa = __pa(&lppaca[cpu]);
 	long ret;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		paca[cpu].lppaca.vmxregs_in_use = 1;
+		lppaca[cpu].vmxregs_in_use = 1;
 
 	ret = register_vpa(hwcpu, vpa);
 

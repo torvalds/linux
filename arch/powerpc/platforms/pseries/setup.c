@@ -190,7 +190,7 @@ static void pseries_lpar_enable_pmcs(void)
 
 	/* instruct hypervisor to maintain PMCs */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		get_paca()->lppaca.pmcregs_in_use = 1;
+		get_lppaca()->pmcregs_in_use = 1;
 }
 
 static void __init pSeries_setup_arch(void)
@@ -234,7 +234,7 @@ static void __init pSeries_setup_arch(void)
 	/* Choose an idle loop */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		vpa_init(boot_cpuid);
-		if (get_paca()->lppaca.shared_proc) {
+		if (get_lppaca()->shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
 			ppc_md.idle_loop = pseries_shared_idle;
 		} else {
@@ -444,10 +444,10 @@ DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
 
 static inline void dedicated_idle_sleep(unsigned int cpu)
 {
-	struct paca_struct *ppaca = &paca[cpu ^ 1];
+	struct lppaca *plppaca = &lppaca[cpu ^ 1];
 
 	/* Only sleep if the other thread is not idle */
-	if (!(ppaca->lppaca.idle)) {
+	if (!(plppaca->idle)) {
 		local_irq_disable();
 
 		/*
@@ -480,7 +480,6 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 
 static void pseries_dedicated_idle(void)
 { 
-	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
@@ -491,7 +490,7 @@ static void pseries_dedicated_idle(void)
 		 * Indicate to the HV that we are idle. Now would be
 		 * a good time to find other work to dispatch.
 		 */
-		lpaca->lppaca.idle = 1;
+		get_lppaca()->idle = 1;
 
 		if (!need_resched()) {
 			start_snooze = get_tb() +
@@ -518,7 +517,7 @@ static void pseries_dedicated_idle(void)
 			HMT_medium();
 		}
 
-		lpaca->lppaca.idle = 0;
+		get_lppaca()->idle = 0;
 		ppc64_runlatch_on();
 
 		preempt_enable_no_resched();
@@ -532,7 +531,6 @@ static void pseries_dedicated_idle(void)
 
 static void pseries_shared_idle(void)
 {
-	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
 
 	while (1) {
@@ -540,7 +538,7 @@ static void pseries_shared_idle(void)
 		 * Indicate to the HV that we are idle. Now would be
 		 * a good time to find other work to dispatch.
 		 */
-		lpaca->lppaca.idle = 1;
+		get_lppaca()->idle = 1;
 
 		while (!need_resched() && !cpu_is_offline(cpu)) {
 			local_irq_disable();
@@ -564,7 +562,7 @@ static void pseries_shared_idle(void)
 			HMT_medium();
 		}
 
-		lpaca->lppaca.idle = 0;
+		get_lppaca()->idle = 0;
 		ppc64_runlatch_on();
 
 		preempt_enable_no_resched();
@@ -588,7 +586,7 @@ static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	/* Don't risk a hypervisor call if we're crashing */
 	if (!crash_shutdown) {
-		unsigned long vpa = __pa(&get_paca()->lppaca);
+		unsigned long vpa = __pa(get_lppaca());
 
 		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
 			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
