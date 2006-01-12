@@ -55,9 +55,6 @@ int (*mach_hwclk) (int, struct hwclk_time*) = NULL;
 int (*mach_set_clock_mmss) (unsigned long) = NULL;
 void (*mach_reset)( void );
 long mach_max_dma_address = 0x00ffffff; /* default set to the lower 16MB */
-#if defined(CONFIG_AMIGA_FLOPPY)
-void (*mach_floppy_setup) (char *, int *) __initdata = NULL;
-#endif
 #ifdef CONFIG_HEARTBEAT
 void (*mach_heartbeat) (int) = NULL;
 extern void apus_heartbeat (void);
@@ -76,7 +73,6 @@ struct mem_info m68k_memory[NUM_MEMINFO];/* memory description */
 
 struct mem_info ramdisk;
 
-extern void amiga_floppy_setup(char *, int *);
 extern void config_amiga(void);
 
 static int __60nsram = 0;
@@ -304,16 +300,6 @@ __init
 void kbd_reset_setup(char *str, int *ints)
 {
 }
-
-/*********************************************************** FLOPPY */
-#if defined(CONFIG_AMIGA_FLOPPY)
-__init
-void floppy_setup(char *str, int *ints)
-{
-	if (mach_floppy_setup)
-		mach_floppy_setup (str, ints);
-}
-#endif
 
 /*********************************************************** MEMORY */
 #define KMAP_MAX 32

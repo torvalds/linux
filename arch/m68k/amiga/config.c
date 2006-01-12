@@ -105,9 +105,6 @@ static int a2000_hwclk (int, struct rtc_time *);
 static int amiga_set_clock_mmss (unsigned long);
 static unsigned int amiga_get_ss (void);
 extern void amiga_mksound( unsigned int count, unsigned int ticks );
-#ifdef CONFIG_AMIGA_FLOPPY
-extern void amiga_floppy_setup(char *, int *);
-#endif
 static void amiga_reset (void);
 extern void amiga_init_sound(void);
 static void amiga_savekmsg_init(void);
@@ -427,9 +424,6 @@ void __init config_amiga(void)
 
   mach_set_clock_mmss  = amiga_set_clock_mmss;
   mach_get_ss          = amiga_get_ss;
-#ifdef CONFIG_AMIGA_FLOPPY
-  mach_floppy_setup    = amiga_floppy_setup;
-#endif
   mach_reset           = amiga_reset;
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
   mach_beep            = amiga_mksound;

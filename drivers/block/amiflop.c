@@ -1654,12 +1654,6 @@ static struct block_device_operations floppy_fops = {
 	.media_changed	= amiga_floppy_change,
 };
 
-void __init amiga_floppy_setup (char *str, int *ints)
-{
-	printk (KERN_INFO "amiflop: Setting default df0 to %x\n", ints[1]);
-	fd_def_df0 = ints[1];
-}
-
 static int __init fd_probe_drives(void)
 {
 	int drive,drives,nomem;
@@ -1845,4 +1839,18 @@ void cleanup_module(void)
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 }
 #endif
+
+#else
+static int __init amiga_floppy_setup (char *str)
+{
+	int n;
+	if (!MACH_IS_AMIGA)
+		return 0;
+	if (!get_option(&str, &n))
+		return 0;
+	printk (KERN_INFO "amiflop: Setting default df0 to %x\n", n);
+	fd_def_df0 = n;
+}
+
+__setup("floppy=", amiga_floppy_setup);
 #endif

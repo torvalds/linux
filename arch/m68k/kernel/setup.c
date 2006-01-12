@@ -84,9 +84,6 @@ void (*mach_reset)( void );
 void (*mach_halt)( void );
 void (*mach_power_off)( void );
 long mach_max_dma_address = 0x00ffffff; /* default set to the lower 16MB */
-#if defined(CONFIG_AMIGA_FLOPPY) || defined(CONFIG_ATARI_FLOPPY)
-void (*mach_floppy_setup) (char *, int *) __initdata = NULL;
-#endif
 #ifdef CONFIG_HEARTBEAT
 void (*mach_heartbeat) (int);
 EXPORT_SYMBOL(mach_heartbeat);
@@ -526,16 +523,6 @@ int get_hardware_list(char *buffer)
 
     return(len);
 }
-
-
-#if defined(CONFIG_AMIGA_FLOPPY) || defined(CONFIG_ATARI_FLOPPY)
-void __init floppy_setup(char *str, int *ints)
-{
-	if (mach_floppy_setup)
-		mach_floppy_setup (str, ints);
-}
-
-#endif
 
 void check_bugs(void)
 {

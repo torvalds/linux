@@ -1951,14 +1951,20 @@ Enomem:
 	return -ENOMEM;
 }
 
-
-void __init atari_floppy_setup( char *str, int *ints )
+#ifndef MODULE
+static int __init atari_floppy_setup(char *str)
 {
+	int ints[3 + FD_MAX_UNITS];
 	int i;
+
+	if (!MACH_IS_ATARI)
+		return 0;
+
+	str = get_options(str, 3 + FD_MAX_UNITS, ints);
 	
 	if (ints[0] < 1) {
 		printk(KERN_ERR "ataflop_setup: no arguments!\n" );
-		return;
+		return 0;
 	}
 	else if (ints[0] > 2+FD_MAX_UNITS) {
 		printk(KERN_ERR "ataflop_setup: too many arguments\n" );
@@ -1978,9 +1984,13 @@ void __init atari_floppy_setup( char *str, int *ints )
 		else
 			UserSteprate[i-3] = ints[i];
 	}
+	return 1;
 }
 
-static void atari_floppy_exit(void)
+__setup("floppy=", atari_floppy_setup);
+#endif
+
+static void __exit atari_floppy_exit(void)
 {
 	int i;
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);

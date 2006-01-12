@@ -90,9 +90,6 @@ static void a3000_gettod (int *, int *, int *, int *, int *, int *);
 static void a2000_gettod (int *, int *, int *, int *, int *, int *);
 static int amiga_hwclk (int, struct hwclk_time *);
 static int amiga_set_clock_mmss (unsigned long);
-#ifdef CONFIG_AMIGA_FLOPPY
-extern void amiga_floppy_setup(char *, int *);
-#endif
 static void amiga_reset (void);
 extern void amiga_init_sound(void);
 static void amiga_savekmsg_init(void);
@@ -419,9 +416,6 @@ void __init config_amiga(void)
 
   mach_hwclk           = amiga_hwclk;
   mach_set_clock_mmss  = amiga_set_clock_mmss;
-#ifdef CONFIG_AMIGA_FLOPPY
-  mach_floppy_setup    = amiga_floppy_setup;
-#endif
   mach_reset           = amiga_reset;
 #ifdef CONFIG_HEARTBEAT
   mach_heartbeat = amiga_heartbeat;
