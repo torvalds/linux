@@ -53,6 +53,7 @@ static char *id = SNDRV_DEFAULT_STR1;
 static char *model;
 static int position_fix;
 static int probe_mask = -1;
+static int single_cmd;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -64,6 +65,8 @@ module_param(position_fix, int, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
 module_param(probe_mask, int, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
+module_param(single_cmd, bool, 0444);
+MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs (for debugging only).");
 
 
 /* just for backward compatibility */
@@ -235,12 +238,6 @@ enum {
 #define NVIDIA_HDA_ENABLE_COHBITS     0x0f
 
 /*
- * Use CORB/RIRB for communication from/to codecs.
- * This is the way recommended by Intel (see below).
- */
-#define USE_CORB_RIRB
-
-/*
  */
 
 struct azx_dev {
@@ -325,6 +322,7 @@ struct azx {
 	/* flags */
 	int position_fix;
 	unsigned int initialized: 1;
+	unsigned int single_cmd: 1;
 };
 
 /* driver types */
@@ -388,7 +386,6 @@ static char *driver_short_names[] __devinitdata = {
  * Interface for HD codec
  */
 
-#ifdef USE_CORB_RIRB
 /*
  * CORB / RIRB interface
  */
@@ -436,11 +433,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* set N=1, get RIRB response interrupt for new entry */
 	azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
-#ifdef USE_CORB_RIRB
 	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN | ICH6_RBCTL_IRQ_EN);
-#else
-	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN);
-#endif
 	chip->rirb.rp = chip->rirb.cmds = 0;
 }
 
@@ -528,7 +521,6 @@ static unsigned int azx_get_response(struct hda_codec *codec)
 	return chip->rirb.res; /* the last value */
 }
 
-#else
 /*
  * Use the single immediate command instead of CORB/RIRB for simplicity
  *
@@ -539,13 +531,10 @@ static unsigned int azx_get_response(struct hda_codec *codec)
  *       I left the codes, however, for debugging/testing purposes.
  */
 
-#define azx_alloc_cmd_io(chip)	0
-#define azx_init_cmd_io(chip)
-#define azx_free_cmd_io(chip)
-
 /* send a command */
-static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
-			unsigned int verb, unsigned int para)
+static int azx_single_send_cmd(struct hda_codec *codec, hda_nid_t nid,
+			       int direct, unsigned int verb,
+			       unsigned int para)
 {
 	struct azx *chip = codec->bus->private_data;
 	u32 val;
@@ -573,7 +562,7 @@ static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 }
 
 /* receive a response */
-static unsigned int azx_get_response(struct hda_codec *codec)
+static unsigned int azx_single_get_response(struct hda_codec *codec)
 {
 	struct azx *chip = codec->bus->private_data;
 	int timeout = 50;
@@ -587,10 +576,6 @@ static unsigned int azx_get_response(struct hda_codec *codec)
 	snd_printd(SFX "get_response timeout: IRS=0x%x\n", azx_readw(chip, IRS));
 	return (unsigned int)-1;
 }
-
-#define azx_update_rirb(chip)
-
-#endif /* USE_CORB_RIRB */
 
 /* reset codec link */
 static int azx_reset(struct azx *chip)
@@ -737,7 +722,8 @@ static void azx_init_chip(struct azx *chip)
 	azx_int_enable(chip);
 
 	/* initialize the codec command I/O */
-	azx_init_cmd_io(chip);
+	if (! chip->single_cmd)
+		azx_init_cmd_io(chip);
 
 	/* program the position buffer */
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
@@ -796,7 +782,7 @@ static irqreturn_t azx_interrupt(int irq, void* dev_id, struct pt_regs *regs)
 	/* clear rirb int */
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
-		if (status & RIRB_INT_RESPONSE)
+		if (! chip->single_cmd && (status & RIRB_INT_RESPONSE))
 			azx_update_rirb(chip);
 		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 	}
@@ -913,8 +899,13 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	bus_temp.private_data = chip;
 	bus_temp.modelname = model;
 	bus_temp.pci = chip->pci;
-	bus_temp.ops.command = azx_send_cmd;
-	bus_temp.ops.get_response = azx_get_response;
+	if (chip->single_cmd) {
+		bus_temp.ops.command = azx_single_send_cmd;
+		bus_temp.ops.get_response = azx_single_get_response;
+	} else {
+		bus_temp.ops.command = azx_send_cmd;
+		bus_temp.ops.get_response = azx_get_response;
+	}
 
 	if ((err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus)) < 0)
 		return err;
@@ -1316,7 +1307,8 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_hda_suspend(chip->bus, state);
-	azx_free_cmd_io(chip);
+	if (! chip->single_cmd)
+		azx_free_cmd_io(chip);
 	pci_disable_device(pci);
 	pci_save_state(pci);
 	return 0;
@@ -1354,7 +1346,8 @@ static int azx_free(struct azx *chip)
 		azx_int_clear(chip);
 
 		/* disable CORB/RIRB */
-		azx_free_cmd_io(chip);
+		if (! chip->single_cmd)
+			azx_free_cmd_io(chip);
 
 		/* disable position buffer */
 		azx_writel(chip, DPLBASE, 0);
@@ -1422,6 +1415,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->driver_type = driver_type;
 
 	chip->position_fix = position_fix ? position_fix : POS_FIX_POSBUF;
+	chip->single_cmd = single_cmd;
 
 #if BITS_PER_LONG != 64
 	/* Fix up base address on ULI M5461 */
@@ -1492,8 +1486,9 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 	}
 	/* allocate CORB/RIRB */
-	if ((err = azx_alloc_cmd_io(chip)) < 0)
-		goto errout;
+	if (! chip->single_cmd)
+		if ((err = azx_alloc_cmd_io(chip)) < 0)
+			goto errout;
 
 	/* initialize streams */
 	azx_init_stream(chip);

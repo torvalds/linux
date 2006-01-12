@@ -671,6 +671,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
+    single_cmd  - Use single immediate commands to communicate with
+		codecs (for debugging only)
 
     This module supports one card and autoprobe.
 
@@ -723,6 +725,17 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	    (Usually SD_LPLIB register is more accurate than the
 	    position buffer.)
 
+    NB: If you get many "azx_get_response timeout" messages at
+    loading, it's likely a problem of interrupts (e.g. ACPI irq
+    routing).  Try to boot with options like "pci=noacpi".  Also, you
+    can try "single_cmd=1" module option.  This will switch the
+    communication method between HDA controller and codecs to the
+    single immediate commands instead of CORB/RIRB.  Basically, the
+    single command mode is provided only for BIOS, and you won't get
+    unsolicited events, too.  But, at least, this works independently
+    from the irq.  Remember this is a last resort, and should be
+    avoided as much as possible...
+    
     The power-management is supported.
 
   Module snd-hdsp
