@@ -424,18 +424,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	struct task_struct *tsk;
 	int err;
 
-	childregs = ((struct pt_regs *) (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
-	/*
-	 * The below -8 is to reserve 8 bytes on top of the ring0 stack.
-	 * This is necessary to guarantee that the entire "struct pt_regs"
-	 * is accessable even if the CPU haven't stored the SS/ESP registers
-	 * on the stack (interrupt gate does not save these registers
-	 * when switching to the same priv ring).
-	 * Therefore beware: accessing the xss/esp fields of the
-	 * "struct pt_regs" is possible, but they may contain the
-	 * completely wrong values.
-	 */
-	childregs = (struct pt_regs *) ((unsigned long) childregs - 8);
+	childregs = task_pt_regs(p);
 	*childregs = *regs;
 	childregs->eax = 0;
 	childregs->esp = esp;
@@ -540,12 +529,7 @@ EXPORT_SYMBOL(dump_thread);
  */
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
-	struct pt_regs ptregs;
-	
-	ptregs = *(struct pt_regs *)
-		((unsigned long)tsk->thread_info +
-		/* see comments in copy_thread() about -8 */
-		THREAD_SIZE - sizeof(ptregs) - 8);
+	struct pt_regs ptregs = *task_pt_regs(tsk);
 	ptregs.xcs &= 0xffff;
 	ptregs.xds &= 0xffff;
 	ptregs.xes &= 0xffff;

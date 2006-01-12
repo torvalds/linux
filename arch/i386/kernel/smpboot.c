@@ -875,8 +875,7 @@ static inline struct task_struct * alloc_idle_task(int cpu)
 		/* initialize thread_struct.  we really want to avoid destroy
 		 * idle tread
 		 */
-		idle->thread.esp = (unsigned long)(((struct pt_regs *)
-			(THREAD_SIZE + (unsigned long) idle->thread_info)) - 1);
+		idle->thread.esp = (unsigned long)task_pt_regs(idle);
 		init_idle(idle, cpu);
 		return idle;
 	}
