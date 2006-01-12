@@ -1361,7 +1361,7 @@ static int floppy_revalidate(struct gendisk *disk)
 		   formats, for 'permanent user-defined' parameter:
 		   restore default_params[] here if flagged valid! */
 		if (default_params[drive].blocks == 0)
-			UDT = 0;
+			UDT = NULL;
 		else
 			UDT = &default_params[drive];
 	}
@@ -1495,6 +1495,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 	struct floppy_struct getprm;
 	int settype;
 	struct floppy_struct setprm;
+	void __user *argp = (void __user *)param;
 
 	switch (cmd) {
 	case FDGETPRM:
@@ -1521,7 +1522,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		getprm.head = 2;
 		getprm.track = dtp->blocks/dtp->spt/2;
 		getprm.stretch = dtp->stretch;
-		if (copy_to_user((void *)param, &getprm, sizeof(getprm)))
+		if (copy_to_user(argp, &getprm, sizeof(getprm)))
 			return -EFAULT;
 		return 0;
 	}
@@ -1540,7 +1541,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		/* get the parameters from user space */
 		if (floppy->ref != 1 && floppy->ref != -1)
 			return -EBUSY;
-		if (copy_from_user(&setprm, (void *) param, sizeof(setprm)))
+		if (copy_from_user(&setprm, argp, sizeof(setprm)))
 			return -EFAULT;
 		/* 
 		 * first of all: check for floppy change and revalidate, 
@@ -1647,7 +1648,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 	case FDFMTTRK:
 		if (floppy->ref != 1 && floppy->ref != -1)
 			return -EBUSY;
-		if (copy_from_user(&fmt_desc, (void *) param, sizeof(fmt_desc)))
+		if (copy_from_user(&fmt_desc, argp, sizeof(fmt_desc)))
 			return -EFAULT;
 		return do_format(drive, type, &fmt_desc);
 	case FDCLRPRM:
