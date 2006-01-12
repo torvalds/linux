@@ -75,8 +75,7 @@ struct scb_platform_data;
 #define INITIATOR_WILDCARD	(~0)
 #define	SCB_LIST_NULL		0xFF00
 #define	SCB_LIST_NULL_LE	(ahd_htole16(SCB_LIST_NULL))
-#define QOUTFIFO_ENTRY_VALID 0x8000
-#define QOUTFIFO_ENTRY_VALID_LE (ahd_htole16(0x8000))
+#define QOUTFIFO_ENTRY_VALID 0x80
 #define SCBID_IS_NULL(scbid) (((scbid) & 0xFF00 ) == SCB_LIST_NULL)
 
 #define SCSIID_TARGET(ahd, scsiid)	\
@@ -1053,6 +1052,13 @@ typedef uint8_t ahd_mode_state;
 
 typedef void ahd_callback_t (void *);
 
+struct ahd_completion
+{
+	uint16_t	tag;
+	uint8_t		sg_status;
+	uint8_t		valid_tag;
+};
+
 struct ahd_softc {
 	bus_space_tag_t           tags[2];
 	bus_space_handle_t        bshs[2];
@@ -1142,11 +1148,11 @@ struct ahd_softc {
 	struct seeprom_config	 *seep_config;
 
 	/* Command Queues */
+	struct ahd_completion	  *qoutfifo;
 	uint16_t		  qoutfifonext;
 	uint16_t		  qoutfifonext_valid_tag;
 	uint16_t		  qinfifonext;
 	uint16_t		  qinfifo[AHD_SCB_MAX];
-	uint16_t		 *qoutfifo;
 
 	/*
 	 * Our qfreeze count.  The sequencer compares
