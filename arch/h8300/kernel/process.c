@@ -195,7 +195,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 {
 	struct pt_regs * childregs;
 
-	childregs = ((struct pt_regs *) (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
+	childregs = (struct pt_regs *) (THREAD_SIZE + task_stack_page(p)) - 1;
 
 	*childregs = *regs;
 	childregs->retpc = (unsigned long) ret_from_fork;
