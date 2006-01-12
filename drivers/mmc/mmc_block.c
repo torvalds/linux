@@ -28,6 +28,7 @@
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/devfs_fs_kernel.h>
+#include <linux/mutex.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/protocol.h>
@@ -57,33 +58,33 @@ struct mmc_blk_data {
 	unsigned int	read_only;
 };
 
-static DECLARE_MUTEX(open_lock);
+static DEFINE_MUTEX(open_lock);
 
 static struct mmc_blk_data *mmc_blk_get(struct gendisk *disk)
 {
 	struct mmc_blk_data *md;
 
-	down(&open_lock);
+	mutex_lock(&open_lock);
 	md = disk->private_data;
 	if (md && md->usage == 0)
 		md = NULL;
 	if (md)
 		md->usage++;
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 
 	return md;
 }
 
 static void mmc_blk_put(struct mmc_blk_data *md)
 {
-	down(&open_lock);
+	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
 		put_disk(md->disk);
 		mmc_cleanup_queue(&md->queue);
 		kfree(md);
 	}
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 }
 
 static int mmc_blk_open(struct inode *inode, struct file *filp)
