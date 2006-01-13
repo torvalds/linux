@@ -180,6 +180,7 @@ config ARCH_OMAP
 config ARCH_VERSATILE
 	bool "Versatile"
 	select ARM_AMBA
+	select ARM_VIC
 	select ICST307
 	help
 	  This enables support for ARM Ltd Versatile board.
