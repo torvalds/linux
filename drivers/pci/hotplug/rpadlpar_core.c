@@ -380,7 +380,11 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 			return -EIO;
 		}
 	} else {
-		rpaphp_unconfig_pci_adapter(bus);
+		struct pci_dev *dev, *tmp;
+		list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
+			eeh_remove_bus_device(dev);
+			pci_remove_bus_device(dev);
+		}
 	}
 
 	if (unmap_bus_range(bus)) {

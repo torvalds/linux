@@ -412,27 +412,31 @@ exit:
 	return retval;
 }
 
-static int disable_slot(struct hotplug_slot *hotplug_slot)
+static int __disable_slot(struct slot *slot)
 {
-	int retval = -EINVAL;
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct pci_dev *dev, *tmp;
 
-	dbg("%s - Entry: slot[%s]\n", __FUNCTION__, slot->name);
+	if (slot->state == NOT_CONFIGURED)
+		return -EINVAL;
 
-	if (slot->state == NOT_CONFIGURED) {
-		dbg("%s: %s is already disabled\n", __FUNCTION__, slot->name);
-		goto exit;
+	list_for_each_entry_safe(dev, tmp, &slot->bus->devices, bus_list) {
+		eeh_remove_bus_device(dev);
+		pci_remove_bus_device(dev);
 	}
 
-	dbg("DISABLING SLOT %s\n", slot->name);
-	down(&rpaphp_sem);
-	retval = rpaphp_unconfig_pci_adapter(slot->bus);
-	up(&rpaphp_sem);
 	slot->state = NOT_CONFIGURED;
-	info("%s: devices in slot[%s] unconfigured.\n", __FUNCTION__,
-	     slot->name);
-exit:
-	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
+	return 0;
+}
+
+static int disable_slot(struct hotplug_slot *hotplug_slot)
+{
+	struct slot *slot = (struct slot *)hotplug_slot->private;
+	int retval;
+
+	down(&rpaphp_sem);
+	retval = __disable_slot (slot);
+	up(&rpaphp_sem);
+
 	return retval;
 }
 

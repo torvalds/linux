@@ -116,18 +116,6 @@ static void print_slot_pci_funcs(struct pci_bus *bus)
 	return;
 }
 
-int rpaphp_unconfig_pci_adapter(struct pci_bus *bus)
-{
-	struct pci_dev *dev, *tmp;
-
-	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
-		eeh_remove_bus_device(dev);
-		pci_remove_bus_device(dev);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rpaphp_unconfig_pci_adapter);
-
 static int setup_pci_hotplug_slot_info(struct slot *slot)
 {
 	struct hotplug_slot_info *hotplug_slot_info = slot->hotplug_slot->info;
