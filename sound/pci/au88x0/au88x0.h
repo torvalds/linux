@@ -39,8 +39,8 @@
 #include "au88x0_wt.h"
 #endif
 
-#define	hwread(x,y) readl((x)+((y)>>2))
-#define	hwwrite(x,y,z) writel((z),(x)+((y)>>2))
+#define	hwread(x,y) readl((x)+(y))
+#define	hwwrite(x,y,z) writel((z),(x)+(y))
 
 /* Vortex MPU401 defines. */
 #define	MIDI_CLOCK_DIV		0x61
@@ -113,7 +113,7 @@ typedef struct {
 	//int this_08;          /* Still unknown */
 	int fifo_enabled;	/* this_24 */
 	int fifo_status;	/* this_1c */
-	int dma_ctrl;		/* this_78 (ADB), this_7c (WT) */
+	u32 dma_ctrl;		/* this_78 (ADB), this_7c (WT) */
 	int dma_unknown;	/* this_74 (ADB), this_78 (WT). WDM: +8 */
 	int cfg0;
 	int cfg1;
@@ -178,7 +178,7 @@ struct snd_vortex {
 
 	/* PCI hardware resources */
 	unsigned long io;
-	unsigned long __iomem *mmio;
+	void __iomem *mmio;
 	unsigned int irq;
 	spinlock_t lock;
 
@@ -201,14 +201,14 @@ static void vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 				     int count);
 static void vortex_adbdma_setmode(vortex_t * vortex, int adbdma, int ie,
 				  int dir, int fmt, int d,
-				  unsigned long offset);
+				  u32 offset);
 static void vortex_adbdma_setstartbuffer(vortex_t * vortex, int adbdma, int sb);
 #ifndef CHIP_AU8810
 static void vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
 				    struct snd_sg_buf * sgbuf, int size,
 				    int count);
 static void vortex_wtdma_setmode(vortex_t * vortex, int wtdma, int ie, int fmt, int d,	/*int e, */
-				 unsigned long offset);
+				 u32 offset);
 static void vortex_wtdma_setstartbuffer(vortex_t * vortex, int wtdma, int sb);
 #endif
 
