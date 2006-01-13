@@ -582,10 +582,29 @@ e1000_get_drvinfo(struct net_device *netdev,
                        struct ethtool_drvinfo *drvinfo)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	char firmware_version[32];
+	uint16_t eeprom_data;
 
 	strncpy(drvinfo->driver,  e1000_driver_name, 32);
 	strncpy(drvinfo->version, e1000_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
+
+	/* EEPROM image version # is reported as firmware version # for
+	 * 8257{1|2|3} controllers */
+	e1000_read_eeprom(&adapter->hw, 5, 1, &eeprom_data);
+	switch (adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+	case e1000_82573:
+		sprintf(firmware_version, "%d.%d-%d",
+			(eeprom_data & 0xF000) >> 12,
+			(eeprom_data & 0x0FF0) >> 4,
+			eeprom_data & 0x000F);
+		break;
+	default:
+		sprintf(firmware_version, "N/A");
+	}
+
+	strncpy(drvinfo->fw_version, firmware_version, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
 	drvinfo->n_stats = E1000_STATS_LEN;
 	drvinfo->testinfo_len = E1000_TEST_LEN;
