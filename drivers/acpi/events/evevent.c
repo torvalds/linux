@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ acpi_status acpi_ev_initialize_events(void)
 	/* Make sure we have ACPI tables */
 
 	if (!acpi_gbl_DSDT) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "No ACPI tables present!\n"));
+		ACPI_REPORT_WARNING(("No ACPI tables present!\n"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 

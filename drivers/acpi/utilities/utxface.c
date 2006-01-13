@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ acpi_status acpi_initialize_subsystem(void)
 
 	status = acpi_os_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("OSD failed to initialize, %s\n",
+		ACPI_REPORT_ERROR(("OSL failed to initialize, %s\n",
 				   acpi_format_exception(status)));
 		return_ACPI_STATUS(status);
 	}
@@ -154,8 +154,7 @@ acpi_status acpi_enable_subsystem(u32 flags)
 
 		status = acpi_enable();
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-					  "acpi_enable failed.\n"));
+			ACPI_REPORT_WARNING(("acpi_enable failed\n"));
 			return_ACPI_STATUS(status);
 		}
 	}

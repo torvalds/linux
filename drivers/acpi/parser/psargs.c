@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -298,7 +298,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		acpi_ps_append_arg(arg, name_op);
 
 		if (!method_desc) {
-			ACPI_REPORT_ERROR(("ps_get_next_namepath: Control Method %p has no attached object\n", node));
+			ACPI_REPORT_ERROR(("Control Method %p has no attached object\n", node));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 

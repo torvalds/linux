@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -293,7 +293,7 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			    + (acpi_integer) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
-				ACPI_REPORT_ERROR(("Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n", (char *)&info->field_node->name));
+				ACPI_REPORT_ERROR(("Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n", ACPI_CAST_PTR(char, &info->field_node->name)));
 				return_ACPI_STATUS(AE_SUPPORT);
 			}
 
@@ -302,9 +302,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 
 		default:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid opcode in field list: %X\n",
-					  arg->common.aml_opcode));
+			ACPI_REPORT_ERROR(("Invalid opcode in field list: %X\n",
+					   arg->common.aml_opcode));
 			return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 		}
 

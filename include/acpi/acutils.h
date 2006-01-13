@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -275,12 +275,11 @@ acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
 		 char *module_name, u32 component_id, u8 * ptr);
 
-void acpi_ut_report_info(char *module_name, u32 line_number, u32 component_id);
+void acpi_ut_report_error(char *module_name, u32 line_number);
 
-void acpi_ut_report_error(char *module_name, u32 line_number, u32 component_id);
+void acpi_ut_report_info(char *module_name, u32 line_number);
 
-void
-acpi_ut_report_warning(char *module_name, u32 line_number, u32 component_id);
+void acpi_ut_report_warning(char *module_name, u32 line_number);
 
 void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
 

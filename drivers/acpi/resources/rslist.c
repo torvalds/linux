@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,9 +156,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		/* Validate the (internal) Resource Type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid descriptor type (%X) in resource list\n",
-					  resource->type));
+			ACPI_REPORT_ERROR(("Invalid descriptor type (%X) in resource list\n", resource->type));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 

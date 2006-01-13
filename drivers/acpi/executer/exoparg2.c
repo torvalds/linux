@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,9 +111,7 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 		/* Are notifies allowed on this object? */
 
 		if (!acpi_ev_is_notify_object(node)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unexpected notify object type [%s]\n",
-					  acpi_ut_get_type_name(node->type)));
+			ACPI_REPORT_ERROR(("Unexpected notify object type [%s]\n", acpi_ut_get_type_name(node->type)));
 
 			status = AE_AML_OPERAND_TYPE;
 			break;
@@ -157,7 +155,8 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_REPORT_ERROR(("acpi_ex_opcode_2A_0T_0R: Unknown opcode %X\n", walk_state->opcode));
+		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
+				   walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 	}
 
@@ -221,7 +220,8 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_REPORT_ERROR(("acpi_ex_opcode_2A_2T_1R: Unknown opcode %X\n", walk_state->opcode));
+		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
+				   walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -389,10 +389,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 			/* Object to be indexed is a Package */
 
 			if (index >= operand[0]->package.count) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Index value (%X%8.8X) beyond package end (%X)\n",
-						  ACPI_FORMAT_UINT64(index),
-						  operand[0]->package.count));
+				ACPI_REPORT_ERROR(("Index value (%X%8.8X) beyond package end (%X)\n", ACPI_FORMAT_UINT64(index), operand[0]->package.count));
 				status = AE_AML_PACKAGE_LIMIT;
 				goto cleanup;
 			}
@@ -405,10 +402,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 			/* Object to be indexed is a Buffer/String */
 
 			if (index >= operand[0]->buffer.length) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Index value (%X%8.8X) beyond end of buffer (%X)\n",
-						  ACPI_FORMAT_UINT64(index),
-						  operand[0]->buffer.length));
+				ACPI_REPORT_ERROR(("Index value (%X%8.8X) beyond end of buffer (%X)\n", ACPI_FORMAT_UINT64(index), operand[0]->buffer.length));
 				status = AE_AML_BUFFER_LIMIT;
 				goto cleanup;
 			}
@@ -440,7 +434,8 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_REPORT_ERROR(("acpi_ex_opcode_2A_1T_1R: Unknown opcode %X\n", walk_state->opcode));
+		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
+				   walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
 	}
@@ -544,7 +539,8 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_REPORT_ERROR(("acpi_ex_opcode_2A_0T_1R: Unknown opcode %X\n", walk_state->opcode));
+		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
+				   walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}

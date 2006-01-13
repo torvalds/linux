@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,8 +68,7 @@ acpi_status acpi_hw_initialize(void)
 	/* We must have the ACPI tables by the time we get here */
 
 	if (!acpi_gbl_FADT) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "No FADT is present\n"));
-
+		ACPI_REPORT_ERROR(("No FADT is present\n"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -108,7 +107,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 	 * system does not support mode transition.
 	 */
 	if (!acpi_gbl_FADT->smi_cmd) {
-		ACPI_REPORT_ERROR(("No SMI_CMD in FADT, mode transition failed.\n"));
+		ACPI_REPORT_ERROR(("No SMI_CMD in FADT, mode transition failed\n"));
 		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
 

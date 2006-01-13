@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -841,7 +841,6 @@ u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              component_id        - Caller's component ID (for error output)
  *
  * RETURN:      None
  *
@@ -849,10 +848,10 @@ u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
  *
  ******************************************************************************/
 
-void acpi_ut_report_error(char *module_name, u32 line_number, u32 component_id)
+void acpi_ut_report_error(char *module_name, u32 line_number)
 {
 
-	acpi_os_printf("%8s-%04d: *** Error: ", module_name, line_number);
+	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
 }
 
 /*******************************************************************************
@@ -861,7 +860,6 @@ void acpi_ut_report_error(char *module_name, u32 line_number, u32 component_id)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              component_id        - Caller's component ID (for error output)
  *
  * RETURN:      None
  *
@@ -869,11 +867,10 @@ void acpi_ut_report_error(char *module_name, u32 line_number, u32 component_id)
  *
  ******************************************************************************/
 
-void
-acpi_ut_report_warning(char *module_name, u32 line_number, u32 component_id)
+void acpi_ut_report_warning(char *module_name, u32 line_number)
 {
 
-	acpi_os_printf("%8s-%04d: *** Warning: ", module_name, line_number);
+	acpi_os_printf("ACPI Warning (%s-%04d): ", module_name, line_number);
 }
 
 /*******************************************************************************
@@ -882,7 +879,6 @@ acpi_ut_report_warning(char *module_name, u32 line_number, u32 component_id)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              component_id        - Caller's component ID (for error output)
  *
  * RETURN:      None
  *
@@ -890,8 +886,8 @@ acpi_ut_report_warning(char *module_name, u32 line_number, u32 component_id)
  *
  ******************************************************************************/
 
-void acpi_ut_report_info(char *module_name, u32 line_number, u32 component_id)
+void acpi_ut_report_info(char *module_name, u32 line_number)
 {
 
-	acpi_os_printf("%8s-%04d: *** Info: ", module_name, line_number);
+	acpi_os_printf("ACPI (%s-%04d): ", module_name, line_number);
 }

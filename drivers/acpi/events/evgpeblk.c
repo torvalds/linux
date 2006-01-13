@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,9 +279,7 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	default:
 		/* Unknown method type, just ignore it! */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown GPE method type: %s (name not of form _Lxx or _Exx)\n",
-				  name));
+		ACPI_REPORT_ERROR(("Unknown GPE method type: %s (name not of form _Lxx or _Exx)\n", name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -291,9 +289,7 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	if (gpe_number == ACPI_UINT32_MAX) {
 		/* Conversion failed; invalid method, just ignore it */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)\n",
-				  name));
+		ACPI_REPORT_ERROR(("Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)\n", name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -527,9 +523,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 							   acpi_ev_gpe_xrupt_handler,
 							   gpe_xrupt);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not install GPE interrupt handler at level 0x%X\n",
-					  interrupt_number));
+			ACPI_REPORT_ERROR(("Could not install GPE interrupt handler at level 0x%X\n", interrupt_number));
 			return_PTR(NULL);
 		}
 	}
@@ -745,8 +739,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 					       sizeof(struct
 						      acpi_gpe_register_info));
 	if (!gpe_register_info) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not allocate the gpe_register_info table\n"));
+		ACPI_REPORT_ERROR(("Could not allocate the gpe_register_info table\n"));
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
@@ -759,8 +752,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 					     ACPI_GPE_REGISTER_WIDTH) *
 					    sizeof(struct acpi_gpe_event_info));
 	if (!gpe_event_info) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not allocate the gpe_event_info table\n"));
+		ACPI_REPORT_ERROR(("Could not allocate the gpe_event_info table\n"));
 		status = AE_NO_MEMORY;
 		goto error_exit;
 	}

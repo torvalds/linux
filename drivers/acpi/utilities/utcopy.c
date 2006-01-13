@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -606,8 +606,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 		/*
 		 * Packages as external input to control methods are not supported,
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Packages as parameters not implemented!\n"));
+		ACPI_REPORT_ERROR(("Packages as parameters not implemented!\n"));
 
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
@@ -870,7 +869,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 							 count +
 							 1) * sizeof(void *));
 	if (!dest_obj->package.elements) {
-		ACPI_REPORT_ERROR(("aml_build_copy_internal_package_object: Package allocation failure\n"));
+		ACPI_REPORT_ERROR(("Package allocation failure\n"));
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -542,9 +542,7 @@ void acpi_ev_terminate(void)
 		for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
 			status = acpi_disable_event((u32) i, 0);
 			if (ACPI_FAILURE(status)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Could not disable fixed event %d\n",
-						  (u32) i));
+				ACPI_REPORT_ERROR(("Could not disable fixed event %d\n", (u32) i));
 			}
 		}
 
@@ -556,8 +554,7 @@ void acpi_ev_terminate(void)
 
 		status = acpi_ev_remove_sci_handler();
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not remove SCI handler\n"));
+			ACPI_REPORT_ERROR(("Could not remove SCI handler\n"));
 		}
 	}
 
@@ -570,8 +567,7 @@ void acpi_ev_terminate(void)
 	if (acpi_gbl_original_mode == ACPI_SYS_MODE_LEGACY) {
 		status = acpi_disable();
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-					  "acpi_disable failed\n"));
+			ACPI_REPORT_WARNING(("acpi_disable failed\n"));
 		}
 	}
 	return_VOID;

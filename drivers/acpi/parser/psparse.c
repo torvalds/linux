@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -512,9 +512,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		} else if ((status != AE_OK) && (walk_state->method_desc)) {
 			/* Either the method parse or actual execution failed */
 
-			ACPI_REPORT_METHOD_ERROR
-			    ("Method parse/execution failed",
-			     walk_state->method_node, NULL, status);
+			ACPI_REPORT_MTERROR("Method parse/execution failed",
+					    walk_state->method_node, NULL,
+					    status);
 
 			/* Check for possible multi-thread reentrancy problem */
 

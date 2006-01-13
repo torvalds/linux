@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -413,9 +413,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	/* Host object must be a Buffer */
 
 	if (ACPI_GET_OBJECT_TYPE(buffer_desc) != ACPI_TYPE_BUFFER) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Target of Create Field is not a Buffer object - %s\n",
-				  acpi_ut_get_object_type_name(buffer_desc)));
+		ACPI_REPORT_ERROR(("Target of Create Field is not a Buffer object - %s\n", acpi_ut_get_object_type_name(buffer_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		goto cleanup;
@@ -427,10 +425,9 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	 * after resolution in acpi_ex_resolve_operands().
 	 */
 	if (ACPI_GET_DESCRIPTOR_TYPE(result_desc) != ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "(%s) destination not a NS Node [%s]\n",
-				  acpi_ps_get_opcode_name(aml_opcode),
-				  acpi_ut_get_descriptor_name(result_desc)));
+		ACPI_REPORT_ERROR(("(%s) destination not a NS Node [%s]\n",
+				   acpi_ps_get_opcode_name(aml_opcode),
+				   acpi_ut_get_descriptor_name(result_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		goto cleanup;
@@ -453,8 +450,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 		/* Must have a valid (>0) bit count */
 
 		if (bit_count == 0) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Attempt to create_field of length 0\n"));
+			ACPI_REPORT_ERROR(("Attempt to create_field of length 0\n"));
 			status = AE_AML_OPERAND_VALUE;
 			goto cleanup;
 		}
@@ -507,9 +503,8 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown field creation opcode %02x\n",
-				  aml_opcode));
+		ACPI_REPORT_ERROR(("Unknown field creation opcode %02x\n",
+				   aml_opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -517,13 +512,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	/* Entire field must fit within the current length of the buffer */
 
 	if ((bit_offset + bit_count) > (8 * (u32) buffer_desc->buffer.length)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Field [%4.4s] size %d exceeds Buffer [%4.4s] size %d (bits)\n",
-				  acpi_ut_get_node_name(result_desc),
-				  bit_offset + bit_count,
-				  acpi_ut_get_node_name(buffer_desc->buffer.
-							node),
-				  8 * (u32) buffer_desc->buffer.length));
+		ACPI_REPORT_ERROR(("Field [%4.4s] size %d exceeds Buffer [%4.4s] size %d (bits)\n", acpi_ut_get_node_name(result_desc), bit_offset + bit_count, acpi_ut_get_node_name(buffer_desc->buffer.node), 8 * (u32) buffer_desc->buffer.length));
 		status = AE_AML_BUFFER_LIMIT;
 		goto cleanup;
 	}
@@ -629,9 +618,10 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 			   "after acpi_ex_resolve_operands");
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "(%s) bad operand(s) (%X)\n",
-				  acpi_ps_get_opcode_name(op->common.
-							  aml_opcode), status));
+		ACPI_REPORT_ERROR(("(%s) bad operand(s) (%X)\n",
+				   acpi_ps_get_opcode_name(op->common.
+							   aml_opcode),
+				   status));
 
 		return_ACPI_STATUS(status);
 	}
@@ -1155,9 +1145,8 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown control opcode=%X Op=%p\n",
-				  op->common.aml_opcode, op));
+		ACPI_REPORT_ERROR(("Unknown control opcode=%X Op=%p\n",
+				   op->common.aml_opcode, op));
 
 		status = AE_AML_BAD_OPCODE;
 		break;

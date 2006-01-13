@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -103,9 +103,8 @@ acpi_ex_system_memory_space_handler(u32 function,
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid system_memory width %d\n",
-				  bit_width));
+		ACPI_REPORT_ERROR(("Invalid system_memory width %d\n",
+				   bit_width));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
@@ -159,10 +158,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 					    (void **)&mem_info->
 					    mapped_logical_address);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not map memory at %8.8X%8.8X, size %X\n",
-					  ACPI_FORMAT_UINT64(address),
-					  (u32) window_size));
+			ACPI_REPORT_ERROR(("Could not map memory at %8.8X%8.8X, size %X\n", ACPI_FORMAT_UINT64(address), (u32) window_size));
 			mem_info->mapped_length = 0;
 			return_ACPI_STATUS(status);
 		}

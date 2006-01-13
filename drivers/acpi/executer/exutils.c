@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -200,9 +200,7 @@ u8 acpi_ex_acquire_global_lock(u32 field_flags)
 		if (ACPI_SUCCESS(status)) {
 			locked = TRUE;
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not acquire Global Lock, %s\n",
-					  acpi_format_exception(status)));
+			ACPI_REPORT_ERROR(("Could not acquire Global Lock, %s\n", acpi_format_exception(status)));
 		}
 	}
 

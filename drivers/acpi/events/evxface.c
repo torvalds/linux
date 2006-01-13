@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -143,8 +143,8 @@ acpi_install_fixed_event_handler(u32 event,
 	if (ACPI_SUCCESS(status))
 		status = acpi_enable_event(event, 0);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Could not enable fixed event.\n"));
+		ACPI_REPORT_WARNING(("Could not enable fixed event %X\n",
+				     event));
 
 		/* Remove the handler */
 
@@ -204,10 +204,9 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 	acpi_gbl_fixed_event_handlers[event].context = NULL;
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Could not write to fixed event enable register.\n"));
+		ACPI_REPORT_WARNING(("Could not write to fixed event enable register %X\n", event));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabled fixed event %X.\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabled fixed event %X\n",
 				  event));
 	}
 
@@ -434,7 +433,7 @@ acpi_remove_notify_handler(acpi_handle device,
 
 	if (device == ACPI_ROOT_OBJECT) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Removing notify handler for ROOT object.\n"));
+				  "Removing notify handler for namespace root object\n"));
 
 		if (((handler_type & ACPI_SYSTEM_NOTIFY) &&
 		     !acpi_gbl_system_notify.handler) ||

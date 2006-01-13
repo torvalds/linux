@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -207,21 +207,14 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* Each element of the top-level package must also be a package */
 
 		if (ACPI_GET_OBJECT_TYPE(*top_object_list) != ACPI_TYPE_PACKAGE) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "(PRT[%X]) Need sub-package, found %s\n",
-					  index,
-					  acpi_ut_get_object_type_name
-					  (*top_object_list)));
+			ACPI_REPORT_ERROR(("(PRT[%X]) Need sub-package, found %s\n", index, acpi_ut_get_object_type_name(*top_object_list)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		/* Each sub-package must be of length 4 */
 
 		if ((*top_object_list)->package.count != 4) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "(PRT[%X]) Need package of length 4, found length %d\n",
-					  index,
-					  (*top_object_list)->package.count));
+			ACPI_REPORT_ERROR(("(PRT[%X]) Need package of length 4, found length %d\n", index, (*top_object_list)->package.count));
 			return_ACPI_STATUS(AE_AML_PACKAGE_LIMIT);
 		}
 
@@ -238,11 +231,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->address = obj_desc->integer.value;
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "(PRT[%X].Address) Need Integer, found %s\n",
-					  index,
-					  acpi_ut_get_object_type_name
-					  (obj_desc)));
+			ACPI_REPORT_ERROR(("(PRT[%X].Address) Need Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
@@ -252,11 +241,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->pin = (u32) obj_desc->integer.value;
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "(PRT[%X].Pin) Need Integer, found %s\n",
-					  index,
-					  acpi_ut_get_object_type_name
-					  (obj_desc)));
+			ACPI_REPORT_ERROR(("(PRT[%X].Pin) Need Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
@@ -267,10 +252,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		case ACPI_TYPE_LOCAL_REFERENCE:
 
 			if (obj_desc->reference.opcode != AML_INT_NAMEPATH_OP) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "(PRT[%X].Source) Need name, found reference op %X\n",
-						  index,
-						  obj_desc->reference.opcode));
+				ACPI_REPORT_ERROR(("(PRT[%X].Source) Need name, found reference op %X\n", index, obj_desc->reference.opcode));
 				return_ACPI_STATUS(AE_BAD_DATA);
 			}
 
@@ -316,11 +298,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 		default:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "(PRT[%X].Source) Need Ref/String/Integer, found %s\n",
-					  index,
-					  acpi_ut_get_object_type_name
-					  (obj_desc)));
+			ACPI_REPORT_ERROR(("(PRT[%X].Source) Need Ref/String/Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
@@ -335,11 +313,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->source_index = (u32) obj_desc->integer.value;
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "(PRT[%X].source_index) Need Integer, found %s\n",
-					  index,
-					  acpi_ut_get_object_type_name
-					  (obj_desc)));
+			ACPI_REPORT_ERROR(("(PRT[%X].source_index) Need Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 

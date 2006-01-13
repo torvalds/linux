@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -523,9 +523,7 @@ if (((aml->irq.flags & 0x09) == 0x00) || ((aml->irq.flags & 0x09) == 0x09)) {
 	 * polarity/trigger interrupts are allowed (ACPI spec, section
 	 * "IRQ Format"), so 0x00 and 0x09 are illegal.
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Invalid interrupt polarity/trigger in resource list, %X\n",
-			  aml->irq.flags));
+	ACPI_REPORT_ERROR(("Invalid interrupt polarity/trigger in resource list, %X\n", aml->irq.flags));
 	return_ACPI_STATUS(AE_BAD_DATA);
 }
 
@@ -537,8 +535,7 @@ if (temp8 < 1) {
 }
 
 if (resource->data.dma.transfer == 0x03) {
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Invalid DMA.Transfer preference (3)\n"));
+	ACPI_REPORT_ERROR(("Invalid DMA.Transfer preference (3)\n"));
 	return_ACPI_STATUS(AE_BAD_DATA);
 }
 #endif

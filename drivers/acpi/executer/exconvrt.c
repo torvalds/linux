@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -654,17 +654,8 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown Target type ID 0x%X Op %s dest_type %s\n",
-				  GET_CURRENT_ARG_TYPE(walk_state->op_info->
-						       runtime_args),
-				  walk_state->op_info->name,
-				  acpi_ut_get_type_name(destination_type)));
-
-		ACPI_REPORT_ERROR(("Bad Target Type (ARGI): %X\n",
-				   GET_CURRENT_ARG_TYPE(walk_state->op_info->
-							runtime_args)))
-		    status = AE_AML_INTERNAL;
+		ACPI_REPORT_ERROR(("Unknown Target type ID 0x%X aml_opcode %X dest_type %s\n", GET_CURRENT_ARG_TYPE(walk_state->op_info->runtime_args), walk_state->opcode, acpi_ut_get_type_name(destination_type)));
+		status = AE_AML_INTERNAL;
 	}
 
 	/*

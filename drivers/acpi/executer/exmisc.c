@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,7 +98,8 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 
 		default:
 
-			ACPI_REPORT_ERROR(("Unknown Reference opcode in get_reference %X\n", obj_desc->reference.opcode));
+			ACPI_REPORT_ERROR(("Unknown Reference opcode %X\n",
+					   obj_desc->reference.opcode));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 		break;
@@ -113,7 +114,8 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 
 	default:
 
-		ACPI_REPORT_ERROR(("Invalid descriptor type in get_reference: %X\n", ACPI_GET_DESCRIPTOR_TYPE(obj_desc)));
+		ACPI_REPORT_ERROR(("Invalid descriptor type %X\n",
+				   ACPI_GET_DESCRIPTOR_TYPE(obj_desc)));
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
@@ -266,7 +268,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 		break;
 
 	default:
-		ACPI_REPORT_ERROR(("Concatanate - invalid object type: %X\n",
+		ACPI_REPORT_ERROR(("Invalid object type: %X\n",
 				   ACPI_GET_OBJECT_TYPE(operand0)));
 		status = AE_AML_INTERNAL;
 	}
@@ -368,7 +370,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Invalid object type, should not happen here */
 
-		ACPI_REPORT_ERROR(("Concatenate - Invalid object type: %X\n",
+		ACPI_REPORT_ERROR(("Invalid object type: %X\n",
 				   ACPI_GET_OBJECT_TYPE(operand0)));
 		status = AE_AML_INTERNAL;
 		goto cleanup;

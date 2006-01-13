@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,14 +144,13 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 {
 	acpi_name signature;
 
-	ACPI_FUNCTION_NAME("tb_validate_table_header");
+	ACPI_FUNCTION_ENTRY();
 
 	/* Verify that this is a valid address */
 
 	if (!acpi_os_readable(table_header, sizeof(struct acpi_table_header))) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Cannot read table header at %p\n",
-				  table_header));
+		ACPI_REPORT_ERROR(("Cannot read table header at %p\n",
+				   table_header));
 
 		return (AE_BAD_ADDRESS);
 	}
@@ -160,12 +159,10 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 	ACPI_MOVE_32_TO_32(&signature, table_header->signature);
 	if (!acpi_ut_valid_acpi_name(signature)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Table signature at %p [%p] has invalid characters\n",
-				  table_header, &signature));
+		ACPI_REPORT_ERROR(("Table signature at %p [%p] has invalid characters\n", table_header, &signature));
 
 		ACPI_REPORT_WARNING(("Invalid table signature found: [%4.4s]\n",
-				     (char *)&signature));
+				     ACPI_CAST_PTR(char, &signature)));
 
 		ACPI_DUMP_BUFFER(table_header,
 				 sizeof(struct acpi_table_header));
@@ -175,9 +172,7 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 	/* Validate the table length */
 
 	if (table_header->length < sizeof(struct acpi_table_header)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid length in table header %p name %4.4s\n",
-				  table_header, (char *)&signature));
+		ACPI_REPORT_ERROR(("Invalid length in table header %p name %4.4s\n", table_header, (char *)&signature));
 
 		ACPI_REPORT_WARNING(("Invalid table header length (0x%X) found\n", (u32) table_header->length));
 
@@ -291,8 +286,7 @@ acpi_tb_handle_to_object(u16 table_id,
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "table_id=%X does not exist\n",
-			  table_id));
+	ACPI_REPORT_ERROR(("table_id=%X does not exist\n", table_id));
 	return (AE_BAD_PARAMETER);
 }
 #endif

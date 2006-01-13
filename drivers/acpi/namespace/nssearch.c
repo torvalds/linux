@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -298,18 +298,15 @@ acpi_ns_search_and_enter(u32 target_name,
 	/* Parameter validation */
 
 	if (!node || !target_name || !return_node) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Null param: Node %p Name %X return_node %p\n",
-				  node, target_name, return_node));
-
-		ACPI_REPORT_ERROR(("ns_search_and_enter: Null parameter\n"));
+		ACPI_REPORT_ERROR(("Null param: Node %p Name %X return_node %p\n", node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Name must consist of printable characters */
 
 	if (!acpi_ut_valid_acpi_name(target_name)) {
-		ACPI_REPORT_ERROR(("ns_search_and_enter: Bad character in ACPI Name: %X\n", target_name));
+		ACPI_REPORT_ERROR(("Bad character in ACPI Name: %X\n",
+				   target_name));
 		return_ACPI_STATUS(AE_BAD_CHARACTER);
 	}
 

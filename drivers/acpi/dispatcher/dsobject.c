@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -214,10 +214,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	byte_list = arg->named.next;
 	if (byte_list) {
 		if (byte_list->common.aml_opcode != AML_INT_BYTELIST_OP) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Expecting bytelist, got AML opcode %X in op %p\n",
-					  byte_list->common.aml_opcode,
-					  byte_list));
+			ACPI_REPORT_ERROR(("Expecting bytelist, got AML opcode %X in op %p\n", byte_list->common.aml_opcode, byte_list));
 
 			acpi_ut_remove_reference(obj_desc);
 			return (AE_TYPE);
@@ -543,9 +540,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			default:
 
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Unknown constant opcode %X\n",
-						  opcode));
+				ACPI_REPORT_ERROR(("Unknown constant opcode %X\n", opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
 			}
@@ -560,9 +555,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			break;
 
 		default:
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unknown Integer type %X\n",
-					  op_info->type));
+			ACPI_REPORT_ERROR(("Unknown Integer type %X\n",
+					   op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
@@ -640,9 +634,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unimplemented data type: %X\n",
-				  ACPI_GET_OBJECT_TYPE(obj_desc)));
+		ACPI_REPORT_ERROR(("Unimplemented data type: %X\n",
+				   ACPI_GET_OBJECT_TYPE(obj_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		break;

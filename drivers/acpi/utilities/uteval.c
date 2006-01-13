@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,8 +154,8 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 					  acpi_ut_get_node_name(prefix_node),
 					  path));
 		} else {
-			ACPI_REPORT_METHOD_ERROR("Method execution failed",
-						 prefix_node, path, status);
+			ACPI_REPORT_MTERROR("Method execution failed",
+					    prefix_node, path, status);
 		}
 
 		return_ACPI_STATUS(status);
@@ -165,9 +165,8 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 
 	if (!info.return_object) {
 		if (expected_return_btypes) {
-			ACPI_REPORT_METHOD_ERROR("No object was returned from",
-						 prefix_node, path,
-						 AE_NOT_EXIST);
+			ACPI_REPORT_MTERROR("No object was returned from",
+					    prefix_node, path, AE_NOT_EXIST);
 
 			return_ACPI_STATUS(AE_NOT_EXIST);
 		}
@@ -212,15 +211,10 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 	/* Is the return object one of the expected types? */
 
 	if (!(expected_return_btypes & return_btype)) {
-		ACPI_REPORT_METHOD_ERROR("Return object type is incorrect",
-					 prefix_node, path, AE_TYPE);
+		ACPI_REPORT_MTERROR("Return object type is incorrect",
+				    prefix_node, path, AE_TYPE);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Type returned from %s was incorrect: %s, expected Btypes: %X\n",
-				  path,
-				  acpi_ut_get_object_type_name(info.
-							       return_object),
-				  expected_return_btypes));
+		ACPI_REPORT_ERROR(("Type returned from %s was incorrect: %s, expected Btypes: %X\n", path, acpi_ut_get_object_type_name(info.return_object), expected_return_btypes));
 
 		/* On error exit, we must delete the return object */
 

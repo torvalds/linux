@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,8 +93,8 @@ acpi_status acpi_ns_initialize_objects(void)
 				     ACPI_UINT32_MAX, acpi_ns_init_one_object,
 				     &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed! %s\n",
-				  acpi_format_exception(status)));
+		ACPI_REPORT_ERROR(("walk_namespace failed! %s\n",
+				   acpi_format_exception(status)));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
@@ -159,8 +159,8 @@ acpi_status acpi_ns_initialize_devices(void)
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed! %s\n",
-				  acpi_format_exception(status)));
+		ACPI_REPORT_ERROR(("walk_namespace failed! %s\n",
+				   acpi_format_exception(status)));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
@@ -289,12 +289,7 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_ERROR, "\n"));
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not execute arguments for [%4.4s] (%s), %s\n",
-				  acpi_ut_get_node_name(node),
-				  acpi_ut_get_type_name(type),
-				  acpi_format_exception(status)));
+		ACPI_REPORT_ERROR(("\nCould not execute arguments for [%4.4s] (%s), %s\n", acpi_ut_get_node_name(node), acpi_ut_get_type_name(type), acpi_format_exception(status)));
 	}
 
 	/*
@@ -421,8 +416,9 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 #ifdef ACPI_DEBUG_OUTPUT
 		char *scope_name = acpi_ns_get_external_pathname(ini_node);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "%s._INI failed: %s\n",
-				  scope_name, acpi_format_exception(status)));
+		ACPI_REPORT_WARNING(("%s._INI failed: %s\n",
+				     scope_name,
+				     acpi_format_exception(status)));
 
 		ACPI_MEM_FREE(scope_name);
 #endif

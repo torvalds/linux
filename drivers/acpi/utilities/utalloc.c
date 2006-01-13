@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -301,7 +301,7 @@ void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
 	/* Check for an inadvertent size of zero bytes */
 
 	if (!size) {
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("ut_allocate: Attempt to allocate zero bytes, allocating 1 byte\n"));
 		size = 1;
 	}
@@ -310,7 +310,7 @@ void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
 	if (!allocation) {
 		/* Report allocation error */
 
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("ut_allocate: Could not allocate size %X\n",
 				    (u32) size));
 
@@ -344,7 +344,7 @@ void *acpi_ut_callocate(acpi_size size, u32 component, char *module, u32 line)
 	/* Check for an inadvertent size of zero bytes */
 
 	if (!size) {
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("ut_callocate: Attempt to allocate zero bytes, allocating 1 byte\n"));
 		size = 1;
 	}
@@ -353,7 +353,7 @@ void *acpi_ut_callocate(acpi_size size, u32 component, char *module, u32 line)
 	if (!allocation) {
 		/* Report allocation error */
 
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("ut_callocate: Could not allocate size %X\n",
 				    (u32) size));
 		return_PTR(NULL);
@@ -480,7 +480,7 @@ void *acpi_ut_callocate_and_track(acpi_size size,
 	if (!allocation) {
 		/* Report allocation error */
 
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("ut_callocate: Could not allocate size %X\n",
 				    (u32) size));
 		return (NULL);
@@ -524,7 +524,7 @@ acpi_ut_free_and_track(void *allocation, u32 component, char *module, u32 line)
 	ACPI_FUNCTION_TRACE_PTR("ut_free", allocation);
 
 	if (NULL == allocation) {
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("acpi_ut_free: Attempt to delete a NULL address\n"));
 
 		return_VOID;
@@ -540,8 +540,8 @@ acpi_ut_free_and_track(void *allocation, u32 component, char *module, u32 line)
 	status = acpi_ut_remove_allocation(debug_block,
 					   component, module, line);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Could not free memory, %s\n",
-				  acpi_format_exception(status)));
+		ACPI_REPORT_ERROR(("Could not free memory, %s\n",
+				   acpi_format_exception(status)));
 	}
 
 	acpi_os_free(debug_block);
@@ -626,8 +626,8 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	if (element) {
 		ACPI_REPORT_ERROR(("ut_track_allocation: Allocation already present in list! (%p)\n", allocation));
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Element %p Address %p\n",
-				  element, allocation));
+		ACPI_REPORT_ERROR(("Element %p Address %p\n",
+				   element, allocation));
 
 		goto unlock_and_exit;
 	}
@@ -687,7 +687,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
 	if (NULL == mem_list->list_head) {
 		/* No allocations! */
 
-		_ACPI_REPORT_ERROR(module, line, component,
+		_ACPI_REPORT_ERROR(module, line,
 				   ("ut_remove_allocation: Empty allocation list, nothing to free!\n"));
 
 		return_ACPI_STATUS(AE_OK);
@@ -863,12 +863,10 @@ void acpi_ut_dump_allocations(u32 component, char *module)
 	/* Print summary */
 
 	if (!num_outstanding) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "No outstanding allocations\n"));
+		ACPI_REPORT_INFO(("No outstanding allocations\n"));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "%d(%X) Outstanding allocations\n",
-				  num_outstanding, num_outstanding));
+		ACPI_REPORT_ERROR(("%d(%X) Outstanding allocations\n",
+				   num_outstanding, num_outstanding));
 	}
 
 	return_VOID;

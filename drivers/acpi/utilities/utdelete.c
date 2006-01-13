@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -363,8 +363,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown action (%X)\n",
-				  action));
+		ACPI_REPORT_ERROR(("Unknown action (%X)\n", action));
 		break;
 	}
 
@@ -374,9 +373,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	 */
 	if (count > ACPI_MAX_REFERENCE_COUNT) {
 
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "**** Warning **** Large Reference Count (%X) in object %p\n\n",
-				  count, object));
+		ACPI_REPORT_WARNING(("Large Reference Count (%X) in object %p\n\n", count, object));
 	}
 
 	return;

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,8 +67,11 @@ const char *acpi_format_exception(acpi_status status)
 	acpi_status sub_status;
 	const char *exception = NULL;
 
-	ACPI_FUNCTION_NAME("format_exception");
+	ACPI_FUNCTION_ENTRY();
 
+	/*
+	 * Status is composed of two parts, a "type" and an actual code
+	 */
 	sub_status = (status & ~AE_CODE_MASK);
 
 	switch (status & AE_CODE_MASK) {
@@ -118,13 +121,13 @@ const char *acpi_format_exception(acpi_status status)
 	if (!exception) {
 		/* Exception code was not recognized */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown exception code: 0x%8.8X\n", status));
+		ACPI_REPORT_ERROR(("Unknown exception code: 0x%8.8X\n",
+				   status));
 
-		return ((const char *)"UNKNOWN_STATUS_CODE");
+		exception = "UNKNOWN_STATUS_CODE";
 	}
 
-	return ((const char *)exception);
+	return (ACPI_CAST_PTR(const char, exception));
 }
 
 /*******************************************************************************
@@ -519,7 +522,7 @@ char *acpi_ut_get_event_name(u32 event_id)
 		return ("invalid_event_iD");
 	}
 
-	return ((char *)acpi_gbl_event_types[event_id]);
+	return (ACPI_CAST_PTR(char, acpi_gbl_event_types[event_id]));
 }
 
 /*******************************************************************************
@@ -586,10 +589,10 @@ char *acpi_ut_get_type_name(acpi_object_type type)
 {
 
 	if (type > ACPI_TYPE_INVALID) {
-		return ((char *)acpi_gbl_bad_type);
+		return (ACPI_CAST_PTR(char, acpi_gbl_bad_type));
 	}
 
-	return ((char *)acpi_gbl_ns_type_names[type]);
+	return (ACPI_CAST_PTR(char, acpi_gbl_ns_type_names[type]));
 }
 
 char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
