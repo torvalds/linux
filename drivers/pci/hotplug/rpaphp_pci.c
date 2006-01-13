@@ -32,36 +32,6 @@
 #include "../pci.h"		/* for pci_add_new_bus */
 #include "rpaphp.h"
 
-static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
-					struct device_node *dn)
-{
-	struct pci_bus *child = NULL;
-	struct list_head *tmp;
-	struct device_node *busdn;
-
-	busdn = pci_bus_to_OF_node(bus);
-	if (busdn == dn)
-		return bus;
-
-	list_for_each(tmp, &bus->children) {
-		child = find_bus_among_children(pci_bus_b(tmp), dn);
-		if (child)
-			break;
-	}
-	return child;
-}
-
-struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
-{
-	struct pci_dn *pdn = dn->data;
-
-	if (!pdn  || !pdn->phb || !pdn->phb->bus)
-		return NULL;
-
-	return find_bus_among_children(pdn->phb->bus, dn);
-}
-EXPORT_SYMBOL_GPL(rpaphp_find_pci_bus);
-
 static int rpaphp_get_sensor_state(struct slot *slot, int *state)
 {
 	int rc;
@@ -120,7 +90,7 @@ int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value)
 			/* config/unconfig adapter */
 			*value = slot->state;
 		} else {
-			bus = rpaphp_find_pci_bus(slot->dn);
+			bus = pcibios_find_pci_bus(slot->dn);
 			if (bus && !list_empty(&bus->devices))
 				*value = CONFIGURED;
 			else
@@ -370,7 +340,7 @@ static int setup_pci_slot(struct slot *slot)
 	struct pci_bus *bus;
 
 	BUG_ON(!dn);
-	bus = rpaphp_find_pci_bus(dn);
+	bus = pcibios_find_pci_bus(dn);
 	if (!bus) {
 		err("%s: no pci_bus for dn %s\n", __FUNCTION__, dn->full_name);
 		goto exit_rc;

@@ -174,7 +174,7 @@ static int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 {
 	struct pci_dev *dev;
 
-	if (rpaphp_find_pci_bus(dn))
+	if (pcibios_find_pci_bus(dn))
 		return -EINVAL;
 
 	/* Add pci bus */
@@ -221,7 +221,7 @@ static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 	struct pci_dn *pdn;
 	int rc = 0;
 
-	if (!rpaphp_find_pci_bus(dn))
+	if (!pcibios_find_pci_bus(dn))
 		return -EINVAL;
 
 	slot = find_slot(dn);
@@ -366,7 +366,7 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 	struct pci_bus *bus;
 	struct slot *slot;
 
-	bus = rpaphp_find_pci_bus(dn);
+	bus = pcibios_find_pci_bus(dn);
 	if (!bus)
 		return -EINVAL;
 
