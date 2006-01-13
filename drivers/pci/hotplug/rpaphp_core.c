@@ -196,11 +196,6 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	return 0;
 }
 
-int rpaphp_remove_slot(struct slot *slot)
-{
-	return deregister_slot(slot);
-}
-
 static int get_children_props(struct device_node *dn, int **drc_indexes,
 		int **drc_names, int **drc_types, int **drc_power_domains)
 {
@@ -307,13 +302,15 @@ static int is_php_dn(struct device_node *dn, int **indexes, int **names,
 	return 0;
 }
 
-/****************************************************************
+/**
+ * rpaphp_add_slot -- add hotplug or dlpar slot
+ *
  *	rpaphp not only registers PCI hotplug slots(HOTPLUG), 
  *	but also logical DR slots(EMBEDDED).
  *	HOTPLUG slot: An adapter can be physically added/removed. 
  *	EMBEDDED slot: An adapter can be logically removed/added
  *		  from/to a partition with the slot.
- ***************************************************************/
+ */
 int rpaphp_add_slot(struct device_node *dn)
 {
 	struct slot *slot;
@@ -344,7 +341,7 @@ int rpaphp_add_slot(struct device_node *dn)
 			dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
 					indexes[i + 1], name, type);
 
-			retval = register_pci_slot(slot);
+			retval = rpaphp_register_pci_slot(slot);
 		}
 	}
 exit:
@@ -462,6 +459,5 @@ module_init(rpaphp_init);
 module_exit(rpaphp_exit);
 
 EXPORT_SYMBOL_GPL(rpaphp_add_slot);
-EXPORT_SYMBOL_GPL(rpaphp_remove_slot);
 EXPORT_SYMBOL_GPL(rpaphp_slot_head);
 EXPORT_SYMBOL_GPL(rpaphp_get_drc_props);

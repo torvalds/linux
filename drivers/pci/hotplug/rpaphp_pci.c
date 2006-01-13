@@ -199,7 +199,7 @@ exit_rc:
 	return -EINVAL;
 }
 
-int register_pci_slot(struct slot *slot)
+int rpaphp_register_pci_slot(struct slot *slot)
 {
 	int rc = -EINVAL;
 
@@ -207,7 +207,7 @@ int register_pci_slot(struct slot *slot)
 		goto exit_rc;
 	if (setup_pci_slot(slot))
 		goto exit_rc;
-	rc = register_slot(slot);
+	rc = rpaphp_register_slot(slot);
 exit_rc:
 	return rc;
 }

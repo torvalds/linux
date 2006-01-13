@@ -227,7 +227,7 @@ static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 	slot = find_slot(dn);
 	if (slot) {
 		/* Remove hotplug slot */
-		if (rpaphp_remove_slot(slot)) {
+		if (rpaphp_deregister_slot(slot)) {
 			printk(KERN_ERR
 				"%s: unable to remove hotplug slot %s\n",
 				__FUNCTION__, drc_name);
@@ -373,7 +373,7 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 	slot = find_slot(dn);
 	if (slot) {
 		/* Remove hotplug slot */
-		if (rpaphp_remove_slot(slot)) {
+		if (rpaphp_deregister_slot(slot)) {
 			printk(KERN_ERR
 				"%s: unable to remove hotplug slot %s\n",
 				__FUNCTION__, drc_name);
