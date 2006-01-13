@@ -417,6 +417,19 @@ void free_initmem(void)
 #endif
 }
 
+
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void)
+{
+	extern char __start_rodata, __end_rodata;
+	/* rodata memory was already mapped with KERNEL_RO access rights by
+           pagetable_init() and map_pages(). No need to do additional stuff here */
+	printk (KERN_INFO "Write protecting the kernel read-only data: %luk\n",
+		(unsigned long)(&__end_rodata - &__start_rodata) >> 10);
+}
+#endif
+
+
 /*
  * Just an arbitrary offset to serve as a "hole" between mapping areas
  * (between top of physical memory and a potential pcxl dma mapping
@@ -685,7 +698,7 @@ static void __init pagetable_init(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_end && initrd_end > mem_limit) {
-		printk("initrd: mapping %08lx-%08lx\n", initrd_start, initrd_end);
+		printk(KERN_INFO "initrd: mapping %08lx-%08lx\n", initrd_start, initrd_end);
 		map_pages(initrd_start, __pa(initrd_start),
 			initrd_end - initrd_start, PAGE_KERNEL);
 	}

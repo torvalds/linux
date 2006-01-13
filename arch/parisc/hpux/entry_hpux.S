@@ -22,10 +22,9 @@
 #include <linux/linkage.h>
 #include <asm/unistd.h>
 
-	.text
-
 #define ENTRY_NAME(_name_) .word _name_
 
+	.section .rodata,"a"
 	.align 4
 	.export hpux_call_table
 	.import hpux_unimplemented_wrapper

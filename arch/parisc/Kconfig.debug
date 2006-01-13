@@ -11,4 +11,14 @@ config DEBUG_RWLOCK
           too many attempts.  If you suspect a rwlock problem or a kernel
           hacker asks for this option then say Y.  Otherwise say N.
 
+config DEBUG_RODATA
+       bool "Write protect kernel read-only data structures"
+       depends on DEBUG_KERNEL
+       help
+         Mark the kernel read-only data as write-protected in the pagetables,
+         in order to catch accidental (and incorrect) writes to such const
+         data. This option may have a slight performance impact because a
+         portion of the kernel code won't be covered by a TLB anymore.
+         If in doubt, say "N".
+
 endmenu
