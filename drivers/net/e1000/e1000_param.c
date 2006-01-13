@@ -320,7 +320,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		} else {
 			tx_ring->count = opt.def;
 		}
-		for (i = 0; i < adapter->num_queues; i++)
+		for (i = 0; i < adapter->num_tx_queues; i++)
 			tx_ring[i].count = tx_ring->count;
 	}
 	{ /* Receive Descriptor Count */
@@ -346,7 +346,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		} else {
 			rx_ring->count = opt.def;
 		}
-		for (i = 0; i < adapter->num_queues; i++)
+		for (i = 0; i < adapter->num_rx_queues; i++)
 			rx_ring[i].count = rx_ring->count;
 	}
 	{ /* Checksum Offload Enable/Disable */

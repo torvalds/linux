@@ -268,6 +268,7 @@ struct e1000_adapter {
 #ifdef CONFIG_E1000_MQ
 	struct e1000_tx_ring **cpu_tx_ring; /* per-cpu */
 #endif
+	unsigned long tx_queue_len;
 	uint32_t txd_cmd;
 	uint32_t tx_int_delay;
 	uint32_t tx_abs_int_delay;
@@ -303,7 +304,8 @@ struct e1000_adapter {
 	struct call_async_data_struct rx_sched_call_data;
 	int cpu_for_queue[4];
 #endif
-	int num_queues;
+	int num_tx_queues;
+	int num_rx_queues;
 
 	uint64_t hw_csum_err;
 	uint64_t hw_csum_good;
@@ -336,6 +338,7 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 
+	u32 *config_space;
 	int msg_enable;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;

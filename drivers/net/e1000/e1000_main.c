@@ -411,8 +411,9 @@ e1000_up(struct e1000_adapter *adapter)
 	e1000_configure_tx(adapter);
 	e1000_setup_rctl(adapter);
 	e1000_configure_rx(adapter);
-	for (i = 0; i < adapter->num_queues; i++)
+	for (i = 0; i < adapter->num_rx_queues; i++) {
 		adapter->alloc_rx_buf(adapter, &adapter->rx_ring[i]);
+	}
 
 #ifdef CONFIG_PCI_MSI
 	if(adapter->hw.mac_type > e1000_82547_rev_2) {
@@ -867,7 +868,7 @@ e1000_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 #ifdef CONFIG_E1000_NAPI
-	for (i = 0; i < adapter->num_queues; i++)
+	for (i = 0; i < adapter->num_rx_queues; i++)
 		__dev_put(&adapter->polling_netdev[i]);
 #endif
 
@@ -972,15 +973,25 @@ e1000_sw_init(struct e1000_adapter *adapter)
 	switch (hw->mac_type) {
 	case e1000_82571:
 	case e1000_82572:
-		adapter->num_queues = 2;
+		/* These controllers support 2 tx queues, but with a single
+		 * qdisc implementation, multiple tx queues aren't quite as
+		 * interesting.  If we can find a logical way of mapping
+		 * flows to a queue, then perhaps we can up the num_tx_queue
+		 * count back to its default.  Until then, we run the risk of
+		 * terrible performance due to SACK overload. */
+		adapter->num_tx_queues = 1;
+		adapter->num_rx_queues = 2;
 		break;
 	default:
-		adapter->num_queues = 1;
+		adapter->num_tx_queues = 1;
+		adapter->num_rx_queues = 1;
 		break;
 	}
-	adapter->num_queues = min(adapter->num_queues, num_online_cpus());
+	adapter->num_rx_queues = min(adapter->num_rx_queues, num_online_cpus());
+	adapter->num_tx_queues = min(adapter->num_tx_queues, num_online_cpus());
 #else
-	adapter->num_queues = 1;
+	adapter->num_tx_queues = 1;
+	adapter->num_rx_queues = 1;
 #endif
 
 	if (e1000_alloc_queues(adapter)) {
@@ -989,7 +1000,7 @@ e1000_sw_init(struct e1000_adapter *adapter)
 	}
 
 #ifdef CONFIG_E1000_NAPI
-	for (i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_rx_queues; i++) {
 		adapter->polling_netdev[i].priv = adapter;
 		adapter->polling_netdev[i].poll = &e1000_clean;
 		adapter->polling_netdev[i].weight = 64;
@@ -1022,13 +1033,13 @@ e1000_alloc_queues(struct e1000_adapter *adapter)
 {
 	int size;
 
-	size = sizeof(struct e1000_tx_ring) * adapter->num_queues;
+	size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
 	adapter->tx_ring = kmalloc(size, GFP_KERNEL);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
 	memset(adapter->tx_ring, 0, size);
 
-	size = sizeof(struct e1000_rx_ring) * adapter->num_queues;
+	size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 	adapter->rx_ring = kmalloc(size, GFP_KERNEL);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
@@ -1037,7 +1048,7 @@ e1000_alloc_queues(struct e1000_adapter *adapter)
 	memset(adapter->rx_ring, 0, size);
 
 #ifdef CONFIG_E1000_NAPI
-	size = sizeof(struct net_device) * adapter->num_queues;
+	size = sizeof(struct net_device) * adapter->num_rx_queues;
 	adapter->polling_netdev = kmalloc(size, GFP_KERNEL);
 	if (!adapter->polling_netdev) {
 		kfree(adapter->tx_ring);
@@ -1066,12 +1077,12 @@ e1000_setup_queue_mapping(struct e1000_adapter *adapter)
 	lock_cpu_hotplug();
 	i = 0;
 	for_each_online_cpu(cpu) {
-		*per_cpu_ptr(adapter->cpu_tx_ring, cpu) = &adapter->tx_ring[i % adapter->num_queues];
+		*per_cpu_ptr(adapter->cpu_tx_ring, cpu) = &adapter->tx_ring[i % adapter->num_tx_queues];
 		/* This is incomplete because we'd like to assign separate
 		 * physical cpus to these netdev polling structures and
 		 * avoid saturating a subset of cpus.
 		 */
-		if (i < adapter->num_queues) {
+		if (i < adapter->num_rx_queues) {
 			*per_cpu_ptr(adapter->cpu_netdev, cpu) = &adapter->polling_netdev[i];
 			adapter->cpu_for_queue[i] = cpu;
 		} else
@@ -1291,7 +1302,7 @@ e1000_setup_all_tx_resources(struct e1000_adapter *adapter)
 {
 	int i, err = 0;
 
-	for (i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_tx_queues; i++) {
 		err = e1000_setup_tx_resources(adapter, &adapter->tx_ring[i]);
 		if (err) {
 			DPRINTK(PROBE, ERR,
@@ -1319,7 +1330,7 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 
-	switch (adapter->num_queues) {
+	switch (adapter->num_tx_queues) {
 	case 2:
 		tdba = adapter->tx_ring[1].dma;
 		tdlen = adapter->tx_ring[1].count *
@@ -1537,7 +1548,7 @@ e1000_setup_all_rx_resources(struct e1000_adapter *adapter)
 {
 	int i, err = 0;
 
-	for (i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_rx_queues; i++) {
 		err = e1000_setup_rx_resources(adapter, &adapter->rx_ring[i]);
 		if (err) {
 			DPRINTK(PROBE, ERR,
@@ -1709,7 +1720,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
-	switch (adapter->num_queues) {
+	switch (adapter->num_rx_queues) {
 #ifdef CONFIG_E1000_MQ
 	case 2:
 		rdba = adapter->rx_ring[1].dma;
@@ -1736,7 +1747,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 	}
 
 #ifdef CONFIG_E1000_MQ
-	if (adapter->num_queues > 1) {
+	if (adapter->num_rx_queues > 1) {
 		uint32_t random[10];
 
 		get_random_bytes(&random[0], 40);
@@ -1746,7 +1757,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 			E1000_WRITE_REG(hw, RSSIM, 0);
 		}
 
-		switch (adapter->num_queues) {
+		switch (adapter->num_rx_queues) {
 		case 2:
 		default:
 			reta = 0x00800080;
@@ -1838,7 +1849,7 @@ e1000_free_all_tx_resources(struct e1000_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->num_queues; i++)
+	for (i = 0; i < adapter->num_tx_queues; i++)
 		e1000_free_tx_resources(adapter, &adapter->tx_ring[i]);
 }
 
@@ -1905,7 +1916,7 @@ e1000_clean_all_tx_rings(struct e1000_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->num_queues; i++)
+	for (i = 0; i < adapter->num_tx_queues; i++)
 		e1000_clean_tx_ring(adapter, &adapter->tx_ring[i]);
 }
 
@@ -1949,7 +1960,7 @@ e1000_free_all_rx_resources(struct e1000_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->num_queues; i++)
+	for (i = 0; i < adapter->num_rx_queues; i++)
 		e1000_free_rx_resources(adapter, &adapter->rx_ring[i]);
 }
 
@@ -2025,7 +2036,7 @@ e1000_clean_all_rx_rings(struct e1000_adapter *adapter)
 {
 	int i;
 
-	for (i = 0; i < adapter->num_queues; i++)
+	for (i = 0; i < adapter->num_rx_queues; i++)
 		e1000_clean_rx_ring(adapter, &adapter->rx_ring[i]);
 }
 
@@ -2325,7 +2336,10 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 
 	e1000_update_adaptive(&adapter->hw);
 
-	if (adapter->num_queues == 1 && !netif_carrier_ok(netdev)) {
+#ifdef CONFIG_E1000_MQ
+	txdr = *per_cpu_ptr(adapter->cpu_tx_ring, smp_processor_id());
+#endif
+	if (!netif_carrier_ok(netdev)) {
 		if (E1000_DESC_UNUSED(txdr) + 1 < txdr->count) {
 			/* We've lost link, so the controller stops DMA,
 			 * but we've got queued Tx work that's never going
@@ -3197,14 +3211,12 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	E1000_WRITE_FLUSH(hw);
 #ifdef CONFIG_E1000_MQ
 	if (atomic_read(&adapter->rx_sched_call_data.count) == 0) {
-		cpu_set(adapter->cpu_for_queue[0],
-			adapter->rx_sched_call_data.cpumask);
-		for (i = 1; i < adapter->num_queues; i++) {
-			cpu_set(adapter->cpu_for_queue[i],
-				adapter->rx_sched_call_data.cpumask);
-			atomic_inc(&adapter->irq_sem);
-		}
-		atomic_set(&adapter->rx_sched_call_data.count, i);
+		/* We must setup the cpumask once count == 0 since
+		 * each cpu bit is cleared when the work is done. */
+		adapter->rx_sched_call_data.cpumask = adapter->cpumask;
+		atomic_add(adapter->num_rx_queues - 1, &adapter->irq_sem);
+		atomic_set(&adapter->rx_sched_call_data.count,
+		           adapter->num_rx_queues);
 		smp_call_async_mask(&adapter->rx_sched_call_data);
 	} else {
 		printk("call_data.count == %u\n", atomic_read(&adapter->rx_sched_call_data.count));
@@ -3267,7 +3279,7 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 
 	while (poll_dev != &adapter->polling_netdev[i]) {
 		i++;
-		if (unlikely(i == adapter->num_queues))
+		if (unlikely(i == adapter->num_rx_queues))
 			BUG();
 	}
 

@@ -614,8 +614,8 @@ e1000_set_ringparam(struct net_device *netdev,
 	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
 	int i, err, tx_ring_size, rx_ring_size;
 
-	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_queues;
-	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_queues;
+	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
+	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 
 	if (netif_running(adapter->netdev))
 		e1000_down(adapter);
@@ -654,10 +654,10 @@ e1000_set_ringparam(struct net_device *netdev,
 		E1000_MAX_TXD : E1000_MAX_82544_TXD));
 	E1000_ROUNDUP(txdr->count, REQ_TX_DESCRIPTOR_MULTIPLE); 
 
-	for (i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_tx_queues; i++)
 		txdr[i].count = txdr->count;
+	for (i = 0; i < adapter->num_rx_queues; i++)
 		rxdr[i].count = rxdr->count;
-	}
 
 	if(netif_running(adapter->netdev)) {
 		/* Try to get new resources before deleting old */
