@@ -2162,10 +2162,9 @@ mptscsih_target_alloc(struct scsi_target *starget)
 {
 	VirtTarget		*vtarget;
 
-	vtarget = kmalloc(sizeof(VirtTarget), GFP_KERNEL);
+	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
 	if (!vtarget)
 		return -ENOMEM;
-	memset(vtarget, 0, sizeof(VirtTarget));
 	starget->hostdata = vtarget;
 	return 0;
 }
@@ -2185,14 +2184,13 @@ mptscsih_slave_alloc(struct scsi_device *sdev)
 	VirtDevice		*vdev;
 	struct scsi_target 	*starget;
 
-	vdev = kmalloc(sizeof(VirtDevice), GFP_KERNEL);
+	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
 	if (!vdev) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 
-	memset(vdev, 0, sizeof(VirtDevice));
 	vdev->ioc_id = hd->ioc->id;
 	vdev->target_id = sdev->id;
 	vdev->bus_id = sdev->channel;

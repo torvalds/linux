@@ -148,11 +148,10 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	MPT_SCSI_HOST		*hd;
 	MPT_ADAPTER 		*ioc;
 	unsigned long		 flags;
-	int			 sz, ii;
+	int			 ii;
 	int			 numSGE = 0;
 	int			 scale;
 	int			 ioc_cap;
-	u8			*mem;
 	int			error=0;
 	int			r;
 		
@@ -268,36 +267,27 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* SCSI needs scsi_cmnd lookup table!
 	 * (with size equal to req_depth*PtrSz!)
 	 */
-	sz = ioc->req_depth * sizeof(void *);
-	mem = kmalloc(sz, GFP_ATOMIC);
-	if (mem == NULL) {
+	hd->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
+	if (!hd->ScsiLookup) {
 		error = -ENOMEM;
 		goto out_mptfc_probe;
 	}
 
-	memset(mem, 0, sz);
-	hd->ScsiLookup = (struct scsi_cmnd **) mem;
-
-	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p, sz=%d\n",
-		 ioc->name, hd->ScsiLookup, sz));
+	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p\n",
+		 ioc->name, hd->ScsiLookup));
 
 	/* Allocate memory for the device structures.
 	 * A non-Null pointer at an offset
 	 * indicates a device exists.
 	 * max_id = 1 + maximum id (hosts.h)
 	 */
-	sz = sh->max_id * sizeof(void *);
-	mem = kmalloc(sz, GFP_ATOMIC);
-	if (mem == NULL) {
+	hd->Targets = kcalloc(sh->max_id, sizeof(void *), GFP_ATOMIC);
+	if (!hd->Targets) {
 		error = -ENOMEM;
 		goto out_mptfc_probe;
 	}
 
-	memset(mem, 0, sz);
-	hd->Targets = (VirtTarget **) mem;
-
-	dprintk((KERN_INFO
-	  "  vdev @ %p, sz=%d\n", hd->Targets, sz));
+	dprintk((KERN_INFO "  vdev @ %p\n", hd->Targets));
 
 	/* Clear the TM flags
 	 */

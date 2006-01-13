@@ -1232,12 +1232,11 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		dprintk((KERN_INFO MYNAM
 			": Not using 64 bit consistent mask\n"));
 
-	ioc = kmalloc(sizeof(MPT_ADAPTER), GFP_ATOMIC);
+	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_ATOMIC);
 	if (ioc == NULL) {
 		printk(KERN_ERR MYNAM ": ERROR - Insufficient memory to add adapter!\n");
 		return -ENOMEM;
 	}
-	memset(ioc, 0, sizeof(MPT_ADAPTER));
 	ioc->alloc_total = sizeof(MPT_ADAPTER);
 	ioc->req_sz = MPT_DEFAULT_FRAME_SIZE;		/* avoid div by zero! */
 	ioc->reply_sz = MPT_REPLY_FRAME_SIZE;

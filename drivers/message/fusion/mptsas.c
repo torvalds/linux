@@ -258,13 +258,12 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	struct scsi_target 	*starget;
 	int i;
 
-	vdev = kmalloc(sizeof(VirtDevice), GFP_KERNEL);
+	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
 	if (!vdev) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
-	memset(vdev, 0, sizeof(VirtDevice));
 	vdev->ioc_id = hd->ioc->id;
 	sdev->hostdata = vdev;
 	starget = scsi_target(sdev);
@@ -1044,10 +1043,9 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
 	u32 handle = 0xFFFF;
 	int error = -ENOMEM, i;
 
-	port_info = kmalloc(sizeof(*port_info), GFP_KERNEL);
+	port_info = kzalloc(sizeof(*port_info), GFP_KERNEL);
 	if (!port_info)
 		goto out;
-	memset(port_info, 0, sizeof(*port_info));
 
 	error = mptsas_sas_io_unit_pg0(ioc, port_info);
 	if (error)
@@ -1096,10 +1094,9 @@ mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
 	struct mptsas_portinfo *port_info, *p;
 	int error = -ENOMEM, i, j;
 
-	port_info = kmalloc(sizeof(*port_info), GFP_KERNEL);
+	port_info = kzalloc(sizeof(*port_info), GFP_KERNEL);
 	if (!port_info)
 		goto out;
-	memset(port_info, 0, sizeof(*port_info));
 
 	error = mptsas_sas_expander_pg0(ioc, port_info,
 		(MPI_SAS_EXPAND_PGAD_FORM_GET_NEXT_HANDLE <<
@@ -1390,11 +1387,10 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	MPT_SCSI_HOST		*hd;
 	MPT_ADAPTER 		*ioc;
 	unsigned long		 flags;
-	int			 sz, ii;
+	int			 ii;
 	int			 numSGE = 0;
 	int			 scale;
 	int			 ioc_cap;
-	u8			*mem;
 	int			error=0;
 	int			r;
 
@@ -1518,36 +1514,27 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* SCSI needs scsi_cmnd lookup table!
 	 * (with size equal to req_depth*PtrSz!)
 	 */
-	sz = ioc->req_depth * sizeof(void *);
-	mem = kmalloc(sz, GFP_ATOMIC);
-	if (mem == NULL) {
+	hd->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
+	if (!hd->ScsiLookup) {
 		error = -ENOMEM;
 		goto out_mptsas_probe;
 	}
 
-	memset(mem, 0, sz);
-	hd->ScsiLookup = (struct scsi_cmnd **) mem;
-
-	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p, sz=%d\n",
-		 ioc->name, hd->ScsiLookup, sz));
+	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p\n",
+		 ioc->name, hd->ScsiLookup));
 
 	/* Allocate memory for the device structures.
 	 * A non-Null pointer at an offset
 	 * indicates a device exists.
 	 * max_id = 1 + maximum id (hosts.h)
 	 */
-	sz = sh->max_id * sizeof(void *);
-	mem = kmalloc(sz, GFP_ATOMIC);
-	if (mem == NULL) {
+	hd->Targets = kcalloc(sh->max_id, sizeof(void *), GFP_ATOMIC);
+	if (!hd->Targets) {
 		error = -ENOMEM;
 		goto out_mptsas_probe;
 	}
 
-	memset(mem, 0, sz);
-	hd->Targets = (VirtTarget **) mem;
-
-	dprintk((KERN_INFO
-	  "  vtarget @ %p, sz=%d\n", hd->Targets, sz));
+	dprintk((KERN_INFO "  vtarget @ %p\n", hd->Targets));
 
 	/* Clear the TM flags
 	 */
