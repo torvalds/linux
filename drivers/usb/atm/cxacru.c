@@ -673,13 +673,11 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 	int ret;
 
 	/* instance init */
-	instance = kmalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance) {
 		dbg("cxacru_bind: no memory for instance data");
 		return -ENOMEM;
 	}
-
-	memset(instance, 0, sizeof(*instance));
 
 	instance->usbatm = usbatm_instance;
 	instance->modem_type = (struct cxacru_modem_type *) id->driver_info;

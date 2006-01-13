@@ -763,13 +763,12 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 		goto fail;
 	}
 
-	if (!(new = kmalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL))) {
+	if (!(new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL))) {
 		atm_err(instance, "%s: no memory for vcc_data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	memset(new, 0, sizeof(struct usbatm_vcc_data));
 	new->vcc = vcc;
 	new->vpi = vpi;
 	new->vci = vci;
@@ -1066,13 +1065,12 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		instance->urbs[i] = urb;
 
-		buffer = kmalloc(channel->buf_size, GFP_KERNEL);
+		/* zero the tx padding to avoid leaking information */
+		buffer = kzalloc(channel->buf_size, GFP_KERNEL);
 		if (!buffer) {
 			dev_err(dev, "%s: no memory for buffer %d!\n", __func__, i);
 			goto fail_unbind;
 		}
-		/* zero the tx padding to avoid leaking information */
-		memset(buffer, 0, channel->buf_size);
 
 		usb_fill_bulk_urb(urb, instance->usb_dev, channel->endpoint,
 				  buffer, channel->buf_size, usbatm_complete, channel);
