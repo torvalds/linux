@@ -2043,25 +2043,28 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 		fc_host_port_id(shost) = bottom->s_id & ZFCP_DID_MASK;
 		fc_host_speed(shost) = bottom->fc_link_speed;
 		fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
-		adapter->fc_topology = bottom->fc_topology;
 		adapter->hydra_version = bottom->adapter_type;
-		if (adapter->physical_wwpn == 0)
-			adapter->physical_wwpn = fc_host_port_name(shost);
-		if (adapter->physical_s_id == 0)
-			adapter->physical_s_id = fc_host_port_id(shost);
+		if (fc_host_permanent_port_name(shost) == -1)
+			fc_host_permanent_port_name(shost) =
+				fc_host_port_name(shost);
+		if (bottom->fc_topology == FSF_TOPO_P2P) {
+			adapter->peer_d_id = bottom->peer_d_id & ZFCP_DID_MASK;
+			adapter->peer_wwpn = bottom->plogi_payload.wwpn;
+			adapter->peer_wwnn = bottom->plogi_payload.wwnn;
+			fc_host_port_type(shost) = FC_PORTTYPE_PTP;
+		} else if (bottom->fc_topology == FSF_TOPO_FABRIC)
+			fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
+		else if (bottom->fc_topology == FSF_TOPO_AL)
+			fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
+		else
+			fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
 	} else {
 		fc_host_node_name(shost) = 0;
 		fc_host_port_name(shost) = 0;
 		fc_host_port_id(shost) = 0;
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
-		adapter->fc_topology = 0;
+		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
 		adapter->hydra_version = 0;
-	}
-
-	if (adapter->fc_topology == FSF_TOPO_P2P) {
-		adapter->peer_d_id = bottom->peer_d_id & ZFCP_DID_MASK;
-		adapter->peer_wwpn = bottom->plogi_payload.wwpn;
-		adapter->peer_wwnn = bottom->plogi_payload.wwnn;
 	}
 
 	if (adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT) {
@@ -2132,8 +2135,8 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 		if (zfcp_fsf_exchange_config_evaluate(fsf_req, 1))
 			return -EIO;
 
-		switch (adapter->fc_topology) {
-		case FSF_TOPO_P2P:
+		switch (fc_host_port_type(adapter->scsi_host)) {
+		case FC_PORTTYPE_PTP:
 			ZFCP_LOG_NORMAL("Point-to-Point fibrechannel "
 					"configuration detected at adapter %s\n"
 					"Peer WWNN 0x%016llx, "
@@ -2146,7 +2149,7 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 			debug_text_event(fsf_req->adapter->erp_dbf, 0,
 					 "top-p-to-p");
 			break;
-		case FSF_TOPO_AL:
+		case FC_PORTTYPE_NLPORT:
 			ZFCP_LOG_NORMAL("error: Arbitrated loop fibrechannel "
 					"topology detected at adapter %s "
 					"unsupported, shutting down adapter\n",
@@ -2155,7 +2158,7 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 					 "top-al");
 			zfcp_erp_adapter_shutdown(adapter, 0);
 			return -EIO;
-		case FSF_TOPO_FABRIC:
+		case FC_PORTTYPE_NPORT:
 			ZFCP_LOG_NORMAL("Switched fabric fibrechannel "
 				      "network detected at adapter %s.\n",
 				      zfcp_get_busid_by_adapter(adapter));
@@ -2168,7 +2171,6 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 					"of a type known to the zfcp "
 					"driver, shutting down adapter\n",
 					zfcp_get_busid_by_adapter(adapter));
-			adapter->fc_topology = FSF_TOPO_ERROR;
 			debug_text_exception(fsf_req->adapter->erp_dbf, 0,
 					     "unknown-topo");
 			zfcp_erp_adapter_shutdown(adapter, 0);
@@ -2328,14 +2330,13 @@ zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *fsf_req)
 		data = (struct fsf_qtcb_bottom_port*) fsf_req->data;
 		if (data)
 			memcpy(data, bottom, sizeof(struct fsf_qtcb_bottom_port));
-		if (adapter->connection_features & FSF_FEATURE_NPIV_MODE) {
-			adapter->physical_wwpn = bottom->wwpn;
-			adapter->physical_s_id = bottom->fc_port_id;
-		} else {
-			adapter->physical_wwpn = fc_host_port_name(shost);
-			adapter->physical_s_id = fc_host_port_id(shost);
-		}
+		if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
+			fc_host_permanent_port_name(shost) = bottom->wwpn;
+		else
+			fc_host_permanent_port_name(shost) =
+				fc_host_port_name(shost);
 		fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
+		fc_host_supported_speeds(shost) = bottom->supported_speed;
 		break;
 
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:

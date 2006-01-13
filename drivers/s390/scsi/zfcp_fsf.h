@@ -199,7 +199,6 @@
 #define FSF_TOPO_P2P				0x00000001
 #define FSF_TOPO_FABRIC				0x00000002
 #define FSF_TOPO_AL				0x00000003
-#define FSF_TOPO_FABRIC_VIRT			0x00000004
 
 /* data direction for FCP commands */
 #define FSF_DATADIR_WRITE			0x00000001
