@@ -2493,12 +2493,13 @@ static int parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp
 	if (err < 0)
 		return err;
 #if 1
-	/* FIXME: temporary hack for extigy/audigy 2 nx */
+	/* FIXME: temporary hack for extigy/audigy 2 nx/zs */
 	/* extigy apparently supports sample rates other than 48k
 	 * but not in ordinary way.  so we enable only 48k atm.
 	 */
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
-	    chip->usb_id == USB_ID(0x041e, 0x3020)) {
+	    chip->usb_id == USB_ID(0x041e, 0x3020) ||
+	    chip->usb_id == USB_ID(0x041e, 0x3061)) {
 		if (fmt[3] == USB_FORMAT_TYPE_I &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
