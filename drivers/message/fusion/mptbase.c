@@ -1630,7 +1630,7 @@ mpt_resume(struct pci_dev *pdev)
 	pci_enable_device(pdev);
 
 	/* enable interrupts */
-	CHIPREG_WRITE32(&ioc->chip->IntMask, ~(MPI_HIM_RIM));
+	CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
 	ioc->active = 1;
 
 	/* F/W not running */
@@ -1723,7 +1723,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 				/* (re)Enable alt-IOC! (reply interrupt, FreeQ) */
 				dprintk((KERN_INFO MYNAM ": alt-%s reply irq re-enabled\n",
 						ioc->alt_ioc->name));
-				CHIPREG_WRITE32(&ioc->alt_ioc->chip->IntMask, ~(MPI_HIM_RIM));
+				CHIPREG_WRITE32(&ioc->alt_ioc->chip->IntMask, MPI_HIM_DIM);
 				ioc->alt_ioc->active = 1;
 			}
 
@@ -1839,7 +1839,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 
 	if (ret == 0) {
 		/* Enable! (reply interrupt) */
-		CHIPREG_WRITE32(&ioc->chip->IntMask, ~(MPI_HIM_RIM));
+		CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
 		ioc->active = 1;
 	}
 
@@ -1847,7 +1847,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		/* (re)Enable alt-IOC! (reply interrupt) */
 		dinitprintk((KERN_INFO MYNAM ": alt-%s reply irq re-enabled\n",
 				ioc->alt_ioc->name));
-		CHIPREG_WRITE32(&ioc->alt_ioc->chip->IntMask, ~(MPI_HIM_RIM));
+		CHIPREG_WRITE32(&ioc->alt_ioc->chip->IntMask, MPI_HIM_DIM);
 		ioc->alt_ioc->active = 1;
 	}
 
