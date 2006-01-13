@@ -1920,12 +1920,10 @@ e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
 				buffer_info->dma,
 				buffer_info->length,
 				PCI_DMA_TODEVICE);
-		buffer_info->dma = 0;
 	}
-	if(buffer_info->skb) {
+	if (buffer_info->skb)
 		dev_kfree_skb_any(buffer_info->skb);
-		buffer_info->skb = NULL;
-	}
+	memset(buffer_info, 0, sizeof(struct e1000_buffer));
 }
 
 /**
@@ -2044,8 +2042,6 @@ e1000_clean_rx_ring(struct e1000_adapter *adapter,
 	for(i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
 		if(buffer_info->skb) {
-			ps_page = &rx_ring->ps_page[i];
-			ps_page_dma = &rx_ring->ps_page_dma[i];
 			pci_unmap_single(pdev,
 					 buffer_info->dma,
 					 buffer_info->length,
@@ -2543,11 +2539,11 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		if (++i == tx_ring->count) i = 0;
 		tx_ring->next_to_use = i;
 
-		return 1;
+		return TRUE;
 	}
 #endif
 
-	return 0;
+	return FALSE;
 }
 
 static inline boolean_t
@@ -3383,7 +3379,19 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 			BUG();
 	}
 
-	tx_cleaned = e1000_clean_tx_irq(adapter, &adapter->tx_ring[i]);
+	if (likely(adapter->num_tx_queues == 1)) {
+		/* e1000_clean is called per-cpu.  This lock protects
+		 * tx_ring[0] from being cleaned by multiple cpus
+		 * simultaneously.  A failure obtaining the lock means
+		 * tx_ring[0] is currently being cleaned anyway. */
+		if (spin_trylock(&adapter->tx_queue_lock)) {
+			tx_cleaned = e1000_clean_tx_irq(adapter,
+							&adapter->tx_ring[0]);
+			spin_unlock(&adapter->tx_queue_lock);
+		}
+	} else
+		tx_cleaned = e1000_clean_tx_irq(adapter, &adapter->tx_ring[i]);
+
 	adapter->clean_rx(adapter, &adapter->rx_ring[i],
 	                  &work_done, work_to_do);
 
@@ -3428,11 +3436,11 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
 
+#ifdef CONFIG_E1000_MQ
+			tx_ring->tx_stats.bytes += buffer_info->length;
+#endif
 			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
-
-			tx_desc->buffer_addr = 0;
-			tx_desc->lower.data = 0;
-			tx_desc->upper.data = 0;
+			memset(tx_desc, 0, sizeof(struct e1000_tx_desc));
 
 			if(unlikely(++i == tx_ring->count)) i = 0;
 		}
