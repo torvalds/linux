@@ -37,7 +37,7 @@
 #ifndef _TIPC_BEARER_H
 #define _TIPC_BEARER_H
 
-#include <net/tipc/tipc_bearer.h>
+#include "core.h"
 #include "bcast.h"
 
 #define MAX_BEARERS 8

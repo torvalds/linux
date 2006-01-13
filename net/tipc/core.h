@@ -37,6 +37,11 @@
 #ifndef _TIPC_CORE_H
 #define _TIPC_CORE_H
 
+#include <linux/tipc.h>
+#include <linux/tipc_config.h>
+#include <net/tipc/tipc_msg.h>
+#include <net/tipc/tipc_port.h>
+#include <net/tipc/tipc_bearer.h>
 #include <net/tipc/tipc.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

@@ -37,7 +37,7 @@
 #ifndef _TIPC_MSG_H
 #define _TIPC_MSG_H
 
-#include <net/tipc/tipc_msg.h>
+#include "core.h"
 
 #define TIPC_VERSION              2
 #define DATA_LOW                  TIPC_LOW_IMPORTANCE

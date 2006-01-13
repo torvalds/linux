@@ -37,7 +37,7 @@
 #ifndef _TIPC_PORT_H
 #define _TIPC_PORT_H
 
-#include <net/tipc/tipc_port.h>
+#include "core.h"
 #include "ref.h"
 #include "net.h"
 #include "msg.h"

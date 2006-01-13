@@ -37,7 +37,7 @@
 #ifndef _TIPC_DISCOVER_H
 #define _TIPC_DISCOVER_H
 
-#include <linux/tipc.h>
+#include "core.h"
 
 struct link_req;
 
