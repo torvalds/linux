@@ -4382,6 +4382,7 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t ctrl, ctrl_ext, rctl, manc, status;
 	uint32_t wufc = adapter->wol;
+	int retval = 0;
 
 	netif_device_detach(netdev);
 
@@ -4427,13 +4428,21 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 
 		E1000_WRITE_REG(&adapter->hw, WUC, E1000_WUC_PME_EN);
 		E1000_WRITE_REG(&adapter->hw, WUFC, wufc);
-		pci_enable_wake(pdev, 3, 1);
-		pci_enable_wake(pdev, 4, 1); /* 4 == D3 cold */
+		retval = pci_enable_wake(pdev, PCI_D3hot, 1);
+		if (retval)
+			DPRINTK(PROBE, ERR, "Error enabling D3 wake\n");
+		retval = pci_enable_wake(pdev, PCI_D3cold, 1);
+		if (retval)
+			DPRINTK(PROBE, ERR, "Error enabling D3 cold wake\n");
 	} else {
 		E1000_WRITE_REG(&adapter->hw, WUC, 0);
 		E1000_WRITE_REG(&adapter->hw, WUFC, 0);
-		pci_enable_wake(pdev, 3, 0);
-		pci_enable_wake(pdev, 4, 0); /* 4 == D3 cold */
+		retval = pci_enable_wake(pdev, PCI_D3hot, 0);
+		if (retval)
+			DPRINTK(PROBE, ERR, "Error enabling D3 wake\n");
+		retval = pci_enable_wake(pdev, PCI_D3cold, 0); /* 4 == D3 cold */
+		if (retval)
+			DPRINTK(PROBE, ERR, "Error enabling D3 cold wake\n");
 	}
 
 	pci_save_state(pdev);
@@ -4444,8 +4453,12 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		if(manc & E1000_MANC_SMBUS_EN) {
 			manc |= E1000_MANC_ARP_EN;
 			E1000_WRITE_REG(&adapter->hw, MANC, manc);
-			pci_enable_wake(pdev, 3, 1);
-			pci_enable_wake(pdev, 4, 1); /* 4 == D3 cold */
+			retval = pci_enable_wake(pdev, PCI_D3hot, 1);
+			if (retval)
+				DPRINTK(PROBE, ERR, "Error enabling D3 wake\n");
+			retval = pci_enable_wake(pdev, PCI_D3cold, 1);
+			if (retval)
+				DPRINTK(PROBE, ERR, "Error enabling D3 cold wake\n");
 		}
 	}
 
@@ -4454,7 +4467,10 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	e1000_release_hw_control(adapter);
 
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	retval = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (retval)
+		DPRINTK(PROBE, ERR, "Error in setting power state\n");
 
 	return 0;
 }
@@ -4464,15 +4480,21 @@ e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	int retval;
 	uint32_t manc, ret_val;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
+	retval = pci_set_power_state(pdev, PCI_D0);
+	if (retval)
+		DPRINTK(PROBE, ERR, "Error in setting power state\n");
 	ret_val = pci_enable_device(pdev);
 	pci_set_master(pdev);
 
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-	pci_enable_wake(pdev, PCI_D3cold, 0);
+	retval = pci_enable_wake(pdev, PCI_D3hot, 0);
+	if (retval)
+		DPRINTK(PROBE, ERR, "Error enabling D3 wake\n");
+	retval = pci_enable_wake(pdev, PCI_D3cold, 0);
+	if (retval)
+		DPRINTK(PROBE, ERR, "Error enabling D3 cold wake\n");
 
 	e1000_reset(adapter);
 	E1000_WRITE_REG(&adapter->hw, WUS, ~0);
