@@ -80,7 +80,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/power3",
-		.oprofile_type		= RS64,
+		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "power3",
 	},
 	{	/* Power3+ */
@@ -94,7 +94,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/power3",
-		.oprofile_type		= RS64,
+		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "power3",
 	},
 	{	/* Northstar */
@@ -108,7 +108,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= RS64,
+		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
 	},
 	{	/* Pulsar */
@@ -122,7 +122,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= RS64,
+		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
 	},
 	{	/* I-star */
@@ -136,7 +136,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= RS64,
+		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
 	},
 	{	/* S-star */
@@ -150,7 +150,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
-		.oprofile_type		= RS64,
+		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
 	},
 	{	/* Power4 */
@@ -164,7 +164,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power4",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power4",
 	},
 	{	/* Power4+ */
@@ -178,7 +178,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power4",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power4",
 	},
 	{	/* PPC970 */
@@ -193,7 +193,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.oprofile_cpu_type	= "ppc64/970",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
 #endif /* CONFIG_PPC64 */
@@ -214,7 +214,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.oprofile_cpu_type	= "ppc64/970",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
 #endif /* defined(CONFIG_PPC64) || defined(CONFIG_POWER4) */
@@ -230,7 +230,7 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.oprofile_cpu_type	= "ppc64/970",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
 	{	/* Power5 GR */
@@ -244,7 +244,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power5",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power5",
 	},
 	{	/* Power5 GS */
@@ -258,7 +258,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power5+",
-		.oprofile_type		= POWER4,
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power5+",
 	},
 	{	/* Cell Broadband Engine */
@@ -559,7 +559,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7450 2.1 */
@@ -573,7 +573,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7450 2.3 and newer */
@@ -587,7 +587,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7455 rev 1.x */
@@ -601,7 +601,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7455 rev 2.0 */
@@ -615,7 +615,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7455 others */
@@ -629,7 +629,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7447/7457 Rev 1.0 */
@@ -643,7 +643,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7447/7457 Rev 1.1 */
@@ -657,7 +657,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7447/7457 Rev 1.2 and later */
@@ -671,7 +671,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7447A */
@@ -685,7 +685,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 7448 */
@@ -699,7 +699,7 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_745x,
 		.oprofile_cpu_type      = "ppc/7450",
-		.oprofile_type		= G4,
+		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
 	{	/* 82xx (8240, 8245, 8260 are all 603e cores) */
@@ -1056,7 +1056,7 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e500",
-		.oprofile_type		= BOOKE,
+		.oprofile_type		= PPC_OPROFILE_BOOKE,
 		.platform		= "ppc8540",
 	},
 	{	/* e500v2 */
@@ -1073,7 +1073,7 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e500",
-		.oprofile_type		= BOOKE,
+		.oprofile_type		= PPC_OPROFILE_BOOKE,
 		.platform		= "ppc8548",
 	},
 #endif

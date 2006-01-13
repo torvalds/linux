@@ -32,11 +32,11 @@ struct cpu_spec;
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
 
 enum powerpc_oprofile_type {
-	INVALID = 0,
-	RS64 = 1,
-	POWER4 = 2,
-	G4 = 3,
-	BOOKE = 4,
+	PPC_OPROFILE_INVALID = 0,
+	PPC_OPROFILE_RS64 = 1,
+	PPC_OPROFILE_POWER4 = 2,
+	PPC_OPROFILE_G4 = 3,
+	PPC_OPROFILE_BOOKE = 4,
 };
 
 struct cpu_spec {
