@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, "cpufreq-core", msg)
 
@@ -55,7 +56,7 @@ static DECLARE_RWSEM		(cpufreq_notifier_rwsem);
 
 
 static LIST_HEAD(cpufreq_governor_list);
-static DECLARE_MUTEX		(cpufreq_governor_sem);
+static DEFINE_MUTEX		(cpufreq_governor_mutex);
 
 struct cpufreq_policy * cpufreq_cpu_get(unsigned int cpu)
 {
@@ -297,18 +298,18 @@ static int cpufreq_parse_governor (char *str_governor, unsigned int *policy,
 		return -EINVAL;
 	} else {
 		struct cpufreq_governor *t;
-		down(&cpufreq_governor_sem);
+		mutex_lock(&cpufreq_governor_mutex);
 		if (!cpufreq_driver || !cpufreq_driver->target)
 			goto out;
 		list_for_each_entry(t, &cpufreq_governor_list, governor_list) {
 			if (!strnicmp(str_governor,t->name,CPUFREQ_NAME_LEN)) {
 				*governor = t;
-				up(&cpufreq_governor_sem);
+				mutex_unlock(&cpufreq_governor_mutex);
 				return 0;
 			}
 		}
 	out:
-		up(&cpufreq_governor_sem);
+		mutex_unlock(&cpufreq_governor_mutex);
 	}
 	return -EINVAL;
 }
@@ -1217,17 +1218,17 @@ int cpufreq_register_governor(struct cpufreq_governor *governor)
 	if (!governor)
 		return -EINVAL;
 
-	down(&cpufreq_governor_sem);
+	mutex_lock(&cpufreq_governor_mutex);
 	
 	list_for_each_entry(t, &cpufreq_governor_list, governor_list) {
 		if (!strnicmp(governor->name,t->name,CPUFREQ_NAME_LEN)) {
-			up(&cpufreq_governor_sem);
+			mutex_unlock(&cpufreq_governor_mutex);
 			return -EBUSY;
 		}
 	}
 	list_add(&governor->governor_list, &cpufreq_governor_list);
 
- 	up(&cpufreq_governor_sem);
+ 	mutex_unlock(&cpufreq_governor_mutex);
 
 	return 0;
 }
@@ -1239,9 +1240,9 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	if (!governor)
 		return;
 
-	down(&cpufreq_governor_sem);
+	mutex_lock(&cpufreq_governor_mutex);
 	list_del(&governor->governor_list);
-	up(&cpufreq_governor_sem);
+	mutex_unlock(&cpufreq_governor_mutex);
 	return;
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_governor);
