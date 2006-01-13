@@ -1628,6 +1628,7 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
 		/* Wake events only supported on port A for dual fiber */
 		if(E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1) {
 			wol->supported = 0;
@@ -1671,6 +1672,7 @@ e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
 		/* Wake events only supported on port A for dual fiber */
 		if(E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
 			return wol->wolopts ? -EOPNOTSUPP : 0;

@@ -439,6 +439,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82546GB_FIBER       0x107A
 #define E1000_DEV_ID_82546GB_SERDES      0x107B
 #define E1000_DEV_ID_82546GB_PCIE        0x108A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER 0x1099
 #define E1000_DEV_ID_82547EI             0x1019
 #define E1000_DEV_ID_82571EB_COPPER      0x105E
 #define E1000_DEV_ID_82571EB_FIBER       0x105F
@@ -449,6 +450,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82573E              0x108B
 #define E1000_DEV_ID_82573E_IAMT         0x108C
 #define E1000_DEV_ID_82573L              0x109A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
 
 
 #define NODE_ADDRESS_SIZE 6
@@ -1954,6 +1956,23 @@ struct e1000_host_command_info {
 #define E1000_WUPL_LENGTH_MASK 0x0FFF   /* Only the lower 12 bits are valid */
 
 #define E1000_MDALIGN          4096
+
+/* PCI-Ex registers */
+
+/* PCI-Ex Control Register */
+#define E1000_GCR_RXD_NO_SNOOP			0x00000001
+#define E1000_GCR_RXDSCW_NO_SNOOP		0x00000002
+#define E1000_GCR_RXDSCR_NO_SNOOP		0x00000004
+#define E1000_GCR_TXD_NO_SNOOP			0x00000008
+#define E1000_GCR_TXDSCW_NO_SNOOP		0x00000010
+#define E1000_GCR_TXDSCR_NO_SNOOP		0x00000020
+
+#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP		| \
+							 E1000_GCR_RXDSCW_NO_SNOOP	| \
+							 E1000_GCR_RXDSCR_NO_SNOOP	| \
+							 E1000_GCR TXD_NO_SNOOP		| \
+							 E1000_GCR_TXDSCW_NO_SNOOP	| \
+							 E1000_GCR_TXDSCR_NO_SNOOP)
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */

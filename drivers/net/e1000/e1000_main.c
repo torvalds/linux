@@ -97,7 +97,9 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x108A),
 	INTEL_E1000_ETHERNET_DEVICE(0x108B),
 	INTEL_E1000_ETHERNET_DEVICE(0x108C),
+	INTEL_E1000_ETHERNET_DEVICE(0x1099),
 	INTEL_E1000_ETHERNET_DEVICE(0x109A),
+	INTEL_E1000_ETHERNET_DEVICE(0x10B5),
 	/* required last entry */
 	{0,}
 };
@@ -791,8 +793,7 @@ e1000_probe(struct pci_dev *pdev,
 	case e1000_82546:
 	case e1000_82546_rev_3:
 	case e1000_82571:
-		if((E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_FUNC_1)
-		   && (adapter->hw.media_type == e1000_media_type_copper)) {
+		if(E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_FUNC_1){
 			e1000_read_eeprom(&adapter->hw,
 				EEPROM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
 			break;

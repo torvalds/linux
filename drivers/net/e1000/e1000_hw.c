@@ -318,6 +318,8 @@ e1000_set_mac_type(struct e1000_hw *hw)
     case E1000_DEV_ID_82546GB_FIBER:
     case E1000_DEV_ID_82546GB_SERDES:
     case E1000_DEV_ID_82546GB_PCIE:
+    case E1000_DEV_ID_82546GB_QUAD_COPPER:
+    case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
         hw->mac_type = e1000_82546_rev_3;
         break;
     case E1000_DEV_ID_82541EI:
@@ -639,6 +641,7 @@ e1000_init_hw(struct e1000_hw *hw)
     uint16_t cmd_mmrbc;
     uint16_t stat_mmrbc;
     uint32_t mta_size;
+    uint32_t ctrl_ext;
 
     DEBUGFUNC("e1000_init_hw");
 
@@ -773,6 +776,15 @@ e1000_init_hw(struct e1000_hw *hw)
      * is no link.
      */
     e1000_clear_hw_cntrs(hw);
+
+    if (hw->device_id == E1000_DEV_ID_82546GB_QUAD_COPPER ||
+        hw->device_id == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3) {
+        ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+        /* Relaxed ordering must be disabled to avoid a parity
+         * error crash in a PCI slot. */
+        ctrl_ext |= E1000_CTRL_EXT_RO_DIS;
+        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+    }
 
     return ret_val;
 }
