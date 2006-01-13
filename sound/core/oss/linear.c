@@ -106,7 +106,7 @@ static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
 	return frames;
 }
 
-int conv_index(int src_format, int dst_format)
+static int conv_index(int src_format, int dst_format)
 {
 	int src_endian, dst_endian, sign, src_width, dst_width;
 
