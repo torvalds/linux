@@ -2688,11 +2688,23 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	 * overrun the FIFO, adjust the max buffer len if mss
 	 * drops. */
 	if(mss) {
+		uint8_t hdr_len;
 		max_per_txd = min(mss << 2, max_per_txd);
 		max_txd_pwr = fls(max_per_txd) - 1;
+
+	/* TSO Workaround for 82571/2 Controllers -- if skb->data
+	 * points to just header, pull a few bytes of payload from
+	 * frags into skb->data */
+		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
+		if (skb->data_len && (hdr_len == (skb->len - skb->data_len)) &&
+			(adapter->hw.mac_type == e1000_82571 ||
+			adapter->hw.mac_type == e1000_82572)) {
+			len = skb->len - skb->data_len;
+		}
 	}
 
 	if((mss) || (skb->ip_summed == CHECKSUM_HW))
+	/* reserve a descriptor for the offload context */
 		count++;
 	count++;
 #else
@@ -2726,26 +2738,13 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if(adapter->pcix_82544)
 		count += nr_frags;
 
-#ifdef NETIF_F_TSO
-	/* TSO Workaround for 82571/2 Controllers -- if skb->data
-	 * points to just header, pull a few bytes of payload from 
-	 * frags into skb->data */
-	if (skb_shinfo(skb)->tso_size) {
-		uint8_t hdr_len;
-		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
-		if (skb->data_len && (hdr_len < (skb->len - skb->data_len)) && 
-			(adapter->hw.mac_type == e1000_82571 ||
-			adapter->hw.mac_type == e1000_82572)) {
-			unsigned int pull_size;
-			pull_size = min((unsigned int)4, skb->data_len);
-			if (!__pskb_pull_tail(skb, pull_size)) {
-				printk(KERN_ERR "__pskb_pull_tail failed.\n");
-				dev_kfree_skb_any(skb);
-				return -EFAULT;
-			}
+		unsigned int pull_size;
+		pull_size = min((unsigned int)4, skb->data_len);
+		if (!__pskb_pull_tail(skb, pull_size)) {
+			printk(KERN_ERR "__pskb_pull_tail failed.\n");
+			dev_kfree_skb_any(skb);
+			return -EFAULT;
 		}
-	}
-#endif
 
 	if(adapter->hw.tx_pkt_filtering && (adapter->hw.mac_type == e1000_82573) )
 		e1000_transfer_dhcp_info(adapter, skb);
