@@ -1326,22 +1326,33 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 static int
 e1000_setup_loopback_test(struct e1000_adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	uint32_t rctl;
 
-	if(adapter->hw.media_type == e1000_media_type_fiber ||
-	   adapter->hw.media_type == e1000_media_type_internal_serdes) {
-		if(adapter->hw.mac_type == e1000_82545 ||
-		   adapter->hw.mac_type == e1000_82546 ||
-		   adapter->hw.mac_type == e1000_82545_rev_3 ||
-		   adapter->hw.mac_type == e1000_82546_rev_3)
+	if (hw->media_type == e1000_media_type_fiber ||
+	    hw->media_type == e1000_media_type_internal_serdes) {
+		switch (hw->mac_type) {
+		case e1000_82545:
+		case e1000_82546:
+		case e1000_82545_rev_3:
+		case e1000_82546_rev_3:
 			return e1000_set_phy_loopback(adapter);
-		else {
-			rctl = E1000_READ_REG(&adapter->hw, RCTL);
+			break;
+		case e1000_82571:
+		case e1000_82572:
+#define E1000_SERDES_LB_ON 0x410
+			e1000_set_phy_loopback(adapter);
+			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_ON);
+			msec_delay(10);
+			return 0;
+			break;
+		default:
+			rctl = E1000_READ_REG(hw, RCTL);
 			rctl |= E1000_RCTL_LBM_TCVR;
-			E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
+			E1000_WRITE_REG(hw, RCTL, rctl);
 			return 0;
 		}
-	} else if(adapter->hw.media_type == e1000_media_type_copper)
+	} else if (hw->media_type == e1000_media_type_copper)
 		return e1000_set_phy_loopback(adapter);
 
 	return 7;
@@ -1350,27 +1361,38 @@ e1000_setup_loopback_test(struct e1000_adapter *adapter)
 static void
 e1000_loopback_cleanup(struct e1000_adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	uint32_t rctl;
 	uint16_t phy_reg;
 
-	rctl = E1000_READ_REG(&adapter->hw, RCTL);
+	rctl = E1000_READ_REG(hw, RCTL);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
-	E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
+	E1000_WRITE_REG(hw, RCTL, rctl);
 
-	if(adapter->hw.media_type == e1000_media_type_copper ||
-	   ((adapter->hw.media_type == e1000_media_type_fiber ||
-	     adapter->hw.media_type == e1000_media_type_internal_serdes) &&
-	    (adapter->hw.mac_type == e1000_82545 ||
-	     adapter->hw.mac_type == e1000_82546 ||
-	     adapter->hw.mac_type == e1000_82545_rev_3 ||
-	     adapter->hw.mac_type == e1000_82546_rev_3))) {
-		adapter->hw.autoneg = TRUE;
-		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &phy_reg);
-		if(phy_reg & MII_CR_LOOPBACK) {
-			phy_reg &= ~MII_CR_LOOPBACK;
-			e1000_write_phy_reg(&adapter->hw, PHY_CTRL, phy_reg);
-			e1000_phy_reset(&adapter->hw);
+	switch (hw->mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		if (hw->media_type == e1000_media_type_fiber ||
+		    hw->media_type == e1000_media_type_internal_serdes) {
+#define E1000_SERDES_LB_OFF 0x400
+			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_OFF);
+			msec_delay(10);
+			break;
 		}
+		/* Fall Through */
+	case e1000_82545:
+	case e1000_82546:
+	case e1000_82545_rev_3:
+	case e1000_82546_rev_3:
+	default:
+		hw->autoneg = TRUE;
+		e1000_read_phy_reg(hw, PHY_CTRL, &phy_reg);
+		if (phy_reg & MII_CR_LOOPBACK) {
+			phy_reg &= ~MII_CR_LOOPBACK;
+			e1000_write_phy_reg(hw, PHY_CTRL, phy_reg);
+			e1000_phy_reset(hw);
+		}
+		break;
 	}
 }
 
