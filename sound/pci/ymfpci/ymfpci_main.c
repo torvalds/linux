@@ -1229,6 +1229,7 @@ static int snd_ymfpci_spdif_default_get(struct snd_kcontrol *kcontrol,
 	spin_lock_irq(&chip->reg_lock);
 	ucontrol->value.iec958.status[0] = (chip->spdif_bits >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (chip->spdif_bits >> 8) & 0xff;
+	ucontrol->value.iec958.status[3] = IEC958_AES3_CON_FS_48000;
 	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
@@ -1303,6 +1304,7 @@ static int snd_ymfpci_spdif_stream_get(struct snd_kcontrol *kcontrol,
 	spin_lock_irq(&chip->reg_lock);
 	ucontrol->value.iec958.status[0] = (chip->spdif_pcm_bits >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (chip->spdif_pcm_bits >> 8) & 0xff;
+	ucontrol->value.iec958.status[3] = IEC958_AES3_CON_FS_48000;
 	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
