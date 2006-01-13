@@ -148,7 +148,6 @@ static int	WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag);
 static int	WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag);
 static int	WaitForDoorbellReply(MPT_ADAPTER *ioc, int howlong, int sleepFlag);
 static int	GetLanConfigPages(MPT_ADAPTER *ioc);
-static int	GetFcPortPage0(MPT_ADAPTER *ioc, int portnum);
 static int	GetIoUnitPage2(MPT_ADAPTER *ioc);
 int		mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
 static int	mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum);
@@ -1244,6 +1243,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->pcidev = pdev;
 	ioc->diagPending = 0;
 	spin_lock_init(&ioc->diagLock);
+	spin_lock_init(&ioc->fc_rescan_work_lock);
+	spin_lock_init(&ioc->fc_rport_lock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
 	/* Initialize the event logging.
@@ -1266,6 +1267,10 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Initialize the running configQ head.
 	 */
 	INIT_LIST_HEAD(&ioc->configQ);
+
+	/* Initialize the fc rport list head.
+	 */
+	INIT_LIST_HEAD(&ioc->fc_rports);
 
 	/* Find lookup slot. */
 	INIT_LIST_HEAD(&ioc->list);
@@ -1879,7 +1884,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			 *  (FCPortPage0_t stuff)
 			 */
 			for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
-				(void) GetFcPortPage0(ioc, ii);
+				(void) mptbase_GetFcPortPage0(ioc, ii);
 			}
 
 			if ((ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN) &&
@@ -4198,7 +4203,7 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	GetFcPortPage0 - Fetch FCPort config Page0.
+ *	mptbase_GetFcPortPage0 - Fetch FCPort config Page0.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@portnum: IOC Port number
  *
@@ -4208,8 +4213,8 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
  *		-EAGAIN if no msg frames currently available
  *		-EFAULT for non-successful reply or no reply (timeout)
  */
-static int
-GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
+int
+mptbase_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 {
 	ConfigPageHeader_t	 hdr;
 	CONFIGPARMS		 cfg;
@@ -4219,6 +4224,8 @@ GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 	int			 data_sz;
 	int			 copy_sz;
 	int			 rc;
+	int			 count = 400;
+
 
 	/* Get FCPort Page 0 header */
 	hdr.PageVersion = 0;
@@ -4242,6 +4249,8 @@ GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 	rc = -ENOMEM;
 	ppage0_alloc = (FCPortPage0_t *) pci_alloc_consistent(ioc->pcidev, data_sz, &page0_dma);
 	if (ppage0_alloc) {
+
+ try_again:
 		memset((u8 *)ppage0_alloc, 0, data_sz);
 		cfg.physAddr = page0_dma;
 		cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
@@ -4273,6 +4282,19 @@ GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			pp0dest->DiscoveredPortsCount = le32_to_cpu(pp0dest->DiscoveredPortsCount);
 			pp0dest->MaxInitiators = le32_to_cpu(pp0dest->MaxInitiators);
 
+			/*
+			 * if still doing discovery,
+			 * hang loose a while until finished
+			 */
+			if (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) {
+				if (count-- > 0) {
+					msleep_interruptible(100);
+					goto try_again;
+				}
+				printk(MYIOC_s_INFO_FMT "Firmware discovery not"
+							" complete.\n",
+						ioc->name);
+			}
 		}
 
 		pci_free_consistent(ioc->pcidev, data_sz, (u8 *) ppage0_alloc, page0_dma);
@@ -6357,6 +6379,7 @@ EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
 EXPORT_SYMBOL(mpt_alt_ioc_wait);
+EXPORT_SYMBOL(mptbase_GetFcPortPage0);
 
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

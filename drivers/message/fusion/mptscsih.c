@@ -893,6 +893,7 @@ mptscsih_flush_running_cmds(MPT_SCSI_HOST *hd)
  *		when a lun is disable by mid-layer.
  *		Do NOT access the referenced scsi_cmnd structure or
  *		members. Will cause either a paging or NULL ptr error.
+ *		(BUT, BUT, BUT, the code does reference it! - mdr)
  *      @hd: Pointer to a SCSI HOST structure
  *	@vdevice: per device private data
  *
@@ -2557,13 +2558,25 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 			hd->cmdPtr = NULL;
 		}
 
-		/* 7. Set flag to force DV and re-read IOC Page 3
+		/* 7. SPI: Set flag to force DV and re-read IOC Page 3
 		 */
 		if (ioc->bus_type == SPI) {
 			ioc->spi_data.forceDv = MPT_SCSICFG_NEED_DV | MPT_SCSICFG_RELOAD_IOC_PG3;
 			ddvtprintk(("Set reload IOC Pg3 Flag\n"));
 		}
 
+		/* 7. FC: Rescan for blocked rports which might have returned.
+		 */
+		else if (ioc->bus_type == FC) {
+			int work_count;
+			unsigned long flags;
+
+			spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+			work_count = ++ioc->fc_rescan_work_count;
+			spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
+			if (work_count == 1)
+				schedule_work(&ioc->fc_rescan_work);
+		}
 		dtmprintk((MYIOC_s_WARN_FMT "Post-Reset complete.\n", ioc->name));
 
 	}
@@ -2587,6 +2600,8 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
 	MPT_SCSI_HOST *hd;
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
+	int work_count;
+	unsigned long flags;
 
 	devtprintk((MYIOC_s_INFO_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
 			ioc->name, event));
@@ -2608,11 +2623,18 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 		/* FIXME! */
 		break;
 
+	case MPI_EVENT_RESCAN:				/* 06 */
+		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+		work_count = ++ioc->fc_rescan_work_count;
+		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
+		if (work_count == 1)
+			schedule_work(&ioc->fc_rescan_work);
+		break;
+
 		/*
 		 *  CHECKME! Don't think we need to do
 		 *  anything for these, but...
 		 */
-	case MPI_EVENT_RESCAN:				/* 06 */
 	case MPI_EVENT_LINK_STATUS_CHANGE:		/* 07 */
 	case MPI_EVENT_LOOP_STATE_CHANGE:		/* 08 */
 		/*
@@ -3950,8 +3972,6 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 		mptscsih_do_cmd(hd, &iocmd);
 }
 
-/* Search IOC page 3 to determine if this is hidden physical disk
- */
 /* Search IOC page 3 to determine if this is hidden physical disk
  */
 static int

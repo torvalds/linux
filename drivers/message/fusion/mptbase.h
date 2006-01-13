@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.05"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.05"
+#define MPT_LINUX_VERSION_COMMON	"3.03.06"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.06"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -499,6 +499,22 @@ typedef	struct _RaidCfgData {
 	int		 isRaid;		/* bit field, 1 if RAID */
 }RaidCfgData;
 
+#define MPT_RPORT_INFO_FLAGS_REGISTERED	0x01	/* rport registered */
+#define MPT_RPORT_INFO_FLAGS_MISSING	0x02	/* missing from DevPage0 scan */
+#define MPT_RPORT_INFO_FLAGS_MAPPED_VDEV 0x04	/* target mapped in vdev */
+
+/*
+ * data allocated for each fc rport device
+ */
+struct mptfc_rport_info
+{
+	struct list_head list;
+	struct fc_rport *rport;
+	VirtDevice	*vdev;
+	FCDevicePage0_t pg0;
+	u8		flags;
+};
+
 /*
  *  Adapter Structure - pci_dev specific. Maximum: MPT_MAX_ADAPTERS
  */
@@ -614,6 +630,13 @@ typedef struct _MPT_ADAPTER
 	struct list_head	 sas_topology;
 	struct mutex		 sas_topology_mutex;
 	MPT_SAS_MGMT		 sas_mgmt;
+
+	struct list_head	 fc_rports;
+	spinlock_t		 fc_rport_lock; /* list and ri flags */
+	spinlock_t		 fc_rescan_work_lock;
+	int			 fc_rescan_work_count;
+	struct work_struct	 fc_rescan_work;
+
 } MPT_ADAPTER;
 
 /*
@@ -1000,6 +1023,7 @@ extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
+extern int	 mptbase_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum);
 extern int	 mpt_alt_ioc_wait(MPT_ADAPTER *ioc);
 
 /*
