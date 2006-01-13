@@ -23,6 +23,7 @@
 #define _TUNER_H
 
 #include <linux/videodev2.h>
+#include <media/tuner-types.h>
 
 #define ADDR_UNSET (255)
 
