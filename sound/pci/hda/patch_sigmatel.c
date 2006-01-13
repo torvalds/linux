@@ -183,6 +183,7 @@ static struct snd_kcontrol_new stac922x_mixer[] = {
 		.put = stac92xx_mux_enum_put,
 	},
 	HDA_CODEC_VOLUME("Capture Volume", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mux Capture Volume", 0x12, 0x0, HDA_OUTPUT),
 	{ } /* end */
 };
