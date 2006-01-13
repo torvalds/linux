@@ -315,7 +315,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	}
 
 	if (pci_request_regions(pdev, OSM_DESCRIPTION)) {
-		printk(KERN_ERR "i2o: device already claimed\n", c->name);
+		printk(KERN_ERR "i2o: device already claimed\n");
 		return -ENODEV;
 	}
 
