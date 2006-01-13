@@ -6722,6 +6722,12 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
         break;
     }
 
+    /* PHY configuration from NVM just starts after EECD_AUTO_RD sets to high.
+     * Need to wait for PHY configuration completion before accessing NVM
+     * and PHY. */
+    if (hw->mac_type == e1000_82573)
+        msec_delay(25);
+
     return E1000_SUCCESS;
 }
 
