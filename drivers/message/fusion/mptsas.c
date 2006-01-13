@@ -457,7 +457,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	if (phy->identify.target_port_protocols & SAS_PROTOCOL_SMP)
 		return -ENXIO;
 
-	if (down_interruptible(&ioc->sas_mgmt.mutex))
+	if (mutex_lock_interruptible(&ioc->sas_mgmt.mutex))
 		goto out;
 
 	mf = mpt_get_msg_frame(mptsasMgmtCtx, ioc);
@@ -508,7 +508,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	error = 0;
 
  out_unlock:
-	up(&ioc->sas_mgmt.mutex);
+	mutex_unlock(&ioc->sas_mgmt.mutex);
  out:
 	return error;
 }
@@ -1477,7 +1477,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ioc->sas_topology);
 	mutex_init(&ioc->sas_topology_mutex);
 
-	init_MUTEX(&ioc->sas_mgmt.mutex);
+	mutex_init(&ioc->sas_mgmt.mutex);
 	init_completion(&ioc->sas_mgmt.done);
 
 	/* Verify that we won't exceed the maximum

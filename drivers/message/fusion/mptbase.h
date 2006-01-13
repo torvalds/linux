@@ -413,7 +413,7 @@ typedef struct _MPT_IOCTL {
 	u8			 status;	/* current command status */
 	u8			 reset;		/* 1 if bus reset allowed */
 	u8			 target;	/* target for reset */
-	struct semaphore	 sem_ioc;
+	struct mutex		 ioctl_mutex;
 } MPT_IOCTL;
 
 #define MPT_SAS_MGMT_STATUS_RF_VALID	0x02	/* The Reply Frame is VALID */
@@ -421,7 +421,7 @@ typedef struct _MPT_IOCTL {
 #define MPT_SAS_MGMT_STATUS_TM_FAILED	0x40	/* User TM request failed */
 
 typedef struct _MPT_SAS_MGMT {
-	struct semaphore	 mutex;
+	struct mutex		 mutex;
 	struct completion	 done;
 	u8			 reply[MPT_DEFAULT_FRAME_SIZE]; /* reply frame data */
 	u8			 status;	/* current command status */
