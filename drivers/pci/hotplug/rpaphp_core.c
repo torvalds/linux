@@ -393,22 +393,40 @@ static void __exit rpaphp_exit(void)
 	cleanup_slots();
 }
 
+static int __enable_slot(struct slot *slot)
+{
+	int state;
+	int retval;
+
+	if (slot->state == CONFIGURED)
+		return 0;
+
+	retval = rpaphp_get_sensor_state(slot, &state);
+	if (retval)
+		return retval;
+
+	if (state == PRESENT) {
+		pcibios_add_pci_devices(slot->bus);
+		slot->state = CONFIGURED;
+	} else if (state == EMPTY) {
+		slot->state = EMPTY;
+	} else {
+		err("%s: slot[%s] is in invalid state\n", __FUNCTION__, slot->name);
+		slot->state = NOT_VALID;
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
-	int retval = 0;
+	int retval;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
-	if (slot->state == CONFIGURED) {
-		dbg("%s: %s is already enabled\n", __FUNCTION__, slot->name);
-		goto exit;
-	}
-
-	dbg("ENABLING SLOT %s\n", slot->name);
 	down(&rpaphp_sem);
-	retval = rpaphp_enable_pci_slot(slot);
+	retval = __enable_slot(slot);
 	up(&rpaphp_sem);
-exit:
-	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
+
 	return retval;
 }
 

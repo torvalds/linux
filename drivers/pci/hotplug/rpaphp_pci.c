@@ -32,7 +32,7 @@
 #include "../pci.h"		/* for pci_add_new_bus */
 #include "rpaphp.h"
 
-static int rpaphp_get_sensor_state(struct slot *slot, int *state)
+int rpaphp_get_sensor_state(struct slot *slot, int *state)
 {
 	int rc;
 	int setlevel;
@@ -212,31 +212,3 @@ exit_rc:
 	return rc;
 }
 
-int rpaphp_enable_pci_slot(struct slot *slot)
-{
-	int retval = 0, state;
-
-	retval = rpaphp_get_sensor_state(slot, &state);
-	if (retval)
-		goto exit;
-	dbg("%s: sensor state[%d]\n", __FUNCTION__, state);
-	/* if slot is not empty, enable the adapter */
-	if (state == PRESENT) {
-		dbg("%s : slot[%s] is occupied.\n", __FUNCTION__, slot->name);
-		pcibios_add_pci_devices(slot->bus);
-		slot->state = CONFIGURED;
-		info("%s: devices in slot[%s] configured\n",
-					__FUNCTION__, slot->name);
-	} else if (state == EMPTY) {
-		dbg("%s : slot[%s] is empty\n", __FUNCTION__, slot->name);
-		slot->state = EMPTY;
-	} else {
-		err("%s: slot[%s] is in invalid state\n", __FUNCTION__,
-		    slot->name);
-		slot->state = NOT_VALID;
-		retval = -EINVAL;
-	}
-exit:
-	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
-	return retval;
-}
