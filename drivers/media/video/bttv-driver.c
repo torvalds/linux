@@ -48,46 +48,45 @@
 unsigned int bttv_num;			/* number of Bt848s in use */
 struct bttv bttvs[BTTV_MAX];
 
-unsigned int bttv_debug = 0;
+unsigned int bttv_debug;
 unsigned int bttv_verbose = 1;
-unsigned int bttv_gpio = 0;
+unsigned int bttv_gpio;
 
 /* config variables */
 #ifdef __BIG_ENDIAN
 static unsigned int bigendian=1;
 #else
-static unsigned int bigendian=0;
+static unsigned int bigendian;
 #endif
 static unsigned int radio[BTTV_MAX];
-static unsigned int irq_debug = 0;
+static unsigned int irq_debug;
 static unsigned int gbuffers = 8;
 static unsigned int gbufsize = 0x208000;
 
 static int video_nr = -1;
 static int radio_nr = -1;
 static int vbi_nr = -1;
-static int debug_latency = 0;
+static int debug_latency;
 
-static unsigned int fdsr = 0;
+static unsigned int fdsr;
 
 /* options */
-static unsigned int combfilter  = 0;
-static unsigned int lumafilter  = 0;
+static unsigned int combfilter;
+static unsigned int lumafilter;
 static unsigned int automute    = 1;
-static unsigned int chroma_agc  = 0;
+static unsigned int chroma_agc;
 static unsigned int adc_crush   = 1;
 static unsigned int whitecrush_upper = 0xCF;
 static unsigned int whitecrush_lower = 0x7F;
-static unsigned int vcr_hack    = 0;
-static unsigned int irq_iswitch = 0;
+static unsigned int vcr_hack;
+static unsigned int irq_iswitch;
 static unsigned int uv_ratio    = 50;
-static unsigned int full_luma_range = 0;
-static unsigned int coring      = 0;
+static unsigned int full_luma_range;
+static unsigned int coring;
 extern int no_overlay;
 
 /* API features (turn on/off stuff for testing) */
 static unsigned int v4l2        = 1;
-
 
 /* insmod args */
 module_param(bttv_verbose,      int, 0644);

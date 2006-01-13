@@ -92,8 +92,8 @@ static void identify_by_eeprom(struct bttv *btv,
 static int __devinit pvr_boot(struct bttv *btv);
 
 /* config variables */
-static unsigned int triton1=0;
-static unsigned int vsfx=0;
+static unsigned int triton1;
+static unsigned int vsfx;
 static unsigned int latency = UNSET;
 int no_overlay=-1;
 
@@ -106,7 +106,7 @@ static struct bttv  *master[BTTV_MAX] = { [ 0 ... (BTTV_MAX-1) ] = NULL };
 #ifdef MODULE
 static unsigned int autoload = 1;
 #else
-static unsigned int autoload = 0;
+static unsigned int autoload;
 #endif
 static unsigned int gpiomask = UNSET;
 static unsigned int audioall = UNSET;
