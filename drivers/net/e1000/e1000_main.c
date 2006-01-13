@@ -504,10 +504,8 @@ e1000_down(struct e1000_adapter *adapter)
 void
 e1000_reset(struct e1000_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
 	uint32_t pba, manc;
 	uint16_t fc_high_water_mark = E1000_FC_HIGH_DIFF;
-	uint16_t fc_low_water_mark = E1000_FC_LOW_DIFF;
 
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
@@ -531,15 +529,8 @@ e1000_reset(struct e1000_adapter *adapter)
 	}
 
 	if((adapter->hw.mac_type != e1000_82573) &&
-	   (adapter->netdev->mtu > E1000_RXBUFFER_8192)) {
+	   (adapter->netdev->mtu > E1000_RXBUFFER_8192))
 		pba -= 8; /* allocate more FIFO for Tx */
-		/* send an XOFF when there is enough space in the
-		 * Rx FIFO to hold one extra full size Rx packet 
-		*/
-		fc_high_water_mark = netdev->mtu + ENET_HEADER_SIZE + 
-					ETHERNET_FCS_SIZE + 1;
-		fc_low_water_mark = fc_high_water_mark + 8;
-	}
 
 
 	if(adapter->hw.mac_type == e1000_82547) {
@@ -553,10 +544,12 @@ e1000_reset(struct e1000_adapter *adapter)
 	E1000_WRITE_REG(&adapter->hw, PBA, pba);
 
 	/* flow control settings */
-	adapter->hw.fc_high_water = (pba << E1000_PBA_BYTES_SHIFT) -
-				    fc_high_water_mark;
-	adapter->hw.fc_low_water = (pba << E1000_PBA_BYTES_SHIFT) -
-				   fc_low_water_mark;
+	/* Set the FC high water mark to 90% of the FIFO size.
+	 * Required to clear last 3 LSB */
+	fc_high_water_mark = ((pba * 9216)/10) & 0xFFF8;
+
+	adapter->hw.fc_high_water = fc_high_water_mark;
+	adapter->hw.fc_low_water = fc_high_water_mark - 8;
 	adapter->hw.fc_pause_time = E1000_FC_PAUSE_TIME;
 	adapter->hw.fc_send_xon = 1;
 	adapter->hw.fc = adapter->hw.original_fc;

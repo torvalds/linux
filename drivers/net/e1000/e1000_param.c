@@ -388,7 +388,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 			e1000_validate_option(&fc, &opt, adapter);
 			adapter->hw.fc = adapter->hw.original_fc = fc;
 		} else {
-			adapter->hw.fc = opt.def;
+			adapter->hw.fc = adapter->hw.original_fc = opt.def;
 		}
 	}
 	{ /* Transmit Interrupt Delay */
