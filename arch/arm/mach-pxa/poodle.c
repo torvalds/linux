@@ -311,7 +311,6 @@ static void __init fixup_poodle(struct machine_desc *desc,
 }
 
 MACHINE_START(POODLE, "SHARP Poodle")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_poodle,

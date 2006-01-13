@@ -72,7 +72,6 @@ static void __init init_eval_h7202(void)
 
 MACHINE_START(H7202, "Hynix HMS30C7202")
 	/* Maintainer: Robert Schwebel, Pengutronix */
-	.phys_ram	= 0x40000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf0000000) >> 18) & 0xfffc,
 	.boot_params	= 0x40000100,
