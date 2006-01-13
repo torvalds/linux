@@ -1077,6 +1077,24 @@ static struct tuner_params tuner_tnf_5335mf_params[] = {
 	},
 };
 
+/* 70-79 */
+/* ------------ TUNER_SAMSUNG_TCPN_2121P30A - Samsung NTSC ------------ */
+
+static struct tuner_range tuner_samsung_tcpn_2121p30a_ntsc_ranges[] = {
+	{ 16 * 175.75 /*MHz*/, 0x01, },
+	{ 16 * 410.25 /*MHz*/, 0x02, },
+	{ 16 * 999.99        , 0x08, },
+};
+
+static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_samsung_tcpn_2121p30a_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_samsung_tcpn_2121p30a_ntsc_ranges),
+		.config = 0xce,
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1370,6 +1388,12 @@ struct tunertype tuners[] = {
 	[TUNER_TNF_5335MF] = { /* Philips NTSC */
 		.name   = "Tena TNF 5335 MF",
 		.params = tuner_tnf_5335mf_params,
+	},
+
+	/* 70-79 */
+	[TUNER_SAMSUNG_TCPN_2121P30A] = { /* Samsung NTSC */
+		.name   = "Samsung TCPN 2121P30A",
+		.params = tuner_samsung_tcpn_2121p30a_params,
 	},
 };
 
