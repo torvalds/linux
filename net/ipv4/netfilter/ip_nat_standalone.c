@@ -364,7 +364,7 @@ static int init_or_cleanup(int init)
 {
 	int ret = 0;
 
-	need_ip_conntrack();
+	need_conntrack();
 
 	if (!init) goto cleanup;
 

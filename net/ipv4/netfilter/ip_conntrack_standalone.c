@@ -944,7 +944,7 @@ module_exit(fini);
 
 /* Some modules need us, but don't depend directly on any symbol.
    They should call this. */
-void need_ip_conntrack(void)
+void need_conntrack(void)
 {
 }
 
@@ -962,7 +962,7 @@ EXPORT_SYMBOL(ip_ct_get_tuple);
 EXPORT_SYMBOL(invert_tuplepr);
 EXPORT_SYMBOL(ip_conntrack_alter_reply);
 EXPORT_SYMBOL(ip_conntrack_destroyed);
-EXPORT_SYMBOL(need_ip_conntrack);
+EXPORT_SYMBOL(need_conntrack);
 EXPORT_SYMBOL(ip_conntrack_helper_register);
 EXPORT_SYMBOL(ip_conntrack_helper_unregister);
 EXPORT_SYMBOL(ip_ct_iterate_cleanup);

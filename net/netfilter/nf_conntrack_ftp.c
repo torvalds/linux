@@ -545,11 +545,11 @@ static int help(struct sk_buff **pskb,
                    different IP address.  Simply don't record it for
                    NAT. */
 		if (cmd.l3num == PF_INET) {
-                	DEBUGP("conntrack_ftp: NOT RECORDING: %u,%u,%u,%u != %u.%u.%u.%u\n",
+                	DEBUGP("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT " != " NIPQUAD_FMT "\n",
 			       NIPQUAD(cmd.u3.ip),
 			       NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
 		} else {
-			DEBUGP("conntrack_ftp: NOT RECORDING: %x:%x:%x:%x:%x:%x:%x:%x != %x:%x:%x:%x:%x:%x:%x:%x\n",
+			DEBUGP("conntrack_ftp: NOT RECORDING: " NIP6_FMT " != " NIP6_FMT "\n",
 			       NIP6(*((struct in6_addr *)cmd.u3.ip6)),
 			       NIP6(*((struct in6_addr *)ct->tuplehash[dir]
 							.tuple.src.u3.ip6)));

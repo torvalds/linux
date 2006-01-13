@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 
 static int match(const struct sk_buff *skb, const struct net_device *in,
 		 const struct net_device *out, const void *matchinfo,
-		 int offset, int *hotdrop)
+		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_ttl_info *info = matchinfo;
 
@@ -47,7 +47,7 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 0;
 }
 
-static int checkentry(const char *tablename, const struct ipt_ip *ip,
+static int checkentry(const char *tablename, const void  *ip,
 		      void *matchinfo, unsigned int matchsize,
 		      unsigned int hook_mask)
 {

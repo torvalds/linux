@@ -40,7 +40,7 @@ static DEFINE_RWLOCK(masq_lock);
 /* FIXME: Multiple targets. --RR */
 static int
 masquerade_check(const char *tablename,
-		 const struct ipt_entry *e,
+		 const void *e,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)

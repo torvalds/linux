@@ -429,6 +429,7 @@ hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *out,
 		const void *matchinfo,
 		int offset,
+		unsigned int protoff,
 		int *hotdrop)
 {
 	struct ipt_hashlimit_info *r = 
@@ -504,7 +505,7 @@ hashlimit_match(const struct sk_buff *skb,
 
 static int
 hashlimit_checkentry(const char *tablename,
-		     const struct ipt_ip *ip,
+		     const void *inf,
 		     void *matchinfo,
 		     unsigned int matchsize,
 		     unsigned int hook_mask)

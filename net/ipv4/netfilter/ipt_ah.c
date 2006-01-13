@@ -41,6 +41,7 @@ match(const struct sk_buff *skb,
       const struct net_device *out,
       const void *matchinfo,
       int offset,
+      unsigned int protoff,
       int *hotdrop)
 {
 	struct ip_auth_hdr _ahdr, *ah;
@@ -50,7 +51,7 @@ match(const struct sk_buff *skb,
 	if (offset)
 		return 0;
 
-	ah = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
+	ah = skb_header_pointer(skb, protoff,
 				sizeof(_ahdr), &_ahdr);
 	if (ah == NULL) {
 		/* We've been asked to examine this packet, and we
@@ -69,12 +70,13 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-	   const struct ipt_ip *ip,
+	   const void *ip_void,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ipt_ah *ahinfo = matchinfo;
+	const struct ipt_ip *ip = ip_void;
 
 	/* Must specify proto == AH, and no unknown invflags */
 	if (ip->proto != IPPROTO_AH || (ip->invflags & IPT_INV_PROTO)) {

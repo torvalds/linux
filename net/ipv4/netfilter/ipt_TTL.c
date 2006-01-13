@@ -66,7 +66,7 @@ ipt_ttl_target(struct sk_buff **pskb, const struct net_device *in,
 }
 
 static int ipt_ttl_checkentry(const char *tablename,
-		const struct ipt_entry *e,
+		const void *e,
 		void *targinfo,
 		unsigned int targinfosize,
 		unsigned int hook_mask)

@@ -62,7 +62,7 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 }
 
 static int ip6t_hl_checkentry(const char *tablename,
-		const struct ip6t_entry *e,
+		const void *entry,
 		void *targinfo,
 		unsigned int targinfosize,
 		unsigned int hook_mask)

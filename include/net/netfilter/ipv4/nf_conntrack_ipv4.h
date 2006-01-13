@@ -37,7 +37,4 @@ struct nf_conntrack_ipv4 {
 struct sk_buff *
 nf_ct_ipv4_ct_gather_frags(struct sk_buff *skb);
 
-/* call to create an explicit dependency on nf_conntrack_l3proto_ipv4. */
-extern void need_ip_conntrack(void);
-
 #endif /*_NF_CONNTRACK_IPV4_H*/

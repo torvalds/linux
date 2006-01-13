@@ -210,12 +210,13 @@ static inline int find_syn_match(const struct ipt_entry_match *m)
 /* Must specify -p tcp --syn/--tcp-flags SYN */
 static int
 ipt_tcpmss_checkentry(const char *tablename,
-		      const struct ipt_entry *e,
+		      const void *e_void,
 		      void *targinfo,
 		      unsigned int targinfosize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
+	const struct ipt_entry *e = e_void;
 
 	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_tcpmss_info))) {
 		DEBUGP("ipt_tcpmss_checkentry: targinfosize %u != %u\n",

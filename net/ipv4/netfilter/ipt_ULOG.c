@@ -330,7 +330,7 @@ static void ipt_logfn(unsigned int pf,
 }
 
 static int ipt_ulog_checkentry(const char *tablename,
-			       const struct ipt_entry *e,
+			       const void *e,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hookmask)

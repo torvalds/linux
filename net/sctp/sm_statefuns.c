@@ -1036,14 +1036,14 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		if (from_addr.sa.sa_family == AF_INET6) {
 			printk(KERN_WARNING
 			       "%s association %p could not find address "
-			       "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			       NIP6_FMT "\n",
 			       __FUNCTION__,
 			       asoc,
 			       NIP6(from_addr.v6.sin6_addr));
 		} else {
 			printk(KERN_WARNING
 			       "%s association %p could not find address "
-			       "%u.%u.%u.%u\n",
+			       NIPQUAD_FMT "\n",
 			       __FUNCTION__,
 			       asoc,
 			       NIPQUAD(from_addr.v4.sin_addr.s_addr));
