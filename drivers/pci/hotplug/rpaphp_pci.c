@@ -116,24 +116,6 @@ static void print_slot_pci_funcs(struct pci_bus *bus)
 	return;
 }
 
-int rpaphp_config_pci_adapter(struct pci_bus *bus)
-{
-	struct device_node *dn = pci_bus_to_OF_node(bus);
-	int rc = -ENODEV;
-
-	dbg("Entry %s: slot[%s]\n", __FUNCTION__, dn->full_name);
-	if (!dn)
-		goto exit;
-
-	pcibios_add_pci_devices(bus);
-	print_slot_pci_funcs(bus);
-	rc = 0;
-exit:
-	dbg("Exit %s:  rc=%d\n", __FUNCTION__, rc);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(rpaphp_config_pci_adapter);
-
 static void rpaphp_eeh_remove_bus_device(struct pci_dev *dev)
 {
 	eeh_remove_device(dev);
@@ -225,10 +207,7 @@ static int setup_pci_slot(struct slot *slot)
 		if (slot->hotplug_slot->info->adapter_status == NOT_CONFIGURED) {
 			dbg("%s CONFIGURING pci adapter in slot[%s]\n",  
 				__FUNCTION__, slot->name);
-			if (rpaphp_config_pci_adapter(slot->bus)) {
-				err("%s: CONFIG pci adapter failed\n", __FUNCTION__);
-				goto exit_rc;		
-			}
+			pcibios_add_pci_devices(slot->bus);
 
 		} else if (slot->hotplug_slot->info->adapter_status != CONFIGURED) {
 			err("%s: slot[%s]'s adapter_status is NOT_VALID.\n",
@@ -274,16 +253,10 @@ int rpaphp_enable_pci_slot(struct slot *slot)
 	/* if slot is not empty, enable the adapter */
 	if (state == PRESENT) {
 		dbg("%s : slot[%s] is occupied.\n", __FUNCTION__, slot->name);
-		retval = rpaphp_config_pci_adapter(slot->bus);
-		if (!retval) {
-			slot->state = CONFIGURED;
-			info("%s: devices in slot[%s] configured\n",
+		pcibios_add_pci_devices(slot->bus);
+		slot->state = CONFIGURED;
+		info("%s: devices in slot[%s] configured\n",
 					__FUNCTION__, slot->name);
-		} else {
-			slot->state = NOT_CONFIGURED;
-			dbg("%s: no pci_dev struct for adapter in slot[%s]\n",
-			    __FUNCTION__, slot->name);
-		}
 	} else if (state == EMPTY) {
 		dbg("%s : slot[%s] is empty\n", __FUNCTION__, slot->name);
 		slot->state = EMPTY;
