@@ -87,6 +87,7 @@
 /* flags, set by mini-driver in bind() */
 
 #define UDSL_SKIP_HEAVY_INIT	(1<<0)
+#define UDSL_USE_ISOC		(1<<1)
 
 
 /* mini driver */
@@ -118,8 +119,9 @@ struct usbatm_driver {
 	/* cleanup ATM device ... can sleep, but can't fail */
 	void (*atm_stop) (struct usbatm_data *, struct atm_dev *);
 
-        int in;		/* rx endpoint */
-        int out;	/* tx endpoint */
+        int bulk_in;	/* bulk rx endpoint */
+        int isoc_in;	/* isochronous rx endpoint */
+        int bulk_out;	/* bulk tx endpoint */
 
 	unsigned rx_padding;
 	unsigned tx_padding;
@@ -134,6 +136,7 @@ struct usbatm_channel {
 	int endpoint;			/* usb pipe */
 	unsigned int stride;		/* ATM cell size + padding */
 	unsigned int buf_size;		/* urb buffer size */
+	unsigned int packet_size;	/* endpoint maxpacket */
 	spinlock_t lock;
 	struct list_head list;
 	struct tasklet_struct tasklet;

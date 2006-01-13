@@ -1049,16 +1049,22 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	init_completion(&instance->thread_exited);
 
 	INIT_LIST_HEAD(&instance->vcc_list);
+	skb_queue_head_init(&instance->sndqueue);
 
 	usbatm_init_channel(&instance->rx_channel);
 	usbatm_init_channel(&instance->tx_channel);
 	tasklet_init(&instance->rx_channel.tasklet, usbatm_rx_process, (unsigned long)instance);
 	tasklet_init(&instance->tx_channel.tasklet, usbatm_tx_process, (unsigned long)instance);
-	instance->rx_channel.endpoint = usb_rcvbulkpipe(usb_dev, driver->in);
-	instance->tx_channel.endpoint = usb_sndbulkpipe(usb_dev, driver->out);
 	instance->rx_channel.stride = ATM_CELL_SIZE + driver->rx_padding;
 	instance->tx_channel.stride = ATM_CELL_SIZE + driver->tx_padding;
 	instance->rx_channel.usbatm = instance->tx_channel.usbatm = instance;
+
+	if ((instance->flags & UDSL_USE_ISOC) && driver->isoc_in)
+		instance->rx_channel.endpoint = usb_rcvisocpipe(usb_dev, driver->isoc_in);
+	else
+		instance->rx_channel.endpoint = usb_rcvbulkpipe(usb_dev, driver->bulk_in);
+
+	instance->tx_channel.endpoint = usb_sndbulkpipe(usb_dev, driver->bulk_out);
 
 	/* tx buffer size must be a positive multiple of the stride */
 	instance->tx_channel.buf_size = max (instance->tx_channel.stride,
@@ -1080,6 +1086,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		num_packets--;
 
 	instance->rx_channel.buf_size = num_packets * maxpacket;
+	instance->rx_channel.packet_size = maxpacket;
 
 #ifdef DEBUG
 	for (i = 0; i < 2; i++) {
@@ -1090,22 +1097,16 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	}
 #endif
 
-	skb_queue_head_init(&instance->sndqueue);
+	/* initialize urbs */
 
 	for (i = 0; i < num_rcv_urbs + num_snd_urbs; i++) {
-		struct urb *urb;
 		u8 *buffer;
-		unsigned int iso_packets = 0, iso_size = 0;
 		struct usbatm_channel *channel = i < num_rcv_urbs ?
 			&instance->rx_channel : &instance->tx_channel;
+		struct urb *urb;
+		unsigned int iso_packets = usb_pipeisoc(channel->endpoint) ? channel->buf_size / channel->packet_size : 0;
 
-		if (usb_pipeisoc(channel->endpoint)) {
-			/* don't expect iso out endpoints */
-			iso_size = usb_maxpacket(instance->usb_dev, channel->endpoint, 0);
-			iso_size -= iso_size % channel->stride;	/* alignment */
-			BUG_ON(!iso_size);
-			iso_packets = (channel->buf_size - 1) / iso_size + 1;
-		}
+		UDSL_ASSERT(!usb_pipeisoc(channel->endpoint) || usb_pipein(channel->endpoint));
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {
@@ -1132,9 +1133,8 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 			urb->transfer_flags = URB_ISO_ASAP;
 			urb->number_of_packets = iso_packets;
 			for (j = 0; j < iso_packets; j++) {
-				urb->iso_frame_desc[j].offset = iso_size * j;
-				urb->iso_frame_desc[j].length = min_t(int, iso_size,
-								      channel->buf_size - urb->iso_frame_desc[j].offset);
+				urb->iso_frame_desc[j].offset = channel->packet_size * j;
+				urb->iso_frame_desc[j].length = channel->packet_size;
 			}
 		}
 

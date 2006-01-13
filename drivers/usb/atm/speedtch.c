@@ -35,6 +35,8 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/usb_ch9.h>
 #include <linux/workqueue.h>
 
 #include "usbatm.h"
@@ -66,23 +68,32 @@ static const char speedtch_driver_name[] = "speedtch";
 
 #define RESUBMIT_DELAY		1000	/* milliseconds */
 
-#define DEFAULT_ALTSETTING	1
+#define DEFAULT_BULK_ALTSETTING	1
+#define DEFAULT_ISOC_ALTSETTING	2
 #define DEFAULT_DL_512_FIRST	0
+#define DEFAULT_ENABLE_ISOC	0
 #define DEFAULT_SW_BUFFERING	0
 
-static int altsetting = DEFAULT_ALTSETTING;
+static unsigned int altsetting = 0; /* zero means: use the default */
 static int dl_512_first = DEFAULT_DL_512_FIRST;
+static int enable_isoc = DEFAULT_ENABLE_ISOC;
 static int sw_buffering = DEFAULT_SW_BUFFERING;
 
-module_param(altsetting, int, S_IRUGO | S_IWUSR);
+module_param(altsetting, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(altsetting,
-		 "Alternative setting for data interface (default: "
-		 __MODULE_STRING(DEFAULT_ALTSETTING) ")");
+		"Alternative setting for data interface (bulk_default: "
+		__MODULE_STRING(DEFAULT_BULK_ALTSETTING) "; isoc_default: "
+		__MODULE_STRING(DEFAULT_ISOC_ALTSETTING) ")");
 
 module_param(dl_512_first, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dl_512_first,
 		 "Read 512 bytes before sending firmware (default: "
 		 __MODULE_STRING(DEFAULT_DL_512_FIRST) ")");
+
+module_param(enable_isoc, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_isoc,
+		"Use isochronous transfers if available (default: "
+		__MODULE_STRING(DEFAULT_ENABLE_ISOC) ")");
 
 module_param(sw_buffering, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(sw_buffering,
@@ -91,7 +102,8 @@ MODULE_PARM_DESC(sw_buffering,
 
 #define INTERFACE_DATA		1
 #define ENDPOINT_INT		0x81
-#define ENDPOINT_DATA		0x07
+#define ENDPOINT_BULK_DATA	0x07
+#define ENDPOINT_ISOC_DATA	0x07
 #define ENDPOINT_FIRMWARE	0x05
 
 #define hex2int(c) ( (c >= '0') && (c <= '9') ? (c - '0') : ((c & 0xf) + 9) )
@@ -687,11 +699,12 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			 const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	struct usb_interface *cur_intf;
+	struct usb_interface *cur_intf, *data_intf;
 	struct speedtch_instance_data *instance;
 	int ifnum = intf->altsetting->desc.bInterfaceNumber;
 	int num_interfaces = usb_dev->actconfig->desc.bNumInterfaces;
 	int i, ret;
+	int use_isoc;
 
 	usb_dbg(usbatm, "%s entered\n", __func__);
 
@@ -699,6 +712,11 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	if (usb_dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC) {
 		usb_err(usbatm, "%s: wrong device class %d\n", __func__, usb_dev->descriptor.bDeviceClass);
+		return -ENODEV;
+	}
+
+	if (!(data_intf = usb_ifnum_to_if(usb_dev, INTERFACE_DATA))) {
+		usb_err(usbatm, "%s: data interface not found!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -728,8 +746,9 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	instance->usbatm = usbatm;
 
-	/* altsetting may change at any moment, so take a snapshot */
+	/* altsetting and enable_isoc may change at any moment, so take a snapshot */
 	instance->altsetting = altsetting;
+	use_isoc = enable_isoc;
 
 	if (instance->altsetting)
 		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
@@ -737,13 +756,43 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			instance->altsetting = 0; /* fall back to default */
 		}
 
-	if (!instance->altsetting) {
-		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_ALTSETTING)) < 0) {
-			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_ALTSETTING, ret);
+	if (!instance->altsetting && use_isoc)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_ISOC_ALTSETTING)) < 0) {
+			usb_dbg(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_ISOC_ALTSETTING, ret);
+			use_isoc = 0; /* fall back to bulk */
+		}
+
+	if (use_isoc) {
+		const struct usb_host_interface *desc = data_intf->cur_altsetting;
+		const __u8 target_address = USB_DIR_IN | usbatm->driver->isoc_in;
+		int i;
+
+		use_isoc = 0; /* fall back to bulk if endpoint not found */
+
+		for (i=0; i<desc->desc.bNumEndpoints; i++) {
+			const struct usb_endpoint_descriptor *endpoint_desc = &desc->endpoint[i].desc;
+
+			if ((endpoint_desc->bEndpointAddress == target_address)) {
+				use_isoc = (endpoint_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+					USB_ENDPOINT_XFER_ISOC;
+				break;
+			}
+		}
+
+		if (!use_isoc)
+			usb_info(usbatm, "isochronous transfer not supported - using bulk\n");
+	}
+
+	if (!use_isoc && !instance->altsetting)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_BULK_ALTSETTING)) < 0) {
+			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_BULK_ALTSETTING, ret);
 			goto fail_free;
 		}
-		instance->altsetting = DEFAULT_ALTSETTING;
-	}
+
+	if (!instance->altsetting)
+		instance->altsetting = use_isoc ? DEFAULT_ISOC_ALTSETTING : DEFAULT_BULK_ALTSETTING;
+
+	usbatm->flags |= (use_isoc ? UDSL_USE_ISOC : 0);
 
 	INIT_WORK(&instance->status_checker, (void *)speedtch_check_status, instance);
 
@@ -771,7 +820,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			      0x12, 0xc0, 0x07, 0x00,
 			      instance->scratch_buffer + OFFSET_7, SIZE_7, 500);
 
-	usbatm->flags = (ret == SIZE_7 ? UDSL_SKIP_HEAVY_INIT : 0);
+	usbatm->flags |= (ret == SIZE_7 ? UDSL_SKIP_HEAVY_INIT : 0);
 
 	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, usbatm->flags & UDSL_SKIP_HEAVY_INIT ? "already" : "not");
 
@@ -817,8 +866,9 @@ static struct usbatm_driver speedtch_usbatm_driver = {
 	.unbind		= speedtch_unbind,
 	.atm_start	= speedtch_atm_start,
 	.atm_stop	= speedtch_atm_stop,
-	.in		= ENDPOINT_DATA,
-	.out		= ENDPOINT_DATA
+	.bulk_in	= ENDPOINT_BULK_DATA,
+	.bulk_out	= ENDPOINT_BULK_DATA,
+	.isoc_in	= ENDPOINT_ISOC_DATA
 };
 
 static int speedtch_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)

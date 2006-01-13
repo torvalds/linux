@@ -210,8 +210,8 @@ static int __init xusbatm_init(void)
 		xusbatm_drivers[i].bind		= xusbatm_bind;
 		xusbatm_drivers[i].unbind	= xusbatm_unbind;
 		xusbatm_drivers[i].atm_start	= xusbatm_atm_start;
-		xusbatm_drivers[i].in		= rx_endpoint[i];
-		xusbatm_drivers[i].out		= tx_endpoint[i];
+		xusbatm_drivers[i].bulk_in	= rx_endpoint[i];
+		xusbatm_drivers[i].bulk_out	= tx_endpoint[i];
 		xusbatm_drivers[i].rx_padding	= rx_padding[i];
 		xusbatm_drivers[i].tx_padding	= tx_padding[i];
 	}

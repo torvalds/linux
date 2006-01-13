@@ -1705,8 +1705,8 @@ static struct usbatm_driver uea_usbatm_driver = {
 	.atm_start = uea_atm_open,
 	.unbind = uea_unbind,
 	.heavy_init = uea_heavy,
-	.in = UEA_BULK_DATA_PIPE,
-	.out = UEA_BULK_DATA_PIPE,
+	.bulk_in = UEA_BULK_DATA_PIPE,
+	.bulk_out = UEA_BULK_DATA_PIPE,
 };
 
 static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)

@@ -836,8 +836,8 @@ static struct usbatm_driver cxacru_driver = {
 	.heavy_init	= cxacru_heavy_init,
 	.unbind		= cxacru_unbind,
 	.atm_start	= cxacru_atm_start,
-	.in		= CXACRU_EP_DATA,
-	.out		= CXACRU_EP_DATA,
+	.bulk_in	= CXACRU_EP_DATA,
+	.bulk_out	= CXACRU_EP_DATA,
 	.rx_padding	= 3,
 	.tx_padding	= 11,
 };
