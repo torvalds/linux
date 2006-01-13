@@ -255,8 +255,8 @@ extern void _ubh_memcpyubh_(struct ufs_sb_private_info *, struct ufs_buffer_head
 	((struct ufs_super_block_first *)((ubh)->bh[0]->b_data))
 
 #define ubh_get_usb_second(ubh) \
-	((struct ufs_super_block_second *)(ubh)-> \
-	bh[UFS_SECTOR_SIZE >> uspi->s_fshift]->b_data + (UFS_SECTOR_SIZE & ~uspi->s_fmask))
+	((struct ufs_super_block_second *)((ubh)->\
+	bh[UFS_SECTOR_SIZE >> uspi->s_fshift]->b_data + (UFS_SECTOR_SIZE & ~uspi->s_fmask)))
 
 #define ubh_get_usb_third(ubh) \
 	((struct ufs_super_block_third *)((ubh)-> \
