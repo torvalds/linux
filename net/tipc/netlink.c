@@ -72,7 +72,6 @@ static struct genl_family family = {
         .version	= TIPC_GENL_VERSION,
         .hdrsize	= TIPC_GENL_HDRLEN,
         .maxattr	= 0,
-	.owner		= THIS_MODULE,
 };
 
 static struct genl_ops ops = {
