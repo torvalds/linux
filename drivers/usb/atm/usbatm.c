@@ -92,7 +92,7 @@ static int usbatm_print_packet(const unsigned char *data, int len);
 #endif
 
 #define DRIVER_AUTHOR	"Johan Verrept, Duncan Sands <duncan.sands@free.fr>"
-#define DRIVER_VERSION	"1.9"
+#define DRIVER_VERSION	"1.10"
 #define DRIVER_DESC	"Generic USB ATM/DSL I/O, version " DRIVER_VERSION
 
 static const char usbatm_driver_name[] = "usbatm";

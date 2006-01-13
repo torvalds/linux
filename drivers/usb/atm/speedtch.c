@@ -42,7 +42,7 @@
 #include "usbatm.h"
 
 #define DRIVER_AUTHOR	"Johan Verrept, Duncan Sands <duncan.sands@free.fr>"
-#define DRIVER_VERSION	"1.9"
+#define DRIVER_VERSION	"1.10"
 #define DRIVER_DESC	"Alcatel SpeedTouch USB driver version " DRIVER_VERSION
 
 static const char speedtch_driver_name[] = "speedtch";
