@@ -88,6 +88,7 @@
 
 #define UDSL_SKIP_HEAVY_INIT	(1<<0)
 #define UDSL_USE_ISOC		(1<<1)
+#define UDSL_IGNORE_EILSEQ	(1<<2)
 
 
 /* mini driver */
