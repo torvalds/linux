@@ -2078,7 +2078,10 @@ struct e1000_host_command_info {
 /* Collision related configuration parameters */
 #define E1000_COLLISION_THRESHOLD       15
 #define E1000_CT_SHIFT                  4
-#define E1000_COLLISION_DISTANCE        64
+/* Collision distance is a 0-based value that applies to
+ * half-duplex-capable hardware only. */
+#define E1000_COLLISION_DISTANCE        63
+#define E1000_COLLISION_DISTANCE_82542  64
 #define E1000_FDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_HDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_COLD_SHIFT                12

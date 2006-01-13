@@ -1342,6 +1342,7 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	uint64_t tdba;
 	struct e1000_hw *hw = &adapter->hw;
 	uint32_t tdlen, tctl, tipg, tarc;
+	uint32_t ipgr1, ipgr2;
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 
@@ -1375,22 +1376,26 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
 
+	if (hw->media_type == e1000_media_type_fiber ||
+	    hw->media_type == e1000_media_type_internal_serdes)
+		tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
+	else
+		tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
+
 	switch (hw->mac_type) {
 	case e1000_82542_rev2_0:
 	case e1000_82542_rev2_1:
 		tipg = DEFAULT_82542_TIPG_IPGT;
-		tipg |= DEFAULT_82542_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
-		tipg |= DEFAULT_82542_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
+		ipgr1 = DEFAULT_82542_TIPG_IPGR1;
+		ipgr2 = DEFAULT_82542_TIPG_IPGR2;
 		break;
 	default:
-		if (hw->media_type == e1000_media_type_fiber ||
-		    hw->media_type == e1000_media_type_internal_serdes)
-			tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
-		else
-			tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
-		tipg |= DEFAULT_82543_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
-		tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
+		ipgr1 = DEFAULT_82543_TIPG_IPGR1;
+		ipgr2 = DEFAULT_82543_TIPG_IPGR2;
+		break;
 	}
+	tipg |= ipgr1 << E1000_TIPG_IPGR1_SHIFT;
+	tipg |= ipgr2 << E1000_TIPG_IPGR2_SHIFT;
 	E1000_WRITE_REG(hw, TIPG, tipg);
 
 	/* Set the Tx Interrupt Delay register */
@@ -1600,7 +1605,10 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
-	if(adapter->hw.tbi_compatibility_on == 1)
+	if (adapter->hw.mac_type > e1000_82543)
+		rctl |= E1000_RCTL_SECRC;
+
+	if (adapter->hw.tbi_compatibility_on == 1)
 		rctl |= E1000_RCTL_SBP;
 	else
 		rctl &= ~E1000_RCTL_SBP;

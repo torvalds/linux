@@ -1933,14 +1933,19 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 void
 e1000_config_collision_dist(struct e1000_hw *hw)
 {
-    uint32_t tctl;
+    uint32_t tctl, coll_dist;
 
     DEBUGFUNC("e1000_config_collision_dist");
+
+    if (hw->mac_type < e1000_82543)
+        coll_dist = E1000_COLLISION_DISTANCE_82542;
+    else
+        coll_dist = E1000_COLLISION_DISTANCE;
 
     tctl = E1000_READ_REG(hw, TCTL);
 
     tctl &= ~E1000_TCTL_COLD;
-    tctl |= E1000_COLLISION_DISTANCE << E1000_COLD_SHIFT;
+    tctl |= coll_dist << E1000_COLD_SHIFT;
 
     E1000_WRITE_REG(hw, TCTL, tctl);
     E1000_WRITE_FLUSH(hw);
