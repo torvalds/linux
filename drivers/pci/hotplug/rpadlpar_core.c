@@ -103,13 +103,13 @@ static struct slot *find_slot(struct device_node *dn)
 	struct list_head *tmp, *n;
 	struct slot *slot;
 
-        list_for_each_safe(tmp, n, &rpaphp_slot_head) {
-                slot = list_entry(tmp, struct slot, rpaphp_slot_list);
-                if (slot->dn == dn)
-                        return slot;
-        }
+	list_for_each_safe(tmp, n, &rpaphp_slot_head) {
+		slot = list_entry(tmp, struct slot, rpaphp_slot_list);
+		if (slot->dn == dn)
+			return slot;
+	}
 
-        return NULL;
+	return NULL;
 }
 
 static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
@@ -126,9 +126,9 @@ static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
 	return NULL;
 }
 
-static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
+static void dlpar_pci_add_bus(struct device_node *dn)
 {
-	struct pci_dn *pdn = dn->data;
+	struct pci_dn *pdn = PCI_DN(dn);
 	struct pci_controller *phb = pdn->phb;
 	struct pci_dev *dev = NULL;
 
@@ -139,7 +139,7 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	if (!dev) {
 		printk(KERN_ERR "%s: failed to create pci dev for %s\n",
 				__FUNCTION__, dn->full_name);
-		return NULL;
+		return;
 	}
 
 	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
@@ -156,32 +156,32 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 
 	/* Add new devices to global lists.  Register in proc, sysfs. */
 	pci_bus_add_devices(phb->bus);
-
-	/* Confirm new bridge dev was created */
-	dev = dlpar_find_new_dev(phb->bus, dn);
-	if (dev) {
-		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
-			printk(KERN_ERR "%s: unexpected header type %d\n",
-				__FUNCTION__, dev->hdr_type);
-			return NULL;
-		}
-	}
-
-	return dev;
 }
 
 static int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 {
 	struct pci_dev *dev;
+	struct pci_controller *phb;
 
 	if (pcibios_find_pci_bus(dn))
 		return -EINVAL;
 
 	/* Add pci bus */
-	dev = dlpar_pci_add_bus(dn);
+	dlpar_pci_add_bus(dn);
+
+	/* Confirm new bridge dev was created */
+	phb = PCI_DN(dn)->phb;
+	dev = dlpar_find_new_dev(phb->bus, dn);
+
 	if (!dev) {
 		printk(KERN_ERR "%s: unable to add bus %s\n", __FUNCTION__,
 			drc_name);
+		return -EIO;
+	}
+
+	if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
+		printk(KERN_ERR "%s: unexpected header type %d, unable to add bus %s\n",
+			__FUNCTION__, dev->hdr_type, drc_name);
 		return -EIO;
 	}
 
