@@ -72,6 +72,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -199,7 +200,7 @@ static inline void usbatm_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 	if (vcc->pop)
 		vcc->pop(vcc, skb);
 	else
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 }
 
 
@@ -397,7 +398,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			if (!atm_charge(vcc, skb->truesize)) {
 				atm_rldbg(instance, "%s: failed atm_charge (skb->truesize: %u)!\n",
 						__func__, skb->truesize);
-				dev_kfree_skb(skb);
+				dev_kfree_skb_any(skb);
 				goto out;	/* atm_charge increments rx_drop */
 			}
 
