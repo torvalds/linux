@@ -99,12 +99,11 @@ static const char usbatm_driver_name[] = "usbatm";
 
 #define UDSL_MAX_RCV_URBS		16
 #define UDSL_MAX_SND_URBS		16
-#define UDSL_MAX_RCV_BUF_SIZE		1024	/* ATM cells */
-#define UDSL_MAX_SND_BUF_SIZE		1024	/* ATM cells */
+#define UDSL_MAX_BUF_SIZE		64 * 1024	/* bytes */
 #define UDSL_DEFAULT_RCV_URBS		4
 #define UDSL_DEFAULT_SND_URBS		4
-#define UDSL_DEFAULT_RCV_BUF_SIZE	64	/* ATM cells */
-#define UDSL_DEFAULT_SND_BUF_SIZE	64	/* ATM cells */
+#define UDSL_DEFAULT_RCV_BUF_SIZE	64 * ATM_CELL_SIZE	/* bytes */
+#define UDSL_DEFAULT_SND_BUF_SIZE	64 * ATM_CELL_SIZE	/* bytes */
 
 #define ATM_CELL_HEADER			(ATM_CELL_SIZE - ATM_CELL_PAYLOAD)
 
@@ -112,8 +111,8 @@ static const char usbatm_driver_name[] = "usbatm";
 
 static unsigned int num_rcv_urbs = UDSL_DEFAULT_RCV_URBS;
 static unsigned int num_snd_urbs = UDSL_DEFAULT_SND_URBS;
-static unsigned int rcv_buf_size = UDSL_DEFAULT_RCV_BUF_SIZE;
-static unsigned int snd_buf_size = UDSL_DEFAULT_SND_BUF_SIZE;
+static unsigned int rcv_buf_bytes = UDSL_DEFAULT_RCV_BUF_SIZE;
+static unsigned int snd_buf_bytes = UDSL_DEFAULT_SND_BUF_SIZE;
 
 module_param(num_rcv_urbs, uint, S_IRUGO);
 MODULE_PARM_DESC(num_rcv_urbs,
@@ -127,15 +126,15 @@ MODULE_PARM_DESC(num_snd_urbs,
 		 __MODULE_STRING(UDSL_MAX_SND_URBS) ", default: "
 		 __MODULE_STRING(UDSL_DEFAULT_SND_URBS) ")");
 
-module_param(rcv_buf_size, uint, S_IRUGO);
-MODULE_PARM_DESC(rcv_buf_size,
-		 "Size of the buffers used for reception in ATM cells (range: 1-"
-		 __MODULE_STRING(UDSL_MAX_RCV_BUF_SIZE) ", default: "
+module_param(rcv_buf_bytes, uint, S_IRUGO);
+MODULE_PARM_DESC(rcv_buf_bytes,
+		 "Size of the buffers used for reception, in bytes (range: 1-"
+		 __MODULE_STRING(UDSL_MAX_BUF_SIZE) ", default: "
 		 __MODULE_STRING(UDSL_DEFAULT_RCV_BUF_SIZE) ")");
 
-module_param(snd_buf_size, uint, S_IRUGO);
-MODULE_PARM_DESC(snd_buf_size,
-		 "Size of the buffers used for transmission in ATM cells (range: 1-"
+module_param(snd_buf_bytes, uint, S_IRUGO);
+MODULE_PARM_DESC(snd_buf_bytes,
+		 "Size of the buffers used for transmission, in bytes (range: 1-"
 		 __MODULE_STRING(UDSL_MAX_SND_BUF_SIZE) ", default: "
 		 __MODULE_STRING(UDSL_DEFAULT_SND_BUF_SIZE) ")");
 
@@ -430,14 +429,14 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 {
 	struct usbatm_control *ctrl = UDSL_SKB(skb);
 	struct atm_vcc *vcc = ctrl->atm.vcc;
-	unsigned int num_written;
+	unsigned int bytes_written;
 	unsigned int stride = instance->tx_channel.stride;
 
 	vdbg("%s: skb->len=%d, avail_space=%u", __func__, skb->len, avail_space);
 	UDSL_ASSERT(!(avail_space % stride));
 
-	for (num_written = 0; num_written < avail_space && ctrl->len;
-	     num_written += stride, target += stride) {
+	for (bytes_written = 0; bytes_written < avail_space && ctrl->len;
+	     bytes_written += stride, target += stride) {
 		unsigned int data_len = min_t(unsigned int, skb->len, ATM_CELL_PAYLOAD);
 		unsigned int left = ATM_CELL_PAYLOAD - data_len;
 		u8 *ptr = target;
@@ -480,7 +479,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 			ctrl->crc = crc32_be(ctrl->crc, ptr, left);
 	}
 
-	return num_written;
+	return bytes_written;
 }
 
 
@@ -524,7 +523,7 @@ static void usbatm_tx_process(unsigned long data)
 	struct sk_buff *skb = instance->current_skb;
 	struct urb *urb = NULL;
 	const unsigned int buf_size = instance->tx_channel.buf_size;
-	unsigned int num_written = 0;
+	unsigned int bytes_written = 0;
 	u8 *buffer = NULL;
 
 	if (!skb)
@@ -536,16 +535,16 @@ static void usbatm_tx_process(unsigned long data)
 			if (!urb)
 				break;		/* no more senders */
 			buffer = urb->transfer_buffer;
-			num_written = (urb->status == -EAGAIN) ?
+			bytes_written = (urb->status == -EAGAIN) ?
 				urb->transfer_buffer_length : 0;
 		}
 
-		num_written += usbatm_write_cells(instance, skb,
-						  buffer + num_written,
-						  buf_size - num_written);
+		bytes_written += usbatm_write_cells(instance, skb,
+						  buffer + bytes_written,
+						  buf_size - bytes_written);
 
 		vdbg("%s: wrote %u bytes from skb 0x%p to urb 0x%p",
-		     __func__, num_written, skb, urb);
+		     __func__, bytes_written, skb, urb);
 
 		if (!UDSL_SKB(skb)->len) {
 			struct atm_vcc *vcc = UDSL_SKB(skb)->atm.vcc;
@@ -556,8 +555,8 @@ static void usbatm_tx_process(unsigned long data)
 			skb = skb_dequeue(&instance->sndqueue);
 		}
 
-		if (num_written == buf_size || (!skb && num_written)) {
-			urb->transfer_buffer_length = num_written;
+		if (bytes_written == buf_size || (!skb && bytes_written)) {
+			urb->transfer_buffer_length = bytes_written;
 
 			if (usbatm_submit_urb(urb))
 				break;
@@ -990,6 +989,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	char *buf;
 	int error = -ENOMEM;
 	int i, length;
+	unsigned int maxpacket, num_packets;
 
 	dev_dbg(dev, "%s: trying driver %s with vendor=%04x, product=%04x, ifnum %2d\n",
 			__func__, driver->driver_name,
@@ -1058,9 +1058,37 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	instance->tx_channel.endpoint = usb_sndbulkpipe(usb_dev, driver->out);
 	instance->rx_channel.stride = ATM_CELL_SIZE + driver->rx_padding;
 	instance->tx_channel.stride = ATM_CELL_SIZE + driver->tx_padding;
-	instance->rx_channel.buf_size = rcv_buf_size * instance->rx_channel.stride;
-	instance->tx_channel.buf_size = snd_buf_size * instance->tx_channel.stride;
 	instance->rx_channel.usbatm = instance->tx_channel.usbatm = instance;
+
+	/* tx buffer size must be a positive multiple of the stride */
+	instance->tx_channel.buf_size = max (instance->tx_channel.stride,
+			snd_buf_bytes - (snd_buf_bytes % instance->tx_channel.stride));
+
+	/* rx buffer size must be a positive multiple of the endpoint maxpacket */
+	maxpacket = usb_maxpacket(usb_dev, instance->rx_channel.endpoint, 0);
+
+	if ((maxpacket < 1) || (maxpacket > UDSL_MAX_BUF_SIZE)) {
+		dev_err(dev, "%s: invalid endpoint %02x!\n", __func__,
+				usb_pipeendpoint(instance->rx_channel.endpoint));
+		error = -EINVAL;
+		goto fail_unbind;
+	}
+
+	num_packets = max (1U, (rcv_buf_bytes + maxpacket / 2) / maxpacket); /* round */
+
+	if (num_packets * maxpacket > UDSL_MAX_BUF_SIZE)
+		num_packets--;
+
+	instance->rx_channel.buf_size = num_packets * maxpacket;
+
+#ifdef DEBUG
+	for (i = 0; i < 2; i++) {
+		struct usbatm_channel *channel = i ?
+			&instance->tx_channel : &instance->rx_channel;
+
+		dev_dbg(dev, "%s: using %d byte buffer for %s channel 0x%p\n", __func__, channel->buf_size, i ? "tx" : "rx", channel);
+	}
+#endif
 
 	skb_queue_head_init(&instance->sndqueue);
 
@@ -1232,10 +1260,10 @@ static int __init usbatm_usb_init(void)
 
 	if ((num_rcv_urbs > UDSL_MAX_RCV_URBS)
 	    || (num_snd_urbs > UDSL_MAX_SND_URBS)
-	    || (rcv_buf_size < 1)
-	    || (rcv_buf_size > UDSL_MAX_RCV_BUF_SIZE)
-	    || (snd_buf_size < 1)
-	    || (snd_buf_size > UDSL_MAX_SND_BUF_SIZE))
+	    || (rcv_buf_bytes < 1)
+	    || (rcv_buf_bytes > UDSL_MAX_BUF_SIZE)
+	    || (snd_buf_bytes < 1)
+	    || (snd_buf_bytes > UDSL_MAX_BUF_SIZE))
 		return -EINVAL;
 
 	return 0;

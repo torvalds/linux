@@ -89,6 +89,7 @@ MODULE_PARM_DESC(sw_buffering,
 		 "Enable software buffering (default: "
 		 __MODULE_STRING(DEFAULT_SW_BUFFERING) ")");
 
+#define INTERFACE_DATA		1
 #define ENDPOINT_INT		0x81
 #define ENDPOINT_DATA		0x07
 #define ENDPOINT_FIRMWARE	0x05
@@ -97,6 +98,8 @@ MODULE_PARM_DESC(sw_buffering,
 
 struct speedtch_instance_data {
 	struct usbatm_data *usbatm;
+
+	unsigned int altsetting;
 
 	struct work_struct status_checker;
 
@@ -269,6 +272,11 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 	/* Delay to allow firmware to start up. We can do this here
 	   because we're in our own kernel thread anyway. */
 	msleep_interruptible(1000);
+
+	if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
+		usb_err(usbatm, "%s: setting interface to %d failed (%d)!\n", __func__, instance->altsetting, ret);
+		goto out_free;
+	}
 
 	/* Enable software buffering, if requested */
 	if (sw_buffering)
@@ -586,11 +594,6 @@ static int speedtch_atm_start(struct usbatm_data *usbatm, struct atm_dev *atm_de
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
-	if ((ret = usb_set_interface(usb_dev, 1, altsetting)) < 0) {
-		atm_dbg(usbatm, "%s: usb_set_interface returned %d!\n", __func__, ret);
-		return ret;
-	}
-
 	/* Set MAC address, it is stored in the serial number */
 	memset(atm_dev->esi, 0, sizeof(atm_dev->esi));
 	if (usb_string(usb_dev, usb_dev->descriptor.iSerialNumber, mac_str, sizeof(mac_str)) == 12) {
@@ -724,6 +727,23 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 	}
 
 	instance->usbatm = usbatm;
+
+	/* altsetting may change at any moment, so take a snapshot */
+	instance->altsetting = altsetting;
+
+	if (instance->altsetting)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
+			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, instance->altsetting, ret);
+			instance->altsetting = 0; /* fall back to default */
+		}
+
+	if (!instance->altsetting) {
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_ALTSETTING)) < 0) {
+			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_ALTSETTING, ret);
+			goto fail_free;
+		}
+		instance->altsetting = DEFAULT_ALTSETTING;
+	}
 
 	INIT_WORK(&instance->status_checker, (void *)speedtch_check_status, instance);
 
