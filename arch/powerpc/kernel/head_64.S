@@ -154,12 +154,12 @@ _GLOBAL(__secondary_hold)
 	bne	100b
 
 #ifdef CONFIG_HMT
-	LOADADDR(r4, .hmt_init)
+	SET_REG_IMMEDIATE(r4, .hmt_init)
 	mtctr	r4
 	bctr
 #else
 #ifdef CONFIG_SMP
-	LOADADDR(r4, .pSeries_secondary_smp_init)
+	LOAD_REG_IMMEDIATE(r4, .pSeries_secondary_smp_init)
 	mtctr	r4
 	mr	r3,r24
 	bctr
@@ -205,9 +205,10 @@ exception_marker:
 #define EX_LR		72
 
 /*
- * We're short on space and time in the exception prolog, so we can't use
- * the normal LOADADDR macro. Normally we just need the low halfword of the
- * address, but for Kdump we need the whole low word.
+ * We're short on space and time in the exception prolog, so we can't
+ * use the normal SET_REG_IMMEDIATE macro. Normally we just need the
+ * low halfword of the address, but for Kdump we need the whole low
+ * word.
  */
 #ifdef CONFIG_CRASH_DUMP
 #define LOAD_HANDLER(reg, label)					\
@@ -713,7 +714,7 @@ system_reset_iSeries:
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor
 					 * should start */
 	sync
-	LOADADDR(r3,current_set)
+	LOAD_REG_IMMEDIATE(r3,current_set)
 	sldi	r28,r24,3		/* get current_set[cpu#] */
 	ldx	r3,r3,r28
 	addi	r1,r3,THREAD_SIZE
@@ -746,8 +747,8 @@ iSeries_secondary_smp_loop:
 decrementer_iSeries_masked:
 	li	r11,1
 	stb	r11,PACALPPACA+LPPACADECRINT(r13)
-	LOADBASE(r12,tb_ticks_per_jiffy)
-	lwz	r12,OFF(tb_ticks_per_jiffy)(r12)
+	LOAD_REG_ADDRBASE(r12,tb_ticks_per_jiffy)
+	lwz	r12,ADDROFF(tb_ticks_per_jiffy)(r12)
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
@@ -1412,7 +1413,7 @@ _GLOBAL(pSeries_secondary_smp_init)
 	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
 	 */
-	LOADADDR(r13, paca) 		/* Get base vaddr of paca array	 */
+	LOAD_REG_IMMEDIATE(r13, paca)	/* Get base vaddr of paca array	 */
 	li	r5,0			/* logical cpu id                */
 1:	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
 	cmpw	r6,r24			/* Compare to our id             */
@@ -1446,8 +1447,8 @@ _GLOBAL(pSeries_secondary_smp_init)
 #ifdef CONFIG_PPC_ISERIES
 _STATIC(__start_initialization_iSeries)
 	/* Clear out the BSS */
-	LOADADDR(r11,__bss_stop)
-	LOADADDR(r8,__bss_start)
+	LOAD_REG_IMMEDIATE(r11,__bss_stop)
+	LOAD_REG_IMMEDIATE(r8,__bss_start)
 	sub	r11,r11,r8		/* bss size			*/
 	addi	r11,r11,7		/* round up to an even double word */
 	rldicl. r11,r11,61,3		/* shift right by 3		*/
@@ -1458,17 +1459,17 @@ _STATIC(__start_initialization_iSeries)
 3:	stdu	r0,8(r8)
 	bdnz	3b
 4:
-	LOADADDR(r1,init_thread_union)
+	LOAD_REG_IMMEDIATE(r1,init_thread_union)
 	addi	r1,r1,THREAD_SIZE
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
-	LOADADDR(r3,cpu_specs)
-	LOADADDR(r4,cur_cpu_spec)
+	LOAD_REG_IMMEDIATE(r3,cpu_specs)
+	LOAD_REG_IMMEDIATE(r4,cur_cpu_spec)
 	li	r5,0
 	bl	.identify_cpu
 
-	LOADADDR(r2,__toc_start)
+	LOAD_REG_IMMEDIATE(r2,__toc_start)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
 
@@ -1528,7 +1529,7 @@ _GLOBAL(__start_initialization_multiplatform)
 	li	r24,0
 
 	/* Switch off MMU if not already */
-	LOADADDR(r4, .__after_prom_start - KERNELBASE)
+	LOAD_REG_IMMEDIATE(r4, .__after_prom_start - KERNELBASE)
 	add	r4,r4,r30
 	bl	.__mmu_off
 	b	.__after_prom_start
@@ -1548,7 +1549,7 @@ _STATIC(__boot_from_prom)
 	/* put a relocation offset into r3 */
 	bl	.reloc_offset
 
-	LOADADDR(r2,__toc_start)
+	LOAD_REG_IMMEDIATE(r2,__toc_start)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
 
@@ -1588,9 +1589,9 @@ _STATIC(__after_prom_start)
  */
 	bl	.reloc_offset
 	mr	r26,r3
-	SET_REG_TO_CONST(r27,KERNELBASE)
+	LOAD_REG_IMMEDIATE(r27, KERNELBASE)
 
-	LOADADDR(r3, PHYSICAL_START)	/* target addr */
+	LOAD_REG_IMMEDIATE(r3, PHYSICAL_START)	/* target addr */
 
 	// XXX FIXME: Use phys returned by OF (r30)
 	add	r4,r27,r26 		/* source addr			 */
@@ -1598,7 +1599,7 @@ _STATIC(__after_prom_start)
 					/*   i.e. where we are running	 */
 					/*	the source addr		 */
 
-	LOADADDR(r5,copy_to_here)	/* # bytes of memory to copy	 */
+	LOAD_REG_IMMEDIATE(r5,copy_to_here) /* # bytes of memory to copy */
 	sub	r5,r5,r27
 
 	li	r6,0x100		/* Start offset, the first 0x100 */
@@ -1608,11 +1609,11 @@ _STATIC(__after_prom_start)
 					/* this includes the code being	 */
 					/* executed here.		 */
 
-	LOADADDR(r0, 4f)		/* Jump to the copy of this code */
+	LOAD_REG_IMMEDIATE(r0, 4f)	/* Jump to the copy of this code */
 	mtctr	r0			/* that we just made/relocated	 */
 	bctr
 
-4:	LOADADDR(r5,klimit)
+4:	LOAD_REG_IMMEDIATE(r5,klimit)
 	add	r5,r5,r26
 	ld	r5,0(r5)		/* get the value of klimit */
 	sub	r5,r5,r27
@@ -1694,7 +1695,7 @@ _GLOBAL(pmac_secondary_start)
 	mtmsrd	r3			/* RI on */
 
 	/* Set up a paca value for this processor. */
-	LOADADDR(r4, paca) 		 /* Get base vaddr of paca array	*/
+	LOAD_REG_IMMEDIATE(r4, paca)	/* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	 /* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
 	mtspr	SPRN_SPRG3,r13		 /* Save vaddr of paca in SPRG3	*/
@@ -1731,7 +1732,7 @@ _GLOBAL(__secondary_start)
 	bl	.early_setup_secondary
 
 	/* Initialize the kernel stack.  Just a repeat for iSeries.	 */
-	LOADADDR(r3,current_set)
+	LOAD_REG_ADDR(r3, current_set)
 	sldi	r28,r24,3		/* get current_set[cpu#]	 */
 	ldx	r1,r3,r28
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
@@ -1742,8 +1743,8 @@ _GLOBAL(__secondary_start)
 	mtlr	r7
 
 	/* enable MMU and jump to start_secondary */
-	LOADADDR(r3,.start_secondary_prolog)
-	SET_REG_TO_CONST(r4, MSR_KERNEL)
+	LOAD_REG_ADDR(r3, .start_secondary_prolog)
+	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
 #ifdef DO_SOFT_DISABLE
 	ori	r4,r4,MSR_EE
 #endif
@@ -1792,8 +1793,8 @@ _STATIC(start_here_multiplatform)
 	 * be detached from the kernel completely. Besides, we need
 	 * to clear it now for kexec-style entry.
 	 */
-	LOADADDR(r11,__bss_stop)
-	LOADADDR(r8,__bss_start)
+	LOAD_REG_IMMEDIATE(r11,__bss_stop)
+	LOAD_REG_IMMEDIATE(r8,__bss_start)
 	sub	r11,r11,r8		/* bss size			*/
 	addi	r11,r11,7		/* round up to an even double word */
 	rldicl. r11,r11,61,3		/* shift right by 3		*/
@@ -1831,7 +1832,7 @@ _STATIC(start_here_multiplatform)
 	/* up the htab.  This is done because we have relocated the  */
 	/* kernel but are still running in real mode. */
 
-	LOADADDR(r3,init_thread_union)
+	LOAD_REG_IMMEDIATE(r3,init_thread_union)
 	add	r3,r3,r26
 
 	/* set up a stack pointer (physical address) */
@@ -1840,14 +1841,14 @@ _STATIC(start_here_multiplatform)
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
 	/* set up the TOC (physical address) */
-	LOADADDR(r2,__toc_start)
+	LOAD_REG_IMMEDIATE(r2,__toc_start)
 	addi	r2,r2,0x4000
 	addi	r2,r2,0x4000
 	add	r2,r2,r26
 
-	LOADADDR(r3,cpu_specs)
+	LOAD_REG_IMMEDIATE(r3, cpu_specs)
 	add	r3,r3,r26
-	LOADADDR(r4,cur_cpu_spec)
+	LOAD_REG_IMMEDIATE(r4,cur_cpu_spec)
 	add	r4,r4,r26
 	mr	r5,r26
 	bl	.identify_cpu
@@ -1863,11 +1864,11 @@ _STATIC(start_here_multiplatform)
 	 * nowhere it can be initialized differently before we reach this
 	 * code
 	 */
-	LOADADDR(r27, boot_cpuid)
+	LOAD_REG_IMMEDIATE(r27, boot_cpuid)
 	add	r27,r27,r26
 	lwz	r27,0(r27)
 
-	LOADADDR(r24, paca) 		/* Get base vaddr of paca array	 */
+	LOAD_REG_IMMEDIATE(r24, paca) 	/* Get base vaddr of paca array	 */
 	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
 	add	r13,r13,r26		/* convert to physical addr	 */
@@ -1880,8 +1881,8 @@ _STATIC(start_here_multiplatform)
 	mr	r3,r31
  	bl	.early_setup
 
-	LOADADDR(r3,.start_here_common)
-	SET_REG_TO_CONST(r4, MSR_KERNEL)
+	LOAD_REG_IMMEDIATE(r3, .start_here_common)
+	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
 	rfid
@@ -1895,7 +1896,7 @@ _STATIC(start_here_common)
 	/* The following code sets up the SP and TOC now that we are */
 	/* running with translation enabled. */
 
-	LOADADDR(r3,init_thread_union)
+	LOAD_REG_IMMEDIATE(r3,init_thread_union)
 
 	/* set up the stack */
 	addi	r1,r3,THREAD_SIZE
@@ -1908,16 +1909,16 @@ _STATIC(start_here_common)
 	li	r3,0
 	bl	.do_cpu_ftr_fixups
 
-	LOADADDR(r26, boot_cpuid)
+	LOAD_REG_IMMEDIATE(r26, boot_cpuid)
 	lwz	r26,0(r26)
 
-	LOADADDR(r24, paca) 		/* Get base vaddr of paca array  */
+	LOAD_REG_IMMEDIATE(r24, paca)	/* Get base vaddr of paca array  */
 	mulli	r13,r26,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
 	mtspr	SPRN_SPRG3,r13
 
 	/* ptr to current */
-	LOADADDR(r4,init_task)
+	LOAD_REG_IMMEDIATE(r4, init_task)
 	std	r4,PACACURRENT(r13)
 
 	/* Load the TOC */
@@ -1940,7 +1941,7 @@ _STATIC(start_here_common)
 
 _GLOBAL(hmt_init)
 #ifdef CONFIG_HMT
-	LOADADDR(r5, hmt_thread_data)
+	LOAD_REG_IMMEDIATE(r5, hmt_thread_data)
 	mfspr	r7,SPRN_PVR
 	srwi	r7,r7,16
 	cmpwi	r7,0x34			/* Pulsar  */
@@ -1961,7 +1962,7 @@ _GLOBAL(hmt_init)
 	b	101f
 
 __hmt_secondary_hold:
-	LOADADDR(r5, hmt_thread_data)
+	LOAD_REG_IMMEDIATE(r5, hmt_thread_data)
 	clrldi	r5,r5,4
 	li	r7,0
 	mfspr	r6,SPRN_PIR
@@ -1989,7 +1990,7 @@ __hmt_secondary_hold:
 
 #ifdef CONFIG_HMT
 _GLOBAL(hmt_start_secondary)
-	LOADADDR(r4,__hmt_secondary_hold)
+	LOAD_REG_IMMEDIATE(r4,__hmt_secondary_hold)
 	clrldi	r4,r4,4
 	mtspr	SPRN_NIADORM, r4
 	mfspr	r4, SPRN_MSRDORM
