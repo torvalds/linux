@@ -80,6 +80,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_deferred_ok", E1000_STAT(stats.dc) },
 	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
 	{ "tx_multi_coll_ok", E1000_STAT(stats.mcc) },
+	{ "tx_timeout_count", E1000_STAT(tx_timeout_count) },
 	{ "rx_long_length_errors", E1000_STAT(stats.roc) },
 	{ "rx_short_length_errors", E1000_STAT(stats.ruc) },
 	{ "rx_align_errors", E1000_STAT(stats.algnerrc) },
@@ -93,6 +94,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
 	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
 	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
+	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
 };
 #define E1000_STATS_LEN	\
 	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)

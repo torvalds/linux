@@ -275,6 +275,7 @@ struct e1000_adapter {
 	uint64_t gotcl_old;
 	uint64_t tpt_old;
 	uint64_t colc_old;
+	uint32_t tx_timeout_count;
 	uint32_t tx_fifo_head;
 	uint32_t tx_head_addr;
 	uint32_t tx_fifo_size;
@@ -307,6 +308,7 @@ struct e1000_adapter {
 	uint64_t hw_csum_err;
 	uint64_t hw_csum_good;
 	uint64_t rx_hdr_split;
+	uint32_t alloc_rx_buff_failed;
 	uint32_t rx_int_delay;
 	uint32_t rx_abs_int_delay;
 	boolean_t rx_csum;

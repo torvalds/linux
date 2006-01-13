@@ -2902,6 +2902,7 @@ e1000_tx_timeout_task(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
+	adapter->tx_timeout_count++;
 	e1000_down(adapter);
 	e1000_up(adapter);
 }
@@ -2919,7 +2920,7 @@ e1000_get_stats(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	e1000_update_stats(adapter);
+	/* only return the current stats */
 	return &adapter->net_stats;
 }
 
@@ -3106,12 +3107,11 @@ e1000_update_stats(struct e1000_adapter *adapter)
 
 	adapter->net_stats.rx_errors = adapter->stats.rxerrc +
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
-		adapter->stats.rlec + adapter->stats.mpc + 
-		adapter->stats.cexterr;
+		adapter->stats.rlec + adapter->stats.cexterr;
+	adapter->net_stats.rx_dropped = 0;
 	adapter->net_stats.rx_length_errors = adapter->stats.rlec;
 	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
 	adapter->net_stats.rx_frame_errors = adapter->stats.algnerrc;
-	adapter->net_stats.rx_fifo_errors = adapter->stats.mpc;
 	adapter->net_stats.rx_missed_errors = adapter->stats.mpc;
 
 	/* Tx Errors */
