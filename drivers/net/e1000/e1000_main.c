@@ -3403,15 +3403,13 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		/* Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
 		adapter->detect_tx_hung = FALSE;
-		if (tx_ring->buffer_info[i].dma &&
-		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp + HZ)
+		if (tx_ring->buffer_info[eop].dma &&
+		    time_after(jiffies, tx_ring->buffer_info[eop].time_stamp +
+		               adapter->tx_timeout_factor * HZ)
 		    && !(E1000_READ_REG(&adapter->hw, STATUS) &
-			E1000_STATUS_TXOFF)) {
+		         E1000_STATUS_TXOFF)) {
 
 			/* detected Tx unit hang */
-			i = tx_ring->next_to_clean;
-			eop = tx_ring->buffer_info[i].next_to_watch;
-			eop_desc = E1000_TX_DESC(*tx_ring, eop);
 			DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
 					"  Tx Queue             <%lu>\n"
 					"  TDH                  <%x>\n"
@@ -3419,7 +3417,6 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 					"  next_to_use          <%x>\n"
 					"  next_to_clean        <%x>\n"
 					"buffer_info[next_to_clean]\n"
-					"  dma                  <%llx>\n"
 					"  time_stamp           <%lx>\n"
 					"  next_to_watch        <%x>\n"
 					"  jiffies              <%lx>\n"
@@ -3429,9 +3426,8 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 				readl(adapter->hw.hw_addr + tx_ring->tdh),
 				readl(adapter->hw.hw_addr + tx_ring->tdt),
 				tx_ring->next_to_use,
-				i,
-				(unsigned long long)tx_ring->buffer_info[i].dma,
-				tx_ring->buffer_info[i].time_stamp,
+				tx_ring->next_to_clean,
+				tx_ring->buffer_info[eop].time_stamp,
 				eop,
 				jiffies,
 				eop_desc->upper.fields.status);
