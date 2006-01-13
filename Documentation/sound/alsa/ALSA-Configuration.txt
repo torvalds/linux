@@ -815,6 +815,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   ------------------
 
     Module for Envy24HT (VT/ICE1724), Envy24PT (VT1720) based PCI sound cards.
+			* MidiMan M Audio Revolution 5.1
 			* MidiMan M Audio Revolution 7.1
 			* AMP Ltd AUDIO2000
 			* TerraTec Aureon 5.1 Sky
@@ -823,6 +824,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			* TerraTec Phase 22
 			* TerraTec Phase 28
 			* AudioTrak Prodigy 7.1
+			* AudioTrak Prodigy 7.1LT
 			* AudioTrak Prodigy 192
 			* Pontis MS300
 			* Albatron K8X800 Pro II 
@@ -833,9 +835,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			* Shuttle SN25P
 
     model       - Use the given board model, one of the following:
-		  revo71, amp2000, prodigy71, prodigy192, aureon51,
-		  aureon71, universe, k8x800, phase22, phase28, ms300,
-		  av710
+		  revo51, revo71, amp2000, prodigy71, prodigy71lt,
+		  prodigy192, aureon51, aureon71, universe,
+		  k8x800, phase22, phase28, ms300, av710
 
     This module supports multiple cards and autoprobe.
 
