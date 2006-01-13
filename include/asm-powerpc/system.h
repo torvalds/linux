@@ -212,7 +212,7 @@ __xchg_u32(volatile void *p, unsigned long val)
 	unsigned long prev;
 
 	__asm__ __volatile__(
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:	lwarx	%0,0,%2 \n"
 	PPC405_ERR77(0,%2)
 "	stwcx.	%3,0,%2 \n\
@@ -232,7 +232,7 @@ __xchg_u64(volatile void *p, unsigned long val)
 	unsigned long prev;
 
 	__asm__ __volatile__(
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:	ldarx	%0,0,%2 \n"
 	PPC405_ERR77(0,%2)
 "	stdcx.	%3,0,%2 \n\
@@ -287,7 +287,7 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 	unsigned int prev;
 
 	__asm__ __volatile__ (
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:	lwarx	%0,0,%2		# __cmpxchg_u32\n\
 	cmpw	0,%0,%3\n\
 	bne-	2f\n"
@@ -311,7 +311,7 @@ __cmpxchg_u64(volatile unsigned long *p, unsigned long old, unsigned long new)
 	unsigned long prev;
 
 	__asm__ __volatile__ (
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:	ldarx	%0,0,%2		# __cmpxchg_u64\n\
 	cmpd	0,%0,%3\n\
 	bne-	2f\n\

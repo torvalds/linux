@@ -11,7 +11,7 @@
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \
   __asm__ __volatile ( \
-	SYNC_ON_SMP \
+	LWSYNC_ON_SMP \
 "1:	lwarx	%0,0,%2\n" \
 	insn \
 	PPC405_ERR77(0, %2) \
