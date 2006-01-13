@@ -296,6 +296,7 @@ struct e1000_adapter {
 	uint32_t tx_fifo_head;
 	uint32_t tx_head_addr;
 	uint32_t tx_fifo_size;
+	uint8_t  tx_timeout_factor;
 	atomic_t tx_fifo_stall;
 	boolean_t pcix_82544;
 	boolean_t detect_tx_hung;

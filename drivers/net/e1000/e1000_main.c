@@ -2319,6 +2319,21 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 			       adapter->link_duplex == FULL_DUPLEX ?
 			       "Full Duplex" : "Half Duplex");
 
+			/* tweak tx_queue_len according to speed/duplex */
+			netdev->tx_queue_len = adapter->tx_queue_len;
+			adapter->tx_timeout_factor = 1;
+			if (adapter->link_duplex == HALF_DUPLEX) {
+				switch (adapter->link_speed) {
+				case SPEED_10:
+					netdev->tx_queue_len = 10;
+					adapter->tx_timeout_factor = 8;
+					break;
+				case SPEED_100:
+					netdev->tx_queue_len = 100;
+					break;
+				}
+			}
+
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, jiffies + 2 * HZ);
