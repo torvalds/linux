@@ -19,6 +19,7 @@
 #define PPC_FEATURE_POWER5		0x00040000
 #define PPC_FEATURE_POWER5_PLUS		0x00020000
 #define PPC_FEATURE_CELL		0x00010000
+#define PPC_FEATURE_BOOKE		0x00008000
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -64,6 +65,9 @@ struct cpu_spec {
 
 	/* Processor specific oprofile operations */
 	enum powerpc_oprofile_type oprofile_type;
+
+	/* Name of processor class, for the ELF AT_PLATFORM entry */
+	char		*platform;
 };
 
 extern struct cpu_spec		*cur_cpu_spec;
