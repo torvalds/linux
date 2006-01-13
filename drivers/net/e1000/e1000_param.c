@@ -177,7 +177,7 @@ E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
  *
  * Valid Range: 100-100000 (0=off, 1=dynamic)
  *
- * Default Value: 1
+ * Default Value: 8000
  */
 
 E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
