@@ -319,7 +319,75 @@ e1000_update_mng_vlan(struct e1000_adapter *adapter)
 		}
 	}
 }
-	
+
+/**
+ * e1000_release_hw_control - release control of the h/w to f/w
+ * @adapter: address of board private structure
+ *
+ * e1000_release_hw_control resets {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * For ASF and Pass Through versions of f/w this means that the
+ * driver is no longer loaded. For AMT version (only with 82573) i
+ * of the f/w this means that the netowrk i/f is closed.
+ * 
+ **/
+
+static inline void 
+e1000_release_hw_control(struct e1000_adapter *adapter)
+{
+	uint32_t ctrl_ext;
+	uint32_t swsm;
+
+	/* Let firmware taken over control of h/w */
+	switch (adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
+		break;
+	case e1000_82573:
+		swsm = E1000_READ_REG(&adapter->hw, SWSM);
+		E1000_WRITE_REG(&adapter->hw, SWSM,
+				swsm & ~E1000_SWSM_DRV_LOAD);
+	default:
+		break;
+	}
+}
+
+/**
+ * e1000_get_hw_control - get control of the h/w from f/w
+ * @adapter: address of board private structure
+ *
+ * e1000_get_hw_control sets {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * For ASF and Pass Through versions of f/w this means that 
+ * the driver is loaded. For AMT version (only with 82573) 
+ * of the f/w this means that the netowrk i/f is open.
+ * 
+ **/
+
+static inline void 
+e1000_get_hw_control(struct e1000_adapter *adapter)
+{
+	uint32_t ctrl_ext;
+	uint32_t swsm;
+	/* Let firmware know the driver has taken over */
+	switch (adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
+		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
+				ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
+		break;
+	case e1000_82573:
+		swsm = E1000_READ_REG(&adapter->hw, SWSM);
+		E1000_WRITE_REG(&adapter->hw, SWSM,
+				swsm | E1000_SWSM_DRV_LOAD);
+		break;
+	default:
+		break;
+	}
+}
+
 int
 e1000_up(struct e1000_adapter *adapter)
 {
@@ -523,8 +591,6 @@ e1000_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct e1000_adapter *adapter;
 	unsigned long mmio_start, mmio_len;
-	uint32_t ctrl_ext;
-	uint32_t swsm;
 
 	static int cards_found = 0;
 	int i, err, pci_using_dac;
@@ -736,22 +802,13 @@ e1000_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	e1000_reset(adapter);
 
-	/* Let firmware know the driver has taken over */
-	switch(adapter->hw.mac_type) {
-	case e1000_82571:
-	case e1000_82572:
-		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
-		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
-				ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
-		break;
-	case e1000_82573:
-		swsm = E1000_READ_REG(&adapter->hw, SWSM);
-		E1000_WRITE_REG(&adapter->hw, SWSM,
-				swsm | E1000_SWSM_DRV_LOAD);
-		break;
-	default:
-		break;
-	}
+	/* If the controller is 82573 and f/w is AMT, do not set
+	 * DRV_LOAD until the interface is up.  For all other cases,
+	 * let the f/w know that the h/w is now under the control
+	 * of the driver. */
+	if (adapter->hw.mac_type != e1000_82573 ||
+	    !e1000_check_mng_mode(&adapter->hw))
+		e1000_get_hw_control(adapter);
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev)))
@@ -788,8 +845,7 @@ e1000_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	uint32_t ctrl_ext;
-	uint32_t manc, swsm;
+	uint32_t manc;
 #ifdef CONFIG_E1000_NAPI
 	int i;
 #endif
@@ -805,22 +861,9 @@ e1000_remove(struct pci_dev *pdev)
 		}
 	}
 
-	switch(adapter->hw.mac_type) {
-	case e1000_82571:
-	case e1000_82572:
-		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
-		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
-				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
-		break;
-	case e1000_82573:
-		swsm = E1000_READ_REG(&adapter->hw, SWSM);
-		E1000_WRITE_REG(&adapter->hw, SWSM,
-				swsm & ~E1000_SWSM_DRV_LOAD);
-		break;
-
-	default:
-		break;
-	}
+	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
+	 * would have already happened in close and is redundant. */
+	e1000_release_hw_control(adapter);
 
 	unregister_netdev(netdev);
 #ifdef CONFIG_E1000_NAPI
@@ -1077,6 +1120,12 @@ e1000_open(struct net_device *netdev)
 		e1000_update_mng_vlan(adapter);
 	}
 
+	/* If AMT is enabled, let the firmware know that the network
+	 * interface is now open */
+	if (adapter->hw.mac_type == e1000_82573 &&
+	    e1000_check_mng_mode(&adapter->hw))
+		e1000_get_hw_control(adapter);
+
 	return E1000_SUCCESS;
 
 err_up:
@@ -1115,6 +1164,13 @@ e1000_close(struct net_device *netdev)
 			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT)) {
 		e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 	}
+
+	/* If AMT is enabled, let the firmware know that the network
+	 * interface is now closed */
+	if (adapter->hw.mac_type == e1000_82573 &&
+	    e1000_check_mng_mode(&adapter->hw))
+		e1000_release_hw_control(adapter);
+
 	return 0;
 }
 
@@ -4182,7 +4238,7 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	uint32_t ctrl, ctrl_ext, rctl, manc, status, swsm;
+	uint32_t ctrl, ctrl_ext, rctl, manc, status;
 	uint32_t wufc = adapter->wol;
 
 	netif_device_detach(netdev);
@@ -4251,21 +4307,9 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		}
 	}
 
-	switch(adapter->hw.mac_type) {
-	case e1000_82571:
-	case e1000_82572:
-		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
-		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
-				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
-		break;
-	case e1000_82573:
-		swsm = E1000_READ_REG(&adapter->hw, SWSM);
-		E1000_WRITE_REG(&adapter->hw, SWSM,
-				swsm & ~E1000_SWSM_DRV_LOAD);
-		break;
-	default:
-		break;
-	}
+	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
+	 * would have already happened in close and is redundant. */
+	e1000_release_hw_control(adapter);
 
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
@@ -4278,8 +4322,7 @@ e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	uint32_t manc, ret_val, swsm;
-	uint32_t ctrl_ext;
+	uint32_t manc, ret_val;
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -4304,21 +4347,13 @@ e1000_resume(struct pci_dev *pdev)
 		E1000_WRITE_REG(&adapter->hw, MANC, manc);
 	}
 
-	switch(adapter->hw.mac_type) {
-	case e1000_82571:
-	case e1000_82572:
-		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
-		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
-				ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
-		break;
-	case e1000_82573:
-		swsm = E1000_READ_REG(&adapter->hw, SWSM);
-		E1000_WRITE_REG(&adapter->hw, SWSM,
-				swsm | E1000_SWSM_DRV_LOAD);
-		break;
-	default:
-		break;
-	}
+	/* If the controller is 82573 and f/w is AMT, do not set
+	 * DRV_LOAD until the interface is up.  For all other cases,
+	 * let the f/w know that the h/w is now under the control
+	 * of the driver. */
+	if (adapter->hw.mac_type != e1000_82573 ||
+	    !e1000_check_mng_mode(&adapter->hw))
+		e1000_get_hw_control(adapter);
 
 	return 0;
 }

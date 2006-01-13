@@ -2982,6 +2982,8 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         
         if (hw->mac_type < e1000_82571) 
             msec_delay(10);
+        else
+            udelay(100);
         
         E1000_WRITE_REG(hw, CTRL, ctrl);
         E1000_WRITE_FLUSH(hw);
