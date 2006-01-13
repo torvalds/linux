@@ -168,6 +168,7 @@ struct usbatm_data {
 
 	struct kref refcount;
 	struct semaphore serialize;
+	int disconnected;
 
 	/* heavy init */
 	int thread_pid;

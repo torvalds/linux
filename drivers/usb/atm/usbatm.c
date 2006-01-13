@@ -602,8 +602,12 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	vdbg("%s called (skb 0x%p, len %u)", __func__, skb, skb->len);
 
-	if (!instance) {
-		dbg("%s: NULL data!", __func__);
+	/* racy disconnection check - fine */
+	if (!instance || instance->disconnected) {
+#ifdef DEBUG
+		if (printk_ratelimit())
+			printk(KERN_DEBUG "%s: %s!\n", __func__, instance ? "disconnected" : "NULL instance");
+#endif
 		err = -ENODEV;
 		goto fail;
 	}
@@ -715,15 +719,19 @@ static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *pag
 			       atomic_read(&atm_dev->stats.aal5.rx_err),
 			       atomic_read(&atm_dev->stats.aal5.rx_drop));
 
-	if (!left--)
-		switch (atm_dev->signal) {
-		case ATM_PHY_SIG_FOUND:
-			return sprintf(page, "Line up\n");
-		case ATM_PHY_SIG_LOST:
-			return sprintf(page, "Line down\n");
-		default:
-			return sprintf(page, "Line state unknown\n");
-		}
+	if (!left--) {
+		if (instance->disconnected)
+			return sprintf(page, "Disconnected\n");
+		else
+			switch (atm_dev->signal) {
+			case ATM_PHY_SIG_FOUND:
+				return sprintf(page, "Line up\n");
+			case ATM_PHY_SIG_LOST:
+				return sprintf(page, "Line down\n");
+			default:
+				return sprintf(page, "Line state unknown\n");
+			}
+	}
 
 	return 0;
 }
@@ -756,6 +764,12 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 	}
 
 	down(&instance->serialize);	/* vs self, usbatm_atm_close, usbatm_usb_disconnect */
+
+	if (instance->disconnected) {
+		atm_dbg(instance, "%s: disconnected!\n", __func__);
+		ret = -ENODEV;
+		goto fail;
+	}
 
 	if (usbatm_find_vcc(instance, vpi, vci)) {
 		atm_dbg(instance, "%s: %hd/%d already in use!\n", __func__, vpi, vci);
@@ -845,6 +859,13 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd,
 			  void __user * arg)
 {
+	struct usbatm_data *instance = atm_dev->dev_data;
+
+	if (!instance || instance->disconnected) {
+		dbg("%s: %s!", __func__, instance ? "disconnected" : "NULL instance");
+		return -ENODEV;
+	}
+
 	switch (cmd) {
 	case ATM_QUERYLOOP:
 		return put_user(ATM_LM_NONE, (int __user *)arg) ? -EFAULT : 0;
@@ -1129,6 +1150,7 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 {
 	struct device *dev = &intf->dev;
 	struct usbatm_data *instance = usb_get_intfdata(intf);
+	struct usbatm_vcc_data *vcc_data;
 	int i;
 
 	dev_dbg(dev, "%s entered\n", __func__);
@@ -1141,11 +1163,17 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	down(&instance->serialize);
+	instance->disconnected = 1;
 	if (instance->thread_pid >= 0)
 		kill_proc(instance->thread_pid, SIGTERM, 1);
 	up(&instance->serialize);
 
 	wait_for_completion(&instance->thread_exited);
+
+	down(&instance->serialize);
+	list_for_each_entry(vcc_data, &instance->vcc_list, list)
+		vcc_release_async(vcc_data->vcc, -EPIPE);
+	up(&instance->serialize);
 
 	tasklet_disable(&instance->rx_channel.tasklet);
 	tasklet_disable(&instance->tx_channel.tasklet);
@@ -1156,6 +1184,14 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 	del_timer_sync(&instance->rx_channel.delay);
 	del_timer_sync(&instance->tx_channel.delay);
 
+	/* turn usbatm_[rt]x_process into something close to a no-op */
+	/* no need to take the spinlock */
+	INIT_LIST_HEAD(&instance->rx_channel.list);
+	INIT_LIST_HEAD(&instance->tx_channel.list);
+
+	tasklet_enable(&instance->rx_channel.tasklet);
+	tasklet_enable(&instance->tx_channel.tasklet);
+
 	if (instance->atm_dev && instance->driver->atm_stop)
 		instance->driver->atm_stop(instance, instance->atm_dev);
 
@@ -1163,14 +1199,6 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 		instance->driver->unbind(instance, intf);
 
 	instance->driver_data = NULL;
-
-	/* turn usbatm_[rt]x_process into noop */
-	/* no need to take the spinlock */
-	INIT_LIST_HEAD(&instance->rx_channel.list);
-	INIT_LIST_HEAD(&instance->tx_channel.list);
-
-	tasklet_enable(&instance->rx_channel.tasklet);
-	tasklet_enable(&instance->tx_channel.tasklet);
 
 	for (i = 0; i < num_rcv_urbs + num_snd_urbs; i++) {
 		kfree(instance->urbs[i]->transfer_buffer);
