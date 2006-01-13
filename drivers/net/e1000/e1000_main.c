@@ -171,9 +171,11 @@ static boolean_t e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
                                        struct e1000_rx_ring *rx_ring);
 #endif
 static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
-                                   struct e1000_rx_ring *rx_ring);
+                                   struct e1000_rx_ring *rx_ring,
+				   int cleaned_count);
 static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
-                                      struct e1000_rx_ring *rx_ring);
+                                      struct e1000_rx_ring *rx_ring,
+				      int cleaned_count);
 static int e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
 static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 			   int cmd);
@@ -411,8 +413,12 @@ e1000_up(struct e1000_adapter *adapter)
 	e1000_configure_tx(adapter);
 	e1000_setup_rctl(adapter);
 	e1000_configure_rx(adapter);
+	/* call E1000_DESC_UNUSED which always leaves
+	 * at least 1 descriptor unused to make sure
+	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		adapter->alloc_rx_buf(adapter, &adapter->rx_ring[i]);
+		struct e1000_rx_ring *ring = &adapter->rx_ring[i];
+		adapter->alloc_rx_buf(adapter, ring, E1000_DESC_UNUSED(ring));
 	}
 
 #ifdef CONFIG_PCI_MSI
@@ -2119,7 +2125,9 @@ e1000_leave_82542_rst(struct e1000_adapter *adapter)
 
 	if(netif_running(netdev)) {
 		e1000_configure_rx(adapter);
-		e1000_alloc_rx_buffers(adapter, &adapter->rx_ring[0]);
+		/* No need to loop, because 82542 supports only 1 queue */
+		struct e1000_rx_ring *ring = &adapter->rx_ring[0];
+		adapter->alloc_rx_buf(adapter, ring, E1000_DESC_UNUSED(ring));
 	}
 }
 
@@ -3539,6 +3547,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	uint8_t last_byte;
 	unsigned int i;
 	boolean_t cleaned = FALSE;
+	int cleaned_count = 0;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC(*rx_ring, i);
@@ -3550,11 +3559,10 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			break;
 		(*work_done)++;
 #endif
-		cleaned = TRUE;
 
-		pci_unmap_single(pdev,
-		                 buffer_info->dma,
-		                 buffer_info->length,
+		cleaned = TRUE;
+		cleaned_count++;
+		pci_unmap_single(pdev, buffer_info->dma, buffer_info->length,
 		                 PCI_DMA_FROMDEVICE);
 
 		skb = buffer_info->skb;
@@ -3573,8 +3581,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			if(TBI_ACCEPT(&adapter->hw, rx_desc->status,
 			              rx_desc->errors, length, last_byte)) {
 				spin_lock_irqsave(&adapter->stats_lock, flags);
-				e1000_tbi_adjust_stats(&adapter->hw,
-				                       &adapter->stats,
+				e1000_tbi_adjust_stats(&adapter->hw, &adapter->stats,
 				                       length, skb->data);
 				spin_unlock_irqrestore(&adapter->stats_lock,
 				                       flags);
@@ -3589,8 +3596,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		skb_put(skb, length - ETHERNET_FCS_SIZE);
 
 		/* Receive Checksum Offload */
-		e1000_rx_checksum(adapter,
-				  (uint32_t)(rx_desc->status) |
+		e1000_rx_checksum(adapter, (uint32_t)(rx_desc->status) |
 				  ((uint32_t)(rx_desc->errors) << 24),
 				  rx_desc->csum, skb);
 		skb->protocol = eth_type_trans(skb, netdev);
@@ -3621,13 +3627,19 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 next_desc:
 		rx_desc->status = 0;
-		buffer_info->skb = NULL;
-		if(unlikely(++i == rx_ring->count)) i = 0;
 
-		rx_desc = E1000_RX_DESC(*rx_ring, i);
+		/* return some buffers to hardware, one at a time is too slow */
+		if (unlikely(cleaned_count >= E1000_RX_BUFFER_WRITE)) {
+			adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
+			cleaned_count = 0;
+		}
+
 	}
 	rx_ring->next_to_clean = i;
-	adapter->alloc_rx_buf(adapter, rx_ring);
+
+	cleaned_count = E1000_DESC_UNUSED(rx_ring);
+	if (cleaned_count)
+		adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
 
 	return cleaned;
 }
@@ -3656,6 +3668,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	struct sk_buff *skb;
 	unsigned int i, j;
 	uint32_t length, staterr;
+	int cleaned_count = 0;
 	boolean_t cleaned = FALSE;
 
 	i = rx_ring->next_to_clean;
@@ -3672,6 +3685,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		(*work_done)++;
 #endif
 		cleaned = TRUE;
+		cleaned_count++;
 		pci_unmap_single(pdev, buffer_info->dma,
 				 buffer_info->length,
 				 PCI_DMA_FROMDEVICE);
@@ -3756,13 +3770,20 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 next_desc:
 		rx_desc->wb.middle.status_error &= ~0xFF;
 		buffer_info->skb = NULL;
-		if(unlikely(++i == rx_ring->count)) i = 0;
 
-		rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
+		/* return some buffers to hardware, one at a time is too slow */
+		if (unlikely(cleaned_count >= E1000_RX_BUFFER_WRITE)) {
+			adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
+			cleaned_count = 0;
+		}
+
 		staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
 	}
 	rx_ring->next_to_clean = i;
-	adapter->alloc_rx_buf(adapter, rx_ring);
+
+	cleaned_count = E1000_DESC_UNUSED(rx_ring);
+	if (cleaned_count)
+		adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
 
 	return cleaned;
 }
@@ -3774,7 +3795,8 @@ next_desc:
 
 static void
 e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
-                       struct e1000_rx_ring *rx_ring)
+                       struct e1000_rx_ring *rx_ring,
+                       int cleaned_count)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
@@ -3792,6 +3814,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 
 		if(unlikely(!skb)) {
 			/* Better luck next round */
+			adapter->alloc_rx_buff_failed++;
 			break;
 		}
 
@@ -3876,7 +3899,8 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 
 static void
 e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
-                          struct e1000_rx_ring *rx_ring)
+                          struct e1000_rx_ring *rx_ring,
+			  int cleaned_count)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
@@ -3892,7 +3916,7 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 	ps_page = &rx_ring->ps_page[i];
 	ps_page_dma = &rx_ring->ps_page_dma[i];
 
-	while(!buffer_info->skb) {
+	while (cleaned_count--) {
 		rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
 
 		for(j = 0; j < PS_PAGE_BUFFERS; j++) {
