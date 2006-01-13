@@ -386,7 +386,7 @@ struct saa7134_dmasound {
 	unsigned int               read_offset;
 	unsigned int               read_count;
 	void *			   priv_data;
-	snd_pcm_substream_t 	   *substream;
+	struct snd_pcm_substream   *substream;
 };
 
 /* IR input */
