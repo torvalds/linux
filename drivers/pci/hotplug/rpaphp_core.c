@@ -56,25 +56,6 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, 0644);
 
-static int enable_slot(struct hotplug_slot *slot);
-static int disable_slot(struct hotplug_slot *slot);
-static int set_attention_status(struct hotplug_slot *slot, u8 value);
-static int get_power_status(struct hotplug_slot *slot, u8 * value);
-static int get_attention_status(struct hotplug_slot *slot, u8 * value);
-static int get_adapter_status(struct hotplug_slot *slot, u8 * value);
-static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value);
-
-struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
-	.owner = THIS_MODULE,
-	.enable_slot = enable_slot,
-	.disable_slot = disable_slot,
-	.set_attention_status = set_attention_status,
-	.get_power_status = get_power_status,
-	.get_attention_status = get_attention_status,
-	.get_adapter_status = get_adapter_status,
-	.get_max_bus_speed = get_max_bus_speed,
-};
-
 static int rpaphp_get_attention_status(struct slot *slot)
 {
 	return slot->hotplug_slot->info->attention_status;
@@ -454,6 +435,17 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 
 	return retval;
 }
+
+struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
+	.owner = THIS_MODULE,
+	.enable_slot = enable_slot,
+	.disable_slot = disable_slot,
+	.set_attention_status = set_attention_status,
+	.get_power_status = get_power_status,
+	.get_attention_status = get_attention_status,
+	.get_adapter_status = get_adapter_status,
+	.get_max_bus_speed = get_max_bus_speed,
+};
 
 module_init(rpaphp_init);
 module_exit(rpaphp_exit);
