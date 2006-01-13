@@ -21,7 +21,7 @@
 
 #include <sound/driver.h>
 
-#ifdef SND_PCM_OSS_PLUGINS
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 
 #include <linux/time.h>
 #include <sound/core.h>
