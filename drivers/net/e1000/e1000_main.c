@@ -378,6 +378,8 @@ void
 e1000_down(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	boolean_t mng_mode_enabled = (adapter->hw.mac_type >= e1000_82571) &&
+				     e1000_check_mng_mode(&adapter->hw);
 
 	e1000_irq_disable(adapter);
 #ifdef CONFIG_E1000_MQ
@@ -405,12 +407,16 @@ e1000_down(struct e1000_adapter *adapter)
 	e1000_clean_all_tx_rings(adapter);
 	e1000_clean_all_rx_rings(adapter);
 
-	/* If WoL is not enabled and management mode is not IAMT
-	 * Power down the PHY so no link is implied when interface is down */
-	if(!adapter->wol && adapter->hw.mac_type >= e1000_82540 &&
+	/* Power down the PHY so no link is implied when interface is down *
+	 * The PHY cannot be powered down if any of the following is TRUE *
+	 * (a) WoL is enabled
+	 * (b) AMT is active
+	 * (c) SoL/IDER session is active */
+	if (!adapter->wol && adapter->hw.mac_type >= e1000_82540 &&
 	   adapter->hw.media_type == e1000_media_type_copper &&
-	   !e1000_check_mng_mode(&adapter->hw) &&
-	   !(E1000_READ_REG(&adapter->hw, MANC) & E1000_MANC_SMBUS_EN)) {
+	   !(E1000_READ_REG(&adapter->hw, MANC) & E1000_MANC_SMBUS_EN) &&
+	   !mng_mode_enabled &&
+	   !e1000_check_phy_reset_block(&adapter->hw)) {
 		uint16_t mii_reg;
 		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &mii_reg);
 		mii_reg |= MII_CR_POWER_DOWN;

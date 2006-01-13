@@ -584,6 +584,12 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 					 .p = dplx_list }}
 		};
 
+		if (e1000_check_phy_reset_block(&adapter->hw)) {
+			DPRINTK(PROBE, INFO,
+				"Link active due to SoL/IDER Session. "
+			        "Speed/Duplex/AutoNeg parameter ignored.\n");
+			return;
+		}
 		if (num_Duplex > bd) {
 			dplx = Duplex[bd];
 			e1000_validate_option(&dplx, &opt, adapter);
