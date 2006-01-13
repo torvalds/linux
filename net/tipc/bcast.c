@@ -82,7 +82,7 @@ struct bcbearer {
 	struct bearer bearer;
 	struct media media;
 	struct bcbearer_pair bpairs[MAX_BEARERS];
-	struct bcbearer_pair bpairs_temp[TIPC_NUM_LINK_PRI];
+	struct bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
 };
 
 /**
@@ -630,7 +630,7 @@ void bcbearer_sort(void)
 	bp_curr = bcbearer->bpairs;
 	memset(bcbearer->bpairs, 0, sizeof(bcbearer->bpairs));
 
-	for (pri = (TIPC_NUM_LINK_PRI - 1); pri >= 0; pri--) {
+	for (pri = TIPC_MAX_LINK_PRI; pri >= 0; pri--) {
 
 		if (!bp_temp[pri].primary)
 			continue;

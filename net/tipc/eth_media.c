@@ -42,9 +42,9 @@
 
 #define MAX_ETH_BEARERS		2
 #define TIPC_PROTOCOL		0x88ca
-#define ETH_LINK_PRIORITY	10
+#define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
 #define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
-
+#define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
 
 /**
  * struct eth_bearer - Ethernet bearer data structure
@@ -260,7 +260,7 @@ int eth_media_start(void)
 	res = tipc_register_media(TIPC_MEDIA_TYPE_ETH, "eth",
 				  enable_bearer, disable_bearer, send_msg, 
 				  eth_addr2str, &bcast_addr, ETH_LINK_PRIORITY, 
-				  ETH_LINK_TOLERANCE, TIPC_DEF_LINK_WIN);
+				  ETH_LINK_TOLERANCE, ETH_LINK_WINDOW);
 	if (res)
 		return res;
 

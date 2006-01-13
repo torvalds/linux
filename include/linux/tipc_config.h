@@ -168,10 +168,13 @@
 #define TIPC_MAX_LINK_NAME	60	/* format = Z.C.N:interface-Z.C.N:interface */
 
 /*
- * Link priority limits (range from 0 to # priorities - 1)
+ * Link priority limits (min, default, max, media default)
  */
 
-#define TIPC_NUM_LINK_PRI 32
+#define TIPC_MIN_LINK_PRI	0
+#define TIPC_DEF_LINK_PRI	10
+#define TIPC_MAX_LINK_PRI	31
+#define TIPC_MEDIA_LINK_PRI	(TIPC_MAX_LINK_PRI + 1)
 
 /*
  * Link tolerance limits (min, default, max), in ms

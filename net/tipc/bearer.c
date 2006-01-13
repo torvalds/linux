@@ -119,7 +119,8 @@ int  tipc_register_media(u32 media_type,
 		warn("Media registration error: no broadcast address supplied\n");
 		goto exit;
 	}
-	if (bearer_priority >= TIPC_NUM_LINK_PRI) {
+	if ((bearer_priority < TIPC_MIN_LINK_PRI) &&
+	    (bearer_priority > TIPC_MAX_LINK_PRI)) {
 		warn("Media registration error: priority %u\n", bearer_priority);
 		goto exit;
 	}
@@ -476,10 +477,15 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 
 	if (tipc_mode != TIPC_NET_MODE)
 		return -ENOPROTOOPT;
+
 	if (!bearer_name_validate(name, &b_name) ||
 	    !addr_domain_valid(bcast_scope) ||
-	    !in_scope(bcast_scope, tipc_own_addr) ||
-	    (priority > TIPC_NUM_LINK_PRI))
+	    !in_scope(bcast_scope, tipc_own_addr))
+		return -EINVAL;
+
+	if ((priority < TIPC_MIN_LINK_PRI ||
+	     priority > TIPC_MAX_LINK_PRI) &&
+	    (priority != TIPC_MEDIA_LINK_PRI))
 		return -EINVAL;
 
 	write_lock_bh(&net_lock);
@@ -491,7 +497,8 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 		warn("No media <%s>\n", b_name.media_name);
 		goto failed;
 	}
-	if (priority == TIPC_NUM_LINK_PRI)
+
+	if (priority == TIPC_MEDIA_LINK_PRI)
 		priority = m_ptr->priority;
 
 restart:
@@ -547,8 +554,8 @@ restart:
 	}
 	b_ptr->publ.lock = SPIN_LOCK_UNLOCKED;
 	write_unlock_bh(&net_lock);
-	info("Enabled bearer <%s>, discovery domain %s\n",
-	     name, addr_string_fill(addr_string, bcast_scope));
+	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
+	     name, addr_string_fill(addr_string, bcast_scope), priority);
 	return 0;
 failed:
 	write_unlock_bh(&net_lock);

@@ -2812,7 +2812,8 @@ struct sk_buff *link_cmd_config(const void *req_tlv_area, int req_tlv_space,
 		}
 		break;
 	case TIPC_CMD_SET_LINK_PRI: 
-		if (new_value < TIPC_NUM_LINK_PRI) {
+		if ((new_value >= TIPC_MIN_LINK_PRI) &&
+		    (new_value <= TIPC_MAX_LINK_PRI)) {
 			l_ptr->priority = new_value;
 			link_send_proto_msg(l_ptr, STATE_MSG, 
 					    0, 0, 0, new_value, 0);
