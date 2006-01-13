@@ -196,10 +196,11 @@ extern int sn9c102_pread_reg(struct sn9c102_device*, u16 index);
 /*
    NOTE: there are no exported debugging functions. To uniform the output you
    must use the dev_info()/dev_warn()/dev_err() macros defined in device.h,
-   already included here, the argument being the struct device 'dev' of the
-   sensor structure. Do NOT use these macros before the sensor is attached or
-   the kernel will crash! However, you should not need to notify the user about
-   common errors or other messages, since this is done by the master module.
+   already included here, the argument being the struct device '&usbdev->dev'
+   of the sensor structure. Do NOT use these macros before the sensor is
+   attached or the kernel will crash! However, you should not need to notify
+   the user about common errors or other messages, since this is done by the
+   master module.
 */
 
 /*****************************************************************************/
@@ -356,13 +357,6 @@ struct sn9c102_sensor {
 	   To be called on VIDIOC_S_FMT, when switching from the SBGGR8 to
 	   SN9C10X pixel format or viceversa. On error return the corresponding
 	   error code without rolling back.
-	*/
-
-	const struct device* dev;
-	/*
-	   This is the argument for dev_err(), dev_info() and dev_warn(). It
-	   is used for debugging purposes. You must not access the struct
-	   before the sensor is attached.
 	*/
 
 	const struct usb_device* usbdev;

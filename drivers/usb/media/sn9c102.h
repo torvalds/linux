@@ -23,7 +23,8 @@
 
 #include <linux/version.h>
 #include <linux/usb.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-common.h>
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -51,13 +52,6 @@
 #define SN9C102_CTRL_TIMEOUT      300
 
 /*****************************************************************************/
-
-#define SN9C102_MODULE_NAME     "V4L2 driver for SN9C10x PC Camera Controllers"
-#define SN9C102_MODULE_AUTHOR   "(C) 2004-2006 Luca Risolia"
-#define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
-#define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.25"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 25)
 
 enum sn9c102_bridge {
 	BRIDGE_SN9C101 = 0x01,
@@ -119,8 +113,6 @@ static DECLARE_MUTEX(sn9c102_sysfs_lock);
 static DECLARE_RWSEM(sn9c102_disconnect);
 
 struct sn9c102_device {
-	struct device dev;
-
 	struct video_device* v4ldev;
 
 	enum sn9c102_bridge bridge;
@@ -161,7 +153,6 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
                       struct sn9c102_sensor* sensor)
 {
 	cam->sensor = sensor;
-	cam->sensor->dev = &cam->dev;
 	cam->sensor->usbdev = cam->usbdev;
 }
 
@@ -174,13 +165,18 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 do {                                                                          \
 	if (debug >= (level)) {                                               \
 		if ((level) == 1)                                             \
-			dev_err(&cam->dev, fmt "\n", ## args);                \
+			dev_err(&cam->usbdev->dev, fmt "\n", ## args);        \
 		else if ((level) == 2)                                        \
-			dev_info(&cam->dev, fmt "\n", ## args);               \
+			dev_info(&cam->usbdev->dev, fmt "\n", ## args);       \
 		else if ((level) >= 3)                                        \
-			dev_info(&cam->dev, "[%s:%d] " fmt "\n",              \
+			dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",      \
 			         __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
+} while (0)
+#	define V4LDBG(level, name, cmd)                                       \
+do {                                                                          \
+	if (debug >= (level))                                                 \
+		v4l_print_ioctl(name, cmd);                                   \
 } while (0)
 #	define KDBG(level, fmt, args...)                                      \
 do {                                                                          \
@@ -193,8 +189,9 @@ do {                                                                          \
 	}                                                                     \
 } while (0)
 #else
-#	define KDBG(level, fmt, args...) do {;} while(0)
 #	define DBG(level, fmt, args...) do {;} while(0)
+#	define V4LDBG(level, name, cmd) do {;} while(0)
+#	define KDBG(level, fmt, args...) do {;} while(0)
 #endif
 
 #undef PDBG

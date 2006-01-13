@@ -111,6 +111,12 @@ corresponding modules must be compiled:
 	#
 	CONFIG_VIDEO_DEV=m
 
+To enable advanced debugging functionality on the device through /sysfs:
+
+	# Multimedia devices
+	#
+	CONFIG_VIDEO_ADV_DEBUG=y
+
 	# USB support
 	#
 	CONFIG_USB=m
@@ -208,7 +214,8 @@ Default:        2
 
 8. Optional device control through "sysfs" [1]
 ==========================================
-It is possible to read and write both the SN9C10x and the image sensor
+If the kernel has been compiled with the CONFIG_VIDEO_ADV_DEBUG option enabled,
+it is possible to read and write both the SN9C10x and the image sensor
 registers by using the "sysfs" filesystem interface.
 
 Every time a supported device is recognized, a write-only file named "green" is

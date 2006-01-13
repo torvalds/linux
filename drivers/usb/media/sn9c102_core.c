@@ -45,6 +45,15 @@
 
 /*****************************************************************************/
 
+#define SN9C102_MODULE_NAME     "V4L2 driver for SN9C10x PC Camera Controllers"
+#define SN9C102_MODULE_AUTHOR   "(C) 2004-2006 Luca Risolia"
+#define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
+#define SN9C102_MODULE_LICENSE  "GPL"
+#define SN9C102_MODULE_VERSION  "1:1.26"
+#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 26)
+
+/*****************************************************************************/
+
 MODULE_DEVICE_TABLE(usb, sn9c102_id_table);
 
 MODULE_AUTHOR(SN9C102_MODULE_AUTHOR " " SN9C102_AUTHOR_EMAIL);
@@ -115,50 +124,6 @@ static sn9c102_eof_header_t sn9c102_eof_header[] = {
 
 /*****************************************************************************/
 
-static void* rvmalloc(size_t size)
-{
-	void* mem;
-	unsigned long adr;
-
-	size = PAGE_ALIGN(size);
-
-	mem = vmalloc_32((unsigned long)size);
-	if (!mem)
-		return NULL;
-
-	memset(mem, 0, size);
-
-	adr = (unsigned long)mem;
-	while (size > 0) {
-		SetPageReserved(vmalloc_to_page((void *)adr));
-		adr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-
-	return mem;
-}
-
-
-static void rvfree(void* mem, size_t size)
-{
-	unsigned long adr;
-
-	if (!mem)
-		return;
-
-	size = PAGE_ALIGN(size);
-
-	adr = (unsigned long)mem;
-	while (size > 0) {
-		ClearPageReserved(vmalloc_to_page((void *)adr));
-		adr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-
-	vfree(mem);
-}
-
-
 static u32 
 sn9c102_request_buffers(struct sn9c102_device* cam, u32 count, 
                         enum sn9c102_io_method io)
@@ -177,7 +142,7 @@ sn9c102_request_buffers(struct sn9c102_device* cam, u32 count,
 
 	cam->nbuffers = count;
 	while (cam->nbuffers > 0) {
-		if ((buff = rvmalloc(cam->nbuffers * PAGE_ALIGN(imagesize))))
+		if ((buff = vmalloc_32(cam->nbuffers * PAGE_ALIGN(imagesize))))
 			break;
 		cam->nbuffers--;
 	}
@@ -201,8 +166,7 @@ sn9c102_request_buffers(struct sn9c102_device* cam, u32 count,
 static void sn9c102_release_buffers(struct sn9c102_device* cam)
 {
 	if (cam->nbuffers) {
-		rvfree(cam->frame[0].bufmem,
-		       cam->nbuffers * PAGE_ALIGN(cam->frame[0].buf.length));
+		vfree(cam->frame[0].bufmem);
 		cam->nbuffers = 0;
 	}
 	cam->frame_current = NULL;
@@ -745,7 +709,7 @@ static int sn9c102_start_transfer(struct sn9c102_device* cam)
 	int err = 0;
 
 	for (i = 0; i < SN9C102_URBS; i++) {
-		cam->transfer_buffer[i] = kmalloc(SN9C102_ISO_PACKETS * psz,
+		cam->transfer_buffer[i] = kzalloc(SN9C102_ISO_PACKETS * psz,
 		                                  GFP_KERNEL);
 		if (!cam->transfer_buffer[i]) {
 			err = -ENOMEM;
@@ -865,6 +829,7 @@ static int sn9c102_stream_interrupt(struct sn9c102_device* cam)
 
 /*****************************************************************************/
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 static u8 sn9c102_strtou8(const char* buff, size_t len, ssize_t* count)
 {
 	char str[5];
@@ -1289,6 +1254,7 @@ static void sn9c102_create_sysfs(struct sn9c102_device* cam)
 		video_device_create_file(v4ldev, &class_device_attr_i2c_val);
 	}
 }
+#endif /* CONFIG_VIDEO_ADV_DEBUG */
 
 /*****************************************************************************/
 
@@ -1754,9 +1720,8 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
 {
 	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
 	unsigned long size = vma->vm_end - vma->vm_start,
-	              start = vma->vm_start,
-	              pos,
-	              page;
+	              start = vma->vm_start;
+	void *pos;
 	u32 i;
 
 	if (down_interruptible(&cam->fileop_sem))
@@ -1790,15 +1755,12 @@ static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	/* VM_IO is eventually going to replace PageReserved altogether */
 	vma->vm_flags |= VM_IO;
-	vma->vm_flags |= VM_RESERVED; /* avoid to swap out this VMA */
+	vma->vm_flags |= VM_RESERVED;
 
-	pos = (unsigned long)cam->frame[i].bufmem;
+	pos = cam->frame[i].bufmem;
 	while (size > 0) { /* size is page-aligned */
-		page = vmalloc_to_pfn((void *)pos);
-		if (remap_pfn_range(vma, start, page, PAGE_SIZE,
-		                    vma->vm_page_prot)) {
+		if (vm_insert_page(vma, start, vmalloc_to_page(pos))) {
 			up(&cam->fileop_sem);
 			return -EAGAIN;
 		}
@@ -1831,7 +1793,8 @@ sn9c102_vidioc_querycap(struct sn9c102_device* cam, void __user * arg)
 
 	strlcpy(cap.card, cam->v4ldev->name, sizeof(cap.card));
 	if (usb_make_path(cam->usbdev, cap.bus_info, sizeof(cap.bus_info)) < 0)
-		strlcpy(cap.bus_info, cam->dev.bus_id, sizeof(cap.bus_info));
+		strlcpy(cap.bus_info, cam->usbdev->dev.bus_id,
+		        sizeof(cap.bus_info));
 
 	if (copy_to_user(arg, &cap, sizeof(cap)))
 		return -EFAULT;
@@ -1852,7 +1815,7 @@ sn9c102_vidioc_enuminput(struct sn9c102_device* cam, void __user * arg)
 		return -EINVAL;
 
 	memset(&i, 0, sizeof(i));
-	strcpy(i.name, "USB");
+	strcpy(i.name, "Camera");
 
 	if (copy_to_user(arg, &i, sizeof(i)))
 		return -EFAULT;
@@ -2708,6 +2671,8 @@ static int sn9c102_ioctl(struct inode* inode, struct file* filp,
 		return -EIO;
 	}
 
+	V4LDBG(3, "sn9c102", cmd);
+
 	err = sn9c102_ioctl_v4l2(inode, filp, cmd, (void __user *)arg);
 
 	up(&cam->fileop_sem);
@@ -2740,13 +2705,12 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	unsigned int i;
 	int err = 0, r;
 
-	if (!(cam = kmalloc(sizeof(struct sn9c102_device), GFP_KERNEL)))
+	if (!(cam = kzalloc(sizeof(struct sn9c102_device), GFP_KERNEL)))
 		return -ENOMEM;
 
 	cam->usbdev = udev;
-	memcpy(&cam->dev, &udev->dev, sizeof(struct device));
 
-	if (!(cam->control_buffer = kmalloc(8, GFP_KERNEL))) {
+	if (!(cam->control_buffer = kzalloc(8, GFP_KERNEL))) {
 		DBG(1, "kmalloc() failed");
 		err = -ENOMEM;
 		goto fail;
@@ -2806,7 +2770,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	strcpy(cam->v4ldev->name, "SN9C10x PC Camera");
 	cam->v4ldev->owner = THIS_MODULE;
 	cam->v4ldev->type = VID_TYPE_CAPTURE | VID_TYPE_SCALES;
-	cam->v4ldev->hardware = VID_HARDWARE_SN9C102;
+	cam->v4ldev->hardware = 0;
 	cam->v4ldev->fops = &sn9c102_fops;
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
@@ -2832,8 +2796,10 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	dev_nr = (dev_nr < SN9C102_MAX_DEVICES-1) ? dev_nr+1 : 0;
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	sn9c102_create_sysfs(cam);
 	DBG(2, "Optional device control through 'sysfs' interface ready");
+#endif
 
 	usb_set_intfdata(intf, cam);
 
