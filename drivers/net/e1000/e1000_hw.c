@@ -838,6 +838,11 @@ e1000_setup_link(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_setup_link");
 
+    /* In the case of the phy reset being blocked, we already have a link.
+     * We do not have to set it up again. */
+    if (e1000_check_phy_reset_block(hw))
+        return E1000_SUCCESS;
+
     /* Read and store word 0x0F of the EEPROM. This word contains bits
      * that determine the hardware's default PAUSE (flow control) mode,
      * a bit that determines whether the HW defaults to enabling or
