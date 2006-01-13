@@ -55,7 +55,7 @@ MODULE_PARM_DESC(mcast_debug_level,
 		 "Enable multicast debug tracing if > 0");
 #endif
 
-static DECLARE_MUTEX(mcast_mutex);
+static DEFINE_MUTEX(mcast_mutex);
 
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
 struct ipoib_mcast {
@@ -385,10 +385,10 @@ static void ipoib_mcast_join_complete(int status,
 
 	if (!status && !ipoib_mcast_join_finish(mcast, mcmember)) {
 		mcast->backoff = 1;
-		down(&mcast_mutex);
+		mutex_lock(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_work(ipoib_workqueue, &priv->mcast_task);
-		up(&mcast_mutex);
+		mutex_unlock(&mcast_mutex);
 		complete(&mcast->done);
 		return;
 	}
@@ -418,7 +418,7 @@ static void ipoib_mcast_join_complete(int status,
 
 	mcast->query = NULL;
 
-	down(&mcast_mutex);
+	mutex_lock(&mcast_mutex);
 	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
 		if (status == -ETIMEDOUT)
 			queue_work(ipoib_workqueue, &priv->mcast_task);
@@ -427,7 +427,7 @@ static void ipoib_mcast_join_complete(int status,
 					   mcast->backoff * HZ);
 	} else
 		complete(&mcast->done);
-	up(&mcast_mutex);
+	mutex_unlock(&mcast_mutex);
 
 	return;
 }
@@ -482,12 +482,12 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
 			mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
 
-		down(&mcast_mutex);
+		mutex_lock(&mcast_mutex);
 		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_delayed_work(ipoib_workqueue,
 					   &priv->mcast_task,
 					   mcast->backoff * HZ);
-		up(&mcast_mutex);
+		mutex_unlock(&mcast_mutex);
 	} else
 		mcast->query_id = ret;
 }
@@ -520,11 +520,11 @@ void ipoib_mcast_join_task(void *dev_ptr)
 		priv->broadcast = ipoib_mcast_alloc(dev, 1);
 		if (!priv->broadcast) {
 			ipoib_warn(priv, "failed to allocate broadcast group\n");
-			down(&mcast_mutex);
+			mutex_lock(&mcast_mutex);
 			if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 				queue_delayed_work(ipoib_workqueue,
 						   &priv->mcast_task, HZ);
-			up(&mcast_mutex);
+			mutex_unlock(&mcast_mutex);
 			return;
 		}
 
@@ -580,10 +580,10 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 
 	ipoib_dbg_mcast(priv, "starting multicast thread\n");
 
-	down(&mcast_mutex);
+	mutex_lock(&mcast_mutex);
 	if (!test_and_set_bit(IPOIB_MCAST_RUN, &priv->flags))
 		queue_work(ipoib_workqueue, &priv->mcast_task);
-	up(&mcast_mutex);
+	mutex_unlock(&mcast_mutex);
 
 	return 0;
 }
@@ -595,10 +595,10 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
-	down(&mcast_mutex);
+	mutex_lock(&mcast_mutex);
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
 	cancel_delayed_work(&priv->mcast_task);
-	up(&mcast_mutex);
+	mutex_unlock(&mcast_mutex);
 
 	if (flush)
 		flush_workqueue(ipoib_workqueue);
