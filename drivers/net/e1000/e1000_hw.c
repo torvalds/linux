@@ -3888,14 +3888,16 @@ e1000_read_eeprom(struct e1000_hw *hw,
         return -E1000_ERR_EEPROM;
     }
 
-    /* FLASH reads without acquiring the semaphore are safe in 82573-based
-     * controllers.
-     */
-    if ((e1000_is_onboard_nvm_eeprom(hw) == TRUE) ||
-        (hw->mac_type != e1000_82573)) {
-        /* Prepare the EEPROM for reading  */
-        if(e1000_acquire_eeprom(hw) != E1000_SUCCESS)
-            return -E1000_ERR_EEPROM;
+    /* FLASH reads without acquiring the semaphore are safe */
+    if (e1000_is_onboard_nvm_eeprom(hw) == TRUE &&
+    hw->eeprom.use_eerd == FALSE) {
+        switch (hw->mac_type) {
+        default:
+            /* Prepare the EEPROM for reading  */
+            if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
+                return -E1000_ERR_EEPROM;
+            break;
+        }
     }
 
     if(eeprom->use_eerd == TRUE) {
