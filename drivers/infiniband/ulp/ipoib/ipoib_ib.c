@@ -52,7 +52,7 @@ MODULE_PARM_DESC(data_debug_level,
 
 #define	IPOIB_OP_RECV	(1ul << 31)
 
-static DECLARE_MUTEX(pkey_sem);
+static DEFINE_MUTEX(pkey_mutex);
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 				 struct ib_pd *pd, struct ib_ah_attr *attr)
@@ -445,24 +445,15 @@ int ipoib_ib_dev_down(struct net_device *dev)
 
 	/* Shutdown the P_Key thread if still active */
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
-		down(&pkey_sem);
+		mutex_lock(&pkey_mutex);
 		set_bit(IPOIB_PKEY_STOP, &priv->flags);
 		cancel_delayed_work(&priv->pkey_task);
-		up(&pkey_sem);
+		mutex_unlock(&pkey_mutex);
 		flush_workqueue(ipoib_workqueue);
 	}
 
 	ipoib_mcast_stop_thread(dev, 1);
-
-	/*
-	 * Flush the multicast groups first so we stop any multicast joins. The
-	 * completion thread may have already died and we may deadlock waiting
-	 * for the completion thread to finish some multicast joins.
-	 */
 	ipoib_mcast_dev_flush(dev);
-
-	/* Delete broadcast and local addresses since they will be recreated */
-	ipoib_mcast_dev_down(dev);
 
 	ipoib_flush_paths(dev);
 
@@ -608,13 +599,13 @@ void ipoib_ib_dev_flush(void *_dev)
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		ipoib_ib_dev_up(dev);
 
-	down(&priv->vlan_mutex);
+	mutex_lock(&priv->vlan_mutex);
 
 	/* Flush any child interfaces too */
 	list_for_each_entry(cpriv, &priv->child_intfs, list)
 		ipoib_ib_dev_flush(&cpriv->dev);
 
-	up(&priv->vlan_mutex);
+	mutex_unlock(&priv->vlan_mutex);
 }
 
 void ipoib_ib_dev_cleanup(struct net_device *dev)
@@ -624,9 +615,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
 
 	ipoib_mcast_stop_thread(dev, 1);
-
-	/* Delete the broadcast address and the local address */
-	ipoib_mcast_dev_down(dev);
+	ipoib_mcast_dev_flush(dev);
 
 	ipoib_transport_dev_cleanup(dev);
 }
@@ -662,12 +651,12 @@ void ipoib_pkey_poll(void *dev_ptr)
 	if (test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
 		ipoib_open(dev);
 	else {
-		down(&pkey_sem);
+		mutex_lock(&pkey_mutex);
 		if (!test_bit(IPOIB_PKEY_STOP, &priv->flags))
 			queue_delayed_work(ipoib_workqueue,
 					   &priv->pkey_task,
 					   HZ);
-		up(&pkey_sem);
+		mutex_unlock(&pkey_mutex);
 	}
 }
 
@@ -681,12 +670,12 @@ int ipoib_pkey_dev_delay_open(struct net_device *dev)
 
 	/* P_Key value not assigned yet - start polling */
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
-		down(&pkey_sem);
+		mutex_lock(&pkey_mutex);
 		clear_bit(IPOIB_PKEY_STOP, &priv->flags);
 		queue_delayed_work(ipoib_workqueue,
 				   &priv->pkey_task,
 				   HZ);
-		up(&pkey_sem);
+		mutex_unlock(&pkey_mutex);
 		return 1;
 	}
 

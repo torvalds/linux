@@ -45,11 +45,11 @@
 #include <linux/config.h>
 #include <linux/kref.h>
 #include <linux/if_infiniband.h>
+#include <linux/mutex.h>
 
 #include <net/neighbour.h>
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -123,8 +123,8 @@ struct ipoib_dev_priv {
 
 	unsigned long flags;
 
-	struct semaphore mcast_mutex;
-	struct semaphore vlan_mutex;
+	struct mutex mcast_mutex;
+	struct mutex vlan_mutex;
 
 	struct rb_root  path_tree;
 	struct list_head path_list;
