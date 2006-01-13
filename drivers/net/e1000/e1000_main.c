@@ -2204,7 +2204,7 @@ static void
 e1000_watchdog_task(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct e1000_tx_ring *txdr = &adapter->tx_ring[0];
+	struct e1000_tx_ring *txdr = adapter->tx_ring;
 	uint32_t link;
 
 	e1000_check_for_link(&adapter->hw);
@@ -2314,6 +2314,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 {
 #ifdef NETIF_F_TSO
 	struct e1000_context_desc *context_desc;
+	struct e1000_buffer *buffer_info;
 	unsigned int i;
 	uint32_t cmd_length = 0;
 	uint16_t ipcse = 0, tucse, mss;
@@ -2363,6 +2364,7 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 
 		i = tx_ring->next_to_use;
 		context_desc = E1000_CONTEXT_DESC(*tx_ring, i);
+		buffer_info = &tx_ring->buffer_info[i];
 
 		context_desc->lower_setup.ip_fields.ipcss  = ipcss;
 		context_desc->lower_setup.ip_fields.ipcso  = ipcso;
@@ -2373,6 +2375,8 @@ e1000_tso(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		context_desc->tcp_seg_setup.fields.mss     = cpu_to_le16(mss);
 		context_desc->tcp_seg_setup.fields.hdr_len = hdr_len;
 		context_desc->cmd_and_length = cpu_to_le32(cmd_length);
+
+		buffer_info->time_stamp = jiffies;
 
 		if (++i == tx_ring->count) i = 0;
 		tx_ring->next_to_use = i;
@@ -2389,6 +2393,7 @@ e1000_tx_csum(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
               struct sk_buff *skb)
 {
 	struct e1000_context_desc *context_desc;
+	struct e1000_buffer *buffer_info;
 	unsigned int i;
 	uint8_t css;
 
@@ -2396,6 +2401,7 @@ e1000_tx_csum(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		css = skb->h.raw - skb->data;
 
 		i = tx_ring->next_to_use;
+		buffer_info = &tx_ring->buffer_info[i];
 		context_desc = E1000_CONTEXT_DESC(*tx_ring, i);
 
 		context_desc->upper_setup.tcp_fields.tucss = css;
@@ -2403,6 +2409,8 @@ e1000_tx_csum(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		context_desc->upper_setup.tcp_fields.tucse = 0;
 		context_desc->tcp_seg_setup.data = 0;
 		context_desc->cmd_and_length = cpu_to_le32(E1000_TXD_CMD_DEXT);
+
+		buffer_info->time_stamp = jiffies;
 
 		if (unlikely(++i == tx_ring->count)) i = 0;
 		tx_ring->next_to_use = i;
@@ -3255,8 +3263,6 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			if(unlikely(++i == tx_ring->count)) i = 0;
 		}
 
-		tx_ring->pkt++;
-		
 		eop = tx_ring->buffer_info[i].next_to_watch;
 		eop_desc = E1000_TX_DESC(*tx_ring, eop);
 	}
@@ -3461,7 +3467,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		}
 #endif /* CONFIG_E1000_NAPI */
 		netdev->last_rx = jiffies;
-		rx_ring->pkt++;
 
 next_desc:
 		rx_desc->status = 0;
@@ -3592,7 +3597,6 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		}
 #endif /* CONFIG_E1000_NAPI */
 		netdev->last_rx = jiffies;
-		rx_ring->pkt++;
 
 next_desc:
 		rx_desc->wb.middle.status_error &= ~0xFF;

@@ -191,7 +191,6 @@ struct e1000_tx_ring {
 	spinlock_t tx_lock;
 	uint16_t tdh;
 	uint16_t tdt;
-	uint64_t pkt;
 
 	boolean_t last_tx_tso;
 
@@ -216,9 +215,14 @@ struct e1000_rx_ring {
 	struct e1000_ps_page *ps_page;
 	struct e1000_ps_page_dma *ps_page_dma;
 
+	struct sk_buff *rx_skb_top;
+	struct sk_buff *rx_skb_prev;
+
+	/* cpu for rx queue */
+	int cpu;
+
 	uint16_t rdh;
 	uint16_t rdt;
-	uint64_t pkt;
 };
 
 #define E1000_DESC_UNUSED(R) \
