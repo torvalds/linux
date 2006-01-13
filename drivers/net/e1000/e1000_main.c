@@ -4245,8 +4245,12 @@ e1000_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid)
 
 	if((adapter->hw.mng_cookie.status &
 		E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) &&
-		(vid == adapter->mng_vlan_id))
+	    (vid == adapter->mng_vlan_id)) {
+		/* release control to f/w */
+		e1000_release_hw_control(adapter);
 		return;
+	}
+
 	/* remove VID from filter table */
 	index = (vid >> 5) & 0x7F;
 	vfta = E1000_READ_REG_ARRAY(&adapter->hw, VFTA, index);
