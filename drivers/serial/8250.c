@@ -2454,6 +2454,7 @@ static struct platform_driver serial8250_isa_driver = {
 	.resume		= serial8250_resume,
 	.driver		= {
 		.name	= "serial8250",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -2594,21 +2595,30 @@ static int __init serial8250_init(void)
 	if (ret)
 		goto out;
 
-	serial8250_isa_devs = platform_device_register_simple("serial8250",
-					 PLAT8250_DEV_LEGACY, NULL, 0);
-	if (IS_ERR(serial8250_isa_devs)) {
-		ret = PTR_ERR(serial8250_isa_devs);
-		goto unreg;
+	ret = platform_driver_register(&serial8250_isa_driver);
+	if (ret)
+		goto unreg_uart_drv;
+
+	serial8250_isa_devs = platform_device_alloc("serial8250",
+						    PLAT8250_DEV_LEGACY);
+	if (!serial8250_isa_devs) {
+		ret = -ENOMEM;
+		goto unreg_plat_drv;
 	}
+
+	ret = platform_device_add(serial8250_isa_devs);
+	if (ret)
+		goto put_dev;
 
 	serial8250_register_ports(&serial8250_reg, &serial8250_isa_devs->dev);
 
-	ret = platform_driver_register(&serial8250_isa_driver);
-	if (ret == 0)
-		goto out;
+	goto out;
 
-	platform_device_unregister(serial8250_isa_devs);
- unreg:
+ put_dev:
+	platform_device_put(serial8250_isa_devs);
+ unreg_plat_drv:
+	platform_driver_unregister(&serial8250_isa_driver);
+ unreg_uart_drv:
 	uart_unregister_driver(&serial8250_reg);
  out:
 	return ret;
