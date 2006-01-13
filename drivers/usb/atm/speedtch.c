@@ -793,7 +793,6 @@ static void speedtch_unbind(struct usbatm_data *usbatm, struct usb_interface *in
 ***********/
 
 static struct usbatm_driver speedtch_usbatm_driver = {
-	.owner		= THIS_MODULE,
 	.driver_name	= speedtch_driver_name,
 	.bind		= speedtch_bind,
 	.heavy_init	= speedtch_heavy_init,

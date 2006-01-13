@@ -1629,7 +1629,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	if (ifnum != UEA_INTR_IFACE_NO)
 		return -ENODEV;
 
-	usbatm_instance->flags = (sync_wait[modem_index] ? 0 : UDSL_SKIP_HEAVY_INIT);
+	usbatm->flags = (sync_wait[modem_index] ? 0 : UDSL_SKIP_HEAVY_INIT);
 
 	/* interface 1 is for outbound traffic */
 	ret = claim_interface(usb, usbatm, UEA_US_IFACE_NO);
@@ -1701,7 +1701,6 @@ static void uea_unbind(struct usbatm_data *usbatm, struct usb_interface *intf)
 
 static struct usbatm_driver uea_usbatm_driver = {
 	.driver_name = "ueagle-atm",
-	.owner = THIS_MODULE,
 	.bind = uea_bind,
 	.atm_start = uea_atm_open,
 	.unbind = uea_unbind,

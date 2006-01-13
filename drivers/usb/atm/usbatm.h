@@ -100,8 +100,6 @@ struct usbatm_data;
 */
 
 struct usbatm_driver {
-	struct module *owner;
-
 	const char *driver_name;
 
 	/* init device ... can sleep, or cause probe() failure */

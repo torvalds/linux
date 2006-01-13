@@ -833,7 +833,6 @@ static const struct usb_device_id cxacru_usb_ids[] = {
 MODULE_DEVICE_TABLE(usb, cxacru_usb_ids);
 
 static struct usbatm_driver cxacru_driver = {
-	.owner		= THIS_MODULE,
 	.driver_name	= cxacru_driver_name,
 	.bind		= cxacru_bind,
 	.heavy_init	= cxacru_heavy_init,

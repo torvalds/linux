@@ -166,7 +166,6 @@ static int __init xusbatm_init(void)
 		xusbatm_usb_ids[i].idProduct	= product[i];
 
 
-		xusbatm_drivers[i].owner	= THIS_MODULE;
 		xusbatm_drivers[i].driver_name	= xusbatm_driver_name;
 		xusbatm_drivers[i].bind		= xusbatm_bind;
 		xusbatm_drivers[i].unbind	= xusbatm_unbind;
