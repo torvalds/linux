@@ -2497,7 +2497,6 @@ GetExtAttrOut:
 /* Convert CIFS ACL to POSIX form */
 static int parse_sec_desc(struct sec_desc * psec_desc, int acl_len)
 {
-	CHECK ON OTHER COMPUTER TO SEE IF FORMAT ENCODED IN CIFSPDU.H ALREADY
 	return 0;
 }
 
