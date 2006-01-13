@@ -599,7 +599,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	hp_slot = func->device - ctrl->slot_device_offset;
 
 	// Wait for exclusive access to hardware
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	if (status == 1) {
 		amber_LED_on (ctrl, hp_slot);
@@ -607,7 +607,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 		amber_LED_off (ctrl, hp_slot);
 	} else {
 		// Done with exclusive hardware access
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 		return(1);
 	}
 
@@ -617,7 +617,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	wait_for_ctrl_irq (ctrl);
 
 	// Done with exclusive hardware access
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	return(0);
 }
@@ -1084,7 +1084,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg("bus device function rev: %d %d %d %d\n", ctrl->bus,
 		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), ctrl->rev);
 
-	init_MUTEX(&ctrl->crit_sect);
+	mutex_init(&ctrl->crit_sect);
 	init_waitqueue_head(&ctrl->queue);
 
 	/* initialize our threads if they haven't already been started up */
@@ -1223,7 +1223,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	// turn off empty slots here unless command line option "ON" set
 	// Wait for exclusive access to hardware
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	num_of_slots = readb(ctrl->hpc_reg + SLOT_MASK) & 0x0F;
 
@@ -1270,12 +1270,12 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = init_SERR(ctrl);
 	if (rc) {
 		err("init_SERR failed\n");
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 		goto err_free_irq;
 	}
 
 	// Done with exclusive hardware access
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	cpqhp_create_debugfs_files(ctrl);
 

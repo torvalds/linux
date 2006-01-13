@@ -37,6 +37,7 @@
 
 #include <linux/acpi.h>
 #include <linux/kobject.h>	/* for KOBJ_NAME_LEN */
+#include <linux/mutex.h>
 #include "pci_hotplug.h"
 
 #define dbg(format, arg...)					\
@@ -118,7 +119,7 @@ struct acpiphp_slot {
 	struct acpiphp_bridge *bridge;	/* parent */
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
-	struct semaphore crit_sect;
+	struct mutex crit_sect;
 
 	u32		id;		/* slot id (serial #) for hotplug core */
 	u8		device;		/* pci device# */

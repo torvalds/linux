@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>		/* signal_pending() */
 #include <linux/pcieport_if.h>
+#include <linux/mutex.h>
 #include "pci_hotplug.h"
 
 #define MY_NAME	"pciehp"
@@ -96,7 +97,7 @@ struct php_ctlr_state_s {
 #define MAX_EVENTS		10
 struct controller {
 	struct controller *next;
-	struct semaphore crit_sect;	/* critical section semaphore */
+	struct mutex crit_sect;		/* critical section mutex */
 	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */

@@ -1454,7 +1454,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	}
 	dbg("%s: php_ctlr->creg %p\n", __FUNCTION__, php_ctlr->creg);
 
-	init_MUTEX(&ctrl->crit_sect);
+	mutex_init(&ctrl->crit_sect);
 	/* Setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
 

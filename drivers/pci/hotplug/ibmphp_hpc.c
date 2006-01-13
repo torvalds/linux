@@ -34,6 +34,8 @@
 #include <linux/pci.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
+
 #include "ibmphp.h"
 
 static int to_debug = FALSE;
@@ -101,7 +103,7 @@ static int to_debug = FALSE;
 //----------------------------------------------------------------------------
 static int ibmphp_shutdown;
 static int tid_poll;
-static struct semaphore sem_hpcaccess;	// lock access to HPC
+static struct mutex sem_hpcaccess;	// lock access to HPC
 static struct semaphore semOperations;	// lock all operations and
 					// access to data structures
 static struct semaphore sem_exit;	// make sure polling thread goes away
@@ -131,7 +133,7 @@ void __init ibmphp_hpc_initvars (void)
 {
 	debug ("%s - Entry\n", __FUNCTION__);
 
-	init_MUTEX (&sem_hpcaccess);
+	mutex_init(&sem_hpcaccess);
 	init_MUTEX (&semOperations);
 	init_MUTEX_LOCKED (&sem_exit);
 	to_debug = FALSE;
@@ -778,7 +780,7 @@ int ibmphp_hpc_writeslot (struct slot * pslot, u8 cmd)
 *---------------------------------------------------------------------*/
 static void get_hpc_access (void)
 {
-	down (&sem_hpcaccess);
+	mutex_lock(&sem_hpcaccess);
 }
 
 /*----------------------------------------------------------------------
@@ -786,7 +788,7 @@ static void get_hpc_access (void)
 *---------------------------------------------------------------------*/
 void free_hpc_access (void)
 {
-	up (&sem_hpcaccess);
+	mutex_unlock(&sem_hpcaccess);
 }
 
 /*----------------------------------------------------------------------

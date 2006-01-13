@@ -1334,7 +1334,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	if (pci_enable_device(pdev))
 		goto abort_free_ctlr;
 	
-	init_MUTEX(&ctrl->crit_sect);
+	mutex_init(&ctrl->crit_sect);
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
 

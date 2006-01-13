@@ -46,7 +46,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/smp_lock.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "../pci.h"
 #include "pci_hotplug.h"
@@ -188,7 +188,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		slot->device = device;
 		slot->sun = sun;
 		INIT_LIST_HEAD(&slot->funcs);
-		init_MUTEX(&slot->crit_sect);
+		mutex_init(&slot->crit_sect);
 
 		slot->next = bridge->slots;
 		bridge->slots = slot;
@@ -1401,7 +1401,7 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 {
 	int retval;
 
-	down(&slot->crit_sect);
+	mutex_lock(&slot->crit_sect);
 
 	/* wake up all functions */
 	retval = power_on_slot(slot);
@@ -1413,7 +1413,7 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 		retval = enable_device(slot);
 
  err_exit:
-	up(&slot->crit_sect);
+	mutex_unlock(&slot->crit_sect);
 	return retval;
 }
 
@@ -1424,7 +1424,7 @@ int acpiphp_disable_slot(struct acpiphp_slot *slot)
 {
 	int retval = 0;
 
-	down(&slot->crit_sect);
+	mutex_lock(&slot->crit_sect);
 
 	/* unconfigure all functions */
 	retval = disable_device(slot);
@@ -1437,7 +1437,7 @@ int acpiphp_disable_slot(struct acpiphp_slot *slot)
 		goto err_exit;
 
  err_exit:
-	up(&slot->crit_sect);
+	mutex_unlock(&slot->crit_sect);
 	return retval;
 }
 

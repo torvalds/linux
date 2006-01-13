@@ -439,7 +439,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	/* Wait for exclusive access to hardware */
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
 	
@@ -447,7 +447,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
 		if (rc) {
 			/* Done with exclusive hardware access */
-			up(&ctrl->crit_sect);
+			mutex_unlock(&ctrl->crit_sect);
 			goto err_out_free_ctrl_slot;
 		} else
 			/* Wait for the command to complete */
@@ -455,7 +455,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	/* Done with exclusive hardware access */
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	return 0;
 
