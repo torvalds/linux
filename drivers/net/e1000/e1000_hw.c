@@ -735,7 +735,6 @@ e1000_init_hw(struct e1000_hw *hw)
             break;
         case e1000_82571:
         case e1000_82572:
-            ctrl |= (1 << 22);
         case e1000_82573:
             ctrl |= E1000_TXDCTL_COUNT_DESC;
             break;
