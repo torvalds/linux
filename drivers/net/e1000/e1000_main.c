@@ -433,6 +433,12 @@ e1000_up(struct e1000_adapter *adapter)
 		return err;
 	}
 
+#ifdef CONFIG_E1000_MQ
+	e1000_setup_queue_mapping(adapter);
+#endif
+
+	adapter->tx_queue_len = netdev->tx_queue_len;
+
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
 #ifdef CONFIG_E1000_NAPI
@@ -467,6 +473,7 @@ e1000_down(struct e1000_adapter *adapter)
 #ifdef CONFIG_E1000_NAPI
 	netif_poll_disable(netdev);
 #endif
+	netdev->tx_queue_len = adapter->tx_queue_len;
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 	netif_carrier_off(netdev);
@@ -989,6 +996,15 @@ e1000_sw_init(struct e1000_adapter *adapter)
 	}
 	adapter->num_rx_queues = min(adapter->num_rx_queues, num_online_cpus());
 	adapter->num_tx_queues = min(adapter->num_tx_queues, num_online_cpus());
+	DPRINTK(DRV, INFO, "Multiqueue Enabled: Rx Queue count = %u %s\n",
+		adapter->num_rx_queues,
+		((adapter->num_rx_queues == 1)
+		 ? ((num_online_cpus() > 1)
+			? "(due to unsupported feature in current adapter)"
+			: "(due to unsupported system configuration)")
+		 : ""));
+	DPRINTK(DRV, INFO, "Multiqueue Enabled: Tx Queue count = %u\n",
+		adapter->num_tx_queues);
 #else
 	adapter->num_tx_queues = 1;
 	adapter->num_rx_queues = 1;
@@ -1007,10 +1023,7 @@ e1000_sw_init(struct e1000_adapter *adapter)
 		dev_hold(&adapter->polling_netdev[i]);
 		set_bit(__LINK_STATE_START, &adapter->polling_netdev[i].state);
 	}
-#endif
-
-#ifdef CONFIG_E1000_MQ
-	e1000_setup_queue_mapping(adapter);
+	spin_lock_init(&adapter->tx_queue_lock);
 #endif
 
 	atomic_set(&adapter->irq_sem, 1);
@@ -1058,6 +1071,14 @@ e1000_alloc_queues(struct e1000_adapter *adapter)
 	memset(adapter->polling_netdev, 0, size);
 #endif
 
+#ifdef CONFIG_E1000_MQ
+	adapter->rx_sched_call_data.func = e1000_rx_schedule;
+	adapter->rx_sched_call_data.info = adapter->netdev;
+
+	adapter->cpu_netdev = alloc_percpu(struct net_device *);
+	adapter->cpu_tx_ring = alloc_percpu(struct e1000_tx_ring *);
+#endif
+
 	return E1000_SUCCESS;
 }
 
@@ -1084,7 +1105,8 @@ e1000_setup_queue_mapping(struct e1000_adapter *adapter)
 		 */
 		if (i < adapter->num_rx_queues) {
 			*per_cpu_ptr(adapter->cpu_netdev, cpu) = &adapter->polling_netdev[i];
-			adapter->cpu_for_queue[i] = cpu;
+			adapter->rx_ring[i].cpu = cpu;
+			cpu_set(cpu, adapter->cpumask);
 		} else
 			*per_cpu_ptr(adapter->cpu_netdev, cpu) = NULL;
 
@@ -3337,6 +3359,10 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			if(unlikely(++i == tx_ring->count)) i = 0;
 		}
 
+#ifdef CONFIG_E1000_MQ
+		tx_ring->tx_stats.packets++;
+#endif
+
 		eop = tx_ring->buffer_info[i].next_to_watch;
 		eop_desc = E1000_TX_DESC(*tx_ring, eop);
 	}
@@ -3365,6 +3391,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			eop = tx_ring->buffer_info[i].next_to_watch;
 			eop_desc = E1000_TX_DESC(*tx_ring, eop);
 			DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
+					"  Tx Queue             <%lu>\n"
 					"  TDH                  <%x>\n"
 					"  TDT                  <%x>\n"
 					"  next_to_use          <%x>\n"
@@ -3375,6 +3402,8 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 					"  next_to_watch        <%x>\n"
 					"  jiffies              <%lx>\n"
 					"  next_to_watch.status <%x>\n",
+				(unsigned long)((tx_ring - adapter->tx_ring) /
+					sizeof(struct e1000_tx_ring)),
 				readl(adapter->hw.hw_addr + tx_ring->tdh),
 				readl(adapter->hw.hw_addr + tx_ring->tdt),
 				tx_ring->next_to_use,
@@ -3541,6 +3570,10 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		}
 #endif /* CONFIG_E1000_NAPI */
 		netdev->last_rx = jiffies;
+#ifdef CONFIG_E1000_MQ
+		rx_ring->rx_stats.packets++;
+		rx_ring->rx_stats.bytes += length;
+#endif
 
 next_desc:
 		rx_desc->status = 0;
@@ -3671,6 +3704,10 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		}
 #endif /* CONFIG_E1000_NAPI */
 		netdev->last_rx = jiffies;
+#ifdef CONFIG_E1000_MQ
+		rx_ring->rx_stats.packets++;
+		rx_ring->rx_stats.bytes += length;
+#endif
 
 next_desc:
 		rx_desc->wb.middle.status_error &= ~0xFF;
