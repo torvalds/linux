@@ -116,30 +116,12 @@ static void print_slot_pci_funcs(struct pci_bus *bus)
 	return;
 }
 
-static void rpaphp_eeh_remove_bus_device(struct pci_dev *dev)
-{
-	eeh_remove_device(dev);
-	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		struct pci_bus *bus = dev->subordinate;
-		struct list_head *ln;
-		if (!bus)
-			return; 
-		for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
-			struct pci_dev *pdev = pci_dev_b(ln);
-			if (pdev)
-				rpaphp_eeh_remove_bus_device(pdev);
-		}
-
-	}
-	return;
-}
-
 int rpaphp_unconfig_pci_adapter(struct pci_bus *bus)
 {
 	struct pci_dev *dev, *tmp;
 
 	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
-		rpaphp_eeh_remove_bus_device(dev);
+		eeh_remove_bus_device(dev);
 		pci_remove_bus_device(dev);
 	}
 	return 0;
