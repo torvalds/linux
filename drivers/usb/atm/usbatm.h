@@ -187,6 +187,13 @@ struct usbatm_data {
 	struct sk_buff_head sndqueue;
 	struct sk_buff *current_skb;	/* being emptied */
 
+	struct usbatm_vcc_data *cached_vcc;
+	int cached_vci;
+	short cached_vpi;
+
+	unsigned char *cell_buf;	/* holds partial rx cell */
+	unsigned int buf_usage;
+
 	struct urb *urbs[0];
 };
 
