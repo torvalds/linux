@@ -1542,6 +1542,8 @@ setup_rx_desc_die:
 
 	rxdr->next_to_clean = 0;
 	rxdr->next_to_use = 0;
+	rxdr->rx_skb_top = NULL;
+	rxdr->rx_skb_prev = NULL;
 
 	return 0;
 }
@@ -2010,18 +2012,29 @@ e1000_clean_rx_ring(struct e1000_adapter *adapter,
 
 			dev_kfree_skb(buffer_info->skb);
 			buffer_info->skb = NULL;
-
-			for(j = 0; j < adapter->rx_ps_pages; j++) {
-				if(!ps_page->ps_page[j]) break;
-				pci_unmap_single(pdev,
-						 ps_page_dma->ps_page_dma[j],
-						 PAGE_SIZE, PCI_DMA_FROMDEVICE);
-				ps_page_dma->ps_page_dma[j] = 0;
-				put_page(ps_page->ps_page[j]);
-				ps_page->ps_page[j] = NULL;
-			}
+		}
+		ps_page = &rx_ring->ps_page[i];
+		ps_page_dma = &rx_ring->ps_page_dma[i];
+		for (j = 0; j < adapter->rx_ps_pages; j++) {
+			if (!ps_page->ps_page[j]) break;
+			pci_unmap_page(pdev,
+				       ps_page_dma->ps_page_dma[j],
+				       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+			ps_page_dma->ps_page_dma[j] = 0;
+			put_page(ps_page->ps_page[j]);
+			ps_page->ps_page[j] = NULL;
 		}
 	}
+
+	/* there also may be some cached data in our adapter */
+	if (rx_ring->rx_skb_top) {
+		dev_kfree_skb(rx_ring->rx_skb_top);
+
+		/* rx_skb_prev will be wiped out by rx_skb_top */
+		rx_ring->rx_skb_top = NULL;
+		rx_ring->rx_skb_prev = NULL;
+	}
+
 
 	size = sizeof(struct e1000_buffer) * rx_ring->count;
 	memset(rx_ring->buffer_info, 0, size);
@@ -2985,49 +2998,50 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	if((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
 		(max_frame > MAX_JUMBO_FRAME_SIZE)) {
 			DPRINTK(PROBE, ERR, "Invalid MTU setting\n");
-			return -EINVAL;
-	}
-
-#define MAX_STD_JUMBO_FRAME_SIZE 9234
-	/* might want this to be bigger enum check... */
-	/* 82571 controllers limit jumbo frame size to 10500 bytes */
-	if ((adapter->hw.mac_type == e1000_82571 || 
-	     adapter->hw.mac_type == e1000_82572) &&
-	    max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
-		DPRINTK(PROBE, ERR, "MTU > 9216 bytes not supported "
-				    "on 82571 and 82572 controllers.\n");
 		return -EINVAL;
 	}
 
-	if(adapter->hw.mac_type == e1000_82573 &&
-	    max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
-		DPRINTK(PROBE, ERR, "Jumbo Frames not supported "
-				    "on 82573\n");
-		return -EINVAL;
-	}
-
-	if(adapter->hw.mac_type > e1000_82547_rev_2) {
-		adapter->rx_buffer_len = max_frame;
-		E1000_ROUNDUP(adapter->rx_buffer_len, 1024);
-	} else {
-		if(unlikely((adapter->hw.mac_type < e1000_82543) &&
-		   (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE))) {
-			DPRINTK(PROBE, ERR, "Jumbo Frames not supported "
-					    "on 82542\n");
+	/* Adapter-specific max frame size limits. */
+	switch (adapter->hw.mac_type) {
+	case e1000_82542_rev2_0:
+	case e1000_82542_rev2_1:
+	case e1000_82573:
+		if (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
+			DPRINTK(PROBE, ERR, "Jumbo Frames not supported.\n");
 			return -EINVAL;
-
-		} else {
-			if(max_frame <= E1000_RXBUFFER_2048) {
-				adapter->rx_buffer_len = E1000_RXBUFFER_2048;
-			} else if(max_frame <= E1000_RXBUFFER_4096) {
-				adapter->rx_buffer_len = E1000_RXBUFFER_4096;
-			} else if(max_frame <= E1000_RXBUFFER_8192) {
-				adapter->rx_buffer_len = E1000_RXBUFFER_8192;
-			} else if(max_frame <= E1000_RXBUFFER_16384) {
-				adapter->rx_buffer_len = E1000_RXBUFFER_16384;
-			}
 		}
+		break;
+	case e1000_82571:
+	case e1000_82572:
+#define MAX_STD_JUMBO_FRAME_SIZE 9234
+		if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
+			DPRINTK(PROBE, ERR, "MTU > 9216 not supported.\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		/* Capable of supporting up to MAX_JUMBO_FRAME_SIZE limit. */
+		break;
 	}
+
+	/* since the driver code now supports splitting a packet across
+	 * multiple descriptors, most of the fifo related limitations on
+	 * jumbo frame traffic have gone away.
+	 * simply use 2k descriptors for everything.
+	 *
+	 * NOTE: dev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
+	 * means we reserve 2 more, this pushes us to allocate from the next
+	 * larger slab size
+	 * i.e. RXBUFFER_2048 --> size-4096 slab */
+
+	/* recent hardware supports 1KB granularity */
+	if (adapter->hw.mac_type > e1000_82547_rev_2) {
+		adapter->rx_buffer_len =
+		    ((max_frame < E1000_RXBUFFER_2048) ?
+		        max_frame : E1000_RXBUFFER_2048);
+		E1000_ROUNDUP(adapter->rx_buffer_len, 1024);
+	} else
+		adapter->rx_buffer_len = E1000_RXBUFFER_2048;
 
 	netdev->mtu = new_mtu;
 
