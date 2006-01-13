@@ -91,7 +91,6 @@ extern int num_slots;
 extern int rpaphp_enable_pci_slot(struct slot *slot);
 extern int register_pci_slot(struct slot *slot);
 extern int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value);
-extern void rpaphp_init_new_devs(struct pci_bus *bus);
 
 extern int rpaphp_config_pci_adapter(struct pci_bus *bus);
 extern int rpaphp_unconfig_pci_adapter(struct pci_bus *bus);

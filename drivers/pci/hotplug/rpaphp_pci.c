@@ -101,140 +101,6 @@ exit:
 	return rc;
 }
 
-/* Must be called before pci_bus_add_devices */
-void rpaphp_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		/*
-		 * Skip already-present devices (which are on the
-		 * global device list.)
-		 */
-		if (list_empty(&dev->global_list)) {
-			int i;
-			
-			/* Need to setup IOMMU tables */
-			ppc_md.iommu_dev_setup(dev);
-
-			if(fix_bus)
-				pcibios_fixup_device_resources(dev, bus);
-			pci_read_irq_line(dev);
-			for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-				struct resource *r = &dev->resource[i];
-
-				if (r->parent || !r->start || !r->flags)
-					continue;
-				pci_claim_resource(dev, i);
-			}
-		}
-	}
-}
-
-static void rpaphp_eeh_add_bus_device(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		eeh_add_device_late(dev);
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-			struct pci_bus *subbus = dev->subordinate;
-			if (subbus)
-				rpaphp_eeh_add_bus_device (subbus);
-		}
-	}
-}
-
-static int rpaphp_pci_config_bridge(struct pci_dev *dev)
-{
-	u8 sec_busno;
-	struct pci_bus *child_bus;
-	struct pci_dev *child_dev;
-
-	dbg("Enter %s:  BRIDGE dev=%s\n", __FUNCTION__, pci_name(dev));
-
-	/* get busno of downstream bus */
-	pci_read_config_byte(dev, PCI_SECONDARY_BUS, &sec_busno);
-		
-	/* add to children of PCI bridge dev->bus */
-	child_bus = pci_add_new_bus(dev->bus, dev, sec_busno);
-	if (!child_bus) {
-		err("%s: could not add second bus\n", __FUNCTION__);
-		return -EIO;
-	}
-	sprintf(child_bus->name, "PCI Bus #%02x", child_bus->number);
-	/* do pci_scan_child_bus */
-	pci_scan_child_bus(child_bus);
-
-	list_for_each_entry(child_dev, &child_bus->devices, bus_list) {
-		eeh_add_device_late(child_dev);
-	}
-
-	 /* fixup new pci devices without touching bus struct */
-	rpaphp_fixup_new_pci_devices(child_bus, 0);
-
-	/* Make the discovered devices available */
-	pci_bus_add_devices(child_bus);
-	return 0;
-}
-
-void rpaphp_init_new_devs(struct pci_bus *bus)
-{
-	rpaphp_fixup_new_pci_devices(bus, 0);
-	rpaphp_eeh_add_bus_device(bus);
-}
-EXPORT_SYMBOL_GPL(rpaphp_init_new_devs);
-
-/*****************************************************************************
- rpaphp_pci_config_slot() will  configure all devices under the
- given slot->dn and return the the first pci_dev.
- *****************************************************************************/
-static struct pci_dev *
-rpaphp_pci_config_slot(struct pci_bus *bus)
-{
-	struct device_node *dn = pci_bus_to_OF_node(bus);
-	struct pci_dev *dev = NULL;
-	int slotno;
-	int num;
-
-	dbg("Enter %s: dn=%s bus=%s\n", __FUNCTION__, dn->full_name, bus->name);
-	if (!dn || !dn->child)
-		return NULL;
-
-	if (_machine == PLATFORM_PSERIES_LPAR) {
-		of_scan_bus(dn, bus);
-		if (list_empty(&bus->devices)) {
-			err("%s: No new device found\n", __FUNCTION__);
-			return NULL;
-		}
-
-		rpaphp_init_new_devs(bus);
-		pci_bus_add_devices(bus);
-		dev = list_entry(&bus->devices, struct pci_dev, bus_list);
-	} else {
-		slotno = PCI_SLOT(PCI_DN(dn->child)->devfn);
-
-		/* pci_scan_slot should find all children */
-		num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
-		if (num) {
-			rpaphp_fixup_new_pci_devices(bus, 1);
-			pci_bus_add_devices(bus);
-		}
-		if (list_empty(&bus->devices)) {
-			err("%s: No new device found\n", __FUNCTION__);
-			return NULL;
-		}
-		list_for_each_entry(dev, &bus->devices, bus_list) {
-			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-				rpaphp_pci_config_bridge(dev);
-
-			rpaphp_eeh_add_bus_device(bus);
-		}
-	}
-
-	return dev;
-}
-
 static void print_slot_pci_funcs(struct pci_bus *bus)
 {
 	struct device_node *dn;
@@ -253,19 +119,13 @@ static void print_slot_pci_funcs(struct pci_bus *bus)
 int rpaphp_config_pci_adapter(struct pci_bus *bus)
 {
 	struct device_node *dn = pci_bus_to_OF_node(bus);
-	struct pci_dev *dev;
 	int rc = -ENODEV;
 
 	dbg("Entry %s: slot[%s]\n", __FUNCTION__, dn->full_name);
 	if (!dn)
 		goto exit;
 
-	eeh_add_device_tree_early(dn);
-	dev = rpaphp_pci_config_slot(bus);
-	if (!dev) {
-		err("%s: can't find any devices.\n", __FUNCTION__);
-		goto exit;
-	}
+	pcibios_add_pci_devices(bus);
 	print_slot_pci_funcs(bus);
 	rc = 0;
 exit:

@@ -146,7 +146,7 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
 		of_scan_pci_bridge(dn, dev);
 
-	rpaphp_init_new_devs(dev->subordinate);
+	pcibios_fixup_new_pci_devices(dev->subordinate,0);
 
 	/* Claim new bus resources */
 	pcibios_claim_one_bus(dev->bus);
