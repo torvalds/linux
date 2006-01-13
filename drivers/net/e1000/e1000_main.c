@@ -807,6 +807,26 @@ e1000_probe(struct pci_dev *pdev,
 	if(eeprom_data & eeprom_apme_mask)
 		adapter->wol |= E1000_WUFC_MAG;
 
+	/* print bus type/speed/width info */
+	{
+	struct e1000_hw *hw = &adapter->hw;
+	DPRINTK(PROBE, INFO, "(PCI%s:%s:%s) ",
+		((hw->bus_type == e1000_bus_type_pcix) ? "-X" :
+		 (hw->bus_type == e1000_bus_type_pci_express ? " Express":"")),
+		((hw->bus_speed == e1000_bus_speed_2500) ? "2.5Gb/s" :
+		 (hw->bus_speed == e1000_bus_speed_133) ? "133MHz" :
+		 (hw->bus_speed == e1000_bus_speed_120) ? "120MHz" :
+		 (hw->bus_speed == e1000_bus_speed_100) ? "100MHz" :
+		 (hw->bus_speed == e1000_bus_speed_66) ? "66MHz" : "33MHz"),
+		((hw->bus_width == e1000_bus_width_64) ? "64-bit" :
+		 (hw->bus_width == e1000_bus_width_pciex_4) ? "Width x4" :
+		 (hw->bus_width == e1000_bus_width_pciex_1) ? "Width x1" :
+		 "32-bit"));
+	}
+
+	for (i = 0; i < 6; i++)
+		printk("%2.2x%c", netdev->dev_addr[i], i == 5 ? '\n' : ':');
+
 	/* reset the hardware with the new settings */
 	e1000_reset(adapter);
 
