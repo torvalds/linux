@@ -136,6 +136,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
+#include <linux/mutex.h>
 
 struct uart_port;
 struct uart_info;
@@ -284,7 +285,7 @@ struct uart_state {
 	struct uart_info	*info;
 	struct uart_port	*port;
 
-	struct semaphore	sem;
+	struct mutex		mutex;
 };
 
 #define UART_XMIT_SIZE	PAGE_SIZE
