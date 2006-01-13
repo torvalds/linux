@@ -420,7 +420,8 @@ e1000_up(struct e1000_adapter *adapter)
 	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct e1000_rx_ring *ring = &adapter->rx_ring[i];
-		adapter->alloc_rx_buf(adapter, ring, E1000_DESC_UNUSED(ring));
+		adapter->alloc_rx_buf(adapter, ring,
+		                      E1000_DESC_UNUSED(ring));
 	}
 
 #ifdef CONFIG_PCI_MSI
@@ -3567,23 +3568,26 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	uint32_t length;
 	uint8_t last_byte;
 	unsigned int i;
-	boolean_t cleaned = FALSE;
 	int cleaned_count = 0;
+	boolean_t cleaned = FALSE, multi_descriptor = FALSE;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC(*rx_ring, i);
 
 	while(rx_desc->status & E1000_RXD_STAT_DD) {
 		buffer_info = &rx_ring->buffer_info[i];
+		u8 status;
 #ifdef CONFIG_E1000_NAPI
 		if(*work_done >= work_to_do)
 			break;
 		(*work_done)++;
 #endif
-
+		status = rx_desc->status;
 		cleaned = TRUE;
 		cleaned_count++;
-		pci_unmap_single(pdev, buffer_info->dma, buffer_info->length,
+		pci_unmap_single(pdev,
+		                 buffer_info->dma,
+		                 buffer_info->length,
 		                 PCI_DMA_FROMDEVICE);
 
 		skb = buffer_info->skb;
@@ -3602,7 +3606,8 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			if(TBI_ACCEPT(&adapter->hw, rx_desc->status,
 			              rx_desc->errors, length, last_byte)) {
 				spin_lock_irqsave(&adapter->stats_lock, flags);
-				e1000_tbi_adjust_stats(&adapter->hw, &adapter->stats,
+				e1000_tbi_adjust_stats(&adapter->hw,
+				                       &adapter->stats,
 				                       length, skb->data);
 				spin_unlock_irqrestore(&adapter->stats_lock,
 				                       flags);
@@ -3613,17 +3618,40 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			}
 		}
 
-		/* Good Receive */
-		skb_put(skb, length - ETHERNET_FCS_SIZE);
+		/* code added for copybreak, this should improve
+		 * performance for small packets with large amounts
+		 * of reassembly being done in the stack */
+#define E1000_CB_LENGTH 256
+		if ((length < E1000_CB_LENGTH) &&
+		   !rx_ring->rx_skb_top &&
+		   /* or maybe (status & E1000_RXD_STAT_EOP) && */
+		   !multi_descriptor) {
+			struct sk_buff *new_skb =
+			    dev_alloc_skb(length + NET_IP_ALIGN);
+			if (new_skb) {
+				skb_reserve(new_skb, NET_IP_ALIGN);
+				new_skb->dev = netdev;
+				memcpy(new_skb->data - NET_IP_ALIGN,
+				       skb->data - NET_IP_ALIGN,
+				       length + NET_IP_ALIGN);
+				/* save the skb in buffer_info as good */
+				buffer_info->skb = skb;
+				skb = new_skb;
+				skb_put(skb, length);
+			}
+		}
+
+		/* end copybreak code */
 
 		/* Receive Checksum Offload */
-		e1000_rx_checksum(adapter, (uint32_t)(rx_desc->status) |
+		e1000_rx_checksum(adapter,
+				  (uint32_t)(status) |
 				  ((uint32_t)(rx_desc->errors) << 24),
 				  rx_desc->csum, skb);
 		skb->protocol = eth_type_trans(skb, netdev);
 #ifdef CONFIG_E1000_NAPI
 		if(unlikely(adapter->vlgrp &&
-			    (rx_desc->status & E1000_RXD_STAT_VP))) {
+			    (status & E1000_RXD_STAT_VP))) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
 						 le16_to_cpu(rx_desc->special) &
 						 E1000_RXD_SPC_VLAN_MASK);
@@ -3817,7 +3845,7 @@ next_desc:
 static void
 e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
                        struct e1000_rx_ring *rx_ring,
-                       int cleaned_count)
+		       int cleaned_count)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
@@ -3830,8 +3858,14 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
 
-	while(!buffer_info->skb) {
-		skb = dev_alloc_skb(bufsz);
+	while (cleaned_count--) {
+		if (!(skb = buffer_info->skb))
+			skb = dev_alloc_skb(bufsz);
+		else {
+			skb_trim(skb, 0);
+			goto map_skb;
+		}
+
 
 		if(unlikely(!skb)) {
 			/* Better luck next round */
@@ -3872,6 +3906,7 @@ e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
+map_skb:
 		buffer_info->dma = pci_map_single(pdev,
 						  skb->data,
 						  adapter->rx_buffer_len,
