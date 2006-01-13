@@ -612,6 +612,7 @@ typedef struct _MPT_ADAPTER
 	struct list_head	 list;
 	struct net_device	*netdev;
 	struct list_head	 sas_topology;
+	struct mutex		 sas_topology_mutex;
 	MPT_SAS_MGMT		 sas_mgmt;
 } MPT_ADAPTER;
 
