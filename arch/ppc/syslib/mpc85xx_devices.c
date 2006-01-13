@@ -26,7 +26,6 @@
  * what CCSRBAR is, will get fixed up by mach_mpc85xx_fixup
  */
 struct gianfar_mdio_data mpc85xx_mdio_pdata = {
-	.paddr = MPC85xx_MIIM_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_tsec1_pdata = {
@@ -720,7 +719,14 @@ struct platform_device ppc_sys_platform_devices[] = {
 		.name = "fsl-gianfar_mdio",
 		.id = 0,
 		.dev.platform_data = &mpc85xx_mdio_pdata,
-		.num_resources = 0,
+		.num_resources = 1,
+		.resource = (struct resource[]) {
+			{
+				.start	= 0x24520,
+				.end	= 0x2453f,
+				.flags	= IORESOURCE_MEM,
+			},
+		},
 	},
 };
 
