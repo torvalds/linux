@@ -68,10 +68,14 @@ struct prev_kprobe {
 	unsigned long status;
 };
 
+#define	MAX_PARAM_RSE_SIZE	(0x60+0x60/0x3f)
 /* per-cpu kprobe control block */
 struct kprobe_ctlblk {
 	unsigned long kprobe_status;
 	struct pt_regs jprobe_saved_regs;
+	unsigned long jprobes_saved_stacked_regs[MAX_PARAM_RSE_SIZE];
+	unsigned long *bsp;
+	unsigned long cfm;
 	struct prev_kprobe prev_kprobe;
 };
 
@@ -118,5 +122,7 @@ extern int kprobe_exceptions_notify(struct notifier_block *self,
 static inline void jprobe_return(void)
 {
 }
+extern void invalidate_stacked_regs(void);
+extern void flush_register_stack(void);
 
 #endif				/* _ASM_KPROBES_H */
