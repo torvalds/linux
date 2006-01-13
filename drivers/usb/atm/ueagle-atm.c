@@ -63,6 +63,7 @@
 #include <linux/ctype.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
+#include <linux/mutex.h>
 #include <asm/unaligned.h>
 
 #include "usbatm.h"
@@ -358,7 +359,7 @@ struct intr_pkt {
 #define INTR_PKT_SIZE 28
 
 static struct usb_driver uea_driver;
-static DECLARE_MUTEX(uea_semaphore);
+static DEFINE_MUTEX(uea_mutex);
 static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III"};
 
 static int modem_index;
@@ -1418,13 +1419,13 @@ static ssize_t read_status(struct device *dev, struct device_attribute *attr,
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
 	ret = snprintf(buf, 10, "%08x\n", sc->stats.phy.state);
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1434,14 +1435,14 @@ static ssize_t reboot(struct device *dev, struct device_attribute *attr,
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
 	sc->reset = 1;
 	ret = count;
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1453,7 +1454,7 @@ static ssize_t read_human_status(struct device *dev, struct device_attribute *at
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
@@ -1473,7 +1474,7 @@ static ssize_t read_human_status(struct device *dev, struct device_attribute *at
 		break;
 	}
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1485,7 +1486,7 @@ static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
@@ -1497,7 +1498,7 @@ static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
 	else
 		ret = sprintf(buf, "GOOD\n");
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1511,7 +1512,7 @@ static ssize_t read_##name(struct device *dev, 			\
 	int ret = -ENODEV; 					\
 	struct uea_softc *sc; 					\
  								\
-	down(&uea_semaphore); 					\
+	mutex_lock(&uea_mutex); 					\
 	sc = dev_to_uea(dev);					\
 	if (!sc) 						\
 		goto out; 					\
@@ -1519,7 +1520,7 @@ static ssize_t read_##name(struct device *dev, 			\
 	if (reset)						\
 		sc->stats.phy.name = 0;				\
 out: 								\
-	up(&uea_semaphore); 					\
+	mutex_unlock(&uea_mutex); 					\
 	return ret; 						\
 } 								\
 								\
@@ -1737,9 +1738,9 @@ static void uea_disconnect(struct usb_interface *intf)
 	 * Pre-firmware device has one interface
 	 */
 	if (usb->config->desc.bNumInterfaces != 1 && ifnum == 0) {
-		down(&uea_semaphore);
+		mutex_lock(&uea_mutex);
 		usbatm_usb_disconnect(intf);
-		up(&uea_semaphore);
+		mutex_unlock(&uea_mutex);
 		uea_info(usb, "ADSL device removed\n");
 	}
 

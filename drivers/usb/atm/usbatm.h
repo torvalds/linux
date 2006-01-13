@@ -34,6 +34,7 @@
 #include <linux/list.h>
 #include <linux/stringify.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 /*
 #define VERBOSE_DEBUG
@@ -171,7 +172,7 @@ struct usbatm_data {
         ********************************/
 
 	struct kref refcount;
-	struct semaphore serialize;
+	struct mutex serialize;
 	int disconnected;
 
 	/* heavy init */

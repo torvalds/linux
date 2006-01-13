@@ -823,7 +823,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 		return -EINVAL;
 	}
 
-	down(&instance->serialize);	/* vs self, usbatm_atm_close, usbatm_usb_disconnect */
+	mutex_lock(&instance->serialize);	/* vs self, usbatm_atm_close, usbatm_usb_disconnect */
 
 	if (instance->disconnected) {
 		atm_dbg(instance, "%s: disconnected!\n", __func__);
@@ -867,7 +867,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 	set_bit(ATM_VF_PARTIAL, &vcc->flags);
 	set_bit(ATM_VF_READY, &vcc->flags);
 
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 
 	atm_dbg(instance, "%s: allocated vcc data 0x%p\n", __func__, new);
 
@@ -875,7 +875,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 
 fail:
 	kfree(new);
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 	return ret;
 }
 
@@ -896,7 +896,7 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 
 	usbatm_cancel_send(instance, vcc);
 
-	down(&instance->serialize);	/* vs self, usbatm_atm_open, usbatm_usb_disconnect */
+	mutex_lock(&instance->serialize);	/* vs self, usbatm_atm_open, usbatm_usb_disconnect */
 
 	tasklet_disable(&instance->rx_channel.tasklet);
 	if (instance->cached_vcc == vcc_data) {
@@ -919,7 +919,7 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 	clear_bit(ATM_VF_PARTIAL, &vcc->flags);
 	clear_bit(ATM_VF_ADDR, &vcc->flags);
 
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 
 	atm_dbg(instance, "%s successful\n", __func__);
 }
@@ -1009,9 +1009,9 @@ static int usbatm_do_heavy_init(void *arg)
 	if (!ret)
 		ret = usbatm_atm_init(instance);
 
-	down(&instance->serialize);
+	mutex_lock(&instance->serialize);
 	instance->thread_pid = -1;
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 
 	complete_and_exit(&instance->thread_exited, ret);
 }
@@ -1025,9 +1025,9 @@ static int usbatm_heavy_init(struct usbatm_data *instance)
 		return ret;
 	}
 
-	down(&instance->serialize);
+	mutex_lock(&instance->serialize);
 	instance->thread_pid = ret;
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 
 	wait_for_completion(&instance->thread_started);
 
@@ -1110,7 +1110,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	/* private fields */
 
 	kref_init(&instance->refcount);		/* dropped in usbatm_usb_disconnect */
-	init_MUTEX(&instance->serialize);
+	mutex_init(&instance->serialize);
 
 	instance->thread_pid = -1;
 	init_completion(&instance->thread_started);
@@ -1273,18 +1273,18 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 
-	down(&instance->serialize);
+	mutex_lock(&instance->serialize);
 	instance->disconnected = 1;
 	if (instance->thread_pid >= 0)
 		kill_proc(instance->thread_pid, SIGTERM, 1);
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 
 	wait_for_completion(&instance->thread_exited);
 
-	down(&instance->serialize);
+	mutex_lock(&instance->serialize);
 	list_for_each_entry(vcc_data, &instance->vcc_list, list)
 		vcc_release_async(vcc_data->vcc, -EPIPE);
-	up(&instance->serialize);
+	mutex_unlock(&instance->serialize);
 
 	tasklet_disable(&instance->rx_channel.tasklet);
 	tasklet_disable(&instance->tx_channel.tasklet);

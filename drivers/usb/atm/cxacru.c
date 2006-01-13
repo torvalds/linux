@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/device.h>	/* FIXME: linux/firmware.h should include it itself */
 #include <linux/firmware.h>
+#include <linux/mutex.h>
 
 #include "usbatm.h"
 
@@ -160,7 +161,7 @@ struct cxacru_data {
 	struct work_struct poll_work;
 
 	/* contol handles */
-	struct semaphore cm_serialize;
+	struct mutex cm_serialize;
 	u8 *rcv_buf;
 	u8 *snd_buf;
 	struct urb *rcv_urb;
@@ -219,7 +220,7 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 		goto fail;
 	}
 
-	down(&instance->cm_serialize);
+	mutex_lock(&instance->cm_serialize);
 
 	/* submit reading urb before the writing one */
 	init_completion(&instance->rcv_done);
@@ -288,7 +289,7 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 	ret = offd;
 	dbg("cm %#x", cm);
 fail:
-	up(&instance->cm_serialize);
+	mutex_unlock(&instance->cm_serialize);
 	return ret;
 }
 
@@ -717,7 +718,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 			instance->snd_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->snd_done, 4);
 
-	init_MUTEX(&instance->cm_serialize);
+	mutex_init(&instance->cm_serialize);
 
 	INIT_WORK(&instance->poll_work, (void *)cxacru_poll_status, instance);
 
