@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 1996,1997,1998 Russell King.
  *  ARM700 fix by Matthew Godbolt (linux-user@willothewisp.demon.co.uk)
+ *  nommu support by Hyok S. Choi (hyok.choi@samsung.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -538,7 +539,11 @@ ENTRY(__switch_to)
 	add	ip, r1, #TI_CPU_SAVE
 	ldr	r3, [r2, #TI_TP_VALUE]
 	stmia	ip!, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
+#ifndef CONFIG_MMU
+	add	r2, r2, #TI_CPU_DOMAIN
+#else
 	ldr	r6, [r2, #TI_CPU_DOMAIN]!
+#endif
 #if __LINUX_ARM_ARCH__ >= 6
 #ifdef CONFIG_CPU_MPCORE
 	clrex
@@ -556,7 +561,9 @@ ENTRY(__switch_to)
 	mov	r4, #0xffff0fff
 	str	r3, [r4, #-15]			@ TLS val at 0xffff0ff0
 #endif
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
+#endif
 #ifdef CONFIG_VFP
 	@ Always disable VFP so we can lazily save/restore the old
 	@ state. This occurs in the context of the previous thread.
