@@ -274,6 +274,16 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 		hd->Targets[sdev->id] = vtarget;
 	}
 
+	/*
+	  RAID volumes placed beyond the last expected port.
+	*/
+	if (sdev->channel == hd->ioc->num_ports) {
+		vdev->target_id = sdev->id;
+		vdev->bus_id = 0;
+		vdev->lun = 0;
+		goto out;
+	}
+
 	rphy = dev_to_rphy(sdev->sdev_target->dev.parent);
 	mutex_lock(&hd->ioc->sas_topology_mutex);
 	list_for_each_entry(p, &hd->ioc->sas_topology, list) {
@@ -284,6 +294,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 					p->phy_info[i].attached.id;
 				vdev->bus_id = p->phy_info[i].attached.channel;
 				vdev->lun = sdev->lun;
+ 	mutex_unlock(&hd->ioc->sas_topology_mutex);
 				goto out;
 			}
 		}
@@ -295,7 +306,6 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	return -ENODEV;
 
  out:
-	mutex_unlock(&hd->ioc->sas_topology_mutex);
 	vtarget->ioc_id = vdev->ioc_id;
 	vtarget->target_id = vdev->target_id;
 	vtarget->bus_id = vdev->bus_id;
@@ -1051,6 +1061,7 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
 	if (error)
 		goto out_free_port_info;
 
+	ioc->num_ports = port_info->num_phys;
 	mutex_lock(&ioc->sas_topology_mutex);
 	list_add_tail(&port_info->list, &ioc->sas_topology);
 	mutex_unlock(&ioc->sas_topology_mutex);
@@ -1584,6 +1595,20 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	mptsas_scan_sas_topology(ioc);
+
+	/*
+	  Reporting RAID volumes.
+	*/
+	if (!ioc->raid_data.pIocPg2)
+		return 0;
+	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
+		return 0;
+	for (ii=0;ii<ioc->raid_data.pIocPg2->NumActiveVolumes;ii++) {
+		scsi_add_device(sh,
+			ioc->num_ports,
+			ioc->raid_data.pIocPg2->RaidVolume[ii].VolumeID,
+			0);
+	}
 
 	return 0;
 
