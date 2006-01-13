@@ -638,7 +638,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	mutex_unlock(&sas_host->lock);
 
 	if (rphy->scsi_target_id != -1) {
-		scsi_scan_target(&rphy->dev, parent->number,
+		scsi_scan_target(&rphy->dev, parent->port_identifier,
 				rphy->scsi_target_id, ~0, 0);
 	}
 
@@ -745,9 +745,9 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 		if (rphy->scsi_target_id == -1)
 			continue;
 
-		if ((channel == SCAN_WILD_CARD || channel == parent->number) &&
+		if ((channel == SCAN_WILD_CARD || channel == parent->port_identifier) &&
 		    (id == SCAN_WILD_CARD || id == rphy->scsi_target_id)) {
-			scsi_scan_target(&rphy->dev, parent->number,
+			scsi_scan_target(&rphy->dev, parent->port_identifier,
 					 rphy->scsi_target_id, lun, 1);
 		}
 	}
