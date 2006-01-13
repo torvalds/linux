@@ -1736,10 +1736,15 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 	}
 
 	if (hw->mac_type >= e1000_82571) {
-		/* Reset delay timers after every interrupt */
 		ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+		/* Reset delay timers after every interrupt */
 		ctrl_ext |= E1000_CTRL_EXT_CANC;
+#ifdef CONFIG_E1000_NAPI
+		/* Auto-Mask interrupts upon ICR read. */
+		ctrl_ext |= E1000_CTRL_EXT_IAME;
+#endif
 		E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+		E1000_WRITE_REG(hw, IAM, ~0);
 		E1000_WRITE_FLUSH(hw);
 	}
 
@@ -3244,12 +3249,24 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint32_t icr = E1000_READ_REG(hw, ICR);
-#if defined(CONFIG_E1000_NAPI) && defined(CONFIG_E1000_MQ) || !defined(CONFIG_E1000_NAPI)
+#ifndef CONFIG_E1000_NAPI
 	int i;
+#else
+	/* Interrupt Auto-Mask...upon reading ICR,
+	 * interrupts are masked.  No need for the
+	 * IMC write, but it does mean we should
+	 * account for it ASAP. */
+	if (likely(hw->mac_type >= e1000_82571))
+		atomic_inc(&adapter->irq_sem);
 #endif
 
-	if(unlikely(!icr))
+	if (unlikely(!icr)) {
+#ifdef CONFIG_E1000_NAPI
+		if (hw->mac_type >= e1000_82571)
+			e1000_irq_enable(adapter);
+#endif
 		return IRQ_NONE;  /* Not our interrupt */
+	}
 
 	if(unlikely(icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))) {
 		hw->get_link_status = 1;
@@ -3257,9 +3274,11 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_E1000_NAPI
-	atomic_inc(&adapter->irq_sem);
-	E1000_WRITE_REG(hw, IMC, ~0);
-	E1000_WRITE_FLUSH(hw);
+	if (unlikely(hw->mac_type < e1000_82571)) {
+		atomic_inc(&adapter->irq_sem);
+		E1000_WRITE_REG(hw, IMC, ~0);
+		E1000_WRITE_FLUSH(hw);
+	}
 #ifdef CONFIG_E1000_MQ
 	if (atomic_read(&adapter->rx_sched_call_data.count) == 0) {
 		/* We must setup the cpumask once count == 0 since
