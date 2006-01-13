@@ -140,6 +140,9 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 	}
 	return -ENOIOCTLCMD;
 }
+
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+
 #define STATE(v) [SNDRV_PCM_STATE_##v] = #v
 #define STREAM(v) [SNDRV_PCM_STREAM_##v] = #v
 #define READY(v) [SNDRV_PCM_READY_##v] = #v
@@ -197,7 +200,6 @@ const char *snd_pcm_format_name(snd_pcm_format_t format)
 	return snd_pcm_format_names[format];
 }
 
-#ifdef CONFIG_PROC_FS
 static char *snd_pcm_stream_names[] = {
 	STREAM(PLAYBACK),
 	STREAM(CAPTURE),

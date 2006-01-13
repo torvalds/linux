@@ -22,6 +22,8 @@
  *
  */
 
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
+
 #include <linux/bitmap.h>
 
 static inline unsigned long *bitmap_alloc(unsigned int nbits)
@@ -190,6 +192,14 @@ int conv_index(int src_format, int dst_format);
 void zero_channel(struct snd_pcm_plugin *plugin,
 		  const struct snd_pcm_plugin_channel *dst_channel,
 		  size_t samples);
+
+#else
+
+static inline snd_pcm_sframes_t snd_pcm_plug_client_size(struct snd_pcm_substream *handle, snd_pcm_uframes_t drv_size) { return drv_size; }
+static inline snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *handle, snd_pcm_uframes_t clt_size) { return clt_size; }
+static inline int snd_pcm_plug_slave_format(int format, struct snd_mask *format_mask) { return format; }
+
+#endif
 
 #ifdef PLUGIN_DEBUG
 #define pdprintf( fmt, args... ) printk( "plugin: " fmt, ##args)

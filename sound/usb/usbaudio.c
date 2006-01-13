@@ -1384,8 +1384,8 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	channels = params_channels(hw_params);
 	fmt = find_format(subs, format, rate, channels);
 	if (! fmt) {
-		snd_printd(KERN_DEBUG "cannot set format: format = %s, rate = %d, channels = %d\n",
-			   snd_pcm_format_name(format), rate, channels);
+		snd_printd(KERN_DEBUG "cannot set format: format = 0x%x, rate = %d, channels = %d\n",
+			   format, rate, channels);
 		return -EINVAL;
 	}
 
@@ -2011,6 +2011,8 @@ static struct usb_driver usb_audio_driver = {
 };
 
 
+#if defined(CONFIG_PROCFS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+
 /*
  * proc interface for list the supported pcm formats
  */
@@ -2101,6 +2103,13 @@ static void proc_pcm_format_add(struct snd_usb_stream *stream)
 		snd_info_set_text_ops(entry, stream, 1024, proc_pcm_format_read);
 }
 
+#else
+
+static inline void proc_pcm_format_add(struct snd_usb_stream *stream)
+{
+}
+
+#endif
 
 /*
  * initialize the substream instance.

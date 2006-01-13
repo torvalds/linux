@@ -78,6 +78,7 @@ static inline void snd_leave_user(mm_segment_t fs)
 	set_fs(fs);
 }
 
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 static int snd_pcm_oss_plugin_clear(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -122,6 +123,7 @@ int snd_pcm_plugin_append(struct snd_pcm_plugin *plugin)
 	}
 	return 0;
 }
+#endif /* CONFIG_SND_PCM_OSS_PLUGINS */
 
 static long snd_pcm_oss_bytes(struct snd_pcm_substream *substream, long frames)
 {
@@ -412,6 +414,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	oss_frame_size = snd_pcm_format_physical_width(params_format(params)) *
 			 params_channels(params) / 8;
 
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	snd_pcm_oss_plugin_clear(substream);
 	if (!direct) {
 		/* add necessary plugins */
@@ -441,6 +444,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 			}
 		}
 	}
+#endif
 
 	err = snd_pcm_oss_period_size(substream, params, sparams);
 	if (err < 0)
@@ -498,11 +502,13 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	runtime->oss.periods = params_periods(sparams);
 	oss_period_size = snd_pcm_plug_client_size(substream, params_period_size(sparams));
 	snd_assert(oss_period_size >= 0, err = -EINVAL; goto failure);
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	if (runtime->oss.plugin_first) {
 		err = snd_pcm_plug_alloc(substream, oss_period_size);
 		if (err < 0)
 			goto failure;
 	}
+#endif
 	oss_period_size *= oss_frame_size;
 
 	oss_buffer_size = oss_period_size * runtime->oss.periods;
@@ -784,6 +790,7 @@ static ssize_t snd_pcm_oss_write2(struct snd_pcm_substream *substream, const cha
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_sframes_t frames, frames1;
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	if (runtime->oss.plugin_first) {
 		struct snd_pcm_plugin_channel *channels;
 		size_t oss_frame_bytes = (runtime->oss.plugin_first->src_width * runtime->oss.plugin_first->src_format.channels) / 8;
@@ -800,7 +807,9 @@ static ssize_t snd_pcm_oss_write2(struct snd_pcm_substream *substream, const cha
 		if (frames1 <= 0)
 			return frames1;
 		bytes = frames1 * oss_frame_bytes;
-	} else {
+	} else
+#endif
+	{
 		frames = bytes_to_frames(runtime, bytes);
 		frames1 = snd_pcm_oss_write3(substream, buf, frames, in_kernel);
 		if (frames1 <= 0)
@@ -871,6 +880,7 @@ static ssize_t snd_pcm_oss_read2(struct snd_pcm_substream *substream, char *buf,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_sframes_t frames, frames1;
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	char __user *final_dst = (char __user *)buf;
 	if (runtime->oss.plugin_first) {
 		struct snd_pcm_plugin_channel *channels;
@@ -887,7 +897,9 @@ static ssize_t snd_pcm_oss_read2(struct snd_pcm_substream *substream, char *buf,
 		bytes = frames1 * oss_frame_bytes;
 		if (!in_kernel && copy_to_user(final_dst, buf, bytes))
 			return -EFAULT;
-	} else {
+	} else
+#endif
+	{
 		frames = bytes_to_frames(runtime, bytes);
 		frames1 = snd_pcm_oss_read3(substream, buf, frames, in_kernel);
 		if (frames1 <= 0)
@@ -1692,7 +1704,9 @@ static void snd_pcm_oss_release_substream(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime;
 	runtime = substream->runtime;
 	vfree(runtime->oss.buffer);
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	snd_pcm_oss_plugin_clear(substream);
+#endif
 	substream->oss.file = NULL;
 	substream->oss.oss = 0;
 }
@@ -2246,8 +2260,10 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 		if ((err = snd_pcm_oss_change_params(substream)) < 0)
 			return err;
 	}
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	if (runtime->oss.plugin_first != NULL)
 		return -EIO;
+#endif
 
 	if (area->vm_pgoff != 0)
 		return -EINVAL;

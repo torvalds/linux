@@ -25,6 +25,9 @@
 #endif
 
 #include <sound/driver.h>
+
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
+
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
@@ -916,3 +919,5 @@ int snd_pcm_area_copy(const struct snd_pcm_channel_area *src_area, size_t src_of
 	}
 	return 0;
 }
+
+#endif
