@@ -26,6 +26,6 @@
 
 #define AT_SECURE 23   /* secure mode boolean */
 
-#define AT_VECTOR_SIZE  42 /* Size of auxiliary table.  */
+#define AT_VECTOR_SIZE  44 /* Size of auxiliary table.  */
 
 #endif /* _LINUX_AUXVEC_H */
