@@ -334,19 +334,6 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	struct scsi_target *starget;
 	struct scsi_target *found_target;
 
-	/*
-	 * Obtain the real parent from the transport. The transport
-	 * is allowed to fail (no error) if there is nothing at that
-	 * target id.
-	 */
-	if (shost->transportt->target_parent) {
-		spin_lock_irqsave(shost->host_lock, flags);
-		parent = shost->transportt->target_parent(shost, channel, id);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		if (!parent)
-			return NULL;
-	}
-
 	starget = kmalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
@@ -1283,8 +1270,9 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	struct scsi_device *sdev;
 	struct device *parent = &shost->shost_gendev;
 	int res;
-	struct scsi_target *starget = scsi_alloc_target(parent, channel, id);
+	struct scsi_target *starget;
 
+	starget = scsi_alloc_target(parent, channel, id);
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 

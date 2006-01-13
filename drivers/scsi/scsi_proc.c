@@ -31,6 +31,7 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -200,7 +201,10 @@ static int scsi_add_single_device(uint host, uint channel, uint id, uint lun)
 	if (IS_ERR(shost))
 		return PTR_ERR(shost);
 
-	error = scsi_scan_host_selected(shost, channel, id, lun, 1);
+	if (shost->transportt->user_scan)
+		error = shost->transportt->user_scan(shost, channel, id, lun);
+	else
+		error = scsi_scan_host_selected(shost, channel, id, lun, 1);
 	scsi_host_put(shost);
 	return error;
 }
