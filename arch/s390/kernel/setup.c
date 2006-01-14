@@ -268,7 +268,7 @@ static void do_machine_restart_nonsmp(char * __unused)
 	reipl_diag();
 
 	if (MACHINE_IS_VM)
-		cpcmd ("IPL", NULL, 0);
+		cpcmd ("IPL", NULL, 0, NULL);
 	else
 		reipl (0x10000 | S390_lowcore.ipl_device);
 }
@@ -276,14 +276,14 @@ static void do_machine_restart_nonsmp(char * __unused)
 static void do_machine_halt_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-                cpcmd(vmhalt_cmd, NULL, 0);
+                cpcmd(vmhalt_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
 static void do_machine_power_off_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-                cpcmd(vmpoff_cmd, NULL, 0);
+                cpcmd(vmpoff_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
