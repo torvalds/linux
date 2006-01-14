@@ -1635,7 +1635,7 @@ dasd_setup_queue(struct dasd_device * device)
 	blk_queue_max_hw_segments(device->request_queue, -1L);
 	blk_queue_max_segment_size(device->request_queue, -1L);
 	blk_queue_segment_boundary(device->request_queue, -1L);
-	blk_queue_ordered(device->request_queue, 1);
+	blk_queue_ordered(device->request_queue, QUEUE_ORDERED_DRAIN, NULL);
 }
 
 /*
