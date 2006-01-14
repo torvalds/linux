@@ -83,7 +83,6 @@ int dio_register_driver(struct dio_driver *drv)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &dio_bus_type;
-	drv->driver.probe = dio_device_probe;
 
 	/* register with core */
 	count = driver_register(&drv->driver);
@@ -145,7 +144,8 @@ static int dio_bus_match(struct device *dev, struct device_driver *drv)
 
 struct bus_type dio_bus_type = {
 	.name	= "dio",
-	.match	= dio_bus_match
+	.match	= dio_bus_match,
+	.probe	= dio_device_probe,
 };
 
 

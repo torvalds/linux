@@ -374,9 +374,6 @@ static struct usb_gadget_driver gs_gadget_driver = {
 	.disconnect =		gs_disconnect,
 	.driver = {
 		.name =		GS_SHORT_NAME,
-		/* .shutdown = ... */
-		/* .suspend = ...  */
-		/* .resume = ...   */
 	},
 };
 

@@ -77,7 +77,6 @@ int zorro_register_driver(struct zorro_driver *drv)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &zorro_bus_type;
-	drv->driver.probe = zorro_device_probe;
 
 	/* register with core */
 	count = driver_register(&drv->driver);
@@ -132,7 +131,8 @@ static int zorro_bus_match(struct device *dev, struct device_driver *drv)
 
 struct bus_type zorro_bus_type = {
 	.name	= "zorro",
-	.match	= zorro_bus_match
+	.match	= zorro_bus_match,
+	.probe	= zorro_device_probe,
 };
 
 

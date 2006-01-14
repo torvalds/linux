@@ -542,9 +542,41 @@ css_bus_match (struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+static int
+css_probe (struct device *dev)
+{
+	struct subchannel *sch;
+
+	sch = to_subchannel(dev);
+	sch->driver = container_of (dev->driver, struct css_driver, drv);
+	return (sch->driver->probe ? sch->driver->probe(sch) : 0);
+}
+
+static int
+css_remove (struct device *dev)
+{
+	struct subchannel *sch;
+
+	sch = to_subchannel(dev);
+	return (sch->driver->remove ? sch->driver->remove(sch) : 0);
+}
+
+static void
+css_shutdown (struct device *dev)
+{
+	struct subchannel *sch;
+
+	sch = to_subchannel(dev);
+	if (sch->driver->shutdown)
+		sch->driver->shutdown(sch);
+}
+
 struct bus_type css_bus_type = {
-	.name  = "css",
-	.match = &css_bus_match,
+	.name     = "css",
+	.match    = css_bus_match,
+	.probe    = css_probe,
+	.remove   = css_remove,
+	.shutdown = css_shutdown,
 };
 
 subsys_initcall(init_channel_subsystem);

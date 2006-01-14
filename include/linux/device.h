@@ -49,6 +49,9 @@ struct bus_type {
 	int		(*match)(struct device * dev, struct device_driver * drv);
 	int		(*uevent)(struct device *dev, char **envp,
 				  int num_envp, char *buffer, int buffer_size);
+	int		(*probe)(struct device * dev);
+	int		(*remove)(struct device * dev);
+	void		(*shutdown)(struct device * dev);
 	int		(*suspend)(struct device * dev, pm_message_t state);
 	int		(*resume)(struct device * dev);
 };
