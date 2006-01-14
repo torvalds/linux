@@ -353,8 +353,7 @@ writeword(unsigned long base_addr, int portno, int value)
 {
 	__raw_writel((u16)value, base_addr + (portno << 1));
 }
-#else
-#if defined(CONFIG_ARCH_PNX010X)
+#elif defined(CONFIG_ARCH_PNX010X)
 static int
 readword(unsigned long base_addr, int portno)
 {
@@ -378,7 +377,6 @@ writeword(unsigned long base_addr, int portno, int value)
 {
 	outw(value, base_addr + portno);
 }
-#endif
 #endif
 
 static void
