@@ -963,15 +963,16 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		break;
 
 	case CS_DATA_UNDERRUN:
-		DEBUG2(printk(KERN_INFO
-		    "scsi(%ld:%d:%d) UNDERRUN status detected 0x%x-0x%x.\n",
-		    ha->host_no, cp->device->id, cp->device->lun, comp_status,
-		    scsi_status));
-
 		resid = resid_len;
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			cp->resid = resid;
 			CMD_RESID_LEN(cp) = resid;
+		} else {
+			DEBUG2(printk(KERN_INFO
+			    "scsi(%ld:%d:%d) UNDERRUN status detected "
+			    "0x%x-0x%x.\n", ha->host_no, cp->device->id,
+			    cp->device->lun, comp_status, scsi_status));
+
 		}
 
 		/*
