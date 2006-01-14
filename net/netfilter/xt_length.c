@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/ipv6.h>
 #include <net/ip.h>
 
 #include <linux/netfilter/xt_length.h>
