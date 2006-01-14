@@ -102,12 +102,7 @@ void cpu_idle(void)
 }
 
 
-#ifdef __LP64__
-#define COMMAND_GLOBAL  0xfffffffffffe0030UL
-#else
-#define COMMAND_GLOBAL  0xfffe0030
-#endif
-
+#define COMMAND_GLOBAL  F_EXTEND(0xfffe0030)
 #define CMD_RESET       5       /* reset any module */
 
 /*
