@@ -62,6 +62,7 @@ extern int qlport_down_retry;
 extern int ql2xplogiabsentdevice;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
+extern int ql2xprocessrscn;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 

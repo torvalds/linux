@@ -2653,7 +2653,8 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 
 		switch (format) {
 		case 0:
-			if (!IS_QLA2100(ha) && !IS_QLA2200(ha) &&
+			if (ql2xprocessrscn &&
+			    !IS_QLA2100(ha) && !IS_QLA2200(ha) &&
 			    !IS_QLA6312(ha) && !IS_QLA6322(ha) &&
 			    !IS_QLA24XX(ha) && !IS_QLA25XX(ha) &&
 			    ha->flags.init_done) {
