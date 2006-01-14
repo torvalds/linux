@@ -315,6 +315,11 @@ void machine_power_off(void)
 	_machine_power_off();
 }
 
+/*
+ * Dummy power off function.
+ */
+void (*pm_power_off)(void) = machine_power_off;
+
 static void __init
 add_memory_hole(unsigned long start, unsigned long end)
 {
