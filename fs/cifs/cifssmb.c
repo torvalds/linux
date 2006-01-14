@@ -37,6 +37,7 @@
 #include "cifsproto.h"
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
+#include "cifsacl.h"
 
 #ifdef CONFIG_CIFS_POSIX
 static struct {
@@ -372,8 +373,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	rc = SendReceive(xid, ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc == 0) {
-		server->secMode = pSMBr->SecurityMode;	
-		server->secType = NTLM; /* BB override default for 
+		server->secMode = pSMBr->SecurityMode;
+		if((server->secMode & SECMODE_USER) == 0)
+			cFYI(1,("share mode security"));
+		server->secType = NTLM; /* BB override default for
 					   NTLMv2 or kerberos v5 */
 		/* one byte - no need to convert this or EncryptionKeyLen
 		   from little endian */
@@ -383,7 +386,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			min(le32_to_cpu(pSMBr->MaxBufferSize),
 			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
 		server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
-		cFYI(0, ("Max buf = %d ", ses->server->maxBuf));
+		cFYI(0, ("Max buf = %d", ses->server->maxBuf));
 		GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
 		server->capabilities = le32_to_cpu(pSMBr->Capabilities);
 		server->timeZone = le16_to_cpu(pSMBr->ServerTimeZone);	
@@ -411,8 +414,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 						(server->server_GUID,
 						pSMBr->u.extended_response.
 						GUID, 16) != 0) {
-						cFYI(1,
-						     ("UID of server does not match previous connection to same ip address"));
+						cFYI(1, ("server UID changed"));
 						memcpy(server->
 							server_GUID,
 							pSMBr->u.
@@ -2494,8 +2496,14 @@ GetExtAttrOut:
 
 #endif /* CONFIG_POSIX */
 
+
+/* security id for everyone */
+const struct cifs_sid sid_everyone = {1, 1, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0}};
+/* group users */
+const struct cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0}};
+
 /* Convert CIFS ACL to POSIX form */
-static int parse_sec_desc(struct sec_desc * psec_desc, int acl_len)
+static int parse_sec_desc(struct cifs_sid * psec_desc, int acl_len)
 {
 	return 0;
 }

@@ -26,13 +26,13 @@ struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauths;
 	__u8 authority[6];
-	__u8 sub_auth[4];
+	__u32 sub_auth[4];
 	/* next sub_auth if any ... */
 } __attribute__((packed));
 
 /* everyone */
-const cifs_sid sid_everyone = {1, 1, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0}};
+extern const struct cifs_sid sid_everyone;
 /* group users */
-const cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0}};
+extern const struct cifs_sid sid_user;
 
 #endif /* _CIFSACL_H */

@@ -1795,7 +1795,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifs_sb->mnt_gid = volume_info.linux_gid;
 		cifs_sb->mnt_file_mode = volume_info.file_mode;
 		cifs_sb->mnt_dir_mode = volume_info.dir_mode;
-		cFYI(1,("file mode: 0x%x  dir mode: 0x%x",cifs_sb->mnt_file_mode,cifs_sb->mnt_dir_mode));
+		cFYI(1,("file mode: 0x%x  dir mode: 0x%x",
+			cifs_sb->mnt_file_mode,cifs_sb->mnt_dir_mode));
 
 		if(volume_info.noperm)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
@@ -1972,7 +1973,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	__u32 capabilities;
 	__u16 count;
 
-	cFYI(1, ("In sesssetup "));
+	cFYI(1, ("In sesssetup"));
 	if(ses == NULL)
 		return -EINVAL;
 	user = ses->userName;
@@ -3248,9 +3249,26 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 
 	pSMB->AndXCommand = 0xFF;
 	pSMB->Flags = cpu_to_le16(TCON_EXTENDED_SECINFO);
-	pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
 	bcc_ptr = &pSMB->Password[0];
-	bcc_ptr++;		/* skip password */
+	if((ses->server->secMode) & SECMODE_USER) {
+		pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
+		bcc_ptr++;              /* skip password */
+	} else {
+		pSMB->PasswordLength = cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
+		   specified as required (when that support is added to
+		   the vfs in the future) as only NTLM or the much
+		   weaker LANMAN (which we do not send) is accepted
+		   by Samba (not sure whether other servers allow
+		   NTLMv2 password here) */
+		SMBNTencrypt(ses->password,
+			     ses->server->cryptKey,
+			     bcc_ptr);
+
+		bcc_ptr += CIFS_SESSION_KEY_SIZE;
+		*bcc_ptr = 0;
+		bcc_ptr++; /* align */
+	}
 
 	if(ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
@@ -3268,7 +3286,6 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr += 2 * length;	/* convert num of 16 bit words to bytes */
 		bcc_ptr += 2;	/* skip trailing null */
 	} else {		/* ASCII */
-
 		strcpy(bcc_ptr, tree);
 		bcc_ptr += strlen(tree) + 1;
 	}
