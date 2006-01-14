@@ -109,7 +109,7 @@ iscsi_buf_init_sg(struct iscsi_buf *ibuf, struct scatterlist *sg)
 	/*
 	 * Fastpath: sg element fits into single page
 	 */
-	if (sg->length + sg->offset <= PAGE_SIZE && page_count(sg->page) >= 2)
+	if (sg->length + sg->offset <= PAGE_SIZE && !PageSlab(sg->page))
 		ibuf->use_sendmsg = 0;
 	else
 		ibuf->use_sendmsg = 1;
