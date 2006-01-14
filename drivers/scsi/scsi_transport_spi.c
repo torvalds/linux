@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/blkdev.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <scsi/scsi.h>
 #include "scsi_priv.h"
 #include <scsi/scsi_device.h>
@@ -48,7 +48,7 @@
 
 /* Private data accessors (keep these out of the header file) */
 #define spi_dv_pending(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_pending)
-#define spi_dv_sem(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_sem)
+#define spi_dv_mutex(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_mutex)
 
 struct spi_internal {
 	struct scsi_transport_template t;
@@ -242,7 +242,7 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 	spi_hold_mcs(starget) = 0;
 	spi_dv_pending(starget) = 0;
 	spi_initial_dv(starget) = 0;
-	init_MUTEX(&spi_dv_sem(starget));
+	mutex_init(&spi_dv_mutex(starget));
 
 	return 0;
 }
@@ -915,7 +915,7 @@ spi_dv_device(struct scsi_device *sdev)
 	scsi_target_quiesce(starget);
 
 	spi_dv_pending(starget) = 1;
-	down(&spi_dv_sem(starget));
+	mutex_lock(&spi_dv_mutex(starget));
 
 	starget_printk(KERN_INFO, starget, "Beginning Domain Validation\n");
 
@@ -923,7 +923,7 @@ spi_dv_device(struct scsi_device *sdev)
 
 	starget_printk(KERN_INFO, starget, "Ending Domain Validation\n");
 
-	up(&spi_dv_sem(starget));
+	mutex_unlock(&spi_dv_mutex(starget));
 	spi_dv_pending(starget) = 0;
 
 	scsi_target_resume(starget);
