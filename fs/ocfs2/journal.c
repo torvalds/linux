@@ -1072,10 +1072,10 @@ restart:
 					NULL);
 
 bail:
-	down(&osb->recovery_lock);
+	mutex_lock(&osb->recovery_lock);
 	if (!status &&
 	    !ocfs2_node_map_is_empty(osb, &osb->recovery_map)) {
-		up(&osb->recovery_lock);
+		mutex_unlock(&osb->recovery_lock);
 		goto restart;
 	}
 
@@ -1083,7 +1083,7 @@ bail:
 	mb(); /* sync with ocfs2_recovery_thread_running */
 	wake_up(&osb->recovery_event);
 
-	up(&osb->recovery_lock);
+	mutex_unlock(&osb->recovery_lock);
 
 	mlog_exit(status);
 	/* no one is callint kthread_stop() for us so the kthread() api
@@ -1098,7 +1098,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 	mlog_entry("(node_num=%d, osb->node_num = %d)\n",
 		   node_num, osb->node_num);
 
-	down(&osb->recovery_lock);
+	mutex_lock(&osb->recovery_lock);
 	if (osb->disable_recovery)
 		goto out;
 
@@ -1120,7 +1120,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 	}
 
 out:
-	up(&osb->recovery_lock);
+	mutex_unlock(&osb->recovery_lock);
 	wake_up(&osb->recovery_event);
 
 	mlog_exit_void();
