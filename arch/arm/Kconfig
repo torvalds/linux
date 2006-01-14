@@ -401,6 +401,21 @@ config NO_IDLE_HZ
 	  Currently at least OMAP, PXA2xx and SA11x0 platforms are known
 	  to have accurate timekeeping with dynamic tick.
 
+config AEABI
+	bool "Use the ARM EABI to compile the kernel"
+	help
+	  This option allows for the kernel to be compiled using the latest
+	  ARM ABI (aka EABI).  This is only useful if you are using a user
+	  space environment that is also compiled with EABI.
+
+	  Since there are major incompatibilities between the legacy ABI and
+	  EABI, especially with regard to structure member alignment, this
+	  option also changes the kernel syscall calling convention to
+	  disambiguate both ABIs and allow for backward compatibility support
+	  (selected with CONFIG_OABI_COMPAT).
+
+	  To use this you need GCC version 4.0.0 or later.
+
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
@@ -587,6 +602,7 @@ comment "At least one emulation must be selected"
 
 config FPE_NWFPE
 	bool "NWFPE math emulation"
+	depends on !AEABI
 	---help---
 	  Say Y to include the NWFPE floating point emulator in the kernel.
 	  This is necessary to run most binaries. Linux does not currently
@@ -610,7 +626,7 @@ config FPE_NWFPE_XP
 
 config FPE_FASTFPE
 	bool "FastFPE math emulation (EXPERIMENTAL)"
-	depends on !CPU_32v3 && EXPERIMENTAL
+	depends on !AEABI && !CPU_32v3 && EXPERIMENTAL
 	---help---
 	  Say Y here to include the FAST floating point emulator in the kernel.
 	  This is an experimental much faster emulator which now also has full
@@ -642,6 +658,7 @@ source "fs/Kconfig.binfmt"
 
 config ARTHUR
 	tristate "RISC OS personality"
+	depends on !AEABI
 	help
 	  Say Y here to include the kernel code necessary if you want to run
 	  Acorn RISC OS/Arthur binaries under Linux. This code is still very
