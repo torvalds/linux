@@ -60,6 +60,7 @@ static int hlt_counter __read_mostly;
  * Power off function, if any
  */ 
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 void disable_hlt(void)
 {
