@@ -687,7 +687,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		switch(conn->in.opcode) {
 		case ISCSI_OP_LOGIN_RSP:
 		case ISCSI_OP_TEXT_RSP:
-		case ISCSI_OP_LOGOUT_RSP: 
+		case ISCSI_OP_LOGOUT_RSP:
 			rc = iscsi_check_assign_cmdsn(session,
 						 (struct iscsi_nopin*)hdr);
 			if (rc)
@@ -728,12 +728,12 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 			}
 			spin_unlock(&session->lock);
 			break;
-		case ISCSI_OP_NOOP_IN: 
+		case ISCSI_OP_NOOP_IN:
 			if (hdr->ttt != ISCSI_RESERVED_TAG) {
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
-			rc = iscsi_check_assign_cmdsn(session, 
+			rc = iscsi_check_assign_cmdsn(session,
 						(struct iscsi_nopin*)hdr);
 			if (rc)
 				break;
@@ -768,7 +768,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 				if (!rc && hdr->ttt != ISCSI_RESERVED_TAG)
 					rc = iscsi_recv_pdu(iscsi_handle(conn),
 							    hdr, NULL, 0);
-			} else 
+			} else
 				rc = ISCSI_ERR_PROTO;
 			break;
 		case ISCSI_OP_REJECT:
@@ -930,7 +930,7 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 				      sc->request_bufflen, ctask->data_offset);
 		if (rc == -EAGAIN)
 			return rc;
-		if (conn->datadgst_en) 
+		if (conn->datadgst_en)
 			iscsi_recv_digest_update(conn, sc->request_buffer, i);
 		rc = 0;
 		goto done;
@@ -1025,7 +1025,7 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		conn->in.hdr = &conn->hdr;
 		conn->senselen = (conn->data[0] << 8) | conn->data[1];
 		rc = iscsi_cmd_rsp(conn, conn->in.ctask);
-		if (!rc && conn->datadgst_en) 
+		if (!rc && conn->datadgst_en)
 			iscsi_recv_digest_update(conn, conn->data,
 						 conn->in.datalen);
 	}
@@ -1052,7 +1052,7 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		rc = iscsi_recv_pdu(iscsi_handle(conn), conn->in.hdr,
 				    conn->data, conn->in.datalen);
 
-		if (!rc && conn->datadgst_en && 
+		if (!rc && conn->datadgst_en &&
 			conn->in.opcode != ISCSI_OP_LOGIN_RSP)
 			iscsi_recv_digest_update(conn, conn->data,
 			  			conn->in.datalen);
@@ -1681,7 +1681,7 @@ iscsi_cmd_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 		zero_data(ctask->hdr.dlength);
 	}
 
-	iscsi_buf_init_virt(&ctask->headbuf, (char*)&ctask->hdr, 
+	iscsi_buf_init_virt(&ctask->headbuf, (char*)&ctask->hdr,
 			    sizeof(struct iscsi_hdr));
 	conn->scsicmd_pdus_cnt++;
 }
@@ -1747,7 +1747,7 @@ static inline int
 handle_xmstate_r_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	ctask->xmstate &= ~XMSTATE_R_HDR;
-	if (conn->hdrdgst_en) 
+	if (conn->hdrdgst_en)
 		iscsi_hdr_digest(conn, &ctask->headbuf, (u8*)ctask->hdrext);
 	if (!iscsi_sendhdr(conn, &ctask->headbuf, 0)) {
 		BUG_ON(ctask->xmstate != XMSTATE_IDLE);
@@ -1761,7 +1761,7 @@ static inline int
 handle_xmstate_w_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 {
 	ctask->xmstate &= ~XMSTATE_W_HDR;
-	if (conn->hdrdgst_en) 
+	if (conn->hdrdgst_en)
 		iscsi_hdr_digest(conn, &ctask->headbuf, (u8*)ctask->hdrext);
 	if (iscsi_sendhdr(conn, &ctask->headbuf, ctask->imm_count)) {
 		ctask->xmstate |= XMSTATE_W_HDR;
@@ -2149,7 +2149,7 @@ unsolicit_head_again:
 solicit_head_again:
 		r2t = ctask->r2t;
 		if (conn->hdrdgst_en)
-			iscsi_hdr_digest(conn, &r2t->headbuf, 
+			iscsi_hdr_digest(conn, &r2t->headbuf,
 					(u8*)r2t->dtask->hdrext);
 		if (iscsi_sendhdr(conn, &r2t->headbuf, r2t->data_count)) {
 			ctask->xmstate &= ~XMSTATE_SOL_DATA;
