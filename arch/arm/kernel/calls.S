@@ -280,8 +280,8 @@ __syscall_start:
 		.long	sys_clock_gettime
 		.long	sys_clock_getres
 /* 265 */	.long	sys_clock_nanosleep
-		.long	sys_statfs64
-		.long	sys_fstatfs64
+		.long	sys_statfs64_wrapper
+		.long	sys_fstatfs64_wrapper
 		.long	sys_tgkill
 		.long	sys_utimes
 /* 270 */	.long	sys_arm_fadvise64_64

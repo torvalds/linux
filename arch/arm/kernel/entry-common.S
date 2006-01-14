@@ -262,6 +262,16 @@ sys_sigaltstack_wrapper:
 		ldr	r2, [sp, #S_OFF + S_SP]
 		b	do_sigaltstack
 
+sys_statfs64_wrapper:
+		teq	r1, #88
+		moveq	r1, #84
+		b	sys_statfs64
+
+sys_fstatfs64_wrapper:
+		teq	r1, #88
+		moveq	r1, #84
+		b	sys_fstatfs64
+
 /*
  * Note: off_4k (r5) is always units of 4K.  If we can't do the requested
  * offset, we return EINVAL.
