@@ -288,3 +288,35 @@ sys_mmap2:
 		str	r5, [sp, #4]
 		b	do_mmap2
 #endif
+
+#ifdef CONFIG_OABI_COMPAT
+/*
+ * These are syscalls with argument register differences
+ */
+
+sys_oabi_pread64:
+		stmia	sp, {r3, r4}
+		b	sys_pread64
+
+sys_oabi_pwrite64:
+		stmia	sp, {r3, r4}
+		b	sys_pwrite64
+
+sys_oabi_truncate64:
+		mov	r3, r2
+		mov	r2, r1
+		b	sys_truncate64
+
+sys_oabi_ftruncate64:
+		mov	r3, r2
+		mov	r2, r1
+		b	sys_ftruncate64
+
+sys_oabi_readahead:
+		str	r3, [sp]
+		mov	r3, r2
+		mov	r2, r1
+		b	sys_readahead
+
+#endif
+
