@@ -525,7 +525,7 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	__kfifo_put(ctask->r2tqueue, (void*)&r2t, sizeof(void*));
 	__kfifo_put(conn->writequeue, (void*)&ctask, sizeof(void*));
 
-	schedule_work(&conn->xmitwork);
+	scsi_queue_work(session->host, &conn->xmitwork);
 	conn->r2t_pdus_cnt++;
 	spin_unlock(&session->lock);
 
@@ -1267,7 +1267,7 @@ iscsi_write_space(struct sock *sk)
 	conn->old_write_space(sk);
 	debug_tcp("iscsi_write_space: cid %d\n", conn->id);
 	clear_bit(SUSPEND_BIT, &conn->suspend_tx);
-	schedule_work(&conn->xmitwork);
+	scsi_queue_work(conn->session->host, &conn->xmitwork);
 }
 
 static void
@@ -2275,7 +2275,7 @@ iscsi_xmitworker(void *data)
 	 */
 	mutex_lock(&conn->xmitmutex);
 	if (iscsi_data_xmit(conn))
-		schedule_work(&conn->xmitwork);
+		scsi_queue_work(conn->session->host, &conn->xmitwork);
 	mutex_unlock(&conn->xmitmutex);
 }
 
@@ -2340,15 +2340,7 @@ iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
 	spin_unlock(&session->lock);
 
-        if (!in_interrupt() && mutex_trylock(&conn->xmitmutex)) {
-		spin_unlock_irq(host->host_lock);
-		if (iscsi_data_xmit(conn))
-			schedule_work(&conn->xmitwork);
-		mutex_unlock(&conn->xmitmutex);
-		spin_lock_irq(host->host_lock);
-	} else
-		schedule_work(&conn->xmitwork);
-
+	scsi_queue_work(host, &conn->xmitwork);
 	return 0;
 
 reject:
@@ -2942,8 +2934,7 @@ iscsi_conn_send_generic(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	else
 	        __kfifo_put(conn->mgmtqueue, (void*)&mtask, sizeof(void*));
 
-	schedule_work(&conn->xmitwork);
-
+	scsi_queue_work(session->host, &conn->xmitwork);
 	return 0;
 }
 

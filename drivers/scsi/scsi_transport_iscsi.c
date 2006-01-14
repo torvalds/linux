@@ -379,6 +379,7 @@ iscsi_transport_create_session(struct scsi_transport_template *scsit,
 	shost->max_lun = transport->max_lun;
 	shost->max_cmd_len = transport->max_cmd_len;
 	shost->transportt = scsit;
+	shost->transportt->create_work_queue = 1;
 
 	if (scsi_add_host(shost, NULL))
 		goto free_host;
