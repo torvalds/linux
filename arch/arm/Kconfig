@@ -416,6 +416,23 @@ config AEABI
 
 	  To use this you need GCC version 4.0.0 or later.
 
+config OABI_COMPAT
+	bool "Allow old ABI binaries to run with this kernel"
+	depends on AEABI
+	default y
+	help
+	  This option preserves the old syscall interface along with the
+	  new (ARM EABI) one. It also provides a compatibility layer to
+	  intercept syscalls that have structure arguments which layout
+	  in memory differs between the legacy ABI and the new ARM EABI
+	  (only for non "thumb" binaries). This option adds a tiny
+	  overhead to all syscalls and produces a slightly larger kernel.
+	  If you know you'll be using only pure EABI user space then you
+	  can say N here. If this option is not selected and you attempt
+	  to execute a legacy ABI binary then the result will be
+	  UNPREDICTABLE (in fact it can be predicted that it won't work
+	  at all). If in doubt say Y.
+
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
