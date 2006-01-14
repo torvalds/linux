@@ -766,11 +766,56 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	return ret;
 }
 
+struct param_bsp_cfm {
+	unsigned long ip;
+	unsigned long *bsp;
+	unsigned long cfm;
+};
+
+static void ia64_get_bsp_cfm(struct unw_frame_info *info, void *arg)
+{
+	unsigned long ip;
+	struct param_bsp_cfm *lp = arg;
+
+	do {
+		unw_get_ip(info, &ip);
+		if (ip == 0)
+			break;
+		if (ip == lp->ip) {
+			unw_get_bsp(info, (unsigned long*)&lp->bsp);
+			unw_get_cfm(info, (unsigned long*)&lp->cfm);
+			return;
+		}
+	} while (unw_unwind(info) >= 0);
+	lp->bsp = 0;
+	lp->cfm = 0;
+	return;
+}
+
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 	unsigned long addr = ((struct fnptr *)(jp->entry))->ip;
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct param_bsp_cfm pa;
+	int bytes;
+
+	/*
+	 * Callee owns the argument space and could overwrite it, eg
+	 * tail call optimization. So to be absolutely safe
+	 * we save the argument space before transfering the control
+	 * to instrumented jprobe function which runs in
+	 * the process context
+	 */
+	pa.ip = regs->cr_iip;
+	unw_init_running(ia64_get_bsp_cfm, &pa);
+	bytes = (char *)ia64_rse_skip_regs(pa.bsp, pa.cfm & 0x3f)
+				- (char *)pa.bsp;
+	memcpy( kcb->jprobes_saved_stacked_regs,
+		pa.bsp,
+		bytes );
+	kcb->bsp = pa.bsp;
+	kcb->cfm = pa.cfm;
 
 	/* save architectural state */
 	kcb->jprobe_saved_regs = *regs;
@@ -792,8 +837,20 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	int bytes;
 
+	/* restoring architectural state */
 	*regs = kcb->jprobe_saved_regs;
+
+	/* restoring the original argument space */
+	flush_register_stack();
+	bytes = (char *)ia64_rse_skip_regs(kcb->bsp, kcb->cfm & 0x3f)
+				- (char *)kcb->bsp;
+	memcpy( kcb->bsp,
+		kcb->jprobes_saved_stacked_regs,
+		bytes );
+	invalidate_stacked_regs();
+
 	preempt_enable_no_resched();
 	return 1;
 }

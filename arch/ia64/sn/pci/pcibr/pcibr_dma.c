@@ -218,7 +218,9 @@ void sn_dma_flush(uint64_t addr)
 	uint64_t flags;
 	uint64_t itte;
 	struct hubdev_info *hubinfo;
-	volatile struct sn_flush_device_list *p;
+	volatile struct sn_flush_device_kernel *p;
+	volatile struct sn_flush_device_common *common;
+
 	struct sn_flush_nasid_entry *flush_nasid_list;
 
 	if (!sn_ioif_inited)
@@ -268,17 +270,17 @@ void sn_dma_flush(uint64_t addr)
 	p = &flush_nasid_list->widget_p[wid_num][0];
 
 	/* find a matching BAR */
-	for (i = 0; i < DEV_PER_WIDGET; i++) {
+	for (i = 0; i < DEV_PER_WIDGET; i++,p++) {
+		common = p->common;
 		for (j = 0; j < PCI_ROM_RESOURCE; j++) {
-			if (p->sfdl_bar_list[j].start == 0)
+			if (common->sfdl_bar_list[j].start == 0)
 				break;
-			if (addr >= p->sfdl_bar_list[j].start
-			    && addr <= p->sfdl_bar_list[j].end)
+			if (addr >= common->sfdl_bar_list[j].start
+			    && addr <= common->sfdl_bar_list[j].end)
 				break;
 		}
-		if (j < PCI_ROM_RESOURCE && p->sfdl_bar_list[j].start != 0)
+		if (j < PCI_ROM_RESOURCE && common->sfdl_bar_list[j].start != 0)
 			break;
-		p++;
 	}
 
 	/* if no matching BAR, return without doing anything. */
@@ -304,24 +306,24 @@ void sn_dma_flush(uint64_t addr)
 		if ((1 << XWIDGET_PART_REV_NUM_REV(revnum)) & PV907516) {
 			return;
 		} else {
-			pcireg_wrb_flush_get(p->sfdl_pcibus_info,
-					     (p->sfdl_slot - 1));
+			pcireg_wrb_flush_get(common->sfdl_pcibus_info,
+					     (common->sfdl_slot - 1));
 		}
 	} else {
-		spin_lock_irqsave(&((struct sn_flush_device_list *)p)->
-				  sfdl_flush_lock, flags);
-
-		*p->sfdl_flush_addr = 0;
+		spin_lock_irqsave((spinlock_t *)&p->sfdl_flush_lock,
+				  flags);
+		*common->sfdl_flush_addr = 0;
 
 		/* force an interrupt. */
-		*(volatile uint32_t *)(p->sfdl_force_int_addr) = 1;
+		*(volatile uint32_t *)(common->sfdl_force_int_addr) = 1;
 
 		/* wait for the interrupt to come back. */
-		while (*(p->sfdl_flush_addr) != 0x10f)
+		while (*(common->sfdl_flush_addr) != 0x10f)
 			cpu_relax();
 
 		/* okay, everything is synched up. */
-		spin_unlock_irqrestore((spinlock_t *)&p->sfdl_flush_lock, flags);
+		spin_unlock_irqrestore((spinlock_t *)&p->sfdl_flush_lock,
+				       flags);
 	}
 	return;
 }

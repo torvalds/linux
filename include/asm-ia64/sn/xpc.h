@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -11,8 +11,8 @@
  * Cross Partition Communication (XPC) structures and macros.
  */
 
-#ifndef _IA64_SN_KERNEL_XPC_H
-#define _IA64_SN_KERNEL_XPC_H
+#ifndef _ASM_IA64_SN_XPC_H
+#define _ASM_IA64_SN_XPC_H
 
 
 #include <linux/config.h>
@@ -663,6 +663,7 @@ extern struct xpc_registration xpc_registrations[];
 extern struct device *xpc_part;
 extern struct device *xpc_chan;
 extern int xpc_disengage_request_timelimit;
+extern int xpc_disengage_request_timedout;
 extern irqreturn_t xpc_notify_IRQ_handler(int, void *, struct pt_regs *);
 extern void xpc_dropped_IPI_check(struct xpc_partition *);
 extern void xpc_activate_partition(struct xpc_partition *);
@@ -707,7 +708,7 @@ extern void xpc_connected_callout(struct xpc_channel *);
 extern void xpc_deliver_msg(struct xpc_channel *);
 extern void xpc_disconnect_channel(const int, struct xpc_channel *,
 					enum xpc_retval, unsigned long *);
-extern void xpc_disconnecting_callout(struct xpc_channel *);
+extern void xpc_disconnect_callout(struct xpc_channel *, enum xpc_retval);
 extern void xpc_partition_going_down(struct xpc_partition *, enum xpc_retval);
 extern void xpc_teardown_infrastructure(struct xpc_partition *);
 
@@ -1269,5 +1270,5 @@ xpc_check_for_channel_activity(struct xpc_partition *part)
 }
 
 
-#endif /* _IA64_SN_KERNEL_XPC_H */
+#endif /* _ASM_IA64_SN_XPC_H */
 

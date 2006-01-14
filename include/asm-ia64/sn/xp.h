@@ -227,7 +227,9 @@ enum xpc_retval {
 
 	xpcOpenCloseError,	/* 50: channel open/close protocol error */
 
-	xpcUnknownReason	/* 51: unknown reason -- must be last in list */
+	xpcDisconnected,	/* 51: channel disconnected (closed) */
+
+	xpcUnknownReason	/* 52: unknown reason -- must be last in list */
 };
 
 

@@ -847,7 +847,7 @@ ia64_state_restore:
 	;;
 	mov cr.iim=temp3
 	mov cr.iha=temp4
-	dep r22=0,r22,62,2	// pal_min_state, physical, uncached
+	dep r22=0,r22,62,1	// pal_min_state, physical, uncached
 	mov IA64_KR(CURRENT)=r21
 	ld8 r8=[temp1]		// os_status
 	ld8 r10=[temp2]		// context

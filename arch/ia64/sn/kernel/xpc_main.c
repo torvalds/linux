@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -59,7 +59,7 @@
 #include <asm/sn/sn_sal.h>
 #include <asm/kdebug.h>
 #include <asm/uaccess.h>
-#include "xpc.h"
+#include <asm/sn/xpc.h>
 
 
 /* define two XPC debug device structures to be used with dev_dbg() et al */
@@ -80,6 +80,9 @@ struct device xpc_chan_dbg_subname = {
 
 struct device *xpc_part = &xpc_part_dbg_subname;
 struct device *xpc_chan = &xpc_chan_dbg_subname;
+
+
+static int xpc_kdebug_ignore;
 
 
 /* systune related variables for /proc/sys directories */
@@ -162,6 +165,8 @@ static ctl_table xpc_sys_dir[] = {
 };
 static struct ctl_table_header *xpc_sysctl;
 
+/* non-zero if any remote partition disengage request was timed out */
+int xpc_disengage_request_timedout;
 
 /* #of IRQs received */
 static atomic_t xpc_act_IRQ_rcvd;
@@ -773,7 +778,7 @@ xpc_daemonize_kthread(void *args)
 			ch->flags |= XPC_C_DISCONNECTCALLOUT;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
-			xpc_disconnecting_callout(ch);
+			xpc_disconnect_callout(ch, xpcDisconnecting);
 		} else {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 		}
@@ -921,9 +926,9 @@ static void
 xpc_do_exit(enum xpc_retval reason)
 {
 	partid_t partid;
-	int active_part_count;
+	int active_part_count, printed_waiting_msg = 0;
 	struct xpc_partition *part;
-	unsigned long printmsg_time;
+	unsigned long printmsg_time, disengage_request_timeout = 0;
 
 
 	/* a 'rmmod XPC' and a 'reboot' cannot both end up here together */
@@ -953,7 +958,8 @@ xpc_do_exit(enum xpc_retval reason)
 
 	/* wait for all partitions to become inactive */
 
-	printmsg_time = jiffies;
+	printmsg_time = jiffies + (XPC_DISENGAGE_PRINTMSG_INTERVAL * HZ);
+	xpc_disengage_request_timedout = 0;
 
 	do {
 		active_part_count = 0;
@@ -969,20 +975,39 @@ xpc_do_exit(enum xpc_retval reason)
 			active_part_count++;
 
 			XPC_DEACTIVATE_PARTITION(part, reason);
+
+			if (part->disengage_request_timeout >
+						disengage_request_timeout) {
+				disengage_request_timeout =
+						part->disengage_request_timeout;
+			}
 		}
 
-		if (active_part_count == 0) {
-			break;
-		}
-
-		if (jiffies >= printmsg_time) {
-			dev_info(xpc_part, "waiting for partitions to "
-				"deactivate/disengage, active count=%d, remote "
-				"engaged=0x%lx\n", active_part_count,
-				xpc_partition_engaged(1UL << partid));
-
-			printmsg_time = jiffies +
+		if (xpc_partition_engaged(-1UL)) {
+			if (time_after(jiffies, printmsg_time)) {
+				dev_info(xpc_part, "waiting for remote "
+					"partitions to disengage, timeout in "
+					"%ld seconds\n",
+					(disengage_request_timeout - jiffies)
+									/ HZ);
+				printmsg_time = jiffies +
 					(XPC_DISENGAGE_PRINTMSG_INTERVAL * HZ);
+				printed_waiting_msg = 1;
+			}
+
+		} else if (active_part_count > 0) {
+			if (printed_waiting_msg) {
+				dev_info(xpc_part, "waiting for local partition"
+					" to disengage\n");
+				printed_waiting_msg = 0;
+			}
+
+		} else {
+			if (!xpc_disengage_request_timedout) {
+				dev_info(xpc_part, "all partitions have "
+					"disengaged\n");
+			}
+			break;
 		}
 
 		/* sleep for a 1/3 of a second or so */
@@ -1000,11 +1025,13 @@ xpc_do_exit(enum xpc_retval reason)
 	del_timer_sync(&xpc_hb_timer);
 	DBUG_ON(xpc_vars->heartbeating_to_mask != 0);
 
-	/* take ourselves off of the reboot_notifier_list */
-	(void) unregister_reboot_notifier(&xpc_reboot_notifier);
+	if (reason == xpcUnloading) {
+		/* take ourselves off of the reboot_notifier_list */
+		(void) unregister_reboot_notifier(&xpc_reboot_notifier);
 
-	/* take ourselves off of the die_notifier list */
-	(void) unregister_die_notifier(&xpc_die_notifier);
+		/* take ourselves off of the die_notifier list */
+		(void) unregister_die_notifier(&xpc_die_notifier);
+	}
 
 	/* close down protections for IPI operations */
 	xpc_restrict_IPI_ops();
@@ -1016,63 +1043,6 @@ xpc_do_exit(enum xpc_retval reason)
 	if (xpc_sysctl) {
 		unregister_sysctl_table(xpc_sysctl);
 	}
-}
-
-
-/*
- * Called when the system is about to be either restarted or halted.
- */
-static void
-xpc_die_disengage(void)
-{
-	struct xpc_partition *part;
-	partid_t partid;
-	unsigned long engaged;
-	long time, print_time, disengage_request_timeout;
-
-
-	/* keep xpc_hb_checker thread from doing anything (just in case) */
-	xpc_exiting = 1;
-
-	xpc_vars->heartbeating_to_mask = 0;  /* indicate we're deactivated */
-
-	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
-		part = &xpc_partitions[partid];
-
-		if (!XPC_SUPPORTS_DISENGAGE_REQUEST(part->
-							remote_vars_version)) {
-
-			/* just in case it was left set by an earlier XPC */
-			xpc_clear_partition_engaged(1UL << partid);
-			continue;
-		}
-
-		if (xpc_partition_engaged(1UL << partid) ||
-					part->act_state != XPC_P_INACTIVE) {
-			xpc_request_partition_disengage(part);
-			xpc_mark_partition_disengaged(part);
-			xpc_IPI_send_disengage(part);
-		}
-	}
-
-	print_time = rtc_time();
-	disengage_request_timeout = print_time +
-		(xpc_disengage_request_timelimit * sn_rtc_cycles_per_second);
-
-	/* wait for all other partitions to disengage from us */
-
-	while ((engaged = xpc_partition_engaged(-1UL)) &&
-			(time = rtc_time()) < disengage_request_timeout) {
-
-		if (time >= print_time) {
-			dev_info(xpc_part, "waiting for remote partitions to "
-				"disengage, engaged=0x%lx\n", engaged);
-			print_time = time + (XPC_DISENGAGE_PRINTMSG_INTERVAL *
-						sn_rtc_cycles_per_second);
-		}
-	}
-	dev_info(xpc_part, "finished waiting for remote partitions to "
-				"disengage, engaged=0x%lx\n", engaged);
 }
 
 
@@ -1105,7 +1075,88 @@ xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
 
 
 /*
- * This function is called when the system is being rebooted.
+ * Notify other partitions to disengage from all references to our memory.
+ */
+static void
+xpc_die_disengage(void)
+{
+	struct xpc_partition *part;
+	partid_t partid;
+	unsigned long engaged;
+	long time, printmsg_time, disengage_request_timeout;
+
+
+	/* keep xpc_hb_checker thread from doing anything (just in case) */
+	xpc_exiting = 1;
+
+	xpc_vars->heartbeating_to_mask = 0;  /* indicate we're deactivated */
+
+	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+		part = &xpc_partitions[partid];
+
+		if (!XPC_SUPPORTS_DISENGAGE_REQUEST(part->
+							remote_vars_version)) {
+
+			/* just in case it was left set by an earlier XPC */
+			xpc_clear_partition_engaged(1UL << partid);
+			continue;
+		}
+
+		if (xpc_partition_engaged(1UL << partid) ||
+					part->act_state != XPC_P_INACTIVE) {
+			xpc_request_partition_disengage(part);
+			xpc_mark_partition_disengaged(part);
+			xpc_IPI_send_disengage(part);
+		}
+	}
+
+	time = rtc_time();
+	printmsg_time = time +
+		(XPC_DISENGAGE_PRINTMSG_INTERVAL * sn_rtc_cycles_per_second);
+	disengage_request_timeout = time +
+		(xpc_disengage_request_timelimit * sn_rtc_cycles_per_second);
+
+	/* wait for all other partitions to disengage from us */
+
+	while (1) {
+		engaged = xpc_partition_engaged(-1UL);
+		if (!engaged) {
+			dev_info(xpc_part, "all partitions have disengaged\n");
+			break;
+		}
+
+		time = rtc_time();
+		if (time >= disengage_request_timeout) {
+			for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+				if (engaged & (1UL << partid)) {
+					dev_info(xpc_part, "disengage from "
+						"remote partition %d timed "
+						"out\n", partid);
+				}
+			}
+			break;
+		}
+
+		if (time >= printmsg_time) {
+			dev_info(xpc_part, "waiting for remote partitions to "
+				"disengage, timeout in %ld seconds\n",
+				(disengage_request_timeout - time) /
+						sn_rtc_cycles_per_second);
+			printmsg_time = time +
+					(XPC_DISENGAGE_PRINTMSG_INTERVAL *
+						sn_rtc_cycles_per_second);
+		}
+	}
+}
+
+
+/*
+ * This function is called when the system is being restarted or halted due
+ * to some sort of system failure. If this is the case we need to notify the
+ * other partitions to disengage from all references to our memory.
+ * This function can also be called when our heartbeater could be offlined
+ * for a time. In this case we need to notify other partitions to not worry
+ * about the lack of a heartbeat.
  */
 static int
 xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
@@ -1115,11 +1166,25 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 	case DIE_MACHINE_HALT:
 		xpc_die_disengage();
 		break;
+
+	case DIE_KDEBUG_ENTER:
+		/* Should lack of heartbeat be ignored by other partitions? */
+		if (!xpc_kdebug_ignore) {
+			break;
+		}
+		/* fall through */
 	case DIE_MCA_MONARCH_ENTER:
 	case DIE_INIT_MONARCH_ENTER:
 		xpc_vars->heartbeat++;
 		xpc_vars->heartbeat_offline = 1;
 		break;
+
+	case DIE_KDEBUG_LEAVE:
+		/* Is lack of heartbeat being ignored by other partitions? */
+		if (!xpc_kdebug_ignore) {
+			break;
+		}
+		/* fall through */
 	case DIE_MCA_MONARCH_LEAVE:
 	case DIE_INIT_MONARCH_LEAVE:
 		xpc_vars->heartbeat++;
@@ -1343,4 +1408,8 @@ MODULE_PARM_DESC(xpc_hb_check_interval, "Number of seconds between "
 module_param(xpc_disengage_request_timelimit, int, 0);
 MODULE_PARM_DESC(xpc_disengage_request_timelimit, "Number of seconds to wait "
 		"for disengage request to complete.");
+
+module_param(xpc_kdebug_ignore, int, 0);
+MODULE_PARM_DESC(xpc_kdebug_ignore, "Should lack of heartbeat be ignored by "
+		"other partitions when dropping into kdebug.");
 
