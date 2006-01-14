@@ -342,38 +342,38 @@ out:
 #endif
 
 #if defined(CONFIG_ARCH_IXDP2X01)
-static int
+static u16
 readword(unsigned long base_addr, int portno)
 {
-	return (u16)__raw_readl(base_addr + (portno << 1));
+	return __raw_readl(base_addr + (portno << 1));
 }
 
 static void
-writeword(unsigned long base_addr, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
-	__raw_writel((u16)value, base_addr + (portno << 1));
+	__raw_writel(value, base_addr + (portno << 1));
 }
 #elif defined(CONFIG_ARCH_PNX010X)
-static int
+static u16
 readword(unsigned long base_addr, int portno)
 {
 	return inw(base_addr + (portno << 1));
 }
 
 static void
-writeword(unsigned long base_addr, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
 	outw(value, base_addr + (portno << 1));
 }
 #else
-static int
+static u16
 readword(unsigned long base_addr, int portno)
 {
 	return inw(base_addr + portno);
 }
 
 static void
-writeword(unsigned long base_addr, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
 	outw(value, base_addr + portno);
 }
@@ -385,11 +385,11 @@ readwords(unsigned long base_addr, int portno, void *buf, int length)
 	u8 *buf8 = (u8 *)buf;
 
 	do {
-		u32 tmp32;
+		u16 tmp16;
 
-		tmp32 = readword(base_addr, portno);
-		*buf8++ = (u8)tmp32;
-		*buf8++ = (u8)(tmp32 >> 8);
+		tmp16 = readword(base_addr, portno);
+		*buf8++ = (u8)tmp16;
+		*buf8++ = (u8)(tmp16 >> 8);
 	} while (--length);
 }
 
@@ -399,23 +399,23 @@ writewords(unsigned long base_addr, int portno, void *buf, int length)
 	u8 *buf8 = (u8 *)buf;
 
 	do {
-		u32 tmp32;
+		u16 tmp16;
 
-		tmp32 = *buf8++;
-		tmp32 |= (*buf8++) << 8;
-		writeword(base_addr, portno, tmp32);
+		tmp16 = *buf8++;
+		tmp16 |= (*buf8++) << 8;
+		writeword(base_addr, portno, tmp16);
 	} while (--length);
 }
 
-static int
-readreg(struct net_device *dev, int regno)
+static u16
+readreg(struct net_device *dev, u16 regno)
 {
 	writeword(dev->base_addr, ADD_PORT, regno);
 	return readword(dev->base_addr, DATA_PORT);
 }
 
 static void
-writereg(struct net_device *dev, int regno, int value)
+writereg(struct net_device *dev, u16 regno, u16 value)
 {
 	writeword(dev->base_addr, ADD_PORT, regno);
 	writeword(dev->base_addr, DATA_PORT, value);
