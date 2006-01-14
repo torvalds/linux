@@ -1212,7 +1212,7 @@ static int scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
 	return -EOPNOTSUPP;
 }
 
-static void scsi_generic_done(struct scsi_cmnd *cmd)
+static void scsi_blk_pc_done(struct scsi_cmnd *cmd)
 {
 	BUG_ON(!blk_pc_request(cmd->request));
 	/*
@@ -1224,7 +1224,7 @@ static void scsi_generic_done(struct scsi_cmnd *cmd)
 	scsi_io_completion(cmd, cmd->bufflen, 0);
 }
 
-void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
+static void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
 {
 	struct request *req = cmd->request;
 
@@ -1241,8 +1241,8 @@ void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
 	cmd->transfersize = req->data_len;
 	cmd->allowed = req->retries;
 	cmd->timeout_per_command = req->timeout;
+	cmd->done = scsi_blk_pc_done;
 }
-EXPORT_SYMBOL_GPL(scsi_setup_blk_pc_cmnd);
 
 static int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
@@ -1339,7 +1339,6 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * happening now.
 	 */
 	if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
-		struct scsi_driver *drv;
 		int ret;
 
 		/*
@@ -1371,16 +1370,17 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		/*
 		 * Initialize the actual SCSI command for this request.
 		 */
-		if (req->rq_disk) {
+		if (req->flags & REQ_BLOCK_PC) {
+			scsi_setup_blk_pc_cmnd(cmd);
+		} else if (req->rq_disk) {
+			struct scsi_driver *drv;
+
 			drv = *(struct scsi_driver **)req->rq_disk->private_data;
 			if (unlikely(!drv->init_command(cmd))) {
 				scsi_release_buffers(cmd);
 				scsi_put_command(cmd);
 				goto kill;
 			}
-		} else {
-			scsi_setup_blk_pc_cmnd(cmd);
-			cmd->done = scsi_generic_done;
 		}
 	}
 

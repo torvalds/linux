@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -62,7 +63,7 @@ struct sas_internal {
 
 struct sas_host_attrs {
 	struct list_head rphy_list;
-	spinlock_t lock;
+	struct mutex lock;
 	u32 next_target_id;
 };
 #define to_sas_host_attrs(host)	((struct sas_host_attrs *)(host)->shost_data)
@@ -165,7 +166,7 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
 	INIT_LIST_HEAD(&sas_host->rphy_list);
-	spin_lock_init(&sas_host->lock);
+	mutex_init(&sas_host->lock);
 	sas_host->next_target_id = 0;
 	return 0;
 }
@@ -626,7 +627,7 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	transport_add_device(&rphy->dev);
 	transport_configure_device(&rphy->dev);
 
-	spin_lock(&sas_host->lock);
+	mutex_lock(&sas_host->lock);
 	list_add_tail(&rphy->list, &sas_host->rphy_list);
 	if (identify->device_type == SAS_END_DEVICE &&
 	    (identify->target_port_protocols &
@@ -634,10 +635,10 @@ int sas_rphy_add(struct sas_rphy *rphy)
 		rphy->scsi_target_id = sas_host->next_target_id++;
 	else
 		rphy->scsi_target_id = -1;
-	spin_unlock(&sas_host->lock);
+	mutex_unlock(&sas_host->lock);
 
 	if (rphy->scsi_target_id != -1) {
-		scsi_scan_target(&rphy->dev, parent->number,
+		scsi_scan_target(&rphy->dev, parent->port_identifier,
 				rphy->scsi_target_id, ~0, 0);
 	}
 
@@ -661,9 +662,9 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent->parent);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
-	spin_lock(&sas_host->lock);
+	mutex_lock(&sas_host->lock);
 	list_del(&rphy->list);
-	spin_unlock(&sas_host->lock);
+	mutex_unlock(&sas_host->lock);
 
 	transport_destroy_device(&rphy->dev);
 	put_device(rphy->dev.parent);
@@ -687,15 +688,27 @@ sas_rphy_delete(struct sas_rphy *rphy)
 	struct Scsi_Host *shost = dev_to_shost(parent->dev.parent);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
-	scsi_remove_target(dev);
+	switch (rphy->identify.device_type) {
+	case SAS_END_DEVICE:
+		scsi_remove_target(dev);
+		break;
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
+		device_for_each_child(dev, NULL, do_sas_phy_delete);
+		break;
+	default:
+		break;
+	}
 
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
 
-	spin_lock(&sas_host->lock);
+	mutex_lock(&sas_host->lock);
 	list_del(&rphy->list);
-	spin_unlock(&sas_host->lock);
+	mutex_unlock(&sas_host->lock);
+
+	parent->rphy = NULL;
 
 	put_device(&parent->dev);
 }
@@ -719,23 +732,28 @@ EXPORT_SYMBOL(scsi_is_sas_rphy);
  * SCSI scan helper
  */
 
-static struct device *sas_target_parent(struct Scsi_Host *shost,
-					int channel, uint id)
+static int sas_user_scan(struct Scsi_Host *shost, uint channel,
+		uint id, uint lun)
 {
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 	struct sas_rphy *rphy;
-	struct device *dev = NULL;
 
-	spin_lock(&sas_host->lock);
+	mutex_lock(&sas_host->lock);
 	list_for_each_entry(rphy, &sas_host->rphy_list, list) {
 		struct sas_phy *parent = dev_to_phy(rphy->dev.parent);
-		if (parent->number == channel &&
-		    rphy->scsi_target_id == id)
-			dev = &rphy->dev;
-	}
-	spin_unlock(&sas_host->lock);
 
-	return dev;
+		if (rphy->scsi_target_id == -1)
+			continue;
+
+		if ((channel == SCAN_WILD_CARD || channel == parent->port_identifier) &&
+		    (id == SCAN_WILD_CARD || id == rphy->scsi_target_id)) {
+			scsi_scan_target(&rphy->dev, parent->port_identifier,
+					 rphy->scsi_target_id, lun, 1);
+		}
+	}
+	mutex_unlock(&sas_host->lock);
+
+	return 0;
 }
 
 
@@ -780,7 +798,7 @@ sas_attach_transport(struct sas_function_template *ft)
 		return NULL;
 	memset(i, 0, sizeof(struct sas_internal));
 
-	i->t.target_parent = sas_target_parent;
+	i->t.user_scan = sas_user_scan;
 
 	i->t.host_attrs.ac.attrs = &i->host_attrs[0];
 	i->t.host_attrs.ac.class = &sas_host_class.class;

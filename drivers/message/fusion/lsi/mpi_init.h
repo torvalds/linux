@@ -6,7 +6,7 @@
  *          Title:  MPI initiator mode messages and structures
  *  Creation Date:  June 8, 2000
  *
- *    mpi_init.h Version:  01.05.05
+ *    mpi_init.h Version:  01.05.06
  *
  *  Version History
  *  ---------------
@@ -50,6 +50,8 @@
  *                      addressing.
  *  06-24-05  01.05.05  Added SCSI IO 32 structures and defines.
  *                      Added four new defines for SEP SlotStatus.
+ *  08-03-05  01.05.06  Fixed some MPI_SCSIIO32_MSGFLGS_ defines to make them
+ *                      unique in the first 32 characters.
  *  --------------------------------------------------------------------------
  */
 
@@ -290,8 +292,8 @@ typedef struct _MSG_SCSI_IO32_REQUEST
 
 /* SCSI IO 32 MsgFlags bits */
 #define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH                (0x01)
-#define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH_32             (0x00)
-#define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH_64             (0x01)
+#define MPI_SCSIIO32_MSGFLGS_32_SENSE_WIDTH             (0x00)
+#define MPI_SCSIIO32_MSGFLGS_64_SENSE_WIDTH             (0x01)
 
 #define MPI_SCSIIO32_MSGFLGS_SENSE_LOCATION             (0x02)
 #define MPI_SCSIIO32_MSGFLGS_SENSE_LOC_HOST             (0x00)

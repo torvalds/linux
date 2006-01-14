@@ -1125,6 +1125,8 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	zfcp_free_low_mem_buffers(adapter);
 	/* free memory of adapter data structure and queues */
 	zfcp_qdio_free_queues(adapter);
+	kfree(adapter->fc_stats);
+	kfree(adapter->stats_reset_data);
 	ZFCP_LOG_TRACE("freeing adapter structure\n");
 	kfree(adapter);
  out:

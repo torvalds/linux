@@ -227,8 +227,9 @@ struct qla2100_fw_dump {
 #define FW_DUMP_SIZE_24XX	0x2B0000
 
 struct qla24xx_fw_dump {
-	uint32_t hccr;
+	uint32_t host_status;
 	uint32_t host_reg[32];
+	uint32_t shadow_reg[7];
 	uint16_t mailbox_reg[32];
 	uint32_t xseq_gp_reg[128];
 	uint32_t xseq_0_reg[16];
@@ -250,7 +251,6 @@ struct qla24xx_fw_dump {
 	uint32_t rcvt0_data_dma_reg[32];
 	uint32_t rcvt1_data_dma_reg[32];
 	uint32_t risc_gp_reg[128];
-	uint32_t shadow_reg[7];
 	uint32_t lmc_reg[112];
 	uint32_t fpm_hdw_reg[192];
 	uint32_t fb_hdw_reg[176];

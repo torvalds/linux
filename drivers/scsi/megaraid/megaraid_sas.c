@@ -35,6 +35,7 @@
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/compat.h>
+#include <linux/mutex.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -72,7 +73,7 @@ MODULE_DEVICE_TABLE(pci, megasas_pci_table);
 static int megasas_mgmt_majorno;
 static struct megasas_mgmt_info megasas_mgmt_info;
 static struct fasync_struct *megasas_async_queue;
-static DECLARE_MUTEX(megasas_async_queue_mutex);
+static DEFINE_MUTEX(megasas_async_queue_mutex);
 
 /**
  * megasas_get_cmd -	Get a command from the free pool
@@ -2362,11 +2363,11 @@ static int megasas_mgmt_fasync(int fd, struct file *filep, int mode)
 {
 	int rc;
 
-	down(&megasas_async_queue_mutex);
+	mutex_lock(&megasas_async_queue_mutex);
 
 	rc = fasync_helper(fd, filep, mode, &megasas_async_queue);
 
-	up(&megasas_async_queue_mutex);
+	mutex_unlock(&megasas_async_queue_mutex);
 
 	if (rc >= 0) {
 		/* For sanity check when we get ioctl */

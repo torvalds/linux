@@ -55,6 +55,7 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
+#include <linux/mutex.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -209,7 +210,7 @@ static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
 	.gfp_mask	= __GFP_DMA,
 };
 
-static DECLARE_MUTEX(host_cmd_pool_mutex);
+static DEFINE_MUTEX(host_cmd_pool_mutex);
 
 static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
 					    gfp_t gfp_mask)
@@ -330,7 +331,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	 * Select a command slab for this host and create it if not
 	 * yet existant.
 	 */
-	down(&host_cmd_pool_mutex);
+	mutex_lock(&host_cmd_pool_mutex);
 	pool = (shost->unchecked_isa_dma ? &scsi_cmd_dma_pool : &scsi_cmd_pool);
 	if (!pool->users) {
 		pool->slab = kmem_cache_create(pool->name,
@@ -342,7 +343,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 
 	pool->users++;
 	shost->cmd_pool = pool;
-	up(&host_cmd_pool_mutex);
+	mutex_unlock(&host_cmd_pool_mutex);
 
 	/*
 	 * Get one backup command for this host.
@@ -359,7 +360,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 		kmem_cache_destroy(pool->slab);
 	return -ENOMEM;
  fail:
-	up(&host_cmd_pool_mutex);
+	mutex_unlock(&host_cmd_pool_mutex);
 	return -ENOMEM;
 
 }
@@ -381,10 +382,10 @@ void scsi_destroy_command_freelist(struct Scsi_Host *shost)
 		kmem_cache_free(shost->cmd_pool->slab, cmd);
 	}
 
-	down(&host_cmd_pool_mutex);
+	mutex_lock(&host_cmd_pool_mutex);
 	if (!--shost->cmd_pool->users)
 		kmem_cache_destroy(shost->cmd_pool->slab);
-	up(&host_cmd_pool_mutex);
+	mutex_unlock(&host_cmd_pool_mutex);
 }
 
 #ifdef CONFIG_SCSI_LOGGING

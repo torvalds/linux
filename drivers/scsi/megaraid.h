@@ -2,7 +2,7 @@
 #define __MEGARAID_H__
 
 #include <linux/spinlock.h>
-
+#include <linux/mutex.h>
 
 #define MEGARAID_VERSION	\
 	"v2.00.3 (Release Date: Wed Feb 19 08:51:30 EST 2003)\n"
@@ -889,7 +889,7 @@ typedef struct {
 
 	scb_t			int_scb;
 	Scsi_Cmnd		int_scmd;
-	struct semaphore	int_mtx;	/* To synchronize the internal
+	struct mutex		int_mtx;	/* To synchronize the internal
 						commands */
 	struct completion	int_waitq;	/* wait queue for internal
 						 cmds */

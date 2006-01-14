@@ -33,14 +33,6 @@
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_CONFIG
 
-static const char fc_topologies[5][25] = {
-	"<error>",
-	"point-to-point",
-	"fabric",
-	"arbitrated loop",
-	"fabric (virt. adapter)"
-};
-
 /**
  * ZFCP_DEFINE_ADAPTER_ATTR
  * @_name:   name of show attribute
@@ -69,12 +61,8 @@ ZFCP_DEFINE_ADAPTER_ATTR(physical_wwpn, "0x%016llx\n", adapter->physical_wwpn);
 ZFCP_DEFINE_ADAPTER_ATTR(physical_s_id, "0x%06x\n", adapter->physical_s_id);
 ZFCP_DEFINE_ADAPTER_ATTR(card_version, "0x%04x\n", adapter->hydra_version);
 ZFCP_DEFINE_ADAPTER_ATTR(lic_version, "0x%08x\n", adapter->fsf_lic_version);
-ZFCP_DEFINE_ADAPTER_ATTR(fc_service_class, "%d\n", adapter->fc_service_class);
-ZFCP_DEFINE_ADAPTER_ATTR(fc_topology, "%s\n",
-			 fc_topologies[adapter->fc_topology]);
 ZFCP_DEFINE_ADAPTER_ATTR(hardware_version, "0x%08x\n",
 			 adapter->hardware_version);
-ZFCP_DEFINE_ADAPTER_ATTR(scsi_host_no, "0x%x\n", adapter->scsi_host_no);
 ZFCP_DEFINE_ADAPTER_ATTR(in_recovery, "%d\n", atomic_test_mask
 			 (ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status));
 
@@ -259,9 +247,6 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_physical_s_id.attr,
 	&dev_attr_card_version.attr,
 	&dev_attr_lic_version.attr,
-	&dev_attr_fc_service_class.attr,
-	&dev_attr_fc_topology.attr,
-	&dev_attr_scsi_host_no.attr,
 	&dev_attr_status.attr,
 	&dev_attr_hardware_version.attr,
 	NULL
