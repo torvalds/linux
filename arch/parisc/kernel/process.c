@@ -54,27 +54,11 @@
 #include <asm/uaccess.h>
 #include <asm/unwind.h>
 
-static int hlt_counter __read_mostly;
-
 /*
  * Power off function, if any
  */ 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
-
-void disable_hlt(void)
-{
-	hlt_counter++;
-}
-
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-}
-
-EXPORT_SYMBOL(enable_hlt);
 
 void default_idle(void)
 {
