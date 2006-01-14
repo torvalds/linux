@@ -43,7 +43,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum);
 static int continue_tx(struct net_device *dev, int bufnum);
 
-struct ArcProto rfc1201_proto =
+static struct ArcProto rfc1201_proto =
 {
 	.suffix		= 'a',
 	.mtu		= 1500,	/* could be more, but some receivers can't handle it... */

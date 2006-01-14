@@ -42,7 +42,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum);
 
-struct ArcProto rawmode_proto =
+static struct ArcProto rawmode_proto =
 {
 	.suffix		= 'r',
 	.mtu		= XMTU,
