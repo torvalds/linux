@@ -191,6 +191,8 @@ struct iscsi_conn {
 	uint32_t		sendpage_failures_cnt;
 	uint32_t		discontiguous_hdr_cnt;
 	uint32_t		eh_abort_cnt;
+
+	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 };
 
 struct iscsi_session {

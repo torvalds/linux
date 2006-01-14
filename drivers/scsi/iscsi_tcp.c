@@ -1318,15 +1318,15 @@ iscsi_conn_restore_callbacks(struct iscsi_conn *conn)
  *	to use tcp_sendmsg().
  */
 static inline int
-iscsi_send(struct socket *sk, struct iscsi_buf *buf, int size, int flags)
+iscsi_send(struct iscsi_conn *conn, struct iscsi_buf *buf, int size, int flags)
 {
+	struct socket *sk = conn->sock;
 	int res;
 
 	if ((int)buf->sg.offset >= 0) {
 		int offset = buf->sg.offset + buf->sent;
 
-		/* tcp_sendpage */
-		res = sk->ops->sendpage(sk, buf->sg.page, offset, size, flags);
+		res = conn->sendpage(sk, buf->sg.page, offset, size, flags);
 	} else {
 		struct msghdr msg;
 
@@ -1354,7 +1354,6 @@ iscsi_send(struct socket *sk, struct iscsi_buf *buf, int size, int flags)
 static inline int
 iscsi_sendhdr(struct iscsi_conn *conn, struct iscsi_buf *buf, int datalen)
 {
-	struct socket *sk = conn->sock;
 	int flags = 0; /* MSG_DONTWAIT; */
 	int res, size;
 
@@ -1363,7 +1362,7 @@ iscsi_sendhdr(struct iscsi_conn *conn, struct iscsi_buf *buf, int datalen)
 	if (buf->sent + size != buf->sg.length || datalen)
 		flags |= MSG_MORE;
 
-	res = iscsi_send(sk, buf, size, flags);
+	res = iscsi_send(conn, buf, size, flags);
 	debug_tcp("sendhdr %d bytes, sent %d res %d\n", size, buf->sent, res);
 	if (res >= 0) {
 		conn->txdata_octets += res;
@@ -1394,7 +1393,6 @@ static inline int
 iscsi_sendpage(struct iscsi_conn *conn, struct iscsi_buf *buf,
 	       int *count, int *sent)
 {
-	struct socket *sk = conn->sock;
 	int flags = 0; /* MSG_DONTWAIT; */
 	int res, size;
 
@@ -1405,7 +1403,7 @@ iscsi_sendpage(struct iscsi_conn *conn, struct iscsi_buf *buf,
 	if (buf->sent + size != buf->sg.length || *count != size)
 		flags |= MSG_MORE;
 
-	res = iscsi_send(sk, buf, size, flags);
+	res = iscsi_send(conn, buf, size, flags);
 	debug_tcp("sendpage: %d bytes, sent %d left %d sent %d res %d\n",
 		  size, buf->sent, *count, *sent, res);
 	if (res >= 0) {
@@ -2713,6 +2711,8 @@ iscsi_conn_bind(iscsi_sessionh_t sessionh, iscsi_connh_t connh,
 		 */
 		iscsi_conn_set_callbacks(conn);
 
+		conn->sendpage = conn->sock->ops->sendpage;
+
 		/*
 		 * set receive state machine into initial state
 		 */
@@ -3467,6 +3467,8 @@ iscsi_conn_set_param(iscsi_connh_t connh, enum iscsi_param param,
 			if (conn->data_rx_tfm)
 				crypto_free_tfm(conn->data_rx_tfm);
 		}
+		conn->sendpage = conn->datadgst_en ?
+			sock_no_sendpage : conn->sock->ops->sendpage;
 		break;
 	case ISCSI_PARAM_INITIAL_R2T_EN:
 		session->initial_r2t_en = value;
