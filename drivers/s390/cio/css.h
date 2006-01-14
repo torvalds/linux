@@ -147,7 +147,7 @@ extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 struct channel_subsystem {
 	u8 cssid;
 	int valid;
-	struct channel_path *chps[__MAX_CHPID];
+	struct channel_path *chps[__MAX_CHPID + 1];
 	struct device device;
 	struct pgid global_pgid;
 };
