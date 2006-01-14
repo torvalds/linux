@@ -748,10 +748,14 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 	unsigned long long __sleep_time = now - p->timestamp;
 	unsigned long sleep_time;
 
-	if (__sleep_time > NS_MAX_SLEEP_AVG)
-		sleep_time = NS_MAX_SLEEP_AVG;
-	else
-		sleep_time = (unsigned long)__sleep_time;
+	if (unlikely(p->policy == SCHED_BATCH))
+		sleep_time = 0;
+	else {
+		if (__sleep_time > NS_MAX_SLEEP_AVG)
+			sleep_time = NS_MAX_SLEEP_AVG;
+		else
+			sleep_time = (unsigned long)__sleep_time;
+	}
 
 	if (likely(sleep_time > 0)) {
 		/*
@@ -3560,7 +3564,7 @@ void set_user_nice(task_t *p, long nice)
 	 * The RT priorities are set via sched_setscheduler(), but we still
 	 * allow the 'normal' nice value to be set - but as expected
 	 * it wont have any effect on scheduling until the task is
-	 * not SCHED_NORMAL:
+	 * not SCHED_NORMAL/SCHED_BATCH:
 	 */
 	if (rt_task(p)) {
 		p->static_prio = NICE_TO_PRIO(nice);
@@ -3706,10 +3710,16 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
 	BUG_ON(p->array);
 	p->policy = policy;
 	p->rt_priority = prio;
-	if (policy != SCHED_NORMAL)
+	if (policy != SCHED_NORMAL && policy != SCHED_BATCH) {
 		p->prio = MAX_RT_PRIO-1 - p->rt_priority;
-	else
+	} else {
 		p->prio = p->static_prio;
+		/*
+		 * SCHED_BATCH tasks are treated as perpetual CPU hogs:
+		 */
+		if (policy == SCHED_BATCH)
+			p->sleep_avg = 0;
+	}
 }
 
 /**
@@ -3733,29 +3743,35 @@ recheck:
 	if (policy < 0)
 		policy = oldpolicy = p->policy;
 	else if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_NORMAL)
-			return -EINVAL;
+			policy != SCHED_NORMAL && policy != SCHED_BATCH)
+		return -EINVAL;
 	/*
 	 * Valid priorities for SCHED_FIFO and SCHED_RR are
-	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_NORMAL is 0.
+	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_NORMAL and
+	 * SCHED_BATCH is 0.
 	 */
 	if (param->sched_priority < 0 ||
 	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
-	if ((policy == SCHED_NORMAL) != (param->sched_priority == 0))
+	if ((policy == SCHED_NORMAL || policy == SCHED_BATCH)
+					!= (param->sched_priority == 0))
 		return -EINVAL;
 
 	/*
 	 * Allow unprivileged RT tasks to decrease priority:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
-		/* can't change policy */
-		if (policy != p->policy &&
-			!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
+		/*
+		 * can't change policy, except between SCHED_NORMAL
+		 * and SCHED_BATCH:
+		 */
+		if (((policy != SCHED_NORMAL && p->policy != SCHED_BATCH) &&
+			(policy != SCHED_BATCH && p->policy != SCHED_NORMAL)) &&
+				!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
 			return -EPERM;
 		/* can't increase priority */
-		if (policy != SCHED_NORMAL &&
+		if ((policy != SCHED_NORMAL && policy != SCHED_BATCH) &&
 		    param->sched_priority > p->rt_priority &&
 		    param->sched_priority >
 				p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
@@ -4233,6 +4249,7 @@ asmlinkage long sys_sched_get_priority_max(int policy)
 		ret = MAX_USER_RT_PRIO-1;
 		break;
 	case SCHED_NORMAL:
+	case SCHED_BATCH:
 		ret = 0;
 		break;
 	}
@@ -4256,6 +4273,7 @@ asmlinkage long sys_sched_get_priority_min(int policy)
 		ret = 1;
 		break;
 	case SCHED_NORMAL:
+	case SCHED_BATCH:
 		ret = 0;
 	}
 	return ret;
