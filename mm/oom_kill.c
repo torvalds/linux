@@ -274,6 +274,7 @@ void out_of_memory(gfp_t gfp_mask, int order)
 		show_mem();
 	}
 
+	cpuset_lock();
 	read_lock(&tasklist_lock);
 retry:
 	p = select_bad_process();
@@ -284,6 +285,7 @@ retry:
 	/* Found nothing?!?! Either we hang forever, or we panic. */
 	if (!p) {
 		read_unlock(&tasklist_lock);
+		cpuset_unlock();
 		panic("Out of memory and no killable processes...\n");
 	}
 
@@ -293,6 +295,7 @@ retry:
 
  out:
 	read_unlock(&tasklist_lock);
+	cpuset_unlock();
 	if (mm)
 		mmput(mm);
 

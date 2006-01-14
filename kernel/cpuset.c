@@ -2150,6 +2150,33 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 }
 
 /**
+ * cpuset_lock - lock out any changes to cpuset structures
+ *
+ * The out of memory (oom) code needs to lock down cpusets
+ * from being changed while it scans the tasklist looking for a
+ * task in an overlapping cpuset.  Expose callback_sem via this
+ * cpuset_lock() routine, so the oom code can lock it, before
+ * locking the task list.  The tasklist_lock is a spinlock, so
+ * must be taken inside callback_sem.
+ */
+
+void cpuset_lock(void)
+{
+	down(&callback_sem);
+}
+
+/**
+ * cpuset_unlock - release lock on cpuset changes
+ *
+ * Undo the lock taken in a previous cpuset_lock() call.
+ */
+
+void cpuset_unlock(void)
+{
+	up(&callback_sem);
+}
+
+/**
  * cpuset_excl_nodes_overlap - Do we overlap @p's mem_exclusive ancestors?
  * @p: pointer to task_struct of some other task.
  *
@@ -2158,15 +2185,13 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
  * determine if task @p's memory usage might impact the memory
  * available to the current task.
  *
- * Acquires callback_sem - not suitable for calling from a fast path.
+ * Call while holding callback_sem.
  **/
 
 int cpuset_excl_nodes_overlap(const struct task_struct *p)
 {
 	const struct cpuset *cs1, *cs2;	/* my and p's cpuset ancestors */
 	int overlap = 0;		/* do cpusets overlap? */
-
-	down(&callback_sem);
 
 	task_lock(current);
 	if (current->flags & PF_EXITING) {
@@ -2186,8 +2211,6 @@ int cpuset_excl_nodes_overlap(const struct task_struct *p)
 
 	overlap = nodes_intersects(cs1->mems_allowed, cs2->mems_allowed);
 done:
-	up(&callback_sem);
-
 	return overlap;
 }
 
