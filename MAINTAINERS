@@ -2534,11 +2534,11 @@ S:     Maintained
 
 TIPC NETWORK LAYER
 P:	Per Liden
-M:	per.liden@nospam.ericsson.com
+M:	per.liden@ericsson.com
 P:	Jon Maloy
-M:	jon.maloy@nospam.ericsson.com
+M:	jon.maloy@ericsson.com
 P:	Allan Stephens
-M:	allan.stephens@nospam.windriver.com
+M:	allan.stephens@windriver.com
 L:	tipc-discussion@lists.sourceforge.net
 W:	http://tipc.sourceforge.net/
 W:	http://tipc.cslab.ericsson.net/
