@@ -306,9 +306,9 @@ ENTRY(__modsi3)
 
 Ldiv0:
 
-	str	lr, [sp, #-4]!
+	str	lr, [sp, #-8]!
 	bl	__div0
 	mov	r0, #0			@ About as wrong as it could be.
-	ldr	pc, [sp], #4
+	ldr	pc, [sp], #8
 
 
