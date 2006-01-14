@@ -13,487 +13,153 @@
 #include "prom.h"
 
 int (*prom)(void *);
+phandle chosen_handle;
+ihandle stdout;
 
-void *chosen_handle;
-
-void *stdin;
-void *stdout;
-void *stderr;
-
-
-int
-write(void *handle, void *ptr, int nb)
+int call_prom(const char *service, int nargs, int nret, ...)
 {
+	int i;
 	struct prom_args {
-		char *service;
+		const char *service;
 		int nargs;
 		int nret;
-		void *ihandle;
-		void *addr;
-		int len;
-		int actual;
+		unsigned int args[12];
 	} args;
+	va_list list;
 
-	args.service = "write";
-	args.nargs = 3;
-	args.nret = 1;
-	args.ihandle = handle;
-	args.addr = ptr;
-	args.len = nb;
-	args.actual = -1;
-	(*prom)(&args);
-	return args.actual;
+	args.service = service;
+	args.nargs = nargs;
+	args.nret = nret;
+
+	va_start(list, nret);
+	for (i = 0; i < nargs; i++)
+		args.args[i] = va_arg(list, unsigned int);
+	va_end(list);
+
+	for (i = 0; i < nret; i++)
+		args.args[nargs+i] = 0;
+
+	if (prom(&args) < 0)
+		return -1;
+
+	return (nret > 0)? args.args[nargs]: 0;
 }
 
-int
-read(void *handle, void *ptr, int nb)
+int call_prom_ret(const char *service, int nargs, int nret,
+		  unsigned int *rets, ...)
 {
+	int i;
 	struct prom_args {
-		char *service;
+		const char *service;
 		int nargs;
 		int nret;
-		void *ihandle;
-		void *addr;
-		int len;
-		int actual;
+		unsigned int args[12];
 	} args;
+	va_list list;
 
-	args.service = "read";
-	args.nargs = 3;
-	args.nret = 1;
-	args.ihandle = handle;
-	args.addr = ptr;
-	args.len = nb;
-	args.actual = -1;
-	(*prom)(&args);
-	return args.actual;
+	args.service = service;
+	args.nargs = nargs;
+	args.nret = nret;
+
+	va_start(list, rets);
+	for (i = 0; i < nargs; i++)
+		args.args[i] = va_arg(list, unsigned int);
+	va_end(list);
+
+	for (i = 0; i < nret; i++)
+		args.args[nargs+i] = 0;
+
+	if (prom(&args) < 0)
+		return -1;
+
+	if (rets != (void *) 0)
+		for (i = 1; i < nret; ++i)
+			rets[i-1] = args.args[nargs+i];
+
+	return (nret > 0)? args.args[nargs]: 0;
 }
 
-void
-exit()
+int write(void *handle, void *ptr, int nb)
 {
-	struct prom_args {
-		char *service;
-	} args;
-
-	for (;;) {
-		args.service = "exit";
-		(*prom)(&args);
-	}
+	return call_prom("write", 3, 1, handle, ptr, nb);
 }
 
-void
-pause(void)
-{
-	struct prom_args {
-		char *service;
-	} args;
-
-	args.service = "enter";
-	(*prom)(&args);
-}
-
-void *
-finddevice(const char *name)
-{
-	struct prom_args {
-		char *service;
-		int nargs;
-		int nret;
-		const char *devspec;
-		void *phandle;
-	} args;
-
-	args.service = "finddevice";
-	args.nargs = 1;
-	args.nret = 1;
-	args.devspec = name;
-	args.phandle = (void *) -1;
-	(*prom)(&args);
-	return args.phandle;
-}
-
-void *
-claim(unsigned long virt, unsigned long size, unsigned long align)
-{
-	struct prom_args {
-		char *service;
-		int nargs;
-		int nret;
-		unsigned int virt;
-		unsigned int size;
-		unsigned int align;
-		void *ret;
-	} args;
-
-	args.service = "claim";
-	args.nargs = 3;
-	args.nret = 1;
-	args.virt = virt;
-	args.size = size;
-	args.align = align;
-	(*prom)(&args);
-	return args.ret;
-}
-
-int
-getprop(void *phandle, const char *name, void *buf, int buflen)
-{
-	struct prom_args {
-		char *service;
-		int nargs;
-		int nret;
-		void *phandle;
-		const char *name;
-		void *buf;
-		int buflen;
-		int size;
-	} args;
-
-	args.service = "getprop";
-	args.nargs = 4;
-	args.nret = 1;
-	args.phandle = phandle;
-	args.name = name;
-	args.buf = buf;
-	args.buflen = buflen;
-	args.size = -1;
-	(*prom)(&args);
-	return args.size;
-}
-
-int
-putc(int c, void *f)
-{
-	char ch = c;
-
-	if (c == '\n')
-		putc('\r', f);
-	return write(f, &ch, 1) == 1? c: -1;
-}
-
-int
-putchar(int c)
-{
-	return putc(c, stdout);
-}
-
-int
-fputs(char *str, void *f)
-{
-	int n = strlen(str);
-
-	return write(f, str, n) == n? 0: -1;
-}
-
-size_t strnlen(const char * s, size_t count)
-{
-	const char *sc;
-
-	for (sc = s; count-- && *sc != '\0'; ++sc)
-		/* nothing */;
-	return sc - s;
-}
-
-extern unsigned int __div64_32(unsigned long long *dividend,
-			       unsigned int divisor);
-
-/* The unnecessary pointer compare is there
- * to check for type safety (n must be 64bit)
+/*
+ * Older OF's require that when claiming a specific range of addresses,
+ * we claim the physical space in the /memory node and the virtual
+ * space in the chosen mmu node, and then do a map operation to
+ * map virtual to physical.
  */
-# define do_div(n,base) ({						\
-	unsigned int __base = (base);					\
-	unsigned int __rem;						\
-	(void)(((typeof((n)) *)0) == ((unsigned long long *)0));	\
-	if (((n) >> 32) == 0) {						\
-		__rem = (unsigned int)(n) % __base;			\
-		(n) = (unsigned int)(n) / __base;			\
-	} else								\
-		__rem = __div64_32(&(n), __base);			\
-	__rem;								\
- })
+static int need_map = -1;
+static ihandle chosen_mmu;
+static phandle memory;
 
-static int skip_atoi(const char **s)
+/* returns true if s2 is a prefix of s1 */
+static int string_match(const char *s1, const char *s2)
 {
-	int i, c;
-
-	for (i = 0; '0' <= (c = **s) && c <= '9'; ++*s)
-		i = i*10 + c - '0';
-	return i;
+	for (; *s2; ++s2)
+		if (*s1++ != *s2)
+			return 0;
+	return 1;
 }
 
-#define ZEROPAD	1		/* pad with zero */
-#define SIGN	2		/* unsigned/signed long */
-#define PLUS	4		/* show plus */
-#define SPACE	8		/* space if plus */
-#define LEFT	16		/* left justified */
-#define SPECIAL	32		/* 0x */
-#define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
-
-static char * number(char * str, unsigned long long num, int base, int size, int precision, int type)
+static int check_of_version(void)
 {
-	char c,sign,tmp[66];
-	const char *digits="0123456789abcdefghijklmnopqrstuvwxyz";
-	int i;
+	phandle oprom, chosen;
+	char version[64];
 
-	if (type & LARGE)
-		digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	if (type & LEFT)
-		type &= ~ZEROPAD;
-	if (base < 2 || base > 36)
+	oprom = finddevice("/openprom");
+	if (oprom == (phandle) -1)
 		return 0;
-	c = (type & ZEROPAD) ? '0' : ' ';
-	sign = 0;
-	if (type & SIGN) {
-		if ((signed long long)num < 0) {
-			sign = '-';
-			num = - (signed long long)num;
-			size--;
-		} else if (type & PLUS) {
-			sign = '+';
-			size--;
-		} else if (type & SPACE) {
-			sign = ' ';
-			size--;
+	if (getprop(oprom, "model", version, sizeof(version)) <= 0)
+		return 0;
+	version[sizeof(version)-1] = 0;
+	printf("OF version = '%s'\r\n", version);
+	if (!string_match(version, "Open Firmware, 1.")
+	    && !string_match(version, "FirmWorks,3."))
+		return 0;
+	chosen = finddevice("/chosen");
+	if (chosen == (phandle) -1) {
+		chosen = finddevice("/chosen@0");
+		if (chosen == (phandle) -1) {
+			printf("no chosen\n");
+			return 0;
 		}
 	}
-	if (type & SPECIAL) {
-		if (base == 16)
-			size -= 2;
-		else if (base == 8)
-			size--;
+	if (getprop(chosen, "mmu", &chosen_mmu, sizeof(chosen_mmu)) <= 0) {
+		printf("no mmu\n");
+		return 0;
 	}
-	i = 0;
-	if (num == 0)
-		tmp[i++]='0';
-	else while (num != 0) {
-		tmp[i++] = digits[do_div(num, base)];
-	}
-	if (i > precision)
-		precision = i;
-	size -= precision;
-	if (!(type&(ZEROPAD+LEFT)))
-		while(size-->0)
-			*str++ = ' ';
-	if (sign)
-		*str++ = sign;
-	if (type & SPECIAL) {
-		if (base==8)
-			*str++ = '0';
-		else if (base==16) {
-			*str++ = '0';
-			*str++ = digits[33];
+	memory = (ihandle) call_prom("open", 1, 1, "/memory");
+	if (memory == (ihandle) -1) {
+		memory = (ihandle) call_prom("open", 1, 1, "/memory@0");
+		if (memory == (ihandle) -1) {
+			printf("no memory node\n");
+			return 0;
 		}
 	}
-	if (!(type & LEFT))
-		while (size-- > 0)
-			*str++ = c;
-	while (i < precision--)
-		*str++ = '0';
-	while (i-- > 0)
-		*str++ = tmp[i];
-	while (size-- > 0)
-		*str++ = ' ';
-	return str;
+	printf("old OF detected\r\n");
+	return 1;
 }
 
-int vsprintf(char *buf, const char *fmt, va_list args)
+void *claim(unsigned long virt, unsigned long size, unsigned long align)
 {
-	int len;
-	unsigned long long num;
-	int i, base;
-	char * str;
-	const char *s;
+	int ret;
+	unsigned int result;
 
-	int flags;		/* flags to number() */
-
-	int field_width;	/* width of output field */
-	int precision;		/* min. # of digits for integers; max
-				   number of chars for from string */
-	int qualifier;		/* 'h', 'l', or 'L' for integer fields */
-	                        /* 'z' support added 23/7/1999 S.H.    */
-				/* 'z' changed to 'Z' --davidm 1/25/99 */
-
+	if (need_map < 0)
+		need_map = check_of_version();
+	if (align || !need_map)
+		return (void *) call_prom("claim", 3, 1, virt, size, align);
 	
-	for (str=buf ; *fmt ; ++fmt) {
-		if (*fmt != '%') {
-			*str++ = *fmt;
-			continue;
-		}
-			
-		/* process flags */
-		flags = 0;
-		repeat:
-			++fmt;		/* this also skips first '%' */
-			switch (*fmt) {
-				case '-': flags |= LEFT; goto repeat;
-				case '+': flags |= PLUS; goto repeat;
-				case ' ': flags |= SPACE; goto repeat;
-				case '#': flags |= SPECIAL; goto repeat;
-				case '0': flags |= ZEROPAD; goto repeat;
-				}
-		
-		/* get field width */
-		field_width = -1;
-		if ('0' <= *fmt && *fmt <= '9')
-			field_width = skip_atoi(&fmt);
-		else if (*fmt == '*') {
-			++fmt;
-			/* it's the next argument */
-			field_width = va_arg(args, int);
-			if (field_width < 0) {
-				field_width = -field_width;
-				flags |= LEFT;
-			}
-		}
-
-		/* get the precision */
-		precision = -1;
-		if (*fmt == '.') {
-			++fmt;	
-			if ('0' <= *fmt && *fmt <= '9')
-				precision = skip_atoi(&fmt);
-			else if (*fmt == '*') {
-				++fmt;
-				/* it's the next argument */
-				precision = va_arg(args, int);
-			}
-			if (precision < 0)
-				precision = 0;
-		}
-
-		/* get the conversion qualifier */
-		qualifier = -1;
-		if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt =='Z') {
-			qualifier = *fmt;
-			++fmt;
-		}
-
-		/* default base */
-		base = 10;
-
-		switch (*fmt) {
-		case 'c':
-			if (!(flags & LEFT))
-				while (--field_width > 0)
-					*str++ = ' ';
-			*str++ = (unsigned char) va_arg(args, int);
-			while (--field_width > 0)
-				*str++ = ' ';
-			continue;
-
-		case 's':
-			s = va_arg(args, char *);
-			if (!s)
-				s = "<NULL>";
-
-			len = strnlen(s, precision);
-
-			if (!(flags & LEFT))
-				while (len < field_width--)
-					*str++ = ' ';
-			for (i = 0; i < len; ++i)
-				*str++ = *s++;
-			while (len < field_width--)
-				*str++ = ' ';
-			continue;
-
-		case 'p':
-			if (field_width == -1) {
-				field_width = 2*sizeof(void *);
-				flags |= ZEROPAD;
-			}
-			str = number(str,
-				(unsigned long) va_arg(args, void *), 16,
-				field_width, precision, flags);
-			continue;
-
-
-		case 'n':
-			if (qualifier == 'l') {
-				long * ip = va_arg(args, long *);
-				*ip = (str - buf);
-			} else if (qualifier == 'Z') {
-				size_t * ip = va_arg(args, size_t *);
-				*ip = (str - buf);
-			} else {
-				int * ip = va_arg(args, int *);
-				*ip = (str - buf);
-			}
-			continue;
-
-		case '%':
-			*str++ = '%';
-			continue;
-
-		/* integer number formats - set up the flags and "break" */
-		case 'o':
-			base = 8;
-			break;
-
-		case 'X':
-			flags |= LARGE;
-		case 'x':
-			base = 16;
-			break;
-
-		case 'd':
-		case 'i':
-			flags |= SIGN;
-		case 'u':
-			break;
-
-		default:
-			*str++ = '%';
-			if (*fmt)
-				*str++ = *fmt;
-			else
-				--fmt;
-			continue;
-		}
-		if (qualifier == 'l') {
-			num = va_arg(args, unsigned long);
-			if (flags & SIGN)
-				num = (signed long) num;
-		} else if (qualifier == 'Z') {
-			num = va_arg(args, size_t);
-		} else if (qualifier == 'h') {
-			num = (unsigned short) va_arg(args, int);
-			if (flags & SIGN)
-				num = (signed short) num;
-		} else {
-			num = va_arg(args, unsigned int);
-			if (flags & SIGN)
-				num = (signed int) num;
-		}
-		str = number(str, num, base, field_width, precision, flags);
-	}
-	*str = '\0';
-	return str-buf;
-}
-
-int sprintf(char * buf, const char *fmt, ...)
-{
-	va_list args;
-	int i;
-
-	va_start(args, fmt);
-	i=vsprintf(buf,fmt,args);
-	va_end(args);
-	return i;
-}
-
-static char sprint_buf[1024];
-
-int
-printf(const char *fmt, ...)
-{
-	va_list args;
-	int n;
-
-	va_start(args, fmt);
-	n = vsprintf(sprint_buf, fmt, args);
-	va_end(args);
-	write(stdout, sprint_buf, n);
-	return n;
+	ret = call_prom_ret("call-method", 5, 2, &result, "claim", memory,
+			    align, size, virt);
+	if (ret != 0 || result == -1)
+		return (void *) -1;
+	ret = call_prom_ret("call-method", 5, 2, &result, "claim", chosen_mmu,
+			    align, size, virt);
+	/* 0x12 == coherent + read/write */
+	ret = call_prom("call-method", 6, 1, "map", chosen_mmu,
+			0x12, size, virt, virt);
+	return (void *) virt;
 }
