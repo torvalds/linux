@@ -853,7 +853,7 @@ static int neofb_set_par(struct fb_info *info)
 	/* If the user did not specify any display devices, then... */
 	if (par->PanelDispCntlReg1 == 0x00) {
 		/* Default to internal (i.e., LCD) only. */
-		par->PanelDispCntlReg1 |= 0x02;
+		par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
 	}
 
 	/* If we are using a fixed mode, then tell the chip we are. */
