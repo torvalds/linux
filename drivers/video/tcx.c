@@ -34,8 +34,7 @@ static int tcx_setcolreg(unsigned, unsigned, unsigned, unsigned,
 static int tcx_blank(int, struct fb_info *);
 
 static int tcx_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int tcx_ioctl(struct inode *, struct file *, unsigned int,
-		     unsigned long, struct fb_info *);
+static int tcx_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int tcx_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
@@ -312,8 +311,8 @@ static int tcx_mmap(struct fb_info *info, struct file *file, struct vm_area_stru
 				  vma);
 }
 
-static int tcx_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg, struct fb_info *info)
+static int tcx_ioctl(struct fb_info *info, unsigned int cmd,
+		     unsigned long arg)
 {
 	struct tcx_par *par = (struct tcx_par *) info->par;
 

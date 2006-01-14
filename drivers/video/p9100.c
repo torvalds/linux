@@ -32,8 +32,7 @@ static int p9100_setcolreg(unsigned, unsigned, unsigned, unsigned,
 static int p9100_blank(int, struct fb_info *);
 
 static int p9100_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int p9100_ioctl(struct inode *, struct file *, unsigned int,
-		       unsigned long, struct fb_info *);
+static int p9100_ioctl(struct fb_info *, unsigned int, unsigned long);
 
 /*
  *  Frame buffer operations
@@ -232,8 +231,8 @@ static int p9100_mmap(struct fb_info *info, struct file *file, struct vm_area_st
 				  vma);
 }
 
-static int p9100_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		       unsigned long arg, struct fb_info *info)
+static int p9100_ioctl(struct fb_info *info, unsigned int cmd,
+		       unsigned long arg)
 {
 	struct p9100_par *par = (struct p9100_par *) info->par;
 

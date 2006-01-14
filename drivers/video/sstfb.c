@@ -771,8 +771,7 @@ static int sstfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	return 0;
 }
 
-static int sstfb_ioctl(struct inode *inode, struct file *file,
-                       u_int cmd, u_long arg, struct fb_info *info )
+static int sstfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct sstfb_par *par = info->par;
 	struct pci_dev *sst_dev = par->dev;

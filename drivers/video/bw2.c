@@ -36,8 +36,7 @@
 static int bw2_blank(int, struct fb_info *);
 
 static int bw2_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int bw2_ioctl(struct inode *, struct file *, unsigned int,
-		     unsigned long, struct fb_info *);
+static int bw2_ioctl(struct fb_info *, unsigned int, unsigned long);
 
 /*
  *  Frame buffer operations
@@ -181,8 +180,7 @@ static int bw2_mmap(struct fb_info *info, struct file *file, struct vm_area_stru
 				  vma);
 }
 
-static int bw2_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg, struct fb_info *info)
+static int bw2_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct bw2_par *par = (struct bw2_par *) info->par;
 

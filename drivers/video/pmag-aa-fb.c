@@ -299,8 +299,7 @@ static int aafb_set_cmap(struct fb_cmap *cmap, int kspc, int con,
 		return -EINVAL;
 }
 
-static int aafb_ioctl(struct inode *inode, struct file *file, u32 cmd,
-		      unsigned long arg, int con, struct fb_info *info)
+static int aafb_ioctl(struct fb_info *info, u32 cmd, unsigned long arg)
 {
 	/* TODO: Not yet implemented */
 	return -ENOIOCTLCMD;
