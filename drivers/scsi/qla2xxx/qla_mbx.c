@@ -196,7 +196,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *ha, mbx_cmd_t *mcp)
 			/* Check for pending interrupts. */
 			qla2x00_poll(ha);
 
-			msleep(10);
+			if (command != MBC_LOAD_RISC_RAM_EXTENDED &&
+			    !ha->flags.mbox_int)
+				msleep(10);
 		} /* while */
 	}
 
