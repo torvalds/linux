@@ -123,6 +123,15 @@ Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
+What:	CONFIG_FORCED_INLINING
+When:	June 2006
+Why:	Config option is there to see if gcc is good enough. (in january
+        2006). If it is, the behavior should just be the default. If it's not,
+	the option should just go away entirely.
+Who:    Arjan van de Ven
+
+---------------------------
+
 What:	START_ARRAY ioctl for md
 When:	July 2006
 Files:	drivers/md/md.c
