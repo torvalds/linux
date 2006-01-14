@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <net/ip.h>
+#include <linux/ipv6.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include <net/udp.h>
