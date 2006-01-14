@@ -3407,6 +3407,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	ha->node_name = icb->node_name;
 	ha->port_name = icb->port_name;
 
+	icb->execution_throttle = __constant_cpu_to_le16(0xFFFF);
+
 	ha->retry_count = le16_to_cpu(nv->login_retry_count);
 
 	/* Set minimum login_timeout to 4 seconds. */
