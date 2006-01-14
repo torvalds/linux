@@ -35,6 +35,16 @@ extern void __udivsi3(void);
 extern void __umodsi3(void);
 extern void __do_div64(void);
 
+extern void __aeabi_idiv(void);
+extern void __aeabi_idivmod(void);
+extern void __aeabi_lasr(void);
+extern void __aeabi_llsl(void);
+extern void __aeabi_llsr(void);
+extern void __aeabi_lmul(void);
+extern void __aeabi_uidiv(void);
+extern void __aeabi_uidivmod(void);
+extern void __aeabi_ulcmp(void);
+
 extern void fpundefinstr(void);
 extern void fp_enter(void);
 
@@ -140,6 +150,18 @@ EXPORT_SYMBOL(__ucmpdi2);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
 EXPORT_SYMBOL(__do_div64);
+
+#ifdef CONFIG_AEABI
+EXPORT_SYMBOL(__aeabi_idiv);
+EXPORT_SYMBOL(__aeabi_idivmod);
+EXPORT_SYMBOL(__aeabi_lasr);
+EXPORT_SYMBOL(__aeabi_llsl);
+EXPORT_SYMBOL(__aeabi_llsr);
+EXPORT_SYMBOL(__aeabi_lmul);
+EXPORT_SYMBOL(__aeabi_uidiv);
+EXPORT_SYMBOL(__aeabi_uidivmod);
+EXPORT_SYMBOL(__aeabi_ulcmp);
+#endif
 
 	/* bitops */
 EXPORT_SYMBOL(_set_bit_le);
