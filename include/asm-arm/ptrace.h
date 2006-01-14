@@ -23,6 +23,9 @@
 #define PTRACE_OLDSETOPTIONS	21
 
 #define PTRACE_GET_THREAD_AREA	22
+
+#define PTRACE_SET_SYSCALL	23
+
 /*
  * PSR bits
  */
