@@ -121,6 +121,12 @@ config PPC_83xx
 	select 83xx
 	select PPC_FPU
 
+config PPC_85xx
+	bool "Freescale 85xx"
+	select E500
+	select FSL_SOC
+	select 85xx
+
 config 40x
 	bool "AMCC 40x"
 
@@ -133,8 +139,6 @@ config 8xx
 config E200
 	bool "Freescale e200"
 
-config E500
-	bool "Freescale e500"
 endchoice
 
 config POWER4_ONLY
@@ -160,6 +164,13 @@ config 6xx
 
 # this is temp to handle compat with arch=ppc
 config 83xx
+	bool
+
+# this is temp to handle compat with arch=ppc
+config 85xx
+	bool
+
+config E500
 	bool
 
 config PPC_FPU
@@ -211,6 +222,7 @@ config ALTIVEC
 config SPE
 	bool "SPE Support"
 	depends on E200 || E500
+	default y
 	---help---
 	  This option enables kernel support for the Signal Processing
 	  Extensions (SPE) to the PowerPC processor. The kernel currently
@@ -728,13 +740,12 @@ config GENERIC_ISA_DMA
 
 config PPC_I8259
 	bool
-	default y if 85xx
 	default n
 
 config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
-	default y if 40x || 44x || 85xx
+	default y if 40x || 44x
 	default n
 
 config EISA
@@ -751,8 +762,8 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || 85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
-	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !85xx
+	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
+	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !PPC_85xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help
