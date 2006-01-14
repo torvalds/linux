@@ -307,7 +307,7 @@ static int clcdfb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int clcdfb_mmap(struct fb_info *info, struct file *file,
+static int clcdfb_mmap(struct fb_info *info,
 		       struct vm_area_struct *vma)
 {
 	struct clcd_fb *fb = to_clcd(info);

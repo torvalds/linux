@@ -32,7 +32,7 @@ static int leo_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int leo_blank(int, struct fb_info *);
 
-static int leo_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
+static int leo_mmap(struct fb_info *, struct vm_area_struct *);
 static int leo_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int leo_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
@@ -362,7 +362,7 @@ static struct sbus_mmap_map leo_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int leo_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int leo_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct leo_par *par = (struct leo_par *)info->par;
 

@@ -1135,7 +1135,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (fb->fb_mmap) {
 		int res;
 		lock_kernel();
-		res = fb->fb_mmap(info, file, vma);
+		res = fb->fb_mmap(info, vma);
 		unlock_kernel();
 		return res;
 	}

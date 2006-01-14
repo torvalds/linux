@@ -219,7 +219,7 @@ static void iga_blank_border(struct iga_par *par)
 }
 
 #ifdef __sparc__
-static int igafb_mmap(struct fb_info *info, struct file *file,
+static int igafb_mmap(struct fb_info *info,
 		      struct vm_area_struct *vma)
 {
 	struct iga_par *par = (struct iga_par *)info->par;

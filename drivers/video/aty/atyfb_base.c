@@ -243,7 +243,7 @@ extern void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 extern void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 extern void atyfb_imageblit(struct fb_info *info, const struct fb_image *image);
 #ifdef __sparc__
-static int atyfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma);
+static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 #endif
 static int atyfb_sync(struct fb_info *info);
 
@@ -1843,7 +1843,7 @@ static int atyfb_sync(struct fb_info *info)
 }
 
 #ifdef __sparc__
-static int atyfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	unsigned int size, page, map_size = 0;

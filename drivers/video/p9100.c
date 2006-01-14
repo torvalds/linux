@@ -31,7 +31,7 @@ static int p9100_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			   unsigned, struct fb_info *);
 static int p9100_blank(int, struct fb_info *);
 
-static int p9100_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
+static int p9100_mmap(struct fb_info *, struct vm_area_struct *);
 static int p9100_ioctl(struct fb_info *, unsigned int, unsigned long);
 
 /*
@@ -221,7 +221,7 @@ static struct sbus_mmap_map p9100_mmap_map[] = {
 	{ 0,			0,		0		    }
 };
 
-static int p9100_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int p9100_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct p9100_par *par = (struct p9100_par *)info->par;
 

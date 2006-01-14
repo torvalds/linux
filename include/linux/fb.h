@@ -616,7 +616,7 @@ struct fb_ops {
 			unsigned long arg);
 
 	/* perform fb specific mmap */
-	int (*fb_mmap)(struct fb_info *info, struct file *file, struct vm_area_struct *vma);
+	int (*fb_mmap)(struct fb_info *info, struct vm_area_struct *vma);
 
 	/* save current hardware state */
 	void (*fb_save_state)(struct fb_info *info);

@@ -31,7 +31,7 @@
 static int cg14_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 
-static int cg14_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
+static int cg14_mmap(struct fb_info *, struct vm_area_struct *);
 static int cg14_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int cg14_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
@@ -267,7 +267,7 @@ static int cg14_setcolreg(unsigned regno,
 	return 0;
 }
 
-static int cg14_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int cg14_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct cg14_par *par = (struct cg14_par *) info->par;
 
