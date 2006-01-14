@@ -72,8 +72,8 @@
 static char s2io_driver_name[] = "Neterion";
 static char s2io_driver_version[] = DRV_VERSION;
 
-int rxd_size[4] = {32,48,48,64};
-int rxd_count[4] = {127,85,85,63};
+static int rxd_size[4] = {32,48,48,64};
+static int rxd_count[4] = {127,85,85,63};
 
 static inline int RXD_IS_UP2DT(RxD_t *rxdp)
 {
@@ -2127,7 +2127,7 @@ static void stop_nic(struct s2io_nic *nic)
 	}
 }
 
-int fill_rxd_3buf(nic_t *nic, RxD_t *rxdp, struct sk_buff *skb)
+static int fill_rxd_3buf(nic_t *nic, RxD_t *rxdp, struct sk_buff *skb)
 {
 	struct net_device *dev = nic->dev;
 	struct sk_buff *frag_list;
@@ -2852,7 +2852,7 @@ static int wait_for_cmd_complete(nic_t * sp)
  *  void.
  */
 
-void s2io_reset(nic_t * sp)
+static void s2io_reset(nic_t * sp)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	u64 val64;
@@ -2940,7 +2940,7 @@ void s2io_reset(nic_t * sp)
  *  SUCCESS on success and FAILURE on failure.
  */
 
-int s2io_set_swapper(nic_t * sp)
+static int s2io_set_swapper(nic_t * sp)
 {
 	struct net_device *dev = sp->dev;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
@@ -3089,7 +3089,7 @@ static int wait_for_msix_trans(nic_t *nic, int i)
 	return ret;
 }
 
-void restore_xmsi_data(nic_t *nic)
+static void restore_xmsi_data(nic_t *nic)
 {
 	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 val64;
@@ -3180,7 +3180,7 @@ int s2io_enable_msi(nic_t *nic)
 	return 0;
 }
 
-int s2io_enable_msi_x(nic_t *nic)
+static int s2io_enable_msi_x(nic_t *nic)
 {
 	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 tx_mat, rx_mat;
@@ -4128,7 +4128,7 @@ static void s2io_set_multicast(struct net_device *dev)
  *  as defined in errno.h file on failure.
  */
 
-int s2io_set_mac_addr(struct net_device *dev, u8 * addr)
+static int s2io_set_mac_addr(struct net_device *dev, u8 * addr)
 {
 	nic_t *sp = dev->priv;
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
@@ -5713,7 +5713,7 @@ static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp)
  *  void.
  */
 
-void s2io_link(nic_t * sp, int link)
+static void s2io_link(nic_t * sp, int link)
 {
 	struct net_device *dev = (struct net_device *) sp->dev;
 
@@ -5738,7 +5738,7 @@ void s2io_link(nic_t * sp, int link)
  *  returns the revision ID of the device.
  */
 
-int get_xena_rev_id(struct pci_dev *pdev)
+static int get_xena_rev_id(struct pci_dev *pdev)
 {
 	u8 id = 0;
 	int ret;
@@ -6343,7 +6343,7 @@ int __init s2io_starter(void)
  * Description: This function is the cleanup routine for the driver. It unregist * ers the driver.
  */
 
-void s2io_closer(void)
+static void s2io_closer(void)
 {
 	pci_unregister_driver(&s2io_driver);
 	DBG_PRINT(INIT_DBG, "cleanup done\n");
