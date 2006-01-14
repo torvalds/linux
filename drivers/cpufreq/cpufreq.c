@@ -601,7 +601,8 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	policy->cpu = cpu;
 	policy->cpus = cpumask_of_cpu(cpu);
 
-	init_MUTEX_LOCKED(&policy->lock);
+	mutex_init(&policy->lock);
+	mutex_lock(&policy->lock);
 	init_completion(&policy->kobj_unregister);
 	INIT_WORK(&policy->update, handle_update, (void *)(long)cpu);
 
@@ -642,7 +643,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 	policy->governor = NULL; /* to assure that the starting sequence is
 				  * run in cpufreq_set_policy */
-	up(&policy->lock);
+	mutex_unlock(&policy->lock);
 	
 	/* set default policy */
 	
@@ -763,10 +764,10 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 #endif
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	if (cpufreq_driver->target)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 
 	kobject_unregister(&data->kobj);
 
@@ -835,9 +836,9 @@ unsigned int cpufreq_quick_get(unsigned int cpu)
 	unsigned int ret = 0;
 
 	if (policy) {
-		down(&policy->lock);
+		mutex_lock(&policy->lock);
 		ret = policy->cur;
-		up(&policy->lock);
+		mutex_unlock(&policy->lock);
 		cpufreq_cpu_put(policy);
 	}
 
@@ -863,7 +864,7 @@ unsigned int cpufreq_get(unsigned int cpu)
 	if (!cpufreq_driver->get)
 		goto out;
 
-	down(&policy->lock);
+	mutex_lock(&policy->lock);
 
 	ret = cpufreq_driver->get(cpu);
 
@@ -876,7 +877,7 @@ unsigned int cpufreq_get(unsigned int cpu)
 		}
 	}
 
-	up(&policy->lock);
+	mutex_unlock(&policy->lock);
 
  out:
 	cpufreq_cpu_put(policy);
@@ -1159,11 +1160,11 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (!policy)
 		return -EINVAL;
 
-	down(&policy->lock);
+	mutex_lock(&policy->lock);
 
 	ret = __cpufreq_driver_target(policy, target_freq, relation);
 
-	up(&policy->lock);
+	mutex_unlock(&policy->lock);
 
 	cpufreq_cpu_put(policy);
 
@@ -1200,9 +1201,9 @@ int cpufreq_governor(unsigned int cpu, unsigned int event)
 	if (!policy)
 		return -EINVAL;
 
-	down(&policy->lock);
+	mutex_lock(&policy->lock);
 	ret = __cpufreq_governor(policy, event);
-	up(&policy->lock);
+	mutex_unlock(&policy->lock);
 
 	cpufreq_cpu_put(policy);
 
@@ -1269,9 +1270,9 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 	if (!cpu_policy)
 		return -EINVAL;
 
-	down(&cpu_policy->lock);
+	mutex_lock(&cpu_policy->lock);
 	memcpy(policy, cpu_policy, sizeof(struct cpufreq_policy));
-	up(&cpu_policy->lock);
+	mutex_unlock(&cpu_policy->lock);
 
 	cpufreq_cpu_put(cpu_policy);
 
@@ -1383,7 +1384,7 @@ int cpufreq_set_policy(struct cpufreq_policy *policy)
 		return -EINVAL;
 
 	/* lock this CPU */
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	ret = __cpufreq_set_policy(data, policy);
 	data->user_policy.min = data->min;
@@ -1391,7 +1392,7 @@ int cpufreq_set_policy(struct cpufreq_policy *policy)
 	data->user_policy.policy = data->policy;
 	data->user_policy.governor = data->governor;
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	cpufreq_cpu_put(data);
 
 	return ret;
@@ -1415,7 +1416,7 @@ int cpufreq_update_policy(unsigned int cpu)
 	if (!data)
 		return -ENODEV;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	dprintk("updating policy for CPU %u\n", cpu);
 	memcpy(&policy, 
@@ -1428,7 +1429,7 @@ int cpufreq_update_policy(unsigned int cpu)
 
 	ret = __cpufreq_set_policy(data, &policy);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 
 	cpufreq_cpu_put(data);
 	return ret;
