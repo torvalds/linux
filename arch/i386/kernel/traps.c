@@ -112,33 +112,38 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 		p < (void *)tinfo + THREAD_SIZE - 3;
 }
 
+static void print_addr_and_symbol(unsigned long addr, char *log_lvl)
+{
+	printk(log_lvl);
+	printk(" [<%08lx>] ", addr);
+	print_symbol("%s", addr);
+	printk("\n");
+}
+
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
-				unsigned long *stack, unsigned long ebp)
+				unsigned long *stack, unsigned long ebp,
+				char *log_lvl)
 {
 	unsigned long addr;
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		printk(KERN_EMERG " [<%08lx>] ", addr);
-		print_symbol("%s", addr);
-		printk("\n");
+		print_addr_and_symbol(addr, log_lvl);
 		ebp = *(unsigned long *)ebp;
 	}
 #else
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk(KERN_EMERG " [<%08lx>]", addr);
-			print_symbol(" %s", addr);
-			printk("\n");
-		}
+		if (__kernel_text_address(addr))
+			print_addr_and_symbol(addr, log_lvl);
 	}
 #endif
 	return ebp;
 }
 
-void show_trace(struct task_struct *task, unsigned long * stack)
+static void show_trace_log_lvl(struct task_struct *task,
+			       unsigned long *stack, char *log_lvl)
 {
 	unsigned long ebp;
 
@@ -157,7 +162,7 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 		struct thread_info *context;
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		ebp = print_context_stack(context, stack, ebp);
+		ebp = print_context_stack(context, stack, ebp, log_lvl);
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
@@ -165,7 +170,13 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 	}
 }
 
-void show_stack(struct task_struct *task, unsigned long *esp)
+void show_trace(struct task_struct *task, unsigned long * stack)
+{
+	show_trace_log_lvl(task, stack, "");
+}
+
+static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
+			       char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -178,16 +189,26 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	}
 
 	stack = esp;
-	printk(KERN_EMERG);
+	printk(log_lvl);
 	for(i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
-		if (i && ((i % 8) == 0))
-			printk("\n" KERN_EMERG "       ");
+		if (i && ((i % 8) == 0)) {
+			printk("\n");
+			printk(log_lvl);
+			printk("       ");
+		}
 		printk("%08lx ", *stack++);
 	}
-	printk("\n" KERN_EMERG "Call Trace:\n");
-	show_trace(task, esp);
+	printk("\n");
+	printk(log_lvl);
+	printk("Call Trace:\n");
+	show_trace_log_lvl(task, esp, log_lvl);
+}
+
+void show_stack(struct task_struct *task, unsigned long *esp)
+{
+	show_stack_log_lvl(task, esp, "");
 }
 
 /*
@@ -238,7 +259,7 @@ void show_registers(struct pt_regs *regs)
 		u8 __user *eip;
 
 		printk("\n" KERN_EMERG "Stack: ");
-		show_stack(NULL, (unsigned long*)esp);
+		show_stack_log_lvl(NULL, (unsigned long *)esp, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 
