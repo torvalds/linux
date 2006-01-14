@@ -22,6 +22,10 @@ config SCSI_QLA_FC
 	Upon request, the driver caches the firmware image until
 	the driver is unloaded.
 
+	Firmware images can be retrieved from:
+
+		ftp://ftp.qlogic.com/outgoing/linux/firmware/
+
 	NOTE: The original method of building firmware-loader
 	modules has been deprecated as the firmware-images will
 	be removed from the kernel sources.
