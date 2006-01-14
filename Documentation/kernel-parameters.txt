@@ -471,7 +471,7 @@ running once the system is up.
 			arch/i386/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"as" | "cfq" | "deadline" | "noop"}
+			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
