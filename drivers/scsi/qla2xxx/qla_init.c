@@ -1939,6 +1939,9 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 			    "information -- get_port_database=%x, "
 			    "loop_id=0x%04x\n",
 			    ha->host_no, rval2, new_fcport->loop_id));
+			DEBUG2(printk("scsi(%ld): Scheduling resync...\n",
+			    ha->host_no));
+			set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 			continue;
 		}
 
