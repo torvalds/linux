@@ -1014,11 +1014,13 @@ qla24xx_update_fw_options(scsi_qla_host_t *ha)
 	int rval;
 
 	/* Update Serial Link options. */
-	if ((ha->fw_seriallink_options24[0] & BIT_0) == 0)
+	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
 		return;
 
-	rval = qla2x00_set_serdes_params(ha, ha->fw_seriallink_options24[1],
-	    ha->fw_seriallink_options24[2], ha->fw_seriallink_options24[3]);
+	rval = qla2x00_set_serdes_params(ha,
+	    le16_to_cpu(ha->fw_seriallink_options24[1]),
+	    le16_to_cpu(ha->fw_seriallink_options24[2]),
+	    le16_to_cpu(ha->fw_seriallink_options24[3]));
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to update Serial Link options (%x).\n", rval);
