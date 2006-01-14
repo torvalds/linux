@@ -93,7 +93,7 @@ struct tvp5150 {
 	int sat;
 };
 
-static inline int tvp5150_read(struct i2c_client *c, unsigned char addr)
+static int tvp5150_read(struct i2c_client *c, unsigned char addr)
 {
 	unsigned char buffer[1];
 	int rc;

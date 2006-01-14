@@ -264,7 +264,7 @@ static int unquote(char *from)
 	return p - from;
 }
 
-static inline char * check_special_flags (char * sfs, Node * e)
+static char * check_special_flags (char * sfs, Node * e)
 {
 	char * p = sfs;
 	int cont = 1;

@@ -856,7 +856,7 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 		       param->private_data_len);
 }
 
-static inline int cm_validate_req_param(struct ib_cm_req_param *param)
+static int cm_validate_req_param(struct ib_cm_req_param *param)
 {
 	/* peer-to-peer not supported */
 	if (param->peer_to_peer)
@@ -1005,7 +1005,7 @@ static inline int cm_is_active_peer(__be64 local_ca_guid, __be64 remote_ca_guid,
 		 (be32_to_cpu(local_qpn) > be32_to_cpu(remote_qpn))));
 }
 
-static inline void cm_format_paths_from_req(struct cm_req_msg *req_msg,
+static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 					    struct ib_sa_path_rec *primary_path,
 					    struct ib_sa_path_rec *alt_path)
 {

@@ -477,7 +477,7 @@ static inline int idedisk_supports_lba48(const struct hd_driveid *id)
 	       && id->lba_capacity_2;
 }
 
-static inline void idedisk_check_hpa(ide_drive_t *drive)
+static void idedisk_check_hpa(ide_drive_t *drive)
 {
 	unsigned long long capacity, set_max;
 	int lba48 = idedisk_supports_lba48(drive->id);

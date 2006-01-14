@@ -147,7 +147,7 @@ int fastcall queue_delayed_work(struct workqueue_struct *wq,
 	return ret;
 }
 
-static inline void run_workqueue(struct cpu_workqueue_struct *cwq)
+static void run_workqueue(struct cpu_workqueue_struct *cwq)
 {
 	unsigned long flags;
 

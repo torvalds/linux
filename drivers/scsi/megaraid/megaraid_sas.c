@@ -81,7 +81,7 @@ static DEFINE_MUTEX(megasas_async_queue_mutex);
  *
  * Returns a free command from the pool
  */
-static inline struct megasas_cmd *megasas_get_cmd(struct megasas_instance
+static struct megasas_cmd *megasas_get_cmd(struct megasas_instance
 						  *instance)
 {
 	unsigned long flags;
@@ -263,7 +263,7 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
  * If successful, this function returns the number of SG elements. Otherwise,
  * it returnes -1.
  */
-static inline int
+static int
 megasas_make_sgl32(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		   union megasas_sgl *mfi_sgl)
 {
@@ -311,7 +311,7 @@ megasas_make_sgl32(struct megasas_instance *instance, struct scsi_cmnd *scp,
  * If successful, this function returns the number of SG elements. Otherwise,
  * it returnes -1.
  */
-static inline int
+static int
 megasas_make_sgl64(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		   union megasas_sgl *mfi_sgl)
 {
@@ -360,7 +360,7 @@ megasas_make_sgl64(struct megasas_instance *instance, struct scsi_cmnd *scp,
  * This function prepares CDB commands. These are typcially pass-through
  * commands to the devices.
  */
-static inline int
+static int
 megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		   struct megasas_cmd *cmd)
 {
@@ -441,7 +441,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
  *
  * Frames (and accompanying SGLs) for regular SCSI IOs use this function.
  */
-static inline int
+static int
 megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		   struct megasas_cmd *cmd)
 {
@@ -563,7 +563,7 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
  * @scp:		SCSI command
  * @frame_count:	[OUT] Number of frames used to prepare this command
  */
-static inline struct megasas_cmd *megasas_build_cmd(struct megasas_instance
+static struct megasas_cmd *megasas_build_cmd(struct megasas_instance
 						    *instance,
 						    struct scsi_cmnd *scp,
 						    int *frame_count)
@@ -914,7 +914,7 @@ megasas_complete_abort(struct megasas_instance *instance,
  * @instance:			Adapter soft state
  * @cmd:			Completed command
  */
-static inline void
+static void
 megasas_unmap_sgbuf(struct megasas_instance *instance, struct megasas_cmd *cmd)
 {
 	dma_addr_t buf_h;
@@ -958,7 +958,7 @@ megasas_unmap_sgbuf(struct megasas_instance *instance, struct megasas_cmd *cmd)
  * 				an alternate status (as in the case of aborted
  * 				commands)
  */
-static inline void
+static void
 megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		     u8 alt_status)
 {
@@ -1105,7 +1105,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
  * 					SCSI mid-layer instead of the status
  * 					returned by the FW
  */
-static inline int
+static int
 megasas_deplete_reply_queue(struct megasas_instance *instance, u8 alt_status)
 {
 	u32 status;

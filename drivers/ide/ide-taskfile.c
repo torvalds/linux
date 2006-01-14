@@ -308,7 +308,7 @@ static void ide_pio_multi(ide_drive_t *drive, unsigned int write)
 		ide_pio_sector(drive, write);
 }
 
-static inline void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
+static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 				     unsigned int write)
 {
 	if (rq->bio)	/* fs request */

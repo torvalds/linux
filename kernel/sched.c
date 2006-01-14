@@ -521,7 +521,7 @@ static inline void sched_info_dequeued(task_t *t)
  * long it was waiting to run.  We also note when it began so that we
  * can keep stats on how long its timeslice is.
  */
-static inline void sched_info_arrive(task_t *t)
+static void sched_info_arrive(task_t *t)
 {
 	unsigned long now = jiffies, diff = 0;
 	struct runqueue *rq = task_rq(t);
@@ -1007,7 +1007,7 @@ void kick_process(task_t *p)
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
  */
-static inline unsigned long __source_load(int cpu, int type, enum idle_type idle)
+static unsigned long __source_load(int cpu, int type, enum idle_type idle)
 {
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long running = rq->nr_running;
@@ -1870,7 +1870,7 @@ void sched_exec(void)
  * pull_task - move a task from a remote runqueue to the local runqueue.
  * Both runqueues must be locked.
  */
-static inline
+static
 void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 	       runqueue_t *this_rq, prio_array_t *this_array, int this_cpu)
 {
@@ -1892,7 +1892,7 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 /*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
  */
-static inline
+static
 int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
 		     struct sched_domain *sd, enum idle_type idle,
 		     int *all_pinned)
@@ -2378,7 +2378,7 @@ out_balanced:
  * idle_balance is called by schedule() if this_cpu is about to become
  * idle. Attempts to pull tasks from other CPUs.
  */
-static inline void idle_balance(int this_cpu, runqueue_t *this_rq)
+static void idle_balance(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *sd;
 
@@ -2762,7 +2762,7 @@ static inline void wakeup_busy_runqueue(runqueue_t *rq)
 		resched_task(rq->idle);
 }
 
-static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
+static void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *tmp, *sd = NULL;
 	cpumask_t sibling_map;
@@ -2816,7 +2816,7 @@ static inline unsigned long smt_slice(task_t *p, struct sched_domain *sd)
 	return p->time_slice * (100 - sd->per_cpu_gain) / 100;
 }
 
-static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
+static int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *tmp, *sd = NULL;
 	cpumask_t sibling_map;
@@ -6008,7 +6008,7 @@ next_sg:
  * Detach sched domains from a group of cpus specified in cpu_map
  * These cpus will now be attached to the NULL domain
  */
-static inline void detach_destroy_domains(const cpumask_t *cpu_map)
+static void detach_destroy_domains(const cpumask_t *cpu_map)
 {
 	int i;
 

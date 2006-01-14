@@ -207,7 +207,7 @@ static inline void usbatm_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 **  urbs  **
 ************/
 
-static inline struct urb *usbatm_pop_urb(struct usbatm_channel *channel)
+static struct urb *usbatm_pop_urb(struct usbatm_channel *channel)
 {
 	struct urb *urb;
 
@@ -224,7 +224,7 @@ static inline struct urb *usbatm_pop_urb(struct usbatm_channel *channel)
 	return urb;
 }
 
-static inline int usbatm_submit_urb(struct urb *urb)
+static int usbatm_submit_urb(struct urb *urb)
 {
 	struct usbatm_channel *channel = urb->context;
 	int ret;

@@ -1418,7 +1418,7 @@ iscsi_data_digest_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	ctask->digest_count = 4;
 }
 
-static inline int
+static int
 iscsi_digest_final_send(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 			struct iscsi_buf *buf, uint32_t *digest, int final)
 {

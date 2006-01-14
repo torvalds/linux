@@ -151,7 +151,7 @@ static inline struct scsi_cd *scsi_cd_get(struct gendisk *disk)
 	return cd;
 }
 
-static inline void scsi_cd_put(struct scsi_cd *cd)
+static void scsi_cd_put(struct scsi_cd *cd)
 {
 	struct scsi_device *sdev = cd->device;
 

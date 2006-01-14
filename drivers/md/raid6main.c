@@ -88,7 +88,7 @@ static inline int raid6_next_disk(int disk, int raid_disks)
 
 static void print_raid6_conf (raid6_conf_t *conf);
 
-static inline void __release_stripe(raid6_conf_t *conf, struct stripe_head *sh)
+static void __release_stripe(raid6_conf_t *conf, struct stripe_head *sh)
 {
 	if (atomic_dec_and_test(&sh->count)) {
 		if (!list_empty(&sh->lru))
@@ -197,7 +197,7 @@ static int grow_buffers(struct stripe_head *sh, int num)
 
 static void raid6_build_block (struct stripe_head *sh, int i);
 
-static inline void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx)
+static void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx)
 {
 	raid6_conf_t *conf = sh->raid_conf;
 	int disks = conf->raid_disks, i;
@@ -1577,7 +1577,7 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 	}
 }
 
-static inline void raid6_activate_delayed(raid6_conf_t *conf)
+static void raid6_activate_delayed(raid6_conf_t *conf)
 {
 	if (atomic_read(&conf->preread_active_stripes) < IO_THRESHOLD) {
 		while (!list_empty(&conf->delayed_list)) {
@@ -1593,7 +1593,7 @@ static inline void raid6_activate_delayed(raid6_conf_t *conf)
 	}
 }
 
-static inline void activate_bit_delay(raid6_conf_t *conf)
+static void activate_bit_delay(raid6_conf_t *conf)
 {
 	/* device_lock is held */
 	struct list_head head;

@@ -1554,7 +1554,7 @@ struct ctr_struct {
  * when reading out p->cpuset, as we don't really care if it changes
  * on the next cycle, and we are not going to try to dereference it.
  */
-static inline int pid_array_load(pid_t *pidarray, int npids, struct cpuset *cs)
+static int pid_array_load(pid_t *pidarray, int npids, struct cpuset *cs)
 {
 	int n = 0;
 	struct task_struct *g, *p;

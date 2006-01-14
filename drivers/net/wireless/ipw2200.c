@@ -813,7 +813,7 @@ static void ipw_bg_led_link_off(void *data)
 	up(&priv->sem);
 }
 
-static inline void __ipw_led_activity_on(struct ipw_priv *priv)
+static void __ipw_led_activity_on(struct ipw_priv *priv)
 {
 	u32 led;
 
@@ -1508,7 +1508,7 @@ static ssize_t store_direct_dword(struct device *d,
 static DEVICE_ATTR(direct_dword, S_IWUSR | S_IRUGO,
 		   show_direct_dword, store_direct_dword);
 
-static inline int rf_kill_active(struct ipw_priv *priv)
+static int rf_kill_active(struct ipw_priv *priv)
 {
 	if (0 == (ipw_read32(priv, 0x30) & 0x10000))
 		priv->status |= STATUS_RF_KILL_HW;
@@ -2359,7 +2359,7 @@ static inline void eeprom_write_reg(struct ipw_priv *p, u32 data)
 }
 
 /* perform a chip select operation */
-static inline void eeprom_cs(struct ipw_priv *priv)
+static void eeprom_cs(struct ipw_priv *priv)
 {
 	eeprom_write_reg(priv, 0);
 	eeprom_write_reg(priv, EEPROM_BIT_CS);
@@ -2368,7 +2368,7 @@ static inline void eeprom_cs(struct ipw_priv *priv)
 }
 
 /* perform a chip select operation */
-static inline void eeprom_disable_cs(struct ipw_priv *priv)
+static void eeprom_disable_cs(struct ipw_priv *priv)
 {
 	eeprom_write_reg(priv, EEPROM_BIT_CS);
 	eeprom_write_reg(priv, 0);
@@ -2475,7 +2475,7 @@ static void ipw_eeprom_init_sram(struct ipw_priv *priv)
 	IPW_DEBUG_TRACE("<<\n");
 }
 
-static inline void ipw_zero_memory(struct ipw_priv *priv, u32 start, u32 count)
+static void ipw_zero_memory(struct ipw_priv *priv, u32 start, u32 count)
 {
 	count >>= 2;
 	if (!count)
@@ -2772,7 +2772,7 @@ static inline int ipw_alive(struct ipw_priv *priv)
 	return ipw_read32(priv, 0x90) == 0xd55555d5;
 }
 
-static inline int ipw_poll_bit(struct ipw_priv *priv, u32 addr, u32 mask,
+static int ipw_poll_bit(struct ipw_priv *priv, u32 addr, u32 mask,
 			       int timeout)
 {
 	int i = 0;
@@ -3150,7 +3150,7 @@ static int ipw_get_fw(struct ipw_priv *priv,
 
 #define IPW_RX_BUF_SIZE (3000)
 
-static inline void ipw_rx_queue_reset(struct ipw_priv *priv,
+static void ipw_rx_queue_reset(struct ipw_priv *priv,
 				      struct ipw_rx_queue *rxq)
 {
 	unsigned long flags;
@@ -3608,7 +3608,7 @@ static void ipw_tx_queue_free(struct ipw_priv *priv)
 	ipw_queue_tx_free(priv, &priv->txq[3]);
 }
 
-static inline void ipw_create_bssid(struct ipw_priv *priv, u8 * bssid)
+static void ipw_create_bssid(struct ipw_priv *priv, u8 * bssid)
 {
 	/* First 3 bytes are manufacturer */
 	bssid[0] = priv->mac_addr[0];
@@ -3622,7 +3622,7 @@ static inline void ipw_create_bssid(struct ipw_priv *priv, u8 * bssid)
 	bssid[0] |= 0x02;	/* set local assignment bit (IEEE802) */
 }
 
-static inline u8 ipw_add_station(struct ipw_priv *priv, u8 * bssid)
+static u8 ipw_add_station(struct ipw_priv *priv, u8 * bssid)
 {
 	struct ipw_station_entry entry;
 	int i;
@@ -3655,7 +3655,7 @@ static inline u8 ipw_add_station(struct ipw_priv *priv, u8 * bssid)
 	return i;
 }
 
-static inline u8 ipw_find_station(struct ipw_priv *priv, u8 * bssid)
+static u8 ipw_find_station(struct ipw_priv *priv, u8 * bssid)
 {
 	int i;
 
@@ -3794,7 +3794,7 @@ static void inline average_init(struct average *avg)
 	memset(avg, 0, sizeof(*avg));
 }
 
-static void inline average_add(struct average *avg, s16 val)
+static void average_add(struct average *avg, s16 val)
 {
 	avg->sum -= avg->entries[avg->pos];
 	avg->sum += val;
@@ -3805,7 +3805,7 @@ static void inline average_add(struct average *avg, s16 val)
 	}
 }
 
-static s16 inline average_value(struct average *avg)
+static s16 average_value(struct average *avg)
 {
 	if (!unlikely(avg->init)) {
 		if (avg->pos)
@@ -3847,7 +3847,7 @@ static void ipw_reset_stats(struct ipw_priv *priv)
 
 }
 
-static inline u32 ipw_get_max_rate(struct ipw_priv *priv)
+static u32 ipw_get_max_rate(struct ipw_priv *priv)
 {
 	u32 i = 0x80000000;
 	u32 mask = priv->rates_mask;
@@ -4087,7 +4087,7 @@ static void ipw_bg_gather_stats(void *data)
  * roaming_threshold -> disassociate_threshold, scan and roam for better signal.
  * Above disassociate threshold, give up and stop scanning.
  * Roaming is disabled if disassociate_threshold <= roaming_threshold  */
-static inline void ipw_handle_missed_beacon(struct ipw_priv *priv,
+static void ipw_handle_missed_beacon(struct ipw_priv *priv,
 					    int missed_count)
 {
 	priv->notif_missed_beacons = missed_count;
@@ -4157,7 +4157,7 @@ static inline void ipw_handle_missed_beacon(struct ipw_priv *priv,
  * Handle host notification packet.
  * Called from interrupt routine
  */
-static inline void ipw_rx_notification(struct ipw_priv *priv,
+static void ipw_rx_notification(struct ipw_priv *priv,
 				       struct ipw_rx_notification *notif)
 {
 	notif->size = le16_to_cpu(notif->size);
@@ -5095,7 +5095,7 @@ static int ipw_compatible_rates(struct ipw_priv *priv,
 	return 1;
 }
 
-static inline void ipw_copy_rates(struct ipw_supported_rates *dest,
+static void ipw_copy_rates(struct ipw_supported_rates *dest,
 				  const struct ipw_supported_rates *src)
 {
 	u8 i;
@@ -5856,7 +5856,7 @@ static void ipw_debug_config(struct ipw_priv *priv)
 #define ipw_debug_config(x) do {} while (0)
 #endif
 
-static inline void ipw_set_fixed_rate(struct ipw_priv *priv, int mode)
+static void ipw_set_fixed_rate(struct ipw_priv *priv, int mode)
 {
 	/* TODO: Verify that this works... */
 	struct ipw_fixed_rate fr = {
@@ -7634,7 +7634,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 }
 #endif
 
-static inline int is_network_packet(struct ipw_priv *priv,
+static int is_network_packet(struct ipw_priv *priv,
 				    struct ieee80211_hdr_4addr *header)
 {
 	/* Filter incoming packets to determine if they are targetted toward
@@ -7672,7 +7672,7 @@ static inline int is_network_packet(struct ipw_priv *priv,
 
 #define IPW_PACKET_RETRY_TIME HZ
 
-static inline int is_duplicate_packet(struct ipw_priv *priv,
+static  int is_duplicate_packet(struct ipw_priv *priv,
 				      struct ieee80211_hdr_4addr *header)
 {
 	u16 sc = le16_to_cpu(header->seq_ctl);
@@ -9581,7 +9581,7 @@ static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev)
 
 /* net device stuff */
 
-static inline void init_sys_config(struct ipw_sys_config *sys_config)
+static  void init_sys_config(struct ipw_sys_config *sys_config)
 {
 	memset(sys_config, 0, sizeof(struct ipw_sys_config));
 	sys_config->bt_coexistence = 1;	/* We may need to look into prvStaBtConfig */
@@ -9627,7 +9627,7 @@ modify to send one tfd per fragment instead of using chunking.  otherwise
 we need to heavily modify the ieee80211_skb_to_txb.
 */
 
-static inline int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
+static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 			     int pri)
 {
 	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)

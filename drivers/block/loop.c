@@ -294,7 +294,7 @@ fail:
  * This helper just factors out common code between do_lo_send_direct_write()
  * and do_lo_send_write().
  */
-static inline int __do_lo_send_write(struct file *file,
+static int __do_lo_send_write(struct file *file,
 		u8 __user *buf, const int len, loff_t pos)
 {
 	ssize_t bw;

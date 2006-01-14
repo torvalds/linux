@@ -980,7 +980,7 @@ static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
  * and attempt to recover if there are problems.  Returns  0 if everything's
  * ok; nonzero if the request has been terminated.
  */
-static inline
+static
 int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
 {
 	if (ireason == 2)
@@ -1539,7 +1539,7 @@ int cdrom_queue_packet_command(ide_drive_t *drive, struct request *rq)
 /*
  * Write handling
  */
-static inline int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
+static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 {
 	/* Two notes about IDE interrupt reason here - 0 means that
 	 * the drive wants to receive data from us, 2 means that

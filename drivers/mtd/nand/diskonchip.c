@@ -1506,7 +1506,7 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	return 1;
 }
 
-static inline int __init doc_probe(unsigned long physadr)
+static int __init doc_probe(unsigned long physadr)
 {
 	unsigned char ChipID;
 	struct mtd_info *mtd;

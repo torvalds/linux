@@ -102,7 +102,7 @@ static inline void hacr_write(unsigned long ioaddr, u16 hacr)
  * Write to card's Host Adapter Command Register. Include a delay for
  * those times when it is needed.
  */
-static inline void hacr_write_slow(unsigned long ioaddr, u16 hacr)
+static void hacr_write_slow(unsigned long ioaddr, u16 hacr)
 {
 	hacr_write(ioaddr, hacr);
 	/* delay might only be needed sometimes */
@@ -242,7 +242,7 @@ static void psa_write(unsigned long ioaddr, u16 hacr, int o,	/* Offset in PSA */
  * The Windows drivers don't use the CRC, but the AP and the PtP tool
  * depend on it.
  */
-static inline u16 psa_crc(u8 * psa,	/* The PSA */
+static u16 psa_crc(u8 * psa,	/* The PSA */
 			      int size)
 {				/* Number of short for CRC */
 	int byte_cnt;		/* Loop on the PSA */
@@ -310,7 +310,7 @@ static void update_psa_checksum(struct net_device * dev, unsigned long ioaddr, u
 /*
  * Write 1 byte to the MMC.
  */
-static inline void mmc_out(unsigned long ioaddr, u16 o, u8 d)
+static void mmc_out(unsigned long ioaddr, u16 o, u8 d)
 {
 	int count = 0;
 
@@ -326,7 +326,7 @@ static inline void mmc_out(unsigned long ioaddr, u16 o, u8 d)
  * Routine to write bytes to the Modem Management Controller.
  * We start at the end because it is the way it should be!
  */
-static inline void mmc_write(unsigned long ioaddr, u8 o, u8 * b, int n)
+static void mmc_write(unsigned long ioaddr, u8 o, u8 * b, int n)
 {
 	o += n;
 	b += n;
@@ -340,7 +340,7 @@ static inline void mmc_write(unsigned long ioaddr, u8 o, u8 * b, int n)
  * Read a byte from the MMC.
  * Optimised version for 1 byte, avoid using memory.
  */
-static inline u8 mmc_in(unsigned long ioaddr, u16 o)
+static u8 mmc_in(unsigned long ioaddr, u16 o)
 {
 	int count = 0;
 
@@ -587,7 +587,7 @@ static void wv_ack(struct net_device * dev)
  * Set channel attention bit and busy wait until command has
  * completed, then acknowledge completion of the command.
  */
-static inline int wv_synchronous_cmd(struct net_device * dev, const char *str)
+static int wv_synchronous_cmd(struct net_device * dev, const char *str)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;
@@ -633,7 +633,7 @@ static inline int wv_synchronous_cmd(struct net_device * dev, const char *str)
  * Configuration commands completion interrupt.
  * Check if done, and if OK.
  */
-static inline int
+static int
 wv_config_complete(struct net_device * dev, unsigned long ioaddr, net_local * lp)
 {
 	unsigned short mcs_addr;
@@ -843,7 +843,7 @@ if (lp->tx_n_in_use > 0)
  * wavelan_interrupt is not an option), so you may experience
  * delays sometimes.
  */
-static inline void wv_82586_reconfig(struct net_device * dev)
+static void wv_82586_reconfig(struct net_device * dev)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long flags;
@@ -1281,7 +1281,7 @@ static inline void wv_packet_info(u8 * p,	/* Packet to dump */
  * This is the information which is displayed by the driver at startup.
  * There are lots of flags for configuring it to your liking.
  */
-static inline void wv_init_info(struct net_device * dev)
+static void wv_init_info(struct net_device * dev)
 {
 	short ioaddr = dev->base_addr;
 	net_local *lp = (net_local *) dev->priv;
@@ -1502,7 +1502,7 @@ static int wavelan_set_mac_address(struct net_device * dev, void *addr)
  * It's a bit complicated and you don't really want to look into it.
  * (called in wavelan_ioctl)
  */
-static inline int wv_set_frequency(unsigned long ioaddr,	/* I/O port of the card */
+static int wv_set_frequency(unsigned long ioaddr,	/* I/O port of the card */
 				   iw_freq * frequency)
 {
 	const int BAND_NUM = 10;	/* Number of bands */
@@ -1677,7 +1677,7 @@ static inline int wv_set_frequency(unsigned long ioaddr,	/* I/O port of the card
 /*
  * Give the list of available frequencies.
  */
-static inline int wv_frequency_list(unsigned long ioaddr,	/* I/O port of the card */
+static int wv_frequency_list(unsigned long ioaddr,	/* I/O port of the card */
 				    iw_freq * list,	/* List of frequencies to fill */
 				    int max)
 {				/* Maximum number of frequencies */
@@ -2489,7 +2489,7 @@ static iw_stats *wavelan_get_wireless_stats(struct net_device * dev)
  * Note: if any errors occur, the packet is "dropped on the floor".
  * (called by wv_packet_rcv())
  */
-static inline void
+static void
 wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 {
 	net_local *lp = (net_local *) dev->priv;
@@ -2585,7 +2585,7 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
  * (called in wavelan_interrupt()).
  * Note : the spinlock is already grabbed for us.
  */
-static inline void wv_receive(struct net_device * dev)
+static void wv_receive(struct net_device * dev)
 {
 	unsigned long ioaddr = dev->base_addr;
 	net_local *lp = (net_local *) dev->priv;
@@ -2768,7 +2768,7 @@ static inline void wv_receive(struct net_device * dev)
  *
  * (called in wavelan_packet_xmit())
  */
-static inline int wv_packet_write(struct net_device * dev, void *buf, short length)
+static int wv_packet_write(struct net_device * dev, void *buf, short length)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;
@@ -2964,7 +2964,7 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
  * Routine to initialize the Modem Management Controller.
  * (called by wv_hw_reset())
  */
-static inline int wv_mmc_init(struct net_device * dev)
+static int wv_mmc_init(struct net_device * dev)
 {
 	unsigned long ioaddr = dev->base_addr;
 	net_local *lp = (net_local *) dev->priv;
@@ -3136,7 +3136,7 @@ static inline int wv_mmc_init(struct net_device * dev)
  * Start the receive unit.
  * (called by wv_hw_reset())
  */
-static inline int wv_ru_start(struct net_device * dev)
+static int wv_ru_start(struct net_device * dev)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;
@@ -3228,7 +3228,7 @@ static inline int wv_ru_start(struct net_device * dev)
  *
  * (called by wv_hw_reset())
  */
-static inline int wv_cu_start(struct net_device * dev)
+static int wv_cu_start(struct net_device * dev)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;
@@ -3329,7 +3329,7 @@ static inline int wv_cu_start(struct net_device * dev)
  *
  * (called by wv_hw_reset())
  */
-static inline int wv_82586_start(struct net_device * dev)
+static int wv_82586_start(struct net_device * dev)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;
@@ -3641,7 +3641,7 @@ static void wv_82586_config(struct net_device * dev)
  * WaveLAN controller (i82586).
  * (called by wavelan_close())
  */
-static inline void wv_82586_stop(struct net_device * dev)
+static void wv_82586_stop(struct net_device * dev)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long ioaddr = dev->base_addr;

@@ -844,7 +844,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static inline void
+static void
 mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 /*
  * @priority: 0 = put it on the timer queue, 1 = put it on the immediate queue
@@ -866,7 +866,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static inline int
+static int
 mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	struct mpt_lan_priv *priv = dev->priv;

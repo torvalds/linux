@@ -293,7 +293,7 @@ struct dm_table *dm_get_table(struct mapped_device *md)
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
-static inline void dec_pending(struct dm_io *io, int error)
+static void dec_pending(struct dm_io *io, int error)
 {
 	if (error)
 		io->error = error;
