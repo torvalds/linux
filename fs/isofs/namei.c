@@ -185,8 +185,5 @@ struct dentry *isofs_lookup(struct inode * dir, struct dentry * dentry, struct n
 		}
 	}
 	unlock_kernel();
-	if (inode)
-		return d_splice_alias(inode, dentry);
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
