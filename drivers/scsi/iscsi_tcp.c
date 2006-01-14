@@ -2559,6 +2559,7 @@ iscsi_conn_destroy(iscsi_connh_t connh)
 {
 	struct iscsi_conn *conn = iscsi_ptr(connh);
 	struct iscsi_session *session = conn->session;
+	unsigned long flags;
 
 	mutex_lock(&conn->xmitmutex);
 	set_bit(SUSPEND_BIT, &conn->suspend_tx);
@@ -2598,12 +2599,12 @@ iscsi_conn_destroy(iscsi_connh_t connh)
 	 * time out or fail.
 	 */
 	for (;;) {
-		spin_lock_bh(&conn->lock);
+		spin_lock_irqsave(session->host->host_lock, flags);
 		if (!session->host->host_busy) { /* OK for ERL == 0 */
-			spin_unlock_bh(&conn->lock);
+			spin_unlock_irqrestore(session->host->host_lock, flags);
 			break;
 		}
-		spin_unlock_bh(&conn->lock);
+		spin_unlock_irqrestore(session->host->host_lock, flags);
 		msleep_interruptible(500);
 		printk("conn_destroy(): host_busy %d host_failed %d\n",
 			session->host->host_busy, session->host->host_failed);
