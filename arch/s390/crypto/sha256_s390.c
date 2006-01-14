@@ -51,6 +51,7 @@ static void sha256_update(void *ctx, const u8 *data, unsigned int len)
 {
 	struct s390_sha256_ctx *sctx = ctx;
 	unsigned int index;
+	int ret;
 
 	/* how much is already in the buffer? */
 	index = sctx->count / 8 & 0x3f;
@@ -58,15 +59,29 @@ static void sha256_update(void *ctx, const u8 *data, unsigned int len)
 	/* update message bit length */
 	sctx->count += len * 8;
 
-	/* process one block */
-	if ((index + len) >= SHA256_BLOCK_SIZE) {
+	if ((index + len) < SHA256_BLOCK_SIZE)
+		goto store;
+
+	/* process one stored block */
+	if (index) {
 		memcpy(sctx->buf + index, data, SHA256_BLOCK_SIZE - index);
-		crypt_s390_kimd(KIMD_SHA_256, sctx->state, sctx->buf,
-				SHA256_BLOCK_SIZE);
+		ret = crypt_s390_kimd(KIMD_SHA_256, sctx->state, sctx->buf,
+				      SHA256_BLOCK_SIZE);
+		BUG_ON(ret != SHA256_BLOCK_SIZE);
 		data += SHA256_BLOCK_SIZE - index;
 		len -= SHA256_BLOCK_SIZE - index;
 	}
 
+	/* process as many blocks as possible */
+	if (len >= SHA256_BLOCK_SIZE) {
+		ret = crypt_s390_kimd(KIMD_SHA_256, sctx->state, data,
+				      len & ~(SHA256_BLOCK_SIZE - 1));
+		BUG_ON(ret != (len & ~(SHA256_BLOCK_SIZE - 1)));
+		data += ret;
+		len -= ret;
+	}
+
+store:
 	/* anything left? */
 	if (len)
 		memcpy(sctx->buf + index , data, len);
@@ -119,9 +134,9 @@ static struct crypto_alg alg = {
 	.cra_list	=	LIST_HEAD_INIT(alg.cra_list),
 	.cra_u		=	{ .digest = {
 	.dia_digestsize	=	SHA256_DIGEST_SIZE,
-	.dia_init   	= 	sha256_init,
-	.dia_update 	=	sha256_update,
-	.dia_final  	=	sha256_final } }
+	.dia_init	=	sha256_init,
+	.dia_update	=	sha256_update,
+	.dia_final	=	sha256_final } }
 };
 
 static int init(void)
