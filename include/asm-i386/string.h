@@ -201,7 +201,7 @@ __asm__ __volatile__(
 return __res;
 }
 
-static inline void * __memcpy(void * to, const void * from, size_t n)
+static __always_inline void * __memcpy(void * to, const void * from, size_t n)
 {
 int d0, d1, d2;
 __asm__ __volatile__(
@@ -223,7 +223,7 @@ return (to);
  * This looks ugly, but the compiler can optimize it totally,
  * as the count is constant.
  */
-static inline void * __constant_memcpy(void * to, const void * from, size_t n)
+static __always_inline void * __constant_memcpy(void * to, const void * from, size_t n)
 {
 	long esi, edi;
 	if (!n) return to;
@@ -367,7 +367,7 @@ return s;
  * things 32 bits at a time even when we don't know the size of the
  * area at compile-time..
  */
-static inline void * __constant_c_memset(void * s, unsigned long c, size_t count)
+static __always_inline void * __constant_c_memset(void * s, unsigned long c, size_t count)
 {
 int d0, d1;
 __asm__ __volatile__(
@@ -416,7 +416,7 @@ extern char *strstr(const char *cs, const char *ct);
  * This looks horribly ugly, but the compiler can optimize it totally,
  * as we by now know that both pattern and count is constant..
  */
-static inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, size_t count)
+static __always_inline void * __constant_c_and_count_memset(void * s, unsigned long pattern, size_t count)
 {
 	switch (count) {
 		case 0:

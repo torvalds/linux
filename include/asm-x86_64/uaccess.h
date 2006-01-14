@@ -244,7 +244,7 @@ extern unsigned long copy_to_user(void __user *to, const void *from, unsigned le
 extern unsigned long copy_from_user(void *to, const void __user *from, unsigned len); 
 extern unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len); 
 
-static inline int __copy_from_user(void *dst, const void __user *src, unsigned size) 
+static __always_inline int __copy_from_user(void *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -273,7 +273,7 @@ static inline int __copy_from_user(void *dst, const void __user *src, unsigned s
 	}
 }	
 
-static inline int __copy_to_user(void __user *dst, const void *src, unsigned size) 
+static __always_inline int __copy_to_user(void __user *dst, const void *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -305,7 +305,7 @@ static inline int __copy_to_user(void __user *dst, const void *src, unsigned siz
 }	
 
 
-static inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size) 
+static __always_inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
