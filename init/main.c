@@ -54,20 +54,18 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
-/*
- * This is one of the first .c files built. Error out early
- * if we have compiler trouble..
- */
-
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
 #endif
 
 /*
- * Versions of gcc older than that listed below may actually compile
- * and link okay, but the end product can have subtle run time bugs.
- * To avoid associated bogus bug reports, we flatly refuse to compile
- * with a gcc that is known to be too old from the very beginning.
+ * This is one of the first .c files built. Error out early if we have compiler
+ * trouble.
+ *
+ * Versions of gcc older than that listed below may actually compile and link
+ * okay, but the end product can have subtle run time bugs.  To avoid associated
+ * bogus bug reports, we flatly refuse to compile with a gcc that is known to be
+ * too old from the very beginning.
  */
 #if (__GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 2)
 #error Sorry, your GCC is too old. It builds incorrect kernels.
