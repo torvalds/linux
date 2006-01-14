@@ -87,35 +87,32 @@ iscsi_buf_init_virt(struct iscsi_buf *ibuf, char *vbuf, int size)
 {
 	sg_init_one(&ibuf->sg, (u8 *)vbuf, size);
 	ibuf->sent = 0;
+	ibuf->use_sendmsg = 0;
 }
 
 static inline void
 iscsi_buf_init_iov(struct iscsi_buf *ibuf, char *vbuf, int size)
 {
-	ibuf->sg.page = (void*)vbuf;
-	ibuf->sg.offset = (unsigned int)-1;
+	ibuf->sg.page = virt_to_page(vbuf);
+	ibuf->sg.offset = offset_in_page(vbuf);
 	ibuf->sg.length = size;
 	ibuf->sent = 0;
-}
-
-static inline void*
-iscsi_buf_iov_base(struct iscsi_buf *ibuf)
-{
-	return (char*)ibuf->sg.page + ibuf->sent;
+	ibuf->use_sendmsg = 1;
 }
 
 static inline void
 iscsi_buf_init_sg(struct iscsi_buf *ibuf, struct scatterlist *sg)
 {
+	ibuf->sg.page = sg->page;
+	ibuf->sg.offset = sg->offset;
+	ibuf->sg.length = sg->length;
 	/*
 	 * Fastpath: sg element fits into single page
 	 */
-	if (sg->length + sg->offset <= PAGE_SIZE && page_count(sg->page) >= 2) {
-		ibuf->sg.page = sg->page;
-		ibuf->sg.offset = sg->offset;
-		ibuf->sg.length = sg->length;
-	} else
-		iscsi_buf_init_iov(ibuf, page_address(sg->page), sg->length);
+	if (sg->length + sg->offset <= PAGE_SIZE && page_count(sg->page) >= 2)
+		ibuf->use_sendmsg = 0;
+	else
+		ibuf->use_sendmsg = 1;
 	ibuf->sent = 0;
 }
 
@@ -1311,35 +1308,25 @@ iscsi_conn_restore_callbacks(struct iscsi_conn *conn)
  * @buf: buffer to write from
  * @size: actual size to write
  * @flags: socket's flags
- *
- * Notes:
- *	depending on buffer will use tcp_sendpage() or tcp_sendmsg().
- *	buf->sg.offset == -1 tells us that buffer is non S/G and forces
- *	to use tcp_sendmsg().
  */
 static inline int
 iscsi_send(struct iscsi_conn *conn, struct iscsi_buf *buf, int size, int flags)
 {
 	struct socket *sk = conn->sock;
-	int res;
+	int offset = buf->sg.offset + buf->sent;
 
-	if ((int)buf->sg.offset >= 0) {
-		int offset = buf->sg.offset + buf->sent;
-
-		res = conn->sendpage(sk, buf->sg.page, offset, size, flags);
-	} else {
-		struct msghdr msg;
-
-		buf->iov.iov_base = iscsi_buf_iov_base(buf);
-		buf->iov.iov_len = size;
-
-		memset(&msg, 0, sizeof(struct msghdr));
-
-		/* tcp_sendmsg */
-		res = kernel_sendmsg(sk, &msg, &buf->iov, 1, size);
-	}
-
-	return res;
+	/*
+	 * if we got use_sg=0 or are sending something we kmallocd
+	 * then we did not have to do kmap (kmap returns page_address)
+	 *
+	 * if we got use_sg > 0, but had to drop down, we do not
+	 * set clustering so this should only happen for that
+	 * slab case.
+	 */
+	if (buf->use_sendmsg)
+		return sock_no_sendpage(sk, buf->sg.page, offset, size, flags);
+	else
+		return conn->sendpage(sk, buf->sg.page, offset, size, flags);
 }
 
 /**
@@ -1429,19 +1416,6 @@ iscsi_data_digest_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	BUG_ON(!conn->data_tx_tfm);
 	crypto_digest_init(conn->data_tx_tfm);
 	ctask->digest_count = 4;
-}
-
-static inline void
-iscsi_buf_data_digest_update(struct iscsi_conn *conn, struct iscsi_buf *buf)
-{
-	struct scatterlist sg;
-
-	if (buf->sg.offset != -1)
-		crypto_digest_update(conn->data_tx_tfm, &buf->sg, 1);
-	else {
-		sg_init_one(&sg, (char *)buf->sg.page, buf->sg.length);
-		crypto_digest_update(conn->data_tx_tfm, &sg, 1);
-	}
 }
 
 static inline int
@@ -1806,7 +1780,8 @@ handle_xmstate_imm_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			return -EAGAIN;
 		}
 		if (conn->datadgst_en)
-			iscsi_buf_data_digest_update(conn, &ctask->sendbuf);
+			crypto_digest_update(conn->data_tx_tfm,
+					     &ctask->sendbuf.sg, 1);
 
 		if (!ctask->imm_count)
 			break;
@@ -1891,7 +1866,8 @@ handle_xmstate_uns_data(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		 * so pass it
 		 */
 		if (conn->datadgst_en && ctask->sent - start > 0)
-			iscsi_buf_data_digest_update(conn, &ctask->sendbuf);
+			crypto_digest_update(conn->data_tx_tfm,
+					     &ctask->sendbuf.sg, 1);
 
 		if (!ctask->data_count)
 			break;
@@ -1969,7 +1945,7 @@ solicit_again:
 
 	BUG_ON(r2t->data_count < 0);
 	if (conn->datadgst_en)
-		iscsi_buf_data_digest_update(conn, &r2t->sendbuf);
+		crypto_digest_update(conn->data_tx_tfm, &r2t->sendbuf.sg, 1);
 
 	if (r2t->data_count) {
 		BUG_ON(ctask->sc->use_sg == 0);
@@ -2051,7 +2027,7 @@ handle_xmstate_w_pad(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	}
 
 	if (conn->datadgst_en) {
-		iscsi_buf_data_digest_update(conn, &ctask->sendbuf);
+		crypto_digest_update(conn->data_tx_tfm, &ctask->sendbuf.sg, 1);
 		/* imm data? */
 		if (!dtask) {
 			if (iscsi_digest_final_send(conn, ctask, &ctask->immbuf,
