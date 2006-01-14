@@ -71,38 +71,60 @@
 #define DBG(fmt...)
 #endif
 
+static unsigned long maple_find_nvram_base(void)
+{
+	struct device_node *rtcs;
+	unsigned long result = 0;
+
+	/* find NVRAM device */
+	rtcs = of_find_compatible_node(NULL, "nvram", "AMD8111");
+	if (rtcs) {
+		struct resource r;
+		if (of_address_to_resource(rtcs, 0, &r)) {
+			printk(KERN_EMERG "Maple: Unable to translate NVRAM"
+			       " address\n");
+			goto bail;
+		}
+		if (!(r.flags & IORESOURCE_IO)) {
+			printk(KERN_EMERG "Maple: NVRAM address isn't PIO!\n");
+			goto bail;
+		}
+		result = r.start;
+	} else
+		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
+ bail:
+	of_node_put(rtcs);
+	return result;
+}
+
 static void maple_restart(char *cmd)
 {
 	unsigned int maple_nvram_base;
 	unsigned int maple_nvram_offset;
 	unsigned int maple_nvram_command;
-	struct device_node *rtcs;
+	struct device_node *sp;
 
-	/* find NVRAM device */
-	rtcs = find_compatible_devices("nvram", "AMD8111");
-	if (rtcs && rtcs->addrs) {
-		maple_nvram_base = rtcs->addrs[0].address;
-	} else {
-		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
-		printk(KERN_EMERG "Maple: Manual Restart Required\n");
-		return;
-	}
+	maple_nvram_base = maple_find_nvram_base();
+	if (maple_nvram_base == 0)
+		goto fail;
 
 	/* find service processor device */
-	rtcs = find_devices("service-processor");
-	if (!rtcs) {
+	sp = of_find_node_by_name(NULL, "service-processor");
+	if (!sp) {
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
-		printk(KERN_EMERG "Maple: Manual Restart Required\n");
-		return;
+		goto fail;
 	}
-	maple_nvram_offset = *(unsigned int*) get_property(rtcs,
+	maple_nvram_offset = *(unsigned int*) get_property(sp,
 			"restart-addr", NULL);
-	maple_nvram_command = *(unsigned int*) get_property(rtcs,
+	maple_nvram_command = *(unsigned int*) get_property(sp,
 			"restart-value", NULL);
+	of_node_put(sp);
 
 	/* send command */
 	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
 	for (;;) ;
+ fail:
+	printk(KERN_EMERG "Maple: Manual Restart Required\n");
 }
 
 static void maple_power_off(void)
@@ -110,33 +132,29 @@ static void maple_power_off(void)
 	unsigned int maple_nvram_base;
 	unsigned int maple_nvram_offset;
 	unsigned int maple_nvram_command;
-	struct device_node *rtcs;
+	struct device_node *sp;
 
-	/* find NVRAM device */
-	rtcs = find_compatible_devices("nvram", "AMD8111");
-	if (rtcs && rtcs->addrs) {
-		maple_nvram_base = rtcs->addrs[0].address;
-	} else {
-		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
-		printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
-		return;
-	}
+	maple_nvram_base = maple_find_nvram_base();
+	if (maple_nvram_base == 0)
+		goto fail;
 
 	/* find service processor device */
-	rtcs = find_devices("service-processor");
-	if (!rtcs) {
+	sp = of_find_node_by_name(NULL, "service-processor");
+	if (!sp) {
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
-		printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
-		return;
+		goto fail;
 	}
-	maple_nvram_offset = *(unsigned int*) get_property(rtcs,
+	maple_nvram_offset = *(unsigned int*) get_property(sp,
 			"power-off-addr", NULL);
-	maple_nvram_command = *(unsigned int*) get_property(rtcs,
+	maple_nvram_command = *(unsigned int*) get_property(sp,
 			"power-off-value", NULL);
+	of_node_put(sp);
 
 	/* send command */
 	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
 	for (;;) ;
+ fail:
+	printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
 }
 
 static void maple_halt(void)
@@ -179,9 +197,6 @@ void __init maple_setup_arch(void)
  */
 static void __init maple_init_early(void)
 {
-	unsigned int default_speed;
-	u64 physport;
-
 	DBG(" -> maple_init_early\n");
 
 	/* Initialize hash table, from now on, we can take hash faults
