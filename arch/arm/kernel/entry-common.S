@@ -123,23 +123,49 @@ ENTRY(vector_swi)
 	/*
 	 * Get the system call number.
 	 */
-#if defined(CONFIG_AEABI)
 
-	@ syscall number is in scno (r7) already.
+#if defined(CONFIG_OABI_COMPAT)
 
+	/*
+	 * If we have CONFIG_OABI_COMPAT then we need to look at the swi
+	 * value to determine if it is an EABI or an old ABI call.
+	 */
+#ifdef CONFIG_ARM_THUMB
+	tst	r8, #PSR_T_BIT
+	movne	r10, #0				@ no thumb OABI emulation
+	ldreq	r10, [lr, #-4]			@ get SWI instruction
+#else
+	ldr	r10, [lr, #-4]			@ get SWI instruction
+  A710(	and	ip, r10, #0x0f000000		@ check for SWI		)
+  A710(	teq	ip, #0x0f000000						)
+  A710(	bne	.Larm710bug						)
+#endif
+
+#elif defined(CONFIG_AEABI)
+
+	/*
+	 * Pure EABI user space always put syscall number into scno (r7).
+	 */
   A710(	ldr	ip, [lr, #-4]			@ get SWI instruction	)
   A710(	and	ip, ip, #0x0f000000		@ check for SWI		)
   A710(	teq	ip, #0x0f000000						)
   A710(	bne	.Larm710bug						)
+
 #elif defined(CONFIG_ARM_THUMB)
+
+	/* Legacy ABI only, possibly thumb mode. */
 	tst	r8, #PSR_T_BIT			@ this is SPSR from save_user_regs
 	addne	scno, r7, #__NR_SYSCALL_BASE	@ put OS number in
 	ldreq	scno, [lr, #-4]
+
 #else
+
+	/* Legacy ABI only. */
 	ldr	scno, [lr, #-4]			@ get SWI instruction
   A710(	and	ip, scno, #0x0f000000		@ check for SWI		)
   A710(	teq	ip, #0x0f000000						)
   A710(	bne	.Larm710bug						)
+
 #endif
 
 #ifdef CONFIG_ALIGNMENT_TRAP
@@ -150,12 +176,24 @@ ENTRY(vector_swi)
 	enable_irq
 
 	get_thread_info tsk
+	adr	tbl, sys_call_table		@ load syscall table pointer
 	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
-#ifndef CONFIG_AEABI
+
+#if defined(CONFIG_OABI_COMPAT)
+	/*
+	 * If the swi argument is zero, this is an EABI call and we do nothing.
+	 *
+	 * If this is an old ABI call, get the syscall number into scno and
+	 * get the old ABI syscall table address.
+	 */
+	bics	r10, r10, #0xff000000
+	eorne	scno, r10, #__NR_OABI_SYSCALL_BASE
+	ldrne	tbl, =sys_oabi_call_table
+#elif !defined(CONFIG_AEABI)
 	bic	scno, scno, #0xff000000		@ mask off SWI op-code
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
-	adr	tbl, sys_call_table		@ load syscall table pointer
+
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 	tst	ip, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
 	bne	__sys_trace
@@ -200,10 +238,24 @@ __sys_trace_return:
 __cr_alignment:
 	.word	cr_alignment
 #endif
+	.ltorg
+
+/*
+ * This is the syscall table declaration for native ABI syscalls.
+ * With EABI a couple syscalls are obsolete and defined as sys_ni_syscall.
+ */
+#define ABI(native, compat) native
+#ifdef CONFIG_AEABI
+#define OBSOLETE(syscall) sys_ni_syscall
+#else
+#define OBSOLETE(syscall) syscall
+#endif
 
 	.type	sys_call_table, #object
 ENTRY(sys_call_table)
 #include "calls.S"
+#undef ABI
+#undef OBSOLETE
 
 /*============================================================================
  * Special system call wrappers
@@ -212,8 +264,7 @@ ENTRY(sys_call_table)
 @ r8 = syscall table
 		.type	sys_syscall, #function
 sys_syscall:
-#ifndef CONFIG_AEABI
-		eor	scno, r0, #__NR_SYSCALL_BASE
+		eor	scno, r0, #__NR_OABI_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
 		cmpne	scno, #NR_syscalls	@ check range
 		stmloia	sp, {r5, r6}		@ shuffle args
@@ -222,7 +273,6 @@ sys_syscall:
 		movlo	r2, r3
 		movlo	r3, r4
 		ldrlo	pc, [tbl, scno, lsl #2]
-#endif
 		b	sys_ni_syscall
 
 sys_fork_wrapper:
@@ -290,6 +340,7 @@ sys_mmap2:
 #endif
 
 #ifdef CONFIG_OABI_COMPAT
+
 /*
  * These are syscalls with argument register differences
  */
@@ -317,6 +368,19 @@ sys_oabi_readahead:
 		mov	r3, r2
 		mov	r2, r1
 		b	sys_readahead
+
+/*
+ * Let's declare a second syscall table for old ABI binaries
+ * using the compatibility syscall entries.
+ */
+#define ABI(native, compat) compat
+#define OBSOLETE(syscall) syscall
+
+	.type	sys_oabi_call_table, #object
+ENTRY(sys_oabi_call_table)
+#include "calls.S"
+#undef ABI
+#undef OBSOLETE
 
 #endif
 
