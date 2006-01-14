@@ -143,7 +143,6 @@ static int m68328_console_cbaud   = DEFAULT_CBAUD;
  * memory if large numbers of serial ports are open.
  */
 static unsigned char tmp_buf[SERIAL_XMIT_SIZE]; /* This is cheating */
-DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int serial_paranoia_check(struct m68k_serial *info,
 					char *name, const char *routine)

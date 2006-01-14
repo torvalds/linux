@@ -129,7 +129,6 @@ static struct serial_state rs_table[1];
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 #include <asm/uaccess.h>
 

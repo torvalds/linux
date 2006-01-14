@@ -160,7 +160,6 @@ static void rs_wait_until_sent(struct tty_struct *, int);
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int serial_paranoia_check(struct esp_struct *info,
 					char *name, const char *routine)

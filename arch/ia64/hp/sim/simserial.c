@@ -108,7 +108,6 @@ static struct async_struct *IRQ_ports[NR_IRQS];
 static struct console *console;
 
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 extern struct console *console_drivers; /* from kernel/printk.c */
 
