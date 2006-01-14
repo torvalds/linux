@@ -386,14 +386,18 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev, config_req_t *req)
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
 int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
 int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_handle_t *wh);
-int pcmcia_reset_card(struct pcmcia_device *p_dev, client_req_t *req);
 int pcmcia_suspend_card(struct pcmcia_socket *skt);
 int pcmcia_resume_card(struct pcmcia_socket *skt);
 int pcmcia_eject_card(struct pcmcia_socket *skt);
 int pcmcia_insert_card(struct pcmcia_socket *skt);
+int pccard_reset_card(struct pcmcia_socket *skt);
 
 struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt);
 void pcmcia_put_socket(struct pcmcia_socket *skt);
+
+/* compatibility functions */
+#define pcmcia_reset_card(p_dev, req) \
+		pccard_reset_card(p_dev->socket)
 
 #endif /* __KERNEL__ */
 
