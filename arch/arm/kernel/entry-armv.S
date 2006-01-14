@@ -105,14 +105,24 @@ common_invalid:
 /*
  * SVC mode handlers
  */
+
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5)
+#define SPFIX(code...) code
+#else
+#define SPFIX(code...)
+#endif
+
 	.macro	svc_entry
 	sub	sp, sp, #S_FRAME_SIZE
+ SPFIX(	tst	sp, #4		)
+ SPFIX(	bicne	sp, sp, #4	)
 	stmib	sp, {r1 - r12}
 
 	ldmia	r0, {r1 - r3}
 	add	r5, sp, #S_SP		@ here for interlock avoidance
 	mov	r4, #-1			@  ""  ""      ""       ""
 	add	r0, sp, #S_FRAME_SIZE   @  ""  ""      ""       ""
+ SPFIX(	addne	r0, r0, #4	)
 	str	r1, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
 
@@ -303,7 +313,14 @@ __pabt_svc:
 
 /*
  * User mode handlers
+ *
+ * EABI note: sp_svc is always 64-bit aligned here, so should S_FRAME_SIZE
  */
+
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5) && (S_FRAME_SIZE & 7)
+#error "sizeof(struct pt_regs) must be a multiple of 8"
+#endif
+
 	.macro	usr_entry
 	sub	sp, sp, #S_FRAME_SIZE
 	stmib	sp, {r1 - r12}

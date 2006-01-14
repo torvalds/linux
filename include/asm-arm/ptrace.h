@@ -60,9 +60,11 @@
 
 #ifndef __ASSEMBLY__
 
-/* this struct defines the way the registers are stored on the
-   stack during a system call. */
-
+/*
+ * This struct defines the way the registers are stored on the
+ * stack during a system call.  Note that sizeof(struct pt_regs)
+ * has to be a multiple of 8.
+ */
 struct pt_regs {
 	long uregs[18];
 };
