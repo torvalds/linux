@@ -289,11 +289,19 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x226: map_key_clear(KEY_STOP);		break;
 				case 0x227: map_key_clear(KEY_REFRESH);		break;
 				case 0x22a: map_key_clear(KEY_BOOKMARKS);	break;
+				case 0x233: map_key_clear(KEY_SCROLLUP);	break;
+				case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
 				case 0x238: map_rel(REL_HWHEEL);		break;
 				case 0x279: map_key_clear(KEY_REDO);		break;
 				case 0x289: map_key_clear(KEY_REPLY);		break;
 				case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
 				case 0x28c: map_key_clear(KEY_SEND);		break;
+
+				/* Reported on a Cherry Cymotion keyboard */
+				case 0x301: map_key_clear(KEY_PROG1);		break;
+				case 0x302: map_key_clear(KEY_PROG2);		break;
+				case 0x303: map_key_clear(KEY_PROG3);		break;
+
 				default:    goto ignore;
 			}
 			break;
