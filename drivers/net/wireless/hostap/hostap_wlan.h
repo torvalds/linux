@@ -1,6 +1,10 @@
 #ifndef HOSTAP_WLAN_H
 #define HOSTAP_WLAN_H
 
+#include <linux/wireless.h>
+#include <linux/netdevice.h>
+#include <net/iw_handler.h>
+
 #include "hostap_config.h"
 #include "hostap_common.h"
 

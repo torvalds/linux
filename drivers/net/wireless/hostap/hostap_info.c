@@ -1,5 +1,8 @@
 /* Host AP driver Info Frame processing (part of hostap.o module) */
 
+#include "hostap_wlan.h"
+#include "hostap.h"
+#include "hostap_ap.h"
 
 /* Called only as a tasklet (software IRQ) */
 static void prism2_info_commtallies16(local_info_t *local, unsigned char *buf,

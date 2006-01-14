@@ -1,3 +1,18 @@
+#include "hostap_80211.h"
+#include "hostap_common.h"
+#include "hostap_wlan.h"
+#include "hostap.h"
+#include "hostap_ap.h"
+
+/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
+/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
+static unsigned char rfc1042_header[] =
+{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
+static unsigned char bridge_tunnel_header[] =
+{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+/* No encapsulation header if EtherType < 0x600 (=length) */
+
 void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_4addr *hdr;
