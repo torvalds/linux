@@ -87,6 +87,9 @@
   Deepak Saxena     : dsaxena@plexity.net
                     : Intel IXDP2x01 (XScale ixp2x00 NPU) platform support
 
+  Dmitry Pervushin  : dpervushin@ru.mvista.com
+                    : PNX010X platform support
+
 */
 
 /* Always include 'config.h' first in case the user wants to turn on
