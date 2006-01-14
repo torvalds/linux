@@ -215,11 +215,11 @@ static int __init gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *d
 	if (ret < 0)
 		return ret;
 
-	ret = pci_request_region(dev, 1, "gx1fb (video)");
+	ret = pci_request_region(dev, 0, "gx1fb (video)");
 	if (ret < 0)
 		return ret;
-	par->vid_regs = ioremap(pci_resource_start(dev, 1),
-				pci_resource_len(dev, 1));
+	par->vid_regs = ioremap(pci_resource_start(dev, 0),
+				pci_resource_len(dev, 0));
 	if (!par->vid_regs)
 		return -ENOMEM;
 
@@ -229,12 +229,9 @@ static int __init gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *d
 	if (!par->dc_regs)
 		return -ENOMEM;
 
-	ret = pci_request_region(dev, 0, "gx1fb (frame buffer)");
-	if (ret < 0 )
-		return -EBUSY;
 	if ((fb_len = gx1_frame_buffer_size()) < 0)
 		return -ENOMEM;
-	info->fix.smem_start = pci_resource_start(dev, 0);
+	info->fix.smem_start = gx_base + 0x800000;
 	info->fix.smem_len = fb_len;
 	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 	if (!info->screen_base)
