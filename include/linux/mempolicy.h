@@ -132,12 +132,8 @@ struct shared_policy {
 	spinlock_t lock;
 };
 
-static inline void mpol_shared_policy_init(struct shared_policy *info)
-{
-	info->root = RB_ROOT;
-	spin_lock_init(&info->lock);
-}
-
+void mpol_shared_policy_init(struct shared_policy *info, int policy,
+				nodemask_t *nodes);
 int mpol_set_shared_policy(struct shared_policy *info,
 				struct vm_area_struct *vma,
 				struct mempolicy *new);
@@ -211,7 +207,8 @@ static inline int mpol_set_shared_policy(struct shared_policy *info,
 	return -EINVAL;
 }
 
-static inline void mpol_shared_policy_init(struct shared_policy *info)
+static inline void mpol_shared_policy_init(struct shared_policy *info,
+					int policy, nodemask_t *nodes)
 {
 }
 
