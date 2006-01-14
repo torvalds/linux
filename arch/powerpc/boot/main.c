@@ -21,8 +21,8 @@ extern void flush_cache(void *, unsigned long);
 
 
 /* Value picked to match that used by yaboot */
-#define PROG_START	0x01400000
-#define RAM_END		(512<<20) // Fixme: use OF */
+#define PROG_START	0x01400000	/* only used on 64-bit systems */
+#define RAM_END		(512<<20)	/* Fixme: use OF */
 #define	ONE_MB		0x100000
 
 extern char _start[];
@@ -160,6 +160,17 @@ static int is_elf64(void *hdr)
 	elfoffset = (unsigned long)elf64ph->p_offset;
 	vmlinux.size = (unsigned long)elf64ph->p_filesz + elfoffset;
 	vmlinux.memsize = (unsigned long)elf64ph->p_memsz + elfoffset;
+
+#if defined(PROG_START)
+	/*
+	 * Maintain a "magic" minimum address. This keeps some older
+	 * firmware platforms running.
+	 */
+
+	if (claim_base < PROG_START)
+		claim_base = PROG_START;
+#endif
+
 	return 1;
 }
 
@@ -206,11 +217,17 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		exit();
 	if (getprop(chosen_handle, "stdout", &stdout, sizeof(stdout)) != 4)
 		exit();
-	stderr = stdout;
-	if (getprop(chosen_handle, "stdin", &stdin, sizeof(stdin)) != 4)
-		exit();
 
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r", _start, sp);
+
+	/*
+	 * The first available claim_base must be above the end of the
+	 * the loaded kernel wrapper file (_start to _end includes the
+	 * initrd image if it is present) and rounded up to a nice
+	 * 1 MB boundary for good measure.
+	 */
+
+	claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
 
 	vmlinuz.addr = (unsigned long)_vmlinux_start;
 	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
@@ -227,25 +244,6 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		printf("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
 		exit();
 	}
-
-	/*
-	 * The first available claim_base must be above the end of the
-	 * the loaded kernel wrapper file (_start to _end includes the
-	 * initrd image if it is present) and rounded up to a nice
-	 * 1 MB boundary for good measure.
-	 */
-
-	claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
-
-#if defined(PROG_START)
-	/*
-	 * Maintain a "magic" minimum address. This keeps some older
-	 * firmware platforms running.
-	 */
-
-	if (claim_base < PROG_START)
-		claim_base = PROG_START;
-#endif
 
 	/* We need to claim the memsize plus the file offset since gzip
 	 * will expand the header (file offset), then the kernel, then

@@ -511,7 +511,8 @@ restore:
 	cmpdi	0,r5,0
 	beq	4f
 	/* Check for pending interrupts (iSeries) */
-	ld	r3,PACALPPACA+LPPACAANYINT(r13)
+	ld	r3,PACALPPACAPTR(r13)
+	ld	r3,LPPACAANYINT(r3)
 	cmpdi	r3,0
 	beq+	4f			/* skip do_IRQ if no interrupts */
 
@@ -689,9 +690,8 @@ _GLOBAL(enter_rtas)
         std	r6,PACASAVEDMSR(r13)
 
 	/* Setup our real return addr */	
-	SET_REG_TO_LABEL(r4,.rtas_return_loc)
-	SET_REG_TO_CONST(r9,PAGE_OFFSET)
-	sub	r4,r4,r9
+	LOAD_REG_ADDR(r4,.rtas_return_loc)
+	clrldi	r4,r4,2			/* convert to realmode address */
        	mtlr	r4
 
 	li	r0,0
@@ -706,7 +706,7 @@ _GLOBAL(enter_rtas)
 	sync				/* disable interrupts so SRR0/1 */
 	mtmsrd	r0			/* don't get trashed */
 
-	SET_REG_TO_LABEL(r4,rtas)
+	LOAD_REG_ADDR(r4, rtas)
 	ld	r5,RTASENTRY(r4)	/* get the rtas->entry value */
 	ld	r4,RTASBASE(r4)		/* get the rtas->base value */
 	
@@ -718,8 +718,7 @@ _GLOBAL(enter_rtas)
 _STATIC(rtas_return_loc)
 	/* relocation is off at this point */
 	mfspr	r4,SPRN_SPRG3	        /* Get PACA */
-	SET_REG_TO_CONST(r5, PAGE_OFFSET)
-        sub     r4,r4,r5                /* RELOC the PACA base pointer */
+	clrldi	r4,r4,2			/* convert to realmode address */
 
 	mfmsr   r6
 	li	r0,MSR_RI
@@ -728,7 +727,7 @@ _STATIC(rtas_return_loc)
 	mtmsrd  r6
         
         ld	r1,PACAR1(r4)           /* Restore our SP */
-	LOADADDR(r3,.rtas_restore_regs)
+	LOAD_REG_IMMEDIATE(r3,.rtas_restore_regs)
         ld	r4,PACASAVEDMSR(r4)     /* Restore our MSR */
 
 	mtspr	SPRN_SRR0,r3

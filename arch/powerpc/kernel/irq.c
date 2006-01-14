@@ -238,14 +238,10 @@ void do_IRQ(struct pt_regs *regs)
         irq_exit();
 
 #ifdef CONFIG_PPC_ISERIES
-	{
-		struct paca_struct *lpaca = get_paca();
-
-		if (lpaca->lppaca.int_dword.fields.decr_int) {
-			lpaca->lppaca.int_dword.fields.decr_int = 0;
-			/* Signal a fake decrementer interrupt */
-			timer_interrupt(regs);
-		}
+	if (get_lppaca()->int_dword.fields.decr_int) {
+		get_lppaca()->int_dword.fields.decr_int = 0;
+		/* Signal a fake decrementer interrupt */
+		timer_interrupt(regs);
 	}
 #endif
 }

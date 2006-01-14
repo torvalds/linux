@@ -431,7 +431,7 @@ void timer_interrupt(struct pt_regs * regs)
 	profile_tick(CPU_PROFILING, regs);
 
 #ifdef CONFIG_PPC_ISERIES
-	get_paca()->lppaca.int_dword.fields.decr_int = 0;
+	get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
 	while ((ticks = tb_ticks_since(per_cpu(last_jiffy, cpu)))

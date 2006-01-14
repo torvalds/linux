@@ -538,7 +538,7 @@ static unsigned long __init build_iSeries_Memory_Map(void)
  */
 static void __init iSeries_setup_arch(void)
 {
-	if (get_paca()->lppaca.shared_proc) {
+	if (get_lppaca()->shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;
 		printk(KERN_INFO "Using shared processor idle loop\n");
 	} else {
@@ -647,7 +647,7 @@ static void yield_shared_processor(void)
 	 * The decrementer stops during the yield.  Force a fake decrementer
 	 * here and let the timer_interrupt code sort out the actual time.
 	 */
-	get_paca()->lppaca.int_dword.fields.decr_int = 1;
+	get_lppaca()->int_dword.fields.decr_int = 1;
 	process_iSeries_events();
 }
 
@@ -883,7 +883,7 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	pft_size[1] = __ilog2(HvCallHpt_getHptPages() * HW_PAGE_SIZE);
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (paca[i].lppaca.dyn_proc_status >= 2)
+		if (lppaca[i].dyn_proc_status >= 2)
 			continue;
 
 		snprintf(p, 32 - (p - buf), "@%d", i);
@@ -891,7 +891,7 @@ void dt_cpus(struct iseries_flat_dt *dt)
 
 		dt_prop_str(dt, "device_type", "cpu");
 
-		index = paca[i].lppaca.dyn_hv_phys_proc_index;
+		index = lppaca[i].dyn_hv_phys_proc_index;
 		d = &xIoHriProcessorVpd[index];
 
 		dt_prop_u32(dt, "i-cache-size", d->xInstCacheSize * 1024);

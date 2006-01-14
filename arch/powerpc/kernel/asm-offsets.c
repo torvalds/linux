@@ -135,7 +135,7 @@ int main(void)
 	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
 	DEFINE(PACA_EXSLB, offsetof(struct paca_struct, exslb));
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
-	DEFINE(PACALPPACA, offsetof(struct paca_struct, lppaca));
+	DEFINE(PACALPPACAPTR, offsetof(struct paca_struct, lppaca_ptr));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
 
 	DEFINE(LPPACASRR0, offsetof(struct lppaca, saved_srr0));

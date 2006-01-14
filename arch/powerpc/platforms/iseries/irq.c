@@ -334,14 +334,12 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
  */
 int iSeries_get_irq(struct pt_regs *regs)
 {
-	struct paca_struct *lpaca;
 	/* -2 means ignore this interrupt */
 	int irq = -2;
 
-	lpaca = get_paca();
 #ifdef CONFIG_SMP
-	if (lpaca->lppaca.int_dword.fields.ipi_cnt) {
-		lpaca->lppaca.int_dword.fields.ipi_cnt = 0;
+	if (get_lppaca()->int_dword.fields.ipi_cnt) {
+		get_lppaca()->int_dword.fields.ipi_cnt = 0;
 		iSeries_smp_message_recv(regs);
 	}
 #endif /* CONFIG_SMP */

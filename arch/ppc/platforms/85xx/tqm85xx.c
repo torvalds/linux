@@ -91,12 +91,6 @@ static u_char tqm85xx_openpic_initsenses[] __initdata = {
 	0x0,				/* External 11: */
 };
 
-static const char *GFAR_PHY_0 = "phy0:2";
-static const char *GFAR_PHY_1 = "phy0:1";
-#ifdef CONFIG_MPC8540
-static const char *GFAR_PHY_3 = "phy0:3";
-#endif
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -149,20 +143,21 @@ tqm85xx_setup_arch(void)
 	mdata->irq[2] = -1;
 	mdata->irq[3] = MPC85xx_IRQ_EXT8;
 	mdata->irq[31] = -1;
-	mdata->paddr += binfo->bi_immr_base;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_0;
+		pdata->bus_id = 0;
+		pdata->phy_id = 2;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_1;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 
@@ -170,7 +165,8 @@ tqm85xx_setup_arch(void)
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_FEC);
 	if (pdata) {
 		pdata->board_flags = 0;
-		pdata->bus_id = GFAR_PHY_3;
+		pdata->bus_id = 0;
+		pdata->phy_id = 3;
 		memcpy(pdata->mac_addr, binfo->bi_enet2addr, 6);
 	}
 #endif
