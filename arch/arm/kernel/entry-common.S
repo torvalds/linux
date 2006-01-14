@@ -98,20 +98,14 @@ ENTRY(ret_from_fork)
 	   run on an ARM7 and we can save a couple of instructions.  
 								--pb */
 #ifdef CONFIG_CPU_ARM710
-	.macro	arm710_bug_check, instr, temp
-	and	\temp, \instr, #0x0f000000	@ check for SWI
-	teq	\temp, #0x0f000000
-	bne	.Larm700bug
-	.endm
-
-.Larm700bug:
+#define A710(code...) code
+.Larm710bug:
 	ldmia	sp, {r0 - lr}^			@ Get calling r0 - lr
 	mov	r0, r0
 	add	sp, sp, #S_FRAME_SIZE
 	subs	pc, lr, #4
 #else
-	.macro	arm710_bug_check, instr, temp
-	.endm
+#define A710(code...)
 #endif
 
 	.align	5
@@ -129,14 +123,24 @@ ENTRY(vector_swi)
 	/*
 	 * Get the system call number.
 	 */
-#ifdef CONFIG_ARM_THUMB
+#if defined(CONFIG_AEABI)
+
+	@ syscall number is in scno (r7) already.
+
+  A710(	ldr	ip, [lr, #-4]			@ get SWI instruction	)
+  A710(	and	ip, ip, #0x0f000000		@ check for SWI		)
+  A710(	teq	ip, #0x0f000000						)
+  A710(	bne	.Larm710bug						)
+#elif defined(CONFIG_ARM_THUMB)
 	tst	r8, #PSR_T_BIT			@ this is SPSR from save_user_regs
 	addne	scno, r7, #__NR_SYSCALL_BASE	@ put OS number in
 	ldreq	scno, [lr, #-4]
 #else
 	ldr	scno, [lr, #-4]			@ get SWI instruction
+  A710(	and	ip, scno, #0x0f000000		@ check for SWI		)
+  A710(	teq	ip, #0x0f000000						)
+  A710(	bne	.Larm710bug						)
 #endif
-	arm710_bug_check scno, ip
 
 #ifdef CONFIG_ALIGNMENT_TRAP
 	ldr	ip, __cr_alignment
@@ -145,18 +149,19 @@ ENTRY(vector_swi)
 #endif
 	enable_irq
 
-	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
-
 	get_thread_info tsk
 	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
+#ifndef CONFIG_AEABI
 	bic	scno, scno, #0xff000000		@ mask off SWI op-code
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
+#endif
 	adr	tbl, sys_call_table		@ load syscall table pointer
+	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 	tst	ip, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
 	bne	__sys_trace
 
-	adr	lr, ret_fast_syscall		@ return address
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
+	adr	lr, ret_fast_syscall		@ return address
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 
 	add	r1, sp, #S_OFF
@@ -207,6 +212,7 @@ ENTRY(sys_call_table)
 @ r8 = syscall table
 		.type	sys_syscall, #function
 sys_syscall:
+#ifndef CONFIG_AEABI
 		eor	scno, r0, #__NR_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
 		cmpne	scno, #NR_syscalls	@ check range
@@ -216,6 +222,7 @@ sys_syscall:
 		movlo	r2, r3
 		movlo	r3, r4
 		ldrlo	pc, [tbl, scno, lsl #2]
+#endif
 		b	sys_ni_syscall
 
 sys_fork_wrapper:
