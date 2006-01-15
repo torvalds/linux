@@ -618,11 +618,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		return CS_CONFIGURATION_LOCKED;
 
 	/* Do power control.  We don't allow changes in Vcc. */
-	if (s->socket.Vcc != req->Vcc)
-		return CS_BAD_VCC;
-	if (req->Vpp1 != req->Vpp2)
-		return CS_BAD_VPP;
-	s->socket.Vpp = req->Vpp1;
+	s->socket.Vpp = req->Vpp;
 	if (s->ops->set_socket(s, &s->socket))
 		return CS_BAD_VPP;
 

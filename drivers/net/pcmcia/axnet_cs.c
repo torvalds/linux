@@ -302,7 +302,6 @@ static void axnet_config(dev_link_t *link)
     cisparse_t parse;
     int i, j, last_ret, last_fn;
     u_short buf[64];
-    config_info_t conf;
 
     DEBUG(0, "axnet_config(0x%p)\n", link);
 
@@ -320,10 +319,6 @@ static void axnet_config(dev_link_t *link)
 
     /* Configure card */
     link->state |= DEV_CONFIG;
-
-    /* Look up current Vcc */
-    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &conf));
-    link->conf.Vcc = conf.Vcc;
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;

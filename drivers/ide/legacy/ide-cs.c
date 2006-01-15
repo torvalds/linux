@@ -122,7 +122,6 @@ static int ide_attach(struct pcmcia_device *p_dev)
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->handle = p_dev;
@@ -222,7 +221,6 @@ static void ide_config(dev_link_t *link)
 
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &stk->conf));
-    link->conf.Vcc = stk->conf.Vcc;
 
     pass = io_base = ctl_base = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
@@ -244,10 +242,10 @@ static void ide_config(dev_link_t *link)
 	}
 
 	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
+	    link->conf.Vpp =
 		cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	else if (stk->dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
+	    link->conf.Vpp =
 		stk->dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	if ((cfg->io.nwin > 0) || (stk->dflt.io.nwin > 0)) {
@@ -329,9 +327,8 @@ static void ide_config(dev_link_t *link)
     info->node.minor = 0;
     info->hd = hd;
     link->dev = &info->node;
-    printk(KERN_INFO "ide-cs: %s: Vcc = %d.%d, Vpp = %d.%d\n",
-	   info->node.dev_name, link->conf.Vcc / 10, link->conf.Vcc % 10,
-	   link->conf.Vpp1 / 10, link->conf.Vpp1 % 10);
+    printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
+	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
 
     link->state &= ~DEV_CONFIG_PENDING;
     kfree(stk);

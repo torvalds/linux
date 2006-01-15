@@ -577,7 +577,6 @@ static int dtl1_attach(struct pcmcia_device *p_dev)
 	link->irq.Instance = info;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->handle = p_dev;
@@ -634,7 +633,6 @@ static void dtl1_config(dev_link_t *link)
 	u_short buf[256];
 	cisparse_t parse;
 	cistpl_cftable_entry_t *cf = &parse.cftable_entry;
-	config_info_t config;
 	int i, last_ret, last_fn;
 
 	tuple.TupleData = (cisdata_t *)buf;
@@ -654,8 +652,6 @@ static void dtl1_config(dev_link_t *link)
 
 	/* Configure card */
 	link->state |= DEV_CONFIG;
-	i = pcmcia_get_configuration_info(handle, &config);
-	link->conf.Vcc = config.Vcc;
 
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleOffset = 0;

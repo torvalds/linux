@@ -598,7 +598,6 @@ static int btuart_attach(struct pcmcia_device *p_dev)
 	link->irq.Instance = info;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->handle = p_dev;
@@ -656,7 +655,6 @@ static void btuart_config(dev_link_t *link)
 	u_short buf[256];
 	cisparse_t parse;
 	cistpl_cftable_entry_t *cf = &parse.cftable_entry;
-	config_info_t config;
 	int i, j, try, last_ret, last_fn;
 
 	tuple.TupleData = (cisdata_t *)buf;
@@ -676,8 +674,6 @@ static void btuart_config(dev_link_t *link)
 
 	/* Configure card */
 	link->state |= DEV_CONFIG;
-	i = pcmcia_get_configuration_info(handle, &config);
-	link->conf.Vcc = config.Vcc;
 
 	/* First pass: look for a config entry that looks normal. */
 	tuple.TupleData = (cisdata_t *) buf;
@@ -692,7 +688,7 @@ static void btuart_config(dev_link_t *link)
 			if (i != CS_SUCCESS)
 				goto next_entry;
 			if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-				link->conf.Vpp1 = link->conf.Vpp2 = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+				link->conf.Vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 			if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) && (cf->io.win[0].base != 0)) {
 				link->conf.ConfigIndex = cf->index;
 				link->io.BasePort1 = cf->io.win[0].base;

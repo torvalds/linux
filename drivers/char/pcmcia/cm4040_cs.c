@@ -520,7 +520,6 @@ static void reader_config(dev_link_t *link, int devno)
 	struct reader_dev *dev;
 	tuple_t tuple;
 	cisparse_t parse;
-	config_info_t conf;
 	u_char buf[64];
 	int fail_fn, fail_rc;
 	int rc;
@@ -546,16 +545,10 @@ static void reader_config(dev_link_t *link, int devno)
 		fail_fn = ParseTuple;
 		goto cs_failed;
 	}
-	if ((fail_rc = pcmcia_get_configuration_info(handle, &conf))
-							!= CS_SUCCESS) {
-		fail_fn = GetConfigurationInfo;
-		goto cs_failed;
-	}
 
 	link->state |= DEV_CONFIG;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-	link->conf.Vcc = conf.Vcc;
 
 	link->io.BasePort2 = 0;
 	link->io.NumPorts2 = 0;

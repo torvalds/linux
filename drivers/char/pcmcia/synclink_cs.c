@@ -576,7 +576,6 @@ static int mgslpc_attach(struct pcmcia_device *p_dev)
     link->irq.Handler = NULL;
     
     link->conf.Attributes = 0;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->handle = p_dev;
@@ -604,7 +603,6 @@ static void mgslpc_config(dev_link_t *link)
     cisparse_t parse;
     int last_fn, last_ret;
     u_char buf[64];
-    config_info_t conf;
     cistpl_cftable_entry_t dflt = { 0 };
     cistpl_cftable_entry_t *cfg;
     
@@ -625,10 +623,6 @@ static void mgslpc_config(dev_link_t *link)
     
     /* Configure card */
     link->state |= DEV_CONFIG;
-
-    /* Look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &conf));
-    link->conf.Vcc = conf.Vcc;
 
     /* get CIS configuration entry */
 
@@ -662,7 +656,6 @@ static void mgslpc_config(dev_link_t *link)
     }
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 8;
     link->conf.Present = PRESENT_OPTION;

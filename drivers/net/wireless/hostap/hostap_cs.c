@@ -512,7 +512,6 @@ static int prism2_attach(struct pcmcia_device *p_dev)
 	memset(link, 0, sizeof(dev_link_t));
 
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
-	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->handle = p_dev;
@@ -603,9 +602,6 @@ static int prism2_config(dev_link_t *link)
 
 	CS_CHECK(GetConfigurationInfo,
 		 pcmcia_get_configuration_info(link->handle, &conf));
-	PDEBUG(DEBUG_HW, "%s: %s Vcc=%d (from config)\n", dev_info,
-	       ignore_cis_vcc ? "ignoring" : "setting", conf.Vcc);
-	link->conf.Vcc = conf.Vcc;
 
 	/* Look for an appropriate configuration table entry in the CIS */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
@@ -650,10 +646,10 @@ static int prism2_config(dev_link_t *link)
 		}
 
 		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 		else if (dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 		/* Do we need to allocate an interrupt? */
@@ -745,12 +741,11 @@ static int prism2_config(dev_link_t *link)
 	dev->base_addr = link->io.BasePort1;
 
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	       dev_info, link->conf.ConfigIndex,
-	       link->conf.Vcc / 10, link->conf.Vcc % 10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1 / 10,
-		       link->conf.Vpp1 % 10);
+	printk(KERN_INFO "%s: index 0x%02x: ",
+	       dev_info, link->conf.ConfigIndex);
+	if (link->conf.Vpp)
+		printk(", Vpp %d.%d", link->conf.Vpp / 10,
+		       link->conf.Vpp % 10);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %d", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)

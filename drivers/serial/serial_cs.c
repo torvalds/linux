@@ -358,7 +358,6 @@ static int simple_config(dev_link_t *link)
 			return setup_serial(handle, info, port, config.AssignedIRQ);
 		}
 	}
-	link->conf.Vcc = config.Vcc;
 
 	/* First pass: look for a config entry that looks normal. */
 	tuple->TupleData = (cisdata_t *) buf;
@@ -374,7 +373,7 @@ static int simple_config(dev_link_t *link)
 				if (i != CS_SUCCESS)
 					goto next_entry;
 				if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-					link->conf.Vpp1 = link->conf.Vpp2 =
+					link->conf.Vpp =
 					    cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 				if ((cf->io.nwin > 0) && (cf->io.win[0].len == size_table[s]) &&
 					    (cf->io.win[0].base != 0)) {
@@ -445,7 +444,6 @@ static int multi_config(dev_link_t * link)
 	u_char *buf;
 	cisparse_t *parse;
 	cistpl_cftable_entry_t *cf;
-	config_info_t config;
 	int i, rc, base2 = 0;
 
 	cfg_mem = kmalloc(sizeof(struct serial_cfg_mem), GFP_KERNEL);
@@ -455,14 +453,6 @@ static int multi_config(dev_link_t * link)
 	parse = &cfg_mem->parse;
 	cf = &parse->cftable_entry;
 	buf = cfg_mem->buf;
-
-	i = pcmcia_get_configuration_info(handle, &config);
-	if (i != CS_SUCCESS) {
-		cs_error(handle, GetConfigurationInfo, i);
-		rc = -1;
-		goto free_cfg_mem;
-	}
-	link->conf.Vcc = config.Vcc;
 
 	tuple->TupleData = (cisdata_t *) buf;
 	tuple->TupleOffset = 0;

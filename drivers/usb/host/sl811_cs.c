@@ -191,7 +191,6 @@ static void sl811_cs_config(dev_link_t *link)
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
 			pcmcia_get_configuration_info(handle, &conf));
-	link->conf.Vcc = conf.Vcc;
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
@@ -225,10 +224,10 @@ static void sl811_cs_config(dev_link_t *link)
 		}
 
 		if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
 		else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 		/* we need an interrupt */
@@ -271,11 +270,10 @@ next_entry:
 	dev->node.major = dev->node.minor = 0;
 	link->dev = &dev->node;
 
-	printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	       dev->node.dev_name, link->conf.ConfigIndex,
-	       link->conf.Vcc/10, link->conf.Vcc%10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+	printk(KERN_INFO "%s: index 0x%02x: ",
+	       dev->node.dev_name, link->conf.ConfigIndex);
+	if (link->conf.Vpp)
+		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
 	printk(", irq %d", link->irq.AssignedIRQ);
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
@@ -311,7 +309,6 @@ static int sl811_cs_attach(struct pcmcia_device *p_dev)
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;
-	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->handle = p_dev;

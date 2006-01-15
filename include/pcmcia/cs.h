@@ -125,7 +125,7 @@ typedef struct modconf_t {
 /* For RequestConfiguration */
 typedef struct config_req_t {
     u_int	Attributes;
-    u_int	Vcc, Vpp1, Vpp2;
+    u_int	Vpp; /* both Vpp1 and Vpp2 */
     u_int	IntType;
     u_int	ConfigBase;
     u_char	Status, Pin, Copy, ExtStatus;

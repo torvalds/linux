@@ -51,7 +51,6 @@ static int ixj_attach(struct pcmcia_device *p_dev)
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	link->io.IOAddrLines = 3;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->priv = kmalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!link->priv) {
@@ -157,7 +156,6 @@ static void ixj_config(dev_link_t * link)
 	tuple_t tuple;
 	u_short buf[128];
 	cisparse_t parse;
-	config_info_t conf;
 	cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
 	cistpl_cftable_entry_t dflt =
 	{
@@ -178,7 +176,6 @@ static void ixj_config(dev_link_t * link)
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 	link->state |= DEV_CONFIG;
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &conf));
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));

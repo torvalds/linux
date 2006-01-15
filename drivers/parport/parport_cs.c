@@ -117,7 +117,6 @@ static int parport_attach(struct pcmcia_device *p_dev)
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->handle = p_dev;
@@ -168,7 +167,6 @@ void parport_config(dev_link_t *link)
     tuple_t tuple;
     u_short buf[128];
     cisparse_t parse;
-    config_info_t conf;
     cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
     cistpl_cftable_entry_t dflt = { 0 };
     struct parport *p;
@@ -189,9 +187,6 @@ void parport_config(dev_link_t *link)
     /* Configure card */
     link->state |= DEV_CONFIG;
 
-    /* Not sure if this is right... look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &conf));
-    
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));

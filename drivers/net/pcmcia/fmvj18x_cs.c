@@ -257,7 +257,6 @@ static int fmvj18x_attach(struct pcmcia_device *p_dev)
 
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The FMVJ18x specific entries in the device structure. */
@@ -396,12 +395,7 @@ static void fmvj18x_config(dev_link_t *link)
 	switch (le16_to_cpu(buf[0])) {
 	case MANFID_TDK:
 	    cardtype = TDK;
-	    if (le16_to_cpu(buf[1]) == PRODID_TDK_CF010) {
-		cs_status_t status;
-		pcmcia_get_status(handle, &status);
-		if (status.CardState & CS_EVENT_3VCARD)
-		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
-	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
+	    if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
 			|| le16_to_cpu(buf[1]) == PRODID_TDK_NP9610
 			|| le16_to_cpu(buf[1]) == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */

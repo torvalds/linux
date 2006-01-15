@@ -587,13 +587,10 @@ static void pcmciamtd_config(dev_link_t *link)
 	DEBUG(2, "Vcc = %d Vpp1 = %d Vpp2 = %d", t.Vcc, t.Vpp1, t.Vpp2);
 	dev->vpp = (vpp) ? vpp : t.Vpp1;
 	link->conf.Attributes = 0;
-	link->conf.Vcc = t.Vcc;
 	if(setvpp == 2) {
-		link->conf.Vpp1 = dev->vpp;
-		link->conf.Vpp2 = dev->vpp;
+		link->conf.Vpp = dev->vpp;
 	} else {
-		link->conf.Vpp1 = 0;
-		link->conf.Vpp2 = 0;
+		link->conf.Vpp = 0;
 	}
 
 	link->conf.IntType = INT_MEMORY;

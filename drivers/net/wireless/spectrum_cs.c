@@ -692,7 +692,6 @@ spectrum_cs_config(dev_link_t *link)
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
 		 pcmcia_get_configuration_info(handle, &conf));
-	link->conf.Vcc = conf.Vcc;
 
 	/*
 	 * In this loop, we scan the CIS for configuration table
@@ -747,10 +746,10 @@ spectrum_cs_config(dev_link_t *link)
 		}
 
 		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 			    cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 		else if (dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 			    dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
 		
 		/* Do we need to allocate an interrupt? */
@@ -851,12 +850,11 @@ spectrum_cs_config(dev_link_t *link)
 	link->state &= ~DEV_CONFIG_PENDING;
 
 	/* Finally, report what we've done */
-	printk(KERN_DEBUG "%s: index 0x%02x: Vcc %d.%d",
-	       dev->name, link->conf.ConfigIndex,
-	       link->conf.Vcc / 10, link->conf.Vcc % 10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1 / 10,
-		       link->conf.Vpp1 % 10);
+	printk(KERN_DEBUG "%s: index 0x%02x: ",
+	       dev->name, link->conf.ConfigIndex);
+	if (link->conf.Vpp)
+		printk(", Vpp %d.%d", link->conf.Vpp / 10,
+		       link->conf.Vpp % 10);
 	printk(", irq %d", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,

@@ -161,7 +161,6 @@ static int teles_attach(struct pcmcia_device *p_dev)
     link->io.IOAddrLines = 5;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->handle = p_dev;
@@ -315,11 +314,8 @@ static void teles_cs_config(dev_link_t *link)
     link->dev = &dev->node;
 
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-           dev->node.dev_name, link->conf.ConfigIndex,
-           link->conf.Vcc/10, link->conf.Vcc%10);
-    if (link->conf.Vpp1)
-        printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+    printk(KERN_INFO "%s: index 0x%02x:",
+           dev->node.dev_name, link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
         printk(", irq %d", link->irq.AssignedIRQ);
     if (link->io.NumPorts1)

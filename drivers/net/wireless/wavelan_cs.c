@@ -4607,7 +4607,6 @@ wavelan_attach(struct pcmcia_device *p_dev)
 
   /* General socket configuration */
   link->conf.Attributes = CONF_ENABLE_IRQ;
-  link->conf.Vcc = 50;
   link->conf.IntType = INT_MEMORY_AND_IO;
 
   /* Chain drivers */
