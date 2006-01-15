@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <linux/version.h>
 #include <linux/video_decoder.h>
+#include <linux/mutex.h>
 
 #include "em28xx.h"
 #include <media/tuner.h>
@@ -191,7 +192,7 @@ static struct v4l2_queryctrl saa711x_qctrl[] = {
 
 static struct usb_driver em28xx_usb_driver;
 
-static DECLARE_MUTEX(em28xx_sysfs_lock);
+static DEFINE_MUTEX(em28xx_sysfs_lock);
 static DECLARE_RWSEM(em28xx_disconnect);
 
 /*********************  v4l2 interface  ******************************************/
@@ -394,7 +395,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 */
 static void em28xx_release_resources(struct em28xx *dev)
 {
-	down(&em28xx_sysfs_lock);
+	mutex_lock(&em28xx_sysfs_lock);
 
 	em28xx_info("V4L2 device /dev/video%d deregistered\n",
 		    dev->vdev->minor);
@@ -403,7 +404,7 @@ static void em28xx_release_resources(struct em28xx *dev)
 /*	video_unregister_device(dev->vbi_dev); */
 	em28xx_i2c_unregister(dev);
 	usb_put_dev(dev->udev);
-	up(&em28xx_sysfs_lock);
+	mutex_unlock(&em28xx_sysfs_lock);
 }
 
 /*

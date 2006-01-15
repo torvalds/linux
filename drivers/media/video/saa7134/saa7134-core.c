@@ -31,6 +31,7 @@
 #include <linux/sound.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
@@ -84,7 +85,7 @@ MODULE_PARM_DESC(radio_nr, "radio device number");
 MODULE_PARM_DESC(tuner,    "tuner type");
 MODULE_PARM_DESC(card,     "card type");
 
-static DECLARE_MUTEX(devlist_lock);
+static DEFINE_MUTEX(devlist_lock);
 LIST_HEAD(saa7134_devlist);
 static LIST_HEAD(mops_list);
 static unsigned int saa7134_devcount;
@@ -969,13 +970,13 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	pci_set_drvdata(pci_dev,dev);
 	saa7134_devcount++;
 
-	down(&devlist_lock);
+	mutex_lock(&devlist_lock);
 	list_for_each(item,&mops_list) {
 		mops = list_entry(item, struct saa7134_mpeg_ops, next);
 		mpeg_ops_attach(mops, dev);
 	}
 	list_add_tail(&dev->devlist,&saa7134_devlist);
-	up(&devlist_lock);
+	mutex_unlock(&devlist_lock);
 
 	/* check for signal */
 	saa7134_irq_video_intl(dev);
@@ -1031,13 +1032,13 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	saa7134_hwfini(dev);
 
 	/* unregister */
-	down(&devlist_lock);
+	mutex_lock(&devlist_lock);
 	list_del(&dev->devlist);
 	list_for_each(item,&mops_list) {
 		mops = list_entry(item, struct saa7134_mpeg_ops, next);
 		mpeg_ops_detach(mops, dev);
 	}
-	up(&devlist_lock);
+	mutex_unlock(&devlist_lock);
 	saa7134_devcount--;
 
 	saa7134_i2c_unregister(dev);
@@ -1071,13 +1072,13 @@ int saa7134_ts_register(struct saa7134_mpeg_ops *ops)
 	struct list_head *item;
 	struct saa7134_dev *dev;
 
-	down(&devlist_lock);
+	mutex_lock(&devlist_lock);
 	list_for_each(item,&saa7134_devlist) {
 		dev = list_entry(item, struct saa7134_dev, devlist);
 		mpeg_ops_attach(ops, dev);
 	}
 	list_add_tail(&ops->next,&mops_list);
-	up(&devlist_lock);
+	mutex_unlock(&devlist_lock);
 	return 0;
 }
 
@@ -1086,13 +1087,13 @@ void saa7134_ts_unregister(struct saa7134_mpeg_ops *ops)
 	struct list_head *item;
 	struct saa7134_dev *dev;
 
-	down(&devlist_lock);
+	mutex_lock(&devlist_lock);
 	list_del(&ops->next);
 	list_for_each(item,&saa7134_devlist) {
 		dev = list_entry(item, struct saa7134_dev, devlist);
 		mpeg_ops_detach(ops, dev);
 	}
-	up(&devlist_lock);
+	mutex_unlock(&devlist_lock);
 }
 
 EXPORT_SYMBOL(saa7134_ts_register);
