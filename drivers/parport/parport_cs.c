@@ -226,9 +226,6 @@ void parport_config(dev_link_t *link)
     CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
 
-    release_region(link->io.BasePort1, link->io.NumPorts1);
-    if (link->io.NumPorts2)
-	release_region(link->io.BasePort2, link->io.NumPorts2);
     p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
 			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
 			      NULL);
@@ -277,11 +274,6 @@ void parport_cs_release(dev_link_t *link)
     if (info->ndev) {
 	struct parport *p = info->port;
 	parport_pc_unregister_port(p);
-	request_region(link->io.BasePort1, link->io.NumPorts1,
-		       info->node.dev_name);
-	if (link->io.NumPorts2)
-	    request_region(link->io.BasePort2, link->io.NumPorts2,
-			   info->node.dev_name);
     }
     info->ndev = 0;
     link->dev = NULL;
