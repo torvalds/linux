@@ -19,7 +19,6 @@ struct tuner_range {
 
 struct tuner_params {
 	enum param_type type;
-	unsigned int tda988x;
 	/* Many Philips based tuners have a comment like this in their
 	 * datasheet:
 	 *
@@ -31,7 +30,7 @@ struct tuner_params {
 	 *   will result in very low tuning voltage which may drive the
 	 *   oscillator to extreme conditions.
 	 *
-	 * Set cb_first_if_lower_freq to 1, if this check is 
+	 * Set cb_first_if_lower_freq to 1, if this check is
 	 * required for this tuner.
 	 *
 	 * I tested this for PAL by first setting the TV frequency to
