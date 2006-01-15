@@ -136,7 +136,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	u8 config, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
-	unsigned char buffer[4];
+	u8 buffer[4];
 	int rc, IFPCoff, i, j;
 
 	tun = &tuners[t->type];
@@ -146,6 +146,11 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		if (freq > tun->params[j].ranges[i].limit)
 			continue;
 		break;
+	}
+	if (i == tun->params[j].count) {
+		tuner_dbg("TV frequency out of range (%d > %d)",
+				freq, tun->params[j].ranges[i - 1].limit);
+		freq = tun->params[j].ranges[--i].limit;
 	}
 	config = tun->params[j].ranges[i].cb;
 	/*  i == 0 -> VHF_LO  */
@@ -239,20 +244,6 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		break;
 	}
 
-	/*
-	 * Philips FI1216MK2 remark from specification :
-	 * for channel selection involving band switching, and to ensure
-	 * smooth tuning to the desired channel without causing
-	 * unnecessary charge pump action, it is recommended to consider
-	 * the difference between wanted channel frequency and the
-	 * current channel frequency.  Unnecessary charge pump action
-	 * will result in very low tuning voltage which may drive the
-	 * oscillator to extreme conditions.
-	 *
-	 * Progfou: specification says to send config data before
-	 * frequency in case (wanted frequency < current frequency).
-	 */
-
 	/* IFPCoff = Video Intermediate Frequency - Vif:
 		940  =16*58.75  NTSC/J (Japan)
 		732  =16*45.75  M/N STD
@@ -284,7 +275,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 					offset / 16, offset % 16 * 100 / 16,
 					div);
 
-	if (t->type == TUNER_PHILIPS_SECAM && freq < t->freq) {
+	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = tun->params[j].config;
 		buffer[1] = config;
 		buffer[2] = (div>>8) & 0x7f;
@@ -295,6 +286,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[2] = tun->params[j].config;
 		buffer[3] = config;
 	}
+	t->last_div = div;
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		  buffer[0],buffer[1],buffer[2],buffer[3]);
 
@@ -337,8 +329,8 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tunertype *tun;
 	struct tuner *t = i2c_get_clientdata(c);
-	unsigned char buffer[4];
-	unsigned div;
+	u8 buffer[4];
+	u16 div;
 	int rc, j;
 
 	tun = &tuners[t->type];
@@ -374,9 +366,19 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	}
 	buffer[0] = (div>>8) & 0x7f;
 	buffer[1] = div      & 0xff;
+	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
+		buffer[0] = buffer[2];
+		buffer[1] = buffer[3];
+		buffer[2] = (div>>8) & 0x7f;
+		buffer[3] = div      & 0xff;
+	} else {
+		buffer[0] = (div>>8) & 0x7f;
+		buffer[1] = div      & 0xff;
+	}
 
 	tuner_dbg("radio 0x%02x 0x%02x 0x%02x 0x%02x\n",
 	       buffer[0],buffer[1],buffer[2],buffer[3]);
+	t->last_div = div;
 
 	if (4 != (rc = i2c_master_send(c,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
@@ -390,10 +392,10 @@ int default_tuner_init(struct i2c_client *c)
 		   t->type, tuners[t->type].name);
 	strlcpy(c->name, tuners[t->type].name, sizeof(c->name));
 
-	t->tv_freq    = default_set_tv_freq;
-	t->radio_freq = default_set_radio_freq;
+	t->set_tv_freq = default_set_tv_freq;
+	t->set_radio_freq = default_set_radio_freq;
 	t->has_signal = tuner_signal;
-	t->is_stereo  = tuner_stereo;
+	t->is_stereo = tuner_stereo;
 	t->standby = NULL;
 
 	return 0;
