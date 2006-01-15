@@ -1802,10 +1802,7 @@ static void nsp_cs_config(dev_link_t *link)
 
 	next_entry:
 		nsp_dbg(NSP_DEBUG_INIT, "next");
-
-		if (link->io.NumPorts1) {
-			pcmcia_release_io(link->handle, &link->io);
-		}
+		pcmcia_disable_device(handle);
 		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
 	}
 

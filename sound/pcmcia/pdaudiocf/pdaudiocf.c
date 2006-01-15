@@ -273,9 +273,7 @@ static void pdacf_config(dev_link_t *link)
 cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
 failed:
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
+	pcmcia_disable_device(link->handle);
 }
 
 #ifdef CONFIG_PM

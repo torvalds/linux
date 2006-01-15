@@ -374,15 +374,11 @@ static void sedlbauer_config(dev_link_t *link)
 	}
 	/* If we got this far, we're cool! */
 	break;
-	
+
     next_entry:
-/* new in dummy.cs 2001/01/28 MN 
-        if (link->io.NumPorts1)
-           pcmcia_release_io(link->handle, &link->io);
-*/
 	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
     }
-    
+
     /*
        Allocate an interrupt line.  Note that this does not assign a
        handler to the interrupt, unless the 'Handler' member of the

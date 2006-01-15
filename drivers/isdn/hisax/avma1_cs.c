@@ -313,18 +313,18 @@ found_port:
 	i = pcmcia_request_irq(link->handle, &link->irq);
 	if (i != CS_SUCCESS) {
 	    cs_error(link->handle, RequestIRQ, i);
-	    pcmcia_release_io(link->handle, &link->io);
+	    /* undo */
+	    pcmcia_disable_device(link->handle);
 	    break;
 	}
-	
+
 	/*
 	 * configure the PCMCIA socket
 	 */
 	i = pcmcia_request_configuration(link->handle, &link->conf);
 	if (i != CS_SUCCESS) {
 	    cs_error(link->handle, RequestConfiguration, i);
-	    pcmcia_release_io(link->handle, &link->io);
-	    pcmcia_release_irq(link->handle, &link->irq);
+	    pcmcia_disable_device(link->handle);
 	    break;
 	}
 

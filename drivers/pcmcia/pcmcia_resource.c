@@ -514,7 +514,6 @@ int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 
 	return CS_SUCCESS;
 } /* pcmcia_release_io */
-EXPORT_SYMBOL(pcmcia_release_io);
 
 
 int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
@@ -547,7 +546,6 @@ int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 
 	return CS_SUCCESS;
 } /* pcmcia_release_irq */
-EXPORT_SYMBOL(pcmcia_release_irq);
 
 
 int pcmcia_release_window(window_handle_t win)
@@ -937,6 +935,5 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev) {
 		pcmcia_release_window(p_dev->instance->win);
 
 	p_dev->instance->dev = NULL;
-	p_dev->instance->state &= ~DEV_CONFIG;
 }
 EXPORT_SYMBOL(pcmcia_disable_device);

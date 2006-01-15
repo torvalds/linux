@@ -849,22 +849,16 @@ static void ray_release(dev_link_t *link)
     DEBUG(1, "ray_release(0x%p)\n", link);
 
     del_timer(&local->timer);
-    link->state &= ~DEV_CONFIG;
 
     iounmap(local->sram);
     iounmap(local->rmem);
     iounmap(local->amem);
     /* Do bother checking to see if these succeed or not */
-    i = pcmcia_release_window(link->win);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(link->win) ret = %x\n",i);
     i = pcmcia_release_window(local->amem_handle);
     if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->amem) ret = %x\n",i);
     i = pcmcia_release_window(local->rmem_handle);
     if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->rmem) ret = %x\n",i);
-    i = pcmcia_release_configuration(link->handle);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseConfiguration ret = %x\n",i);
-    i = pcmcia_release_irq(link->handle, &link->irq);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseIRQ ret = %x\n",i);
+    pcmcia_disable_device(link->handle);
 
     DEBUG(2,"ray_release ending\n");
 }

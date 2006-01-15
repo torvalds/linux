@@ -379,8 +379,6 @@ int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
 int pcmcia_release_configuration(struct pcmcia_device *p_dev);
-int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req);
-int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req);
 int pcmcia_release_window(window_handle_t win);
 int pcmcia_request_configuration(struct pcmcia_device *p_dev, config_req_t *req);
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);

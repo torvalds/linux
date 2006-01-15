@@ -49,6 +49,7 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
+#include <pcmcia/ss.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -965,10 +966,15 @@ static int check_sig(dev_link_t *link)
 
     if (width) {
 	printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
+	/* call pcmcia_release_configuration() in _suspend */
 	smc91c92_suspend(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
+
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	pcmcia_request_io(link->handle, &link->io);
+	link->handle->socket->io[0].res->flags &= ~IO_DATA_PATH_WIDTH;
+	link->handle->socket->io[0].res->flags |= IO_DATA_PATH_WIDTH_8;
+
+	/* call pcmcia_request_configuration() in _resume, it handles the
+	 * flag update */
 	smc91c92_resume(link->handle);
 	return check_sig(link);
     }

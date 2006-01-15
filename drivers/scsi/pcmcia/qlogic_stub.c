@@ -288,12 +288,7 @@ out:
 
 cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
-	link->dev = NULL;
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 	return;
 
 }				/* qlogic_config */

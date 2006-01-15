@@ -154,19 +154,10 @@ static void sl811_cs_detach(struct pcmcia_device *p_dev)
 
 static void sl811_cs_release(dev_link_t * link)
 {
-
 	DBG(0, "sl811_cs_release(0x%p)\n", link);
 
-	/* Unlink the device chain */
-	link->dev = NULL;
-
+	pcmcia_disable_device(link->handle);
 	platform_device_unregister(&platform_dev);
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
 }
 
 static void sl811_cs_config(dev_link_t *link)
@@ -260,8 +251,7 @@ static void sl811_cs_config(dev_link_t *link)
 		break;
 
 next_entry:
-		if (link->io.NumPorts1)
-			pcmcia_release_io(link->handle, &link->io);
+		pcmcia_disable_device(handle);
 		last_ret = pcmcia_get_next_tuple(handle, &tuple);
 	}
 

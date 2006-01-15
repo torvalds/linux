@@ -229,10 +229,7 @@ static void ixj_cs_release(dev_link_t *link)
 	ixj_info_t *info = link->priv;
 	DEBUG(0, "ixj_cs_release(0x%p)\n", link);
 	info->ndev = 0;
-	link->dev = NULL;
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int ixj_suspend(struct pcmcia_device *dev)

@@ -317,8 +317,7 @@ orinoco_cs_config(dev_link_t *link)
 		break;
 		
 	next_entry:
-		if (link->io.NumPorts1)
-			pcmcia_release_io(link->handle, &link->io);
+		pcmcia_disable_device(handle);
 		last_ret = pcmcia_get_next_tuple(handle, &tuple);
 		if (last_ret  == CS_NO_MORE_ITEMS) {
 			printk(KERN_ERR PFX "GetNextTuple(): No matching "
