@@ -167,6 +167,14 @@ extern int of_address_to_resource(struct device_node *dev, int index,
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
 
+#ifndef CONFIG_PPC_OF
+/*
+ * Fallback definitions for builds where we don't have prom.c included.
+ */
+#define machine_is_compatible(x)		0
+#define of_find_compatible_node(f, t, c)	NULL
+#define get_property(p, n, l)			NULL
+#endif
 
 #endif /* _PPC_PROM_H */
 #endif /* __KERNEL__ */

@@ -316,7 +316,6 @@ static int __init add_bridge(struct device_node *dev)
 	char* disp_name;
 	int *bus_range;
 	int primary = 1;
-	struct property *of_prop;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 

@@ -70,8 +70,6 @@ int use_of_interrupt_tree;
 struct device_node *dflt_interrupt_controller;
 int num_interrupt_controllers;
 
-int pmac_newworld;
-
 extern unsigned int rtas_entry;  /* physical pointer */
 
 extern struct device_node *allnodes;
@@ -123,22 +121,13 @@ finish_device_tree(void)
 	unsigned long mem = (unsigned long) klimit;
 	struct device_node *np;
 
-	/* All newworld pmac machines and CHRPs now use the interrupt tree */
+	/* All CHRPs now use the interrupt tree */
 	for (np = allnodes; np != NULL; np = np->allnext) {
 		if (get_property(np, "interrupt-parent", NULL)) {
 			use_of_interrupt_tree = 1;
 			break;
 		}
 	}
-	if (_machine == _MACH_Pmac && use_of_interrupt_tree)
-		pmac_newworld = 1;
-
-#ifdef CONFIG_BOOTX_TEXT
-	if (boot_infos && pmac_newworld) {
-		prom_print("WARNING ! BootX/miBoot booting is not supported on this machine\n");
-		prom_print("          You should use an Open Firmware bootloader\n");
-	}
-#endif /* CONFIG_BOOTX_TEXT */
 
 	if (use_of_interrupt_tree) {
 		/*
@@ -434,16 +423,10 @@ finish_node_interrupts(struct device_node *np, unsigned long mem_start)
 		 * those machines, we want to offset interrupts from the
 		 * second openpic by 128 -- BenH
 		 */
-		if (_machine != _MACH_Pmac && num_interrupt_controllers > 1
+		if (num_interrupt_controllers > 1
 		    && ic != NULL
 		    && get_property(ic, "interrupt-parent", NULL) == NULL)
 			offset = 16;
-		else if (_machine == _MACH_Pmac && num_interrupt_controllers > 1
-			 && ic != NULL && ic->parent != NULL) {
-			char *name = get_property(ic->parent, "name", NULL);
-			if (name && !strcmp(name, "u3"))
-				offset = 128;
-		}
 
 		np->intrs[i].line = irq[0] + offset;
 		if (n > 1)
