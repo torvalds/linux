@@ -140,9 +140,11 @@ void __init __attribute__ ((weak))
 init_internal_rtc(void)
 {
 	/* Disable the RTC one second and alarm interrupts. */
-	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) & ~(RTCSC_SIE | RTCSC_ALE));
+	clrbits16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, (RTCSC_SIE | RTCSC_ALE));
+
 	/* Enable the RTC */
-	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) | (RTCSC_RTF | RTCSC_RTE));
+	setbits16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, (RTCSC_RTF | RTCSC_RTE));
+
 }
 
 /* The decrementer counts at the system (internal) clock frequency divided by
@@ -159,8 +161,7 @@ void __init m8xx_calibrate_decr(void)
 	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrstk.cark_sccrk, KAPWR_KEY);
 
 	/* Force all 8xx processors to use divide by 16 processor clock. */
-	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_sccr,
-		in_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_sccr)|0x02000000);
+	setbits32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_sccr, 0x02000000);
 	/* Processor frequency is MHz.
 	 * The value 'fp' is the number of decrementer ticks per second.
 	 */
@@ -239,8 +240,8 @@ m8xx_restart(char *cmd)
 	__volatile__ unsigned char dummy;
 
 	local_irq_disable();
-	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_plprcr, in_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_plprcr) | 0x00000080);
 
+	setbits32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_plprcr, 0x00000080);
 	/* Clear the ME bit in MSR to cause checkstop on machine check
 	*/
 	mtmsr(mfmsr() & ~0x1000);
@@ -310,8 +311,8 @@ m8xx_init_IRQ(void)
 	i8259_init(0);
 
 	/* The i8259 cascade interrupt must be level sensitive. */
-	out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel, in_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel & ~(0x80000000 >> ISA_BRIDGE_INT)));
 
+	clrbits32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel, (0x80000000 >> ISA_BRIDGE_INT));
 	if (setup_irq(ISA_BRIDGE_INT, &mbx_i8259_irqaction))
 		enable_irq(ISA_BRIDGE_INT);
 #endif	/* CONFIG_PCI */
