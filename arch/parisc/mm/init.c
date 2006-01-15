@@ -371,17 +371,11 @@ static void __init setup_bootmem(void)
 
 void free_initmem(void)
 {
-	/* FIXME: */
-#if 0
-	printk(KERN_INFO "NOT FREEING INITMEM (%dk)\n",
-			(&__init_end - &__init_begin) >> 10);
-	return;
-#else
 	unsigned long addr;
 	
 	printk(KERN_INFO "Freeing unused kernel memory: ");
 
-#if 1
+#ifdef CONFIG_DEBUG_KERNEL
 	/* Attempt to catch anyone trying to execute code here
 	 * by filling the page with BRK insns.
 	 * 
@@ -414,7 +408,6 @@ void free_initmem(void)
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BCOMPLETE);
 	
 	printk("%luk freed\n", (unsigned long)(&__init_end - &__init_begin) >> 10);
-#endif
 }
 
 
