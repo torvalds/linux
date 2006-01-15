@@ -333,10 +333,10 @@ static snd_pcm_hardware_t snd_cx88_digital_hw = {
 	.channels_min = 1,
 	.channels_max = 2,
 	.buffer_bytes_max = (2*2048),
-	.period_bytes_min = 256,
+	.period_bytes_min = 2048,
 	.period_bytes_max = 2048,
 	.periods_min = 2,
-	.periods_max = 16,
+	.periods_max = 2,
 };
 
 /*
