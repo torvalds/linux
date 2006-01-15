@@ -338,7 +338,7 @@ xfs_setattr(
 		code = XFS_QM_DQVOPALLOC(mp, ip, uid, gid, projid, qflags,
 					 &udqp, &gdqp);
 		if (code)
-			return (code);
+			return code;
 	}
 
 	/*
@@ -1027,11 +1027,8 @@ xfs_readlink(
 
 	}
 
-
 error_return:
-
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
 	return error;
 }
 
@@ -1206,7 +1203,7 @@ xfs_inactive_free_eofblocks(
 	last_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
 	map_len = last_fsb - end_fsb;
 	if (map_len <= 0)
-		return (0);
+		return 0;
 
 	nimaps = 1;
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
@@ -1221,7 +1218,7 @@ xfs_inactive_free_eofblocks(
 		 * Attach the dquots to the inode up front.
 		 */
 		if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
-			return (error);
+			return error;
 
 		/*
 		 * There are blocks after the end of file.
@@ -1249,7 +1246,7 @@ xfs_inactive_free_eofblocks(
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-			return (error);
+			return error;
 		}
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1277,7 +1274,7 @@ xfs_inactive_free_eofblocks(
 		}
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 	}
-	return (error);
+	return error;
 }
 
 /*
@@ -1455,7 +1452,7 @@ xfs_inactive_symlink_local(
 	if (error) {
 		xfs_trans_cancel(*tpp, 0);
 		*tpp = NULL;
-		return (error);
+		return error;
 	}
 	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 
@@ -1468,7 +1465,7 @@ xfs_inactive_symlink_local(
 				  XFS_DATA_FORK);
 		ASSERT(ip->i_df.if_bytes == 0);
 	}
-	return (0);
+	return 0;
 }
 
 /*
@@ -1494,7 +1491,7 @@ xfs_inactive_attrs(
 	if (error) {
 		*tpp = NULL;
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return (error); /* goto out*/
+		return error; /* goto out */
 	}
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
@@ -1507,7 +1504,7 @@ xfs_inactive_attrs(
 		xfs_trans_cancel(tp, 0);
 		*tpp = NULL;
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return (error);
+		return error;
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1518,7 +1515,7 @@ xfs_inactive_attrs(
 	ASSERT(ip->i_d.di_anextents == 0);
 
 	*tpp = tp;
-	return (0);
+	return 0;
 }
 
 STATIC int
@@ -1557,7 +1554,7 @@ xfs_release(
 		    (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
 			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
-				return (error);
+				return error;
 			/* Update linux inode block count after free above */
 			LINVFS_GET_IP(vp)->i_blocks = XFS_FSB_TO_BB(mp,
 				ip->i_d.di_nblocks + ip->i_delayed_blks);
@@ -1638,7 +1635,7 @@ xfs_inactive(
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||
 		      (ip->i_delayed_blks != 0)))) {
 			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
-				return (VN_INACTIVE_CACHE);
+				return VN_INACTIVE_CACHE;
 			/* Update linux inode block count after free above */
 			LINVFS_GET_IP(vp)->i_blocks = XFS_FSB_TO_BB(mp,
 				ip->i_d.di_nblocks + ip->i_delayed_blks);
@@ -1649,7 +1646,7 @@ xfs_inactive(
 	ASSERT(ip->i_d.di_nlink == 0);
 
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
-		return (VN_INACTIVE_CACHE);
+		return VN_INACTIVE_CACHE;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
 	if (truncate) {
@@ -1672,7 +1669,7 @@ xfs_inactive(
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-			return (VN_INACTIVE_CACHE);
+			return VN_INACTIVE_CACHE;
 		}
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1693,7 +1690,7 @@ xfs_inactive(
 			xfs_trans_cancel(tp,
 				XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
-			return (VN_INACTIVE_CACHE);
+			return VN_INACTIVE_CACHE;
 		}
 	} else if ((ip->i_d.di_mode & S_IFMT) == S_IFLNK) {
 
@@ -1707,7 +1704,7 @@ xfs_inactive(
 
 		if (error) {
 			ASSERT(tp == NULL);
-			return (VN_INACTIVE_CACHE);
+			return VN_INACTIVE_CACHE;
 		}
 
 		xfs_trans_ijoin(tp, ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
@@ -1720,7 +1717,7 @@ xfs_inactive(
 		if (error) {
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
-			return (VN_INACTIVE_CACHE);
+			return VN_INACTIVE_CACHE;
 		}
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
@@ -1742,7 +1739,7 @@ xfs_inactive(
 		 * cancelled, and the inode is unlocked. Just get out.
 		 */
 		 if (error)
-			 return (VN_INACTIVE_CACHE);
+			 return VN_INACTIVE_CACHE;
 	} else if (ip->i_afp) {
 		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
 	}
@@ -2049,8 +2046,8 @@ std_return:
  abort_return:
 	cancel_flags |= XFS_TRANS_ABORT;
 	/* FALLTHROUGH */
- error_return:
 
+ error_return:
 	if (tp != NULL)
 		xfs_trans_cancel(tp, cancel_flags);
 
@@ -2724,9 +2721,9 @@ std_return:
  abort_return:
 	cancel_flags |= XFS_TRANS_ABORT;
 	/* FALLTHROUGH */
+
  error_return:
 	xfs_trans_cancel(tp, cancel_flags);
-
 	goto std_return;
 }
 /*
@@ -3199,10 +3196,12 @@ std_return:
 	}
 	return error;
 
- error1:
+error1:
 	xfs_bmap_cancel(&free_list);
 	cancel_flags |= XFS_TRANS_ABORT;
- error_return:
+	/* FALLTHROUGH */
+
+error_return:
 	xfs_trans_cancel(tp, cancel_flags);
 	goto std_return;
 }
@@ -3618,9 +3617,9 @@ xfs_rwlock(
 	if (locktype == VRWLOCK_WRITE) {
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
 	} else if (locktype == VRWLOCK_TRY_READ) {
-		return (xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED));
+		return xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED);
 	} else if (locktype == VRWLOCK_TRY_WRITE) {
-		return (xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL));
+		return xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL);
 	} else {
 		ASSERT((locktype == VRWLOCK_READ) ||
 		       (locktype == VRWLOCK_WRITE_DIRECT));
@@ -3868,7 +3867,7 @@ xfs_finish_reclaim(
 			xfs_ifunlock(ip);
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		}
-		return(1);
+		return 1;
 	}
 	ip->i_flags |= XFS_IRECLAIM;
 	write_unlock(&ih->ih_lock);
@@ -4045,7 +4044,7 @@ xfs_alloc_file_space(
 			offset, end_dmi_offset - offset,
 			0, NULL);
 		if (error)
-			return(error);
+			return error;
 	}
 
 	/*
@@ -4305,7 +4304,7 @@ xfs_free_file_space(
 				offset, end_dmi_offset - offset,
 				AT_DELAY_FLAG(attr_flags), NULL);
 		if (error)
-			return(error);
+			return error;
 	}
 
 	ASSERT(attr_flags & ATTR_NOLOCK ? attr_flags & ATTR_DMI : 1);
