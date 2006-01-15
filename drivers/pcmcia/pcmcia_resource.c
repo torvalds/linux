@@ -476,8 +476,8 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 	config_t *c = p_dev->function_config;
 	int i;
 
-	if (p_dev->state & CLIENT_CONFIG_LOCKED) {
-		p_dev->state &= ~CLIENT_CONFIG_LOCKED;
+	if (p_dev->p_state & CLIENT_CONFIG_LOCKED) {
+		p_dev->p_state &= ~CLIENT_CONFIG_LOCKED;
 		if (--(s->lock_count) == 0) {
 			s->socket.flags = SS_OUTPUT_ENA;   /* Is this correct? */
 			s->socket.Vpp = 0;
@@ -516,10 +516,10 @@ int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c = p_dev->function_config;
 
-	if (!(p_dev->state & CLIENT_IO_REQ))
+	if (!(p_dev->p_state & CLIENT_IO_REQ))
 		return CS_BAD_HANDLE;
 
-	p_dev->state &= ~CLIENT_IO_REQ;
+	p_dev->p_state &= ~CLIENT_IO_REQ;
 
 	if ((c->io.BasePort1 != req->BasePort1) ||
 	    (c->io.NumPorts1 != req->NumPorts1) ||
@@ -542,9 +542,9 @@ int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c= p_dev->function_config;
 
-	if (!(p_dev->state & CLIENT_IRQ_REQ))
+	if (!(p_dev->p_state & CLIENT_IRQ_REQ))
 		return CS_BAD_HANDLE;
-	p_dev->state &= ~CLIENT_IRQ_REQ;
+	p_dev->p_state &= ~CLIENT_IRQ_REQ;
 
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;
@@ -576,7 +576,7 @@ int pcmcia_release_window(window_handle_t win)
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 		return CS_BAD_HANDLE;
 	s = win->sock;
-	if (!(win->handle->state & CLIENT_WIN_REQ(win->index)))
+	if (!(win->handle->p_state & CLIENT_WIN_REQ(win->index)))
 		return CS_BAD_HANDLE;
 
 	/* Shut down memory window */
@@ -590,7 +590,7 @@ int pcmcia_release_window(window_handle_t win)
 		kfree(win->ctl.res);
 		win->ctl.res = NULL;
 	}
-	win->handle->state &= ~CLIENT_WIN_REQ(win->index);
+	win->handle->p_state &= ~CLIENT_WIN_REQ(win->index);
 
 	win->magic = 0;
 
@@ -708,7 +708,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	}
 
 	c->state |= CONFIG_LOCKED;
-	p_dev->state |= CLIENT_CONFIG_LOCKED;
+	p_dev->p_state |= CLIENT_CONFIG_LOCKED;
 	return CS_SUCCESS;
 } /* pcmcia_request_configuration */
 EXPORT_SYMBOL(pcmcia_request_configuration);
@@ -754,7 +754,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 
 	c->io = *req;
 	c->state |= CONFIG_IO_REQ;
-	p_dev->state |= CLIENT_IO_REQ;
+	p_dev->p_state |= CLIENT_IO_REQ;
 	return CS_SUCCESS;
 } /* pcmcia_request_io */
 EXPORT_SYMBOL(pcmcia_request_io);
@@ -850,7 +850,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	s->irq.Config++;
 
 	c->state |= CONFIG_IRQ_REQ;
-	p_dev->state |= CLIENT_IRQ_REQ;
+	p_dev->p_state |= CLIENT_IRQ_REQ;
 
 #ifdef CONFIG_PCMCIA_PROBE
 	pcmcia_used_irq[irq]++;
@@ -910,7 +910,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 		if (!win->ctl.res)
 			return CS_IN_USE;
 	}
-	(*p_dev)->state |= CLIENT_WIN_REQ(w);
+	(*p_dev)->p_state |= CLIENT_WIN_REQ(w);
 
 	/* Configure the socket controller */
 	win->ctl.map = w+1;

@@ -390,7 +390,7 @@ static int pcmcia_device_probe(struct device * dev)
 		goto put_dev;
 	}
 
-	p_dev->state &= ~CLIENT_UNBOUND;
+	p_dev->p_state &= ~CLIENT_UNBOUND;
 
 	ret = p_drv->probe(p_dev);
 	if (ret)
@@ -433,17 +433,17 @@ static int pcmcia_device_remove(struct device * dev)
 	       	p_drv->remove(p_dev);
 
 	/* check for proper unloading */
-	if (p_dev->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
+	if (p_dev->p_state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
 		printk(KERN_INFO "pcmcia: driver %s did not release config properly\n",
 		       p_drv->drv.name);
 
 	for (i = 0; i < MAX_WIN; i++)
-		if (p_dev->state & CLIENT_WIN_REQ(i))
+		if (p_dev->p_state & CLIENT_WIN_REQ(i))
 			printk(KERN_INFO "pcmcia: driver %s did not release windows properly\n",
 			       p_drv->drv.name);
 
 	/* references from pcmcia_probe_device */
-	p_dev->state = CLIENT_UNBOUND;
+	p_dev->p_state = CLIENT_UNBOUND;
 	pcmcia_put_dev(p_dev);
 	module_put(p_drv->owner);
 
@@ -472,7 +472,7 @@ static void pcmcia_card_remove(struct pcmcia_socket *s)
 		}
 		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
 		list_del(&p_dev->socket_device_list);
-		p_dev->state |= CLIENT_STALE;
+		p_dev->p_state |= CLIENT_STALE;
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 		device_unregister(&p_dev->dev);
@@ -602,7 +602,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	sprintf (p_dev->devname, "pcmcia%s", p_dev->dev.bus_id);
 
 	/* compat */
-	p_dev->state = CLIENT_UNBOUND;
+	p_dev->p_state = CLIENT_UNBOUND;
 
 
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);

@@ -166,7 +166,7 @@ struct pcmcia_device {
 	/* deprecated, a cleaned up version will be moved into this
 	   struct soon */
 	dev_link_t		*instance;
-	u_int			state;
+	u_int			p_state;
 
 	/* information about this device */
 	u8			has_manf_id:1;
