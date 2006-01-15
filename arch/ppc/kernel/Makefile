@@ -40,7 +40,6 @@ obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
-obj-$(CONFIG_PCI)		+= pci.o
 obj-$(CONFIG_KGDB)		+= ppc-stub.o
 obj-$(CONFIG_TAU)		+= temp.o
 ifndef CONFIG_E200
