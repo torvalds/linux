@@ -81,6 +81,7 @@ static struct tuner_params tuner_philips_ntsc_params[] = {
 		.ranges = tuner_philips_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_ntsc_ranges),
 		.config = 0x8e,
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
@@ -98,6 +99,7 @@ static struct tuner_params tuner_philips_secam_params[] = {
 		.ranges = tuner_philips_secam_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_secam_ranges),
 		.config = 0x8e,
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
@@ -115,6 +117,7 @@ static struct tuner_params tuner_philips_pal_params[] = {
 		.ranges = tuner_philips_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_pal_ranges),
 		.config = 0x8e,
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
@@ -596,6 +599,7 @@ static struct tuner_params tuner_fm1216me_mk3_params[] = {
 		.ranges = tuner_fm1216me_mk3_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1216me_mk3_pal_ranges),
 		.config = 0x8e,
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
@@ -670,6 +674,7 @@ static struct tuner_params tuner_fm1236_mk3_params[] = {
 		.ranges = tuner_fm1236_mk3_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
 		.config = 0x8e,
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
@@ -784,6 +789,7 @@ static struct tuner_params tuner_tcl_2002n_params[] = {
 		.ranges = tuner_tcl_2002n_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_tcl_2002n_ntsc_ranges),
 		.config = 0x8e,
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
