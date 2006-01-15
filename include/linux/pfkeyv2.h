@@ -104,7 +104,7 @@ struct sadb_prop {
 /* followed by:
 	struct sadb_comb sadb_combs[(sadb_prop_len +
 		sizeof(uint64_t) - sizeof(struct sadb_prop)) /
-		sizeof(strut sadb_comb)]; */
+		sizeof(struct sadb_comb)]; */
 
 struct sadb_comb {
 	uint8_t		sadb_comb_auth;
