@@ -2965,6 +2965,12 @@ M:	dm@sangoma.com
 W:	http://www.sangoma.com
 S:	Supported
 
+WATCHDOG DEVICE DRIVERS
+P:	Wim Van Sebroeck
+M:	wim@iguana.be
+T:	git kernel.org:/pub/scm/linux/kernel/git/wim/linux-2.6-watchdog.git
+S:	Maintained
+
 WAVELAN NETWORK DRIVER & WIRELESS EXTENSIONS
 P:	Jean Tourrilhes
 M:	jt@hpl.hp.com
