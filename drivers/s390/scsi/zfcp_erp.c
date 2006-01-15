@@ -3403,7 +3403,7 @@ zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 /**
  * zfcp_erp_action_cleanup
  *
- * Register unit with scsi stack if appropiate and fix reference counts.
+ * Register unit with scsi stack if appropriate and fix reference counts.
  * Note: Temporary units are not registered with scsi stack.
  */
 static void

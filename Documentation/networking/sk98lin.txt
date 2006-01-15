@@ -91,7 +91,7 @@ To use the driver as a module, proceed as follows:
    with (M)
 5. Execute the command "make modules".
 6. Execute the command "make modules_install".
-   The appropiate modules will be installed.
+   The appropriate modules will be installed.
 7. Reboot your system.
 
 
