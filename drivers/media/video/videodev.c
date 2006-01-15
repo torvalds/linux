@@ -29,7 +29,6 @@
 #include <linux/devfs_fs_kernel.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/semaphore.h>
 
 #include <linux/videodev.h>
 
@@ -83,7 +82,7 @@ static struct class video_class = {
  */
 
 static struct video_device *video_device[VIDEO_NUM_DEVICES];
-static DECLARE_MUTEX(videodev_lock);
+static DEFINE_MUTEX(videodev_lock);
 
 struct video_device* video_devdata(struct file *file)
 {
@@ -102,15 +101,15 @@ static int video_open(struct inode *inode, struct file *file)
 
 	if(minor>=VIDEO_NUM_DEVICES)
 		return -ENODEV;
-	down(&videodev_lock);
+	mutex_lock(&videodev_lock);
 	vfl=video_device[minor];
 	if(vfl==NULL) {
-		up(&videodev_lock);
+		mutex_unlock(&videodev_lock);
 		request_module("char-major-%d-%d", VIDEO_MAJOR, minor);
-		down(&videodev_lock);
+		mutex_lock(&videodev_lock);
 		vfl=video_device[minor];
 		if (vfl==NULL) {
-			up(&videodev_lock);
+			mutex_unlock(&videodev_lock);
 			return -ENODEV;
 		}
 	}
@@ -123,7 +122,7 @@ static int video_open(struct inode *inode, struct file *file)
 		file->f_op = fops_get(old_fops);
 	}
 	fops_put(old_fops);
-	up(&videodev_lock);
+	mutex_unlock(&videodev_lock);
 	return err;
 }
 
@@ -304,12 +303,12 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	}
 
 	/* pick a minor number */
-	down(&videodev_lock);
+	mutex_lock(&videodev_lock);
 	if (nr >= 0  &&  nr < end-base) {
 		/* use the one the driver asked for */
 		i = base+nr;
 		if (NULL != video_device[i]) {
-			up(&videodev_lock);
+			mutex_unlock(&videodev_lock);
 			return -ENFILE;
 		}
 	} else {
@@ -318,13 +317,13 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 			if (NULL == video_device[i])
 				break;
 		if (i == end) {
-			up(&videodev_lock);
+			mutex_unlock(&videodev_lock);
 			return -ENFILE;
 		}
 	}
 	video_device[i]=vfd;
 	vfd->minor=i;
-	up(&videodev_lock);
+	mutex_unlock(&videodev_lock);
 
 	sprintf(vfd->devfs_name, "v4l/%s%d", name_base, i - base);
 	devfs_mk_cdev(MKDEV(VIDEO_MAJOR, vfd->minor),
@@ -362,14 +361,14 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 
 void video_unregister_device(struct video_device *vfd)
 {
-	down(&videodev_lock);
+	mutex_lock(&videodev_lock);
 	if(video_device[vfd->minor]!=vfd)
 		panic("videodev: bad unregister");
 
 	devfs_remove(vfd->devfs_name);
 	video_device[vfd->minor]=NULL;
 	class_device_unregister(&vfd->class_dev);
-	up(&videodev_lock);
+	mutex_unlock(&videodev_lock);
 }
 
 

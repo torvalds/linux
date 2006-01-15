@@ -31,8 +31,7 @@ config VIDEO_CX88_DVB
 
 config VIDEO_CX88_ALSA
 	tristate "ALSA DMA audio support"
-	depends on VIDEO_CX88 && SND
-	select SND_PCM_OSS
+	depends on VIDEO_CX88 && SND && EXPERIMENTAL
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 2388x based TV cards.

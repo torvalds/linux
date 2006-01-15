@@ -805,7 +805,6 @@ static struct pci_driver cx88_audio_pci_driver = {
 	.id_table = cx88_audio_pci_tbl,
 	.probe    = cx88_audio_initdev,
 	.remove   = cx88_audio_finidev,
-	SND_PCI_PM_CALLBACKS
 };
 
 /****************************************************************************
