@@ -209,20 +209,13 @@ cs_failed:
 
 static void fdomain_release(dev_link_t *link)
 {
-    scsi_info_t *info = link->priv;
+	scsi_info_t *info = link->priv;
 
-    DEBUG(0, "fdomain_release(0x%p)\n", link);
+	DEBUG(0, "fdomain_release(0x%p)\n", link);
 
-    scsi_remove_host(info->host);
-    link->dev = NULL;
-    
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-
-    scsi_unregister(info->host);
-
-    link->state &= ~DEV_CONFIG;
+	scsi_remove_host(info->host);
+	pcmcia_disable_device(link->handle);
+	scsi_unregister(info->host);
 }
 
 /*====================================================================*/

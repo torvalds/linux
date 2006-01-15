@@ -371,16 +371,8 @@ static void teles_cs_release(dev_link_t *link)
 	    HiSax_closecard(local->cardnr);
 	}
     }
-    /* Unlink the device chain */
-    link->dev = NULL;
 
-    /* Don't bother checking to see if these succeed or not */
-    if (link->win)
-        pcmcia_release_window(link->win);
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
+    pcmcia_disable_device(link->handle);
 } /* teles_cs_release */
 
 static int teles_suspend(struct pcmcia_device *p_dev)

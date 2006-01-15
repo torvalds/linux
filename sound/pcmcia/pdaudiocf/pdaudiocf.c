@@ -62,13 +62,7 @@ static void snd_pdacf_detach(struct pcmcia_device *p_dev);
 
 static void pdacf_release(dev_link_t *link)
 {
-	if (link->state & DEV_CONFIG) {
-		/* release cs resources */
-		pcmcia_release_configuration(link->handle);
-		pcmcia_release_io(link->handle, &link->io);
-		pcmcia_release_irq(link->handle, &link->irq);
-		link->state &= ~DEV_CONFIG;
-	}
+	pcmcia_disable_device(link->handle);
 }
 
 /*

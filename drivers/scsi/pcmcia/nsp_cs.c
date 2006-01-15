@@ -1974,16 +1974,9 @@ static void nsp_cs_release(dev_link_t *link)
 		if (data != NULL) {
 			iounmap((void *)(data->MmioAddress));
 		}
-		pcmcia_release_window(link->win);
 	}
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1) {
-		pcmcia_release_io(link->handle, &link->io);
-	}
-	if (link->irq.AssignedIRQ) {
-		pcmcia_release_irq(link->handle, &link->irq);
-	}
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,2))
 	if (info->host != NULL) {
 		scsi_host_put(info->host);

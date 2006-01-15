@@ -456,13 +456,7 @@ failed:
 
 static void axnet_release(dev_link_t *link)
 {
-    DEBUG(0, "axnet_release(0x%p)\n", link);
-
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-
-    link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int axnet_suspend(struct pcmcia_device *p_dev)

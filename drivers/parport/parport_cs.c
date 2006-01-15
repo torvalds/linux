@@ -267,23 +267,17 @@ failed:
 
 void parport_cs_release(dev_link_t *link)
 {
-    parport_info_t *info = link->priv;
-    
-    DEBUG(0, "parport_release(0x%p)\n", link);
+	parport_info_t *info = link->priv;
 
-    if (info->ndev) {
-	struct parport *p = info->port;
-	parport_pc_unregister_port(p);
-    }
-    info->ndev = 0;
-    link->dev = NULL;
-    
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    
-    link->state &= ~DEV_CONFIG;
+	DEBUG(0, "parport_release(0x%p)\n", link);
 
+	if (info->ndev) {
+		struct parport *p = info->port;
+		parport_pc_unregister_port(p);
+	}
+	info->ndev = 0;
+
+	pcmcia_disable_device(link->handle);
 } /* parport_cs_release */
 
 static int parport_suspend(struct pcmcia_device *dev)

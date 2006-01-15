@@ -373,21 +373,14 @@ found_port:
 
 static void avma1cs_release(dev_link_t *link)
 {
-    local_info_t *local = link->priv;
+	local_info_t *local = link->priv;
 
-    DEBUG(0, "avma1cs_release(0x%p)\n", link);
+	DEBUG(0, "avma1cs_release(0x%p)\n", link);
 
-    /* no unregister function with hisax */
-    HiSax_closecard(local->node.minor);
+	/* now unregister function with hisax */
+	HiSax_closecard(local->node.minor);
 
-    /* Unlink the device chain */
-    link->dev = NULL;
-    
-    /* Don't bother checking to see if these succeed or not */
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 } /* avma1cs_release */
 
 static int avma1cs_suspend(struct pcmcia_device *dev)

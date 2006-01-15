@@ -710,15 +710,7 @@ static void mgslpc_release(u_long arg)
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_release(0x%p)\n", link);
 
-    /* Unlink the device chain */
-    link->dev = NULL;
-    link->state &= ~DEV_CONFIG;
-
-    pcmcia_release_configuration(link->handle);
-    if (link->io.NumPorts1)
-	    pcmcia_release_io(link->handle, &link->io);
-    if (link->irq.AssignedIRQ)
-	    pcmcia_release_irq(link->handle, &link->irq);
+    pcmcia_disable_device(link->handle);
 }
 
 static void mgslpc_detach(struct pcmcia_device *p_dev)

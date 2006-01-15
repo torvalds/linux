@@ -2149,16 +2149,10 @@ static void wl3501_release(dev_link_t *link)
 	struct net_device *dev = link->priv;
 
 	/* Unlink the device chain */
-	if (link->dev) {
+	if (link->dev)
 		unregister_netdev(dev);
-		link->dev = NULL;
-	}
 
-	/* Don't bother checking to see if these succeed or not */
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int wl3501_suspend(struct pcmcia_device *p_dev)

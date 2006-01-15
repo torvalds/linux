@@ -348,22 +348,17 @@ failed:
 
 static void ibmtr_release(dev_link_t *link)
 {
-    ibmtr_dev_t *info = link->priv;
-    struct net_device *dev = info->dev;
+	ibmtr_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
 
-    DEBUG(0, "ibmtr_release(0x%p)\n", link);
+	DEBUG(0, "ibmtr_release(0x%p)\n", link);
 
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    if (link->win) {
-	struct tok_info *ti = netdev_priv(dev);
-	iounmap(ti->mmio);
-	pcmcia_release_window(link->win);
-	pcmcia_release_window(info->sram_win_handle);
-    }
-
-    link->state &= ~DEV_CONFIG;
+	if (link->win) {
+		struct tok_info *ti = netdev_priv(dev);
+		iounmap(ti->mmio);
+		pcmcia_release_window(info->sram_win_handle);
+	}
+	pcmcia_disable_device(link->handle);
 }
 
 static int ibmtr_suspend(struct pcmcia_device *p_dev)

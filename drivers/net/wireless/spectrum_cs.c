@@ -894,13 +894,7 @@ spectrum_cs_release(dev_link_t *link)
 	priv->hw_unavailable++;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Don't bother checking to see if these succeed or not */
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 	if (priv->hw.iobase)
 		ioport_unmap(priv->hw.iobase);
 }				/* spectrum_cs_release */

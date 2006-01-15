@@ -550,13 +550,7 @@ SYM53C500_release(dev_link_t *link)
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 
-	link->dev = NULL;
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 
 	scsi_host_put(shost);
 } /* SYM53C500_release */

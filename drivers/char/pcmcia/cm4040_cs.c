@@ -654,8 +654,7 @@ static int reader_resume(struct pcmcia_device *p_dev)
 static void reader_release(dev_link_t *link)
 {
 	cm4040_reader_release(link->priv);
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
+	pcmcia_disable_device(link->handle);
 }
 
 static int reader_attach(struct pcmcia_device *p_dev)

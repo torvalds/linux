@@ -674,16 +674,8 @@ static int fmvj18x_setup_mfc(dev_link_t *link)
 
 static void fmvj18x_release(dev_link_t *link)
 {
-
-    DEBUG(0, "fmvj18x_release(0x%p)\n", link);
-
-    /* Don't bother checking to see if these succeed or not */
-    pcmcia_release_window(link->win);
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    
-    link->state &= ~DEV_CONFIG;
+	DEBUG(0, "fmvj18x_release(0x%p)\n", link);
+	pcmcia_disable_device(link->handle);
 }
 
 static int fmvj18x_suspend(struct pcmcia_device *p_dev)

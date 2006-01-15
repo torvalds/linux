@@ -839,13 +839,7 @@ static void bt3c_release(dev_link_t *link)
 	if (link->state & DEV_PRESENT)
 		bt3c_close(info);
 
-	link->dev = NULL;
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int bt3c_suspend(struct pcmcia_device *dev)

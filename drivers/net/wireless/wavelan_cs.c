@@ -4098,24 +4098,18 @@ wv_pcmcia_config(dev_link_t *	link)
 static void
 wv_pcmcia_release(dev_link_t *link)
 {
-  struct net_device *	dev = (struct net_device *) link->priv;
-  net_local *		lp = netdev_priv(dev);
+	struct net_device *	dev = (struct net_device *) link->priv;
+	net_local *		lp = netdev_priv(dev);
 
 #ifdef DEBUG_CONFIG_TRACE
-  printk(KERN_DEBUG "%s: -> wv_pcmcia_release(0x%p)\n", dev->name, link);
+	printk(KERN_DEBUG "%s: -> wv_pcmcia_release(0x%p)\n", dev->name, link);
 #endif
 
-  /* Don't bother checking to see if these succeed or not */
-  iounmap(lp->mem);
-  pcmcia_release_window(link->win);
-  pcmcia_release_configuration(link->handle);
-  pcmcia_release_io(link->handle, &link->io);
-  pcmcia_release_irq(link->handle, &link->irq);
-
-  link->state &= ~DEV_CONFIG;
+	iounmap(lp->mem);
+	pcmcia_disable_device(link->handle);
 
 #ifdef DEBUG_CONFIG_TRACE
-  printk(KERN_DEBUG "%s: <- wv_pcmcia_release()\n", dev->name);
+	printk(KERN_DEBUG "%s: <- wv_pcmcia_release()\n", dev->name);
 #endif
 }
 

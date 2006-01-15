@@ -451,20 +451,20 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 {
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
 	struct pcmcia_socket *s = p_dev->socket;
+	config_t *c = p_dev->function_config;
 	int i;
 
-	if (!(p_dev->state & CLIENT_CONFIG_LOCKED))
-		return CS_BAD_HANDLE;
-	p_dev->state &= ~CLIENT_CONFIG_LOCKED;
-
-	if (!(p_dev->state & CLIENT_STALE)) {
-		config_t *c = p_dev->function_config;
+	if (p_dev->state & CLIENT_CONFIG_LOCKED) {
+		p_dev->state &= ~CLIENT_CONFIG_LOCKED;
 		if (--(s->lock_count) == 0) {
 			s->socket.flags = SS_OUTPUT_ENA;   /* Is this correct? */
 			s->socket.Vpp = 0;
 			s->socket.io_irq = 0;
 			s->ops->set_socket(s, &s->socket);
 		}
+	}
+	if (c->state & CONFIG_LOCKED) {
+		c->state &= ~CONFIG_LOCKED;
 		if (c->state & CONFIG_IO_REQ)
 			for (i = 0; i < MAX_IO_WIN; i++) {
 				if (!s->io[i].res)
@@ -475,7 +475,6 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 				io.map = i;
 				s->ops->set_io_map(s, &io);
 			}
-		c->state &= ~CONFIG_LOCKED;
 	}
 
 	return CS_SUCCESS;
@@ -494,22 +493,20 @@ EXPORT_SYMBOL(pcmcia_release_configuration);
 int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
+	config_t *c = p_dev->function_config;
 
 	if (!(p_dev->state & CLIENT_IO_REQ))
 		return CS_BAD_HANDLE;
+
 	p_dev->state &= ~CLIENT_IO_REQ;
 
-	if (!(p_dev->state & CLIENT_STALE)) {
-		config_t *c = p_dev->function_config;
-		if (c->state & CONFIG_LOCKED)
-			return CS_CONFIGURATION_LOCKED;
-		if ((c->io.BasePort1 != req->BasePort1) ||
-		    (c->io.NumPorts1 != req->NumPorts1) ||
-		    (c->io.BasePort2 != req->BasePort2) ||
-		    (c->io.NumPorts2 != req->NumPorts2))
-			return CS_BAD_ARGS;
-		c->state &= ~CONFIG_IO_REQ;
-	}
+	if ((c->io.BasePort1 != req->BasePort1) ||
+	    (c->io.NumPorts1 != req->NumPorts1) ||
+	    (c->io.BasePort2 != req->BasePort2) ||
+	    (c->io.NumPorts2 != req->NumPorts2))
+		return CS_BAD_ARGS;
+
+	c->state &= ~CONFIG_IO_REQ;
 
 	release_io_space(s, req->BasePort1, req->NumPorts1);
 	if (req->NumPorts2)
@@ -523,22 +520,21 @@ EXPORT_SYMBOL(pcmcia_release_io);
 int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
+	config_t *c= p_dev->function_config;
+
 	if (!(p_dev->state & CLIENT_IRQ_REQ))
 		return CS_BAD_HANDLE;
 	p_dev->state &= ~CLIENT_IRQ_REQ;
 
-	if (!(p_dev->state & CLIENT_STALE)) {
-		config_t *c= p_dev->function_config;
-		if (c->state & CONFIG_LOCKED)
-			return CS_CONFIGURATION_LOCKED;
-		if (c->irq.Attributes != req->Attributes)
-			return CS_BAD_ATTRIBUTE;
-		if (s->irq.AssignedIRQ != req->AssignedIRQ)
-			return CS_BAD_IRQ;
-		if (--s->irq.Config == 0) {
-			c->state &= ~CONFIG_IRQ_REQ;
-			s->irq.AssignedIRQ = 0;
-		}
+	if (c->state & CONFIG_LOCKED)
+		return CS_CONFIGURATION_LOCKED;
+	if (c->irq.Attributes != req->Attributes)
+		return CS_BAD_ATTRIBUTE;
+	if (s->irq.AssignedIRQ != req->AssignedIRQ)
+		return CS_BAD_IRQ;
+	if (--s->irq.Config == 0) {
+		c->state &= ~CONFIG_IRQ_REQ;
+		s->irq.AssignedIRQ = 0;
 	}
 
 	if (req->Attributes & IRQ_HANDLE_PRESENT) {
@@ -929,3 +925,18 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	return CS_SUCCESS;
 } /* pcmcia_request_window */
 EXPORT_SYMBOL(pcmcia_request_window);
+
+void pcmcia_disable_device(struct pcmcia_device *p_dev) {
+	if (!p_dev->instance)
+		return;
+
+	pcmcia_release_configuration(p_dev);
+	pcmcia_release_io(p_dev, &p_dev->instance->io);
+	pcmcia_release_irq(p_dev, &p_dev->instance->irq);
+	if (&p_dev->instance->win)
+		pcmcia_release_window(p_dev->instance->win);
+
+	p_dev->instance->dev = NULL;
+	p_dev->instance->state &= ~DEV_CONFIG;
+}
+EXPORT_SYMBOL(pcmcia_disable_device);

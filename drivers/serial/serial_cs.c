@@ -141,11 +141,8 @@ static void serial_remove(dev_link_t *link)
 
 		info->link.dev = NULL;
 
-		if (!info->slave) {
-			pcmcia_release_configuration(info->link.handle);
-			pcmcia_release_io(info->link.handle, &info->link.io);
-			pcmcia_release_irq(info->link.handle, &info->link.irq);
-		}
+		if (!info->slave)
+			pcmcia_disable_device(link->handle);
 
 		info->link.state &= ~DEV_CONFIG;
 	}

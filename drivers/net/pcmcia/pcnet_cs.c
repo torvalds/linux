@@ -732,19 +732,14 @@ failed:
 
 static void pcnet_release(dev_link_t *link)
 {
-    pcnet_dev_t *info = PRIV(link->priv);
+	pcnet_dev_t *info = PRIV(link->priv);
 
-    DEBUG(0, "pcnet_release(0x%p)\n", link);
+	DEBUG(0, "pcnet_release(0x%p)\n", link);
 
-    if (info->flags & USE_SHMEM) {
-	iounmap(info->base);
-	pcmcia_release_window(link->win);
-    }
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
+	if (info->flags & USE_SHMEM)
+		iounmap(info->base);
 
-    link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 /*======================================================================

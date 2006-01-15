@@ -1090,21 +1090,15 @@ xirc2ps_config(dev_link_t * link)
 static void
 xirc2ps_release(dev_link_t *link)
 {
+	DEBUG(0, "release(0x%p)\n", link);
 
-    DEBUG(0, "release(0x%p)\n", link);
-
-    if (link->win) {
-	struct net_device *dev = link->priv;
-	local_info_t *local = netdev_priv(dev);
-	if (local->dingo)
-	    iounmap(local->dingo_ccr - 0x0800);
-	pcmcia_release_window(link->win);
-    }
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
-
+	if (link->win) {
+		struct net_device *dev = link->priv;
+		local_info_t *local = netdev_priv(dev);
+		if (local->dingo)
+			iounmap(local->dingo_ccr - 0x0800);
+	}
+	pcmcia_disable_device(link->handle);
 } /* xirc2ps_release */
 
 /*====================================================================*/

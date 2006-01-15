@@ -804,16 +804,7 @@ static void prism2_release(u_long arg)
 		iface->local->shutdown = 1;
 	}
 
-	if (link->win)
-		pcmcia_release_window(link->win);
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-
-	link->state &= ~DEV_CONFIG;
-
+	pcmcia_disable_device(link->handle);
 	PDEBUG(DEBUG_FLOW, "release - done\n");
 }
 

@@ -1181,20 +1181,13 @@ config_failed:			/* CS_EXIT_TEST() calls jump to here... */
 
 static void smc91c92_release(dev_link_t *link)
 {
-
-    DEBUG(0, "smc91c92_release(0x%p)\n", link);
-
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    if (link->win) {
-	struct net_device *dev = link->priv;
-	struct smc_private *smc = netdev_priv(dev);
-	iounmap(smc->base);
-	pcmcia_release_window(link->win);
-    }
-
-    link->state &= ~DEV_CONFIG;
+	DEBUG(0, "smc91c92_release(0x%p)\n", link);
+	if (link->win) {
+		struct net_device *dev = link->priv;
+		struct smc_private *smc = netdev_priv(dev);
+		iounmap(smc->base);
+	}
+	pcmcia_disable_device(link->handle);
 }
 
 /*======================================================================

@@ -377,16 +377,8 @@ failed:
 
 static void com20020_release(dev_link_t *link)
 {
-
-    DEBUG(1,"release...\n");
-
-    DEBUG(0, "com20020_release(0x%p)\n", link);
-
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+	DEBUG(0, "com20020_release(0x%p)\n", link);
+	pcmcia_disable_device(link->handle);
 }
 
 static int com20020_suspend(struct pcmcia_device *p_dev)

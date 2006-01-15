@@ -289,6 +289,7 @@ out:
 cs_failed:
 	cs_error(link->handle, last_fn, last_ret);
 	link->dev = NULL;
+
 	pcmcia_release_configuration(link->handle);
 	pcmcia_release_io(link->handle, &link->io);
 	pcmcia_release_irq(link->handle, &link->irq);
@@ -306,17 +307,11 @@ static void qlogic_release(dev_link_t *link)
 	DEBUG(0, "qlogic_release(0x%p)\n", link);
 
 	scsi_remove_host(info->host);
-	link->dev = NULL;
 
 	free_irq(link->irq.AssignedIRQ, info->host);
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
+	pcmcia_disable_device(link->handle);
 
 	scsi_host_put(info->host);
-
-	link->state &= ~DEV_CONFIG;
 }
 
 /*====================================================================*/

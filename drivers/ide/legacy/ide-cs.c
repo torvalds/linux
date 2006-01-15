@@ -369,14 +369,8 @@ void ide_release(dev_link_t *link)
 	ide_unregister(info->hd);
     }
     info->ndev = 0;
-    link->dev = NULL;
-    
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    
-    link->state &= ~DEV_CONFIG;
 
+    pcmcia_disable_device(link->handle);
 } /* ide_release */
 
 static int ide_suspend(struct pcmcia_device *dev)

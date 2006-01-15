@@ -367,16 +367,8 @@ found_port:
 
 static void avmcs_release(dev_link_t *link)
 {
-    b1pcmcia_delcard(link->io.BasePort1, link->irq.AssignedIRQ);
-
-    /* Unlink the device chain */
-    link->dev = NULL;
-    
-    /* Don't bother checking to see if these succeed or not */
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
+	b1pcmcia_delcard(link->io.BasePort1, link->irq.AssignedIRQ);
+	pcmcia_disable_device(link->handle);
 } /* avmcs_release */
 
 static int avmcs_suspend(struct pcmcia_device *dev)

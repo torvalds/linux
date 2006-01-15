@@ -429,24 +429,7 @@ static void airo_config(dev_link_t *link)
 static void airo_release(dev_link_t *link)
 {
 	DEBUG(0, "airo_release(0x%p)\n", link);
-	
-	/* Unlink the device chain */
-	link->dev = NULL;
-	
-	/*
-	  In a normal driver, additional code may be needed to release
-	  other kernel data structures associated with this device. 
-	*/
-	
-	/* Don't bother checking to see if these succeed or not */
-	if (link->win)
-		pcmcia_release_window(link->win);
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int airo_suspend(struct pcmcia_device *p_dev)

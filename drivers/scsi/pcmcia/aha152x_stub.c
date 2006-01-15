@@ -248,13 +248,7 @@ static void aha152x_release_cs(dev_link_t *link)
 	scsi_info_t *info = link->priv;
 
 	aha152x_release(info->host);
-	link->dev = NULL;
-    
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-    
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int aha152x_suspend(struct pcmcia_device *dev)

@@ -869,21 +869,14 @@ failed:
  */
 static void netwave_release(dev_link_t *link)
 {
-    struct net_device *dev = link->priv;
-    netwave_private *priv = netdev_priv(dev);
+	struct net_device *dev = link->priv;
+	netwave_private *priv = netdev_priv(dev);
 
-    DEBUG(0, "netwave_release(0x%p)\n", link);
+	DEBUG(0, "netwave_release(0x%p)\n", link);
 
-    /* Don't bother checking to see if these succeed or not */
-    if (link->win) {
-	iounmap(priv->ramBase);
-	pcmcia_release_window(link->win);
-    }
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-
-    link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
+	if (link->win)
+		iounmap(priv->ramBase);
 }
 
 static int netwave_suspend(struct pcmcia_device *p_dev)

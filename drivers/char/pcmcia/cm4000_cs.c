@@ -1899,8 +1899,7 @@ static int cm4000_resume(struct pcmcia_device *p_dev)
 static void cm4000_release(dev_link_t *link)
 {
 	cmm_cm4000_release(link->priv);	/* delay release until device closed */
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
+	pcmcia_disable_device(link->handle);
 }
 
 static int cm4000_attach(struct pcmcia_device *p_dev)

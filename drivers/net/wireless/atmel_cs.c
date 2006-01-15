@@ -418,23 +418,14 @@ static void atmel_config(dev_link_t *link)
 static void atmel_release(dev_link_t *link)
 {
 	struct net_device *dev = ((local_info_t*)link->priv)->eth_dev;
-		
+
 	DEBUG(0, "atmel_release(0x%p)\n", link);
-	
-	/* Unlink the device chain */
-	link->dev = NULL;
-	
-	if (dev) 
+
+	if (dev)
 		stop_atmel_card(dev);
-	((local_info_t*)link->priv)->eth_dev = NULL; 
-	
-	/* Don't bother checking to see if these succeed or not */
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	((local_info_t*)link->priv)->eth_dev = NULL;
+
+	pcmcia_disable_device(link->handle);
 }
 
 static int atmel_suspend(struct pcmcia_device *dev)

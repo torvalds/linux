@@ -386,13 +386,7 @@ failed:
 
 static void tc589_release(dev_link_t *link)
 {
-    DEBUG(0, "3c589_release(0x%p)\n", link);
-    
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    
-    link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 static int tc589_suspend(struct pcmcia_device *p_dev)
