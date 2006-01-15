@@ -19,6 +19,7 @@ struct tuner_range {
 
 struct tuner_params {
 	enum param_type type;
+	unsigned int tda988x;
 	unsigned char config; /* to be moved into struct tuner_range for dvb-pll merge */
 
 	unsigned int count;
@@ -27,7 +28,6 @@ struct tuner_params {
 
 struct tunertype {
 	char *name;
-	unsigned int has_tda988x:1;
 	struct tuner_params *params;
 };
 
