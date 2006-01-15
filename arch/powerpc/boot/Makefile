@@ -27,6 +27,7 @@ BOOTCFLAGS	:= $(HOSTCFLAGS) -fno-builtin -nostdinc -isystem \
 BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -traditional -nostdinc
 OBJCOPYFLAGS    := contents,alloc,load,readonly,data
 OBJCOPY_COFF_ARGS := -O aixcoff-rs6000 --set-start 0x500000
+OBJCOPY_MIB_ARGS  := -O aixcoff-rs6000 -R .stab -R .stabstr -R .comment
 
 zlib       := infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c
 zlibheader := infblock.h infcodes.h inffast.h inftrees.h infutil.h
@@ -90,11 +91,11 @@ gz-sec  = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.gz, $(section)))
 hostprogs-y		:= addnote addRamDisk hack-coff
 
 targets += zImage.vmode zImage.initrd.vmode zImage zImage.initrd \
-	   zImage.coff zImage.initrd.coff \
+	   zImage.coff zImage.initrd.coff miboot.image miboot.initrd.image \
 	   $(patsubst $(obj)/%,%, $(call obj-sec, $(required) $(initrd))) \
 	   $(patsubst $(obj)/%,%, $(call src-sec, $(required) $(initrd))) \
 	   $(patsubst $(obj)/%,%, $(call gz-sec, $(required) $(initrd))) \
-	   vmlinux.initrd
+	   vmlinux.initrd dummy.o
 extra-y			:= initrd.o
 
 quiet_cmd_ramdisk = RAMDISK $@
@@ -115,6 +116,10 @@ quiet_cmd_addsection = ADDSEC  $@
 
 quiet_cmd_addnote = ADDNOTE $@
       cmd_addnote = $(obj)/addnote $@
+
+quiet_cmd_gen-miboot = GEN     $@
+      cmd_gen-miboot = $(OBJCOPY) $(OBJCOPY_MIB_ARGS) \
+		       --add-section=$1=$(word 2, $^) $< $@
 
 quiet_cmd_gencoff = COFF    $@
       cmd_gencoff = $(OBJCOPY) $(OBJCOPY_COFF_ARGS) $@ && \
@@ -141,19 +146,25 @@ $(obj)/zImage.initrd.vmode $(obj)/zImage.initrd.coff: obj-boot += $(call obj-sec
 $(obj)/zImage.initrd.vmode: $(call obj-sec, $(required) $(initrd)) $(obj-boot) $(srctree)/$(src)/zImage.lds
 	$(call cmd,bootld,$(obj-boot),zImage.lds)
 
-# For 32-bit powermacs, build the COFF images as well as the ELF images.
+# For 32-bit powermacs, build the COFF and miboot images
+# as well as the ELF images.
 coffimage-$(CONFIG_PPC_PMAC)-$(CONFIG_PPC32) := $(obj)/zImage.coff
 coffrdimg-$(CONFIG_PPC_PMAC)-$(CONFIG_PPC32) := $(obj)/zImage.initrd.coff
+mibootimg-$(CONFIG_PPC_PMAC)-$(CONFIG_PPC32) := $(obj)/miboot.image
+mibrdimg-$(CONFIG_PPC_PMAC)-$(CONFIG_PPC32)  := $(obj)/miboot.initrd.image
 
-$(obj)/zImage: $(obj)/zImage.vmode $(obj)/addnote $(coffimage-y-y)
+$(obj)/zImage: $(obj)/zImage.vmode $(obj)/addnote $(coffimage-y-y) \
+			$(mibootimg-y-y)
 	@cp -f $< $@
 	$(call if_changed,addnote)
 
-$(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote $(coffrdimg-y-y)
+$(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote \
+			$(coffrdimg-y-y) $(mibrdimg-y-y)
 	@cp -f $< $@
 	$(call if_changed,addnote)
 
-$(obj)/zImage.coff: $(call obj-sec, $(required)) $(obj-boot) $(srctree)/$(src)/zImage.coff.lds $(obj)/hack-coff
+$(obj)/zImage.coff: $(call obj-sec, $(required)) $(obj-boot) \
+			$(srctree)/$(src)/zImage.coff.lds $(obj)/hack-coff
 	$(call cmd,bootld,$(obj-boot),zImage.coff.lds)
 	$(call cmd,gencoff)
 
@@ -161,6 +172,12 @@ $(obj)/zImage.initrd.coff: $(call obj-sec, $(required) $(initrd)) $(obj-boot) \
 			   $(srctree)/$(src)/zImage.coff.lds $(obj)/hack-coff
 	$(call cmd,bootld,$(obj-boot),zImage.coff.lds)
 	$(call cmd,gencoff)
+
+$(obj)/miboot.image: $(obj)/dummy.o $(obj)/vmlinux.gz
+	$(call cmd,gen-miboot,image)
+
+$(obj)/miboot.initrd.image: $(obj)/miboot.image $(images)/ramdisk.image.gz
+	$(call cmd,gen-miboot,initrd)
 
 #-----------------------------------------------------------
 # build u-boot images
