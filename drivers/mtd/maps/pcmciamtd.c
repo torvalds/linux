@@ -353,8 +353,7 @@ static void pcmciamtd_release(dev_link_t *link)
 		}
 		pcmcia_release_window(link->win);
 	}
-	pcmcia_release_configuration(link->handle);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link->handle);
 }
 
 

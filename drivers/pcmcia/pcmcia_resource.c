@@ -442,6 +442,28 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		   (mod->Attributes & CONF_VPP2_CHANGE_VALID))
 		return CS_BAD_VPP;
 
+	if (mod->Attributes & CONF_IO_CHANGE_WIDTH) {
+		pccard_io_map io_off = { 0, 0, 0, 0, 1 };
+		pccard_io_map io_on;
+		int i;
+
+		io_on.speed = io_speed;
+		for (i = 0; i < MAX_IO_WIN; i++) {
+			if (!s->io[i].res)
+				continue;
+			io_off.map = i;
+			io_on.map = i;
+
+			io_on.flags = MAP_ACTIVE | IO_DATA_PATH_WIDTH_8;
+			io_on.start = s->io[i].res->start;
+			io_on.stop = s->io[i].res->end;
+
+			s->ops->set_io_map(s, &io_off);
+			mdelay(40);
+			s->ops->set_io_map(s, &io_on);
+		}
+	}
+
 	return CS_SUCCESS;
 } /* modify_configuration */
 EXPORT_SYMBOL(pcmcia_modify_configuration);
@@ -479,7 +501,6 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 
 	return CS_SUCCESS;
 } /* pcmcia_release_configuration */
-EXPORT_SYMBOL(pcmcia_release_configuration);
 
 
 /** pcmcia_release_io

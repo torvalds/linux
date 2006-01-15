@@ -116,10 +116,11 @@ typedef struct modconf_t {
 } modconf_t;
 
 /* Attributes for ModifyConfiguration */
-#define CONF_IRQ_CHANGE_VALID	0x100
-#define CONF_VCC_CHANGE_VALID	0x200
-#define CONF_VPP1_CHANGE_VALID	0x400
-#define CONF_VPP2_CHANGE_VALID	0x800
+#define CONF_IRQ_CHANGE_VALID	0x0100
+#define CONF_VCC_CHANGE_VALID	0x0200
+#define CONF_VPP1_CHANGE_VALID	0x0400
+#define CONF_VPP2_CHANGE_VALID	0x0800
+#define CONF_IO_CHANGE_WIDTH	0x1000
 
 /* For RequestConfiguration */
 typedef struct config_req_t {
@@ -378,7 +379,6 @@ int pcmcia_get_status(struct pcmcia_device *p_dev, cs_status_t *status);
 int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
-int pcmcia_release_configuration(struct pcmcia_device *p_dev);
 int pcmcia_release_window(window_handle_t win);
 int pcmcia_request_configuration(struct pcmcia_device *p_dev, config_req_t *req);
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);

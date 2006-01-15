@@ -8,6 +8,8 @@ extern void pcmcia_put_dev(struct pcmcia_device *p_dev);
 
 struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int function);
 
+extern int pcmcia_release_configuration(struct pcmcia_device *p_dev);
+
 #ifdef CONFIG_PCMCIA_IOCTL
 extern void __init pcmcia_setup_ioctl(void);
 extern void __exit pcmcia_cleanup_ioctl(void);

@@ -874,11 +874,8 @@ static int smc91c92_suspend(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	if (link->state & DEV_CONFIG) {
-		if (link->open)
-			netif_device_detach(dev);
-		pcmcia_release_configuration(link->handle);
-	}
+	if ((link->state & DEV_CONFIG) && (link->open))
+		netif_device_detach(dev);
 
 	return 0;
 }
@@ -894,7 +891,6 @@ static int smc91c92_resume(struct pcmcia_device *p_dev)
 		if ((smc->manfid == MANFID_MEGAHERTZ) &&
 		    (smc->cardid == PRODID_MEGAHERTZ_EM3288))
 			mhz_3288_power(link);
-		pcmcia_request_configuration(link->handle, &link->conf);
 		if (smc->manfid == MANFID_MOTOROLA)
 			mot_config(link);
 		if ((smc->manfid == MANFID_OSITECH) &&
@@ -963,18 +959,15 @@ static int check_sig(dev_link_t *link)
     }
 
     if (width) {
-	printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
-	/* call pcmcia_release_configuration() in _suspend */
-	smc91c92_suspend(link->handle);
+	    modconf_t mod = {
+		    .Attributes = CONF_IO_CHANGE_WIDTH,
+	    };
+	    printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->handle->socket->io[0].res->flags &= ~IO_DATA_PATH_WIDTH;
-	link->handle->socket->io[0].res->flags |= IO_DATA_PATH_WIDTH_8;
-
-	/* call pcmcia_request_configuration() in _resume, it handles the
-	 * flag update */
-	smc91c92_resume(link->handle);
-	return check_sig(link);
+	    smc91c92_suspend(link->handle);
+	    pcmcia_modify_configuration(link->handle, &mod);
+	    smc91c92_resume(link->handle);
+	    return check_sig(link);
     }
     return -ENODEV;
 }
