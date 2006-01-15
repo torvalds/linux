@@ -25,6 +25,7 @@
 #endif
 
 ENTRY(__muldi3)
+ENTRY(__aeabi_lmul)
 
 	mul	xh, yl, xh
 	mla	xh, xl, yh, xh

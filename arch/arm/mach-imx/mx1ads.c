@@ -69,7 +69,6 @@ mx1ads_map_io(void)
 
 MACHINE_START(MX1ADS, "Motorola MX1ADS")
 	/* Maintainer: Sascha Hauer, Pengutronix */
-	.phys_ram	= 0x08000000,
 	.phys_io	= 0x00200000,
 	.io_pg_offst	= ((0xe0200000) >> 18) & 0xfffc,
 	.boot_params	= 0x08000100,

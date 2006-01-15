@@ -206,6 +206,7 @@ Boston, MA 02111-1307, USA.  */
 
 
 ENTRY(__udivsi3)
+ENTRY(__aeabi_uidiv)
 
 	subs	r2, r1, #1
 	moveq	pc, lr
@@ -246,6 +247,7 @@ ENTRY(__umodsi3)
 
 
 ENTRY(__divsi3)
+ENTRY(__aeabi_idiv)
 
 	cmp	r1, #0
 	eor	ip, r0, r1			@ save the sign of the result.
@@ -303,12 +305,33 @@ ENTRY(__modsi3)
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
+#ifdef CONFIG_AEABI
+
+ENTRY(__aeabi_uidivmod)
+
+	stmfd	sp!, {r0, r1, ip, lr}
+	bl	__aeabi_uidiv
+	ldmfd	sp!, {r1, r2, ip, lr}
+	mul	r3, r0, r2
+	sub	r1, r1, r3
+	mov	pc, lr
+
+ENTRY(__aeabi_idivmod)
+
+	stmfd	sp!, {r0, r1, ip, lr}
+	bl	__aeabi_idiv
+	ldmfd	sp!, {r1, r2, ip, lr}
+	mul	r3, r0, r2
+	sub	r1, r1, r3
+	mov	pc, lr
+
+#endif
 
 Ldiv0:
 
-	str	lr, [sp, #-4]!
+	str	lr, [sp, #-8]!
 	bl	__div0
 	mov	r0, #0			@ About as wrong as it could be.
-	ldr	pc, [sp], #4
+	ldr	pc, [sp], #8
 
 

@@ -195,7 +195,6 @@ extern void iq80332_map_io(void);
 #if defined(CONFIG_ARCH_IQ80331)
 MACHINE_START(IQ80331, "Intel IQ80331")
 	/* Maintainer: Intel Corp. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= 0xfefff000,
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc, // virtual, physical
 	.map_io		= iq80331_map_io,
@@ -208,7 +207,6 @@ MACHINE_END
 #elif defined(CONFIG_MACH_IQ80332)
 MACHINE_START(IQ80332, "Intel IQ80332")
 	/* Maintainer: Intel Corp. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= 0xfefff000,
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc, // virtual, physical
 	.map_io		= iq80332_map_io,

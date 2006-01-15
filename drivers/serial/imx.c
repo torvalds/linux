@@ -499,7 +499,7 @@ imx_set_termios(struct uart_port *port, struct termios *termios,
 		ucr2 |= UCR2_STPB;
 	if (termios->c_cflag & PARENB) {
 		ucr2 |= UCR2_PREN;
-		if (!(termios->c_cflag & PARODD))
+		if (termios->c_cflag & PARODD)
 			ucr2 |= UCR2_PROE;
 	}
 

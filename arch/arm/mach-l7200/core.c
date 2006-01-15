@@ -91,7 +91,6 @@ static void __init l7200_map_io(void)
 
 MACHINE_START(L7200, "LinkUp Systems L7200")
 	/* Maintainer: Steve Hill / Scott McConnell */
-	.phys_ram	= 0xf0000000,
 	.phys_io	= 0x80040000,
 	.io_pg_offst	= ((0xd0000000) >> 18) & 0xfffc,
 	.map_io		= l7200_map_io,

@@ -151,7 +151,6 @@ extern void iop321_init_time(void);
 #if defined(CONFIG_ARCH_IQ80321)
 MACHINE_START(IQ80321, "Intel IQ80321")
 	/* Maintainer: Intel Corporation */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IQ80321_UART,
 	.io_pg_offst	= ((IQ80321_UART) >> 18) & 0xfffc,
 	.map_io		= iq80321_map_io,
@@ -163,7 +162,6 @@ MACHINE_END
 #elif defined(CONFIG_ARCH_IQ31244)
 MACHINE_START(IQ31244, "Intel IQ31244")
 	/* Maintainer: Intel Corp. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IQ31244_UART,
 	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
 	.map_io		= iq31244_map_io,
