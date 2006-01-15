@@ -847,7 +847,7 @@ config SERIAL_M32R_SIO_CONSOLE
 
 config SERIAL_M32R_PLDSIO
 	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PALT_USRV || PLAT_M32700UT)
+	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
 	default n
 	help
 	  Say Y here if you want to use the M32R serial controller
