@@ -258,8 +258,10 @@ void __devinit pcibios_resource_to_bus(struct pci_dev *dev,
 void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 			      struct pci_bus_region *region)
 {
+#ifdef CONFIG_64BIT
 	struct pci_bus *bus = dev->bus;
 	struct pci_hba_data *hba = HBA_DATA(bus->bridge->platform_data);
+#endif
 
 	if (res->flags & IORESOURCE_MEM) {
 		res->start = PCI_HOST_ADDR(hba, region->start);
