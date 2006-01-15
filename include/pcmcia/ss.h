@@ -153,8 +153,6 @@ extern struct pccard_resource_ops pccard_nonstatic_ops;
 struct pcmcia_socket;
 
 typedef struct io_window_t {
-	u_int			Attributes;
-	kio_addr_t		BasePort, NumPorts;
 	kio_addr_t		InUse, Config;
 	struct resource		*res;
 } io_window_t;

@@ -88,7 +88,7 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	}
 	if ((s->features & SS_CAP_STATIC_MAP) && s->io_offset) {
 		*base = s->io_offset | (*base & 0x0fff);
-		s->io[0].Attributes = attr;
+		s->io[0].res->flags = (s->io[0].res->flags & ~IORESOURCE_BITS) | (attr & IORESOURCE_BITS);
 		return 0;
 	}
 	/* Check for an already-allocated window that must conflict with
@@ -96,38 +96,36 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	 * potential conflicts, just the most obvious ones.
 	 */
 	for (i = 0; i < MAX_IO_WIN; i++)
-		if ((s->io[i].NumPorts != 0) &&
-		    ((s->io[i].BasePort & (align-1)) == *base))
+		if ((s->io[i].res) &&
+		    ((s->io[i].res->start & (align-1)) == *base))
 			return 1;
 	for (i = 0; i < MAX_IO_WIN; i++) {
-		if (s->io[i].NumPorts == 0) {
+		if (!s->io[i].res) {
 			s->io[i].res = pcmcia_find_io_region(*base, num, align, s);
 			if (s->io[i].res) {
-				s->io[i].Attributes = attr;
-				s->io[i].BasePort = *base = s->io[i].res->start;
-				s->io[i].NumPorts = s->io[i].InUse = num;
+				*base = s->io[i].res->start;
+				s->io[i].res->flags = (s->io[i].res->flags & ~IORESOURCE_BITS) | (attr & IORESOURCE_BITS);
+				s->io[i].InUse = num;
 				break;
 			} else
 				return 1;
-		} else if (s->io[i].Attributes != attr)
+		} else if ((s->io[i].res->flags & IORESOURCE_BITS) != (attr & IORESOURCE_BITS))
 			continue;
 		/* Try to extend top of window */
-		try = s->io[i].BasePort + s->io[i].NumPorts;
+		try = s->io[i].res->end + 1;
 		if ((*base == 0) || (*base == try))
 			if (pcmcia_adjust_io_region(s->io[i].res, s->io[i].res->start,
 						    s->io[i].res->end + num, s) == 0) {
 				*base = try;
-				s->io[i].NumPorts += num;
 				s->io[i].InUse += num;
 				break;
 			}
 		/* Try to extend bottom of window */
-		try = s->io[i].BasePort - num;
+		try = s->io[i].res->start - num;
 		if ((*base == 0) || (*base == try))
 			if (pcmcia_adjust_io_region(s->io[i].res, s->io[i].res->start - num,
 						    s->io[i].res->end, s) == 0) {
-				s->io[i].BasePort = *base = try;
-				s->io[i].NumPorts += num;
+				*base = try;
 				s->io[i].InUse += num;
 				break;
 			}
@@ -142,12 +140,13 @@ static void release_io_space(struct pcmcia_socket *s, ioaddr_t base,
 	int i;
 
 	for (i = 0; i < MAX_IO_WIN; i++) {
-		if ((s->io[i].BasePort <= base) &&
-		    (s->io[i].BasePort+s->io[i].NumPorts >= base+num)) {
+		if (!s->io[i].res)
+			continue;
+		if ((s->io[i].res->start <= base) &&
+		    (s->io[i].res->end >= base+num-1)) {
 			s->io[i].InUse -= num;
 			/* Free the window if no one else is using it */
 			if (s->io[i].InUse == 0) {
-				s->io[i].NumPorts = 0;
 				release_resource(s->io[i].res);
 				kfree(s->io[i].res);
 				s->io[i].res = NULL;
@@ -224,8 +223,8 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 			config->AssignedIRQ = s->irq.AssignedIRQ;
 			if (config->AssignedIRQ)
 				config->Attributes |= CONF_ENABLE_IRQ;
-			config->BasePort1 = s->io[0].BasePort;
-			config->NumPorts1 = s->io[0].NumPorts;
+			config->BasePort1 = s->io[0].res->start;
+			config->NumPorts1 = s->io[0].res->end - config->BasePort1 + 1;
 		}
 		return CS_SUCCESS;
 	}
@@ -468,7 +467,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 		}
 		if (c->state & CONFIG_IO_REQ)
 			for (i = 0; i < MAX_IO_WIN; i++) {
-				if (s->io[i].NumPorts == 0)
+				if (!s->io[i].res)
 					continue;
 				s->io[i].Config--;
 				if (s->io[i].Config != 0)
@@ -679,10 +678,10 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	if (c->state & CONFIG_IO_REQ) {
 		iomap.speed = io_speed;
 		for (i = 0; i < MAX_IO_WIN; i++)
-			if (s->io[i].NumPorts != 0) {
+			if (s->io[i].res) {
 				iomap.map = i;
 				iomap.flags = MAP_ACTIVE;
-				switch (s->io[i].Attributes & IO_DATA_PATH_WIDTH) {
+				switch (s->io[i].res->flags & IO_DATA_PATH_WIDTH) {
 				case IO_DATA_PATH_WIDTH_16:
 					iomap.flags |= MAP_16BIT; break;
 				case IO_DATA_PATH_WIDTH_AUTO:
@@ -690,8 +689,8 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 				default:
 					break;
 				}
-				iomap.start = s->io[i].BasePort;
-				iomap.stop = iomap.start + s->io[i].NumPorts - 1;
+				iomap.start = s->io[i].res->start;
+				iomap.stop = s->io[i].res->end;
 				s->ops->set_io_map(s, &iomap);
 				s->io[i].Config++;
 			}
