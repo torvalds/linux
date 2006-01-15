@@ -995,7 +995,7 @@ test_interrupts (struct zoran *zr)
 static int __devinit
 zr36057_init (struct zoran *zr)
 {
-	unsigned long mem;
+	u32 *mem;
 	void *vdev;
 	unsigned mem_needed;
 	int j;
@@ -1058,10 +1058,10 @@ zr36057_init (struct zoran *zr)
 			"%s: zr36057_init() - kmalloc (STAT_COM) failed\n",
 			ZR_DEVNAME(zr));
 		kfree(vdev);
-		kfree((void *)mem);
+		kfree(mem);
 		return -ENOMEM;
 	}
-	zr->stat_com = (u32 *) mem;
+	zr->stat_com = mem;
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++) {
 		zr->stat_com[j] = 1;	/* mark as unavailable to zr36057 */
 	}
