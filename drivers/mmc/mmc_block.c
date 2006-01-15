@@ -462,9 +462,10 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	printk(KERN_INFO "%s: %s %s %luKiB %s\n",
+	printk(KERN_INFO "%s: %s %s %lluKiB %s\n",
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
-		get_capacity(md->disk) >> 1, md->read_only ? "(ro)" : "");
+		(unsigned long long)(get_capacity(md->disk) >> 1),
+		md->read_only ? "(ro)" : "");
 
 	mmc_set_drvdata(card, md);
 	add_disk(md->disk);
