@@ -1031,8 +1031,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 
 	default:
-		/* nothing */
-		break;
+		/* unknown */
+		return -EINVAL;
 	}
 	return 0;
 }
