@@ -21,6 +21,8 @@
 #include "cs_internal.h"
 
 
+#ifdef CONFIG_PCMCIA_IOCTL
+
 #ifdef CONFIG_PCMCIA_PROBE
 
 static int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
@@ -96,6 +98,8 @@ int pcmcia_adjust_resource_info(adjust_t *adj)
 	return (ret);
 }
 EXPORT_SYMBOL(pcmcia_adjust_resource_info);
+
+#endif
 
 int pcmcia_validate_mem(struct pcmcia_socket *s)
 {

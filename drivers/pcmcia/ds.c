@@ -835,9 +835,11 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 	struct pcmcia_driver * p_drv = to_pcmcia_drv(drv);
 	struct pcmcia_device_id *did = p_drv->id_table;
 
+#ifdef CONFIG_PCMCIA_IOCTL
 	/* matching by cardmgr */
 	if (p_dev->cardmgr == p_drv)
 		return 1;
+#endif
 
 	while (did && did->match_flags) {
 		if (pcmcia_devmatch(p_dev, did))

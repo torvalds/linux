@@ -183,10 +183,12 @@ struct pcmcia_device {
 
 	char *			prod_id[4];
 
+	struct device		dev;
+
+#ifdef CONFIG_PCMCIA_IOCTL
 	/* device driver wanted by cardmgr */
 	struct pcmcia_driver *	cardmgr;
-
-	struct device		dev;
+#endif
 };
 
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
