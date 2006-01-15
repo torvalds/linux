@@ -34,7 +34,6 @@
 #include <asm/system.h>
 #include <asm/pci-bridge.h>
 #include <asm/irq.h>
-#include <asm/pmac_feature.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/hw_irq.h>
@@ -58,7 +57,6 @@ extern void machine_check_exception(struct pt_regs *regs);
 extern void alignment_exception(struct pt_regs *regs);
 extern void program_check_exception(struct pt_regs *regs);
 extern void single_step_exception(struct pt_regs *regs);
-extern int pmac_newworld;
 extern int sys_sigreturn(struct pt_regs *regs);
 
 long long __ashrdi3(long long, int);
@@ -213,10 +211,6 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
-#ifdef CONFIG_PPC_PMAC
-EXPORT_SYMBOL(sys_ctrler);
-EXPORT_SYMBOL(pmac_newworld);
-#endif
 #ifdef CONFIG_PPC_OF
 EXPORT_SYMBOL(find_devices);
 EXPORT_SYMBOL(find_type_devices);
@@ -240,9 +234,6 @@ EXPORT_SYMBOL(of_node_put);
 #endif /* CONFIG_PPC_OF */
 #if defined(CONFIG_BOOTX_TEXT)
 EXPORT_SYMBOL(btext_update_display);
-#endif
-#if defined(CONFIG_SCSI) && defined(CONFIG_PPC_PMAC)
-EXPORT_SYMBOL(note_scsi_host);
 #endif
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(kd_mksound);
