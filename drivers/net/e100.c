@@ -592,7 +592,7 @@ static inline void e100_write_flush(struct nic *nic)
 	(void)readb(&nic->csr->scb.status);
 }
 
-static inline void e100_enable_irq(struct nic *nic)
+static void e100_enable_irq(struct nic *nic)
 {
 	unsigned long flags;
 
@@ -602,7 +602,7 @@ static inline void e100_enable_irq(struct nic *nic)
 	e100_write_flush(nic);
 }
 
-static inline void e100_disable_irq(struct nic *nic)
+static void e100_disable_irq(struct nic *nic)
 {
 	unsigned long flags;
 
@@ -791,7 +791,7 @@ static int e100_eeprom_save(struct nic *nic, u16 start, u16 count)
 
 #define E100_WAIT_SCB_TIMEOUT 20000 /* we might have to wait 100ms!!! */
 #define E100_WAIT_SCB_FAST 20       /* delay like the old code */
-static inline int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
+static int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -822,7 +822,7 @@ err_unlock:
 	return err;
 }
 
-static inline int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
+static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
 	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
 {
 	struct cb *cb;
@@ -1567,7 +1567,7 @@ static void e100_watchdog(unsigned long data)
 	mod_timer(&nic->watchdog, jiffies + E100_WATCHDOG_PERIOD);
 }
 
-static inline void e100_xmit_prepare(struct nic *nic, struct cb *cb,
+static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = nic->tx_command;
@@ -1617,7 +1617,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	return 0;
 }
 
-static inline int e100_tx_clean(struct nic *nic)
+static int e100_tx_clean(struct nic *nic)
 {
 	struct cb *cb;
 	int tx_cleaned = 0;
@@ -1728,7 +1728,7 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 }
 
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
-static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
+static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
 	if(!(rx->skb = dev_alloc_skb(RFD_BUF_LEN + NET_IP_ALIGN)))
 		return -ENOMEM;
@@ -1762,7 +1762,7 @@ static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 	return 0;
 }
 
-static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
+static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	unsigned int *work_done, unsigned int work_to_do)
 {
 	struct sk_buff *skb = rx->skb;
@@ -1822,7 +1822,7 @@ static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	return 0;
 }
 
-static inline void e100_rx_clean(struct nic *nic, unsigned int *work_done,
+static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 	unsigned int work_to_do)
 {
 	struct rx *rx;

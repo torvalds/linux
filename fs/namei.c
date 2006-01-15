@@ -113,7 +113,7 @@
  * POSIX.1 2.4: an empty pathname is invalid (ENOENT).
  * PATH_MAX includes the nul terminator --RR.
  */
-static inline int do_getname(const char __user *filename, char *page)
+static int do_getname(const char __user *filename, char *page)
 {
 	int retval;
 	unsigned long len = PATH_MAX;
@@ -396,7 +396,7 @@ static struct dentry * cached_lookup(struct dentry * parent, struct qstr * name,
  * short-cut DAC fails, then call permission() to do more
  * complete permission check.
  */
-static inline int exec_permission_lite(struct inode *inode,
+static int exec_permission_lite(struct inode *inode,
 				       struct nameidata *nd)
 {
 	umode_t	mode = inode->i_mode;
@@ -486,7 +486,7 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 static int __emul_lookup_dentry(const char *, struct nameidata *);
 
 /* SMP-safe */
-static inline int
+static __always_inline int
 walk_init_root(const char *name, struct nameidata *nd)
 {
 	read_lock(&current->fs->lock);
@@ -504,7 +504,7 @@ walk_init_root(const char *name, struct nameidata *nd)
 	return 1;
 }
 
-static inline int __vfs_follow_link(struct nameidata *nd, const char *link)
+static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
 	int res = 0;
 	char *name;
@@ -544,7 +544,7 @@ struct path {
 	struct dentry *dentry;
 };
 
-static inline int __do_follow_link(struct path *path, struct nameidata *nd)
+static __always_inline int __do_follow_link(struct path *path, struct nameidata *nd)
 {
 	int error;
 	void *cookie;
@@ -690,7 +690,7 @@ int follow_down(struct vfsmount **mnt, struct dentry **dentry)
 	return 0;
 }
 
-static inline void follow_dotdot(struct nameidata *nd)
+static __always_inline void follow_dotdot(struct nameidata *nd)
 {
 	while(1) {
 		struct vfsmount *parent;
@@ -1294,7 +1294,7 @@ static inline int check_sticky(struct inode *dir, struct inode *inode)
  * 10. We don't allow removal of NFS sillyrenamed files; it's handled by
  *     nfs_async_unlink().
  */
-static inline int may_delete(struct inode *dir,struct dentry *victim,int isdir)
+static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 {
 	int error;
 
@@ -2315,7 +2315,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return error;
 }
 
-static inline int do_rename(const char * oldname, const char * newname)
+static int do_rename(const char * oldname, const char * newname)
 {
 	int error = 0;
 	struct dentry * old_dir, * new_dir;

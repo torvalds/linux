@@ -124,7 +124,6 @@ static void __init nas100d_init(void)
 
 MACHINE_START(NAS100D, "Iomega NAS 100d")
 	/* Maintainer: www.nslu2-linux.org */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,

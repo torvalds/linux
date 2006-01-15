@@ -84,11 +84,12 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-	   const struct ip6t_ip6 *ip,
+	   const void *info,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
+	const struct ip6t_ip6 *ip = info;
 	const struct ip6t_multiport *multiinfo = matchinfo;
 
 	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_multiport)))

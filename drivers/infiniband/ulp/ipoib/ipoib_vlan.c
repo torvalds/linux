@@ -63,7 +63,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = netdev_priv(pdev);
 
-	down(&ppriv->vlan_mutex);
+	mutex_lock(&ppriv->vlan_mutex);
 
 	/*
 	 * First ensure this isn't a duplicate. We check the parent device and
@@ -124,7 +124,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	list_add_tail(&priv->list, &ppriv->child_intfs);
 
-	up(&ppriv->vlan_mutex);
+	mutex_unlock(&ppriv->vlan_mutex);
 
 	return 0;
 
@@ -139,7 +139,7 @@ device_init_failed:
 	free_netdev(priv->dev);
 
 err:
-	up(&ppriv->vlan_mutex);
+	mutex_unlock(&ppriv->vlan_mutex);
 	return result;
 }
 
@@ -153,7 +153,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = netdev_priv(pdev);
 
-	down(&ppriv->vlan_mutex);
+	mutex_lock(&ppriv->vlan_mutex);
 	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
 		if (priv->pkey == pkey) {
 			unregister_netdev(priv->dev);
@@ -167,7 +167,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 			break;
 		}
 	}
-	up(&ppriv->vlan_mutex);
+	mutex_unlock(&ppriv->vlan_mutex);
 
 	return ret;
 }

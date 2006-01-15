@@ -216,6 +216,7 @@ extern void dump_stack(void);
 	((unsigned char *)&addr)[1], \
 	((unsigned char *)&addr)[2], \
 	((unsigned char *)&addr)[3]
+#define NIPQUAD_FMT "%u.%u.%u.%u"
 
 #define NIP6(addr) \
 	ntohs((addr).s6_addr16[0]), \
@@ -226,6 +227,7 @@ extern void dump_stack(void);
 	ntohs((addr).s6_addr16[5]), \
 	ntohs((addr).s6_addr16[6]), \
 	ntohs((addr).s6_addr16[7])
+#define NIP6_FMT "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
 
 #if defined(__LITTLE_ENDIAN)
 #define HIPQUAD(addr) \

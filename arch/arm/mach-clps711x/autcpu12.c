@@ -64,7 +64,6 @@ void __init autcpu12_map_io(void)
 
 MACHINE_START(AUTCPU12, "autronix autcpu12")
 	/* Maintainer: Thomas Gleixner */
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xff000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0020000,

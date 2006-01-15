@@ -7,7 +7,7 @@
  *
  * Copyright 2000,2002 IBM Corporation
  * Author(s):             Utz Bacher <utz.bacher@de.ibm.com>
- * 2.6 cio integration by Cornelia Huck <cohuck@de.ibm.com>
+ * 2.6 cio integration by Cornelia Huck <cornelia.huck@de.ibm.com>
  *
  * Restriction: only 63 iqdio subchannels would have its own indicator,
  * after that, subsequent subchannels share one indicator
@@ -56,7 +56,7 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-#define VERSION_QDIO_C "$Revision: 1.114 $"
+#define VERSION_QDIO_C "$Revision: 1.117 $"
 
 /****************** MODULE PARAMETER VARIABLES ********************/
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");

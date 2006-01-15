@@ -39,9 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#69 $
- *
- * $FreeBSD$
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#79 $
  */
 
 #ifdef __linux__
@@ -391,6 +389,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AIC7892_ARO,
 		ID_ALL_MASK,
 		"Adaptec aic7892 Ultra160 SCSI adapter (ARO)",
+		ahc_aic7892_setup
+	},
+	{
+		ID_AHA_2915_30LP,
+		ID_ALL_MASK,
+		"Adaptec 2915/30LP Ultra160 SCSI adapter",
 		ahc_aic7892_setup
 	},
 	/* aic7895 based controllers */	
@@ -1193,8 +1197,18 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	 * use for this test.
 	 */
 	hcntrl = ahc_inb(ahc, HCNTRL);
+
 	if (hcntrl == 0xFF)
 		goto fail;
+
+	if ((hcntrl & CHIPRST) != 0) {
+		/*
+		 * The chip has not been initialized since
+		 * PCI/EISA/VLB bus reset.  Don't trust
+		 * "left over BIOS data".
+		 */
+		ahc->flags |= AHC_NO_BIOS_INIT;
+	}
 
 	/*
 	 * Next create a situation where write combining
@@ -1307,6 +1321,10 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 			sd.sd_chip = C56_66;
 		}
 		ahc_release_seeprom(&sd);
+
+		/* Remember the SEEPROM type for later */
+		if (sd.sd_chip == C56_66)
+			ahc->flags |= AHC_LARGE_SEEPROM;
 	}
 
 	if (!have_seeprom) {

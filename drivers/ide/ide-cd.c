@@ -980,7 +980,7 @@ static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
  * and attempt to recover if there are problems.  Returns  0 if everything's
  * ok; nonzero if the request has been terminated.
  */
-static inline
+static
 int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
 {
 	if (ireason == 2)
@@ -1539,7 +1539,7 @@ int cdrom_queue_packet_command(ide_drive_t *drive, struct request *rq)
 /*
  * Write handling
  */
-static inline int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
+static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 {
 	/* Two notes about IDE interrupt reason here - 0 means that
 	 * the drive wants to receive data from us, 2 means that
@@ -3256,9 +3256,8 @@ sector_t ide_cdrom_capacity (ide_drive_t *drive)
 }
 #endif
 
-static int ide_cd_remove(struct device *dev)
+static void ide_cd_remove(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	struct cdrom_info *info = drive->driver_data;
 
 	ide_unregister_subdriver(drive, info->driver);
@@ -3266,8 +3265,6 @@ static int ide_cd_remove(struct device *dev)
 	del_gendisk(info->disk);
 
 	ide_cd_put(info);
-
-	return 0;
 }
 
 static void ide_cd_release(struct kref *kref)
@@ -3291,7 +3288,7 @@ static void ide_cd_release(struct kref *kref)
 	kfree(info);
 }
 
-static int ide_cd_probe(struct device *);
+static int ide_cd_probe(ide_drive_t *);
 
 #ifdef CONFIG_PROC_FS
 static int proc_idecd_read_capacity
@@ -3317,9 +3314,9 @@ static ide_driver_t ide_cdrom_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-cdrom",
 		.bus		= &ide_bus_type,
-		.probe		= ide_cd_probe,
-		.remove		= ide_cd_remove,
 	},
+	.probe			= ide_cd_probe,
+	.remove			= ide_cd_remove,
 	.version		= IDECD_VERSION,
 	.media			= ide_cdrom,
 	.supports_dsc_overlap	= 1,
@@ -3413,9 +3410,8 @@ static char *ignore = NULL;
 module_param(ignore, charp, 0400);
 MODULE_DESCRIPTION("ATAPI CD-ROM Driver");
 
-static int ide_cd_probe(struct device *dev)
+static int ide_cd_probe(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	struct cdrom_info *info;
 	struct gendisk *g;
 	struct request_sense sense;

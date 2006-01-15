@@ -1747,7 +1747,7 @@ static const struct {
 	{ ATA_SHIFT_PIO,	XFER_PIO_0 },
 };
 
-static inline u8 base_from_shift(unsigned int shift)
+static u8 base_from_shift(unsigned int shift)
 {
 	int i;
 

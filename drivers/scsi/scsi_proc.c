@@ -25,11 +25,13 @@
 #include <linux/errno.h>
 #include <linux/blkdev.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -41,7 +43,7 @@
 static struct proc_dir_entry *proc_scsi;
 
 /* Protect sht->present and sht->proc_dir */
-static DECLARE_MUTEX(global_host_template_sem);
+static DEFINE_MUTEX(global_host_template_mutex);
 
 static int proc_scsi_read(char *buffer, char **start, off_t offset,
 			  int length, int *eof, void *data)
@@ -83,7 +85,7 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
 	if (!sht->proc_info)
 		return;
 
-	down(&global_host_template_sem);
+	mutex_lock(&global_host_template_mutex);
 	if (!sht->present++) {
 		sht->proc_dir = proc_mkdir(sht->proc_name, proc_scsi);
         	if (!sht->proc_dir)
@@ -92,7 +94,7 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
 		else
 			sht->proc_dir->owner = sht->module;
 	}
-	up(&global_host_template_sem);
+	mutex_unlock(&global_host_template_mutex);
 }
 
 void scsi_proc_hostdir_rm(struct scsi_host_template *sht)
@@ -100,12 +102,12 @@ void scsi_proc_hostdir_rm(struct scsi_host_template *sht)
 	if (!sht->proc_info)
 		return;
 
-	down(&global_host_template_sem);
+	mutex_lock(&global_host_template_mutex);
 	if (!--sht->present && sht->proc_dir) {
 		remove_proc_entry(sht->proc_name, proc_scsi);
 		sht->proc_dir = NULL;
 	}
-	up(&global_host_template_sem);
+	mutex_unlock(&global_host_template_mutex);
 }
 
 void scsi_proc_host_add(struct Scsi_Host *shost)
@@ -199,7 +201,10 @@ static int scsi_add_single_device(uint host, uint channel, uint id, uint lun)
 	if (IS_ERR(shost))
 		return PTR_ERR(shost);
 
-	error = scsi_scan_host_selected(shost, channel, id, lun, 1);
+	if (shost->transportt->user_scan)
+		error = shost->transportt->user_scan(shost, channel, id, lun);
+	else
+		error = scsi_scan_host_selected(shost, channel, id, lun, 1);
 	scsi_host_put(shost);
 	return error;
 }

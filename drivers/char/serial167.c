@@ -129,7 +129,6 @@ struct cyclades_port cy_port[] = {
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf = 0;
-DECLARE_MUTEX(tmp_buf_sem);
 
 /*
  * This is used to look up the divisor speeds and the timeouts

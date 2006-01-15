@@ -26,11 +26,14 @@
 #define IIO_NUM_ITTES   7
 #define HUB_NUM_BIG_WINDOW      (IIO_NUM_ITTES - 1)
 
-struct sn_flush_device_list {
+/* This struct is shared between the PROM and the kernel.
+ * Changes to this struct will require corresponding changes to the kernel.
+ */
+struct sn_flush_device_common {
 	int sfdl_bus;
 	int sfdl_slot;
 	int sfdl_pin;
-	struct bar_list {
+	struct common_bar_list {
 		unsigned long start;
 		unsigned long end;
 	} sfdl_bar_list[6];
@@ -40,14 +43,19 @@ struct sn_flush_device_list {
 	uint32_t sfdl_persistent_busnum;
 	uint32_t sfdl_persistent_segment;
 	struct pcibus_info *sfdl_pcibus_info;
+};
+
+/* This struct is kernel only and is not used by the PROM */
+struct sn_flush_device_kernel {
 	spinlock_t sfdl_flush_lock;
+	struct sn_flush_device_common *common;
 };
 
 /*
- * **widget_p - Used as an array[wid_num][device] of sn_flush_device_list.
+ * **widget_p - Used as an array[wid_num][device] of sn_flush_device_kernel.
  */
 struct sn_flush_nasid_entry  {
-	struct sn_flush_device_list **widget_p; /* Used as a array of wid_num */
+	struct sn_flush_device_kernel **widget_p; // Used as an array of wid_num
 	uint64_t iio_itte[8];
 };
 

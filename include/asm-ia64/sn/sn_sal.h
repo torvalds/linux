@@ -75,7 +75,8 @@
 #define  SN_SAL_IOIF_GET_HUBDEV_INFO		   0x02000055
 #define  SN_SAL_IOIF_GET_PCIBUS_INFO		   0x02000056
 #define  SN_SAL_IOIF_GET_PCIDEV_INFO		   0x02000057
-#define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058
+#define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058	// deprecated
+#define  SN_SAL_IOIF_GET_DEVICE_DMAFLUSH_LIST	   0x0200005a
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
 #define SN_SAL_BTE_RECOVER			   0x02000061
@@ -1100,7 +1101,7 @@ ia64_sn_bte_recovery(nasid_t nasid)
 	struct ia64_sal_retval rv;
 
 	rv.status = 0;
-	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, 0, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, (u64)nasid, 0, 0, 0, 0, 0, 0);
 	if (rv.status == SALRET_NOT_IMPLEMENTED)
 		return 0;
 	return (int) rv.status;

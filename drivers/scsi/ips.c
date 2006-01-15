@@ -1319,6 +1319,9 @@ ips_slave_configure(struct scsi_device * SDptr)
 			min = ha->max_cmds - 1;
 		scsi_adjust_queue_depth(SDptr, MSG_ORDERED_TAG, min);
 	}
+
+	SDptr->skip_ms_page_8 = 1;
+	SDptr->skip_ms_page_3f = 1;
 	return 0;
 }
 #endif

@@ -1165,7 +1165,7 @@ failed:
  * some of those buffers may be aliases of filesystem data.
  * grow_dev_page() will go BUG() if this happens.
  */
-static inline int
+static int
 grow_buffers(struct block_device *bdev, sector_t block, int size)
 {
 	struct page *page;
@@ -1391,7 +1391,7 @@ static void bh_lru_install(struct buffer_head *bh)
 /*
  * Look up the bh in this cpu's LRU.  If it's there, move it to the head.
  */
-static inline struct buffer_head *
+static struct buffer_head *
 lookup_bh_lru(struct block_device *bdev, sector_t block, int size)
 {
 	struct buffer_head *ret = NULL;
@@ -1541,7 +1541,7 @@ EXPORT_SYMBOL(set_bh_page);
 /*
  * Called when truncating a buffer on a page completely.
  */
-static inline void discard_buffer(struct buffer_head * bh)
+static void discard_buffer(struct buffer_head * bh)
 {
 	lock_buffer(bh);
 	clear_buffer_dirty(bh);

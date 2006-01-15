@@ -192,7 +192,7 @@ static inline int common_clock_set(const clockid_t which_clock,
 	return do_sys_settimeofday(tp, NULL);
 }
 
-static inline int common_timer_create(struct k_itimer *new_timer)
+static int common_timer_create(struct k_itimer *new_timer)
 {
 	hrtimer_init(&new_timer->it.real.timer, new_timer->it_clock);
 	new_timer->it.real.timer.data = new_timer;
@@ -361,7 +361,7 @@ static int posix_timer_fn(void *data)
 	return ret;
 }
 
-static inline struct task_struct * good_sigevent(sigevent_t * event)
+static struct task_struct * good_sigevent(sigevent_t * event)
 {
 	struct task_struct *rtn = current->group_leader;
 
@@ -687,7 +687,7 @@ sys_timer_getoverrun(timer_t timer_id)
 
 /* Set a POSIX.1b interval timer. */
 /* timr->it_lock is taken. */
-static inline int
+static int
 common_timer_set(struct k_itimer *timr, int flags,
 		 struct itimerspec *new_setting, struct itimerspec *old_setting)
 {
@@ -829,7 +829,7 @@ retry_delete:
 /*
  * return timer owned by the process, used by exit_itimers
  */
-static inline void itimer_delete(struct k_itimer *timer)
+static void itimer_delete(struct k_itimer *timer)
 {
 	unsigned long flags;
 

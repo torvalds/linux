@@ -815,7 +815,7 @@ static int sa1100fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int sa1100fb_mmap(struct fb_info *info, struct file *file,
+static int sa1100fb_mmap(struct fb_info *info,
 			 struct vm_area_struct *vma)
 {
 	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;

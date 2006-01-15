@@ -968,7 +968,7 @@ static inline int maven_compute_timming(struct maven_data* md,
 	return 0;
 }
 
-static inline int maven_program_timming(struct maven_data* md,
+static int maven_program_timming(struct maven_data* md,
 		const struct mavenregs* m) {
 	struct i2c_client* c = md->client;
 

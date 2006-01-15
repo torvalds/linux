@@ -195,6 +195,8 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 		if (!empty)
 			d_invalidate(dentry);
 
+		nd.dentry = dentry;
+		nd.mnt = mnt;
 		nd.flags = LOOKUP_DIRECTORY;
 		status = (dentry->d_op->d_revalidate)(dentry, &nd);
 

@@ -471,7 +471,7 @@ running once the system is up.
 			arch/i386/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"as" | "cfq" | "deadline" | "noop"}
+			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
@@ -712,9 +712,17 @@ running once the system is up.
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/ramdisk.txt.
 
-	lockd.udpport=	[NFS]
+	lockd.nlm_grace_period=P  [NFS] Assign grace period.
+			Format: <integer>
 
-	lockd.tcpport=	[NFS]
+	lockd.nlm_tcpport=N	[NFS] Assign TCP port.
+			Format: <integer>
+
+	lockd.nlm_timeout=T	[NFS] Assign timeout value.
+			Format: <integer>
+
+	lockd.nlm_udpport=M	[NFS] Assign UDP port.
+			Format: <integer>
 
 	logibm.irq=	[HW,MOUSE] Logitech Bus Mouse Driver
 			Format: <irq>

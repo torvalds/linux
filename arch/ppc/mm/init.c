@@ -67,10 +67,6 @@ unsigned long ppc_memoffset = PAGE_OFFSET;
 int mem_init_done;
 int init_bootmem_done;
 int boot_mapsize;
-#ifdef CONFIG_PPC_PMAC
-unsigned long agp_special_page;
-EXPORT_SYMBOL(agp_special_page);
-#endif
 
 extern char _end[];
 extern char etext[], _stext[];
@@ -424,10 +420,6 @@ void __init mem_init(void)
 		     addr += PAGE_SIZE)
 			SetPageReserved(virt_to_page(addr));
 #endif
-#ifdef CONFIG_PPC_PMAC
-	if (agp_special_page)
-		SetPageReserved(virt_to_page(agp_special_page));
-#endif
 	for (addr = PAGE_OFFSET; addr < (unsigned long)high_memory;
 	     addr += PAGE_SIZE) {
 		if (!PageReserved(virt_to_page(addr)))
@@ -462,11 +454,6 @@ void __init mem_init(void)
 	       codepages<< (PAGE_SHIFT-10), datapages<< (PAGE_SHIFT-10),
 	       initpages<< (PAGE_SHIFT-10),
 	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
-
-#ifdef CONFIG_PPC_PMAC
-	if (agp_special_page)
-		printk(KERN_INFO "AGP special page: 0x%08lx\n", agp_special_page);
-#endif
 
 	mem_init_done = 1;
 }
@@ -512,22 +499,6 @@ set_phys_avail(unsigned long total_memory)
 	if (rtas_data)
 		mem_pieces_remove(&phys_avail, rtas_data, rtas_size, 1);
 #endif
-#ifdef CONFIG_PPC_PMAC
-	/* Because of some uninorth weirdness, we need a page of
-	 * memory as high as possible (it must be outside of the
-	 * bus address seen as the AGP aperture). It will be used
-	 * by the r128 DRM driver
-	 *
-	 * FIXME: We need to make sure that page doesn't overlap any of the\
-	 * above. This could be done by improving mem_pieces_find to be able
-	 * to do a backward search from the end of the list.
-	 */
-	if (_machine == _MACH_Pmac && find_devices("uni-north-agp")) {
-		agp_special_page = (total_memory - PAGE_SIZE);
-		mem_pieces_remove(&phys_avail, agp_special_page, PAGE_SIZE, 0);
-		agp_special_page = (unsigned long)__va(agp_special_page);
-	}
-#endif /* CONFIG_PPC_PMAC */
 }
 
 /* Mark some memory as reserved by removing it from phys_avail. */

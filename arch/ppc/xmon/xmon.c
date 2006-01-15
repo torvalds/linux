@@ -16,9 +16,6 @@
 #include <asm/bootx.h>
 #include <asm/machdep.h>
 #include <asm/xmon.h>
-#ifdef CONFIG_PMAC_BACKLIGHT
-#include <asm/backlight.h>
-#endif
 #include "nonstdio.h"
 #include "privinst.h"
 
@@ -260,16 +257,6 @@ int xmon(struct pt_regs *excp)
 	 */
 #endif /* CONFIG_SMP */
 	remove_bpts();
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if( setjmp(bus_error_jmp) == 0 ) {
-		debugger_fault_handler = handle_fault;
-		sync();
-		set_backlight_enable(1);
-		set_backlight_level(BACKLIGHT_MAX);
-		sync();
-	}
-	debugger_fault_handler = NULL;
-#endif	/* CONFIG_PMAC_BACKLIGHT */
 	cmd = cmds(excp);
 	if (cmd == 's') {
 		xmon_trace[smp_processor_id()] = SSTEP;

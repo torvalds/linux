@@ -447,7 +447,6 @@ static void __init assabet_map_io(void)
 
 
 MACHINE_START(ASSABET, "Intel-Assabet")
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,

@@ -156,52 +156,56 @@ n:
 #endif
 
 /* 
- * LOADADDR( rn, name )
- *   loads the address of 'name' into 'rn'
+ * LOAD_REG_IMMEDIATE(rn, expr)
+ *   Loads the value of the constant expression 'expr' into register 'rn'
+ *   using immediate instructions only.  Use this when it's important not
+ *   to reference other data (i.e. on ppc64 when the TOC pointer is not
+ *   valid).
  *
- * LOADBASE( rn, name )
- *   loads the address (possibly without the low 16 bits) of 'name' into 'rn'
- *   suitable for base+disp addressing
+ * LOAD_REG_ADDR(rn, name)
+ *   Loads the address of label 'name' into register 'rn'.  Use this when
+ *   you don't particularly need immediate instructions only, but you need
+ *   the whole address in one register (e.g. it's a structure address and
+ *   you want to access various offsets within it).  On ppc32 this is
+ *   identical to LOAD_REG_IMMEDIATE.
+ *
+ * LOAD_REG_ADDRBASE(rn, name)
+ * ADDROFF(name)
+ *   LOAD_REG_ADDRBASE loads part of the address of label 'name' into
+ *   register 'rn'.  ADDROFF(name) returns the remainder of the address as
+ *   a constant expression.  ADDROFF(name) is a signed expression < 16 bits
+ *   in size, so is suitable for use directly as an offset in load and store
+ *   instructions.  Use this when loading/storing a single word or less as:
+ *      LOAD_REG_ADDRBASE(rX, name)
+ *      ld	rY,ADDROFF(name)(rX)
  */
 #ifdef __powerpc64__
-#define LOADADDR(rn,name) \
-	lis	rn,name##@highest;	\
-	ori	rn,rn,name##@higher;	\
-	rldicr	rn,rn,32,31;		\
-	oris	rn,rn,name##@h;		\
-	ori	rn,rn,name##@l
+#define LOAD_REG_IMMEDIATE(reg,expr)		\
+	lis     (reg),(expr)@highest;		\
+	ori     (reg),(reg),(expr)@higher;	\
+	rldicr  (reg),(reg),32,31;		\
+	oris    (reg),(reg),(expr)@h;		\
+	ori     (reg),(reg),(expr)@l;
 
-#define LOADBASE(rn,name)		\
-	ld	rn,name@got(r2)
+#define LOAD_REG_ADDR(reg,name)			\
+	ld	(reg),name@got(r2)
 
-#define OFF(name)	0
-
-#define SET_REG_TO_CONST(reg, value)	         	\
-	lis     reg,(((value)>>48)&0xFFFF);             \
-	ori     reg,reg,(((value)>>32)&0xFFFF);         \
-	rldicr  reg,reg,32,31;                          \
-	oris    reg,reg,(((value)>>16)&0xFFFF);         \
-	ori     reg,reg,((value)&0xFFFF);
-
-#define SET_REG_TO_LABEL(reg, label)	         	\
-	lis     reg,(label)@highest;                    \
-	ori     reg,reg,(label)@higher;                 \
-	rldicr  reg,reg,32,31;                          \
-	oris    reg,reg,(label)@h;                      \
-	ori     reg,reg,(label)@l;
+#define LOAD_REG_ADDRBASE(reg,name)	LOAD_REG_ADDR(reg,name)
+#define ADDROFF(name)			0
 
 /* offsets for stack frame layout */
 #define LRSAVE	16
 
 #else /* 32-bit */
-#define LOADADDR(rn,name) \
-	lis	rn,name@ha;	\
-	addi	rn,rn,name@l
 
-#define LOADBASE(rn,name)	\
-	lis	rn,name@ha
+#define LOAD_REG_IMMEDIATE(reg,expr)		\
+	lis	(reg),(expr)@ha;		\
+	addi	(reg),(reg),(expr)@l;
 
-#define OFF(name)	name@l
+#define LOAD_REG_ADDR(reg,name)		LOAD_REG_IMMEDIATE(reg, name)
+
+#define LOAD_REG_ADDRBASE(reg, name)	lis	(reg),name@ha
+#define ADDROFF(name)			name@l
 
 /* offsets for stack frame layout */
 #define LRSAVE	4

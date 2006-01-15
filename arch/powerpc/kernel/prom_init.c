@@ -605,7 +605,8 @@ static void __init early_cmdline_parse(void)
 	opt = strstr(RELOC(prom_cmd_line), RELOC("crashkernel="));
 	if (opt) {
 		opt += 12;
-		RELOC(prom_crashk_size) = prom_memparse(opt, &opt);
+		RELOC(prom_crashk_size) = 
+			prom_memparse(opt, (const char **)&opt);
 
 		if (ALIGN(RELOC(prom_crashk_size), 0x1000000) !=
 			RELOC(prom_crashk_size)) {

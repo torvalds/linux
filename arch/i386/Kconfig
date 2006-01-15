@@ -702,6 +702,15 @@ config PHYSICAL_START
 
 	  Don't change this unless you know what you are doing.
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	---help---
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
+	  Say N.
+
 endmenu
 
 
@@ -987,15 +996,6 @@ config SCx200
 
 	  This support is also available as a module.  If compiled as a
 	  module, it will be called scx200.
-
-config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL
-	---help---
-	  Say Y here to experiment with turning CPUs off and on.  CPUs
-	  can be controlled through /sys/devices/system/cpu.
-
-	  Say N.
 
 source "drivers/pcmcia/Kconfig"
 

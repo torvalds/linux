@@ -2216,6 +2216,7 @@ static int __init BusLogic_init(void)
 		HostAdapter->PCI_Address = ProbeInfo->PCI_Address;
 		HostAdapter->Bus = ProbeInfo->Bus;
 		HostAdapter->Device = ProbeInfo->Device;
+		HostAdapter->PCI_Device = ProbeInfo->PCI_Device;
 		HostAdapter->IRQ_Channel = ProbeInfo->IRQ_Channel;
 		HostAdapter->AddressCount = BusLogic_HostAdapterAddressCount[HostAdapter->HostAdapterType];
 		/*
@@ -2296,7 +2297,7 @@ static int __init BusLogic_init(void)
 				scsi_host_put(Host);
 			} else {
 				BusLogic_InitializeHostStructure(HostAdapter, Host);
-				scsi_add_host(Host, NULL);
+				scsi_add_host(Host, HostAdapter->PCI_Device ? &HostAdapter->PCI_Device->dev : NULL);
 				scsi_scan_host(Host);
 				BusLogicHostAdapterCount++;
 			}

@@ -126,7 +126,7 @@ __mb_cache_entry_is_hashed(struct mb_cache_entry *ce)
 }
 
 
-static inline void
+static void
 __mb_cache_entry_unhash(struct mb_cache_entry *ce)
 {
 	int n;
@@ -139,7 +139,7 @@ __mb_cache_entry_unhash(struct mb_cache_entry *ce)
 }
 
 
-static inline void
+static void
 __mb_cache_entry_forget(struct mb_cache_entry *ce, gfp_t gfp_mask)
 {
 	struct mb_cache *cache = ce->e_cache;
@@ -158,7 +158,7 @@ __mb_cache_entry_forget(struct mb_cache_entry *ce, gfp_t gfp_mask)
 }
 
 
-static inline void
+static void
 __mb_cache_entry_release_unlock(struct mb_cache_entry *ce)
 {
 	/* Wake up all processes queuing for this cache entry. */

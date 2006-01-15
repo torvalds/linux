@@ -32,7 +32,7 @@ DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
  */
-void account_user_vtime(struct task_struct *tsk)
+void account_tick_vtime(struct task_struct *tsk)
 {
 	cputime_t cputime;
 	__u64 timer, clock;
@@ -70,6 +70,31 @@ void account_user_vtime(struct task_struct *tsk)
 		rcu_check_callbacks(smp_processor_id(), rcu_user_flag);
 	scheduler_tick();
  	run_posix_cpu_timers(tsk);
+}
+
+/*
+ * Update process times based on virtual cpu times stored by entry.S
+ * to the lowcore fields user_timer, system_timer & steal_clock.
+ */
+void account_vtime(struct task_struct *tsk)
+{
+	cputime_t cputime;
+	__u64 timer;
+
+	timer = S390_lowcore.last_update_timer;
+	asm volatile ("  STPT %0"    /* Store current cpu timer value */
+		      : "=m" (S390_lowcore.last_update_timer) );
+	S390_lowcore.system_timer += timer - S390_lowcore.last_update_timer;
+
+	cputime = S390_lowcore.user_timer >> 12;
+	S390_lowcore.user_timer -= cputime << 12;
+	S390_lowcore.steal_clock -= cputime << 12;
+	account_user_time(tsk, cputime);
+
+	cputime =  S390_lowcore.system_timer >> 12;
+	S390_lowcore.system_timer -= cputime << 12;
+	S390_lowcore.steal_clock -= cputime << 12;
+	account_system_time(tsk, 0, cputime);
 }
 
 /*

@@ -39,9 +39,9 @@ _GLOBAL(load_up_fpu)
  * to another.  Instead we call giveup_fpu in switch_to.
  */
 #ifndef CONFIG_SMP
-	LOADBASE(r3, last_task_used_math)
+	LOAD_REG_ADDRBASE(r3, last_task_used_math)
 	toreal(r3)
-	PPC_LL	r4,OFF(last_task_used_math)(r3)
+	PPC_LL	r4,ADDROFF(last_task_used_math)(r3)
 	PPC_LCMPI	0,r4,0
 	beq	1f
 	toreal(r4)
@@ -77,7 +77,7 @@ _GLOBAL(load_up_fpu)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	fromreal(r4)
-	PPC_STL	r4,OFF(last_task_used_math)(r3)
+	PPC_STL	r4,ADDROFF(last_task_used_math)(r3)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
@@ -113,8 +113,8 @@ _GLOBAL(giveup_fpu)
 1:
 #ifndef CONFIG_SMP
 	li	r5,0
-	LOADBASE(r4,last_task_used_math)
-	PPC_STL	r5,OFF(last_task_used_math)(r4)
+	LOAD_REG_ADDRBASE(r4,last_task_used_math)
+	PPC_STL	r5,ADDROFF(last_task_used_math)(r4)
 #endif /* CONFIG_SMP */
 	blr
 

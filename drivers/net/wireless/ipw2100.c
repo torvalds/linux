@@ -411,7 +411,7 @@ static inline void write_nic_dword_auto_inc(struct net_device *dev, u32 val)
 	write_register(dev, IPW_REG_AUTOINCREMENT_DATA, val);
 }
 
-static inline void write_nic_memory(struct net_device *dev, u32 addr, u32 len,
+static void write_nic_memory(struct net_device *dev, u32 addr, u32 len,
 				    const u8 * buf)
 {
 	u32 aligned_addr;
@@ -449,7 +449,7 @@ static inline void write_nic_memory(struct net_device *dev, u32 addr, u32 len,
 				    *buf);
 }
 
-static inline void read_nic_memory(struct net_device *dev, u32 addr, u32 len,
+static void read_nic_memory(struct net_device *dev, u32 addr, u32 len,
 				   u8 * buf)
 {
 	u32 aligned_addr;
@@ -657,7 +657,7 @@ static void printk_buf(int level, const u8 * data, u32 len)
 
 #define MAX_RESET_BACKOFF 10
 
-static inline void schedule_reset(struct ipw2100_priv *priv)
+static void schedule_reset(struct ipw2100_priv *priv)
 {
 	unsigned long now = get_seconds();
 
@@ -1130,7 +1130,7 @@ static inline void ipw2100_hw_set_gpio(struct ipw2100_priv *priv)
 	write_register(priv->net_dev, IPW_REG_GPIO, reg);
 }
 
-static inline int rf_kill_active(struct ipw2100_priv *priv)
+static int rf_kill_active(struct ipw2100_priv *priv)
 {
 #define MAX_RF_KILL_CHECKS 5
 #define RF_KILL_CHECK_DELAY 40
@@ -2177,7 +2177,7 @@ static const char *frame_types[] = {
 };
 #endif
 
-static inline int ipw2100_alloc_skb(struct ipw2100_priv *priv,
+static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 				    struct ipw2100_rx_packet *packet)
 {
 	packet->skb = dev_alloc_skb(sizeof(struct ipw2100_rx));
@@ -2201,7 +2201,7 @@ static inline int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 #define SEARCH_SNAPSHOT 1
 
 #define SNAPSHOT_ADDR(ofs) (priv->snapshot[((ofs) >> 12) & 0xff] + ((ofs) & 0xfff))
-static inline int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
+static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 {
 	int i;
 	if (priv->snapshot[0])
@@ -2221,7 +2221,7 @@ static inline int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 	return 1;
 }
 
-static inline void ipw2100_snapshot_free(struct ipw2100_priv *priv)
+static void ipw2100_snapshot_free(struct ipw2100_priv *priv)
 {
 	int i;
 	if (!priv->snapshot[0])
@@ -2231,7 +2231,7 @@ static inline void ipw2100_snapshot_free(struct ipw2100_priv *priv)
 	priv->snapshot[0] = NULL;
 }
 
-static inline u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
+static u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
 				    size_t len, int mode)
 {
 	u32 i, j;
@@ -2288,7 +2288,7 @@ static inline u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
 static u8 packet_data[IPW_RX_NIC_BUFFER_LENGTH];
 #endif
 
-static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
+static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 {
 #ifdef CONFIG_IPW2100_DEBUG_C3
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
@@ -2346,7 +2346,7 @@ static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 	schedule_reset(priv);
 }
 
-static inline void isr_rx(struct ipw2100_priv *priv, int i,
+static void isr_rx(struct ipw2100_priv *priv, int i,
 			  struct ieee80211_rx_stats *stats)
 {
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
@@ -2425,7 +2425,7 @@ static inline void isr_rx(struct ipw2100_priv *priv, int i,
 	priv->rx_queue.drv[i].host_addr = packet->dma_addr;
 }
 
-static inline int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
+static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
 {
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	struct ipw2100_rx *u = priv->rx_buffers[i].rxp;
@@ -2481,7 +2481,7 @@ static inline int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
  * The WRITE index is cached in the variable 'priv->rx_queue.next'.
  *
  */
-static inline void __ipw2100_rx_process(struct ipw2100_priv *priv)
+static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 {
 	struct ipw2100_bd_queue *rxq = &priv->rx_queue;
 	struct ipw2100_status_queue *sq = &priv->status_queue;
@@ -2634,7 +2634,7 @@ static inline void __ipw2100_rx_process(struct ipw2100_priv *priv)
  * for use by future command and data packets.
  *
  */
-static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
+static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 {
 	struct ipw2100_bd_queue *txq = &priv->tx_queue;
 	struct ipw2100_bd *tbd;

@@ -85,7 +85,6 @@ fixup_cats(struct machine_desc *desc, struct tag *tags,
 
 MACHINE_START(CATS, "Chalice-CATS")
 	/* Maintainer: Philip Blundell */
-	.phys_ram	= 0x00000000,
 	.phys_io	= DC21285_ARMCSR_BASE,
 	.io_pg_offst	= ((0xfe000000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,

@@ -201,34 +201,6 @@ static inline struct ncp_inode_info *NCP_FINFO(struct inode *inode)
 	return container_of(inode, struct ncp_inode_info, vfs_inode);
 }
 
-#ifdef DEBUG_NCP_MALLOC
-
-#include <linux/slab.h>
-
-extern int ncp_malloced;
-extern int ncp_current_malloced;
-
-static inline void *
- ncp_kmalloc(unsigned int size, int priority)
-{
-	ncp_malloced += 1;
-	ncp_current_malloced += 1;
-	return kmalloc(size, priority);
-}
-
-static inline void ncp_kfree_s(void *obj, int size)
-{
-	ncp_current_malloced -= 1;
-	kfree(obj);
-}
-
-#else				/* DEBUG_NCP_MALLOC */
-
-#define ncp_kmalloc(s,p) kmalloc(s,p)
-#define ncp_kfree_s(o,s) kfree(o)
-
-#endif				/* DEBUG_NCP_MALLOC */
-
 /* linux/fs/ncpfs/inode.c */
 int ncp_notify_change(struct dentry *, struct iattr *);
 struct inode *ncp_iget(struct super_block *, struct ncp_entry_info *);

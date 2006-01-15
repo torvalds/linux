@@ -2,12 +2,12 @@
  *  drivers/s390/cio/airq.c
  *   S/390 common I/O routines -- support for adapter interruptions
  *
- *   $Revision: 1.12 $
+ *   $Revision: 1.15 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
- *		 Cornelia Huck (cohuck@de.ibm.com)
+ *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
  */
 

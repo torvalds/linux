@@ -29,7 +29,7 @@ static inline int match_type(u_int32_t addr, u_int16_t mask)
 
 static int match(const struct sk_buff *skb, const struct net_device *in,
 		 const struct net_device *out, const void *matchinfo,
-		 int offset, int *hotdrop)
+		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_addrtype_info *info = matchinfo;
 	const struct iphdr *iph = skb->nh.iph;
@@ -43,7 +43,7 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return ret;
 }
 
-static int checkentry(const char *tablename, const struct ipt_ip *ip,
+static int checkentry(const char *tablename, const void *ip,
 		      void *matchinfo, unsigned int matchsize,
 		      unsigned int hook_mask)
 {

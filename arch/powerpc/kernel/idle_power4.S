@@ -38,14 +38,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	/* We must dynamically check for the NAP feature as it
 	 * can be cleared by CPU init after the fixups are done
 	 */
-	LOADBASE(r3,cur_cpu_spec)
-	ld	r4,OFF(cur_cpu_spec)(r3)
+	LOAD_REG_ADDRBASE(r3,cur_cpu_spec)
+	ld	r4,ADDROFF(cur_cpu_spec)(r3)
 	ld	r4,CPU_SPEC_FEATURES(r4)
 	andi.	r0,r4,CPU_FTR_CAN_NAP
 	beqlr
 	/* Now check if user or arch enabled NAP mode */
-	LOADBASE(r3,powersave_nap)
-	lwz	r4,OFF(powersave_nap)(r3)
+	LOAD_REG_ADDRBASE(r3,powersave_nap)
+	lwz	r4,ADDROFF(powersave_nap)(r3)
 	cmpwi	0,r4,0
 	beqlr
 

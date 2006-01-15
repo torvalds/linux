@@ -1267,8 +1267,7 @@ imsttfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 #define FBIMSTT_GETIDXREG	0x545406
 
 static int
-imsttfb_ioctl(struct inode *inode, struct file *file, u_int cmd,
-	      u_long arg, struct fb_info *info)
+imsttfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct imstt_par *par = info->par;
 	void __user *argp = (void __user *)arg;

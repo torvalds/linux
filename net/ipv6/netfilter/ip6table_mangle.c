@@ -127,6 +127,7 @@ static struct ip6t_table packet_mangler = {
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
+	.af		= AF_INET6,
 };
 
 /* The work comes in here from netfilter.c. */

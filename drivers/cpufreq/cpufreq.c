@@ -41,7 +41,6 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static void handle_update(void *data);
-static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci);
 
 /**
  * Two notifier lists: the "policy" list is involved in the 
@@ -127,7 +126,7 @@ static unsigned int debug_ratelimit = 1;
 static unsigned int disable_ratelimit = 1;
 static DEFINE_SPINLOCK(disable_ratelimit_lock);
 
-static inline void cpufreq_debug_enable_ratelimit(void)
+static void cpufreq_debug_enable_ratelimit(void)
 {
 	unsigned long flags;
 
@@ -137,7 +136,7 @@ static inline void cpufreq_debug_enable_ratelimit(void)
 	spin_unlock_irqrestore(&disable_ratelimit_lock, flags);
 }
 
-static inline void cpufreq_debug_disable_ratelimit(void)
+static void cpufreq_debug_disable_ratelimit(void)
 {
 	unsigned long flags;
 
@@ -206,7 +205,7 @@ static inline void cpufreq_debug_disable_ratelimit(void) { return; }
 static unsigned long l_p_j_ref;
 static unsigned int  l_p_j_ref_freq;
 
-static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
+static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 {
 	if (ci->flags & CPUFREQ_CONST_LOOPS)
 		return;

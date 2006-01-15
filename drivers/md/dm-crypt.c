@@ -228,7 +228,7 @@ static struct crypt_iv_operations crypt_iv_essiv_ops = {
 };
 
 
-static inline int
+static int
 crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
                           struct scatterlist *in, unsigned int length,
                           int write, sector_t sector)

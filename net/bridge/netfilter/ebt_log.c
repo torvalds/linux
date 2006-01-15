@@ -15,6 +15,7 @@
 #include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/ip.h>
+#include <linux/in.h>
 #include <linux/if_arp.h>
 #include <linux/spinlock.h>
 

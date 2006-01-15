@@ -1300,6 +1300,12 @@ M:	ttb@tentacle.dhs.org and rml@novell.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
+P:      Sylvain Meyer
+M:      sylvain.meyer@worldonline.fr
+L:      linux-fbdev-devel@lists.sourceforge.net
+S:      Maintained
+
 INTEL 810/815 FRAMEBUFFER DRIVER
 P:      Antonino Daplas
 M:      adaplas@pol.net
@@ -1889,11 +1895,11 @@ W:	http://linux-ntfs.sf.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/aia21/ntfs-2.6.git
 S:	Maintained
 
-NVIDIA (RIVA) FRAMEBUFFER DRIVER
-P:	Ani Joshi
-M:	ajoshi@shell.unixbox.com
-L:	linux-nvidia@lists.surfsouth.com
-S:	Maintained
+NVIDIA (rivafb and nvidiafb) FRAMEBUFFER DRIVER
+P:      Antonino Daplas
+M:      adaplas@pol.net
+L:      linux-fbdev-devel@lists.sourceforge.net
+S:      Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
@@ -2187,6 +2193,12 @@ M:	yodaiken@fsmlabs.com
 L:	rtl@rtlinux.org
 W:	www.rtlinux.org
 S:	Maintained
+
+S3 SAVAGE FRAMEBUFFER DRIVER
+P:      Antonino Daplas
+M:      adaplas@pol.net
+L:      linux-fbdev-devel@lists.sourceforge.net
+S:      Maintained
 
 S390
 P:	Martin Schwidefsky
@@ -2518,6 +2530,19 @@ TI PARALLEL LINK CABLE DRIVER
 P:     Romain Lievin
 M:     roms@lpg.ticalc.org
 S:     Maintained
+
+TIPC NETWORK LAYER
+P:	Per Liden
+M:	per.liden@nospam.ericsson.com
+P:	Jon Maloy
+M:	jon.maloy@nospam.ericsson.com
+P:	Allan Stephens
+M:	allan.stephens@nospam.windriver.com
+L:	tipc-discussion@lists.sourceforge.net
+W:	http://tipc.sourceforge.net/
+W:	http://tipc.cslab.ericsson.net/
+T:	git tipc.cslab.ericsson.net:/pub/git/tipc.git
+S:	Maintained
 
 TLAN NETWORK DRIVER
 P:	Samuel Chessman
@@ -2939,6 +2964,12 @@ M:	ncorbic@sangoma.com
 M:	dm@sangoma.com
 W:	http://www.sangoma.com
 S:	Supported
+
+WATCHDOG DEVICE DRIVERS
+P:	Wim Van Sebroeck
+M:	wim@iguana.be
+T:	git kernel.org:/pub/scm/linux/kernel/git/wim/linux-2.6-watchdog.git
+S:	Maintained
 
 WAVELAN NETWORK DRIVER & WIRELESS EXTENSIONS
 P:	Jean Tourrilhes

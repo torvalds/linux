@@ -287,7 +287,9 @@ load_b:
  * no references or jumps that are out of range, no illegal
  * instructions, and must end with a RET instruction.
  *
- * Returns 0 if the rule set is legal or a negative errno code if not.
+ * All jumps are forward as they are not signed.
+ *
+ * Returns 0 if the rule set is legal or -EINVAL if not.
  */
 int sk_chk_filter(struct sock_filter *filter, int flen)
 {
@@ -299,7 +301,6 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 
 	/* check the filter code now */
 	for (pc = 0; pc < flen; pc++) {
-		/* all jumps are forward as they are not signed */
 		ftest = &filter[pc];
 
 		/* Only allow valid instructions */
@@ -383,11 +384,6 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 		}
 	}
 
-	/*
-	 * The program must end with a return. We don't care where they
-	 * jumped within the script (its always forwards) but in the end
-	 * they _will_ hit this.
-	 */
         return (BPF_CLASS(filter[flen - 1].code) == BPF_RET) ? 0 : -EINVAL;
 }
 

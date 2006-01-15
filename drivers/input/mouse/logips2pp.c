@@ -117,7 +117,7 @@ static int ps2pp_cmd(struct psmouse *psmouse, unsigned char *param, unsigned cha
 	if (psmouse_sliced_command(psmouse, command))
 		return -1;
 
-	if (ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_POLL))
+	if (ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_POLL | 0x0300))
 		return -1;
 
 	return 0;

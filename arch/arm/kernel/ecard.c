@@ -1147,9 +1147,11 @@ static void ecard_drv_shutdown(struct device *dev)
 	struct ecard_driver *drv = ECARD_DRV(dev->driver);
 	struct ecard_request req;
 
-	if (drv->shutdown)
-		drv->shutdown(ec);
-	ecard_release(ec);
+	if (dev->driver) {
+		if (drv->shutdown)
+			drv->shutdown(ec);
+		ecard_release(ec);
+	}
 
 	/*
 	 * If this card has a loader, call the reset handler.
@@ -1164,9 +1166,6 @@ static void ecard_drv_shutdown(struct device *dev)
 int ecard_register_driver(struct ecard_driver *drv)
 {
 	drv->drv.bus = &ecard_bus_type;
-	drv->drv.probe = ecard_drv_probe;
-	drv->drv.remove = ecard_drv_remove;
-	drv->drv.shutdown = ecard_drv_shutdown;
 
 	return driver_register(&drv->drv);
 }
@@ -1195,6 +1194,9 @@ struct bus_type ecard_bus_type = {
 	.name		= "ecard",
 	.dev_attrs	= ecard_dev_attrs,
 	.match		= ecard_match,
+	.probe		= ecard_drv_probe,
+	.remove		= ecard_drv_remove,
+	.shutdown	= ecard_drv_shutdown,
 };
 
 static int ecard_bus_init(void)

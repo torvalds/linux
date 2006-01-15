@@ -34,7 +34,6 @@
 #define DEBUG 
 
 static char *                  tmp_buf; 
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static int gs_debug;
 

@@ -140,19 +140,19 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	switch (cur_cpu_spec->oprofile_type) {
 #ifdef CONFIG_PPC64
-		case RS64:
+		case PPC_OPROFILE_RS64:
 			model = &op_model_rs64;
 			break;
-		case POWER4:
+		case PPC_OPROFILE_POWER4:
 			model = &op_model_power4;
 			break;
 #else
-		case G4:
+		case PPC_OPROFILE_G4:
 			model = &op_model_7450;
 			break;
 #endif
 #ifdef CONFIG_FSL_BOOKE
-		case BOOKE:
+		case PPC_OPROFILE_BOOKE:
 			model = &op_model_fsl_booke;
 			break;
 #endif

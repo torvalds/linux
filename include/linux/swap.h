@@ -180,6 +180,11 @@ extern int isolate_lru_page(struct page *p);
 extern int putback_lru_pages(struct list_head *l);
 extern int migrate_pages(struct list_head *l, struct list_head *t,
 		struct list_head *moved, struct list_head *failed);
+#else
+static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
+static inline int putback_lru_pages(struct list_head *l) { return 0; }
+static inline int migrate_pages(struct list_head *l, struct list_head *t,
+	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
 #endif
 
 #ifdef CONFIG_MMU

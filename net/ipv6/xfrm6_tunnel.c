@@ -259,8 +259,7 @@ try_next_2:;
 	spi = 0;
 	goto out;
 alloc_spi:
-	X6TPRINTK3(KERN_DEBUG "%s(): allocate new spi for "
-			      "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n", 
+	X6TPRINTK3(KERN_DEBUG "%s(): allocate new spi for " NIP6_FMT "\n",
 			      __FUNCTION__, 
 			      NIP6(*(struct in6_addr *)saddr));
 	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, SLAB_ATOMIC);
@@ -323,9 +322,8 @@ void xfrm6_tunnel_free_spi(xfrm_address_t *saddr)
 				  list_byaddr)
 	{
 		if (memcmp(&x6spi->addr, saddr, sizeof(x6spi->addr)) == 0) {
-			X6TPRINTK3(KERN_DEBUG "%s(): x6spi object "
-					      "for %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
-					      "found at %p\n",
+			X6TPRINTK3(KERN_DEBUG "%s(): x6spi object for " NIP6_FMT 
+					      " found at %p\n",
 				   __FUNCTION__, 
 				   NIP6(*(struct in6_addr *)saddr),
 				   x6spi);

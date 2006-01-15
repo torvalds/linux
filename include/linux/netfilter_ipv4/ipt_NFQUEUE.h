@@ -8,9 +8,9 @@
 #ifndef _IPT_NFQ_TARGET_H
 #define _IPT_NFQ_TARGET_H
 
-/* target info */
-struct ipt_NFQ_info {
-	u_int16_t queuenum;
-};
+/* Backwards compatibility for old userspace */
+#include <linux/netfilter/xt_NFQUEUE.h>
+
+#define ipt_NFQ_info xt_NFQ_info
 
 #endif /* _IPT_DSCP_TARGET_H */

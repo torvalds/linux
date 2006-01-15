@@ -1218,7 +1218,7 @@ static int writenote(struct memelfnote *men, struct file *file)
 	if (!dump_seek(file, (off))) \
 		goto end_coredump;
 
-static inline void fill_elf_header(struct elfhdr *elf, int segs)
+static void fill_elf_header(struct elfhdr *elf, int segs)
 {
 	memcpy(elf->e_ident, ELFMAG, SELFMAG);
 	elf->e_ident[EI_CLASS] = ELF_CLASS;
@@ -1243,7 +1243,7 @@ static inline void fill_elf_header(struct elfhdr *elf, int segs)
 	return;
 }
 
-static inline void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, off_t offset)
+static void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, off_t offset)
 {
 	phdr->p_type = PT_NOTE;
 	phdr->p_offset = offset;

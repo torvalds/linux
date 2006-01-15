@@ -74,7 +74,7 @@ static int ipv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 static int ipv6_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "src=%x:%x:%x:%x:%x:%x:%x:%x dst=%x:%x:%x:%x:%x:%x:%x:%x ",
+	return seq_printf(s, "src=" NIP6_FMT " dst=" NIP6_FMT " ",
 			  NIP6(*((struct in6_addr *)tuple->src.u3.ip6)),
 			  NIP6(*((struct in6_addr *)tuple->dst.u3.ip6)));
 }
@@ -584,7 +584,7 @@ MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
 
 static int __init init(void)
 {
-	need_nf_conntrack();
+	need_conntrack();
 	return init_or_cleanup(1);
 }
 
@@ -595,9 +595,3 @@ static void __exit fini(void)
 
 module_init(init);
 module_exit(fini);
-
-void need_ip6_conntrack(void)
-{
-}
-
-EXPORT_SYMBOL(need_ip6_conntrack);

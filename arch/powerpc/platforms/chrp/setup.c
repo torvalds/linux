@@ -352,9 +352,10 @@ static void __init chrp_find_openpic(void)
 		opaddr = opprop[na-1];	/* assume 32-bit */
 		oplen /= na * sizeof(unsigned int);
 	} else {
-		if (np->n_addrs == 0)
+		struct resource r;
+		if (of_address_to_resource(np, 0, &r))
 			return;
-		opaddr = np->addrs[0].address;
+		opaddr = r.start;
 		oplen = 0;
 	}
 
@@ -377,7 +378,7 @@ static void __init chrp_find_openpic(void)
 	 */
 	if (oplen < len) {
 		printk(KERN_ERR "Insufficient addresses for distributed"
-		       " OpenPIC (%d < %d)\n", np->n_addrs, len);
+		       " OpenPIC (%d < %d)\n", oplen, len);
 		len = oplen;
 	}
 

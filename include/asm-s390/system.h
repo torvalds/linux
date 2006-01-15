@@ -115,13 +115,14 @@ static inline void sched_cacheflush(void)
 }
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-extern void account_user_vtime(struct task_struct *);
+extern void account_vtime(struct task_struct *);
+extern void account_tick_vtime(struct task_struct *);
 extern void account_system_vtime(struct task_struct *);
 #endif
 
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
-	account_system_vtime(prev);					     \
+	account_vtime(prev);						     \
 } while (0)
 
 #define nop() __asm__ __volatile__ ("nop")

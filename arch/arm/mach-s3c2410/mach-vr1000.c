@@ -395,7 +395,6 @@ static void __init vr1000_map_io(void)
 
 MACHINE_START(VR1000, "Thorcom-VR1000")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
-	.phys_ram	= S3C2410_SDRAM_PA,
 	.phys_io	= S3C2410_PA_UART,
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,

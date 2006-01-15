@@ -48,6 +48,9 @@ extern void __cpuset_memory_pressure_bump(void);
 extern struct file_operations proc_cpuset_operations;
 extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
 
+extern void cpuset_lock(void);
+extern void cpuset_unlock(void);
+
 #else /* !CONFIG_CPUSETS */
 
 static inline int cpuset_init_early(void) { return 0; }
@@ -92,6 +95,9 @@ static inline char *cpuset_task_status_allowed(struct task_struct *task,
 {
 	return buffer;
 }
+
+static inline void cpuset_lock(void) {}
+static inline void cpuset_unlock(void) {}
 
 #endif /* !CONFIG_CPUSETS */
 

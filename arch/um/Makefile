@@ -67,7 +67,8 @@ USER_CFLAGS := $(patsubst -D__KERNEL__,,$(USER_CFLAGS)) $(ARCH_INCLUDE) \
 # in CFLAGS.  Otherwise, it would cause ld to complain about the two different
 # errnos.
 
-CFLAGS += -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask
+CFLAGS += -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask \
+	-Dmktime=kernel_mktime
 CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
 
 include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)

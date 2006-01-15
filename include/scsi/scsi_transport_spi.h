@@ -54,7 +54,7 @@ struct spi_transport_attrs {
 	unsigned int support_qas; /* supports quick arbitration and selection */
 	/* Private Fields */
 	unsigned int dv_pending:1; /* Internal flag */
-	struct semaphore dv_sem; /* semaphore to serialise dv */
+	struct mutex dv_mutex; /* semaphore to serialise dv */
 };
 
 enum spi_signal_type {

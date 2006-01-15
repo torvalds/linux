@@ -62,7 +62,7 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
+static int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 {
 	if (ieee->networks)
 		return 0;
@@ -90,7 +90,7 @@ static inline void ieee80211_networks_free(struct ieee80211_device *ieee)
 	ieee->networks = NULL;
 }
 
-static inline void ieee80211_networks_initialize(struct ieee80211_device *ieee)
+static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 {
 	int i;
 

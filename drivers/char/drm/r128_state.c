@@ -220,7 +220,7 @@ static __inline__ void r128_emit_tex1(drm_r128_private_t * dev_priv)
 	ADVANCE_RING();
 }
 
-static __inline__ void r128_emit_state(drm_r128_private_t * dev_priv)
+static void r128_emit_state(drm_r128_private_t * dev_priv)
 {
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;

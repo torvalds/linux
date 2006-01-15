@@ -190,7 +190,6 @@ config SERIAL_8250_BOCA
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_boca.
 
-
 config SERIAL_8250_HUB6
 	tristate "Support Hub6 cards"
 	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
@@ -848,7 +847,7 @@ config SERIAL_M32R_SIO_CONSOLE
 
 config SERIAL_M32R_PLDSIO
 	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PALT_USRV || PLAT_M32700UT)
+	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
 	default n
 	help
 	  Say Y here if you want to use the M32R serial controller
@@ -916,5 +915,13 @@ config SERIAL_SGI_IOC4
 		If you have an SGI Altix with an IOC4 based Base IO card
 		and wish to use the serial ports on this card, say Y.
 		Otherwise, say N.
+
+config SERIAL_SGI_IOC3
+	tristate "SGI Altix IOC3 serial support"
+	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC3
+	select SERIAL_CORE
+	help
+	  If you have an SGI Altix with an IOC3 serial card,
+	  say Y or M.  Otherwise, say N.
 
 endmenu

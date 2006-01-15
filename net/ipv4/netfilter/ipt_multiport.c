@@ -97,6 +97,7 @@ match(const struct sk_buff *skb,
       const struct net_device *out,
       const void *matchinfo,
       int offset,
+      unsigned int protoff,
       int *hotdrop)
 {
 	u16 _ports[2], *pptr;
@@ -105,7 +106,7 @@ match(const struct sk_buff *skb,
 	if (offset)
 		return 0;
 
-	pptr = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
+	pptr = skb_header_pointer(skb, protoff,
 				  sizeof(_ports), _ports);
 	if (pptr == NULL) {
 		/* We've been asked to examine this packet, and we
@@ -128,6 +129,7 @@ match_v1(const struct sk_buff *skb,
 	 const struct net_device *out,
 	 const void *matchinfo,
 	 int offset,
+	 unsigned int protoff,
 	 int *hotdrop)
 {
 	u16 _ports[2], *pptr;
@@ -136,7 +138,7 @@ match_v1(const struct sk_buff *skb,
 	if (offset)
 		return 0;
 
-	pptr = skb_header_pointer(skb, skb->nh.iph->ihl * 4,
+	pptr = skb_header_pointer(skb, protoff,
 				  sizeof(_ports), _ports);
 	if (pptr == NULL) {
 		/* We've been asked to examine this packet, and we
@@ -154,7 +156,7 @@ match_v1(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-	   const struct ipt_ip *ip,
+	   const void *ip,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
@@ -164,7 +166,7 @@ checkentry(const char *tablename,
 
 static int
 checkentry_v1(const char *tablename,
-	      const struct ipt_ip *ip,
+	      const void *ip,
 	      void *matchinfo,
 	      unsigned int matchsize,
 	      unsigned int hook_mask)

@@ -411,7 +411,7 @@ unsigned long __must_check __copy_from_user_ll(void *to,
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 {
 	if (__builtin_constant_p(n)) {
@@ -432,7 +432,7 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 	return __copy_to_user_ll(to, from, n);
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
        might_sleep();
@@ -456,7 +456,7 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-static inline unsigned long
+static __always_inline unsigned long
 __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 {
 	if (__builtin_constant_p(n)) {
@@ -477,7 +477,7 @@ __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 	return __copy_from_user_ll(to, from, n);
 }
 
-static inline unsigned long
+static __always_inline unsigned long
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
        might_sleep();

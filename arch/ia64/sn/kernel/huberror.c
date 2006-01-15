@@ -32,13 +32,14 @@ static irqreturn_t hub_eint_handler(int irq, void *arg, struct pt_regs *ep)
 	ret_stuff.v0 = 0;
 	hubdev_info = (struct hubdev_info *)arg;
 	nasid = hubdev_info->hdi_nasid;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_HUB_ERROR_INTERRUPT,
-			(u64) nasid, 0, 0, 0, 0, 0, 0);
-
-	if ((int)ret_stuff.v0)
-		panic("hubii_eint_handler(): Fatal TIO Error");
 
 	if (is_shub1()) {
+		SAL_CALL_NOLOCK(ret_stuff, SN_SAL_HUB_ERROR_INTERRUPT,
+			(u64) nasid, 0, 0, 0, 0, 0, 0);
+
+		if ((int)ret_stuff.v0)
+			panic("hubii_eint_handler(): Fatal TIO Error");
+
 		if (!(nasid & 1)) /* Not a TIO, handle CRB errors */
 			(void)hubiio_crb_error_handler(hubdev_info);
 	} else 

@@ -951,7 +951,6 @@ static void* mgsl_get_text_ptr(void)
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int mgsl_paranoia_check(struct mgsl_struct *info,
 					char *name, const char *routine)

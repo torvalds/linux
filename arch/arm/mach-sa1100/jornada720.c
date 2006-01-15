@@ -173,7 +173,6 @@ static void __init jornada720_mach_init(void)
 
 MACHINE_START(JORNADA720, "HP Jornada 720")
 	/* Maintainer: Michael Gernoth <michael@gernoth.net> */
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,

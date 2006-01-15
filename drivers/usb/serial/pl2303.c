@@ -43,8 +43,6 @@ static int debug;
 #define PL2303_BUF_SIZE		1024
 #define PL2303_TMP_BUF_SIZE	1024
 
-static DECLARE_MUTEX(pl2303_tmp_buf_sem);
-
 struct pl2303_buf {
 	unsigned int	buf_size;
 	char		*buf_buf;

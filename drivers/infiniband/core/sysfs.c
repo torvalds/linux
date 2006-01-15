@@ -445,13 +445,7 @@ static int ib_device_uevent(struct class_device *cdev, char **envp,
 		return -ENOMEM;
 
 	/*
-	 * It might be nice to pass the node GUID with the event, but
-	 * right now the only way to get it is to query the device
-	 * provider, and this can crash during device removal because
-	 * we are will be running after driver removal has started.
-	 * We could add a node_guid field to struct ib_device, or we
-	 * could just let userspace read the node GUID from sysfs when
-	 * devices are added.
+	 * It would be nice to pass the node GUID with the event...
 	 */
 
 	envp[i] = NULL;
@@ -623,21 +617,15 @@ static ssize_t show_sys_image_guid(struct class_device *cdev, char *buf)
 static ssize_t show_node_guid(struct class_device *cdev, char *buf)
 {
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
-	struct ib_device_attr attr;
-	ssize_t ret;
 
 	if (!ibdev_is_alive(dev))
 		return -ENODEV;
 
-	ret = ib_query_device(dev, &attr);
-	if (ret)
-		return ret;
-
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((__be16 *) &attr.node_guid)[0]),
-		       be16_to_cpu(((__be16 *) &attr.node_guid)[1]),
-		       be16_to_cpu(((__be16 *) &attr.node_guid)[2]),
-		       be16_to_cpu(((__be16 *) &attr.node_guid)[3]));
+		       be16_to_cpu(((__be16 *) &dev->node_guid)[0]),
+		       be16_to_cpu(((__be16 *) &dev->node_guid)[1]),
+		       be16_to_cpu(((__be16 *) &dev->node_guid)[2]),
+		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
 }
 
 static CLASS_DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);

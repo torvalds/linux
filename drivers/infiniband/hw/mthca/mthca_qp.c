@@ -1434,7 +1434,7 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 	u16 pkey;
 
 	ib_ud_header_init(256, /* assume a MAD */
-			  sqp->ud_header.grh_present,
+			  mthca_ah_grh_present(to_mah(wr->wr.ud.ah)),
 			  &sqp->ud_header);
 
 	err = mthca_read_ah(dev, to_mah(wr->wr.ud.ah), &sqp->ud_header);
