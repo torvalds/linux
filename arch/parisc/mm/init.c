@@ -477,11 +477,6 @@ void __init mem_init(void)
 
 }
 
-int do_check_pgt_cache(int low, int high)
-{
-	return 0;
-}
-
 unsigned long *empty_zero_page __read_mostly;
 
 void show_mem(void)

@@ -137,7 +137,6 @@ static inline void pte_free_kernel(pte_t *pte)
 
 #define pte_free(page)	pte_free_kernel(page_address(page))
 
-extern int do_check_pgt_cache(int, int);
 #define check_pgt_cache()	do { } while (0)
 
 #endif
