@@ -317,7 +317,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	
 	if(personality(current->personality) == PER_LINUX32) {
 		DBG(1,"setup_rt_frame: frame->info = 0x%p\n", &compat_frame->info);
-		err |= compat_copy_siginfo_to_user(&compat_frame->info, info);
+		err |= copy_siginfo_to_user32(&compat_frame->info, info);
 		DBG(1,"SETUP_RT_FRAME: 1\n");
 		compat_val = (compat_int_t)current->sas_ss_sp;
 		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_sp);

@@ -91,7 +91,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		int copied;
 
 #ifdef __LP64__
-		if (is_compat_task(child)) {
+		if (personality(child->personality) == PER_LINUX32) {
 			unsigned int tmp;
 
 			addr &= 0xffffffffL;
@@ -123,7 +123,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_POKEDATA:
 		ret = 0;
 #ifdef __LP64__
-		if (is_compat_task(child)) {
+		if (personality(child->personality) == PER_LINUX32) {
 			unsigned int tmp = (unsigned int)data;
 			DBG("sys_ptrace(POKE%s, %d, %lx, %lx)\n",
 				request == PTRACE_POKETEXT ? "TEXT" : "DATA",
@@ -146,7 +146,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_PEEKUSR: {
 		ret = -EIO;
 #ifdef __LP64__
-		if (is_compat_task(child)) {
+		if (personality(child->personality) == PER_LINUX32) {
 			unsigned int tmp;
 
 			if (addr & (sizeof(int)-1))
@@ -205,7 +205,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			goto out_tsk;
 		}
 #ifdef __LP64__
-		if (is_compat_task(child)) {
+		if (personality(child->personality) == PER_LINUX32) {
 			if (addr & (sizeof(int)-1))
 				goto out_tsk;
 			if ((addr = translate_usr_offset(addr)) < 0)
