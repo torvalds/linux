@@ -10,6 +10,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
+
 struct tag;
 struct meminfo;
 struct sys_timer;
