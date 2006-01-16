@@ -83,8 +83,8 @@ static int eth_port_link_is_up(unsigned int eth_port_num);
 static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
 static void eth_port_set_multicast_list(struct net_device *);
-static int mv643xx_eth_real_open(struct net_device *);
-static int mv643xx_eth_real_stop(struct net_device *);
+static int mv643xx_eth_open(struct net_device *);
+static int mv643xx_eth_stop(struct net_device *);
 static int mv643xx_eth_change_mtu(struct net_device *, int);
 static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *);
 static void eth_port_init_mac_tables(unsigned int eth_port_num);
@@ -140,11 +140,8 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 	 * to memory is full, which might fail the open function.
 	 */
 	if (netif_running(dev)) {
-		if (mv643xx_eth_real_stop(dev))
-			printk(KERN_ERR
-				"%s: Fatal error on stopping device\n",
-				dev->name);
-		if (mv643xx_eth_real_open(dev))
+		mv643xx_eth_stop(dev);
+		if (mv643xx_eth_open(dev))
 			printk(KERN_ERR
 				"%s: Fatal error on opening device\n",
 				dev->name);
@@ -632,42 +629,6 @@ static unsigned int eth_port_set_tx_coal(unsigned int eth_port_num,
 }
 
 /*
- * mv643xx_eth_open
- *
- * This function is called when openning the network device. The function
- * should initialize all the hardware, initialize cyclic Rx/Tx
- * descriptors chain and buffers and allocate an IRQ to the network
- * device.
- *
- * Input :	a pointer to the network device structure
- *
- * Output :	zero of success , nonzero if fails.
- */
-
-static int mv643xx_eth_open(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned int port_num = mp->port_num;
-	int err;
-
-	err = request_irq(dev->irq, mv643xx_eth_int_handler,
-			SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
-	if (err) {
-		printk(KERN_ERR "Can not assign IRQ number to MV643XX_eth%d\n",
-								port_num);
-		return -EAGAIN;
-	}
-
-	if (mv643xx_eth_real_open(dev)) {
-		printk("%s: Error opening interface\n", dev->name);
-		free_irq(dev->irq, dev);
-		err = -EBUSY;
-	}
-
-	return err;
-}
-
-/*
  * ether_init_rx_desc_ring - Curve a Rx chain desc list and buffer in memory.
  *
  * DESCRIPTION:
@@ -759,12 +720,33 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
 	mp->port_tx_queue_command |= 1;
 }
 
-/* Helper function for mv643xx_eth_open */
-static int mv643xx_eth_real_open(struct net_device *dev)
+/*
+ * mv643xx_eth_open
+ *
+ * This function is called when openning the network device. The function
+ * should initialize all the hardware, initialize cyclic Rx/Tx
+ * descriptors chain and buffers and allocate an IRQ to the network
+ * device.
+ *
+ * Input :	a pointer to the network device structure
+ *
+ * Output :	zero of success , nonzero if fails.
+ */
+
+static int mv643xx_eth_open(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	unsigned int size;
+	int err;
+
+	err = request_irq(dev->irq, mv643xx_eth_int_handler,
+			SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
+	if (err) {
+		printk(KERN_ERR "Can not assign IRQ number to MV643XX_eth%d\n",
+								port_num);
+		return -EAGAIN;
+	}
 
 	/* Stop RX Queues */
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
@@ -788,14 +770,15 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 								GFP_KERNEL);
 	if (!mp->rx_skb) {
 		printk(KERN_ERR "%s: Cannot allocate Rx skb ring\n", dev->name);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_irq;
 	}
 	mp->tx_skb = kmalloc(sizeof(*mp->tx_skb) * mp->tx_ring_size,
 								GFP_KERNEL);
 	if (!mp->tx_skb) {
 		printk(KERN_ERR "%s: Cannot allocate Tx skb ring\n", dev->name);
-		kfree(mp->rx_skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_rx_skb;
 	}
 
 	/* Allocate TX ring */
@@ -815,9 +798,8 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 	if (!mp->p_tx_desc_area) {
 		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
 							dev->name, size);
-		kfree(mp->rx_skb);
-		kfree(mp->tx_skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_tx_skb;
 	}
 	BUG_ON((u32) mp->p_tx_desc_area & 0xf);	/* check 16-byte alignment */
 	memset((void *)mp->p_tx_desc_area, 0, mp->tx_desc_area_size);
@@ -848,9 +830,8 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 		else
 			dma_free_coherent(NULL, mp->tx_desc_area_size,
 					mp->p_tx_desc_area, mp->tx_desc_dma);
-		kfree(mp->rx_skb);
-		kfree(mp->tx_skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_tx_skb;
 	}
 	memset((void *)mp->p_rx_desc_area, 0, size);
 
@@ -882,6 +863,15 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
 						INT_CAUSE_UNMASK_ALL);
 	return 0;
+
+out_free_tx_skb:
+	kfree(mp->tx_skb);
+out_free_rx_skb:
+	kfree(mp->rx_skb);
+out_free_irq:
+	free_irq(dev->irq, dev);
+
+	return err;
 }
 
 static void mv643xx_eth_free_tx_rings(struct net_device *dev)
@@ -955,9 +945,7 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
  * Output :	zero if success , nonzero if fails
  */
 
-/* Helper function for mv643xx_eth_stop */
-
-static int mv643xx_eth_real_stop(struct net_device *dev)
+static int mv643xx_eth_stop(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
@@ -985,13 +973,6 @@ static int mv643xx_eth_real_stop(struct net_device *dev)
 #ifdef MV643XX_NAPI
 	netif_poll_enable(dev);
 #endif
-
-	return 0;
-}
-
-static int mv643xx_eth_stop(struct net_device *dev)
-{
-	mv643xx_eth_real_stop(dev);
 
 	free_irq(dev->irq, dev);
 
