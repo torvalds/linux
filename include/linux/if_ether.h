@@ -72,6 +72,7 @@
 					 * over Ethernet
 					 */
 #define ETH_P_AOE	0x88A2		/* ATA over Ethernet		*/
+#define ETH_P_TIPC	0x88CA		/* TIPC 			*/
 
 /*
  *	Non DIX types. Won't clash for 1500 types.

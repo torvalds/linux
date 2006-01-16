@@ -41,7 +41,6 @@
 #include <linux/version.h>
 
 #define MAX_ETH_BEARERS		2
-#define TIPC_PROTOCOL		0x88ca
 #define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
 #define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
 #define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
@@ -78,7 +77,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		clone->nh.raw = clone->data;
 		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
 		clone->dev = dev;
-		dev->hard_header(clone, dev, TIPC_PROTOCOL, 
+		dev->hard_header(clone, dev, ETH_P_TIPC, 
 				 &dest->dev_addr.eth_addr,
 				 dev->dev_addr, clone->len);
 		dev_queue_xmit(clone);
@@ -141,7 +140,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 		return -EDQUOT;
 	if (!eb_ptr->dev) {
 		eb_ptr->dev = dev;
-		eb_ptr->tipc_packet_type.type = __constant_htons(TIPC_PROTOCOL);
+		eb_ptr->tipc_packet_type.type = __constant_htons(ETH_P_TIPC);
 		eb_ptr->tipc_packet_type.dev = dev;
 		eb_ptr->tipc_packet_type.func = recv_msg;
 		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
