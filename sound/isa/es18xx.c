@@ -49,6 +49,10 @@
  * - contrarily to some pages in DS_1869.PDF the rates can be set
  *   independently.
  *
+ * - Zoom Video is implemented by sharing the FM DAC, thus the user can
+ *   have either FM playback or Video playback but not both simultaneously.
+ *   The Video Playback Switch mixer control toggles this choice.
+ *
  * BUGS:
  *
  * - There is a major trouble I noted:
@@ -63,7 +67,16 @@
  *
  */
 
-
+/*
+ * ES1879 NOTES:
+ * - When Zoom Video is enabled (reg 0x71 bit 6 toggled on) the PCM playback
+ *   seems to be effected (speaker_test plays a lower frequency). Can't find
+ *   anything in the datasheet to account for this, so a Video Playback Switch
+ *   control has been included to allow ZV to be enabled only when necessary.
+ *   Then again on at least one test system the 0x71 bit 6 enable bit is not 
+ *   needed for ZV, so maybe the datasheet is entirely wrong here.
+ */
+ 
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -1317,8 +1330,18 @@ static struct snd_kcontrol_new snd_es18xx_opt_speaker =
 
 static struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
 ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
+ES18XX_SINGLE("Video Playback Switch", 0, 0x7f, 0, 1, 0),
 ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
+};
+
+static struct snd_kcontrol_new snd_es18xx_opt_1878 =
+	ES18XX_DOUBLE("Video Playback Volume", 0, 0x68, 0x68, 4, 0, 15, 0);
+
+static struct snd_kcontrol_new snd_es18xx_opt_1879[] = {
+ES18XX_SINGLE("Video Playback Switch", 0, 0x71, 6, 1, 0),
+ES18XX_DOUBLE("Video Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
+ES18XX_DOUBLE("Video Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
 static struct snd_kcontrol_new snd_es18xx_pcm1_controls[] = {
@@ -1365,7 +1388,6 @@ static struct snd_kcontrol_new snd_es18xx_hw_volume_controls[] = {
 ES18XX_SINGLE("Hardware Master Volume Split", 0, 0x64, 7, 1, 0),
 };
 
-#if 0
 static int __devinit snd_es18xx_config_read(struct snd_es18xx *chip, unsigned char reg)
 {
 	int data;
@@ -1376,7 +1398,6 @@ static int __devinit snd_es18xx_config_read(struct snd_es18xx *chip, unsigned ch
         spin_unlock_irqrestore(&chip->ctrl_lock, flags);
 	return data;
 }
-#endif
 
 static void __devinit snd_es18xx_config_write(struct snd_es18xx *chip, 
 					      unsigned char reg, unsigned char data)
@@ -1521,6 +1542,17 @@ static int __devinit snd_es18xx_initialize(struct snd_es18xx *chip)
 		snd_es18xx_mixer_write(chip, 0x56, 0x95);
 		snd_es18xx_mixer_write(chip, 0x58, 0x94);
 		snd_es18xx_mixer_write(chip, 0x5a, 0x80);
+	}
+	/* Flip the "enable I2S" bits for those chipsets that need it */
+	switch (chip->version) {
+	case 0x1879:
+		//Leaving I2S enabled on the 1879 screws up the PCM playback (rate effected somehow)
+		//so a Switch control has been added to toggle this 0x71 bit on/off:
+		//snd_es18xx_mixer_bits(chip, 0x71, 0x40, 0x40);
+		/* Note: we fall through on purpose here. */
+	case 0x1878:
+		snd_es18xx_config_write(chip, 0x29, snd_es18xx_config_read(chip, 0x29) | 0x40);
+		break;
 	}
 	/* Mute input source */
 	if (chip->caps & ES18XX_MUTEREC)
@@ -1925,6 +1957,19 @@ static int __devinit snd_es18xx_mixer(struct snd_es18xx *chip)
 		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_opt_1869); idx++) {
 			err = snd_ctl_add(card,
 					  snd_ctl_new1(&snd_es18xx_opt_1869[idx],
+						       chip));
+			if (err < 0)
+				return err;
+		}
+	} else if (chip->version == 0x1878) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_es18xx_opt_1878,
+						     chip));
+		if (err < 0)
+			return err;
+	} else if (chip->version == 0x1879) {
+		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_opt_1879); idx++) {
+			err = snd_ctl_add(card,
+					  snd_ctl_new1(&snd_es18xx_opt_1879[idx],
 						       chip));
 			if (err < 0)
 				return err;
