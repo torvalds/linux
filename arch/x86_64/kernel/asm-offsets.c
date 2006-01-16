@@ -43,6 +43,7 @@ int main(void)
 	ENTRY(irqcount);
 	ENTRY(cpunumber);
 	ENTRY(irqstackptr);
+	ENTRY(data_offset);
 	BLANK();
 #undef ENTRY
 #ifdef CONFIG_IA32_EMULATION
@@ -66,8 +67,6 @@ int main(void)
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));
 	DEFINE(pbe_next, offsetof(struct pbe, next));
 	BLANK();
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-	DEFINE(DEBUG_IST, DEBUG_STACK);
-#endif
+	DEFINE(TSS_ist, offsetof(struct tss_struct, ist));
 	return 0;
 }
