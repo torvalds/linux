@@ -889,14 +889,17 @@ static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	unsigned int curr;
+	struct sk_buff *skb;
 
 	/* Stop Tx Queues */
 	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
 	/* Free outstanding skb's on TX rings */
 	for (curr = 0; mp->tx_ring_skbs && curr < mp->tx_ring_size; curr++) {
-		if (mp->tx_skb[curr]) {
-			dev_kfree_skb(mp->tx_skb[curr]);
+		skb = mp->tx_skb[curr];
+		if (skb) {
+			mp->tx_ring_skbs -= skb_shinfo(skb)->nr_frags;
+			dev_kfree_skb(skb);
 			mp->tx_ring_skbs--;
 		}
 	}
