@@ -641,7 +641,8 @@ schedule_hrtimer_interruptible(struct hrtimer *timer,
 static long __sched
 nanosleep_restart(struct restart_block *restart, clockid_t clockid)
 {
-	struct timespec __user *rmtp, tu;
+	struct timespec __user *rmtp;
+	struct timespec tu;
 	void *rfn_save = restart->fn;
 	struct hrtimer timer;
 	ktime_t rem;
