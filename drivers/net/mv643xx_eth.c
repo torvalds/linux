@@ -35,6 +35,8 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/etherdevice.h>
+#include <linux/in.h>
+#include <linux/ip.h>
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
