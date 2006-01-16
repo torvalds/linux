@@ -47,6 +47,7 @@
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
@@ -202,7 +203,7 @@ struct snd_usb_stream {
  * the all interfaces on the same card as one sound device.
  */
 
-static DECLARE_MUTEX(register_mutex);
+static DEFINE_MUTEX(register_mutex);
 static struct snd_usb_audio *usb_chip[SNDRV_CARDS];
 
 
@@ -3285,7 +3286,7 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 
 	/* check whether it's already registered */
 	chip = NULL;
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (usb_chip[i] && usb_chip[i]->dev == dev) {
 			if (usb_chip[i]->shutdown) {
@@ -3338,13 +3339,13 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 
 	usb_chip[chip->index] = chip;
 	chip->num_interfaces++;
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return chip;
 
  __error:
 	if (chip && !chip->num_interfaces)
 		snd_card_free(chip->card);
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
  __err_val:
 	return NULL;
 }
@@ -3364,7 +3365,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 
 	chip = ptr;
 	card = chip->card;
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	chip->shutdown = 1;
 	chip->num_interfaces--;
 	if (chip->num_interfaces <= 0) {
@@ -3382,10 +3383,10 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 			snd_usb_mixer_disconnect(p);
 		}
 		usb_chip[chip->index] = NULL;
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 		snd_card_free(card);
 	} else {
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 	}
 }
 

@@ -351,7 +351,7 @@ static struct snd_card *usX2Y_create_card(struct usb_device *device)
 	usX2Y(card)->chip.dev = device;
 	usX2Y(card)->chip.card = card;
 	init_waitqueue_head(&usX2Y(card)->prepare_wait_queue);
-	init_MUTEX (&usX2Y(card)->prepare_mutex);
+	mutex_init(&usX2Y(card)->prepare_mutex);
 	INIT_LIST_HEAD(&usX2Y(card)->chip.midi_list);
 	strcpy(card->driver, "USB "NAME_ALLCAPS"");
 	sprintf(card->shortname, "TASCAM "NAME_ALLCAPS"");

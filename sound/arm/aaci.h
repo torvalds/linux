@@ -227,7 +227,7 @@ struct aaci {
 	unsigned int		fifosize;
 
 	/* AC'97 */
-	struct semaphore	ac97_sem;
+	struct mutex		ac97_sem;
 	ac97_bus_t		*ac97_bus;
 
 	u32			maincr;
