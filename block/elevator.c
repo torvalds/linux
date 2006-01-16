@@ -157,12 +157,12 @@ static void elevator_setup_default(void)
 		strcpy(chosen_elevator, "anticipatory");
 
  	/*
- 	 * If the given scheduler is not available, fall back to no-op.
+ 	 * If the given scheduler is not available, fall back to the default
  	 */
  	if ((e = elevator_find(chosen_elevator)))
 		elevator_put(e);
 	else
- 		strcpy(chosen_elevator, "noop");
+ 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 }
 
 static int __init elevator_setup(char *str)
