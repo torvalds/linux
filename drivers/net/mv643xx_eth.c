@@ -353,27 +353,19 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 			stats->tx_errors++;
 		}
 
-		/*
-		 * If return_info is different than 0, release the skb.
-		 * The case where return_info is not 0 is only in case
-		 * when transmitted a scatter/gather packet, where only
-		 * last skb releases the whole chain.
-		 */
-		if (pkt_info.return_info) {
-			if (skb_shinfo(pkt_info.return_info)->nr_frags)
-				dma_unmap_page(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
-			else
-				dma_unmap_single(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
+		if (pkt_info.cmd_sts & ETH_TX_FIRST_DESC)
+			dma_unmap_single(NULL, pkt_info.buf_ptr,
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
+		else
+			dma_unmap_page(NULL, pkt_info.buf_ptr,
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
 
+		if (pkt_info.return_info) {
 			dev_kfree_skb_irq(pkt_info.return_info);
 			released = 0;
-		} else
-			dma_unmap_page(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt, DMA_TO_DEVICE);
+		}
 	}
 
 	spin_unlock(&mp->lock);
@@ -1024,20 +1016,17 @@ static void mv643xx_tx(struct net_device *dev)
 	struct pkt_info pkt_info;
 
 	while (eth_tx_return_desc(mp, &pkt_info) == ETH_OK) {
-		if (pkt_info.return_info) {
-			if (skb_shinfo(pkt_info.return_info)->nr_frags)
-				dma_unmap_page(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
-			else
-				dma_unmap_single(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
-
-			dev_kfree_skb_irq(pkt_info.return_info);
-		} else
+		if (pkt_info.cmd_sts & ETH_TX_FIRST_DESC)
+			dma_unmap_single(NULL, pkt_info.buf_ptr,
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
+		else
 			dma_unmap_page(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt, DMA_TO_DEVICE);
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
+
+		if (pkt_info.return_info)
+			dev_kfree_skb_irq(pkt_info.return_info);
 	}
 
 	if (netif_queue_stopped(dev) &&
