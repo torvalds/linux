@@ -145,7 +145,7 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	init_waitqueue_head(&card->shutdown_sleep);
 	INIT_WORK(&card->free_workq, snd_card_free_thread, card);
 #ifdef CONFIG_PM
-	init_MUTEX(&card->power_lock);
+	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
 #endif
 	/* the control interface cannot be accessed from the user space until */

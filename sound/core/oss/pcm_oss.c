@@ -1643,10 +1643,10 @@ static struct snd_pcm_oss_setup *snd_pcm_oss_look_for_setup(struct snd_pcm *pcm,
 	const char *ptr, *ptrl;
 	struct snd_pcm_oss_setup *setup;
 
-	down(&pcm->streams[stream].oss.setup_mutex);
+	mutex_lock(&pcm->streams[stream].oss.setup_mutex);
 	for (setup = pcm->streams[stream].oss.setup_list; setup; setup = setup->next) {
 		if (!strcmp(setup->task_name, task_name)) {
-			up(&pcm->streams[stream].oss.setup_mutex);
+			mutex_unlock(&pcm->streams[stream].oss.setup_mutex);
 			return setup;
 		}
 	}
@@ -1662,12 +1662,12 @@ static struct snd_pcm_oss_setup *snd_pcm_oss_look_for_setup(struct snd_pcm *pcm,
 	}
 	for (setup = pcm->streams[stream].oss.setup_list; setup; setup = setup->next) {
 		if (!strcmp(setup->task_name, ptrl)) {
-			up(&pcm->streams[stream].oss.setup_mutex);
+			mutex_unlock(&pcm->streams[stream].oss.setup_mutex);
 			return setup;
 		}
 	}
       __not_found:
-	up(&pcm->streams[stream].oss.setup_mutex);
+	mutex_unlock(&pcm->streams[stream].oss.setup_mutex);
 	return NULL;
 }
 
@@ -1895,7 +1895,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&pcm->open_wait, &wait);
-	down(&pcm->open_mutex);
+	mutex_lock(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_oss_open_file(file, pcm, &pcm_oss_file,
 					    iminor(inode), psetup, csetup);
@@ -1909,16 +1909,16 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 		} else
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
-		up(&pcm->open_mutex);
+		mutex_unlock(&pcm->open_mutex);
 		schedule();
-		down(&pcm->open_mutex);
+		mutex_lock(&pcm->open_mutex);
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
 			break;
 		}
 	}
 	remove_wait_queue(&pcm->open_wait, &wait);
-	up(&pcm->open_mutex);
+	mutex_unlock(&pcm->open_mutex);
 	if (err < 0)
 		goto __error;
 	return err;
@@ -1944,9 +1944,9 @@ static int snd_pcm_oss_release(struct inode *inode, struct file *file)
 	snd_assert(substream != NULL, return -ENXIO);
 	pcm = substream->pcm;
 	snd_pcm_oss_sync(pcm_oss_file);
-	down(&pcm->open_mutex);
+	mutex_lock(&pcm->open_mutex);
 	snd_pcm_oss_release_file(pcm_oss_file);
-	up(&pcm->open_mutex);
+	mutex_unlock(&pcm->open_mutex);
 	wake_up(&pcm->open_wait);
 	module_put(pcm->card->module);
 	snd_card_file_remove(pcm->card, file);
@@ -2293,7 +2293,7 @@ static void snd_pcm_oss_proc_read(struct snd_info_entry *entry,
 {
 	struct snd_pcm_str *pstr = entry->private_data;
 	struct snd_pcm_oss_setup *setup = pstr->oss.setup_list;
-	down(&pstr->oss.setup_mutex);
+	mutex_lock(&pstr->oss.setup_mutex);
 	while (setup) {
 		snd_iprintf(buffer, "%s %u %u%s%s%s%s%s%s\n",
 			    setup->task_name,
@@ -2307,7 +2307,7 @@ static void snd_pcm_oss_proc_read(struct snd_info_entry *entry,
 			    setup->nosilence ? " no-silence" : "");
 		setup = setup->next;
 	}
-	up(&pstr->oss.setup_mutex);
+	mutex_unlock(&pstr->oss.setup_mutex);
 }
 
 static void snd_pcm_oss_proc_free_setup_list(struct snd_pcm_str * pstr)
@@ -2337,12 +2337,12 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 	struct snd_pcm_oss_setup *setup, *setup1, template;
 
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
-		down(&pstr->oss.setup_mutex);
+		mutex_lock(&pstr->oss.setup_mutex);
 		memset(&template, 0, sizeof(template));
 		ptr = snd_info_get_str(task_name, line, sizeof(task_name));
 		if (!strcmp(task_name, "clear") || !strcmp(task_name, "erase")) {
 			snd_pcm_oss_proc_free_setup_list(pstr);
-			up(&pstr->oss.setup_mutex);
+			mutex_unlock(&pstr->oss.setup_mutex);
 			continue;
 		}
 		for (setup = pstr->oss.setup_list; setup; setup = setup->next) {
@@ -2394,7 +2394,7 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 		}
 		if (setup)
 			*setup = template;
-		up(&pstr->oss.setup_mutex);
+		mutex_unlock(&pstr->oss.setup_mutex);
 	}
 }
 

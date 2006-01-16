@@ -31,7 +31,7 @@
 #include <asm/uaccess.h>
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <sound/memalloc.h>
 #ifdef CONFIG_SBUS
 #include <asm/sbus.h>
@@ -54,7 +54,7 @@ int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab);
 /*
  */
 
-static DECLARE_MUTEX(list_mutex);
+static DEFINE_MUTEX(list_mutex);
 static LIST_HEAD(mem_list_head);
 
 /* buffer preservation list */
@@ -440,7 +440,7 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 
 	snd_assert(dmab, return 0);
 
-	down(&list_mutex);
+	mutex_lock(&list_mutex);
 	list_for_each(p, &mem_list_head) {
 		mem = list_entry(p, struct snd_mem_list, list);
 		if (mem->id == id &&
@@ -452,11 +452,11 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 			if (dmab->dev.dev == NULL)
 				dmab->dev.dev = dev;
 			kfree(mem);
-			up(&list_mutex);
+			mutex_unlock(&list_mutex);
 			return dmab->bytes;
 		}
 	}
-	up(&list_mutex);
+	mutex_unlock(&list_mutex);
 	return 0;
 }
 
@@ -477,11 +477,11 @@ int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id)
 	mem = kmalloc(sizeof(*mem), GFP_KERNEL);
 	if (! mem)
 		return -ENOMEM;
-	down(&list_mutex);
+	mutex_lock(&list_mutex);
 	mem->buffer = *dmab;
 	mem->id = id;
 	list_add_tail(&mem->list, &mem_list_head);
-	up(&list_mutex);
+	mutex_unlock(&list_mutex);
 	return 0;
 }
 
@@ -493,7 +493,7 @@ static void free_all_reserved_pages(void)
 	struct list_head *p;
 	struct snd_mem_list *mem;
 
-	down(&list_mutex);
+	mutex_lock(&list_mutex);
 	while (! list_empty(&mem_list_head)) {
 		p = mem_list_head.next;
 		mem = list_entry(p, struct snd_mem_list, list);
@@ -501,7 +501,7 @@ static void free_all_reserved_pages(void)
 		snd_dma_free_pages(&mem->buffer);
 		kfree(mem);
 	}
-	up(&list_mutex);
+	mutex_unlock(&list_mutex);
 }
 
 
@@ -522,7 +522,7 @@ static int snd_mem_proc_read(char *page, char **start, off_t off,
 	int devno;
 	static char *types[] = { "UNKNOWN", "CONT", "DEV", "DEV-SG", "SBUS" };
 
-	down(&list_mutex);
+	mutex_lock(&list_mutex);
 	len += snprintf(page + len, count - len,
 			"pages  : %li bytes (%li pages per %likB)\n",
 			pages * PAGE_SIZE, pages, PAGE_SIZE / 1024);
@@ -537,7 +537,7 @@ static int snd_mem_proc_read(char *page, char **start, off_t off,
 				"  addr = 0x%lx, size = %d bytes\n",
 				(unsigned long)mem->buffer.addr, (int)mem->buffer.bytes);
 	}
-	up(&list_mutex);
+	mutex_unlock(&list_mutex);
 	return len;
 }
 

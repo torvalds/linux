@@ -2112,7 +2112,7 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
 	}
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&pcm->open_wait, &wait);
-	down(&pcm->open_mutex);
+	mutex_lock(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_open_file(file, pcm, stream, &pcm_file);
 		if (err >= 0)
@@ -2125,16 +2125,16 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
 		} else
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
-		up(&pcm->open_mutex);
+		mutex_unlock(&pcm->open_mutex);
 		schedule();
-		down(&pcm->open_mutex);
+		mutex_lock(&pcm->open_mutex);
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
 			break;
 		}
 	}
 	remove_wait_queue(&pcm->open_wait, &wait);
-	up(&pcm->open_mutex);
+	mutex_unlock(&pcm->open_mutex);
 	if (err < 0)
 		goto __error;
 	return err;
@@ -2160,9 +2160,9 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	pcm = substream->pcm;
 	snd_pcm_drop(substream);
 	fasync_helper(-1, file, 0, &substream->runtime->fasync);
-	down(&pcm->open_mutex);
+	mutex_lock(&pcm->open_mutex);
 	snd_pcm_release_file(pcm_file);
-	up(&pcm->open_mutex);
+	mutex_unlock(&pcm->open_mutex);
 	wake_up(&pcm->open_wait);
 	module_put(pcm->card->module);
 	snd_card_file_remove(pcm->card, file);

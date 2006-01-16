@@ -420,7 +420,7 @@ struct snd_pcm {
 	char id[64];
 	char name[80];
 	struct snd_pcm_str streams[2];
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 	wait_queue_head_t open_wait;
 	void *private_data;
 	void (*private_free) (struct snd_pcm *pcm);

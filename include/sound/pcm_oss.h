@@ -75,7 +75,7 @@ struct snd_pcm_oss_substream {
 
 struct snd_pcm_oss_stream {
 	struct snd_pcm_oss_setup *setup_list;	/* setup list */
-        struct semaphore setup_mutex;
+	struct mutex setup_mutex;
 	struct snd_info_entry *proc_entry;
 };
 
