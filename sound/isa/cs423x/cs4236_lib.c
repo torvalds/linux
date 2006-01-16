@@ -841,7 +841,7 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	
 	enable = ucontrol->value.integer.value[0] & 1;
 
-	down(&chip->mce_mutex);
+	mutex_lock(&chip->mce_mutex);
 	snd_cs4231_mce_up(chip);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	val = (chip->image[CS4231_ALT_FEATURE_1] & ~0x0e) | (0<<2) | (enable << 1);
@@ -854,7 +854,7 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	snd_cs4236_ctrl_out(chip, 4, val);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_cs4231_mce_down(chip);
-	up(&chip->mce_mutex);
+	mutex_unlock(&chip->mce_mutex);
 
 #if 0
 	printk("set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",

@@ -387,9 +387,9 @@ static int snd_ad1848_open(struct snd_ad1848 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	down(&chip->open_mutex);
+	mutex_lock(&chip->open_mutex);
 	if (chip->mode & AD1848_MODE_OPEN) {
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return -EAGAIN;
 	}
 	snd_ad1848_mce_down(chip);
@@ -432,7 +432,7 @@ static int snd_ad1848_open(struct snd_ad1848 *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = mode;
-	up(&chip->open_mutex);
+	mutex_unlock(&chip->open_mutex);
 
 	return 0;
 }
@@ -441,9 +441,9 @@ static void snd_ad1848_close(struct snd_ad1848 *chip)
 {
 	unsigned long flags;
 
-	down(&chip->open_mutex);
+	mutex_lock(&chip->open_mutex);
 	if (!chip->mode) {
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return;
 	}
 	/* disable IRQ */
@@ -471,7 +471,7 @@ static void snd_ad1848_close(struct snd_ad1848 *chip)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = 0;
-	up(&chip->open_mutex);
+	mutex_unlock(&chip->open_mutex);
 }
 
 /*
@@ -889,7 +889,7 @@ int snd_ad1848_create(struct snd_card *card,
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);
-	init_MUTEX(&chip->open_mutex);
+	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->port = port;
 	chip->irq = -1;
