@@ -338,8 +338,9 @@ AFLAGS		:= -D__ASSEMBLY__
 
 # Read KERNELRELEASE from .kernelrelease (if it exists)
 KERNELRELEASE = $(shell cat .kernelrelease 2> /dev/null)
+KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
-export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE \
+export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION \
 	ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
 	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE \
 	HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
@@ -434,6 +435,7 @@ export KBUILD_DEFCONFIG
 config %config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+	$(Q)$(MAKE) .kernelrelease
 
 else
 # ===========================================================================
@@ -784,12 +786,10 @@ endif
 localver-full = $(localver)$(localver-auto)
 
 # Store (new) KERNELRELASE string in .kernelrelease
-kernelrelease = \
-       $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)$(localver-full)
+kernelrelease = $(KERNELVERSION)$(localver-full)
 .kernelrelease: FORCE
-	$(Q)rm -f .kernelrelease
-	$(Q)echo $(kernelrelease) > .kernelrelease
-	$(Q)echo "  Building kernel $(kernelrelease)"
+	$(Q)rm -f $@
+	$(Q)echo $(kernelrelease) > $@
 
 
 # Things we need to do before we recursively start building the kernel
@@ -899,7 +899,7 @@ define filechk_version.h
 	)
 endef
 
-include/linux/version.h: $(srctree)/Makefile FORCE
+include/linux/version.h: $(srctree)/Makefile .config FORCE
 	$(call filechk,version.h)
 
 # ---------------------------------------------------------------------------
@@ -1302,9 +1302,10 @@ checkstack:
 	$(PERL) $(src)/scripts/checkstack.pl $(ARCH)
 
 kernelrelease:
-	@echo $(KERNELRELEASE)
+	$(if $(wildcard .kernelrelease), $(Q)echo $(KERNELRELEASE), \
+	$(error kernelrelease not valid - run 'make *config' to update it))
 kernelversion:
-	@echo $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
+	@echo $(KERNELVERSION)
 
 # FIXME Should go into a make.lib or something 
 # ===========================================================================
