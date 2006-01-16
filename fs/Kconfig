@@ -323,6 +323,7 @@ config FS_POSIX_ACL
 	default n
 
 source "fs/xfs/Kconfig"
+source "fs/gfs2/Kconfig"
 
 config OCFS2_FS
 	tristate "OCFS2 file system support (EXPERIMENTAL)"
