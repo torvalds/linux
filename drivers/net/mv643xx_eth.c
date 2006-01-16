@@ -877,7 +877,7 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 		printk(KERN_ERR "%s: Freeing previously allocated TX queues...",
 							dev->name);
 		if (mp->rx_sram_size)
-			iounmap(mp->p_rx_desc_area);
+			iounmap(mp->p_tx_desc_area);
 		else
 			dma_free_coherent(NULL, mp->tx_desc_area_size,
 					mp->p_tx_desc_area, mp->tx_desc_dma);
