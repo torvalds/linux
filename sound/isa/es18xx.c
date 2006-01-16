@@ -939,37 +939,118 @@ static int snd_es18xx_capture_close(struct snd_pcm_substream *substream)
  *  MIXER part
  */
 
+/* Record source mux routines:
+ * Depending on the chipset this mux switches between 4, 5, or 8 possible inputs.
+ * bit table for the 4/5 source mux:
+ * reg 1C:
+ *  b2 b1 b0   muxSource
+ *   x  0  x   microphone
+ *   0  1  x   CD
+ *   1  1  0   line
+ *   1  1  1   mixer
+ * if it's "mixer" and it's a 5 source mux chipset then reg 7A bit 3 determines
+ * either the play mixer or the capture mixer.
+ *
+ * "map4Source" translates from source number to reg bit pattern
+ * "invMap4Source" translates from reg bit pattern to source number
+ */
+
 static int snd_es18xx_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[8] = {
+	static char *texts4Source[4] = {
+		"Mic", "CD", "Line", "Master"
+	};
+	static char *texts5Source[5] = {
+		"Mic", "CD", "Line", "Master", "Mix"
+	};
+	static char *texts8Source[8] = {
 		"Mic", "Mic Master", "CD", "AOUT",
 		"Mic1", "Mix", "Line", "Master"
 	};
+	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = 8;
-	if (uinfo->value.enumerated.item > 7)
-		uinfo->value.enumerated.item = 7;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	switch (chip->version) {
+	case 0x1868:
+	case 0x1878:
+		uinfo->value.enumerated.items = 4;
+		if (uinfo->value.enumerated.item > 3)
+			uinfo->value.enumerated.item = 3;
+		strcpy(uinfo->value.enumerated.name, texts4Source[uinfo->value.enumerated.item]);
+		break;
+	case 0x1887:
+	case 0x1888:
+		uinfo->value.enumerated.items = 5;
+		if (uinfo->value.enumerated.item > 4)
+			uinfo->value.enumerated.item = 4;
+		strcpy(uinfo->value.enumerated.name, texts5Source[uinfo->value.enumerated.item]);
+		break;
+	case 0x1869: /* DS somewhat contradictory for 1869: could be be 5 or 8 */
+	case 0x1879:
+		uinfo->value.enumerated.items = 8;
+		if (uinfo->value.enumerated.item > 7)
+			uinfo->value.enumerated.item = 7;
+		strcpy(uinfo->value.enumerated.name, texts8Source[uinfo->value.enumerated.item]);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
 static int snd_es18xx_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
+	static unsigned char invMap4Source[8] = {0, 0, 1, 1, 0, 0, 2, 3};
 	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.enumerated.item[0] = snd_es18xx_mixer_read(chip, 0x1c) & 0x07;
+	int muxSource = snd_es18xx_mixer_read(chip, 0x1c) & 0x07;
+	if (!(chip->version == 0x1869 || chip->version == 0x1879)) {
+		muxSource = invMap4Source[muxSource];
+		if (muxSource==3 && 
+		    (chip->version == 0x1887 || chip->version == 0x1888) &&
+		    (snd_es18xx_mixer_read(chip, 0x7a) & 0x08)
+		) 
+			muxSource = 4;
+	}
+	ucontrol->value.enumerated.item[0] = muxSource;
 	return 0;
 }
 
 static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
+	static unsigned char map4Source[4] = {0, 2, 6, 7};
 	struct snd_es18xx *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char val = ucontrol->value.enumerated.item[0];
-	
-	if (val > 7)
+	unsigned char retVal = 0;
+
+	switch (chip->version) {
+ /* 5 source chips */
+	case 0x1887:
+	case 0x1888:
+		if (val > 4)
+			return -EINVAL;
+		if (val == 4) {
+			retVal = snd_es18xx_mixer_bits(chip, 0x7a, 0x08, 0x08) != 0x08;
+			val = 3;
+		} else
+			retVal = snd_es18xx_mixer_bits(chip, 0x7a, 0x08, 0x00) != 0x00;
+ /* 4 source chips */
+	case 0x1868:
+	case 0x1878:
+		if (val > 3)
+			return -EINVAL;
+		val = map4Source[val];
+		break;
+ /* 8 source chips */
+	case 0x1869:
+	case 0x1879:
+		if (val > 7)
+			return -EINVAL;
+		break;
+	default:
 		return -EINVAL;
-	return snd_es18xx_mixer_bits(chip, 0x1c, 0x07, val) != val;
+	}
+	return (snd_es18xx_mixer_bits(chip, 0x1c, 0x07, val) != val) || retVal;
 }
 
 static int snd_es18xx_info_spatializer_enable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
