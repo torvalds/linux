@@ -1191,19 +1191,22 @@ static int snd_es18xx_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
+/* Mixer controls
+ * These arrays contain setup data for mixer controls.
+ * 
+ * The controls that are universal to all chipsets are fully initialized
+ * here.
+ */
 static struct snd_kcontrol_new snd_es18xx_base_controls[] = {
 ES18XX_DOUBLE("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0),
 ES18XX_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 ES18XX_DOUBLE("Line Playback Volume", 0, 0x3e, 0x3e, 4, 0, 15, 0),
 ES18XX_DOUBLE("CD Playback Volume", 0, 0x38, 0x38, 4, 0, 15, 0),
 ES18XX_DOUBLE("FM Playback Volume", 0, 0x36, 0x36, 4, 0, 15, 0),
-ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mic Playback Volume", 0, 0x1a, 0x1a, 4, 0, 15, 0),
 ES18XX_DOUBLE("Aux Playback Volume", 0, 0x3a, 0x3a, 4, 0, 15, 0),
-ES18XX_SINGLE("PC Speaker Playback Volume", 0, 0x3c, 0, 7, 0),
 ES18XX_SINGLE("Record Monitor", 0, 0xa8, 3, 1, 0),
 ES18XX_DOUBLE("Capture Volume", 0, 0xb4, 0xb4, 4, 0, 15, 0),
-ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
@@ -1213,17 +1216,25 @@ ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
 }
 };
 
-static struct snd_kcontrol_new snd_es18xx_mono_in_control = 
-ES18XX_DOUBLE("Mono Input Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0);
-
 static struct snd_kcontrol_new snd_es18xx_recmix_controls[] = {
 ES18XX_DOUBLE("PCM Capture Volume", 0, 0x69, 0x69, 4, 0, 15, 0),
 ES18XX_DOUBLE("Mic Capture Volume", 0, 0x68, 0x68, 4, 0, 15, 0),
 ES18XX_DOUBLE("Line Capture Volume", 0, 0x6e, 0x6e, 4, 0, 15, 0),
 ES18XX_DOUBLE("FM Capture Volume", 0, 0x6b, 0x6b, 4, 0, 15, 0),
-ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0),
 ES18XX_DOUBLE("CD Capture Volume", 0, 0x6a, 0x6a, 4, 0, 15, 0),
 ES18XX_DOUBLE("Aux Capture Volume", 0, 0x6c, 0x6c, 4, 0, 15, 0)
+};
+
+/*
+ * The chipset specific mixer controls
+ */
+static struct snd_kcontrol_new snd_es18xx_opt_speaker =
+	ES18XX_SINGLE("PC Speaker Playback Volume", 0, 0x3c, 0, 7, 0);
+
+static struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
+ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
+ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
+ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
 static struct snd_kcontrol_new snd_es18xx_pcm1_controls[] = {
@@ -1476,11 +1487,14 @@ static int __devinit snd_es18xx_identify(struct snd_es18xx *chip)
 	}
 			
         outb(0x40, chip->port + 0x04);
+	udelay(10);
 	hi = inb(chip->port + 0x05);
+	udelay(10);
 	lo = inb(chip->port + 0x05);
 	if (hi != lo) {
 		chip->version = hi << 8 | lo;
 		chip->ctrl_port = inb(chip->port + 0x05) << 8;
+		udelay(10);
 		chip->ctrl_port += inb(chip->port + 0x05);
 
 		if ((chip->res_ctrl_port = request_region(chip->ctrl_port, 8, "ES18xx - CTRL")) == NULL) {
@@ -1778,10 +1792,6 @@ static int __devinit snd_es18xx_mixer(struct snd_es18xx *chip)
 		}
 	}
 
-	if (chip->caps & ES18XX_MONO) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_es18xx_mono_in_control, chip))) < 0)
-			return err;
-	}
 	if (chip->caps & ES18XX_RECMIX) {
 		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_recmix_controls); idx++) {
 			if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_es18xx_recmix_controls[idx], chip))) < 0)
@@ -1817,6 +1827,23 @@ static int __devinit snd_es18xx_mixer(struct snd_es18xx *chip)
 			if ((err = snd_ctl_add(card, kctl)) < 0)
 				return err;
 			
+		}
+	}
+	/* finish initializing other chipset specific controls
+	 */
+	if (chip->version != 0x1868) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_es18xx_opt_speaker,
+						     chip));
+		if (err < 0)
+			return err;
+	}
+	if (chip->version == 0x1869) {
+		for (idx = 0; idx < ARRAY_SIZE(snd_es18xx_opt_1869); idx++) {
+			err = snd_ctl_add(card,
+					  snd_ctl_new1(&snd_es18xx_opt_1869[idx],
+						       chip));
+			if (err < 0)
+				return err;
 		}
 	}
 	return 0;
