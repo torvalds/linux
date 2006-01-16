@@ -13,18 +13,16 @@
 typedef struct {
 	u16 LeftCoefs[50];	//0x4
 	u16 RightCoefs[50];	// 0x68
-	u16 LeftGains[20];	//0xd0
-	u16 RightGains[20];	//0xe4
+	u16 LeftGains[10];	//0xd0
+	u16 RightGains[10];	//0xe4
 } auxxEqCoeffSet_t;
 
 typedef struct {
-	u32 ptr_this00;		/*CAsp4HwIO */
 	s32 this04;		/* How many filters for each side (default = 10) */
 	s32 this08;		/* inited to cero. Stereo flag? */
 } eqhw_t;
 
 typedef struct {
-	u32  ptr_this00;	/*CAsp4Core */
 	eqhw_t this04;		/* CHwEq */
 	u16 this08;		/* Bad codec flag ? SetBypassGain: bypass gain */
 	u16 this0a;
@@ -32,8 +30,7 @@ typedef struct {
 	u16 this0e;
 
 	s32 this10;		/* How many gains are used for each side (right or left). */
-	u16 this14_array[32];	/* SetLeftGainsTarget: Left (and right?) EQ gains  */
-	s32 this24;
+	u16 this14_array[10];	/* SetLeftGainsTarget: Left (and right?) EQ gains  */
 	s32 this28;		/* flag related to EQ enabled or not. Gang flag ? */
 	s32 this54;		/* SetBypass */
 	s32 this58;
