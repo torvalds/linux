@@ -56,9 +56,6 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 
-#define IS_NOATIME(inode) ((inode->i_sb->s_flags & MS_NOATIME) ||	\
-	(S_ISDIR(inode->i_mode) && inode->i_sb->s_flags & MS_NODIRATIME))
-
 /*
  * Get a XFS inode from a given vnode.
  */
