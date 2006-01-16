@@ -474,11 +474,14 @@ linvfs_symlink(
 
 	error = 0;
 	VOP_SYMLINK(dvp, dentry, &va, (char *)symname, &cvp, NULL, error);
-	if (!error && cvp) {
-		ip = LINVFS_GET_IP(cvp);
-		d_instantiate(dentry, ip);
-		validate_fields(dir);
-		validate_fields(ip); /* size needs update */
+	if (likely(!error && cvp)) {
+		error = linvfs_init_security(cvp, dir);
+		if (likely(!error)) {
+			ip = LINVFS_GET_IP(cvp);
+			d_instantiate(dentry, ip);
+			validate_fields(dir);
+			validate_fields(ip);
+		}
 	}
 	return -error;
 }
