@@ -1148,7 +1148,6 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   5 << ETH_TX_IHL_SHIFT;
 			pkt_info.l4i_chk = 0;
 		} else {
-
 			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
 					   ETH_TX_FIRST_DESC |
 					   ETH_TX_LAST_DESC |
@@ -1156,14 +1155,16 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   ETH_GEN_IP_V_4_CHECKSUM |
 					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
 			/* CPU already calculated pseudo header checksum. */
-			if (skb->nh.iph->protocol == IPPROTO_UDP) {
+			if ((skb->protocol == ETH_P_IP) &&
+			    (skb->nh.iph->protocol == IPPROTO_UDP) ) {
 				pkt_info.cmd_sts |= ETH_UDP_FRAME;
 				pkt_info.l4i_chk = skb->h.uh->check;
-			} else if (skb->nh.iph->protocol == IPPROTO_TCP)
+			} else if ((skb->protocol == ETH_P_IP) &&
+				   (skb->nh.iph->protocol == IPPROTO_TCP))
 				pkt_info.l4i_chk = skb->h.th->check;
 			else {
 				printk(KERN_ERR
-					"%s: chksum proto != TCP or UDP\n",
+					"%s: chksum proto != IPv4 TCP or UDP\n",
 					dev->name);
 				spin_unlock_irqrestore(&mp->lock, flags);
 				return 1;
@@ -1199,14 +1200,16 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   ETH_GEN_IP_V_4_CHECKSUM |
 					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
 			/* CPU already calculated pseudo header checksum. */
-			if (skb->nh.iph->protocol == IPPROTO_UDP) {
+			if ((skb->protocol == ETH_P_IP) &&
+			    (skb->nh.iph->protocol == IPPROTO_UDP)) {
 				pkt_info.cmd_sts |= ETH_UDP_FRAME;
 				pkt_info.l4i_chk = skb->h.uh->check;
-			} else if (skb->nh.iph->protocol == IPPROTO_TCP)
+			} else if ((skb->protocol == ETH_P_IP) &&
+				   (skb->nh.iph->protocol == IPPROTO_TCP))
 				pkt_info.l4i_chk = skb->h.th->check;
 			else {
 				printk(KERN_ERR
-					"%s: chksum proto != TCP or UDP\n",
+					"%s: chksum proto != IPv4 TCP or UDP\n",
 					dev->name);
 				spin_unlock_irqrestore(&mp->lock, flags);
 				return 1;
@@ -1421,7 +1424,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	 * Zero copy can only work if we use Discovery II memory. Else, we will
 	 * have to map the buffers to ISA memory which is only 16 MB
 	 */
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_HW_CSUM;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
 #endif
 #endif
 
