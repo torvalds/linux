@@ -2660,6 +2660,8 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 	/* Pass the packet information to the caller */
 	p_pkt_info->cmd_sts = command_status;
 	p_pkt_info->return_info = mp->tx_skb[tx_desc_used];
+	p_pkt_info->buf_ptr = p_tx_desc_used->buf_ptr;
+	p_pkt_info->byte_cnt = p_tx_desc_used->byte_cnt;
 	mp->tx_skb[tx_desc_used] = NULL;
 
 	/* Update the next descriptor to release. */
