@@ -893,7 +893,7 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	return 0;
 }
 
-static int dvb_bt8xx_remove(struct bttv_sub_device *sub)
+static void dvb_bt8xx_remove(struct bttv_sub_device *sub)
 {
 	struct dvb_bt8xx_card *card = dev_get_drvdata(&sub->dev);
 
@@ -911,8 +911,6 @@ static int dvb_bt8xx_remove(struct bttv_sub_device *sub)
 	dvb_unregister_adapter(&card->dvb_adapter);
 
 	kfree(card);
-
-	return 0;
 }
 
 static struct bttv_sub_driver driver = {
