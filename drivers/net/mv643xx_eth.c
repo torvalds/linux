@@ -57,7 +57,9 @@
 /* Constants */
 #define VLAN_HLEN		4
 #define FCS_LEN			4
-#define WRAP			NET_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
+#define DMA_ALIGN		8	/* hw requires 8-byte alignment */
+#define HW_IP_ALIGN		2	/* hw aligns IP header */
+#define WRAP			HW_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
 #define RX_SKB_SIZE		((dev->mtu + WRAP + 7) & ~0x7)
 
 #define INT_CAUSE_UNMASK_ALL		0x0007ffff
@@ -173,15 +175,19 @@ static void mv643xx_eth_rx_task(void *data)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	struct pkt_info pkt_info;
 	struct sk_buff *skb;
+	int unaligned;
 
 	if (test_and_set_bit(0, &mp->rx_task_busy))
 		panic("%s: Error in test_set_bit / clear_bit", dev->name);
 
 	while (mp->rx_ring_skbs < (mp->rx_ring_size - 5)) {
-		skb = dev_alloc_skb(RX_SKB_SIZE);
+		skb = dev_alloc_skb(RX_SKB_SIZE + DMA_ALIGN);
 		if (!skb)
 			break;
 		mp->rx_ring_skbs++;
+		unaligned = (u32)skb->data & (DMA_ALIGN - 1);
+		if (unaligned)
+			skb_reserve(skb, DMA_ALIGN - unaligned);
 		pkt_info.cmd_sts = ETH_RX_ENABLE_INTERRUPT;
 		pkt_info.byte_cnt = RX_SKB_SIZE;
 		pkt_info.buf_ptr = dma_map_single(NULL, skb->data, RX_SKB_SIZE,
@@ -192,7 +198,7 @@ static void mv643xx_eth_rx_task(void *data)
 				"%s: Error allocating RX Ring\n", dev->name);
 			break;
 		}
-		skb_reserve(skb, 2);
+		skb_reserve(skb, HW_IP_ALIGN);
 	}
 	clear_bit(0, &mp->rx_task_busy);
 	/*
