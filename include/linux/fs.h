@@ -1293,6 +1293,9 @@ extern int vfs_statfs(struct super_block *, struct kstatfs *);
 #define FLOCK_VERIFY_READ  1
 #define FLOCK_VERIFY_WRITE 2
 
+/* /sys/fs */
+extern struct subsystem fs_subsys;
+
 extern int locks_mandatory_locked(struct inode *);
 extern int locks_mandatory_area(int, struct inode *, struct file *, loff_t, size_t);
 
