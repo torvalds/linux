@@ -177,7 +177,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 #endif
 
 			newskb->dev = skb->dev;
-			dev_kfree_skb(skb);
+			dev_kfree_skb_irq(skb);
 			skb = newskb;
 		}
 	}
