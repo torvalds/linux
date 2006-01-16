@@ -52,13 +52,13 @@ int snd_opl3_synth_setup(struct snd_opl3 * opl3)
 {
 	int idx;
 
-	down(&opl3->access_mutex);
+	mutex_lock(&opl3->access_mutex);
 	if (opl3->used) {
-		up(&opl3->access_mutex);
+		mutex_unlock(&opl3->access_mutex);
 		return -EBUSY;
 	}
 	opl3->used++;
-	up(&opl3->access_mutex);
+	mutex_unlock(&opl3->access_mutex);
 
 	snd_opl3_reset(opl3);
 
@@ -91,9 +91,9 @@ void snd_opl3_synth_cleanup(struct snd_opl3 * opl3)
 	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 
 	snd_opl3_reset(opl3);
-	down(&opl3->access_mutex);
+	mutex_lock(&opl3->access_mutex);
 	opl3->used--;
-	up(&opl3->access_mutex);
+	mutex_unlock(&opl3->access_mutex);
 }
 
 static int snd_opl3_synth_use(void *private_data, struct snd_seq_port_subscribe * info)
