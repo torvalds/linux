@@ -83,6 +83,12 @@ config GENERIC_TBSYNC
 	default y if PPC32 && SMP
 	default n
 
+config DEFAULT_UIMAGE
+	bool
+	help
+	  Used to allow a board to specify it wants a uImage built by default
+	default n
+
 menu "Processor support"
 choice
 	prompt "Processor Type"
