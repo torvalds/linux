@@ -1094,7 +1094,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	/* TODO: add Roland G-70 support */
 	/* TODO: add Roland V-SYNTH XT support */
 	/* TODO: add BOSS GT-PRO support */
-	/* TODO: add Edirol PC-50 support */
+{
+	/* has ID 0x008c when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x008b),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "PC-50",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0001,
+			.in_cables  = 0x0001
+		}
+	}
+},
 	/* TODO: add Edirol PC-80 support */
 	/* TODO: add Edirol UA-1EX support */
 {
