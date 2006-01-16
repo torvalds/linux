@@ -36,6 +36,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/mutex.h>
+
 
 #include <sound/core.h>
 #include <sound/emu10k1.h>
@@ -1097,8 +1099,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	spin_lock_init(&emu->voice_lock);
 	spin_lock_init(&emu->synth_lock);
 	spin_lock_init(&emu->memblk_lock);
-	init_MUTEX(&emu->ptb_lock);
-	init_MUTEX(&emu->fx8010.lock);
+	mutex_init(&emu->fx8010.lock);
 	INIT_LIST_HEAD(&emu->mapped_link_head);
 	INIT_LIST_HEAD(&emu->mapped_order_link_head);
 	emu->pci = pci;

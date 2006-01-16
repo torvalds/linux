@@ -55,6 +55,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/cs8427.h>
 #include <sound/info.h>
@@ -2557,9 +2558,9 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 		cs8427_timeout = 1000;
 	ice->cs8427_timeout = cs8427_timeout;
 	spin_lock_init(&ice->reg_lock);
-	init_MUTEX(&ice->gpio_mutex);
-	init_MUTEX(&ice->i2c_mutex);
-	init_MUTEX(&ice->open_mutex);
+	mutex_init(&ice->gpio_mutex);
+	mutex_init(&ice->i2c_mutex);
+	mutex_init(&ice->open_mutex);
 	ice->gpio.set_mask = snd_ice1712_set_gpio_mask;
 	ice->gpio.set_dir = snd_ice1712_set_gpio_dir;
 	ice->gpio.set_data = snd_ice1712_set_gpio_data;

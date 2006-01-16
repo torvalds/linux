@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include "hda_codec.h"
@@ -297,7 +298,7 @@ struct azx {
 
 	/* locks */
 	spinlock_t reg_lock;
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 
 	/* streams (x num_streams) */
 	struct azx_dev *azx_dev;
@@ -993,10 +994,10 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	unsigned long flags;
 	int err;
 
-	down(&chip->open_mutex);
+	mutex_lock(&chip->open_mutex);
 	azx_dev = azx_assign_device(chip, substream->stream);
 	if (azx_dev == NULL) {
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return -EBUSY;
 	}
 	runtime->hw = azx_pcm_hw;
@@ -1008,7 +1009,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	if ((err = hinfo->ops.open(hinfo, apcm->codec, substream)) < 0) {
 		azx_release_device(azx_dev);
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return err;
 	}
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -1017,7 +1018,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	runtime->private_data = azx_dev;
-	up(&chip->open_mutex);
+	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -1029,14 +1030,14 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned long flags;
 
-	down(&chip->open_mutex);
+	mutex_lock(&chip->open_mutex);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	azx_dev->substream = NULL;
 	azx_dev->running = 0;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	azx_release_device(azx_dev);
 	hinfo->ops.close(hinfo, apcm->codec, substream);
-	up(&chip->open_mutex);
+	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -1408,7 +1409,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
 	spin_lock_init(&chip->reg_lock);
-	init_MUTEX(&chip->open_mutex);
+	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;

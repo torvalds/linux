@@ -28,6 +28,8 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
+
 #include <sound/core.h>
 #include <sound/cs8427.h>
 #include <sound/asoundef.h>
@@ -130,13 +132,13 @@ static int ap_cs8427_sendbytes(struct snd_i2c_device *device, unsigned char *byt
 	int res = count;
 	unsigned char tmp;
 
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	tmp = ap_cs8427_codec_select(ice);
 	ap_cs8427_write_byte(ice, (device->addr << 1) | 0, tmp); /* address + write mode */
 	while (count-- > 0)
 		ap_cs8427_write_byte(ice, *bytes++, tmp);
 	ap_cs8427_codec_deassert(ice, tmp);
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 	return res;
 }
 
@@ -147,13 +149,13 @@ static int ap_cs8427_readbytes(struct snd_i2c_device *device, unsigned char *byt
 	int res = count;
 	unsigned char tmp;
 	
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	tmp = ap_cs8427_codec_select(ice);
 	ap_cs8427_write_byte(ice, (device->addr << 1) | 1, tmp); /* address + read mode */
 	while (count-- > 0)
 		*bytes++ = ap_cs8427_read_byte(ice, tmp);
 	ap_cs8427_codec_deassert(ice, tmp);
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 	return res;
 }
 
@@ -180,7 +182,7 @@ static void snd_ice1712_delta_cs8403_spdif_write(struct snd_ice1712 *ice, unsign
 	/* send byte to transmitter */
 	mask1 = ICE1712_DELTA_SPDIF_OUT_STAT_CLOCK;
 	mask2 = ICE1712_DELTA_SPDIF_OUT_STAT_DATA;
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	for (idx = 7; idx >= 0; idx--) {
 		tmp &= ~(mask1 | mask2);
@@ -194,7 +196,7 @@ static void snd_ice1712_delta_cs8403_spdif_write(struct snd_ice1712 *ice, unsign
 	}
 	tmp &= ~mask1;
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 }
 
 
@@ -296,14 +298,14 @@ static void delta_1010_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	if (rate == 0)	/* no hint - S/PDIF input is master, simply return */
 		return;
 
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	tmp2 = tmp & ~ICE1712_DELTA_DFS;
 	if (rate > 48000)
 		tmp2 |= ICE1712_DELTA_DFS;
 	if (tmp != tmp2)
 		snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp2);
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 }
 
 /*
@@ -318,9 +320,9 @@ static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 		return;
 
 	/* check before reset ak4524 to avoid unnecessary clicks */
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 	tmp2 = tmp & ~ICE1712_DELTA_DFS; 
 	if (rate > 48000)
 		tmp2 |= ICE1712_DELTA_DFS;
@@ -329,12 +331,12 @@ static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 
 	/* do it again */
 	snd_akm4xxx_reset(ak, 1);
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA) & ~ICE1712_DELTA_DFS;
 	if (rate > 48000)
 		tmp |= ICE1712_DELTA_DFS;
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 	snd_akm4xxx_reset(ak, 0);
 }
 

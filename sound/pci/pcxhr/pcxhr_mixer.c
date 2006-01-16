@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include "pcxhr.h"
 #include "pcxhr_hwdep.h"
@@ -92,7 +93,7 @@ static int pcxhr_analog_vol_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	if (kcontrol->private_value == 0) {	/* playback */
 		ucontrol->value.integer.value[0] = chip->analog_playback_volume[0];
 		ucontrol->value.integer.value[1] = chip->analog_playback_volume[1];
@@ -100,7 +101,7 @@ static int pcxhr_analog_vol_get(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[0] = chip->analog_capture_volume[0];
 		ucontrol->value.integer.value[1] = chip->analog_capture_volume[1];
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -111,7 +112,7 @@ static int pcxhr_analog_vol_put(struct snd_kcontrol *kcontrol,
 	int changed = 0;
 	int is_capture, i;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	is_capture = (kcontrol->private_value != 0);
 	for (i = 0; i < 2; i++) {
 		int  new_volume = ucontrol->value.integer.value[i];
@@ -123,7 +124,7 @@ static int pcxhr_analog_vol_put(struct snd_kcontrol *kcontrol,
 			pcxhr_update_analog_audio_level(chip, is_capture, i);
 		}
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -150,10 +151,10 @@ static int pcxhr_audio_sw_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->analog_playback_active[0];
 	ucontrol->value.integer.value[1] = chip->analog_playback_active[1];
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -162,7 +163,7 @@ static int pcxhr_audio_sw_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int i, changed = 0;
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	for(i = 0; i < 2; i++) {
 		if (chip->analog_playback_active[i] != ucontrol->value.integer.value[i]) {
 			chip->analog_playback_active[i] = ucontrol->value.integer.value[i];
@@ -170,7 +171,7 @@ static int pcxhr_audio_sw_put(struct snd_kcontrol *kcontrol,
 			pcxhr_update_analog_audio_level(chip, 0, i);	/* update playback levels */
 		}
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -299,14 +300,14 @@ static int pcxhr_pcm_vol_get(struct snd_kcontrol *kcontrol,
 	int *stored_volume;
 	int is_capture = kcontrol->private_value;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	if (is_capture)
 		stored_volume = chip->digital_capture_volume;		/* digital capture */
 	else
 		stored_volume = chip->digital_playback_volume[idx];	/* digital playback */
 	ucontrol->value.integer.value[0] = stored_volume[0];
 	ucontrol->value.integer.value[1] = stored_volume[1];
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -320,7 +321,7 @@ static int pcxhr_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	int *stored_volume;
 	int i;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	if (is_capture)
 		stored_volume = chip->digital_capture_volume;		/* digital capture */
 	else
@@ -335,7 +336,7 @@ static int pcxhr_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	}
 	if (! is_capture && changed)
 		pcxhr_update_playback_stream_level(chip, idx);	/* update playback volume */
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -356,10 +357,10 @@ static int pcxhr_pcm_sw_get(struct snd_kcontrol *kcontrol,
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id); /* index */
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->digital_playback_active[idx][0];
 	ucontrol->value.integer.value[1] = chip->digital_playback_active[idx][1];
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -370,7 +371,7 @@ static int pcxhr_pcm_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id); /* index */
 	int i, j;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	j = idx;
 	for (i = 0; i < 2; i++) {
 		if (chip->digital_playback_active[j][i] != ucontrol->value.integer.value[i]) {
@@ -380,7 +381,7 @@ static int pcxhr_pcm_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	}
 	if (changed)
 		pcxhr_update_playback_stream_level(chip, idx);
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -402,10 +403,10 @@ static int pcxhr_monitor_vol_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->monitoring_volume[0];
 	ucontrol->value.integer.value[1] = chip->monitoring_volume[1];
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -416,7 +417,7 @@ static int pcxhr_monitor_vol_put(struct snd_kcontrol *kcontrol,
 	int changed = 0;
 	int i;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	for (i = 0; i < 2; i++) {
 		if (chip->monitoring_volume[i] != ucontrol->value.integer.value[i]) {
 			chip->monitoring_volume[i] = ucontrol->value.integer.value[i];
@@ -426,7 +427,7 @@ static int pcxhr_monitor_vol_put(struct snd_kcontrol *kcontrol,
 			changed = 1;
 		}
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -446,10 +447,10 @@ static int pcxhr_monitor_sw_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	ucontrol->value.integer.value[0] = chip->monitoring_active[0];
 	ucontrol->value.integer.value[1] = chip->monitoring_active[1];
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return 0;
 }
 
@@ -460,7 +461,7 @@ static int pcxhr_monitor_sw_put(struct snd_kcontrol *kcontrol,
 	int changed = 0;
 	int i;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	for (i = 0; i < 2; i++) {
 		if (chip->monitoring_active[i] != ucontrol->value.integer.value[i]) {
 			chip->monitoring_active[i] = ucontrol->value.integer.value[i];
@@ -474,7 +475,7 @@ static int pcxhr_monitor_sw_put(struct snd_kcontrol *kcontrol,
 		/* update right monitoring volume and mute */
 		pcxhr_update_audio_pipe_level(chip, 0, 1);
 
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return (changed != 0);
 }
 
@@ -571,13 +572,13 @@ static int pcxhr_audio_src_put(struct snd_kcontrol *kcontrol,
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int ret = 0;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	if (chip->audio_capture_source != ucontrol->value.enumerated.item[0]) {
 		chip->audio_capture_source = ucontrol->value.enumerated.item[0];
 		pcxhr_set_audio_source(chip);
 		ret = 1;
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return ret;
 }
 
@@ -636,9 +637,9 @@ static int pcxhr_clock_type_put(struct snd_kcontrol *kcontrol,
 	struct pcxhr_mgr *mgr = snd_kcontrol_chip(kcontrol);
 	int rate, ret = 0;
 
-	down(&mgr->mixer_mutex);
+	mutex_lock(&mgr->mixer_mutex);
 	if (mgr->use_clock_type != ucontrol->value.enumerated.item[0]) {
-		down(&mgr->setup_mutex);
+		mutex_lock(&mgr->setup_mutex);
 		mgr->use_clock_type = ucontrol->value.enumerated.item[0];
 		if (mgr->use_clock_type)
 			pcxhr_get_external_clock(mgr, mgr->use_clock_type, &rate);
@@ -649,10 +650,10 @@ static int pcxhr_clock_type_put(struct snd_kcontrol *kcontrol,
 			if (mgr->sample_rate)
 				mgr->sample_rate = rate;
 		}
-		up(&mgr->setup_mutex);
+		mutex_unlock(&mgr->setup_mutex);
 		ret = 1;	/* return 1 even if the set was not done. ok ? */
 	}
-	up(&mgr->mixer_mutex);
+	mutex_unlock(&mgr->mixer_mutex);
 	return ret;
 }
 
@@ -685,7 +686,7 @@ static int pcxhr_clock_rate_get(struct snd_kcontrol *kcontrol,
 	struct pcxhr_mgr *mgr = snd_kcontrol_chip(kcontrol);
 	int i, err, rate;
 
-	down(&mgr->mixer_mutex);
+	mutex_lock(&mgr->mixer_mutex);
 	for(i = 0; i < 3 + mgr->capture_chips; i++) {
 		if (i == PCXHR_CLOCK_TYPE_INTERNAL)
 			rate = mgr->sample_rate_real;
@@ -696,7 +697,7 @@ static int pcxhr_clock_rate_get(struct snd_kcontrol *kcontrol,
 		}
 		ucontrol->value.integer.value[i] = rate;
 	}
-	up(&mgr->mixer_mutex);
+	mutex_unlock(&mgr->mixer_mutex);
 	return 0;
 }
 
@@ -765,7 +766,7 @@ static int pcxhr_iec958_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	unsigned char aes_bits;
 	int i, err;
 
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	for(i = 0; i < 5; i++) {
 		if (kcontrol->private_value == 0)	/* playback */
 			aes_bits = chip->aes_bits[i];
@@ -776,7 +777,7 @@ static int pcxhr_iec958_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 		}
 		ucontrol->value.iec958.status[i] = aes_bits;
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
         return 0;
 }
 
@@ -828,14 +829,14 @@ static int pcxhr_iec958_put(struct snd_kcontrol *kcontrol,
 	int i, changed = 0;
 
 	/* playback */
-	down(&chip->mgr->mixer_mutex);
+	mutex_lock(&chip->mgr->mixer_mutex);
 	for (i = 0; i < 5; i++) {
 		if (ucontrol->value.iec958.status[i] != chip->aes_bits[i]) {
 			pcxhr_iec958_update_byte(chip, i, ucontrol->value.iec958.status[i]);
 			changed = 1;
 		}
 	}
-	up(&chip->mgr->mixer_mutex);
+	mutex_unlock(&chip->mgr->mixer_mutex);
 	return changed;
 }
 
@@ -916,7 +917,7 @@ int pcxhr_create_mixer(struct pcxhr_mgr *mgr)
 	struct snd_pcxhr *chip;
 	int err, i;
 
-	init_MUTEX(&mgr->mixer_mutex); /* can be in another place */
+	mutex_init(&mgr->mixer_mutex); /* can be in another place */
 
 	for (i = 0; i < mgr->num_cards; i++) {
 		struct snd_kcontrol_new temp;
