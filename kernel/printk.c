@@ -999,6 +999,7 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 		tty->driver->write(tty, msg, strlen(msg));
 	return;
 }
+EXPORT_SYMBOL_GPL(tty_write_message);
 
 /*
  * printk rate limiting, lifted from the networking subsystem.
