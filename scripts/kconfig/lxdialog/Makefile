@@ -1,9 +1,9 @@
 # Makefile to build lxdialog package
 #
 
-check-lxdialog   := $(srctree)/$(src)/check-lxdialog.sh
-HOST_EXTRACFLAGS := $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags)
-HOST_LOADLIBES   := $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags)
+check-lxdialog  := $(srctree)/$(src)/check-lxdialog.sh
+HOST_EXTRACFLAGS:= $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags)
+HOST_LOADLIBES  := $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(HOSTCC))
  
 HOST_EXTRACFLAGS += -DLOCALE 
 
