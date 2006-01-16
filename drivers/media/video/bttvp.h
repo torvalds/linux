@@ -35,6 +35,7 @@
 #include <linux/videodev.h>
 #include <linux/pci.h>
 #include <linux/input.h>
+#include <linux/mutex.h>
 #include <asm/scatterlist.h>
 #include <asm/io.h>
 
@@ -309,9 +310,9 @@ struct bttv {
 
 	/* locking */
 	spinlock_t s_lock;
-	struct semaphore lock;
+	struct mutex lock;
 	int resources;
-	struct semaphore reslock;
+	struct mutex reslock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif

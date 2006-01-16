@@ -333,7 +333,7 @@ struct dvb_pll_desc dvb_pll_tbmv30111in = {
 	.name = "Samsung TBMV30111IN",
 	.min = 54000000,
 	.max = 860000000,
-	.count = 4,
+	.count = 6,
 	.entries = {
 		{ 172000000, 44000000, 166666, 0xb4, 0x01 },
 		{ 214000000, 44000000, 166666, 0xb4, 0x02 },

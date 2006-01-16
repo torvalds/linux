@@ -43,7 +43,7 @@ static unsigned short normal_i2c[] = { I2C_BT832_ALT1>>1, I2C_BT832_ALT2>>1,
 				       I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
-int debug    = 0;    /* debug output */
+int debug;    /* debug output */
 module_param(debug,            int, 0644);
 
 /* ---------------------------------------------------------------------- */

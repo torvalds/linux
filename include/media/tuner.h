@@ -23,6 +23,7 @@
 #define _TUNER_H
 
 #include <linux/videodev2.h>
+#include <media/tuner-types.h>
 
 #define ADDR_UNSET (255)
 
@@ -114,6 +115,7 @@
 
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
+#define TUNER_SAMSUNG_TCPN_2121P30A     70 	/* Hauppauge PVR-500MCE NTSC */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -177,7 +179,9 @@ struct tuner {
 	unsigned int mode;
 	unsigned int mode_mask;	/* Combination of allowable modes */
 
-	unsigned int freq;	/* keep track of the current settings */
+	unsigned int tv_freq;	/* keep track of the current settings */
+	unsigned int radio_freq;
+	u16 	     last_div;
 	unsigned int audmode;
 	v4l2_std_id  std;
 
@@ -195,8 +199,8 @@ struct tuner {
 	unsigned int sgIF;
 
 	/* function ptrs */
-	void (*tv_freq)(struct i2c_client *c, unsigned int freq);
-	void (*radio_freq)(struct i2c_client *c, unsigned int freq);
+	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);
+	void (*set_radio_freq)(struct i2c_client *c, unsigned int freq);
 	int  (*has_signal)(struct i2c_client *c);
 	int  (*is_stereo)(struct i2c_client *c);
 	void (*standby)(struct i2c_client *c);

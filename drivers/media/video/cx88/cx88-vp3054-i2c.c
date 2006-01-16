@@ -32,6 +32,10 @@
 #include "cx88-vp3054-i2c.h"
 
 
+MODULE_DESCRIPTION("driver for cx2388x VP3054 design");
+MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
+MODULE_LICENSE("GPL");
+
 /* ----------------------------------------------------------------------- */
 
 static void vp3054_bit_setscl(void *data, int state)

@@ -81,7 +81,7 @@ static int adac = DVB_ADAC_TI;
 static int hw_sections;
 static int rgb_on;
 static int volume = 255;
-static int budgetpatch = 0;
+static int budgetpatch;
 
 module_param_named(debug, av7110_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (bitmask, default 0)");
@@ -103,7 +103,7 @@ MODULE_PARM_DESC(budgetpatch, "use budget-patch hardware modification: default 0
 
 static void restart_feeds(struct av7110 *av7110);
 
-static int av7110_num = 0;
+static int av7110_num;
 
 #define FE_FUNC_OVERRIDE(fe_func, av7110_copy, av7110_func) \
 {\
