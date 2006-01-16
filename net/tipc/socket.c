@@ -42,9 +42,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <linux/version.h>
 #include <linux/fcntl.h>
-#include <linux/version.h>
 #include <asm/semaphore.h>
 #include <asm/string.h>
 #include <asm/atomic.h>
