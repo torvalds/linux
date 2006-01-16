@@ -545,7 +545,7 @@ export	INSTALL_PATH ?= /boot
 # makefile but the arguement can be passed to make if needed.
 #
 
-MODLIB	:= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
+MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
 
