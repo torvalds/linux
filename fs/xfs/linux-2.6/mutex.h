@@ -18,18 +18,8 @@
 #ifndef __XFS_SUPPORT_MUTEX_H__
 #define __XFS_SUPPORT_MUTEX_H__
 
-#include <linux/spinlock.h>
 #include <linux/mutex.h>
 
-/*
- * Map the mutex'es from IRIX to Linux semaphores.
- *
- * Destroy just simply initializes to -99 which should block all other
- * callers.
- */
-#define MUTEX_DEFAULT		0x0
-
-typedef struct mutex		mutex_t;
-//#define mutex_destroy(lock)			do{}while(0)
+typedef struct mutex mutex_t;
 
 #endif /* __XFS_SUPPORT_MUTEX_H__ */

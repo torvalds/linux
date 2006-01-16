@@ -167,7 +167,7 @@ xfs_Gqm_init(void)
 	xqm->qm_dqfree_ratio = XFS_QM_DQFREE_RATIO;
 	xqm->qm_nrefs = 0;
 #ifdef DEBUG
-	xfs_mutex_init(&qcheck_lock, MUTEX_DEFAULT, "qchk");
+	mutex_init(&qcheck_lock);
 #endif
 	return xqm;
 }
