@@ -497,7 +497,7 @@ xfs_qm_dqflush_all(
 	int		error;
 
 	if (mp->m_quotainfo == NULL)
-		return (0);
+		return 0;
 	niters = 0;
 again:
 	xfs_qm_mplist_lock(mp);
@@ -528,7 +528,7 @@ again:
 		error = xfs_qm_dqflush(dqp, flags);
 		xfs_dqunlock(dqp);
 		if (error)
-			return (error);
+			return error;
 
 		xfs_qm_mplist_lock(mp);
 		if (recl != XFS_QI_MPLRECLAIMS(mp)) {
@@ -540,7 +540,7 @@ again:
 
 	xfs_qm_mplist_unlock(mp);
 	/* return ! busy */
-	return (0);
+	return 0;
 }
 /*
  * Release the group dquot pointers the user dquots may be
@@ -599,7 +599,7 @@ xfs_qm_dqpurge_int(
 	int		nmisses;
 
 	if (mp->m_quotainfo == NULL)
-		return (0);
+		return 0;
 
 	dqtype = (flags & XFS_QMOPT_UQUOTA) ? XFS_DQ_USER : 0;
 	dqtype |= (flags & XFS_QMOPT_PQUOTA) ? XFS_DQ_PROJ : 0;
@@ -796,7 +796,7 @@ xfs_qm_dqattach_one(
 			ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	}
 #endif
-	return (error);
+	return error;
 }
 
 
@@ -897,7 +897,7 @@ xfs_qm_dqattach(
 	    (! XFS_NOT_DQATTACHED(mp, ip)) ||
 	    (ip->i_ino == mp->m_sb.sb_uquotino) ||
 	    (ip->i_ino == mp->m_sb.sb_gquotino))
-		return (0);
+		return 0;
 
 	ASSERT((flags & XFS_QMOPT_ILOCKED) == 0 ||
 	       XFS_ISLOCKED_INODE_EXCL(ip));
@@ -984,7 +984,7 @@ xfs_qm_dqattach(
 	else
 		ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
 #endif
-	return (error);
+	return error;
 }
 
 /*
@@ -1049,7 +1049,7 @@ xfs_qm_sync(
 	 */
 	if (! XFS_IS_QUOTA_ON(mp)) {
 		xfs_qm_mplist_unlock(mp);
-		return (0);
+		return 0;
 	}
 	FOREACH_DQUOT_IN_MP(dqp, mp) {
 		/*
@@ -1109,9 +1109,9 @@ xfs_qm_sync(
 		error = xfs_qm_dqflush(dqp, flush_flags);
 		xfs_dqunlock(dqp);
 		if (error && XFS_FORCED_SHUTDOWN(mp))
-			return(0);	/* Need to prevent umount failure */
+			return 0;	/* Need to prevent umount failure */
 		else if (error)
-			return (error);
+			return error;
 
 		xfs_qm_mplist_lock(mp);
 		if (recl != XFS_QI_MPLRECLAIMS(mp)) {
@@ -1124,7 +1124,7 @@ xfs_qm_sync(
 	}
 
 	xfs_qm_mplist_unlock(mp);
-	return (0);
+	return 0;
 }
 
 
@@ -1146,7 +1146,7 @@ xfs_qm_init_quotainfo(
 	 * Tell XQM that we exist as soon as possible.
 	 */
 	if ((error = xfs_qm_hold_quotafs_ref(mp))) {
-		return (error);
+		return error;
 	}
 
 	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(xfs_quotainfo_t), KM_SLEEP);
@@ -1158,7 +1158,7 @@ xfs_qm_init_quotainfo(
 	if ((error = xfs_qm_init_quotainos(mp))) {
 		kmem_free(qinf, sizeof(xfs_quotainfo_t));
 		mp->m_quotainfo = NULL;
-		return (error);
+		return error;
 	}
 
 	spinlock_init(&qinf->qi_pinlock, "xfs_qinf_pin");
@@ -1232,7 +1232,7 @@ xfs_qm_init_quotainfo(
 		qinf->qi_rtbwarnlimit = XFS_QM_RTBWARNLIMIT;
 	}
 
-	return (0);
+	return 0;
 }
 
 
@@ -1332,7 +1332,7 @@ xfs_qm_dqget_noattach(
 			 */
 			ASSERT(error != ESRCH);
 			ASSERT(error != ENOENT);
-			return (error);
+			return error;
 		}
 		ASSERT(udqp);
 	}
@@ -1355,7 +1355,7 @@ xfs_qm_dqget_noattach(
 				xfs_qm_dqrele(udqp);
 			ASSERT(error != ESRCH);
 			ASSERT(error != ENOENT);
-			return (error);
+			return error;
 		}
 		ASSERT(gdqp);
 
@@ -1376,7 +1376,7 @@ xfs_qm_dqget_noattach(
 	if (udqp) ASSERT(XFS_DQ_IS_LOCKED(udqp));
 	if (gdqp) ASSERT(XFS_DQ_IS_LOCKED(gdqp));
 #endif
-	return (0);
+	return 0;
 }
 
 /*
@@ -1404,7 +1404,7 @@ xfs_qm_qino_alloc(
 				      XFS_TRANS_PERM_LOG_RES,
 				      XFS_CREATE_LOG_COUNT))) {
 		xfs_trans_cancel(tp, 0);
-		return (error);
+		return error;
 	}
 	memset(&zerocr, 0, sizeof(zerocr));
 	memset(&zeroino, 0, sizeof(zeroino));
@@ -1413,7 +1413,7 @@ xfs_qm_qino_alloc(
 				   &zerocr, 0, 1, ip, &committed))) {
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT);
-		return (error);
+		return error;
 	}
 
 	/*
@@ -1461,9 +1461,9 @@ xfs_qm_qino_alloc(
 	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES,
 				     NULL))) {
 		xfs_fs_cmn_err(CE_ALERT, mp, "XFS qino_alloc failed!");
-		return (error);
+		return error;
 	}
-	return (0);
+	return 0;
 }
 
 
@@ -1508,7 +1508,7 @@ xfs_qm_reset_dqcounts(
 		ddq = (xfs_disk_dquot_t *) ((xfs_dqblk_t *)ddq + 1);
 	}
 
-	return (0);
+	return 0;
 }
 
 STATIC int
@@ -1557,7 +1557,7 @@ xfs_qm_dqiter_bufs(
 		bno++;
 		firstid += XFS_QM_DQPERBLK(mp);
 	}
-	return (error);
+	return error;
 }
 
 /*
@@ -1586,7 +1586,7 @@ xfs_qm_dqiterate(
 	 * happens only at mount time which is single threaded.
 	 */
 	if (qip->i_d.di_nblocks == 0)
-		return (0);
+		return 0;
 
 	map = kmem_alloc(XFS_DQITER_MAP_SIZE * sizeof(*map), KM_SLEEP);
 
@@ -1655,7 +1655,7 @@ xfs_qm_dqiterate(
 
 	kmem_free(map, XFS_DQITER_MAP_SIZE * sizeof(*map));
 
-	return (error);
+	return error;
 }
 
 /*
@@ -1715,7 +1715,7 @@ xfs_qm_get_rtblks(
 	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
 		if ((error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK)))
-			return (error);
+			return error;
 	}
 	rtblks = 0;
 	nextents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
@@ -1723,7 +1723,7 @@ xfs_qm_get_rtblks(
 	for (ep = base; ep < &base[nextents]; ep++)
 		rtblks += xfs_bmbt_get_blockcount(ep);
 	*O_rtblks = (xfs_qcnt_t)rtblks;
-	return (0);
+	return 0;
 }
 
 /*
@@ -1767,7 +1767,7 @@ xfs_qm_dqusage_adjust(
 	 */
 	if ((error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_EXCL, &ip, bno))) {
 		*res = BULKSTAT_RV_NOTHING;
-		return (error);
+		return error;
 	}
 
 	if (ip->i_d.di_mode == 0) {
@@ -1785,7 +1785,7 @@ xfs_qm_dqusage_adjust(
 	if ((error = xfs_qm_dqget_noattach(ip, &udqp, &gdqp))) {
 		xfs_iput(ip, XFS_ILOCK_EXCL);
 		*res = BULKSTAT_RV_GIVEUP;
-		return (error);
+		return error;
 	}
 
 	rtblks = 0;
@@ -1802,7 +1802,7 @@ xfs_qm_dqusage_adjust(
 			if (gdqp)
 				xfs_qm_dqput(gdqp);
 			*res = BULKSTAT_RV_GIVEUP;
-			return (error);
+			return error;
 		}
 		nblks = (xfs_qcnt_t)ip->i_d.di_nblocks - rtblks;
 	}
@@ -1847,7 +1847,7 @@ xfs_qm_dqusage_adjust(
 	 * Goto next inode.
 	 */
 	*res = BULKSTAT_RV_DIDONE;
-	return (0);
+	return 0;
 }
 
 /*
@@ -2041,7 +2041,7 @@ xfs_qm_init_quotainos(
 	XFS_QI_UQIP(mp) = uip;
 	XFS_QI_GQIP(mp) = gip;
 
-	return (0);
+	return 0;
 }
 
 
@@ -2062,7 +2062,7 @@ xfs_qm_shake_freelist(
 	int		nflushes;
 
 	if (howmany <= 0)
-		return (0);
+		return 0;
 
 	nreclaimed = 0;
 	restarts = 0;
@@ -2088,7 +2088,7 @@ xfs_qm_shake_freelist(
 			xfs_dqunlock(dqp);
 			xfs_qm_freelist_unlock(xfs_Gqm);
 			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
-				return (nreclaimed);
+				return nreclaimed;
 			XQM_STATS_INC(xqmstats.xs_qm_dqwants);
 			goto tryagain;
 		}
@@ -2163,7 +2163,7 @@ xfs_qm_shake_freelist(
 			XFS_DQ_HASH_UNLOCK(hash);
 			xfs_qm_freelist_unlock(xfs_Gqm);
 			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
-				return (nreclaimed);
+				return nreclaimed;
 			goto tryagain;
 		}
 		xfs_dqtrace_entry(dqp, "DQSHAKE: UNLINKING");
@@ -2188,7 +2188,7 @@ xfs_qm_shake_freelist(
 		dqp = nextdqp;
 	}
 	xfs_qm_freelist_unlock(xfs_Gqm);
-	return (nreclaimed);
+	return nreclaimed;
 }
 
 
@@ -2202,9 +2202,9 @@ xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
 	int	ndqused, nfree, n;
 
 	if (!kmem_shake_allow(gfp_mask))
-		return (0);
+		return 0;
 	if (!xfs_Gqm)
-		return (0);
+		return 0;
 
 	nfree = xfs_Gqm->qm_dqfreelist.qh_nelems; /* free dquots */
 	/* incore dquots in all f/s's */
@@ -2213,7 +2213,7 @@ xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
 	ASSERT(ndqused >= 0);
 
 	if (nfree <= ndqused && nfree < ndquot)
-		return (0);
+		return 0;
 
 	ndqused *= xfs_Gqm->qm_dqfree_ratio;	/* target # of free dquots */
 	n = nfree - ndqused - ndquot;		/* # over target */
@@ -2257,7 +2257,7 @@ xfs_qm_dqreclaim_one(void)
 			xfs_dqunlock(dqp);
 			xfs_qm_freelist_unlock(xfs_Gqm);
 			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
-				return (NULL);
+				return NULL;
 			XQM_STATS_INC(xqmstats.xs_qm_dqwants);
 			goto startagain;
 		}
@@ -2333,7 +2333,7 @@ xfs_qm_dqreclaim_one(void)
 	}
 
 	xfs_qm_freelist_unlock(xfs_Gqm);
-	return (dqpout);
+	return dqpout;
 }
 
 
@@ -2369,7 +2369,7 @@ xfs_qm_dqalloc_incore(
 			 */
 			memset(&dqp->q_core, 0, sizeof(dqp->q_core));
 			*O_dqpp = dqp;
-			return (B_FALSE);
+			return B_FALSE;
 		}
 		XQM_STATS_INC(xqmstats.xs_qm_dqreclaim_misses);
 	}
@@ -2382,7 +2382,7 @@ xfs_qm_dqalloc_incore(
 	*O_dqpp = kmem_zone_zalloc(xfs_Gqm->qm_dqzone, KM_SLEEP);
 	atomic_inc(&xfs_Gqm->qm_totaldquots);
 
-	return (B_TRUE);
+	return B_TRUE;
 }
 
 
@@ -2407,13 +2407,13 @@ xfs_qm_write_sb_changes(
 				      0,
 				      XFS_DEFAULT_LOG_COUNT))) {
 		xfs_trans_cancel(tp, 0);
-		return (error);
+		return error;
 	}
 
 	xfs_mod_sb(tp, flags);
 	(void) xfs_trans_commit(tp, 0, NULL);
 
-	return (0);
+	return 0;
 }
 
 
@@ -2463,7 +2463,7 @@ xfs_qm_vop_dqalloc(
 		if ((error = xfs_qm_dqattach(ip, XFS_QMOPT_DQALLOC |
 					    XFS_QMOPT_ILOCKED))) {
 			xfs_iunlock(ip, lockflags);
-			return (error);
+			return error;
 		}
 	}
 
@@ -2486,7 +2486,7 @@ xfs_qm_vop_dqalloc(
 						 XFS_QMOPT_DOWARN,
 						 &uq))) {
 				ASSERT(error != ENOENT);
-				return (error);
+				return error;
 			}
 			/*
 			 * Get the ilock in the right order.
@@ -2517,7 +2517,7 @@ xfs_qm_vop_dqalloc(
 				if (uq)
 					xfs_qm_dqrele(uq);
 				ASSERT(error != ENOENT);
-				return (error);
+				return error;
 			}
 			xfs_dqunlock(gq);
 			lockflags = XFS_ILOCK_SHARED;
@@ -2565,7 +2565,7 @@ xfs_qm_vop_dqalloc(
 		*O_gdqpp = gq;
 	else if (gq)
 		xfs_qm_dqrele(gq);
-	return (0);
+	return 0;
 }
 
 /*
@@ -2608,7 +2608,7 @@ xfs_qm_vop_chown(
 	xfs_dqunlock(newdq);
 	*IO_olddq = newdq;
 
-	return (prevdq);
+	return prevdq;
 }
 
 /*
@@ -2702,12 +2702,12 @@ xfs_qm_vop_rename_dqattach(
 	ip = i_tab[0];
 
 	if (! XFS_IS_QUOTA_ON(ip->i_mount))
-		return (0);
+		return 0;
 
 	if (XFS_NOT_DQATTACHED(ip->i_mount, ip)) {
 		error = xfs_qm_dqattach(ip, 0);
 		if (error)
-			return (error);
+			return error;
 	}
 	for (i = 1; (i < 4 && i_tab[i]); i++) {
 		/*
@@ -2717,11 +2717,11 @@ xfs_qm_vop_rename_dqattach(
 			if (XFS_NOT_DQATTACHED(ip->i_mount, ip)) {
 				error = xfs_qm_dqattach(ip, 0);
 				if (error)
-					return (error);
+					return error;
 			}
 		}
 	}
-	return (0);
+	return 0;
 }
 
 void
@@ -2834,7 +2834,7 @@ xfs_qm_dqhashlock_nowait(
 	int locked;
 
 	locked = mutex_trylock(&((dqp)->q_hash->qh_lock));
-	return (locked);
+	return locked;
 }
 
 int
@@ -2844,7 +2844,7 @@ xfs_qm_freelist_lock_nowait(
 	int locked;
 
 	locked = mutex_trylock(&(xqm->qm_dqfreelist.qh_lock));
-	return (locked);
+	return locked;
 }
 
 STATIC int
@@ -2855,5 +2855,5 @@ xfs_qm_mplist_nowait(
 
 	ASSERT(mp->m_quotainfo);
 	locked = mutex_trylock(&(XFS_QI_MPLLOCK(mp)));
-	return (locked);
+	return locked;
 }

@@ -5577,7 +5577,7 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int mychip_suspend(strut pci_dev *pci, pm_message_t state)
+  static int mychip_suspend(struct pci_dev *pci, pm_message_t state)
   {
           /* (1) */
           struct snd_card *card = pci_get_drvdata(pci);

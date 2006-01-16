@@ -357,7 +357,7 @@ MAX_AGE=${MAX_AGE:-'600'}
 # Read-ahead, in kilobytes
 READAHEAD=${READAHEAD:-'4096'}
 
-# Shall we remount journaled fs. with appropiate commit interval? (1=yes)
+# Shall we remount journaled fs. with appropriate commit interval? (1=yes)
 DO_REMOUNTS=${DO_REMOUNTS:-'1'}
 
 # And shall we add the "noatime" option to that as well? (1=yes)

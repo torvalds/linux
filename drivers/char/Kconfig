@@ -881,16 +881,6 @@ config FTAPE
 	  module. To compile this driver as a module, choose M here: the
 	  module will be called ftape.
 
-	  Note that the Ftape-HOWTO is out of date (sorry) and documents the
-	  older version 2.08 of this software but still contains useful
-	  information.  There is a web page with more recent documentation at
-	  <http://www.instmath.rwth-aachen.de/~heine/ftape/>.  This page
-	  always contains the latest release of the ftape driver and useful
-	  information (backup software, ftape related patches and
-	  documentation, FAQ).  Note that the file system interface has
-	  changed quite a bit compared to previous versions of ftape.  Please
-	  read <file:Documentation/ftape.txt>.
-
 source "drivers/char/ftape/Kconfig"
 
 endmenu

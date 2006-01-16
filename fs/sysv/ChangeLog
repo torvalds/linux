@@ -54,7 +54,7 @@ Fri Jan  4 2002  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
 	  (sysv_read_super): Likewise.
 	  (v7_read_super): Likewise.
 
-Sun Dec 30 2001  Manfred Spraul  <manfreds@colorfullife.com>
+Sun Dec 30 2001  Manfred Spraul  <manfred@colorfullife.com>
 
 	* dir.c (dir_commit_chunk): Do not set dir->i_version.
 	(sysv_readdir): Likewise.

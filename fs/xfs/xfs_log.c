@@ -403,7 +403,7 @@ xfs_log_release_iclog(xfs_mount_t *mp,
 
 	if (xlog_state_release_iclog(log, iclog)) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
-		return(EIO);
+		return EIO;
 	}
 
 	return 0;
@@ -556,7 +556,7 @@ xfs_log_unmount(xfs_mount_t *mp)
 
 	error = xfs_log_unmount_write(mp);
 	xfs_log_unmount_dealloc(mp);
-	return (error);
+	return error;
 }
 
 /*
@@ -728,7 +728,7 @@ xfs_log_write(xfs_mount_t *	mp,
 	if ((error = xlog_write(mp, reg, nentries, tic, start_lsn, NULL, 0))) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
 	}
-	return (error);
+	return error;
 }	/* xfs_log_write */
 
 
@@ -836,7 +836,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		needed = 1;
 	}
 	LOG_UNLOCK(log, s);
-	return(needed);
+	return needed;
 }
 
 /******************************************************************************
@@ -1003,7 +1003,7 @@ xlog_bdstrat_cb(struct xfs_buf *bp)
 	XFS_BUF_ERROR(bp, EIO);
 	XFS_BUF_STALE(bp);
 	xfs_biodone(bp);
-	return (XFS_ERROR(EIO));
+	return XFS_ERROR(EIO);
 
 
 }
@@ -1263,7 +1263,7 @@ xlog_commit_record(xfs_mount_t  *mp,
 			       iclog, XLOG_COMMIT_TRANS))) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
 	}
-	return (error);
+	return error;
 }	/* xlog_commit_record */
 
 
@@ -1460,7 +1460,7 @@ xlog_sync(xlog_t		*log,
 	if ((error = XFS_bwrite(bp))) {
 		xfs_ioerror_alert("xlog_sync", log->l_mp, bp,
 				  XFS_BUF_ADDR(bp));
-		return (error);
+		return error;
 	}
 	if (split) {
 		bp		= iclog->ic_log->l_xbuf;
@@ -1498,10 +1498,10 @@ xlog_sync(xlog_t		*log,
 		if ((error = XFS_bwrite(bp))) {
 			xfs_ioerror_alert("xlog_sync (split)", log->l_mp,
 					  bp, XFS_BUF_ADDR(bp));
-			return (error);
+			return error;
 		}
 	}
-	return (0);
+	return 0;
 }	/* xlog_sync */
 
 
@@ -1798,7 +1798,7 @@ xlog_write(xfs_mount_t *	mp,
     for (index = 0; index < nentries; ) {
 	if ((error = xlog_state_get_iclog_space(log, len, &iclog, ticket,
 					       &contwr, &log_offset)))
-		return (error);
+		return error;
 
 	ASSERT(log_offset <= iclog->ic_size - 1);
 	ptr = (__psint_t) ((char *)iclog->ic_datap+log_offset);
@@ -1903,7 +1903,7 @@ xlog_write(xfs_mount_t *	mp,
 		    xlog_state_finish_copy(log, iclog, record_cnt, data_cnt);
 		    record_cnt = data_cnt = 0;
 		    if ((error = xlog_state_release_iclog(log, iclog)))
-			    return (error);
+			    return error;
 		    break;			/* don't increment index */
 	    } else {				/* copied entire region */
 		index++;
@@ -1917,7 +1917,7 @@ xlog_write(xfs_mount_t *	mp,
 			ASSERT(flags & XLOG_COMMIT_TRANS);
 			*commit_iclog = iclog;
 		    } else if ((error = xlog_state_release_iclog(log, iclog)))
-			   return (error);
+			   return error;
 		    if (index == nentries)
 			    return 0;		/* we are done */
 		    else
@@ -1934,7 +1934,7 @@ xlog_write(xfs_mount_t *	mp,
 	*commit_iclog = iclog;
 	return 0;
     }
-    return (xlog_state_release_iclog(log, iclog));
+    return xlog_state_release_iclog(log, iclog);
 }	/* xlog_write */
 
 
@@ -2050,7 +2050,7 @@ xlog_get_lowest_lsn(
 	    }
 	    lsn_log = lsn_log->ic_next;
 	} while (lsn_log != log->l_iclog);
-	return(lowest_lsn);
+	return lowest_lsn;
 }
 
 
@@ -2402,7 +2402,7 @@ restart:
 		if (iclog->ic_refcnt == 1) {
 			LOG_UNLOCK(log, s);
 			if ((error = xlog_state_release_iclog(log, iclog)))
-				return (error);
+				return error;
 		} else {
 			iclog->ic_refcnt--;
 			LOG_UNLOCK(log, s);
@@ -2569,7 +2569,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 	XLOG_TIC_RESET_RES(tic);
 
 	if (tic->t_cnt > 0)
-		return (0);
+		return 0;
 
 #ifdef DEBUG
 	if (log->l_flags & XLOG_ACTIVE_RECOVERY)
@@ -2667,7 +2667,7 @@ redo:
 	xlog_trace_loggrant(log, tic, "xlog_regrant_write_log_space: exit");
 	xlog_verify_grant_head(log, 1);
 	GRANT_UNLOCK(log, s);
-	return (0);
+	return 0;
 
 
  error_return:
@@ -2837,7 +2837,7 @@ xlog_state_release_iclog(xlog_t		*log,
 	if (sync) {
 		return xlog_sync(log, iclog);
 	}
-	return (0);
+	return 0;
 
 }	/* xlog_state_release_iclog */
 
@@ -3127,7 +3127,7 @@ try_again:
     } while (iclog != log->l_iclog);
 
     LOG_UNLOCK(log, s);
-    return (0);
+    return 0;
 }	/* xlog_state_sync */
 
 
@@ -3545,12 +3545,12 @@ xlog_state_ioerror(
 			ic->ic_state = XLOG_STATE_IOERROR;
 			ic = ic->ic_next;
 		} while (ic != iclog);
-		return (0);
+		return 0;
 	}
 	/*
 	 * Return non-zero, if state transition has already happened.
 	 */
-	return (1);
+	return 1;
 }
 
 /*
@@ -3587,7 +3587,7 @@ xfs_log_force_umount(
 	    log->l_flags & XLOG_ACTIVE_RECOVERY) {
 		mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
 		XFS_BUF_DONE(mp->m_sb_bp);
-		return (0);
+		return 0;
 	}
 
 	/*
@@ -3596,7 +3596,7 @@ xfs_log_force_umount(
 	 */
 	if (logerror && log->l_iclog->ic_state & XLOG_STATE_IOERROR) {
 		ASSERT(XLOG_FORCED_SHUTDOWN(log));
-		return (1);
+		return 1;
 	}
 	retval = 0;
 	/*
@@ -3678,7 +3678,7 @@ xfs_log_force_umount(
 	}
 #endif
 	/* return non-zero if log IOERROR transition had already happened */
-	return (retval);
+	return retval;
 }
 
 STATIC int
@@ -3692,8 +3692,8 @@ xlog_iclogs_empty(xlog_t *log)
 		 * any language.
 		 */
 		if (iclog->ic_header.h_num_logops)
-			return(0);
+			return 0;
 		iclog = iclog->ic_next;
 	} while (iclog != log->l_iclog);
-	return(1);
+	return 1;
 }
