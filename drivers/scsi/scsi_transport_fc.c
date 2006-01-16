@@ -1115,14 +1115,12 @@ static int fc_user_scan(struct Scsi_Host *shost, uint channel,
 struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
-	struct fc_internal *i = kmalloc(sizeof(struct fc_internal),
-					GFP_KERNEL);
 	int count;
+	struct fc_internal *i = kzalloc(sizeof(struct fc_internal),
+					GFP_KERNEL);
 
 	if (unlikely(!i))
 		return NULL;
-
-	memset(i, 0, sizeof(struct fc_internal));
 
 	i->t.target_attrs.ac.attrs = &i->starget_attrs[0];
 	i->t.target_attrs.ac.class = &fc_transport_class.class;
@@ -1305,12 +1303,11 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	size_t size;
 
 	size = (sizeof(struct fc_rport) + fci->f->dd_fcrport_size);
-	rport = kmalloc(size, GFP_KERNEL);
+	rport = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!rport)) {
 		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
 		return NULL;
 	}
-	memset(rport, 0, size);
 
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;

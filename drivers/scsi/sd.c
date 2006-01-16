@@ -1517,11 +1517,10 @@ static int sd_probe(struct device *dev)
 					"sd_attach\n"));
 
 	error = -ENOMEM;
-	sdkp = kmalloc(sizeof(*sdkp), GFP_KERNEL);
+	sdkp = kzalloc(sizeof(*sdkp), GFP_KERNEL);
 	if (!sdkp)
 		goto out;
 
-	memset (sdkp, 0, sizeof(*sdkp));
 	kref_init(&sdkp->kref);
 
 	gd = alloc_disk(16);

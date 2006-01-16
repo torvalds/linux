@@ -391,10 +391,9 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct sas_phy *phy;
 
-	phy = kmalloc(sizeof(*phy), GFP_KERNEL);
+	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return NULL;
-	memset(phy, 0, sizeof(*phy));
 
 	get_device(parent);
 
@@ -585,12 +584,11 @@ struct sas_rphy *sas_rphy_alloc(struct sas_phy *parent)
 	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
 	struct sas_rphy *rphy;
 
-	rphy = kmalloc(sizeof(*rphy), GFP_KERNEL);
+	rphy = kzalloc(sizeof(*rphy), GFP_KERNEL);
 	if (!rphy) {
 		put_device(&parent->dev);
 		return NULL;
 	}
-	memset(rphy, 0, sizeof(*rphy));
 
 	device_initialize(&rphy->dev);
 	rphy->dev.parent = get_device(&parent->dev);
@@ -793,10 +791,9 @@ sas_attach_transport(struct sas_function_template *ft)
 	struct sas_internal *i;
 	int count;
 
-	i = kmalloc(sizeof(struct sas_internal), GFP_KERNEL);
+	i = kzalloc(sizeof(struct sas_internal), GFP_KERNEL);
 	if (!i)
 		return NULL;
-	memset(i, 0, sizeof(struct sas_internal));
 
 	i->t.user_scan = sas_user_scan;
 

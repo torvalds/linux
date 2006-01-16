@@ -136,9 +136,8 @@ struct scsi_request *scsi_allocate_request(struct scsi_device *sdev,
 	const int size = offset + sizeof(struct request);
 	struct scsi_request *sreq;
   
-	sreq = kmalloc(size, gfp_mask);
+	sreq = kzalloc(size, gfp_mask);
 	if (likely(sreq != NULL)) {
-		memset(sreq, 0, size);
 		sreq->sr_request = (struct request *)(((char *)sreq) + offset);
 		sreq->sr_device = sdev;
 		sreq->sr_host = sdev->host;

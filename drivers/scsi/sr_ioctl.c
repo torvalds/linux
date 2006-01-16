@@ -44,11 +44,10 @@ static int sr_read_tochdr(struct cdrom_device_info *cdi,
 	int result;
 	unsigned char *buffer;
 
-	buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+	buffer = kzalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
 	if (!buffer)
 		return -ENOMEM;
 
-	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.timeout = IOCTL_TIMEOUT;
 	cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
 	cgc.cmd[8] = 12;		/* LSB of length */
@@ -74,11 +73,10 @@ static int sr_read_tocentry(struct cdrom_device_info *cdi,
 	int result;
 	unsigned char *buffer;
 
-	buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+	buffer = kzalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
 	if (!buffer)
 		return -ENOMEM;
 
-	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.timeout = IOCTL_TIMEOUT;
 	cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
 	cgc.cmd[1] |= (tocentry->cdte_format == CDROM_MSF) ? 0x02 : 0;

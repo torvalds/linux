@@ -525,10 +525,9 @@ static int sr_probe(struct device *dev)
 		goto fail;
 
 	error = -ENOMEM;
-	cd = kmalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd)
 		goto fail;
-	memset(cd, 0, sizeof(*cd));
 
 	kref_init(&cd->kref);
 

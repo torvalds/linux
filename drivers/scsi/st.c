@@ -3590,12 +3590,11 @@ static struct st_buffer *
 
 	i = sizeof(struct st_buffer) + (max_sg - 1) * sizeof(struct scatterlist) +
 		max_sg * sizeof(struct st_buf_fragment);
-	tb = kmalloc(i, priority);
+	tb = kzalloc(i, priority);
 	if (!tb) {
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
 	}
-	memset(tb, 0, i);
 	tb->frp_segs = tb->orig_frp_segs = 0;
 	tb->use_sg = max_sg;
 	tb->frp = (struct st_buf_fragment *)(&(tb->sg[0]) + max_sg);
@@ -3924,14 +3923,13 @@ static int st_probe(struct device *dev)
 			goto out_put_disk;
 		}
 
-		tmp_da = kmalloc(tmp_dev_max * sizeof(struct scsi_tape *), GFP_ATOMIC);
+		tmp_da = kzalloc(tmp_dev_max * sizeof(struct scsi_tape *), GFP_ATOMIC);
 		if (tmp_da == NULL) {
 			write_unlock(&st_dev_arr_lock);
 			printk(KERN_ERR "st: Can't extend device array.\n");
 			goto out_put_disk;
 		}
 
-		memset(tmp_da, 0, tmp_dev_max * sizeof(struct scsi_tape *));
 		if (scsi_tapes != NULL) {
 			memcpy(tmp_da, scsi_tapes,
 			       st_dev_max * sizeof(struct scsi_tape *));
@@ -3948,13 +3946,12 @@ static int st_probe(struct device *dev)
 	if (i >= st_dev_max)
 		panic("scsi_devices corrupt (st)");
 
-	tpnt = kmalloc(sizeof(struct scsi_tape), GFP_ATOMIC);
+	tpnt = kzalloc(sizeof(struct scsi_tape), GFP_ATOMIC);
 	if (tpnt == NULL) {
 		write_unlock(&st_dev_arr_lock);
 		printk(KERN_ERR "st: Can't allocate device descriptor.\n");
 		goto out_put_disk;
 	}
-	memset(tpnt, 0, sizeof(struct scsi_tape));
 	kref_init(&tpnt->kref);
 	tpnt->disk = disk;
 	sprintf(disk->disk_name, "st%d", i);

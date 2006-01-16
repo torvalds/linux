@@ -900,12 +900,10 @@ spi_dv_device(struct scsi_device *sdev)
 	if (unlikely(scsi_device_get(sdev)))
 		return;
 
-	buffer = kmalloc(len, GFP_KERNEL);
+	buffer = kzalloc(len, GFP_KERNEL);
 
 	if (unlikely(!buffer))
 		goto out_put;
-
-	memset(buffer, 0, len);
 
 	/* We need to verify that the actual device will quiesce; the
 	 * later target quiesce is just a nice to have */
@@ -1265,14 +1263,12 @@ static DECLARE_ANON_TRANSPORT_CLASS(spi_device_class,
 struct scsi_transport_template *
 spi_attach_transport(struct spi_function_template *ft)
 {
-	struct spi_internal *i = kmalloc(sizeof(struct spi_internal),
-					 GFP_KERNEL);
 	int count = 0;
+	struct spi_internal *i = kzalloc(sizeof(struct spi_internal),
+					 GFP_KERNEL);
+
 	if (unlikely(!i))
 		return NULL;
-
-	memset(i, 0, sizeof(struct spi_internal));
-
 
 	i->t.target_attrs.ac.class = &spi_transport_class.class;
 	i->t.target_attrs.ac.attrs = &i->attrs[0];

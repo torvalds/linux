@@ -1361,7 +1361,7 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	void *old_sg_dev_arr = NULL;
 	int k, error;
 
-	sdp = kmalloc(sizeof(Sg_device), GFP_KERNEL);
+	sdp = kzalloc(sizeof(Sg_device), GFP_KERNEL);
 	if (!sdp) {
 		printk(KERN_WARNING "kmalloc Sg_device failure\n");
 		return -ENOMEM;
@@ -1373,12 +1373,11 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 		int tmp_dev_max = sg_nr_dev + SG_DEV_ARR_LUMP;
 		write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
 
-		tmp_da = kmalloc(tmp_dev_max * sizeof(Sg_device *), GFP_KERNEL);
+		tmp_da = kzalloc(tmp_dev_max * sizeof(Sg_device *), GFP_KERNEL);
 		if (unlikely(!tmp_da))
 			goto expand_failed;
 
 		write_lock_irqsave(&sg_dev_arr_lock, iflags);
-		memset(tmp_da, 0, tmp_dev_max * sizeof(Sg_device *));
 		memcpy(tmp_da, sg_dev_arr, sg_dev_max * sizeof(Sg_device *));
 		old_sg_dev_arr = sg_dev_arr;
 		sg_dev_arr = tmp_da;
@@ -1391,7 +1390,6 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	if (unlikely(k >= SG_MAX_DEVS))
 		goto overflow;
 
-	memset(sdp, 0, sizeof(*sdp));
 	SCSI_LOG_TIMEOUT(3, printk("sg_alloc: dev=%d \n", k));
 	sprintf(disk->disk_name, "sg%d", k);
 	disk->first_minor = k;

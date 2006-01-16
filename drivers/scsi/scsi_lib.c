@@ -286,13 +286,12 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 	int result;
 	
 	if (sshdr) {
-		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
+		sense = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
 		if (!sense)
 			return DRIVER_ERROR << 24;
-		memset(sense, 0, SCSI_SENSE_BUFFERSIZE);
 	}
 	result = scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
-				  sense, timeout, retries, 0);
+			      sense, timeout, retries, 0);
 	if (sshdr)
 		scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, sshdr);
 

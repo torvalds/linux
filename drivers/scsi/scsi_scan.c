@@ -205,12 +205,11 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	int display_failure_msg = 1, ret;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
-	sdev = kmalloc(sizeof(*sdev) + shost->transportt->device_size,
+	sdev = kzalloc(sizeof(*sdev) + shost->transportt->device_size,
 		       GFP_ATOMIC);
 	if (!sdev)
 		goto out;
 
-	memset(sdev, 0, sizeof(*sdev));
 	sdev->vendor = scsi_null_device_strs;
 	sdev->model = scsi_null_device_strs;
 	sdev->rev = scsi_null_device_strs;
@@ -334,12 +333,11 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	struct scsi_target *starget;
 	struct scsi_target *found_target;
 
-	starget = kmalloc(size, GFP_KERNEL);
+	starget = kzalloc(size, GFP_KERNEL);
 	if (!starget) {
 		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
 		return NULL;
 	}
-	memset(starget, 0, size);
 	dev = &starget->dev;
 	device_initialize(dev);
 	starget->reap_ref = 1;
