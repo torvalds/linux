@@ -1093,6 +1093,25 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 }
 #endif
 
+/* Hardware can't handle unaligned fragments smaller than 9 bytes.
+ * This helper function detects that case.
+ */
+
+static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
+{
+        unsigned int frag;
+        skb_frag_t *fragp;
+
+        for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
+                fragp = &skb_shinfo(skb)->frags[frag];
+                if (fragp->size <= 8 && fragp->page_offset & 0x7)
+                        return 1;
+
+        }
+        return 0;
+}
+
+
 /*
  * mv643xx_eth_start_xmit
  *
@@ -1136,12 +1155,19 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 
+#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+	if (has_tiny_unaligned_frags(skb)) {
+		if ((skb_linearize(skb, GFP_ATOMIC) != 0)) {
+			stats->tx_dropped++;
+			printk(KERN_DEBUG "%s: failed to linearize tiny "
+					"unaligned fragment\n", dev->name);
+			return 1;
+		}
+	}
+
 	spin_lock_irqsave(&mp->lock, flags);
 
-	/* Update packet info data structure -- DMA owned, first last */
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
 	if (!skb_shinfo(skb)->nr_frags) {
-linear:
 		if (skb->ip_summed != CHECKSUM_HW) {
 			/* Errata BTS #50, IHL must be 5 if no HW checksum */
 			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
@@ -1182,26 +1208,6 @@ linear:
 		stats->tx_bytes += pkt_info.byte_cnt;
 	} else {
 		unsigned int frag;
-
-		/* Since hardware can't handle unaligned fragments smaller
-		 * than 9 bytes, if we find any, we linearize the skb
-		 * and start again.  When I've seen it, it's always been
-		 * the first frag (probably near the end of the page),
-		 * but we check all frags to be safe.
-		 */
-		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-			skb_frag_t *fragp;
-
-			fragp = &skb_shinfo(skb)->frags[frag];
-			if (fragp->size <= 8 && fragp->page_offset & 0x7) {
-				skb_linearize(skb, GFP_ATOMIC);
-				printk(KERN_DEBUG "%s: unaligned tiny fragment"
-						"%d of %d, fixed\n",
-						dev->name, frag,
-						skb_shinfo(skb)->nr_frags);
-				goto linear;
-			}
-		}
 
 		/* first frag which is skb header */
 		pkt_info.byte_cnt = skb_headlen(skb);
@@ -1288,6 +1294,8 @@ linear:
 		}
 	}
 #else
+	spin_lock_irqsave(&mp->lock, flags);
+
 	pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT | ETH_TX_FIRST_DESC |
 							ETH_TX_LAST_DESC;
 	pkt_info.l4i_chk = 0;
