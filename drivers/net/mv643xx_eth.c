@@ -129,15 +129,8 @@ static inline void mv_write(int offset, u32 data)
  */
 static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-
-	if ((new_mtu > 9500) || (new_mtu < 64)) {
-		spin_unlock_irqrestore(&mp->lock, flags);
+	if ((new_mtu > 9500) || (new_mtu < 64))
 		return -EINVAL;
-	}
 
 	dev->mtu = new_mtu;
 	/*
@@ -157,7 +150,6 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 				dev->name);
 	}
 
-	spin_unlock_irqrestore(&mp->lock, flags);
 	return 0;
 }
 
@@ -353,8 +345,6 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 	if (!(eth_int_cause_ext & (BIT0 | BIT8)))
 		return released;
 
-	spin_lock(&mp->lock);
-
 	/* Check only queue 0 */
 	while (eth_tx_return_desc(mp, &pkt_info) == ETH_OK) {
 		if (pkt_info.cmd_sts & BIT0) {
@@ -376,8 +366,6 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 			released = 0;
 		}
 	}
-
-	spin_unlock(&mp->lock);
 
 	return released;
 }
@@ -518,6 +506,8 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
 			mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG
 								(port_num), 0);
+			/* ensure previous writes have taken effect */
+			mv_read(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num));
 			__netif_rx_schedule(dev);
 		}
 #else
@@ -533,6 +523,9 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		/* Unmask all interrupts on ethernet port */
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
 							INT_CAUSE_MASK_ALL);
+		/* wait for previous write to take effect */
+		mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
 		queue_task(&mp->rx_task, &tq_immediate);
 		mark_bh(IMMEDIATE_BH);
 #else
@@ -657,33 +650,19 @@ static int mv643xx_eth_open(struct net_device *dev)
 	unsigned int port_num = mp->port_num;
 	int err;
 
-	spin_lock_irq(&mp->lock);
-
 	err = request_irq(dev->irq, mv643xx_eth_int_handler,
 			SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
-
 	if (err) {
 		printk(KERN_ERR "Can not assign IRQ number to MV643XX_eth%d\n",
 								port_num);
-		err = -EAGAIN;
-		goto out;
+		return -EAGAIN;
 	}
 
 	if (mv643xx_eth_real_open(dev)) {
 		printk("%s: Error opening interface\n", dev->name);
+		free_irq(dev->irq, dev);
 		err = -EBUSY;
-		goto out_free;
 	}
-
-	spin_unlock_irq(&mp->lock);
-
-	return 0;
-
-out_free:
-	free_irq(dev->irq, dev);
-
-out:
-	spin_unlock_irq(&mp->lock);
 
 	return err;
 }
@@ -790,18 +769,6 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 	/* Stop RX Queues */
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
-	/* Clear the ethernet port interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
-
-	/* Unmask RX buffer and TX end interrupt */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL);
-
-	/* Unmask phy and link status changes interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL_EXT);
-
 	/* Set the MAC Address */
 	memcpy(mp->port_mac_addr, dev->dev_addr, 6);
 
@@ -903,8 +870,17 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 	mp->tx_int_coal =
 		eth_port_set_tx_coal(port_num, 133000000, MV643XX_TX_COAL);
 
-	netif_start_queue(dev);
+	/* Clear any pending ethernet port interrupts */
+	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
+	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 
+	/* Unmask phy and link status changes interrupts */
+	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
+						INT_CAUSE_UNMASK_ALL_EXT);
+
+	/* Unmask RX buffer and TX end interrupt */
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+						INT_CAUSE_UNMASK_ALL);
 	return 0;
 }
 
@@ -983,37 +959,38 @@ static int mv643xx_eth_real_stop(struct net_device *dev)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 
-	netif_carrier_off(dev);
-	netif_stop_queue(dev);
-
-	mv643xx_eth_free_tx_rings(dev);
-	mv643xx_eth_free_rx_rings(dev);
-
-	eth_port_reset(mp->port_num);
-
-	/* Disable ethernet port interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
-
 	/* Mask RX buffer and TX end interrupt */
 	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
 
 	/* Mask phy and link status changes interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num), 0);
 
+	/* ensure previous writes have taken effect */
+	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
+#ifdef MV643XX_NAPI
+	netif_poll_disable(dev);
+#endif
+	netif_carrier_off(dev);
+	netif_stop_queue(dev);
+
+	eth_port_reset(mp->port_num);
+
+	mv643xx_eth_free_tx_rings(dev);
+	mv643xx_eth_free_rx_rings(dev);
+
+#ifdef MV643XX_NAPI
+	netif_poll_enable(dev);
+#endif
+
 	return 0;
 }
 
 static int mv643xx_eth_stop(struct net_device *dev)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	spin_lock_irq(&mp->lock);
-
 	mv643xx_eth_real_stop(dev);
 
 	free_irq(dev->irq, dev);
-	spin_unlock_irq(&mp->lock);
 
 	return 0;
 }
@@ -1053,14 +1030,11 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	int done = 1, orig_budget, work_done;
 	unsigned int port_num = mp->port_num;
-	unsigned long flags;
 
 #ifdef MV643XX_TX_FAST_REFILL
 	if (++mp->tx_clean_threshold > 5) {
-		spin_lock_irqsave(&mp->lock, flags);
 		mv643xx_tx(dev);
 		mp->tx_clean_threshold = 0;
-		spin_unlock_irqrestore(&mp->lock, flags);
 	}
 #endif
 
@@ -1078,15 +1052,13 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 	}
 
 	if (done) {
-		spin_lock_irqsave(&mp->lock, flags);
-		__netif_rx_complete(dev);
+		netif_rx_complete(dev);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
 						INT_CAUSE_UNMASK_ALL);
 		mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
 						INT_CAUSE_UNMASK_ALL_EXT);
-		spin_unlock_irqrestore(&mp->lock, flags);
 	}
 
 	return done ? 0 : 1;
@@ -2687,6 +2659,7 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	struct eth_tx_desc *current_descriptor;
 	struct eth_tx_desc *first_descriptor;
 	u32 command;
+	unsigned long flags;
 
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
@@ -2702,6 +2675,8 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 			mp->port_num);
 		return ETH_ERROR;
 	}
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	mp->tx_ring_skbs++;
 	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
@@ -2752,10 +2727,14 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		mp->tx_resource_err = 1;
 		mp->tx_curr_desc_q = tx_first_desc;
 
+		spin_unlock_irqrestore(&mp->lock, flags);
+
 		return ETH_QUEUE_LAST_RESOURCE;
 	}
 
 	mp->tx_curr_desc_q = tx_next_desc;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }
@@ -2767,10 +2746,13 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	int tx_desc_used;
 	struct eth_tx_desc *current_descriptor;
 	unsigned int command_status;
+	unsigned long flags;
 
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
 		return ETH_QUEUE_FULL;
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	mp->tx_ring_skbs++;
 	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
@@ -2802,9 +2784,12 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	/* Check for ring index overlap in the Tx desc ring */
 	if (tx_desc_curr == tx_desc_used) {
 		mp->tx_resource_err = 1;
+
+		spin_unlock_irqrestore(&mp->lock, flags);
 		return ETH_QUEUE_LAST_RESOURCE;
 	}
 
+	spin_unlock_irqrestore(&mp->lock, flags);
 	return ETH_OK;
 }
 #endif
@@ -2827,23 +2812,27 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
  *	Tx ring 'first' and 'used' indexes are updated.
  *
  * RETURN:
- *	ETH_ERROR in case the routine can not access Tx desc ring.
- *	ETH_RETRY in case there is transmission in process.
- *	ETH_END_OF_JOB if the routine has nothing to release.
- *	ETH_OK otherwise.
+ *	ETH_OK on success
+ *	ETH_ERROR otherwise.
  *
  */
 static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 						struct pkt_info *p_pkt_info)
 {
 	int tx_desc_used;
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-	int tx_busy_desc = mp->tx_first_desc_q;
-#else
-	int tx_busy_desc = mp->tx_curr_desc_q;
-#endif
+	int tx_busy_desc;
 	struct eth_tx_desc *p_tx_desc_used;
 	unsigned int command_status;
+	unsigned long flags;
+	int err = ETH_OK;
+
+	spin_lock_irqsave(&mp->lock, flags);
+
+#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+	tx_busy_desc = mp->tx_first_desc_q;
+#else
+	tx_busy_desc = mp->tx_curr_desc_q;
+#endif
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_used = mp->tx_used_desc_q;
@@ -2851,18 +2840,24 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 	p_tx_desc_used = &mp->p_tx_desc_area[tx_desc_used];
 
 	/* Sanity check */
-	if (p_tx_desc_used == NULL)
-		return ETH_ERROR;
+	if (p_tx_desc_used == NULL) {
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	/* Stop release. About to overlap the current available Tx descriptor */
-	if (tx_desc_used == tx_busy_desc && !mp->tx_resource_err)
-		return ETH_END_OF_JOB;
+	if (tx_desc_used == tx_busy_desc && !mp->tx_resource_err) {
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	command_status = p_tx_desc_used->cmd_sts;
 
 	/* Still transmitting... */
-	if (command_status & (ETH_BUFFER_OWNED_BY_DMA))
-		return ETH_RETRY;
+	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	/* Pass the packet information to the caller */
 	p_pkt_info->cmd_sts = command_status;
@@ -2880,7 +2875,10 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 	BUG_ON(mp->tx_ring_skbs == 0);
 	mp->tx_ring_skbs--;
 
-	return ETH_OK;
+out:
+	spin_unlock_irqrestore(&mp->lock, flags);
+
+	return err;
 }
 
 /*
@@ -2912,10 +2910,13 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
 	volatile struct eth_rx_desc *p_rx_desc;
 	unsigned int command_status;
+	unsigned long flags;
 
 	/* Do not process Rx ring in case of Rx ring resource error */
 	if (mp->rx_resource_err)
 		return ETH_QUEUE_FULL;
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get the Rx Desc ring 'curr and 'used' indexes */
 	rx_curr_desc = mp->rx_curr_desc_q;
@@ -2928,8 +2929,10 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	rmb();
 
 	/* Nothing to receive... */
-	if (command_status & (ETH_BUFFER_OWNED_BY_DMA))
+	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
+		spin_unlock_irqrestore(&mp->lock, flags);
 		return ETH_END_OF_JOB;
+	}
 
 	p_pkt_info->byte_cnt = (p_rx_desc->byte_cnt) - RX_BUF_OFFSET;
 	p_pkt_info->cmd_sts = command_status;
@@ -2948,6 +2951,8 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	/* Rx descriptors exhausted. Set the Rx ring resource error flag */
 	if (rx_next_curr_desc == rx_used_desc)
 		mp->rx_resource_err = 1;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }
@@ -2977,6 +2982,9 @@ static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
 {
 	int used_rx_desc;	/* Where to return Rx resource */
 	volatile struct eth_rx_desc *p_used_rx_desc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get 'used' Rx descriptor */
 	used_rx_desc = mp->rx_used_desc_q;
@@ -2999,6 +3007,8 @@ static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
 
 	/* Any Rx return cancels the Rx resource error status */
 	mp->rx_resource_err = 0;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }
