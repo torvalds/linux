@@ -80,6 +80,7 @@
 static int eth_port_link_is_up(unsigned int eth_port_num);
 static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
+static void eth_port_set_multicast_list(struct net_device *);
 static int mv643xx_eth_real_open(struct net_device *);
 static int mv643xx_eth_real_stop(struct net_device *);
 static int mv643xx_eth_change_mtu(struct net_device *, int);
@@ -269,6 +270,8 @@ static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 		mp->port_config &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
 
 	mv_write(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num), mp->port_config);
+
+	eth_port_set_multicast_list(dev);
 }
 
 /*
@@ -2045,6 +2048,196 @@ static int eth_port_uc_addr(unsigned int eth_port_num, unsigned char uc_nibble,
 }
 
 /*
+ * The entries in each table are indexed by a hash of a packet's MAC
+ * address.  One bit in each entry determines whether the packet is
+ * accepted.  There are 4 entries (each 8 bits wide) in each register
+ * of the table.  The bits in each entry are defined as follows:
+ *	0	Accept=1, Drop=0
+ *	3-1	Queue			(ETH_Q0=0)
+ *	7-4	Reserved = 0;
+ */
+static void eth_port_set_filter_table_entry(int table, unsigned char entry)
+{
+	unsigned int table_reg;
+	unsigned int tbl_offset;
+	unsigned int reg_offset;
+
+	tbl_offset = (entry / 4) * 4;	/* Register offset of DA table entry */
+	reg_offset = entry % 4;		/* Entry offset within the register */
+
+	/* Set "accepts frame bit" at specified table entry */
+	table_reg = mv_read(table + tbl_offset);
+	table_reg |= 0x01 << (8 * reg_offset);
+	mv_write(table + tbl_offset, table_reg);
+}
+
+/*
+ * eth_port_mc_addr - Multicast address settings.
+ *
+ * The MV device supports multicast using two tables:
+ * 1) Special Multicast Table for MAC addresses of the form
+ *    0x01-00-5E-00-00-XX (where XX is between 0x00 and 0x_FF).
+ *    The MAC DA[7:0] bits are used as a pointer to the Special Multicast
+ *    Table entries in the DA-Filter table.
+ * 2) Other Multicast Table for multicast of another type. A CRC-8bit
+ *    is used as an index to the Other Multicast Table entries in the
+ *    DA-Filter table.  This function calculates the CRC-8bit value.
+ * In either case, eth_port_set_filter_table_entry() is then called
+ * to set to set the actual table entry.
+ */
+static void eth_port_mc_addr(unsigned int eth_port_num, unsigned char *p_addr)
+{
+	unsigned int mac_h;
+	unsigned int mac_l;
+	unsigned char crc_result = 0;
+	int table;
+	int mac_array[48];
+	int crc[8];
+	int i;
+
+	if ((p_addr[0] == 0x01) && (p_addr[1] == 0x00) &&
+	    (p_addr[2] == 0x5E) && (p_addr[3] == 0x00) && (p_addr[4] == 0x00)) {
+		table = MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+					(eth_port_num);
+		eth_port_set_filter_table_entry(table, p_addr[5]);
+		return;
+	}
+
+	/* Calculate CRC-8 out of the given address */
+	mac_h = (p_addr[0] << 8) | (p_addr[1]);
+	mac_l = (p_addr[2] << 24) | (p_addr[3] << 16) |
+			(p_addr[4] << 8) | (p_addr[5] << 0);
+
+	for (i = 0; i < 32; i++)
+		mac_array[i] = (mac_l >> i) & 0x1;
+	for (i = 32; i < 48; i++)
+		mac_array[i] = (mac_h >> (i - 32)) & 0x1;
+
+	crc[0] = mac_array[45] ^ mac_array[43] ^ mac_array[40] ^ mac_array[39] ^
+		 mac_array[35] ^ mac_array[34] ^ mac_array[31] ^ mac_array[30] ^
+		 mac_array[28] ^ mac_array[23] ^ mac_array[21] ^ mac_array[19] ^
+		 mac_array[18] ^ mac_array[16] ^ mac_array[14] ^ mac_array[12] ^
+		 mac_array[8]  ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[0];
+
+	crc[1] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[41] ^ mac_array[39] ^ mac_array[36] ^ mac_array[34] ^
+		 mac_array[32] ^ mac_array[30] ^ mac_array[29] ^ mac_array[28] ^
+		 mac_array[24] ^ mac_array[23] ^ mac_array[22] ^ mac_array[21] ^
+		 mac_array[20] ^ mac_array[18] ^ mac_array[17] ^ mac_array[16] ^
+		 mac_array[15] ^ mac_array[14] ^ mac_array[13] ^ mac_array[12] ^
+		 mac_array[9]  ^ mac_array[6]  ^ mac_array[1]  ^ mac_array[0];
+
+	crc[2] = mac_array[47] ^ mac_array[46] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[42] ^ mac_array[39] ^ mac_array[37] ^ mac_array[34] ^
+		 mac_array[33] ^ mac_array[29] ^ mac_array[28] ^ mac_array[25] ^
+		 mac_array[24] ^ mac_array[22] ^ mac_array[17] ^ mac_array[15] ^
+		 mac_array[13] ^ mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^
+		 mac_array[6]  ^ mac_array[2]  ^ mac_array[1]  ^ mac_array[0];
+
+	crc[3] = mac_array[47] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[40] ^ mac_array[38] ^ mac_array[35] ^ mac_array[34] ^
+		 mac_array[30] ^ mac_array[29] ^ mac_array[26] ^ mac_array[25] ^
+		 mac_array[23] ^ mac_array[18] ^ mac_array[16] ^ mac_array[14] ^
+		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[7]  ^
+		 mac_array[3]  ^ mac_array[2]  ^ mac_array[1];
+
+	crc[4] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[41] ^
+		 mac_array[39] ^ mac_array[36] ^ mac_array[35] ^ mac_array[31] ^
+		 mac_array[30] ^ mac_array[27] ^ mac_array[26] ^ mac_array[24] ^
+		 mac_array[19] ^ mac_array[17] ^ mac_array[15] ^ mac_array[14] ^
+		 mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^ mac_array[4]  ^
+		 mac_array[3]  ^ mac_array[2];
+
+	crc[5] = mac_array[47] ^ mac_array[46] ^ mac_array[45] ^ mac_array[42] ^
+		 mac_array[40] ^ mac_array[37] ^ mac_array[36] ^ mac_array[32] ^
+		 mac_array[31] ^ mac_array[28] ^ mac_array[27] ^ mac_array[25] ^
+		 mac_array[20] ^ mac_array[18] ^ mac_array[16] ^ mac_array[15] ^
+		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[5]  ^
+		 mac_array[4]  ^ mac_array[3];
+
+	crc[6] = mac_array[47] ^ mac_array[46] ^ mac_array[43] ^ mac_array[41] ^
+		 mac_array[38] ^ mac_array[37] ^ mac_array[33] ^ mac_array[32] ^
+		 mac_array[29] ^ mac_array[28] ^ mac_array[26] ^ mac_array[21] ^
+		 mac_array[19] ^ mac_array[17] ^ mac_array[16] ^ mac_array[14] ^
+		 mac_array[12] ^ mac_array[10] ^ mac_array[6]  ^ mac_array[5]  ^
+		 mac_array[4];
+
+	crc[7] = mac_array[47] ^ mac_array[44] ^ mac_array[42] ^ mac_array[39] ^
+		 mac_array[38] ^ mac_array[34] ^ mac_array[33] ^ mac_array[30] ^
+		 mac_array[29] ^ mac_array[27] ^ mac_array[22] ^ mac_array[20] ^
+		 mac_array[18] ^ mac_array[17] ^ mac_array[15] ^ mac_array[13] ^
+		 mac_array[11] ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[5];
+
+	for (i = 0; i < 8; i++)
+		crc_result = crc_result | (crc[i] << i);
+
+	table = MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num);
+	eth_port_set_filter_table_entry(table, crc_result);
+}
+
+/*
+ * Set the entire multicast list based on dev->mc_list.
+ */
+static void eth_port_set_multicast_list(struct net_device *dev)
+{
+
+	struct dev_mc_list	*mc_list;
+	int			i;
+	int			table_index;
+	struct mv643xx_private	*mp = netdev_priv(dev);
+	unsigned int		eth_port_num = mp->port_num;
+
+	/* If the device is in promiscuous mode or in all multicast mode,
+	 * we will fully populate both multicast tables with accept.
+	 * This is guaranteed to yield a match on all multicast addresses...
+	 */
+	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI)) {
+		for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+			 /* Set all entries in DA filter special multicast
+			  * table (Ex_dFSMT)
+			  * Set for ETH_Q0 for now
+			  * Bits
+			  * 0	  Accept=1, Drop=0
+			  * 3-1  Queue	 ETH_Q0=0
+			  * 7-4  Reserved = 0;
+			  */
+			 mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+
+			 /* Set all entries in DA filter other multicast
+			  * table (Ex_dFOMT)
+			  * Set for ETH_Q0 for now
+			  * Bits
+			  * 0	  Accept=1, Drop=0
+			  * 3-1  Queue	 ETH_Q0=0
+			  * 7-4  Reserved = 0;
+			  */
+			 mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+       	}
+		return;
+	}
+
+	/* We will clear out multicast tables every time we get the list.
+	 * Then add the entire new list...
+	 */
+	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+		/* Clear DA filter special multicast table (Ex_dFSMT) */
+		mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+				(eth_port_num) + table_index, 0);
+
+		/* Clear DA filter other multicast table (Ex_dFOMT) */
+		mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE
+				(eth_port_num) + table_index, 0);
+	}
+
+	/* Get pointer to net_device multicast list and add each one... */
+	for (i = 0, mc_list = dev->mc_list;
+			(i < 256) && (mc_list != NULL) && (i < dev->mc_count);
+			i++, mc_list = mc_list->next)
+		if (mc_list->dmi_addrlen == 6)
+			eth_port_mc_addr(eth_port_num, mc_list->dmi_addr);
+}
+
+/*
  * eth_port_init_mac_tables - Clear all entrance in the UC, SMC and OMC tables
  *
  * DESCRIPTION:
@@ -2071,11 +2264,11 @@ static void eth_port_init_mac_tables(unsigned int eth_port_num)
 
 	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
 		/* Clear DA filter special multicast table (Ex_dFSMT) */
-		mv_write((MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
-					(eth_port_num) + table_index), 0);
+		mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+					(eth_port_num) + table_index, 0);
 		/* Clear DA filter other multicast table (Ex_dFOMT) */
-		mv_write((MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE
-					(eth_port_num) + table_index), 0);
+		mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE
+					(eth_port_num) + table_index, 0);
 	}
 }
 
