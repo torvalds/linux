@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.15-git7
-# Wed Jan 11 11:57:36 2006
+# Linux kernel version: 2.6.15-git12
+# Mon Jan 16 13:09:08 2006
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -319,6 +319,11 @@ CONFIG_IPV6=y
 # CONFIG_ATALK is not set
 # CONFIG_X25 is not set
 # CONFIG_LAPB is not set
+
+#
+# TIPC Configuration (EXPERIMENTAL)
+#
+# CONFIG_TIPC is not set
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
@@ -537,8 +542,7 @@ CONFIG_SCSI_SATA_INTEL_COMBINED=y
 # CONFIG_SCSI_IPR is not set
 # CONFIG_SCSI_QLOGIC_FC is not set
 # CONFIG_SCSI_QLOGIC_1280 is not set
-CONFIG_SCSI_QLA2XXX=y
-# CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE is not set
+# CONFIG_SCSI_QLA_FC is not set
 # CONFIG_SCSI_LPFC is not set
 # CONFIG_SCSI_DC395x is not set
 # CONFIG_SCSI_DC390T is not set
@@ -805,6 +809,7 @@ CONFIG_SOFT_WATCHDOG=y
 # CONFIG_W83877F_WDT is not set
 # CONFIG_W83977F_WDT is not set
 # CONFIG_MACHZ_WDT is not set
+# CONFIG_SBC_EPX_C3_WATCHDOG is not set
 
 #
 # PCI-based Watchdog Cards
@@ -848,6 +853,12 @@ CONFIG_HPET_MMAP=y
 # I2C support
 #
 # CONFIG_I2C is not set
+
+#
+# SPI support
+#
+# CONFIG_SPI is not set
+# CONFIG_SPI_MASTER is not set
 
 #
 # Dallas's 1-wire bus
@@ -992,6 +1003,7 @@ CONFIG_USB_STORAGE=y
 #
 CONFIG_USB_HID=y
 CONFIG_USB_HIDINPUT=y
+# CONFIG_USB_HIDINPUT_POWERBOOK is not set
 # CONFIG_HID_FF is not set
 # CONFIG_USB_HIDDEV is not set
 # CONFIG_USB_AIPTEK is not set
@@ -1276,6 +1288,7 @@ CONFIG_DETECT_SOFTLOCKUP=y
 CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
 # CONFIG_FRAME_POINTER is not set
+# CONFIG_FORCED_INLINING is not set
 # CONFIG_RCU_TORTURE_TEST is not set
 CONFIG_INIT_DEBUG=y
 # CONFIG_DEBUG_RODATA is not set
