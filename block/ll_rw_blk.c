@@ -3153,7 +3153,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	if (blk_fs_request(req) && req->rq_disk) {
 		const int rw = rq_data_dir(req);
 
-		__disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
+		disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
 	}
 
 	total_bytes = bio_nbytes = 0;
