@@ -40,8 +40,8 @@ struct sn_flush_device_common {
 	unsigned long sfdl_force_int_addr;
 	unsigned long sfdl_flush_value;
 	volatile unsigned long *sfdl_flush_addr;
-	uint32_t sfdl_persistent_busnum;
-	uint32_t sfdl_persistent_segment;
+	u32 sfdl_persistent_busnum;
+	u32 sfdl_persistent_segment;
 	struct pcibus_info *sfdl_pcibus_info;
 };
 
@@ -56,7 +56,7 @@ struct sn_flush_device_kernel {
  */
 struct sn_flush_nasid_entry  {
 	struct sn_flush_device_kernel **widget_p; // Used as an array of wid_num
-	uint64_t iio_itte[8];
+	u64 iio_itte[8];
 };
 
 struct hubdev_info {
@@ -70,8 +70,8 @@ struct hubdev_info {
 
 	void				*hdi_nodepda;
 	void				*hdi_node_vertex;
-	uint32_t			max_segment_number;
-	uint32_t			max_pcibus_number;
+	u32				max_segment_number;
+	u32				max_pcibus_number;
 };
 
 extern void hubdev_init_node(nodepda_t *, cnodeid_t);

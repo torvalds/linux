@@ -628,9 +628,11 @@ static int pfm_write_ibr_dbr(int mode, pfm_context_t *ctx, void *arg, int count,
 
 #include "perfmon_itanium.h"
 #include "perfmon_mckinley.h"
+#include "perfmon_montecito.h"
 #include "perfmon_generic.h"
 
 static pmu_config_t *pmu_confs[]={
+	&pmu_conf_mont,
 	&pmu_conf_mck,
 	&pmu_conf_ita,
 	&pmu_conf_gen, /* must be last */

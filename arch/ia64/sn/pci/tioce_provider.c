@@ -81,10 +81,10 @@
  * 61    - 0 since this is not an MSI transaction
  * 60:54 - reserved, MBZ
  */
-static uint64_t
+static u64
 tioce_dma_d64(unsigned long ct_addr)
 {
-	uint64_t bus_addr;
+	u64 bus_addr;
 
 	bus_addr = ct_addr | (1UL << 63);
 
@@ -141,9 +141,9 @@ pcidev_to_tioce(struct pci_dev *pdev, struct tioce **base,
  * length, and if enough resources exist, fill in the ATE's and construct a
  * tioce_dmamap struct to track the mapping.
  */
-static uint64_t
+static u64
 tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
-		uint64_t ct_addr, int len)
+		u64 ct_addr, int len)
 {
 	int i;
 	int j;
@@ -152,11 +152,11 @@ tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
 	int entries;
 	int nates;
 	int pagesize;
-	uint64_t *ate_shadow;
-	uint64_t *ate_reg;
-	uint64_t addr;
+	u64 *ate_shadow;
+	u64 *ate_reg;
+	u64 addr;
 	struct tioce *ce_mmr;
-	uint64_t bus_base;
+	u64 bus_base;
 	struct tioce_dmamap *map;
 
 	ce_mmr = (struct tioce *)ce_kern->ce_common->ce_pcibus.bs_base;
@@ -224,7 +224,7 @@ tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
 
 	addr = ct_addr;
 	for (j = 0; j < nates; j++) {
-		uint64_t ate;
+		u64 ate;
 
 		ate = ATE_MAKE(addr, pagesize);
 		ate_shadow[i + j] = ate;
@@ -252,15 +252,15 @@ tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
  *
  * Map @paddr into 32-bit bus space of the CE associated with @pcidev_info.
  */
-static uint64_t
-tioce_dma_d32(struct pci_dev *pdev, uint64_t ct_addr)
+static u64
+tioce_dma_d32(struct pci_dev *pdev, u64 ct_addr)
 {
 	int dma_ok;
 	int port;
 	struct tioce *ce_mmr;
 	struct tioce_kernel *ce_kern;
-	uint64_t ct_upper;
-	uint64_t ct_lower;
+	u64 ct_upper;
+	u64 ct_lower;
 	dma_addr_t bus_addr;
 
 	ct_upper = ct_addr & ~0x3fffffffUL;
@@ -269,7 +269,7 @@ tioce_dma_d32(struct pci_dev *pdev, uint64_t ct_addr)
 	pcidev_to_tioce(pdev, &ce_mmr, &ce_kern, &port);
 
 	if (ce_kern->ce_port[port].dirmap_refcnt == 0) {
-		uint64_t tmp;
+		u64 tmp;
 
 		ce_kern->ce_port[port].dirmap_shadow = ct_upper;
 		writeq(ct_upper, &ce_mmr->ce_ure_dir_map[port]);
@@ -295,10 +295,10 @@ tioce_dma_d32(struct pci_dev *pdev, uint64_t ct_addr)
  * Given a TIOCE bus address, set the appropriate bit to indicate barrier
  * attributes.
  */
-static uint64_t
-tioce_dma_barrier(uint64_t bus_addr, int on)
+static u64
+tioce_dma_barrier(u64 bus_addr, int on)
 {
-	uint64_t barrier_bit;
+	u64 barrier_bit;
 
 	/* barrier not supported in M40/M40S mode */
 	if (TIOCE_M40_ADDR(bus_addr) || TIOCE_M40S_ADDR(bus_addr))
@@ -351,7 +351,7 @@ tioce_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 
 		list_for_each_entry(map, &ce_kern->ce_dmamap_list,
 				    ce_dmamap_list) {
-			uint64_t last;
+			u64 last;
 
 			last = map->pci_start + map->nbytes - 1;
 			if (bus_addr >= map->pci_start && bus_addr <= last)
@@ -385,17 +385,17 @@ tioce_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
  * This is the main wrapper for mapping host physical pages to CE PCI space.
  * The mapping mode used is based on the device's dma_mask.
  */
-static uint64_t
-tioce_do_dma_map(struct pci_dev *pdev, uint64_t paddr, size_t byte_count,
+static u64
+tioce_do_dma_map(struct pci_dev *pdev, u64 paddr, size_t byte_count,
 		 int barrier)
 {
 	unsigned long flags;
-	uint64_t ct_addr;
-	uint64_t mapaddr = 0;
+	u64 ct_addr;
+	u64 mapaddr = 0;
 	struct tioce_kernel *ce_kern;
 	struct tioce_dmamap *map;
 	int port;
-	uint64_t dma_mask;
+	u64 dma_mask;
 
 	dma_mask = (barrier) ? pdev->dev.coherent_dma_mask : pdev->dma_mask;
 
@@ -425,7 +425,7 @@ tioce_do_dma_map(struct pci_dev *pdev, uint64_t paddr, size_t byte_count,
 	 * address bits than this device can support.
 	 */
 	list_for_each_entry(map, &ce_kern->ce_dmamap_list, ce_dmamap_list) {
-		uint64_t last;
+		u64 last;
 
 		last = map->ct_start + map->nbytes - 1;
 		if (ct_addr >= map->ct_start &&
@@ -501,8 +501,8 @@ dma_map_done:
  * Simply call tioce_do_dma_map() to create a map with the barrier bit clear
  * in the address.
  */
-static uint64_t
-tioce_dma(struct pci_dev *pdev, uint64_t paddr, size_t byte_count)
+static u64
+tioce_dma(struct pci_dev *pdev, u64 paddr, size_t byte_count)
 {
 	return tioce_do_dma_map(pdev, paddr, byte_count, 0);
 }
@@ -515,8 +515,8 @@ tioce_dma(struct pci_dev *pdev, uint64_t paddr, size_t byte_count)
  *
  * Simply call tioce_do_dma_map() to create a map with the barrier bit set
  * in the address.
- */ static uint64_t
-tioce_dma_consistent(struct pci_dev *pdev, uint64_t paddr, size_t byte_count)
+ */ static u64
+tioce_dma_consistent(struct pci_dev *pdev, u64 paddr, size_t byte_count)
 {
 	return tioce_do_dma_map(pdev, paddr, byte_count, 1);
 }
@@ -551,7 +551,7 @@ tioce_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
 tioce_kern_init(struct tioce_common *tioce_common)
 {
 	int i;
-	uint32_t tmp;
+	u32 tmp;
 	struct tioce *tioce_mmr;
 	struct tioce_kernel *tioce_kern;
 
@@ -563,7 +563,7 @@ tioce_kern_init(struct tioce_common *tioce_common)
 	tioce_kern->ce_common = tioce_common;
 	spin_lock_init(&tioce_kern->ce_lock);
 	INIT_LIST_HEAD(&tioce_kern->ce_dmamap_list);
-	tioce_common->ce_kernel_private = (uint64_t) tioce_kern;
+	tioce_common->ce_kernel_private = (u64) tioce_kern;
 
 	/*
 	 * Determine the secondary bus number of the port2 logical PPB.
@@ -575,7 +575,7 @@ tioce_kern_init(struct tioce_common *tioce_common)
 	raw_pci_ops->read(tioce_common->ce_pcibus.bs_persist_segment,
 			  tioce_common->ce_pcibus.bs_persist_busnum,
 			  PCI_DEVFN(2, 0), PCI_SECONDARY_BUS, 1, &tmp);
-	tioce_kern->ce_port1_secondary = (uint8_t) tmp;
+	tioce_kern->ce_port1_secondary = (u8) tmp;
 
 	/*
 	 * Set PMU pagesize to the largest size available, and zero out
@@ -615,7 +615,7 @@ tioce_force_interrupt(struct sn_irq_info *sn_irq_info)
 	struct pcidev_info *pcidev_info;
 	struct tioce_common *ce_common;
 	struct tioce *ce_mmr;
-	uint64_t force_int_val;
+	u64 force_int_val;
 
 	if (!sn_irq_info->irq_bridge)
 		return;
@@ -687,7 +687,7 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 	struct tioce_common *ce_common;
 	struct tioce *ce_mmr;
 	int bit;
-	uint64_t vector;
+	u64 vector;
 
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (!pcidev_info)
@@ -699,7 +699,7 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 	bit = sn_irq_info->irq_int_bit;
 
 	__sn_setq_relaxed(&ce_mmr->ce_adm_int_mask, (1UL << bit));
-	vector = (uint64_t)sn_irq_info->irq_irq << INTR_VECTOR_SHFT;
+	vector = (u64)sn_irq_info->irq_irq << INTR_VECTOR_SHFT;
 	vector |= sn_irq_info->irq_xtalkaddr;
 	writeq(vector, &ce_mmr->ce_adm_int_dest[bit]);
 	__sn_clrq_relaxed(&ce_mmr->ce_adm_int_mask, (1UL << bit));
