@@ -1825,7 +1825,6 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		struct sk_buff *skb;
 		u32 status;
 		u16 length;
-		u8 op;
 
 		le = hw->st_le + hw->st_idx;
 		hw->st_idx = (hw->st_idx + 1) % STATUS_RING_SIZE;
@@ -1839,10 +1838,8 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		sky2 = netdev_priv(dev);
 		status = le32_to_cpu(le->status);
 		length = le16_to_cpu(le->length);
-		op = le->opcode & ~HW_OWNER;
-		le->opcode = 0;
 
-		switch (op) {
+		switch (le->opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
 			skb = sky2_receive(sky2, length, status);
 			if (!skb)
@@ -1890,7 +1887,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		default:
 			if (net_ratelimit())
 				printk(KERN_WARNING PFX
-				       "unknown status opcode 0x%x\n", op);
+				       "unknown status opcode 0x%x\n", le->opcode);
 			break;
 		}
 	}
