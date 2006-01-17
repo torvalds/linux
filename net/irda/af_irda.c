@@ -43,6 +43,7 @@
  ********************************************************************/
 
 #include <linux/config.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -62,12 +63,12 @@
 
 static int irda_create(struct socket *sock, int protocol);
 
-static struct proto_ops irda_stream_ops;
-static struct proto_ops irda_seqpacket_ops;
-static struct proto_ops irda_dgram_ops;
+static const struct proto_ops irda_stream_ops;
+static const struct proto_ops irda_seqpacket_ops;
+static const struct proto_ops irda_dgram_ops;
 
 #ifdef CONFIG_IRDA_ULTRA
-static struct proto_ops irda_ultra_ops;
+static const struct proto_ops irda_ultra_ops;
 #define ULTRA_MAX_DATA 382
 #endif /* CONFIG_IRDA_ULTRA */
 
@@ -1438,8 +1439,9 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 			/*
 			 *	POSIX 1003.1g mandates this order.
 			 */
-			if (sk->sk_err)
-				ret = sock_error(sk);
+			ret = sock_error(sk);
+			if (ret)
+				break;
 			else if (sk->sk_shutdown & RCV_SHUTDOWN)
 				;
 			else if (noblock)
@@ -1821,7 +1823,7 @@ static int irda_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 	default:
 		IRDA_DEBUG(1, "%s(), doing device ioctl!\n", __FUNCTION__);
-		return dev_ioctl(cmd, (void __user *) arg);
+		return -ENOIOCTLCMD;
 	}
 
 	/*NOTREACHED*/
@@ -2463,7 +2465,7 @@ static struct net_proto_family irda_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(irda_stream_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(irda_stream_ops) = {
 	.family =	PF_IRDA,
 	.owner =	THIS_MODULE,
 	.release =	irda_release,
@@ -2484,7 +2486,7 @@ static struct proto_ops SOCKOPS_WRAPPED(irda_stream_ops) = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(irda_seqpacket_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(irda_seqpacket_ops) = {
 	.family =	PF_IRDA,
 	.owner =	THIS_MODULE,
 	.release =	irda_release,
@@ -2505,7 +2507,7 @@ static struct proto_ops SOCKOPS_WRAPPED(irda_seqpacket_ops) = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(irda_dgram_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(irda_dgram_ops) = {
 	.family =	PF_IRDA,
 	.owner =	THIS_MODULE,
 	.release =	irda_release,
@@ -2527,7 +2529,7 @@ static struct proto_ops SOCKOPS_WRAPPED(irda_dgram_ops) = {
 };
 
 #ifdef CONFIG_IRDA_ULTRA
-static struct proto_ops SOCKOPS_WRAPPED(irda_ultra_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(irda_ultra_ops) = {
 	.family =	PF_IRDA,
 	.owner =	THIS_MODULE,
 	.release =	irda_release,

@@ -12,9 +12,10 @@
  *
  * mostly rewritten, threaded and wake-one semantics added
  * MSGMAX limit removed, sysctl's added
- * (c) 1999 Manfred Spraul <manfreds@colorfullife.com>
+ * (c) 1999 Manfred Spraul <manfred@colorfullife.com>
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/msg.h>

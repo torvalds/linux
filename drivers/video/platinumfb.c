@@ -69,6 +69,8 @@ struct fb_info_platinum {
 	unsigned long			total_vram;
 	int				clktype;
 	int				dactype;
+
+	struct resource			rsrc_fb, rsrc_reg;
 };
 
 /*
@@ -96,9 +98,6 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 /*
  * Interface used by the world
  */
-
-int platinumfb_init(void);
-int platinumfb_setup(char*);
 
 static struct fb_ops platinumfb_ops = {
 	.owner =	THIS_MODULE,
@@ -138,13 +137,15 @@ static int platinumfb_set_par (struct fb_info *info)
 
 	init = platinum_reg_init[pinfo->vmode-1];
 	
-	if (pinfo->vmode == 13 && pinfo->cmode > 0)
-		offset = 0x10;
+ 	if ((pinfo->vmode == VMODE_832_624_75) && (pinfo->cmode > CMODE_8))
+  		offset = 0x10;
+
 	info->screen_base = pinfo->frame_buffer + init->fb_offset + offset;
 	info->fix.smem_start = (pinfo->frame_buffer_phys) + init->fb_offset + offset;
 	info->fix.visual = (pinfo->cmode == CMODE_8) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
-	info->fix.line_length = vmode_attrs[pinfo->vmode-1].hres * (1<<pinfo->cmode) + offset;
+ 	info->fix.line_length = vmode_attrs[pinfo->vmode-1].hres * (1<<pinfo->cmode)
+		+ offset;
 	printk("line_length: %x\n", info->fix.line_length);
 	return 0;
 }
@@ -221,7 +222,9 @@ static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static inline int platinum_vram_reqd(int video_mode, int color_mode)
 {
 	return vmode_attrs[video_mode-1].vres *
-	       (vmode_attrs[video_mode-1].hres * (1<<color_mode) + 0x20) +0x1000;
+	       (vmode_attrs[video_mode-1].hres * (1<<color_mode) +
+		((video_mode == VMODE_832_624_75) &&
+		 (color_mode > CMODE_8)) ? 0x10 : 0x20) + 0x1000;
 }
 
 #define STORE_D2(a, d) { \
@@ -481,7 +484,7 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 /* 
  * Parse user speficied options (`video=platinumfb:')
  */
-int __init platinumfb_setup(char *options)
+static int __init platinumfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -522,19 +525,15 @@ int __init platinumfb_setup(char *options)
 #define invalidate_cache(addr)
 #endif
 
-static int __devinit platinumfb_probe(struct of_device* odev, const struct of_device_id *match)
+static int __devinit platinumfb_probe(struct of_device* odev,
+				      const struct of_device_id *match)
 {
 	struct device_node	*dp = odev->node;
 	struct fb_info		*info;
 	struct fb_info_platinum	*pinfo;
-	unsigned long		addr, size;
 	volatile __u8		*fbuffer;
-	int			i, bank0, bank1, bank2, bank3, rc;
+	int			bank0, bank1, bank2, bank3, rc;
 
-	if (dp->n_addrs != 2) {
-		printk(KERN_ERR "expecting 2 address for platinum (got %d)", dp->n_addrs);
-		return -ENXIO;
-	}
 	printk(KERN_INFO "platinumfb: Found Apple Platinum video hardware\n");
 
 	info = framebuffer_alloc(sizeof(*pinfo), &odev->dev);
@@ -542,26 +541,39 @@ static int __devinit platinumfb_probe(struct of_device* odev, const struct of_de
 		return -ENOMEM;
 	pinfo = info->par;
 
-	/* Map in frame buffer and registers */
-	for (i = 0; i < dp->n_addrs; ++i) {
-		addr = dp->addrs[i].address;
-		size = dp->addrs[i].size;
-		/* Let's assume we can request either all or nothing */
-		if (!request_mem_region(addr, size, "platinumfb")) {
-			framebuffer_release(info);
-			return -ENXIO;
-		}
-		if (size >= 0x400000) {
-			/* frame buffer - map only 4MB */
-			pinfo->frame_buffer_phys = addr;
-			pinfo->frame_buffer = __ioremap(addr, 0x400000, _PAGE_WRITETHRU);
-			pinfo->base_frame_buffer = pinfo->frame_buffer;
-		} else {
-			/* registers */
-			pinfo->platinum_regs_phys = addr;
-			pinfo->platinum_regs = ioremap(addr, size);
-		}
+	if (of_address_to_resource(dp, 0, &pinfo->rsrc_reg) ||
+	    of_address_to_resource(dp, 1, &pinfo->rsrc_fb)) {
+		printk(KERN_ERR "platinumfb: Can't get resources\n");
+		framebuffer_release(info);
+		return -ENXIO;
 	}
+	if (!request_mem_region(pinfo->rsrc_reg.start,
+				pinfo->rsrc_reg.start -
+				pinfo->rsrc_reg.end + 1,
+				"platinumfb registers")) {
+		framebuffer_release(info);
+		return -ENXIO;
+	}
+	if (!request_mem_region(pinfo->rsrc_fb.start,
+				pinfo->rsrc_fb.start
+				- pinfo->rsrc_fb.end + 1,
+				"platinumfb framebuffer")) {
+		release_mem_region(pinfo->rsrc_reg.start,
+				   pinfo->rsrc_reg.end -
+				   pinfo->rsrc_reg.start + 1);
+		framebuffer_release(info);
+		return -ENXIO;
+	}
+
+	/* frame buffer - map only 4MB */
+	pinfo->frame_buffer_phys = pinfo->rsrc_fb.start;
+	pinfo->frame_buffer = __ioremap(pinfo->rsrc_fb.start, 0x400000,
+					_PAGE_WRITETHRU);
+	pinfo->base_frame_buffer = pinfo->frame_buffer;
+
+	/* registers */
+	pinfo->platinum_regs_phys = pinfo->rsrc_reg.start;
+	pinfo->platinum_regs = ioremap(pinfo->rsrc_reg.start, 0x1000);
 
 	pinfo->cmap_regs_phys = 0xf301b000;	/* XXX not in prom? */
 	request_mem_region(pinfo->cmap_regs_phys, 0x1000, "platinumfb cmap");
@@ -624,18 +636,16 @@ static int __devexit platinumfb_remove(struct of_device* odev)
 {
 	struct fb_info		*info = dev_get_drvdata(&odev->dev);
 	struct fb_info_platinum	*pinfo = info->par;
-	struct device_node *dp = odev->node;
-	unsigned long addr, size;
-	int i;
 	
         unregister_framebuffer (info);
 	
 	/* Unmap frame buffer and registers */
-	for (i = 0; i < dp->n_addrs; ++i) {
-		addr = dp->addrs[i].address;
-		size = dp->addrs[i].size;
-		release_mem_region(addr, size);
-	}
+	release_mem_region(pinfo->rsrc_fb.start,
+			   pinfo->rsrc_fb.end -
+			   pinfo->rsrc_fb.start + 1);
+	release_mem_region(pinfo->rsrc_reg.start,
+			   pinfo->rsrc_reg.end -
+			   pinfo->rsrc_reg.start + 1);
 	iounmap(pinfo->frame_buffer);
 	iounmap(pinfo->platinum_regs);
 	release_mem_region(pinfo->cmap_regs_phys, 0x1000);
@@ -662,7 +672,7 @@ static struct of_platform_driver platinum_driver =
 	.remove		= platinumfb_remove,
 };
 
-int __init platinumfb_init(void)
+static int __init platinumfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
@@ -676,7 +686,7 @@ int __init platinumfb_init(void)
 	return 0;
 }
 
-void __exit platinumfb_exit(void)
+static void __exit platinumfb_exit(void)
 {
 	of_unregister_driver(&platinum_driver);	
 }

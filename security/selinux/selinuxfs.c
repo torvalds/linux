@@ -376,7 +376,7 @@ static ssize_t selinux_transaction_write(struct file *file, const char __user *b
 	char *data;
 	ssize_t rv;
 
-	if (ino >= sizeof(write_op)/sizeof(write_op[0]) || !write_op[ino])
+	if (ino >= ARRAY_SIZE(write_op) || !write_op[ino])
 		return -EINVAL;
 
 	data = simple_transaction_get(file, buf, size);
@@ -889,7 +889,7 @@ static void sel_remove_bools(struct dentry *de)
 	spin_lock(&dcache_lock);
 	node = de->d_subdirs.next;
 	while (node != &de->d_subdirs) {
-		struct dentry *d = list_entry(node, struct dentry, d_child);
+		struct dentry *d = list_entry(node, struct dentry, d_u.d_child);
 		list_del_init(node);
 
 		if (d->d_inode) {
@@ -1161,7 +1161,7 @@ static int sel_make_avc_files(struct dentry *dir)
 #endif
 	};
 
-	for (i = 0; i < sizeof (files) / sizeof (files[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(files); i++) {
 		struct inode *inode;
 		struct dentry *dentry;
 

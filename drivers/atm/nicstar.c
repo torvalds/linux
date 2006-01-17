@@ -2126,8 +2126,7 @@ static void process_rsq(ns_dev *card)
 
    if (!ns_rsqe_valid(card->rsq.next))
       return;
-   while (ns_rsqe_valid(card->rsq.next))
-   {
+   do {
       dequeue_rx(card, card->rsq.next);
       ns_rsqe_init(card->rsq.next);
       previous = card->rsq.next;
@@ -2135,7 +2134,7 @@ static void process_rsq(ns_dev *card)
          card->rsq.next = card->rsq.base;
       else
          card->rsq.next++;
-   }
+   } while (ns_rsqe_valid(card->rsq.next));
    writel((((u32) previous) - ((u32) card->rsq.base)),
           card->membase + RSQH);
 }

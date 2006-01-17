@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/string.h>
 #include <linux/rio.h>
 
 extern int __rio_local_read_config_32(struct rio_mport *port, u32 offset,
@@ -336,8 +337,8 @@ static inline void rio_init_dbell_res(struct resource *res, u16 start, u16 end)
 
 /**
  * RIO_DEVICE - macro used to describe a specific RIO device
- * @vid: the 16 bit RIO vendor ID
- * @did: the 16 bit RIO device ID
+ * @dev: the 16 bit RIO device ID
+ * @ven: the 16 bit RIO vendor ID
  *
  * This macro is used to create a struct rio_device_id that matches a
  * specific device.  The assembly vendor and assembly device fields

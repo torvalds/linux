@@ -1,0 +1,13 @@
+menu "Cell Broadband Engine options"
+	depends on PPC_CELL
+
+config SPU_FS
+	tristate "SPU file system"
+	default m
+	depends on PPC_CELL
+	help
+	  The SPU file system is used to access Synergistic Processing
+	  Units on machines implementing the Broadband Processor
+	  Architecture.
+
+endmenu

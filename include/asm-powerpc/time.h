@@ -175,11 +175,10 @@ static inline void set_dec(int val)
 	set_dec_cpu6(val);
 #else
 #ifdef CONFIG_PPC_ISERIES
-	struct paca_struct *lpaca = get_paca();
 	int cur_dec;
 
-	if (lpaca->lppaca.shared_proc) {
-		lpaca->lppaca.virtual_decr = val;
+	if (get_lppaca()->shared_proc) {
+		get_lppaca()->virtual_decr = val;
 		cur_dec = get_dec();
 		if (cur_dec > val)
 			HvCall_setVirtualDecr();

@@ -162,6 +162,7 @@ struct pnp_card_link {
 	struct pnp_card * card;
 	struct pnp_card_driver * driver;
 	void * driver_data;
+	pm_message_t pm_state;
 };
 
 static inline void *pnp_get_card_drvdata (struct pnp_card_link *pcard)
@@ -294,6 +295,8 @@ struct pnp_driver {
 	unsigned int flags;
 	int  (*probe)  (struct pnp_dev *dev, const struct pnp_device_id *dev_id);
 	void (*remove) (struct pnp_dev *dev);
+	int  (*suspend) (struct pnp_dev *dev, pm_message_t state);
+	int  (*resume) (struct pnp_dev *dev);
 	struct device_driver driver;
 };
 
@@ -306,6 +309,8 @@ struct pnp_card_driver {
 	unsigned int flags;
 	int  (*probe)  (struct pnp_card_link *card, const struct pnp_card_device_id *card_id);
 	void (*remove) (struct pnp_card_link *card);
+	int  (*suspend) (struct pnp_card_link *card, pm_message_t state);
+	int  (*resume) (struct pnp_card_link *card);
 	struct pnp_driver link;
 };
 
@@ -380,6 +385,8 @@ void pnp_init_resource_table(struct pnp_resource_table *table);
 int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res, int mode);
 int pnp_auto_config_dev(struct pnp_dev *dev);
 int pnp_validate_config(struct pnp_dev *dev);
+int pnp_start_dev(struct pnp_dev *dev);
+int pnp_stop_dev(struct pnp_dev *dev);
 int pnp_activate_dev(struct pnp_dev *dev);
 int pnp_disable_dev(struct pnp_dev *dev);
 void pnp_resource_change(struct resource *resource, unsigned long start, unsigned long size);
@@ -423,6 +430,8 @@ static inline void pnp_init_resource_table(struct pnp_resource_table *table) { }
 static inline int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res, int mode) { return -ENODEV; }
 static inline int pnp_auto_config_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_validate_config(struct pnp_dev *dev) { return -ENODEV; }
+static inline int pnp_start_dev(struct pnp_dev *dev) { return -ENODEV; }
+static inline int pnp_stop_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_activate_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_disable_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline void pnp_resource_change(struct resource *resource, unsigned long start, unsigned long size) { }

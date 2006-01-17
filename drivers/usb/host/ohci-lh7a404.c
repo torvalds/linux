@@ -17,6 +17,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/signal.h>
 
 #include <asm/hardware.h>
 

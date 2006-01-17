@@ -69,8 +69,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include "sound_config.h"
 
 #include "ad1848.h"
@@ -138,10 +136,6 @@ typedef struct {
 	/* PnP Stuff */
 	struct pnp_dev* pdev;
 	int activated;			/* Whether said devices have been activated */
-#endif
-#ifdef CONFIG_PM_LEGACY
-	unsigned int	in_suspend;
-	struct pm_dev	*pmdev;
 #endif
 	unsigned int	card;
 	int		chipset;	/* What's my version(s)? */
@@ -341,22 +335,6 @@ static void opl3sa2_mixer_reset(opl3sa2_state_t* devc)
 	}
 }
 
-/* Currently only used for power management */
-#ifdef CONFIG_PM_LEGACY
-static void opl3sa2_mixer_restore(opl3sa2_state_t* devc)
-{
-	if (devc) {
-		opl3sa2_set_volume(devc, devc->volume_l, devc->volume_r);
-		opl3sa2_set_mic(devc, devc->mic);
-
-		if (devc->chipset == CHIPSET_OPL3SA3) {
-			opl3sa3_set_bass(devc, devc->bass_l, devc->bass_r);
-			opl3sa3_set_treble(devc, devc->treble_l, devc->treble_r);
-		}
-	}
-}
-#endif /* CONFIG_PM_LEGACY */
-
 static inline void arg_to_vol_mono(unsigned int vol, int* value)
 {
 	int left;
@@ -552,7 +530,7 @@ static void __init attach_opl3sa2_mss(struct address_info* hw_config, struct res
 	if (hw_config->slots[0] != -1) {
 		/* Did the MSS driver install? */
 		if(num_mixers == (initial_mixers + 1)) {
-			/* The MSS mixer is installed, reroute mixers appropiately */
+			/* The MSS mixer is installed, reroute mixers appropriately */
 			AD1848_REROUTE(SOUND_MIXER_LINE1, SOUND_MIXER_CD);
 			AD1848_REROUTE(SOUND_MIXER_LINE2, SOUND_MIXER_SYNTH);
 			AD1848_REROUTE(SOUND_MIXER_LINE3, SOUND_MIXER_LINE);
@@ -832,84 +810,6 @@ static struct pnp_driver opl3sa2_driver = {
 
 /* End of component functions */
 
-#ifdef CONFIG_PM_LEGACY
-
-static DEFINE_SPINLOCK(opl3sa2_lock);
-
-/* Power Management support functions */
-static int opl3sa2_suspend(struct pm_dev *pdev, unsigned int pm_mode)
-{
-	unsigned long flags;
-	opl3sa2_state_t *p;
-
-	if (!pdev)
-		return -EINVAL;
-
-	spin_lock_irqsave(&opl3sa2_lock,flags);
-
-	p = (opl3sa2_state_t *) pdev->data;
-	switch (pm_mode) {
-	case 1:
-		pm_mode = OPL3SA2_PM_MODE1;
-		break;
-	case 2:
-		pm_mode = OPL3SA2_PM_MODE2;
-		break;
-	case 3:
-		pm_mode = OPL3SA2_PM_MODE3;
-		break;
-	default:
-		/* we don't know howto handle this... */
-		spin_unlock_irqrestore(&opl3sa2_lock, flags);
-		return -EBUSY;
-	}
-
-	p->in_suspend = 1;
-
-	/* its supposed to automute before suspending, so we won't bother */
-	opl3sa2_write(p->cfg_port, OPL3SA2_PM, pm_mode);
-	/* wait a while for the clock oscillator to stabilise */
-	mdelay(10);
-
-	spin_unlock_irqrestore(&opl3sa2_lock,flags);
-	return 0;
-}
-
-static int opl3sa2_resume(struct pm_dev *pdev)
-{
-	unsigned long flags;
-	opl3sa2_state_t *p;
-
- 	if (!pdev)
- 		return -EINVAL;
-
-	p = (opl3sa2_state_t *) pdev->data;
-	spin_lock_irqsave(&opl3sa2_lock,flags);
-
- 	/* I don't think this is necessary */
-	opl3sa2_write(p->cfg_port, OPL3SA2_PM, OPL3SA2_PM_MODE0);
-	opl3sa2_mixer_restore(p);
- 	p->in_suspend = 0;
-
-	spin_unlock_irqrestore(&opl3sa2_lock,flags);
-	return 0;
-}
-
-static int opl3sa2_pm_callback(struct pm_dev *pdev, pm_request_t rqst, void *data)
-{
-	unsigned long mode = (unsigned  long)data;
-
-	switch (rqst) {
-		case PM_SUSPEND:
-			return opl3sa2_suspend(pdev, mode);
-
-		case PM_RESUME:
-			return opl3sa2_resume(pdev);
-	}
-	return 0;
-}
-#endif /* CONFIG_PM_LEGACY */
-
 /*
  * Install OPL3-SA2 based card(s).
  *
@@ -1021,12 +921,6 @@ static int __init init_opl3sa2(void)
 
 		/* ewww =) */
 		opl3sa2_state[card].card = card;
-#ifdef CONFIG_PM_LEGACY
-		/* register our power management capabilities */
-		opl3sa2_state[card].pmdev = pm_register(PM_ISA_DEV, card, opl3sa2_pm_callback);
-		if (opl3sa2_state[card].pmdev)
-			opl3sa2_state[card].pmdev->data = &opl3sa2_state[card];
-#endif /* CONFIG_PM_LEGACY */
 
 		/*
 		 * Set the Yamaha 3D enhancement mode (aka Ymersion) if asked to and
@@ -1083,10 +977,6 @@ static void __exit cleanup_opl3sa2(void)
 	int card;
 
 	for(card = 0; card < opl3sa2_cards_num; card++) {
-#ifdef CONFIG_PM_LEGACY
-		if (opl3sa2_state[card].pmdev)
-			pm_unregister(opl3sa2_state[card].pmdev);
-#endif
 	        if (opl3sa2_state[card].cfg_mpu.slots[1] != -1) {
 			unload_opl3sa2_mpu(&opl3sa2_state[card].cfg_mpu);
  		}

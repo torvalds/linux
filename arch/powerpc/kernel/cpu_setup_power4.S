@@ -130,7 +130,7 @@ _GLOBAL(__save_cpu_setup)
 	mfcr	r7
 
 	/* Get storage ptr */
-	LOADADDR(r5,cpu_state_storage)
+	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
 
 	/* We only deal with 970 for now */
 	mfspr	r0,SPRN_PVR
@@ -164,7 +164,7 @@ _GLOBAL(__restore_cpu_setup)
 	/* Get storage ptr (FIXME when using anton reloc as we
 	 * are running with translation disabled here
 	 */
-	LOADADDR(r5,cpu_state_storage)
+	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
 
 	/* We only deal with 970 for now */
 	mfspr	r0,SPRN_PVR

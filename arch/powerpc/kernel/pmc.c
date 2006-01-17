@@ -43,8 +43,13 @@ static void dummy_perf(struct pt_regs *regs)
 	mtspr(SPRN_MMCR0, mmcr0);
 }
 #else
+/* Ensure exceptions are disabled */
 static void dummy_perf(struct pt_regs *regs)
 {
+	unsigned int mmcr0 = mfspr(SPRN_MMCR0);
+
+	mmcr0 &= ~(MMCR0_PMXE);
+	mtspr(SPRN_MMCR0, mmcr0);
 }
 #endif
 

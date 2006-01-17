@@ -47,17 +47,6 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 
 ---------------------------
 
-What:	IEEE1394 Audio and Music Data Transmission Protocol driver,
-	Connection Management Procedures driver
-When:	November 2005
-Files:	drivers/ieee1394/{amdtp,cmp}*
-Why:	These are incomplete, have never worked, and are better implemented
-	in userland via raw1394 (see http://freebob.sourceforge.net/ for
-	example.)
-Who:	Jody McIntyre <scjody@steamballoon.com>
-
----------------------------
-
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
 When:	November 2005
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
@@ -79,15 +68,6 @@ Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	communicate with video decoders. This should also be improved to allow
 	V4L2 calls being translated into compatible internal ioctls.
 Who:	Mauro Carvalho Chehab <mchehab@brturbo.com.br>
-
----------------------------
-
-What:	i2c sysfs name change: in1_ref, vid deprecated in favour of cpu0_vid
-When:	November 2005
-Files:	drivers/i2c/chips/adm1025.c, drivers/i2c/chips/adm1026.c
-Why:	Match the other drivers' name for the same function, duplicate names
-	will be available until removal of old names.
-Who:	Grant Coady <gcoady@gmail.com>
 
 ---------------------------
 
@@ -140,6 +120,15 @@ What:	EXPORT_SYMBOL(lookup_hash)
 When:	January 2006
 Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
 Who:	Christoph Hellwig <hch@lst.de>
+
+---------------------------
+
+What:	CONFIG_FORCED_INLINING
+When:	June 2006
+Why:	Config option is there to see if gcc is good enough. (in january
+        2006). If it is, the behavior should just be the default. If it's not,
+	the option should just go away entirely.
+Who:    Arjan van de Ven
 
 ---------------------------
 

@@ -30,6 +30,7 @@
 #include <linux/list.h>
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 #include <linux/usb.h>
 #include "usb-serial.h"
 #include "pl2303.h"
@@ -42,10 +43,10 @@
 
 /* Driver structure we register with the USB core */
 static struct usb_driver usb_serial_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbserial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
+	.no_dynamic_id = 	1,
 };
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
@@ -188,6 +189,11 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 
 	portNumber = tty->index - serial->minor;
 	port = serial->port[portNumber];
+	if (!port)
+		return -ENODEV;
+
+	if (down_interruptible(&port->sem))
+		return -ERESTARTSYS;
 	 
 	++port->open_count;
 
@@ -213,6 +219,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 			goto bailout_module_put;
 	}
 
+	up(&port->sem);
 	return 0;
 
 bailout_module_put:
@@ -220,6 +227,7 @@ bailout_module_put:
 bailout_kref_put:
 	kref_put(&serial->kref, destroy_serial);
 	port->open_count = 0;
+	up(&port->sem);
 	return retval;
 }
 
@@ -232,8 +240,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
+	down(&port->sem);
+
 	if (port->open_count == 0)
-		return;
+		goto out;
 
 	--port->open_count;
 	if (port->open_count == 0) {
@@ -251,12 +261,18 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	kref_put(&port->serial->kref, destroy_serial);
+
+out:
+	up(&port->sem);
 }
 
 static int serial_write (struct tty_struct * tty, const unsigned char *buf, int count)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
+
+	if (!port)
+		goto exit;
 
 	dbg("%s - port %d, %d byte(s)", __FUNCTION__, port->number, count);
 
@@ -277,6 +293,9 @@ static int serial_write_room (struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
 
+	if (!port)
+		goto exit;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -296,6 +315,9 @@ static int serial_chars_in_buffer (struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
 
+	if (!port)
+		goto exit;
+
 	dbg("%s = port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -314,6 +336,9 @@ static void serial_throttle (struct tty_struct * tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
+	if (!port)
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -329,6 +354,9 @@ static void serial_throttle (struct tty_struct * tty)
 static void serial_unthrottle (struct tty_struct * tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	if (!port)
+		return;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -346,6 +374,9 @@ static int serial_ioctl (struct tty_struct *tty, struct file * file, unsigned in
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENODEV;
+
+	if (!port)
+		goto exit;
 
 	dbg("%s - port %d, cmd 0x%.4x", __FUNCTION__, port->number, cmd);
 
@@ -368,6 +399,9 @@ static void serial_set_termios (struct tty_struct *tty, struct termios * old)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
+	if (!port)
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -383,6 +417,9 @@ static void serial_set_termios (struct tty_struct *tty, struct termios * old)
 static void serial_break (struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	if (!port)
+		return;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -445,6 +482,9 @@ static int serial_tiocmget (struct tty_struct *tty, struct file *file)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
+	if (!port)
+		goto exit;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -463,6 +503,9 @@ static int serial_tiocmset (struct tty_struct *tty, struct file *file,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	if (!port)
+		goto exit;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -541,7 +584,7 @@ static struct usb_serial_driver *search_serial_device(struct usb_interface *ifac
 	const struct usb_device_id *id;
 	struct usb_serial_driver *t;
 
-	/* List trough know devices and see if the usb id matches */
+	/* Check if the usb id matches a known device */
 	list_for_each(p, &usb_serial_driver_list) {
 		t = list_entry(p, struct usb_serial_driver, driver_list);
 		id = usb_match_id(iface, t->id_table);
@@ -742,6 +785,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		port->number = i + serial->minor;
 		port->serial = serial;
 		spin_lock_init(&port->lock);
+		sema_init(&port->sem, 1);
 		INIT_WORK(&port->work, usb_serial_port_softint, port);
 		serial->port[i] = port;
 	}

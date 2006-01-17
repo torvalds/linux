@@ -52,7 +52,7 @@
 	or3	\reg, \reg, #low(\x)
 	.endm
 
-#if !defined(CONFIG_CHIP_M32102)
+#if !(defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_M32104))
 #define STI(reg) STI_M reg
 	.macro STI_M reg
 	setpsw  #0x40	    ->	nop
@@ -64,7 +64,7 @@
 	clrpsw  #0x40	    ->	nop
 	; WORKAROUND: "-> nop" is a workaround for the M32700(TS1).
 	.endm
-#else	/* CONFIG_CHIP_M32102 */
+#else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 #define STI(reg) STI_M reg
 	.macro STI_M reg
 	mvfc	\reg, psw
@@ -191,12 +191,12 @@
 	and  \reg, sp
 	.endm
 
-#if !defined(CONFIG_CHIP_M32102)
+#if !(defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_M32104))
 	.macro	SWITCH_TO_KERNEL_STACK
 	; switch to kernel stack (spi)
 	clrpsw	#0x80	    ->	nop
 	.endm
-#else	/* CONFIG_CHIP_M32102 */
+#else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 	.macro	SWITCH_TO_KERNEL_STACK
 	push	r0		; save r0 for working
 	mvfc	r0, psw
@@ -218,7 +218,7 @@
 	.fillinsn
 2:
 	.endm
-#endif	/* CONFIG_CHIP_M32102 */
+#endif	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
 
 #endif	/* __ASSEMBLY__ */
 

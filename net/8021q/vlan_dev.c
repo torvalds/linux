@@ -214,7 +214,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		 * This allows the VLAN to have a different MAC than the underlying
 		 * device, and still route correctly.
 		 */
-		if (memcmp(eth_hdr(skb)->h_dest, skb->dev->dev_addr, ETH_ALEN) == 0) {
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest, skb->dev->dev_addr)) {
 			/* It is for our (changed) MAC-address! */
 			skb->pkt_type = PACKET_HOST;
 		}

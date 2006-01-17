@@ -39,8 +39,6 @@
 #include "au88x0_wt.h"
 #endif
 
-#define	VORTEX_DMA_MASK	0xffffffff
-
 #define	hwread(x,y) readl((x)+((y)>>2))
 #define	hwwrite(x,y,z) writel((z),(x)+((y)>>2))
 
@@ -129,21 +127,21 @@ typedef struct {
 	/* Virtual page extender stuff */
 	int nr_periods;
 	int period_bytes;
-	snd_pcm_sgbuf_t *sgbuf;	/* DMA Scatter Gather struct */
+	struct snd_sg_buf *sgbuf;	/* DMA Scatter Gather struct */
 	int period_real;
 	int period_virt;
 
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 } stream_t;
 
 typedef struct snd_vortex vortex_t;
 struct snd_vortex {
 	/* ALSA structs. */
-	snd_card_t *card;
-	snd_pcm_t *pcm[VORTEX_PCM_LAST];
+	struct snd_card *card;
+	struct snd_pcm *pcm[VORTEX_PCM_LAST];
 
-	snd_rawmidi_t *rmidi;	/* Legacy Midi interface. */
-	ac97_t *codec;
+	struct snd_rawmidi *rmidi;	/* Legacy Midi interface. */
+	struct snd_ac97 *codec;
 
 	/* Stream structs. */
 	stream_t dma_adb[NR_ADB];
@@ -199,7 +197,7 @@ static void vortex_adb_setsrc(vortex_t * vortex, int adbdma,
 
 /* DMA Engines. */
 static void vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
-				     snd_pcm_sgbuf_t * sgbuf, int size,
+				     struct snd_sg_buf * sgbuf, int size,
 				     int count);
 static void vortex_adbdma_setmode(vortex_t * vortex, int adbdma, int ie,
 				  int dir, int fmt, int d,
@@ -207,7 +205,7 @@ static void vortex_adbdma_setmode(vortex_t * vortex, int adbdma, int ie,
 static void vortex_adbdma_setstartbuffer(vortex_t * vortex, int adbdma, int sb);
 #ifndef CHIP_AU8810
 static void vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
-				    snd_pcm_sgbuf_t * sgbuf, int size,
+				    struct snd_sg_buf * sgbuf, int size,
 				    int count);
 static void vortex_wtdma_setmode(vortex_t * vortex, int wtdma, int ie, int fmt, int d,	/*int e, */
 				 unsigned long offset);
@@ -231,9 +229,9 @@ static int inline vortex_wtdma_getlinearpos(vortex_t * vortex, int wtdma);
 
 /* global stuff. */
 static void vortex_codec_init(vortex_t * vortex);
-static void vortex_codec_write(ac97_t * codec, unsigned short addr,
+static void vortex_codec_write(struct snd_ac97 * codec, unsigned short addr,
 			       unsigned short data);
-static unsigned short vortex_codec_read(ac97_t * codec, unsigned short addr);
+static unsigned short vortex_codec_read(struct snd_ac97 * codec, unsigned short addr);
 static void vortex_spdif_init(vortex_t * vortex, int spdif_sr, int spdif_mode);
 
 static int vortex_core_init(vortex_t * card);

@@ -329,7 +329,7 @@ static struct mii_chip_info {
 	{ NULL, }
 };
 
-const static struct {
+static const struct {
 	const char *name;
 } sis_chip_info[] = {
 	{ "SiS 190 PCI Fast Ethernet adapter" },

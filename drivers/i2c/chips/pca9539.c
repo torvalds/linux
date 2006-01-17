@@ -38,9 +38,9 @@ static int pca9539_detach_client(struct i2c_client *client);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver pca9539_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "pca9539",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "pca9539",
+	},
 	.attach_adapter	= pca9539_attach_adapter,
 	.detach_client	= pca9539_detach_client,
 };

@@ -15,11 +15,11 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
+#include <linux/amba/bus.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/hardware/amba.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/arch/cm.h>
 #include <asm/system.h>

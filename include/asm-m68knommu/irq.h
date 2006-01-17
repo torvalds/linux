@@ -84,10 +84,8 @@ extern void (*mach_disable_irq)(unsigned int);
 /*
  * Some drivers want these entry points
  */
-#define enable_irq(x)	(mach_enable_irq  ? (*mach_enable_irq)(x)  : 0)
-#define disable_irq(x)	(mach_disable_irq ? (*mach_disable_irq)(x) : 0)
-
-#define enable_irq_nosync(x)	enable_irq(x)
+#define enable_irq(x)	0
+#define disable_irq(x)	do { } while (0)
 #define disable_irq_nosync(x)	disable_irq(x)
 
 struct irqaction;

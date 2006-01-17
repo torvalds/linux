@@ -1311,7 +1311,7 @@ zoran_open (struct inode *inode,
 		res = -ENODEV;
 		goto open_unlock_and_return;
 	}
-	if (!try_module_get(zr->decoder->driver->owner)) {
+	if (!try_module_get(zr->decoder->driver->driver.owner)) {
 		dprintk(1,
 			KERN_ERR
 			"%s: failed to grab ownership of i2c decoder\n",
@@ -1321,13 +1321,13 @@ zoran_open (struct inode *inode,
 		goto open_unlock_and_return;
 	}
 	if (zr->encoder &&
-	    !try_module_get(zr->encoder->driver->owner)) {
+	    !try_module_get(zr->encoder->driver->driver.owner)) {
 		dprintk(1,
 			KERN_ERR
 			"%s: failed to grab ownership of i2c encoder\n",
 			ZR_DEVNAME(zr));
 		res = -EIO;
-		module_put(zr->decoder->driver->owner);
+		module_put(zr->decoder->driver->driver.owner);
 		module_put(THIS_MODULE);
 		goto open_unlock_and_return;
 	}
@@ -1345,7 +1345,7 @@ zoran_open (struct inode *inode,
 		ZR_DEVNAME(zr), current->comm, current->pid, zr->user);
 
 	/* now, create the open()-specific file_ops struct */
-	fh = kmalloc(sizeof(struct zoran_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(struct zoran_fh), GFP_KERNEL);
 	if (!fh) {
 		dprintk(1,
 			KERN_ERR
@@ -1354,7 +1354,6 @@ zoran_open (struct inode *inode,
 		res = -ENOMEM;
 		goto open_unlock_and_return;
 	}
-	memset(fh, 0, sizeof(struct zoran_fh));
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
 	fh->overlay_mask =
@@ -1393,9 +1392,9 @@ zoran_open (struct inode *inode,
 open_unlock_and_return:
 	/* if we grabbed locks, release them accordingly */
 	if (have_module_locks) {
-		module_put(zr->decoder->driver->owner);
+		module_put(zr->decoder->driver->driver.owner);
 		if (zr->encoder) {
-			module_put(zr->encoder->driver->owner);
+			module_put(zr->encoder->driver->driver.owner);
 		}
 		module_put(THIS_MODULE);
 	}
@@ -1461,9 +1460,9 @@ zoran_close (struct inode *inode,
 	kfree(fh);
 
 	/* release locks on the i2c modules */
-	module_put(zr->decoder->driver->owner);
+	module_put(zr->decoder->driver->driver.owner);
 	if (zr->encoder) {
-		 module_put(zr->encoder->driver->owner);
+		 module_put(zr->encoder->driver->driver.owner);
 	}
 	module_put(THIS_MODULE);
 
@@ -4678,6 +4677,7 @@ static struct file_operations zoran_fops = {
 	.open = zoran_open,
 	.release = zoran_close,
 	.ioctl = zoran_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek = no_llseek,
 	.read = zoran_read,
 	.write = zoran_write,

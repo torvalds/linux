@@ -19,12 +19,6 @@
  *
  * NOTES:
  *
- * jds -- add private data to file to keep track of iso contexts associated
- * with each open -- so release won't kill all iso transfers.
- * 
- * Damien Douxchamps: Fix failure when the number of DMA pages per frame is
- * one.
- * 
  * ioctl return codes:
  * EFAULT is only for invalid address for the argp
  * EINVAL for out of range values
@@ -34,12 +28,6 @@
  * ENOTTY for unsupported ioctl request
  *
  */
-
-/* Markus Tavenrath <speedygoo@speedygoo.de> :
-   - fixed checks for valid buffer-numbers in video1394_icotl
-   - changed the ways the dma prg's are used, now it's possible to use
-     even a single dma buffer
-*/
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -60,7 +48,6 @@
 #include <linux/vmalloc.h>
 #include <linux/timex.h>
 #include <linux/mm.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/cdev.h>
 
@@ -76,14 +63,6 @@
 #include "ohci1394.h"
 
 #define ISO_CHANNELS 64
-
-#ifndef virt_to_page
-#define virt_to_page(x) MAP_NR(x)
-#endif
-
-#ifndef vmalloc_32
-#define vmalloc_32(x) vmalloc(x)
-#endif
 
 struct it_dma_prg {
 	struct dma_cmd begin;
@@ -206,13 +185,11 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 	struct dma_iso_ctx *d;
 	int i;
 
-	d = kmalloc(sizeof(struct dma_iso_ctx), GFP_KERNEL);
-	if (d == NULL) {
+	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	if (!d) {
 		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate dma_iso_ctx");
 		return NULL;
 	}
-
-	memset(d, 0, sizeof *d);
 
 	d->ohci = ohci;
 	d->type = type;
@@ -251,9 +228,8 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 	}
 	d->ctx = d->iso_tasklet.context;
 
-	d->prg_reg = kmalloc(d->num_desc * sizeof(struct dma_prog_region),
-			GFP_KERNEL);
-	if (d->prg_reg == NULL) {
+	d->prg_reg = kmalloc(d->num_desc * sizeof(*d->prg_reg), GFP_KERNEL);
+	if (!d->prg_reg) {
 		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate ir prg regs");
 		free_dma_iso_ctx(d);
 		return NULL;
@@ -268,15 +244,14 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 		d->cmdPtr = OHCI1394_IsoRcvCommandPtr+32*d->ctx;
 		d->ctxMatch = OHCI1394_IsoRcvContextMatch+32*d->ctx;
 
-		d->ir_prg = kmalloc(d->num_desc * sizeof(struct dma_cmd *),
+		d->ir_prg = kzalloc(d->num_desc * sizeof(*d->ir_prg),
 				    GFP_KERNEL);
 
-		if (d->ir_prg == NULL) {
+		if (!d->ir_prg) {
 			PRINT(KERN_ERR, ohci->host->id, "Failed to allocate dma ir prg");
 			free_dma_iso_ctx(d);
 			return NULL;
 		}
-		memset(d->ir_prg, 0, d->num_desc * sizeof(struct dma_cmd *));
 
 		d->nb_cmd = d->buf_size / PAGE_SIZE + 1;
 		d->left_size = (d->frame_size % PAGE_SIZE) ?
@@ -297,16 +272,15 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 		d->ctrlClear = OHCI1394_IsoXmitContextControlClear+16*d->ctx;
 		d->cmdPtr = OHCI1394_IsoXmitCommandPtr+16*d->ctx;
 
-		d->it_prg = kmalloc(d->num_desc * sizeof(struct it_dma_prg *),
+		d->it_prg = kzalloc(d->num_desc * sizeof(*d->it_prg),
 				    GFP_KERNEL);
 
-		if (d->it_prg == NULL) {
+		if (!d->it_prg) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Failed to allocate dma it prg");
 			free_dma_iso_ctx(d);
 			return NULL;
 		}
-		memset(d->it_prg, 0, d->num_desc*sizeof(struct it_dma_prg *));
 
 		d->packet_size = packet_size;
 
@@ -337,47 +311,24 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 		}
 	}
 
-	d->buffer_status = kmalloc(d->num_desc * sizeof(unsigned int),
-				   GFP_KERNEL);
-	d->buffer_prg_assignment = kmalloc(d->num_desc * sizeof(unsigned int),
-				   GFP_KERNEL);
-	d->buffer_time = kmalloc(d->num_desc * sizeof(struct timeval),
-				   GFP_KERNEL);
-	d->last_used_cmd = kmalloc(d->num_desc * sizeof(unsigned int),
-				   GFP_KERNEL);
-	d->next_buffer = kmalloc(d->num_desc * sizeof(int),
-				 GFP_KERNEL);
+	d->buffer_status =
+	    kzalloc(d->num_desc * sizeof(*d->buffer_status), GFP_KERNEL);
+	d->buffer_prg_assignment =
+	    kzalloc(d->num_desc * sizeof(*d->buffer_prg_assignment), GFP_KERNEL);
+	d->buffer_time =
+	    kzalloc(d->num_desc * sizeof(*d->buffer_time), GFP_KERNEL);
+	d->last_used_cmd =
+	    kzalloc(d->num_desc * sizeof(*d->last_used_cmd), GFP_KERNEL);
+	d->next_buffer =
+	    kzalloc(d->num_desc * sizeof(*d->next_buffer), GFP_KERNEL);
 
-	if (d->buffer_status == NULL) {
-		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate buffer_status");
+	if (!d->buffer_status || !d->buffer_prg_assignment || !d->buffer_time ||
+	    !d->last_used_cmd || !d->next_buffer) {
+		PRINT(KERN_ERR, ohci->host->id,
+		      "Failed to allocate dma_iso_ctx member");
 		free_dma_iso_ctx(d);
 		return NULL;
 	}
-	if (d->buffer_prg_assignment == NULL) {
-		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate buffer_prg_assignment");
-		free_dma_iso_ctx(d);
-		return NULL;
-	}
-	if (d->buffer_time == NULL) {
-		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate buffer_time");
-		free_dma_iso_ctx(d);
-		return NULL;
-	}
-	if (d->last_used_cmd == NULL) {
-		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate last_used_cmd");
-		free_dma_iso_ctx(d);
-		return NULL;
-	}
-	if (d->next_buffer == NULL) {
-		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate next_buffer");
-		free_dma_iso_ctx(d);
-		return NULL;
-	}
-	memset(d->buffer_status, 0, d->num_desc * sizeof(unsigned int));
-	memset(d->buffer_prg_assignment, 0, d->num_desc * sizeof(unsigned int));
-	memset(d->buffer_time, 0, d->num_desc * sizeof(struct timeval));
-	memset(d->last_used_cmd, 0, d->num_desc * sizeof(unsigned int));
-	memset(d->next_buffer, -1, d->num_desc * sizeof(int));
 
         spin_lock_init(&d->lock);
 
@@ -539,7 +490,7 @@ static void wakeup_dma_ir_ctx(unsigned long l)
 		if (d->ir_prg[i][d->nb_cmd-1].status & cpu_to_le32(0xFFFF0000)) {
 			reset_ir_status(d, i);
 			d->buffer_status[d->buffer_prg_assignment[i]] = VIDEO1394_BUFFER_READY;
-			do_gettimeofday(&d->buffer_time[i]);
+			do_gettimeofday(&d->buffer_time[d->buffer_prg_assignment[i]]);
 		}
 	}
 
@@ -1046,7 +997,6 @@ static int __video1394_ioctl(struct file *file,
 
 		/* set time of buffer */
 		v.filltime = d->buffer_time[v.buffer];
-//		printk("Buffer %d time %d\n", v.buffer, (d->buffer_time[v.buffer]).tv_usec);
 
 		/*
 		 * Look ahead to see how many more buffers have been received
@@ -1085,7 +1035,7 @@ static int __video1394_ioctl(struct file *file,
 		}
 
 		if (d->flags & VIDEO1394_VARIABLE_PACKET_SIZE) {
-			int buf_size = d->nb_cmd * sizeof(unsigned int);
+			int buf_size = d->nb_cmd * sizeof(*psizes);
 			struct video1394_queue_variable __user *p = argp;
 			unsigned int __user *qv;
 
@@ -1104,7 +1054,7 @@ static int __video1394_ioctl(struct file *file,
 
 		spin_lock_irqsave(&d->lock,flags);
 
-		// last_buffer is last_prg
+		/* last_buffer is last_prg */
 		next_prg = (d->last_buffer + 1) % d->num_desc;
 		if (d->buffer_status[v.buffer]!=VIDEO1394_BUFFER_FREE) {
 			PRINT(KERN_ERR, ohci->host->id,
@@ -1251,13 +1201,12 @@ static int video1394_open(struct inode *inode, struct file *file)
         if (ohci == NULL)
                 return -EIO;
 
-	ctx = kmalloc(sizeof(struct file_ctx), GFP_KERNEL);
-	if (ctx == NULL)  {
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)  {
 		PRINT(KERN_ERR, ohci->host->id, "Cannot malloc file_ctx");
 		return -ENOMEM;
 	}
 
-	memset(ctx, 0, sizeof(struct file_ctx));
 	ctx->ohci = ohci;
 	INIT_LIST_HEAD(&ctx->context_list);
 	ctx->current_ctx = NULL;

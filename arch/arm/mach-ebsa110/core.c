@@ -284,7 +284,6 @@ arch_initcall(ebsa110_init);
 
 MACHINE_START(EBSA110, "EBSA110")
 	/* Maintainer: Russell King */
-	.phys_ram	= 0x00000000,
 	.phys_io	= 0xe0000000,
 	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000400,

@@ -212,9 +212,10 @@ static unsigned int cbc_process_decrypt(const struct cipher_desc *desc,
 	struct crypto_tfm *tfm = desc->tfm;
 	void (*xor)(u8 *, const u8 *) = tfm->crt_u.cipher.cit_xor_block;
 	int bsize = crypto_tfm_alg_blocksize(tfm);
+	unsigned long alignmask = crypto_tfm_alg_alignmask(desc->tfm);
 
-	u8 stack[src == dst ? bsize : 0];
-	u8 *buf = stack;
+	u8 stack[src == dst ? bsize + alignmask : 0];
+	u8 *buf = (u8 *)ALIGN((unsigned long)stack, alignmask + 1);
 	u8 **dst_p = src == dst ? &buf : &dst;
 
 	void (*fn)(void *, u8 *, const u8 *) = desc->crfn;

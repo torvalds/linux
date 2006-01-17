@@ -1786,9 +1786,7 @@ static void doevent(int crd)
 		if (tty)  { /* Begin if valid tty */
 			if (event & BREAK_IND)  { /* Begin if BREAK_IND */
 				/* A break has been indicated */
-				tty->flip.count++;
-				*tty->flip.flag_buf_ptr++ = TTY_BREAK;
-				*tty->flip.char_buf_ptr++ = 0;
+				tty_insert_flip_char(tty, 0, TTY_BREAK);
 				tty_schedule_flip(tty); 
 			} else if (event & LOWTX_IND)  { /* Begin LOWTX_IND */
 				if (ch->statusflags & LOWWAIT) 
@@ -2124,7 +2122,6 @@ static void receive_data(struct channel *ch)
 	int dataToRead, wrapgap, bytesAvailable;
 	unsigned int tail, head;
 	unsigned int wrapmask;
-	int rc;
 
 	/* ---------------------------------------------------------------
 		This routine is called by doint when a receive data event 
@@ -2162,16 +2159,15 @@ static void receive_data(struct channel *ch)
 		return;
 	}
 
-	if (tty->flip.count == TTY_FLIPBUF_SIZE) 
+	if (tty_buffer_request_room(tty, bytesAvailable + 1) == 0)
 		return;
 
 	if (readb(&bc->orun)) {
 		writeb(0, &bc->orun);
 		printk(KERN_WARNING "epca; overrun! DigiBoard device %s\n",tty->name);
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
 	rxwinon(ch);
-	rptr = tty->flip.char_buf_ptr;
-	rc = tty->flip.count;
 	while (bytesAvailable > 0)  { /* Begin while there is data on the card */
 		wrapgap = (head >= tail) ? head - tail : ch->rxbufsize - tail;
 		/* ---------------------------------------------------------------
@@ -2183,8 +2179,7 @@ static void receive_data(struct channel *ch)
 		/* --------------------------------------------------------------
 		   Make sure we don't overflow the buffer
 		----------------------------------------------------------------- */
-		if ((rc + dataToRead) > TTY_FLIPBUF_SIZE)
-			dataToRead = TTY_FLIPBUF_SIZE - rc;
+		dataToRead = tty_prepare_flip_string(tty, &rptr, dataToRead);
 		if (dataToRead == 0)
 			break;
 		/* ---------------------------------------------------------------
@@ -2192,13 +2187,9 @@ static void receive_data(struct channel *ch)
 			for translation if necessary.
 		------------------------------------------------------------------ */
 		memcpy_fromio(rptr, ch->rxptr + tail, dataToRead);
-		rc   += dataToRead;
-		rptr += dataToRead;
 		tail = (tail + dataToRead) & wrapmask;
 		bytesAvailable -= dataToRead;
 	} /* End while there is data on the card */
-	tty->flip.count = rc;
-	tty->flip.char_buf_ptr = rptr;
 	globalwinon(ch);
 	writew(tail, &bc->rout);
 	/* Must be called with global data */

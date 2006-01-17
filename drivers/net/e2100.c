@@ -140,13 +140,6 @@ static int  __init do_e2100_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	/* NB: e21_close() handles free_irq */
-	iounmap(ei_status.mem);
-	release_region(dev->base_addr, E21_IO_EXTENT);
-}
-
 #ifndef MODULE
 struct net_device * __init e2100_probe(int unit)
 {
@@ -461,6 +454,13 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	/* NB: e21_close() handles free_irq */
+	iounmap(ei_status.mem);
+	release_region(dev->base_addr, E21_IO_EXTENT);
 }
 
 void

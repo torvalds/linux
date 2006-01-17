@@ -865,9 +865,8 @@ static struct matrox_altout panellink_output = {
 	.name	 = "Panellink output",
 };
 
-static int matroxfb_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  struct fb_info *info)
+static int matroxfb_ioctl(struct fb_info *info,
+			  unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	MINFO_FROM_INFO(info);

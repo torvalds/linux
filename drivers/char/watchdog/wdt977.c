@@ -1,5 +1,5 @@
 /*
- *	Wdt977	0.03:	A Watchdog Device for Netwinder W83977AF chip
+ *	Wdt977	0.04:	A Watchdog Device for Netwinder W83977AF chip
  *
  *	(c) Copyright 1998 Rebel.com (Woody Suwalski <woody@netwinder.org>)
  *
@@ -18,6 +18,8 @@
  *				    from minutes to seconds.
  *      07-Jul-2003 Daniele Bellucci: Audit return code of misc_register in
  *                                    nwwatchdog_init.
+ *      25-Oct-2005 Woody Suwalski: Convert addresses to #defs, add spinlocks
+ *				    remove limitiation to be used on Netwinders only
  */
 
 #include <linux/module.h>
@@ -28,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <linux/watchdog.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
@@ -37,8 +40,18 @@
 #include <asm/mach-types.h>
 #include <asm/uaccess.h>
 
-#define PFX "Wdt977: "
-#define WATCHDOG_MINOR	130
+#define WATCHDOG_VERSION  "0.04"
+#define WATCHDOG_NAME     "Wdt977"
+#define PFX WATCHDOG_NAME ": "
+#define DRIVER_VERSION    WATCHDOG_NAME " driver, v" WATCHDOG_VERSION "\n"
+
+#define IO_INDEX_PORT	0x370		/* on some systems it can be 0x3F0 */
+#define IO_DATA_PORT	(IO_INDEX_PORT+1)
+
+#define UNLOCK_DATA	0x87
+#define LOCK_DATA	0xAA
+#define DEVICE_REGISTER	0x07
+
 
 #define	DEFAULT_TIMEOUT	60			/* default timeout in seconds */
 
@@ -47,6 +60,7 @@ static	int timeoutM;				/* timeout in minutes */
 static	unsigned long timer_alive;
 static	int testmode;
 static	char expect_close;
+static	spinlock_t spinlock;
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,"Watchdog timeout in seconds (60..15300), default=" __MODULE_STRING(DEFAULT_TIMEOUT) ")");
@@ -63,9 +77,13 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CON
 
 static int wdt977_start(void)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&spinlock, flags);
+
 	/* unlock the SuperIO chip */
-	outb(0x87,0x370);
-	outb(0x87,0x370);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
 
 	/* select device Aux2 (device=8) and set watchdog regs F2, F3 and F4
 	 * F2 has the timeout in minutes
@@ -73,28 +91,29 @@ static int wdt977_start(void)
 	 *   at timeout, and to reset timer on kbd/mouse activity (not impl.)
 	 * F4 is used to just clear the TIMEOUT'ed state (bit 0)
 	 */
-	outb(0x07,0x370);
-	outb(0x08,0x371);
-	outb(0xF2,0x370);
-	outb(timeoutM,0x371);
-	outb(0xF3,0x370);
-	outb(0x00,0x371);	/* another setting is 0E for kbd/mouse/LED */
-	outb(0xF4,0x370);
-	outb(0x00,0x371);
+	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
+	outb_p(0x08, IO_DATA_PORT);
+	outb_p(0xF2, IO_INDEX_PORT);
+	outb_p(timeoutM, IO_DATA_PORT);
+	outb_p(0xF3, IO_INDEX_PORT);
+	outb_p(0x00, IO_DATA_PORT);	/* another setting is 0E for kbd/mouse/LED */
+	outb_p(0xF4, IO_INDEX_PORT);
+	outb_p(0x00, IO_DATA_PORT);
 
 	/* at last select device Aux1 (dev=7) and set GP16 as a watchdog output */
 	/* in test mode watch the bit 1 on F4 to indicate "triggered" */
 	if (!testmode)
 	{
-		outb(0x07,0x370);
-		outb(0x07,0x371);
-		outb(0xE6,0x370);
-		outb(0x08,0x371);
+		outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
+		outb_p(0x07, IO_DATA_PORT);
+		outb_p(0xE6, IO_INDEX_PORT);
+		outb_p(0x08, IO_DATA_PORT);
 	}
 
 	/* lock the SuperIO chip */
-	outb(0xAA,0x370);
+	outb_p(LOCK_DATA, IO_INDEX_PORT);
 
+	spin_unlock_irqrestore(&spinlock, flags);
 	printk(KERN_INFO PFX "activated.\n");
 
 	return 0;
@@ -106,35 +125,39 @@ static int wdt977_start(void)
 
 static int wdt977_stop(void)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&spinlock, flags);
+
 	/* unlock the SuperIO chip */
-	outb(0x87,0x370);
-	outb(0x87,0x370);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
 
 	/* select device Aux2 (device=8) and set watchdog regs F2,F3 and F4
 	* F3 is reset to its default state
 	* F4 can clear the TIMEOUT'ed state (bit 0) - back to default
 	* We can not use GP17 as a PowerLed, as we use its usage as a RedLed
 	*/
-	outb(0x07,0x370);
-	outb(0x08,0x371);
-	outb(0xF2,0x370);
-	outb(0xFF,0x371);
-	outb(0xF3,0x370);
-	outb(0x00,0x371);
-	outb(0xF4,0x370);
-	outb(0x00,0x371);
-	outb(0xF2,0x370);
-	outb(0x00,0x371);
+	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
+	outb_p(0x08, IO_DATA_PORT);
+	outb_p(0xF2, IO_INDEX_PORT);
+	outb_p(0xFF, IO_DATA_PORT);
+	outb_p(0xF3, IO_INDEX_PORT);
+	outb_p(0x00, IO_DATA_PORT);
+	outb_p(0xF4, IO_INDEX_PORT);
+	outb_p(0x00, IO_DATA_PORT);
+	outb_p(0xF2, IO_INDEX_PORT);
+	outb_p(0x00, IO_DATA_PORT);
 
 	/* at last select device Aux1 (dev=7) and set GP16 as a watchdog output */
-	outb(0x07,0x370);
-	outb(0x07,0x371);
-	outb(0xE6,0x370);
-	outb(0x08,0x371);
+	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
+	outb_p(0x07, IO_DATA_PORT);
+	outb_p(0xE6, IO_INDEX_PORT);
+	outb_p(0x08, IO_DATA_PORT);
 
 	/* lock the SuperIO chip */
-	outb(0xAA,0x370);
+	outb_p(LOCK_DATA, IO_INDEX_PORT);
 
+	spin_unlock_irqrestore(&spinlock, flags);
 	printk(KERN_INFO PFX "shutdown.\n");
 
 	return 0;
@@ -147,19 +170,23 @@ static int wdt977_stop(void)
 
 static int wdt977_keepalive(void)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&spinlock, flags);
+
 	/* unlock the SuperIO chip */
-	outb(0x87,0x370);
-	outb(0x87,0x370);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
 
 	/* select device Aux2 (device=8) and kicks watchdog reg F2 */
 	/* F2 has the timeout in minutes */
-	outb(0x07,0x370);
-	outb(0x08,0x371);
-	outb(0xF2,0x370);
-	outb(timeoutM,0x371);
+	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
+	outb_p(0x08, IO_DATA_PORT);
+	outb_p(0xF2, IO_INDEX_PORT);
+	outb_p(timeoutM, IO_DATA_PORT);
 
 	/* lock the SuperIO chip */
-	outb(0xAA,0x370);
+	outb_p(LOCK_DATA, IO_INDEX_PORT);
+	spin_unlock_irqrestore(&spinlock, flags);
 
 	return 0;
 }
@@ -198,22 +225,26 @@ static int wdt977_set_timeout(int t)
 static int wdt977_get_status(int *status)
 {
 	int new_status;
+	unsigned long flags;
 
-	*status=0;
+	spin_lock_irqsave(&spinlock, flags);
 
 	/* unlock the SuperIO chip */
-	outb(0x87,0x370);
-	outb(0x87,0x370);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
+	outb_p(UNLOCK_DATA, IO_INDEX_PORT);
 
 	/* select device Aux2 (device=8) and read watchdog reg F4 */
-	outb(0x07,0x370);
-	outb(0x08,0x371);
-	outb(0xF4,0x370);
-	new_status = inb(0x371);
+	outb_p(DEVICE_REGISTER, IO_INDEX_PORT);
+	outb_p(0x08, IO_DATA_PORT);
+	outb_p(0xF4, IO_INDEX_PORT);
+	new_status = inb_p(IO_DATA_PORT);
 
 	/* lock the SuperIO chip */
-	outb(0xAA,0x370);
+	outb_p(LOCK_DATA, IO_INDEX_PORT);
 
+	spin_unlock_irqrestore(&spinlock, flags);
+
+	*status=0;
 	if (new_status & 1)
 		*status |= WDIOF_CARDRESET;
 
@@ -249,8 +280,8 @@ static int wdt977_release(struct inode *inode, struct file *file)
 		wdt977_stop();
 		clear_bit(0,&timer_alive);
 	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
 		wdt977_keepalive();
+		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
 	}
 	expect_close = 0;
 	return 0;
@@ -271,14 +302,17 @@ static int wdt977_release(struct inode *inode, struct file *file)
 static ssize_t wdt977_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	if (count) {
-		if (!nowayout) {
+	if (count)
+	{
+		if (!nowayout)
+		{
 			size_t i;
 
 			/* In case it was set long ago */
 			expect_close = 0;
 
-			for (i = 0; i != count; i++) {
+			for (i = 0; i != count; i++)
+			{
 				char c;
 				if (get_user(c, buf + i))
 					return -EFAULT;
@@ -287,6 +321,7 @@ static ssize_t wdt977_write(struct file *file, const char __user *buf,
 			}
 		}
 
+		/* someone wrote to us, we should restart timer */
 		wdt977_keepalive();
 	}
 	return count;
@@ -308,7 +343,7 @@ static struct watchdog_info ident = {
 				WDIOF_MAGICCLOSE |
 				WDIOF_KEEPALIVEPING,
 	.firmware_version =	1,
-	.identity =		"Winbond 83977",
+	.identity =		WATCHDOG_NAME,
 };
 
 static int wdt977_ioctl(struct inode *inode, struct file *file,
@@ -405,50 +440,81 @@ static struct notifier_block wdt977_notifier = {
 	.notifier_call = wdt977_notify_sys,
 };
 
-static int __init nwwatchdog_init(void)
+static int __init wd977_init(void)
 {
-	int retval;
-	if (!machine_is_netwinder())
-		return -ENODEV;
+	int rc;
+
+	//if (!machine_is_netwinder())
+	//	return -ENODEV;
+
+	printk(KERN_INFO PFX DRIVER_VERSION);
+
+	spin_lock_init(&spinlock);
 
 	/* Check that the timeout value is within it's range ; if not reset to the default */
-	if (wdt977_set_timeout(timeout)) {
+	if (wdt977_set_timeout(timeout))
+	{
 		wdt977_set_timeout(DEFAULT_TIMEOUT);
 		printk(KERN_INFO PFX "timeout value must be 60<timeout<15300, using %d\n",
 			DEFAULT_TIMEOUT);
 	}
 
-	retval = register_reboot_notifier(&wdt977_notifier);
-	if (retval) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-			retval);
-		return retval;
+	/* on Netwinder the IOports are already reserved by
+	 * arch/arm/mach-footbridge/netwinder-hw.c
+	 */
+	if (!machine_is_netwinder())
+	{
+		if (!request_region(IO_INDEX_PORT, 2, WATCHDOG_NAME))
+		{
+			printk(KERN_ERR PFX "I/O address 0x%04x already in use\n",
+				IO_INDEX_PORT);
+			rc = -EIO;
+			goto err_out;
+		}
 	}
 
-	retval = misc_register(&wdt977_miscdev);
-	if (retval) {
+	rc = misc_register(&wdt977_miscdev);
+	if (rc)
+	{
 		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, retval);
-		unregister_reboot_notifier(&wdt977_notifier);
-		return retval;
+			wdt977_miscdev.minor, rc);
+		goto err_out_region;
 	}
 
-	printk(KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d, testmode = %i)\n",
+	rc = register_reboot_notifier(&wdt977_notifier);
+	if (rc)
+	{
+		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
+			rc);
+		goto err_out_miscdev;
+	}
+
+	printk(KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d, testmode=%i)\n",
 		timeout, nowayout, testmode);
 
 	return 0;
+
+err_out_miscdev:
+        misc_deregister(&wdt977_miscdev);
+err_out_region:
+	if (!machine_is_netwinder())
+	        release_region(IO_INDEX_PORT,2);
+err_out:
+	return rc;
 }
 
-static void __exit nwwatchdog_exit(void)
+static void __exit wd977_exit(void)
 {
+	wdt977_stop();
 	misc_deregister(&wdt977_miscdev);
 	unregister_reboot_notifier(&wdt977_notifier);
+	release_region(IO_INDEX_PORT,2);
 }
 
-module_init(nwwatchdog_init);
-module_exit(nwwatchdog_exit);
+module_init(wd977_init);
+module_exit(wd977_exit);
 
-MODULE_AUTHOR("Woody Suwalski <woody@netwinder.org>");
+MODULE_AUTHOR("Woody Suwalski <woodys@xandros.com>");
 MODULE_DESCRIPTION("W83977AF Watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

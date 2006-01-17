@@ -4,7 +4,6 @@
 #ifndef __PPC_SYSTEM_H
 #define __PPC_SYSTEM_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 
 #include <asm/atomic.h>
@@ -39,7 +38,7 @@
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
+#define smp_wmb()	__asm__ __volatile__ ("eieio" : : : "memory")
 #define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	barrier()
@@ -74,6 +73,7 @@ extern void chrp_nvram_init(void);
 extern void read_rtc_time(void);
 extern void pmac_find_display(void);
 extern void giveup_fpu(struct task_struct *);
+extern void disable_kernel_fp(void);
 extern void enable_kernel_fp(void);
 extern void flush_fp_to_thread(struct task_struct *);
 extern void enable_kernel_altivec(void);
@@ -85,6 +85,14 @@ extern void load_up_spe(struct task_struct *);
 extern int fix_alignment(struct pt_regs *);
 extern void cvt_fd(float *from, double *to, struct thread_struct *thread);
 extern void cvt_df(double *from, float *to, struct thread_struct *thread);
+
+#ifndef CONFIG_SMP
+extern void discard_lazy_cpu_state(void);
+#else
+static inline void discard_lazy_cpu_state(void)
+{
+}
+#endif
 
 #ifdef CONFIG_ALTIVEC
 extern void flush_altivec_to_thread(struct task_struct *);
@@ -122,6 +130,16 @@ extern void note_scsi_host(struct device_node *, void *);
 extern struct task_struct *__switch_to(struct task_struct *,
 	struct task_struct *);
 #define switch_to(prev, next, last)	((last) = __switch_to((prev), (next)))
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
 
 struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,

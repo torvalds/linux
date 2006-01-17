@@ -40,7 +40,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "conv.h"
 #include "fid.h"
 
 /**
@@ -95,24 +94,22 @@ static int v9fs_dentry_validate(struct dentry *dentry, struct nameidata *nd)
 
 void v9fs_dentry_release(struct dentry *dentry)
 {
+	int err;
+
 	dprintk(DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
 
 	if (dentry->d_fsdata != NULL) {
 		struct list_head *fid_list = dentry->d_fsdata;
 		struct v9fs_fid *temp = NULL;
 		struct v9fs_fid *current_fid = NULL;
-		struct v9fs_fcall *fcall = NULL;
 
 		list_for_each_entry_safe(current_fid, temp, fid_list, list) {
-			if (v9fs_t_clunk
-			    (current_fid->v9ses, current_fid->fid, &fcall))
-				dprintk(DEBUG_ERROR, "clunk failed: %s\n",
-					FCALL_ERROR(fcall));
+			err = v9fs_t_clunk(current_fid->v9ses, current_fid->fid);
 
-			v9fs_put_idpool(current_fid->fid,
-					&current_fid->v9ses->fidpool);
+			if (err < 0)
+				dprintk(DEBUG_ERROR, "clunk failed: %d name %s\n",
+					err, dentry->d_iname);
 
-			kfree(fcall);
 			v9fs_fid_destroy(current_fid);
 		}
 

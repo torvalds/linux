@@ -71,8 +71,6 @@
 #define   USBLEGSUP_RWC		0x8f00	/* the R/WC bits */
 #define   USBLEGSUP_RO		0x5040	/* R/O and reserved bits */
 
-#define UHCI_NULL_DATA_SIZE	0x7FF	/* for UHCI controller TD */
-
 #define UHCI_PTR_BITS		cpu_to_le32(0x000F)
 #define UHCI_PTR_TERM		cpu_to_le32(0x0001)
 #define UHCI_PTR_QH		cpu_to_le32(0x0002)
@@ -168,9 +166,11 @@ static __le32 inline qh_element(struct uhci_qh *qh) {
 #define TD_TOKEN_EXPLEN_MASK	0x7FF		/* expected length, encoded as n - 1 */
 #define TD_TOKEN_PID_MASK	0xFF
 
-#define uhci_explen(len)	((len) << TD_TOKEN_EXPLEN_SHIFT)
+#define uhci_explen(len)	((((len) - 1) & TD_TOKEN_EXPLEN_MASK) << \
+					TD_TOKEN_EXPLEN_SHIFT)
 
-#define uhci_expected_length(token) ((((token) >> 21) + 1) & TD_TOKEN_EXPLEN_MASK)
+#define uhci_expected_length(token) ((((token) >> TD_TOKEN_EXPLEN_SHIFT) + \
+					1) & TD_TOKEN_EXPLEN_MASK)
 #define uhci_toggle(token)	(((token) >> TD_TOKEN_TOGGLE_SHIFT) & 1)
 #define uhci_endpoint(token)	(((token) >> 15) & 0xf)
 #define uhci_devaddr(token)	(((token) >> TD_TOKEN_DEVADDR_SHIFT) & 0x7f)
@@ -223,10 +223,10 @@ static u32 inline td_status(struct uhci_td *td) {
  */
 
 /*
- * The UHCI driver places Interrupt, Control and Bulk into QH's both
- * to group together TD's for one transfer, and also to faciliate queuing
- * of URB's. To make it easy to insert entries into the schedule, we have
- * a skeleton of QH's for each predefined Interrupt latency, low-speed
+ * The UHCI driver places Interrupt, Control and Bulk into QHs both
+ * to group together TDs for one transfer, and also to facilitate queuing
+ * of URBs. To make it easy to insert entries into the schedule, we have
+ * a skeleton of QHs for each predefined Interrupt latency, low-speed
  * control, full-speed control and terminating QH (see explanation for
  * the terminating QH below).
  *
@@ -257,8 +257,8 @@ static u32 inline td_status(struct uhci_td *td) {
  *   reclamation.
  *
  * Isochronous transfers are stored before the start of the skeleton
- * schedule and don't use QH's. While the UHCI spec doesn't forbid the
- * use of QH's for Isochronous, it doesn't use them either. And the spec
+ * schedule and don't use QHs. While the UHCI spec doesn't forbid the
+ * use of QHs for Isochronous, it doesn't use them either. And the spec
  * says that queues never advance on an error completion status, which
  * makes them totally unsuitable for Isochronous transfers.
  */
@@ -359,7 +359,7 @@ struct uhci_hcd {
 	struct dma_pool *td_pool;
 
 	struct uhci_td *term_td;	/* Terminating TD, see UHCI bug */
-	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QH's */
+	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QHs */
 
 	spinlock_t lock;
 
@@ -389,22 +389,22 @@ struct uhci_hcd {
 	unsigned long resuming_ports;
 	unsigned long ports_timeout;		/* Time to stop signalling */
 
-	/* Main list of URB's currently controlled by this HC */
+	/* Main list of URBs currently controlled by this HC */
 	struct list_head urb_list;
 
-	/* List of QH's that are done, but waiting to be unlinked (race) */
+	/* List of QHs that are done, but waiting to be unlinked (race) */
 	struct list_head qh_remove_list;
 	unsigned int qh_remove_age;		/* Age in frames */
 
-	/* List of TD's that are done, but waiting to be freed (race) */
+	/* List of TDs that are done, but waiting to be freed (race) */
 	struct list_head td_remove_list;
 	unsigned int td_remove_age;		/* Age in frames */
 
-	/* List of asynchronously unlinked URB's */
+	/* List of asynchronously unlinked URBs */
 	struct list_head urb_remove_list;
 	unsigned int urb_remove_age;		/* Age in frames */
 
-	/* List of URB's awaiting completion callback */
+	/* List of URBs awaiting completion callback */
 	struct list_head complete_list;
 
 	int rh_numports;			/* Number of root-hub ports */

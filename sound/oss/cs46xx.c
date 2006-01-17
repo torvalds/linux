@@ -391,10 +391,6 @@ static void cs461x_clear_serial_FIFOs(struct cs_card *card, int type);
 static int cs46xx_suspend_tbl(struct pci_dev *pcidev, pm_message_t state);
 static int cs46xx_resume_tbl(struct pci_dev *pcidev);
 
-#ifndef CS46XX_ACPI_SUPPORT
-static int cs46xx_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data);
-#endif
-
 #if CSDEBUG
 
 /* DEBUG ROUTINES */
@@ -5320,7 +5316,6 @@ static const char fndmsg[] = KERN_INFO "cs46xx: Found %d audio device(s).\n";
 static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 				  const struct pci_device_id *pciid)
 {
-	struct pm_dev *pmdev;
 	int i,j;
 	u16 ss_card, ss_vendor;
 	struct cs_card *card;
@@ -5530,22 +5525,6 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 	PCI_SET_DMA_MASK(pci_dev, dma_mask);
 	list_add(&card->list, &cs46xx_devs);
 
-	pmdev = cs_pm_register(PM_PCI_DEV, PM_PCI_ID(pci_dev), cs46xx_pm_callback);
-	if (pmdev)
-	{
-		CS_DBGOUT(CS_INIT | CS_PM, 4, printk(KERN_INFO
-			 "cs46xx: probe() pm_register() succeeded (%p).\n",
-				pmdev));
-		pmdev->data = card;
-	}
-	else
-	{
-		CS_DBGOUT(CS_INIT | CS_PM | CS_ERROR, 2, printk(KERN_INFO
-			 "cs46xx: probe() pm_register() failed (%p).\n",
-				pmdev));
-		card->pm.flags |= CS46XX_PM_NOT_REGISTERED;
-	}
-
 	CS_DBGOUT(CS_PM, 9, printk(KERN_INFO "cs46xx: pm.flags=0x%x card=%p\n",
 		(unsigned)card->pm.flags,card));
 
@@ -5711,7 +5690,7 @@ static int __init cs46xx_init_module(void)
 	int rtn = 0;
 	CS_DBGOUT(CS_INIT | CS_FUNCTION, 2, printk(KERN_INFO 
 		"cs46xx: cs46xx_init_module()+ \n"));
-	rtn = pci_module_init(&cs46xx_pci_driver);
+	rtn = pci_register_driver(&cs46xx_pci_driver);
 
 	if(rtn == -ENODEV)
 	{
@@ -5727,51 +5706,12 @@ static int __init cs46xx_init_module(void)
 static void __exit cs46xx_cleanup_module(void)
 {
 	pci_unregister_driver(&cs46xx_pci_driver);
-	cs_pm_unregister_all(cs46xx_pm_callback);
 	CS_DBGOUT(CS_INIT | CS_FUNCTION, 2,
 		  printk(KERN_INFO "cs46xx: cleanup_cs46xx() finished\n"));
 }
 
 module_init(cs46xx_init_module);
 module_exit(cs46xx_cleanup_module);
-
-#ifndef CS46XX_ACPI_SUPPORT
-static int cs46xx_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
-{
-	struct cs_card *card;
-
-	CS_DBGOUT(CS_PM, 2, printk(KERN_INFO 
-		"cs46xx: cs46xx_pm_callback dev=%p rqst=0x%x card=%p\n",
-			dev,(unsigned)rqst,data));
-	card = (struct cs_card *) dev->data;
-	if (card) {
-		switch(rqst) {
-			case PM_SUSPEND:
-				CS_DBGOUT(CS_PM, 2, printk(KERN_INFO
-					"cs46xx: PM suspend request\n"));
-				if(cs46xx_suspend(card, PMSG_SUSPEND))
-				{
-				    CS_DBGOUT(CS_ERROR, 2, printk(KERN_INFO
-					"cs46xx: PM suspend request refused\n"));
-					return 1; 
-				}
-				break;
-			case PM_RESUME:
-				CS_DBGOUT(CS_PM, 2, printk(KERN_INFO
-					"cs46xx: PM resume request\n"));
-				if(cs46xx_resume(card))
-				{
-				    CS_DBGOUT(CS_ERROR, 2, printk(KERN_INFO
-					"cs46xx: PM resume request refused\n"));
-					return 1;
-				}
-				break;
-		}
-	}
-
-	return 0;
-}
-#endif
 
 #if CS46XX_ACPI_SUPPORT
 static int cs46xx_suspend_tbl(struct pci_dev *pcidev, pm_message_t state)

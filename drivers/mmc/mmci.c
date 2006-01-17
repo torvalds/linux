@@ -19,13 +19,14 @@
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
+#include <linux/amba/bus.h>
+#include <linux/clk.h>
 
+#include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/scatterlist.h>
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/clock.h>
 #include <asm/mach/mmc.h>
 
 #include "mmci.h"
@@ -157,6 +158,13 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN))
 			data->error = MMC_ERR_FIFO;
 		status |= MCI_DATAEND;
+
+		/*
+		 * We hit an error condition.  Ensure that any data
+		 * partially written to a page is properly coherent.
+		 */
+		if (host->sg_len && data->flags & MMC_DATA_READ)
+			flush_dcache_page(host->sg_ptr->page);
 	}
 	if (status & MCI_DATAEND) {
 		mmci_stop_data(host);
@@ -292,7 +300,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id, struct pt_regs *regs)
 		/*
 		 * Unmap the buffer.
 		 */
-		mmci_kunmap_atomic(host, &flags);
+		mmci_kunmap_atomic(host, buffer, &flags);
 
 		host->sg_off += len;
 		host->size -= len;
@@ -300,6 +308,13 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 		if (remain)
 			break;
+
+		/*
+		 * If we were reading, and we have completed this
+		 * page, ensure that the data cache is coherent.
+		 */
+		if (status & MCI_RXACTIVE)
+			flush_dcache_page(host->sg_ptr->page);
 
 		if (!mmci_next_sg(host))
 			break;
@@ -479,13 +494,9 @@ static int mmci_probe(struct amba_device *dev, void *id)
 		goto host_free;
 	}
 
-	ret = clk_use(host->clk);
-	if (ret)
-		goto clk_free;
-
 	ret = clk_enable(host->clk);
 	if (ret)
-		goto clk_unuse;
+		goto clk_free;
 
 	host->plat = plat;
 	host->mclk = clk_get_rate(host->clk);
@@ -558,8 +569,6 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	iounmap(host->base);
  clk_disable:
 	clk_disable(host->clk);
- clk_unuse:
-	clk_unuse(host->clk);
  clk_free:
 	clk_put(host->clk);
  host_free:
@@ -594,7 +603,6 @@ static int mmci_remove(struct amba_device *dev)
 
 		iounmap(host->base);
 		clk_disable(host->clk);
-		clk_unuse(host->clk);
 		clk_put(host->clk);
 
 		mmc_free_host(mmc);

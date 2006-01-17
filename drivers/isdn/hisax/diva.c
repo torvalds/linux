@@ -476,7 +476,7 @@ Memhscx_fill_fifo(struct BCState *bcs)
 	}
 }
 
-static inline void
+static void
 Memhscx_interrupt(struct IsdnCardState *cs, u_char val, u_char hscx)
 {
 	u_char r;

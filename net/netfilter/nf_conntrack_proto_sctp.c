@@ -62,15 +62,15 @@ static const char *sctp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS  * 24 HOURS
 
-static unsigned long nf_ct_sctp_timeout_closed            =  10 SECS;
-static unsigned long nf_ct_sctp_timeout_cookie_wait       =   3 SECS;
-static unsigned long nf_ct_sctp_timeout_cookie_echoed     =   3 SECS;
-static unsigned long nf_ct_sctp_timeout_established       =   5 DAYS;
-static unsigned long nf_ct_sctp_timeout_shutdown_sent     = 300 SECS / 1000;
-static unsigned long nf_ct_sctp_timeout_shutdown_recd     = 300 SECS / 1000;
-static unsigned long nf_ct_sctp_timeout_shutdown_ack_sent =   3 SECS;
+static unsigned int nf_ct_sctp_timeout_closed            =  10 SECS;
+static unsigned int nf_ct_sctp_timeout_cookie_wait       =   3 SECS;
+static unsigned int nf_ct_sctp_timeout_cookie_echoed     =   3 SECS;
+static unsigned int nf_ct_sctp_timeout_established       =   5 DAYS;
+static unsigned int nf_ct_sctp_timeout_shutdown_sent     = 300 SECS / 1000;
+static unsigned int nf_ct_sctp_timeout_shutdown_recd     = 300 SECS / 1000;
+static unsigned int nf_ct_sctp_timeout_shutdown_ack_sent =   3 SECS;
 
-static unsigned long * sctp_timeouts[]
+static unsigned int * sctp_timeouts[]
 = { NULL,                                  /* SCTP_CONNTRACK_NONE  */
     &nf_ct_sctp_timeout_closed,	           /* SCTP_CONNTRACK_CLOSED */
     &nf_ct_sctp_timeout_cookie_wait,       /* SCTP_CONNTRACK_COOKIE_WAIT */

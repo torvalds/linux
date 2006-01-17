@@ -18,6 +18,7 @@
 #include "pc_maint.h"
 #include "dsp_tst.h"
 #include "diva_dma.h"
+#include "dsrv_pri.h"
 
 /* --------------------------------------------------------------------------
    OS Dependent part of XDI driver for DIVA PRI Adapter

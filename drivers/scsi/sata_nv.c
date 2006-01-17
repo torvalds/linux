@@ -29,6 +29,12 @@
  *  NV-specific details such as register offsets, SATA phy location,
  *  hotplug info, etc.
  *
+ *  0.10
+ *     - Fixed spurious interrupts issue seen with the Maxtor 6H500F0 500GB
+ *       drive.  Also made the check_hotplug() callbacks return whether there
+ *       was a hotplug interrupt or not.  This was not the source of the
+ *       spurious interrupts, but is the right thing to do anyway.
+ *
  *  0.09
  *     - Fixed bug introduced by 0.08's MCP51 and MCP55 support.
  *
@@ -124,10 +130,10 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void nv_host_stop (struct ata_host_set *host_set);
 static void nv_enable_hotplug(struct ata_probe_ent *probe_ent);
 static void nv_disable_hotplug(struct ata_host_set *host_set);
-static void nv_check_hotplug(struct ata_host_set *host_set);
+static int nv_check_hotplug(struct ata_host_set *host_set);
 static void nv_enable_hotplug_ck804(struct ata_probe_ent *probe_ent);
 static void nv_disable_hotplug_ck804(struct ata_host_set *host_set);
-static void nv_check_hotplug_ck804(struct ata_host_set *host_set);
+static int nv_check_hotplug_ck804(struct ata_host_set *host_set);
 
 enum nv_host_type
 {
@@ -176,7 +182,7 @@ struct nv_host_desc
 	enum nv_host_type	host_type;
 	void			(*enable_hotplug)(struct ata_probe_ent *probe_ent);
 	void			(*disable_hotplug)(struct ata_host_set *host_set);
-	void			(*check_hotplug)(struct ata_host_set *host_set);
+	int			(*check_hotplug)(struct ata_host_set *host_set);
 
 };
 static struct nv_host_desc nv_device_tbl[] = {
@@ -235,7 +241,6 @@ static struct scsi_host_template nv_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1,
 };
 
 static const struct ata_port_operations nv_ops = {
@@ -310,12 +315,16 @@ static irqreturn_t nv_interrupt (int irq, void *dev_instance,
 			qc = ata_qc_from_tag(ap, ap->active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += ata_host_intr(ap, qc);
+			else
+				// No request pending?  Clear interrupt status
+				// anyway, in case there's one pending.
+				ap->ops->check_status(ap);
 		}
 
 	}
 
 	if (host->host_desc->check_hotplug)
-		host->host_desc->check_hotplug(host_set);
+		handled += host->host_desc->check_hotplug(host_set);
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
 
@@ -498,7 +507,7 @@ static void nv_disable_hotplug(struct ata_host_set *host_set)
 	outb(intr_mask, host_set->ports[0]->ioaddr.scr_addr + NV_INT_ENABLE);
 }
 
-static void nv_check_hotplug(struct ata_host_set *host_set)
+static int nv_check_hotplug(struct ata_host_set *host_set)
 {
 	u8 intr_status;
 
@@ -523,7 +532,11 @@ static void nv_check_hotplug(struct ata_host_set *host_set)
 		if (intr_status & NV_INT_STATUS_SDEV_REMOVED)
 			printk(KERN_WARNING "nv_sata: "
 				"Secondary device removed\n");
+
+		return 1;
 	}
+
+	return 0;
 }
 
 static void nv_enable_hotplug_ck804(struct ata_probe_ent *probe_ent)
@@ -561,7 +574,7 @@ static void nv_disable_hotplug_ck804(struct ata_host_set *host_set)
 	pci_write_config_byte(pdev, NV_MCP_SATA_CFG_20, regval);
 }
 
-static void nv_check_hotplug_ck804(struct ata_host_set *host_set)
+static int nv_check_hotplug_ck804(struct ata_host_set *host_set)
 {
 	u8 intr_status;
 
@@ -586,7 +599,11 @@ static void nv_check_hotplug_ck804(struct ata_host_set *host_set)
 		if (intr_status & NV_INT_STATUS_SDEV_REMOVED)
 			printk(KERN_WARNING "nv_sata: "
 				"Secondary device removed\n");
+
+		return 1;
 	}
+
+	return 0;
 }
 
 static int __init nv_init(void)

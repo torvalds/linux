@@ -275,7 +275,6 @@ static void bcm203x_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver bcm203x_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "bcm203x",
 	.probe		= bcm203x_probe,
 	.disconnect	= bcm203x_disconnect,

@@ -39,7 +39,6 @@
 #include <linux/moduleparam.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
-#include <linux/rcuref.h>
 #include <linux/cpu.h>
 #include <linux/random.h>
 #include <linux/delay.h>
@@ -49,9 +48,11 @@
 MODULE_LICENSE("GPL");
 
 static int nreaders = -1;	/* # reader threads, defaults to 4*ncpus */
-static int stat_interval = 0;	/* Interval between stats, in seconds. */
+static int stat_interval;	/* Interval between stats, in seconds. */
 				/*  Defaults to "only at end of test". */
-static int verbose = 0;		/* Print more debug info. */
+static int verbose;		/* Print more debug info. */
+static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
+static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
 
 MODULE_PARM(nreaders, "i");
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
@@ -59,6 +60,10 @@ MODULE_PARM(stat_interval, "i");
 MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
 MODULE_PARM(verbose, "i");
 MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
+MODULE_PARM(test_no_idle_hz, "i");
+MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
+MODULE_PARM(shuffle_interval, "i");
+MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 #define TORTURE_FLAG "rcutorture: "
 #define PRINTK_STRING(s) \
 	do { printk(KERN_ALERT TORTURE_FLAG s "\n"); } while (0)
@@ -73,6 +78,7 @@ static int nrealreaders;
 static struct task_struct *writer_task;
 static struct task_struct **reader_tasks;
 static struct task_struct *stats_task;
+static struct task_struct *shuffler_task;
 
 #define RCU_TORTURE_PIPE_LEN 10
 
@@ -103,7 +109,7 @@ atomic_t n_rcu_torture_error;
 /*
  * Allocate an element from the rcu_tortures pool.
  */
-struct rcu_torture *
+static struct rcu_torture *
 rcu_torture_alloc(void)
 {
 	struct list_head *p;
@@ -376,12 +382,77 @@ rcu_torture_stats(void *arg)
 	return 0;
 }
 
+static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
+
+/* Shuffle tasks such that we allow @rcu_idle_cpu to become idle. A special case
+ * is when @rcu_idle_cpu = -1, when we allow the tasks to run on all CPUs.
+ */
+void rcu_torture_shuffle_tasks(void)
+{
+	cpumask_t tmp_mask = CPU_MASK_ALL;
+	int i;
+
+	lock_cpu_hotplug();
+
+	/* No point in shuffling if there is only one online CPU (ex: UP) */
+	if (num_online_cpus() == 1) {
+		unlock_cpu_hotplug();
+		return;
+	}
+
+	if (rcu_idle_cpu != -1)
+		cpu_clear(rcu_idle_cpu, tmp_mask);
+
+	set_cpus_allowed(current, tmp_mask);
+
+	if (reader_tasks != NULL) {
+		for (i = 0; i < nrealreaders; i++)
+			if (reader_tasks[i])
+				set_cpus_allowed(reader_tasks[i], tmp_mask);
+	}
+
+	if (writer_task)
+		set_cpus_allowed(writer_task, tmp_mask);
+
+	if (stats_task)
+		set_cpus_allowed(stats_task, tmp_mask);
+
+	if (rcu_idle_cpu == -1)
+		rcu_idle_cpu = num_online_cpus() - 1;
+	else
+		rcu_idle_cpu--;
+
+	unlock_cpu_hotplug();
+}
+
+/* Shuffle tasks across CPUs, with the intent of allowing each CPU in the
+ * system to become idle at a time and cut off its timer ticks. This is meant
+ * to test the support for such tickless idle CPU in RCU.
+ */
+static int
+rcu_torture_shuffle(void *arg)
+{
+	VERBOSE_PRINTK_STRING("rcu_torture_shuffle task started");
+	do {
+		schedule_timeout_interruptible(shuffle_interval * HZ);
+		rcu_torture_shuffle_tasks();
+	} while (!kthread_should_stop());
+	VERBOSE_PRINTK_STRING("rcu_torture_shuffle task stopping");
+	return 0;
+}
+
 static void
 rcu_torture_cleanup(void)
 {
 	int i;
 
 	fullstop = 1;
+	if (shuffler_task != NULL) {
+		VERBOSE_PRINTK_STRING("Stopping rcu_torture_shuffle task");
+		kthread_stop(shuffler_task);
+	}
+	shuffler_task = NULL;
+
 	if (writer_task != NULL) {
 		VERBOSE_PRINTK_STRING("Stopping rcu_torture_writer task");
 		kthread_stop(writer_task);
@@ -430,9 +501,11 @@ rcu_torture_init(void)
 		nrealreaders = nreaders;
 	else
 		nrealreaders = 2 * num_online_cpus();
-	printk(KERN_ALERT TORTURE_FLAG
-	       "--- Start of test: nreaders=%d stat_interval=%d verbose=%d\n",
-	       nrealreaders, stat_interval, verbose);
+	printk(KERN_ALERT TORTURE_FLAG "--- Start of test: nreaders=%d "
+		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
+		"shuffle_interval = %d\n",
+		nrealreaders, stat_interval, verbose, test_no_idle_hz,
+		shuffle_interval);
 	fullstop = 0;
 
 	/* Set up the freelist. */
@@ -499,6 +572,18 @@ rcu_torture_init(void)
 			firsterr = PTR_ERR(stats_task);
 			VERBOSE_PRINTK_ERRSTRING("Failed to create stats");
 			stats_task = NULL;
+			goto unwind;
+		}
+	}
+	if (test_no_idle_hz) {
+		rcu_idle_cpu = num_online_cpus() - 1;
+		/* Create the shuffler thread */
+		shuffler_task = kthread_run(rcu_torture_shuffle, NULL,
+					  "rcu_torture_shuffle");
+		if (IS_ERR(shuffler_task)) {
+			firsterr = PTR_ERR(shuffler_task);
+			VERBOSE_PRINTK_ERRSTRING("Failed to create shuffler");
+			shuffler_task = NULL;
 			goto unwind;
 		}
 	}

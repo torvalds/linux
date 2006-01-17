@@ -21,7 +21,7 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
-static struct {
+static const struct {
 	enum scsi_device_state	value;
 	char			*name;
 } sdev_states[] = {
@@ -48,7 +48,7 @@ const char *scsi_device_state_name(enum scsi_device_state state)
 	return name;
 }
 
-static struct {
+static const struct {
 	enum scsi_host_state	value;
 	char			*name;
 } shost_states[] = {
@@ -106,7 +106,10 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 		return -EINVAL;
 	if (check_set(&lun, s3))
 		return -EINVAL;
-	res = scsi_scan_host_selected(shost, channel, id, lun, 1);
+	if (shost->transportt->user_scan)
+		res = shost->transportt->user_scan(shost, channel, id, lun);
+	else
+		res = scsi_scan_host_selected(shost, channel, id, lun, 1);
 	return res;
 }
 
@@ -263,9 +266,40 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
 
+static int scsi_bus_suspend(struct device * dev, pm_message_t state)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_host_template *sht = sdev->host->hostt;
+	int err;
+
+	err = scsi_device_quiesce(sdev);
+	if (err)
+		return err;
+
+	if (sht->suspend)
+		err = sht->suspend(sdev);
+
+	return err;
+}
+
+static int scsi_bus_resume(struct device * dev)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_host_template *sht = sdev->host->hostt;
+	int err = 0;
+
+	if (sht->resume)
+		err = sht->resume(sdev);
+
+	scsi_device_resume(sdev);
+	return err;
+}
+
 struct bus_type scsi_bus_type = {
         .name		= "scsi",
         .match		= scsi_bus_match,
+	.suspend	= scsi_bus_suspend,
+	.resume		= scsi_bus_resume,
 };
 
 int scsi_sysfs_register(void)
@@ -714,9 +748,9 @@ void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 
-	down(&shost->scan_mutex);
+	mutex_lock(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
-	up(&shost->scan_mutex);
+	mutex_unlock(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_remove_device);
 

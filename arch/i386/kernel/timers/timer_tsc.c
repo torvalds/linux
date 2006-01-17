@@ -330,7 +330,9 @@ int recalibrate_cpu_khz(void)
 	unsigned int cpu_khz_old = cpu_khz;
 
 	if (cpu_has_tsc) {
+		local_irq_disable();
 		init_cpu_khz();
+		local_irq_enable();
 		cpu_data[0].loops_per_jiffy =
 		    cpufreq_scale(cpu_data[0].loops_per_jiffy,
 			          cpu_khz_old,

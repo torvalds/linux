@@ -38,7 +38,7 @@
 
 #ifdef SCCS_LABELS
 #ifndef lint
-static char *_rio_list_h_sccs = "@(#)list.h	1.9" ;
+static char *_rio_list_h_sccs = "@(#)list.h	1.9";
 #endif
 #endif
 
@@ -166,7 +166,7 @@ static char *_rio_list_h_sccs = "@(#)list.h	1.9" ;
 #endif
 
 
-#else /* !IN_KERNEL */
+#else				/* !IN_KERNEL */
 
 #define ZERO_PTR NULL
 
@@ -192,5 +192,5 @@ static char *_rio_list_h_sccs = "@(#)list.h	1.9" ;
 #define splx(oldspl)    if ((oldspl) == 0) spl0()
 #endif
 
-#endif /* ifndef _list.h */
+#endif				/* ifndef _list.h */
 /*********** end of file ***********/

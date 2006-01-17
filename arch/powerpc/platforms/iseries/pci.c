@@ -43,6 +43,7 @@
 #include "irq.h"
 #include "pci.h"
 #include "call_pci.h"
+#include "iommu.h"
 
 extern unsigned long io_page_mask;
 

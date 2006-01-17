@@ -10,20 +10,20 @@
  * published by the Free Software Foundation.
  */
 
-typedef struct {
+struct pxa2xx_pcm_dma_params {
 	char *name;			/* stream identifier */
 	u32 dcmd;			/* DMA descriptor dcmd field */
 	volatile u32 *drcmr;		/* the DMA request channel to use */
 	u32 dev_addr;			/* device physical address for DMA */
-} pxa2xx_pcm_dma_params_t;
+};
 	
-typedef struct {
-	pxa2xx_pcm_dma_params_t *playback_params;
-	pxa2xx_pcm_dma_params_t *capture_params;
-	int (*startup)(snd_pcm_substream_t *);
-	void (*shutdown)(snd_pcm_substream_t *);
-	int (*prepare)(snd_pcm_substream_t *);
-} pxa2xx_pcm_client_t;
+struct pxa2xx_pcm_client {
+	struct pxa2xx_pcm_dma_params *playback_params;
+	struct pxa2xx_pcm_dma_params *capture_params;
+	int (*startup)(struct snd_pcm_substream *);
+	void (*shutdown)(struct snd_pcm_substream *);
+	int (*prepare)(struct snd_pcm_substream *);
+};
 
-extern int pxa2xx_pcm_new(snd_card_t *, pxa2xx_pcm_client_t *, snd_pcm_t **);
+extern int pxa2xx_pcm_new(struct snd_card *, struct pxa2xx_pcm_client *, struct snd_pcm **);
 

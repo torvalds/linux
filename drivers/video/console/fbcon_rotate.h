@@ -11,8 +11,6 @@
 #ifndef _FBCON_ROTATE_H
 #define _FBCON_ROTATE_H
 
-#define FNTCHARCNT(fd)	(((int *)(fd))[-3])
-
 #define GETVYRES(s,i) ({                           \
         (s == SCROLL_REDRAW || s == SCROLL_MOVE) ? \
         (i)->var.yres : (i)->var.yres_virtual; })

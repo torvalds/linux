@@ -34,24 +34,19 @@ typedef struct ixj_info_t {
 	struct ixj *port;
 } ixj_info_t;
 
-static dev_link_t *ixj_attach(void);
-static void ixj_detach(dev_link_t *);
+static void ixj_detach(struct pcmcia_device *p_dev);
 static void ixj_config(dev_link_t * link);
 static void ixj_cs_release(dev_link_t * link);
-static int ixj_event(event_t event, int priority, event_callback_args_t * args);
-static dev_info_t dev_info = "ixj_cs";
-static dev_link_t *dev_list = NULL;
 
-static dev_link_t *ixj_attach(void)
+static int ixj_attach(struct pcmcia_device *p_dev)
 {
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
+
 	DEBUG(0, "ixj_attach()\n");
 	/* Create new ixj device */
 	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link)
-		return NULL;
+		return -ENOMEM;
 	memset(link, 0, sizeof(struct dev_link_t));
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
@@ -61,44 +56,29 @@ static dev_link_t *ixj_attach(void)
 	link->priv = kmalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!link->priv) {
 		kfree(link);
-		return NULL;
+		return -ENOMEM;
 	}
 	memset(link->priv, 0, sizeof(struct ixj_info_t));
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		ixj_detach(link);
-		return NULL;
-	}
-	return link;
+
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	ixj_config(link);
+
+	return 0;
 }
 
-static void ixj_detach(dev_link_t * link)
+static void ixj_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
-	int ret;
+	dev_link_t *link = dev_to_instance(p_dev);
+
 	DEBUG(0, "ixj_detach(0x%p)\n", link);
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (*linkp == NULL)
-		return;
+
 	link->state &= ~DEV_RELEASE_PENDING;
 	if (link->state & DEV_CONFIG)
 		ixj_cs_release(link);
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
+
         kfree(link->priv);
         kfree(link);
 }
@@ -255,37 +235,25 @@ static void ixj_cs_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-static int ixj_event(event_t event, int priority, event_callback_args_t * args)
+static int ixj_suspend(struct pcmcia_device *dev)
 {
-	dev_link_t *link = args->client_data;
-	DEBUG(1, "ixj_event(0x%06x)\n", event);
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			link->state |= DEV_RELEASE_PENDING;
-			ixj_cs_release(link);
-		}
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		ixj_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link))
-			pcmcia_request_configuration(link->handle, &link->conf);
-		break;
-	}
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int ixj_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
 	return 0;
 }
 
@@ -300,10 +268,11 @@ static struct pcmcia_driver ixj_driver = {
 	.drv		= {
 		.name	= "ixj_cs",
 	},
-	.attach		= ixj_attach,
-	.event		= ixj_event,
-	.detach		= ixj_detach,
+	.probe		= ixj_attach,
+	.remove		= ixj_detach,
 	.id_table	= ixj_ids,
+	.suspend	= ixj_suspend,
+	.resume		= ixj_resume,
 };
 
 static int __init ixj_pcmcia_init(void)
@@ -314,7 +283,6 @@ static int __init ixj_pcmcia_init(void)
 static void ixj_pcmcia_exit(void)
 {
 	pcmcia_unregister_driver(&ixj_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(ixj_pcmcia_init);

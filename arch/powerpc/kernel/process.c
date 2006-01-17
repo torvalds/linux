@@ -201,13 +201,13 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 }
 #endif /* CONFIG_SPE */
 
+#ifndef CONFIG_SMP
 /*
  * If we are doing lazy switching of CPU state (FP, altivec or SPE),
  * and the current task has some state, discard it.
  */
-static inline void discard_lazy_cpu_state(void)
+void discard_lazy_cpu_state(void)
 {
-#ifndef CONFIG_SMP
 	preempt_disable();
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
@@ -220,9 +220,10 @@ static inline void discard_lazy_cpu_state(void)
 		last_task_used_spe = NULL;
 #endif
 	preempt_enable();
-#endif /* CONFIG_SMP */
 }
+#endif /* CONFIG_SMP */
 
+#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 int set_dabr(unsigned long dabr)
 {
 	if (ppc_md.set_dabr)
@@ -231,6 +232,7 @@ int set_dabr(unsigned long dabr)
 	mtspr(SPRN_DABR, dabr);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
@@ -424,7 +426,7 @@ void show_regs(struct pt_regs * regs)
 	if (trap == 0x300 || trap == 0x600)
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
 	printk("TASK = %p[%d] '%s' THREAD: %p",
-	       current, current->pid, current->comm, current->thread_info);
+	       current, current->pid, current->comm, task_thread_info(current));
 
 #ifdef CONFIG_SMP
 	printk(" CPU: %d", smp_processor_id());
@@ -503,7 +505,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
-	unsigned long sp = (unsigned long)p->thread_info + THREAD_SIZE;
+	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 
 	CHECK_FULL_REGS(regs);
 	/* Copy registers */
@@ -516,7 +518,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_PPC32
 		childregs->gpr[2] = (unsigned long) p;
 #else
-		clear_ti_thread_flag(p->thread_info, TIF_32BIT);
+		clear_tsk_thread_flag(p, TIF_32BIT);
 #endif
 		p->thread.regs = NULL;	/* no user register state */
 	} else {
@@ -588,10 +590,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	 * set.  Do it now.
 	 */
 	if (!current->thread.regs) {
-		unsigned long childregs = (unsigned long)current->thread_info +
-						THREAD_SIZE;
-		childregs -= sizeof(struct pt_regs);
-		current->thread.regs = (struct pt_regs *)childregs;
+		struct pt_regs *regs = task_stack_page(current) + THREAD_SIZE;
+		current->thread.regs = regs - 1;
 	}
 
 	memset(regs->gpr, 0, sizeof(regs->gpr));
@@ -767,7 +767,7 @@ out:
 static int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)
 {
-	unsigned long stack_page = (unsigned long)p->thread_info;
+	unsigned long stack_page = (unsigned long)task_stack_page(p);
 
 	if (sp >= stack_page + sizeof(struct thread_struct)
 	    && sp <= stack_page + THREAD_SIZE - nbytes)

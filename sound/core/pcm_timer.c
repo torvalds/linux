@@ -45,10 +45,10 @@ static unsigned long gcd(unsigned long a, unsigned long b)
 	return b;
 }
 
-void snd_pcm_timer_resolution_change(snd_pcm_substream_t *substream)
+void snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream)
 {
 	unsigned long rate, mult, fsize, l, post;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	
         mult = 1000000000;
 	rate = runtime->rate;
@@ -74,18 +74,18 @@ void snd_pcm_timer_resolution_change(snd_pcm_substream_t *substream)
 	runtime->timer_resolution = (mult * fsize / rate) * post;
 }
 
-static unsigned long snd_pcm_timer_resolution(snd_timer_t * timer)
+static unsigned long snd_pcm_timer_resolution(struct snd_timer * timer)
 {
-	snd_pcm_substream_t * substream;
+	struct snd_pcm_substream *substream;
 	
 	substream = timer->private_data;
 	return substream->runtime ? substream->runtime->timer_resolution : 0;
 }
 
-static int snd_pcm_timer_start(snd_timer_t * timer)
+static int snd_pcm_timer_start(struct snd_timer * timer)
 {
 	unsigned long flags;
-	snd_pcm_substream_t * substream;
+	struct snd_pcm_substream *substream;
 	
 	substream = snd_timer_chip(timer);
 	spin_lock_irqsave(&substream->timer_lock, flags);
@@ -94,10 +94,10 @@ static int snd_pcm_timer_start(snd_timer_t * timer)
 	return 0;
 }
 
-static int snd_pcm_timer_stop(snd_timer_t * timer)
+static int snd_pcm_timer_stop(struct snd_timer * timer)
 {
 	unsigned long flags;
-	snd_pcm_substream_t * substream;
+	struct snd_pcm_substream *substream;
 	
 	substream = snd_timer_chip(timer);
 	spin_lock_irqsave(&substream->timer_lock, flags);
@@ -106,7 +106,7 @@ static int snd_pcm_timer_stop(snd_timer_t * timer)
 	return 0;
 }
 
-static struct _snd_timer_hardware snd_pcm_timer =
+static struct snd_timer_hardware snd_pcm_timer =
 {
 	.flags =	SNDRV_TIMER_HW_AUTO | SNDRV_TIMER_HW_SLAVE,
 	.resolution =	0,
@@ -120,16 +120,16 @@ static struct _snd_timer_hardware snd_pcm_timer =
  *  Init functions
  */
 
-static void snd_pcm_timer_free(snd_timer_t *timer)
+static void snd_pcm_timer_free(struct snd_timer *timer)
 {
-	snd_pcm_substream_t *substream = timer->private_data;
+	struct snd_pcm_substream *substream = timer->private_data;
 	substream->timer = NULL;
 }
 
-void snd_pcm_timer_init(snd_pcm_substream_t *substream)
+void snd_pcm_timer_init(struct snd_pcm_substream *substream)
 {
-	snd_timer_id_t tid;
-	snd_timer_t *timer;
+	struct snd_timer_id tid;
+	struct snd_timer *timer;
 	
 	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
 	tid.dev_class = SNDRV_TIMER_CLASS_PCM;
@@ -152,7 +152,7 @@ void snd_pcm_timer_init(snd_pcm_substream_t *substream)
 	substream->timer = timer;
 }
 
-void snd_pcm_timer_done(snd_pcm_substream_t *substream)
+void snd_pcm_timer_done(struct snd_pcm_substream *substream)
 {
 	if (substream->timer) {
 		snd_device_free(substream->pcm->card, substream->timer);

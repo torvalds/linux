@@ -24,10 +24,6 @@ config NET_RADIO
 	  the tools from
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
 
-	  Some user-level drivers for scarab devices which don't require
-	  special kernel support are available from
-	  <ftp://shadow.cabi.net/pub/Linux/>.
-
 # Note : the cards are obsolete (can't buy them anymore), but the drivers
 # are not, as people are still using them...
 comment "Obsolete Wireless cards support (pre-802.11)"
@@ -160,7 +156,7 @@ config IPW2100
           <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
  
           If you want to compile the driver as a module ( = code which can be
-          inserted in and remvoed from the running kernel whenever you want),
+          inserted in and removed from the running kernel whenever you want),
           say M here and read <file:Documentation/modules.txt>.  The module
           will be called ipw2100.ko.
 	
@@ -173,7 +169,7 @@ config IPW2100_MONITOR
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW_DEBUG
+config IPW2100_DEBUG
 	bool "Enable full debugging output in IPW2100 module."
 	depends on IPW2100
 	---help---
@@ -192,7 +188,7 @@ config IPW_DEBUG
 
 config IPW2200
 	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
-	depends on IEEE80211 && PCI
+	depends on NET_RADIO && IEEE80211 && PCI
 	select FW_LOADER
 	---help---
           A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
@@ -213,11 +209,11 @@ config IPW2200
           <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
  
           If you want to compile the driver as a module ( = code which can be
-          inserted in and remvoed from the running kernel whenever you want),
+          inserted in and removed from the running kernel whenever you want),
           say M here and read <file:Documentation/modules.txt>.  The module
           will be called ipw2200.ko.
 
-config IPW_DEBUG
+config IPW2200_DEBUG
 	bool "Enable full debugging output in IPW2200 module."
 	depends on IPW2200
 	---help---
@@ -243,7 +239,7 @@ config IPW_DEBUG
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on NET_RADIO && ISA_DMA_API && (PCI || BROKEN)
+	depends on NET_RADIO && ISA_DMA_API && CRYPTO && (PCI || BROKEN)
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet ISA and
 	  PCI 802.11 wireless cards.

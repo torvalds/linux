@@ -7,6 +7,7 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 
 /* We are ethernet device */
 #include <linux/if_ether.h>
@@ -1321,7 +1322,7 @@ static int lane2_associate_req (struct net_device *dev, u8 *lan_dst,
         struct sk_buff *skb;
         struct lec_priv *priv = (struct lec_priv*)dev->priv;
 
-        if ( memcmp(lan_dst, dev->dev_addr, ETH_ALEN) != 0 )
+        if (compare_ether_addr(lan_dst, dev->dev_addr))
                 return (0);       /* not our mac address */
 
         kfree(priv->tlvs); /* NULL if there was no previous association */
@@ -1798,7 +1799,7 @@ lec_arp_find(struct lec_priv *priv,
   
         to_return = priv->lec_arp_tables[place];
         while(to_return) {
-                if (memcmp(mac_addr, to_return->mac_addr, ETH_ALEN) == 0) {
+                if (!compare_ether_addr(mac_addr, to_return->mac_addr)) {
                         return to_return;
                 }
                 to_return = to_return->next;
@@ -1811,8 +1812,7 @@ make_entry(struct lec_priv *priv, unsigned char *mac_addr)
 {
         struct lec_arp_table *to_return;
 
-        to_return = (struct lec_arp_table *) kmalloc(sizeof(struct lec_arp_table),
-						     GFP_ATOMIC);
+        to_return = kmalloc(sizeof(struct lec_arp_table), GFP_ATOMIC);
         if (!to_return) {
                 printk("LEC: Arp entry kmalloc failed\n");
                 return NULL;
@@ -2002,7 +2002,7 @@ lec_arp_resolve(struct lec_priv *priv, unsigned char *mac_to_find,
                         return priv->mcast_vcc;
                         break;
                 case 2:  /* LANE2 wants arp for multicast addresses */
-                        if ( memcmp(mac_to_find, bus_mac, ETH_ALEN) == 0)
+                        if (!compare_ether_addr(mac_to_find, bus_mac))
                                 return priv->mcast_vcc;
                         break;
                 default:

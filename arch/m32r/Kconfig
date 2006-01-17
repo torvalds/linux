@@ -12,10 +12,6 @@ config M32R
 config SBUS
 	bool
 
-config UID16
-	bool
-	default n
-
 config GENERIC_ISA_DMA
 	bool
 	default y
@@ -81,6 +77,12 @@ config PLAT_MAPPI2
 config PLAT_MAPPI3
        bool "Mappi-III(M3A-2170)"
 
+config PLAT_M32104UT
+	bool "M32104UT"
+	help
+	  The M3T-M32104UT is an reference board based on uT-Engine
+	  specification.  This board has a M32104 chip.
+
 endchoice
 
 choice
@@ -92,6 +94,10 @@ config CHIP_M32700
 
 config CHIP_M32102
 	bool "M32102"
+
+config CHIP_M32104
+	bool "M32104"
+	depends on PLAT_M32104UT
 
 config CHIP_VDEC2
        bool "VDEC2"
@@ -115,7 +121,7 @@ config TLB_ENTRIES
 
 config ISA_M32R
         bool
-	depends on CHIP_M32102
+	depends on CHIP_M32102 || CHIP_M32104
 	default y
 
 config ISA_M32R2
@@ -140,6 +146,7 @@ config BUS_CLOCK
 	default "50000000" if PLAT_MAPPI3
 	default "50000000" if PLAT_M32700UT
 	default "50000000" if PLAT_OPSPUT
+	default "54000000" if PLAT_M32104UT
 	default "33333333" if PLAT_OAKS32R
 	default "20000000" if PLAT_MAPPI2
 
@@ -157,6 +164,7 @@ config MEMORY_START
 	default "08000000" if PLAT_USRV
 	default "08000000" if PLAT_M32700UT
 	default "08000000" if PLAT_OPSPUT
+	default "04000000" if PLAT_M32104UT
 	default "01000000" if PLAT_OAKS32R
 
 config MEMORY_SIZE
@@ -166,6 +174,7 @@ config MEMORY_SIZE
 	default "02000000" if PLAT_USRV
 	default "01000000" if PLAT_M32700UT
 	default "01000000" if PLAT_OPSPUT
+	default "01000000" if PLAT_M32104UT
 	default "00800000" if PLAT_OAKS32R
 
 config NOHIGHMEM
@@ -174,21 +183,22 @@ config NOHIGHMEM
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool "Internal RAM Support"
-	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP
+	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP || CHIP_M32104
 	default y
 
 source "mm/Kconfig"
 
 config IRAM_START
 	hex "Internal memory start address (hex)"
-	default "00f00000"
-	depends on (CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP) && DISCONTIGMEM
+	default "00f00000" if !CHIP_M32104
+	default "00700000" if CHIP_M32104
+	depends on (CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP || CHIP_M32104) && DISCONTIGMEM
 
 config IRAM_SIZE
 	hex "Internal memory size (hex)"
-	depends on (CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP) && DISCONTIGMEM
+	depends on (CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP || CHIP_M32104) && DISCONTIGMEM
 	default "00080000" if CHIP_M32700
-	default "00010000" if CHIP_M32102 || CHIP_OPSP
+	default "00010000" if CHIP_M32102 || CHIP_OPSP || CHIP_M32104
 	default "00008000" if CHIP_VDEC2
 
 #

@@ -301,6 +301,7 @@ static struct file_operations gemtek_pci_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl		= gemtek_pci_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 
@@ -317,11 +318,10 @@ static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci
 	struct gemtek_pci_card *card;
 	struct video_device *devradio;
 
-	if ( (card = kmalloc( sizeof( struct gemtek_pci_card ), GFP_KERNEL )) == NULL ) {
+	if ( (card = kzalloc( sizeof( struct gemtek_pci_card ), GFP_KERNEL )) == NULL ) {
 		printk( KERN_ERR "gemtek_pci: out of memory\n" );
 		return -ENOMEM;
 	}
-	memset( card, 0, sizeof( struct gemtek_pci_card ) );
 
 	if ( pci_enable_device( pci_dev ) ) 
 		goto err_pci;
@@ -394,7 +394,7 @@ static struct pci_driver gemtek_pci_driver =
 
 static int __init gemtek_pci_init_module( void )
 {
-	return pci_module_init( &gemtek_pci_driver );
+	return pci_register_driver( &gemtek_pci_driver );
 }
 
 static void __exit gemtek_pci_cleanup_module( void )

@@ -5,5 +5,5 @@
 EXTRA_AFLAGS := -traditional
 
 lib-y += delay.o string.o
-lib-$(CONFIG_ARCH_S390_31) += uaccess.o spinlock.o
-lib-$(CONFIG_ARCH_S390X) += uaccess64.o spinlock.o
+lib-y += $(if $(CONFIG_64BIT),uaccess64.o,uaccess.o)
+lib-$(CONFIG_SMP) += spinlock.o

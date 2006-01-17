@@ -128,16 +128,10 @@ static int controlfb_pan_display(struct fb_var_screeninfo *var,
 static int controlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info);
 static int controlfb_blank(int blank_mode, struct fb_info *info);
-static int controlfb_mmap(struct fb_info *info, struct file *file,
+static int controlfb_mmap(struct fb_info *info,
 	struct vm_area_struct *vma);
 static int controlfb_set_par (struct fb_info *info);
 static int controlfb_check_var (struct fb_var_screeninfo *var, struct fb_info *info);
-
-/*
- * inititialization
- */
-int control_init(void);
-void control_setup(char *);
 
 /******************** Prototypes for internal functions **********************/
 
@@ -286,7 +280,7 @@ static int controlfb_pan_display(struct fb_var_screeninfo *var,
  * for controlfb.
  * Note there's no locking in here; it's done in fb_mmap() in fbmem.c.
  */
-static int controlfb_mmap(struct fb_info *info, struct file *file,
+static int controlfb_mmap(struct fb_info *info,
                        struct vm_area_struct *vma)
 {
        unsigned long off, start;
@@ -550,9 +544,46 @@ static void control_set_hardware(struct fb_info_control *p, struct fb_par_contro
 
 
 /*
- * Called from fbmem.c for probing & initializing
+ * Parse user speficied options (`video=controlfb:')
  */
-int __init control_init(void)
+static void __init control_setup(char *options)
+{
+	char *this_opt;
+
+	if (!options || !*options)
+		return;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!strncmp(this_opt, "vmode:", 6)) {
+			int vmode = simple_strtoul(this_opt+6, NULL, 0);
+			if (vmode > 0 && vmode <= VMODE_MAX &&
+			    control_mac_modes[vmode - 1].m[1] >= 0)
+				default_vmode = vmode;
+		} else if (!strncmp(this_opt, "cmode:", 6)) {
+			int depth = simple_strtoul(this_opt+6, NULL, 0);
+			switch (depth) {
+			 case CMODE_8:
+			 case CMODE_16:
+			 case CMODE_32:
+			 	default_cmode = depth;
+			 	break;
+			 case 8:
+				default_cmode = CMODE_8;
+				break;
+			 case 15:
+			 case 16:
+				default_cmode = CMODE_16;
+				break;
+			 case 24:
+			 case 32:
+				default_cmode = CMODE_32;
+				break;
+			}
+		}
+	}
+}
+
+static int __init control_init(void)
 {
 	struct device_node *dp;
 	char *option = NULL;
@@ -651,15 +682,16 @@ static void __init find_vram_size(struct fb_info_control *p)
 static int __init control_of_init(struct device_node *dp)
 {
 	struct fb_info_control	*p;
-	unsigned long		addr;
-	int			i;
+	struct resource		fb_res, reg_res;
 
 	if (control_fb) {
 		printk(KERN_ERR "controlfb: only one control is supported\n");
 		return -ENXIO;
 	}
-	if(dp->n_addrs != 2) {
-		printk(KERN_ERR "expecting 2 address for control (got %d)", dp->n_addrs);
+
+	if (of_pci_address_to_resource(dp, 2, &fb_res) ||
+	    of_pci_address_to_resource(dp, 1, &reg_res)) {
+		printk(KERN_ERR "can't get 2 addresses for control\n");
 		return -ENXIO;
 	}
 	p = kmalloc(sizeof(*p), GFP_KERNEL);
@@ -669,18 +701,12 @@ static int __init control_of_init(struct device_node *dp)
 	memset(p, 0, sizeof(*p));
 
 	/* Map in frame buffer and registers */
-	for (i = 0; i < dp->n_addrs; ++i) {
-		addr = dp->addrs[i].address;
-		if (dp->addrs[i].size >= 0x800000) {
-			p->fb_orig_base = addr;
-			p->fb_orig_size = dp->addrs[i].size;
-			/* use the big-endian aperture (??) */
-			p->frame_buffer_phys = addr + 0x800000;
-		} else {
-			p->control_regs_phys = addr;
-			p->control_regs_size = dp->addrs[i].size;
-		}
-	}
+	p->fb_orig_base = fb_res.start;
+	p->fb_orig_size = fb_res.end - fb_res.start + 1;
+	/* use the big-endian aperture (??) */
+	p->frame_buffer_phys = fb_res.start + 0x800000;
+	p->control_regs_phys = reg_res.start;
+	p->control_regs_size = reg_res.end - reg_res.start + 1;
 
 	if (!p->fb_orig_base ||
 	    !request_mem_region(p->fb_orig_base,p->fb_orig_size,"controlfb")) {
@@ -1058,44 +1084,4 @@ static void control_cleanup(void)
 	kfree(p);
 }
 
-
-/*
- * Parse user speficied options (`video=controlfb:')
- */
-void __init control_setup(char *options)
-{
-	char *this_opt;
-
-	if (!options || !*options)
-		return;
-
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!strncmp(this_opt, "vmode:", 6)) {
-			int vmode = simple_strtoul(this_opt+6, NULL, 0);
-			if (vmode > 0 && vmode <= VMODE_MAX &&
-			    control_mac_modes[vmode - 1].m[1] >= 0)
-				default_vmode = vmode;
-		} else if (!strncmp(this_opt, "cmode:", 6)) {
-			int depth = simple_strtoul(this_opt+6, NULL, 0);
-			switch (depth) {
-			 case CMODE_8:
-			 case CMODE_16:
-			 case CMODE_32:
-			 	default_cmode = depth;
-			 	break;
-			 case 8:
-				default_cmode = CMODE_8;
-				break;
-			 case 15:
-			 case 16:
-				default_cmode = CMODE_16;
-				break;
-			 case 24:
-			 case 32:
-				default_cmode = CMODE_32;
-				break;
-			}
-		}
-	}
-}
 

@@ -12,11 +12,13 @@
  *
  */
 
+#include <asm/byteorder.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define DES_KEY_SIZE		8
 #define DES_EXPKEY_WORDS	32
@@ -947,6 +949,7 @@ static struct crypto_alg des_alg = {
 	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct des_ctx),
 	.cra_module		=	THIS_MODULE,
+	.cra_alignmask		=	3,
 	.cra_list		=	LIST_HEAD_INIT(des_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	DES_KEY_SIZE,

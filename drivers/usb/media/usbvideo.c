@@ -725,7 +725,7 @@ int usbvideo_register(
 		/* Allocate user_data separately because of kmalloc's limits */
 		if (num_extra > 0) {
 			up->user_size = num_cams * num_extra;
-			up->user_data = (char *) kmalloc(up->user_size, GFP_KERNEL);
+			up->user_data = kmalloc(up->user_size, GFP_KERNEL);
 			if (up->user_data == NULL) {
 				err("%s: Failed to allocate user_data (%d. bytes)",
 				    __FUNCTION__, up->user_size);
@@ -953,9 +953,10 @@ static struct file_operations usbvideo_fops = {
 	.read =   usbvideo_v4l_read,
 	.mmap =   usbvideo_v4l_mmap,
 	.ioctl =  usbvideo_v4l_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek = no_llseek,
 };
-static struct video_device usbvideo_template = {
+static const struct video_device usbvideo_template = {
 	.owner =      THIS_MODULE,
 	.type =       VID_TYPE_CAPTURE,
 	.hardware =   VID_HARDWARE_CPIA,

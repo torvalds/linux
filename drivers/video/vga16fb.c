@@ -705,15 +705,7 @@ static int vga16fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int vga16fb_pan_display(struct fb_var_screeninfo *var,
 			       struct fb_info *info) 
 {
-	if (var->xoffset + info->var.xres > info->var.xres_virtual ||
-	    var->yoffset + info->var.yres > info->var.yres_virtual)
-		return -EINVAL;
-
 	vga16fb_pan_var(info, var);
-
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
-	info->var.vmode &= ~FB_VMODE_YWRAP;
 	return 0;
 }
 

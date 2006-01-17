@@ -53,6 +53,9 @@
 
 #define PHY_MAX_ADDR 32
 
+/* Used when trying to connect to a specific phy (mii bus id:phy device id) */
+#define PHY_ID_FMT "%x:%02x"
+
 /* The Bus class for PHYs.  Devices which provide access to
  * PHYs should register using this structure */
 struct mii_bus {

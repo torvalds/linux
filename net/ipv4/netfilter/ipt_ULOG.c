@@ -77,15 +77,15 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 #define PRINTR(format, args...) do { if (net_ratelimit()) printk(format , ## args); } while (0)
 
 static unsigned int nlbufsiz = 4096;
-module_param(nlbufsiz, uint, 0600); /* FIXME: Check size < 128k --RR */
+module_param(nlbufsiz, uint, 0400);
 MODULE_PARM_DESC(nlbufsiz, "netlink buffer size");
 
 static unsigned int flushtimeout = 10;
-module_param(flushtimeout, int, 0600);
+module_param(flushtimeout, uint, 0600);
 MODULE_PARM_DESC(flushtimeout, "buffer flush timeout (hundredths of a second)");
 
-static unsigned int nflog = 1;
-module_param(nflog, int, 0400);
+static int nflog = 1;
+module_param(nflog, bool, 0400);
 MODULE_PARM_DESC(nflog, "register as internal netfilter logging module");
 
 /* global data structures */
@@ -330,7 +330,7 @@ static void ipt_logfn(unsigned int pf,
 }
 
 static int ipt_ulog_checkentry(const char *tablename,
-			       const struct ipt_entry *e,
+			       const void *e,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hookmask)
@@ -376,7 +376,7 @@ static int __init init(void)
 
 	DEBUGP("ipt_ULOG: init module\n");
 
-	if (nlbufsiz >= 128*1024) {
+	if (nlbufsiz > 128*1024) {
 		printk("Netlink buffer has to be <= 128kB\n");
 		return -EINVAL;
 	}

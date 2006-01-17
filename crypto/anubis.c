@@ -32,8 +32,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define ANUBIS_MIN_KEY_SIZE	16
 #define ANUBIS_MAX_KEY_SIZE	40
@@ -461,8 +463,8 @@ static const u32 rc[] = {
 static int anubis_setkey(void *ctx_arg, const u8 *in_key,
 			 unsigned int key_len, u32 *flags)
 {
-
-	int N, R, i, pos, r;
+	const __be32 *key = (const __be32 *)in_key;
+	int N, R, i, r;
 	u32 kappa[ANUBIS_MAX_N];
 	u32 inter[ANUBIS_MAX_N];
 
@@ -483,13 +485,8 @@ static int anubis_setkey(void *ctx_arg, const u8 *in_key,
 	ctx->R = R = 8 + N;
 
 	/* * map cipher key to initial key state (mu): */
-		for (i = 0, pos = 0; i < N; i++, pos += 4) {
-		kappa[i] =
-			(in_key[pos    ] << 24) ^
-			(in_key[pos + 1] << 16) ^
-			(in_key[pos + 2] <<  8) ^
-			(in_key[pos + 3]      );
-	}
+	for (i = 0; i < N; i++)
+		kappa[i] = be32_to_cpu(key[i]);
 
 	/*
 	 * generate R + 1 round keys:
@@ -578,7 +575,9 @@ static int anubis_setkey(void *ctx_arg, const u8 *in_key,
 static void anubis_crypt(u32 roundKey[ANUBIS_MAX_ROUNDS + 1][4],
 		u8 *ciphertext, const u8 *plaintext, const int R)
 {
-	int i, pos, r;
+	const __be32 *src = (const __be32 *)plaintext;
+	__be32 *dst = (__be32 *)ciphertext;
+	int i, r;
 	u32 state[4];
 	u32 inter[4];
 
@@ -586,14 +585,8 @@ static void anubis_crypt(u32 roundKey[ANUBIS_MAX_ROUNDS + 1][4],
 	 * map plaintext block to cipher state (mu)
 	 * and add initial round key (sigma[K^0]):
 	 */
-	for (i = 0, pos = 0; i < 4; i++, pos += 4) {
-		state[i] =
-			(plaintext[pos    ] << 24) ^
-			(plaintext[pos + 1] << 16) ^
-			(plaintext[pos + 2] <<  8) ^
-			(plaintext[pos + 3]      ) ^
-			roundKey[0][i];
-	}
+	for (i = 0; i < 4; i++)
+		state[i] = be32_to_cpu(src[i]) ^ roundKey[0][i];
 
 	/*
 	 * R - 1 full rounds:
@@ -663,13 +656,8 @@ static void anubis_crypt(u32 roundKey[ANUBIS_MAX_ROUNDS + 1][4],
 	 * map cipher state to ciphertext block (mu^{-1}):
 	 */
 
-	for (i = 0, pos = 0; i < 4; i++, pos += 4) {
-		u32 w = inter[i];
-		ciphertext[pos    ] = (u8)(w >> 24);
-		ciphertext[pos + 1] = (u8)(w >> 16);
-		ciphertext[pos + 2] = (u8)(w >>  8);
-		ciphertext[pos + 3] = (u8)(w      );
-	}
+	for (i = 0; i < 4; i++)
+		dst[i] = cpu_to_be32(inter[i]);
 }
 
 static void anubis_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
@@ -689,6 +677,7 @@ static struct crypto_alg anubis_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	ANUBIS_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct anubis_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(anubis_alg.cra_list),
 	.cra_u			=	{ .cipher = {

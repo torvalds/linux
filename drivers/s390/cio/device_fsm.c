@@ -4,7 +4,7 @@
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
- *    Author(s): Cornelia Huck(cohuck@de.ibm.com)
+ *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
@@ -133,7 +133,7 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 	int ret;
 
 	sch = to_subchannel(cdev->dev.parent);
-	ret = stsch(sch->irq, &sch->schib);
+	ret = stsch(sch->schid, &sch->schib);
 	if (ret || !sch->schib.pmcw.dnv)
 		return -ENODEV; 
 	if (!sch->schib.pmcw.ena || sch->schib.scsw.actl == 0)
@@ -231,7 +231,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	 * through ssch() and the path information is up to date.
 	 */
 	old_lpm = sch->lpm;
-	stsch(sch->irq, &sch->schib);
+	stsch(sch->schid, &sch->schib);
 	sch->lpm = sch->schib.pmcw.pim &
 		sch->schib.pmcw.pam &
 		sch->schib.pmcw.pom &
@@ -257,8 +257,9 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	switch (state) {
 	case DEV_STATE_NOT_OPER:
 		CIO_DEBUG(KERN_WARNING, 2,
-			  "SenseID : unknown device %04x on subchannel %04x\n",
-			  cdev->private->devno, sch->irq);
+			  "SenseID : unknown device %04x on subchannel "
+			  "0.%x.%04x\n", cdev->private->devno,
+			  sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
 		if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID) {
@@ -282,16 +283,18 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			return;
 		}
 		/* Issue device info message. */
-		CIO_DEBUG(KERN_INFO, 2, "SenseID : device %04x reports: "
+		CIO_DEBUG(KERN_INFO, 2, "SenseID : device 0.%x.%04x reports: "
 			  "CU  Type/Mod = %04X/%02X, Dev Type/Mod = "
-			  "%04X/%02X\n", cdev->private->devno,
+			  "%04X/%02X\n",
+			  cdev->private->ssid, cdev->private->devno,
 			  cdev->id.cu_type, cdev->id.cu_model,
 			  cdev->id.dev_type, cdev->id.dev_model);
 		break;
 	case DEV_STATE_BOXED:
 		CIO_DEBUG(KERN_WARNING, 2,
-			  "SenseID : boxed device %04x on subchannel %04x\n",
-			  cdev->private->devno, sch->irq);
+			  "SenseID : boxed device %04x on subchannel "
+			  "0.%x.%04x\n", cdev->private->devno,
+			  sch->schid.ssid, sch->schid.sch_no);
 		break;
 	}
 	cdev->private->state = state;
@@ -359,7 +362,7 @@ ccw_device_done(struct ccw_device *cdev, int state)
 	if (state == DEV_STATE_BOXED)
 		CIO_DEBUG(KERN_WARNING, 2,
 			  "Boxed device %04x on subchannel %04x\n",
-			  cdev->private->devno, sch->irq);
+			  cdev->private->devno, sch->schid.sch_no);
 
 	if (cdev->private->flags.donotify) {
 		cdev->private->flags.donotify = 0;
@@ -592,7 +595,7 @@ ccw_device_offline(struct ccw_device *cdev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
-	if (stsch(sch->irq, &sch->schib) || !sch->schib.pmcw.dnv)
+	if (stsch(sch->schid, &sch->schib) || !sch->schib.pmcw.dnv)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE) {
 		if (sch->schib.scsw.actl != 0)
@@ -711,7 +714,7 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	 * Since we might not just be coming from an interrupt from the
 	 * subchannel we have to update the schib.
 	 */
-	stsch(sch->irq, &sch->schib);
+	stsch(sch->schid, &sch->schib);
 
 	if (sch->schib.scsw.actl != 0 ||
 	    (cdev->private->irb.scsw.stctl & SCSW_STCTL_STATUS_PEND)) {
@@ -923,7 +926,7 @@ ccw_device_wait4io_irq(struct ccw_device *cdev, enum dev_event dev_event)
 
 	/* Iff device is idle, reset timeout. */
 	sch = to_subchannel(cdev->dev.parent);
-	if (!stsch(sch->irq, &sch->schib))
+	if (!stsch(sch->schid, &sch->schib))
 		if (sch->schib.scsw.actl == 0)
 			ccw_device_set_timeout(cdev, 0);
 	/* Call the handler. */
@@ -1035,7 +1038,7 @@ device_trigger_reprobe(struct subchannel *sch)
 		return;
 
 	/* Update some values. */
-	if (stsch(sch->irq, &sch->schib))
+	if (stsch(sch->schid, &sch->schib))
 		return;
 
 	/*

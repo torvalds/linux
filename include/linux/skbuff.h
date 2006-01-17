@@ -32,7 +32,6 @@
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
 #define HAVE_ALIGNABLE_SKB	/* Ditto 8)		   */
-#define SLAB_SKB 		/* Slabified skbuffs 	   */
 
 #define CHECKSUM_NONE 0
 #define CHECKSUM_HW 1
@@ -134,7 +133,7 @@ struct skb_frag_struct {
  */
 struct skb_shared_info {
 	atomic_t	dataref;
-	unsigned int	nr_frags;
+	unsigned short	nr_frags;
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
 	unsigned short  ufo_size;
@@ -252,7 +251,7 @@ struct sk_buff {
 	 * want to keep them across layers you have to do a skb_clone()
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
-	char			cb[40];
+	char			cb[48];
 
 	unsigned int		len,
 				data_len,
@@ -1239,6 +1238,8 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 							int hlen,
 							struct iovec *iov);
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
+extern void	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
+					 unsigned int flags);
 extern unsigned int    skb_checksum(const struct sk_buff *skb, int offset,
 				    int len, unsigned int csum);
 extern int	       skb_copy_bits(const struct sk_buff *skb, int offset,

@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

@@ -29,7 +29,7 @@
  * open the hwdep device
  */
 static int
-snd_emux_hwdep_open(snd_hwdep_t *hw, struct file *file)
+snd_emux_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
 	return 0;
 }
@@ -39,7 +39,7 @@ snd_emux_hwdep_open(snd_hwdep_t *hw, struct file *file)
  * close the device
  */
 static int
-snd_emux_hwdep_release(snd_hwdep_t *hw, struct file *file)
+snd_emux_hwdep_release(struct snd_hwdep *hw, struct file *file)
 {
 	return 0;
 }
@@ -51,10 +51,10 @@ snd_emux_hwdep_release(snd_hwdep_t *hw, struct file *file)
  * load patch
  */
 static int
-snd_emux_hwdep_load_patch(snd_emux_t *emu, void __user *arg)
+snd_emux_hwdep_load_patch(struct snd_emux *emu, void __user *arg)
 {
 	int err;
-	soundfont_patch_info_t patch;
+	struct soundfont_patch_info patch;
 
 	if (copy_from_user(&patch, arg, sizeof(patch)))
 		return -EFAULT;
@@ -77,9 +77,9 @@ snd_emux_hwdep_load_patch(snd_emux_t *emu, void __user *arg)
  * set misc mode
  */
 static int
-snd_emux_hwdep_misc_mode(snd_emux_t *emu, void __user *arg)
+snd_emux_hwdep_misc_mode(struct snd_emux *emu, void __user *arg)
 {
-	struct sndrv_emux_misc_mode info;
+	struct snd_emux_misc_mode info;
 	int i;
 
 	if (copy_from_user(&info, arg, sizeof(info)))
@@ -102,9 +102,10 @@ snd_emux_hwdep_misc_mode(snd_emux_t *emu, void __user *arg)
  * ioctl
  */
 static int
-snd_emux_hwdep_ioctl(snd_hwdep_t * hw, struct file *file, unsigned int cmd, unsigned long arg)
+snd_emux_hwdep_ioctl(struct snd_hwdep * hw, struct file *file,
+		     unsigned int cmd, unsigned long arg)
 {
-	snd_emux_t *emu = hw->private_data;
+	struct snd_emux *emu = hw->private_data;
 
 	switch (cmd) {
 	case SNDRV_EMUX_IOCTL_VERSION:
@@ -136,9 +137,9 @@ snd_emux_hwdep_ioctl(snd_hwdep_t * hw, struct file *file, unsigned int cmd, unsi
  */
 
 int
-snd_emux_init_hwdep(snd_emux_t *emu)
+snd_emux_init_hwdep(struct snd_emux *emu)
 {
-	snd_hwdep_t *hw;
+	struct snd_hwdep *hw;
 	int err;
 
 	if ((err = snd_hwdep_new(emu->card, SNDRV_EMUX_HWDEP_NAME, emu->hwdep_idx, &hw)) < 0)
@@ -162,7 +163,7 @@ snd_emux_init_hwdep(snd_emux_t *emu)
  * unregister
  */
 void
-snd_emux_delete_hwdep(snd_emux_t *emu)
+snd_emux_delete_hwdep(struct snd_emux *emu)
 {
 	if (emu->hwdep) {
 		snd_device_free(emu->card, emu->hwdep);

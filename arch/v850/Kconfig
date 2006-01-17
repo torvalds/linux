@@ -10,9 +10,6 @@ mainmenu "uClinux/v850 (w/o MMU) Kernel Configuration"
 config MMU
        	bool
 	default n
-config UID16
-	bool
-	default n
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

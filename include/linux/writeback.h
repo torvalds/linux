@@ -53,17 +53,12 @@ struct writeback_control {
 	loff_t start;
 	loff_t end;
 
-	unsigned nonblocking:1;			/* Don't get stuck on request queues */
-	unsigned encountered_congestion:1;	/* An output: a queue is full */
-	unsigned for_kupdate:1;			/* A kupdate writeback */
-	unsigned for_reclaim:1;			/* Invoked from the page allocator */
+	unsigned nonblocking:1;		/* Don't get stuck on request queues */
+	unsigned encountered_congestion:1; /* An output: a queue is full */
+	unsigned for_kupdate:1;		/* A kupdate writeback */
+	unsigned for_reclaim:1;		/* Invoked from the page allocator */
+	unsigned for_writepages:1;	/* This is a writepages() call */
 };
-
-/*
- * ->writepage() return values (make these much larger than a pagesize, in
- * case some fs is returning number-of-bytes-written from writepage)
- */
-#define WRITEPAGE_ACTIVATE	0x80000	/* IO was not started: activate page */
 
 /*
  * fs/fs-writeback.c
@@ -108,7 +103,9 @@ void balance_dirty_pages_ratelimited(struct address_space *mapping);
 int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc);
 int sync_page_range(struct inode *inode, struct address_space *mapping,
-			loff_t pos, size_t count);
+			loff_t pos, loff_t count);
+int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
+			   loff_t pos, loff_t count);
 
 /* pdflush.c */
 extern int nr_pdflush_threads;	/* Global so it can be exported to sysctl

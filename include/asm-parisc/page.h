@@ -135,6 +135,13 @@ extern int npmem_ranges;
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif /* CONFIG_DISCONTIGMEM */
 
+#ifdef CONFIG_HUGETLB_PAGE
+#define HPAGE_SHIFT		22	/* 4MB (is this fixed?) */
+#define HPAGE_SIZE      	((1UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#endif
+
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)

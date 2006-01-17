@@ -129,6 +129,7 @@ enum {
 	ATA_CMD_READ_EXT	= 0x25,
 	ATA_CMD_WRITE		= 0xCA,
 	ATA_CMD_WRITE_EXT	= 0x35,
+	ATA_CMD_WRITE_FUA_EXT	= 0x3D,
 	ATA_CMD_PIO_READ	= 0x20,
 	ATA_CMD_PIO_READ_EXT	= 0x24,
 	ATA_CMD_PIO_WRITE	= 0x30,
@@ -137,10 +138,13 @@ enum {
 	ATA_CMD_READ_MULTI_EXT	= 0x29,
 	ATA_CMD_WRITE_MULTI	= 0xC5,
 	ATA_CMD_WRITE_MULTI_EXT	= 0x39,
+	ATA_CMD_WRITE_MULTI_FUA_EXT = 0xCE,
 	ATA_CMD_SET_FEATURES	= 0xEF,
 	ATA_CMD_PACKET		= 0xA0,
 	ATA_CMD_VERIFY		= 0x40,
 	ATA_CMD_VERIFY_EXT	= 0x42,
+ 	ATA_CMD_STANDBYNOW1	= 0xE0,
+ 	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
 	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
 
 	/* SETFEATURES stuff */
@@ -192,7 +196,8 @@ enum {
 	ATA_TFLAG_DEVICE	= (1 << 2), /* enable r/w to device reg */
 	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
 	ATA_TFLAG_LBA		= (1 << 4), /* enable LBA */
-	ATA_TFLAG_POLLING	= (1 << 5), /* set nIEN to 1 and use polling */
+	ATA_TFLAG_FUA		= (1 << 5), /* enable FUA */
+	ATA_TFLAG_POLLING	= (1 << 6), /* set nIEN to 1 and use polling */
 };
 
 enum ata_tf_protocols {
@@ -246,7 +251,8 @@ struct ata_taskfile {
 #define ata_id_is_sata(id)	((id)[93] == 0)
 #define ata_id_rahead_enabled(id) ((id)[85] & (1 << 6))
 #define ata_id_wcache_enabled(id) ((id)[85] & (1 << 5))
-#define ata_id_has_flush(id) ((id)[83] & (1 << 12))
+#define ata_id_has_fua(id)	((id)[84] & (1 << 6))
+#define ata_id_has_flush(id)	((id)[83] & (1 << 12))
 #define ata_id_has_flush_ext(id) ((id)[83] & (1 << 13))
 #define ata_id_has_lba48(id)	((id)[83] & (1 << 10))
 #define ata_id_has_wcache(id)	((id)[82] & (1 << 5))

@@ -399,7 +399,7 @@ struct scc_port {
 		__asm__ __volatile__ ( "tstb %0" : : "g" (*_scc_del) : "cc" );\
     } while (0)
 
-extern unsigned char scc_shadow[2][16];
+static unsigned char scc_shadow[2][16];
 
 /* The following functions should relax the somehow complicated
  * register access of the SCC. _SCCwrite() stores all written values

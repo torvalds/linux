@@ -104,7 +104,7 @@ struct sadb_prop {
 /* followed by:
 	struct sadb_comb sadb_combs[(sadb_prop_len +
 		sizeof(uint64_t) - sizeof(struct sadb_prop)) /
-		sizeof(strut sadb_comb)]; */
+		sizeof(struct sadb_comb)]; */
 
 struct sadb_comb {
 	uint8_t		sadb_comb_auth;
@@ -216,6 +216,16 @@ struct sadb_x_nat_t_port {
 } __attribute__((packed));
 /* sizeof(struct sadb_x_nat_t_port) == 8 */
 
+/* Generic LSM security context */
+struct sadb_x_sec_ctx {
+	uint16_t	sadb_x_sec_len;
+	uint16_t	sadb_x_sec_exttype;
+	uint8_t		sadb_x_ctx_alg;  /* LSMs: e.g., selinux == 1 */
+	uint8_t		sadb_x_ctx_doi;
+	uint16_t	sadb_x_ctx_len;
+} __attribute__((packed));
+/* sizeof(struct sadb_sec_ctx) = 8 */
+
 /* Message types */
 #define SADB_RESERVED		0
 #define SADB_GETSPI		1
@@ -325,7 +335,8 @@ struct sadb_x_nat_t_port {
 #define SADB_X_EXT_NAT_T_SPORT		21
 #define SADB_X_EXT_NAT_T_DPORT		22
 #define SADB_X_EXT_NAT_T_OA		23
-#define SADB_EXT_MAX			23
+#define SADB_X_EXT_SEC_CTX		24
+#define SADB_EXT_MAX			24
 
 /* Identity Extension values */
 #define SADB_IDENTTYPE_RESERVED	0

@@ -25,10 +25,14 @@ extern void disable_irq_nosync(unsigned int);
 extern void disable_irq(unsigned int);
 extern void enable_irq(unsigned int);
 
-#define __IRQT_FALEDGE	(1 << 0)
-#define __IRQT_RISEDGE	(1 << 1)
-#define __IRQT_LOWLVL	(1 << 2)
-#define __IRQT_HIGHLVL	(1 << 3)
+/*
+ * These correspond with the SA_TRIGGER_* defines, and therefore the
+ * IRQRESOURCE_IRQ_* defines.
+ */
+#define __IRQT_RISEDGE	(1 << 0)
+#define __IRQT_FALEDGE	(1 << 1)
+#define __IRQT_HIGHLVL	(1 << 2)
+#define __IRQT_LOWLVL	(1 << 3)
 
 #define IRQT_NOEDGE	(0)
 #define IRQT_RISING	(__IRQT_RISEDGE)

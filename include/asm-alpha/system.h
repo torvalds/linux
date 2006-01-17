@@ -131,14 +131,24 @@ struct el_common_EV6_mcheck {
 extern void halt(void) __attribute__((noreturn));
 #define __halt() __asm__ __volatile__ ("call_pal %0 #halt" : : "i" (PAL_halt))
 
-#define switch_to(P,N,L)						\
-  do {									\
-    (L) = alpha_switch_to(virt_to_phys(&(N)->thread_info->pcb), (P));	\
-    check_mmu_context();						\
+#define switch_to(P,N,L)						 \
+  do {									 \
+    (L) = alpha_switch_to(virt_to_phys(&task_thread_info(N)->pcb), (P)); \
+    check_mmu_context();						 \
   } while (0)
 
 struct task_struct;
 extern struct task_struct *alpha_switch_to(unsigned long, struct task_struct*);
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
 
 #define imb() \
 __asm__ __volatile__ ("call_pal %0 #imb" : : "i" (PAL_imb) : "memory")

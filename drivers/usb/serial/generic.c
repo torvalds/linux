@@ -68,11 +68,11 @@ static int generic_probe(struct usb_interface *interface,
 }
 
 static struct usb_driver generic_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbserial_generic",
 	.probe =	generic_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	generic_serial_ids,
+	.no_dynamic_id = 	1,
 };
 #endif
 
@@ -254,7 +254,6 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *reg
 	struct usb_serial *serial = port->serial;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
-	int i;
 	int result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
@@ -268,14 +267,8 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *reg
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		for (i = 0; i < urb->actual_length ; ++i) {
-			/* if we insert more than TTY_FLIPBUF_SIZE characters, we drop them. */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
-			/* this doesn't actually push the data through unless tty->low_latency is set */
-			tty_insert_flip_char(tty, data[i], 0);
-		}
+		tty_buffer_request_room(tty, urb->actual_length);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 	  	tty_flip_buffer_push(tty);
 	}
 

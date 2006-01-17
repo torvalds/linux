@@ -884,7 +884,7 @@ ToDo/Notes:
 
 	- Add handling for initialized_size != data_size in compressed files.
 	- Reduce function local stack usage from 0x3d4 bytes to just noise in
-	  fs/ntfs/upcase.c. (Randy Dunlap <rddunlap@osdl.ord>)
+	  fs/ntfs/upcase.c. (Randy Dunlap <rdunlap@xenotime.net>)
 	- Remove compiler warnings for newer gcc.
 	- Pages are no longer kmapped by mm/filemap.c::generic_file_write()
 	  around calls to ->{prepare,commit}_write.  Adapt NTFS appropriately

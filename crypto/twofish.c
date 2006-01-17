@@ -37,6 +37,8 @@
  * Abstract Algebra_ by Joseph A. Gallian, especially chapter 22 in the
  * Third Edition.
  */
+
+#include <asm/byteorder.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -621,13 +623,11 @@ static const u8 calc_sb_tbl[512] = {
  * whitening subkey number m. */
 
 #define INPACK(n, x, m) \
-   x = in[4 * (n)] ^ (in[4 * (n) + 1] << 8) \
-     ^ (in[4 * (n) + 2] << 16) ^ (in[4 * (n) + 3] << 24) ^ ctx->w[m]
+   x = le32_to_cpu(src[n]) ^ ctx->w[m]
 
 #define OUTUNPACK(n, x, m) \
    x ^= ctx->w[m]; \
-   out[4 * (n)] = x; out[4 * (n) + 1] = x >> 8; \
-   out[4 * (n) + 2] = x >> 16; out[4 * (n) + 3] = x >> 24
+   dst[n] = cpu_to_le32(x)
 
 #define TF_MIN_KEY_SIZE 16
 #define TF_MAX_KEY_SIZE 32
@@ -804,6 +804,8 @@ static int twofish_setkey(void *cx, const u8 *key,
 static void twofish_encrypt(void *cx, u8 *out, const u8 *in)
 {
 	struct twofish_ctx *ctx = cx;
+	const __le32 *src = (const __le32 *)in;
+	__le32 *dst = (__le32 *)out;
 
 	/* The four 32-bit chunks of the text. */
 	u32 a, b, c, d;
@@ -839,6 +841,8 @@ static void twofish_encrypt(void *cx, u8 *out, const u8 *in)
 static void twofish_decrypt(void *cx, u8 *out, const u8 *in)
 {
 	struct twofish_ctx *ctx = cx;
+	const __le32 *src = (const __le32 *)in;
+	__le32 *dst = (__le32 *)out;
   
 	/* The four 32-bit chunks of the text. */
 	u32 a, b, c, d;
@@ -875,6 +879,7 @@ static struct crypto_alg alg = {
 	.cra_flags          =   CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize      =   TF_BLOCK_SIZE,
 	.cra_ctxsize        =   sizeof(struct twofish_ctx),
+	.cra_alignmask      =	3,
 	.cra_module         =   THIS_MODULE,
 	.cra_list           =   LIST_HEAD_INIT(alg.cra_list),
 	.cra_u              =   { .cipher = {

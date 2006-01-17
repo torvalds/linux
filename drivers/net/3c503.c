@@ -148,14 +148,6 @@ el2_pio_probe(struct net_device *dev)
     return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	/* NB: el2_close() handles free_irq */
-	release_region(dev->base_addr, EL2_IO_EXTENT);
-	if (ei_status.mem)
-		iounmap(ei_status.mem);
-}
-
 #ifndef MODULE
 struct net_device * __init el2_probe(int unit)
 {
@@ -724,6 +716,14 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	/* NB: el2_close() handles free_irq */
+	release_region(dev->base_addr, EL2_IO_EXTENT);
+	if (ei_status.mem)
+		iounmap(ei_status.mem);
 }
 
 void

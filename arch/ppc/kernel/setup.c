@@ -1,5 +1,5 @@
 /*
- * Common prep/pmac/chrp boot and setup code.
+ * Common prep/chrp boot and setup code.
  */
 
 #include <linux/config.h>
@@ -35,7 +35,6 @@
 #include <asm/machdep.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/pmac_feature.h>
 #include <asm/sections.h>
 #include <asm/nvram.h>
 #include <asm/xmon.h>
@@ -55,7 +54,6 @@
 
 extern void platform_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
-extern void bootx_init(unsigned long r4, unsigned long phys);
 extern void identify_cpu(unsigned long offset, unsigned long cpu);
 extern void do_cpu_ftr_fixups(unsigned long offset);
 extern void reloc_got2(unsigned long offset);
@@ -79,8 +77,6 @@ int _machine = 0;
 EXPORT_SYMBOL(_machine);
 
 extern void prep_init(unsigned long r3, unsigned long r4,
-		unsigned long r5, unsigned long r6, unsigned long r7);
-extern void pmac_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
 extern void chrp_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
@@ -324,20 +320,15 @@ early_init(int r3, int r4, int r5)
 	identify_cpu(offset, 0);
 	do_cpu_ftr_fixups(offset);
 
-#if defined(CONFIG_PPC_MULTIPLATFORM)
+#if defined(CONFIG_PPC_OF)
 	reloc_got2(offset);
-
-	/* If we came here from BootX, clear the screen,
-	 * set up some pointers and return. */
-	if ((r3 == 0x426f6f58) && (r5 == 0))
-		bootx_init(r4, phys);
 
 	/*
 	 * don't do anything on prep
 	 * for now, don't use bootinfo because it breaks yaboot 0.5
 	 * and assume that if we didn't find a magic number, we have OF
 	 */
-	else if (*(unsigned long *)(0) != 0xdeadc0de)
+	if (*(unsigned long *)(0) != 0xdeadc0de)
 		phys = prom_init(r3, r4, (prom_entry)r5);
 
 	reloc_got2(-offset);
@@ -424,6 +415,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	}
 #endif
 
+#ifdef CONFIG_PPC_OF
 	have_of = 1;
 
 	/* prom_init has already been called from __start */
@@ -495,19 +487,17 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif /* CONFIG_ADB */
 
 	switch (_machine) {
-#ifdef CONFIG_PPC_PMAC
-	case _MACH_Pmac:
-		pmac_init(r3, r4, r5, r6, r7);
-		break;
-#endif
 #ifdef CONFIG_PPC_CHRP
 	case _MACH_chrp:
 		chrp_init(r3, r4, r5, r6, r7);
 		break;
 #endif
 	}
+#endif /* CONFIG_PPC_OF */
 }
+#endif /* CONFIG_PPC_MULTIPLATFORM */
 
+#ifdef CONFIG_PPC_OF
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 extern char *of_stdout_device;
 
@@ -564,7 +554,7 @@ static int __init set_preferred_console(void)
 }
 console_initcall(set_preferred_console);
 #endif /* CONFIG_SERIAL_CORE_CONSOLE */
-#endif /* CONFIG_PPC_MULTIPLATFORM */
+#endif /* CONFIG_PPC_OF */
 
 struct bi_record *find_bootinfo(void)
 {
@@ -744,13 +734,8 @@ void __init setup_arch(char **cmdline_p)
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-	/* This could be called "early setup arch", it must be done
-	 * now because xmon need it
-	 */
-	if (_machine == _MACH_Pmac)
-		pmac_feature_init();	/* New cool way */
-#endif
+	if (ppc_md.init_early)
+		ppc_md.init_early();
 
 #ifdef CONFIG_XMON
 	xmon_init(1);

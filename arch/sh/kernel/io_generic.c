@@ -3,6 +3,7 @@
  * linux/arch/sh/kernel/io_generic.c
  *
  * Copyright (C) 2000  Niibe Yutaka
+ * Copyright (C) 2005  Paul Mundt
  *
  * Generic I/O routine. These can be used where a machine specific version
  * is not required.
@@ -10,20 +11,19 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
  */
-
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
-#include <linux/module.h>
 
-#if defined(CONFIG_CPU_SH3)
+#ifdef CONFIG_CPU_SH3
+/* SH3 has a PCMCIA bug that needs a dummy read from area 6 for a
+ * workaround. */
 /* I'm not sure SH7709 has this kind of bug */
-#define SH3_PCMCIA_BUG_WORKAROUND 1
-#define DUMMY_READ_AREA6	  0xba000000
+#define dummy_read()	ctrl_inb(0xba000000)
+#else
+#define dummy_read()
 #endif
-
-#define PORT2ADDR(x) (sh_mv.mv_isa_port2addr(x))
 
 unsigned long generic_io_base;
 
@@ -32,40 +32,40 @@ static inline void delay(void)
 	ctrl_inw(0xa0000000);
 }
 
-unsigned char generic_inb(unsigned long port)
+u8 generic_inb(unsigned long port)
 {
-	return *(volatile unsigned char*)PORT2ADDR(port);
+	return ctrl_inb((unsigned long __force)ioport_map(port, 1));
 }
 
-unsigned short generic_inw(unsigned long port)
+u16 generic_inw(unsigned long port)
 {
-	return *(volatile unsigned short*)PORT2ADDR(port);
+	return ctrl_inw((unsigned long __force)ioport_map(port, 2));
 }
 
-unsigned int generic_inl(unsigned long port)
+u32 generic_inl(unsigned long port)
 {
-	return *(volatile unsigned long*)PORT2ADDR(port);
+	return ctrl_inl((unsigned long __force)ioport_map(port, 4));
 }
 
-unsigned char generic_inb_p(unsigned long port)
+u8 generic_inb_p(unsigned long port)
 {
-	unsigned long v = *(volatile unsigned char*)PORT2ADDR(port);
+	unsigned long v = generic_inb(port);
 
 	delay();
 	return v;
 }
 
-unsigned short generic_inw_p(unsigned long port)
+u16 generic_inw_p(unsigned long port)
 {
-	unsigned long v = *(volatile unsigned short*)PORT2ADDR(port);
+	unsigned long v = generic_inw(port);
 
 	delay();
 	return v;
 }
 
-unsigned int generic_inl_p(unsigned long port)
+u32 generic_inl_p(unsigned long port)
 {
-	unsigned long v = *(volatile unsigned long*)PORT2ADDR(port);
+	unsigned long v = generic_inl(port);
 
 	delay();
 	return v;
@@ -77,75 +77,70 @@ unsigned int generic_inl_p(unsigned long port)
  * convert the port address to real address once.
  */
 
-void generic_insb(unsigned long port, void *buffer, unsigned long count)
+void generic_insb(unsigned long port, void *dst, unsigned long count)
 {
-	volatile unsigned char *port_addr;
-	unsigned char *buf=buffer;
+	volatile u8 *port_addr;
+	u8 *buf = dst;
 
-	port_addr = (volatile unsigned char *)PORT2ADDR(port);
-
-	while(count--)
-	    *buf++ = *port_addr;
+	port_addr = (volatile u8 *)ioport_map(port, 1);
+	while (count--)
+		*buf++ = *port_addr;
 }
 
-void generic_insw(unsigned long port, void *buffer, unsigned long count)
+void generic_insw(unsigned long port, void *dst, unsigned long count)
 {
-	volatile unsigned short *port_addr;
-	unsigned short *buf=buffer;
+	volatile u16 *port_addr;
+	u16 *buf = dst;
 
-	port_addr = (volatile unsigned short *)PORT2ADDR(port);
+	port_addr = (volatile u16 *)ioport_map(port, 2);
+	while (count--)
+		*buf++ = *port_addr;
 
-	while(count--)
-	    *buf++ = *port_addr;
-#ifdef SH3_PCMCIA_BUG_WORKAROUND
-	ctrl_inb (DUMMY_READ_AREA6);
-#endif
+	dummy_read();
 }
 
-void generic_insl(unsigned long port, void *buffer, unsigned long count)
+void generic_insl(unsigned long port, void *dst, unsigned long count)
 {
-	volatile unsigned long *port_addr;
-	unsigned long *buf=buffer;
+	volatile u32 *port_addr;
+	u32 *buf = dst;
 
-	port_addr = (volatile unsigned long *)PORT2ADDR(port);
+	port_addr = (volatile u32 *)ioport_map(port, 4);
+	while (count--)
+		*buf++ = *port_addr;
 
-	while(count--)
-	    *buf++ = *port_addr;
-#ifdef SH3_PCMCIA_BUG_WORKAROUND
-	ctrl_inb (DUMMY_READ_AREA6);
-#endif
+	dummy_read();
 }
 
-void generic_outb(unsigned char b, unsigned long port)
+void generic_outb(u8 b, unsigned long port)
 {
-	*(volatile unsigned char*)PORT2ADDR(port) = b;
+	ctrl_outb(b, (unsigned long __force)ioport_map(port, 1));
 }
 
-void generic_outw(unsigned short b, unsigned long port)
+void generic_outw(u16 b, unsigned long port)
 {
-	*(volatile unsigned short*)PORT2ADDR(port) = b;
+	ctrl_outw(b, (unsigned long __force)ioport_map(port, 2));
 }
 
-void generic_outl(unsigned int b, unsigned long port)
+void generic_outl(u32 b, unsigned long port)
 {
-        *(volatile unsigned long*)PORT2ADDR(port) = b;
+	ctrl_outl(b, (unsigned long __force)ioport_map(port, 4));
 }
 
-void generic_outb_p(unsigned char b, unsigned long port)
+void generic_outb_p(u8 b, unsigned long port)
 {
-	*(volatile unsigned char*)PORT2ADDR(port) = b;
+	generic_outb(b, port);
 	delay();
 }
 
-void generic_outw_p(unsigned short b, unsigned long port)
+void generic_outw_p(u16 b, unsigned long port)
 {
-	*(volatile unsigned short*)PORT2ADDR(port) = b;
+	generic_outw(b, port);
 	delay();
 }
 
-void generic_outl_p(unsigned int b, unsigned long port)
+void generic_outl_p(u32 b, unsigned long port)
 {
-	*(volatile unsigned long*)PORT2ADDR(port) = b;
+	generic_outl(b, port);
 	delay();
 }
 
@@ -154,90 +149,77 @@ void generic_outl_p(unsigned int b, unsigned long port)
  * address. However as the port address doesn't change we only need to
  * convert the port address to real address once.
  */
-
-void generic_outsb(unsigned long port, const void *buffer, unsigned long count)
+void generic_outsb(unsigned long port, const void *src, unsigned long count)
 {
-	volatile unsigned char *port_addr;
-	const unsigned char *buf=buffer;
+	volatile u8 *port_addr;
+	const u8 *buf = src;
 
-	port_addr = (volatile unsigned char *)PORT2ADDR(port);
+	port_addr = (volatile u8 __force *)ioport_map(port, 1);
 
-	while(count--)
-	    *port_addr = *buf++;
+	while (count--)
+		*port_addr = *buf++;
 }
 
-void generic_outsw(unsigned long port, const void *buffer, unsigned long count)
+void generic_outsw(unsigned long port, const void *src, unsigned long count)
 {
-	volatile unsigned short *port_addr;
-	const unsigned short *buf=buffer;
+	volatile u16 *port_addr;
+	const u16 *buf = src;
 
-	port_addr = (volatile unsigned short *)PORT2ADDR(port);
+	port_addr = (volatile u16 __force *)ioport_map(port, 2);
 
-	while(count--)
-	    *port_addr = *buf++;
+	while (count--)
+		*port_addr = *buf++;
 
-#ifdef SH3_PCMCIA_BUG_WORKAROUND
-	ctrl_inb (DUMMY_READ_AREA6);
-#endif
+	dummy_read();
 }
 
-void generic_outsl(unsigned long port, const void *buffer, unsigned long count)
+void generic_outsl(unsigned long port, const void *src, unsigned long count)
 {
-	volatile unsigned long *port_addr;
-	const unsigned long *buf=buffer;
+	volatile u32 *port_addr;
+	const u32 *buf = src;
 
-	port_addr = (volatile unsigned long *)PORT2ADDR(port);
+	port_addr = (volatile u32 __force *)ioport_map(port, 4);
+	while (count--)
+		*port_addr = *buf++;
 
-	while(count--)
-	    *port_addr = *buf++;
-
-#ifdef SH3_PCMCIA_BUG_WORKAROUND
-	ctrl_inb (DUMMY_READ_AREA6);
-#endif
+	dummy_read();
 }
 
-unsigned char generic_readb(unsigned long addr)
+u8 generic_readb(void __iomem *addr)
 {
-	return *(volatile unsigned char*)addr;
+	return ctrl_inb((unsigned long __force)addr);
 }
 
-unsigned short generic_readw(unsigned long addr)
+u16 generic_readw(void __iomem *addr)
 {
-	return *(volatile unsigned short*)addr;
+	return ctrl_inw((unsigned long __force)addr);
 }
 
-unsigned int generic_readl(unsigned long addr)
+u32 generic_readl(void __iomem *addr)
 {
-	return *(volatile unsigned long*)addr;
+	return ctrl_inl((unsigned long __force)addr);
 }
 
-void generic_writeb(unsigned char b, unsigned long addr)
+void generic_writeb(u8 b, void __iomem *addr)
 {
-	*(volatile unsigned char*)addr = b;
+	ctrl_outb(b, (unsigned long __force)addr);
 }
 
-void generic_writew(unsigned short b, unsigned long addr)
+void generic_writew(u16 b, void __iomem *addr)
 {
-	*(volatile unsigned short*)addr = b;
+	ctrl_outw(b, (unsigned long __force)addr);
 }
 
-void generic_writel(unsigned int b, unsigned long addr)
+void generic_writel(u32 b, void __iomem *addr)
 {
-        *(volatile unsigned long*)addr = b;
+	ctrl_outl(b, (unsigned long __force)addr);
 }
 
-void * generic_ioremap(unsigned long offset, unsigned long size)
+void __iomem *generic_ioport_map(unsigned long addr, unsigned int size)
 {
-	return (void *) P2SEGADDR(offset);
+	return (void __iomem *)(addr + generic_io_base);
 }
-EXPORT_SYMBOL(generic_ioremap);
 
-void generic_iounmap(void *addr)
+void generic_ioport_unmap(void __iomem *addr)
 {
-}
-EXPORT_SYMBOL(generic_iounmap);
-
-unsigned long generic_isa_port2addr(unsigned long offset)
-{
-	return offset + generic_io_base;
 }

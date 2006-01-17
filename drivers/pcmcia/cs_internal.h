@@ -117,7 +117,7 @@ int verify_cis_cache(struct pcmcia_socket *s);
 int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function, cisdata_t code, void *parse);
 
 /* In rsrc_mgr */
-void pcmcia_validate_mem(struct pcmcia_socket *s);
+int pcmcia_validate_mem(struct pcmcia_socket *s);
 struct resource *pcmcia_find_io_region(unsigned long base, int num, unsigned long align,
 		   struct pcmcia_socket *s);
 int pcmcia_adjust_io_region(struct resource *res, unsigned long r_start,
@@ -143,6 +143,8 @@ struct pcmcia_callback{
 	struct module	*owner;
 	int		(*event) (struct pcmcia_socket *s, event_t event, int priority);
 	void		(*requery) (struct pcmcia_socket *s);
+	int		(*suspend) (struct pcmcia_socket *s);
+	int		(*resume) (struct pcmcia_socket *s);
 };
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);

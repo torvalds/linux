@@ -199,7 +199,7 @@ The rationale is:
     modifications are prevented
 - saves the compiler work to optimize redundant code away ;)
 
-int fun(int )
+int fun(int a)
 {
 	int result = 0;
 	char *buffer = kmalloc(SIZE);
@@ -344,7 +344,7 @@ Remember: if another thread can find your data structure, and you don't
 have a reference count on it, you almost certainly have a bug.
 
 
-		Chapter 11: Macros, Enums, Inline functions and RTL
+		Chapter 11: Macros, Enums and RTL
 
 Names of macros defining constants and labels in enums are capitalized.
 
@@ -429,7 +429,35 @@ from void pointer to any other pointer type is guaranteed by the C programming
 language.
 
 
-		Chapter 14: References
+		Chapter 14: The inline disease
+
+There appears to be a common misperception that gcc has a magic "make me
+faster" speedup option called "inline". While the use of inlines can be
+appropriate (for example as a means of replacing macros, see Chapter 11), it
+very often is not. Abundant use of the inline keyword leads to a much bigger
+kernel, which in turn slows the system as a whole down, due to a bigger
+icache footprint for the CPU and simply because there is less memory
+available for the pagecache. Just think about it; a pagecache miss causes a
+disk seek, which easily takes 5 miliseconds. There are a LOT of cpu cycles
+that can go into these 5 miliseconds.
+
+A reasonable rule of thumb is to not put inline at functions that have more
+than 3 lines of code in them. An exception to this rule are the cases where
+a parameter is known to be a compiletime constant, and as a result of this
+constantness you *know* the compiler will be able to optimize most of your
+function away at compile time. For a good example of this later case, see
+the kmalloc() inline function.
+
+Often people argue that adding inline to functions that are static and used
+only once is always a win since there is no space tradeoff. While this is
+technically correct, gcc is capable of inlining these automatically without
+help, and the maintenance issue of removing the inline when a second user
+appears outweighs the potential value of the hint that tells gcc to do
+something it would have done anyway.
+
+
+
+		Chapter 15: References
 
 The C Programming Language, Second Edition
 by Brian W. Kernighan and Dennis M. Ritchie.
@@ -444,10 +472,13 @@ ISBN 0-201-61586-X.
 URL: http://cm.bell-labs.com/cm/cs/tpop/
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
-gcc internals and indent, all available from http://www.gnu.org
+gcc internals and indent, all available from http://www.gnu.org/manual/
 
 WG14 is the international standardization working group for the programming
-language C, URL: http://std.dkuug.dk/JTC1/SC22/WG14/
+language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
+
+Kernel CodingStyle, by greg@kroah.com at OLS 2002:
+http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/
 
 --
-Last updated on 16 February 2004 by a community effort on LKML.
+Last updated on 30 December 2005 by a community effort on LKML.

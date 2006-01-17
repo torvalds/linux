@@ -92,7 +92,6 @@ static struct Aurora_port aurora_port[AURORA_TNPORTS] =  {
 
 /* no longer used. static struct Aurora_board * IRQ_to_board[16] = { NULL, } ;*/
 static unsigned char * tmp_buf = NULL;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 DECLARE_TASK_QUEUE(tq_aurora);
 

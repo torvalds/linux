@@ -32,7 +32,7 @@
 
 irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	emu10k1_t *emu = dev_id;
+	struct snd_emu10k1 *emu = dev_id;
 	unsigned int status, status2, orig_status, orig_status2;
 	int handled = 0;
 
@@ -56,7 +56,7 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			int voice;
 			int voice_max = status & IPR_CHANNELNUMBERMASK;
 			u32 val;
-			emu10k1_voice_t *pvoice = emu->voices;
+			struct snd_emu10k1_voice *pvoice = emu->voices;
 
 			val = snd_emu10k1_ptr_read(emu, CLIPL, 0);
 			for (voice = 0; voice <= voice_max; voice++) {
@@ -150,8 +150,8 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (status & IPR_P16V) {
 			while ((status2 = inl(emu->port + IPR2)) != 0) {
 				u32 mask = INTE2_PLAYBACK_CH_0_LOOP;  /* Full Loop */
-				emu10k1_voice_t *pvoice = &(emu->p16v_voices[0]);
-				emu10k1_voice_t *cvoice = &(emu->p16v_capture_voice);
+				struct snd_emu10k1_voice *pvoice = &(emu->p16v_voices[0]);
+				struct snd_emu10k1_voice *cvoice = &(emu->p16v_capture_voice);
 
 				//printk(KERN_INFO "status2=0x%x\n", status2);
 				orig_status2 = status2;

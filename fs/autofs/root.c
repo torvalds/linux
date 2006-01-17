@@ -10,6 +10,7 @@
  *
  * ------------------------------------------------------------------------- */
 
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/stat.h>
 #include <linux/param.h>
@@ -229,9 +230,9 @@ static struct dentry *autofs_root_lookup(struct inode *dir, struct dentry *dentr
 	dentry->d_flags |= DCACHE_AUTOFS_PENDING;
 	d_add(dentry, NULL);
 
-	up(&dir->i_sem);
+	mutex_unlock(&dir->i_mutex);
 	autofs_revalidate(dentry, nd);
-	down(&dir->i_sem);
+	mutex_lock(&dir->i_mutex);
 
 	/*
 	 * If we are still pending, check if we had to handle

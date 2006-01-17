@@ -58,7 +58,7 @@ struct jfs_inode_info {
 	/*
 	 * rdwrlock serializes xtree between reads & writes and synchronizes
 	 * changes to special inodes.  It's use would be redundant on
-	 * directories since the i_sem taken in the VFS is sufficient.
+	 * directories since the i_mutex taken in the VFS is sufficient.
 	 */
 	struct rw_semaphore rdwrlock;
 	/*
@@ -68,7 +68,7 @@ struct jfs_inode_info {
 	 * inode is blocked in txBegin or TxBeginAnon
 	 */
 	struct semaphore commit_sem;
-	/* xattr_sem allows us to access the xattrs without taking i_sem */
+	/* xattr_sem allows us to access the xattrs without taking i_mutex */
 	struct rw_semaphore xattr_sem;
 	lid_t	xtlid;		/* lid of xtree lock on directory */
 #ifdef CONFIG_JFS_POSIX_ACL

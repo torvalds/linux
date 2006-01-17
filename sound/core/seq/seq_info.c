@@ -27,16 +27,17 @@
 #include "seq_clientmgr.h"
 #include "seq_timer.h"
 
+#ifdef CONFIG_PROC_FS
+static struct snd_info_entry *queues_entry;
+static struct snd_info_entry *clients_entry;
+static struct snd_info_entry *timer_entry;
 
-static snd_info_entry_t *queues_entry;
-static snd_info_entry_t *clients_entry;
-static snd_info_entry_t *timer_entry;
 
-
-static snd_info_entry_t * __init
-create_info_entry(char *name, int size, void (*read)(snd_info_entry_t *, snd_info_buffer_t *))
+static struct snd_info_entry * __init
+create_info_entry(char *name, int size, void (*read)(struct snd_info_entry *,
+						     struct snd_info_buffer *))
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, name, snd_seq_root);
 	if (entry == NULL)
@@ -51,7 +52,6 @@ create_info_entry(char *name, int size, void (*read)(snd_info_entry_t *, snd_inf
 	return entry;
 }
 
-
 /* create all our /proc entries */
 int __init snd_seq_info_init(void)
 {
@@ -65,11 +65,9 @@ int __init snd_seq_info_init(void)
 
 int __exit snd_seq_info_done(void)
 {
-	if (queues_entry)
-		snd_info_unregister(queues_entry);
-	if (clients_entry)
-		snd_info_unregister(clients_entry);
-	if (timer_entry)
-		snd_info_unregister(timer_entry);
+	snd_info_unregister(queues_entry);
+	snd_info_unregister(clients_entry);
+	snd_info_unregister(timer_entry);
 	return 0;
 }
+#endif

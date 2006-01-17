@@ -3,26 +3,18 @@
 #
 
 # Extra CFLAGS so we don't have to do relative includes
-CFLAGS_pmac_setup.o	+= -Iarch/$(ARCH)/mm
+CFLAGS_chrp_setup.o	+= -Iarch/$(ARCH)/mm
 
 obj-$(CONFIG_APUS)		+= apus_setup.o
 ifeq ($(CONFIG_APUS),y)
 obj-$(CONFIG_PCI)		+= apus_pci.o
 endif
-obj-$(CONFIG_PPC_PMAC)		+= pmac_pic.o pmac_setup.o pmac_time.o \
-					pmac_feature.o pmac_pci.o pmac_sleep.o \
-					pmac_low_i2c.o pmac_cache.o
 obj-$(CONFIG_PPC_CHRP)		+= chrp_setup.o chrp_time.o chrp_pci.o \
 					chrp_pegasos_eth.o
 ifeq ($(CONFIG_PPC_CHRP),y)
 obj-$(CONFIG_NVRAM)		+= chrp_nvram.o
 endif
 obj-$(CONFIG_PPC_PREP)		+= prep_pci.o prep_setup.o
-ifeq ($(CONFIG_PPC_PMAC),y)
-obj-$(CONFIG_NVRAM)		+= pmac_nvram.o
-obj-$(CONFIG_CPU_FREQ_PMAC)	+= pmac_cpufreq.o
-endif
-obj-$(CONFIG_PMAC_BACKLIGHT)	+= pmac_backlight.o
 obj-$(CONFIG_PREP_RESIDUAL)	+= residual.o
 obj-$(CONFIG_PQ2ADS)		+= pq2ads.o
 obj-$(CONFIG_TQM8260)		+= tqm8260_setup.o
@@ -47,6 +39,5 @@ obj-$(CONFIG_LITE5200)		+= lite5200.o
 obj-$(CONFIG_EV64360)		+= ev64360.o
 
 ifeq ($(CONFIG_SMP),y)
-obj-$(CONFIG_PPC_PMAC)		+= pmac_smp.o
 obj-$(CONFIG_PPC_CHRP)		+= chrp_smp.o
 endif

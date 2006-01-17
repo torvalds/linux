@@ -1,0 +1,27 @@
+menu "Platform support"
+	depends on PPC_83xx
+
+choice
+	prompt "Machine Type"
+	default MPC834x_SYS
+
+config MPC834x_SYS
+	bool "Freescale MPC834x SYS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC 834x SYS evaluation board.
+
+	  Be aware that PCI buses can only function when SYS board is plugged
+	  into the PIB (Platform IO Board) board from Freescale which provide
+	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
+	  responsiblilty.
+
+endchoice
+
+config MPC834x
+	bool
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+	default y if MPC834x_SYS
+
+endmenu

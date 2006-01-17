@@ -94,6 +94,9 @@ struct nf_conn
 	/* Current number of expected connections */
 	unsigned int expecting;
 
+	/* Unique ID that identifies this conntrack*/
+	unsigned int id;
+
 	/* Helper. if any */
 	struct nf_conntrack_helper *helper;
 
@@ -139,6 +142,9 @@ struct nf_conntrack_expect
 
 	/* Usage count. */
 	atomic_t use;
+
+	/* Unique ID */
+	unsigned int id;
 
 	/* Flags */
 	unsigned int flags;
@@ -190,8 +196,30 @@ static inline void nf_ct_put(struct nf_conn *ct)
 	nf_conntrack_put(&ct->ct_general);
 }
 
-/* call to create an explicit dependency on nf_conntrack. */
-extern void need_nf_conntrack(void);
+extern struct nf_conntrack_tuple_hash *
+__nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
+		    const struct nf_conn *ignored_conntrack);
+
+extern void nf_conntrack_hash_insert(struct nf_conn *ct);
+
+extern struct nf_conntrack_expect *
+__nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple);
+
+extern struct nf_conntrack_expect *
+nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple);
+
+extern void nf_ct_unlink_expect(struct nf_conntrack_expect *exp);
+
+extern void nf_ct_remove_expectations(struct nf_conn *ct);
+
+extern void nf_conntrack_flush(void);
+
+extern struct nf_conntrack_helper *
+nf_ct_helper_find_get( const struct nf_conntrack_tuple *tuple);
+extern void nf_ct_helper_put(struct nf_conntrack_helper *helper);
+
+extern struct nf_conntrack_helper *
+__nf_conntrack_helper_find_byname(const char *name);
 
 extern int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 				const struct nf_conntrack_tuple *orig);

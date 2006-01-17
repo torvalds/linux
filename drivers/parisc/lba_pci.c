@@ -167,7 +167,7 @@
 
 /* non-postable I/O port space, densely packed */
 #define LBA_PORT_BASE	(PCI_F_EXTEND | 0xfee00000UL)
-static void __iomem *astro_iop_base;
+static void __iomem *astro_iop_base __read_mostly;
 
 #define ELROY_HVERS	0x782
 #define MERCURY_HVERS	0x783
@@ -695,10 +695,70 @@ lba_claim_dev_resources(struct pci_dev *dev)
 		}
 	}
 }
-#else
-#define lba_claim_dev_resources(dev)
-#endif
 
+
+/*
+ * truncate_pat_collision:  Deal with overlaps or outright collisions
+ *			between PAT PDC reported ranges.
+ *
+ *   Broken PA8800 firmware will report lmmio range that
+ *   overlaps with CPU HPA. Just truncate the lmmio range.
+ *
+ *   BEWARE: conflicts with this lmmio range may be an
+ *   elmmio range which is pointing down another rope.
+ *
+ *  FIXME: only deals with one collision per range...theoretically we
+ *  could have several. Supporting more than one collision will get messy.
+ */
+static unsigned long
+truncate_pat_collision(struct resource *root, struct resource *new)
+{
+	unsigned long start = new->start;
+	unsigned long end = new->end;
+	struct resource *tmp = root->child;
+
+	if (end <= start || start < root->start || !tmp)
+		return 0;
+
+	/* find first overlap */
+	while (tmp && tmp->end < start)
+		tmp = tmp->sibling;
+
+	/* no entries overlap */
+	if (!tmp)  return 0;
+
+	/* found one that starts behind the new one
+	** Don't need to do anything.
+	*/
+	if (tmp->start >= end) return 0;
+
+	if (tmp->start <= start) {
+		/* "front" of new one overlaps */
+		new->start = tmp->end + 1;
+
+		if (tmp->end >= end) {
+			/* AACCKK! totally overlaps! drop this range. */
+			return 1;
+		}
+	} 
+
+	if (tmp->end < end ) {
+		/* "end" of new one overlaps */
+		new->end = tmp->start - 1;
+	}
+
+	printk(KERN_WARNING "LBA: Truncating lmmio_space [%lx/%lx] "
+					"to [%lx,%lx]\n",
+			start, end,
+			new->start, new->end );
+
+	return 0;	/* truncation successful */
+}
+
+#else
+#define lba_claim_dev_resources(dev) do { } while (0)
+#define truncate_pat_collision(r,n)  (0)
+#endif
 
 /*
 ** The algorithm is generic code.
@@ -747,6 +807,9 @@ lba_fixup_bus(struct pci_bus *bus)
 			lba_dump_res(&ioport_resource, 2);
 			BUG();
 		}
+		/* advertize Host bridge resources to PCI bus */
+		bus->resource[0] = &(ldev->hba.io_space);
+		i = 1;
 
 		if (ldev->hba.elmmio_space.start) {
 			err = request_resource(&iomem_resource,
@@ -760,23 +823,35 @@ lba_fixup_bus(struct pci_bus *bus)
 
 				/* lba_dump_res(&iomem_resource, 2); */
 				/* BUG(); */
-			}
+			} else
+				bus->resource[i++] = &(ldev->hba.elmmio_space);
 		}
 
-		err = request_resource(&iomem_resource, &(ldev->hba.lmmio_space));
-		if (err < 0) {
-			/*   FIXME  overlaps with elmmio will fail here.
-			 *   Need to prune (or disable) the distributed range.
-			 *
-			 *   BEWARE: conflicts with this lmmio range may be
-			 *   elmmio range which is pointing down another rope.
-			 */
 
-			printk("FAILED: lba_fixup_bus() request for "
+		/*   Overlaps with elmmio can (and should) fail here.
+		 *   We will prune (or ignore) the distributed range.
+		 *
+		 *   FIXME: SBA code should register all elmmio ranges first.
+		 *      that would take care of elmmio ranges routed
+		 *	to a different rope (already discovered) from
+		 *	getting registered *after* LBA code has already
+		 *	registered it's distributed lmmio range.
+		 */
+		if (truncate_pat_collision(&iomem_resource,
+				       	&(ldev->hba.lmmio_space))) {
+
+			printk(KERN_WARNING "LBA: lmmio_space [%lx/%lx] duplicate!\n",
+					ldev->hba.lmmio_space.start,
+					ldev->hba.lmmio_space.end);
+		} else {
+			err = request_resource(&iomem_resource, &(ldev->hba.lmmio_space));
+			if (err < 0) {
+				printk(KERN_ERR "FAILED: lba_fixup_bus() request for "
 					"lmmio_space [%lx/%lx]\n",
 					ldev->hba.lmmio_space.start,
 					ldev->hba.lmmio_space.end);
-			/* lba_dump_res(&iomem_resource, 2); */
+			} else
+				bus->resource[i++] = &(ldev->hba.lmmio_space);
 		}
 
 #ifdef CONFIG_64BIT
@@ -791,18 +866,10 @@ lba_fixup_bus(struct pci_bus *bus)
 				lba_dump_res(&iomem_resource, 2);
 				BUG();
 			}
+			bus->resource[i++] = &(ldev->hba.gmmio_space);
 		}
 #endif
 
-		/* advertize Host bridge resources to PCI bus */
-		bus->resource[0] = &(ldev->hba.io_space);
-		bus->resource[1] = &(ldev->hba.lmmio_space);
-		i=2;
-		if (ldev->hba.elmmio_space.start)
-			bus->resource[i++] = &(ldev->hba.elmmio_space);
-		if (ldev->hba.gmmio_space.start)
-			bus->resource[i++] = &(ldev->hba.gmmio_space);
-			
 	}
 
 	list_for_each(ln, &bus->devices) {

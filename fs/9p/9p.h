@@ -3,6 +3,7 @@
  *
  * 9P protocol definitions.
  *
+ *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
@@ -100,8 +101,17 @@ enum {
 	V9FS_QTFILE = 0x00,
 };
 
+#define V9FS_NOTAG	(u16)(~0)
+#define V9FS_NOFID	(u32)(~0)
+#define V9FS_MAXWELEM	16
+
 /* ample room for Twrite/Rread header (iounit) */
 #define V9FS_IOHDRSZ	24
+
+struct v9fs_str {
+	u16 len;
+	char *str;
+};
 
 /* qids are the unique ID for a file (like an inode */
 struct v9fs_qid {
@@ -120,6 +130,29 @@ struct v9fs_stat {
 	u32 atime;
 	u32 mtime;
 	u64 length;
+	struct v9fs_str name;
+	struct v9fs_str uid;
+	struct v9fs_str gid;
+	struct v9fs_str muid;
+	struct v9fs_str extension;	/* 9p2000.u extensions */
+	u32 n_uid;		/* 9p2000.u extensions */
+	u32 n_gid;		/* 9p2000.u extensions */
+	u32 n_muid;		/* 9p2000.u extensions */
+};
+
+/* file metadata (stat) structure used to create Twstat message
+   The is similar to v9fs_stat, but the strings don't point to
+   the same memory block and should be freed separately
+*/
+struct v9fs_wstat {
+	u16 size;
+	u16 type;
+	u32 dev;
+	struct v9fs_qid qid;
+	u32 mode;
+	u32 atime;
+	u32 mtime;
+	u64 length;
 	char *name;
 	char *uid;
 	char *gid;
@@ -128,25 +161,24 @@ struct v9fs_stat {
 	u32 n_uid;		/* 9p2000.u extensions */
 	u32 n_gid;		/* 9p2000.u extensions */
 	u32 n_muid;		/* 9p2000.u extensions */
-	char data[0];
 };
 
 /* Structures for Protocol Operations */
 
 struct Tversion {
 	u32 msize;
-	char *version;
+	struct v9fs_str version;
 };
 
 struct Rversion {
 	u32 msize;
-	char *version;
+	struct v9fs_str version;
 };
 
 struct Tauth {
 	u32 afid;
-	char *uname;
-	char *aname;
+	struct v9fs_str uname;
+	struct v9fs_str aname;
 };
 
 struct Rauth {
@@ -154,12 +186,12 @@ struct Rauth {
 };
 
 struct Rerror {
-	char *error;
+	struct v9fs_str error;
 	u32 errno;		/* 9p2000.u extension */
 };
 
 struct Tflush {
-	u32 oldtag;
+	u16 oldtag;
 };
 
 struct Rflush {
@@ -168,8 +200,8 @@ struct Rflush {
 struct Tattach {
 	u32 fid;
 	u32 afid;
-	char *uname;
-	char *aname;
+	struct v9fs_str uname;
+	struct v9fs_str aname;
 };
 
 struct Rattach {
@@ -179,13 +211,13 @@ struct Rattach {
 struct Twalk {
 	u32 fid;
 	u32 newfid;
-	u32 nwname;
-	char **wnames;
+	u16 nwname;
+	struct v9fs_str wnames[16];
 };
 
 struct Rwalk {
-	u32 nwqid;
-	struct v9fs_qid *wqids;
+	u16 nwqid;
+	struct v9fs_qid wqids[16];
 };
 
 struct Topen {
@@ -200,7 +232,7 @@ struct Ropen {
 
 struct Tcreate {
 	u32 fid;
-	char *name;
+	struct v9fs_str name;
 	u32 perm;
 	u8 mode;
 };
@@ -251,12 +283,12 @@ struct Tstat {
 };
 
 struct Rstat {
-	struct v9fs_stat *stat;
+	struct v9fs_stat stat;
 };
 
 struct Twstat {
 	u32 fid;
-	struct v9fs_stat *stat;
+	struct v9fs_stat stat;
 };
 
 struct Rwstat {
@@ -271,6 +303,7 @@ struct v9fs_fcall {
 	u32 size;
 	u8 id;
 	u16 tag;
+	void *sdata;
 
 	union {
 		struct Tversion tversion;
@@ -303,7 +336,9 @@ struct v9fs_fcall {
 	} params;
 };
 
-#define FCALL_ERROR(fcall) (fcall ? fcall->params.rerror.error : "")
+#define PRINT_FCALL_ERROR(s, fcall) dprintk(DEBUG_ERROR, "%s: %.*s\n", s, \
+	fcall?fcall->params.rerror.error.len:0, \
+	fcall?fcall->params.rerror.error.str:"");
 
 int v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
 		   char *version, struct v9fs_fcall **rcall);
@@ -311,8 +346,7 @@ int v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
 int v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 		  u32 fid, u32 afid, struct v9fs_fcall **rcall);
 
-int v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid,
-		 struct v9fs_fcall **rcall);
+int v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid);
 
 int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag);
 
@@ -320,7 +354,7 @@ int v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid,
 		struct v9fs_fcall **rcall);
 
 int v9fs_t_wstat(struct v9fs_session_info *v9ses, u32 fid,
-		 struct v9fs_stat *stat, struct v9fs_fcall **rcall);
+		 struct v9fs_wstat *wstat, struct v9fs_fcall **rcall);
 
 int v9fs_t_walk(struct v9fs_session_info *v9ses, u32 fid, u32 newfid,
 		char *name, struct v9fs_fcall **rcall);
@@ -338,4 +372,5 @@ int v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid,
 		u64 offset, u32 count, struct v9fs_fcall **rcall);
 
 int v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
-		 u32 count, void *data, struct v9fs_fcall **rcall);
+		 u32 count, const char __user * data,
+		 struct v9fs_fcall **rcall);

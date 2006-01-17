@@ -72,46 +72,47 @@ struct desc_header {
 /*
  * prototypes
  */
-static void snd_sb_csp_free(snd_hwdep_t *hw);
-static int snd_sb_csp_open(snd_hwdep_t * hw, struct file *file);
-static int snd_sb_csp_ioctl(snd_hwdep_t * hw, struct file *file, unsigned int cmd, unsigned long arg);
-static int snd_sb_csp_release(snd_hwdep_t * hw, struct file *file);
+static void snd_sb_csp_free(struct snd_hwdep *hw);
+static int snd_sb_csp_open(struct snd_hwdep * hw, struct file *file);
+static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned int cmd, unsigned long arg);
+static int snd_sb_csp_release(struct snd_hwdep * hw, struct file *file);
 
-static int csp_detect(sb_t *chip, int *version);
-static int set_codec_parameter(sb_t *chip, unsigned char par, unsigned char val);
-static int set_register(sb_t *chip, unsigned char reg, unsigned char val);
-static int read_register(sb_t *chip, unsigned char reg);
-static int set_mode_register(sb_t *chip, unsigned char mode);
-static int get_version(sb_t *chip);
+static int csp_detect(struct snd_sb *chip, int *version);
+static int set_codec_parameter(struct snd_sb *chip, unsigned char par, unsigned char val);
+static int set_register(struct snd_sb *chip, unsigned char reg, unsigned char val);
+static int read_register(struct snd_sb *chip, unsigned char reg);
+static int set_mode_register(struct snd_sb *chip, unsigned char mode);
+static int get_version(struct snd_sb *chip);
 
-static int snd_sb_csp_riff_load(snd_sb_csp_t * p, snd_sb_csp_microcode_t __user * code);
-static int snd_sb_csp_unload(snd_sb_csp_t * p);
-static int snd_sb_csp_load_user(snd_sb_csp_t * p, const unsigned char __user *buf, int size, int load_flags);
-static int snd_sb_csp_autoload(snd_sb_csp_t * p, int pcm_sfmt, int play_rec_mode);
-static int snd_sb_csp_check_version(snd_sb_csp_t * p);
+static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
+				struct snd_sb_csp_microcode __user * code);
+static int snd_sb_csp_unload(struct snd_sb_csp * p);
+static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __user *buf, int size, int load_flags);
+static int snd_sb_csp_autoload(struct snd_sb_csp * p, int pcm_sfmt, int play_rec_mode);
+static int snd_sb_csp_check_version(struct snd_sb_csp * p);
 
-static int snd_sb_csp_use(snd_sb_csp_t * p);
-static int snd_sb_csp_unuse(snd_sb_csp_t * p);
-static int snd_sb_csp_start(snd_sb_csp_t * p, int sample_width, int channels);
-static int snd_sb_csp_stop(snd_sb_csp_t * p);
-static int snd_sb_csp_pause(snd_sb_csp_t * p);
-static int snd_sb_csp_restart(snd_sb_csp_t * p);
+static int snd_sb_csp_use(struct snd_sb_csp * p);
+static int snd_sb_csp_unuse(struct snd_sb_csp * p);
+static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channels);
+static int snd_sb_csp_stop(struct snd_sb_csp * p);
+static int snd_sb_csp_pause(struct snd_sb_csp * p);
+static int snd_sb_csp_restart(struct snd_sb_csp * p);
 
-static int snd_sb_qsound_build(snd_sb_csp_t * p);
-static void snd_sb_qsound_destroy(snd_sb_csp_t * p);
-static int snd_sb_csp_qsound_transfer(snd_sb_csp_t * p);
+static int snd_sb_qsound_build(struct snd_sb_csp * p);
+static void snd_sb_qsound_destroy(struct snd_sb_csp * p);
+static int snd_sb_csp_qsound_transfer(struct snd_sb_csp * p);
 
-static int init_proc_entry(snd_sb_csp_t * p, int device);
-static void info_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer);
+static int init_proc_entry(struct snd_sb_csp * p, int device);
+static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer);
 
 /*
  * Detect CSP chip and create a new instance
  */
-int snd_sb_csp_new(sb_t *chip, int device, snd_hwdep_t ** rhwdep)
+int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 {
-	snd_sb_csp_t *p;
+	struct snd_sb_csp *p;
 	int version, err;
-	snd_hwdep_t *hw;
+	struct snd_hwdep *hw;
 
 	if (rhwdep)
 		*rhwdep = NULL;
@@ -158,9 +159,9 @@ int snd_sb_csp_new(sb_t *chip, int device, snd_hwdep_t ** rhwdep)
 /*
  * free_private for hwdep instance
  */
-static void snd_sb_csp_free(snd_hwdep_t *hwdep)
+static void snd_sb_csp_free(struct snd_hwdep *hwdep)
 {
-	snd_sb_csp_t *p = hwdep->private_data;
+	struct snd_sb_csp *p = hwdep->private_data;
 	if (p) {
 		if (p->running & SNDRV_SB_CSP_ST_RUNNING)
 			snd_sb_csp_stop(p);
@@ -173,20 +174,20 @@ static void snd_sb_csp_free(snd_hwdep_t *hwdep)
 /*
  * open the device exclusively
  */
-static int snd_sb_csp_open(snd_hwdep_t * hw, struct file *file)
+static int snd_sb_csp_open(struct snd_hwdep * hw, struct file *file)
 {
-	snd_sb_csp_t *p = hw->private_data;
+	struct snd_sb_csp *p = hw->private_data;
 	return (snd_sb_csp_use(p));
 }
 
 /*
  * ioctl for hwdep device:
  */
-static int snd_sb_csp_ioctl(snd_hwdep_t * hw, struct file *file, unsigned int cmd, unsigned long arg)
+static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	snd_sb_csp_t *p = hw->private_data;
-	snd_sb_csp_info_t info;
-	snd_sb_csp_start_t start_info;
+	struct snd_sb_csp *p = hw->private_data;
+	struct snd_sb_csp_info info;
+	struct snd_sb_csp_start start_info;
 	int err;
 
 	snd_assert(p != NULL, return -EINVAL);
@@ -217,7 +218,7 @@ static int snd_sb_csp_ioctl(snd_hwdep_t * hw, struct file *file, unsigned int cm
 		/* load CSP microcode */
 	case SNDRV_SB_CSP_IOCTL_LOAD_CODE:
 		err = (p->running & SNDRV_SB_CSP_ST_RUNNING ?
-		       -EBUSY : snd_sb_csp_riff_load(p, (snd_sb_csp_microcode_t __user *) arg));
+		       -EBUSY : snd_sb_csp_riff_load(p, (struct snd_sb_csp_microcode __user *) arg));
 		break;
 	case SNDRV_SB_CSP_IOCTL_UNLOAD_CODE:
 		err = (p->running & SNDRV_SB_CSP_ST_RUNNING ?
@@ -251,9 +252,9 @@ static int snd_sb_csp_ioctl(snd_hwdep_t * hw, struct file *file, unsigned int cm
 /*
  * close the device
  */
-static int snd_sb_csp_release(snd_hwdep_t * hw, struct file *file)
+static int snd_sb_csp_release(struct snd_hwdep * hw, struct file *file)
 {
-	snd_sb_csp_t *p = hw->private_data;
+	struct snd_sb_csp *p = hw->private_data;
 	return (snd_sb_csp_unuse(p));
 }
 
@@ -262,7 +263,7 @@ static int snd_sb_csp_release(snd_hwdep_t * hw, struct file *file)
 /*
  * acquire device
  */
-static int snd_sb_csp_use(snd_sb_csp_t * p)
+static int snd_sb_csp_use(struct snd_sb_csp * p)
 {
 	down(&p->access_mutex);
 	if (p->used) {
@@ -279,7 +280,7 @@ static int snd_sb_csp_use(snd_sb_csp_t * p)
 /*
  * release device
  */
-static int snd_sb_csp_unuse(snd_sb_csp_t * p)
+static int snd_sb_csp_unuse(struct snd_sb_csp * p)
 {
 	down(&p->access_mutex);
 	p->used--;
@@ -292,9 +293,10 @@ static int snd_sb_csp_unuse(snd_sb_csp_t * p)
  * load microcode via ioctl: 
  * code is user-space pointer
  */
-static int snd_sb_csp_riff_load(snd_sb_csp_t * p, snd_sb_csp_microcode_t __user * mcode)
+static int snd_sb_csp_riff_load(struct snd_sb_csp * p,
+				struct snd_sb_csp_microcode __user * mcode)
 {
-	snd_sb_csp_mc_header_t info;
+	struct snd_sb_csp_mc_header info;
 
 	unsigned char __user *data_ptr;
 	unsigned char __user *data_end;
@@ -449,7 +451,7 @@ static int snd_sb_csp_riff_load(snd_sb_csp_t * p, snd_sb_csp_microcode_t __user 
 /*
  * unload CSP microcode
  */
-static int snd_sb_csp_unload(snd_sb_csp_t * p)
+static int snd_sb_csp_unload(struct snd_sb_csp * p)
 {
 	if (p->running & SNDRV_SB_CSP_ST_RUNNING)
 		return -EBUSY;
@@ -472,7 +474,7 @@ static int snd_sb_csp_unload(snd_sb_csp_t * p)
 /*
  * send command sequence to DSP
  */
-static inline int command_seq(sb_t *chip, const unsigned char *seq, int size)
+static inline int command_seq(struct snd_sb *chip, const unsigned char *seq, int size)
 {
 	int i;
 	for (i = 0; i < size; i++) {
@@ -485,7 +487,7 @@ static inline int command_seq(sb_t *chip, const unsigned char *seq, int size)
 /*
  * set CSP codec parameter
  */
-static int set_codec_parameter(sb_t *chip, unsigned char par, unsigned char val)
+static int set_codec_parameter(struct snd_sb *chip, unsigned char par, unsigned char val)
 {
 	unsigned char dsp_cmd[3];
 
@@ -502,7 +504,7 @@ static int set_codec_parameter(sb_t *chip, unsigned char par, unsigned char val)
 /*
  * set CSP register
  */
-static int set_register(sb_t *chip, unsigned char reg, unsigned char val)
+static int set_register(struct snd_sb *chip, unsigned char reg, unsigned char val)
 {
 	unsigned char dsp_cmd[3];
 
@@ -516,7 +518,7 @@ static int set_register(sb_t *chip, unsigned char reg, unsigned char val)
  * read CSP register
  * return < 0 -> error
  */
-static int read_register(sb_t *chip, unsigned char reg)
+static int read_register(struct snd_sb *chip, unsigned char reg)
 {
 	unsigned char dsp_cmd[2];
 
@@ -529,7 +531,7 @@ static int read_register(sb_t *chip, unsigned char reg)
 /*
  * set CSP mode register
  */
-static int set_mode_register(sb_t *chip, unsigned char mode)
+static int set_mode_register(struct snd_sb *chip, unsigned char mode)
 {
 	unsigned char dsp_cmd[2];
 
@@ -542,7 +544,7 @@ static int set_mode_register(sb_t *chip, unsigned char mode)
  * Detect CSP
  * return 0 if CSP exists.
  */
-static int csp_detect(sb_t *chip, int *version)
+static int csp_detect(struct snd_sb *chip, int *version)
 {
 	unsigned char csp_test1, csp_test2;
 	unsigned long flags;
@@ -579,7 +581,7 @@ static int csp_detect(sb_t *chip, int *version)
 /*
  * get CSP version number
  */
-static int get_version(sb_t *chip)
+static int get_version(struct snd_sb *chip)
 {
 	unsigned char dsp_cmd[2];
 
@@ -593,7 +595,7 @@ static int get_version(sb_t *chip)
 /*
  * check if the CSP version is valid
  */
-static int snd_sb_csp_check_version(snd_sb_csp_t * p)
+static int snd_sb_csp_check_version(struct snd_sb_csp * p)
 {
 	if (p->version < 0x10 || p->version > 0x1f) {
 		snd_printd("%s: Invalid CSP version: 0x%x\n", __FUNCTION__, p->version);
@@ -605,7 +607,7 @@ static int snd_sb_csp_check_version(snd_sb_csp_t * p)
 /*
  * download microcode to CSP (microcode should have one "main" block).
  */
-static int snd_sb_csp_load(snd_sb_csp_t * p, const unsigned char *buf, int size, int load_flags)
+static int snd_sb_csp_load(struct snd_sb_csp * p, const unsigned char *buf, int size, int load_flags)
 {
 	int status, i;
 	int err;
@@ -671,7 +673,7 @@ static int snd_sb_csp_load(snd_sb_csp_t * p, const unsigned char *buf, int size,
 	return result;
 }
  
-static int snd_sb_csp_load_user(snd_sb_csp_t * p, const unsigned char __user *buf, int size, int load_flags)
+static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __user *buf, int size, int load_flags)
 {
 	int err = -ENOMEM;
 	unsigned char *kbuf = kmalloc(size, GFP_KERNEL);
@@ -691,7 +693,7 @@ static int snd_sb_csp_load_user(snd_sb_csp_t * p, const unsigned char __user *bu
  * autoload hardware codec if necessary
  * return 0 if CSP is loaded and ready to run (p->running != 0)
  */
-static int snd_sb_csp_autoload(snd_sb_csp_t * p, int pcm_sfmt, int play_rec_mode)
+static int snd_sb_csp_autoload(struct snd_sb_csp * p, int pcm_sfmt, int play_rec_mode)
 {
 	unsigned long flags;
 	int err = 0;
@@ -763,7 +765,7 @@ static int snd_sb_csp_autoload(snd_sb_csp_t * p, int pcm_sfmt, int play_rec_mode
 /*
  * start CSP
  */
-static int snd_sb_csp_start(snd_sb_csp_t * p, int sample_width, int channels)
+static int snd_sb_csp_start(struct snd_sb_csp * p, int sample_width, int channels)
 {
 	unsigned char s_type;	/* sample type */
 	unsigned char mixL, mixR;
@@ -842,7 +844,7 @@ static int snd_sb_csp_start(snd_sb_csp_t * p, int sample_width, int channels)
 /*
  * stop CSP
  */
-static int snd_sb_csp_stop(snd_sb_csp_t * p)
+static int snd_sb_csp_stop(struct snd_sb_csp * p)
 {
 	int result;
 	unsigned char mixL, mixR;
@@ -883,7 +885,7 @@ static int snd_sb_csp_stop(snd_sb_csp_t * p)
 /*
  * pause CSP codec and hold DMA transfer
  */
-static int snd_sb_csp_pause(snd_sb_csp_t * p)
+static int snd_sb_csp_pause(struct snd_sb_csp * p)
 {
 	int result;
 	unsigned long flags;
@@ -903,7 +905,7 @@ static int snd_sb_csp_pause(snd_sb_csp_t * p)
 /*
  * restart CSP codec and resume DMA transfer
  */
-static int snd_sb_csp_restart(snd_sb_csp_t * p)
+static int snd_sb_csp_restart(struct snd_sb_csp * p)
 {
 	int result;
 	unsigned long flags;
@@ -926,7 +928,7 @@ static int snd_sb_csp_restart(snd_sb_csp_t * p)
  * QSound mixer control for PCM
  */
 
-static int snd_sb_qsound_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sb_qsound_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -935,17 +937,17 @@ static int snd_sb_qsound_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info
 	return 0;
 }
 
-static int snd_sb_qsound_switch_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb_qsound_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	snd_sb_csp_t *p = snd_kcontrol_chip(kcontrol);
+	struct snd_sb_csp *p = snd_kcontrol_chip(kcontrol);
 	
 	ucontrol->value.integer.value[0] = p->q_enabled ? 1 : 0;
 	return 0;
 }
 
-static int snd_sb_qsound_switch_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb_qsound_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	snd_sb_csp_t *p = snd_kcontrol_chip(kcontrol);
+	struct snd_sb_csp *p = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned char nval;
@@ -958,7 +960,7 @@ static int snd_sb_qsound_switch_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_valu
 	return change;
 }
 
-static int snd_sb_qsound_space_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sb_qsound_space_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -967,9 +969,9 @@ static int snd_sb_qsound_space_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_
 	return 0;
 }
 
-static int snd_sb_qsound_space_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb_qsound_space_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	snd_sb_csp_t *p = snd_kcontrol_chip(kcontrol);
+	struct snd_sb_csp *p = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&p->q_lock, flags);
@@ -979,9 +981,9 @@ static int snd_sb_qsound_space_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	return 0;
 }
 
-static int snd_sb_qsound_space_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb_qsound_space_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	snd_sb_csp_t *p = snd_kcontrol_chip(kcontrol);
+	struct snd_sb_csp *p = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned char nval1, nval2;
@@ -1001,7 +1003,7 @@ static int snd_sb_qsound_space_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	return change;
 }
 
-static snd_kcontrol_new_t snd_sb_qsound_switch = {
+static struct snd_kcontrol_new snd_sb_qsound_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "3D Control - Switch",
 	.info = snd_sb_qsound_switch_info,
@@ -1009,7 +1011,7 @@ static snd_kcontrol_new_t snd_sb_qsound_switch = {
 	.put = snd_sb_qsound_switch_put
 };
 
-static snd_kcontrol_new_t snd_sb_qsound_space = {
+static struct snd_kcontrol_new snd_sb_qsound_space = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "3D Control - Space",
 	.info = snd_sb_qsound_space_info,
@@ -1017,9 +1019,9 @@ static snd_kcontrol_new_t snd_sb_qsound_space = {
 	.put = snd_sb_qsound_space_put
 };
 
-static int snd_sb_qsound_build(snd_sb_csp_t * p)
+static int snd_sb_qsound_build(struct snd_sb_csp * p)
 {
-	snd_card_t * card;
+	struct snd_card *card;
 	int err;
 
 	snd_assert(p != NULL, return -EINVAL);
@@ -1042,9 +1044,9 @@ static int snd_sb_qsound_build(snd_sb_csp_t * p)
 	return err;
 }
 
-static void snd_sb_qsound_destroy(snd_sb_csp_t * p)
+static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 {
-	snd_card_t * card;
+	struct snd_card *card;
 	unsigned long flags;
 
 	snd_assert(p != NULL, return);
@@ -1068,7 +1070,7 @@ static void snd_sb_qsound_destroy(snd_sb_csp_t * p)
  * Transfer qsound parameters to CSP,
  * function should be called from interrupt routine
  */
-static int snd_sb_csp_qsound_transfer(snd_sb_csp_t * p)
+static int snd_sb_csp_qsound_transfer(struct snd_sb_csp * p)
 {
 	int err = -ENXIO;
 
@@ -1093,19 +1095,19 @@ static int snd_sb_csp_qsound_transfer(snd_sb_csp_t * p)
 /*
  * proc interface
  */
-static int init_proc_entry(snd_sb_csp_t * p, int device)
+static int init_proc_entry(struct snd_sb_csp * p, int device)
 {
 	char name[16];
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	sprintf(name, "cspD%d", device);
 	if (! snd_card_proc_new(p->chip->card, name, &entry))
 		snd_info_set_text_ops(entry, p, 1024, info_read);
 	return 0;
 }
 
-static void info_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	snd_sb_csp_t *p = entry->private_data;
+	struct snd_sb_csp *p = entry->private_data;
 
 	snd_iprintf(buffer, "Creative Signal Processor [v%d.%d]\n", (p->version >> 4), (p->version & 0x0f));
 	snd_iprintf(buffer, "State: %cx%c%c%c\n", ((p->running & SNDRV_SB_CSP_ST_QSOUND) ? 'Q' : '-'),

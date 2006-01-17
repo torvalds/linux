@@ -22,7 +22,6 @@ struct genl_family
 	char			name[GENL_NAMSIZ];
 	unsigned int		version;
 	unsigned int		maxattr;
-	struct module *		owner;
 	struct nlattr **	attrbuf;	/* private */
 	struct list_head	ops_list;	/* private */
 	struct list_head	family_list;	/* private */
@@ -60,7 +59,7 @@ struct genl_info
  */
 struct genl_ops
 {
-	unsigned int		cmd;
+	u8			cmd;
 	unsigned int		flags;
 	struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,

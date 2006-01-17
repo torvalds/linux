@@ -33,8 +33,8 @@ extern int qla24xx_nvram_config(struct scsi_qla_host *);
 extern void qla2x00_update_fw_options(struct scsi_qla_host *);
 extern void qla24xx_update_fw_options(scsi_qla_host_t *);
 extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
+extern int qla24xx_load_risc(scsi_qla_host_t *, uint32_t *);
 extern int qla24xx_load_risc_flash(scsi_qla_host_t *, uint32_t *);
-extern int qla24xx_load_risc_hotplug(scsi_qla_host_t *, uint32_t *);
 
 extern fc_port_t *qla2x00_alloc_fcport(scsi_qla_host_t *, gfp_t);
 
@@ -62,6 +62,7 @@ extern int qlport_down_retry;
 extern int ql2xplogiabsentdevice;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
+extern int ql2xprocessrscn;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
@@ -75,6 +76,8 @@ extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *);
 extern void qla2x00_blink_led(scsi_qla_host_t *);
 
 extern int qla2x00_down_timeout(struct semaphore *, unsigned long);
+
+extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_iocb.c source file.
@@ -94,10 +97,7 @@ int __qla2x00_marker(scsi_qla_host_t *, uint16_t, uint16_t, uint8_t);
  * Global Function Prototypes in qla_mbx.c source file.
  */
 extern int
-qla2x00_load_ram(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t);
-
-extern int
-qla2x00_load_ram_ext(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
+qla2x00_load_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 
 extern int
 qla2x00_execute_fw(scsi_qla_host_t *, uint32_t);

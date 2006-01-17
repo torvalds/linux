@@ -52,6 +52,7 @@ struct usb_onetouch {
 	struct urb *irq;	/* urb for interrupt in report */
 	unsigned char *data;	/* input data */
 	dma_addr_t data_dma;
+	unsigned int is_open:1;
 };
 
 static void usb_onetouch_irq(struct urb *urb, struct pt_regs *regs)
@@ -89,6 +90,7 @@ static int usb_onetouch_open(struct input_dev *dev)
 {
 	struct usb_onetouch *onetouch = dev->private;
 
+	onetouch->is_open = 1;
 	onetouch->irq->dev = onetouch->udev;
 	if (usb_submit_urb(onetouch->irq, GFP_KERNEL)) {
 		err("usb_submit_urb failed");
@@ -103,7 +105,29 @@ static void usb_onetouch_close(struct input_dev *dev)
 	struct usb_onetouch *onetouch = dev->private;
 
 	usb_kill_urb(onetouch->irq);
+	onetouch->is_open = 0;
 }
+
+#ifdef CONFIG_PM
+static void usb_onetouch_pm_hook(struct us_data *us, int action)
+{
+	struct usb_onetouch *onetouch = (struct usb_onetouch *) us->extra;
+
+	if (onetouch->is_open) {
+		switch (action) {
+		case US_SUSPEND:
+			usb_kill_urb(onetouch->irq);
+			break;
+		case US_RESUME:
+			if (usb_submit_urb(onetouch->irq, GFP_KERNEL) != 0)
+				err("usb_submit_urb failed");
+			break;
+		default:
+			break;
+		}
+	}
+}
+#endif /* CONFIG_PM */
 
 int onetouch_connect_input(struct us_data *ss)
 {
@@ -185,6 +209,9 @@ int onetouch_connect_input(struct us_data *ss)
 
 	ss->extra_destructor = onetouch_release_input;
 	ss->extra = onetouch;
+#ifdef CONFIG_PM
+	ss->suspend_resume_hook = usb_onetouch_pm_hook;
+#endif
 
 	input_register_device(onetouch->dev);
 

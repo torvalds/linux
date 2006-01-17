@@ -275,7 +275,7 @@ chrp_find_bridges(void)
 			setup_python(hose, dev);
 		} else if (is_mot
 			   || strncmp(model, "Motorola, Grackle", 17) == 0) {
-			setup_grackle(hose);
+			setup_indirect_pci(hose, 0xfec00000, 0xfee00000);
 		} else if (is_longtrail) {
 			void __iomem *p = ioremap(GG2_PCI_CONFIG_BASE, 0x80000);
 			hose->ops = &gg2_pci_ops;

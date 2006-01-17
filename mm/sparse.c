@@ -18,10 +18,10 @@
  */
 #ifdef CONFIG_SPARSEMEM_EXTREME
 struct mem_section *mem_section[NR_SECTION_ROOTS]
-	____cacheline_maxaligned_in_smp;
+	____cacheline_internodealigned_in_smp;
 #else
 struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
-	____cacheline_maxaligned_in_smp;
+	____cacheline_internodealigned_in_smp;
 #endif
 EXPORT_SYMBOL(mem_section);
 

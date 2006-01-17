@@ -136,40 +136,6 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-tcp_print(char *buffer,
-	  const struct ip_conntrack_tuple *match,
-	  const struct ip_conntrack_tuple *mask)
-{
-	unsigned int len = 0;
-
-	if (mask->src.u.tcp.port)
-		len += sprintf(buffer + len, "srcpt=%u ",
-			       ntohs(match->src.u.tcp.port));
-
-
-	if (mask->dst.u.tcp.port)
-		len += sprintf(buffer + len, "dstpt=%u ",
-			       ntohs(match->dst.u.tcp.port));
-
-	return len;
-}
-
-static unsigned int
-tcp_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	if (range->min.tcp.port != 0 || range->max.tcp.port != 0xFFFF) {
-		if (range->min.tcp.port == range->max.tcp.port)
-			return sprintf(buffer, "port %u ",
-				       ntohs(range->min.tcp.port));
-		else
-			return sprintf(buffer, "ports %u-%u ",
-				       ntohs(range->min.tcp.port),
-				       ntohs(range->max.tcp.port));
-	}
-	else return 0;
-}
-
 struct ip_nat_protocol ip_nat_protocol_tcp = {
 	.name			= "TCP",
 	.protonum		= IPPROTO_TCP,
@@ -177,8 +143,6 @@ struct ip_nat_protocol ip_nat_protocol_tcp = {
 	.manip_pkt		= tcp_manip_pkt,
 	.in_range		= tcp_in_range,
 	.unique_tuple		= tcp_unique_tuple,
-	.print			= tcp_print,
-	.print_range		= tcp_print_range,
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 	.range_to_nfattr	= ip_nat_port_range_to_nfattr,

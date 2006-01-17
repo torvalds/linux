@@ -28,6 +28,7 @@
 #include <linux/video_decoder.h>
 
 #include "em28xx.h"
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 
 /* ----------------------------------------------------------- */
@@ -486,9 +487,7 @@ static struct i2c_adapter em28xx_adap_template = {
 	.inc_use = inc_use,
 	.dec_use = dec_use,
 #endif
-#ifdef I2C_CLASS_TV_ANALOG
 	.class = I2C_CLASS_TV_ANALOG,
-#endif
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,
 	.algo = &em28xx_algo,
@@ -497,7 +496,6 @@ static struct i2c_adapter em28xx_adap_template = {
 
 static struct i2c_client em28xx_client_template = {
 	.name = "em28xx internal",
-	.flags = I2C_CLIENT_ALLOW_USE,
 };
 
 /* ----------------------------------------------------------- */

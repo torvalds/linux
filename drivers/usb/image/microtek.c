@@ -160,7 +160,6 @@ static void mts_usb_disconnect(struct usb_interface *intf);
 static struct usb_device_id mts_usb_ids [];
 
 static struct usb_driver mts_usb_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"microtekX6",
 	.probe =	mts_usb_probe,
 	.disconnect =	mts_usb_disconnect,
@@ -675,7 +674,7 @@ struct vendor_product
 
 
 /* These are taken from the msmUSB.inf file on the Windows driver CD */
-const static struct vendor_product mts_supported_products[] =
+static const struct vendor_product mts_supported_products[] =
 {
 	{ "Phantom 336CX",	mts_sup_unknown},
 	{ "Phantom 336CX",	mts_sup_unknown},

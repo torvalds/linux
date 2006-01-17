@@ -4,7 +4,7 @@
  *  Copyright (C) 2000  Michael R. McDonald
  *  Copyright (C) 2001-2003 Montavista Software Inc.
  *    Author: Yoichi Yuasa <yyuasa@mvista.com, or source@mvista.com>
- *  Copyright (C) 2004  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2004  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *  Copyright (C) 2005 Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute it and/or modify

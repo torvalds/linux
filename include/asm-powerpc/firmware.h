@@ -98,6 +98,12 @@ typedef struct {
 extern firmware_feature_t firmware_features_table[];
 #endif
 
+extern void system_reset_fwnmi(void);
+extern void machine_check_fwnmi(void);
+
+/* This is true if we are using the firmware NMI handler (typically LPAR) */
+extern int fwnmi_active;
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_FIRMWARE_H */

@@ -168,7 +168,7 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 		batch->mm = mm;
 		batch->psize = psize;
 	}
-	if (addr < KERNELBASE) {
+	if (!is_kernel_addr(addr)) {
 		vsid = get_vsid(mm->context.id, addr);
 		WARN_ON(vsid == 0);
 	} else

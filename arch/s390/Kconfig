@@ -23,14 +23,9 @@ config GENERIC_BUST_SPINLOCK
 
 mainmenu "Linux Kernel Configuration"
 
-config ARCH_S390
+config S390
 	bool
 	default y
-
-config UID16
-	bool
-	default y
-	depends on ARCH_S390X = 'n'
 
 source "init/Kconfig"
 
@@ -38,19 +33,11 @@ menu "Base setup"
 
 comment "Processor type and features"
 
-config ARCH_S390X
+config 64BIT
 	bool "64 bit kernel"
 	help
 	  Select this option if you have a 64 bit IBM zSeries machine
 	  and want to use the 64 bit addressing mode.
-
-config 64BIT
-	def_bool ARCH_S390X
-
-config ARCH_S390_31
-	bool
-	depends on ARCH_S390X = 'n'
-	default y
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -101,19 +88,14 @@ config MATHEMU
 	  on older S/390 machines. Say Y unless you know your machine doesn't
 	  need this.
 
-config S390_SUPPORT
+config COMPAT
 	bool "Kernel support for 31 bit emulation"
-	depends on ARCH_S390X
+	depends on 64BIT
 	help
 	  Select this option if you want to enable your system kernel to
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option
 	  (and some other stuff like libraries and such) is needed for
 	  executing 31 bit applications.  It is safe to say "Y".
-
-config COMPAT
-	bool
-	depends on S390_SUPPORT
-	default y
 
 config SYSVIPC_COMPAT
 	bool
@@ -122,7 +104,7 @@ config SYSVIPC_COMPAT
 
 config BINFMT_ELF32
 	tristate "Kernel support for 31 bit ELF binaries"
-	depends on S390_SUPPORT
+	depends on COMPAT
 	help
 	  This allows you to run 32-bit Linux/ELF binaries on your zSeries
 	  in 64 bit mode. Everybody wants this; say Y.
@@ -135,7 +117,7 @@ choice
 
 config MARCH_G5
 	bool "S/390 model G5 and G6"
-	depends on ARCH_S390_31
+	depends on !64BIT
 	help
 	  Select this to build a 31 bit kernel that works
 	  on all S/390 and zSeries machines.
@@ -240,8 +222,8 @@ config MACHCHK_WARNING
 config QDIO
 	tristate "QDIO support"
 	---help---
-	  This driver provides the Queued Direct I/O base support for the
-	  IBM S/390 (G5 and G6) and eServer zSeries (z800, z890, z900 and z990).
+	  This driver provides the Queued Direct I/O base support for
+	  IBM mainframes.
 
 	  For details please refer to the documentation provided by IBM at
 	  <http://www10.software.ibm.com/developerworks/opensource/linux390>
@@ -263,7 +245,8 @@ config QDIO_DEBUG
 	bool "Extended debugging information"
 	depends on QDIO
 	help
-	  Say Y here to get extended debugging output in /proc/s390dbf/qdio...
+	  Say Y here to get extended debugging output in
+	    /sys/kernel/debug/s390dbf/qdio...
 	  Warning: this option reduces the performance of the QDIO module.
 
 	  If unsure, say N.

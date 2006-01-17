@@ -170,16 +170,9 @@ static size_t cpia_read_nibble (struct parport *port,
 		/* Does the error line indicate end of data? */
 		if (((i /*& 1*/) == 0) &&
 		    (parport_read_status(port) & PARPORT_STATUS_ERROR)) {
-			port->physport->ieee1284.phase = IEEE1284_PH_HBUSY_DNA;
-				DBG("%s: No more nibble data (%d bytes)\n",
-				port->name, i/2);
-
-			/* Go to reverse idle phase. */
-			parport_frob_control (port,
-					      PARPORT_CONTROL_AUTOFD,
-					      PARPORT_CONTROL_AUTOFD);
-			port->physport->ieee1284.phase = IEEE1284_PH_REV_IDLE;
-			break;
+			DBG("%s: No more nibble data (%d bytes)\n",
+			    port->name, i/2);
+			goto end_of_data;
 		}
 
 		/* Event 7: Set nAutoFd low. */
@@ -227,18 +220,21 @@ static size_t cpia_read_nibble (struct parport *port,
 			byte = nibble;
 	}
 
-	i /= 2; /* i is now in bytes */
-
 	if (i == len) {
 		/* Read the last nibble without checking data avail. */
-		port = port->physport;
-		if (parport_read_status (port) & PARPORT_STATUS_ERROR)
-			port->ieee1284.phase = IEEE1284_PH_HBUSY_DNA;
+		if (parport_read_status (port) & PARPORT_STATUS_ERROR) {
+		end_of_data:
+			/* Go to reverse idle phase. */
+			parport_frob_control (port,
+					      PARPORT_CONTROL_AUTOFD,
+					      PARPORT_CONTROL_AUTOFD);
+			port->physport->ieee1284.phase = IEEE1284_PH_REV_IDLE;
+		}
 		else
-			port->ieee1284.phase = IEEE1284_PH_HBUSY_DAVAIL;
+			port->physport->ieee1284.phase = IEEE1284_PH_HBUSY_DAVAIL;
 	}
 
-	return i;
+	return i/2;
 }
 
 /* CPiA nonstandard "Nibble Stream" mode (2 nibbles per cycle, instead of 1)
@@ -706,12 +702,11 @@ static int cpia_pp_register(struct parport *port)
 		return -ENXIO;
 	}
 
-	cam = kmalloc(sizeof(struct pp_cam_entry), GFP_KERNEL);
+	cam = kzalloc(sizeof(struct pp_cam_entry), GFP_KERNEL);
 	if (cam == NULL) {
 		LOG("failed to allocate camera structure\n");
 		return -ENOMEM;
 	}
-	memset(cam,0,sizeof(struct pp_cam_entry));
 	
 	pdev = parport_register_device(port, "cpia_pp", NULL, NULL,
 	                               NULL, 0, cam);

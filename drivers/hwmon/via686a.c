@@ -572,8 +572,9 @@ static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 /* The driver. I choose to use type i2c_driver, as at is identical to both
    smbus_driver and isa_driver, and clients could be of either kind */
 static struct i2c_driver via686a_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "via686a",
+	.driver = {
+		.name	= "via686a",
+	},
 	.attach_adapter	= via686a_detect,
 	.detach_client	= via686a_detach_client,
 };
@@ -615,7 +616,8 @@ static int via686a_detect(struct i2c_adapter *adapter)
 	}
 
 	/* Reserve the ISA region */
-	if (!request_region(address, VIA686A_EXTENT, via686a_driver.name)) {
+	if (!request_region(address, VIA686A_EXTENT,
+			    via686a_driver.driver.name)) {
 		dev_err(&adapter->dev, "region 0x%x already in use!\n",
 			address);
 		return -ENODEV;

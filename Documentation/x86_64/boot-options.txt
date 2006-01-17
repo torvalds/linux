@@ -125,7 +125,7 @@ SMP
   cpumask=MASK   only use cpus with bits set in mask
 
   additional_cpus=NUM Allow NUM more CPUs for hotplug
-		 (defaults are specified by the BIOS or half the available CPUs)
+		 (defaults are specified by the BIOS, see Documentation/x86_64/cpu-hotplug-spec)
 
 NUMA
 
@@ -198,6 +198,6 @@ Debugging
 
 Misc
 
-  noreplacement  Don't replace instructions with more appropiate ones
+  noreplacement  Don't replace instructions with more appropriate ones
 		 for the CPU. This may be useful on asymmetric MP systems
 		 where some CPU have less capabilities than the others.

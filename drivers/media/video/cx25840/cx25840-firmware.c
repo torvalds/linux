@@ -15,7 +15,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -38,7 +37,7 @@ module_param(firmware, charp, 0444);
 MODULE_PARM_DESC(fastfw, "Load firmware fast [0=100MHz 1=333MHz (default)]");
 MODULE_PARM_DESC(firmware, "Firmware image [default: " FWFILE "]");
 
-static inline void set_i2c_delay(struct i2c_client *client, int delay)
+static void set_i2c_delay(struct i2c_client *client, int delay)
 {
 	struct i2c_algo_bit_data *algod = client->adapter->algo_data;
 
@@ -52,7 +51,7 @@ static inline void set_i2c_delay(struct i2c_client *client, int delay)
 	}
 }
 
-static inline void start_fw_load(struct i2c_client *client)
+static void start_fw_load(struct i2c_client *client)
 {
 	/* DL_ADDR_LB=0 DL_ADDR_HB=0 */
 	cx25840_write(client, 0x800, 0x00);
@@ -66,7 +65,7 @@ static inline void start_fw_load(struct i2c_client *client)
 		set_i2c_delay(client, 3);
 }
 
-static inline void end_fw_load(struct i2c_client *client)
+static void end_fw_load(struct i2c_client *client)
 {
 	if (fastfw)
 		set_i2c_delay(client, 10);
@@ -77,38 +76,47 @@ static inline void end_fw_load(struct i2c_client *client)
 	cx25840_write(client, 0x803, 0x03);
 }
 
-static inline int check_fw_load(struct i2c_client *client, int size)
+static int check_fw_load(struct i2c_client *client, int size)
 {
 	/* DL_ADDR_HB DL_ADDR_LB */
 	int s = cx25840_read(client, 0x801) << 8;
 	s |= cx25840_read(client, 0x800);
 
 	if (size != s) {
-		cx25840_err("firmware %s load failed\n", firmware);
+		v4l_err(client, "firmware %s load failed\n", firmware);
 		return -EINVAL;
 	}
 
-	cx25840_info("loaded %s firmware (%d bytes)\n", firmware, size);
+	v4l_info(client, "loaded %s firmware (%d bytes)\n", firmware, size);
 	return 0;
 }
 
-static inline int fw_write(struct i2c_client *client, u8 * data, int size)
+static int fw_write(struct i2c_client *client, u8 * data, int size)
 {
-	if (i2c_master_send(client, data, size) < size) {
+	int sent;
+
+	if ((sent = i2c_master_send(client, data, size)) < size) {
 
 		if (fastfw) {
-			cx25840_err("333MHz i2c firmware load failed\n");
+			v4l_err(client, "333MHz i2c firmware load failed\n");
 			fastfw = 0;
 			set_i2c_delay(client, 10);
 
+			if (sent > 2) {
+				u16 dl_addr = cx25840_read(client, 0x801) << 8;
+				dl_addr |= cx25840_read(client, 0x800);
+				dl_addr -= sent - 2;
+				cx25840_write(client, 0x801, dl_addr >> 8);
+				cx25840_write(client, 0x800, dl_addr & 0xff);
+			}
+
 			if (i2c_master_send(client, data, size) < size) {
-				cx25840_err
-				    ("100MHz i2c firmware load failed\n");
+				v4l_err(client, "100MHz i2c firmware load failed\n");
 				return -ENOSYS;
 			}
 
 		} else {
-			cx25840_err("firmware load i2c failure\n");
+			v4l_err(client, "firmware load i2c failure\n");
 			return -ENOSYS;
 		}
 
@@ -124,7 +132,7 @@ int cx25840_loadfw(struct i2c_client *client)
 	int size, send, retval;
 
 	if (request_firmware(&fw, firmware, FWDEV(client)) != 0) {
-		cx25840_err("unable to open firmware %s\n", firmware);
+		v4l_err(client, "unable to open firmware %s\n", firmware);
 		return -EINVAL;
 	}
 

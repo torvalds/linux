@@ -24,10 +24,11 @@
 
 extern suspend_disk_method_t pm_disk_mode;
 
+extern int swsusp_shrink_memory(void);
 extern int swsusp_suspend(void);
-extern int swsusp_write(void);
+extern int swsusp_write(struct pbe *pblist, unsigned int nr_pages);
 extern int swsusp_check(void);
-extern int swsusp_read(void);
+extern int swsusp_read(struct pbe **pblist_ptr);
 extern void swsusp_close(void);
 extern int swsusp_resume(void);
 
@@ -73,31 +74,6 @@ static void power_down(suspend_disk_method_t mode)
 static int in_suspend __nosavedata = 0;
 
 
-/**
- *	free_some_memory -  Try to free as much memory as possible
- *
- *	... but do not OOM-kill anyone
- *
- *	Notice: all userland should be stopped at this point, or
- *	livelock is possible.
- */
-
-static void free_some_memory(void)
-{
-	unsigned int i = 0;
-	unsigned int tmp;
-	unsigned long pages = 0;
-	char *p = "-\\|/";
-
-	printk("Freeing memory...  ");
-	while ((tmp = shrink_all_memory(10000))) {
-		pages += tmp;
-		printk("\b%c", p[i++ % 4]);
-	}
-	printk("\bdone (%li pages freed)\n", pages);
-}
-
-
 static inline void platform_finish(void)
 {
 	if (pm_disk_mode == PM_DISK_PLATFORM) {
@@ -127,8 +103,8 @@ static int prepare_processes(void)
 	}
 
 	/* Free memory before shutting down devices. */
-	free_some_memory();
-	return 0;
+	if (!(error = swsusp_shrink_memory()))
+		return 0;
 thaw:
 	thaw_processes();
 	enable_nonboot_cpus();
@@ -176,7 +152,7 @@ int pm_suspend_disk(void)
 	if (in_suspend) {
 		device_resume();
 		pr_debug("PM: writing image.\n");
-		error = swsusp_write();
+		error = swsusp_write(pagedir_nosave, nr_copy_pages);
 		if (!error)
 			power_down(pm_disk_mode);
 		else {
@@ -247,7 +223,7 @@ static int software_resume(void)
 
 	pr_debug("PM: Reading swsusp image.\n");
 
-	if ((error = swsusp_read())) {
+	if ((error = swsusp_read(&pagedir_nosave))) {
 		swsusp_free();
 		goto Thaw;
 	}
@@ -363,37 +339,55 @@ static ssize_t resume_show(struct subsystem * subsys, char *buf)
 		       MINOR(swsusp_resume_device));
 }
 
-static ssize_t resume_store(struct subsystem * subsys, const char * buf, size_t n)
+static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
 {
-	int len;
-	char *p;
 	unsigned int maj, min;
-	int error = -EINVAL;
 	dev_t res;
+	int ret = -EINVAL;
 
-	p = memchr(buf, '\n', n);
-	len = p ? p - buf : n;
+	if (sscanf(buf, "%u:%u", &maj, &min) != 2)
+		goto out;
 
-	if (sscanf(buf, "%u:%u", &maj, &min) == 2) {
-		res = MKDEV(maj,min);
-		if (maj == MAJOR(res) && min == MINOR(res)) {
-			down(&pm_sem);
-			swsusp_resume_device = res;
-			up(&pm_sem);
-			printk("Attempting manual resume\n");
-			noresume = 0;
-			software_resume();
-		}
-	}
+	res = MKDEV(maj,min);
+	if (maj != MAJOR(res) || min != MINOR(res))
+		goto out;
 
-	return error >= 0 ? n : error;
+	down(&pm_sem);
+	swsusp_resume_device = res;
+	up(&pm_sem);
+	printk("Attempting manual resume\n");
+	noresume = 0;
+	software_resume();
+	ret = n;
+out:
+	return ret;
 }
 
 power_attr(resume);
 
+static ssize_t image_size_show(struct subsystem * subsys, char *buf)
+{
+	return sprintf(buf, "%u\n", image_size);
+}
+
+static ssize_t image_size_store(struct subsystem * subsys, const char * buf, size_t n)
+{
+	unsigned int size;
+
+	if (sscanf(buf, "%u", &size) == 1) {
+		image_size = size;
+		return n;
+	}
+
+	return -EINVAL;
+}
+
+power_attr(image_size);
+
 static struct attribute * g[] = {
 	&disk_attr.attr,
 	&resume_attr.attr,
+	&image_size_attr.attr,
 	NULL,
 };
 

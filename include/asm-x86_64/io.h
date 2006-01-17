@@ -143,6 +143,11 @@ static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap(volatile void __iomem *addr);
 
+/* Use normal IO mappings for DMI */
+#define dmi_ioremap ioremap
+#define dmi_iounmap(x,l) iounmap(x)
+#define dmi_alloc(l) kmalloc(l, GFP_ATOMIC)
+
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
  */

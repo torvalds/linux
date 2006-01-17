@@ -35,8 +35,9 @@
 #define KEXEC_ARCH KEXEC_ARCH_S390
 
 #define MAX_NOTE_BYTES 1024
-typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
 
-extern note_buf_t crash_notes[];
+/* Provide a dummy definition to avoid build failures. */
+static inline void crash_setup_regs(struct pt_regs *newregs,
+					struct pt_regs *oldregs) { }
 
 #endif /*_S390_KEXEC_H */

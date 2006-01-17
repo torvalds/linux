@@ -99,6 +99,7 @@ static char *serial_version = "4.30";
 #define _INLINE_ inline
 #endif
 
+#define custom amiga_custom
 static char *serial_name = "Amiga-builtin serial driver";
 
 static struct tty_driver *serial_driver;
@@ -116,7 +117,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 static struct serial_state rs_table[1];
 
-#define NR_PORTS	(sizeof(rs_table)/sizeof(struct serial_state))
+#define NR_PORTS ARRAY_SIZE(rs_table)
 
 /*
  * tmp_buf is used as a temporary buffer by serial_write.  We need to
@@ -128,7 +129,6 @@ static struct serial_state rs_table[1];
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 #include <asm/uaccess.h>
 
@@ -265,8 +265,9 @@ static _INLINE_ void receive_chars(struct async_struct *info)
         int status;
 	int serdatr;
 	struct tty_struct *tty = info->tty;
-	unsigned char ch;
+	unsigned char ch, flag;
 	struct	async_icount *icount;
+	int oe = 0;
 
 	icount = &info->state->icount;
 
@@ -282,15 +283,12 @@ static _INLINE_ void receive_chars(struct async_struct *info)
 	    status |= UART_LSR_OE;
 
 	ch = serdatr & 0xff;
-	if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-	  goto ignore_char;
-	*tty->flip.char_buf_ptr = ch;
 	icount->rx++;
 
 #ifdef SERIAL_DEBUG_INTR
 	printk("DR%02x:%02x...", ch, status);
 #endif
-	*tty->flip.flag_buf_ptr = 0;
+	flag = TTY_NORMAL;
 
 	/*
 	 * We don't handle parity or frame errors - but I have left
@@ -319,7 +317,7 @@ static _INLINE_ void receive_chars(struct async_struct *info)
 	   * should be ignored.
 	   */
 	  if (status & info->ignore_status_mask)
-	    goto ignore_char;
+	    goto out;
 
 	  status &= info->read_status_mask;
 
@@ -327,33 +325,28 @@ static _INLINE_ void receive_chars(struct async_struct *info)
 #ifdef SERIAL_DEBUG_INTR
 	    printk("handling break....");
 #endif
-	    *tty->flip.flag_buf_ptr = TTY_BREAK;
+	    flag = TTY_BREAK;
 	    if (info->flags & ASYNC_SAK)
 	      do_SAK(tty);
 	  } else if (status & UART_LSR_PE)
-	    *tty->flip.flag_buf_ptr = TTY_PARITY;
+	    flag = TTY_PARITY;
 	  else if (status & UART_LSR_FE)
-	    *tty->flip.flag_buf_ptr = TTY_FRAME;
+	    flag = TTY_FRAME;
 	  if (status & UART_LSR_OE) {
 	    /*
 	     * Overrun is special, since it's
 	     * reported immediately, and doesn't
 	     * affect the current character
 	     */
-	    if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-	      tty->flip.count++;
-	      tty->flip.flag_buf_ptr++;
-	      tty->flip.char_buf_ptr++;
-	      *tty->flip.flag_buf_ptr = TTY_OVERRUN;
-	    }
+	     oe = 1;
 	  }
 	}
-	tty->flip.flag_buf_ptr++;
-	tty->flip.char_buf_ptr++;
-	tty->flip.count++;
- ignore_char:
-
+	tty_insert_flip_char(tty, ch, flag);
+	if (oe == 1)
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	tty_flip_buffer_push(tty);
+out:
+	return;
 }
 
 static _INLINE_ void transmit_chars(struct async_struct *info)
@@ -1095,7 +1088,7 @@ static void rs_unthrottle(struct tty_struct * tty)
  */
 
 static int get_serial_info(struct async_struct * info,
-			   struct serial_struct * retinfo)
+			   struct serial_struct __user * retinfo)
 {
 	struct serial_struct tmp;
 	struct serial_state *state = info->state;
@@ -1119,7 +1112,7 @@ static int get_serial_info(struct async_struct * info,
 }
 
 static int set_serial_info(struct async_struct * info,
-			   struct serial_struct * new_info)
+			   struct serial_struct __user * new_info)
 {
 	struct serial_struct new_serial;
  	struct serial_state old_state, *state;
@@ -1200,7 +1193,7 @@ check_and_exit:
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space. 
  */
-static int get_lsr_info(struct async_struct * info, unsigned int *value)
+static int get_lsr_info(struct async_struct * info, unsigned int __user *value)
 {
 	unsigned char status;
 	unsigned int result;
@@ -1291,6 +1284,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	struct async_struct * info = (struct async_struct *)tty->driver_data;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
 	struct serial_icounter_struct icount;
+	void __user *argp = (void __user *)arg;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
@@ -1305,19 +1299,17 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 
 	switch (cmd) {
 		case TIOCGSERIAL:
-			return get_serial_info(info,
-					       (struct serial_struct *) arg);
+			return get_serial_info(info, argp);
 		case TIOCSSERIAL:
-			return set_serial_info(info,
-					       (struct serial_struct *) arg);
+			return set_serial_info(info, argp);
 		case TIOCSERCONFIG:
 			return 0;
 
 		case TIOCSERGETLSR: /* Get line status register */
-			return get_lsr_info(info, (unsigned int *) arg);
+			return get_lsr_info(info, argp);
 
 		case TIOCSERGSTRUCT:
-			if (copy_to_user((struct async_struct *) arg,
+			if (copy_to_user(argp,
 					 info, sizeof(struct async_struct)))
 				return -EFAULT;
 			return 0;
@@ -1376,7 +1368,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 			icount.brk = cnow.brk;
 			icount.buf_overrun = cnow.buf_overrun;
 
-			if (copy_to_user((void *)arg, &icount, sizeof(icount)))
+			if (copy_to_user(argp, &icount, sizeof(icount)))
 				return -EFAULT;
 			return 0;
 		case TIOCSERGWILD:

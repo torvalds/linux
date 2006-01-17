@@ -493,11 +493,11 @@ static struct usb_device_id id_table_4 [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver digi_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"digi_acceleport",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 
@@ -946,13 +946,10 @@ dbg( "digi_rx_unthrottle: TOP: port=%d", priv->dp_port_num );
 	spin_lock_irqsave( &priv->dp_port_lock, flags );
 
 	/* send any buffered chars from throttle time on to tty subsystem */
-	len = min(priv->dp_in_buf_len, TTY_FLIPBUF_SIZE - tty->flip.count );
+
+	len = tty_buffer_request_room(tty, priv->dp_in_buf_len);
 	if( len > 0 ) {
-		memcpy( tty->flip.char_buf_ptr, priv->dp_in_buf, len );
-		memcpy( tty->flip.flag_buf_ptr, priv->dp_in_flag_buf, len );
-		tty->flip.char_buf_ptr += len;
-		tty->flip.flag_buf_ptr += len;
-		tty->flip.count += len;
+		tty_insert_flip_string_flags(tty, priv->dp_in_buf, priv->dp_in_flag_buf, len);
 		tty_flip_buffer_push( tty );
 	}
 
@@ -1827,6 +1824,7 @@ static int digi_read_inb_callback( struct urb *urb )
 	int status = ((unsigned char *)urb->transfer_buffer)[2];
 	unsigned char *data = ((unsigned char *)urb->transfer_buffer)+3;
 	int flag,throttled;
+	int i;
 
 	/* do not process callbacks on closed ports */
 	/* but do continue the read chain */
@@ -1885,20 +1883,18 @@ static int digi_read_inb_callback( struct urb *urb )
 			}
 
 		} else {
-
-			len = min( len, TTY_FLIPBUF_SIZE - tty->flip.count );
-
+			len = tty_buffer_request_room(tty, len);
 			if( len > 0 ) {
-				memcpy( tty->flip.char_buf_ptr, data, len );
-				memset( tty->flip.flag_buf_ptr, flag, len );
-				tty->flip.char_buf_ptr += len;
-				tty->flip.flag_buf_ptr += len;
-				tty->flip.count += len;
+				/* Hot path */
+				if(flag == TTY_NORMAL)
+					tty_insert_flip_string(tty, data, len);
+				else {
+					for(i = 0; i < len; i++)
+						tty_insert_flip_char(tty, data[i], flag);
+				}
 				tty_flip_buffer_push( tty );
 			}
-
 		}
-
 	}
 
 	spin_unlock( &priv->dp_port_lock );

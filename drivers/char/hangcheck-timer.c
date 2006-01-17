@@ -120,7 +120,7 @@ __setup("hcheck_dump_tasks", hangcheck_parse_dump_tasks);
 #if defined(CONFIG_X86)
 # define HAVE_MONOTONIC
 # define TIMER_FREQ 1000000000ULL
-#elif defined(CONFIG_ARCH_S390)
+#elif defined(CONFIG_S390)
 /* FA240000 is 1 Second in the IBM time universe (Page 4-38 Principles of Op for zSeries */
 # define TIMER_FREQ 0xFA240000ULL
 #elif defined(CONFIG_IA64)

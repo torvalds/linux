@@ -43,6 +43,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/timer.h>
 #include <asm/semaphore.h>
 
 #include "mthca_provider.h"
@@ -519,6 +520,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah);
 int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
+int mthca_ah_grh_present(struct mthca_ah *ah);
 
 int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
 int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);

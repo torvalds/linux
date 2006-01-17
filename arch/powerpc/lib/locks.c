@@ -28,15 +28,13 @@
 void __spin_yield(raw_spinlock_t *lock)
 {
 	unsigned int lock_value, holder_cpu, yield_count;
-	struct paca_struct *holder_paca;
 
 	lock_value = lock->slock;
 	if (lock_value == 0)
 		return;
 	holder_cpu = lock_value & 0xffff;
 	BUG_ON(holder_cpu >= NR_CPUS);
-	holder_paca = &paca[holder_cpu];
-	yield_count = holder_paca->lppaca.yield_count;
+	yield_count = lppaca[holder_cpu].yield_count;
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */
 	rmb();
@@ -60,15 +58,13 @@ void __rw_yield(raw_rwlock_t *rw)
 {
 	int lock_value;
 	unsigned int holder_cpu, yield_count;
-	struct paca_struct *holder_paca;
 
 	lock_value = rw->lock;
 	if (lock_value >= 0)
 		return;		/* no write lock at present */
 	holder_cpu = lock_value & 0xffff;
 	BUG_ON(holder_cpu >= NR_CPUS);
-	holder_paca = &paca[holder_cpu];
-	yield_count = holder_paca->lppaca.yield_count;
+	yield_count = lppaca[holder_cpu].yield_count;
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */
 	rmb();

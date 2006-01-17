@@ -371,6 +371,20 @@ static inline ulong round_up(ulong n, ulong size)
 	return (n + size) & ~size;
 }
 
+static void read_snapshot_metadata(struct dm_snapshot *s)
+{
+	if (s->have_metadata)
+		return;
+
+	if (s->store.read_metadata(&s->store)) {
+		down_write(&s->lock);
+		s->valid = 0;
+		up_write(&s->lock);
+	}
+
+	s->have_metadata = 1;
+}
+
 /*
  * Construct a snapshot mapping: <origin_dev> <COW-dev> <p/n> <chunk-size>
  */
@@ -677,7 +691,7 @@ static void copy_callback(int read_err, unsigned int write_err, void *context)
 /*
  * Dispatches the copy operation to kcopyd.
  */
-static inline void start_copy(struct pending_exception *pe)
+static void start_copy(struct pending_exception *pe)
 {
 	struct dm_snapshot *s = pe->snap;
 	struct io_region src, dest;
@@ -848,16 +862,7 @@ static void snapshot_resume(struct dm_target *ti)
 {
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
 
-	if (s->have_metadata)
-		return;
-
-	if (s->store.read_metadata(&s->store)) {
-		down_write(&s->lock);
-		s->valid = 0;
-		up_write(&s->lock);
-	}
-
-	s->have_metadata = 1;
+	read_snapshot_metadata(s);
 }
 
 static int snapshot_status(struct dm_target *ti, status_type_t type,

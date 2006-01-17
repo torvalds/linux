@@ -58,13 +58,9 @@ static inline int is_IF_modifier(kprobe_opcode_t opcode)
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
-	return 0;
-}
-
-void __kprobes arch_copy_kprobe(struct kprobe *p)
-{
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
 	p->opcode = *p->addr;
+	return 0;
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -79,10 +75,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	*p->addr = p->opcode;
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
-}
-
-void __kprobes arch_remove_kprobe(struct kprobe *p)
-{
 }
 
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
@@ -196,6 +188,19 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		} else {
+			if (regs->eflags & VM_MASK) {
+			/* We are in virtual-8086 mode. Return 0 */
+				goto no_kprobe;
+			}
+			if (*addr != BREAKPOINT_INSTRUCTION) {
+			/* The breakpoint instruction was removed by
+			 * another cpu right after we hit, no further
+			 * handling of this interrupt is appropriate
+			 */
+				regs->eip -= sizeof(kprobe_opcode_t);
+				ret = 1;
+				goto no_kprobe;
+			}
 			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;

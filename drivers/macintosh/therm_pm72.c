@@ -283,9 +283,9 @@ static int therm_pm72_detach(struct i2c_adapter *adapter);
 
 static struct i2c_driver therm_pm72_driver =
 {
-	.owner		= THIS_MODULE,
-	.name		= "therm_pm72",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "therm_pm72",
+	},
 	.attach_adapter	= therm_pm72_attach,
 	.detach_adapter	= therm_pm72_detach,
 };
@@ -630,12 +630,12 @@ static int read_eeprom(int cpu, struct mpu_data *out)
 	sprintf(nodename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
 	np = of_find_node_by_path(nodename);
 	if (np == NULL) {
-		printk(KERN_ERR "therm_pm72: Failed to retreive cpuid node from device-tree\n");
+		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid node from device-tree\n");
 		return -ENODEV;
 	}
 	data = (u8 *)get_property(np, "cpuid", &len);
 	if (data == NULL) {
-		printk(KERN_ERR "therm_pm72: Failed to retreive cpuid property from device-tree\n");
+		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid property from device-tree\n");
 		of_node_put(np);
 		return -ENODEV;
 	}
@@ -1988,18 +1988,13 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 
 static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
 {
-	int rc;
-
 	state = state_detached;
 
 	/* Lookup the fans in the device tree */
 	fcu_lookup_fans(dev->node);
 
 	/* Add the driver */
-	rc = i2c_add_driver(&therm_pm72_driver);
-	if (rc < 0)
-		return rc;
-	return 0;
+	return i2c_add_driver(&therm_pm72_driver);
 }
 
 static int fcu_of_remove(struct of_device* dev)

@@ -2,11 +2,12 @@
 #define _NET_XFRM_H
 
 #include <linux/compiler.h>
+#include <linux/in.h>
 #include <linux/xfrm.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h>
+#include <linux/socket.h>
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
 #include <linux/in6.h>
@@ -143,6 +144,9 @@ struct xfrm_state
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	struct xfrm_type	*type;
+
+	/* Security context */
+	struct xfrm_sec_ctx	*security;
 
 	/* Private data of this transformer, format is opaque,
 	 * interpreted by xfrm_type methods. */
@@ -298,6 +302,7 @@ struct xfrm_policy
 	__u8			flags;
 	__u8			dead;
 	__u8			xfrm_nr;
+	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
@@ -510,6 +515,25 @@ xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	return 0;
 }
 
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+/*	If neither has a context --> match
+ * 	Otherwise, both must have a context and the sids, doi, alg must match
+ */
+static inline int xfrm_sec_ctx_match(struct xfrm_sec_ctx *s1, struct xfrm_sec_ctx *s2)
+{
+	return ((!s1 && !s2) ||
+		(s1 && s2 &&
+		 (s1->ctx_sid == s2->ctx_sid) &&
+		 (s1->ctx_doi == s2->ctx_doi) &&
+		 (s1->ctx_alg == s2->ctx_alg)));
+}
+#else
+static inline int xfrm_sec_ctx_match(struct xfrm_sec_ctx *s1, struct xfrm_sec_ctx *s2)
+{
+	return 1;
+}
+#endif
+
 /* A struct encoding bundle of transformations to apply to some set of flow.
  *
  * dst->child points to the next element of bundle.
@@ -644,7 +668,7 @@ static inline int xfrm6_policy_check(struct sock *sk, int dir, struct sk_buff *s
 	return xfrm_policy_check(sk, dir, skb, AF_INET6);
 }
 
-
+extern int xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family);
 extern int __xfrm_route_forward(struct sk_buff *skb, unsigned short family);
 
 static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
@@ -807,7 +831,7 @@ struct xfrm_tunnel {
 };
 
 struct xfrm6_tunnel {
-	int (*handler)(struct sk_buff **pskb, unsigned int *nhoffp);
+	int (*handler)(struct sk_buff **pskb);
 	void (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			    int type, int code, int offset, __u32 info);
 };
@@ -842,10 +866,11 @@ extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
+extern int xfrm4_output_finish(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
-extern int xfrm6_rcv_spi(struct sk_buff **pskb, unsigned int *nhoffp, u32 spi);
-extern int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp);
+extern int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi);
+extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler);
 extern u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
@@ -878,8 +903,8 @@ static inline int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsig
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
 extern int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
-struct xfrm_policy *xfrm_policy_bysel(int dir, struct xfrm_selector *sel,
-				      int delete);
+struct xfrm_policy *xfrm_policy_bysel_ctx(int dir, struct xfrm_selector *sel,
+					  struct xfrm_sec_ctx *ctx, int delete);
 struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete);
 void xfrm_policy_flush(void);
 u32 xfrm_get_acqseq(void);

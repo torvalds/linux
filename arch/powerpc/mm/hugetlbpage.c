@@ -549,6 +549,17 @@ fail:
 	return addr;
 }
 
+static int htlb_check_hinted_area(unsigned long addr, unsigned long len)
+{
+	struct vm_area_struct *vma;
+
+	vma = find_vma(current->mm, addr);
+	if (!vma || ((addr + len) <= vma->vm_start))
+		return 0;
+
+	return -ENOMEM;
+}
+
 static unsigned long htlb_get_low_area(unsigned long len, u16 segmask)
 {
 	unsigned long addr = 0;
@@ -618,15 +629,28 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
 		return -EINVAL;
 
+	/* Paranoia, caller should have dealt with this */
+	BUG_ON((addr + len)  < addr);
+
 	if (test_thread_flag(TIF_32BIT)) {
+		/* Paranoia, caller should have dealt with this */
+		BUG_ON((addr + len) > 0x100000000UL);
+
 		curareas = current->mm->context.low_htlb_areas;
 
-		/* First see if we can do the mapping in the existing
-		 * low areas */
+		/* First see if we can use the hint address */
+		if (addr && (htlb_check_hinted_area(addr, len) == 0)) {
+			areamask = LOW_ESID_MASK(addr, len);
+			if (open_low_hpage_areas(current->mm, areamask) == 0)
+				return addr;
+		}
+
+		/* Next see if we can map in the existing low areas */
 		addr = htlb_get_low_area(len, curareas);
 		if (addr != -ENOMEM)
 			return addr;
 
+		/* Finally go looking for areas to open */
 		lastshift = 0;
 		for (areamask = LOW_ESID_MASK(0x100000000UL-len, len);
 		     ! lastshift; areamask >>=1) {
@@ -641,12 +665,22 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	} else {
 		curareas = current->mm->context.high_htlb_areas;
 
-		/* First see if we can do the mapping in the existing
-		 * high areas */
+		/* First see if we can use the hint address */
+		/* We discourage 64-bit processes from doing hugepage
+		 * mappings below 4GB (must use MAP_FIXED) */
+		if ((addr >= 0x100000000UL)
+		    && (htlb_check_hinted_area(addr, len) == 0)) {
+			areamask = HTLB_AREA_MASK(addr, len);
+			if (open_high_hpage_areas(current->mm, areamask) == 0)
+				return addr;
+		}
+
+		/* Next see if we can map in the existing high areas */
 		addr = htlb_get_high_area(len, curareas);
 		if (addr != -ENOMEM)
 			return addr;
 
+		/* Finally go looking for areas to open */
 		lastshift = 0;
 		for (areamask = HTLB_AREA_MASK(TASK_SIZE_USER64-len, len);
 		     ! lastshift; areamask >>=1) {

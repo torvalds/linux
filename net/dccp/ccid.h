@@ -21,6 +21,8 @@
 
 #define CCID_MAX 255
 
+struct tcp_info;
+
 struct ccid {
 	unsigned char	ccid_id;
 	const char	*ccid_name;

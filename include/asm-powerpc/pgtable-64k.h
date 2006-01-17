@@ -1,3 +1,7 @@
+#ifndef _ASM_POWERPC_PGTABLE_64K_H
+#define _ASM_POWERPC_PGTABLE_64K_H
+#ifdef __KERNEL__
+
 #include <asm-generic/pgtable-nopud.h>
 
 
@@ -88,3 +92,5 @@
 
 
 #endif /*  __ASSEMBLY__ */
+#endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_PGTABLE_64K_H */

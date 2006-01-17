@@ -74,6 +74,7 @@ struct snd_card_dt019x {
 	struct pnp_dev *dev;
 	struct pnp_dev *devmpu;
 	struct pnp_dev *devopl;
+	struct snd_sb *chip;
 };
 
 static struct pnp_card_device_id snd_dt019x_pnpids[] = {
@@ -188,15 +189,15 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard, const struct pnp_card_device_id *pid)
 {
 	int error;
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_card_dt019x *acard;
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 				 sizeof(struct snd_card_dt019x))) == NULL)
 		return -ENOMEM;
-	acard = (struct snd_card_dt019x *)card->private_data;
+	acard = card->private_data;
 
 	snd_card_set_dev(card, &pcard->card->dev);
 	if ((error = snd_card_dt019x_pnp(dev, acard, pcard, pid))) {
@@ -214,6 +215,7 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 		snd_card_free(card);
 		return error;
 	}
+	acard->chip = chip;
 
 	strcpy(card->driver, "DT-019X");
 	strcpy(card->shortname, "Diamond Tech. DT-019X");
@@ -290,10 +292,35 @@ static int __devinit snd_dt019x_pnp_probe(struct pnp_card_link *card,
 
 static void __devexit snd_dt019x_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
+
+#ifdef CONFIG_PM
+static int snd_dt019x_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+	struct snd_card_dt019x *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(chip->pcm);
+	snd_sbmixer_suspend(chip);
+	return 0;
+}
+
+static int snd_dt019x_pnp_resume(struct pnp_card_link *pcard)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+	struct snd_card_dt019x *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_sbdsp_reset(chip);
+	snd_sbmixer_resume(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
 
 static struct pnp_card_driver dt019x_pnpc_driver = {
 	.flags          = PNP_DRIVER_RES_DISABLE,
@@ -301,21 +328,25 @@ static struct pnp_card_driver dt019x_pnpc_driver = {
 	.id_table       = snd_dt019x_pnpids,
 	.probe          = snd_dt019x_pnp_probe,
 	.remove         = __devexit_p(snd_dt019x_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_dt019x_pnp_suspend,
+	.resume		= snd_dt019x_pnp_resume,
+#endif
 };
 
 static int __init alsa_card_dt019x_init(void)
 {
 	int cards = 0;
 
-	cards += pnp_register_card_driver(&dt019x_pnpc_driver);
-
-#ifdef MODULE
-	if (!cards) {
+	cards = pnp_register_card_driver(&dt019x_pnpc_driver);
+	if (cards <= 0) {
 		pnp_unregister_card_driver(&dt019x_pnpc_driver);
+#ifdef MODULE
 		snd_printk(KERN_ERR "no DT-019X / ALS-007 based soundcards found\n");
-	}
 #endif
-	return cards ? 0 : -ENODEV;
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_dt019x_exit(void)

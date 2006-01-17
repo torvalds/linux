@@ -3,6 +3,7 @@
  *
  * Socket Transport Layer
  *
+ *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@sarnoff.com>
  *  Copyright (C) 1995, 1996 by Olaf Kirch <okir@monad.swb.de>
@@ -26,6 +27,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/in.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/ipv6.h>
@@ -35,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <linux/inet.h>
 #include <linux/idr.h>
+#include <linux/file.h>
 
 #include "debug.h"
 #include "v9fs.h"
@@ -44,6 +47,7 @@
 
 struct v9fs_trans_sock {
 	struct socket *s;
+	struct file *filp;
 };
 
 /**
@@ -56,41 +60,26 @@ struct v9fs_trans_sock {
 
 static int v9fs_sock_recv(struct v9fs_transport *trans, void *v, int len)
 {
-	struct msghdr msg;
-	struct kvec iov;
-	int result;
-	mm_segment_t oldfs;
-	struct v9fs_trans_sock *ts = trans ? trans->priv : NULL;
+	int ret;
+	struct v9fs_trans_sock *ts;
 
-	if (trans->status == Disconnected)
+	if (!trans || trans->status == Disconnected) {
+		dprintk(DEBUG_ERROR, "disconnected ...\n");
 		return -EREMOTEIO;
+	}
 
-	result = -EINVAL;
+	ts = trans->priv;
 
-	oldfs = get_fs();
-	set_fs(get_ds());
+	if (!(ts->filp->f_flags & O_NONBLOCK))
+		dprintk(DEBUG_ERROR, "blocking read ...\n");
 
-	iov.iov_base = v;
-	iov.iov_len = len;
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_namelen = 0;
-	msg.msg_flags = MSG_NOSIGNAL;
-
-	result = kernel_recvmsg(ts->s, &msg, &iov, 1, len, 0);
-
-	dprintk(DEBUG_TRANS, "socket state %d\n", ts->s->state);
-	set_fs(oldfs);
-
-	if (result <= 0) {
-		if (result != -ERESTARTSYS)
+	ret = kernel_read(ts->filp, ts->filp->f_pos, v, len);
+	if (ret <= 0) {
+		if (ret != -ERESTARTSYS && ret != -EAGAIN)
 			trans->status = Disconnected;
 	}
 
-	return result;
+	return ret;
 }
 
 /**
@@ -103,39 +92,71 @@ static int v9fs_sock_recv(struct v9fs_transport *trans, void *v, int len)
 
 static int v9fs_sock_send(struct v9fs_transport *trans, void *v, int len)
 {
-	struct kvec iov;
-	struct msghdr msg;
-	int result = -1;
+	int ret;
 	mm_segment_t oldfs;
-	struct v9fs_trans_sock *ts = trans ? trans->priv : NULL;
+	struct v9fs_trans_sock *ts;
 
-	dprintk(DEBUG_TRANS, "Sending packet size %d (%x)\n", len, len);
-	dump_data(v, len);
+	if (!trans || trans->status == Disconnected) {
+		dprintk(DEBUG_ERROR, "disconnected ...\n");
+		return -EREMOTEIO;
+	}
 
-	down(&trans->writelock);
+	ts = trans->priv;
+	if (!ts) {
+		dprintk(DEBUG_ERROR, "no transport ...\n");
+		return -EREMOTEIO;
+	}
+
+	if (!(ts->filp->f_flags & O_NONBLOCK))
+		dprintk(DEBUG_ERROR, "blocking write ...\n");
 
 	oldfs = get_fs();
 	set_fs(get_ds());
-	iov.iov_base = v;
-	iov.iov_len = len;
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_namelen = 0;
-	msg.msg_flags = MSG_NOSIGNAL;
-	result = kernel_sendmsg(ts->s, &msg, &iov, 1, len);
+	ret = vfs_write(ts->filp, (void __user *)v, len, &ts->filp->f_pos);
 	set_fs(oldfs);
 
-	if (result < 0) {
-		if (result != -ERESTARTSYS)
+	if (ret < 0) {
+		if (ret != -ERESTARTSYS)
 			trans->status = Disconnected;
 	}
 
-	up(&trans->writelock);
-	return result;
+	return ret;
 }
+
+static unsigned int v9fs_sock_poll(struct v9fs_transport *trans,
+	struct poll_table_struct *pt) {
+
+	int ret;
+	struct v9fs_trans_sock *ts;
+	mm_segment_t oldfs;
+
+	if (!trans) {
+		dprintk(DEBUG_ERROR, "no transport\n");
+		return -EIO;
+	}
+
+	ts = trans->priv;
+	if (trans->status != Connected || !ts) {
+		dprintk(DEBUG_ERROR, "transport disconnected: %d\n", trans->status);
+		return -EIO;
+	}
+
+	oldfs = get_fs();
+	set_fs(get_ds());
+
+	if (!ts->filp->f_op || !ts->filp->f_op->poll) {
+		dprintk(DEBUG_ERROR, "no poll operation\n");
+		ret = -EIO;
+		goto end;
+	}
+
+	ret = ts->filp->f_op->poll(ts->filp, pt);
+
+end:
+	set_fs(oldfs);
+	return ret;
+}
+
 
 /**
  * v9fs_tcp_init - initialize TCP socket
@@ -153,9 +174,9 @@ v9fs_tcp_init(struct v9fs_session_info *v9ses, const char *addr, char *data)
 	int rc = 0;
 	struct v9fs_trans_sock *ts = NULL;
 	struct v9fs_transport *trans = v9ses->transport;
+	int fd;
 
-	sema_init(&trans->writelock, 1);
-	sema_init(&trans->readlock, 1);
+	trans->status = Disconnected;
 
 	ts = kmalloc(sizeof(struct v9fs_trans_sock), GFP_KERNEL);
 
@@ -164,6 +185,7 @@ v9fs_tcp_init(struct v9fs_session_info *v9ses, const char *addr, char *data)
 
 	trans->priv = ts;
 	ts->s = NULL;
+	ts->filp = NULL;
 
 	if (!addr)
 		return -EINVAL;
@@ -184,7 +206,18 @@ v9fs_tcp_init(struct v9fs_session_info *v9ses, const char *addr, char *data)
 		return rc;
 	}
 	csocket->sk->sk_allocation = GFP_NOIO;
+
+	fd = sock_map_fd(csocket);
+	if (fd < 0) {
+		sock_release(csocket);
+		kfree(ts);
+		trans->priv = NULL;
+		return fd;
+	}
+
 	ts->s = csocket;
+	ts->filp = fget(fd);
+	ts->filp->f_flags |= O_NONBLOCK;
 	trans->status = Connected;
 
 	return 0;
@@ -202,7 +235,7 @@ static int
 v9fs_unix_init(struct v9fs_session_info *v9ses, const char *dev_name,
 	       char *data)
 {
-	int rc;
+	int rc, fd;
 	struct socket *csocket;
 	struct sockaddr_un sun_server;
 	struct v9fs_transport *trans;
@@ -211,6 +244,8 @@ v9fs_unix_init(struct v9fs_session_info *v9ses, const char *dev_name,
 	rc = 0;
 	csocket = NULL;
 	trans = v9ses->transport;
+
+	trans->status = Disconnected;
 
 	if (strlen(dev_name) > UNIX_PATH_MAX) {
 		eprintk(KERN_ERR, "v9fs_trans_unix: address too long: %s\n",
@@ -224,9 +259,7 @@ v9fs_unix_init(struct v9fs_session_info *v9ses, const char *dev_name,
 
 	trans->priv = ts;
 	ts->s = NULL;
-
-	sema_init(&trans->writelock, 1);
-	sema_init(&trans->readlock, 1);
+	ts->filp = NULL;
 
 	sun_server.sun_family = PF_UNIX;
 	strcpy(sun_server.sun_path, dev_name);
@@ -240,7 +273,18 @@ v9fs_unix_init(struct v9fs_session_info *v9ses, const char *dev_name,
 		return rc;
 	}
 	csocket->sk->sk_allocation = GFP_NOIO;
+
+	fd = sock_map_fd(csocket);
+	if (fd < 0) {
+		sock_release(csocket);
+		kfree(ts);
+		trans->priv = NULL;
+		return fd;
+	}
+
 	ts->s = csocket;
+	ts->filp = fget(fd);
+	ts->filp->f_flags |= O_NONBLOCK;
 	trans->status = Connected;
 
 	return 0;
@@ -261,12 +305,11 @@ static void v9fs_sock_close(struct v9fs_transport *trans)
 
 	ts = trans->priv;
 
-	if ((ts) && (ts->s)) {
-		dprintk(DEBUG_TRANS, "closing the socket %p\n", ts->s);
-		sock_release(ts->s);
+	if ((ts) && (ts->filp)) {
+		fput(ts->filp);
+		ts->filp = NULL;
 		ts->s = NULL;
 		trans->status = Disconnected;
-		dprintk(DEBUG_TRANS, "socket closed\n");
 	}
 
 	kfree(ts);
@@ -279,6 +322,7 @@ struct v9fs_transport v9fs_trans_tcp = {
 	.write = v9fs_sock_send,
 	.read = v9fs_sock_recv,
 	.close = v9fs_sock_close,
+	.poll = v9fs_sock_poll,
 };
 
 struct v9fs_transport v9fs_trans_unix = {
@@ -286,4 +330,5 @@ struct v9fs_transport v9fs_trans_unix = {
 	.write = v9fs_sock_send,
 	.read = v9fs_sock_recv,
 	.close = v9fs_sock_close,
+	.poll = v9fs_sock_poll,
 };

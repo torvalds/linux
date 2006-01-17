@@ -19,11 +19,11 @@ config PREVENT_FIRMWARE_BUILD
 	  If unsure say Y here.
 
 config FW_LOADER
-	tristate "Hotplug firmware loading support"
+	tristate "Userspace firmware loading support"
 	select HOTPLUG
 	---help---
 	  This option is provided for the case where no in-kernel-tree modules
-	  require hotplug firmware loading support, but a module built outside
+	  require userspace firmware loading support, but a module built outside
 	  the kernel tree does.
 
 config DEBUG_DRIVER

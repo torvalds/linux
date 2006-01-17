@@ -338,7 +338,7 @@ __xip_file_write(struct file *filp, const char __user *buf,
 	*ppos = pos;
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold i_sem.
+	 * cannot change under us because we hold i_mutex.
 	 */
 	if (pos > inode->i_size) {
 		i_size_write(inode, pos);
@@ -358,7 +358,7 @@ xip_file_write(struct file *filp, const char __user *buf, size_t len,
 	loff_t pos;
 	ssize_t ret;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 
 	if (!access_ok(VERIFY_READ, buf, len)) {
 		ret=-EFAULT;
@@ -383,14 +383,14 @@ xip_file_write(struct file *filp, const char __user *buf, size_t len,
 	if (ret)
 		goto out_backing;
 
-	inode_update_time(inode, 1);
+	file_update_time(filp);
 
 	ret = __xip_file_write (filp, buf, count, pos, ppos);
 
  out_backing:
 	current->backing_dev_info = NULL;
  out_up:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(xip_file_write);

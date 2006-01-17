@@ -319,7 +319,7 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 		       struct pt_regs *regs)
 {
 	struct tty_struct *tty;
-	unsigned char ch, r1;
+	unsigned char ch, r1, flag;
 
 	tty = NULL;
 	if (up->port.info != NULL &&		/* Unopened serial console */
@@ -362,19 +362,8 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 			continue;
 		}
 
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			tty->flip.work.func((void *)tty);
-			/*
-			 * The 8250 bails out of the loop here,
-			 * but we need to read everything, or die.
-			 */
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				continue;
-		}
-
 		/* A real serial line, record the character and status.  */
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
+		flag = TTY_NORMAL;
 		up->port.icount.rx++;
 		if (r1 & (BRK_ABRT | PAR_ERR | Rx_OVR | CRC_ERR)) {
 			if (r1 & BRK_ABRT) {
@@ -391,28 +380,21 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 				up->port.icount.overrun++;
 			r1 &= up->port.read_status_mask;
 			if (r1 & BRK_ABRT)
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			else if (r1 & PAR_ERR)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (r1 & CRC_ERR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(&up->port, ch, regs))
 			continue;
 
 		if (up->port.ignore_status_mask == 0xff ||
 		    (r1 & up->port.ignore_status_mask) == 0) {
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+		    	tty_insert_flip_char(tty, ch, flag);
 		}
-		if ((r1 & Rx_OVR) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
+		if (r1 & Rx_OVR)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
 
 	return tty;

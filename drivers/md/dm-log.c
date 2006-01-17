@@ -573,7 +573,7 @@ static int core_get_resync_work(struct dirty_log *log, region_t *region)
 					     lc->sync_search);
 		lc->sync_search = *region + 1;
 
-		if (*region == lc->region_count)
+		if (*region >= lc->region_count)
 			return 0;
 
 	} while (log_test_bit(lc->recovering_bits, *region));

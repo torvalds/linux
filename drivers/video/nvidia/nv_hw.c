@@ -52,6 +52,7 @@
 #include <linux/pci.h>
 #include "nv_type.h"
 #include "nv_local.h"
+#include "nv_proto.h"
 
 void NVLockUnlock(struct nvidia_par *par, int Lock)
 {
@@ -848,7 +849,7 @@ void NVCalcStateExt(struct nvidia_par *par,
 		    int width,
 		    int hDisplaySize, int height, int dotClock, int flags)
 {
-	int pixelDepth, VClk;
+	int pixelDepth, VClk = 0;
 	/*
 	 * Save mode parameters.
 	 */
@@ -938,15 +939,24 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 
 	if (par->Architecture == NV_ARCH_04) {
 		NV_WR32(par->PFB, 0x0200, state->config);
-	} else if ((par->Chipset & 0xfff0) == 0x0090) {
-		for (i = 0; i < 15; i++) {
-			NV_WR32(par->PFB, 0x0600 + (i * 0x10), 0);
-			NV_WR32(par->PFB, 0x0604 + (i * 0x10), par->FbMapSize - 1);
-		}
-	} else {
+	} else if ((par->Architecture < NV_ARCH_40) ||
+		   (par->Chipset & 0xfff0) == 0x0040) {
 		for (i = 0; i < 8; i++) {
 			NV_WR32(par->PFB, 0x0240 + (i * 0x10), 0);
-			NV_WR32(par->PFB, 0x0244 + (i * 0x10), par->FbMapSize - 1);
+			NV_WR32(par->PFB, 0x0244 + (i * 0x10),
+				par->FbMapSize - 1);
+		}
+	} else {
+		int regions = 12;
+
+		if (((par->Chipset & 0xfff0) == 0x0090) ||
+		    ((par->Chipset & 0xfff0) == 0x01D0) ||
+		    ((par->Chipset & 0xfff0) == 0x0290))
+			regions = 15;
+		for(i = 0; i < regions; i++) {
+			NV_WR32(par->PFB, 0x0600 + (i * 0x10), 0);
+			NV_WR32(par->PFB, 0x0604 + (i * 0x10),
+				par->FbMapSize - 1);
 		}
 	}
 
@@ -1182,10 +1192,16 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 			NV_WR32(par->PGRAPH, 0x0608, 0xFFFFFFFF);
 		} else {
 			if (par->Architecture >= NV_ARCH_40) {
+				u32 tmp;
+
 				NV_WR32(par->PGRAPH, 0x0084, 0x401287c0);
 				NV_WR32(par->PGRAPH, 0x008C, 0x60de8051);
 				NV_WR32(par->PGRAPH, 0x0090, 0x00008000);
 				NV_WR32(par->PGRAPH, 0x0610, 0x00be3c5f);
+
+				tmp = NV_RD32(par->REGS, 0x1540) & 0xff;
+				for(i = 0; tmp && !(tmp & 1); tmp >>= 1, i++);
+				NV_WR32(par->PGRAPH, 0x5000, i);
 
 				if ((par->Chipset & 0xfff0) == 0x0040) {
 					NV_WR32(par->PGRAPH, 0x09b0,
@@ -1211,6 +1227,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 						0xffff7fff);
 					break;
 				case 0x00C0:
+				case 0x0120:
 					NV_WR32(par->PGRAPH, 0x0828,
 						0x007596ff);
 					NV_WR32(par->PGRAPH, 0x082C,
@@ -1245,6 +1262,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 						0x00100000);
 					break;
 				case 0x0090:
+				case 0x0290:
 					NV_WR32(par->PRAMDAC, 0x0608,
 						NV_RD32(par->PRAMDAC, 0x0608) |
 						0x00100000);
@@ -1310,14 +1328,44 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 				}
 			}
 
-			if ((par->Chipset & 0xfff0) == 0x0090) {
-				for (i = 0; i < 60; i++)
-					NV_WR32(par->PGRAPH, 0x0D00 + i,
-						NV_RD32(par->PFB, 0x0600 + i));
+			if ((par->Architecture < NV_ARCH_40) ||
+			    ((par->Chipset & 0xfff0) == 0x0040)) {
+				for (i = 0; i < 32; i++) {
+					NV_WR32(par->PGRAPH, 0x0900 + i*4,
+						NV_RD32(par->PFB, 0x0240 +i*4));
+					NV_WR32(par->PGRAPH, 0x6900 + i*4,
+						NV_RD32(par->PFB, 0x0240 +i*4));
+				}
 			} else {
-				for (i = 0; i < 32; i++)
-					NV_WR32(par->PGRAPH, 0x0900 + i,
-						NV_RD32(par->PFB, 0x0240 + i));
+				if (((par->Chipset & 0xfff0) == 0x0090) ||
+				    ((par->Chipset & 0xfff0) == 0x01D0) ||
+				    ((par->Chipset & 0xfff0) == 0x0290)) {
+					for (i = 0; i < 60; i++) {
+						NV_WR32(par->PGRAPH,
+							0x0D00 + i*4,
+							NV_RD32(par->PFB,
+								0x0600 + i*4));
+						NV_WR32(par->PGRAPH,
+							0x6900 + i*4,
+							NV_RD32(par->PFB,
+								0x0600 + i*4));
+					}
+				} else {
+					for (i = 0; i < 48; i++) {
+						NV_WR32(par->PGRAPH,
+							0x0900 + i*4,
+							NV_RD32(par->PFB,
+								0x0600 + i*4));
+						if(((par->Chipset & 0xfff0)
+						    != 0x0160) &&
+						   ((par->Chipset & 0xfff0)
+						    != 0x0220))
+							NV_WR32(par->PGRAPH,
+								0x6900 + i*4,
+								NV_RD32(par->PFB,
+									0x0600 + i*4));
+					}
+				}
 			}
 
 			if (par->Architecture >= NV_ARCH_40) {
@@ -1338,7 +1386,9 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 					NV_WR32(par->PGRAPH, 0x0868,
 						par->FbMapSize - 1);
 				} else {
-					if((par->Chipset & 0xfff0) == 0x0090) {
+					if ((par->Chipset & 0xfff0) == 0x0090 ||
+					    (par->Chipset & 0xfff0) == 0x01D0 ||
+					    (par->Chipset & 0xfff0) == 0x0290) {
 						NV_WR32(par->PGRAPH, 0x0DF0,
 							NV_RD32(par->PFB, 0x0200));
 						NV_WR32(par->PGRAPH, 0x0DF4,

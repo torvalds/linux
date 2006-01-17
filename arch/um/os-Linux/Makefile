@@ -4,11 +4,13 @@
 #
 
 obj-y = aio.o elf_aux.o file.o helper.o main.o mem.o process.o signal.o \
-	start_up.o time.o tt.o tty.o uaccess.o user_syms.o drivers/ \
-	sys-$(SUBARCH)/
+	start_up.o time.o trap.o tt.o tty.o uaccess.o umid.o user_syms.o \
+	drivers/ sys-$(SUBARCH)/
+
+obj-$(CONFIG_MODE_SKAS) += skas/
 
 USER_OBJS := aio.o elf_aux.o file.o helper.o main.o mem.o process.o signal.o \
-	start_up.o time.o tt.o tty.o uaccess.o
+	start_up.o time.o trap.o tt.o tty.o uaccess.o umid.o
 
 elf_aux.o: $(ARCH_DIR)/kernel-offsets.h
 CFLAGS_elf_aux.o += -I$(objtree)/arch/um

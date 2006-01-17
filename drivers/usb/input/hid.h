@@ -235,17 +235,20 @@ struct hid_item {
  * HID device quirks.
  */
 
-#define HID_QUIRK_INVERT			0x001
-#define HID_QUIRK_NOTOUCH			0x002
-#define HID_QUIRK_IGNORE			0x004
-#define HID_QUIRK_NOGET				0x008
-#define HID_QUIRK_HIDDEV			0x010
-#define HID_QUIRK_BADPAD			0x020
-#define HID_QUIRK_MULTI_INPUT			0x040
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x080
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x100
-#define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x200
-#define HID_QUIRK_2WHEEL_POWERMOUSE		0x400
+#define HID_QUIRK_INVERT			0x00000001
+#define HID_QUIRK_NOTOUCH			0x00000002
+#define HID_QUIRK_IGNORE			0x00000004
+#define HID_QUIRK_NOGET				0x00000008
+#define HID_QUIRK_HIDDEV			0x00000010
+#define HID_QUIRK_BADPAD			0x00000020
+#define HID_QUIRK_MULTI_INPUT			0x00000040
+#define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x00000080
+#define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x00000100
+#define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x00000200
+#define HID_QUIRK_2WHEEL_POWERMOUSE		0x00000400
+#define HID_QUIRK_CYMOTION			0x00000800
+#define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
+#define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
 
 /*
  * This is the global environment of the parser. This information is
@@ -431,6 +434,11 @@ struct hid_device {							/* device report descriptor */
 	void (*ff_exit)(struct hid_device*);                            /* Called by hid_exit_ff(hid) */
 	int (*ff_event)(struct hid_device *hid, struct input_dev *input,
 			unsigned int type, unsigned int code, int value);
+
+#ifdef CONFIG_USB_HIDINPUT_POWERBOOK
+	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
+	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];
+#endif
 };
 
 #define HID_GLOBAL_STACK_SIZE 4

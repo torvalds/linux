@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 
 static void ak4114_stats(void *);
 
-static void reg_write(ak4114_t *ak4114, unsigned char reg, unsigned char val)
+static void reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char val)
 {
 	ak4114->write(ak4114->private_data, reg, val);
 	if (reg <= AK4114_REG_INT1_MASK)
@@ -46,13 +46,13 @@ static void reg_write(ak4114_t *ak4114, unsigned char reg, unsigned char val)
 		ak4114->txcsb[reg-AK4114_REG_RXCSB0] = val;
 }
 
-static inline unsigned char reg_read(ak4114_t *ak4114, unsigned char reg)
+static inline unsigned char reg_read(struct ak4114 *ak4114, unsigned char reg)
 {
 	return ak4114->read(ak4114->private_data, reg);
 }
 
 #if 0
-static void reg_dump(ak4114_t *ak4114)
+static void reg_dump(struct ak4114 *ak4114)
 {
 	int i;
 
@@ -62,7 +62,7 @@ static void reg_dump(ak4114_t *ak4114)
 }
 #endif
 
-static void snd_ak4114_free(ak4114_t *chip)
+static void snd_ak4114_free(struct ak4114 *chip)
 {
 	chip->init = 1;	/* don't schedule new work */
 	mb();
@@ -73,22 +73,22 @@ static void snd_ak4114_free(ak4114_t *chip)
 	kfree(chip);
 }
 
-static int snd_ak4114_dev_free(snd_device_t *device)
+static int snd_ak4114_dev_free(struct snd_device *device)
 {
-	ak4114_t *chip = device->device_data;
+	struct ak4114 *chip = device->device_data;
 	snd_ak4114_free(chip);
 	return 0;
 }
 
-int snd_ak4114_create(snd_card_t *card,
+int snd_ak4114_create(struct snd_card *card,
 		      ak4114_read_t *read, ak4114_write_t *write,
 		      unsigned char pgm[7], unsigned char txcsb[5],
-		      void *private_data, ak4114_t **r_ak4114)
+		      void *private_data, struct ak4114 **r_ak4114)
 {
-	ak4114_t *chip;
+	struct ak4114 *chip;
 	int err = 0;
 	unsigned char reg;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =     snd_ak4114_dev_free,
 	};
 
@@ -129,7 +129,7 @@ int snd_ak4114_create(snd_card_t *card,
 	return err < 0 ? err : -EIO;
 }
 
-void snd_ak4114_reg_write(ak4114_t *chip, unsigned char reg, unsigned char mask, unsigned char val)
+void snd_ak4114_reg_write(struct ak4114 *chip, unsigned char reg, unsigned char mask, unsigned char val)
 {
 	if (reg <= AK4114_REG_INT1_MASK)
 		reg_write(chip, reg, (chip->regmap[reg] & ~mask) | val);
@@ -137,7 +137,7 @@ void snd_ak4114_reg_write(ak4114_t *chip, unsigned char reg, unsigned char mask,
 		reg_write(chip, reg, (chip->txcsb[reg] & ~mask) | val);
 }
 
-void snd_ak4114_reinit(ak4114_t *chip)
+void snd_ak4114_reinit(struct ak4114 *chip)
 {
 	unsigned char old = chip->regmap[AK4114_REG_PWRDN], reg;
 
@@ -176,8 +176,8 @@ static unsigned int external_rate(unsigned char rcs1)
 	}
 }
 
-static int snd_ak4114_in_error_info(snd_kcontrol_t *kcontrol,
-				    snd_ctl_elem_info_t *uinfo)
+static int snd_ak4114_in_error_info(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -186,10 +186,10 @@ static int snd_ak4114_in_error_info(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_in_error_get(snd_kcontrol_t *kcontrol,
-				   snd_ctl_elem_value_t *ucontrol)
+static int snd_ak4114_in_error_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	long *ptr;
 
 	spin_lock_irq(&chip->lock);
@@ -200,8 +200,8 @@ static int snd_ak4114_in_error_get(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_in_bit_info(snd_kcontrol_t *kcontrol,
-				  snd_ctl_elem_info_t *uinfo)
+static int snd_ak4114_in_bit_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -210,10 +210,10 @@ static int snd_ak4114_in_bit_info(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_in_bit_get(snd_kcontrol_t *kcontrol,
-				 snd_ctl_elem_value_t *ucontrol)
+static int snd_ak4114_in_bit_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char reg = kcontrol->private_value & 0xff;
 	unsigned char bit = (kcontrol->private_value >> 8) & 0xff;
 	unsigned char inv = (kcontrol->private_value >> 31) & 1;
@@ -222,8 +222,8 @@ static int snd_ak4114_in_bit_get(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_rate_info(snd_kcontrol_t *kcontrol,
-				snd_ctl_elem_info_t *uinfo)
+static int snd_ak4114_rate_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -232,26 +232,26 @@ static int snd_ak4114_rate_info(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_rate_get(snd_kcontrol_t *kcontrol,
-			       snd_ctl_elem_value_t *ucontrol)
+static int snd_ak4114_rate_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.integer.value[0] = external_rate(reg_read(chip, AK4114_REG_RCS1));
 	return 0;
 }
 
-static int snd_ak4114_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4114_spdif_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
 	return 0;
 }
 
-static int snd_ak4114_spdif_get(snd_kcontrol_t * kcontrol,
-				snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4114_spdif_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned i;
 
 	for (i = 0; i < AK4114_REG_RXCSB_SIZE; i++)
@@ -259,10 +259,10 @@ static int snd_ak4114_spdif_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_spdif_playback_get(snd_kcontrol_t * kcontrol,
-					 snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4114_spdif_playback_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned i;
 
 	for (i = 0; i < AK4114_REG_TXCSB_SIZE; i++)
@@ -270,10 +270,10 @@ static int snd_ak4114_spdif_playback_get(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_spdif_playback_put(snd_kcontrol_t * kcontrol,
-					 snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4114_spdif_playback_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned i;
 
 	for (i = 0; i < AK4114_REG_TXCSB_SIZE; i++)
@@ -281,21 +281,21 @@ static int snd_ak4114_spdif_playback_put(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_spdif_mask_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4114_spdif_mask_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
 	return 0;
 }
 
-static int snd_ak4114_spdif_mask_get(snd_kcontrol_t * kcontrol,
-				      snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4114_spdif_mask_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	memset(ucontrol->value.iec958.status, 0xff, AK4114_REG_RXCSB_SIZE);
 	return 0;
 }
 
-static int snd_ak4114_spdif_pinfo(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4114_spdif_pinfo(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->value.integer.min = 0;
@@ -304,10 +304,10 @@ static int snd_ak4114_spdif_pinfo(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_ak4114_spdif_pget(snd_kcontrol_t * kcontrol,
-				 snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4114_spdif_pget(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned short tmp;
 
 	ucontrol->value.integer.value[0] = 0xf8f2;
@@ -319,17 +319,17 @@ static int snd_ak4114_spdif_pget(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
-static int snd_ak4114_spdif_qinfo(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4114_spdif_qinfo(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
 	uinfo->count = AK4114_REG_QSUB_SIZE;
 	return 0;
 }
 
-static int snd_ak4114_spdif_qget(snd_kcontrol_t * kcontrol,
-				 snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4114_spdif_qget(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	ak4114_t *chip = snd_kcontrol_chip(kcontrol);
+	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned i;
 
 	for (i = 0; i < AK4114_REG_QSUB_SIZE; i++)
@@ -338,14 +338,14 @@ static int snd_ak4114_spdif_qget(snd_kcontrol_t * kcontrol,
 }
 
 /* Don't forget to change AK4114_CONTROLS define!!! */
-static snd_kcontrol_new_t snd_ak4114_iec958_controls[] = {
+static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		"IEC958 Parity Errors",
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(ak4114_t, parity_errors),
+	.private_value = offsetof(struct ak4114, parity_errors),
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -353,7 +353,7 @@ static snd_kcontrol_new_t snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(ak4114_t, v_bit_errors),
+	.private_value = offsetof(struct ak4114, v_bit_errors),
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -361,7 +361,7 @@ static snd_kcontrol_new_t snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(ak4114_t, ccrc_errors),
+	.private_value = offsetof(struct ak4114, ccrc_errors),
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -369,7 +369,7 @@ static snd_kcontrol_new_t snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(ak4114_t, qcrc_errors),
+	.private_value = offsetof(struct ak4114, qcrc_errors),
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -447,11 +447,11 @@ static snd_kcontrol_new_t snd_ak4114_iec958_controls[] = {
 }
 };
 
-int snd_ak4114_build(ak4114_t *ak4114,
-		     snd_pcm_substream_t *ply_substream,
-		     snd_pcm_substream_t *cap_substream)
+int snd_ak4114_build(struct ak4114 *ak4114,
+		     struct snd_pcm_substream *ply_substream,
+		     struct snd_pcm_substream *cap_substream)
 {
-	snd_kcontrol_t *kctl;
+	struct snd_kcontrol *kctl;
 	unsigned int idx;
 	int err;
 
@@ -482,7 +482,7 @@ int snd_ak4114_build(ak4114_t *ak4114,
 	return 0;
 }
 
-int snd_ak4114_external_rate(ak4114_t *ak4114)
+int snd_ak4114_external_rate(struct ak4114 *ak4114)
 {
 	unsigned char rcs1;
 
@@ -490,9 +490,9 @@ int snd_ak4114_external_rate(ak4114_t *ak4114)
 	return external_rate(rcs1);
 }
 
-int snd_ak4114_check_rate_and_errors(ak4114_t *ak4114, unsigned int flags)
+int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 {
-	snd_pcm_runtime_t *runtime = ak4114->capture_substream ? ak4114->capture_substream->runtime : NULL;
+	struct snd_pcm_runtime *runtime = ak4114->capture_substream ? ak4114->capture_substream->runtime : NULL;
 	unsigned long _flags;
 	int res = 0;
 	unsigned char rcs0, rcs1;
@@ -563,7 +563,7 @@ int snd_ak4114_check_rate_and_errors(ak4114_t *ak4114, unsigned int flags)
 
 static void ak4114_stats(void *data)
 {
-	ak4114_t *chip = (ak4114_t *)data;
+	struct ak4114 *chip = (struct ak4114 *)data;
 
 	if (chip->init)
 		return;

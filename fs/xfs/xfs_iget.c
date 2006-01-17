@@ -493,7 +493,6 @@ xfs_iget(
 
 retry:
 	if ((inode = iget_locked(XFS_MTOVFS(mp)->vfs_super, ino))) {
-		bhv_desc_t	*bdp;
 		xfs_inode_t	*ip;
 
 		vp = LINVFS_GET_VP(inode);
@@ -517,14 +516,12 @@ retry:
 			 * to wait for the inode to go away.
 			 */
 			if (is_bad_inode(inode) ||
-			    ((bdp = vn_bhv_lookup(VN_BHV_HEAD(vp),
-						  &xfs_vnodeops)) == NULL)) {
+			    ((ip = xfs_vtoi(vp)) == NULL)) {
 				iput(inode);
 				delay(1);
 				goto retry;
 			}
 
-			ip = XFS_BHVTOI(bdp);
 			if (lock_flags != 0)
 				xfs_ilock(ip, lock_flags);
 			XFS_STATS_INC(xs_ig_found);

@@ -42,6 +42,7 @@ struct exception_table_entry
 ({							\
     int __pu_err;					\
     typeof(*(ptr)) __pu_val = (x);			\
+    __chk_user_ptr(ptr);				\
     switch (sizeof (*(ptr))) {				\
     case 1:						\
 	__put_user_asm(__pu_err, __pu_val, ptr, b);	\
@@ -91,6 +92,7 @@ __asm__ __volatile__					\
 ({								\
     int __gu_err;						\
     typeof(*(ptr)) __gu_val;					\
+    __chk_user_ptr(ptr);					\
     switch (sizeof(*(ptr))) {					\
     case 1:							\
 	__get_user_asm(__gu_err, __gu_val, ptr, b, "=d");	\
@@ -105,7 +107,7 @@ __asm__ __volatile__					\
         __gu_err = __constant_copy_from_user(&__gu_val, ptr, 8);  \
         break;                                                  \
     default:							\
-	__gu_val = 0;						\
+	__gu_val = (typeof(*(ptr)))0;				\
 	__gu_err = __get_user_bad();				\
 	break;							\
     }								\
@@ -134,7 +136,7 @@ __asm__ __volatile__				\
      : "m"(*(ptr)), "i" (-EFAULT), "0"(0))
 
 static inline unsigned long
-__generic_copy_from_user(void *to, const void *from, unsigned long n)
+__generic_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
     unsigned long tmp;
     __asm__ __volatile__
@@ -189,7 +191,7 @@ __generic_copy_from_user(void *to, const void *from, unsigned long n)
 }
 
 static inline unsigned long
-__generic_copy_to_user(void *to, const void *from, unsigned long n)
+__generic_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
     unsigned long tmp;
     __asm__ __volatile__
@@ -264,7 +266,7 @@ __generic_copy_to_user(void *to, const void *from, unsigned long n)
 	 : "d0", "memory")
 
 static inline unsigned long
-__constant_copy_from_user(void *to, const void *from, unsigned long n)
+__constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
     switch (n) {
     case 0:
@@ -520,7 +522,7 @@ __constant_copy_from_user(void *to, const void *from, unsigned long n)
 #define __copy_from_user_inatomic __copy_from_user
 
 static inline unsigned long
-__constant_copy_to_user(void *to, const void *from, unsigned long n)
+__constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
     switch (n) {
     case 0:
@@ -766,7 +768,7 @@ __constant_copy_to_user(void *to, const void *from, unsigned long n)
  */
 
 static inline long
-strncpy_from_user(char *dst, const char *src, long count)
+strncpy_from_user(char *dst, const char __user *src, long count)
 {
     long res;
     if (count == 0) return count;
@@ -799,11 +801,11 @@ strncpy_from_user(char *dst, const char *src, long count)
  *
  * Return 0 on exception, a value greater than N if too long
  */
-static inline long strnlen_user(const char *src, long n)
+static inline long strnlen_user(const char __user *src, long n)
 {
 	long res;
 
-	res = -(long)src;
+	res = -(unsigned long)src;
 	__asm__ __volatile__
 		("1:\n"
 		 "   tstl %2\n"
@@ -842,7 +844,7 @@ static inline long strnlen_user(const char *src, long n)
  */
 
 static inline unsigned long
-clear_user(void *to, unsigned long n)
+clear_user(void __user *to, unsigned long n)
 {
     __asm__ __volatile__
 	("   tstl %1\n"

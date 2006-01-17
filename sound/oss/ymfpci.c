@@ -2680,7 +2680,7 @@ static struct pci_driver ymfpci_driver = {
 
 static int __init ymf_init_module(void)
 {
-	return pci_module_init(&ymfpci_driver);
+	return pci_register_driver(&ymfpci_driver);
 }
 
 static void __exit ymf_cleanup_module (void)

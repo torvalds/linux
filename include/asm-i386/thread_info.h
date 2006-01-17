@@ -111,8 +111,6 @@ register unsigned long current_stack_pointer asm("esp") __attribute_used__;
 #endif
 
 #define free_thread_info(info)	kfree(info)
-#define get_thread_info(ti) get_task_struct((ti)->task)
-#define put_thread_info(ti) put_task_struct((ti)->task)
 
 #else /* !__ASSEMBLY__ */
 

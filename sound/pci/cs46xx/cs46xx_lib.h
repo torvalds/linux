@@ -57,7 +57,7 @@
  *  common I/O routines
  */
 
-static inline void snd_cs46xx_poke(cs46xx_t *chip, unsigned long reg, unsigned int val)
+static inline void snd_cs46xx_poke(struct snd_cs46xx *chip, unsigned long reg, unsigned int val)
 {
 	unsigned int bank = reg >> 16;
 	unsigned int offset = reg & 0xffff;
@@ -66,117 +66,138 @@ static inline void snd_cs46xx_poke(cs46xx_t *chip, unsigned long reg, unsigned i
 	writel(val, chip->region.idx[bank+1].remap_addr + offset);
 }
 
-static inline unsigned int snd_cs46xx_peek(cs46xx_t *chip, unsigned long reg)
+static inline unsigned int snd_cs46xx_peek(struct snd_cs46xx *chip, unsigned long reg)
 {
 	unsigned int bank = reg >> 16;
 	unsigned int offset = reg & 0xffff;
 	return readl(chip->region.idx[bank+1].remap_addr + offset);
 }
 
-static inline void snd_cs46xx_pokeBA0(cs46xx_t *chip, unsigned long offset, unsigned int val)
+static inline void snd_cs46xx_pokeBA0(struct snd_cs46xx *chip, unsigned long offset, unsigned int val)
 {
 	writel(val, chip->region.name.ba0.remap_addr + offset);
 }
 
-static inline unsigned int snd_cs46xx_peekBA0(cs46xx_t *chip, unsigned long offset)
+static inline unsigned int snd_cs46xx_peekBA0(struct snd_cs46xx *chip, unsigned long offset)
 {
 	return readl(chip->region.name.ba0.remap_addr + offset);
 }
 
-dsp_spos_instance_t *  cs46xx_dsp_spos_create (cs46xx_t * chip);
-void                   cs46xx_dsp_spos_destroy (cs46xx_t * chip);
-int                    cs46xx_dsp_load_module (cs46xx_t * chip,dsp_module_desc_t * module);
-symbol_entry_t *       cs46xx_dsp_lookup_symbol (cs46xx_t * chip,char * symbol_name,int symbol_type);
-int                    cs46xx_dsp_proc_init (snd_card_t * card, cs46xx_t *chip);
-int                    cs46xx_dsp_proc_done (cs46xx_t *chip);
-int                    cs46xx_dsp_scb_and_task_init (cs46xx_t *chip);
-int                    snd_cs46xx_download (cs46xx_t *chip,u32 *src,unsigned long offset,
-                                            unsigned long len);
-int                    snd_cs46xx_clear_BA1(cs46xx_t *chip,unsigned long offset,unsigned long len);
-int                    cs46xx_dsp_enable_spdif_out (cs46xx_t *chip);
-int                    cs46xx_dsp_enable_spdif_hw (cs46xx_t *chip);
-int                    cs46xx_dsp_disable_spdif_out (cs46xx_t *chip);
-int                    cs46xx_dsp_enable_spdif_in (cs46xx_t *chip);
-int                    cs46xx_dsp_disable_spdif_in (cs46xx_t *chip);
-int                    cs46xx_dsp_enable_pcm_capture (cs46xx_t *chip);
-int                    cs46xx_dsp_disable_pcm_capture (cs46xx_t *chip);
-int                    cs46xx_dsp_enable_adc_capture (cs46xx_t *chip);
-int                    cs46xx_dsp_disable_adc_capture (cs46xx_t *chip);
-int                    cs46xx_poke_via_dsp (cs46xx_t *chip,u32 address,u32 data);
-dsp_scb_descriptor_t * cs46xx_dsp_create_scb (cs46xx_t *chip,char * name, u32 * scb_data,u32 dest);
-void                   cs46xx_dsp_proc_free_scb_desc (dsp_scb_descriptor_t * scb);
-void                   cs46xx_dsp_proc_register_scb_desc (cs46xx_t *chip,dsp_scb_descriptor_t * scb);
-dsp_scb_descriptor_t * cs46xx_dsp_create_timing_master_scb (cs46xx_t *chip);
-dsp_scb_descriptor_t * cs46xx_dsp_create_codec_out_scb(cs46xx_t * chip,char * codec_name,
-                                                       u16 channel_disp,u16 fifo_addr,
-                                                       u16 child_scb_addr,
-                                                       u32 dest,
-                                                       dsp_scb_descriptor_t * parent_scb,
-                                                       int scb_child_type);
-dsp_scb_descriptor_t * cs46xx_dsp_create_codec_in_scb(cs46xx_t * chip,char * codec_name,
-                                                      u16 channel_disp,u16 fifo_addr,
-                                                      u16 sample_buffer_addr,
-                                                      u32 dest,
-                                                      dsp_scb_descriptor_t * parent_scb,
-                                                      int scb_child_type);
-void                   cs46xx_dsp_remove_scb (cs46xx_t *chip,dsp_scb_descriptor_t * scb);
-dsp_scb_descriptor_t *  cs46xx_dsp_create_codec_in_scb(cs46xx_t * chip,char * codec_name,
-                                                       u16 channel_disp,u16 fifo_addr,
-                                                       u16 sample_buffer_addr,
-                                                       u32 dest,dsp_scb_descriptor_t * parent_scb,
-                                                       int scb_child_type);
-dsp_scb_descriptor_t *  cs46xx_dsp_create_src_task_scb(cs46xx_t * chip,char * scb_name,
-						       int sample_rate,
-                                                       u16 src_buffer_addr,
-                                                       u16 src_delay_buffer_addr,u32 dest,
-                                                       dsp_scb_descriptor_t * parent_scb,
-                                                       int scb_child_type,
-						       int pass_through);
-dsp_scb_descriptor_t *  cs46xx_dsp_create_mix_only_scb(cs46xx_t * chip,char * scb_name,
-                                                       u16 mix_buffer_addr,u32 dest,
-                                                       dsp_scb_descriptor_t * parent_scb,
-                                                       int scb_child_type);
+struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip);
+void cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip);
+int cs46xx_dsp_load_module (struct snd_cs46xx * chip, struct dsp_module_desc * module);
+struct dsp_symbol_entry *cs46xx_dsp_lookup_symbol (struct snd_cs46xx * chip, char * symbol_name,
+						   int symbol_type);
+#ifdef CONFIG_PROC_FS
+int cs46xx_dsp_proc_init (struct snd_card *card, struct snd_cs46xx *chip);
+int cs46xx_dsp_proc_done (struct snd_cs46xx *chip);
+#else
+#define cs46xx_dsp_proc_init(card, chip)
+#define cs46xx_dsp_proc_done(chip)
+#endif
+int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip);
+int snd_cs46xx_download (struct snd_cs46xx *chip, u32 *src, unsigned long offset,
+			 unsigned long len);
+int snd_cs46xx_clear_BA1(struct snd_cs46xx *chip, unsigned long offset, unsigned long len);
+int cs46xx_dsp_enable_spdif_out (struct snd_cs46xx *chip);
+int cs46xx_dsp_enable_spdif_hw (struct snd_cs46xx *chip);
+int cs46xx_dsp_disable_spdif_out (struct snd_cs46xx *chip);
+int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip);
+int cs46xx_dsp_disable_spdif_in (struct snd_cs46xx *chip);
+int cs46xx_dsp_enable_pcm_capture (struct snd_cs46xx *chip);
+int cs46xx_dsp_disable_pcm_capture (struct snd_cs46xx *chip);
+int cs46xx_dsp_enable_adc_capture (struct snd_cs46xx *chip);
+int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip);
+int cs46xx_poke_via_dsp (struct snd_cs46xx *chip, u32 address, u32 data);
+struct dsp_scb_descriptor * cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name,
+						   u32 * scb_data, u32 dest);
+#ifdef CONFIG_PROC_FS
+void cs46xx_dsp_proc_free_scb_desc (struct dsp_scb_descriptor * scb);
+void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
+					struct dsp_scb_descriptor * scb);
+#else
+#define cs46xx_dsp_proc_free_scb_desc(scb)
+#define cs46xx_dsp_proc_register_scb_desc(chip, scb)
+#endif
+struct dsp_scb_descriptor * cs46xx_dsp_create_timing_master_scb (struct snd_cs46xx *chip);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_codec_out_scb(struct snd_cs46xx * chip,
+				char * codec_name, u16 channel_disp, u16 fifo_addr,
+				u16 child_scb_addr, u32 dest,
+				struct dsp_scb_descriptor * parent_scb,
+				int scb_child_type);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_codec_in_scb(struct snd_cs46xx * chip, char * codec_name,
+			       u16 channel_disp, u16 fifo_addr,
+			       u16 sample_buffer_addr, u32 dest,
+			       struct dsp_scb_descriptor * parent_scb,
+			       int scb_child_type);
+void cs46xx_dsp_remove_scb (struct snd_cs46xx *chip,
+			    struct dsp_scb_descriptor * scb);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_codec_in_scb(struct snd_cs46xx * chip, char * codec_name,
+			       u16 channel_disp, u16 fifo_addr,
+			       u16 sample_buffer_addr, u32 dest,
+			       struct dsp_scb_descriptor * parent_scb,
+			       int scb_child_type);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_src_task_scb(struct snd_cs46xx * chip, char * scb_name,
+			       int sample_rate, u16 src_buffer_addr,
+			       u16 src_delay_buffer_addr, u32 dest,
+			       struct dsp_scb_descriptor * parent_scb,
+			       int scb_child_type, int pass_through);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_mix_only_scb(struct snd_cs46xx * chip, char * scb_name,
+			       u16 mix_buffer_addr, u32 dest,
+			       struct dsp_scb_descriptor * parent_scb,
+			       int scb_child_type);
 
-dsp_scb_descriptor_t *  cs46xx_dsp_create_vari_decimate_scb(cs46xx_t * chip,char * scb_name,
-                                                            u16 vari_buffer_addr0,
-                                                            u16 vari_buffer_addr1,
-                                                            u32 dest,
-                                                            dsp_scb_descriptor_t * parent_scb,
-                                                            int scb_child_type);
-dsp_scb_descriptor_t * cs46xx_dsp_create_asynch_fg_rx_scb(cs46xx_t * chip,char * scb_name,u32 dest,
-                                                          u16 hfg_scb_address,
-                                                          u16 asynch_buffer_address,
-                                                          dsp_scb_descriptor_t * parent_scb,
-                                                          int scb_child_type);
-dsp_scb_descriptor_t *  cs46xx_dsp_create_spio_write_scb(cs46xx_t * chip,char * scb_name,u32 dest,
-                                                         dsp_scb_descriptor_t * parent_scb,
-                                                         int scb_child_type);
-dsp_scb_descriptor_t *  cs46xx_dsp_create_mix_to_ostream_scb(cs46xx_t * chip,char * scb_name,
-                                                             u16 mix_buffer_addr,u16 writeback_spb,u32 dest,
-                                                             dsp_scb_descriptor_t * parent_scb,
-                                                             int scb_child_type);
-dsp_scb_descriptor_t *  cs46xx_dsp_create_magic_snoop_scb(cs46xx_t * chip,char * scb_name,u32 dest,
-                                                          u16 snoop_buffer_address,
-                                                          dsp_scb_descriptor_t * snoop_scb,
-                                                          dsp_scb_descriptor_t * parent_scb,
-                                                          int scb_child_type);
-pcm_channel_descriptor_t * cs46xx_dsp_create_pcm_channel (cs46xx_t * chip,u32 sample_rate, void * private_data, u32 hw_dma_addr,
-                                                          int pcm_channel_id);
-void                       cs46xx_dsp_destroy_pcm_channel (cs46xx_t * chip,
-                                                           pcm_channel_descriptor_t * pcm_channel);
-int                        cs46xx_dsp_pcm_unlink (cs46xx_t * chip,pcm_channel_descriptor_t * pcm_channel);
-int                        cs46xx_dsp_pcm_link (cs46xx_t * chip,pcm_channel_descriptor_t * pcm_channel);
-dsp_scb_descriptor_t *     cs46xx_add_record_source (cs46xx_t *chip,dsp_scb_descriptor_t * source,
-                                                     u16 addr,char * scb_name);
-int                        cs46xx_src_unlink(cs46xx_t *chip,dsp_scb_descriptor_t * src);
-int                        cs46xx_src_link(cs46xx_t *chip,dsp_scb_descriptor_t * src);
-int                        cs46xx_iec958_pre_open (cs46xx_t *chip);
-int                        cs46xx_iec958_post_close (cs46xx_t *chip);
-int                        cs46xx_dsp_pcm_channel_set_period (cs46xx_t * chip,
-							       pcm_channel_descriptor_t * pcm_channel,
-							       int period_size);
-int                        cs46xx_dsp_pcm_ostream_set_period (cs46xx_t * chip,
-							      int period_size);
-int                        cs46xx_dsp_set_dac_volume (cs46xx_t * chip,u16 left,u16 right);
-int                        cs46xx_dsp_set_iec958_volume (cs46xx_t * chip,u16 left,u16 right);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_vari_decimate_scb(struct snd_cs46xx * chip, char * scb_name,
+				    u16 vari_buffer_addr0, u16 vari_buffer_addr1, u32 dest,
+				    struct dsp_scb_descriptor * parent_scb,
+				    int scb_child_type);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_asynch_fg_rx_scb(struct snd_cs46xx * chip, char * scb_name,
+				   u32 dest, u16 hfg_scb_address, u16 asynch_buffer_address,
+				   struct dsp_scb_descriptor * parent_scb,
+				   int scb_child_type);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_spio_write_scb(struct snd_cs46xx * chip, char * scb_name, u32 dest,
+				 struct dsp_scb_descriptor * parent_scb,
+				 int scb_child_type);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_mix_to_ostream_scb(struct snd_cs46xx * chip, char * scb_name,
+				     u16 mix_buffer_addr, u16 writeback_spb, u32 dest,
+				     struct dsp_scb_descriptor * parent_scb,
+				     int scb_child_type);
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_magic_snoop_scb(struct snd_cs46xx * chip, char * scb_name,
+				  u32 dest, u16 snoop_buffer_address,
+				  struct dsp_scb_descriptor * snoop_scb,
+				  struct dsp_scb_descriptor * parent_scb,
+				  int scb_child_type);
+struct dsp_pcm_channel_descriptor *
+cs46xx_dsp_create_pcm_channel (struct snd_cs46xx * chip, u32 sample_rate,
+			       void * private_data, u32 hw_dma_addr,
+			       int pcm_channel_id);
+void cs46xx_dsp_destroy_pcm_channel (struct snd_cs46xx * chip,
+				     struct dsp_pcm_channel_descriptor * pcm_channel);
+int cs46xx_dsp_pcm_unlink (struct snd_cs46xx * chip,
+			   struct dsp_pcm_channel_descriptor * pcm_channel);
+int cs46xx_dsp_pcm_link (struct snd_cs46xx * chip,
+			 struct dsp_pcm_channel_descriptor * pcm_channel);
+struct dsp_scb_descriptor *
+cs46xx_add_record_source (struct snd_cs46xx *chip, struct dsp_scb_descriptor * source,
+			  u16 addr, char * scb_name);
+int cs46xx_src_unlink(struct snd_cs46xx *chip, struct dsp_scb_descriptor * src);
+int cs46xx_src_link(struct snd_cs46xx *chip, struct dsp_scb_descriptor * src);
+int cs46xx_iec958_pre_open (struct snd_cs46xx *chip);
+int cs46xx_iec958_post_close (struct snd_cs46xx *chip);
+int cs46xx_dsp_pcm_channel_set_period (struct snd_cs46xx * chip,
+				       struct dsp_pcm_channel_descriptor * pcm_channel,
+				       int period_size);
+int cs46xx_dsp_pcm_ostream_set_period (struct snd_cs46xx * chip, int period_size);
+int cs46xx_dsp_set_dac_volume (struct snd_cs46xx * chip, u16 left, u16 right);
+int cs46xx_dsp_set_iec958_volume (struct snd_cs46xx * chip, u16 left, u16 right);
 #endif /* __CS46XX_LIB_H__ */

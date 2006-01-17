@@ -96,7 +96,7 @@ static struct mtd_info *rtc_from4_mtd = NULL;
  */
 static void __iomem *rtc_from4_fio_base = (void *)P2SEGADDR(RTC_FROM4_FIO_BASE);
 
-const static struct mtd_partition partition_info[] = {
+static const struct mtd_partition partition_info[] = {
         {
                 .name   = "Renesas flash partition 1",
                 .offset = 0,

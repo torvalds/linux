@@ -181,13 +181,6 @@ static void tcic_setl(u_char reg, u_int data)
     outw(data >> 16, tcic_base+reg+2);
 }
 
-static u_char tcic_aux_getb(u_short reg)
-{
-    u_char mode = (tcic_getb(TCIC_MODE) & TCIC_MODE_PGMMASK) | reg;
-    tcic_setb(TCIC_MODE, mode);
-    return tcic_getb(TCIC_AUX);
-}
-
 static void tcic_aux_setb(u_short reg, u_char data)
 {
     u_char mode = (tcic_getb(TCIC_MODE) & TCIC_MODE_PGMMASK) | reg;
@@ -641,59 +634,6 @@ static int tcic_get_status(struct pcmcia_socket *sock, u_int *value)
     debug(1, "GetStatus(%d) = %#2.2x\n", psock, *value);
     return 0;
 } /* tcic_get_status */
-  
-/*====================================================================*/
-
-static int tcic_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-    u_short psock = container_of(sock, struct tcic_socket, socket)->psock;
-    u_char reg;
-    u_short scf1, scf2;
-    
-    tcic_setl(TCIC_ADDR, (psock << TCIC_ADDR_SS_SHFT)
-	      | TCIC_ADDR_INDREG | TCIC_SCF1(psock));
-    scf1 = tcic_getw(TCIC_DATA);
-    state->flags = (scf1 & TCIC_SCF1_IOSTS) ? SS_IOCARD : 0;
-    state->flags |= (scf1 & TCIC_SCF1_DMA_MASK) ? SS_DMA_MODE : 0;
-    state->flags |= (scf1 & TCIC_SCF1_SPKR) ? SS_SPKR_ENA : 0;
-    if (tcic_getb(TCIC_SCTRL) & TCIC_SCTRL_ENA)
-	state->flags |= SS_OUTPUT_ENA;
-    state->io_irq = scf1 & TCIC_SCF1_IRQ_MASK;
-    if (state->io_irq == 1) state->io_irq = 11;
-
-    reg = tcic_getb(TCIC_PWR);
-    state->Vcc = state->Vpp = 0;
-    if (reg & TCIC_PWR_VCC(psock)) {
-	if (reg & TCIC_PWR_VPP(psock))
-	    state->Vcc = 50;
-	else
-	    state->Vcc = state->Vpp = 50;
-    } else {
-	if (reg & TCIC_PWR_VPP(psock)) {
-	    state->Vcc = 50;
-	    state->Vpp = 120;
-	}
-    }
-    reg = tcic_aux_getb(TCIC_AUX_ILOCK);
-    state->flags |= (reg & TCIC_ILOCK_CRESET) ? SS_RESET : 0;
-
-    /* Card status change interrupt mask */
-    tcic_setw(TCIC_ADDR, TCIC_SCF2(psock));
-    scf2 = tcic_getw(TCIC_DATA);
-    state->csc_mask = (scf2 & TCIC_SCF2_MCD) ? 0 : SS_DETECT;
-    if (state->flags & SS_IOCARD) {
-	state->csc_mask |= (scf2 & TCIC_SCF2_MLBAT1) ? 0 : SS_STSCHG;
-    } else {
-	state->csc_mask |= (scf2 & TCIC_SCF2_MLBAT1) ? 0 : SS_BATDEAD;
-	state->csc_mask |= (scf2 & TCIC_SCF2_MLBAT2) ? 0 : SS_BATWARN;
-	state->csc_mask |= (scf2 & TCIC_SCF2_MRDY) ? 0 : SS_READY;
-    }
-
-    debug(1, "GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-	  "io_irq %d, csc_mask %#2.2x\n", psock, state->flags,
-	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-    return 0;
-} /* tcic_get_socket */
 
 /*====================================================================*/
 
@@ -874,7 +814,6 @@ static int tcic_init(struct pcmcia_socket *s)
 static struct pccard_operations tcic_operations = {
 	.init		   = tcic_init,
 	.get_status	   = tcic_get_status,
-	.get_socket	   = tcic_get_socket,
 	.set_socket	   = tcic_set_socket,
 	.set_io_map	   = tcic_set_io_map,
 	.set_mem_map	   = tcic_set_mem_map,

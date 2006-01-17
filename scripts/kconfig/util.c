@@ -33,7 +33,7 @@ int file_write_dep(const char *name)
 	FILE *out;
 
 	if (!name)
-		name = ".config.cmd";
+		name = ".kconfig.d";
 	out = fopen("..config.tmp", "w");
 	if (!out)
 		return 1;
@@ -101,7 +101,7 @@ void str_printf(struct gstr *gs, const char *fmt, ...)
 	va_end(ap);
 }
 
-/* Retreive value of growable string */
+/* Retrieve value of growable string */
 const char *str_get(struct gstr *gs)
 {
 	return gs->s;

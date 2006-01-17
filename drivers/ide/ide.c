@@ -222,7 +222,7 @@ static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
 	hwif->mwdma_mask = 0x80;	/* disable all mwdma */
 	hwif->swdma_mask = 0x80;	/* disable all swdma */
 
-	sema_init(&hwif->gendev_rel_sem, 0);
+	init_completion(&hwif->gendev_rel_comp);
 
 	default_hwif_iops(hwif);
 	default_hwif_transport(hwif);
@@ -245,7 +245,7 @@ static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
 		drive->is_flash			= 0;
 		drive->vdma			= 0;
 		INIT_LIST_HEAD(&drive->list);
-		sema_init(&drive->gendev_rel_sem, 0);
+		init_completion(&drive->gendev_rel_comp);
 	}
 }
 
@@ -602,7 +602,7 @@ void ide_unregister(unsigned int index)
 		}
 		spin_unlock_irq(&ide_lock);
 		device_unregister(&drive->gendev);
-		down(&drive->gendev_rel_sem);
+		wait_for_completion(&drive->gendev_rel_comp);
 		spin_lock_irq(&ide_lock);
 	}
 	hwif->present = 0;
@@ -662,7 +662,7 @@ void ide_unregister(unsigned int index)
 	/* More messed up locking ... */
 	spin_unlock_irq(&ide_lock);
 	device_unregister(&hwif->gendev);
-	down(&hwif->gendev_rel_sem);
+	wait_for_completion(&hwif->gendev_rel_comp);
 
 	/*
 	 * Remove us from the kernel's knowledge
@@ -1278,19 +1278,6 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 	up(&ide_setting_sem);
 
 	switch (cmd) {
-		case HDIO_GETGEO:
-		{
-			struct hd_geometry geom;
-			if (!p || (drive->media != ide_disk && drive->media != ide_floppy)) return -EINVAL;
-			geom.heads = drive->bios_head;
-			geom.sectors = drive->bios_sect;
-			geom.cylinders = (u16)drive->bios_cyl; /* truncate */
-			geom.start = get_start_sect(bdev);
-			if (copy_to_user(p, &geom, sizeof(struct hd_geometry)))
-				return -EFAULT;
-			return 0;
-		}
-
 		case HDIO_OBSOLETE_IDENTITY:
 		case HDIO_GET_IDENTITY:
 			if (bdev != bdev->bd_contains)
@@ -1904,9 +1891,100 @@ static int ide_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
+static char *media_string(ide_drive_t *drive)
+{
+	switch (drive->media) {
+	case ide_disk:
+		return "disk";
+	case ide_cdrom:
+		return "cdrom";
+	case ide_tape:
+		return "tape";
+	case ide_floppy:
+		return "floppy";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static ssize_t media_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", media_string(drive));
+}
+
+static ssize_t drivename_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", drive->name);
+}
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "ide:m-%s\n", media_string(drive));
+}
+
+static struct device_attribute ide_dev_attrs[] = {
+	__ATTR_RO(media),
+	__ATTR_RO(drivename),
+	__ATTR_RO(modalias),
+	__ATTR_NULL
+};
+
+static int ide_uevent(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	int i = 0;
+	int length = 0;
+
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MEDIA=%s", media_string(drive));
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "DRIVENAME=%s", drive->name);
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MODALIAS=ide:m-%s", media_string(drive));
+	envp[i] = NULL;
+	return 0;
+}
+
+static int generic_ide_probe(struct device *dev)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	ide_driver_t *drv = to_ide_driver(dev->driver);
+
+	return drv->probe ? drv->probe(drive) : -ENODEV;
+}
+
+static int generic_ide_remove(struct device *dev)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	ide_driver_t *drv = to_ide_driver(dev->driver);
+
+	if (drv->remove)
+		drv->remove(drive);
+
+	return 0;
+}
+
+static void generic_ide_shutdown(struct device *dev)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	ide_driver_t *drv = to_ide_driver(dev->driver);
+
+	if (dev->driver && drv->shutdown)
+		drv->shutdown(drive);
+}
+
 struct bus_type ide_bus_type = {
 	.name		= "ide",
 	.match		= ide_bus_match,
+	.uevent		= ide_uevent,
+	.probe		= generic_ide_probe,
+	.remove		= generic_ide_remove,
+	.shutdown	= generic_ide_shutdown,
+	.dev_attrs	= ide_dev_attrs,
 	.suspend	= generic_ide_suspend,
 	.resume		= generic_ide_resume,
 };

@@ -120,7 +120,7 @@ to the unique id assigned by the driver. This data is required for performing
 some operations (removing an effect, controlling the playback).
 This if field must be set to -1 by the user in order to tell the driver to
 allocate a new effect.
-See <linux/input.h> for a description of the ff_effect stuct. You should also
+See <linux/input.h> for a description of the ff_effect struct. You should also
 find help in a few sketches, contained in files shape.fig and interactive.fig.
 You need xfig to visualize these files.
 

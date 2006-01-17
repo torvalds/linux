@@ -133,7 +133,7 @@ static void end_8259A_irq (unsigned int irq)
 {
 	if (irq > 256) { 
 		char var;
-		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, current->thread_info); 
+		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, task_thread_info(current));
 
 		BUG(); 
 	}
@@ -549,9 +549,8 @@ void __init init_IRQ(void)
 		int vector = FIRST_EXTERNAL_VECTOR + i;
 		if (i >= NR_IRQS)
 			break;
-		if (vector != IA32_SYSCALL_VECTOR && vector != KDB_VECTOR) { 
+		if (vector != IA32_SYSCALL_VECTOR)
 			set_intr_gate(vector, interrupt[i]);
-	}
 	}
 
 #ifdef CONFIG_SMP

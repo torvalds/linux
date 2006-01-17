@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PAGE_32_H
 #define _ASM_POWERPC_PAGE_32_H
+#ifdef __KERNEL__
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_DEFAULT_FLAGS32
 
@@ -37,4 +38,5 @@ extern __inline__ int get_order(unsigned long size)
 
 #endif /* __ASSEMBLY__ */
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PAGE_32_H */

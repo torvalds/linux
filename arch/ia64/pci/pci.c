@@ -454,14 +454,13 @@ static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 	return 0;
 }
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+static void __devinit
+pcibios_fixup_resources(struct pci_dev *dev, int start, int limit)
 {
 	struct pci_bus_region region;
 	int i;
-	int limit = (dev->hdr_type == PCI_HEADER_TYPE_NORMAL) ? \
-		PCI_BRIDGE_RESOURCES : PCI_NUM_RESOURCES;
 
-	for (i = 0; i < limit; i++) {
+	for (i = start; i < limit; i++) {
 		if (!dev->resource[i].flags)
 			continue;
 		region.start = dev->resource[i].start;
@@ -470,6 +469,16 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 		if ((is_valid_resource(dev, i)))
 			pci_claim_resource(dev, i);
 	}
+}
+
+static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+{
+	pcibios_fixup_resources(dev, 0, PCI_BRIDGE_RESOURCES);
+}
+
+static void __devinit pcibios_fixup_bridge_resources(struct pci_dev *dev)
+{
+	pcibios_fixup_resources(dev, PCI_BRIDGE_RESOURCES, PCI_NUM_RESOURCES);
 }
 
 /*
@@ -482,7 +491,7 @@ pcibios_fixup_bus (struct pci_bus *b)
 
 	if (b->self) {
 		pci_read_bridge_bases(b);
-		pcibios_fixup_device_resources(b->self);
+		pcibios_fixup_bridge_resources(b->self);
 	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
@@ -700,7 +709,7 @@ int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
  */
 int ia64_pci_legacy_write(struct pci_dev *bus, u16 port, u32 val, u8 size)
 {
-	int ret = 0;
+	int ret = size;
 
 	switch (size) {
 	case 1:

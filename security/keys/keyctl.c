@@ -16,6 +16,7 @@
 #include <linux/syscalls.h>
 #include <linux/keyctl.h>
 #include <linux/fs.h>
+#include <linux/capability.h>
 #include <linux/err.h>
 #include <asm/uaccess.h>
 #include "internal.h"
@@ -834,6 +835,17 @@ long keyctl_instantiate_key(key_serial_t id,
 	if (plen > 32767)
 		goto error;
 
+	/* the appropriate instantiation authorisation key must have been
+	 * assumed before calling this */
+	ret = -EPERM;
+	instkey = current->request_key_auth;
+	if (!instkey)
+		goto error;
+
+	rka = instkey->payload.data;
+	if (rka->target_key->serial != id)
+		goto error;
+
 	/* pull the payload in if one was supplied */
 	payload = NULL;
 
@@ -848,15 +860,6 @@ long keyctl_instantiate_key(key_serial_t id,
 			goto error2;
 	}
 
-	/* find the instantiation authorisation key */
-	instkey = key_get_instantiation_authkey(id);
-	if (IS_ERR(instkey)) {
-		ret = PTR_ERR(instkey);
-		goto error2;
-	}
-
-	rka = instkey->payload.data;
-
 	/* find the destination keyring amongst those belonging to the
 	 * requesting task */
 	keyring_ref = NULL;
@@ -865,7 +868,7 @@ long keyctl_instantiate_key(key_serial_t id,
 					      KEY_WRITE);
 		if (IS_ERR(keyring_ref)) {
 			ret = PTR_ERR(keyring_ref);
-			goto error3;
+			goto error2;
 		}
 	}
 
@@ -874,11 +877,17 @@ long keyctl_instantiate_key(key_serial_t id,
 				       key_ref_to_ptr(keyring_ref), instkey);
 
 	key_ref_put(keyring_ref);
- error3:
-	key_put(instkey);
- error2:
+
+	/* discard the assumed authority if it's just been disabled by
+	 * instantiation of the key */
+	if (ret == 0) {
+		key_put(current->request_key_auth);
+		current->request_key_auth = NULL;
+	}
+
+error2:
 	kfree(payload);
- error:
+error:
 	return ret;
 
 } /* end keyctl_instantiate_key() */
@@ -895,14 +904,16 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 	key_ref_t keyring_ref;
 	long ret;
 
-	/* find the instantiation authorisation key */
-	instkey = key_get_instantiation_authkey(id);
-	if (IS_ERR(instkey)) {
-		ret = PTR_ERR(instkey);
+	/* the appropriate instantiation authorisation key must have been
+	 * assumed before calling this */
+	ret = -EPERM;
+	instkey = current->request_key_auth;
+	if (!instkey)
 		goto error;
-	}
 
 	rka = instkey->payload.data;
+	if (rka->target_key->serial != id)
+		goto error;
 
 	/* find the destination keyring if present (which must also be
 	 * writable) */
@@ -911,7 +922,7 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 		keyring_ref = lookup_user_key(NULL, ringid, 1, 0, KEY_WRITE);
 		if (IS_ERR(keyring_ref)) {
 			ret = PTR_ERR(keyring_ref);
-			goto error2;
+			goto error;
 		}
 	}
 
@@ -920,9 +931,15 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 				  key_ref_to_ptr(keyring_ref), instkey);
 
 	key_ref_put(keyring_ref);
- error2:
-	key_put(instkey);
- error:
+
+	/* discard the assumed authority if it's just been disabled by
+	 * instantiation of the key */
+	if (ret == 0) {
+		key_put(current->request_key_auth);
+		current->request_key_auth = NULL;
+	}
+
+error:
 	return ret;
 
 } /* end keyctl_negate_key() */
@@ -964,6 +981,88 @@ long keyctl_set_reqkey_keyring(int reqkey_defl)
 	}
 
 } /* end keyctl_set_reqkey_keyring() */
+
+/*****************************************************************************/
+/*
+ * set or clear the timeout for a key
+ */
+long keyctl_set_timeout(key_serial_t id, unsigned timeout)
+{
+	struct timespec now;
+	struct key *key;
+	key_ref_t key_ref;
+	time_t expiry;
+	long ret;
+
+	key_ref = lookup_user_key(NULL, id, 1, 1, KEY_SETATTR);
+	if (IS_ERR(key_ref)) {
+		ret = PTR_ERR(key_ref);
+		goto error;
+	}
+
+	key = key_ref_to_ptr(key_ref);
+
+	/* make the changes with the locks held to prevent races */
+	down_write(&key->sem);
+
+	expiry = 0;
+	if (timeout > 0) {
+		now = current_kernel_time();
+		expiry = now.tv_sec + timeout;
+	}
+
+	key->expiry = expiry;
+
+	up_write(&key->sem);
+	key_put(key);
+
+	ret = 0;
+error:
+	return ret;
+
+} /* end keyctl_set_timeout() */
+
+/*****************************************************************************/
+/*
+ * assume the authority to instantiate the specified key
+ */
+long keyctl_assume_authority(key_serial_t id)
+{
+	struct key *authkey;
+	long ret;
+
+	/* special key IDs aren't permitted */
+	ret = -EINVAL;
+	if (id < 0)
+		goto error;
+
+	/* we divest ourselves of authority if given an ID of 0 */
+	if (id == 0) {
+		key_put(current->request_key_auth);
+		current->request_key_auth = NULL;
+		ret = 0;
+		goto error;
+	}
+
+	/* attempt to assume the authority temporarily granted to us whilst we
+	 * instantiate the specified key
+	 * - the authorisation key must be in the current task's keyrings
+	 *   somewhere
+	 */
+	authkey = key_get_instantiation_authkey(id);
+	if (IS_ERR(authkey)) {
+		ret = PTR_ERR(authkey);
+		goto error;
+	}
+
+	key_put(current->request_key_auth);
+	current->request_key_auth = authkey;
+	ret = authkey->serial;
+
+error:
+	return ret;
+
+} /* end keyctl_assume_authority() */
 
 /*****************************************************************************/
 /*
@@ -1037,6 +1136,13 @@ asmlinkage long sys_keyctl(int option, unsigned long arg2, unsigned long arg3,
 
 	case KEYCTL_SET_REQKEY_KEYRING:
 		return keyctl_set_reqkey_keyring(arg2);
+
+	case KEYCTL_SET_TIMEOUT:
+		return keyctl_set_timeout((key_serial_t) arg2,
+					  (unsigned) arg3);
+
+	case KEYCTL_ASSUME_AUTHORITY:
+		return keyctl_assume_authority((key_serial_t) arg2);
 
 	default:
 		return -EOPNOTSUPP;

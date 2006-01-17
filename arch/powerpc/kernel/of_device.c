@@ -132,6 +132,8 @@ static int of_device_resume(struct device * dev)
 struct bus_type of_platform_bus_type = {
        .name	= "of_platform",
        .match	= of_platform_bus_match,
+       .probe	= of_device_probe,
+       .remove	= of_device_remove,
        .suspend	= of_device_suspend,
        .resume	= of_device_resume,
 };
@@ -150,8 +152,6 @@ int of_register_driver(struct of_platform_driver *drv)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &of_platform_bus_type;
-	drv->driver.probe = of_device_probe;
-	drv->driver.remove = of_device_remove;
 
 	/* register with core */
 	count = driver_register(&drv->driver);

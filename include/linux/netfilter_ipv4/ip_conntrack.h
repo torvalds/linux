@@ -199,9 +199,6 @@ ip_conntrack_put(struct ip_conntrack *ct)
 	nf_conntrack_put(&ct->ct_general);
 }
 
-/* call to create an explicit dependency on ip_conntrack. */
-extern void need_ip_conntrack(void);
-
 extern int invert_tuplepr(struct ip_conntrack_tuple *inverse,
 			  const struct ip_conntrack_tuple *orig);
 

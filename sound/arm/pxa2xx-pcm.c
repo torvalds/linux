@@ -28,7 +28,7 @@
 #include "pxa2xx-pcm.h"
 
 
-static const snd_pcm_hardware_t pxa2xx_pcm_hardware = {
+static const struct snd_pcm_hardware pxa2xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
@@ -44,15 +44,15 @@ static const snd_pcm_hardware_t pxa2xx_pcm_hardware = {
 
 struct pxa2xx_runtime_data {
 	int dma_ch;
-	pxa2xx_pcm_dma_params_t *params;
+	struct pxa2xx_pcm_dma_params *params;
 	pxa_dma_desc *dma_desc_array;
 	dma_addr_t dma_desc_array_phys;
 };
 
-static int pxa2xx_pcm_hw_params(snd_pcm_substream_t *substream,
-				snd_pcm_hw_params_t *params)
+static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pxa2xx_runtime_data *rtd = runtime->private_data;
 	size_t totsize = params_buffer_bytes(params);
 	size_t period = params_period_bytes(params);
@@ -86,7 +86,7 @@ static int pxa2xx_pcm_hw_params(snd_pcm_substream_t *substream,
 	return 0;
 }
 
-static int pxa2xx_pcm_hw_free(snd_pcm_substream_t *substream)
+static int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;
 
@@ -95,10 +95,10 @@ static int pxa2xx_pcm_hw_free(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int pxa2xx_pcm_prepare(snd_pcm_substream_t *substream)
+static int pxa2xx_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	pxa2xx_pcm_client_t *client = substream->private_data;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct pxa2xx_pcm_client *client = substream->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pxa2xx_runtime_data *rtd = runtime->private_data;
 
 	DCSR(rtd->dma_ch) &= ~DCSR_RUN;
@@ -109,7 +109,7 @@ static int pxa2xx_pcm_prepare(snd_pcm_substream_t *substream)
 	return client->prepare(substream);
 }
 
-static int pxa2xx_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
+static int pxa2xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;
 	int ret = 0;
@@ -139,7 +139,7 @@ static int pxa2xx_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 
 static void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id, struct pt_regs *regs)
 {
-	snd_pcm_substream_t *substream = dev_id;
+	struct snd_pcm_substream *substream = dev_id;
 	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;
 	int dcsr;
 
@@ -155,9 +155,9 @@ static void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id, struct pt_regs *regs)
 	}
 }
 
-static snd_pcm_uframes_t pxa2xx_pcm_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t pxa2xx_pcm_pointer(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pxa2xx_runtime_data *rtd = runtime->private_data;
 	dma_addr_t ptr = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 			 DSADR(rtd->dma_ch) : DTADR(rtd->dma_ch);
@@ -168,9 +168,9 @@ static snd_pcm_uframes_t pxa2xx_pcm_pointer(snd_pcm_substream_t *substream)
 }
 
 static int
-pxa2xx_pcm_hw_rule_mult32(snd_pcm_hw_params_t *params, snd_pcm_hw_rule_t *rule)
+pxa2xx_pcm_hw_rule_mult32(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
 {
-	snd_interval_t *i = hw_param_interval(params, rule->var);
+	struct snd_interval *i = hw_param_interval(params, rule->var);
 	int changed = 0;
 
 	if (i->min & 31) {
@@ -188,10 +188,10 @@ pxa2xx_pcm_hw_rule_mult32(snd_pcm_hw_params_t *params, snd_pcm_hw_rule_t *rule)
 	return changed;
 }
 
-static int pxa2xx_pcm_open(snd_pcm_substream_t *substream)
+static int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 {
-	pxa2xx_pcm_client_t *client = substream->private_data;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct pxa2xx_pcm_client *client = substream->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pxa2xx_runtime_data *rtd;
 	int ret;
 
@@ -246,9 +246,9 @@ static int pxa2xx_pcm_open(snd_pcm_substream_t *substream)
 	return ret;
 }
 
-static int pxa2xx_pcm_close(snd_pcm_substream_t *substream)
+static int pxa2xx_pcm_close(struct snd_pcm_substream *substream)
 {
-	pxa2xx_pcm_client_t *client = substream->private_data;
+	struct pxa2xx_pcm_client *client = substream->private_data;
 	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;
 
 	pxa_free_dma(rtd->dma_ch);
@@ -260,16 +260,16 @@ static int pxa2xx_pcm_close(snd_pcm_substream_t *substream)
 }
 
 static int
-pxa2xx_pcm_mmap(snd_pcm_substream_t *substream, struct vm_area_struct *vma)
+pxa2xx_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
 				     runtime->dma_area,
 				     runtime->dma_addr,
 				     runtime->dma_bytes);
 }
 
-static snd_pcm_ops_t pxa2xx_pcm_ops = {
+static struct snd_pcm_ops pxa2xx_pcm_ops = {
 	.open		= pxa2xx_pcm_open,
 	.close		= pxa2xx_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -281,9 +281,9 @@ static snd_pcm_ops_t pxa2xx_pcm_ops = {
 	.mmap		= pxa2xx_pcm_mmap,
 };
 
-static int pxa2xx_pcm_preallocate_dma_buffer(snd_pcm_t *pcm, int stream)
+static int pxa2xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
-	snd_pcm_substream_t *substream = pcm->streams[stream].substream;
+	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size = pxa2xx_pcm_hardware.buffer_bytes_max;
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
@@ -297,9 +297,9 @@ static int pxa2xx_pcm_preallocate_dma_buffer(snd_pcm_t *pcm, int stream)
 	return 0;
 }
 
-static void pxa2xx_pcm_free_dma_buffers(snd_pcm_t *pcm)
+static void pxa2xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 {
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 	struct snd_dma_buffer *buf;
 	int stream;
 
@@ -318,9 +318,10 @@ static void pxa2xx_pcm_free_dma_buffers(snd_pcm_t *pcm)
 
 static u64 pxa2xx_pcm_dmamask = 0xffffffff;
 
-int pxa2xx_pcm_new(snd_card_t *card, pxa2xx_pcm_client_t *client, snd_pcm_t **rpcm)
+int pxa2xx_pcm_new(struct snd_card *card, struct pxa2xx_pcm_client *client,
+		   struct snd_pcm **rpcm)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int play = client->playback_params ? 1 : 0;
 	int capt = client->capture_params ? 1 : 0;
 	int ret;

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -146,8 +146,8 @@ void set_cmdline(char *cmd)
 
 	if(CHOOSE_MODE(honeypot, 0)) return;
 
-	umid = get_umid(1);
-	if(umid != NULL){
+	umid = get_umid();
+	if(*umid != '\0'){
 		snprintf(argv1_begin, 
 			 (argv1_end - argv1_begin) * sizeof(*ptr), 
 			 "(%s) ", umid);
@@ -242,10 +242,6 @@ static int __init mode_tt_setup(char *line, int *add)
 	printf("CONFIG_MODE_SKAS disabled - 'mode=tt' redundant\n");
 	return(0);
 }
-
-#else
-
-#error Either CONFIG_MODE_TT or CONFIG_MODE_SKAS must be enabled
 
 #endif
 #endif
@@ -362,6 +358,11 @@ int linux_main(int argc, char **argv)
 
 	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
 				     &host_task_size, &task_size);
+
+	/*
+ 	 * Setting up handlers to 'sig_info' struct
+ 	 */
+	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
 	CHOOSE_MODE_PROC(before_mem_tt, before_mem_skas, brk_start);

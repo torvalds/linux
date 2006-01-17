@@ -32,7 +32,7 @@
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
-static unsigned int core_debug;
+static unsigned int core_debug = 0;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
@@ -41,7 +41,7 @@ MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-static unsigned int reg_debug;
+static unsigned int reg_debug = 0;
 module_param(reg_debug,int,0644);
 MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 
@@ -50,7 +50,7 @@ MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-static unsigned int isoc_debug;
+static unsigned int isoc_debug = 0;
 module_param(isoc_debug,int,0644);
 MODULE_PARM_DESC(isoc_debug,"enable debug messages [isoc transfers]");
 
@@ -63,59 +63,6 @@ static int alt = EM28XX_PINOUT;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
-/* ------------------------------------------------------------------ */
-/* debug help functions                                               */
-
-static const char *v4l1_ioctls[] = {
-	"0", "CGAP", "GCHAN", "SCHAN", "GTUNER", "STUNER", "GPICT", "SPICT",
-	"CCAPTURE", "GWIN", "SWIN", "GFBUF", "SFBUF", "KEY", "GFREQ",
-	"SFREQ", "GAUDIO", "SAUDIO", "SYNC", "MCAPTURE", "GMBUF", "GUNIT",
-	"GCAPTURE", "SCAPTURE", "SPLAYMODE", "SWRITEMODE", "GPLAYINFO",
-	"SMICROCODE", "GVBIFMT", "SVBIFMT" };
-#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
-
-static const char *v4l2_ioctls[] = {
-	"QUERYCAP", "1", "ENUM_PIXFMT", "ENUM_FBUFFMT", "G_FMT", "S_FMT",
-	"G_COMP", "S_COMP", "REQBUFS", "QUERYBUF", "G_FBUF", "S_FBUF",
-	"G_WIN", "S_WIN", "PREVIEW", "QBUF", "16", "DQBUF", "STREAMON",
-	"STREAMOFF", "G_PERF", "G_PARM", "S_PARM", "G_STD", "S_STD",
-	"ENUMSTD", "ENUMINPUT", "G_CTRL", "S_CTRL", "G_TUNER", "S_TUNER",
-	"G_FREQ", "S_FREQ", "G_AUDIO", "S_AUDIO", "35", "QUERYCTRL",
-	"QUERYMENU", "G_INPUT", "S_INPUT", "ENUMCVT", "41", "42", "43",
-	"44", "45",  "G_OUTPUT", "S_OUTPUT", "ENUMOUTPUT", "G_AUDOUT",
-	"S_AUDOUT", "ENUMFX", "G_EFFECT", "S_EFFECT", "G_MODULATOR",
-	"S_MODULATOR"
-};
-#define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
-
-void em28xx_print_ioctl(char *name, unsigned int cmd)
-{
-	char *dir;
-
-	switch (_IOC_DIR(cmd)) {
-	case _IOC_NONE:              dir = "--"; break;
-	case _IOC_READ:              dir = "r-"; break;
-	case _IOC_WRITE:             dir = "-w"; break;
-	case _IOC_READ | _IOC_WRITE: dir = "rw"; break;
-	default:                     dir = "??"; break;
-	}
-	switch (_IOC_TYPE(cmd)) {
-	case 'v':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (v4l1, %s, VIDIOC%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < V4L1_IOCTLS) ?
-		       v4l1_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	case 'V':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (v4l2, %s, VIDIOC_%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < V4L2_IOCTLS) ?
-		       v4l2_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	default:
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (???, %s, #%d)\n",
-		       name, cmd, dir, _IOC_NR(cmd));
-	}
-}
-
 
 /*
  * em28xx_request_buffers()
@@ -126,7 +73,7 @@ u32 em28xx_request_buffers(struct em28xx *dev, u32 count)
 	const size_t imagesize = PAGE_ALIGN(dev->frame_size);	/*needs to be page aligned cause the buffers can be mapped individually! */
 	void *buff = NULL;
 	u32 i;
-	em28xx_coredbg("requested %i buffers with size %zd", count, imagesize);
+	em28xx_coredbg("requested %i buffers with size %zi", count, imagesize);
 	if (count > EM28XX_NUM_FRAMES)
 		count = EM28XX_NUM_FRAMES;
 

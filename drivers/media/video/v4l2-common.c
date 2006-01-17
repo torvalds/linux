@@ -58,6 +58,8 @@
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/div64.h>
+#include <linux/video_decoder.h>
+#include <media/v4l2-common.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -190,57 +192,175 @@ char *v4l2_type_names[] = {
 	[V4L2_BUF_TYPE_VBI_OUTPUT]    = "vbi-out",
 };
 
-char *v4l2_ioctl_names[256] = {
-#if __GNUC__ >= 3
-	[0 ... 255]                      = "UNKNOWN",
-#endif
-	[_IOC_NR(VIDIOC_QUERYCAP)]       = "VIDIOC_QUERYCAP",
-	[_IOC_NR(VIDIOC_RESERVED)]       = "VIDIOC_RESERVED",
-	[_IOC_NR(VIDIOC_ENUM_FMT)]       = "VIDIOC_ENUM_FMT",
-	[_IOC_NR(VIDIOC_G_FMT)]          = "VIDIOC_G_FMT",
-	[_IOC_NR(VIDIOC_S_FMT)]          = "VIDIOC_S_FMT",
-	[_IOC_NR(VIDIOC_REQBUFS)]        = "VIDIOC_REQBUFS",
-	[_IOC_NR(VIDIOC_QUERYBUF)]       = "VIDIOC_QUERYBUF",
-	[_IOC_NR(VIDIOC_G_FBUF)]         = "VIDIOC_G_FBUF",
-	[_IOC_NR(VIDIOC_S_FBUF)]         = "VIDIOC_S_FBUF",
-	[_IOC_NR(VIDIOC_OVERLAY)]        = "VIDIOC_OVERLAY",
-	[_IOC_NR(VIDIOC_QBUF)]           = "VIDIOC_QBUF",
-	[_IOC_NR(VIDIOC_DQBUF)]          = "VIDIOC_DQBUF",
-	[_IOC_NR(VIDIOC_STREAMON)]       = "VIDIOC_STREAMON",
-	[_IOC_NR(VIDIOC_STREAMOFF)]      = "VIDIOC_STREAMOFF",
-	[_IOC_NR(VIDIOC_G_PARM)]         = "VIDIOC_G_PARM",
-	[_IOC_NR(VIDIOC_S_PARM)]         = "VIDIOC_S_PARM",
-	[_IOC_NR(VIDIOC_G_STD)]          = "VIDIOC_G_STD",
-	[_IOC_NR(VIDIOC_S_STD)]          = "VIDIOC_S_STD",
-	[_IOC_NR(VIDIOC_ENUMSTD)]        = "VIDIOC_ENUMSTD",
-	[_IOC_NR(VIDIOC_ENUMINPUT)]      = "VIDIOC_ENUMINPUT",
-	[_IOC_NR(VIDIOC_G_CTRL)]         = "VIDIOC_G_CTRL",
-	[_IOC_NR(VIDIOC_S_CTRL)]         = "VIDIOC_S_CTRL",
-	[_IOC_NR(VIDIOC_G_TUNER)]        = "VIDIOC_G_TUNER",
-	[_IOC_NR(VIDIOC_S_TUNER)]        = "VIDIOC_S_TUNER",
-	[_IOC_NR(VIDIOC_G_AUDIO)]        = "VIDIOC_G_AUDIO",
-	[_IOC_NR(VIDIOC_S_AUDIO)]        = "VIDIOC_S_AUDIO",
-	[_IOC_NR(VIDIOC_QUERYCTRL)]      = "VIDIOC_QUERYCTRL",
-	[_IOC_NR(VIDIOC_QUERYMENU)]      = "VIDIOC_QUERYMENU",
-	[_IOC_NR(VIDIOC_G_INPUT)]        = "VIDIOC_G_INPUT",
-	[_IOC_NR(VIDIOC_S_INPUT)]        = "VIDIOC_S_INPUT",
-	[_IOC_NR(VIDIOC_G_OUTPUT)]       = "VIDIOC_G_OUTPUT",
-	[_IOC_NR(VIDIOC_S_OUTPUT)]       = "VIDIOC_S_OUTPUT",
-	[_IOC_NR(VIDIOC_ENUMOUTPUT)]     = "VIDIOC_ENUMOUTPUT",
-	[_IOC_NR(VIDIOC_G_AUDOUT)]       = "VIDIOC_G_AUDOUT",
-	[_IOC_NR(VIDIOC_S_AUDOUT)]       = "VIDIOC_S_AUDOUT",
-	[_IOC_NR(VIDIOC_G_MODULATOR)]    = "VIDIOC_G_MODULATOR",
-	[_IOC_NR(VIDIOC_S_MODULATOR)]    = "VIDIOC_S_MODULATOR",
-	[_IOC_NR(VIDIOC_G_FREQUENCY)]    = "VIDIOC_G_FREQUENCY",
-	[_IOC_NR(VIDIOC_S_FREQUENCY)]    = "VIDIOC_S_FREQUENCY",
-	[_IOC_NR(VIDIOC_CROPCAP)]        = "VIDIOC_CROPCAP",
-	[_IOC_NR(VIDIOC_G_CROP)]         = "VIDIOC_G_CROP",
-	[_IOC_NR(VIDIOC_S_CROP)]         = "VIDIOC_S_CROP",
-	[_IOC_NR(VIDIOC_G_JPEGCOMP)]     = "VIDIOC_G_JPEGCOMP",
-	[_IOC_NR(VIDIOC_S_JPEGCOMP)]     = "VIDIOC_S_JPEGCOMP",
-	[_IOC_NR(VIDIOC_QUERYSTD)]       = "VIDIOC_QUERYSTD",
-	[_IOC_NR(VIDIOC_TRY_FMT)]        = "VIDIOC_TRY_FMT",
+/* ------------------------------------------------------------------ */
+/* debug help functions                                               */
+
+#ifdef HAVE_V4L1
+static const char *v4l1_ioctls[] = {
+	[_IOC_NR(VIDIOCGCAP)]       = "VIDIOCGCAP",
+	[_IOC_NR(VIDIOCGCHAN)]      = "VIDIOCGCHAN",
+	[_IOC_NR(VIDIOCSCHAN)]      = "VIDIOCSCHAN",
+	[_IOC_NR(VIDIOCGTUNER)]     = "VIDIOCGTUNER",
+	[_IOC_NR(VIDIOCSTUNER)]     = "VIDIOCSTUNER",
+	[_IOC_NR(VIDIOCGPICT)]      = "VIDIOCGPICT",
+	[_IOC_NR(VIDIOCSPICT)]      = "VIDIOCSPICT",
+	[_IOC_NR(VIDIOCCAPTURE)]    = "VIDIOCCAPTURE",
+	[_IOC_NR(VIDIOCGWIN)]       = "VIDIOCGWIN",
+	[_IOC_NR(VIDIOCSWIN)]       = "VIDIOCSWIN",
+	[_IOC_NR(VIDIOCGFBUF)]      = "VIDIOCGFBUF",
+	[_IOC_NR(VIDIOCSFBUF)]      = "VIDIOCSFBUF",
+	[_IOC_NR(VIDIOCKEY)]        = "VIDIOCKEY",
+	[_IOC_NR(VIDIOCGFREQ)]      = "VIDIOCGFREQ",
+	[_IOC_NR(VIDIOCSFREQ)]      = "VIDIOCSFREQ",
+	[_IOC_NR(VIDIOCGAUDIO)]     = "VIDIOCGAUDIO",
+	[_IOC_NR(VIDIOCSAUDIO)]     = "VIDIOCSAUDIO",
+	[_IOC_NR(VIDIOCSYNC)]       = "VIDIOCSYNC",
+	[_IOC_NR(VIDIOCMCAPTURE)]   = "VIDIOCMCAPTURE",
+	[_IOC_NR(VIDIOCGMBUF)]      = "VIDIOCGMBUF",
+	[_IOC_NR(VIDIOCGUNIT)]      = "VIDIOCGUNIT",
+	[_IOC_NR(VIDIOCGCAPTURE)]   = "VIDIOCGCAPTURE",
+	[_IOC_NR(VIDIOCSCAPTURE)]   = "VIDIOCSCAPTURE",
+	[_IOC_NR(VIDIOCSPLAYMODE)]  = "VIDIOCSPLAYMODE",
+	[_IOC_NR(VIDIOCSWRITEMODE)] = "VIDIOCSWRITEMODE",
+	[_IOC_NR(VIDIOCGPLAYINFO)]  = "VIDIOCGPLAYINFO",
+	[_IOC_NR(VIDIOCSMICROCODE)] = "VIDIOCSMICROCODE",
+	[_IOC_NR(VIDIOCGVBIFMT)]    = "VIDIOCGVBIFMT",
+	[_IOC_NR(VIDIOCSVBIFMT)]    = "VIDIOCSVBIFMT"
 };
+#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
+#endif
+
+static const char *v4l2_ioctls[] = {
+	[_IOC_NR(VIDIOC_QUERYCAP)]         = "VIDIOC_QUERYCAP",
+	[_IOC_NR(VIDIOC_RESERVED)]         = "VIDIOC_RESERVED",
+	[_IOC_NR(VIDIOC_ENUM_FMT)]         = "VIDIOC_ENUM_FMT",
+	[_IOC_NR(VIDIOC_G_FMT)]            = "VIDIOC_G_FMT",
+	[_IOC_NR(VIDIOC_S_FMT)]            = "VIDIOC_S_FMT",
+	[_IOC_NR(VIDIOC_G_MPEGCOMP)]       = "VIDIOC_G_MPEGCOMP",
+	[_IOC_NR(VIDIOC_S_MPEGCOMP)]       = "VIDIOC_S_MPEGCOMP",
+	[_IOC_NR(VIDIOC_REQBUFS)]          = "VIDIOC_REQBUFS",
+	[_IOC_NR(VIDIOC_QUERYBUF)]         = "VIDIOC_QUERYBUF",
+	[_IOC_NR(VIDIOC_G_FBUF)]           = "VIDIOC_G_FBUF",
+	[_IOC_NR(VIDIOC_S_FBUF)]           = "VIDIOC_S_FBUF",
+	[_IOC_NR(VIDIOC_OVERLAY)]          = "VIDIOC_OVERLAY",
+	[_IOC_NR(VIDIOC_QBUF)]             = "VIDIOC_QBUF",
+	[_IOC_NR(VIDIOC_DQBUF)]            = "VIDIOC_DQBUF",
+	[_IOC_NR(VIDIOC_STREAMON)]         = "VIDIOC_STREAMON",
+	[_IOC_NR(VIDIOC_STREAMOFF)]        = "VIDIOC_STREAMOFF",
+	[_IOC_NR(VIDIOC_G_PARM)]           = "VIDIOC_G_PARM",
+	[_IOC_NR(VIDIOC_S_PARM)]           = "VIDIOC_S_PARM",
+	[_IOC_NR(VIDIOC_G_STD)]            = "VIDIOC_G_STD",
+	[_IOC_NR(VIDIOC_S_STD)]            = "VIDIOC_S_STD",
+	[_IOC_NR(VIDIOC_ENUMSTD)]          = "VIDIOC_ENUMSTD",
+	[_IOC_NR(VIDIOC_ENUMINPUT)]        = "VIDIOC_ENUMINPUT",
+	[_IOC_NR(VIDIOC_G_CTRL)]           = "VIDIOC_G_CTRL",
+	[_IOC_NR(VIDIOC_S_CTRL)]           = "VIDIOC_S_CTRL",
+	[_IOC_NR(VIDIOC_G_TUNER)]          = "VIDIOC_G_TUNER",
+	[_IOC_NR(VIDIOC_S_TUNER)]          = "VIDIOC_S_TUNER",
+	[_IOC_NR(VIDIOC_G_AUDIO)]          = "VIDIOC_G_AUDIO",
+	[_IOC_NR(VIDIOC_S_AUDIO)]          = "VIDIOC_S_AUDIO",
+	[_IOC_NR(VIDIOC_QUERYCTRL)]        = "VIDIOC_QUERYCTRL",
+	[_IOC_NR(VIDIOC_QUERYMENU)]        = "VIDIOC_QUERYMENU",
+	[_IOC_NR(VIDIOC_G_INPUT)]          = "VIDIOC_G_INPUT",
+	[_IOC_NR(VIDIOC_S_INPUT)]          = "VIDIOC_S_INPUT",
+	[_IOC_NR(VIDIOC_G_OUTPUT)]         = "VIDIOC_G_OUTPUT",
+	[_IOC_NR(VIDIOC_S_OUTPUT)]         = "VIDIOC_S_OUTPUT",
+	[_IOC_NR(VIDIOC_ENUMOUTPUT)]       = "VIDIOC_ENUMOUTPUT",
+	[_IOC_NR(VIDIOC_G_AUDOUT)]         = "VIDIOC_G_AUDOUT",
+	[_IOC_NR(VIDIOC_S_AUDOUT)]         = "VIDIOC_S_AUDOUT",
+	[_IOC_NR(VIDIOC_G_MODULATOR)]      = "VIDIOC_G_MODULATOR",
+	[_IOC_NR(VIDIOC_S_MODULATOR)]      = "VIDIOC_S_MODULATOR",
+	[_IOC_NR(VIDIOC_G_FREQUENCY)]      = "VIDIOC_G_FREQUENCY",
+	[_IOC_NR(VIDIOC_S_FREQUENCY)]      = "VIDIOC_S_FREQUENCY",
+	[_IOC_NR(VIDIOC_CROPCAP)]          = "VIDIOC_CROPCAP",
+	[_IOC_NR(VIDIOC_G_CROP)]           = "VIDIOC_G_CROP",
+	[_IOC_NR(VIDIOC_S_CROP)]           = "VIDIOC_S_CROP",
+	[_IOC_NR(VIDIOC_G_JPEGCOMP)]       = "VIDIOC_G_JPEGCOMP",
+	[_IOC_NR(VIDIOC_S_JPEGCOMP)]       = "VIDIOC_S_JPEGCOMP",
+	[_IOC_NR(VIDIOC_QUERYSTD)]         = "VIDIOC_QUERYSTD",
+	[_IOC_NR(VIDIOC_TRY_FMT)]          = "VIDIOC_TRY_FMT",
+	[_IOC_NR(VIDIOC_ENUMAUDIO)]        = "VIDIOC_ENUMAUDIO",
+	[_IOC_NR(VIDIOC_ENUMAUDOUT)]       = "VIDIOC_ENUMAUDOUT",
+	[_IOC_NR(VIDIOC_G_PRIORITY)]       = "VIDIOC_G_PRIORITY",
+	[_IOC_NR(VIDIOC_S_PRIORITY)]       = "VIDIOC_S_PRIORITY",
+#if 1
+	[_IOC_NR(VIDIOC_G_SLICED_VBI_CAP)] = "VIDIOC_G_SLICED_VBI_CAP",
+#endif
+	[_IOC_NR(VIDIOC_LOG_STATUS)]       = "VIDIOC_LOG_STATUS"
+};
+#define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
+
+static const char *v4l2_int_ioctls[] = {
+#ifdef HAVE_VIDEO_DECODER
+	[_IOC_NR(DECODER_GET_CAPABILITIES)]    = "DECODER_GET_CAPABILITIES",
+	[_IOC_NR(DECODER_GET_STATUS)]          = "DECODER_GET_STATUS",
+	[_IOC_NR(DECODER_SET_NORM)]            = "DECODER_SET_NORM",
+	[_IOC_NR(DECODER_SET_INPUT)]           = "DECODER_SET_INPUT",
+	[_IOC_NR(DECODER_SET_OUTPUT)]          = "DECODER_SET_OUTPUT",
+	[_IOC_NR(DECODER_ENABLE_OUTPUT)]       = "DECODER_ENABLE_OUTPUT",
+	[_IOC_NR(DECODER_SET_PICTURE)]         = "DECODER_SET_PICTURE",
+	[_IOC_NR(DECODER_SET_GPIO)]            = "DECODER_SET_GPIO",
+	[_IOC_NR(DECODER_INIT)]                = "DECODER_INIT",
+	[_IOC_NR(DECODER_SET_VBI_BYPASS)]      = "DECODER_SET_VBI_BYPASS",
+	[_IOC_NR(DECODER_DUMP)]                = "DECODER_DUMP",
+#endif
+	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
+	[_IOC_NR(AUDC_SET_INPUT)]              = "AUDC_SET_INPUT",
+	[_IOC_NR(MSP_SET_MATRIX)]              = "MSP_SET_MATRIX",
+
+	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
+	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
+	[_IOC_NR(TDA9887_SET_CONFIG)]          = "TDA9887_SET_CONFIG",
+
+	[_IOC_NR(VIDIOC_INT_S_REGISTER)]       = "VIDIOC_INT_S_REGISTER",
+	[_IOC_NR(VIDIOC_INT_G_REGISTER)]       = "VIDIOC_INT_G_REGISTER",
+	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",
+	[_IOC_NR(VIDIOC_INT_AUDIO_CLOCK_FREQ)] = "VIDIOC_INT_AUDIO_CLOCK_FREQ",
+	[_IOC_NR(VIDIOC_INT_DECODE_VBI_LINE)]  = "VIDIOC_INT_DECODE_VBI_LINE",
+	[_IOC_NR(VIDIOC_INT_S_VBI_DATA)]       = "VIDIOC_INT_S_VBI_DATA",
+	[_IOC_NR(VIDIOC_INT_G_VBI_DATA)]       = "VIDIOC_INT_G_VBI_DATA",
+	[_IOC_NR(VIDIOC_INT_G_CHIP_IDENT)]     = "VIDIOC_INT_G_CHIP_IDENT",
+	[_IOC_NR(VIDIOC_INT_I2S_CLOCK_FREQ)]   = "VIDIOC_INT_I2S_CLOCK_FREQ"
+};
+#define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
+
+/* Common ioctl debug function. This function can be used by
+   external ioctl messages as well as internal V4L ioctl */
+void v4l_printk_ioctl(unsigned int cmd)
+{
+	char *dir;
+
+	switch (_IOC_DIR(cmd)) {
+	case _IOC_NONE:              dir = "--"; break;
+	case _IOC_READ:              dir = "r-"; break;
+	case _IOC_WRITE:             dir = "-w"; break;
+	case _IOC_READ | _IOC_WRITE: dir = "rw"; break;
+	default:                     dir = "*ERR*"; break;
+	}
+	switch (_IOC_TYPE(cmd)) {
+	case 'd':
+		printk("v4l2_int ioctl %s, dir=%s (0x%08x)\n",
+		       (_IOC_NR(cmd) < V4L2_INT_IOCTLS) ?
+		       v4l2_int_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
+		break;
+#ifdef HAVE_V4L1
+	case 'v':
+		printk("v4l1 ioctl %s, dir=%s (0x%08x)\n",
+		       (_IOC_NR(cmd) < V4L1_IOCTLS) ?
+		       v4l1_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
+		break;
+#endif
+	case 'V':
+		printk("v4l2 ioctl %s, dir=%s (0x%08x)\n",
+		       (_IOC_NR(cmd) < V4L2_IOCTLS) ?
+		       v4l2_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
+		break;
+
+	default:
+		printk("unknown ioctl '%c', dir=%s, #%d (0x%08x)\n",
+		       _IOC_TYPE(cmd), dir, _IOC_NR(cmd), cmd);
+	}
+}
 
 /* ----------------------------------------------------------------- */
 
@@ -255,7 +375,7 @@ EXPORT_SYMBOL(v4l2_prio_check);
 
 EXPORT_SYMBOL(v4l2_field_names);
 EXPORT_SYMBOL(v4l2_type_names);
-EXPORT_SYMBOL(v4l2_ioctl_names);
+EXPORT_SYMBOL(v4l_printk_ioctl);
 
 /*
  * Local variables:

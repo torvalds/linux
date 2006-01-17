@@ -16,31 +16,10 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * Only first 64MB of memory can be accessed via PCI.
- * We use GFP_DMA to allocate safe buffers to do map/unmap.
- * This is really ugly and we need a better way of specifying
- * DMA-capable regions of memory.
- */
-static inline void __arch_adjust_zones(int node, unsigned long *zone_size, 
-	unsigned long *zhole_size) 
-{
-	unsigned int sz = SZ_64M >> PAGE_SHIFT;
-
-	/*
-	 * Only adjust if > 64M on current system
-	 */
-	if (node || (zone_size[0] <= sz))
-		return;
-
-	zone_size[1] = zone_size[0] - sz;
-	zone_size[0] = sz;
-	zhole_size[1] = zhole_size[0];
-	zhole_size[0] = 0;
-}
+void ixp4xx_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 
 #define arch_adjust_zones(node, size, holes) \
-	__arch_adjust_zones(node, size, holes)
+	ixp4xx_adjust_zones(node, size, holes)
 
 #define ISA_DMA_THRESHOLD (SZ_64M - 1)
 

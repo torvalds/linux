@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PGTABLE_H
 #define _ASM_POWERPC_PGTABLE_H
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/pgtable.h>
@@ -56,6 +57,17 @@ struct mm_struct;
 #define PHBS_IO_BASE	VMALLOC_END
 #define IMALLOC_BASE	(PHBS_IO_BASE + 0x80000000ul)	/* Reserve 2 gigs for PHBs */
 #define IMALLOC_END	(VMALLOC_START + PGTABLE_RANGE)
+
+/*
+ * Region IDs
+ */
+#define REGION_SHIFT		60UL
+#define REGION_MASK		(0xfUL << REGION_SHIFT)
+#define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
+
+#define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
+#define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
+#define USER_REGION_ID		(0UL)
 
 /*
  * Common bits in a linux-style PTE.  These match the bits in the
@@ -521,4 +533,5 @@ void pgtable_cache_init(void);
 #endif /* __ASSEMBLY__ */
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGTABLE_H */

@@ -39,7 +39,7 @@
 #include <asm/parisc-device.h>
 
 /* See comments in include/asm-parisc/pci.h */
-struct hppa_dma_ops *hppa_dma_ops;
+struct hppa_dma_ops *hppa_dma_ops __read_mostly;
 EXPORT_SYMBOL(hppa_dma_ops);
 
 static struct device root = {
@@ -173,8 +173,6 @@ int register_parisc_driver(struct parisc_driver *driver)
 	WARN_ON(driver->drv.probe != NULL);
 	WARN_ON(driver->drv.remove != NULL);
 
-	driver->drv.probe = parisc_driver_probe;
-	driver->drv.remove = parisc_driver_remove;
 	driver->drv.name = driver->name;
 
 	return driver_register(&driver->drv);
@@ -515,8 +513,13 @@ alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 			(iodc_data[5] << 8) | iodc_data[6];
 	dev->hpa.name = parisc_pathname(dev);
 	dev->hpa.start = hpa;
-	if (hpa == 0xf4000000 || hpa == 0xf6000000 ||
-	    hpa == 0xf8000000 || hpa == 0xfa000000) {
+	/* This is awkward.  The STI spec says that gfx devices may occupy
+	 * 32MB or 64MB.  Unfortunately, we don't know how to tell whether
+	 * it's the former or the latter.  Assumptions either way can hurt us.
+	 */
+	if (hpa == 0xf4000000 || hpa == 0xf8000000) {
+		dev->hpa.end = hpa + 0x03ffffff;
+	} else if (hpa == 0xf6000000 || hpa == 0xfa000000) {
 		dev->hpa.end = hpa + 0x01ffffff;
 	} else {
 		dev->hpa.end = hpa + 0xfff;
@@ -570,6 +573,8 @@ struct bus_type parisc_bus_type = {
 	.name = "parisc",
 	.match = parisc_generic_match,
 	.dev_attrs = parisc_device_attrs,
+	.probe = parisc_driver_probe,
+	.remove = parisc_driver_remove,
 };
 
 /**
@@ -834,7 +839,7 @@ static void print_parisc_device(struct parisc_device *dev)
 
 	if (dev->num_addrs) {
 		int k;
-		printk(",  additional addresses: ");
+		printk(", additional addresses: ");
 		for (k = 0; k < dev->num_addrs; k++)
 			printk("0x%lx ", dev->addr[k]);
 	}

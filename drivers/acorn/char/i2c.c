@@ -12,6 +12,7 @@
  *  On Acorn machines, the following i2c devices are on the bus:
  *	- PCF8583 real time clock & static RAM
  */
+#include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/time.h>

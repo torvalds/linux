@@ -43,14 +43,10 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
-	return 0;
-}
-
-void __kprobes arch_copy_kprobe(struct kprobe *p)
-{
 	p->ainsn.insn[0] = *p->addr;
 	p->ainsn.insn[1] = BREAKPOINT_INSTRUCTION_2;
 	p->opcode = *p->addr;
+	return 0;
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -63,10 +59,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	*p->addr = p->opcode;
 	flushi(p->addr);
-}
-
-void __kprobes arch_remove_kprobe(struct kprobe *p)
-{
 }
 
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
@@ -143,6 +135,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			prepare_singlestep(p, regs, kcb);
 			return 1;
 		} else {
+			if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
+			/* The breakpoint instruction was removed by
+			 * another cpu right after we hit, no further
+			 * handling of this interrupt is appropriate
+			 */
+				ret = 1;
+				goto no_kprobe;
+			}
 			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs))
 				goto ss_probe;

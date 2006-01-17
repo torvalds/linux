@@ -306,7 +306,6 @@ MODULE_DEVICE_TABLE(usb, products);
 /*-------------------------------------------------------------------------*/
 
 static struct usb_driver cdc_subset_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"cdc_subset",
 	.probe =	usbnet_probe,
 	.suspend =	usbnet_suspend,

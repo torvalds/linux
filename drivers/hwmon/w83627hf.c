@@ -332,8 +332,9 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev);
 static void w83627hf_init_client(struct i2c_client *client);
 
 static struct i2c_driver w83627hf_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "w83627hf",
+	.driver = {
+		.name	= "w83627hf",
+	},
 	.attach_adapter	= w83627hf_detect,
 	.detach_client	= w83627hf_detach_client,
 };
@@ -1009,7 +1010,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 		address = force_addr & WINB_ALIGNMENT;
 
 	if (!request_region(address + WINB_REGION_OFFSET, WINB_REGION_SIZE,
-	                    w83627hf_driver.name)) {
+	                    w83627hf_driver.driver.name)) {
 		err = -EBUSY;
 		goto ERROR0;
 	}
@@ -1122,11 +1123,10 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	if (kind != w83697hf)
 		device_create_file_temp(new_client, 3);
 
-	if (kind != w83697hf)
+	if (kind != w83697hf && data->vid != 0xff) {
 		device_create_file_vid(new_client);
-
-	if (kind != w83697hf)
 		device_create_file_vrm(new_client);
+	}
 
 	device_create_file_fan_div(new_client, 1);
 	device_create_file_fan_div(new_client, 2);
@@ -1232,7 +1232,7 @@ static int w83627thf_read_gpio5(struct i2c_client *client)
 
 	/* Make sure the pins are configured for input
 	   There must be at least five (VRM 9), and possibly 6 (VRM 10) */
-	sel = superio_inb(W83627THF_GPIO5_IOSR);
+	sel = superio_inb(W83627THF_GPIO5_IOSR) & 0x3f;
 	if ((sel & 0x1f) != 0x1f) {
 		dev_dbg(&client->dev, "GPIO5 not configured for VID "
 			"function\n");
@@ -1323,18 +1323,17 @@ static void w83627hf_init_client(struct i2c_client *client)
 		int hi = w83627hf_read_value(client, W83781D_REG_CHIPID);
 		data->vid = (lo & 0x0f) | ((hi & 0x01) << 4);
 	} else if (w83627thf == data->type) {
-		data->vid = w83627thf_read_gpio5(client) & 0x3f;
+		data->vid = w83627thf_read_gpio5(client);
 	}
 
 	/* Read VRM & OVT Config only once */
 	if (w83627thf == data->type || w83637hf == data->type) {
 		data->vrm_ovt = 
 			w83627hf_read_value(client, W83627THF_REG_VRM_OVT_CFG);
-		data->vrm = (data->vrm_ovt & 0x01) ? 90 : 82;
-	} else {
-		/* Convert VID to voltage based on default VRM */
-		data->vrm = vid_which_vrm();
 	}
+
+	/* Convert VID to voltage based on VRM */
+	data->vrm = vid_which_vrm();
 
 	tmp = w83627hf_read_value(client, W83781D_REG_SCFG1);
 	for (i = 1; i <= 3; i++) {

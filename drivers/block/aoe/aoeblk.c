@@ -169,38 +169,26 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	return 0;
 }
 
-/* This ioctl implementation expects userland to have the device node
- * permissions set so that only priviledged users can open an aoe
- * block device directly.
- */
 static int
-aoeblk_ioctl(struct inode *inode, struct file *filp, uint cmd, ulong arg)
+aoeblk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct aoedev *d;
+	struct aoedev *d = bdev->bd_disk->private_data;
 
-	if (!arg)
-		return -EINVAL;
-
-	d = inode->i_bdev->bd_disk->private_data;
 	if ((d->flags & DEVFL_UP) == 0) {
 		printk(KERN_ERR "aoe: aoeblk_ioctl: disk not up\n");
 		return -ENODEV;
 	}
 
-	if (cmd == HDIO_GETGEO) {
-		d->geo.start = get_start_sect(inode->i_bdev);
-		if (!copy_to_user((void __user *) arg, &d->geo, sizeof d->geo))
-			return 0;
-		return -EFAULT;
-	}
-	printk(KERN_INFO "aoe: aoeblk_ioctl: unknown ioctl %d\n", cmd);
-	return -EINVAL;
+	geo->cylinders = d->geo.cylinders;
+	geo->heads = d->geo.heads;
+	geo->sectors = d->geo.sectors;
+	return 0;
 }
 
 static struct block_device_operations aoe_bdops = {
 	.open = aoeblk_open,
 	.release = aoeblk_release,
-	.ioctl = aoeblk_ioctl,
+	.getgeo = aoeblk_getgeo,
 	.owner = THIS_MODULE,
 };
 

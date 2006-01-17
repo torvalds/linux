@@ -10,11 +10,11 @@
  * ioctls.
  */
 
-#ifdef INCLUDES
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/compat.h>
 #include <linux/kernel.h>
+#include <linux/capability.h>
 #include <linux/compiler.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -81,13 +81,9 @@
 #include <linux/capi.h>
 
 #include <scsi/scsi.h>
-/* Ugly hack. */
-#undef __KERNEL__
 #include <scsi/scsi_ioctl.h>
-#define __KERNEL__
 #include <scsi/sg.h>
 
-#include <asm/types.h>
 #include <asm/uaccess.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -95,7 +91,6 @@
 #include <linux/watchdog.h>
 #include <linux/dm-ioctl.h>
 
-#include <asm/module.h>
 #include <linux/soundcard.h>
 #include <linux/lp.h>
 #include <linux/ppdev.h>
@@ -127,11 +122,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
-
-#undef INCLUDES
-#endif
-
-#ifdef CODE
+#include <linux/lp.h>
 
 /* Aiee. Someone does not find a difference between int and long */
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
@@ -147,6 +138,12 @@
 
 #define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
 #define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
+
+static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
+			      unsigned long arg, struct file *f)
+{
+	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
+}
 
 static int w_long(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -205,244 +202,6 @@ static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 #endif
 	}
 	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
-}
-
-struct video_tuner32 {
-	compat_int_t tuner;
-	char name[32];
-	compat_ulong_t rangelow, rangehigh;
-	u32 flags;	/* It is really u32 in videodev.h */
-	u16 mode, signal;
-};
-
-static int get_video_tuner32(struct video_tuner *kp, struct video_tuner32 __user *up)
-{
-	int i;
-
-	if(get_user(kp->tuner, &up->tuner))
-		return -EFAULT;
-	for(i = 0; i < 32; i++)
-		__get_user(kp->name[i], &up->name[i]);
-	__get_user(kp->rangelow, &up->rangelow);
-	__get_user(kp->rangehigh, &up->rangehigh);
-	__get_user(kp->flags, &up->flags);
-	__get_user(kp->mode, &up->mode);
-	__get_user(kp->signal, &up->signal);
-	return 0;
-}
-
-static int put_video_tuner32(struct video_tuner *kp, struct video_tuner32 __user *up)
-{
-	int i;
-
-	if(put_user(kp->tuner, &up->tuner))
-		return -EFAULT;
-	for(i = 0; i < 32; i++)
-		__put_user(kp->name[i], &up->name[i]);
-	__put_user(kp->rangelow, &up->rangelow);
-	__put_user(kp->rangehigh, &up->rangehigh);
-	__put_user(kp->flags, &up->flags);
-	__put_user(kp->mode, &up->mode);
-	__put_user(kp->signal, &up->signal);
-	return 0;
-}
-
-struct video_buffer32 {
-	compat_caddr_t base;
-	compat_int_t height, width, depth, bytesperline;
-};
-
-static int get_video_buffer32(struct video_buffer *kp, struct video_buffer32 __user *up)
-{
-	u32 tmp;
-
-	if (get_user(tmp, &up->base))
-		return -EFAULT;
-
-	/* This is actually a physical address stored
-	 * as a void pointer.
-	 */
-	kp->base = (void *)(unsigned long) tmp;
-
-	__get_user(kp->height, &up->height);
-	__get_user(kp->width, &up->width);
-	__get_user(kp->depth, &up->depth);
-	__get_user(kp->bytesperline, &up->bytesperline);
-	return 0;
-}
-
-static int put_video_buffer32(struct video_buffer *kp, struct video_buffer32 __user *up)
-{
-	u32 tmp = (u32)((unsigned long)kp->base);
-
-	if(put_user(tmp, &up->base))
-		return -EFAULT;
-	__put_user(kp->height, &up->height);
-	__put_user(kp->width, &up->width);
-	__put_user(kp->depth, &up->depth);
-	__put_user(kp->bytesperline, &up->bytesperline);
-	return 0;
-}
-
-struct video_clip32 {
-	s32 x, y, width, height;	/* Its really s32 in videodev.h */
-	compat_caddr_t next;
-};
-
-struct video_window32 {
-	u32 x, y, width, height, chromakey, flags;
-	compat_caddr_t clips;
-	compat_int_t clipcount;
-};
-
-/* You get back everything except the clips... */
-static int put_video_window32(struct video_window *kp, struct video_window32 __user *up)
-{
-	if(put_user(kp->x, &up->x))
-		return -EFAULT;
-	__put_user(kp->y, &up->y);
-	__put_user(kp->width, &up->width);
-	__put_user(kp->height, &up->height);
-	__put_user(kp->chromakey, &up->chromakey);
-	__put_user(kp->flags, &up->flags);
-	__put_user(kp->clipcount, &up->clipcount);
-	return 0;
-}
-
-#define VIDIOCGTUNER32		_IOWR('v',4, struct video_tuner32)
-#define VIDIOCSTUNER32		_IOW('v',5, struct video_tuner32)
-#define VIDIOCGWIN32		_IOR('v',9, struct video_window32)
-#define VIDIOCSWIN32		_IOW('v',10, struct video_window32)
-#define VIDIOCGFBUF32		_IOR('v',11, struct video_buffer32)
-#define VIDIOCSFBUF32		_IOW('v',12, struct video_buffer32)
-#define VIDIOCGFREQ32		_IOR('v',14, u32)
-#define VIDIOCSFREQ32		_IOW('v',15, u32)
-
-enum {
-	MaxClips = (~0U-sizeof(struct video_window))/sizeof(struct video_clip)
-};
-
-static int do_set_window(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct video_window32 __user *up = compat_ptr(arg);
-	struct video_window __user *vw;
-	struct video_clip __user *p;
-	int nclips;
-	u32 n;
-
-	if (get_user(nclips, &up->clipcount))
-		return -EFAULT;
-
-	/* Peculiar interface... */
-	if (nclips < 0)
-		nclips = VIDEO_CLIPMAP_SIZE;
-
-	if (nclips > MaxClips)
-		return -ENOMEM;
-
-	vw = compat_alloc_user_space(sizeof(struct video_window) +
-				    nclips * sizeof(struct video_clip));
-
-	p = nclips ? (struct video_clip __user *)(vw + 1) : NULL;
-
-	if (get_user(n, &up->x) || put_user(n, &vw->x) ||
-	    get_user(n, &up->y) || put_user(n, &vw->y) ||
-	    get_user(n, &up->width) || put_user(n, &vw->width) ||
-	    get_user(n, &up->height) || put_user(n, &vw->height) ||
-	    get_user(n, &up->chromakey) || put_user(n, &vw->chromakey) ||
-	    get_user(n, &up->flags) || put_user(n, &vw->flags) ||
-	    get_user(n, &up->clipcount) || put_user(n, &vw->clipcount) ||
-	    get_user(n, &up->clips) || put_user(p, &vw->clips))
-		return -EFAULT;
-
-	if (nclips) {
-		struct video_clip32 __user *u = compat_ptr(n);
-		int i;
-		if (!u)
-			return -EINVAL;
-		for (i = 0; i < nclips; i++, u++, p++) {
-			s32 v;
-			if (get_user(v, &u->x) ||
-			    put_user(v, &p->x) ||
-			    get_user(v, &u->y) ||
-			    put_user(v, &p->y) ||
-			    get_user(v, &u->width) ||
-			    put_user(v, &p->width) ||
-			    get_user(v, &u->height) ||
-			    put_user(v, &p->height) ||
-			    put_user(NULL, &p->next))
-				return -EFAULT;
-		}
-	}
-
-	return sys_ioctl(fd, VIDIOCSWIN, (unsigned long)p);
-}
-
-static int do_video_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	union {
-		struct video_tuner vt;
-		struct video_buffer vb;
-		struct video_window vw;
-		unsigned long vx;
-	} karg;
-	mm_segment_t old_fs = get_fs();
-	void __user *up = compat_ptr(arg);
-	int err = 0;
-
-	/* First, convert the command. */
-	switch(cmd) {
-	case VIDIOCGTUNER32: cmd = VIDIOCGTUNER; break;
-	case VIDIOCSTUNER32: cmd = VIDIOCSTUNER; break;
-	case VIDIOCGWIN32: cmd = VIDIOCGWIN; break;
-	case VIDIOCGFBUF32: cmd = VIDIOCGFBUF; break;
-	case VIDIOCSFBUF32: cmd = VIDIOCSFBUF; break;
-	case VIDIOCGFREQ32: cmd = VIDIOCGFREQ; break;
-	case VIDIOCSFREQ32: cmd = VIDIOCSFREQ; break;
-	};
-
-	switch(cmd) {
-	case VIDIOCSTUNER:
-	case VIDIOCGTUNER:
-		err = get_video_tuner32(&karg.vt, up);
-		break;
-
-	case VIDIOCSFBUF:
-		err = get_video_buffer32(&karg.vb, up);
-		break;
-
-	case VIDIOCSFREQ:
-		err = get_user(karg.vx, (u32 __user *)up);
-		break;
-	};
-	if(err)
-		goto out;
-
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long)&karg);
-	set_fs(old_fs);
-
-	if(err == 0) {
-		switch(cmd) {
-		case VIDIOCGTUNER:
-			err = put_video_tuner32(&karg.vt, up);
-			break;
-
-		case VIDIOCGWIN:
-			err = put_video_window32(&karg.vw, up);
-			break;
-
-		case VIDIOCGFBUF:
-			err = put_video_buffer32(&karg.vb, up);
-			break;
-
-		case VIDIOCGFREQ:
-			err = put_user(((u32)karg.vx), (u32 __user *)up);
-			break;
-		};
-	}
-out:
-	return err;
 }
 
 struct compat_dmx_event {
@@ -1155,6 +914,40 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 			err = -EFAULT;
 	}
 
+	return err;
+}
+
+struct compat_sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
+	char req_state;
+	char orphan;
+	char sg_io_owned;
+	char problem;
+	int pack_id;
+	compat_uptr_t usr_ptr;
+	unsigned int duration;
+	int unused;
+};
+
+static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	int err, i;
+	sg_req_info_t *r;
+	struct compat_sg_req_info *o = (struct compat_sg_req_info *)arg;
+	r = compat_alloc_user_space(sizeof(sg_req_info_t)*SG_MAX_QUEUE);
+	err = sys_ioctl(fd,cmd,(unsigned long)r);
+	if (err < 0)
+		return err;
+	for (i = 0; i < SG_MAX_QUEUE; i++) {
+		void __user *ptr;
+		int d;
+
+		if (copy_in_user(o + i, r + i, offsetof(sg_req_info_t, usr_ptr)) ||
+		    get_user(ptr, &r[i].usr_ptr) ||
+		    get_user(d, &r[i].duration) ||
+		    put_user((u32)(unsigned long)(ptr), &o[i].usr_ptr) ||
+		    put_user(d, &o[i].duration))
+			return -EFAULT;
+	}
 	return err;
 }
 
@@ -2713,6 +2506,49 @@ static int old_bridge_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg
 	return -EINVAL;
 }
 
+#define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
+#define RTC_IRQP_SET32		_IOW('p', 0x0c, compat_ulong_t)
+#define RTC_EPOCH_READ32	_IOR('p', 0x0d, compat_ulong_t)
+#define RTC_EPOCH_SET32		_IOW('p', 0x0e, compat_ulong_t)
+
+static int rtc_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
+{
+	mm_segment_t oldfs = get_fs();
+	compat_ulong_t val32;
+	unsigned long kval;
+	int ret;
+
+	switch (cmd) {
+	case RTC_IRQP_READ32:
+	case RTC_EPOCH_READ32:
+		set_fs(KERNEL_DS);
+		ret = sys_ioctl(fd, (cmd == RTC_IRQP_READ32) ?
+					RTC_IRQP_READ : RTC_EPOCH_READ,
+					(unsigned long)&kval);
+		set_fs(oldfs);
+		if (ret)
+			return ret;
+		val32 = kval;
+		return put_user(val32, (unsigned int __user *)arg);
+	case RTC_IRQP_SET32:
+	case RTC_EPOCH_SET32:
+		ret = get_user(val32, (unsigned int __user *)arg);
+		if (ret)
+			return ret;
+		kval = val32;
+
+		set_fs(KERNEL_DS);
+		ret = sys_ioctl(fd, (cmd == RTC_IRQP_SET32) ?
+				RTC_IRQP_SET : RTC_EPOCH_SET,
+				(unsigned long)&kval);
+		set_fs(oldfs);
+		return ret;
+	default:
+		/* unreached */
+		return -ENOIOCTLCMD;
+	}
+}
+
 #if defined(CONFIG_NCP_FS) || defined(CONFIG_NCP_FS_MODULE)
 struct ncp_ioctl_request_32 {
 	u32 function;
@@ -2900,10 +2736,34 @@ static int do_ncp_setprivatedata(unsigned int fd, unsigned int cmd, unsigned lon
 }
 #endif
 
-#undef CODE
-#endif
+static int
+lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_timeval *tc = (struct compat_timeval *)arg;
+	struct timeval *tn = compat_alloc_user_space(sizeof(struct timeval));
+	struct timeval ts;
+	if (get_user(ts.tv_sec, &tc->tv_sec) ||
+	    get_user(ts.tv_usec, &tc->tv_usec) ||
+	    put_user(ts.tv_sec, &tn->tv_sec) ||
+	    put_user(ts.tv_usec, &tn->tv_usec))
+		return -EFAULT;
+	return sys_ioctl(fd, cmd, (unsigned long)tn);
+}
 
-#ifdef DECLARES
+#define HANDLE_IOCTL(cmd,handler) \
+	{ (cmd), (ioctl_trans_handler_t)(handler) },
+
+/* pointer to compatible structure or no argument */
+#define COMPATIBLE_IOCTL(cmd) \
+	{ (cmd), do_ioctl32_pointer },
+
+/* argument is an unsigned long integer, not a pointer */
+#define ULONG_IOCTL(cmd) \
+	{ (cmd), (ioctl_trans_handler_t)sys_ioctl },
+
+
+struct ioctl_trans ioctl_start[] = {
+#include <linux/compat_ioctl.h>
 HANDLE_IOCTL(MEMREADOOB32, mtd_rw_oob)
 HANDLE_IOCTL(MEMWRITEOOB32, mtd_rw_oob)
 #ifdef CONFIG_NET
@@ -2983,6 +2843,7 @@ HANDLE_IOCTL(FDPOLLDRVSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDGETFDCSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDWERRORGET32, fd_ioctl_trans)
 HANDLE_IOCTL(SG_IO,sg_ioctl_trans)
+HANDLE_IOCTL(SG_GET_REQUEST_TABLE, sg_grt_trans)
 HANDLE_IOCTL(PPPIOCGIDLE32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSCOMPRESS32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSPASS32, ppp_sock_fprog_ioctl_trans)
@@ -3015,14 +2876,6 @@ COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
 #ifdef CONFIG_JBD_DEBUG
 HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
 #endif
-HANDLE_IOCTL(VIDIOCGTUNER32, do_video_ioctl)
-HANDLE_IOCTL(VIDIOCSTUNER32, do_video_ioctl)
-HANDLE_IOCTL(VIDIOCGWIN32, do_video_ioctl)
-HANDLE_IOCTL(VIDIOCSWIN32, do_set_window)
-HANDLE_IOCTL(VIDIOCGFBUF32, do_video_ioctl)
-HANDLE_IOCTL(VIDIOCSFBUF32, do_video_ioctl)
-HANDLE_IOCTL(VIDIOCGFREQ32, do_video_ioctl)
-HANDLE_IOCTL(VIDIOCSFREQ32, do_video_ioctl)
 /* One SMB ioctl needs translations. */
 #define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)
 HANDLE_IOCTL(SMB_IOC_GETMOUNTUID_32, do_smb_getmountuid)
@@ -3104,6 +2957,10 @@ HANDLE_IOCTL(SIOCSIWENCODE, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCGIWENCODE, do_wireless_ioctl)
 HANDLE_IOCTL(SIOCSIFBR, old_bridge_ioctl)
 HANDLE_IOCTL(SIOCGIFBR, old_bridge_ioctl)
+HANDLE_IOCTL(RTC_IRQP_READ32, rtc_ioctl)
+HANDLE_IOCTL(RTC_IRQP_SET32, rtc_ioctl)
+HANDLE_IOCTL(RTC_EPOCH_READ32, rtc_ioctl)
+HANDLE_IOCTL(RTC_EPOCH_SET32, rtc_ioctl)
 
 #if defined(CONFIG_NCP_FS) || defined(CONFIG_NCP_FS_MODULE)
 HANDLE_IOCTL(NCP_IOC_NCPREQUEST_32, do_ncp_ncprequest)
@@ -3121,5 +2978,19 @@ HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)
 HANDLE_IOCTL(VIDEO_STILLPICTURE, do_video_stillpicture)
 HANDLE_IOCTL(VIDEO_SET_SPU_PALETTE, do_video_set_spu_palette)
 
-#undef DECLARES
-#endif
+/* parport */
+COMPATIBLE_IOCTL(LPTIME)
+COMPATIBLE_IOCTL(LPCHAR)
+COMPATIBLE_IOCTL(LPABORTOPEN)
+COMPATIBLE_IOCTL(LPCAREFUL)
+COMPATIBLE_IOCTL(LPWAIT)
+COMPATIBLE_IOCTL(LPSETIRQ)
+COMPATIBLE_IOCTL(LPGETSTATUS)
+COMPATIBLE_IOCTL(LPGETSTATUS)
+COMPATIBLE_IOCTL(LPRESET)
+/*LPGETSTATS not implemented, but no kernels seem to compile it in anyways*/
+COMPATIBLE_IOCTL(LPGETFLAGS)
+HANDLE_IOCTL(LPSETTIMEOUT, lp_timeout_trans)
+};
+
+int ioctl_table_size = ARRAY_SIZE(ioctl_start);

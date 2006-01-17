@@ -125,6 +125,8 @@ enum {
 	ATA_FLAG_DEBUGMSG	= (1 << 10),
 	ATA_FLAG_NO_ATAPI	= (1 << 11), /* No ATAPI support */
 
+	ATA_FLAG_SUSPENDED	= (1 << 12), /* port is suspended */
+
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
 	ATA_QCFLAG_SINGLE	= (1 << 4), /* no s/g, just a single buffer */
@@ -439,6 +441,8 @@ extern void ata_std_ports(struct ata_ioports *ioaddr);
 extern int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 			     unsigned int n_ports);
 extern void ata_pci_remove_one (struct pci_dev *pdev);
+extern int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state);
+extern int ata_pci_device_resume(struct pci_dev *pdev);
 #endif /* CONFIG_PCI */
 extern int ata_device_add(const struct ata_probe_ent *ent);
 extern void ata_host_set_remove(struct ata_host_set *host_set);
@@ -448,6 +452,10 @@ extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmn
 extern int ata_scsi_error(struct Scsi_Host *host);
 extern int ata_scsi_release(struct Scsi_Host *host);
 extern unsigned int ata_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
+extern int ata_scsi_device_resume(struct scsi_device *);
+extern int ata_scsi_device_suspend(struct scsi_device *);
+extern int ata_device_resume(struct ata_port *, struct ata_device *);
+extern int ata_device_suspend(struct ata_port *, struct ata_device *);
 extern int ata_ratelimit(void);
 
 /*
@@ -483,7 +491,8 @@ extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eng_timeout(struct ata_port *ap);
-extern void ata_scsi_simulate(u16 *id, struct scsi_cmnd *cmd,
+extern void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
+			      struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
@@ -493,6 +502,8 @@ extern int ata_scsi_slave_config(struct scsi_device *sdev);
 /*
  * Timing helpers
  */
+
+extern unsigned int ata_pio_need_iordy(const struct ata_device *);
 extern int ata_timing_compute(struct ata_device *, unsigned short,
 			      struct ata_timing *, int, int);
 extern void ata_timing_merge(const struct ata_timing *,

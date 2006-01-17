@@ -686,7 +686,7 @@ static void savage_update_var(struct fb_var_screeninfo *var, struct fb_videomode
 static int savagefb_check_var (struct fb_var_screeninfo   *var,
 			       struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	int memlen, vramlen, mode_valid = 0;
 
 	DBG("savagefb_check_var");
@@ -1025,7 +1025,7 @@ static int savagefb_setcolreg(unsigned        regno,
 			      unsigned        transp,
 			      struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 
 	if (regno >= NR_PALETTE)
 		return -EINVAL;
@@ -1328,7 +1328,7 @@ static void savagefb_set_fix(struct fb_info *info)
 #if defined(CONFIG_FB_SAVAGE_ACCEL)
 static void savagefb_set_clip(struct fb_info *info)
 {
-    struct savagefb_par *par = (struct savagefb_par *)info->par;
+    struct savagefb_par *par = info->par;
     int cmd;
 
     cmd = BCI_CMD_NOP | BCI_CMD_CLIP_NEW;
@@ -1342,7 +1342,7 @@ static void savagefb_set_clip(struct fb_info *info)
 
 static int savagefb_set_par (struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 	int err;
 
@@ -1381,29 +1381,9 @@ static int savagefb_set_par (struct fb_info *info)
 static int savagefb_pan_display (struct fb_var_screeninfo *var,
 				 struct fb_info           *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
-	u_int y_bottom;
-
-	y_bottom = var->yoffset;
-
-	if (!(var->vmode & FB_VMODE_YWRAP))
-		y_bottom += var->yres;
-
-	if (var->xoffset > (var->xres_virtual - var->xres))
-		return -EINVAL;
-	if (y_bottom > info->var.yres_virtual)
-		return -EINVAL;
+	struct savagefb_par *par = info->par;
 
 	savagefb_update_start (par, var);
-
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
-
-	if (var->vmode & FB_VMODE_YWRAP)
-		info->var.vmode |= FB_VMODE_YWRAP;
-	else
-		info->var.vmode &= ~FB_VMODE_YWRAP;
-
 	return 0;
 }
 
@@ -1534,7 +1514,7 @@ static void savage_disable_mmio (struct savagefb_par *par)
 
 static int __devinit savage_map_mmio (struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	DBG ("savage_map_mmio");
 
 	if (S3_SAVAGE3D_SERIES (par->chip))
@@ -1567,7 +1547,7 @@ static int __devinit savage_map_mmio (struct fb_info *info)
 
 static void __devinit savage_unmap_mmio (struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	DBG ("savage_unmap_mmio");
 
 	savage_disable_mmio(par);
@@ -1581,7 +1561,7 @@ static void __devinit savage_unmap_mmio (struct fb_info *info)
 static int __devinit savage_map_video (struct fb_info *info,
 				       int video_len)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	int resource;
 
 	DBG("savage_map_video");
@@ -1619,7 +1599,7 @@ static int __devinit savage_map_video (struct fb_info *info,
 
 static void __devinit savage_unmap_video (struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 
 	DBG("savage_unmap_video");
 
@@ -1869,7 +1849,7 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 					  struct pci_dev *dev,
 					  const struct pci_device_id *id)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	int err = 0;
 
 	par->pcidev  = dev;
@@ -2139,8 +2119,7 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 
 static void __devexit savagefb_remove (struct pci_dev *dev)
 {
-	struct fb_info *info =
-		(struct fb_info *)pci_get_drvdata(dev);
+	struct fb_info *info = pci_get_drvdata(dev);
 
 	DBG("savagefb_remove");
 
@@ -2174,9 +2153,8 @@ static void __devexit savagefb_remove (struct pci_dev *dev)
 
 static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 {
-	struct fb_info *info =
-		(struct fb_info *)pci_get_drvdata(dev);
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct fb_info *info = pci_get_drvdata(dev);
+	struct savagefb_par *par = info->par;
 
 	DBG("savagefb_suspend");
 
@@ -2210,9 +2188,8 @@ static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 
 static int savagefb_resume (struct pci_dev* dev)
 {
-	struct fb_info *info =
-		(struct fb_info *)pci_get_drvdata(dev);
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct fb_info *info = pci_get_drvdata(dev);
+	struct savagefb_par *par = info->par;
 	int cur_state = par->pm_state;
 
 	DBG("savage_resume");

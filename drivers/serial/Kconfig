@@ -95,6 +95,16 @@ config SERIAL_8250_NR_UARTS
 	  PCI enumeration and any ports that may be added at run-time
 	  via hot-plug, or any ISA multi-port serial cards.
 
+config SERIAL_8250_RUNTIME_UARTS
+	int "Number of 8250/16550 serial ports to register at runtime"
+	depends on SERIAL_8250
+	default "4"
+	help
+	  Set this to the maximum number of serial ports you want
+	  the kernel to register at boot time.  This can be overriden
+	  with the module parameter "nr_uarts", or boot-time parameter
+	  8250.nr_uarts
+
 config SERIAL_8250_EXTENDED
 	bool "Extended 8250/16550 serial driver options"
 	depends on SERIAL_8250
@@ -179,7 +189,6 @@ config SERIAL_8250_BOCA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_boca.
-
 
 config SERIAL_8250_HUB6
 	tristate "Support Hub6 cards"
@@ -270,6 +279,40 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_AT91
+	bool "AT91RM9200 serial port support"
+	depends on ARM && ARCH_AT91RM9200
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the AT91RM9200
+	  processor.
+
+config SERIAL_AT91_CONSOLE
+	bool "Support for console on AT91RM9200 serial port"
+	depends on SERIAL_AT91=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a UART on the AT91RM9200 as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
+config SERIAL_AT91_TTYAT
+	bool "Install as device ttyAT0-4 instead of ttyS0-4"
+	depends on SERIAL_AT91=y
+	help
+	  Say Y here if you wish to have the five internal AT91RM9200 UARTs
+	  appear as /dev/ttyAT0-4 (major 240, minor 0-4) instead of the
+	  normal /dev/ttyS0-4 (major 4, minor 64-68). This is necessary if
+	  you also want other UARTs, such as external 8250/16C550 compatible
+	  UARTs.
+	  The ttySn nodes are legally reserved for the 8250 serial driver
+	  but are often misused by other serial drivers.
+
+	  To use this, you should create suitable ttyATn device nodes in
+	  /dev/, and pass "console=ttyATn" to the kernel.
+
+	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARM && ARCH_CLPS711X
@@ -356,29 +399,6 @@ config SERIAL_21285_CONSOLE
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
 	  "console=ttyFB". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
-
-config SERIAL_UART00
-	bool "Excalibur serial port (uart00) support"
-	depends on ARM && ARCH_CAMELOT
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the hard logic uart on Excalibur. This
-	  driver also supports soft logic implementations of this uart core.
-
-config SERIAL_UART00_CONSOLE
-	bool "Support for console on Excalibur serial port"
-	depends on SERIAL_UART00
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console on an Excalibur
-	  hard logic uart or uart00 IP core.
-
-	  Even if you say Y here, the currently visible virtual console
-	  (/dev/tty0) will still be used as the system console by default, but
-	  you can alter that using a kernel command line option such as
-	  "console=ttyS1". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
@@ -827,7 +847,7 @@ config SERIAL_M32R_SIO_CONSOLE
 
 config SERIAL_M32R_PLDSIO
 	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PALT_USRV || PLAT_M32700UT)
+	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
 	default n
 	help
 	  Say Y here if you want to use the M32R serial controller
@@ -873,7 +893,7 @@ config SERIAL_VR41XX_CONSOLE
 
 config SERIAL_JSM
         tristate "Digi International NEO PCI Support"
-	depends on PCI
+	depends on PCI && BROKEN
         select SERIAL_CORE
         help
           This is a driver for Digi International's Neo series
@@ -895,5 +915,13 @@ config SERIAL_SGI_IOC4
 		If you have an SGI Altix with an IOC4 based Base IO card
 		and wish to use the serial ports on this card, say Y.
 		Otherwise, say N.
+
+config SERIAL_SGI_IOC3
+	tristate "SGI Altix IOC3 serial support"
+	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC3
+	select SERIAL_CORE
+	help
+	  If you have an SGI Altix with an IOC3 serial card,
+	  say Y or M.  Otherwise, say N.
 
 endmenu

@@ -1,5 +1,5 @@
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * PPC64 code to handle Linux booting another kernel.
  *
  * Copyright (C) 2004-2005, IBM Corp.
  *
@@ -28,21 +28,7 @@
 
 #define HASH_GROUP_SIZE 0x80	/* size of each hash group, asm/mmu.h */
 
-/* Have this around till we move it into crash specific file */
-note_buf_t crash_notes[NR_CPUS];
-
-/* Dummy for now. Not sure if we need to have a crash shutdown in here
- * and if what it will achieve. Letting it be now to compile the code
- * in generic kexec environment
- */
-void machine_crash_shutdown(struct pt_regs *regs)
-{
-	/* do nothing right now */
-	/* smp_relase_cpus() if we want smp on panic kernel */
-	/* cpu_irq_down to isolate us until we are ready */
-}
-
-int machine_kexec_prepare(struct kimage *image)
+int default_machine_kexec_prepare(struct kimage *image)
 {
 	int i;
 	unsigned long begin, end;	/* limits of segment */
@@ -111,11 +97,6 @@ int machine_kexec_prepare(struct kimage *image)
 	return 0;
 }
 
-void machine_kexec_cleanup(struct kimage *image)
-{
-	/* we do nothing in prepare that needs to be undone */
-}
-
 #define IND_FLAGS (IND_DESTINATION | IND_INDIRECTION | IND_DONE | IND_SOURCE)
 
 static void copy_segments(unsigned long ind)
@@ -172,9 +153,8 @@ void kexec_copy_flush(struct kimage *image)
 	 * including ones that were in place on the original copy
 	 */
 	for (i = 0; i < nr_segments; i++)
-		flush_icache_range(ranges[i].mem + KERNELBASE,
-				ranges[i].mem + KERNELBASE +
-				ranges[i].memsz);
+		flush_icache_range((unsigned long)__va(ranges[i].mem),
+			(unsigned long)__va(ranges[i].mem + ranges[i].memsz));
 }
 
 #ifdef CONFIG_SMP
@@ -283,13 +263,20 @@ extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
 					void (*clear_all)(void)) ATTRIB_NORET;
 
 /* too late to fail here */
-void machine_kexec(struct kimage *image)
+void default_machine_kexec(struct kimage *image)
 {
-
 	/* prepare control code if any */
 
-	/* shutdown other cpus into our wait loop and quiesce interrupts */
-	kexec_prepare_cpus();
+	/*
+        * If the kexec boot is the normal one, need to shutdown other cpus
+        * into our wait loop and quiesce interrupts.
+        * Otherwise, in the case of crashed mode (crashing_cpu >= 0),
+        * stopping other CPUs and collecting their pt_regs is done before
+        * using debugger IPI.
+        */
+
+       if (crashing_cpu == -1)
+               kexec_prepare_cpus();
 
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * XXX: the task struct will likely be invalid once we do the copy!

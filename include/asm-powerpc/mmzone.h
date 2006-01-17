@@ -6,6 +6,7 @@
  */
 #ifndef _ASM_MMZONE_H_
 #define _ASM_MMZONE_H_
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 
@@ -47,4 +48,5 @@ extern unsigned long max_pfn;
 extern int __init early_pfn_to_nid(unsigned long pfn);
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_MMZONE_H_ */

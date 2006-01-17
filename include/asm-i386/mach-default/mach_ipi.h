@@ -15,11 +15,9 @@ static inline void __local_send_IPI_allbutself(int vector)
 {
 	if (no_broadcast) {
 		cpumask_t mask = cpu_online_map;
-		int this_cpu = get_cpu();
 
-		cpu_clear(this_cpu, mask);
+		cpu_clear(smp_processor_id(), mask);
 		send_IPI_mask(mask, vector);
-		put_cpu();
 	} else
 		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
 }

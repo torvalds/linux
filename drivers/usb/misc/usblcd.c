@@ -371,7 +371,6 @@ static void lcd_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver lcd_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usblcd",
 	.probe =	lcd_probe,
 	.disconnect =	lcd_disconnect,

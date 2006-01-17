@@ -60,7 +60,6 @@ extern SK_U64		SkOsGetTime(SK_AC*);
 extern int		SkPciReadCfgDWord(SK_AC*, int, SK_U32*);
 extern int		SkPciReadCfgWord(SK_AC*, int, SK_U16*);
 extern int		SkPciReadCfgByte(SK_AC*, int, SK_U8*);
-extern int		SkPciWriteCfgDWord(SK_AC*, int, SK_U32);
 extern int		SkPciWriteCfgWord(SK_AC*, int, SK_U16);
 extern int		SkPciWriteCfgByte(SK_AC*, int, SK_U8);
 extern int		SkDrvEvent(SK_AC*, SK_IOC IoC, SK_U32, SK_EVPARA);
@@ -268,8 +267,6 @@ typedef struct s_DevNet DEV_NET;
 struct s_DevNet {
 	int             PortNr;
 	int             NetNr;
-	int             Mtu;
-	int             Up;
 	SK_AC   *pAC;
 };  
 
@@ -298,6 +295,7 @@ struct s_RxPort {
 	RXD		*pRxdRingTail;	/* Tail of Rx rings */
 	RXD		*pRxdRingPrev;	/* descriptor given to BMU previously */
 	int		RxdRingFree;	/* # of free entrys */
+	int		RxCsum;		/* use receive checksum hardware */
 	spinlock_t	RxDesRingLock;	/* serialize descriptor accesses */
 	int		RxFillLimit;	/* limit for buffers in ring */
 	SK_IOC		HwAddr;		/* bmu registers address */
@@ -390,12 +388,10 @@ struct s_AC  {
 	
 	SK_IOC		IoBase;		/* register set of adapter */
 	int		BoardLevel;	/* level of active hw init (0-2) */
-	char		DeviceStr[80];	/* adapter string from vpd */
+
 	SK_U32		AllocFlag;	/* flag allocation of resources */
 	struct pci_dev	*PciDev;	/* for access to pci config space */
-	SK_U32		PciDevId;	/* pci device id */
 	struct SK_NET_DEVICE	*dev[2];	/* pointer to device struct */
-	char		Name[30];	/* driver name */
 
 	int		RxBufSize;	/* length of receive buffers */
         struct net_device_stats stats;	/* linux 'netstat -i' statistics */
@@ -430,7 +426,6 @@ struct s_AC  {
 	DIM_INFO        DynIrqModInfo;  /* all data related to DIM */
 
 	/* Only for tests */
-	int		PortUp;
 	int		PortDown;
 	int		ChipsetType;	/*  Chipset family type 
 					 *  0 == Genesis family support

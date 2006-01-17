@@ -493,7 +493,7 @@ pmu_queue_request(struct adb_request *req)
 		return -EINVAL;
 	}
 
-	req->next = 0;
+	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
 	local_irq_save(flags);
@@ -717,7 +717,7 @@ pmu_handle_data(unsigned char *data, int len, struct pt_regs *regs)
 				printk(KERN_ERR "PMU: extra ADB reply\n");
 				return;
 			}
-			req_awaiting_reply = 0;
+			req_awaiting_reply = NULL;
 			if (len <= 2)
 				req->reply_len = 0;
 			else {

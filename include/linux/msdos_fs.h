@@ -329,7 +329,8 @@ static inline void fatwchar_to16(__u8 *dst, const wchar_t *src, size_t len)
 extern void fat_cache_inval_inode(struct inode *inode);
 extern int fat_get_cluster(struct inode *inode, int cluster,
 			   int *fclus, int *dclus);
-extern int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys);
+extern int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+		    unsigned long *mapped_blocks);
 
 /* fat/dir.c */
 extern struct file_operations fat_dir_operations;

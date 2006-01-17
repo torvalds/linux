@@ -436,6 +436,10 @@ void		xfs_ichgtime(xfs_inode_t *, int);
 xfs_fsize_t	xfs_file_last_byte(xfs_inode_t *);
 void		xfs_lock_inodes(xfs_inode_t **, int, int, uint);
 
+xfs_inode_t	*xfs_vtoi(struct vnode *vp);
+
+void		xfs_synchronize_atime(xfs_inode_t *);
+
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 
 #ifdef DEBUG

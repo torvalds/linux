@@ -55,6 +55,7 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/init.h>
+#include <linux/capability.h>
 #include <linux/file.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>

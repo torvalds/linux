@@ -612,11 +612,14 @@ static int ipmi_poweroff_init (void)
 #endif
 
 	rv = ipmi_smi_watcher_register(&smi_watcher);
+
+#ifdef CONFIG_PROC_FS
 	if (rv) {
 		unregister_sysctl_table(ipmi_table_header);
 		printk(KERN_ERR PFX "Unable to register SMI watcher: %d\n", rv);
 		goto out_err;
 	}
+#endif
 
  out_err:
 	return rv;

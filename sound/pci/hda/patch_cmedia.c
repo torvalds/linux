@@ -44,7 +44,6 @@ enum {
 
 struct cmi_spec {
 	int board_config;
-	unsigned int surr_switch: 1;	/* switchable line,mic */
 	unsigned int no_line_in: 1;	/* no line-in (5-jack) */
 	unsigned int front_panel: 1;	/* has front-panel 2-jack */
 
@@ -62,9 +61,8 @@ struct cmi_spec {
 	unsigned int cur_mux[2];
 
 	/* channel mode */
-	unsigned int num_ch_modes;
-	unsigned int cur_ch_mode;
-	const struct cmi_channel_mode *channel_modes;
+	int num_channel_modes;
+	const struct hda_channel_mode *channel_modes;
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 
@@ -78,30 +76,17 @@ struct cmi_spec {
 	struct hda_verb multi_init[9];	/* 2 verbs for each pin + terminator */
 };
 
-/* amp values */
-#define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
-#define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
-#define AMP_OUT_MUTE	0xb080
-#define AMP_OUT_UNMUTE	0xb000
-#define AMP_OUT_ZERO	0xb000
-/* pinctl values */
-#define PIN_IN		0x20
-#define PIN_VREF80	0x24
-#define PIN_VREF50	0x21
-#define PIN_OUT		0x40
-#define PIN_HP		0xc0
-
 /*
  * input MUX
  */
-static int cmi_mux_enum_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int cmi_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_input_mux_info(spec->input_mux, uinfo);
 }
 
-static int cmi_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -111,7 +96,7 @@ static int cmi_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	return 0;
 }
 
-static int cmi_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -158,63 +143,39 @@ static struct hda_verb cmi9880_ch8_init[] = {
 	{}
 };
 
-struct cmi_channel_mode {
-	unsigned int channels;
-	const struct hda_verb *sequence;
-};
-
-static struct cmi_channel_mode cmi9880_channel_modes[3] = {
+static struct hda_channel_mode cmi9880_channel_modes[3] = {
 	{ 2, cmi9880_ch2_init },
 	{ 6, cmi9880_ch6_init },
 	{ 8, cmi9880_ch8_init },
 };
 
-static int cmi_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int cmi_ch_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
-
-	snd_assert(spec->channel_modes, return -EINVAL);
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = spec->num_ch_modes;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	sprintf(uinfo->value.enumerated.name, "%dch",
-		spec->channel_modes[uinfo->value.enumerated.item].channels);
-	return 0;
+	return snd_hda_ch_mode_info(codec, uinfo, spec->channel_modes,
+				    spec->num_channel_modes);
 }
 
-static int cmi_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_ch_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
-
-	ucontrol->value.enumerated.item[0] = spec->cur_ch_mode;
-	return 0;
+	return snd_hda_ch_mode_get(codec, ucontrol, spec->channel_modes,
+				   spec->num_channel_modes, spec->multiout.max_channels);
 }
 
-static int cmi_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_ch_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
-
-	snd_assert(spec->channel_modes, return -EINVAL);
-	if (ucontrol->value.enumerated.item[0] >= spec->num_ch_modes)
-		ucontrol->value.enumerated.item[0] = spec->num_ch_modes;
-	if (ucontrol->value.enumerated.item[0] == spec->cur_ch_mode &&
-	    ! codec->in_resume)
-		return 0;
-
-	spec->cur_ch_mode = ucontrol->value.enumerated.item[0];
-	snd_hda_sequence_write(codec, spec->channel_modes[spec->cur_ch_mode].sequence);
-	spec->multiout.max_channels = spec->channel_modes[spec->cur_ch_mode].channels;
-	return 1;
+	return snd_hda_ch_mode_put(codec, ucontrol, spec->channel_modes,
+				   spec->num_channel_modes, &spec->multiout.max_channels);
 }
 
 /*
  */
-static snd_kcontrol_new_t cmi9880_basic_mixer[] = {
+static struct snd_kcontrol_new cmi9880_basic_mixer[] = {
 	/* CMI9880 has no playback volumes! */
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT), /* front */
 	HDA_CODEC_MUTE("Surround Playback Switch", 0x04, 0x0, HDA_OUTPUT),
@@ -246,7 +207,7 @@ static snd_kcontrol_new_t cmi9880_basic_mixer[] = {
 /*
  * shared I/O pins
  */
-static snd_kcontrol_new_t cmi9880_ch_mode_mixer[] = {
+static struct snd_kcontrol_new cmi9880_ch_mode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Channel Mode",
@@ -361,7 +322,7 @@ static int cmi9880_build_controls(struct hda_codec *codec)
 	err = snd_hda_add_new_ctls(codec, cmi9880_basic_mixer);
 	if (err < 0)
 		return err;
-	if (spec->surr_switch) {
+	if (spec->channel_modes) {
 		err = snd_hda_add_new_ctls(codec, cmi9880_ch_mode_mixer);
 		if (err < 0)
 			return err;
@@ -475,7 +436,7 @@ static int cmi9880_resume(struct hda_codec *codec)
 
 	cmi9880_init(codec);
 	snd_hda_resume_ctls(codec, cmi9880_basic_mixer);
-	if (spec->surr_switch)
+	if (spec->channel_modes)
 		snd_hda_resume_ctls(codec, cmi9880_ch_mode_mixer);
 	if (spec->multiout.dig_out_nid)
 		snd_hda_resume_spdif_out(codec);
@@ -491,7 +452,7 @@ static int cmi9880_resume(struct hda_codec *codec)
  */
 static int cmi9880_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				     struct hda_codec *codec,
-				     snd_pcm_substream_t *substream)
+				     struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream);
@@ -501,7 +462,7 @@ static int cmi9880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
 					unsigned int stream_tag,
 					unsigned int format,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout, stream_tag,
@@ -510,7 +471,7 @@ static int cmi9880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int cmi9880_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				       struct hda_codec *codec,
-				       snd_pcm_substream_t *substream)
+				       struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
@@ -521,7 +482,7 @@ static int cmi9880_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
  */
 static int cmi9880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
-					 snd_pcm_substream_t *substream)
+					 struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
@@ -529,7 +490,7 @@ static int cmi9880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 
 static int cmi9880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					  struct hda_codec *codec,
-					  snd_pcm_substream_t *substream)
+					  struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
@@ -542,7 +503,7 @@ static int cmi9880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 
@@ -553,7 +514,7 @@ static int cmi9880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int cmi9880_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 
@@ -685,14 +646,13 @@ static int patch_cmi9880(struct hda_codec *codec)
 	switch (spec->board_config) {
 	case CMI_MINIMAL:
 	case CMI_MIN_FP:
-		spec->surr_switch = 1;
+		spec->channel_modes = cmi9880_channel_modes;
 		if (spec->board_config == CMI_MINIMAL)
-			spec->num_ch_modes = 2;
+			spec->num_channel_modes = 2;
 		else {
 			spec->front_panel = 1;
-			spec->num_ch_modes = 3;
+			spec->num_channel_modes = 3;
 		}
-		spec->channel_modes = cmi9880_channel_modes;
 		spec->multiout.max_channels = cmi9880_channel_modes[0].channels;
 		spec->input_mux = &cmi9880_basic_mux;
 		break;
@@ -727,19 +687,18 @@ static int patch_cmi9880(struct hda_codec *codec)
 		    get_defcfg_connect(port_f) == AC_JACK_PORT_NONE) {
 			port_g = snd_hda_codec_read(codec, 0x1f, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
 			port_h = snd_hda_codec_read(codec, 0x20, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
-			spec->surr_switch = 1;
+			spec->channel_modes = cmi9880_channel_modes;
 			/* no front panel */
 			if (get_defcfg_connect(port_g) == AC_JACK_PORT_NONE ||
 			    get_defcfg_connect(port_h) == AC_JACK_PORT_NONE) {
 				/* no optional rear panel */
 				spec->board_config = CMI_MINIMAL;
 				spec->front_panel = 0;
-				spec->num_ch_modes = 2;
+				spec->num_channel_modes = 2;
 			} else {
 				spec->board_config = CMI_MIN_FP;
-				spec->num_ch_modes = 3;
+				spec->num_channel_modes = 3;
 			}
-			spec->channel_modes = cmi9880_channel_modes;
 			spec->input_mux = &cmi9880_basic_mux;
 			spec->multiout.max_channels = cmi9880_channel_modes[0].channels;
 		} else {
@@ -752,7 +711,7 @@ static int patch_cmi9880(struct hda_codec *codec)
 				spec->dig_in_nid = CMI_DIG_IN_NID;
 			spec->multiout.max_channels = 8;
 		}
-		snd_hda_parse_pin_def_config(codec, &cfg);
+		snd_hda_parse_pin_def_config(codec, &cfg, NULL);
 		if (cfg.line_outs) {
 			spec->multiout.max_channels = cfg.line_outs * 2;
 			cmi9880_fill_multi_dac_nids(codec, &cfg);

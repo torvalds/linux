@@ -18,6 +18,7 @@
  */
 #ifndef _ASM_POWERPC_LPPACA_H
 #define _ASM_POWERPC_LPPACA_H
+#ifdef __KERNEL__
 
 //=============================================================================
 //
@@ -28,7 +29,9 @@
 //----------------------------------------------------------------------------
 #include <asm/types.h>
 
-struct lppaca {
+/* The Hypervisor barfs if the lppaca crosses a page boundary.  A 1k
+ * alignment is sufficient to prevent this */
+struct __attribute__((__aligned__(0x400))) lppaca {
 //=============================================================================
 // CACHE_LINE_1 0x0000 - 0x007F Contains read-only data
 // NOTE: The xDynXyz fields are fields that will be dynamically changed by
@@ -128,4 +131,7 @@ struct lppaca {
 	u8	pmc_save_area[256];	// PMC interrupt Area           x00-xFF
 };
 
+extern struct lppaca lppaca[];
+
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_LPPACA_H */

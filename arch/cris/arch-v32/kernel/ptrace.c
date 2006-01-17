@@ -46,7 +46,7 @@ long get_reg(struct task_struct *task, unsigned int regno)
 	unsigned long ret;
 
 	if (regno <= PT_EDA)
-		ret = ((unsigned long *)user_regs(task->thread_info))[regno];
+		ret = ((unsigned long *)task_pt_regs(task))[regno];
 	else if (regno == PT_USP)
 		ret = task->thread.usp;
 	else if (regno == PT_PPC)
@@ -65,13 +65,13 @@ long get_reg(struct task_struct *task, unsigned int regno)
 int put_reg(struct task_struct *task, unsigned int regno, unsigned long data)
 {
 	if (regno <= PT_EDA)
-		((unsigned long *)user_regs(task->thread_info))[regno] = data;
+		((unsigned long *)task_pt_regs(task))[regno] = data;
 	else if (regno == PT_USP)
 		task->thread.usp = data;
 	else if (regno == PT_PPC) {
 		/* Write pseudo-PC to ERP only if changed. */
 		if (data != get_pseudo_pc(task))
-			((unsigned long *)user_regs(task->thread_info))[PT_ERP] = data;
+			task_pt_regs(task)->erp = data;
 	} else if (regno <= PT_MAX)
 		return put_debugreg(task->pid, regno, data);
 	else

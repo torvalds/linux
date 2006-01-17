@@ -42,21 +42,21 @@ static unsigned int snd_seq_simple_size(unsigned int size, unsigned int format)
 	return result;
 }
 
-static void snd_seq_simple_instr_free(snd_simple_ops_t *ops,
-				      simple_instrument_t *ip,
+static void snd_seq_simple_instr_free(struct snd_simple_ops *ops,
+				      struct simple_instrument *ip,
 				      int atomic)
 {
 	if (ops->remove_sample)
 		ops->remove_sample(ops->private_data, ip, atomic);
 }
 
-static int snd_seq_simple_put(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_simple_put(void *private_data, struct snd_seq_kinstr *instr,
 			      char __user *instr_data, long len,
 			      int atomic, int cmd)
 {
-	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
-	simple_instrument_t *ip;
-	simple_xinstrument_t ix;
+	struct snd_simple_ops *ops = private_data;
+	struct simple_instrument *ip;
+	struct simple_xinstrument ix;
 	int err;
 	gfp_t gfp_mask;
 	unsigned int real_size;
@@ -73,7 +73,7 @@ static int snd_seq_simple_put(void *private_data, snd_seq_kinstr_t *instr,
 		return -EINVAL;
 	instr_data += sizeof(ix);
 	len -= sizeof(ix);
-	ip = (simple_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct simple_instrument *)KINSTR_DATA(instr);
 	ip->share_id[0] = le32_to_cpu(ix.share_id[0]);
 	ip->share_id[1] = le32_to_cpu(ix.share_id[1]);
 	ip->share_id[2] = le32_to_cpu(ix.share_id[2]);
@@ -100,13 +100,13 @@ static int snd_seq_simple_put(void *private_data, snd_seq_kinstr_t *instr,
 	return 0;
 }
 
-static int snd_seq_simple_get(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_simple_get(void *private_data, struct snd_seq_kinstr *instr,
 			      char __user *instr_data, long len,
 			      int atomic, int cmd)
 {
-	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
-	simple_instrument_t *ip;
-	simple_xinstrument_t ix;
+	struct snd_simple_ops *ops = private_data;
+	struct simple_instrument *ip;
+	struct simple_xinstrument ix;
 	int err;
 	unsigned int real_size;
 	
@@ -115,7 +115,7 @@ static int snd_seq_simple_get(void *private_data, snd_seq_kinstr_t *instr,
 	if (len < (long)sizeof(ix))
 		return -ENOMEM;
 	memset(&ix, 0, sizeof(ix));
-	ip = (simple_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct simple_instrument *)KINSTR_DATA(instr);
 	ix.stype = SIMPLE_STRU_INSTR;
 	ix.share_id[0] = cpu_to_le32(ip->share_id[0]);
 	ix.share_id[1] = cpu_to_le32(ip->share_id[1]);
@@ -147,46 +147,46 @@ static int snd_seq_simple_get(void *private_data, snd_seq_kinstr_t *instr,
 	return 0;
 }
 
-static int snd_seq_simple_get_size(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_simple_get_size(void *private_data, struct snd_seq_kinstr *instr,
 				   long *size)
 {
-	simple_instrument_t *ip;
+	struct simple_instrument *ip;
 
-	ip = (simple_instrument_t *)KINSTR_DATA(instr);
-	*size = sizeof(simple_xinstrument_t) + snd_seq_simple_size(ip->size, ip->format);
+	ip = (struct simple_instrument *)KINSTR_DATA(instr);
+	*size = sizeof(struct simple_xinstrument) + snd_seq_simple_size(ip->size, ip->format);
 	return 0;
 }
 
 static int snd_seq_simple_remove(void *private_data,
-			         snd_seq_kinstr_t *instr,
+			         struct snd_seq_kinstr *instr,
                                  int atomic)
 {
-	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
-	simple_instrument_t *ip;
+	struct snd_simple_ops *ops = private_data;
+	struct simple_instrument *ip;
 
-	ip = (simple_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct simple_instrument *)KINSTR_DATA(instr);
 	snd_seq_simple_instr_free(ops, ip, atomic);
 	return 0;
 }
 
 static void snd_seq_simple_notify(void *private_data,
-			          snd_seq_kinstr_t *instr,
+			          struct snd_seq_kinstr *instr,
                                   int what)
 {
-	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
+	struct snd_simple_ops *ops = private_data;
 
 	if (ops->notify)
 		ops->notify(ops->private_data, instr, what);
 }
 
-int snd_seq_simple_init(snd_simple_ops_t *ops,
+int snd_seq_simple_init(struct snd_simple_ops *ops,
 		        void *private_data,
-		        snd_seq_kinstr_ops_t *next)
+		        struct snd_seq_kinstr_ops *next)
 {
 	memset(ops, 0, sizeof(*ops));
 	ops->private_data = private_data;
 	ops->kops.private_data = ops;
-	ops->kops.add_len = sizeof(simple_instrument_t);
+	ops->kops.add_len = sizeof(struct simple_instrument);
 	ops->kops.instr_type = SNDRV_SEQ_INSTR_ID_SIMPLE;
 	ops->kops.put = snd_seq_simple_put;
 	ops->kops.get = snd_seq_simple_get;

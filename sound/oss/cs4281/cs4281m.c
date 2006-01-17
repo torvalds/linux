@@ -298,7 +298,6 @@ struct cs4281_state {
 	struct cs4281_pipeline pl[CS4281_NUMBER_OF_PIPELINES];
 };
 
-#include <linux/pm_legacy.h>
 #include "cs4281pm-24.c"
 
 #if CSDEBUG
@@ -4256,9 +4255,6 @@ static void __devinit cs4281_InitPM(struct cs4281_state *s)
 static int __devinit cs4281_probe(struct pci_dev *pcidev,
 				  const struct pci_device_id *pciid)
 {
-#ifndef NOT_CS4281_PM
-	struct pm_dev *pmdev;
-#endif
 	struct cs4281_state *s;
 	dma_addr_t dma_mask;
 	mm_segment_t fs;
@@ -4374,19 +4370,7 @@ static int __devinit cs4281_probe(struct pci_dev *pcidev,
 	}
 #ifndef NOT_CS4281_PM
 	cs4281_InitPM(s);
-	pmdev = cs_pm_register(PM_PCI_DEV, PM_PCI_ID(pcidev), cs4281_pm_callback);
-	if (pmdev)
-	{
-		CS_DBGOUT(CS_INIT | CS_PM, 4, printk(KERN_INFO
-			 "cs4281: probe() pm_register() succeeded (%p).\n", pmdev));
-		pmdev->data = s;
-	}
-	else
-	{
-		CS_DBGOUT(CS_INIT | CS_PM | CS_ERROR, 0, printk(KERN_INFO
-			 "cs4281: probe() pm_register() failed (%p).\n", pmdev));
-		s->pm.flags |= CS4281_PM_NOT_REGISTERED;
-	}
+	s->pm.flags |= CS4281_PM_NOT_REGISTERED;
 #endif
 
 	pci_set_master(pcidev);	// enable bus mastering 
@@ -4477,7 +4461,7 @@ static int __init cs4281_init_module(void)
 	printk(KERN_INFO "cs4281: version v%d.%02d.%d time " __TIME__ " "
 	       __DATE__ "\n", CS4281_MAJOR_VERSION, CS4281_MINOR_VERSION,
 	       CS4281_ARCH);
-	rtn = pci_module_init(&cs4281_pci_driver);
+	rtn = pci_register_driver(&cs4281_pci_driver);
 
 	CS_DBGOUT(CS_INIT | CS_FUNCTION, 2,
 		  printk(KERN_INFO "cs4281: cs4281_init_module()- (%d)\n",rtn));
@@ -4487,9 +4471,6 @@ static int __init cs4281_init_module(void)
 static void __exit cs4281_cleanup_module(void)
 {
 	pci_unregister_driver(&cs4281_pci_driver);
-#ifndef NOT_CS4281_PM
-	cs_pm_unregister_all(cs4281_pm_callback);
-#endif
 	CS_DBGOUT(CS_INIT | CS_FUNCTION, 2,
 		  printk(KERN_INFO "cs4281: cleanup_cs4281() finished\n"));
 }

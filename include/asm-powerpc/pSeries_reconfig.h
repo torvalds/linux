@@ -1,5 +1,6 @@
 #ifndef _PPC64_PSERIES_RECONFIG_H
 #define _PPC64_PSERIES_RECONFIG_H
+#ifdef __KERNEL__
 
 #include <linux/notifier.h>
 
@@ -22,4 +23,5 @@ static inline int pSeries_reconfig_notifier_register(struct notifier_block *nb)
 static inline void pSeries_reconfig_notifier_unregister(struct notifier_block *nb) { }
 #endif /* CONFIG_PPC_PSERIES */
 
+#endif /* __KERNEL__ */
 #endif /* _PPC64_PSERIES_RECONFIG_H */

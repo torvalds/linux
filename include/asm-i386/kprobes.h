@@ -40,6 +40,7 @@ typedef u8 kprobe_opcode_t;
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
 #define ARCH_SUPPORTS_KRETPROBES
+#define arch_remove_kprobe(p)	do {} while (0)
 
 void kretprobe_trampoline(void);
 
@@ -76,14 +77,6 @@ static inline void restore_interrupts(struct pt_regs *regs)
 		local_irq_enable();
 }
 
-#ifdef CONFIG_KPROBES
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
-#else				/* !CONFIG_KPROBES */
-static inline int kprobe_exceptions_notify(struct notifier_block *self,
-					   unsigned long val, void *data)
-{
-	return 0;
-}
-#endif
 #endif				/* _ASM_KPROBES_H */

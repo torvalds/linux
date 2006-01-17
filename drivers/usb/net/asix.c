@@ -912,13 +912,16 @@ static const struct usb_device_id	products [] = {
 	// ASIX AX88772 10/100
         USB_DEVICE (0x0b95, 0x7720),
         .driver_info = (unsigned long) &ax88772_info,
+}, {
+	// Linksys USB200M Rev 2
+	USB_DEVICE (0x13b1, 0x0018),
+	.driver_info = (unsigned long) &ax88772_info,
 },
 	{ },		// END
 };
 MODULE_DEVICE_TABLE(usb, products);
 
 static struct usb_driver asix_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"asix",
 	.id_table =	products,
 	.probe =	usbnet_probe,

@@ -26,6 +26,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -163,17 +164,17 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 			sk_refcnt_debug_dec(sk);
 
 			if (sk->sk_protocol == IPPROTO_TCP) {
-				struct tcp_sock *tp = tcp_sk(sk);
+				struct inet_connection_sock *icsk = inet_csk(sk);
 
 				local_bh_disable();
 				sock_prot_dec_use(sk->sk_prot);
 				sock_prot_inc_use(&tcp_prot);
 				local_bh_enable();
 				sk->sk_prot = &tcp_prot;
-				tp->af_specific = &ipv4_specific;
+				icsk->icsk_af_ops = &ipv4_specific;
 				sk->sk_socket->ops = &inet_stream_ops;
 				sk->sk_family = PF_INET;
-				tcp_sync_mss(sk, tp->pmtu_cookie);
+				tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 			} else {
 				local_bh_disable();
 				sock_prot_dec_use(sk->sk_prot);
@@ -317,14 +318,15 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 		}
 
 		retv = 0;
-		if (sk->sk_type == SOCK_STREAM) {
+		if (inet_sk(sk)->is_icsk) {
 			if (opt) {
-				struct tcp_sock *tp = tcp_sk(sk);
+				struct inet_connection_sock *icsk = inet_csk(sk);
 				if (!((1 << sk->sk_state) &
 				      (TCPF_LISTEN | TCPF_CLOSE))
 				    && inet_sk(sk)->daddr != LOOPBACK4_IPV6) {
-					tp->ext_header_len = opt->opt_flen + opt->opt_nflen;
-					tcp_sync_mss(sk, tp->pmtu_cookie);
+					icsk->icsk_ext_hdr_len =
+						opt->opt_flen + opt->opt_nflen;
+					icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
 				}
 			}
 			opt = xchg(&np->opt, opt);
@@ -380,14 +382,15 @@ sticky_done:
 			goto done;
 update:
 		retv = 0;
-		if (sk->sk_type == SOCK_STREAM) {
+		if (inet_sk(sk)->is_icsk) {
 			if (opt) {
-				struct tcp_sock *tp = tcp_sk(sk);
+				struct inet_connection_sock *icsk = inet_csk(sk);
 				if (!((1 << sk->sk_state) &
 				      (TCPF_LISTEN | TCPF_CLOSE))
 				    && inet_sk(sk)->daddr != LOOPBACK4_IPV6) {
-					tp->ext_header_len = opt->opt_flen + opt->opt_nflen;
-					tcp_sync_mss(sk, tp->pmtu_cookie);
+					icsk->icsk_ext_hdr_len =
+						opt->opt_flen + opt->opt_nflen;
+					icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
 				}
 			}
 			opt = xchg(&np->opt, opt);
@@ -547,7 +550,7 @@ done:
 			retv = -ENOBUFS;
 			break;
 		}
-		gsf = (struct group_filter *)kmalloc(optlen,GFP_KERNEL);
+		gsf = kmalloc(optlen,GFP_KERNEL);
 		if (gsf == 0) {
 			retv = -ENOBUFS;
 			break;

@@ -310,6 +310,7 @@ static inline int fls(int x)
 
 	return 32 - cnt;
 }
+#define fls64(x)   generic_fls64(x)
 
 /*
  * Every architecture must define this function. It's the fastest

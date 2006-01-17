@@ -39,7 +39,7 @@
 
 #define PDC202_DEBUG_CABLE	0
 
-const static char *pdc_quirk_drives[] = {
+static const char *pdc_quirk_drives[] = {
 	"QUANTUM FIREBALLlct08 08",
 	"QUANTUM FIREBALLP KA6.4",
 	"QUANTUM FIREBALLP KA9.1",

@@ -49,8 +49,8 @@
 #ifdef __KERNEL__
 
 #include <asm/atomic.h>
-#include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/skbuff.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
 

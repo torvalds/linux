@@ -26,9 +26,6 @@ config MMU
 	bool
 	default y
 
-config UID16
-	bool
-
 config GENERIC_HARDIRQS
 	bool
 	default y
@@ -50,7 +47,7 @@ config PPC
 
 config EARLY_PRINTK
 	bool
-	default y if PPC64
+	default y
 
 config COMPAT
 	bool
@@ -74,15 +71,28 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config PPC_OF
+	def_bool y
+
+config PPC_UDBG_16550
+	bool
+	default n
+
+config GENERIC_TBSYNC
+	bool
+	default y if PPC32 && SMP
+	default n
+
 menu "Processor support"
 choice
 	prompt "Processor Type"
 	depends on PPC32
 	default 6xx
 
-config 6xx
+config CLASSIC32
 	bool "6xx/7xx/74xx"
 	select PPC_FPU
+	select 6xx
 	help
 	  There are four families of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
@@ -96,12 +106,20 @@ config 6xx
 
 config PPC_52xx
 	bool "Freescale 52xx"
+	select 6xx
+	select PPC_FPU
 	
 config PPC_82xx
 	bool "Freescale 82xx"
+	select 6xx
+	select PPC_FPU
 
 config PPC_83xx
 	bool "Freescale 83xx"
+	select 6xx
+	select FSL_SOC
+	select 83xx
+	select PPC_FPU
 
 config 40x
 	bool "AMCC 40x"
@@ -137,6 +155,13 @@ config POWER4
 	depends on PPC64
 	def_bool y
 
+config 6xx
+	bool
+
+# this is temp to handle compat with arch=ppc
+config 83xx
+	bool
+
 config PPC_FPU
 	bool
 	default y if PPC64
@@ -169,7 +194,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4
+	depends on CLASSIC32 || POWER4
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -242,7 +267,7 @@ endmenu
 source "init/Kconfig"
 
 menu "Platform support"
-	depends on PPC64 || 6xx
+	depends on PPC64 || CLASSIC32
 
 choice
 	prompt "Machine type"
@@ -278,6 +303,7 @@ config PPC_PSERIES
 	select PPC_I8259
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
+	select PPC_UDBG_16550
 	default y
 
 config PPC_CHRP
@@ -287,6 +313,7 @@ config PPC_CHRP
 	select PPC_INDIRECT_PCI
 	select PPC_RTAS
 	select PPC_MPC106
+	select PPC_UDBG_16550
 	default y
 
 config PPC_PMAC
@@ -300,6 +327,7 @@ config PPC_PMAC64
 	bool
 	depends on PPC_PMAC && POWER4
 	select U3_DART
+	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
 	default y
 
@@ -308,6 +336,7 @@ config PPC_PREP
 	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
+	select PPC_UDBG_16550
 	default y
 
 config PPC_MAPLE
@@ -316,6 +345,7 @@ config PPC_MAPLE
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
+	select PPC_UDBG_16550
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -326,11 +356,7 @@ config PPC_CELL
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
 	select MMIO_NVRAM
-
-config PPC_OF
-	bool
-	depends on PPC_MULTIPLATFORM	# for now
-	default y
+	select PPC_UDBG_16550
 
 config XICS
 	depends on PPC_PSERIES
@@ -384,13 +410,14 @@ config IBMVIO
 	bool
 	default y
 
+config IBMEBUS
+	depends on PPC_PSERIES
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.
+
 config PPC_MPC106
 	bool
-	default n
-
-config GENERIC_TBSYNC
-	bool
-	default y if CONFIG_PPC32 && CONFIG_SMP
 	default n
 
 source "drivers/cpufreq/Kconfig"
@@ -473,8 +500,10 @@ endmenu
 
 source arch/powerpc/platforms/embedded6xx/Kconfig
 source arch/powerpc/platforms/4xx/Kconfig
+source arch/powerpc/platforms/83xx/Kconfig
 source arch/powerpc/platforms/85xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
+source arch/powerpc/platforms/cell/Kconfig
 
 menu "Kernel options"
 
@@ -544,6 +573,16 @@ config KEXEC
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
 
+config CRASH_DUMP
+	bool "kernel crash dumps (EXPERIMENTAL)"
+	depends on PPC_MULTIPLATFORM && PPC64 && EXPERIMENTAL
+	help
+	  Build a kernel suitable for use as a kdump capture kernel.
+	  The kernel will be linked at a different address than normal, and
+	  so can only be used for Kdump.
+
+	  Don't change this unless you know what you are doing.
+
 config EMBEDDEDBOOT
 	bool
 	depends on 8xx || 8260
@@ -578,11 +617,12 @@ config ARCH_SELECT_MEMORY_MODEL
 	depends on PPC64
 
 config ARCH_FLATMEM_ENABLE
-       def_bool y
-       depends on PPC64 && !NUMA
+	def_bool y
+	depends on (PPC64 && !NUMA) || PPC32
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
+	depends on PPC64
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
@@ -694,7 +734,7 @@ config PPC_I8259
 config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
-	default y if 40x || 44x || 85xx || 83xx
+	default y if 40x || 44x || 85xx
 	default n
 
 config EISA
@@ -703,13 +743,16 @@ config EISA
 config SBUS
 	bool
 
+config FSL_SOC
+	bool
+
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || 83xx || 85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
-	default y if !40x && !CPM2 && !8xx && !APUS && !83xx && !85xx
+	bool "PCI support" if 40x || CPM2 || PPC_83xx || 85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
+	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !85xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help
@@ -721,11 +764,6 @@ config PCI
 config PCI_DOMAINS
 	bool
 	default PCI
-
-config MPC83xx_PCI2
-	bool "  Supprt for 2nd PCI host controller"
-	depends on PCI && MPC834x
-	default y if MPC834x_SYS
 
 config PCI_QSPAN
 	bool "QSpan PCI"

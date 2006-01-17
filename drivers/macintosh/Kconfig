@@ -149,14 +149,14 @@ config MAC_EMUMOUSEBTN
 
 config THERM_WINDTUNNEL
 	tristate "Support for thermal management on Windtunnel G4s"
-	depends on I2C && I2C_KEYWEST && PPC_PMAC && !PPC_PMAC64
+	depends on I2C && I2C_POWERMAC && PPC_PMAC && !PPC_PMAC64
 	help
 	  This driver provides some thermostat and fan control for the desktop
 	  G4 "Windtunnel"
 
 config THERM_ADT746X
 	tristate "Support for thermal mgmnt on laptops with ADT 746x chipset"
-	depends on I2C && I2C_KEYWEST && PPC_PMAC && !PPC_PMAC64
+	depends on I2C && I2C_POWERMAC && PPC_PMAC && !PPC_PMAC64
 	help
 	  This driver provides some thermostat and fan control for the
           iBook G4, and the ATI based aluminium PowerBooks, allowing slighlty
@@ -164,7 +164,7 @@ config THERM_ADT746X
 
 config THERM_PM72
 	tristate "Support for thermal management on PowerMac G5"
-	depends on I2C && I2C_KEYWEST && PPC_PMAC64
+	depends on I2C && I2C_POWERMAC && PPC_PMAC64
 	help
 	  This driver provides thermostat and fan control for the desktop
 	  G5 machines. 
@@ -175,14 +175,14 @@ config WINDFARM
 config WINDFARM_PM81
 	tristate "Support for thermal management on iMac G5"
 	depends on WINDFARM && I2C && CPU_FREQ_PMAC64 && PMAC_SMU
-	select I2C_PMAC_SMU
+	select I2C_POWERMAC
 	help
 	  This driver provides thermal control for the iMacG5
 
 config WINDFARM_PM91
 	tristate "Support for thermal management on PowerMac9,1"
 	depends on WINDFARM && I2C && CPU_FREQ_PMAC64 && PMAC_SMU
-	select I2C_PMAC_SMU
+	select I2C_POWERMAC
 	help
 	  This driver provides thermal control for the PowerMac9,1
           which is the recent (SMU based) single CPU desktop G5

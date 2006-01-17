@@ -61,18 +61,18 @@
  *  instrument info
  */
 
-typedef struct simple_instrument_info {
+struct simple_instrument_info {
 	unsigned int format;		/* supported format bits */
 	unsigned int effects;		/* supported effects (1 << SIMPLE_EFFECT_*) */
 	unsigned int max8_len;		/* maximum 8-bit wave length */
 	unsigned int max16_len;		/* maximum 16-bit wave length */
-} simple_instrument_info_t;
+};
 
 /*
  *  Instrument
  */
 
-typedef struct {
+struct simple_instrument {
 	unsigned int share_id[4];	/* share id - zero = no sharing */
 	unsigned int format;		/* wave format */
 
@@ -92,7 +92,7 @@ typedef struct {
 	unsigned char effect1_depth;	/* 0-127 */
 	unsigned char effect2;		/* effect 2 */
 	unsigned char effect2_depth;	/* 0-127 */
-} simple_instrument_t;
+};
 
 /*
  *
@@ -112,7 +112,7 @@ typedef struct {
  *  Instrument
  */
 
-typedef struct simple_xinstrument {
+struct simple_xinstrument {
 	__u32 stype;
 
 	__u32 share_id[4];		/* share id - zero = no sharing */
@@ -128,29 +128,32 @@ typedef struct simple_xinstrument {
 	__u8 effect1_depth;		/* 0-127 */
 	__u8 effect2;			/* effect 2 */
 	__u8 effect2_depth;		/* 0-127 */
-} simple_xinstrument_t;
+};
 
 #ifdef __KERNEL__
 
 #include "seq_instr.h"
 
-typedef struct {
+struct snd_simple_ops {
 	void *private_data;
-	int (*info)(void *private_data, simple_instrument_info_t *info);
-	int (*put_sample)(void *private_data, simple_instrument_t *instr,
+	int (*info)(void *private_data, struct simple_instrument_info *info);
+	int (*put_sample)(void *private_data, struct simple_instrument *instr,
 	                  char __user *data, long len, int atomic);
-	int (*get_sample)(void *private_data, simple_instrument_t *instr,
+	int (*get_sample)(void *private_data, struct simple_instrument *instr,
 			  char __user *data, long len, int atomic);
-	int (*remove_sample)(void *private_data, simple_instrument_t *instr,
+	int (*remove_sample)(void *private_data, struct simple_instrument *instr,
 			     int atomic);
-	void (*notify)(void *private_data, snd_seq_kinstr_t *instr, int what);
-	snd_seq_kinstr_ops_t kops;
-} snd_simple_ops_t;
+	void (*notify)(void *private_data, struct snd_seq_kinstr *instr, int what);
+	struct snd_seq_kinstr_ops kops;
+};
 
-int snd_seq_simple_init(snd_simple_ops_t *ops,
+int snd_seq_simple_init(struct snd_simple_ops *ops,
 			void *private_data,
-			snd_seq_kinstr_ops_t *next);
+			struct snd_seq_kinstr_ops *next);
 
 #endif
+
+/* typedefs for compatibility to user-space */
+typedef struct simple_xinstrument simple_xinstrument_t;
 
 #endif /* __SOUND_AINSTR_SIMPLE_H */

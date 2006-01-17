@@ -243,7 +243,6 @@ xfs_rename(
 	xfs_inode_t	*inodes[4];
 	int		target_ip_dropped = 0;	/* dropped target_ip link? */
 	vnode_t		*src_dir_vp;
-	bhv_desc_t	*target_dir_bdp;
 	int		spaceres;
 	int		target_link_zero = 0;
 	int		num_inodes;
@@ -260,14 +259,12 @@ xfs_rename(
 	 * Find the XFS behavior descriptor for the target directory
 	 * vnode since it was not handed to us.
 	 */
-	target_dir_bdp = vn_bhv_lookup_unlocked(VN_BHV_HEAD(target_dir_vp),
-						&xfs_vnodeops);
-	if (target_dir_bdp == NULL) {
+	target_dp = xfs_vtoi(target_dir_vp);
+	if (target_dp == NULL) {
 		return XFS_ERROR(EXDEV);
 	}
 
 	src_dp = XFS_BHVTOI(src_dir_bdp);
-	target_dp = XFS_BHVTOI(target_dir_bdp);
 	mp = src_dp->i_mount;
 
 	if (DM_EVENT_ENABLED(src_dir_vp->v_vfsp, src_dp, DM_EVENT_RENAME) ||

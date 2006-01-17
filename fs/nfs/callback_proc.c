@@ -35,7 +35,9 @@ unsigned nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres
 	if (delegation == NULL || (delegation->type & FMODE_WRITE) == 0)
 		goto out_iput;
 	res->size = i_size_read(inode);
-	res->change_attr = NFS_CHANGE_ATTR(inode);
+	res->change_attr = delegation->change_attr;
+	if (nfsi->npages != 0)
+		res->change_attr++;
 	res->ctime = inode->i_ctime;
 	res->mtime = inode->i_mtime;
 	res->bitmap[0] = (FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE) &

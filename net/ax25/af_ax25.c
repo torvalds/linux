@@ -14,6 +14,7 @@
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
 #include <linux/config.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -54,7 +55,7 @@
 HLIST_HEAD(ax25_list);
 DEFINE_SPINLOCK(ax25_list_lock);
 
-static struct proto_ops ax25_proto_ops;
+static const struct proto_ops ax25_proto_ops;
 
 static void ax25_free_sock(struct sock *sk)
 {
@@ -1827,7 +1828,7 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		res = dev_ioctl(cmd, argp);
+		res = -ENOIOCTLCMD;
 		break;
 	}
 	release_sock(sk);
@@ -1944,7 +1945,7 @@ static struct net_proto_family ax25_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops ax25_proto_ops = {
+static const struct proto_ops ax25_proto_ops = {
 	.family		= PF_AX25,
 	.owner		= THIS_MODULE,
 	.release	= ax25_release,

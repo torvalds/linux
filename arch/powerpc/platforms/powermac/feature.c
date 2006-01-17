@@ -58,12 +58,11 @@ extern int powersave_lowspeed;
 extern int powersave_nap;
 extern struct device_node *k2_skiplist[2];
 
-
 /*
  * We use a single global lock to protect accesses. Each driver has
  * to take care of its own locking
  */
-static DEFINE_SPINLOCK(feature_lock);
+DEFINE_SPINLOCK(feature_lock);
 
 #define LOCK(flags)	spin_lock_irqsave(&feature_lock, flags);
 #define UNLOCK(flags)	spin_unlock_irqrestore(&feature_lock, flags);
@@ -101,26 +100,17 @@ static const char *macio_names[] =
 	"Keylargo",
 	"Pangea",
 	"Intrepid",
-	"K2"
+	"K2",
+	"Shasta",
 };
 
 
+struct device_node *uninorth_node;
+u32 __iomem *uninorth_base;
 
-/*
- * Uninorth reg. access. Note that Uni-N regs are big endian
- */
-
-#define UN_REG(r)	(uninorth_base + ((r) >> 2))
-#define UN_IN(r)	(in_be32(UN_REG(r)))
-#define UN_OUT(r,v)	(out_be32(UN_REG(r), (v)))
-#define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
-#define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
-
-static struct device_node *uninorth_node;
-static u32 __iomem *uninorth_base;
 static u32 uninorth_rev;
-static int uninorth_u3;
-static void __iomem *u3_ht;
+static int uninorth_maj;
+static void __iomem *u3_ht_base;
 
 /*
  * For each motherboard family, we have a table of functions pointers
@@ -1399,8 +1389,15 @@ static long g5_fw_enable(struct device_node *node, long param, long value)
 static long g5_mpic_enable(struct device_node *node, long param, long value)
 {
 	unsigned long flags;
+	struct device_node *parent = of_get_parent(node);
+	int is_u3;
 
-	if (node->parent == NULL || strcmp(node->parent->name, "u3"))
+	if (parent == NULL)
+		return 0;
+	is_u3 = strcmp(parent->name, "u3") == 0 ||
+		strcmp(parent->name, "u4") == 0;
+	of_node_put(parent);
+	if (!is_u3)
 		return 0;
 
 	LOCK(flags);
@@ -1445,20 +1442,53 @@ static long g5_i2s_enable(struct device_node *node, long param, long value)
 	/* Very crude implementation for now */
 	struct macio_chip *macio = &macio_chips[0];
 	unsigned long flags;
+	int cell;
+	u32 fcrs[3][3] = {
+		{ 0,
+		  K2_FCR1_I2S0_CELL_ENABLE |
+		  K2_FCR1_I2S0_CLK_ENABLE_BIT | K2_FCR1_I2S0_ENABLE,
+		  KL3_I2S0_CLK18_ENABLE
+		},
+		{ KL0_SCC_A_INTF_ENABLE,
+		  K2_FCR1_I2S1_CELL_ENABLE |
+		  K2_FCR1_I2S1_CLK_ENABLE_BIT | K2_FCR1_I2S1_ENABLE,
+		  KL3_I2S1_CLK18_ENABLE
+		},
+		{ KL0_SCC_B_INTF_ENABLE,
+		  SH_FCR1_I2S2_CELL_ENABLE |
+		  SH_FCR1_I2S2_CLK_ENABLE_BIT | SH_FCR1_I2S2_ENABLE,
+		  SH_FCR3_I2S2_CLK18_ENABLE
+		},
+	};
 
-	if (value == 0)
-		return 0; /* don't disable yet */
+	if (macio->type != macio_keylargo2 && macio->type != macio_shasta)
+		return -ENODEV;
+	if (strncmp(node->name, "i2s-", 4))
+		return -ENODEV;
+	cell = node->name[4] - 'a';
+	switch(cell) {
+	case 0:
+	case 1:
+		break;
+	case 2:
+		if (macio->type == macio_shasta)
+			break;
+	default:
+		return -ENODEV;
+	}
 
 	LOCK(flags);
-	MACIO_BIS(KEYLARGO_FCR3, KL3_CLK45_ENABLE | KL3_CLK49_ENABLE |
-		  KL3_I2S0_CLK18_ENABLE);
+	if (value) {
+		MACIO_BIC(KEYLARGO_FCR0, fcrs[cell][0]);
+		MACIO_BIS(KEYLARGO_FCR1, fcrs[cell][1]);
+		MACIO_BIS(KEYLARGO_FCR3, fcrs[cell][2]);
+	} else {
+		MACIO_BIC(KEYLARGO_FCR3, fcrs[cell][2]);
+		MACIO_BIC(KEYLARGO_FCR1, fcrs[cell][1]);
+		MACIO_BIS(KEYLARGO_FCR0, fcrs[cell][0]);
+	}
 	udelay(10);
-	MACIO_BIS(KEYLARGO_FCR1, K2_FCR1_I2S0_CELL_ENABLE |
-		  K2_FCR1_I2S0_CLK_ENABLE_BIT | K2_FCR1_I2S0_ENABLE);
-	udelay(10);
-	MACIO_BIC(KEYLARGO_FCR1, K2_FCR1_I2S0_RESET);
 	UNLOCK(flags);
-	udelay(10);
 
 	return 0;
 }
@@ -1473,7 +1503,7 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
 	struct device_node *np;
 
 	macio = &macio_chips[0];
-	if (macio->type != macio_keylargo2)
+	if (macio->type != macio_keylargo2 && macio->type != macio_shasta)
 		return -ENODEV;
 
 	np = find_path_device("/cpus");
@@ -1512,14 +1542,17 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
  */
 void g5_phy_disable_cpu1(void)
 {
-	UN_OUT(U3_API_PHY_CONFIG_1, 0);
+	if (uninorth_maj == 3)
+		UN_OUT(U3_API_PHY_CONFIG_1, 0);
 }
 #endif /* CONFIG_POWER4 */
 
 #ifndef CONFIG_POWER4
 
-static void
-keylargo_shutdown(struct macio_chip *macio, int sleep_mode)
+
+#ifdef CONFIG_PM
+
+static void keylargo_shutdown(struct macio_chip *macio, int sleep_mode)
 {
 	u32 temp;
 
@@ -1572,8 +1605,7 @@ keylargo_shutdown(struct macio_chip *macio, int sleep_mode)
 	(void)MACIO_IN32(KEYLARGO_FCR0); mdelay(1);
 }
 
-static void
-pangea_shutdown(struct macio_chip *macio, int sleep_mode)
+static void pangea_shutdown(struct macio_chip *macio, int sleep_mode)
 {
 	u32 temp;
 
@@ -1606,8 +1638,7 @@ pangea_shutdown(struct macio_chip *macio, int sleep_mode)
 	(void)MACIO_IN32(KEYLARGO_FCR0); mdelay(1);
 }
 
-static void
-intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
+static void intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
 {
 	u32 temp;
 
@@ -1632,124 +1663,6 @@ intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
 	/* Flush posted writes & wait a bit */
 	(void)MACIO_IN32(KEYLARGO_FCR0);
 	mdelay(10);
-}
-
-
-void pmac_tweak_clock_spreading(int enable)
-{
-	struct macio_chip *macio = &macio_chips[0];
-
-	/* Hack for doing clock spreading on some machines PowerBooks and
-	 * iBooks. This implements the "platform-do-clockspreading" OF
-	 * property as decoded manually on various models. For safety, we also
-	 * check the product ID in the device-tree in cases we'll whack the i2c
-	 * chip to make reasonably sure we won't set wrong values in there
-	 *
-	 * Of course, ultimately, we have to implement a real parser for
-	 * the platform-do-* stuff...
-	 */
-
-	if (macio->type == macio_intrepid) {
-		struct device_node *clock =
-			of_find_node_by_path("/uni-n@f8000000/hw-clock");
-		if (clock && get_property(clock, "platform-do-clockspreading",
-					  NULL)) {
-			printk(KERN_INFO "%sabling clock spreading on Intrepid"
-			       " ASIC\n", enable ? "En" : "Dis");
-			if (enable)
-				UN_OUT(UNI_N_CLOCK_SPREADING, 2);
-			else
-				UN_OUT(UNI_N_CLOCK_SPREADING, 0);
-			mdelay(40);
-		}
-		of_node_put(clock);
-	}
-
-	while (machine_is_compatible("PowerBook5,2") ||
-	       machine_is_compatible("PowerBook5,3") ||
-	       machine_is_compatible("PowerBook6,2") ||
-	       machine_is_compatible("PowerBook6,3")) {
-		struct device_node *ui2c = of_find_node_by_type(NULL, "i2c");
-		struct device_node *dt = of_find_node_by_name(NULL, "device-tree");
-		u8 buffer[9];
-		u32 *productID;
-		int i, rc, changed = 0;
-
-		if (dt == NULL)
-			break;
-		productID = (u32 *)get_property(dt, "pid#", NULL);
-		if (productID == NULL)
-			break;
-		while(ui2c) {
-			struct device_node *p = of_get_parent(ui2c);
-			if (p && !strcmp(p->name, "uni-n"))
-				break;
-			ui2c = of_find_node_by_type(ui2c, "i2c");
-		}
-		if (ui2c == NULL)
-			break;
-		DBG("Trying to bump clock speed for PID: %08x...\n", *productID);
-		rc = pmac_low_i2c_open(ui2c, 1);
-		if (rc != 0)
-			break;
-		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_combined);
-		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_read, 0x80, buffer, 9);
-		DBG("read result: %d,", rc);
-		if (rc != 0) {
-			pmac_low_i2c_close(ui2c);
-			break;
-		}
-		for (i=0; i<9; i++)
-			DBG(" %02x", buffer[i]);
-		DBG("\n");
-
-		switch(*productID) {
-		case 0x1182:	/* AlBook 12" rev 2 */
-		case 0x1183:	/* iBook G4 12" */
-			buffer[0] = (buffer[0] & 0x8f) | 0x70;
-			buffer[2] = (buffer[2] & 0x7f) | 0x00;
-			buffer[5] = (buffer[5] & 0x80) | 0x31;
-			buffer[6] = (buffer[6] & 0x40) | 0xb0;
-			buffer[7] = (buffer[7] & 0x00) | (enable ? 0xc0 : 0xba);
-			buffer[8] = (buffer[8] & 0x00) | 0x30;
-			changed = 1;
-			break;
-		case 0x3142:	/* AlBook 15" (ATI M10) */
-		case 0x3143:	/* AlBook 17" (ATI M10) */
-			buffer[0] = (buffer[0] & 0xaf) | 0x50;
-			buffer[2] = (buffer[2] & 0x7f) | 0x00;
-			buffer[5] = (buffer[5] & 0x80) | 0x31;
-			buffer[6] = (buffer[6] & 0x40) | 0xb0;
-			buffer[7] = (buffer[7] & 0x00) | (enable ? 0xd0 : 0xc0);
-			buffer[8] = (buffer[8] & 0x00) | 0x30;
-			changed = 1;
-			break;
-		default:
-			DBG("i2c-hwclock: Machine model not handled\n");
-			break;
-		}
-		if (!changed) {
-			pmac_low_i2c_close(ui2c);
-			break;
-		}
-		printk(KERN_INFO "%sabling clock spreading on i2c clock chip\n",
-		       enable ? "En" : "Dis");
-
-		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_stdsub);
-		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_write, 0x80, buffer, 9);
-		DBG("write result: %d,", rc);
-		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_combined);
-		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_read, 0x80, buffer, 9);
-		DBG("read result: %d,", rc);
-		if (rc != 0) {
-			pmac_low_i2c_close(ui2c);
-			break;
-		}
-		for (i=0; i<9; i++)
-			DBG(" %02x", buffer[i]);
-		pmac_low_i2c_close(ui2c);
-		break;
-	}
 }
 
 
@@ -1909,6 +1822,8 @@ core99_wake_up(void)
 	return 0;
 }
 
+#endif /* CONFIG_PM */
+
 static long
 core99_sleep_state(struct device_node *node, long param, long value)
 {
@@ -1930,10 +1845,13 @@ core99_sleep_state(struct device_node *node, long param, long value)
 	if ((pmac_mb.board_flags & PMAC_MB_CAN_SLEEP) == 0)
 		return -EPERM;
 
+#ifdef CONFIG_PM
 	if (value == 1)
 		return core99_sleep();
 	else if (value == 0)
 		return core99_wake_up();
+
+#endif /* CONFIG_PM */
 	return 0;
 }
 
@@ -2057,7 +1975,9 @@ static struct feature_table_entry core99_features[] = {
 	{ PMAC_FTR_USB_ENABLE,		core99_usb_enable },
 	{ PMAC_FTR_1394_ENABLE,		core99_firewire_enable },
 	{ PMAC_FTR_1394_CABLE_POWER,	core99_firewire_cable_power },
+#ifdef CONFIG_PM
 	{ PMAC_FTR_SLEEP_STATE,		core99_sleep_state },
+#endif
 #ifdef CONFIG_SMP
 	{ PMAC_FTR_RESET_CPU,		core99_reset_cpu },
 #endif /* CONFIG_SMP */
@@ -2427,6 +2347,14 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_POWERMAC_G5_U3L,	g5_features,
 		0,
 	},
+	{	"PowerMac11,2",			"PowerMac G5 Dual Core",
+		PMAC_TYPE_POWERMAC_G5_U3L,	g5_features,
+		0,
+	},
+	{	"PowerMac12,1",			"iMac G5 (iSight)",
+		PMAC_TYPE_POWERMAC_G5_U3L,	g5_features,
+		0,
+	},
 	{       "RackMac3,1",                   "XServe G5",
 		PMAC_TYPE_XSERVE_G5,		g5_features,
 		0,
@@ -2539,6 +2467,11 @@ static int __init probe_motherboard(void)
 		pmac_mb.model_name = "Unknown K2-based";
 		pmac_mb.features = g5_features;
 		break;
+	case macio_shasta:
+		pmac_mb.model_id = PMAC_TYPE_UNKNOWN_SHASTA;
+		pmac_mb.model_name = "Unknown Shasta-based";
+		pmac_mb.features = g5_features;
+		break;
 #endif /* CONFIG_POWER4 */
 	default:
 		return -ENODEV;
@@ -2607,6 +2540,8 @@ found:
  */
 static void __init probe_uninorth(void)
 {
+	u32 *addrp;
+	phys_addr_t address;
 	unsigned long actrl;
 
 	/* Locate core99 Uni-N */
@@ -2614,22 +2549,31 @@ static void __init probe_uninorth(void)
 	/* Locate G5 u3 */
 	if (uninorth_node == NULL) {
 		uninorth_node = of_find_node_by_name(NULL, "u3");
-		uninorth_u3 = 1;
+		uninorth_maj = 3;
 	}
-	if (uninorth_node && uninorth_node->n_addrs > 0) {
-		unsigned long address = uninorth_node->addrs[0].address;
-		uninorth_base = ioremap(address, 0x40000);
-		uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
-		if (uninorth_u3)
-			u3_ht = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
-	} else
-		uninorth_node = NULL;
-
-	if (!uninorth_node)
+	/* Locate G5 u4 */
+	if (uninorth_node == NULL) {
+		uninorth_node = of_find_node_by_name(NULL, "u4");
+		uninorth_maj = 4;
+	}
+	if (uninorth_node == NULL)
 		return;
 
-	printk(KERN_INFO "Found %s memory controller & host bridge, revision: %d\n",
-	       uninorth_u3 ? "U3" : "UniNorth", uninorth_rev);
+	addrp = (u32 *)get_property(uninorth_node, "reg", NULL);
+	if (addrp == NULL)
+		return;
+	address = of_translate_address(uninorth_node, addrp);
+	if (address == 0)
+		return;
+	uninorth_base = ioremap(address, 0x40000);
+	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
+	if (uninorth_maj == 3 || uninorth_maj == 4)
+		u3_ht_base = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
+
+	printk(KERN_INFO "Found %s memory controller & host bridge"
+	       " @ 0x%08x revision: 0x%02x\n", uninorth_maj == 3 ? "U3" :
+	       uninorth_maj == 4 ? "U4" : "UniNorth",
+	       (unsigned int)address, uninorth_rev);
 	printk(KERN_INFO "Mapped at 0x%08lx\n", (unsigned long)uninorth_base);
 
 	/* Set the arbitrer QAck delay according to what Apple does
@@ -2637,7 +2581,8 @@ static void __init probe_uninorth(void)
 	if (uninorth_rev < 0x11) {
 		actrl = UN_IN(UNI_N_ARB_CTRL) & ~UNI_N_ARB_CTRL_QACK_DELAY_MASK;
 		actrl |= ((uninorth_rev < 3) ? UNI_N_ARB_CTRL_QACK_DELAY105 :
-			UNI_N_ARB_CTRL_QACK_DELAY) << UNI_N_ARB_CTRL_QACK_DELAY_SHIFT;
+			UNI_N_ARB_CTRL_QACK_DELAY) <<
+			UNI_N_ARB_CTRL_QACK_DELAY_SHIFT;
 		UN_OUT(UNI_N_ARB_CTRL, actrl);
 	}
 
@@ -2645,7 +2590,8 @@ static void __init probe_uninorth(void)
 	 * revs 1.5 to 2.O and Pangea. Seem to toggle the UniN Maxbus/PCI
 	 * memory timeout
 	 */
-	if ((uninorth_rev >= 0x11 && uninorth_rev <= 0x24) || uninorth_rev == 0xc0)
+	if ((uninorth_rev >= 0x11 && uninorth_rev <= 0x24) ||
+	    uninorth_rev == 0xc0)
 		UN_OUT(0x2160, UN_IN(0x2160) & 0x00ffffff);
 }
 
@@ -2653,18 +2599,17 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 {
 	struct device_node*	node;
 	int			i;
-	volatile u32 __iomem *	base;
-	u32*			revp;
+	volatile u32 __iomem	*base;
+	u32			*addrp, *revp;
+	phys_addr_t		addr;
+	u64			size;
 
-	node = find_devices(name);
-	if (!node || !node->n_addrs)
-		return;
-	if (compat)
-		do {
-			if (device_is_compatible(node, compat))
-				break;
-			node = node->next;
-		} while (node);
+	for (node = NULL; (node = of_find_node_by_name(node, name)) != NULL;) {
+		if (!compat)
+			break;
+		if (device_is_compatible(node, compat))
+			break;
+	}
 	if (!node)
 		return;
 	for(i=0; i<MAX_MACIO_CHIPS; i++) {
@@ -2673,22 +2618,38 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		if (macio_chips[i].of_node == node)
 			return;
 	}
+
 	if (i >= MAX_MACIO_CHIPS) {
 		printk(KERN_ERR "pmac_feature: Please increase MAX_MACIO_CHIPS !\n");
 		printk(KERN_ERR "pmac_feature: %s skipped\n", node->full_name);
 		return;
 	}
-	base = ioremap(node->addrs[0].address, node->addrs[0].size);
-	if (!base) {
-		printk(KERN_ERR "pmac_feature: Can't map mac-io chip !\n");
+	addrp = of_get_pci_address(node, 0, &size, NULL);
+	if (addrp == NULL) {
+		printk(KERN_ERR "pmac_feature: %s: can't find base !\n",
+		       node->full_name);
 		return;
 	}
-	if (type == macio_keylargo) {
+	addr = of_translate_address(node, addrp);
+	if (addr == 0) {
+		printk(KERN_ERR "pmac_feature: %s, can't translate base !\n",
+		       node->full_name);
+		return;
+	}
+	base = ioremap(addr, (unsigned long)size);
+	if (!base) {
+		printk(KERN_ERR "pmac_feature: %s, can't map mac-io chip !\n",
+		       node->full_name);
+		return;
+	}
+	if (type == macio_keylargo || type == macio_keylargo2) {
 		u32 *did = (u32 *)get_property(node, "device-id", NULL);
 		if (*did == 0x00000025)
 			type = macio_pangea;
 		if (*did == 0x0000003e)
 			type = macio_intrepid;
+		if (*did == 0x0000004f)
+			type = macio_shasta;
 	}
 	macio_chips[i].of_node	= node;
 	macio_chips[i].type	= type;
@@ -2787,7 +2748,8 @@ set_initial_features(void)
 	}
 
 #ifdef CONFIG_POWER4
-	if (macio_chips[0].type == macio_keylargo2) {
+	if (macio_chips[0].type == macio_keylargo2 ||
+	    macio_chips[0].type == macio_shasta) {
 #ifndef CONFIG_SMP
 		/* On SMP machines running UP, we have the second CPU eating
 		 * bus cycles. We need to take it off the bus. This is done
@@ -2896,12 +2858,6 @@ set_initial_features(void)
 		MACIO_BIC(HEATHROW_FCR, HRW_SOUND_POWER_N);
 	}
 
-	/* Some machine models need the clock chip to be properly setup for
-	 * clock spreading now. This should be a platform function but we
-	 * don't do these at the moment
-	 */
-	pmac_tweak_clock_spreading(1);
-
 #endif /* CONFIG_POWER4 */
 
 	/* On all machines, switch modem & serial ports off */
@@ -2929,9 +2885,6 @@ pmac_feature_init(void)
 		return;
 	}
 
-	/* Setup low-level i2c stuffs */
-	pmac_init_low_i2c();
-
 	/* Probe machine type */
 	if (probe_motherboard())
 		printk(KERN_WARNING "Unknown PowerMac !\n");
@@ -2941,26 +2894,6 @@ pmac_feature_init(void)
 	 */
 	set_initial_features();
 }
-
-int __init pmac_feature_late_init(void)
-{
-#if 0
-	struct device_node *np;
-
-	/* Request some resources late */
-	if (uninorth_node)
-		request_OF_resource(uninorth_node, 0, NULL);
-	np = find_devices("hammerhead");
-	if (np)
-		request_OF_resource(np, 0, NULL);
-	np = find_devices("interrupt-controller");
-	if (np)
-		request_OF_resource(np, 0, NULL);
-#endif
-	return 0;
-}
-
-device_initcall(pmac_feature_late_init);
 
 #if 0
 static void dump_HT_speeds(char *name, u32 cfg, u32 frq)
@@ -2984,9 +2917,9 @@ void __init pmac_check_ht_link(void)
 	u8	px_bus, px_devfn;
 	struct pci_controller *px_hose;
 
-	(void)in_be32(u3_ht + U3_HT_LINK_COMMAND);
-	ucfg = cfg = in_be32(u3_ht + U3_HT_LINK_CONFIG);
-	ufreq = freq = in_be32(u3_ht + U3_HT_LINK_FREQ);
+	(void)in_be32(u3_ht_base + U3_HT_LINK_COMMAND);
+	ucfg = cfg = in_be32(u3_ht_base + U3_HT_LINK_CONFIG);
+	ufreq = freq = in_be32(u3_ht_base + U3_HT_LINK_FREQ);
 	dump_HT_speeds("U3 HyperTransport", cfg, freq);
 
 	pcix_node = of_find_compatible_node(NULL, "pci", "pci-x");

@@ -177,3 +177,25 @@ document trapinfo
 	'trapinfo <pid>' will tell you by which trap & possibly
 	addresthe kernel paniced.
 end
+
+
+define dmesg
+	set $i = 0
+	set $end_idx = (log_end - 1) & (log_buf_len - 1)
+
+	while ($i < logged_chars)
+		set $idx = (log_end - 1 - logged_chars + $i) & (log_buf_len - 1)
+
+		if ($idx + 100 <= $end_idx) || \
+		   ($end_idx <= $idx && $idx + 100 < log_buf_len)
+			printf "%.100s", &log_buf[$idx]
+			set $i = $i + 100
+		else
+			printf "%c", log_buf[$idx]
+			set $i = $i + 1
+		end
+	end
+end
+document dmesg
+	print the kernel ring buffer
+end

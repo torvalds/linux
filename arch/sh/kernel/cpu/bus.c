@@ -53,21 +53,6 @@ static int sh_bus_resume(struct device *dev)
 	return 0;
 }
 
-static struct device sh_bus_devices[SH_NR_BUSES] = {
-	{
-		.bus_id		= SH_BUS_NAME_VIRT,
-	},
-};
-
-struct bus_type sh_bus_types[SH_NR_BUSES] = {
-	{
-		.name		= SH_BUS_NAME_VIRT,
-		.match		= sh_bus_match,
-		.suspend	= sh_bus_suspend,
-		.resume		= sh_bus_resume,
-	},
-};
-
 static int sh_device_probe(struct device *dev)
 {
 	struct sh_dev *shdev = to_sh_dev(dev);
@@ -90,6 +75,23 @@ static int sh_device_remove(struct device *dev)
 	return 0;
 }
 
+static struct device sh_bus_devices[SH_NR_BUSES] = {
+	{
+		.bus_id		= SH_BUS_NAME_VIRT,
+	},
+};
+
+struct bus_type sh_bus_types[SH_NR_BUSES] = {
+	{
+		.name		= SH_BUS_NAME_VIRT,
+		.match		= sh_bus_match,
+		.probe		= sh_bus_probe,
+		.remove		= sh_bus_remove,
+		.suspend	= sh_bus_suspend,
+		.resume		= sh_bus_resume,
+	},
+};
+
 int sh_device_register(struct sh_dev *dev)
 {
 	if (!dev)
@@ -107,6 +109,8 @@ int sh_device_register(struct sh_dev *dev)
 	/* This is needed for USB OHCI to work */
 	if (dev->dma_mask)
 		dev->dev.dma_mask = dev->dma_mask;
+	if (dev->coherent_dma_mask)
+		dev->dev.coherent_dma_mask = dev->coherent_dma_mask;
 
 	snprintf(dev->dev.bus_id, BUS_ID_SIZE, "%s%u",
 		 dev->name, dev->dev_id);
@@ -133,8 +137,6 @@ int sh_driver_register(struct sh_driver *drv)
 		return -EINVAL;
 	}
 
-	drv->drv.probe  = sh_device_probe;
-	drv->drv.remove = sh_device_remove;
 	drv->drv.bus    = &sh_bus_types[drv->bus_id];
 
 	return driver_register(&drv->drv);

@@ -514,6 +514,24 @@ static int put_compat_itimerspec(struct compat_itimerspec __user *dst,
 	return 0;
 } 
 
+long compat_sys_timer_create(clockid_t which_clock,
+			struct compat_sigevent __user *timer_event_spec,
+			timer_t __user *created_timer_id)
+{
+	struct sigevent __user *event = NULL;
+
+	if (timer_event_spec) {
+		struct sigevent kevent;
+
+		event = compat_alloc_user_space(sizeof(*event));
+		if (get_compat_sigevent(&kevent, timer_event_spec) ||
+		    copy_to_user(event, &kevent, sizeof(*event)))
+			return -EFAULT;
+	}
+
+	return sys_timer_create(which_clock, event, created_timer_id);
+}
+
 long compat_sys_timer_settime(timer_t timer_id, int flags,
 			  struct compat_itimerspec __user *new, 
 			  struct compat_itimerspec __user *old)
@@ -648,8 +666,6 @@ int get_compat_sigevent(struct sigevent *event,
 			&u_event->sigev_notify_thread_id))
 		? -EFAULT : 0;
 }
-
-/* timer_create is architecture specific because it needs sigevent conversion */
 
 long compat_get_bitmap(unsigned long *mask, compat_ulong_t __user *umask,
 		       unsigned long bitmap_size)

@@ -473,14 +473,6 @@ config MTD_IXP2000
 	  IXDP425 and Coyote. If you have an IXP2000 based board and
 	  would like to use the flash chips on it, say 'Y'.
 
-config MTD_EPXA10DB
-	tristate "CFI Flash device mapped on Epxa10db"
-	depends on MTD_CFI && MTD_PARTITIONS && ARCH_CAMELOT
-	help
-	  This enables support for the flash devices on the Altera
-	  Excalibur XA10 Development Board. If you are building a kernel
-	  for on of these boards then you should say 'Y' otherwise say 'N'.
-
 config MTD_FORTUNET
 	tristate "CFI Flash device mapped on the FortuNet board"
 	depends on MTD_CFI && MTD_PARTITIONS && SA1100_FORTUNET

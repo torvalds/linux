@@ -216,11 +216,11 @@ static struct usb_device_id id_table_combined [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver io_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"io_ti",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 
@@ -1865,20 +1865,14 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 	int cnt;
 
 	do {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				dev_err(dev, "%s - dropping data, %d bytes lost\n",
-					__FUNCTION__, length);
-				return;
-			}
+		cnt = tty_buffer_request_room(tty, length);
+		if (cnt < length) {
+			dev_err(dev, "%s - dropping data, %d bytes lost\n",
+				__FUNCTION__, length - cnt);
+			if(cnt == 0)
+				break;
 		}
-		cnt = min(length, TTY_FLIPBUF_SIZE - tty->flip.count);
-		memcpy(tty->flip.char_buf_ptr, data, cnt);
-		memset(tty->flip.flag_buf_ptr, 0, cnt);
-		tty->flip.char_buf_ptr += cnt;
-		tty->flip.flag_buf_ptr += cnt;
-		tty->flip.count += cnt;
+		tty_insert_flip_string(tty, data, cnt);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);
@@ -2843,7 +2837,7 @@ static struct edge_buf *edge_buf_alloc(unsigned int size)
  * Free the buffer and all associated memory.
  */
 
-void edge_buf_free(struct edge_buf *eb)
+static void edge_buf_free(struct edge_buf *eb)
 {
 	if (eb) {
 		kfree(eb->buf_buf);

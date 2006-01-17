@@ -356,6 +356,13 @@ retry:
 		if (bh1 != bh2)
 			spin_unlock(&bh2->lock);
 
+#ifndef CONFIG_MMU
+		/* we don't get EFAULT from MMU faults if we don't have an MMU,
+		 * but we might get them from range checking */
+		ret = op_ret;
+		goto out;
+#endif
+
 		if (unlikely(op_ret != -EFAULT)) {
 			ret = op_ret;
 			goto out;

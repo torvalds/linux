@@ -143,12 +143,12 @@ extern unsigned long pciio_virt;
  * Change virtual addresses to physical addresses and vv.
  * These are trivial on the 1:1 Linux/SuperH mapping
  */
-extern __inline__ unsigned long virt_to_phys(volatile void * address)
+static inline unsigned long virt_to_phys(volatile void * address)
 {
 	return __pa(address);
 }
 
-extern __inline__ void * phys_to_virt(unsigned long address)
+static inline void * phys_to_virt(unsigned long address)
 {
 	return __va(address);
 }
@@ -156,12 +156,12 @@ extern __inline__ void * phys_to_virt(unsigned long address)
 extern void * __ioremap(unsigned long phys_addr, unsigned long size,
 			unsigned long flags);
 
-extern __inline__ void * ioremap(unsigned long phys_addr, unsigned long size)
+static inline void * ioremap(unsigned long phys_addr, unsigned long size)
 {
 	return __ioremap(phys_addr, size, 1);
 }
 
-extern __inline__ void * ioremap_nocache (unsigned long phys_addr, unsigned long size)
+static inline void * ioremap_nocache (unsigned long phys_addr, unsigned long size)
 {
 	return __ioremap(phys_addr, size, 0);
 }

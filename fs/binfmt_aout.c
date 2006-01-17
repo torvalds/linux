@@ -33,8 +33,6 @@ static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
 static int aout_core_dump(long signr, struct pt_regs * regs, struct file *file);
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 static struct linux_binfmt aout_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_aout_binary,

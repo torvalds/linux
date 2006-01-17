@@ -52,63 +52,57 @@ static char *_board_h_sccs_ = "@(#)board.h	1.2";
 /*
 **	The shape of the Host Control area, at offset 0x7C00, Write Only
 */
-struct s_Ctrl
-{
-	BYTE	DpCtl;				/* 7C00 */
-	BYTE	Dp_Unused2_[127];
-	BYTE	DpIntSet;			/* 7C80 */
-	BYTE	Dp_Unused3_[127];
-	BYTE	DpTpuReset;			/* 7D00 */
-	BYTE	Dp_Unused4_[127];
-	BYTE	DpIntReset;			/* 7D80 */
-	BYTE	Dp_Unused5_[127];
+struct s_Ctrl {
+	BYTE DpCtl;		/* 7C00 */
+	BYTE Dp_Unused2_[127];
+	BYTE DpIntSet;		/* 7C80 */
+	BYTE Dp_Unused3_[127];
+	BYTE DpTpuReset;	/* 7D00 */
+	BYTE Dp_Unused4_[127];
+	BYTE DpIntReset;	/* 7D80 */
+	BYTE Dp_Unused5_[127];
 };
 
 /*
 ** The PROM data area on the host (0x7C00), Read Only
 */
-struct s_Prom
-{
-	WORD	DpSlxCode[2];
-	WORD	DpRev;
-	WORD	Dp_Unused6_;
-	WORD	DpUniq[4];
-	WORD	DpJahre;
-	WORD	DpWoche;
-	WORD	DpHwFeature[5];
-	WORD	DpOemId;
-	WORD	DpSiggy[16];
+struct s_Prom {
+	WORD DpSlxCode[2];
+	WORD DpRev;
+	WORD Dp_Unused6_;
+	WORD DpUniq[4];
+	WORD DpJahre;
+	WORD DpWoche;
+	WORD DpHwFeature[5];
+	WORD DpOemId;
+	WORD DpSiggy[16];
 };
 
 /*
 ** Union of the Ctrl and Prom areas
 */
-union u_CtrlProm	/* This is the control/PROM area (0x7C00) */
-{
-	struct s_Ctrl	DpCtrl;
-	struct s_Prom	DpProm;
+union u_CtrlProm {		/* This is the control/PROM area (0x7C00) */
+	struct s_Ctrl DpCtrl;
+	struct s_Prom DpProm;
 };
 
 /*
 ** The top end of memory!
 */
-struct s_ParmMapS		/* Area containing Parm Map Pointer */
-{
-	BYTE	Dp_Unused8_[DP_PARMMAP_ADDR];
-	WORD	DpParmMapAd;
+struct s_ParmMapS {		/* Area containing Parm Map Pointer */
+	BYTE Dp_Unused8_[DP_PARMMAP_ADDR];
+	WORD DpParmMapAd;
 };
 
-struct s_StartUpS
-{
-	BYTE    Dp_Unused9_[DP_STARTUP_ADDR];
-	BYTE	Dp_LongJump[0x4];
-	BYTE	Dp_Unused10_[2];
-	BYTE	Dp_ShortJump[0x2];
+struct s_StartUpS {
+	BYTE Dp_Unused9_[DP_STARTUP_ADDR];
+	BYTE Dp_LongJump[0x4];
+	BYTE Dp_Unused10_[2];
+	BYTE Dp_ShortJump[0x2];
 };
 
-union u_Sram2ParmMap	/* This is the top of memory (0x7E00-0x7FFF) */
-{
-	BYTE	DpSramMem[DP_SRAM2_SIZE];
+union u_Sram2ParmMap {		/* This is the top of memory (0x7E00-0x7FFF) */
+	BYTE DpSramMem[DP_SRAM2_SIZE];
 	struct s_ParmMapS DpParmMapS;
 	struct s_StartUpS DpStartUpS;
 };
@@ -116,13 +110,12 @@ union u_Sram2ParmMap	/* This is the top of memory (0x7E00-0x7FFF) */
 /*
 **	This is the DP RAM overlay.
 */
-struct DpRam
-{
-    BYTE 		 DpSram1[DP_SRAM1_SIZE];     /* 0000 - 7BFF */
-    union u_CtrlProm     DpCtrlProm;                 /* 7C00 - 7DFF */
-    union u_Sram2ParmMap DpSram2ParmMap;             /* 7E00 - 7FFF */
-    BYTE		 DpScratch[DP_SCRATCH_SIZE]; /* 8000 - 8FFF */
-    BYTE		 DpSram3[DP_SRAM3_SIZE];     /* 9000 - FFFF */
+struct DpRam {
+	BYTE DpSram1[DP_SRAM1_SIZE];	/* 0000 - 7BFF */
+	union u_CtrlProm DpCtrlProm;	/* 7C00 - 7DFF */
+	union u_Sram2ParmMap DpSram2ParmMap;	/* 7E00 - 7FFF */
+	BYTE DpScratch[DP_SCRATCH_SIZE];	/* 8000 - 8FFF */
+	BYTE DpSram3[DP_SRAM3_SIZE];	/* 9000 - FFFF */
 };
 
 #define	DpControl	DpCtrlProm.DpCtrl.DpCtl

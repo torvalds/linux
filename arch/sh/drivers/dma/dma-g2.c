@@ -140,7 +140,7 @@ static struct dma_ops g2_dma_ops = {
 };
 
 static struct dma_info g2_dma_info = {
-	.name		= "G2 DMA",
+	.name		= "g2_dmac",
 	.nr_channels	= 4,
 	.ops		= &g2_dma_ops,
 	.flags		= DMAC_CHANNELS_TEI_CAPABLE,
@@ -160,6 +160,7 @@ static int __init g2_dma_init(void)
 static void __exit g2_dma_exit(void)
 {
 	free_irq(HW_EVENT_G2_DMA, 0);
+	unregister_dmac(&g2_dma_info);
 }
 
 subsys_initcall(g2_dma_init);

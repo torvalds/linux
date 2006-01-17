@@ -37,6 +37,7 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 #define task_thread_info(tsk)	(&(tsk)->thread.info)
+#define task_stack_page(tsk)	((void *)(tsk)->thread_info)
 #define current_thread_info()	task_thread_info(current)
 
 #define __HAVE_THREAD_FUNCTIONS

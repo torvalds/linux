@@ -116,13 +116,13 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/sched.h>
 #include <linux/unistd.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/init.h>
@@ -473,7 +473,6 @@ static char version[] __initdata = VERSION;
 
 static int pktgen_remove_device(struct pktgen_thread* t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread* t, const char* ifname);
-static struct pktgen_thread* pktgen_find_thread(const char* name);
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread* t, const char* ifname);
 static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(void);
@@ -487,9 +486,9 @@ static unsigned int fmt_ip6(char *s,const char ip[16]);
 
 /* Module parameters, defaults. */
 static int pg_count_d = 1000; /* 1000 pkts by default */
-static int pg_delay_d = 0;
-static int pg_clone_skb_d = 0;
-static int debug = 0;
+static int pg_delay_d;
+static int pg_clone_skb_d;
+static int debug;
 
 static DECLARE_MUTEX(pktgen_sem);
 static struct pktgen_thread *pktgen_threads = NULL;
@@ -2883,7 +2882,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char* ifname)
 	return add_dev_to_thread(t, pkt_dev);
 }
 
-static struct pktgen_thread *pktgen_find_thread(const char* name) 
+static struct pktgen_thread * __init pktgen_find_thread(const char* name) 
 {
         struct pktgen_thread *t = NULL;
 
@@ -2900,7 +2899,7 @@ static struct pktgen_thread *pktgen_find_thread(const char* name)
         return t;
 }
 
-static int pktgen_create_thread(const char* name, int cpu) 
+static int __init pktgen_create_thread(const char* name, int cpu) 
 {
         struct pktgen_thread *t = NULL;
 	struct proc_dir_entry *pe;

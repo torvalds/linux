@@ -951,7 +951,6 @@ static void* mgsl_get_text_ptr(void)
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int mgsl_paranoia_check(struct mgsl_struct *info,
 					char *name, const char *routine)
@@ -1467,6 +1466,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 {
 	int Fifocount;
 	u16 status;
+	int work = 0;
 	unsigned char DataByte;
  	struct tty_struct *tty = info->tty;
  	struct	mgsl_icount *icount = &info->icount;
@@ -1487,6 +1487,8 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 	/* flush the receive FIFO */
 
 	while( (Fifocount = (usc_InReg(info,RICR) >> 8)) ) {
+		int flag;
+
 		/* read one byte from RxFIFO */
 		outw( (inw(info->io_base + CCAR) & 0x0780) | (RDR+LSBONLY),
 		      info->io_base + CCAR );
@@ -1498,13 +1500,9 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 				RXSTATUS_OVERRUN + RXSTATUS_BREAK_RECEIVED) )
 			usc_UnlatchRxstatusBits(info,RXSTATUS_ALL);
 		
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			continue;
-			
-		*tty->flip.char_buf_ptr = DataByte;
 		icount->rx++;
 		
-		*tty->flip.flag_buf_ptr = 0;
+		flag = 0;
 		if ( status & (RXSTATUS_FRAMING_ERROR + RXSTATUS_PARITY_ERROR +
 				RXSTATUS_OVERRUN + RXSTATUS_BREAK_RECEIVED) ) {
 			printk("rxerr=%04X\n",status);					
@@ -1530,41 +1528,31 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 			status &= info->read_status_mask;
 		
 			if (status & RXSTATUS_BREAK_RECEIVED) {
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 				if (info->flags & ASYNC_SAK)
 					do_SAK(tty);
 			} else if (status & RXSTATUS_PARITY_ERROR)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (status & RXSTATUS_FRAMING_ERROR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
-			if (status & RXSTATUS_OVERRUN) {
-				/* Overrun is special, since it's
-				 * reported immediately, and doesn't
-				 * affect the current character
-				 */
-				if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-					tty->flip.count++;
-					tty->flip.flag_buf_ptr++;
-					tty->flip.char_buf_ptr++;
-					*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-				}
-			}
+				flag = TTY_FRAME;
 		}	/* end of if (error) */
-		
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		tty_insert_flip_char(tty, DataByte, flag);
+		if (status & RXSTATUS_OVERRUN) {
+			/* Overrun is special, since it's
+			 * reported immediately, and doesn't
+			 * affect the current character
+			 */
+			work += tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_ISR ) {
-		printk("%s(%d):mgsl_isr_receive_data flip count=%d\n",
-			__FILE__,__LINE__,tty->flip.count);
 		printk("%s(%d):rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,icount->rx,icount->brk,
 			icount->parity,icount->frame,icount->overrun);
 	}
 			
-	if ( tty->flip.count )
+	if(work)
 		tty_flip_buffer_push(tty);
 }
 
@@ -7058,7 +7046,7 @@ static BOOLEAN mgsl_register_test( struct mgsl_struct *info )
 {
 	static unsigned short BitPatterns[] =
 		{ 0x0000, 0xffff, 0xaaaa, 0x5555, 0x1234, 0x6969, 0x9696, 0x0f0f };
-	static unsigned int Patterncount = sizeof(BitPatterns)/sizeof(unsigned short);
+	static unsigned int Patterncount = ARRAY_SIZE(BitPatterns);
 	unsigned int i;
 	BOOLEAN rc = TRUE;
 	unsigned long flags;
@@ -7501,9 +7489,9 @@ static int mgsl_adapter_test( struct mgsl_struct *info )
  */
 static BOOLEAN mgsl_memory_test( struct mgsl_struct *info )
 {
-	static unsigned long BitPatterns[] = { 0x0, 0x55555555, 0xaaaaaaaa,
-											0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
-	unsigned long Patterncount = sizeof(BitPatterns)/sizeof(unsigned long);
+	static unsigned long BitPatterns[] =
+		{ 0x0, 0x55555555, 0xaaaaaaaa, 0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
+	unsigned long Patterncount = ARRAY_SIZE(BitPatterns);
 	unsigned long i;
 	unsigned long TestLimit = SHARED_MEM_ADDRESS_SIZE/sizeof(unsigned long);
 	unsigned long * TestAddr;

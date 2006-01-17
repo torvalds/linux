@@ -121,7 +121,7 @@
 int sysctl_unix_max_dgram_qlen = 10;
 
 struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
-DEFINE_RWLOCK(unix_table_lock);
+DEFINE_SPINLOCK(unix_table_lock);
 static atomic_t unix_nr_socks = ATOMIC_INIT(0);
 
 #define unix_sockets_unbound	(&unix_socket_table[UNIX_HASH_SIZE])
@@ -130,7 +130,7 @@ static atomic_t unix_nr_socks = ATOMIC_INIT(0);
 
 /*
  *  SMP locking strategy:
- *    hash table is protected with rwlock unix_table_lock
+ *    hash table is protected with spinlock unix_table_lock
  *    each socket state is protected by separate rwlock.
  */
 
@@ -214,16 +214,16 @@ static void __unix_insert_socket(struct hlist_head *list, struct sock *sk)
 
 static inline void unix_remove_socket(struct sock *sk)
 {
-	write_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 	__unix_remove_socket(sk);
-	write_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 }
 
 static inline void unix_insert_socket(struct hlist_head *list, struct sock *sk)
 {
-	write_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 	__unix_insert_socket(list, sk);
-	write_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 }
 
 static struct sock *__unix_find_socket_byname(struct sockaddr_un *sunname,
@@ -250,11 +250,11 @@ static inline struct sock *unix_find_socket_byname(struct sockaddr_un *sunname,
 {
 	struct sock *s;
 
-	read_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 	s = __unix_find_socket_byname(sunname, len, type, hash);
 	if (s)
 		sock_hold(s);
-	read_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 	return s;
 }
 
@@ -263,7 +263,7 @@ static struct sock *unix_find_socket_byinode(struct inode *i)
 	struct sock *s;
 	struct hlist_node *node;
 
-	read_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 	sk_for_each(s, node,
 		    &unix_socket_table[i->i_ino & (UNIX_HASH_SIZE - 1)]) {
 		struct dentry *dentry = unix_sk(s)->dentry;
@@ -276,7 +276,7 @@ static struct sock *unix_find_socket_byinode(struct inode *i)
 	}
 	s = NULL;
 found:
-	read_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 	return s;
 }
 
@@ -473,7 +473,7 @@ static int unix_dgram_connect(struct socket *, struct sockaddr *,
 static int unix_seqpacket_sendmsg(struct kiocb *, struct socket *,
 				  struct msghdr *, size_t);
 
-static struct proto_ops unix_stream_ops = {
+static const struct proto_ops unix_stream_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
 	.release =	unix_release,
@@ -494,7 +494,7 @@ static struct proto_ops unix_stream_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct proto_ops unix_dgram_ops = {
+static const struct proto_ops unix_dgram_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
 	.release =	unix_release,
@@ -515,7 +515,7 @@ static struct proto_ops unix_dgram_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct proto_ops unix_seqpacket_ops = {
+static const struct proto_ops unix_seqpacket_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
 	.release =	unix_release,
@@ -564,7 +564,7 @@ static struct sock * unix_create1(struct socket *sock)
 	u	  = unix_sk(sk);
 	u->dentry = NULL;
 	u->mnt	  = NULL;
-	rwlock_init(&u->lock);
+	spin_lock_init(&u->lock);
 	atomic_set(&u->inflight, sock ? 0 : -1);
 	init_MUTEX(&u->readsem); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);
@@ -642,12 +642,12 @@ retry:
 	addr->len = sprintf(addr->name->sun_path+1, "%05x", ordernum) + 1 + sizeof(short);
 	addr->hash = unix_hash_fold(csum_partial((void*)addr->name, addr->len, 0));
 
-	write_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 	ordernum = (ordernum+1)&0xFFFFF;
 
 	if (__unix_find_socket_byname(addr->name, addr->len, sock->type,
 				      addr->hash)) {
-		write_unlock(&unix_table_lock);
+		spin_unlock(&unix_table_lock);
 		/* Sanity yield. It is unusual case, but yet... */
 		if (!(ordernum&0xFF))
 			yield();
@@ -658,7 +658,7 @@ retry:
 	__unix_remove_socket(sk);
 	u->addr = addr;
 	__unix_insert_socket(&unix_socket_table[addr->hash], sk);
-	write_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 	err = 0;
 
 out:	up(&u->readsem);
@@ -784,14 +784,14 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		err = vfs_mknod(nd.dentry->d_inode, dentry, mode, 0);
 		if (err)
 			goto out_mknod_dput;
-		up(&nd.dentry->d_inode->i_sem);
+		mutex_unlock(&nd.dentry->d_inode->i_mutex);
 		dput(nd.dentry);
 		nd.dentry = dentry;
 
 		addr->hash = UNIX_HASH_SIZE;
 	}
 
-	write_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 
 	if (!sunaddr->sun_path[0]) {
 		err = -EADDRINUSE;
@@ -814,7 +814,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	__unix_insert_socket(list, sk);
 
 out_unlock:
-	write_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 out_up:
 	up(&u->readsem);
 out:
@@ -823,7 +823,7 @@ out:
 out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
-	up(&nd.dentry->d_inode->i_sem);
+	mutex_unlock(&nd.dentry->d_inode->i_mutex);
 	path_release(&nd);
 out_mknod_parent:
 	if (err==-EEXIST)
@@ -1063,10 +1063,12 @@ restart:
 	/* Set credentials */
 	sk->sk_peercred = other->sk_peercred;
 
-	sock_hold(newsk);
-	unix_peer(sk)	= newsk;
 	sock->state	= SS_CONNECTED;
 	sk->sk_state	= TCP_ESTABLISHED;
+	sock_hold(newsk);
+
+	smp_mb__after_atomic_inc();	/* sock_hold() does an atomic_inc() */
+	unix_peer(sk)	= newsk;
 
 	unix_state_wunlock(sk);
 
@@ -1414,7 +1416,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	} else {
 		sunaddr = NULL;
 		err = -ENOTCONN;
-		other = unix_peer_get(sk);
+		other = unix_peer(sk);
 		if (!other)
 			goto out_err;
 	}
@@ -1476,7 +1478,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		other->sk_data_ready(other, size);
 		sent+=size;
 	}
-	sock_put(other);
 
 	scm_destroy(siocb->scm);
 	siocb->scm = NULL;
@@ -1491,8 +1492,6 @@ pipe_err:
 		send_sig(SIGPIPE,current,0);
 	err = -EPIPE;
 out_err:
-        if (other)
-		sock_put(other);
 	scm_destroy(siocb->scm);
 	siocb->scm = NULL;
 	return sent ? : err;
@@ -1860,7 +1859,7 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		}
 
 		default:
-			err = dev_ioctl(cmd, (void __user *)arg);
+			err = -ENOIOCTLCMD;
 			break;
 	}
 	return err;
@@ -1917,7 +1916,7 @@ static struct sock *unix_seq_idx(int *iter, loff_t pos)
 
 static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	read_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 	return *pos ? unix_seq_idx(seq->private, *pos - 1) : ((void *) 1);
 }
 
@@ -1932,7 +1931,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void unix_seq_stop(struct seq_file *seq, void *v)
 {
-	read_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 }
 
 static int unix_seq_show(struct seq_file *seq, void *v)

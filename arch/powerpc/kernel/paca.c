@@ -17,6 +17,7 @@
 #include <asm/page.h>
 #include <asm/lppaca.h>
 #include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 
 
@@ -24,10 +25,31 @@
  * field correctly */
 extern unsigned long __toc_start;
 
+/*
+ * iSeries structure which the hypervisor knows about - this structure
+ * should not cross a page boundary.  The vpa_init/register_vpa call
+ * is now known to fail if the lppaca structure crosses a page
+ * boundary.  The lppaca is also used on POWER5 pSeries boxes.  The
+ * lppaca is 640 bytes long, and cannot readily change since the
+ * hypervisor knows its layout, so a 1kB alignment will suffice to
+ * ensure that it doesn't cross a page boundary.
+ */
+struct lppaca lppaca[] = {
+	[0 ... (NR_CPUS-1)] = {
+		.desc = 0xd397d781,	/* "LpPa" */
+		.size = sizeof(struct lppaca),
+		.dyn_proc_status = 2,
+		.decr_val = 0x00ff0000,
+		.fpregs_in_use = 1,
+		.end_of_quantum = 0xfffffffffffffffful,
+		.slb_count = 64,
+		.vmxregs_in_use = 0,
+	},
+};
+
 /* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
- * hypervisor and Linux.  Each also contains an ItLpRegSave area which
- * is used by the hypervisor to save registers.
+ * hypervisor and Linux.
  * On systems with hardware multi-threading, there are two threads
  * per processor.  The Paca array must contain an entry for each thread.
  * The VPD Areas will give a max logical processors = 2 * max physical
@@ -35,33 +57,18 @@ extern unsigned long __toc_start;
  * processor (not thread).
  */
 #define PACA_INIT_COMMON(number, start, asrr, asrv)			    \
+	.lppaca_ptr = &lppaca[number],					    \
 	.lock_token = 0x8000,						    \
 	.paca_index = (number),		/* Paca Index */		    \
-	.default_decr = 0x00ff0000,	/* Initial Decr */		    \
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
 	.stab_real = (asrr), 		/* Real pointer to segment table */ \
 	.stab_addr = (asrv),		/* Virt pointer to segment table */ \
 	.cpu_start = (start),		/* Processor start */		    \
-	.hw_cpu_id = 0xffff,						    \
-	.lppaca = {							    \
-		.desc = 0xd397d781,	/* "LpPa" */			    \
-		.size = sizeof(struct lppaca),				    \
-		.dyn_proc_status = 2,					    \
-		.decr_val = 0x00ff0000,					    \
-		.fpregs_in_use = 1,					    \
-		.end_of_quantum = 0xfffffffffffffffful,			    \
-		.slb_count = 64,					    \
-		.vmxregs_in_use = 0,					    \
-	},								    \
+	.hw_cpu_id = 0xffff,
 
 #ifdef CONFIG_PPC_ISERIES
 #define PACA_INIT_ISERIES(number)					    \
-	.lppaca_ptr = &paca[number].lppaca,				    \
-	.reg_save_ptr = &paca[number].reg_save,				    \
-	.reg_save = {							    \
-		.xDesc = 0xd397d9e2,	/* "LpRS" */			    \
-		.xSize = sizeof(struct ItLpRegSave)			    \
-	}
+	.reg_save_ptr = &iseries_reg_save[number],
 
 #define PACA_INIT(number)						    \
 {									    \

@@ -65,8 +65,6 @@ void (*mach_kbd_leds) (unsigned int) = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) = NULL;
 irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *) = NULL;
-void (*mach_enable_irq) (unsigned int) = NULL;
-void (*mach_disable_irq) (unsigned int) = NULL;
 int (*mach_get_irq_list) (struct seq_file *, void *) = NULL;
 void (*mach_process_int) (int irq, struct pt_regs *fp) = NULL;
 void (*mach_trap_init) (void);

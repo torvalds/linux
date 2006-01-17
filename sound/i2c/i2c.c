@@ -32,20 +32,23 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Generic i2c interface for ALSA");
 MODULE_LICENSE("GPL");
 
-static int snd_i2c_bit_sendbytes(snd_i2c_device_t *device, unsigned char *bytes, int count);
-static int snd_i2c_bit_readbytes(snd_i2c_device_t *device, unsigned char *bytes, int count);
-static int snd_i2c_bit_probeaddr(snd_i2c_bus_t *bus, unsigned short addr);
+static int snd_i2c_bit_sendbytes(struct snd_i2c_device *device,
+				 unsigned char *bytes, int count);
+static int snd_i2c_bit_readbytes(struct snd_i2c_device *device,
+				 unsigned char *bytes, int count);
+static int snd_i2c_bit_probeaddr(struct snd_i2c_bus *bus,
+				 unsigned short addr);
 
-static snd_i2c_ops_t snd_i2c_bit_ops = {
+static struct snd_i2c_ops snd_i2c_bit_ops = {
 	.sendbytes = snd_i2c_bit_sendbytes,
 	.readbytes = snd_i2c_bit_readbytes,
 	.probeaddr = snd_i2c_bit_probeaddr,
 };
 
-static int snd_i2c_bus_free(snd_i2c_bus_t *bus)
+static int snd_i2c_bus_free(struct snd_i2c_bus *bus)
 {
-	snd_i2c_bus_t *slave;
-	snd_i2c_device_t *device;
+	struct snd_i2c_bus *slave;
+	struct snd_i2c_device *device;
 
 	snd_assert(bus != NULL, return -EINVAL);
 	while (!list_empty(&bus->devices)) {
@@ -66,17 +69,18 @@ static int snd_i2c_bus_free(snd_i2c_bus_t *bus)
 	return 0;
 }
 
-static int snd_i2c_bus_dev_free(snd_device_t *device)
+static int snd_i2c_bus_dev_free(struct snd_device *device)
 {
-	snd_i2c_bus_t *bus = device->device_data;
+	struct snd_i2c_bus *bus = device->device_data;
 	return snd_i2c_bus_free(bus);
 }
 
-int snd_i2c_bus_create(snd_card_t *card, const char *name, snd_i2c_bus_t *master, snd_i2c_bus_t **ri2c)
+int snd_i2c_bus_create(struct snd_card *card, const char *name,
+		       struct snd_i2c_bus *master, struct snd_i2c_bus **ri2c)
 {
-	snd_i2c_bus_t *bus;
+	struct snd_i2c_bus *bus;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_i2c_bus_dev_free,
 	};
 
@@ -102,9 +106,10 @@ int snd_i2c_bus_create(snd_card_t *card, const char *name, snd_i2c_bus_t *master
 	return 0;
 }
 
-int snd_i2c_device_create(snd_i2c_bus_t *bus, const char *name, unsigned char addr, snd_i2c_device_t **rdevice)
+int snd_i2c_device_create(struct snd_i2c_bus *bus, const char *name,
+			  unsigned char addr, struct snd_i2c_device **rdevice)
 {
-	snd_i2c_device_t *device;
+	struct snd_i2c_device *device;
 
 	*rdevice = NULL;
 	snd_assert(bus != NULL, return -EINVAL);
@@ -119,7 +124,7 @@ int snd_i2c_device_create(snd_i2c_bus_t *bus, const char *name, unsigned char ad
 	return 0;
 }
 
-int snd_i2c_device_free(snd_i2c_device_t *device)
+int snd_i2c_device_free(struct snd_i2c_device *device)
 {
 	if (device->bus)
 		list_del(&device->list);
@@ -129,18 +134,18 @@ int snd_i2c_device_free(snd_i2c_device_t *device)
 	return 0;
 }
 
-int snd_i2c_sendbytes(snd_i2c_device_t *device, unsigned char *bytes, int count)
+int snd_i2c_sendbytes(struct snd_i2c_device *device, unsigned char *bytes, int count)
 {
 	return device->bus->ops->sendbytes(device, bytes, count);
 }
 
 
-int snd_i2c_readbytes(snd_i2c_device_t *device, unsigned char *bytes, int count)
+int snd_i2c_readbytes(struct snd_i2c_device *device, unsigned char *bytes, int count)
 {
 	return device->bus->ops->readbytes(device, bytes, count);
 }
 
-int snd_i2c_probeaddr(snd_i2c_bus_t *bus, unsigned short addr)
+int snd_i2c_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 {
 	return bus->ops->probeaddr(bus, addr);
 }
@@ -149,31 +154,31 @@ int snd_i2c_probeaddr(snd_i2c_bus_t *bus, unsigned short addr)
  *  bit-operations
  */
 
-static inline void snd_i2c_bit_hw_start(snd_i2c_bus_t *bus)
+static inline void snd_i2c_bit_hw_start(struct snd_i2c_bus *bus)
 {
 	if (bus->hw_ops.bit->start)
 		bus->hw_ops.bit->start(bus);
 }
 
-static inline void snd_i2c_bit_hw_stop(snd_i2c_bus_t *bus)
+static inline void snd_i2c_bit_hw_stop(struct snd_i2c_bus *bus)
 {
 	if (bus->hw_ops.bit->stop)
 		bus->hw_ops.bit->stop(bus);
 }
 
-static void snd_i2c_bit_direction(snd_i2c_bus_t *bus, int clock, int data)
+static void snd_i2c_bit_direction(struct snd_i2c_bus *bus, int clock, int data)
 {
 	if (bus->hw_ops.bit->direction)
 		bus->hw_ops.bit->direction(bus, clock, data);
 }
 
-static void snd_i2c_bit_set(snd_i2c_bus_t *bus, int clock, int data)
+static void snd_i2c_bit_set(struct snd_i2c_bus *bus, int clock, int data)
 {
 	bus->hw_ops.bit->setlines(bus, clock, data);
 }
 
 #if 0
-static int snd_i2c_bit_clock(snd_i2c_bus_t *bus)
+static int snd_i2c_bit_clock(struct snd_i2c_bus *bus)
 {
 	if (bus->hw_ops.bit->getclock)
 		return bus->hw_ops.bit->getclock(bus);
@@ -181,12 +186,12 @@ static int snd_i2c_bit_clock(snd_i2c_bus_t *bus)
 }
 #endif
 
-static int snd_i2c_bit_data(snd_i2c_bus_t *bus, int ack)
+static int snd_i2c_bit_data(struct snd_i2c_bus *bus, int ack)
 {
 	return bus->hw_ops.bit->getdata(bus, ack);
 }
 
-static void snd_i2c_bit_start(snd_i2c_bus_t *bus)
+static void snd_i2c_bit_start(struct snd_i2c_bus *bus)
 {
 	snd_i2c_bit_hw_start(bus);
 	snd_i2c_bit_direction(bus, 1, 1);	/* SCL - wr, SDA - wr */
@@ -195,7 +200,7 @@ static void snd_i2c_bit_start(snd_i2c_bus_t *bus)
 	snd_i2c_bit_set(bus, 0, 0);
 }
 
-static void snd_i2c_bit_stop(snd_i2c_bus_t *bus)
+static void snd_i2c_bit_stop(struct snd_i2c_bus *bus)
 {
 	snd_i2c_bit_set(bus, 0, 0);
 	snd_i2c_bit_set(bus, 1, 0);
@@ -203,14 +208,14 @@ static void snd_i2c_bit_stop(snd_i2c_bus_t *bus)
 	snd_i2c_bit_hw_stop(bus);
 }
 
-static void snd_i2c_bit_send(snd_i2c_bus_t *bus, int data)
+static void snd_i2c_bit_send(struct snd_i2c_bus *bus, int data)
 {
 	snd_i2c_bit_set(bus, 0, data);
 	snd_i2c_bit_set(bus, 1, data);
 	snd_i2c_bit_set(bus, 0, data);
 }
 
-static int snd_i2c_bit_ack(snd_i2c_bus_t *bus)
+static int snd_i2c_bit_ack(struct snd_i2c_bus *bus)
 {
 	int ack;
 
@@ -223,7 +228,7 @@ static int snd_i2c_bit_ack(snd_i2c_bus_t *bus)
 	return ack ? -EIO : 0;
 }
 
-static int snd_i2c_bit_sendbyte(snd_i2c_bus_t *bus, unsigned char data)
+static int snd_i2c_bit_sendbyte(struct snd_i2c_bus *bus, unsigned char data)
 {
 	int i, err;
 
@@ -234,7 +239,7 @@ static int snd_i2c_bit_sendbyte(snd_i2c_bus_t *bus, unsigned char data)
 	return 0;
 }
 
-static int snd_i2c_bit_readbyte(snd_i2c_bus_t *bus, int last)
+static int snd_i2c_bit_readbyte(struct snd_i2c_bus *bus, int last)
 {
 	int i;
 	unsigned char data = 0;
@@ -252,9 +257,10 @@ static int snd_i2c_bit_readbyte(snd_i2c_bus_t *bus, int last)
 	return data;
 }
 
-static int snd_i2c_bit_sendbytes(snd_i2c_device_t *device, unsigned char *bytes, int count)
+static int snd_i2c_bit_sendbytes(struct snd_i2c_device *device,
+				 unsigned char *bytes, int count)
 {
-	snd_i2c_bus_t *bus = device->bus;
+	struct snd_i2c_bus *bus = device->bus;
 	int err, res = 0;
 
 	if (device->flags & SND_I2C_DEVICE_ADDRTEN)
@@ -275,9 +281,10 @@ static int snd_i2c_bit_sendbytes(snd_i2c_device_t *device, unsigned char *bytes,
 	return res;
 }
 
-static int snd_i2c_bit_readbytes(snd_i2c_device_t *device, unsigned char *bytes, int count)
+static int snd_i2c_bit_readbytes(struct snd_i2c_device *device,
+				 unsigned char *bytes, int count)
 {
-	snd_i2c_bus_t *bus = device->bus;
+	struct snd_i2c_bus *bus = device->bus;
 	int err, res = 0;
 
 	if (device->flags & SND_I2C_DEVICE_ADDRTEN)
@@ -299,7 +306,7 @@ static int snd_i2c_bit_readbytes(snd_i2c_device_t *device, unsigned char *bytes,
 	return res;
 }
 
-static int snd_i2c_bit_probeaddr(snd_i2c_bus_t *bus, unsigned short addr)
+static int snd_i2c_bit_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 {
 	int err;
 

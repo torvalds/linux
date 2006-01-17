@@ -419,11 +419,10 @@ static int matroxfb_dh_get_vblank(const struct matroxfb_dh_fb_info* m2info, stru
 	return 0;
 }
 
-static int matroxfb_dh_ioctl(struct inode* inode,
-		struct file* file,
+static int matroxfb_dh_ioctl(struct fb_info *info,
 		unsigned int cmd,
-		unsigned long arg,
-		struct fb_info* info) {
+		unsigned long arg)
+{
 #define m2info (container_of(info, struct matroxfb_dh_fb_info, fbcon))
 	MINFO_FROM(m2info->primary_dev);
 
@@ -457,7 +456,7 @@ static int matroxfb_dh_ioctl(struct inode* inode,
 		case MATROXFB_GET_OUTPUT_MODE:
 		case MATROXFB_GET_ALL_OUTPUTS:
 			{
-				return ACCESS_FBINFO(fbcon.fbops)->fb_ioctl(inode, file, cmd, arg, &ACCESS_FBINFO(fbcon));
+				return ACCESS_FBINFO(fbcon.fbops)->fb_ioctl(&ACCESS_FBINFO(fbcon), cmd, arg);
 			}
 		case MATROXFB_SET_OUTPUT_CONNECTION:
 			{

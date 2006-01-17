@@ -13,7 +13,7 @@
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 #endif
 
-#if defined(CONFIG_X86) || defined(CONFIG_SPARC64) || defined(CONFIG_IA64)
+#if defined(CONFIG_X86) || defined(CONFIG_SPARC64) || defined(CONFIG_IA64) || defined(CONFIG_PARISC)
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
 #else
 #define __read_mostly
@@ -45,12 +45,21 @@
 #endif /* CONFIG_SMP */
 #endif
 
-#if !defined(____cacheline_maxaligned_in_smp)
+/*
+ * The maximum alignment needed for some critical structures
+ * These could be inter-node cacheline sizes/L3 cacheline
+ * size etc.  Define this in asm/cache.h for your arch
+ */
+#ifndef INTERNODE_CACHE_SHIFT
+#define INTERNODE_CACHE_SHIFT L1_CACHE_SHIFT
+#endif
+
+#if !defined(____cacheline_internodealigned_in_smp)
 #if defined(CONFIG_SMP)
-#define ____cacheline_maxaligned_in_smp \
-	__attribute__((__aligned__(1 << (L1_CACHE_SHIFT_MAX))))
+#define ____cacheline_internodealigned_in_smp \
+	__attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
 #else
-#define ____cacheline_maxaligned_in_smp
+#define ____cacheline_internodealigned_in_smp
 #endif
 #endif
 

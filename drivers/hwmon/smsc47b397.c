@@ -226,8 +226,9 @@ static int smsc47b397_detach_client(struct i2c_client *client)
 static int smsc47b397_detect(struct i2c_adapter *adapter);
 
 static struct i2c_driver smsc47b397_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "smsc47b397",
+	.driver = {
+		.name	= "smsc47b397",
+	},
 	.attach_adapter	= smsc47b397_detect,
 	.detach_client	= smsc47b397_detach_client,
 };
@@ -238,7 +239,8 @@ static int smsc47b397_detect(struct i2c_adapter *adapter)
 	struct smsc47b397_data *data;
 	int err = 0;
 
-	if (!request_region(address, SMSC_EXTENT, smsc47b397_driver.name)) {
+	if (!request_region(address, SMSC_EXTENT,
+			    smsc47b397_driver.driver.name)) {
 		dev_err(&adapter->dev, "Region 0x%x already in use!\n",
 			address);
 		return -EBUSY;

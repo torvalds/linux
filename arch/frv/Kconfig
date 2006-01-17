@@ -6,10 +6,6 @@ config FRV
 	bool
 	default y
 
-config UID16
-	bool
-	default y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
@@ -274,6 +270,11 @@ config GPREL_DATA_NONE
 
 endchoice
 
+config FRV_ONCPU_SERIAL
+	bool "Use on-CPU serial ports"
+	select SERIAL_8250
+	default y
+
 config PCI
 	bool "Use PCI"
 	depends on MB93090_MB00
@@ -305,23 +306,7 @@ config RESERVE_DMA_COHERENT
 
 source "drivers/pci/Kconfig"
 
-config PCMCIA
-	tristate "Use PCMCIA"
-	help
-	  Say Y here if you want to attach PCMCIA- or PC-cards to your FR-V
-	  board.  These are credit-card size devices such as network cards,
-	  modems or hard drives often used with laptops computers.  There are
-	  actually two varieties of these cards: the older 16 bit PCMCIA cards
-	  and the newer 32 bit CardBus cards.  If you want to use CardBus
-	  cards, you need to say Y here and also to "CardBus support" below.
-
-	  To use your PC-cards, you will need supporting software from David
-	  Hinds pcmcia-cs package (see the file <file:Documentation/Changes>
-	  for location).  Please also read the PCMCIA-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as modules, choose M here: the
-	  modules will be called pcmcia_core and ds.
+source "drivers/pcmcia/Kconfig"
 
 #config MATH_EMULATION
 #	bool "Math emulation support (EXPERIMENTAL)"

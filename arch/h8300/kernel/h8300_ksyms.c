@@ -22,11 +22,8 @@
 //asmlinkage long long __lshrdi3 (long long, int);
 extern char h8300_debug_device[];
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 /* platform dependent support */
 
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
@@ -102,10 +99,6 @@ EXPORT_SYMBOL(__udivmoddi4);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umoddi3);
 EXPORT_SYMBOL(__umodsi3);
-
-#ifdef MAGIC_ROM_PTR
-EXPORT_SYMBOL(is_in_rom);
-#endif
 
 EXPORT_SYMBOL(h8300_reserved_gpio);
 EXPORT_SYMBOL(h8300_free_gpio);

@@ -4,11 +4,6 @@
  * PURPOSE
  *  Inode handling routines for the OSTA-UDF(tm) filesystem.
  *
- * CONTACTS
- *  E-mail regarding any portion of the Linux UDF file system should be
- *  directed to the development team mailing list (run by majordomo):
- *    linux_udf@hpesjro.fc.hp.com
- *
  * COPYRIGHT
  *  This file is distributed under the terms of the GNU General Public
  *  License (GPL). Copies of the GPL can be obtained from:
@@ -1960,11 +1955,6 @@ int8_t inode_bmap(struct inode *inode, int block, kernel_lb_addr *bloc, uint32_t
 	if (block < 0)
 	{
 		printk(KERN_ERR "udf: inode_bmap: block < 0\n");
-		return -1;
-	}
-	if (!inode)
-	{
-		printk(KERN_ERR "udf: inode_bmap: NULL inode\n");
 		return -1;
 	}
 

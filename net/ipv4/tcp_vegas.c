@@ -330,6 +330,10 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 		vegas->cntRTT = 0;
 		vegas->minRTT = 0x7fffffff;
 	}
+	/* Use normal slow start */
+	else if (tp->snd_cwnd <= tp->snd_ssthresh) 
+		tcp_slow_start(tp);
+	
 }
 
 /* Extract info for Tcp socket info provided via netlink. */

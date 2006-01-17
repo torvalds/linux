@@ -71,9 +71,9 @@ match(const struct sk_buff *skb,
        unsigned int optlen;
        
 #if HOPBYHOP
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_HOP) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_HOP, NULL) < 0)
 #else
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_DEST) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_DEST, NULL) < 0)
 #endif
 		return 0;
 
@@ -178,7 +178,7 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-          const struct ip6t_ip6 *ip,
+          const void *info,
           void *matchinfo,
           unsigned int matchinfosize,
           unsigned int hook_mask)

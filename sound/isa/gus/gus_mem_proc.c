@@ -25,20 +25,20 @@
 #include <sound/gus.h>
 #include <sound/info.h>
 
-typedef struct gus_proc_private {
+struct gus_proc_private {
 	int rom;		/* data are in ROM */
 	unsigned int address;
 	unsigned int size;
-	snd_gus_card_t * gus;
-} gus_proc_private_t;
+	struct snd_gus_card * gus;
+};
 
-static long snd_gf1_mem_proc_dump(snd_info_entry_t *entry, void *file_private_data,
+static long snd_gf1_mem_proc_dump(struct snd_info_entry *entry, void *file_private_data,
 			          struct file *file, char __user *buf,
 			          unsigned long count, unsigned long pos)
 {
 	long size;
-	gus_proc_private_t *priv = entry->private_data;
-	snd_gus_card_t *gus = priv->gus;
+	struct gus_proc_private *priv = entry->private_data;
+	struct snd_gus_card *gus = priv->gus;
 	int err;
 
 	size = count;
@@ -52,13 +52,13 @@ static long snd_gf1_mem_proc_dump(snd_info_entry_t *entry, void *file_private_da
 	return 0;
 }			
 
-static long long snd_gf1_mem_proc_llseek(snd_info_entry_t *entry,
+static long long snd_gf1_mem_proc_llseek(struct snd_info_entry *entry,
 					void *private_file_data,
 					struct file *file,
 					long long offset,
 					int orig)
 {
-	gus_proc_private_t *priv = entry->private_data;
+	struct gus_proc_private *priv = entry->private_data;
 
 	switch (orig) {
 	case 0:	/* SEEK_SET */
@@ -78,9 +78,9 @@ static long long snd_gf1_mem_proc_llseek(snd_info_entry_t *entry,
 	return file->f_pos;
 }
 
-static void snd_gf1_mem_proc_free(snd_info_entry_t *entry)
+static void snd_gf1_mem_proc_free(struct snd_info_entry *entry)
 {
-	gus_proc_private_t *priv = entry->private_data;
+	struct gus_proc_private *priv = entry->private_data;
 	kfree(priv);
 }
 
@@ -89,12 +89,12 @@ static struct snd_info_entry_ops snd_gf1_mem_proc_ops = {
 	.llseek = snd_gf1_mem_proc_llseek,
 };
 
-int snd_gf1_mem_proc_init(snd_gus_card_t * gus)
+int snd_gf1_mem_proc_init(struct snd_gus_card * gus)
 {
 	int idx;
 	char name[16];
-	gus_proc_private_t *priv;
-	snd_info_entry_t *entry;
+	struct gus_proc_private *priv;
+	struct snd_info_entry *entry;
 
 	for (idx = 0; idx < 4; idx++) {
 		if (gus->gf1.mem_alloc.banks_8[idx].size > 0) {

@@ -14,7 +14,6 @@
 #include "asm/atomic.h"
 #include "kern_util.h"
 #include "time_user.h"
-#include "signal_user.h"
 #include "skas.h"
 #include "os.h"
 #include "user_util.h"
@@ -119,7 +118,7 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 		handler = new_thread_handler;
 	}
 
-	new_thread(p->thread_info, &p->thread.mode.skas.switch_buf,
+	new_thread(task_stack_page(p), &p->thread.mode.skas.switch_buf,
 		   &p->thread.mode.skas.fork_buf, handler);
 	return(0);
 }
@@ -186,7 +185,7 @@ int start_uml_skas(void)
 
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;
-	return(start_idle_thread(init_task.thread_info,
+	return(start_idle_thread(task_stack_page(&init_task),
 				 &init_task.thread.mode.skas.switch_buf,
 				 &init_task.thread.mode.skas.fork_buf));
 }

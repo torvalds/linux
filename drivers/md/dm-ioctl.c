@@ -270,6 +270,7 @@ static int dm_hash_rename(const char *old, const char *new)
 {
 	char *new_name, *old_name;
 	struct hash_cell *hc;
+	struct dm_table *table;
 
 	/*
 	 * duplicate new.
@@ -316,6 +317,15 @@ static int dm_hash_rename(const char *old, const char *new)
 
 	/* rename the device node in devfs */
 	register_with_devfs(hc);
+
+	/*
+	 * Wake up any dm event waiters.
+	 */
+	table = dm_get_table(hc->md);
+	if (table) {
+		dm_table_event(table);
+		dm_table_put(table);
+	}
 
 	up_write(&_hash_lock);
 	kfree(old_name);
@@ -588,7 +598,7 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 /*
  * Always use UUID for lookups if it's present, otherwise use name or dev.
  */
-static inline struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
+static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 {
 	if (*param->uuid)
 		return __get_uuid_cell(param->uuid);
@@ -598,7 +608,7 @@ static inline struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 		return dm_get_mdptr(huge_decode_dev(param->dev));
 }
 
-static inline struct mapped_device *find_device(struct dm_ioctl *param)
+static struct mapped_device *find_device(struct dm_ioctl *param)
 {
 	struct hash_cell *hc;
 	struct mapped_device *md = NULL;
@@ -683,14 +693,18 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 static int do_suspend(struct dm_ioctl *param)
 {
 	int r = 0;
+	int do_lockfs = 1;
 	struct mapped_device *md;
 
 	md = find_device(param);
 	if (!md)
 		return -ENXIO;
 
+	if (param->flags & DM_SKIP_LOCKFS_FLAG)
+		do_lockfs = 0;
+
 	if (!dm_suspended(md))
-		r = dm_suspend(md);
+		r = dm_suspend(md, do_lockfs);
 
 	if (!r)
 		r = __dev_status(md, param);
@@ -702,6 +716,7 @@ static int do_suspend(struct dm_ioctl *param)
 static int do_resume(struct dm_ioctl *param)
 {
 	int r = 0;
+	int do_lockfs = 1;
 	struct hash_cell *hc;
 	struct mapped_device *md;
 	struct dm_table *new_map;
@@ -727,8 +742,10 @@ static int do_resume(struct dm_ioctl *param)
 	/* Do we need to load a new map ? */
 	if (new_map) {
 		/* Suspend if it isn't already suspended */
+		if (param->flags & DM_SKIP_LOCKFS_FLAG)
+			do_lockfs = 0;
 		if (!dm_suspended(md))
-			dm_suspend(md);
+			dm_suspend(md, do_lockfs);
 
 		r = dm_swap_table(md, new_map);
 		if (r) {

@@ -27,6 +27,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -106,11 +107,9 @@ static struct flash_platform_data gtwx5715_flash_data = {
 	.width		= 2,
 };
 
-static struct resource gtwx5715_flash_resource = {
-	.start		= GTWX5715_FLASH_BASE,
-	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE - 1,
+static struct gtw5715_flash_resource = {
 	.flags		= IORESOURCE_MEM,
-};
+}
 
 static struct platform_device gtwx5715_flash = {
 	.name		= "IXP4XX-Flash",
@@ -129,13 +128,20 @@ static struct platform_device *gtwx5715_devices[] __initdata = {
 
 static void __init gtwx5715_init(void)
 {
+	ixp4xx_sys_init();
+
+	if (!flash_resource)
+		printk(KERN_ERR "Could not allocate flash resource\n");
+
+	gtwx5715_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	gtwx5715_flash_resource.end = IXP4XX_EXP_BUS_BASE(0) + SZ_8M - 1;
+
 	platform_add_devices(gtwx5715_devices, ARRAY_SIZE(gtwx5715_devices));
 }
 
 
 MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
 	/* Maintainer: George Joseph */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_UART2_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,

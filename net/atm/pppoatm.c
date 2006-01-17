@@ -39,6 +39,7 @@
 #include <linux/skbuff.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
+#include <linux/capability.h>
 #include <linux/ppp_defs.h>
 #include <linux/if_ppp.h>
 #include <linux/ppp_channel.h>

@@ -313,7 +313,7 @@ static inline void receive_chars(struct mcf_serial *info)
 {
 	volatile unsigned char	*uartp;
 	struct tty_struct	*tty = info->tty;
-	unsigned char		status, ch;
+	unsigned char		status, ch, flag;
 
 	if (!tty)
 		return;
@@ -321,10 +321,6 @@ static inline void receive_chars(struct mcf_serial *info)
 	uartp = info->addr;
 
 	while ((status = uartp[MCFUART_USR]) & MCFUART_USR_RXREADY) {
-
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			break;
-
 		ch = uartp[MCFUART_URB];
 		info->stats.rx++;
 
@@ -335,29 +331,24 @@ static inline void receive_chars(struct mcf_serial *info)
 		}
 #endif
 
-		tty->flip.count++;
+		flag = TTY_NORMAL;
 		if (status & MCFUART_USR_RXERR) {
 			uartp[MCFUART_UCR] = MCFUART_UCR_CMDRESETERR;
 			if (status & MCFUART_USR_RXBREAK) {
 				info->stats.rxbreak++;
-				*tty->flip.flag_buf_ptr++ = TTY_BREAK;
+				flag = TTY_BREAK;
 			} else if (status & MCFUART_USR_RXPARITY) {
 				info->stats.rxparity++;
-				*tty->flip.flag_buf_ptr++ = TTY_PARITY;
+				flag = TTY_PARITY;
 			} else if (status & MCFUART_USR_RXOVERRUN) {
 				info->stats.rxoverrun++;
-				*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
+				flag = TTY_OVERRUN;
 			} else if (status & MCFUART_USR_RXFRAMING) {
 				info->stats.rxframing++;
-				*tty->flip.flag_buf_ptr++ = TTY_FRAME;
-			} else {
-				/* This should never happen... */
-				*tty->flip.flag_buf_ptr++ = 0;
+				flag = TTY_FRAME;
 			}
-		} else {
-			*tty->flip.flag_buf_ptr++ = 0;
 		}
-		*tty->flip.char_buf_ptr++ = ch;
+		tty_insert_flip_char(tty, ch, flag);
 	}
 
 	schedule_work(&tty->flip.work);
@@ -1525,7 +1516,7 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 
 	icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC0 +
 		MCFINTC_ICR0 + MCFINT_UART0 + info->line);
-	*icrp = 0x33; /* UART0 with level 6, priority 3 */
+	*icrp = 0x30 + info->line; /* level 6, line based priority */
 
 	imrp = (volatile unsigned long *) (MCF_MBAR + MCFICM_INTC0 +
 		MCFINTC_IMRL);

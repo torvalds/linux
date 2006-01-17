@@ -23,10 +23,12 @@
 
 #include "cx25840.h"
 
-inline static int set_audclk_freq(struct i2c_client *client,
-				 enum v4l2_audio_clock_freq freq)
+static int set_audclk_freq(struct i2c_client *client, u32 freq)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
+
+	if (freq != 32000 && freq != 44100 && freq != 48000)
+		return -EINVAL;
 
 	/* assert soft reset */
 	cx25840_and_or(client, 0x810, ~0x1, 0x01);
@@ -35,10 +37,9 @@ inline static int set_audclk_freq(struct i2c_client *client,
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
 	cx25840_write(client, 0x127, 0x50);
 
-	switch (state->audio_input) {
-	case AUDIO_TUNER:
+	if (state->aud_input != CX25840_AUDIO_SERIAL) {
 		switch (freq) {
-		case V4L2_AUDCLK_32_KHZ:
+		case 32000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040610);
 
@@ -51,7 +52,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x7ff70108);
 			break;
 
-		case V4L2_AUDCLK_441_KHZ:
+		case 44100:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040910);
 
@@ -64,7 +65,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x596d0108);
 			break;
 
-		case V4L2_AUDCLK_48_KHZ:
+		case 48000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040a10);
 
@@ -77,14 +78,9 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0xaa4f0108);
 			break;
 		}
-		break;
-
-	case AUDIO_EXTERN_1:
-	case AUDIO_EXTERN_2:
-	case AUDIO_INTERN:
-	case AUDIO_RADIO:
+	} else {
 		switch (freq) {
-		case V4L2_AUDCLK_32_KHZ:
+		case 32000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f04081e);
 
@@ -103,7 +99,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write(client, 0x127, 0x54);
 			break;
 
-		case V4L2_AUDCLK_441_KHZ:
+		case 44100:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040918);
 
@@ -119,7 +115,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x85730108);
 			break;
 
-		case V4L2_AUDCLK_48_KHZ:
+		case 48000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040a18);
 
@@ -135,7 +131,6 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x55550108);
 			break;
 		}
-		break;
 	}
 
 	/* deassert soft reset */
@@ -146,11 +141,9 @@ inline static int set_audclk_freq(struct i2c_client *client,
 	return 0;
 }
 
-static int set_input(struct i2c_client *client, int audio_input)
+void cx25840_audio_set_path(struct i2c_client *client)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
-
-	cx25840_dbg("set audio input (%d)\n", audio_input);
 
 	/* stop microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0);
@@ -158,39 +151,26 @@ static int set_input(struct i2c_client *client, int audio_input)
 	/* Mute everything to prevent the PFFT! */
 	cx25840_write(client, 0x8d3, 0x1f);
 
-	switch (audio_input) {
-	case AUDIO_TUNER:
-		/* Set Path1 to Analog Demod Main Channel */
-		cx25840_write4(client, 0x8d0, 0x7038061f);
-
-		/* When the microcontroller detects the
-		 * audio format, it will unmute the lines */
-		cx25840_and_or(client, 0x803, ~0x10, 0x10);
-		break;
-
-	case AUDIO_EXTERN_1:
-	case AUDIO_EXTERN_2:
-	case AUDIO_INTERN:
-	case AUDIO_RADIO:
+	if (state->aud_input == CX25840_AUDIO_SERIAL) {
 		/* Set Path1 to Serial Audio Input */
 		cx25840_write4(client, 0x8d0, 0x12100101);
 
 		/* The microcontroller should not be started for the
 		 * non-tuner inputs: autodetection is specific for
 		 * TV audio. */
-		break;
+	} else {
+		/* Set Path1 to Analog Demod Main Channel */
+		cx25840_write4(client, 0x8d0, 0x7038061f);
 
-	default:
-		cx25840_dbg("Invalid audio input selection %d\n", audio_input);
-		return -EINVAL;
+		/* When the microcontroller detects the
+		 * audio format, it will unmute the lines */
+		cx25840_and_or(client, 0x803, ~0x10, 0x10);
 	}
 
-	state->audio_input = audio_input;
-
-	return set_audclk_freq(client, state->audclk_freq);
+	set_audclk_freq(client, state->audclk_freq);
 }
 
-inline static int get_volume(struct i2c_client *client)
+static int get_volume(struct i2c_client *client)
 {
 	/* Volume runs +18dB to -96dB in 1/2dB steps
 	 * change to fit the msp3400 -114dB to +12dB range */
@@ -201,7 +181,7 @@ inline static int get_volume(struct i2c_client *client)
 	return vol << 9;
 }
 
-inline static void set_volume(struct i2c_client *client, int volume)
+static void set_volume(struct i2c_client *client, int volume)
 {
 	/* First convert the volume to msp3400 values (0-127) */
 	int vol = volume >> 9;
@@ -218,7 +198,7 @@ inline static void set_volume(struct i2c_client *client, int volume)
 	cx25840_write(client, 0x8d4, 228 - (vol * 2));
 }
 
-inline static int get_bass(struct i2c_client *client)
+static int get_bass(struct i2c_client *client)
 {
 	/* bass is 49 steps +12dB to -12dB */
 
@@ -228,13 +208,13 @@ inline static int get_bass(struct i2c_client *client)
 	return bass;
 }
 
-inline static void set_bass(struct i2c_client *client, int bass)
+static void set_bass(struct i2c_client *client, int bass)
 {
 	/* PATH1_EQ_BASS_VOL */
 	cx25840_and_or(client, 0x8d9, ~0x3f, 48 - (bass * 48 / 0xffff));
 }
 
-inline static int get_treble(struct i2c_client *client)
+static int get_treble(struct i2c_client *client)
 {
 	/* treble is 49 steps +12dB to -12dB */
 
@@ -244,13 +224,13 @@ inline static int get_treble(struct i2c_client *client)
 	return treble;
 }
 
-inline static void set_treble(struct i2c_client *client, int treble)
+static void set_treble(struct i2c_client *client, int treble)
 {
 	/* PATH1_EQ_TREBLE_VOL */
 	cx25840_and_or(client, 0x8db, ~0x3f, 48 - (treble * 48 / 0xffff));
 }
 
-inline static int get_balance(struct i2c_client *client)
+static int get_balance(struct i2c_client *client)
 {
 	/* balance is 7 bit, 0 to -96dB */
 
@@ -264,7 +244,7 @@ inline static int get_balance(struct i2c_client *client)
 	return balance << 8;
 }
 
-inline static void set_balance(struct i2c_client *client, int balance)
+static void set_balance(struct i2c_client *client, int balance)
 {
 	int bal = balance >> 8;
 	if (bal > 0x80) {
@@ -280,17 +260,17 @@ inline static void set_balance(struct i2c_client *client, int balance)
 	}
 }
 
-inline static int get_mute(struct i2c_client *client)
+static int get_mute(struct i2c_client *client)
 {
 	/* check SRC1_MUTE_EN */
 	return cx25840_read(client, 0x8d3) & 0x2 ? 1 : 0;
 }
 
-inline static void set_mute(struct i2c_client *client, int mute)
+static void set_mute(struct i2c_client *client, int mute)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
-	if (state->audio_input == AUDIO_TUNER) {
+	if (state->aud_input != CX25840_AUDIO_SERIAL) {
 		/* Must turn off microcontroller in order to mute sound.
 		 * Not sure if this is the best method, but it does work.
 		 * If the microcontroller is running, then it will undo any
@@ -314,10 +294,9 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
-		return set_input(client, *(int *)arg);
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		return set_audclk_freq(client, *(enum v4l2_audio_clock_freq *)arg);
+		return set_audclk_freq(client, *(u32 *)arg);
+
 	case VIDIOC_G_CTRL:
 		switch (ctrl->id) {
 		case V4L2_CID_AUDIO_VOLUME:
@@ -339,6 +318,7 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 		break;
+
 	case VIDIOC_S_CTRL:
 		switch (ctrl->id) {
 		case V4L2_CID_AUDIO_VOLUME:
@@ -360,6 +340,7 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 		break;
+
 	default:
 		return -EINVAL;
 	}

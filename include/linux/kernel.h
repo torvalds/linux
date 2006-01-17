@@ -47,6 +47,8 @@ extern int console_printk[];
 #define default_console_loglevel (console_printk[3])
 
 struct completion;
+struct pt_regs;
+struct user;
 
 /**
  * might_sleep - annotation for functions that can sleep
@@ -122,6 +124,8 @@ extern unsigned long long memparse(char *ptr, char **retptr);
 extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
 extern int session_of_pgrp(int pgrp);
+
+extern void dump_thread(struct pt_regs *regs, struct user *dump);
 
 #ifdef CONFIG_PRINTK
 asmlinkage int vprintk(const char *fmt, va_list args)
@@ -212,6 +216,7 @@ extern void dump_stack(void);
 	((unsigned char *)&addr)[1], \
 	((unsigned char *)&addr)[2], \
 	((unsigned char *)&addr)[3]
+#define NIPQUAD_FMT "%u.%u.%u.%u"
 
 #define NIP6(addr) \
 	ntohs((addr).s6_addr16[0]), \
@@ -222,6 +227,7 @@ extern void dump_stack(void);
 	ntohs((addr).s6_addr16[5]), \
 	ntohs((addr).s6_addr16[6]), \
 	ntohs((addr).s6_addr16[7])
+#define NIP6_FMT "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
 
 #if defined(__LITTLE_ENDIAN)
 #define HIPQUAD(addr) \
@@ -286,6 +292,15 @@ extern void dump_stack(void);
 	1; \
 })
 
+/*
+ * Check at compile time that 'function' is a certain type, or is a pointer
+ * to that type (needs to use typedef for the function type.)
+ */
+#define typecheck_fn(type,function) \
+({	typeof(type) __tmp = function; \
+	(void)__tmp; \
+})
+
 #endif /* __KERNEL__ */
 
 #define SI_LOAD_SHIFT	16
@@ -316,8 +331,6 @@ extern int randomize_va_space;
 #endif
 
 /* Trap pasters of __FUNCTION__ at compile-time */
-#if __GNUC__ > 2 || __GNUC_MINOR__ >= 95
 #define __FUNCTION__ (__func__)
-#endif
 
 #endif

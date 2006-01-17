@@ -147,8 +147,6 @@ int rio_register_driver(struct rio_driver *rdrv)
 	/* initialize common driver fields */
 	rdrv->driver.name = rdrv->name;
 	rdrv->driver.bus = &rio_bus_type;
-	rdrv->driver.probe = rio_device_probe;
-	rdrv->driver.remove = rio_device_remove;
 
 	/* register with core */
 	return driver_register(&rdrv->driver);
@@ -204,7 +202,9 @@ static struct device rio_bus = {
 struct bus_type rio_bus_type = {
 	.name = "rapidio",
 	.match = rio_match_bus,
-	.dev_attrs = rio_dev_attrs
+	.dev_attrs = rio_dev_attrs,
+	.probe = rio_device_probe,
+	.remove = rio_device_remove,
 };
 
 /**

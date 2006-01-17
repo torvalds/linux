@@ -177,10 +177,10 @@ mptctl_syscall_down(MPT_ADAPTER *ioc, int nonblock)
 	dctlprintk((KERN_INFO MYNAM "::mptctl_syscall_down(%p,%d) called\n", ioc, nonblock));
 
 	if (nonblock) {
-		if (down_trylock(&ioc->ioctl->sem_ioc))
+		if (!mutex_trylock(&ioc->ioctl->ioctl_mutex))
 			rc = -EAGAIN;
 	} else {
-		if (down_interruptible(&ioc->ioctl->sem_ioc))
+		if (mutex_lock_interruptible(&ioc->ioctl->ioctl_mutex))
 			rc = -ERESTARTSYS;
 	}
 	dctlprintk((KERN_INFO MYNAM "::mptctl_syscall_down return %d\n", rc));
@@ -557,7 +557,7 @@ __mptctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	else
 		ret = -EINVAL;
 
-	up(&iocp->ioctl->sem_ioc);
+	mutex_unlock(&iocp->ioctl->ioctl_mutex);
 
 	return ret;
 }
@@ -1245,7 +1245,7 @@ mptctl_gettargetinfo (unsigned long arg)
 	MPT_ADAPTER		*ioc;
 	struct Scsi_Host	*sh;
 	MPT_SCSI_HOST		*hd;
-	VirtDevice		*vdev;
+	VirtTarget		*vdev;
 	char			*pmem;
 	int			*pdata;
 	IOCPage2_t		*pIoc2;
@@ -1822,7 +1822,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
 		if (ioc->sh) {
 			SCSIIORequest_t *pScsiReq = (SCSIIORequest_t *) mf;
-			VirtDevice	*pTarget = NULL;
+			VirtTarget	*pTarget = NULL;
 			MPT_SCSI_HOST	*hd = NULL;
 			int qtag = MPI_SCSIIO_CONTROL_UNTAGGED;
 			int scsidir = 0;
@@ -2585,8 +2585,6 @@ static struct miscdevice mptctl_miscdev = {
 
 #ifdef CONFIG_COMPAT
 
-#include <linux/ioctl32.h>
-
 static int
 compat_mptfwxfer_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)
@@ -2621,7 +2619,7 @@ compat_mptfwxfer_ioctl(struct file *filp, unsigned int cmd,
 
 	ret = mptctl_do_fw_download(kfw.iocnum, kfw.bufp, kfw.fwlen);
 
-	up(&iocp->ioctl->sem_ioc);
+	mutex_unlock(&iocp->ioctl->ioctl_mutex);
 
 	return ret;
 }
@@ -2675,7 +2673,7 @@ compat_mpt_command(struct file *filp, unsigned int cmd,
 	 */
 	ret = mptctl_do_mpt_command (karg, &uarg->MF);
 
-	up(&iocp->ioctl->sem_ioc);
+	mutex_unlock(&iocp->ioctl->ioctl_mutex);
 
 	return ret;
 }
@@ -2745,7 +2743,7 @@ mptctl_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	memset(mem, 0, sz);
 	ioc->ioctl = (MPT_IOCTL *) mem;
 	ioc->ioctl->ioc = ioc;
-	sema_init(&ioc->ioctl->sem_ioc, 1);
+	mutex_init(&ioc->ioctl->ioctl_mutex);
 	return 0;
 
 out_fail:

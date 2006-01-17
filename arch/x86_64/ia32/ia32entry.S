@@ -35,6 +35,18 @@
 	movq	%rax,R8(%rsp)
 	.endm
 
+	.macro CFI_STARTPROC32 simple
+	CFI_STARTPROC	\simple
+	CFI_UNDEFINED	r8
+	CFI_UNDEFINED	r9
+	CFI_UNDEFINED	r10
+	CFI_UNDEFINED	r11
+	CFI_UNDEFINED	r12
+	CFI_UNDEFINED	r13
+	CFI_UNDEFINED	r14
+	CFI_UNDEFINED	r15
+	.endm
+
 /*
  * 32bit SYSENTER instruction entry.
  *
@@ -55,7 +67,7 @@
  * with the int 0x80 path.
  */ 	
 ENTRY(ia32_sysenter_target)
-	CFI_STARTPROC	simple
+	CFI_STARTPROC32	simple
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rsp,rbp
 	swapgs
@@ -92,6 +104,7 @@ ENTRY(ia32_sysenter_target)
  	.quad 1b,ia32_badarg
  	.previous	
 	GET_THREAD_INFO(%r10)
+	orl    $TS_COMPAT,threadinfo_status(%r10)
 	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
@@ -105,6 +118,7 @@ sysenter_do_call:
 	cli
 	testl	$_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
 	jnz	int_ret_from_sys_call
+	andl    $~TS_COMPAT,threadinfo_status(%r10)
 	/* clear IF, that popfq doesn't enable interrupts early */
 	andl  $~0x200,EFLAGS-R11(%rsp) 
 	RESTORE_ARGS 1,24,1,1,1,1
@@ -161,7 +175,7 @@ sysenter_tracesys:
  * with the int 0x80 path.	
  */ 	
 ENTRY(ia32_cstar_target)
-	CFI_STARTPROC	simple
+	CFI_STARTPROC32	simple
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
@@ -191,6 +205,7 @@ ENTRY(ia32_cstar_target)
 	.quad 1b,ia32_badarg
 	.previous	
 	GET_THREAD_INFO(%r10)
+	orl   $TS_COMPAT,threadinfo_status(%r10)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
@@ -204,6 +219,7 @@ cstar_do_call:
 	cli
 	testl $_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
 	jnz  int_ret_from_sys_call
+	andl $~TS_COMPAT,threadinfo_status(%r10)
 	RESTORE_ARGS 1,-ARG_SKIP,1,1,1
 	movl RIP-ARGOFFSET(%rsp),%ecx
 	CFI_REGISTER rip,rcx
@@ -276,6 +292,7 @@ ENTRY(ia32_syscall)
 	   this could be a problem. */
 	SAVE_ARGS 0,0,1
 	GET_THREAD_INFO(%r10)
+	orl   $TS_COMPAT,threadinfo_status(%r10)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
@@ -318,7 +335,7 @@ quiet_ni_syscall:
 	jmp  ia32_ptregs_common	
 	.endm
 
-	CFI_STARTPROC
+	CFI_STARTPROC32
 
 	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
 	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
@@ -333,15 +350,26 @@ quiet_ni_syscall:
 
 ENTRY(ia32_ptregs_common)
 	popq %r11
-	CFI_ADJUST_CFA_OFFSET -8
-	CFI_REGISTER rip, r11
+	CFI_ENDPROC
+	CFI_STARTPROC32	simple
+	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
+	CFI_REL_OFFSET	rax,RAX-ARGOFFSET
+	CFI_REL_OFFSET	rcx,RCX-ARGOFFSET
+	CFI_REL_OFFSET	rdx,RDX-ARGOFFSET
+	CFI_REL_OFFSET	rsi,RSI-ARGOFFSET
+	CFI_REL_OFFSET	rdi,RDI-ARGOFFSET
+	CFI_REL_OFFSET	rip,RIP-ARGOFFSET
+/*	CFI_REL_OFFSET	cs,CS-ARGOFFSET*/
+/*	CFI_REL_OFFSET	rflags,EFLAGS-ARGOFFSET*/
+	CFI_REL_OFFSET	rsp,RSP-ARGOFFSET
+/*	CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
 	SAVE_REST
 	call *%rax
 	RESTORE_REST
 	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC
 
-	.data
+	.section .rodata,"a"
 	.align 8
 	.globl ia32_sys_call_table
 ia32_sys_call_table:
@@ -608,7 +636,7 @@ ia32_sys_call_table:
 	.quad sys_epoll_wait
 	.quad sys_remap_file_pages
 	.quad sys_set_tid_address
-	.quad sys32_timer_create
+	.quad compat_sys_timer_create
 	.quad compat_sys_timer_settime	/* 260 */
 	.quad compat_sys_timer_gettime
 	.quad sys_timer_getoverrun
@@ -643,6 +671,7 @@ ia32_sys_call_table:
 	.quad sys_inotify_init
 	.quad sys_inotify_add_watch
 	.quad sys_inotify_rm_watch
+	.quad sys_migrate_pages
 ia32_syscall_end:		
 	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8
 		.quad ni_syscall

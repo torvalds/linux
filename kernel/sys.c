@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/workqueue.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/key.h>
 #include <linux/times.h>
@@ -222,6 +223,18 @@ int unregister_reboot_notifier(struct notifier_block * nb)
 }
 
 EXPORT_SYMBOL(unregister_reboot_notifier);
+
+#ifndef CONFIG_SECURITY
+int capable(int cap)
+{
+        if (cap_raised(current->cap_effective, cap)) {
+	       current->flags |= PF_SUPERPRIV;
+	       return 1;
+        }
+        return 0;
+}
+EXPORT_SYMBOL(capable);
+#endif
 
 static int set_one_prio(struct task_struct *p, int niceval, int error)
 {
@@ -488,6 +501,12 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 			magic2 != LINUX_REBOOT_MAGIC2B &&
 	                magic2 != LINUX_REBOOT_MAGIC2C))
 		return -EINVAL;
+
+	/* Instead of trying to make the power_off code look like
+	 * halt when pm_power_off is not set do it the easy way.
+	 */
+	if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
+		cmd = LINUX_REBOOT_CMD_HALT;
 
 	lock_kernel();
 	switch (cmd) {
@@ -1084,10 +1103,11 @@ asmlinkage long sys_times(struct tms __user * tbuf)
 asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 {
 	struct task_struct *p;
+	struct task_struct *group_leader = current->group_leader;
 	int err = -EINVAL;
 
 	if (!pid)
-		pid = current->pid;
+		pid = group_leader->pid;
 	if (!pgid)
 		pgid = pid;
 	if (pgid < 0)
@@ -1107,16 +1127,16 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	if (!thread_group_leader(p))
 		goto out;
 
-	if (p->parent == current || p->real_parent == current) {
+	if (p->real_parent == group_leader) {
 		err = -EPERM;
-		if (p->signal->session != current->signal->session)
+		if (p->signal->session != group_leader->signal->session)
 			goto out;
 		err = -EACCES;
 		if (p->did_exec)
 			goto out;
 	} else {
 		err = -ESRCH;
-		if (p != current)
+		if (p != group_leader)
 			goto out;
 	}
 
@@ -1128,7 +1148,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		struct task_struct *p;
 
 		do_each_task_pid(pgid, PIDTYPE_PGID, p) {
-			if (p->signal->session == current->signal->session)
+			if (p->signal->session == group_leader->signal->session)
 				goto ok_pgid;
 		} while_each_task_pid(pgid, PIDTYPE_PGID, p);
 		goto out;
@@ -1208,24 +1228,22 @@ asmlinkage long sys_getsid(pid_t pid)
 
 asmlinkage long sys_setsid(void)
 {
+	struct task_struct *group_leader = current->group_leader;
 	struct pid *pid;
 	int err = -EPERM;
-
-	if (!thread_group_leader(current))
-		return -EINVAL;
 
 	down(&tty_sem);
 	write_lock_irq(&tasklist_lock);
 
-	pid = find_pid(PIDTYPE_PGID, current->pid);
+	pid = find_pid(PIDTYPE_PGID, group_leader->pid);
 	if (pid)
 		goto out;
 
-	current->signal->leader = 1;
-	__set_special_pids(current->pid, current->pid);
-	current->signal->tty = NULL;
-	current->signal->tty_old_pgrp = 0;
-	err = process_group(current);
+	group_leader->signal->leader = 1;
+	__set_special_pids(group_leader->pid, group_leader->pid);
+	group_leader->signal->tty = NULL;
+	group_leader->signal->tty_old_pgrp = 0;
+	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
 	up(&tty_sem);
@@ -1687,7 +1705,10 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	if (unlikely(!p->signal))
 		return;
 
+	utime = stime = cputime_zero;
+
 	switch (who) {
+		case RUSAGE_BOTH:
 		case RUSAGE_CHILDREN:
 			spin_lock_irqsave(&p->sighand->siglock, flags);
 			utime = p->signal->cutime;
@@ -1697,22 +1718,11 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_minflt = p->signal->cmin_flt;
 			r->ru_majflt = p->signal->cmaj_flt;
 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			cputime_to_timeval(utime, &r->ru_utime);
-			cputime_to_timeval(stime, &r->ru_stime);
-			break;
+
+			if (who == RUSAGE_CHILDREN)
+				break;
+
 		case RUSAGE_SELF:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			utime = stime = cputime_zero;
-			goto sum_group;
-		case RUSAGE_BOTH:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			utime = p->signal->cutime;
-			stime = p->signal->cstime;
-			r->ru_nvcsw = p->signal->cnvcsw;
-			r->ru_nivcsw = p->signal->cnivcsw;
-			r->ru_minflt = p->signal->cmin_flt;
-			r->ru_majflt = p->signal->cmaj_flt;
-		sum_group:
 			utime = cputime_add(utime, p->signal->utime);
 			stime = cputime_add(stime, p->signal->stime);
 			r->ru_nvcsw += p->signal->nvcsw;
@@ -1729,13 +1739,14 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 				r->ru_majflt += t->maj_flt;
 				t = next_thread(t);
 			} while (t != p);
-			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			cputime_to_timeval(utime, &r->ru_utime);
-			cputime_to_timeval(stime, &r->ru_stime);
 			break;
+
 		default:
 			BUG();
 	}
+
+	cputime_to_timeval(utime, &r->ru_utime);
+	cputime_to_timeval(stime, &r->ru_stime);
 }
 
 int getrusage(struct task_struct *p, int who, struct rusage __user *ru)

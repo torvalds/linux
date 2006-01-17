@@ -404,9 +404,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	tasklet_init(&budget->vpe_tasklet, vpeirq, (unsigned long) budget);
 
 	/* frontend power on */
-	if (bi->type == BUDGET_FS_ACTIVY)
-		saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
-	else
+	if (bi->type != BUDGET_FS_ACTIVY)
 		saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTHI);
 
 	if (budget_register(budget) == 0) {

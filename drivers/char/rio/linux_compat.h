@@ -41,7 +41,7 @@
 #endif
 
 struct ttystatics {
-  struct termios tm;
+	struct termios tm;
 };
 
 #define bzero(d, n)         memset((d), 0, (n))
@@ -97,26 +97,24 @@ the older driver. The older driver includes "brates.h" which shadows
 the definitions from Linux, and is incompatible... */
 
 /* RxBaud and TxBaud definitions... */
-#define	RIO_B0			0x00			/* RTS / DTR signals dropped */
-#define	RIO_B50			0x01			/* 50 baud */
-#define	RIO_B75			0x02			/* 75 baud */
-#define	RIO_B110		0x03			/* 110 baud */
-#define	RIO_B134		0x04			/* 134.5 baud */
-#define	RIO_B150		0x05			/* 150 baud */
-#define	RIO_B200		0x06			/* 200 baud */
-#define	RIO_B300		0x07			/* 300 baud */
-#define	RIO_B600		0x08			/* 600 baud */
-#define	RIO_B1200		0x09			/* 1200 baud */
-#define	RIO_B1800		0x0A			/* 1800 baud */
-#define	RIO_B2400		0x0B			/* 2400 baud */
-#define	RIO_B4800		0x0C			/* 4800 baud */
-#define	RIO_B9600		0x0D			/* 9600 baud */
-#define	RIO_B19200		0x0E			/* 19200 baud */
-#define	RIO_B38400		0x0F			/* 38400 baud */
-#define	RIO_B56000		0x10			/* 56000 baud */
-#define	RIO_B57600		0x11			/* 57600 baud */
-#define	RIO_B64000		0x12			/* 64000 baud */
-#define	RIO_B115200		0x13			/* 115200 baud */
-#define	RIO_B2000		0x14			/* 2000 baud */
-
-
+#define	RIO_B0			0x00	/* RTS / DTR signals dropped */
+#define	RIO_B50			0x01	/* 50 baud */
+#define	RIO_B75			0x02	/* 75 baud */
+#define	RIO_B110		0x03	/* 110 baud */
+#define	RIO_B134		0x04	/* 134.5 baud */
+#define	RIO_B150		0x05	/* 150 baud */
+#define	RIO_B200		0x06	/* 200 baud */
+#define	RIO_B300		0x07	/* 300 baud */
+#define	RIO_B600		0x08	/* 600 baud */
+#define	RIO_B1200		0x09	/* 1200 baud */
+#define	RIO_B1800		0x0A	/* 1800 baud */
+#define	RIO_B2400		0x0B	/* 2400 baud */
+#define	RIO_B4800		0x0C	/* 4800 baud */
+#define	RIO_B9600		0x0D	/* 9600 baud */
+#define	RIO_B19200		0x0E	/* 19200 baud */
+#define	RIO_B38400		0x0F	/* 38400 baud */
+#define	RIO_B56000		0x10	/* 56000 baud */
+#define	RIO_B57600		0x11	/* 57600 baud */
+#define	RIO_B64000		0x12	/* 64000 baud */
+#define	RIO_B115200		0x13	/* 115200 baud */
+#define	RIO_B2000		0x14	/* 2000 baud */

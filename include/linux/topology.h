@@ -86,7 +86,6 @@
 	.max_interval		= 2,			\
 	.busy_factor		= 8,			\
 	.imbalance_pct		= 110,			\
-	.cache_hot_time		= 0,			\
 	.cache_nice_tries	= 0,			\
 	.per_cpu_gain		= 25,			\
 	.busy_idx		= 0,			\
@@ -117,7 +116,6 @@
 	.max_interval		= 4,			\
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
-	.cache_hot_time		= (5*1000000/2),	\
 	.cache_nice_tries	= 1,			\
 	.per_cpu_gain		= 100,			\
 	.busy_idx		= 2,			\

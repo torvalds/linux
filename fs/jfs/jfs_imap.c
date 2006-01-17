@@ -265,8 +265,7 @@ int diSync(struct inode *ipimap)
 	/*
 	 * write out dirty pages of imap
 	 */
-	filemap_fdatawrite(ipimap->i_mapping);
-	filemap_fdatawait(ipimap->i_mapping);
+	filemap_write_and_wait(ipimap->i_mapping);
 
 	diWriteSpecial(ipimap, 0);
 
@@ -565,8 +564,7 @@ void diFreeSpecial(struct inode *ip)
 		jfs_err("diFreeSpecial called with NULL ip!");
 		return;
 	}
-	filemap_fdatawrite(ip->i_mapping);
-	filemap_fdatawait(ip->i_mapping);
+	filemap_write_and_wait(ip->i_mapping);
 	truncate_inode_pages(ip->i_mapping, 0);
 	iput(ip);
 }

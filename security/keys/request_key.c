@@ -29,27 +29,35 @@ DECLARE_WAIT_QUEUE_HEAD(request_key_conswq);
 /*****************************************************************************/
 /*
  * request userspace finish the construction of a key
- * - execute "/sbin/request-key <op> <key> <uid> <gid> <keyring> <keyring> <keyring> <info>"
+ * - execute "/sbin/request-key <op> <key> <uid> <gid> <keyring> <keyring> <keyring>"
  */
-static int call_request_key(struct key *key,
-			    const char *op,
-			    const char *callout_info)
+static int call_sbin_request_key(struct key *key,
+				 struct key *authkey,
+				 const char *op)
 {
 	struct task_struct *tsk = current;
 	key_serial_t prkey, sskey;
-	struct key *session_keyring, *rkakey;
-	char *argv[10], *envp[3], uid_str[12], gid_str[12];
+	struct key *keyring;
+	char *argv[9], *envp[3], uid_str[12], gid_str[12];
 	char key_str[12], keyring_str[3][12];
+	char desc[20];
 	int ret, i;
 
-	kenter("{%d},%s,%s", key->serial, op, callout_info);
+	kenter("{%d},{%d},%s", key->serial, authkey->serial, op);
 
-	/* generate a new session keyring with an auth key in it */
-	session_keyring = request_key_auth_new(key, &rkakey);
-	if (IS_ERR(session_keyring)) {
-		ret = PTR_ERR(session_keyring);
-		goto error;
+	/* allocate a new session keyring */
+	sprintf(desc, "_req.%u", key->serial);
+
+	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, 1, NULL);
+	if (IS_ERR(keyring)) {
+		ret = PTR_ERR(keyring);
+		goto error_alloc;
 	}
+
+	/* attach the auth key to the session keyring */
+	ret = __key_link(keyring, authkey);
+	if (ret < 0)
+		goto error_link;
 
 	/* record the UID and GID */
 	sprintf(uid_str, "%d", current->fsuid);
@@ -95,22 +103,19 @@ static int call_request_key(struct key *key,
 	argv[i++] = keyring_str[0];
 	argv[i++] = keyring_str[1];
 	argv[i++] = keyring_str[2];
-	argv[i++] = (char *) callout_info;
 	argv[i] = NULL;
 
 	/* do it */
-	ret = call_usermodehelper_keys(argv[0], argv, envp, session_keyring, 1);
+	ret = call_usermodehelper_keys(argv[0], argv, envp, keyring, 1);
 
-	/* dispose of the special keys */
-	key_revoke(rkakey);
-	key_put(rkakey);
-	key_put(session_keyring);
+error_link:
+	key_put(keyring);
 
- error:
+error_alloc:
 	kleave(" = %d", ret);
 	return ret;
 
-} /* end call_request_key() */
+} /* end call_sbin_request_key() */
 
 /*****************************************************************************/
 /*
@@ -122,9 +127,10 @@ static struct key *__request_key_construction(struct key_type *type,
 					      const char *description,
 					      const char *callout_info)
 {
+	request_key_actor_t actor;
 	struct key_construction cons;
 	struct timespec now;
-	struct key *key;
+	struct key *key, *authkey;
 	int ret, negated;
 
 	kenter("%s,%s,%s", type->name, description, callout_info);
@@ -143,8 +149,19 @@ static struct key *__request_key_construction(struct key_type *type,
 	/* we drop the construction sem here on behalf of the caller */
 	up_write(&key_construction_sem);
 
+	/* allocate an authorisation key */
+	authkey = request_key_auth_new(key, callout_info);
+	if (IS_ERR(authkey)) {
+		ret = PTR_ERR(authkey);
+		authkey = NULL;
+		goto alloc_authkey_failed;
+	}
+
 	/* make the call */
-	ret = call_request_key(key, "create", callout_info);
+	actor = call_sbin_request_key;
+	if (type->request_key)
+		actor = type->request_key;
+	ret = actor(key, authkey, "create");
 	if (ret < 0)
 		goto request_failed;
 
@@ -153,22 +170,29 @@ static struct key *__request_key_construction(struct key_type *type,
 	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto request_failed;
 
+	key_revoke(authkey);
+	key_put(authkey);
+
 	down_write(&key_construction_sem);
 	list_del(&cons.link);
 	up_write(&key_construction_sem);
 
 	/* also give an error if the key was negatively instantiated */
- check_not_negative:
+check_not_negative:
 	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
 		key_put(key);
 		key = ERR_PTR(-ENOKEY);
 	}
 
- out:
+out:
 	kleave(" = %p", key);
 	return key;
 
- request_failed:
+request_failed:
+	key_revoke(authkey);
+	key_put(authkey);
+
+alloc_authkey_failed:
 	/* it wasn't instantiated
 	 * - remove from construction queue
 	 * - mark the key as dead
@@ -217,7 +241,7 @@ static struct key *__request_key_construction(struct key_type *type,
 	key = ERR_PTR(ret);
 	goto out;
 
- alloc_failed:
+alloc_failed:
 	up_write(&key_construction_sem);
 	goto out;
 
@@ -464,35 +488,3 @@ struct key *request_key(struct key_type *type,
 } /* end request_key() */
 
 EXPORT_SYMBOL(request_key);
-
-/*****************************************************************************/
-/*
- * validate a key
- */
-int key_validate(struct key *key)
-{
-	struct timespec now;
-	int ret = 0;
-
-	if (key) {
-		/* check it's still accessible */
-		ret = -EKEYREVOKED;
-		if (test_bit(KEY_FLAG_REVOKED, &key->flags) ||
-		    test_bit(KEY_FLAG_DEAD, &key->flags))
-			goto error;
-
-		/* check it hasn't expired */
-		ret = 0;
-		if (key->expiry) {
-			now = current_kernel_time();
-			if (now.tv_sec >= key->expiry)
-				ret = -EKEYEXPIRED;
-		}
-	}
-
- error:
-	return ret;
-
-} /* end key_validate() */
-
-EXPORT_SYMBOL(key_validate);

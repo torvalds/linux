@@ -16,7 +16,7 @@
 #include <asm/mipsregs.h>
 
 #define DSP_DEFAULT	0x00000000
-#define DSP_MASK	0x1f
+#define DSP_MASK	0x3ff
 
 #define __enable_dsp_hazard()						\
 do {									\
@@ -48,6 +48,7 @@ do {									\
 	tsk->thread.dsp.dspr[3] = mflo2();				\
 	tsk->thread.dsp.dspr[4] = mfhi3();				\
 	tsk->thread.dsp.dspr[5] = mflo3();				\
+	tsk->thread.dsp.dspcontrol = rddsp(DSP_MASK);			\
 } while (0)
 
 #define save_dsp(tsk)							\
@@ -64,6 +65,7 @@ do {									\
 	mtlo2(tsk->thread.dsp.dspr[3]);					\
 	mthi3(tsk->thread.dsp.dspr[4]);					\
 	mtlo3(tsk->thread.dsp.dspr[5]);					\
+	wrdsp(tsk->thread.dsp.dspcontrol, DSP_MASK);			\
 } while (0)
 
 #define restore_dsp(tsk)						\

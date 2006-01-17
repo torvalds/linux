@@ -32,7 +32,8 @@
 struct hda_gnode {
 	hda_nid_t nid;		/* NID of this widget */
 	unsigned short nconns;	/* number of input connections */
-	hda_nid_t conn_list[HDA_MAX_CONNECTIONS]; /* input connections */
+	hda_nid_t *conn_list;
+	hda_nid_t slist[2];	/* temporay list */
 	unsigned int wid_caps;	/* widget capabilities */
 	unsigned char type;	/* widget type */
 	unsigned char pin_ctl;	/* pin controls */
@@ -84,6 +85,8 @@ static void snd_hda_generic_free(struct hda_codec *codec)
 	/* free all widgets */
 	list_for_each_safe(p, n, &spec->nid_list) {
 		struct hda_gnode *node = list_entry(p, struct hda_gnode, list);
+		if (node->conn_list != node->slist)
+			kfree(node->conn_list);
 		kfree(node);
 	}
 	kfree(spec);
@@ -97,18 +100,32 @@ static int add_new_node(struct hda_codec *codec, struct hda_gspec *spec, hda_nid
 {
 	struct hda_gnode *node;
 	int nconns;
+	hda_nid_t conn_list[HDA_MAX_CONNECTIONS];
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node == NULL)
 		return -ENOMEM;
 	node->nid = nid;
-	nconns = snd_hda_get_connections(codec, nid, node->conn_list, HDA_MAX_CONNECTIONS);
+	nconns = snd_hda_get_connections(codec, nid, conn_list,
+					 HDA_MAX_CONNECTIONS);
 	if (nconns < 0) {
 		kfree(node);
 		return nconns;
 	}
+	if (nconns <= ARRAY_SIZE(node->slist))
+		node->conn_list = node->slist;
+	else {
+		node->conn_list = kmalloc(sizeof(hda_nid_t) * nconns,
+					  GFP_KERNEL);
+		if (! node->conn_list) {
+			snd_printk(KERN_ERR "hda-generic: cannot malloc\n");
+			kfree(node);
+			return -ENOMEM;
+		}
+	}
+	memcpy(node->conn_list, conn_list, nconns);
 	node->nconns = nconns;
-	node->wid_caps = snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+	node->wid_caps = get_wcaps(codec, nid);
 	node->type = (node->wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 
 	if (node->type == AC_WID_PIN) {
@@ -389,14 +406,14 @@ static int parse_output(struct hda_codec *codec)
  */
 
 /* control callbacks */
-static int capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int capture_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gspec *spec = codec->spec;
 	return snd_hda_input_mux_info(&spec->input_mux, uinfo);
 }
 
-static int capture_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int capture_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gspec *spec = codec->spec;
@@ -405,7 +422,7 @@ static int capture_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 	return 0;
 }
 
-static int capture_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int capture_source_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gspec *spec = codec->spec;
@@ -617,7 +634,7 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 	char name[32];
 	int err;
 	int created = 0;
-	snd_kcontrol_new_t knew;
+	struct snd_kcontrol_new knew;
 
 	if (type)
 		sprintf(name, "%s %s Switch", type, dir_sfx);
@@ -625,14 +642,14 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		sprintf(name, "%s Switch", dir_sfx);
 	if ((node->wid_caps & AC_WCAP_IN_AMP) &&
 	    (node->amp_in_caps & AC_AMPCAP_MUTE)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_MUTE(name, node->nid, index, HDA_INPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_MUTE(name, node->nid, index, HDA_INPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
 		created = 1;
 	} else if ((node->wid_caps & AC_WCAP_OUT_AMP) &&
 		   (node->amp_out_caps & AC_AMPCAP_MUTE)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_MUTE(name, node->nid, 0, HDA_OUTPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_MUTE(name, node->nid, 0, HDA_OUTPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
@@ -645,14 +662,14 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		sprintf(name, "%s Volume", dir_sfx);
 	if ((node->wid_caps & AC_WCAP_IN_AMP) &&
 	    (node->amp_in_caps & AC_AMPCAP_NUM_STEPS)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_VOLUME(name, node->nid, index, HDA_INPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, index, HDA_INPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
 		created = 1;
 	} else if ((node->wid_caps & AC_WCAP_OUT_AMP) &&
 		   (node->amp_out_caps & AC_AMPCAP_NUM_STEPS)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_VOLUME(name, node->nid, 0, HDA_OUTPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, 0, HDA_OUTPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
@@ -667,7 +684,7 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
  */
 static int check_existing_control(struct hda_codec *codec, const char *type, const char *dir)
 {
-	snd_ctl_elem_id_t id;
+	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	sprintf(id.name, "%s %s Volume", type, dir);
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -710,7 +727,7 @@ static int build_input_controls(struct hda_codec *codec)
 
 	/* create input MUX if multiple sources are available */
 	if (spec->input_mux.num_items > 1) {
-		static snd_kcontrol_new_t cap_sel = {
+		static struct snd_kcontrol_new cap_sel = {
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.name = "Capture Source",
 			.info = capture_source_info,

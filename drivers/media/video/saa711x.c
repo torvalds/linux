@@ -52,7 +52,7 @@ MODULE_LICENSE("GPL");
 #include <linux/video_decoder.h>
 
 static int debug = 0;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, " Set the default Debug level.  Default: 0 (Off) - (0-1)");
 
 
@@ -487,21 +487,18 @@ saa711x_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa711x;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	strlcpy(I2C_NAME(client), "saa711x", sizeof(I2C_NAME(client)));
-	decoder = kmalloc(sizeof(struct saa711x), GFP_KERNEL);
+	decoder = kzalloc(sizeof(struct saa711x), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(decoder, 0, sizeof(struct saa711x));
 	decoder->norm = VIDEO_MODE_NTSC;
 	decoder->input = 0;
 	decoder->enable = 1;
@@ -565,12 +562,10 @@ saa711x_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_saa711x = {
-	.owner = THIS_MODULE,
-	.name = "saa711x",
-
+	.driver = {
+		.name = "saa711x",
+	},
 	.id = I2C_DRIVERID_SAA711X,
-	.flags = I2C_DF_NOTIFY,
-
 	.attach_adapter = saa711x_attach_adapter,
 	.detach_client = saa711x_detach_client,
 	.command = saa711x_command,

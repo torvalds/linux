@@ -240,6 +240,8 @@ extern struct ipv6_txoptions *	ipv6_renew_options(struct sock *sk, struct ipv6_t
 struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					  struct ipv6_txoptions *opt);
 
+extern int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb);
+
 extern int ip6_frag_nqueues;
 extern atomic_t ip6_frag_mem;
 
@@ -416,6 +418,8 @@ extern int			ipv6_rcv(struct sk_buff *skb,
 					 struct packet_type *pt,
 					 struct net_device *orig_dev);
 
+extern int			ip6_rcv_finish(struct sk_buff *skb);
+
 /*
  *	upper-layer output functions
  */
@@ -525,6 +529,9 @@ extern int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 extern int inet6_ioctl(struct socket *sock, unsigned int cmd, 
 		       unsigned long arg);
 
+extern int inet6_hash_connect(struct inet_timewait_death_row *death_row,
+			      struct sock *sk);
+
 /*
  * reassembly.c
  */
@@ -533,8 +540,11 @@ extern int sysctl_ip6frag_low_thresh;
 extern int sysctl_ip6frag_time;
 extern int sysctl_ip6frag_secret_interval;
 
-extern struct proto_ops inet6_stream_ops;
-extern struct proto_ops inet6_dgram_ops;
+extern const struct proto_ops inet6_stream_ops;
+extern const struct proto_ops inet6_dgram_ops;
+
+struct group_source_req;
+struct group_filter;
 
 extern int ip6_mc_source(int add, int omode, struct sock *sk,
 			 struct group_source_req *pgsr);

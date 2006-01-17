@@ -395,11 +395,37 @@ config MACHZ_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called machzwd.
 
+config SBC_EPX_C3_WATCHDOG
+	tristate "Winsystems SBC EPX-C3 watchdog"
+	depends on WATCHDOG && X86
+	---help---
+	  This is the driver for the built-in watchdog timer on the EPX-C3
+	  Single-board computer made by Winsystems, Inc.
+
+	  *Note*: This hardware watchdog is not probeable and thus there
+	  is no way to know if writing to its IO address will corrupt
+	  your system or have any real effect.  The only way to be sure
+	  that this driver does what you want is to make sure you
+	  are runnning it on an EPX-C3 from Winsystems with the watchdog
+	  timer at IO address 0x1ee and 0x1ef.  It will write to both those
+	  IO ports.  Basically, the assumption is made that if you compile
+	  this driver into your kernel and/or load it as a module, that you
+	  know what you are doing and that you are in fact running on an
+	  EPX-C3 board!
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sbc_epx_c3.
+
+
 # PowerPC Architecture
 
 config 8xx_WDT
 	tristate "MPC8xx Watchdog Timer"
 	depends on WATCHDOG && 8xx
+
+config 83xx_WDT
+	tristate "MPC83xx Watchdog Timer"
+	depends on WATCHDOG && PPC_83xx
 
 config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
@@ -438,7 +464,7 @@ config INDYDOG
 
 config ZVM_WATCHDOG
 	tristate "z/VM Watchdog Timer"
-	depends on WATCHDOG && ARCH_S390
+	depends on WATCHDOG && S390
 	help
 	  IBM s/390 and zSeries machines running under z/VM 5.1 or later
 	  provide a virtual watchdog timer to their guest that cause a

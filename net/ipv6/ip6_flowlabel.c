@@ -9,6 +9,7 @@
  *	Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -199,6 +200,8 @@ struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, u32 label)
 	}
 	return NULL;
 }
+
+EXPORT_SYMBOL_GPL(fl6_sock_lookup);
 
 void fl6_free_socklist(struct sock *sk)
 {
@@ -626,9 +629,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 {
 	while(fl) {
 		seq_printf(seq,
-			   "%05X %-1d %-6d %-6d %-6ld %-8ld "
-			   "%02x%02x%02x%02x%02x%02x%02x%02x "
-			   "%-4d\n",
+			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_FMT " %-4d\n",
 			   (unsigned)ntohl(fl->label),
 			   fl->share,
 			   (unsigned)fl->owner,
@@ -644,8 +645,8 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "Label S Owner  Users  Linger Expires  "
-			      "Dst                              Opt\n");
+		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-39s %s\n",
+			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
 	else
 		ip6fl_fl_seq_show(seq, v);
 	return 0;

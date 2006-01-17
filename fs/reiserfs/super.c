@@ -2211,7 +2211,7 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 	size_t towrite = len;
 	struct buffer_head tmp_bh, *bh;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 		    sb->s_blocksize - offset : towrite;
@@ -2250,7 +2250,7 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return len - towrite;
 }
 

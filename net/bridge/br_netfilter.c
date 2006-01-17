@@ -26,6 +26,7 @@
 #include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
@@ -33,8 +34,11 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_arp.h>
 #include <linux/in_route.h>
+
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/route.h>
+
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #include "br_private.h"
@@ -390,8 +394,9 @@ inhdr_error:
  * target in particular.  Save the original destination IP
  * address to be able to detect DNAT afterwards. */
 static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
-   const struct net_device *in, const struct net_device *out,
-   int (*okfn)(struct sk_buff *))
+				      const struct net_device *in,
+				      const struct net_device *out,
+				      int (*okfn)(struct sk_buff *))
 {
 	struct iphdr *iph;
 	__u32 len;
@@ -408,8 +413,10 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			goto out;
 
 		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+			u8 *vhdr = skb->data;
 			skb_pull(skb, VLAN_HLEN);
-			(skb)->nh.raw += VLAN_HLEN;
+			skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+			skb->nh.raw += VLAN_HLEN;
 		}
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
@@ -425,8 +432,10 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		goto out;
 
 	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+		u8 *vhdr = skb->data;
 		skb_pull(skb, VLAN_HLEN);
-		(skb)->nh.raw += VLAN_HLEN;
+		skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+		skb->nh.raw += VLAN_HLEN;
 	}
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))

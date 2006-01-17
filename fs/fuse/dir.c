@@ -13,13 +13,64 @@
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
-#include <linux/mount.h>
 
-static inline unsigned long time_to_jiffies(unsigned long sec,
-					    unsigned long nsec)
+/*
+ * FUSE caches dentries and attributes with separate timeout.  The
+ * time in jiffies until the dentry/attributes are valid is stored in
+ * dentry->d_time and fuse_inode->i_time respectively.
+ */
+
+/*
+ * Calculate the time in jiffies until a dentry/attributes are valid
+ */
+static unsigned long time_to_jiffies(unsigned long sec, unsigned long nsec)
 {
 	struct timespec ts = {sec, nsec};
 	return jiffies + timespec_to_jiffies(&ts);
+}
+
+/*
+ * Set dentry and possibly attribute timeouts from the lookup/mk*
+ * replies
+ */
+static void fuse_change_timeout(struct dentry *entry, struct fuse_entry_out *o)
+{
+	entry->d_time = time_to_jiffies(o->entry_valid, o->entry_valid_nsec);
+	if (entry->d_inode)
+		get_fuse_inode(entry->d_inode)->i_time =
+			time_to_jiffies(o->attr_valid, o->attr_valid_nsec);
+}
+
+/*
+ * Mark the attributes as stale, so that at the next call to
+ * ->getattr() they will be fetched from userspace
+ */
+void fuse_invalidate_attr(struct inode *inode)
+{
+	get_fuse_inode(inode)->i_time = jiffies - 1;
+}
+
+/*
+ * Just mark the entry as stale, so that a next attempt to look it up
+ * will result in a new lookup call to userspace
+ *
+ * This is called when a dentry is about to become negative and the
+ * timeout is unknown (unlink, rmdir, rename and in some cases
+ * lookup)
+ */
+static void fuse_invalidate_entry_cache(struct dentry *entry)
+{
+	entry->d_time = jiffies - 1;
+}
+
+/*
+ * Same as fuse_invalidate_entry_cache(), but also try to remove the
+ * dentry from the hash
+ */
+static void fuse_invalidate_entry(struct dentry *entry)
+{
+	d_invalidate(entry);
+	fuse_invalidate_entry_cache(entry);
 }
 
 static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
@@ -37,17 +88,34 @@ static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
 	req->out.args[0].value = outarg;
 }
 
+/*
+ * Check whether the dentry is still valid
+ *
+ * If the entry validity timeout has expired and the dentry is
+ * positive, try to redo the lookup.  If the lookup results in a
+ * different inode, then let the VFS invalidate the dentry and redo
+ * the lookup once more.  If the lookup results in the same inode,
+ * then refresh the attributes, timeouts and mark the dentry valid.
+ */
 static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 {
-	if (!entry->d_inode || is_bad_inode(entry->d_inode))
+	struct inode *inode = entry->d_inode;
+
+	if (inode && is_bad_inode(inode))
 		return 0;
 	else if (time_after(jiffies, entry->d_time)) {
 		int err;
 		struct fuse_entry_out outarg;
-		struct inode *inode = entry->d_inode;
-		struct fuse_inode *fi = get_fuse_inode(inode);
-		struct fuse_conn *fc = get_fuse_conn(inode);
-		struct fuse_req *req = fuse_get_request(fc);
+		struct fuse_conn *fc;
+		struct fuse_req *req;
+
+		/* Doesn't hurt to "reset" the validity timeout */
+		fuse_invalidate_entry_cache(entry);
+		if (!inode)
+			return 0;
+
+		fc = get_fuse_conn(inode);
+		req = fuse_get_request(fc);
 		if (!req)
 			return 0;
 
@@ -55,6 +123,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		request_send(fc, req);
 		err = req->out.h.error;
 		if (!err) {
+			struct fuse_inode *fi = get_fuse_inode(inode);
 			if (outarg.nodeid != get_node_id(inode)) {
 				fuse_send_forget(fc, req, outarg.nodeid, 1);
 				return 0;
@@ -66,18 +135,18 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 			return 0;
 
 		fuse_change_attributes(inode, &outarg.attr);
-		entry->d_time = time_to_jiffies(outarg.entry_valid,
-						outarg.entry_valid_nsec);
-		fi->i_time = time_to_jiffies(outarg.attr_valid,
-					     outarg.attr_valid_nsec);
+		fuse_change_timeout(entry, &outarg);
 	}
 	return 1;
 }
 
+/*
+ * Check if there's already a hashed alias of this directory inode.
+ * If yes, then lookup and mkdir must not create a new alias.
+ */
 static int dir_alias(struct inode *inode)
 {
 	if (S_ISDIR(inode->i_mode)) {
-		/* Don't allow creating an alias to a directory  */
 		struct dentry *alias = d_find_alias(inode);
 		if (alias) {
 			dput(alias);
@@ -87,7 +156,7 @@ static int dir_alias(struct inode *inode)
 	return 0;
 }
 
-static inline int invalid_nodeid(u64 nodeid)
+static int invalid_nodeid(u64 nodeid)
 {
 	return !nodeid || nodeid == FUSE_ROOT_ID;
 }
@@ -96,8 +165,14 @@ static struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
 
-static int fuse_lookup_iget(struct inode *dir, struct dentry *entry,
-			    struct inode **inodep)
+static int valid_mode(int m)
+{
+	return S_ISREG(m) || S_ISDIR(m) || S_ISLNK(m) || S_ISCHR(m) ||
+		S_ISBLK(m) || S_ISFIFO(m) || S_ISSOCK(m);
+}
+
+static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
+				  struct nameidata *nd)
 {
 	int err;
 	struct fuse_entry_out outarg;
@@ -106,53 +181,49 @@ static int fuse_lookup_iget(struct inode *dir, struct dentry *entry,
 	struct fuse_req *req;
 
 	if (entry->d_name.len > FUSE_NAME_MAX)
-		return -ENAMETOOLONG;
+		return ERR_PTR(-ENAMETOOLONG);
 
 	req = fuse_get_request(fc);
 	if (!req)
-		return -EINTR;
+		return ERR_PTR(-EINTR);
 
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
-	if (!err && invalid_nodeid(outarg.nodeid))
+	if (!err && ((outarg.nodeid && invalid_nodeid(outarg.nodeid)) ||
+		     !valid_mode(outarg.attr.mode)))
 		err = -EIO;
-	if (!err) {
+	if (!err && outarg.nodeid) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 				  &outarg.attr);
 		if (!inode) {
 			fuse_send_forget(fc, req, outarg.nodeid, 1);
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		}
 	}
 	fuse_put_request(fc, req);
 	if (err && err != -ENOENT)
-		return err;
+		return ERR_PTR(err);
 
-	if (inode) {
-		struct fuse_inode *fi = get_fuse_inode(inode);
-		entry->d_time =	time_to_jiffies(outarg.entry_valid,
-						outarg.entry_valid_nsec);
-		fi->i_time = time_to_jiffies(outarg.attr_valid,
-					     outarg.attr_valid_nsec);
+	if (inode && dir_alias(inode)) {
+		iput(inode);
+		return ERR_PTR(-EIO);
 	}
-
+	d_add(entry, inode);
 	entry->d_op = &fuse_dentry_operations;
-	*inodep = inode;
-	return 0;
+	if (!err)
+		fuse_change_timeout(entry, &outarg);
+	else
+		fuse_invalidate_entry_cache(entry);
+	return NULL;
 }
 
-void fuse_invalidate_attr(struct inode *inode)
-{
-	get_fuse_inode(inode)->i_time = jiffies - 1;
-}
-
-static void fuse_invalidate_entry(struct dentry *entry)
-{
-	d_invalidate(entry);
-	entry->d_time = jiffies - 1;
-}
-
+/*
+ * Atomic create+open operation
+ *
+ * If the filesystem doesn't support this, then fall back to separate
+ * 'mknod' + 'open' requests.
+ */
 static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 			    struct nameidata *nd)
 {
@@ -163,17 +234,12 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	struct fuse_open_in inarg;
 	struct fuse_open_out outopen;
 	struct fuse_entry_out outentry;
-	struct fuse_inode *fi;
 	struct fuse_file *ff;
 	struct file *file;
 	int flags = nd->intent.open.flags - 1;
 
 	err = -ENOSYS;
 	if (fc->no_create)
-		goto out;
-
-	err = -ENAMETOOLONG;
-	if (entry->d_name.len > FUSE_NAME_MAX)
 		goto out;
 
 	err = -EINTR;
@@ -220,17 +286,15 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
 		ff->fh = outopen.fh;
+		/* Special release, with inode = NULL, this will
+		   trigger a 'forget' request when the release is
+		   complete */
 		fuse_send_release(fc, ff, outentry.nodeid, NULL, flags, 0);
 		goto out_put_request;
 	}
 	fuse_put_request(fc, req);
-	entry->d_time =	time_to_jiffies(outentry.entry_valid,
-					outentry.entry_valid_nsec);
-	fi = get_fuse_inode(inode);
-	fi->i_time = time_to_jiffies(outentry.attr_valid,
-				     outentry.attr_valid_nsec);
-
 	d_instantiate(entry, inode);
+	fuse_change_timeout(entry, &outentry);
 	file = lookup_instantiate_filp(nd, entry, generic_file_open);
 	if (IS_ERR(file)) {
 		ff->fh = outopen.fh;
@@ -248,13 +312,15 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	return err;
 }
 
+/*
+ * Code shared between mknod, mkdir, symlink and link
+ */
 static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 			    struct inode *dir, struct dentry *entry,
 			    int mode)
 {
 	struct fuse_entry_out outarg;
 	struct inode *inode;
-	struct fuse_inode *fi;
 	int err;
 
 	req->in.h.nodeid = get_node_id(dir);
@@ -268,10 +334,13 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 		fuse_put_request(fc, req);
 		return err;
 	}
-	if (invalid_nodeid(outarg.nodeid)) {
-		fuse_put_request(fc, req);
-		return -EIO;
-	}
+	err = -EIO;
+	if (invalid_nodeid(outarg.nodeid))
+		goto out_put_request;
+
+	if ((outarg.attr.mode ^ mode) & S_IFMT)
+		goto out_put_request;
+
 	inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 			  &outarg.attr);
 	if (!inode) {
@@ -280,22 +349,19 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	}
 	fuse_put_request(fc, req);
 
-	/* Don't allow userspace to do really stupid things... */
-	if (((inode->i_mode ^ mode) & S_IFMT) || dir_alias(inode)) {
+	if (dir_alias(inode)) {
 		iput(inode);
 		return -EIO;
 	}
 
-	entry->d_time = time_to_jiffies(outarg.entry_valid,
-					outarg.entry_valid_nsec);
-
-	fi = get_fuse_inode(inode);
-	fi->i_time = time_to_jiffies(outarg.attr_valid,
-				     outarg.attr_valid_nsec);
-
 	d_instantiate(entry, inode);
+	fuse_change_timeout(entry, &outarg);
 	fuse_invalidate_attr(dir);
 	return 0;
+
+ out_put_request:
+	fuse_put_request(fc, req);
+	return err;
 }
 
 static int fuse_mknod(struct inode *dir, struct dentry *entry, int mode,
@@ -355,12 +421,7 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	unsigned len = strlen(link) + 1;
-	struct fuse_req *req;
-
-	if (len > FUSE_SYMLINK_MAX)
-		return -ENAMETOOLONG;
-
-	req = fuse_get_request(fc);
+	struct fuse_req *req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
@@ -399,6 +460,7 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 		inode->i_nlink = 0;
 		fuse_invalidate_attr(inode);
 		fuse_invalidate_attr(dir);
+		fuse_invalidate_entry_cache(entry);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -424,6 +486,7 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	if (!err) {
 		entry->d_inode->i_nlink = 0;
 		fuse_invalidate_attr(dir);
+		fuse_invalidate_entry_cache(entry);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -459,6 +522,10 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 		fuse_invalidate_attr(olddir);
 		if (olddir != newdir)
 			fuse_invalidate_attr(newdir);
+
+		/* newent will end up negative */
+		if (newent->d_inode)
+			fuse_invalidate_entry_cache(newent);
 	} else if (err == -EINTR) {
 		/* If request was interrupted, DEITY only knows if the
 		   rename actually took place.  If the invalidation
@@ -566,6 +633,15 @@ static int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task)
 	return 0;
 }
 
+/*
+ * Check whether the inode attributes are still valid
+ *
+ * If the attribute validity timeout has expired, then fetch the fresh
+ * attributes with a 'getattr' request
+ *
+ * I'm not sure why cached attributes are never returned for the root
+ * inode, this is probably being too cautious.
+ */
 static int fuse_revalidate(struct dentry *entry)
 {
 	struct inode *inode = entry->d_inode;
@@ -613,6 +689,19 @@ static int fuse_access(struct inode *inode, int mask)
 	return err;
 }
 
+/*
+ * Check permission.  The two basic access models of FUSE are:
+ *
+ * 1) Local access checking ('default_permissions' mount option) based
+ * on file mode.  This is the plain old disk filesystem permission
+ * modell.
+ *
+ * 2) "Remote" access checking, where server is responsible for
+ * checking permission in each inode operation.  An exception to this
+ * is if ->permission() was invoked from sys_access() in which case an
+ * access request is sent.  Execute permission is still checked
+ * locally based on file mode.
+ */
 static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -631,14 +720,10 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 				err = generic_permission(inode, mask, NULL);
 		}
 
-		/* FIXME: Need some mechanism to revoke permissions:
-		   currently if the filesystem suddenly changes the
-		   file mode, we will not be informed about it, and
-		   continue to allow access to the file/directory.
-
-		   This is actually not so grave, since the user can
-		   simply keep access to the file/directory anyway by
-		   keeping it open... */
+		/* Note: the opposite of the above test does not
+		   exist.  So if permissions are revoked this won't be
+		   noticed immediately, only after the attribute
+		   timeout has expired */
 
 		return err;
 	} else {
@@ -677,13 +762,6 @@ static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
 	return 0;
 }
 
-static inline size_t fuse_send_readdir(struct fuse_req *req, struct file *file,
-				       struct inode *inode, loff_t pos,
-				       size_t count)
-{
-	return fuse_send_read_common(req, file, inode, pos, count, 1);
-}
-
 static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 {
 	int err;
@@ -691,7 +769,12 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	struct page *page;
 	struct inode *inode = file->f_dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_request(fc);
+	struct fuse_req *req;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
@@ -702,7 +785,9 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	}
 	req->num_pages = 1;
 	req->pages[0] = page;
-	nbytes = fuse_send_readdir(req, file, inode, file->f_pos, PAGE_SIZE);
+	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
+	request_send(fc, req);
+	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err)
@@ -806,6 +891,15 @@ static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg)
 	}
 }
 
+/*
+ * Set attributes, and at the same time refresh them.
+ *
+ * Truncation is slightly complicated, because the 'truncate' request
+ * may fail, in which case we don't want to touch the mapping.
+ * vmtruncate() doesn't allow for this case.  So do the rlimit
+ * checking by hand and call vmtruncate() only after the file has
+ * actually been truncated.
+ */
 static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 {
 	struct inode *inode = entry->d_inode;
@@ -883,23 +977,6 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	return err;
 }
 
-static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
-				  struct nameidata *nd)
-{
-	struct inode *inode;
-	int err;
-
-	err = fuse_lookup_iget(dir, entry, &inode);
-	if (err)
-		return ERR_PTR(err);
-	if (inode && dir_alias(inode)) {
-		iput(inode);
-		return ERR_PTR(-EIO);
-	}
-	d_add(entry, inode);
-	return NULL;
-}
-
 static int fuse_setxattr(struct dentry *entry, const char *name,
 			 const void *value, size_t size, int flags)
 {
@@ -908,9 +985,6 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 	struct fuse_req *req;
 	struct fuse_setxattr_in inarg;
 	int err;
-
-	if (size > FUSE_XATTR_SIZE_MAX)
-		return -E2BIG;
 
 	if (fc->no_setxattr)
 		return -EOPNOTSUPP;

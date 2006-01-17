@@ -921,7 +921,6 @@ struct zfcp_adapter {
 	u32			physical_s_id;     /* local FC port ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u8			fc_service_class;
-	u32			fc_topology;	   /* FC topology */
 	u32			hydra_version;	   /* Hydra version */
 	u32			fsf_lic_version;
 	u32			adapter_features;  /* FCP channel features */
@@ -978,6 +977,9 @@ struct zfcp_adapter {
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
 	struct device           generic_services;  /* directory for WKA ports */
+	struct fc_host_statistics *fc_stats;
+	struct fsf_qtcb_bottom_port *stats_reset_data;
+	unsigned long		stats_reset;
 };
 
 /*

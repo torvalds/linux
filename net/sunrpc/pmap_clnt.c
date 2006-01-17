@@ -90,8 +90,7 @@ bailout:
 	map->pm_binding = 0;
 	rpc_wake_up(&map->pm_bindwait);
 	spin_unlock(&pmap_lock);
-	task->tk_status = -EIO;
-	task->tk_action = NULL;
+	rpc_exit(task, -EIO);
 }
 
 #ifdef CONFIG_ROOT_NFS
@@ -132,21 +131,22 @@ static void
 pmap_getport_done(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
+	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpc_portmap *map = clnt->cl_pmap;
 
 	dprintk("RPC: %4d pmap_getport_done(status %d, port %d)\n",
 			task->tk_pid, task->tk_status, clnt->cl_port);
+
+	xprt->ops->set_port(xprt, 0);
 	if (task->tk_status < 0) {
 		/* Make the calling task exit with an error */
-		task->tk_action = NULL;
+		task->tk_action = rpc_exit_task;
 	} else if (clnt->cl_port == 0) {
 		/* Program not registered */
-		task->tk_status = -EACCES;
-		task->tk_action = NULL;
+		rpc_exit(task, -EACCES);
 	} else {
-		/* byte-swap port number first */
+		xprt->ops->set_port(xprt, clnt->cl_port);
 		clnt->cl_port = htons(clnt->cl_port);
-		clnt->cl_xprt->addr.sin_port = clnt->cl_port;
 	}
 	spin_lock(&pmap_lock);
 	map->pm_binding = 0;
@@ -207,7 +207,7 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto, int privileg
 	xprt = xprt_create_proto(proto, srvaddr, NULL);
 	if (IS_ERR(xprt))
 		return (struct rpc_clnt *)xprt;
-	xprt->addr.sin_port = htons(RPC_PMAP_PORT);
+	xprt->ops->set_port(xprt, RPC_PMAP_PORT);
 	if (!privileged)
 		xprt->resvport = 0;
 
@@ -217,7 +217,6 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto, int privileg
 				RPC_AUTH_UNIX);
 	if (!IS_ERR(clnt)) {
 		clnt->cl_softrtry = 1;
-		clnt->cl_chatty   = 1;
 		clnt->cl_oneshot  = 1;
 	}
 	return clnt;

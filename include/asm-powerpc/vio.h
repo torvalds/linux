@@ -13,6 +13,7 @@
 
 #ifndef _ASM_POWERPC_VIO_H
 #define _ASM_POWERPC_VIO_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <linux/init.h>
@@ -103,4 +104,5 @@ static inline struct vio_dev *to_vio_dev(struct device *dev)
 	return container_of(dev, struct vio_dev, dev);
 }
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_VIO_H */

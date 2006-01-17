@@ -18,10 +18,10 @@ int pcibr_invalidate_ate = 0;	/* by default don't invalidate ATE on free */
  * mark_ate: Mark the ate as either free or inuse.
  */
 static void mark_ate(struct ate_resource *ate_resource, int start, int number,
-		     uint64_t value)
+		     u64 value)
 {
 
-	uint64_t *ate = ate_resource->ate;
+	u64 *ate = ate_resource->ate;
 	int index;
 	int length = 0;
 
@@ -38,7 +38,7 @@ static int find_free_ate(struct ate_resource *ate_resource, int start,
 			 int count)
 {
 
-	uint64_t *ate = ate_resource->ate;
+	u64 *ate = ate_resource->ate;
 	int index;
 	int start_free;
 
@@ -119,7 +119,7 @@ static inline int alloc_ate_resource(struct ate_resource *ate_resource,
 int pcibr_ate_alloc(struct pcibus_info *pcibus_info, int count)
 {
 	int status = 0;
-	uint64_t flag;
+	u64 flag;
 
 	flag = pcibr_lock(pcibus_info);
 	status = alloc_ate_resource(&pcibus_info->pbi_int_ate_resource, count);
@@ -139,7 +139,7 @@ int pcibr_ate_alloc(struct pcibus_info *pcibus_info, int count)
  * Setup an Address Translation Entry as specified.  Use either the Bridge
  * internal maps or the external map RAM, as appropriate.
  */
-static inline uint64_t *pcibr_ate_addr(struct pcibus_info *pcibus_info,
+static inline u64 *pcibr_ate_addr(struct pcibus_info *pcibus_info,
 				       int ate_index)
 {
 	if (ate_index < pcibus_info->pbi_int_ate_size) {
@@ -153,7 +153,7 @@ static inline uint64_t *pcibr_ate_addr(struct pcibus_info *pcibus_info,
  */
 void inline
 ate_write(struct pcibus_info *pcibus_info, int ate_index, int count,
-	  volatile uint64_t ate)
+	  volatile u64 ate)
 {
 	while (count-- > 0) {
 		if (ate_index < pcibus_info->pbi_int_ate_size) {
@@ -171,9 +171,9 @@ ate_write(struct pcibus_info *pcibus_info, int ate_index, int count,
 void pcibr_ate_free(struct pcibus_info *pcibus_info, int index)
 {
 
-	volatile uint64_t ate;
+	volatile u64 ate;
 	int count;
-	uint64_t flags;
+	u64 flags;
 
 	if (pcibr_invalidate_ate) {
 		/* For debugging purposes, clear the valid bit in the ATE */

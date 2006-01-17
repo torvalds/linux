@@ -179,7 +179,7 @@ config HUGETLB_PAGE_SIZE_512K
 	bool "512K"
 
 config HUGETLB_PAGE_SIZE_64K
-	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512K
+	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB
 	bool "64K"
 
 endchoice
@@ -305,11 +305,6 @@ config SPARC32_COMPAT
 	  Everybody wants this; say Y.
 
 config COMPAT
-	bool
-	depends on SPARC32_COMPAT
-	default y
-
-config UID16
 	bool
 	depends on SPARC32_COMPAT
 	default y

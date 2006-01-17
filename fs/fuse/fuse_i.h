@@ -21,6 +21,9 @@
 /** If more requests are outstanding, then the operation will block */
 #define FUSE_MAX_OUTSTANDING 10
 
+/** It could be as large as PATH_MAX, but would that have any uses? */
+#define FUSE_NAME_MAX 1024
+
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
     permission checking is done in the kernel */
@@ -91,6 +94,11 @@ struct fuse_out {
 	/** Header returned from userspace */
 	struct fuse_out_header h;
 
+	/*
+	 * The following bitfields are not changed during the request
+	 * processing
+	 */
+
 	/** Last argument is variable length (can be shorter than
 	    arg->size) */
 	unsigned argvar:1;
@@ -108,15 +116,23 @@ struct fuse_out {
 	struct fuse_arg args[3];
 };
 
-struct fuse_req;
+/** The request state */
+enum fuse_req_state {
+	FUSE_REQ_INIT = 0,
+	FUSE_REQ_PENDING,
+	FUSE_REQ_READING,
+	FUSE_REQ_SENT,
+	FUSE_REQ_FINISHED
+};
+
 struct fuse_conn;
 
 /**
  * A request to the client
  */
 struct fuse_req {
-	/** This can be on either unused_list, pending or processing
-	    lists in fuse_conn */
+	/** This can be on either unused_list, pending processing or
+	    io lists in fuse_conn */
 	struct list_head list;
 
 	/** Entry on the background list */
@@ -124,6 +140,12 @@ struct fuse_req {
 
 	/** refcount */
 	atomic_t count;
+
+	/*
+	 * The following bitfields are either set once before the
+	 * request is queued or setting/clearing them is protected by
+	 * fuse_lock
+	 */
 
 	/** True if the request has reply */
 	unsigned isreply:1;
@@ -140,11 +162,8 @@ struct fuse_req {
 	/** Data is being copied to/from the request */
 	unsigned locked:1;
 
-	/** Request has been sent to userspace */
-	unsigned sent:1;
-
-	/** The request is finished */
-	unsigned finished:1;
+	/** State of the request */
+	enum fuse_req_state state;
 
 	/** The request input */
 	struct fuse_in in;
@@ -159,7 +178,9 @@ struct fuse_req {
 	union {
 		struct fuse_forget_in forget_in;
 		struct fuse_release_in release_in;
-		struct fuse_init_in_out init_in_out;
+		struct fuse_init_in init_in;
+		struct fuse_init_out init_out;
+		struct fuse_read_in read_in;
 	} misc;
 
 	/** page vector */
@@ -179,6 +200,9 @@ struct fuse_req {
 
 	/** File used in the request (or NULL) */
 	struct file *file;
+
+	/** Request completion callback */
+	void (*end)(struct fuse_conn *, struct fuse_req *);
 };
 
 /**
@@ -189,9 +213,6 @@ struct fuse_req {
  * unmounted.
  */
 struct fuse_conn {
-	/** Reference count */
-	int count;
-
 	/** The user id for this mount */
 	uid_t user_id;
 
@@ -216,6 +237,9 @@ struct fuse_conn {
 	/** The list of requests being processed */
 	struct list_head processing;
 
+	/** The list of requests under I/O */
+	struct list_head io;
+
 	/** Requests put in the background (RELEASE or any other
 	    interrupted request) */
 	struct list_head background;
@@ -237,13 +261,21 @@ struct fuse_conn {
 	u64 reqctr;
 
 	/** Mount is active */
-	unsigned mounted : 1;
+	unsigned mounted;
 
-	/** Connection established */
-	unsigned connected : 1;
+	/** Connection established, cleared on umount, connection
+	    abort and device release */
+	unsigned connected;
 
-	/** Connection failed (version mismatch) */
+	/** Connection failed (version mismatch).  Cannot race with
+	    setting other bitfields since it is only set once in INIT
+	    reply, before any other request, and never cleared */
 	unsigned conn_error : 1;
+
+	/*
+	 * The following bitfields are only for optimization purposes
+	 * and hence races in setting them will not cause malfunction
+	 */
 
 	/** Is fsync not implemented by fs? */
 	unsigned no_fsync : 1;
@@ -272,23 +304,32 @@ struct fuse_conn {
 	/** Is create not implemented by fs? */
 	unsigned no_create : 1;
 
+	/** The number of requests waiting for completion */
+	atomic_t num_waiting;
+
+	/** Negotiated minor version */
+	unsigned minor;
+
 	/** Backing dev info */
 	struct backing_dev_info bdi;
-};
 
-static inline struct fuse_conn **get_fuse_conn_super_p(struct super_block *sb)
-{
-	return (struct fuse_conn **) &sb->s_fs_info;
-}
+	/** kobject */
+	struct kobject kobj;
+};
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 {
-	return *get_fuse_conn_super_p(sb);
+	return sb->s_fs_info;
 }
 
 static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
 {
 	return get_fuse_conn_super(inode->i_sb);
+}
+
+static inline struct fuse_conn *get_fuse_conn_kobj(struct kobject *obj)
+{
+	return container_of(obj, struct fuse_conn, kobj);
 }
 
 static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
@@ -332,11 +373,10 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 		      unsigned long nodeid, u64 nlookup);
 
 /**
- * Send READ or READDIR request
+ * Initialize READ or READDIR request
  */
-size_t fuse_send_read_common(struct fuse_req *req, struct file *file,
-			     struct inode *inode, loff_t pos, size_t count,
-			     int isdir);
+void fuse_read_fill(struct fuse_req *req, struct file *file,
+		    struct inode *inode, loff_t pos, size_t count, int opcode);
 
 /**
  * Send OPEN or OPENDIR request
@@ -389,12 +429,6 @@ void fuse_init_symlink(struct inode *inode);
  * Change attributes of an inode
  */
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr);
-
-/**
- * Check if the connection can be released, and if yes, then free the
- * connection structure
- */
-void fuse_release_conn(struct fuse_conn *fc);
 
 /**
  * Initialize the client device
@@ -452,6 +486,9 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
  */
 void fuse_release_background(struct fuse_req *req);
 
+/* Abort all requests */
+void fuse_abort_conn(struct fuse_conn *fc);
+
 /**
  * Get the attributes of a file
  */
@@ -461,8 +498,3 @@ int fuse_do_getattr(struct inode *inode);
  * Invalidate inode attributes
  */
 void fuse_invalidate_attr(struct inode *inode);
-
-/**
- * Send the INIT message
- */
-void fuse_send_init(struct fuse_conn *fc);

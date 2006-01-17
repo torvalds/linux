@@ -228,7 +228,7 @@ static struct crypt_iv_operations crypt_iv_essiv_ops = {
 };
 
 
-static inline int
+static int
 crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
                           struct scatterlist *in, unsigned int length,
                           int write, sector_t sector)
@@ -690,6 +690,8 @@ bad3:
 bad2:
 	crypto_free_tfm(tfm);
 bad1:
+	/* Must zero key material before freeing */
+	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
 	kfree(cc);
 	return -EINVAL;
 }
@@ -706,6 +708,9 @@ static void crypt_dtr(struct dm_target *ti)
 		cc->iv_gen_ops->dtr(cc);
 	crypto_free_tfm(cc->tfm);
 	dm_put_device(ti, cc->dev);
+
+	/* Must zero key material before freeing */
+	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
 	kfree(cc);
 }
 

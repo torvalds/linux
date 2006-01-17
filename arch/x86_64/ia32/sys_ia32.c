@@ -969,25 +969,6 @@ long sys32_kill(int pid, int sig)
 	return sys_kill(pid, sig);
 }
  
-extern asmlinkage long
-sys_timer_create(clockid_t which_clock,
-		 struct sigevent __user *timer_event_spec,
-		 timer_t __user * created_timer_id);
-
-long
-sys32_timer_create(u32 clock, struct compat_sigevent __user *se32, timer_t __user *timer_id)
-{
-	struct sigevent __user *p = NULL;
-	if (se32) { 
-		struct sigevent se;
-		p = compat_alloc_user_space(sizeof(struct sigevent));
-		if (get_compat_sigevent(&se, se32) ||
-		    copy_to_user(p, &se, sizeof(se)))
-			return -EFAULT;
-	} 
-	return sys_timer_create(clock, p, timer_id);
-} 
-
 long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high, 
 			__u32 len_low, __u32 len_high, int advice)
 { 

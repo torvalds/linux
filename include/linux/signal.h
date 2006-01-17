@@ -18,6 +18,19 @@
 #define SA_PROBE		SA_ONESHOT
 #define SA_SAMPLE_RANDOM	SA_RESTART
 #define SA_SHIRQ		0x04000000
+/*
+ * As above, these correspond to the IORESOURCE_IRQ_* defines in
+ * linux/ioport.h to select the interrupt line behaviour.  When
+ * requesting an interrupt without specifying a SA_TRIGGER, the
+ * setting should be assumed to be "as already configured", which
+ * may be as per machine or firmware initialisation.
+ */
+#define SA_TRIGGER_LOW		0x00000008
+#define SA_TRIGGER_HIGH		0x00000004
+#define SA_TRIGGER_FALLING	0x00000002
+#define SA_TRIGGER_RISING	0x00000001
+#define SA_TRIGGER_MASK	(SA_TRIGGER_HIGH|SA_TRIGGER_LOW|\
+				 SA_TRIGGER_RISING|SA_TRIGGER_FALLING)
 
 /*
  * Real Time signals may be queued.
@@ -80,6 +93,23 @@ static inline int sigfindinword(unsigned long word)
 }
 
 #endif /* __HAVE_ARCH_SIG_BITOPS */
+
+static inline int sigisemptyset(sigset_t *set)
+{
+	extern void _NSIG_WORDS_is_unsupported_size(void);
+	switch (_NSIG_WORDS) {
+	case 4:
+		return (set->sig[3] | set->sig[2] |
+			set->sig[1] | set->sig[0]) == 0;
+	case 2:
+		return (set->sig[1] | set->sig[0]) == 0;
+	case 1:
+		return set->sig[0] == 0;
+	default:
+		_NSIG_WORDS_is_unsupported_size();
+		return 0;
+	}
+}
 
 #define sigmask(sig)	(1UL << ((sig) - 1))
 

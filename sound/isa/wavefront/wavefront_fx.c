@@ -460,7 +460,7 @@ snd_wavefront_fx_detect (snd_wavefront_t *dev)
 }
 
 int
-snd_wavefront_fx_open (snd_hwdep_t *hw, struct file *file)
+snd_wavefront_fx_open (struct snd_hwdep *hw, struct file *file)
 
 {
 	if (!try_module_get(hw->card->module))
@@ -470,7 +470,7 @@ snd_wavefront_fx_open (snd_hwdep_t *hw, struct file *file)
 }
 
 int 
-snd_wavefront_fx_release (snd_hwdep_t *hw, struct file *file)
+snd_wavefront_fx_release (struct snd_hwdep *hw, struct file *file)
 
 {
 	module_put(hw->card->module);
@@ -478,11 +478,11 @@ snd_wavefront_fx_release (snd_hwdep_t *hw, struct file *file)
 }
 
 int
-snd_wavefront_fx_ioctl (snd_hwdep_t *sdev, struct file *file,
+snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 			unsigned int cmd, unsigned long arg)
 
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	snd_wavefront_card_t *acard;
 	snd_wavefront_t *dev;
 	wavefront_fx_info r;

@@ -108,7 +108,6 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/cdev.h>
 
@@ -122,15 +121,6 @@
 #include "dv1394-private.h"
 
 #include "ohci1394.h"
-
-#ifndef virt_to_page
-#define virt_to_page(x) MAP_NR(x)
-#endif
-
-#ifndef vmalloc_32
-#define vmalloc_32(x) vmalloc(x)
-#endif
-
 
 /* DEBUG LEVELS:
    0 - no debugging messages
@@ -2218,13 +2208,11 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	unsigned long flags;
 	int i;
 
-	video = kmalloc(sizeof(struct video_card), GFP_KERNEL);
+	video = kzalloc(sizeof(*video), GFP_KERNEL);
 	if (!video) {
 		printk(KERN_ERR "dv1394: cannot allocate video_card\n");
 		goto err;
 	}
-
-	memset(video, 0, sizeof(struct video_card));
 
 	video->ohci = ohci;
 	/* lower 2 bits of id indicate which of four "plugs"

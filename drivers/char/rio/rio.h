@@ -72,8 +72,8 @@ static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
 #define	RIO_HOSTS	4	/* number of hosts that can be found */
 #define	PORTS_PER_HOST	128	/* number of ports per host */
 #define	LINKS_PER_UNIT	4	/* number of links from a host */
-#define	RIO_PORTS	(PORTS_PER_HOST * RIO_HOSTS) /* max. no. of ports */
-#define	RTAS_PER_HOST	(MAX_RUP) /* number of RTAs per host */
+#define	RIO_PORTS	(PORTS_PER_HOST * RIO_HOSTS)	/* max. no. of ports */
+#define	RTAS_PER_HOST	(MAX_RUP)	/* number of RTAs per host */
 #define	PORTS_PER_RTA	(PORTS_PER_HOST/RTAS_PER_HOST)	/* ports on a rta */
 #define	PORTS_PER_MODULE 4	/* number of ports on a plug-in module */
 				/* number of modules on an RTA */
@@ -216,10 +216,9 @@ static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
 #define	RIO_PRI	(PZERO+10)
 #define RIO_CLOSE_PRI	PZERO-1	/* uninterruptible sleeps for close */
 
-typedef struct DbInf
-{
-	uint	Flag;
-	char	Name[8];
+typedef struct DbInf {
+	uint Flag;
+	char Name[8];
 } DbInf;
 
 #ifndef TRUE
@@ -251,7 +250,7 @@ typedef struct DbInf
 	*((uint *)PK)    = PP->PacketInfo; \
 }
 
-#define	RIO_LINK_ENABLE	0x80FF /* FF is a hack, mainly for Mips, to        */
+#define	RIO_LINK_ENABLE	0x80FF	/* FF is a hack, mainly for Mips, to        */
 			       /* prevent a really stupid race condition.  */
 
 #define	NOT_INITIALISED	0
@@ -291,4 +290,4 @@ typedef struct DbInf
 #define DIST_LINESW_OUTPUT	0x40
 #define DIST_LINESW_MDMINT	0x80
 
-#endif /* __rio_h__ */
+#endif				/* __rio_h__ */

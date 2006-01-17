@@ -42,6 +42,7 @@
  *  on every box. 
  */
 
+#include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
@@ -66,10 +67,10 @@ struct rdr_tbl_ent {
 	uint8_t		write_control;
 };
 
-static int perf_processor_interface = UNKNOWN_INTF;
-static int perf_enabled = 0;
+static int perf_processor_interface __read_mostly = UNKNOWN_INTF;
+static int perf_enabled __read_mostly = 0;
 static spinlock_t perf_lock;
-struct parisc_device *cpu_device = NULL;
+struct parisc_device *cpu_device __read_mostly = NULL;
 
 /* RDRs to write for PCX-W */
 static int perf_rdrs_W[] = 

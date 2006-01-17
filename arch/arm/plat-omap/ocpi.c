@@ -31,9 +31,9 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 #include <asm/hardware.h>
 
 #define OCPI_BASE		0xfffec320

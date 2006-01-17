@@ -57,30 +57,16 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 	       (unsigned long) data);
 #endif
 	lock_kernel();
-	ret = -EPERM;
 	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		if ((ret = security_ptrace(current->parent, current)))
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
+		ret = ptrace_traceme();
 		goto out;
 	}
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
 
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
+		goto out;
+	}
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);
@@ -140,8 +126,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		struct pt_regs *regs;
 		unsigned int tmp;
 
-		regs = (struct pt_regs *) ((unsigned long) child->thread_info +
-		       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+		regs = task_pt_regs(child);
 		ret = 0;  /* Default return value. */
 
 		switch (addr) {
@@ -215,12 +200,8 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 				ret = -EIO;
 				goto out_tsk;
 			}
-			if (child->thread.dsp.used_dsp) {
-				dspreg_t *dregs = __get_dsp_regs(child);
-				tmp = (unsigned long) (dregs[addr - DSP_BASE]);
-			} else {
-				tmp = -1;	/* DSP registers yet used  */
-			}
+			dspreg_t *dregs = __get_dsp_regs(child);
+			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
 			break;
 		case DSP_CONTROL:
 			if (!cpu_has_dsp) {
@@ -277,8 +258,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 	case PTRACE_POKEUSR: {
 		struct pt_regs *regs;
 		ret = 0;
-		regs = (struct pt_regs *) ((unsigned long) child->thread_info +
-		       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+		regs = task_pt_regs(child);
 
 		switch (addr) {
 		case 0 ... 31:
@@ -395,7 +375,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		break;
 
 	case PTRACE_GET_THREAD_AREA:
-		ret = put_user(child->thread_info->tp_value,
+		ret = put_user(task_thread_info(child)->tp_value,
 				(unsigned int __user *) (unsigned long) data);
 		break;
 
@@ -409,7 +389,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		break;
 
 	case PTRACE_GET_THREAD_AREA_3264:
-		ret = put_user(child->thread_info->tp_value,
+		ret = put_user(task_thread_info(child)->tp_value,
 				(unsigned long __user *) (unsigned long) data);
 		break;
 

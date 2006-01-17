@@ -113,8 +113,8 @@ struct pt_regs {
 };
 
 #ifdef __KERNEL__
-# define xtensa_pt_regs(tsk) ((struct pt_regs*) \
-  (((long)(tsk)->thread_info + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4)) - 1)
+# define task_pt_regs(tsk) ((struct pt_regs*) \
+  (task_stack_page(tsk) + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4) - 1)
 # define user_mode(regs) (((regs)->ps & 0x00000020)!=0)
 # define instruction_pointer(regs) ((regs)->pc)
 extern void show_regs(struct pt_regs *);

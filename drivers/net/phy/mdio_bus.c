@@ -81,7 +81,7 @@ int mdiobus_register(struct mii_bus *bus)
 
 			phydev->dev.parent = bus->dev;
 			phydev->dev.bus = &mdio_bus_type;
-			sprintf(phydev->dev.bus_id, "phy%d:%d", bus->id, i);
+			snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, i);
 
 			phydev->bus = bus;
 

@@ -19,7 +19,7 @@ extern int budget_debug;
 #endif
 
 #define dprintk(level,args...) \
-	    do { if ((budget_debug & level)) { printk("%s: %s(): ",__stringify(KBUILD_MODNAME), __FUNCTION__); printk(args); } } while (0)
+	    do { if ((budget_debug & level)) { printk("%s: %s(): ", KBUILD_MODNAME, __FUNCTION__); printk(args); } } while (0)
 
 struct budget_info {
 	char *name;
@@ -95,6 +95,7 @@ static struct saa7146_pci_extension_data x_var = { \
 #define BUDGET_KNC1SP		   11
 #define BUDGET_KNC1CP		   12
 #define BUDGET_KNC1TP		   13
+#define BUDGET_TVSTAR		   14
 
 #define BUDGET_VIDEO_PORTA         0
 #define BUDGET_VIDEO_PORTB         1

@@ -222,7 +222,7 @@
    <title>Two Main Types of Kernel Locks: Spinlocks and Semaphores</title>
 
    <para>
-     There are two main types of kernel locks.  The fundamental type
+     There are three main types of kernel locks.  The fundamental type
      is the spinlock 
      (<filename class="headerfile">include/asm/spinlock.h</filename>),
      which is a very simple single-holder lock: if you can't get the 
@@ -230,16 +230,22 @@
      very small and fast, and can be used anywhere.
    </para>
    <para>
-     The second type is a semaphore
+     The second type is a mutex
+     (<filename class="headerfile">include/linux/mutex.h</filename>): it
+     is like a spinlock, but you may block holding a mutex.
+     If you can't lock a mutex, your task will suspend itself, and be woken
+     up when the mutex is released.  This means the CPU can do something
+     else while you are waiting.  There are many cases when you simply
+     can't sleep (see <xref linkend="sleeping-things"/>), and so have to
+     use a spinlock instead.
+   </para>
+   <para>
+     The third type is a semaphore
      (<filename class="headerfile">include/asm/semaphore.h</filename>): it
      can have more than one holder at any time (the number decided at
      initialization time), although it is most commonly used as a
-     single-holder lock (a mutex).  If you can't get a semaphore,
-     your task will put itself on the queue, and be woken up when the
-     semaphore is released.  This means the CPU will do something
-     else while you are waiting, but there are many cases when you
-     simply can't sleep (see <xref linkend="sleeping-things"/>), and so
-     have to use a spinlock instead.
+     single-holder lock (a mutex).  If you can't get a semaphore, your
+     task will be suspended and later on woken up - just like for mutexes.
    </para>
    <para>
      Neither type of lock is recursive: see

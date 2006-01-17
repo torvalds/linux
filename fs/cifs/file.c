@@ -127,8 +127,7 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 		if (file->f_dentry->d_inode->i_mapping) {
 		/* BB no need to lock inode until after invalidate
 		   since namei code should already have it locked? */
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-			filemap_fdatawait(file->f_dentry->d_inode->i_mapping);
+			filemap_write_and_wait(file->f_dentry->d_inode->i_mapping);
 		}
 		cFYI(1, ("invalidating remote inode since open detected it "
 			 "changed"));
@@ -419,8 +418,7 @@ static int cifs_reopen_file(struct inode *inode, struct file *file,
 		pCifsInode = CIFS_I(inode);
 		if (pCifsInode) {
 			if (can_flush) {
-				filemap_fdatawrite(inode->i_mapping);
-				filemap_fdatawait(inode->i_mapping);
+				filemap_write_and_wait(inode->i_mapping);
 			/* temporarily disable caching while we
 			   go to server to get inode info */
 				pCifsInode->clientCanCacheAll = FALSE;

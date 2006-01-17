@@ -1,9 +1,9 @@
 /*
  *  linux/drivers/s390/crypto/z90hardware.c
  *
- *  z90crypt 1.3.2
+ *  z90crypt 1.3.3
  *
- *  Copyright (C)  2001, 2004 IBM Corporation
+ *  Copyright (C)  2001, 2005 IBM Corporation
  *  Author(s): Robert Burroughs (burrough@us.ibm.com)
  *             Eric Rossman (edrossma@us.ibm.com)
  *
@@ -648,6 +648,87 @@ static struct cca_public_sec static_cca_pub_sec = {
 #define RESPONSE_CPRB_SIZE  0x000006B8
 #define RESPONSE_CPRBX_SIZE 0x00000724
 
+struct type50_hdr {
+	u8    reserved1;
+	u8    msg_type_code;
+	u16   msg_len;
+	u8    reserved2;
+	u8    ignored;
+	u16   reserved3;
+};
+
+#define TYPE50_TYPE_CODE 0x50
+
+#define TYPE50_MEB1_LEN (sizeof(struct type50_meb1_msg))
+#define TYPE50_MEB2_LEN (sizeof(struct type50_meb2_msg))
+#define TYPE50_CRB1_LEN (sizeof(struct type50_crb1_msg))
+#define TYPE50_CRB2_LEN (sizeof(struct type50_crb2_msg))
+
+#define TYPE50_MEB1_FMT 0x0001
+#define TYPE50_MEB2_FMT 0x0002
+#define TYPE50_CRB1_FMT 0x0011
+#define TYPE50_CRB2_FMT 0x0012
+
+struct type50_meb1_msg {
+	struct type50_hdr	header;
+	u16			keyblock_type;
+	u8			reserved[6];
+	u8			exponent[128];
+	u8			modulus[128];
+	u8			message[128];
+};
+
+struct type50_meb2_msg {
+	struct type50_hdr	header;
+	u16			keyblock_type;
+	u8			reserved[6];
+	u8			exponent[256];
+	u8			modulus[256];
+	u8			message[256];
+};
+
+struct type50_crb1_msg {
+	struct type50_hdr	header;
+	u16			keyblock_type;
+	u8			reserved[6];
+	u8			p[64];
+	u8			q[64];
+	u8			dp[64];
+	u8			dq[64];
+	u8			u[64];
+	u8			message[128];
+};
+
+struct type50_crb2_msg {
+	struct type50_hdr	header;
+	u16			keyblock_type;
+	u8			reserved[6];
+	u8			p[128];
+	u8			q[128];
+	u8			dp[128];
+	u8			dq[128];
+	u8			u[128];
+	u8			message[256];
+};
+
+union type50_msg {
+	struct type50_meb1_msg meb1;
+	struct type50_meb2_msg meb2;
+	struct type50_crb1_msg crb1;
+	struct type50_crb2_msg crb2;
+};
+
+struct type80_hdr {
+	u8	reserved1;
+	u8	type;
+	u16	len;
+	u8	code;
+	u8	reserved2[3];
+	u8	reserved3[8];
+};
+
+#define TYPE80_RSP_CODE 0x80
+
 struct error_hdr {
 	unsigned char reserved1;
 	unsigned char type;
@@ -657,6 +738,7 @@ struct error_hdr {
 };
 
 #define TYPE82_RSP_CODE 0x82
+#define TYPE88_RSP_CODE 0x88
 
 #define REP82_ERROR_MACHINE_FAILURE  0x10
 #define REP82_ERROR_PREEMPT_FAILURE  0x12
@@ -679,6 +761,22 @@ struct error_hdr {
 #define REP82_ERROR_PACKET_TRUNCATED 0xA0
 #define REP82_ERROR_ZERO_BUFFER_LEN  0xB0
 
+#define REP88_ERROR_MODULE_FAILURE   0x10
+#define REP88_ERROR_MODULE_TIMEOUT   0x11
+#define REP88_ERROR_MODULE_NOTINIT   0x13
+#define REP88_ERROR_MODULE_NOTAVAIL  0x14
+#define REP88_ERROR_MODULE_DISABLED  0x15
+#define REP88_ERROR_MODULE_IN_DIAGN  0x17
+#define REP88_ERROR_FASTPATH_DISABLD 0x19
+#define REP88_ERROR_MESSAGE_TYPE     0x20
+#define REP88_ERROR_MESSAGE_MALFORMD 0x22
+#define REP88_ERROR_MESSAGE_LENGTH   0x23
+#define REP88_ERROR_RESERVED_FIELD   0x24
+#define REP88_ERROR_KEY_TYPE         0x34
+#define REP88_ERROR_INVALID_KEY      0x82
+#define REP88_ERROR_OPERAND          0x84
+#define REP88_ERROR_OPERAND_EVEN_MOD 0x85
+
 #define CALLER_HEADER 12
 
 static inline int
@@ -687,7 +785,7 @@ testq(int q_nr, int *q_depth, int *dev_type, struct ap_status_word *stat)
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	llgfr	0,%4		\n"
 	 "	slgr	1,1		\n"
 	 "	lgr	2,1		\n"
@@ -757,7 +855,7 @@ resetq(int q_nr, struct ap_status_word *stat_p)
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	llgfr	0,%2		\n"
 	 "	lghi	1,1		\n"
 	 "	sll	1,24		\n"
@@ -823,7 +921,7 @@ sen(int msg_len, unsigned char *msg_ext, struct ap_status_word *stat)
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	lgr	6,%3		\n"
 	 "	llgfr	7,%2		\n"
 	 "	llgt	0,0(6)		\n"
@@ -902,7 +1000,7 @@ rec(int q_nr, int buff_l, unsigned char *rsp, unsigned char *id,
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	llgfr	0,%2		\n"
 	 "	lgr	3,%4		\n"
 	 "	lgr	6,%3		\n"
@@ -1029,10 +1127,6 @@ query_online(int deviceNr, int cdx, int resetNr, int *q_depth, int *dev_type)
 			stat = HD_ONLINE;
 			*q_depth = t_depth + 1;
 			switch (t_dev_type) {
-			case OTHER_HW:
-				stat = HD_NOT_THERE;
-				*dev_type = NILDEV;
-				break;
 			case PCICA_HW:
 				*dev_type = PCICA;
 				break;
@@ -1044,6 +1138,9 @@ query_online(int deviceNr, int cdx, int resetNr, int *q_depth, int *dev_type)
 				break;
 			case CEX2C_HW:
 				*dev_type = CEX2C;
+				break;
+			case CEX2A_HW:
+				*dev_type = CEX2A;
 				break;
 			default:
 				*dev_type = NILDEV;
@@ -2029,6 +2126,177 @@ ICACRT_msg_to_type6CRT_msgX(struct ica_rsa_modexpo_crt *icaMsg_p, int cdx,
 	return 0;
 }
 
+static int
+ICAMEX_msg_to_type50MEX_msg(struct ica_rsa_modexpo *icaMex_p, int *z90cMsg_l_p,
+			    union type50_msg *z90cMsg_p)
+{
+	int mod_len, msg_size, mod_tgt_len, exp_tgt_len, inp_tgt_len;
+	unsigned char *mod_tgt, *exp_tgt, *inp_tgt;
+	union type50_msg *tmp_type50_msg;
+
+	mod_len = icaMex_p->inputdatalength;
+
+	msg_size = ((mod_len <= 128) ? TYPE50_MEB1_LEN : TYPE50_MEB2_LEN) +
+		    CALLER_HEADER;
+
+	memset(z90cMsg_p, 0, msg_size);
+
+	tmp_type50_msg = (union type50_msg *)
+		((unsigned char *) z90cMsg_p + CALLER_HEADER);
+
+	tmp_type50_msg->meb1.header.msg_type_code = TYPE50_TYPE_CODE;
+
+	if (mod_len <= 128) {
+		tmp_type50_msg->meb1.header.msg_len = TYPE50_MEB1_LEN;
+		tmp_type50_msg->meb1.keyblock_type = TYPE50_MEB1_FMT;
+		mod_tgt = tmp_type50_msg->meb1.modulus;
+		mod_tgt_len = sizeof(tmp_type50_msg->meb1.modulus);
+		exp_tgt = tmp_type50_msg->meb1.exponent;
+		exp_tgt_len = sizeof(tmp_type50_msg->meb1.exponent);
+		inp_tgt = tmp_type50_msg->meb1.message;
+		inp_tgt_len = sizeof(tmp_type50_msg->meb1.message);
+	} else {
+		tmp_type50_msg->meb2.header.msg_len = TYPE50_MEB2_LEN;
+		tmp_type50_msg->meb2.keyblock_type = TYPE50_MEB2_FMT;
+		mod_tgt = tmp_type50_msg->meb2.modulus;
+		mod_tgt_len = sizeof(tmp_type50_msg->meb2.modulus);
+		exp_tgt = tmp_type50_msg->meb2.exponent;
+		exp_tgt_len = sizeof(tmp_type50_msg->meb2.exponent);
+		inp_tgt = tmp_type50_msg->meb2.message;
+		inp_tgt_len = sizeof(tmp_type50_msg->meb2.message);
+	}
+
+	mod_tgt += (mod_tgt_len - mod_len);
+	if (copy_from_user(mod_tgt, icaMex_p->n_modulus, mod_len))
+		return SEN_RELEASED;
+	if (is_empty(mod_tgt, mod_len))
+		return SEN_USER_ERROR;
+	exp_tgt += (exp_tgt_len - mod_len);
+	if (copy_from_user(exp_tgt, icaMex_p->b_key, mod_len))
+		return SEN_RELEASED;
+	if (is_empty(exp_tgt, mod_len))
+		return SEN_USER_ERROR;
+	inp_tgt += (inp_tgt_len - mod_len);
+	if (copy_from_user(inp_tgt, icaMex_p->inputdata, mod_len))
+		return SEN_RELEASED;
+	if (is_empty(inp_tgt, mod_len))
+		return SEN_USER_ERROR;
+
+	*z90cMsg_l_p = msg_size - CALLER_HEADER;
+
+	return 0;
+}
+
+static int
+ICACRT_msg_to_type50CRT_msg(struct ica_rsa_modexpo_crt *icaMsg_p,
+			    int *z90cMsg_l_p, union type50_msg *z90cMsg_p)
+{
+	int mod_len, short_len, long_len, tmp_size, p_tgt_len, q_tgt_len,
+	    dp_tgt_len, dq_tgt_len, u_tgt_len, inp_tgt_len, long_offset;
+	unsigned char *p_tgt, *q_tgt, *dp_tgt, *dq_tgt, *u_tgt, *inp_tgt,
+		      temp[8];
+	union type50_msg *tmp_type50_msg;
+
+	mod_len = icaMsg_p->inputdatalength;
+	short_len = mod_len / 2;
+	long_len = mod_len / 2 + 8;
+	long_offset = 0;
+
+	if (long_len > 128) {
+		memset(temp, 0x00, sizeof(temp));
+		if (copy_from_user(temp, icaMsg_p->np_prime, long_len-128))
+			return SEN_RELEASED;
+		if (!is_empty(temp, 8))
+			return SEN_NOT_AVAIL;
+		if (copy_from_user(temp, icaMsg_p->bp_key, long_len-128))
+			return SEN_RELEASED;
+		if (!is_empty(temp, 8))
+			return SEN_NOT_AVAIL;
+		if (copy_from_user(temp, icaMsg_p->u_mult_inv, long_len-128))
+			return SEN_RELEASED;
+		if (!is_empty(temp, 8))
+			return SEN_NOT_AVAIL;
+		long_offset = long_len - 128;
+		long_len = 128;
+	}
+
+	tmp_size = ((mod_len <= 128) ? TYPE50_CRB1_LEN : TYPE50_CRB2_LEN) +
+		    CALLER_HEADER;
+
+	memset(z90cMsg_p, 0, tmp_size);
+
+	tmp_type50_msg = (union type50_msg *)
+		((unsigned char *) z90cMsg_p + CALLER_HEADER);
+
+	tmp_type50_msg->crb1.header.msg_type_code = TYPE50_TYPE_CODE;
+	if (long_len <= 64) {
+		tmp_type50_msg->crb1.header.msg_len = TYPE50_CRB1_LEN;
+		tmp_type50_msg->crb1.keyblock_type = TYPE50_CRB1_FMT;
+		p_tgt = tmp_type50_msg->crb1.p;
+		p_tgt_len = sizeof(tmp_type50_msg->crb1.p);
+		q_tgt = tmp_type50_msg->crb1.q;
+		q_tgt_len = sizeof(tmp_type50_msg->crb1.q);
+		dp_tgt = tmp_type50_msg->crb1.dp;
+		dp_tgt_len = sizeof(tmp_type50_msg->crb1.dp);
+		dq_tgt = tmp_type50_msg->crb1.dq;
+		dq_tgt_len = sizeof(tmp_type50_msg->crb1.dq);
+		u_tgt = tmp_type50_msg->crb1.u;
+		u_tgt_len = sizeof(tmp_type50_msg->crb1.u);
+		inp_tgt = tmp_type50_msg->crb1.message;
+		inp_tgt_len = sizeof(tmp_type50_msg->crb1.message);
+	} else {
+		tmp_type50_msg->crb2.header.msg_len = TYPE50_CRB2_LEN;
+		tmp_type50_msg->crb2.keyblock_type = TYPE50_CRB2_FMT;
+		p_tgt = tmp_type50_msg->crb2.p;
+		p_tgt_len = sizeof(tmp_type50_msg->crb2.p);
+		q_tgt = tmp_type50_msg->crb2.q;
+		q_tgt_len = sizeof(tmp_type50_msg->crb2.q);
+		dp_tgt = tmp_type50_msg->crb2.dp;
+		dp_tgt_len = sizeof(tmp_type50_msg->crb2.dp);
+		dq_tgt = tmp_type50_msg->crb2.dq;
+		dq_tgt_len = sizeof(tmp_type50_msg->crb2.dq);
+		u_tgt = tmp_type50_msg->crb2.u;
+		u_tgt_len = sizeof(tmp_type50_msg->crb2.u);
+		inp_tgt = tmp_type50_msg->crb2.message;
+		inp_tgt_len = sizeof(tmp_type50_msg->crb2.message);
+	}
+
+	p_tgt += (p_tgt_len - long_len);
+	if (copy_from_user(p_tgt, icaMsg_p->np_prime + long_offset, long_len))
+		return SEN_RELEASED;
+	if (is_empty(p_tgt, long_len))
+		return SEN_USER_ERROR;
+	q_tgt += (q_tgt_len - short_len);
+	if (copy_from_user(q_tgt, icaMsg_p->nq_prime, short_len))
+		return SEN_RELEASED;
+	if (is_empty(q_tgt, short_len))
+		return SEN_USER_ERROR;
+	dp_tgt += (dp_tgt_len - long_len);
+	if (copy_from_user(dp_tgt, icaMsg_p->bp_key + long_offset, long_len))
+		return SEN_RELEASED;
+	if (is_empty(dp_tgt, long_len))
+		return SEN_USER_ERROR;
+	dq_tgt += (dq_tgt_len - short_len);
+	if (copy_from_user(dq_tgt, icaMsg_p->bq_key, short_len))
+		return SEN_RELEASED;
+	if (is_empty(dq_tgt, short_len))
+		return SEN_USER_ERROR;
+	u_tgt += (u_tgt_len - long_len);
+	if (copy_from_user(u_tgt, icaMsg_p->u_mult_inv + long_offset, long_len))
+		return SEN_RELEASED;
+	if (is_empty(u_tgt, long_len))
+		return SEN_USER_ERROR;
+	inp_tgt += (inp_tgt_len - mod_len);
+	if (copy_from_user(inp_tgt, icaMsg_p->inputdata, mod_len))
+		return SEN_RELEASED;
+	if (is_empty(inp_tgt, mod_len))
+		return SEN_USER_ERROR;
+
+	*z90cMsg_l_p = tmp_size - CALLER_HEADER;
+
+	return 0;
+}
+
 int
 convert_request(unsigned char *buffer, int func, unsigned short function,
 		int cdx, int dev_type, int *msg_l_p, unsigned char *msg_p)
@@ -2071,6 +2339,16 @@ convert_request(unsigned char *buffer, int func, unsigned short function,
 				cdx, msg_l_p, (struct type6_msg *) msg_p,
 				dev_type);
 	}
+	if (dev_type == CEX2A) {
+		if (func == ICARSACRT)
+			return ICACRT_msg_to_type50CRT_msg(
+				(struct ica_rsa_modexpo_crt *) buffer,
+				msg_l_p, (union type50_msg *) msg_p);
+		else
+			return ICAMEX_msg_to_type50MEX_msg(
+				(struct ica_rsa_modexpo *) buffer,
+				msg_l_p, (union type50_msg *) msg_p);
+	}
 
 	return 0;
 }
@@ -2081,8 +2359,8 @@ unset_ext_bitlens(void)
 {
 	if (!ext_bitlens_msg_count) {
 		PRINTK("Unable to use coprocessors for extended bitlengths. "
-		       "Using PCICAs (if present) for extended bitlengths. "
-		       "This is not an error.\n");
+		       "Using PCICAs/CEX2As (if present) for extended "
+		       "bitlengths. This is not an error.\n");
 		ext_bitlens_msg_count++;
 	}
 	ext_bitlens = 0;
@@ -2094,6 +2372,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 {
 	struct ica_rsa_modexpo *icaMsg_p = (struct ica_rsa_modexpo *) buffer;
 	struct error_hdr *errh_p = (struct error_hdr *) response;
+	struct type80_hdr *t80h_p = (struct type80_hdr *) response;
 	struct type84_hdr *t84h_p = (struct type84_hdr *) response;
 	struct type86_fmt2_msg *t86m_p =  (struct type86_fmt2_msg *) response;
 	int reply_code, service_rc, service_rs, src_l;
@@ -2108,6 +2387,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 	src_l = 0;
 	switch (errh_p->type) {
 	case TYPE82_RSP_CODE:
+	case TYPE88_RSP_CODE:
 		reply_code = errh_p->reply_code;
 		src_p = (unsigned char *)errh_p;
 		PRINTK("Hardware error: Type %02X Message Header: "
@@ -2115,6 +2395,10 @@ convert_response(unsigned char *response, unsigned char *buffer,
 		       errh_p->type,
 		       src_p[0], src_p[1], src_p[2], src_p[3],
 		       src_p[4], src_p[5], src_p[6], src_p[7]);
+		break;
+	case TYPE80_RSP_CODE:
+		src_l = icaMsg_p->outputdatalength;
+		src_p = response + (int)t80h_p->len - src_l;
 		break;
 	case TYPE84_RSP_CODE:
 		src_l = icaMsg_p->outputdatalength;
@@ -2202,6 +2486,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 	if (reply_code)
 		switch (reply_code) {
 		case REP82_ERROR_OPERAND_INVALID:
+		case REP88_ERROR_MESSAGE_MALFORMD:
 			return REC_OPERAND_INV;
 		case REP82_ERROR_OPERAND_SIZE:
 			return REC_OPERAND_SIZE;

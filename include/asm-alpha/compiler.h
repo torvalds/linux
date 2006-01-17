@@ -98,9 +98,7 @@
 #undef inline
 #undef __inline__
 #undef __inline
-#if __GNUC__ == 3 && __GNUC_MINOR__ >= 1 || __GNUC__ > 3
 #undef __always_inline
 #define __always_inline		inline __attribute__((always_inline))
-#endif
 
 #endif /* __ALPHA_COMPILER_H */

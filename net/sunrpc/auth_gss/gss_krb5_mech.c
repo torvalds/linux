@@ -97,13 +97,17 @@ get_key(const void *p, const void *end, struct crypto_tfm **res)
 			alg_mode = CRYPTO_TFM_MODE_CBC;
 			break;
 		default:
-			dprintk("RPC:      get_key: unsupported algorithm %d\n", alg);
+			printk("gss_kerberos_mech: unsupported algorithm %d\n", alg);
 			goto out_err_free_key;
 	}
-	if (!(*res = crypto_alloc_tfm(alg_name, alg_mode)))
+	if (!(*res = crypto_alloc_tfm(alg_name, alg_mode))) {
+		printk("gss_kerberos_mech: unable to initialize crypto algorithm %s\n", alg_name);
 		goto out_err_free_key;
-	if (crypto_cipher_setkey(*res, key.data, key.len))
+	}
+	if (crypto_cipher_setkey(*res, key.data, key.len)) {
+		printk("gss_kerberos_mech: error setting key for crypto algorithm %s\n", alg_name);
 		goto out_err_free_tfm;
+	}
 
 	kfree(key.data);
 	return p;

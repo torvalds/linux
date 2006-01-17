@@ -158,7 +158,7 @@ static int read_pages(struct address_space *mapping, struct file *filp,
 {
 	unsigned page_idx;
 	struct pagevec lru_pvec;
-	int ret = 0;
+	int ret;
 
 	if (mapping->a_ops->readpages) {
 		ret = mapping->a_ops->readpages(filp, mapping, pages, nr_pages);
@@ -171,14 +171,17 @@ static int read_pages(struct address_space *mapping, struct file *filp,
 		list_del(&page->lru);
 		if (!add_to_page_cache(page, mapping,
 					page->index, GFP_KERNEL)) {
-			mapping->a_ops->readpage(filp, page);
-			if (!pagevec_add(&lru_pvec, page))
-				__pagevec_lru_add(&lru_pvec);
-		} else {
-			page_cache_release(page);
+			ret = mapping->a_ops->readpage(filp, page);
+			if (ret != AOP_TRUNCATED_PAGE) {
+				if (!pagevec_add(&lru_pvec, page))
+					__pagevec_lru_add(&lru_pvec);
+				continue;
+			} /* else fall through to release */
 		}
+		page_cache_release(page);
 	}
 	pagevec_lru_add(&lru_pvec);
+	ret = 0;
 out:
 	return ret;
 }

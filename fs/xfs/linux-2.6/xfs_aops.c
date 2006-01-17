@@ -40,11 +40,10 @@
 #include "xfs_rw.h"
 #include "xfs_iomap.h"
 #include <linux/mpage.h>
+#include <linux/pagevec.h>
 #include <linux/writeback.h>
 
 STATIC void xfs_count_page_state(struct page *, int *, int *, int *);
-STATIC void xfs_convert_page(struct inode *, struct page *, xfs_iomap_t *,
-		struct writeback_control *wbc, void *, int, int);
 
 #if defined(XFS_RW_TRACE)
 void
@@ -55,17 +54,15 @@ xfs_page_trace(
 	int		mask)
 {
 	xfs_inode_t	*ip;
-	bhv_desc_t	*bdp;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
 	loff_t		isize = i_size_read(inode);
-	loff_t		offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+	loff_t		offset = page_offset(page);
 	int		delalloc = -1, unmapped = -1, unwritten = -1;
 
 	if (page_has_buffers(page))
 		xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
 
-	bdp = vn_bhv_lookup(VN_BHV_HEAD(vp), &xfs_vnodeops);
-	ip = XFS_BHVTOI(bdp);
+	ip = xfs_vtoi(vp);
 	if (!ip->i_rwtrace)
 		return;
 
@@ -103,15 +100,56 @@ xfs_finish_ioend(
 		queue_work(xfsdatad_workqueue, &ioend->io_work);
 }
 
+/*
+ * We're now finished for good with this ioend structure.
+ * Update the page state via the associated buffer_heads,
+ * release holds on the inode and bio, and finally free
+ * up memory.  Do not use the ioend after this.
+ */
 STATIC void
 xfs_destroy_ioend(
 	xfs_ioend_t		*ioend)
 {
+	struct buffer_head	*bh, *next;
+
+	for (bh = ioend->io_buffer_head; bh; bh = next) {
+		next = bh->b_private;
+		bh->b_end_io(bh, ioend->io_uptodate);
+	}
+
 	vn_iowake(ioend->io_vnode);
 	mempool_free(ioend, xfs_ioend_pool);
 }
 
 /*
+ * Buffered IO write completion for delayed allocate extents.
+ * TODO: Update ondisk isize now that we know the file data
+ * has been flushed (i.e. the notorious "NULL file" problem).
+ */
+STATIC void
+xfs_end_bio_delalloc(
+	void			*data)
+{
+	xfs_ioend_t		*ioend = data;
+
+	xfs_destroy_ioend(ioend);
+}
+
+/*
+ * Buffered IO write completion for regular, written extents.
+ */
+STATIC void
+xfs_end_bio_written(
+	void			*data)
+{
+	xfs_ioend_t		*ioend = data;
+
+	xfs_destroy_ioend(ioend);
+}
+
+/*
+ * IO write completion for unwritten extents.
+ *
  * Issue transactions to convert a buffer range from unwritten
  * to written extents.
  */
@@ -123,21 +161,10 @@ xfs_end_bio_unwritten(
 	vnode_t			*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
-	struct buffer_head	*bh, *next;
 	int			error;
 
 	if (ioend->io_uptodate)
 		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
-
-	/* ioend->io_buffer_head is only non-NULL for buffered I/O */
-	for (bh = ioend->io_buffer_head; bh; bh = next) {
-		next = bh->b_private;
-
-		bh->b_end_io = NULL;
-		clear_buffer_unwritten(bh);
-		end_buffer_async_write(bh, ioend->io_uptodate);
-	}
-
 	xfs_destroy_ioend(ioend);
 }
 
@@ -149,7 +176,8 @@ xfs_end_bio_unwritten(
  */
 STATIC xfs_ioend_t *
 xfs_alloc_ioend(
-	struct inode		*inode)
+	struct inode		*inode,
+	unsigned int		type)
 {
 	xfs_ioend_t		*ioend;
 
@@ -162,43 +190,23 @@ xfs_alloc_ioend(
 	 */
 	atomic_set(&ioend->io_remaining, 1);
 	ioend->io_uptodate = 1; /* cleared if any I/O fails */
+	ioend->io_list = NULL;
+	ioend->io_type = type;
 	ioend->io_vnode = LINVFS_GET_VP(inode);
 	ioend->io_buffer_head = NULL;
+	ioend->io_buffer_tail = NULL;
 	atomic_inc(&ioend->io_vnode->v_iocount);
 	ioend->io_offset = 0;
 	ioend->io_size = 0;
 
-	INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten, ioend);
+	if (type == IOMAP_UNWRITTEN)
+		INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten, ioend);
+	else if (type == IOMAP_DELAY)
+		INIT_WORK(&ioend->io_work, xfs_end_bio_delalloc, ioend);
+	else
+		INIT_WORK(&ioend->io_work, xfs_end_bio_written, ioend);
 
 	return ioend;
-}
-
-void
-linvfs_unwritten_done(
-	struct buffer_head	*bh,
-	int			uptodate)
-{
-	xfs_ioend_t		*ioend = bh->b_private;
-	static spinlock_t	unwritten_done_lock = SPIN_LOCK_UNLOCKED;
-	unsigned long		flags;
-
-	ASSERT(buffer_unwritten(bh));
-	bh->b_end_io = NULL;
-
-	if (!uptodate)
-		ioend->io_uptodate = 0;
-
-	/*
-	 * Deep magic here.  We reuse b_private in the buffer_heads to build
-	 * a chain for completing the I/O from user context after we've issued
-	 * a transaction to convert the unwritten extent.
-	 */
-	spin_lock_irqsave(&unwritten_done_lock, flags);
-	bh->b_private = ioend->io_buffer_head;
-	ioend->io_buffer_head = bh;
-	spin_unlock_irqrestore(&unwritten_done_lock, flags);
-
-	xfs_finish_ioend(ioend);
 }
 
 STATIC int
@@ -218,138 +226,260 @@ xfs_map_blocks(
 	return -error;
 }
 
-/*
- * Finds the corresponding mapping in block @map array of the
- * given @offset within a @page.
- */
-STATIC xfs_iomap_t *
-xfs_offset_to_map(
-	struct page		*page,
+STATIC inline int
+xfs_iomap_valid(
 	xfs_iomap_t		*iomapp,
-	unsigned long		offset)
+	loff_t			offset)
 {
-	loff_t			full_offset;	/* offset from start of file */
+	return offset >= iomapp->iomap_offset &&
+		offset < iomapp->iomap_offset + iomapp->iomap_bsize;
+}
 
-	ASSERT(offset < PAGE_CACHE_SIZE);
+/*
+ * BIO completion handler for buffered IO.
+ */
+STATIC int
+xfs_end_bio(
+	struct bio		*bio,
+	unsigned int		bytes_done,
+	int			error)
+{
+	xfs_ioend_t		*ioend = bio->bi_private;
 
-	full_offset = page->index;		/* NB: using 64bit number */
-	full_offset <<= PAGE_CACHE_SHIFT;	/* offset from file start */
-	full_offset += offset;			/* offset from page start */
+	if (bio->bi_size)
+		return 1;
 
-	if (full_offset < iomapp->iomap_offset)
-		return NULL;
-	if (iomapp->iomap_offset + (iomapp->iomap_bsize -1) >= full_offset)
-		return iomapp;
-	return NULL;
+	ASSERT(ioend);
+	ASSERT(atomic_read(&bio->bi_cnt) >= 1);
+
+	/* Toss bio and pass work off to an xfsdatad thread */
+	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+		ioend->io_uptodate = 0;
+	bio->bi_private = NULL;
+	bio->bi_end_io = NULL;
+
+	bio_put(bio);
+	xfs_finish_ioend(ioend);
+	return 0;
+}
+
+STATIC void
+xfs_submit_ioend_bio(
+	xfs_ioend_t	*ioend,
+	struct bio	*bio)
+{
+	atomic_inc(&ioend->io_remaining);
+
+	bio->bi_private = ioend;
+	bio->bi_end_io = xfs_end_bio;
+
+	submit_bio(WRITE, bio);
+	ASSERT(!bio_flagged(bio, BIO_EOPNOTSUPP));
+	bio_put(bio);
+}
+
+STATIC struct bio *
+xfs_alloc_ioend_bio(
+	struct buffer_head	*bh)
+{
+	struct bio		*bio;
+	int			nvecs = bio_get_nr_vecs(bh->b_bdev);
+
+	do {
+		bio = bio_alloc(GFP_NOIO, nvecs);
+		nvecs >>= 1;
+	} while (!bio);
+
+	ASSERT(bio->bi_private == NULL);
+	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+	bio->bi_bdev = bh->b_bdev;
+	bio_get(bio);
+	return bio;
+}
+
+STATIC void
+xfs_start_buffer_writeback(
+	struct buffer_head	*bh)
+{
+	ASSERT(buffer_mapped(bh));
+	ASSERT(buffer_locked(bh));
+	ASSERT(!buffer_delay(bh));
+	ASSERT(!buffer_unwritten(bh));
+
+	mark_buffer_async_write(bh);
+	set_buffer_uptodate(bh);
+	clear_buffer_dirty(bh);
+}
+
+STATIC void
+xfs_start_page_writeback(
+	struct page		*page,
+	struct writeback_control *wbc,
+	int			clear_dirty,
+	int			buffers)
+{
+	ASSERT(PageLocked(page));
+	ASSERT(!PageWriteback(page));
+	set_page_writeback(page);
+	if (clear_dirty)
+		clear_page_dirty(page);
+	unlock_page(page);
+	if (!buffers) {
+		end_page_writeback(page);
+		wbc->pages_skipped++;	/* We didn't write this page */
+	}
+}
+
+static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
+{
+	return bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+}
+
+/*
+ * Submit all of the bios for all of the ioends we have saved up,
+ * covering the initial writepage page and also any probed pages.
+ */
+STATIC void
+xfs_submit_ioend(
+	xfs_ioend_t		*ioend)
+{
+	xfs_ioend_t		*next;
+	struct buffer_head	*bh;
+	struct bio		*bio;
+	sector_t		lastblock = 0;
+
+	do {
+		next = ioend->io_list;
+		bio = NULL;
+
+		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
+			xfs_start_buffer_writeback(bh);
+
+			if (!bio) {
+ retry:
+				bio = xfs_alloc_ioend_bio(bh);
+			} else if (bh->b_blocknr != lastblock + 1) {
+				xfs_submit_ioend_bio(ioend, bio);
+				goto retry;
+			}
+
+			if (bio_add_buffer(bio, bh) != bh->b_size) {
+				xfs_submit_ioend_bio(ioend, bio);
+				goto retry;
+			}
+
+			lastblock = bh->b_blocknr;
+		}
+		if (bio)
+			xfs_submit_ioend_bio(ioend, bio);
+		xfs_finish_ioend(ioend);
+	} while ((ioend = next) != NULL);
+}
+
+/*
+ * Cancel submission of all buffer_heads so far in this endio.
+ * Toss the endio too.  Only ever called for the initial page
+ * in a writepage request, so only ever one page.
+ */
+STATIC void
+xfs_cancel_ioend(
+	xfs_ioend_t		*ioend)
+{
+	xfs_ioend_t		*next;
+	struct buffer_head	*bh, *next_bh;
+
+	do {
+		next = ioend->io_list;
+		bh = ioend->io_buffer_head;
+		do {
+			next_bh = bh->b_private;
+			clear_buffer_async_write(bh);
+			unlock_buffer(bh);
+		} while ((bh = next_bh) != NULL);
+
+		vn_iowake(ioend->io_vnode);
+		mempool_free(ioend, xfs_ioend_pool);
+	} while ((ioend = next) != NULL);
+}
+
+/*
+ * Test to see if we've been building up a completion structure for
+ * earlier buffers -- if so, we try to append to this ioend if we
+ * can, otherwise we finish off any current ioend and start another.
+ * Return true if we've finished the given ioend.
+ */
+STATIC void
+xfs_add_to_ioend(
+	struct inode		*inode,
+	struct buffer_head	*bh,
+	xfs_off_t		offset,
+	unsigned int		type,
+	xfs_ioend_t		**result,
+	int			need_ioend)
+{
+	xfs_ioend_t		*ioend = *result;
+
+	if (!ioend || need_ioend || type != ioend->io_type) {
+		xfs_ioend_t	*previous = *result;
+
+		ioend = xfs_alloc_ioend(inode, type);
+		ioend->io_offset = offset;
+		ioend->io_buffer_head = bh;
+		ioend->io_buffer_tail = bh;
+		if (previous)
+			previous->io_list = ioend;
+		*result = ioend;
+	} else {
+		ioend->io_buffer_tail->b_private = bh;
+		ioend->io_buffer_tail = bh;
+	}
+
+	bh->b_private = NULL;
+	ioend->io_size += bh->b_size;
 }
 
 STATIC void
 xfs_map_at_offset(
-	struct page		*page,
 	struct buffer_head	*bh,
-	unsigned long		offset,
+	loff_t			offset,
 	int			block_bits,
 	xfs_iomap_t		*iomapp)
 {
 	xfs_daddr_t		bn;
-	loff_t			delta;
 	int			sector_shift;
 
 	ASSERT(!(iomapp->iomap_flags & IOMAP_HOLE));
 	ASSERT(!(iomapp->iomap_flags & IOMAP_DELAY));
 	ASSERT(iomapp->iomap_bn != IOMAP_DADDR_NULL);
 
-	delta = page->index;
-	delta <<= PAGE_CACHE_SHIFT;
-	delta += offset;
-	delta -= iomapp->iomap_offset;
-	delta >>= block_bits;
-
 	sector_shift = block_bits - BBSHIFT;
-	bn = iomapp->iomap_bn >> sector_shift;
-	bn += delta;
-	BUG_ON(!bn && !(iomapp->iomap_flags & IOMAP_REALTIME));
+	bn = (iomapp->iomap_bn >> sector_shift) +
+	      ((offset - iomapp->iomap_offset) >> block_bits);
+
+	ASSERT(bn || (iomapp->iomap_flags & IOMAP_REALTIME));
 	ASSERT((bn << sector_shift) >= iomapp->iomap_bn);
 
 	lock_buffer(bh);
 	bh->b_blocknr = bn;
-	bh->b_bdev = iomapp->iomap_target->pbr_bdev;
+	bh->b_bdev = iomapp->iomap_target->bt_bdev;
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
+	clear_buffer_unwritten(bh);
 }
 
 /*
- * Look for a page at index which is unlocked and contains our
- * unwritten extent flagged buffers at its head.  Returns page
- * locked and with an extra reference count, and length of the
- * unwritten extent component on this page that we can write,
- * in units of filesystem blocks.
- */
-STATIC struct page *
-xfs_probe_unwritten_page(
-	struct address_space	*mapping,
-	pgoff_t			index,
-	xfs_iomap_t		*iomapp,
-	xfs_ioend_t		*ioend,
-	unsigned long		max_offset,
-	unsigned long		*fsbs,
-	unsigned int            bbits)
-{
-	struct page		*page;
-
-	page = find_trylock_page(mapping, index);
-	if (!page)
-		return NULL;
-	if (PageWriteback(page))
-		goto out;
-
-	if (page->mapping && page_has_buffers(page)) {
-		struct buffer_head	*bh, *head;
-		unsigned long		p_offset = 0;
-
-		*fsbs = 0;
-		bh = head = page_buffers(page);
-		do {
-			if (!buffer_unwritten(bh) || !buffer_uptodate(bh))
-				break;
-			if (!xfs_offset_to_map(page, iomapp, p_offset))
-				break;
-			if (p_offset >= max_offset)
-				break;
-			xfs_map_at_offset(page, bh, p_offset, bbits, iomapp);
-			set_buffer_unwritten_io(bh);
-			bh->b_private = ioend;
-			p_offset += bh->b_size;
-			(*fsbs)++;
-		} while ((bh = bh->b_this_page) != head);
-
-		if (p_offset)
-			return page;
-	}
-
-out:
-	unlock_page(page);
-	return NULL;
-}
-
-/*
- * Look for a page at index which is unlocked and not mapped
- * yet - clustering for mmap write case.
+ * Look for a page at index that is suitable for clustering.
  */
 STATIC unsigned int
-xfs_probe_unmapped_page(
-	struct address_space	*mapping,
-	pgoff_t			index,
-	unsigned int		pg_offset)
+xfs_probe_page(
+	struct page		*page,
+	unsigned int		pg_offset,
+	int			mapped)
 {
-	struct page		*page;
 	int			ret = 0;
 
-	page = find_trylock_page(mapping, index);
-	if (!page)
-		return 0;
 	if (PageWriteback(page))
-		goto out;
+		return 0;
 
 	if (page->mapping && PageDirty(page)) {
 		if (page_has_buffers(page)) {
@@ -357,79 +487,101 @@ xfs_probe_unmapped_page(
 
 			bh = head = page_buffers(page);
 			do {
-				if (buffer_mapped(bh) || !buffer_uptodate(bh))
+				if (!buffer_uptodate(bh))
+					break;
+				if (mapped != buffer_mapped(bh))
 					break;
 				ret += bh->b_size;
 				if (ret >= pg_offset)
 					break;
 			} while ((bh = bh->b_this_page) != head);
 		} else
-			ret = PAGE_CACHE_SIZE;
+			ret = mapped ? 0 : PAGE_CACHE_SIZE;
 	}
 
-out:
-	unlock_page(page);
 	return ret;
 }
 
-STATIC unsigned int
-xfs_probe_unmapped_cluster(
+STATIC size_t
+xfs_probe_cluster(
 	struct inode		*inode,
 	struct page		*startpage,
 	struct buffer_head	*bh,
-	struct buffer_head	*head)
+	struct buffer_head	*head,
+	int			mapped)
 {
+	struct pagevec		pvec;
 	pgoff_t			tindex, tlast, tloff;
-	unsigned int		pg_offset, len, total = 0;
-	struct address_space	*mapping = inode->i_mapping;
+	size_t			total = 0;
+	int			done = 0, i;
 
 	/* First sum forwards in this page */
 	do {
-		if (buffer_mapped(bh))
-			break;
+		if (mapped != buffer_mapped(bh))
+			return total;
 		total += bh->b_size;
 	} while ((bh = bh->b_this_page) != head);
 
-	/* If we reached the end of the page, sum forwards in
-	 * following pages.
-	 */
-	if (bh == head) {
-		tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-		/* Prune this back to avoid pathological behavior */
-		tloff = min(tlast, startpage->index + 64);
-		for (tindex = startpage->index + 1; tindex < tloff; tindex++) {
-			len = xfs_probe_unmapped_page(mapping, tindex,
-							PAGE_CACHE_SIZE);
-			if (!len)
-				return total;
+	/* if we reached the end of the page, sum forwards in following pages */
+	tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
+	tindex = startpage->index + 1;
+
+	/* Prune this back to avoid pathological behavior */
+	tloff = min(tlast, startpage->index + 64);
+
+	pagevec_init(&pvec, 0);
+	while (!done && tindex <= tloff) {
+		unsigned len = min_t(pgoff_t, PAGEVEC_SIZE, tlast - tindex + 1);
+
+		if (!pagevec_lookup(&pvec, inode->i_mapping, tindex, len))
+			break;
+
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+			size_t pg_offset, len = 0;
+
+			if (tindex == tlast) {
+				pg_offset =
+				    i_size_read(inode) & (PAGE_CACHE_SIZE - 1);
+				if (!pg_offset) {
+					done = 1;
+					break;
+				}
+			} else
+				pg_offset = PAGE_CACHE_SIZE;
+
+			if (page->index == tindex && !TestSetPageLocked(page)) {
+				len = xfs_probe_page(page, pg_offset, mapped);
+				unlock_page(page);
+			}
+
+			if (!len) {
+				done = 1;
+				break;
+			}
+
 			total += len;
+			tindex++;
 		}
-		if (tindex == tlast &&
-		    (pg_offset = i_size_read(inode) & (PAGE_CACHE_SIZE - 1))) {
-			total += xfs_probe_unmapped_page(mapping,
-							tindex, pg_offset);
-		}
+
+		pagevec_release(&pvec);
+		cond_resched();
 	}
+
 	return total;
 }
 
 /*
- * Probe for a given page (index) in the inode and test if it is delayed
- * and without unwritten buffers.  Returns page locked and with an extra
- * reference count.
+ * Test if a given page is suitable for writing as part of an unwritten
+ * or delayed allocate extent.
  */
-STATIC struct page *
-xfs_probe_delalloc_page(
-	struct inode		*inode,
-	pgoff_t			index)
+STATIC int
+xfs_is_delayed_page(
+	struct page		*page,
+	unsigned int		type)
 {
-	struct page		*page;
-
-	page = find_trylock_page(inode->i_mapping, index);
-	if (!page)
-		return NULL;
 	if (PageWriteback(page))
-		goto out;
+		return 0;
 
 	if (page->mapping && page_has_buffers(page)) {
 		struct buffer_head	*bh, *head;
@@ -437,154 +589,21 @@ xfs_probe_delalloc_page(
 
 		bh = head = page_buffers(page);
 		do {
-			if (buffer_unwritten(bh)) {
-				acceptable = 0;
+			if (buffer_unwritten(bh))
+				acceptable = (type == IOMAP_UNWRITTEN);
+			else if (buffer_delay(bh))
+				acceptable = (type == IOMAP_DELAY);
+			else if (buffer_mapped(bh))
+				acceptable = (type == 0);
+			else
 				break;
-			} else if (buffer_delay(bh)) {
-				acceptable = 1;
-			}
 		} while ((bh = bh->b_this_page) != head);
 
 		if (acceptable)
-			return page;
+			return 1;
 	}
 
-out:
-	unlock_page(page);
-	return NULL;
-}
-
-STATIC int
-xfs_map_unwritten(
-	struct inode		*inode,
-	struct page		*start_page,
-	struct buffer_head	*head,
-	struct buffer_head	*curr,
-	unsigned long		p_offset,
-	int			block_bits,
-	xfs_iomap_t		*iomapp,
-	struct writeback_control *wbc,
-	int			startio,
-	int			all_bh)
-{
-	struct buffer_head	*bh = curr;
-	xfs_iomap_t		*tmp;
-	xfs_ioend_t		*ioend;
-	loff_t			offset;
-	unsigned long		nblocks = 0;
-
-	offset = start_page->index;
-	offset <<= PAGE_CACHE_SHIFT;
-	offset += p_offset;
-
-	ioend = xfs_alloc_ioend(inode);
-
-	/* First map forwards in the page consecutive buffers
-	 * covering this unwritten extent
-	 */
-	do {
-		if (!buffer_unwritten(bh))
-			break;
-		tmp = xfs_offset_to_map(start_page, iomapp, p_offset);
-		if (!tmp)
-			break;
-		xfs_map_at_offset(start_page, bh, p_offset, block_bits, iomapp);
-		set_buffer_unwritten_io(bh);
-		bh->b_private = ioend;
-		p_offset += bh->b_size;
-		nblocks++;
-	} while ((bh = bh->b_this_page) != head);
-
-	atomic_add(nblocks, &ioend->io_remaining);
-
-	/* If we reached the end of the page, map forwards in any
-	 * following pages which are also covered by this extent.
-	 */
-	if (bh == head) {
-		struct address_space	*mapping = inode->i_mapping;
-		pgoff_t			tindex, tloff, tlast;
-		unsigned long		bs;
-		unsigned int		pg_offset, bbits = inode->i_blkbits;
-		struct page		*page;
-
-		tlast = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-		tloff = (iomapp->iomap_offset + iomapp->iomap_bsize) >> PAGE_CACHE_SHIFT;
-		tloff = min(tlast, tloff);
-		for (tindex = start_page->index + 1; tindex < tloff; tindex++) {
-			page = xfs_probe_unwritten_page(mapping,
-						tindex, iomapp, ioend,
-						PAGE_CACHE_SIZE, &bs, bbits);
-			if (!page)
-				break;
-			nblocks += bs;
-			atomic_add(bs, &ioend->io_remaining);
-			xfs_convert_page(inode, page, iomapp, wbc, ioend,
-							startio, all_bh);
-			/* stop if converting the next page might add
-			 * enough blocks that the corresponding byte
-			 * count won't fit in our ulong page buf length */
-			if (nblocks >= ((ULONG_MAX - PAGE_SIZE) >> block_bits))
-				goto enough;
-		}
-
-		if (tindex == tlast &&
-		    (pg_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1)))) {
-			page = xfs_probe_unwritten_page(mapping,
-							tindex, iomapp, ioend,
-							pg_offset, &bs, bbits);
-			if (page) {
-				nblocks += bs;
-				atomic_add(bs, &ioend->io_remaining);
-				xfs_convert_page(inode, page, iomapp, wbc, ioend,
-							startio, all_bh);
-				if (nblocks >= ((ULONG_MAX - PAGE_SIZE) >> block_bits))
-					goto enough;
-			}
-		}
-	}
-
-enough:
-	ioend->io_size = (xfs_off_t)nblocks << block_bits;
-	ioend->io_offset = offset;
-	xfs_finish_ioend(ioend);
 	return 0;
-}
-
-STATIC void
-xfs_submit_page(
-	struct page		*page,
-	struct writeback_control *wbc,
-	struct buffer_head	*bh_arr[],
-	int			bh_count,
-	int			probed_page,
-	int			clear_dirty)
-{
-	struct buffer_head	*bh;
-	int			i;
-
-	BUG_ON(PageWriteback(page));
-	if (bh_count)
-		set_page_writeback(page);
-	if (clear_dirty)
-		clear_page_dirty(page);
-	unlock_page(page);
-
-	if (bh_count) {
-		for (i = 0; i < bh_count; i++) {
-			bh = bh_arr[i];
-			mark_buffer_async_write(bh);
-			if (buffer_unwritten(bh))
-				set_buffer_unwritten_io(bh);
-			set_buffer_uptodate(bh);
-			clear_buffer_dirty(bh);
-		}
-
-		for (i = 0; i < bh_count; i++)
-			submit_bh(WRITE, bh_arr[i]);
-
-		if (probed_page && clear_dirty)
-			wbc->nr_to_write--;	/* Wrote an "extra" page */
-	}
 }
 
 /*
@@ -593,87 +612,133 @@ xfs_submit_page(
  * delalloc/unwritten pages only, for the original page it is possible
  * that the page has no mapping at all.
  */
-STATIC void
+STATIC int
 xfs_convert_page(
 	struct inode		*inode,
 	struct page		*page,
-	xfs_iomap_t		*iomapp,
+	loff_t			tindex,
+	xfs_iomap_t		*mp,
+	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
-	void			*private,
 	int			startio,
 	int			all_bh)
 {
-	struct buffer_head	*bh_arr[MAX_BUF_PER_PAGE], *bh, *head;
-	xfs_iomap_t		*mp = iomapp, *tmp;
-	unsigned long		offset, end_offset;
-	int			index = 0;
+	struct buffer_head	*bh, *head;
+	xfs_off_t		end_offset;
+	unsigned long		p_offset;
+	unsigned int		type;
 	int			bbits = inode->i_blkbits;
 	int			len, page_dirty;
+	int			count = 0, done = 0, uptodate = 1;
+ 	xfs_off_t		offset = page_offset(page);
 
-	end_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1));
+	if (page->index != tindex)
+		goto fail;
+	if (TestSetPageLocked(page))
+		goto fail;
+	if (PageWriteback(page))
+		goto fail_unlock_page;
+	if (page->mapping != inode->i_mapping)
+		goto fail_unlock_page;
+	if (!xfs_is_delayed_page(page, (*ioendp)->io_type))
+		goto fail_unlock_page;
 
 	/*
 	 * page_dirty is initially a count of buffers on the page before
 	 * EOF and is decrememted as we move each into a cleanable state.
+	 *
+	 * Derivation:
+	 *
+	 * End offset is the highest offset that this page should represent.
+	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
+	 * hence give us the correct page_dirty count. On any other page,
+	 * it will be zero and in that case we need page_dirty to be the
+	 * count of buffers on the page.
 	 */
-	len = 1 << inode->i_blkbits;
-	end_offset = max(end_offset, PAGE_CACHE_SIZE);
-	end_offset = roundup(end_offset, len);
-	page_dirty = end_offset / len;
+	end_offset = min_t(unsigned long long,
+			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
+			i_size_read(inode));
 
-	offset = 0;
+	len = 1 << inode->i_blkbits;
+	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+					PAGE_CACHE_SIZE);
+	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
+	page_dirty = p_offset / len;
+
 	bh = head = page_buffers(page);
 	do {
 		if (offset >= end_offset)
 			break;
-		if (!(PageUptodate(page) || buffer_uptodate(bh)))
-			continue;
-		if (buffer_mapped(bh) && all_bh &&
-		    !(buffer_unwritten(bh) || buffer_delay(bh))) {
-			if (startio) {
-				lock_buffer(bh);
-				bh_arr[index++] = bh;
-				page_dirty--;
-			}
+		if (!buffer_uptodate(bh))
+			uptodate = 0;
+		if (!(PageUptodate(page) || buffer_uptodate(bh))) {
+			done = 1;
 			continue;
 		}
-		tmp = xfs_offset_to_map(page, mp, offset);
-		if (!tmp)
-			continue;
-		ASSERT(!(tmp->iomap_flags & IOMAP_HOLE));
-		ASSERT(!(tmp->iomap_flags & IOMAP_DELAY));
 
-		/* If this is a new unwritten extent buffer (i.e. one
-		 * that we haven't passed in private data for, we must
-		 * now map this buffer too.
-		 */
-		if (buffer_unwritten(bh) && !bh->b_end_io) {
-			ASSERT(tmp->iomap_flags & IOMAP_UNWRITTEN);
-			xfs_map_unwritten(inode, page, head, bh, offset,
-					bbits, tmp, wbc, startio, all_bh);
-		} else if (! (buffer_unwritten(bh) && buffer_locked(bh))) {
-			xfs_map_at_offset(page, bh, offset, bbits, tmp);
-			if (buffer_unwritten(bh)) {
-				set_buffer_unwritten_io(bh);
-				bh->b_private = private;
-				ASSERT(private);
+		if (buffer_unwritten(bh) || buffer_delay(bh)) {
+			if (buffer_unwritten(bh))
+				type = IOMAP_UNWRITTEN;
+			else
+				type = IOMAP_DELAY;
+
+			if (!xfs_iomap_valid(mp, offset)) {
+				done = 1;
+				continue;
+			}
+
+			ASSERT(!(mp->iomap_flags & IOMAP_HOLE));
+			ASSERT(!(mp->iomap_flags & IOMAP_DELAY));
+
+			xfs_map_at_offset(bh, offset, bbits, mp);
+			if (startio) {
+				xfs_add_to_ioend(inode, bh, offset,
+						type, ioendp, done);
+			} else {
+				set_buffer_dirty(bh);
+				unlock_buffer(bh);
+				mark_buffer_dirty(bh);
+			}
+			page_dirty--;
+			count++;
+		} else {
+			type = 0;
+			if (buffer_mapped(bh) && all_bh && startio) {
+				lock_buffer(bh);
+				xfs_add_to_ioend(inode, bh, offset,
+						type, ioendp, done);
+				count++;
+				page_dirty--;
+			} else {
+				done = 1;
 			}
 		}
-		if (startio) {
-			bh_arr[index++] = bh;
-		} else {
-			set_buffer_dirty(bh);
-			unlock_buffer(bh);
-			mark_buffer_dirty(bh);
-		}
-		page_dirty--;
 	} while (offset += len, (bh = bh->b_this_page) != head);
 
-	if (startio && index) {
-		xfs_submit_page(page, wbc, bh_arr, index, 1, !page_dirty);
-	} else {
-		unlock_page(page);
+	if (uptodate && bh == head)
+		SetPageUptodate(page);
+
+	if (startio) {
+		if (count) {
+			struct backing_dev_info *bdi;
+
+			bdi = inode->i_mapping->backing_dev_info;
+			if (bdi_write_congested(bdi)) {
+				wbc->encountered_congestion = 1;
+				done = 1;
+			} else if (--wbc->nr_to_write <= 0) {
+				done = 1;
+			}
+		}
+		xfs_start_page_writeback(page, wbc, !page_dirty, count);
 	}
+
+	return done;
+ fail_unlock_page:
+	unlock_page(page);
+ fail:
+	return 1;
 }
 
 /*
@@ -685,19 +750,31 @@ xfs_cluster_write(
 	struct inode		*inode,
 	pgoff_t			tindex,
 	xfs_iomap_t		*iomapp,
+	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
 	int			startio,
 	int			all_bh,
 	pgoff_t			tlast)
 {
-	struct page		*page;
+	struct pagevec		pvec;
+	int			done = 0, i;
 
-	for (; tindex <= tlast; tindex++) {
-		page = xfs_probe_delalloc_page(inode, tindex);
-		if (!page)
+	pagevec_init(&pvec, 0);
+	while (!done && tindex <= tlast) {
+		unsigned len = min_t(pgoff_t, PAGEVEC_SIZE, tlast - tindex + 1);
+
+		if (!pagevec_lookup(&pvec, inode->i_mapping, tindex, len))
 			break;
-		xfs_convert_page(inode, page, iomapp, wbc, NULL,
-				startio, all_bh);
+
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			done = xfs_convert_page(inode, pvec.pages[i], tindex++,
+					iomapp, ioendp, wbc, startio, all_bh);
+			if (done)
+				break;
+		}
+
+		pagevec_release(&pvec);
+		cond_resched();
 	}
 }
 
@@ -728,18 +805,22 @@ xfs_page_state_convert(
 	int		startio,
 	int		unmapped) /* also implies page uptodate */
 {
-	struct buffer_head	*bh_arr[MAX_BUF_PER_PAGE], *bh, *head;
-	xfs_iomap_t		*iomp, iomap;
+	struct buffer_head	*bh, *head;
+	xfs_iomap_t		iomap;
+	xfs_ioend_t		*ioend = NULL, *iohead = NULL;
 	loff_t			offset;
 	unsigned long           p_offset = 0;
+	unsigned int		type;
 	__uint64_t              end_offset;
 	pgoff_t                 end_index, last_index, tlast;
-	int			len, err, i, cnt = 0, uptodate = 1;
-	int			flags;
-	int			page_dirty;
+	ssize_t			size, len;
+	int			flags, err, iomap_valid = 0, uptodate = 1;
+	int			page_dirty, count = 0, trylock_flag = 0;
+	int			all_bh = unmapped;
 
 	/* wait for other IO threads? */
-	flags = (startio && wbc->sync_mode != WB_SYNC_NONE) ? 0 : BMAPI_TRYLOCK;
+	if (startio && (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking))
+		trylock_flag |= BMAPI_TRYLOCK;
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
@@ -754,161 +835,173 @@ xfs_page_state_convert(
 		}
 	}
 
-	end_offset = min_t(unsigned long long,
-			(loff_t)(page->index + 1) << PAGE_CACHE_SHIFT, offset);
-	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
-
 	/*
 	 * page_dirty is initially a count of buffers on the page before
 	 * EOF and is decrememted as we move each into a cleanable state.
-	 */
+	 *
+	 * Derivation:
+	 *
+	 * End offset is the highest offset that this page should represent.
+	 * If we are on the last page, (end_offset & (PAGE_CACHE_SIZE - 1))
+	 * will evaluate non-zero and be less than PAGE_CACHE_SIZE and
+	 * hence give us the correct page_dirty count. On any other page,
+	 * it will be zero and in that case we need page_dirty to be the
+	 * count of buffers on the page.
+ 	 */
+	end_offset = min_t(unsigned long long,
+			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT, offset);
 	len = 1 << inode->i_blkbits;
-	p_offset = max(p_offset, PAGE_CACHE_SIZE);
-	p_offset = roundup(p_offset, len);
+	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
+					PAGE_CACHE_SIZE);
+	p_offset = p_offset ? roundup(p_offset, len) : PAGE_CACHE_SIZE;
 	page_dirty = p_offset / len;
 
-	iomp = NULL;
-	p_offset = 0;
 	bh = head = page_buffers(page);
+	offset = page_offset(page);
+	flags = -1;
+	type = 0;
+
+	/* TODO: cleanup count and page_dirty */
 
 	do {
 		if (offset >= end_offset)
 			break;
 		if (!buffer_uptodate(bh))
 			uptodate = 0;
-		if (!(PageUptodate(page) || buffer_uptodate(bh)) && !startio)
+		if (!(PageUptodate(page) || buffer_uptodate(bh)) && !startio) {
+			/*
+			 * the iomap is actually still valid, but the ioend
+			 * isn't.  shouldn't happen too often.
+			 */
+			iomap_valid = 0;
 			continue;
-
-		if (iomp) {
-			iomp = xfs_offset_to_map(page, &iomap, p_offset);
 		}
+
+		if (iomap_valid)
+			iomap_valid = xfs_iomap_valid(&iomap, offset);
 
 		/*
 		 * First case, map an unwritten extent and prepare for
 		 * extent state conversion transaction on completion.
-		 */
-		if (buffer_unwritten(bh)) {
-			if (!startio)
-				continue;
-			if (!iomp) {
-				err = xfs_map_blocks(inode, offset, len, &iomap,
-						BMAPI_WRITE|BMAPI_IGNSTATE);
-				if (err) {
-					goto error;
-				}
-				iomp = xfs_offset_to_map(page, &iomap,
-								p_offset);
-			}
-			if (iomp) {
-				if (!bh->b_end_io) {
-					err = xfs_map_unwritten(inode, page,
-							head, bh, p_offset,
-							inode->i_blkbits, iomp,
-							wbc, startio, unmapped);
-					if (err) {
-						goto error;
-					}
-				} else {
-					set_bit(BH_Lock, &bh->b_state);
-				}
-				BUG_ON(!buffer_locked(bh));
-				bh_arr[cnt++] = bh;
-				page_dirty--;
-			}
-		/*
+		 *
 		 * Second case, allocate space for a delalloc buffer.
 		 * We can return EAGAIN here in the release page case.
-		 */
-		} else if (buffer_delay(bh)) {
-			if (!iomp) {
-				err = xfs_map_blocks(inode, offset, len, &iomap,
-						BMAPI_ALLOCATE | flags);
-				if (err) {
-					goto error;
-				}
-				iomp = xfs_offset_to_map(page, &iomap,
-								p_offset);
+		 *
+		 * Third case, an unmapped buffer was found, and we are
+		 * in a path where we need to write the whole page out.
+ 		 */
+		if (buffer_unwritten(bh) || buffer_delay(bh) ||
+		    ((buffer_uptodate(bh) || PageUptodate(page)) &&
+		     !buffer_mapped(bh) && (unmapped || startio))) {
+		     	/*
+			 * Make sure we don't use a read-only iomap
+			 */
+		     	if (flags == BMAPI_READ)
+				iomap_valid = 0;
+
+			if (buffer_unwritten(bh)) {
+				type = IOMAP_UNWRITTEN;
+				flags = BMAPI_WRITE|BMAPI_IGNSTATE;
+			} else if (buffer_delay(bh)) {
+				type = IOMAP_DELAY;
+				flags = BMAPI_ALLOCATE;
+				if (!startio)
+					flags |= trylock_flag;
+			} else {
+				type = IOMAP_NEW;
+				flags = BMAPI_WRITE|BMAPI_MMAP;
 			}
-			if (iomp) {
-				xfs_map_at_offset(page, bh, p_offset,
-						inode->i_blkbits, iomp);
+
+			if (!iomap_valid) {
+				if (type == IOMAP_NEW) {
+					size = xfs_probe_cluster(inode,
+							page, bh, head, 0);
+				} else {
+					size = len;
+				}
+
+				err = xfs_map_blocks(inode, offset, size,
+						&iomap, flags);
+				if (err)
+					goto error;
+				iomap_valid = xfs_iomap_valid(&iomap, offset);
+			}
+			if (iomap_valid) {
+				xfs_map_at_offset(bh, offset,
+						inode->i_blkbits, &iomap);
 				if (startio) {
-					bh_arr[cnt++] = bh;
+					xfs_add_to_ioend(inode, bh, offset,
+							type, &ioend,
+							!iomap_valid);
 				} else {
 					set_buffer_dirty(bh);
 					unlock_buffer(bh);
 					mark_buffer_dirty(bh);
 				}
 				page_dirty--;
+				count++;
+			}
+		} else if (buffer_uptodate(bh) && startio) {
+			/*
+			 * we got here because the buffer is already mapped.
+			 * That means it must already have extents allocated
+			 * underneath it. Map the extent by reading it.
+			 */
+			if (!iomap_valid || type != 0) {
+				flags = BMAPI_READ;
+				size = xfs_probe_cluster(inode, page, bh,
+								head, 1);
+				err = xfs_map_blocks(inode, offset, size,
+						&iomap, flags);
+				if (err)
+					goto error;
+				iomap_valid = xfs_iomap_valid(&iomap, offset);
+			}
+
+			type = 0;
+			if (!test_and_set_bit(BH_Lock, &bh->b_state)) {
+				ASSERT(buffer_mapped(bh));
+				if (iomap_valid)
+					all_bh = 1;
+				xfs_add_to_ioend(inode, bh, offset, type,
+						&ioend, !iomap_valid);
+				page_dirty--;
+				count++;
+			} else {
+				iomap_valid = 0;
 			}
 		} else if ((buffer_uptodate(bh) || PageUptodate(page)) &&
 			   (unmapped || startio)) {
-
-			if (!buffer_mapped(bh)) {
-				int	size;
-
-				/*
-				 * Getting here implies an unmapped buffer
-				 * was found, and we are in a path where we
-				 * need to write the whole page out.
-				 */
-				if (!iomp) {
-					size = xfs_probe_unmapped_cluster(
-							inode, page, bh, head);
-					err = xfs_map_blocks(inode, offset,
-							size, &iomap,
-							BMAPI_WRITE|BMAPI_MMAP);
-					if (err) {
-						goto error;
-					}
-					iomp = xfs_offset_to_map(page, &iomap,
-								     p_offset);
-				}
-				if (iomp) {
-					xfs_map_at_offset(page,
-							bh, p_offset,
-							inode->i_blkbits, iomp);
-					if (startio) {
-						bh_arr[cnt++] = bh;
-					} else {
-						set_buffer_dirty(bh);
-						unlock_buffer(bh);
-						mark_buffer_dirty(bh);
-					}
-					page_dirty--;
-				}
-			} else if (startio) {
-				if (buffer_uptodate(bh) &&
-				    !test_and_set_bit(BH_Lock, &bh->b_state)) {
-					bh_arr[cnt++] = bh;
-					page_dirty--;
-				}
-			}
+			iomap_valid = 0;
 		}
-	} while (offset += len, p_offset += len,
-		((bh = bh->b_this_page) != head));
+
+		if (!iohead)
+			iohead = ioend;
+
+	} while (offset += len, ((bh = bh->b_this_page) != head));
 
 	if (uptodate && bh == head)
 		SetPageUptodate(page);
 
-	if (startio) {
-		xfs_submit_page(page, wbc, bh_arr, cnt, 0, !page_dirty);
-	}
+	if (startio)
+		xfs_start_page_writeback(page, wbc, 1, count);
 
-	if (iomp) {
-		offset = (iomp->iomap_offset + iomp->iomap_bsize - 1) >>
+	if (ioend && iomap_valid) {
+		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>
 					PAGE_CACHE_SHIFT;
 		tlast = min_t(pgoff_t, offset, last_index);
-		xfs_cluster_write(inode, page->index + 1, iomp, wbc,
-					startio, unmapped, tlast);
+		xfs_cluster_write(inode, page->index + 1, &iomap, &ioend,
+					wbc, startio, all_bh, tlast);
 	}
+
+	if (iohead)
+		xfs_submit_ioend(iohead);
 
 	return page_dirty;
 
 error:
-	for (i = 0; i < cnt; i++) {
-		unlock_buffer(bh_arr[i]);
-	}
+	if (iohead)
+		xfs_cancel_ioend(iohead);
 
 	/*
 	 * If it's delalloc and we have nowhere to put it,
@@ -916,9 +1009,8 @@ error:
 	 * us to try again.
 	 */
 	if (err != -EAGAIN) {
-		if (!unmapped) {
+		if (!unmapped)
 			block_invalidatepage(page, 0);
-		}
 		ClearPageUptodate(page);
 	}
 	return err;
@@ -982,7 +1074,7 @@ __linvfs_get_block(
 	}
 
 	/* If this is a realtime file, data might be on a new device */
-	bh_result->b_bdev = iomap.iomap_target->pbr_bdev;
+	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
 
 	/* If we previously allocated a block out beyond eof and
 	 * we are now coming back to use it then we will need to
@@ -1094,10 +1186,10 @@ linvfs_direct_IO(
 	if (error)
 		return -error;
 
-	iocb->private = xfs_alloc_ioend(inode);
+	iocb->private = xfs_alloc_ioend(inode, IOMAP_UNWRITTEN);
 
 	ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
-		iomap.iomap_target->pbr_bdev,
+		iomap.iomap_target->bt_bdev,
 		iov, offset, nr_segs,
 		linvfs_get_blocks_direct,
 		linvfs_end_io_direct);

@@ -194,6 +194,14 @@ static int blktrans_release(struct inode *i, struct file *f)
 	return ret;
 }
 
+static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
+
+	if (dev->tr->getgeo)
+		return dev->tr->getgeo(dev, geo);
+	return -ENOTTY;
+}
 
 static int blktrans_ioctl(struct inode *inode, struct file *file,
 			      unsigned int cmd, unsigned long arg)
@@ -207,22 +215,6 @@ static int blktrans_ioctl(struct inode *inode, struct file *file,
 			return tr->flush(dev);
 		/* The core code did the work, we had nothing to do. */
 		return 0;
-
-	case HDIO_GETGEO:
-		if (tr->getgeo) {
-			struct hd_geometry g;
-			int ret;
-
-			memset(&g, 0, sizeof(g));
-			ret = tr->getgeo(dev, &g);
-			if (ret)
-				return ret;
-
-			g.start = get_start_sect(inode->i_bdev);
-			if (copy_to_user((void __user *)arg, &g, sizeof(g)))
-				return -EFAULT;
-			return 0;
-		} /* else */
 	default:
 		return -ENOTTY;
 	}
@@ -233,6 +225,7 @@ struct block_device_operations mtd_blktrans_ops = {
 	.open		= blktrans_open,
 	.release	= blktrans_release,
 	.ioctl		= blktrans_ioctl,
+	.getgeo		= blktrans_getgeo,
 };
 
 int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)

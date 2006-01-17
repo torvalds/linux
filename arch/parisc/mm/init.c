@@ -36,9 +36,9 @@ extern char _end;	/* end of BSS, defined by linker */
 extern char __init_begin, __init_end;
 
 #ifdef CONFIG_DISCONTIGMEM
-struct node_map_data node_data[MAX_NUMNODES];
-bootmem_data_t bmem_data[MAX_NUMNODES];
-unsigned char pfnnid_map[PFNNID_MAP_MAX];
+struct node_map_data node_data[MAX_NUMNODES] __read_mostly;
+bootmem_data_t bmem_data[MAX_NUMNODES] __read_mostly;
+unsigned char pfnnid_map[PFNNID_MAP_MAX] __read_mostly;
 #endif
 
 static struct resource data_resource = {
@@ -58,14 +58,14 @@ static struct resource pdcdata_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
-static struct resource sysram_resources[MAX_PHYSMEM_RANGES];
+static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
 
 /* The following array is initialized from the firmware specific
  * information retrieved in kernel/inventory.c.
  */
 
-physmem_range_t pmem_ranges[MAX_PHYSMEM_RANGES];
-int npmem_ranges;
+physmem_range_t pmem_ranges[MAX_PHYSMEM_RANGES] __read_mostly;
+int npmem_ranges __read_mostly;
 
 #ifdef __LP64__
 #define MAX_MEM         (~0UL)
@@ -73,7 +73,7 @@ int npmem_ranges;
 #define MAX_MEM         (3584U*1024U*1024U)
 #endif /* !__LP64__ */
 
-static unsigned long mem_limit = MAX_MEM;
+static unsigned long mem_limit __read_mostly = MAX_MEM;
 
 static void __init mem_limit_func(void)
 {
@@ -300,6 +300,13 @@ static void __init setup_bootmem(void)
 			max_pfn = start_pfn + npages;
 	}
 
+	/* IOMMU is always used to access "high mem" on those boxes
+	 * that can support enough mem that a PCI device couldn't
+	 * directly DMA to any physical addresses.
+	 * ISA DMA support will need to revisit this.
+	 */
+	max_low_pfn = max_pfn;
+
 	if ((bootmap_pfn - bootmap_start_pfn) != bootmap_pages) {
 		printk(KERN_WARNING "WARNING! bootmap sizing is messed up!\n");
 		BUG();
@@ -431,11 +438,11 @@ void free_initmem(void)
 #define SET_MAP_OFFSET(x) ((void *)(((unsigned long)(x) + VM_MAP_OFFSET) \
 				     & ~(VM_MAP_OFFSET-1)))
 
-void *vmalloc_start;
+void *vmalloc_start __read_mostly;
 EXPORT_SYMBOL(vmalloc_start);
 
 #ifdef CONFIG_PA11
-unsigned long pcxl_dma_start;
+unsigned long pcxl_dma_start __read_mostly;
 #endif
 
 void __init mem_init(void)
@@ -475,7 +482,7 @@ int do_check_pgt_cache(int low, int high)
 	return 0;
 }
 
-unsigned long *empty_zero_page;
+unsigned long *empty_zero_page __read_mostly;
 
 void show_mem(void)
 {
@@ -998,7 +1005,7 @@ void flush_tlb_all(void)
 void flush_tlb_all(void)
 {
 	spin_lock(&sid_lock);
-	flush_tlb_all_local();
+	flush_tlb_all_local(NULL);
 	recycle_sids();
 	spin_unlock(&sid_lock);
 }

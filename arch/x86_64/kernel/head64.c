@@ -92,6 +92,9 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	memcpy(init_level4_pgt, boot_level4_pgt, PTRS_PER_PGD*sizeof(pgd_t));
 	asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
 
+ 	for (i = 0; i < NR_CPUS; i++)
+ 		cpu_pda(i) = &boot_cpu_pda[i];
+
 	pda_init(0);
 	copy_bootdata(real_mode_data);
 #ifdef CONFIG_SMP
@@ -99,7 +102,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 #endif
 	s = strstr(saved_command_line, "earlyprintk=");
 	if (s != NULL)
-		setup_early_printk(s);
+		setup_early_printk(strchr(s, '=') + 1);
 #ifdef CONFIG_NUMA
 	s = strstr(saved_command_line, "numa=");
 	if (s != NULL)

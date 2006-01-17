@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_DMA_H
 #define _ASM_POWERPC_DMA_H
+#ifdef __KERNEL__
 
 /*
  * Defines for using and allocating dma channels.
@@ -387,4 +388,5 @@ extern int isa_dma_bridge_buggy;
 
 #endif	/* !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI) */
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_DMA_H */

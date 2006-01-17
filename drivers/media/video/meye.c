@@ -1754,6 +1754,7 @@ static struct file_operations meye_fops = {
 	.release	= meye_release,
 	.mmap		= meye_mmap,
 	.ioctl		= meye_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.poll		= meye_poll,
 	.llseek		= no_llseek,
 };

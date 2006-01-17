@@ -70,6 +70,7 @@ config FS_XIP
 
 config EXT3_FS
 	tristate "Ext3 journalling file system support"
+	select JBD
 	help
 	  This is the journaling version of the Second extended file system
 	  (often called ext3), the de facto standard Linux file system
@@ -138,23 +139,20 @@ config EXT3_FS_SECURITY
 	  extended attributes for file security labels, say N.
 
 config JBD
-# CONFIG_JBD could be its own option (even modular), but until there are
-# other users than ext3, we will simply make it be the same as CONFIG_EXT3_FS
-# dep_tristate '  Journal Block Device support (JBD for ext3)' CONFIG_JBD $CONFIG_EXT3_FS
 	tristate
-	default EXT3_FS
 	help
 	  This is a generic journaling layer for block devices.  It is
-	  currently used by the ext3 file system, but it could also be used to
-	  add journal support to other file systems or block devices such as
-	  RAID or LVM.
+	  currently used by the ext3 and OCFS2 file systems, but it could
+	  also be used to add journal support to other file systems or block
+	  devices such as RAID or LVM.
 
-	  If you are using the ext3 file system, you need to say Y here. If
-	  you are not using ext3 then you will probably want to say N.
+	  If you are using the ext3 or OCFS2 file systems, you need to
+	  say Y here. If you are not using ext3 OCFS2 then you will probably
+	  want to say N.
 
 	  To compile this device as a module, choose M here: the module will be
-	  called jbd.  If you are compiling ext3 into the kernel, you cannot
-	  compile this code as a module.
+	  called jbd.  If you are compiling ext3 or OCFS2 into the kernel,
+	  you cannot compile this code as a module.
 
 config JBD_DEBUG
 	bool "JBD (ext3) debugging support"
@@ -325,6 +323,38 @@ config FS_POSIX_ACL
 	default n
 
 source "fs/xfs/Kconfig"
+
+config OCFS2_FS
+	tristate "OCFS2 file system support (EXPERIMENTAL)"
+	depends on NET && EXPERIMENTAL
+	select CONFIGFS_FS
+	select JBD
+	select CRC32
+	select INET
+	help
+	  OCFS2 is a general purpose extent based shared disk cluster file
+	  system with many similarities to ext3. It supports 64 bit inode
+	  numbers, and has automatically extending metadata groups which may
+	  also make it attractive for non-clustered use.
+
+	  You'll want to install the ocfs2-tools package in order to at least
+	  get "mount.ocfs2".
+
+	  Project web page:    http://oss.oracle.com/projects/ocfs2
+	  Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
+	  OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+
+	  Note: Features which OCFS2 does not support yet:
+	          - extended attributes
+		  - shared writeable mmap
+	          - loopback is supported, but data written will not
+	            be cluster coherent.
+	          - quotas
+	          - cluster aware flock
+	          - Directory change notification (F_NOTIFY)
+	          - Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
+	          - POSIX ACLs
+	          - readpages / writepages (not user visible)
 
 config MINIX_FS
 	tristate "Minix fs support"
@@ -768,7 +798,7 @@ config PROC_KCORE
 
 config PROC_VMCORE
         bool "/proc/vmcore support (EXPERIMENTAL)"
-        depends on PROC_FS && EMBEDDED && EXPERIMENTAL && CRASH_DUMP
+        depends on PROC_FS && EXPERIMENTAL && CRASH_DUMP
         help
         Exports the dump image of crashed kernel in ELF format.
 
@@ -838,6 +868,20 @@ config RELAYFS_FS
 
 	  To compile this code as a module, choose M here: the module will be
 	  called relayfs.
+
+	  If unsure, say N.
+
+config CONFIGFS_FS
+	tristate "Userspace-driven configuration filesystem (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  configfs is a ram-based filesystem that provides the converse
+	  of sysfs's functionality. Where sysfs is a filesystem-based
+	  view of kernel objects, configfs is a filesystem-based manager
+	  of kernel objects, or config_items.
+
+	  Both sysfs and configfs can and should exist together on the
+	  same system. One is not a replacement for the other.
 
 	  If unsure, say N.
 

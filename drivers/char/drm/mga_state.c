@@ -1127,19 +1127,19 @@ static int mga_wait_fence(DRM_IOCTL_ARGS)
 }
 
 drm_ioctl_desc_t mga_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_MGA_INIT)] = {mga_dma_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_MGA_FLUSH)] = {mga_dma_flush, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_RESET)] = {mga_dma_reset, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_SWAP)] = {mga_dma_swap, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_CLEAR)] = {mga_dma_clear, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_VERTEX)] = {mga_dma_vertex, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_INDICES)] = {mga_dma_indices, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_ILOAD)] = {mga_dma_iload, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_BLIT)] = {mga_dma_blit, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_GETPARAM)] = {mga_getparam, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_SET_FENCE)] = {mga_set_fence, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_WAIT_FENCE)] = {mga_wait_fence, 1, 0},
-	[DRM_IOCTL_NR(DRM_MGA_DMA_BOOTSTRAP)] = {mga_dma_bootstrap, 1, 1},
+	[DRM_IOCTL_NR(DRM_MGA_INIT)] = {mga_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_MGA_FLUSH)] = {mga_dma_flush, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_RESET)] = {mga_dma_reset, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_SWAP)] = {mga_dma_swap, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_CLEAR)] = {mga_dma_clear, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_VERTEX)] = {mga_dma_vertex, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_INDICES)] = {mga_dma_indices, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_ILOAD)] = {mga_dma_iload, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_BLIT)] = {mga_dma_blit, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_GETPARAM)] = {mga_getparam, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_SET_FENCE)] = {mga_set_fence, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_WAIT_FENCE)] = {mga_wait_fence, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_MGA_DMA_BOOTSTRAP)] = {mga_dma_bootstrap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 };
 
 int mga_max_ioctl = DRM_ARRAY_SIZE(mga_ioctls);

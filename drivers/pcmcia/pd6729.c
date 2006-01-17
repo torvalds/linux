@@ -304,75 +304,6 @@ static int pd6729_get_status(struct pcmcia_socket *sock, u_int *value)
 }
 
 
-static int pd6729_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	struct pd6729_socket *socket
-			= container_of(sock, struct pd6729_socket, socket);
-	unsigned char reg, vcc, vpp;
-
-	state->flags    = 0;
-	state->Vcc      = 0;
-	state->Vpp      = 0;
-	state->io_irq   = 0;
-	state->csc_mask = 0;
-
-	/* First the power status of the socket */
-	reg = indirect_read(socket, I365_POWER);
-
-	if (reg & I365_PWR_AUTO)
-		state->flags |= SS_PWR_AUTO;  /* Automatic Power Switch */
-
-	if (reg & I365_PWR_OUT)
-		state->flags |= SS_OUTPUT_ENA; /* Output signals are enabled */
-
-	vcc = reg & I365_VCC_MASK;    vpp = reg & I365_VPP1_MASK;
-
-	if (reg & I365_VCC_5V) {
-		state->Vcc = (indirect_read(socket, PD67_MISC_CTL_1) &
-			PD67_MC1_VCC_3V) ? 33 : 50;
-
-		if (vpp == I365_VPP1_5V) {
-			if (state->Vcc == 50)
-				state->Vpp = 50;
-			else
-				state->Vpp = 33;
-		}
-		if (vpp == I365_VPP1_12V)
-			state->Vpp = 120;
-	}
-
-	/* Now the IO card, RESET flags and IO interrupt */
-	reg = indirect_read(socket, I365_INTCTL);
-
-	if ((reg & I365_PC_RESET) == 0)
-		state->flags |= SS_RESET;
-	if (reg & I365_PC_IOCARD)
-		state->flags |= SS_IOCARD; /* This is an IO card */
-
-	/* Set the IRQ number */
-	state->io_irq = socket->card_irq;
-
-	/* Card status change */
-	reg = indirect_read(socket, I365_CSCINT);
-
-	if (reg & I365_CSC_DETECT)
-		state->csc_mask |= SS_DETECT; /* Card detect is enabled */
-
-	if (state->flags & SS_IOCARD) {/* IO Cards behave different */
-		if (reg & I365_CSC_STSCHG)
-			state->csc_mask |= SS_STSCHG;
-	} else {
-		if (reg & I365_CSC_BVD1)
-			state->csc_mask |= SS_BATDEAD;
-		if (reg & I365_CSC_BVD2)
-			state->csc_mask |= SS_BATWARN;
-		if (reg & I365_CSC_READY)
-			state->csc_mask |= SS_READY;
-	}
-
-	return 0;
-}
-
 static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 {
 	struct pd6729_socket *socket
@@ -640,7 +571,6 @@ static int pd6729_init(struct pcmcia_socket *sock)
 static struct pccard_operations pd6729_operations = {
 	.init 			= pd6729_init,
 	.get_status		= pd6729_get_status,
-	.get_socket		= pd6729_get_socket,
 	.set_socket		= pd6729_set_socket,
 	.set_io_map		= pd6729_set_io_map,
 	.set_mem_map		= pd6729_set_mem_map,
@@ -704,12 +634,10 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	char configbyte;
 	struct pd6729_socket *socket;
 
-	socket = kmalloc(sizeof(struct pd6729_socket) * MAX_SOCKETS,
+	socket = kzalloc(sizeof(struct pd6729_socket) * MAX_SOCKETS,
 			 GFP_KERNEL);
 	if (!socket)
 		return -ENOMEM;
-
-	memset(socket, 0, sizeof(struct pd6729_socket) * MAX_SOCKETS);
 
 	if ((ret = pci_enable_device(dev)))
 		goto err_out_free_mem;

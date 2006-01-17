@@ -273,8 +273,10 @@
  * Macintosh console support
  */
 
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE
 #define CONSOLE
 #define CONSOLE_PENGUIN
+#endif
 
 /*
  * Macintosh serial debug support; outputs boot info to the printer

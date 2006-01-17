@@ -117,7 +117,7 @@ config BLK_DEV_XD
 
 config PARIDE
 	tristate "Parallel port IDE device support"
-	depends on PARPORT
+	depends on PARPORT_PC
 	---help---
 	  There are many external CD-ROM and disk devices that connect through
 	  your computer's parallel port. Most of them are actually IDE devices
@@ -358,7 +358,8 @@ config BLK_DEV_UB
 	  This driver supports certain USB attached storage devices
 	  such as flash keys.
 
-	  Warning: Enabling this cripples the usb-storage driver.
+	  If you enable this driver, it is recommended to avoid conflicts
+	  with usb-storage by enabling USB_LIBUSUAL.
 
 	  If unsure, say N.
 

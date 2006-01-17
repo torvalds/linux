@@ -88,7 +88,6 @@ enum ib_atomic_cap {
 
 struct ib_device_attr {
 	u64			fw_ver;
-	__be64			node_guid;
 	__be64			sys_image_guid;
 	u64			max_mr_size;
 	u64			page_size_cap;
@@ -951,6 +950,7 @@ struct ib_device {
 	u64			     uverbs_cmd_mask;
 	int			     uverbs_abi_ver;
 
+	__be64			     node_guid;
 	u8                           node_type;
 	u8                           phys_port_cnt;
 };

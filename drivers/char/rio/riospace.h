@@ -47,9 +47,8 @@ static char *_riospace_h_sccs_ = "@(#)riospace.h	1.2";
 ** In particular, it won't be able to see changes to RIO_SLOTS
 */
 
-struct Conf
-{
-	char         Locator[24];
+struct Conf {
+	char Locator[24];
 	unsigned int StartupTime;
 	unsigned int SlowCook;
 	unsigned int IntrPollTime;
@@ -59,8 +58,8 @@ struct Conf
 	unsigned int HostLoadBase;
 	unsigned int XpHz;
 	unsigned int XpCps;
-	char         *XpOn;
-	char         *XpOff;
+	char *XpOn;
+	char *XpOff;
 	unsigned int MaxXpCps;
 	unsigned int MinXpCps;
 	unsigned int SpinCmds;
@@ -74,7 +73,7 @@ struct Conf
 
 /*
 **	Board types - these MUST correspond to product codes!
-*/ 
+*/
 #define	RIO_EMPTY	0x0
 #define	RIO_EISA	0x3
 #define	RIO_RTA_16	0x9
@@ -86,18 +85,16 @@ struct Conf
 /*
 **	Board data structure. This is used for configuration info
 */
-struct	Brd
-{
-    unsigned char Type;	/* RIO_EISA, RIO_MCA, RIO_AT, RIO_EMPTY... */
-    unsigned char Ivec;	/* POLLED or ivec number */
-    unsigned char Mode;	/* Control stuff, see below */
+struct Brd {
+	unsigned char Type;	/* RIO_EISA, RIO_MCA, RIO_AT, RIO_EMPTY... */
+	unsigned char Ivec;	/* POLLED or ivec number */
+	unsigned char Mode;	/* Control stuff, see below */
 };
 
-struct	Board
-{
-    char       Locator[RIO_LOCATOR_LEN];
-    int        NumSlots;
-    struct Brd Boards[MAX_RIO_BOARDS];
+struct Board {
+	char Locator[RIO_LOCATOR_LEN];
+	int NumSlots;
+	struct Brd Boards[MAX_RIO_BOARDS];
 };
 
 #define	BOOT_FROM_LINK		0x00
@@ -158,4 +155,4 @@ struct	Board
 
 #define	DBG_ALWAYS	0x80000000
 
-#endif /* __rio_riospace_h__ */
+#endif				/* __rio_riospace_h__ */

@@ -13,6 +13,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  * Andi Kleen - Fix a few bad bugs and races.
+ * Kris Katterjohn - Added many additional checks in sk_chk_filter()
  */
 
 #include <linux/module.h>
@@ -74,7 +75,7 @@ static inline void *load_pointer(struct sk_buff *skb, int k,
  * len is the number of filter blocks in the array.
  */
  
-int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
+unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 {
 	struct sock_filter *fentry;	/* We walk down these */
 	void *ptr;
@@ -240,9 +241,9 @@ load_b:
 			A = X;
 			continue;
 		case BPF_RET|BPF_K:
-			return ((unsigned int)fentry->k);
+			return fentry->k;
 		case BPF_RET|BPF_A:
-			return ((unsigned int)A);
+			return A;
 		case BPF_ST:
 			mem[fentry->k] = A;
 			continue;
@@ -250,7 +251,7 @@ load_b:
 			mem[fentry->k] = X;
 			continue;
 		default:
-			/* Invalid instruction counts as RET */
+			WARN_ON(1);
 			return 0;
 		}
 
@@ -283,10 +284,12 @@ load_b:
  *
  * Check the user's filter code. If we let some ugly
  * filter code slip through kaboom! The filter must contain
- * no references or jumps that are out of range, no illegal instructions
- * and no backward jumps. It must end with a RET instruction
+ * no references or jumps that are out of range, no illegal
+ * instructions, and must end with a RET instruction.
  *
- * Returns 0 if the rule set is legal or a negative errno code if not.
+ * All jumps are forward as they are not signed.
+ *
+ * Returns 0 if the rule set is legal or -EINVAL if not.
  */
 int sk_chk_filter(struct sock_filter *filter, int flen)
 {
@@ -298,48 +301,89 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 
 	/* check the filter code now */
 	for (pc = 0; pc < flen; pc++) {
-		/* all jumps are forward as they are not signed */
 		ftest = &filter[pc];
-		if (BPF_CLASS(ftest->code) == BPF_JMP) {
-			/* but they mustn't jump off the end */
-			if (BPF_OP(ftest->code) == BPF_JA) {
-				/*
-				 * Note, the large ftest->k might cause loops.
-				 * Compare this with conditional jumps below,
-				 * where offsets are limited. --ANK (981016)
-				 */
-				if (ftest->k >= (unsigned)(flen-pc-1))
-					return -EINVAL;
-			} else {
-				/* for conditionals both must be safe */
- 				if (pc + ftest->jt +1 >= flen ||
-				    pc + ftest->jf +1 >= flen)
-					return -EINVAL;
-			}
-		}
 
-		/* check for division by zero   -Kris Katterjohn 2005-10-30 */
-		if (ftest->code == (BPF_ALU|BPF_DIV|BPF_K) && ftest->k == 0)
-			return -EINVAL;
+		/* Only allow valid instructions */
+		switch (ftest->code) {
+		case BPF_ALU|BPF_ADD|BPF_K:
+		case BPF_ALU|BPF_ADD|BPF_X:
+		case BPF_ALU|BPF_SUB|BPF_K:
+		case BPF_ALU|BPF_SUB|BPF_X:
+		case BPF_ALU|BPF_MUL|BPF_K:
+		case BPF_ALU|BPF_MUL|BPF_X:
+		case BPF_ALU|BPF_DIV|BPF_X:
+		case BPF_ALU|BPF_AND|BPF_K:
+		case BPF_ALU|BPF_AND|BPF_X:
+		case BPF_ALU|BPF_OR|BPF_K:
+		case BPF_ALU|BPF_OR|BPF_X:
+		case BPF_ALU|BPF_LSH|BPF_K:
+		case BPF_ALU|BPF_LSH|BPF_X:
+		case BPF_ALU|BPF_RSH|BPF_K:
+		case BPF_ALU|BPF_RSH|BPF_X:
+		case BPF_ALU|BPF_NEG:
+		case BPF_LD|BPF_W|BPF_ABS:
+		case BPF_LD|BPF_H|BPF_ABS:
+		case BPF_LD|BPF_B|BPF_ABS:
+		case BPF_LD|BPF_W|BPF_LEN:
+		case BPF_LD|BPF_W|BPF_IND:
+		case BPF_LD|BPF_H|BPF_IND:
+		case BPF_LD|BPF_B|BPF_IND:
+		case BPF_LD|BPF_IMM:
+		case BPF_LDX|BPF_W|BPF_LEN:
+		case BPF_LDX|BPF_B|BPF_MSH:
+		case BPF_LDX|BPF_IMM:
+		case BPF_MISC|BPF_TAX:
+		case BPF_MISC|BPF_TXA:
+		case BPF_RET|BPF_K:
+		case BPF_RET|BPF_A:
+			break;
 
-		/* check that memory operations use valid addresses. */
-		if (ftest->k >= BPF_MEMWORDS) {
-			/* but it might not be a memory operation... */
-			switch (ftest->code) {
-			case BPF_ST:	
-			case BPF_STX:	
-			case BPF_LD|BPF_MEM:	
-			case BPF_LDX|BPF_MEM:	
+		/* Some instructions need special checks */
+
+		case BPF_ALU|BPF_DIV|BPF_K:
+			/* check for division by zero */
+			if (ftest->k == 0)
 				return -EINVAL;
-			}
+			break;
+
+		case BPF_LD|BPF_MEM:
+		case BPF_LDX|BPF_MEM:
+		case BPF_ST:
+		case BPF_STX:
+			/* check for invalid memory addresses */
+			if (ftest->k >= BPF_MEMWORDS)
+				return -EINVAL;
+			break;
+
+		case BPF_JMP|BPF_JA:
+			/*
+			 * Note, the large ftest->k might cause loops.
+			 * Compare this with conditional jumps below,
+			 * where offsets are limited. --ANK (981016)
+			 */
+			if (ftest->k >= (unsigned)(flen-pc-1))
+				return -EINVAL;
+			break;
+
+		case BPF_JMP|BPF_JEQ|BPF_K:
+		case BPF_JMP|BPF_JEQ|BPF_X:
+		case BPF_JMP|BPF_JGE|BPF_K:
+		case BPF_JMP|BPF_JGE|BPF_X:
+		case BPF_JMP|BPF_JGT|BPF_K:
+		case BPF_JMP|BPF_JGT|BPF_X:
+		case BPF_JMP|BPF_JSET|BPF_K:
+		case BPF_JMP|BPF_JSET|BPF_X:
+			/* for conditionals both must be safe */
+ 			if (pc + ftest->jt + 1 >= flen ||
+			    pc + ftest->jf + 1 >= flen)
+				return -EINVAL;
+			break;
+
+		default:
+			return -EINVAL;
 		}
 	}
 
-	/*
-	 * The program must end with a return. We don't care where they
-	 * jumped within the script (its always forwards) but in the end
-	 * they _will_ hit this.
-	 */
         return (BPF_CLASS(filter[flen - 1].code) == BPF_RET) ? 0 : -EINVAL;
 }
 

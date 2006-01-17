@@ -767,9 +767,6 @@ MODULE_PARM_DESC(amp_gpio, "GPIO pin number for external amp. (default = -1)");
 /*
  */
 
-typedef struct snd_m3_dma m3_dma_t;
-typedef struct snd_m3 m3_t;
-
 /* quirk lists */
 struct m3_quirk {
 	const char *name;	/* device name */
@@ -791,11 +788,10 @@ struct m3_list {
 	int max;
 };
 
-struct snd_m3_dma {
+struct m3_dma {
 
 	int number;
-	m3_t *chip;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 
 	struct assp_instance {
 		unsigned short code, data;
@@ -821,16 +817,16 @@ struct snd_m3_dma {
     
 struct snd_m3 {
 	
-	snd_card_t *card;
+	struct snd_card *card;
 
 	unsigned long iobase;
 
 	int irq;
 	unsigned int allegro_flag : 1;
 
-	ac97_t *ac97;
+	struct snd_ac97 *ac97;
 
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 
 	struct pci_dev *pci;
 	struct m3_quirk *quirk;
@@ -851,17 +847,17 @@ struct snd_m3 {
 	int amp_gpio;
 
 	/* midi */
-	snd_rawmidi_t *rmidi;
+	struct snd_rawmidi *rmidi;
 
 	/* pcm streams */
 	int num_substreams;
-	m3_dma_t *substreams;
+	struct m3_dma *substreams;
 
 	spinlock_t reg_lock;
 	spinlock_t ac97_lock;
 
-	snd_kcontrol_t *master_switch;
-	snd_kcontrol_t *master_volume;
+	struct snd_kcontrol *master_switch;
+	struct snd_kcontrol *master_volume;
 	struct tasklet_struct hwvol_tq;
 
 #ifdef CONFIG_PM
@@ -1021,22 +1017,22 @@ static struct m3_hv_quirk m3_hv_quirk_list[] = {
  * lowlevel functions
  */
 
-static inline void snd_m3_outw(m3_t *chip, u16 value, unsigned long reg)
+static inline void snd_m3_outw(struct snd_m3 *chip, u16 value, unsigned long reg)
 {
 	outw(value, chip->iobase + reg);
 }
 
-static inline u16 snd_m3_inw(m3_t *chip, unsigned long reg)
+static inline u16 snd_m3_inw(struct snd_m3 *chip, unsigned long reg)
 {
 	return inw(chip->iobase + reg);
 }
 
-static inline void snd_m3_outb(m3_t *chip, u8 value, unsigned long reg)
+static inline void snd_m3_outb(struct snd_m3 *chip, u8 value, unsigned long reg)
 {
 	outb(value, chip->iobase + reg);
 }
 
-static inline u8 snd_m3_inb(m3_t *chip, unsigned long reg)
+static inline u8 snd_m3_inb(struct snd_m3 *chip, unsigned long reg)
 {
 	return inb(chip->iobase + reg);
 }
@@ -1045,28 +1041,28 @@ static inline u8 snd_m3_inb(m3_t *chip, unsigned long reg)
  * access 16bit words to the code or data regions of the dsp's memory.
  * index addresses 16bit words.
  */
-static u16 snd_m3_assp_read(m3_t *chip, u16 region, u16 index)
+static u16 snd_m3_assp_read(struct snd_m3 *chip, u16 region, u16 index)
 {
 	snd_m3_outw(chip, region & MEMTYPE_MASK, DSP_PORT_MEMORY_TYPE);
 	snd_m3_outw(chip, index, DSP_PORT_MEMORY_INDEX);
 	return snd_m3_inw(chip, DSP_PORT_MEMORY_DATA);
 }
 
-static void snd_m3_assp_write(m3_t *chip, u16 region, u16 index, u16 data)
+static void snd_m3_assp_write(struct snd_m3 *chip, u16 region, u16 index, u16 data)
 {
 	snd_m3_outw(chip, region & MEMTYPE_MASK, DSP_PORT_MEMORY_TYPE);
 	snd_m3_outw(chip, index, DSP_PORT_MEMORY_INDEX);
 	snd_m3_outw(chip, data, DSP_PORT_MEMORY_DATA);
 }
 
-static void snd_m3_assp_halt(m3_t *chip)
+static void snd_m3_assp_halt(struct snd_m3 *chip)
 {
 	chip->reset_state = snd_m3_inb(chip, DSP_PORT_CONTROL_REG_B) & ~REGB_STOP_CLOCK;
 	msleep(10);
 	snd_m3_outb(chip, chip->reset_state & ~REGB_ENABLE_RESET, DSP_PORT_CONTROL_REG_B);
 }
 
-static void snd_m3_assp_continue(m3_t *chip)
+static void snd_m3_assp_continue(struct snd_m3 *chip)
 {
 	snd_m3_outb(chip, chip->reset_state | REGB_ENABLE_RESET, DSP_PORT_CONTROL_REG_B);
 }
@@ -1080,7 +1076,7 @@ static void snd_m3_assp_continue(m3_t *chip)
  * by the binary code images.
  */
 
-static int snd_m3_add_list(m3_t *chip, struct m3_list *list, u16 val)
+static int snd_m3_add_list(struct snd_m3 *chip, struct m3_list *list, u16 val)
 {
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 			  list->mem_addr + list->curlen,
@@ -1088,7 +1084,7 @@ static int snd_m3_add_list(m3_t *chip, struct m3_list *list, u16 val)
 	return list->curlen++;
 }
 
-static void snd_m3_remove_list(m3_t *chip, struct m3_list *list, int index)
+static void snd_m3_remove_list(struct snd_m3 *chip, struct m3_list *list, int index)
 {
 	u16  val;
 	int lastindex = list->curlen - 1;
@@ -1108,7 +1104,7 @@ static void snd_m3_remove_list(m3_t *chip, struct m3_list *list, int index)
 	list->curlen--;
 }
 
-static void snd_m3_inc_timer_users(m3_t *chip)
+static void snd_m3_inc_timer_users(struct snd_m3 *chip)
 {
 	chip->timer_users++;
 	if (chip->timer_users != 1) 
@@ -1127,7 +1123,7 @@ static void snd_m3_inc_timer_users(m3_t *chip)
 		    HOST_INT_CTRL);
 }
 
-static void snd_m3_dec_timer_users(m3_t *chip)
+static void snd_m3_dec_timer_users(struct snd_m3 *chip)
 {
 	chip->timer_users--;
 	if (chip->timer_users > 0)  
@@ -1151,7 +1147,8 @@ static void snd_m3_dec_timer_users(m3_t *chip)
  */
 
 /* spinlock held! */
-static int snd_m3_pcm_start(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
+static int snd_m3_pcm_start(struct snd_m3 *chip, struct m3_dma *s,
+			    struct snd_pcm_substream *subs)
 {
 	if (! s || ! subs)
 		return -EINVAL;
@@ -1167,7 +1164,7 @@ static int snd_m3_pcm_start(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
 				  chip->dacs_active);
 		break;
 	case SNDRV_PCM_STREAM_CAPTURE:
-		snd_m3_assp_write(s->chip, MEMTYPE_INTERNAL_DATA,
+		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 				  KDATA_ADC1_REQUEST, 1);
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA,
 				  s->inst.data + CDATA_INSTANCE_READY, 1);
@@ -1177,7 +1174,8 @@ static int snd_m3_pcm_start(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
 }
 
 /* spinlock held! */
-static int snd_m3_pcm_stop(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
+static int snd_m3_pcm_stop(struct snd_m3 *chip, struct m3_dma *s,
+			   struct snd_pcm_substream *subs)
 {
 	if (! s || ! subs)
 		return -EINVAL;
@@ -1201,10 +1199,10 @@ static int snd_m3_pcm_stop(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
 }
 
 static int
-snd_m3_pcm_trigger(snd_pcm_substream_t *subs, int cmd)
+snd_m3_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
-	m3_dma_t *s = (m3_dma_t*)subs->runtime->private_data;
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
+	struct m3_dma *s = subs->runtime->private_data;
 	int err = -EINVAL;
 
 	snd_assert(s != NULL, return -ENXIO);
@@ -1238,10 +1236,10 @@ snd_m3_pcm_trigger(snd_pcm_substream_t *subs, int cmd)
  * setup
  */
 static void 
-snd_m3_pcm_setup1(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
+snd_m3_pcm_setup1(struct snd_m3 *chip, struct m3_dma *s, struct snd_pcm_substream *subs)
 {
 	int dsp_in_size, dsp_out_size, dsp_in_buffer, dsp_out_buffer;
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_pcm_runtime *runtime = subs->runtime;
 
 	if (subs->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		dsp_in_size = MINISRC_IN_BUFFER_SIZE - (0x20 * 2);
@@ -1323,7 +1321,8 @@ snd_m3_pcm_setup1(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
 			  dsp_out_buffer);
 }
 
-static void snd_m3_pcm_setup2(m3_t *chip, m3_dma_t *s, snd_pcm_runtime_t *runtime)
+static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
+			      struct snd_pcm_runtime *runtime)
 {
 	u32 freq;
 
@@ -1389,7 +1388,8 @@ static struct play_vals {
 
 /* the mode passed should be already shifted and masked */
 static void
-snd_m3_playback_setup(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
+snd_m3_playback_setup(struct snd_m3 *chip, struct m3_dma *s,
+		      struct snd_pcm_substream *subs)
 {
 	unsigned int i;
 
@@ -1455,7 +1455,7 @@ static struct rec_vals {
 };
 
 static void
-snd_m3_capture_setup(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
+snd_m3_capture_setup(struct snd_m3 *chip, struct m3_dma *s, struct snd_pcm_substream *subs)
 {
 	unsigned int i;
 
@@ -1481,10 +1481,10 @@ snd_m3_capture_setup(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
 				  s->inst.data + rv[i].addr, rv[i].val);
 }
 
-static int snd_m3_pcm_hw_params(snd_pcm_substream_t * substream,
-				snd_pcm_hw_params_t * hw_params)
+static int snd_m3_pcm_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *hw_params)
 {
-	m3_dma_t *s = (m3_dma_t*) substream->runtime->private_data;
+	struct m3_dma *s = substream->runtime->private_data;
 	int err;
 
 	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
@@ -1498,24 +1498,24 @@ static int snd_m3_pcm_hw_params(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_m3_pcm_hw_free(snd_pcm_substream_t * substream)
+static int snd_m3_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	m3_dma_t *s;
+	struct m3_dma *s;
 	
 	if (substream->runtime->private_data == NULL)
 		return 0;
-	s = (m3_dma_t*) substream->runtime->private_data;
+	s = substream->runtime->private_data;
 	snd_pcm_lib_free_pages(substream);
 	s->buffer_addr = 0;
 	return 0;
 }
 
 static int
-snd_m3_pcm_prepare(snd_pcm_substream_t *subs)
+snd_m3_pcm_prepare(struct snd_pcm_substream *subs)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
-	snd_pcm_runtime_t *runtime = subs->runtime;
-	m3_dma_t *s = (m3_dma_t*)runtime->private_data;
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
+	struct snd_pcm_runtime *runtime = subs->runtime;
+	struct m3_dma *s = runtime->private_data;
 
 	snd_assert(s != NULL, return -ENXIO);
 
@@ -1546,7 +1546,7 @@ snd_m3_pcm_prepare(snd_pcm_substream_t *subs)
  * get current pointer
  */
 static unsigned int
-snd_m3_get_pointer(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
+snd_m3_get_pointer(struct snd_m3 *chip, struct m3_dma *s, struct snd_pcm_substream *subs)
 {
 	u16 hi = 0, lo = 0;
 	int retry = 10;
@@ -1571,11 +1571,11 @@ snd_m3_get_pointer(m3_t *chip, m3_dma_t *s, snd_pcm_substream_t *subs)
 }
 
 static snd_pcm_uframes_t
-snd_m3_pcm_pointer(snd_pcm_substream_t * subs)
+snd_m3_pcm_pointer(struct snd_pcm_substream *subs)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
 	unsigned int ptr;
-	m3_dma_t *s = (m3_dma_t*)subs->runtime->private_data;
+	struct m3_dma *s = subs->runtime->private_data;
 	snd_assert(s != NULL, return 0);
 
 	spin_lock(&chip->reg_lock);
@@ -1587,9 +1587,9 @@ snd_m3_pcm_pointer(snd_pcm_substream_t * subs)
 
 /* update pointer */
 /* spinlock held! */
-static void snd_m3_update_ptr(m3_t *chip, m3_dma_t *s)
+static void snd_m3_update_ptr(struct snd_m3 *chip, struct m3_dma *s)
 {
-	snd_pcm_substream_t *subs = s->substream;
+	struct snd_pcm_substream *subs = s->substream;
 	unsigned int hwptr;
 	int diff;
 
@@ -1610,7 +1610,7 @@ static void snd_m3_update_ptr(m3_t *chip, m3_dma_t *s)
 
 static void snd_m3_update_hw_volume(unsigned long private_data)
 {
-	m3_t *chip = (m3_t *) private_data;
+	struct snd_m3 *chip = (struct snd_m3 *) private_data;
 	int x, val;
 	unsigned long flags;
 
@@ -1673,7 +1673,7 @@ static void snd_m3_update_hw_volume(unsigned long private_data)
 static irqreturn_t
 snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	m3_t *chip = dev_id;
+	struct snd_m3 *chip = dev_id;
 	u8 status;
 	int i;
 
@@ -1698,7 +1698,7 @@ snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				/* update adc/dac info if it was a timer int */
 				spin_lock(&chip->reg_lock);
 				for (i = 0; i < chip->num_substreams; i++) {
-					m3_dma_t *s = &chip->substreams[i];
+					struct m3_dma *s = &chip->substreams[i];
 					if (s->running)
 						snd_m3_update_ptr(chip, s);
 				}
@@ -1722,7 +1722,7 @@ snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 /*
  */
 
-static snd_pcm_hardware_t snd_m3_playback =
+static struct snd_pcm_hardware snd_m3_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
@@ -1743,7 +1743,7 @@ static snd_pcm_hardware_t snd_m3_playback =
 	.periods_max =		1024,
 };
 
-static snd_pcm_hardware_t snd_m3_capture =
+static struct snd_pcm_hardware snd_m3_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
@@ -1769,10 +1769,10 @@ static snd_pcm_hardware_t snd_m3_capture =
  */
 
 static int
-snd_m3_substream_open(m3_t *chip, snd_pcm_substream_t *subs)
+snd_m3_substream_open(struct snd_m3 *chip, struct snd_pcm_substream *subs)
 {
 	int i;
-	m3_dma_t *s;
+	struct m3_dma *s;
 
 	spin_lock_irq(&chip->reg_lock);
 	for (i = 0; i < chip->num_substreams; i++) {
@@ -1802,9 +1802,9 @@ __found:
 }
 
 static void
-snd_m3_substream_close(m3_t *chip, snd_pcm_substream_t *subs)
+snd_m3_substream_close(struct snd_m3 *chip, struct snd_pcm_substream *subs)
 {
-	m3_dma_t *s = (m3_dma_t*) subs->runtime->private_data;
+	struct m3_dma *s = subs->runtime->private_data;
 
 	if (s == NULL)
 		return; /* not opened properly */
@@ -1824,10 +1824,10 @@ snd_m3_substream_close(m3_t *chip, snd_pcm_substream_t *subs)
 }
 
 static int
-snd_m3_playback_open(snd_pcm_substream_t *subs)
+snd_m3_playback_open(struct snd_pcm_substream *subs)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
+	struct snd_pcm_runtime *runtime = subs->runtime;
 	int err;
 
 	if ((err = snd_m3_substream_open(chip, subs)) < 0)
@@ -1840,19 +1840,19 @@ snd_m3_playback_open(snd_pcm_substream_t *subs)
 }
 
 static int
-snd_m3_playback_close(snd_pcm_substream_t *subs)
+snd_m3_playback_close(struct snd_pcm_substream *subs)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
 
 	snd_m3_substream_close(chip, subs);
 	return 0;
 }
 
 static int
-snd_m3_capture_open(snd_pcm_substream_t *subs)
+snd_m3_capture_open(struct snd_pcm_substream *subs)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
+	struct snd_pcm_runtime *runtime = subs->runtime;
 	int err;
 
 	if ((err = snd_m3_substream_open(chip, subs)) < 0)
@@ -1865,9 +1865,9 @@ snd_m3_capture_open(snd_pcm_substream_t *subs)
 }
 
 static int
-snd_m3_capture_close(snd_pcm_substream_t *subs)
+snd_m3_capture_close(struct snd_pcm_substream *subs)
 {
-	m3_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_m3 *chip = snd_pcm_substream_chip(subs);
 
 	snd_m3_substream_close(chip, subs);
 	return 0;
@@ -1877,7 +1877,7 @@ snd_m3_capture_close(snd_pcm_substream_t *subs)
  * create pcm instance
  */
 
-static snd_pcm_ops_t snd_m3_playback_ops = {
+static struct snd_pcm_ops snd_m3_playback_ops = {
 	.open =		snd_m3_playback_open,
 	.close =	snd_m3_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1888,7 +1888,7 @@ static snd_pcm_ops_t snd_m3_playback_ops = {
 	.pointer =	snd_m3_pcm_pointer,
 };
 
-static snd_pcm_ops_t snd_m3_capture_ops = {
+static struct snd_pcm_ops snd_m3_capture_ops = {
 	.open =		snd_m3_capture_open,
 	.close =	snd_m3_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1900,9 +1900,9 @@ static snd_pcm_ops_t snd_m3_capture_ops = {
 };
 
 static int __devinit
-snd_m3_pcm(m3_t * chip, int device)
+snd_m3_pcm(struct snd_m3 * chip, int device)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	err = snd_pcm_new(chip->card, chip->card->driver, device,
@@ -1933,7 +1933,7 @@ snd_m3_pcm(m3_t * chip, int device)
  * Wait for the ac97 serial bus to be free.
  * return nonzero if the bus is still busy.
  */
-static int snd_m3_ac97_wait(m3_t *chip)
+static int snd_m3_ac97_wait(struct snd_m3 *chip)
 {
 	int i = 10000;
 
@@ -1947,9 +1947,9 @@ static int snd_m3_ac97_wait(m3_t *chip)
 }
 
 static unsigned short
-snd_m3_ac97_read(ac97_t *ac97, unsigned short reg)
+snd_m3_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
-	m3_t *chip = ac97->private_data;
+	struct snd_m3 *chip = ac97->private_data;
 	unsigned long flags;
 	unsigned short data;
 
@@ -1965,9 +1965,9 @@ snd_m3_ac97_read(ac97_t *ac97, unsigned short reg)
 }
 
 static void
-snd_m3_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
+snd_m3_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 {
-	m3_t *chip = ac97->private_data;
+	struct snd_m3 *chip = ac97->private_data;
 	unsigned long flags;
 
 	if (snd_m3_ac97_wait(chip))
@@ -1994,7 +1994,7 @@ static void snd_m3_remote_codec_config(int io, int isremote)
 /* 
  * hack, returns non zero on err 
  */
-static int snd_m3_try_read_vendor(m3_t *chip)
+static int snd_m3_try_read_vendor(struct snd_m3 *chip)
 {
 	u16 ret;
 
@@ -2011,7 +2011,7 @@ static int snd_m3_try_read_vendor(m3_t *chip)
 	return (ret == 0) || (ret == 0xffff);
 }
 
-static void snd_m3_ac97_reset(m3_t *chip)
+static void snd_m3_ac97_reset(struct snd_m3 *chip)
 {
 	u16 dir;
 	int delay1 = 0, delay2 = 0, i;
@@ -2078,13 +2078,13 @@ static void snd_m3_ac97_reset(m3_t *chip)
 #endif
 }
 
-static int __devinit snd_m3_mixer(m3_t *chip)
+static int __devinit snd_m3_mixer(struct snd_m3 *chip)
 {
-	ac97_bus_t *pbus;
-	ac97_template_t ac97;
-	snd_ctl_elem_id_t id;
+	struct snd_ac97_bus *pbus;
+	struct snd_ac97_template ac97;
+	struct snd_ctl_elem_id id;
 	int err;
-	static ac97_bus_ops_t ops = {
+	static struct snd_ac97_bus_ops ops = {
 		.write = snd_m3_ac97_write,
 		.read = snd_m3_ac97_read,
 	};
@@ -2254,7 +2254,7 @@ static u16 minisrc_lpf[MINISRC_LPF_LEN] __devinitdata = {
 	0X1023, 0X1AA9, 0X0B60, 0XEFDD, 0X186F
 };
 
-static void __devinit snd_m3_assp_init(m3_t *chip)
+static void __devinit snd_m3_assp_init(struct snd_m3 *chip)
 {
 	unsigned int i;
 
@@ -2343,7 +2343,7 @@ static void __devinit snd_m3_assp_init(m3_t *chip)
 }
 
 
-static int __devinit snd_m3_assp_client_init(m3_t *chip, m3_dma_t *s, int index)
+static int __devinit snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma *s, int index)
 {
 	int data_bytes = 2 * ( MINISRC_TMP_BUFFER_SIZE / 2 + 
 			       MINISRC_IN_BUFFER_SIZE / 2 +
@@ -2389,7 +2389,7 @@ static int __devinit snd_m3_assp_client_init(m3_t *chip, m3_dma_t *s, int index)
  * this needs more magic for 4 speaker, but..
  */
 static void
-snd_m3_amp_enable(m3_t *chip, int enable)
+snd_m3_amp_enable(struct snd_m3 *chip, int enable)
 {
 	int io = chip->iobase;
 	u16 gpo, polarity;
@@ -2413,7 +2413,7 @@ snd_m3_amp_enable(m3_t *chip, int enable)
 }
 
 static int
-snd_m3_chip_init(m3_t *chip)
+snd_m3_chip_init(struct snd_m3 *chip)
 {
 	struct pci_dev *pcidev = chip->pci;
 	unsigned long io = chip->iobase;
@@ -2486,7 +2486,7 @@ snd_m3_chip_init(m3_t *chip)
 } 
 
 static void
-snd_m3_enable_ints(m3_t *chip)
+snd_m3_enable_ints(struct snd_m3 *chip)
 {
 	unsigned long io = chip->iobase;
 	unsigned short val;
@@ -2504,9 +2504,9 @@ snd_m3_enable_ints(m3_t *chip)
 /*
  */
 
-static int snd_m3_free(m3_t *chip)
+static int snd_m3_free(struct snd_m3 *chip)
 {
-	m3_dma_t *s;
+	struct m3_dma *s;
 	int i;
 
 	if (chip->substreams) {
@@ -2530,7 +2530,7 @@ static int snd_m3_free(m3_t *chip)
 
 	if (chip->irq >= 0) {
 		synchronize_irq(chip->irq);
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	}
 
 	if (chip->iobase)
@@ -2546,14 +2546,16 @@ static int snd_m3_free(m3_t *chip)
  * APM support
  */
 #ifdef CONFIG_PM
-static int m3_suspend(snd_card_t *card, pm_message_t state)
+static int m3_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	m3_t *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_m3 *chip = card->private_data;
 	int i, index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
@@ -2574,20 +2576,23 @@ static int m3_suspend(snd_card_t *card, pm_message_t state)
 	snd_m3_outw(chip, 0xffff, 0x54);
 	snd_m3_outw(chip, 0xffff, 0x56);
 
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int m3_resume(snd_card_t *card)
+static int m3_resume(struct pci_dev *pci)
 {
-	m3_t *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_m3 *chip = card->private_data;
 	int i, index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
 
 	/* first lets just bring everything back. .*/
 	snd_m3_outw(chip, 0, 0x54);
@@ -2617,6 +2622,7 @@ static int m3_resume(snd_card_t *card)
 	snd_m3_enable_ints(chip);
 	snd_m3_amp_enable(chip, 1);
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2625,23 +2631,23 @@ static int m3_resume(snd_card_t *card)
 /*
  */
 
-static int snd_m3_dev_free(snd_device_t *device)
+static int snd_m3_dev_free(struct snd_device *device)
 {
-	m3_t *chip = device->device_data;
+	struct snd_m3 *chip = device->device_data;
 	return snd_m3_free(chip);
 }
 
 static int __devinit
-snd_m3_create(snd_card_t *card, struct pci_dev *pci,
+snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	      int enable_amp,
 	      int amp_gpio,
-	      m3_t **chip_ret)
+	      struct snd_m3 **chip_ret)
 {
-	m3_t *chip;
+	struct snd_m3 *chip;
 	int i, err;
 	struct m3_quirk *quirk;
 	struct m3_hv_quirk *hv_quirk;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_m3_dev_free,
 	};
 
@@ -2710,13 +2716,13 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 		chip->amp_gpio = GPO_EXT_AMP_M3;
 
 	chip->num_substreams = NR_DSPS;
-	chip->substreams = kmalloc(sizeof(m3_dma_t) * chip->num_substreams, GFP_KERNEL);
+	chip->substreams = kcalloc(chip->num_substreams, sizeof(struct m3_dma),
+				   GFP_KERNEL);
 	if (chip->substreams == NULL) {
 		kfree(chip);
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
-	memset(chip->substreams, 0, sizeof(m3_dma_t) * chip->num_substreams);
 
 	if ((err = pci_request_regions(pci, card->driver)) < 0) {
 		snd_m3_free(chip);
@@ -2737,7 +2743,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
 	if (request_irq(pci->irq, snd_m3_interrupt, SA_INTERRUPT|SA_SHIRQ,
-			card->driver, (void *)chip)) {
+			card->driver, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_m3_free(chip);
 		return -ENOMEM;
@@ -2748,8 +2754,6 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	chip->suspend_mem = vmalloc(sizeof(u16) * (REV_B_CODE_MEMORY_LENGTH + REV_B_DATA_MEMORY_LENGTH));
 	if (chip->suspend_mem == NULL)
 		snd_printk(KERN_WARNING "can't allocate apm buffer\n");
-	else
-		snd_card_set_pm_callback(card, m3_suspend, m3_resume, chip);
 #endif
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
@@ -2761,8 +2765,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 		return err;
 
 	for (i = 0; i < chip->num_substreams; i++) {
-		m3_dma_t *s = &chip->substreams[i];
-		s->chip = chip;
+		struct m3_dma *s = &chip->substreams[i];
 		if ((err = snd_m3_assp_client_init(chip, s, i)) < 0)
 			return err;
 	}
@@ -2786,8 +2789,8 @@ static int __devinit
 snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	m3_t *chip;
+	struct snd_card *card;
+	struct snd_m3 *chip;
 	int err;
 
 	/* don't pick up modems */
@@ -2826,6 +2829,7 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	sprintf(card->shortname, "ESS %s PCI", card->driver);
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
@@ -2861,7 +2865,10 @@ static struct pci_driver driver = {
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
 	.remove = __devexit_p(snd_m3_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = m3_suspend,
+	.resume = m3_resume,
+#endif
 };
 	
 static int __init alsa_card_m3_init(void)

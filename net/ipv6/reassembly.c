@@ -581,7 +581,6 @@ err:
  *	the last and the first frames arrived and all the bits are here.
  */
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
-			  unsigned int *nhoffp,
 			  struct net_device *dev)
 {
 	struct sk_buff *fp, *head = fq->fragments;
@@ -654,6 +653,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	head->dev = dev;
 	skb_set_timestamp(head, &fq->stamp);
 	head->nh.ipv6h->payload_len = htons(payload_len);
+	IP6CB(head)->nhoff = nhoff;
 
 	*skb_in = head;
 
@@ -663,7 +663,6 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 
 	IP6_INC_STATS_BH(IPSTATS_MIB_REASMOKS);
 	fq->fragments = NULL;
-	*nhoffp = nhoff;
 	return 1;
 
 out_oversize:
@@ -678,7 +677,7 @@ out_fail:
 	return -1;
 }
 
-static int ipv6_frag_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
+static int ipv6_frag_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp; 
 	struct net_device *dev = skb->dev;
@@ -710,7 +709,7 @@ static int ipv6_frag_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
 		skb->h.raw += sizeof(struct frag_hdr);
 		IP6_INC_STATS_BH(IPSTATS_MIB_REASMOKS);
 
-		*nhoffp = (u8*)fhdr - skb->nh.raw;
+		IP6CB(skb)->nhoff = (u8*)fhdr - skb->nh.raw;
 		return 1;
 	}
 
@@ -722,11 +721,11 @@ static int ipv6_frag_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
 
 		spin_lock(&fq->lock);
 
-		ip6_frag_queue(fq, skb, fhdr, *nhoffp);
+		ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
 
 		if (fq->last_in == (FIRST_IN|LAST_IN) &&
 		    fq->meat == fq->len)
-			ret = ip6_frag_reasm(fq, skbp, nhoffp, dev);
+			ret = ip6_frag_reasm(fq, skbp, dev);
 
 		spin_unlock(&fq->lock);
 		fq_put(fq, NULL);

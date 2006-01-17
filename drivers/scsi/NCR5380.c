@@ -87,6 +87,7 @@
  *      the high level code.
  */
 #include <scsi/scsi_dbg.h>
+#include <scsi/scsi_transport_spi.h>
 
 #ifndef NDEBUG
 #define NDEBUG 0
@@ -2377,7 +2378,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
  * 3..length+1  arguments
  *
  * Start the extended message buffer with the EXTENDED_MESSAGE
- * byte, since scsi_print_msg() wants the whole thing.  
+ * byte, since spi_print_msg() wants the whole thing.  
  */
 					extended_msg[0] = EXTENDED_MESSAGE;
 					/* Accept first byte by clearing ACK */
@@ -2424,7 +2425,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				default:
 					if (!tmp) {
 						printk("scsi%d: rejecting message ", instance->host_no);
-						scsi_print_msg(extended_msg);
+						spi_print_msg(extended_msg);
 						printk("\n");
 					} else if (tmp != EXTENDED_MESSAGE)
 						scmd_printk(KERN_INFO, cmd,
@@ -2560,7 +2561,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance) {
 
 	if (!(msg[0] & 0x80)) {
 		printk(KERN_ERR "scsi%d : expecting IDENTIFY message, got ", instance->host_no);
-		scsi_print_msg(msg);
+		spi_print_msg(msg);
 		abort = 1;
 	} else {
 		/* Accept message by clearing ACK */

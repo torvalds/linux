@@ -78,7 +78,7 @@ xfs_trans_add_item(xfs_trans_t *tp, xfs_log_item_t *lip)
 		lidp->lid_size = 0;
 		lip->li_desc = lidp;
 		lip->li_mountp = tp->t_mountp;
-		return (lidp);
+		return lidp;
 	}
 
 	/*
@@ -119,7 +119,7 @@ xfs_trans_add_item(xfs_trans_t *tp, xfs_log_item_t *lip)
 	lidp->lid_size = 0;
 	lip->li_desc = lidp;
 	lip->li_mountp = tp->t_mountp;
-	return (lidp);
+	return lidp;
 }
 
 /*
@@ -180,7 +180,7 @@ xfs_trans_find_item(xfs_trans_t	*tp, xfs_log_item_t *lip)
 {
 	ASSERT(lip->li_desc != NULL);
 
-	return (lip->li_desc);
+	return lip->li_desc;
 }
 
 
@@ -219,10 +219,10 @@ xfs_trans_first_item(xfs_trans_t *tp)
 			continue;
 		}
 
-		return (XFS_LIC_SLOT(licp, i));
+		return XFS_LIC_SLOT(licp, i);
 	}
 	cmn_err(CE_WARN, "xfs_trans_first_item() -- no first item");
-	return(NULL);
+	return NULL;
 }
 
 
@@ -252,7 +252,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 			continue;
 		}
 
-		return (XFS_LIC_SLOT(licp, i));
+		return XFS_LIC_SLOT(licp, i);
 	}
 
 	/*
@@ -261,7 +261,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 	 * If there is no next chunk, return NULL.
 	 */
 	if (licp->lic_next == NULL) {
-		return (NULL);
+		return NULL;
 	}
 
 	licp = licp->lic_next;
@@ -271,7 +271,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 			continue;
 		}
 
-		return (XFS_LIC_SLOT(licp, i));
+		return XFS_LIC_SLOT(licp, i);
 	}
 	ASSERT(0);
 	/* NOTREACHED */
@@ -425,7 +425,7 @@ xfs_trans_unlock_chunk(
 		}
 	}
 
-	return (freed);
+	return freed;
 }
 
 
@@ -478,7 +478,7 @@ xfs_trans_add_busy(xfs_trans_t *tp, xfs_agnumber_t ag, xfs_extlen_t idx)
 		 */
 		lbsp->lbc_ag = ag;
 		lbsp->lbc_idx = idx;
-		return (lbsp);
+		return lbsp;
 	}
 
 	/*
@@ -512,7 +512,7 @@ xfs_trans_add_busy(xfs_trans_t *tp, xfs_agnumber_t ag, xfs_extlen_t idx)
 	tp->t_busy_free--;
 	lbsp->lbc_ag = ag;
 	lbsp->lbc_idx = idx;
-	return (lbsp);
+	return lbsp;
 }
 
 

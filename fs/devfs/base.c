@@ -2162,27 +2162,27 @@ static int devfs_d_revalidate_wait(struct dentry *dentry, struct nameidata *nd)
 	 *
 	 * make sure that
 	 *   d_instantiate always runs under lock
-	 *   we release i_sem lock before going to sleep
+	 *   we release i_mutex lock before going to sleep
 	 *
 	 * unfortunately sometimes d_revalidate is called with
-	 * and sometimes without i_sem lock held. The following checks
+	 * and sometimes without i_mutex lock held. The following checks
 	 * attempt to deduce when we need to add (and drop resp.) lock
 	 * here. This relies on current (2.6.2) calling coventions:
 	 *
-	 *   lookup_hash is always run under i_sem and is passing NULL
+	 *   lookup_hash is always run under i_mutex and is passing NULL
 	 *   as nd
 	 *
-	 *   open(...,O_CREATE,...) calls _lookup_hash under i_sem
+	 *   open(...,O_CREATE,...) calls _lookup_hash under i_mutex
 	 *   and sets flags to LOOKUP_OPEN|LOOKUP_CREATE
 	 *
 	 *   all other invocations of ->d_revalidate seem to happen
-	 *   outside of i_sem
+	 *   outside of i_mutex
 	 */
 	need_lock = nd &&
 	    (!(nd->flags & LOOKUP_CREATE) || (nd->flags & LOOKUP_PARENT));
 
 	if (need_lock)
-		down(&dir->i_sem);
+		mutex_lock(&dir->i_mutex);
 
 	if (is_devfsd_or_child(fs_info)) {
 		devfs_handle_t de = lookup_info->de;
@@ -2221,9 +2221,9 @@ static int devfs_d_revalidate_wait(struct dentry *dentry, struct nameidata *nd)
 		add_wait_queue(&lookup_info->wait_queue, &wait);
 		read_unlock(&parent->u.dir.lock);
 		/* at this point it is always (hopefully) locked */
-		up(&dir->i_sem);
+		mutex_unlock(&dir->i_mutex);
 		schedule();
-		down(&dir->i_sem);
+		mutex_lock(&dir->i_mutex);
 		/*
 		 * This does not need nor should remove wait from wait_queue.
 		 * Wait queue head is never reused - nothing is ever added to it
@@ -2238,7 +2238,7 @@ static int devfs_d_revalidate_wait(struct dentry *dentry, struct nameidata *nd)
 
       out:
 	if (need_lock)
-		up(&dir->i_sem);
+		mutex_unlock(&dir->i_mutex);
 	return 1;
 }				/*  End Function devfs_d_revalidate_wait  */
 
@@ -2284,9 +2284,9 @@ static struct dentry *devfs_lookup(struct inode *dir, struct dentry *dentry,
 	/*  Unlock directory semaphore, which will release any waiters. They
 	   will get the hashed dentry, and may be forced to wait for
 	   revalidation  */
-	up(&dir->i_sem);
+	mutex_unlock(&dir->i_mutex);
 	wait_for_devfsd_finished(fs_info);	/*  If I'm not devfsd, must wait  */
-	down(&dir->i_sem);	/*  Grab it again because them's the rules  */
+	mutex_lock(&dir->i_mutex);	/*  Grab it again because them's the rules  */
 	de = lookup_info.de;
 	/*  If someone else has been so kind as to make the inode, we go home
 	   early  */

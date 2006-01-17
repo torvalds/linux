@@ -60,8 +60,6 @@ xfs_swapext(
 	xfs_bstat_t	*sbp;
 	struct file	*fp = NULL, *tfp = NULL;
 	vnode_t		*vp, *tvp;
-	bhv_desc_t      *bdp, *tbdp;
-	vn_bhv_head_t   *bhp, *tbhp;
 	static uint	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
 	int		ilf_fields, tilf_fields;
 	int		error = 0;
@@ -90,13 +88,10 @@ xfs_swapext(
 		goto error0;
 	}
 
-	bhp = VN_BHV_HEAD(vp);
-	bdp = vn_bhv_lookup(bhp, &xfs_vnodeops);
-	if (bdp == NULL) {
+	ip = xfs_vtoi(vp);
+	if (ip == NULL) {
 		error = XFS_ERROR(EBADF);
 		goto error0;
-	} else {
-		ip = XFS_BHVTOI(bdp);
 	}
 
 	if (((tfp = fget((int)sxp->sx_fdtmp)) == NULL) ||
@@ -105,13 +100,10 @@ xfs_swapext(
 		goto error0;
 	}
 
-	tbhp = VN_BHV_HEAD(tvp);
-	tbdp = vn_bhv_lookup(tbhp, &xfs_vnodeops);
-	if (tbdp == NULL) {
+	tip = xfs_vtoi(tvp);
+	if (tip == NULL) {
 		error = XFS_ERROR(EBADF);
 		goto error0;
-	} else {
-		tip = XFS_BHVTOI(tbdp);
 	}
 
 	if (ip->i_mount != tip->i_mount) {

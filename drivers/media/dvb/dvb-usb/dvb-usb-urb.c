@@ -175,15 +175,13 @@ static int dvb_usb_allocate_stream_buffers(struct dvb_usb_device *d, int num, un
 
 	deb_mem("all in all I will use %lu bytes for streaming\n",num*size);
 
-	if ((d->buf_list = kmalloc(num*sizeof(u8 *), GFP_ATOMIC)) == NULL)
+	if ((d->buf_list = kcalloc(num, sizeof(u8 *), GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
 
-	if ((d->dma_addr = kmalloc(num*sizeof(dma_addr_t), GFP_ATOMIC)) == NULL) {
+	if ((d->dma_addr = kcalloc(num, sizeof(dma_addr_t), GFP_ATOMIC)) == NULL) {
 		kfree(d->buf_list);
 		return -ENOMEM;
 	}
-	memset(d->buf_list,0,num*sizeof(u8 *));
-	memset(d->dma_addr,0,num*sizeof(dma_addr_t));
 
 	d->state |= DVB_USB_STATE_URB_BUF;
 
@@ -285,10 +283,9 @@ int dvb_usb_urb_init(struct dvb_usb_device *d)
 	usb_clear_halt(d->udev,usb_rcvbulkpipe(d->udev,d->props.urb.endpoint));
 
 	/* allocate the array for the data transfer URBs */
-	d->urb_list = kmalloc(d->props.urb.count * sizeof(struct urb *),GFP_KERNEL);
+	d->urb_list = kzalloc(d->props.urb.count * sizeof(struct urb *),GFP_KERNEL);
 	if (d->urb_list == NULL)
 		return -ENOMEM;
-	memset(d->urb_list,0,d->props.urb.count * sizeof(struct urb *));
 	d->state |= DVB_USB_STATE_URB_LIST;
 
 	switch (d->props.urb.type) {

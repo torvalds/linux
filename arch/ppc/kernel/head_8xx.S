@@ -375,6 +375,8 @@ DataStoreTLBMiss:
 	lis	r11, swapper_pg_dir@h
 	ori	r11, r11, swapper_pg_dir@l
 	rlwimi	r10, r11, 0, 2, 19
+	stw	r12, 16(r0)
+	b LoadLargeDTLB
 3:
 	lwz	r11, 0(r10)	/* Get the level 1 entry */
 	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
@@ -429,6 +431,81 @@ DataStoreTLBMiss:
 	. = 0x1300
 InstructionTLBError:
 	b	InstructionAccess
+
+LoadLargeDTLB:
+	li	r12, 0
+	lwz	r11, 0(r10)	/* Get the level 1 entry */
+	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
+	beq	3f		/* If zero, don't try to find a pte */
+
+	/* We have a pte table, so load fetch the pte from the table.
+	 */
+	ori	r11, r11, 1	/* Set valid bit in physical L2 page */
+	DO_8xx_CPU6(0x3b80, r3)
+	mtspr	SPRN_MD_TWC, r11	/* Load pte table base address */
+	mfspr	r10, SPRN_MD_TWC	/* ....and get the pte address */
+	lwz	r10, 0(r10)	/* Get the pte */
+
+	/* Insert the Guarded flag into the TWC from the Linux PTE.
+	 * It is bit 27 of both the Linux PTE and the TWC (at least
+	 * I got that right :-).  It will be better when we can put
+	 * this into the Linux pgd/pmd and load it in the operation
+	 * above.
+	 */
+	rlwimi	r11, r10, 0, 27, 27
+
+	rlwimi  r12, r10, 0, 0, 9	/* extract phys. addr */
+	mfspr	r3, SPRN_MD_EPN
+	rlwinm	r3, r3, 0, 0, 9		/* extract virtual address */
+	tophys(r3, r3)
+	cmpw	r3, r12			/* only use 8M page if it is a direct 
+					   kernel mapping */
+	bne	1f
+	ori     r11, r11, MD_PS8MEG
+	li	r12, 1
+	b	2f
+1:
+	li	r12, 0		/* can't use 8MB TLB, so zero r12. */
+2:
+	DO_8xx_CPU6(0x3b80, r3)
+	mtspr	SPRN_MD_TWC, r11
+
+	/* The Linux PTE won't go exactly into the MMU TLB.
+	 * Software indicator bits 21, 22 and 28 must be clear.
+	 * Software indicator bits 24, 25, 26, and 27 must be
+	 * set.  All other Linux PTE bits control the behavior
+	 * of the MMU.
+	 */
+3:	li	r11, 0x00f0
+	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
+	cmpwi   r12, 1
+	bne 4f
+	ori     r10, r10, 0x8
+
+	mfspr	r12, SPRN_MD_EPN
+	lis	r3, 0xff80		/* 10-19 must be clear for 8MB TLB */
+	ori	r3, r3, 0x0fff
+	and	r12, r3, r12
+	DO_8xx_CPU6(0x3780, r3)
+	mtspr	SPRN_MD_EPN, r12
+
+	lis	r3, 0xff80		/* 10-19 must be clear for 8MB TLB */
+	ori	r3, r3, 0x0fff
+	and	r10, r3, r10
+4:
+	DO_8xx_CPU6(0x3d80, r3)
+	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
+
+	mfspr	r10, SPRN_M_TW	/* Restore registers */
+	lwz	r11, 0(r0)
+	mtcr	r11
+	lwz	r11, 4(r0)
+
+	lwz	r12, 16(r0)
+#ifdef CONFIG_8xx_CPU6
+	lwz	r3, 8(r0)
+#endif
+	rfi
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
  * many reasons, including a dirty update to a pte.  We can catch that

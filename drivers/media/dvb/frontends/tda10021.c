@@ -95,7 +95,7 @@ static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 	u8 b0 [] = { reg };
 	u8 b1 [] = { 0 };
 	struct i2c_msg msg [] = { { .addr = state->config->demod_address, .flags = 0, .buf = b0, .len = 1 },
-		                  { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
+				  { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
 	int ret;
 
 	ret = i2c_transfer (state->i2c, msg, 2);
@@ -434,7 +434,7 @@ static struct dvb_frontend_ops tda10021_ops = {
 		.frequency_max = 858000000,
 		.symbol_rate_min = (XIN/2)/64,     /* SACLK/64 == (XIN/2)/64 */
 		.symbol_rate_max = (XIN/2)/4,      /* SACLK/4 */
-	#if 0
+#if 0
 		.frequency_tolerance = ???,
 		.symbol_rate_tolerance = ???,  /* ppm */  /* == 8% (spec p. 5) */
 	#endif

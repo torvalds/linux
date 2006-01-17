@@ -129,19 +129,6 @@ static DEFINE_SPINLOCK(mfm_lock);
 #define MAJOR_NR	MFM_ACORN_MAJOR
 #define QUEUE (mfm_queue)
 #define CURRENT elv_next_request(mfm_queue)
-/*
- * This sort of stuff should be in a header file shared with ide.c, hd.c, xd.c etc
- */
-#ifndef HDIO_GETGEO
-#define HDIO_GETGEO 0x301
-struct hd_geometry {
-	unsigned char heads;
-	unsigned char sectors;
-	unsigned short cylinders;
-	unsigned long start;
-};
-#endif
-
 
 /*
  * Configuration section
@@ -1153,22 +1140,13 @@ static int mfm_initdrives(void)
  * The 'front' end of the mfm driver follows...
  */
 
-static int mfm_ioctl(struct inode *inode, struct file *file, u_int cmd, u_long arg)
+static int mfm_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct mfm_info *p = inode->i_bdev->bd_disk->private_data;
-	struct hd_geometry *geo = (struct hd_geometry *) arg;
-	if (cmd != HDIO_GETGEO)
-		return -EINVAL;
-	if (!arg)
-		return -EINVAL;
-	if (put_user (p->heads, &geo->heads))
-		return -EFAULT;
-	if (put_user (p->sectors, &geo->sectors))
-		return -EFAULT;
-	if (put_user (p->cylinders, &geo->cylinders))
-		return -EFAULT;
-	if (put_user (get_start_sect(inode->i_bdev), &geo->start))
-		return -EFAULT;
+	struct mfm_info *p = bdev->bd_disk->private_data;
+
+	geo->heads = p->heads;
+	geo->sectors = p->sectors;
+	geo->cylinders = p->cylinders;
 	return 0;
 }
 
@@ -1219,7 +1197,7 @@ void xd_set_geometry(struct block_device *bdev, unsigned char secsptrack,
 static struct block_device_operations mfm_fops =
 {
 	.owner		= THIS_MODULE,
-	.ioctl		= mfm_ioctl,
+	.getgeo		= mfm_getgeo,
 };
 
 /*

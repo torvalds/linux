@@ -91,9 +91,6 @@ sbc8560_early_serial_map(void)
 }
 #endif
 
-static const char *GFAR_PHY_25 = "phy0:25";
-static const char *GFAR_PHY_26 = "phy0:26";
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -136,20 +133,21 @@ sbc8560_setup_arch(void)
 	mdata->irq[25] = MPC85xx_IRQ_EXT6;
 	mdata->irq[26] = MPC85xx_IRQ_EXT7;
 	mdata->irq[31] = -1;
-	mdata->paddr += binfo->bi_immr_base;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_25;
+		pdata->bus_id = 0;
+		pdata->phy_id = 25;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_26;
+		pdata->bus_id = 0;
+		pdata->phy_id = 26;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 

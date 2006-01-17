@@ -115,7 +115,7 @@ static DECLARE_TRANSPORT_CLASS(raid_class,
 			       raid_remove,
 			       NULL);
 
-static struct {
+static const struct {
 	enum raid_state	value;
 	char		*name;
 } raid_states[] = {
@@ -148,9 +148,11 @@ static struct {
 	{ RAID_LEVEL_LINEAR, "linear" },
 	{ RAID_LEVEL_0, "raid0" },
 	{ RAID_LEVEL_1, "raid1" },
+	{ RAID_LEVEL_10, "raid10" },
 	{ RAID_LEVEL_3, "raid3" },
 	{ RAID_LEVEL_4, "raid4" },
 	{ RAID_LEVEL_5, "raid5" },
+	{ RAID_LEVEL_50, "raid50" },
 	{ RAID_LEVEL_6, "raid6" },
 };
 

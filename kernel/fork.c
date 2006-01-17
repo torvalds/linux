@@ -28,6 +28,7 @@
 #include <linux/binfmts.h>
 #include <linux/mman.h>
 #include <linux/fs.h>
+#include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/security.h>
@@ -743,6 +744,14 @@ int unshare_files(void)
 
 EXPORT_SYMBOL(unshare_files);
 
+void sighand_free_cb(struct rcu_head *rhp)
+{
+	struct sighand_struct *sp;
+
+	sp = container_of(rhp, struct sighand_struct, rcu);
+	kmem_cache_free(sighand_cachep, sp);
+}
+
 static inline int copy_sighand(unsigned long clone_flags, struct task_struct * tsk)
 {
 	struct sighand_struct *sig;
@@ -752,7 +761,7 @@ static inline int copy_sighand(unsigned long clone_flags, struct task_struct * t
 		return 0;
 	}
 	sig = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
-	tsk->sighand = sig;
+	rcu_assign_pointer(tsk->sighand, sig);
 	if (!sig)
 		return -ENOMEM;
 	spin_lock_init(&sig->siglock);
@@ -793,19 +802,16 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	init_sigpending(&sig->shared_pending);
 	INIT_LIST_HEAD(&sig->posix_timers);
 
-	sig->it_real_value = sig->it_real_incr = 0;
+	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC);
+	sig->it_real_incr.tv64 = 0;
 	sig->real_timer.function = it_real_fn;
-	sig->real_timer.data = (unsigned long) tsk;
-	init_timer(&sig->real_timer);
+	sig->real_timer.data = tsk;
 
 	sig->it_virt_expires = cputime_zero;
 	sig->it_virt_incr = cputime_zero;
 	sig->it_prof_expires = cputime_zero;
 	sig->it_prof_incr = cputime_zero;
 
-	sig->tty = current->signal->tty;
-	sig->pgrp = process_group(current);
-	sig->session = current->signal->session;
 	sig->leader = 0;	/* session leadership doesn't inherit */
 	sig->tty_old_pgrp = 0;
 
@@ -964,13 +970,18 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->io_context = NULL;
 	p->io_wait = NULL;
 	p->audit_context = NULL;
+	cpuset_fork(p);
 #ifdef CONFIG_NUMA
  	p->mempolicy = mpol_copy(p->mempolicy);
  	if (IS_ERR(p->mempolicy)) {
  		retval = PTR_ERR(p->mempolicy);
  		p->mempolicy = NULL;
- 		goto bad_fork_cleanup;
+ 		goto bad_fork_cleanup_cpuset;
  	}
+#endif
+
+#ifdef CONFIG_DEBUG_MUTEXES
+	p->blocked_on = NULL; /* not blocked yet */
 #endif
 
 	p->tgid = p->pid;
@@ -1127,25 +1138,19 @@ static task_t *copy_process(unsigned long clone_flags,
 	attach_pid(p, PIDTYPE_PID, p->pid);
 	attach_pid(p, PIDTYPE_TGID, p->tgid);
 	if (thread_group_leader(p)) {
+		p->signal->tty = current->signal->tty;
+		p->signal->pgrp = process_group(current);
+		p->signal->session = current->signal->session;
 		attach_pid(p, PIDTYPE_PGID, process_group(p));
 		attach_pid(p, PIDTYPE_SID, p->signal->session);
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}
 
-	if (!current->signal->tty && p->signal->tty)
-		p->signal->tty = NULL;
-
 	nr_threads++;
 	total_forks++;
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
-	cpuset_fork(p);
-	retval = 0;
-
-fork_out:
-	if (retval)
-		return ERR_PTR(retval);
 	return p;
 
 bad_fork_cleanup_namespace:
@@ -1172,7 +1177,9 @@ bad_fork_cleanup_security:
 bad_fork_cleanup_policy:
 #ifdef CONFIG_NUMA
 	mpol_free(p->mempolicy);
+bad_fork_cleanup_cpuset:
 #endif
+	cpuset_exit(p);
 bad_fork_cleanup:
 	if (p->binfmt)
 		module_put(p->binfmt->module);
@@ -1184,7 +1191,8 @@ bad_fork_cleanup_count:
 	free_uid(p->user);
 bad_fork_free:
 	free_task(p);
-	goto fork_out;
+fork_out:
+	return ERR_PTR(retval);
 }
 
 struct pt_regs * __devinit __attribute__((weak)) idle_regs(struct pt_regs *regs)
@@ -1290,6 +1298,10 @@ long do_fork(unsigned long clone_flags,
 	return pid;
 }
 
+#ifndef ARCH_MIN_MMSTRUCT_ALIGN
+#define ARCH_MIN_MMSTRUCT_ALIGN 0
+#endif
+
 void __init proc_caches_init(void)
 {
 	sighand_cachep = kmem_cache_create("sighand_cache",
@@ -1308,6 +1320,6 @@ void __init proc_caches_init(void)
 			sizeof(struct vm_area_struct), 0,
 			SLAB_PANIC, NULL, NULL);
 	mm_cachep = kmem_cache_create("mm_struct",
-			sizeof(struct mm_struct), 0,
+			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
 }

@@ -535,9 +535,8 @@ struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 	struct mt352_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct mt352_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct mt352_state), GFP_KERNEL);
 	if (state == NULL) goto error;
-	memset(state,0,sizeof(*state));
 
 	/* setup the state */
 	state->i2c = i2c;

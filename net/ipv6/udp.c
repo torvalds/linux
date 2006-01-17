@@ -36,6 +36,7 @@
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 #include <linux/init.h>
+#include <linux/skbuff.h>
 #include <asm/uaccess.h>
 
 #include <net/sock.h>
@@ -300,20 +301,7 @@ out:
 	return err;
 
 csum_copy_err:
-	/* Clear queue. */
-	if (flags&MSG_PEEK) {
-		int clear = 0;
-		spin_lock_bh(&sk->sk_receive_queue.lock);
-		if (skb == skb_peek(&sk->sk_receive_queue)) {
-			__skb_unlink(skb, &sk->sk_receive_queue);
-			clear = 1;
-		}
-		spin_unlock_bh(&sk->sk_receive_queue.lock);
-		if (clear)
-			kfree_skb(skb);
-	}
-
-	skb_free_datagram(sk, skb);
+	skb_kill_datagram(sk, skb, flags);
 
 	if (flags & MSG_DONTWAIT) {
 		UDP6_INC_STATS_USER(UDP_MIB_INERRORS);
@@ -447,7 +435,7 @@ out:
 	read_unlock(&udp_hash_lock);
 }
 
-static int udpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int udpv6_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct sock *sk;

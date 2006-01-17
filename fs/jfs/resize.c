@@ -376,8 +376,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 * by txCommit();
 	 */
 	filemap_fdatawait(ipbmap->i_mapping);
-	filemap_fdatawrite(ipbmap->i_mapping);
-	filemap_fdatawait(ipbmap->i_mapping);
+	filemap_write_and_wait(ipbmap->i_mapping);
 	diWriteSpecial(ipbmap, 0);
 
 	newPage = nPages;	/* first new page number */

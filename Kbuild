@@ -22,8 +22,6 @@ sed-$(CONFIG_MIPS) := "/^@@@/s///p"
 
 quiet_cmd_offsets = GEN     $@
 define cmd_offsets
-	mkdir -p $(dir $@); \
-	cat $< | \
 	(set -e; \
 	 echo "#ifndef __ASM_OFFSETS_H__"; \
 	 echo "#define __ASM_OFFSETS_H__"; \
@@ -34,7 +32,7 @@ define cmd_offsets
 	 echo " *"; \
 	 echo " */"; \
 	 echo ""; \
-	 sed -ne $(sed-y); \
+	 sed -ne $(sed-y) $<; \
 	 echo ""; \
 	 echo "#endif" ) > $@
 endef
@@ -45,5 +43,6 @@ arch/$(ARCH)/kernel/asm-offsets.s: arch/$(ARCH)/kernel/asm-offsets.c FORCE
 	$(call if_changed_dep,cc_s_c)
 
 $(obj)/$(offsets-file): arch/$(ARCH)/kernel/asm-offsets.s Kbuild
+	$(Q)mkdir -p $(dir $@)
 	$(call cmd,offsets)
 

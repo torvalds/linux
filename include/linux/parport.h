@@ -236,7 +236,8 @@ struct pardevice {
 
 /* IEEE1284 information */
 
-/* IEEE1284 phases */
+/* IEEE1284 phases. These are exposed to userland through ppdev IOCTL
+ * PP[GS]ETPHASE, so do not change existing values. */
 enum ieee1284_phase {
 	IEEE1284_PH_FWD_DATA,
 	IEEE1284_PH_FWD_IDLE,

@@ -71,6 +71,8 @@ int nfs_map_name_to_uid(struct nfs4_client *, const char *, size_t, __u32 *);
 int nfs_map_group_to_gid(struct nfs4_client *, const char *, size_t, __u32 *);
 int nfs_map_uid_to_name(struct nfs4_client *, __u32, char *);
 int nfs_map_gid_to_group(struct nfs4_client *, __u32, char *);
+
+extern unsigned int nfs_idmap_cache_timeout;
 #endif /* __KERNEL__ */
 
 #endif /* NFS_IDMAP_H */

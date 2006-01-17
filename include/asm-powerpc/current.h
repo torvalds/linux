@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_CURRENT_H
 #define _ASM_POWERPC_CURRENT_H
+#ifdef __KERNEL__
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -24,4 +25,5 @@ register struct task_struct *current asm ("r2");
 
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_CURRENT_H */

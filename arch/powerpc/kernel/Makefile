@@ -4,7 +4,6 @@
 
 ifeq ($(CONFIG_PPC64),y)
 EXTRA_CFLAGS	+= -mno-minimal-toc
-CFLAGS_ioctl32.o += -Ifs/
 endif
 ifeq ($(CONFIG_PPC32),y)
 CFLAGS_prom_init.o      += -fPIC
@@ -12,16 +11,17 @@ CFLAGS_btext.o		+= -fPIC
 endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
-				   irq.o align.o signal_32.o pmc.o vdso.o
+				   irq.o align.o signal_32.o pmc.o vdso.o \
+				   init_task.o process.o
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o systbl.o \
-				   paca.o ioctl32.o cpu_setup_power4.o \
-				   firmware.o sysfs.o udbg.o idle_64.o
+				   paca.o cpu_setup_power4.o \
+				   firmware.o sysfs.o idle_64.o
 obj-$(CONFIG_PPC64)		+= vdso64/
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
-obj-$(CONFIG_PPC_OF)		+= of_device.o
+obj-$(CONFIG_PPC_OF)		+= of_device.o prom_parse.o
 procfs-$(CONFIG_PPC64)		:= proc_ppc64.o
 obj-$(CONFIG_PROC_FS)		+= $(procfs-y)
 rtaspci-$(CONFIG_PPC64)		:= rtas_pci.o
@@ -30,12 +30,10 @@ obj-$(CONFIG_RTAS_FLASH)	+= rtas_flash.o
 obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
+obj-$(CONFIG_IBMEBUS)           += ibmebus.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
-obj-$(CONFIG_PPC_PSERIES)	+= udbg_16550.o
-obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
-udbgscc-$(CONFIG_PPC64)		:= udbg_scc.o
-obj-$(CONFIG_PPC_PMAC)		+= $(udbgscc-y)
 obj64-$(CONFIG_PPC_MULTIPLATFORM) += nvram_64.o
+obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
@@ -47,26 +45,26 @@ extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
 extra-$(CONFIG_8xx)		:= head_8xx.o
 extra-y				+= vmlinux.lds
 
-obj-y				+= process.o init_task.o time.o \
-				   prom.o traps.o setup-common.o
+obj-y				+= time.o prom.o traps.o setup-common.o udbg.o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o systbl.o
 obj-$(CONFIG_PPC64)		+= misc_64.o dma_64.o iommu.o
-obj-$(CONFIG_PPC_OF)		+= prom_init.o
+obj-$(CONFIG_PPC_MULTIPLATFORM)	+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
-
+obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
 module-$(CONFIG_PPC64)		+= module_64.o
 obj-$(CONFIG_MODULES)		+= $(module-y)
 
 pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o pci_iommu.o \
 				   pci_direct_iommu.o iomap.o
-obj-$(CONFIG_PCI)		+= $(pci64-y)
-
-kexec64-$(CONFIG_PPC64)		+= machine_kexec_64.o
-obj-$(CONFIG_KEXEC)		+= $(kexec64-y)
+pci32-$(CONFIG_PPC32)		:= pci_32.o
+obj-$(CONFIG_PCI)		+= $(pci64-y) $(pci32-y)
+kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o crash.o
+kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o $(kexec-y)
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 $(obj)/head_64.o: $(obj)/lparmap.s

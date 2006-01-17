@@ -48,7 +48,7 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 0;
 }
 
-static int checkentry(const char *tablename, const struct ip6t_ip6 *ip,
+static int checkentry(const char *tablename, const void *entry,
 		      void *matchinfo, unsigned int matchsize,
 		      unsigned int hook_mask)
 {

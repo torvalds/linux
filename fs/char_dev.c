@@ -35,7 +35,7 @@ static struct char_device_struct {
 	unsigned int major;
 	unsigned int baseminor;
 	int minorct;
-	const char *name;
+	char name[64];
 	struct file_operations *fops;
 	struct cdev *cdev;		/* will die */
 } *chrdevs[MAX_PROBE_HASH];
@@ -46,34 +46,84 @@ static inline int major_to_index(int major)
 	return major % MAX_PROBE_HASH;
 }
 
-/* get char device names in somewhat random order */
-int get_chrdev_list(char *page)
+struct chrdev_info {
+	int index;
+	struct char_device_struct *cd;
+};
+
+void *get_next_chrdev(void *dev)
+{
+	struct chrdev_info *info;
+
+	if (dev == NULL) {
+		info = kmalloc(sizeof(*info), GFP_KERNEL);
+		if (!info)
+			goto out;
+		info->index=0;
+		info->cd = chrdevs[info->index];
+		if (info->cd)
+			goto out;
+	} else {
+		info = dev;
+	}
+
+	while (info->index < ARRAY_SIZE(chrdevs)) {
+		if (info->cd)
+			info->cd = info->cd->next;
+		if (info->cd)
+			goto out;
+		/*
+		 * No devices on this chain, move to the next
+		 */
+		info->index++;
+		info->cd = (info->index < ARRAY_SIZE(chrdevs)) ?
+			chrdevs[info->index] : NULL;
+		if (info->cd)
+			goto out;
+	}
+
+out:
+	return info;
+}
+
+void *acquire_chrdev_list(void)
+{
+	down(&chrdevs_lock);
+	return get_next_chrdev(NULL);
+}
+
+void release_chrdev_list(void *dev)
+{
+	up(&chrdevs_lock);
+	kfree(dev);
+}
+
+
+int count_chrdev_list(void)
 {
 	struct char_device_struct *cd;
-	int i, len;
+	int i, count;
 
-	len = sprintf(page, "Character devices:\n");
+	count = 0;
 
-	down(&chrdevs_lock);
 	for (i = 0; i < ARRAY_SIZE(chrdevs) ; i++) {
-		for (cd = chrdevs[i]; cd; cd = cd->next) {
-			/*
-			 * if the current name, plus the 5 extra characters
-			 * in the device line for this entry
-			 * would run us off the page, we're done
-			 */
-			if ((len+strlen(cd->name) + 5) >= PAGE_SIZE)
-				goto page_full;
-
-
-			len += sprintf(page+len, "%3d %s\n",
-				       cd->major, cd->name);
-		}
+		for (cd = chrdevs[i]; cd; cd = cd->next)
+			count++;
 	}
-page_full:
-	up(&chrdevs_lock);
 
-	return len;
+	return count;
+}
+
+int get_chrdev_info(void *dev, int *major, char **name)
+{
+	struct chrdev_info *info = dev;
+
+	if (info->cd == NULL)
+		return 1;
+
+	*major = info->cd->major;
+	*name = info->cd->name;
+	return 0;
 }
 
 /*
@@ -121,7 +171,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	cd->major = major;
 	cd->baseminor = baseminor;
 	cd->minorct = minorct;
-	cd->name = name;
+	strncpy(cd->name,name, 64);
 
 	i = major_to_index(major);
 

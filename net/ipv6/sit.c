@@ -20,6 +20,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -33,6 +34,7 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/if_ether.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -183,7 +185,7 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	if (dev == NULL)
 		return NULL;
 
-	nt = dev->priv;
+	nt = netdev_priv(dev);
 	dev->init = ipip6_tunnel_init;
 	nt->parms = *parms;
 
@@ -209,7 +211,7 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 		write_unlock_bh(&ipip6_lock);
 		dev_put(dev);
 	} else {
-		ipip6_tunnel_unlink((struct ip_tunnel*)dev->priv);
+		ipip6_tunnel_unlink(netdev_priv(dev));
 		dev_put(dev);
 	}
 }
@@ -345,7 +347,7 @@ out:
 		rt6i = rt6_lookup(&iph6->daddr, &iph6->saddr, NULL, 0);
 
 		if (rt6i && rt6i->rt6i_dev && rt6i->rt6i_dev->type == ARPHRD_SIT) {
-			struct ip_tunnel * t = (struct ip_tunnel*)rt6i->rt6i_dev->priv;
+			struct ip_tunnel *t = netdev_priv(rt6i->rt6i_dev);
 			if (rel_type == ICMPV6_TIME_EXCEED && t->parms.iph.ttl) {
 				rel_type = ICMPV6_DEST_UNREACH;
 				rel_code = ICMPV6_ADDR_UNREACH;
@@ -380,6 +382,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb->mac.raw = skb->nh.raw;
 		skb->nh.raw = skb->data;
 		memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
+		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->pkt_type = PACKET_HOST;
 		tunnel->stat.rx_packets++;
@@ -422,7 +425,7 @@ static inline u32 try_6to4(struct in6_addr *v6dst)
 
 static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ip_tunnel *tunnel = (struct ip_tunnel*)dev->priv;
+	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->stat;
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	struct ipv6hdr *iph6 = skb->nh.ipv6h;
@@ -551,6 +554,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->h.raw = skb->nh.raw;
 	skb->nh.raw = skb_push(skb, sizeof(struct iphdr));
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+	IPCB(skb)->flags = 0;
 	dst_release(skb->dst);
 	skb->dst = &rt->u.dst;
 
@@ -607,7 +611,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			t = ipip6_tunnel_locate(&p, 0);
 		}
 		if (t == NULL)
-			t = (struct ip_tunnel*)dev->priv;
+			t = netdev_priv(dev);
 		memcpy(&p, &t->parms, sizeof(p));
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
 			err = -EFAULT;
@@ -644,7 +648,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					err = -EINVAL;
 					break;
 				}
-				t = (struct ip_tunnel*)dev->priv;
+				t = netdev_priv(dev);
 				ipip6_tunnel_unlink(t);
 				t->parms.iph.saddr = p.iph.saddr;
 				t->parms.iph.daddr = p.iph.daddr;
@@ -680,7 +684,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			if ((t = ipip6_tunnel_locate(&p, 0)) == NULL)
 				goto done;
 			err = -EPERM;
-			if (t == ipip6_fb_tunnel_dev->priv)
+			if (t == netdev_priv(ipip6_fb_tunnel_dev))
 				goto done;
 			dev = t->dev;
 		}
@@ -697,7 +701,7 @@ done:
 
 static struct net_device_stats *ipip6_tunnel_get_stats(struct net_device *dev)
 {
-	return &(((struct ip_tunnel*)dev->priv)->stat);
+	return &(((struct ip_tunnel*)netdev_priv(dev))->stat);
 }
 
 static int ipip6_tunnel_change_mtu(struct net_device *dev, int new_mtu)
@@ -720,7 +724,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_SIT;
 	dev->hard_header_len 	= LL_MAX_HEADER + sizeof(struct iphdr);
-	dev->mtu		= 1500 - sizeof(struct iphdr);
+	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr);
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
@@ -732,7 +736,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	struct ip_tunnel *tunnel;
 	struct iphdr *iph;
 
-	tunnel = (struct ip_tunnel*)dev->priv;
+	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
 
 	tunnel->dev = dev;
@@ -772,7 +776,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 
 static int __init ipip6_fb_tunnel_init(struct net_device *dev)
 {
-	struct ip_tunnel *tunnel = dev->priv;
+	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
 
 	tunnel->dev = dev;

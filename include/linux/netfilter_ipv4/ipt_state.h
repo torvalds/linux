@@ -1,13 +1,15 @@
 #ifndef _IPT_STATE_H
 #define _IPT_STATE_H
 
-#define IPT_STATE_BIT(ctinfo) (1 << ((ctinfo)%IP_CT_IS_REPLY+1))
-#define IPT_STATE_INVALID (1 << 0)
+/* Backwards compatibility for old userspace */
 
-#define IPT_STATE_UNTRACKED (1 << (IP_CT_NUMBER + 1))
+#include <linux/netfilter/xt_state.h>
 
-struct ipt_state_info
-{
-	unsigned int statemask;
-};
+#define IPT_STATE_BIT		XT_STATE_BIT
+#define IPT_STATE_INVALID	XT_STATE_INVALID
+
+#define IPT_STATE_UNTRACKED	XT_STATE_UNTRACKED
+
+#define ipt_state_info		xt_state_info
+
 #endif /*_IPT_STATE_H*/

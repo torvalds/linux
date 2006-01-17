@@ -15,6 +15,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/buffer_head.h>
+#include <linux/capability.h>
 #include <linux/quotaops.h>
 
 /* Check validity of generic quotactl commands */
@@ -168,7 +169,7 @@ static void quota_sync_sb(struct super_block *sb, int type)
 	sync_blockdev(sb->s_bdev);
 
 	/* Now when everything is written we can discard the pagecache so
-	 * that userspace sees the changes. We need i_sem and so we could
+	 * that userspace sees the changes. We need i_mutex and so we could
 	 * not do it inside dqonoff_sem. Moreover we need to be carefull
 	 * about races with quotaoff() (that is the reason why we have own
 	 * reference to inode). */
@@ -184,9 +185,9 @@ static void quota_sync_sb(struct super_block *sb, int type)
 	up(&sb_dqopt(sb)->dqonoff_sem);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (discard[cnt]) {
-			down(&discard[cnt]->i_sem);
+			mutex_lock(&discard[cnt]->i_mutex);
 			truncate_inode_pages(&discard[cnt]->i_data, 0);
-			up(&discard[cnt]->i_sem);
+			mutex_unlock(&discard[cnt]->i_mutex);
 			iput(discard[cnt]);
 		}
 	}

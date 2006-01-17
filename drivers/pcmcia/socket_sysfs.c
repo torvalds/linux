@@ -42,35 +42,28 @@
 
 static ssize_t pccard_show_type(struct class_device *dev, char *buf)
 {
-	int val;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
-	s->ops->get_status(s, &val);
-	if (val & SS_CARDBUS)
+	if (s->state & SOCKET_CARDBUS)
 		return sprintf(buf, "32-bit\n");
-	if (val & SS_DETECT)
-		return sprintf(buf, "16-bit\n");
-	return sprintf(buf, "invalid\n");
+	return sprintf(buf, "16-bit\n");
 }
-static CLASS_DEVICE_ATTR(card_type, 0400, pccard_show_type, NULL);
+static CLASS_DEVICE_ATTR(card_type, 0444, pccard_show_type, NULL);
 
 static ssize_t pccard_show_voltage(struct class_device *dev, char *buf)
 {
-	int val;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
-	s->ops->get_status(s, &val);
-	if (val & SS_3VCARD)
-		return sprintf(buf, "3.3V\n");
-	if (val & SS_XVCARD)
-		return sprintf(buf, "X.XV\n");
-	return sprintf(buf, "5.0V\n");
+	if (s->socket.Vcc)
+		return sprintf(buf, "%d.%dV\n", s->socket.Vcc / 10,
+			       s->socket.Vcc % 10);
+	return sprintf(buf, "X.XV\n");
 }
-static CLASS_DEVICE_ATTR(card_voltage, 0400, pccard_show_voltage, NULL);
+static CLASS_DEVICE_ATTR(card_voltage, 0444, pccard_show_voltage, NULL);
 
 static ssize_t pccard_show_vpp(struct class_device *dev, char *buf)
 {
@@ -79,7 +72,7 @@ static ssize_t pccard_show_vpp(struct class_device *dev, char *buf)
 		return -ENODEV;
 	return sprintf(buf, "%d.%dV\n", s->socket.Vpp / 10, s->socket.Vpp % 10);
 }
-static CLASS_DEVICE_ATTR(card_vpp, 0400, pccard_show_vpp, NULL);
+static CLASS_DEVICE_ATTR(card_vpp, 0444, pccard_show_vpp, NULL);
 
 static ssize_t pccard_show_vcc(struct class_device *dev, char *buf)
 {
@@ -88,7 +81,7 @@ static ssize_t pccard_show_vcc(struct class_device *dev, char *buf)
 		return -ENODEV;
 	return sprintf(buf, "%d.%dV\n", s->socket.Vcc / 10, s->socket.Vcc % 10);
 }
-static CLASS_DEVICE_ATTR(card_vcc, 0400, pccard_show_vcc, NULL);
+static CLASS_DEVICE_ATTR(card_vcc, 0444, pccard_show_vcc, NULL);
 
 
 static ssize_t pccard_store_insert(struct class_device *dev, const char *buf, size_t count)
@@ -104,6 +97,30 @@ static ssize_t pccard_store_insert(struct class_device *dev, const char *buf, si
 	return ret ? ret : count;
 }
 static CLASS_DEVICE_ATTR(card_insert, 0200, NULL, pccard_store_insert);
+
+
+static ssize_t pccard_show_card_pm_state(struct class_device *dev, char *buf)
+{
+	struct pcmcia_socket *s = to_socket(dev);
+	return sprintf(buf, "%s\n", s->state & SOCKET_SUSPEND ? "off" : "on");
+}
+
+static ssize_t pccard_store_card_pm_state(struct class_device *dev, const char *buf, size_t count)
+{
+	ssize_t ret = -EINVAL;
+	struct pcmcia_socket *s = to_socket(dev);
+
+	if (!count)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_SUSPEND) && !strncmp(buf, "off", 3))
+		ret = pcmcia_suspend_card(s);
+	else if ((s->state & SOCKET_SUSPEND) && !strncmp(buf, "on", 2))
+		ret = pcmcia_resume_card(s);
+
+	return ret ? -ENODEV : count;
+}
+static CLASS_DEVICE_ATTR(card_pm_state, 0644, pccard_show_card_pm_state, pccard_store_card_pm_state);
 
 static ssize_t pccard_store_eject(struct class_device *dev, const char *buf, size_t count)
 {
@@ -292,10 +309,9 @@ static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, siz
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 
-	cis = kmalloc(sizeof(cisdump_t), GFP_KERNEL);
+	cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
 	if (!cis)
 		return -ENOMEM;
-	memset(cis, 0, sizeof(cisdump_t));
 
 	cis->Length = count + 1;
 	memcpy(cis->Data, buf, count);
@@ -328,6 +344,7 @@ static struct class_device_attribute *pccard_socket_attributes[] = {
 	&class_device_attr_card_vpp,
 	&class_device_attr_card_vcc,
 	&class_device_attr_card_insert,
+	&class_device_attr_card_pm_state,
 	&class_device_attr_card_eject,
 	&class_device_attr_card_irq_mask,
 	&class_device_attr_available_resources_setup_done,

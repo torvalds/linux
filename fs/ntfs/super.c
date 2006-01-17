@@ -443,8 +443,8 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 	ntfs_debug("Entering with remount options string: %s", opt);
 #ifndef NTFS_RW
-	/* For read-only compiled driver, enforce all read-only flags. */
-	*flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+	/* For read-only compiled driver, enforce read-only flag. */
+	*flags |= MS_RDONLY;
 #else /* NTFS_RW */
 	/*
 	 * For the read-write compiled driver, if we are remounting read-write,
@@ -1213,10 +1213,10 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	 * Find the inode number for the hibernation file by looking up the
 	 * filename hiberfil.sys in the root directory.
 	 */
-	down(&vol->root_ino->i_sem);
+	mutex_lock(&vol->root_ino->i_mutex);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->root_ino), hiberfil, 12,
 			&name);
-	up(&vol->root_ino->i_sem);
+	mutex_unlock(&vol->root_ino->i_mutex);
 	if (IS_ERR_MREF(mref)) {
 		ret = MREF_ERR(mref);
 		/* If the file does not exist, Windows is not hibernated. */
@@ -1307,10 +1307,10 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
 	 * Find the inode number for the quota file by looking up the filename
 	 * $Quota in the extended system files directory $Extend.
 	 */
-	down(&vol->extend_ino->i_sem);
+	mutex_lock(&vol->extend_ino->i_mutex);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), Quota, 6,
 			&name);
-	up(&vol->extend_ino->i_sem);
+	mutex_unlock(&vol->extend_ino->i_mutex);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, quotas are disabled and have
@@ -1390,10 +1390,10 @@ static BOOL load_and_init_usnjrnl(ntfs_volume *vol)
 	 * Find the inode number for the transaction log file by looking up the
 	 * filename $UsnJrnl in the extended system files directory $Extend.
 	 */
-	down(&vol->extend_ino->i_sem);
+	mutex_lock(&vol->extend_ino->i_mutex);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), UsnJrnl, 8,
 			&name);
-	up(&vol->extend_ino->i_sem);
+	mutex_unlock(&vol->extend_ino->i_mutex);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, transaction logging is disabled,
@@ -1721,7 +1721,7 @@ static BOOL load_system_files(ntfs_volume *vol)
 						es3);
 				goto iput_mirr_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s",
 					!vol->mftmirr_ino ? es1 : es2, es3);
 		} else
@@ -1837,7 +1837,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_vol_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1874,7 +1874,7 @@ get_ctx_vol_failed:
 				}
 				goto iput_logfile_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1919,7 +1919,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_root_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1943,7 +1943,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		/*
 		 * Do not set NVolErrors() because ntfs_remount() might manage
 		 * to set the dirty flag in which case all would be well.
@@ -1970,7 +1970,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif
@@ -1989,7 +1989,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2030,7 +2030,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_quota_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2053,7 +2053,7 @@ get_ctx_vol_failed:
 			goto iput_quota_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 	/*
@@ -2074,7 +2074,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_usnjrnl_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2097,7 +2097,7 @@ get_ctx_vol_failed:
 			goto iput_usnjrnl_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2312,9 +2312,9 @@ static void ntfs_put_super(struct super_block *sb)
 	if (!list_empty(&sb->s_dirty)) {
 		const char *s1, *s2;
 
-		down(&vol->mft_ino->i_sem);
+		mutex_lock(&vol->mft_ino->i_mutex);
 		truncate_inode_pages(vol->mft_ino->i_mapping, 0);
-		up(&vol->mft_ino->i_sem);
+		mutex_unlock(&vol->mft_ino->i_mutex);
 		write_inode_now(vol->mft_ino, 1);
 		if (!list_empty(&sb->s_dirty)) {
 			static const char *_s1 = "inodes";
@@ -2689,7 +2689,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 
 	ntfs_debug("Entering.");
 #ifndef NTFS_RW
-	sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+	sb->s_flags |= MS_RDONLY;
 #endif /* ! NTFS_RW */
 	/* Allocate a new ntfs_volume and place it in sb->s_fs_info. */
 	sb->s_fs_info = kmalloc(sizeof(ntfs_volume), GFP_NOFS);

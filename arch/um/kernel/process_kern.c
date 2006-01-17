@@ -36,7 +36,6 @@
 #include "kern_util.h"
 #include "kern.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "init.h"
 #include "irq_user.h"
 #include "mem_user.h"
@@ -108,7 +107,7 @@ void set_current(void *t)
 {
 	struct task_struct *task = t;
 
-	cpu_tasks[task->thread_info->cpu] = ((struct cpu_task) 
+	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
 		{ external_pid(task), task });
 }
 
@@ -323,10 +322,6 @@ int user_context(unsigned long sp)
 	stack = sp & (PAGE_MASK << CONFIG_KERNEL_STACK_ORDER);
 	return(stack != (unsigned long) current_thread);
 }
-
-extern void remove_umid_dir(void);
-
-__uml_exitcall(remove_umid_dir);
 
 extern exitcall_t __uml_exitcall_begin, __uml_exitcall_end;
 

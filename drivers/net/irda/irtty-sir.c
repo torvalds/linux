@@ -289,22 +289,6 @@ static void irtty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 }
 
 /*
- * Function irtty_receive_room (tty)
- *
- *    Used by the TTY to find out how much data we can receive at a time
- * 
-*/
-static int irtty_receive_room(struct tty_struct *tty) 
-{
-	struct sirtty_cb *priv = tty->disc_data;
-
-	IRDA_ASSERT(priv != NULL, return 0;);
-	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return 0;);
-
-	return 65536;  /* We can handle an infinite amount of data. :-) */
-}
-
-/*
  * Function irtty_write_wakeup (tty)
  *
  *    Called by the driver when there's room for more data.  If we have
@@ -534,6 +518,7 @@ static int irtty_open(struct tty_struct *tty)
 
 	dev->priv = priv;
 	tty->disc_data = priv;
+	tty->receive_room = 65536;
 
 	up(&irtty_sem);
 
@@ -605,7 +590,6 @@ static struct tty_ldisc irda_ldisc = {
 	.ioctl		= irtty_ioctl,
  	.poll		= NULL,
 	.receive_buf	= irtty_receive_buf,
-	.receive_room	= irtty_receive_room,
 	.write_wakeup	= irtty_write_wakeup,
 	.owner		= THIS_MODULE,
 };

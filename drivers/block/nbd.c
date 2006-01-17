@@ -54,11 +54,15 @@
 #include <linux/errno.h>
 #include <linux/file.h>
 #include <linux/ioctl.h>
+#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
 #include <net/sock.h>
 
 #include <linux/devfs_fs_kernel.h>
 
 #include <asm/uaccess.h>
+#include <asm/system.h>
 #include <asm/types.h>
 
 #include <linux/nbd.h>
@@ -136,7 +140,7 @@ static void nbd_end_request(struct request *req)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (!end_that_request_first(req, uptodate, req->nr_sectors)) {
-		end_that_request_last(req);
+		end_that_request_last(req, uptodate);
 	}
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
@@ -170,7 +174,6 @@ static int sock_xmit(struct socket *sock, int send, void *buf, int size,
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		msg.msg_namelen = 0;
 		msg.msg_flags = msg_flags | MSG_NOSIGNAL;
 
 		if (send)
@@ -230,14 +233,6 @@ static int nbd_send_req(struct nbd_device *lo, struct request *req)
 	request.len = htonl(size);
 	memcpy(request.handle, &req, sizeof(req));
 
-	down(&lo->tx_lock);
-
-	if (!sock || !lo->sock) {
-		printk(KERN_ERR "%s: Attempted send on closed socket\n",
-				lo->disk->disk_name);
-		goto error_out;
-	}
-
 	dprintk(DBG_TX, "%s: request %p: sending control (%s@%llu,%luB)\n",
 			lo->disk->disk_name, req,
 			nbdcmd_to_ascii(nbd_cmd(req)),
@@ -276,11 +271,9 @@ static int nbd_send_req(struct nbd_device *lo, struct request *req)
 			}
 		}
 	}
-	up(&lo->tx_lock);
 	return 0;
 
 error_out:
-	up(&lo->tx_lock);
 	return 1;
 }
 
@@ -289,8 +282,13 @@ static struct request *nbd_find_request(struct nbd_device *lo, char *handle)
 	struct request *req;
 	struct list_head *tmp;
 	struct request *xreq;
+	int err;
 
 	memcpy(&xreq, handle, sizeof(xreq));
+
+	err = wait_event_interruptible(lo->active_wq, lo->active_req != xreq);
+	if (unlikely(err))
+		goto out;
 
 	spin_lock(&lo->queue_lock);
 	list_for_each(tmp, &lo->queue_head) {
@@ -302,7 +300,11 @@ static struct request *nbd_find_request(struct nbd_device *lo, char *handle)
 		return req;
 	}
 	spin_unlock(&lo->queue_lock);
-	return NULL;
+
+	err = -ENOENT;
+
+out:
+	return ERR_PTR(err);
 }
 
 static inline int sock_recv_bvec(struct socket *sock, struct bio_vec *bvec)
@@ -331,7 +333,11 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 		goto harderror;
 	}
 	req = nbd_find_request(lo, reply.handle);
-	if (req == NULL) {
+	if (unlikely(IS_ERR(req))) {
+		result = PTR_ERR(req);
+		if (result != -ENOENT)
+			goto harderror;
+
 		printk(KERN_ERR "%s: Unexpected reply (%p)\n",
 				lo->disk->disk_name, reply.handle);
 		result = -EBADR;
@@ -395,19 +401,24 @@ static void nbd_clear_que(struct nbd_device *lo)
 
 	BUG_ON(lo->magic != LO_MAGIC);
 
-	do {
-		req = NULL;
-		spin_lock(&lo->queue_lock);
-		if (!list_empty(&lo->queue_head)) {
-			req = list_entry(lo->queue_head.next, struct request, queuelist);
-			list_del_init(&req->queuelist);
-		}
-		spin_unlock(&lo->queue_lock);
-		if (req) {
-			req->errors++;
-			nbd_end_request(req);
-		}
-	} while (req);
+	/*
+	 * Because we have set lo->sock to NULL under the tx_lock, all
+	 * modifications to the list must have completed by now.  For
+	 * the same reason, the active_req must be NULL.
+	 *
+	 * As a consequence, we don't need to take the spin lock while
+	 * purging the list here.
+	 */
+	BUG_ON(lo->sock);
+	BUG_ON(lo->active_req);
+
+	while (!list_empty(&lo->queue_head)) {
+		req = list_entry(lo->queue_head.next, struct request,
+				 queuelist);
+		list_del_init(&req->queuelist);
+		req->errors++;
+		nbd_end_request(req);
+	}
 }
 
 /*
@@ -435,11 +446,6 @@ static void do_nbd_request(request_queue_t * q)
 
 		BUG_ON(lo->magic != LO_MAGIC);
 
-		if (!lo->file) {
-			printk(KERN_ERR "%s: Request when not-ready\n",
-					lo->disk->disk_name);
-			goto error_out;
-		}
 		nbd_cmd(req) = NBD_CMD_READ;
 		if (rq_data_dir(req) == WRITE) {
 			nbd_cmd(req) = NBD_CMD_WRITE;
@@ -453,31 +459,33 @@ static void do_nbd_request(request_queue_t * q)
 		req->errors = 0;
 		spin_unlock_irq(q->queue_lock);
 
-		spin_lock(&lo->queue_lock);
-
-		if (!lo->file) {
-			spin_unlock(&lo->queue_lock);
-			printk(KERN_ERR "%s: failed between accept and semaphore, file lost\n",
-					lo->disk->disk_name);
+		down(&lo->tx_lock);
+		if (unlikely(!lo->sock)) {
+			up(&lo->tx_lock);
+			printk(KERN_ERR "%s: Attempted send on closed socket\n",
+			       lo->disk->disk_name);
 			req->errors++;
 			nbd_end_request(req);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}
 
-		list_add(&req->queuelist, &lo->queue_head);
-		spin_unlock(&lo->queue_lock);
+		lo->active_req = req;
 
 		if (nbd_send_req(lo, req) != 0) {
 			printk(KERN_ERR "%s: Request send failed\n",
 					lo->disk->disk_name);
-			if (nbd_find_request(lo, (char *)&req) != NULL) {
-				/* we still own req */
-				req->errors++;
-				nbd_end_request(req);
-			} else /* we're racing with nbd_clear_que */
-				printk(KERN_DEBUG "nbd: can't find req\n");
+			req->errors++;
+			nbd_end_request(req);
+		} else {
+			spin_lock(&lo->queue_lock);
+			list_add(&req->queuelist, &lo->queue_head);
+			spin_unlock(&lo->queue_lock);
 		}
+
+		lo->active_req = NULL;
+		up(&lo->tx_lock);
+		wake_up_all(&lo->active_wq);
 
 		spin_lock_irq(q->queue_lock);
 		continue;
@@ -529,17 +537,10 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		down(&lo->tx_lock);
 		lo->sock = NULL;
 		up(&lo->tx_lock);
-		spin_lock(&lo->queue_lock);
 		file = lo->file;
 		lo->file = NULL;
-		spin_unlock(&lo->queue_lock);
 		nbd_clear_que(lo);
-		spin_lock(&lo->queue_lock);
-		if (!list_empty(&lo->queue_head)) {
-			printk(KERN_ERR "nbd: disconnect: some requests are in progress -> please try again.\n");
-			error = -EBUSY;
-		}
-		spin_unlock(&lo->queue_lock);
+		BUG_ON(!list_empty(&lo->queue_head));
 		if (file)
 			fput(file);
 		return error;
@@ -598,24 +599,19 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 			lo->sock = NULL;
 		}
 		up(&lo->tx_lock);
-		spin_lock(&lo->queue_lock);
 		file = lo->file;
 		lo->file = NULL;
-		spin_unlock(&lo->queue_lock);
 		nbd_clear_que(lo);
 		printk(KERN_WARNING "%s: queue cleared\n", lo->disk->disk_name);
 		if (file)
 			fput(file);
 		return lo->harderror;
 	case NBD_CLEAR_QUE:
-		down(&lo->tx_lock);
-		if (lo->sock) {
-			up(&lo->tx_lock);
-			return 0; /* probably should be error, but that would
-				   * break "nbd-client -d", so just return 0 */
-		}
-		up(&lo->tx_lock);
-		nbd_clear_que(lo);
+		/*
+		 * This is for compatibility only.  The queue is always cleared
+		 * by NBD_DO_IT or NBD_CLEAR_SOCK.
+		 */
+		BUG_ON(!lo->sock && !list_empty(&lo->queue_head));
 		return 0;
 	case NBD_PRINT_DEBUG:
 		printk(KERN_INFO "%s: next = %p, prev = %p, head = %p\n",
@@ -688,6 +684,7 @@ static int __init nbd_init(void)
 		spin_lock_init(&nbd_dev[i].queue_lock);
 		INIT_LIST_HEAD(&nbd_dev[i].queue_head);
 		init_MUTEX(&nbd_dev[i].tx_lock);
+		init_waitqueue_head(&nbd_dev[i].active_wq);
 		nbd_dev[i].blksize = 1024;
 		nbd_dev[i].bytesize = 0x7ffffc00ULL << 10; /* 2TB */
 		disk->major = NBD_MAJOR;

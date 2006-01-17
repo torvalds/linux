@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/ext3_jbd.h>
 #include <linux/ext3_fs.h>
@@ -152,7 +153,7 @@ ext3_iset_acl(struct inode *inode, struct posix_acl **i_acl,
 /*
  * Inode operation get_posix_acl().
  *
- * inode->i_sem: don't care
+ * inode->i_mutex: don't care
  */
 static struct posix_acl *
 ext3_get_acl(struct inode *inode, int type)
@@ -216,7 +217,7 @@ ext3_get_acl(struct inode *inode, int type)
 /*
  * Set the access or default ACL of an inode.
  *
- * inode->i_sem: down unless called from ext3_new_inode
+ * inode->i_mutex: down unless called from ext3_new_inode
  */
 static int
 ext3_set_acl(handle_t *handle, struct inode *inode, int type,
@@ -306,8 +307,8 @@ ext3_permission(struct inode *inode, int mask, struct nameidata *nd)
 /*
  * Initialize the ACLs of a new inode. Called from ext3_new_inode.
  *
- * dir->i_sem: down
- * inode->i_sem: up (access to inode is still exclusive)
+ * dir->i_mutex: down
+ * inode->i_mutex: up (access to inode is still exclusive)
  */
 int
 ext3_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
@@ -368,7 +369,7 @@ cleanup:
  * for directories) are added. There are no more bits available in the
  * file mode.
  *
- * inode->i_sem: down
+ * inode->i_mutex: down
  */
 int
 ext3_acl_chmod(struct inode *inode)

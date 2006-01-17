@@ -31,8 +31,6 @@ al español de este documento en varios formatos.
 Eine deutsche Version dieser Datei finden Sie unter
 <http://www.stefan-winter.de/Changes-2.4.0.txt>.
 
-Last updated: October 29th, 2002
-
 Chris Ricker (kaboom@gatech.edu or chris.ricker@genetics.utah.edu).
 
 Current Minimal Requirements
@@ -48,7 +46,7 @@ necessary on all systems; obviously, if you don't have any ISDN
 hardware, for example, you probably needn't concern yourself with
 isdn4k-utils.
 
-o  Gnu C                  2.95.3                  # gcc --version
+o  Gnu C                  3.2                     # gcc --version
 o  Gnu make               3.79.1                  # make --version
 o  binutils               2.12                    # ld -v
 o  util-linux             2.10o                   # fdformat --version
@@ -74,26 +72,7 @@ GCC
 ---
 
 The gcc version requirements may vary depending on the type of CPU in your
-computer. The next paragraph applies to users of x86 CPUs, but not
-necessarily to users of other CPUs. Users of other CPUs should obtain
-information about their gcc version requirements from another source.
-
-The recommended compiler for the kernel is gcc 2.95.x (x >= 3), and it
-should be used when you need absolute stability. You may use gcc 3.0.x
-instead if you wish, although it may cause problems. Later versions of gcc 
-have not received much testing for Linux kernel compilation, and there are 
-almost certainly bugs (mainly, but not exclusively, in the kernel) that
-will need to be fixed in order to use these compilers. In any case, using
-pgcc instead of plain gcc is just asking for trouble.
-
-The Red Hat gcc 2.96 compiler subtree can also be used to build this tree.
-You should ensure you use gcc-2.96-74 or later. gcc-2.96-54 will not build
-the kernel correctly.
-
-In addition, please pay attention to compiler optimization.  Anything
-greater than -O2 may not be wise.  Similarly, if you choose to use gcc-2.95.x
-or derivatives, be sure not to use -fstrict-aliasing (which, depending on
-your version of gcc 2.95.x, may necessitate using -fno-strict-aliasing).
+computer.
 
 Make
 ----
@@ -322,9 +301,9 @@ Getting updated software
 Kernel compilation
 ******************
 
-gcc 2.95.3
-----------
-o  <ftp://ftp.gnu.org/gnu/gcc/gcc-2.95.3.tar.gz>
+gcc
+---
+o  <ftp://ftp.gnu.org/gnu/gcc/>
 
 Make
 ----

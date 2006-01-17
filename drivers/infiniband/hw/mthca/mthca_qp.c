@@ -383,12 +383,10 @@ static const struct {
 				[UC]  = (IB_QP_CUR_STATE             |
 					 IB_QP_ALT_PATH              |
 					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PKEY_INDEX            |
 					 IB_QP_PATH_MIG_STATE),
 				[RC]  = (IB_QP_CUR_STATE             |
 					 IB_QP_ALT_PATH              |
 					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PKEY_INDEX            |
 					 IB_QP_MIN_RNR_TIMER         |
 					 IB_QP_PATH_MIG_STATE),
 				[MLX] = (IB_QP_CUR_STATE             |
@@ -476,9 +474,8 @@ static const struct {
 			.opt_param = {
 				[UD]  = (IB_QP_CUR_STATE             |
 					 IB_QP_QKEY),
-				[UC]  = IB_QP_CUR_STATE,
-				[RC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_MIN_RNR_TIMER),
+				[UC]  = (IB_QP_CUR_STATE             |
+					 IB_QP_ACCESS_FLAGS),
 				[MLX] = (IB_QP_CUR_STATE             |
 					 IB_QP_QKEY),
 			}
@@ -520,6 +517,55 @@ static void init_port(struct mthca_dev *dev, int port)
 		mthca_warn(dev, "INIT_IB failed, return code %d.\n", err);
 	if (status)
 		mthca_warn(dev, "INIT_IB returned status %02x.\n", status);
+}
+
+static __be32 get_hw_access_flags(struct mthca_qp *qp, struct ib_qp_attr *attr,
+				  int attr_mask)
+{
+	u8 dest_rd_atomic;
+	u32 access_flags;
+	u32 hw_access_flags = 0;
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		dest_rd_atomic = attr->max_dest_rd_atomic;
+	else
+		dest_rd_atomic = qp->resp_depth;
+
+	if (attr_mask & IB_QP_ACCESS_FLAGS)
+		access_flags = attr->qp_access_flags;
+	else
+		access_flags = qp->atomic_rd_en;
+
+	if (!dest_rd_atomic)
+		access_flags &= IB_ACCESS_REMOTE_WRITE;
+
+	if (access_flags & IB_ACCESS_REMOTE_READ)
+		hw_access_flags |= MTHCA_QP_BIT_RRE;
+	if (access_flags & IB_ACCESS_REMOTE_ATOMIC)
+		hw_access_flags |= MTHCA_QP_BIT_RAE;
+	if (access_flags & IB_ACCESS_REMOTE_WRITE)
+		hw_access_flags |= MTHCA_QP_BIT_RWE;
+
+	return cpu_to_be32(hw_access_flags);
+}
+
+static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
+{
+	path->g_mylmc     = ah->src_path_bits & 0x7f;
+	path->rlid        = cpu_to_be16(ah->dlid);
+	path->static_rate = !!ah->static_rate;
+
+	if (ah->ah_flags & IB_AH_GRH) {
+		path->g_mylmc   |= 1 << 7;
+		path->mgid_index = ah->grh.sgid_index;
+		path->hop_limit  = ah->grh.hop_limit;
+		path->sl_tclass_flowlabel = 
+			cpu_to_be32((ah->sl << 28)                |
+				    (ah->grh.traffic_class << 20) | 
+				    (ah->grh.flow_label));
+		memcpy(path->rgid, ah->grh.dgid.raw, 16);
+	} else
+		path->sl_tclass_flowlabel = cpu_to_be32(ah->sl << 28);
 }
 
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
@@ -588,6 +634,26 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	     attr->pkey_index >= dev->limits.pkey_table_len) {
 		mthca_dbg(dev, "PKey index (%u) too large. max is %d\n",
 			  attr->pkey_index,dev->limits.pkey_table_len-1); 
+		return -EINVAL;
+	}
+
+	if ((attr_mask & IB_QP_PORT) &&
+	    (attr->port_num == 0 || attr->port_num > dev->limits.num_ports)) {
+		mthca_dbg(dev, "Port number (%u) is invalid\n", attr->port_num);
+		return -EINVAL;
+	}
+
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
+	    attr->max_rd_atomic > dev->limits.max_qp_init_rdma) {
+		mthca_dbg(dev, "Max rdma_atomic as initiator %u too large (max is %d)\n",
+			  attr->max_rd_atomic, dev->limits.max_qp_init_rdma);
+		return -EINVAL;
+	}
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
+	    attr->max_dest_rd_atomic > 1 << dev->qp_table.rdb_shift) {
+		mthca_dbg(dev, "Max rdma_atomic as responder %u too large (max %d)\n",
+			  attr->max_dest_rd_atomic, 1 << dev->qp_table.rdb_shift);
 		return -EINVAL;
 	}
 
@@ -665,28 +731,14 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_RNR_RETRY) {
-		qp_context->pri_path.rnr_retry = attr->rnr_retry << 5;
-		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RNR_RETRY);
+		qp_context->alt_path.rnr_retry = qp_context->pri_path.rnr_retry =
+			attr->rnr_retry << 5;
+		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RNR_RETRY | 
+							MTHCA_QP_OPTPAR_ALT_RNR_RETRY);
 	}
 
 	if (attr_mask & IB_QP_AV) {
-		qp_context->pri_path.g_mylmc     = attr->ah_attr.src_path_bits & 0x7f;
-		qp_context->pri_path.rlid        = cpu_to_be16(attr->ah_attr.dlid);
-		qp_context->pri_path.static_rate = !!attr->ah_attr.static_rate;
-		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
-			qp_context->pri_path.g_mylmc |= 1 << 7;
-			qp_context->pri_path.mgid_index = attr->ah_attr.grh.sgid_index;
-			qp_context->pri_path.hop_limit = attr->ah_attr.grh.hop_limit;
-			qp_context->pri_path.sl_tclass_flowlabel =
-				cpu_to_be32((attr->ah_attr.sl << 28)                |
-					    (attr->ah_attr.grh.traffic_class << 20) |
-					    (attr->ah_attr.grh.flow_label));
-			memcpy(qp_context->pri_path.rgid,
-			       attr->ah_attr.grh.dgid.raw, 16);
-		} else {
-			qp_context->pri_path.sl_tclass_flowlabel =
-				cpu_to_be32(attr->ah_attr.sl << 28);
-		}
+		mthca_path_set(&attr->ah_attr, &qp_context->pri_path);
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_PRIMARY_ADDR_PATH);
 	}
 
@@ -695,7 +747,19 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_ACK_TIMEOUT);
 	}
 
-	/* XXX alt_path */
+	if (attr_mask & IB_QP_ALT_PATH) {
+		if (attr->alt_port_num == 0 || attr->alt_port_num > dev->limits.num_ports) {
+			mthca_dbg(dev, "Alternate port number (%u) is invalid\n", 
+				attr->alt_port_num);
+			return -EINVAL;
+		}
+
+		mthca_path_set(&attr->alt_ah_attr, &qp_context->alt_path);
+		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index | 
+							      attr->alt_port_num << 24);
+		qp_context->alt_path.ackto = attr->alt_timeout << 3;
+		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_ALT_ADDR_PATH);
+	}
 
 	/* leave rdd as 0 */
 	qp_context->pd         = cpu_to_be32(to_mpd(ibqp->pd)->pd_num);
@@ -703,9 +767,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	qp_context->wqe_lkey   = cpu_to_be32(qp->mr.ibmr.lkey);
 	qp_context->params1    = cpu_to_be32((MTHCA_ACK_REQ_FREQ << 28) |
 					     (MTHCA_FLIGHT_LIMIT << 24) |
-					     MTHCA_QP_BIT_SRE           |
-					     MTHCA_QP_BIT_SWE           |
-					     MTHCA_QP_BIT_SAE);
+					     MTHCA_QP_BIT_SWE);
 	if (qp->sq_policy == IB_SIGNAL_ALL_WR)
 		qp_context->params1 |= cpu_to_be32(MTHCA_QP_BIT_SSC);
 	if (attr_mask & IB_QP_RETRY_CNT) {
@@ -714,9 +776,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
-		qp_context->params1 |= cpu_to_be32(min(attr->max_rd_atomic ?
-						       ffs(attr->max_rd_atomic) - 1 : 0,
-						       7) << 21);
+		if (attr->max_rd_atomic) {
+			qp_context->params1 |=
+				cpu_to_be32(MTHCA_QP_BIT_SRE |
+					    MTHCA_QP_BIT_SAE);
+			qp_context->params1 |=
+				cpu_to_be32(fls(attr->max_rd_atomic - 1) << 21);
+		}
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_SRA_MAX);
 	}
 
@@ -729,71 +795,19 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->snd_db_index   = cpu_to_be32(qp->sq.db_index);
 	}
 
-	if (attr_mask & IB_QP_ACCESS_FLAGS) {
-		qp_context->params2 |=
-			cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_WRITE ?
-				    MTHCA_QP_BIT_RWE : 0);
-
-		/*
-		 * Only enable RDMA reads and atomics if we have
-		 * responder resources set to a non-zero value.
-		 */
-		if (qp->resp_depth) {
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
+		if (attr->max_dest_rd_atomic)
 			qp_context->params2 |=
-				cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_READ ?
-					    MTHCA_QP_BIT_RRE : 0);
-			qp_context->params2 |=
-				cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC ?
-					    MTHCA_QP_BIT_RAE : 0);
-		}
+				cpu_to_be32(fls(attr->max_dest_rd_atomic - 1) << 21);
 
+		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRA_MAX);
+	}
+
+	if (attr_mask & (IB_QP_ACCESS_FLAGS | IB_QP_MAX_DEST_RD_ATOMIC)) {
+		qp_context->params2      |= get_hw_access_flags(qp, attr, attr_mask);
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RWE |
 							MTHCA_QP_OPTPAR_RRE |
 							MTHCA_QP_OPTPAR_RAE);
-
-		qp->atomic_rd_en = attr->qp_access_flags;
-	}
-
-	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		u8 rra_max;
-
-		if (qp->resp_depth && !attr->max_dest_rd_atomic) {
-			/*
-			 * Lowering our responder resources to zero.
-			 * Turn off reads RDMA and atomics as responder.
-			 * (RRE/RAE in params2 already zero)
-			 */
-			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRE |
-								MTHCA_QP_OPTPAR_RAE);
-		}
-
-		if (!qp->resp_depth && attr->max_dest_rd_atomic) {
-			/*
-			 * Increasing our responder resources from
-			 * zero.  Turn on RDMA reads and atomics as
-			 * appropriate.
-			 */
-			qp_context->params2 |=
-				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_READ ?
-					    MTHCA_QP_BIT_RRE : 0);
-			qp_context->params2 |=
-				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_ATOMIC ?
-					    MTHCA_QP_BIT_RAE : 0);
-
-			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRE |
-								MTHCA_QP_OPTPAR_RAE);
-		}
-
-		for (rra_max = 0;
-		     1 << rra_max < attr->max_dest_rd_atomic &&
-			     rra_max < dev->qp_table.rdb_shift;
-		     ++rra_max)
-			; /* nothing */
-
-		qp_context->params2      |= cpu_to_be32(rra_max << 21);
-		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRA_MAX);
-
-		qp->resp_depth = attr->max_dest_rd_atomic;
 	}
 
 	qp_context->params2 |= cpu_to_be32(MTHCA_QP_BIT_RSC);
@@ -835,8 +849,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		err = -EINVAL;
 	}
 
-	if (!err)
+	if (!err) {
 		qp->state = new_state;
+		if (attr_mask & IB_QP_ACCESS_FLAGS)
+			qp->atomic_rd_en = attr->qp_access_flags;
+		if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+			qp->resp_depth = attr->max_dest_rd_atomic;
+	}
 
 	mthca_free_mailbox(dev, mailbox);
 
@@ -885,18 +904,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	return err;
 }
 
-static void mthca_adjust_qp_caps(struct mthca_dev *dev,
-				 struct mthca_pd *pd,
-				 struct mthca_qp *qp)
+static int mthca_max_data_size(struct mthca_dev *dev, struct mthca_qp *qp, int desc_sz)
 {
-	int max_data_size;
-
 	/*
 	 * Calculate the maximum size of WQE s/g segments, excluding
 	 * the next segment and other non-data segments.
 	 */
-	max_data_size = min(dev->limits.max_desc_sz, 1 << qp->sq.wqe_shift) -
-		sizeof (struct mthca_next_seg);
+	int max_data_size = desc_sz - sizeof (struct mthca_next_seg);
 
 	switch (qp->transport) {
 	case MLX:
@@ -915,11 +929,24 @@ static void mthca_adjust_qp_caps(struct mthca_dev *dev,
 		break;
 	}
 
+	return max_data_size;
+}
+
+static inline int mthca_max_inline_data(struct mthca_pd *pd, int max_data_size)
+{
 	/* We don't support inline data for kernel QPs (yet). */
-	if (!pd->ibpd.uobject)
-		qp->max_inline_data = 0;
-        else
-		qp->max_inline_data = max_data_size - MTHCA_INLINE_HEADER_SIZE;
+	return pd->ibpd.uobject ? max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
+}
+
+static void mthca_adjust_qp_caps(struct mthca_dev *dev,
+				 struct mthca_pd *pd,
+				 struct mthca_qp *qp)
+{
+	int max_data_size = mthca_max_data_size(dev, qp,
+						min(dev->limits.max_desc_sz,
+						    1 << qp->sq.wqe_shift));
+
+	qp->max_inline_data = mthca_max_inline_data(pd, max_data_size);
 
 	qp->sq.max_gs = min_t(int, dev->limits.max_sg,
 			      max_data_size / sizeof (struct mthca_data_seg));
@@ -1186,13 +1213,23 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 }
 
 static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
-			     struct mthca_qp *qp)
+			     struct mthca_pd *pd, struct mthca_qp *qp)
 {
+	int max_data_size = mthca_max_data_size(dev, qp, dev->limits.max_desc_sz);
+
 	/* Sanity check QP size before proceeding */
-	if (cap->max_send_wr  > dev->limits.max_wqes ||
-	    cap->max_recv_wr  > dev->limits.max_wqes ||
-	    cap->max_send_sge > dev->limits.max_sg   ||
-	    cap->max_recv_sge > dev->limits.max_sg)
+	if (cap->max_send_wr  	 > dev->limits.max_wqes ||
+	    cap->max_recv_wr  	 > dev->limits.max_wqes ||
+	    cap->max_send_sge 	 > dev->limits.max_sg   ||
+	    cap->max_recv_sge 	 > dev->limits.max_sg   ||
+	    cap->max_inline_data > mthca_max_inline_data(pd, max_data_size))
+		return -EINVAL;
+
+	/*
+	 * For MLX transport we need 2 extra S/G entries:
+	 * one for the header and one for the checksum at the end
+	 */
+	if (qp->transport == MLX && cap->max_recv_sge + 2 > dev->limits.max_sg)
 		return -EINVAL;
 
 	if (mthca_is_memfree(dev)) {
@@ -1211,14 +1248,6 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 				    MTHCA_INLINE_CHUNK_SIZE) /
 			      sizeof (struct mthca_data_seg));
 
-	/*
-	 * For MLX transport we need 2 extra S/G entries:
-	 * one for the header and one for the checksum at the end
-	 */
-	if ((qp->transport == MLX && qp->sq.max_gs + 2 > dev->limits.max_sg) ||
-	    qp->sq.max_gs > dev->limits.max_sg || qp->rq.max_gs > dev->limits.max_sg)
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -1233,7 +1262,7 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 {
 	int err;
 
-	err = mthca_set_qp_size(dev, cap, qp);
+	err = mthca_set_qp_size(dev, cap, pd, qp);
 	if (err)
 		return err;
 
@@ -1276,7 +1305,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 	u32 mqpn = qpn * 2 + dev->qp_table.sqp_start + port - 1;
 	int err;
 
-	err = mthca_set_qp_size(dev, cap, &sqp->qp);
+	err = mthca_set_qp_size(dev, cap, pd, &sqp->qp);
 	if (err)
 		return err;
 
@@ -1405,7 +1434,7 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 	u16 pkey;
 
 	ib_ud_header_init(256, /* assume a MAD */
-			  sqp->ud_header.grh_present,
+			  mthca_ah_grh_present(to_mah(wr->wr.ud.ah)),
 			  &sqp->ud_header);
 
 	err = mthca_read_ah(dev, to_mah(wr->wr.ud.ah), &sqp->ud_header);

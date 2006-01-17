@@ -31,7 +31,7 @@ static int verify_group_input(struct super_block *sb,
 	unsigned start = le32_to_cpu(es->s_blocks_count);
 	unsigned end = start + input->blocks_count;
 	unsigned group = input->group;
-	unsigned itend = input->inode_table + EXT3_SB(sb)->s_itb_per_group;
+	unsigned itend = input->inode_table + sbi->s_itb_per_group;
 	unsigned overhead = ext3_bg_has_super(sb, group) ?
 		(1 + ext3_bg_num_gdb(sb, group) +
 		 le16_to_cpu(es->s_reserved_gdt_blocks)) : 0;
@@ -340,7 +340,7 @@ static int verify_reserved_gdb(struct super_block *sb,
 	while ((grp = ext3_list_backups(sb, &three, &five, &seven)) < end) {
 		if (le32_to_cpu(*p++) != grp * EXT3_BLOCKS_PER_GROUP(sb) + blk){
 			ext3_warning(sb, __FUNCTION__,
-				     "reserved GDT %ld missing grp %d (%ld)\n",
+				     "reserved GDT %ld missing grp %d (%ld)",
 				     blk, grp,
 				     grp * EXT3_BLOCKS_PER_GROUP(sb) + blk);
 			return -EINVAL;
@@ -393,7 +393,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	if (EXT3_SB(sb)->s_sbh->b_blocknr !=
 	    le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block)) {
 		ext3_warning(sb, __FUNCTION__,
-			"won't resize using backup superblock at %llu\n",
+			"won't resize using backup superblock at %llu",
 			(unsigned long long)EXT3_SB(sb)->s_sbh->b_blocknr);
 		return -EPERM;
 	}
@@ -417,7 +417,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	data = (__u32 *)dind->b_data;
 	if (le32_to_cpu(data[gdb_num % EXT3_ADDR_PER_BLOCK(sb)]) != gdblock) {
 		ext3_warning(sb, __FUNCTION__,
-			     "new group %u GDT block %lu not reserved\n",
+			     "new group %u GDT block %lu not reserved",
 			     input->group, gdblock);
 		err = -EINVAL;
 		goto exit_dind;
@@ -540,7 +540,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	for (res = 0; res < reserved_gdb; res++, blk++) {
 		if (le32_to_cpu(*data) != blk) {
 			ext3_warning(sb, __FUNCTION__,
-				     "reserved block %lu not at offset %ld\n",
+				     "reserved block %lu not at offset %ld",
 				     blk, (long)(data - (__u32 *)dind->b_data));
 			err = -EINVAL;
 			goto exit_bh;
@@ -683,7 +683,7 @@ exit_err:
 	if (err) {
 		ext3_warning(sb, __FUNCTION__,
 			     "can't update backup for group %d (err %d), "
-			     "forcing fsck on next reboot\n", group, err);
+			     "forcing fsck on next reboot", group, err);
 		sbi->s_mount_state &= ~EXT3_VALID_FS;
 		sbi->s_es->s_state &= ~cpu_to_le16(EXT3_VALID_FS);
 		mark_buffer_dirty(sbi->s_sbh);
@@ -722,7 +722,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	if (gdb_off == 0 && !EXT3_HAS_RO_COMPAT_FEATURE(sb,
 					EXT3_FEATURE_RO_COMPAT_SPARSE_SUPER)) {
 		ext3_warning(sb, __FUNCTION__,
-			     "Can't resize non-sparse filesystem further\n");
+			     "Can't resize non-sparse filesystem further");
 		return -EPERM;
 	}
 
@@ -730,13 +730,13 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 		if (!EXT3_HAS_COMPAT_FEATURE(sb,
 					     EXT3_FEATURE_COMPAT_RESIZE_INODE)){
 			ext3_warning(sb, __FUNCTION__,
-				     "No reserved GDT blocks, can't resize\n");
+				     "No reserved GDT blocks, can't resize");
 			return -EPERM;
 		}
 		inode = iget(sb, EXT3_RESIZE_INO);
 		if (!inode || is_bad_inode(inode)) {
 			ext3_warning(sb, __FUNCTION__,
-				     "Error opening resize inode\n");
+				     "Error opening resize inode");
 			iput(inode);
 			return -ENOENT;
 		}
@@ -764,9 +764,9 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	}
 
 	lock_super(sb);
-	if (input->group != EXT3_SB(sb)->s_groups_count) {
+	if (input->group != sbi->s_groups_count) {
 		ext3_warning(sb, __FUNCTION__,
-			     "multiple resizers run on filesystem!\n");
+			     "multiple resizers run on filesystem!");
 		err = -EBUSY;
 		goto exit_journal;
 	}
@@ -799,7 +799,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	 * data.  So we need to be careful to set all of the relevant
 	 * group descriptor data etc. *before* we enable the group.
 	 *
-	 * The key field here is EXT3_SB(sb)->s_groups_count: as long as
+	 * The key field here is sbi->s_groups_count: as long as
 	 * that retains its old value, nobody is going to access the new
 	 * group.
 	 *
@@ -859,7 +859,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	smp_wmb();
 
 	/* Update the global fs size fields */
-	EXT3_SB(sb)->s_groups_count++;
+	sbi->s_groups_count++;
 
 	ext3_journal_dirty_metadata(handle, primary);
 
@@ -874,7 +874,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	percpu_counter_mod(&sbi->s_freeinodes_counter,
 			   EXT3_INODES_PER_GROUP(sb));
 
-	ext3_journal_dirty_metadata(handle, EXT3_SB(sb)->s_sbh);
+	ext3_journal_dirty_metadata(handle, sbi->s_sbh);
 	sb->s_dirt = 1;
 
 exit_journal:
@@ -937,7 +937,7 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 
 	if (last == 0) {
 		ext3_warning(sb, __FUNCTION__,
-			     "need to use ext2online to resize further\n");
+			     "need to use ext2online to resize further");
 		return -EPERM;
 	}
 
@@ -973,7 +973,7 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 	lock_super(sb);
 	if (o_blocks_count != le32_to_cpu(es->s_blocks_count)) {
 		ext3_warning(sb, __FUNCTION__,
-			     "multiple resizers run on filesystem!\n");
+			     "multiple resizers run on filesystem!");
 		err = -EBUSY;
 		goto exit_put;
 	}

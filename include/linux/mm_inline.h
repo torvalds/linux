@@ -38,3 +38,25 @@ del_page_from_lru(struct zone *zone, struct page *page)
 		zone->nr_inactive--;
 	}
 }
+
+/*
+ * Isolate one page from the LRU lists.
+ *
+ * - zone->lru_lock must be held
+ */
+static inline int __isolate_lru_page(struct page *page)
+{
+	if (unlikely(!TestClearPageLRU(page)))
+		return 0;
+
+	if (get_page_testone(page)) {
+		/*
+		 * It is being freed elsewhere
+		 */
+		__put_page(page);
+		SetPageLRU(page);
+		return -ENOENT;
+	}
+
+	return 1;
+}

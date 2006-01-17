@@ -62,6 +62,10 @@ typedef	struct xfs_bmap_free
 #define	XFS_BMAPI_IGSTATE	0x200	/* Ignore state - */
 					/* combine contig. space */
 #define	XFS_BMAPI_CONTIG	0x400	/* must allocate only one extent */
+/*	XFS_BMAPI_DIRECT_IO	0x800	*/
+#define XFS_BMAPI_CONVERT	0x1000	/* unwritten extent conversion - */
+					/* need write cache flushing and no */
+					/* additional allocation alignments */
 
 #define	XFS_BMAPI_AFLAG(w)	xfs_bmapi_aflag(w)
 static inline int xfs_bmapi_aflag(int w)
@@ -101,7 +105,8 @@ typedef struct xfs_bmalloca {
 	char			wasdel;	/* replacing a delayed allocation */
 	char			userdata;/* set if is user data */
 	char			low;	/* low on space, using seq'l ags */
-	char			aeof;   /* allocated space at eof */
+	char			aeof;	/* allocated space at eof */
+	char			conv;	/* overwriting unwritten extents */
 } xfs_bmalloca_t;
 
 #ifdef __KERNEL__

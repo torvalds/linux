@@ -22,7 +22,7 @@
 
 #include <linux/compat.h>
 
-struct sndrv_timer_info32 {
+struct snd_timer_info32 {
 	u32 flags;
 	s32 card;
 	unsigned char id[64];
@@ -33,11 +33,11 @@ struct sndrv_timer_info32 {
 };
 
 static int snd_timer_user_info_compat(struct file *file,
-				      struct sndrv_timer_info32 __user *_info)
+				      struct snd_timer_info32 __user *_info)
 {
-	snd_timer_user_t *tu;
-	struct sndrv_timer_info32 info;
-	snd_timer_t *t;
+	struct snd_timer_user *tu;
+	struct snd_timer_info32 info;
+	struct snd_timer *t;
 
 	tu = file->private_data;
 	snd_assert(tu->timeri != NULL, return -ENXIO);
@@ -55,7 +55,7 @@ static int snd_timer_user_info_compat(struct file *file,
 	return 0;
 }
 
-struct sndrv_timer_status32 {
+struct snd_timer_status32 {
 	struct compat_timespec tstamp;
 	u32 resolution;
 	u32 lost;
@@ -65,10 +65,10 @@ struct sndrv_timer_status32 {
 };
 
 static int snd_timer_user_status_compat(struct file *file,
-					struct sndrv_timer_status32 __user *_status)
+					struct snd_timer_status32 __user *_status)
 {
-	snd_timer_user_t *tu;
-	snd_timer_status_t status;
+	struct snd_timer_user *tu;
+	struct snd_timer_status status;
 	
 	tu = file->private_data;
 	snd_assert(tu->timeri != NULL, return -ENXIO);
@@ -89,8 +89,8 @@ static int snd_timer_user_status_compat(struct file *file,
  */
 
 enum {
-	SNDRV_TIMER_IOCTL_INFO32 = _IOR('T', 0x11, struct sndrv_timer_info32),
-	SNDRV_TIMER_IOCTL_STATUS32 = _IOW('T', 0x14, struct sndrv_timer_status32),
+	SNDRV_TIMER_IOCTL_INFO32 = _IOR('T', 0x11, struct snd_timer_info32),
+	SNDRV_TIMER_IOCTL_STATUS32 = _IOW('T', 0x14, struct snd_timer_status32),
 };
 
 static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)

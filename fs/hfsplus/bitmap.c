@@ -29,7 +29,7 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset, u32 *ma
 		return size;
 
 	dprint(DBG_BITMAP, "block_allocate: %u,%u,%u\n", size, offset, len);
-	down(&HFSPLUS_SB(sb).alloc_file->i_sem);
+	mutex_lock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 	mapping = HFSPLUS_SB(sb).alloc_file->i_mapping;
 	page = read_cache_page(mapping, offset / PAGE_CACHE_BITS,
 			       (filler_t *)mapping->a_ops->readpage, NULL);
@@ -143,7 +143,7 @@ done:
 	sb->s_dirt = 1;
 	dprint(DBG_BITMAP, "-> %u,%u\n", start, *max);
 out:
-	up(&HFSPLUS_SB(sb).alloc_file->i_sem);
+	mutex_unlock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 	return start;
 }
 
@@ -164,7 +164,7 @@ int hfsplus_block_free(struct super_block *sb, u32 offset, u32 count)
 	if ((offset + count) > HFSPLUS_SB(sb).total_blocks)
 		return -2;
 
-	down(&HFSPLUS_SB(sb).alloc_file->i_sem);
+	mutex_lock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 	mapping = HFSPLUS_SB(sb).alloc_file->i_mapping;
 	pnr = offset / PAGE_CACHE_BITS;
 	page = read_cache_page(mapping, pnr, (filler_t *)mapping->a_ops->readpage, NULL);
@@ -215,7 +215,7 @@ out:
 	kunmap(page);
 	HFSPLUS_SB(sb).free_blocks += len;
 	sb->s_dirt = 1;
-	up(&HFSPLUS_SB(sb).alloc_file->i_sem);
+	mutex_unlock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 
 	return 0;
 }

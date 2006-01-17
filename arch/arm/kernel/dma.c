@@ -12,8 +12,6 @@
  *  DMA facilities.
  */
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/mman.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
@@ -23,8 +21,7 @@
 #include <asm/mach/dma.h>
 
 DEFINE_SPINLOCK(dma_spin_lock);
-
-#if MAX_DMA_CHANNELS > 0
+EXPORT_SYMBOL(dma_spin_lock);
 
 static dma_t dma_chan[MAX_DMA_CHANNELS];
 
@@ -81,6 +78,7 @@ bad_dma:
 busy:
 	return -EBUSY;
 }
+EXPORT_SYMBOL(request_dma);
 
 /*
  * Free DMA channel
@@ -112,6 +110,7 @@ void free_dma(dmach_t channel)
 bad_dma:
 	printk(KERN_ERR "dma: trying to free DMA%d\n", channel);
 }
+EXPORT_SYMBOL(free_dma);
 
 /* Set DMA Scatter-Gather list
  */
@@ -125,15 +124,15 @@ void set_dma_sg (dmach_t channel, struct scatterlist *sg, int nr_sg)
 
 	dma->sg = sg;
 	dma->sgcount = nr_sg;
-	dma->using_sg = 1;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(set_dma_sg);
 
 /* Set DMA address
  *
  * Copy address to the structure, and set the invalid bit
  */
-void set_dma_addr (dmach_t channel, unsigned long physaddr)
+void __set_dma_addr (dmach_t channel, void *addr)
 {
 	dma_t *dma = dma_chan + channel;
 
@@ -141,12 +140,11 @@ void set_dma_addr (dmach_t channel, unsigned long physaddr)
 		printk(KERN_ERR "dma%d: altering DMA address while "
 		       "DMA active\n", channel);
 
-	dma->sg = &dma->buf;
-	dma->sgcount = 1;
-	dma->buf.__address = bus_to_virt(physaddr);
-	dma->using_sg = 0;
+	dma->sg = NULL;
+	dma->addr = addr;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(__set_dma_addr);
 
 /* Set DMA byte count
  *
@@ -160,12 +158,11 @@ void set_dma_count (dmach_t channel, unsigned long count)
 		printk(KERN_ERR "dma%d: altering DMA count while "
 		       "DMA active\n", channel);
 
-	dma->sg = &dma->buf;
-	dma->sgcount = 1;
-	dma->buf.length = count;
-	dma->using_sg = 0;
+	dma->sg = NULL;
+	dma->count = count;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(set_dma_count);
 
 /* Set DMA direction mode
  */
@@ -180,6 +177,7 @@ void set_dma_mode (dmach_t channel, dmamode_t mode)
 	dma->dma_mode = mode;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(set_dma_mode);
 
 /* Enable DMA channel
  */
@@ -200,6 +198,7 @@ free_dma:
 	printk(KERN_ERR "dma%d: trying to enable free DMA\n", channel);
 	BUG();
 }
+EXPORT_SYMBOL(enable_dma);
 
 /* Disable DMA channel
  */
@@ -220,6 +219,7 @@ free_dma:
 	printk(KERN_ERR "dma%d: trying to disable free DMA\n", channel);
 	BUG();
 }
+EXPORT_SYMBOL(disable_dma);
 
 /*
  * Is the specified DMA channel active?
@@ -233,6 +233,7 @@ void set_dma_page(dmach_t channel, char pagenr)
 {
 	printk(KERN_ERR "dma%d: trying to set_dma_page\n", channel);
 }
+EXPORT_SYMBOL(set_dma_page);
 
 void set_dma_speed(dmach_t channel, int cycle_ns)
 {
@@ -243,6 +244,7 @@ void set_dma_speed(dmach_t channel, int cycle_ns)
 		ret = dma->d_ops->setspeed(channel, dma, cycle_ns);
 	dma->speed = ret;
 }
+EXPORT_SYMBOL(set_dma_speed);
 
 int get_dma_residue(dmach_t channel)
 {
@@ -254,49 +256,12 @@ int get_dma_residue(dmach_t channel)
 
 	return ret;
 }
+EXPORT_SYMBOL(get_dma_residue);
 
-void __init init_dma(void)
+static int __init init_dma(void)
 {
 	arch_dma_init(dma_chan);
-}
-
-#else
-
-int request_dma(dmach_t channel, const char *device_id)
-{
-	return -EINVAL;
-}
-
-int get_dma_residue(dmach_t channel)
-{
 	return 0;
 }
 
-#define GLOBAL_ALIAS(_a,_b) asm (".set " #_a "," #_b "; .globl " #_a)
-GLOBAL_ALIAS(disable_dma, get_dma_residue);
-GLOBAL_ALIAS(enable_dma, get_dma_residue);
-GLOBAL_ALIAS(free_dma, get_dma_residue);
-GLOBAL_ALIAS(get_dma_list, get_dma_residue);
-GLOBAL_ALIAS(set_dma_mode, get_dma_residue);
-GLOBAL_ALIAS(set_dma_page, get_dma_residue);
-GLOBAL_ALIAS(set_dma_count, get_dma_residue);
-GLOBAL_ALIAS(set_dma_addr, get_dma_residue);
-GLOBAL_ALIAS(set_dma_sg, get_dma_residue);
-GLOBAL_ALIAS(set_dma_speed, get_dma_residue);
-GLOBAL_ALIAS(init_dma, get_dma_residue);
-
-#endif
-
-EXPORT_SYMBOL(request_dma);
-EXPORT_SYMBOL(free_dma);
-EXPORT_SYMBOL(enable_dma);
-EXPORT_SYMBOL(disable_dma);
-EXPORT_SYMBOL(set_dma_addr);
-EXPORT_SYMBOL(set_dma_count);
-EXPORT_SYMBOL(set_dma_mode);
-EXPORT_SYMBOL(set_dma_page);
-EXPORT_SYMBOL(get_dma_residue);
-EXPORT_SYMBOL(set_dma_sg);
-EXPORT_SYMBOL(set_dma_speed);
-
-EXPORT_SYMBOL(dma_spin_lock);
+core_initcall(init_dma);

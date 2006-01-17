@@ -65,7 +65,6 @@ static char *version =
 #define POLL_PERIOD 				msecs_to_jiffies(10)
 
 static void reader_release(dev_link_t *link);
-static void reader_detach(dev_link_t *link);
 
 static int major;
 
@@ -86,7 +85,6 @@ struct reader_dev {
 	struct timer_list 	poll_timer;
 };
 
-static dev_info_t dev_info = MODULE_NAME;
 static dev_link_t *dev_table[CM_MAX_DEV];
 
 #ifndef PCMCIA_DEBUG
@@ -629,65 +627,26 @@ cs_release:
 	link->state &= ~DEV_CONFIG_PENDING;
 }
 
-static int reader_event(event_t event, int priority,
-			event_callback_args_t *args)
+static int reader_suspend(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link;
-	struct reader_dev *dev;
-	int devno;
+	dev_link_t *link = dev_to_instance(p_dev);
 
-	link = args->client_data;
-	dev = link->priv;
-	DEBUGP(3, dev, "-> reader_event\n");
-	for (devno = 0; devno < CM_MAX_DEV; devno++) {
-		if (dev_table[devno] == link)
-			break;
-	}
-	if (devno == CM_MAX_DEV)
-		return CS_BAD_ADAPTER;
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
 
-	switch (event) {
-		case CS_EVENT_CARD_INSERTION:
-			DEBUGP(5, dev, "CS_EVENT_CARD_INSERTION\n");
-			link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-			reader_config(link, devno);
-			break;
-		case CS_EVENT_CARD_REMOVAL:
-			DEBUGP(5, dev, "CS_EVENT_CARD_REMOVAL\n");
-			link->state &= ~DEV_PRESENT;
-			break;
-		case CS_EVENT_PM_SUSPEND:
-			DEBUGP(5, dev, "CS_EVENT_PM_SUSPEND "
-			      "(fall-through to CS_EVENT_RESET_PHYSICAL)\n");
-			link->state |= DEV_SUSPEND;
+	return 0;
+}
 
-		case CS_EVENT_RESET_PHYSICAL:
-			DEBUGP(5, dev, "CS_EVENT_RESET_PHYSICAL\n");
-			if (link->state & DEV_CONFIG) {
-		  		DEBUGP(5, dev, "ReleaseConfiguration\n");
-		  		pcmcia_release_configuration(link->handle);
-			}
-			break;
-		case CS_EVENT_PM_RESUME:
-			DEBUGP(5, dev, "CS_EVENT_PM_RESUME "
-			      "(fall-through to CS_EVENT_CARD_RESET)\n");
-			link->state &= ~DEV_SUSPEND;
+static int reader_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
 
-		case CS_EVENT_CARD_RESET:
-			DEBUGP(5, dev, "CS_EVENT_CARD_RESET\n");
-			if ((link->state & DEV_CONFIG)) {
-				DEBUGP(5, dev, "RequestConfiguration\n");
-		  		pcmcia_request_configuration(link->handle,
-							     &link->conf);
-			}
-			break;
-		default:
-			DEBUGP(5, dev, "reader_event: unknown event %.2x\n",
-			       event);
-			break;
-	}
-	DEBUGP(3, dev, "<- reader_event\n");
-	return CS_SUCCESS;
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
 }
 
 static void reader_release(dev_link_t *link)
@@ -697,11 +656,10 @@ static void reader_release(dev_link_t *link)
 	pcmcia_release_io(link->handle, &link->io);
 }
 
-static dev_link_t *reader_attach(void)
+static int reader_attach(struct pcmcia_device *p_dev)
 {
 	struct reader_dev *dev;
 	dev_link_t *link;
-	client_reg_t client_reg;
 	int i;
 
 	for (i = 0; i < CM_MAX_DEV; i++) {
@@ -710,11 +668,11 @@ static dev_link_t *reader_attach(void)
 	}
 
 	if (i == CM_MAX_DEV)
-		return NULL;
+		return -ENODEV;
 
 	dev = kzalloc(sizeof(struct reader_dev), GFP_KERNEL);
 	if (dev == NULL)
-		return NULL;
+		return -ENOMEM;
 
 	dev->timeout = CCID_DRIVER_MINIMUM_TIMEOUT;
 	dev->buffer_status = 0;
@@ -725,20 +683,6 @@ static dev_link_t *reader_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
-	client_reg.dev_info = &dev_info;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-	client_reg.EventMask=
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	i = pcmcia_register_client(&link->handle, &client_reg);
-	if (i) {
-		cs_error(link->handle, RegisterClient, i);
-		reader_detach(link);
-		return NULL;
-	}
 	init_waitqueue_head(&dev->devq);
 	init_waitqueue_head(&dev->poll_wait);
 	init_waitqueue_head(&dev->read_wait);
@@ -746,39 +690,37 @@ static dev_link_t *reader_attach(void)
 	init_timer(&dev->poll_timer);
 	dev->poll_timer.function = &cm4040_do_poll;
 
-	return link;
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	reader_config(link, i);
+
+	return 0;
 }
 
-static void reader_detach_by_devno(int devno, dev_link_t *link)
+static void reader_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct reader_dev *dev = link->priv;
-
-	if (link->state & DEV_CONFIG) {
-		DEBUGP(5, dev, "device still configured (try to release it)\n");
-		reader_release(link);
-	}
-
-	pcmcia_deregister_client(link->handle);
-	dev_table[devno] = NULL;
-	DEBUGP(5, dev, "freeing dev=%p\n", dev);
-	cm4040_stop_poll(dev);
-	kfree(dev);
-	return;
-}
-
-static void reader_detach(dev_link_t *link)
-{
-	int i;
+	int devno;
 
 	/* find device */
-	for (i = 0; i < CM_MAX_DEV; i++) {
-		if (dev_table[i] == link)
+	for (devno = 0; devno < CM_MAX_DEV; devno++) {
+		if (dev_table[devno] == link)
 			break;
 	}
-	if (i == CM_MAX_DEV)
+	if (devno == CM_MAX_DEV)
 		return;
 
-	reader_detach_by_devno(i, link);
+	link->state &= ~DEV_PRESENT;
+
+	if (link->state & DEV_CONFIG)
+		reader_release(link);
+
+	dev_table[devno] = NULL;
+	kfree(dev);
+
 	return;
 }
 
@@ -804,9 +746,10 @@ static struct pcmcia_driver reader_driver = {
   	.drv		= {
 		.name	= "cm4040_cs",
 	},
-	.attach		= reader_attach,
-	.detach		= reader_detach,
-	.event		= reader_event,
+	.probe		= reader_attach,
+	.remove		= reader_detach,
+	.suspend	= reader_suspend,
+	.resume		= reader_resume,
 	.id_table	= cm4040_ids,
 };
 
@@ -825,14 +768,8 @@ static int __init cm4040_init(void)
 
 static void __exit cm4040_exit(void)
 {
-	int i;
-
 	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&reader_driver);
-	for (i = 0; i < CM_MAX_DEV; i++) {
-		if (dev_table[i])
-			reader_detach_by_devno(i, dev_table[i]);
-	}
 	unregister_chrdev(major, DEVICE_NAME);
 }
 

@@ -66,7 +66,7 @@ static int __diag288(enum vmwdt_func func, unsigned int timeout,
 	__cmdl = len;
 	err = 0;
 	asm volatile (
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		       "diag %2,%4,0x288\n"
 		"1:	\n"
 		".section .fixup,\"ax\"\n"

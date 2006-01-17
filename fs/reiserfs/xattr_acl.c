@@ -1,3 +1,4 @@
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/posix_acl.h>
 #include <linux/reiserfs_fs.h>
@@ -174,7 +175,7 @@ static void *posix_acl_to_disk(const struct posix_acl *acl, size_t * size)
 /*
  * Inode operation get_posix_acl().
  *
- * inode->i_sem: down
+ * inode->i_mutex: down
  * BKL held [before 2.5.x]
  */
 struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
@@ -237,7 +238,7 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 /*
  * Inode operation set_posix_acl().
  *
- * inode->i_sem: down
+ * inode->i_mutex: down
  * BKL held [before 2.5.x]
  */
 static int
@@ -312,7 +313,7 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	return error;
 }
 
-/* dir->i_sem: down,
+/* dir->i_mutex: locked,
  * inode is new and not released into the wild yet */
 int
 reiserfs_inherit_default_acl(struct inode *dir, struct dentry *dentry,

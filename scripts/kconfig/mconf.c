@@ -325,7 +325,7 @@ static void cprint_init(void)
 	memset(args, 0, sizeof(args));
 	indent = 0;
 	child_count = 0;
-	cprint("./scripts/lxdialog/lxdialog");
+	cprint("./scripts/kconfig/lxdialog/lxdialog");
 	cprint("--backtitle");
 	cprint(menu_backtitle);
 }
@@ -1051,7 +1051,7 @@ int main(int ac, char **av)
 	conf_parse(av[1]);
 	conf_read(NULL);
 
-	sym = sym_lookup("KERNELRELEASE", 0);
+	sym = sym_lookup("KERNELVERSION", 0);
 	sym_calc_value(sym);
 	sprintf(menu_backtitle, _("Linux Kernel v%s Configuration"),
 		sym_get_string_value(sym));

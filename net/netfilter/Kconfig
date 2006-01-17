@@ -95,4 +95,269 @@ config NF_CONNTRACK_FTP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_CT_NETLINK
+	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
+	depends on EXPERIMENTAL && NF_CONNTRACK && NETFILTER_NETLINK
+	depends on NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	help
+	  This option enables support for a netlink-based userspace interface
+
 endmenu
+
+config NETFILTER_XTABLES
+	tristate "Netfilter Xtables support (required for ip_tables)"
+	help
+	  This is required if you intend to use any of ip_tables,
+	  ip6_tables or arp_tables.
+
+# alphabetically ordered list of targets
+
+config NETFILTER_XT_TARGET_CLASSIFY
+	tristate '"CLASSIFY" target support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `CLASSIFY' target, which enables the user to set
+	  the priority of a packet. Some qdiscs can use this value for
+	  classification, among these are:
+
+  	  atm, cbq, dsmark, pfifo_fast, htb, prio
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_CONNMARK
+	tristate  '"CONNMARK" target support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	help
+	  This option adds a `CONNMARK' target, which allows one to manipulate
+	  the connection mark value.  Similar to the MARK target, but
+	  affects the connection mark value rather than the packet mark value.
+	
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  The module will be called
+	  ipt_CONNMARK.o.  If unsure, say `N'.
+
+config NETFILTER_XT_TARGET_MARK
+	tristate '"MARK" target support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `MARK' target, which allows you to create rules
+	  in the `mangle' table which alter the netfilter mark (nfmark) field
+	  associated with the packet prior to routing. This can change
+	  the routing method (see `Use netfilter MARK value as routing
+	  key') and can also be used by other subsystems to change their
+	  behavior.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_NFQUEUE
+	tristate '"NFQUEUE" target Support'
+	depends on NETFILTER_XTABLES
+	help
+	  This Target replaced the old obsolete QUEUE target.
+
+	  As opposed to QUEUE, it supports 65535 different queues,
+	  not just one.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_NOTRACK
+	tristate  '"NOTRACK" target support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_RAW || IP6_NF_RAW
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	help
+	  The NOTRACK target allows a select rule to specify
+	  which packets *not* to enter the conntrack/NAT
+	  subsystem with all the consequences (no ICMP error tracking,
+	  no protocol helpers for the selected packets).
+	
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_COMMENT
+	tristate  '"comment" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `comment' dummy-match, which allows you to put
+	  comments in your iptables ruleset.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNBYTES
+	tristate  '"connbytes" per-connection counter match support'
+	depends on NETFILTER_XTABLES
+	depends on (IP_NF_CONNTRACK && IP_NF_CT_ACCT) || NF_CT_ACCT
+	help
+	  This option adds a `connbytes' match, which allows you to match the
+	  number of bytes and/or packets for each direction within a connection.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNMARK
+	tristate  '"connmark" connection mark match support'
+	depends on NETFILTER_XTABLES
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || NF_CONNTRACK_MARK
+	help
+	  This option adds a `connmark' match, which allows you to match the
+	  connection mark value previously set for the session by `CONNMARK'. 
+	
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  The module will be called
+	  ipt_connmark.o.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNTRACK
+	tristate '"conntrack" connection tracking match support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	help
+	  This is a general conntrack match module, a superset of the state match.
+
+	  It allows matching on additional conntrack information, which is
+	  useful in complex configurations, such as NAT gateways with multiple
+	  internet links or tunnels.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_DCCP
+	tristate  '"DCCP" protocol match support'
+	depends on NETFILTER_XTABLES
+	help
+	  With this option enabled, you will be able to use the iptables
+	  `dccp' match in order to match on DCCP source/destination ports
+	  and DCCP flags.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_HELPER
+	tristate '"helper" match support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	help
+	  Helper matching allows you to match packets in dynamic connections
+	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
+
+	  To compile it as a module, choose M here.  If unsure, say Y.
+
+config NETFILTER_XT_MATCH_LENGTH
+	tristate '"length" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option allows you to match the length of a packet against a
+	  specific value or range of values.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_LIMIT
+	tristate '"limit" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  limit matching allows you to control the rate at which a rule can be
+	  matched: mainly useful in combination with the LOG target ("LOG
+	  target support", below) and to avoid some Denial of Service attacks.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_MAC
+	tristate '"mac" address match support'
+	depends on NETFILTER_XTABLES
+	help
+	  MAC matching allows you to match packets based on the source
+	  Ethernet address of the packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_MARK
+	tristate '"mark" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  Netfilter mark matching allows you to match packets based on the
+	  `nfmark' value in the packet.  This can be set by the MARK target
+	  (see below).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_PHYSDEV
+	tristate '"physdev" match support'
+	depends on NETFILTER_XTABLES && BRIDGE_NETFILTER
+	help
+	  Physdev packet matching matches against the physical bridge ports
+	  the IP packet arrived on or will leave by.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_PKTTYPE
+	tristate '"pkttype" packet type match support'
+	depends on NETFILTER_XTABLES
+	help
+	  Packet type matching allows you to match a packet by
+	  its "class", eg. BROADCAST, MULTICAST, ...
+
+	  Typical usage:
+	  iptables -A INPUT -m pkttype --pkt-type broadcast -j LOG
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_REALM
+	tristate  '"realm" match support'
+	depends on NETFILTER_XTABLES
+	select NET_CLS_ROUTE
+	help
+	  This option adds a `realm' match, which allows you to use the realm
+	  key from the routing subsystem inside iptables.
+	
+	  This match pretty much resembles the CONFIG_NET_CLS_ROUTE4 option 
+	  in tc world.
+	
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_SCTP
+	tristate  '"sctp" protocol match support'
+	depends on NETFILTER_XTABLES
+	help
+	  With this option enabled, you will be able to use the 
+	  `sctp' match in order to match on SCTP source/destination ports
+	  and SCTP chunk types.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_STATE
+	tristate '"state" match support'
+	depends on NETFILTER_XTABLES
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK
+	help
+	  Connection state matching allows you to match packets based on their
+	  relationship to a tracked connection (ie. previous packets).  This
+	  is a powerful tool for packet classification.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_STRING
+	tristate  '"string" match support'
+	depends on NETFILTER_XTABLES
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
+	select TEXTSEARCH_BM
+	select TEXTSEARCH_FSM
+	help
+	  This option adds a `string' match, which allows you to look for
+	  pattern matchings in packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_TCPMSS
+	tristate '"tcpmss" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `tcpmss' match, which allows you to examine the
+	  MSS value of TCP SYN packets, which control the maximum packet size
+	  for that connection.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+

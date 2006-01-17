@@ -20,13 +20,13 @@
 /*
  * Lock ordering in mm:
  *
- * inode->i_sem	(while writing or truncating, not reading or faulting)
+ * inode->i_mutex	(while writing or truncating, not reading or faulting)
  *   inode->i_alloc_sem
  *
  * When a page fault occurs in writing from user to file, down_read
- * of mmap_sem nests within i_sem; in sys_msync, i_sem nests within
- * down_read of mmap_sem; i_sem and down_write of mmap_sem are never
- * taken together; in truncation, i_sem is taken outermost.
+ * of mmap_sem nests within i_mutex; in sys_msync, i_mutex nests within
+ * down_read of mmap_sem; i_mutex and down_write of mmap_sem are never
+ * taken together; in truncation, i_mutex is taken outermost.
  *
  * mm->mmap_sem
  *   page->flags PG_locked (lock_page)
@@ -435,6 +435,30 @@ int page_referenced(struct page *page, int is_locked)
 }
 
 /**
+ * page_set_anon_rmap - setup new anonymous rmap
+ * @page:	the page to add the mapping to
+ * @vma:	the vm area in which the mapping is added
+ * @address:	the user virtual address mapped
+ */
+static void __page_set_anon_rmap(struct page *page,
+	struct vm_area_struct *vma, unsigned long address)
+{
+	struct anon_vma *anon_vma = vma->anon_vma;
+
+	BUG_ON(!anon_vma);
+	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+	page->mapping = (struct address_space *) anon_vma;
+
+	page->index = linear_page_index(vma, address);
+
+	/*
+	 * nr_mapped state can be updated without turning off
+	 * interrupts because it is not modified via interrupt.
+	 */
+	__inc_page_state(nr_mapped);
+}
+
+/**
  * page_add_anon_rmap - add pte mapping to an anonymous page
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
@@ -445,18 +469,25 @@ int page_referenced(struct page *page, int is_locked)
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
-	if (atomic_inc_and_test(&page->_mapcount)) {
-		struct anon_vma *anon_vma = vma->anon_vma;
-
-		BUG_ON(!anon_vma);
-		anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-		page->mapping = (struct address_space *) anon_vma;
-
-		page->index = linear_page_index(vma, address);
-
-		inc_page_state(nr_mapped);
-	}
+	if (atomic_inc_and_test(&page->_mapcount))
+		__page_set_anon_rmap(page, vma, address);
 	/* else checking page index and mapping is racy */
+}
+
+/*
+ * page_add_new_anon_rmap - add pte mapping to a new anonymous page
+ * @page:	the page to add the mapping to
+ * @vma:	the vm area in which the mapping is added
+ * @address:	the user virtual address mapped
+ *
+ * Same as page_add_anon_rmap but must only be called on *new* pages.
+ * This means the inc-and-test can be bypassed.
+ */
+void page_add_new_anon_rmap(struct page *page,
+	struct vm_area_struct *vma, unsigned long address)
+{
+	atomic_set(&page->_mapcount, 0); /* elevate count by 1 (starts at -1) */
+	__page_set_anon_rmap(page, vma, address);
 }
 
 /**
@@ -471,7 +502,7 @@ void page_add_file_rmap(struct page *page)
 	BUG_ON(!pfn_valid(page_to_pfn(page)));
 
 	if (atomic_inc_and_test(&page->_mapcount))
-		inc_page_state(nr_mapped);
+		__inc_page_state(nr_mapped);
 }
 
 /**
@@ -483,6 +514,13 @@ void page_add_file_rmap(struct page *page)
 void page_remove_rmap(struct page *page)
 {
 	if (atomic_add_negative(-1, &page->_mapcount)) {
+		if (page_mapcount(page) < 0) {
+			printk (KERN_EMERG "Eeek! page_mapcount(page) went negative! (%d)\n", page_mapcount(page));
+			printk (KERN_EMERG "  page->flags = %lx\n", page->flags);
+			printk (KERN_EMERG "  page->count = %x\n", page_count(page));
+			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
+		}
+
 		BUG_ON(page_mapcount(page) < 0);
 		/*
 		 * It would be tidy to reset the PageAnon mapping here,
@@ -495,7 +533,7 @@ void page_remove_rmap(struct page *page)
 		 */
 		if (page_test_and_clear_dirty(page))
 			set_page_dirty(page);
-		dec_page_state(nr_mapped);
+		__dec_page_state(nr_mapped);
 	}
 }
 

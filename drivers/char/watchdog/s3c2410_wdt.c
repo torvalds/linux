@@ -46,12 +46,12 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/clk.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
 #include <asm/arch/map.h>
-#include <asm/hardware/clock.h>
 
 #undef S3C24XX_VA_WATCHDOG
 #define S3C24XX_VA_WATCHDOG (0)
@@ -397,7 +397,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	clk_use(wdt_clock);
 	clk_enable(wdt_clock);
 
 	/* see if we can actually set the requested timer margin, and if
@@ -444,7 +443,6 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 
 	if (wdt_clock != NULL) {
 		clk_disable(wdt_clock);
-		clk_unuse(wdt_clock);
 		clk_put(wdt_clock);
 		wdt_clock = NULL;
 	}

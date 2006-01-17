@@ -17,8 +17,6 @@
 #include <asm/overdrive/overdrive.h>
 #include <asm/overdrive/fpga.h>
 
-extern void od_time_init(void);
-
 const char *get_system_type(void)
 {
 	return "SH7750 Overdrive";
@@ -31,10 +29,8 @@ int __init platform_setup(void)
 {
 #ifdef CONFIG_PCI
 	init_overdrive_fpga();
-	galileo_init(); 
+	galileo_init();
 #endif
-
-	board_time_init = od_time_init;
 
         /* Enable RS232 receive buffers */
 	writel(0x1e, OVERDRIVE_CTRL);

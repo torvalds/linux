@@ -1,5 +1,16 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
 
+* Unify detach and REMOVAL event code, as well as attach and INSERTION
+  code (as of 2.6.16)
+       void (*remove)          (struct pcmcia_device *dev);
+       int (*probe)            (struct pcmcia_device *dev);
+
+* Move suspend, resume and reset out of event handler (as of 2.6.16)
+       int (*suspend)          (struct pcmcia_device *dev);
+       int (*resume)           (struct pcmcia_device *dev);
+  should be initialized in struct pcmcia_driver, and handle
+  (SUSPEND == RESET_PHYSICAL) and (RESUME == CARD_RESET) events
+
 * event handler initialization in struct pcmcia_driver (as of 2.6.13)
    The event handler is notified of all events, and must be initialized
    as the event() callback in the driver's struct pcmcia_driver.

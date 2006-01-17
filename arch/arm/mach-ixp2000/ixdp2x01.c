@@ -376,7 +376,6 @@ static void __init ixdp2x01_init_machine(void)
 #ifdef CONFIG_ARCH_IXDP2401
 MACHINE_START(IXDP2401, "Intel IXDP2401 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_ram	= 0x00000000,
 	.phys_io	= IXP2000_UART_PHYS_BASE,
 	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
@@ -390,7 +389,6 @@ MACHINE_END
 #ifdef CONFIG_ARCH_IXDP2801
 MACHINE_START(IXDP2801, "Intel IXDP2801 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_ram	= 0x00000000,
 	.phys_io	= IXP2000_UART_PHYS_BASE,
 	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/s390/cio/cmf.c ($Revision: 1.16 $)
+ * linux/drivers/s390/cio/cmf.c ($Revision: 1.19 $)
  *
  * Linux on zSeries Channel Measurement Facility support
  *
@@ -178,7 +178,7 @@ set_schib(struct ccw_device *cdev, u32 mme, int mbfc, unsigned long address)
 	/* msch can silently fail, so do it again if necessary */
 	for (retry = 0; retry < 3; retry++) {
 		/* prepare schib */
-		stsch(sch->irq, schib);
+		stsch(sch->schid, schib);
 		schib->pmcw.mme  = mme;
 		schib->pmcw.mbfc = mbfc;
 		/* address can be either a block address or a block index */
@@ -188,7 +188,7 @@ set_schib(struct ccw_device *cdev, u32 mme, int mbfc, unsigned long address)
 			schib->pmcw.mbi = address;
 
 		/* try to submit it */
-		switch(ret = msch_err(sch->irq, schib)) {
+		switch(ret = msch_err(sch->schid, schib)) {
 			case 0:
 				break;
 			case 1:
@@ -202,7 +202,7 @@ set_schib(struct ccw_device *cdev, u32 mme, int mbfc, unsigned long address)
 				ret = -EINVAL;
 				break;
 		}
-		stsch(sch->irq, schib); /* restore the schib */
+		stsch(sch->schid, schib); /* restore the schib */
 
 		if (ret)
 			break;

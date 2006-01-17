@@ -532,9 +532,9 @@ static void speedtch_handle_int(struct urb *int_urb, struct pt_regs *regs)
 	int ret = int_urb->status;
 
 	/* The magic interrupt for "up state" */
-	const static unsigned char up_int[6]   = { 0xa1, 0x00, 0x01, 0x00, 0x00, 0x00 };
+	static const unsigned char up_int[6]   = { 0xa1, 0x00, 0x01, 0x00, 0x00, 0x00 };
 	/* The magic interrupt for "down state" */
-	const static unsigned char down_int[6] = { 0xa1, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	static const unsigned char down_int[6] = { 0xa1, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
@@ -659,7 +659,6 @@ MODULE_DEVICE_TABLE(usb, speedtch_usb_ids);
 static int speedtch_usb_probe(struct usb_interface *, const struct usb_device_id *);
 
 static struct usb_driver speedtch_usb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= speedtch_driver_name,
 	.probe		= speedtch_usb_probe,
 	.disconnect	= usbatm_usb_disconnect,

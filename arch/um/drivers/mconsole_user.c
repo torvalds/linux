@@ -122,12 +122,12 @@ int mconsole_get_request(int fd, struct mc_request *req)
 	return(1);
 }
 
-int mconsole_reply(struct mc_request *req, char *str, int err, int more)
+int mconsole_reply_len(struct mc_request *req, const char *str, int total,
+		       int err, int more)
 {
 	struct mconsole_reply reply;
-	int total, len, n;
+	int len, n;
 
-	total = strlen(str);
 	do {
 		reply.err = err;
 
@@ -154,6 +154,12 @@ int mconsole_reply(struct mc_request *req, char *str, int err, int more)
 	} while(total > 0);
 	return(0);
 }
+
+int mconsole_reply(struct mc_request *req, const char *str, int err, int more)
+{
+	return mconsole_reply_len(req, str, strlen(str), err, more);
+}
+
 
 int mconsole_unlink_socket(void)
 {

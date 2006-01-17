@@ -53,6 +53,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -251,10 +252,10 @@ static void packet_sock_destruct(struct sock *sk)
 }
 
 
-static struct proto_ops packet_ops;
+static const struct proto_ops packet_ops;
 
 #ifdef CONFIG_SOCK_PACKET
-static struct proto_ops packet_ops_spkt;
+static const struct proto_ops packet_ops_spkt;
 
 static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -1237,7 +1238,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 		goto done;
 
 	err = -ENOBUFS;
-	i = (struct packet_mclist *)kmalloc(sizeof(*i), GFP_KERNEL);
+	i = kmalloc(sizeof(*i), GFP_KERNEL);
 	if (i == NULL)
 		goto done;
 
@@ -1521,7 +1522,7 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 #endif
 
 		default:
-			return dev_ioctl(cmd, (void __user *)arg);
+			return -ENOIOCTLCMD;
 	}
 	return 0;
 }
@@ -1784,7 +1785,7 @@ out:
 
 
 #ifdef CONFIG_SOCK_PACKET
-static struct proto_ops packet_ops_spkt = {
+static const struct proto_ops packet_ops_spkt = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
 	.release =	packet_release,
@@ -1806,7 +1807,7 @@ static struct proto_ops packet_ops_spkt = {
 };
 #endif
 
-static struct proto_ops packet_ops = {
+static const struct proto_ops packet_ops = {
 	.family =	PF_PACKET,
 	.owner =	THIS_MODULE,
 	.release =	packet_release,

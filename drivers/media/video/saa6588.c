@@ -50,15 +50,15 @@ static unsigned int rbds = 0;
 static unsigned int plvl = 0;
 static unsigned int bufblocks = 100;
 
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
-MODULE_PARM(xtal, "i");
+module_param(xtal, int, 0);
 MODULE_PARM_DESC(xtal, "select oscillator frequency (0..3), default 0");
-MODULE_PARM(rbds, "i");
+module_param(rbds, int, 0);
 MODULE_PARM_DESC(rbds, "select mode, 0=RDS, 1=RBDS, default 0");
-MODULE_PARM(plvl, "i");
+module_param(plvl, int, 0);
 MODULE_PARM_DESC(plvl, "select pause level (0..3), default 0");
-MODULE_PARM(bufblocks, "i");
+module_param(bufblocks, int, 0);
 MODULE_PARM_DESC(bufblocks, "number of buffered blocks, default 100");
 
 MODULE_DESCRIPTION("v4l2 driver module for SAA6588 RDS decoder");
@@ -427,18 +427,8 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 
 static int saa6588_probe(struct i2c_adapter *adap)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, saa6588_attach);
-#else
-	switch (adap->id) {
-	case I2C_HW_B_BT848:
-	case I2C_HW_B_RIVA:
-	case I2C_HW_SAA7134:
-		return i2c_probe(adap, &addr_data, saa6588_attach);
-		break;
-	}
-#endif
 	return 0;
 }
 
@@ -495,10 +485,10 @@ static int saa6588_command(struct i2c_client *client, unsigned int cmd,
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner = THIS_MODULE,
-	.name = "i2c saa6588 driver",
+	.driver = {
+		.name = "saa6588",
+	},
 	.id = -1,		/* FIXME */
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = saa6588_probe,
 	.detach_client = saa6588_detach,
 	.command = saa6588_command,
@@ -506,7 +496,6 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template = {
 	.name = "saa6588",
-	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };
 

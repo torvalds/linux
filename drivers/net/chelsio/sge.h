@@ -89,8 +89,6 @@ int t1_sge_configure(struct sge *, struct sge_params *);
 int t1_sge_set_coalesce_params(struct sge *, struct sge_params *);
 void t1_sge_destroy(struct sge *);
 intr_handler_t t1_select_intr_handler(adapter_t *adapter);
-unsigned int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
-		       unsigned int qid, struct net_device *netdev);
 int t1_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void t1_set_vlan_accel(struct adapter *adapter, int on_off);
 void t1_sge_start(struct sge *);

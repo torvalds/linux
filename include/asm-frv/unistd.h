@@ -313,7 +313,7 @@ do {									\
         unsigned long __sr2 = (res);					\
 	if (__builtin_expect(__sr2 >= (unsigned long)(-4095), 0)) {	\
 		errno = (-__sr2);					\
-		__sr2 = ULONG_MAX;					\
+		__sr2 = ~0UL;						\
 	}								\
 	return (type) __sr2;						\
 } while (0)
