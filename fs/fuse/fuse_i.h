@@ -280,6 +280,9 @@ struct fuse_conn {
 	/** Is create not implemented by fs? */
 	unsigned no_create : 1;
 
+	/** The number of requests waiting for completion */
+	atomic_t num_waiting;
+
 	/** Negotiated minor version */
 	unsigned minor;
 

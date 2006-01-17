@@ -109,18 +109,24 @@ struct fuse_req *fuse_get_request(struct fuse_conn *fc)
 	int intr;
 	sigset_t oldset;
 
+	atomic_inc(&fc->num_waiting);
 	block_sigs(&oldset);
 	intr = down_interruptible(&fc->outstanding_sem);
 	restore_sigs(&oldset);
-	return intr ? NULL : do_get_request(fc);
+	if (intr) {
+		atomic_dec(&fc->num_waiting);
+		return NULL;
+	}
+	return do_get_request(fc);
 }
 
 static void fuse_putback_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	spin_lock(&fuse_lock);
-	if (req->preallocated)
+	if (req->preallocated) {
+		atomic_dec(&fc->num_waiting);
 		list_add(&req->list, &fc->unused_list);
-	else
+	} else
 		fuse_request_free(req);
 
 	/* If we are in debt decrease that first */

@@ -555,7 +555,16 @@ static struct file_system_type fuse_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
+static ssize_t fuse_conn_waiting_show(struct fuse_conn *fc, char *page)
+{
+	return sprintf(page, "%i\n", atomic_read(&fc->num_waiting));
+}
+
+static struct fuse_conn_attr fuse_conn_waiting =
+	__ATTR(waiting, 0400, fuse_conn_waiting_show, NULL);
+
 static struct attribute *fuse_conn_attrs[] = {
+	&fuse_conn_waiting.attr,
 	NULL,
 };
 
