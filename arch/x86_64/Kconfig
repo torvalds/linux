@@ -305,7 +305,11 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on NUMA
+	depends on (NUMA || EXPERIMENTAL)
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -315,6 +319,7 @@ source "mm/Kconfig"
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
+	depends on NUMA
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"
