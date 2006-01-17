@@ -969,7 +969,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	char *buf;
 	int error = -ENOMEM;
 	int i, length;
-	int need_heavy;
 
 	dev_dbg(dev, "%s: trying driver %s with vendor=%04x, product=%04x, ifnum %2d\n",
 			__func__, driver->driver_name,
@@ -1014,8 +1013,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	snprintf(buf, length, ")");
 
  bind:
-	need_heavy = 1;
-	if (driver->bind && (error = driver->bind(instance, intf, id, &need_heavy)) < 0) {
+	if (driver->bind && (error = driver->bind(instance, intf, id)) < 0) {
 			dev_err(dev, "%s: bind failed: %d!\n", __func__, error);
 			goto fail_free;
 	}
@@ -1098,7 +1096,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		     __func__, urb->transfer_buffer, urb->transfer_buffer_length, urb);
 	}
 
-	if (need_heavy && driver->heavy_init) {
+	if (!(instance->flags & UDSL_SKIP_HEAVY_INIT) && driver->heavy_init) {
 		error = usbatm_heavy_init(instance);
 	} else {
 		complete(&instance->thread_exited);	/* pretend that heavy_init was run */

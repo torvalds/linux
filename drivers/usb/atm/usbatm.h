@@ -84,6 +84,11 @@
 #endif
 
 
+/* flags, set by mini-driver in bind() */
+
+#define UDSL_SKIP_HEAVY_INIT	(1<<0)
+
+
 /* mini driver */
 
 struct usbatm_data;
@@ -99,12 +104,9 @@ struct usbatm_driver {
 
 	const char *driver_name;
 
-	/*
-	*  init device ... can sleep, or cause probe() failure.  Drivers with a heavy_init
-	*  method can avoid having it called by setting need_heavy_init to zero.
-	*/
+	/* init device ... can sleep, or cause probe() failure */
         int (*bind) (struct usbatm_data *, struct usb_interface *,
-		     const struct usb_device_id *id, int *need_heavy_init);
+		     const struct usb_device_id *id);
 
 	/* additional device initialization that is too slow to be done in probe() */
         int (*heavy_init) (struct usbatm_data *, struct usb_interface *);
@@ -152,6 +154,7 @@ struct usbatm_data {
 	struct usbatm_driver *driver;
 	void *driver_data;
 	char driver_name[16];
+	unsigned int flags; /* set by mini-driver in bind() */
 
 	/* USB device */
 	struct usb_device *usb_dev;

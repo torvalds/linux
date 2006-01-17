@@ -666,8 +666,7 @@ static int cxacru_heavy_init(struct usbatm_data *usbatm_instance,
 }
 
 static int cxacru_bind(struct usbatm_data *usbatm_instance,
-		       struct usb_interface *intf, const struct usb_device_id *id,
-		       int *need_heavy_init)
+		       struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct cxacru_data *instance;
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
@@ -726,7 +725,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 
 	usbatm_instance->driver_data = instance;
 
-	*need_heavy_init = cxacru_card_status(instance);
+	usbatm_instance->flags = (cxacru_card_status(instance) ? 0 : UDSL_SKIP_HEAVY_INIT);
 
 	return 0;
 

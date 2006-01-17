@@ -1617,7 +1617,7 @@ static void create_fs_entries(struct uea_softc *sc, struct usb_interface *intf)
 }
 
 static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
-		   const struct usb_device_id *id, int *heavy)
+		   const struct usb_device_id *id)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct uea_softc *sc;
@@ -1629,7 +1629,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	if (ifnum != UEA_INTR_IFACE_NO)
 		return -ENODEV;
 
-	*heavy = sync_wait[modem_index];
+	usbatm_instance->flags = (sync_wait[modem_index] ? 0 : UDSL_SKIP_HEAVY_INIT);
 
 	/* interface 1 is for outbound traffic */
 	ret = claim_interface(usb, usbatm, UEA_US_IFACE_NO);

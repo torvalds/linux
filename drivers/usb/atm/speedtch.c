@@ -681,8 +681,7 @@ static void speedtch_release_interfaces(struct usb_device *usb_dev, int num_inte
 
 static int speedtch_bind(struct usbatm_data *usbatm,
 			 struct usb_interface *intf,
-			 const struct usb_device_id *id,
-			 int *need_heavy_init)
+			 const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct usb_interface *cur_intf;
@@ -754,11 +753,11 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			      0x12, 0xc0, 0x07, 0x00,
 			      instance->scratch_buffer + OFFSET_7, SIZE_7, 500);
 
-	*need_heavy_init = (ret != SIZE_7);
+	usbatm->flags = (ret == SIZE_7 ? UDSL_SKIP_HEAVY_INIT : 0);
 
-	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, need_heavy_init ? "not" : "already");
+	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, usbatm->flags & UDSL_SKIP_HEAVY_INIT ? "already" : "not");
 
-	if (*need_heavy_init)
+	if (!(usbatm->flags & UDSL_SKIP_HEAVY_INIT))
 		if ((ret = usb_reset_device(usb_dev)) < 0) {
 			usb_err(usbatm, "%s: device reset failed (%d)!\n", __func__, ret);
 			goto fail_free;

@@ -62,8 +62,7 @@ static int usb_intf_has_ep(const struct usb_interface *intf, u8 ep)
 }
 
 static int xusbatm_bind(struct usbatm_data *usbatm,
-			struct usb_interface *intf, const struct usb_device_id *id,
-			int *need_heavy_init)
+			struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	int drv_ix = id - xusbatm_usb_ids;
