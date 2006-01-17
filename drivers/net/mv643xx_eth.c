@@ -62,10 +62,10 @@
 #define WRAP			HW_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
 #define RX_SKB_SIZE		((dev->mtu + WRAP + 7) & ~0x7)
 
-#define INT_CAUSE_UNMASK_ALL		0x0007ffff
-#define INT_CAUSE_UNMASK_ALL_EXT	0x0011ffff
-#define INT_CAUSE_MASK_ALL		0x00000000
-#define INT_CAUSE_MASK_ALL_EXT		0x00000000
+#define INT_UNMASK_ALL			0x0007ffff
+#define INT_UNMASK_ALL_EXT		0x0011ffff
+#define INT_MASK_ALL			0x00000000
+#define INT_MASK_ALL_EXT		0x00000000
 #define INT_CAUSE_CHECK_BITS		INT_CAUSE_UNMASK_ALL
 #define INT_CAUSE_CHECK_BITS_EXT	INT_CAUSE_UNMASK_ALL_EXT
 
@@ -205,7 +205,7 @@ static void mv643xx_eth_rx_task(void *data)
 	else {
 		/* Return interrupts */
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(mp->port_num),
-							INT_CAUSE_UNMASK_ALL);
+							INT_UNMASK_ALL);
 	}
 #endif
 }
@@ -470,12 +470,12 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 
 	/* Read interrupt cause registers */
 	eth_int_cause = mv_read(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num)) &
-						INT_CAUSE_UNMASK_ALL;
+						INT_UNMASK_ALL;
 
 	if (eth_int_cause & BIT1)
 		eth_int_cause_ext = mv_read(
 			MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
-						INT_CAUSE_UNMASK_ALL_EXT;
+						INT_UNMASK_ALL_EXT;
 
 #ifdef MV643XX_NAPI
 	if (!(eth_int_cause & 0x0007fffd)) {
@@ -500,11 +500,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 	} else {
 		if (netif_rx_schedule_prep(dev)) {
 			/* Mask all the interrupts */
-			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
-			mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG
-								(port_num), 0);
-			/* ensure previous writes have taken effect */
-			mv_read(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num));
+			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+								INT_MASK_ALL);
+			/* wait for previous write to complete */
+			mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 			__netif_rx_schedule(dev);
 		}
 #else
@@ -517,9 +516,9 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		 * with skb's.
 		 */
 #ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
-		/* Unmask all interrupts on ethernet port */
+		/* Mask all interrupts on ethernet port */
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-							INT_CAUSE_MASK_ALL);
+							INT_MASK_ALL);
 		/* wait for previous write to take effect */
 		mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
@@ -857,11 +856,10 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	/* Unmask phy and link status changes interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL_EXT);
+						INT_UNMASK_ALL_EXT);
 
 	/* Unmask RX buffer and TX end interrupt */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
 	return 0;
 
 out_free_tx_skb:
@@ -950,13 +948,9 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 
-	/* Mask RX buffer and TX end interrupt */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
-
-	/* Mask phy and link status changes interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num), 0);
-
-	/* ensure previous writes have taken effect */
+	/* Mask all interrupts on ethernet port */
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_MASK_ALL);
+	/* wait for previous write to complete */
 	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
 #ifdef MV643XX_NAPI
@@ -1040,9 +1034,7 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL);
-		mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL_EXT);
+						INT_UNMASK_ALL);
 	}
 
 	return done ? 0 : 1;
@@ -1307,39 +1299,18 @@ static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static inline void mv643xx_enable_irq(struct mv643xx_private *mp)
-{
-	int port_num = mp->port_num;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-					INT_CAUSE_UNMASK_ALL);
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-					INT_CAUSE_UNMASK_ALL_EXT);
-	spin_unlock_irqrestore(&mp->lock, flags);
-}
-
-static inline void mv643xx_disable_irq(struct mv643xx_private *mp)
-{
-	int port_num = mp->port_num;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-					INT_CAUSE_MASK_ALL);
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-					INT_CAUSE_MASK_ALL_EXT);
-	spin_unlock_irqrestore(&mp->lock, flags);
-}
-
 static void mv643xx_netpoll(struct net_device *netdev)
 {
 	struct mv643xx_private *mp = netdev_priv(netdev);
+	int port_num = mp->port_num;
 
-	mv643xx_disable_irq(mp);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_MASK_ALL);
+	/* wait for previous write to complete */
+	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
 	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
-	mv643xx_enable_irq(mp);
+
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
 }
 #endif
 
