@@ -1925,8 +1925,8 @@ static void cas_tx(struct net_device *dev, struct cas *cp,
 	u64 compwb = le64_to_cpu(cp->init_block->tx_compwb);
 #endif
 	if (netif_msg_intr(cp))
-		printk(KERN_DEBUG "%s: tx interrupt, status: 0x%x, %lx\n",
-			cp->dev->name, status, compwb);
+		printk(KERN_DEBUG "%s: tx interrupt, status: 0x%x, %llx\n",
+			cp->dev->name, status, (unsigned long long)compwb);
 	/* process all the rings */
 	for (ring = 0; ring < N_TX_RINGS; ring++) {
 #ifdef USE_TX_COMPWB
