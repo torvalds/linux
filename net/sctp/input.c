@@ -257,12 +257,21 @@ int sctp_rcv(struct sk_buff *skb)
 	 */
 	sctp_bh_lock_sock(sk);
 
+	/* It is possible that the association could have moved to a different
+	 * socket if it is peeled off. If so, update the sk.
+	 */ 
+	if (sk != rcvr->sk) {
+		sctp_bh_lock_sock(rcvr->sk);
+		sctp_bh_unlock_sock(sk);
+		sk = rcvr->sk;
+	}
+
 	if (sock_owned_by_user(sk))
 		sk_add_backlog(sk, skb);
 	else
 		sctp_backlog_rcv(sk, skb);
 
-	/* Release the sock and the sock ref we took in the lookup calls. 
+	/* Release the sock and the sock ref we took in the lookup calls.
 	 * The asoc/ep ref will be released in sctp_backlog_rcv.
 	 */
 	sctp_bh_unlock_sock(sk);
@@ -297,6 +306,9 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
  	struct sctp_ep_common *rcvr = NULL;
 
  	rcvr = chunk->rcvr;
+
+	BUG_TRAP(rcvr->sk == sk);
+
  	if (rcvr->dead) {
  		sctp_chunk_free(chunk);
  	} else {
@@ -311,6 +323,27 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
  		sctp_endpoint_put(sctp_ep(rcvr));
   
         return 0;
+}
+
+void sctp_backlog_migrate(struct sctp_association *assoc, 
+			  struct sock *oldsk, struct sock *newsk)
+{
+	struct sk_buff *skb;
+	struct sctp_chunk *chunk;
+
+	skb = oldsk->sk_backlog.head;
+	oldsk->sk_backlog.head = oldsk->sk_backlog.tail = NULL;
+	while (skb != NULL) {
+		struct sk_buff *next = skb->next;
+
+		chunk = SCTP_INPUT_CB(skb)->chunk;
+		skb->next = NULL;
+		if (&assoc->base == chunk->rcvr)
+			sk_add_backlog(newsk, skb);
+		else
+			sk_add_backlog(oldsk, skb);
+		skb = next;
+	}
 }
 
 /* Handle icmp frag needed error. */

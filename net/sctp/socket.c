@@ -5602,8 +5602,12 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 */
 	newsp->type = type;
 
+	spin_lock_bh(&oldsk->sk_lock.slock);
+	/* Migrate the backlog from oldsk to newsk. */
+	sctp_backlog_migrate(assoc, oldsk, newsk);
 	/* Migrate the association to the new socket. */
 	sctp_assoc_migrate(assoc, newsk);
+	spin_unlock_bh(&oldsk->sk_lock.slock);
 
 	/* If the association on the newsk is already closed before accept()
 	 * is called, set RCV_SHUTDOWN flag.
