@@ -2770,13 +2770,16 @@ SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 
 	/* RAID FW may take a long time to enable
 	 */
-	if ( (ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
-			> MPI_FW_HEADER_PID_PROD_TARGET_SCSI ) {
-		rc = mpt_handshake_req_reply_wait(ioc, req_sz, (u32*)&port_enable,
-				reply_sz, (u16*)&reply_buf, 300 /*seconds*/, sleepFlag);
+	if (((ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
+	    > MPI_FW_HEADER_PID_PROD_TARGET_SCSI) ||
+	    (ioc->bus_type == SAS)) {
+		rc = mpt_handshake_req_reply_wait(ioc, req_sz,
+		(u32*)&port_enable, reply_sz, (u16*)&reply_buf,
+		300 /*seconds*/, sleepFlag);
 	} else {
-		rc = mpt_handshake_req_reply_wait(ioc, req_sz, (u32*)&port_enable,
-				reply_sz, (u16*)&reply_buf, 30 /*seconds*/, sleepFlag);
+		rc = mpt_handshake_req_reply_wait(ioc, req_sz,
+		(u32*)&port_enable, reply_sz, (u16*)&reply_buf,
+		30 /*seconds*/, sleepFlag);
 	}
 	return rc;
 }
