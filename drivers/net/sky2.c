@@ -707,6 +707,7 @@ static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
 static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q,
 				u16 idx, u16 *last, u16 size)
 {
+	wmb();
 	if (is_ec_a1(hw) && idx < *last) {
 		u16 hwget = sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_GET_IDX));
 
@@ -730,6 +731,7 @@ setnew:
 		sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
 	}
 	*last = idx;
+	mmiowb();
 }
 
 
@@ -1253,7 +1255,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 
 out_unlock:
-	mmiowb();
 	spin_unlock(&sky2->tx_lock);
 
 	dev->trans_start = jiffies;
@@ -1896,7 +1897,6 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 
 exit_loop:
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-	mmiowb();
 
 	sky2_tx_check(hw, 0, tx_done[0]);
 	sky2_tx_check(hw, 1, tx_done[1]);
@@ -1911,7 +1911,6 @@ exit_loop:
 		netif_rx_complete(dev0);
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
-		mmiowb();
 		return 0;
 	} else {
 		*budget -= work_done;
