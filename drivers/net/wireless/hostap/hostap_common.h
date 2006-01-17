@@ -1,6 +1,9 @@
 #ifndef HOSTAP_COMMON_H
 #define HOSTAP_COMMON_H
 
+#include <linux/types.h>
+#include <linux/if_ether.h>
+
 #define BIT(x) (1 << (x))
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]

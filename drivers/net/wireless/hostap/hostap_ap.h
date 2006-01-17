@@ -1,6 +1,8 @@
 #ifndef HOSTAP_AP_H
 #define HOSTAP_AP_H
 
+#include "hostap_80211.h"
+
 /* AP data structures for STAs */
 
 /* maximum number of frames to buffer per STA */
