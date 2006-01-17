@@ -29,7 +29,7 @@
 
 /* TLB entry offset/size used for pinning kernel lowmem */
 #define PPC44x_PIN_SHIFT	28
-#define PPC44x_PIN_SIZE		(1 << PPC44x_PIN_SHIFT)
+#define PPC_PIN_SIZE		(1 << PPC44x_PIN_SHIFT)
 
 /* Lowest TLB slot consumed by the default pinned TLBs */
 #define PPC44x_LOW_SLOT		63

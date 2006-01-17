@@ -113,6 +113,8 @@ enum ppc_sys_devices {
 	MPC8xx_CPM_USB,
 };
 
+#define PPC_PIN_SIZE	(24 * 1024 * 1024)	/* 24Mbytes of data pinned */
+
 #ifndef BOARD_CHIP_NAME
 #define BOARD_CHIP_NAME ""
 #endif
