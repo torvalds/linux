@@ -361,8 +361,8 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 void fuse_send_init(struct fuse_conn *fc)
 {
 	/* This is called from fuse_read_super() so there's guaranteed
-	   to be a request available */
-	struct fuse_req *req = do_get_request(fc);
+	   to be exactly one request available */
+	struct fuse_req *req = fuse_get_request(fc);
 	struct fuse_init_in *arg = &req->misc.init_in;
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;

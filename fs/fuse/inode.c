@@ -200,9 +200,6 @@ static void fuse_put_super(struct super_block *sb)
 
 	spin_lock(&fuse_lock);
 	fc->mounted = 0;
-	fc->user_id = 0;
-	fc->group_id = 0;
-	fc->flags = 0;
 	/* Flush all readers on this fs */
 	wake_up_all(&fc->waitq);
 	up_write(&fc->sbput_sem);
@@ -379,16 +376,15 @@ static struct fuse_conn *new_conn(void)
 {
 	struct fuse_conn *fc;
 
-	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
+	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc != NULL) {
 		int i;
-		memset(fc, 0, sizeof(*fc));
 		init_waitqueue_head(&fc->waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->unused_list);
 		INIT_LIST_HEAD(&fc->background);
-		sema_init(&fc->outstanding_sem, 0);
+		sema_init(&fc->outstanding_sem, 1); /* One for INIT */
 		init_rwsem(&fc->sbput_sem);
 		for (i = 0; i < FUSE_MAX_OUTSTANDING; i++) {
 			struct fuse_req *req = fuse_request_alloc();
@@ -420,7 +416,7 @@ static struct fuse_conn *get_conn(struct file *file, struct super_block *sb)
 		fc = ERR_PTR(-EINVAL);
 	} else {
 		file->private_data = fc;
-		*get_fuse_conn_super_p(sb) = fc;
+		sb->s_fs_info = fc;
 		fc->mounted = 1;
 		fc->connected = 1;
 		fc->count = 2;

@@ -280,14 +280,9 @@ struct fuse_conn {
 	struct backing_dev_info bdi;
 };
 
-static inline struct fuse_conn **get_fuse_conn_super_p(struct super_block *sb)
-{
-	return (struct fuse_conn **) &sb->s_fs_info;
-}
-
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 {
-	return *get_fuse_conn_super_p(sb);
+	return sb->s_fs_info;
 }
 
 static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
