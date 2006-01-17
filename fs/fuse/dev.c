@@ -181,6 +181,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 {
+	list_del(&req->list);
 	req->state = FUSE_REQ_FINISHED;
 	spin_unlock(&fuse_lock);
 	if (req->background) {
@@ -641,7 +642,7 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 
 	req = list_entry(fc->pending.next, struct fuse_req, list);
 	req->state = FUSE_REQ_READING;
-	list_del_init(&req->list);
+	list_move(&req->list, &fc->io);
 
 	in = &req->in;
 	reqsize = in->h.len;
@@ -675,7 +676,7 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 		request_end(fc, req);
 	else {
 		req->state = FUSE_REQ_SENT;
-		list_add_tail(&req->list, &fc->processing);
+		list_move_tail(&req->list, &fc->processing);
 		spin_unlock(&fuse_lock);
 	}
 	return reqsize;
@@ -768,7 +769,6 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 	if (!req)
 		goto err_unlock;
 
-	list_del_init(&req->list);
 	if (req->interrupted) {
 		spin_unlock(&fuse_lock);
 		fuse_copy_finish(&cs);
@@ -776,6 +776,7 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 		request_end(fc, req);
 		return -ENOENT;
 	}
+	list_move(&req->list, &fc->io);
 	req->out.h = oh;
 	req->locked = 1;
 	cs.req = req;
@@ -835,7 +836,6 @@ static void end_requests(struct fuse_conn *fc, struct list_head *head)
 	while (!list_empty(head)) {
 		struct fuse_req *req;
 		req = list_entry(head->next, struct fuse_req, list);
-		list_del_init(&req->list);
 		req->out.h.error = -ECONNABORTED;
 		request_end(fc, req);
 		spin_lock(&fuse_lock);

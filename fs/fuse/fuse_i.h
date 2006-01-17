@@ -124,8 +124,8 @@ enum fuse_req_state {
  * A request to the client
  */
 struct fuse_req {
-	/** This can be on either unused_list, pending or processing
-	    lists in fuse_conn */
+	/** This can be on either unused_list, pending processing or
+	    io lists in fuse_conn */
 	struct list_head list;
 
 	/** Entry on the background list */
@@ -222,6 +222,9 @@ struct fuse_conn {
 
 	/** The list of requests being processed */
 	struct list_head processing;
+
+	/** The list of requests under I/O */
+	struct list_head io;
 
 	/** Requests put in the background (RELEASE or any other
 	    interrupted request) */

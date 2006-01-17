@@ -382,6 +382,7 @@ static struct fuse_conn *new_conn(void)
 		init_waitqueue_head(&fc->waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
+		INIT_LIST_HEAD(&fc->io);
 		INIT_LIST_HEAD(&fc->unused_list);
 		INIT_LIST_HEAD(&fc->background);
 		sema_init(&fc->outstanding_sem, 1); /* One for INIT */
