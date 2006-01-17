@@ -41,21 +41,21 @@ extern int sn_ioif_inited;
 
 static dma_addr_t
 pcibr_dmamap_ate32(struct pcidev_info *info,
-		   uint64_t paddr, size_t req_size, uint64_t flags)
+		   u64 paddr, size_t req_size, u64 flags)
 {
 
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
 	    pdi_pcibus_info;
-	uint8_t internal_device = (PCI_SLOT(pcidev_info->pdi_host_pcidev_info->
+	u8 internal_device = (PCI_SLOT(pcidev_info->pdi_host_pcidev_info->
 					    pdi_linux_pcidev->devfn)) - 1;
 	int ate_count;
 	int ate_index;
-	uint64_t ate_flags = flags | PCI32_ATE_V;
-	uint64_t ate;
-	uint64_t pci_addr;
-	uint64_t xio_addr;
-	uint64_t offset;
+	u64 ate_flags = flags | PCI32_ATE_V;
+	u64 ate;
+	u64 pci_addr;
+	u64 xio_addr;
+	u64 offset;
 
 	/* PIC in PCI-X mode does not supports 32bit PageMap mode */
 	if (IS_PIC_SOFT(pcibus_info) && IS_PCIX(pcibus_info)) {
@@ -109,12 +109,12 @@ pcibr_dmamap_ate32(struct pcidev_info *info,
 }
 
 static dma_addr_t
-pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
-			uint64_t dma_attributes)
+pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
+			u64 dma_attributes)
 {
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)
 	    ((info->pdi_host_pcidev_info)->pdi_pcibus_info);
-	uint64_t pci_addr;
+	u64 pci_addr;
 
 	/* Translate to Crosstalk View of Physical Address */
 	pci_addr = (IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
@@ -127,7 +127,7 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
 	/* Handle Bridge Chipset differences */
 	if (IS_PIC_SOFT(pcibus_info)) {
 		pci_addr |=
-		    ((uint64_t) pcibus_info->
+		    ((u64) pcibus_info->
 		     pbi_hub_xid << PIC_PCI64_ATTR_TARG_SHFT);
 	} else
 		pci_addr |= TIOCP_PCI64_CMDTYPE_MEM;
@@ -142,17 +142,17 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
 
 static dma_addr_t
 pcibr_dmatrans_direct32(struct pcidev_info * info,
-			uint64_t paddr, size_t req_size, uint64_t flags)
+			u64 paddr, size_t req_size, u64 flags)
 {
 
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
 	    pdi_pcibus_info;
-	uint64_t xio_addr;
+	u64 xio_addr;
 
-	uint64_t xio_base;
-	uint64_t offset;
-	uint64_t endoff;
+	u64 xio_base;
+	u64 offset;
+	u64 endoff;
 
 	if (IS_PCIX(pcibus_info)) {
 		return 0;
@@ -209,14 +209,14 @@ pcibr_dma_unmap(struct pci_dev *hwdev, dma_addr_t dma_handle, int direction)
  * unlike the PIC Device(x) Write Request Buffer Flush register.
  */
 
-void sn_dma_flush(uint64_t addr)
+void sn_dma_flush(u64 addr)
 {
 	nasid_t nasid;
 	int is_tio;
 	int wid_num;
 	int i, j;
-	uint64_t flags;
-	uint64_t itte;
+	u64 flags;
+	u64 itte;
 	struct hubdev_info *hubinfo;
 	volatile struct sn_flush_device_kernel *p;
 	volatile struct sn_flush_device_common *common;
@@ -299,8 +299,8 @@ void sn_dma_flush(uint64_t addr)
 		 * If CE ever needs the sn_dma_flush mechanism, we will have
 		 * to account for that here and in tioce_bus_fixup().
 	 	 */
-		uint32_t tio_id = HUB_L(TIO_IOSPACE_ADDR(nasid, TIO_NODE_ID));
-		uint32_t revnum = XWIDGET_PART_REV_NUM(tio_id);
+		u32 tio_id = HUB_L(TIO_IOSPACE_ADDR(nasid, TIO_NODE_ID));
+		u32 revnum = XWIDGET_PART_REV_NUM(tio_id);
 
 		/* TIOCP BRINGUP WAR (PV907516): Don't write buffer flush reg */
 		if ((1 << XWIDGET_PART_REV_NUM_REV(revnum)) & PV907516) {
@@ -315,7 +315,7 @@ void sn_dma_flush(uint64_t addr)
 		*common->sfdl_flush_addr = 0;
 
 		/* force an interrupt. */
-		*(volatile uint32_t *)(common->sfdl_force_int_addr) = 1;
+		*(volatile u32 *)(common->sfdl_force_int_addr) = 1;
 
 		/* wait for the interrupt to come back. */
 		while (*(common->sfdl_flush_addr) != 0x10f)

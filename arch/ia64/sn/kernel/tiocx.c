@@ -245,7 +245,7 @@ static int cx_device_reload(struct cx_dev *cx_dev)
 				  cx_dev->bt);
 }
 
-static inline uint64_t tiocx_intr_alloc(nasid_t nasid, int widget,
+static inline u64 tiocx_intr_alloc(nasid_t nasid, int widget,
 					u64 sn_irq_info,
 					int req_irq, nasid_t req_nasid,
 					int req_slice)
@@ -302,7 +302,7 @@ struct sn_irq_info *tiocx_irq_alloc(nasid_t nasid, int widget, int irq,
 
 void tiocx_irq_free(struct sn_irq_info *sn_irq_info)
 {
-	uint64_t bridge = (uint64_t) sn_irq_info->irq_bridge;
+	u64 bridge = (u64) sn_irq_info->irq_bridge;
 	nasid_t nasid = NASID_GET(bridge);
 	int widget;
 
@@ -313,12 +313,12 @@ void tiocx_irq_free(struct sn_irq_info *sn_irq_info)
 	}
 }
 
-uint64_t tiocx_dma_addr(uint64_t addr)
+u64 tiocx_dma_addr(u64 addr)
 {
 	return PHYS_TO_TIODMA(addr);
 }
 
-uint64_t tiocx_swin_base(int nasid)
+u64 tiocx_swin_base(int nasid)
 {
 	return TIO_SWIN_BASE(nasid, TIOCX_CORELET);
 }
@@ -335,8 +335,8 @@ EXPORT_SYMBOL(tiocx_swin_base);
 
 static void tio_conveyor_set(nasid_t nasid, int enable_flag)
 {
-	uint64_t ice_frz;
-	uint64_t disable_cb = (1ull << 61);
+	u64 ice_frz;
+	u64 disable_cb = (1ull << 61);
 
 	if (!(nasid & 1))
 		return;
@@ -388,7 +388,7 @@ static int is_fpga_tio(int nasid, int *bt)
 
 static int bitstream_loaded(nasid_t nasid)
 {
-	uint64_t cx_credits;
+	u64 cx_credits;
 
 	cx_credits = REMOTE_HUB_L(nasid, TIO_ICE_PMI_TX_DYN_CREDIT_STAT_CB3);
 	cx_credits &= TIO_ICE_PMI_TX_DYN_CREDIT_STAT_CB3_CREDIT_CNT_MASK;
@@ -404,14 +404,14 @@ static int tiocx_reload(struct cx_dev *cx_dev)
 	nasid_t nasid = cx_dev->cx_id.nasid;
 
 	if (bitstream_loaded(nasid)) {
-		uint64_t cx_id;
+		u64 cx_id;
 		int rv;
 
 		rv = ia64_sn_sysctl_tio_clock_reset(nasid);
 		if (rv) {
 			printk(KERN_ALERT "CX port JTAG reset failed.\n");
 		} else {
-			cx_id = *(volatile uint64_t *)
+			cx_id = *(volatile u64 *)
 				(TIO_SWIN_BASE(nasid, TIOCX_CORELET) +
 					  WIDGET_ID);
 			part_num = XWIDGET_PART_NUM(cx_id);

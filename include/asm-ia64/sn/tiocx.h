@@ -40,10 +40,10 @@ struct cx_drv {
 };
 
 /* create DMA address by stripping AS bits */
-#define TIOCX_DMA_ADDR(a) (uint64_t)((uint64_t)(a) & 0xffffcfffffffffUL)
+#define TIOCX_DMA_ADDR(a) (u64)((u64)(a) & 0xffffcfffffffffUL)
 
-#define TIOCX_TO_TIOCX_DMA_ADDR(a) (uint64_t)(((uint64_t)(a) & 0xfffffffff) |  \
-                                  ((((uint64_t)(a)) & 0xffffc000000000UL) <<2))
+#define TIOCX_TO_TIOCX_DMA_ADDR(a) (u64)(((u64)(a) & 0xfffffffff) |  \
+                                  ((((u64)(a)) & 0xffffc000000000UL) <<2))
 
 #define TIO_CE_ASIC_PARTNUM 0xce00
 #define TIOCX_CORELET 3
@@ -63,10 +63,10 @@ extern int cx_device_unregister(struct cx_dev *);
 extern int cx_device_register(nasid_t, int, int, struct hubdev_info *, int);
 extern int cx_driver_unregister(struct cx_drv *);
 extern int cx_driver_register(struct cx_drv *);
-extern uint64_t tiocx_dma_addr(uint64_t addr);
-extern uint64_t tiocx_swin_base(int nasid);
-extern void tiocx_mmr_store(int nasid, uint64_t offset, uint64_t value);
-extern uint64_t tiocx_mmr_load(int nasid, uint64_t offset);
+extern u64 tiocx_dma_addr(u64 addr);
+extern u64 tiocx_swin_base(int nasid);
+extern void tiocx_mmr_store(int nasid, u64 offset, u64 value);
+extern u64 tiocx_mmr_load(int nasid, u64 offset);
 
 #endif				//  __KERNEL__
 #endif				// _ASM_IA64_SN_TIO_TIOCX__
