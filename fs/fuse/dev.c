@@ -852,9 +852,11 @@ static int fuse_dev_release(struct inode *inode, struct file *file)
 		fc->connected = 0;
 		end_requests(fc, &fc->pending);
 		end_requests(fc, &fc->processing);
-		fuse_release_conn(fc);
 	}
 	spin_unlock(&fuse_lock);
+	if (fc)
+		kobject_put(&fc->kobj);
+
 	return 0;
 }
 

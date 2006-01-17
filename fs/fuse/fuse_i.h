@@ -196,9 +196,6 @@ struct fuse_req {
  * unmounted.
  */
 struct fuse_conn {
-	/** Reference count */
-	int count;
-
 	/** The user id for this mount */
 	uid_t user_id;
 
@@ -288,6 +285,9 @@ struct fuse_conn {
 
 	/** Backing dev info */
 	struct backing_dev_info bdi;
+
+	/** kobject */
+	struct kobject kobj;
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
@@ -298,6 +298,11 @@ static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
 {
 	return get_fuse_conn_super(inode->i_sb);
+}
+
+static inline struct fuse_conn *get_fuse_conn_kobj(struct kobject *obj)
+{
+	return container_of(obj, struct fuse_conn, kobj);
 }
 
 static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
@@ -398,12 +403,6 @@ void fuse_init_symlink(struct inode *inode);
  * Change attributes of an inode
  */
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr);
-
-/**
- * Check if the connection can be released, and if yes, then free the
- * connection structure
- */
-void fuse_release_conn(struct fuse_conn *fc);
 
 /**
  * Initialize the client device
