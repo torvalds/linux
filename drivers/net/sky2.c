@@ -704,7 +704,7 @@ static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
  * This is a workaround code taken from SysKonnect sk98lin driver
  * to deal with chip bug on Yukon EC rev 0 in the wraparound case.
  */
-static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q,
+static void sky2_put_idx(struct sky2_hw *hw, unsigned q,
 				u16 idx, u16 *last, u16 size)
 {
 	wmb();
@@ -749,7 +749,7 @@ static inline u32 high32(dma_addr_t a)
 }
 
 /* Build description to hardware about buffer */
-static inline void sky2_rx_add(struct sky2_port *sky2, dma_addr_t map)
+static void sky2_rx_add(struct sky2_port *sky2, dma_addr_t map)
 {
 	struct sky2_rx_le *le;
 	u32 hi = high32(map);
@@ -1080,7 +1080,7 @@ static inline int tx_avail(const struct sky2_port *sky2)
 }
 
 /* Estimate of number of transmit list elements required */
-static inline unsigned tx_le_req(const struct sk_buff *skb)
+static unsigned tx_le_req(const struct sk_buff *skb)
 {
 	unsigned count;
 
@@ -1792,7 +1792,7 @@ error:
  */
 #define TX_NO_STATUS	0xffff
 
-static inline void sky2_tx_check(struct sky2_hw *hw, int port, u16 last)
+static void sky2_tx_check(struct sky2_hw *hw, int port, u16 last)
 {
 	if (last != TX_NO_STATUS) {
 		struct net_device *dev = hw->dev[port];
@@ -2280,7 +2280,7 @@ static int sky2_reset(struct sky2_hw *hw)
 	return 0;
 }
 
-static inline u32 sky2_supported_modes(const struct sky2_hw *hw)
+static u32 sky2_supported_modes(const struct sky2_hw *hw)
 {
 	u32 modes;
 	if (hw->copper) {
@@ -3025,7 +3025,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	return dev;
 }
 
-static inline void sky2_show_addr(struct net_device *dev)
+static void __devinit sky2_show_addr(struct net_device *dev)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
 
