@@ -405,8 +405,9 @@ struct sctp_cookie {
 /* The format of our cookie that we send to our peer. */
 struct sctp_signed_cookie {
 	__u8 signature[SCTP_SECRET_SIZE];
+	__u32 __pad;		/* force sctp_cookie alignment to 64 bits */
 	struct sctp_cookie c;
-};
+} __attribute__((packed));
 
 /* This is another convenience type to allocate memory for address
  * params for the maximum size and pass such structures around
