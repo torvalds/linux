@@ -153,7 +153,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	int i;
 	struct fuse_init_out *arg = &req->misc.init_out;
 
-	if (arg->major != FUSE_KERNEL_VERSION)
+	if (req->out.h.error || arg->major != FUSE_KERNEL_VERSION)
 		fc->conn_error = 1;
 	else {
 		fc->minor = arg->minor;
