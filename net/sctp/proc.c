@@ -210,7 +210,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
 	struct sock *sk;
-	int    hash = *(int *)v;
+	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_ep_hashsize)
 		return -ENOMEM;
@@ -313,7 +313,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
 	struct sock *sk;
-	int    hash = *(int *)v;
+	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_assoc_hashsize)
 		return -ENOMEM;
