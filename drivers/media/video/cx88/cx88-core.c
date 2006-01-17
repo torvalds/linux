@@ -32,6 +32,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
+#include <linux/mutex.h>
 
 #include "cx88.h"
 #include <media/v4l2-common.h>
@@ -75,7 +76,7 @@ MODULE_PARM_DESC(nocomb,"disable comb filter");
 
 static unsigned int cx88_devcount;
 static LIST_HEAD(cx88_devlist);
-static DECLARE_MUTEX(devlist);
+static DEFINE_MUTEX(devlist);
 
 #define NO_SYNC_LINE (-1U)
 
@@ -1036,7 +1037,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	struct list_head *item;
 	int i;
 
-	down(&devlist);
+	mutex_lock(&devlist);
 	list_for_each(item,&cx88_devlist) {
 		core = list_entry(item, struct cx88_core, devlist);
 		if (pci->bus->number != core->pci_bus)
@@ -1047,7 +1048,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 		if (0 != get_ressources(core,pci))
 			goto fail_unlock;
 		atomic_inc(&core->refcount);
-		up(&devlist);
+		mutex_unlock(&devlist);
 		return core;
 	}
 	core = kzalloc(sizeof(*core),GFP_KERNEL);
@@ -1122,13 +1123,13 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	cx88_card_setup(core);
 	cx88_ir_init(core,pci);
 
-	up(&devlist);
+	mutex_unlock(&devlist);
 	return core;
 
 fail_free:
 	kfree(core);
 fail_unlock:
-	up(&devlist);
+	mutex_unlock(&devlist);
 	return NULL;
 }
 
@@ -1140,14 +1141,14 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	if (!atomic_dec_and_test(&core->refcount))
 		return;
 
-	down(&devlist);
+	mutex_lock(&devlist);
 	cx88_ir_fini(core);
 	if (0 == core->i2c_rc)
 		i2c_bit_del_bus(&core->i2c_adap);
 	list_del(&core->devlist);
 	iounmap(core->lmmio);
 	cx88_devcount--;
-	up(&devlist);
+	mutex_unlock(&devlist);
 	kfree(core);
 }
 

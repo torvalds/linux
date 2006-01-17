@@ -567,8 +567,8 @@ int tda8290_init(struct i2c_client *c)
 	}
 	tuner_info("tuner: type set to %s\n", c->name);
 
-	t->tv_freq    = set_tv_freq;
-	t->radio_freq = set_radio_freq;
+	t->set_tv_freq    = set_tv_freq;
+	t->set_radio_freq = set_radio_freq;
 	t->has_signal = has_signal;
 	t->standby = standby;
 	t->tda827x_lpsel = 0;

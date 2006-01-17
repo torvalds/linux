@@ -41,9 +41,9 @@ static struct i2c_client bttv_i2c_client_template;
 
 static int attach_inform(struct i2c_client *client);
 
-static int i2c_debug = 0;
-static int i2c_hw = 0;
-static int i2c_scan = 0;
+static int i2c_debug;
+static int i2c_hw;
+static int i2c_scan;
 module_param(i2c_debug, int, 0644);
 module_param(i2c_hw,    int, 0444);
 module_param(i2c_scan,  int, 0444);

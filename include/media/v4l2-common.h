@@ -120,6 +120,13 @@ enum v4l2_chip_ident {
 /* select from TV,radio,extern,MUTE */
 #define AUDC_SET_INPUT        _IOW('d',89,int)
 
+/* msp3400 ioctl: will be removed in the near future */
+struct msp_matrix {
+  int input;
+  int output;
+};
+#define MSP_SET_MATRIX     _IOW('m',17,struct msp_matrix)
+
 /* tuner ioctls */
 /* Sets tuner type and its I2C addr */
 #define TUNER_SET_TYPE_ADDR          _IOW('d',90,int)

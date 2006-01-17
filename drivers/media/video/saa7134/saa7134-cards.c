@@ -2515,6 +2515,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 1 << 21,
 		.inputs = {{
 			.name   = name_tv,
 			.vmux   = 1,
@@ -2529,6 +2530,11 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux   = 8,
 			.amux   = LINE1,
 		}},
+		.radio = {
+			.name   = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
 	},
 	[SAA7134_BOARD_MSI_TVATANYWHERE_PLUS] = {
 		.name           = "MSI TV@Anywhere plus",

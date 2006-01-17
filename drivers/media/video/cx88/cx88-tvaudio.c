@@ -60,6 +60,11 @@ static unsigned int audio_debug = 0;
 module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
 
+static unsigned int always_analog = 0;
+module_param(always_analog,int,0644);
+MODULE_PARM_DESC(always_analog,"force analog audio out");
+
+
 #define dprintk(fmt, arg...)	if (audio_debug) \
 	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
 
@@ -155,7 +160,8 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 		cx_write(AUD_I2SOUTPUTCNTL, 1);
 		cx_write(AUD_I2SCNTL, 0);
 		/* cx_write(AUD_APB_IN_RATE_ADJ, 0); */
-	} else {
+	}
+	if ((always_analog) || (!cx88_boards[core->board].blackbird)) {
 		ctl |= EN_DAC_ENABLE;
 		cx_write(AUD_CTL, ctl);
 	}

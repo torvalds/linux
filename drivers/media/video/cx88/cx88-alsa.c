@@ -116,7 +116,7 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},"
 			"{{Conexant,23882},"
 			"{{Conexant,23883}");
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 
@@ -333,10 +333,10 @@ static snd_pcm_hardware_t snd_cx88_digital_hw = {
 	.channels_min = 1,
 	.channels_max = 2,
 	.buffer_bytes_max = (2*2048),
-	.period_bytes_min = 256,
+	.period_bytes_min = 2048,
 	.period_bytes_max = 2048,
 	.periods_min = 2,
-	.periods_max = 16,
+	.periods_max = 2,
 };
 
 /*
@@ -653,7 +653,7 @@ static void snd_cx88_dev_free(snd_card_t * card)
  * Alsa Constructor - Component probe
  */
 
-static int devno=0;
+static int devno;
 static int __devinit snd_cx88_create(snd_card_t *card, struct pci_dev *pci,
 				    snd_cx88_card_t **rchip)
 {
@@ -805,7 +805,6 @@ static struct pci_driver cx88_audio_pci_driver = {
 	.id_table = cx88_audio_pci_tbl,
 	.probe    = cx88_audio_initdev,
 	.remove   = cx88_audio_finidev,
-	SND_PCI_PM_CALLBACKS
 };
 
 /****************************************************************************
