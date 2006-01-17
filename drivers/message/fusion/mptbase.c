@@ -81,6 +81,10 @@ MODULE_LICENSE("GPL");
 /*
  *  cmd line parameters
  */
+static int mpt_msi_enable;
+module_param(mpt_msi_enable, int, 0);
+MODULE_PARM_DESC(mpt_msi_enable, " MSI Support Enable (default=0)");
+
 #ifdef MFCNT
 static int mfcounter = 0;
 #define PRINT_MF_COUNT 20000
@@ -1444,6 +1448,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ioc->pci_irq = -1;
 	if (pdev->irq) {
+		if (mpt_msi_enable && !pci_enable_msi(pdev))
+			printk(MYIOC_s_INFO_FMT "PCI-MSI enabled\n", ioc->name);
+
 		r = request_irq(pdev->irq, mpt_interrupt, SA_SHIRQ, ioc->name, ioc);
 
 		if (r < 0) {
@@ -1483,6 +1490,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		list_del(&ioc->list);
 		free_irq(ioc->pci_irq, ioc);
+		if (mpt_msi_enable)
+			pci_disable_msi(pdev);
 		iounmap(mem);
 		kfree(ioc);
 		pci_set_drvdata(pdev, NULL);
@@ -2136,6 +2145,8 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 
 	if (ioc->pci_irq != -1) {
 		free_irq(ioc->pci_irq, ioc);
+		if (mpt_msi_enable)
+			pci_disable_msi(ioc->pcidev);
 		ioc->pci_irq = -1;
 	}
 
