@@ -170,7 +170,7 @@ lasi_init_chip(struct parisc_device *dev)
 	struct gsc_irq gsc_irq;
 	int ret;
 
-	lasi = kmalloc(sizeof(*lasi), GFP_KERNEL);
+	lasi = kzalloc(sizeof(*lasi), GFP_KERNEL);
 	if (!lasi)
 		return -ENOMEM;
 

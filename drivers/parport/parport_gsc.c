@@ -249,7 +249,7 @@ struct parport *__devinit parport_gsc_probe_port (unsigned long base,
 	struct parport tmp;
 	struct parport *p = &tmp;
 
-	priv = kmalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
+	priv = kzalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
 	if (!priv) {
 		printk (KERN_DEBUG "parport (0x%lx): no memory!\n", base);
 		return NULL;

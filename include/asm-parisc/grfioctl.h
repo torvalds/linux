@@ -58,7 +58,7 @@
 #define CRT_ID_ELK_1024DB	0x27849CA5      /* Elk 1024x768 double buffer */
 #define CRT_ID_ELK_GS		S9000_ID_A1924A	/* Elk 1280x1024 GreyScale    */
 #define CRT_ID_CRX24		S9000_ID_A1439A	/* Piranha */
-#define CRT_ID_VISUALIZE_EG	0x2D08C0A7      /* Graffiti (built-in B132+/B160L) */
+#define CRT_ID_VISUALIZE_EG	0x2D08C0A7      /* Graffiti, A4450A (built-in B132+/B160L) */
 #define CRT_ID_THUNDER		0x2F23E5FC      /* Thunder 1 VISUALIZE 48*/
 #define CRT_ID_THUNDER2		0x2F8D570E      /* Thunder 2 VISUALIZE 48 XP*/
 #define CRT_ID_HCRX		S9000_ID_HCRX	/* Hyperdrive HCRX */

@@ -2064,14 +2064,13 @@ sba_driver_callback(struct parisc_device *dev)
 	printk(KERN_INFO "%s found %s at 0x%lx\n",
 		MODULE_NAME, version, dev->hpa.start);
 
-	sba_dev = kmalloc(sizeof(struct sba_device), GFP_KERNEL);
+	sba_dev = kzalloc(sizeof(struct sba_device), GFP_KERNEL);
 	if (!sba_dev) {
 		printk(KERN_ERR MODULE_NAME " - couldn't alloc sba_device\n");
 		return -ENOMEM;
 	}
 
 	parisc_set_drvdata(dev, sba_dev);
-	memset(sba_dev, 0, sizeof(struct sba_device));
 
 	for(i=0; i<MAX_IOC; i++)
 		spin_lock_init(&(sba_dev->ioc[i].res_lock));

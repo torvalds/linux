@@ -408,11 +408,10 @@ static void setup_bus_id(struct parisc_device *padev)
 
 struct parisc_device * create_tree_node(char id, struct device *parent)
 {
-	struct parisc_device *dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	struct parisc_device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
-	memset(dev, 0, sizeof(*dev));
 	dev->hw_path = id;
 	dev->id.hw_type = HPHW_FAULTY;
 
