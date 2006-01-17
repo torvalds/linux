@@ -250,19 +250,16 @@ static int fuse_fsync(struct file *file, struct dentry *de, int datasync)
 	return fuse_fsync_common(file, de, datasync, 0);
 }
 
-size_t fuse_send_read_common(struct fuse_req *req, struct file *file,
-			     struct inode *inode, loff_t pos, size_t count,
-			     int isdir)
+void fuse_read_fill(struct fuse_req *req, struct file *file,
+		    struct inode *inode, loff_t pos, size_t count, int opcode)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
-	struct fuse_read_in inarg;
+	struct fuse_read_in *inarg = &req->misc.read_in;
 
-	memset(&inarg, 0, sizeof(struct fuse_read_in));
-	inarg.fh = ff->fh;
-	inarg.offset = pos;
-	inarg.size = count;
-	req->in.h.opcode = isdir ? FUSE_READDIR : FUSE_READ;
+	inarg->fh = ff->fh;
+	inarg->offset = pos;
+	inarg->size = count;
+	req->in.h.opcode = opcode;
 	req->in.h.nodeid = get_node_id(inode);
 	req->inode = inode;
 	req->file = file;
@@ -273,14 +270,15 @@ size_t fuse_send_read_common(struct fuse_req *req, struct file *file,
 	req->out.argvar = 1;
 	req->out.numargs = 1;
 	req->out.args[0].size = count;
-	request_send(fc, req);
-	return req->out.args[0].size;
 }
 
 static size_t fuse_send_read(struct fuse_req *req, struct file *file,
 			     struct inode *inode, loff_t pos, size_t count)
 {
-	return fuse_send_read_common(req, file, inode, pos, count, 0);
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
+	request_send(fc, req);
+	return req->out.args[0].size;
 }
 
 static int fuse_readpage(struct file *file, struct page *page)

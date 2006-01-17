@@ -169,6 +169,7 @@ struct fuse_req {
 		struct fuse_release_in release_in;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
+		struct fuse_read_in read_in;
 	} misc;
 
 	/** page vector */
@@ -354,11 +355,10 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 		      unsigned long nodeid, u64 nlookup);
 
 /**
- * Send READ or READDIR request
+ * Initialize READ or READDIR request
  */
-size_t fuse_send_read_common(struct fuse_req *req, struct file *file,
-			     struct inode *inode, loff_t pos, size_t count,
-			     int isdir);
+void fuse_read_fill(struct fuse_req *req, struct file *file,
+		    struct inode *inode, loff_t pos, size_t count, int opcode);
 
 /**
  * Send OPEN or OPENDIR request
