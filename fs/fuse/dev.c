@@ -181,7 +181,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	req->finished = 1;
+	req->state = FUSE_REQ_FINISHED;
 	spin_unlock(&fuse_lock);
 	if (req->background) {
 		down_read(&fc->sbput_sem);
@@ -250,10 +250,10 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 
 	spin_unlock(&fuse_lock);
 	block_sigs(&oldset);
-	wait_event_interruptible(req->waitq, req->finished);
+	wait_event_interruptible(req->waitq, req->state == FUSE_REQ_FINISHED);
 	restore_sigs(&oldset);
 	spin_lock(&fuse_lock);
-	if (req->finished)
+	if (req->state == FUSE_REQ_FINISHED)
 		return;
 
 	req->out.h.error = -EINTR;
@@ -268,10 +268,10 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 		wait_event(req->waitq, !req->locked);
 		spin_lock(&fuse_lock);
 	}
-	if (!req->sent && !list_empty(&req->list)) {
+	if (req->state == FUSE_REQ_PENDING) {
 		list_del(&req->list);
 		__fuse_put_request(req);
-	} else if (!req->finished && req->sent)
+	} else if (req->state == FUSE_REQ_SENT)
 		background_request(fc, req);
 }
 
@@ -306,6 +306,7 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 			fc->outstanding_debt++;
 	}
 	list_add_tail(&req->list, &fc->pending);
+	req->state = FUSE_REQ_PENDING;
 	wake_up(&fc->waitq);
 }
 
@@ -639,6 +640,7 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 		goto err_unlock;
 
 	req = list_entry(fc->pending.next, struct fuse_req, list);
+	req->state = FUSE_REQ_READING;
 	list_del_init(&req->list);
 
 	in = &req->in;
@@ -672,7 +674,7 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 	if (!req->isreply)
 		request_end(fc, req);
 	else {
-		req->sent = 1;
+		req->state = FUSE_REQ_SENT;
 		list_add_tail(&req->list, &fc->processing);
 		spin_unlock(&fuse_lock);
 	}

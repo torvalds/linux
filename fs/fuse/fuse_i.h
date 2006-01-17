@@ -111,6 +111,15 @@ struct fuse_out {
 	struct fuse_arg args[3];
 };
 
+/** The request state */
+enum fuse_req_state {
+	FUSE_REQ_INIT = 0,
+	FUSE_REQ_PENDING,
+	FUSE_REQ_READING,
+	FUSE_REQ_SENT,
+	FUSE_REQ_FINISHED
+};
+
 /**
  * A request to the client
  */
@@ -140,11 +149,8 @@ struct fuse_req {
 	/** Data is being copied to/from the request */
 	unsigned locked:1;
 
-	/** Request has been sent to userspace */
-	unsigned sent:1;
-
-	/** The request is finished */
-	unsigned finished:1;
+	/** State of the request */
+	enum fuse_req_state state;
 
 	/** The request input */
 	struct fuse_in in;
