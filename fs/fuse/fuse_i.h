@@ -480,8 +480,3 @@ int fuse_do_getattr(struct inode *inode);
  * Invalidate inode attributes
  */
 void fuse_invalidate_attr(struct inode *inode);
-
-/**
- * Send the INIT message
- */
-void fuse_send_init(struct fuse_conn *fc);
