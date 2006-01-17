@@ -123,7 +123,7 @@
 #define  MPT_MAX_FRAME_SIZE		128
 #define  MPT_DEFAULT_FRAME_SIZE		128
 
-#define  MPT_REPLY_FRAME_SIZE		0x40  /* Must be a multiple of 8 */
+#define  MPT_REPLY_FRAME_SIZE		0x50  /* Must be a multiple of 8 */
 
 #define  MPT_SG_REQ_128_SCALE		1
 #define  MPT_SG_REQ_96_SCALE		2
