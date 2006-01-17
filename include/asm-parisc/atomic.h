@@ -1,9 +1,13 @@
+/* Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>
+ * Copyright (C) 2006 Kyle McMartin <kyle@parisc-linux.org>
+ */
+
 #ifndef _ASM_PARISC_ATOMIC_H_
 #define _ASM_PARISC_ATOMIC_H_
 
 #include <linux/config.h>
+#include <linux/types.h>
 #include <asm/system.h>
-/* Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>.  */
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -46,15 +50,6 @@ extern raw_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned;
 #  define _atomic_spin_unlock_irqrestore(l,f) do { local_irq_restore(f); } while (0)
 #endif
 
-/* Note that we need not lock read accesses - aligned word writes/reads
- * are atomic, so a reader never sees unconsistent values.
- *
- * Cache-line alignment would conflict with, for example, linux/module.h
- */
-
-typedef struct { volatile int counter; } atomic_t;
-
-
 /* This should get optimized out since it's never called.
 ** Or get a link error if xchg is used "wrong".
 */
@@ -69,10 +64,9 @@ extern unsigned long __xchg64(unsigned long, unsigned long *);
 #endif
 
 /* optimizer better get rid of switch since size is a constant */
-static __inline__ unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
-                                       int size)
+static __inline__ unsigned long
+__xchg(unsigned long x, __volatile__ void * ptr, int size)
 {
-
 	switch(size) {
 #ifdef __LP64__
 	case 8: return __xchg64(x,(unsigned long *) ptr);
@@ -129,7 +123,13 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 				    (unsigned long)_n_, sizeof(*(ptr))); \
   })
 
+/* Note that we need not lock read accesses - aligned word writes/reads
+ * are atomic, so a reader never sees unconsistent values.
+ *
+ * Cache-line alignment would conflict with, for example, linux/module.h
+ */
 
+typedef struct { volatile int counter; } atomic_t;
 
 /* It's possible to reduce all atomic operations to either
  * __atomic_add_return, atomic_set and atomic_read (the latter
@@ -210,12 +210,66 @@ static __inline__ int atomic_read(const atomic_t *v)
 
 #define atomic_dec_and_test(v)	(atomic_dec_return(v) == 0)
 
-#define ATOMIC_INIT(i)	{ (i) }
+#define ATOMIC_INIT(i)	((atomic_t) { (i) })
 
 #define smp_mb__before_atomic_dec()	smp_mb()
 #define smp_mb__after_atomic_dec()	smp_mb()
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#ifdef __LP64__
+
+typedef struct { volatile s64 counter; } atomic64_t;
+
+#define ATOMIC64_INIT(i) ((atomic64_t) { (i) })
+
+static __inline__ int
+__atomic64_add_return(s64 i, atomic64_t *v)
+{
+	int ret;
+	unsigned long flags;
+	_atomic_spin_lock_irqsave(v, flags);
+
+	ret = (v->counter += i);
+
+	_atomic_spin_unlock_irqrestore(v, flags);
+	return ret;
+}
+
+static __inline__ void
+atomic64_set(atomic64_t *v, s64 i)
+{
+	unsigned long flags;
+	_atomic_spin_lock_irqsave(v, flags);
+
+	v->counter = i;
+
+	_atomic_spin_unlock_irqrestore(v, flags);
+}
+
+static __inline__ s64
+atomic64_read(const atomic64_t *v)
+{
+	return v->counter;
+}
+
+#define atomic64_add(i,v)	((void)(__atomic64_add_return( ((s64)i),(v))))
+#define atomic64_sub(i,v)	((void)(__atomic64_add_return(-((s64)i),(v))))
+#define atomic64_inc(v)		((void)(__atomic64_add_return(   1,(v))))
+#define atomic64_dec(v)		((void)(__atomic64_add_return(  -1,(v))))
+
+#define atomic64_add_return(i,v)	(__atomic64_add_return( ((s64)i),(v)))
+#define atomic64_sub_return(i,v)	(__atomic64_add_return(-((s64)i),(v)))
+#define atomic64_inc_return(v)		(__atomic64_add_return(   1,(v)))
+#define atomic64_dec_return(v)		(__atomic64_add_return(  -1,(v)))
+
+#define atomic64_add_negative(a, v)	(atomic64_add_return((a), (v)) < 0)
+
+#define atomic64_inc_and_test(v) 	(atomic64_inc_return(v) == 0)
+#define atomic64_dec_and_test(v)	(atomic64_dec_return(v) == 0)
+
+#endif /* __LP64__ */
+
 #include <asm-generic/atomic.h>
-#endif
+
+#endif /* _ASM_PARISC_ATOMIC_H_ */
