@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.47"
-#define DRV_MODULE_RELDATE	"Dec 28, 2005"
+#define DRV_MODULE_VERSION	"3.48"
+#define DRV_MODULE_RELDATE	"Jan 16, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1325,10 +1325,12 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 		val &= ~((1 << 16) | (1 << 4) | (1 << 2) | (1 << 1) | 1);
 		tw32(0x7d00, val);
 		if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF)) {
-			tg3_nvram_lock(tp);
+			int err;
+
+			err = tg3_nvram_lock(tp);
 			tg3_halt_cpu(tp, RX_CPU_BASE);
-			tw32_f(NVRAM_SWARB, SWARB_REQ_CLR0);
-			tg3_nvram_unlock(tp);
+			if (!err)
+				tg3_nvram_unlock(tp);
 		}
 	}
 
@@ -4193,14 +4195,19 @@ static int tg3_nvram_lock(struct tg3 *tp)
 	if (tp->tg3_flags & TG3_FLAG_NVRAM) {
 		int i;
 
-		tw32(NVRAM_SWARB, SWARB_REQ_SET1);
-		for (i = 0; i < 8000; i++) {
-			if (tr32(NVRAM_SWARB) & SWARB_GNT1)
-				break;
-			udelay(20);
+		if (tp->nvram_lock_cnt == 0) {
+			tw32(NVRAM_SWARB, SWARB_REQ_SET1);
+			for (i = 0; i < 8000; i++) {
+				if (tr32(NVRAM_SWARB) & SWARB_GNT1)
+					break;
+				udelay(20);
+			}
+			if (i == 8000) {
+				tw32(NVRAM_SWARB, SWARB_REQ_CLR1);
+				return -ENODEV;
+			}
 		}
-		if (i == 8000)
-			return -ENODEV;
+		tp->nvram_lock_cnt++;
 	}
 	return 0;
 }
@@ -4208,8 +4215,12 @@ static int tg3_nvram_lock(struct tg3 *tp)
 /* tp->lock is held. */
 static void tg3_nvram_unlock(struct tg3 *tp)
 {
-	if (tp->tg3_flags & TG3_FLAG_NVRAM)
-		tw32_f(NVRAM_SWARB, SWARB_REQ_CLR1);
+	if (tp->tg3_flags & TG3_FLAG_NVRAM) {
+		if (tp->nvram_lock_cnt > 0)
+			tp->nvram_lock_cnt--;
+		if (tp->nvram_lock_cnt == 0)
+			tw32_f(NVRAM_SWARB, SWARB_REQ_CLR1);
+	}
 }
 
 /* tp->lock is held. */
@@ -4320,8 +4331,13 @@ static int tg3_chip_reset(struct tg3 *tp)
 	void (*write_op)(struct tg3 *, u32, u32);
 	int i;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X))
+	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X)) {
 		tg3_nvram_lock(tp);
+		/* No matching tg3_nvram_unlock() after this because
+		 * chip reset below will undo the nvram lock.
+		 */
+		tp->nvram_lock_cnt = 0;
+	}
 
 	/*
 	 * We must avoid the readl() that normally takes place.
@@ -4717,6 +4733,10 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 		       (offset == RX_CPU_BASE ? "RX" : "TX"));
 		return -ENODEV;
 	}
+
+	/* Clear firmware's nvram arbitration. */
+	if (tp->tg3_flags & TG3_FLAG_NVRAM)
+		tw32(NVRAM_SWARB, SWARB_REQ_CLR0);
 	return 0;
 }
 
@@ -4736,7 +4756,7 @@ struct fw_info {
 static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_base,
 				 int cpu_scratch_size, struct fw_info *info)
 {
-	int err, i;
+	int err, lock_err, i;
 	void (*write_op)(struct tg3 *, u32, u32);
 
 	if (cpu_base == TX_CPU_BASE &&
@@ -4755,9 +4775,10 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 	/* It is possible that bootcode is still loading at this point.
 	 * Get the nvram lock first before halting the cpu.
 	 */
-	tg3_nvram_lock(tp);
+	lock_err = tg3_nvram_lock(tp);
 	err = tg3_halt_cpu(tp, cpu_base);
-	tg3_nvram_unlock(tp);
+	if (!lock_err)
+		tg3_nvram_unlock(tp);
 	if (err)
 		goto out;
 
@@ -8182,7 +8203,7 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		data[1] = 1;
 	}
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
-		int irq_sync = 0;
+		int err, irq_sync = 0;
 
 		if (netif_running(dev)) {
 			tg3_netif_stop(tp);
@@ -8192,11 +8213,12 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		tg3_full_lock(tp, irq_sync);
 
 		tg3_halt(tp, RESET_KIND_SUSPEND, 1);
-		tg3_nvram_lock(tp);
+		err = tg3_nvram_lock(tp);
 		tg3_halt_cpu(tp, RX_CPU_BASE);
 		if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
 			tg3_halt_cpu(tp, TX_CPU_BASE);
-		tg3_nvram_unlock(tp);
+		if (!err)
+			tg3_nvram_unlock(tp);
 
 		if (tg3_test_registers(tp) != 0) {
 			etest->flags |= ETH_TEST_FL_FAILED;
@@ -8588,7 +8610,11 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
 		tp->tg3_flags |= TG3_FLAG_NVRAM;
 
-		tg3_nvram_lock(tp);
+		if (tg3_nvram_lock(tp)) {
+			printk(KERN_WARNING PFX "%s: Cannot get nvarm lock, "
+			       "tg3_nvram_init failed.\n", tp->dev->name);
+			return;
+		}
 		tg3_enable_nvram_access(tp);
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
@@ -8686,7 +8712,9 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 	if (offset > NVRAM_ADDR_MSK)
 		return -EINVAL;
 
-	tg3_nvram_lock(tp);
+	ret = tg3_nvram_lock(tp);
+	if (ret)
+		return ret;
 
 	tg3_enable_nvram_access(tp);
 
@@ -8785,10 +8813,6 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 
 		offset = offset + (pagesize - page_off);
 
-		/* Nvram lock released by tg3_nvram_read() above,
-		 * so need to get it again.
-		 */
-		tg3_nvram_lock(tp);
 		tg3_enable_nvram_access(tp);
 
 		/*
@@ -8925,7 +8949,9 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 	else {
 		u32 grc_mode;
 
-		tg3_nvram_lock(tp);
+		ret = tg3_nvram_lock(tp);
+		if (ret)
+			return ret;
 
 		tg3_enable_nvram_access(tp);
 		if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
