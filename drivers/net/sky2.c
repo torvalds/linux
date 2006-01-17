@@ -3054,13 +3054,17 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_regions;
 	}
 
-	if (sizeof(dma_addr_t) > sizeof(u32)) {
-		err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
-		if (!err)
-			using_dac = 1;
-	}
+	if (sizeof(dma_addr_t) > sizeof(u32) &&
+	    !(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+		using_dac = 1;
+		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (err < 0) {
+			printk(KERN_ERR PFX "%s unable to obtain 64 bit DMA "
+			       "for consistent allocations\n", pci_name(pdev));
+			goto err_out_free_regions;
+		}
 
-	if (!using_dac) {
+	} else {
 		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (err) {
 			printk(KERN_ERR PFX "%s no usable DMA configuration\n",
@@ -3068,6 +3072,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 			goto err_out_free_regions;
 		}
 	}
+
 #ifdef __BIG_ENDIAN
 	/* byte swap descriptors in hardware */
 	{
