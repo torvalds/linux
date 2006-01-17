@@ -3097,10 +3097,21 @@ static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
 static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
 			  unsigned int buflen, int do_write)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		ata_mmio_data_xfer(ap, buf, buflen, do_write);
-	else
-		ata_pio_data_xfer(ap, buf, buflen, do_write);
+	/* Make the crap hardware pay the costs not the good stuff */
+	if (unlikely(ap->flags & ATA_FLAG_IRQ_MASK)) {
+		unsigned long flags;
+		local_irq_save(flags);
+		if (ap->flags & ATA_FLAG_MMIO)
+			ata_mmio_data_xfer(ap, buf, buflen, do_write);
+		else
+			ata_pio_data_xfer(ap, buf, buflen, do_write);
+		local_irq_restore(flags);
+	} else {
+		if (ap->flags & ATA_FLAG_MMIO)
+			ata_mmio_data_xfer(ap, buf, buflen, do_write);
+		else
+			ata_pio_data_xfer(ap, buf, buflen, do_write);
+	}
 }
 
 /**
