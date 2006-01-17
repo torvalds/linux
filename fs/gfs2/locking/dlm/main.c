@@ -1,15 +1,11 @@
-/******************************************************************************
-*******************************************************************************
-**
-**  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
-**
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
-**
-*******************************************************************************
-******************************************************************************/
+/*
+ * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
+ * Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ */
 
 #include <linux/init.h>
 
@@ -24,7 +20,7 @@ int __init init_lock_dlm(void)
 {
 	int error;
 
-	error = lm_register_proto(&gdlm_ops);
+	error = gfs_register_lockproto(&gdlm_ops);
 	if (error) {
 		printk("lock_dlm:  can't register protocol: %d\n", error);
 		return error;
@@ -32,7 +28,14 @@ int __init init_lock_dlm(void)
 
 	error = gdlm_sysfs_init();
 	if (error) {
-		lm_unregister_proto(&gdlm_ops);
+		gfs_unregister_lockproto(&gdlm_ops);
+		return error;
+	}
+
+	error = gdlm_plock_init();
+	if (error) {
+		gdlm_sysfs_exit();
+		gfs_unregister_lockproto(&gdlm_ops);
 		return error;
 	}
 
@@ -45,8 +48,9 @@ int __init init_lock_dlm(void)
 
 void __exit exit_lock_dlm(void)
 {
-	lm_unregister_proto(&gdlm_ops);
+	gdlm_plock_exit();
 	gdlm_sysfs_exit();
+	gfs_unregister_lockproto(&gdlm_ops);
 }
 
 module_init(init_lock_dlm);

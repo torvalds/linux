@@ -1,15 +1,11 @@
-/******************************************************************************
-*******************************************************************************
-**
-**  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
-**
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
-**
-*******************************************************************************
-******************************************************************************/
+/*
+ * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
+ * Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ */
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -27,23 +23,11 @@ struct nolock_lockspace {
 
 struct lm_lockops nolock_ops;
 
-/**
- * nolock_mount - mount a nolock lockspace
- * @table_name: the name of the space to mount
- * @host_data: host specific data
- * @cb: the callback
- * @fsdata:
- * @min_lvb_size:
- * @flags:
- * @lockstruct: the structure of crap to fill in
- *
- * Returns: 0 on success, -EXXX on failure
- */
-
 static int nolock_mount(char *table_name, char *host_data,
 			lm_callback_t cb, lm_fsdata_t *fsdata,
 			unsigned int min_lvb_size, int flags,
-			struct lm_lockstruct *lockstruct)
+			struct lm_lockstruct *lockstruct,
+			struct kobject *fskobj)
 {
 	char *c;
 	unsigned int jid;
@@ -77,33 +61,15 @@ static int nolock_mount(char *table_name, char *host_data,
 	return 0;
 }
 
-/**
- * nolock_others_may_mount - unmount a lock space
- * @lockspace: the lockspace to unmount
- *
- */
-
 static void nolock_others_may_mount(lm_lockspace_t *lockspace)
 {
 }
-
-/**
- * nolock_unmount - unmount a lock space
- * @lockspace: the lockspace to unmount
- *
- */
 
 static void nolock_unmount(lm_lockspace_t *lockspace)
 {
 	struct nolock_lockspace *nl = (struct nolock_lockspace *)lockspace;
 	kfree(nl);
 }
-
-/**
- * nolock_withdraw - withdraw from a lock space
- * @lockspace: the lockspace
- *
- */
 
 static void nolock_withdraw(lm_lockspace_t *lockspace)
 {
@@ -164,12 +130,6 @@ static unsigned int nolock_unlock(lm_lock_t *lock, unsigned int cur_state)
 	return 0;
 }
 
-/**
- * nolock_cancel - cancel a request on a lock
- * @lock: the lock to cancel request for
- *
- */
-
 static void nolock_cancel(lm_lock_t *lock)
 {
 }
@@ -219,16 +179,6 @@ static void nolock_sync_lvb(lm_lock_t *lock, char *lvb)
 {
 }
 
-/**
- * nolock_plock_get -
- * @lockspace: the lockspace
- * @name:
- * @file:
- * @fl:
- *
- * Returns: errno
- */
-
 static int nolock_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
 			    struct file *file, struct file_lock *fl)
 {
@@ -244,17 +194,6 @@ static int nolock_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return 0;
 }
 
-/**
- * nolock_plock -
- * @lockspace: the lockspace
- * @name:
- * @file:
- * @cmd:
- * @fl:
- *
- * Returns: errno
- */
-
 static int nolock_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 			struct file *file, int cmd, struct file_lock *fl)
 {
@@ -265,16 +204,6 @@ static int nolock_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	return error;
 }
 
-/**
- * nolock_punlock -
- * @lockspace: the lockspace
- * @name:
- * @file:
- * @fl:
- *
- * Returns: errno
- */
-
 static int nolock_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 			  struct file *file, struct file_lock *fl)
 {
@@ -284,13 +213,6 @@ static int nolock_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	unlock_kernel();
 	return error;
 }
-
-/**
- * nolock_recovery_done - reset the expired locks for a given jid
- * @lockspace: the lockspace
- * @jid: the jid
- *
- */
 
 static void nolock_recovery_done(lm_lockspace_t *lockspace, unsigned int jid,
 				 unsigned int message)
@@ -318,17 +240,11 @@ struct lm_lockops nolock_ops = {
 	.lm_owner = THIS_MODULE,
 };
 
-/**
- * init_nolock - Initialize the nolock module
- *
- * Returns: 0 on success, -EXXX on failure
- */
-
 int __init init_nolock(void)
 {
 	int error;
 
-	error = lm_register_proto(&nolock_ops);
+	error = gfs_register_lockproto(&nolock_ops);
 	if (error) {
 		printk("lock_nolock: can't register protocol: %d\n", error);
 		return error;
@@ -338,14 +254,9 @@ int __init init_nolock(void)
 	return 0;
 }
 
-/**
- * exit_nolock - cleanup the nolock module
- *
- */
-
 void __exit exit_nolock(void)
 {
-	lm_unregister_proto(&nolock_ops);
+	gfs_unregister_lockproto(&nolock_ops);
 }
 
 module_init(init_nolock);

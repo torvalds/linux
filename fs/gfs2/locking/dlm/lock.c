@@ -1,15 +1,11 @@
-/******************************************************************************
-*******************************************************************************
-**
-**  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
-**
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
-**
-*******************************************************************************
-******************************************************************************/
+/*
+ * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
+ * Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ */
 
 #include "lock_dlm.h"
 
@@ -38,7 +34,7 @@ static inline void gdlm_bast(void *astarg, int mode)
 	struct gdlm_ls *ls = lp->ls;
 
 	if (!mode) {
-		printk("lock_dlm: bast mode zero %x,%"PRIx64"\n",
+		printk("lock_dlm: bast mode zero %x,%llx\n",
 			lp->lockname.ln_type, lp->lockname.ln_number);
 		return;
 	}
@@ -75,9 +71,9 @@ static int16_t make_mode(int16_t lmstate)
 		return DLM_LOCK_CW;
 	case LM_ST_SHARED:
 		return DLM_LOCK_PR;
-	default:
-		GDLM_ASSERT(0, printk("unknown LM state %d\n", lmstate););
 	}
+	gdlm_assert(0, "unknown LM state %d", lmstate);
+	return -1;
 }
 
 /* convert dlm lock-mode to gfs lock-state */
@@ -94,9 +90,9 @@ int16_t gdlm_make_lmstate(int16_t dlmmode)
 		return LM_ST_DEFERRED;
 	case DLM_LOCK_PR:
 		return LM_ST_SHARED;
-	default:
-		GDLM_ASSERT(0, printk("unknown DLM mode %d\n", dlmmode););
 	}
+	gdlm_assert(0, "unknown DLM mode %d", dlmmode);
+	return -1;
 }
 
 /* verify agreement with GFS on the current lock state, NB: DLM_LOCK_NL and
@@ -106,7 +102,7 @@ static void check_cur_state(struct gdlm_lock *lp, unsigned int cur_state)
 {
 	int16_t cur = make_mode(cur_state);
 	if (lp->cur != DLM_LOCK_IV)
-		GDLM_ASSERT(lp->cur == cur, printk("%d, %d\n", lp->cur, cur););
+		gdlm_assert(lp->cur == cur, "%d, %d", lp->cur, cur);
 }
 
 static inline unsigned int make_flags(struct gdlm_lock *lp,
@@ -157,7 +153,7 @@ static inline unsigned int make_flags(struct gdlm_lock *lp,
 static inline void make_strname(struct lm_lockname *lockname,
 				struct gdlm_strname *str)
 {
-	sprintf(str->name, "%8x%16"PRIx64, lockname->ln_type,
+	sprintf(str->name, "%8x%16llx", lockname->ln_type,
 		lockname->ln_number);
 	str->namelen = GDLM_STRNAME_BYTES;
 }
@@ -167,11 +163,10 @@ int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
 {
 	struct gdlm_lock *lp;
 
-	lp = kmalloc(sizeof(struct gdlm_lock), GFP_KERNEL);
+	lp = kzalloc(sizeof(struct gdlm_lock), GFP_KERNEL);
 	if (!lp)
 		return -ENOMEM;
 
-	memset(lp, 0, sizeof(struct gdlm_lock));
 	lp->lockname = *name;
 	lp->ls = ls;
 	lp->cur = DLM_LOCK_IV;
@@ -202,7 +197,8 @@ void gdlm_delete_lp(struct gdlm_lock *lp)
 		list_del_init(&lp->blist);
 	if (!list_empty(&lp->delay_list))
 		list_del_init(&lp->delay_list);
-	GDLM_ASSERT(!list_empty(&lp->all_list),);
+	gdlm_assert(!list_empty(&lp->all_list),
+		    "%x,%llx", lp->lockname.ln_type, lp->lockname.ln_number);
 	list_del_init(&lp->all_list);
 	ls->all_locks_count--;
 	spin_unlock(&ls->async_lock);
@@ -227,7 +223,7 @@ void gdlm_put_lock(lm_lock_t *lock)
 	gdlm_delete_lp((struct gdlm_lock *) lock);
 }
 
-void gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
+unsigned int gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
 {
 	struct gdlm_ls *ls = lp->ls;
 	struct gdlm_strname str;
@@ -242,7 +238,7 @@ void gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
 	if (test_bit(DFL_BLOCK_LOCKS, &ls->flags) &&
 	    !test_bit(LFL_NOBLOCK, &lp->flags) && lp->req != DLM_LOCK_NL) {
 		gdlm_queue_delayed(lp);
-		return;
+		return LM_OUT_ASYNC;
 	}
 
 	/*
@@ -256,7 +252,7 @@ void gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
 
 	set_bit(LFL_ACTIVE, &lp->flags);
 
-	log_debug("lk %x,%"PRIx64" id %x %d,%d %x", lp->lockname.ln_type,
+	log_debug("lk %x,%llx id %x %d,%d %x", lp->lockname.ln_type,
 		  lp->lockname.ln_number, lp->lksb.sb_lkid,
 		  lp->cur, lp->req, lp->lkf);
 
@@ -270,15 +266,19 @@ void gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
 		error = 0;
 	}
 
-	GDLM_ASSERT(!error,
-		   printk("%s: num=%x,%"PRIx64" err=%d cur=%d req=%d lkf=%x\n",
-			  ls->fsname, lp->lockname.ln_type,
+	if (error) {
+		log_debug("%s: gdlm_lock %x,%llx err=%d cur=%d req=%d lkf=%x "
+			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
 			  lp->lockname.ln_number, error, lp->cur, lp->req,
-			  lp->lkf););
+			  lp->lkf, lp->flags);
+		return LM_OUT_ERROR;
+	}
+	return LM_OUT_ASYNC;
 }
 
-void gdlm_do_unlock(struct gdlm_lock *lp)
+unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
 {
+	struct gdlm_ls *ls = lp->ls;
 	unsigned int lkf = 0;
 	int error;
 
@@ -288,16 +288,19 @@ void gdlm_do_unlock(struct gdlm_lock *lp)
 	if (lp->lvb)
 		lkf = DLM_LKF_VALBLK;
 
-	log_debug("un %x,%"PRIx64" %x %d %x", lp->lockname.ln_type,
+	log_debug("un %x,%llx %x %d %x", lp->lockname.ln_type,
 		  lp->lockname.ln_number, lp->lksb.sb_lkid, lp->cur, lkf);
 
-	error = dlm_unlock(lp->ls->dlm_lockspace, lp->lksb.sb_lkid, lkf,
-			   NULL, lp);
+	error = dlm_unlock(ls->dlm_lockspace, lp->lksb.sb_lkid, lkf, NULL, lp);
 
-	GDLM_ASSERT(!error,
-		   printk("%s: error=%d num=%x,%"PRIx64" lkf=%x flags=%lx\n",
-			  lp->ls->fsname, error, lp->lockname.ln_type,
-			  lp->lockname.ln_number, lkf, lp->flags););
+	if (error) {
+		log_debug("%s: gdlm_unlock %x,%llx err=%d cur=%d req=%d lkf=%x "
+			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
+			  lp->lockname.ln_number, error, lp->cur, lp->req,
+			  lp->lkf, lp->flags);
+		return LM_OUT_ERROR;
+	}
+	return LM_OUT_ASYNC;
 }
 
 unsigned int gdlm_lock(lm_lock_t *lock, unsigned int cur_state,
@@ -313,8 +316,7 @@ unsigned int gdlm_lock(lm_lock_t *lock, unsigned int cur_state,
 	lp->req = make_mode(req_state);
 	lp->lkf = make_flags(lp, flags, lp->cur, lp->req);
 
-	gdlm_do_lock(lp, NULL);
-	return LM_OUT_ASYNC;
+	return gdlm_do_lock(lp, NULL);
 }
 
 unsigned int gdlm_unlock(lm_lock_t *lock, unsigned int cur_state)
@@ -324,8 +326,7 @@ unsigned int gdlm_unlock(lm_lock_t *lock, unsigned int cur_state)
 	clear_bit(LFL_DLM_CANCEL, &lp->flags);
 	if (lp->cur == DLM_LOCK_IV)
 		return 0;
-	gdlm_do_unlock(lp);
-	return LM_OUT_ASYNC;
+	return gdlm_do_unlock(lp);
 }
 
 void gdlm_cancel(lm_lock_t *lock)
@@ -337,8 +338,8 @@ void gdlm_cancel(lm_lock_t *lock)
 	if (test_bit(LFL_DLM_CANCEL, &lp->flags))
 		return;
 
-	log_all("gdlm_cancel %x,%"PRIx64" flags %lx",
-		lp->lockname.ln_type, lp->lockname.ln_number, lp->flags);
+	log_info("gdlm_cancel %x,%llx flags %lx",
+		 lp->lockname.ln_type, lp->lockname.ln_number, lp->flags);
 
 	spin_lock(&ls->async_lock);
 	if (!list_empty(&lp->delay_list)) {
@@ -356,9 +357,9 @@ void gdlm_cancel(lm_lock_t *lock)
 
 	if (!test_bit(LFL_ACTIVE, &lp->flags) ||
 	    test_bit(LFL_DLM_UNLOCK, &lp->flags))	{
-		log_all("gdlm_cancel skip %x,%"PRIx64" flags %lx",
-			lp->lockname.ln_type, lp->lockname.ln_number,
-			lp->flags);
+		log_info("gdlm_cancel skip %x,%llx flags %lx",
+		 	 lp->lockname.ln_type, lp->lockname.ln_number,
+			 lp->flags);
 		return;
 	}
 
@@ -370,8 +371,8 @@ void gdlm_cancel(lm_lock_t *lock)
 	error = dlm_unlock(ls->dlm_lockspace, lp->lksb.sb_lkid, DLM_LKF_CANCEL,
 			   NULL, lp);
 
-	log_all("gdlm_cancel rv %d %x,%"PRIx64" flags %lx", error,
-		lp->lockname.ln_type, lp->lockname.ln_number, lp->flags);
+	log_info("gdlm_cancel rv %d %x,%llx flags %lx", error,
+		 lp->lockname.ln_type, lp->lockname.ln_number, lp->flags);
 
 	if (error == -EBUSY)
 		clear_bit(LFL_DLM_CANCEL, &lp->flags);
@@ -381,11 +382,9 @@ int gdlm_add_lvb(struct gdlm_lock *lp)
 {
 	char *lvb;
 
-	lvb = kmalloc(GDLM_LVB_SIZE, GFP_KERNEL);
+	lvb = kzalloc(GDLM_LVB_SIZE, GFP_KERNEL);
 	if (!lvb)
 		return -ENOMEM;
-
-	memset(lvb, 0, GDLM_LVB_SIZE);
 
 	lp->lksb.sb_lvbptr = lvb;
 	lp->lvb = lvb;
@@ -448,7 +447,8 @@ static void unhold_null_lock(struct gdlm_lock *lp)
 {
 	struct gdlm_lock *lpn = lp->hold_null;
 
-	GDLM_ASSERT(lpn,);
+	gdlm_assert(lpn, "%x,%llx",
+		    lp->lockname.ln_type, lp->lockname.ln_number);
 	lpn->lksb.sb_lvbptr = NULL;
 	lpn->lvb = NULL;
 	set_bit(LFL_UNLOCK_DELETE, &lpn->flags);

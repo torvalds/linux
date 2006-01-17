@@ -1,15 +1,11 @@
-/******************************************************************************
-*******************************************************************************
-**
-**  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
-**
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
-**
-*******************************************************************************
-******************************************************************************/
+/*
+ * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
+ * Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ */
 
 #include "lock_dlm.h"
 
@@ -26,15 +22,10 @@ static void queue_submit(struct gdlm_lock *lp)
 	wake_up(&ls->thread_wait);
 }
 
-static void process_submit(struct gdlm_lock *lp)
-{
-	gdlm_do_lock(lp, NULL);
-}
-
 static void process_blocking(struct gdlm_lock *lp, int bast_mode)
 {
 	struct gdlm_ls *ls = lp->ls;
-	unsigned int cb;
+	unsigned int cb = 0;
 
 	switch (gdlm_make_lmstate(bast_mode)) {
 	case LM_ST_EXCLUSIVE:
@@ -47,7 +38,7 @@ static void process_blocking(struct gdlm_lock *lp, int bast_mode)
 		cb = LM_CB_NEED_S;
 		break;
 	default:
-		GDLM_ASSERT(0, printk("unknown bast mode %u\n",lp->bast_mode););
+		gdlm_assert(0, "unknown bast mode %u", lp->bast_mode);
 	}
 
 	ls->fscb(ls->fsdata, cb, &lp->lockname);
@@ -62,9 +53,9 @@ static void process_complete(struct gdlm_lock *lp)
 	memset(&acb, 0, sizeof(acb));
 
 	if (lp->lksb.sb_status == -DLM_ECANCEL) {
-		log_all("complete dlm cancel %x,%"PRIx64" flags %lx",
-			lp->lockname.ln_type, lp->lockname.ln_number,
-			lp->flags);
+		log_info("complete dlm cancel %x,%llx flags %lx",
+		 	 lp->lockname.ln_type, lp->lockname.ln_number,
+			 lp->flags);
 
 		lp->req = lp->cur;
 		acb.lc_ret |= LM_OUT_CANCELED;
@@ -75,9 +66,9 @@ static void process_complete(struct gdlm_lock *lp)
 
 	if (test_and_clear_bit(LFL_DLM_UNLOCK, &lp->flags)) {
 		if (lp->lksb.sb_status != -DLM_EUNLOCK) {
-			log_all("unlock sb_status %d %x,%"PRIx64" flags %lx",
-				lp->lksb.sb_status, lp->lockname.ln_type,
-				lp->lockname.ln_number, lp->flags);
+			log_info("unlock sb_status %d %x,%llx flags %lx",
+				 lp->lksb.sb_status, lp->lockname.ln_type,
+				 lp->lockname.ln_number, lp->flags);
 			return;
 		}
 
@@ -108,8 +99,8 @@ static void process_complete(struct gdlm_lock *lp)
 	 */
 
 	if (test_and_clear_bit(LFL_CANCEL, &lp->flags)) {
-		log_all("complete internal cancel %x,%"PRIx64"",
-			lp->lockname.ln_type, lp->lockname.ln_number);
+		log_info("complete internal cancel %x,%llx",
+		 	 lp->lockname.ln_type, lp->lockname.ln_number);
 		lp->req = lp->cur;
 		acb.lc_ret |= LM_OUT_CANCELED;
 		goto out;
@@ -130,9 +121,9 @@ static void process_complete(struct gdlm_lock *lp)
 		}
 
 		/* this could only happen with cancels I think */
-		log_all("ast sb_status %d %x,%"PRIx64" flags %lx",
-			lp->lksb.sb_status, lp->lockname.ln_type,
-			lp->lockname.ln_number, lp->flags);
+		log_info("ast sb_status %d %x,%llx flags %lx",
+			 lp->lksb.sb_status, lp->lockname.ln_type,
+			 lp->lockname.ln_number, lp->flags);
 		return;
 	}
 
@@ -152,8 +143,10 @@ static void process_complete(struct gdlm_lock *lp)
 	 */
 
 	if (test_and_clear_bit(LFL_REREQUEST, &lp->flags)) {
-		GDLM_ASSERT(lp->req == DLM_LOCK_NL,);
-		GDLM_ASSERT(lp->prev_req > DLM_LOCK_NL,);
+		gdlm_assert(lp->req == DLM_LOCK_NL, "%x,%llx",
+			    lp->lockname.ln_type, lp->lockname.ln_number);
+		gdlm_assert(lp->prev_req > DLM_LOCK_NL, "%x,%llx",
+			    lp->lockname.ln_type, lp->lockname.ln_number);
 
 		lp->cur = DLM_LOCK_NL;
 		lp->req = lp->prev_req;
@@ -189,7 +182,7 @@ static void process_complete(struct gdlm_lock *lp)
 		lp->lkf |= DLM_LKF_CONVERT;
 		lp->lkf &= ~DLM_LKF_CONVDEADLK;
 
-		log_debug("rereq %x,%"PRIx64" id %x %d,%d",
+		log_debug("rereq %x,%llx id %x %d,%d",
 			  lp->lockname.ln_type, lp->lockname.ln_number,
 			  lp->lksb.sb_lkid, lp->cur, lp->req);
 
@@ -315,7 +308,7 @@ static int gdlm_thread(void *data)
 			process_blocking(lp, blocking);
 
 		else if (submit)
-			process_submit(lp);
+			gdlm_do_lock(lp, NULL);
 
 		if (drop)
 			ls->fscb(ls->fsdata, LM_CB_DROPLOCKS, NULL);
@@ -334,7 +327,7 @@ int gdlm_init_threads(struct gdlm_ls *ls)
 	p = kthread_run(gdlm_thread, ls, "lock_dlm1");
 	error = IS_ERR(p);
 	if (error) {
-		log_all("can't start lock_dlm1 thread %d", error);
+		log_error("can't start lock_dlm1 thread %d", error);
 		return error;
 	}
 	ls->thread1 = p;
@@ -342,7 +335,7 @@ int gdlm_init_threads(struct gdlm_ls *ls)
 	p = kthread_run(gdlm_thread, ls, "lock_dlm2");
 	error = IS_ERR(p);
 	if (error) {
-		log_all("can't start lock_dlm2 thread %d", error);
+		log_error("can't start lock_dlm2 thread %d", error);
 		kthread_stop(ls->thread1);
 		return error;
 	}
