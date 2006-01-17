@@ -4390,6 +4390,138 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+
+static void
+mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
+    MpiEventDataRaid_t * pRaidEventData)
+{
+	int 	volume;
+	int 	reason;
+	int 	disk;
+	int 	status;
+	int 	flags;
+	int 	state;
+
+	volume	= pRaidEventData->VolumeID;
+	reason	= pRaidEventData->ReasonCode;
+	disk	= pRaidEventData->PhysDiskNum;
+	status	= le32_to_cpu(pRaidEventData->SettingsStatus);
+	flags	= (status >> 0) & 0xff;
+	state	= (status >> 8) & 0xff;
+
+	if (reason == MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED) {
+		return;
+	}
+
+	if ((reason >= MPI_EVENT_RAID_RC_PHYSDISK_CREATED &&
+	     reason <= MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED) ||
+	    (reason == MPI_EVENT_RAID_RC_SMART_DATA)) {
+		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for PhysDisk %d\n",
+			ioc->name, disk);
+	} else {
+		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for VolumeID %d\n",
+			ioc->name, volume);
+	}
+
+	switch(reason) {
+	case MPI_EVENT_RAID_RC_VOLUME_CREATED:
+		printk(MYIOC_s_INFO_FMT "  volume has been created\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_DELETED:
+
+		printk(MYIOC_s_INFO_FMT "  volume has been deleted\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_SETTINGS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  volume settings have been changed\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_STATUS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  volume is now %s%s%s%s\n",
+			ioc->name,
+			state == MPI_RAIDVOL0_STATUS_STATE_OPTIMAL
+			 ? "optimal"
+			 : state == MPI_RAIDVOL0_STATUS_STATE_DEGRADED
+			  ? "degraded"
+			  : state == MPI_RAIDVOL0_STATUS_STATE_FAILED
+			   ? "failed"
+			   : "state unknown",
+			flags & MPI_RAIDVOL0_STATUS_FLAG_ENABLED
+			 ? ", enabled" : "",
+			flags & MPI_RAIDVOL0_STATUS_FLAG_QUIESCED
+			 ? ", quiesced" : "",
+			flags & MPI_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS
+			 ? ", resync in progress" : "" );
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_PHYSDISK_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  volume membership of PhysDisk %d has changed\n",
+			ioc->name, disk);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_CREATED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk has been created\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_DELETED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk has been deleted\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_SETTINGS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk settings have been changed\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk is now %s%s%s\n",
+			ioc->name,
+			state == MPI_PHYSDISK0_STATUS_ONLINE
+			 ? "online"
+			 : state == MPI_PHYSDISK0_STATUS_MISSING
+			  ? "missing"
+			  : state == MPI_PHYSDISK0_STATUS_NOT_COMPATIBLE
+			   ? "not compatible"
+			   : state == MPI_PHYSDISK0_STATUS_FAILED
+			    ? "failed"
+			    : state == MPI_PHYSDISK0_STATUS_INITIALIZING
+			     ? "initializing"
+			     : state == MPI_PHYSDISK0_STATUS_OFFLINE_REQUESTED
+			      ? "offline requested"
+			      : state == MPI_PHYSDISK0_STATUS_FAILED_REQUESTED
+			       ? "failed requested"
+			       : state == MPI_PHYSDISK0_STATUS_OTHER_OFFLINE
+			        ? "offline"
+			        : "state unknown",
+			flags & MPI_PHYSDISK0_STATUS_FLAG_OUT_OF_SYNC
+			 ? ", out of sync" : "",
+			flags & MPI_PHYSDISK0_STATUS_FLAG_QUIESCED
+			 ? ", quiesced" : "" );
+		break;
+
+	case MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED:
+		printk(MYIOC_s_INFO_FMT "  Domain Validation needed for PhysDisk %d\n",
+			ioc->name, disk);
+		break;
+
+	case MPI_EVENT_RAID_RC_SMART_DATA:
+		printk(MYIOC_s_INFO_FMT "  SMART data received, ASC/ASCQ = %02xh/%02xh\n",
+			ioc->name, pRaidEventData->ASC, pRaidEventData->ASCQ);
+		break;
+
+	case MPI_EVENT_RAID_RC_REPLACE_ACTION_STARTED:
+		printk(MYIOC_s_INFO_FMT "  replacement of PhysDisk %d has started\n",
+			ioc->name, disk);
+		break;
+	}
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	GetIoUnitPage2 - Retrieve BIOS version and boot order information.
  *	@ioc: Pointer to MPT_ADAPTER structure
@@ -5977,6 +6109,10 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 				ioc->facts.EventState = evState;
 			}
 		}
+		break;
+	case MPI_EVENT_INTEGRATED_RAID:
+		mptbase_raid_process_event_data(ioc,
+		    (MpiEventDataRaid_t *)pEventReply->Data);
 		break;
 	default:
 		break;
