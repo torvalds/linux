@@ -3099,14 +3099,13 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 #endif
 
 	err = -ENOMEM;
-	hw = kmalloc(sizeof(*hw), GFP_KERNEL);
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw) {
 		printk(KERN_ERR PFX "%s: cannot allocate hardware struct\n",
 		       pci_name(pdev));
 		goto err_out_free_regions;
 	}
 
-	memset(hw, 0, sizeof(*hw));
 	hw->pdev = pdev;
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
