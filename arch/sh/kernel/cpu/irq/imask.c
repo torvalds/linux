@@ -1,16 +1,12 @@
-/* $Id: irq_imask.c,v 1.1.2.1 2002/11/17 10:53:43 mrbrown Exp $
- *
- * linux/arch/sh/kernel/irq_imask.c
+/*
+ * arch/sh/kernel/cpu/irq/imask.c
  *
  * Copyright (C) 1999, 2000  Niibe Yutaka
  *
  * Simple interrupt handling using IMASK of SR register.
  *
  */
-
 /* NOTE: Will not work on level 15 */
-
-
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
@@ -19,13 +15,11 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-
-#include <asm/system.h>
-#include <asm/irq.h>
-
 #include <linux/spinlock.h>
 #include <linux/cache.h>
 #include <linux/irq.h>
+#include <asm/system.h>
+#include <asm/irq.h>
 
 /* Bitmap of IRQ masked */
 static unsigned long imask_mask = 0x7fff;
@@ -40,7 +34,7 @@ static void end_imask_irq(unsigned int irq);
 #define IMASK_PRIORITY	15
 
 static unsigned int startup_imask_irq(unsigned int irq)
-{ 
+{
 	/* Nothing to do */
 	return 0; /* never anything pending */
 }
