@@ -477,4 +477,6 @@ extern unsigned long boot_option_idle_override;
 /* Boot loader type from the setup header */
 extern int bootloader_type;
 
+#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
+
 #endif /* __ASM_X86_64_PROCESSOR_H */
