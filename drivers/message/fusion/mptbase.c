@@ -4598,6 +4598,14 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 				SCSIPortPage2_t *pPP2 = (SCSIPortPage2_t  *) pbuf;
 				MpiDeviceInfo_t	*pdevice = NULL;
 
+				/*
+				 * Save "Set to Avoid SCSI Bus Resets" flag
+				 */
+				ioc->spi_data.bus_reset =
+				    (le32_to_cpu(pPP2->PortFlags) &
+			        MPI_SCSIPORTPAGE2_PORT_FLAGS_AVOID_SCSI_RESET) ?
+				    0 : 1 ;
+
 				/* Save the Port Page 2 data
 				 * (reformat into a 32bit quantity)
 				 */
