@@ -196,6 +196,11 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 	return inode;
 }
 
+static void fuse_umount_begin(struct super_block *sb)
+{
+	fuse_abort_conn(get_fuse_conn_super(sb));
+}
+
 static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
@@ -454,6 +459,7 @@ static struct super_operations fuse_super_operations = {
 	.read_inode	= fuse_read_inode,
 	.clear_inode	= fuse_clear_inode,
 	.put_super	= fuse_put_super,
+	.umount_begin	= fuse_umount_begin,
 	.statfs		= fuse_statfs,
 	.show_options	= fuse_show_options,
 };
@@ -560,11 +566,21 @@ static ssize_t fuse_conn_waiting_show(struct fuse_conn *fc, char *page)
 	return sprintf(page, "%i\n", atomic_read(&fc->num_waiting));
 }
 
+static ssize_t fuse_conn_abort_store(struct fuse_conn *fc, const char *page,
+				     size_t count)
+{
+	fuse_abort_conn(fc);
+	return count;
+}
+
 static struct fuse_conn_attr fuse_conn_waiting =
 	__ATTR(waiting, 0400, fuse_conn_waiting_show, NULL);
+static struct fuse_conn_attr fuse_conn_abort =
+	__ATTR(abort, 0600, NULL, fuse_conn_abort_store);
 
 static struct attribute *fuse_conn_attrs[] = {
 	&fuse_conn_waiting.attr,
+	&fuse_conn_abort.attr,
 	NULL,
 };
 

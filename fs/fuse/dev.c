@@ -260,11 +260,13 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 	wait_event_interruptible(req->waitq, req->state == FUSE_REQ_FINISHED);
 	restore_sigs(&oldset);
 	spin_lock(&fuse_lock);
-	if (req->state == FUSE_REQ_FINISHED)
+	if (req->state == FUSE_REQ_FINISHED && !req->interrupted)
 		return;
 
-	req->out.h.error = -EINTR;
-	req->interrupted = 1;
+	if (!req->interrupted) {
+		req->out.h.error = -EINTR;
+		req->interrupted = 1;
+	}
 	if (req->locked) {
 		/* This is uninterruptible sleep, because data is
 		   being copied to/from the buffers of req.  During
@@ -770,6 +772,10 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 		goto err_finish;
 
 	spin_lock(&fuse_lock);
+	err = -ENOENT;
+	if (!fc->connected)
+		goto err_unlock;
+
 	req = request_find(fc, oh.unique);
 	err = -EINVAL;
 	if (!req)
@@ -836,7 +842,11 @@ static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-/* Abort all requests on the given list (pending or processing) */
+/*
+ * Abort all requests on the given list (pending or processing)
+ *
+ * This function releases and reacquires fuse_lock
+ */
 static void end_requests(struct fuse_conn *fc, struct list_head *head)
 {
 	while (!list_empty(head)) {
@@ -846,6 +856,59 @@ static void end_requests(struct fuse_conn *fc, struct list_head *head)
 		request_end(fc, req);
 		spin_lock(&fuse_lock);
 	}
+}
+
+/*
+ * Abort requests under I/O
+ *
+ * The requests are set to interrupted and finished, and the request
+ * waiter is woken up.  This will make request_wait_answer() wait
+ * until the request is unlocked and then return.
+ */
+static void end_io_requests(struct fuse_conn *fc)
+{
+	while (!list_empty(&fc->io)) {
+		struct fuse_req *req;
+		req = list_entry(fc->io.next, struct fuse_req, list);
+		req->interrupted = 1;
+		req->out.h.error = -ECONNABORTED;
+		req->state = FUSE_REQ_FINISHED;
+		list_del_init(&req->list);
+		wake_up(&req->waitq);
+	}
+}
+
+/*
+ * Abort all requests.
+ *
+ * Emergency exit in case of a malicious or accidental deadlock, or
+ * just a hung filesystem.
+ *
+ * The same effect is usually achievable through killing the
+ * filesystem daemon and all users of the filesystem.  The exception
+ * is the combination of an asynchronous request and the tricky
+ * deadlock (see Documentation/filesystems/fuse.txt).
+ *
+ * During the aborting, progression of requests from the pending and
+ * processing lists onto the io list, and progression of new requests
+ * onto the pending list is prevented by req->connected being false.
+ *
+ * Progression of requests under I/O to the processing list is
+ * prevented by the req->interrupted flag being true for these
+ * requests.  For this reason requests on the io list must be aborted
+ * first.
+ */
+void fuse_abort_conn(struct fuse_conn *fc)
+{
+	spin_lock(&fuse_lock);
+	if (fc->connected) {
+		fc->connected = 0;
+		end_io_requests(fc);
+		end_requests(fc, &fc->pending);
+		end_requests(fc, &fc->processing);
+		wake_up_all(&fc->waitq);
+	}
+	spin_unlock(&fuse_lock);
 }
 
 static int fuse_dev_release(struct inode *inode, struct file *file)

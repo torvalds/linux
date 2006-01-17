@@ -246,8 +246,8 @@ struct fuse_conn {
 	/** Mount is active */
 	unsigned mounted : 1;
 
-	/** Connection established, cleared on umount and device
-	    release */
+	/** Connection established, cleared on umount, connection
+	    abort and device release */
 	unsigned connected : 1;
 
 	/** Connection failed (version mismatch) */
@@ -462,6 +462,9 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
  * Release inodes and file associated with background request
  */
 void fuse_release_background(struct fuse_req *req);
+
+/* Abort all requests */
+void fuse_abort_conn(struct fuse_conn *fc);
 
 /**
  * Get the attributes of a file
