@@ -39,6 +39,6 @@ gfs2-y := \
 	unlinked.o \
 	util.o
 
-obj-$(CONFIG_GFS2_LOCKING_NOLOCK) += locking/nolock/
-obj-$(CONFIG_GFS2_LOCKING_DLM) += locking/dlm/
+obj-$(CONFIG_GFS2_FS_LOCKING_NOLOCK) += locking/nolock/
+obj-$(CONFIG_GFS2_FS_LOCKING_DLM) += locking/dlm/
 
