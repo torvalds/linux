@@ -2665,7 +2665,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		nic->flags |= wol_magic;
 
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	err = pci_enable_wake(pdev, 0, 0);
+	if (err)
+		DPRINTK(PROBE, ERR, "Error clearing wake event\n");
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev))) {
@@ -2716,6 +2718,7 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
+	int retval;
 
 	if(netif_running(netdev))
 		e100_down(nic);
@@ -2723,9 +2726,14 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(netdev);
 
 	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), nic->flags & (wol_magic | e100_asf(nic)));
+	retval = pci_enable_wake(pdev, pci_choose_state(pdev, state),
+	                         nic->flags & (wol_magic | e100_asf(nic)));
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error enabling wake\n");
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	retval = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error %d setting power state\n", retval);
 
 	return 0;
 }
@@ -2734,11 +2742,16 @@ static int e100_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
+	int retval;
 
-	pci_set_power_state(pdev, PCI_D0);
+	retval = pci_set_power_state(pdev, PCI_D0);
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error waking adapter\n");
 	pci_restore_state(pdev);
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	retval = pci_enable_wake(pdev, 0, 0);
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error clearing wake events\n");
 	if(e100_hw_init(nic))
 		DPRINTK(HW, ERR, "e100_hw_init failed\n");
 
@@ -2755,12 +2768,15 @@ static void e100_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
+	int retval;
 
 #ifdef CONFIG_PM
-	pci_enable_wake(pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
+	retval = pci_enable_wake(pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
 #else
-	pci_enable_wake(pdev, 0, nic->flags & (wol_magic));
+	retval = pci_enable_wake(pdev, 0, nic->flags & (wol_magic));
 #endif
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error enabling wake\n");
 }
 
 
