@@ -14,16 +14,5 @@
 
 #include <asm/cpu/freq.h>
 
-/* arch/sh/kernel/time.c */
-extern void get_current_frequency_divisors(unsigned int *ifc, unsigned int *pfc, unsigned int *bfc);
-
-extern unsigned int get_ifc_divisor(unsigned int value);
-extern unsigned int get_ifc_divisor(unsigned int value);
-extern unsigned int get_ifc_divisor(unsigned int value);
-
-extern unsigned int get_ifc_value(unsigned int divisor);
-extern unsigned int get_pfc_value(unsigned int divisor);
-extern unsigned int get_bfc_value(unsigned int divisor);
-
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_FREQ_H */
