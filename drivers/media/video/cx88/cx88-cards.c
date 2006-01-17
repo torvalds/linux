@@ -1246,6 +1246,11 @@ struct cx88_subid cx88_subids[] = {
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
 	},{
 		.subvendor = 0x18ac,
+		.subdevice = 0xdb54,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
+		/* Re-branded DViCO: DigitalNow DVB-T Dual */
+	},{
+		.subvendor = 0x18ac,
 		.subdevice = 0xdb11,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
 		/* Re-branded DViCO: UltraView DVB-T Plus */
