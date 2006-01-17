@@ -293,8 +293,6 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int
 } while(0) 
 
 
-#define elf_map elf32_map
-
 #include <linux/module.h>
 
 MODULE_DESCRIPTION("Binary format loader for compatibility with IA32 ELF binaries."); 
@@ -389,21 +387,6 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
 	return 0;
 }
 EXPORT_SYMBOL(ia32_setup_arg_pages);
-
-static unsigned long
-elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int prot, int type)
-{
-	unsigned long map_addr;
-	struct task_struct *me = current; 
-
-	down_write(&me->mm->mmap_sem);
-	map_addr = do_mmap(filep, ELF_PAGESTART(addr),
-			   eppnt->p_filesz + ELF_PAGEOFFSET(eppnt->p_vaddr), prot, 
-			   type,
-			   eppnt->p_offset - ELF_PAGEOFFSET(eppnt->p_vaddr));
-	up_write(&me->mm->mmap_sem);
-	return(map_addr);
-}
 
 #ifdef CONFIG_SYSCTL
 /* Register vsyscall32 into the ABI table */
