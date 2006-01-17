@@ -1,25 +1,25 @@
 /*******************************************************************************
 
-  
+
   Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of the GNU General Public License as published by the Free 
-  Software Foundation; either version 2 of the License, or (at your option) 
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
   any later version.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
+  this program; if not, write to the Free Software Foundation, Inc., 59
   Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
+
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
-  
+
   Contact Information:
   Linux NICS <linux.nics@intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
@@ -320,7 +320,7 @@ enum cuc_dump {
 	cuc_dump_complete       = 0x0000A005,
 	cuc_dump_reset_complete = 0x0000A007,
 };
-		
+
 enum port {
 	software_reset  = 0x0000,
 	selftest        = 0x0001,
@@ -715,10 +715,10 @@ static u16 e100_eeprom_read(struct nic *nic, u16 *addr_len, u16 addr)
 		ctrl = (cmd_addr_data & (1 << i)) ? eecs | eedi : eecs;
 		writeb(ctrl, &nic->csr->eeprom_ctrl_lo);
 		e100_write_flush(nic); udelay(4);
-		
+
 		writeb(ctrl | eesk, &nic->csr->eeprom_ctrl_lo);
 		e100_write_flush(nic); udelay(4);
-		
+
 		/* Eeprom drives a dummy zero to EEDO after receiving
 		 * complete address.  Use this to adjust addr_len. */
 		ctrl = readb(&nic->csr->eeprom_ctrl_lo);
@@ -726,7 +726,7 @@ static u16 e100_eeprom_read(struct nic *nic, u16 *addr_len, u16 addr)
 			*addr_len -= (i - 16);
 			i = 17;
 		}
-		
+
 		data = (data << 1) | (ctrl & eedo ? 1 : 0);
 	}
 
@@ -1213,13 +1213,13 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 *  driver can change the algorithm.
 *
 *  INTDELAY - This loads the dead-man timer with its inital value.
-*    When this timer expires the interrupt is asserted, and the 
+*    When this timer expires the interrupt is asserted, and the
 *    timer is reset each time a new packet is received.  (see
 *    BUNDLEMAX below to set the limit on number of chained packets)
 *    The current default is 0x600 or 1536.  Experiments show that
 *    the value should probably stay within the 0x200 - 0x1000.
 *
-*  BUNDLEMAX - 
+*  BUNDLEMAX -
 *    This sets the maximum number of frames that will be bundled.  In
 *    some situations, such as the TCP windowing algorithm, it may be
 *    better to limit the growth of the bundle size than let it go as
@@ -1229,7 +1229,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 *    an interrupt for every frame received.  If you do not want to put
 *    a limit on the bundle size, set this value to xFFFF.
 *
-*  BUNDLESMALL - 
+*  BUNDLESMALL -
 *    This contains a bit-mask describing the minimum size frame that
 *    will be bundled.  The default masks the lower 7 bits, which means
 *    that any frame less than 128 bytes in length will not be bundled,
@@ -1244,7 +1244,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 *
 *    The current default is 0xFF80, which masks out the lower 7 bits.
 *    This means that any frame which is x7F (127) bytes or smaller
-*    will cause an immediate interrupt.  Because this value must be a 
+*    will cause an immediate interrupt.  Because this value must be a
 *    bit mask, there are only a few valid values that can be used.  To
 *    turn this feature off, the driver can write the value xFFFF to the
 *    lower word of this instruction (in the same way that the other
@@ -1253,7 +1253,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb
 *    standard Ethernet frames are <= 2047 bytes in length.
 *************************************************************************/
 
-/* if you wish to disable the ucode functionality, while maintaining the 
+/* if you wish to disable the ucode functionality, while maintaining the
  * workarounds it provides, set the following defines to:
  * BUNDLESMALL 0
  * BUNDLEMAX 1
@@ -1300,7 +1300,7 @@ static inline int e100_exec_cb_wait(struct nic *nic, struct sk_buff *skb,
 
 	if ((err = e100_exec_cb(nic, NULL, e100_setup_ucode)))
 		DPRINTK(PROBE,ERR, "ucode cmd failed with error %d\n", err);
-		
+
 	/* must restart cuc */
 	nic->cuc_cmd = cuc_start;
 
@@ -1313,7 +1313,7 @@ static inline int e100_exec_cb_wait(struct nic *nic, struct sk_buff *skb,
 		msleep(10);
 		if (!--counter) break;
 	}
-	
+
 	/* ack any interupts, something could have been set */
 	writeb(~0, &nic->csr->scb.stat_ack);
 
@@ -1322,7 +1322,7 @@ static inline int e100_exec_cb_wait(struct nic *nic, struct sk_buff *skb,
 		DPRINTK(PROBE,ERR, "ucode load failed\n");
 		err = -EPERM;
 	}
-	
+
 	return err;
 }
 
@@ -1391,13 +1391,13 @@ static int e100_phy_init(struct nic *nic)
 		mdio_write(netdev, nic->mii.phy_id, MII_NSC_CONG, cong);
 	}
 
-	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) && 
+	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) &&
 	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000))) {
 		/* enable/disable MDI/MDI-X auto-switching.
 		   MDI/MDI-X auto-switching is disabled for 82551ER/QM chips */
 		if((nic->mac == mac_82551_E) || (nic->mac == mac_82551_F) ||
-		   (nic->mac == mac_82551_10) || (nic->mii.force_media) || 
-		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled)) 
+		   (nic->mac == mac_82551_10) || (nic->mii.force_media) ||
+		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled))
 			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, 0);
 		else
 			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, NCONFIG_AUTO_SWITCH);
@@ -1527,7 +1527,7 @@ static void e100_update_stats(struct nic *nic)
 		}
 	}
 
-	
+
 	if(e100_exec_cmd(nic, cuc_dump_reset, 0))
 		DPRINTK(TX_ERR, DEBUG, "exec cuc_dump_reset failed\n");
 }
@@ -1576,10 +1576,10 @@ static void e100_watchdog(unsigned long data)
 	mii_check_link(&nic->mii);
 
 	/* Software generated interrupt to recover from (rare) Rx
-	* allocation failure.
-	* Unfortunately have to use a spinlock to not re-enable interrupts
-	* accidentally, due to hardware that shares a register between the
-	* interrupt mask bit and the SW Interrupt generation bit */
+	 * allocation failure.
+	 * Unfortunately have to use a spinlock to not re-enable interrupts
+	 * accidentally, due to hardware that shares a register between the
+	 * interrupt mask bit and the SW Interrupt generation bit */
 	spin_lock_irq(&nic->cmd_lock);
 	writeb(readb(&nic->csr->scb.cmd_hi) | irq_sw_gen,&nic->csr->scb.cmd_hi);
 	spin_unlock_irq(&nic->cmd_lock);
@@ -1864,7 +1864,7 @@ static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 	struct rx *rx_to_start = NULL;
 
 	/* are we already rnr? then pay attention!!! this ensures that
-	 * the state machine progression never allows a start with a 
+	 * the state machine progression never allows a start with a
 	 * partially cleaned list, avoiding a race between hardware
 	 * and rx_to_clean when in NAPI mode */
 	if(RU_SUSPENDED == nic->ru_running)
@@ -2100,7 +2100,7 @@ static void e100_tx_timeout(struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 
-	/* Reset outside of interrupt context, to avoid request_irq 
+	/* Reset outside of interrupt context, to avoid request_irq
 	 * in interrupt context */
 	schedule_work(&nic->tx_timeout_task);
 }
@@ -2347,7 +2347,7 @@ static int e100_set_ringparam(struct net_device *netdev,
 	struct param_range *rfds = &nic->params.rfds;
 	struct param_range *cbs = &nic->params.cbs;
 
-	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending)) 
+	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
 	if(netif_running(netdev))
@@ -2789,7 +2789,7 @@ static struct pci_driver e100_driver = {
 	.suspend =      e100_suspend,
 	.resume =       e100_resume,
 #endif
-	.shutdown =	e100_shutdown,
+	.shutdown =     e100_shutdown,
 };
 
 static int __init e100_init_module(void)
