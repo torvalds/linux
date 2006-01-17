@@ -222,6 +222,13 @@ config SUN_PARTITION
 	  given by the tar program ("man tar" or preferably "info tar"). If
 	  you don't know what all this is about, say N.
 
+config KARMA_PARTITION
+	bool "Karma Partition support"
+	depends on PARTITION_ADVANCED
+	help
+	  Say Y here if you would like to mount the Rio Karma MP3 player, as it
+	  uses a proprietary partition table.
+
 config EFI_PARTITION
 	bool "EFI GUID Partition support"
 	depends on PARTITION_ADVANCED
