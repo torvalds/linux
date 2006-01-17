@@ -1359,7 +1359,7 @@ struct sctp_association *sctp_unpack_cookie(
 	struct sctp_signed_cookie *cookie;
 	struct sctp_cookie *bear_cookie;
 	int headersize, bodysize, fixed_size;
-	__u8 digest[SCTP_SIGNATURE_SIZE];
+	__u8 *digest = ep->digest;
 	struct scatterlist sg;
 	unsigned int keylen, len;
 	char *key;

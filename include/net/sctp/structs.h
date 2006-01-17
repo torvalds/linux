@@ -1250,6 +1250,14 @@ struct sctp_endpoint {
 	int last_key;
 	int key_changed_at;
 
+ 	/* digest:  This is a digest of the sctp cookie.  This field is
+ 	 * 	    only used on the receive path when we try to validate
+ 	 * 	    that the cookie has not been tampered with.  We put
+ 	 * 	    this here so we pre-allocate this once and can re-use
+ 	 * 	    on every receive.
+ 	 */
+ 	__u8 digest[SCTP_SIGNATURE_SIZE];
+ 
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
 
