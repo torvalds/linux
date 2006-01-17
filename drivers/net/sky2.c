@@ -889,13 +889,13 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 	struct sky2_hw *hw = sky2->hw;
 	u16 port = sky2->port;
 
-	spin_lock(&sky2->tx_lock);
+	spin_lock_bh(&sky2->tx_lock);
 
 	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_ON);
 	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_ON);
 	sky2->vlgrp = grp;
 
-	spin_unlock(&sky2->tx_lock);
+	spin_unlock_bh(&sky2->tx_lock);
 }
 
 static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
@@ -904,14 +904,14 @@ static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct sky2_hw *hw = sky2->hw;
 	u16 port = sky2->port;
 
-	spin_lock(&sky2->tx_lock);
+	spin_lock_bh(&sky2->tx_lock);
 
 	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_OFF);
 	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_OFF);
 	if (sky2->vlgrp)
 		sky2->vlgrp->vlan_devices[vid] = NULL;
 
-	spin_unlock(&sky2->tx_lock);
+	spin_unlock_bh(&sky2->tx_lock);
 }
 #endif
 
@@ -1116,6 +1116,10 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	u16 mss;
 	u8 ctrl;
 
+	/* No BH disabling for tx_lock here.  We are running in BH disabled
+	 * context and TX reclaim runs via poll inside of a software
+	 * interrupt, and no related locks in IRQ processing.
+	 */
 	if (!spin_trylock(&sky2->tx_lock))
 		return NETDEV_TX_LOCKED;
 
@@ -1308,17 +1312,17 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 		dev_kfree_skb_any(skb);
 	}
 
-	spin_lock(&sky2->tx_lock);
 	sky2->tx_cons = put;
 	if (netif_queue_stopped(dev) && tx_avail(sky2) > MAX_SKB_TX_LE)
 		netif_wake_queue(dev);
-	spin_unlock(&sky2->tx_lock);
 }
 
 /* Cleanup all untransmitted buffers, assume transmitter not running */
 static void sky2_tx_clean(struct sky2_port *sky2)
 {
+	spin_lock_bh(&sky2->tx_lock);
 	sky2_tx_complete(sky2, sky2->tx_prod);
+	spin_unlock_bh(&sky2->tx_lock);
 }
 
 /* Network shutdown */
@@ -1608,28 +1612,40 @@ out:
 	local_irq_enable();
 }
 
+
+/* Transmit timeout is only called if we are running, carries is up
+ * and tx queue is full (stopped).
+ */
 static void sky2_tx_timeout(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned txq = txqaddr[sky2->port];
+	u16 ridx;
+
+	/* Maybe we just missed an status interrupt */
+	spin_lock(&sky2->tx_lock);
+	ridx = sky2_read16(hw,
+			   sky2->port == 0 ? STAT_TXA1_RIDX : STAT_TXA2_RIDX);
+	sky2_tx_complete(sky2, ridx);
+	spin_unlock(&sky2->tx_lock);
+
+	if (!netif_queue_stopped(dev)) {
+		if (net_ratelimit())
+			pr_info(PFX "transmit interrupt missed? recovered\n");
+		return;
+	}
 
 	if (netif_msg_timer(sky2))
 		printk(KERN_ERR PFX "%s: tx timeout\n", dev->name);
 
-	netif_stop_queue(dev);
-
 	sky2_write32(hw, Q_ADDR(txq, Q_CSR), BMU_STOP);
-	sky2_read32(hw, Q_ADDR(txq, Q_CSR));
-
 	sky2_write32(hw, Y2_QADDR(txq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
 
 	sky2_tx_clean(sky2);
 
 	sky2_qset(hw, txq);
 	sky2_prefetch_init(hw, txq, sky2->tx_le_map, TX_RING_SIZE - 1);
-
-	netif_wake_queue(dev);
 }
 
 
@@ -1798,7 +1814,10 @@ static void sky2_tx_check(struct sky2_hw *hw, int port, u16 last)
 		struct net_device *dev = hw->dev[port];
 		if (dev && netif_running(dev)) {
 			struct sky2_port *sky2 = netdev_priv(dev);
+
+			spin_lock(&sky2->tx_lock);
 			sky2_tx_complete(sky2, last);
+			spin_unlock(&sky2->tx_lock);
 		}
 	}
 }
