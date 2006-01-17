@@ -588,10 +588,16 @@ int sctp_rcv_ootb(struct sk_buff *skb)
 	sctp_errhdr_t *err;
 
 	ch = (sctp_chunkhdr_t *) skb->data;
-	ch_end = ((__u8 *) ch) + WORD_ROUND(ntohs(ch->length));
 
 	/* Scan through all the chunks in the packet.  */
-	while (ch_end > (__u8 *)ch && ch_end < skb->tail) {
+	do {
+		/* Break out if chunk length is less then minimal. */
+		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
+			break;
+
+		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
+		if (ch_end > skb->tail)
+			break;
 
 		/* RFC 8.4, 2) If the OOTB packet contains an ABORT chunk, the
 		 * receiver MUST silently discard the OOTB packet and take no
@@ -622,8 +628,7 @@ int sctp_rcv_ootb(struct sk_buff *skb)
 		}
 
 		ch = (sctp_chunkhdr_t *) ch_end;
-	        ch_end = ((__u8 *) ch) + WORD_ROUND(ntohs(ch->length));
-	}
+	} while (ch_end < skb->tail);
 
 	return 0;
 
