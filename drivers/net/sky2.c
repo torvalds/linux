@@ -75,6 +75,7 @@
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/2 - 2)
 #define RX_DEF_PENDING		RX_MAX_PENDING
+#define RX_SKB_ALIGN		8
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -905,15 +906,30 @@ static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 #endif
 
 /*
+ * It appears the hardware has a bug in the FIFO logic that
+ * cause it to hang if the FIFO gets overrun and the receive buffer
+ * is not aligned. ALso alloc_skb() won't align properly if slab
+ * debugging is enabled.
+ */
+static inline struct sk_buff *sky2_alloc_skb(unsigned int size, gfp_t gfp_mask)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(size + RX_SKB_ALIGN, gfp_mask);
+	if (likely(skb)) {
+		unsigned long p	= (unsigned long) skb->data;
+		skb_reserve(skb,
+			((p + RX_SKB_ALIGN - 1) & ~(RX_SKB_ALIGN - 1)) - p);
+	}
+
+	return skb;
+}
+
+/*
  * Allocate and setup receiver buffer pool.
  * In case of 64 bit dma, there are 2X as many list elements
  * available as ring entries
  * and need to reserve one list element so we don't wrap around.
- *
- * It appears the hardware has a bug in the FIFO logic that
- * cause it to hang if the FIFO gets overrun and the receive buffer
- * is not aligned.  This means we can't use skb_reserve to align
- * the IP header.
  */
 static int sky2_rx_start(struct sky2_port *sky2)
 {
@@ -929,7 +945,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	for (i = 0; i < sky2->rx_pending; i++) {
 		struct ring_info *re = sky2->rx_ring + i;
 
-		re->skb = dev_alloc_skb(sky2->rx_bufsize);
+		re->skb = sky2_alloc_skb(sky2->rx_bufsize, GFP_KERNEL);
 		if (!re->skb)
 			goto nomem;
 
@@ -1713,7 +1729,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	} else {
 		struct sk_buff *nskb;
 
-		nskb = dev_alloc_skb(sky2->rx_bufsize);
+		nskb = sky2_alloc_skb(sky2->rx_bufsize, GFP_ATOMIC);
 		if (!nskb)
 			goto resubmit;
 
