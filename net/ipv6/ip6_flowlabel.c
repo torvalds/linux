@@ -629,7 +629,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 {
 	while(fl) {
 		seq_printf(seq,
-			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_FMT " %-4d\n",
+			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_SEQFMT " %-4d\n",
 			   (unsigned)ntohl(fl->label),
 			   fl->share,
 			   (unsigned)fl->owner,
@@ -645,7 +645,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-39s %s\n",
+		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
 			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
 	else
 		ip6fl_fl_seq_show(seq, v);
