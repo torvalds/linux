@@ -267,9 +267,8 @@ size_t fuse_send_read_common(struct fuse_req *req, struct file *file,
 	return req->out.args[0].size;
 }
 
-static inline size_t fuse_send_read(struct fuse_req *req, struct file *file,
-				    struct inode *inode, loff_t pos,
-				    size_t count)
+static size_t fuse_send_read(struct fuse_req *req, struct file *file,
+			     struct inode *inode, loff_t pos, size_t count)
 {
 	return fuse_send_read_common(req, file, inode, pos, count, 0);
 }

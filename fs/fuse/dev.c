@@ -21,7 +21,7 @@ MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 
 static kmem_cache_t *fuse_req_cachep;
 
-static inline struct fuse_conn *fuse_get_conn(struct file *file)
+static struct fuse_conn *fuse_get_conn(struct file *file)
 {
 	struct fuse_conn *fc;
 	spin_lock(&fuse_lock);
@@ -32,7 +32,7 @@ static inline struct fuse_conn *fuse_get_conn(struct file *file)
 	return fc;
 }
 
-static inline void fuse_request_init(struct fuse_req *req)
+static void fuse_request_init(struct fuse_req *req)
 {
 	memset(req, 0, sizeof(*req));
 	INIT_LIST_HEAD(&req->list);
@@ -53,7 +53,7 @@ void fuse_request_free(struct fuse_req *req)
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
-static inline void block_sigs(sigset_t *oldset)
+static void block_sigs(sigset_t *oldset)
 {
 	sigset_t mask;
 
@@ -61,7 +61,7 @@ static inline void block_sigs(sigset_t *oldset)
 	sigprocmask(SIG_BLOCK, &mask, oldset);
 }
 
-static inline void restore_sigs(sigset_t *oldset)
+static void restore_sigs(sigset_t *oldset)
 {
 	sigprocmask(SIG_SETMASK, oldset, NULL);
 }
@@ -385,7 +385,7 @@ void fuse_send_init(struct fuse_conn *fc)
  * anything that could cause a page-fault.  If the request was already
  * interrupted bail out.
  */
-static inline int lock_request(struct fuse_req *req)
+static int lock_request(struct fuse_req *req)
 {
 	int err = 0;
 	if (req) {
@@ -404,7 +404,7 @@ static inline int lock_request(struct fuse_req *req)
  * requester thread is currently waiting for it to be unlocked, so
  * wake it up.
  */
-static inline void unlock_request(struct fuse_req *req)
+static void unlock_request(struct fuse_req *req)
 {
 	if (req) {
 		spin_lock(&fuse_lock);
@@ -440,7 +440,7 @@ static void fuse_copy_init(struct fuse_copy_state *cs, int write,
 }
 
 /* Unmap and put previous page of userspace buffer */
-static inline void fuse_copy_finish(struct fuse_copy_state *cs)
+static void fuse_copy_finish(struct fuse_copy_state *cs)
 {
 	if (cs->mapaddr) {
 		kunmap_atomic(cs->mapaddr, KM_USER0);
@@ -489,8 +489,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 }
 
 /* Do as much copy to/from userspace buffer as we can */
-static inline int fuse_copy_do(struct fuse_copy_state *cs, void **val,
-			       unsigned *size)
+static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 {
 	unsigned ncpy = min(*size, cs->len);
 	if (val) {
@@ -510,8 +509,8 @@ static inline int fuse_copy_do(struct fuse_copy_state *cs, void **val,
  * Copy a page in the request to/from the userspace buffer.  Must be
  * done atomically
  */
-static inline int fuse_copy_page(struct fuse_copy_state *cs, struct page *page,
-				 unsigned offset, unsigned count, int zeroing)
+static int fuse_copy_page(struct fuse_copy_state *cs, struct page *page,
+			  unsigned offset, unsigned count, int zeroing)
 {
 	if (page && zeroing && count < PAGE_SIZE) {
 		void *mapaddr = kmap_atomic(page, KM_USER1);
