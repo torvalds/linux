@@ -2995,7 +2995,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->hbinterval  = jiffies_to_msecs(sctp_hb_interval);
 	sp->pathmaxrxt  = sctp_max_retrans_path;
 	sp->pathmtu     = 0; // allow default discovery
-	sp->sackdelay   = sctp_sack_timeout;
+	sp->sackdelay   = jiffies_to_msecs(sctp_sack_timeout);
 	sp->param_flags = SPP_HB_ENABLE |
 	                  SPP_PMTUD_ENABLE |
 	                  SPP_SACKDELAY_ENABLE;
