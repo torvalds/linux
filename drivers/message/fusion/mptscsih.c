@@ -2028,6 +2028,42 @@ mptscsih_tm_wait_for_completion(MPT_SCSI_HOST * hd, ulong timeout )
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+static void
+mptscsih_taskmgmt_response_code(MPT_ADAPTER *ioc, u8 response_code)
+{
+	char *desc;
+
+	switch (response_code) {
+	case MPI_SCSITASKMGMT_RSP_TM_COMPLETE:
+		desc = "The task completed.";
+		break;
+	case MPI_SCSITASKMGMT_RSP_INVALID_FRAME:
+		desc = "The IOC received an invalid frame status.";
+		break;
+	case MPI_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED:
+		desc = "The task type is not supported.";
+		break;
+	case MPI_SCSITASKMGMT_RSP_TM_FAILED:
+		desc = "The requested task failed.";
+		break;
+	case MPI_SCSITASKMGMT_RSP_TM_SUCCEEDED:
+		desc = "The task completed successfully.";
+		break;
+	case MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN:
+		desc = "The LUN request is invalid.";
+		break;
+	case MPI_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC:
+		desc = "The task is in the IOC queue and has not been sent to target.";
+		break;
+	default:
+		desc = "unknown";
+		break;
+	}
+	printk(MYIOC_s_INFO_FMT "Response Code(0x%08x): F/W: %s\n",
+		ioc->name, response_code, desc);
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mptscsih_taskmgmt_complete - Registered with Fusion MPT base driver
  *	@ioc: Pointer to MPT_ADAPTER structure
@@ -2075,6 +2111,11 @@ mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *m
 
 		/* Figure out if this was ABORT_TASK, TARGET_RESET, or BUS_RESET! */
 		tmType = pScsiTmReq->TaskType;
+
+		if (ioc->facts.MsgVersion >= MPI_VERSION_01_05 &&
+		    pScsiTmReply->ResponseCode)
+			mptscsih_taskmgmt_response_code(ioc,
+			    pScsiTmReply->ResponseCode);
 
 		dtmprintk((MYIOC_s_WARN_FMT "  TaskType = %d, TerminationCount=%d\n",
 				ioc->name, tmType, le32_to_cpu(pScsiTmReply->TerminationCount)));
