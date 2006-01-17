@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/boards/hp6xx/hp680/mach.c
+ * linux/arch/sh/boards/hp6xx/mach.c
  *
  * Copyright (C) 2000 Stuart Menefy (stuart.menefy@st.com)
  *
@@ -8,19 +8,12 @@
  *
  * Machine vector for the HP680
  */
-
-#include <linux/init.h>
-
 #include <asm/machvec.h>
-#include <asm/rtc.h>
-#include <asm/machvec_init.h>
-
+#include <asm/hd64461.h>
 #include <asm/io.h>
-#include <asm/hd64461/hd64461.h>
-#include <asm/hp6xx/io.h>
 #include <asm/irq.h>
 
-struct sh_machine_vector mv_hp680 __initmv = {
+struct sh_machine_vector mv_hp6xx __initmv = {
 	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM,
 
 	.mv_inb = hd64461_inb,
@@ -50,4 +43,4 @@ struct sh_machine_vector mv_hp680 __initmv = {
 	.mv_irq_demux = hd64461_irq_demux,
 };
 
-ALIAS_MV(hp680)
+ALIAS_MV(hp6xx)
