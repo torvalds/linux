@@ -92,7 +92,7 @@
 static const u32 default_msg =
     NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
     | NETIF_MSG_TIMER | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR
-    | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN | NETIF_MSG_INTR;
+    | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
 
 static int debug = -1;		/* defaults above */
 module_param(debug, int, 0);
@@ -1125,8 +1125,9 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
-			printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
-			       dev->name);
+			if (net_ratelimit())
+				printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
+				       dev->name);
 		}
 		spin_unlock(&sky2->tx_lock);
 
@@ -1770,7 +1771,7 @@ oversize:
 error:
 	++sky2->net_stats.rx_errors;
 
-	if (netif_msg_rx_err(sky2))
+	if (netif_msg_rx_err(sky2) && net_ratelimit())
 		printk(KERN_INFO PFX "%s: rx error, status 0x%x length %d\n",
 		       sky2->netdev->name, status, length);
 
@@ -1920,35 +1921,42 @@ static void sky2_hw_error(struct sky2_hw *hw, unsigned port, u32 status)
 {
 	struct net_device *dev = hw->dev[port];
 
-	printk(KERN_INFO PFX "%s: hw error interrupt status 0x%x\n",
-	       dev->name, status);
+	if (net_ratelimit())
+		printk(KERN_INFO PFX "%s: hw error interrupt status 0x%x\n",
+		       dev->name, status);
 
 	if (status & Y2_IS_PAR_RD1) {
-		printk(KERN_ERR PFX "%s: ram data read parity error\n",
-		       dev->name);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: ram data read parity error\n",
+			       dev->name);
 		/* Clear IRQ */
 		sky2_write16(hw, RAM_BUFFER(port, B3_RI_CTRL), RI_CLR_RD_PERR);
 	}
 
 	if (status & Y2_IS_PAR_WR1) {
-		printk(KERN_ERR PFX "%s: ram data write parity error\n",
-		       dev->name);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: ram data write parity error\n",
+			       dev->name);
 
 		sky2_write16(hw, RAM_BUFFER(port, B3_RI_CTRL), RI_CLR_WR_PERR);
 	}
 
 	if (status & Y2_IS_PAR_MAC1) {
-		printk(KERN_ERR PFX "%s: MAC parity error\n", dev->name);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: MAC parity error\n", dev->name);
 		sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_CLI_TX_PE);
 	}
 
 	if (status & Y2_IS_PAR_RX1) {
-		printk(KERN_ERR PFX "%s: RX parity error\n", dev->name);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: RX parity error\n", dev->name);
 		sky2_write32(hw, Q_ADDR(rxqaddr[port], Q_CSR), BMU_CLR_IRQ_PAR);
 	}
 
 	if (status & Y2_IS_TCP_TXA1) {
-		printk(KERN_ERR PFX "%s: TCP segmentation error\n", dev->name);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: TCP segmentation error\n",
+			       dev->name);
 		sky2_write32(hw, Q_ADDR(txqaddr[port], Q_CSR), BMU_CLR_IRQ_TCP);
 	}
 }
@@ -1964,8 +1972,9 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 		u16 pci_err;
 
 		pci_read_config_word(hw->pdev, PCI_STATUS, &pci_err);
-		printk(KERN_ERR PFX "%s: pci hw error (0x%x)\n",
-		       pci_name(hw->pdev), pci_err);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: pci hw error (0x%x)\n",
+			       pci_name(hw->pdev), pci_err);
 
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		pci_write_config_word(hw->pdev, PCI_STATUS,
@@ -1979,8 +1988,9 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 		pci_read_config_dword(hw->pdev, PEX_UNC_ERR_STAT, &pex_err);
 
-		printk(KERN_ERR PFX "%s: pci express error (0x%x)\n",
-		       pci_name(hw->pdev), pex_err);
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: pci express error (0x%x)\n",
+			       pci_name(hw->pdev), pex_err);
 
 		/* clear the interrupt */
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
