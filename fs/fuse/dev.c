@@ -773,8 +773,10 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 
 	list_del_init(&req->list);
 	if (req->interrupted) {
-		request_end(fc, req);
+		spin_unlock(&fuse_lock);
 		fuse_copy_finish(&cs);
+		spin_lock(&fuse_lock);
+		request_end(fc, req);
 		return -ENOENT;
 	}
 	req->out.h = oh;
