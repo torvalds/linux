@@ -1,8 +1,7 @@
 #ifndef _IPT_MAC_H
 #define _IPT_MAC_H
 
-struct ipt_mac_info {
-    unsigned char srcaddr[ETH_ALEN];
-    int invert;
-};
+#include <linux/netfilter/xt_mac.h>
+#define ipt_mac_info xt_mac_info
+
 #endif /*_IPT_MAC_H*/

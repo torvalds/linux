@@ -22,8 +22,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define WP512_DIGEST_SIZE 64
 #define WP384_DIGEST_SIZE 48
@@ -778,19 +780,10 @@ static void wp512_process_buffer(struct wp512_ctx *wctx) {
 	u64 block[8];    /* mu(buffer) */
 	u64 state[8];    /* the cipher state */
 	u64 L[8];
-	u8 *buffer = wctx->buffer;
+	const __be64 *buffer = (const __be64 *)wctx->buffer;
 
-	for (i = 0; i < 8; i++, buffer += 8) {
-		block[i] =
-		(((u64)buffer[0]        ) << 56) ^
-		(((u64)buffer[1] & 0xffL) << 48) ^
-		(((u64)buffer[2] & 0xffL) << 40) ^
-		(((u64)buffer[3] & 0xffL) << 32) ^
-		(((u64)buffer[4] & 0xffL) << 24) ^
-		(((u64)buffer[5] & 0xffL) << 16) ^
-		(((u64)buffer[6] & 0xffL) <<  8) ^
-		(((u64)buffer[7] & 0xffL)      );
-	}
+	for (i = 0; i < 8; i++)
+		block[i] = be64_to_cpu(buffer[i]);
 
 	state[0] = block[0] ^ (K[0] = wctx->hash[0]);
 	state[1] = block[1] ^ (K[1] = wctx->hash[1]);
@@ -1069,7 +1062,7 @@ static void wp512_final(void *ctx, u8 *out)
    	u8 *bitLength   = wctx->bitLength;
    	int bufferBits  = wctx->bufferBits;
    	int bufferPos   = wctx->bufferPos;
-   	u8 *digest      = out;
+	__be64 *digest  = (__be64 *)out;
 
    	buffer[bufferPos] |= 0x80U >> (bufferBits & 7);
    	bufferPos++;
@@ -1088,17 +1081,8 @@ static void wp512_final(void *ctx, u8 *out)
    	memcpy(&buffer[WP512_BLOCK_SIZE - WP512_LENGTHBYTES],
 		   bitLength, WP512_LENGTHBYTES);
    	wp512_process_buffer(wctx);
-   	for (i = 0; i < WP512_DIGEST_SIZE/8; i++) {
-		digest[0] = (u8)(wctx->hash[i] >> 56);
-		digest[1] = (u8)(wctx->hash[i] >> 48);
-		digest[2] = (u8)(wctx->hash[i] >> 40);
-		digest[3] = (u8)(wctx->hash[i] >> 32);
-		digest[4] = (u8)(wctx->hash[i] >> 24);
-		digest[5] = (u8)(wctx->hash[i] >> 16);
-		digest[6] = (u8)(wctx->hash[i] >>  8);
-		digest[7] = (u8)(wctx->hash[i]      );
-		digest += 8;
-   	}
+	for (i = 0; i < WP512_DIGEST_SIZE/8; i++)
+		digest[i] = cpu_to_be64(wctx->hash[i]);
    	wctx->bufferBits   = bufferBits;
    	wctx->bufferPos    = bufferPos;
 }

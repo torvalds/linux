@@ -1343,6 +1343,7 @@ static struct file_operations stv680_fops = {
 	.read =		stv680_read,
 	.mmap =		stv680_mmap,
 	.ioctl =        stv680_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek =       no_llseek,
 };
 static struct video_device stv680_template = {
@@ -1477,7 +1478,6 @@ static void stv680_disconnect (struct usb_interface *intf)
 }
 
 static struct usb_driver stv680_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"stv680",
 	.probe =	stv680_probe,
 	.disconnect =	stv680_disconnect,

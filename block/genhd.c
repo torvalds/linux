@@ -38,34 +38,100 @@ static inline int major_to_index(int major)
 	return major % MAX_PROBE_HASH;
 }
 
-#ifdef CONFIG_PROC_FS
-/* get block device names in somewhat random order */
-int get_blkdev_list(char *p, int used)
+struct blkdev_info {
+        int index;
+        struct blk_major_name *bd;
+};
+
+/*
+ * iterate over a list of blkdev_info structures.  allows
+ * the major_names array to be iterated over from outside this file
+ * must be called with the block_subsys_sem held
+ */
+void *get_next_blkdev(void *dev)
+{
+        struct blkdev_info *info;
+
+        if (dev == NULL) {
+                info = kmalloc(sizeof(*info), GFP_KERNEL);
+                if (!info)
+                        goto out;
+                info->index=0;
+                info->bd = major_names[info->index];
+                if (info->bd)
+                        goto out;
+        } else {
+                info = dev;
+        }
+
+        while (info->index < ARRAY_SIZE(major_names)) {
+                if (info->bd)
+                        info->bd = info->bd->next;
+                if (info->bd)
+                        goto out;
+                /*
+                 * No devices on this chain, move to the next
+                 */
+                info->index++;
+                info->bd = (info->index < ARRAY_SIZE(major_names)) ?
+			major_names[info->index] : NULL;
+                if (info->bd)
+                        goto out;
+        }
+
+out:
+        return info;
+}
+
+void *acquire_blkdev_list(void)
+{
+        down(&block_subsys_sem);
+        return get_next_blkdev(NULL);
+}
+
+void release_blkdev_list(void *dev)
+{
+        up(&block_subsys_sem);
+        kfree(dev);
+}
+
+
+/*
+ * Count the number of records in the blkdev_list.
+ * must be called with the block_subsys_sem held
+ */
+int count_blkdev_list(void)
 {
 	struct blk_major_name *n;
-	int i, len;
+	int i, count;
 
-	len = snprintf(p, (PAGE_SIZE-used), "\nBlock devices:\n");
+	count = 0;
 
-	down(&block_subsys_sem);
 	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
-		for (n = major_names[i]; n; n = n->next) {
-			/*
-			 * If the curent string plus the 5 extra characters
-			 * in the line would run us off the page, then we're done
-			 */
-			if ((len + used + strlen(n->name) + 5) >= PAGE_SIZE)
-				goto page_full;
-			len += sprintf(p+len, "%3d %s\n",
-				       n->major, n->name);
-		}
+		for (n = major_names[i]; n; n = n->next)
+				count++;
 	}
-page_full:
-	up(&block_subsys_sem);
 
-	return len;
+	return count;
 }
-#endif
+
+/*
+ * extract the major and name values from a blkdev_info struct
+ * passed in as a void to *dev.  Must be called with
+ * block_subsys_sem held
+ */
+int get_blkdev_info(void *dev, int *major, char **name)
+{
+        struct blkdev_info *info = dev;
+
+        if (info->bd == NULL)
+                return 1;
+
+        *major = info->bd->major;
+        *name = info->bd->name;
+        return 0;
+}
+
 
 int register_blkdev(unsigned int major, const char *name)
 {
@@ -358,7 +424,7 @@ static struct sysfs_ops disk_sysfs_ops = {
 static ssize_t disk_uevent_store(struct gendisk * disk,
 				 const char *buf, size_t count)
 {
-	kobject_hotplug(&disk->kobj, KOBJ_ADD);
+	kobject_uevent(&disk->kobj, KOBJ_ADD);
 	return count;
 }
 static ssize_t disk_dev_read(struct gendisk * disk, char *page)
@@ -455,14 +521,14 @@ static struct kobj_type ktype_block = {
 
 extern struct kobj_type ktype_part;
 
-static int block_hotplug_filter(struct kset *kset, struct kobject *kobj)
+static int block_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
 
 	return ((ktype == &ktype_block) || (ktype == &ktype_part));
 }
 
-static int block_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
+static int block_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			 int num_envp, char *buffer, int buffer_size)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
@@ -474,40 +540,40 @@ static int block_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 
 	if (ktype == &ktype_block) {
 		disk = container_of(kobj, struct gendisk, kobj);
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "MINOR=%u", disk->first_minor);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "MINOR=%u", disk->first_minor);
 	} else if (ktype == &ktype_part) {
 		disk = container_of(kobj->parent, struct gendisk, kobj);
 		part = container_of(kobj, struct hd_struct, kobj);
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "MINOR=%u",
-				    disk->first_minor + part->partno);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "MINOR=%u",
+			       disk->first_minor + part->partno);
 	} else
 		return 0;
 
-	add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			    "MAJOR=%u", disk->major);
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MAJOR=%u", disk->major);
 
 	/* add physical device, backing this device  */
 	physdev = disk->driverfs_dev;
 	if (physdev) {
 		char *path = kobject_get_path(&physdev->kobj, GFP_KERNEL);
 
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "PHYSDEVPATH=%s", path);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "PHYSDEVPATH=%s", path);
 		kfree(path);
 
 		if (physdev->bus)
-			add_hotplug_env_var(envp, num_envp, &i,
-					    buffer, buffer_size, &length,
-					    "PHYSDEVBUS=%s",
-					    physdev->bus->name);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVBUS=%s",
+				       physdev->bus->name);
 
 		if (physdev->driver)
-			add_hotplug_env_var(envp, num_envp, &i,
-					    buffer, buffer_size, &length,
-					    "PHYSDEVDRIVER=%s",
-					    physdev->driver->name);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVDRIVER=%s",
+				       physdev->driver->name);
 	}
 
 	/* terminate, set to next free slot, shrink available space */
@@ -520,13 +586,13 @@ static int block_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	return 0;
 }
 
-static struct kset_hotplug_ops block_hotplug_ops = {
-	.filter		= block_hotplug_filter,
-	.hotplug	= block_hotplug,
+static struct kset_uevent_ops block_uevent_ops = {
+	.filter		= block_uevent_filter,
+	.uevent		= block_uevent,
 };
 
 /* declare block_subsys. */
-static decl_subsys(block, &ktype_block, &block_hotplug_ops);
+static decl_subsys(block, &ktype_block, &block_uevent_ops);
 
 
 /*

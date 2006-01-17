@@ -35,6 +35,7 @@
 #include "ibm.h"
 #include "ultrix.h"
 #include "efi.h"
+#include "karma.h"
 
 #ifdef CONFIG_BLK_DEV_MD
 extern void md_autodetect_dev(dev_t dev);
@@ -102,6 +103,9 @@ static int (*check_part[])(struct parsed_partitions *, struct block_device *) = 
 #endif
 #ifdef CONFIG_IBM_PARTITION
 	ibm_partition,
+#endif
+#ifdef CONFIG_KARMA_PARTITION
+	karma_partition,
 #endif
 	NULL
 };
@@ -226,7 +230,7 @@ static struct sysfs_ops part_sysfs_ops = {
 static ssize_t part_uevent_store(struct hd_struct * p,
 				 const char *page, size_t count)
 {
-	kobject_hotplug(&p->kobj, KOBJ_ADD);
+	kobject_uevent(&p->kobj, KOBJ_ADD);
 	return count;
 }
 static ssize_t part_dev_read(struct hd_struct * p, char *page)
@@ -336,12 +340,31 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	disk->part[part-1] = p;
 }
 
+static char *make_block_name(struct gendisk *disk)
+{
+	char *name;
+	static char *block_str = "block:";
+	int size;
+
+	size = strlen(block_str) + strlen(disk->disk_name) + 1;
+	name = kmalloc(size, GFP_KERNEL);
+	if (!name)
+		return NULL;
+	strcpy(name, block_str);
+	strcat(name, disk->disk_name);
+	return name;
+}
+
 static void disk_sysfs_symlinks(struct gendisk *disk)
 {
 	struct device *target = get_device(disk->driverfs_dev);
 	if (target) {
+		char *disk_name = make_block_name(disk);
 		sysfs_create_link(&disk->kobj,&target->kobj,"device");
-		sysfs_create_link(&target->kobj,&disk->kobj,"block");
+		if (disk_name) {
+			sysfs_create_link(&target->kobj,&disk->kobj,disk_name);
+			kfree(disk_name);
+		}
 	}
 }
 
@@ -360,7 +383,7 @@ void register_disk(struct gendisk *disk)
 	if ((err = kobject_add(&disk->kobj)))
 		return;
 	disk_sysfs_symlinks(disk);
-	kobject_hotplug(&disk->kobj, KOBJ_ADD);
+	kobject_uevent(&disk->kobj, KOBJ_ADD);
 
 	/* No minors to use for partitions */
 	if (disk->minors == 1) {
@@ -461,10 +484,14 @@ void del_gendisk(struct gendisk *disk)
 	devfs_remove_disk(disk);
 
 	if (disk->driverfs_dev) {
+		char *disk_name = make_block_name(disk);
 		sysfs_remove_link(&disk->kobj, "device");
-		sysfs_remove_link(&disk->driverfs_dev->kobj, "block");
+		if (disk_name) {
+			sysfs_remove_link(&disk->driverfs_dev->kobj, disk_name);
+			kfree(disk_name);
+		}
 		put_device(disk->driverfs_dev);
 	}
-	kobject_hotplug(&disk->kobj, KOBJ_REMOVE);
+	kobject_uevent(&disk->kobj, KOBJ_REMOVE);
 	kobject_del(&disk->kobj);
 }

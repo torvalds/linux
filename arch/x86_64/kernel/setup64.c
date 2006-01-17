@@ -30,14 +30,15 @@ char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
-struct x8664_pda cpu_pda[NR_CPUS] __cacheline_aligned; 
+struct x8664_pda *_cpu_pda[NR_CPUS] __read_mostly;
+struct x8664_pda boot_cpu_pda[NR_CPUS] __cacheline_aligned;
 
 struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
 
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
 unsigned long __supported_pte_mask __read_mostly = ~0UL;
-static int do_not_nx __initdata = 0;
+static int do_not_nx __cpuinitdata = 0;
 
 /* noexec=on|off
 Control non executable mappings for 64bit processes.
@@ -110,18 +111,18 @@ void __init setup_per_cpu_areas(void)
 		}
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);
-		cpu_pda[i].data_offset = ptr - __per_cpu_start;
+		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
 } 
 
 void pda_init(int cpu)
 { 
-	struct x8664_pda *pda = &cpu_pda[cpu];
+	struct x8664_pda *pda = cpu_pda(cpu);
 
 	/* Setup up data that may be needed in __get_free_pages early */
 	asm volatile("movl %0,%%fs ; movl %0,%%gs" :: "r" (0)); 
-	wrmsrl(MSR_GS_BASE, cpu_pda + cpu);
+	wrmsrl(MSR_GS_BASE, pda);
 
 	pda->cpunumber = cpu; 
 	pda->irqcount = -1;
@@ -145,7 +146,7 @@ void pda_init(int cpu)
 	pda->irqstackptr += IRQSTACKSIZE-64;
 } 
 
-char boot_exception_stacks[N_EXCEPTION_STACKS * EXCEPTION_STKSZ] 
+char boot_exception_stacks[(N_EXCEPTION_STACKS - 2) * EXCEPTION_STKSZ + DEBUG_STKSZ]
 __attribute__((section(".bss.page_aligned")));
 
 /* May not be marked __init: used by software suspend */
@@ -213,23 +214,14 @@ void __cpuinit cpu_init (void)
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	if (cpu) {
-		memcpy(cpu_gdt_table[cpu], cpu_gdt_table[0], GDT_SIZE);
-	}	
+	if (cpu)
+ 		memcpy(cpu_gdt(cpu), cpu_gdt_table, GDT_SIZE);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE;
-	cpu_gdt_descr[cpu].address = (unsigned long)cpu_gdt_table[cpu];
 	asm volatile("lgdt %0" :: "m" (cpu_gdt_descr[cpu]));
 	asm volatile("lidt %0" :: "m" (idt_descr));
 
-	memcpy(me->thread.tls_array, cpu_gdt_table[cpu], GDT_ENTRY_TLS_ENTRIES * 8);
-
-	/*
-	 * Delete NT
-	 */
-
-	asm volatile("pushfq ; popq %%rax ; btr $14,%%rax ; pushq %%rax ; popfq" ::: "eax");
-
+	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
 	syscall_init();
 
 	wrmsrl(MSR_FS_BASE, 0);
@@ -243,13 +235,27 @@ void __cpuinit cpu_init (void)
 	 */
 	for (v = 0; v < N_EXCEPTION_STACKS; v++) {
 		if (cpu) {
-			estacks = (char *)__get_free_pages(GFP_ATOMIC, 
-						   EXCEPTION_STACK_ORDER);
+			static const unsigned int order[N_EXCEPTION_STACKS] = {
+				[0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
+				[DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+			};
+
+			estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
 			if (!estacks)
 				panic("Cannot allocate exception stack %ld %d\n",
 				      v, cpu); 
 		}
-		estacks += EXCEPTION_STKSZ;
+		switch (v + 1) {
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		case DEBUG_STACK:
+			cpu_pda[cpu].debugstack = (unsigned long)estacks;
+			estacks += DEBUG_STKSZ;
+			break;
+#endif
+		default:
+			estacks += EXCEPTION_STKSZ;
+			break;
+		}
 		t->ist[v] = (unsigned long)estacks;
 	}
 

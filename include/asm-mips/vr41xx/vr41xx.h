@@ -7,7 +7,7 @@
  * Copyright (C) 2001, 2002 Paul Mundt
  * Copyright (C) 2002 MontaVista Software, Inc.
  * Copyright (C) 2002 TimeSys Corp.
- * Copyright (C) 2003-2005 Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ * Copyright (C) 2003-2005 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

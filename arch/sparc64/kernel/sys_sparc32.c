@@ -11,6 +11,7 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/fs.h> 
 #include <linux/mm.h> 
 #include <linux/file.h> 
@@ -1119,40 +1120,4 @@ long sys32_lookup_dcookie(unsigned long cookie_high,
 {
 	return sys_lookup_dcookie((cookie_high << 32) | cookie_low,
 				  buf, len);
-}
-
-extern asmlinkage long
-sys_timer_create(clockid_t which_clock,
-		 struct sigevent __user *timer_event_spec,
-		 timer_t __user *created_timer_id);
-
-long
-sys32_timer_create(u32 clock, struct compat_sigevent __user *se32,
-		   timer_t __user *timer_id)
-{
-	struct sigevent se;
-	mm_segment_t oldfs;
-	timer_t t;
-	long err;
-
-	if (se32 == NULL)
-		return sys_timer_create(clock, NULL, timer_id);
-
-	if (get_compat_sigevent(&se, se32))
-		return -EFAULT;
-
-	if (!access_ok(VERIFY_WRITE,timer_id,sizeof(timer_t)))
-		return -EFAULT;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_timer_create(clock,
-			       (struct sigevent __user *) &se,
-			       (timer_t __user *) &t);
-	set_fs(oldfs);
-
-	if (!err)
-		err = __put_user (t, timer_id);
-
-	return err;
 }

@@ -86,6 +86,62 @@ Mount options
   The default is infinite.  Note that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
 
+Sysfs
+~~~~~
+
+FUSE sets up the following hierarchy in sysfs:
+
+  /sys/fs/fuse/connections/N/
+
+where N is an increasing number allocated to each new connection.
+
+For each connection the following attributes are defined:
+
+ 'waiting'
+
+  The number of requests which are waiting to be transfered to
+  userspace or being processed by the filesystem daemon.  If there is
+  no filesystem activity and 'waiting' is non-zero, then the
+  filesystem is hung or deadlocked.
+
+ 'abort'
+
+  Writing anything into this file will abort the filesystem
+  connection.  This means that all waiting requests will be aborted an
+  error returned for all aborted and new requests.
+
+Only a privileged user may read or write these attributes.
+
+Aborting a filesystem connection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to get into certain situations where the filesystem is
+not responding.  Reasons for this may be:
+
+  a) Broken userspace filesystem implementation
+
+  b) Network connection down
+
+  c) Accidental deadlock
+
+  d) Malicious deadlock
+
+(For more on c) and d) see later sections)
+
+In either of these cases it may be useful to abort the connection to
+the filesystem.  There are several ways to do this:
+
+  - Kill the filesystem daemon.  Works in case of a) and b)
+
+  - Kill the filesystem daemon and all users of the filesystem.  Works
+    in all cases except some malicious deadlocks
+
+  - Use forced umount (umount -f).  Works in all cases but only if
+    filesystem is still attached (it hasn't been lazy unmounted)
+
+  - Abort filesystem through the sysfs interface.  Most powerful
+    method, always works.
+
 How do non-privileged mounts work?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -313,3 +369,10 @@ faulted with get_user_pages().  The 'req->locked' flag indicates
 when the copy is taking place, and interruption is delayed until
 this flag is unset.
 
+Scenario 3 - Tricky deadlock with asynchronous read
+---------------------------------------------------
+
+The same situation as above, except thread-1 will wait on page lock
+and hence it will be uninterruptible as well.  The solution is to
+abort the connection with forced umount (if mount is attached) or
+through the abort attribute in sysfs.

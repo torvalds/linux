@@ -82,8 +82,6 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
 
 static void airo_config(dev_link_t *link);
 static void airo_release(dev_link_t *link);
-static int airo_event(event_t event, int priority,
-		       event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -91,8 +89,7 @@ static int airo_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *airo_attach(void);
-static void airo_detach(dev_link_t *);
+static void airo_detach(struct pcmcia_device *p_dev);
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -100,14 +97,6 @@ static void airo_detach(dev_link_t *);
    of a fully self-sufficient driver; the other drivers rely more or
    less on other parts of the kernel.
 */
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "airo_cs";
 
 /*
    A linked list of "instances" of the  aironet device.  Each actual
@@ -119,15 +108,7 @@ static dev_info_t dev_info = "airo_cs";
    device numbers are used to derive the corresponding array index.
 */
 
-static dev_link_t *dev_list = NULL;
-
 /*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
    A driver needs to provide a dev_node_t structure for each device
    on a card.  In some cases, there is only one device per card (for
    example, ethernet cards, modems).  In other cases, there may be
@@ -160,20 +141,18 @@ typedef struct local_info_t {
   
   ======================================================================*/
 
-static dev_link_t *airo_attach(void)
+static int airo_attach(struct pcmcia_device *p_dev)
 {
-	client_reg_t client_reg;
 	dev_link_t *link;
 	local_info_t *local;
-	int ret;
-	
+
 	DEBUG(0, "airo_attach()\n");
 
 	/* Initialize the dev_link_t structure */
 	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
-		return NULL;
+		return -ENOMEM;
 	}
 	
 	/* Interrupt setup */
@@ -197,24 +176,17 @@ static dev_link_t *airo_attach(void)
 	if (!local) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
 		kfree (link);
-		return NULL;
+		return -ENOMEM;
 	}
 	link->priv = local;
-	
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		airo_detach(link);
-		return NULL;
-	}
-	
-	return link;
+
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	airo_config(link);
+
+	return 0;
 } /* airo_attach */
 
 /*======================================================================
@@ -226,37 +198,22 @@ static dev_link_t *airo_attach(void)
   
   ======================================================================*/
 
-static void airo_detach(dev_link_t *link)
+static void airo_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
-	
+	dev_link_t *link = dev_to_instance(p_dev);
+
 	DEBUG(0, "airo_detach(0x%p)\n", link);
-	
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link) break;
-	if (*linkp == NULL)
-		return;
-	
+
 	if (link->state & DEV_CONFIG)
 		airo_release(link);
-	
+
 	if ( ((local_info_t*)link->priv)->eth_dev ) {
 		stop_airo_card( ((local_info_t*)link->priv)->eth_dev, 0 );
 	}
-	((local_info_t*)link->priv)->eth_dev = NULL;   
-	
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-	
-	
-	
-	/* Unlink device structure, free pieces */
-	*linkp = link->next;
+	((local_info_t*)link->priv)->eth_dev = NULL;
+
 	kfree(link->priv);
 	kfree(link);
-	
 } /* airo_detach */
 
 /*======================================================================
@@ -492,60 +449,34 @@ static void airo_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-/*======================================================================
-  
-  The card status event handler.  Mostly, this schedules other
-  stuff to run after an event is received.
-
-  When a CARD_REMOVAL event is received, we immediately set a
-  private flag to block future accesses to this device.  All the
-  functions that actually access the device should check this flag
-  to make sure the card is still present.
-  
-  ======================================================================*/
-
-static int airo_event(event_t event, int priority,
-		      event_callback_args_t *args)
+static int airo_suspend(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
-	
-	DEBUG(1, "airo_event(0x%06x)\n", event);
-	
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			netif_device_detach(local->eth_dev);
-			airo_release(link);
-		}
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		airo_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG) {
-			netif_device_detach(local->eth_dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-			reset_airo_card(local->eth_dev);
-			netif_device_attach(local->eth_dev);
-		}
-		break;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		netif_device_detach(local->eth_dev);
+		pcmcia_release_configuration(link->handle);
 	}
+
 	return 0;
-} /* airo_event */
+}
+
+static int airo_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		reset_airo_card(local->eth_dev);
+		netif_device_attach(local->eth_dev);
+	}
+
+	return 0;
+}
 
 static struct pcmcia_device_id airo_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x000a),
@@ -561,10 +492,11 @@ static struct pcmcia_driver airo_driver = {
 	.drv		= {
 		.name	= "airo_cs",
 	},
-	.attach		= airo_attach,
-	.event		= airo_event,
-	.detach		= airo_detach,
+	.probe		= airo_attach,
+	.remove		= airo_detach,
 	.id_table       = airo_ids,
+	.suspend	= airo_suspend,
+	.resume		= airo_resume,
 };
 
 static int airo_cs_init(void)
@@ -575,7 +507,6 @@ static int airo_cs_init(void)
 static void airo_cs_cleanup(void)
 {
 	pcmcia_unregister_driver(&airo_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 /*

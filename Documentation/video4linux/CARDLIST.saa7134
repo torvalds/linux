@@ -56,7 +56,7 @@
  55 -> LifeView FlyDVB-T DUO                    [5168:0502,5168:0306]
  56 -> Avermedia AVerTV 307                     [1461:a70a]
  57 -> Avermedia AVerTV GO 007 FM               [1461:f31f]
- 58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0370,1421:1370]
+ 58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0351,1421:0370,1421:1370]
  59 -> Kworld/Tevion V-Stream Xpert TV PVR7134
  60 -> Typhoon DVB-T Duo Digital/Analog Cardbus [4e42:0502]
  61 -> Philips TOUGH DVB-T reference design     [1131:2004]
@@ -81,4 +81,5 @@
  80 -> ASUS Digimatrix TV                       [1043:0210]
  81 -> Philips Tiger reference design           [1131:2018]
  82 -> MSI TV@Anywhere plus                     [1462:6231]
-
+ 83 -> Terratec Cinergy 250 PCI TV              [153b:1160]
+ 84 -> LifeView FlyDVB Trio                     [5168:0319]

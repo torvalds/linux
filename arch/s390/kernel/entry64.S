@@ -213,7 +213,7 @@ sysc_nr_ok:
 	mvc	SP_ARGS(8,%r15),SP_R7(%r15)
 sysc_do_restart:
 	larl    %r10,sys_call_table
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 	tm	__TI_flags+5(%r9),(_TIF_31BIT>>16)  # running in 31 bit mode ?
 	jno	sysc_noemu
 	larl    %r10,sys_call_table_emu  # use 31 bit emulation system calls
@@ -361,7 +361,7 @@ sys_clone_glue:
         la      %r2,SP_PTREGS(%r15)    # load pt_regs
         jg      sys_clone              # branch to sys_clone
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_clone_glue: 
         la      %r2,SP_PTREGS(%r15)    # load pt_regs
         jg      sys32_clone            # branch to sys32_clone
@@ -383,7 +383,7 @@ sys_execve_glue:
         bnz     0(%r12)               # it did fail -> store result in gpr2
         b       6(%r12)               # SKIP STG 2,SP_R2(15) in
                                       # system_call/sysc_tracesys
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_execve_glue:        
         la      %r2,SP_PTREGS(%r15)   # load pt_regs
 	lgr     %r12,%r14             # save return address
@@ -398,7 +398,7 @@ sys_sigreturn_glue:
         la      %r2,SP_PTREGS(%r15)   # load pt_regs as parameter
         jg      sys_sigreturn         # branch to sys_sigreturn
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_sigreturn_glue:     
         la      %r2,SP_PTREGS(%r15)   # load pt_regs as parameter
         jg      sys32_sigreturn       # branch to sys32_sigreturn
@@ -408,7 +408,7 @@ sys_rt_sigreturn_glue:
         la      %r2,SP_PTREGS(%r15)   # load pt_regs as parameter
         jg      sys_rt_sigreturn      # branch to sys_sigreturn
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_rt_sigreturn_glue:     
         la      %r2,SP_PTREGS(%r15)   # load pt_regs as parameter
         jg      sys32_rt_sigreturn    # branch to sys32_sigreturn
@@ -429,7 +429,7 @@ sys_sigsuspend_glue:
 	la      %r14,6(%r14)          # skip store of return value
         jg      sys_sigsuspend        # branch to sys_sigsuspend
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_sigsuspend_glue:    
 	llgfr	%r4,%r4               # unsigned long			
         lgr     %r5,%r4               # move mask back
@@ -449,7 +449,7 @@ sys_rt_sigsuspend_glue:
 	la      %r14,6(%r14)          # skip store of return value
         jg      sys_rt_sigsuspend     # branch to sys_rt_sigsuspend
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_rt_sigsuspend_glue: 
 	llgfr	%r3,%r3               # size_t			
         lgr     %r4,%r3               # move sigsetsize parameter
@@ -464,7 +464,7 @@ sys_sigaltstack_glue:
         la      %r4,SP_PTREGS(%r15)   # load pt_regs as parameter
         jg      sys_sigaltstack       # branch to sys_sigreturn
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 sys32_sigaltstack_glue:
         la      %r4,SP_PTREGS(%r15)   # load pt_regs as parameter
         jg      sys32_sigaltstack_wrapper # branch to sys_sigreturn
@@ -1009,7 +1009,7 @@ sys_call_table:
 #include "syscalls.S"
 #undef SYSCALL
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 
 #define SYSCALL(esa,esame,emu)	.long emu
 	.globl  sys_call_table_emu

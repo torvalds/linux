@@ -33,19 +33,7 @@ static void spitz_charger_init(void)
 {
 	pxa_gpio_mode(SPITZ_GPIO_KEY_INT | GPIO_IN);
 	pxa_gpio_mode(SPITZ_GPIO_SYNC | GPIO_IN);
-}
-
-static void spitz_charge_led(int val)
-{
-	if (val == SHARPSL_LED_ERROR) {
-		dev_dbg(sharpsl_pm.dev, "Charge LED Error\n");
-	} else if (val == SHARPSL_LED_ON) {
-		dev_dbg(sharpsl_pm.dev, "Charge LED On\n");
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_LED_ORANGE);
-	} else {
-		dev_dbg(sharpsl_pm.dev, "Charge LED Off\n");
-		reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_LED_ORANGE);
-	}
+	sharpsl_pm_pxa_init();
 }
 
 static void spitz_measure_temp(int on)
@@ -92,7 +80,7 @@ static void spitz_discharge1(int on)
 
 static void spitz_presuspend(void)
 {
-	spitz_last_ac_status = STATUS_AC_IN();
+	spitz_last_ac_status = sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN);
 
 	/* GPIO Sleep Register */
 	PGSR0 = 0x00144018;
@@ -138,7 +126,7 @@ static void spitz_postsuspend(void)
 static int spitz_should_wakeup(unsigned int resume_on_alarm)
 {
 	int is_resume = 0;
-	int acin = STATUS_AC_IN();
+	int acin = sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN);
 
 	if (spitz_last_ac_status != acin) {
 		if (acin) {
@@ -148,8 +136,8 @@ static int spitz_should_wakeup(unsigned int resume_on_alarm)
 		} else {
 			/* charge off */
 			dev_dbg(sharpsl_pm.dev, "AC Removed\n");
-			CHARGE_LED_OFF();
-			CHARGE_OFF();
+			sharpsl_pm_led(SHARPSL_LED_OFF);
+			sharpsl_pm.machinfo->charge(0);
 			sharpsl_pm.charge_mode = CHRG_OFF;
 		}
 		spitz_last_ac_status = acin;
@@ -175,25 +163,41 @@ static unsigned long spitz_charger_wakeup(void)
 	return (~GPLR0 & GPIO_bit(SPITZ_GPIO_KEY_INT)) | (GPLR0 & GPIO_bit(SPITZ_GPIO_SYNC));
 }
 
-static int spitz_acin_status(void)
+unsigned long spitzpm_read_devdata(int type)
 {
-	return (((~GPLR(SPITZ_GPIO_AC_IN)) & GPIO_bit(SPITZ_GPIO_AC_IN)) != 0);
+	switch(type) {
+	case SHARPSL_STATUS_ACIN:
+		return (((~GPLR(SPITZ_GPIO_AC_IN)) & GPIO_bit(SPITZ_GPIO_AC_IN)) != 0);
+	case SHARPSL_STATUS_LOCK:
+		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_batlock);
+	case SHARPSL_STATUS_CHRGFULL:
+		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_batfull);
+	case SHARPSL_STATUS_FATAL:
+		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_fatal);
+	case SHARPSL_ACIN_VOLT:
+		return sharpsl_pm_pxa_read_max1111(MAX1111_ACIN_VOLT);
+	case SHARPSL_BATT_TEMP:
+		return sharpsl_pm_pxa_read_max1111(MAX1111_BATT_TEMP);
+	case SHARPSL_BATT_VOLT:
+	default:
+		return sharpsl_pm_pxa_read_max1111(MAX1111_BATT_VOLT);
+	}
 }
 
 struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.init             = spitz_charger_init,
+	.exit             = sharpsl_pm_pxa_remove,
 	.gpio_batlock     = SPITZ_GPIO_BAT_COVER,
 	.gpio_acin        = SPITZ_GPIO_AC_IN,
 	.gpio_batfull     = SPITZ_GPIO_CHRG_FULL,
 	.gpio_fatal       = SPITZ_GPIO_FATAL_BAT,
-	.status_acin      = spitz_acin_status,
 	.discharge        = spitz_discharge,
 	.discharge1       = spitz_discharge1,
 	.charge           = spitz_charge,
-	.chargeled        = spitz_charge_led,
 	.measure_temp     = spitz_measure_temp,
 	.presuspend       = spitz_presuspend,
 	.postsuspend      = spitz_postsuspend,
+	.read_devdata     = spitzpm_read_devdata,
 	.charger_wakeup   = spitz_charger_wakeup,
 	.should_wakeup    = spitz_should_wakeup,
 	.bat_levels       = 40,

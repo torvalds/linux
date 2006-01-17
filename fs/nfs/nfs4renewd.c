@@ -54,6 +54,7 @@
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"
+#include "delegation.h"
 
 #define NFSDBG_FACILITY	NFSDBG_PROC
 
@@ -61,6 +62,7 @@ void
 nfs4_renew_state(void *data)
 {
 	struct nfs4_client *clp = (struct nfs4_client *)data;
+	struct rpc_cred *cred;
 	long lease, timeout;
 	unsigned long last, now;
 
@@ -68,7 +70,7 @@ nfs4_renew_state(void *data)
 	dprintk("%s: start\n", __FUNCTION__);
 	/* Are there any active superblocks? */
 	if (list_empty(&clp->cl_superblocks))
-		goto out; 
+		goto out;
 	spin_lock(&clp->cl_lock);
 	lease = clp->cl_lease_time;
 	last = clp->cl_last_renewal;
@@ -76,9 +78,17 @@ nfs4_renew_state(void *data)
 	timeout = (2 * lease) / 3 + (long)last - (long)now;
 	/* Are we close to a lease timeout? */
 	if (time_after(now, last + lease/3)) {
+		cred = nfs4_get_renew_cred(clp);
+		if (cred == NULL) {
+			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+			spin_unlock(&clp->cl_lock);
+			nfs_expire_all_delegations(clp);
+			goto out;
+		}
 		spin_unlock(&clp->cl_lock);
 		/* Queue an asynchronous RENEW. */
-		nfs4_proc_async_renew(clp);
+		nfs4_proc_async_renew(clp, cred);
+		put_rpccred(cred);
 		timeout = (2 * lease) / 3;
 		spin_lock(&clp->cl_lock);
 	} else

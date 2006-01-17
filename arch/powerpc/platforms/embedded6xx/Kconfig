@@ -144,16 +144,6 @@ config LITE5200
 	  much but it's only been tested on this board version. I think this
 	  board is also known as IceCube.
 
-config MPC834x_SYS
-	bool "Freescale MPC834x SYS"
-	help
-	  This option enables support for the MPC 834x SYS evaluation board.
-
-	  Be aware that PCI buses can only function when SYS board is plugged
-	  into the PIB (Platform IO Board) board from Freescale which provide
-	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
-	  responsiblilty.
-
 config EV64360
 	bool "Marvell-EV64360BP"
 	help
@@ -191,14 +181,6 @@ config 8272
 	help
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
-
-config 83xx
-	bool
-	default y if MPC834x_SYS
-
-config MPC834x
-	bool
-	default y if MPC834x_SYS
 
 config CPM2
 	bool

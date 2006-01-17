@@ -58,9 +58,18 @@ struct dvb_frontend_ops {
 	int (*init)(struct dvb_frontend* fe);
 	int (*sleep)(struct dvb_frontend* fe);
 
+	/* if this is set, it overrides the default swzigzag */
+	int (*tune)(struct dvb_frontend* fe,
+		    struct dvb_frontend_parameters* params,
+		    unsigned int mode_flags,
+		    int *delay,
+		    fe_status_t *status);
+
+	/* these two are only used for the swzigzag code */
 	int (*set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
-	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
+
+	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 
 	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*read_ber)(struct dvb_frontend* fe, u32* ber);
@@ -74,8 +83,9 @@ struct dvb_frontend_ops {
 	int (*diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
 	int (*set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
 	int (*set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
-	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, int arg);
-	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, long arg);
+	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
+	int (*i2c_gate_ctrl)(struct dvb_frontend* fe, int enable);
 };
 
 #define MAX_EVENT 8

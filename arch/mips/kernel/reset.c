@@ -12,6 +12,9 @@
 #include <linux/reboot.h>
 #include <asm/reboot.h>
 
+void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
+
 /*
  * Urgs ...  Too many MIPS machines to handle this in a generic way.
  * So handle all using function pointers to machine specific
@@ -33,6 +36,9 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
+	if (pm_power_off)
+		pm_power_off();
+
 	_machine_power_off();
 }
 

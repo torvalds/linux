@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_MODULE_H
 #define _ASM_POWERPC_MODULE_H
+#ifdef __KERNEL__
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -74,4 +75,5 @@ struct exception_table_entry;
 void sort_ex_table(struct exception_table_entry *start,
 		   struct exception_table_entry *finish);
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_MODULE_H */

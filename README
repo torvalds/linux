@@ -1,4 +1,4 @@
-	Linux kernel release 2.6.xx
+	Linux kernel release 2.6.xx <http://kernel.org>
 
 These are the release notes for Linux version 2.6.  Read them carefully,
 as they tell you what this is all about, explain how to install the
@@ -6,23 +6,31 @@ kernel, and what to do if something goes wrong.
 
 WHAT IS LINUX?
 
-  Linux is a Unix clone written from scratch by Linus Torvalds with
-  assistance from a loosely-knit team of hackers across the Net.
-  It aims towards POSIX compliance. 
+  Linux is a clone of the operating system Unix, written from scratch by
+  Linus Torvalds with assistance from a loosely-knit team of hackers across
+  the Net. It aims towards POSIX and Single UNIX Specification compliance.
 
-  It has all the features you would expect in a modern fully-fledged
-  Unix, including true multitasking, virtual memory, shared libraries,
-  demand loading, shared copy-on-write executables, proper memory
-  management and TCP/IP networking. 
+  It has all the features you would expect in a modern fully-fledged Unix,
+  including true multitasking, virtual memory, shared libraries, demand
+  loading, shared copy-on-write executables, proper memory management,
+  and multistack networking including IPv4 and IPv6.
 
   It is distributed under the GNU General Public License - see the
   accompanying COPYING file for more details. 
 
 ON WHAT HARDWARE DOES IT RUN?
 
-  Linux was first developed for 386/486-based PCs.  These days it also
-  runs on ARMs, DEC Alphas, SUN Sparcs, M68000 machines (like Atari and
-  Amiga), MIPS and PowerPC, and others.
+  Although originally developed first for 32-bit x86-based PCs (386 or higher),
+  today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
+  UltraSPARC, Motorola 68000, PowerPC, PowerPC64, ARM, Hitachi SuperH,
+  IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64, AXIS CRIS,
+  and Renesas M32R architectures.
+
+  Linux is easily portable to most general-purpose 32- or 64-bit architectures
+  as long as they have a paged memory management unit (PMMU) and a port of the
+  GNU C compiler (gcc) (part of The GNU Compiler Collection, GCC). Linux has
+  also been ported to a number of architectures without a PMMU, although
+  functionality is then obviously somewhat limited.
 
 DOCUMENTATION:
 
@@ -183,11 +191,8 @@ CONFIGURING the kernel:
 
 COMPILING the kernel:
 
- - Make sure you have gcc 2.95.3 available.
-   gcc 2.91.66 (egcs-1.1.2), and gcc 2.7.2.3 are known to miscompile
-   some parts of the kernel, and are *no longer supported*.
-   Also remember to upgrade your binutils package (for as/ld/nm and company)
-   if necessary. For more information, refer to Documentation/Changes.
+ - Make sure you have at least gcc 3.2 available.
+   For more information, refer to Documentation/Changes.
 
    Please note that you can still run a.out user programs with this kernel.
 

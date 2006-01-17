@@ -175,7 +175,7 @@ that only one external action is invoked at a time.
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
 
 /* Debugging stuff */
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 #define CONFIG_IPW2100_RX_DEBUG	/* Reception debugging */
 #endif
 
@@ -208,7 +208,7 @@ MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 
 static u32 ipw2100_debug_level = IPW_DL_NONE;
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 #define IPW_DEBUG(level, message...) \
 do { \
 	if (ipw2100_debug_level & (level)) { \
@@ -219,9 +219,9 @@ do { \
 } while (0)
 #else
 #define IPW_DEBUG(level, message...) do {} while (0)
-#endif				/* CONFIG_IPW_DEBUG */
+#endif				/* CONFIG_IPW2100_DEBUG */
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 static const char *command_types[] = {
 	"undefined",
 	"unused",		/* HOST_ATTENTION */
@@ -411,7 +411,7 @@ static inline void write_nic_dword_auto_inc(struct net_device *dev, u32 val)
 	write_register(dev, IPW_REG_AUTOINCREMENT_DATA, val);
 }
 
-static inline void write_nic_memory(struct net_device *dev, u32 addr, u32 len,
+static void write_nic_memory(struct net_device *dev, u32 addr, u32 len,
 				    const u8 * buf)
 {
 	u32 aligned_addr;
@@ -449,7 +449,7 @@ static inline void write_nic_memory(struct net_device *dev, u32 addr, u32 len,
 				    *buf);
 }
 
-static inline void read_nic_memory(struct net_device *dev, u32 addr, u32 len,
+static void read_nic_memory(struct net_device *dev, u32 addr, u32 len,
 				   u8 * buf)
 {
 	u32 aligned_addr;
@@ -657,7 +657,7 @@ static void printk_buf(int level, const u8 * data, u32 len)
 
 #define MAX_RESET_BACKOFF 10
 
-static inline void schedule_reset(struct ipw2100_priv *priv)
+static void schedule_reset(struct ipw2100_priv *priv)
 {
 	unsigned long now = get_seconds();
 
@@ -1130,7 +1130,7 @@ static inline void ipw2100_hw_set_gpio(struct ipw2100_priv *priv)
 	write_register(priv->net_dev, IPW_REG_GPIO, reg);
 }
 
-static inline int rf_kill_active(struct ipw2100_priv *priv)
+static int rf_kill_active(struct ipw2100_priv *priv)
 {
 #define MAX_RF_KILL_CHECKS 5
 #define RF_KILL_CHECK_DELAY 40
@@ -2081,7 +2081,7 @@ static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
 	priv->status &= ~STATUS_SCANNING;
 }
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 #define IPW2100_HANDLER(v, f) { v, f, # v }
 struct ipw2100_status_indicator {
 	int status;
@@ -2094,7 +2094,7 @@ struct ipw2100_status_indicator {
 	int status;
 	void (*cb) (struct ipw2100_priv * priv, u32 status);
 };
-#endif				/* CONFIG_IPW_DEBUG */
+#endif				/* CONFIG_IPW2100_DEBUG */
 
 static void isr_indicate_scanning(struct ipw2100_priv *priv, u32 status)
 {
@@ -2149,7 +2149,7 @@ static void isr_status_change(struct ipw2100_priv *priv, int status)
 static void isr_rx_complete_command(struct ipw2100_priv *priv,
 				    struct ipw2100_cmd_header *cmd)
 {
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 	if (cmd->host_command_reg < ARRAY_SIZE(command_types)) {
 		IPW_DEBUG_HC("Command completed '%s (%d)'\n",
 			     command_types[cmd->host_command_reg],
@@ -2167,7 +2167,7 @@ static void isr_rx_complete_command(struct ipw2100_priv *priv,
 	wake_up_interruptible(&priv->wait_command_queue);
 }
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 static const char *frame_types[] = {
 	"COMMAND_STATUS_VAL",
 	"STATUS_CHANGE_VAL",
@@ -2177,7 +2177,7 @@ static const char *frame_types[] = {
 };
 #endif
 
-static inline int ipw2100_alloc_skb(struct ipw2100_priv *priv,
+static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 				    struct ipw2100_rx_packet *packet)
 {
 	packet->skb = dev_alloc_skb(sizeof(struct ipw2100_rx));
@@ -2201,7 +2201,7 @@ static inline int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 #define SEARCH_SNAPSHOT 1
 
 #define SNAPSHOT_ADDR(ofs) (priv->snapshot[((ofs) >> 12) & 0xff] + ((ofs) & 0xfff))
-static inline int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
+static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 {
 	int i;
 	if (priv->snapshot[0])
@@ -2221,7 +2221,7 @@ static inline int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 	return 1;
 }
 
-static inline void ipw2100_snapshot_free(struct ipw2100_priv *priv)
+static void ipw2100_snapshot_free(struct ipw2100_priv *priv)
 {
 	int i;
 	if (!priv->snapshot[0])
@@ -2231,7 +2231,7 @@ static inline void ipw2100_snapshot_free(struct ipw2100_priv *priv)
 	priv->snapshot[0] = NULL;
 }
 
-static inline u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
+static u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
 				    size_t len, int mode)
 {
 	u32 i, j;
@@ -2288,9 +2288,9 @@ static inline u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
 static u8 packet_data[IPW_RX_NIC_BUFFER_LENGTH];
 #endif
 
-static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
+static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 {
-#ifdef CONFIG_IPW_DEBUG_C3
+#ifdef CONFIG_IPW2100_DEBUG_C3
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	u32 match, reg;
 	int j;
@@ -2312,7 +2312,7 @@ static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 	}
 #endif
 
-#ifdef CONFIG_IPW_DEBUG_C3
+#ifdef CONFIG_IPW2100_DEBUG_C3
 	/* Halt the fimrware so we can get a good image */
 	write_register(priv->net_dev, IPW_REG_RESET_REG,
 		       IPW_AUX_HOST_RESET_REG_STOP_MASTER);
@@ -2346,7 +2346,7 @@ static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 	schedule_reset(priv);
 }
 
-static inline void isr_rx(struct ipw2100_priv *priv, int i,
+static void isr_rx(struct ipw2100_priv *priv, int i,
 			  struct ieee80211_rx_stats *stats)
 {
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
@@ -2425,7 +2425,7 @@ static inline void isr_rx(struct ipw2100_priv *priv, int i,
 	priv->rx_queue.drv[i].host_addr = packet->dma_addr;
 }
 
-static inline int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
+static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
 {
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	struct ipw2100_rx *u = priv->rx_buffers[i].rxp;
@@ -2481,7 +2481,7 @@ static inline int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
  * The WRITE index is cached in the variable 'priv->rx_queue.next'.
  *
  */
-static inline void __ipw2100_rx_process(struct ipw2100_priv *priv)
+static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 {
 	struct ipw2100_bd_queue *rxq = &priv->rx_queue;
 	struct ipw2100_status_queue *sq = &priv->status_queue;
@@ -2634,7 +2634,7 @@ static inline void __ipw2100_rx_process(struct ipw2100_priv *priv)
  * for use by future command and data packets.
  *
  */
-static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
+static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 {
 	struct ipw2100_bd_queue *txq = &priv->tx_queue;
 	struct ipw2100_bd *tbd;
@@ -2716,7 +2716,7 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 	list_del(element);
 	DEC_STAT(&priv->fw_pend_stat);
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 	{
 		int i = txq->oldest;
 		IPW_DEBUG_TX("TX%d V=%p P=%04X T=%04X L=%d\n", i,
@@ -2782,7 +2782,7 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 			       "something else: ids %d=%d.\n",
 			       priv->net_dev->name, txq->oldest, packet->index);
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 		if (packet->info.c_struct.cmd->host_command_reg <
 		    sizeof(command_types) / sizeof(*command_types))
 			IPW_DEBUG_TX("Command '%s (%d)' processed: %d.\n",
@@ -2975,7 +2975,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 
 		IPW_DEBUG_TX("data header tbd TX%d P=%08x L=%d\n",
 			     packet->index, tbd->host_addr, tbd->buf_length);
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 		if (packet->info.d_struct.txb->nr_frags > 1)
 			IPW_DEBUG_FRAG("fragment Tx: %d frames\n",
 				       packet->info.d_struct.txb->nr_frags);
@@ -3827,7 +3827,7 @@ static ssize_t show_stats(struct device *d, struct device_attribute *attr,
 		       priv->rx_interrupts, priv->inta_other);
 	out += sprintf(out, "firmware resets: %d\n", priv->resets);
 	out += sprintf(out, "firmware hangs: %d\n", priv->hangs);
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 	out += sprintf(out, "packet mismatch image: %s\n",
 		       priv->snapshot[0] ? "YES" : "NO");
 #endif
@@ -3982,7 +3982,7 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 
 static DEVICE_ATTR(bssinfo, S_IRUGO, show_bssinfo, NULL);
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 static ssize_t show_debug_level(struct device_driver *d, char *buf)
 {
 	return sprintf(buf, "0x%08X\n", ipw2100_debug_level);
@@ -4011,7 +4011,7 @@ static ssize_t store_debug_level(struct device_driver *d,
 
 static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO, show_debug_level,
 		   store_debug_level);
-#endif				/* CONFIG_IPW_DEBUG */
+#endif				/* CONFIG_IPW2100_DEBUG */
 
 static ssize_t show_fatal_error(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -4937,7 +4937,7 @@ static int ipw2100_set_mandatory_bssid(struct ipw2100_priv *priv, u8 * bssid,
 	};
 	int err;
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 	if (bssid != NULL)
 		IPW_DEBUG_HC("MANDATORY_BSSID: %02X:%02X:%02X:%02X:%02X:%02X\n",
 			     bssid[0], bssid[1], bssid[2], bssid[3], bssid[4],
@@ -6858,7 +6858,7 @@ static int __init ipw2100_init(void)
 
 	ret = pci_module_init(&ipw2100_pci_driver);
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
 	driver_create_file(&ipw2100_pci_driver.driver,
 			   &driver_attr_debug_level);
@@ -6873,7 +6873,7 @@ static int __init ipw2100_init(void)
 static void __exit ipw2100_exit(void)
 {
 	/* FIXME: IPG: check that we have no instances of the devices open */
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 	driver_remove_file(&ipw2100_pci_driver.driver,
 			   &driver_attr_debug_level);
 #endif
@@ -7153,7 +7153,7 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 
 	/* Set the Wireless Extension versions */
 	range->we_version_compiled = WIRELESS_EXT;
-	range->we_version_source = 16;
+	range->we_version_source = 18;
 
 //      range->retry_capa;      /* What retry options are supported */
 //      range->retry_flags;     /* How to decode max/min retry limit */
@@ -7183,6 +7183,9 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
 				IW_EVENT_CAPA_MASK(SIOCGIWAP));
 	range->event_capa[1] = IW_EVENT_CAPA_K_1;
+
+	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
+		IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
 	IPW_DEBUG_WX("GET Range\n");
 
@@ -8558,7 +8561,7 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 
 		quality = min(beacon_qual, min(tx_qual, rssi_qual));
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2100_DEBUG
 		if (beacon_qual == quality)
 			IPW_DEBUG_WX("Quality clamped by Missed Beacons\n");
 		else if (tx_qual == quality)

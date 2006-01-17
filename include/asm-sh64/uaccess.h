@@ -287,7 +287,7 @@ __sfu_res = __strncpy_from_user((unsigned long) (dest), __sfu_src, __sfu_count);
  */
 extern long __strnlen_user(const char *__s, long __n);
 
-extern __inline__ long strnlen_user(const char *s, long n)
+static inline long strnlen_user(const char *s, long n)
 {
 	if (!__addr_ok(s))
 		return 0;

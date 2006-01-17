@@ -63,13 +63,6 @@ static int i2c_bus_resume(struct device * dev)
 	return rc;
 }
 
-struct bus_type i2c_bus_type = {
-	.name =		"i2c",
-	.match =	i2c_device_match,
-	.suspend =      i2c_bus_suspend,
-	.resume =       i2c_bus_resume,
-};
-
 static int i2c_device_probe(struct device *dev)
 {
 	return -ENODEV;
@@ -79,6 +72,15 @@ static int i2c_device_remove(struct device *dev)
 {
 	return 0;
 }
+
+struct bus_type i2c_bus_type = {
+	.name =		"i2c",
+	.match =	i2c_device_match,
+	.probe =	i2c_device_probe,
+	.remove =	i2c_device_remove,
+	.suspend =      i2c_bus_suspend,
+	.resume =       i2c_bus_resume,
+};
 
 void i2c_adapter_dev_release(struct device *dev)
 {
@@ -90,8 +92,6 @@ struct device_driver i2c_adapter_driver = {
 	.owner = THIS_MODULE,
 	.name =	"i2c_adapter",
 	.bus = &i2c_bus_type,
-	.probe = i2c_device_probe,
-	.remove = i2c_device_remove,
 };
 
 static void i2c_adapter_class_dev_release(struct class_device *dev)
@@ -197,7 +197,7 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	/* inform drivers of new adapters */
 	list_for_each(item,&drivers) {
 		driver = list_entry(item, struct i2c_driver, list);
-		if (driver->flags & I2C_DF_NOTIFY)
+		if (driver->attach_adapter)
 			/* We ignore the return code; if it fails, too bad */
 			driver->attach_adapter(adap);
 	}
@@ -235,7 +235,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		if (driver->detach_adapter)
 			if ((res = driver->detach_adapter(adap))) {
 				dev_err(&adap->dev, "detach_adapter failed "
-					"for driver [%s]\n", driver->name);
+					"for driver [%s]\n",
+					driver->driver.name);
 				goto out_unlock;
 			}
 	}
@@ -245,10 +246,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	list_for_each_safe(item, _n, &adap->clients) {
 		client = list_entry(item, struct i2c_client, list);
 
-		/* detaching devices is unconditional of the set notify
-		 * flag, as _all_ clients that reside on the adapter
-		 * must be deleted, as this would cause invalid states.
-		 */
 		if ((res=client->driver->detach_client(client))) {
 			dev_err(&adap->dev, "detach_client failed for client "
 				"[%s] at address 0x%02x\n", client->name,
@@ -286,7 +283,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
  * chips.
  */
 
-int i2c_add_driver(struct i2c_driver *driver)
+int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 {
 	struct list_head   *item;
 	struct i2c_adapter *adapter;
@@ -295,21 +292,18 @@ int i2c_add_driver(struct i2c_driver *driver)
 	down(&core_lists);
 
 	/* add the driver to the list of i2c drivers in the driver core */
-	driver->driver.owner = driver->owner;
-	driver->driver.name = driver->name;
+	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
-	driver->driver.probe = i2c_device_probe;
-	driver->driver.remove = i2c_device_remove;
 
 	res = driver_register(&driver->driver);
 	if (res)
 		goto out_unlock;
 	
 	list_add_tail(&driver->list,&drivers);
-	pr_debug("i2c-core: driver [%s] registered\n", driver->name);
+	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
 	/* now look for instances of driver on our adapters */
-	if (driver->flags & I2C_DF_NOTIFY) {
+	if (driver->attach_adapter) {
 		list_for_each(item,&adapters) {
 			adapter = list_entry(item, struct i2c_adapter, list);
 			driver->attach_adapter(adapter);
@@ -320,6 +314,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 	up(&core_lists);
 	return res;
 }
+EXPORT_SYMBOL(i2c_register_driver);
 
 int i2c_del_driver(struct i2c_driver *driver)
 {
@@ -334,17 +329,14 @@ int i2c_del_driver(struct i2c_driver *driver)
 	/* Have a look at each adapter, if clients of this driver are still
 	 * attached. If so, detach them to be able to kill the driver 
 	 * afterwards.
-	 *
-	 * Removing clients does not depend on the notify flag, else
-	 * invalid operation might (will!) result, when using stale client
-	 * pointers.
 	 */
 	list_for_each(item1,&adapters) {
 		adap = list_entry(item1, struct i2c_adapter, list);
 		if (driver->detach_adapter) {
 			if ((res = driver->detach_adapter(adap))) {
 				dev_err(&adap->dev, "detach_adapter failed "
-					"for driver [%s]\n", driver->name);
+					"for driver [%s]\n",
+					driver->driver.name);
 				goto out_unlock;
 			}
 		} else {
@@ -368,7 +360,7 @@ int i2c_del_driver(struct i2c_driver *driver)
 
 	driver_unregister(&driver->driver);
 	list_del(&driver->list);
-	pr_debug("i2c-core: driver [%s] unregistered\n", driver->name);
+	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
  out_unlock:
 	up(&core_lists);
@@ -419,8 +411,7 @@ int i2c_attach_client(struct i2c_client *client)
 		}
 	}
 
-	if (client->flags & I2C_CLIENT_ALLOW_USE)
-		client->usage_count = 0;
+	client->usage_count = 0;
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.driver = &client->driver->driver;
@@ -443,8 +434,7 @@ int i2c_detach_client(struct i2c_client *client)
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
 	
-	if ((client->flags & I2C_CLIENT_ALLOW_USE)
-	 && (client->usage_count > 0)) {
+	if (client->usage_count > 0) {
 		dev_warn(&client->dev, "Client [%s] still busy, "
 			 "can't detach\n", client->name);
 		return -EBUSY;
@@ -475,10 +465,10 @@ int i2c_detach_client(struct i2c_client *client)
 static int i2c_inc_use_client(struct i2c_client *client)
 {
 
-	if (!try_module_get(client->driver->owner))
+	if (!try_module_get(client->driver->driver.owner))
 		return -ENODEV;
 	if (!try_module_get(client->adapter->owner)) {
-		module_put(client->driver->owner);
+		module_put(client->driver->driver.owner);
 		return -ENODEV;
 	}
 
@@ -487,7 +477,7 @@ static int i2c_inc_use_client(struct i2c_client *client)
 
 static void i2c_dec_use_client(struct i2c_client *client)
 {
-	module_put(client->driver->owner);
+	module_put(client->driver->driver.owner);
 	module_put(client->adapter->owner);
 }
 
@@ -499,33 +489,20 @@ int i2c_use_client(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	if (client->flags & I2C_CLIENT_ALLOW_USE) {
-		if (client->flags & I2C_CLIENT_ALLOW_MULTIPLE_USE)
-			client->usage_count++;
-		else if (client->usage_count > 0) 
-			goto busy;
-		else 
-			client->usage_count++;
-	}
+	client->usage_count++;
 
 	return 0;
- busy:
-	i2c_dec_use_client(client);
-	return -EBUSY;
 }
 
 int i2c_release_client(struct i2c_client *client)
 {
-	if(client->flags & I2C_CLIENT_ALLOW_USE) {
-		if(client->usage_count>0)
-			client->usage_count--;
-		else {
-			pr_debug("i2c-core: %s used one too many times\n",
-				__FUNCTION__);
-			return -EPERM;
-		}
+	if (!client->usage_count) {
+		pr_debug("i2c-core: %s used one too many times\n",
+			 __FUNCTION__);
+		return -EPERM;
 	}
 	
+	client->usage_count--;
 	i2c_dec_use_client(client);
 	
 	return 0;
@@ -539,14 +516,14 @@ void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 	down(&adap->clist_lock);
 	list_for_each(item,&adap->clients) {
 		client = list_entry(item, struct i2c_client, list);
-		if (!try_module_get(client->driver->owner))
+		if (!try_module_get(client->driver->driver.owner))
 			continue;
 		if (NULL != client->driver->command) {
 			up(&adap->clist_lock);
 			client->driver->command(client,cmd,arg);
 			down(&adap->clist_lock);
 		}
-		module_put(client->driver->owner);
+		module_put(client->driver->driver.owner);
        }
        up(&adap->clist_lock);
 }
@@ -1147,7 +1124,6 @@ EXPORT_SYMBOL_GPL(i2c_bus_type);
 
 EXPORT_SYMBOL(i2c_add_adapter);
 EXPORT_SYMBOL(i2c_del_adapter);
-EXPORT_SYMBOL(i2c_add_driver);
 EXPORT_SYMBOL(i2c_del_driver);
 EXPORT_SYMBOL(i2c_attach_client);
 EXPORT_SYMBOL(i2c_detach_client);

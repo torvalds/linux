@@ -382,7 +382,7 @@ static void sstfb_clear_screen(struct fb_info *info)
 static int sstfb_check_var(struct fb_var_screeninfo *var,
 		struct fb_info *info)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	int hSyncOff   = var->xres + var->right_margin + var->left_margin;
 	int vSyncOff   = var->yres + var->lower_margin + var->upper_margin;
 	int vBackPorch = var->left_margin, yDim = var->yres;
@@ -542,7 +542,7 @@ static int sstfb_check_var(struct fb_var_screeninfo *var,
  */
 static int sstfb_set_par(struct fb_info *info)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	u32 lfbmode, fbiinit1, fbiinit2, fbiinit3, fbiinit5, fbiinit6=0;
 	struct pci_dev *sst_dev = par->dev;
 	unsigned int freq;
@@ -748,13 +748,14 @@ static int sstfb_set_par(struct fb_info *info)
 static int sstfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
                            u_int transp, struct fb_info *info)
 {
+	struct sstfb_par *par = info->par;
 	u32 col;
 
 	f_dddprintk("sstfb_setcolreg\n");
 	f_dddprintk("%-2d rgbt: %#x, %#x, %#x, %#x\n",
 	            regno, red, green, blue, transp);
-	if (regno >= 16)
-		return -EINVAL;
+	if (regno > 15)
+		return 0;
 
 	red    >>= (16 - info->var.red.length);
 	green  >>= (16 - info->var.green.length);
@@ -765,15 +766,14 @@ static int sstfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	    | (blue  << info->var.blue.offset)
 	    | (transp << info->var.transp.offset);
 	
-	((u32 *)info->pseudo_palette)[regno] = col;
+	par->palette[regno] = col;
 
 	return 0;
 }
 
-static int sstfb_ioctl(struct inode *inode, struct file *file,
-                       u_int cmd, u_long arg, struct fb_info *info )
+static int sstfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	struct pci_dev *sst_dev = par->dev;
 	u32 fbiinit0, tmp, val;
 	u_long p;
@@ -830,7 +830,7 @@ static int sstfb_ioctl(struct inode *inode, struct file *file,
 #if 0
 static void sstfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	u32 stride = info->fix.line_length;
    
 	if (!IS_VOODOO2(par))
@@ -855,7 +855,7 @@ static void sstfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
  */
 static void sstfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect) 
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	u32 stride = info->fix.line_length;
 
 	if (!IS_VOODOO2(par))
@@ -925,7 +925,7 @@ static int __devinit sst_get_memsize(struct fb_info *info, __u32 *memsize)
 
 static int __devinit sst_detect_att(struct fb_info *info)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	int i, mir, dir;
 
 	for (i=0; i<3; i++) {
@@ -950,7 +950,7 @@ static int __devinit sst_detect_att(struct fb_info *info)
 
 static int __devinit sst_detect_ti(struct fb_info *info)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	int i, mir, dir;
 
 	for (i = 0; i<3; i++) {
@@ -986,7 +986,7 @@ static int __devinit sst_detect_ti(struct fb_info *info)
  */
 static int __devinit sst_detect_ics(struct fb_info *info)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	int m_clk0_1, m_clk0_7, m_clk1_b;
 	int n_clk0_1, n_clk0_7, n_clk1_b;
 	int i;
@@ -1023,7 +1023,7 @@ static int __devinit sst_detect_ics(struct fb_info *info)
 static int sst_set_pll_att_ti(struct fb_info *info, 
 		const struct pll_timing *t, const int clock)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	u8 cr0, cc;
 
 	/* enable indexed mode */
@@ -1077,7 +1077,7 @@ static int sst_set_pll_att_ti(struct fb_info *info,
 static int sst_set_pll_ics(struct fb_info *info,
 		const struct pll_timing *t, const int clock)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	u8 pll_ctrl;
 
 	sst_dac_write(DACREG_ICS_PLLRMA, DACREG_ICS_PLL_CTRL);
@@ -1114,7 +1114,7 @@ static int sst_set_pll_ics(struct fb_info *info,
 
 static void sst_set_vidmod_att_ti(struct fb_info *info, const int bpp)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	u8 cr0;
 
 	sst_dac_write(DACREG_WMA, 0); 	/* backdoor */
@@ -1149,7 +1149,7 @@ static void sst_set_vidmod_att_ti(struct fb_info *info, const int bpp)
 
 static void sst_set_vidmod_ics(struct fb_info *info, const int bpp)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 
 	switch(bpp) {
 	case 16:
@@ -1308,7 +1308,7 @@ static int __devinit sst_init(struct fb_info *info, struct sstfb_par *par)
 
 static void  __devexit sst_shutdown(struct fb_info *info)
 {
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	struct pci_dev *dev = par->dev;
 	struct pll_timing gfx_timings;
 	int Fout;
@@ -1394,12 +1394,6 @@ static int __devinit sstfb_probe(struct pci_dev *pdev,
 	struct sst_spec *spec;
 	int err;
 
-	struct all_info {
-		struct fb_info info;
-		struct sstfb_par par;
-		u32 pseudo_palette[16];
-	} *all;
-	
 	/* Enable device in PCI config. */
 	if ((err=pci_enable_device(pdev))) {
 		eprintk("cannot enable device\n");
@@ -1407,14 +1401,13 @@ static int __devinit sstfb_probe(struct pci_dev *pdev,
 	}
 
 	/* Allocate the fb and par structures.  */
-	all = kmalloc(sizeof(*all), GFP_KERNEL);
-	if (!all)
+	info = framebuffer_alloc(sizeof(struct sstfb_par), &pdev->dev);
+	if (!info)
 		return -ENOMEM;
-	memset(all, 0, sizeof(*all));
-	pci_set_drvdata(pdev, all);
+
+	pci_set_drvdata(pdev, info);
 	
-	info = &all->info;
-	par  = info->par = &all->par;
+	par  = info->par;
 	fix  = &info->fix;
 	
 	par->type = id->driver_data;
@@ -1471,7 +1464,7 @@ static int __devinit sstfb_probe(struct pci_dev *pdev,
 
 	info->flags	= FBINFO_DEFAULT;
 	info->fbops	= &sstfb_ops;
-	info->pseudo_palette = &all->pseudo_palette;
+	info->pseudo_palette = par->palette;
 
 	fix->type	= FB_TYPE_PACKED_PIXELS;
 	fix->visual	= FB_VISUAL_TRUECOLOR;
@@ -1527,7 +1520,7 @@ fail_mmio_remap:
 fail_fb_mem:
 	release_mem_region(fix->mmio_start, info->fix.mmio_len);
 fail_mmio_mem:
-	kfree(info);
+	framebuffer_release(info);
 	return -ENXIO; 	/* no voodoo detected */
 }
 
@@ -1537,7 +1530,7 @@ static void __devexit sstfb_remove(struct pci_dev *pdev)
 	struct fb_info *info;
 
 	info = pci_get_drvdata(pdev);
-	par = (struct sstfb_par *) info->par;
+	par = info->par;
 	
 	sst_shutdown(info);
 	unregister_framebuffer(info);
@@ -1545,7 +1538,7 @@ static void __devexit sstfb_remove(struct pci_dev *pdev)
 	iounmap(par->mmio_vbase);
 	release_mem_region(info->fix.smem_start, 0x400000);
 	release_mem_region(info->fix.mmio_start, info->fix.mmio_len);
-	kfree(info);
+	framebuffer_release(info);
 }
 
 
@@ -1613,7 +1606,7 @@ static int sstfb_dump_regs(struct fb_info *info)
 
 	const int pci_s = sizeof(pci_regs)/sizeof(pci_regs[0]);
 	const int sst_s = sizeof(sst_regs)/sizeof(sst_regs[0]);
-	struct sstfb_par *par = (struct sstfb_par *) info->par;
+	struct sstfb_par *par = info->par;
 	struct pci_dev *dev = par->dev;
 	u32 pci_res[pci_s];
 	u32 sst_res[sst_s];

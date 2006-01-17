@@ -18,7 +18,6 @@
 #include <asm/bootx.h>
 #include <asm/machdep.h>
 #include <asm/errno.h>
-#include <asm/pmac_feature.h>
 #include <asm/processor.h>
 #include <asm/delay.h>
 #include <asm/btext.h>
@@ -27,11 +26,9 @@ static volatile unsigned char *sccc, *sccd;
 unsigned int TXRDY, RXRDY, DLAB;
 static int xmon_expect(const char *str, unsigned int timeout);
 
-static int use_serial;
 static int use_screen;
 static int via_modem;
 static int xmon_use_sccb;
-static struct device_node *channel_node;
 
 #define TB_SPEED	25000000
 
@@ -112,96 +109,21 @@ xmon_map_scc(void)
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	volatile unsigned char *base;
 
-	if (_machine == _MACH_Pmac) {
-		struct device_node *np;
-		unsigned long addr;
-#ifdef CONFIG_BOOTX_TEXT
-		if (!use_screen && !use_serial
-		    && !machine_is_compatible("iMac")) {
-			/* see if there is a keyboard in the device tree
-			   with a parent of type "adb" */
-			for (np = find_devices("keyboard"); np; np = np->next)
-				if (np->parent && np->parent->type
-				    && strcmp(np->parent->type, "adb") == 0)
-					break;
-
-			/* needs to be hacked if xmon_printk is to be used
-			   from within find_via_pmu() */
-#ifdef CONFIG_ADB_PMU
-			if (np != NULL && boot_text_mapped && find_via_pmu())
-				use_screen = 1;
-#endif
-#ifdef CONFIG_ADB_CUDA
-			if (np != NULL && boot_text_mapped && find_via_cuda())
-				use_screen = 1;
-#endif
-		}
-		if (!use_screen && (np = find_devices("escc")) != NULL) {
-			/*
-			 * look for the device node for the serial port
-			 * we're using and see if it says it has a modem
-			 */
-			char *name = xmon_use_sccb? "ch-b": "ch-a";
-			char *slots;
-			int l;
-
-			np = np->child;
-			while (np != NULL && strcmp(np->name, name) != 0)
-				np = np->sibling;
-			if (np != NULL) {
-				/* XXX should parse this properly */
-				channel_node = np;
-				slots = get_property(np, "slot-names", &l);
-				if (slots != NULL && l >= 10
-				    && strcmp(slots+4, "Modem") == 0)
-					via_modem = 1;
-			}
-		}
-		btext_drawstring("xmon uses ");
-		if (use_screen)
-			btext_drawstring("screen and keyboard\n");
-		else {
-			if (via_modem)
-				btext_drawstring("modem on ");
-			btext_drawstring(xmon_use_sccb? "printer": "modem");
-			btext_drawstring(" port\n");
-		}
-
-#endif /* CONFIG_BOOTX_TEXT */
-
-#ifdef CHRP_ESCC
-		addr = 0xc1013020;
-#else
-		addr = 0xf3013020;
-#endif
-		TXRDY = 4;
-		RXRDY = 1;
-	
-		np = find_devices("mac-io");
-		if (np && np->n_addrs)
-			addr = np->addrs[0].address + 0x13020;
-		base = (volatile unsigned char *) ioremap(addr & PAGE_MASK, PAGE_SIZE);
-		sccc = base + (addr & ~PAGE_MASK);
-		sccd = sccc + 0x10;
-
-	}
 #ifdef CONFIG_PPC_CHRP
-	else {
-		base = (volatile unsigned char *) isa_io_base;
-		if (_machine == _MACH_chrp)
-			base = (volatile unsigned char *)
-				ioremap(chrp_find_phys_io_base(), 0x1000);
+	base = (volatile unsigned char *) isa_io_base;
+	if (_machine == _MACH_chrp)
+		base = (volatile unsigned char *)
+			ioremap(chrp_find_phys_io_base(), 0x1000);
 
-		sccc = base + 0x3fd;
-		sccd = base + 0x3f8;
-		if (xmon_use_sccb) {
-			sccc -= 0x100;
-			sccd -= 0x100;
-		}
-		TXRDY = 0x20;
-		RXRDY = 1;
-		DLAB = 0x80;
+	sccc = base + 0x3fd;
+	sccd = base + 0x3f8;
+	if (xmon_use_sccb) {
+		sccc -= 0x100;
+		sccd -= 0x100;
 	}
+	TXRDY = 0x20;
+	RXRDY = 1;
+	DLAB = 0x80;
 #endif /* CONFIG_PPC_CHRP */
 #elif defined(CONFIG_GEMINI)
 	/* should already be mapped by the kernel boot */
@@ -385,16 +307,6 @@ xmon_read_poll(void)
 	return *sccd;
 }
 
-static unsigned char scc_inittab[] = {
-    13, 0,		/* set baud rate divisor */
-    12, 1,
-    14, 1,		/* baud rate gen enable, src=rtxc */
-    11, 0x50,		/* clocks = br gen */
-    5,  0xea,		/* tx 8 bits, assert DTR & RTS */
-    4,  0x46,		/* x16 clock, 1 stop */
-    3,  0xc1,		/* rx enable, 8 bits */
-};
-
 void
 xmon_init_scc(void)
 {
@@ -406,43 +318,6 @@ xmon_init_scc(void)
 		sccd[2] = 0; eieio();		/* FCR = 0 */
 		sccd[3] = 3; eieio();		/* LCR = 8N1 */
 		sccd[1] = 0; eieio();		/* IER = 0 */
-	}
-	else if ( _machine == _MACH_Pmac )
-	{
-		int i, x;
-
-		if (channel_node != 0)
-			pmac_call_feature(
-				PMAC_FTR_SCC_ENABLE,
-				channel_node,
-				PMAC_SCC_ASYNC | PMAC_SCC_FLAG_XMON, 1);
-			printk(KERN_INFO "Serial port locked ON by debugger !\n");
-		if (via_modem && channel_node != 0) {
-			unsigned int t0;
-
-			pmac_call_feature(
-				PMAC_FTR_MODEM_ENABLE,
-				channel_node, 0, 1);
-			printk(KERN_INFO "Modem powered up by debugger !\n");
-			t0 = readtb();
-			while (readtb() - t0 < 3*TB_SPEED)
-				eieio();
-		}
-		/* use the B channel if requested */
-		if (xmon_use_sccb) {
-			sccc = (volatile unsigned char *)
-				((unsigned long)sccc & ~0x20);
-			sccd = sccc + 0x10;
-		}
-		for (i = 20000; i != 0; --i) {
-			x = *sccc; eieio();
-		}
-		*sccc = 9; eieio();		/* reset A or B side */
-		*sccc = ((unsigned long)sccc & 0x20)? 0x80: 0x40; eieio();
-		for (i = 0; i < sizeof(scc_inittab); ++i) {
-			*sccc = scc_inittab[i];
-			eieio();
-		}
 	}
 	scc_initialized = 1;
 	if (via_modem) {
@@ -632,19 +507,9 @@ xmon_fgets(char *str, int nb, void *f)
 void
 xmon_enter(void)
 {
-#ifdef CONFIG_ADB_PMU
-	if (_machine == _MACH_Pmac) {
-		pmu_suspend();
-	}
-#endif
 }
 
 void
 xmon_leave(void)
 {
-#ifdef CONFIG_ADB_PMU
-	if (_machine == _MACH_Pmac) {
-		pmu_resume();
-	}
-#endif
 }

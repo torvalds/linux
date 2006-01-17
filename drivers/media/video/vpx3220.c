@@ -621,17 +621,14 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 	    (adapter, I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == NULL) {
 		return -ENOMEM;
 	}
 
-	memset(client, 0, sizeof(struct i2c_client));
-
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &vpx3220_i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 
 	/* Check for manufacture ID and part number */
 	if (kind < 0) {
@@ -676,12 +673,11 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 			sizeof(I2C_NAME(client)));
 	}
 
-	decoder = kmalloc(sizeof(struct vpx3220), GFP_KERNEL);
+	decoder = kzalloc(sizeof(struct vpx3220), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(decoder, 0, sizeof(struct vpx3220));
 	decoder->norm = VIDEO_MODE_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
@@ -722,11 +718,11 @@ vpx3220_attach_adapter (struct i2c_adapter *adapter)
  */
 
 static struct i2c_driver vpx3220_i2c_driver = {
-	.owner = THIS_MODULE,
-	.name = "vpx3220",
+	.driver = {
+		.name = "vpx3220",
+	},
 
 	.id = I2C_DRIVERID_VPX3220,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = vpx3220_attach_adapter,
 	.detach_client = vpx3220_detach_client,

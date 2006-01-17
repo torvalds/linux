@@ -214,7 +214,7 @@ void account_ticks(struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	account_user_vtime(current);
+	account_tick_vtime(current);
 #else
 	while (ticks--)
 		update_process_times(user_mode(regs));
@@ -282,7 +282,7 @@ static inline void start_hz_timer(void)
 {
 	if (!cpu_isset(smp_processor_id(), nohz_cpu_mask))
 		return;
-	account_ticks(__KSTK_PTREGS(current));
+	account_ticks(task_pt_regs(current));
 	cpu_clear(smp_processor_id(), nohz_cpu_mask);
 }
 

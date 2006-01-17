@@ -8,6 +8,8 @@
 #ifndef _ASM_S390_SIGCONTEXT_H
 #define _ASM_S390_SIGCONTEXT_H
 
+#include <linux/compiler.h>
+
 #define __NUM_GPRS 16
 #define __NUM_FPRS 16
 #define __NUM_ACRS 16

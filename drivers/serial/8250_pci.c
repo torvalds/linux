@@ -837,8 +837,8 @@ static struct pci_serial_quirk *find_quirk(struct pci_dev *dev)
 	return quirk;
 }
 
-static _INLINE_ int
-get_pci_irq(struct pci_dev *dev, struct pciserial_board *board)
+static inline int get_pci_irq(struct pci_dev *dev,
+				struct pciserial_board *board)
 {
 	if (board->flags & FL_NOIRQ)
 		return 0;
@@ -853,14 +853,15 @@ get_pci_irq(struct pci_dev *dev, struct pciserial_board *board)
  * driver_data member.
  *
  * The makeup of these names are:
- *  pbn_bn{_bt}_n_baud
+ *  pbn_bn{_bt}_n_baud{_offsetinhex}
  *
- *  bn   = PCI BAR number
- *  bt   = Index using PCI BARs
- *  n    = number of serial ports
- *  baud = baud rate
+ *  bn		= PCI BAR number
+ *  bt		= Index using PCI BARs
+ *  n		= number of serial ports
+ *  baud	= baud rate
+ *  offsetinhex	= offset for each sequential port (in hex)
  *
- * This table is sorted by (in order): baud, bt, bn, n.
+ * This table is sorted by (in order): bn, bt, baud, offsetindex, n.
  *
  * Please note: in theory if n = 1, _bt infix should make no difference.
  * ie, pbn_b0_1_115200 is the same as pbn_b0_bt_1_115200
@@ -880,6 +881,13 @@ enum pci_board_num_t {
 	pbn_b0_2_1130000,
 
 	pbn_b0_4_1152000,
+
+	pbn_b0_2_1843200,
+	pbn_b0_4_1843200,
+
+	pbn_b0_2_1843200_200,
+	pbn_b0_4_1843200_200,
+	pbn_b0_8_1843200_200,
 
 	pbn_b0_bt_1_115200,
 	pbn_b0_bt_2_115200,
@@ -903,6 +911,8 @@ enum pci_board_num_t {
 	pbn_b1_2_921600,
 	pbn_b1_4_921600,
 	pbn_b1_8_921600,
+
+	pbn_b1_2_1250000,
 
 	pbn_b1_bt_2_921600,
 
@@ -1029,6 +1039,38 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.uart_offset	= 8,
 	},
 
+	[pbn_b0_2_1843200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 2,
+		.base_baud	= 1843200,
+		.uart_offset	= 8,
+	},
+	[pbn_b0_4_1843200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 4,
+		.base_baud	= 1843200,
+		.uart_offset	= 8,
+	},
+
+	[pbn_b0_2_1843200_200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 2,
+		.base_baud	= 1843200,
+		.uart_offset	= 0x200,
+	},
+	[pbn_b0_4_1843200_200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 4,
+		.base_baud	= 1843200,
+		.uart_offset	= 0x200,
+	},
+	[pbn_b0_8_1843200_200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 8,
+		.base_baud	= 1843200,
+		.uart_offset	= 0x200,
+	},
+
 	[pbn_b0_bt_1_115200] = {
 		.flags		= FL_BASE0|FL_BASE_BARS,
 		.num_ports	= 1,
@@ -1139,6 +1181,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.flags		= FL_BASE1,
 		.num_ports	= 8,
 		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[pbn_b1_2_1250000] = {
+		.flags		= FL_BASE1,
+		.num_ports	= 2,
+		.base_baud	= 1250000,
 		.uart_offset	= 8,
 	},
 
@@ -1801,6 +1849,66 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_SUBVENDOR_ID_CONNECT_TECH,
 		PCI_SUBDEVICE_ID_CONNECT_TECH_BH041101V1, 0, 0,
 		pbn_b1_4_921600 },
+	{	PCI_VENDOR_ID_V3, PCI_DEVICE_ID_V3_V351,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_BH2_20MHZ, 0, 0,
+		pbn_b1_2_1250000 },
+	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_TITAN_2, 0, 0,
+		pbn_b0_2_1843200 },
+	{	PCI_VENDOR_ID_OXSEMI, PCI_DEVICE_ID_OXSEMI_16PCI954,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_TITAN_4, 0, 0,
+		pbn_b0_4_1843200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C152,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_232, 0, 0,
+		pbn_b0_2_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C154,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_232, 0, 0,
+		pbn_b0_4_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C158,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_232, 0, 0,
+		pbn_b0_8_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C152,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_1_1, 0, 0,
+		pbn_b0_2_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C154,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_2, 0, 0,
+		pbn_b0_4_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C158,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_4, 0, 0,
+		pbn_b0_8_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C152,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2, 0, 0,
+		pbn_b0_2_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C154,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4, 0, 0,
+		pbn_b0_4_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C158,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8, 0, 0,
+		pbn_b0_8_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C152,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_485, 0, 0,
+		pbn_b0_2_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C154,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_485, 0, 0,
+		pbn_b0_4_1843200_200 },
+	{	PCI_VENDOR_ID_EXAR, PCI_DEVICE_ID_EXAR_XR17C158,
+		PCI_SUBVENDOR_ID_CONNECT_TECH,
+		PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_485, 0, 0,
+		pbn_b0_8_1843200_200 },
 
 	{	PCI_VENDOR_ID_SEALEVEL, PCI_DEVICE_ID_SEALEVEL_U530,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 

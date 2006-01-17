@@ -374,9 +374,6 @@ static struct usb_gadget_driver gs_gadget_driver = {
 	.disconnect =		gs_disconnect,
 	.driver = {
 		.name =		GS_SHORT_NAME,
-		/* .shutdown = ... */
-		/* .suspend = ...  */
-		/* .resume = ...   */
 	},
 };
 
@@ -890,10 +887,12 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	/* wait for write buffer to drain, or */
 	/* at most GS_CLOSE_TIMEOUT seconds */
 	if (gs_buf_data_avail(port->port_write_buf) > 0) {
+		spin_unlock_irqrestore(&port->port_lock, flags);
 		wait_cond_interruptible_timeout(port->port_write_wait,
 		port->port_dev == NULL
 		|| gs_buf_data_avail(port->port_write_buf) == 0,
 		&port->port_lock, flags, GS_CLOSE_TIMEOUT * HZ);
+		spin_lock_irqsave(&port->port_lock, flags);
 	}
 
 	/* free disconnected port on final close */
@@ -1269,6 +1268,7 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	unsigned int len;
 	struct gs_port *port;
 	int ret;
+	struct tty_struct *tty;
 
 	/* TEMPORARY -- only port 0 is supported right now */
 	port = dev->dev_port[0];
@@ -1288,7 +1288,10 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 		goto exit;
 	}
 
-	if (port->port_tty == NULL) {
+
+	tty = port->port_tty;
+
+	if (tty == NULL) {
 		printk(KERN_ERR "gs_recv_packet: port=%d, NULL tty pointer\n",
 			port->port_num);
 		ret = -EIO;
@@ -1302,20 +1305,13 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 		goto exit;
 	}
 
-	len = (unsigned int)(TTY_FLIPBUF_SIZE - port->port_tty->flip.count);
-	if (len < size)
-		size = len;
-
-	if (size > 0) {
-		memcpy(port->port_tty->flip.char_buf_ptr, packet, size);
-		port->port_tty->flip.char_buf_ptr += size;
-		port->port_tty->flip.count += size;
+	len = tty_buffer_request_room(tty, size);
+	if (len > 0) {
+		tty_insert_flip_string(tty, packet, len);
 		tty_flip_buffer_push(port->port_tty);
 		wake_up_interruptible(&port->port_tty->read_wait);
 	}
-
 	ret = 0;
-
 exit:
 	spin_unlock(&port->port_lock);
 	return ret;

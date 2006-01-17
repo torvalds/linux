@@ -41,33 +41,29 @@ MODULE_LICENSE("GPL");
 /* from 8 to 15 are events for 0xf0-0xf7 */
 
 
-/* status event types */
-typedef void (*event_encode_t)(snd_midi_event_t *dev, snd_seq_event_t *ev);
-typedef void (*event_decode_t)(snd_seq_event_t *ev, unsigned char *buf);
-
 /*
  * prototypes
  */
-static void note_event(snd_midi_event_t *dev, snd_seq_event_t *ev);
-static void one_param_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev);
-static void pitchbend_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev);
-static void two_param_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev);
-static void one_param_event(snd_midi_event_t *dev, snd_seq_event_t *ev);
-static void songpos_event(snd_midi_event_t *dev, snd_seq_event_t *ev);
-static void note_decode(snd_seq_event_t *ev, unsigned char *buf);
-static void one_param_decode(snd_seq_event_t *ev, unsigned char *buf);
-static void pitchbend_decode(snd_seq_event_t *ev, unsigned char *buf);
-static void two_param_decode(snd_seq_event_t *ev, unsigned char *buf);
-static void songpos_decode(snd_seq_event_t *ev, unsigned char *buf);
+static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void one_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void pitchbend_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void two_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void one_param_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void songpos_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void note_decode(struct snd_seq_event *ev, unsigned char *buf);
+static void one_param_decode(struct snd_seq_event *ev, unsigned char *buf);
+static void pitchbend_decode(struct snd_seq_event *ev, unsigned char *buf);
+static void two_param_decode(struct snd_seq_event *ev, unsigned char *buf);
+static void songpos_decode(struct snd_seq_event *ev, unsigned char *buf);
 
 /*
  * event list
  */
-static struct status_event_list_t {
+static struct status_event_list {
 	int event;
 	int qlen;
-	event_encode_t encode;
-	event_decode_t decode;
+	void (*encode)(struct snd_midi_event *dev, struct snd_seq_event *ev);
+	void (*decode)(struct snd_seq_event *ev, unsigned char *buf);
 } status_event[] = {
 	/* 0x80 - 0xf0 */
 	{SNDRV_SEQ_EVENT_NOTEOFF,	2, note_event, note_decode},
@@ -97,12 +93,15 @@ static struct status_event_list_t {
 	{SNDRV_SEQ_EVENT_RESET, 	0, NULL, NULL}, /* 0xff */
 };
 
-static int extra_decode_ctrl14(snd_midi_event_t *dev, unsigned char *buf, int len, snd_seq_event_t *ev);
-static int extra_decode_xrpn(snd_midi_event_t *dev, unsigned char *buf, int count, snd_seq_event_t *ev);
+static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf, int len,
+			       struct snd_seq_event *ev);
+static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf, int count,
+			     struct snd_seq_event *ev);
 
-static struct extra_event_list_t {
+static struct extra_event_list {
 	int event;
-	int (*decode)(snd_midi_event_t *dev, unsigned char *buf, int len, snd_seq_event_t *ev);
+	int (*decode)(struct snd_midi_event *dev, unsigned char *buf, int len,
+		      struct snd_seq_event *ev);
 } extra_event[] = {
 	{SNDRV_SEQ_EVENT_CONTROL14, extra_decode_ctrl14},
 	{SNDRV_SEQ_EVENT_NONREGPARAM, extra_decode_xrpn},
@@ -113,9 +112,9 @@ static struct extra_event_list_t {
  *  new/delete record
  */
 
-int snd_midi_event_new(int bufsize, snd_midi_event_t **rdev)
+int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev)
 {
-	snd_midi_event_t *dev;
+	struct snd_midi_event *dev;
 
 	*rdev = NULL;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -135,7 +134,7 @@ int snd_midi_event_new(int bufsize, snd_midi_event_t **rdev)
 	return 0;
 }
 
-void snd_midi_event_free(snd_midi_event_t *dev)
+void snd_midi_event_free(struct snd_midi_event *dev)
 {
 	if (dev != NULL) {
 		kfree(dev->buf);
@@ -146,14 +145,14 @@ void snd_midi_event_free(snd_midi_event_t *dev)
 /*
  * initialize record
  */
-static inline void reset_encode(snd_midi_event_t *dev)
+static inline void reset_encode(struct snd_midi_event *dev)
 {
 	dev->read = 0;
 	dev->qlen = 0;
 	dev->type = 0;
 }
 
-void snd_midi_event_reset_encode(snd_midi_event_t *dev)
+void snd_midi_event_reset_encode(struct snd_midi_event *dev)
 {
 	unsigned long flags;
 
@@ -162,7 +161,7 @@ void snd_midi_event_reset_encode(snd_midi_event_t *dev)
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
-void snd_midi_event_reset_decode(snd_midi_event_t *dev)
+void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 {
 	unsigned long flags;
 
@@ -172,14 +171,14 @@ void snd_midi_event_reset_decode(snd_midi_event_t *dev)
 }
 
 #if 0
-void snd_midi_event_init(snd_midi_event_t *dev)
+void snd_midi_event_init(struct snd_midi_event *dev)
 {
 	snd_midi_event_reset_encode(dev);
 	snd_midi_event_reset_decode(dev);
 }
 #endif  /*  0  */
 
-void snd_midi_event_no_status(snd_midi_event_t *dev, int on)
+void snd_midi_event_no_status(struct snd_midi_event *dev, int on)
 {
 	dev->nostat = on ? 1 : 0;
 }
@@ -188,7 +187,7 @@ void snd_midi_event_no_status(snd_midi_event_t *dev, int on)
  * resize buffer
  */
 #if 0
-int snd_midi_event_resize_buffer(snd_midi_event_t *dev, int bufsize)
+int snd_midi_event_resize_buffer(struct snd_midi_event *dev, int bufsize)
 {
 	unsigned char *new_buf, *old_buf;
 	unsigned long flags;
@@ -213,7 +212,8 @@ int snd_midi_event_resize_buffer(snd_midi_event_t *dev, int bufsize)
  *  read bytes and encode to sequencer event if finished
  *  return the size of encoded bytes
  */
-long snd_midi_event_encode(snd_midi_event_t *dev, unsigned char *buf, long count, snd_seq_event_t *ev)
+long snd_midi_event_encode(struct snd_midi_event *dev, unsigned char *buf, long count,
+			   struct snd_seq_event *ev)
 {
 	long result = 0;
 	int rc;
@@ -238,7 +238,8 @@ long snd_midi_event_encode(snd_midi_event_t *dev, unsigned char *buf, long count
  *         0 data is not finished
  *         negative for error
  */
-int snd_midi_event_encode_byte(snd_midi_event_t *dev, int c, snd_seq_event_t *ev)
+int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
+			       struct snd_seq_event *ev)
 {
 	int rc = 0;
 	unsigned long flags;
@@ -303,7 +304,7 @@ int snd_midi_event_encode_byte(snd_midi_event_t *dev, int c, snd_seq_event_t *ev
 }
 
 /* encode note event */
-static void note_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
+static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
 	ev->data.note.channel = dev->buf[0] & 0x0f;
 	ev->data.note.note = dev->buf[1];
@@ -311,21 +312,21 @@ static void note_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
 }
 
 /* encode one parameter controls */
-static void one_param_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
+static void one_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
 	ev->data.control.channel = dev->buf[0] & 0x0f;
 	ev->data.control.value = dev->buf[1];
 }
 
 /* encode pitch wheel change */
-static void pitchbend_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
+static void pitchbend_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
 	ev->data.control.channel = dev->buf[0] & 0x0f;
 	ev->data.control.value = (int)dev->buf[2] * 128 + (int)dev->buf[1] - 8192;
 }
 
 /* encode midi control change */
-static void two_param_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
+static void two_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
 	ev->data.control.channel = dev->buf[0] & 0x0f;
 	ev->data.control.param = dev->buf[1];
@@ -333,13 +334,13 @@ static void two_param_ctrl_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
 }
 
 /* encode one parameter value*/
-static void one_param_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
+static void one_param_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
 	ev->data.control.value = dev->buf[1];
 }
 
 /* encode song position */
-static void songpos_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
+static void songpos_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
 	ev->data.control.value = (int)dev->buf[2] * 128 + (int)dev->buf[1];
 }
@@ -348,7 +349,8 @@ static void songpos_event(snd_midi_event_t *dev, snd_seq_event_t *ev)
  * decode from a sequencer event to midi bytes
  * return the size of decoded midi events
  */
-long snd_midi_event_decode(snd_midi_event_t *dev, unsigned char *buf, long count, snd_seq_event_t *ev)
+long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long count,
+			   struct snd_seq_event *ev)
 {
 	unsigned int cmd, type;
 
@@ -404,20 +406,20 @@ long snd_midi_event_decode(snd_midi_event_t *dev, unsigned char *buf, long count
 
 
 /* decode note event */
-static void note_decode(snd_seq_event_t *ev, unsigned char *buf)
+static void note_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
 	buf[0] = ev->data.note.note & 0x7f;
 	buf[1] = ev->data.note.velocity & 0x7f;
 }
 
 /* decode one parameter controls */
-static void one_param_decode(snd_seq_event_t *ev, unsigned char *buf)
+static void one_param_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
 	buf[0] = ev->data.control.value & 0x7f;
 }
 
 /* decode pitch wheel change */
-static void pitchbend_decode(snd_seq_event_t *ev, unsigned char *buf)
+static void pitchbend_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
 	int value = ev->data.control.value + 8192;
 	buf[0] = value & 0x7f;
@@ -425,21 +427,22 @@ static void pitchbend_decode(snd_seq_event_t *ev, unsigned char *buf)
 }
 
 /* decode midi control change */
-static void two_param_decode(snd_seq_event_t *ev, unsigned char *buf)
+static void two_param_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
 	buf[0] = ev->data.control.param & 0x7f;
 	buf[1] = ev->data.control.value & 0x7f;
 }
 
 /* decode song position */
-static void songpos_decode(snd_seq_event_t *ev, unsigned char *buf)
+static void songpos_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
 	buf[0] = ev->data.control.value & 0x7f;
 	buf[1] = (ev->data.control.value >> 7) & 0x7f;
 }
 
 /* decode 14bit control */
-static int extra_decode_ctrl14(snd_midi_event_t *dev, unsigned char *buf, int count, snd_seq_event_t *ev)
+static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf,
+			       int count, struct snd_seq_event *ev)
 {
 	unsigned char cmd;
 	int idx = 0;
@@ -476,7 +479,8 @@ static int extra_decode_ctrl14(snd_midi_event_t *dev, unsigned char *buf, int co
 }
 
 /* decode reg/nonreg param */
-static int extra_decode_xrpn(snd_midi_event_t *dev, unsigned char *buf, int count, snd_seq_event_t *ev)
+static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
+			     int count, struct snd_seq_event *ev)
 {
 	unsigned char cmd;
 	char *cbytes;

@@ -56,7 +56,7 @@
  * lock_type is DIO_LOCKING for regular files on direct-IO-naive filesystems.
  * This determines whether we need to do the fancy locking which prevents
  * direct-IO from being able to read uninitialised disk blocks.  If its zero
- * (blockdev) this locking is not done, and if it is DIO_OWN_LOCKING i_sem is
+ * (blockdev) this locking is not done, and if it is DIO_OWN_LOCKING i_mutex is
  * not held for the entire direct write (taken briefly, initially, during a
  * direct read though, but its never held for the duration of a direct-IO).
  */
@@ -930,7 +930,7 @@ out:
 }
 
 /*
- * Releases both i_sem and i_alloc_sem
+ * Releases both i_mutex and i_alloc_sem
  */
 static ssize_t
 direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode, 
@@ -1062,11 +1062,11 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 
 	/*
 	 * All block lookups have been performed. For READ requests
-	 * we can let i_sem go now that its achieved its purpose
+	 * we can let i_mutex go now that its achieved its purpose
 	 * of protecting us from looking up uninitialized blocks.
 	 */
 	if ((rw == READ) && (dio->lock_type == DIO_LOCKING))
-		up(&dio->inode->i_sem);
+		mutex_unlock(&dio->inode->i_mutex);
 
 	/*
 	 * OK, all BIOs are submitted, so we can decrement bio_count to truly
@@ -1145,18 +1145,18 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
  * The locking rules are governed by the dio_lock_type parameter.
  *
  * DIO_NO_LOCKING (no locking, for raw block device access)
- * For writes, i_sem is not held on entry; it is never taken.
+ * For writes, i_mutex is not held on entry; it is never taken.
  *
  * DIO_LOCKING (simple locking for regular files)
- * For writes we are called under i_sem and return with i_sem held, even though
+ * For writes we are called under i_mutex and return with i_mutex held, even though
  * it is internally dropped.
- * For reads, i_sem is not held on entry, but it is taken and dropped before
+ * For reads, i_mutex is not held on entry, but it is taken and dropped before
  * returning.
  *
  * DIO_OWN_LOCKING (filesystem provides synchronisation and handling of
  *	uninitialised data, allowing parallel direct readers and writers)
- * For writes we are called without i_sem, return without it, never touch it.
- * For reads, i_sem is held on entry and will be released before returning.
+ * For writes we are called without i_mutex, return without it, never touch it.
+ * For reads, i_mutex is held on entry and will be released before returning.
  *
  * Additional i_alloc_sem locking requirements described inline below.
  */
@@ -1214,11 +1214,11 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 * For block device access DIO_NO_LOCKING is used,
 	 *	neither readers nor writers do any locking at all
 	 * For regular files using DIO_LOCKING,
-	 *	readers need to grab i_sem and i_alloc_sem
-	 *	writers need to grab i_alloc_sem only (i_sem is already held)
+	 *	readers need to grab i_mutex and i_alloc_sem
+	 *	writers need to grab i_alloc_sem only (i_mutex is already held)
 	 * For regular files using DIO_OWN_LOCKING,
 	 *	neither readers nor writers take any locks here
-	 *	(i_sem is already held and release for writers here)
+	 *	(i_mutex is already held and release for writers here)
 	 */
 	dio->lock_type = dio_lock_type;
 	if (dio_lock_type != DIO_NO_LOCKING) {
@@ -1228,7 +1228,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 			mapping = iocb->ki_filp->f_mapping;
 			if (dio_lock_type != DIO_OWN_LOCKING) {
-				down(&inode->i_sem);
+				mutex_lock(&inode->i_mutex);
 				reader_with_isem = 1;
 			}
 
@@ -1240,7 +1240,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 			}
 
 			if (dio_lock_type == DIO_OWN_LOCKING) {
-				up(&inode->i_sem);
+				mutex_unlock(&inode->i_mutex);
 				reader_with_isem = 0;
 			}
 		}
@@ -1266,7 +1266,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 out:
 	if (reader_with_isem)
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	if (rw & WRITE)
 		current->flags &= ~PF_SYNCWRITE;
 	return retval;

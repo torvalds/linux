@@ -83,10 +83,7 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 		if (!inode)
 			return ERR_PTR(-EACCES);
 	}
-	if (inode)
-		return d_splice_alias(inode, dentry);
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 struct dentry *ext2_get_parent(struct dentry *child)

@@ -47,6 +47,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/capability.h>
 #include <linux/circ_buf.h>
 #include <linux/serial.h>
 #include <linux/console.h>
@@ -214,7 +215,6 @@ static struct tty_driver *siccnormal_driver;
  * memory if large numbers of serial ports are open.
  */
 static u_char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 #define HIGH_BITS_OFFSET    ((sizeof(long)-sizeof(int))*8)
 

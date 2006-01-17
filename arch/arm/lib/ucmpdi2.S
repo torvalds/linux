@@ -10,6 +10,7 @@
  *  published by the Free Software Foundation.
  */
 
+#include <linux/config.h>
 #include <linux/linkage.h>
 
 #ifdef __ARMEB__
@@ -32,4 +33,17 @@ ENTRY(__ucmpdi2)
 	moveq	r0, #1
 	movhi	r0, #2
 	mov	pc, lr
+
+#ifdef CONFIG_AEABI
+
+ENTRY(__aeabi_ulcmp)
+
+	cmp	xh, yh
+	cmpeq	xl, yl
+	movlo	r0, #-1
+	moveq	r0, #0
+	movhi	r0, #1
+	mov	pc, lr
+
+#endif
 

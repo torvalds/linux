@@ -103,14 +103,14 @@
 #define I2O_LAN_DSC_SUSPENDED			0x11
 
 struct i2o_packet_info {
-	u32 offset : 24;
-	u32 flags  : 8;
-	u32 len    : 24;
-	u32 status : 8;
+	u32 offset:24;
+	u32 flags:8;
+	u32 len:24;
+	u32 status:8;
 };
 
 struct i2o_bucket_descriptor {
-	u32 context; 			/* FIXME: 64bit support */
+	u32 context;		/* FIXME: 64bit support */
 	struct i2o_packet_info packet_info[1];
 };
 
@@ -127,14 +127,14 @@ struct i2o_lan_local {
 	u8 unit;
 	struct i2o_device *i2o_dev;
 
-	struct fddi_statistics stats;   /* see also struct net_device_stats */
-	unsigned short (*type_trans)(struct sk_buff *, struct net_device *);
-	atomic_t buckets_out;  		/* nbr of unused buckets on DDM */
-	atomic_t tx_out;		/* outstanding TXes */
-	u8 tx_count;  			/* packets in one TX message frame */
-	u16 tx_max_out;	   		/* DDM's Tx queue len */
-	u8 sgl_max;			/* max SGLs in one message frame */
-	u32 m;				/* IOP address of the batch msg frame */
+	struct fddi_statistics stats;	/* see also struct net_device_stats */
+	unsigned short (*type_trans) (struct sk_buff *, struct net_device *);
+	atomic_t buckets_out;	/* nbr of unused buckets on DDM */
+	atomic_t tx_out;	/* outstanding TXes */
+	u8 tx_count;		/* packets in one TX message frame */
+	u16 tx_max_out;		/* DDM's Tx queue len */
+	u8 sgl_max;		/* max SGLs in one message frame */
+	u32 m;			/* IOP address of the batch msg frame */
 
 	struct work_struct i2o_batch_send_task;
 	int send_active;
@@ -144,16 +144,16 @@ struct i2o_lan_local {
 
 	spinlock_t tx_lock;
 
-	u32 max_size_mc_table;		/* max number of multicast addresses */
+	u32 max_size_mc_table;	/* max number of multicast addresses */
 
 	/* LAN OSM configurable parameters are here: */
 
-	u16 max_buckets_out;		/* max nbr of buckets to send to DDM */
-	u16 bucket_thresh;		/* send more when this many used */
+	u16 max_buckets_out;	/* max nbr of buckets to send to DDM */
+	u16 bucket_thresh;	/* send more when this many used */
 	u16 rx_copybreak;
 
-	u8  tx_batch_mode;		/* Set when using batch mode sends */
-	u32 i2o_event_mask;		/* To turn on interesting event flags */
+	u8 tx_batch_mode;	/* Set when using batch mode sends */
+	u32 i2o_event_mask;	/* To turn on interesting event flags */
 };
 
-#endif /* _I2O_LAN_H */
+#endif				/* _I2O_LAN_H */

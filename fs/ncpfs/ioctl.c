@@ -10,6 +10,7 @@
 #include <linux/config.h>
 
 #include <asm/uaccess.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -517,10 +518,11 @@ outrel:
 			if (user.object_name_len > NCP_OBJECT_NAME_MAX_LEN)
 				return -ENOMEM;
 			if (user.object_name_len) {
-				newname = ncp_kmalloc(user.object_name_len, GFP_USER);
-				if (!newname) return -ENOMEM;
+				newname = kmalloc(user.object_name_len, GFP_USER);
+				if (!newname)
+					return -ENOMEM;
 				if (copy_from_user(newname, user.object_name, user.object_name_len)) {
-					ncp_kfree_s(newname, user.object_name_len);
+					kfree(newname);
 					return -EFAULT;
 				}
 			} else {
@@ -539,8 +541,8 @@ outrel:
 			server->priv.len = 0;
 			server->priv.data = NULL;
 			/* leave critical section */
-			if (oldprivate) ncp_kfree_s(oldprivate, oldprivatelen);
-			if (oldname) ncp_kfree_s(oldname, oldnamelen);
+			kfree(oldprivate);
+			kfree(oldname);
 			return 0;
 		}
 	case NCP_IOC_GETPRIVATEDATA:
@@ -580,10 +582,11 @@ outrel:
 			if (user.len > NCP_PRIVATE_DATA_MAX_LEN)
 				return -ENOMEM;
 			if (user.len) {
-				new = ncp_kmalloc(user.len, GFP_USER);
-				if (!new) return -ENOMEM;
+				new = kmalloc(user.len, GFP_USER);
+				if (!new)
+					return -ENOMEM;
 				if (copy_from_user(new, user.data, user.len)) {
-					ncp_kfree_s(new, user.len);
+					kfree(new);
 					return -EFAULT;
 				}
 			} else {
@@ -595,7 +598,7 @@ outrel:
 			server->priv.len = user.len;
 			server->priv.data = new;
 			/* leave critical section */
-			if (old) ncp_kfree_s(old, oldlen);
+			kfree(old);
 			return 0;
 		}
 

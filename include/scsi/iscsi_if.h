@@ -168,6 +168,12 @@ typedef uint64_t iscsi_connh_t;		/* iSCSI Data-Path connection handle */
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
 #define iscsi_handle(_ptr) ((uint64_t)(unsigned long)_ptr)
+#define hostdata_session(_hostdata) (iscsi_ptr(*(unsigned long *)_hostdata))
+
+/**
+ * iscsi_hostdata - get LLD hostdata from scsi_host
+ * @_hostdata: pointer to scsi host's hostdata
+ **/
 #define iscsi_hostdata(_hostdata) ((void*)_hostdata + sizeof(unsigned long))
 
 /*

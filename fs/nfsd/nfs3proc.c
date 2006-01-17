@@ -56,13 +56,20 @@ static int
 nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					   struct nfsd3_attrstat *resp)
 {
-	int	nfserr;
+	int	err, nfserr;
 
 	dprintk("nfsd: GETATTR(3)  %s\n",
-				SVCFH_fmt(&argp->fh));
+		SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
 	nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_NOP);
+	if (nfserr)
+		RETURN_STATUS(nfserr);
+
+	err = vfs_getattr(resp->fh.fh_export->ex_mnt,
+			  resp->fh.fh_dentry, &resp->stat);
+	nfserr = nfserrno(err);
+
 	RETURN_STATUS(nfserr);
 }
 

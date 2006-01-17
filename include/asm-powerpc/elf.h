@@ -1,7 +1,10 @@
 #ifndef _ASM_POWERPC_ELF_H
 #define _ASM_POWERPC_ELF_H
 
+#ifdef __KERNEL__
 #include <linux/sched.h>	/* for task_struct */
+#endif
+
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
@@ -89,7 +92,6 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include <asm/ptrace.h>
 
 #define ELF_NGREG	48	/* includes nip, msr, lr, etc. */
 #define ELF_NFPREG	33	/* includes fpscr */
@@ -219,20 +221,18 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
    instruction set this cpu supports.  This could be done in userspace,
    but it's not easy, and we've already done it here.  */
 # define ELF_HWCAP	(cur_cpu_spec->cpu_user_features)
+
+/* This yields a string that ld.so will use to load implementation
+   specific libraries for optimization.  This is more specific in
+   intent than poking at uname or /proc/cpuinfo.  */
+
+#define ELF_PLATFORM	(cur_cpu_spec->platform)
+
 #ifdef __powerpc64__
 # define ELF_PLAT_INIT(_r, load_addr)	do {	\
 	_r->gpr[2] = load_addr; 		\
 } while (0)
 #endif /* __powerpc64__ */
-
-/* This yields a string that ld.so will use to load implementation
-   specific libraries for optimization.  This is more specific in
-   intent than poking at uname or /proc/cpuinfo.
-
-   For the moment, we have only optimizations for the Intel generations,
-   but that could change... */
-
-#define ELF_PLATFORM	(NULL)
 
 #ifdef __KERNEL__
 

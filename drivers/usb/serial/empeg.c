@@ -105,11 +105,11 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver empeg_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"empeg",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver empeg_device = {
@@ -344,7 +344,6 @@ static void empeg_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
-	int i;
 	int result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
@@ -359,19 +358,8 @@ static void empeg_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	tty = port->tty;
 
 	if (urb->actual_length) {
-		for (i = 0; i < urb->actual_length ; ++i) {
-			/* gb - 2000/11/13
-			 * If we insert too many characters we'll overflow the buffer.
-			 * This means we'll lose bytes - Decidedly bad.
-			 */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-				}
-			tty_insert_flip_char(tty, data[i], 0);
-		}
-		/* gb - 2000/11/13
-		 * Goes straight through instead of scheduling - if tty->low_latency is set.
-		 */
+		tty_buffer_request_room(tty, urb->actual_length);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 		bytes_in += urb->actual_length;
 	}

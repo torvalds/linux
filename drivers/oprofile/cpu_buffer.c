@@ -52,7 +52,8 @@ int alloc_cpu_buffers(void)
 	for_each_online_cpu(i) {
 		struct oprofile_cpu_buffer * b = &cpu_buffer[i];
  
-		b->buffer = vmalloc(sizeof(struct op_sample) * buffer_size);
+		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
+			cpu_to_node(i));
 		if (!b->buffer)
 			goto fail;
  

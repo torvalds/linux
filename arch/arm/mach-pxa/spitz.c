@@ -36,6 +36,7 @@
 #include <asm/arch/irq.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/ohci.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/akita.h>
@@ -126,10 +127,12 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 		        cpr &= ~0x0002;
 		if (device == SPITZ_PWR_SD)
 		        cpr &= ~0x0004;
-	        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
 		if (!(cpr & 0x0002) && !(cpr & 0x0004)) {
+			write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, 0x0000);
 		        mdelay(1);
 		        reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		} else {
+		        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
 		}
 	}
 }
@@ -293,14 +296,13 @@ static int spitz_mci_init(struct device *dev, irqreturn_t (*spitz_detect_int)(in
 
 	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int, SA_INTERRUPT,
-			     "MMC card detect", data);
+	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
+			  SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "spitz_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
 		return -1;
 	}
-
-	set_irq_type(SPITZ_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
 
 	return 0;
 }
@@ -331,6 +333,35 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.get_ro		= spitz_mci_get_ro,
 	.setpower 	= spitz_mci_setpower,
 	.exit		= spitz_mci_exit,
+};
+
+
+/*
+ * USB Host (OHCI)
+ */
+static int spitz_ohci_init(struct device *dev)
+{
+	/* Only Port 2 is connected */
+	pxa_gpio_mode(SPITZ_GPIO_USB_CONNECT | GPIO_IN);
+	pxa_gpio_mode(SPITZ_GPIO_USB_HOST | GPIO_OUT);
+	pxa_gpio_mode(SPITZ_GPIO_USB_DEVICE | GPIO_IN);
+
+	/* Setup USB Port 2 Output Control Register */
+	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
+
+	GPSR(SPITZ_GPIO_USB_HOST) = GPIO_bit(SPITZ_GPIO_USB_HOST);
+
+	UHCHR = (UHCHR) &
+		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
+
+	UHCRHDA |= UHCRHDA_NOCP;
+
+	return 0;
+}
+
+static struct pxaohci_platform_data spitz_ohci_platform_data = {
+	.port_mode	= PMM_NPS_MODE,
+	.init		= spitz_ohci_init,
 };
 
 
@@ -411,6 +442,7 @@ static void __init common_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
+	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
 	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
@@ -465,7 +497,6 @@ static void __init fixup_spitz(struct machine_desc *desc,
 
 #ifdef CONFIG_MACH_SPITZ
 MACHINE_START(SPITZ, "SHARP Spitz")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_spitz,
@@ -478,7 +509,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_BORZOI
 MACHINE_START(BORZOI, "SHARP Borzoi")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_spitz,
@@ -491,7 +521,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_AKITA
 MACHINE_START(AKITA, "SHARP Akita")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_spitz,

@@ -113,9 +113,7 @@ system_call_common:
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 #endif
 	clrrdi	r11,r1,THREAD_SHIFT
-	li	r12,0
 	ld	r10,TI_FLAGS(r11)
-	stb	r12,TI_SC_NOERR(r11)
 	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
 	bne-	syscall_dotrace
 syscall_dotrace_cont:
@@ -144,24 +142,12 @@ system_call:			/* label this so stack traces look sane */
 	bctrl			/* Call handler */
 
 syscall_exit:
-#ifdef SHOW_SYSCALLS
-	std	r3,GPR3(r1)
-	bl	.do_show_syscall_exit
-	ld	r3,GPR3(r1)
-#endif
 	std	r3,RESULT(r1)
-	ld	r5,_CCR(r1)
-	li	r10,-_LAST_ERRNO
-	cmpld	r3,r10
+#ifdef SHOW_SYSCALLS
+	bl	.do_show_syscall_exit
+	ld	r3,RESULT(r1)
+#endif
 	clrrdi	r12,r1,THREAD_SHIFT
-	bge-	syscall_error
-syscall_error_cont:
-
-	/* check for syscall tracing or audit */
-	ld	r9,TI_FLAGS(r12)
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
-	bne-	syscall_exit_trace
-syscall_exit_trace_cont:
 
 	/* disable interrupts so current_thread_info()->flags can't change,
 	   and so that we don't get interrupted after loading SRR0/1. */
@@ -173,8 +159,13 @@ syscall_exit_trace_cont:
 	rotldi	r10,r10,16
 	mtmsrd	r10,1
 	ld	r9,TI_FLAGS(r12)
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SIGPENDING|_TIF_NEED_RESCHED)
+	li	r11,-_LAST_ERRNO
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_RESTOREALL|_TIF_SAVE_NVGPRS|_TIF_NOERROR)
 	bne-	syscall_exit_work
+	cmpld	r3,r11
+	ld	r5,_CCR(r1)
+	bge-	syscall_error
+syscall_error_cont:
 	ld	r7,_NIP(r1)
 	stdcx.	r0,0,r1			/* to clear the reservation */
 	andi.	r6,r8,MSR_PR
@@ -193,21 +184,12 @@ syscall_exit_trace_cont:
 	rfid
 	b	.	/* prevent speculative execution */
 
-syscall_enosys:
-	li	r3,-ENOSYS
-	std	r3,RESULT(r1)
-	clrrdi	r12,r1,THREAD_SHIFT
-	ld	r5,_CCR(r1)
-
-syscall_error:
-	lbz	r11,TI_SC_NOERR(r12)
-	cmpwi	0,r11,0
-	bne-	syscall_error_cont
-	neg	r3,r3
+syscall_error:	
 	oris	r5,r5,0x1000	/* Set SO bit in CR */
+	neg	r3,r3
 	std	r5,_CCR(r1)
 	b	syscall_error_cont
-        
+	
 /* Traced system call support */
 syscall_dotrace:
 	bl	.save_nvgprs
@@ -225,21 +207,69 @@ syscall_dotrace:
 	ld	r10,TI_FLAGS(r10)
 	b	syscall_dotrace_cont
 
-syscall_exit_trace:
-	std	r3,GPR3(r1)
-	bl	.save_nvgprs
+syscall_enosys:
+	li	r3,-ENOSYS
+	b	syscall_exit
+	
+syscall_exit_work:
+	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
+	 If TIF_NOERROR is set, just save r3 as it is. */
+
+	andi.	r0,r9,_TIF_RESTOREALL
+	bne-	2f
+	cmpld	r3,r11		/* r10 is -LAST_ERRNO */
+	blt+	1f
+	andi.	r0,r9,_TIF_NOERROR
+	bne-	1f
+	ld	r5,_CCR(r1)
+	neg	r3,r3
+	oris	r5,r5,0x1000	/* Set SO bit in CR */
+	std	r5,_CCR(r1)
+1:	std	r3,GPR3(r1)
+2:	andi.	r0,r9,(_TIF_PERSYSCALL_MASK)
+	beq	4f
+
+	/* Clear per-syscall TIF flags if any are set, but _leave_
+	_TIF_SAVE_NVGPRS set in r9 since we haven't dealt with that
+	yet.  */
+
+	li	r11,_TIF_PERSYSCALL_MASK
+	addi	r12,r12,TI_FLAGS
+3:	ldarx	r10,0,r12
+	andc	r10,r10,r11
+	stdcx.	r10,0,r12
+	bne-	3b
+	subi	r12,r12,TI_FLAGS
+	
+4:	bl	.save_nvgprs
+	/* Anything else left to do? */
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_SAVE_NVGPRS)
+	beq	.ret_from_except_lite
+
+	/* Re-enable interrupts */
+	mfmsr	r10
+	ori	r10,r10,MSR_EE
+	mtmsrd	r10,1
+
+	andi.	r0,r9,_TIF_SAVE_NVGPRS
+	bne	save_user_nvgprs
+
+	/* If tracing, re-enable interrupts and do it */
+save_user_nvgprs_cont:	
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
+	beq	5f
+	
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_syscall_trace_leave
 	REST_NVGPRS(r1)
-	ld	r3,GPR3(r1)
-	ld	r5,_CCR(r1)
 	clrrdi	r12,r1,THREAD_SHIFT
-	b	syscall_exit_trace_cont
 
-/* Stuff to do on exit from a system call. */
-syscall_exit_work:
-	std	r3,GPR3(r1)
-	std	r5,_CCR(r1)
+	/* Disable interrupts again and handle other work if any */
+5:	mfmsr	r10
+	rldicl	r10,r10,48,1
+	rotldi	r10,r10,16
+	mtmsrd	r10,1
+
 	b	.ret_from_except_lite
 
 /* Save non-volatile GPRs, if not already saved. */
@@ -252,6 +282,52 @@ _GLOBAL(save_nvgprs)
 	std	r0,_TRAP(r1)
 	blr
 
+
+save_user_nvgprs:
+	ld	r10,TI_SIGFRAME(r12)
+	andi.	r0,r9,_TIF_32BIT
+	beq-	save_user_nvgprs_64
+
+	/* 32-bit save to userspace */
+
+.macro savewords start, end
+  1:	stw \start,4*(\start)(r10)
+	.section __ex_table,"a"
+	.align	3
+	.llong	1b,save_user_nvgprs_fault
+	.previous
+	.if \end - \start
+	savewords "(\start+1)",\end
+	.endif
+.endm	
+	savewords 14,31
+	b	save_user_nvgprs_cont
+
+save_user_nvgprs_64:
+	/* 64-bit save to userspace */
+
+.macro savelongs start, end
+  1:	std \start,8*(\start)(r10)
+	.section __ex_table,"a"
+	.align	3
+	.llong	1b,save_user_nvgprs_fault
+	.previous
+	.if \end - \start
+	savelongs "(\start+1)",\end
+	.endif
+.endm	
+	savelongs 14,31
+	b	save_user_nvgprs_cont
+
+save_user_nvgprs_fault:
+	li	r3,11		/* SIGSEGV */
+	ld	r4,TI_TASK(r12)
+	bl	.force_sigsegv
+
+	clrrdi	r12,r1,THREAD_SHIFT
+	ld	r9,TI_FLAGS(r12)
+	b	save_user_nvgprs_cont
+	
 /*
  * The sigsuspend and rt_sigsuspend system calls can call do_signal
  * and thus put the process into the stopped state where we might
@@ -260,35 +336,6 @@ _GLOBAL(save_nvgprs)
  * the C code.  Similarly, fork, vfork and clone need the full
  * register state on the stack so that it can be copied to the child.
  */
-_GLOBAL(ppc32_sigsuspend)
-	bl	.save_nvgprs
-	bl	.compat_sys_sigsuspend
-	b	70f
-
-_GLOBAL(ppc64_rt_sigsuspend)
-	bl	.save_nvgprs
-	bl	.sys_rt_sigsuspend
-	b	70f
-
-_GLOBAL(ppc32_rt_sigsuspend)
-	bl	.save_nvgprs
-	bl	.compat_sys_rt_sigsuspend
-70:	cmpdi	0,r3,0
-	/* If it returned an error, we need to return via syscall_exit to set
-	   the SO bit in cr0 and potentially stop for ptrace. */
-	bne	syscall_exit
-	/* If sigsuspend() returns zero, we are going into a signal handler. We
-	   may need to call audit_syscall_exit() to mark the exit from sigsuspend() */
-#ifdef CONFIG_AUDITSYSCALL
-	ld	r3,PACACURRENT(r13)
-	ld	r4,AUDITCONTEXT(r3)
-	cmpdi	0,r4,0
-	beq	.ret_from_except	/* No audit_context: Leave immediately. */
-	li	r4, 2			/* AUDITSC_FAILURE */
-	li	r5,-4			/* It's always -EINTR */
-	bl	.audit_syscall_exit
-#endif
-	b	.ret_from_except
 
 _GLOBAL(ppc_fork)
 	bl	.save_nvgprs
@@ -304,37 +351,6 @@ _GLOBAL(ppc_clone)
 	bl	.save_nvgprs
 	bl	.sys_clone
 	b	syscall_exit
-
-_GLOBAL(ppc32_swapcontext)
-	bl	.save_nvgprs
-	bl	.compat_sys_swapcontext
-	b	80f
-	
-_GLOBAL(ppc64_swapcontext)
-	bl	.save_nvgprs
-	bl	.sys_swapcontext
-	b	80f
-
-_GLOBAL(ppc32_sigreturn)
-	bl	.compat_sys_sigreturn
-	b	80f
-
-_GLOBAL(ppc32_rt_sigreturn)
-	bl	.compat_sys_rt_sigreturn
-	b	80f
-
-_GLOBAL(ppc64_rt_sigreturn)
-	bl	.sys_rt_sigreturn
-
-80:	cmpdi	0,r3,0
-	blt	syscall_exit
-	clrrdi	r4,r1,THREAD_SHIFT
-	ld	r4,TI_FLAGS(r4)
-	andi.	r4,r4,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
-	beq+	81f
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_syscall_trace_leave
-81:	b	.ret_from_except
 
 _GLOBAL(ret_from_fork)
 	bl	.schedule_tail
@@ -495,7 +511,8 @@ restore:
 	cmpdi	0,r5,0
 	beq	4f
 	/* Check for pending interrupts (iSeries) */
-	ld	r3,PACALPPACA+LPPACAANYINT(r13)
+	ld	r3,PACALPPACAPTR(r13)
+	ld	r3,LPPACAANYINT(r3)
 	cmpdi	r3,0
 	beq+	4f			/* skip do_IRQ if no interrupts */
 
@@ -673,9 +690,8 @@ _GLOBAL(enter_rtas)
         std	r6,PACASAVEDMSR(r13)
 
 	/* Setup our real return addr */	
-	SET_REG_TO_LABEL(r4,.rtas_return_loc)
-	SET_REG_TO_CONST(r9,KERNELBASE)
-	sub	r4,r4,r9
+	LOAD_REG_ADDR(r4,.rtas_return_loc)
+	clrldi	r4,r4,2			/* convert to realmode address */
        	mtlr	r4
 
 	li	r0,0
@@ -690,7 +706,7 @@ _GLOBAL(enter_rtas)
 	sync				/* disable interrupts so SRR0/1 */
 	mtmsrd	r0			/* don't get trashed */
 
-	SET_REG_TO_LABEL(r4,rtas)
+	LOAD_REG_ADDR(r4, rtas)
 	ld	r5,RTASENTRY(r4)	/* get the rtas->entry value */
 	ld	r4,RTASBASE(r4)		/* get the rtas->base value */
 	
@@ -702,8 +718,7 @@ _GLOBAL(enter_rtas)
 _STATIC(rtas_return_loc)
 	/* relocation is off at this point */
 	mfspr	r4,SPRN_SPRG3	        /* Get PACA */
-	SET_REG_TO_CONST(r5, KERNELBASE)
-        sub     r4,r4,r5                /* RELOC the PACA base pointer */
+	clrldi	r4,r4,2			/* convert to realmode address */
 
 	mfmsr   r6
 	li	r0,MSR_RI
@@ -712,7 +727,7 @@ _STATIC(rtas_return_loc)
 	mtmsrd  r6
         
         ld	r1,PACAR1(r4)           /* Restore our SP */
-	LOADADDR(r3,.rtas_restore_regs)
+	LOAD_REG_IMMEDIATE(r3,.rtas_restore_regs)
         ld	r4,PACASAVEDMSR(r4)     /* Restore our MSR */
 
 	mtspr	SPRN_SRR0,r3

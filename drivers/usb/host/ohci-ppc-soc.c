@@ -15,6 +15,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/signal.h>
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */

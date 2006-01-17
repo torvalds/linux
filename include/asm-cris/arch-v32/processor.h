@@ -36,7 +36,7 @@ struct thread_struct {
 #define KSTK_EIP(tsk)		\
 ({				\
 	unsigned long eip = 0;	\
-	unsigned long regs = (unsigned long)user_regs(tsk); \
+	unsigned long regs = (unsigned long)task_pt_regs(tsk); \
 	if (regs > PAGE_SIZE && virt_addr_valid(regs))	    \
 		eip = ((struct pt_regs *)regs)->erp;	    \
 	eip; \

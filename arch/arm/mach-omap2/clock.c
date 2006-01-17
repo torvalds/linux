@@ -22,10 +22,10 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 
-#include <asm/hardware/clock.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sram.h>
 #include <asm/arch/prcm.h>

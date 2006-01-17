@@ -60,15 +60,12 @@
 #define RX    FALSE
 
 
-typedef struct FREE_LIST FREE_LIST ;
-struct FREE_LIST   {
-                       FREE_LIST_ptr next ;
-                       FREE_LIST_ptr prev ;
-                   } ;
+typedef struct FREE_LIST FREE_LIST;
+struct FREE_LIST {
+	FREE_LIST_ptr next;
+	FREE_LIST_ptr prev;
+};
 
 
 #endif
 /*********** end of file ***********/
-
-
-

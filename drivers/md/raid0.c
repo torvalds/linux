@@ -113,20 +113,15 @@ static int create_strip_zones (mddev_t *mddev)
 	}
 	printk("raid0: FINAL %d zones\n", conf->nr_strip_zones);
 
-	conf->strip_zone = kmalloc(sizeof(struct strip_zone)*
+	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
 				conf->nr_strip_zones, GFP_KERNEL);
 	if (!conf->strip_zone)
 		return 1;
-	conf->devlist = kmalloc(sizeof(mdk_rdev_t*)*
+	conf->devlist = kzalloc(sizeof(mdk_rdev_t*)*
 				conf->nr_strip_zones*mddev->raid_disks,
 				GFP_KERNEL);
 	if (!conf->devlist)
 		return 1;
-
-	memset(conf->strip_zone, 0,sizeof(struct strip_zone)*
-				   conf->nr_strip_zones);
-	memset(conf->devlist, 0,
-	       sizeof(mdk_rdev_t*) * conf->nr_strip_zones * mddev->raid_disks);
 
 	/* The first zone must contain all devices, so here we check that
 	 * there is a proper alignment of slots to devices and find them all
@@ -280,7 +275,11 @@ static int raid0_run (mddev_t *mddev)
 	mdk_rdev_t *rdev;
 	struct list_head *tmp;
 
-	printk("%s: setting max_sectors to %d, segment boundary to %d\n",
+	if (mddev->chunk_size == 0) {
+		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
+		return -EINVAL;
+	}
+	printk(KERN_INFO "%s: setting max_sectors to %d, segment boundary to %d\n",
 	       mdname(mddev),
 	       mddev->chunk_size >> 9,
 	       (mddev->chunk_size>>1)-1);
@@ -307,9 +306,6 @@ static int raid0_run (mddev_t *mddev)
 	printk("raid0 : conf->hash_spacing is %llu blocks.\n",
 		(unsigned long long)conf->hash_spacing);
 	{
-#if __GNUC__ < 3
-		volatile
-#endif
 		sector_t s = mddev->array_size;
 		sector_t space = conf->hash_spacing;
 		int round;
@@ -361,7 +357,7 @@ static int raid0_run (mddev_t *mddev)
 	 * chunksize should be used in that case.
 	 */
 	{
-		int stripe = mddev->raid_disks * mddev->chunk_size / PAGE_CACHE_SIZE;
+		int stripe = mddev->raid_disks * mddev->chunk_size / PAGE_SIZE;
 		if (mddev->queue->backing_dev_info.ra_pages < 2* stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;
 	}
@@ -440,9 +436,6 @@ static int raid0_make_request (request_queue_t *q, struct bio *bio)
  
 
 	{
-#if __GNUC__ < 3
-		volatile
-#endif
 		sector_t x = block >> conf->preshift;
 		sector_div(x, (u32)conf->hash_spacing);
 		zone = conf->hash_table[x];
@@ -512,9 +505,10 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 	return;
 }
 
-static mdk_personality_t raid0_personality=
+static struct mdk_personality raid0_personality=
 {
 	.name		= "raid0",
+	.level		= 0,
 	.owner		= THIS_MODULE,
 	.make_request	= raid0_make_request,
 	.run		= raid0_run,
@@ -524,15 +518,17 @@ static mdk_personality_t raid0_personality=
 
 static int __init raid0_init (void)
 {
-	return register_md_personality (RAID0, &raid0_personality);
+	return register_md_personality (&raid0_personality);
 }
 
 static void raid0_exit (void)
 {
-	unregister_md_personality (RAID0);
+	unregister_md_personality (&raid0_personality);
 }
 
 module_init(raid0_init);
 module_exit(raid0_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-2"); /* RAID0 */
+MODULE_ALIAS("md-raid0");
+MODULE_ALIAS("md-level-0");

@@ -4594,14 +4594,12 @@ wavelan_close(struct net_device *	dev)
  * configure the card at this point -- we wait until we receive a
  * card insertion event.
  */
-static dev_link_t *
-wavelan_attach(void)
+static int
+wavelan_attach(struct pcmcia_device *p_dev)
 {
-  client_reg_t	client_reg;	/* Register with cardmgr */
   dev_link_t *	link;		/* Info for cardmgr */
   struct net_device *	dev;		/* Interface generic data */
   net_local *	lp;		/* Interface specific data */
-  int		ret;
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "-> wavelan_attach()\n");
@@ -4609,7 +4607,7 @@ wavelan_attach(void)
 
   /* Initialize the dev_link_t structure */
   link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-  if (!link) return NULL;
+  if (!link) return -ENOMEM;
 
   /* The io structure describes IO port mapping */
   link->io.NumPorts1 = 8;
@@ -4627,14 +4625,13 @@ wavelan_attach(void)
   link->conf.IntType = INT_MEMORY_AND_IO;
 
   /* Chain drivers */
-  link->next = dev_list;
-  dev_list = link;
+  link->next = NULL;
 
   /* Allocate the generic data structure */
   dev = alloc_etherdev(sizeof(net_local));
   if (!dev) {
       kfree(link);
-      return NULL;
+      return -ENOMEM;
   }
   link->priv = link->irq.Instance = dev;
 
@@ -4679,28 +4676,21 @@ wavelan_attach(void)
   /* Other specific data */
   dev->mtu = WAVELAN_MTU;
 
-  /* Register with Card Services */
-  client_reg.dev_info = &dev_info;
-  client_reg.Version = 0x0210;
-  client_reg.event_callback_args.client_data = link;
+  link->handle = p_dev;
+  p_dev->instance = link;
 
-#ifdef DEBUG_CONFIG_INFO
-  printk(KERN_DEBUG "wavelan_attach(): almost done, calling pcmcia_register_client\n");
-#endif
-
-  ret = pcmcia_register_client(&link->handle, &client_reg);
-  if(ret != 0)
-    {
-      cs_error(link->handle, RegisterClient, ret);
-      wavelan_detach(link);
-      return NULL;
-    }
+  link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+  if(wv_pcmcia_config(link) &&
+     wv_hw_config(dev))
+	  wv_init_info(dev);
+  else
+	  dev->irq = 0;
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "<- wavelan_attach()\n");
 #endif
 
-  return link;
+  return 0;
 }
 
 /*------------------------------------------------------------------*/
@@ -4711,8 +4701,10 @@ wavelan_attach(void)
  * is released.
  */
 static void
-wavelan_detach(dev_link_t *	link)
+wavelan_detach(struct pcmcia_device *p_dev)
 {
+   dev_link_t *link = dev_to_instance(p_dev);
+
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "-> wavelan_detach(0x%p)\n", link);
 #endif
@@ -4727,31 +4719,6 @@ wavelan_detach(dev_link_t *	link)
     {
       /* Some others haven't done their job : give them another chance */
       wv_pcmcia_release(link);
-    }
-
-  /* Break the link with Card Services */
-  if(link->handle)
-    pcmcia_deregister_client(link->handle);
-    
-  /* Remove the interface data from the linked list */
-  if(dev_list == link)
-    dev_list = link->next;
-  else
-    {
-      dev_link_t *	prev = dev_list;
-
-      while((prev != (dev_link_t *) NULL) && (prev->next != link))
-	prev = prev->next;
-
-      if(prev == (dev_link_t *) NULL)
-	{
-#ifdef DEBUG_CONFIG_ERRORS
-	  printk(KERN_WARNING "wavelan_detach : Attempting to remove a nonexistent device.\n");
-#endif
-	  return;
-	}
-
-      prev->next = link->next;
     }
 
   /* Free pieces */
@@ -4775,65 +4742,11 @@ wavelan_detach(dev_link_t *	link)
 #endif
 }
 
-/*------------------------------------------------------------------*/
-/*
- * The card status event handler. Mostly, this schedules other stuff
- * to run after an event is received. A CARD_REMOVAL event also sets
- * some flags to discourage the net drivers from trying to talk to the
- * card any more.
- */
-static int
-wavelan_event(event_t		event,		/* The event received */
-	      int		priority,
-	      event_callback_args_t *	args)
+static int wavelan_suspend(struct pcmcia_device *p_dev)
 {
-  dev_link_t *	link = (dev_link_t *) args->client_data;
-  struct net_device *	dev = (struct net_device *) link->priv;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *	dev = (struct net_device *) link->priv;
 
-#ifdef DEBUG_CALLBACK_TRACE
-  printk(KERN_DEBUG "->wavelan_event(): %s\n",
-	 ((event == CS_EVENT_REGISTRATION_COMPLETE)?"registration complete" :
-	  ((event == CS_EVENT_CARD_REMOVAL) ? "card removal" :
-	   ((event == CS_EVENT_CARD_INSERTION) ? "card insertion" :
-	    ((event == CS_EVENT_PM_SUSPEND) ? "pm suspend" :
-	     ((event == CS_EVENT_RESET_PHYSICAL) ? "physical reset" :
-	      ((event == CS_EVENT_PM_RESUME) ? "pm resume" :
-	       ((event == CS_EVENT_CARD_RESET) ? "card reset" :
-		"unknown"))))))));
-#endif
-
-    switch(event)
-      {
-      case CS_EVENT_REGISTRATION_COMPLETE:
-#ifdef DEBUG_CONFIG_INFO
-	printk(KERN_DEBUG "wavelan_cs: registration complete\n");
-#endif
-	break;
-
-      case CS_EVENT_CARD_REMOVAL:
-	/* Oups ! The card is no more there */
-	link->state &= ~DEV_PRESENT;
-	if(link->state & DEV_CONFIG)
-	  {
-	    /* Accept no more transmissions */
-	    netif_device_detach(dev);
-
-	    /* Release the card */
-	    wv_pcmcia_release(link);
-	  }
-	break;
-
-      case CS_EVENT_CARD_INSERTION:
-	/* Reset and configure the card */
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	if(wv_pcmcia_config(link) &&
-	   wv_hw_config(dev))
-	  wv_init_info(dev);
-	else
-	  dev->irq = 0;
-	break;
-
-      case CS_EVENT_PM_SUSPEND:
 	/* NB: wavelan_close will be called, but too late, so we are
 	 * obliged to close nicely the wavelan here. David, could you
 	 * close the device before suspending them ? And, by the way,
@@ -4848,37 +4761,36 @@ wavelan_event(event_t		event,		/* The event received */
 
 	/* The card is now suspended */
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-      case CS_EVENT_RESET_PHYSICAL:
+
     	if(link->state & DEV_CONFIG)
-	  {
-      	    if(link->open)
-	      netif_device_detach(dev);
-      	    pcmcia_release_configuration(link->handle);
-	  }
-	break;
+	{
+		if(link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
 
-      case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-      case CS_EVENT_CARD_RESET:
-	if(link->state & DEV_CONFIG)
-	  {
-      	    pcmcia_request_configuration(link->handle, &link->conf);
-      	    if(link->open)	/* If RESET -> True, If RESUME -> False ? */
-	      {
-		wv_hw_reset(dev);
-		netif_device_attach(dev);
-	      }
-	  }
-	break;
-    }
-
-#ifdef DEBUG_CALLBACK_TRACE
-  printk(KERN_DEBUG "<-wavelan_event()\n");
-#endif
-  return 0;
+	return 0;
 }
+
+static int wavelan_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *	dev = (struct net_device *) link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if(link->state & DEV_CONFIG)
+	{
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if(link->open)	/* If RESET -> True, If RESUME -> False ? */
+		{
+			wv_hw_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 
 static struct pcmcia_device_id wavelan_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("AT&T","WaveLAN/PCMCIA", 0xe7c5affd, 0x1bc50975),
@@ -4894,10 +4806,11 @@ static struct pcmcia_driver wavelan_driver = {
 	.drv		= {
 		.name	= "wavelan_cs",
 	},
-	.attach		= wavelan_attach,
-	.event		= wavelan_event,
-	.detach		= wavelan_detach,
+	.probe		= wavelan_attach,
+	.remove		= wavelan_detach,
 	.id_table       = wavelan_ids,
+	.suspend	= wavelan_suspend,
+	.resume		= wavelan_resume,
 };
 
 static int __init

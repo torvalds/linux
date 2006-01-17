@@ -555,7 +555,6 @@ static void interfacekit_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver interfacekit_driver = {
-	.owner = THIS_MODULE,
 	.name = "phidgetkit",
 	.probe = interfacekit_probe,
 	.disconnect = interfacekit_disconnect,

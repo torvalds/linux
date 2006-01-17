@@ -90,11 +90,25 @@ extern const char gfar_driver_version[];
 #define GFAR_RX_MAX_RING_SIZE   256
 #define GFAR_TX_MAX_RING_SIZE   256
 
+#define GFAR_MAX_FIFO_THRESHOLD 511
+#define GFAR_MAX_FIFO_STARVE	511
+#define GFAR_MAX_FIFO_STARVE_OFF 511
+
 #define DEFAULT_RX_BUFFER_SIZE  1536
 #define TX_RING_MOD_MASK(size) (size-1)
 #define RX_RING_MOD_MASK(size) (size-1)
 #define JUMBO_BUFFER_SIZE 9728
 #define JUMBO_FRAME_SIZE 9600
+
+#define DEFAULT_FIFO_TX_THR 0x100
+#define DEFAULT_FIFO_TX_STARVE 0x40
+#define DEFAULT_FIFO_TX_STARVE_OFF 0x80
+#define DEFAULT_BD_STASH 1
+#define DEFAULT_STASH_LENGTH	64
+#define DEFAULT_STASH_INDEX	0
+
+/* The number of Exact Match registers */
+#define GFAR_EM_NUM	15
 
 /* Latency of interface clock in nanoseconds */
 /* Interface clock latency , in this case, means the
@@ -112,11 +126,11 @@ extern const char gfar_driver_version[];
 
 #define DEFAULT_TX_COALESCE 1
 #define DEFAULT_TXCOUNT	16
-#define DEFAULT_TXTIME	400
+#define DEFAULT_TXTIME	4
 
 #define DEFAULT_RX_COALESCE 1
 #define DEFAULT_RXCOUNT	16
-#define DEFAULT_RXTIME	400
+#define DEFAULT_RXTIME	4
 
 #define TBIPA_VALUE		0x1f
 #define MIIMCFG_INIT_VALUE	0x00000007
@@ -147,6 +161,7 @@ extern const char gfar_driver_version[];
 
 #define ECNTRL_INIT_SETTINGS	0x00001000
 #define ECNTRL_TBI_MODE         0x00000020
+#define ECNTRL_R100		0x00000008
 
 #define MRBLR_INIT_SETTINGS	DEFAULT_RX_BUFFER_SIZE
 
@@ -181,10 +196,12 @@ extern const char gfar_driver_version[];
 #define RCTRL_PRSDEP_MASK	0x000000c0
 #define RCTRL_PRSDEP_INIT	0x000000c0
 #define RCTRL_PROM		0x00000008
+#define RCTRL_EMEN		0x00000002
 #define RCTRL_CHECKSUMMING	(RCTRL_IPCSEN \
 		| RCTRL_TUCSEN | RCTRL_PRSDEP_INIT)
 #define RCTRL_EXTHASH		(RCTRL_GHTX)
 #define RCTRL_VLAN		(RCTRL_PRSDEP_INIT)
+#define RCTRL_PADDING(x)	((x << 16) & RCTRL_PAL_MASK)
 
 
 #define RSTAT_CLEAR_RHALT       0x00800000
@@ -251,28 +268,26 @@ extern const char gfar_driver_version[];
 		IMASK_XFUN | IMASK_RXC | IMASK_BABT | IMASK_DPE \
 		| IMASK_PERR)
 
+/* Fifo management */
+#define FIFO_TX_THR_MASK	0x01ff
+#define FIFO_TX_STARVE_MASK	0x01ff
+#define FIFO_TX_STARVE_OFF_MASK	0x01ff
 
 /* Attribute fields */
 
 /* This enables rx snooping for buffers and descriptors */
-#ifdef CONFIG_GFAR_BDSTASH
 #define ATTR_BDSTASH		0x00000800
-#else
-#define ATTR_BDSTASH		0x00000000
-#endif
 
-#ifdef CONFIG_GFAR_BUFSTASH
 #define ATTR_BUFSTASH		0x00004000
-#define STASH_LENGTH		64
-#else
-#define ATTR_BUFSTASH		0x00000000
-#endif
 
 #define ATTR_SNOOPING		0x000000c0
-#define ATTR_INIT_SETTINGS      (ATTR_SNOOPING \
-		| ATTR_BDSTASH | ATTR_BUFSTASH)
+#define ATTR_INIT_SETTINGS      ATTR_SNOOPING
 
 #define ATTRELI_INIT_SETTINGS   0x0
+#define ATTRELI_EL_MASK		0x3fff0000
+#define ATTRELI_EL(x) (x << 16)
+#define ATTRELI_EI_MASK		0x00003fff
+#define ATTRELI_EI(x) (x)
 
 
 /* TxBD status field bits */
@@ -328,6 +343,7 @@ extern const char gfar_driver_version[];
 #define RXFCB_CTU		0x0400
 #define RXFCB_EIP		0x0200
 #define RXFCB_ETU		0x0100
+#define RXFCB_CSUM_MASK		0x0f00
 #define RXFCB_PERR_MASK		0x000c
 #define RXFCB_PERR_BADL3	0x0008
 
@@ -339,14 +355,7 @@ struct txbd8
 };
 
 struct txfcb {
-	u8	vln:1,
-		ip:1,
-		ip6:1,
-		tup:1,
-		udp:1,
-		cip:1,
-		ctu:1,
-		nph:1;
+	u8	flags;
 	u8	reserved;
 	u8	l4os;	/* Level 4 Header Offset */
 	u8	l3os; 	/* Level 3 Header Offset */
@@ -362,14 +371,7 @@ struct rxbd8
 };
 
 struct rxfcb {
-	u16	vln:1,
-		ip:1,
-		ip6:1,
-		tup:1,
-		cip:1,
-		ctu:1,
-		eip:1,
-		etu:1;
+	u16	flags;
 	u8	rq;	/* Receive Queue index */
 	u8	pro;	/* Layer 4 Protocol */
 	u16	reserved;
@@ -688,12 +690,17 @@ struct gfar_private {
 	spinlock_t lock;
 	unsigned int rx_buffer_size;
 	unsigned int rx_stash_size;
+	unsigned int rx_stash_index;
 	unsigned int tx_ring_size;
 	unsigned int rx_ring_size;
+	unsigned int fifo_threshold;
+	unsigned int fifo_starve;
+	unsigned int fifo_starve_off;
 
 	unsigned char vlan_enable:1,
 		rx_csum_enable:1,
-		extended_hash:1;
+		extended_hash:1,
+		bd_stash_en:1;
 	unsigned short padding;
 	struct vlan_group *vlgrp;
 	/* Info structure initialized by board setup code */
@@ -711,14 +718,14 @@ struct gfar_private {
 	uint32_t msg_enable;
 };
 
-extern inline u32 gfar_read(volatile unsigned *addr)
+static inline u32 gfar_read(volatile unsigned *addr)
 {
 	u32 val;
 	val = in_be32(addr);
 	return val;
 }
 
-extern inline void gfar_write(volatile unsigned *addr, u32 val)
+static inline void gfar_write(volatile unsigned *addr, u32 val)
 {
 	out_be32(addr, val);
 }
@@ -731,6 +738,6 @@ extern void stop_gfar(struct net_device *dev);
 extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
-void gfar_setup_stashing(struct net_device *dev);
+void gfar_init_sysfs(struct net_device *dev);
 
 #endif /* __GIANFAR_H */

@@ -32,7 +32,7 @@ do_load_quiesce_psw(void * __unused)
 	psw_t quiesce_psw;
 	int cpu;
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
 		signal_processor(smp_processor_id(), sigp_stop);
 	/* Wait for all other cpus to enter stopped state */
 	for_each_online_cpu(cpu) {

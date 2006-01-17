@@ -18,8 +18,6 @@
 #include "kafsasyncd.h"
 #include "cache.h"
 
-#define __packed __attribute__((packed))
-
 typedef enum {
 	AFS_VLUPD_SLEEP,		/* sleeping waiting for update timer to fire */
 	AFS_VLUPD_PENDING,		/* on pending queue */
@@ -115,7 +113,7 @@ struct afs_volume
 	struct cachefs_cookie	*cache;		/* caching cookie */
 #endif
 	afs_volid_t		vid;		/* volume ID */
-	afs_voltype_t __packed	type;		/* type of volume */
+	afs_voltype_t		type;		/* type of volume */
 	char			type_force;	/* force volume type (suppress R/O -> R/W) */
 	unsigned short		nservers;	/* number of server slots filled */
 	unsigned short		rjservers;	/* number of servers discarded due to -ENOMEDIUM */

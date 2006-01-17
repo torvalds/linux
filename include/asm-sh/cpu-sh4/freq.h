@@ -12,6 +12,8 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH73180)
 #define FRQCR		        0xa4150000
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+#define	FRQCR			0xffc80000
 #else
 #define FRQCR			0xffc00000
 #endif

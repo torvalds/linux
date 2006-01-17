@@ -135,6 +135,8 @@ void	xfs_dir_startup(void);	/* called exactly once */
 	((mp)->m_dirops.xd_shortform_to_single(args))
 
 #define	XFS_DIR_IS_V1(mp)	((mp)->m_dirversion == 1)
+#define	XFS_DIR_IS_V2(mp)	((mp)->m_dirversion == 2)
 extern xfs_dirops_t xfsv1_dirops;
+extern xfs_dirops_t xfsv2_dirops;
 
 #endif	/* __XFS_DIR_H__ */

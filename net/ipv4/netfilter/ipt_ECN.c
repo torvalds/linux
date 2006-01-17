@@ -113,12 +113,13 @@ target(struct sk_buff **pskb,
 
 static int
 checkentry(const char *tablename,
-	   const struct ipt_entry *e,
+	   const void *e_void,
            void *targinfo,
            unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	const struct ipt_ECN_info *einfo = (struct ipt_ECN_info *)targinfo;
+	const struct ipt_entry *e = e_void;
 
 	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_ECN_info))) {
 		printk(KERN_WARNING "ECN: targinfosize %u != %Zu\n",

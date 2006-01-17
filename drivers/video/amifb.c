@@ -590,6 +590,8 @@ static u_short maxfmode, chipset;
 #define highw(x)	((u_long)(x)>>16 & 0xffff)
 #define loww(x)		((u_long)(x) & 0xffff)
 
+#define custom		amiga_custom
+
 #define VBlankOn()	custom.intena = IF_SETCLR|IF_COPER
 #define VBlankOff()	custom.intena = IF_COPER
 
@@ -1129,9 +1131,7 @@ static void amifb_copyarea(struct fb_info *info,
 			   const struct fb_copyarea *region);
 static void amifb_imageblit(struct fb_info *info,
 			    const struct fb_image *image);
-static int amifb_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg,
-		       struct fb_info *info);
+static int amifb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 
 	/*
@@ -1164,8 +1164,8 @@ static void ami_update_display(void);
 static void ami_init_display(void);
 static void ami_do_blank(void);
 static int ami_get_fix_cursorinfo(struct fb_fix_cursorinfo *fix);
-static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data);
-static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data);
+static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char __user *data);
+static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char __user *data);
 static int ami_get_cursorstate(struct fb_cursorstate *state);
 static int ami_set_cursorstate(struct fb_cursorstate *state);
 static void ami_set_sprite(void);
@@ -2170,15 +2170,15 @@ static void amifb_imageblit(struct fb_info *info, const struct fb_image *image)
 	 * Amiga Frame Buffer Specific ioctls
 	 */
 
-static int amifb_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg,
-		       struct fb_info *info)
+static int amifb_ioctl(struct fb_info *info,
+		       unsigned int cmd, unsigned long arg)
 {
 	union {
 		struct fb_fix_cursorinfo fix;
 		struct fb_var_cursorinfo var;
 		struct fb_cursorstate state;
 	} crsr;
+	void __user *argp = (void __user *)arg;
 	int i;
 
 	switch (cmd) {
@@ -2186,33 +2186,32 @@ static int amifb_ioctl(struct inode *inode, struct file *file,
 			i = ami_get_fix_cursorinfo(&crsr.fix);
 			if (i)
 				return i;
-			return copy_to_user((void *)arg, &crsr.fix,
+			return copy_to_user(argp, &crsr.fix,
 					    sizeof(crsr.fix)) ? -EFAULT : 0;
 
 		case FBIOGET_VCURSORINFO:
 			i = ami_get_var_cursorinfo(&crsr.var,
-				((struct fb_var_cursorinfo *)arg)->data);
+				((struct fb_var_cursorinfo __user *)arg)->data);
 			if (i)
 				return i;
-			return copy_to_user((void *)arg, &crsr.var,
+			return copy_to_user(argp, &crsr.var,
 					    sizeof(crsr.var)) ? -EFAULT : 0;
 
 		case FBIOPUT_VCURSORINFO:
-			if (copy_from_user(&crsr.var, (void *)arg,
-					   sizeof(crsr.var)))
+			if (copy_from_user(&crsr.var, argp, sizeof(crsr.var)))
 				return -EFAULT;
 			return ami_set_var_cursorinfo(&crsr.var,
-				((struct fb_var_cursorinfo *)arg)->data);
+				((struct fb_var_cursorinfo __user *)arg)->data);
 
 		case FBIOGET_CURSORSTATE:
 			i = ami_get_cursorstate(&crsr.state);
 			if (i)
 				return i;
-			return copy_to_user((void *)arg, &crsr.state,
+			return copy_to_user(argp, &crsr.state,
 					    sizeof(crsr.state)) ? -EFAULT : 0;
 
 		case FBIOPUT_CURSORSTATE:
-			if (copy_from_user(&crsr.state, (void *)arg,
+			if (copy_from_user(&crsr.state, argp,
 					   sizeof(crsr.state)))
 				return -EFAULT;
 			return ami_set_cursorstate(&crsr.state);
@@ -3325,7 +3324,7 @@ static int ami_get_fix_cursorinfo(struct fb_fix_cursorinfo *fix)
 	return 0;
 }
 
-static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
+static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char __user *data)
 {
 	struct amifb_par *par = &currentpar;
 	register u_short *lspr, *sspr;
@@ -3347,14 +3346,14 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 	var->yspot = par->crsr.spot_y;
 	if (size > var->height*var->width)
 		return -ENAMETOOLONG;
-	if (!access_ok(VERIFY_WRITE, (void *)data, size))
+	if (!access_ok(VERIFY_WRITE, data, size))
 		return -EFAULT;
 	delta = 1<<par->crsr.fmode;
 	lspr = lofsprite + (delta<<1);
 	if (par->bplcon0 & BPC0_LACE)
 		sspr = shfsprite + (delta<<1);
 	else
-		sspr = 0;
+		sspr = NULL;
 	for (height = (short)var->height-1; height >= 0; height--) {
 		bits = 0; words = delta; datawords = 0;
 		for (width = (short)var->width-1; width >= 0; width--) {
@@ -3400,7 +3399,7 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 	return 0;
 }
 
-static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
+static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char __user *data)
 {
 	struct amifb_par *par = &currentpar;
 	register u_short *lspr, *sspr;
@@ -3427,7 +3426,7 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 		return -EINVAL;
 	if (!var->height)
 		return -EINVAL;
-	if (!access_ok(VERIFY_READ, (void *)data, var->width*var->height))
+	if (!access_ok(VERIFY_READ, data, var->width*var->height))
 		return -EFAULT;
 	delta = 1<<fmode;
 	lofsprite = shfsprite = (u_short *)spritememory;
@@ -3442,13 +3441,13 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var, u_char *data)
 		if (((var->height+2)<<fmode<<2) > SPRITEMEMSIZE)
 			return -EINVAL;
 		memset(lspr, 0, (var->height+2)<<fmode<<2);
-		sspr = 0;
+		sspr = NULL;
 	}
 	for (height = (short)var->height-1; height >= 0; height--) {
 		bits = 16; words = delta; datawords = 0;
 		for (width = (short)var->width-1; width >= 0; width--) {
 			unsigned long tdata = 0;
-			get_user(tdata, (char *)data);
+			get_user(tdata, data);
 			data++;
 #ifdef __mc68000__
 			asm volatile (

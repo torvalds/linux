@@ -79,6 +79,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -86,6 +87,7 @@
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/fddidevice.h>

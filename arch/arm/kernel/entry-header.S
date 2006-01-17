@@ -19,6 +19,7 @@
 @
 @ Most of the stack format comes from struct pt_regs, but with
 @ the addition of 8 bytes for storing syscall args 5 and 6.
+@ This _must_ remain a multiple of 8 for EABI.
 @
 #define S_OFF		8
 

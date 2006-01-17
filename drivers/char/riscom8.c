@@ -46,6 +46,7 @@
 #include <linux/major.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/tty_flip.h>
 
 #include <asm/uaccess.h>
 
@@ -81,7 +82,6 @@
 static struct riscom_board * IRQ_to_board[16];
 static struct tty_driver *riscom_driver;
 static unsigned char * tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static unsigned long baud_table[] =  {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
@@ -107,15 +107,15 @@ static struct riscom_port rc_port[RC_NBOARD * RC_NPORT];
 
 /* RISCom/8 I/O ports addresses (without address translation) */
 static unsigned short rc_ioport[] =  {
-#if 1	
+#if 1
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x09, 0x0a, 0x0b, 0x0c,
-#else	
+#else
 	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x09, 0x0a, 0x0b, 0x0c, 0x10,
 	0x11, 0x12, 0x18, 0x28, 0x31, 0x32, 0x39, 0x3a, 0x40, 0x41, 0x61, 0x62,
 	0x63, 0x64, 0x6b, 0x70, 0x71, 0x78, 0x7a, 0x7b, 0x7f, 0x100, 0x101
-#endif	
+#endif
 };
-#define RC_NIOPORT	(sizeof(rc_ioport) / sizeof(rc_ioport[0]))
+#define RC_NIOPORT	ARRAY_SIZE(rc_ioport)
 
 
 static inline int rc_paranoia_check(struct riscom_port const * port,
@@ -354,28 +354,17 @@ static inline void rc_receive_exc(struct riscom_board const * bp)
 	struct riscom_port *port;
 	struct tty_struct *tty;
 	unsigned char status;
-	unsigned char ch;
+	unsigned char ch, flag;
 	
 	if (!(port = rc_get_port(bp, "Receive")))
 		return;
 
 	tty = port->tty;
-	if (tty->flip.count >= TTY_FLIPBUF_SIZE)  {
-		printk(KERN_WARNING "rc%d: port %d: Working around flip "
-				    "buffer overflow.\n",
-		       board_No(bp), port_No(port));
-		return;
-	}
 	
 #ifdef RC_REPORT_OVERRUN	
 	status = rc_in(bp, CD180_RCSR);
-	if (status & RCSR_OE)  {
+	if (status & RCSR_OE)
 		port->overrun++;
-#if 0		
-		printk(KERN_ERR "rc%d: port %d: Overrun. Total %ld overruns\n", 
-		       board_No(bp), port_No(port), port->overrun);
-#endif		
-	}
 	status &= port->mark_mask;
 #else	
 	status = rc_in(bp, CD180_RCSR) & port->mark_mask;
@@ -393,25 +382,24 @@ static inline void rc_receive_exc(struct riscom_board const * bp)
 	} else if (status & RCSR_BREAK)  {
 		printk(KERN_INFO "rc%d: port %d: Handling break...\n",
 		       board_No(bp), port_No(port));
-		*tty->flip.flag_buf_ptr++ = TTY_BREAK;
+		flag = TTY_BREAK;
 		if (port->flags & ASYNC_SAK)
 			do_SAK(tty);
 		
 	} else if (status & RCSR_PE) 
-		*tty->flip.flag_buf_ptr++ = TTY_PARITY;
+		flag = TTY_PARITY;
 	
 	else if (status & RCSR_FE) 
-		*tty->flip.flag_buf_ptr++ = TTY_FRAME;
+		flag = TTY_FRAME;
 	
         else if (status & RCSR_OE)
-		*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
+		flag = TTY_OVERRUN;
 	
 	else
-		*tty->flip.flag_buf_ptr++ = 0;
+		flag = TTY_NORMAL;
 	
-	*tty->flip.char_buf_ptr++ = ch;
-	tty->flip.count++;
-	schedule_delayed_work(&tty->flip.work, 1);
+	tty_insert_flip_char(tty, ch, flag);
+	tty_flip_buffer_push(tty);
 }
 
 static inline void rc_receive(struct riscom_board const * bp)
@@ -432,17 +420,15 @@ static inline void rc_receive(struct riscom_board const * bp)
 #endif	
 	
 	while (count--)  {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)  {
+		if (tty_buffer_request_room(tty, 1) == 0)  {
 			printk(KERN_WARNING "rc%d: port %d: Working around "
 					    "flip buffer overflow.\n",
 			       board_No(bp), port_No(port));
 			break;
 		}
-		*tty->flip.char_buf_ptr++ = rc_in(bp, CD180_RDR);
-		*tty->flip.flag_buf_ptr++ = 0;
-		tty->flip.count++;
+		tty_insert_flip_char(tty, rc_in(bp, CD180_RDR), TTY_NORMAL);
 	}
-	schedule_delayed_work(&tty->flip.work, 1);
+	tty_flip_buffer_push(tty);
 }
 
 static inline void rc_transmit(struct riscom_board const * bp)

@@ -19,9 +19,6 @@ config MMU
 config STACK_GROWSUP
 	def_bool y
 
-config UID16
-	bool
-
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 

@@ -211,7 +211,7 @@ static struct ov51x_decomp_ops *ov518_mmx_decomp_ops;
 
 /* Number of times to retry a failed I2C transaction. Increase this if you
  * are getting "Failed to read sensor ID..." */
-static int i2c_detect_tries = 5;
+static const int i2c_detect_tries = 5;
 
 /* MMX support is present in kernel and CPU. Checked upon decomp module load. */
 #if defined(__i386__) || defined(__x86_64__)
@@ -4774,6 +4774,7 @@ static struct file_operations ov511_fops = {
 	.read =		ov51x_v4l1_read,
 	.mmap =		ov51x_v4l1_mmap,
 	.ioctl =	ov51x_v4l1_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek =	no_llseek,
 };
 
@@ -6008,7 +6009,6 @@ ov51x_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver ov511_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ov511",
 	.id_table =	device_table,
 	.probe =	ov51x_probe,

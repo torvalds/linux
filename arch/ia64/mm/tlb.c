@@ -90,7 +90,7 @@ ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
 {
 	static DEFINE_SPINLOCK(ptcg_lock);
 
-	if (mm != current->active_mm) {
+	if (mm != current->active_mm || !current->mm) {
 		flush_tlb_all();
 		return;
 	}

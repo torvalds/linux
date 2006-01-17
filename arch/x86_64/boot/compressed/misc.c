@@ -9,7 +9,7 @@
  * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
 
-#include "miscsetup.h"
+#include <linux/screen_info.h>
 #include <asm/io.h>
 #include <asm/page.h>
 

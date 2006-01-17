@@ -17,7 +17,9 @@
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
+#include <linux/capability.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 
 #include <asm/rtc.h>
 #include <asm/semaphore.h>
@@ -34,7 +36,7 @@ static unsigned long rtc_irq_data;
 /*
  * rtc_sem protects rtc_inuse and rtc_ops
  */
-static DECLARE_MUTEX(rtc_sem);
+static DEFINE_MUTEX(rtc_mutex);
 static unsigned long rtc_inuse;
 static struct rtc_ops *rtc_ops;
 
@@ -355,7 +357,7 @@ static int rtc_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
-	down(&rtc_sem);
+	mutex_lock(&rtc_mutex);
 
 	if (rtc_inuse) {
 		ret = -EBUSY;
@@ -373,7 +375,7 @@ static int rtc_open(struct inode *inode, struct file *file)
 			rtc_inuse = 1;
 		}
 	}
-	up(&rtc_sem);
+	mutex_unlock(&rtc_mutex);
 
 	return ret;
 }
@@ -479,7 +481,7 @@ int register_rtc(struct rtc_ops *ops)
 {
 	int ret = -EBUSY;
 
-	down(&rtc_sem);
+	mutex_lock(&rtc_mutex);
 	if (rtc_ops == NULL) {
 		rtc_ops = ops;
 
@@ -488,7 +490,7 @@ int register_rtc(struct rtc_ops *ops)
 			create_proc_read_entry("driver/rtc", 0, NULL,
 					       rtc_read_proc, ops);
 	}
-	up(&rtc_sem);
+	mutex_unlock(&rtc_mutex);
 
 	return ret;
 }
@@ -496,12 +498,12 @@ EXPORT_SYMBOL(register_rtc);
 
 void unregister_rtc(struct rtc_ops *rtc)
 {
-	down(&rtc_sem);
+	mutex_lock(&rtc_mutex);
 	if (rtc == rtc_ops) {
 		remove_proc_entry("driver/rtc", NULL);
 		misc_deregister(&rtc_miscdev);
 		rtc_ops = NULL;
 	}
-	up(&rtc_sem);
+	mutex_unlock(&rtc_mutex);
 }
 EXPORT_SYMBOL(unregister_rtc);

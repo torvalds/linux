@@ -92,11 +92,11 @@ static void call_bios(struct regs *regs)
 	preempt_enable();
 }
 
-static size_t __init locate_wistron_bios(void __iomem *base)
+static ssize_t __init locate_wistron_bios(void __iomem *base)
 {
 	static const unsigned char __initdata signature[] =
 		{ 0x42, 0x21, 0x55, 0x30 };
-	size_t offset;
+	ssize_t offset;
 
 	for (offset = 0; offset < 0x10000; offset += 0x10) {
 		if (check_signature(base + offset, signature,
@@ -109,7 +109,7 @@ static size_t __init locate_wistron_bios(void __iomem *base)
 static int __init map_bios(void)
 {
 	void __iomem *base;
-	size_t offset;
+	ssize_t offset;
 	u32 entry_point;
 
 	base = ioremap(0xF0000, 0x10000); /* Can't fail */
@@ -174,7 +174,7 @@ static u16 bios_pop_queue(void)
 	return regs.eax;
 }
 
-static void __init bios_attach(void)
+static void __devinit bios_attach(void)
 {
 	struct regs regs;
 
@@ -194,7 +194,7 @@ static void bios_detach(void)
 	call_bios(&regs);
 }
 
-static u8 __init bios_get_cmos_address(void)
+static u8 __devinit bios_get_cmos_address(void)
 {
 	struct regs regs;
 
@@ -206,7 +206,7 @@ static u8 __init bios_get_cmos_address(void)
 	return regs.ecx;
 }
 
-static u16 __init bios_get_default_setting(u8 subsys)
+static u16 __devinit bios_get_default_setting(u8 subsys)
 {
 	struct regs regs;
 
@@ -296,6 +296,16 @@ static struct key_entry keymap_acer_aspire_1500[] = {
 	{ KE_END, 0 }
 };
 
+static struct key_entry keymap_acer_travelmate_240[] = {
+	{ KE_KEY, 0x31, KEY_MAIL },
+	{ KE_KEY, 0x36, KEY_WWW },
+	{ KE_KEY, 0x11, KEY_PROG1 },
+	{ KE_KEY, 0x12, KEY_PROG2 },
+	{ KE_BLUETOOTH, 0x44, 0 },
+	{ KE_WIFI, 0x30, 0 },
+	{ KE_END, 0 }
+};
+
 /*
  * If your machine is not here (which is currently rather likely), please send
  * a list of buttons and their key codes (reported when loading this module
@@ -319,6 +329,15 @@ static struct dmi_system_id dmi_ids[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1500"),
 		},
 		.driver_data = keymap_acer_aspire_1500
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer TravelMate 240",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 240"),
+		},
+		.driver_data = keymap_acer_travelmate_240
 	},
 	{ NULL, }
 };
@@ -348,7 +367,7 @@ static int __init select_keymap(void)
 
 static struct input_dev *input_dev;
 
-static int __init setup_input_dev(void)
+static int __devinit setup_input_dev(void)
 {
 	const struct key_entry *key;
 	int error;
@@ -447,6 +466,52 @@ static void poll_bios(unsigned long discard)
 	mod_timer(&poll_timer, jiffies + HZ / POLL_FREQUENCY);
 }
 
+static int __devinit wistron_probe(struct platform_device *dev)
+{
+	int err = setup_input_dev();
+	if (err)
+		return err;
+
+	bios_attach();
+	cmos_address = bios_get_cmos_address();
+
+	if (have_wifi) {
+		u16 wifi = bios_get_default_setting(WIFI);
+		if (wifi & 1)
+			wifi_enabled = (wifi & 2) ? 1 : 0;
+		else
+			have_wifi = 0;
+
+		if (have_wifi)
+			bios_set_state(WIFI, wifi_enabled);
+	}
+
+	if (have_bluetooth) {
+		u16 bt = bios_get_default_setting(BLUETOOTH);
+		if (bt & 1)
+			bluetooth_enabled = (bt & 2) ? 1 : 0;
+		else
+			have_bluetooth = 0;
+
+		if (have_bluetooth)
+			bios_set_state(BLUETOOTH, bluetooth_enabled);
+	}
+
+	poll_bios(1); /* Flush stale event queue and arm timer */
+
+	return 0;
+}
+
+static int __devexit wistron_remove(struct platform_device *dev)
+{
+	del_timer_sync(&poll_timer);
+	input_unregister_device(input_dev);
+	bios_detach();
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
 static int wistron_suspend(struct platform_device *dev, pm_message_t state)
 {
 	del_timer_sync(&poll_timer);
@@ -472,13 +537,20 @@ static int wistron_resume(struct platform_device *dev)
 
 	return 0;
 }
+#else
+#define wistron_suspend		NULL
+#define wistron_resume		NULL
+#endif
 
 static struct platform_driver wistron_driver = {
-	.suspend	= wistron_suspend,
-	.resume		= wistron_resume,
 	.driver		= {
 		.name	= "wistron-bios",
+		.owner	= THIS_MODULE,
 	},
+	.probe		= wistron_probe,
+	.remove		= __devexit_p(wistron_remove),
+	.suspend	= wistron_suspend,
+	.resume		= wistron_resume,
 };
 
 static int __init wb_module_init(void)
@@ -493,55 +565,27 @@ static int __init wb_module_init(void)
 	if (err)
 		return err;
 
-	bios_attach();
-	cmos_address = bios_get_cmos_address();
-
 	err = platform_driver_register(&wistron_driver);
 	if (err)
-		goto err_detach_bios;
+		goto err_unmap_bios;
 
-	wistron_device = platform_device_register_simple("wistron-bios", -1, NULL, 0);
-	if (IS_ERR(wistron_device)) {
-		err = PTR_ERR(wistron_device);
+	wistron_device = platform_device_alloc("wistron-bios", -1);
+	if (!wistron_device) {
+		err = -ENOMEM;
 		goto err_unregister_driver;
 	}
 
-	if (have_wifi) {
-		u16 wifi = bios_get_default_setting(WIFI);
-		if (wifi & 1)
-			wifi_enabled = (wifi & 2) ? 1 : 0;
-		else
-			have_wifi = 0;
-
-		if (have_wifi)
-			bios_set_state(WIFI, wifi_enabled);
-	}
-
-	if (have_bluetooth) {
-		u16 bt = bios_get_default_setting(BLUETOOTH);
-		if (bt & 1)
-			bluetooth_enabled = (bt & 2) ? 1 : 0;
-		else
-			have_bluetooth = 0;
-
-		if (have_bluetooth)
-			bios_set_state(BLUETOOTH, bluetooth_enabled);
-	}
-
-	err = setup_input_dev();
+	err = platform_device_add(wistron_device);
 	if (err)
-		goto err_unregister_device;
-
-	poll_bios(1); /* Flush stale event queue and arm timer */
+		goto err_free_device;
 
 	return 0;
 
- err_unregister_device:
-	platform_device_unregister(wistron_device);
+ err_free_device:
+	platform_device_put(wistron_device);
  err_unregister_driver:
 	platform_driver_unregister(&wistron_driver);
- err_detach_bios:
-	bios_detach();
+ err_unmap_bios:
 	unmap_bios();
 
 	return err;
@@ -549,11 +593,8 @@ static int __init wb_module_init(void)
 
 static void __exit wb_module_exit(void)
 {
-	del_timer_sync(&poll_timer);
-	input_unregister_device(input_dev);
 	platform_device_unregister(wistron_device);
 	platform_driver_unregister(&wistron_driver);
-	bios_detach();
 	unmap_bios();
 }
 

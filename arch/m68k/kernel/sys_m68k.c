@@ -6,6 +6,7 @@
  * platform.
  */
 
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -31,7 +32,7 @@
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage int sys_pipe(unsigned long * fildes)
+asmlinkage int sys_pipe(unsigned long __user * fildes)
 {
 	int fd[2];
 	int error;
@@ -93,7 +94,7 @@ struct mmap_arg_struct {
 	unsigned long offset;
 };
 
-asmlinkage int old_mmap(struct mmap_arg_struct *arg)
+asmlinkage int old_mmap(struct mmap_arg_struct __user *arg)
 {
 	struct mmap_arg_struct a;
 	int error = -EFAULT;
@@ -159,11 +160,11 @@ out:
 
 struct sel_arg_struct {
 	unsigned long n;
-	fd_set *inp, *outp, *exp;
-	struct timeval *tvp;
+	fd_set __user *inp, *outp, *exp;
+	struct timeval __user *tvp;
 };
 
-asmlinkage int old_select(struct sel_arg_struct *arg)
+asmlinkage int old_select(struct sel_arg_struct __user *arg)
 {
 	struct sel_arg_struct a;
 
@@ -179,7 +180,7 @@ asmlinkage int old_select(struct sel_arg_struct *arg)
  * This is really horribly ugly.
  */
 asmlinkage int sys_ipc (uint call, int first, int second,
-			int third, void *ptr, long fifth)
+			int third, void __user *ptr, long fifth)
 {
 	int version, ret;
 
@@ -189,14 +190,14 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 	if (call <= SEMCTL)
 		switch (call) {
 		case SEMOP:
-			return sys_semop (first, (struct sembuf *)ptr, second);
+			return sys_semop (first, ptr, second);
 		case SEMGET:
 			return sys_semget (first, second, third);
 		case SEMCTL: {
 			union semun fourth;
 			if (!ptr)
 				return -EINVAL;
-			if (get_user(fourth.__pad, (void **) ptr))
+			if (get_user(fourth.__pad, (void __user *__user *) ptr))
 				return -EFAULT;
 			return sys_semctl (first, second, third, fourth);
 			}
@@ -206,31 +207,26 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 	if (call <= MSGCTL)
 		switch (call) {
 		case MSGSND:
-			return sys_msgsnd (first, (struct msgbuf *) ptr,
-					  second, third);
+			return sys_msgsnd (first, ptr, second, third);
 		case MSGRCV:
 			switch (version) {
 			case 0: {
 				struct ipc_kludge tmp;
 				if (!ptr)
 					return -EINVAL;
-				if (copy_from_user (&tmp,
-						    (struct ipc_kludge *)ptr,
-						    sizeof (tmp)))
+				if (copy_from_user (&tmp, ptr, sizeof (tmp)))
 					return -EFAULT;
 				return sys_msgrcv (first, tmp.msgp, second,
 						   tmp.msgtyp, third);
 				}
 			default:
-				return sys_msgrcv (first,
-						   (struct msgbuf *) ptr,
+				return sys_msgrcv (first, ptr,
 						   second, fifth, third);
 			}
 		case MSGGET:
 			return sys_msgget ((key_t) first, second);
 		case MSGCTL:
-			return sys_msgctl (first, second,
-					   (struct msqid_ds *) ptr);
+			return sys_msgctl (first, second, ptr);
 		default:
 			return -ENOSYS;
 		}
@@ -240,20 +236,18 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 			switch (version) {
 			default: {
 				ulong raddr;
-				ret = do_shmat (first, (char *) ptr,
-						 second, &raddr);
+				ret = do_shmat (first, ptr, second, &raddr);
 				if (ret)
 					return ret;
-				return put_user (raddr, (ulong *) third);
+				return put_user (raddr, (ulong __user *) third);
 			}
 			}
 		case SHMDT:
-			return sys_shmdt ((char *)ptr);
+			return sys_shmdt (ptr);
 		case SHMGET:
 			return sys_shmget (first, second, third);
 		case SHMCTL:
-			return sys_shmctl (first, second,
-					   (struct shmid_ds *) ptr);
+			return sys_shmctl (first, second, ptr);
 		default:
 			return -ENOSYS;
 		}

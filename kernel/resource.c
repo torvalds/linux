@@ -464,7 +464,7 @@ struct resource * __request_region(struct resource *parent, unsigned long start,
 
 EXPORT_SYMBOL(__request_region);
 
-int __deprecated __check_region(struct resource *parent, unsigned long start, unsigned long n)
+int __check_region(struct resource *parent, unsigned long start, unsigned long n)
 {
 	struct resource * res;
 

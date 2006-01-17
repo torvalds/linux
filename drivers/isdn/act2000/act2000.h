@@ -181,17 +181,17 @@ typedef struct act2000_card {
 	char regname[35];		/* Name used for request_region     */
 } act2000_card;
 
-extern __inline__ void act2000_schedule_tx(act2000_card *card)
+static inline void act2000_schedule_tx(act2000_card *card)
 {
         schedule_work(&card->snd_tq);
 }
 
-extern __inline__ void act2000_schedule_rx(act2000_card *card)
+static inline void act2000_schedule_rx(act2000_card *card)
 {
         schedule_work(&card->rcv_tq);
 }
 
-extern __inline__ void act2000_schedule_poll(act2000_card *card)
+static inline void act2000_schedule_poll(act2000_card *card)
 {
         schedule_work(&card->poll_tq);
 }

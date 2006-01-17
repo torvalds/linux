@@ -80,7 +80,7 @@ config SERIAL_NONSTANDARD
 
 config COMPUTONE
 	tristate "Computone IntelliPort Plus serial support"
-	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	depends on SERIAL_NONSTANDARD
 	---help---
 	  This driver supports the entire family of Intelliport II/Plus
 	  controllers with the exception of the MicroChannel controllers and
@@ -153,7 +153,7 @@ config DIGIEPCA
 
 config ESPSERIAL
 	tristate "Hayes ESP serial port support"
-	depends on SERIAL_NONSTANDARD && ISA && BROKEN_ON_SMP && ISA_DMA_API
+	depends on SERIAL_NONSTANDARD && ISA && ISA_DMA_API
 	help
 	  This is a driver which supports Hayes ESP serial ports.  Both single
 	  port cards and multiport cards are supported.  Make sure to read
@@ -166,7 +166,7 @@ config ESPSERIAL
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	depends on SERIAL_NONSTANDARD
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
 
@@ -219,6 +219,14 @@ config SYNCLINKMP
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called synclinkmp.  If you want to do that, say M
 	  here.
+
+config SYNCLINK_GT
+	tristate "SyncLink GT/AC support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  Support for SyncLink GT and SyncLink AC families of
+	  synchronous and asynchronous serial adapters
+	  manufactured by Microgate Systems, Ltd. (www.microgate.com)
 
 config N_HDLC
 	tristate "HDLC line discipline support"
@@ -282,7 +290,7 @@ config SX
 
 config RIO
 	tristate "Specialix RIO system support"
-	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP && !64BIT
 	help
 	  This is a driver for the Specialix RIO, a smart serial card which
 	  drives an outboard box that can support up to 128 ports.  Product
@@ -687,7 +695,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC32 && !PARISC && !IA64 && !M68K && (!SPARC || PCI)
+	depends on !PPC32 && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -735,7 +743,7 @@ config SGI_IP27_RTC
 
 config GEN_RTC
 	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64 && !ARM && !M32R && !SPARC
+	depends on RTC!=y && !IA64 && !ARM && !M32R && !SPARC && !FRV
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -873,16 +881,6 @@ config FTAPE
 	  module. To compile this driver as a module, choose M here: the
 	  module will be called ftape.
 
-	  Note that the Ftape-HOWTO is out of date (sorry) and documents the
-	  older version 2.08 of this software but still contains useful
-	  information.  There is a web page with more recent documentation at
-	  <http://www.instmath.rwth-aachen.de/~heine/ftape/>.  This page
-	  always contains the latest release of the ftape driver and useful
-	  information (backup software, ftape related patches and
-	  documentation, FAQ).  Note that the file system interface has
-	  changed quite a bit compared to previous versions of ftape.  Please
-	  read <file:Documentation/ftape.txt>.
-
 source "drivers/char/ftape/Kconfig"
 
 endmenu
@@ -927,6 +925,15 @@ config SCx200_GPIO
 	  Semiconductor SCx200 processors.
 
 	  If compiled as a module, it will be called scx200_gpio.
+
+config CS5535_GPIO
+	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"
+	depends on X86_32
+	help
+	  Give userspace access to the GPIO pins on the AMD CS5535 and
+	  CS5536 Geode companion devices.
+
+	  If compiled as a module, it will be called cs5535_gpio.
 
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Unit support"
@@ -985,7 +992,7 @@ config HPET_MMAP
 
 config HANGCHECK_TIMER
 	tristate "Hangcheck timer"
-	depends on X86 || IA64 || PPC64 || ARCH_S390
+	depends on X86 || IA64 || PPC64 || S390
 	help
 	  The hangcheck-timer module detects when the system has gone
 	  out to lunch past a certain margin.  It can reboot the system

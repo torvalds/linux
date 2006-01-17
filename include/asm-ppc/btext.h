@@ -17,7 +17,7 @@ extern unsigned long disp_BAT[2];
 extern boot_infos_t disp_bi;
 extern int boot_text_mapped;
 
-extern void init_boot_display(void);
+extern void btext_init(boot_infos_t *bi);
 extern void btext_welcome(void);
 extern void btext_prepare_BAT(void);
 extern void btext_setup_display(int width, int height, int depth, int pitch,

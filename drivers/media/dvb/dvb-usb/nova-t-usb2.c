@@ -129,10 +129,6 @@ static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 		dibusb_read_eeprom_byte(d,i, &b);
 
 		mac[5 - (i - 136)] = b;
-
-/*		deb_ee("%02x ",b);
-		if ((i+1) % 16 == 0)
-			deb_ee("\n");*/
 	}
 
 	return 0;
@@ -153,7 +149,7 @@ static struct usb_device_id nova_t_table [] = {
 /* 01 */	{ USB_DEVICE(USB_VID_HAUPPAUGE,     USB_PID_WINTV_NOVA_T_USB2_WARM) },
 			{ }		/* Terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, nova_t_table);
+MODULE_DEVICE_TABLE(usb, nova_t_table);
 
 static struct dvb_usb_properties nova_t_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
@@ -198,11 +194,11 @@ static struct dvb_usb_properties nova_t_properties = {
 			{ &nova_t_table[0], NULL },
 			{ &nova_t_table[1], NULL },
 		},
+		{ NULL },
 	}
 };
 
 static struct usb_driver nova_t_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_nova_t_usb2",
 	.probe		= nova_t_probe,
 	.disconnect = dvb_usb_device_exit,

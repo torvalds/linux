@@ -1,7 +1,8 @@
 #ifndef _ASM_POWERPC_SYNCH_H 
 #define _ASM_POWERPC_SYNCH_H 
+#ifdef __KERNEL__
 
-#include <linux/config.h>
+#include <linux/stringify.h>
 
 #ifdef __powerpc64__
 #define __SUBARCH_HAS_LWSYNC
@@ -13,20 +14,12 @@
 #    define LWSYNC	sync
 #endif
 
-
-/*
- * Arguably the bitops and *xchg operations don't imply any memory barrier
- * or SMP ordering, but in fact a lot of drivers expect them to imply
- * both, since they do on x86 cpus.
- */
 #ifdef CONFIG_SMP
-#define EIEIO_ON_SMP	"eieio\n"
 #define ISYNC_ON_SMP	"\n\tisync"
-#define SYNC_ON_SMP	__stringify(LWSYNC) "\n"
+#define LWSYNC_ON_SMP	__stringify(LWSYNC) "\n"
 #else
-#define EIEIO_ON_SMP
 #define ISYNC_ON_SMP
-#define SYNC_ON_SMP
+#define LWSYNC_ON_SMP
 #endif
 
 static inline void eieio(void)
@@ -39,13 +32,5 @@ static inline void isync(void)
 	__asm__ __volatile__ ("isync" : : : "memory");
 }
 
-#ifdef CONFIG_SMP
-#define eieio_on_smp()	eieio()
-#define isync_on_smp()	isync()
-#else
-#define eieio_on_smp()	__asm__ __volatile__("": : :"memory")
-#define isync_on_smp()	__asm__ __volatile__("": : :"memory")
-#endif
-
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_SYNCH_H */
-

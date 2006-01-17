@@ -54,7 +54,11 @@
 
 #define IDMAP_HASH_SZ          128
 
+/* Default cache timeout is 10 minutes */
+unsigned int nfs_idmap_cache_timeout = 600 * HZ;
+
 struct idmap_hashent {
+	unsigned long ih_expires;
 	__u32 ih_id;
 	int ih_namelen;
 	char ih_name[IDMAP_NAMESZ];
@@ -149,6 +153,8 @@ idmap_lookup_name(struct idmap_hashtable *h, const char *name, size_t len)
 
 	if (he->ih_namelen != len || memcmp(he->ih_name, name, len) != 0)
 		return NULL;
+	if (time_after(jiffies, he->ih_expires))
+		return NULL;
 	return he;
 }
 
@@ -163,6 +169,8 @@ idmap_lookup_id(struct idmap_hashtable *h, __u32 id)
 {
 	struct idmap_hashent *he = idmap_id_hash(h, id);
 	if (he->ih_id != id || he->ih_namelen == 0)
+		return NULL;
+	if (time_after(jiffies, he->ih_expires))
 		return NULL;
 	return he;
 }
@@ -192,6 +200,7 @@ idmap_update_entry(struct idmap_hashent *he, const char *name,
 	memcpy(he->ih_name, name, namelen);
 	he->ih_name[namelen] = '\0';
 	he->ih_namelen = namelen;
+	he->ih_expires = jiffies + nfs_idmap_cache_timeout;
 }
 
 /*

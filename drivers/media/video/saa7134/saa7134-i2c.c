@@ -30,6 +30,7 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include <media/v4l2-common.h>
 
 /* ----------------------------------------------------------- */
 
@@ -333,7 +334,7 @@ static int attach_inform(struct i2c_client *client)
 	struct tuner_setup tun_setup;
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->name, client->addr, client->name);
+		client->driver->driver.name, client->addr, client->name);
 
 	/* Am I an i2c remote control? */
 
@@ -343,7 +344,7 @@ static int attach_inform(struct i2c_client *client)
 		{
 			struct IR_i2c *ir = i2c_get_clientdata(client);
 			d1printk("%s i2c IR detected (%s).\n",
-				 client->driver->name,ir->phys);
+				 client->driver->driver.name, ir->phys);
 			saa7134_set_i2c_ir(dev,ir);
 			break;
 		}
@@ -390,9 +391,7 @@ static struct i2c_algorithm saa7134_algo = {
 
 static struct i2c_adapter saa7134_adap_template = {
 	.owner         = THIS_MODULE,
-#ifdef I2C_CLASS_TV_ANALOG
 	.class         = I2C_CLASS_TV_ANALOG,
-#endif
 	.name          = "saa7134",
 	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,

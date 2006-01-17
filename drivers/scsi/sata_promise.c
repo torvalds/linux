@@ -66,6 +66,7 @@ enum {
 	board_2037x		= 0,	/* FastTrak S150 TX2plus */
 	board_20319		= 1,	/* FastTrak S150 TX4 */
 	board_20619		= 2,	/* FastTrak TX4000 */
+	board_20771		= 3,	/* FastTrak TX2300 */
 
 	PDC_HAS_PATA		= (1 << 1), /* PDC20375 has PATA */
 
@@ -114,7 +115,6 @@ static struct scsi_host_template pdc_ata_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1,
 };
 
 static const struct ata_port_operations pdc_sata_ops = {
@@ -191,6 +191,16 @@ static const struct ata_port_info pdc_port_info[] = {
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &pdc_pata_ops,
 	},
+
+	/* board_20771 */
+	{
+		.sht		= &pdc_ata_sht,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.pio_mask	= 0x1f, /* pio0-4 */
+		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.port_ops	= &pdc_sata_ops,
+	},
 };
 
 static const struct pci_device_id pdc_ata_pci_tbl[] = {
@@ -227,6 +237,8 @@ static const struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x6629, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20619 },
 
+	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_20771 },
 	{ }	/* terminate list */
 };
 
@@ -705,6 +717,9 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		probe_ent->port[3].scr_addr = base + 0x700;
 		break;
 	case board_2037x:
+		probe_ent->n_ports = 2;
+		break;
+	case board_20771:
 		probe_ent->n_ports = 2;
 		break;
 	case board_20619:

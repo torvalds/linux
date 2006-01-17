@@ -43,6 +43,11 @@
 #include "proto.h"
 #include "pci_impl.h"
 
+/*
+ * Power off function, if any
+ */
+void (*pm_power_off)(void) = machine_power_off;
+
 void
 cpu_idle(void)
 {
@@ -271,7 +276,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 {
 	extern void ret_from_fork(void);
 
-	struct thread_info *childti = p->thread_info;
+	struct thread_info *childti = task_thread_info(p);
 	struct pt_regs * childregs;
 	struct switch_stack * childstack, *stack;
 	unsigned long stack_offset, settls;
@@ -280,7 +285,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	if (!(regs->ps & 8))
 		stack_offset = (PAGE_SIZE-1) & (unsigned long) regs;
 	childregs = (struct pt_regs *)
-	  (stack_offset + PAGE_SIZE + (long) childti);
+	  (stack_offset + PAGE_SIZE + task_stack_page(p));
 		
 	*childregs = *regs;
 	settls = regs->r20;
@@ -423,30 +428,15 @@ dump_elf_thread(elf_greg_t *dest, struct pt_regs *pt, struct thread_info *ti)
 int
 dump_elf_task(elf_greg_t *dest, struct task_struct *task)
 {
-	struct thread_info *ti;
-	struct pt_regs *pt;
-
-	ti = task->thread_info;
-	pt = (struct pt_regs *)((unsigned long)ti + 2*PAGE_SIZE) - 1;
-
-	dump_elf_thread(dest, pt, ti);
-
+	dump_elf_thread(dest, task_pt_regs(task), task_thread_info(task));
 	return 1;
 }
 
 int
 dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
 {
-	struct thread_info *ti;
-	struct pt_regs *pt;
-	struct switch_stack *sw;
-
-	ti = task->thread_info;
-	pt = (struct pt_regs *)((unsigned long)ti + 2*PAGE_SIZE) - 1;
-	sw = (struct switch_stack *)pt - 1;
-
+	struct switch_stack *sw = (struct switch_stack *)task_pt_regs(task) - 1;
 	memcpy(dest, sw->fp, 32 * 8);
-
 	return 1;
 }
 
@@ -487,8 +477,8 @@ out:
 unsigned long
 thread_saved_pc(task_t *t)
 {
-	unsigned long base = (unsigned long)t->thread_info;
-	unsigned long fp, sp = t->thread_info->pcb.ksp;
+	unsigned long base = (unsigned long)task_stack_page(t);
+	unsigned long fp, sp = task_thread_info(t)->pcb.ksp;
 
 	if (sp > base && sp+6*8 < base + 16*1024) {
 		fp = ((unsigned long*)sp)[6];
@@ -518,7 +508,7 @@ get_wchan(struct task_struct *p)
 
 	pc = thread_saved_pc(p);
 	if (in_sched_functions(pc)) {
-		schedule_frame = ((unsigned long *)p->thread_info->pcb.ksp)[6];
+		schedule_frame = ((unsigned long *)task_thread_info(p)->pcb.ksp)[6];
 		return ((unsigned long *)schedule_frame)[12];
 	}
 	return pc;

@@ -54,23 +54,7 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
         ); } while(0)
 
 #define set_base(ldt,base) _set_base( ((char *)&(ldt)) , (base) )
-#define set_limit(ldt,limit) _set_limit( ((char *)&(ldt)) , ((limit)-1)>>12 )
-
-static inline unsigned long _get_base(char * addr)
-{
-	unsigned long __base;
-	__asm__("movb %3,%%dh\n\t"
-		"movb %2,%%dl\n\t"
-		"shll $16,%%edx\n\t"
-		"movw %1,%%dx"
-		:"=&d" (__base)
-		:"m" (*((addr)+2)),
-		 "m" (*((addr)+4)),
-		 "m" (*((addr)+7)));
-	return __base;
-}
-
-#define get_base(ldt) _get_base( ((char *)&(ldt)) )
+#define set_limit(ldt,limit) _set_limit( ((char *)&(ldt)) , ((limit)-1) )
 
 /*
  * Load a segment. Fall back on loading the zero
@@ -140,6 +124,19 @@ static inline unsigned long _get_base(char * addr)
 		:"=r" (__dummy)); \
 	__dummy; \
 })
+
+#define read_cr4_safe() ({			      \
+	unsigned int __dummy;			      \
+	/* This could fault if %cr4 does not exist */ \
+	__asm__("1: movl %%cr4, %0		\n"   \
+		"2:				\n"   \
+		".section __ex_table,\"a\"	\n"   \
+		".long 1b,2b			\n"   \
+		".previous			\n"   \
+		: "=r" (__dummy): "0" (0));	      \
+	__dummy;				      \
+})
+
 #define write_cr4(x) \
 	__asm__ __volatile__("movl %0,%%cr4": :"r" (x));
 #define stts() write_cr0(8 | read_cr0())
@@ -550,6 +547,15 @@ void enable_hlt(void);
 
 extern int es7000_plat;
 void cpu_idle_wait(void);
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible:
+ */
+static inline void sched_cacheflush(void)
+{
+	wbinvd();
+}
 
 extern unsigned long arch_align_stack(unsigned long sp);
 

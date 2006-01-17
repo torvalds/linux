@@ -24,6 +24,7 @@
  *		reachable.  otherwise, round-robin the list.
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>

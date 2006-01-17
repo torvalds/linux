@@ -37,7 +37,7 @@
 
 #define PREFIX			"ACPI: "
 
-#define ACPI_MAX_TABLES		256
+#define ACPI_MAX_TABLES		128
 
 static char *acpi_table_signatures[ACPI_TABLE_COUNT] = {
 	[ACPI_TABLE_UNKNOWN] = "????",
@@ -74,7 +74,7 @@ struct acpi_table_sdt {
 static unsigned long sdt_pa;	/* Physical Address */
 static unsigned long sdt_count;	/* Table count */
 
-static struct acpi_table_sdt sdt_entry[ACPI_MAX_TABLES];
+static struct acpi_table_sdt sdt_entry[ACPI_MAX_TABLES] __initdata;
 
 void acpi_table_print(struct acpi_table_header *header, unsigned long phys_addr)
 {

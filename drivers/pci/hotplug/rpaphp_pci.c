@@ -62,28 +62,6 @@ struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
 }
 EXPORT_SYMBOL_GPL(rpaphp_find_pci_bus);
 
-int rpaphp_claim_resource(struct pci_dev *dev, int resource)
-{
-	struct resource *res = &dev->resource[resource];
-	struct resource *root = pci_find_parent_resource(dev, res);
-	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
-	int err = -EINVAL;
-
-	if (root != NULL) {
-		err = request_resource(root, res);
-	}
-
-	if (err) {
-		err("PCI: %s region %d of %s %s [%lx:%lx]\n",
-		    root ? "Address space collision on" :
-		    "No parent found for",
-		    resource, dtype, pci_name(dev), res->start, res->end);
-	}
-	return err;
-}
-
-EXPORT_SYMBOL_GPL(rpaphp_claim_resource);
-
 static int rpaphp_get_sensor_state(struct slot *slot, int *state)
 {
 	int rc;
@@ -177,7 +155,7 @@ void rpaphp_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 
 				if (r->parent || !r->start || !r->flags)
 					continue;
-				rpaphp_claim_resource(dev, i);
+				pci_claim_resource(dev, i);
 			}
 		}
 	}
@@ -287,18 +265,6 @@ rpaphp_pci_config_slot(struct pci_bus *bus)
 	return dev;
 }
 
-void rpaphp_eeh_init_nodes(struct device_node *dn)
-{
-	struct device_node *sib;
-
-	for (sib = dn->child; sib; sib = sib->sibling) 
-		rpaphp_eeh_init_nodes(sib);
-	eeh_add_device_early(dn);
-	return;
-	
-}
-EXPORT_SYMBOL_GPL(rpaphp_eeh_init_nodes);
-
 static void print_slot_pci_funcs(struct pci_bus *bus)
 {
 	struct device_node *dn;
@@ -324,7 +290,7 @@ int rpaphp_config_pci_adapter(struct pci_bus *bus)
 	if (!dn)
 		goto exit;
 
-	rpaphp_eeh_init_nodes(dn);
+	eeh_add_device_tree_early(dn);
 	dev = rpaphp_pci_config_slot(bus);
 	if (!dev) {
 		err("%s: can't find any devices.\n", __FUNCTION__);
@@ -370,13 +336,14 @@ EXPORT_SYMBOL_GPL(rpaphp_unconfig_pci_adapter);
 
 static int setup_pci_hotplug_slot_info(struct slot *slot)
 {
+	struct hotplug_slot_info *hotplug_slot_info = slot->hotplug_slot->info;
+
 	dbg("%s Initilize the PCI slot's hotplug->info structure ...\n",
 	    __FUNCTION__);
-	rpaphp_get_power_status(slot, &slot->hotplug_slot->info->power_status);
+	rpaphp_get_power_status(slot, &hotplug_slot_info->power_status);
 	rpaphp_get_pci_adapter_status(slot, 1,
-				      &slot->hotplug_slot->info->
-				      adapter_status);
-	if (slot->hotplug_slot->info->adapter_status == NOT_VALID) {
+				      &hotplug_slot_info->adapter_status);
+	if (hotplug_slot_info->adapter_status == NOT_VALID) {
 		err("%s: NOT_VALID: skip dn->full_name=%s\n",
 		    __FUNCTION__, slot->dn->full_name);
 		return -EINVAL;

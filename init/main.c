@@ -47,34 +47,27 @@
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
-#include <net/sock.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
-
-/*
- * This is one of the first .c files built. Error out early
- * if we have compiler trouble..
- */
-#if __GNUC__ == 2 && __GNUC_MINOR__ == 96
-#ifdef CONFIG_FRAME_POINTER
-#error This compiler cannot compile correctly with frame pointers enabled
-#endif
-#endif
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
 #endif
 
 /*
- * Versions of gcc older than that listed below may actually compile
- * and link okay, but the end product can have subtle run time bugs.
- * To avoid associated bogus bug reports, we flatly refuse to compile
- * with a gcc that is known to be too old from the very beginning.
+ * This is one of the first .c files built. Error out early if we have compiler
+ * trouble.
+ *
+ * Versions of gcc older than that listed below may actually compile and link
+ * okay, but the end product can have subtle run time bugs.  To avoid associated
+ * bogus bug reports, we flatly refuse to compile with a gcc that is known to be
+ * too old from the very beginning.
  */
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95)
+#if (__GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 2)
 #error Sorry, your GCC is too old. It builds incorrect kernels.
 #endif
 
@@ -99,6 +92,9 @@ extern void prepare_namespace(void);
 extern void acpi_early_init(void);
 #else
 static inline void acpi_early_init(void) { }
+#endif
+#ifndef CONFIG_DEBUG_RODATA
+static inline void mark_rodata_ro(void) { }
 #endif
 
 #ifdef CONFIG_TC
@@ -487,6 +483,7 @@ asmlinkage void __init start_kernel(void)
 	init_IRQ();
 	pidhash_init();
 	init_timers();
+	hrtimers_init();
 	softirq_init();
 	time_init();
 
@@ -509,6 +506,7 @@ asmlinkage void __init start_kernel(void)
 	}
 #endif
 	vfs_caches_init_early();
+	cpuset_init_early();
 	mem_init();
 	kmem_cache_init();
 	setup_per_cpu_pageset();
@@ -614,9 +612,6 @@ static void __init do_basic_setup(void)
 	sysctl_init();
 #endif
 
-	/* Networking initialization needs a process context */ 
-	sock_init();
-
 	do_initcalls();
 }
 
@@ -712,6 +707,7 @@ static int init(void * unused)
 	 */
 	free_initmem();
 	unlock_kernel();
+	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 

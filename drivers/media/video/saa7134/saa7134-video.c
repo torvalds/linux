@@ -29,6 +29,7 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include <media/v4l2-common.h>
 
 /* Include V4L1 specific functions. Should be removed soon */
 #include <linux/videodev.h>
@@ -1263,10 +1264,9 @@ static int video_open(struct inode *inode, struct file *file)
 		v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
-	memset(fh,0,sizeof(*fh));
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1689,7 +1689,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	int err;
 
 	if (video_debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 
 	switch (cmd) {
 	case VIDIOC_S_CTRL:
@@ -2142,7 +2142,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	struct saa7134_dev *dev = fh->dev;
 
 	if (video_debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case VIDIOC_QUERYCAP:
 	{
@@ -2262,6 +2262,7 @@ static struct file_operations video_fops =
 	.poll     = video_poll,
 	.mmap	  = video_mmap,
 	.ioctl	  = video_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek   = no_llseek,
 };
 
@@ -2271,6 +2272,7 @@ static struct file_operations radio_fops =
 	.open	  = video_open,
 	.release  = video_release,
 	.ioctl	  = radio_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek   = no_llseek,
 };
 

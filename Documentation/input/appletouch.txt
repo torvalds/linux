@@ -3,7 +3,7 @@ Apple Touchpad Driver (appletouch)
 	Copyright (C) 2005 Stelian Pop <stelian@popies.net>
 
 appletouch is a Linux kernel driver for the USB touchpad found on post
-February 2005 Apple Alu Powerbooks.
+February 2005 and October 2005 Apple Aluminium Powerbooks.
 
 This driver is derived from Johannes Berg's appletrackpad driver[1], but it has
 been improved in some areas:
@@ -13,7 +13,8 @@ been improved in some areas:
 
 Credits go to Johannes Berg for reverse-engineering the touchpad protocol,
 Frank Arnold for further improvements, and Alex Harper for some additional
-information about the inner workings of the touchpad sensors.
+information about the inner workings of the touchpad sensors. Michael
+Hanselmann added support for the October 2005 models.
 
 Usage:
 ------

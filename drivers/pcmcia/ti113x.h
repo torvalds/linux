@@ -873,7 +873,7 @@ static int ti1250_override(struct yenta_socket *socket)
  * Some fixup code to make everybody happy (TM).
  */
 
-#ifdef CONFIG_CARDBUS
+#ifdef CONFIG_YENTA_ENE_TUNE
 /**
  * set/clear various test bits:
  * Defaults to clear the bit.
@@ -937,7 +937,7 @@ static int ene_override(struct yenta_socket *socket)
 }
 #else
 #  define ene_override ti1250_override
-#endif
+#endif /* !CONFIG_YENTA_ENE_TUNE */
 
 #endif /* _LINUX_TI113X_H */
 

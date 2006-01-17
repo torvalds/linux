@@ -442,6 +442,7 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/init.h>
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -1315,11 +1316,7 @@ static const struct control_pins e100_modem_pins[NR_PORTS] =
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-#ifdef DECLARE_MUTEX
-static DECLARE_MUTEX(tmp_buf_sem);
-#else
-static struct semaphore tmp_buf_sem = MUTEX;
-#endif
+static DEFINE_MUTEX(tmp_buf_mutex);
 
 /* Calculate the chartime depending on baudrate, numbor of bits etc. */
 static void update_char_time(struct e100_serial * info)
@@ -3661,7 +3658,7 @@ rs_raw_write(struct tty_struct * tty, int from_user,
 	 * design.
 	 */
 	if (from_user) {
-		down(&tmp_buf_sem);
+		mutex_lock(&tmp_buf_mutex);
 		while (1) {
 			int c1;
 			c = CIRC_SPACE_TO_END(info->xmit.head,
@@ -3692,7 +3689,7 @@ rs_raw_write(struct tty_struct * tty, int from_user,
 			count -= c;
 			ret += c;
 		}
-		up(&tmp_buf_sem);
+		mutex_unlock(&tmp_buf_mutex);
 	} else {
 		cli();
 		while (count) {

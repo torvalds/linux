@@ -17,11 +17,11 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/amba/bus.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
 
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -40,7 +40,7 @@
  */
 #undef CONFIG_PM
 
-static void aaci_ac97_select_codec(struct aaci *aaci, ac97_t *ac97)
+static void aaci_ac97_select_codec(struct aaci *aaci, struct snd_ac97 *ac97)
 {
 	u32 v, maincr = aaci->maincr | MAINCR_SCRA(ac97->num);
 
@@ -65,7 +65,7 @@ static void aaci_ac97_select_codec(struct aaci *aaci, ac97_t *ac97)
  *  SI1TxEn, SI2TxEn and SI12TxEn bits are set in the AACI_MAINCR
  *  register.
  */
-static void aaci_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
+static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 {
 	struct aaci *aaci = ac97->private_data;
 	u32 v;
@@ -97,7 +97,7 @@ static void aaci_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val
 /*
  * Read an AC'97 register.
  */
-static unsigned short aaci_ac97_read(ac97_t *ac97, unsigned short reg)
+static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct aaci *aaci = ac97->private_data;
 	u32 v;
@@ -284,11 +284,11 @@ static unsigned int rate_list[] = {
  *  (unimplemented)
  */
 static int
-aaci_rule_rate_by_channels(snd_pcm_hw_params_t *p, snd_pcm_hw_rule_t *rule)
+aaci_rule_rate_by_channels(struct snd_pcm_hw_params *p, struct snd_pcm_hw_rule *rule)
 {
 	struct aaci *aaci = rule->private;
 	unsigned int rate_mask = SNDRV_PCM_RATE_8000_48000|SNDRV_PCM_RATE_5512;
-	snd_interval_t *c = hw_param_interval(p, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *c = hw_param_interval(p, SNDRV_PCM_HW_PARAM_CHANNELS);
 
 	switch (c->max) {
 	case 6:
@@ -304,7 +304,7 @@ aaci_rule_rate_by_channels(snd_pcm_hw_params_t *p, snd_pcm_hw_rule_t *rule)
 				 rate_mask);
 }
 
-static snd_pcm_hardware_t aaci_hw_info = {
+static struct snd_pcm_hardware aaci_hw_info = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
@@ -330,10 +330,10 @@ static snd_pcm_hardware_t aaci_hw_info = {
 	.periods_max		= PAGE_SIZE / 16,
 };
 
-static int aaci_pcm_open(struct aaci *aaci, snd_pcm_substream_t *substream,
+static int aaci_pcm_open(struct aaci *aaci, struct snd_pcm_substream *substream,
 			 struct aaci_runtime *aacirun)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int ret;
 
 	aacirun->substream = substream;
@@ -375,7 +375,7 @@ static int aaci_pcm_open(struct aaci *aaci, snd_pcm_substream_t *substream,
 /*
  * Common ALSA stuff
  */
-static int aaci_pcm_close(snd_pcm_substream_t *substream)
+static int aaci_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
@@ -388,7 +388,7 @@ static int aaci_pcm_close(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int aaci_pcm_hw_free(snd_pcm_substream_t *substream)
+static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 
@@ -409,9 +409,9 @@ static int aaci_pcm_hw_free(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int aaci_pcm_hw_params(snd_pcm_substream_t *substream,
+static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct aaci_runtime *aacirun,
-			      snd_pcm_hw_params_t *params)
+			      struct snd_pcm_hw_params *params)
 {
 	int err;
 
@@ -434,9 +434,9 @@ static int aaci_pcm_hw_params(snd_pcm_substream_t *substream,
 	return err;
 }
 
-static int aaci_pcm_prepare(snd_pcm_substream_t *substream)
+static int aaci_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aaci_runtime *aacirun = runtime->private_data;
 
 	aacirun->start	= (void *)runtime->dma_area;
@@ -448,16 +448,16 @@ static int aaci_pcm_prepare(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static snd_pcm_uframes_t aaci_pcm_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t aaci_pcm_pointer(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aaci_runtime *aacirun = runtime->private_data;
 	ssize_t bytes = aacirun->ptr - aacirun->start;
 
 	return bytes_to_frames(runtime, bytes);
 }
 
-static int aaci_pcm_mmap(snd_pcm_substream_t *substream, struct vm_area_struct *vma)
+static int aaci_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
 {
 	return devdma_mmap(NULL, substream, vma);
 }
@@ -484,7 +484,7 @@ static const u32 channels_to_txmask[] = {
 static unsigned int channel_list[] = { 2, 4, 6 };
 
 static int
-aaci_rule_channels(snd_pcm_hw_params_t *p, snd_pcm_hw_rule_t *rule)
+aaci_rule_channels(struct snd_pcm_hw_params *p, struct snd_pcm_hw_rule *rule)
 {
 	struct aaci *aaci = rule->private;
 	unsigned int chan_mask = 1 << 0, slots;
@@ -504,7 +504,7 @@ aaci_rule_channels(snd_pcm_hw_params_t *p, snd_pcm_hw_rule_t *rule)
 				 chan_mask);
 }
 
-static int aaci_pcm_playback_open(snd_pcm_substream_t *substream)
+static int aaci_pcm_playback_open(struct snd_pcm_substream *substream)
 {
 	struct aaci *aaci = substream->private_data;
 	int ret;
@@ -522,8 +522,8 @@ static int aaci_pcm_playback_open(snd_pcm_substream_t *substream)
 	return aaci_pcm_open(aaci, substream, &aaci->playback);
 }
 
-static int aaci_pcm_playback_hw_params(snd_pcm_substream_t *substream,
-				       snd_pcm_hw_params_t *params)
+static int aaci_pcm_playback_hw_params(struct snd_pcm_substream *substream,
+				       struct snd_pcm_hw_params *params)
 {
 	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
@@ -575,7 +575,7 @@ static void aaci_pcm_playback_start(struct aaci_runtime *aacirun)
 	writel(aacirun->cr, aacirun->base + AACI_TXCR);
 }
 
-static int aaci_pcm_playback_trigger(snd_pcm_substream_t *substream, int cmd)
+static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
@@ -614,7 +614,7 @@ static int aaci_pcm_playback_trigger(snd_pcm_substream_t *substream, int cmd)
 	return ret;
 }
 
-static snd_pcm_ops_t aaci_playback_ops = {
+static struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_playback_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -632,34 +632,29 @@ static snd_pcm_ops_t aaci_playback_ops = {
  * Power Management.
  */
 #ifdef CONFIG_PM
-static int aaci_do_suspend(snd_card_t *card, unsigned int state)
+static int aaci_do_suspend(struct snd_card *card, unsigned int state)
 {
 	struct aaci *aaci = card->private_data;
-	if (aaci->card->power_state != SNDRV_CTL_POWER_D3cold) {
-		snd_pcm_suspend_all(aaci->pcm);
-		snd_power_change_state(aaci->card, SNDRV_CTL_POWER_D3cold);
-	}
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
+	snd_pcm_suspend_all(aaci->pcm);
 	return 0;
 }
 
-static int aaci_do_resume(snd_card_t *card, unsigned int state)
+static int aaci_do_resume(struct snd_card *card, unsigned int state)
 {
-	struct aaci *aaci = card->private_data;
-	if (aaci->card->power_state != SNDRV_CTL_POWER_D0) {
-		snd_power_change_state(aaci->card, SNDRV_CTL_POWER_D0);
-	}
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 
 static int aaci_suspend(struct amba_device *dev, pm_message_t state)
 {
-	snd_card_t *card = amba_get_drvdata(dev);
+	struct snd_card *card = amba_get_drvdata(dev);
 	return card ? aaci_do_suspend(card) : 0;
 }
 
 static int aaci_resume(struct amba_device *dev)
 {
-	snd_card_t *card = amba_get_drvdata(dev);
+	struct snd_card *card = amba_get_drvdata(dev);
 	return card ? aaci_do_resume(card) : 0;
 }
 #else
@@ -705,16 +700,16 @@ static struct ac97_pcm ac97_defs[] __devinitdata = {
 	}
 };
 
-static ac97_bus_ops_t aaci_bus_ops = {
+static struct snd_ac97_bus_ops aaci_bus_ops = {
 	.write	= aaci_ac97_write,
 	.read	= aaci_ac97_read,
 };
 
 static int __devinit aaci_probe_ac97(struct aaci *aaci)
 {
-	ac97_template_t ac97_template;
-	ac97_bus_t *ac97_bus;
-	ac97_t *ac97;
+	struct snd_ac97_template ac97_template;
+	struct snd_ac97_bus *ac97_bus;
+	struct snd_ac97 *ac97;
 	int ret;
 
 	/*
@@ -737,7 +732,7 @@ static int __devinit aaci_probe_ac97(struct aaci *aaci)
 	ac97_bus->clock = 48000;
 	aaci->ac97_bus = ac97_bus;
 
-	memset(&ac97_template, 0, sizeof(ac97_template_t));
+	memset(&ac97_template, 0, sizeof(struct snd_ac97_template));
 	ac97_template.private_data = aaci;
 	ac97_template.num = 0;
 	ac97_template.scaps = AC97_SCAP_SKIP_MODEM;
@@ -762,7 +757,7 @@ static int __devinit aaci_probe_ac97(struct aaci *aaci)
 	return ret;
 }
 
-static void aaci_free_card(snd_card_t *card)
+static void aaci_free_card(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
 	if (aaci->base)
@@ -772,7 +767,7 @@ static void aaci_free_card(snd_card_t *card)
 static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 {
 	struct aaci *aaci;
-	snd_card_t *card;
+	struct snd_card *card;
 
 	card = snd_card_new(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			    THIS_MODULE, sizeof(struct aaci));
@@ -780,7 +775,6 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 		return ERR_PTR(-ENOMEM);
 
 	card->private_free = aaci_free_card;
-	snd_card_set_pm_callback(card, aaci_do_suspend, aaci_do_resume, NULL);
 
 	strlcpy(card->driver, DRIVER_NAME, sizeof(card->driver));
 	strlcpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));
@@ -803,7 +797,7 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 
 static int __devinit aaci_init_pcm(struct aaci *aaci)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int ret;
 
 	ret = snd_pcm_new(aaci->card, "AACI AC'97", 0, 1, 0, &pcm);
@@ -920,7 +914,7 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 
 static int __devexit aaci_remove(struct amba_device *dev)
 {
-	snd_card_t *card = amba_get_drvdata(dev);
+	struct snd_card *card = amba_get_drvdata(dev);
 
 	amba_set_drvdata(dev, NULL);
 

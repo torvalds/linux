@@ -43,7 +43,7 @@ struct net_protocol {
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 struct inet6_protocol 
 {
-	int	(*handler)(struct sk_buff **skb, unsigned int *nhoffp);
+	int	(*handler)(struct sk_buff **skb);
 
 	void	(*err_handler)(struct sk_buff *skb,
 			       struct inet6_skb_parm *opt,
@@ -65,7 +65,7 @@ struct inet_protosw {
 	int		 protocol; /* This is the L4 protocol number.  */
 
 	struct proto	 *prot;
-	struct proto_ops *ops;
+	const struct proto_ops *ops;
   
 	int              capability; /* Which (if any) capability do
 				      * we need to use this socket
@@ -76,6 +76,7 @@ struct inet_protosw {
 };
 #define INET_PROTOSW_REUSE 0x01	     /* Are ports automatically reusable? */
 #define INET_PROTOSW_PERMANENT 0x02  /* Permanent protocols are unremovable. */
+#define INET_PROTOSW_ICSK      0x04  /* Is this an inet_connection_sock? */
 
 extern struct net_protocol *inet_protocol_base;
 extern struct net_protocol *inet_protos[MAX_INET_PROTOS];

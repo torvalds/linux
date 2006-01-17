@@ -81,7 +81,8 @@ static int store_updates_sp(struct pt_regs *regs)
 }
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
-static void do_dabr(struct pt_regs *regs, unsigned long error_code)
+static void do_dabr(struct pt_regs *regs, unsigned long address,
+		    unsigned long error_code)
 {
 	siginfo_t info;
 
@@ -99,7 +100,7 @@ static void do_dabr(struct pt_regs *regs, unsigned long error_code)
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_HWBKPT;
-	info.si_addr = (void __user *)regs->nip;
+	info.si_addr = (void __user *)address;
 	force_sig_info(SIGTRAP, &info, current);
 }
 #endif /* !(CONFIG_4xx || CONFIG_BOOKE)*/
@@ -159,7 +160,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
   	if (error_code & DSISR_DABRMATCH) {
 		/* DABR match */
-		do_dabr(regs, error_code);
+		do_dabr(regs, address, error_code);
 		return 0;
 	}
 #endif /* !(CONFIG_4xx || CONFIG_BOOKE)*/

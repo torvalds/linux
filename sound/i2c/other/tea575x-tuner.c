@@ -58,7 +58,7 @@ MODULE_LICENSE("GPL");
  * lowlevel part
  */
 
-static void snd_tea575x_set_freq(tea575x_t *tea)
+static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 {
 	unsigned long freq;
 
@@ -89,7 +89,7 @@ static int snd_tea575x_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long data)
 {
 	struct video_device *dev = video_devdata(file);
-	tea575x_t *tea = video_get_drvdata(dev);
+	struct snd_tea575x *tea = video_get_drvdata(dev);
 	void __user *arg = (void __user *)data;
 	
 	switch(cmd) {
@@ -175,7 +175,7 @@ static void snd_tea575x_release(struct video_device *vfd)
 /*
  * initialize all the tea575x chips
  */
-void snd_tea575x_init(tea575x_t *tea)
+void snd_tea575x_init(struct snd_tea575x *tea)
 {
 	unsigned int val;
 
@@ -209,7 +209,7 @@ void snd_tea575x_init(tea575x_t *tea)
 	snd_tea575x_set_freq(tea);
 }
 
-void snd_tea575x_exit(tea575x_t *tea)
+void snd_tea575x_exit(struct snd_tea575x *tea)
 {
 	if (tea->vd_registered) {
 		video_unregister_device(&tea->vd);

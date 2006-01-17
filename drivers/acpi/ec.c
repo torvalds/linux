@@ -153,7 +153,7 @@ static int acpi_ec_polling_mode = EC_POLLING;
                              Transaction Management
    -------------------------------------------------------------------------- */
 
-static inline u32 acpi_ec_read_status(union acpi_ec *ec)
+static u32 acpi_ec_read_status(union acpi_ec *ec)
 {
 	u32 status = 0;
 

@@ -30,6 +30,7 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>

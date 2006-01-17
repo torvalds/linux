@@ -1131,7 +1131,7 @@ int open_for_data(struct cdrom_device_info * cdi)
 	This ensures that the drive gets unlocked after a mount fails.  This 
 	is a goto to avoid bloating the driver with redundant code. */ 
 clean_up_and_return:
-	cdinfo(CD_WARNING, "open failed.\n"); 
+	cdinfo(CD_OPEN, "open failed.\n"); 
 	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
 			cdo->lock_door(cdi, 0);
 			cdinfo(CD_OPEN, "door unlocked.\n");

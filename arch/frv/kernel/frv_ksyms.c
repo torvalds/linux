@@ -16,17 +16,16 @@
 #include <asm/semaphore.h>
 #include <asm/checksum.h>
 #include <asm/hardirq.h>
-#include <asm/current.h>
+#include <asm/cacheflush.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern long __memcpy_user(void *dst, const void *src, size_t count);
+extern long __memset_user(void *dst, const void *src, size_t count);
 
 /* platform dependent support */
 
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
@@ -50,7 +49,11 @@ EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(__res_bus_clock_speed_HZ);
 EXPORT_SYMBOL(__page_offset);
 EXPORT_SYMBOL(__memcpy_user);
-EXPORT_SYMBOL(flush_dcache_page);
+EXPORT_SYMBOL(__memset_user);
+EXPORT_SYMBOL(frv_dcache_writeback);
+EXPORT_SYMBOL(frv_cache_invalidate);
+EXPORT_SYMBOL(frv_icache_invalidate);
+EXPORT_SYMBOL(frv_cache_wback_inv);
 
 #ifndef CONFIG_MMU
 EXPORT_SYMBOL(memory_start);
@@ -72,6 +75,9 @@ EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memmove);
 
+EXPORT_SYMBOL(__outsl_ns);
+EXPORT_SYMBOL(__insl_ns);
+
 EXPORT_SYMBOL(get_wchan);
 
 #ifdef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
@@ -80,13 +86,12 @@ EXPORT_SYMBOL(atomic_test_and_OR_mask);
 EXPORT_SYMBOL(atomic_test_and_XOR_mask);
 EXPORT_SYMBOL(atomic_add_return);
 EXPORT_SYMBOL(atomic_sub_return);
-EXPORT_SYMBOL(__xchg_8);
-EXPORT_SYMBOL(__xchg_16);
 EXPORT_SYMBOL(__xchg_32);
-EXPORT_SYMBOL(__cmpxchg_8);
-EXPORT_SYMBOL(__cmpxchg_16);
 EXPORT_SYMBOL(__cmpxchg_32);
 #endif
+
+EXPORT_SYMBOL(__debug_bug_printk);
+EXPORT_SYMBOL(__delay_loops_MHz);
 
 /*
  * libgcc functions - functions that are used internally by the
@@ -101,6 +106,8 @@ extern void __divdi3(void);
 extern void __lshrdi3(void);
 extern void __moddi3(void);
 extern void __muldi3(void);
+extern void __mulll(void);
+extern void __umulll(void);
 extern void __negdi2(void);
 extern void __ucmpdi2(void);
 extern void __udivdi3(void);
@@ -116,8 +123,10 @@ EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__lshrdi3);
 //EXPORT_SYMBOL(__moddi3);
 EXPORT_SYMBOL(__muldi3);
+EXPORT_SYMBOL(__mulll);
+EXPORT_SYMBOL(__umulll);
 EXPORT_SYMBOL(__negdi2);
-//EXPORT_SYMBOL(__ucmpdi2);
+EXPORT_SYMBOL(__ucmpdi2);
 //EXPORT_SYMBOL(__udivdi3);
 //EXPORT_SYMBOL(__udivmoddi4);
 //EXPORT_SYMBOL(__umoddi3);

@@ -182,6 +182,7 @@ config IP_NF_QUEUE
 
 config IP_NF_IPTABLES
 	tristate "IP tables support (required for filtering/masq/NAT)"
+	depends on NETFILTER_XTABLES
 	help
 	  iptables is a general, extensible packet identification framework.
 	  The packet filtering and full NAT (masquerading, port forwarding,
@@ -191,53 +192,12 @@ config IP_NF_IPTABLES
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The matches.
-config IP_NF_MATCH_LIMIT
-	tristate "limit match support"
-	depends on IP_NF_IPTABLES
-	help
-	  limit matching allows you to control the rate at which a rule can be
-	  matched: mainly useful in combination with the LOG target ("LOG
-	  target support", below) and to avoid some Denial of Service attacks.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_IPRANGE
 	tristate "IP range match support"
 	depends on IP_NF_IPTABLES
 	help
 	  This option makes possible to match IP addresses against IP address
 	  ranges.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_MAC
-	tristate "MAC address match support"
-	depends on IP_NF_IPTABLES
-	help
-	  MAC matching allows you to match packets based on the source
-	  Ethernet address of the packet.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_PKTTYPE
-	tristate "Packet type match support"
-	depends on IP_NF_IPTABLES
-	help
-	  Packet type matching allows you to match a packet by
-	  its "class", eg. BROADCAST, MULTICAST, ...
-
-	  Typical usage:
-	  iptables -A INPUT -m pkttype --pkt-type broadcast -j LOG
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_MARK
-	tristate "netfilter MARK match support"
-	depends on IP_NF_IPTABLES
-	help
-	  Netfilter mark matching allows you to match packets based on the
-	  `nfmark' value in the packet.  This can be set by the MARK target
-	  (see below).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -301,65 +261,12 @@ config IP_NF_MATCH_AH_ESP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_LENGTH
-	tristate "LENGTH match support"
-	depends on IP_NF_IPTABLES
-	help
-	  This option allows you to match the length of a packet against a
-	  specific value or range of values.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_TTL
 	tristate "TTL match support"
 	depends on IP_NF_IPTABLES
 	help
 	  This adds CONFIG_IP_NF_MATCH_TTL option, which enabled the user
 	  to match packets by their TTL value.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_TCPMSS
-	tristate "tcpmss match support"
-	depends on IP_NF_IPTABLES
-	help
-	  This option adds a `tcpmss' match, which allows you to examine the
-	  MSS value of TCP SYN packets, which control the maximum packet size
-	  for that connection.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_HELPER
-	tristate "Helper match support"
-	depends on IP_NF_IPTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
-	help
-	  Helper matching allows you to match packets in dynamic connections
-	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
-
-	  To compile it as a module, choose M here.  If unsure, say Y.
-
-config IP_NF_MATCH_STATE
-	tristate "Connection state match support"
-	depends on IP_NF_IPTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
-	help
-	  Connection state matching allows you to match packets based on their
-	  relationship to a tracked connection (ie. previous packets).  This
-	  is a powerful tool for packet classification.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_MATCH_CONNTRACK
-	tristate "Connection tracking match support"
-	depends on IP_NF_IPTABLES
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
-	help
-	  This is a general conntrack match module, a superset of the state match.
-
-	  It allows matching on additional conntrack information, which is
-	  useful in complex configurations, such as NAT gateways with multiple
-	  internet links or tunnels.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -372,15 +279,6 @@ config IP_NF_MATCH_OWNER
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_PHYSDEV
-	tristate "Physdev match support"
-	depends on IP_NF_IPTABLES && BRIDGE_NETFILTER
-	help
-	  Physdev packet matching matches against the physical bridge ports
-	  the IP packet arrived on or will leave by.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_ADDRTYPE
 	tristate  'address type match support'
 	depends on IP_NF_IPTABLES
@@ -388,75 +286,6 @@ config IP_NF_MATCH_ADDRTYPE
 	  This option allows you to match what routing thinks of an address,
 	  eg. UNICAST, LOCAL, BROADCAST, ...
 	
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config IP_NF_MATCH_REALM
-	tristate  'realm match support'
-	depends on IP_NF_IPTABLES
-	select NET_CLS_ROUTE
-	help
-	  This option adds a `realm' match, which allows you to use the realm
-	  key from the routing subsystem inside iptables.
-	
-	  This match pretty much resembles the CONFIG_NET_CLS_ROUTE4 option 
-	  in tc world.
-	
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config IP_NF_MATCH_SCTP
-	tristate  'SCTP protocol match support'
-	depends on IP_NF_IPTABLES
-	help
-	  With this option enabled, you will be able to use the iptables
-	  `sctp' match in order to match on SCTP source/destination ports
-	  and SCTP chunk types.
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config IP_NF_MATCH_DCCP
-	tristate  'DCCP protocol match support'
-	depends on IP_NF_IPTABLES
-	help
-	  With this option enabled, you will be able to use the iptables
-	  `dccp' match in order to match on DCCP source/destination ports
-	  and DCCP flags.
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config IP_NF_MATCH_COMMENT
-	tristate  'comment match support'
-	depends on IP_NF_IPTABLES
-	help
-	  This option adds a `comment' dummy-match, which allows you to put
-	  comments in your iptables ruleset.
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config IP_NF_MATCH_CONNMARK
-	tristate  'Connection mark match support'
-	depends on IP_NF_IPTABLES
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
-	help
-	  This option adds a `connmark' match, which allows you to match the
-	  connection mark value previously set for the session by `CONNMARK'. 
-	
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  The module will be called
-	  ipt_connmark.o.  If unsure, say `N'.
-
-config IP_NF_MATCH_CONNBYTES
-	tristate  'Connection byte/packet counter match support'
-	depends on IP_NF_IPTABLES
-	depends on (IP_NF_CONNTRACK && IP_NF_CT_ACCT) || (NF_CT_ACCT && NF_CONNTRACK_IPV4)
-	help
-	  This option adds a `connbytes' match, which allows you to match the
-	  number of bytes and/or packets for each direction within a connection.
-
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
@@ -474,18 +303,15 @@ config IP_NF_MATCH_HASHLIMIT
 	  destination IP' or `500pps from any given source IP'  with a single
 	  IPtables rule.
 
-config IP_NF_MATCH_STRING
-	tristate  'string match support'
-	depends on IP_NF_IPTABLES 
-	select TEXTSEARCH
-	select TEXTSEARCH_KMP
-	select TEXTSEARCH_BM
-	select TEXTSEARCH_FSM
-	help
-	  This option adds a `string' match, which allows you to look for
-	  pattern matchings in packets.
+config IP_NF_MATCH_POLICY
+       tristate "IPsec policy match support"
+       depends on IP_NF_IPTABLES && XFRM
+       help
+         Policy matching allows you to match packets based on the
+         IPsec policy that was used during decapsulation/will
+         be used during encapsulation.
 
-	  To compile it as a module, choose M here.  If unsure, say N.
+         To compile it as a module, choose M here.  If unsure, say N.
 
 # `filter', generic and specific targets
 config IP_NF_FILTER
@@ -559,17 +385,6 @@ config IP_NF_TARGET_TCPMSS
 
 	  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
 	  		 -j TCPMSS --clamp-mss-to-pmtu
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_NFQUEUE
-	tristate "NFQUEUE Target Support"
-	depends on IP_NF_IPTABLES
-	help
-	  This Target replaced the old obsolete QUEUE target.
-
-	  As opposed to QUEUE, it supports 65535 different queues,
-	  not just one.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -725,31 +540,6 @@ config IP_NF_TARGET_DSCP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_MARK
-	tristate "MARK target support"
-	depends on IP_NF_MANGLE
-	help
-	  This option adds a `MARK' target, which allows you to create rules
-	  in the `mangle' table which alter the netfilter mark (nfmark) field
-	  associated with the packet prior to routing. This can change
-	  the routing method (see `Use netfilter MARK value as routing
-	  key') and can also be used by other subsystems to change their
-	  behavior.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_CLASSIFY
-	tristate "CLASSIFY target support"
-	depends on IP_NF_MANGLE
-	help
-	  This option adds a `CLASSIFY' target, which enables the user to set
-	  the priority of a packet. Some qdiscs can use this value for
-	  classification, among these are:
-
-  	  atm, cbq, dsmark, pfifo_fast, htb, prio
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_TARGET_TTL
 	tristate  'TTL target support'
 	depends on IP_NF_MANGLE
@@ -763,19 +553,6 @@ config IP_NF_TARGET_TTL
 	  create immortal packets that loop forever on the network.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_CONNMARK
-	tristate  'CONNMARK target support'
-	depends on IP_NF_MANGLE
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
-	help
-	  This option adds a `CONNMARK' target, which allows one to manipulate
-	  the connection mark value.  Similar to the MARK target, but
-	  affects the connection mark value rather than the packet mark value.
-	
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  The module will be called
-	  ipt_CONNMARK.o.  If unsure, say `N'.
 
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support (EXPERIMENTAL)"
@@ -800,23 +577,10 @@ config IP_NF_RAW
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
-config IP_NF_TARGET_NOTRACK
-	tristate  'NOTRACK target support'
-	depends on IP_NF_RAW
-	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
-	help
-	  The NOTRACK target allows a select rule to specify
-	  which packets *not* to enter the conntrack/NAT
-	  subsystem with all the consequences (no ICMP error tracking,
-	  no protocol helpers for the selected packets).
-	
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-
 # ARP tables
 config IP_NF_ARPTABLES
 	tristate "ARP tables support"
+	depends on NETFILTER_XTABLES
 	help
 	  arptables is a general, extensible packet identification framework.
 	  The ARP packet filtering and mangling (manipulation)subsystems

@@ -112,33 +112,38 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 		p < (void *)tinfo + THREAD_SIZE - 3;
 }
 
+static void print_addr_and_symbol(unsigned long addr, char *log_lvl)
+{
+	printk(log_lvl);
+	printk(" [<%08lx>] ", addr);
+	print_symbol("%s", addr);
+	printk("\n");
+}
+
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
-				unsigned long *stack, unsigned long ebp)
+				unsigned long *stack, unsigned long ebp,
+				char *log_lvl)
 {
 	unsigned long addr;
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		printk(" [<%08lx>] ", addr);
-		print_symbol("%s", addr);
-		printk("\n");
+		print_addr_and_symbol(addr, log_lvl);
 		ebp = *(unsigned long *)ebp;
 	}
 #else
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk(" [<%08lx>]", addr);
-			print_symbol(" %s", addr);
-			printk("\n");
-		}
+		if (__kernel_text_address(addr))
+			print_addr_and_symbol(addr, log_lvl);
 	}
 #endif
 	return ebp;
 }
 
-void show_trace(struct task_struct *task, unsigned long * stack)
+static void show_trace_log_lvl(struct task_struct *task,
+			       unsigned long *stack, char *log_lvl)
 {
 	unsigned long ebp;
 
@@ -157,15 +162,21 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 		struct thread_info *context;
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		ebp = print_context_stack(context, stack, ebp);
+		ebp = print_context_stack(context, stack, ebp, log_lvl);
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
-		printk(" =======================\n");
+		printk(KERN_EMERG " =======================\n");
 	}
 }
 
-void show_stack(struct task_struct *task, unsigned long *esp)
+void show_trace(struct task_struct *task, unsigned long * stack)
+{
+	show_trace_log_lvl(task, stack, "");
+}
+
+static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
+			       char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -178,15 +189,26 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	}
 
 	stack = esp;
+	printk(log_lvl);
 	for(i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
-		if (i && ((i % 8) == 0))
-			printk("\n       ");
+		if (i && ((i % 8) == 0)) {
+			printk("\n");
+			printk(log_lvl);
+			printk("       ");
+		}
 		printk("%08lx ", *stack++);
 	}
-	printk("\nCall Trace:\n");
-	show_trace(task, esp);
+	printk("\n");
+	printk(log_lvl);
+	printk("Call Trace:\n");
+	show_trace_log_lvl(task, esp, log_lvl);
+}
+
+void show_stack(struct task_struct *task, unsigned long *esp)
+{
+	show_stack_log_lvl(task, esp, "");
 }
 
 /*
@@ -216,18 +238,18 @@ void show_registers(struct pt_regs *regs)
 		ss = regs->xss & 0xffff;
 	}
 	print_modules();
-	printk("CPU:    %d\nEIP:    %04x:[<%08lx>]    %s VLI\nEFLAGS: %08lx"
-			"   (%s) \n",
+	printk(KERN_EMERG "CPU:    %d\nEIP:    %04x:[<%08lx>]    %s VLI\n"
+			"EFLAGS: %08lx   (%s) \n",
 		smp_processor_id(), 0xffff & regs->xcs, regs->eip,
 		print_tainted(), regs->eflags, system_utsname.release);
-	print_symbol("EIP is at %s\n", regs->eip);
-	printk("eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
+	print_symbol(KERN_EMERG "EIP is at %s\n", regs->eip);
+	printk(KERN_EMERG "eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 		regs->eax, regs->ebx, regs->ecx, regs->edx);
-	printk("esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
+	printk(KERN_EMERG "esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
 		regs->esi, regs->edi, regs->ebp, esp);
-	printk("ds: %04x   es: %04x   ss: %04x\n",
+	printk(KERN_EMERG "ds: %04x   es: %04x   ss: %04x\n",
 		regs->xds & 0xffff, regs->xes & 0xffff, ss);
-	printk("Process %s (pid: %d, threadinfo=%p task=%p)",
+	printk(KERN_EMERG "Process %s (pid: %d, threadinfo=%p task=%p)",
 		current->comm, current->pid, current_thread_info(), current);
 	/*
 	 * When in-kernel, we also print out the stack and code at the
@@ -236,10 +258,10 @@ void show_registers(struct pt_regs *regs)
 	if (in_kernel) {
 		u8 __user *eip;
 
-		printk("\nStack: ");
-		show_stack(NULL, (unsigned long*)esp);
+		printk("\n" KERN_EMERG "Stack: ");
+		show_stack_log_lvl(NULL, (unsigned long *)esp, KERN_EMERG);
 
-		printk("Code: ");
+		printk(KERN_EMERG "Code: ");
 
 		eip = (u8 __user *)regs->eip - 43;
 		for (i = 0; i < 64; i++, eip++) {
@@ -280,15 +302,15 @@ static void handle_BUG(struct pt_regs *regs)
 		(unsigned long)file < PAGE_OFFSET || __get_user(c, file))
 		file = "<bad filename>";
 
-	printk("------------[ cut here ]------------\n");
-	printk(KERN_ALERT "kernel BUG at %s:%d!\n", file, line);
+	printk(KERN_EMERG "------------[ cut here ]------------\n");
+	printk(KERN_EMERG "kernel BUG at %s:%d!\n", file, line);
 
 no_bug:
 	return;
 
 	/* Here we know it was a BUG but file-n-line is unavailable */
 bug:
-	printk("Kernel BUG\n");
+	printk(KERN_EMERG "Kernel BUG\n");
 }
 
 /* This is gone through when something in the kernel
@@ -306,28 +328,35 @@ void die(const char * str, struct pt_regs * regs, long err)
 		.lock_owner_depth =	0
 	};
 	static int die_counter;
+	unsigned long flags;
 
 	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
-		spin_lock_irq(&die.lock);
+		spin_lock_irqsave(&die.lock, flags);
 		die.lock_owner = smp_processor_id();
 		die.lock_owner_depth = 0;
 		bust_spinlocks(1);
 	}
+	else
+		local_save_flags(flags);
 
 	if (++die.lock_owner_depth < 3) {
 		int nl = 0;
 		handle_BUG(regs);
-		printk(KERN_ALERT "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
+		printk(KERN_EMERG "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
-		printk("PREEMPT ");
+		printk(KERN_EMERG "PREEMPT ");
 		nl = 1;
 #endif
 #ifdef CONFIG_SMP
+		if (!nl)
+			printk(KERN_EMERG);
 		printk("SMP ");
 		nl = 1;
 #endif
 #ifdef CONFIG_DEBUG_PAGEALLOC
+		if (!nl)
+			printk(KERN_EMERG);
 		printk("DEBUG_PAGEALLOC");
 		nl = 1;
 #endif
@@ -336,11 +365,11 @@ void die(const char * str, struct pt_regs * regs, long err)
 	notify_die(DIE_OOPS, (char *)str, regs, err, 255, SIGSEGV);
 		show_registers(regs);
   	} else
-		printk(KERN_ERR "Recursive die() failure, output suppressed\n");
+		printk(KERN_EMERG "Recursive die() failure, output suppressed\n");
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
-	spin_unlock_irq(&die.lock);
+	spin_unlock_irqrestore(&die.lock, flags);
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -452,7 +481,7 @@ DO_VM86_ERROR( 3, SIGTRAP, "int3", int3)
 #endif
 DO_VM86_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid operand", invalid_op, ILL_ILLOPN, regs->eip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
@@ -524,8 +553,10 @@ gp_in_kernel:
 
 static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
-	printk("Uhhuh. NMI received. Dazed and confused, but trying to continue\n");
-	printk("You probably have a hardware problem with your RAM chips\n");
+	printk(KERN_EMERG "Uhhuh. NMI received. Dazed and confused, but trying "
+			"to continue\n");
+	printk(KERN_EMERG "You probably have a hardware problem with your RAM "
+			"chips\n");
 
 	/* Clear and disable the memory parity error line. */
 	clear_mem_error(reason);
@@ -535,7 +566,7 @@ static void io_check_error(unsigned char reason, struct pt_regs * regs)
 {
 	unsigned long i;
 
-	printk("NMI: IOCK error (debug interrupt?)\n");
+	printk(KERN_EMERG "NMI: IOCK error (debug interrupt?)\n");
 	show_registers(regs);
 
 	/* Re-enable the IOCK line, wait for a few seconds */
@@ -577,11 +608,11 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	* to get a message out.
 	*/
 	bust_spinlocks(1);
-	printk(msg);
+	printk(KERN_EMERG "%s", msg);
 	printk(" on CPU%d, eip %08lx, registers:\n",
 		smp_processor_id(), regs->eip);
 	show_registers(regs);
-	printk("console shuts up ...\n");
+	printk(KERN_EMERG "console shuts up ...\n");
 	console_silent();
 	spin_unlock(&nmi_print_lock);
 	bust_spinlocks(0);
@@ -987,8 +1018,8 @@ asmlinkage void math_state_restore(struct pt_regs regs)
 
 asmlinkage void math_emulate(long arg)
 {
-	printk("math-emulation not enabled and no coprocessor found.\n");
-	printk("killing %s.\n",current->comm);
+	printk(KERN_EMERG "math-emulation not enabled and no coprocessor found.\n");
+	printk(KERN_EMERG "killing %s.\n",current->comm);
 	force_sig(SIGFPE,current);
 	schedule();
 }
@@ -1075,9 +1106,9 @@ void __init trap_init(void)
 	set_trap_gate(0,&divide_error);
 	set_intr_gate(1,&debug);
 	set_intr_gate(2,&nmi);
-	set_system_intr_gate(3, &int3); /* int3-5 can be called from all */
+	set_system_intr_gate(3, &int3); /* int3/4 can be called from all */
 	set_system_gate(4,&overflow);
-	set_system_gate(5,&bounds);
+	set_trap_gate(5,&bounds);
 	set_trap_gate(6,&invalid_op);
 	set_trap_gate(7,&device_not_available);
 	set_task_gate(8,GDT_ENTRY_DOUBLEFAULT_TSS);
@@ -1094,6 +1125,28 @@ void __init trap_init(void)
 	set_trap_gate(18,&machine_check);
 #endif
 	set_trap_gate(19,&simd_coprocessor_error);
+
+	if (cpu_has_fxsr) {
+		/*
+		 * Verify that the FXSAVE/FXRSTOR data will be 16-byte aligned.
+		 * Generates a compile-time "error: zero width for bit-field" if
+		 * the alignment is wrong.
+		 */
+		struct fxsrAlignAssert {
+			int _:!(offsetof(struct task_struct,
+					thread.i387.fxsave) & 15);
+		};
+
+		printk(KERN_INFO "Enabling fast FPU save and restore... ");
+		set_in_cr4(X86_CR4_OSFXSR);
+		printk("done.\n");
+	}
+	if (cpu_has_xmm) {
+		printk(KERN_INFO "Enabling unmasked SIMD FPU exception "
+				"support... ");
+		set_in_cr4(X86_CR4_OSXMMEXCPT);
+		printk("done.\n");
+	}
 
 	set_system_gate(SYSCALL_VECTOR,&system_call);
 

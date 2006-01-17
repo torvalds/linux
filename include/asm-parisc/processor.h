@@ -144,16 +144,16 @@ struct thread_struct {
         })
 
 #define INIT_THREAD { \
-	regs:	{	gr: { 0, }, \
-			fr: { 0, }, \
-			sr: { 0, }, \
-			iasq: { 0, }, \
-			iaoq: { 0, }, \
-			cr27: 0, \
+	.regs = {	.gr	= { 0, }, \
+			.fr	= { 0, }, \
+			.sr	= { 0, }, \
+			.iasq	= { 0, }, \
+			.iaoq	= { 0, }, \
+			.cr27	= 0, \
 		}, \
-	task_size:      DEFAULT_TASK_SIZE, \
-	map_base:       DEFAULT_MAP_BASE, \
-	flags:          0 \
+	.task_size	= DEFAULT_TASK_SIZE, \
+	.map_base	= DEFAULT_MAP_BASE, \
+	.flags		= 0 \
 	}
 
 /*

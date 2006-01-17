@@ -176,9 +176,6 @@ void config_apollo(void) {
 	mach_set_clock_mmss  = dn_dummy_set_clock_mmss; /* */
 	mach_process_int     = dn_process_int;
 	mach_reset	     = dn_dummy_reset;  /* */
-#ifdef CONFIG_DUMMY_CONSOLE
-        conswitchp           = &dummy_con;
-#endif
 #ifdef CONFIG_HEARTBEAT
 	mach_heartbeat = dn_heartbeat;
 #endif

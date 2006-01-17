@@ -466,7 +466,7 @@ int sirdev_schedule_request(struct sir_dev *dev, int initial_state, unsigned par
 	return 0;
 }
 
-int __init irda_thread_create(void)
+static int __init irda_thread_create(void)
 {
 	struct completion startup;
 	int pid;
@@ -488,7 +488,7 @@ int __init irda_thread_create(void)
 	return 0;
 }
 
-void __exit irda_thread_join(void) 
+static void __exit irda_thread_join(void)
 {
 	if (irda_rq_queue.thread) {
 		flush_irda_queue();
@@ -498,4 +498,11 @@ void __exit irda_thread_join(void)
 		wait_for_completion(&irda_rq_queue.exit);
 	}
 }
+
+module_init(irda_thread_create);
+module_exit(irda_thread_join);
+
+MODULE_AUTHOR("Martin Diehl <info@mdiehl.de>");
+MODULE_DESCRIPTION("IrDA SIR core");
+MODULE_LICENSE("GPL");
 

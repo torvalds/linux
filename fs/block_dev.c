@@ -202,7 +202,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 	loff_t size;
 	loff_t retval;
 
-	down(&bd_inode->i_sem);
+	mutex_lock(&bd_inode->i_mutex);
 	size = i_size_read(bd_inode);
 
 	switch (origin) {
@@ -219,7 +219,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 		}
 		retval = offset;
 	}
-	up(&bd_inode->i_sem);
+	mutex_unlock(&bd_inode->i_mutex);
 	return retval;
 }
 	

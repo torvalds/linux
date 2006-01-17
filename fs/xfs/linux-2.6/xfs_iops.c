@@ -51,8 +51,44 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 
+#include <linux/capability.h>
 #include <linux/xattr.h>
 #include <linux/namei.h>
+#include <linux/security.h>
+
+/*
+ * Get a XFS inode from a given vnode.
+ */
+xfs_inode_t *
+xfs_vtoi(
+	struct vnode	*vp)
+{
+	bhv_desc_t      *bdp;
+
+	bdp = bhv_lookup_range(VN_BHV_HEAD(vp),
+			VNODE_POSITION_XFS, VNODE_POSITION_XFS);
+	if (unlikely(bdp == NULL))
+		return NULL;
+	return XFS_BHVTOI(bdp);
+}
+
+/*
+ * Bring the atime in the XFS inode uptodate.
+ * Used before logging the inode to disk or when the Linux inode goes away.
+ */
+void
+xfs_synchronize_atime(
+	xfs_inode_t	*ip)
+{
+	vnode_t		*vp;
+
+	vp = XFS_ITOV_NULL(ip);
+	if (vp) {
+		struct inode *inode = &vp->v_inode;
+		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
+	}
+}
 
 /*
  * Change the requested timestamp in the given inode.
@@ -72,23 +108,6 @@ xfs_ichgtime(
 {
 	struct inode	*inode = LINVFS_GET_IP(XFS_ITOV(ip));
 	timespec_t	tv;
-
-	/*
-	 * We're not supposed to change timestamps in readonly-mounted
-	 * filesystems.  Throw it away if anyone asks us.
-	 */
-	if (unlikely(IS_RDONLY(inode)))
-		return;
-
-	/*
-	 * Don't update access timestamps on reads if mounted "noatime".
-	 * Throw it away if anyone asks us.
-	 */
-	if (unlikely(
-	    (ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
-	    (flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG)) ==
-			XFS_ICHGTIME_ACC))
-		return;
 
 	nanotime(&tv);
 	if (flags & XFS_ICHGTIME_MOD) {
@@ -126,8 +145,6 @@ xfs_ichgtime(
  * Variant on the above which avoids querying the system clock
  * in situations where we know the Linux inode timestamps have
  * just been updated (and so we can update our inode cheaply).
- * We also skip the readonly and noatime checks here, they are
- * also catered for already.
  */
 void
 xfs_ichgtime_fast(
@@ -138,31 +155,22 @@ xfs_ichgtime_fast(
 	timespec_t	*tvp;
 
 	/*
+	 * Atime updates for read() & friends are handled lazily now, and
+	 * explicit updates must go through xfs_ichgtime()
+	 */
+	ASSERT((flags & XFS_ICHGTIME_ACC) == 0);
+
+	/*
 	 * We're not supposed to change timestamps in readonly-mounted
 	 * filesystems.  Throw it away if anyone asks us.
 	 */
 	if (unlikely(IS_RDONLY(inode)))
 		return;
 
-	/*
-	 * Don't update access timestamps on reads if mounted "noatime".
-	 * Throw it away if anyone asks us.
-	 */
-	if (unlikely(
-	    (ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
-	    ((flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG)) ==
-			XFS_ICHGTIME_ACC)))
-		return;
-
 	if (flags & XFS_ICHGTIME_MOD) {
 		tvp = &inode->i_mtime;
 		ip->i_d.di_mtime.t_sec = (__int32_t)tvp->tv_sec;
 		ip->i_d.di_mtime.t_nsec = (__int32_t)tvp->tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_ACC) {
-		tvp = &inode->i_atime;
-		ip->i_d.di_atime.t_sec = (__int32_t)tvp->tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)tvp->tv_nsec;
 	}
 	if (flags & XFS_ICHGTIME_CHG) {
 		tvp = &inode->i_ctime;
@@ -203,10 +211,43 @@ validate_fields(
 		ip->i_nlink = va.va_nlink;
 		ip->i_blocks = va.va_nblocks;
 
-		/* we're under i_sem so i_size can't change under us */
+		/* we're under i_mutex so i_size can't change under us */
 		if (i_size_read(ip) != va.va_size)
 			i_size_write(ip, va.va_size);
 	}
+}
+
+/*
+ * Hook in SELinux.  This is not quite correct yet, what we really need
+ * here (as we do for default ACLs) is a mechanism by which creation of
+ * these attrs can be journalled at inode creation time (along with the
+ * inode, of course, such that log replay can't cause these to be lost).
+ */
+STATIC int
+linvfs_init_security(
+	struct vnode	*vp,
+	struct inode	*dir)
+{
+	struct inode	*ip = LINVFS_GET_IP(vp);
+	size_t		length;
+	void		*value;
+	char		*name;
+	int		error;
+
+	error = security_inode_init_security(ip, dir, &name, &value, &length);
+	if (error) {
+		if (error == -EOPNOTSUPP)
+			return 0;
+		return -error;
+	}
+
+	VOP_ATTR_SET(vp, name, value, length, ATTR_SECURE, NULL, error);
+	if (!error)
+		VMODIFY(vp);
+
+	kfree(name);
+	kfree(value);
+	return error;
 }
 
 /*
@@ -274,6 +315,9 @@ linvfs_mknod(
 		break;
 	}
 
+	if (!error)
+		error = linvfs_init_security(vp, dir);
+
 	if (default_acl) {
 		if (!error) {
 			error = _ACL_INHERIT(vp, &va, default_acl);
@@ -290,8 +334,6 @@ linvfs_mknod(
 				teardown.d_inode = ip = LINVFS_GET_IP(vp);
 				teardown.d_name = dentry->d_name;
 
-				vn_mark_bad(vp);
-				
 				if (S_ISDIR(mode))
 					VOP_RMDIR(dvp, &teardown, NULL, err2);
 				else
@@ -429,11 +471,14 @@ linvfs_symlink(
 
 	error = 0;
 	VOP_SYMLINK(dvp, dentry, &va, (char *)symname, &cvp, NULL, error);
-	if (!error && cvp) {
-		ip = LINVFS_GET_IP(cvp);
-		d_instantiate(dentry, ip);
-		validate_fields(dir);
-		validate_fields(ip); /* size needs update */
+	if (likely(!error && cvp)) {
+		error = linvfs_init_security(cvp, dir);
+		if (likely(!error)) {
+			ip = LINVFS_GET_IP(cvp);
+			d_instantiate(dentry, ip);
+			validate_fields(dir);
+			validate_fields(ip);
+		}
 	}
 	return -error;
 }
@@ -502,7 +547,7 @@ linvfs_follow_link(
 	ASSERT(dentry);
 	ASSERT(nd);
 
-	link = (char *)kmalloc(MAXNAMELEN+1, GFP_KERNEL);
+	link = (char *)kmalloc(MAXPATHLEN+1, GFP_KERNEL);
 	if (!link) {
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
 		return NULL;
@@ -518,12 +563,12 @@ linvfs_follow_link(
 	vp = LINVFS_GET_VP(dentry->d_inode);
 
 	iov.iov_base = link;
-	iov.iov_len = MAXNAMELEN;
+	iov.iov_len = MAXPATHLEN;
 
 	uio->uio_iov = &iov;
 	uio->uio_offset = 0;
 	uio->uio_segflg = UIO_SYSSPACE;
-	uio->uio_resid = MAXNAMELEN;
+	uio->uio_resid = MAXPATHLEN;
 	uio->uio_iovcnt = 1;
 
 	VOP_READLINK(vp, uio, 0, NULL, error);
@@ -531,7 +576,7 @@ linvfs_follow_link(
 		kfree(link);
 		link = ERR_PTR(-error);
 	} else {
-		link[MAXNAMELEN - uio->uio_resid] = '\0';
+		link[MAXPATHLEN - uio->uio_resid] = '\0';
 	}
 	kfree(uio);
 

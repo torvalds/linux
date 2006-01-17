@@ -3,6 +3,7 @@
  *
  * File Descriptor Transport Layer
  *
+ *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2005 by Eric Van Hensbergen <ericvh@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -106,9 +107,6 @@ v9fs_fd_init(struct v9fs_session_info *v9ses, const char *addr, char *data)
 		return -ENOPROTOOPT;
 	}
 
-	sema_init(&trans->writelock, 1);
-	sema_init(&trans->readlock, 1);
-
 	ts = kmalloc(sizeof(struct v9fs_trans_fd), GFP_KERNEL);
 
 	if (!ts)
@@ -148,12 +146,12 @@ static void v9fs_fd_close(struct v9fs_transport *trans)
 	if (!trans)
 		return;
 
-	trans->status = Disconnected;
-	ts = trans->priv;
+	ts = xchg(&trans->priv, NULL);
 
 	if (!ts)
 		return;
 
+	trans->status = Disconnected;
 	if (ts->in_file)
 		fput(ts->in_file);
 
@@ -163,10 +161,55 @@ static void v9fs_fd_close(struct v9fs_transport *trans)
 	kfree(ts);
 }
 
+static unsigned int
+v9fs_fd_poll(struct v9fs_transport *trans, struct poll_table_struct *pt)
+{
+	int ret, n;
+	struct v9fs_trans_fd *ts;
+	mm_segment_t oldfs;
+
+	if (!trans)
+		return -EIO;
+
+	ts = trans->priv;
+	if (trans->status != Connected || !ts)
+		return -EIO;
+
+	oldfs = get_fs();
+	set_fs(get_ds());
+
+	if (!ts->in_file->f_op || !ts->in_file->f_op->poll) {
+		ret = -EIO;
+		goto end;
+	}
+
+	ret = ts->in_file->f_op->poll(ts->in_file, pt);
+
+	if (ts->out_file != ts->in_file) {
+		if (!ts->out_file->f_op || !ts->out_file->f_op->poll) {
+			ret = -EIO;
+			goto end;
+		}
+
+		n = ts->out_file->f_op->poll(ts->out_file, pt);
+
+		ret &= ~POLLOUT;
+		n &= ~POLLIN;
+
+		ret |= n;
+	}
+
+end:
+	set_fs(oldfs);
+	return ret;
+}
+
+
 struct v9fs_transport v9fs_trans_fd = {
 	.init = v9fs_fd_init,
 	.write = v9fs_fd_send,
 	.read = v9fs_fd_recv,
 	.close = v9fs_fd_close,
+	.poll = v9fs_fd_poll,
 };
 

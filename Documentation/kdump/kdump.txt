@@ -4,10 +4,10 @@ Documentation for kdump - the kexec-based crash dumping solution
 DESIGN
 ======
 
-Kdump uses kexec to reboot to a second kernel whenever a dump needs to be taken.
-This second kernel is booted with very little memory. The first kernel reserves
-the section of memory that the second kernel uses. This ensures that on-going
-DMA from the first kernel does not corrupt the second kernel.
+Kdump uses kexec to reboot to a second kernel whenever a dump needs to be
+taken. This second kernel is booted with very little memory. The first kernel
+reserves the section of memory that the second kernel uses. This ensures that
+on-going DMA from the first kernel does not corrupt the second kernel.
 
 All the necessary information about Core image is encoded in ELF format and
 stored in reserved area of memory before crash. Physical address of start of
@@ -35,77 +35,82 @@ In the second kernel, "old memory" can be accessed in two ways.
 SETUP
 =====
 
-1) Download http://www.xmission.com/~ebiederm/files/kexec/kexec-tools-1.101.tar.gz
-   and apply http://lse.sourceforge.net/kdump/patches/kexec-tools-1.101-kdump.patch
-   and after that build the source.
+1) Download the upstream kexec-tools userspace package from
+   http://www.xmission.com/~ebiederm/files/kexec/kexec-tools-1.101.tar.gz.
 
-2) Download and build the appropriate (2.6.13-rc1 onwards) vanilla kernel.
+   Apply the latest consolidated kdump patch on top of kexec-tools-1.101
+   from http://lse.sourceforge.net/kdump/. This arrangment has been made
+   till all the userspace patches supporting kdump are integrated with
+   upstream kexec-tools userspace.
 
+2) Download and build the appropriate (2.6.13-rc1 onwards) vanilla kernels.
    Two kernels need to be built in order to get this feature working.
+   Following are the steps to properly configure the two kernels specific
+   to kexec and kdump features:
 
-  A) First kernel:
+  A) First kernel or regular kernel:
+  ----------------------------------
    a) Enable "kexec system call" feature (in Processor type and features).
-	CONFIG_KEXEC=y
-   b) This kernel's physical load address should be the default value of
-      0x100000 (0x100000, 1 MB) (in Processor type and features).
-	CONFIG_PHYSICAL_START=0x100000
-   c) Enable "sysfs file system support" (in Pseudo filesystems).
-	CONFIG_SYSFS=y
+      CONFIG_KEXEC=y
+   b) Enable "sysfs file system support" (in Pseudo filesystems).
+      CONFIG_SYSFS=y
+   c) make
    d) Boot into first kernel with the command line parameter "crashkernel=Y@X".
       Use appropriate values for X and Y. Y denotes how much memory to reserve
-      for the second kernel, and X denotes at what physical address the reserved
-      memory section starts. For example: "crashkernel=64M@16M".
+      for the second kernel, and X denotes at what physical address the
+      reserved memory section starts. For example: "crashkernel=64M@16M".
 
-  B) Second kernel:
-   a) Enable "kernel crash dumps" feature (in Processor type and features).
-	CONFIG_CRASH_DUMP=y
-   b) Specify a suitable value for "Physical address where the kernel is
-      loaded" (in Processor type and features). Typically this value
-      should be same as X (See option d) above, e.g., 16 MB or 0x1000000.
-	CONFIG_PHYSICAL_START=0x1000000
-   c) Enable "/proc/vmcore support" (Optional, in Pseudo filesystems).
-	CONFIG_PROC_VMCORE=y
-   d) Disable SMP support and build a UP kernel (Until it is fixed).
-	CONFIG_SMP=n
-   e) Enable "Local APIC support on uniprocessors".
-	CONFIG_X86_UP_APIC=y
-   f) Enable "IO-APIC support on uniprocessors"
-	CONFIG_X86_UP_IOAPIC=y
 
-  Note:   i) Options a) and b) depend upon "Configure standard kernel features
-	     (for small systems)" (under General setup).
-	 ii) Option a) also depends on CONFIG_HIGHMEM (under Processor
-		type and features).
-	iii) Both option a) and b) are under "Processor type and features".
+  B) Second kernel or dump capture kernel:
+  ---------------------------------------
+   a) For i386 architecture enable Highmem support
+      CONFIG_HIGHMEM=y
+   b) Enable "kernel crash dumps" feature (under "Processor type and features")
+      CONFIG_CRASH_DUMP=y
+   c) Make sure a suitable value for "Physical address where the kernel is
+      loaded" (under "Processor type and features"). By default this value
+      is 0x1000000 (16MB) and it should be same as X (See option d above),
+      e.g., 16 MB or 0x1000000.
+      CONFIG_PHYSICAL_START=0x1000000
+   d) Enable "/proc/vmcore support" (Optional, under "Pseudo filesystems").
+      CONFIG_PROC_VMCORE=y
 
-3) Boot into the first kernel. You are now ready to try out kexec-based crash
-   dumps.
-
-4) Load the second kernel to be booted using:
+3) After booting to regular kernel or first kernel, load the second kernel
+   using the following command:
 
    kexec -p <second-kernel> --args-linux --elf32-core-headers
-   --append="root=<root-dev> init 1 irqpoll"
+   --append="root=<root-dev> init 1 irqpoll maxcpus=1"
 
-   Note: i) <second-kernel> has to be a vmlinux image. bzImage will not work,
-	    as of now.
-	ii) By default ELF headers are stored in ELF64 format. Option
-	    --elf32-core-headers forces generation of ELF32 headers. gdb can
-	    not open ELF64 headers on 32 bit systems. So creating ELF32
-	    headers can come handy for users who have got non-PAE systems and
-	    hence have memory less than 4GB.
-       iii) Specify "irqpoll" as command line parameter. This reduces driver
-            initialization failures in second kernel due to shared interrupts.
-        iv) <root-dev> needs to be specified in a format corresponding to
-            the root device name in the output of mount command.
-         v) If you have built the drivers required to mount root file
-            system as modules in <second-kernel>, then, specify
-            --initrd=<initrd-for-second-kernel>.
+   Notes:
+   ======
+     i) <second-kernel> has to be a vmlinux image ie uncompressed elf image.
+        bzImage will not work, as of now.
+    ii) --args-linux has to be speicfied as if kexec it loading an elf image,
+        it needs to know that the arguments supplied are of linux type.
+   iii) By default ELF headers are stored in ELF64 format to support systems
+        with more than 4GB memory. Option --elf32-core-headers forces generation
+        of ELF32 headers. The reason for this option being, as of now gdb can
+        not open vmcore file with ELF64 headers on a 32 bit systems. So ELF32
+        headers can be used if one has non-PAE systems and hence memory less
+        than 4GB.
+    iv) Specify "irqpoll" as command line parameter. This reduces driver
+         initialization failures in second kernel due to shared interrupts.
+     v) <root-dev> needs to be specified in a format corresponding to the root
+        device name in the output of mount command.
+    vi) If you have built the drivers required to mount root file system as
+        modules in <second-kernel>, then, specify
+        --initrd=<initrd-for-second-kernel>.
+   vii) Specify maxcpus=1 as, if during first kernel run, if panic happens on
+        non-boot cpus, second kernel doesn't seem to be boot up all the cpus.
+        The other option is to always built the second kernel without SMP
+        support ie CONFIG_SMP=n
 
-5) System reboots into the second kernel when a panic occurs. A module can be
-   written to force the panic or "ALT-SysRq-c" can be used initiate a crash
-   dump for testing purposes.
+4) After successfully loading the second kernel as above, if a panic occurs
+   system reboots into the second kernel. A module can be written to force
+   the panic or "ALT-SysRq-c" can be used initiate a crash dump for testing
+   purposes.
 
-6) Write out the dump file using
+5) Once the second kernel has booted, write out the dump file using
 
    cp /proc/vmcore <dump-file>
 
@@ -119,9 +124,9 @@ SETUP
 
    Entire memory:  dd if=/dev/oldmem of=oldmem.001
 
+
 ANALYSIS
 ========
-
 Limited analysis can be done using gdb on the dump file copied out of
 /proc/vmcore. Use vmlinux built with -g and run
 
@@ -132,15 +137,19 @@ work fine.
 
 Note: gdb cannot analyse core files generated in ELF64 format for i386.
 
+Latest "crash" (crash-4.0-2.18) as available on Dave Anderson's site
+http://people.redhat.com/~anderson/ works well with kdump format.
+
+
 TODO
 ====
-
 1) Provide a kernel pages filtering mechanism so that core file size is not
    insane on systems having huge memory banks.
-2) Modify "crash" tool to make it recognize this dump.
+2) Relocatable kernel can help in maintaining multiple kernels for crashdump
+   and same kernel as the first kernel can be used to capture the dump.
+
 
 CONTACT
 =======
-
 Vivek Goyal (vgoyal@in.ibm.com)
 Maneesh Soni (maneesh@in.ibm.com)

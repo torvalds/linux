@@ -26,6 +26,7 @@
 #include <linux/wait.h>
 
 #include <net/inet_connection_sock.h>
+#include <net/inet_sock.h>
 #include <net/route.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
@@ -127,26 +128,6 @@ struct inet_hashinfo {
 	wait_queue_head_t		lhash_wait;
 	kmem_cache_t			*bind_bucket_cachep;
 };
-
-static inline unsigned int inet_ehashfn(const __u32 laddr, const __u16 lport,
-			       const __u32 faddr, const __u16 fport)
-{
-	unsigned int h = (laddr ^ lport) ^ (faddr ^ fport);
-	h ^= h >> 16;
-	h ^= h >> 8;
-	return h;
-}
-
-static inline int inet_sk_ehashfn(const struct sock *sk)
-{
-	const struct inet_sock *inet = inet_sk(sk);
-	const __u32 laddr = inet->rcv_saddr;
-	const __u16 lport = inet->num;
-	const __u32 faddr = inet->daddr;
-	const __u16 fport = inet->dport;
-
-	return inet_ehashfn(laddr, lport, faddr, fport);
-}
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
 	struct inet_hashinfo *hashinfo,
@@ -434,4 +415,7 @@ static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
 
 	return sk;
 }
+
+extern int inet_hash_connect(struct inet_timewait_death_row *death_row,
+			     struct sock *sk);
 #endif /* _INET_HASHTABLES_H */

@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.167 $
+ * $Revision: 1.172 $
  */
 
 #include <linux/config.h>
@@ -18,6 +18,7 @@
 #include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
+#include <linux/hdreg.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -604,7 +605,7 @@ dasd_smalloc_request(char *magic, int cplength, int datasize,
 void
 dasd_kfree_request(struct dasd_ccw_req * cqr, struct dasd_device * device)
 {
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	struct ccw1 *ccw;
 
 	/* Clear any idals used for the request. */
@@ -1035,7 +1036,7 @@ dasd_end_request(struct request *req, int uptodate)
 	if (end_that_request_first(req, uptodate, req->hard_nr_sectors))
 		BUG();
 	add_disk_randomness(req->rq_disk);
-	end_that_request_last(req);
+	end_that_request_last(req, uptodate);
 }
 
 /*
@@ -1224,6 +1225,12 @@ __dasd_start_head(struct dasd_device * device)
 	if (list_empty(&device->ccw_queue))
 		return;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, list);
+        /* check FAILFAST */
+	if (device->stopped & ~DASD_STOPPED_PENDING &&
+	    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags)) {
+		cqr->status = DASD_CQR_FAILED;
+		dasd_schedule_bh(device);
+	}
 	if ((cqr->status == DASD_CQR_QUEUED) &&
 	    (!device->stopped)) {
 		/* try to start the first I/O that can be started */
@@ -1323,7 +1330,7 @@ void
 dasd_schedule_bh(struct dasd_device * device)
 {
 	/* Protect against rescheduling. */
-	if (atomic_compare_and_swap (0, 1, &device->tasklet_scheduled))
+	if (atomic_cmpxchg (&device->tasklet_scheduled, 0, 1) != 0)
 		return;
 	dasd_get_device(device);
 	tasklet_hi_schedule(&device->tasklet);
@@ -1628,7 +1635,7 @@ dasd_setup_queue(struct dasd_device * device)
 	blk_queue_max_hw_segments(device->request_queue, -1L);
 	blk_queue_max_segment_size(device->request_queue, -1L);
 	blk_queue_segment_boundary(device->request_queue, -1L);
-	blk_queue_ordered(device->request_queue, 1);
+	blk_queue_ordered(device->request_queue, QUEUE_ORDERED_TAG, NULL);
 }
 
 /*
@@ -1717,12 +1724,35 @@ dasd_release(struct inode *inp, struct file *filp)
 	return 0;
 }
 
+/*
+ * Return disk geometry.
+ */
+static int
+dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct dasd_device *device;
+
+	device = bdev->bd_disk->private_data;
+	if (!device)
+		return -ENODEV;
+
+	if (!device->discipline ||
+	    !device->discipline->fill_geometry)
+		return -EINVAL;
+
+	device->discipline->fill_geometry(device, geo);
+	geo->start = get_start_sect(bdev) >> device->s2b_shift;
+	return 0;
+}
+
 struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,
 	.release	= dasd_release,
 	.ioctl		= dasd_ioctl,
+	.compat_ioctl	= dasd_compat_ioctl,
+	.getgeo		= dasd_getgeo,
 };
 
 
@@ -1750,8 +1780,10 @@ dasd_exit(void)
  * SECTION: common functions for ccw_driver use
  */
 
-/* initial attempt at a probe function. this can be simplified once
- * the other detection code is gone */
+/*
+ * Initial attempt at a probe function. this can be simplified once
+ * the other detection code is gone.
+ */
 int
 dasd_generic_probe (struct ccw_device *cdev,
 		    struct dasd_discipline *discipline)
@@ -1770,8 +1802,10 @@ dasd_generic_probe (struct ccw_device *cdev,
 	return ret;
 }
 
-/* this will one day be called from a global not_oper handler.
- * It is also used by driver_unregister during module unload */
+/*
+ * This will one day be called from a global not_oper handler.
+ * It is also used by driver_unregister during module unload.
+ */
 void
 dasd_generic_remove (struct ccw_device *cdev)
 {
@@ -1798,9 +1832,11 @@ dasd_generic_remove (struct ccw_device *cdev)
 	dasd_delete_device(device);
 }
 
-/* activate a device. This is called from dasd_{eckd,fba}_probe() when either
+/*
+ * Activate a device. This is called from dasd_{eckd,fba}_probe() when either
  * the device is detected for the first time and is supposed to be used
- * or the user has started activation through sysfs */
+ * or the user has started activation through sysfs.
+ */
 int
 dasd_generic_set_online (struct ccw_device *cdev,
 			 struct dasd_discipline *discipline)
@@ -1917,7 +1953,6 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 				if (cqr->status == DASD_CQR_IN_IO)
 					cqr->status = DASD_CQR_FAILED;
 			device->stopped |= DASD_STOPPED_DC_EIO;
-			dasd_schedule_bh(device);
 		} else {
 			list_for_each_entry(cqr, &device->ccw_queue, list)
 				if (cqr->status == DASD_CQR_IN_IO) {
@@ -1927,6 +1962,7 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 			device->stopped |= DASD_STOPPED_DC_WAIT;
 			dasd_set_timer(device, 0);
 		}
+		dasd_schedule_bh(device);
 		ret = 1;
 		break;
 	case CIO_OPER:

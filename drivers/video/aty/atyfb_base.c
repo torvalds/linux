@@ -109,9 +109,18 @@
 #define GUI_RESERVE	(1 * PAGE_SIZE)
 
 /* FIXME: remove the FAIL definition */
-#define FAIL(msg) do { printk(KERN_CRIT "atyfb: " msg "\n"); return -EINVAL; } while (0)
-#define FAIL_MAX(msg, x, _max_) do { if(x > _max_) { printk(KERN_CRIT "atyfb: " msg " %x(%x)\n", x, _max_); return -EINVAL; } } while (0)
-
+#define FAIL(msg) do { \
+	if (!(var->activate & FB_ACTIVATE_TEST)) \
+		printk(KERN_CRIT "atyfb: " msg "\n"); \
+	return -EINVAL; \
+} while (0)
+#define FAIL_MAX(msg, x, _max_) do { \
+	if (x > _max_) { \
+		if (!(var->activate & FB_ACTIVATE_TEST)) \
+			printk(KERN_CRIT "atyfb: " msg " %x(%x)\n", x, _max_); \
+		return -EINVAL; \
+	} \
+} while (0)
 #ifdef DEBUG
 #define DPRINTK(fmt, args...)	printk(KERN_DEBUG "atyfb: " fmt, ## args)
 #else
@@ -229,13 +238,12 @@ static int atyfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info);
 static int atyfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
 static int atyfb_blank(int blank, struct fb_info *info);
-static int atyfb_ioctl(struct inode *inode, struct file *file, u_int cmd,
-	u_long arg, struct fb_info *info);
+static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg);
 extern void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 extern void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 extern void atyfb_imageblit(struct fb_info *info, const struct fb_image *image);
 #ifdef __sparc__
-static int atyfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma);
+static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 #endif
 static int atyfb_sync(struct fb_info *info);
 
@@ -340,6 +348,7 @@ static unsigned long phys_guiregbase[FB_MAX] __initdata = { 0, };
 #define ATI_CHIP_264VT3    (M64F_VT | M64F_INTEGRATED | M64F_VT_BUS | M64F_GTB_DSP | M64F_SDRAM_MAGIC_PLL)
 #define ATI_CHIP_264VT4    (M64F_VT | M64F_INTEGRATED               | M64F_GTB_DSP)
 
+/* FIXME what is this chip? */
 #define ATI_CHIP_264LT     (M64F_GT | M64F_INTEGRATED               | M64F_GTB_DSP)
 
 /* make sets shorter */
@@ -359,58 +368,60 @@ static unsigned long phys_guiregbase[FB_MAX] __initdata = { 0, };
 static struct {
 	u16 pci_id;
 	const char *name;
-	int pll, mclk, xclk;
+	int pll, mclk, xclk, ecp_max;
 	u32 features;
 } aty_chips[] __devinitdata = {
 #ifdef CONFIG_FB_ATY_GX
 	/* Mach64 GX */
-	{ PCI_CHIP_MACH64GX, "ATI888GX00 (Mach64 GX)", 135, 50, 50, ATI_CHIP_88800GX },
-	{ PCI_CHIP_MACH64CX, "ATI888CX00 (Mach64 CX)", 135, 50, 50, ATI_CHIP_88800CX },
+	{ PCI_CHIP_MACH64GX, "ATI888GX00 (Mach64 GX)", 135, 50, 50, 0, ATI_CHIP_88800GX },
+	{ PCI_CHIP_MACH64CX, "ATI888CX00 (Mach64 CX)", 135, 50, 50, 0, ATI_CHIP_88800CX },
 #endif /* CONFIG_FB_ATY_GX */
 
 #ifdef CONFIG_FB_ATY_CT
-	{ PCI_CHIP_MACH64CT, "ATI264CT (Mach64 CT)", 135, 60, 60, ATI_CHIP_264CT },
-	{ PCI_CHIP_MACH64ET, "ATI264ET (Mach64 ET)", 135, 60, 60, ATI_CHIP_264ET },
-	{ PCI_CHIP_MACH64VT, "ATI264VT? (Mach64 VT)", 170, 67, 67, ATI_CHIP_264VT },
-	{ PCI_CHIP_MACH64GT, "3D RAGE (Mach64 GT)", 135, 63, 63, ATI_CHIP_264GT },
-	/* FIXME { ...ATI_264GU, maybe ATI_CHIP_264GTDVD }, */
-	{ PCI_CHIP_MACH64GU, "3D RAGE II+ (Mach64 GTB)", 200, 67, 67, ATI_CHIP_264GTB  },
-	{ PCI_CHIP_MACH64VU, "ATI264VTB (Mach64 VU)", 200, 67, 67, ATI_CHIP_264VT3 },
+	{ PCI_CHIP_MACH64CT, "ATI264CT (Mach64 CT)", 135, 60, 60, 0, ATI_CHIP_264CT },
+	{ PCI_CHIP_MACH64ET, "ATI264ET (Mach64 ET)", 135, 60, 60, 0, ATI_CHIP_264ET },
 
-	{ PCI_CHIP_MACH64LT, "3D RAGE LT (Mach64 LT)", 135, 63, 63, ATI_CHIP_264LT },
-	 /* FIXME chipset maybe ATI_CHIP_264LTPRO ? */
-	{ PCI_CHIP_MACH64LG, "3D RAGE LT-G (Mach64 LG)", 230, 63, 63, ATI_CHIP_264LTG | M64F_LT_LCD_REGS | M64F_G3_PB_1024x768 },
+	/* FIXME what is this chip? */
+	{ PCI_CHIP_MACH64LT, "ATI264LT (Mach64 LT)", 135, 63, 63, 0, ATI_CHIP_264LT },
 
-	{ PCI_CHIP_MACH64VV, "ATI264VT4 (Mach64 VV)", 230, 83, 83, ATI_CHIP_264VT4 },
+	{ PCI_CHIP_MACH64VT, "ATI264VT (Mach64 VT)", 170, 67, 67, 80, ATI_CHIP_264VT },
+	{ PCI_CHIP_MACH64GT, "3D RAGE (Mach64 GT)", 135, 63, 63, 80, ATI_CHIP_264GT },
 
-	{ PCI_CHIP_MACH64GV, "3D RAGE IIC (Mach64 GV, PCI)", 230, 83, 83, ATI_CHIP_264GT2C },
-	{ PCI_CHIP_MACH64GW, "3D RAGE IIC (Mach64 GW, AGP)", 230, 83, 83, ATI_CHIP_264GT2C },
-	{ PCI_CHIP_MACH64GY, "3D RAGE IIC (Mach64 GY, PCI)", 230, 83, 83, ATI_CHIP_264GT2C },
-	{ PCI_CHIP_MACH64GZ, "3D RAGE IIC (Mach64 GZ, AGP)", 230, 83, 83, ATI_CHIP_264GT2C },
+	{ PCI_CHIP_MACH64VU, "ATI264VT3 (Mach64 VU)", 200, 67, 67, 80, ATI_CHIP_264VT3 },
+	{ PCI_CHIP_MACH64GU, "3D RAGE II+ (Mach64 GU)", 200, 67, 67, 100, ATI_CHIP_264GTB },
 
-	{ PCI_CHIP_MACH64GB, "3D RAGE PRO (Mach64 GB, BGA, AGP)", 230, 100, 100, ATI_CHIP_264GTPRO },
-	{ PCI_CHIP_MACH64GD, "3D RAGE PRO (Mach64 GD, BGA, AGP 1x)", 230, 100, 100, ATI_CHIP_264GTPRO },
-	{ PCI_CHIP_MACH64GI, "3D RAGE PRO (Mach64 GI, BGA, PCI)", 230, 100, 100, ATI_CHIP_264GTPRO | M64F_MAGIC_VRAM_SIZE },
-	{ PCI_CHIP_MACH64GP, "3D RAGE PRO (Mach64 GP, PQFP, PCI)", 230, 100, 100, ATI_CHIP_264GTPRO },
-	{ PCI_CHIP_MACH64GQ, "3D RAGE PRO (Mach64 GQ, PQFP, PCI, limited 3D)", 230, 100, 100, ATI_CHIP_264GTPRO },
+	{ PCI_CHIP_MACH64LG, "3D RAGE LT (Mach64 LG)", 230, 63, 63, 100, ATI_CHIP_264LTG | M64F_LT_LCD_REGS | M64F_G3_PB_1024x768 },
 
-	{ PCI_CHIP_MACH64LB, "3D RAGE LT PRO (Mach64 LB, AGP)", 236, 75, 100, ATI_CHIP_264LTPRO },
-	{ PCI_CHIP_MACH64LD, "3D RAGE LT PRO (Mach64 LD, AGP)", 230, 100, 100, ATI_CHIP_264LTPRO },
-	{ PCI_CHIP_MACH64LI, "3D RAGE LT PRO (Mach64 LI, PCI)", 230, 100, 100, ATI_CHIP_264LTPRO | M64F_G3_PB_1_1 | M64F_G3_PB_1024x768 },
-	{ PCI_CHIP_MACH64LP, "3D RAGE LT PRO (Mach64 LP, PCI)", 230, 100, 100, ATI_CHIP_264LTPRO },
-	{ PCI_CHIP_MACH64LQ, "3D RAGE LT PRO (Mach64 LQ, PCI)", 230, 100, 100, ATI_CHIP_264LTPRO },
+	{ PCI_CHIP_MACH64VV, "ATI264VT4 (Mach64 VV)", 230, 83, 83, 100, ATI_CHIP_264VT4 },
 
-	{ PCI_CHIP_MACH64GM, "3D RAGE XL (Mach64 GM, AGP)", 230, 83, 63, ATI_CHIP_264XL },
-	{ PCI_CHIP_MACH64GN, "3D RAGE XL (Mach64 GN, AGP)", 230, 83, 63, ATI_CHIP_264XL },
-	{ PCI_CHIP_MACH64GO, "3D RAGE XL (Mach64 GO, PCI-66/BGA)", 230, 83, 63, ATI_CHIP_264XL },
-	{ PCI_CHIP_MACH64GR, "3D RAGE XL (Mach64 GR, PCI-33MHz)", 230, 83, 63, ATI_CHIP_264XL },
-	{ PCI_CHIP_MACH64GL, "3D RAGE XL (Mach64 GL, PCI)", 230, 83, 63, ATI_CHIP_264XL },
-	{ PCI_CHIP_MACH64GS, "3D RAGE XL (Mach64 GS, PCI)", 230, 83, 63, ATI_CHIP_264XL },
+	{ PCI_CHIP_MACH64GV, "3D RAGE IIC (Mach64 GV, PCI)", 230, 83, 83, 100, ATI_CHIP_264GT2C },
+	{ PCI_CHIP_MACH64GW, "3D RAGE IIC (Mach64 GW, AGP)", 230, 83, 83, 100, ATI_CHIP_264GT2C },
+	{ PCI_CHIP_MACH64GY, "3D RAGE IIC (Mach64 GY, PCI)", 230, 83, 83, 100, ATI_CHIP_264GT2C },
+	{ PCI_CHIP_MACH64GZ, "3D RAGE IIC (Mach64 GZ, AGP)", 230, 83, 83, 100, ATI_CHIP_264GT2C },
 
-	{ PCI_CHIP_MACH64LM, "3D RAGE Mobility P/M (Mach64 LM, AGP 2x)", 230, 83, 125, ATI_CHIP_MOBILITY },
-	{ PCI_CHIP_MACH64LN, "3D RAGE Mobility L (Mach64 LN, AGP 2x)", 230, 83, 125, ATI_CHIP_MOBILITY },
-	{ PCI_CHIP_MACH64LR, "3D RAGE Mobility P/M (Mach64 LR, PCI)", 230, 83, 125, ATI_CHIP_MOBILITY },
-	{ PCI_CHIP_MACH64LS, "3D RAGE Mobility L (Mach64 LS, PCI)", 230, 83, 125, ATI_CHIP_MOBILITY },
+	{ PCI_CHIP_MACH64GB, "3D RAGE PRO (Mach64 GB, BGA, AGP)", 230, 100, 100, 125, ATI_CHIP_264GTPRO },
+	{ PCI_CHIP_MACH64GD, "3D RAGE PRO (Mach64 GD, BGA, AGP 1x)", 230, 100, 100, 125, ATI_CHIP_264GTPRO },
+	{ PCI_CHIP_MACH64GI, "3D RAGE PRO (Mach64 GI, BGA, PCI)", 230, 100, 100, 125, ATI_CHIP_264GTPRO | M64F_MAGIC_VRAM_SIZE },
+	{ PCI_CHIP_MACH64GP, "3D RAGE PRO (Mach64 GP, PQFP, PCI)", 230, 100, 100, 125, ATI_CHIP_264GTPRO },
+	{ PCI_CHIP_MACH64GQ, "3D RAGE PRO (Mach64 GQ, PQFP, PCI, limited 3D)", 230, 100, 100, 125, ATI_CHIP_264GTPRO },
+
+	{ PCI_CHIP_MACH64LB, "3D RAGE LT PRO (Mach64 LB, AGP)", 236, 75, 100, 135, ATI_CHIP_264LTPRO },
+	{ PCI_CHIP_MACH64LD, "3D RAGE LT PRO (Mach64 LD, AGP)", 230, 100, 100, 135, ATI_CHIP_264LTPRO },
+	{ PCI_CHIP_MACH64LI, "3D RAGE LT PRO (Mach64 LI, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO | M64F_G3_PB_1_1 | M64F_G3_PB_1024x768 },
+	{ PCI_CHIP_MACH64LP, "3D RAGE LT PRO (Mach64 LP, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO },
+	{ PCI_CHIP_MACH64LQ, "3D RAGE LT PRO (Mach64 LQ, PCI)", 230, 100, 100, 135, ATI_CHIP_264LTPRO },
+
+	{ PCI_CHIP_MACH64GM, "3D RAGE XL (Mach64 GM, AGP 2x)", 230, 83, 63, 135, ATI_CHIP_264XL },
+	{ PCI_CHIP_MACH64GN, "3D RAGE XC (Mach64 GN, AGP 2x)", 230, 83, 63, 135, ATI_CHIP_264XL },
+	{ PCI_CHIP_MACH64GO, "3D RAGE XL (Mach64 GO, PCI-66)", 230, 83, 63, 135, ATI_CHIP_264XL },
+	{ PCI_CHIP_MACH64GL, "3D RAGE XC (Mach64 GL, PCI-66)", 230, 83, 63, 135, ATI_CHIP_264XL },
+	{ PCI_CHIP_MACH64GR, "3D RAGE XL (Mach64 GR, PCI-33)", 230, 83, 63, 135, ATI_CHIP_264XL | M64F_SDRAM_MAGIC_PLL },
+	{ PCI_CHIP_MACH64GS, "3D RAGE XC (Mach64 GS, PCI-33)", 230, 83, 63, 135, ATI_CHIP_264XL },
+
+	{ PCI_CHIP_MACH64LM, "3D RAGE Mobility P/M (Mach64 LM, AGP 2x)", 230, 83, 125, 135, ATI_CHIP_MOBILITY },
+	{ PCI_CHIP_MACH64LN, "3D RAGE Mobility L (Mach64 LN, AGP 2x)", 230, 83, 125, 135, ATI_CHIP_MOBILITY },
+	{ PCI_CHIP_MACH64LR, "3D RAGE Mobility P/M (Mach64 LR, PCI)", 230, 83, 125, 135, ATI_CHIP_MOBILITY },
+	{ PCI_CHIP_MACH64LS, "3D RAGE Mobility L (Mach64 LS, PCI)", 230, 83, 125, 135, ATI_CHIP_MOBILITY },
 #endif /* CONFIG_FB_ATY_CT */
 };
 
@@ -431,6 +442,7 @@ static int __devinit correct_chipset(struct atyfb_par *par)
 	par->pll_limits.pll_max = aty_chips[i].pll;
 	par->pll_limits.mclk = aty_chips[i].mclk;
 	par->pll_limits.xclk = aty_chips[i].xclk;
+	par->pll_limits.ecp_max = aty_chips[i].ecp_max;
 	par->features = aty_chips[i].features;
 
 	chip_id = aty_ld_le32(CONFIG_CHIP_ID, par);
@@ -450,39 +462,63 @@ static int __devinit correct_chipset(struct atyfb_par *par)
 #endif
 #ifdef CONFIG_FB_ATY_CT
 	case PCI_CHIP_MACH64VT:
-		rev &= 0xc7;
-		if(rev == 0x00) {
-			name = "ATI264VTA3 (Mach64 VT)";
-			par->pll_limits.pll_max = 170;
-			par->pll_limits.mclk = 67;
-			par->pll_limits.xclk = 67;
-			par->features = ATI_CHIP_264VT;
-		} else if(rev == 0x40) {
-			name = "ATI264VTA4 (Mach64 VT)";
+		switch (rev & 0x07) {
+		case 0x00:
+			switch (rev & 0xc0) {
+			case 0x00:
+				name = "ATI264VT (A3) (Mach64 VT)";
+				par->pll_limits.pll_max = 170;
+				par->pll_limits.mclk = 67;
+				par->pll_limits.xclk = 67;
+				par->pll_limits.ecp_max = 80;
+				par->features = ATI_CHIP_264VT;
+				break;
+			case 0x40:
+				name = "ATI264VT2 (A4) (Mach64 VT)";
+				par->pll_limits.pll_max = 200;
+				par->pll_limits.mclk = 67;
+				par->pll_limits.xclk = 67;
+				par->pll_limits.ecp_max = 80;
+				par->features = ATI_CHIP_264VT | M64F_MAGIC_POSTDIV;
+				break;
+			}
+			break;
+		case 0x01:
+			name = "ATI264VT3 (B1) (Mach64 VT)";
 			par->pll_limits.pll_max = 200;
 			par->pll_limits.mclk = 67;
 			par->pll_limits.xclk = 67;
-			par->features = ATI_CHIP_264VT | M64F_MAGIC_POSTDIV;
-		} else {
-			name = "ATI264VTB (Mach64 VT)";
-			par->pll_limits.pll_max = 200;
-			par->pll_limits.mclk = 67;
-			par->pll_limits.xclk = 67;
+			par->pll_limits.ecp_max = 80;
 			par->features = ATI_CHIP_264VTB;
+			break;
+		case 0x02:
+			name = "ATI264VT3 (B2) (Mach64 VT)";
+			par->pll_limits.pll_max = 200;
+			par->pll_limits.mclk = 67;
+			par->pll_limits.xclk = 67;
+			par->pll_limits.ecp_max = 80;
+			par->features = ATI_CHIP_264VT3;
+			break;
 		}
 		break;
 	case PCI_CHIP_MACH64GT:
-		rev &= 0x07;
-		if(rev == 0x01) {
+		switch (rev & 0x07) {
+		case 0x01:
+			name = "3D RAGE II (Mach64 GT)";
 			par->pll_limits.pll_max = 170;
 			par->pll_limits.mclk = 67;
 			par->pll_limits.xclk = 67;
+			par->pll_limits.ecp_max = 80;
 			par->features = ATI_CHIP_264GTB;
-		} else if(rev == 0x02) {
+			break;
+		case 0x02:
+			name = "3D RAGE II+ (Mach64 GT)";
 			par->pll_limits.pll_max = 200;
 			par->pll_limits.mclk = 67;
 			par->pll_limits.xclk = 67;
+			par->pll_limits.ecp_max = 100;
 			par->features = ATI_CHIP_264GTB;
+			break;
 		}
 		break;
 #endif
@@ -692,7 +728,7 @@ static void aty_set_crtc(const struct atyfb_par *par, const struct crtc *crtc)
 		aty_st_lcd(LCD_GEN_CNTL, (crtc->lcd_gen_cntl & ~CRTC_RW_SELECT) |
 			(SHADOW_EN | SHADOW_RW_EN), par);
 
-		DPRINTK("set secondary CRT to %ix%i %c%c\n",
+		DPRINTK("set shadow CRT to %ix%i %c%c\n",
 		    ((((crtc->shadow_h_tot_disp>>16) & 0xff) + 1)<<3), (((crtc->shadow_v_tot_disp>>16) & 0x7ff) + 1),
 		    (crtc->shadow_h_sync_strt_wid & 0x200000)?'N':'P', (crtc->shadow_v_sync_strt_wid & 0x200000)?'N':'P');
 
@@ -840,11 +876,14 @@ static int aty_var_to_crtc(const struct fb_info *info,
 			   know if one is connected. So it's better to fail then.
 			 */
 			if (crtc->lcd_gen_cntl & CRT_ON) {
-				PRINTKI("Disable lcd panel, because video mode does not fit.\n");
+				if (!(var->activate & FB_ACTIVATE_TEST))
+					PRINTKI("Disable LCD panel, because video mode does not fit.\n");
 				crtc->lcd_gen_cntl &= ~LCD_ON;
 				/*aty_st_lcd(LCD_GEN_CNTL, crtc->lcd_gen_cntl, par);*/
 			} else {
-				FAIL("Video mode exceeds size of lcd panel.\nConnect this computer to a conventional monitor if you really need this mode.");
+				if (!(var->activate & FB_ACTIVATE_TEST))
+					PRINTKE("Video mode exceeds size of LCD panel.\nConnect this computer to a conventional monitor if you really need this mode.\n");
+				return -EINVAL;
 			}
 		}
 	}
@@ -858,9 +897,9 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		vmode &= ~(FB_VMODE_DOUBLE | FB_VMODE_INTERLACED);
 
 		/* This is horror! When we simulate, say 640x480 on an 800x600
-		   lcd monitor, the CRTC should be programmed 800x600 values for
+		   LCD monitor, the CRTC should be programmed 800x600 values for
 		   the non visible part, but 640x480 for the visible part.
-		   This code has been tested on a laptop with it's 1400x1050 lcd
+		   This code has been tested on a laptop with it's 1400x1050 LCD
 		   monitor and a conventional monitor both switched on.
 		   Tested modes: 1280x1024, 1152x864, 1024x768, 800x600,
 		    works with little glitches also with DOUBLESCAN modes
@@ -955,16 +994,6 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		vdisplay = yres;
 		if(vmode & FB_VMODE_DOUBLE)
 			vdisplay <<= 1;
-		if(vmode & FB_VMODE_INTERLACED) {
-			vdisplay >>= 1;
-
-			/* The prefered mode for the lcd is not interlaced, so disable it if
-			   it was enabled. For doublescan there is no problem, because we can
-			   compensate for it in the hardware stretching (we stretch half as much)
-			 */
-			vmode &= ~FB_VMODE_INTERLACED;
-			/*crtc->gen_cntl &= ~CRTC_INTERLACE_EN;*/
-		}
 		crtc->gen_cntl &= ~(CRTC2_EN | CRTC2_PIX_WIDTH);
 		crtc->lcd_gen_cntl &= ~(HORZ_DIVBY2_EN | DIS_HOR_CRT_DIVBY2 |
 			/*TVCLK_PM_EN | VCLK_DAC_PM_EN |*/
@@ -980,7 +1009,7 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		crtc->horz_stretching &=
 			~(HORZ_STRETCH_RATIO | HORZ_STRETCH_LOOP | AUTO_HORZ_RATIO |
 			HORZ_STRETCH_MODE | HORZ_STRETCH_EN);
-		if (xres < par->lcd_width) {
+		if (xres < par->lcd_width && crtc->lcd_gen_cntl & LCD_ON) {
 			do {
 				/*
 				* The horizontal blender misbehaves when HDisplay is less than a
@@ -1042,7 +1071,7 @@ static int aty_var_to_crtc(const struct fb_info *info,
 			} while (0);
 		}
 
-		if (vdisplay < par->lcd_height) {
+		if (vdisplay < par->lcd_height && crtc->lcd_gen_cntl & LCD_ON) {
 			crtc->vert_stretching = (VERT_STRETCH_USE0 | VERT_STRETCH_EN |
 				(((vdisplay * (VERT_STRETCH_RATIO0 + 1)) / par->lcd_height) & VERT_STRETCH_RATIO0));
 
@@ -1065,9 +1094,8 @@ static int aty_var_to_crtc(const struct fb_info *info,
 #endif /* CONFIG_FB_ATY_GENERIC_LCD */
 
 	if (M64_HAS(MAGIC_FIFO)) {
-		/* Not VTB/GTB */
-		/* FIXME: magic FIFO values */
-		crtc->gen_cntl |= (aty_ld_le32(CRTC_GEN_CNTL, par) & CRTC2_PIX_WIDTH);
+		/* FIXME: display FIFO low watermark values */
+		crtc->gen_cntl |= (aty_ld_le32(CRTC_GEN_CNTL, par) & CRTC_FIFO_LWM);
 	}
 	crtc->dp_pix_width = dp_pix_width;
 	crtc->dp_chain_mask = dp_chain_mask;
@@ -1184,7 +1212,8 @@ static int aty_crtc_to_var(const struct crtc *crtc, struct fb_var_screeninfo *va
 		var->transp.length = 8;
 		break;
 	default:
-		FAIL("Invalid pixel width");
+		PRINTKE("Invalid pixel width\n");
+		return -EINVAL;
 	}
 
 	/* output */
@@ -1241,7 +1270,8 @@ static int atyfb_set_par(struct fb_info *info)
 	pixclock = atyfb_get_pixclock(var, par);
 
 	if (pixclock == 0) {
-		FAIL("Invalid pixclock");
+		PRINTKE("Invalid pixclock\n");
+		return -EINVAL;
 	} else {
 		if((err = par->pll_ops->var_to_pll(info, pixclock, var->bits_per_pixel, &par->pll)))
 			return err;
@@ -1446,7 +1476,9 @@ static int atyfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	pixclock = atyfb_get_pixclock(var, par);
 
 	if (pixclock == 0) {
-		FAIL("Invalid pixclock");
+		if (!(var->activate & FB_ACTIVATE_TEST))
+			PRINTKE("Invalid pixclock\n");
+		return -EINVAL;
 	} else {
 		if((err = par->pll_ops->var_to_pll(info, pixclock, var->bits_per_pixel, &pll)))
 			return err;
@@ -1706,8 +1738,7 @@ struct atyclk {
 #define FBIO_WAITFORVSYNC _IOW('F', 0x20, __u32)
 #endif
 
-static int atyfb_ioctl(struct inode *inode, struct file *file, u_int cmd,
-	u_long arg, struct fb_info *info)
+static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 #ifdef __sparc__
@@ -1812,7 +1843,7 @@ static int atyfb_sync(struct fb_info *info)
 }
 
 #ifdef __sparc__
-static int atyfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	unsigned int size, page, map_size = 0;
@@ -2291,10 +2322,6 @@ static int __init aty_init(struct fb_info *info, const char *name)
 		par->dac_ops = &aty_dac_ct;
 		par->pll_ops = &aty_pll_ct;
 		par->bus_type = PCI;
-#ifdef CONFIG_FB_ATY_XL_INIT
-		if (IS_XL(par->pci_id))
-			atyfb_xl_init(info);
-#endif
 		par->ram_type = (aty_ld_le32(CONFIG_STAT0, par) & 0x07);
 		ramname = aty_ct_ram[par->ram_type];
 		/* for many chips, the mclk is 67 MHz for SDRAM, 63 MHz otherwise */
@@ -2638,16 +2665,16 @@ static int __init store_video_par(char *video_str, unsigned char m64_num)
 static int atyfb_blank(int blank, struct fb_info *info)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
-	u8 gen_cntl;
+	u32 gen_cntl;
 
 	if (par->lock_blank || par->asleep)
 		return 0;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if ((_machine == _MACH_Pmac) && blank)
+	if ((_machine == _MACH_Pmac) && blank > FB_BLANK_NORMAL)
 		set_backlight_enable(0);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
-	if (par->lcd_table && blank &&
+	if (par->lcd_table && blank > FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
 		u32 pm = aty_ld_lcd(POWER_MANAGEMENT, par);
 		pm &= ~PWR_BLON;
@@ -2655,31 +2682,31 @@ static int atyfb_blank(int blank, struct fb_info *info)
 	}
 #endif
 
-	gen_cntl = aty_ld_8(CRTC_GEN_CNTL, par);
+	gen_cntl = aty_ld_le32(CRTC_GEN_CNTL, par);
 	switch (blank) {
         	case FB_BLANK_UNBLANK:
-			gen_cntl &= ~(0x4c);
+			gen_cntl &= ~0x400004c;
 			break;
 		case FB_BLANK_NORMAL:
-			gen_cntl |= 0x40;
+			gen_cntl |= 0x4000040;
 			break;
 		case FB_BLANK_VSYNC_SUSPEND:
-			gen_cntl |= 0x8;
+			gen_cntl |= 0x4000048;
 			break;
 		case FB_BLANK_HSYNC_SUSPEND:
-			gen_cntl |= 0x4;
+			gen_cntl |= 0x4000044;
 			break;
 		case FB_BLANK_POWERDOWN:
-			gen_cntl |= 0x4c;
+			gen_cntl |= 0x400004c;
 			break;
 	}
-	aty_st_8(CRTC_GEN_CNTL, gen_cntl, par);
+	aty_st_le32(CRTC_GEN_CNTL, gen_cntl, par);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if ((_machine == _MACH_Pmac) && !blank)
+	if ((_machine == _MACH_Pmac) && blank <= FB_BLANK_NORMAL)
 		set_backlight_enable(1);
 #elif defined(CONFIG_FB_ATY_GENERIC_LCD)
-	if (par->lcd_table && !blank &&
+	if (par->lcd_table && blank <= FB_BLANK_NORMAL &&
 	    (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
 		u32 pm = aty_ld_lcd(POWER_MANAGEMENT, par);
 		pm |= PWR_BLON;
@@ -3157,15 +3184,15 @@ static void aty_init_lcd(struct atyfb_par *par, u32 bios_base)
 			refresh_rates_buf, lcd_refresh_rates[default_refresh_rate]);
 		par->lcd_refreshrate = lcd_refresh_rates[default_refresh_rate];
 		/* We now need to determine the crtc parameters for the
-		 * lcd monitor. This is tricky, because they are not stored
+		 * LCD monitor. This is tricky, because they are not stored
 		 * individually in the BIOS. Instead, the BIOS contains a
 		 * table of display modes that work for this monitor.
 		 *
 		 * The idea is that we search for a mode of the same dimensions
-		 * as the dimensions of the lcd monitor. Say our lcd monitor
+		 * as the dimensions of the LCD monitor. Say our LCD monitor
 		 * is 800x600 pixels, we search for a 800x600 monitor.
 		 * The CRTC parameters we find here are the ones that we need
-		 * to use to simulate other resolutions on the lcd screen.
+		 * to use to simulate other resolutions on the LCD screen.
 		 */
 		lcdmodeptr = (u16 *)(par->lcd_table + 64);
 		while (*lcdmodeptr != 0) {
@@ -3472,7 +3499,7 @@ err_release_mem:
 
 static int __devinit atyfb_atari_probe(void)
 {
-	struct aty_par *par;
+	struct atyfb_par *par;
 	struct fb_info *info;
 	int m64_num;
 	u32 clock_r;
@@ -3692,9 +3719,7 @@ static int __init atyfb_init(void)
     atyfb_setup(option);
 #endif
 
-#ifdef CONFIG_PCI
     pci_register_driver(&atyfb_driver);
-#endif
 #ifdef CONFIG_ATARI
     atyfb_atari_probe();
 #endif
@@ -3703,9 +3728,7 @@ static int __init atyfb_init(void)
 
 static void __exit atyfb_exit(void)
 {
-#ifdef CONFIG_PCI
 	pci_unregister_driver(&atyfb_driver);
-#endif
 }
 
 module_init(atyfb_init);

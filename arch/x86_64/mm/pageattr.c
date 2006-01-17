@@ -128,6 +128,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	pte_t *kpte; 
 	struct page *kpte_page;
 	unsigned kpte_flags;
+	pgprot_t ref_prot2;
 	kpte = lookup_address(address);
 	if (!kpte) return 0;
 	kpte_page = virt_to_page(((unsigned long)kpte) & PAGE_MASK);
@@ -140,10 +141,14 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
  			 * split_large_page will take the reference for this change_page_attr
  			 * on the split page.
  			 */
-			struct page *split = split_large_page(address, prot, ref_prot); 
+
+			struct page *split;
+			ref_prot2 = __pgprot(pgprot_val(pte_pgprot(*lookup_address(address))) & ~(1<<_PAGE_BIT_PSE));
+
+			split = split_large_page(address, prot, ref_prot2);
 			if (!split)
 				return -ENOMEM;
-			set_pte(kpte,mk_pte(split, ref_prot));
+			set_pte(kpte,mk_pte(split, ref_prot2));
 			kpte_page = split;
 		}	
 		get_page(kpte_page);

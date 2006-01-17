@@ -336,6 +336,7 @@ config SCSI_ACARD
 config SCSI_AHA152X
 	tristate "Adaptec AHA152X/2825 support"
 	depends on ISA && SCSI && !64BIT
+	select SCSI_SPI_ATTRS
 	---help---
 	  This is a driver for the AHA-1510, AHA-1520, AHA-1522, and AHA-2825
 	  SCSI host adapters. It also works for the AVA-1505, but the IRQ etc.
@@ -623,6 +624,7 @@ config SCSI_OMIT_FLASHPOINT
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
 	depends on PCI && SCSI
+	select SCSI_SPI_ATTRS
 	help
 	  This is support for Domex DMX3191D SCSI Host Adapters.
 
@@ -632,6 +634,7 @@ config SCSI_DMX3191D
 config SCSI_DTC3280
 	tristate "DTC3180/3280 SCSI support"
 	depends on ISA && SCSI
+	select SCSI_SPI_ATTRS
 	help
 	  This is support for DTC 3180/3280 SCSI Host Adapters.  Please read
 	  the SCSI-HOWTO, available from
@@ -752,6 +755,7 @@ config SCSI_GDTH
 config SCSI_GENERIC_NCR5380
 	tristate "Generic NCR5380/53c400 SCSI PIO support"
 	depends on ISA && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	  This is a driver for the old NCR 53c80 series of SCSI controllers
 	  on boards using PIO. Most boards such as the Trantor T130 fit this
@@ -771,6 +775,7 @@ config SCSI_GENERIC_NCR5380
 config SCSI_GENERIC_NCR5380_MMIO
 	tristate "Generic NCR5380/53c400 SCSI MMIO support"
 	depends on ISA && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	  This is a driver for the old NCR 53c80 series of SCSI controllers
 	  on boards using memory mapped I/O. 
@@ -909,7 +914,7 @@ config SCSI_INIA100
 
 config SCSI_PPA
 	tristate "IOMEGA parallel port (ppa - older drives)"
-	depends on SCSI && PARPORT
+	depends on SCSI && PARPORT_PC
 	---help---
 	  This driver supports older versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
@@ -936,7 +941,7 @@ config SCSI_PPA
 
 config SCSI_IMM
 	tristate "IOMEGA parallel port (imm - newer drives)"
-	depends on SCSI && PARPORT
+	depends on SCSI && PARPORT_PC
 	---help---
 	  This driver supports newer versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
@@ -963,7 +968,7 @@ config SCSI_IMM
 
 config SCSI_IZIP_EPP16
 	bool "ppa/imm option - Use slow (but safe) EPP-16"
-	depends on PARPORT && (SCSI_PPA || SCSI_IMM)
+	depends on SCSI_PPA || SCSI_IMM
 	---help---
 	  EPP (Enhanced Parallel Port) is a standard for parallel ports which
 	  allows them to act as expansion buses that can handle up to 64
@@ -978,7 +983,7 @@ config SCSI_IZIP_EPP16
 
 config SCSI_IZIP_SLOW_CTR
 	bool "ppa/imm option - Assume slow parport control register"
-	depends on PARPORT && (SCSI_PPA || SCSI_IMM)
+	depends on SCSI_PPA || SCSI_IMM
 	help
 	  Some parallel ports are known to have excessive delays between
 	  changing the parallel port control register and good data being
@@ -1254,6 +1259,7 @@ config SCSI_MCA_53C9X
 config SCSI_PAS16
 	tristate "PAS16 SCSI support"
 	depends on ISA && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	  This is support for a SCSI host adapter.  It is explained in section
 	  3.10 of the SCSI-HOWTO, available from
@@ -1423,6 +1429,7 @@ config SCSI_DC390T
 config SCSI_T128
 	tristate "Trantor T128/T128F/T228 SCSI support"
 	depends on ISA && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	  This is support for a SCSI host adapter. It is explained in section
 	  3.11 of the SCSI-HOWTO, available from
@@ -1681,6 +1688,7 @@ config OKTAGON_SCSI
 config ATARI_SCSI
 	tristate "Atari native SCSI support"
 	depends on ATARI && SCSI && BROKEN
+	select SCSI_SPI_ATTRS
 	---help---
 	  If you have an Atari with built-in NCR5380 SCSI controller (TT,
 	  Falcon, ...) say Y to get it supported. Of course also, if you have
@@ -1722,6 +1730,7 @@ config TT_DMA_EMUL
 config MAC_SCSI
 	bool "Macintosh NCR5380 SCSI"
 	depends on MAC && SCSI=y
+	select SCSI_SPI_ATTRS
 	help
 	  This is the NCR 5380 SCSI controller included on most of the 68030
 	  based Macintoshes.  If you have one of these say Y and read the
@@ -1743,6 +1752,7 @@ config SCSI_MAC_ESP
 config MVME147_SCSI
 	bool "WD33C93 SCSI driver for MVME147"
 	depends on MVME147 && SCSI=y
+	select SCSI_SPI_ATTRS
 	help
 	  Support for the on-board SCSI controller on the Motorola MVME147
 	  single-board computer.
@@ -1750,6 +1760,7 @@ config MVME147_SCSI
 config MVME16x_SCSI
 	bool "NCR53C710 SCSI driver for MVME16x"
 	depends on MVME16x && SCSI && BROKEN
+	select SCSI_SPI_ATTRS
 	help
 	  The Motorola MVME162, 166, 167, 172 and 177 boards use the NCR53C710
 	  SCSI controller chip.  Almost everyone using one of these boards
@@ -1758,6 +1769,7 @@ config MVME16x_SCSI
 config BVME6000_SCSI
 	bool "NCR53C710 SCSI driver for BVME6000"
 	depends on BVME6000 && SCSI && BROKEN
+	select SCSI_SPI_ATTRS
 	help
 	  The BVME4000 and BVME6000 boards from BVM Ltd use the NCR53C710
 	  SCSI controller chip.  Almost everyone using one of these boards
@@ -1774,6 +1786,7 @@ config SCSI_NCR53C7xx_FAST
 config SUN3_SCSI
 	tristate "Sun3 NCR5380 SCSI"
 	depends on SUN3 && SCSI && BROKEN
+	select SCSI_SPI_ATTRS
 	help
 	  This option will enable support for the OBIO (onboard io) NCR5380
 	  SCSI controller found in the Sun 3/50 and 3/60, as well as for
@@ -1802,7 +1815,7 @@ config SCSI_SUNESP
 
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"
-	depends on ARCH_S390 && QDIO && SCSI
+	depends on S390 && QDIO && SCSI
 	select SCSI_FC_ATTRS
 	help
           If you want to access SCSI devices attached to your IBM eServer

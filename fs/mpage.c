@@ -184,7 +184,7 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 	if (page_has_buffers(page))
 		goto confused;
 
-	block_in_file = page->index << (PAGE_CACHE_SHIFT - blkbits);
+	block_in_file = (sector_t)page->index << (PAGE_CACHE_SHIFT - blkbits);
 	last_block = (i_size_read(inode) + blocksize - 1) >> blkbits;
 
 	bh.b_page = page;
@@ -466,7 +466,7 @@ __mpage_writepage(struct bio *bio, struct page *page, get_block_t get_block,
 	 * The page has no buffers: map it to disk
 	 */
 	BUG_ON(!PageUptodate(page));
-	block_in_file = page->index << (PAGE_CACHE_SHIFT - blkbits);
+	block_in_file = (sector_t)page->index << (PAGE_CACHE_SHIFT - blkbits);
 	last_block = (i_size - 1) >> blkbits;
 	map_bh.b_page = page;
 	for (page_block = 0; page_block < blocks_per_page; ) {
@@ -721,7 +721,7 @@ retry:
 						&last_block_in_bio, &ret, wbc,
 						page->mapping->a_ops->writepage);
 			}
-			if (unlikely(ret == WRITEPAGE_ACTIVATE))
+			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
 				unlock_page(page);
 			if (ret || (--(wbc->nr_to_write) <= 0))
 				done = 1;

@@ -204,7 +204,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 
 	regs0 = __kernel_frame0_ptr;
 	childregs0 = (struct pt_regs *)
-		((unsigned long) p->thread_info + THREAD_SIZE - USER_CONTEXT_SIZE);
+		(task_stack_page(p) + THREAD_SIZE - USER_CONTEXT_SIZE);
 	childregs = childregs0;
 
 	/* set up the userspace frame (the only place that the USP is stored) */
@@ -220,7 +220,7 @@ int copy_thread(int nr, unsigned long clone_flags,
 		*childregs = *regs;
 		childregs->sp = (unsigned long) childregs0;
 		childregs->next_frame = childregs0;
-		childregs->gr15 = (unsigned long) p->thread_info;
+		childregs->gr15 = (unsigned long) task_thread_info(p);
 		childregs->gr29 = (unsigned long) p;
 	}
 
@@ -242,28 +242,6 @@ int copy_thread(int nr, unsigned long clone_flags,
 
 	return 0;
 } /* end copy_thread() */
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs *regs, struct user *dump)
-{
-#if 0
-	/* changed the size calculations - should hopefully work better. lbt */
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = user_stack(regs) & ~(PAGE_SIZE - 1);
-	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
-	dump->u_dsize = ((unsigned long) (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-
-	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
-
-	dump->regs = *(struct user_context *) regs;
-#endif
-}
 
 /*
  * sys_execve() executes a new program.

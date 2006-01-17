@@ -30,9 +30,9 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 
-static int snd_emu10k1_timer_start(snd_timer_t *timer)
+static int snd_emu10k1_timer_start(struct snd_timer *timer)
 {
-	emu10k1_t *emu;
+	struct snd_emu10k1 *emu;
 	unsigned long flags;
 	unsigned int delay;
 
@@ -47,9 +47,9 @@ static int snd_emu10k1_timer_start(snd_timer_t *timer)
 	return 0;
 }
 
-static int snd_emu10k1_timer_stop(snd_timer_t *timer)
+static int snd_emu10k1_timer_stop(struct snd_timer *timer)
 {
-	emu10k1_t *emu;
+	struct snd_emu10k1 *emu;
 	unsigned long flags;
 
 	emu = snd_timer_chip(timer);
@@ -59,7 +59,7 @@ static int snd_emu10k1_timer_stop(snd_timer_t *timer)
 	return 0;
 }
 
-static int snd_emu10k1_timer_precise_resolution(snd_timer_t *timer,
+static int snd_emu10k1_timer_precise_resolution(struct snd_timer *timer,
 					       unsigned long *num, unsigned long *den)
 {
 	*num = 1;
@@ -67,7 +67,7 @@ static int snd_emu10k1_timer_precise_resolution(snd_timer_t *timer,
 	return 0;
 }
 
-static struct _snd_timer_hardware snd_emu10k1_timer_hw = {
+static struct snd_timer_hardware snd_emu10k1_timer_hw = {
 	.flags = SNDRV_TIMER_HW_AUTO,
 	.resolution = 20833, /* 1 sample @ 48KHZ = 20.833...us */
 	.ticks = 1024,
@@ -76,10 +76,10 @@ static struct _snd_timer_hardware snd_emu10k1_timer_hw = {
 	.precise_resolution = snd_emu10k1_timer_precise_resolution,
 };
 
-int __devinit snd_emu10k1_timer(emu10k1_t *emu, int device)
+int __devinit snd_emu10k1_timer(struct snd_emu10k1 *emu, int device)
 {
-	snd_timer_t *timer = NULL;
-	snd_timer_id_t tid;
+	struct snd_timer *timer = NULL;
+	struct snd_timer_id tid;
 	int err;
 
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;

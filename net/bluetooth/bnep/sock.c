@@ -32,6 +32,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -146,7 +147,7 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return 0;
 }
 
-static struct proto_ops bnep_sock_ops = {
+static const struct proto_ops bnep_sock_ops = {
 	.family     = PF_BLUETOOTH,
 	.owner      = THIS_MODULE,
 	.release    = bnep_sock_release,

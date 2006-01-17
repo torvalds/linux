@@ -1,7 +1,7 @@
 /*
  *  Driver for NEC VR4100 series  Real Time Clock unit.
  *
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/vr41xx/vr41xx.h>
 
-MODULE_AUTHOR("Yoichi Yuasa <yuasa@hh.iij4u.or.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
 MODULE_DESCRIPTION("NEC VR4100 series RTC driver");
 MODULE_LICENSE("GPL");
 
@@ -126,8 +126,6 @@ struct resource rtc_resource[2] = {
 	{	.name	= rtc_name,
 		.flags	= IORESOURCE_MEM,	},
 };
-
-#define RTC_NUM_RESOURCES	sizeof(rtc_resource) / sizeof(struct resource)
 
 static inline unsigned long read_elapsed_second(void)
 {
@@ -686,7 +684,8 @@ static int __devinit vr41xx_rtc_init(void)
 		break;
 	}
 
-	rtc_platform_device = platform_device_register_simple("RTC", -1, rtc_resource, RTC_NUM_RESOURCES);
+	rtc_platform_device = platform_device_register_simple("RTC", -1,
+			      rtc_resource, ARRAY_SIZE(rtc_resource));
 	if (IS_ERR(rtc_platform_device))
 		return PTR_ERR(rtc_platform_device);
 

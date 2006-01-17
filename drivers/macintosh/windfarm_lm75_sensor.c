@@ -21,6 +21,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/sections.h>
+#include <asm/pmac_low_i2c.h>
 
 #include "windfarm.h"
 
@@ -47,9 +48,9 @@ static int wf_lm75_attach(struct i2c_adapter *adapter);
 static int wf_lm75_detach(struct i2c_client *client);
 
 static struct i2c_driver wf_lm75_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "wf_lm75",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "wf_lm75",
+	},
 	.attach_adapter	= wf_lm75_attach,
 	.detach_client	= wf_lm75_detach,
 };
@@ -157,53 +158,21 @@ static struct wf_lm75_sensor *wf_lm75_create(struct i2c_adapter *adapter,
 
 static int wf_lm75_attach(struct i2c_adapter *adapter)
 {
-	u8 bus_id;
-	struct device_node *smu, *bus, *dev;
-
-	/* We currently only deal with LM75's hanging off the SMU
-	 * i2c busses. If we extend that driver to other/older
-	 * machines, we should split this function into SMU-i2c,
-	 * keywest-i2c, PMU-i2c, ...
-	 */
+	struct device_node *busnode, *dev;
+	struct pmac_i2c_bus *bus;
 
 	DBG("wf_lm75: adapter %s detected\n", adapter->name);
 
-	if (strncmp(adapter->name, "smu-i2c-", 8) != 0)
-		return 0;
-	smu = of_find_node_by_type(NULL, "smu");
-	if (smu == NULL)
-		return 0;
-
-	/* Look for the bus in the device-tree */
-	bus_id = (u8)simple_strtoul(adapter->name + 8, NULL, 16);
-
-	DBG("wf_lm75: bus ID is %x\n", bus_id);
-
-	/* Look for sensors subdir */
-	for (bus = NULL;
-	     (bus = of_get_next_child(smu, bus)) != NULL;) {
-		u32 *reg;
-
-		if (strcmp(bus->name, "i2c"))
-			continue;
-		reg = (u32 *)get_property(bus, "reg", NULL);
-		if (reg == NULL)
-			continue;
-		if (bus_id == *reg)
-			break;
-	}
-	of_node_put(smu);
-	if (bus == NULL) {
-		printk(KERN_WARNING "windfarm: SMU i2c bus 0x%x not found"
-		       " in device-tree !\n", bus_id);
-		return 0;
-	}
+	bus = pmac_i2c_adapter_to_bus(adapter);
+	if (bus == NULL)
+		return -ENODEV;
+	busnode = pmac_i2c_get_bus_node(bus);
 
 	DBG("wf_lm75: bus found, looking for device...\n");
 
 	/* Now look for lm75(s) in there */
 	for (dev = NULL;
-	     (dev = of_get_next_child(bus, dev)) != NULL;) {
+	     (dev = of_get_next_child(busnode, dev)) != NULL;) {
 		const char *loc =
 			get_property(dev, "hwsensor-location", NULL);
 		u32 *reg = (u32 *)get_property(dev, "reg", NULL);
@@ -217,9 +186,6 @@ static int wf_lm75_attach(struct i2c_adapter *adapter)
 		else if (device_is_compatible(dev, "ds1775"))
 			wf_lm75_create(adapter, *reg, 1, loc);
 	}
-
-	of_node_put(bus);
-
 	return 0;
 }
 
@@ -240,12 +206,7 @@ static int wf_lm75_detach(struct i2c_client *client)
 
 static int __init wf_lm75_sensor_init(void)
 {
-	int rc;
-
-	rc = i2c_add_driver(&wf_lm75_driver);
-	if (rc < 0)
-		return rc;
-	return 0;
+	return i2c_add_driver(&wf_lm75_driver);
 }
 
 static void __exit wf_lm75_sensor_exit(void)

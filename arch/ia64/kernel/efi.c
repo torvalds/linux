@@ -247,6 +247,32 @@ typedef struct kern_memdesc {
 
 static kern_memdesc_t *kern_memmap;
 
+#define efi_md_size(md)	(md->num_pages << EFI_PAGE_SHIFT)
+
+static inline u64
+kmd_end(kern_memdesc_t *kmd)
+{
+	return (kmd->start + (kmd->num_pages << EFI_PAGE_SHIFT));
+}
+
+static inline u64
+efi_md_end(efi_memory_desc_t *md)
+{
+	return (md->phys_addr + efi_md_size(md));
+}
+
+static inline int
+efi_wb(efi_memory_desc_t *md)
+{
+	return (md->attribute & EFI_MEMORY_WB);
+}
+
+static inline int
+efi_uc(efi_memory_desc_t *md)
+{
+	return (md->attribute & EFI_MEMORY_UC);
+}
+
 static void
 walk (efi_freemem_callback_t callback, void *arg, u64 attr)
 {
@@ -595,8 +621,8 @@ efi_get_iobase (void)
 	return 0;
 }
 
-u32
-efi_mem_type (unsigned long phys_addr)
+static efi_memory_desc_t *
+efi_memory_descriptor (unsigned long phys_addr)
 {
 	void *efi_map_start, *efi_map_end, *p;
 	efi_memory_desc_t *md;
@@ -610,55 +636,117 @@ efi_mem_type (unsigned long phys_addr)
 		md = p;
 
 		if (phys_addr - md->phys_addr < (md->num_pages << EFI_PAGE_SHIFT))
-			 return md->type;
+			 return md;
 	}
+	return 0;
+}
+
+static int
+efi_memmap_has_mmio (void)
+{
+	void *efi_map_start, *efi_map_end, *p;
+	efi_memory_desc_t *md;
+	u64 efi_desc_size;
+
+	efi_map_start = __va(ia64_boot_param->efi_memmap);
+	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
+	efi_desc_size = ia64_boot_param->efi_memdesc_size;
+
+	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
+		md = p;
+
+		if (md->type == EFI_MEMORY_MAPPED_IO)
+			return 1;
+	}
+	return 0;
+}
+
+u32
+efi_mem_type (unsigned long phys_addr)
+{
+	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
+
+	if (md)
+		return md->type;
 	return 0;
 }
 
 u64
 efi_mem_attributes (unsigned long phys_addr)
 {
-	void *efi_map_start, *efi_map_end, *p;
-	efi_memory_desc_t *md;
-	u64 efi_desc_size;
+	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
 
-	efi_map_start = __va(ia64_boot_param->efi_memmap);
-	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
-	efi_desc_size = ia64_boot_param->efi_memdesc_size;
-
-	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
-		md = p;
-
-		if (phys_addr - md->phys_addr < (md->num_pages << EFI_PAGE_SHIFT))
-			return md->attribute;
-	}
+	if (md)
+		return md->attribute;
 	return 0;
 }
 EXPORT_SYMBOL(efi_mem_attributes);
 
+/*
+ * Determines whether the memory at phys_addr supports the desired
+ * attribute (WB, UC, etc).  If this returns 1, the caller can safely
+ * access *size bytes at phys_addr with the specified attribute.
+ */
+static int
+efi_mem_attribute_range (unsigned long phys_addr, unsigned long *size, u64 attr)
+{
+	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
+	unsigned long md_end;
+
+	if (!md || (md->attribute & attr) != attr)
+		return 0;
+
+	do {
+		md_end = efi_md_end(md);
+		if (phys_addr + *size <= md_end)
+			return 1;
+
+		md = efi_memory_descriptor(md_end);
+		if (!md || (md->attribute & attr) != attr) {
+			*size = md_end - phys_addr;
+			return 1;
+		}
+	} while (md);
+	return 0;
+}
+
+/*
+ * For /dev/mem, we only allow read & write system calls to access
+ * write-back memory, because read & write don't allow the user to
+ * control access size.
+ */
 int
 valid_phys_addr_range (unsigned long phys_addr, unsigned long *size)
 {
-	void *efi_map_start, *efi_map_end, *p;
-	efi_memory_desc_t *md;
-	u64 efi_desc_size;
+	return efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB);
+}
 
-	efi_map_start = __va(ia64_boot_param->efi_memmap);
-	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
-	efi_desc_size = ia64_boot_param->efi_memdesc_size;
+/*
+ * We allow mmap of anything in the EFI memory map that supports
+ * either write-back or uncacheable access.  For uncacheable regions,
+ * the supported access sizes are system-dependent, and the user is
+ * responsible for using the correct size.
+ *
+ * Note that this doesn't currently allow access to hot-added memory,
+ * because that doesn't appear in the boot-time EFI memory map.
+ */
+int
+valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long *size)
+{
+	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB))
+		return 1;
 
-	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
-		md = p;
+	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_UC))
+		return 1;
 
-		if (phys_addr - md->phys_addr < (md->num_pages << EFI_PAGE_SHIFT)) {
-			if (!(md->attribute & EFI_MEMORY_WB))
-				return 0;
+	/*
+	 * Some firmware doesn't report MMIO regions in the EFI memory map.
+	 * The Intel BigSur (a.k.a. HP i2000) has this problem.  In this
+	 * case, we can't use the EFI memory map to validate mmap requests.
+	 */
+	if (!efi_memmap_has_mmio())
+		return 1;
 
-			if (*size > md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - phys_addr)
-				*size = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - phys_addr;
-			return 1;
-		}
-	}
 	return 0;
 }
 
@@ -705,32 +793,6 @@ efi_uart_console_only(void)
 	}
 	printk(KERN_ERR "Malformed %s value\n", name);
 	return 0;
-}
-
-#define efi_md_size(md)	(md->num_pages << EFI_PAGE_SHIFT)
-
-static inline u64
-kmd_end(kern_memdesc_t *kmd)
-{
-	return (kmd->start + (kmd->num_pages << EFI_PAGE_SHIFT));
-}
-
-static inline u64
-efi_md_end(efi_memory_desc_t *md)
-{
-	return (md->phys_addr + efi_md_size(md));
-}
-
-static inline int
-efi_wb(efi_memory_desc_t *md)
-{
-	return (md->attribute & EFI_MEMORY_WB);
-}
-
-static inline int
-efi_uc(efi_memory_desc_t *md)
-{
-	return (md->attribute & EFI_MEMORY_UC);
 }
 
 /*

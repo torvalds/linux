@@ -34,7 +34,7 @@ static int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 
 static int loose;
-module_param(loose, int, 0600);
+module_param(loose, bool, 0600);
 
 unsigned int (*ip_nat_ftp_hook)(struct sk_buff **pskb,
 				enum ip_conntrack_info ctinfo,

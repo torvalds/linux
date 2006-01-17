@@ -132,6 +132,10 @@
  * 	TODO:
  * 	o several entry points race with dev->close
  * 	o check for tx-no-resources/stop Q races with tx clean/wake Q
+ *
+ *	FIXES:
+ * 2005/12/02 - Michael O'Donnell <Michael.ODonnell at stratus dot com>
+ *	- Stratus87247: protect MDI control register manipulations
  */
 
 #include <linux/config.h>
@@ -578,6 +582,7 @@ struct nic {
 	u16 leds;
 	u16 eeprom_wc;
 	u16 eeprom[256];
+	spinlock_t mdio_lock;
 };
 
 static inline void e100_write_flush(struct nic *nic)
@@ -587,7 +592,7 @@ static inline void e100_write_flush(struct nic *nic)
 	(void)readb(&nic->csr->scb.status);
 }
 
-static inline void e100_enable_irq(struct nic *nic)
+static void e100_enable_irq(struct nic *nic)
 {
 	unsigned long flags;
 
@@ -597,7 +602,7 @@ static inline void e100_enable_irq(struct nic *nic)
 	e100_write_flush(nic);
 }
 
-static inline void e100_disable_irq(struct nic *nic)
+static void e100_disable_irq(struct nic *nic)
 {
 	unsigned long flags;
 
@@ -786,7 +791,7 @@ static int e100_eeprom_save(struct nic *nic, u16 start, u16 count)
 
 #define E100_WAIT_SCB_TIMEOUT 20000 /* we might have to wait 100ms!!! */
 #define E100_WAIT_SCB_FAST 20       /* delay like the old code */
-static inline int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
+static int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -817,7 +822,7 @@ err_unlock:
 	return err;
 }
 
-static inline int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
+static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
 	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
 {
 	struct cb *cb;
@@ -876,15 +881,35 @@ static u16 mdio_ctrl(struct nic *nic, u32 addr, u32 dir, u32 reg, u16 data)
 {
 	u32 data_out = 0;
 	unsigned int i;
+	unsigned long flags;
 
+
+	/*
+	 * Stratus87247: we shouldn't be writing the MDI control
+	 * register until the Ready bit shows True.  Also, since
+	 * manipulation of the MDI control registers is a multi-step
+	 * procedure it should be done under lock.
+	 */
+	spin_lock_irqsave(&nic->mdio_lock, flags);
+	for (i = 100; i; --i) {
+		if (readl(&nic->csr->mdi_ctrl) & mdi_ready)
+			break;
+		udelay(20);
+	}
+	if (unlikely(!i)) {
+		printk("e100.mdio_ctrl(%s) won't go Ready\n",
+			nic->netdev->name );
+		spin_unlock_irqrestore(&nic->mdio_lock, flags);
+		return 0;		/* No way to indicate timeout error */
+	}
 	writel((reg << 16) | (addr << 21) | dir | data, &nic->csr->mdi_ctrl);
 
-	for(i = 0; i < 100; i++) {
+	for (i = 0; i < 100; i++) {
 		udelay(20);
-		if((data_out = readl(&nic->csr->mdi_ctrl)) & mdi_ready)
+		if ((data_out = readl(&nic->csr->mdi_ctrl)) & mdi_ready)
 			break;
 	}
-
+	spin_unlock_irqrestore(&nic->mdio_lock, flags);
 	DPRINTK(HW, DEBUG,
 		"%s:addr=%d, reg=%d, data_in=0x%04X, data_out=0x%04X\n",
 		dir == mdi_read ? "READ" : "WRITE", addr, reg, data, data_out);
@@ -1542,7 +1567,7 @@ static void e100_watchdog(unsigned long data)
 	mod_timer(&nic->watchdog, jiffies + E100_WATCHDOG_PERIOD);
 }
 
-static inline void e100_xmit_prepare(struct nic *nic, struct cb *cb,
+static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = nic->tx_command;
@@ -1592,7 +1617,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	return 0;
 }
 
-static inline int e100_tx_clean(struct nic *nic)
+static int e100_tx_clean(struct nic *nic)
 {
 	struct cb *cb;
 	int tx_cleaned = 0;
@@ -1703,7 +1728,7 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 }
 
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
-static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
+static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
 	if(!(rx->skb = dev_alloc_skb(RFD_BUF_LEN + NET_IP_ALIGN)))
 		return -ENOMEM;
@@ -1737,7 +1762,7 @@ static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 	return 0;
 }
 
-static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
+static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	unsigned int *work_done, unsigned int work_to_do)
 {
 	struct sk_buff *skb = rx->skb;
@@ -1797,7 +1822,7 @@ static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	return 0;
 }
 
-static inline void e100_rx_clean(struct nic *nic, unsigned int *work_done,
+static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 	unsigned int work_to_do)
 {
 	struct rx *rx;
@@ -2562,6 +2587,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	/* locks must be initialized before calling hw_reset */
 	spin_lock_init(&nic->cb_lock);
 	spin_lock_init(&nic->cmd_lock);
+	spin_lock_init(&nic->mdio_lock);
 
 	/* Reset the device before pci_set_master() in case device is in some
 	 * funky state and has an interrupt pending - hint: we don't have the

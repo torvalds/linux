@@ -16,6 +16,8 @@
 
 #include <linux/videodev.h>
 #include <linux/i2c.h>
+#include <media/ir-common.h>
+#include <media/ir-kbd-i2c.h>
 
 /* ---------------------------------------------------------- */
 /* exported by bttv-cards.c                                   */
@@ -163,6 +165,8 @@
 #define BTTV_BOARD_OSPREY440               0x8c
 #define BTTV_BOARD_ASOUND_SKYEYE	   0x8d
 #define BTTV_BOARD_SABRENT_TVFM   	   0x8e
+#define BTTV_BOARD_HAUPPAUGE_IMPACTVCB     0x8f
+#define BTTV_BOARD_MACHTV_MAGICTV          0x90
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2
@@ -210,6 +214,34 @@ struct bttv_core {
 
 struct bttv;
 
+
+struct bttv_ir {
+	struct input_dev        *dev;
+	struct ir_input_state   ir;
+	char                    name[32];
+	char                    phys[32];
+
+	/* Usual gpio signalling */
+
+	u32                     mask_keycode;
+	u32                     mask_keydown;
+	u32                     mask_keyup;
+	u32                     polling;
+	u32                     last_gpio;
+	struct work_struct      work;
+	struct timer_list       timer;
+
+	/* RC5 gpio */
+	u32 rc5_gpio;
+	struct timer_list timer_end;	/* timer_end for code completion */
+	struct timer_list timer_keyup;	/* timer_end for key release */
+	u32 last_rc5;			/* last good rc5 code */
+	u32 last_bit;			/* last raw bit seen */
+	u32 code;			/* raw code under construction */
+	struct timeval base_time;	/* time of last seen code */
+	int active;			/* building raw code */
+};
+
 struct tvcard
 {
 	char *name;
@@ -235,7 +267,6 @@ struct tvcard
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
 	unsigned int no_gpioirq:1;
-	unsigned int any_irq:1;
 
 	/* other settings */
 	unsigned int pll;
@@ -334,8 +365,9 @@ struct bttv_sub_device {
 struct bttv_sub_driver {
 	struct device_driver   drv;
 	char                   wanted[BUS_ID_SIZE];
+	int                    (*probe)(struct bttv_sub_device *sub);
+	void                   (*remove)(struct bttv_sub_device *sub);
 	void                   (*gpio_irq)(struct bttv_sub_device *sub);
-	int                    (*any_irq)(struct bttv_sub_device *sub);
 };
 #define to_bttv_sub_drv(x) container_of((x), struct bttv_sub_driver, drv)
 
@@ -362,6 +394,10 @@ extern int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for);
 extern int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 			 unsigned char b2, int both);
 extern void bttv_readee(struct bttv *btv, unsigned char *eedata, int addr);
+
+extern int bttv_input_init(struct bttv *dev);
+extern void bttv_input_fini(struct bttv *dev);
+extern void bttv_input_irq(struct bttv *dev);
 
 #endif /* _BTTV_H_ */
 /*

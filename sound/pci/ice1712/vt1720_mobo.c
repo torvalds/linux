@@ -33,7 +33,7 @@
 #include "vt1720_mobo.h"
 
 
-static int __devinit k8x800_init(ice1712_t *ice)
+static int __devinit k8x800_init(struct snd_ice1712 *ice)
 {
 	ice->vt1720 = 1;
 
@@ -47,7 +47,7 @@ static int __devinit k8x800_init(ice1712_t *ice)
 	return 0;
 }
 
-static int __devinit k8x800_add_controls(ice1712_t *ice)
+static int __devinit k8x800_add_controls(struct snd_ice1712 *ice)
 {
 	/* FIXME: needs some quirks for VT1616? */
 	return 0;

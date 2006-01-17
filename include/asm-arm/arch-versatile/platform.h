@@ -293,26 +293,7 @@
  * 	VERSATILE_SYS_IC 
  * 
  */
-#define VIC_IRQ_STATUS                  0
-#define VIC_FIQ_STATUS                  0x04
-#define VIC_IRQ_RAW_STATUS              0x08
-#define VIC_INT_SELECT                  0x0C	/* 1 = FIQ, 0 = IRQ */
-#define VIC_IRQ_ENABLE                  0x10	/* 1 = enable, 0 = disable */
-#define VIC_IRQ_ENABLE_CLEAR            0x14
-#define VIC_IRQ_SOFT                    0x18
-#define VIC_IRQ_SOFT_CLEAR              0x1C
-#define VIC_PROTECT                     0x20
-#define VIC_VECT_ADDR                   0x30
-#define VIC_DEF_VECT_ADDR               0x34
-#define VIC_VECT_ADDR0                  0x100	/* 0 to 15 */
-#define VIC_VECT_CNTL0                  0x200	/* 0 to 15 */
-#define VIC_ITCR                        0x300   /* VIC test control register */
-
-#define VIC_FIQ_RAW_STATUS              0x08
-#define VIC_FIQ_ENABLE                  0x10	/* 1 = enable, 0 = disable */
-#define VIC_FIQ_ENABLE_CLEAR            0x14
-#define VIC_FIQ_SOFT                    0x18
-#define VIC_FIQ_SOFT_CLEAR              0x1C
+/* VIC definitions in include/asm-arm/hardware/vic.h */
 
 #define SIC_IRQ_STATUS                  0
 #define SIC_IRQ_RAW_STATUS              0x04
@@ -324,8 +305,6 @@
 #define SIC_INT_PIC_ENABLE              0x20	/* read status of pass through mask */
 #define SIC_INT_PIC_ENABLES             0x20	/* set interrupt pass through bits */
 #define SIC_INT_PIC_ENABLEC             0x24	/* Clear interrupt pass through bits */
-
-#define VICVectCntl_Enable		(1 << 5)
 
 /* ------------------------------------------------------------------------
  *  Interrupts - bit assignment (primary)

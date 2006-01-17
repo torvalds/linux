@@ -730,7 +730,7 @@ static void vortex_Eqlzr_shutdown(vortex_t * vortex)
 
 /* Control interface */
 static int
-snd_vortex_eqtoggle_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+snd_vortex_eqtoggle_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -740,8 +740,8 @@ snd_vortex_eqtoggle_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
 }
 
 static int
-snd_vortex_eqtoggle_get(snd_kcontrol_t * kcontrol,
-			snd_ctl_elem_value_t * ucontrol)
+snd_vortex_eqtoggle_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	eqlzr_t *eq = &(vortex->eq);
@@ -753,8 +753,8 @@ snd_vortex_eqtoggle_get(snd_kcontrol_t * kcontrol,
 }
 
 static int
-snd_vortex_eqtoggle_put(snd_kcontrol_t * kcontrol,
-			snd_ctl_elem_value_t * ucontrol)
+snd_vortex_eqtoggle_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	eqlzr_t *eq = &(vortex->eq);
@@ -766,7 +766,7 @@ snd_vortex_eqtoggle_put(snd_kcontrol_t * kcontrol,
 	return 1;		/* Allways changes */
 }
 
-static snd_kcontrol_new_t vortex_eqtoggle_kcontrol __devinitdata = {
+static struct snd_kcontrol_new vortex_eqtoggle_kcontrol __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Enable",
 	.index = 0,
@@ -778,7 +778,7 @@ static snd_kcontrol_new_t vortex_eqtoggle_kcontrol __devinitdata = {
 };
 
 static int
-snd_vortex_eq_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+snd_vortex_eq_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -788,7 +788,7 @@ snd_vortex_eq_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
 }
 
 static int
-snd_vortex_eq_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_vortex_eq_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	int i = kcontrol->private_value;
@@ -802,7 +802,7 @@ snd_vortex_eq_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 }
 
 static int
-snd_vortex_eq_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_vortex_eq_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	int changed = 0, i = kcontrol->private_value;
@@ -824,7 +824,7 @@ snd_vortex_eq_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 	return changed;
 }
 
-static snd_kcontrol_new_t vortex_eq_kcontrol __devinitdata = {
+static struct snd_kcontrol_new vortex_eq_kcontrol __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "                        .",
 	.index = 0,
@@ -836,7 +836,7 @@ static snd_kcontrol_new_t vortex_eq_kcontrol __devinitdata = {
 };
 
 static int
-snd_vortex_peaks_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+snd_vortex_peaks_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 20;
@@ -846,7 +846,7 @@ snd_vortex_peaks_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
 }
 
 static int
-snd_vortex_peaks_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_vortex_peaks_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	int i, count;
@@ -863,7 +863,7 @@ snd_vortex_peaks_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 	return 0;
 }
 
-static snd_kcontrol_new_t vortex_levels_kcontrol __devinitdata = {
+static struct snd_kcontrol_new vortex_levels_kcontrol __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Peaks",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
@@ -888,7 +888,7 @@ static char *EqBandLabels[10] __devinitdata = {
 /* ALSA driver entry points. Init and exit. */
 static int vortex_eq_init(vortex_t * vortex)
 {
-	snd_kcontrol_t *kcontrol;
+	struct snd_kcontrol *kcontrol;
 	int err, i;
 
 	vortex_Eqlzr_init(vortex);

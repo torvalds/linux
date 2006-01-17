@@ -319,7 +319,7 @@ type name(void) \
 register long __scno __asm__ ("r7") = __NR_##name; \
 register long __res __asm__("r0"); \
 __asm__ __volatile__ (\
-	"trap #" SYSCALL_VECTOR \
+	"trap #" SYSCALL_VECTOR "|| nop"\
 	: "=r" (__res) \
 	: "r" (__scno) \
 	: "memory"); \
@@ -332,7 +332,7 @@ type name(type1 arg1) \
 register long __scno __asm__ ("r7") = __NR_##name; \
 register long __res __asm__ ("r0") = (long)(arg1); \
 __asm__ __volatile__ (\
-	"trap #" SYSCALL_VECTOR \
+	"trap #" SYSCALL_VECTOR "|| nop"\
 	: "=r" (__res) \
 	: "r" (__scno), "0" (__res) \
 	: "memory"); \
@@ -346,7 +346,7 @@ register long __scno __asm__ ("r7") = __NR_##name; \
 register long __arg2 __asm__ ("r1") = (long)(arg2); \
 register long __res __asm__ ("r0") = (long)(arg1); \
 __asm__ __volatile__ (\
-	"trap #" SYSCALL_VECTOR \
+	"trap #" SYSCALL_VECTOR "|| nop"\
 	: "=r" (__res) \
 	: "r" (__scno), "0" (__res), "r" (__arg2) \
 	: "memory"); \
@@ -361,7 +361,7 @@ register long __arg3 __asm__ ("r2") = (long)(arg3); \
 register long __arg2 __asm__ ("r1") = (long)(arg2); \
 register long __res __asm__ ("r0") = (long)(arg1); \
 __asm__ __volatile__ (\
-	"trap #" SYSCALL_VECTOR \
+	"trap #" SYSCALL_VECTOR "|| nop"\
 	: "=r" (__res) \
 	: "r" (__scno), "0" (__res), "r" (__arg2), \
 		"r" (__arg3) \
@@ -378,7 +378,7 @@ register long __arg3 __asm__ ("r2") = (long)(arg3); \
 register long __arg2 __asm__ ("r1") = (long)(arg2); \
 register long __res __asm__ ("r0") = (long)(arg1); \
 __asm__ __volatile__ (\
-	"trap #" SYSCALL_VECTOR \
+	"trap #" SYSCALL_VECTOR "|| nop"\
 	: "=r" (__res) \
 	: "r" (__scno), "0" (__res), "r" (__arg2), \
 		"r" (__arg3), "r" (__arg4) \
@@ -397,7 +397,7 @@ register long __arg3 __asm__ ("r2") = (long)(arg3); \
 register long __arg2 __asm__ ("r1") = (long)(arg2); \
 register long __res __asm__ ("r0") = (long)(arg1); \
 __asm__ __volatile__ (\
-	"trap #" SYSCALL_VECTOR \
+	"trap #" SYSCALL_VECTOR "|| nop"\
 	: "=r" (__res) \
 	: "r" (__scno), "0" (__res), "r" (__arg2), \
 		"r" (__arg3), "r" (__arg4), "r" (__arg5) \

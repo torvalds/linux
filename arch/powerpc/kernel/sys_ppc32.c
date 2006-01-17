@@ -552,30 +552,6 @@ asmlinkage long compat_sys_sched_rr_get_interval(u32 pid, struct compat_timespec
 	return ret;
 }
 
-asmlinkage int compat_sys_pciconfig_read(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
-{
-	return sys_pciconfig_read((unsigned long) bus,
-				  (unsigned long) dfn,
-				  (unsigned long) off,
-				  (unsigned long) len,
-				  compat_ptr(ubuf));
-}
-
-asmlinkage int compat_sys_pciconfig_write(u32 bus, u32 dfn, u32 off, u32 len, u32 ubuf)
-{
-	return sys_pciconfig_write((unsigned long) bus,
-				   (unsigned long) dfn,
-				   (unsigned long) off,
-				   (unsigned long) len,
-				   compat_ptr(ubuf));
-}
-
-asmlinkage int compat_sys_pciconfig_iobase(u32 which, u32 in_bus, u32 in_devfn)
-{
-	return sys_pciconfig_iobase(which, in_bus, in_devfn);
-}
-
-
 /* Note: it is necessary to treat mode as an unsigned int,
  * with the corresponding cast to a signed int to insure that the 
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
@@ -954,38 +930,6 @@ long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
 {
 	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low, len,
 			     advice);
-}
-
-long ppc32_timer_create(clockid_t clock,
-			struct compat_sigevent __user *ev32,
-			timer_t __user *timer_id)
-{
-	sigevent_t event;
-	timer_t t;
-	long err;
-	mm_segment_t savefs;
-
-	if (ev32 == NULL)
-		return sys_timer_create(clock, NULL, timer_id);
-
-	if (get_compat_sigevent(&event, ev32))
-		return -EFAULT;
-
-	if (!access_ok(VERIFY_WRITE, timer_id, sizeof(timer_t)))
-		return -EFAULT;
-
-	savefs = get_fs();
-	set_fs(KERNEL_DS);
-	/* The __user pointer casts are valid due to the set_fs() */
-	err = sys_timer_create(clock,
-		(sigevent_t __user *) &event,
-		(timer_t __user *) &t);
-	set_fs(savefs);
-
-	if (err == 0)
-		err = __put_user(t, timer_id);
-
-	return err;
 }
 
 asmlinkage long compat_sys_add_key(const char __user *_type,

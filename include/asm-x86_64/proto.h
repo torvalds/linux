@@ -67,8 +67,6 @@ extern void load_gs_index(unsigned gs);
 
 extern unsigned long end_pfn_map; 
 
-extern cpumask_t cpu_initialized;
-
 extern void show_trace(unsigned long * rsp);
 extern void show_registers(struct pt_regs *regs);
 
@@ -91,8 +89,12 @@ extern void check_efer(void);
 
 extern int unhandled_signal(struct task_struct *tsk, int sig);
 
+extern int unsynchronized_tsc(void);
+
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
-extern void swiotlb_init(void);
+
+extern void gart_parse_options(char *);
+extern void __init no_iommu_init(void);
 
 extern unsigned long table_start, table_end;
 
@@ -106,12 +108,17 @@ extern int skip_ioapic_setup;
 extern int acpi_ht;
 extern int acpi_disabled;
 
+#ifdef CONFIG_GART_IOMMU
 extern int fallback_aper_order;
 extern int fallback_aper_force;
 extern int iommu_aperture;
-extern int iommu_aperture_disabled;
 extern int iommu_aperture_allowed;
+extern int iommu_aperture_disabled;
 extern int fix_aperture;
+#else
+#define iommu_aperture 0
+#define iommu_aperture_allowed 0
+#endif
 extern int force_iommu;
 
 extern int reboot_force;

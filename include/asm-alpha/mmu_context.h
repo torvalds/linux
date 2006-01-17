@@ -156,7 +156,7 @@ ev5_switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
 	/* Always update the PCB ASN.  Another thread may have allocated
 	   a new mm->context (via flush_tlb_mm) without the ASN serial
 	   number wrapping.  We have no way to detect when this is needed.  */
-	next->thread_info->pcb.asn = mmc & HARDWARE_ASN_MASK;
+	task_thread_info(next)->pcb.asn = mmc & HARDWARE_ASN_MASK;
 }
 
 __EXTERN_INLINE void
@@ -235,7 +235,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 		if (cpu_online(i))
 			mm->context[i] = 0;
 	if (tsk != current)
-		tsk->thread_info->pcb.ptbr
+		task_thread_info(tsk)->pcb.ptbr
 		  = ((unsigned long)mm->pgd - IDENT_ADDR) >> PAGE_SHIFT;
 	return 0;
 }
@@ -249,7 +249,7 @@ destroy_context(struct mm_struct *mm)
 static inline void
 enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
-	tsk->thread_info->pcb.ptbr
+	task_thread_info(tsk)->pcb.ptbr
 	  = ((unsigned long)mm->pgd - IDENT_ADDR) >> PAGE_SHIFT;
 }
 

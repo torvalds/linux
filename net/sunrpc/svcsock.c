@@ -758,7 +758,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 	struct svc_serv	*serv = svsk->sk_server;
 	struct socket	*sock = svsk->sk_sock;
 	struct socket	*newsock;
-	struct proto_ops *ops;
+	const struct proto_ops *ops;
 	struct svc_sock	*newsvsk;
 	int		err, slen;
 
@@ -1026,7 +1026,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	} else {
 		printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
 					svsk->sk_server->sv_name, -len);
-		svc_sock_received(svsk);
+		goto err_delete;
 	}
 
 	return len;

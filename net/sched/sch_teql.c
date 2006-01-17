@@ -22,6 +22,7 @@
 #include <linux/in.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -273,7 +274,7 @@ teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *de
 
 static int teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct teql_master *master = (void*)dev->priv;
+	struct teql_master *master = netdev_priv(dev);
 	struct Qdisc *start, *q;
 	int busy;
 	int nores;
@@ -349,7 +350,7 @@ drop:
 static int teql_master_open(struct net_device *dev)
 {
 	struct Qdisc * q;
-	struct teql_master *m = (void*)dev->priv;
+	struct teql_master *m = netdev_priv(dev);
 	int mtu = 0xFFFE;
 	unsigned flags = IFF_NOARP|IFF_MULTICAST;
 
@@ -396,13 +397,13 @@ static int teql_master_close(struct net_device *dev)
 
 static struct net_device_stats *teql_master_stats(struct net_device *dev)
 {
-	struct teql_master *m = (void*)dev->priv;
+	struct teql_master *m = netdev_priv(dev);
 	return &m->stats;
 }
 
 static int teql_master_mtu(struct net_device *dev, int new_mtu)
 {
-	struct teql_master *m = (void*)dev->priv;
+	struct teql_master *m = netdev_priv(dev);
 	struct Qdisc *q;
 
 	if (new_mtu < 68)
@@ -422,7 +423,7 @@ static int teql_master_mtu(struct net_device *dev, int new_mtu)
 
 static __init void teql_master_setup(struct net_device *dev)
 {
-	struct teql_master *master = dev->priv;
+	struct teql_master *master = netdev_priv(dev);
 	struct Qdisc_ops *ops = &master->qops;
 
 	master->dev	= dev;
@@ -475,7 +476,7 @@ static int __init teql_init(void)
 			break;
 		}
 
-		master = dev->priv;
+		master = netdev_priv(dev);
 
 		strlcpy(master->qops.id, dev->name, IFNAMSIZ);
 		err = register_qdisc(&master->qops);

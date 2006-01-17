@@ -122,40 +122,6 @@ udp_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-udp_print(char *buffer,
-	  const struct ip_conntrack_tuple *match,
-	  const struct ip_conntrack_tuple *mask)
-{
-	unsigned int len = 0;
-
-	if (mask->src.u.udp.port)
-		len += sprintf(buffer + len, "srcpt=%u ",
-			       ntohs(match->src.u.udp.port));
-
-
-	if (mask->dst.u.udp.port)
-		len += sprintf(buffer + len, "dstpt=%u ",
-			       ntohs(match->dst.u.udp.port));
-
-	return len;
-}
-
-static unsigned int
-udp_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	if (range->min.udp.port != 0 || range->max.udp.port != 0xFFFF) {
-		if (range->min.udp.port == range->max.udp.port)
-			return sprintf(buffer, "port %u ",
-				       ntohs(range->min.udp.port));
-		else
-			return sprintf(buffer, "ports %u-%u ",
-				       ntohs(range->min.udp.port),
-				       ntohs(range->max.udp.port));
-	}
-	else return 0;
-}
-
 struct ip_nat_protocol ip_nat_protocol_udp = {
 	.name			= "UDP",
 	.protonum		= IPPROTO_UDP,
@@ -163,8 +129,6 @@ struct ip_nat_protocol ip_nat_protocol_udp = {
 	.manip_pkt		= udp_manip_pkt,
 	.in_range		= udp_in_range,
 	.unique_tuple		= udp_unique_tuple,
-	.print			= udp_print,
-	.print_range		= udp_print_range,
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 	.range_to_nfattr	= ip_nat_port_range_to_nfattr,

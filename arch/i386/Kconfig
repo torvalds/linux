@@ -29,10 +29,6 @@ config MMU
 config SBUS
 	bool
 
-config UID16
-	bool
-	default y
-
 config GENERIC_ISA_DMA
 	bool
 	default y
@@ -45,7 +41,20 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config DMI
+	bool
+	default y
+
 source "init/Kconfig"
+
+config DOUBLEFAULT
+	default y
+	bool "Enable doublefault exception handler" if EMBEDDED
+	help
+          This option allows trapping of rare doublefault exceptions that
+          would otherwise cause a system to silently reboot. Disabling this
+          option saves about 4k and might cause you much additional grey
+          hair.
 
 menu "Processor type and features"
 
@@ -464,7 +473,6 @@ config NUMA
 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
-	select SPARSEMEM_STATIC
 
 # Need comments to help the hapless user trying to turn on NUMA support
 comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
@@ -493,6 +501,10 @@ config HAVE_ARCH_ALLOC_REMAP
 	depends on NUMA
 	default y
 
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+	depends on (ARCH_SELECT_MEMORY_MODEL && X86_PC)
+
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
 	depends on NUMA
@@ -503,7 +515,8 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on NUMA
+	depends on (NUMA || (X86_PC && EXPERIMENTAL))
+	select SPARSEMEM_STATIC
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
@@ -626,10 +639,6 @@ config REGPARM
 	and passes the first three arguments of a function call in registers.
 	This will probably break binary only modules.
 
-	This feature is only enabled for gcc-3.0 and later - earlier compilers
-	generate incorrect output with certain kernel constructs when
-	-mregparm=3 is used.
-
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
@@ -648,17 +657,6 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 source kernel/Kconfig.hz
-
-config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if EMBEDDED
-	default "0x100000"
-	help
-	  This gives the physical address where the kernel is loaded.
-	  Primarily used in the case of kexec on panic where the
-	  fail safe kernel needs to run at a different address than
-	  the panic-ed kernel.
-
-	  Don't change this unless you know what you are doing.
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
@@ -679,11 +677,40 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on EMBEDDED
 	depends on EXPERIMENTAL
 	depends on HIGHMEM
 	help
 	  Generate crash dump after being started by kexec.
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+
+	default "0x1000000" if CRASH_DUMP
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded. Normally
+	  for regular kernels this value is 0x100000 (1MB). But in the case
+	  of kexec on panic the fail safe kernel needs to run at a different
+	  address than the panic-ed kernel. This option is used to set the load
+	  address for kernels used to capture crash dump on being kexec'ed
+	  after panic. The default value for crash dump kernels is
+	  0x1000000 (16MB). This can also be set based on the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel. Typically this parameter is set as
+	  crashkernel=64M@16M. Please take a look at
+	  Documentation/kdump/kdump.txt for more details about crash dumps.
+
+	  Don't change this unless you know what you are doing.
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	---help---
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
+	  Say N.
+
 endmenu
 
 
@@ -699,7 +726,7 @@ depends on PM && !X86_VISWS
 
 config APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on PM && PM_LEGACY
+	depends on PM
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -970,15 +997,6 @@ config SCx200
 	  This support is also available as a module.  If compiled as a
 	  module, it will be called scx200.
 
-config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL
-	---help---
-	  Say Y here to experiment with turning CPUs off and on.  CPUs
-	  can be controlled through /sys/devices/system/cpu.
-
-	  Say N.
-
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
@@ -1054,4 +1072,8 @@ config X86_BIOS_REBOOT
 config X86_TRAMPOLINE
 	bool
 	depends on X86_SMP || (X86_VOYAGER && SMP)
+	default y
+
+config KTIME_SCALAR
+	bool
 	default y

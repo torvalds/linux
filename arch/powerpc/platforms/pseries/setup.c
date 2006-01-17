@@ -56,6 +56,7 @@
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
+#include <asm/kexec.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include "xics.h"
@@ -68,6 +69,7 @@
 #include <asm/smp.h>
 
 #include "plpar_wrappers.h"
+#include "ras.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -76,22 +78,15 @@
 #endif
 
 extern void find_udbg_vterm(void);
-extern void system_reset_fwnmi(void);	/* from head.S */
-extern void machine_check_fwnmi(void);	/* from head.S */
-extern void generic_find_legacy_serial_ports(u64 *physport,
-		unsigned int *default_speed);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
-
-extern void pSeries_system_reset_exception(struct pt_regs *regs);
-extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
 static void pseries_shared_idle(void);
 static void pseries_dedicated_idle(void);
 
 struct mpic *pSeries_mpic;
 
-void pSeries_show_cpuinfo(struct seq_file *m)
+static void pSeries_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
@@ -105,18 +100,22 @@ void pSeries_show_cpuinfo(struct seq_file *m)
 
 /* Initialize firmware assisted non-maskable interrupts if
  * the firmware supports this feature.
- *
  */
 static void __init fwnmi_init(void)
 {
-	int ret;
+	unsigned long system_reset_addr, machine_check_addr;
+
 	int ibm_nmi_register = rtas_token("ibm,nmi-register");
 	if (ibm_nmi_register == RTAS_UNKNOWN_SERVICE)
 		return;
-	ret = rtas_call(ibm_nmi_register, 2, 1, NULL,
-			__pa((unsigned long)system_reset_fwnmi),
-			__pa((unsigned long)machine_check_fwnmi));
-	if (ret == 0)
+
+	/* If the kernel's not linked at zero we point the firmware at low
+	 * addresses anyway, and use a trampoline to get to the real code. */
+	system_reset_addr  = __pa(system_reset_fwnmi) - PHYSICAL_START;
+	machine_check_addr = __pa(machine_check_fwnmi) - PHYSICAL_START;
+
+	if (0 == rtas_call(ibm_nmi_register, 2, 1, NULL, system_reset_addr,
+				machine_check_addr))
 		fwnmi_active = 1;
 }
 
@@ -191,7 +190,7 @@ static void pseries_lpar_enable_pmcs(void)
 
 	/* instruct hypervisor to maintain PMCs */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		get_paca()->lppaca.pmcregs_in_use = 1;
+		get_lppaca()->pmcregs_in_use = 1;
 }
 
 static void __init pSeries_setup_arch(void)
@@ -235,7 +234,7 @@ static void __init pSeries_setup_arch(void)
 	/* Choose an idle loop */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		vpa_init(boot_cpuid);
-		if (get_paca()->lppaca.shared_proc) {
+		if (get_lppaca()->shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
 			ppc_md.idle_loop = pseries_shared_idle;
 		} else {
@@ -323,15 +322,18 @@ static  void __init pSeries_discover_pic(void)
 	ppc64_interrupt_controller = IC_INVALID;
 	for (np = NULL; (np = of_find_node_by_name(np, "interrupt-controller"));) {
 		typep = (char *)get_property(np, "compatible", NULL);
-		if (strstr(typep, "open-pic"))
+		if (strstr(typep, "open-pic")) {
 			ppc64_interrupt_controller = IC_OPEN_PIC;
-		else if (strstr(typep, "ppc-xicp"))
+			break;
+		} else if (strstr(typep, "ppc-xicp")) {
 			ppc64_interrupt_controller = IC_PPC_XIC;
-		else
-			printk("pSeries_discover_pic: failed to recognize"
-			       " interrupt-controller\n");
-		break;
+			break;
+		}
 	}
+	if (ppc64_interrupt_controller == IC_INVALID)
+		printk("pSeries_discover_pic: failed to recognize"
+			" interrupt-controller\n");
+
 }
 
 static void pSeries_mach_cpu_die(void)
@@ -365,10 +367,7 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	void *comport;
 	int iommu_off = 0;
-	unsigned int default_speed;
-	u64 physport;
 
 	DBG(" -> pSeries_init_early()\n");
 
@@ -382,17 +381,8 @@ static void __init pSeries_init_early(void)
 			     get_property(of_chosen, "linux,iommu-off", NULL));
 	}
 
-	generic_find_legacy_serial_ports(&physport, &default_speed);
-
 	if (platform_is_lpar())
 		find_udbg_vterm();
-	else if (physport) {
-		/* Map the uart for udbg. */
-		comport = (void *)ioremap(physport, 16);
-		udbg_init_uart(comport, default_speed);
-
-		DBG("Hello World !\n");
-	}
 
 	if (firmware_has_feature(FW_FEATURE_DABR))
 		ppc_md.set_dabr = pseries_set_dabr;
@@ -454,10 +444,10 @@ DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
 
 static inline void dedicated_idle_sleep(unsigned int cpu)
 {
-	struct paca_struct *ppaca = &paca[cpu ^ 1];
+	struct lppaca *plppaca = &lppaca[cpu ^ 1];
 
 	/* Only sleep if the other thread is not idle */
-	if (!(ppaca->lppaca.idle)) {
+	if (!(plppaca->idle)) {
 		local_irq_disable();
 
 		/*
@@ -490,7 +480,6 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 
 static void pseries_dedicated_idle(void)
 { 
-	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
@@ -501,7 +490,7 @@ static void pseries_dedicated_idle(void)
 		 * Indicate to the HV that we are idle. Now would be
 		 * a good time to find other work to dispatch.
 		 */
-		lpaca->lppaca.idle = 1;
+		get_lppaca()->idle = 1;
 
 		if (!need_resched()) {
 			start_snooze = get_tb() +
@@ -528,7 +517,7 @@ static void pseries_dedicated_idle(void)
 			HMT_medium();
 		}
 
-		lpaca->lppaca.idle = 0;
+		get_lppaca()->idle = 0;
 		ppc64_runlatch_on();
 
 		preempt_enable_no_resched();
@@ -542,7 +531,6 @@ static void pseries_dedicated_idle(void)
 
 static void pseries_shared_idle(void)
 {
-	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
 
 	while (1) {
@@ -550,7 +538,7 @@ static void pseries_shared_idle(void)
 		 * Indicate to the HV that we are idle. Now would be
 		 * a good time to find other work to dispatch.
 		 */
-		lpaca->lppaca.idle = 1;
+		get_lppaca()->idle = 1;
 
 		while (!need_resched() && !cpu_is_offline(cpu)) {
 			local_irq_disable();
@@ -574,7 +562,7 @@ static void pseries_shared_idle(void)
 			HMT_medium();
 		}
 
-		lpaca->lppaca.idle = 0;
+		get_lppaca()->idle = 0;
 		ppc64_runlatch_on();
 
 		preempt_enable_no_resched();
@@ -598,7 +586,7 @@ static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	/* Don't risk a hypervisor call if we're crashing */
 	if (!crash_shutdown) {
-		unsigned long vpa = __pa(&get_paca()->lppaca);
+		unsigned long vpa = __pa(get_lppaca());
 
 		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
 			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
@@ -638,5 +626,8 @@ struct machdep_calls __initdata pSeries_md = {
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pseries_kexec_cpu_down,
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
 #endif
 };

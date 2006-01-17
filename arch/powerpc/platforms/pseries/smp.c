@@ -93,7 +93,7 @@ static int query_cpu_stopped(unsigned int pcpu)
 	return cpu_status;
 }
 
-int pSeries_cpu_disable(void)
+static int pSeries_cpu_disable(void)
 {
 	int cpu = smp_processor_id();
 
@@ -109,7 +109,7 @@ int pSeries_cpu_disable(void)
 	return 0;
 }
 
-void pSeries_cpu_die(unsigned int cpu)
+static void pSeries_cpu_die(unsigned int cpu)
 {
 	int tries;
 	int cpu_status;
@@ -282,7 +282,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	pcpu = get_hard_smp_processor_id(lcpu);
 
 	/* Fixup atomic count: it exited inside IRQ handler. */
-	paca[lcpu].__current->thread_info->preempt_count	= 0;
+	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
 
 	/* 
 	 * If the RTAS start-cpu token does not exist then presume the

@@ -11,11 +11,6 @@
  *	UTF-8 is explained in the IETF RFC XXXX.
  *		ftp://ftp.internic.net/rfc/rfcxxxx.txt
  *
- * CONTACTS
- *	E-mail regarding any portion of the Linux UDF file system should be
- *	directed to the development team's mailing list (run by majordomo):
- *		linux_udf@hpesjro.fc.hp.com
- *
  * COPYRIGHT
  *	This file is distributed under the terms of the GNU General Public
  *	License (GPL). Copies of the GPL can be obtained from:

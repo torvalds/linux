@@ -125,7 +125,7 @@ static char stat_gstrings[][ETH_GSTRING_LEN] = {
 static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	
+
 	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
 		memcpy(buf, stat_gstrings, GFAR_STATS_LEN * ETH_GSTRING_LEN);
 	else

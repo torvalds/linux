@@ -15,7 +15,6 @@
  * bytes of RAM.
  */
 #define MAX_DMA_ADDRESS		0xd0000000
-#define MAX_DMA_CHANNELS	0
 
 #define DMA_S0			0
 

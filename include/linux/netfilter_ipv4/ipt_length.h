@@ -1,9 +1,7 @@
 #ifndef _IPT_LENGTH_H
 #define _IPT_LENGTH_H
 
-struct ipt_length_info {
-    u_int16_t	min, max;
-    u_int8_t	invert;
-};
+#include <linux/netfilter/xt_length.h>
+#define ipt_length_info xt_length_info
 
 #endif /*_IPT_LENGTH_H*/

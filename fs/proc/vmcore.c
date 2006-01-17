@@ -14,7 +14,6 @@
 #include <linux/a.out.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
-#include <linux/proc_fs.h>
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
@@ -35,11 +34,14 @@ static size_t elfcorebuf_sz;
 /* Total size of vmcore file. */
 static u64 vmcore_size;
 
+/* Stores the physical address of elf header of crash image. */
+unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
+
 struct proc_dir_entry *proc_vmcore = NULL;
 
 /* Reads a page from the oldmem device from given offset. */
 static ssize_t read_from_oldmem(char *buf, size_t count,
-			     loff_t *ppos, int userbuf)
+				u64 *ppos, int userbuf)
 {
 	unsigned long pfn, offset;
 	size_t nr_bytes;

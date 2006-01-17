@@ -351,10 +351,10 @@ mpc85xx_cds_fixup_via(struct pci_controller *hose)
 void __init
 mpc85xx_cds_pcibios_fixup(void)
 {
-        struct pci_dev *dev = NULL;
+        struct pci_dev *dev;
 	u_char		c;
 
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_1, NULL))) {
                 /*
                  * U-Boot does not set the enable bits
@@ -371,29 +371,29 @@ mpc85xx_cds_pcibios_fixup(void)
 		 */
                 dev->irq = 14;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
+		pci_dev_put(dev);
         }
 
 	/*
 	 * Force legacy USB interrupt routing
 	 */
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
                 dev->irq = 10;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
+		pci_dev_put(dev);
         }
 
-        if ((dev = pci_find_device(PCI_VENDOR_ID_VIA,
+	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, dev))) {
                 dev->irq = 11;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+		pci_dev_put(dev);
         }
 }
 #endif /* CONFIG_PCI */
 
 TODC_ALLOC();
-
-static const char *GFAR_PHY_0 = "phy0:0";
-static const char *GFAR_PHY_1 = "phy0:1";
 
 /* ************************************************************************
  *
@@ -458,34 +458,37 @@ mpc85xx_cds_setup_arch(void)
 	mdata->irq[2] = -1;
 	mdata->irq[3] = -1;
 	mdata->irq[31] = -1;
-	mdata->paddr += binfo->bi_immr_base;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_0;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_1;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_eTSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_0;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_eTSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_1;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 

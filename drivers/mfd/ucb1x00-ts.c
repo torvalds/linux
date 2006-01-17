@@ -32,7 +32,6 @@
 #include <linux/suspend.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
-#include <linux/delay.h>
 
 #include <asm/dma.h>
 #include <asm/semaphore.h>

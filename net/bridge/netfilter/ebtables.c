@@ -944,7 +944,7 @@ static int do_replace(void __user *user, unsigned int len)
 	if (countersize)
 		memset(newinfo->counters, 0, countersize);
 
-	newinfo->entries = (char *)vmalloc(tmp.entries_size);
+	newinfo->entries = vmalloc(tmp.entries_size);
 	if (!newinfo->entries) {
 		ret = -ENOMEM;
 		goto free_newinfo;
@@ -1146,7 +1146,7 @@ int ebt_register_table(struct ebt_table *table)
 	if (!newinfo)
 		return -ENOMEM;
 
-	newinfo->entries = (char *)vmalloc(table->table->entries_size);
+	newinfo->entries = vmalloc(table->table->entries_size);
 	if (!(newinfo->entries))
 		goto free_newinfo;
 

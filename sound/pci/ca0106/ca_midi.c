@@ -40,18 +40,20 @@
 #define ca_midi_input_avail(midi)	(!(ca_midi_read_stat(midi) & midi->input_avail))
 #define ca_midi_output_ready(midi)	(!(ca_midi_read_stat(midi) & midi->output_ready))
 
-static void ca_midi_clear_rx(ca_midi_t *midi)
+static void ca_midi_clear_rx(struct snd_ca_midi *midi)
 {
 	int timeout = 100000;
 	for (; timeout > 0 && ca_midi_input_avail(midi); timeout--)
 		ca_midi_read_data(midi);
 #ifdef CONFIG_SND_DEBUG
 	if (timeout <= 0)
-		snd_printk(KERN_ERR "ca_midi_clear_rx: timeout (status = 0x%x)\n", ca_midi_read_stat(midi));
+		snd_printk(KERN_ERR "ca_midi_clear_rx: timeout (status = 0x%x)\n",
+			   ca_midi_read_stat(midi));
 #endif
 }
 
-static void ca_midi_interrupt(ca_midi_t *midi, unsigned int status) {
+static void ca_midi_interrupt(struct snd_ca_midi *midi, unsigned int status)
+{
 	unsigned char byte;
 
 	if (midi->rmidi == NULL) {
@@ -86,7 +88,7 @@ static void ca_midi_interrupt(ca_midi_t *midi, unsigned int status) {
 
 }
 
-static void ca_midi_cmd(ca_midi_t *midi, unsigned char cmd, int ack)
+static void ca_midi_cmd(struct snd_ca_midi *midi, unsigned char cmd, int ack)
 {
 	unsigned long flags;
 	int timeout, ok;
@@ -119,9 +121,9 @@ static void ca_midi_cmd(ca_midi_t *midi, unsigned char cmd, int ack)
 			   ca_midi_read_data(midi));
 }
 
-static int ca_midi_input_open(snd_rawmidi_substream_t * substream)
+static int ca_midi_input_open(struct snd_rawmidi_substream *substream)
 {
-	ca_midi_t *midi = (ca_midi_t *)substream->rmidi->private_data;
+	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 	
 	snd_assert(midi->dev_id, return -ENXIO);
@@ -138,9 +140,9 @@ static int ca_midi_input_open(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-static int ca_midi_output_open(snd_rawmidi_substream_t * substream)
+static int ca_midi_output_open(struct snd_rawmidi_substream *substream)
 {
-	ca_midi_t *midi = (ca_midi_t *)substream->rmidi->private_data;
+	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
 	snd_assert(midi->dev_id, return -ENXIO);
@@ -157,9 +159,9 @@ static int ca_midi_output_open(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-static int ca_midi_input_close(snd_rawmidi_substream_t * substream)
+static int ca_midi_input_close(struct snd_rawmidi_substream *substream)
 {
-	ca_midi_t *midi = (ca_midi_t *)substream->rmidi->private_data;
+	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
 	snd_assert(midi->dev_id, return -ENXIO);
@@ -176,9 +178,9 @@ static int ca_midi_input_close(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-static int ca_midi_output_close(snd_rawmidi_substream_t * substream)
+static int ca_midi_output_close(struct snd_rawmidi_substream *substream)
 {
-	ca_midi_t *midi = (ca_midi_t *)substream->rmidi->private_data;
+	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 	snd_assert(midi->dev_id, return -ENXIO);
 	
@@ -197,9 +199,9 @@ static int ca_midi_output_close(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-static void ca_midi_input_trigger(snd_rawmidi_substream_t * substream, int up)
+static void ca_midi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	ca_midi_t *midi = (ca_midi_t *)substream->rmidi->private_data;
+	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	snd_assert(midi->dev_id, return);
 
 	if (up) {
@@ -209,9 +211,9 @@ static void ca_midi_input_trigger(snd_rawmidi_substream_t * substream, int up)
 	}
 }
 
-static void ca_midi_output_trigger(snd_rawmidi_substream_t * substream, int up)
+static void ca_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
-	ca_midi_t *midi = (ca_midi_t *)substream->rmidi->private_data;
+	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
 	snd_assert(midi->dev_id, return);
@@ -246,21 +248,22 @@ static void ca_midi_output_trigger(snd_rawmidi_substream_t * substream, int up)
 	}
 }
 
-static snd_rawmidi_ops_t ca_midi_output =
+static struct snd_rawmidi_ops ca_midi_output =
 {
 	.open =		ca_midi_output_open,
 	.close =	ca_midi_output_close,
 	.trigger =	ca_midi_output_trigger,
 };
 
-static snd_rawmidi_ops_t ca_midi_input =
+static struct snd_rawmidi_ops ca_midi_input =
 {
 	.open =		ca_midi_input_open,
 	.close =	ca_midi_input_close,
 	.trigger =	ca_midi_input_trigger,
 };
 
-static void ca_midi_free(ca_midi_t *midi) {
+static void ca_midi_free(struct snd_ca_midi *midi)
+{
 	midi->interrupt = NULL;
 	midi->interrupt_enable = NULL;
 	midi->interrupt_disable = NULL;
@@ -271,14 +274,14 @@ static void ca_midi_free(ca_midi_t *midi) {
 	midi->rmidi = NULL;
 }
 
-static void ca_rmidi_free(snd_rawmidi_t *rmidi)
+static void ca_rmidi_free(struct snd_rawmidi *rmidi)
 {
-	ca_midi_free((ca_midi_t *)rmidi->private_data);
+	ca_midi_free(rmidi->private_data);
 }
 
-int __devinit ca_midi_init(void *dev_id, ca_midi_t *midi, int device, char *name)
+int __devinit ca_midi_init(void *dev_id, struct snd_ca_midi *midi, int device, char *name)
 {
-	snd_rawmidi_t *rmidi;
+	struct snd_rawmidi *rmidi;
 	int err;
 
 	if ((err = snd_rawmidi_new(midi->get_dev_id_card(midi->dev_id), name, device, 1, 1, &rmidi)) < 0)

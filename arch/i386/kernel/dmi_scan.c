@@ -4,7 +4,7 @@
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/bootmem.h>
-
+#include <linux/slab.h>
 
 static char * __init dmi_string(struct dmi_header *dm, u8 s)
 {
@@ -19,7 +19,7 @@ static char * __init dmi_string(struct dmi_header *dm, u8 s)
 		}
 
 		if (*bp != 0) {
-			str = alloc_bootmem(strlen(bp) + 1);
+			str = dmi_alloc(strlen(bp) + 1);
 			if (str != NULL)
 				strcpy(str, bp);
 			else
@@ -40,7 +40,7 @@ static int __init dmi_table(u32 base, int len, int num,
 	u8 *buf, *data;
 	int i = 0;
 		
-	buf = bt_ioremap(base, len);
+	buf = dmi_ioremap(base, len);
 	if (buf == NULL)
 		return -1;
 
@@ -65,7 +65,7 @@ static int __init dmi_table(u32 base, int len, int num,
 		data += 2;
 		i++;
 	}
-	bt_iounmap(buf, len);
+	dmi_iounmap(buf, len);
 	return 0;
 }
 
@@ -112,7 +112,7 @@ static void __init dmi_save_devices(struct dmi_header *dm)
 		if ((*d & 0x80) == 0)
 			continue;
 
-		dev = alloc_bootmem(sizeof(*dev));
+		dev = dmi_alloc(sizeof(*dev));
 		if (!dev) {
 			printk(KERN_ERR "dmi_save_devices: out of memory.\n");
 			break;
@@ -131,7 +131,7 @@ static void __init dmi_save_ipmi_device(struct dmi_header *dm)
 	struct dmi_device *dev;
 	void * data;
 
-	data = alloc_bootmem(dm->length);
+	data = dmi_alloc(dm->length);
 	if (data == NULL) {
 		printk(KERN_ERR "dmi_save_ipmi_device: out of memory.\n");
 		return;
@@ -139,7 +139,7 @@ static void __init dmi_save_ipmi_device(struct dmi_header *dm)
 
 	memcpy(data, dm, dm->length);
 
-	dev = alloc_bootmem(sizeof(*dev));
+	dev = dmi_alloc(sizeof(*dev));
 	if (!dev) {
 		printk(KERN_ERR "dmi_save_ipmi_device: out of memory.\n");
 		return;
@@ -221,7 +221,7 @@ void __init dmi_scan_machine(void)
 		}
 	}
 
-out:	printk(KERN_INFO "DMI not present.\n");
+out:	printk(KERN_INFO "DMI not present or invalid.\n");
 }
 
 

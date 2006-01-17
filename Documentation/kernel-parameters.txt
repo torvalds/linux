@@ -471,14 +471,15 @@ running once the system is up.
 			arch/i386/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"as" | "cfq" | "deadline" | "noop"}
+			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
-	elfcorehdr=	[IA-32]
+	elfcorehdr=	[IA-32, X86_64]
 			Specifies physical address of start of kernel core
-			image elf header.
-			See Documentation/kdump.txt for details.
+			image elf header. Generally kexec loader will
+			pass this option to capture kernel.
+			See Documentation/kdump/kdump.txt for details.
 
 	enforcing	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}
@@ -711,9 +712,17 @@ running once the system is up.
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/ramdisk.txt.
 
-	lockd.udpport=	[NFS]
+	lockd.nlm_grace_period=P  [NFS] Assign grace period.
+			Format: <integer>
 
-	lockd.tcpport=	[NFS]
+	lockd.nlm_tcpport=N	[NFS] Assign TCP port.
+			Format: <integer>
+
+	lockd.nlm_timeout=T	[NFS] Assign timeout value.
+			Format: <integer>
+
+	lockd.nlm_udpport=M	[NFS] Assign UDP port.
+			Format: <integer>
 
 	logibm.irq=	[HW,MOUSE] Logitech Bus Mouse Driver
 			Format: <irq>
@@ -832,7 +841,7 @@ running once the system is up.
 	mem=nopentium	[BUGS=IA-32] Disable usage of 4MB pages for kernel
 			memory.
 
-	memmap=exactmap	[KNL,IA-32] Enable setting of an exact
+	memmap=exactmap	[KNL,IA-32,X86_64] Enable setting of an exact
 			E820 memory map, as specified by the user.
 			Such memmap=exactmap lines can be constructed based on
 			BIOS output or other requirements. See the memmap=nn@ss
@@ -854,6 +863,49 @@ running once the system is up.
 			See Documentation/video4linux/meye.txt.
 
 	mga=		[HW,DRM]
+
+	migration_cost=
+			[KNL,SMP] debug: override scheduler migration costs
+			Format: <level-1-usecs>,<level-2-usecs>,...
+			This debugging option can be used to override the
+			default scheduler migration cost matrix. The numbers
+			are indexed by 'CPU domain distance'.
+			E.g. migration_cost=1000,2000,3000 on an SMT NUMA
+			box will set up an intra-core migration cost of
+			1 msec, an inter-core migration cost of 2 msecs,
+			and an inter-node migration cost of 3 msecs.
+
+			WARNING: using the wrong values here can break
+			scheduler performance, so it's only for scheduler
+			development purposes, not production environments.
+
+	migration_debug=
+			[KNL,SMP] migration cost auto-detect verbosity
+			Format=<0|1|2>
+			If a system's migration matrix reported at bootup
+			seems erroneous then this option can be used to
+			increase verbosity of the detection process.
+			We default to 0 (no extra messages), 1 will print
+			some more information, and 2 will be really
+			verbose (probably only useful if you also have a
+			serial console attached to the system).
+
+	migration_factor=
+			[KNL,SMP] multiply/divide migration costs by a factor
+			Format=<percent>
+			This debug option can be used to proportionally
+			increase or decrease the auto-detected migration
+			costs for all entries of the migration matrix.
+			E.g. migration_factor=150 will increase migration
+			costs by 50%. (and thus the scheduler will be less
+			eager migrating cache-hot tasks)
+			migration_factor=80 will decrease migration costs
+			by 20%. (thus the scheduler will be more eager to
+			migrate tasks)
+
+			WARNING: using the wrong values here can break
+			scheduler performance, so it's only for scheduler
+			development purposes, not production environments.
 
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
@@ -909,6 +961,14 @@ running once the system is up.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
 			See Documentation/nfsroot.txt.
+
+	nfs.callback_tcpport=
+			[NFS] set the TCP port on which the NFSv4 callback
+			channel should listen.
+
+	nfs.idmap_cache_timeout=
+			[NFS] set the maximum lifetime for idmapper cache
+			entries.
 
 	nmi_watchdog=	[KNL,BUGS=IA-32] Debugging features for SMP kernels
 
@@ -989,6 +1049,8 @@ running once the system is up.
 	nousb		[USB] Disable the USB subsystem
 
 	nowb		[ARM]
+
+	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
 	opl3=		[HW,OSS]
 			Format: <io>
@@ -1167,6 +1229,10 @@ running once the system is up.
 	processor.max_cstate=	[HW,ACPI]
 			Limit processor to maximum C-state
 			max_cstate=9 overrides any DMI blacklist limit.
+
+	processor.nocst	[HW,ACPI]
+			Ignore the _CST method to determine C-states,
+			instead using the legacy FADT method
 
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.

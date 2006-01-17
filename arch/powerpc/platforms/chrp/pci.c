@@ -135,12 +135,13 @@ int __init
 hydra_init(void)
 {
 	struct device_node *np;
+	struct resource r;
 
 	np = find_devices("mac-io");
-	if (np == NULL || np->n_addrs == 0)
+	if (np == NULL || of_address_to_resource(np, 0, &r))
 		return 0;
-	Hydra = ioremap(np->addrs[0].address, np->addrs[0].size);
-	printk("Hydra Mac I/O at %lx\n", np->addrs[0].address);
+	Hydra = ioremap(r.start, r.end-r.start);
+	printk("Hydra Mac I/O at %lx\n", r.start);
 	printk("Hydra Feature_Control was %x",
 	       in_le32(&Hydra->Feature_Control));
 	out_le32(&Hydra->Feature_Control, (HYDRA_FC_SCC_CELL_EN |
@@ -177,18 +178,24 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 {
 	u32 __iomem *reg;
 	u32 val;
-	unsigned long addr = dev->addrs[0].address;
+	struct resource r;
 
-	setup_indirect_pci(hose, addr + 0xf8000, addr + 0xf8010);
+	if (of_address_to_resource(dev, 0, &r)) {
+		printk(KERN_ERR "No address for Python PCI controller\n");
+		return;
+	}
 
 	/* Clear the magic go-slow bit */
-	reg = ioremap(dev->addrs[0].address + 0xf6000, 0x40);
+	reg = ioremap(r.start + 0xf6000, 0x40);
+	BUG_ON(!reg); 
 	val = in_be32(&reg[12]);
 	if (val & PRG_CL_RESET_VALID) {
 		out_be32(&reg[12], val & ~PRG_CL_RESET_VALID);
 		in_be32(&reg[12]);
 	}
 	iounmap(reg);
+
+	setup_indirect_pci(hose, r.start + 0xf8000, r.start + 0xf8010);
 }
 
 /* Marvell Discovery II based Pegasos 2 */
@@ -218,7 +225,7 @@ chrp_find_bridges(void)
 	char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
 	struct device_node *root = find_path_device("/");
-
+	struct resource r;
 	/*
 	 * The PCI host bridge nodes on some machines don't have
 	 * properties to adequately identify them, so we have to
@@ -238,7 +245,7 @@ chrp_find_bridges(void)
 			continue;
 		++index;
 		/* The GG2 bridge on the LongTrail doesn't have an address */
-		if (dev->n_addrs < 1 && !is_longtrail) {
+		if (of_address_to_resource(dev, 0, &r) && !is_longtrail) {
 			printk(KERN_WARNING "Can't use %s: no address\n",
 			       dev->full_name);
 			continue;
@@ -255,8 +262,8 @@ chrp_find_bridges(void)
 			printk(KERN_INFO "PCI buses %d..%d",
 			       bus_range[0], bus_range[1]);
 		printk(" controlled by %s", dev->type);
-		if (dev->n_addrs > 0)
-			printk(" at %lx", dev->addrs[0].address);
+		if (!is_longtrail)
+			printk(" at %lx", r.start);
 		printk("\n");
 
 		hose = pcibios_alloc_controller();

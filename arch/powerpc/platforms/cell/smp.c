@@ -86,7 +86,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	pcpu = get_hard_smp_processor_id(lcpu);
 
 	/* Fixup atomic count: it exited inside IRQ handler. */
-	paca[lcpu].__current->thread_info->preempt_count	= 0;
+	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
 
 	/*
 	 * If the RTAS start-cpu token does not exist then presume the

@@ -118,10 +118,10 @@ static struct adm1025_data *adm1025_update_device(struct device *dev);
  */
 
 static struct i2c_driver adm1025_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "adm1025",
+	.driver = {
+		.name	= "adm1025",
+	},
 	.id		= I2C_DRIVERID_ADM1025,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= adm1025_attach_adapter,
 	.detach_client	= adm1025_detach_client,
 };
@@ -287,8 +287,6 @@ static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char 
 	struct adm1025_data *data = adm1025_update_device(dev);
 	return sprintf(buf, "%u\n", vid_from_reg(data->vid, data->vrm));
 }
-/* in1_ref is deprecated in favour of cpu0_vid, remove after 2005-11-11 */
-static DEVICE_ATTR(in1_ref, S_IRUGO, show_vid, NULL);
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
 static ssize_t show_vrm(struct device *dev, struct device_attribute *attr, char *buf)
@@ -444,8 +442,6 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &dev_attr_temp1_max);
 	device_create_file(&new_client->dev, &dev_attr_temp2_max);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
-	/* in1_ref is deprecated, remove after 2005-11-11 */
-	device_create_file(&new_client->dev, &dev_attr_in1_ref);
 	device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
 	device_create_file(&new_client->dev, &dev_attr_vrm);
 

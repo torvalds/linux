@@ -324,7 +324,7 @@ void install_arg_page(struct vm_area_struct *vma,
 	lru_cache_add_active(page);
 	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
 					page, vma->vm_page_prot))));
-	page_add_anon_rmap(page, vma, address);
+	page_add_new_anon_rmap(page, vma, address);
 	pte_unmap_unlock(pte, ptl);
 
 	/* no need for flush_tlb */
@@ -575,7 +575,7 @@ static int exec_mmap(struct mm_struct *mm)
  * disturbing other processes.  (Other processes might share the signal
  * table via the CLONE_SIGHAND option to clone().)
  */
-static inline int de_thread(struct task_struct *tsk)
+static int de_thread(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *newsighand, *oldsighand = tsk->sighand;
@@ -632,10 +632,10 @@ static inline int de_thread(struct task_struct *tsk)
 		 * synchronize with any firing (by calling del_timer_sync)
 		 * before we can safely let the old group leader die.
 		 */
-		sig->real_timer.data = (unsigned long)current;
+		sig->real_timer.data = current;
 		spin_unlock_irq(lock);
-		if (del_timer_sync(&sig->real_timer))
-			add_timer(&sig->real_timer);
+		if (hrtimer_cancel(&sig->real_timer))
+			hrtimer_restart(&sig->real_timer);
 		spin_lock_irq(lock);
 	}
 	while (atomic_read(&sig->count) > count) {
@@ -760,7 +760,7 @@ no_thread_group:
 		spin_lock(&oldsighand->siglock);
 		spin_lock(&newsighand->siglock);
 
-		current->sighand = newsighand;
+		rcu_assign_pointer(current->sighand, newsighand);
 		recalc_sigpending();
 
 		spin_unlock(&newsighand->siglock);
@@ -768,7 +768,7 @@ no_thread_group:
 		write_unlock_irq(&tasklist_lock);
 
 		if (atomic_dec_and_test(&oldsighand->count))
-			kmem_cache_free(sighand_cachep, oldsighand);
+			sighand_free(oldsighand);
 	}
 
 	BUG_ON(!thread_group_leader(current));
@@ -780,7 +780,7 @@ no_thread_group:
  * so that a new one can be started
  */
 
-static inline void flush_old_files(struct files_struct * files)
+static void flush_old_files(struct files_struct * files)
 {
 	long j = -1;
 	struct fdtable *fdt;
@@ -964,7 +964,7 @@ int prepare_binprm(struct linux_binprm *bprm)
 
 EXPORT_SYMBOL(prepare_binprm);
 
-static inline int unsafe_exec(struct task_struct *p)
+static int unsafe_exec(struct task_struct *p)
 {
 	int unsafe = 0;
 	if (p->ptrace & PT_PTRACED) {
@@ -1462,6 +1462,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
 		current->signal->flags = SIGNAL_GROUP_EXIT;
 		current->signal->group_exit_code = exit_code;
+		current->signal->group_stop_count = 0;
 		retval = 0;
 	}
 	spin_unlock_irq(&current->sighand->siglock);
@@ -1477,7 +1478,6 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 * Clear any false indication of pending signals that might
 	 * be seen by the filesystem code called to write the core file.
 	 */
-	current->signal->group_stop_count = 0;
 	clear_thread_flag(TIF_SIGPENDING);
 
 	if (current->signal->rlim[RLIMIT_CORE].rlim_cur < binfmt->min_coredump)
@@ -1505,7 +1505,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		goto close_fail;
 	if (!file->f_op->write)
 		goto close_fail;
-	if (do_truncate(file->f_dentry, 0, file) != 0)
+	if (do_truncate(file->f_dentry, 0, 0, file) != 0)
 		goto close_fail;
 
 	retval = binfmt->core_dump(signr, regs, file);

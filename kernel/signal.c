@@ -25,6 +25,7 @@
 #include <linux/posix-timers.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -329,13 +330,20 @@ void __exit_sighand(struct task_struct *tsk)
 	/* Ok, we're done with the signal handlers */
 	tsk->sighand = NULL;
 	if (atomic_dec_and_test(&sighand->count))
-		kmem_cache_free(sighand_cachep, sighand);
+		sighand_free(sighand);
 }
 
 void exit_sighand(struct task_struct *tsk)
 {
 	write_lock_irq(&tasklist_lock);
-	__exit_sighand(tsk);
+	rcu_read_lock();
+	if (tsk->sighand != NULL) {
+		struct sighand_struct *sighand = rcu_dereference(tsk->sighand);
+		spin_lock(&sighand->siglock);
+		__exit_sighand(tsk);
+		spin_unlock(&sighand->siglock);
+	}
+	rcu_read_unlock();
 	write_unlock_irq(&tasklist_lock);
 }
 
@@ -345,19 +353,20 @@ void exit_sighand(struct task_struct *tsk)
 void __exit_signal(struct task_struct *tsk)
 {
 	struct signal_struct * sig = tsk->signal;
-	struct sighand_struct * sighand = tsk->sighand;
+	struct sighand_struct * sighand;
 
 	if (!sig)
 		BUG();
 	if (!atomic_read(&sig->count))
 		BUG();
+	rcu_read_lock();
+	sighand = rcu_dereference(tsk->sighand);
 	spin_lock(&sighand->siglock);
 	posix_cpu_timers_exit(tsk);
 	if (atomic_dec_and_test(&sig->count)) {
 		posix_cpu_timers_exit_group(tsk);
-		if (tsk == sig->curr_target)
-			sig->curr_target = next_thread(tsk);
 		tsk->signal = NULL;
+		__exit_sighand(tsk);
 		spin_unlock(&sighand->siglock);
 		flush_sigqueue(&sig->shared_pending);
 	} else {
@@ -389,9 +398,11 @@ void __exit_signal(struct task_struct *tsk)
 		sig->nvcsw += tsk->nvcsw;
 		sig->nivcsw += tsk->nivcsw;
 		sig->sched_time += tsk->sched_time;
+		__exit_sighand(tsk);
 		spin_unlock(&sighand->siglock);
 		sig = NULL;	/* Marker for below.  */
 	}
+	rcu_read_unlock();
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
@@ -465,7 +476,7 @@ unblock_all_signals(void)
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
-static inline int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
+static int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 {
 	struct sigqueue *q, *first = NULL;
 	int still_pending = 0;
@@ -608,6 +619,33 @@ void signal_wake_up(struct task_struct *t, int resume)
 		kick_process(t);
 }
 
+/*
+ * Remove signals in mask from the pending set and queue.
+ * Returns 1 if any signals were found.
+ *
+ * All callers must be holding the siglock.
+ *
+ * This version takes a sigset mask and looks at all signals,
+ * not just those in the first mask word.
+ */
+static int rm_from_queue_full(sigset_t *mask, struct sigpending *s)
+{
+	struct sigqueue *q, *n;
+	sigset_t m;
+
+	sigandsets(&m, mask, &s->signal);
+	if (sigisemptyset(&m))
+		return 0;
+
+	signandsets(&s->signal, &s->signal, mask);
+	list_for_each_entry_safe(q, n, &s->list, list) {
+		if (sigismember(mask, q->info.si_signo)) {
+			list_del_init(&q->list);
+			__sigqueue_free(q);
+		}
+	}
+	return 1;
+}
 /*
  * Remove signals in mask from the pending set and queue.
  * Returns 1 if any signals were found.
@@ -1080,18 +1118,29 @@ void zap_other_threads(struct task_struct *p)
 }
 
 /*
- * Must be called with the tasklist_lock held for reading!
+ * Must be called under rcu_read_lock() or with tasklist_lock read-held.
  */
 int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
 	unsigned long flags;
+	struct sighand_struct *sp;
 	int ret;
 
+retry:
 	ret = check_kill_permission(sig, info, p);
-	if (!ret && sig && p->sighand) {
-		spin_lock_irqsave(&p->sighand->siglock, flags);
+	if (!ret && sig && (sp = rcu_dereference(p->sighand))) {
+		spin_lock_irqsave(&sp->siglock, flags);
+		if (p->sighand != sp) {
+			spin_unlock_irqrestore(&sp->siglock, flags);
+			goto retry;
+		}
+		if ((atomic_read(&sp->count) == 0) ||
+				(atomic_read(&p->usage) == 0)) {
+			spin_unlock_irqrestore(&sp->siglock, flags);
+			return -ESRCH;
+		}
 		ret = __group_send_sig_info(sig, info, p);
-		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+		spin_unlock_irqrestore(&sp->siglock, flags);
 	}
 
 	return ret;
@@ -1136,14 +1185,21 @@ int
 kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 {
 	int error;
+	int acquired_tasklist_lock = 0;
 	struct task_struct *p;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
+	if (unlikely(sig_kernel_stop(sig) || sig == SIGCONT)) {
+		read_lock(&tasklist_lock);
+		acquired_tasklist_lock = 1;
+	}
 	p = find_task_by_pid(pid);
 	error = -ESRCH;
 	if (p)
 		error = group_send_sig_info(sig, info, p);
-	read_unlock(&tasklist_lock);
+	if (unlikely(acquired_tasklist_lock))
+		read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return error;
 }
 
@@ -1163,8 +1219,7 @@ int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
 		ret = -ESRCH;
 		goto out_unlock;
 	}
-	if ((!info || ((unsigned long)info != 1 &&
-			(unsigned long)info != 2 && SI_FROMUSER(info)))
+	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && (euid != p->suid) && (euid != p->uid)
 	    && (uid != p->suid) && (uid != p->uid)) {
 		ret = -EPERM;
@@ -1355,16 +1410,54 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 {
 	unsigned long flags;
 	int ret = 0;
+	struct sighand_struct *sh;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
-	read_lock(&tasklist_lock);
+
+	/*
+	 * The rcu based delayed sighand destroy makes it possible to
+	 * run this without tasklist lock held. The task struct itself
+	 * cannot go away as create_timer did get_task_struct().
+	 *
+	 * We return -1, when the task is marked exiting, so
+	 * posix_timer_event can redirect it to the group leader
+	 */
+	rcu_read_lock();
 
 	if (unlikely(p->flags & PF_EXITING)) {
 		ret = -1;
 		goto out_err;
 	}
 
-	spin_lock_irqsave(&p->sighand->siglock, flags);
+retry:
+	sh = rcu_dereference(p->sighand);
+
+	spin_lock_irqsave(&sh->siglock, flags);
+	if (p->sighand != sh) {
+		/* We raced with exec() in a multithreaded process... */
+		spin_unlock_irqrestore(&sh->siglock, flags);
+		goto retry;
+	}
+
+	/*
+	 * We do the check here again to handle the following scenario:
+	 *
+	 * CPU 0		CPU 1
+	 * send_sigqueue
+	 * check PF_EXITING
+	 * interrupt		exit code running
+	 *			__exit_signal
+	 *			lock sighand->siglock
+	 *			unlock sighand->siglock
+	 * lock sh->siglock
+	 * add(tsk->pending) 	flush_sigqueue(tsk->pending)
+	 *
+	 */
+
+	if (unlikely(p->flags & PF_EXITING)) {
+		ret = -1;
+		goto out;
+	}
 
 	if (unlikely(!list_empty(&q->list))) {
 		/*
@@ -1388,9 +1481,9 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 		signal_wake_up(p, sig == SIGKILL);
 
 out:
-	spin_unlock_irqrestore(&p->sighand->siglock, flags);
+	spin_unlock_irqrestore(&sh->siglock, flags);
 out_err:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -1402,7 +1495,9 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	int ret = 0;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
+
 	read_lock(&tasklist_lock);
+	/* Since it_lock is held, p->sighand cannot be NULL. */
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 	handle_stop_signal(sig, p);
 
@@ -1436,7 +1531,7 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 out:
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	read_unlock(&tasklist_lock);
-	return(ret);
+	return ret;
 }
 
 /*
@@ -1786,7 +1881,7 @@ do_signal_stop(int signr)
  * We return zero if we still hold the siglock and should look
  * for another signal without checking group_stop_count again.
  */
-static inline int handle_group_stop(void)
+static int handle_group_stop(void)
 {
 	int stop_count;
 
@@ -2338,6 +2433,7 @@ int
 do_sigaction(int sig, const struct k_sigaction *act, struct k_sigaction *oact)
 {
 	struct k_sigaction *k;
+	sigset_t mask;
 
 	if (!valid_signal(sig) || sig < 1 || (act && sig_kernel_only(sig)))
 		return -EINVAL;
@@ -2385,9 +2481,11 @@ do_sigaction(int sig, const struct k_sigaction *act, struct k_sigaction *oact)
 			*k = *act;
 			sigdelsetmask(&k->sa.sa_mask,
 				      sigmask(SIGKILL) | sigmask(SIGSTOP));
-			rm_from_queue(sigmask(sig), &t->signal->shared_pending);
+			sigemptyset(&mask);
+			sigaddset(&mask, sig);
+			rm_from_queue_full(&mask, &t->signal->shared_pending);
 			do {
-				rm_from_queue(sigmask(sig), &t->pending);
+				rm_from_queue_full(&mask, &t->pending);
 				recalc_sigpending_tsk(t);
 				t = next_thread(t);
 			} while (t != current);

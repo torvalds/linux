@@ -18,9 +18,9 @@
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
 #include <linux/apm_bios.h>
+#include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -81,6 +81,7 @@ struct apm_user {
  */
 static int suspends_pending;
 static int apm_disabled;
+static int arm_apm_active;
 
 static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
@@ -477,9 +478,9 @@ static int kapmd(void *arg)
 		apm_event_t event;
 
 		wait_event_interruptible(kapmd_wait,
-				!queue_empty(&kapmd_queue) || !pm_active);
+				!queue_empty(&kapmd_queue) || !arm_apm_active);
 
-		if (!pm_active)
+		if (!arm_apm_active)
 			break;
 
 		spin_lock_irq(&kapmd_queue_lock);
@@ -522,16 +523,11 @@ static int __init apm_init(void)
 		return -ENODEV;
 	}
 
-	if (PM_IS_ACTIVE()) {
-		printk(KERN_NOTICE "apm: overridden by ACPI.\n");
-		return -EINVAL;
-	}
-
-	pm_active = 1;
+	arm_apm_active = 1;
 
 	ret = kernel_thread(kapmd, NULL, CLONE_KERNEL);
 	if (ret < 0) {
-		pm_active = 0;
+		arm_apm_active = 0;
 		return ret;
 	}
 
@@ -543,7 +539,7 @@ static int __init apm_init(void)
 	if (ret != 0) {
 		remove_proc_entry("apm", NULL);
 
-		pm_active = 0;
+		arm_apm_active = 0;
 		wake_up(&kapmd_wait);
 		wait_for_completion(&kapmd_exit);
 	}
@@ -556,7 +552,7 @@ static void __exit apm_exit(void)
 	misc_deregister(&apm_device);
 	remove_proc_entry("apm", NULL);
 
-	pm_active = 0;
+	arm_apm_active = 0;
 	wake_up(&kapmd_wait);
 	wait_for_completion(&kapmd_exit);
 }

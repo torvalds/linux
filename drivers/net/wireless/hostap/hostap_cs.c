@@ -25,7 +25,6 @@
 
 static char *version = PRISM2_VERSION " (Jouni Malinen <jkmaline@cc.hut.fi>)";
 static dev_info_t dev_info = "hostap_cs";
-static dev_link_t *dev_list = NULL;
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
@@ -203,10 +202,9 @@ static int hfa384x_to_bap(struct net_device *dev, u16 bap, void *buf, int len)
 
 
 
-static void prism2_detach(dev_link_t *link);
+static void prism2_detach(struct pcmcia_device *p_dev);
 static void prism2_release(u_long arg);
-static int prism2_event(event_t event, int priority,
-			event_callback_args_t *args);
+static int prism2_config(dev_link_t *link);
 
 
 static int prism2_pccard_card_present(local_info_t *local)
@@ -503,15 +501,13 @@ static struct prism2_helper_functions prism2_pccard_funcs =
 
 /* allocate local data and register with CardServices
  * initialize dev_link structure, but do not configure the card yet */
-static dev_link_t *prism2_attach(void)
+static int prism2_attach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	link = kmalloc(sizeof(dev_link_t), GFP_KERNEL);
 	if (link == NULL)
-		return NULL;
+		return -ENOMEM;
 
 	memset(link, 0, sizeof(dev_link_t));
 
@@ -519,50 +515,27 @@ static dev_link_t *prism2_attach(void)
 	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* register with CardServices */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		prism2_detach(link);
-		return NULL;
-	}
-	return link;
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	if (prism2_config(link))
+		PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
+
+	return 0;
 }
 
 
-static void prism2_detach(dev_link_t *link)
+static void prism2_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	PDEBUG(DEBUG_FLOW, "prism2_detach\n");
-
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (*linkp == NULL) {
-		printk(KERN_WARNING "%s: Attempt to detach non-existing "
-		       "PCMCIA client\n", dev_info);
-		return;
-	}
 
 	if (link->state & DEV_CONFIG) {
 		prism2_release((u_long)link);
 	}
 
-	if (link->handle) {
-		int res = pcmcia_deregister_client(link->handle);
-		if (res) {
-			printk("CardService(DeregisterClient) => %d\n", res);
-			cs_error(link->handle, DeregisterClient, res);
-		}
-	}
-
-	*linkp = link->next;
 	/* release net devices */
 	if (link->priv) {
 		struct hostap_cs_priv *hw_priv;
@@ -846,83 +819,57 @@ static void prism2_release(u_long arg)
 	PDEBUG(DEBUG_FLOW, "release - done\n");
 }
 
-
-static int prism2_event(event_t event, int priority,
-			event_callback_args_t *args)
+static int hostap_cs_suspend(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = (struct net_device *) link->priv;
 	int dev_open = 0;
+
+	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
+
+	link->state |= DEV_SUSPEND;
 
 	if (link->state & DEV_CONFIG) {
 		struct hostap_interface *iface = netdev_priv(dev);
 		if (iface && iface->local)
 			dev_open = iface->local->num_dev_open > 0;
-	}
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_INSERTION\n", dev_info);
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		if (prism2_config(link)) {
-			PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
-		}
-		break;
-
-	case CS_EVENT_CARD_REMOVAL:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_REMOVAL\n", dev_info);
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
+		if (dev_open) {
 			netif_stop_queue(dev);
 			netif_device_detach(dev);
-			prism2_release((u_long) link);
 		}
-		break;
-
-	case CS_EVENT_PM_SUSPEND:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
-		link->state |= DEV_SUSPEND;
-		/* fall through */
-
-	case CS_EVENT_RESET_PHYSICAL:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_RESET_PHYSICAL\n", dev_info);
-		if (link->state & DEV_CONFIG) {
-			if (dev_open) {
-				netif_stop_queue(dev);
-				netif_device_detach(dev);
-			}
-			prism2_suspend(dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
-		link->state &= ~DEV_SUSPEND;
-		/* fall through */
-
-	case CS_EVENT_CARD_RESET:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_RESET\n", dev_info);
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle,
-						     &link->conf);
-			prism2_hw_shutdown(dev, 1);
-			prism2_hw_config(dev, dev_open ? 0 : 1);
-			if (dev_open) {
-				netif_device_attach(dev);
-				netif_start_queue(dev);
-			}
-		}
-		break;
-
-	default:
-		PDEBUG(DEBUG_EXTRA, "%s: prism2_event() - unknown event %d\n",
-		       dev_info, event);
-		break;
+		prism2_suspend(dev);
+		pcmcia_release_configuration(link->handle);
 	}
+
 	return 0;
 }
 
+static int hostap_cs_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = (struct net_device *) link->priv;
+	int dev_open = 0;
+
+	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		struct hostap_interface *iface = netdev_priv(dev);
+		if (iface && iface->local)
+			dev_open = iface->local->num_dev_open > 0;
+
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+		prism2_hw_shutdown(dev, 1);
+		prism2_hw_config(dev, dev_open ? 0 : 1);
+		if (dev_open) {
+			netif_device_attach(dev);
+			netif_start_queue(dev);
+		}
+	}
+
+	return 0;
+}
 
 static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x000b, 0x7100),
@@ -982,11 +929,12 @@ static struct pcmcia_driver hostap_driver = {
 	.drv		= {
 		.name	= "hostap_cs",
 	},
-	.attach		= prism2_attach,
-	.detach		= prism2_detach,
+	.probe		= prism2_attach,
+	.remove		= prism2_detach,
 	.owner		= THIS_MODULE,
-	.event		= prism2_event,
 	.id_table	= hostap_cs_ids,
+	.suspend	= hostap_cs_suspend,
+	.resume		= hostap_cs_resume,
 };
 
 static int __init init_prism2_pccard(void)

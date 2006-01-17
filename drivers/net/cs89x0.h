@@ -16,13 +16,6 @@
 
 #include <linux/config.h>
 
-#if defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX0105)
-/* IXDP2401/IXDP2801 uses dword-aligned register addressing */
-#define CS89x0_PORT(reg) ((reg) * 2)
-#else
-#define CS89x0_PORT(reg) (reg)
-#endif
-
 #define PP_ChipID 0x0000	/* offset   0h -> Corp -ID              */
 				/* offset   2h -> Model/Product Number  */
 				/* offset   3h -> Chip Revision Number  */
@@ -332,16 +325,16 @@
 #define RAM_SIZE	0x1000       /*  The card has 4k bytes or RAM */
 #define PKT_START PP_TxFrame  /*  Start of packet RAM */
 
-#define RX_FRAME_PORT	CS89x0_PORT(0x0000)
+#define RX_FRAME_PORT	0x0000
 #define TX_FRAME_PORT RX_FRAME_PORT
-#define TX_CMD_PORT	CS89x0_PORT(0x0004)
+#define TX_CMD_PORT	0x0004
 #define TX_NOW		0x0000       /*  Tx packet after   5 bytes copied */
 #define TX_AFTER_381	0x0040       /*  Tx packet after 381 bytes copied */
 #define TX_AFTER_ALL	0x00c0       /*  Tx packet after all bytes copied */
-#define TX_LEN_PORT	CS89x0_PORT(0x0006)
-#define ISQ_PORT	CS89x0_PORT(0x0008)
-#define ADD_PORT	CS89x0_PORT(0x000A)
-#define DATA_PORT	CS89x0_PORT(0x000C)
+#define TX_LEN_PORT	0x0006
+#define ISQ_PORT	0x0008
+#define ADD_PORT	0x000A
+#define DATA_PORT	0x000C
 
 #define EEPROM_WRITE_EN		0x00F0
 #define EEPROM_WRITE_DIS	0x0000

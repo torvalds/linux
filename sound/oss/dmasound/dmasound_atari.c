@@ -67,46 +67,46 @@ static int expand_data;	/* Data for expanding */
  * ++geert: split in even more functions (one per format)
  */
 
-static ssize_t ata_ct_law(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_law(const u_char __user *userPtr, size_t userCount,
 			  u_char frame[], ssize_t *frameUsed,
 			  ssize_t frameLeft);
-static ssize_t ata_ct_s8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_s8(const u_char __user *userPtr, size_t userCount,
 			 u_char frame[], ssize_t *frameUsed,
 			 ssize_t frameLeft);
-static ssize_t ata_ct_u8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_u8(const u_char __user *userPtr, size_t userCount,
 			 u_char frame[], ssize_t *frameUsed,
 			 ssize_t frameLeft);
-static ssize_t ata_ct_s16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_s16be(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft);
-static ssize_t ata_ct_u16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_u16be(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft);
-static ssize_t ata_ct_s16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_s16le(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft);
-static ssize_t ata_ct_u16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_u16le(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft);
-static ssize_t ata_ctx_law(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_law(const u_char __user *userPtr, size_t userCount,
 			   u_char frame[], ssize_t *frameUsed,
 			   ssize_t frameLeft);
-static ssize_t ata_ctx_s8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_s8(const u_char __user *userPtr, size_t userCount,
 			  u_char frame[], ssize_t *frameUsed,
 			  ssize_t frameLeft);
-static ssize_t ata_ctx_u8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_u8(const u_char __user *userPtr, size_t userCount,
 			  u_char frame[], ssize_t *frameUsed,
 			  ssize_t frameLeft);
-static ssize_t ata_ctx_s16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_s16be(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft);
-static ssize_t ata_ctx_u16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_u16be(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft);
-static ssize_t ata_ctx_s16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_s16le(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft);
-static ssize_t ata_ctx_u16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_u16le(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft);
 
@@ -151,7 +151,7 @@ static int FalconStateInfo(char *buffer, size_t space);
 /*** Translations ************************************************************/
 
 
-static ssize_t ata_ct_law(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_law(const u_char __user *userPtr, size_t userCount,
 			  u_char frame[], ssize_t *frameUsed,
 			  ssize_t frameLeft)
 {
@@ -176,7 +176,7 @@ static ssize_t ata_ct_law(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ct_s8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_s8(const u_char __user *userPtr, size_t userCount,
 			 u_char frame[], ssize_t *frameUsed,
 			 ssize_t frameLeft)
 {
@@ -194,7 +194,7 @@ static ssize_t ata_ct_s8(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ct_u8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_u8(const u_char __user *userPtr, size_t userCount,
 			 u_char frame[], ssize_t *frameUsed,
 			 ssize_t frameLeft)
 {
@@ -217,8 +217,9 @@ static ssize_t ata_ct_u8(const u_char *userPtr, size_t userCount,
 		used = count*2;
 		while (count > 0) {
 			u_short data;
-			if (get_user(data, ((u_short *)userPtr)++))
+			if (get_user(data, (u_short __user *)userPtr))
 				return -EFAULT;
+			userPtr += 2;
 			*p++ = data ^ 0x8080;
 			count--;
 		}
@@ -228,7 +229,7 @@ static ssize_t ata_ct_u8(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ct_s16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_s16be(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft)
 {
@@ -240,8 +241,9 @@ static ssize_t ata_ct_s16be(const u_char *userPtr, size_t userCount,
 		used = count*2;
 		while (count > 0) {
 			u_short data;
-			if (get_user(data, ((u_short *)userPtr)++))
+			if (get_user(data, (u_short __user *)userPtr))
 				return -EFAULT;
+			userPtr += 2;
 			*p++ = data;
 			*p++ = data;
 			count--;
@@ -259,7 +261,7 @@ static ssize_t ata_ct_s16be(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ct_u16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_u16be(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft)
 {
@@ -271,8 +273,9 @@ static ssize_t ata_ct_u16be(const u_char *userPtr, size_t userCount,
 		used = count*2;
 		while (count > 0) {
 			u_short data;
-			if (get_user(data, ((u_short *)userPtr)++))
+			if (get_user(data, (u_short __user *)userPtr))
 				return -EFAULT;
+			userPtr += 2;
 			data ^= 0x8000;
 			*p++ = data;
 			*p++ = data;
@@ -284,9 +287,10 @@ static ssize_t ata_ct_u16be(const u_char *userPtr, size_t userCount,
 		count = min_t(unsigned long, userCount, frameLeft)>>2;
 		used = count*4;
 		while (count > 0) {
-			u_long data;
-			if (get_user(data, ((u_int *)userPtr)++))
+			u_int data;
+			if (get_user(data, (u_int __user *)userPtr))
 				return -EFAULT;
+			userPtr += 4;
 			*p++ = data ^ 0x80008000;
 			count--;
 		}
@@ -296,7 +300,7 @@ static ssize_t ata_ct_u16be(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ct_s16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_s16le(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft)
 {
@@ -309,8 +313,9 @@ static ssize_t ata_ct_s16le(const u_char *userPtr, size_t userCount,
 		used = count*2;
 		while (count > 0) {
 			u_short data;
-			if (get_user(data, ((u_short *)userPtr)++))
+			if (get_user(data, (u_short __user *)userPtr))
 				return -EFAULT;
+			userPtr += 2;
 			data = le2be16(data);
 			*p++ = data;
 			*p++ = data;
@@ -323,8 +328,9 @@ static ssize_t ata_ct_s16le(const u_char *userPtr, size_t userCount,
 		used = count*4;
 		while (count > 0) {
 			u_long data;
-			if (get_user(data, ((u_int *)userPtr)++))
+			if (get_user(data, (u_int __user *)userPtr))
 				return -EFAULT;
+			userPtr += 4;
 			data = le2be16dbl(data);
 			*p++ = data;
 			count--;
@@ -335,7 +341,7 @@ static ssize_t ata_ct_s16le(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ct_u16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ct_u16le(const u_char __user *userPtr, size_t userCount,
 			    u_char frame[], ssize_t *frameUsed,
 			    ssize_t frameLeft)
 {
@@ -348,8 +354,9 @@ static ssize_t ata_ct_u16le(const u_char *userPtr, size_t userCount,
 		used = count*2;
 		while (count > 0) {
 			u_short data;
-			if (get_user(data, ((u_short *)userPtr)++))
+			if (get_user(data, (u_short __user *)userPtr))
 				return -EFAULT;
+			userPtr += 2;
 			data = le2be16(data) ^ 0x8000;
 			*p++ = data;
 			*p++ = data;
@@ -361,8 +368,9 @@ static ssize_t ata_ct_u16le(const u_char *userPtr, size_t userCount,
 		used = count;
 		while (count > 0) {
 			u_long data;
-			if (get_user(data, ((u_int *)userPtr)++))
+			if (get_user(data, (u_int __user *)userPtr))
 				return -EFAULT;
+			userPtr += 4;
 			data = le2be16dbl(data) ^ 0x80008000;
 			*p++ = data;
 			count--;
@@ -373,7 +381,7 @@ static ssize_t ata_ct_u16le(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_law(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_law(const u_char __user *userPtr, size_t userCount,
 			   u_char frame[], ssize_t *frameUsed,
 			   ssize_t frameLeft)
 {
@@ -435,7 +443,7 @@ static ssize_t ata_ctx_law(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_s8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_s8(const u_char __user *userPtr, size_t userCount,
 			  u_char frame[], ssize_t *frameUsed,
 			  ssize_t frameLeft)
 {
@@ -470,8 +478,9 @@ static ssize_t ata_ctx_s8(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 2)
 					break;
-				if (get_user(data, ((u_short *)userPtr)++))
+				if (get_user(data, (u_short __user *)userPtr))
 					return -EFAULT;
+				userPtr += 2;
 				userCount -= 2;
 				bal += hSpeed;
 			}
@@ -488,7 +497,7 @@ static ssize_t ata_ctx_s8(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_u8(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_u8(const u_char __user *userPtr, size_t userCount,
 			  u_char frame[], ssize_t *frameUsed,
 			  ssize_t frameLeft)
 {
@@ -524,8 +533,9 @@ static ssize_t ata_ctx_u8(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 2)
 					break;
-				if (get_user(data, ((u_short *)userPtr)++))
+				if (get_user(data, (u_short __user *)userPtr))
 					return -EFAULT;
+				userPtr += 2;
 				data ^= 0x8080;
 				userCount -= 2;
 				bal += hSpeed;
@@ -543,7 +553,7 @@ static ssize_t ata_ctx_u8(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_s16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_s16be(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft)
 {
@@ -561,8 +571,9 @@ static ssize_t ata_ctx_s16be(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 2)
 					break;
-				if (get_user(data, ((u_short *)userPtr)++))
+				if (get_user(data, (u_short __user *)userPtr))
 					return -EFAULT;
+				userPtr += 2;
 				userCount -= 2;
 				bal += hSpeed;
 			}
@@ -579,8 +590,9 @@ static ssize_t ata_ctx_s16be(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 4)
 					break;
-				if (get_user(data, ((u_int *)userPtr)++))
+				if (get_user(data, (u_int __user *)userPtr))
 					return -EFAULT;
+				userPtr += 4;
 				userCount -= 4;
 				bal += hSpeed;
 			}
@@ -597,7 +609,7 @@ static ssize_t ata_ctx_s16be(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_u16be(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_u16be(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft)
 {
@@ -615,8 +627,9 @@ static ssize_t ata_ctx_u16be(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 2)
 					break;
-				if (get_user(data, ((u_short *)userPtr)++))
+				if (get_user(data, (u_short __user *)userPtr))
 					return -EFAULT;
+				userPtr += 2;
 				data ^= 0x8000;
 				userCount -= 2;
 				bal += hSpeed;
@@ -634,8 +647,9 @@ static ssize_t ata_ctx_u16be(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 4)
 					break;
-				if (get_user(data, ((u_int *)userPtr)++))
+				if (get_user(data, (u_int __user *)userPtr))
 					return -EFAULT;
+				userPtr += 4;
 				data ^= 0x80008000;
 				userCount -= 4;
 				bal += hSpeed;
@@ -653,7 +667,7 @@ static ssize_t ata_ctx_u16be(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_s16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_s16le(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft)
 {
@@ -671,8 +685,9 @@ static ssize_t ata_ctx_s16le(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 2)
 					break;
-				if (get_user(data, ((u_short *)userPtr)++))
+				if (get_user(data, (u_short __user *)userPtr))
 					return -EFAULT;
+				userPtr += 2;
 				data = le2be16(data);
 				userCount -= 2;
 				bal += hSpeed;
@@ -690,8 +705,9 @@ static ssize_t ata_ctx_s16le(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 4)
 					break;
-				if (get_user(data, ((u_int *)userPtr)++))
+				if (get_user(data, (u_int __user *)userPtr))
 					return -EFAULT;
+				userPtr += 4;
 				data = le2be16dbl(data);
 				userCount -= 4;
 				bal += hSpeed;
@@ -709,7 +725,7 @@ static ssize_t ata_ctx_s16le(const u_char *userPtr, size_t userCount,
 }
 
 
-static ssize_t ata_ctx_u16le(const u_char *userPtr, size_t userCount,
+static ssize_t ata_ctx_u16le(const u_char __user *userPtr, size_t userCount,
 			     u_char frame[], ssize_t *frameUsed,
 			     ssize_t frameLeft)
 {
@@ -727,8 +743,9 @@ static ssize_t ata_ctx_u16le(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 2)
 					break;
-				if (get_user(data, ((u_short *)userPtr)++))
+				if (get_user(data, (u_short __user *)userPtr))
 					return -EFAULT;
+				userPtr += 2;
 				data = le2be16(data) ^ 0x8000;
 				userCount -= 2;
 				bal += hSpeed;
@@ -746,8 +763,9 @@ static ssize_t ata_ctx_u16le(const u_char *userPtr, size_t userCount,
 			if (bal < 0) {
 				if (userCount < 4)
 					break;
-				if (get_user(data, ((u_int *)userPtr)++))
+				if (get_user(data, (u_int __user *)userPtr))
 					return -EFAULT;
+				userPtr += 4;
 				data = le2be16dbl(data) ^ 0x80008000;
 				userCount -= 4;
 				bal += hSpeed;

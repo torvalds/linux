@@ -73,20 +73,20 @@
 #define	TIMER_TICK	0x82
 #define STOP_BREAK	0x83
 #define BASE(a) ((a) < 4 ? (short*)CIRRUS_FIRST : ((a) < 8 ? (short *)CIRRUS_SECOND : ((a) < 12 ? (short*)CIRRUS_THIRD : (short *)CIRRUS_FOURTH)))
-#define txack1	((short *)0x7104) 
-#define rxack1	((short *)0x7102) 
+#define txack1	((short *)0x7104)
+#define rxack1	((short *)0x7102)
 #define mdack1  ((short *)0x7106)
-#define txack2  ((short *)0x7006) 
-#define rxack2	((short *)0x7004) 
-#define mdack2  ((short *)0x7100) 
+#define txack2  ((short *)0x7006)
+#define rxack2	((short *)0x7004)
+#define mdack2  ((short *)0x7100)
 #define int_latch       ((short *) 0x7800)
-#define int_status      ((short *) 0x7c00) 
-#define tx1_pending     0x20 
-#define rx1_pending     0x10 
-#define md1_pending     0x40 
-#define tx2_pending     0x02 
-#define rx2_pending     0x01 
-#define md2_pending     0x40 
+#define int_status      ((short *) 0x7c00)
+#define tx1_pending     0x20
+#define rx1_pending     0x10
+#define md1_pending     0x40
+#define tx2_pending     0x02
+#define rx2_pending     0x01
+#define md2_pending     0x40
 #define module1_bits	0x07
 #define module1_modern	0x08
 #define module2_bits	0x70
@@ -113,65 +113,65 @@
    NB. These registers are relative values on 8 bit boundaries whereas
    on the RTA's the CIRRUS registers are on word boundaries. Use pointer
    arithmetic (short *) to obtain the real addresses required */
-#define ccr	0x05	/* Channel Command Register     */
-#define ier	0x06	/* Interrupt Enable Register    */
-#define cor1	0x08	/* Channel Option Register 1    */
-#define cor2	0x09	/* Channel Option Register 2    */
-#define cor3	0x0a	/* Channel Option Register 3    */
-#define cor4	0x1e	/* Channel Option Register 4    */
-#define	cor5	0x1f	/* Channel Option Register 5	*/
+#define ccr	0x05		/* Channel Command Register     */
+#define ier	0x06		/* Interrupt Enable Register    */
+#define cor1	0x08		/* Channel Option Register 1    */
+#define cor2	0x09		/* Channel Option Register 2    */
+#define cor3	0x0a		/* Channel Option Register 3    */
+#define cor4	0x1e		/* Channel Option Register 4    */
+#define	cor5	0x1f		/* Channel Option Register 5    */
 
-#define ccsr	0x0b	/* Channel Control Status Register */
-#define rdcr	0x0e	/* Receive Data Count Register  */
-#define tdcr	0x12	/* Transmit Data Count Register */
-#define mcor1	0x15	/* Modem Change Option Register 1 */
-#define mcor2	0x16	/* Modem Change Option Regsiter 2 */
+#define ccsr	0x0b		/* Channel Control Status Register */
+#define rdcr	0x0e		/* Receive Data Count Register  */
+#define tdcr	0x12		/* Transmit Data Count Register */
+#define mcor1	0x15		/* Modem Change Option Register 1 */
+#define mcor2	0x16		/* Modem Change Option Regsiter 2 */
 
-#define livr	0x18	/* Local Interrupt Vector Register */
-#define schr1	0x1a	/* Special Character Register 1 */
-#define schr2	0x1b	/* Special Character Register 2 */
-#define schr3	0x1c	/* Special Character Register 3 */
-#define schr4	0x1d	/* Special Character Register 4 */
+#define livr	0x18		/* Local Interrupt Vector Register */
+#define schr1	0x1a		/* Special Character Register 1 */
+#define schr2	0x1b		/* Special Character Register 2 */
+#define schr3	0x1c		/* Special Character Register 3 */
+#define schr4	0x1d		/* Special Character Register 4 */
 
-#define rtr	0x20    /* Receive Timer Register */
-#define rtpr	0x21	/* Receive Timeout Period Register */
-#define lnc	0x24	/* Lnext character */
+#define rtr	0x20		/* Receive Timer Register */
+#define rtpr	0x21		/* Receive Timeout Period Register */
+#define lnc	0x24		/* Lnext character */
 
-#define rivr	0x43	/* Receive Interrupt Vector Register    */
-#define tivr	0x42	/* Transmit Interrupt Vector Register   */
-#define mivr	0x41	/* Modem Interrupt Vector Register      */
-#define gfrcr	0x40	/* Global Firmware Revision code Reg    */
-#define ricr	0x44	/* Receive Interrupting Channel Reg     */
-#define ticr	0x45	/* Transmit Interrupting Channel Reg    */
-#define micr	0x46	/* Modem Interrupting Channel Register  */
+#define rivr	0x43		/* Receive Interrupt Vector Register    */
+#define tivr	0x42		/* Transmit Interrupt Vector Register   */
+#define mivr	0x41		/* Modem Interrupt Vector Register      */
+#define gfrcr	0x40		/* Global Firmware Revision code Reg    */
+#define ricr	0x44		/* Receive Interrupting Channel Reg     */
+#define ticr	0x45		/* Transmit Interrupting Channel Reg    */
+#define micr	0x46		/* Modem Interrupting Channel Register  */
 
-#define gcr	0x4b	/* Global configuration register*/
-#define misr    0x4c    /* Modem interrupt status register */
+#define gcr	0x4b		/* Global configuration register */
+#define misr    0x4c		/* Modem interrupt status register */
 
 #define rbusr	0x59
 #define tbusr	0x5a
 #define mbusr	0x5b
 
-#define eoir	0x60	/* End Of Interrupt Register */
-#define rdsr	0x62	/* Receive Data / Status Register */
-#define tdr	0x63	/* Transmit Data Register */
-#define svrr	0x67	/* Service Request Register */
+#define eoir	0x60		/* End Of Interrupt Register */
+#define rdsr	0x62		/* Receive Data / Status Register */
+#define tdr	0x63		/* Transmit Data Register */
+#define svrr	0x67		/* Service Request Register */
 
-#define car	0x68	/* Channel Access Register */
-#define mir	0x69	/* Modem Interrupt Register */
-#define tir	0x6a	/* Transmit Interrupt Register */
-#define rir	0x6b	/* Receive Interrupt Register */
-#define msvr1	0x6c	/* Modem Signal Value Register 1 */
-#define msvr2	0x6d	/* Modem Signal Value Register 2*/
-#define psvr	0x6f	/* Printer Signal Value Register*/
+#define car	0x68		/* Channel Access Register */
+#define mir	0x69		/* Modem Interrupt Register */
+#define tir	0x6a		/* Transmit Interrupt Register */
+#define rir	0x6b		/* Receive Interrupt Register */
+#define msvr1	0x6c		/* Modem Signal Value Register 1 */
+#define msvr2	0x6d		/* Modem Signal Value Register 2 */
+#define psvr	0x6f		/* Printer Signal Value Register */
 
-#define tbpr	0x72	/* Transmit Baud Rate Period Register */
-#define tcor	0x76	/* Transmit Clock Option Register */
+#define tbpr	0x72		/* Transmit Baud Rate Period Register */
+#define tcor	0x76		/* Transmit Clock Option Register */
 
-#define rbpr	0x78	/* Receive Baud Rate Period Register */
-#define rber	0x7a	/* Receive Baud Rate Extension Register */
-#define rcor	0x7c	/* Receive Clock Option Register*/
-#define ppr	0x7e	/* Prescalar Period Register    */
+#define rbpr	0x78		/* Receive Baud Rate Period Register */
+#define rber	0x7a		/* Receive Baud Rate Extension Register */
+#define rcor	0x7c		/* Receive Clock Option Register */
+#define ppr	0x7e		/* Prescalar Period Register    */
 
 /* Misc registers used for forcing the 1400 out of its reset woes */
 #define airl	0x6d
@@ -192,10 +192,10 @@
 
 /* RDSR - when status read from FIFO */
 #define	RDSR_BREAK		0x08	/* Break received */
-#define RDSR_TIMEOUT    	0x80    /* No new data timeout */
-#define RDSR_SC1  	  	0x10    /* Special char 1 (tx XON) matched */
-#define RDSR_SC2  	  	0x20    /* Special char 2 (tx XOFF) matched */
-#define RDSR_SC12_MASK	  	0x30    /* Mask for special chars 1 and 2 */
+#define RDSR_TIMEOUT    	0x80	/* No new data timeout */
+#define RDSR_SC1  	  	0x10	/* Special char 1 (tx XON) matched */
+#define RDSR_SC2  	  	0x20	/* Special char 2 (tx XOFF) matched */
+#define RDSR_SC12_MASK	  	0x30	/* Mask for special chars 1 and 2 */
 
 /* PPR */
 #define PPR_DEFAULT	0x31	/* Default value - for a 25Mhz clock gives
@@ -244,7 +244,7 @@
 #define IER_TIMEOUT	0x01	/* Timeout on no data */
 
 #define	IER_DEFAULT	0x94	/* Default values */
-#define IER_PARALLEL    0x84    /* Default for Parallel */
+#define IER_PARALLEL    0x84	/* Default for Parallel */
 #define	IER_EMPTY	0x92	/* Transmitter empty rather than ready */
 
 /* COR1 - Driver only */
@@ -264,11 +264,11 @@
 #define	COR1_7BITS	0x02	/* 7 data bits */
 #define	COR1_8BITS	0x03	/* 8 data bits */
 
-#define COR1_HOST       0xef    /* Safe host bits */
+#define COR1_HOST       0xef	/* Safe host bits */
 
 /* RTA only */
-#define COR1_CINPCK     0x00    /* Check parity of received characters */
-#define COR1_CNINPCK    0x10    /* Don't check parity */
+#define COR1_CINPCK     0x00	/* Check parity of received characters */
+#define COR1_CNINPCK    0x10	/* Don't check parity */
 
 /* COR2 bits for both RTA and driver use */
 #define	COR2_IXANY	0x80	/* IXANY - any character is XON */
@@ -293,9 +293,9 @@
 #define	COR3_FCT	0x20	/* Flow control transparency */
 #define	COR3_SCD12	0x10	/* Special character detect for SCHR's 1 + 2 */
 #define	COR3_FIFO12	0x0c	/* 12 chars for receive FIFO threshold */
-#define COR3_FIFO10     0x0a    /* 10 chars for receive FIFO threshold */
-#define COR3_FIFO8      0x08    /* 8 chars for receive FIFO threshold */
-#define COR3_FIFO6      0x06    /* 6 chars for receive FIFO threshold */
+#define COR3_FIFO10     0x0a	/* 10 chars for receive FIFO threshold */
+#define COR3_FIFO8      0x08	/* 8 chars for receive FIFO threshold */
+#define COR3_FIFO6      0x06	/* 6 chars for receive FIFO threshold */
 
 #define COR3_THRESHOLD  COR3_FIFO8	/* MUST BE LESS THAN MCOR_THRESHOLD */
 
@@ -386,7 +386,7 @@
 
 #define	MCOR_THRESHBITS 0x0F	/* mask for ANDing out the above */
 
-#define	MCOR_THRESHOLD	MCOR_THRESH9 /* MUST BE GREATER THAN COR3_THRESHOLD */
+#define	MCOR_THRESHOLD	MCOR_THRESH9	/* MUST BE GREATER THAN COR3_THRESHOLD */
 
 
 /* RTPR */
@@ -429,25 +429,25 @@
 #define CONFIG		0x01	/* Configure a port */
 #define	MOPEN		0x02	/* Modem open (block for DCD) */
 #define	CLOSE		0x03	/* Close a port */
-#define	WFLUSH		(0x04 | PRE_EMPTIVE) /* Write flush */
-#define	RFLUSH		(0x05 | PRE_EMPTIVE) /* Read flush */
-#define	RESUME		(0x06 | PRE_EMPTIVE) /* Resume if xoffed */
-#define	SBREAK		0x07 	/* Start break */
+#define	WFLUSH		(0x04 | PRE_EMPTIVE)	/* Write flush */
+#define	RFLUSH		(0x05 | PRE_EMPTIVE)	/* Read flush */
+#define	RESUME		(0x06 | PRE_EMPTIVE)	/* Resume if xoffed */
+#define	SBREAK		0x07	/* Start break */
 #define	EBREAK		0x08	/* End break */
-#define	SUSPEND		(0x09 | PRE_EMPTIVE) /* Susp op (behave as tho xoffed) */
-#define FCLOSE          (0x0a | PRE_EMPTIVE) /* Force close */
-#define XPRINT          0x0b    /* Xprint packet */
-#define MBIS		(0x0c | PRE_EMPTIVE) /* Set modem lines */
-#define MBIC		(0x0d | PRE_EMPTIVE) /* Clear modem lines */
-#define MSET		(0x0e | PRE_EMPTIVE) /* Set modem lines */
+#define	SUSPEND		(0x09 | PRE_EMPTIVE)	/* Susp op (behave as tho xoffed) */
+#define FCLOSE          (0x0a | PRE_EMPTIVE)	/* Force close */
+#define XPRINT          0x0b	/* Xprint packet */
+#define MBIS		(0x0c | PRE_EMPTIVE)	/* Set modem lines */
+#define MBIC		(0x0d | PRE_EMPTIVE)	/* Clear modem lines */
+#define MSET		(0x0e | PRE_EMPTIVE)	/* Set modem lines */
 #define PCLOSE		0x0f	/* Pseudo close - Leaves rx/tx enabled */
-#define MGET		(0x10 | PRE_EMPTIVE) /* Force update of modem status */
-#define MEMDUMP		(0x11 | PRE_EMPTIVE) /* Send back mem from addr supplied */
-#define	READ_REGISTER	(0x12 | PRE_EMPTIVE) /* Read CD1400 register (debug) */
+#define MGET		(0x10 | PRE_EMPTIVE)	/* Force update of modem status */
+#define MEMDUMP		(0x11 | PRE_EMPTIVE)	/* Send back mem from addr supplied */
+#define	READ_REGISTER	(0x12 | PRE_EMPTIVE)	/* Read CD1400 register (debug) */
 
 /* "Command" packets going from remote to host COMPLETE and MODEM_STATUS
    use data[4] / data[3] to indicate current state and modem status respectively
-*/ 
+*/
 
 #define	COMPLETE	(0x20 | PRE_EMPTIVE)
 				/* Command complete */

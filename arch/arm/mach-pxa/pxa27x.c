@@ -21,6 +21,7 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/ohci.h>
 
 #include "generic.h"
 
@@ -193,6 +194,11 @@ static struct platform_device ohci_device = {
 	.num_resources  = ARRAY_SIZE(pxa27x_ohci_resources),
 	.resource       = pxa27x_ohci_resources,
 };
+
+void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
+{
+	ohci_device.dev.platform_data = info;
+}
 
 static struct platform_device *devices[] __initdata = {
 	&ohci_device,

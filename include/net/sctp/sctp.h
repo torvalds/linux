@@ -225,13 +225,13 @@ extern int sctp_debug_flag;
 	if (sctp_debug_flag) { \
 		if (saddr->sa.sa_family == AF_INET6) { \
 			printk(KERN_DEBUG \
-			       lead "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x" trail, \
+			       lead NIP6_FMT trail, \
 			       leadparm, \
 			       NIP6(saddr->v6.sin6_addr), \
 			       otherparms); \
 		} else { \
 			printk(KERN_DEBUG \
-			       lead "%u.%u.%u.%u" trail, \
+			       lead NIPQUAD_FMT trail, \
 			       leadparm, \
 			       NIPQUAD(saddr->v4.sin_addr.s_addr), \
 			       otherparms); \

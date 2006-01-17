@@ -71,10 +71,6 @@ void __init config_sun3x(void)
 	mach_get_model       = sun3_get_model;
 	mach_get_hardware_list = sun3x_get_hardware_list;
 
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp	     = &dummy_con;
-#endif
-
 	sun3_intreg = (unsigned char *)SUN3X_INTREG;
 
 	/* only the serial console is known to work anyway... */

@@ -116,6 +116,27 @@
 #endif
 #endif
 
+# ifndef cpu_has_mips32r1
+# define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
+# endif
+# ifndef cpu_has_mips32r2
+# define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
+# endif
+# ifndef cpu_has_mips64r1
+# define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
+# endif
+# ifndef cpu_has_mips64r2
+# define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
+# endif
+
+/*
+ * Shortcuts ...
+ */
+#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2)
+#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2)
+#define cpu_has_mips_r1	(cpu_has_mips32r1 | cpu_has_mips64r1)
+#define cpu_has_mips_r2	(cpu_has_mips32r2 | cpu_has_mips64r2)
+
 #ifndef cpu_has_dsp
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif

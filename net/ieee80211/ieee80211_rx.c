@@ -35,7 +35,7 @@
 
 #include <net/ieee80211.h>
 
-static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
+static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct sk_buff *skb,
 					struct ieee80211_rx_stats *rx_stats)
 {
@@ -76,8 +76,8 @@ static struct ieee80211_frag_entry *ieee80211_frag_cache_find(struct
 
 		if (entry->skb != NULL && entry->seq == seq &&
 		    (entry->last_frag + 1 == frag || frag == -1) &&
-		    memcmp(entry->src_addr, src, ETH_ALEN) == 0 &&
-		    memcmp(entry->dst_addr, dst, ETH_ALEN) == 0)
+		    !compare_ether_addr(entry->src_addr, src) &&
+		    !compare_ether_addr(entry->dst_addr, dst))
 			return entry;
 	}
 
@@ -165,7 +165,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
  * Responsible for handling management control frames
  *
  * Called by ieee80211_rx */
-static inline int
+static int
 ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats, u16 type,
 			u16 stype)
@@ -243,12 +243,12 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 	/* check that the frame is unicast frame to us */
 	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 	    IEEE80211_FCTL_TODS &&
-	    memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0 &&
-	    memcmp(hdr->addr3, dev->dev_addr, ETH_ALEN) == 0) {
+	    !compare_ether_addr(hdr->addr1, dev->dev_addr) &&
+	    !compare_ether_addr(hdr->addr3, dev->dev_addr)) {
 		/* ToDS frame with own addr BSSID and DA */
 	} else if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		   IEEE80211_FCTL_FROMDS &&
-		   memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0) {
+		   !compare_ether_addr(hdr->addr1, dev->dev_addr)) {
 		/* FromDS frame with own addr as DA */
 	} else
 		return 0;
@@ -266,7 +266,7 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 }
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
-static inline int
+static int
 ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			   struct ieee80211_crypt_data *crypt)
 {
@@ -297,7 +297,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 }
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
-static inline int
+static int
 ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
 				struct sk_buff *skb, int keyidx,
 				struct ieee80211_crypt_data *crypt)
@@ -410,9 +410,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 1;
 	}
 
-	if ((is_multicast_ether_addr(hdr->addr1) ||
-	     is_broadcast_ether_addr(hdr->addr2)) ? ieee->host_mc_decrypt :
-	    ieee->host_decrypt) {
+	if (is_multicast_ether_addr(hdr->addr1)
+	    ? ieee->host_mc_decrypt : ieee->host_decrypt) {
 		int idx = 0;
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;
@@ -506,7 +505,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (ieee->iw_mode == IW_MODE_MASTER && !wds &&
 	    (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 	    IEEE80211_FCTL_FROMDS && ieee->stadev
-	    && memcmp(hdr->addr2, ieee->assoc_ap_addr, ETH_ALEN) == 0) {
+	    && !compare_ether_addr(hdr->addr2, ieee->assoc_ap_addr)) {
 		/* Frame from BSSID of the AP for which we are a client */
 		skb->dev = dev = ieee->stadev;
 		stats = hostap_get_stats(dev);
@@ -1157,7 +1156,7 @@ static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct iee
 
 /***************************************************/
 
-static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct ieee80211_probe_response
+static int ieee80211_network_init(struct ieee80211_device *ieee, struct ieee80211_probe_response
 					 *beacon,
 					 struct ieee80211_network *network,
 					 struct ieee80211_rx_stats *stats)
@@ -1232,11 +1231,11 @@ static inline int is_same_network(struct ieee80211_network *src,
 	 * as one network */
 	return ((src->ssid_len == dst->ssid_len) &&
 		(src->channel == dst->channel) &&
-		!memcmp(src->bssid, dst->bssid, ETH_ALEN) &&
+		!compare_ether_addr(src->bssid, dst->bssid) &&
 		!memcmp(src->ssid, dst->ssid, src->ssid_len));
 }
 
-static inline void update_network(struct ieee80211_network *dst,
+static void update_network(struct ieee80211_network *dst,
 				  struct ieee80211_network *src)
 {
 	int qos_active;
@@ -1295,7 +1294,7 @@ static inline int is_beacon(int fc)
 	return (WLAN_FC_GET_STYPE(le16_to_cpu(fc)) == IEEE80211_STYPE_BEACON);
 }
 
-static inline void ieee80211_process_probe_response(struct ieee80211_device
+static void ieee80211_process_probe_response(struct ieee80211_device
 						    *ieee, struct
 						    ieee80211_probe_response
 						    *beacon, struct ieee80211_rx_stats

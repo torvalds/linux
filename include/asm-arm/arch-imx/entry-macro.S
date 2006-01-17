@@ -7,6 +7,8 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+#include <asm/hardware.h>
+
 		.macro	disable_fiq
 		.endm
 #define AITC_NIVECSR   0x40

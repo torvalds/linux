@@ -37,6 +37,10 @@
 #ifdef CONFIG_STX_GP3
 #include <platforms/85xx/stx_gp3.h>
 #endif
+#if defined(CONFIG_TQM8540) || defined(CONFIG_TQM8541) || \
+	defined(CONFIG_TQM8555) || defined(CONFIG_TQM8560)
+#include <platforms/85xx/tqm85xx.h>
+#endif
 
 #define _IO_BASE        isa_io_base
 #define _ISA_MEM_BASE   isa_mem_base

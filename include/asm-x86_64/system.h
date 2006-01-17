@@ -20,8 +20,8 @@
 #define __RESTORE(reg,offset) "movq (14-" #offset ")*8(%%rsp),%%" #reg "\n\t"
 
 /* frame pointer must be last for get_wchan */
-#define SAVE_CONTEXT    "pushfq ; pushq %%rbp ; movq %%rsi,%%rbp\n\t"
-#define RESTORE_CONTEXT "movq %%rbp,%%rsi ; popq %%rbp ; popfq\n\t" 
+#define SAVE_CONTEXT    "pushq %%rbp ; movq %%rsi,%%rbp\n\t"
+#define RESTORE_CONTEXT "movq %%rbp,%%rsi ; popq %%rbp\n\t"
 
 #define __EXTRA_CLOBBER  \
 	,"rcx","rbx","rdx","r8","r9","r10","r11","r12","r13","r14","r15"
@@ -137,6 +137,21 @@ struct alt_instr {
 		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
 		      ".previous" :: "i" (feature), ##input)
 
+/* Like alternative_input, but with a single output argument */
+#define alternative_io(oldinstr, newinstr, feature, output, input...) \
+	asm volatile ("661:\n\t" oldinstr "\n662:\n"			\
+		      ".section .altinstructions,\"a\"\n"		\
+		      "  .align 8\n"					\
+		      "  .quad 661b\n"            /* label */		\
+		      "  .quad 663f\n"		  /* new instruction */	\
+		      "  .byte %c[feat]\n"        /* feature bit */	\
+		      "  .byte 662b-661b\n"       /* sourcelen */	\
+		      "  .byte 664f-663f\n"       /* replacementlen */	\
+		      ".previous\n"					\
+		      ".section .altinstr_replacement,\"ax\"\n"		\
+		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
+		      ".previous" : output : [feat] "i" (feature), ##input)
+
 /*
  * Clear and set 'TS' bit respectively
  */
@@ -177,6 +192,15 @@ static inline void write_cr4(unsigned long val)
 
 #define wbinvd() \
 	__asm__ __volatile__ ("wbinvd": : :"memory");
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ */
+static inline void sched_cacheflush(void)
+{
+	wbinvd();
+}
 
 #endif	/* __KERNEL__ */
 
@@ -311,10 +335,24 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 /* interrupt control.. */
 #define local_save_flags(x)	do { warn_if_not_ulong(x); __asm__ __volatile__("# save_flags \n\t pushfq ; popq %q0":"=g" (x): /* no input */ :"memory"); } while (0)
 #define local_irq_restore(x) 	__asm__ __volatile__("# restore_flags \n\t pushq %0 ; popfq": /* no output */ :"g" (x):"memory", "cc")
+
+#ifdef CONFIG_X86_VSMP
+/* Interrupt control for VSMP  architecture */
+#define local_irq_disable()	do { unsigned long flags; local_save_flags(flags); local_irq_restore((flags & ~(1 << 9)) | (1 << 18)); } while (0)
+#define local_irq_enable()	do { unsigned long flags; local_save_flags(flags); local_irq_restore((flags | (1 << 9)) & ~(1 << 18)); } while (0)
+
+#define irqs_disabled()					\
+({							\
+	unsigned long flags;				\
+	local_save_flags(flags);			\
+	(flags & (1<<18)) || !(flags & (1<<9));		\
+})
+
+/* For spinlocks etc */
+#define local_irq_save(x)	do { local_save_flags(x); local_irq_restore((x & ~(1 << 9)) | (1 << 18)); } while (0)
+#else  /* CONFIG_X86_VSMP */
 #define local_irq_disable() 	__asm__ __volatile__("cli": : :"memory")
 #define local_irq_enable()	__asm__ __volatile__("sti": : :"memory")
-/* used in the idle loop; sti takes one instruction cycle to complete */
-#define safe_halt()		__asm__ __volatile__("sti; hlt": : :"memory")
 
 #define irqs_disabled()			\
 ({					\
@@ -325,15 +363,14 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 
 /* For spinlocks etc */
 #define local_irq_save(x) 	do { warn_if_not_ulong(x); __asm__ __volatile__("# local_irq_save \n\t pushfq ; popq %0 ; cli":"=g" (x): /* no input */ :"memory"); } while (0)
+#endif
+
+/* used in the idle loop; sti takes one instruction cycle to complete */
+#define safe_halt()		__asm__ __volatile__("sti; hlt": : :"memory")
+/* used when interrupts are already enabled or to shutdown the processor */
+#define halt()			__asm__ __volatile__("hlt": : :"memory")
 
 void cpu_idle_wait(void);
-
-/*
- * disable hlt during certain critical i/o operations
- */
-#define HAVE_DISABLE_HLT
-void disable_hlt(void);
-void enable_hlt(void);
 
 extern unsigned long arch_align_stack(unsigned long sp);
 

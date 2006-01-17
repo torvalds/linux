@@ -413,6 +413,13 @@ static struct dmi_system_id __devinitdata toshiba_ohci1394_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "PSM4"),
 		},
 	},
+	{
+		.ident = "Toshiba A40 based laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "PSA40U"),
+		},
+	},
 	{ }
 };
 
@@ -442,3 +449,19 @@ static void __devinit pci_post_fixup_toshiba_ohci1394(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_TI, 0x8032,
 			 pci_post_fixup_toshiba_ohci1394);
+
+
+/*
+ * Prevent the BIOS trapping accesses to the Cyrix CS5530A video device
+ * configuration space.
+ */
+static void __devinit pci_early_fixup_cyrix_5530(struct pci_dev *dev)
+{
+	u8 r;
+	/* clear 'F4 Video Configuration Trap' bit */
+	pci_read_config_byte(dev, 0x42, &r);
+	r &= 0xfd;
+	pci_write_config_byte(dev, 0x42, r);
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY,
+			pci_early_fixup_cyrix_5530);

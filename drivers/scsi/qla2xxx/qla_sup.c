@@ -573,6 +573,9 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 		}
 	} while (0);
 
+	/* Enable flash write-protection. */
+	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0x9c);
+
 	/* Disable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);

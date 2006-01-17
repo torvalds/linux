@@ -223,9 +223,6 @@ int	ahc_dmamap_unload(struct ahc_softc *, bus_dma_tag_t, bus_dmamap_t);
  */
 #define ahc_dmamap_sync(ahc, dma_tag, dmamap, offset, len, op)
 
-/************************** Timer DataStructures ******************************/
-typedef struct timer_list ahc_timer_t;
-
 /********************************** Includes **********************************/
 #ifdef CONFIG_AIC7XXX_REG_PRETTY_PRINT
 #define AIC_DEBUG_REGISTERS 1
@@ -235,30 +232,9 @@ typedef struct timer_list ahc_timer_t;
 #include "aic7xxx.h"
 
 /***************************** Timer Facilities *******************************/
-#define ahc_timer_init init_timer
-#define ahc_timer_stop del_timer_sync
-typedef void ahc_linux_callback_t (u_long);  
-static __inline void ahc_timer_reset(ahc_timer_t *timer, int usec,
-				     ahc_callback_t *func, void *arg);
-static __inline void ahc_scb_timer_reset(struct scb *scb, u_int usec);
-
-static __inline void
-ahc_timer_reset(ahc_timer_t *timer, int usec, ahc_callback_t *func, void *arg)
-{
-	struct ahc_softc *ahc;
-
-	ahc = (struct ahc_softc *)arg;
-	del_timer(timer);
-	timer->data = (u_long)arg;
-	timer->expires = jiffies + (usec * HZ)/1000000;
-	timer->function = (ahc_linux_callback_t*)func;
-	add_timer(timer);
-}
-
 static __inline void
 ahc_scb_timer_reset(struct scb *scb, u_int usec)
 {
-	mod_timer(&scb->io_ctx->eh_timeout, jiffies + (usec * HZ)/1000000);
 }
 
 /***************************** SMP support ************************************/
@@ -393,7 +369,6 @@ struct ahc_platform_data {
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;
-	struct timer_list	 reset_timer;
 	struct semaphore	 eh_sem;
 	struct Scsi_Host        *host;		/* pointer to scsi host */
 #define AHC_LINUX_NOIRQ	((uint32_t)~0)

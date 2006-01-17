@@ -24,6 +24,9 @@
 #include <linux/transport_class.h>
 
 struct scsi_transport_template;
+struct scsi_target;
+struct scsi_device;
+struct Scsi_Host;
 
 struct spi_transport_attrs {
 	int period;		/* value in the PPR/SDTR command */
@@ -51,7 +54,7 @@ struct spi_transport_attrs {
 	unsigned int support_qas; /* supports quick arbitration and selection */
 	/* Private Fields */
 	unsigned int dv_pending:1; /* Internal flag */
-	struct semaphore dv_sem; /* semaphore to serialise dv */
+	struct mutex dv_mutex; /* semaphore to serialise dv */
 };
 
 enum spi_signal_type {
@@ -143,5 +146,6 @@ void spi_release_transport(struct scsi_transport_template *);
 void spi_schedule_dv_device(struct scsi_device *);
 void spi_dv_device(struct scsi_device *);
 void spi_display_xfer_agreement(struct scsi_target *);
+int spi_print_msg(const unsigned char *);
 
 #endif /* SCSI_TRANSPORT_SPI_H */

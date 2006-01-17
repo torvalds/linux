@@ -55,16 +55,13 @@ xfs_get_dir_entry(
 	xfs_inode_t	**ipp)
 {
 	vnode_t		*vp;
-	bhv_desc_t	*bdp;
 
 	vp = VNAME_TO_VNODE(dentry);
-	bdp = vn_bhv_lookup_unlocked(VN_BHV_HEAD(vp), &xfs_vnodeops);
-	if (!bdp) {
-		*ipp = NULL;
+
+	*ipp = xfs_vtoi(vp);
+	if (!*ipp)
 		return XFS_ERROR(ENOENT);
-	}
 	VN_HOLD(vp);
-	*ipp = XFS_BHVTOI(bdp);
 	return 0;
 }
 

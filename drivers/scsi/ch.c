@@ -20,9 +20,9 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/chio.h>			/* here are all the ioctls */
+#include <linux/mutex.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -75,7 +75,7 @@ static int vendor_counts[CH_TYPES-4];
 module_param_array(vendor_firsts, int, NULL, 0444);
 module_param_array(vendor_counts, int, NULL, 0444);
 
-static char *vendor_labels[CH_TYPES-4] = {
+static const char * vendor_labels[CH_TYPES-4] = {
 	"v0", "v1", "v2", "v3"
 };
 // module_param_string_array(vendor_labels, NULL, 0444);
@@ -112,7 +112,7 @@ typedef struct {
 	u_int               counts[CH_TYPES];
 	u_int               unit_attention;
 	u_int		    voltags;
-	struct semaphore    lock;
+	struct mutex	    lock;
 } scsi_changer;
 
 static LIST_HEAD(ch_devlist);
@@ -140,7 +140,7 @@ static struct file_operations changer_fops =
 #endif
 };
 
-static struct {
+static const struct {
 	unsigned char  sense;
 	unsigned char  asc;
 	unsigned char  ascq;
@@ -566,7 +566,7 @@ static int ch_gstatus(scsi_changer *ch, int type, unsigned char __user *dest)
 	u_char data[16];
 	unsigned int i;
 	
-	down(&ch->lock);
+	mutex_lock(&ch->lock);
 	for (i = 0; i < ch->counts[type]; i++) {
 		if (0 != ch_read_element_status
 		    (ch, ch->firsts[type]+i,data)) {
@@ -583,7 +583,7 @@ static int ch_gstatus(scsi_changer *ch, int type, unsigned char __user *dest)
 		if (0 != retval)
 			break;
 	}
-	up(&ch->lock);
+	mutex_unlock(&ch->lock);
 	return retval;
 }
 
@@ -688,11 +688,11 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			dprintk("CHIOPOSITION: invalid parameter\n");
 			return -EBADSLT;
 		}
-		down(&ch->lock);
+		mutex_lock(&ch->lock);
 		retval = ch_position(ch,0,
 				     ch->firsts[pos.cp_type] + pos.cp_unit,
 				     pos.cp_flags & CP_INVERT);
-		up(&ch->lock);
+		mutex_unlock(&ch->lock);
 		return retval;
 	}
 	
@@ -709,12 +709,12 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			return -EBADSLT;
 		}
 		
-		down(&ch->lock);
+		mutex_lock(&ch->lock);
 		retval = ch_move(ch,0,
 				 ch->firsts[mv.cm_fromtype] + mv.cm_fromunit,
 				 ch->firsts[mv.cm_totype]   + mv.cm_tounit,
 				 mv.cm_flags & CM_INVERT);
-		up(&ch->lock);
+		mutex_unlock(&ch->lock);
 		return retval;
 	}
 
@@ -732,14 +732,14 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			return -EBADSLT;
 		}
 		
-		down(&ch->lock);
+		mutex_lock(&ch->lock);
 		retval = ch_exchange
 			(ch,0,
 			 ch->firsts[mv.ce_srctype]  + mv.ce_srcunit,
 			 ch->firsts[mv.ce_fdsttype] + mv.ce_fdstunit,
 			 ch->firsts[mv.ce_sdsttype] + mv.ce_sdstunit,
 			 mv.ce_flags & CE_INVERT1, mv.ce_flags & CE_INVERT2);
-		up(&ch->lock);
+		mutex_unlock(&ch->lock);
 		return retval;
 	}
 
@@ -773,7 +773,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 		buffer = kmalloc(512, GFP_KERNEL | GFP_DMA);
 		if (!buffer)
 			return -ENOMEM;
-		down(&ch->lock);
+		mutex_lock(&ch->lock);
 		
 	voltag_retry:
 		memset(cmd,0,sizeof(cmd));
@@ -824,7 +824,7 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			goto voltag_retry;
 		}
 		kfree(buffer);
-		up(&ch->lock);
+		mutex_unlock(&ch->lock);
 		
 		if (copy_to_user(argp, &cge, sizeof (cge)))
 			return -EFAULT;
@@ -833,9 +833,9 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 
 	case CHIOINITELEM:
 	{
-		down(&ch->lock);
+		mutex_lock(&ch->lock);
 		retval = ch_init_elem(ch);
-		up(&ch->lock);
+		mutex_unlock(&ch->lock);
 		return retval;
 	}
 		
@@ -852,12 +852,12 @@ static int ch_ioctl(struct inode * inode, struct file * file,
 			return -EBADSLT;
 		}
 		elem = ch->firsts[csv.csv_type] + csv.csv_unit;
-		down(&ch->lock);
+		mutex_lock(&ch->lock);
 		retval = ch_set_voltag(ch, elem,
 				       csv.csv_flags & CSV_AVOLTAG,
 				       csv.csv_flags & CSV_CLEARTAG,
 				       csv.csv_voltag);
-		up(&ch->lock);
+		mutex_unlock(&ch->lock);
 		return retval;
 	}
 
@@ -930,7 +930,7 @@ static int ch_probe(struct device *dev)
 	memset(ch,0,sizeof(*ch));
 	ch->minor = ch_devcount;
 	sprintf(ch->name,"ch%d",ch->minor);
-	init_MUTEX(&ch->lock);
+	mutex_init(&ch->lock);
 	ch->device = sd;
 	ch_readconfig(ch);
 	if (init)

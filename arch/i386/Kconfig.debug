@@ -42,6 +42,16 @@ config DEBUG_PAGEALLOC
 	  This results in a large slowdown, but helps to find certain types
 	  of memory corruptions.
 
+config DEBUG_RODATA
+	bool "Write protect kernel read-only data structures"
+	depends on DEBUG_KERNEL
+	help
+	  Mark the kernel read-only data as write-protected in the pagetables,
+	  in order to catch accidental (and incorrect) writes to such const
+	  data. This option may have a slight performance impact because a
+	  portion of the kernel code won't be covered by a 2MB TLB anymore.
+	  If in doubt, say "N".
+
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
 	depends on DEBUG_KERNEL

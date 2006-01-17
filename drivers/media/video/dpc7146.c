@@ -94,12 +94,11 @@ static int dpc_probe(struct saa7146_dev* dev)
 	struct i2c_client *client;
 	struct list_head *item;
 
-	dpc = (struct dpc*)kmalloc(sizeof(struct dpc), GFP_KERNEL);
+	dpc = kzalloc(sizeof(struct dpc), GFP_KERNEL);
 	if( NULL == dpc ) {
 		printk("dpc_v4l2.o: dpc_probe: not enough kernel memory.\n");
 		return -ENOMEM;
 	}
-	memset(dpc, 0x0, sizeof(struct dpc));	
 
 	/* FIXME: enable i2c-port pins, video-port-pins
 	   video port pins should be enabled here ?! */

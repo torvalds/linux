@@ -56,7 +56,6 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
-#include <linux/kobject_uevent.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/dmi.h>
@@ -106,8 +105,6 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	char *argv [3], **envp, *buf, *scratch;
 	int i = 0, value;
 
-	if (!hotplug_path [0])
-		return -ENOENT;
 	if (!current->fs->root) {
 		return -EAGAIN;
 	}
@@ -119,8 +116,9 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 		return -ENOMEM;
 	}
 
-	/* only one standardized param to hotplug command: type */
-	argv [0] = hotplug_path;
+	/* FIXME: if there are actual users of this, it should be integrated into
+	 * the driver core and use the usual infrastructure like sysfs and uevents */
+	argv [0] = "/sbin/pnpbios";
 	argv [1] = "dock";
 	argv [2] = NULL;
 

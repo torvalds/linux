@@ -16,6 +16,7 @@
 #include <linux/tty.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
+#include <linux/capability.h>
 #include <linux/security.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
@@ -194,7 +195,8 @@ out:
 	return error;
 }
 
-int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
+int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
+	struct file *filp)
 {
 	int err;
 	struct iattr newattrs;
@@ -204,19 +206,19 @@ int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
 		return -EINVAL;
 
 	newattrs.ia_size = length;
-	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
+	newattrs.ia_valid = ATTR_SIZE | time_attrs;
 	if (filp) {
 		newattrs.ia_file = filp;
 		newattrs.ia_valid |= ATTR_FILE;
 	}
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	err = notify_change(dentry, &newattrs);
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	return err;
 }
 
-static inline long do_sys_truncate(const char __user * path, loff_t length)
+static long do_sys_truncate(const char __user * path, loff_t length)
 {
 	struct nameidata nd;
 	struct inode * inode;
@@ -266,7 +268,7 @@ static inline long do_sys_truncate(const char __user * path, loff_t length)
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error) {
 		DQUOT_INIT(inode);
-		error = do_truncate(nd.dentry, length, NULL);
+		error = do_truncate(nd.dentry, length, 0, NULL);
 	}
 	put_write_access(inode);
 
@@ -282,7 +284,7 @@ asmlinkage long sys_truncate(const char __user * path, unsigned long length)
 	return do_sys_truncate(path, (long)length);
 }
 
-static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
 	struct inode * inode;
 	struct dentry *dentry;
@@ -318,7 +320,7 @@ static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
-		error = do_truncate(dentry, length, file);
+		error = do_truncate(dentry, length, 0, file);
 out_putf:
 	fput(file);
 out:
@@ -397,9 +399,9 @@ asmlinkage long sys_utime(char __user * filename, struct utimbuf __user * times)
 		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	error = notify_change(nd.dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 dput_and_out:
 	path_release(&nd);
 out:
@@ -450,9 +452,9 @@ long do_utimes(char __user * filename, struct timeval * times)
 		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	error = notify_change(nd.dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 dput_and_out:
 	path_release(&nd);
 out:
@@ -619,13 +621,13 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	err = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		goto out_putf;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	err = notify_change(dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 out_putf:
 	fput(file);
@@ -653,13 +655,13 @@ asmlinkage long sys_chmod(const char __user * filename, mode_t mode)
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		goto dput_and_out;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	error = notify_change(nd.dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 dput_and_out:
 	path_release(&nd);
@@ -695,9 +697,9 @@ static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
 	}
 	if (!S_ISDIR(inode->i_mode))
 		newattrs.ia_valid |= ATTR_KILL_SUID|ATTR_KILL_SGID;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	error = notify_change(dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 out:
 	return error;
 }
@@ -970,7 +972,7 @@ out:
 
 EXPORT_SYMBOL(get_unused_fd);
 
-static inline void __put_unused_fd(struct files_struct *files, unsigned int fd)
+static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	__FD_CLR(fd, fdt->open_fds);

@@ -112,7 +112,7 @@ fc_enum_name_search(port_state, fc_port_state, fc_port_state_names)
 
 
 /* Convert fc_tgtid_binding_type values to ascii string name */
-static struct {
+static const struct {
 	enum fc_tgtid_binding_type	value;
 	char				*name;
 	int				matchlen;
@@ -150,7 +150,7 @@ get_fc_##title##_names(u32 table_key, char *buf)		\
 
 
 /* Convert FC_COS bit values to ascii string name */
-static struct {
+static const struct {
 	u32 			value;
 	char			*name;
 } fc_cos_names[] = {
@@ -164,7 +164,7 @@ fc_bitfield_name_search(cos, fc_cos_names)
 
 
 /* Convert FC_PORTSPEED bit values to ascii string name */
-static struct {
+static const struct {
 	u32 			value;
 	char			*name;
 } fc_port_speed_names[] = {
@@ -190,7 +190,7 @@ show_fc_fc4s (char *buf, u8 *fc4_list)
 
 
 /* Convert FC_RPORT_ROLE bit values to ascii string name */
-static struct {
+static const struct {
 	u32 			value;
 	char			*name;
 } fc_remote_port_role_names[] = {
@@ -295,6 +295,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	 */
 	fc_host_node_name(shost) = -1;
 	fc_host_port_name(shost) = -1;
+	fc_host_permanent_port_name(shost) = -1;
 	fc_host_supported_classes(shost) = FC_COS_UNSPECIFIED;
 	memset(fc_host_supported_fc4s(shost), 0,
 		sizeof(fc_host_supported_fc4s(shost)));
@@ -795,6 +796,8 @@ static FC_CLASS_DEVICE_ATTR(host, supported_speeds, S_IRUGO,
 
 fc_private_host_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
+fc_private_host_rd_attr_cast(permanent_port_name, "0x%llx\n", 20,
+			     unsigned long long);
 fc_private_host_rd_attr(symbolic_name, "%s\n", (FC_SYMBOLIC_NAME_SIZE +1));
 fc_private_host_rd_attr(maxframe_size, "%u bytes\n", 20);
 fc_private_host_rd_attr(serial_number, "%s\n", (FC_SERIAL_NUMBER_SIZE +1));
@@ -1090,17 +1093,23 @@ static int fc_rport_match(struct attribute_container *cont,
 /*
  * Must be called with shost->host_lock held
  */
-static struct device *fc_target_parent(struct Scsi_Host *shost,
-					int channel, uint id)
+static int fc_user_scan(struct Scsi_Host *shost, uint channel,
+		uint id, uint lun)
 {
 	struct fc_rport *rport;
 
-	list_for_each_entry(rport, &fc_host_rports(shost), peers)
-		if ((rport->channel == channel) &&
-		    (rport->scsi_target_id == id))
-			return &rport->dev;
+	list_for_each_entry(rport, &fc_host_rports(shost), peers) {
+		if (rport->scsi_target_id == -1)
+			continue;
 
-	return NULL;
+		if ((channel == SCAN_WILD_CARD || channel == rport->channel) &&
+		    (id == SCAN_WILD_CARD || id == rport->scsi_target_id)) {
+			scsi_scan_target(&rport->dev, rport->channel,
+					 rport->scsi_target_id, lun, 1);
+		}
+	}
+
+	return 0;
 }
 
 struct scsi_transport_template *
@@ -1139,7 +1148,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	/* Transport uses the shost workq for scsi scanning */
 	i->t.create_work_queue = 1;
 
-	i->t.target_parent = fc_target_parent;
+	i->t.user_scan = fc_user_scan;
 	
 	/*
 	 * Setup SCSI Target Attributes.
@@ -1160,6 +1169,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	count=0;
 	SETUP_HOST_ATTRIBUTE_RD(node_name);
 	SETUP_HOST_ATTRIBUTE_RD(port_name);
+	SETUP_HOST_ATTRIBUTE_RD(permanent_port_name);
 	SETUP_HOST_ATTRIBUTE_RD(supported_classes);
 	SETUP_HOST_ATTRIBUTE_RD(supported_fc4s);
 	SETUP_HOST_ATTRIBUTE_RD(symbolic_name);

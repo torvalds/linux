@@ -269,7 +269,7 @@ static int MoxaPortDCDChange(int);
 static int MoxaPortDCDON(int);
 static void MoxaPortFlushData(int, int);
 static int MoxaPortWriteData(int, unsigned char *, int);
-static int MoxaPortReadData(int, unsigned char *, int);
+static int MoxaPortReadData(int, struct tty_struct *tty);
 static int MoxaPortTxQueue(int);
 static int MoxaPortRxQueue(int);
 static int MoxaPortTxFree(int);
@@ -300,6 +300,8 @@ static struct tty_operations moxa_ops = {
 	.tiocmget = moxa_tiocmget,
 	.tiocmset = moxa_tiocmset,
 };
+
+static spinlock_t moxa_lock = SPIN_LOCK_UNLOCKED;
 
 #ifdef CONFIG_PCI
 static int moxa_get_PCI_conf(struct pci_dev *p, int board_type, moxa_board_conf * board)
@@ -448,7 +450,7 @@ static int __init moxa_init(void)
 #ifdef CONFIG_PCI
 	{
 		struct pci_dev *p = NULL;
-		int n = (sizeof(moxa_pcibrds) / sizeof(moxa_pcibrds[0])) - 1;
+		int n = ARRAY_SIZE(moxa_pcibrds) - 1;
 		i = 0;
 		while (i < n) {
 			while ((p = pci_get_device(moxa_pcibrds[i].vendor, moxa_pcibrds[i].device, p))!=NULL)
@@ -645,10 +647,10 @@ static int moxa_write(struct tty_struct *tty,
 	if (ch == NULL)
 		return (0);
 	port = ch->port;
-	save_flags(flags);
-	cli();
+
+	spin_lock_irqsave(&moxa_lock, flags);
 	len = MoxaPortWriteData(port, (unsigned char *) buf, count);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&moxa_lock, flags);
 
 	/*********************************************
 	if ( !(ch->statusflags & LOWWAIT) &&
@@ -723,11 +725,10 @@ static void moxa_put_char(struct tty_struct *tty, unsigned char c)
 	if (ch == NULL)
 		return;
 	port = ch->port;
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&moxa_lock, flags);
 	moxaXmitBuff[0] = c;
 	MoxaPortWriteData(port, moxaXmitBuff, 1);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&moxa_lock, flags);
 	/************************************************
 	if ( !(ch->statusflags & LOWWAIT) && (MoxaPortTxFree(port) <= 100) )
 	*************************************************/
@@ -1030,12 +1031,12 @@ static int block_till_ready(struct tty_struct *tty, struct file *filp,
 	printk("block_til_ready before block: ttys%d, count = %d\n",
 	       ch->line, ch->count);
 #endif
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&moxa_lock, flags);
 	if (!tty_hung_up_p(filp))
 		ch->count--;
-	restore_flags(flags);
 	ch->blocked_open++;
+	spin_unlock_irqrestore(&moxa_lock, flags);
+
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
@@ -1062,17 +1063,21 @@ static int block_till_ready(struct tty_struct *tty, struct file *filp,
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&ch->open_wait, &wait);
+
+	spin_lock_irqsave(&moxa_lock, flags);
 	if (!tty_hung_up_p(filp))
 		ch->count++;
 	ch->blocked_open--;
+	spin_unlock_irqrestore(&moxa_lock, flags);
 #ifdef SERIAL_DEBUG_OPEN
 	printk("block_til_ready after blocking: ttys%d, count = %d\n",
 	       ch->line, ch->count);
 #endif
 	if (retval)
 		return (retval);
+	/* FIXME: review to see if we need to use set_bit on these */
 	ch->asyncflags |= ASYNC_NORMAL_ACTIVE;
-	return (0);
+	return 0;
 }
 
 static void setup_empty_event(struct tty_struct *tty)
@@ -1080,15 +1085,14 @@ static void setup_empty_event(struct tty_struct *tty)
 	struct moxa_str *ch = tty->driver_data;
 	unsigned long flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&moxa_lock, flags);
 	ch->statusflags |= EMPTYWAIT;
 	moxaEmptyTimer_on[ch->port] = 0;
 	del_timer(&moxaEmptyTimer[ch->port]);
 	moxaEmptyTimer[ch->port].expires = jiffies + HZ;
 	moxaEmptyTimer_on[ch->port] = 1;
 	add_timer(&moxaEmptyTimer[ch->port]);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&moxa_lock, flags);
 }
 
 static void check_xmit_empty(unsigned long data)
@@ -1135,8 +1139,6 @@ static void receive_data(struct moxa_str *ch)
 {
 	struct tty_struct *tp;
 	struct termios *ts;
-	int i, count, rc, space;
-	unsigned char *charptr, *flagptr;
 	unsigned long flags;
 
 	ts = NULL;
@@ -1150,24 +1152,10 @@ static void receive_data(struct moxa_str *ch)
 		MoxaPortFlushData(ch->port, 0);
 		return;
 	}
-	space = TTY_FLIPBUF_SIZE - tp->flip.count;
-	if (space <= 0)
-		return;
-	charptr = tp->flip.char_buf_ptr;
-	flagptr = tp->flip.flag_buf_ptr;
-	rc = tp->flip.count;
-	save_flags(flags);
-	cli();
-	count = MoxaPortReadData(ch->port, charptr, space);
-	restore_flags(flags);
-	for (i = 0; i < count; i++)
-		*flagptr++ = 0;
-	charptr += count;
-	rc += count;
-	tp->flip.count = rc;
-	tp->flip.char_buf_ptr = charptr;
-	tp->flip.flag_buf_ptr = flagptr;
-	tty_schedule_flip(ch->tty);
+	spin_lock_irqsave(&moxa_lock, flags);
+	MoxaPortReadData(ch->port, tp);
+	spin_unlock_irqrestore(&moxa_lock, flags);
+	tty_schedule_flip(tp);
 }
 
 #define Magic_code	0x404
@@ -1661,6 +1649,8 @@ int MoxaDriverIoctl(unsigned int cmd, unsigned long arg, int port)
 	case MOXA_FIND_BOARD:
 	case MOXA_LOAD_C320B:
 	case MOXA_LOAD_CODE:
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
 		break;
 	}
 
@@ -1774,7 +1764,7 @@ int MoxaPortsOfCard(int cardno)
  *	14. MoxaPortDCDON(int port);					     *
  *	15. MoxaPortFlushData(int port, int mode);	                     *
  *	16. MoxaPortWriteData(int port, unsigned char * buffer, int length); *
- *	17. MoxaPortReadData(int port, unsigned char * buffer, int length);  *
+ *	17. MoxaPortReadData(int port, struct tty_struct *tty); 	     *
  *	18. MoxaPortTxBufSize(int port);				     *
  *	19. MoxaPortRxBufSize(int port);				     *
  *	20. MoxaPortTxQueue(int port);					     *
@@ -2003,10 +1993,9 @@ int MoxaPortsOfCard(int cardno)
  *
  *      Function 21:    Read data.
  *      Syntax:
- *      int  MoxaPortReadData(int port, unsigned char * buffer, int length);
+ *      int  MoxaPortReadData(int port, struct tty_struct *tty);
  *           int port           : port number (0 - 127)
- *           unsigned char * buffer     : pointer to read data buffer.
- *           int length         : read data buffer length
+ *	     struct tty_struct *tty : tty for data
  *
  *           return:    0 - length      : real read data length
  *
@@ -2504,7 +2493,7 @@ int MoxaPortWriteData(int port, unsigned char * buffer, int len)
 	return (total);
 }
 
-int MoxaPortReadData(int port, unsigned char * buffer, int space)
+int MoxaPortReadData(int port, struct tty_struct *tty)
 {
 	register ushort head, pageofs;
 	int i, count, cnt, len, total, remain;
@@ -2522,9 +2511,9 @@ int MoxaPortReadData(int port, unsigned char * buffer, int space)
 	count = (tail >= head) ? (tail - head)
 	    : (tail - head + rx_mask + 1);
 	if (count == 0)
-		return (0);
+		return 0;
 
-	total = (space > count) ? count : space;
+	total = count;
 	remain = count - total;
 	moxaLog.rxcnt[port] += total;
 	count = total;
@@ -2539,7 +2528,7 @@ int MoxaPortReadData(int port, unsigned char * buffer, int space)
 			len = (count > len) ? len : count;
 			ofs = baseAddr + DynPage_addr + bufhead + head;
 			for (i = 0; i < len; i++)
-				*buffer++ = readb(ofs + i);
+				tty_insert_flip_char(tty, readb(ofs + i), TTY_NORMAL);
 			head = (head + len) & rx_mask;
 			count -= len;
 		}
@@ -2556,7 +2545,7 @@ int MoxaPortReadData(int port, unsigned char * buffer, int space)
 			writew(pageno, baseAddr + Control_reg);
 			ofs = baseAddr + DynPage_addr + pageofs;
 			for (i = 0; i < cnt; i++)
-				*buffer++ = readb(ofs + i);
+				tty_insert_flip_char(tty, readb(ofs + i), TTY_NORMAL);
 			if (count == 0) {
 				writew((head + len) & rx_mask, ofsAddr + RXrptr);
 				break;

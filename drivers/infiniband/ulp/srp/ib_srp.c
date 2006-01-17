@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/random.h>
+#include <linux/jiffies.h>
 
 #include <asm/atomic.h>
 
@@ -1515,8 +1516,7 @@ static ssize_t show_port(struct class_device *class_dev, char *buf)
 
 static CLASS_DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static struct srp_host *srp_add_port(struct ib_device *device,
-				     __be64 node_guid, u8 port)
+static struct srp_host *srp_add_port(struct ib_device *device, u8 port)
 {
 	struct srp_host *host;
 
@@ -1531,7 +1531,7 @@ static struct srp_host *srp_add_port(struct ib_device *device,
 	host->port = port;
 
 	host->initiator_port_id[7] = port;
-	memcpy(host->initiator_port_id + 8, &node_guid, 8);
+	memcpy(host->initiator_port_id + 8, &device->node_guid, 8);
 
 	host->pd   = ib_alloc_pd(device);
 	if (IS_ERR(host->pd))
@@ -1579,22 +1579,11 @@ static void srp_add_one(struct ib_device *device)
 {
 	struct list_head *dev_list;
 	struct srp_host *host;
-	struct ib_device_attr *dev_attr;
 	int s, e, p;
-
-	dev_attr = kmalloc(sizeof *dev_attr, GFP_KERNEL);
-	if (!dev_attr)
-		return;
-
-	if (ib_query_device(device, dev_attr)) {
-		printk(KERN_WARNING PFX "Couldn't query node GUID for %s.\n",
-		       device->name);
-		goto out;
-	}
 
 	dev_list = kmalloc(sizeof *dev_list, GFP_KERNEL);
 	if (!dev_list)
-		goto out;
+		return;
 
 	INIT_LIST_HEAD(dev_list);
 
@@ -1607,15 +1596,12 @@ static void srp_add_one(struct ib_device *device)
 	}
 
 	for (p = s; p <= e; ++p) {
-		host = srp_add_port(device, dev_attr->node_guid, p);
+		host = srp_add_port(device, p);
 		if (host)
 			list_add_tail(&host->list, dev_list);
 	}
 
 	ib_set_client_data(device, &srp_client, dev_list);
-
-out:
-	kfree(dev_attr);
 }
 
 static void srp_remove_one(struct ib_device *device)

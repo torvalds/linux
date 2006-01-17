@@ -88,11 +88,6 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	struct device *dev = &pdev->dev;
 	int i;
 
-	if (pci_request_regions(pdev, OSM_DESCRIPTION)) {
-		printk(KERN_ERR "%s: device already claimed\n", c->name);
-		return -ENODEV;
-	}
-
 	for (i = 0; i < 6; i++) {
 		/* Skip I/O spaces */
 		if (!(pci_resource_flags(pdev, i) & IORESOURCE_IO)) {
@@ -319,6 +314,11 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		return rc;
 	}
 
+	if (pci_request_regions(pdev, OSM_DESCRIPTION)) {
+		printk(KERN_ERR "i2o: device already claimed\n");
+		return -ENODEV;
+	}
+
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING "i2o: no suitable DMA found for %s\n",
 		       pci_name(pdev));
@@ -339,7 +339,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		       pci_name(pdev));
 
 	c->pdev = pdev;
-	c->device.parent = get_device(&pdev->dev);
+	c->device.parent = &pdev->dev;
 
 	/* Cards that fall apart if you hit them with large I/O loads... */
 	if (pdev->vendor == PCI_VENDOR_ID_NCR && pdev->device == 0x0630) {
@@ -410,8 +410,6 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	if ((rc = i2o_iop_add(c)))
 		goto uninstall;
 
-	get_device(&c->device);
-
 	if (i960)
 		pci_write_config_word(i960, 0x42, 0x03ff);
 
@@ -424,7 +422,6 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	i2o_pci_free(c);
 
       free_controller:
-	put_device(c->device.parent);
 	i2o_iop_free(c);
 
       disable:
@@ -454,7 +451,6 @@ static void __devexit i2o_pci_remove(struct pci_dev *pdev)
 
 	printk(KERN_INFO "%s: Controller removed.\n", c->name);
 
-	put_device(c->device.parent);
 	put_device(&c->device);
 };
 
@@ -483,4 +479,5 @@ void __exit i2o_pci_exit(void)
 {
 	pci_unregister_driver(&i2o_pci_driver);
 };
+
 MODULE_DEVICE_TABLE(pci, i2o_pci_ids);

@@ -14,7 +14,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 
-#include <asm/mman.h>
 #include <asm/glue.h>
 #include <asm/shmparam.h>
 

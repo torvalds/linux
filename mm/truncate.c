@@ -82,12 +82,15 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 }
 
 /**
- * truncate_inode_pages - truncate *all* the pages from an offset
+ * truncate_inode_pages - truncate range of pages specified by start and
+ * end byte offsets
  * @mapping: mapping to truncate
  * @lstart: offset from which to truncate
+ * @lend: offset to which to truncate
  *
- * Truncate the page cache at a set offset, removing the pages that are beyond
- * that offset (and zeroing out partial pages).
+ * Truncate the page cache, removing the pages that are between
+ * specified offsets (and zeroing out partial page
+ * (if lstart is not page aligned)).
  *
  * Truncate takes two passes - the first pass is nonblocking.  It will not
  * block on page locks and it will not block on writeback.  The second pass
@@ -101,12 +104,12 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
  * We pass down the cache-hot hint to the page freeing code.  Even if the
  * mapping is large, it is probably the case that the final pages are the most
  * recently touched, and freeing happens in ascending file offset order.
- *
- * Called under (and serialised by) inode->i_sem.
  */
-void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+void truncate_inode_pages_range(struct address_space *mapping,
+				loff_t lstart, loff_t lend)
 {
 	const pgoff_t start = (lstart + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT;
+	pgoff_t end;
 	const unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
 	struct pagevec pvec;
 	pgoff_t next;
@@ -115,12 +118,21 @@ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
 	if (mapping->nrpages == 0)
 		return;
 
+	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
+	end = (lend >> PAGE_CACHE_SHIFT);
+
 	pagevec_init(&pvec, 0);
 	next = start;
-	while (pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+	while (next <= end &&
+	       pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 			pgoff_t page_index = page->index;
+
+			if (page_index > end) {
+				next = page_index;
+				break;
+			}
 
 			if (page_index > next)
 				next = page_index;
@@ -157,9 +169,15 @@ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
 			next = start;
 			continue;
 		}
+		if (pvec.pages[0]->index > end) {
+			pagevec_release(&pvec);
+			break;
+		}
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 
+			if (page->index > end)
+				break;
 			lock_page(page);
 			wait_on_page_writeback(page);
 			if (page->index > next)
@@ -171,7 +189,19 @@ void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
 		pagevec_release(&pvec);
 	}
 }
+EXPORT_SYMBOL(truncate_inode_pages_range);
 
+/**
+ * truncate_inode_pages - truncate *all* the pages from an offset
+ * @mapping: mapping to truncate
+ * @lstart: offset from which to truncate
+ *
+ * Called under (and serialised by) inode->i_mutex.
+ */
+void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+{
+	truncate_inode_pages_range(mapping, lstart, (loff_t)-1);
+}
 EXPORT_SYMBOL(truncate_inode_pages);
 
 /**
@@ -219,7 +249,6 @@ unlock:
 				break;
 		}
 		pagevec_release(&pvec);
-		cond_resched();
 	}
 	return ret;
 }

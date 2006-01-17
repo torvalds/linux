@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20050911"
+#define DRIVER_DATE		"20051229"
 
 /* Interface history:
  *
@@ -73,7 +73,7 @@
  * 1.11- Add packet R200_EMIT_RB3D_BLENDCOLOR to support GL_EXT_blend_color
  *       and GL_EXT_blend_[func|equation]_separate on r200
  * 1.12- Add R300 CP microcode support - this just loads the CP on r300
- *       (No 3D support yet - just microcode loading)
+ *       (No 3D support yet - just microcode loading).
  * 1.13- Add packet R200_EMIT_TCL_POINT_SPRITE_CNTL for ARB_point_parameters
  *     - Add hyperz support, add hyperz flags to clear ioctl.
  * 1.14- Add support for color tiling
@@ -88,13 +88,12 @@
  *       R200_EMIT_PP_TXFILTER_0-5, 2 more regs) and R200_EMIT_ATF_TFACTOR
  *       (replaces R200_EMIT_TFACTOR_0 (8 consts instead of 6)
  * 1.19- Add support for gart table in FB memory and PCIE r300
+ * 1.20- Add support for r300 texrect
+ * 1.21- Add support for card type getparam
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		19
+#define DRIVER_MINOR		21
 #define DRIVER_PATCHLEVEL	0
-
-#define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
-#define SET_RING_HEAD(dev_priv,val)	DRM_WRITE32( (dev_priv)->ring_rptr, 0, (val) )
 
 /*
  * Radeon chip families
@@ -103,8 +102,8 @@ enum radeon_family {
 	CHIP_R100,
 	CHIP_RS100,
 	CHIP_RV100,
-	CHIP_R200,
 	CHIP_RV200,
+	CHIP_R200,
 	CHIP_RS200,
 	CHIP_R250,
 	CHIP_RS250,
@@ -137,6 +136,9 @@ enum radeon_chip_flags {
 	CHIP_HAS_HIERZ = 0x00100000UL,
 	CHIP_IS_PCIE = 0x00200000UL,
 };
+
+#define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
+#define SET_RING_HEAD(dev_priv,val)	DRM_WRITE32( (dev_priv)->ring_rptr, 0, (val) )
 
 typedef struct drm_radeon_freelist {
 	unsigned int age;
@@ -245,8 +247,6 @@ typedef struct drm_radeon_private {
 
 	drm_radeon_depth_clear_t depth_clear;
 
-	unsigned long fb_offset;
-	unsigned long mmio_offset;
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
@@ -273,7 +273,6 @@ typedef struct drm_radeon_private {
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
-	int is_pci;
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {
@@ -330,17 +329,14 @@ extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(drm_device_t * dev);
 extern void radeon_driver_irq_postinstall(drm_device_t * dev);
 extern void radeon_driver_irq_uninstall(drm_device_t * dev);
-extern void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp);
-extern void radeon_driver_pretakedown(drm_device_t * dev);
-extern int radeon_driver_open_helper(drm_device_t * dev,
-				     drm_file_t * filp_priv);
-extern void radeon_driver_free_filp_priv(drm_device_t * dev,
-					 drm_file_t * filp_priv);
 
-extern int radeon_preinit(struct drm_device *dev, unsigned long flags);
-extern int radeon_postinit(struct drm_device *dev, unsigned long flags);
-extern int radeon_postcleanup(struct drm_device *dev);
-
+extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
+extern int radeon_driver_unload(struct drm_device *dev);
+extern int radeon_driver_firstopen(struct drm_device *dev);
+extern void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp);
+extern void radeon_driver_postclose(drm_device_t * dev, drm_file_t * filp);
+extern void radeon_driver_lastclose(drm_device_t * dev);
+extern int radeon_driver_open(drm_device_t * dev, drm_file_t * filp_priv);
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
@@ -364,6 +360,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
  */
 
 #define RADEON_AGP_COMMAND		0x0f60
+#define RADEON_AGP_COMMAND_PCI_CONFIG   0x0060	/* offset in PCI config */
+#	define RADEON_AGP_ENABLE	(1<<8)
 #define RADEON_AUX_SCISSOR_CNTL		0x26f0
 #	define RADEON_EXCLUSIVE_SCISSOR_0	(1 << 24)
 #	define RADEON_EXCLUSIVE_SCISSOR_1	(1 << 25)
@@ -651,6 +649,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 
 #define RADEON_WAIT_UNTIL		0x1720
 #	define RADEON_WAIT_CRTC_PFLIP		(1 << 0)
+#	define RADEON_WAIT_2D_IDLE		(1 << 14)
+#	define RADEON_WAIT_3D_IDLE		(1 << 15)
 #	define RADEON_WAIT_2D_IDLECLEAN		(1 << 16)
 #	define RADEON_WAIT_3D_IDLECLEAN		(1 << 17)
 #	define RADEON_WAIT_HOST_IDLECLEAN	(1 << 18)
@@ -1105,7 +1105,6 @@ do {									\
 		write = 0;					\
 		_tab += _i;					\
 	}							\
-								\
 	while (_size > 0) {					\
 		*(ring + write) = *_tab++;			\
 		write++;					\

@@ -14,7 +14,10 @@ CONTENTS:
   1.1 What are cpusets ?
   1.2 Why are cpusets needed ?
   1.3 How are cpusets implemented ?
-  1.4 How do I use cpusets ?
+  1.4 What are exclusive cpusets ?
+  1.5 What does notify_on_release do ?
+  1.6 What is memory_pressure ?
+  1.7 How do I use cpusets ?
 2. Usage Examples and Syntax
   2.1 Basic Usage
   2.2 Adding/removing cpus
@@ -48,29 +51,6 @@ scheduler will not schedule a task on a CPU that is not allowed in
 its cpus_allowed vector, and the kernel page allocator will not
 allocate a page on a node that is not allowed in the requesting tasks
 mems_allowed vector.
-
-If a cpuset is cpu or mem exclusive, no other cpuset, other than a direct
-ancestor or descendent, may share any of the same CPUs or Memory Nodes.
-A cpuset that is cpu exclusive has a sched domain associated with it.
-The sched domain consists of all cpus in the current cpuset that are not
-part of any exclusive child cpusets.
-This ensures that the scheduler load balacing code only balances
-against the cpus that are in the sched domain as defined above and not
-all of the cpus in the system. This removes any overhead due to
-load balancing code trying to pull tasks outside of the cpu exclusive
-cpuset only to be prevented by the tasks' cpus_allowed mask.
-
-A cpuset that is mem_exclusive restricts kernel allocations for
-page, buffer and other data commonly shared by the kernel across
-multiple users.  All cpusets, whether mem_exclusive or not, restrict
-allocations of memory for user space.  This enables configuring a
-system so that several independent jobs can share common kernel
-data, such as file system pages, while isolating each jobs user
-allocation in its own cpuset.  To do this, construct a large
-mem_exclusive cpuset to hold all the jobs, and construct child,
-non-mem_exclusive cpusets for each individual job.  Only a small
-amount of typical kernel memory, such as requests from interrupt
-handlers, is allowed to be taken outside even a mem_exclusive cpuset.
 
 User level code may create and destroy cpusets by name in the cpuset
 virtual file system, manage the attributes and permissions of these
@@ -155,7 +135,7 @@ Cpusets extends these two mechanisms as follows:
 The implementation of cpusets requires a few, simple hooks
 into the rest of the kernel, none in performance critical paths:
 
- - in main/init.c, to initialize the root cpuset at system boot.
+ - in init/main.c, to initialize the root cpuset at system boot.
  - in fork and exit, to attach and detach a task from its cpuset.
  - in sched_setaffinity, to mask the requested CPUs by what's
    allowed in that tasks cpuset.
@@ -166,7 +146,7 @@ into the rest of the kernel, none in performance critical paths:
    and related changes in both sched.c and arch/ia64/kernel/domain.c
  - in the mbind and set_mempolicy system calls, to mask the requested
    Memory Nodes by what's allowed in that tasks cpuset.
- - in page_alloc, to restrict memory to allowed nodes.
+ - in page_alloc.c, to restrict memory to allowed nodes.
  - in vmscan.c, to restrict page recovery to the current cpuset.
 
 In addition a new file system, of type "cpuset" may be mounted,
@@ -192,9 +172,15 @@ containing the following files describing that cpuset:
 
  - cpus: list of CPUs in that cpuset
  - mems: list of Memory Nodes in that cpuset
+ - memory_migrate flag: if set, move pages to cpusets nodes
  - cpu_exclusive flag: is cpu placement exclusive?
  - mem_exclusive flag: is memory placement exclusive?
  - tasks: list of tasks (by pid) attached to that cpuset
+ - notify_on_release flag: run /sbin/cpuset_release_agent on exit?
+ - memory_pressure: measure of how much paging pressure in cpuset
+
+In addition, the root cpuset only has the following file:
+ - memory_pressure_enabled flag: compute memory_pressure?
 
 New cpusets are created using the mkdir system call or shell
 command.  The properties of a cpuset, such as its flags, allowed
@@ -228,7 +214,108 @@ exclusive cpuset.  Also, the use of a Linux virtual file system (vfs)
 to represent the cpuset hierarchy provides for a familiar permission
 and name space for cpusets, with a minimum of additional kernel code.
 
-1.4 How do I use cpusets ?
+
+1.4 What are exclusive cpusets ?
+--------------------------------
+
+If a cpuset is cpu or mem exclusive, no other cpuset, other than
+a direct ancestor or descendent, may share any of the same CPUs or
+Memory Nodes.
+
+A cpuset that is cpu_exclusive has a scheduler (sched) domain
+associated with it.  The sched domain consists of all CPUs in the
+current cpuset that are not part of any exclusive child cpusets.
+This ensures that the scheduler load balancing code only balances
+against the CPUs that are in the sched domain as defined above and
+not all of the CPUs in the system. This removes any overhead due to
+load balancing code trying to pull tasks outside of the cpu_exclusive
+cpuset only to be prevented by the tasks' cpus_allowed mask.
+
+A cpuset that is mem_exclusive restricts kernel allocations for
+page, buffer and other data commonly shared by the kernel across
+multiple users.  All cpusets, whether mem_exclusive or not, restrict
+allocations of memory for user space.  This enables configuring a
+system so that several independent jobs can share common kernel data,
+such as file system pages, while isolating each jobs user allocation in
+its own cpuset.  To do this, construct a large mem_exclusive cpuset to
+hold all the jobs, and construct child, non-mem_exclusive cpusets for
+each individual job.  Only a small amount of typical kernel memory,
+such as requests from interrupt handlers, is allowed to be taken
+outside even a mem_exclusive cpuset.
+
+
+1.5 What does notify_on_release do ?
+------------------------------------
+
+If the notify_on_release flag is enabled (1) in a cpuset, then whenever
+the last task in the cpuset leaves (exits or attaches to some other
+cpuset) and the last child cpuset of that cpuset is removed, then
+the kernel runs the command /sbin/cpuset_release_agent, supplying the
+pathname (relative to the mount point of the cpuset file system) of the
+abandoned cpuset.  This enables automatic removal of abandoned cpusets.
+The default value of notify_on_release in the root cpuset at system
+boot is disabled (0).  The default value of other cpusets at creation
+is the current value of their parents notify_on_release setting.
+
+
+1.6 What is memory_pressure ?
+-----------------------------
+The memory_pressure of a cpuset provides a simple per-cpuset metric
+of the rate that the tasks in a cpuset are attempting to free up in
+use memory on the nodes of the cpuset to satisfy additional memory
+requests.
+
+This enables batch managers monitoring jobs running in dedicated
+cpusets to efficiently detect what level of memory pressure that job
+is causing.
+
+This is useful both on tightly managed systems running a wide mix of
+submitted jobs, which may choose to terminate or re-prioritize jobs that
+are trying to use more memory than allowed on the nodes assigned them,
+and with tightly coupled, long running, massively parallel scientific
+computing jobs that will dramatically fail to meet required performance
+goals if they start to use more memory than allowed to them.
+
+This mechanism provides a very economical way for the batch manager
+to monitor a cpuset for signs of memory pressure.  It's up to the
+batch manager or other user code to decide what to do about it and
+take action.
+
+==> Unless this feature is enabled by writing "1" to the special file
+    /dev/cpuset/memory_pressure_enabled, the hook in the rebalance
+    code of __alloc_pages() for this metric reduces to simply noticing
+    that the cpuset_memory_pressure_enabled flag is zero.  So only
+    systems that enable this feature will compute the metric.
+
+Why a per-cpuset, running average:
+
+    Because this meter is per-cpuset, rather than per-task or mm,
+    the system load imposed by a batch scheduler monitoring this
+    metric is sharply reduced on large systems, because a scan of
+    the tasklist can be avoided on each set of queries.
+
+    Because this meter is a running average, instead of an accumulating
+    counter, a batch scheduler can detect memory pressure with a
+    single read, instead of having to read and accumulate results
+    for a period of time.
+
+    Because this meter is per-cpuset rather than per-task or mm,
+    the batch scheduler can obtain the key information, memory
+    pressure in a cpuset, with a single read, rather than having to
+    query and accumulate results over all the (dynamically changing)
+    set of tasks in the cpuset.
+
+A per-cpuset simple digital filter (requires a spinlock and 3 words
+of data per-cpuset) is kept, and updated by any task attached to that
+cpuset, if it enters the synchronous (direct) page reclaim code.
+
+A per-cpuset file provides an integer number representing the recent
+(half-life of 10 seconds) rate of direct page reclaims caused by
+the tasks in the cpuset, in units of reclaims attempted per second,
+times 1000.
+
+
+1.7 How do I use cpusets ?
 --------------------------
 
 In order to minimize the impact of cpusets on critical kernel
@@ -276,6 +363,30 @@ but the processor placement is not updated, until that tasks pid is
 rewritten to the 'tasks' file of its cpuset.  This is done to avoid
 impacting the scheduler code in the kernel with a check for changes
 in a tasks processor placement.
+
+Normally, once a page is allocated (given a physical page
+of main memory) then that page stays on whatever node it
+was allocated, so long as it remains allocated, even if the
+cpusets memory placement policy 'mems' subsequently changes.
+If the cpuset flag file 'memory_migrate' is set true, then when
+tasks are attached to that cpuset, any pages that task had
+allocated to it on nodes in its previous cpuset are migrated
+to the tasks new cpuset.  Depending on the implementation,
+this migration may either be done by swapping the page out,
+so that the next time the page is referenced, it will be paged
+into the tasks new cpuset, usually on the node where it was
+referenced, or this migration may be done by directly copying
+the pages from the tasks previous cpuset to the new cpuset,
+where possible to the same node, relative to the new cpuset,
+as the node that held the page, relative to the old cpuset.
+Also if 'memory_migrate' is set true, then if that cpusets
+'mems' file is modified, pages allocated to tasks in that
+cpuset, that were on nodes in the previous setting of 'mems',
+will be moved to nodes in the new setting of 'mems.'  Again,
+depending on the implementation, this might be done by swapping,
+or by direct copying.  In either case, pages that were not in
+the tasks prior cpuset, or in the cpusets prior 'mems' setting,
+will not be moved.
 
 There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,

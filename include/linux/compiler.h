@@ -42,8 +42,6 @@ extern void __chk_io_ptr(void __iomem *);
 # include <linux/compiler-gcc4.h>
 #elif __GNUC__ == 3
 # include <linux/compiler-gcc3.h>
-#elif __GNUC__ == 2
-# include <linux/compiler-gcc2.h>
 #else
 # error Sorry, your compiler is too old/not recognized.
 #endif

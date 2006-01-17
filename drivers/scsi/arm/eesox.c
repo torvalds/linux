@@ -35,7 +35,6 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/pgtable.h>

@@ -53,7 +53,7 @@ match(const struct sk_buff *skb,
 
 static int
 checkentry(const char *tablename,
-           const struct ip6t_ip6 *ip,
+           const void  *ip,
            void *matchinfo,
            unsigned int matchsize,
            unsigned int hook_mask)

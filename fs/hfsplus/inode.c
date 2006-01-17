@@ -182,11 +182,6 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	igrab(dir);
 	hlist_add_head(&inode->i_hash, &HFSPLUS_SB(sb).rsrc_inodes);
 	mark_inode_dirty(inode);
-	{
-	void hfsplus_inode_check(struct super_block *sb);
-	atomic_inc(&HFSPLUS_SB(sb).inode_cnt);
-	hfsplus_inode_check(sb);
-	}
 out:
 	d_add(dentry, inode);
 	return NULL;
@@ -276,13 +271,13 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	if (atomic_read(&file->f_count) != 0)
 		return 0;
 	if (atomic_dec_and_test(&HFSPLUS_I(inode).opencnt)) {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		hfsplus_file_truncate(inode);
 		if (inode->i_flags & S_DEAD) {
 			hfsplus_delete_cat(inode->i_ino, HFSPLUS_SB(sb).hidden_dir, NULL);
 			hfsplus_delete_inode(inode);
 		}
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	return 0;
 }
@@ -317,11 +312,6 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	if (!inode)
 		return NULL;
 
-	{
-	void hfsplus_inode_check(struct super_block *sb);
-	atomic_inc(&HFSPLUS_SB(sb).inode_cnt);
-	hfsplus_inode_check(sb);
-	}
 	inode->i_ino = HFSPLUS_SB(sb).next_cnid++;
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;

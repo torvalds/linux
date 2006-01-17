@@ -13,7 +13,7 @@
     Holger Waechtler	Convergence
 
     Copyright (C) 2002-2003 Ralph Metzler <rjkm@metzlerbros.de>
-		            Metzler Brothers Systementwicklung GbR
+			    Metzler Brothers Systementwicklung GbR
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

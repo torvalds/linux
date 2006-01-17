@@ -31,7 +31,7 @@ MODULE_DESCRIPTION("iptables 1:1 NAT mapping of IP networks target");
 
 static int
 check(const char *tablename,
-      const struct ipt_entry *e,
+      const void *e,
       void *targinfo,
       unsigned int targinfosize,
       unsigned int hook_mask)

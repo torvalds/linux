@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_OF_DEVICE_H
 #define _ASM_POWERPC_OF_DEVICE_H
+#ifdef __KERNEL__
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
@@ -61,4 +62,5 @@ extern struct of_device *of_platform_device_create(struct device_node *np,
 						   struct device *parent);
 extern void of_release_dev(struct device *dev);
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_OF_DEVICE_H */

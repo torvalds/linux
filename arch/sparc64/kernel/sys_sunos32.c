@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/compat.h>
 #include <linux/mman.h>
 #include <linux/mm.h>

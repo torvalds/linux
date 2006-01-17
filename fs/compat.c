@@ -494,9 +494,21 @@ asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 		ret = sys_fcntl(fd, cmd, (unsigned long)&f);
 		set_fs(old_fs);
 		if (cmd == F_GETLK && ret == 0) {
-			if ((f.l_start >= COMPAT_OFF_T_MAX) ||
-			    ((f.l_start + f.l_len) > COMPAT_OFF_T_MAX))
+			/* GETLK was successfule and we need to return the data...
+			 * but it needs to fit in the compat structure.
+			 * l_start shouldn't be too big, unless the original
+			 * start + end is greater than COMPAT_OFF_T_MAX, in which
+			 * case the app was asking for trouble, so we return
+			 * -EOVERFLOW in that case.
+			 * l_len could be too big, in which case we just truncate it,
+			 * and only allow the app to see that part of the conflicting
+			 * lock that might make sense to it anyway
+			 */
+
+			if (f.l_start > COMPAT_OFF_T_MAX)
 				ret = -EOVERFLOW;
+			if (f.l_len > COMPAT_OFF_T_MAX)
+				f.l_len = COMPAT_OFF_T_MAX;
 			if (ret == 0)
 				ret = put_compat_flock(&f, compat_ptr(arg));
 		}
@@ -515,9 +527,11 @@ asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 				(unsigned long)&f);
 		set_fs(old_fs);
 		if (cmd == F_GETLK64 && ret == 0) {
-			if ((f.l_start >= COMPAT_LOFF_T_MAX) ||
-			    ((f.l_start + f.l_len) > COMPAT_LOFF_T_MAX))
+			/* need to return lock information - see above for commentary */
+			if (f.l_start > COMPAT_LOFF_T_MAX)
 				ret = -EOVERFLOW;
+			if (f.l_len > COMPAT_LOFF_T_MAX)
+				f.l_len = COMPAT_LOFF_T_MAX;
 			if (ret == 0)
 				ret = put_compat_flock64(&f, compat_ptr(arg));
 		}
@@ -1170,7 +1184,7 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	}
 
 	ret = rw_verify_area(type, file, pos, tot_len);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	fnv = NULL;
@@ -1523,7 +1537,7 @@ out_ret:
  * Ooo, nasty.  We need here to frob 32-bit unsigned longs to
  * 64-bit unsigned longs.
  */
-static inline
+static
 int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {
@@ -1556,7 +1570,7 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 	return 0;
 }
 
-static inline
+static
 void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {

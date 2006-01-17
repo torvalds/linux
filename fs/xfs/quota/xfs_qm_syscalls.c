@@ -15,6 +15,9 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+#include <linux/capability.h>
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_bit.h"
@@ -233,7 +236,7 @@ xfs_qm_scall_quotaoff(
 	 */
 	ASSERT(mp->m_quotainfo);
 	if (mp->m_quotainfo)
-		mutex_lock(&(XFS_QI_QOFFLOCK(mp)), PINOD);
+		mutex_lock(&(XFS_QI_QOFFLOCK(mp)));
 
 	ASSERT(mp->m_quotainfo);
 
@@ -508,7 +511,7 @@ xfs_qm_scall_quotaon(
 	/*
 	 * Switch on quota enforcement in core.
 	 */
-	mutex_lock(&(XFS_QI_QOFFLOCK(mp)), PINOD);
+	mutex_lock(&(XFS_QI_QOFFLOCK(mp)));
 	mp->m_qflags |= (flags & XFS_ALL_QUOTA_ENFD);
 	mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
 
@@ -617,7 +620,7 @@ xfs_qm_scall_setqlim(
 	 * a quotaoff from happening). (XXXThis doesn't currently happen
 	 * because we take the vfslock before calling xfs_qm_sysent).
 	 */
-	mutex_lock(&(XFS_QI_QOFFLOCK(mp)), PINOD);
+	mutex_lock(&(XFS_QI_QOFFLOCK(mp)));
 
 	/*
 	 * Get the dquot (locked), and join it to the transaction.
@@ -1426,7 +1429,7 @@ xfs_qm_internalqcheck(
 	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
 	XFS_bflush(mp->m_ddev_targp);
 
-	mutex_lock(&qcheck_lock, PINOD);
+	mutex_lock(&qcheck_lock);
 	/* There should be absolutely no quota activity while this
 	   is going on. */
 	qmtest_udqtab = kmem_zalloc(qmtest_hashmask *

@@ -105,9 +105,9 @@ static int x1205_command(struct i2c_client *client, unsigned int cmd,
 	void *arg);
 
 static struct i2c_driver x1205_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "x1205",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "x1205",
+	},
 	.attach_adapter = &x1205_attach,
 	.detach_client	= &x1205_detach,
 };

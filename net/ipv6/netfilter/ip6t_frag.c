@@ -52,7 +52,7 @@ match(const struct sk_buff *skb,
        const struct ip6t_frag *fraginfo = matchinfo;
        unsigned int ptr;
 
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_FRAGMENT) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_FRAGMENT, NULL) < 0)
 		return 0;
 
 	fh = skb_header_pointer(skb, ptr, sizeof(_frag), &_frag);
@@ -115,7 +115,7 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-          const struct ip6t_ip6 *ip,
+          const void *ip,
           void *matchinfo,
           unsigned int matchinfosize,
           unsigned int hook_mask)

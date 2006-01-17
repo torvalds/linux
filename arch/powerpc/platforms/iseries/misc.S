@@ -44,7 +44,8 @@ _GLOBAL(local_irq_restore)
 	/* Check pending interrupts */
 	/*   A decrementer, IPI or PMC interrupt may have occurred
 	 *   while we were in the hypervisor (which enables) */
-	ld	r4,PACALPPACA+LPPACAANYINT(r13)
+	ld	r4,PACALPPACAPTR(r13)
+	ld	r4,LPPACAANYINT(r4)
 	cmpdi	r4,0
 	beqlr
 

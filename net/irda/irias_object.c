@@ -82,8 +82,7 @@ struct ias_object *irias_new_object( char *name, int id)
 
 	IRDA_DEBUG( 4, "%s()\n", __FUNCTION__);
 
-	obj = (struct ias_object *) kmalloc(sizeof(struct ias_object),
-					    GFP_ATOMIC);
+	obj = kmalloc(sizeof(struct ias_object), GFP_ATOMIC);
 	if (obj == NULL) {
 		IRDA_WARNING("%s(), Unable to allocate object!\n",
 			     __FUNCTION__);
@@ -348,8 +347,7 @@ void irias_add_integer_attrib(struct ias_object *obj, char *name, int value,
 	IRDA_ASSERT(obj->magic == IAS_OBJECT_MAGIC, return;);
 	IRDA_ASSERT(name != NULL, return;);
 
-	attrib = (struct ias_attrib *) kmalloc(sizeof(struct ias_attrib),
-					       GFP_ATOMIC);
+	attrib = kmalloc(sizeof(struct ias_attrib), GFP_ATOMIC);
 	if (attrib == NULL) {
 		IRDA_WARNING("%s: Unable to allocate attribute!\n",
 			     __FUNCTION__);
@@ -385,8 +383,7 @@ void irias_add_octseq_attrib(struct ias_object *obj, char *name, __u8 *octets,
 	IRDA_ASSERT(name != NULL, return;);
 	IRDA_ASSERT(octets != NULL, return;);
 
-	attrib = (struct ias_attrib *) kmalloc(sizeof(struct ias_attrib),
-					       GFP_ATOMIC);
+	attrib = kmalloc(sizeof(struct ias_attrib), GFP_ATOMIC);
 	if (attrib == NULL) {
 		IRDA_WARNING("%s: Unable to allocate attribute!\n",
 			     __FUNCTION__);
@@ -420,8 +417,7 @@ void irias_add_string_attrib(struct ias_object *obj, char *name, char *value,
 	IRDA_ASSERT(name != NULL, return;);
 	IRDA_ASSERT(value != NULL, return;);
 
-	attrib = (struct ias_attrib *) kmalloc(sizeof( struct ias_attrib),
-					       GFP_ATOMIC);
+	attrib = kmalloc(sizeof( struct ias_attrib), GFP_ATOMIC);
 	if (attrib == NULL) {
 		IRDA_WARNING("%s: Unable to allocate attribute!\n",
 			     __FUNCTION__);

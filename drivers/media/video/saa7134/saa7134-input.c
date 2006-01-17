@@ -56,22 +56,22 @@ static IR_KEYTAB_TYPE flyvideo_codes[IR_KEYTAB_SIZE] = {
 	[   12 ] = KEY_KP8,
 	[   13 ] = KEY_KP9,
 
-	[   14 ] = KEY_TUNER,        // Air/Cable
+	[   14 ] = KEY_MODE,         // Air/Cable
 	[   17 ] = KEY_VIDEO,        // Video
 	[   21 ] = KEY_AUDIO,        // Audio
-	[    0 ] = KEY_POWER,        // Pover
+	[    0 ] = KEY_POWER,        // Power
+	[   24 ] = KEY_TUNER,        // AV Source
 	[    2 ] = KEY_ZOOM,         // Fullscreen
+	[   26 ] = KEY_LANGUAGE,     // Stereo
 	[   27 ] = KEY_MUTE,         // Mute
-	[   20 ] = KEY_VOLUMEUP,
-	[   23 ] = KEY_VOLUMEDOWN,
+	[   20 ] = KEY_VOLUMEUP,     // Volume +
+	[   23 ] = KEY_VOLUMEDOWN,   // Volume -
 	[   18 ] = KEY_CHANNELUP,    // Channel +
 	[   19 ] = KEY_CHANNELDOWN,  // Channel -
-	[    6 ] = KEY_AGAIN,        // Recal
-	[   16 ] = KEY_KPENTER,      // Enter
-
-	[   26 ] = KEY_F22,          // Stereo
-	[   24 ] = KEY_EDIT,         // AV Source
+	[    6 ] = KEY_AGAIN,        // Recall
+	[   16 ] = KEY_ENTER,      // Enter
 };
+
 
 static IR_KEYTAB_TYPE cinergy_codes[IR_KEYTAB_SIZE] = {
 	[    0 ] = KEY_KP0,
@@ -543,12 +543,22 @@ static int build_key(struct saa7134_dev *dev)
 	dprintk("build_key gpio=0x%x mask=0x%x data=%d\n",
 		gpio, ir->mask_keycode, data);
 
-	if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
-	    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-		ir_input_keydown(ir->dev, &ir->ir, data, data);
-	} else {
-		ir_input_nokey(ir->dev, &ir->ir);
+	if (ir->polling) {
+		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
+		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
+			ir_input_keydown(ir->dev, &ir->ir, data, data);
+		} else {
+			ir_input_nokey(ir->dev, &ir->ir);
+		}
 	}
+	else {	/* IRQ driven mode - handle key press and release in one go */
+		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
+		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
+			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_nokey(ir->dev, &ir->ir);
+		}
+	}
+
 	return 0;
 }
 
@@ -686,6 +696,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling	     = 50; // ms
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
+	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
 	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 		ir_codes     = videomate_tv_pvr_codes;
 		mask_keycode = 0x00003F;

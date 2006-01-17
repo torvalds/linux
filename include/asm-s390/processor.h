@@ -191,10 +191,10 @@ extern void show_registers(struct pt_regs *regs);
 extern void show_trace(struct task_struct *task, unsigned long *sp);
 
 unsigned long get_wchan(struct task_struct *p);
-#define __KSTK_PTREGS(tsk) ((struct pt_regs *) \
-        ((unsigned long) tsk->thread_info + THREAD_SIZE - sizeof(struct pt_regs)))
-#define KSTK_EIP(tsk)	(__KSTK_PTREGS(tsk)->psw.addr)
-#define KSTK_ESP(tsk)	(__KSTK_PTREGS(tsk)->gprs[15])
+#define task_pt_regs(tsk) ((struct pt_regs *) \
+        (task_stack_page(tsk) + THREAD_SIZE) - 1)
+#define KSTK_EIP(tsk)	(task_pt_regs(tsk)->psw.addr)
+#define KSTK_ESP(tsk)	(task_pt_regs(tsk)->gprs[15])
 
 /*
  * Give up the time slice of the virtual PU.

@@ -76,7 +76,7 @@ extern void __this_fixmap_does_not_exist(void);
  * directly without translation, we catch the bug with a NULL-deference
  * kernel oops. Illegal ranges of incoming indices are caught too.
  */
-static inline unsigned long fix_to_virt(const unsigned int idx)
+static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 {
 	/*
 	 * this branch gets completely eliminated after inlining,

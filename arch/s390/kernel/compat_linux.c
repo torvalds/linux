@@ -55,6 +55,7 @@
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 #include <linux/binfmts.h>
+#include <linux/capability.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/ptrace.h>
@@ -279,7 +280,7 @@ asmlinkage long sys32_getegid16(void)
 
 static inline long get_tv32(struct timeval *o, struct compat_timeval *i)
 {
-	return (!access_ok(VERIFY_READ, tv32, sizeof(*tv32)) ||
+	return (!access_ok(VERIFY_READ, o, sizeof(*o)) ||
 		(__get_user(o->tv_sec, &i->tv_sec) ||
 		 __get_user(o->tv_usec, &i->tv_usec)));
 }
@@ -1011,38 +1012,6 @@ asmlinkage long sys32_clone(struct pt_regs regs)
                 newsp = regs.gprs[15];
         return do_fork(clone_flags, newsp, &regs, 0,
 		       parent_tidptr, child_tidptr);
-}
-
-/*
- * Wrapper function for sys_timer_create.
- */
-extern asmlinkage long
-sys_timer_create(clockid_t, struct sigevent *, timer_t *);
-
-asmlinkage long
-sys32_timer_create(clockid_t which_clock, struct compat_sigevent *se32,
-		timer_t *timer_id)
-{
-	struct sigevent se;
-	timer_t ktimer_id;
-	mm_segment_t old_fs;
-	long ret;
-
-	if (se32 == NULL)
-		return sys_timer_create(which_clock, NULL, timer_id);
-
-	if (get_compat_sigevent(&se, se32))
-		return -EFAULT;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sys_timer_create(which_clock, &se, &ktimer_id);
-	set_fs(old_fs);
-
-	if (!ret)
-		ret = put_user (ktimer_id, timer_id);
-
-	return ret;
 }
 
 /*

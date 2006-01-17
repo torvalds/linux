@@ -143,9 +143,6 @@ struct hfsplus_sb_info {
 
 	unsigned long flags;
 
-	atomic_t inode_cnt;
-	u32 last_inode_cnt;
-
 	struct hlist_head rsrc_inodes;
 };
 

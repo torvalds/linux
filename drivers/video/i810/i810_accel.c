@@ -14,6 +14,7 @@
 
 #include "i810_regs.h"
 #include "i810.h"
+#include "i810_main.h"
 
 static u32 i810fb_rop[] = {
 	COLOR_COPY_ROP, /* ROP_COPY */
@@ -57,7 +58,7 @@ static inline void i810_report_error(u8 __iomem *mmio)
  */	
 static inline int wait_for_space(struct fb_info *info, u32 space)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 head, count = WAIT_COUNT, tail;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 
@@ -88,7 +89,7 @@ static inline int wait_for_space(struct fb_info *info, u32 space)
  */
 static inline int wait_for_engine_idle(struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 	int count = WAIT_COUNT;
 
@@ -116,7 +117,7 @@ static inline int wait_for_engine_idle(struct fb_info *info)
  */ 
 static inline u32 begin_iring(struct fb_info *info, u32 space)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	if (par->dev_flags & ALWAYS_SYNC) 
 		wait_for_engine_idle(info);
@@ -161,7 +162,7 @@ static inline void source_copy_blit(int dwidth, int dheight, int dpitch,
 				    int xdir, int src, int dest, int rop, 
 				    int blit_bpp, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	if (begin_iring(info, 24 + IRING_PAD)) return;
 
@@ -195,7 +196,7 @@ static inline void color_blit(int width, int height, int pitch,  int dest,
 			      int rop, int what, int blit_bpp, 
 			      struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	if (begin_iring(info, 24 + IRING_PAD)) return;
 
@@ -236,7 +237,7 @@ static inline void mono_src_copy_imm_blit(int dwidth, int dheight, int dpitch,
 					  int dest, const u32 *src, int bg,
 					  int fg, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	if (begin_iring(info, 24 + (dsize << 2) + IRING_PAD)) return;
 
@@ -254,7 +255,7 @@ static inline void mono_src_copy_imm_blit(int dwidth, int dheight, int dpitch,
 
 static inline void load_front(int offset, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	if (begin_iring(info, 8 + IRING_PAD)) return;
 
@@ -296,7 +297,7 @@ static inline void i810fb_iring_enable(struct i810fb_par *par, u32 mode)
 
 void i810fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 dx, dy, width, height, dest, rop = 0, color = 0;
 
 	if (!info->var.accel_flags || par->dev_flags & LOCKUP ||
@@ -322,7 +323,7 @@ void i810fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	
 void i810fb_copyarea(struct fb_info *info, const struct fb_copyarea *region) 
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 sx, sy, dx, dy, pitch, width, height, src, dest, xdir;
 
 	if (!info->var.accel_flags || par->dev_flags & LOCKUP ||
@@ -361,7 +362,7 @@ void i810fb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 
 void i810fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 fg = 0, bg = 0, size, dst;
 	
 	if (!info->var.accel_flags || par->dev_flags & LOCKUP ||
@@ -397,7 +398,7 @@ void i810fb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 int i810fb_sync(struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	
 	if (!info->var.accel_flags || par->dev_flags & LOCKUP)
 		return 0;
@@ -407,7 +408,7 @@ int i810fb_sync(struct fb_info *info)
 
 void i810fb_load_front(u32 offset, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 
 	if (!info->var.accel_flags || par->dev_flags & LOCKUP)
@@ -427,7 +428,7 @@ void i810fb_load_front(u32 offset, struct fb_info *info)
  */
 void i810fb_init_ringbuffer(struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 tmp1, tmp2;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 	

@@ -83,7 +83,8 @@ static struct ipt_table packet_raw = {
 	.name = "raw", 
 	.valid_hooks =  RAW_VALID_HOOKS, 
 	.lock = RW_LOCK_UNLOCKED, 
-	.me = THIS_MODULE
+	.me = THIS_MODULE,
+	.af = AF_INET,
 };
 
 /* The work comes in here from netfilter.c. */

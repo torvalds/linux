@@ -542,7 +542,7 @@ static struct pci_driver bt878_pci_driver = {
       .remove	= bt878_remove,
 };
 
-static int bt878_pci_driver_registered = 0;
+static int bt878_pci_driver_registered;
 
 /*******************************/
 /* Module management functions */

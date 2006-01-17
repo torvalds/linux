@@ -187,7 +187,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm, struct pt_regs *regs
 				goto error;
 
 			/* read the name of the interpreter into memory */
-			interpreter_name = (char *) kmalloc(phdr->p_filesz, GFP_KERNEL);
+			interpreter_name = kmalloc(phdr->p_filesz, GFP_KERNEL);
 			if (!interpreter_name)
 				goto error;
 

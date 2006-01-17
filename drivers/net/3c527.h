@@ -32,43 +32,43 @@
 
 struct mc32_mailbox
 {
-	u16	mbox __attribute((packed));
-	u16	data[1] __attribute((packed));
-};
+ 	u16 mbox;
+ 	u16 data[1];
+} __attribute((packed));
 
 struct skb_header
 {
-	u8	status __attribute((packed));
-	u8	control __attribute((packed));
-	u16	next __attribute((packed));	/* Do not change! */
-	u16	length __attribute((packed));
-	u32	data __attribute((packed));
-};
+	u8 status;
+	u8 control;
+	u16 next;	/* Do not change! */
+	u16 length;
+	u32 data;
+} __attribute((packed));
 
 struct mc32_stats
 {
 	/* RX Errors */
-	u32     rx_crc_errors       __attribute((packed)); 	
-	u32     rx_alignment_errors  __attribute((packed)); 	
-	u32     rx_overrun_errors    __attribute((packed));
-	u32     rx_tooshort_errors  __attribute((packed));
-	u32     rx_toolong_errors   __attribute((packed));
-	u32     rx_outofresource_errors  __attribute((packed)); 
+	u32 rx_crc_errors;
+	u32 rx_alignment_errors;
+	u32 rx_overrun_errors;
+	u32 rx_tooshort_errors;
+	u32 rx_toolong_errors;
+	u32 rx_outofresource_errors;
 
-	u32     rx_discarded   __attribute((packed));  /* via card pattern match filter */ 
+	u32 rx_discarded;  /* via card pattern match filter */
 
 	/* TX Errors */
-	u32     tx_max_collisions __attribute((packed)); 
-	u32     tx_carrier_errors __attribute((packed)); 
-	u32     tx_underrun_errors __attribute((packed)); 
-	u32     tx_cts_errors     __attribute((packed)); 
-	u32     tx_timeout_errors __attribute((packed)) ;
+	u32 tx_max_collisions;
+	u32 tx_carrier_errors;
+	u32 tx_underrun_errors;
+	u32 tx_cts_errors;
+	u32 tx_timeout_errors;
 	
 	/* various cruft */
-	u32     dataA[6] __attribute((packed));   
-        u16	dataB[5] __attribute((packed));   
-  	u32     dataC[14] __attribute((packed)); 	
-};
+	u32 dataA[6];
+	u16 dataB[5];
+	u32 dataC[14];
+} __attribute((packed));
 
 #define STATUS_MASK	0x0F
 #define COMPLETED	(1<<7)

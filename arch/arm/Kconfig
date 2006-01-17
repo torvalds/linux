@@ -46,10 +46,6 @@ config MCA
 	  <file:Documentation/mca.txt> (and especially the web page given
 	  there) before attempting to build an MCA bus kernel.
 
-config UID16
-	bool
-	default y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
@@ -103,13 +99,6 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
-config ARCH_CAMELOT
-	bool "Epxa10db"
-	help
-	  This enables support for Altera's Excalibur XA10 development board.
-	  If you would like to build your kernel to run on one of these boards
-	  then you must say 'Y' here. Otherwise say 'N'
-
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select FOOTBRIDGE
@@ -154,6 +143,7 @@ config ARCH_RPC
 	select FIQ
 	select TIMER_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
+	select ISA_DMA_API
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -190,6 +180,7 @@ config ARCH_OMAP
 config ARCH_VERSATILE
 	bool "Versatile"
 	select ARM_AMBA
+	select ARM_VIC
 	select ICST307
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -206,6 +197,7 @@ config ARCH_IMX
 
 config ARCH_H720X
 	bool "Hynix-HMS720x-based"
+	select ISA_DMA_API
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
@@ -215,11 +207,15 @@ config ARCH_AAEC2000
 	help
 	  This enables support for systems based on the Agilent AAEC-2000
 
+config ARCH_AT91RM9200
+	bool "AT91RM9200"
+	help
+	  Say Y here if you intend to run this kernel on an AT91RM9200-based
+	  board.
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
-
-source "arch/arm/mach-epxa10db/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
@@ -254,6 +250,8 @@ source "arch/arm/mach-versatile/Kconfig"
 source "arch/arm/mach-aaec2000/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
+
+source "arch/arm/mach-at91rm9200/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -290,12 +288,14 @@ config ISA
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
+# Select ISA DMA controller support
 config ISA_DMA
 	bool
+	select ISA_DMA_API
 
+# Select ISA DMA interface
 config ISA_DMA_API
 	bool
-	default y
 
 config PCI
 	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB
@@ -401,6 +401,38 @@ config NO_IDLE_HZ
 	  Currently at least OMAP, PXA2xx and SA11x0 platforms are known
 	  to have accurate timekeeping with dynamic tick.
 
+config AEABI
+	bool "Use the ARM EABI to compile the kernel"
+	help
+	  This option allows for the kernel to be compiled using the latest
+	  ARM ABI (aka EABI).  This is only useful if you are using a user
+	  space environment that is also compiled with EABI.
+
+	  Since there are major incompatibilities between the legacy ABI and
+	  EABI, especially with regard to structure member alignment, this
+	  option also changes the kernel syscall calling convention to
+	  disambiguate both ABIs and allow for backward compatibility support
+	  (selected with CONFIG_OABI_COMPAT).
+
+	  To use this you need GCC version 4.0.0 or later.
+
+config OABI_COMPAT
+	bool "Allow old ABI binaries to run with this kernel"
+	depends on AEABI
+	default y
+	help
+	  This option preserves the old syscall interface along with the
+	  new (ARM EABI) one. It also provides a compatibility layer to
+	  intercept syscalls that have structure arguments which layout
+	  in memory differs between the legacy ABI and the new ARM EABI
+	  (only for non "thumb" binaries). This option adds a tiny
+	  overhead to all syscalls and produces a slightly larger kernel.
+	  If you know you'll be using only pure EABI user space then you
+	  can say N here. If this option is not selected and you attempt
+	  to execute a legacy ABI binary then the result will be
+	  UNPREDICTABLE (in fact it can be predicted that it won't work
+	  at all). If in doubt say Y.
+
 config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
@@ -418,7 +450,8 @@ config LEDS
 		   ARCH_EBSA285 || ARCH_IMX || ARCH_INTEGRATOR || \
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
-		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE
+		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
+		   ARCH_AT91RM9200
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
@@ -586,6 +619,7 @@ comment "At least one emulation must be selected"
 
 config FPE_NWFPE
 	bool "NWFPE math emulation"
+	depends on !AEABI || OABI_COMPAT
 	---help---
 	  Say Y to include the NWFPE floating point emulator in the kernel.
 	  This is necessary to run most binaries. Linux does not currently
@@ -609,7 +643,7 @@ config FPE_NWFPE_XP
 
 config FPE_FASTFPE
 	bool "FastFPE math emulation (EXPERIMENTAL)"
-	depends on !CPU_32v3 && EXPERIMENTAL
+	depends on (!AEABI || OABI_COMPAT) && !CPU_32v3 && EXPERIMENTAL
 	---help---
 	  Say Y here to include the FAST floating point emulator in the kernel.
 	  This is an experimental much faster emulator which now also has full
@@ -641,6 +675,7 @@ source "fs/Kconfig.binfmt"
 
 config ARTHUR
 	tristate "RISC OS personality"
+	depends on !AEABI
 	help
 	  Say Y here to include the kernel code necessary if you want to run
 	  Acorn RISC OS/Arthur binaries under Linux. This code is still very
@@ -656,7 +691,6 @@ source "kernel/power/Kconfig"
 
 config APM
 	tristate "Advanced Power Management Emulation"
-	depends on PM_LEGACY
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -729,6 +763,8 @@ source "drivers/input/Kconfig"
 source "drivers/char/Kconfig"
 
 source "drivers/i2c/Kconfig"
+
+source "drivers/spi/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 

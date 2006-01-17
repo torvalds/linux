@@ -172,9 +172,20 @@ extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
 extern int try_to_free_pages(struct zone **, gfp_t);
-extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
+
+#ifdef CONFIG_MIGRATION
+extern int isolate_lru_page(struct page *p);
+extern int putback_lru_pages(struct list_head *l);
+extern int migrate_pages(struct list_head *l, struct list_head *t,
+		struct list_head *moved, struct list_head *failed);
+#else
+static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
+static inline int putback_lru_pages(struct list_head *l) { return 0; }
+static inline int migrate_pages(struct list_head *l, struct list_head *t,
+	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
+#endif
 
 #ifdef CONFIG_MMU
 /* linux/mm/shmem.c */
@@ -193,7 +204,7 @@ extern int rw_swap_page_sync(int, swp_entry_t, struct page *);
 extern struct address_space swapper_space;
 #define total_swapcache_pages  swapper_space.nrpages
 extern void show_swap_cache_info(void);
-extern int add_to_swap(struct page *);
+extern int add_to_swap(struct page *, gfp_t);
 extern void __delete_from_swap_cache(struct page *);
 extern void delete_from_swap_cache(struct page *);
 extern int move_to_swap_cache(struct page *, swp_entry_t);
@@ -210,6 +221,7 @@ extern unsigned int nr_swapfiles;
 extern struct swap_info_struct swap_info[];
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(void);
+extern swp_entry_t get_swap_page_of_type(int type);
 extern int swap_duplicate(swp_entry_t);
 extern int valid_swaphandles(swp_entry_t, unsigned long *);
 extern void swap_free(swp_entry_t);

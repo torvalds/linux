@@ -30,7 +30,12 @@ struct mmc_csd {
 	unsigned int		tacc_ns;
 	unsigned int		max_dtr;
 	unsigned int		read_blkbits;
+	unsigned int		write_blkbits;
 	unsigned int		capacity;
+	unsigned int		read_partial:1,
+				read_misalign:1,
+				write_partial:1,
+				write_misalign:1;
 };
 
 struct sd_scr {

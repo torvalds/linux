@@ -212,7 +212,7 @@ int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags)
 }
 
 /* Process one complete nfnetlink message. */
-static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
+static int nfnetlink_rcv_msg(struct sk_buff *skb,
 				    struct nlmsghdr *nlh, int *errp)
 {
 	struct nfnl_callback *nc;

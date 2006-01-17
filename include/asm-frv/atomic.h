@@ -218,51 +218,12 @@ extern unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsig
 	__typeof__(*(ptr)) __xg_orig;						\
 										\
 	switch (sizeof(__xg_orig)) {						\
-	case 1:									\
-		asm volatile(							\
-			"0:						\n"	\
-			"	orcc		gr0,gr0,gr0,icc3	\n"	\
-			"	ckeq		icc3,cc7		\n"	\
-			"	ldub.p		%M0,%1			\n"	\
-			"	orcr		cc7,cc7,cc3		\n"	\
-			"	cstb.p		%2,%M0		,cc3,#1	\n"	\
-			"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	\
-			"	beq		icc3,#0,0b		\n"	\
-			: "+U"(*__xg_ptr), "=&r"(__xg_orig)			\
-			: "r"(x)						\
-			: "memory", "cc7", "cc3", "icc3"			\
-			);							\
-		break;								\
-										\
-	case 2:									\
-		asm volatile(							\
-			"0:						\n"	\
-			"	orcc		gr0,gr0,gr0,icc3	\n"	\
-			"	ckeq		icc3,cc7		\n"	\
-			"	lduh.p		%M0,%1			\n"	\
-			"	orcr		cc7,cc7,cc3		\n"	\
-			"	csth.p		%2,%M0		,cc3,#1	\n"	\
-			"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	\
-			"	beq		icc3,#0,0b		\n"	\
-			: "+U"(*__xg_ptr), "=&r"(__xg_orig)			\
-			: "r"(x)						\
-			: "memory", "cc7", "cc3", "icc3"			\
-			);							\
-		break;								\
-										\
 	case 4:									\
 		asm volatile(							\
-			"0:						\n"	\
-			"	orcc		gr0,gr0,gr0,icc3	\n"	\
-			"	ckeq		icc3,cc7		\n"	\
-			"	ld.p		%M0,%1			\n"	\
-			"	orcr		cc7,cc7,cc3		\n"	\
-			"	cst.p		%2,%M0		,cc3,#1	\n"	\
-			"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	\
-			"	beq		icc3,#0,0b		\n"	\
-			: "+U"(*__xg_ptr), "=&r"(__xg_orig)			\
+			"swap%I0 %2,%M0"					\
+			: "+m"(*__xg_ptr), "=&r"(__xg_orig)			\
 			: "r"(x)						\
-			: "memory", "cc7", "cc3", "icc3"			\
+			: "memory"						\
 			);							\
 		break;								\
 										\
@@ -277,8 +238,6 @@ extern unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsig
 
 #else
 
-extern uint8_t  __xchg_8 (uint8_t i,  volatile void *v);
-extern uint16_t __xchg_16(uint16_t i, volatile void *v);
 extern uint32_t __xchg_32(uint32_t i, volatile void *v);
 
 #define xchg(ptr, x)										\
@@ -287,8 +246,6 @@ extern uint32_t __xchg_32(uint32_t i, volatile void *v);
 	__typeof__(*(ptr)) __xg_orig;								\
 												\
 	switch (sizeof(__xg_orig)) {								\
-	case 1: __xg_orig = (__typeof__(*(ptr))) __xchg_8 ((uint8_t)  x, __xg_ptr);	break;	\
-	case 2: __xg_orig = (__typeof__(*(ptr))) __xchg_16((uint16_t) x, __xg_ptr);	break;	\
 	case 4: __xg_orig = (__typeof__(*(ptr))) __xchg_32((uint32_t) x, __xg_ptr);	break;	\
 	default:										\
 		__xg_orig = 0;									\
@@ -318,46 +275,6 @@ extern uint32_t __xchg_32(uint32_t i, volatile void *v);
 	__typeof__(*(ptr)) __xg_new = (new);					\
 										\
 	switch (sizeof(__xg_orig)) {						\
-	case 1:									\
-		asm volatile(							\
-			"0:						\n"	\
-			"	orcc		gr0,gr0,gr0,icc3	\n"	\
-			"	ckeq		icc3,cc7		\n"	\
-			"	ldub.p		%M0,%1			\n"	\
-			"	orcr		cc7,cc7,cc3		\n"	\
-			"	sub%I4		%1,%4,%2		\n"	\
-			"	sllcc		%2,#24,gr0,icc0		\n"	\
-			"	bne		icc0,#0,1f		\n"	\
-			"	cstb.p		%3,%M0		,cc3,#1	\n"	\
-			"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	\
-			"	beq		icc3,#0,0b		\n"	\
-			"1:						\n"	\
-			: "+U"(*__xg_ptr), "=&r"(__xg_orig), "=&r"(__xg_tmp)	\
-			: "r"(__xg_new), "NPr"(__xg_test)			\
-			: "memory", "cc7", "cc3", "icc3", "icc0"		\
-			);							\
-		break;								\
-										\
-	case 2:									\
-		asm volatile(							\
-			"0:						\n"	\
-			"	orcc		gr0,gr0,gr0,icc3	\n"	\
-			"	ckeq		icc3,cc7		\n"	\
-			"	lduh.p		%M0,%1			\n"	\
-			"	orcr		cc7,cc7,cc3		\n"	\
-			"	sub%I4		%1,%4,%2		\n"	\
-			"	sllcc		%2,#16,gr0,icc0		\n"	\
-			"	bne		icc0,#0,1f		\n"	\
-			"	csth.p		%3,%M0		,cc3,#1	\n"	\
-			"	corcc		gr29,gr29,gr0	,cc3,#1	\n"	\
-			"	beq		icc3,#0,0b		\n"	\
-			"1:						\n"	\
-			: "+U"(*__xg_ptr), "=&r"(__xg_orig), "=&r"(__xg_tmp)	\
-			: "r"(__xg_new), "NPr"(__xg_test)			\
-			: "memory", "cc7", "cc3", "icc3", "icc0"		\
-			);							\
-		break;								\
-										\
 	case 4:									\
 		asm volatile(							\
 			"0:						\n"	\
@@ -388,8 +305,6 @@ extern uint32_t __xchg_32(uint32_t i, volatile void *v);
 
 #else
 
-extern uint8_t  __cmpxchg_8 (uint8_t *v,  uint8_t test,  uint8_t new);
-extern uint16_t __cmpxchg_16(uint16_t *v, uint16_t test, uint16_t new);
 extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 
 #define cmpxchg(ptr, test, new)							\
@@ -400,8 +315,6 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 	__typeof__(*(ptr)) __xg_new = (new);					\
 										\
 	switch (sizeof(__xg_orig)) {						\
-	case 1: __xg_orig = __cmpxchg_8 (__xg_ptr, __xg_test, __xg_new); break;	\
-	case 2: __xg_orig = __cmpxchg_16(__xg_ptr, __xg_test, __xg_new); break;	\
 	case 4: __xg_orig = __cmpxchg_32(__xg_ptr, __xg_test, __xg_new); break;	\
 	default:								\
 		__xg_orig = 0;							\
@@ -414,7 +327,8 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 
 #endif
 
-#define atomic_cmpxchg(v, old, new) ((int)cmpxchg(&((v)->counter), old, new))
+#define atomic_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), old, new))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 #define atomic_add_unless(v, a, u)				\
 ({								\
@@ -424,6 +338,8 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 		c = old;					\
 	c != (u);						\
 })
+
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
+#include <asm-generic/atomic.h>
 #endif /* _ASM_ATOMIC_H */

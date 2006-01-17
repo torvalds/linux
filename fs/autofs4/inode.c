@@ -91,7 +91,7 @@ repeat:
 	next = this_parent->d_subdirs.next;
 resume:
 	while (next != &this_parent->d_subdirs) {
-		struct dentry *dentry = list_entry(next, struct dentry, d_child);
+		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		/* Negative dentry - don`t care */
 		if (!simple_positive(dentry)) {
@@ -117,7 +117,7 @@ resume:
 	if (this_parent != sbi->root) {
 		struct dentry *dentry = this_parent;
 
-		next = this_parent->d_child.next;
+		next = this_parent->d_u.d_child.next;
 		this_parent = this_parent->d_parent;
 		spin_unlock(&dcache_lock);
 		DPRINTK("parent dentry %p %.*s",

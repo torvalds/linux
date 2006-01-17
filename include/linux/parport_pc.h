@@ -79,13 +79,13 @@ static __inline__ unsigned char parport_pc_read_data(struct parport *p)
 }
 
 #ifdef DEBUG_PARPORT
-extern __inline__ void dump_parport_state (char *str, struct parport *p)
+static inline void dump_parport_state (char *str, struct parport *p)
 {
 	/* here's hoping that reading these ports won't side-effect anything underneath */
 	unsigned char ecr = inb (ECONTROL (p));
 	unsigned char dcr = inb (CONTROL (p));
 	unsigned char dsr = inb (STATUS (p));
-	static char *ecr_modes[] = {"SPP", "PS2", "PPFIFO", "ECP", "xXx", "yYy", "TST", "CFG"};
+	static const char *const ecr_modes[] = {"SPP", "PS2", "PPFIFO", "ECP", "xXx", "yYy", "TST", "CFG"};
 	const struct parport_pc_private *priv = p->physport->private_data;
 	int i;
 

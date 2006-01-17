@@ -69,52 +69,44 @@
 #define CONTROL_PKT_TTL_MASK (PKT_TTL_MASK << 8)
 #define CONTROL_DATA_WNDW  (DATA_WNDW << 8)
 
-struct PKT    {
+struct PKT {
 #ifdef INKERNEL
-                   BYTE    dest_unit ;    /* Destination Unit Id */
-                   BYTE    dest_port ;    /* Destination POrt */
-                   BYTE    src_unit ;     /* Source Unit Id */
-                   BYTE    src_port ;     /* Source POrt */
+	BYTE dest_unit;		/* Destination Unit Id */
+	BYTE dest_port;		/* Destination POrt */
+	BYTE src_unit;		/* Source Unit Id */
+	BYTE src_port;		/* Source POrt */
 #else
-                   union       
-                   {
-                       ushort destination;         /* Complete destination */
-                       struct
-                       {
-                           unsigned char unit;     /* Destination unit */
-                           unsigned char port;     /* Destination port */
-                       } s1;
-                   } u1;
-                   union       
-                   {
-                       ushort source;              /* Complete source */
-                       struct
-                       {
-                           unsigned char unit;     /* Source unit */
-                           unsigned char port;     /* Source port */
-                       } s2;
-                   } u2;
+	union {
+		ushort destination;	/* Complete destination */
+		struct {
+			unsigned char unit;	/* Destination unit */
+			unsigned char port;	/* Destination port */
+		} s1;
+	} u1;
+	union {
+		ushort source;	/* Complete source */
+		struct {
+			unsigned char unit;	/* Source unit */
+			unsigned char port;	/* Source port */
+		} s2;
+	} u2;
 #endif
 #ifdef INKERNEL
-                   BYTE len ;
-                   BYTE control;
+	BYTE len;
+	BYTE control;
 #else
-                   union
-                   {
-                        ushort      control;
-                        struct
-                        {
-                            unsigned char len;
-                            unsigned char control;
-                        } s3;
-                    } u3;
+	union {
+		ushort control;
+		struct {
+			unsigned char len;
+			unsigned char control;
+		} s3;
+	} u3;
 #endif
-                   BYTE    data[PKT_MAX_DATA_LEN] ;     
-                                                   /* Actual data :-) */
-                   WORD  csum ;                  /* C-SUM */
-               } ;
+	BYTE data[PKT_MAX_DATA_LEN];
+	/* Actual data :-) */
+	WORD csum;		/* C-SUM */
+};
 #endif
 
 /*********** end of file ***********/
-
-

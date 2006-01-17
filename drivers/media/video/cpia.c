@@ -3807,6 +3807,7 @@ static struct file_operations cpia_fops = {
 	.read		= cpia_read,
 	.mmap		= cpia_mmap,
 	.ioctl          = cpia_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 

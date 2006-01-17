@@ -22,11 +22,10 @@ accelerated color blitting	Who needs it? The console driver does use color
 				everything else is done using color expanding
 				blitting of 1bpp character bitmaps.
 
-xpanning			Who needs it?
-
 ioctls				Who needs it?
 
-TV-out				Will be done later
+TV-out				Will be done later. Use "vga= " at boot time
+				to set a suitable video mode.
 
 ???				Feel free to contact me if you have any
 				feature requests

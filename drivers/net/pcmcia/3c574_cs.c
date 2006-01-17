@@ -227,8 +227,6 @@ static char mii_preamble_required = 0;
 
 static void tc574_config(dev_link_t *link);
 static void tc574_release(dev_link_t *link);
-static int tc574_event(event_t event, int priority,
-					   event_callback_args_t *args);
 
 static void mdio_sync(kio_addr_t ioaddr, int bits);
 static int mdio_read(kio_addr_t ioaddr, int phy_id, int location);
@@ -250,12 +248,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static struct ethtool_ops netdev_ethtool_ops;
 static void set_rx_mode(struct net_device *dev);
 
-static dev_info_t dev_info = "3c574_cs";
-
-static dev_link_t *tc574_attach(void);
-static void tc574_detach(dev_link_t *);
-
-static dev_link_t *dev_list;
+static void tc574_detach(struct pcmcia_device *p_dev);
 
 /*
 	tc574_attach() creates an "instance" of the driver, allocating
@@ -263,20 +256,18 @@ static dev_link_t *dev_list;
 	with Card Services.
 */
 
-static dev_link_t *tc574_attach(void)
+static int tc574_attach(struct pcmcia_device *p_dev)
 {
 	struct el3_private *lp;
-	client_reg_t client_reg;
 	dev_link_t *link;
 	struct net_device *dev;
-	int ret;
 
 	DEBUG(0, "3c574_attach()\n");
 
 	/* Create the PC card device object. */
 	dev = alloc_etherdev(sizeof(struct el3_private));
 	if (!dev)
-		return NULL;
+		return -ENOMEM;
 	lp = netdev_priv(dev);
 	link = &lp->link;
 	link->priv = dev;
@@ -307,20 +298,13 @@ static dev_link_t *tc574_attach(void)
 	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		tc574_detach(link);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	tc574_config(link);
+
+	return 0;
 } /* tc574_attach */
 
 /*
@@ -332,18 +316,12 @@ static dev_link_t *tc574_attach(void)
 
 */
 
-static void tc574_detach(dev_link_t *link)
+static void tc574_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
-	dev_link_t **linkp;
 
 	DEBUG(0, "3c574_detach(0x%p)\n", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link) break;
-	if (*linkp == NULL)
-		return;
 
 	if (link->dev)
 		unregister_netdev(dev);
@@ -351,11 +329,6 @@ static void tc574_detach(dev_link_t *link)
 	if (link->state & DEV_CONFIG)
 		tc574_release(link);
 
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 	free_netdev(dev);
 } /* tc574_detach */
 
@@ -547,56 +520,37 @@ static void tc574_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-/*
-	The card status event handler.  Mostly, this schedules other
-	stuff to run after an event is received.  A CARD_REMOVAL event
-	also sets some flags to discourage the net drivers from trying
-	to talk to the card any more.
-*/
-
-static int tc574_event(event_t event, int priority,
-					   event_callback_args_t *args)
+static int tc574_suspend(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	DEBUG(1, "3c574_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG)
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
 			netif_device_detach(dev);
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		tc574_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG) {
-			if (link->open)
-				netif_device_detach(dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-			if (link->open) {
-				tc574_reset(dev);
-				netif_device_attach(dev);
-			}
-		}
-		break;
+		pcmcia_release_configuration(link->handle);
 	}
+
 	return 0;
-} /* tc574_event */
+}
+
+static int tc574_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			tc574_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
 
 static void dump_status(struct net_device *dev)
 {
@@ -1292,10 +1246,11 @@ static struct pcmcia_driver tc574_driver = {
 	.drv		= {
 		.name	= "3c574_cs",
 	},
-	.attach		= tc574_attach,
-	.event		= tc574_event,
-	.detach		= tc574_detach,
+	.probe		= tc574_attach,
+	.remove		= tc574_detach,
 	.id_table       = tc574_ids,
+	.suspend	= tc574_suspend,
+	.resume		= tc574_resume,
 };
 
 static int __init init_tc574(void)
@@ -1306,7 +1261,6 @@ static int __init init_tc574(void)
 static void __exit exit_tc574(void)
 {
 	pcmcia_unregister_driver(&tc574_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_tc574);

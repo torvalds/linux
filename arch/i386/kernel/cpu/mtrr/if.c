@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/capability.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>

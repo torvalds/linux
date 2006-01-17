@@ -45,7 +45,7 @@ obj-$(CONFIG_CYBERSTORMII_SCSI)	+= NCR53C9x.o	cyberstormII.o
 obj-$(CONFIG_BLZ2060_SCSI)	+= NCR53C9x.o	blz2060.o
 obj-$(CONFIG_BLZ1230_SCSI)	+= NCR53C9x.o	blz1230.o
 obj-$(CONFIG_FASTLANE_SCSI)	+= NCR53C9x.o	fastlane.o
-obj-$(CONFIG_OKTAGON_SCSI)	+= NCR53C9x.o	oktagon_esp.o	oktagon_io.o
+obj-$(CONFIG_OKTAGON_SCSI)	+= NCR53C9x.o	oktagon_esp_mod.o
 obj-$(CONFIG_ATARI_SCSI)	+= atari_scsi.o
 obj-$(CONFIG_MAC_SCSI)		+= mac_scsi.o
 obj-$(CONFIG_SCSI_MAC_ESP)	+= mac_esp.o	NCR53C9x.o
@@ -80,7 +80,7 @@ obj-$(CONFIG_SCSI_QLOGIC_FAS)	+= qlogicfas408.o	qlogicfas.o
 obj-$(CONFIG_PCMCIA_QLOGIC)	+= qlogicfas408.o
 obj-$(CONFIG_SCSI_QLOGIC_FC)	+= qlogicfc.o 
 obj-$(CONFIG_SCSI_QLOGIC_1280)	+= qla1280.o 
-obj-$(CONFIG_SCSI_QLA2XXX)	+= qla2xxx/
+obj-$(CONFIG_SCSI_QLA_FC)	+= qla2xxx/
 obj-$(CONFIG_SCSI_LPFC)		+= lpfc/
 obj-$(CONFIG_SCSI_PAS16)	+= pas16.o
 obj-$(CONFIG_SCSI_SEAGATE)	+= seagate.o
@@ -164,6 +164,7 @@ CFLAGS_ncr53c8xx.o	:= $(ncr53c8xx-flags-y) $(ncr53c8xx-flags-m)
 zalon7xx-objs	:= zalon.o ncr53c8xx.o
 NCR_Q720_mod-objs	:= NCR_Q720.o ncr53c8xx.o
 libata-objs	:= libata-core.o libata-scsi.o
+oktagon_esp_mod-objs	:= oktagon_esp.o oktagon_io.o
 
 # Files generated that shall be removed upon make clean
 clean-files :=	53c7xx_d.h 53c700_d.h	\

@@ -28,6 +28,7 @@
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <linux/file.h>
 #include <asm/namei.h>
 #include <asm/uaccess.h>
@@ -112,7 +113,7 @@
  * POSIX.1 2.4: an empty pathname is invalid (ENOENT).
  * PATH_MAX includes the nul terminator --RR.
  */
-static inline int do_getname(const char __user *filename, char *page)
+static int do_getname(const char __user *filename, char *page)
 {
 	int retval;
 	unsigned long len = PATH_MAX;
@@ -395,7 +396,7 @@ static struct dentry * cached_lookup(struct dentry * parent, struct qstr * name,
  * short-cut DAC fails, then call permission() to do more
  * complete permission check.
  */
-static inline int exec_permission_lite(struct inode *inode,
+static int exec_permission_lite(struct inode *inode,
 				       struct nameidata *nd)
 {
 	umode_t	mode = inode->i_mode;
@@ -438,7 +439,7 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 	struct dentry * result;
 	struct inode *dir = parent->d_inode;
 
-	down(&dir->i_sem);
+	mutex_lock(&dir->i_mutex);
 	/*
 	 * First re-do the cached lookup just in case it was created
 	 * while we waited for the directory semaphore..
@@ -464,7 +465,7 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 			else
 				result = dentry;
 		}
-		up(&dir->i_sem);
+		mutex_unlock(&dir->i_mutex);
 		return result;
 	}
 
@@ -472,7 +473,7 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 	 * Uhhuh! Nasty case: the cache was re-populated while
 	 * we waited on the semaphore. Need to revalidate.
 	 */
-	up(&dir->i_sem);
+	mutex_unlock(&dir->i_mutex);
 	if (result->d_op && result->d_op->d_revalidate) {
 		if (!result->d_op->d_revalidate(result, nd) && !d_invalidate(result)) {
 			dput(result);
@@ -485,7 +486,7 @@ static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, s
 static int __emul_lookup_dentry(const char *, struct nameidata *);
 
 /* SMP-safe */
-static inline int
+static __always_inline int
 walk_init_root(const char *name, struct nameidata *nd)
 {
 	read_lock(&current->fs->lock);
@@ -503,7 +504,7 @@ walk_init_root(const char *name, struct nameidata *nd)
 	return 1;
 }
 
-static inline int __vfs_follow_link(struct nameidata *nd, const char *link)
+static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
 	int res = 0;
 	char *name;
@@ -543,7 +544,7 @@ struct path {
 	struct dentry *dentry;
 };
 
-static inline int __do_follow_link(struct path *path, struct nameidata *nd)
+static __always_inline int __do_follow_link(struct path *path, struct nameidata *nd)
 {
 	int error;
 	void *cookie;
@@ -689,7 +690,7 @@ int follow_down(struct vfsmount **mnt, struct dentry **dentry)
 	return 0;
 }
 
-static inline void follow_dotdot(struct nameidata *nd)
+static __always_inline void follow_dotdot(struct nameidata *nd)
 {
 	while(1) {
 		struct vfsmount *parent;
@@ -1293,7 +1294,7 @@ static inline int check_sticky(struct inode *dir, struct inode *inode)
  * 10. We don't allow removal of NFS sillyrenamed files; it's handled by
  *     nfs_async_unlink().
  */
-static inline int may_delete(struct inode *dir,struct dentry *victim,int isdir)
+static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 {
 	int error;
 
@@ -1366,7 +1367,7 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 	struct dentry *p;
 
 	if (p1 == p2) {
-		down(&p1->d_inode->i_sem);
+		mutex_lock(&p1->d_inode->i_mutex);
 		return NULL;
 	}
 
@@ -1374,30 +1375,30 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 
 	for (p = p1; p->d_parent != p; p = p->d_parent) {
 		if (p->d_parent == p2) {
-			down(&p2->d_inode->i_sem);
-			down(&p1->d_inode->i_sem);
+			mutex_lock(&p2->d_inode->i_mutex);
+			mutex_lock(&p1->d_inode->i_mutex);
 			return p;
 		}
 	}
 
 	for (p = p2; p->d_parent != p; p = p->d_parent) {
 		if (p->d_parent == p1) {
-			down(&p1->d_inode->i_sem);
-			down(&p2->d_inode->i_sem);
+			mutex_lock(&p1->d_inode->i_mutex);
+			mutex_lock(&p2->d_inode->i_mutex);
 			return p;
 		}
 	}
 
-	down(&p1->d_inode->i_sem);
-	down(&p2->d_inode->i_sem);
+	mutex_lock(&p1->d_inode->i_mutex);
+	mutex_lock(&p2->d_inode->i_mutex);
 	return NULL;
 }
 
 void unlock_rename(struct dentry *p1, struct dentry *p2)
 {
-	up(&p1->d_inode->i_sem);
+	mutex_unlock(&p1->d_inode->i_mutex);
 	if (p1 != p2) {
-		up(&p2->d_inode->i_sem);
+		mutex_unlock(&p2->d_inode->i_mutex);
 		up(&p1->d_inode->i_sb->s_vfs_rename_sem);
 	}
 }
@@ -1491,7 +1492,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 		if (!error) {
 			DQUOT_INIT(inode);
 			
-			error = do_truncate(dentry, 0, NULL);
+			error = do_truncate(dentry, 0, ATTR_MTIME|ATTR_CTIME, NULL);
 		}
 		put_write_access(inode);
 		if (error)
@@ -1563,14 +1564,14 @@ int open_namei(const char * pathname, int flag, int mode, struct nameidata *nd)
 
 	dir = nd->dentry;
 	nd->flags &= ~LOOKUP_PARENT;
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	path.dentry = lookup_hash(nd);
 	path.mnt = nd->mnt;
 
 do_last:
 	error = PTR_ERR(path.dentry);
 	if (IS_ERR(path.dentry)) {
-		up(&dir->d_inode->i_sem);
+		mutex_unlock(&dir->d_inode->i_mutex);
 		goto exit;
 	}
 
@@ -1579,7 +1580,7 @@ do_last:
 		if (!IS_POSIXACL(dir->d_inode))
 			mode &= ~current->fs->umask;
 		error = vfs_create(dir->d_inode, path.dentry, mode, nd);
-		up(&dir->d_inode->i_sem);
+		mutex_unlock(&dir->d_inode->i_mutex);
 		dput(nd->dentry);
 		nd->dentry = path.dentry;
 		if (error)
@@ -1593,7 +1594,7 @@ do_last:
 	/*
 	 * It already exists.
 	 */
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
@@ -1665,7 +1666,7 @@ do_link:
 		goto exit;
 	}
 	dir = nd->dentry;
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	path.dentry = lookup_hash(nd);
 	path.mnt = nd->mnt;
 	__putname(nd->last.name);
@@ -1680,13 +1681,13 @@ do_link:
  * Simple function to lookup and return a dentry and create it
  * if it doesn't exist.  Is SMP-safe.
  *
- * Returns with nd->dentry->d_inode->i_sem locked.
+ * Returns with nd->dentry->d_inode->i_mutex locked.
  */
 struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 
-	down(&nd->dentry->d_inode->i_sem);
+	mutex_lock(&nd->dentry->d_inode->i_mutex);
 	/*
 	 * Yucky last component or no last component at all?
 	 * (foo/., foo/.., /////)
@@ -1784,7 +1785,7 @@ asmlinkage long sys_mknod(const char __user * filename, int mode, unsigned dev)
 		}
 		dput(dentry);
 	}
-	up(&nd.dentry->d_inode->i_sem);
+	mutex_unlock(&nd.dentry->d_inode->i_mutex);
 	path_release(&nd);
 out:
 	putname(tmp);
@@ -1836,7 +1837,7 @@ asmlinkage long sys_mkdir(const char __user * pathname, int mode)
 			error = vfs_mkdir(nd.dentry->d_inode, dentry, mode);
 			dput(dentry);
 		}
-		up(&nd.dentry->d_inode->i_sem);
+		mutex_unlock(&nd.dentry->d_inode->i_mutex);
 		path_release(&nd);
 out:
 		putname(tmp);
@@ -1885,7 +1886,7 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	DQUOT_INIT(dir);
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	dentry_unhash(dentry);
 	if (d_mountpoint(dentry))
 		error = -EBUSY;
@@ -1897,7 +1898,7 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 				dentry->d_inode->i_flags |= S_DEAD;
 		}
 	}
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	if (!error) {
 		d_delete(dentry);
 	}
@@ -1932,14 +1933,14 @@ asmlinkage long sys_rmdir(const char __user * pathname)
 			error = -EBUSY;
 			goto exit1;
 	}
-	down(&nd.dentry->d_inode->i_sem);
+	mutex_lock(&nd.dentry->d_inode->i_mutex);
 	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		error = vfs_rmdir(nd.dentry->d_inode, dentry);
 		dput(dentry);
 	}
-	up(&nd.dentry->d_inode->i_sem);
+	mutex_unlock(&nd.dentry->d_inode->i_mutex);
 exit1:
 	path_release(&nd);
 exit:
@@ -1959,7 +1960,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	DQUOT_INIT(dir);
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	if (d_mountpoint(dentry))
 		error = -EBUSY;
 	else {
@@ -1967,7 +1968,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 		if (!error)
 			error = dir->i_op->unlink(dir, dentry);
 	}
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 
 	/* We don't d_delete() NFS sillyrenamed files--they still exist. */
 	if (!error && !(dentry->d_flags & DCACHE_NFSFS_RENAMED)) {
@@ -1979,7 +1980,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 
 /*
  * Make sure that the actual truncation of the file will occur outside its
- * directory's i_sem.  Truncate can take a long time if there is a lot of
+ * directory's i_mutex.  Truncate can take a long time if there is a lot of
  * writeout happening, and we don't want to prevent access to the directory
  * while waiting on the I/O.
  */
@@ -2001,7 +2002,7 @@ asmlinkage long sys_unlink(const char __user * pathname)
 	error = -EISDIR;
 	if (nd.last_type != LAST_NORM)
 		goto exit1;
-	down(&nd.dentry->d_inode->i_sem);
+	mutex_lock(&nd.dentry->d_inode->i_mutex);
 	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
@@ -2015,7 +2016,7 @@ asmlinkage long sys_unlink(const char __user * pathname)
 	exit2:
 		dput(dentry);
 	}
-	up(&nd.dentry->d_inode->i_sem);
+	mutex_unlock(&nd.dentry->d_inode->i_mutex);
 	if (inode)
 		iput(inode);	/* truncate the inode here */
 exit1:
@@ -2075,7 +2076,7 @@ asmlinkage long sys_symlink(const char __user * oldname, const char __user * new
 			error = vfs_symlink(nd.dentry->d_inode, dentry, from, S_IALLUGO);
 			dput(dentry);
 		}
-		up(&nd.dentry->d_inode->i_sem);
+		mutex_unlock(&nd.dentry->d_inode->i_mutex);
 		path_release(&nd);
 out:
 		putname(to);
@@ -2113,10 +2114,10 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 	if (error)
 		return error;
 
-	down(&old_dentry->d_inode->i_sem);
+	mutex_lock(&old_dentry->d_inode->i_mutex);
 	DQUOT_INIT(dir);
 	error = dir->i_op->link(old_dentry, dir, new_dentry);
-	up(&old_dentry->d_inode->i_sem);
+	mutex_unlock(&old_dentry->d_inode->i_mutex);
 	if (!error)
 		fsnotify_create(dir, new_dentry->d_name.name);
 	return error;
@@ -2157,7 +2158,7 @@ asmlinkage long sys_link(const char __user * oldname, const char __user * newnam
 		error = vfs_link(old_nd.dentry, nd.dentry->d_inode, new_dentry);
 		dput(new_dentry);
 	}
-	up(&nd.dentry->d_inode->i_sem);
+	mutex_unlock(&nd.dentry->d_inode->i_mutex);
 out_release:
 	path_release(&nd);
 out:
@@ -2178,7 +2179,7 @@ exit:
  *	   sb->s_vfs_rename_sem. We might be more accurate, but that's another
  *	   story.
  *	c) we have to lock _three_ objects - parents and victim (if it exists).
- *	   And that - after we got ->i_sem on parents (until then we don't know
+ *	   And that - after we got ->i_mutex on parents (until then we don't know
  *	   whether the target exists).  Solution: try to be smart with locking
  *	   order for inodes.  We rely on the fact that tree topology may change
  *	   only under ->s_vfs_rename_sem _and_ that parent of the object we
@@ -2195,9 +2196,9 @@ exit:
  *	   stuff into VFS), but the former is not going away. Solution: the same
  *	   trick as in rmdir().
  *	e) conversion from fhandle to dentry may come in the wrong moment - when
- *	   we are removing the target. Solution: we will have to grab ->i_sem
+ *	   we are removing the target. Solution: we will have to grab ->i_mutex
  *	   in the fhandle_to_dentry code. [FIXME - current nfsfh.c relies on
- *	   ->i_sem on parents, which works but leads to some truely excessive
+ *	   ->i_mutex on parents, which works but leads to some truely excessive
  *	   locking].
  */
 static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
@@ -2222,7 +2223,7 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 
 	target = new_dentry->d_inode;
 	if (target) {
-		down(&target->i_sem);
+		mutex_lock(&target->i_mutex);
 		dentry_unhash(new_dentry);
 	}
 	if (d_mountpoint(old_dentry)||d_mountpoint(new_dentry))
@@ -2232,7 +2233,7 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 	if (target) {
 		if (!error)
 			target->i_flags |= S_DEAD;
-		up(&target->i_sem);
+		mutex_unlock(&target->i_mutex);
 		if (d_unhashed(new_dentry))
 			d_rehash(new_dentry);
 		dput(new_dentry);
@@ -2255,7 +2256,7 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 	dget(new_dentry);
 	target = new_dentry->d_inode;
 	if (target)
-		down(&target->i_sem);
+		mutex_lock(&target->i_mutex);
 	if (d_mountpoint(old_dentry)||d_mountpoint(new_dentry))
 		error = -EBUSY;
 	else
@@ -2266,7 +2267,7 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 			d_move(old_dentry, new_dentry);
 	}
 	if (target)
-		up(&target->i_sem);
+		mutex_unlock(&target->i_mutex);
 	dput(new_dentry);
 	return error;
 }
@@ -2314,7 +2315,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return error;
 }
 
-static inline int do_rename(const char * oldname, const char * newname)
+static int do_rename(const char * oldname, const char * newname)
 {
 	int error = 0;
 	struct dentry * old_dir, * new_dir;

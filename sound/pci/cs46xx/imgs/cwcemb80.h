@@ -3,7 +3,7 @@
 #ifndef __HEADER_cwcemb80_H__
 #define __HEADER_cwcemb80_H__
 
-static symbol_entry_t cwcemb80_symbols[] = {
+static struct dsp_symbol_entry cwcemb80_symbols[] = {
   { 0x0000, "BEGINADDRESS",0x00 },
   { 0x8000, "EXECCHILD",0x03 },
   { 0x8001, "EXECCHILD_98",0x03 },
@@ -1588,13 +1588,13 @@ static u32 cwcemb80_sample[] = {
 }; /* #SAMPLE_END */
 
 
-static segment_desc_t cwcemb80_segments[] = {
+static struct dsp_segment_desc cwcemb80_segments[] = {
   { SEGTYPE_SP_PROGRAM, 0x00000000, 0x0000031c, cwcemb80_code },
   { SEGTYPE_SP_PARAMETER, 0x00000000, 0x00000697, cwcemb80_parameter },
   { SEGTYPE_SP_SAMPLE, 0x00000000, 0x00000e00, cwcemb80_sample },
 };
 
-static dsp_module_desc_t cwcemb80_module = {
+static struct dsp_module_desc cwcemb80_module = {
   "cwcemb80",
   {
     38,

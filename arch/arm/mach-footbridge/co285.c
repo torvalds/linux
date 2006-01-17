@@ -29,7 +29,6 @@ fixup_coebsa285(struct machine_desc *desc, struct tag *tags,
 
 MACHINE_START(CO285, "co-EBSA285")
 	/* Maintainer: Mark van Doesburg */
-	.phys_ram	= 0x00000000,
 	.phys_io	= DC21285_ARMCSR_BASE,
 	.io_pg_offst	= ((0x7cf00000) >> 18) & 0xfffc,
 	.fixup		= fixup_coebsa285,

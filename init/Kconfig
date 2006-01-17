@@ -99,13 +99,12 @@ config SWAP
 	default y
 	help
 	  This option allows you to choose whether you want to have support
-	  for socalled swap devices or swap files in your kernel that are
+	  for so called swap devices or swap files in your kernel that are
 	  used to provide more virtual memory than the actual RAM present
 	  in your computer.  If unsure say Y.
 
 config SYSVIPC
 	bool "System V IPC"
-	depends on MMU
 	---help---
 	  Inter Process Communication is a suite of library functions and
 	  system calls which let processes (running programs) synchronize and
@@ -190,39 +189,12 @@ config AUDIT
 
 config AUDITSYSCALL
 	bool "Enable system-call auditing support"
-	depends on AUDIT && (X86 || PPC || PPC64 || ARCH_S390 || IA64 || UML || SPARC64)
+	depends on AUDIT && (X86 || PPC || PPC64 || S390 || IA64 || UML || SPARC64)
 	default y if SECURITY_SELINUX
 	help
 	  Enable low-overhead system-call auditing infrastructure that
 	  can be used independently or with another kernel subsystem,
 	  such as SELinux.
-
-config HOTPLUG
-	bool "Support for hot-pluggable devices" if !ARCH_S390
-	default ARCH_S390
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require HOTPLUG functionality, but a module built
-	  outside the kernel tree does. Such modules require Y here.
-
-config KOBJECT_UEVENT
-	bool "Kernel Userspace Events" if EMBEDDED
-	depends on NET
-	default y
-	help
-	  This option enables the kernel userspace event layer, which is a
-	  simple mechanism for kernel-to-user communication over a netlink
-	  socket.
-	  The goal of the kernel userspace events layer is to provide a simple
-	  and efficient events system, that notifies userspace about kobject
-	  state changes. This will enable applications to just listen for
-	  events instead of polling system devices and files.
-	  Hotplug events (kobject addition and removal) are also available on
-	  the netlink socket in addition to the execution of /sbin/hotplug if
-	  CONFIG_HOTPLUG is enabled.
-
-	  Say Y, unless you are building a system requiring minimal memory
-	  consumption.
 
 config IKCONFIG
 	bool "Kernel .config support"
@@ -255,6 +227,23 @@ config CPUSETS
 	  Say N if unsure.
 
 source "usr/Kconfig"
+
+config UID16
+	bool "Enable 16-bit UID system calls" if EMBEDDED
+	depends on ARM || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION)
+	default y
+	help
+	  This enables the legacy 16-bit UID syscall wrappers.
+
+config VM86
+	depends X86
+	default y
+	bool "Enable VM86 support" if EMBEDDED
+	help
+          This option is required by programs like DOSEMU to run 16-bit legacy
+	  code on X86 processors. It also may be needed by software like
+          XFree86 to initialize some video cards via BIOS. Disabling this
+          option saves about 6k.
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
@@ -308,6 +297,15 @@ config KALLSYMS_EXTRA_PASS
 	   you wait for kallsyms to be fixed.
 
 
+config HOTPLUG
+	bool "Support for hot-pluggable devices" if EMBEDDED
+	default y
+	help
+	  This option is provided for the case where no hotplug or uevent
+	  capabilities is wanted by the kernel.  You should only consider
+	  disabling this option for embedded systems that do not use modules, a
+	  dynamic /dev tree, or dynamic device discovery.  Just say Y.
+
 config PRINTK
 	default y
 	bool "Enable support for printk" if EMBEDDED
@@ -327,6 +325,12 @@ config BUG
           numerous fatal conditions. You should only consider disabling this
           option for embedded systems with no facilities for reporting errors.
           Just say Y.
+
+config ELF_CORE
+	default y
+	bool "Enable ELF core dumps" if EMBEDDED
+	help
+	  Enable support for generating core dumps. Disabling saves about 4k.
 
 config BASE_FULL
 	default y
@@ -399,6 +403,15 @@ config CC_ALIGN_JUMPS
 	  no dummy operations need be executed.
 	  Zero means use compiler's default.
 
+config SLAB
+	default y
+	bool "Use full SLAB allocator" if EMBEDDED
+	help
+	  Disabling this replaces the advanced SLAB allocator and
+	  kmalloc support with the drastically simpler SLOB allocator.
+	  SLOB is more space efficient but does not scale well and is
+	  more susceptible to fragmentation.
+
 endmenu		# General setup
 
 config TINY_SHMEM
@@ -409,6 +422,13 @@ config BASE_SMALL
 	int
 	default 0 if BASE_FULL
 	default 1 if !BASE_FULL
+
+config SLOB
+	default !SLAB
+	bool
+
+config OBSOLETE_INTERMODULE
+	tristate
 
 menu "Loadable module support"
 
@@ -461,8 +481,8 @@ config OBSOLETE_MODPARM
 	  If unsure, say Y.
 
 config MODVERSIONS
-	bool "Module versioning support (EXPERIMENTAL)"
-	depends on MODULES && EXPERIMENTAL
+	bool "Module versioning support"
+	depends on MODULES
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules

@@ -179,10 +179,10 @@ endif
 define rule_cc_o_c
 	$(if $($(quiet)cmd_checksrc),echo '  $($(quiet)cmd_checksrc)';)   \
 	$(cmd_checksrc)							  \
-	$(if $($(quiet)cmd_cc_o_c),echo '  $(subst ','\'',$($(quiet)cmd_cc_o_c))';)  \
+	$(if $($(quiet)cmd_cc_o_c),echo '  $(call escsq,$($(quiet)cmd_cc_o_c))';)  \
 	$(cmd_cc_o_c);							  \
 	$(cmd_modversions)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(subst ','\'',$(cmd_cc_o_c))' > $(@D)/.$(@F).tmp;  \
+	scripts/basic/fixdep $(depfile) $@ '$(call escsq,$(cmd_cc_o_c))' > $(@D)/.$(@F).tmp;  \
 	rm -f $(depfile);						  \
 	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd
 endef

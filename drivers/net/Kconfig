@@ -27,6 +27,19 @@ config NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
+config IFB
+	tristate "Intermediate Functional Block support"
+	depends on NET_CLS_ACT
+	---help---
+	  This is an intermidiate driver that allows sharing of
+	  resources.
+	  To compile this driver as a module, choose M here: the module
+	  will be called ifb.  If you want to use more than one ifb
+	  device at a time, you need to compile this driver as a module.
+	  Instead of 'ifb', the devices will then be called 'ifb0',
+	  'ifb1' etc.
+	  Look at the iproute2 documentation directory for usage etc
+
 config DUMMY
 	tristate "Dummy net driver support"
 	---help---
@@ -129,7 +142,7 @@ config NET_SB1000
 
 	  If you don't have this card, of course say N.
 
-	source "drivers/net/arcnet/Kconfig"
+source "drivers/net/arcnet/Kconfig"
 
 source "drivers/net/phy/Kconfig"
 
@@ -844,7 +857,7 @@ config SMC9194
 
 config DM9000
 	tristate "DM9000 support"
-	depends on ARM && NET_ETHERNET
+	depends on (ARM || MIPS) && NET_ETHERNET
 	select CRC32
 	select MII
 	---help---
@@ -1374,7 +1387,7 @@ config FORCEDETH
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on (NET_PCI && (ISA || ARCH_IXDP2X01)) || ARCH_PNX0105
+	depends on NET_PCI && (ISA || MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1384,7 +1397,7 @@ config CS89x0
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module will be
-	  called cs89x.
+	  called cs89x0.
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
@@ -1791,7 +1804,7 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire CPUs)"
-	depends on M523x || M527x || M5272 || M528x
+	depends on M523x || M527x || M5272 || M528x || M520x
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire processors.
@@ -1901,6 +1914,8 @@ config E1000_NAPI
 
 	  If in doubt, say N.
 
+source "drivers/net/ixp2000/Kconfig"
+
 config MYRI_SBUS
 	tristate "MyriCOM Gigabit Ethernet support"
 	depends on SBUS
@@ -2008,7 +2023,18 @@ config SKGE
 
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.
-	
+
+
+config SKY2
+	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  This driver support the Marvell Yukon 2 Gigabit Ethernet adapter.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sky2.  This is recommended.
+
 config SK98LIN
 	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support"
 	depends on PCI
@@ -2120,7 +2146,7 @@ config BNX2
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_BPA
+	depends on PCI && PPC_CELL
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.
@@ -2649,10 +2675,6 @@ config SHAPER
 	  An alternative to this traffic shaper is the experimental
 	  Class-Based Queueing (CBQ) scheduling support which you get if you
 	  say Y to "QoS and/or fair queueing" above.
-
-	  To set up and configure shaper devices, you need the shapecfg
-	  program, available from <ftp://shadow.cabi.net/pub/Linux/> in the
-	  shaper package.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called shaper.  If unsure, say N.

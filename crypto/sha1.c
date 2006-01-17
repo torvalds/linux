@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
+#include <linux/types.h>
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
 
@@ -48,23 +49,33 @@ static void sha1_init(void *ctx)
 static void sha1_update(void *ctx, const u8 *data, unsigned int len)
 {
 	struct sha1_ctx *sctx = ctx;
-	unsigned int i, j;
-	u32 temp[SHA_WORKSPACE_WORDS];
+	unsigned int partial, done;
+	const u8 *src;
 
-	j = (sctx->count >> 3) & 0x3f;
-	sctx->count += len << 3;
+	partial = sctx->count & 0x3f;
+	sctx->count += len;
+	done = 0;
+	src = data;
 
-	if ((j + len) > 63) {
-		memcpy(&sctx->buffer[j], data, (i = 64-j));
-		sha_transform(sctx->state, sctx->buffer, temp);
-		for ( ; i + 63 < len; i += 64) {
-			sha_transform(sctx->state, &data[i], temp);
+	if ((partial + len) > 63) {
+		u32 temp[SHA_WORKSPACE_WORDS];
+
+		if (partial) {
+			done = -partial;
+			memcpy(sctx->buffer + partial, data, done + 64);
+			src = sctx->buffer;
 		}
-		j = 0;
+
+		do {
+			sha_transform(sctx->state, src, temp);
+			done += 64;
+			src = data + done;
+		} while (done + 63 < len);
+
+		memset(temp, 0, sizeof(temp));
+		partial = 0;
 	}
-	else i = 0;
-	memset(temp, 0, sizeof(temp));
-	memcpy(&sctx->buffer[j], &data[i], len - i);
+	memcpy(sctx->buffer + partial, src, len - done);
 }
 
 
@@ -72,37 +83,24 @@ static void sha1_update(void *ctx, const u8 *data, unsigned int len)
 static void sha1_final(void* ctx, u8 *out)
 {
 	struct sha1_ctx *sctx = ctx;
-	u32 i, j, index, padlen;
-	u64 t;
-	u8 bits[8] = { 0, };
+	__be32 *dst = (__be32 *)out;
+	u32 i, index, padlen;
+	__be64 bits;
 	static const u8 padding[64] = { 0x80, };
 
-	t = sctx->count;
-	bits[7] = 0xff & t; t>>=8;
-	bits[6] = 0xff & t; t>>=8;
-	bits[5] = 0xff & t; t>>=8;
-	bits[4] = 0xff & t; t>>=8;
-	bits[3] = 0xff & t; t>>=8;
-	bits[2] = 0xff & t; t>>=8;
-	bits[1] = 0xff & t; t>>=8;
-	bits[0] = 0xff & t;
+	bits = cpu_to_be64(sctx->count << 3);
 
 	/* Pad out to 56 mod 64 */
-	index = (sctx->count >> 3) & 0x3f;
+	index = sctx->count & 0x3f;
 	padlen = (index < 56) ? (56 - index) : ((64+56) - index);
 	sha1_update(sctx, padding, padlen);
 
 	/* Append length */
-	sha1_update(sctx, bits, sizeof bits); 
+	sha1_update(sctx, (const u8 *)&bits, sizeof(bits));
 
 	/* Store state in digest */
-	for (i = j = 0; i < 5; i++, j += 4) {
-		u32 t2 = sctx->state[i];
-		out[j+3] = t2 & 0xff; t2>>=8;
-		out[j+2] = t2 & 0xff; t2>>=8;
-		out[j+1] = t2 & 0xff; t2>>=8;
-		out[j  ] = t2 & 0xff;
-	}
+	for (i = 0; i < 5; i++)
+		dst[i] = cpu_to_be32(sctx->state[i]);
 
 	/* Wipe context */
 	memset(sctx, 0, sizeof *sctx);

@@ -729,19 +729,20 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 	unsigned short int status;
 	struct uart_icount *icount;
 	unsigned long offset;
+	unsigned char flag;
 
 	trace(icom_port, "RCV_COMPLETE", 0);
 	rcv_buff = icom_port->next_rcv;
 
 	status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
 	while (status & SA_FL_RCV_DONE) {
+		int first = -1;
 
 		trace(icom_port, "FID_STATUS", status);
 		count = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].leLength);
 
+                count = tty_buffer_request_room(tty, count);
 		trace(icom_port, "RCV_COUNT", count);
-		if (count > (TTY_FLIPBUF_SIZE - tty->flip.count))
-			count = TTY_FLIPBUF_SIZE - tty->flip.count;
 
 		trace(icom_port, "REAL_COUNT", count);
 
@@ -749,15 +750,10 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			cpu_to_le32(icom_port->statStg->rcv[rcv_buff].leBuffer) -
 			icom_port->recv_buf_pci;
 
-		memcpy(tty->flip.char_buf_ptr,(unsigned char *)
-		       ((unsigned long)icom_port->recv_buf + offset), count);
-
+		/* Block copy all but the last byte as this may have status */
 		if (count > 0) {
-			tty->flip.count += count - 1;
-			tty->flip.char_buf_ptr += count - 1;
-
-			memset(tty->flip.flag_buf_ptr, 0, count);
-			tty->flip.flag_buf_ptr += count - 1;
+			first = icom_port->recv_buf[offset];
+			tty_insert_flip_string(tty, icom_port->recv_buf + offset, count - 1);
 		}
 
 		icount = &icom_port->uart_port.icount;
@@ -765,11 +761,13 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 
 		/* Break detect logic */
 		if ((status & SA_FLAGS_FRAME_ERROR)
-		    && (tty->flip.char_buf_ptr[0] == 0x00)) {
+		    && first == 0) {
 			status &= ~SA_FLAGS_FRAME_ERROR;
 			status |= SA_FLAGS_BREAK_DET;
 			trace(icom_port, "BREAK_DET", 0);
 		}
+
+		flag = TTY_NORMAL;
 
 		if (status &
 		    (SA_FLAGS_BREAK_DET | SA_FLAGS_PARITY_ERROR |
@@ -797,33 +795,26 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			status &= icom_port->read_status_mask;
 
 			if (status & SA_FLAGS_BREAK_DET) {
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			} else if (status & SA_FLAGS_PARITY_ERROR) {
 				trace(icom_port, "PARITY_ERROR", 0);
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			} else if (status & SA_FLAGS_FRAME_ERROR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 
-			if (status & SA_FLAGS_OVERRUN) {
-				/*
-				 * Overrun is special, since it's
-				 * reported immediately, and doesn't
-				 * affect the current character
-				 */
-				if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-					tty->flip.count++;
-					tty->flip.flag_buf_ptr++;
-					tty->flip.char_buf_ptr++;
-					*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-				}
-			}
 		}
 
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
-		ignore_char:
-			icom_port->statStg->rcv[rcv_buff].flags = 0;
+		tty_insert_flip_char(tty, *(icom_port->recv_buf + offset + count - 1), flag);
+
+		if (status & SA_FLAGS_OVERRUN)
+			/*
+			 * Overrun is special, since it's
+			 * reported immediately, and doesn't
+			 * affect the current character
+			 */
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+ignore_char:
+		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
 		icom_port->statStg->rcv[rcv_buff].WorkingLength =
 			(unsigned short int) cpu_to_le16(RCV_BUFF_SZ);

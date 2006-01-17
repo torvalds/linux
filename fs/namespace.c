@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/quotaops.h>
 #include <linux/acct.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/namespace.h>
@@ -46,6 +47,10 @@ static struct list_head *mount_hashtable;
 static int hash_mask __read_mostly, hash_bits __read_mostly;
 static kmem_cache_t *mnt_cache;
 static struct rw_semaphore namespace_sem;
+
+/* /sys/fs */
+decl_subsys(fs, NULL, NULL);
+EXPORT_SYMBOL_GPL(fs_subsys);
 
 static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
 {
@@ -355,14 +360,14 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 		{ MS_SYNCHRONOUS, ",sync" },
 		{ MS_DIRSYNC, ",dirsync" },
 		{ MS_MANDLOCK, ",mand" },
-		{ MS_NOATIME, ",noatime" },
-		{ MS_NODIRATIME, ",nodiratime" },
 		{ 0, NULL }
 	};
 	static struct proc_fs_info mnt_info[] = {
 		{ MNT_NOSUID, ",nosuid" },
 		{ MNT_NODEV, ",nodev" },
 		{ MNT_NOEXEC, ",noexec" },
+		{ MNT_NOATIME, ",noatime" },
+		{ MNT_NODIRATIME, ",nodiratime" },
 		{ 0, NULL }
 	};
 	struct proc_fs_info *fs_infop;
@@ -451,7 +456,7 @@ EXPORT_SYMBOL(may_umount);
 void release_mounts(struct list_head *head)
 {
 	struct vfsmount *mnt;
-	while(!list_empty(head)) {
+	while (!list_empty(head)) {
 		mnt = list_entry(head->next, struct vfsmount, mnt_hash);
 		list_del_init(&mnt->mnt_hash);
 		if (mnt->mnt_parent != mnt) {
@@ -814,7 +819,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 		return -ENOTDIR;
 
 	err = -ENOENT;
-	down(&nd->dentry->d_inode->i_sem);
+	mutex_lock(&nd->dentry->d_inode->i_mutex);
 	if (IS_DEADDIR(nd->dentry->d_inode))
 		goto out_unlock;
 
@@ -826,7 +831,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 	if (IS_ROOT(nd->dentry) || !d_unhashed(nd->dentry))
 		err = attach_recursive_mnt(mnt, nd, NULL);
 out_unlock:
-	up(&nd->dentry->d_inode->i_sem);
+	mutex_unlock(&nd->dentry->d_inode->i_mutex);
 	if (!err)
 		security_sb_post_addmount(mnt, nd);
 	return err;
@@ -962,7 +967,7 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 		goto out;
 
 	err = -ENOENT;
-	down(&nd->dentry->d_inode->i_sem);
+	mutex_lock(&nd->dentry->d_inode->i_mutex);
 	if (IS_DEADDIR(nd->dentry->d_inode))
 		goto out1;
 
@@ -1004,7 +1009,7 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 	list_del_init(&old_nd.mnt->mnt_expire);
 	spin_unlock(&vfsmount_lock);
 out1:
-	up(&nd->dentry->d_inode->i_sem);
+	mutex_unlock(&nd->dentry->d_inode->i_mutex);
 out:
 	up_write(&namespace_sem);
 	if (!err)
@@ -1286,7 +1291,13 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 		mnt_flags |= MNT_NODEV;
 	if (flags & MS_NOEXEC)
 		mnt_flags |= MNT_NOEXEC;
-	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE);
+	if (flags & MS_NOATIME)
+		mnt_flags |= MNT_NOATIME;
+	if (flags & MS_NODIRATIME)
+		mnt_flags |= MNT_NODIRATIME;
+
+	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
+		   MS_NOATIME | MS_NODIRATIME);
 
 	/* ... and get the mountpoint */
 	retval = path_lookup(dir_name, LOOKUP_FOLLOW, &nd);
@@ -1526,6 +1537,10 @@ static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
  * pointed to by put_old must yield the same directory as new_root. No other
  * file system may be mounted on put_old. After all, new_root is a mountpoint.
  *
+ * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem.
+ * See Documentation/filesystems/ramfs-rootfs-initramfs.txt for alternatives
+ * in this situation.
+ *
  * Notes:
  *  - we don't move root/cwd if they are not at the root (reason: if something
  *    cared enough to change them, it's probably wrong to force them elsewhere)
@@ -1569,7 +1584,7 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	user_nd.dentry = dget(current->fs->root);
 	read_unlock(&current->fs->lock);
 	down_write(&namespace_sem);
-	down(&old_nd.dentry->d_inode->i_sem);
+	mutex_lock(&old_nd.dentry->d_inode->i_mutex);
 	error = -EINVAL;
 	if (IS_MNT_SHARED(old_nd.mnt) ||
 		IS_MNT_SHARED(new_nd.mnt->mnt_parent) ||
@@ -1622,7 +1637,7 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	path_release(&root_parent);
 	path_release(&parent_nd);
 out2:
-	up(&old_nd.dentry->d_inode->i_sem);
+	mutex_unlock(&old_nd.dentry->d_inode->i_mutex);
 	up_write(&namespace_sem);
 	path_release(&user_nd);
 	path_release(&old_nd);
@@ -1714,6 +1729,7 @@ void __init mnt_init(unsigned long mempages)
 		i--;
 	} while (i);
 	sysfs_init();
+	subsystem_register(&fs_subsys);
 	init_rootfs();
 	init_mount_tree();
 }

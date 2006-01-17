@@ -128,6 +128,7 @@ int gfar_mdio_probe(struct device *dev)
 	struct gianfar_mdio_data *pdata;
 	struct gfar_mii *regs;
 	struct mii_bus *new_bus;
+	struct resource *r;
 	int err = 0;
 
 	if (NULL == dev)
@@ -151,8 +152,10 @@ int gfar_mdio_probe(struct device *dev)
 		return -ENODEV;
 	}
 
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
 	/* Set the PHY base address */
-	regs = (struct gfar_mii *) ioremap(pdata->paddr, 
+	regs = (struct gfar_mii *) ioremap(r->start,
 			sizeof (struct gfar_mii));
 
 	if (NULL == regs) {

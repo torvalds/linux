@@ -3,15 +3,19 @@
  *
  *	Authors:
  *	Bart De Schuymer <bdschuym@pandora.be>
+ *	Harald Welte <laforge@netfilter.org>
  *
  *  April, 2002
  *
  */
 
+#include <linux/in.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_log.h>
+#include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/ip.h>
+#include <linux/in.h>
 #include <linux/if_arp.h>
 #include <linux/spinlock.h>
 
@@ -55,27 +59,30 @@ static void print_MAC(unsigned char *p)
 }
 
 #define myNIPQUAD(a) a[0], a[1], a[2], a[3]
-static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
-   const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+static void
+ebt_log_packet(unsigned int pf, unsigned int hooknum,
+   const struct sk_buff *skb, const struct net_device *in,
+   const struct net_device *out, const struct nf_loginfo *loginfo,
+   const char *prefix)
 {
-	struct ebt_log_info *info = (struct ebt_log_info *)data;
-	char level_string[4] = "< >";
+	unsigned int bitmask;
 
-	level_string[1] = '0' + info->loglevel;
 	spin_lock_bh(&ebt_log_lock);
-	printk(level_string);
-	printk("%s IN=%s OUT=%s ", info->prefix, in ? in->name : "",
-	   out ? out->name : "");
+	printk("<%c>%s IN=%s OUT=%s MAC source = ", '0' + loginfo->u.log.level,
+	       prefix, in ? in->name : "", out ? out->name : "");
 
-	printk("MAC source = ");
 	print_MAC(eth_hdr(skb)->h_source);
 	printk("MAC dest = ");
 	print_MAC(eth_hdr(skb)->h_dest);
 
 	printk("proto = 0x%04x", ntohs(eth_hdr(skb)->h_proto));
 
-	if ((info->bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
+	if (loginfo->type == NF_LOG_TYPE_LOG)
+		bitmask = loginfo->u.log.logflags;
+	else
+		bitmask = NF_LOG_MASK;
+
+	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IP)){
 		struct iphdr _iph, *ih;
 
@@ -84,10 +91,9 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 			printk(" INCOMPLETE IP header");
 			goto out;
 		}
-		printk(" IP SRC=%u.%u.%u.%u IP DST=%u.%u.%u.%u,",
-		   NIPQUAD(ih->saddr), NIPQUAD(ih->daddr));
-		printk(" IP tos=0x%02X, IP proto=%d", ih->tos,
-		       ih->protocol);
+		printk(" IP SRC=%u.%u.%u.%u IP DST=%u.%u.%u.%u, IP "
+		       "tos=0x%02X, IP proto=%d", NIPQUAD(ih->saddr),
+		       NIPQUAD(ih->daddr), ih->tos, ih->protocol);
 		if (ih->protocol == IPPROTO_TCP ||
 		    ih->protocol == IPPROTO_UDP) {
 			struct tcpudphdr _ports, *pptr;
@@ -104,7 +110,7 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 		goto out;
 	}
 
-	if ((info->bitmask & EBT_LOG_ARP) &&
+	if ((bitmask & EBT_LOG_ARP) &&
 	    ((eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) ||
 	     (eth_hdr(skb)->h_proto == htons(ETH_P_RARP)))) {
 		struct arphdr _arph, *ah;
@@ -144,6 +150,21 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 out:
 	printk("\n");
 	spin_unlock_bh(&ebt_log_lock);
+
+}
+
+static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
+   const struct net_device *in, const struct net_device *out,
+   const void *data, unsigned int datalen)
+{
+	struct ebt_log_info *info = (struct ebt_log_info *)data;
+	struct nf_loginfo li;
+
+	li.type = NF_LOG_TYPE_LOG;
+	li.u.log.level = info->loglevel;
+	li.u.log.logflags = info->bitmask;
+
+	nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li, info->prefix);
 }
 
 static struct ebt_watcher log =
@@ -154,13 +175,32 @@ static struct ebt_watcher log =
 	.me		= THIS_MODULE,
 };
 
+static struct nf_logger ebt_log_logger = {
+	.name 		= "ebt_log",
+	.logfn		= &ebt_log_packet,
+	.me		= THIS_MODULE,
+};
+
 static int __init init(void)
 {
-	return ebt_register_watcher(&log);
+	int ret;
+
+	ret = ebt_register_watcher(&log);
+	if (ret < 0)
+		return ret;
+	if (nf_log_register(PF_BRIDGE, &ebt_log_logger) < 0) {
+		printk(KERN_WARNING "ebt_log: not logging via system console "
+		       "since somebody else already registered for PF_INET\n");
+		/* we cannot make module load fail here, since otherwise 
+		 * ebtables userspace would abort */
+	}
+
+	return 0;
 }
 
 static void __exit fini(void)
 {
+	nf_log_unregister_logger(&ebt_log_logger);
 	ebt_unregister_watcher(&log);
 }
 

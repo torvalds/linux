@@ -372,7 +372,7 @@ done:
 					& ohci->hc_control)
 				== OHCI_USB_OPER
 			&& time_after (jiffies, ohci->next_statechange)
-			&& usb_trylock_device (hcd->self.root_hub)
+			&& usb_trylock_device (hcd->self.root_hub) == 0
 			) {
 		ohci_vdbg (ohci, "autosuspend\n");
 		(void) ohci_bus_suspend (hcd);

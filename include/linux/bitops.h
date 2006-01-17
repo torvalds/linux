@@ -76,6 +76,15 @@ static __inline__ int generic_fls(int x)
  */
 #include <asm/bitops.h>
 
+
+static inline int generic_fls64(__u64 x)
+{
+	__u32 h = x >> 32;
+	if (h)
+		return fls(x) + 32;
+	return fls(x);
+}
+
 static __inline__ int get_bitmask_order(unsigned int count)
 {
 	int order;

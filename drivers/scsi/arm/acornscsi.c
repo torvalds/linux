@@ -146,12 +146,12 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/ecard.h>
 
 #include "../scsi.h"
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport_spi.h>
 #include "acornscsi.h"
 #include "msgqueue.h"
 #include "scsi.h"
@@ -1370,7 +1370,7 @@ void acornscsi_sendmessage(AS_Host *host)
 
 	host->scsi.last_message = msg->msg[0];
 #if (DEBUG & DEBUG_MESSAGES)
-	scsi_print_msg(msg->msg);
+	spi_print_msg(msg->msg);
 #endif
 	break;
 
@@ -1392,7 +1392,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	while ((msg = msgqueue_getmsg(&host->scsi.msgs, msgnr++)) != NULL) {
 	    unsigned int i;
 #if (DEBUG & DEBUG_MESSAGES)
-	    scsi_print_msg(msg);
+	    spi_print_msg(msg);
 #endif
 	    i = 0;
 	    if (acornscsi_write_pio(host, msg->msg, &i, msg->length, 1000000))
@@ -1488,7 +1488,7 @@ void acornscsi_message(AS_Host *host)
 #if (DEBUG & DEBUG_MESSAGES)
     printk("scsi%d.%c: message in: ",
 	    host->host->host_no, acornscsi_target(host));
-    scsi_print_msg(message);
+    spi_print_msg(message);
     printk("\n");
 #endif
 

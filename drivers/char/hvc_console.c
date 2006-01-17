@@ -597,9 +597,7 @@ static int hvc_poll(struct hvc_struct *hp)
 
 	/* Read data if any */
 	for (;;) {
-		int count = N_INBUF;
-		if (count > (TTY_FLIPBUF_SIZE - tty->flip.count))
-			count = TTY_FLIPBUF_SIZE - tty->flip.count;
+		int count = tty_buffer_request_room(tty, N_INBUF);
 
 		/* If flip is full, just reschedule a later read */
 		if (count == 0) {
@@ -635,7 +633,7 @@ static int hvc_poll(struct hvc_struct *hp)
 			tty_insert_flip_char(tty, buf[i], 0);
 		}
 
-		if (tty->flip.count)
+		if (count)
 			tty_schedule_flip(tty);
 
 		/*

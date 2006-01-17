@@ -1040,9 +1040,9 @@ int cifs_revalidate(struct dentry *direntry)
 	}
 
 	/* can not grab this sem since kernel filesys locking documentation
-	   indicates i_sem may be taken by the kernel on lookup and rename
-	   which could deadlock if we grab the i_sem here as well */
-/*	down(&direntry->d_inode->i_sem);*/
+	   indicates i_mutex may be taken by the kernel on lookup and rename
+	   which could deadlock if we grab the i_mutex here as well */
+/*	mutex_lock(&direntry->d_inode->i_mutex);*/
 	/* need to write out dirty pages here  */
 	if (direntry->d_inode->i_mapping) {
 		/* do we need to lock inode until after invalidate completes
@@ -1066,7 +1066,7 @@ int cifs_revalidate(struct dentry *direntry)
 			}
 		}
 	}
-/*	up(&direntry->d_inode->i_sem); */
+/*	mutex_unlock(&direntry->d_inode->i_mutex); */
 	
 	kfree(full_path);
 	FreeXid(xid);
@@ -1148,8 +1148,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	/* BB check if we need to refresh inode from server now ? BB */
 
 	/* need to flush data before changing file size on server */
-	filemap_fdatawrite(direntry->d_inode->i_mapping);
-	filemap_fdatawait(direntry->d_inode->i_mapping);
+	filemap_write_and_wait(direntry->d_inode->i_mapping);
 
 	if (attrs->ia_valid & ATTR_SIZE) {
 		/* To avoid spurious oplock breaks from server, in the case of

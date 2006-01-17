@@ -24,7 +24,11 @@
  *
  */
 
+#include <linux/interrupt.h>
+#include <linux/in.h>
+#include <linux/net.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>		/* for proc_net_* */
 #include <linux/seq_file.h>
@@ -219,7 +223,7 @@ struct ip_vs_conn *ip_vs_conn_in_get
 	if (!cp && atomic_read(&ip_vs_conn_no_cport_cnt))
 		cp = __ip_vs_conn_in_get(protocol, s_addr, 0, d_addr, d_port);
 
-	IP_VS_DBG(7, "lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+	IP_VS_DBG(9, "lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
 		  ip_vs_proto_name(protocol),
 		  NIPQUAD(s_addr), ntohs(s_port),
 		  NIPQUAD(d_addr), ntohs(d_port),
@@ -254,7 +258,7 @@ struct ip_vs_conn *ip_vs_ct_in_get
   out:
 	ct_read_unlock(hash);
 
-	IP_VS_DBG(7, "template lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+	IP_VS_DBG(9, "template lookup/in %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
 		  ip_vs_proto_name(protocol),
 		  NIPQUAD(s_addr), ntohs(s_port),
 		  NIPQUAD(d_addr), ntohs(d_port),
@@ -295,7 +299,7 @@ struct ip_vs_conn *ip_vs_conn_out_get
 
 	ct_read_unlock(hash);
 
-	IP_VS_DBG(7, "lookup/out %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
+	IP_VS_DBG(9, "lookup/out %s %u.%u.%u.%u:%d->%u.%u.%u.%u:%d %s\n",
 		  ip_vs_proto_name(protocol),
 		  NIPQUAD(s_addr), ntohs(s_port),
 		  NIPQUAD(d_addr), ntohs(d_port),
@@ -391,8 +395,9 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	cp->flags |= atomic_read(&dest->conn_flags);
 	cp->dest = dest;
 
-	IP_VS_DBG(9, "Bind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
-		  "d:%u.%u.%u.%u:%d fwd:%c s:%u flg:%X cnt:%d destcnt:%d\n",
+	IP_VS_DBG(7, "Bind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
+		  "d:%u.%u.%u.%u:%d fwd:%c s:%u conn->flags:%X conn->refcnt:%d "
+		  "dest->refcnt:%d\n",
 		  ip_vs_proto_name(cp->protocol),
 		  NIPQUAD(cp->caddr), ntohs(cp->cport),
 		  NIPQUAD(cp->vaddr), ntohs(cp->vport),
@@ -430,8 +435,9 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 	if (!dest)
 		return;
 
-	IP_VS_DBG(9, "Unbind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
-		  "d:%u.%u.%u.%u:%d fwd:%c s:%u flg:%X cnt:%d destcnt:%d\n",
+	IP_VS_DBG(7, "Unbind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
+		  "d:%u.%u.%u.%u:%d fwd:%c s:%u conn->flags:%X conn->refcnt:%d "
+		  "dest->refcnt:%d\n",
 		  ip_vs_proto_name(cp->protocol),
 		  NIPQUAD(cp->caddr), ntohs(cp->cport),
 		  NIPQUAD(cp->vaddr), ntohs(cp->vport),
@@ -571,7 +577,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	ip_vs_conn_hash(cp);
 
   expire_later:
-	IP_VS_DBG(7, "delayed: refcnt-1=%d conn.n_control=%d\n",
+	IP_VS_DBG(7, "delayed: conn->refcnt-1=%d conn->n_control=%d\n",
 		  atomic_read(&cp->refcnt)-1,
 		  atomic_read(&cp->n_control));
 

@@ -25,7 +25,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/ioctl.h>
@@ -33,19 +32,11 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
-
-#define wm8775_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-#define wm8775_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
 
 static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };
 
@@ -70,7 +61,7 @@ static int wm8775_write(struct i2c_client *client, int reg, u16 val)
 	int i;
 
 	if (reg < 0 || reg >= TOT_REGS) {
-		wm8775_err("Invalid register R%d\n", reg);
+		v4l_err(client, "Invalid register R%d\n", reg);
 		return -1;
 	}
 
@@ -80,7 +71,7 @@ static int wm8775_write(struct i2c_client *client, int reg, u16 val)
 			return 0;
 		}
 	}
-	wm8775_err("I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l_err(client, "I2C: cannot write %03x to register R%d\n", val, reg);
 	return -1;
 }
 
@@ -88,38 +79,53 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 			  void *arg)
 {
 	struct wm8775_state *state = i2c_get_clientdata(client);
-	int *input = arg;
+	struct v4l2_audio *input = arg;
+	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
+	case VIDIOC_S_AUDIO:
+		/* There are 4 inputs and one output. Zero or more inputs
+		   are multiplexed together to the output. Hence there are
+		   16 combinations.
+		   If only one input is active (the normal case) then the
+		   input values 1, 2, 4 or 8 should be used. */
+		if (input->index > 15) {
+			v4l_err(client, "Invalid input %d.\n", input->index);
+			return -EINVAL;
+		}
+		state->input = input->index;
+		if (state->muted)
+			break;
 		wm8775_write(client, R21, 0x0c0);
 		wm8775_write(client, R14, 0x1d4);
 		wm8775_write(client, R15, 0x1d4);
+		wm8775_write(client, R21, 0x100 + state->input);
+		break;
 
-		if (*input == AUDIO_RADIO) {
-			wm8775_write(client, R21, 0x108);
-			state->input = 8;
-			state->muted = 0;
-			break;
-		}
-		if (*input == AUDIO_MUTE) {
-			state->muted = 1;
-			break;
-		}
-		if (*input == AUDIO_UNMUTE) {
+	case VIDIOC_G_AUDIO:
+		memset(input, 0, sizeof(*input));
+		input->index = state->input;
+		break;
+
+	case VIDIOC_G_CTRL:
+		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+			return -EINVAL;
+		ctrl->value = state->muted;
+		break;
+
+	case VIDIOC_S_CTRL:
+		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+			return -EINVAL;
+		state->muted = ctrl->value;
+		wm8775_write(client, R21, 0x0c0);
+		wm8775_write(client, R14, 0x1d4);
+		wm8775_write(client, R15, 0x1d4);
+		if (!state->muted)
 			wm8775_write(client, R21, 0x100 + state->input);
-			state->muted = 0;
-			break;
-		}
-		/* All other inputs... */
-		wm8775_write(client, R21, 0x102);
-		state->input = 2;
-		state->muted = 0;
 		break;
 
 	case VIDIOC_LOG_STATUS:
-		wm8775_info("Input: %s%s\n",
-			    state->input == 8 ? "radio" : "default",
+		v4l_info(client, "Input: %d%s\n", state->input,
 			    state->muted ? " (muted)" : "");
 		break;
 
@@ -160,18 +166,16 @@ static int wm8775_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
 
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "wm8775");
 
-	wm8775_info("chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
 
 	state = kmalloc(sizeof(struct wm8775_state), GFP_KERNEL);
 	if (state == NULL) {
@@ -207,11 +211,7 @@ static int wm8775_attach(struct i2c_adapter *adapter, int address, int kind)
 
 static int wm8775_probe(struct i2c_adapter *adapter)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adapter->class & I2C_CLASS_TV_ANALOG)
-#else
-	if (adapter->id == I2C_HW_B_BT848)
-#endif
 		return i2c_probe(adapter, &addr_data, wm8775_attach);
 	return 0;
 }
@@ -233,15 +233,13 @@ static int wm8775_detach(struct i2c_client *client)
 
 /* i2c implementation */
 static struct i2c_driver i2c_driver = {
-	.name = "wm8775",
-
-	.id = I2C_DRIVERID_WM8775,
-	.flags = I2C_DF_NOTIFY,
-
+	.driver = {
+		.name = "wm8775",
+	},
+	.id             = I2C_DRIVERID_WM8775,
 	.attach_adapter = wm8775_probe,
-	.detach_client = wm8775_detach,
-	.command = wm8775_command,
-	.owner = THIS_MODULE,
+	.detach_client  = wm8775_detach,
+	.command        = wm8775_command,
 };
 
 

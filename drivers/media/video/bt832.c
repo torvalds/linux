@@ -30,8 +30,9 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-
 #include <media/audiochip.h>
+#include <media/v4l2-common.h>
+
 #include "bttv.h"
 #include "bt832.h"
 
@@ -42,9 +43,10 @@ static unsigned short normal_i2c[] = { I2C_BT832_ALT1>>1, I2C_BT832_ALT2>>1,
 				       I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
-/* ---------------------------------------------------------------------- */
+int debug;    /* debug output */
+module_param(debug,            int, 0644);
 
-#define dprintk     if (debug) printk
+/* ---------------------------------------------------------------------- */
 
 static int bt832_detach(struct i2c_client *client);
 
@@ -61,23 +63,26 @@ int bt832_hexdump(struct i2c_client *i2c_client_s, unsigned char *buf)
 	int i,rc;
 	buf[0]=0x80; // start at register 0 with auto-increment
 	if (1 != (rc = i2c_master_send(i2c_client_s,buf,1)))
-		printk("bt832: i2c i/o error: rc == %d (should be 1)\n",rc);
+		v4l_err(i2c_client_s,"i2c i/o error: rc == %d (should be 1)\n",rc);
 
 	for(i=0;i<65;i++)
 		buf[i]=0;
 	if (65 != (rc=i2c_master_recv(i2c_client_s,buf,65)))
-		printk("bt832: i2c i/o error: rc == %d (should be 65)\n",rc);
+		v4l_err(i2c_client_s,"i2c i/o error: rc == %d (should be 65)\n",rc);
 
 	// Note: On READ the first byte is the current index
 	//  (e.g. 0x80, what we just wrote)
 
-	if(1) {
+	if(debug>1) {
 		int i;
-		printk("BT832 hexdump:\n");
+		v4l_dbg(2, debug,i2c_client_s,"hexdump:");
 		for(i=1;i<65;i++) {
 			if(i!=1) {
-			  if(((i-1)%8)==0) printk(" ");
-			  if(((i-1)%16)==0) printk("\n");
+				if(((i-1)%8)==0) printk(" ");
+				if(((i-1)%16)==0) {
+					printk("\n");
+					v4l_dbg(2, debug,i2c_client_s,"hexdump:");
+				}
 			}
 			printk(" %02x",buf[i]);
 		}
@@ -96,56 +101,56 @@ int bt832_init(struct i2c_client *i2c_client_s)
 	bt832_hexdump(i2c_client_s,buf);
 
 	if(buf[0x40] != 0x31) {
-		printk("bt832: this i2c chip is no bt832 (id=%02x). Detaching.\n",buf[0x40]);
+		v4l_err(i2c_client_s,"This i2c chip is no bt832 (id=%02x). Detaching.\n",buf[0x40]);
 		kfree(buf);
 		return 0;
 	}
 
-	printk("Write 0 tp VPSTATUS\n");
+	v4l_err(i2c_client_s,"Write 0 tp VPSTATUS\n");
 	buf[0]=BT832_VP_STATUS; // Reg.52
 	buf[1]= 0x00;
 	if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
-		printk("bt832: i2c i/o error VPS: rc == %d (should be 2)\n",rc);
+		v4l_err(i2c_client_s,"i2c i/o error VPS: rc == %d (should be 2)\n",rc);
 
 	bt832_hexdump(i2c_client_s,buf);
 
 
 	// Leave low power mode:
-	printk("Bt832: leave low power mode.\n");
+	v4l_err(i2c_client_s,"leave low power mode.\n");
 	buf[0]=BT832_CAM_SETUP0; //0x39 57
 	buf[1]=0x08;
 	if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
-		printk("bt832: i2c i/o error LLPM: rc == %d (should be 2)\n",rc);
+		v4l_err(i2c_client_s,"i2c i/o error LLPM: rc == %d (should be 2)\n",rc);
 
 	bt832_hexdump(i2c_client_s,buf);
 
-	printk("Write 0 tp VPSTATUS\n");
+	v4l_info(i2c_client_s,"Write 0 tp VPSTATUS\n");
 	buf[0]=BT832_VP_STATUS; // Reg.52
 	buf[1]= 0x00;
 	if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
-		printk("bt832: i2c i/o error VPS: rc == %d (should be 2)\n",rc);
+		v4l_err(i2c_client_s,"i2c i/o error VPS: rc == %d (should be 2)\n",rc);
 
 	bt832_hexdump(i2c_client_s,buf);
 
 
 	// Enable Output
-	printk("Enable Output\n");
+	v4l_info(i2c_client_s,"Enable Output\n");
 	buf[0]=BT832_VP_CONTROL1; // Reg.40
 	buf[1]= 0x27 & (~0x01); // Default | !skip
 	if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
-		printk("bt832: i2c i/o error EO: rc == %d (should be 2)\n",rc);
+		v4l_err(i2c_client_s,"i2c i/o error EO: rc == %d (should be 2)\n",rc);
 
 	bt832_hexdump(i2c_client_s,buf);
 
 
 	// for testing (even works when no camera attached)
-	printk("bt832: *** Generate NTSC M Bars *****\n");
+	v4l_info(i2c_client_s,"*** Generate NTSC M Bars *****\n");
 	buf[0]=BT832_VP_TESTCONTROL0; // Reg. 42
 	buf[1]=3; // Generate NTSC System M bars, Generate Frame timing internally
 	if (2 != (rc = i2c_master_send(i2c_client_s,buf,2)))
-		printk("bt832: i2c i/o error MBAR: rc == %d (should be 2)\n",rc);
+		v4l_info(i2c_client_s,"i2c i/o error MBAR: rc == %d (should be 2)\n",rc);
 
-	printk("Bt832: Camera Present: %s\n",
+	v4l_info(i2c_client_s,"Camera Present: %s\n",
 		(buf[1+BT832_CAM_STATUS] & BT832_56_CAMERA_PRESENT) ? "yes":"no");
 
 	bt832_hexdump(i2c_client_s,buf);
@@ -159,19 +164,17 @@ static int bt832_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct bt832 *t;
 
-	printk("bt832_attach\n");
-
 	client_template.adapter = adap;
 	client_template.addr    = addr;
 
-	printk("bt832: chip found @ 0x%x\n", addr<<1);
-
-	if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
+	if (NULL == (t = kzalloc(sizeof(*t), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(t,0,sizeof(*t));
 	t->client = client_template;
 	i2c_set_clientdata(&t->client, t);
 	i2c_attach_client(&t->client);
+
+	v4l_info(&t->client,"chip found @ 0x%x\n", addr<<1);
+
 
 	if(! bt832_init(&t->client)) {
 		bt832_detach(&t->client);
@@ -183,13 +186,8 @@ static int bt832_attach(struct i2c_adapter *adap, int addr, int kind)
 
 static int bt832_probe(struct i2c_adapter *adap)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, bt832_attach);
-#else
-	if (adap->id == I2C_HW_B_BT848)
-		return i2c_probe(adap, &addr_data, bt832_attach);
-#endif
 	return 0;
 }
 
@@ -197,7 +195,7 @@ static int bt832_detach(struct i2c_client *client)
 {
 	struct bt832 *t = i2c_get_clientdata(client);
 
-	printk("bt832: detach.\n");
+	v4l_info(&t->client,"dettach\n");
 	i2c_detach_client(client);
 	kfree(t);
 	return 0;
@@ -208,7 +206,8 @@ bt832_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct bt832 *t = i2c_get_clientdata(client);
 
-	printk("bt832: command %x\n",cmd);
+	if (debug>1)
+		v4l_i2c_print_ioctl(&t->client,cmd);
 
 	switch (cmd) {
 		case BT832_HEXDUMP: {
@@ -219,7 +218,7 @@ bt832_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		break;
 		case BT832_REATTACH:
-			printk("bt832: re-attach\n");
+			v4l_info(&t->client,"re-attach\n");
 			i2c_del_driver(&driver);
 			i2c_add_driver(&driver);
 		break;
@@ -230,10 +229,10 @@ bt832_command(struct i2c_client *client, unsigned int cmd, void *arg)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner          = THIS_MODULE,
-	.name           = "i2c bt832 driver",
-	.id             = -1, /* FIXME */
-	.flags          = I2C_DF_NOTIFY,
+	.driver = {
+		.name   = "bt832",
+	},
+	.id             = 0, /* FIXME */
 	.attach_adapter = bt832_probe,
 	.detach_client  = bt832_detach,
 	.command        = bt832_command,
@@ -241,7 +240,6 @@ static struct i2c_driver driver = {
 static struct i2c_client client_template =
 {
 	.name       = "bt832",
-	.flags      = I2C_CLIENT_ALLOW_USE,
 	.driver     = &driver,
 };
 

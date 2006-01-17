@@ -441,7 +441,6 @@ static struct usb_device_id powermate_devices [] = {
 MODULE_DEVICE_TABLE (usb, powermate_devices);
 
 static struct usb_driver powermate_driver = {
-	.owner =	THIS_MODULE,
         .name =         "powermate",
         .probe =        powermate_probe,
         .disconnect =   powermate_disconnect,

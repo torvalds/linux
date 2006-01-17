@@ -1808,7 +1808,7 @@ static void user_instruction_dump (unsigned int __user *pc)
 void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 {
 	unsigned long pc, fp, thread_base, ksp;
-	struct thread_info *tp = tsk->thread_info;
+	void *tp = task_stack_page(tsk);
 	struct reg_window *rw;
 	int count = 0;
 
@@ -1862,7 +1862,7 @@ static inline int is_kernel_stack(struct task_struct *task,
 			return 0;
 	}
 
-	thread_base = (unsigned long) task->thread_info;
+	thread_base = (unsigned long) task_stack_page(task);
 	thread_end = thread_base + sizeof(union thread_union);
 	if (rw_addr >= thread_base &&
 	    rw_addr < thread_end &&

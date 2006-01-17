@@ -655,11 +655,11 @@ set_sigdelayed(pid_t pid, int signo, int code, void __user *addr)
 
 		if (!t)
 			return;
-		t->thread_info->sigdelayed.signo = signo;
-		t->thread_info->sigdelayed.code = code;
-		t->thread_info->sigdelayed.addr = addr;
-		t->thread_info->sigdelayed.start_time = start_time;
-		t->thread_info->sigdelayed.pid = pid;
+		task_thread_info(t)->sigdelayed.signo = signo;
+		task_thread_info(t)->sigdelayed.code = code;
+		task_thread_info(t)->sigdelayed.addr = addr;
+		task_thread_info(t)->sigdelayed.start_time = start_time;
+		task_thread_info(t)->sigdelayed.pid = pid;
 		wmb();
 		set_tsk_thread_flag(t, TIF_SIGDELAYED);
 	}

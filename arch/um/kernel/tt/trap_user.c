@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -8,18 +8,18 @@
 #include <signal.h>
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"
-#include "signal_user.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "task.h"
 #include "tt.h"
+#include "os.h"
 
 void sig_handler_common_tt(int sig, void *sc_ptr)
 {
 	struct sigcontext *sc = sc_ptr;
 	struct tt_regs save_regs, *r;
-	struct signal_info *info;
 	int save_errno = errno, is_user;
+	void (*handler)(int, union uml_pt_regs *);
 
 	/* This is done because to allow SIGSEGV to be delivered inside a SEGV
 	 * handler.  This can happen in copy_user, and if SEGV is disabled,
@@ -40,10 +40,14 @@ void sig_handler_common_tt(int sig, void *sc_ptr)
 	if(sig != SIGUSR2) 
 		r->syscall = -1;
 
-	info = &sig_info[sig];
-	if(!info->is_irq) unblock_signals();
+	handler = sig_info[sig];
 
-	(*info->handler)(sig, (union uml_pt_regs *) r);
+	/* unblock SIGALRM, SIGVTALRM, SIGIO if sig isn't IRQ signal */
+	if (sig != SIGIO && sig != SIGWINCH &&
+	    sig != SIGVTALRM && sig != SIGALRM)
+		unblock_signals();
+
+	handler(sig, (union uml_pt_regs *) r);
 
 	if(is_user){
 		interrupt_end();

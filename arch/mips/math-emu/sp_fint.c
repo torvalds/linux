@@ -33,8 +33,6 @@ ieee754sp ieee754sp_fint(int x)
 
 	CLEARCX;
 
-	xc = ( 0 ? xc : xc );
-
 	if (x == 0)
 		return ieee754sp_zero(0);
 	if (x == 1 || x == -1)

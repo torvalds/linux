@@ -186,8 +186,9 @@ extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long get_wchan(struct task_struct *task);
 
-#define KSTK_EIP(tsk)  ((tsk)->thread_info->kregs->tpc)
-#define KSTK_ESP(tsk)  ((tsk)->thread_info->kregs->u_regs[UREG_FP])
+#define task_pt_regs(tsk) (task_thread_info(tsk)->kregs)
+#define KSTK_EIP(tsk)  (task_pt_regs(tsk)->tpc)
+#define KSTK_ESP(tsk)  (task_pt_regs(tsk)->u_regs[UREG_FP])
 
 #define cpu_relax()	barrier()
 

@@ -31,6 +31,7 @@
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <linux/topology.h>
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
@@ -74,6 +75,8 @@ static volatile unsigned int cpu_callin_map[NR_CPUS];
 void smp_call_function_interrupt(void);
 
 int smt_enabled_at_boot = 1;
+
+static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
 #ifdef CONFIG_MPIC
 int __init smp_mpic_probe(void)
@@ -123,11 +126,16 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 		/* XXX Do we have to do this? */
 		set_need_resched();
 		break;
-#ifdef CONFIG_DEBUGGER
 	case PPC_MSG_DEBUGGER_BREAK:
+		if (crash_ipi_function_ptr) {
+			crash_ipi_function_ptr(regs);
+			break;
+		}
+#ifdef CONFIG_DEBUGGER
 		debugger_ipi(regs);
 		break;
-#endif
+#endif /* CONFIG_DEBUGGER */
+		/* FALLTHROUGH */
 	default:
 		printk("SMP %d: smp_message_recv(): unknown msg %d\n",
 		       smp_processor_id(), msg);
@@ -144,6 +152,17 @@ void smp_send_reschedule(int cpu)
 void smp_send_debugger_break(int cpu)
 {
 	smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+}
+#endif
+
+#ifdef CONFIG_KEXEC
+void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
+{
+	crash_ipi_function_ptr = crash_ipi_callback;
+	if (crash_ipi_callback) {
+		mb();
+		smp_ops->message_pass(MSG_ALL_BUT_SELF, PPC_MSG_DEBUGGER_BREAK);
+	}
 }
 #endif
 
@@ -319,8 +338,8 @@ static void __init smp_create_idle(unsigned int cpu)
 #ifdef CONFIG_PPC64
 	paca[cpu].__current = p;
 #endif
-	current_set[cpu] = p->thread_info;
-	p->thread_info->cpu = cpu;
+	current_set[cpu] = task_thread_info(p);
+	task_thread_info(p)->cpu = cpu;
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -356,7 +375,7 @@ void __devinit smp_prepare_boot_cpu(void)
 #ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
 #endif
-	current_set[boot_cpuid] = current->thread_info;
+	current_set[boot_cpuid] = task_thread_info(current);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -451,10 +470,6 @@ int __devinit __cpu_up(unsigned int cpu)
 
 	if (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu))
 		return -EINVAL;
-
-#ifdef CONFIG_PPC64
-	paca[cpu].default_decr = tb_ticks_per_jiffy;
-#endif
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug
@@ -554,6 +569,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	smp_ops->setup_cpu(boot_cpuid);
 
 	set_cpus_allowed(current, old_mask);
+
+	dump_numa_cpu_topology();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

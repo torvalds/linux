@@ -31,24 +31,23 @@ extern void icmn_err(int, char *, va_list)
 	__attribute__ ((format (printf, 2, 0)));
 extern void cmn_err(int, char *, ...)
 	__attribute__ ((format (printf, 2, 3)));
+extern void assfail(char *expr, char *f, int l);
+
+#define prdev(fmt,targ,args...) \
+	printk("Device %s - " fmt "\n", XFS_BUFTARG_NAME(targ), ## args)
+
+#define ASSERT_ALWAYS(expr)	\
+	(unlikely((expr) != 0) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
+
+#ifndef DEBUG
+# define ASSERT(expr)	((void)0)
+#else
+# define ASSERT(expr)	ASSERT_ALWAYS(expr)
+extern unsigned long random(void);
+#endif
 
 #ifndef STATIC
 # define STATIC static
 #endif
-
-#ifdef DEBUG
-# define ASSERT(EX)	((EX) ? ((void)0) : assfail(#EX, __FILE__, __LINE__))
-#else
-# define ASSERT(x)	((void)0)
-#endif
-
-extern void assfail(char *, char *, int);
-#ifdef DEBUG
-extern unsigned long random(void);
-extern int get_thread_id(void);
-#endif
-
-#define ASSERT_ALWAYS(EX)  ((EX)?((void)0):assfail(#EX, __FILE__, __LINE__))
-#define	debug_stop_all_cpus(param)	/* param is "cpumask_t *" */
 
 #endif  /* __XFS_SUPPORT_DEBUG_H__ */

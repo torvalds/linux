@@ -15,6 +15,7 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_ip.h>
 #include <linux/ip.h>
+#include <net/ip.h>
 #include <linux/in.h>
 #include <linux/module.h>
 
@@ -51,6 +52,8 @@ static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,
 		if (!(info->bitmask & EBT_IP_DPORT) &&
 		    !(info->bitmask & EBT_IP_SPORT))
 			return EBT_MATCH;
+		if (ntohs(ih->frag_off) & IP_OFFSET)
+			return EBT_NOMATCH;
 		pptr = skb_header_pointer(skb, ih->ihl*4,
 					  sizeof(_ports), &_ports);
 		if (pptr == NULL)

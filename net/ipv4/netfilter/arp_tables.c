@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/capability.h>
 #include <linux/if_arp.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
@@ -23,6 +24,7 @@
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp/arp_tables.h>
 
 MODULE_LICENSE("GPL");
@@ -54,32 +56,8 @@ do {								\
 #else
 #define ARP_NF_ASSERT(x)
 #endif
-#define SMP_ALIGN(x) (((x) + SMP_CACHE_BYTES-1) & ~(SMP_CACHE_BYTES-1))
 
-static DECLARE_MUTEX(arpt_mutex);
-
-#define ASSERT_READ_LOCK(x) ARP_NF_ASSERT(down_trylock(&arpt_mutex) != 0)
-#define ASSERT_WRITE_LOCK(x) ARP_NF_ASSERT(down_trylock(&arpt_mutex) != 0)
 #include <linux/netfilter_ipv4/listhelp.h>
-
-struct arpt_table_info {
-	unsigned int size;
-	unsigned int number;
-	unsigned int initial_entries;
-	unsigned int hook_entry[NF_ARP_NUMHOOKS];
-	unsigned int underflow[NF_ARP_NUMHOOKS];
-	char entries[0] __attribute__((aligned(SMP_CACHE_BYTES)));
-};
-
-static LIST_HEAD(arpt_target);
-static LIST_HEAD(arpt_tables);
-#define ADD_COUNTER(c,b,p) do { (c).bcnt += (b); (c).pcnt += (p); } while(0)
-
-#ifdef CONFIG_SMP
-#define TABLE_OFFSET(t,p) (SMP_ALIGN((t)->size)*(p))
-#else
-#define TABLE_OFFSET(t,p) 0
-#endif
 
 static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 				      char *hdr_addr, int len)
@@ -227,9 +205,9 @@ static inline int arp_checkentry(const struct arpt_arp *arp)
 }
 
 static unsigned int arpt_error(struct sk_buff **pskb,
-			       unsigned int hooknum,
 			       const struct net_device *in,
 			       const struct net_device *out,
+			       unsigned int hooknum,
 			       const void *targinfo,
 			       void *userinfo)
 {
@@ -258,6 +236,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	struct arpt_entry *e, *back;
 	const char *indev, *outdev;
 	void *table_base;
+	struct xt_table_info *private = table->private;
 
 	/* ARP header, plus 2 device addresses, plus 2 IP addresses.  */
 	if (!pskb_may_pull((*pskb), (sizeof(struct arphdr) +
@@ -269,11 +248,9 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 	outdev = out ? out->name : nulldevname;
 
 	read_lock_bh(&table->lock);
-	table_base = (void *)table->private->entries
-		+ TABLE_OFFSET(table->private,
-			       smp_processor_id());
-	e = get_entry(table_base, table->private->hook_entry[hook]);
-	back = get_entry(table_base, table->private->underflow[hook]);
+	table_base = (void *)private->entries[smp_processor_id()];
+	e = get_entry(table_base, private->hook_entry[hook]);
+	back = get_entry(table_base, private->underflow[hook]);
 
 	arp = (*pskb)->nh.arph;
 	do {
@@ -321,8 +298,8 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 				 * abs. verdicts
 				 */
 				verdict = t->u.kernel.target->target(pskb,
-								     hook,
 								     in, out,
+								     hook,
 								     t->data,
 								     userdata);
 
@@ -347,106 +324,6 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 		return verdict;
 }
 
-/*
- * These are weird, but module loading must not be done with mutex
- * held (since they will register), and we have to have a single
- * function to use try_then_request_module().
- */
-
-/* Find table by name, grabs mutex & ref.  Returns ERR_PTR() on error. */
-static inline struct arpt_table *find_table_lock(const char *name)
-{
-	struct arpt_table *t;
-
-	if (down_interruptible(&arpt_mutex) != 0)
-		return ERR_PTR(-EINTR);
-
-	list_for_each_entry(t, &arpt_tables, list)
-		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
-			return t;
-	up(&arpt_mutex);
-	return NULL;
-}
-
-
-/* Find target, grabs ref.  Returns ERR_PTR() on error. */
-static inline struct arpt_target *find_target(const char *name, u8 revision)
-{
-	struct arpt_target *t;
-	int err = 0;
-
-	if (down_interruptible(&arpt_mutex) != 0)
-		return ERR_PTR(-EINTR);
-
-	list_for_each_entry(t, &arpt_target, list) {
-		if (strcmp(t->name, name) == 0) {
-			if (t->revision == revision) {
-				if (try_module_get(t->me)) {
-					up(&arpt_mutex);
-					return t;
-				}
-			} else
-				err = -EPROTOTYPE; /* Found something. */
-		}
-	}
-	up(&arpt_mutex);
-	return ERR_PTR(err);
-}
-
-struct arpt_target *arpt_find_target(const char *name, u8 revision)
-{
-	struct arpt_target *target;
-
-	target = try_then_request_module(find_target(name, revision),
-					 "arpt_%s", name);
-	if (IS_ERR(target) || !target)
-		return NULL;
-	return target;
-}
-
-static int target_revfn(const char *name, u8 revision, int *bestp)
-{
-	struct arpt_target *t;
-	int have_rev = 0;
-
-	list_for_each_entry(t, &arpt_target, list) {
-		if (strcmp(t->name, name) == 0) {
-			if (t->revision > *bestp)
-				*bestp = t->revision;
-			if (t->revision == revision)
-				have_rev =1;
-		}
-	}
-	return have_rev;
-}
-
-/* Returns true or false (if no such extension at all) */
-static inline int find_revision(const char *name, u8 revision,
-				int (*revfn)(const char *, u8, int *),
-				int *err)
-{
-	int have_rev, best = -1;
-
-	if (down_interruptible(&arpt_mutex) != 0) {
-		*err = -EINTR;
-		return 1;
-	}
-	have_rev = revfn(name, revision, &best);
-	up(&arpt_mutex);
-
-	/* Nothing at all?  Return 0 to try loading module. */
-	if (best == -1) {
-		*err = -ENOENT;
-		return 0;
-	}
-
-	*err = best;
-	if (!have_rev)
-		*err = -EPROTONOSUPPORT;
-	return 1;
-}
-
-
 /* All zeroes == unconditional rule. */
 static inline int unconditional(const struct arpt_arp *arp)
 {
@@ -462,7 +339,8 @@ static inline int unconditional(const struct arpt_arp *arp)
 /* Figures out from what hook each rule can be called: returns 0 if
  * there are loops.  Puts hook bitmask in comefrom.
  */
-static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int valid_hooks)
+static int mark_source_chains(struct xt_table_info *newinfo,
+			      unsigned int valid_hooks, void *entry0)
 {
 	unsigned int hook;
 
@@ -472,7 +350,7 @@ static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int vali
 	for (hook = 0; hook < NF_ARP_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct arpt_entry *e
-			= (struct arpt_entry *)(newinfo->entries + pos);
+			= (struct arpt_entry *)(entry0 + pos);
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
@@ -514,13 +392,13 @@ static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int vali
 						goto next;
 
 					e = (struct arpt_entry *)
-						(newinfo->entries + pos);
+						(entry0 + pos);
 				} while (oldpos == pos + e->next_offset);
 
 				/* Move along one */
 				size = e->next_offset;
 				e = (struct arpt_entry *)
-					(newinfo->entries + pos + size);
+					(entry0 + pos + size);
 				e->counters.pcnt = pos;
 				pos += size;
 			} else {
@@ -537,7 +415,7 @@ static int mark_source_chains(struct arpt_table_info *newinfo, unsigned int vali
 					newpos = pos + e->next_offset;
 				}
 				e = (struct arpt_entry *)
-					(newinfo->entries + newpos);
+					(entry0 + newpos);
 				e->counters.pcnt = pos;
 				pos = newpos;
 			}
@@ -592,8 +470,8 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	}
 
 	t = arpt_get_target(e);
-	target = try_then_request_module(find_target(t->u.user.name,
-						     t->u.user.revision),
+	target = try_then_request_module(xt_find_target(NF_ARP, t->u.user.name,
+							t->u.user.revision),
 					 "arpt_%s", t->u.user.name);
 	if (IS_ERR(target) || !target) {
 		duprintf("check_entry: `%s' not found\n", t->u.user.name);
@@ -627,7 +505,7 @@ out:
 }
 
 static inline int check_entry_size_and_hooks(struct arpt_entry *e,
-					     struct arpt_table_info *newinfo,
+					     struct xt_table_info *newinfo,
 					     unsigned char *base,
 					     unsigned char *limit,
 					     const unsigned int *hook_entries,
@@ -661,7 +539,7 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
            < 0 (not ARPT_RETURN). --RR */
 
 	/* Clear counters and comefrom */
-	e->counters = ((struct arpt_counters) { 0, 0 });
+	e->counters = ((struct xt_counters) { 0, 0 });
 	e->comefrom = 0;
 
 	(*i)++;
@@ -688,7 +566,8 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
  */
 static int translate_table(const char *name,
 			   unsigned int valid_hooks,
-			   struct arpt_table_info *newinfo,
+			   struct xt_table_info *newinfo,
+			   void *entry0,
 			   unsigned int size,
 			   unsigned int number,
 			   const unsigned int *hook_entries,
@@ -710,11 +589,11 @@ static int translate_table(const char *name,
 	i = 0;
 
 	/* Walk through entries, checking offsets. */
-	ret = ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+	ret = ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				 check_entry_size_and_hooks,
 				 newinfo,
-				 newinfo->entries,
-				 newinfo->entries + size,
+				 entry0,
+				 entry0 + size,
 				 hook_entries, underflows, &i);
 	duprintf("translate_table: ARPT_ENTRY_ITERATE gives %d\n", ret);
 	if (ret != 0)
@@ -743,62 +622,34 @@ static int translate_table(const char *name,
 		}
 	}
 
-	if (!mark_source_chains(newinfo, valid_hooks)) {
+	if (!mark_source_chains(newinfo, valid_hooks, entry0)) {
 		duprintf("Looping hook\n");
 		return -ELOOP;
 	}
 
 	/* Finally, each sanity check must pass */
 	i = 0;
-	ret = ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+	ret = ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				 check_entry, name, size, &i);
 
 	if (ret != 0) {
-		ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size,
+		ARPT_ENTRY_ITERATE(entry0, newinfo->size,
 				   cleanup_entry, &i);
 		return ret;
 	}
 
 	/* And one copy for every other CPU */
 	for_each_cpu(i) {
-		if (i == 0)
-			continue;
-		memcpy(newinfo->entries + SMP_ALIGN(newinfo->size) * i,
-		       newinfo->entries,
-		       SMP_ALIGN(newinfo->size));
+		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
+			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
 
 	return ret;
 }
 
-static struct arpt_table_info *replace_table(struct arpt_table *table,
-					     unsigned int num_counters,
-					     struct arpt_table_info *newinfo,
-					     int *error)
-{
-	struct arpt_table_info *oldinfo;
-
-	/* Do the substitution. */
-	write_lock_bh(&table->lock);
-	/* Check inside lock: is the old number correct? */
-	if (num_counters != table->private->number) {
-		duprintf("num_counters != table->private->number (%u/%u)\n",
-			 num_counters, table->private->number);
-		write_unlock_bh(&table->lock);
-		*error = -EAGAIN;
-		return NULL;
-	}
-	oldinfo = table->private;
-	table->private = newinfo;
-	newinfo->initial_entries = oldinfo->initial_entries;
-	write_unlock_bh(&table->lock);
-
-	return oldinfo;
-}
-
 /* Gets counters. */
 static inline int add_entry_to_counter(const struct arpt_entry *e,
-				       struct arpt_counters total[],
+				       struct xt_counters total[],
 				       unsigned int *i)
 {
 	ADD_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
@@ -807,15 +658,42 @@ static inline int add_entry_to_counter(const struct arpt_entry *e,
 	return 0;
 }
 
-static void get_counters(const struct arpt_table_info *t,
-			 struct arpt_counters counters[])
+static inline int set_entry_to_counter(const struct arpt_entry *e,
+				       struct xt_counters total[],
+				       unsigned int *i)
+{
+	SET_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
+
+	(*i)++;
+	return 0;
+}
+
+static void get_counters(const struct xt_table_info *t,
+			 struct xt_counters counters[])
 {
 	unsigned int cpu;
 	unsigned int i;
+	unsigned int curcpu;
+
+	/* Instead of clearing (by a previous call to memset())
+	 * the counters and using adds, we set the counters
+	 * with data used by 'current' CPU
+	 * We dont care about preemption here.
+	 */
+	curcpu = raw_smp_processor_id();
+
+	i = 0;
+	ARPT_ENTRY_ITERATE(t->entries[curcpu],
+			   t->size,
+			   set_entry_to_counter,
+			   counters,
+			   &i);
 
 	for_each_cpu(cpu) {
+		if (cpu == curcpu)
+			continue;
 		i = 0;
-		ARPT_ENTRY_ITERATE(t->entries + TABLE_OFFSET(t, cpu),
+		ARPT_ENTRY_ITERATE(t->entries[cpu],
 				   t->size,
 				   add_entry_to_counter,
 				   counters,
@@ -829,27 +707,29 @@ static int copy_entries_to_user(unsigned int total_size,
 {
 	unsigned int off, num, countersize;
 	struct arpt_entry *e;
-	struct arpt_counters *counters;
+	struct xt_counters *counters;
+	struct xt_table_info *private = table->private;
 	int ret = 0;
+	void *loc_cpu_entry;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	 * (other than comefrom, which userspace doesn't care
 	 * about).
 	 */
-	countersize = sizeof(struct arpt_counters) * table->private->number;
-	counters = vmalloc(countersize);
+	countersize = sizeof(struct xt_counters) * private->number;
+	counters = vmalloc_node(countersize, numa_node_id());
 
 	if (counters == NULL)
 		return -ENOMEM;
 
 	/* First, sum counters... */
-	memset(counters, 0, countersize);
 	write_lock_bh(&table->lock);
-	get_counters(table->private, counters);
+	get_counters(private, counters);
 	write_unlock_bh(&table->lock);
 
-	/* ... then copy entire thing from CPU 0... */
-	if (copy_to_user(userptr, table->private->entries, total_size) != 0) {
+	loc_cpu_entry = private->entries[raw_smp_processor_id()];
+	/* ... then copy entire thing ... */
+	if (copy_to_user(userptr, loc_cpu_entry, total_size) != 0) {
 		ret = -EFAULT;
 		goto free_counters;
 	}
@@ -859,7 +739,7 @@ static int copy_entries_to_user(unsigned int total_size,
 	for (off = 0, num = 0; off < total_size; off += e->next_offset, num++){
 		struct arpt_entry_target *t;
 
-		e = (struct arpt_entry *)(table->private->entries + off);
+		e = (struct arpt_entry *)(loc_cpu_entry + off);
 		if (copy_to_user(userptr + off
 				 + offsetof(struct arpt_entry, counters),
 				 &counters[num],
@@ -890,21 +770,21 @@ static int get_entries(const struct arpt_get_entries *entries,
 	int ret;
 	struct arpt_table *t;
 
-	t = find_table_lock(entries->name);
+	t = xt_find_table_lock(NF_ARP, entries->name);
 	if (t || !IS_ERR(t)) {
+		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n",
-			 t->private->number);
-		if (entries->size == t->private->size)
-			ret = copy_entries_to_user(t->private->size,
+			 private->number);
+		if (entries->size == private->size)
+			ret = copy_entries_to_user(private->size,
 						   t, uptr->entrytable);
 		else {
 			duprintf("get_entries: I've got %u not %u!\n",
-				 t->private->size,
-				 entries->size);
+				 private->size, entries->size);
 			ret = -EINVAL;
 		}
 		module_put(t->me);
-		up(&arpt_mutex);
+		xt_table_unlock(t);
 	} else
 		ret = t ? PTR_ERR(t) : -ENOENT;
 
@@ -916,8 +796,9 @@ static int do_replace(void __user *user, unsigned int len)
 	int ret;
 	struct arpt_replace tmp;
 	struct arpt_table *t;
-	struct arpt_table_info *newinfo, *oldinfo;
-	struct arpt_counters *counters;
+	struct xt_table_info *newinfo, *oldinfo;
+	struct xt_counters *counters;
+	void *loc_cpu_entry, *loc_cpu_old_entry;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -926,38 +807,33 @@ static int do_replace(void __user *user, unsigned int len)
 	if (len != sizeof(tmp) + tmp.size)
 		return -ENOPROTOOPT;
 
-	/* Pedantry: prevent them from hitting BUG() in vmalloc.c --RR */
-	if ((SMP_ALIGN(tmp.size) >> PAGE_SHIFT) + 2 > num_physpages)
-		return -ENOMEM;
-
-	newinfo = vmalloc(sizeof(struct arpt_table_info)
-			  + SMP_ALIGN(tmp.size) *
-			  		(highest_possible_processor_id()+1));
+	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
 		return -ENOMEM;
 
-	if (copy_from_user(newinfo->entries, user + sizeof(tmp),
+	/* choose the copy that is on our node/cpu */
+	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	if (copy_from_user(loc_cpu_entry, user + sizeof(tmp),
 			   tmp.size) != 0) {
 		ret = -EFAULT;
 		goto free_newinfo;
 	}
 
-	counters = vmalloc(tmp.num_counters * sizeof(struct arpt_counters));
+	counters = vmalloc(tmp.num_counters * sizeof(struct xt_counters));
 	if (!counters) {
 		ret = -ENOMEM;
 		goto free_newinfo;
 	}
-	memset(counters, 0, tmp.num_counters * sizeof(struct arpt_counters));
 
 	ret = translate_table(tmp.name, tmp.valid_hooks,
-			      newinfo, tmp.size, tmp.num_entries,
+			      newinfo, loc_cpu_entry, tmp.size, tmp.num_entries,
 			      tmp.hook_entry, tmp.underflow);
 	if (ret != 0)
 		goto free_newinfo_counters;
 
 	duprintf("arp_tables: Translated table\n");
 
-	t = try_then_request_module(find_table_lock(tmp.name),
+	t = try_then_request_module(xt_find_table_lock(NF_ARP, tmp.name),
 				    "arptable_%s", tmp.name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
@@ -972,7 +848,7 @@ static int do_replace(void __user *user, unsigned int len)
 		goto put_module;
 	}
 
-	oldinfo = replace_table(t, tmp.num_counters, newinfo, &ret);
+	oldinfo = xt_replace_table(t, tmp.num_counters, newinfo, &ret);
 	if (!oldinfo)
 		goto put_module;
 
@@ -989,24 +865,26 @@ static int do_replace(void __user *user, unsigned int len)
 	/* Get the old counters. */
 	get_counters(oldinfo, counters);
 	/* Decrease module usage counts and free resource */
-	ARPT_ENTRY_ITERATE(oldinfo->entries, oldinfo->size, cleanup_entry,NULL);
-	vfree(oldinfo);
+	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
+	ARPT_ENTRY_ITERATE(loc_cpu_old_entry, oldinfo->size, cleanup_entry,NULL);
+
+	xt_free_table_info(oldinfo);
 	if (copy_to_user(tmp.counters, counters,
-			 sizeof(struct arpt_counters) * tmp.num_counters) != 0)
+			 sizeof(struct xt_counters) * tmp.num_counters) != 0)
 		ret = -EFAULT;
 	vfree(counters);
-	up(&arpt_mutex);
+	xt_table_unlock(t);
 	return ret;
 
  put_module:
 	module_put(t->me);
-	up(&arpt_mutex);
+	xt_table_unlock(t);
  free_newinfo_counters_untrans:
-	ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size, cleanup_entry, NULL);
+	ARPT_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, NULL);
  free_newinfo_counters:
 	vfree(counters);
  free_newinfo:
-	vfree(newinfo);
+	xt_free_table_info(newinfo);
 	return ret;
 }
 
@@ -1014,7 +892,7 @@ static int do_replace(void __user *user, unsigned int len)
  * and everything is OK.
  */
 static inline int add_counter_to_entry(struct arpt_entry *e,
-				       const struct arpt_counters addme[],
+				       const struct xt_counters addme[],
 				       unsigned int *i)
 {
 
@@ -1027,14 +905,16 @@ static inline int add_counter_to_entry(struct arpt_entry *e,
 static int do_add_counters(void __user *user, unsigned int len)
 {
 	unsigned int i;
-	struct arpt_counters_info tmp, *paddc;
+	struct xt_counters_info tmp, *paddc;
 	struct arpt_table *t;
+	struct xt_table_info *private;
 	int ret = 0;
+	void *loc_cpu_entry;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
 
-	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct arpt_counters))
+	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct xt_counters))
 		return -EINVAL;
 
 	paddc = vmalloc(len);
@@ -1046,27 +926,30 @@ static int do_add_counters(void __user *user, unsigned int len)
 		goto free;
 	}
 
-	t = find_table_lock(tmp.name);
+	t = xt_find_table_lock(NF_ARP, tmp.name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
 	}
 
 	write_lock_bh(&t->lock);
-	if (t->private->number != paddc->num_counters) {
+	private = t->private;
+	if (private->number != paddc->num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;
 	}
 
 	i = 0;
-	ARPT_ENTRY_ITERATE(t->private->entries,
-			   t->private->size,
+	/* Choose the copy that is on our node */
+	loc_cpu_entry = private->entries[smp_processor_id()];
+	ARPT_ENTRY_ITERATE(loc_cpu_entry,
+			   private->size,
 			   add_counter_to_entry,
 			   paddc->counters,
 			   &i);
  unlock_up_free:
 	write_unlock_bh(&t->lock);
-	up(&arpt_mutex);
+	xt_table_unlock(t);
 	module_put(t->me);
  free:
 	vfree(paddc);
@@ -1123,25 +1006,26 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 		}
 		name[ARPT_TABLE_MAXNAMELEN-1] = '\0';
 
-		t = try_then_request_module(find_table_lock(name),
+		t = try_then_request_module(xt_find_table_lock(NF_ARP, name),
 					    "arptable_%s", name);
 		if (t && !IS_ERR(t)) {
 			struct arpt_getinfo info;
+			struct xt_table_info *private = t->private;
 
 			info.valid_hooks = t->valid_hooks;
-			memcpy(info.hook_entry, t->private->hook_entry,
+			memcpy(info.hook_entry, private->hook_entry,
 			       sizeof(info.hook_entry));
-			memcpy(info.underflow, t->private->underflow,
+			memcpy(info.underflow, private->underflow,
 			       sizeof(info.underflow));
-			info.num_entries = t->private->number;
-			info.size = t->private->size;
+			info.num_entries = private->number;
+			info.size = private->size;
 			strcpy(info.name, name);
 
 			if (copy_to_user(user, &info, *len) != 0)
 				ret = -EFAULT;
 			else
 				ret = 0;
-			up(&arpt_mutex);
+			xt_table_unlock(t);
 			module_put(t->me);
 		} else
 			ret = t ? PTR_ERR(t) : -ENOENT;
@@ -1166,7 +1050,7 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 	}
 
 	case ARPT_SO_GET_REVISION_TARGET: {
-		struct arpt_get_revision rev;
+		struct xt_get_revision rev;
 
 		if (*len != sizeof(rev)) {
 			ret = -EINVAL;
@@ -1177,8 +1061,8 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 			break;
 		}
 
-		try_then_request_module(find_revision(rev.name, rev.revision,
-						      target_revfn, &ret),
+		try_then_request_module(xt_find_revision(NF_ARP, rev.name,
+							 rev.revision, 1, &ret),
 					"arpt_%s", rev.name);
 		break;
 	}
@@ -1191,101 +1075,57 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 	return ret;
 }
 
-/* Registration hooks for targets. */
-int arpt_register_target(struct arpt_target *target)
-{
-	int ret;
-
-	ret = down_interruptible(&arpt_mutex);
-	if (ret != 0)
-		return ret;
-
-	list_add(&target->list, &arpt_target);
-	up(&arpt_mutex);
-
-	return ret;
-}
-
-void arpt_unregister_target(struct arpt_target *target)
-{
-	down(&arpt_mutex);
-	LIST_DELETE(&arpt_target, target);
-	up(&arpt_mutex);
-}
-
 int arpt_register_table(struct arpt_table *table,
 			const struct arpt_replace *repl)
 {
 	int ret;
-	struct arpt_table_info *newinfo;
-	static struct arpt_table_info bootstrap
+	struct xt_table_info *newinfo;
+	static struct xt_table_info bootstrap
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
+	void *loc_cpu_entry;
 
-	newinfo = vmalloc(sizeof(struct arpt_table_info)
-			  + SMP_ALIGN(repl->size) *
-			  		(highest_possible_processor_id()+1));
+	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo) {
 		ret = -ENOMEM;
 		return ret;
 	}
-	memcpy(newinfo->entries, repl->entries, repl->size);
+
+	/* choose the copy on our node/cpu */
+	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
+	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
 	ret = translate_table(table->name, table->valid_hooks,
-			      newinfo, repl->size,
+			      newinfo, loc_cpu_entry, repl->size,
 			      repl->num_entries,
 			      repl->hook_entry,
 			      repl->underflow);
+
 	duprintf("arpt_register_table: translate table gives %d\n", ret);
 	if (ret != 0) {
-		vfree(newinfo);
+		xt_free_table_info(newinfo);
 		return ret;
 	}
 
-	ret = down_interruptible(&arpt_mutex);
-	if (ret != 0) {
-		vfree(newinfo);
+	if (xt_register_table(table, &bootstrap, newinfo) != 0) {
+		xt_free_table_info(newinfo);
 		return ret;
 	}
 
-	/* Don't autoload: we'd eat our tail... */
-	if (list_named_find(&arpt_tables, table->name)) {
-		ret = -EEXIST;
-		goto free_unlock;
-	}
-
-	/* Simplifies replace_table code. */
-	table->private = &bootstrap;
-	if (!replace_table(table, 0, newinfo, &ret))
-		goto free_unlock;
-
-	duprintf("table->private->number = %u\n",
-		 table->private->number);
-	
-	/* save number of initial entries */
-	table->private->initial_entries = table->private->number;
-
-	rwlock_init(&table->lock);
-	list_prepend(&arpt_tables, table);
-
- unlock:
-	up(&arpt_mutex);
-	return ret;
-
- free_unlock:
-	vfree(newinfo);
-	goto unlock;
+	return 0;
 }
 
 void arpt_unregister_table(struct arpt_table *table)
 {
-	down(&arpt_mutex);
-	LIST_DELETE(&arpt_tables, table);
-	up(&arpt_mutex);
+	struct xt_table_info *private;
+	void *loc_cpu_entry;
+
+	private = xt_unregister_table(table);
 
 	/* Decrease module usage counts and free resources */
-	ARPT_ENTRY_ITERATE(table->private->entries, table->private->size,
+	loc_cpu_entry = private->entries[raw_smp_processor_id()];
+	ARPT_ENTRY_ITERATE(loc_cpu_entry, private->size,
 			   cleanup_entry, NULL);
-	vfree(table->private);
+	xt_free_table_info(private);
 }
 
 /* The built-in targets: standard (NULL) and error. */
@@ -1308,52 +1148,15 @@ static struct nf_sockopt_ops arpt_sockopts = {
 	.get		= do_arpt_get_ctl,
 };
 
-#ifdef CONFIG_PROC_FS
-static inline int print_name(const struct arpt_table *t,
-			     off_t start_offset, char *buffer, int length,
-			     off_t *pos, unsigned int *count)
-{
-	if ((*count)++ >= start_offset) {
-		unsigned int namelen;
-
-		namelen = sprintf(buffer + *pos, "%s\n", t->name);
-		if (*pos + namelen > length) {
-			/* Stop iterating */
-			return 1;
-		}
-		*pos += namelen;
-	}
-	return 0;
-}
-
-static int arpt_get_tables(char *buffer, char **start, off_t offset, int length)
-{
-	off_t pos = 0;
-	unsigned int count = 0;
-
-	if (down_interruptible(&arpt_mutex) != 0)
-		return 0;
-
-	LIST_FIND(&arpt_tables, print_name, struct arpt_table *,
-		  offset, buffer, length, &pos, &count);
-
-	up(&arpt_mutex);
-
-	/* `start' hack - see fs/proc/generic.c line ~105 */
-	*start=(char *)((unsigned long)count-offset);
-	return pos;
-}
-#endif /*CONFIG_PROC_FS*/
-
 static int __init init(void)
 {
 	int ret;
 
+	xt_proto_init(NF_ARP);
+
 	/* Noone else will be downing sem now, so we won't sleep */
-	down(&arpt_mutex);
-	list_append(&arpt_target, &arpt_standard_target);
-	list_append(&arpt_target, &arpt_error_target);
-	up(&arpt_mutex);
+	xt_register_target(NF_ARP, &arpt_standard_target);
+	xt_register_target(NF_ARP, &arpt_error_target);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&arpt_sockopts);
@@ -1362,19 +1165,6 @@ static int __init init(void)
 		return ret;
 	}
 
-#ifdef CONFIG_PROC_FS
-	{
-		struct proc_dir_entry *proc;
-
-		proc = proc_net_create("arp_tables_names", 0, arpt_get_tables);
-		if (!proc) {
-			nf_unregister_sockopt(&arpt_sockopts);
-			return -ENOMEM;
-		}
-		proc->owner = THIS_MODULE;
-	}
-#endif
-
 	printk("arp_tables: (C) 2002 David S. Miller\n");
 	return 0;
 }
@@ -1382,16 +1172,12 @@ static int __init init(void)
 static void __exit fini(void)
 {
 	nf_unregister_sockopt(&arpt_sockopts);
-#ifdef CONFIG_PROC_FS
-	proc_net_remove("arp_tables_names");
-#endif
+	xt_proto_fini(NF_ARP);
 }
 
 EXPORT_SYMBOL(arpt_register_table);
 EXPORT_SYMBOL(arpt_unregister_table);
 EXPORT_SYMBOL(arpt_do_table);
-EXPORT_SYMBOL(arpt_register_target);
-EXPORT_SYMBOL(arpt_unregister_target);
 
 module_init(init);
 module_exit(fini);

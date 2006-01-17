@@ -9,6 +9,7 @@
 #define _NET_DST_H
 
 #include <linux/config.h>
+#include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
 #include <linux/jiffies.h>
@@ -224,16 +225,7 @@ static inline void dst_set_expires(struct dst_entry *dst, int timeout)
 /* Output packet to network from transport.  */
 static inline int dst_output(struct sk_buff *skb)
 {
-	int err;
-
-	for (;;) {
-		err = skb->dst->output(skb);
-
-		if (likely(err == 0))
-			return err;
-		if (unlikely(err != NET_XMIT_BYPASS))
-			return err;
-	}
+	return skb->dst->output(skb);
 }
 
 /* Input packet from network to transport.  */

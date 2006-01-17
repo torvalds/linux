@@ -9,6 +9,7 @@
  */
 #include <linux/config.h>
 #include <linux/a.out.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/mm.h>
@@ -262,7 +263,7 @@ asmlinkage int sys_olduname(struct oldold_utsname * name)
 
 void sys_set_thread_area(unsigned long addr)
 {
-	struct thread_info *ti = current->thread_info;
+	struct thread_info *ti = task_thread_info(current);
 
 	ti->tp_value = addr;
 

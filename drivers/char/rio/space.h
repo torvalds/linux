@@ -42,4 +42,4 @@ extern int rio_bases[];
 extern int rio_limits[];
 extern int rio_vects[];
 
-#endif /* __rio_space_h__ */
+#endif				/* __rio_space_h__ */

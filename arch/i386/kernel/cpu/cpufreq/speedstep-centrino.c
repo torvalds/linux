@@ -35,8 +35,6 @@
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 
-#include "speedstep-est-common.h"
-
 #define PFX		"speedstep-centrino: "
 #define MAINTAINER	"Jeremy Fitzhardinge <jeremy@goop.org>"
 
@@ -493,12 +491,13 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	unsigned l, h;
 	int ret;
 	int i;
+	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
 
 	/* Only Intel makes Enhanced Speedstep-capable CPUs */
 	if (cpu->x86_vendor != X86_VENDOR_INTEL || !cpu_has(cpu, X86_FEATURE_EST))
 		return -ENODEV;
 
-	if (is_const_loops_cpu(policy->cpu)) {
+	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		centrino_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
 

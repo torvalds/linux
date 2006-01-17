@@ -34,6 +34,31 @@
 #include "../pci.h"
 #include "pciehp.h"
 
+static int pciehp_add_bridge(struct pci_dev *dev)
+{
+	struct pci_bus *parent = dev->bus;
+	int pass, busnr, start = parent->secondary;
+	int end = parent->subordinate;
+
+	for (busnr = start; busnr <= end; busnr++) {
+		if (!pci_find_bus(pci_domain_nr(parent), busnr))
+			break;
+	}
+	if (busnr-- > end) {
+		err("No bus number available for hot-added bridge %s\n",
+				pci_name(dev));
+		return -1;
+	}
+	for (pass = 0; pass < 2; pass++)
+		busnr = pci_scan_bridge(parent, dev, busnr, pass);
+	if (!dev->subordinate)
+		return -1;
+	pci_bus_size_bridges(dev->subordinate);
+	pci_bus_assign_resources(parent);
+	pci_enable_bridges(parent);
+	pci_bus_add_devices(parent);
+	return 0;
+}
 
 int pciehp_configure_device(struct slot *p_slot)
 {
@@ -55,8 +80,8 @@ int pciehp_configure_device(struct slot *p_slot)
 	}
 
 	for (fn = 0; fn < 8; fn++) {
-		if (!(dev = pci_find_slot(p_slot->bus,
-					PCI_DEVFN(p_slot->device, fn))))
+		dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, fn));
+		if (!dev)
 			continue;
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
 			err("Cannot hot-add display device %s\n",
@@ -65,27 +90,7 @@ int pciehp_configure_device(struct slot *p_slot)
 		}
 		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
 				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
-			/* Find an unused bus number for the new bridge */
-			struct pci_bus *child;
-			unsigned char busnr, start = parent->secondary;
-			unsigned char end = parent->subordinate;
-			for (busnr = start; busnr <= end; busnr++) {
-				if (!pci_find_bus(pci_domain_nr(parent),
-							busnr))
-					break;
-			}
-			if (busnr >= end) {
-				err("No free bus for hot-added bridge\n");
-				continue;
-			}
-			child = pci_add_new_bus(parent, dev, busnr);
-			if (!child) {
-				err("Cannot add new bus for %s\n",
-						pci_name(dev));
-				continue;
-			}
-			child->subordinate = pci_do_scan_bus(child);
-			pci_bus_size_bridges(child);
+			pciehp_add_bridge(dev);
 		}
 		/* TBD: program firmware provided _HPP values */
 		/* program_fw_provided_values(dev); */
@@ -93,7 +98,6 @@ int pciehp_configure_device(struct slot *p_slot)
 
 	pci_bus_assign_resources(parent);
 	pci_bus_add_devices(parent);
-	pci_enable_bridges(parent);
 	return 0;
 }
 

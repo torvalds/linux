@@ -115,4 +115,46 @@ config PPC_OCP
 	depends on IBM_OCP || XILINX_OCP
 	default y
 
+choice
+	prompt "Early debugging (dangerous)"
+	bool
+	optional
+	help
+	  Enable early debugging. Careful, if you enable debugging for the
+	  wrong type of machine your kernel _will not boot_.
+
+config PPC_EARLY_DEBUG_LPAR
+	bool "LPAR HV Console"
+	depends on PPC_PSERIES
+	help
+	  Select this to enable early debugging for a machine with a HVC
+	  console on vterm 0.
+
+config PPC_EARLY_DEBUG_G5
+	bool "Apple G5"
+	depends on PPC_PMAC64
+	help
+	  Select this to enable early debugging for Apple G5 machines.
+
+config PPC_EARLY_DEBUG_RTAS
+	bool "RTAS Panel"
+	depends on PPC_RTAS
+	help
+	  Select this to enable early debugging via the RTAS panel.
+
+config PPC_EARLY_DEBUG_MAPLE
+	bool "Maple real mode"
+	depends on PPC_MAPLE
+	help
+	  Select this to enable early debugging for Maple.
+
+config PPC_EARLY_DEBUG_ISERIES
+	bool "iSeries HV Console"
+	depends on PPC_ISERIES
+	help
+	  Select this to enable early debugging for legacy iSeries. You need
+	  to hit "Ctrl-x Ctrl-x" to see the messages on the console.
+
+endchoice
+
 endmenu

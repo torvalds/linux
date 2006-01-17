@@ -102,12 +102,6 @@ static int __init do_hp_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr - NIC_OFFSET, HP_IO_EXTENT);
-}
-
 #ifndef MODULE
 struct net_device * __init hp_probe(int unit)
 {
@@ -442,6 +436,12 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr - NIC_OFFSET, HP_IO_EXTENT);
 }
 
 void

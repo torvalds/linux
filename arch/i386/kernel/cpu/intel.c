@@ -183,10 +183,13 @@ static void __devinit init_intel(struct cpuinfo_x86 *c)
 	}
 #endif
 
-	if (c->x86 == 15) 
+	if (c->x86 == 15)
 		set_bit(X86_FEATURE_P4, c->x86_capability);
 	if (c->x86 == 6) 
 		set_bit(X86_FEATURE_P3, c->x86_capability);
+	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
+		(c->x86 == 0x6 && c->x86_model >= 0x0e))
+		set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
 }
 
 

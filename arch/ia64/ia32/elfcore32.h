@@ -95,8 +95,7 @@ static inline void elf_core_copy_regs(elf_gregset_t *elfregs,
 static inline int elf_core_copy_task_regs(struct task_struct *t,
 					  elf_gregset_t* elfregs)
 {
-	struct pt_regs *pp = ia64_task_regs(t);
-	ELF_CORE_COPY_REGS((*elfregs), pp);
+	ELF_CORE_COPY_REGS((*elfregs), task_pt_regs(t));
 	return 1;
 }
 

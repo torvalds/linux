@@ -900,7 +900,7 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(const struct sctp_endpoint *ep,
 	 * HEARTBEAT is sent (see Section 8.3).
 	 */
 
-	if (transport->hb_allowed) {
+	if (transport->param_flags & SPP_HB_ENABLE) {
 		if (SCTP_DISPOSITION_NOMEM ==
 				sctp_sf_heartbeat(ep, asoc, type, arg,
 						  commands))
@@ -1036,14 +1036,14 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		if (from_addr.sa.sa_family == AF_INET6) {
 			printk(KERN_WARNING
 			       "%s association %p could not find address "
-			       "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			       NIP6_FMT "\n",
 			       __FUNCTION__,
 			       asoc,
 			       NIP6(from_addr.v6.sin6_addr));
 		} else {
 			printk(KERN_WARNING
 			       "%s association %p could not find address "
-			       "%u.%u.%u.%u\n",
+			       NIPQUAD_FMT "\n",
 			       __FUNCTION__,
 			       asoc,
 			       NIPQUAD(from_addr.v4.sin_addr.s_addr));
@@ -1051,7 +1051,7 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		return SCTP_DISPOSITION_DISCARD;
 	}
 
-	max_interval = link->hb_interval + link->rto;
+	max_interval = link->hbinterval + link->rto;
 
 	/* Check if the timestamp looks valid.  */
 	if (time_after(hbinfo->sent_at, jiffies) ||
@@ -2691,13 +2691,8 @@ sctp_disposition_t sctp_sf_eat_data_6_2(const struct sctp_endpoint *ep,
 	 * document allow. However, an SCTP transmitter MUST NOT be
 	 * more aggressive than the following algorithms allow.
 	 */
-	if (chunk->end_of_packet) {
+	if (chunk->end_of_packet)
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
-
-		/* Start the SACK timer.  */
-		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
-				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
-	}
 
 	return SCTP_DISPOSITION_CONSUME;
 
@@ -2721,13 +2716,9 @@ discard_force:
 	return SCTP_DISPOSITION_DISCARD;
 
 discard_noforce:
-	if (chunk->end_of_packet) {
+	if (chunk->end_of_packet)
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
 
-		/* Start the SACK timer.  */
-		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
-				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
-	}
 	return SCTP_DISPOSITION_DISCARD;
 consume:
 	return SCTP_DISPOSITION_CONSUME;
@@ -3442,9 +3433,6 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn(const struct sctp_endpoint *ep,
 	 * send another. 
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
-	/* Start the SACK timer.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 
 	return SCTP_DISPOSITION_CONSUME;
 

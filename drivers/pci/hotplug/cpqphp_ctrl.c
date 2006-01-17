@@ -2630,29 +2630,15 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 			hold_mem_node = NULL;
 		}
 
-		/* If we have prefetchable memory resources copy them and 
-		 * fill in the bridge's memory range registers.  Otherwise,
-		 * fill in the range registers with values that disable them. */
-		if (p_mem_node) {
-			memcpy(hold_p_mem_node, p_mem_node, sizeof(struct pci_resource));
-			p_mem_node->next = NULL;
+		memcpy(hold_p_mem_node, p_mem_node, sizeof(struct pci_resource));
+		p_mem_node->next = NULL;
 
-			/* set Pre Mem base and Limit registers */
-			temp_word = p_mem_node->base >> 16;
-			rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
+		/* set Pre Mem base and Limit registers */
+		temp_word = p_mem_node->base >> 16;
+		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
 
-			temp_word = (p_mem_node->base + p_mem_node->length - 1) >> 16;
-			rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
-		} else {
-			temp_word = 0xFFFF;
-			rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_BASE, temp_word);
-
-			temp_word = 0x0000;
-			rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
-
-			kfree(hold_p_mem_node);
-			hold_p_mem_node = NULL;
-		}
+		temp_word = (p_mem_node->base + p_mem_node->length - 1) >> 16;
+		rc = pci_bus_write_config_word (pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, temp_word);
 
 		/* Adjust this to compensate for extra adjustment in first loop */
 		irqs.barber_pole--;

@@ -59,7 +59,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 
 		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER))
 			t2 |= PORT_SUSPEND;
-		if (hcd->remote_wakeup)
+		if (device_may_wakeup(&hcd->self.root_hub->dev))
 			t2 |= PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E;
 		else
 			t2 &= ~(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E);
@@ -517,7 +517,7 @@ static int ehci_hub_control (
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			if (hcd->remote_wakeup)
+			if (device_may_wakeup(&hcd->self.root_hub->dev))
 				temp |= PORT_WAKE_BITS;
 			writel (temp | PORT_SUSPEND,
 				&ehci->regs->port_status [wIndex]);

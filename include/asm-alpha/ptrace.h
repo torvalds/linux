@@ -75,10 +75,10 @@ struct switch_stack {
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
 
-#define alpha_task_regs(task) \
-  ((struct pt_regs *) ((long) (task)->thread_info + 2*PAGE_SIZE) - 1)
+#define task_pt_regs(task) \
+  ((struct pt_regs *) (task_stack_page(task) + 2*PAGE_SIZE) - 1)
 
-#define force_successful_syscall_return() (alpha_task_regs(current)->r0 = 0)
+#define force_successful_syscall_return() (task_pt_regs(current)->r0 = 0)
 
 #endif
 

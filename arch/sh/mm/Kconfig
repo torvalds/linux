@@ -1,0 +1,233 @@
+menu "Processor selection"
+
+#
+# Processor families
+#
+config CPU_SH2
+	bool
+	select SH_WRITETHROUGH
+
+config CPU_SH3
+	bool
+	select CPU_HAS_INTEVT
+	select CPU_HAS_SR_RB
+
+config CPU_SH4
+	bool
+	select CPU_HAS_INTEVT
+	select CPU_HAS_SR_RB
+
+config CPU_SH4A
+	bool
+	select CPU_SH4
+	select CPU_HAS_INTC2_IRQ
+
+config CPU_SUBTYPE_ST40
+	bool
+	select CPU_SH4
+	select CPU_HAS_INTC2_IRQ
+
+#
+# Processor subtypes
+#
+
+comment "SH-2 Processor Support"
+
+config CPU_SUBTYPE_SH7604
+	bool "Support SH7604 processor"
+	select CPU_SH2
+
+comment "SH-3 Processor Support"
+
+config CPU_SUBTYPE_SH7300
+	bool "Support SH7300 processor"
+	select CPU_SH3
+
+config CPU_SUBTYPE_SH7705
+	bool "Support SH7705 processor"
+	select CPU_SH3
+	select CPU_HAS_PINT_IRQ
+
+config CPU_SUBTYPE_SH7707
+	bool "Support SH7707 processor"
+	select CPU_SH3
+	select CPU_HAS_PINT_IRQ
+	help
+	  Select SH7707 if you have a  60 Mhz SH-3 HD6417707 CPU.
+
+config CPU_SUBTYPE_SH7708
+	bool "Support SH7708 processor"
+	select CPU_SH3
+	help
+	  Select SH7708 if you have a  60 Mhz SH-3 HD6417708S or
+	  if you have a 100 Mhz SH-3 HD6417708R CPU.
+
+config CPU_SUBTYPE_SH7709
+	bool "Support SH7709 processor"
+	select CPU_SH3
+	select CPU_HAS_PINT_IRQ
+	help
+	  Select SH7709 if you have a  80 Mhz SH-3 HD6417709 CPU.
+
+comment "SH-4 Processor Support"
+
+config CPU_SUBTYPE_SH7750
+	bool "Support SH7750 processor"
+	select CPU_SH4
+	help
+	  Select SH7750 if you have a 200 Mhz SH-4 HD6417750 CPU.
+
+config CPU_SUBTYPE_SH7091
+	bool "Support SH7091 processor"
+	select CPU_SH4
+	select CPU_SUBTYPE_SH7750
+	help
+	  Select SH7091 if you have an SH-4 based Sega device (such as
+	  the Dreamcast, Naomi, and Naomi 2).
+
+config CPU_SUBTYPE_SH7750R
+	bool "Support SH7750R processor"
+	select CPU_SH4
+	select CPU_SUBTYPE_SH7750
+
+config CPU_SUBTYPE_SH7750S
+	bool "Support SH7750S processor"
+	select CPU_SH4
+	select CPU_SUBTYPE_SH7750
+
+config CPU_SUBTYPE_SH7751
+	bool "Support SH7751 processor"
+	select CPU_SH4
+	help
+	  Select SH7751 if you have a 166 Mhz SH-4 HD6417751 CPU,
+	  or if you have a HD6417751R CPU.
+
+config CPU_SUBTYPE_SH7751R
+	bool "Support SH7751R processor"
+	select CPU_SH4
+	select CPU_SUBTYPE_SH7751
+
+config CPU_SUBTYPE_SH7760
+	bool "Support SH7760 processor"
+	select CPU_SH4
+	select CPU_HAS_INTC2_IRQ
+
+config CPU_SUBTYPE_SH4_202
+	bool "Support SH4-202 processor"
+	select CPU_SH4
+
+comment "ST40 Processor Support"
+
+config CPU_SUBTYPE_ST40STB1
+	bool "Support ST40STB1/ST40RA processors"
+	select CPU_SUBTYPE_ST40
+	help
+	  Select ST40STB1 if you have a ST40RA CPU.
+	  This was previously called the ST40STB1, hence the option name.
+
+config CPU_SUBTYPE_ST40GX1
+	bool "Support ST40GX1 processor"
+	select CPU_SUBTYPE_ST40
+	help
+	  Select ST40GX1 if you have a ST40GX1 CPU.
+
+comment "SH-4A Processor Support"
+
+config CPU_SUBTYPE_SH73180
+	bool "Support SH73180 processor"
+	select CPU_SH4A
+
+config CPU_SUBTYPE_SH7770
+	bool "Support SH7770 processor"
+	select CPU_SH4A
+
+config CPU_SUBTYPE_SH7780
+	bool "Support SH7780 processor"
+	select CPU_SH4A
+
+endmenu
+
+menu "Memory management options"
+
+config MMU
+        bool "Support for memory management hardware"
+	depends on !CPU_SH2
+	default y
+	help
+	  Some SH processors (such as SH-2/SH-2A) lack an MMU. In order to
+	  boot on these systems, this option must not be set.
+
+	  On other systems (such as the SH-3 and 4) where an MMU exists,
+	  turning this off will boot the kernel on these machines with the
+	  MMU implicitly switched off.
+
+config 32BIT
+	bool "Support 32-bit physical addressing through PMB"
+	depends on CPU_SH4A
+	default y
+	help
+	  If you say Y here, physical addressing will be extended to
+	  32-bits through the SH-4A PMB. If this is not set, legacy
+	  29-bit physical addressing will be used.
+
+choice
+	prompt "HugeTLB page size"
+	depends on HUGETLB_PAGE && CPU_SH4 && MMU
+	default HUGETLB_PAGE_SIZE_64K
+
+config HUGETLB_PAGE_SIZE_64K
+	bool "64K"
+
+config HUGETLB_PAGE_SIZE_1MB
+	bool "1MB"
+
+endchoice
+
+source "mm/Kconfig"
+
+endmenu
+
+menu "Cache configuration"
+
+config SH7705_CACHE_32KB
+	bool "Enable 32KB cache size for SH7705"
+	depends on CPU_SUBTYPE_SH7705
+	default y
+
+config SH_DIRECT_MAPPED
+	bool "Use direct-mapped caching"
+	default n
+	help
+	  Selecting this option will configure the caches to be direct-mapped,
+	  even if the cache supports a 2 or 4-way mode. This is useful primarily
+	  for debugging on platforms with 2 and 4-way caches (SH7750R/SH7751R,
+	  SH4-202, SH4-501, etc.)
+
+	  Turn this option off for platforms that do not have a direct-mapped
+	  cache, and you have no need to run the caches in such a configuration.
+
+config SH_WRITETHROUGH
+	bool "Use write-through caching"
+	default y if CPU_SH2
+	help
+	  Selecting this option will configure the caches in write-through
+	  mode, as opposed to the default write-back configuration.
+
+	  Since there's sill some aliasing issues on SH-4, this option will
+	  unfortunately still require the majority of flushing functions to
+	  be implemented to deal with aliasing.
+
+	  If unsure, say N.
+
+config SH_OCRAM
+	bool "Operand Cache RAM (OCRAM) support"
+	help
+	  Selecting this option will automatically tear down the number of
+	  sets in the dcache by half, which in turn exposes a memory range.
+
+	  The addresses for the OC RAM base will vary according to the
+	  processor version. Consult vendor documentation for specifics.
+
+	  If unsure, say N.
+
+endmenu

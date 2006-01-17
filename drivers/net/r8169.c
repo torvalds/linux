@@ -170,7 +170,7 @@ enum phy_version {
 #define _R(NAME,MAC,MASK) \
 	{ .name = NAME, .mac_version = MAC, .RxConfigMask = MASK }
 
-const static struct {
+static const struct {
 	const char *name;
 	u8 mac_version;
 	u32 RxConfigMask;	/* Clears the bits supported by this chip */

@@ -44,4 +44,5 @@ extern unsigned int speedstep_get_processor_frequency(unsigned int processor);
 extern unsigned int speedstep_get_freqs(unsigned int processor,
 	  unsigned int *low_speed,
 	  unsigned int *high_speed,
+	  unsigned int *transition_latency,
 	  void (*set_state) (unsigned int state));

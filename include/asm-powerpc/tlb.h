@@ -11,6 +11,7 @@
  */
 #ifndef _ASM_POWERPC_TLB_H
 #define _ASM_POWERPC_TLB_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #ifndef __powerpc64__
@@ -67,4 +68,5 @@ static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
 }
 
 #endif
+#endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_TLB_H */

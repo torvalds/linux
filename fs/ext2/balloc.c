@@ -16,6 +16,7 @@
 #include <linux/quotaops.h>
 #include <linux/sched.h>
 #include <linux/buffer_head.h>
+#include <linux/capability.h>
 
 /*
  * balloc.c contains the blocks allocation and deallocation routines

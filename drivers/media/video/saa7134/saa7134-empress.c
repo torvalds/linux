@@ -29,6 +29,7 @@
 #include "saa7134.h"
 
 #include <media/saa6752hs.h>
+#include <media/v4l2-common.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -163,7 +164,7 @@ static int ts_do_ioctl(struct inode *inode, struct file *file,
 	struct saa7134_dev *dev = file->private_data;
 
 	if (debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case VIDIOC_QUERYCAP:
 	{

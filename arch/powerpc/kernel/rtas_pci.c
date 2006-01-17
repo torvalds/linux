@@ -72,7 +72,7 @@ static int of_device_available(struct device_node * dn)
         return 0;
 }
 
-static int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
+int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 {
 	int returnval = -1;
 	unsigned long buid, addr;
@@ -188,39 +188,19 @@ int is_python(struct device_node *dev)
 	return 0;
 }
 
-static int get_phb_reg_prop(struct device_node *dev,
-			    unsigned int addr_size_words,
-			    struct reg_property64 *reg)
+static void python_countermeasures(struct device_node *dev)
 {
-	unsigned int *ui_ptr = NULL, len;
-
-	/* Found a PHB, now figure out where his registers are mapped. */
-	ui_ptr = (unsigned int *)get_property(dev, "reg", &len);
-	if (ui_ptr == NULL)
-		return 1;
-
-	if (addr_size_words == 1) {
-		reg->address = ((struct reg_property32 *)ui_ptr)->address;
-		reg->size    = ((struct reg_property32 *)ui_ptr)->size;
-	} else {
-		*reg = *((struct reg_property64 *)ui_ptr);
-	}
-
-	return 0;
-}
-
-static void python_countermeasures(struct device_node *dev,
-				   unsigned int addr_size_words)
-{
-	struct reg_property64 reg_struct;
+	struct resource registers;
 	void __iomem *chip_regs;
 	volatile u32 val;
 
-	if (get_phb_reg_prop(dev, addr_size_words, &reg_struct))
+	if (of_address_to_resource(dev, 0, &registers)) {
+		printk(KERN_ERR "Can't get address for Python workarounds !\n");
 		return;
+	}
 
 	/* Python's register file is 1 MB in size. */
-	chip_regs = ioremap(reg_struct.address & ~(0xfffffUL), 0x100000);
+	chip_regs = ioremap(registers.start & ~(0xfffffUL), 0x100000);
 
 	/*
 	 * Firmware doesn't always clear this bit which is critical
@@ -301,11 +281,10 @@ static int phb_set_bus_ranges(struct device_node *dev,
 }
 
 static int __devinit setup_phb(struct device_node *dev,
-			       struct pci_controller *phb,
-			       unsigned int addr_size_words)
+			       struct pci_controller *phb)
 {
 	if (is_python(dev))
-		python_countermeasures(dev, addr_size_words);
+		python_countermeasures(dev);
 
 	if (phb_set_bus_ranges(dev, phb))
 		return 1;
@@ -320,8 +299,8 @@ unsigned long __init find_and_init_phbs(void)
 {
 	struct device_node *node;
 	struct pci_controller *phb;
-	unsigned int root_size_cells = 0;
 	unsigned int index;
+	unsigned int root_size_cells = 0;
 	unsigned int *opprop = NULL;
 	struct device_node *root = of_find_node_by_path("/");
 
@@ -343,10 +322,11 @@ unsigned long __init find_and_init_phbs(void)
 		phb = pcibios_alloc_controller(node);
 		if (!phb)
 			continue;
-		setup_phb(node, phb, root_size_cells);
+		setup_phb(node, phb);
 		pci_process_bridge_OF_ranges(phb, node, 0);
 		pci_setup_phb_io(phb, index == 0);
 #ifdef CONFIG_PPC_PSERIES
+		/* XXX This code need serious fixing ... --BenH */
 		if (ppc64_interrupt_controller == IC_OPEN_PIC && pSeries_mpic) {
 			int addr = root_size_cells * (index + 2) - 1;
 			mpic_assign_isu(pSeries_mpic, index, opprop[addr]);
@@ -381,22 +361,17 @@ unsigned long __init find_and_init_phbs(void)
 
 struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 {
-	struct device_node *root = of_find_node_by_path("/");
-	unsigned int root_size_cells = 0;
 	struct pci_controller *phb;
 	int primary;
-
-	root_size_cells = prom_n_size_cells(root);
 
 	primary = list_empty(&hose_list);
 	phb = pcibios_alloc_controller(dn);
 	if (!phb)
 		return NULL;
-	setup_phb(dn, phb, root_size_cells);
+	setup_phb(dn, phb);
 	pci_process_bridge_OF_ranges(phb, dn, primary);
 
 	pci_setup_phb_io_dynamic(phb, primary);
-	of_node_put(root);
 
 	pci_devs_phb_init_dynamic(phb);
 	scan_phb(phb);

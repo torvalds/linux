@@ -4,7 +4,7 @@
  *  Copyright (C) 1994  Linus Torvalds
  *
  *  29 dec 2001 - Fixed oopses caused by unchecked access to the vm86
- *                stack - Manfred Spraul <manfreds@colorfullife.com>
+ *                stack - Manfred Spraul <manfred@colorfullife.com>
  *
  *  22 mar 2002 - Manfred detected the stackfaults, but didn't handle
  *                them correctly. Now the emulation will be in a
@@ -30,6 +30,7 @@
  *
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -310,7 +311,7 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 		"movl %1,%%ebp\n\t"
 		"jmp resume_userspace"
 		: /* no outputs */
-		:"r" (&info->regs), "r" (tsk->thread_info) : "ax");
+		:"r" (&info->regs), "r" (task_thread_info(tsk)) : "ax");
 	/* we never return here */
 }
 

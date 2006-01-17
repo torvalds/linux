@@ -41,14 +41,14 @@ static ssize_t store_online(struct sys_device *dev, const char *buf,
 	case '0':
 		ret = cpu_down(cpu->sysdev.id);
 		if (!ret)
-			kobject_hotplug(&dev->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
 		break;
 	case '1':
 		ret = smp_prepare_cpu(cpu->sysdev.id);
 		if (!ret)
 			ret = cpu_up(cpu->sysdev.id);
 		if (!ret)
-			kobject_hotplug(&dev->kobj, KOBJ_ONLINE);
+			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
 		break;
 	default:
 		ret = -EINVAL;
@@ -83,6 +83,31 @@ static inline void register_cpu_control(struct cpu *cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
+#ifdef CONFIG_KEXEC
+#include <linux/kexec.h>
+
+static ssize_t show_crash_notes(struct sys_device *dev, char *buf)
+{
+	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
+	ssize_t rc;
+	unsigned long long addr;
+	int cpunum;
+
+	cpunum = cpu->sysdev.id;
+
+	/*
+	 * Might be reading other cpu's data based on which cpu read thread
+	 * has been scheduled. But cpu data (memory) is allocated once during
+	 * boot up and this data does not change there after. Hence this
+	 * operation should be safe. No locking required.
+	 */
+	addr = __pa(per_cpu_ptr(crash_notes, cpunum));
+	rc = sprintf(buf, "%Lx\n", addr);
+	return rc;
+}
+static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
+#endif
+
 /*
  * register_cpu - Setup a driverfs device for a CPU.
  * @cpu - Callers can set the cpu->no_control field to 1, to indicate not to
@@ -108,6 +133,11 @@ int __devinit register_cpu(struct cpu *cpu, int num, struct node *root)
 		register_cpu_control(cpu);
 	if (!error)
 		cpu_sys_devices[num] = &cpu->sysdev;
+
+#ifdef CONFIG_KEXEC
+	if (!error)
+		error = sysdev_create_file(&cpu->sysdev, &attr_crash_notes);
+#endif
 	return error;
 }
 

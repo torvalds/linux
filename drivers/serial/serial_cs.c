@@ -114,15 +114,7 @@ struct serial_cfg_mem {
 
 
 static void serial_config(dev_link_t * link);
-static int serial_event(event_t event, int priority,
-			event_callback_args_t * args);
 
-static dev_info_t dev_info = "serial_cs";
-
-static dev_link_t *serial_attach(void);
-static void serial_detach(dev_link_t *);
-
-static dev_link_t *dev_list = NULL;
 
 /*======================================================================
 
@@ -159,8 +151,9 @@ static void serial_remove(dev_link_t *link)
 	}
 }
 
-static void serial_suspend(dev_link_t *link)
+static int serial_suspend(struct pcmcia_device *dev)
 {
+	dev_link_t *link = dev_to_instance(dev);
 	link->state |= DEV_SUSPEND;
 
 	if (link->state & DEV_CONFIG) {
@@ -173,10 +166,13 @@ static void serial_suspend(dev_link_t *link)
 		if (!info->slave)
 			pcmcia_release_configuration(link->handle);
 	}
+
+	return 0;
 }
 
-static void serial_resume(dev_link_t *link)
+static int serial_resume(struct pcmcia_device *dev)
 {
+	dev_link_t *link = dev_to_instance(dev);
 	link->state &= ~DEV_SUSPEND;
 
 	if (DEV_OK(link)) {
@@ -189,6 +185,8 @@ static void serial_resume(dev_link_t *link)
 		for (i = 0; i < info->ndev; i++)
 			serial8250_resume_port(info->line[i]);
 	}
+
+	return 0;
 }
 
 /*======================================================================
@@ -199,19 +197,17 @@ static void serial_resume(dev_link_t *link)
 
 ======================================================================*/
 
-static dev_link_t *serial_attach(void)
+static int serial_probe(struct pcmcia_device *p_dev)
 {
 	struct serial_info *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	DEBUG(0, "serial_attach()\n");
 
 	/* Create new serial device */
 	info = kmalloc(sizeof (*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 	memset(info, 0, sizeof (*info));
 	link = &info->link;
 	link->priv = info;
@@ -227,20 +223,12 @@ static dev_link_t *serial_attach(void)
 	}
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		serial_detach(link);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	serial_config(link);
 
-	return link;
+	return 0;
 }
 
 /*======================================================================
@@ -252,20 +240,12 @@ static dev_link_t *serial_attach(void)
 
 ======================================================================*/
 
-static void serial_detach(dev_link_t * link)
+static void serial_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct serial_info *info = link->priv;
-	dev_link_t **linkp;
-	int ret;
 
 	DEBUG(0, "serial_detach(0x%p)\n", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (*linkp == NULL)
-		return;
 
 	/*
 	 * Ensure any outstanding scheduled tasks are completed.
@@ -277,14 +257,7 @@ static void serial_detach(dev_link_t * link)
 	 */
 	serial_remove(link);
 
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
-
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
+	/* free bits */
 	kfree(info);
 }
 
@@ -718,54 +691,6 @@ void serial_config(dev_link_t * link)
 	kfree(cfg_mem);
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the serial drivers from
-    talking to the ports.
-    
-======================================================================*/
-
-static int
-serial_event(event_t event, int priority, event_callback_args_t * args)
-{
-	dev_link_t *link = args->client_data;
-	struct serial_info *info = link->priv;
-
-	DEBUG(1, "serial_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		serial_remove(link);
-		break;
-
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		serial_config(link);
-		break;
-
-	case CS_EVENT_PM_SUSPEND:
-		serial_suspend(link);
-		break;
-
-	case CS_EVENT_RESET_PHYSICAL:
-		if ((link->state & DEV_CONFIG) && !info->slave)
-			pcmcia_release_configuration(link->handle);
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		serial_resume(link);
-		break;
-
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link) && !info->slave)
-			pcmcia_request_configuration(link->handle, &link->conf);
-		break;
-	}
-	return 0;
-}
-
 static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0057, 0x0021),
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0089, 0x110a),
@@ -860,6 +785,8 @@ static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(1, 0x0101, 0x0035, "3CXEM556.cis"),
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(1, 0x0101, 0x003d, "3CXEM556.cis"),
 	PCMCIA_DEVICE_CIS_MANF_CARD(0x0192, 0x0710, "SW_7xx_SER.cis"),	/* Sierra Wireless AC710/AC750 GPRS Network Adapter R1 */
+	PCMCIA_DEVICE_CIS_MANF_CARD(0x0192, 0xa555, "SW_555_SER.cis"),  /* Sierra Aircard 555 CDMA 1xrtt Modem -- pre update */
+	PCMCIA_DEVICE_CIS_MANF_CARD(0x013f, 0xa555, "SW_555_SER.cis"),  /* Sierra Aircard 555 CDMA 1xrtt Modem -- post update */
 	PCMCIA_DEVICE_CIS_PROD_ID12("MultiTech", "PCMCIA 56K DataFax", 0x842047ee, 0xc2efcf03, "MT5634ZLX.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("ADVANTECH", "COMpad-32/85B-4", 0x96913a85, 0xcec8f102, "COMpad4.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID123("ADVANTECH", "COMpad-32/85", "1.0", 0x96913a85, 0x8fbe92ae, 0x0877b627, "COMpad2.cis"),
@@ -877,10 +804,11 @@ static struct pcmcia_driver serial_cs_driver = {
 	.drv		= {
 		.name	= "serial_cs",
 	},
-	.attach		= serial_attach,
-	.event		= serial_event,
-	.detach		= serial_detach,
+	.probe		= serial_probe,
+	.remove		= serial_detach,
 	.id_table	= serial_ids,
+	.suspend	= serial_suspend,
+	.resume		= serial_resume,
 };
 
 static int __init init_serial_cs(void)
@@ -891,7 +819,6 @@ static int __init init_serial_cs(void)
 static void __exit exit_serial_cs(void)
 {
 	pcmcia_unregister_driver(&serial_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_serial_cs);

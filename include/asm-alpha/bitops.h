@@ -321,6 +321,7 @@ static inline int fls(int word)
 #else
 #define fls	generic_fls
 #endif
+#define fls64   generic_fls64
 
 /* Compute powers of two for the given integer.  */
 static inline long floor_log2(unsigned long word)

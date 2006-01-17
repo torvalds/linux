@@ -42,7 +42,7 @@ struct irq_pins {
 	unsigned char bit_no;
 } __attribute__((aligned(1),packed));
 /* ISTR = 0 */
-const static struct irq_pins irq_assign_table0[16]={
+static const struct irq_pins irq_assign_table0[16]={
         {H8300_GPIO_P5,H8300_GPIO_B0},{H8300_GPIO_P5,H8300_GPIO_B1},
 	{H8300_GPIO_P5,H8300_GPIO_B2},{H8300_GPIO_P5,H8300_GPIO_B3},
 	{H8300_GPIO_P5,H8300_GPIO_B4},{H8300_GPIO_P5,H8300_GPIO_B5},
@@ -53,7 +53,7 @@ const static struct irq_pins irq_assign_table0[16]={
 	{H8300_GPIO_PF,H8300_GPIO_B1},{H8300_GPIO_PF,H8300_GPIO_B2},
 }; 
 /* ISTR = 1 */
-const static struct irq_pins irq_assign_table1[16]={
+static const struct irq_pins irq_assign_table1[16]={
 	{H8300_GPIO_P8,H8300_GPIO_B0},{H8300_GPIO_P8,H8300_GPIO_B1},
 	{H8300_GPIO_P8,H8300_GPIO_B2},{H8300_GPIO_P8,H8300_GPIO_B3},
 	{H8300_GPIO_P8,H8300_GPIO_B4},{H8300_GPIO_P8,H8300_GPIO_B5},

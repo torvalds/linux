@@ -21,35 +21,35 @@ config DVB_CINERGYT2_TUNING
 config DVB_CINERGYT2_STREAM_URB_COUNT
 	int "Number of queued USB Request Blocks for Highspeed Stream Transfers"
 	depends on DVB_CINERGYT2_TUNING
-        default "32"
+	default "32"
 	help
 	  USB Request Blocks for Highspeed Stream transfers are scheduled in
 	  a queue for the Host Controller.
 
 	  Usually the default value is a safe choice.
 
-	  You may increase this number if you are using this device in a 
-	  Server Environment with many high-traffic USB Highspeed devices 
+	  You may increase this number if you are using this device in a
+	  Server Environment with many high-traffic USB Highspeed devices
 	  sharing the same USB bus.
 
 
 config DVB_CINERGYT2_STREAM_BUF_SIZE
 	int "Size of URB Stream Buffers for Highspeed Transfers"
 	depends on DVB_CINERGYT2_TUNING
-        default "512"
+	default "512"
 	help
 	  Should be a multiple of native buffer size of 512 bytes.
 	  Default value is a safe choice.
 
-	  You may increase this number if you are using this device in a 
-	  Server Environment with many high-traffic USB Highspeed devices 
+	  You may increase this number if you are using this device in a
+	  Server Environment with many high-traffic USB Highspeed devices
 	  sharing the same USB bus.
 
 
 config DVB_CINERGYT2_QUERY_INTERVAL
 	int "Status update interval [milliseconds]"
 	depends on DVB_CINERGYT2_TUNING
-        default "250"
+	default "250"
 	help
 	  This is the interval for status readouts from the demodulator.
 	  You may try lower values if you need more responsive signal quality
@@ -64,9 +64,9 @@ config DVB_CINERGYT2_QUERY_INTERVAL
 config DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
 	bool "Register the onboard IR Remote Control Receiver as Input Device"
 	depends on DVB_CINERGYT2_TUNING
-        default "yes"
+	default "yes"
 	help
-	  Enable this option if you want to use the onboard Infrared Remote 
+	  Enable this option if you want to use the onboard Infrared Remote
 	  Control Receiver as Linux-Input device.
 
 	  Right now only the keycode table for the default Remote Control
@@ -77,7 +77,7 @@ config DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
 config DVB_CINERGYT2_RC_QUERY_INTERVAL
 	int "Infrared Remote Controller update interval [milliseconds]"
 	depends on DVB_CINERGYT2_TUNING && DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
-        default "50"
+	default "50"
 	help
 	  If you have a very fast-repeating remote control you can try lower
 	  values, for normal consumer receivers the default value should be

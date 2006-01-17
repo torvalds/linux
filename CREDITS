@@ -1883,6 +1883,7 @@ N: Jaya Kumar
 E: jayalk@intworks.biz
 W: http://www.intworks.biz
 D: Arc monochrome LCD framebuffer driver, x86 reboot fixups
+D: pirq addr, CS5535 alsa audio driver
 S: Gurgaon, India
 S: Kuala Lumpur, Malaysia
 
@@ -3202,7 +3203,7 @@ N: Eugene Surovegin
 E: ebs@ebshome.net
 W: http://kernel.ebshome.net/
 P: 1024D/AE5467F1 FF22 39F1 6728 89F6 6E6C  2365 7602 F33D AE54 67F1
-D: Embedded PowerPC 4xx: I2C, PIC and random hacks/fixes
+D: Embedded PowerPC 4xx: EMAC, I2C, PIC and random hacks/fixes
 S: Sunnyvale, California 94085
 S: USA
 

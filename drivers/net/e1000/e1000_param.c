@@ -545,7 +545,7 @@ e1000_check_fiber_options(struct e1000_adapter *adapter)
 static void __devinit
 e1000_check_copper_options(struct e1000_adapter *adapter)
 {
-	int speed, dplx;
+	int speed, dplx, an;
 	int bd = adapter->bd_number;
 
 	{ /* Speed */
@@ -641,8 +641,12 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 					 .p = an_list }}
 		};
 
-		int an = AutoNeg[bd];
-		e1000_validate_option(&an, &opt, adapter);
+		if (num_AutoNeg > bd) {
+			an = AutoNeg[bd];
+			e1000_validate_option(&an, &opt, adapter);
+		} else {
+			an = opt.def;
+		}
 		adapter->hw.autoneg_advertised = an;
 	}
 

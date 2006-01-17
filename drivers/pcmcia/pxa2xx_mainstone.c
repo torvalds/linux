@@ -171,28 +171,22 @@ static int __init mst_pcmcia_init(void)
 {
 	int ret;
 
-	mst_pcmcia_device = kmalloc(sizeof(*mst_pcmcia_device), GFP_KERNEL);
+	mst_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 	if (!mst_pcmcia_device)
 		return -ENOMEM;
-	memset(mst_pcmcia_device, 0, sizeof(*mst_pcmcia_device));
-	mst_pcmcia_device->name = "pxa2xx-pcmcia";
+
 	mst_pcmcia_device->dev.platform_data = &mst_pcmcia_ops;
 
-	ret = platform_device_register(mst_pcmcia_device);
+	ret = platform_device_add(mst_pcmcia_device);
+
 	if (ret)
-		kfree(mst_pcmcia_device);
+		platform_device_put(mst_pcmcia_device);
 
 	return ret;
 }
 
 static void __exit mst_pcmcia_exit(void)
 {
-	/*
-	 * This call is supposed to free our mst_pcmcia_device.
-	 * Unfortunately platform_device don't have a free method, and
-	 * we can't assume it's free of any reference at this point so we
-	 * can't free it either.
-	 */
 	platform_device_unregister(mst_pcmcia_device);
 }
 

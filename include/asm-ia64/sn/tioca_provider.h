@@ -56,31 +56,31 @@ struct tioca_kernel {
 	/*
 	 * General GART stuff
 	 */
-	uint64_t	ca_ap_size;		/* size of aperature in bytes */
-	uint32_t	ca_gart_entries;	/* # uint64_t entries in gart */
-	uint32_t	ca_ap_pagesize; 	/* aperature page size in bytes */
-	uint64_t	ca_ap_bus_base; 	/* bus address of CA aperature */
-	uint64_t	ca_gart_size;		/* gart size in bytes */
-	uint64_t	*ca_gart;		/* gart table vaddr */
-	uint64_t	ca_gart_coretalk_addr;	/* gart coretalk addr */
-	uint8_t		ca_gart_iscoherent;	/* used in tioca_tlbflush */
+	u64	ca_ap_size;		/* size of aperature in bytes */
+	u32	ca_gart_entries;	/* # u64 entries in gart */
+	u32	ca_ap_pagesize; 	/* aperature page size in bytes */
+	u64	ca_ap_bus_base; 	/* bus address of CA aperature */
+	u64	ca_gart_size;		/* gart size in bytes */
+	u64	*ca_gart;		/* gart table vaddr */
+	u64	ca_gart_coretalk_addr;	/* gart coretalk addr */
+	u8		ca_gart_iscoherent;	/* used in tioca_tlbflush */
 
 	/* PCI GART convenience values */
-	uint64_t	ca_pciap_base;		/* pci aperature bus base address */
-	uint64_t	ca_pciap_size;		/* pci aperature size (bytes) */
-	uint64_t	ca_pcigart_base;	/* gfx GART bus base address */
-	uint64_t	*ca_pcigart;		/* gfx GART vm address */
-	uint32_t	ca_pcigart_entries;
-	uint32_t	ca_pcigart_start;	/* PCI start index in ca_gart */
+	u64	ca_pciap_base;		/* pci aperature bus base address */
+	u64	ca_pciap_size;		/* pci aperature size (bytes) */
+	u64	ca_pcigart_base;	/* gfx GART bus base address */
+	u64	*ca_pcigart;		/* gfx GART vm address */
+	u32	ca_pcigart_entries;
+	u32	ca_pcigart_start;	/* PCI start index in ca_gart */
 	void		*ca_pcigart_pagemap;
 
 	/* AGP GART convenience values */
-	uint64_t	ca_gfxap_base;		/* gfx aperature bus base address */
-	uint64_t	ca_gfxap_size;		/* gfx aperature size (bytes) */
-	uint64_t	ca_gfxgart_base;	/* gfx GART bus base address */
-	uint64_t	*ca_gfxgart;		/* gfx GART vm address */
-	uint32_t	ca_gfxgart_entries;
-	uint32_t	ca_gfxgart_start;	/* agpgart start index in ca_gart */
+	u64	ca_gfxap_base;		/* gfx aperature bus base address */
+	u64	ca_gfxap_size;		/* gfx aperature size (bytes) */
+	u64	ca_gfxgart_base;	/* gfx GART bus base address */
+	u64	*ca_gfxgart;		/* gfx GART vm address */
+	u32	ca_gfxgart_entries;
+	u32	ca_gfxgart_start;	/* agpgart start index in ca_gart */
 };
 
 /*
@@ -93,11 +93,11 @@ struct tioca_kernel {
 struct tioca_common {
 	struct pcibus_bussoft	ca_common;	/* common pciio header */
 
-	uint32_t		ca_rev;
-	uint32_t		ca_closest_nasid;
+	u32		ca_rev;
+	u32		ca_closest_nasid;
 
-	uint64_t		ca_prom_private;
-	uint64_t		ca_kernel_private;
+	u64		ca_prom_private;
+	u64		ca_kernel_private;
 };
 
 /**
@@ -139,9 +139,9 @@ tioca_paddr_to_gart(unsigned long paddr)
  */
 
 static inline unsigned long
-tioca_physpage_to_gart(uint64_t page_addr)
+tioca_physpage_to_gart(u64 page_addr)
 {
-	uint64_t coretalk_addr;
+	u64 coretalk_addr;
 
 	coretalk_addr = PHYS_TO_TIODMA(page_addr);
 	if (!coretalk_addr) {
@@ -161,7 +161,7 @@ tioca_physpage_to_gart(uint64_t page_addr)
 static inline void
 tioca_tlbflush(struct tioca_kernel *tioca_kernel)
 {
-	volatile uint64_t tmp;
+	volatile u64 tmp;
 	volatile struct tioca *ca_base;
 	struct tioca_common *tioca_common;
 
@@ -200,7 +200,7 @@ tioca_tlbflush(struct tioca_kernel *tioca_kernel)
 	tmp = __sn_readq_relaxed(&ca_base->ca_control2);
 }
 
-extern uint32_t	tioca_gart_found;
+extern u32	tioca_gart_found;
 extern struct list_head tioca_list;
 extern int tioca_init_provider(void);
 extern void tioca_fastwrite_enable(struct tioca_kernel *tioca_kern);

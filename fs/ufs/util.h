@@ -249,18 +249,28 @@ extern void _ubh_memcpyubh_(struct ufs_sb_private_info *, struct ufs_buffer_head
 
 
 /*
- * macros to get important structures from ufs_buffer_head
+ * macros and inline function to get important structures from ufs_sb_private_info
  */
-#define ubh_get_usb_first(ubh) \
-	((struct ufs_super_block_first *)((ubh)->bh[0]->b_data))
 
-#define ubh_get_usb_second(ubh) \
-	((struct ufs_super_block_second *)(ubh)-> \
-	bh[UFS_SECTOR_SIZE >> uspi->s_fshift]->b_data + (UFS_SECTOR_SIZE & ~uspi->s_fmask))
+static inline void *get_usb_offset(struct ufs_sb_private_info *uspi,
+				   unsigned int offset)
+{
+	unsigned int index;
+	
+	index = offset >> uspi->s_fshift;
+	offset &= ~uspi->s_fmask;
+	return uspi->s_ubh.bh[index]->b_data + offset;
+}
 
-#define ubh_get_usb_third(ubh) \
-	((struct ufs_super_block_third *)((ubh)-> \
-	bh[UFS_SECTOR_SIZE*2 >> uspi->s_fshift]->b_data + (UFS_SECTOR_SIZE*2 & ~uspi->s_fmask)))
+#define ubh_get_usb_first(uspi) \
+	((struct ufs_super_block_first *)get_usb_offset((uspi), 0))
+
+#define ubh_get_usb_second(uspi) \
+	((struct ufs_super_block_second *)get_usb_offset((uspi), UFS_SECTOR_SIZE))
+
+#define ubh_get_usb_third(uspi)	\
+	((struct ufs_super_block_third *)get_usb_offset((uspi), 2*UFS_SECTOR_SIZE))
+
 
 #define ubh_get_ucg(ubh) \
 	((struct ufs_cylinder_group *)((ubh)->bh[0]->b_data))

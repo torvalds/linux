@@ -171,11 +171,12 @@ enum {
 };
 
 #ifdef __KERNEL__
-#include <linux/in6.h>          /* struct sockaddr_in6 */
 #include <linux/icmpv6.h>
-#include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
 #include <linux/tcp.h>
 #include <linux/udp.h>
+
+#include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
+#include <net/inet_sock.h>
 
 /* 
    This structure contains results of exthdrs parsing
@@ -190,6 +191,10 @@ struct inet6_skb_parm {
 	__u16			srcrt;
 	__u16			dst1;
 	__u16			lastopt;
+	__u32			nhoff;
+	__u16			flags;
+
+#define IP6SKB_XFRM_TRANSFORMED	1
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
@@ -199,18 +204,17 @@ static inline int inet6_iif(const struct sk_buff *skb)
 	return IP6CB(skb)->iif;
 }
 
-struct tcp6_request_sock {
-	struct tcp_request_sock	req;
+struct inet6_request_sock {
 	struct in6_addr		loc_addr;
 	struct in6_addr		rmt_addr;
 	struct sk_buff		*pktopts;
 	int			iif;
 };
 
-static inline struct tcp6_request_sock *tcp6_rsk(const struct request_sock *sk)
-{
-	return (struct tcp6_request_sock *)sk;
-}
+struct tcp6_request_sock {
+	struct tcp_request_sock	  tcp6rsk_tcp;
+	struct inet6_request_sock tcp6rsk_inet6;
+};
 
 /**
  * struct ipv6_pinfo - ipv6 private area
@@ -298,10 +302,34 @@ struct tcp6_sock {
 	struct ipv6_pinfo inet6;
 };
 
+extern int inet6_sk_rebuild_header(struct sock *sk);
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {
 	return inet_sk(__sk)->pinet6;
+}
+
+static inline struct inet6_request_sock *
+			inet6_rsk(const struct request_sock *rsk)
+{
+	return (struct inet6_request_sock *)(((u8 *)rsk) +
+					     inet_rsk(rsk)->inet6_rsk_offset);
+}
+
+static inline u32 inet6_rsk_offset(struct request_sock *rsk)
+{
+	return rsk->rsk_ops->obj_size - sizeof(struct inet6_request_sock);
+}
+
+static inline struct request_sock *inet6_reqsk_alloc(struct request_sock_ops *ops)
+{
+	struct request_sock *req = reqsk_alloc(ops);
+
+	if (req != NULL)
+		inet_rsk(req)->inet6_rsk_offset = inet6_rsk_offset(req);
+
+	return req;
 }
 
 static inline struct raw6_sock *raw6_sk(const struct sock *sk)
@@ -323,28 +351,37 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 #define __ipv6_only_sock(sk)	(inet6_sk(sk)->ipv6only)
 #define ipv6_only_sock(sk)	((sk)->sk_family == PF_INET6 && __ipv6_only_sock(sk))
 
-#include <linux/tcp.h>
-
-struct tcp6_timewait_sock {
-	struct tcp_timewait_sock tw_v6_sk;
-	struct in6_addr		 tw_v6_daddr;
-	struct in6_addr		 tw_v6_rcv_saddr;
+struct inet6_timewait_sock {
+	struct in6_addr tw_v6_daddr;
+	struct in6_addr	tw_v6_rcv_saddr;
 };
 
-static inline struct tcp6_timewait_sock *tcp6_twsk(const struct sock *sk)
+struct tcp6_timewait_sock {
+	struct tcp_timewait_sock   tcp6tw_tcp;
+	struct inet6_timewait_sock tcp6tw_inet6;
+};
+
+static inline u16 inet6_tw_offset(const struct proto *prot)
 {
-	return (struct tcp6_timewait_sock *)sk;
+	return prot->twsk_prot->twsk_obj_size -
+			sizeof(struct inet6_timewait_sock);
 }
 
-static inline struct in6_addr *__tcp_v6_rcv_saddr(const struct sock *sk)
+static inline struct inet6_timewait_sock *inet6_twsk(const struct sock *sk)
+{
+	return (struct inet6_timewait_sock *)(((u8 *)sk) +
+					      inet_twsk(sk)->tw_ipv6_offset);
+}
+
+static inline struct in6_addr *__inet6_rcv_saddr(const struct sock *sk)
 {
 	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		&inet6_sk(sk)->rcv_saddr : &tcp6_twsk(sk)->tw_v6_rcv_saddr;
+		&inet6_sk(sk)->rcv_saddr : &inet6_twsk(sk)->tw_v6_rcv_saddr;
 }
 
-static inline struct in6_addr *tcp_v6_rcv_saddr(const struct sock *sk)
+static inline struct in6_addr *inet6_rcv_saddr(const struct sock *sk)
 {
-	return sk->sk_family == AF_INET6 ? __tcp_v6_rcv_saddr(sk) : NULL;
+	return sk->sk_family == AF_INET6 ? __inet6_rcv_saddr(sk) : NULL;
 }
 
 static inline int inet_v6_ipv6only(const struct sock *sk)
@@ -361,13 +398,19 @@ static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 	return NULL;
 }
 
+static inline struct inet6_request_sock *
+			inet6_rsk(const struct request_sock *rsk)
+{
+	return NULL;
+}
+
 static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 {
 	return NULL;
 }
 
-#define __tcp_v6_rcv_saddr(__sk)	NULL
-#define tcp_v6_rcv_saddr(__sk)		NULL
+#define __inet6_rcv_saddr(__sk)	NULL
+#define inet6_rcv_saddr(__sk)	NULL
 #define tcp_twsk_ipv6only(__sk)		0
 #define inet_v6_ipv6only(__sk)		0
 #endif /* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */

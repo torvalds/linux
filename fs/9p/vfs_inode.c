@@ -40,7 +40,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "conv.h"
 #include "fid.h"
 
 static struct inode_operations v9fs_dir_inode_operations;
@@ -127,100 +126,32 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 }
 
 /**
- * v9fs_blank_mistat - helper function to setup a 9P stat structure
+ * v9fs_blank_wstat - helper function to setup a 9P stat structure
  * @v9ses: 9P session info (for determining extended mode)
- * @mistat: structure to initialize
+ * @wstat: structure to initialize
  *
  */
 
 static void
-v9fs_blank_mistat(struct v9fs_session_info *v9ses, struct v9fs_stat *mistat)
+v9fs_blank_wstat(struct v9fs_wstat *wstat)
 {
-	mistat->type = ~0;
-	mistat->dev = ~0;
-	mistat->qid.type = ~0;
-	mistat->qid.version = ~0;
-	*((long long *)&mistat->qid.path) = ~0;
-	mistat->mode = ~0;
-	mistat->atime = ~0;
-	mistat->mtime = ~0;
-	mistat->length = ~0;
-	mistat->name = mistat->data;
-	mistat->uid = mistat->data;
-	mistat->gid = mistat->data;
-	mistat->muid = mistat->data;
-	if (v9ses->extended) {
-		mistat->n_uid = ~0;
-		mistat->n_gid = ~0;
-		mistat->n_muid = ~0;
-		mistat->extension = mistat->data;
-	}
-	*mistat->data = 0;
-}
-
-/**
- * v9fs_mistat2unix - convert mistat to unix stat
- * @mistat: Plan 9 metadata (mistat) structure
- * @buf: unix metadata (stat) structure to populate
- * @sb: superblock
- *
- */
-
-static void
-v9fs_mistat2unix(struct v9fs_stat *mistat, struct stat *buf,
-		 struct super_block *sb)
-{
-	struct v9fs_session_info *v9ses = sb ? sb->s_fs_info : NULL;
-
-	buf->st_nlink = 1;
-
-	buf->st_atime = mistat->atime;
-	buf->st_mtime = mistat->mtime;
-	buf->st_ctime = mistat->mtime;
-
-	buf->st_uid = (unsigned short)-1;
-	buf->st_gid = (unsigned short)-1;
-
-	if (v9ses && v9ses->extended) {
-		/* TODO: string to uid mapping via user-space daemon */
-		if (mistat->n_uid != -1)
-			sscanf(mistat->uid, "%x", (unsigned int *)&buf->st_uid);
-
-		if (mistat->n_gid != -1)
-			sscanf(mistat->gid, "%x", (unsigned int *)&buf->st_gid);
-	}
-
-	if (buf->st_uid == (unsigned short)-1)
-		buf->st_uid = v9ses->uid;
-	if (buf->st_gid == (unsigned short)-1)
-		buf->st_gid = v9ses->gid;
-
-	buf->st_mode = p9mode2unixmode(v9ses, mistat->mode);
-	if ((S_ISBLK(buf->st_mode)) || (S_ISCHR(buf->st_mode))) {
-		char type = 0;
-		int major = -1;
-		int minor = -1;
-		sscanf(mistat->extension, "%c %u %u", &type, &major, &minor);
-		switch (type) {
-		case 'c':
-			buf->st_mode &= ~S_IFBLK;
-			buf->st_mode |= S_IFCHR;
-			break;
-		case 'b':
-			break;
-		default:
-			dprintk(DEBUG_ERROR, "Unknown special type %c (%s)\n",
-				type, mistat->extension);
-		};
-		buf->st_rdev = MKDEV(major, minor);
-	} else
-		buf->st_rdev = 0;
-
-	buf->st_size = mistat->length;
-
-	buf->st_blksize = sb->s_blocksize;
-	buf->st_blocks =
-	    (buf->st_size + buf->st_blksize - 1) >> sb->s_blocksize_bits;
+	wstat->type = ~0;
+	wstat->dev = ~0;
+	wstat->qid.type = ~0;
+	wstat->qid.version = ~0;
+	*((long long *)&wstat->qid.path) = ~0;
+	wstat->mode = ~0;
+	wstat->atime = ~0;
+	wstat->mtime = ~0;
+	wstat->length = ~0;
+	wstat->name = NULL;
+	wstat->uid = NULL;
+	wstat->gid = NULL;
+	wstat->muid = NULL;
+	wstat->n_uid = ~0;
+	wstat->n_gid = ~0;
+	wstat->n_muid = ~0;
+	wstat->extension = NULL;
 }
 
 /**
@@ -312,12 +243,12 @@ v9fs_create(struct inode *dir,
 	struct inode *file_inode = NULL;
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_qid qid;
-	struct stat newstat;
 	int dirfidnum = -1;
 	long newfid = -1;
 	int result = 0;
 	unsigned int iounit = 0;
 	int wfidno = -1;
+	int err;
 
 	perm = unixmode2p9mode(v9ses, perm);
 
@@ -349,57 +280,64 @@ v9fs_create(struct inode *dir,
 
 	result = v9fs_t_walk(v9ses, dirfidnum, newfid, NULL, &fcall);
 	if (result < 0) {
-		dprintk(DEBUG_ERROR, "clone error: %s\n", FCALL_ERROR(fcall));
+		PRINT_FCALL_ERROR("clone error", fcall);
 		v9fs_put_idpool(newfid, &v9ses->fidpool);
 		newfid = -1;
 		goto CleanUpFid;
 	}
 
 	kfree(fcall);
+	fcall = NULL;
 
 	result = v9fs_t_create(v9ses, newfid, (char *)file_dentry->d_name.name,
 			       perm, open_mode, &fcall);
 	if (result < 0) {
-		dprintk(DEBUG_ERROR, "create fails: %s(%d)\n",
-			FCALL_ERROR(fcall), result);
-
+		PRINT_FCALL_ERROR("create fails", fcall);
 		goto CleanUpFid;
 	}
 
 	iounit = fcall->params.rcreate.iounit;
 	qid = fcall->params.rcreate.qid;
 	kfree(fcall);
+	fcall = NULL;
 
-	fid = v9fs_fid_create(file_dentry, v9ses, newfid, 1);
-	dprintk(DEBUG_VFS, "fid %p %d\n", fid, fid->fidcreate);
-	if (!fid) {
-		result = -ENOMEM;
-		goto CleanUpFid;
+	if (!(perm&V9FS_DMDIR)) {
+		fid = v9fs_fid_create(file_dentry, v9ses, newfid, 1);
+		dprintk(DEBUG_VFS, "fid %p %d\n", fid, fid->fidcreate);
+		if (!fid) {
+			result = -ENOMEM;
+			goto CleanUpFid;
+		}
+
+		fid->qid = qid;
+		fid->iounit = iounit;
+	} else {
+		err = v9fs_t_clunk(v9ses, newfid);
+		newfid = -1;
+		if (err < 0)
+			dprintk(DEBUG_ERROR, "clunk for mkdir failed: %d\n", err);
 	}
-
-	fid->qid = qid;
-	fid->iounit = iounit;
 
 	/* walk to the newly created file and put the fid in the dentry */
 	wfidno = v9fs_get_idpool(&v9ses->fidpool);
-	if (newfid < 0) {
+	if (wfidno < 0) {
 		eprintk(KERN_WARNING, "no free fids available\n");
 		return -ENOSPC;
 	}
 
 	result = v9fs_t_walk(v9ses, dirfidnum, wfidno,
-		(char *) file_dentry->d_name.name, NULL);
+		(char *) file_dentry->d_name.name, &fcall);
 	if (result < 0) {
-		dprintk(DEBUG_ERROR, "clone error: %s\n", FCALL_ERROR(fcall));
+		PRINT_FCALL_ERROR("clone error", fcall);
 		v9fs_put_idpool(wfidno, &v9ses->fidpool);
 		wfidno = -1;
 		goto CleanUpFid;
 	}
+	kfree(fcall);
+	fcall = NULL;
 
 	if (!v9fs_fid_create(file_dentry, v9ses, wfidno, 0)) {
-		if (!v9fs_t_clunk(v9ses, newfid, &fcall)) {
-			v9fs_put_idpool(wfidno, &v9ses->fidpool);
-		}
+		v9fs_put_idpool(wfidno, &v9ses->fidpool);
 
 		goto CleanUpFid;
 	}
@@ -409,62 +347,43 @@ v9fs_create(struct inode *dir,
 	    (perm & V9FS_DMDEVICE))
 		return 0;
 
-	result = v9fs_t_stat(v9ses, newfid, &fcall);
+	result = v9fs_t_stat(v9ses, wfidno, &fcall);
 	if (result < 0) {
-		dprintk(DEBUG_ERROR, "stat error: %s(%d)\n", FCALL_ERROR(fcall),
-			result);
+		PRINT_FCALL_ERROR("stat error", fcall);
 		goto CleanUpFid;
 	}
 
-	v9fs_mistat2unix(fcall->params.rstat.stat, &newstat, sb);
 
-	file_inode = v9fs_get_inode(sb, newstat.st_mode);
+	file_inode = v9fs_get_inode(sb,
+		p9mode2unixmode(v9ses, fcall->params.rstat.stat.mode));
+
 	if ((!file_inode) || IS_ERR(file_inode)) {
 		dprintk(DEBUG_ERROR, "create inode failed\n");
 		result = -EBADF;
 		goto CleanUpFid;
 	}
 
-	v9fs_mistat2inode(fcall->params.rstat.stat, file_inode, sb);
+	v9fs_stat2inode(&fcall->params.rstat.stat, file_inode, sb);
 	kfree(fcall);
 	fcall = NULL;
 	file_dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(file_dentry, file_inode);
 
-	if (perm & V9FS_DMDIR) {
-		if (!v9fs_t_clunk(v9ses, newfid, &fcall))
-			v9fs_put_idpool(newfid, &v9ses->fidpool);
-		else
-			dprintk(DEBUG_ERROR, "clunk for mkdir failed: %s\n",
-				FCALL_ERROR(fcall));
-		kfree(fcall);
-		fid->fidopen = 0;
-		fid->fidcreate = 0;
-		d_drop(file_dentry);
-	}
-
 	return 0;
 
       CleanUpFid:
 	kfree(fcall);
+	fcall = NULL;
 
 	if (newfid >= 0) {
-		if (!v9fs_t_clunk(v9ses, newfid, &fcall))
-			v9fs_put_idpool(newfid, &v9ses->fidpool);
-		else
-			dprintk(DEBUG_ERROR, "clunk failed: %s\n",
-				FCALL_ERROR(fcall));
-
-		kfree(fcall);
+ 		err = v9fs_t_clunk(v9ses, newfid);
+ 		if (err < 0)
+ 			dprintk(DEBUG_ERROR, "clunk failed: %d\n", err);
 	}
 	if (wfidno >= 0) {
-		if (!v9fs_t_clunk(v9ses, wfidno, &fcall))
-			v9fs_put_idpool(wfidno, &v9ses->fidpool);
-		else
-			dprintk(DEBUG_ERROR, "clunk failed: %s\n",
-				FCALL_ERROR(fcall));
-
-		kfree(fcall);
+ 		err = v9fs_t_clunk(v9ses, wfidno);
+ 		if (err < 0)
+ 			dprintk(DEBUG_ERROR, "clunk failed: %d\n", err);
 	}
 	return result;
 }
@@ -509,10 +428,9 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	}
 
 	result = v9fs_t_remove(v9ses, fid, &fcall);
-	if (result < 0)
-		dprintk(DEBUG_ERROR, "remove of file fails: %s(%d)\n",
-			FCALL_ERROR(fcall), result);
-	else {
+	if (result < 0) {
+		PRINT_FCALL_ERROR("remove fails", fcall);
+	} else {
 		v9fs_put_idpool(fid, &v9ses->fidpool);
 		v9fs_fid_destroy(v9fid);
 	}
@@ -567,7 +485,6 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct v9fs_fid *fid;
 	struct inode *inode;
 	struct v9fs_fcall *fcall = NULL;
-	struct stat newstat;
 	int dirfidnum = -1;
 	int newfid = -1;
 	int result = 0;
@@ -620,8 +537,8 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto FreeFcall;
 	}
 
-	v9fs_mistat2unix(fcall->params.rstat.stat, &newstat, sb);
-	inode = v9fs_get_inode(sb, newstat.st_mode);
+	inode = v9fs_get_inode(sb, p9mode2unixmode(v9ses,
+		fcall->params.rstat.stat.mode));
 
 	if (IS_ERR(inode) && (PTR_ERR(inode) == -ENOSPC)) {
 		eprintk(KERN_WARNING, "inode alloc failes, returns %ld\n",
@@ -631,7 +548,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto FreeFcall;
 	}
 
-	inode->i_ino = v9fs_qid2ino(&fcall->params.rstat.stat->qid);
+	inode->i_ino = v9fs_qid2ino(&fcall->params.rstat.stat.qid);
 
 	fid = v9fs_fid_create(dentry, v9ses, newfid, 0);
 	if (fid == NULL) {
@@ -640,10 +557,10 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto FreeFcall;
 	}
 
-	fid->qid = fcall->params.rstat.stat->qid;
+	fid->qid = fcall->params.rstat.stat.qid;
 
 	dentry->d_op = &v9fs_dentry_operations;
-	v9fs_mistat2inode(fcall->params.rstat.stat, inode, inode->i_sb);
+	v9fs_stat2inode(&fcall->params.rstat.stat, inode, inode->i_sb);
 
 	d_add(dentry, inode);
 	kfree(fcall);
@@ -699,7 +616,7 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	    v9fs_fid_lookup(old_dentry->d_parent);
 	struct v9fs_fid *newdirfid =
 	    v9fs_fid_lookup(new_dentry->d_parent);
-	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
+	struct v9fs_wstat wstat;
 	struct v9fs_fcall *fcall = NULL;
 	int fid = -1;
 	int olddirfidnum = -1;
@@ -707,9 +624,6 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int retval = 0;
 
 	dprintk(DEBUG_VFS, "\n");
-
-	if (!mistat)
-		return -ENOMEM;
 
 	if ((!oldfid) || (!olddirfid) || (!newdirfid)) {
 		dprintk(DEBUG_ERROR, "problem with arguments\n");
@@ -734,33 +648,22 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto FreeFcallnBail;
 	}
 
-	v9fs_blank_mistat(v9ses, mistat);
+	v9fs_blank_wstat(&wstat);
+	wstat.muid = v9ses->name;
+	wstat.name = (char *) new_dentry->d_name.name;
 
-	strcpy(mistat->data + 1, v9ses->name);
-	mistat->name = mistat->data + 1 + strlen(v9ses->name);
-
-	if (new_dentry->d_name.len >
-	    (v9ses->maxdata - strlen(v9ses->name) - sizeof(struct v9fs_stat))) {
-		dprintk(DEBUG_ERROR, "new name too long\n");
-		goto FreeFcallnBail;
-	}
-
-	strcpy(mistat->name, new_dentry->d_name.name);
-	retval = v9fs_t_wstat(v9ses, fid, mistat, &fcall);
+	retval = v9fs_t_wstat(v9ses, fid, &wstat, &fcall);
 
       FreeFcallnBail:
-	kfree(mistat);
-
 	if (retval < 0)
-		dprintk(DEBUG_ERROR, "v9fs_t_wstat error: %s\n",
-			FCALL_ERROR(fcall));
+		PRINT_FCALL_ERROR("wstat error", fcall);
 
 	kfree(fcall);
 	return retval;
 }
 
 /**
- * v9fs_vfs_getattr - retreive file metadata
+ * v9fs_vfs_getattr - retrieve file metadata
  * @mnt - mount information
  * @dentry - file to get attributes on
  * @stat - metadata structure to populate
@@ -788,7 +691,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	if (err < 0)
 		dprintk(DEBUG_ERROR, "stat error\n");
 	else {
-		v9fs_mistat2inode(fcall->params.rstat.stat, dentry->d_inode,
+		v9fs_stat2inode(&fcall->params.rstat.stat, dentry->d_inode,
 				  dentry->d_inode->i_sb);
 		generic_fillattr(dentry->d_inode, stat);
 	}
@@ -809,13 +712,10 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dentry->d_inode);
 	struct v9fs_fid *fid = v9fs_fid_lookup(dentry);
 	struct v9fs_fcall *fcall = NULL;
-	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
+	struct v9fs_wstat wstat;
 	int res = -EPERM;
 
 	dprintk(DEBUG_VFS, "\n");
-
-	if (!mistat)
-		return -ENOMEM;
 
 	if (!fid) {
 		dprintk(DEBUG_ERROR,
@@ -823,43 +723,33 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		return -EBADF;
 	}
 
-	v9fs_blank_mistat(v9ses, mistat);
+	v9fs_blank_wstat(&wstat);
 	if (iattr->ia_valid & ATTR_MODE)
-		mistat->mode = unixmode2p9mode(v9ses, iattr->ia_mode);
+		wstat.mode = unixmode2p9mode(v9ses, iattr->ia_mode);
 
 	if (iattr->ia_valid & ATTR_MTIME)
-		mistat->mtime = iattr->ia_mtime.tv_sec;
+		wstat.mtime = iattr->ia_mtime.tv_sec;
 
 	if (iattr->ia_valid & ATTR_ATIME)
-		mistat->atime = iattr->ia_atime.tv_sec;
+		wstat.atime = iattr->ia_atime.tv_sec;
 
 	if (iattr->ia_valid & ATTR_SIZE)
-		mistat->length = iattr->ia_size;
+		wstat.length = iattr->ia_size;
 
 	if (v9ses->extended) {
-		char *ptr = mistat->data+1;
+		if (iattr->ia_valid & ATTR_UID)
+			wstat.n_uid = iattr->ia_uid;
 
-		if (iattr->ia_valid & ATTR_UID) {
-			mistat->uid = ptr;
-			ptr += 1+sprintf(ptr, "%08x", iattr->ia_uid);
-			mistat->n_uid = iattr->ia_uid;
-		}
-
-		if (iattr->ia_valid & ATTR_GID) {
-			mistat->gid = ptr;
-			ptr += 1+sprintf(ptr, "%08x", iattr->ia_gid);
-			mistat->n_gid = iattr->ia_gid;
-		}
+		if (iattr->ia_valid & ATTR_GID)
+			wstat.n_gid = iattr->ia_gid;
 	}
 
-	res = v9fs_t_wstat(v9ses, fid->fid, mistat, &fcall);
+	res = v9fs_t_wstat(v9ses, fid->fid, &wstat, &fcall);
 
 	if (res < 0)
-		dprintk(DEBUG_ERROR, "wstat error: %s\n", FCALL_ERROR(fcall));
+		PRINT_FCALL_ERROR("wstat error", fcall);
 
-	kfree(mistat);
 	kfree(fcall);
-
 	if (res >= 0)
 		res = inode_setattr(dentry->d_inode, iattr);
 
@@ -867,51 +757,47 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 }
 
 /**
- * v9fs_mistat2inode - populate an inode structure with mistat info
- * @mistat: Plan 9 metadata (mistat) structure
+ * v9fs_stat2inode - populate an inode structure with mistat info
+ * @stat: Plan 9 metadata (mistat) structure
  * @inode: inode to populate
  * @sb: superblock of filesystem
  *
  */
 
 void
-v9fs_mistat2inode(struct v9fs_stat *mistat, struct inode *inode,
-		  struct super_block *sb)
+v9fs_stat2inode(struct v9fs_stat *stat, struct inode *inode,
+	struct super_block *sb)
 {
+	int n;
+	char ext[32];
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
 	inode->i_nlink = 1;
 
-	inode->i_atime.tv_sec = mistat->atime;
-	inode->i_mtime.tv_sec = mistat->mtime;
-	inode->i_ctime.tv_sec = mistat->mtime;
+	inode->i_atime.tv_sec = stat->atime;
+	inode->i_mtime.tv_sec = stat->mtime;
+	inode->i_ctime.tv_sec = stat->mtime;
 
-	inode->i_uid = -1;
-	inode->i_gid = -1;
+	inode->i_uid = v9ses->uid;
+	inode->i_gid = v9ses->gid;
 
 	if (v9ses->extended) {
-		/* TODO: string to uid mapping via user-space daemon */
-		inode->i_uid = mistat->n_uid;
-		inode->i_gid = mistat->n_gid;
-
-		if (mistat->n_uid == -1)
-			sscanf(mistat->uid, "%x", &inode->i_uid);
-
-		if (mistat->n_gid == -1)
-			sscanf(mistat->gid, "%x", &inode->i_gid);
+		inode->i_uid = stat->n_uid;
+		inode->i_gid = stat->n_gid;
 	}
 
-	if (inode->i_uid == -1)
-		inode->i_uid = v9ses->uid;
-	if (inode->i_gid == -1)
-		inode->i_gid = v9ses->gid;
-
-	inode->i_mode = p9mode2unixmode(v9ses, mistat->mode);
+	inode->i_mode = p9mode2unixmode(v9ses, stat->mode);
 	if ((S_ISBLK(inode->i_mode)) || (S_ISCHR(inode->i_mode))) {
 		char type = 0;
 		int major = -1;
 		int minor = -1;
-		sscanf(mistat->extension, "%c %u %u", &type, &major, &minor);
+
+		n = stat->extension.len;
+		if (n > sizeof(ext)-1)
+			n = sizeof(ext)-1;
+		memmove(ext, stat->extension.str, n);
+		ext[n] = 0;
+		sscanf(ext, "%c %u %u", &type, &major, &minor);
 		switch (type) {
 		case 'c':
 			inode->i_mode &= ~S_IFBLK;
@@ -920,14 +806,14 @@ v9fs_mistat2inode(struct v9fs_stat *mistat, struct inode *inode,
 		case 'b':
 			break;
 		default:
-			dprintk(DEBUG_ERROR, "Unknown special type %c (%s)\n",
-				type, mistat->extension);
+			dprintk(DEBUG_ERROR, "Unknown special type %c (%.*s)\n",
+				type, stat->extension.len, stat->extension.str);
 		};
 		inode->i_rdev = MKDEV(major, minor);
 	} else
 		inode->i_rdev = 0;
 
-	inode->i_size = mistat->length;
+	inode->i_size = stat->length;
 
 	inode->i_blksize = sb->s_blocksize;
 	inode->i_blocks =
@@ -952,71 +838,6 @@ ino_t v9fs_qid2ino(struct v9fs_qid *qid)
 		i = (ino_t) (path ^ (path >> 32));
 
 	return i;
-}
-
-/**
- * v9fs_vfs_symlink - helper function to create symlinks
- * @dir: directory inode containing symlink
- * @dentry: dentry for symlink
- * @symname: symlink data
- *
- * See 9P2000.u RFC for more information
- *
- */
-
-static int
-v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
-{
-	int retval = -EPERM;
-	struct v9fs_fid *newfid;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
-	struct v9fs_fcall *fcall = NULL;
-	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
-
-	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
-		symname);
-
-	if (!mistat)
-		return -ENOMEM;
-
-	if (!v9ses->extended) {
-		dprintk(DEBUG_ERROR, "not extended\n");
-		goto FreeFcall;
-	}
-
-	/* issue a create */
-	retval = v9fs_create(dir, dentry, S_IFLNK, 0);
-	if (retval != 0)
-		goto FreeFcall;
-
-	newfid = v9fs_fid_lookup(dentry);
-
-	/* issue a twstat */
-	v9fs_blank_mistat(v9ses, mistat);
-	strcpy(mistat->data + 1, symname);
-	mistat->extension = mistat->data + 1;
-	retval = v9fs_t_wstat(v9ses, newfid->fid, mistat, &fcall);
-	if (retval < 0) {
-		dprintk(DEBUG_ERROR, "v9fs_t_wstat error: %s\n",
-			FCALL_ERROR(fcall));
-		goto FreeFcall;
-	}
-
-	kfree(fcall);
-
-	if (v9fs_t_clunk(v9ses, newfid->fid, &fcall)) {
-		dprintk(DEBUG_ERROR, "clunk for symlink failed: %s\n",
-			FCALL_ERROR(fcall));
-		goto FreeFcall;
-	}
-
-	d_drop(dentry);		/* FID - will this also clunk? */
-
-      FreeFcall:
-	kfree(mistat);
-	kfree(fcall);
-
-	return retval;
 }
 
 /**
@@ -1058,16 +879,17 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	if (!fcall)
 		return -EIO;
 
-	if (!(fcall->params.rstat.stat->mode & V9FS_DMSYMLINK)) {
+	if (!(fcall->params.rstat.stat.mode & V9FS_DMSYMLINK)) {
 		retval = -EINVAL;
 		goto FreeFcall;
 	}
 
 	/* copy extension buffer into buffer */
-	if (strlen(fcall->params.rstat.stat->extension) < buflen)
-		buflen = strlen(fcall->params.rstat.stat->extension);
+	if (fcall->params.rstat.stat.extension.len < buflen)
+		buflen = fcall->params.rstat.stat.extension.len;
 
-	memcpy(buffer, fcall->params.rstat.stat->extension, buflen + 1);
+	memcpy(buffer, fcall->params.rstat.stat.extension.str, buflen - 1);
+	buffer[buflen-1] = 0;
 
 	retval = buflen;
 
@@ -1157,6 +979,77 @@ static void v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void 
 		__putname(s);
 }
 
+static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
+	int mode, const char *extension)
+{
+	int err, retval;
+	struct v9fs_session_info *v9ses;
+	struct v9fs_fcall *fcall;
+	struct v9fs_fid *fid;
+	struct v9fs_wstat wstat;
+
+	v9ses = v9fs_inode2v9ses(dir);
+	retval = -EPERM;
+	fcall = NULL;
+
+	if (!v9ses->extended) {
+		dprintk(DEBUG_ERROR, "not extended\n");
+		goto free_mem;
+	}
+
+	/* issue a create */
+	retval = v9fs_create(dir, dentry, mode, 0);
+	if (retval != 0)
+		goto free_mem;
+
+	fid = v9fs_fid_get_created(dentry);
+	if (!fid) {
+		dprintk(DEBUG_ERROR, "couldn't resolve fid from dentry\n");
+		goto free_mem;
+	}
+
+	/* issue a Twstat */
+	v9fs_blank_wstat(&wstat);
+	wstat.muid = v9ses->name;
+	wstat.extension = (char *) extension;
+	retval = v9fs_t_wstat(v9ses, fid->fid, &wstat, &fcall);
+	if (retval < 0) {
+		PRINT_FCALL_ERROR("wstat error", fcall);
+		goto free_mem;
+	}
+
+	err = v9fs_t_clunk(v9ses, fid->fid);
+	if (err < 0) {
+		dprintk(DEBUG_ERROR, "clunk failed: %d\n", err);
+		goto free_mem;
+	}
+
+	d_drop(dentry);		/* FID - will this also clunk? */
+
+free_mem:
+	kfree(fcall);
+	return retval;
+}
+
+/**
+ * v9fs_vfs_symlink - helper function to create symlinks
+ * @dir: directory inode containing symlink
+ * @dentry: dentry for symlink
+ * @symname: symlink data
+ *
+ * See 9P2000.u RFC for more information
+ *
+ */
+
+static int
+v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+{
+	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
+		symname);
+
+	return v9fs_vfs_mkspecial(dir, dentry, S_IFLNK, symname);
+}
+
 /**
  * v9fs_vfs_link - create a hardlink
  * @old_dentry: dentry for file to link to
@@ -1173,64 +1066,24 @@ static int
 v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	      struct dentry *dentry)
 {
-	int retval = -EPERM;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
-	struct v9fs_fcall *fcall = NULL;
-	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
-	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry);
-	struct v9fs_fid *newfid = NULL;
-	char *symname = __getname();
+	int retval;
+	struct v9fs_fid *oldfid;
+	char *name;
 
 	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
 		old_dentry->d_name.name);
 
-	if (!v9ses->extended) {
-		dprintk(DEBUG_ERROR, "not extended\n");
-		goto FreeMem;
+	oldfid = v9fs_fid_lookup(old_dentry);
+	if (!oldfid) {
+		dprintk(DEBUG_ERROR, "can't find oldfid\n");
+		return -EPERM;
 	}
 
-	/* get fid of old_dentry */
-	sprintf(symname, "hardlink(%d)\n", oldfid->fid);
+	name = __getname();
+	sprintf(name, "hardlink(%d)\n", oldfid->fid);
+	retval = v9fs_vfs_mkspecial(dir, dentry, V9FS_DMLINK, name);
+	__putname(name);
 
-	/* issue a create */
-	retval = v9fs_create(dir, dentry, V9FS_DMLINK, 0);
-	if (retval != 0)
-		goto FreeMem;
-
-	newfid = v9fs_fid_lookup(dentry);
-	if (!newfid) {
-		dprintk(DEBUG_ERROR, "couldn't resolve fid from dentry\n");
-		goto FreeMem;
-	}
-
-	/* issue a twstat */
-	v9fs_blank_mistat(v9ses, mistat);
-	strcpy(mistat->data + 1, symname);
-	mistat->extension = mistat->data + 1;
-	retval = v9fs_t_wstat(v9ses, newfid->fid, mistat, &fcall);
-	if (retval < 0) {
-		dprintk(DEBUG_ERROR, "v9fs_t_wstat error: %s\n",
-			FCALL_ERROR(fcall));
-		goto FreeMem;
-	}
-
-	kfree(fcall);
-
-	if (v9fs_t_clunk(v9ses, newfid->fid, &fcall)) {
-		dprintk(DEBUG_ERROR, "clunk for symlink failed: %s\n",
-			FCALL_ERROR(fcall));
-		goto FreeMem;
-	}
-
-	d_drop(dentry);		/* FID - will this also clunk? */
-
-	kfree(fcall);
-	fcall = NULL;
-
-      FreeMem:
-	kfree(mistat);
-	kfree(fcall);
-	__putname(symname);
 	return retval;
 }
 
@@ -1246,82 +1099,30 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 static int
 v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 {
-	int retval = -EPERM;
-	struct v9fs_fid *newfid;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
-	struct v9fs_fcall *fcall = NULL;
-	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
-	char *symname = __getname();
+	int retval;
+	char *name;
 
 	dprintk(DEBUG_VFS, " %lu,%s mode: %x MAJOR: %u MINOR: %u\n", dir->i_ino,
 		dentry->d_name.name, mode, MAJOR(rdev), MINOR(rdev));
 
-	if (!mistat)
-		return -ENOMEM;
+	if (!new_valid_dev(rdev))
+		return -EINVAL;
 
-	if (!new_valid_dev(rdev)) {
-		retval = -EINVAL;
-		goto FreeMem;
-	}
-
-	if (!v9ses->extended) {
-		dprintk(DEBUG_ERROR, "not extended\n");
-		goto FreeMem;
-	}
-
-	/* issue a create */
-	retval = v9fs_create(dir, dentry, mode, 0);
-
-	if (retval != 0)
-		goto FreeMem;
-
-	newfid = v9fs_fid_lookup(dentry);
-	if (!newfid) {
-		dprintk(DEBUG_ERROR, "coudn't resove fid from dentry\n");
-		retval = -EINVAL;
-		goto FreeMem;
-	}
-
+	name = __getname();
 	/* build extension */
 	if (S_ISBLK(mode))
-		sprintf(symname, "b %u %u", MAJOR(rdev), MINOR(rdev));
+		sprintf(name, "b %u %u", MAJOR(rdev), MINOR(rdev));
 	else if (S_ISCHR(mode))
-		sprintf(symname, "c %u %u", MAJOR(rdev), MINOR(rdev));
+		sprintf(name, "c %u %u", MAJOR(rdev), MINOR(rdev));
 	else if (S_ISFIFO(mode))
-		;	/* DO NOTHING */
+		*name = 0;
 	else {
-		retval = -EINVAL;
-		goto FreeMem;
+		__putname(name);
+		return -EINVAL;
 	}
 
-	if (!S_ISFIFO(mode)) {
-		/* issue a twstat */
-		v9fs_blank_mistat(v9ses, mistat);
-		strcpy(mistat->data + 1, symname);
-		mistat->extension = mistat->data + 1;
-		retval = v9fs_t_wstat(v9ses, newfid->fid, mistat, &fcall);
-		if (retval < 0) {
-			dprintk(DEBUG_ERROR, "v9fs_t_wstat error: %s\n",
-				FCALL_ERROR(fcall));
-			goto FreeMem;
-		}
-	}
-
-	/* need to update dcache so we show up */
-	kfree(fcall);
-
-	if (v9fs_t_clunk(v9ses, newfid->fid, &fcall)) {
-		dprintk(DEBUG_ERROR, "clunk for symlink failed: %s\n",
-			FCALL_ERROR(fcall));
-		goto FreeMem;
-	}
-
-	d_drop(dentry);		/* FID - will this also clunk? */
-
-      FreeMem:
-	kfree(mistat);
-	kfree(fcall);
-	__putname(symname);
+	retval = v9fs_vfs_mkspecial(dir, dentry, mode, name);
+	__putname(name);
 
 	return retval;
 }

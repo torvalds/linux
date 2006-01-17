@@ -75,20 +75,31 @@ static void mips_timer_dispatch (struct pt_regs *regs)
 	do_IRQ (mips_cpu_timer_irq, regs);
 }
 
+extern int null_perf_irq(struct pt_regs *regs);
+
+extern int (*perf_irq)(struct pt_regs *regs);
+
 irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-#ifdef CONFIG_SMP
+	int r2 = cpu_has_mips_r2;
 	int cpu = smp_processor_id();
 
 	if (cpu == 0) {
 		/*
-		 * CPU 0 handles the global timer interrupt job and process accounting
-		 * resets count/compare registers to trigger next timer int.
+		 * CPU 0 handles the global timer interrupt job and process
+		 * accounting resets count/compare registers to trigger next
+		 * timer int.
 		 */
-		(void) timer_interrupt(irq, dev_id, regs);
+		if (!r2 || (read_c0_cause() & (1 << 26)))
+			if (perf_irq(regs))
+				goto out;
+
+		/* we keep interrupt disabled all the time */
+		if (!r2 || (read_c0_cause() & (1 << 30)))
+			timer_interrupt(irq, NULL, regs);
+
 		scroll_display_message();
-	}
-	else {
+	} else {
 		/* Everyone else needs to reset the timer int here as
 		   ll_local_timer_interrupt doesn't */
 		/*
@@ -103,16 +114,8 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		local_timer_interrupt (irq, dev_id, regs);
 	}
 
+out:
 	return IRQ_HANDLED;
-#else
-	irqreturn_t r;
-
-	r = timer_interrupt(irq, dev_id, regs);
-
-	scroll_display_message();
-
-	return r;
-#endif
 }
 
 /*

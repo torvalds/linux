@@ -249,20 +249,19 @@ static void ud_clear_margins(struct vc_data *vc, struct fb_info *info,
 	}
 }
 
-static void ud_cursor(struct vc_data *vc, struct fb_info *info,
-		      struct display *p, int mode, int softback_lines,
-		      int fg, int bg)
+static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
+		      int softback_lines, int fg, int bg)
 {
 	struct fb_cursor cursor;
-	struct fbcon_ops *ops = (struct fbcon_ops *) info->fbcon_par;
+	struct fbcon_ops *ops = info->fbcon_par;
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = (vc->vc_font.width + 7) >> 3, c;
-	int y = real_y(p, vc->vc_y);
+	int y = real_y(ops->p, vc->vc_y);
 	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
 	int err = 1, dx, dy;
 	char *src;
-	u32 vyres = GETVYRES(p->scrollmode, info);
-	u32 vxres = GETVXRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -334,7 +333,7 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info,
 	}
 
 	if (cursor.set & FB_CUR_SETSIZE ||
-	    vc->vc_cursor_type != p->cursor_shape ||
+	    vc->vc_cursor_type != ops->p->cursor_shape ||
 	    ops->cursor_state.mask == NULL ||
 	    ops->cursor_reset) {
 		char *mask = kmalloc(w*vc->vc_font.height, GFP_ATOMIC);
@@ -347,10 +346,10 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info,
 		kfree(ops->cursor_state.mask);
 		ops->cursor_state.mask = mask;
 
-		p->cursor_shape = vc->vc_cursor_type;
+		ops->p->cursor_shape = vc->vc_cursor_type;
 		cursor.set |= FB_CUR_SETSHAPE;
 
-		switch (p->cursor_shape & CUR_HWMASK) {
+		switch (ops->p->cursor_shape & CUR_HWMASK) {
 		case CUR_NONE:
 			cur_height = 0;
 			break;

@@ -43,8 +43,6 @@ static int debug;
 #define PL2303_BUF_SIZE		1024
 #define PL2303_TMP_BUF_SIZE	1024
 
-static DECLARE_MUTEX(pl2303_tmp_buf_sem);
-
 struct pl2303_buf {
 	unsigned int	buf_size;
 	char		*buf_buf;
@@ -82,11 +80,11 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver pl2303_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"pl2303",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 #define SET_LINE_REQUEST_TYPE		0x21
@@ -810,7 +808,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	u8 status_idx = UART_STATE;
-	u8 length = UART_STATE;
+	u8 length = UART_STATE + 1;
 
 	if ((le16_to_cpu(port->serial->dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
 	    (le16_to_cpu(port->serial->dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_X65 ||
@@ -924,16 +922,12 @@ static void pl2303_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
+		tty_buffer_request_room(tty, urb->actual_length + 1);
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-
-		for (i = 0; i < urb->actual_length; ++i) {
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
+		for (i = 0; i < urb->actual_length; ++i)
 			tty_insert_flip_char (tty, data[i], tty_flag);
-		}
 		tty_flip_buffer_push (tty);
 	}
 

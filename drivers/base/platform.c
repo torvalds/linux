@@ -25,6 +25,7 @@
 struct device platform_bus = {
 	.bus_id		= "platform",
 };
+EXPORT_SYMBOL_GPL(platform_bus);
 
 /**
  *	platform_get_resource - get a resource for a device
@@ -49,6 +50,7 @@ platform_get_resource(struct platform_device *dev, unsigned int type,
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(platform_get_resource);
 
 /**
  *	platform_get_irq - get an IRQ for a device
@@ -61,6 +63,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 
 	return r ? r->start : 0;
 }
+EXPORT_SYMBOL_GPL(platform_get_irq);
 
 /**
  *	platform_get_resource_byname - get a resource for a device by name
@@ -84,6 +87,7 @@ platform_get_resource_byname(struct platform_device *dev, unsigned int type,
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(platform_get_resource_byname);
 
 /**
  *	platform_get_irq - get an IRQ for a device
@@ -96,6 +100,7 @@ int platform_get_irq_byname(struct platform_device *dev, char *name)
 
 	return r ? r->start : 0;
 }
+EXPORT_SYMBOL_GPL(platform_get_irq_byname);
 
 /**
  *	platform_add_devices - add a numbers of platform devices
@@ -117,6 +122,7 @@ int platform_add_devices(struct platform_device **devs, int num)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(platform_add_devices);
 
 struct platform_object {
 	struct platform_device pdev;
@@ -168,7 +174,7 @@ struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 		pa->pdev.dev.release = platform_device_release;
 	}
 
-	return pa ? &pa->pdev : NULL;	
+	return pa ? &pa->pdev : NULL;
 }
 EXPORT_SYMBOL_GPL(platform_device_alloc);
 
@@ -257,7 +263,7 @@ int platform_device_add(struct platform_device *pdev)
 				p = &ioport_resource;
 		}
 
-		if (p && request_resource(p, r)) {
+		if (p && insert_resource(p, r)) {
 			printk(KERN_ERR
 			       "%s: failed to claim resource %d\n",
 			       pdev->dev.bus_id, i);
@@ -282,24 +288,13 @@ int platform_device_add(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(platform_device_add);
 
 /**
- *	platform_device_register - add a platform-level device
- *	@pdev:	platform device we're adding
- *
- */
-int platform_device_register(struct platform_device * pdev)
-{
-	device_initialize(&pdev->dev);
-	return platform_device_add(pdev);
-}
-
-/**
- *	platform_device_unregister - remove a platform-level device
+ *	platform_device_del - remove a platform-level device
  *	@pdev:	platform device we're removing
  *
  *	Note that this function will also release all memory- and port-based
  *	resources owned by the device (@dev->resource).
  */
-void platform_device_unregister(struct platform_device * pdev)
+void platform_device_del(struct platform_device *pdev)
 {
 	int i;
 
@@ -310,9 +305,37 @@ void platform_device_unregister(struct platform_device * pdev)
 				release_resource(r);
 		}
 
-		device_unregister(&pdev->dev);
+		device_del(&pdev->dev);
 	}
 }
+EXPORT_SYMBOL_GPL(platform_device_del);
+
+/**
+ *	platform_device_register - add a platform-level device
+ *	@pdev:	platform device we're adding
+ *
+ */
+int platform_device_register(struct platform_device * pdev)
+{
+	device_initialize(&pdev->dev);
+	return platform_device_add(pdev);
+}
+EXPORT_SYMBOL_GPL(platform_device_register);
+
+/**
+ *	platform_device_unregister - unregister a platform-level device
+ *	@pdev:	platform device we're unregistering
+ *
+ *	Unregistration is done in 2 steps. Fisrt we release all resources
+ *	and remove it from the subsystem, then we drop reference count by
+ *	calling platform_device_put().
+ */
+void platform_device_unregister(struct platform_device * pdev)
+{
+	platform_device_del(pdev);
+	platform_device_put(pdev);
+}
+EXPORT_SYMBOL_GPL(platform_device_unregister);
 
 /**
  *	platform_device_register_simple
@@ -355,6 +378,7 @@ error:
 	platform_device_put(pdev);
 	return ERR_PTR(retval);
 }
+EXPORT_SYMBOL_GPL(platform_device_register_simple);
 
 static int platform_drv_probe(struct device *_dev)
 {
@@ -476,6 +500,7 @@ struct bus_type platform_bus_type = {
 	.suspend	= platform_suspend,
 	.resume		= platform_resume,
 };
+EXPORT_SYMBOL_GPL(platform_bus_type);
 
 int __init platform_bus_init(void)
 {
@@ -504,14 +529,3 @@ u64 dma_get_required_mask(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dma_get_required_mask);
 #endif
-
-EXPORT_SYMBOL_GPL(platform_bus);
-EXPORT_SYMBOL_GPL(platform_bus_type);
-EXPORT_SYMBOL_GPL(platform_add_devices);
-EXPORT_SYMBOL_GPL(platform_device_register);
-EXPORT_SYMBOL_GPL(platform_device_register_simple);
-EXPORT_SYMBOL_GPL(platform_device_unregister);
-EXPORT_SYMBOL_GPL(platform_get_irq);
-EXPORT_SYMBOL_GPL(platform_get_resource);
-EXPORT_SYMBOL_GPL(platform_get_irq_byname);
-EXPORT_SYMBOL_GPL(platform_get_resource_byname);

@@ -1,6 +1,8 @@
 #ifndef _LINUX_VIDEO_DECODER_H
 #define _LINUX_VIDEO_DECODER_H
 
+#define HAVE_VIDEO_DECODER 1
+
 struct video_decoder_capability { /* this name is too long */
 	__u32	flags;
 #define	VIDEO_DECODER_PAL	1	/* can decode PAL signal */

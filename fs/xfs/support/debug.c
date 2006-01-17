@@ -27,43 +27,10 @@ static DEFINE_SPINLOCK(xfs_err_lock);
 /* Translate from CE_FOO to KERN_FOO, err_level(CE_FOO) == KERN_FOO */
 #define XFS_MAX_ERR_LEVEL	7
 #define XFS_ERR_MASK		((1 << 3) - 1)
-static char		*err_level[XFS_MAX_ERR_LEVEL+1] =
+static const char * const	err_level[XFS_MAX_ERR_LEVEL+1] =
 					{KERN_EMERG, KERN_ALERT, KERN_CRIT,
 					 KERN_ERR, KERN_WARNING, KERN_NOTICE,
 					 KERN_INFO, KERN_DEBUG};
-
-void
-assfail(char *a, char *f, int l)
-{
-    printk("XFS assertion failed: %s, file: %s, line: %d\n", a, f, l);
-    BUG();
-}
-
-#if ((defined(DEBUG) || defined(INDUCE_IO_ERRROR)) && !defined(NO_WANT_RANDOM))
-
-unsigned long
-random(void)
-{
-	static unsigned long	RandomValue = 1;
-	/* cycles pseudo-randomly through all values between 1 and 2^31 - 2 */
-	register long	rv = RandomValue;
-	register long	lo;
-	register long	hi;
-
-	hi = rv / 127773;
-	lo = rv % 127773;
-	rv = 16807 * lo - 2836 * hi;
-	if( rv <= 0 ) rv += 2147483647;
-	return( RandomValue = rv );
-}
-
-int
-get_thread_id(void)
-{
-	return current->pid;
-}
-
-#endif /* DEBUG || INDUCE_IO_ERRROR || !NO_WANT_RANDOM */
 
 void
 cmn_err(register int level, char *fmt, ...)
@@ -90,7 +57,6 @@ cmn_err(register int level, char *fmt, ...)
 		BUG();
 }
 
-
 void
 icmn_err(register int level, char *fmt, va_list ap)
 {
@@ -109,3 +75,27 @@ icmn_err(register int level, char *fmt, va_list ap)
 	if (level == CE_PANIC)
 		BUG();
 }
+
+void
+assfail(char *expr, char *file, int line)
+{
+	printk("Assertion failed: %s, file: %s, line: %d\n", expr, file, line);
+	BUG();
+}
+
+#if ((defined(DEBUG) || defined(INDUCE_IO_ERRROR)) && !defined(NO_WANT_RANDOM))
+unsigned long random(void)
+{
+	static unsigned long	RandomValue = 1;
+	/* cycles pseudo-randomly through all values between 1 and 2^31 - 2 */
+	register long	rv = RandomValue;
+	register long	lo;
+	register long	hi;
+
+	hi = rv / 127773;
+	lo = rv % 127773;
+	rv = 16807 * lo - 2836 * hi;
+	if (rv <= 0) rv += 2147483647;
+	return RandomValue = rv;
+}
+#endif /* DEBUG || INDUCE_IO_ERRROR || !NO_WANT_RANDOM */

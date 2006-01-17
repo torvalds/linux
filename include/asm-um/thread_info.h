@@ -56,9 +56,6 @@ static inline struct thread_info *current_thread_info(void)
 	((struct thread_info *) kmalloc(THREAD_SIZE, GFP_KERNEL))
 #define free_thread_info(ti) kfree(ti)
 
-#define get_thread_info(ti) get_task_struct((ti)->task)
-#define put_thread_info(ti) put_task_struct((ti)->task)
-
 #endif
 
 #define PREEMPT_ACTIVE		0x10000000

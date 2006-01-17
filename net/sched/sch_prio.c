@@ -54,7 +54,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	u32 band = skb->priority;
 	struct tcf_result res;
 
-	*qerr = NET_XMIT_DROP;
+	*qerr = NET_XMIT_BYPASS;
 	if (TC_H_MAJ(skb->priority) != sch->handle) {
 #ifdef CONFIG_NET_CLS_ACT
 		switch (tc_classify(skb, q->filter_list, &res)) {
@@ -91,7 +91,8 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	qdisc = prio_classify(skb, sch, &ret);
 #ifdef CONFIG_NET_CLS_ACT
 	if (qdisc == NULL) {
-		if (ret == NET_XMIT_DROP)
+
+		if (ret == NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -118,7 +119,7 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	qdisc = prio_classify(skb, sch, &ret);
 #ifdef CONFIG_NET_CLS_ACT
 	if (qdisc == NULL) {
-		if (ret == NET_XMIT_DROP)
+		if (ret == NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;

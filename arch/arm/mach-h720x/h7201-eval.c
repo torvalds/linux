@@ -31,7 +31,6 @@
 
 MACHINE_START(H7201, "Hynix GMS30C7201")
 	/* Maintainer: Robert Schwebel, Pengutronix */
-	.phys_ram	= 0x40000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf0000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0001000,

@@ -95,7 +95,7 @@ MODULE_LICENSE(DRIVER_LICENSE);
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
-	G4,
+	WACOM_G4,
 	PL,
 	INTUOS,
 	INTUOS3,
@@ -373,7 +373,7 @@ static void wacom_graphire_irq(struct urb *urb, struct pt_regs *regs)
 
 			case 2: /* Mouse with wheel */
 				input_report_key(dev, BTN_MIDDLE, data[1] & 0x04);
-				if (wacom->features->type == G4) {
+				if (wacom->features->type == WACOM_G4) {
 					rw = data[7] & 0x04 ? -(data[7] & 0x03) : (data[7] & 0x03);
 					input_report_rel(dev, REL_WHEEL, rw);
 				} else
@@ -385,7 +385,7 @@ static void wacom_graphire_irq(struct urb *urb, struct pt_regs *regs)
 				id = CURSOR_DEVICE_ID;
 				input_report_key(dev, BTN_LEFT, data[1] & 0x01);
 				input_report_key(dev, BTN_RIGHT, data[1] & 0x02);
-				if (wacom->features->type == G4)
+				if (wacom->features->type == WACOM_G4)
 					input_report_abs(dev, ABS_DISTANCE, data[6]);
 				else
 					input_report_abs(dev, ABS_DISTANCE, data[7]);
@@ -410,7 +410,7 @@ static void wacom_graphire_irq(struct urb *urb, struct pt_regs *regs)
 	input_sync(dev);
 
 	/* send pad data */
-	if (wacom->features->type == G4) {
+	if (wacom->features->type == WACOM_G4) {
 		/* fist time sending pad data */
 		if (wacom->tool[1] != BTN_TOOL_FINGER) {
 			wacom->id[1] = 0;
@@ -713,8 +713,8 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Graphire2 5x7", 8,  13918, 10206,  511, 32, GRAPHIRE,   wacom_graphire_irq },
 	{ "Wacom Graphire3",     8,  10208,  7424,  511, 32, GRAPHIRE,   wacom_graphire_irq },
 	{ "Wacom Graphire3 6x8", 8,  16704, 12064,  511, 32, GRAPHIRE,   wacom_graphire_irq },
-	{ "Wacom Graphire4 4x5", 8,  10208,  7424,  511, 32, G4,	 wacom_graphire_irq },
-	{ "Wacom Graphire4 6x8", 8,  16704, 12064,  511, 32, G4,	 wacom_graphire_irq },
+	{ "Wacom Graphire4 4x5", 8,  10208,  7424,  511, 32, WACOM_G4,	 wacom_graphire_irq },
+	{ "Wacom Graphire4 6x8", 8,  16704, 12064,  511, 32, WACOM_G4,	 wacom_graphire_irq },
 	{ "Wacom Volito",        8,   5104,  3712,  511, 32, GRAPHIRE,   wacom_graphire_irq },
 	{ "Wacom PenStation2",   8,   3250,  2320,  255, 32, GRAPHIRE,   wacom_graphire_irq },
 	{ "Wacom Volito2 4x5",   8,   5104,  3712,  511, 32, GRAPHIRE,   wacom_graphire_irq },
@@ -859,7 +859,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, wacom->features->pressure_max, 0, 0);
 
 	switch (wacom->features->type) {
-		case G4:
+		case WACOM_G4:
 			input_dev->evbit[0] |= BIT(EV_MSC);
 			input_dev->mscbit[0] |= BIT(MSC_SERIAL);
 			input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_FINGER);
@@ -945,7 +945,6 @@ static void wacom_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver wacom_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"wacom",
 	.probe =	wacom_probe,
 	.disconnect =	wacom_disconnect,

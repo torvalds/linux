@@ -1,9 +1,9 @@
 /*
  *  linux/drivers/s390/crypto/z90common.h
  *
- *  z90crypt 1.3.2
+ *  z90crypt 1.3.3
  *
- *  Copyright (C)  2001, 2004 IBM Corporation
+ *  Copyright (C)  2001, 2005 IBM Corporation
  *  Author(s): Robert Burroughs (burrough@us.ibm.com)
  *             Eric Rossman (edrossma@us.ibm.com)
  *
@@ -91,12 +91,13 @@ enum hdstat {
 #define TSQ_FATAL_ERROR 34
 #define RSQ_FATAL_ERROR 35
 
-#define Z90CRYPT_NUM_TYPES	5
+#define Z90CRYPT_NUM_TYPES	6
 #define PCICA		0
 #define PCICC		1
 #define PCIXCC_MCL2	2
 #define PCIXCC_MCL3	3
 #define CEX2C		4
+#define CEX2A		5
 #define NILDEV		-1
 #define ANYDEV		-1
 #define PCIXCC_UNK	-2
@@ -105,7 +106,7 @@ enum hdevice_type {
 	PCICC_HW  = 3,
 	PCICA_HW  = 4,
 	PCIXCC_HW = 5,
-	OTHER_HW  = 6,
+	CEX2A_HW  = 6,
 	CEX2C_HW  = 7
 };
 

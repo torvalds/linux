@@ -76,8 +76,6 @@ static inline struct thread_info *stack_thread_info(void)
 #define alloc_thread_info(tsk) \
 	((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER))
 #define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
-#define get_thread_info(ti) get_task_struct((ti)->task)
-#define put_thread_info(ti) put_task_struct((ti)->task)
 
 #else /* !__ASSEMBLY__ */
 
@@ -138,6 +136,7 @@ static inline struct thread_info *stack_thread_info(void)
  * have to worry about atomic accesses.
  */
 #define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
+#define TS_COMPAT		0x0002	/* 32bit syscall active */
 
 #endif /* __KERNEL__ */
 

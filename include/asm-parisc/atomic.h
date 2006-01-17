@@ -165,6 +165,7 @@ static __inline__ int atomic_read(const atomic_t *v)
 
 /* exported interface */
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
  * atomic_add_unless - add unless the number is a given value
@@ -216,4 +217,5 @@ static __inline__ int atomic_read(const atomic_t *v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#include <asm-generic/atomic.h>
 #endif

@@ -1,55 +1,78 @@
-config SCSI_QLA2XXX
-	tristate
-	default (SCSI && PCI)
-	depends on SCSI && PCI
+config SCSI_QLA_FC
+	tristate "QLogic QLA2XXX Fibre Channel Support"
+	depends on PCI && SCSI
+	select SCSI_FC_ATTRS
+	select FW_LOADER
+	---help---
+	This qla2xxx driver supports all QLogic Fibre Channel
+	PCI and PCIe host adapters.
+
+	By default, firmware for the ISP parts will be loaded
+	via the Firmware Loader interface.
+
+	ISP             Firmware Filename
+	----------      -----------------
+	21xx            ql2100_fw.bin
+	22xx            ql2200_fw.bin
+	2300, 2312      ql2300_fw.bin
+	2322            ql2322_fw.bin
+	6312, 6322      ql6312_fw.bin
+	24xx            ql2400_fw.bin
+
+	Upon request, the driver caches the firmware image until
+	the driver is unloaded.
+
+	Firmware images can be retrieved from:
+
+		ftp://ftp.qlogic.com/outgoing/linux/firmware/
+
+	NOTE: The original method of building firmware-loader
+	modules has been deprecated as the firmware-images will
+	be removed from the kernel sources.
+
+config SCSI_QLA2XXX_EMBEDDED_FIRMWARE
+	bool "  Use firmware-loader modules (DEPRECATED)"
+	depends on SCSI_QLA_FC
+	help
+	  This option offers you the deprecated firmware-loader
+	  modules that have been obsoleted by the usage of the
+	  Firmware Loader interface in the qla2xxx driver.
 
 config SCSI_QLA21XX
-	tristate "QLogic ISP2100 host adapter family support"
-	depends on SCSI_QLA2XXX
-        select SCSI_FC_ATTRS
-	select FW_LOADER
+	tristate "  Build QLogic ISP2100 firmware-module"
+	depends on SCSI_QLA_FC && SCSI_QLA2XXX_EMBEDDED_FIRMWARE
 	---help---
 	This driver supports the QLogic 21xx (ISP2100) host adapter family.
 
 config SCSI_QLA22XX
-	tristate "QLogic ISP2200 host adapter family support"
-	depends on SCSI_QLA2XXX
-        select SCSI_FC_ATTRS
-	select FW_LOADER
+	tristate "  Build QLogic ISP2200 firmware-module"
+	depends on SCSI_QLA_FC && SCSI_QLA2XXX_EMBEDDED_FIRMWARE
 	---help---
 	This driver supports the QLogic 22xx (ISP2200) host adapter family.
 
 config SCSI_QLA2300
-	tristate "QLogic ISP2300 host adapter family support"
-	depends on SCSI_QLA2XXX
-        select SCSI_FC_ATTRS
-	select FW_LOADER
+	tristate "  Build QLogic ISP2300 firmware-module"
+	depends on SCSI_QLA_FC && SCSI_QLA2XXX_EMBEDDED_FIRMWARE
 	---help---
 	This driver supports the QLogic 2300 (ISP2300 and ISP2312) host
 	adapter family.
 
 config SCSI_QLA2322
-	tristate "QLogic ISP2322 host adapter family support"
-	depends on SCSI_QLA2XXX
-        select SCSI_FC_ATTRS
-	select FW_LOADER
+	tristate "  Build QLogic ISP2322 firmware-module"
+	depends on SCSI_QLA_FC && SCSI_QLA2XXX_EMBEDDED_FIRMWARE
 	---help---
 	This driver supports the QLogic 2322 (ISP2322) host adapter family.
 
 config SCSI_QLA6312
-	tristate "QLogic ISP63xx host adapter family support"
-	depends on SCSI_QLA2XXX
-        select SCSI_FC_ATTRS
-	select FW_LOADER
+	tristate "  Build QLogic ISP63xx firmware-module"
+	depends on SCSI_QLA_FC && SCSI_QLA2XXX_EMBEDDED_FIRMWARE
 	---help---
 	This driver supports the QLogic 63xx (ISP6312 and ISP6322) host
 	adapter family.
 
 config SCSI_QLA24XX
-	tristate "QLogic ISP24xx host adapter family support"
-	depends on SCSI_QLA2XXX
-	select SCSI_FC_ATTRS
-	select FW_LOADER
+	tristate "  Build QLogic ISP24xx firmware-module"
+	depends on SCSI_QLA_FC && SCSI_QLA2XXX_EMBEDDED_FIRMWARE
 	---help---
 	This driver supports the QLogic 24xx (ISP2422 and ISP2432) host
 	adapter family.

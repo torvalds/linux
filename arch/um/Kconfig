@@ -22,10 +22,6 @@ config SBUS
 config PCI
 	bool
 
-config UID16
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -39,12 +35,12 @@ menu "UML-specific options"
 
 config MODE_TT
 	bool "Tracing thread support"
-	default y
+	default n
 	help
 	This option controls whether tracing thread support is compiled
-	into UML.  Normally, this should be set to Y.  If you intend to
-	use only skas mode (and the host has the skas patch applied to it),
-	then it is OK to say N here.
+	into UML.  This option is largely obsolete, given that skas0 provides
+	skas security and performance without needing to patch the host.
+	It is safe to say 'N' here.
 
 config STATIC_LINK
 	bool "Force a static link"
@@ -83,7 +79,7 @@ config KERNEL_HALF_GIGS
         of physical memory.
 
 config MODE_SKAS
-	bool "Separate Kernel Address Space support"
+	bool "Separate Kernel Address Space support" if MODE_TT
 	default y
 	help
 	This option controls whether skas (separate kernel address space)

@@ -156,10 +156,9 @@ struct dvb_frontend* dtt200u_fe_attach(struct dvb_usb_device *d)
 	struct dtt200u_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct dtt200u_fe_state*) kmalloc(sizeof(struct dtt200u_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct dtt200u_fe_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
-	memset(state,0,sizeof(struct dtt200u_fe_state));
 
 	deb_info("attaching frontend dtt200u\n");
 

@@ -358,7 +358,7 @@ hdlc_fill_fifo(struct BCState *bcs)
 	}
 }
 
-static inline void
+static void
 HDLC_irq(struct BCState *bcs, u_int stat) {
 	int len;
 	struct sk_buff *skb;

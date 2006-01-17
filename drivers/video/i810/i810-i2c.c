@@ -17,6 +17,7 @@
 #include <linux/fb.h>
 #include "i810.h"
 #include "i810_regs.h"
+#include "i810_main.h"
 #include "../edid.h"
 
 #define I810_DDC 0x50
@@ -42,7 +43,7 @@
 
 static void i810i2c_setscl(void *data, int state)
 {
-        struct i810fb_i2c_chan    *chan = (struct i810fb_i2c_chan *)data;
+        struct i810fb_i2c_chan    *chan = data;
         struct i810fb_par         *par = chan->par;
 	u8                        __iomem *mmio = par->mmio_start_virtual;
 

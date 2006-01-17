@@ -22,6 +22,7 @@
 #include <linux/skbuff.h>
 #include <linux/icmp.h>
 #include <linux/sysctl.h>
+#include <net/route.h>
 #include <net/ip.h>
 
 #include <linux/netfilter_ipv4.h>
@@ -180,30 +181,6 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 	return NF_ACCEPT;
 }
 
-static unsigned int ipv4_refrag(unsigned int hooknum,
-				struct sk_buff **pskb,
-				const struct net_device *in,
-				const struct net_device *out,
-				int (*okfn)(struct sk_buff *))
-{
-	struct rtable *rt = (struct rtable *)(*pskb)->dst;
-
-	/* We've seen it coming out the other side: confirm */
-	if (ipv4_confirm(hooknum, pskb, in, out, okfn) != NF_ACCEPT)
-		return NF_DROP;
-
-	/* Local packets are never produced too large for their
-	   interface.  We degfragment them at LOCAL_OUT, however,
-	   so we have to refragment them here. */
-	if ((*pskb)->len > dst_mtu(&rt->u.dst) &&
-	    !skb_shinfo(*pskb)->tso_size) {
-		/* No hook can be after us, so this should be OK. */
-		ip_fragment(*pskb, okfn);
-		return NF_STOLEN;
-	}
-	return NF_ACCEPT;
-}
-
 static unsigned int ipv4_conntrack_in(unsigned int hooknum,
 				      struct sk_buff **pskb,
 				      const struct net_device *in,
@@ -283,7 +260,7 @@ static struct nf_hook_ops ipv4_conntrack_helper_in_ops = {
 
 /* Refragmenter; last chance. */
 static struct nf_hook_ops ipv4_conntrack_out_ops = {
-	.hook		= ipv4_refrag,
+	.hook		= ipv4_confirm,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
 	.hooknum	= NF_IP_POST_ROUTING,
@@ -300,7 +277,7 @@ static struct nf_hook_ops ipv4_conntrack_local_in_ops = {
 
 #ifdef CONFIG_SYSCTL
 /* From nf_conntrack_proto_icmp.c */
-extern unsigned long nf_ct_icmp_timeout;
+extern unsigned int nf_ct_icmp_timeout;
 static struct ctl_table_header *nf_ct_ipv4_sysctl_header;
 
 static ctl_table nf_ct_sysctl_table[] = {
@@ -392,6 +369,48 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	return -ENOENT;
 }
 
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+
+static int ipv4_tuple_to_nfattr(struct sk_buff *skb,
+				const struct nf_conntrack_tuple *tuple)
+{
+	NFA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t),
+		&tuple->src.u3.ip);
+	NFA_PUT(skb, CTA_IP_V4_DST, sizeof(u_int32_t),
+		&tuple->dst.u3.ip);
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
+
+static const size_t cta_min_ip[CTA_IP_MAX] = {
+	[CTA_IP_V4_SRC-1]       = sizeof(u_int32_t),
+	[CTA_IP_V4_DST-1]       = sizeof(u_int32_t),
+};
+
+static int ipv4_nfattr_to_tuple(struct nfattr *tb[],
+				struct nf_conntrack_tuple *t)
+{
+	if (!tb[CTA_IP_V4_SRC-1] || !tb[CTA_IP_V4_DST-1])
+		return -EINVAL;
+
+	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
+		return -EINVAL;
+
+	t->src.u3.ip =
+		*(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
+	t->dst.u3.ip =
+		*(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
+
+	return 0;
+}
+#endif
+
 static struct nf_sockopt_ops so_getorigdst = {
 	.pf		= PF_INET,
 	.get_optmin	= SO_ORIGINAL_DST,
@@ -408,6 +427,11 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 	.print_conntrack = ipv4_print_conntrack,
 	.prepare	 = ipv4_prepare,
 	.get_features	 = ipv4_get_features,
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.tuple_to_nfattr = ipv4_tuple_to_nfattr,
+	.nfattr_to_tuple = ipv4_nfattr_to_tuple,
+#endif
 	.me		 = THIS_MODULE,
 };
 
@@ -551,7 +575,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	need_nf_conntrack();
+	need_conntrack();
 	return init_or_cleanup(1);
 }
 
@@ -563,9 +587,4 @@ static void __exit fini(void)
 module_init(init);
 module_exit(fini);
 
-void need_ip_conntrack(void)
-{
-}
-
-EXPORT_SYMBOL(need_ip_conntrack);
 EXPORT_SYMBOL(nf_ct_ipv4_gather_frags);

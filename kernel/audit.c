@@ -267,7 +267,7 @@ static int audit_set_failure(int state, uid_t loginuid)
 	return old;
 }
 
-int kauditd_thread(void *dummy)
+static int kauditd_thread(void *dummy)
 {
 	struct sk_buff *skb;
 

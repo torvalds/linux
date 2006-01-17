@@ -47,6 +47,8 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 
+#include <net/dst.h>
+
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -103,7 +105,7 @@ int ipoib_open(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring up any child interfaces too */
-		down(&priv->vlan_mutex);
+		mutex_lock(&priv->vlan_mutex);
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
@@ -113,7 +115,7 @@ int ipoib_open(struct net_device *dev)
 
 			dev_change_flags(cpriv->dev, flags | IFF_UP);
 		}
-		up(&priv->vlan_mutex);
+		mutex_unlock(&priv->vlan_mutex);
 	}
 
 	netif_start_queue(dev);
@@ -138,7 +140,7 @@ static int ipoib_stop(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring down any child interfaces too */
-		down(&priv->vlan_mutex);
+		mutex_lock(&priv->vlan_mutex);
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
@@ -148,7 +150,7 @@ static int ipoib_stop(struct net_device *dev)
 
 			dev_change_flags(cpriv->dev, flags & ~IFF_UP);
 		}
-		up(&priv->vlan_mutex);
+		mutex_unlock(&priv->vlan_mutex);
 	}
 
 	return 0;
@@ -890,8 +892,8 @@ static void ipoib_setup(struct net_device *dev)
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->tx_lock);
 
-	init_MUTEX(&priv->mcast_mutex);
-	init_MUTEX(&priv->vlan_mutex);
+	mutex_init(&priv->mcast_mutex);
+	mutex_init(&priv->vlan_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);

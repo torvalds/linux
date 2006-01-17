@@ -190,7 +190,7 @@ static int vp702x_fe_get_frontend(struct dvb_frontend* fe,
 }
 
 static int vp702x_fe_send_diseqc_msg (struct dvb_frontend* fe,
-			            struct dvb_diseqc_master_cmd *m)
+				    struct dvb_diseqc_master_cmd *m)
 {
 	struct vp702x_fe_state *st = fe->demodulator_priv;
 	u8 cmd[8],ibuf[10];
@@ -281,10 +281,9 @@ static struct dvb_frontend_ops vp702x_fe_ops;
 
 struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d)
 {
-	struct vp702x_fe_state *s = kmalloc(sizeof(struct vp702x_fe_state), GFP_KERNEL);
+	struct vp702x_fe_state *s = kzalloc(sizeof(struct vp702x_fe_state), GFP_KERNEL);
 	if (s == NULL)
 		goto error;
-	memset(s,0,sizeof(struct vp702x_fe_state));
 
 	s->d = d;
 	s->fe.ops = &vp702x_fe_ops;

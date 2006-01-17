@@ -105,7 +105,7 @@ sio_collect_irq_levels(void)
 	struct pci_dev *dev = NULL;
 
 	/* Iterate through the devices, collecting IRQ levels.  */
-	while ((dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		if ((dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) &&
 		    (dev->class >> 8 != PCI_CLASS_BRIDGE_PCMCIA))
 			continue;
@@ -229,8 +229,8 @@ alphabook1_init_pci(void)
 	 */
 
 	dev = NULL;
-	while ((dev = pci_find_device(PCI_VENDOR_ID_NCR, PCI_ANY_ID, dev))) {
-                if (dev->device == PCI_DEVICE_ID_NCR_53C810
+	while ((dev = pci_get_device(PCI_VENDOR_ID_NCR, PCI_ANY_ID, dev))) {
+		if (dev->device == PCI_DEVICE_ID_NCR_53C810
 		    || dev->device == PCI_DEVICE_ID_NCR_53C815
 		    || dev->device == PCI_DEVICE_ID_NCR_53C820
 		    || dev->device == PCI_DEVICE_ID_NCR_53C825) {

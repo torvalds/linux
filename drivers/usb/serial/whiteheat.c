@@ -127,11 +127,11 @@ static struct usb_device_id id_table_combined [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver whiteheat_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"whiteheat",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* function prototypes for the Connect Tech WhiteHEAT prerenumeration device */
@@ -1434,7 +1434,9 @@ static void rx_data_softint(void *private)
 		urb = wrap->urb;
 
 		if (tty && urb->actual_length) {
-			if (urb->actual_length > TTY_FLIPBUF_SIZE - tty->flip.count) {
+			int len = tty_buffer_request_room(tty, urb->actual_length);
+			/* This stuff can go away now I suspect */
+			if (unlikely(len < urb->actual_length)) {
 				spin_lock_irqsave(&info->lock, flags);
 				list_add(tmp, &info->rx_urb_q);
 				spin_unlock_irqrestore(&info->lock, flags);
@@ -1442,11 +1444,8 @@ static void rx_data_softint(void *private)
 				schedule_work(&info->rx_work);
 				return;
 			}
-
-			memcpy(tty->flip.char_buf_ptr, urb->transfer_buffer, urb->actual_length);
-			tty->flip.char_buf_ptr += urb->actual_length;
-			tty->flip.count += urb->actual_length;
-			sent += urb->actual_length;
+			tty_insert_flip_string(tty, urb->transfer_buffer, len);
+			sent += len;
 		}
 
 		urb->dev = port->serial->dev;

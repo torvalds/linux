@@ -25,14 +25,14 @@
  * such, this code is meant for only the simplest of tasks (and shouldn't be
  * used in any new drivers at all).
  *
- * It should also be noted that various functions here are labelled as
- * being deprecated. This is due to the fact that the ops->xfer() method is
- * the preferred way of doing things (as well as just grabbing the spinlock
- * directly). As such, any users of this interface will be warned rather
- * loudly.
+ * NOTE: ops->xfer() is the preferred way of doing things. However, there
+ * are some users of the ISA DMA API that exist in common code that we
+ * don't necessarily want to go out of our way to break, so we still
+ * allow for some compatability at that level. Any new code is strongly
+ * advised to run far away from the ISA DMA API and use the SH DMA API
+ * directly.
  */
-
-unsigned long __deprecated claim_dma_lock(void)
+unsigned long claim_dma_lock(void)
 {
 	unsigned long flags;
 
@@ -42,19 +42,19 @@ unsigned long __deprecated claim_dma_lock(void)
 }
 EXPORT_SYMBOL(claim_dma_lock);
 
-void __deprecated release_dma_lock(unsigned long flags)
+void release_dma_lock(unsigned long flags)
 {
 	spin_unlock_irqrestore(&dma_spin_lock, flags);
 }
 EXPORT_SYMBOL(release_dma_lock);
 
-void __deprecated disable_dma(unsigned int chan)
+void disable_dma(unsigned int chan)
 {
 	/* Nothing */
 }
 EXPORT_SYMBOL(disable_dma);
 
-void __deprecated enable_dma(unsigned int chan)
+void enable_dma(unsigned int chan)
 {
 	struct dma_info *info = get_dma_info(chan);
 	struct dma_channel *channel = &info->channels[chan];

@@ -29,16 +29,16 @@
 #define SNDRV_DM_FM_MODE_OPL2	0x00
 #define SNDRV_DM_FM_MODE_OPL3	0x01
 
-typedef struct snd_dm_fm_info {
+struct snd_dm_fm_info {
 	unsigned char fm_mode;		/* OPL mode, see SNDRV_DM_FM_MODE_XXX */
 	unsigned char rhythm;		/* percussion mode flag */
-} snd_dm_fm_info_t;
+};
 
 /*
  *  Data structure composing an FM "note" or sound event.
  */
 
-typedef struct snd_dm_fm_voice {
+struct snd_dm_fm_voice {
 	unsigned char op;		/* operator cell (0 or 1) */
 	unsigned char voice;		/* FM voice (0 to 17) */
 
@@ -60,25 +60,25 @@ typedef struct snd_dm_fm_voice {
 	unsigned char left;		/* stereo left */
 	unsigned char right;		/* stereo right */
 	unsigned char waveform;		/* 3 bits: waveform shape */
-} snd_dm_fm_voice_t;
+};
 
 /*
  *  This describes an FM note by its voice, octave, frequency number (10bit)
  *  and key on/off.
  */
 
-typedef struct snd_dm_fm_note {
+struct snd_dm_fm_note {
 	unsigned char voice;	/* 0-17 voice channel */
 	unsigned char octave;	/* 3 bits: what octave to play */
 	unsigned int fnum;	/* 10 bits: frequency number */
 	unsigned char key_on;	/* set for active, clear for silent */
-} snd_dm_fm_note_t;
+};
 
 /*
  *  FM parameters that apply globally to all voices, and thus are not "notes"
  */
 
-typedef struct snd_dm_fm_params {
+struct snd_dm_fm_params {
 	unsigned char am_depth;		/* amplitude modulation depth (1=hi) */
 	unsigned char vib_depth;	/* vibrato depth (1=hi) */
 	unsigned char kbd_split;	/* keyboard split */
@@ -90,17 +90,17 @@ typedef struct snd_dm_fm_params {
 	unsigned char tomtom;
 	unsigned char cymbal;
 	unsigned char hihat;
-} snd_dm_fm_params_t;
+};
 
 /*
  *  FM mode ioctl settings
  */
 
-#define SNDRV_DM_FM_IOCTL_INFO		_IOR('H', 0x20, snd_dm_fm_info_t)
+#define SNDRV_DM_FM_IOCTL_INFO		_IOR('H', 0x20, struct snd_dm_fm_info)
 #define SNDRV_DM_FM_IOCTL_RESET		_IO ('H', 0x21)
-#define SNDRV_DM_FM_IOCTL_PLAY_NOTE	_IOW('H', 0x22, snd_dm_fm_note_t)
-#define SNDRV_DM_FM_IOCTL_SET_VOICE	_IOW('H', 0x23, snd_dm_fm_voice_t)
-#define SNDRV_DM_FM_IOCTL_SET_PARAMS	_IOW('H', 0x24, snd_dm_fm_params_t)
+#define SNDRV_DM_FM_IOCTL_PLAY_NOTE	_IOW('H', 0x22, struct snd_dm_fm_note)
+#define SNDRV_DM_FM_IOCTL_SET_VOICE	_IOW('H', 0x23, struct snd_dm_fm_voice)
+#define SNDRV_DM_FM_IOCTL_SET_PARAMS	_IOW('H', 0x24, struct snd_dm_fm_params)
 #define SNDRV_DM_FM_IOCTL_SET_MODE	_IOW('H', 0x25, int)
 /* for OPL3 only */
 #define SNDRV_DM_FM_IOCTL_SET_CONNECTION	_IOW('H', 0x26, int)

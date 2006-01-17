@@ -15,6 +15,9 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+#include <linux/capability.h>
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
@@ -116,11 +119,6 @@ xfs_attr_fetch(xfs_inode_t *ip, const char *name, int namelen,
 	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
 	     ip->i_d.di_anextents == 0))
 		return(ENOATTR);
-
-	if (!(flags & (ATTR_KERNACCESS|ATTR_SECURE))) {
-		if ((error = xfs_iaccess(ip, S_IRUSR, cred)))
-			return(XFS_ERROR(error));
-	}
 
 	/*
 	 * Fill in the arg structure for this request.
@@ -425,7 +423,7 @@ xfs_attr_set(bhv_desc_t *bdp, const char *name, char *value, int valuelen, int f
 	     struct cred *cred)
 {
 	xfs_inode_t	*dp;
-	int             namelen, error;
+	int             namelen;
 
 	namelen = strlen(name);
 	if (namelen >= MAXNAMELEN)
@@ -436,14 +434,6 @@ xfs_attr_set(bhv_desc_t *bdp, const char *name, char *value, int valuelen, int f
 	dp = XFS_BHVTOI(bdp);
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
-
-	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(XFS_ERROR(error));
-	}
-	xfs_iunlock(dp, XFS_ILOCK_SHARED);
 
 	return xfs_attr_set_int(dp, name, namelen, value, valuelen, flags);
 }
@@ -579,7 +569,7 @@ int
 xfs_attr_remove(bhv_desc_t *bdp, const char *name, int flags, struct cred *cred)
 {
 	xfs_inode_t         *dp;
-	int                 namelen, error;
+	int                 namelen;
 
 	namelen = strlen(name);
 	if (namelen >= MAXNAMELEN)
@@ -592,11 +582,7 @@ xfs_attr_remove(bhv_desc_t *bdp, const char *name, int flags, struct cred *cred)
 		return (EIO);
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(XFS_ERROR(error));
-	} else if (XFS_IFORK_Q(dp) == 0 ||
+	if (XFS_IFORK_Q(dp) == 0 ||
 		   (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
 		    dp->i_d.di_anextents == 0)) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
@@ -668,12 +654,6 @@ xfs_attr_list(bhv_desc_t *bdp, char *buffer, int bufsize, int flags,
 		return (EIO);
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IRUSR, cred))) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(XFS_ERROR(error));
-	}
-
 	/*
 	 * Decide on what work routines to call based on the inode size.
 	 */

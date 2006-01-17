@@ -44,6 +44,7 @@
 
 #include <linux/config.h>
 #include <linux/stddef.h>	/* offsetof(), etc. */
+#include <linux/capability.h>
 #include <linux/errno.h>	/* return codes */
 #include <linux/kernel.h>
 #include <linux/init.h>

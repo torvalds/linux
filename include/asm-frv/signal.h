@@ -151,7 +151,6 @@ typedef struct sigaltstack {
 	size_t ss_size;
 } stack_t;
 
-extern int do_signal(struct pt_regs *regs, sigset_t *oldset);
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 #ifdef __KERNEL__

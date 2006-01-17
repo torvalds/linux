@@ -463,14 +463,12 @@ adv7175_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_adv7175;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	if ((client->addr == I2C_ADV7175 >> 1) ||
 	    (client->addr == (I2C_ADV7175 >> 1) + 1)) {
 		dname = adv7175_name;
@@ -484,12 +482,11 @@ adv7175_detect_client (struct i2c_adapter *adapter,
 	}
 	strlcpy(I2C_NAME(client), dname, sizeof(I2C_NAME(client)));
 
-	encoder = kmalloc(sizeof(struct adv7175), GFP_KERNEL);
+	encoder = kzalloc(sizeof(struct adv7175), GFP_KERNEL);
 	if (encoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(encoder, 0, sizeof(struct adv7175));
 	encoder->norm = VIDEO_MODE_PAL;
 	encoder->input = 0;
 	encoder->enable = 1;
@@ -548,11 +545,11 @@ adv7175_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_adv7175 = {
-	.owner = THIS_MODULE,
-	.name = "adv7175",	/* name */
+	.driver = {
+		.name = "adv7175",	/* name */
+	},
 
 	.id = I2C_DRIVERID_ADV7175,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = adv7175_attach_adapter,
 	.detach_client = adv7175_detach_client,

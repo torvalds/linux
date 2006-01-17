@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/hardware.h>
@@ -59,7 +60,7 @@ static const struct ssp_info_ ssp_info[PXA_SSP_PORTS] = {
 #endif
 };
 
-static DECLARE_MUTEX(sem);
+static DEFINE_MUTEX(mutex);
 static int use_count[PXA_SSP_PORTS] = {0, 0, 0};
 
 static irqreturn_t ssp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -239,16 +240,16 @@ int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags)
 	if (port > PXA_SSP_PORTS || port == 0)
 		return -ENODEV;
 
-	down(&sem);
+	mutex_lock(&mutex);
 	if (use_count[port - 1]) {
-		up(&sem);
+		mutex_unlock(&mutex);
 		return -EBUSY;
 	}
 	use_count[port - 1]++;
 
 	if (!request_mem_region(__PREG(SSCR0_P(port)), 0x2c, "SSP")) {
 		use_count[port - 1]--;
-		up(&sem);
+		mutex_unlock(&mutex);
 		return -EBUSY;
 	}
 	dev->port = port;
@@ -265,13 +266,13 @@ int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags)
 
 	/* turn on SSP port clock */
 	pxa_set_cken(ssp_info[port-1].clock, 1);
-	up(&sem);
+	mutex_unlock(&mutex);
 	return 0;
 
 out_region:
 	release_mem_region(__PREG(SSCR0_P(port)), 0x2c);
 	use_count[port - 1]--;
-	up(&sem);
+	mutex_unlock(&mutex);
 	return ret;
 }
 
@@ -282,7 +283,7 @@ out_region:
  */
 void ssp_exit(struct ssp_dev *dev)
 {
-	down(&sem);
+	mutex_lock(&mutex);
 	SSCR0_P(dev->port) &= ~SSCR0_SSE;
 
     	if (dev->port > PXA_SSP_PORTS || dev->port == 0) {
@@ -295,7 +296,7 @@ void ssp_exit(struct ssp_dev *dev)
 		free_irq(dev->irq, dev);
 	release_mem_region(__PREG(SSCR0_P(dev->port)), 0x2c);
 	use_count[dev->port - 1]--;
-	up(&sem);
+	mutex_unlock(&mutex);
 }
 
 EXPORT_SYMBOL(ssp_write_word);

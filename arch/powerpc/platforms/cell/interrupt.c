@@ -23,6 +23,7 @@
 #include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
 
@@ -55,6 +56,7 @@ struct iic_regs {
 
 struct iic {
 	struct iic_regs __iomem *regs;
+	u8 target_id;
 };
 
 static DEFINE_PER_CPU(struct iic, iic);
@@ -172,12 +174,11 @@ int iic_get_irq(struct pt_regs *regs)
 	return irq;
 }
 
-static struct iic_regs __iomem *find_iic(int cpu)
+static int setup_iic(int cpu, struct iic *iic)
 {
 	struct device_node *np;
 	int nodeid = cpu / 2;
 	unsigned long regs;
-	struct iic_regs __iomem *iic_regs;
 
 	for (np = of_find_node_by_type(NULL, "cpu");
 	     np;
@@ -188,20 +189,23 @@ static struct iic_regs __iomem *find_iic(int cpu)
 
 	if (!np) {
 		printk(KERN_WARNING "IIC: CPU %d not found\n", cpu);
-		iic_regs = NULL;
-	} else {
-		regs = *(long *)get_property(np, "iic", NULL);
-
-		/* hack until we have decided on the devtree info */
-		regs += 0x400;
-		if (cpu & 1)
-			regs += 0x20;
-
-		printk(KERN_DEBUG "IIC for CPU %d at %lx\n", cpu, regs);
-		iic_regs = __ioremap(regs, sizeof(struct iic_regs),
-						 _PAGE_NO_CACHE);
+		iic->regs = NULL;
+		iic->target_id = 0xff;
+		return -ENODEV;
 	}
-	return iic_regs;
+
+	regs = *(long *)get_property(np, "iic", NULL);
+
+	/* hack until we have decided on the devtree info */
+	regs += 0x400;
+	if (cpu & 1)
+		regs += 0x20;
+
+	printk(KERN_DEBUG "IIC for CPU %d at %lx\n", cpu, regs);
+	iic->regs = __ioremap(regs, sizeof(struct iic_regs),
+					 _PAGE_NO_CACHE);
+	iic->target_id = (nodeid << 4) + ((cpu & 1) ? 0xf : 0xe);
+	return 0;
 }
 
 #ifdef CONFIG_SMP
@@ -226,6 +230,12 @@ void iic_cause_IPI(int cpu, int mesg)
 {
 	out_be64(&per_cpu(iic, cpu).regs->generate, (IIC_NUM_IPIS - 1 - mesg) << 4);
 }
+
+u8 iic_get_target_id(int cpu)
+{
+	return per_cpu(iic, cpu).target_id;
+}
+EXPORT_SYMBOL_GPL(iic_get_target_id);
 
 static irqreturn_t iic_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -276,7 +286,7 @@ void iic_init_IRQ(void)
 	irq_offset = 0;
 	for_each_cpu(cpu) {
 		iic = &per_cpu(iic, cpu);
-		iic->regs = find_iic(cpu);
+		setup_iic(cpu, iic);
 		if (iic->regs)
 			out_be64(&iic->regs->prio, 0xff);
 	}

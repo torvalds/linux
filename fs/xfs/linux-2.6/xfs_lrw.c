@@ -233,8 +233,8 @@ xfs_read(
 		xfs_buftarg_t	*target =
 			(ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
-		if ((*offset & target->pbr_smask) ||
-		    (size & target->pbr_smask)) {
+		if ((*offset & target->bt_smask) ||
+		    (size & target->bt_smask)) {
 			if (*offset == ip->i_d.di_size) {
 				return (0);
 			}
@@ -254,7 +254,7 @@ xfs_read(
 	}
 
 	if (unlikely(ioflags & IO_ISDIRECT))
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
@@ -281,12 +281,9 @@ xfs_read(
 
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
-	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime_fast(ip, inode, XFS_ICHGTIME_ACC);
-
 unlock_isem:
 	if (unlikely(ioflags & IO_ISDIRECT))
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 
@@ -346,9 +343,6 @@ xfs_sendfile(
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
-	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime_fast(ip, LINVFS_GET_IP(vp), XFS_ICHGTIME_ACC);
-
 	return ret;
 }
 
@@ -362,7 +356,6 @@ STATIC int				/* error (positive) */
 xfs_zero_last_block(
 	struct inode	*ip,
 	xfs_iocore_t	*io,
-	xfs_off_t	offset,
 	xfs_fsize_t	isize,
 	xfs_fsize_t	end_size)
 {
@@ -371,19 +364,16 @@ xfs_zero_last_block(
 	int		nimaps;
 	int		zero_offset;
 	int		zero_len;
-	int		isize_fsb_offset;
 	int		error = 0;
 	xfs_bmbt_irec_t	imap;
 	loff_t		loff;
-	size_t		lsize;
 
 	ASSERT(ismrlocked(io->io_lock, MR_UPDATE) != 0);
-	ASSERT(offset > isize);
 
 	mp = io->io_mount;
 
-	isize_fsb_offset = XFS_B_FSB_OFFSET(mp, isize);
-	if (isize_fsb_offset == 0) {
+	zero_offset = XFS_B_FSB_OFFSET(mp, isize);
+	if (zero_offset == 0) {
 		/*
 		 * There are no extra bytes in the last block on disk to
 		 * zero, so return.
@@ -413,10 +403,8 @@ xfs_zero_last_block(
 	 */
 	XFS_IUNLOCK(mp, io, XFS_ILOCK_EXCL| XFS_EXTSIZE_RD);
 	loff = XFS_FSB_TO_B(mp, last_fsb);
-	lsize = XFS_FSB_TO_B(mp, 1);
 
-	zero_offset = isize_fsb_offset;
-	zero_len = mp->m_sb.sb_blocksize - isize_fsb_offset;
+	zero_len = mp->m_sb.sb_blocksize - zero_offset;
 
 	error = xfs_iozero(ip, loff + zero_offset, zero_len, end_size);
 
@@ -447,20 +435,17 @@ xfs_zero_eof(
 	struct inode	*ip = LINVFS_GET_IP(vp);
 	xfs_fileoff_t	start_zero_fsb;
 	xfs_fileoff_t	end_zero_fsb;
-	xfs_fileoff_t	prev_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;
 	xfs_fileoff_t	last_fsb;
 	xfs_extlen_t	buf_len_fsb;
-	xfs_extlen_t	prev_zero_count;
 	xfs_mount_t	*mp;
 	int		nimaps;
 	int		error = 0;
 	xfs_bmbt_irec_t	imap;
-	loff_t		loff;
-	size_t		lsize;
 
 	ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
 	ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
+	ASSERT(offset > isize);
 
 	mp = io->io_mount;
 
@@ -468,7 +453,7 @@ xfs_zero_eof(
 	 * First handle zeroing the block on which isize resides.
 	 * We only zero a part of that block so it is handled specially.
 	 */
-	error = xfs_zero_last_block(ip, io, offset, isize, end_size);
+	error = xfs_zero_last_block(ip, io, isize, end_size);
 	if (error) {
 		ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
 		ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
@@ -496,8 +481,6 @@ xfs_zero_eof(
 	}
 
 	ASSERT(start_zero_fsb <= end_zero_fsb);
-	prev_zero_fsb = NULLFILEOFF;
-	prev_zero_count = 0;
 	while (start_zero_fsb <= end_zero_fsb) {
 		nimaps = 1;
 		zero_count_fsb = end_zero_fsb - start_zero_fsb + 1;
@@ -519,10 +502,7 @@ xfs_zero_eof(
 			 * that sits on a hole and sets the page as P_HOLE
 			 * and calls remapf if it is a mapped file.
 			 */
-			prev_zero_fsb = NULLFILEOFF;
-			prev_zero_count = 0;
-			start_zero_fsb = imap.br_startoff +
-					 imap.br_blockcount;
+			start_zero_fsb = imap.br_startoff + imap.br_blockcount;
 			ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 			continue;
 		}
@@ -543,17 +523,15 @@ xfs_zero_eof(
 		 */
 		XFS_IUNLOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 
-		loff = XFS_FSB_TO_B(mp, start_zero_fsb);
-		lsize = XFS_FSB_TO_B(mp, buf_len_fsb);
-
-		error = xfs_iozero(ip, loff, lsize, end_size);
+		error = xfs_iozero(ip,
+				   XFS_FSB_TO_B(mp, start_zero_fsb),
+				   XFS_FSB_TO_B(mp, buf_len_fsb),
+				   end_size);
 
 		if (error) {
 			goto out_lock;
 		}
 
-		prev_zero_fsb = start_zero_fsb;
-		prev_zero_count = buf_len_fsb;
 		start_zero_fsb = imap.br_startoff + buf_len_fsb;
 		ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 
@@ -640,7 +618,7 @@ xfs_write(
 			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 
-		if ((pos & target->pbr_smask) || (count & target->pbr_smask))
+		if ((pos & target->bt_smask) || (count & target->bt_smask))
 			return XFS_ERROR(-EINVAL);
 
 		if (!VN_CACHED(vp) && pos < i_size_read(inode))
@@ -655,7 +633,7 @@ relock:
 		iolock = XFS_IOLOCK_EXCL;
 		locktype = VRWLOCK_WRITE;
 
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 	} else {
 		iolock = XFS_IOLOCK_SHARED;
 		locktype = VRWLOCK_WRITE_DIRECT;
@@ -686,7 +664,7 @@ start:
 		int		dmflags = FILP_DELAY_FLAG(file);
 
 		if (need_isem)
-			dmflags |= DM_FLAGS_ISEM;
+			dmflags |= DM_FLAGS_IMUX;
 
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
 		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
@@ -713,7 +691,7 @@ start:
 	}
 
 	if (likely(!(ioflags & IO_INVIS))) {
-		inode_update_time(inode, 1);
+		file_update_time(file);
 		xfs_ichgtime_fast(xip, inode,
 				  XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	}
@@ -772,7 +750,7 @@ retry:
 		if (need_isem) {
 			/* demote the lock now the cached pages are gone */
 			XFS_ILOCK_DEMOTE(mp, io, XFS_IOLOCK_EXCL);
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 
 			iolock = XFS_IOLOCK_SHARED;
 			locktype = VRWLOCK_WRITE_DIRECT;
@@ -817,19 +795,23 @@ retry:
 
 		xfs_rwunlock(bdp, locktype);
 		if (need_isem)
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
 				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (error)
 			goto out_nounlocks;
 		if (need_isem)
-			down(&inode->i_sem);
+			mutex_lock(&inode->i_mutex);
 		xfs_rwlock(bdp, locktype);
 		pos = xip->i_d.di_size;
 		ret = 0;
 		goto retry;
 	}
+
+	isize = i_size_read(inode);
+	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
+		*offset = isize;
 
 	if (*offset > xip->i_d.di_size) {
 		xfs_ilock(xip, XFS_ILOCK_EXCL);
@@ -926,7 +908,7 @@ retry:
 	
 		xfs_rwunlock(bdp, locktype);
 		if (need_isem)
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 
 		error = sync_page_range(inode, mapping, pos, ret);
 		if (!error)
@@ -938,7 +920,7 @@ retry:
 	xfs_rwunlock(bdp, locktype);
  out_unlock_isem:
 	if (need_isem)
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
  out_nounlocks:
 	return -error;
 }
@@ -956,7 +938,7 @@ xfs_bdstrat_cb(struct xfs_buf *bp)
 
 	mp = XFS_BUF_FSPRIVATE3(bp, xfs_mount_t *);
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		pagebuf_iorequest(bp);
+		xfs_buf_iorequest(bp);
 		return 0;
 	} else {
 		xfs_buftrace("XFS__BDSTRAT IOERROR", bp);
@@ -1009,7 +991,7 @@ xfsbdstrat(
 		 * if (XFS_BUF_IS_GRIO(bp)) {
 		 */
 
-		pagebuf_iorequest(bp);
+		xfs_buf_iorequest(bp);
 		return 0;
 	}
 

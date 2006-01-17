@@ -36,7 +36,7 @@ static int debug = 0;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
-            do { if (debug) { printk("%s: %s()[%d]: ",__stringify(KBUILD_MODNAME), __FUNCTION__, __LINE__); printk(args); } } while (0)
+            do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
 
 #define TEA6415C_NUM_INPUTS	8
 #define TEA6415C_NUM_OUTPUTS	6
@@ -190,10 +190,10 @@ static int command(struct i2c_client *client, unsigned int cmd, void *arg)
 }
 
 static struct i2c_driver driver = {
-	.owner	= THIS_MODULE,
-	.name 	= "tea6415c",
+	.driver = {
+		.name 	= "tea6415c",
+	},
 	.id 	= I2C_DRIVERID_TEA6415C,
-	.flags 	= I2C_DF_NOTIFY,
 	.attach_adapter	= attach,
 	.detach_client	= detach,
 	.command	= command,

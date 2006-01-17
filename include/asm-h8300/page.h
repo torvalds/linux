@@ -13,12 +13,6 @@
 
 #include <asm/setup.h>
 
-#if !defined(CONFIG_SMALL_TASKS) && PAGE_SHIFT < 13
-#define KTHREAD_SIZE (8192)
-#else
-#define KTHREAD_SIZE PAGE_SIZE
-#endif
- 
 #ifndef __ASSEMBLY__
  
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)

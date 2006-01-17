@@ -315,7 +315,7 @@ ENTRY(ei_handler)
 	mv	r1, sp			; arg1(regs)
 #if defined(CONFIG_CHIP_VDEC2) || defined(CONFIG_CHIP_XNUX2) \
 	|| defined(CONFIG_CHIP_M32700) || defined(CONFIG_CHIP_M32102) \
-	|| defined(CONFIG_CHIP_OPSP)
+	|| defined(CONFIG_CHIP_OPSP) || defined(CONFIG_CHIP_M32104)
 
 ;    GET_ICU_STATUS;
 	seth	r0, #shigh(M32R_ICU_ISTS_ADDR)
@@ -541,7 +541,20 @@ check_int2:
 	bra	check_end
 	.fillinsn
 check_end:
-#endif  /* CONFIG_PLAT_OPSPUT */
+#elif defined(CONFIG_PLAT_M32104UT)
+	add3	r2, r0, #-(M32R_IRQ_INT1)       ; INT1# interrupt
+	bnez	r2, check_end
+	; read ICU status register of PLD
+	seth	r0, #high(PLD_ICUISTS)
+	or3	r0, r0, #low(PLD_ICUISTS)
+	lduh	r0, @r0
+	slli	r0, #21
+	srli	r0, #27                         ; ISN
+	addi	r0, #(M32104UT_PLD_IRQ_BASE)
+	bra	check_end
+	.fillinsn
+check_end:
+#endif  /* CONFIG_PLAT_M32104UT */
 	bl	do_IRQ
 #endif  /* CONFIG_SMP */
 	ld	r14, @sp+
@@ -651,8 +664,6 @@ ENTRY(rie_handler)
 /* void rie_handler(int error_code) */
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
-	mvfc	r0, bpc
-	ld	r1, @r0
 	ldi	r1, #0x20			; error_code
 	mv	r0, sp				; pt_regs
 	bl	do_rie_handler

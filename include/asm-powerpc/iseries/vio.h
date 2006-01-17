@@ -1,5 +1,4 @@
 /* -*- linux-c -*-
- *  drivers/char/vio.h
  *
  *  iSeries Virtual I/O Message Path header
  *

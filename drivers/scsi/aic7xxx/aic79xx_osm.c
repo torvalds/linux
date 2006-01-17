@@ -1064,6 +1064,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	struct	Scsi_Host *host;
 	char	*new_name;
 	u_long	s;
+	int	retval;
 
 	template->name = ahd->description;
 	host = scsi_host_alloc(template, sizeof(struct ahd_softc *));
@@ -1096,9 +1097,15 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 
 	host->transportt = ahd_linux_transport_template;
 
-	scsi_add_host(host, &ahd->dev_softc->dev); /* XXX handle failure */
+	retval = scsi_add_host(host, &ahd->dev_softc->dev);
+	if (retval) {
+		printk(KERN_WARNING "aic79xx: scsi_add_host failed\n");
+		scsi_host_put(host);
+		return retval;
+	}
+
 	scsi_scan_host(host);
-	return (0);
+	return 0;
 }
 
 uint64_t
@@ -1461,6 +1468,30 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	if ((tstate->auto_negotiate & mask) != 0) {
 		scb->flags |= SCB_AUTO_NEGOTIATE;
 		scb->hscb->control |= MK_MESSAGE;
+		} else if (cmd->cmnd[0] == INQUIRY
+			&& (tinfo->curr.offset != 0
+			 || tinfo->curr.width != MSG_EXT_WDTR_BUS_8_BIT
+			 || tinfo->curr.ppr_options != 0)
+			&& (tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ)==0) {
+			/*
+			 * The SCSI spec requires inquiry
+			 * commands to complete without
+			 * reporting unit attention conditions.
+			 * Because of this, an inquiry command
+			 * that occurs just after a device is
+			 * reset will result in a data phase
+			 * with mismatched negotiated rates.
+			 * The core already forces a renegotiation
+			 * for reset events that are visible to
+			 * our controller or that we initiate,
+			 * but a third party device reset or a
+			 * hot-plug insertion can still cause this
+			 * issue.  Therefore, we force a re-negotiation
+			 * for every inquiry command unless we
+			 * are async.
+			 */
+			scb->flags |= SCB_NEGOTIATE;
+			scb->hscb->control |= MK_MESSAGE;
 	}
 
 	if ((dev->flags & (AHD_DEV_Q_TAGGED|AHD_DEV_Q_BASIC)) != 0) {
@@ -2051,6 +2082,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	int    paused;
 	int    wait;
 	int    disconnected;
+	int    found;
 	ahd_mode_state saved_modes;
 	unsigned long flags;
 
@@ -2169,7 +2201,8 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	last_phase = ahd_inb(ahd, LASTPHASE);
 	saved_scbptr = ahd_get_scbptr(ahd);
 	active_scbptr = saved_scbptr;
-	if (disconnected && (ahd_inb(ahd, SEQ_FLAGS) & NOT_IDENTIFIED) == 0) {
+	if (disconnected && ((last_phase != P_BUSFREE) || 
+			     (ahd_inb(ahd, SEQ_FLAGS) & NOT_IDENTIFIED) == 0)) {
 		struct scb *bus_scb;
 
 		bus_scb = ahd_lookup_scb(ahd, active_scbptr);
@@ -2187,28 +2220,41 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	 * bus or is in the disconnected state.
 	 */
 	saved_scsiid = ahd_inb(ahd, SAVED_SCSIID);
-	if (last_phase != P_BUSFREE
-	 && (SCB_GET_TAG(pending_scb) == active_scbptr
+	if (SCB_GET_TAG(pending_scb) == active_scbptr
 	     || (flag == SCB_DEVICE_RESET
-		 && SCSIID_TARGET(ahd, saved_scsiid) == scmd_id(cmd)))) {
+		 && SCSIID_TARGET(ahd, saved_scsiid) == scmd_id(cmd))) {
 
 		/*
 		 * We're active on the bus, so assert ATN
 		 * and hope that the target responds.
 		 */
 		pending_scb = ahd_lookup_scb(ahd, active_scbptr);
-		pending_scb->flags |= SCB_RECOVERY_SCB|flag;
+		pending_scb->flags |= SCB_RECOVERY_SCB|SCB_DEVICE_RESET;
 		ahd_outb(ahd, MSG_OUT, HOST_MSG);
 		ahd_outb(ahd, SCSISIGO, last_phase|ATNO);
-		scmd_printk(KERN_INFO, cmd, "Device is active, asserting ATN\n");
+		scmd_printk(KERN_INFO, cmd, "BDR message in message buffer\n");
 		wait = TRUE;
+	} else if (last_phase != P_BUSFREE
+		   && ahd_inb(ahd, SCSIPHASE) == 0) {
+		/*
+		 * SCB is not identified, there
+		 * is no pending REQ, and the sequencer
+		 * has not seen a busfree.  Looks like
+		 * a stuck connection waiting to
+		 * go busfree.  Reset the bus.
+		 */
+		found = ahd_reset_channel(ahd, cmd->device->channel + 'A',
+					  /*Initiate Reset*/TRUE);
+		printf("%s: Issued Channel %c Bus Reset. "
+		       "%d SCBs aborted\n", ahd_name(ahd),
+		       cmd->device->channel + 'A', found);
 	} else if (disconnected) {
 
 		/*
 		 * Actually re-queue this SCB in an attempt
 		 * to select the device before it reconnects.
 		 */
-		pending_scb->flags |= SCB_RECOVERY_SCB|SCB_ABORT;
+		pending_scb->flags |= SCB_RECOVERY_SCB|flag;
 		ahd_set_scbptr(ahd, SCB_GET_TAG(pending_scb));
 		pending_scb->hscb->cdb_len = 0;
 		pending_scb->hscb->task_attribute = 0;
@@ -2289,16 +2335,17 @@ done:
 		timer.expires = jiffies + (5 * HZ);
 		timer.function = ahd_linux_sem_timeout;
 		add_timer(&timer);
-		printf("Recovery code sleeping\n");
+		printf("%s: Recovery code sleeping\n", ahd_name(ahd));
 		down(&ahd->platform_data->eh_sem);
-		printf("Recovery code awake\n");
+		printf("%s: Recovery code awake\n", ahd_name(ahd));
         	ret = del_timer_sync(&timer);
 		if (ret == 0) {
-			printf("Timer Expired\n");
+			printf("%s: Timer Expired (active %d)\n",
+			       ahd_name(ahd), dev->active);
 			retval = FAILED;
 		}
 	}
-		ahd_unlock(ahd, &flags);
+	ahd_unlock(ahd, &flags);
 	return (retval);
 }
 

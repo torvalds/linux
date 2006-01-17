@@ -557,13 +557,13 @@ pc_proc_infos(unsigned char *nvram, char *buffer, int *len,
 	    (nvram[6] & 1) ? (nvram[6] >> 6) + 1 : 0);
 	PRINT_PROC("Floppy 0 type  : ");
 	type = nvram[2] >> 4;
-	if (type < sizeof (floppy_types) / sizeof (*floppy_types))
+	if (type < ARRAY_SIZE(floppy_types))
 		PRINT_PROC("%s\n", floppy_types[type]);
 	else
 		PRINT_PROC("%d (unknown)\n", type);
 	PRINT_PROC("Floppy 1 type  : ");
 	type = nvram[2] & 0x0f;
-	if (type < sizeof (floppy_types) / sizeof (*floppy_types))
+	if (type < ARRAY_SIZE(floppy_types))
 		PRINT_PROC("%s\n", floppy_types[type]);
 	else
 		PRINT_PROC("%d (unknown)\n", type);
@@ -843,8 +843,6 @@ static char *colors[] = {
 	"2", "4", "16", "256", "65536", "??", "??", "??"
 };
 
-#define fieldsize(a)	(sizeof(a)/sizeof(*a))
-
 static int
 atari_proc_infos(unsigned char *nvram, char *buffer, int *len,
     off_t *begin, off_t offset, int size)
@@ -856,7 +854,7 @@ atari_proc_infos(unsigned char *nvram, char *buffer, int *len,
 	PRINT_PROC("Checksum status  : %svalid\n", checksum ? "" : "not ");
 
 	PRINT_PROC("Boot preference  : ");
-	for (i = fieldsize(boot_prefs) - 1; i >= 0; --i) {
+	for (i = ARRAY_SIZE(boot_prefs) - 1; i >= 0; --i) {
 		if (nvram[1] == boot_prefs[i].val) {
 			PRINT_PROC("%s\n", boot_prefs[i].name);
 			break;
@@ -878,12 +876,12 @@ atari_proc_infos(unsigned char *nvram, char *buffer, int *len,
 		return 1;
 
 	PRINT_PROC("OS language      : ");
-	if (nvram[6] < fieldsize(languages))
+	if (nvram[6] < ARRAY_SIZE(languages))
 		PRINT_PROC("%s\n", languages[nvram[6]]);
 	else
 		PRINT_PROC("%u (undefined)\n", nvram[6]);
 	PRINT_PROC("Keyboard language: ");
-	if (nvram[7] < fieldsize(languages))
+	if (nvram[7] < ARRAY_SIZE(languages))
 		PRINT_PROC("%s\n", languages[nvram[7]]);
 	else
 		PRINT_PROC("%u (undefined)\n", nvram[7]);

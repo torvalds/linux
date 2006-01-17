@@ -15,7 +15,6 @@
 #include "os.h"
 #include "user.h"
 #include "user_util.h"
-#include "signal_user.h"
 #include "process.h"
 #include "irq_user.h"
 #include "kern_util.h"

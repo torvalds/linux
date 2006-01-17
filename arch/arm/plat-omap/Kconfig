@@ -22,7 +22,6 @@ comment "OMAP Feature Selections"
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
 	depends on ARCH_OMAP
-	default n
 	help
 	  Say Y if you want to reset unused clocks during boot.
 	  This option saves power, but assumes all drivers are
@@ -44,7 +43,6 @@ config OMAP_MUX
 config OMAP_MUX_DEBUG
 	bool "Multiplexing debug output"
         depends on OMAP_MUX
-        default n
         help
           Makes the multiplexing functions print out a lot of debug info.
           This is useful if you want to find out the correct values of the
@@ -93,7 +91,6 @@ config OMAP_32K_TIMER_HZ
 
 config OMAP_DM_TIMER
 	bool "Use dual-mode timer"
-	default n
 	depends on ARCH_OMAP16XX
 	help
 	 Select this option if you want to use OMAP Dual-Mode timers.

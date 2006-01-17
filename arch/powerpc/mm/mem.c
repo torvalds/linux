@@ -114,19 +114,18 @@ void online_page(struct page *page)
 	num_physpages++;
 }
 
-/*
- * This works only for the non-NUMA case.  Later, we'll need a lookup
- * to convert from real physical addresses to nid, that doesn't use
- * pfn_to_nid().
- */
 int __devinit add_memory(u64 start, u64 size)
 {
-	struct pglist_data *pgdata = NODE_DATA(0);
+	struct pglist_data *pgdata;
 	struct zone *zone;
+	int nid;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
-	start += KERNELBASE;
+	nid = hot_add_scn_to_nid(start);
+	pgdata = NODE_DATA(nid);
+
+	start = __va(start);
 	create_section_mapping(start, start + size);
 
 	/* this should work for most non-highmem platforms */

@@ -423,7 +423,7 @@ static int __devinit radeon_parse_monitor_layout(struct radeonfb_info *rinfo,
 /*
  * Probe display on both primary and secondary card's connector (if any)
  * by various available techniques (i2c, OF device tree, BIOS, ...) and
- * try to retreive EDID. The algorithm here comes from XFree's radeon
+ * try to retrieve EDID. The algorithm here comes from XFree's radeon
  * driver
  */
 void __devinit radeon_probe_screens(struct radeonfb_info *rinfo,

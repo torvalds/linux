@@ -268,7 +268,7 @@ static void do_machine_restart_nonsmp(char * __unused)
 	reipl_diag();
 
 	if (MACHINE_IS_VM)
-		cpcmd ("IPL", NULL, 0);
+		cpcmd ("IPL", NULL, 0, NULL);
 	else
 		reipl (0x10000 | S390_lowcore.ipl_device);
 }
@@ -276,14 +276,14 @@ static void do_machine_restart_nonsmp(char * __unused)
 static void do_machine_halt_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-                cpcmd(vmhalt_cmd, NULL, 0);
+                cpcmd(vmhalt_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
 static void do_machine_power_off_nonsmp(void)
 {
         if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-                cpcmd(vmpoff_cmd, NULL, 0);
+                cpcmd(vmpoff_cmd, NULL, 0, NULL);
         signal_processor(smp_processor_id(), sigp_stop_and_store_status);
 }
 
@@ -314,6 +314,11 @@ void machine_power_off(void)
 	console_unblank();
 	_machine_power_off();
 }
+
+/*
+ * Dummy power off function.
+ */
+void (*pm_power_off)(void) = machine_power_off;
 
 static void __init
 add_memory_hole(unsigned long start, unsigned long end)
@@ -427,7 +432,7 @@ setup_lowcore(void)
 		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0) + PAGE_SIZE;
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
 			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
@@ -562,21 +567,21 @@ setup_arch(char **cmdline_p)
         /*
          * print what head.S has found out about the machine
          */
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	printk((MACHINE_IS_VM) ?
 	       "We are running under VM (31 bit mode)\n" :
 	       "We are running native (31 bit mode)\n");
 	printk((MACHINE_HAS_IEEE) ?
 	       "This machine has an IEEE fpu\n" :
 	       "This machine has no IEEE fpu\n");
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	printk((MACHINE_IS_VM) ?
 	       "We are running under VM (64 bit mode)\n" :
 	       "We are running native (64 bit mode)\n");
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
         ROOT_DEV = Root_RAM0;
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	memory_end = memory_size & ~0x400000UL;  /* align memory end to 4MB */
         /*
          * We need some free virtual space to be able to do vmalloc.
@@ -585,9 +590,9 @@ setup_arch(char **cmdline_p)
          */
         if (memory_end > 1920*1024*1024)
                 memory_end = 1920*1024*1024;
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	memory_end = memory_size & ~0x200000UL;  /* detected in head.s */
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) &_etext;

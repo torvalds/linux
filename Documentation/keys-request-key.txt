@@ -56,10 +56,12 @@ A request proceeds in the following manner:
  (4) request_key() then forks and executes /sbin/request-key with a new session
      keyring that contains a link to auth key V.
 
- (5) /sbin/request-key execs an appropriate program to perform the actual
+ (5) /sbin/request-key assumes the authority associated with key U.
+
+ (6) /sbin/request-key execs an appropriate program to perform the actual
      instantiation.
 
- (6) The program may want to access another key from A's context (say a
+ (7) The program may want to access another key from A's context (say a
      Kerberos TGT key). It just requests the appropriate key, and the keyring
      search notes that the session keyring has auth key V in its bottom level.
 
@@ -67,19 +69,19 @@ A request proceeds in the following manner:
      UID, GID, groups and security info of process A as if it was process A,
      and come up with key W.
 
- (7) The program then does what it must to get the data with which to
+ (8) The program then does what it must to get the data with which to
      instantiate key U, using key W as a reference (perhaps it contacts a
      Kerberos server using the TGT) and then instantiates key U.
 
- (8) Upon instantiating key U, auth key V is automatically revoked so that it
+ (9) Upon instantiating key U, auth key V is automatically revoked so that it
      may not be used again.
 
- (9) The program then exits 0 and request_key() deletes key V and returns key
+(10) The program then exits 0 and request_key() deletes key V and returns key
      U to the caller.
 
-This also extends further. If key W (step 5 above) didn't exist, key W would be
-created uninstantiated, another auth key (X) would be created [as per step 3]
-and another copy of /sbin/request-key spawned [as per step 4]; but the context
+This also extends further. If key W (step 7 above) didn't exist, key W would be
+created uninstantiated, another auth key (X) would be created (as per step 3)
+and another copy of /sbin/request-key spawned (as per step 4); but the context
 specified by auth key X will still be process A, as it was in auth key V.
 
 This is because process A's keyrings can't simply be attached to
@@ -138,8 +140,8 @@ until one succeeds:
 
  (3) The process's session keyring is searched.
 
- (4) If the process has a request_key() authorisation key in its session
-     keyring then:
+ (4) If the process has assumed the authority associated with a request_key()
+     authorisation key then:
 
      (a) If extant, the calling process's thread keyring is searched.
 

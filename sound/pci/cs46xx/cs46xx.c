@@ -78,8 +78,8 @@ static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
 					   const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	cs46xx_t *chip;
+	struct snd_card *card;
+	struct snd_cs46xx *chip;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
@@ -98,6 +98,7 @@ static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 	chip->accept_valid = mmap_valid[dev];
 	if ((err = snd_cs46xx_pcm(chip, 0, NULL)) < 0) {
 		snd_card_free(card);
@@ -166,7 +167,10 @@ static struct pci_driver driver = {
 	.id_table = snd_cs46xx_ids,
 	.probe = snd_card_cs46xx_probe,
 	.remove = __devexit_p(snd_card_cs46xx_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_cs46xx_suspend,
+	.resume = snd_cs46xx_resume,
+#endif
 };
 
 static int __init alsa_card_cs46xx_init(void)

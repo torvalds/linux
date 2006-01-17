@@ -78,7 +78,7 @@ static struct class_device_attribute *bt_attrs[] = {
 };
 
 #ifdef CONFIG_HOTPLUG
-static int bt_hotplug(struct class_device *cdev, char **envp, int num_envp, char *buf, int size)
+static int bt_uevent(struct class_device *cdev, char **envp, int num_envp, char *buf, int size)
 {
 	struct hci_dev *hdev = class_get_devdata(cdev);
 	int n, i = 0;
@@ -107,7 +107,7 @@ struct class bt_class = {
 	.name		= "bluetooth",
 	.release	= bt_release,
 #ifdef CONFIG_HOTPLUG
-	.hotplug	= bt_hotplug,
+	.uevent		= bt_uevent,
 #endif
 };
 

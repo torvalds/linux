@@ -464,7 +464,7 @@ static struct pci_driver parport_serial_pci_driver = {
 
 static int __init parport_serial_init (void)
 {
-	return pci_module_init (&parport_serial_pci_driver);
+	return pci_register_driver (&parport_serial_pci_driver);
 }
 
 static void __exit parport_serial_exit (void)

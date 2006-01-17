@@ -94,15 +94,6 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id, struct pt_regs *r
 
 	status = *CSR_UARTFLG;
 	while (!(status & 0x10) && max_count--) {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
-
 		ch = *CSR_UARTDR;
 		flag = TTY_NORMAL;
 		port->icount.rx++;

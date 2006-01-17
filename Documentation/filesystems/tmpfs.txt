@@ -78,6 +78,18 @@ use up all the memory on the machine; but enhances the scalability of
 that instance in a system with many cpus making intensive use of it.
 
 
+tmpfs has a mount option to set the NUMA memory allocation policy for
+all files in that instance:
+mpol=interleave		prefers to allocate memory from each node in turn
+mpol=default		prefers to allocate memory from the local node
+mpol=bind		prefers to allocate from mpol_nodelist
+mpol=preferred		prefers to allocate from first node in mpol_nodelist
+
+The following mount option is used in conjunction with mpol=interleave,
+mpol=bind or mpol=preferred:
+mpol_nodelist:	nodelist suitable for parsing with nodelist_parse.
+
+
 To specify the initial root directory you can use the following mount
 options:
 

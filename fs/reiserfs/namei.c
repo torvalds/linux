@@ -375,11 +375,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-EIO);
 	}
 
-	if (inode)
-		return d_splice_alias(inode, dentry);
-
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 /* 

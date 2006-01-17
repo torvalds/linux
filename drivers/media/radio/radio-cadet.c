@@ -490,6 +490,7 @@ static struct file_operations cadet_fops = {
 	.release       	= cadet_release,
 	.read		= cadet_read,
 	.ioctl		= cadet_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 

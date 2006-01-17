@@ -794,12 +794,14 @@ static int enable_device(struct acpiphp_slot *slot)
 			if (PCI_SLOT(dev->devfn) != slot->device)
 				continue;
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-			    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
+			    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
 				max = pci_scan_bridge(bus, dev, max, pass);
+				if (pass && dev->subordinate)
+					pci_bus_size_bridges(dev->subordinate);
+			}
 		}
 	}
 
-	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
 	pci_enable_bridges(bus);

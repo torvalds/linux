@@ -12,8 +12,6 @@
 #define L1_CACHE_SHIFT		CONFIG_IA64_L1_CACHE_SHIFT
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
-#define L1_CACHE_SHIFT_MAX 7	/* largest L1 which this arch supports */
-
 #ifdef CONFIG_SMP
 # define SMP_CACHE_SHIFT	L1_CACHE_SHIFT
 # define SMP_CACHE_BYTES	L1_CACHE_BYTES

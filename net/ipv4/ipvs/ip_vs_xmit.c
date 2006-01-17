@@ -322,7 +322,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct net_device *tdev;		/* Device to other host */
 	struct iphdr  *old_iph = skb->nh.iph;
 	u8     tos = old_iph->tos;
-	u16    df = old_iph->frag_off;
+	__be16 df = old_iph->frag_off;
 	struct iphdr  *iph;			/* Our new IP header */
 	int    max_headroom;			/* The extra header space needed */
 	int    mtu;

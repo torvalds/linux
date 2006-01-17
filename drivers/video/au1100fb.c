@@ -379,7 +379,7 @@ void au1100fb_fb_rotate(struct fb_info *fbi, int angle)
  * Map video memory in user space. We don't use the generic fb_mmap method mainly
  * to allow the use of the TLB streaming flag (CCA=6)
  */
-int au1100fb_fb_mmap(struct fb_info *fbi, struct file *file, struct vm_area_struct *vma)
+int au1100fb_fb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
 	unsigned int len;

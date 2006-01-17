@@ -1017,12 +1017,7 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	rport_ids.port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 	rport_ids.port_id = ndlp->nlp_DID;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
-	if (ndlp->nlp_type & NLP_FCP_TARGET)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
-	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
-		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 
-	scsi_block_requests(phba->host);
 	ndlp->rport = rport = fc_remote_port_add(phba->host, 0, &rport_ids);
 	if (!rport) {
 		dev_printk(KERN_WARNING, &phba->pcidev->dev,
@@ -1039,7 +1034,16 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	}
 	rdata = rport->dd_data;
 	rdata->pnode = ndlp;
-	scsi_unblock_requests(phba->host);
+
+	if (ndlp->nlp_type & NLP_FCP_TARGET)
+		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+	if (ndlp->nlp_type & NLP_FCP_INITIATOR)
+		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+
+
+	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
+		fc_remote_port_rolechg(rport, rport_ids.roles);
+
 
 	return;
 }
@@ -1053,9 +1057,7 @@ lpfc_unregister_remote_port(struct lpfc_hba * phba,
 
 	ndlp->rport = NULL;
 	rdata->pnode = NULL;
-	scsi_block_requests(phba->host);
 	fc_remote_port_delete(rport);
-	scsi_unblock_requests(phba->host);
 
 	return;
 }

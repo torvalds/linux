@@ -33,6 +33,7 @@
 #include <asm/mmu.h>
 #include <asm/processor.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -48,6 +49,7 @@
 
 #include "interrupt.h"
 #include "iommu.h"
+#include "pervasive.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -55,7 +57,7 @@
 #define DBG(fmt...)
 #endif
 
-void cell_show_cpuinfo(struct seq_file *m)
+static void cell_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
@@ -66,6 +68,77 @@ void cell_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 	of_node_put(root);
 }
+
+#ifdef CONFIG_SPARSEMEM
+static int __init find_spu_node_id(struct device_node *spe)
+{
+	unsigned int *id;
+#ifdef CONFIG_NUMA
+	struct device_node *cpu;
+	cpu = spe->parent->parent;
+	id = (unsigned int *)get_property(cpu, "node-id", NULL);
+#else
+	id = NULL;
+#endif
+	return id ? *id : 0;
+}
+
+static void __init cell_spuprop_present(struct device_node *spe,
+				       const char *prop, int early)
+{
+	struct address_prop {
+		unsigned long address;
+		unsigned int len;
+	} __attribute__((packed)) *p;
+	int proplen;
+
+	unsigned long start_pfn, end_pfn, pfn;
+	int node_id;
+
+	p = (void*)get_property(spe, prop, &proplen);
+	WARN_ON(proplen != sizeof (*p));
+
+	node_id = find_spu_node_id(spe);
+
+	start_pfn = p->address >> PAGE_SHIFT;
+	end_pfn = (p->address + p->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	/* We need to call memory_present *before* the call to sparse_init,
+	   but we can initialize the page structs only *after* that call.
+	   Thus, we're being called twice. */
+	if (early)
+		memory_present(node_id, start_pfn, end_pfn);
+	else {
+		/* As the pages backing SPU LS and I/O are outside the range
+		   of regular memory, their page structs were not initialized
+		   by free_area_init. Do it here instead. */
+		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+			struct page *page = pfn_to_page(pfn);
+			set_page_links(page, ZONE_DMA, node_id, pfn);
+			set_page_count(page, 1);
+			reset_page_mapcount(page);
+			SetPageReserved(page);
+			INIT_LIST_HEAD(&page->lru);
+		}
+	}
+}
+
+static void __init cell_spumem_init(int early)
+{
+	struct device_node *node;
+	for (node = of_find_node_by_type(NULL, "spe");
+			node; node = of_find_node_by_type(node, "spe")) {
+		cell_spuprop_present(node, "local-store", early);
+		cell_spuprop_present(node, "problem", early);
+		cell_spuprop_present(node, "priv1", early);
+		cell_spuprop_present(node, "priv2", early);
+	}
+}
+#else
+static void __init cell_spumem_init(int early)
+{
+}
+#endif
 
 static void cell_progress(char *s, unsigned short hex)
 {
@@ -93,11 +166,14 @@ static void __init cell_setup_arch(void)
 	init_pci_config_tokens();
 	find_and_init_phbs();
 	spider_init_IRQ();
+	cell_pervasive_init();
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
 
 	mmio_nvram_init();
+
+	cell_spumem_init(0);
 }
 
 /*
@@ -113,6 +189,8 @@ static void __init cell_init_early(void)
 
 	ppc64_interrupt_controller = IC_CELL_PIC;
 
+	cell_spumem_init(1);
+
 	DBG(" <- cell_init_early()\n");
 }
 
@@ -123,6 +201,15 @@ static int __init cell_probe(int platform)
 		return 0;
 
 	return 1;
+}
+
+/*
+ * Cell has no legacy IO; anything calling this function has to
+ * fail or bad things will happen
+ */
+static int cell_check_legacy_ioport(unsigned int baseport)
+{
+	return -ENODEV;
 }
 
 struct machdep_calls __initdata cell_md = {
@@ -137,5 +224,11 @@ struct machdep_calls __initdata cell_md = {
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
+	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
+#endif
 };

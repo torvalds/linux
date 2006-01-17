@@ -75,13 +75,6 @@
  */
  
 #include <linux/config.h>
-
-#ifdef CONFIG_USB_DEBUG
-#	define DEBUG
-#else
-#	undef DEBUG
-#endif
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
@@ -802,7 +795,6 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	int temp;
 	int i;
 	struct urb_priv *priv;
-	struct usb_device *root = ohci_to_hcd(ohci)->self.root_hub;
 
 	/* mark any devices gone, so they do nothing till khubd disconnects.
 	 * recycle any "live" eds/tds (and urbs) right away.
@@ -811,11 +803,7 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	 */ 
 	spin_lock_irq(&ohci->lock);
 	disable (ohci);
-	for (i = 0; i < root->maxchild; i++) {
-		if (root->children [i])
-			usb_set_device_state (root->children[i],
-				USB_STATE_NOTATTACHED);
-	}
+	usb_root_hub_lost_power(ohci_to_hcd(ohci)->self.root_hub);
 	if (!list_empty (&ohci->pending))
 		ohci_dbg(ohci, "abort schedule...\n");
 	list_for_each_entry (priv, &ohci->pending, pending) {

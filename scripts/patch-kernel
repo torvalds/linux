@@ -45,7 +45,7 @@
 # update usage message;
 # fix some whitespace damage;
 # be smarter about stopping when current version is larger than requested;
-#	Randy Dunlap <rddunlap@osdl.org>, 2004-AUG-18.
+#	Randy Dunlap <rdunlap@xenotime.net>, 2004-AUG-18.
 #
 # Add better support for (non-incremental) 2.6.x.y patches;
 # If an ending version number if not specified, the script automatically
@@ -56,7 +56,7 @@
 # patch-kernel does not normally support reverse patching, but does so when
 # applying EXTRAVERSION (x.y) patches, so that moving from 2.6.11.y to 2.6.11.z
 # is easy and handled by the script (reverse 2.6.11.y and apply 2.6.11.z).
-#	Randy Dunlap <rddunlap@osdl.org>, 2005-APR-08.
+#	Randy Dunlap <rdunlap@xenotime.net>, 2005-APR-08.
 
 PNAME=patch-kernel
 

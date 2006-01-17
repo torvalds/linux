@@ -178,6 +178,8 @@ lockd(struct svc_rqst *rqstp)
 
 	}
 
+	flush_signals(current);
+
 	/*
 	 * Check whether there's a new lockd process before
 	 * shutting down the hosts and clearing the slot.
@@ -191,8 +193,6 @@ lockd(struct svc_rqst *rqstp)
 		printk(KERN_DEBUG
 			"lockd: new process, skipping host shutdown\n");
 	wake_up(&lockd_exit);
-
-	flush_signals(current);
 
 	/* Exit the RPC thread */
 	svc_exit_thread(rqstp);

@@ -136,7 +136,7 @@ changes occur:
 8) void lazy_mmu_prot_update(pte_t pte)
 	This interface is called whenever the protection on
 	any user PTEs change.  This interface provides a notification
-	to architecture specific code to take appropiate action.
+	to architecture specific code to take appropriate action.
 
 
 Next, we have the cache flushing interfaces.  In general, when Linux

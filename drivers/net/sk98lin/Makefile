@@ -26,8 +26,7 @@ sk98lin-objs    :=	\
 		skrlmt.o	\
 		sktimer.o	\
 		skvpd.o		\
-		skxmac2.o	\
-		skproc.o
+		skxmac2.o
 
 # DBGDEF =  \
 # -DDEBUG

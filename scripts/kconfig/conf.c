@@ -63,6 +63,20 @@ static void check_stdin(void)
 	}
 }
 
+static char *fgets_check_stream(char *s, int size, FILE *stream)
+{
+	char *ret = fgets(s, size, stream);
+
+	if (ret == NULL && feof(stream)) {
+		printf(_("aborted!\n\n"));
+		printf(_("Console input is closed. "));
+		printf(_("Run 'make oldconfig' to update configuration.\n\n"));
+		exit(1);
+	}
+
+	return ret;
+}
+
 static void conf_askvalue(struct symbol *sym, const char *def)
 {
 	enum symbol_type type = sym_get_type(sym);
@@ -100,7 +114,7 @@ static void conf_askvalue(struct symbol *sym, const char *def)
 		check_stdin();
 	case ask_all:
 		fflush(stdout);
-		fgets(line, 128, stdin);
+		fgets_check_stream(line, 128, stdin);
 		return;
 	case set_default:
 		printf("%s\n", def);
@@ -356,7 +370,7 @@ static int conf_choice(struct menu *menu)
 			check_stdin();
 		case ask_all:
 			fflush(stdout);
-			fgets(line, 128, stdin);
+			fgets_check_stream(line, 128, stdin);
 			strip(line);
 			if (line[0] == '?') {
 				printf("\n%s\n", menu->sym->help ?

@@ -85,6 +85,7 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/mm.h>
 #include <linux/serial.h>
 #include <linux/fcntl.h>
@@ -183,7 +184,6 @@ static int sx_poll = HZ;
 
 static struct tty_driver *specialix_driver;
 static unsigned char * tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static unsigned long baud_table[] =  {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
@@ -665,7 +665,7 @@ static inline void sx_receive_exc(struct specialix_board * bp)
 	struct specialix_port *port;
 	struct tty_struct *tty;
 	unsigned char status;
-	unsigned char ch;
+	unsigned char ch, flag;
 
 	func_enter();
 
@@ -676,8 +676,6 @@ static inline void sx_receive_exc(struct specialix_board * bp)
 		return;
 	}
 	tty = port->tty;
-	dprintk (SX_DEBUG_RX, "port: %p count: %d BUFF_SIZE: %d\n",
-		 port,  tty->flip.count, TTY_FLIPBUF_SIZE);
 
 	status = sx_in(bp, CD186x_RCSR);
 
@@ -691,7 +689,7 @@ static inline void sx_receive_exc(struct specialix_board * bp)
 
 	/* This flip buffer check needs to be below the reading of the
 	   status register to reset the chip's IRQ.... */
-	if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
+	if (tty_buffer_request_room(tty, 1) == 0) {
 		dprintk(SX_DEBUG_FIFO, "sx%d: port %d: Working around flip buffer overflow.\n",
 		       board_No(bp), port_No(port));
 		func_exit();
@@ -712,26 +710,24 @@ static inline void sx_receive_exc(struct specialix_board * bp)
 	} else if (status & RCSR_BREAK) {
 		dprintk(SX_DEBUG_RX, "sx%d: port %d: Handling break...\n",
 		       board_No(bp), port_No(port));
-		*tty->flip.flag_buf_ptr++ = TTY_BREAK;
+		flag = TTY_BREAK;
 		if (port->flags & ASYNC_SAK)
 			do_SAK(tty);
 
 	} else if (status & RCSR_PE)
-		*tty->flip.flag_buf_ptr++ = TTY_PARITY;
+		flag = TTY_PARITY;
 
 	else if (status & RCSR_FE)
-		*tty->flip.flag_buf_ptr++ = TTY_FRAME;
+		flag = TTY_FRAME;
 
 	else if (status & RCSR_OE)
-		*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
+		flag = TTY_OVERRUN;
 
 	else
-		*tty->flip.flag_buf_ptr++ = 0;
+		flag = TTY_NORMAL;
 
-	*tty->flip.char_buf_ptr++ = ch;
-	tty->flip.count++;
-	schedule_delayed_work(&tty->flip.work, 1);
-
+	if(tty_insert_flip_char(tty, ch, flag))
+		tty_flip_buffer_push(tty);
 	func_exit();
 }
 
@@ -755,18 +751,11 @@ static inline void sx_receive(struct specialix_board * bp)
 	dprintk (SX_DEBUG_RX, "port: %p: count: %d\n", port, count);
 	port->hits[count > 8 ? 9 : count]++;
 
-	while (count--) {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			printk(KERN_INFO "sx%d: port %d: Working around flip buffer overflow.\n",
-			       board_No(bp), port_No(port));
-			break;
-		}
-		*tty->flip.char_buf_ptr++ = sx_in(bp, CD186x_RDR);
-		*tty->flip.flag_buf_ptr++ = 0;
-		tty->flip.count++;
-	}
-	schedule_delayed_work(&tty->flip.work, 1);
+	tty_buffer_request_room(tty, count);
 
+	while (count--)
+		tty_insert_flip_char(tty, sx_in(bp, CD186x_RDR), TTY_NORMAL);
+	tty_flip_buffer_push(tty);
 	func_exit();
 }
 
@@ -2565,8 +2554,6 @@ static int __init specialix_init_module(void)
 	int i;
 
 	func_enter();
-
-	init_MUTEX(&tmp_buf_sem); /* Init de the semaphore - pvdl */
 
 	if (iobase[0] || iobase[1] || iobase[2] || iobase[3]) {
 		for(i = 0; i < SX_NBOARD; i++) {

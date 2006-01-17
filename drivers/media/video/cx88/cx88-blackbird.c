@@ -32,10 +32,10 @@
 #include <linux/firmware.h>
 
 #include "cx88.h"
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
-MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 static unsigned int mpegbufs = 32;
@@ -1375,7 +1375,7 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 	struct cx88_core  *core = dev->core;
 
 	if (debug > 1)
-		cx88_print_ioctl(core->name,cmd);
+		v4l_print_ioctl(core->name,cmd);
 
 	switch (cmd) {
 
@@ -1539,10 +1539,9 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	dprintk(1,"open minor=%d\n",minor);
 
 	/* allocate + initialize per filehandle data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
-	memset(fh,0,sizeof(*fh));
 	file->private_data = fh;
 	fh->dev      = dev;
 
@@ -1678,16 +1677,27 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 		goto fail_core;
 
 	err = -ENOMEM;
-	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
 		goto fail_core;
-	memset(dev,0,sizeof(*dev));
 	dev->pci = pci_dev;
 	dev->core = core;
 	dev->width = 720;
 	dev->height = 576;
 	memcpy(&dev->params,&default_mpeg_params,sizeof(default_mpeg_params));
 	memcpy(&dev->dnr_params,&default_dnr_params,sizeof(default_dnr_params));
+
+	if (core->board == CX88_BOARD_HAUPPAUGE_ROSLYN) {
+
+		if (core->tuner_formats & V4L2_STD_525_60) {
+			dev->height = 480;
+			dev->params.vi_frame_rate = 30;
+		} else {
+			dev->height = 576;
+			dev->params.vi_frame_rate = 25;
+		}
+
+	}
 
 	err = cx8802_init_common(dev);
 	if (0 != err)

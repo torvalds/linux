@@ -73,12 +73,12 @@ MODULE_PARM_DESC(ports, "number of ports to be created");
 module_param(duplex, bool, 0444);
 MODULE_PARM_DESC(duplex, "create DUPLEX ports");
 
-typedef struct snd_seq_dummy_port {
+struct snd_seq_dummy_port {
 	int client;
 	int port;
 	int duplex;
 	int connect;
-} snd_seq_dummy_port_t;
+};
 
 static int my_client = -1;
 
@@ -88,11 +88,11 @@ static int my_client = -1;
  * Note: this callback is called only after all subscribers are removed.
  */
 static int
-dummy_unuse(void *private_data, snd_seq_port_subscribe_t *info)
+dummy_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 {
-	snd_seq_dummy_port_t *p;
+	struct snd_seq_dummy_port *p;
 	int i;
-	snd_seq_event_t ev;
+	struct snd_seq_event ev;
 
 	p = private_data;
 	memset(&ev, 0, sizeof(ev));
@@ -116,10 +116,11 @@ dummy_unuse(void *private_data, snd_seq_port_subscribe_t *info)
  * event input callback - just redirect events to subscribers
  */
 static int
-dummy_input(snd_seq_event_t *ev, int direct, void *private_data, int atomic, int hop)
+dummy_input(struct snd_seq_event *ev, int direct, void *private_data,
+	    int atomic, int hop)
 {
-	snd_seq_dummy_port_t *p;
-	snd_seq_event_t tmpev;
+	struct snd_seq_dummy_port *p;
+	struct snd_seq_event tmpev;
 
 	p = private_data;
 	if (ev->source.client == SNDRV_SEQ_CLIENT_SYSTEM ||
@@ -146,12 +147,12 @@ dummy_free(void *private_data)
 /*
  * create a port
  */
-static snd_seq_dummy_port_t __init *
+static struct snd_seq_dummy_port __init *
 create_port(int idx, int type)
 {
-	snd_seq_port_info_t pinfo;
-	snd_seq_port_callback_t pcb;
-	snd_seq_dummy_port_t *rec;
+	struct snd_seq_port_info pinfo;
+	struct snd_seq_port_callback pcb;
+	struct snd_seq_dummy_port *rec;
 
 	if ((rec = kzalloc(sizeof(*rec), GFP_KERNEL)) == NULL)
 		return NULL;
@@ -192,9 +193,7 @@ create_port(int idx, int type)
 static int __init
 register_client(void)
 {
-	snd_seq_client_callback_t cb;
-	snd_seq_client_info_t cinfo;
-	snd_seq_dummy_port_t *rec1, *rec2;
+	struct snd_seq_dummy_port *rec1, *rec2;
 	int i;
 
 	if (ports < 1) {
@@ -203,19 +202,10 @@ register_client(void)
 	}
 
 	/* create client */
-	memset(&cb, 0, sizeof(cb));
-	cb.allow_input = 1;
-	cb.allow_output = 1;
-	my_client = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_DUMMY, &cb);
+	my_client = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_DUMMY,
+						 "Midi Through");
 	if (my_client < 0)
 		return my_client;
-
-	/* set client name */
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = my_client;
-	cinfo.type = KERNEL_CLIENT;
-	strcpy(cinfo.name, "Midi Through");
-	snd_seq_kernel_client_ctl(my_client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
 
 	/* create ports */
 	for (i = 0; i < ports; i++) {
