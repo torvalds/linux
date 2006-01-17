@@ -26,7 +26,7 @@ static struct fuse_conn *fuse_get_conn(struct file *file)
 	struct fuse_conn *fc;
 	spin_lock(&fuse_lock);
 	fc = file->private_data;
-	if (fc && !fc->mounted)
+	if (fc && !fc->connected)
 		fc = NULL;
 	spin_unlock(&fuse_lock);
 	return fc;
@@ -594,7 +594,7 @@ static void request_wait(struct fuse_conn *fc)
 	DECLARE_WAITQUEUE(wait, current);
 
 	add_wait_queue_exclusive(&fc->waitq, &wait);
-	while (fc->mounted && list_empty(&fc->pending)) {
+	while (fc->connected && list_empty(&fc->pending)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current))
 			break;
@@ -634,7 +634,7 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 		goto err_unlock;
 	request_wait(fc);
 	err = -ENODEV;
-	if (!fc->mounted)
+	if (!fc->connected)
 		goto err_unlock;
 	err = -ERESTARTSYS;
 	if (list_empty(&fc->pending))

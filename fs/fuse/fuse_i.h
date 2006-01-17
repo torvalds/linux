@@ -249,7 +249,8 @@ struct fuse_conn {
 	/** Mount is active */
 	unsigned mounted : 1;
 
-	/** Connection established */
+	/** Connection established, cleared on umount and device
+	    release */
 	unsigned connected : 1;
 
 	/** Connection failed (version mismatch) */

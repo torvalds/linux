@@ -200,6 +200,7 @@ static void fuse_put_super(struct super_block *sb)
 
 	spin_lock(&fuse_lock);
 	fc->mounted = 0;
+	fc->connected = 0;
 	/* Flush all readers on this fs */
 	wake_up_all(&fc->waitq);
 	up_write(&fc->sbput_sem);
