@@ -745,7 +745,7 @@ static inline struct sky2_rx_le *sky2_next_rx(struct sky2_port *sky2)
 /* Return high part of DMA address (could be 32 or 64 bit) */
 static inline u32 high32(dma_addr_t a)
 {
-	return (a >> 16) >> 16;
+	return sizeof(a) > sizeof(u32) ? (a >> 16) >> 16 : 0;
 }
 
 /* Build description to hardware about buffer */
@@ -1225,7 +1225,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		mapping = pci_map_page(hw->pdev, frag->page, frag->page_offset,
 				       frag->size, PCI_DMA_TODEVICE);
-		addr64 = (mapping >> 16) >> 16;
+		addr64 = high32(mapping);
 		if (addr64 != sky2->tx_addr64) {
 			le = get_tx_le(sky2);
 			le->tx.addr = cpu_to_le32(addr64);
