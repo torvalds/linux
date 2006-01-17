@@ -160,7 +160,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.4.14-k4"DRV_EXT
+#define DRV_VERSION		"3.5.10-k2"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -1170,7 +1170,7 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 0x00000000, 0x00000000, 0x00000000, 0x00000000, \
 }
 
-static void e100_load_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 /* *INDENT-OFF* */
 	static struct {
@@ -1284,12 +1284,46 @@ static void e100_load_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 
 		for (i = 0; i < UCODE_SIZE; i++)
 			cb->u.ucode[i] = cpu_to_le32(ucode[i]);
-		cb->command = cpu_to_le16(cb_ucode);
+		cb->command = cpu_to_le16(cb_ucode | cb_el);
 		return;
 	}
 
 noloaducode:
-	cb->command = cpu_to_le16(cb_nop);
+	cb->command = cpu_to_le16(cb_nop | cb_el);
+}
+
+static inline int e100_exec_cb_wait(struct nic *nic, struct sk_buff *skb,
+	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
+{
+	int err = 0, counter = 50;
+	struct cb *cb = nic->cb_to_clean;
+
+	if ((err = e100_exec_cb(nic, NULL, e100_setup_ucode)))
+		DPRINTK(PROBE,ERR, "ucode cmd failed with error %d\n", err);
+		
+	/* must restart cuc */
+	nic->cuc_cmd = cuc_start;
+
+	/* wait for completion */
+	e100_write_flush(nic);
+	udelay(10);
+
+	/* wait for possibly (ouch) 500ms */
+	while (!(cb->status & cpu_to_le16(cb_complete))) {
+		msleep(10);
+		if (!--counter) break;
+	}
+	
+	/* ack any interupts, something could have been set */
+	writeb(~0, &nic->csr->scb.stat_ack);
+
+	/* if the command failed, or is not OK, notify and return */
+	if (!counter || !(cb->status & cpu_to_le16(cb_ok))) {
+		DPRINTK(PROBE,ERR, "ucode load failed\n");
+		err = -EPERM;
+	}
+	
+	return err;
 }
 
 static void e100_setup_iaaddr(struct nic *nic, struct cb *cb,
@@ -1388,7 +1422,7 @@ static int e100_hw_init(struct nic *nic)
 		return err;
 	if((err = e100_exec_cmd(nic, ruc_load_base, 0)))
 		return err;
-	if((err = e100_exec_cb(nic, NULL, e100_load_ucode)))
+	if ((err = e100_exec_cb_wait(nic, NULL, e100_setup_ucode)))
 		return err;
 	if((err = e100_exec_cb(nic, NULL, e100_configure)))
 		return err;
