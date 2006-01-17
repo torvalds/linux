@@ -238,13 +238,13 @@ static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size
 }
 
 /**
- * eth_media_start - activate Ethernet bearer support
+ * tipc_eth_media_start - activate Ethernet bearer support
  *
  * Register Ethernet media type with TIPC bearer code.  Also register
  * with OS for notifications about device state changes.
  */
 
-int eth_media_start(void)
+int tipc_eth_media_start(void)
 {                       
 	struct tipc_media_addr bcast_addr;
 	int res;
@@ -271,10 +271,10 @@ int eth_media_start(void)
 }
 
 /**
- * eth_media_stop - deactivate Ethernet bearer support
+ * tipc_eth_media_stop - deactivate Ethernet bearer support
  */
 
-void eth_media_stop(void)
+void tipc_eth_media_stop(void)
 {
 	int i;
 

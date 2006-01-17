@@ -60,21 +60,21 @@ struct subscription {
 	struct subscriber *owner;
 };
 
-int subscr_overlap(struct subscription * sub, 
-		   u32 found_lower, 
-		   u32 found_upper);
+int tipc_subscr_overlap(struct subscription * sub, 
+			u32 found_lower, 
+			u32 found_upper);
 
-void subscr_report_overlap(struct subscription * sub, 
-			   u32 found_lower, 
-			   u32 found_upper,
-			   u32 event, 
-			   u32 port_ref, 
-			   u32 node,
-			   int must_report);
+void tipc_subscr_report_overlap(struct subscription * sub, 
+				u32 found_lower, 
+				u32 found_upper,
+				u32 event, 
+				u32 port_ref, 
+				u32 node,
+				int must_report);
 
-int subscr_start(void);
+int tipc_subscr_start(void);
 
-void subscr_stop(void);
+void tipc_subscr_stop(void);
 
 
 #endif

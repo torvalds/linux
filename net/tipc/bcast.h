@@ -70,14 +70,14 @@ struct port_list {
 
 struct node;
 
-extern char bc_link_name[];
+extern char tipc_bclink_name[];
 
 
 /**
  * nmap_get - determine if node exists in a node map
  */
 
-static inline int nmap_get(struct node_map *nm_ptr, u32 node)
+static inline int tipc_nmap_get(struct node_map *nm_ptr, u32 node)
 {
 	int n = tipc_node(node);
 	int w = n / WSIZE;
@@ -90,7 +90,7 @@ static inline int nmap_get(struct node_map *nm_ptr, u32 node)
  * nmap_add - add a node to a node map
  */
 
-static inline void nmap_add(struct node_map *nm_ptr, u32 node)
+static inline void tipc_nmap_add(struct node_map *nm_ptr, u32 node)
 {
 	int n = tipc_node(node);
 	int w = n / WSIZE;
@@ -106,7 +106,7 @@ static inline void nmap_add(struct node_map *nm_ptr, u32 node)
  * nmap_remove - remove a node from a node map
  */
 
-static inline void nmap_remove(struct node_map *nm_ptr, u32 node)
+static inline void tipc_nmap_remove(struct node_map *nm_ptr, u32 node)
 {
 	int n = tipc_node(node);
 	int w = n / WSIZE;
@@ -122,7 +122,7 @@ static inline void nmap_remove(struct node_map *nm_ptr, u32 node)
  * nmap_equal - test for equality of node maps
  */
 
-static inline int nmap_equal(struct node_map *nm_a, struct node_map *nm_b)
+static inline int tipc_nmap_equal(struct node_map *nm_a, struct node_map *nm_b)
 {
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
 }
@@ -134,8 +134,8 @@ static inline int nmap_equal(struct node_map *nm_a, struct node_map *nm_b)
  * @nm_diff: output node map A-B (i.e. nodes of A that are not in B)
  */
 
-static inline void nmap_diff(struct node_map *nm_a, struct node_map *nm_b,
-			     struct node_map *nm_diff)
+static inline void tipc_nmap_diff(struct node_map *nm_a, struct node_map *nm_b,
+				  struct node_map *nm_diff)
 {
 	int stop = sizeof(nm_a->map) / sizeof(u32);
 	int w;
@@ -159,7 +159,7 @@ static inline void nmap_diff(struct node_map *nm_a, struct node_map *nm_b,
  * port_list_add - add a port to a port list, ensuring no duplicates
  */
 
-static inline void port_list_add(struct port_list *pl_ptr, u32 port)
+static inline void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
 {
 	struct port_list *item = pl_ptr;
 	int i;
@@ -194,7 +194,7 @@ static inline void port_list_add(struct port_list *pl_ptr, u32 port)
  * Note: First item is on stack, so it doesn't need to be released
  */
 
-static inline void port_list_free(struct port_list *pl_ptr)
+static inline void tipc_port_list_free(struct port_list *pl_ptr)
 {
 	struct port_list *item;
 	struct port_list *next;
@@ -206,18 +206,18 @@ static inline void port_list_free(struct port_list *pl_ptr)
 }
 
 
-int  bclink_init(void);
-void bclink_stop(void);
-void bclink_acknowledge(struct node *n_ptr, u32 acked);
-int  bclink_send_msg(struct sk_buff *buf);
-void bclink_recv_pkt(struct sk_buff *buf);
-u32  bclink_get_last_sent(void);
-u32  bclink_acks_missing(struct node *n_ptr);
-void bclink_check_gap(struct node *n_ptr, u32 seqno);
-int  bclink_stats(char *stats_buf, const u32 buf_size);
-int  bclink_reset_stats(void);
-int  bclink_set_queue_limits(u32 limit);
-void bcbearer_sort(void);
-void bcbearer_push(void);
+int  tipc_bclink_init(void);
+void tipc_bclink_stop(void);
+void tipc_bclink_acknowledge(struct node *n_ptr, u32 acked);
+int  tipc_bclink_send_msg(struct sk_buff *buf);
+void tipc_bclink_recv_pkt(struct sk_buff *buf);
+u32  tipc_bclink_get_last_sent(void);
+u32  tipc_bclink_acks_missing(struct node *n_ptr);
+void tipc_bclink_check_gap(struct node *n_ptr, u32 seqno);
+int  tipc_bclink_stats(char *stats_buf, const u32 buf_size);
+int  tipc_bclink_reset_stats(void);
+int  tipc_bclink_set_queue_limits(u32 limit);
+void tipc_bcbearer_sort(void);
+void tipc_bcbearer_push(void);
 
 #endif
