@@ -80,8 +80,7 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)(sp & ~0x1fff);
 }
 
-/* FIXME - PAGE_SIZE < 32K */
-#define THREAD_SIZE		(8*32768) // FIXME - this needs attention (see kernel/fork.c which gets a nice div by zero if this is lower than 8*32768
+#define THREAD_SIZE	PAGE_SIZE
 #define task_pt_regs(task) ((struct pt_regs *)(task_stack_page(task) + THREAD_SIZE - 8) - 1)
 
 extern struct thread_info *alloc_thread_info(struct task_struct *task);
