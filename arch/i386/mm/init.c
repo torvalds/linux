@@ -268,7 +268,7 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pkmap_page_table = pte;	
 }
 
-static void __devinit free_new_highpage(struct page *page)
+static void __meminit free_new_highpage(struct page *page)
 {
 	set_page_count(page, 1);
 	__free_page(page);
