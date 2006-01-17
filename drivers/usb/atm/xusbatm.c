@@ -61,7 +61,7 @@ static int usb_intf_has_ep(const struct usb_interface *intf, u8 ep)
 	return 0;
 }
 
-static int xusbatm_bind(struct usbatm_data *usbatm_instance,
+static int xusbatm_bind(struct usbatm_data *usbatm,
 			struct usb_interface *intf, const struct usb_device_id *id,
 			int *need_heavy_init)
 {
@@ -72,14 +72,14 @@ static int xusbatm_bind(struct usbatm_data *usbatm_instance,
 	u8 searched_ep = rx_ep_present ? tx_endpoint[drv_ix] : rx_endpoint[drv_ix];
 	int i, ret;
 
-	usb_dbg(usbatm_instance, "%s: binding driver %d: vendor %#x product %#x"
-		" rx: ep %#x padd %d tx: ep %#x padd %d\n",
+	usb_dbg(usbatm, "%s: binding driver %d: vendor %04x product %04x"
+		" rx: ep %02x padd %d tx: ep %02x padd %d\n",
 		__func__, drv_ix, vendor[drv_ix], product[drv_ix],
 		rx_endpoint[drv_ix], rx_padding[drv_ix],
 		tx_endpoint[drv_ix], tx_padding[drv_ix]);
 
 	if (!rx_ep_present && !tx_ep_present) {
-		usb_dbg(usbatm_instance, "%s: intf #%d has neither rx (%#x) nor tx (%#x) endpoint\n",
+		usb_dbg(usbatm, "%s: intf #%d has neither rx (%#x) nor tx (%#x) endpoint\n",
 			__func__, intf->altsetting->desc.bInterfaceNumber,
 			rx_endpoint[drv_ix], tx_endpoint[drv_ix]);
 		return -ENODEV;
@@ -93,25 +93,26 @@ static int xusbatm_bind(struct usbatm_data *usbatm_instance,
 
 		if (cur_if != intf && usb_intf_has_ep(cur_if, searched_ep)) {
 			ret = usb_driver_claim_interface(&xusbatm_usb_driver,
-							 cur_if, usbatm_instance);
+							 cur_if, usbatm);
 			if (!ret)
-				usb_err(usbatm_instance, "%s: failed to claim interface #%d (%d)\n",
+				usb_err(usbatm, "%s: failed to claim interface #%d (%d)\n",
 					__func__, cur_if->altsetting->desc.bInterfaceNumber, ret);
 			return ret;
 		}
 	}
 
-	usb_err(usbatm_instance, "%s: no interface has endpoint %#x\n",
+	usb_err(usbatm, "%s: no interface has endpoint %#x\n",
 		__func__, searched_ep);
 	return -ENODEV;
 }
 
-static void xusbatm_unbind(struct usbatm_data *usbatm_instance,
+static void xusbatm_unbind(struct usbatm_data *usbatm,
 			   struct usb_interface *intf)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	int i;
-	usb_dbg(usbatm_instance, "%s entered\n", __func__);
+
+	usb_dbg(usbatm, "%s entered\n", __func__);
 
 	for(i = 0; i < usb_dev->actconfig->desc.bNumInterfaces; i++) {
 		struct usb_interface *cur_if = usb_dev->actconfig->interface[i];
@@ -120,10 +121,10 @@ static void xusbatm_unbind(struct usbatm_data *usbatm_instance,
 	}
 }
 
-static int xusbatm_atm_start(struct usbatm_data *usbatm_instance,
+static int xusbatm_atm_start(struct usbatm_data *usbatm,
 			     struct atm_dev *atm_dev)
 {
-	atm_dbg(usbatm_instance, "%s entered\n", __func__);
+	atm_dbg(usbatm, "%s entered\n", __func__);
 
 	/* use random MAC as we've no way to get it from the device */
 	random_ether_addr(atm_dev->esi);

@@ -24,21 +24,20 @@
 #ifndef	_USBATM_H_
 #define	_USBATM_H_
 
-#include <linux/config.h>
-
-/*
-#define VERBOSE_DEBUG
-*/
-
 #include <asm/semaphore.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/completion.h>
 #include <linux/device.h>
+#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/stringify.h>
 #include <linux/usb.h>
+
+/*
+#define VERBOSE_DEBUG
+*/
 
 #ifdef DEBUG
 #define UDSL_ASSERT(x)	BUG_ON(!(x))
@@ -52,8 +51,13 @@
 	dev_info(&(instance)->usb_intf->dev , format , ## arg)
 #define usb_warn(instance, format, arg...)	\
 	dev_warn(&(instance)->usb_intf->dev , format , ## arg)
+#ifdef DEBUG
 #define usb_dbg(instance, format, arg...)	\
-	dev_dbg(&(instance)->usb_intf->dev , format , ## arg)
+        dev_printk(KERN_DEBUG , &(instance)->usb_intf->dev , format , ## arg)
+#else
+#define usb_dbg(instance, format, arg...)	\
+	do {} while (0)
+#endif
 
 /* FIXME: move to dev_* once ATM is driver model aware */
 #define atm_printk(level, instance, format, arg...)	\
@@ -69,8 +73,13 @@
 #ifdef DEBUG
 #define atm_dbg(instance, format, arg...)	\
 	atm_printk(KERN_DEBUG, instance , format , ## arg)
+#define atm_rldbg(instance, format, arg...)	\
+	if (printk_ratelimit())				\
+		atm_printk(KERN_DEBUG, instance , format , ## arg)
 #else
 #define atm_dbg(instance, format, arg...)	\
+	do {} while (0)
+#define atm_rldbg(instance, format, arg...)	\
 	do {} while (0)
 #endif
 
@@ -171,7 +180,7 @@ struct usbatm_data {
 	struct usbatm_channel tx_channel;
 
 	struct sk_buff_head sndqueue;
-	struct sk_buff *current_skb;			/* being emptied */
+	struct sk_buff *current_skb;	/* being emptied */
 
 	struct urb *urbs[0];
 };

@@ -352,7 +352,6 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 		struct atm_dev *atm_dev)
 {
 	struct cxacru_data *instance = usbatm_instance->driver_data;
-	struct device *dev = &usbatm_instance->usb_intf->dev;
 	/*
 	struct atm_dev *atm_dev = usbatm_instance->atm_dev;
 	*/
@@ -364,14 +363,14 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 	ret = cxacru_cm(instance, CM_REQUEST_CARD_GET_MAC_ADDRESS, NULL, 0,
 			atm_dev->esi, sizeof(atm_dev->esi));
 	if (ret < 0) {
-		dev_err(dev, "cxacru_atm_start: CARD_GET_MAC_ADDRESS returned %d\n", ret);
+		atm_err(usbatm_instance, "cxacru_atm_start: CARD_GET_MAC_ADDRESS returned %d\n", ret);
 		return ret;
 	}
 
 	/* start ADSL */
 	ret = cxacru_cm(instance, CM_REQUEST_CHIP_ADSL_LINE_START, NULL, 0, NULL, 0);
 	if (ret < 0) {
-		dev_err(dev, "cxacru_atm_start: CHIP_ADSL_LINE_START returned %d\n", ret);
+		atm_err(usbatm_instance, "cxacru_atm_start: CHIP_ADSL_LINE_START returned %d\n", ret);
 		return ret;
 	}
 
@@ -383,13 +382,13 @@ static int cxacru_atm_start(struct usbatm_data *usbatm_instance,
 static void cxacru_poll_status(struct cxacru_data *instance)
 {
 	u32 buf[CXINF_MAX] = {};
-	struct device *dev = &instance->usbatm->usb_intf->dev;
-	struct atm_dev *atm_dev = instance->usbatm->atm_dev;
+	struct usbatm_data *usbatm = instance->usbatm;
+	struct atm_dev *atm_dev = usbatm->atm_dev;
 	int ret;
 
 	ret = cxacru_cm_get_array(instance, CM_REQUEST_CARD_INFO_GET, buf, CXINF_MAX);
 	if (ret < 0) {
-		dev_warn(dev, "poll status: error %d\n", ret);
+		atm_warn(usbatm, "poll status: error %d\n", ret);
 		goto reschedule;
 	}
 
@@ -400,50 +399,50 @@ static void cxacru_poll_status(struct cxacru_data *instance)
 	switch (instance->line_status) {
 	case 0:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: down\n");
+		atm_info(usbatm, "ADSL line: down\n");
 		break;
 
 	case 1:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: attemtping to activate\n");
+		atm_info(usbatm, "ADSL line: attempting to activate\n");
 		break;
 
 	case 2:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: training\n");
+		atm_info(usbatm, "ADSL line: training\n");
 		break;
 
 	case 3:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: channel analysis\n");
+		atm_info(usbatm, "ADSL line: channel analysis\n");
 		break;
 
 	case 4:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: exchange\n");
+		atm_info(usbatm, "ADSL line: exchange\n");
 		break;
 
 	case 5:
 		atm_dev->link_rate = buf[CXINF_DOWNSTREAM_RATE] * 1000 / 424;
 		atm_dev->signal = ATM_PHY_SIG_FOUND;
 
-		dev_info(dev, "ADSL line: up (%d kb/s down | %d kb/s up)\n",
+		atm_info(usbatm, "ADSL line: up (%d kb/s down | %d kb/s up)\n",
 		     buf[CXINF_DOWNSTREAM_RATE], buf[CXINF_UPSTREAM_RATE]);
 		break;
 
 	case 6:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: waiting\n");
+		atm_info(usbatm, "ADSL line: waiting\n");
 		break;
 
 	case 7:
 		atm_dev->signal = ATM_PHY_SIG_LOST;
-		dev_info(dev, "ADSL line: initializing\n");
+		atm_info(usbatm, "ADSL line: initializing\n");
 		break;
 
 	default:
 		atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
-		dev_info(dev, "Unknown line state %02x\n", instance->line_status);
+		atm_info(usbatm, "Unknown line state %02x\n", instance->line_status);
 		break;
 	}
 reschedule:
@@ -504,8 +503,8 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 {
 	int ret;
 	int off;
-	struct usb_device *usb_dev = instance->usbatm->usb_dev;
-	struct device *dev = &instance->usbatm->usb_intf->dev;
+	struct usbatm_data *usbatm = instance->usbatm;
+	struct usb_device *usb_dev = usbatm->usb_dev;
 	u16 signature[] = { usb_dev->descriptor.idVendor, usb_dev->descriptor.idProduct };
 	u32 val;
 
@@ -515,7 +514,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	val = cpu_to_le32(instance->modem_type->pll_f_clk);
 	ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, PLLFCLK_ADDR, (u8 *) &val, 4);
 	if (ret) {
-		dev_err(dev, "FirmwarePllFClkValue failed: %d\n", ret);
+		usb_err(usbatm, "FirmwarePllFClkValue failed: %d\n", ret);
 		return;
 	}
 
@@ -523,7 +522,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	val = cpu_to_le32(instance->modem_type->pll_b_clk);
 	ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, PLLBCLK_ADDR, (u8 *) &val, 4);
 	if (ret) {
-		dev_err(dev, "FirmwarePllBClkValue failed: %d\n", ret);
+		usb_err(usbatm, "FirmwarePllBClkValue failed: %d\n", ret);
 		return;
 	}
 
@@ -531,14 +530,14 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	val = cpu_to_le32(SDRAM_ENA);
 	ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, SDRAMEN_ADDR, (u8 *) &val, 4);
 	if (ret) {
-		dev_err(dev, "Enable SDRAM failed: %d\n", ret);
+		usb_err(usbatm, "Enable SDRAM failed: %d\n", ret);
 		return;
 	}
 
 	/* Firmware */
 	ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, FW_ADDR, fw->data, fw->size);
 	if (ret) {
-		dev_err(dev, "Firmware upload failed: %d\n", ret);
+		usb_err(usbatm, "Firmware upload failed: %d\n", ret);
 		return;
 	}
 
@@ -546,7 +545,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	if (instance->modem_type->boot_rom_patch) {
 		ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, BR_ADDR, bp->data, bp->size);
 		if (ret) {
-			dev_err(dev, "Boot ROM patching failed: %d\n", ret);
+			usb_err(usbatm, "Boot ROM patching failed: %d\n", ret);
 			return;
 		}
 	}
@@ -554,7 +553,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	/* Signature */
 	ret = cxacru_fw(usb_dev, FW_WRITE_MEM, 0x2, 0x0, SIG_ADDR, (u8 *) signature, 4);
 	if (ret) {
-		dev_err(dev, "Signature storing failed: %d\n", ret);
+		usb_err(usbatm, "Signature storing failed: %d\n", ret);
 		return;
 	}
 
@@ -566,7 +565,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 		ret = cxacru_fw(usb_dev, FW_GOTO_MEM, 0x0, 0x0, FW_ADDR, NULL, 0);
 	}
 	if (ret) {
-		dev_err(dev, "Passing control to firmware failed: %d\n", ret);
+		usb_err(usbatm, "Passing control to firmware failed: %d\n", ret);
 		return;
 	}
 
@@ -580,7 +579,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 
 	ret = cxacru_cm(instance, CM_REQUEST_CARD_GET_STATUS, NULL, 0, NULL, 0);
 	if (ret < 0) {
-		dev_err(dev, "modem failed to initialize: %d\n", ret);
+		usb_err(usbatm, "modem failed to initialize: %d\n", ret);
 		return;
 	}
 
@@ -597,7 +596,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 			ret = cxacru_cm(instance, CM_REQUEST_CARD_DATA_SET,
 					(u8 *) buf, len, NULL, 0);
 			if (ret < 0) {
-				dev_err(dev, "load config data failed: %d\n", ret);
+				usb_err(usbatm, "load config data failed: %d\n", ret);
 				return;
 			}
 		}
@@ -608,18 +607,19 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 static int cxacru_find_firmware(struct cxacru_data *instance,
 				char* phase, const struct firmware **fw_p)
 {
-	struct device *dev = &instance->usbatm->usb_intf->dev;
+	struct usbatm_data *usbatm = instance->usbatm;
+	struct device *dev = &usbatm->usb_intf->dev;
 	char buf[16];
 
 	sprintf(buf, "cxacru-%s.bin", phase);
 	dbg("cxacru_find_firmware: looking for %s", buf);
 
 	if (request_firmware(fw_p, buf, dev)) {
-		dev_dbg(dev, "no stage %s firmware found\n", phase);
+		usb_dbg(usbatm, "no stage %s firmware found\n", phase);
 		return -ENOENT;
 	}
 
-	dev_info(dev, "found firmware %s\n", buf);
+	usb_info(usbatm, "found firmware %s\n", buf);
 
 	return 0;
 }
@@ -627,20 +627,19 @@ static int cxacru_find_firmware(struct cxacru_data *instance,
 static int cxacru_heavy_init(struct usbatm_data *usbatm_instance,
 			     struct usb_interface *usb_intf)
 {
-	struct device *dev = &usbatm_instance->usb_intf->dev;
 	const struct firmware *fw, *bp, *cf;
 	struct cxacru_data *instance = usbatm_instance->driver_data;
 
 	int ret = cxacru_find_firmware(instance, "fw", &fw);
 	if (ret) {
-		dev_warn(dev, "firmware (cxacru-fw.bin) unavailable (hotplug misconfiguration?)\n");
+		usb_warn(usbatm_instance, "firmware (cxacru-fw.bin) unavailable (system misconfigured?)\n");
 		return ret;
 	}
 
 	if (instance->modem_type->boot_rom_patch) {
 		ret = cxacru_find_firmware(instance, "bp", &bp);
 		if (ret) {
-			dev_warn(dev, "boot ROM patch (cxacru-bp.bin) unavailable (hotplug misconfiguration?)\n");
+			usb_warn(usbatm_instance, "boot ROM patch (cxacru-bp.bin) unavailable (system misconfigured?)\n");
 			release_firmware(fw);
 			return ret;
 		}
@@ -787,11 +786,11 @@ static const struct usb_device_id cxacru_usb_ids[] = {
 	{ /* V = Conexant			P = ADSL modem (Hasbani project)	*/
 		USB_DEVICE(0x0572, 0xcb00),	.driver_info = (unsigned long) &cxacru_cb00
 	},
-	{ /* V = Conexant             P = ADSL modem (Well PTI-800 */
-		USB_DEVICE(0x0572, 0xcb02),	.driver_info = (unsigned long) &cxacru_cb00
-	},
 	{ /* V = Conexant			P = ADSL modem				*/
 		USB_DEVICE(0x0572, 0xcb01),	.driver_info = (unsigned long) &cxacru_cb00
+	},
+	{ /* V = Conexant			P = ADSL modem (Well PTI-800) */
+		USB_DEVICE(0x0572, 0xcb02),	.driver_info = (unsigned long) &cxacru_cb00
 	},
 	{ /* V = Conexant			P = ADSL modem				*/
 		USB_DEVICE(0x0572, 0xcb06),	.driver_info = (unsigned long) &cxacru_cb00

@@ -166,10 +166,10 @@ struct usbatm_control {
 
 /* ATM */
 
-static void usbatm_atm_dev_close(struct atm_dev *dev);
+static void usbatm_atm_dev_close(struct atm_dev *atm_dev);
 static int usbatm_atm_open(struct atm_vcc *vcc);
 static void usbatm_atm_close(struct atm_vcc *vcc);
-static int usbatm_atm_ioctl(struct atm_dev *dev, unsigned int cmd, void __user * arg);
+static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user * arg);
 static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb);
 static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t * pos, char *page);
 
@@ -234,8 +234,9 @@ static int usbatm_submit_urb(struct urb *urb)
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret) {
-		atm_dbg(channel->usbatm, "%s: urb 0x%p submission failed (%d)!\n",
-			__func__, urb, ret);
+		if (printk_ratelimit())
+			atm_warn(channel->usbatm, "%s: urb 0x%p submission failed (%d)!\n",
+				__func__, urb, ret);
 
 		/* consider all errors transient and return the buffer back to the queue */
 		urb->status = -EAGAIN;
@@ -269,10 +270,13 @@ static void usbatm_complete(struct urb *urb, struct pt_regs *regs)
 
 	spin_unlock_irqrestore(&channel->lock, flags);
 
-	if (unlikely(urb->status))
+	if (unlikely(urb->status)) {
+		if (printk_ratelimit())
+			atm_warn(channel->usbatm, "%s: urb 0x%p failed (%d)!\n",
+				__func__, urb, urb->status);
 		/* throttle processing in case of an error */
 		mod_timer(&channel->delay, jiffies + msecs_to_jiffies(THROTTLE_MSECS));
-	else
+	} else
 		tasklet_schedule(&channel->tasklet);
 }
 
@@ -284,11 +288,11 @@ static void usbatm_complete(struct urb *urb, struct pt_regs *regs)
 static inline struct usbatm_vcc_data *usbatm_find_vcc(struct usbatm_data *instance,
 						  short vpi, int vci)
 {
-	struct usbatm_vcc_data *vcc;
+	struct usbatm_vcc_data *vcc_data;
 
-	list_for_each_entry(vcc, &instance->vcc_list, list)
-		if ((vcc->vci == vci) && (vcc->vpi == vpi))
-			return vcc;
+	list_for_each_entry(vcc_data, &instance->vcc_list, list)
+		if ((vcc_data->vci == vci) && (vcc_data->vpi == vpi))
+			return vcc_data;
 	return NULL;
 }
 
@@ -317,7 +321,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			cached_vcc = usbatm_find_vcc(instance, vpi, vci);
 
 			if (!cached_vcc)
-				atm_dbg(instance, "%s: unknown vpi/vci (%hd/%d)!\n", __func__, vpi, vci);
+				atm_rldbg(instance, "%s: unknown vpi/vci (%hd/%d)!\n", __func__, vpi, vci);
 		}
 
 		if (!cached_vcc)
@@ -327,7 +331,9 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 
 		/* OAM F5 end-to-end */
 		if (pti == ATM_PTI_E2EF5) {
-			atm_warn(instance, "%s: OAM not supported (vpi %d, vci %d)!\n", __func__, vpi, vci);
+			if (printk_ratelimit())
+				atm_warn(instance, "%s: OAM not supported (vpi %d, vci %d)!\n",
+					__func__, vpi, vci);
 			atomic_inc(&vcc->stats->rx_err);
 			continue;
 		}
@@ -335,7 +341,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 		sarb = cached_vcc->sarb;
 
 		if (sarb->tail + ATM_CELL_PAYLOAD > sarb->end) {
-			atm_dbg(instance, "%s: buffer overrun (sarb->len %u, vcc: 0x%p)!\n",
+			atm_rldbg(instance, "%s: buffer overrun (sarb->len %u, vcc: 0x%p)!\n",
 					__func__, sarb->len, vcc);
 			/* discard cells already received */
 			skb_trim(sarb, 0);
@@ -354,7 +360,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 
 			/* guard against overflow */
 			if (length > ATM_MAX_AAL5_PDU) {
-				atm_dbg(instance, "%s: bogus length %u (vcc: 0x%p)!\n",
+				atm_rldbg(instance, "%s: bogus length %u (vcc: 0x%p)!\n",
 						__func__, length, vcc);
 				atomic_inc(&vcc->stats->rx_err);
 				goto out;
@@ -363,14 +369,14 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			pdu_length = usbatm_pdu_length(length);
 
 			if (sarb->len < pdu_length) {
-				atm_dbg(instance, "%s: bogus pdu_length %u (sarb->len: %u, vcc: 0x%p)!\n",
+				atm_rldbg(instance, "%s: bogus pdu_length %u (sarb->len: %u, vcc: 0x%p)!\n",
 						__func__, pdu_length, sarb->len, vcc);
 				atomic_inc(&vcc->stats->rx_err);
 				goto out;
 			}
 
 			if (crc32_be(~0, sarb->tail - pdu_length, pdu_length) != 0xc704dd7b) {
-				atm_dbg(instance, "%s: packet failed crc check (vcc: 0x%p)!\n",
+				atm_rldbg(instance, "%s: packet failed crc check (vcc: 0x%p)!\n",
 						__func__, vcc);
 				atomic_inc(&vcc->stats->rx_err);
 				goto out;
@@ -379,7 +385,9 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			vdbg("%s: got packet (length: %u, pdu_length: %u, vcc: 0x%p)", __func__, length, pdu_length, vcc);
 
 			if (!(skb = dev_alloc_skb(length))) {
-				atm_dbg(instance, "%s: no memory for skb (length: %u)!\n", __func__, length);
+				if (printk_ratelimit())
+					atm_err(instance, "%s: no memory for skb (length: %u)!\n",
+							__func__, length);
 				atomic_inc(&vcc->stats->rx_drop);
 				goto out;
 			}
@@ -387,7 +395,8 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			vdbg("%s: allocated new sk_buff (skb: 0x%p, skb->truesize: %u)", __func__, skb, skb->truesize);
 
 			if (!atm_charge(vcc, skb->truesize)) {
-				atm_dbg(instance, "%s: failed atm_charge (skb->truesize: %u)!\n", __func__, skb->truesize);
+				atm_rldbg(instance, "%s: failed atm_charge (skb->truesize: %u)!\n",
+						__func__, skb->truesize);
 				dev_kfree_skb(skb);
 				goto out;	/* atm_charge increments rx_drop */
 			}
@@ -600,13 +609,13 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	}
 
 	if (vcc->qos.aal != ATM_AAL5) {
-		atm_dbg(instance, "%s: unsupported ATM type %d!\n", __func__, vcc->qos.aal);
+		atm_rldbg(instance, "%s: unsupported ATM type %d!\n", __func__, vcc->qos.aal);
 		err = -EINVAL;
 		goto fail;
 	}
 
 	if (skb->len > ATM_MAX_AAL5_PDU) {
-		atm_dbg(instance, "%s: packet too long (%d vs %d)!\n",
+		atm_rldbg(instance, "%s: packet too long (%d vs %d)!\n",
 				__func__, skb->len, ATM_MAX_AAL5_PDU);
 		err = -EINVAL;
 		goto fail;
@@ -665,16 +674,16 @@ static void usbatm_put_instance(struct usbatm_data *instance)
 **  ATM  **
 **********/
 
-static void usbatm_atm_dev_close(struct atm_dev *dev)
+static void usbatm_atm_dev_close(struct atm_dev *atm_dev)
 {
-	struct usbatm_data *instance = dev->dev_data;
+	struct usbatm_data *instance = atm_dev->dev_data;
 
 	dbg("%s", __func__);
 
 	if (!instance)
 		return;
 
-	dev->dev_data = NULL;
+	atm_dev->dev_data = NULL; /* catch bugs */
 	usbatm_put_instance(instance);	/* taken in usbatm_atm_init */
 }
 
@@ -735,13 +744,18 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 	atm_dbg(instance, "%s: vpi %hd, vci %d\n", __func__, vpi, vci);
 
 	/* only support AAL5 */
-	if ((vcc->qos.aal != ATM_AAL5) || (vcc->qos.rxtp.max_sdu < 0)
-	    || (vcc->qos.rxtp.max_sdu > ATM_MAX_AAL5_PDU)) {
-		atm_dbg(instance, "%s: unsupported ATM type %d!\n", __func__, vcc->qos.aal);
+	if ((vcc->qos.aal != ATM_AAL5)) {
+		atm_warn(instance, "%s: unsupported ATM type %d!\n", __func__, vcc->qos.aal);
 		return -EINVAL;
 	}
 
-	down(&instance->serialize);	/* vs self, usbatm_atm_close */
+	/* sanity checks */
+	if ((vcc->qos.rxtp.max_sdu < 0) || (vcc->qos.rxtp.max_sdu > ATM_MAX_AAL5_PDU)) {
+		atm_dbg(instance, "%s: max_sdu %d out of range!\n", __func__, vcc->qos.rxtp.max_sdu);
+		return -EINVAL;
+	}
+
+	down(&instance->serialize);	/* vs self, usbatm_atm_close, usbatm_usb_disconnect */
 
 	if (usbatm_find_vcc(instance, vpi, vci)) {
 		atm_dbg(instance, "%s: %hd/%d already in use!\n", __func__, vpi, vci);
@@ -750,7 +764,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 	}
 
 	if (!(new = kmalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL))) {
-		atm_dbg(instance, "%s: no memory for vcc_data!\n", __func__);
+		atm_err(instance, "%s: no memory for vcc_data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -762,7 +776,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 
 	new->sarb = alloc_skb(usbatm_pdu_length(vcc->qos.rxtp.max_sdu), GFP_KERNEL);
 	if (!new->sarb) {
-		atm_dbg(instance, "%s: no memory for SAR buffer!\n", __func__);
+		atm_err(instance, "%s: no memory for SAR buffer!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -806,7 +820,7 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 
 	usbatm_cancel_send(instance, vcc);
 
-	down(&instance->serialize);	/* vs self, usbatm_atm_open */
+	down(&instance->serialize);	/* vs self, usbatm_atm_open, usbatm_usb_disconnect */
 
 	tasklet_disable(&instance->rx_channel.tasklet);
 	list_del(&vcc_data->list);
@@ -829,7 +843,7 @@ static void usbatm_atm_close(struct atm_vcc *vcc)
 	atm_dbg(instance, "%s successful\n", __func__);
 }
 
-static int usbatm_atm_ioctl(struct atm_dev *dev, unsigned int cmd,
+static int usbatm_atm_ioctl(struct atm_dev *atm_dev, unsigned int cmd,
 			  void __user * arg)
 {
 	switch (cmd) {
@@ -845,10 +859,13 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 	struct atm_dev *atm_dev;
 	int ret, i;
 
-	/* ATM init */
+	/* ATM init.  The ATM initialization scheme suffers from an intrinsic race
+	 * condition: callbacks we register can be executed at once, before we have
+	 * initialized the struct atm_dev.  To protect against this, all callbacks
+	 * abort if atm_dev->dev_data is NULL. */
 	atm_dev = atm_dev_register(instance->driver_name, &usbatm_atm_devops, -1, NULL);
 	if (!atm_dev) {
-		usb_dbg(instance, "%s: failed to register ATM device!\n", __func__);
+		usb_err(instance, "%s: failed to register ATM device!\n", __func__);
 		return -1;
 	}
 
@@ -862,12 +879,13 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 	atm_dev->link_rate = 128 * 1000 / 424;
 
 	if (instance->driver->atm_start && ((ret = instance->driver->atm_start(instance, atm_dev)) < 0)) {
-		atm_dbg(instance, "%s: atm_start failed: %d!\n", __func__, ret);
+		atm_err(instance, "%s: atm_start failed: %d!\n", __func__, ret);
 		goto fail;
 	}
 
-	/* ready for ATM callbacks */
 	usbatm_get_instance(instance);	/* dropped in usbatm_atm_dev_close */
+
+	/* ready for ATM callbacks */
 	mb();
 	atm_dev->dev_data = instance;
 
@@ -915,7 +933,7 @@ static int usbatm_heavy_init(struct usbatm_data *instance)
 	int ret = kernel_thread(usbatm_do_heavy_init, instance, CLONE_KERNEL);
 
 	if (ret < 0) {
-		usb_dbg(instance, "%s: failed to create kernel_thread (%d)!\n", __func__, ret);
+		usb_err(instance, "%s: failed to create kernel_thread (%d)!\n", __func__, ret);
 		return ret;
 	}
 
@@ -953,7 +971,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	int i, length;
 	int need_heavy;
 
-	dev_dbg(dev, "%s: trying driver %s with vendor=0x%x, product=0x%x, ifnum %d\n",
+	dev_dbg(dev, "%s: trying driver %s with vendor=%04x, product=%04x, ifnum %2d\n",
 			__func__, driver->driver_name,
 			le16_to_cpu(usb_dev->descriptor.idVendor),
 			le16_to_cpu(usb_dev->descriptor.idProduct),
@@ -962,7 +980,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	/* instance init */
 	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
 	if (!instance) {
-		dev_dbg(dev, "%s: no memory for instance data!\n", __func__);
+		dev_err(dev, "%s: no memory for instance data!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -998,7 +1016,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
  bind:
 	need_heavy = 1;
 	if (driver->bind && (error = driver->bind(instance, intf, id, &need_heavy)) < 0) {
-			dev_dbg(dev, "%s: bind failed: %d!\n", __func__, error);
+			dev_err(dev, "%s: bind failed: %d!\n", __func__, error);
 			goto fail_free;
 	}
 
@@ -1044,7 +1062,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {
-			dev_dbg(dev, "%s: no memory for urb %d!\n", __func__, i);
+			dev_err(dev, "%s: no memory for urb %d!\n", __func__, i);
 			goto fail_unbind;
 		}
 
@@ -1052,9 +1070,10 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		buffer = kmalloc(channel->buf_size, GFP_KERNEL);
 		if (!buffer) {
-			dev_dbg(dev, "%s: no memory for buffer %d!\n", __func__, i);
+			dev_err(dev, "%s: no memory for buffer %d!\n", __func__, i);
 			goto fail_unbind;
 		}
+		/* zero the tx padding to avoid leaking information */
 		memset(buffer, 0, channel->buf_size);
 
 		usb_fill_bulk_urb(urb, instance->usb_dev, channel->endpoint,
