@@ -71,6 +71,16 @@ void cpu_idle(void)
 
 void machine_restart(char * __unused)
 {
+
+#ifdef CONFIG_KEXEC
+	struct kimage *image;
+	image = xchg(&kexec_image, 0);
+	if (image) {
+		machine_shutdown();
+		machine_kexec(image);
+	}
+#endif
+
 	/* SR.BL=1 and invoke address error to let CPU reset (manual reset) */
 	asm volatile("ldc %0, sr\n\t"
 		     "mov.l @%1, %0" : : "r" (0x10000000), "r" (0x80000001));
