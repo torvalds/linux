@@ -216,10 +216,10 @@ static int fbiogetputcmap(struct file *file, struct fb_info *info,
 	ret |= put_user(compat_ptr(addr), &p->blue);
 	if (ret)
 		return -EFAULT;
-	return info->fbops->fb_ioctl(file->f_dentry->d_inode, file,
+	return info->fbops->fb_ioctl(info,
 			(cmd == FBIOPUTCMAP32) ?
 			FBIOPUTCMAP_SPARC : FBIOGETCMAP_SPARC,
-			(unsigned long)p, info);
+			(unsigned long)p);
 }
 
 struct fbcursor32 {
@@ -260,12 +260,11 @@ static int fbiogscursor(struct file *file, struct fb_info *info,
 	ret |= put_user(compat_ptr(addr), &p->image);
 	if (ret)
 		return -EFAULT;
-	return info->fbops->fb_ioctl(file->f_dentry->d_inode, file,
-			FBIOSCURSOR, (unsigned long)p, info);
+	return info->fbops->fb_ioctl(info, FBIOSCURSOR, (unsigned long)p);
 }
 
-long sbusfb_compat_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg, struct fb_info *info)
+long sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd,
+		unsigned long arg)
 {
 	switch (cmd) {
 	case FBIOGTYPE:
@@ -278,14 +277,13 @@ long sbusfb_compat_ioctl(struct file *file, unsigned int cmd,
 	case FBIOSCURPOS:
 	case FBIOGCURPOS:
 	case FBIOGCURMAX:
-		return info->fbops->fb_ioctl(file->f_dentry->d_inode,
-				file, cmd, arg, info);
+		return info->fbops->fb_ioctl(info, cmd, arg);
 	case FBIOPUTCMAP32:
-		return fbiogetputcmap(file, info, cmd, arg);
+		return fbiogetputcmap(info, cmd, arg);
 	case FBIOGETCMAP32:
-		return fbiogetputcmap(file, info, cmd, arg);
+		return fbiogetputcmap(info, cmd, arg);
 	case FBIOSCURSOR32:
-		return fbiogscursor(file, info, arg);
+		return fbiogscursor(info, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
