@@ -444,7 +444,6 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	uint32_t raddr[4];
 	int error = 0;
 
-	lock_kernel();
 	switch (cmd) {
 
 	    case PA_PERF_ON:
@@ -476,8 +475,6 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    default:
   	 		error = -ENOTTY;
 	}
-
-	unlock_kernel();
 
 	return error;
 }
