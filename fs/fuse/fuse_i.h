@@ -94,6 +94,11 @@ struct fuse_out {
 	/** Header returned from userspace */
 	struct fuse_out_header h;
 
+	/*
+	 * The following bitfields are not changed during the request
+	 * processing
+	 */
+
 	/** Last argument is variable length (can be shorter than
 	    arg->size) */
 	unsigned argvar:1;
@@ -135,6 +140,12 @@ struct fuse_req {
 
 	/** refcount */
 	atomic_t count;
+
+	/*
+	 * The following bitfields are either set once before the
+	 * request is queued or setting/clearing them is protected by
+	 * fuse_lock
+	 */
 
 	/** True if the request has reply */
 	unsigned isreply:1;
@@ -250,14 +261,21 @@ struct fuse_conn {
 	u64 reqctr;
 
 	/** Mount is active */
-	unsigned mounted : 1;
+	unsigned mounted;
 
 	/** Connection established, cleared on umount, connection
 	    abort and device release */
-	unsigned connected : 1;
+	unsigned connected;
 
-	/** Connection failed (version mismatch) */
+	/** Connection failed (version mismatch).  Cannot race with
+	    setting other bitfields since it is only set once in INIT
+	    reply, before any other request, and never cleared */
 	unsigned conn_error : 1;
+
+	/*
+	 * The following bitfields are only for optimization purposes
+	 * and hence races in setting them will not cause malfunction
+	 */
 
 	/** Is fsync not implemented by fs? */
 	unsigned no_fsync : 1;

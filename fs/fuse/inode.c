@@ -397,6 +397,7 @@ static struct fuse_conn *new_conn(void)
 		init_rwsem(&fc->sbput_sem);
 		kobj_set_kset_s(fc, connections_subsys);
 		kobject_init(&fc->kobj);
+		atomic_set(&fc->num_waiting, 0);
 		for (i = 0; i < FUSE_MAX_OUTSTANDING; i++) {
 			struct fuse_req *req = fuse_request_alloc();
 			if (!req) {
@@ -492,6 +493,7 @@ static void fuse_send_init(struct fuse_conn *fc)
 	   to be exactly one request available */
 	struct fuse_req *req = fuse_get_request(fc);
 	struct fuse_init_in *arg = &req->misc.init_in;
+
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
 	req->in.h.opcode = FUSE_INIT;
