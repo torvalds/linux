@@ -361,7 +361,7 @@ static void rxrpc_proc_peers_stop(struct seq_file *p, void *v)
 static int rxrpc_proc_peers_show(struct seq_file *m, void *v)
 {
 	struct rxrpc_peer *peer = list_entry(v, struct rxrpc_peer, proc_link);
-	signed long timeout;
+	long timeout;
 
 	/* display header on line 1 */
 	if (v == SEQ_START_TOKEN) {
@@ -373,8 +373,8 @@ static int rxrpc_proc_peers_show(struct seq_file *m, void *v)
 	/* display one peer per line on subsequent lines */
 	timeout = 0;
 	if (!list_empty(&peer->timeout.link))
-		timeout = (signed long) peer->timeout.timo_jif -
-			(signed long) jiffies;
+		timeout = (long) peer->timeout.timo_jif -
+			(long) jiffies;
 
 	seq_printf(m, "%5hu %08x %5d %5d %8ld %5Zu %7lu\n",
 		   peer->trans->port,
@@ -468,7 +468,7 @@ static void rxrpc_proc_conns_stop(struct seq_file *p, void *v)
 static int rxrpc_proc_conns_show(struct seq_file *m, void *v)
 {
 	struct rxrpc_connection *conn;
-	signed long timeout;
+	long timeout;
 
 	conn = list_entry(v, struct rxrpc_connection, proc_link);
 
@@ -484,8 +484,8 @@ static int rxrpc_proc_conns_show(struct seq_file *m, void *v)
 	/* display one conn per line on subsequent lines */
 	timeout = 0;
 	if (!list_empty(&conn->timeout.link))
-		timeout = (signed long) conn->timeout.timo_jif -
-			(signed long) jiffies;
+		timeout = (long) conn->timeout.timo_jif -
+			(long) jiffies;
 
 	seq_printf(m,
 		   "%5hu %08x %5hu %04hx %08x %-3.3s %08x %08x %5Zu %8ld\n",
