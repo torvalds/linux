@@ -1718,6 +1718,20 @@ mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 target, u8 lun
 	return retval;
 }
 
+static int
+mptscsih_get_tm_timeout(MPT_ADAPTER *ioc)
+{
+	switch (ioc->bus_type) {
+	case FC:
+		return 40;
+	case SAS:
+		return 10;
+	case SPI:
+	default:
+		return 2;
+	}
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mptscsih_abort - Abort linux scsi_cmnd routine, new_eh variant
@@ -1789,7 +1803,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
 		vdev->bus_id, vdev->target_id, vdev->lun,
-		ctx2abort, 2 /* 2 second timeout */);
+		ctx2abort, mptscsih_get_tm_timeout(ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: task abort: %s (sc=%p)\n",
 		hd->ioc->name,
@@ -1840,7 +1854,7 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
 		vdev->bus_id, vdev->target_id,
-		0, 0, 5 /* 5 second timeout */);
+		0, 0, mptscsih_get_tm_timeout(hd->ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: target reset: %s (sc=%p)\n",
 		hd->ioc->name,
@@ -1890,7 +1904,7 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
-		vdev->bus_id, 0, 0, 0, 5 /* 5 second timeout */);
+		vdev->bus_id, 0, 0, 0, mptscsih_get_tm_timeout(hd->ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: bus reset: %s (sc=%p)\n",
 		hd->ioc->name,
