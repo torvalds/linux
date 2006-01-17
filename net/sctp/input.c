@@ -262,15 +262,12 @@ int sctp_rcv(struct sk_buff *skb)
 	else
 		sctp_backlog_rcv(sk, skb);
 
-	/* Release the sock and any reference counts we took in the
-	 * lookup calls.
+	/* Release the sock and the sock ref we took in the lookup calls. 
+	 * The asoc/ep ref will be released in sctp_backlog_rcv.
 	 */
 	sctp_bh_unlock_sock(sk);
-	if (asoc)
-		sctp_association_put(asoc);
-	else
-		sctp_endpoint_put(ep);
 	sock_put(sk);
+
 	return ret;
 
 discard_it:
@@ -296,9 +293,23 @@ discard_release:
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
-	struct sctp_inq *inqueue = &chunk->rcvr->inqueue;
+ 	struct sctp_inq *inqueue = NULL;
+ 	struct sctp_ep_common *rcvr = NULL;
 
-	sctp_inq_push(inqueue, chunk);
+ 	rcvr = chunk->rcvr;
+ 	if (rcvr->dead) {
+ 		sctp_chunk_free(chunk);
+ 	} else {
+ 		inqueue = &chunk->rcvr->inqueue;
+ 		sctp_inq_push(inqueue, chunk);
+ 	}
+
+	/* Release the asoc/ep ref we took in the lookup calls in sctp_rcv. */ 
+ 	if (SCTP_EP_TYPE_ASSOCIATION == rcvr->type)
+ 		sctp_association_put(sctp_assoc(rcvr));
+ 	else
+ 		sctp_endpoint_put(sctp_ep(rcvr));
+  
         return 0;
 }
 
