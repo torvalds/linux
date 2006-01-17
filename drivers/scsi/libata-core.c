@@ -1456,7 +1456,7 @@ void ata_dev_config(struct ata_port *ap, unsigned int i)
 		ap->udma_mask &= ATA_UDMA5;
 		ap->host->max_sectors = ATA_MAX_SECTORS;
 		ap->host->hostt->max_sectors = ATA_MAX_SECTORS;
-		ap->device->flags |= ATA_DFLAG_LOCK_SECTORS;
+		ap->device[i].flags |= ATA_DFLAG_LOCK_SECTORS;
 	}
 
 	if (ap->ops->dev_config)
