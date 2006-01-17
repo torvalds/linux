@@ -205,6 +205,11 @@ static int __init mipsxx_init(void)
 		op_model_mipsxx.cpu_type = "mips/5K";
 		break;
 
+	case CPU_SB1:
+	case CPU_SB1A:
+		op_model_mipsxx.cpu_type = "mips/sb1";
+		break;
+
 	default:
 		printk(KERN_ERR "Profiling unsupported for this CPU\n");
 
