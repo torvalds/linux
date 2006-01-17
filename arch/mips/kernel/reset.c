@@ -23,16 +23,18 @@ void (*_machine_power_off)(void);
 
 void machine_restart(char *command)
 {
-	_machine_restart(command);
+	if (_machine_restart)
+		_machine_restart(command);
 }
 
 void machine_halt(void)
 {
-	_machine_halt();
+	if (_machine_halt)
+		_machine_halt();
 }
 
 void machine_power_off(void)
 {
-	_machine_power_off();
+	if (_machine_power_off)
+		_machine_power_off();
 }
-
