@@ -172,6 +172,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	   fuse_putback_request() */
 	for (i = 1; i < FUSE_MAX_OUTSTANDING; i++)
 		up(&fc->outstanding_sem);
+
+	fuse_put_request(fc, req);
 }
 
 /*
@@ -180,13 +182,15 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
  * occurred during communication with userspace, or the device file
  * was closed.  In case of a background request the reference to the
  * stored objects are released.  The requester thread is woken up (if
- * still waiting), and finally the reference to the request is
- * released
+ * still waiting), the 'end' callback is called if given, else the
+ * reference to the request is released
  *
  * Called with fuse_lock, unlocks it
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 {
+	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+	req->end = NULL;
 	list_del(&req->list);
 	req->state = FUSE_REQ_FINISHED;
 	spin_unlock(&fuse_lock);
@@ -197,16 +201,10 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		up_read(&fc->sbput_sem);
 	}
 	wake_up(&req->waitq);
-	if (req->in.h.opcode == FUSE_INIT)
-		process_init_reply(fc, req);
-	else if (req->in.h.opcode == FUSE_RELEASE && req->inode == NULL) {
-		/* Special case for failed iget in CREATE */
-		u64 nodeid = req->in.h.nodeid;
-		fuse_reset_request(req);
-		fuse_send_forget(fc, req, nodeid, 1);
-		return;
-	}
-	fuse_put_request(fc, req);
+	if (end)
+		end(fc, req);
+	else
+		fuse_put_request(fc, req);
 }
 
 /*
@@ -387,6 +385,7 @@ void fuse_send_init(struct fuse_conn *fc)
 	req->out.argvar = 1;
 	req->out.args[0].size = sizeof(struct fuse_init_out);
 	req->out.args[0].value = &req->misc.init_out;
+	req->end = process_init_reply;
 	request_send_background(fc, req);
 }
 
@@ -864,17 +863,32 @@ static void end_requests(struct fuse_conn *fc, struct list_head *head)
  * The requests are set to interrupted and finished, and the request
  * waiter is woken up.  This will make request_wait_answer() wait
  * until the request is unlocked and then return.
+ *
+ * If the request is asynchronous, then the end function needs to be
+ * called after waiting for the request to be unlocked (if it was
+ * locked).
  */
 static void end_io_requests(struct fuse_conn *fc)
 {
 	while (!list_empty(&fc->io)) {
-		struct fuse_req *req;
-		req = list_entry(fc->io.next, struct fuse_req, list);
+		struct fuse_req *req =
+			list_entry(fc->io.next, struct fuse_req, list);
+		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+
 		req->interrupted = 1;
 		req->out.h.error = -ECONNABORTED;
 		req->state = FUSE_REQ_FINISHED;
 		list_del_init(&req->list);
 		wake_up(&req->waitq);
+		if (end) {
+			req->end = NULL;
+			/* The end function will consume this reference */
+			__fuse_get_request(req);
+			spin_unlock(&fuse_lock);
+			wait_event(req->waitq, !req->locked);
+			end(fc, req);
+			spin_lock(&fuse_lock);
+		}
 	}
 }
 

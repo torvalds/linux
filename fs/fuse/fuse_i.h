@@ -120,6 +120,8 @@ enum fuse_req_state {
 	FUSE_REQ_FINISHED
 };
 
+struct fuse_conn;
+
 /**
  * A request to the client
  */
@@ -186,6 +188,9 @@ struct fuse_req {
 
 	/** File used in the request (or NULL) */
 	struct file *file;
+
+	/** Request completion callback */
+	void (*end)(struct fuse_conn *, struct fuse_req *);
 };
 
 /**
