@@ -68,7 +68,7 @@
 
 #include "usbatm.h"
 
-#define EAGLEUSBVERSION "ueagle 1.1"
+#define EAGLEUSBVERSION "ueagle 1.2"
 
 
 /*
@@ -364,11 +364,14 @@ static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III"};
 
 static int modem_index;
 static unsigned int debug;
+static int use_iso[NB_MODEM] = {[0 ... (NB_MODEM - 1)] = 1};
 static int sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "module debug level (0=off,1=on,2=verbose)");
+module_param_array(use_iso, bool, NULL, 0644);
+MODULE_PARM_DESC(use_iso, "use isochronous usb pipe for incoming traffic");
 module_param_array(sync_wait, bool, NULL, 0644);
 MODULE_PARM_DESC(sync_wait, "wait the synchronisation before starting ATM");
 module_param_array(cmv_file, charp, NULL, 0644);
@@ -936,6 +939,7 @@ static int uea_stat(struct uea_softc *sc)
 	 * ADI930 don't support it (-EPIPE error).
 	 */
 	if (UEA_CHIP_VERSION(sc) != ADI930
+		    && !use_iso[sc->modem_index]
 		    && sc->stats.phy.dsrate != (data >> 16) * 32) {
 		/* Original timming from ADI(used in windows driver)
 		 * 0x20ffff>>16 * 32 = 32 * 32 = 1Mbits
@@ -1659,6 +1663,25 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	sc->modem_index = (modem_index < NB_MODEM) ? modem_index++ : 0;
 	sc->driver_info = id->driver_info;
 
+	/* ADI930 don't support iso */
+	if (UEA_CHIP_VERSION(id) != ADI930 && use_iso[sc->modem_index]) {
+		int i;
+
+		/* try set fastest alternate for inbound traffic interface */
+		for (i = FASTEST_ISO_INTF; i > 0; i--)
+			if (usb_set_interface(usb, UEA_DS_IFACE_NO, i) == 0)
+				break;
+
+		if (i > 0) {
+			uea_dbg(usb, "set alternate %d for 2 interface\n", i);
+			uea_info(usb, "using iso mode\n");
+			usbatm->flags |= UDSL_USE_ISOC | UDSL_IGNORE_EILSEQ;
+		} else {
+			uea_err(usb, "setting any alternate failed for "
+					"2 interface, using bulk mode\n");
+		}
+	}
+
 	ret = uea_boot(sc);
 	if (ret < 0) {
 		kfree(sc);
@@ -1708,6 +1731,7 @@ static struct usbatm_driver uea_usbatm_driver = {
 	.heavy_init = uea_heavy,
 	.bulk_in = UEA_BULK_DATA_PIPE,
 	.bulk_out = UEA_BULK_DATA_PIPE,
+	.isoc_in = UEA_ISO_DATA_PIPE,
 };
 
 static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
