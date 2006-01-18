@@ -378,6 +378,7 @@ static struct i2c_algorithm scx200_acb_algorithm = {
 };
 
 static struct scx200_acb_iface *scx200_acb_list;
+static DECLARE_MUTEX(scx200_acb_list_mutex);
 
 static int scx200_acb_probe(struct scx200_acb_iface *iface)
 {
@@ -463,10 +464,10 @@ static int  __init scx200_acb_create(int base, int index)
 		goto errout_release;
 	}
 
-	lock_kernel();
+	down(&scx200_acb_list_mutex);
 	iface->next = scx200_acb_list;
 	scx200_acb_list = iface;
-	unlock_kernel();
+	up(&scx200_acb_list_mutex);
 
 	return 0;
 
@@ -509,17 +510,17 @@ static void __exit scx200_acb_cleanup(void)
 {
 	struct scx200_acb_iface *iface;
 
-	lock_kernel();
+	down(&scx200_acb_list_mutex);
 	while ((iface = scx200_acb_list) != NULL) {
 		scx200_acb_list = iface->next;
-		unlock_kernel();
+		up(&scx200_acb_list_mutex);
 
 		i2c_del_adapter(&iface->adapter);
 		release_region(iface->base, 8);
 		kfree(iface);
-		lock_kernel();
+		down(&scx200_acb_list_mutex);
 	}
-	unlock_kernel();
+	up(&scx200_acb_list_mutex);
 }
 
 module_init(scx200_acb_init);
