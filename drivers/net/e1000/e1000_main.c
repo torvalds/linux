@@ -2186,9 +2186,9 @@ e1000_leave_82542_rst(struct e1000_adapter *adapter)
 		e1000_pci_set_mwi(&adapter->hw);
 
 	if (netif_running(netdev)) {
-		e1000_configure_rx(adapter);
 		/* No need to loop, because 82542 supports only 1 queue */
 		struct e1000_rx_ring *ring = &adapter->rx_ring[0];
+		e1000_configure_rx(adapter);
 		adapter->alloc_rx_buf(adapter, ring, E1000_DESC_UNUSED(ring));
 	}
 }
