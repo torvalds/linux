@@ -25,6 +25,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <net/ieee80211.h>
 #include <asm/atomic.h>
 
 enum {

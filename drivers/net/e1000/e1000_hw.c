@@ -318,6 +318,8 @@ e1000_set_mac_type(struct e1000_hw *hw)
     case E1000_DEV_ID_82546GB_FIBER:
     case E1000_DEV_ID_82546GB_SERDES:
     case E1000_DEV_ID_82546GB_PCIE:
+    case E1000_DEV_ID_82546GB_QUAD_COPPER:
+    case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
         hw->mac_type = e1000_82546_rev_3;
         break;
     case E1000_DEV_ID_82541EI:
@@ -639,6 +641,7 @@ e1000_init_hw(struct e1000_hw *hw)
     uint16_t cmd_mmrbc;
     uint16_t stat_mmrbc;
     uint32_t mta_size;
+    uint32_t ctrl_ext;
 
     DEBUGFUNC("e1000_init_hw");
 
@@ -735,7 +738,6 @@ e1000_init_hw(struct e1000_hw *hw)
             break;
         case e1000_82571:
         case e1000_82572:
-            ctrl |= (1 << 22);
         case e1000_82573:
             ctrl |= E1000_TXDCTL_COUNT_DESC;
             break;
@@ -774,6 +776,15 @@ e1000_init_hw(struct e1000_hw *hw)
      * is no link.
      */
     e1000_clear_hw_cntrs(hw);
+
+    if (hw->device_id == E1000_DEV_ID_82546GB_QUAD_COPPER ||
+        hw->device_id == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3) {
+        ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+        /* Relaxed ordering must be disabled to avoid a parity
+         * error crash in a PCI slot. */
+        ctrl_ext |= E1000_CTRL_EXT_RO_DIS;
+        E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+    }
 
     return ret_val;
 }
@@ -837,6 +848,11 @@ e1000_setup_link(struct e1000_hw *hw)
     uint16_t eeprom_data;
 
     DEBUGFUNC("e1000_setup_link");
+
+    /* In the case of the phy reset being blocked, we already have a link.
+     * We do not have to set it up again. */
+    if (e1000_check_phy_reset_block(hw))
+        return E1000_SUCCESS;
 
     /* Read and store word 0x0F of the EEPROM. This word contains bits
      * that determine the hardware's default PAUSE (flow control) mode,
@@ -1929,14 +1945,19 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 void
 e1000_config_collision_dist(struct e1000_hw *hw)
 {
-    uint32_t tctl;
+    uint32_t tctl, coll_dist;
 
     DEBUGFUNC("e1000_config_collision_dist");
+
+    if (hw->mac_type < e1000_82543)
+        coll_dist = E1000_COLLISION_DISTANCE_82542;
+    else
+        coll_dist = E1000_COLLISION_DISTANCE;
 
     tctl = E1000_READ_REG(hw, TCTL);
 
     tctl &= ~E1000_TCTL_COLD;
-    tctl |= E1000_COLLISION_DISTANCE << E1000_COLD_SHIFT;
+    tctl |= coll_dist << E1000_COLD_SHIFT;
 
     E1000_WRITE_REG(hw, TCTL, tctl);
     E1000_WRITE_FLUSH(hw);
@@ -2982,6 +3003,8 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         
         if (hw->mac_type < e1000_82571) 
             msec_delay(10);
+        else
+            udelay(100);
         
         E1000_WRITE_REG(hw, CTRL, ctrl);
         E1000_WRITE_FLUSH(hw);
@@ -3881,14 +3904,16 @@ e1000_read_eeprom(struct e1000_hw *hw,
         return -E1000_ERR_EEPROM;
     }
 
-    /* FLASH reads without acquiring the semaphore are safe in 82573-based
-     * controllers.
-     */
-    if ((e1000_is_onboard_nvm_eeprom(hw) == TRUE) ||
-        (hw->mac_type != e1000_82573)) {
-        /* Prepare the EEPROM for reading  */
-        if(e1000_acquire_eeprom(hw) != E1000_SUCCESS)
-            return -E1000_ERR_EEPROM;
+    /* FLASH reads without acquiring the semaphore are safe */
+    if (e1000_is_onboard_nvm_eeprom(hw) == TRUE &&
+    hw->eeprom.use_eerd == FALSE) {
+        switch (hw->mac_type) {
+        default:
+            /* Prepare the EEPROM for reading  */
+            if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
+                return -E1000_ERR_EEPROM;
+            break;
+        }
     }
 
     if(eeprom->use_eerd == TRUE) {
@@ -6719,6 +6744,12 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
         }
         break;
     }
+
+    /* PHY configuration from NVM just starts after EECD_AUTO_RD sets to high.
+     * Need to wait for PHY configuration completion before accessing NVM
+     * and PHY. */
+    if (hw->mac_type == e1000_82573)
+        msec_delay(25);
 
     return E1000_SUCCESS;
 }

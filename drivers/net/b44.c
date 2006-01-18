@@ -2136,7 +2136,7 @@ static int __init b44_init(void)
 
 	/* Setup paramaters for syncing RX/TX DMA descriptors */
 	dma_desc_align_mask = ~(dma_desc_align_size - 1);
-	dma_desc_sync_size = max(dma_desc_align_size, sizeof(struct dma_desc));
+	dma_desc_sync_size = max_t(unsigned int, dma_desc_align_size, sizeof(struct dma_desc));
 
 	return pci_module_init(&b44_driver);
 }

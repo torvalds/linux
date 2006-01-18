@@ -439,6 +439,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82546GB_FIBER       0x107A
 #define E1000_DEV_ID_82546GB_SERDES      0x107B
 #define E1000_DEV_ID_82546GB_PCIE        0x108A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER 0x1099
 #define E1000_DEV_ID_82547EI             0x1019
 #define E1000_DEV_ID_82571EB_COPPER      0x105E
 #define E1000_DEV_ID_82571EB_FIBER       0x105F
@@ -449,6 +450,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82573E              0x108B
 #define E1000_DEV_ID_82573E_IAMT         0x108C
 #define E1000_DEV_ID_82573L              0x109A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
 
 
 #define NODE_ADDRESS_SIZE 6
@@ -1497,6 +1499,7 @@ struct e1000_hw {
 #define E1000_CTRL_EXT_EE_RST    0x00002000 /* Reinitialize from EEPROM */
 #define E1000_CTRL_EXT_IPS       0x00004000 /* Invert Power State */
 #define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
+#define E1000_CTRL_EXT_RO_DIS    0x00020000 /* Relaxed Ordering disable */
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_GMII 0x00000000
 #define E1000_CTRL_EXT_LINK_MODE_TBI  0x00C00000
@@ -1954,6 +1957,23 @@ struct e1000_host_command_info {
 
 #define E1000_MDALIGN          4096
 
+/* PCI-Ex registers */
+
+/* PCI-Ex Control Register */
+#define E1000_GCR_RXD_NO_SNOOP			0x00000001
+#define E1000_GCR_RXDSCW_NO_SNOOP		0x00000002
+#define E1000_GCR_RXDSCR_NO_SNOOP		0x00000004
+#define E1000_GCR_TXD_NO_SNOOP			0x00000008
+#define E1000_GCR_TXDSCW_NO_SNOOP		0x00000010
+#define E1000_GCR_TXDSCR_NO_SNOOP		0x00000020
+
+#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP		| \
+							 E1000_GCR_RXDSCW_NO_SNOOP	| \
+							 E1000_GCR_RXDSCR_NO_SNOOP	| \
+							 E1000_GCR TXD_NO_SNOOP		| \
+							 E1000_GCR_TXDSCW_NO_SNOOP	| \
+							 E1000_GCR_TXDSCR_NO_SNOOP)
+
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */
 #define E1000_FACTPS_FUNC0_POWER_STATE_MASK         0x00000003
@@ -2077,7 +2097,10 @@ struct e1000_host_command_info {
 /* Collision related configuration parameters */
 #define E1000_COLLISION_THRESHOLD       15
 #define E1000_CT_SHIFT                  4
-#define E1000_COLLISION_DISTANCE        64
+/* Collision distance is a 0-based value that applies to
+ * half-duplex-capable hardware only. */
+#define E1000_COLLISION_DISTANCE        63
+#define E1000_COLLISION_DISTANCE_82542  64
 #define E1000_FDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_HDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_COLD_SHIFT                12

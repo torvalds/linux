@@ -177,7 +177,7 @@ E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
  *
  * Valid Range: 100-100000 (0=off, 1=dynamic)
  *
- * Default Value: 1
+ * Default Value: 8000
  */
 
 E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
@@ -320,7 +320,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		} else {
 			tx_ring->count = opt.def;
 		}
-		for (i = 0; i < adapter->num_queues; i++)
+		for (i = 0; i < adapter->num_tx_queues; i++)
 			tx_ring[i].count = tx_ring->count;
 	}
 	{ /* Receive Descriptor Count */
@@ -346,7 +346,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		} else {
 			rx_ring->count = opt.def;
 		}
-		for (i = 0; i < adapter->num_queues; i++)
+		for (i = 0; i < adapter->num_rx_queues; i++)
 			rx_ring[i].count = rx_ring->count;
 	}
 	{ /* Checksum Offload Enable/Disable */
@@ -388,7 +388,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 			e1000_validate_option(&fc, &opt, adapter);
 			adapter->hw.fc = adapter->hw.original_fc = fc;
 		} else {
-			adapter->hw.fc = opt.def;
+			adapter->hw.fc = adapter->hw.original_fc = opt.def;
 		}
 	}
 	{ /* Transmit Interrupt Delay */
@@ -584,6 +584,12 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 					 .p = dplx_list }}
 		};
 
+		if (e1000_check_phy_reset_block(&adapter->hw)) {
+			DPRINTK(PROBE, INFO,
+				"Link active due to SoL/IDER Session. "
+			        "Speed/Duplex/AutoNeg parameter ignored.\n");
+			return;
+		}
 		if (num_Duplex > bd) {
 			dplx = Duplex[bd];
 			e1000_validate_option(&dplx, &opt, adapter);

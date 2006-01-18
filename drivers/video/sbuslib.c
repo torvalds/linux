@@ -199,8 +199,7 @@ struct  fbcmap32 {
 #define FBIOPUTCMAP32	_IOW('F', 3, struct fbcmap32)
 #define FBIOGETCMAP32	_IOW('F', 4, struct fbcmap32)
 
-static int fbiogetputcmap(struct file *file, struct fb_info *info,
-		unsigned int cmd, unsigned long arg)
+static int fbiogetputcmap(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct fbcmap32 __user *argp = (void __user *)arg;
 	struct fbcmap __user *p = compat_alloc_user_space(sizeof(*p));
@@ -236,8 +235,7 @@ struct fbcursor32 {
 #define FBIOSCURSOR32	_IOW('F', 24, struct fbcursor32)
 #define FBIOGCURSOR32	_IOW('F', 25, struct fbcursor32)
 
-static int fbiogscursor(struct file *file, struct fb_info *info,
-		unsigned long arg)
+static int fbiogscursor(struct fb_info *info, unsigned long arg)
 {
 	struct fbcursor __user *p = compat_alloc_user_space(sizeof(*p));
 	struct fbcursor32 __user *argp =  (void __user *)arg;
@@ -263,8 +261,7 @@ static int fbiogscursor(struct file *file, struct fb_info *info,
 	return info->fbops->fb_ioctl(info, FBIOSCURSOR, (unsigned long)p);
 }
 
-long sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd,
-		unsigned long arg)
+int sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case FBIOGTYPE:

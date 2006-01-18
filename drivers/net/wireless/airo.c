@@ -5668,13 +5668,13 @@ static int airo_set_freq(struct net_device *dev,
 		int channel = fwrq->m;
 		/* We should do a better check than that,
 		 * based on the card capability !!! */
-		if((channel < 1) || (channel > 16)) {
+		if((channel < 1) || (channel > 14)) {
 			printk(KERN_DEBUG "%s: New channel value of %d is invalid!\n", dev->name, fwrq->m);
 			rc = -EINVAL;
 		} else {
 			readConfigRid(local, 1);
 			/* Yes ! We can set it !!! */
-			local->config.channelSet = (u16)(channel - 1);
+			local->config.channelSet = (u16) channel;
 			set_bit (FLAG_COMMIT, &local->flags);
 		}
 	}
@@ -5692,6 +5692,7 @@ static int airo_get_freq(struct net_device *dev,
 {
 	struct airo_info *local = dev->priv;
 	StatusRid status_rid;		/* Card status info */
+	int ch;
 
 	readConfigRid(local, 1);
 	if ((local->config.opmode & 0xFF) == MODE_STA_ESS)
@@ -5699,16 +5700,14 @@ static int airo_get_freq(struct net_device *dev,
 	else
 		readStatusRid(local, &status_rid, 1);
 
-#ifdef WEXT_USECHANNELS
-	fwrq->m = ((int)status_rid.channel) + 1;
-	fwrq->e = 0;
-#else
-	{
-		int f = (int)status_rid.channel;
-		fwrq->m = frequency_list[f] * 100000;
+	ch = (int)status_rid.channel;
+	if((ch > 0) && (ch < 15)) {
+		fwrq->m = frequency_list[ch - 1] * 100000;
 		fwrq->e = 1;
+	} else {
+		fwrq->m = ch;
+		fwrq->e = 0;
 	}
-#endif
 
 	return 0;
 }
@@ -5783,7 +5782,7 @@ static int airo_get_essid(struct net_device *dev,
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */
-	dwrq->length = status_rid.SSIDlen + 1;
+	dwrq->length = status_rid.SSIDlen;
 	dwrq->flags = 1; /* active */
 
 	return 0;
