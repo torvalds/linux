@@ -255,7 +255,7 @@ int gfs2_rename2system(struct gfs2_inode *ip,
 	if (error)
 		goto out_trans;
 	ip->i_di.di_flags |= GFS2_DIF_SYSTEM;
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 

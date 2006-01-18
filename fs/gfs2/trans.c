@@ -138,10 +138,11 @@ void gfs2_trans_add_gl(struct gfs2_glock *gl)
  * gfs2_trans_add_bh - Add a to-be-modified buffer to the current transaction
  * @gl: the glock the buffer belongs to
  * @bh: The buffer to add
+ * @meta: True in the case of adding metadata
  *
  */
 
-void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh)
+void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_bufdata *bd;

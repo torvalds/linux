@@ -527,7 +527,7 @@ static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 	int64_t x;
 
 	down(&sdp->sd_quota_mutex);
-	gfs2_trans_add_bh(ip->i_gl, qd->qd_bh);
+	gfs2_trans_add_bh(ip->i_gl, qd->qd_bh, 1);
 
 	if (!test_bit(QDF_CHANGE, &qd->qd_flags)) {
 		qc->qc_change = 0;

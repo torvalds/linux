@@ -124,7 +124,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 
 	/*  Set up the pointer to the new block  */
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
@@ -223,7 +223,7 @@ static int build_height(struct gfs2_inode *ip, int height)
 			block = gfs2_alloc_meta(ip);
 
 			bh = gfs2_meta_new(ip->i_gl, block);
-			gfs2_trans_add_bh(ip->i_gl, bh);
+			gfs2_trans_add_bh(ip->i_gl, bh, 1);
 			gfs2_metatype_set(bh,
 					  GFS2_METATYPE_IN,
 					  GFS2_FORMAT_IN);
@@ -236,7 +236,7 @@ static int build_height(struct gfs2_inode *ip, int height)
 
 		/*  Set up the new direct pointer and write it out to disk  */
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
@@ -382,7 +382,7 @@ static void lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 	else
 		*block = gfs2_alloc_meta(ip);
 
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 
 	*ptr = cpu_to_be64(*block);
 	ip->i_di.di_blocks++;
@@ -490,7 +490,7 @@ int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
 	if (*new) {
 		error = gfs2_meta_inode_buffer(ip, &bh);
 		if (!error) {
-			gfs2_trans_add_bh(ip->i_gl, bh);
+			gfs2_trans_add_bh(ip->i_gl, bh, 1);
 			gfs2_dinode_out(&ip->i_di, bh->b_data);
 			brelse(bh);
 		}
@@ -672,8 +672,8 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	down_write(&ip->i_rw_mutex);
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 
 	bstart = 0;
 	blen = 0;
@@ -795,7 +795,7 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 	if (error)
 		goto out_end_trans;
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -833,7 +833,7 @@ static int truncator_journaled(struct gfs2_inode *ip, uint64_t size)
 	if (error)
 		return error;
 
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header) + off);
 
 	brelse(bh);
@@ -861,7 +861,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size,
 	if (gfs2_is_stuffed(ip)) {
 		ip->i_di.di_size = size;
 		ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
 		error = 1;
@@ -879,7 +879,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size,
 			ip->i_di.di_size = size;
 			ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 			ip->i_di.di_flags |= GFS2_DIF_TRUNC_IN_PROG;
-			gfs2_trans_add_bh(ip->i_gl, dibh);
+			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		}
 	}
@@ -957,7 +957,7 @@ static int trunc_end(struct gfs2_inode *ip)
 	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 	ip->i_di.di_flags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 

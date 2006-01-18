@@ -456,7 +456,7 @@ static ssize_t do_write_direct_alloc(struct file *file, const char __user *buf, 
 		ip->i_di.di_mode &= (ip->i_di.di_mode & S_IXGRP) ?
 			(~(S_ISUID | S_ISGID)) : (~S_ISUID);
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
 	}
@@ -481,7 +481,7 @@ static ssize_t do_write_direct_alloc(struct file *file, const char __user *buf, 
 		ip->i_di.di_size = inode->i_size;
 	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -721,7 +721,7 @@ static ssize_t do_do_write_buf(struct file *file, const char __user *buf, size_t
 		ip->i_di.di_mode &= (ip->i_di.di_mode & S_IXGRP) ?
 					  (~(S_ISUID | S_ISGID)) : (~S_ISUID);
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
 	}
@@ -752,7 +752,7 @@ static ssize_t do_do_write_buf(struct file *file, const char __user *buf, size_t
 			ip->i_di.di_size = inode->i_size;
 		ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
 	}
@@ -1177,7 +1177,7 @@ static int gfs2_ioctl_flags(struct gfs2_inode *ip, unsigned int cmd, unsigned lo
 
 		ip->i_di.di_flags = flags;
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
         	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 
         	brelse(dibh);

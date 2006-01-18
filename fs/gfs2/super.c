@@ -608,7 +608,7 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
 		return;
 
 	down(&sdp->sd_statfs_mutex);
-	gfs2_trans_add_bh(l_ip->i_gl, l_bh);
+	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
 	up(&sdp->sd_statfs_mutex);
 
 	spin_lock(&sdp->sd_statfs_spin);
@@ -659,7 +659,7 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 		goto out_bh2;
 
 	down(&sdp->sd_statfs_mutex);
-	gfs2_trans_add_bh(l_ip->i_gl, l_bh);
+	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
 	up(&sdp->sd_statfs_mutex);
 
 	spin_lock(&sdp->sd_statfs_spin);
@@ -671,7 +671,7 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 	       0, sizeof(struct gfs2_statfs_change));
 	spin_unlock(&sdp->sd_statfs_spin);
 
-	gfs2_trans_add_bh(m_ip->i_gl, m_bh);
+	gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
 	gfs2_statfs_change_out(m_sc, m_bh->b_data + sizeof(struct gfs2_dinode));
 
 	gfs2_trans_end(sdp);

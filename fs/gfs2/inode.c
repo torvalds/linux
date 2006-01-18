@@ -691,7 +691,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	ip->i_di.di_nlink = nlink;
 	ip->i_di.di_ctime = get_seconds();
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -786,7 +786,7 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	if (ir.ir_length) {
 		*formal_ino = ir.ir_start++;
 		ir.ir_length--;
-		gfs2_trans_add_bh(ip->i_gl, bh);
+		gfs2_trans_add_bh(ip->i_gl, bh, 1);
 		gfs2_inum_range_out(&ir,
 				    bh->b_data + sizeof(struct gfs2_dinode));
 		brelse(bh);
@@ -843,7 +843,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 		if (x < y)
 			gfs2_consist_inode(m_ip);
 		x = cpu_to_be64(x);
-		gfs2_trans_add_bh(m_ip->i_gl, m_bh);
+		gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
 		*(uint64_t *)(m_bh->b_data + sizeof(struct gfs2_dinode)) = x;
 
 		brelse(m_bh);
@@ -852,7 +852,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	*formal_ino = ir.ir_start++;
 	ir.ir_length--;
 
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	gfs2_inum_range_out(&ir, bh->b_data + sizeof(struct gfs2_dinode));
 
  out_brelse:
@@ -997,7 +997,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	struct buffer_head *dibh;
 
 	dibh = gfs2_meta_new(gl, inum->no_addr);
-	gfs2_trans_add_bh(gl, dibh);
+	gfs2_trans_add_bh(gl, dibh, 1);
 	gfs2_metatype_set(dibh, GFS2_METATYPE_DI, GFS2_FORMAT_DI);
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	di = (struct gfs2_dinode *)dibh->b_data;
@@ -1135,7 +1135,7 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
 	if (error)
 		goto fail_end_trans;
 	ip->i_di.di_nlink = 1;
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -1601,7 +1601,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 
 			ip->i_di.di_atime = curtime;
 
-			gfs2_trans_add_bh(ip->i_gl, dibh);
+			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			gfs2_dinode_out(&ip->i_di, dibh->b_data);
 			brelse(dibh);
 
@@ -1776,7 +1776,7 @@ __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 		gfs2_assert_warn(ip->i_sbd, !error);
 		gfs2_inode_attr_out(ip);
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
 	}

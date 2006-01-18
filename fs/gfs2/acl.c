@@ -202,7 +202,7 @@ static int munge_mode(struct gfs2_inode *ip, mode_t mode)
 		gfs2_assert_withdraw(sdp,
 				(ip->i_di.di_mode & S_IFMT) == (mode & S_IFMT));
 		ip->i_di.di_mode = mode;
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
 	}

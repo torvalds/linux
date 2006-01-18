@@ -201,7 +201,7 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 		return;
 	}
 
-	gfs2_trans_add_bh(dip->i_gl, bh);
+	gfs2_trans_add_bh(dip->i_gl, bh, 1);
 
 	/* If there is no prev entry, this is the first entry in the block.
 	   The de_rec_len is already as big as it needs to be.  Just zero
@@ -264,7 +264,7 @@ int gfs2_dirent_alloc(struct gfs2_inode *dip, struct buffer_head *bh,
 			return -EIO;
 		}
 
-		gfs2_trans_add_bh(dip->i_gl, bh);
+		gfs2_trans_add_bh(dip->i_gl, bh, 1);
 
 		dent->de_rec_len = bh->b_size - offset;
 		dent->de_rec_len = cpu_to_be32(dent->de_rec_len);
@@ -282,7 +282,7 @@ int gfs2_dirent_alloc(struct gfs2_inode *dip, struct buffer_head *bh,
 
 		if ((!dent->de_inum.no_addr && cur_rec_len >= rec_len) ||
 		    (cur_rec_len >= GFS2_DIRENT_SIZE(cur_name_len) + rec_len)) {
-			gfs2_trans_add_bh(dip->i_gl, bh);
+			gfs2_trans_add_bh(dip->i_gl, bh, 1);
 
 			if (dent->de_inum.no_addr) {
 				new = (struct gfs2_dirent *)((char *)dent +
@@ -552,7 +552,7 @@ static int dir_make_exhash(struct gfs2_inode *dip)
 	/*  Turn over a new leaf  */
 
 	bh = gfs2_meta_new(dip->i_gl, bn);
-	gfs2_trans_add_bh(dip->i_gl, bh);
+	gfs2_trans_add_bh(dip->i_gl, bh, 1);
 	gfs2_metatype_set(bh, GFS2_METATYPE_LF, GFS2_FORMAT_LF);
 	gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 
@@ -596,7 +596,7 @@ static int dir_make_exhash(struct gfs2_inode *dip)
 	/*  We're done with the new leaf block, now setup the new
 	    hash table.  */
 
-	gfs2_trans_add_bh(dip->i_gl, dibh);
+	gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 	lp = (uint64_t *)(dibh->b_data + sizeof(struct gfs2_dinode));
@@ -647,7 +647,7 @@ static int dir_split_leaf(struct gfs2_inode *dip, uint32_t index,
 	/*  Get the new leaf block  */
 
 	nbh = gfs2_meta_new(dip->i_gl, bn);
-	gfs2_trans_add_bh(dip->i_gl, nbh);
+	gfs2_trans_add_bh(dip->i_gl, nbh, 1);
 	gfs2_metatype_set(nbh, GFS2_METATYPE_LF, GFS2_FORMAT_LF);
 	gfs2_buffer_clear_tail(nbh, sizeof(struct gfs2_meta_header));
 
@@ -661,7 +661,7 @@ static int dir_split_leaf(struct gfs2_inode *dip, uint32_t index,
 	if (error)
 		goto fail;
 
-	gfs2_trans_add_bh(dip->i_gl, obh);
+	gfs2_trans_add_bh(dip->i_gl, obh, 1);
 
 	oleaf = (struct gfs2_leaf *)obh->b_data;
 
@@ -1285,14 +1285,14 @@ static int dir_e_add(struct gfs2_inode *dip, struct qstr *filename,
 				bn = gfs2_alloc_meta(dip);
 
 				nbh = gfs2_meta_new(dip->i_gl, bn);
-				gfs2_trans_add_bh(dip->i_gl, nbh);
+				gfs2_trans_add_bh(dip->i_gl, nbh, 1);
 				gfs2_metatype_set(nbh,
 						 GFS2_METATYPE_LF,
 						 GFS2_FORMAT_LF);
 				gfs2_buffer_clear_tail(nbh,
 					sizeof(struct gfs2_meta_header));
 
-				gfs2_trans_add_bh(dip->i_gl, bh);
+				gfs2_trans_add_bh(dip->i_gl, bh, 1);
 				leaf->lf_next = cpu_to_be64(bn);
 
 				nleaf = (struct gfs2_leaf *)nbh->b_data;
@@ -1330,7 +1330,7 @@ static int dir_e_add(struct gfs2_inode *dip, struct qstr *filename,
 		dip->i_di.di_entries++;
 		dip->i_di.di_mtime = dip->i_di.di_ctime = get_seconds();
 
-		gfs2_trans_add_bh(dip->i_gl, dibh);
+		gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 		gfs2_dinode_out(&dip->i_di, dibh->b_data);
 		brelse(dibh);
 
@@ -1376,7 +1376,7 @@ static int dir_e_del(struct gfs2_inode *dip, struct qstr *filename)
 	dip->i_di.di_entries--;
 	dip->i_di.di_mtime = dip->i_di.di_ctime = get_seconds();
 
-	gfs2_trans_add_bh(dip->i_gl, dibh);
+	gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 	gfs2_dinode_out(&dip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -1481,7 +1481,7 @@ static int dir_e_mvino(struct gfs2_inode *dip, struct qstr *filename,
 	if (error)
 		return error;
 
-	gfs2_trans_add_bh(dip->i_gl, bh);
+	gfs2_trans_add_bh(dip->i_gl, bh, 1);
 
 	gfs2_inum_out(inum, (char *)&dent->de_inum);
 	dent->de_type = new_type;
@@ -1494,7 +1494,7 @@ static int dir_e_mvino(struct gfs2_inode *dip, struct qstr *filename,
 
 	dip->i_di.di_mtime = dip->i_di.di_ctime = get_seconds();
 
-	gfs2_trans_add_bh(dip->i_gl, dibh);
+	gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 	gfs2_dinode_out(&dip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -1681,7 +1681,7 @@ static int dir_l_mvino(struct gfs2_inode *dip, struct qstr *filename,
 	if (error)
 		goto out;
 
-	gfs2_trans_add_bh(dip->i_gl, dibh);
+	gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 
 	gfs2_inum_out(inum, (char *)&dent->de_inum);
 	dent->de_type = new_type;
@@ -1976,7 +1976,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, uint32_t index, uint32_t len,
 	if (error)
 		goto out_end_trans;
 
-	gfs2_trans_add_bh(dip->i_gl, dibh);
+	gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 	gfs2_dinode_out(&dip->i_di, dibh->b_data);
 	brelse(dibh);
 
@@ -2030,7 +2030,7 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip)
 
 	error = gfs2_meta_inode_buffer(dip, &bh);
 	if (!error) {
-		gfs2_trans_add_bh(dip->i_gl, bh);
+		gfs2_trans_add_bh(dip->i_gl, bh, 1);
 		((struct gfs2_dinode *)bh->b_data)->di_mode = cpu_to_be32(S_IFREG);
 		brelse(bh);
 	}

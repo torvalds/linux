@@ -30,7 +30,7 @@ int gfs2_jdata_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
 
 	if (new) {
 		bh = gfs2_meta_new(ip->i_gl, block);
-		gfs2_trans_add_bh(ip->i_gl, bh);
+		gfs2_trans_add_bh(ip->i_gl, bh, 1);
 		gfs2_metatype_set(bh, GFS2_METATYPE_JD, GFS2_FORMAT_JD);
 		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 	} else {
@@ -220,7 +220,7 @@ int gfs2_jdata_read(struct gfs2_inode *ip, char __user *buf, uint64_t offset,
 int gfs2_copy_from_mem(struct gfs2_inode *ip, struct buffer_head *bh,
 		       const char **buf, unsigned int offset, unsigned int size)
 {
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	memcpy(bh->b_data + offset, *buf, size);
 
 	*buf += size;
@@ -243,7 +243,7 @@ int gfs2_copy_from_user(struct gfs2_inode *ip, struct buffer_head *bh,
 {
 	int error = 0;
 
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	if (copy_from_user(bh->b_data + offset, *buf, size))
 		error = -EFAULT;
 	else
@@ -368,7 +368,7 @@ int gfs2_jdata_write(struct gfs2_inode *ip, const char __user *buf, uint64_t off
 		ip->i_di.di_size = offset + copied;
 	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 

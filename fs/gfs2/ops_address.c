@@ -368,7 +368,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		if (error)
 			goto fail;
 
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 
 		kaddr = kmap(page);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode) + from,

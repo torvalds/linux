@@ -839,7 +839,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_end_trans;
 		ip->i_di.di_ctime = get_seconds();
-		gfs2_trans_add_bh(ip->i_gl, dibh);
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
 	}
@@ -1043,7 +1043,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	gfs2_assert_warn(sdp, !error);
 	gfs2_inode_attr_out(ip);
 
-	gfs2_trans_add_bh(ip->i_gl, dibh);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(&ip->i_di, dibh->b_data);
 	brelse(dibh);
 

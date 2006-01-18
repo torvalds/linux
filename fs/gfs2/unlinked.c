@@ -47,7 +47,7 @@ static int munge_ondisk(struct gfs2_sbd *sdp, unsigned int slot,
 	}
 
 	down(&sdp->sd_unlinked_mutex);
-	gfs2_trans_add_bh(ip->i_gl, bh);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	gfs2_unlinked_tag_out(ut, bh->b_data +
 				  sizeof(struct gfs2_meta_header) +
 				  offset * sizeof(struct gfs2_unlinked_tag));

@@ -786,7 +786,7 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
 			brelse(bh);
 			return -EIO;
 		}
-		gfs2_trans_add_bh(ip->i_gl, bh);
+		gfs2_trans_add_bh(ip->i_gl, bh, 1);
 		gfs2_metatype_set(bh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
 		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 
