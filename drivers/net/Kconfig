@@ -1914,6 +1914,15 @@ config E1000_NAPI
 
 	  If in doubt, say N.
 
+config E1000_DISABLE_PACKET_SPLIT
+	bool "Disable Packet Split for PCI express adapters"
+	depends on E1000
+	help
+	  Say Y here if you want to use the legacy receive path for PCI express
+	  hadware.
+
+	  If in doubt, say N.
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS

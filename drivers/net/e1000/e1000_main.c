@@ -1621,7 +1621,7 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 {
 	uint32_t rctl, rfctl;
 	uint32_t psrctl = 0;
-#ifdef CONFIG_E1000_PACKET_SPLIT
+#ifndef CONFIG_E1000_DISABLE_PACKET_SPLIT
 	uint32_t pages = 0;
 #endif
 
@@ -1672,7 +1672,7 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		}
 	}
 
-#ifdef CONFIG_E1000_PACKET_SPLIT
+#ifndef CONFIG_E1000_DISABLE_PACKET_SPLIT
 	/* 82571 and greater support packet-split where the protocol
 	 * header is placed in skb->data and the packet data is
 	 * placed in pages hanging off of skb_shinfo(skb)->nr_frags.
