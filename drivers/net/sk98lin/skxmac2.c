@@ -41,13 +41,13 @@ static const char SysKonnectFileId[] =
 #endif
 
 #ifdef GENESIS
-BCOM_HACK BcomRegA1Hack[] = {
+static BCOM_HACK BcomRegA1Hack[] = {
  { 0x18, 0x0c20 }, { 0x17, 0x0012 }, { 0x15, 0x1104 }, { 0x17, 0x0013 },
  { 0x15, 0x0404 }, { 0x17, 0x8006 }, { 0x15, 0x0132 }, { 0x17, 0x8006 },
  { 0x15, 0x0232 }, { 0x17, 0x800D }, { 0x15, 0x000F }, { 0x18, 0x0420 },
  { 0, 0 }
 };
-BCOM_HACK BcomRegC0Hack[] = {
+static BCOM_HACK BcomRegC0Hack[] = {
  { 0x18, 0x0c20 }, { 0x17, 0x0012 }, { 0x15, 0x1204 }, { 0x17, 0x0013 },
  { 0x15, 0x0A04 }, { 0x18, 0x0420 },
  { 0, 0 }
@@ -790,7 +790,7 @@ int		Port)	/* Port Index (MAC_1 + n) */
  * Returns:
  *	nothing
  */
-void SkMacFlushRxFifo(
+static void SkMacFlushRxFifo(
 SK_AC	*pAC,	/* adapter context */
 SK_IOC	IoC,	/* IO context */
 int		Port)	/* Port Index (MAC_1 + n) */
@@ -1229,38 +1229,6 @@ int		Port)	/* Port Index (MAC_1 + n) */
 	pAC->GIni.GP[Port].PState = SK_PRT_RESET;
 
 }	/* SkMacHardRst */
-
-
-/******************************************************************************
- *
- *	SkMacClearRst() - Clear the MAC reset
- *
- * Description:	calls a clear MAC reset routine dep. on board type
- *
- * Returns:
- *	nothing
- */
-void SkMacClearRst(
-SK_AC	*pAC,	/* adapter context */
-SK_IOC	IoC,	/* IO context */
-int		Port)	/* Port Index (MAC_1 + n) */
-{
-	
-#ifdef GENESIS
-	if (pAC->GIni.GIGenesis) {
-		
-		SkXmClearRst(pAC, IoC, Port);
-	}
-#endif /* GENESIS */
-	
-#ifdef YUKON
-	if (pAC->GIni.GIYukon) {
-		
-		SkGmClearRst(pAC, IoC, Port);
-	}
-#endif /* YUKON */
-
-}	/* SkMacClearRst */
 
 
 #ifdef GENESIS
@@ -1713,7 +1681,7 @@ int		Port)		/* Port Index (MAC_1 + n) */
  * Returns:
  *	nothing
  */
-void SkXmInitDupMd(
+static void SkXmInitDupMd(
 SK_AC	*pAC,		/* adapter context */
 SK_IOC	IoC,		/* IO context */
 int		Port)		/* Port Index (MAC_1 + n) */
@@ -1761,7 +1729,7 @@ int		Port)		/* Port Index (MAC_1 + n) */
  * Returns:
  *	nothing
  */
-void SkXmInitPauseMd(
+static void SkXmInitPauseMd(
 SK_AC	*pAC,		/* adapter context */
 SK_IOC	IoC,		/* IO context */
 int		Port)		/* Port Index (MAC_1 + n) */
@@ -2076,283 +2044,7 @@ SK_BOOL	DoLoop)		/* Should a Phy LoopBack be set-up? */
 }	/* SkXmInitPhyBcom */
 #endif /* GENESIS */
 
-
 #ifdef YUKON
-#ifndef SK_SLIM
-/******************************************************************************
- *
- *	SkGmEnterLowPowerMode()
- *
- * Description:	
- *	This function sets the Marvell Alaska PHY to the low power mode
- *	given by parameter mode.
- *	The following low power modes are available:
- *		
- *		- Coma Mode (Deep Sleep):
- *			Power consumption: ~15 - 30 mW
- *			The PHY cannot wake up on its own.
- *
- *		- IEEE 22.2.4.1.5 compatible power down mode
- *			Power consumption: ~240 mW
- *			The PHY cannot wake up on its own.
- *
- *		- energy detect mode
- *			Power consumption: ~160 mW
- *			The PHY can wake up on its own by detecting activity
- *			on the CAT 5 cable.
- *
- *		- energy detect plus mode
- *			Power consumption: ~150 mW
- *			The PHY can wake up on its own by detecting activity
- *			on the CAT 5 cable.
- *			Connected devices can be woken up by sending normal link
- *			pulses every one second.
- *
- * Note:
- *
- * Returns:
- *		0: ok
- *		1: error
- */
-int SkGmEnterLowPowerMode(
-SK_AC	*pAC,		/* adapter context */
-SK_IOC	IoC,		/* IO context */
-int		Port,		/* Port Index (e.g. MAC_1) */
-SK_U8	Mode)		/* low power mode */
-{
-	SK_U16	Word;
-	SK_U32	DWord;
-	SK_U8	LastMode;
-	int		Ret = 0;
-
-	if (pAC->GIni.GIYukonLite &&
-	    pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
-
-		/* save current power mode */
-		LastMode = pAC->GIni.GP[Port].PPhyPowerState;
-		pAC->GIni.GP[Port].PPhyPowerState = Mode;
-
-		switch (Mode) {
-			/* coma mode (deep sleep) */
-			case PHY_PM_DEEP_SLEEP:
-				/* setup General Purpose Control Register */
-				GM_OUT16(IoC, 0, GM_GP_CTRL, GM_GPCR_FL_PASS |
-					GM_GPCR_SPEED_100 | GM_GPCR_AU_ALL_DIS);
-
-				/* apply COMA mode workaround */
-				SkGmPhyWrite(pAC, IoC, Port, 29, 0x001f);
-				SkGmPhyWrite(pAC, IoC, Port, 30, 0xfff3);
-
-				SK_IN32(IoC, PCI_C(PCI_OUR_REG_1), &DWord);
-
-				SK_OUT8(IoC, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-				
-				/* Set PHY to Coma Mode */
-				SK_OUT32(IoC, PCI_C(PCI_OUR_REG_1), DWord | PCI_PHY_COMA);
-				
-				SK_OUT8(IoC, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-
-			break;
-			
-			/* IEEE 22.2.4.1.5 compatible power down mode */
-			case PHY_PM_IEEE_POWER_DOWN:
-				/*
-				 * - disable MAC 125 MHz clock
-				 * - allow MAC power down
-				 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_PHY_CTRL, &Word);
-				Word |= PHY_M_PC_DIS_125CLK;
-				Word &=	~PHY_M_PC_MAC_POW_UP;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_PHY_CTRL, Word);
-
-				/*
-				 * register changes must be followed by a software
-				 * reset to take effect
-				 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_CTRL, &Word);
-				Word |= PHY_CT_RESET;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_CTRL, Word);
-
-				/* switch IEEE compatible power down mode on */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_CTRL, &Word);
-				Word |= PHY_CT_PDOWN;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_CTRL, Word);
-			break;
-
-			/* energy detect and energy detect plus mode */
-			case PHY_PM_ENERGY_DETECT:
-			case PHY_PM_ENERGY_DETECT_PLUS:
-				/*
-				 * - disable MAC 125 MHz clock
-				 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_PHY_CTRL, &Word);
-				Word |= PHY_M_PC_DIS_125CLK;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_PHY_CTRL, Word);
-				
-				/* activate energy detect mode 1 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_PHY_CTRL, &Word);
-
-				/* energy detect mode */
-				if (Mode == PHY_PM_ENERGY_DETECT) {
-					Word |= PHY_M_PC_EN_DET;
-				}
-				/* energy detect plus mode */
-				else {
-					Word |= PHY_M_PC_EN_DET_PLUS;
-				}
-
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_PHY_CTRL, Word);
-
-				/*
-				 * reinitialize the PHY to force a software reset
-				 * which is necessary after the register settings
-				 * for the energy detect modes.
-				 * Furthermore reinitialisation prevents that the
-				 * PHY is running out of a stable state.
-				 */
-				SkGmInitPhyMarv(pAC, IoC, Port, SK_FALSE);
-			break;
-
-			/* don't change current power mode */
-			default:
-				pAC->GIni.GP[Port].PPhyPowerState = LastMode;
-				Ret = 1;
-			break;
-		}
-	}
-	/* low power modes are not supported by this chip */
-	else {
-		Ret = 1;
-	}
-
-	return(Ret);
-
-}	/* SkGmEnterLowPowerMode */
-
-/******************************************************************************
- *
- *	SkGmLeaveLowPowerMode()
- *
- * Description:	
- *	Leave the current low power mode and switch to normal mode
- *
- * Note:
- *
- * Returns:
- *		0:	ok
- *		1:	error
- */
-int SkGmLeaveLowPowerMode(
-SK_AC	*pAC,		/* adapter context */
-SK_IOC	IoC,		/* IO context */
-int		Port)		/* Port Index (e.g. MAC_1) */
-{
-	SK_U32	DWord;
-	SK_U16	Word;
-	SK_U8	LastMode;
-	int		Ret = 0;
-
-	if (pAC->GIni.GIYukonLite &&
-		pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
-
-		/* save current power mode */
-		LastMode = pAC->GIni.GP[Port].PPhyPowerState;
-		pAC->GIni.GP[Port].PPhyPowerState = PHY_PM_OPERATIONAL_MODE;
-
-		switch (LastMode) {
-			/* coma mode (deep sleep) */
-			case PHY_PM_DEEP_SLEEP:
-				SK_IN32(IoC, PCI_C(PCI_OUR_REG_1), &DWord);
-
-				SK_OUT8(IoC, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-				
-				/* Release PHY from Coma Mode */
-				SK_OUT32(IoC, PCI_C(PCI_OUR_REG_1), DWord & ~PCI_PHY_COMA);
-				
-				SK_OUT8(IoC, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-				
-				SK_IN32(IoC, B2_GP_IO, &DWord);
-
-				/* set to output */
-				DWord |= (GP_DIR_9 | GP_IO_9);
-
-				/* set PHY reset */
-				SK_OUT32(IoC, B2_GP_IO, DWord);
-
-				DWord &= ~GP_IO_9; /* clear PHY reset (active high) */
-
-				/* clear PHY reset */
-				SK_OUT32(IoC, B2_GP_IO, DWord);
-			break;
-			
-			/* IEEE 22.2.4.1.5 compatible power down mode */
-			case PHY_PM_IEEE_POWER_DOWN:
-				/*
-				 * - enable MAC 125 MHz clock
-				 * - set MAC power up
-				 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_PHY_CTRL, &Word);
-				Word &= ~PHY_M_PC_DIS_125CLK;
-				Word |=	PHY_M_PC_MAC_POW_UP;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_PHY_CTRL, Word);
-
-				/*
-				 * register changes must be followed by a software
-				 * reset to take effect
-				 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_CTRL, &Word);
-				Word |= PHY_CT_RESET;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_CTRL, Word);
-
-				/* switch IEEE compatible power down mode off */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_CTRL, &Word);
-				Word &= ~PHY_CT_PDOWN;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_CTRL, Word);
-			break;
-
-			/* energy detect and energy detect plus mode */
-			case PHY_PM_ENERGY_DETECT:
-			case PHY_PM_ENERGY_DETECT_PLUS:
-				/*
-				 * - enable MAC 125 MHz clock
-				 */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_PHY_CTRL, &Word);
-				Word &= ~PHY_M_PC_DIS_125CLK;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_PHY_CTRL, Word);
-				
-				/* disable energy detect mode */
-				SkGmPhyRead(pAC, IoC, Port, PHY_MARV_PHY_CTRL, &Word);
-				Word &= ~PHY_M_PC_EN_DET_MSK;
-				SkGmPhyWrite(pAC, IoC, Port, PHY_MARV_PHY_CTRL, Word);
-
-				/*
-				 * reinitialize the PHY to force a software reset
-				 * which is necessary after the register settings
-				 * for the energy detect modes.
-				 * Furthermore reinitialisation prevents that the
-				 * PHY is running out of a stable state.
-				 */
-				SkGmInitPhyMarv(pAC, IoC, Port, SK_FALSE);
-			break;
-
-			/* don't change current power mode */
-			default:
-				pAC->GIni.GP[Port].PPhyPowerState = LastMode;
-				Ret = 1;
-			break;
-		}
-	}
-	/* low power modes are not supported by this chip */
-	else {
-		Ret = 1;
-	}
-
-	return(Ret);
-
-}	/* SkGmLeaveLowPowerMode */
-#endif /* !SK_SLIM */
-
-
 /******************************************************************************
  *
  *	SkGmInitPhyMarv() - Initialize the Marvell Phy registers
@@ -3420,145 +3112,6 @@ int		Port)		/* Port Index (MAC_1 + n) */
 }	/* SkMacAutoNegDone */
 
 
-#ifdef GENESIS
-/******************************************************************************
- *
- *	SkXmSetRxTxEn() - Special Set Rx/Tx Enable and some features in XMAC
- *
- * Description:
- *  sets MAC or PHY LoopBack and Duplex Mode in the MMU Command Reg.
- *  enables Rx/Tx
- *
- * Returns: N/A
- */
-static void SkXmSetRxTxEn(
-SK_AC	*pAC,		/* Adapter Context */
-SK_IOC	IoC,		/* IO context */
-int		Port,		/* Port Index (MAC_1 + n) */
-int		Para)		/* Parameter to set: MAC or PHY LoopBack, Duplex Mode */
-{
-	SK_U16	Word;
-
-	XM_IN16(IoC, Port, XM_MMU_CMD, &Word);
-
-	switch (Para & (SK_MAC_LOOPB_ON | SK_MAC_LOOPB_OFF)) {
-	case SK_MAC_LOOPB_ON:
-		Word |= XM_MMU_MAC_LB;
-		break;
-	case SK_MAC_LOOPB_OFF:
-		Word &= ~XM_MMU_MAC_LB;
-		break;
-	}
-
-	switch (Para & (SK_PHY_LOOPB_ON | SK_PHY_LOOPB_OFF)) {
-	case SK_PHY_LOOPB_ON:
-		Word |= XM_MMU_GMII_LOOP;
-		break;
-	case SK_PHY_LOOPB_OFF:
-		Word &= ~XM_MMU_GMII_LOOP;
-		break;
-	}
-	
-	switch (Para & (SK_PHY_FULLD_ON | SK_PHY_FULLD_OFF)) {
-	case SK_PHY_FULLD_ON:
-		Word |= XM_MMU_GMII_FD;
-		break;
-	case SK_PHY_FULLD_OFF:
-		Word &= ~XM_MMU_GMII_FD;
-		break;
-	}
-	
-	XM_OUT16(IoC, Port, XM_MMU_CMD, Word | XM_MMU_ENA_RX | XM_MMU_ENA_TX);
-
-	/* dummy read to ensure writing */
-	XM_IN16(IoC, Port, XM_MMU_CMD, &Word);
-
-}	/* SkXmSetRxTxEn */
-#endif /* GENESIS */
-
-
-#ifdef YUKON
-/******************************************************************************
- *
- *	SkGmSetRxTxEn() - Special Set Rx/Tx Enable and some features in GMAC
- *
- * Description:
- *  sets MAC LoopBack and Duplex Mode in the General Purpose Control Reg.
- *  enables Rx/Tx
- *
- * Returns: N/A
- */
-static void SkGmSetRxTxEn(
-SK_AC	*pAC,		/* Adapter Context */
-SK_IOC	IoC,		/* IO context */
-int		Port,		/* Port Index (MAC_1 + n) */
-int		Para)		/* Parameter to set: MAC LoopBack, Duplex Mode */
-{
-	SK_U16	Ctrl;
-	
-	GM_IN16(IoC, Port, GM_GP_CTRL, &Ctrl);
-
-	switch (Para & (SK_MAC_LOOPB_ON | SK_MAC_LOOPB_OFF)) {
-	case SK_MAC_LOOPB_ON:
-		Ctrl |= GM_GPCR_LOOP_ENA;
-		break;
-	case SK_MAC_LOOPB_OFF:
-		Ctrl &= ~GM_GPCR_LOOP_ENA;
-		break;
-	}
-
-	switch (Para & (SK_PHY_FULLD_ON | SK_PHY_FULLD_OFF)) {
-	case SK_PHY_FULLD_ON:
-		Ctrl |= GM_GPCR_DUP_FULL;
-		break;
-	case SK_PHY_FULLD_OFF:
-		Ctrl &= ~GM_GPCR_DUP_FULL;
-		break;
-	}
-	
-    GM_OUT16(IoC, Port, GM_GP_CTRL, (SK_U16)(Ctrl | GM_GPCR_RX_ENA |
-		GM_GPCR_TX_ENA));
-
-	/* dummy read to ensure writing */
-	GM_IN16(IoC, Port, GM_GP_CTRL, &Ctrl);
-
-}	/* SkGmSetRxTxEn */
-#endif /* YUKON */
-
-
-#ifndef SK_SLIM
-/******************************************************************************
- *
- *	SkMacSetRxTxEn() - Special Set Rx/Tx Enable and parameters
- *
- * Description:	calls the Special Set Rx/Tx Enable routines dep. on board type
- *
- * Returns: N/A
- */
-void SkMacSetRxTxEn(
-SK_AC	*pAC,		/* Adapter Context */
-SK_IOC	IoC,		/* IO context */
-int		Port,		/* Port Index (MAC_1 + n) */
-int		Para)
-{
-#ifdef GENESIS
-	if (pAC->GIni.GIGenesis) {
-		
-		SkXmSetRxTxEn(pAC, IoC, Port, Para);
-	}
-#endif /* GENESIS */
-	
-#ifdef YUKON
-	if (pAC->GIni.GIYukon) {
-		
-		SkGmSetRxTxEn(pAC, IoC, Port, Para);
-	}
-#endif /* YUKON */
-
-}	/* SkMacSetRxTxEn */
-#endif /* !SK_SLIM */
-
-
 /******************************************************************************
  *
  *	SkMacRxTxEnable() - Enable Rx/Tx activity if port is up
@@ -3976,7 +3529,7 @@ SK_U16	PhyStat)	/* PHY Status word to analyse */
  * Returns:
  *	nothing
  */
-void SkXmIrq(
+static void SkXmIrq(
 SK_AC	*pAC,		/* adapter context */
 SK_IOC	IoC,		/* IO context */
 int		Port)		/* Port Index (MAC_1 + n) */
@@ -4112,7 +3665,7 @@ int		Port)		/* Port Index (MAC_1 + n) */
  * Returns:
  *	nothing
  */
-void SkGmIrq(
+static void SkGmIrq(
 SK_AC	*pAC,		/* adapter context */
 SK_IOC	IoC,		/* IO context */
 int		Port)		/* Port Index (MAC_1 + n) */

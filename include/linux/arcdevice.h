@@ -206,7 +206,6 @@ struct ArcProto {
 
 extern struct ArcProto *arc_proto_map[256], *arc_proto_default,
 	*arc_bcast_proto, *arc_raw_proto;
-extern struct ArcProto arc_proto_null;
 
 
 /*
@@ -334,17 +333,9 @@ void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);
 #define arcnet_dump_skb(dev,skb,desc) ;
 #endif
 
-#if (ARCNET_DEBUG_MAX & D_RX) || (ARCNET_DEBUG_MAX & D_TX)
-void arcnet_dump_packet(struct net_device *dev, int bufnum, char *desc,
-			int take_arcnet_lock);
-#else
-#define arcnet_dump_packet(dev, bufnum, desc,take_arcnet_lock) ;
-#endif
-
 void arcnet_unregister_proto(struct ArcProto *proto);
 irqreturn_t arcnet_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 struct net_device *alloc_arcdev(char *name);
-void arcnet_rx(struct net_device *dev, int bufnum);
 
 #endif				/* __KERNEL__ */
 #endif				/* _LINUX_ARCDEVICE_H */

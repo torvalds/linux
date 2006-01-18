@@ -258,6 +258,7 @@ static int vortex_debug = 1;
 #include <linux/highmem.h>
 #include <linux/eisa.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 #include <asm/irq.h>			/* For NR_IRQS only. */
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -2717,7 +2718,7 @@ boomerang_rx(struct net_device *dev)
 			skb = dev_alloc_skb(PKT_BUF_SZ);
 			if (skb == NULL) {
 				static unsigned long last_jif;
-				if ((jiffies - last_jif) > 10 * HZ) {
+				if (time_after(jiffies, last_jif + 10 * HZ)) {
 					printk(KERN_WARNING "%s: memory shortage\n", dev->name);
 					last_jif = jiffies;
 				}

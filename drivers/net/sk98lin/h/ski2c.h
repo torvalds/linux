@@ -162,9 +162,6 @@ typedef	struct	s_I2c {
 } SK_I2C;
 
 extern int SkI2cInit(SK_AC *pAC, SK_IOC IoC, int Level);
-extern int SkI2cWrite(SK_AC *pAC, SK_IOC IoC, SK_U32 Data, int Dev, int Size,
-					   int Reg, int Burst);
-extern int SkI2cReadSensor(SK_AC *pAC, SK_IOC IoC, SK_SENSOR *pSen);
 #ifdef SK_DIAG
 extern	SK_U32 SkI2cRead(SK_AC *pAC, SK_IOC IoC, int Dev, int Size, int Reg,
 						 int Burst);

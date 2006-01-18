@@ -112,7 +112,7 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/time.h>
-
+#include <linux/jiffies.h>
 
 /************************************************************************/
 /* Useful structures and definitions					*/
@@ -1569,7 +1569,7 @@ static int strip_xmit(struct sk_buff *skb, struct net_device *dev)
 	del_timer(&strip_info->idle_timer);
 
 
-	if (jiffies - strip_info->pps_timer > HZ) {
+	if (time_after(jiffies, strip_info->pps_timer + HZ)) {
 		unsigned long t = jiffies - strip_info->pps_timer;
 		unsigned long rx_pps_count = (strip_info->rx_pps_count * HZ * 8 + t / 2) / t;
 		unsigned long tx_pps_count = (strip_info->tx_pps_count * HZ * 8 + t / 2) / t;
