@@ -31,7 +31,7 @@
 
 /* The Hypervisor barfs if the lppaca crosses a page boundary.  A 1k
  * alignment is sufficient to prevent this */
-struct __attribute__((__aligned__(0x400))) lppaca {
+struct lppaca {
 //=============================================================================
 // CACHE_LINE_1 0x0000 - 0x007F Contains read-only data
 // NOTE: The xDynXyz fields are fields that will be dynamically changed by
@@ -129,7 +129,7 @@ struct __attribute__((__aligned__(0x400))) lppaca {
 // CACHE_LINE_4-5 0x0100 - 0x01FF Contains PMC interrupt data
 //=============================================================================
 	u8	pmc_save_area[256];	// PMC interrupt Area           x00-xFF
-};
+} __attribute__((__aligned__(0x400)));
 
 extern struct lppaca lppaca[];
 

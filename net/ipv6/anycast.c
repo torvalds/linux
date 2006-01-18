@@ -532,7 +532,7 @@ static int ac6_seq_show(struct seq_file *seq, void *v)
 	struct ac6_iter_state *state = ac6_seq_private(seq);
 
 	seq_printf(seq,
-		   "%-4d %-15s " NIP6_FMT " %5d\n",
+		   "%-4d %-15s " NIP6_SEQFMT " %5d\n",
 		   state->dev->ifindex, state->dev->name,
 		   NIP6(im->aca_addr),
 		   im->aca_users);

@@ -30,13 +30,4 @@ struct ip6t_rt
 #define IP6T_RT_INV_LEN		0x04	/* Invert the sense of length. */
 #define IP6T_RT_INV_MASK	0x07	/* All possible flags. */
 
-#define MASK_HOPOPTS    128
-#define MASK_DSTOPTS    64
-#define MASK_ROUTING    32
-#define MASK_FRAGMENT   16
-#define MASK_AH         8
-#define MASK_ESP        4
-#define MASK_NONE       2
-#define MASK_PROTO      1
-
 #endif /*_IP6T_RT_H*/

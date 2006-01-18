@@ -336,24 +336,47 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
 }
 
 /*
- * Submit all of the bios for all of the ioends we have saved up,
- * covering the initial writepage page and also any probed pages.
+ * Submit all of the bios for all of the ioends we have saved up, covering the
+ * initial writepage page and also any probed pages.
+ *
+ * Because we may have multiple ioends spanning a page, we need to start
+ * writeback on all the buffers before we submit them for I/O. If we mark the
+ * buffers as we got, then we can end up with a page that only has buffers
+ * marked async write and I/O complete on can occur before we mark the other
+ * buffers async write.
+ *
+ * The end result of this is that we trip a bug in end_page_writeback() because
+ * we call it twice for the one page as the code in end_buffer_async_write()
+ * assumes that all buffers on the page are started at the same time.
+ *
+ * The fix is two passes across the ioend list - one to start writeback on the
+ * bufferheads, and then the second one submit them for I/O.
  */
 STATIC void
 xfs_submit_ioend(
 	xfs_ioend_t		*ioend)
 {
+	xfs_ioend_t		*head = ioend;
 	xfs_ioend_t		*next;
 	struct buffer_head	*bh;
 	struct bio		*bio;
 	sector_t		lastblock = 0;
 
+	/* Pass 1 - start writeback */
+	do {
+		next = ioend->io_list;
+		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
+			xfs_start_buffer_writeback(bh);
+		}
+	} while ((ioend = next) != NULL);
+
+	/* Pass 2 - submit I/O */
+	ioend = head;
 	do {
 		next = ioend->io_list;
 		bio = NULL;
 
 		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
-			xfs_start_buffer_writeback(bh);
 
 			if (!bio) {
  retry:

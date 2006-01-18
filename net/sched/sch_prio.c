@@ -228,14 +228,13 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 	}
 	sch_tree_unlock(sch);
 
-	for (i=0; i<=TC_PRIO_MAX; i++) {
-		int band = q->prio2band[i];
-		if (q->queues[band] == &noop_qdisc) {
+	for (i=0; i<q->bands; i++) {
+		if (q->queues[i] == &noop_qdisc) {
 			struct Qdisc *child;
 			child = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
 			if (child) {
 				sch_tree_lock(sch);
-				child = xchg(&q->queues[band], child);
+				child = xchg(&q->queues[i], child);
 
 				if (child != &noop_qdisc)
 					qdisc_destroy(child);

@@ -144,7 +144,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 						 const unsigned char state)
 {
 	unsigned int gap;
-	signed long new_head;
+	long new_head;
 
 	if (av->dccpav_vec_len + packets > av->dccpav_buf_len)
 		return -ENOBUFS;
