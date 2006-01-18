@@ -2542,7 +2542,7 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 	if (rc) {
 		cFYI(1, ("Send error in QuerySecDesc = %d", rc));
 	} else {                /* decode response */
-		struct sec_desc * psec_desc;
+		struct cifs_sid * psec_desc;
 		__le32 * parm;
 		int parm_len;
 		int data_len;
