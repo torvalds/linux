@@ -1754,7 +1754,10 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 
 /* need to free smb_read_data buf before exit */
 	if (smb_read_data) {
-		cifs_buf_release(smb_read_data);
+		if(buf_type == CIFS_SMALL_BUFFER)
+			cifs_small_buf_release(smb_read_data);
+		else if(buf_type == CIFS_LARGE_BUFFER)
+			cifs_buf_release(smb_read_data);
 		smb_read_data = NULL;
 	} 
 
