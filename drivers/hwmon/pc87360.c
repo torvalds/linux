@@ -43,6 +43,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 
 static u8 devid;
@@ -183,8 +184,8 @@ static inline u8 PWM_TO_REG(int val, int inv)
 struct pc87360_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
-	struct semaphore update_lock;
+	struct mutex lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -283,7 +284,7 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *devattr,
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long fan_min = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	fan_min = FAN_TO_REG(fan_min, FAN_DIV_FROM_REG(data->fan_status[attr->index]));
 
 	/* If it wouldn't fit, change clock divisor */
@@ -300,7 +301,7 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *devattr,
 	/* Write new divider, preserve alarm bits */
 	pc87360_write_value(data, LD_FAN, NO_BANK, PC87360_REG_FAN_STATUS(attr->index),
 			    data->fan_status[attr->index] & 0xF9);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -343,12 +344,12 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr, con
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->pwm[attr->index] = PWM_TO_REG(val,
 			      FAN_CONFIG_INVERT(data->fan_conf, attr->index));
 	pc87360_write_value(data, LD_FAN, NO_BANK, PC87360_REG_PWM(attr->index),
 			    data->pwm[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -393,11 +394,11 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *devattr, 
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_min[attr->index] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_IN_MIN,
 			    data->in_min[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_in_max(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -408,12 +409,12 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *devattr, 
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_max[attr->index] = IN_TO_REG(val,
 			       data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_IN_MAX,
 			    data->in_max[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -512,11 +513,11 @@ static ssize_t set_therm_min(struct device *dev, struct device_attribute *devatt
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_min[attr->index] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_TEMP_MIN,
 			    data->in_min[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_therm_max(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -527,11 +528,11 @@ static ssize_t set_therm_max(struct device *dev, struct device_attribute *devatt
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_max[attr->index] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_TEMP_MAX,
 			    data->in_max[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_therm_crit(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -542,11 +543,11 @@ static ssize_t set_therm_crit(struct device *dev, struct device_attribute *devat
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_crit[attr->index-11] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_TEMP_CRIT,
 			    data->in_crit[attr->index-11]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -654,11 +655,11 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *devattr
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_min[attr->index] = TEMP_TO_REG(val);
 	pc87360_write_value(data, LD_TEMP, attr->index, PC87365_REG_TEMP_MIN,
 			    data->temp_min[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_temp_max(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -669,11 +670,11 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *devattr
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_max[attr->index] = TEMP_TO_REG(val);
 	pc87360_write_value(data, LD_TEMP, attr->index, PC87365_REG_TEMP_MAX,
 			    data->temp_max[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_temp_crit(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -684,11 +685,11 @@ static ssize_t set_temp_crit(struct device *dev, struct device_attribute *devatt
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_crit[attr->index] = TEMP_TO_REG(val);
 	pc87360_write_value(data, LD_TEMP, attr->index, PC87365_REG_TEMP_CRIT,
 			    data->temp_crit[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -845,7 +846,7 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 	dev = &client->dev;
 	i2c_set_clientdata(client, data);
 	client->addr = address;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	client->adapter = adapter;
 	client->driver = &pc87360_driver;
 	client->flags = 0;
@@ -878,7 +879,7 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 
 	strlcpy(client->name, name, sizeof(client->name));
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	for (i = 0; i < 3; i++) {
 		if (((data->address[i] = extra_isa[i]))
@@ -1027,11 +1028,11 @@ static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
 {
 	int res;
 
-	down(&(data->lock));
+	mutex_lock(&(data->lock));
 	if (bank != NO_BANK)
 		outb_p(bank, data->address[ldi] + PC87365_REG_BANK);
 	res = inb_p(data->address[ldi] + reg);
-	up(&(data->lock));
+	mutex_unlock(&(data->lock));
 
 	return res;
 }
@@ -1039,11 +1040,11 @@ static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
 static void pc87360_write_value(struct pc87360_data *data, u8 ldi, u8 bank,
 				u8 reg, u8 value)
 {
-	down(&(data->lock));
+	mutex_lock(&(data->lock));
 	if (bank != NO_BANK)
 		outb_p(bank, data->address[ldi] + PC87365_REG_BANK);
 	outb_p(value, data->address[ldi] + reg);
-	up(&(data->lock));
+	mutex_unlock(&(data->lock));
 }
 
 static void pc87360_init_client(struct i2c_client *client, int use_thermistors)
@@ -1215,7 +1216,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	u8 i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		dev_dbg(&client->dev, "Data update\n");
@@ -1315,7 +1316,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

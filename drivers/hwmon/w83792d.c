@@ -43,6 +43,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
@@ -271,7 +272,7 @@ struct w83792d_data {
 	struct class_device *class_dev;
 	enum chips type;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -1222,7 +1223,7 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	data->type = kind;
 
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(client)))
@@ -1373,7 +1374,7 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 	int i, j;
 	u8 reg_array_tmp[4], pwm_array_tmp[7], reg_tmp;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after
 	    (jiffies - data->last_updated, (unsigned long) (HZ * 3))
@@ -1484,7 +1485,7 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 #ifdef DEBUG
 	w83792d_print_debug(data, dev);

@@ -46,6 +46,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -285,10 +286,10 @@ static inline u8 DIV_TO_REG(long val)
 struct w83627hf_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
+	struct mutex lock;
 	enum chips type;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -360,12 +361,12 @@ store_in_##reg (struct device *dev, const char *buf, size_t count, int nr) \
 	 \
 	val = simple_strtoul(buf, NULL, 10); \
 	 \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->in_##reg[nr] = IN_TO_REG(val); \
 	w83627hf_write_value(client, W83781D_REG_IN_##REG(nr), \
 			    data->in_##reg[nr]); \
 	 \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_in_reg(MIN, min)
@@ -451,7 +452,7 @@ static ssize_t store_regs_in_min0(struct device *dev, struct device_attribute *a
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	
 	if ((data->vrm_ovt & 0x01) &&
 		(w83627thf == data->type || w83637hf == data->type))
@@ -465,7 +466,7 @@ static ssize_t store_regs_in_min0(struct device *dev, struct device_attribute *a
 		data->in_min[0] = IN_TO_REG(val);
 
 	w83627hf_write_value(client, W83781D_REG_IN_MIN(0), data->in_min[0]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -478,7 +479,7 @@ static ssize_t store_regs_in_max0(struct device *dev, struct device_attribute *a
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if ((data->vrm_ovt & 0x01) &&
 		(w83627thf == data->type || w83637hf == data->type))
@@ -492,7 +493,7 @@ static ssize_t store_regs_in_max0(struct device *dev, struct device_attribute *a
 		data->in_max[0] = IN_TO_REG(val);
 
 	w83627hf_write_value(client, W83781D_REG_IN_MAX(0), data->in_max[0]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -529,13 +530,13 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan_min[nr - 1] =
 	    FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr - 1]));
 	w83627hf_write_value(client, W83781D_REG_FAN_MIN(nr),
 			    data->fan_min[nr - 1]);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -597,7 +598,7 @@ store_temp_##reg (struct device *dev, const char *buf, size_t count, int nr) \
 	 \
 	val = simple_strtoul(buf, NULL, 10); \
 	 \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	 \
 	if (nr >= 2) {	/* TEMP2 and TEMP3 */ \
 		data->temp_##reg##_add[nr-2] = LM75_TEMP_TO_REG(val); \
@@ -609,7 +610,7 @@ store_temp_##reg (struct device *dev, const char *buf, size_t count, int nr) \
 			data->temp_##reg); \
 	} \
 	 \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp_reg(OVER, max);
@@ -718,7 +719,7 @@ store_beep_reg(struct device *dev, const char *buf, size_t count,
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (update_mask == BEEP_MASK) {	/* We are storing beep_mask */
 		data->beep_mask = BEEP_MASK_TO_REG(val);
@@ -736,7 +737,7 @@ store_beep_reg(struct device *dev, const char *buf, size_t count,
 	w83627hf_write_value(client, W83781D_REG_BEEP_INTS2,
 			    val2 | data->beep_enable << 7);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -783,7 +784,7 @@ store_fan_div_reg(struct device *dev, const char *buf, size_t count, int nr)
 	u8 reg;
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	/* Save fan_min */
 	min = FAN_FROM_REG(data->fan_min[nr],
@@ -805,7 +806,7 @@ store_fan_div_reg(struct device *dev, const char *buf, size_t count, int nr)
 	data->fan_min[nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	w83627hf_write_value(client, W83781D_REG_FAN_MIN(nr+1), data->fan_min[nr]);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -848,7 +849,7 @@ store_pwm_reg(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (data->type == w83627thf) {
 		/* bits 0-3 are reserved  in 627THF */
@@ -865,7 +866,7 @@ store_pwm_reg(struct device *dev, const char *buf, size_t count, int nr)
 				     data->pwm[nr - 1]);
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -907,7 +908,7 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	switch (val) {
 	case 1:		/* PII/Celeron diode */
@@ -941,7 +942,7 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 		break;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -1057,7 +1058,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	new_client->adapter = adapter;
 	new_client->driver = &w83627hf_driver;
 	new_client->flags = 0;
@@ -1077,7 +1078,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	strlcpy(new_client->name, client_name, I2C_NAME_SIZE);
 	data->type = kind;
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -1187,7 +1188,7 @@ static int w83627hf_read_value(struct i2c_client *client, u16 reg)
 	struct w83627hf_data *data = i2c_get_clientdata(client);
 	int res, word_sized;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	word_sized = (((reg & 0xff00) == 0x100)
 		   || ((reg & 0xff00) == 0x200))
 		  && (((reg & 0x00ff) == 0x50)
@@ -1213,7 +1214,7 @@ static int w83627hf_read_value(struct i2c_client *client, u16 reg)
 		       client->addr + W83781D_ADDR_REG_OFFSET);
 		outb_p(0, client->addr + W83781D_DATA_REG_OFFSET);
 	}
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return res;
 }
 
@@ -1252,7 +1253,7 @@ static int w83627hf_write_value(struct i2c_client *client, u16 reg, u16 value)
 	struct w83627hf_data *data = i2c_get_clientdata(client);
 	int word_sized;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	word_sized = (((reg & 0xff00) == 0x100)
 		   || ((reg & 0xff00) == 0x200))
 		  && (((reg & 0x00ff) == 0x53)
@@ -1277,7 +1278,7 @@ static int w83627hf_write_value(struct i2c_client *client, u16 reg, u16 value)
 		       client->addr + W83781D_ADDR_REG_OFFSET);
 		outb_p(0, client->addr + W83781D_DATA_REG_OFFSET);
 	}
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return 0;
 }
 
@@ -1387,7 +1388,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 	struct w83627hf_data *data = i2c_get_clientdata(client);
 	int i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
@@ -1470,7 +1471,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

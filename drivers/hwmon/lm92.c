@@ -46,6 +46,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 /* The LM92 and MAX6635 have 2 two-state pins for address selection,
    resulting in 4 possible addresses. */
@@ -96,7 +97,7 @@ static struct i2c_driver lm92_driver;
 struct lm92_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
@@ -114,7 +115,7 @@ static struct lm92_data *lm92_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm92_data *data = i2c_get_clientdata(client);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ)
 	 || !data->valid) {
@@ -134,7 +135,7 @@ static struct lm92_data *lm92_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }
@@ -158,10 +159,10 @@ static ssize_t set_##value(struct device *dev, struct device_attribute *attr, co
 	struct lm92_data *data = i2c_get_clientdata(client); \
 	long val = simple_strtol(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->value = TEMP_TO_REG(val); \
 	i2c_smbus_write_word_data(client, reg, swab16(data->value)); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 set_temp(temp1_crit, LM92_REG_TEMP_CRIT);
@@ -194,11 +195,11 @@ static ssize_t set_temp1_crit_hyst(struct device *dev, struct device_attribute *
 	struct lm92_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp1_hyst = TEMP_FROM_REG(data->temp1_crit) - val;
 	i2c_smbus_write_word_data(client, LM92_REG_TEMP_HYST,
 				  swab16(TEMP_TO_REG(data->temp1_hyst)));
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -348,7 +349,7 @@ static int lm92_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Fill in the remaining client fields */
 	strlcpy(new_client->name, name, I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the i2c subsystem a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))

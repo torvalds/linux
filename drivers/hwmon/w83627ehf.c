@@ -43,6 +43,7 @@
 #include <linux/i2c-isa.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -177,9 +178,9 @@ temp1_to_reg(int temp)
 struct w83627ehf_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
+	struct mutex lock;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -230,7 +231,7 @@ static u16 w83627ehf_read_value(struct i2c_client *client, u16 reg)
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int res, word_sized = is_word_sized(reg);
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	w83627ehf_set_bank(client, reg);
 	outb_p(reg & 0xff, client->addr + ADDR_REG_OFFSET);
@@ -242,7 +243,7 @@ static u16 w83627ehf_read_value(struct i2c_client *client, u16 reg)
 	}
 	w83627ehf_reset_bank(client, reg);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 
 	return res;
 }
@@ -252,7 +253,7 @@ static int w83627ehf_write_value(struct i2c_client *client, u16 reg, u16 value)
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int word_sized = is_word_sized(reg);
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	w83627ehf_set_bank(client, reg);
 	outb_p(reg & 0xff, client->addr + ADDR_REG_OFFSET);
@@ -264,7 +265,7 @@ static int w83627ehf_write_value(struct i2c_client *client, u16 reg, u16 value)
 	outb_p(value & 0xff, client->addr + DATA_REG_OFFSET);
 	w83627ehf_reset_bank(client, reg);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return 0;
 }
 
@@ -322,7 +323,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ)
 	 || !data->valid) {
@@ -397,7 +398,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return data;
 }
 
@@ -434,7 +435,7 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 	unsigned int reg;
 	u8 new_div;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	if (!val) {
 		/* No min limit, alarm disabled */
 		data->fan_min[nr] = 255;
@@ -482,7 +483,7 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 	}
 	w83627ehf_write_value(client, W83627EHF_REG_FAN_MIN[nr],
 			      data->fan_min[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -561,11 +562,11 @@ store_temp1_##reg(struct device *dev, struct device_attribute *attr, \
 	struct w83627ehf_data *data = i2c_get_clientdata(client); \
 	u32 val = simple_strtoul(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->temp1_##reg = temp1_to_reg(val); \
 	w83627ehf_write_value(client, W83627EHF_REG_TEMP1_##REG, \
 			      data->temp1_##reg); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp1_reg(OVER, max);
@@ -597,11 +598,11 @@ store_##reg (struct device *dev, const char *buf, size_t count, int nr) \
 	struct w83627ehf_data *data = i2c_get_clientdata(client); \
 	u32 val = simple_strtoul(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->reg[nr] = LM75_TEMP_TO_REG(val); \
 	w83627ehf_write_value(client, W83627EHF_REG_TEMP_##REG[nr], \
 			      data->reg[nr]); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp_reg(OVER, temp_max);
@@ -689,14 +690,14 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	client = &data->client;
 	i2c_set_clientdata(client, data);
 	client->addr = address;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	client->adapter = adapter;
 	client->driver = &w83627ehf_driver;
 	client->flags = 0;
 
 	strlcpy(client->name, "w83627ehf", I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the i2c layer a new client has arrived */
 	if ((err = i2c_attach_client(client)))
