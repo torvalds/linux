@@ -897,9 +897,6 @@ static int sunsab_console_setup(struct console *con, char *options)
 
 	sunserial_console_termios(con);
 
-	/* Firmware console speed is limited to 150-->38400 baud so
-	 * this hackish cflag thing is OK.
-	 */
 	switch (con->cflag & CBAUD) {
 	case B150: baud = 150; break;
 	case B300: baud = 300; break;
@@ -910,6 +907,10 @@ static int sunsab_console_setup(struct console *con, char *options)
 	default: case B9600: baud = 9600; break;
 	case B19200: baud = 19200; break;
 	case B38400: baud = 38400; break;
+	case B57600: baud = 57600; break;
+	case B115200: baud = 115200; break;
+	case B230400: baud = 230400; break;
+	case B460800: baud = 460800; break;
 	};
 
 	/*

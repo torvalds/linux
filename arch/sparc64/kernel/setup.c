@@ -561,6 +561,8 @@ static int __init set_preferred_console(void)
 		serial_console = 1;
 	} else if (idev == PROMDEV_ITTYB && odev == PROMDEV_OTTYB) {
 		serial_console = 2;
+	} else if (idev == PROMDEV_IRSC && odev == PROMDEV_ORSC) {
+		serial_console = 3;
 	} else {
 		prom_printf("Inconsistent console: "
 			    "input %d, output %d\n",
