@@ -612,6 +612,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	ret = cpufreq_driver->init(policy);
 	if (ret) {
 		dprintk("initialization failed\n");
+		mutex_unlock(&policy->lock);
 		goto err_out;
 	}
 
@@ -623,9 +624,10 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	strlcpy(policy->kobj.name, "cpufreq", KOBJ_NAME_LEN);
 
 	ret = kobject_register(&policy->kobj);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&policy->lock);
 		goto err_out_driver_exit;
-
+	}
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while ((drv_attr) && (*drv_attr)) {
