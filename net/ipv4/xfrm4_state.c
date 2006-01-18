@@ -42,6 +42,21 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->props.saddr = tmpl->saddr;
 	if (x->props.saddr.a4 == 0)
 		x->props.saddr.a4 = saddr->a4;
+	if (tmpl->mode && x->props.saddr.a4 == 0) {
+		struct rtable *rt;
+	        struct flowi fl_tunnel = {
+        	        .nl_u = {
+        			.ip4_u = {
+					.daddr = x->id.daddr.a4,
+				}
+			}
+		};
+		if (!xfrm_dst_lookup((struct xfrm_dst **)&rt,
+		                     &fl_tunnel, AF_INET)) {
+			x->props.saddr.a4 = rt->rt_src;
+			dst_release(&rt->u.dst);
+		}
+	}
 	x->props.mode = tmpl->mode;
 	x->props.reqid = tmpl->reqid;
 	x->props.family = AF_INET;

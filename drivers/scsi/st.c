@@ -38,6 +38,7 @@ static const char *verstr = "20050830";
 #include <linux/devfs_fs_kernel.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/dma.h>
@@ -193,7 +194,6 @@ static int sgl_unmap_user_pages(struct scatterlist *, const unsigned int, int);
 
 static int st_probe(struct device *);
 static int st_remove(struct device *);
-static int st_init_command(struct scsi_cmnd *);
 
 static void do_create_driverfs_files(void);
 static void do_remove_driverfs_files(void);
@@ -206,7 +206,6 @@ static struct scsi_driver st_template = {
 		.probe		= st_probe,
 		.remove		= st_remove,
 	},
-	.init_command		= st_init_command,
 };
 
 static int st_compression(struct scsi_tape *, int);
@@ -220,7 +219,7 @@ static void scsi_tape_release(struct kref *);
 
 #define to_scsi_tape(obj) container_of(obj, struct scsi_tape, kref)
 
-static DECLARE_MUTEX(st_ref_sem);
+static DEFINE_MUTEX(st_ref_mutex);
 
 
 #include "osst_detect.h"
@@ -237,7 +236,7 @@ static struct scsi_tape *scsi_tape_get(int dev)
 {
 	struct scsi_tape *STp = NULL;
 
-	down(&st_ref_sem);
+	mutex_lock(&st_ref_mutex);
 	write_lock(&st_dev_arr_lock);
 
 	if (dev < st_dev_max && scsi_tapes != NULL)
@@ -259,7 +258,7 @@ out_put:
 	STp = NULL;
 out:
 	write_unlock(&st_dev_arr_lock);
-	up(&st_ref_sem);
+	mutex_unlock(&st_ref_mutex);
 	return STp;
 }
 
@@ -267,10 +266,10 @@ static void scsi_tape_put(struct scsi_tape *STp)
 {
 	struct scsi_device *sdev = STp->device;
 
-	down(&st_ref_sem);
+	mutex_lock(&st_ref_mutex);
 	kref_put(&STp->kref, scsi_tape_release);
 	scsi_device_put(sdev);
-	up(&st_ref_sem);
+	mutex_unlock(&st_ref_mutex);
 }
 
 struct st_reject_data {
@@ -4141,9 +4140,9 @@ static int st_remove(struct device *dev)
 				}
 			}
 
-			down(&st_ref_sem);
+			mutex_lock(&st_ref_mutex);
 			kref_put(&tpnt->kref, scsi_tape_release);
-			up(&st_ref_sem);
+			mutex_unlock(&st_ref_mutex);
 			return 0;
 		}
 	}
@@ -4156,7 +4155,7 @@ static int st_remove(struct device *dev)
  *      scsi_tape_release - Called to free the Scsi_Tape structure
  *      @kref: pointer to embedded kref
  *
- *      st_ref_sem must be held entering this routine.  Because it is
+ *      st_ref_mutex must be held entering this routine.  Because it is
  *      called on last put, you should always use the scsi_tape_get()
  *      scsi_tape_put() helpers which manipulate the semaphore directly
  *      and never do a direct kref_put().
@@ -4178,29 +4177,6 @@ static void scsi_tape_release(struct kref *kref)
 	put_disk(disk);
 	kfree(tpnt);
 	return;
-}
-
-static void st_intr(struct scsi_cmnd *SCpnt)
-{
-	/*
-	 * The caller should be checking the request's errors
-	 * value.
-	 */
-	scsi_io_completion(SCpnt, SCpnt->bufflen, 0);
-}
-
-/*
- * st_init_command: only called via the scsi_cmd_ioctl (block SG_IO)
- * interface for REQ_BLOCK_PC commands.
- */
-static int st_init_command(struct scsi_cmnd *SCpnt)
-{
-	if (!(SCpnt->request->flags & REQ_BLOCK_PC))
-		return 0;
-
-	scsi_setup_blk_pc_cmnd(SCpnt);
-	SCpnt->done = st_intr;
-	return 1;
 }
 
 static int __init init_st(void)

@@ -200,7 +200,7 @@ out:
 /* if page is completely empty, put it back on the free list, or dealloc it */
 /* if page was hijacked, unmark the flag so it might get alloced next time */
 /* Note: lock should be held when calling this */
-static inline void bitmap_checkfree(struct bitmap *bitmap, unsigned long page)
+static void bitmap_checkfree(struct bitmap *bitmap, unsigned long page)
 {
 	char *ptr;
 

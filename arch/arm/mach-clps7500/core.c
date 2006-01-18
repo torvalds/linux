@@ -384,7 +384,6 @@ static void __init clps7500_init(void)
 
 MACHINE_START(CLPS7500, "CL-PS7500")
 	/* Maintainer: Philip Blundell */
-	.phys_ram	= 0x10000000,
 	.phys_io	= 0x03000000,
 	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
 	.map_io		= clps7500_map_io,

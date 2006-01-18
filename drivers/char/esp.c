@@ -160,7 +160,6 @@ static void rs_wait_until_sent(struct tty_struct *, int);
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int serial_paranoia_check(struct esp_struct *info,
 					char *name, const char *routine)
@@ -2493,6 +2492,7 @@ static int __init espserial_init(void)
 	}
 
 	memset((void *)info, 0, sizeof(struct esp_struct));
+	spin_lock_init(&info->lock);
 	/* rx_trigger, tx_trigger are needed by autoconfig */
 	info->config.rx_trigger = rx_trigger;
 	info->config.tx_trigger = tx_trigger;
@@ -2529,7 +2529,6 @@ static int __init espserial_init(void)
 		init_waitqueue_head(&info->close_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 		init_waitqueue_head(&info->break_wait);
-		spin_lock_init(&info->lock);
 		ports = info;
 		printk(KERN_INFO "ttyP%d at 0x%04x (irq = %d) is an ESP ",
 			info->line, info->port, info->irq);

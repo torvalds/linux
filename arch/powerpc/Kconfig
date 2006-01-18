@@ -78,17 +78,6 @@ config PPC_UDBG_16550
 	bool
 	default n
 
-config CRASH_DUMP
-	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on PPC_MULTIPLATFORM
-	depends on EXPERIMENTAL
-	help
-	  Build a kernel suitable for use as a kdump capture kernel.
-	  The kernel will be linked at a different address than normal, and
-	  so can only be used for Kdump.
-
-	  Don't change this unless you know what you are doing.
-
 config GENERIC_TBSYNC
 	bool
 	default y if PPC32 && SMP
@@ -583,6 +572,16 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
+
+config CRASH_DUMP
+	bool "kernel crash dumps (EXPERIMENTAL)"
+	depends on PPC_MULTIPLATFORM && PPC64 && EXPERIMENTAL
+	help
+	  Build a kernel suitable for use as a kdump capture kernel.
+	  The kernel will be linked at a different address than normal, and
+	  so can only be used for Kdump.
+
+	  Don't change this unless you know what you are doing.
 
 config EMBEDDEDBOOT
 	bool

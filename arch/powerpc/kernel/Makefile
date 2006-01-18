@@ -60,7 +60,8 @@ obj-$(CONFIG_MODULES)		+= $(module-y)
 
 pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o pci_iommu.o \
 				   pci_direct_iommu.o iomap.o
-obj-$(CONFIG_PCI)		+= $(pci64-y)
+pci32-$(CONFIG_PPC32)		:= pci_32.o
+obj-$(CONFIG_PCI)		+= $(pci64-y) $(pci32-y)
 kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o crash.o
 kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o $(kexec-y)

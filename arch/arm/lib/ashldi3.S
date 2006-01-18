@@ -37,6 +37,7 @@ Boston, MA 02110-1301, USA.  */
 #endif
 
 ENTRY(__ashldi3)
+ENTRY(__aeabi_llsl)
 
 	subs	r3, r2, #32
 	rsb	ip, r2, #32

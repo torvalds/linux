@@ -38,34 +38,100 @@ static inline int major_to_index(int major)
 	return major % MAX_PROBE_HASH;
 }
 
-#ifdef CONFIG_PROC_FS
-/* get block device names in somewhat random order */
-int get_blkdev_list(char *p, int used)
+struct blkdev_info {
+        int index;
+        struct blk_major_name *bd;
+};
+
+/*
+ * iterate over a list of blkdev_info structures.  allows
+ * the major_names array to be iterated over from outside this file
+ * must be called with the block_subsys_sem held
+ */
+void *get_next_blkdev(void *dev)
+{
+        struct blkdev_info *info;
+
+        if (dev == NULL) {
+                info = kmalloc(sizeof(*info), GFP_KERNEL);
+                if (!info)
+                        goto out;
+                info->index=0;
+                info->bd = major_names[info->index];
+                if (info->bd)
+                        goto out;
+        } else {
+                info = dev;
+        }
+
+        while (info->index < ARRAY_SIZE(major_names)) {
+                if (info->bd)
+                        info->bd = info->bd->next;
+                if (info->bd)
+                        goto out;
+                /*
+                 * No devices on this chain, move to the next
+                 */
+                info->index++;
+                info->bd = (info->index < ARRAY_SIZE(major_names)) ?
+			major_names[info->index] : NULL;
+                if (info->bd)
+                        goto out;
+        }
+
+out:
+        return info;
+}
+
+void *acquire_blkdev_list(void)
+{
+        down(&block_subsys_sem);
+        return get_next_blkdev(NULL);
+}
+
+void release_blkdev_list(void *dev)
+{
+        up(&block_subsys_sem);
+        kfree(dev);
+}
+
+
+/*
+ * Count the number of records in the blkdev_list.
+ * must be called with the block_subsys_sem held
+ */
+int count_blkdev_list(void)
 {
 	struct blk_major_name *n;
-	int i, len;
+	int i, count;
 
-	len = snprintf(p, (PAGE_SIZE-used), "\nBlock devices:\n");
+	count = 0;
 
-	down(&block_subsys_sem);
 	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
-		for (n = major_names[i]; n; n = n->next) {
-			/*
-			 * If the curent string plus the 5 extra characters
-			 * in the line would run us off the page, then we're done
-			 */
-			if ((len + used + strlen(n->name) + 5) >= PAGE_SIZE)
-				goto page_full;
-			len += sprintf(p+len, "%3d %s\n",
-				       n->major, n->name);
-		}
+		for (n = major_names[i]; n; n = n->next)
+				count++;
 	}
-page_full:
-	up(&block_subsys_sem);
 
-	return len;
+	return count;
 }
-#endif
+
+/*
+ * extract the major and name values from a blkdev_info struct
+ * passed in as a void to *dev.  Must be called with
+ * block_subsys_sem held
+ */
+int get_blkdev_info(void *dev, int *major, char **name)
+{
+        struct blkdev_info *info = dev;
+
+        if (info->bd == NULL)
+                return 1;
+
+        *major = info->bd->major;
+        *name = info->bd->name;
+        return 0;
+}
+
 
 int register_blkdev(unsigned int major, const char *name)
 {

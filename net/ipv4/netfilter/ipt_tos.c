@@ -23,6 +23,7 @@ match(const struct sk_buff *skb,
       const struct net_device *out,
       const void *matchinfo,
       int offset,
+      unsigned int protoff,
       int *hotdrop)
 {
 	const struct ipt_tos_info *info = matchinfo;
@@ -32,7 +33,7 @@ match(const struct sk_buff *skb,
 
 static int
 checkentry(const char *tablename,
-           const struct ipt_ip *ip,
+           const void *ip,
            void *matchinfo,
            unsigned int matchsize,
            unsigned int hook_mask)

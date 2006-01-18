@@ -134,7 +134,7 @@ static void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_
 /*
  * Allocate and initializes a new fragment.
  */
-static inline struct jffs2_node_frag * new_fragment(struct jffs2_full_dnode *fn, uint32_t ofs, uint32_t size)
+static struct jffs2_node_frag * new_fragment(struct jffs2_full_dnode *fn, uint32_t ofs, uint32_t size)
 {
 	struct jffs2_node_frag *newfrag;
 
@@ -513,7 +513,7 @@ free_out:
  *
  * Checks the node if we are in the checking stage.
  */
-static inline int check_node(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn)
+static int check_node(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn)
 {
 	int ret;
 

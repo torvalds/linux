@@ -1,18 +1,10 @@
 #ifndef _IPT_STRING_H
 #define _IPT_STRING_H
 
-#define IPT_STRING_MAX_PATTERN_SIZE 128
-#define IPT_STRING_MAX_ALGO_NAME_SIZE 16
+#include <linux/netfilter/xt_string.h>
 
-struct ipt_string_info
-{
-	u_int16_t from_offset;
-	u_int16_t to_offset;
-	char	  algo[IPT_STRING_MAX_ALGO_NAME_SIZE];
-	char 	  pattern[IPT_STRING_MAX_PATTERN_SIZE];
-	u_int8_t  patlen;
-	u_int8_t  invert;
-	struct ts_config __attribute__((aligned(8))) *config;
-};
+#define IPT_STRING_MAX_PATTERN_SIZE XT_STRING_MAX_PATTERN_SIZE
+#define IPT_STRING_MAX_ALGO_NAME_SIZE XT_STRING_MAX_ALGO_NAME_SIZE
+#define ipt_string_info xt_string_info
 
 #endif /*_IPT_STRING_H*/

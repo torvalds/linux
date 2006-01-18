@@ -646,7 +646,7 @@ xfs_mountfs(
 
 	if (mp->m_sb_bp == NULL) {
 		if ((error = xfs_readsb(mp))) {
-			return (error);
+			return error;
 		}
 	}
 	xfs_mount_common(mp, sbp);
@@ -889,7 +889,7 @@ xfs_mountfs(
 	 * For client case we are done now
 	 */
 	if (mfsi_flags & XFS_MFSI_CLIENT) {
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -1182,7 +1182,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 			xfs_fs_cmn_err(CE_ALERT, mp, "Superblock write error detected while unmounting.  Filesystem may not be marked shared readonly");
 	}
 	xfs_buf_relse(sbp);
-	return (error);
+	return error;
 }
 
 /*
@@ -1257,19 +1257,19 @@ xfs_mod_incore_sb_unlocked(xfs_mount_t *mp, xfs_sb_field_t field,
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_icount = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_IFREE:
 		lcounter = (long long)mp->m_sb.sb_ifree;
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_ifree = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_FDBLOCKS:
 
 		lcounter = (long long)mp->m_sb.sb_fdblocks;
@@ -1296,101 +1296,101 @@ xfs_mod_incore_sb_unlocked(xfs_mount_t *mp, xfs_sb_field_t field,
 				if (rsvd) {
 					lcounter = (long long)mp->m_resblks_avail + delta;
 					if (lcounter < 0) {
-						return (XFS_ERROR(ENOSPC));
+						return XFS_ERROR(ENOSPC);
 					}
 					mp->m_resblks_avail = lcounter;
-					return (0);
+					return 0;
 				} else {	/* not reserved */
-					return (XFS_ERROR(ENOSPC));
+					return XFS_ERROR(ENOSPC);
 				}
 			}
 		}
 
 		mp->m_sb.sb_fdblocks = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_FREXTENTS:
 		lcounter = (long long)mp->m_sb.sb_frextents;
 		lcounter += delta;
 		if (lcounter < 0) {
-			return (XFS_ERROR(ENOSPC));
+			return XFS_ERROR(ENOSPC);
 		}
 		mp->m_sb.sb_frextents = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_DBLOCKS:
 		lcounter = (long long)mp->m_sb.sb_dblocks;
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_dblocks = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_AGCOUNT:
 		scounter = mp->m_sb.sb_agcount;
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_agcount = scounter;
-		return (0);
+		return 0;
 	case XFS_SBS_IMAX_PCT:
 		scounter = mp->m_sb.sb_imax_pct;
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_imax_pct = scounter;
-		return (0);
+		return 0;
 	case XFS_SBS_REXTSIZE:
 		scounter = mp->m_sb.sb_rextsize;
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_rextsize = scounter;
-		return (0);
+		return 0;
 	case XFS_SBS_RBMBLOCKS:
 		scounter = mp->m_sb.sb_rbmblocks;
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_rbmblocks = scounter;
-		return (0);
+		return 0;
 	case XFS_SBS_RBLOCKS:
 		lcounter = (long long)mp->m_sb.sb_rblocks;
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_rblocks = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_REXTENTS:
 		lcounter = (long long)mp->m_sb.sb_rextents;
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_rextents = lcounter;
-		return (0);
+		return 0;
 	case XFS_SBS_REXTSLOG:
 		scounter = mp->m_sb.sb_rextslog;
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return (XFS_ERROR(EINVAL));
+			return XFS_ERROR(EINVAL);
 		}
 		mp->m_sb.sb_rextslog = scounter;
-		return (0);
+		return 0;
 	default:
 		ASSERT(0);
-		return (XFS_ERROR(EINVAL));
+		return XFS_ERROR(EINVAL);
 	}
 }
 
@@ -1409,7 +1409,7 @@ xfs_mod_incore_sb(xfs_mount_t *mp, xfs_sb_field_t field, int delta, int rsvd)
 	s = XFS_SB_LOCK(mp);
 	status = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
 	XFS_SB_UNLOCK(mp, s);
-	return (status);
+	return status;
 }
 
 /*
@@ -1470,7 +1470,7 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 		}
 	}
 	XFS_SB_UNLOCK(mp, s);
-	return (status);
+	return status;
 }
 
 /*
@@ -1500,7 +1500,7 @@ xfs_getsb(
 	}
 	XFS_BUF_HOLD(bp);
 	ASSERT(XFS_BUF_ISDONE(bp));
-	return (bp);
+	return bp;
 }
 
 /*

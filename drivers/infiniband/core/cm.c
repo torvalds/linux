@@ -856,7 +856,7 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 		       param->private_data_len);
 }
 
-static inline int cm_validate_req_param(struct ib_cm_req_param *param)
+static int cm_validate_req_param(struct ib_cm_req_param *param)
 {
 	/* peer-to-peer not supported */
 	if (param->peer_to_peer)
@@ -1005,7 +1005,7 @@ static inline int cm_is_active_peer(__be64 local_ca_guid, __be64 remote_ca_guid,
 		 (be32_to_cpu(local_qpn) > be32_to_cpu(remote_qpn))));
 }
 
-static inline void cm_format_paths_from_req(struct cm_req_msg *req_msg,
+static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 					    struct ib_sa_path_rec *primary_path,
 					    struct ib_sa_path_rec *alt_path)
 {
@@ -3163,22 +3163,6 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_init_qp_attr);
 
-static __be64 cm_get_ca_guid(struct ib_device *device)
-{
-	struct ib_device_attr *device_attr;
-	__be64 guid;
-	int ret;
-
-	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
-	if (!device_attr)
-		return 0;
-
-	ret = ib_query_device(device, device_attr);
-	guid = ret ? 0 : device_attr->node_guid;
-	kfree(device_attr);
-	return guid;
-}
-
 static void cm_add_one(struct ib_device *device)
 {
 	struct cm_device *cm_dev;
@@ -3200,9 +3184,7 @@ static void cm_add_one(struct ib_device *device)
 		return;
 
 	cm_dev->device = device;
-	cm_dev->ca_guid = cm_get_ca_guid(device);
-	if (!cm_dev->ca_guid)
-		goto error1;
+	cm_dev->ca_guid = device->node_guid;
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
 	for (i = 1; i <= device->phys_port_cnt; i++) {
@@ -3217,11 +3199,11 @@ static void cm_add_one(struct ib_device *device)
 							cm_recv_handler,
 							port);
 		if (IS_ERR(port->mad_agent))
-			goto error2;
+			goto error1;
 
 		ret = ib_modify_port(device, i, 0, &port_modify);
 		if (ret)
-			goto error3;
+			goto error2;
 	}
 	ib_set_client_data(device, &cm_client, cm_dev);
 
@@ -3230,9 +3212,9 @@ static void cm_add_one(struct ib_device *device)
 	write_unlock_irqrestore(&cm.device_lock, flags);
 	return;
 
-error3:
-	ib_unregister_mad_agent(port->mad_agent);
 error2:
+	ib_unregister_mad_agent(port->mad_agent);
+error1:
 	port_modify.set_port_cap_mask = 0;
 	port_modify.clr_port_cap_mask = IB_PORT_CM_SUP;
 	while (--i) {
@@ -3240,7 +3222,6 @@ error2:
 		ib_modify_port(device, port->port_num, 0, &port_modify);
 		ib_unregister_mad_agent(port->mad_agent);
 	}
-error1:
 	kfree(cm_dev);
 }
 

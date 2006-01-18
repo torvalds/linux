@@ -56,9 +56,6 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 
-#define IS_NOATIME(inode) ((inode->i_sb->s_flags & MS_NOATIME) ||	\
-	(S_ISDIR(inode->i_mode) && inode->i_sb->s_flags & MS_NODIRATIME))
-
 /*
  * Get a XFS inode from a given vnode.
  */
@@ -474,11 +471,14 @@ linvfs_symlink(
 
 	error = 0;
 	VOP_SYMLINK(dvp, dentry, &va, (char *)symname, &cvp, NULL, error);
-	if (!error && cvp) {
-		ip = LINVFS_GET_IP(cvp);
-		d_instantiate(dentry, ip);
-		validate_fields(dir);
-		validate_fields(ip); /* size needs update */
+	if (likely(!error && cvp)) {
+		error = linvfs_init_security(cvp, dir);
+		if (likely(!error)) {
+			ip = LINVFS_GET_IP(cvp);
+			d_instantiate(dentry, ip);
+			validate_fields(dir);
+			validate_fields(ip);
+		}
 	}
 	return -error;
 }

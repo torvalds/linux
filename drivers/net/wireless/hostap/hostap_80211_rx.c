@@ -435,7 +435,7 @@ static void hostap_rx_sta_beacon(local_info_t *local, struct sk_buff *skb,
 }
 
 
-static inline int
+static int
 hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 		     struct hostap_80211_rx_status *rx_stats, u16 type,
 		     u16 stype)
@@ -499,7 +499,7 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 
 
 /* Called only as a tasklet (software IRQ) */
-static inline struct net_device *prism2_rx_get_wds(local_info_t *local,
+static struct net_device *prism2_rx_get_wds(local_info_t *local,
 						   u8 *addr)
 {
 	struct hostap_interface *iface = NULL;
@@ -519,7 +519,7 @@ static inline struct net_device *prism2_rx_get_wds(local_info_t *local,
 }
 
 
-static inline int
+static int
 hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr_4addr *hdr,
 		    u16 fc, struct net_device **wds)
 {
@@ -615,7 +615,7 @@ static int hostap_is_eapol_frame(local_info_t *local, struct sk_buff *skb)
 
 
 /* Called only as a tasklet (software IRQ) */
-static inline int
+static int
 hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 			struct ieee80211_crypt_data *crypt)
 {
@@ -654,7 +654,7 @@ hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 
 
 /* Called only as a tasklet (software IRQ) */
-static inline int
+static int
 hostap_rx_frame_decrypt_msdu(local_info_t *local, struct sk_buff *skb,
 			     int keyidx, struct ieee80211_crypt_data *crypt)
 {

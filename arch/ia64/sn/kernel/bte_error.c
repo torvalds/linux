@@ -33,7 +33,7 @@ void bte_error_handler(unsigned long);
  * Wait until all BTE related CRBs are completed
  * and then reset the interfaces.
  */
-void shub1_bte_error_handler(unsigned long _nodepda)
+int shub1_bte_error_handler(unsigned long _nodepda)
 {
 	struct nodepda_s *err_nodepda = (struct nodepda_s *)_nodepda;
 	struct timer_list *recovery_timer = &err_nodepda->bte_recovery_timer;
@@ -53,7 +53,7 @@ void shub1_bte_error_handler(unsigned long _nodepda)
 	    (err_nodepda->bte_if[1].bh_error == BTE_SUCCESS)) {
 		BTE_PRINTK(("eh:%p:%d Nothing to do.\n", err_nodepda,
 			    smp_processor_id()));
-		return;
+		return 1;
 	}
 
 	/* Determine information about our hub */
@@ -81,7 +81,7 @@ void shub1_bte_error_handler(unsigned long _nodepda)
 		mod_timer(recovery_timer, HZ * 5);
 		BTE_PRINTK(("eh:%p:%d Marked Giving up\n", err_nodepda,
 			    smp_processor_id()));
-		return;
+		return 1;
 	}
 	if (icmr.ii_icmr_fld_s.i_crb_vld != 0) {
 
@@ -99,7 +99,7 @@ void shub1_bte_error_handler(unsigned long _nodepda)
 				BTE_PRINTK(("eh:%p:%d Valid %d, Giving up\n",
 					    err_nodepda, smp_processor_id(),
 					    i));
-				return;
+				return 1;
 			}
 		}
 	}
@@ -124,6 +124,42 @@ void shub1_bte_error_handler(unsigned long _nodepda)
 	REMOTE_HUB_S(nasid, IIO_IBCR, ibcr.ii_ibcr_regval);
 
 	del_timer(recovery_timer);
+	return 0;
+}
+
+/*
+ * Wait until all BTE related CRBs are completed
+ * and then reset the interfaces.
+ */
+int shub2_bte_error_handler(unsigned long _nodepda)
+{
+	struct nodepda_s *err_nodepda = (struct nodepda_s *)_nodepda;
+	struct timer_list *recovery_timer = &err_nodepda->bte_recovery_timer;
+	struct bteinfo_s *bte;
+	nasid_t nasid;
+	u64 status;
+	int i;
+
+	nasid = cnodeid_to_nasid(err_nodepda->bte_if[0].bte_cnode);
+
+	/*
+	 * Verify that all the BTEs are complete
+	 */
+	for (i = 0; i < BTES_PER_NODE; i++) {
+		bte = &err_nodepda->bte_if[i];
+		status = BTE_LNSTAT_LOAD(bte);
+		if ((status & IBLS_ERROR) || !(status & IBLS_BUSY))
+			continue;
+		mod_timer(recovery_timer, HZ * 5);
+		BTE_PRINTK(("eh:%p:%d Marked Giving up\n", err_nodepda,
+			    smp_processor_id()));
+		return 1;
+	}
+	if (ia64_sn_bte_recovery(nasid))
+		panic("bte_error_handler(): Fatal BTE Error");
+
+	del_timer(recovery_timer);
+	return 0;
 }
 
 /*
@@ -135,7 +171,6 @@ void bte_error_handler(unsigned long _nodepda)
 	struct nodepda_s *err_nodepda = (struct nodepda_s *)_nodepda;
 	spinlock_t *recovery_lock = &err_nodepda->bte_recovery_lock;
 	int i;
-	nasid_t nasid;
 	unsigned long irq_flags;
 	volatile u64 *notify;
 	bte_result_t bh_error;
@@ -160,12 +195,15 @@ void bte_error_handler(unsigned long _nodepda)
 	}
 
 	if (is_shub1()) {
-		shub1_bte_error_handler(_nodepda);
+		if (shub1_bte_error_handler(_nodepda)) {
+			spin_unlock_irqrestore(recovery_lock, irq_flags);
+			return;
+		}
 	} else {
-		nasid = cnodeid_to_nasid(err_nodepda->bte_if[0].bte_cnode);
-
-		if (ia64_sn_bte_recovery(nasid))
-			panic("bte_error_handler(): Fatal BTE Error");
+		if (shub2_bte_error_handler(_nodepda)) {
+			spin_unlock_irqrestore(recovery_lock, irq_flags);
+			return;
+		}
 	}
 
 	for (i = 0; i < BTES_PER_NODE; i++) {

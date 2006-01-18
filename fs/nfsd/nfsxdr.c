@@ -37,7 +37,7 @@ static u32	nfs_ftypes[] = {
 /*
  * XDR functions for basic NFS types
  */
-static inline u32 *
+static u32 *
 decode_fh(u32 *p, struct svc_fh *fhp)
 {
 	fh_init(fhp, NFS_FHSIZE);
@@ -151,7 +151,7 @@ decode_sattr(u32 *p, struct iattr *iap)
 	return p;
 }
 
-static inline u32 *
+static u32 *
 encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp,
 	     struct kstat *stat)
 {

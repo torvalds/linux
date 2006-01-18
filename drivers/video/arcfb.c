@@ -399,9 +399,8 @@ static void arcfb_imageblit(struct fb_info *info, const struct fb_image *image)
 				image->height);
 }
 
-static int arcfb_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  struct fb_info *info)
+static int arcfb_ioctl(struct fb_info *info,
+			  unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct arcfb_par *par = info->par;

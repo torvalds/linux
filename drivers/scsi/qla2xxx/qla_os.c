@@ -71,6 +71,12 @@ MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registratons "
 		"Default is 0 - no FDMI. 1 - perfom FDMI.");
 
+int ql2xprocessrscn;
+module_param(ql2xprocessrscn, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xprocessrscn,
+		"Option to enable port RSCN handling via a series of less"
+		"fabric intrusive ADISCs and PLOGIs.");
+
 /*
  * SCSI host template entry points
  */

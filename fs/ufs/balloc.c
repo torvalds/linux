@@ -49,7 +49,7 @@ void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	
 	UFSD(("ENTER, fragment %u, count %u\n", fragment, count))
 	
@@ -81,8 +81,9 @@ void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count
 	for (i = bit; i < end_bit; i++) {
 		if (ubh_isclr (UCPI_UBH, ucpi->c_freeoff, i))
 			ubh_setbit (UCPI_UBH, ucpi->c_freeoff, i);
-		else ufs_error (sb, "ufs_free_fragments",
-			"bit already cleared for fragment %u", i);
+		else 
+			ufs_error (sb, "ufs_free_fragments",
+				   "bit already cleared for fragment %u", i);
 	}
 	
 	DQUOT_FREE_BLOCK (inode, count);
@@ -143,7 +144,7 @@ void ufs_free_blocks (struct inode * inode, unsigned fragment, unsigned count) {
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 
 	UFSD(("ENTER, fragment %u, count %u\n", fragment, count))
 	
@@ -247,7 +248,7 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	*err = -ENOSPC;
 
 	lock_super (sb);
@@ -407,7 +408,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first (USPI_UBH);
+	usb1 = ubh_get_usb_first (uspi);
 	count = newcount - oldcount;
 	
 	cgno = ufs_dtog(fragment);
@@ -490,7 +491,7 @@ static unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	oldcg = cgno;
 	
 	/*
@@ -606,7 +607,7 @@ static unsigned ufs_alloccg_block (struct inode * inode,
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	ucg = ubh_get_ucg(UCPI_UBH);
 
 	if (goal == 0) {
@@ -663,7 +664,7 @@ static unsigned ufs_bitmap_search (struct super_block * sb,
 	UFSD(("ENTER, cg %u, goal %u, count %u\n", ucpi->c_cgx, goal, count))
 
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first (USPI_UBH);
+	usb1 = ubh_get_usb_first (uspi);
 	ucg = ubh_get_ucg(UCPI_UBH);
 
 	if (goal)

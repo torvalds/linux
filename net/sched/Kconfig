@@ -44,7 +44,7 @@ if NET_SCHED
 
 choice
 	prompt "Packet scheduler clock source"
-	default NET_SCH_CLK_JIFFIES
+	default NET_SCH_CLK_GETTIMEOFDAY
 	---help---
 	  Packet schedulers need a monotonic clock that increments at a static
 	  rate. The kernel provides several suitable interfaces, each with

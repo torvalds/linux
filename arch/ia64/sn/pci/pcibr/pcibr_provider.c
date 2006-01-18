@@ -23,7 +23,7 @@ int
 sal_pcibr_slot_enable(struct pcibus_info *soft, int device, void *resp)
 {
 	struct ia64_sal_retval ret_stuff;
-	uint64_t busnum;
+	u64 busnum;
 
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
@@ -40,7 +40,7 @@ sal_pcibr_slot_disable(struct pcibus_info *soft, int device, int action,
 		       void *resp)
 {
 	struct ia64_sal_retval ret_stuff;
-	uint64_t busnum;
+	u64 busnum;
 
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
@@ -56,7 +56,7 @@ sal_pcibr_slot_disable(struct pcibus_info *soft, int device, int action,
 static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 {
 	struct ia64_sal_retval ret_stuff;
-	uint64_t busnum;
+	u64 busnum;
 	int segment;
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
@@ -92,7 +92,8 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	cnodeid_t near_cnode;
 	struct hubdev_info *hubdev_info;
 	struct pcibus_info *soft;
-	struct sn_flush_device_list *sn_flush_device_list;
+	struct sn_flush_device_kernel *sn_flush_device_kernel;
+	struct sn_flush_device_common *common;
 
 	if (! IS_PCI_BRIDGE_ASIC(prom_bussoft->bs_asic_type)) {
 		return NULL;
@@ -137,20 +138,19 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	hubdev_info = (struct hubdev_info *)(NODEPDA(cnode)->pdinfo);
 
 	if (hubdev_info->hdi_flush_nasid_list.widget_p) {
-		sn_flush_device_list = hubdev_info->hdi_flush_nasid_list.
+		sn_flush_device_kernel = hubdev_info->hdi_flush_nasid_list.
 		    widget_p[(int)soft->pbi_buscommon.bs_xid];
-		if (sn_flush_device_list) {
+		if (sn_flush_device_kernel) {
 			for (j = 0; j < DEV_PER_WIDGET;
-			     j++, sn_flush_device_list++) {
-				if (sn_flush_device_list->sfdl_slot == -1)
+			     j++, sn_flush_device_kernel++) {
+				common = sn_flush_device_kernel->common;
+				if (common->sfdl_slot == -1)
 					continue;
-				if ((sn_flush_device_list->
-				     sfdl_persistent_segment ==
+				if ((common->sfdl_persistent_segment ==
 				     soft->pbi_buscommon.bs_persist_segment) &&
-				     (sn_flush_device_list->
-				     sfdl_persistent_busnum ==
+				     (common->sfdl_persistent_busnum ==
 				     soft->pbi_buscommon.bs_persist_busnum))
-					sn_flush_device_list->sfdl_pcibus_info =
+					common->sfdl_pcibus_info =
 					    soft;
 			}
 		}
@@ -159,9 +159,9 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	/* Setup the PMU ATE map */
 	soft->pbi_int_ate_resource.lowest_free_index = 0;
 	soft->pbi_int_ate_resource.ate =
-	    kmalloc(soft->pbi_int_ate_size * sizeof(uint64_t), GFP_KERNEL);
+	    kmalloc(soft->pbi_int_ate_size * sizeof(u64), GFP_KERNEL);
 	memset(soft->pbi_int_ate_resource.ate, 0,
- 	       (soft->pbi_int_ate_size * sizeof(uint64_t)));
+ 	       (soft->pbi_int_ate_size * sizeof(u64)));
 
 	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP) {
 		/* TIO PCI Bridge: find nearest node with CPUs */
@@ -203,7 +203,7 @@ void pcibr_target_interrupt(struct sn_irq_info *sn_irq_info)
 	struct pcidev_info *pcidev_info;
 	struct pcibus_info *pcibus_info;
 	int bit = sn_irq_info->irq_int_bit;
-	uint64_t xtalk_addr = sn_irq_info->irq_xtalkaddr;
+	u64 xtalk_addr = sn_irq_info->irq_xtalkaddr;
 
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (pcidev_info) {

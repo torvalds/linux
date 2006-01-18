@@ -1131,9 +1131,7 @@ static void amifb_copyarea(struct fb_info *info,
 			   const struct fb_copyarea *region);
 static void amifb_imageblit(struct fb_info *info,
 			    const struct fb_image *image);
-static int amifb_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg,
-		       struct fb_info *info);
+static int amifb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 
 	/*
@@ -2172,9 +2170,8 @@ static void amifb_imageblit(struct fb_info *info, const struct fb_image *image)
 	 * Amiga Frame Buffer Specific ioctls
 	 */
 
-static int amifb_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg,
-		       struct fb_info *info)
+static int amifb_ioctl(struct fb_info *info,
+		       unsigned int cmd, unsigned long arg)
 {
 	union {
 		struct fb_fix_cursorinfo fix;

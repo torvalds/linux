@@ -93,7 +93,7 @@ struct tvp5150 {
 	int sat;
 };
 
-static inline int tvp5150_read(struct i2c_client *c, unsigned char addr)
+static int tvp5150_read(struct i2c_client *c, unsigned char addr)
 {
 	unsigned char buffer[1];
 	int rc;
@@ -634,7 +634,7 @@ struct i2c_vbi_ram_value {
 	unsigned char values[26];
 };
 
-struct i2c_vbi_ram_value vbi_ram_default[] =
+static struct i2c_vbi_ram_value vbi_ram_default[] =
 {
 	{0x010, /* WST SECAM 6 */
 		{ 0xaa, 0xaa, 0xff, 0xff , 0xe7, 0x2e, 0x20, 0x26, 0xe6, 0xb4, 0x0e, 0x0, 0x0, 0x0, 0x10, 0x0 }

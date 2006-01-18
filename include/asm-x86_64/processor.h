@@ -273,13 +273,6 @@ struct thread_struct {
 #define INIT_MMAP \
 { &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
 
-#define STACKFAULT_STACK 1
-#define DOUBLEFAULT_STACK 2 
-#define NMI_STACK 3 
-#define DEBUG_STACK 4 
-#define MCE_STACK 5
-#define N_EXCEPTION_STACKS 5  /* hw limit: 7 */
-
 #define start_thread(regs,new_rip,new_rsp) do { \
 	asm volatile("movl %0,%%fs; movl %0,%%es; movl %0,%%ds": :"r" (0));	 \
 	load_gs_index(0);							\
@@ -483,5 +476,7 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 extern unsigned long boot_option_idle_override;
 /* Boot loader type from the setup header */
 extern int bootloader_type;
+
+#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 
 #endif /* __ASM_X86_64_PROCESSOR_H */

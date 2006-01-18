@@ -306,6 +306,7 @@ static const char *v4l2_int_ioctls[] = {
 #endif
 	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
 	[_IOC_NR(AUDC_SET_INPUT)]              = "AUDC_SET_INPUT",
+	[_IOC_NR(MSP_SET_MATRIX)]              = "MSP_SET_MATRIX",
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",

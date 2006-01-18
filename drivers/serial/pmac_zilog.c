@@ -69,7 +69,6 @@
 #include <asm/pmac_feature.h>
 #include <asm/dbdma.h>
 #include <asm/macio.h>
-#include <asm/semaphore.h>
 
 #if defined (CONFIG_SERIAL_PMACZILOG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -1593,7 +1592,7 @@ static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 	state = pmz_uart_reg.state + uap->port.line;
 
 	mutex_lock(&pmz_irq_mutex);
-	down(&state->sem);
+	mutex_lock(&state->mutex);
 
 	spin_lock_irqsave(&uap->port.lock, flags);
 
@@ -1624,7 +1623,7 @@ static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 	/* Shut the chip down */
 	pmz_set_scc_power(uap, 0);
 
-	up(&state->sem);
+	mutex_unlock(&state->mutex);
 	mutex_unlock(&pmz_irq_mutex);
 
 	pmz_debug("suspend, switching complete\n");
@@ -1653,7 +1652,7 @@ static int pmz_resume(struct macio_dev *mdev)
 	state = pmz_uart_reg.state + uap->port.line;
 
 	mutex_lock(&pmz_irq_mutex);
-	down(&state->sem);
+	mutex_lock(&state->mutex);
 
 	spin_lock_irqsave(&uap->port.lock, flags);
 	if (!ZS_IS_OPEN(uap) && !ZS_IS_CONS(uap)) {
@@ -1685,7 +1684,7 @@ static int pmz_resume(struct macio_dev *mdev)
 	}
 
  bail:
-	up(&state->sem);
+	mutex_unlock(&state->mutex);
 	mutex_unlock(&pmz_irq_mutex);
 
 	/* Right now, we deal with delay by blocking here, I'll be

@@ -1290,7 +1290,7 @@ static void aic7xxx_check_scbs(struct aic7xxx_host *p, char *buffer);
  *
  ***************************************************************************/
 
-static inline unsigned char
+static unsigned char
 aic_inb(struct aic7xxx_host *p, long port)
 {
 #ifdef MMAPIO
@@ -1309,7 +1309,7 @@ aic_inb(struct aic7xxx_host *p, long port)
 #endif
 }
 
-static inline void
+static void
 aic_outb(struct aic7xxx_host *p, unsigned char val, long port)
 {
 #ifdef MMAPIO

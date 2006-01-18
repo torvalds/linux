@@ -754,11 +754,6 @@ struct Map *HostMapP;
 	ushort RtaType;
 	unsigned long flags;
 
-#ifdef CHECK
-	CheckHostP(HostP);
-	CheckHostMapP(HostMapP);
-#endif
-
 	rio_dprintk(RIO_DEBUG_TABLE, "Mapping sysport %d to id %d\n", (int) HostMapP->SysPort, HostMapP->ID);
 
 	/*
@@ -784,9 +779,6 @@ struct Map *HostMapP;
 
 		rio_dprintk(RIO_DEBUG_TABLE, "c1 p = %p, p->rioPortp = %p\n", p, p->RIOPortp);
 		PortP = p->RIOPortp[SysPort];
-#if 0
-		PortP->TtyP = &p->channel[SysPort];
-#endif
 		rio_dprintk(RIO_DEBUG_TABLE, "Map port\n");
 
 		/*

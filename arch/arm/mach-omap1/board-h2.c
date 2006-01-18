@@ -199,7 +199,6 @@ static void __init h2_map_io(void)
 
 MACHINE_START(OMAP_H2, "TI-H2")
 	/* Maintainer: Imre Deak <imre.deak@nokia.com> */
-	.phys_ram	= 0x10000000,
 	.phys_io	= 0xfff00000,
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,

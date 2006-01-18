@@ -111,7 +111,7 @@ struct nf_conntrack_tuple
 #ifdef __KERNEL__
 
 #define NF_CT_DUMP_TUPLE(tp)						    \
-DEBUGP("tuple %p: %u %u %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x %hu -> %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x %hu\n",					    \
+DEBUGP("tuple %p: %u %u " NIP6_FMT " %hu -> " NIP6_FMT " %hu\n",	    \
 	(tp), (tp)->src.l3num, (tp)->dst.protonum,			    \
 	NIP6(*(struct in6_addr *)(tp)->src.u3.all), ntohs((tp)->src.u.all), \
 	NIP6(*(struct in6_addr *)(tp)->dst.u3.all), ntohs((tp)->dst.u.all))

@@ -242,7 +242,6 @@ static int allowed_drive_mask = 0x33;
 
 static int irqdma_allocated;
 
-#define LOCAL_END_REQUEST
 #define DEVICE_NAME "floppy"
 
 #include <linux/blkdev.h>

@@ -2,7 +2,7 @@
  * linux/ipc/util.h
  * Copyright (C) 1999 Christoph Rohland
  *
- * ipc helper functions (c) 1999 Manfred Spraul <manfreds@colorfullife.com>
+ * ipc helper functions (c) 1999 Manfred Spraul <manfred@colorfullife.com>
  */
 
 #ifndef _IPC_UTIL_H

@@ -21,6 +21,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/init.h>
 #include <linux/bcd.h>
+#include <linux/ioport.h>
 
 #include <asm/io.h>
 #include <asm/nvram.h>
@@ -37,14 +38,16 @@ static int nvram_data = NVRAM_DATA;
 long __init chrp_time_init(void)
 {
 	struct device_node *rtcs;
+	struct resource r;
 	int base;
 
 	rtcs = find_compatible_devices("rtc", "pnpPNP,b00");
 	if (rtcs == NULL)
 		rtcs = find_compatible_devices("rtc", "ds1385-rtc");
-	if (rtcs == NULL || rtcs->addrs == NULL)
+	if (rtcs == NULL || of_address_to_resource(rtcs, 0, &r))
 		return 0;
-	base = rtcs->addrs[0].address;
+	
+	base = r.start;
 	nvram_as1 = 0;
 	nvram_as0 = base;
 	nvram_data = base + 1;

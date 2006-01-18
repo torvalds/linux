@@ -195,6 +195,8 @@ static int pnp_bus_resume(struct device *dev)
 struct bus_type pnp_bus_type = {
 	.name	= "pnp",
 	.match	= pnp_bus_match,
+	.probe	= pnp_device_probe,
+	.remove	= pnp_device_remove,
 	.suspend = pnp_bus_suspend,
 	.resume = pnp_bus_resume,
 };
@@ -215,8 +217,6 @@ int pnp_register_driver(struct pnp_driver *drv)
 
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pnp_bus_type;
-	drv->driver.probe = pnp_device_probe;
-	drv->driver.remove = pnp_device_remove;
 
 	count = driver_register(&drv->driver);
 

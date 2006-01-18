@@ -215,7 +215,6 @@ static struct tty_driver *siccnormal_driver;
  * memory if large numbers of serial ports are open.
  */
 static u_char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 #define HIGH_BITS_OFFSET    ((sizeof(long)-sizeof(int))*8)
 

@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("iptables REDIRECT target module");
 /* FIXME: Take multiple ranges --RR */
 static int
 redirect_check(const char *tablename,
-	       const struct ipt_entry *e,
+	       const void *e,
 	       void *targinfo,
 	       unsigned int targinfosize,
 	       unsigned int hook_mask)

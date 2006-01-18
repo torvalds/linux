@@ -69,13 +69,14 @@ struct sbus_dma_info {
 };
 #endif
 
+struct snd_cs4231;
 struct cs4231_dma_control {
         void		(*prepare)(struct cs4231_dma_control *dma_cont, int dir);
         void		(*enable)(struct cs4231_dma_control *dma_cont, int on);
         int		(*request)(struct cs4231_dma_control *dma_cont, dma_addr_t bus_addr, size_t len);
         unsigned int	(*address)(struct cs4231_dma_control *dma_cont);
         void		(*reset)(struct snd_cs4231 *chip); 
-        void		(*preallocate)(struct snd_cs4231 *chip, struct snd_snd_pcm *pcm); 
+        void		(*preallocate)(struct snd_cs4231 *chip, struct snd_pcm *pcm); 
 #ifdef EBUS_SUPPORT
 	struct		ebus_dma_info	ebus_info;
 #endif

@@ -149,7 +149,6 @@ postcore_initcall(netstar_late_init);
 
 MACHINE_START(NETSTAR, "NetStar OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */
-	.phys_ram	= 0x10000000,
 	.phys_io	= 0xfff00000,
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,

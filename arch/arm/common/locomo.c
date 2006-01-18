@@ -1103,14 +1103,14 @@ static int locomo_bus_remove(struct device *dev)
 struct bus_type locomo_bus_type = {
 	.name		= "locomo-bus",
 	.match		= locomo_match,
+	.probe		= locomo_bus_probe,
+	.remove		= locomo_bus_remove,
 	.suspend	= locomo_bus_suspend,
 	.resume		= locomo_bus_resume,
 };
 
 int locomo_driver_register(struct locomo_driver *driver)
 {
-	driver->drv.probe = locomo_bus_probe;
-	driver->drv.remove = locomo_bus_remove;
 	driver->drv.bus = &locomo_bus_type;
 	return driver_register(&driver->drv);
 }

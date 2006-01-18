@@ -74,7 +74,6 @@ static inline void *load_pointer(struct sk_buff *skb, int k,
  * filtering, filter is the array of filter instructions, and
  * len is the number of filter blocks in the array.
  */
- 
 unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 {
 	struct sock_filter *fentry;	/* We walk down these */
@@ -175,7 +174,7 @@ unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int 
 			continue;
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = fentry->k;
- load_w:
+load_w:
 			ptr = load_pointer(skb, k, 4, &tmp);
 			if (ptr != NULL) {
 				A = ntohl(*(u32 *)ptr);
@@ -184,7 +183,7 @@ unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int 
 			break;
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = fentry->k;
- load_h:
+load_h:
 			ptr = load_pointer(skb, k, 2, &tmp);
 			if (ptr != NULL) {
 				A = ntohs(*(u16 *)ptr);
@@ -287,7 +286,9 @@ load_b:
  * no references or jumps that are out of range, no illegal
  * instructions, and must end with a RET instruction.
  *
- * Returns 0 if the rule set is legal or a negative errno code if not.
+ * All jumps are forward as they are not signed.
+ *
+ * Returns 0 if the rule set is legal or -EINVAL if not.
  */
 int sk_chk_filter(struct sock_filter *filter, int flen)
 {
@@ -299,7 +300,6 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 
 	/* check the filter code now */
 	for (pc = 0; pc < flen; pc++) {
-		/* all jumps are forward as they are not signed */
 		ftest = &filter[pc];
 
 		/* Only allow valid instructions */
@@ -373,7 +373,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 		case BPF_JMP|BPF_JSET|BPF_K:
 		case BPF_JMP|BPF_JSET|BPF_X:
 			/* for conditionals both must be safe */
- 			if (pc + ftest->jt + 1 >= flen ||
+			if (pc + ftest->jt + 1 >= flen ||
 			    pc + ftest->jf + 1 >= flen)
 				return -EINVAL;
 			break;
@@ -383,12 +383,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 		}
 	}
 
-	/*
-	 * The program must end with a return. We don't care where they
-	 * jumped within the script (its always forwards) but in the end
-	 * they _will_ hit this.
-	 */
-        return (BPF_CLASS(filter[flen - 1].code) == BPF_RET) ? 0 : -EINVAL;
+	return (BPF_CLASS(filter[flen - 1].code) == BPF_RET) ? 0 : -EINVAL;
 }
 
 /**
@@ -408,8 +403,8 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	int err;
 
 	/* Make sure new filter is there and in the right amounts. */
-        if (fprog->filter == NULL)
-                return -EINVAL;
+	if (fprog->filter == NULL)
+		return -EINVAL;
 
 	fp = sock_kmalloc(sk, fsize+sizeof(*fp), GFP_KERNEL);
 	if (!fp)

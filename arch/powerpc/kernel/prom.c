@@ -1627,6 +1627,11 @@ static void of_node_release(struct kref *kref)
 		kfree(prop->value);
 		kfree(prop);
 		prop = next;
+
+		if (!prop) {
+			prop = node->deadprops;
+			node->deadprops = NULL;
+		}
 	}
 	kfree(node->intrs);
 	kfree(node->full_name);
@@ -1774,6 +1779,23 @@ static int __init prom_reconfig_setup(void)
 __initcall(prom_reconfig_setup);
 #endif
 
+struct property *of_find_property(struct device_node *np, const char *name,
+				  int *lenp)
+{
+	struct property *pp;
+
+	read_lock(&devtree_lock);
+	for (pp = np->properties; pp != 0; pp = pp->next)
+		if (strcmp(pp->name, name) == 0) {
+			if (lenp != 0)
+				*lenp = pp->length;
+			break;
+		}
+	read_unlock(&devtree_lock);
+
+	return pp;
+}
+
 /*
  * Find a property with a given name for a given node
  * and return the value.
@@ -1781,15 +1803,8 @@ __initcall(prom_reconfig_setup);
 unsigned char *get_property(struct device_node *np, const char *name,
 			    int *lenp)
 {
-	struct property *pp;
-
-	for (pp = np->properties; pp != 0; pp = pp->next)
-		if (strcmp(pp->name, name) == 0) {
-			if (lenp != 0)
-				*lenp = pp->length;
-			return pp->value;
-		}
-	return NULL;
+	struct property *pp = of_find_property(np,name,lenp);
+	return pp ? pp->value : NULL;
 }
 EXPORT_SYMBOL(get_property);
 
@@ -1823,4 +1838,82 @@ int prom_add_property(struct device_node* np, struct property* prop)
 	return 0;
 }
 
+/*
+ * Remove a property from a node.  Note that we don't actually
+ * remove it, since we have given out who-knows-how-many pointers
+ * to the data using get-property.  Instead we just move the property
+ * to the "dead properties" list, so it won't be found any more.
+ */
+int prom_remove_property(struct device_node *np, struct property *prop)
+{
+	struct property **next;
+	int found = 0;
 
+	write_lock(&devtree_lock);
+	next = &np->properties;
+	while (*next) {
+		if (*next == prop) {
+			/* found the node */
+			*next = prop->next;
+			prop->next = np->deadprops;
+			np->deadprops = prop;
+			found = 1;
+			break;
+		}
+		next = &(*next)->next;
+	}
+	write_unlock(&devtree_lock);
+
+	if (!found)
+		return -ENODEV;
+
+#ifdef CONFIG_PROC_DEVICETREE
+	/* try to remove the proc node as well */
+	if (np->pde)
+		proc_device_tree_remove_prop(np->pde, prop);
+#endif /* CONFIG_PROC_DEVICETREE */
+
+	return 0;
+}
+
+/*
+ * Update a property in a node.  Note that we don't actually
+ * remove it, since we have given out who-knows-how-many pointers
+ * to the data using get-property.  Instead we just move the property
+ * to the "dead properties" list, and add the new property to the
+ * property list
+ */
+int prom_update_property(struct device_node *np,
+			 struct property *newprop,
+			 struct property *oldprop)
+{
+	struct property **next;
+	int found = 0;
+
+	write_lock(&devtree_lock);
+	next = &np->properties;
+	while (*next) {
+		if (*next == oldprop) {
+			/* found the node */
+			newprop->next = oldprop->next;
+			*next = newprop;
+			oldprop->next = np->deadprops;
+			np->deadprops = oldprop;
+			found = 1;
+			break;
+		}
+		next = &(*next)->next;
+	}
+	write_unlock(&devtree_lock);
+
+	if (!found)
+		return -ENODEV;
+
+#ifdef CONFIG_PROC_DEVICETREE
+	/* try to add to proc as well if it was initialized */
+	if (np->pde)
+		proc_device_tree_update_prop(np->pde, newprop, oldprop);
+#endif /* CONFIG_PROC_DEVICETREE */
+
+	return 0;
+}

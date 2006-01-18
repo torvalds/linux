@@ -692,7 +692,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		if (!(neigh->nud_state & NUD_VALID)) {
 			ND_PRINTK1(KERN_DEBUG
 				   "%s(): trying to ucast probe in NUD_INVALID: "
-				   "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+				   NIP6_FMT "\n",
 				   __FUNCTION__,
 				   NIP6(*target));
 		}

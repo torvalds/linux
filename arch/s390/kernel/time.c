@@ -214,7 +214,7 @@ void account_ticks(struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	account_user_vtime(current);
+	account_tick_vtime(current);
 #else
 	while (ticks--)
 		update_process_times(user_mode(regs));

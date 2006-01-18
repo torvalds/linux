@@ -1537,7 +1537,7 @@ out_ret:
  * Ooo, nasty.  We need here to frob 32-bit unsigned longs to
  * 64-bit unsigned longs.
  */
-static inline
+static
 int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {
@@ -1570,7 +1570,7 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 	return 0;
 }
 
-static inline
+static
 void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {

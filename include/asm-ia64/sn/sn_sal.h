@@ -75,7 +75,8 @@
 #define  SN_SAL_IOIF_GET_HUBDEV_INFO		   0x02000055
 #define  SN_SAL_IOIF_GET_PCIBUS_INFO		   0x02000056
 #define  SN_SAL_IOIF_GET_PCIDEV_INFO		   0x02000057
-#define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058
+#define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058	// deprecated
+#define  SN_SAL_IOIF_GET_DEVICE_DMAFLUSH_LIST	   0x0200005a
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
 #define SN_SAL_BTE_RECOVER			   0x02000061
@@ -272,7 +273,7 @@ ia64_sn_console_putc(char ch)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTC, (uint64_t)ch, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTC, (u64)ch, 0, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;
 }
@@ -289,7 +290,7 @@ ia64_sn_console_putb(const char *buf, int len)
 	ret_stuff.v0 = 0; 
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTB, (uint64_t)buf, (uint64_t)len, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTB, (u64)buf, (u64)len, 0, 0, 0, 0, 0);
 
 	if ( ret_stuff.status == 0 ) {
 		return ret_stuff.v0;
@@ -309,7 +310,7 @@ ia64_sn_plat_specific_err_print(int (*hook)(const char*, ...), char *rec)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_PRINT_ERROR, (uint64_t)hook, (uint64_t)rec, 0, 0, 0, 0, 0);
+	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_PRINT_ERROR, (u64)hook, (u64)rec, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;
 }
@@ -397,7 +398,7 @@ ia64_sn_console_intr_status(void)
  * Enable an interrupt on the SAL console device.
  */
 static inline void
-ia64_sn_console_intr_enable(uint64_t intr)
+ia64_sn_console_intr_enable(u64 intr)
 {
 	struct ia64_sal_retval ret_stuff;
 
@@ -414,7 +415,7 @@ ia64_sn_console_intr_enable(uint64_t intr)
  * Disable an interrupt on the SAL console device.
  */
 static inline void
-ia64_sn_console_intr_disable(uint64_t intr)
+ia64_sn_console_intr_disable(u64 intr)
 {
 	struct ia64_sal_retval ret_stuff;
 
@@ -440,7 +441,7 @@ ia64_sn_console_xmit_chars(char *buf, int len)
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_XMIT_CHARS,
-		 (uint64_t)buf, (uint64_t)len,
+		 (u64)buf, (u64)len,
 		 0, 0, 0, 0, 0);
 
 	if (ret_stuff.status == 0) {
@@ -1100,7 +1101,7 @@ ia64_sn_bte_recovery(nasid_t nasid)
 	struct ia64_sal_retval rv;
 
 	rv.status = 0;
-	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, 0, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, (u64)nasid, 0, 0, 0, 0, 0, 0);
 	if (rv.status == SALRET_NOT_IMPLEMENTED)
 		return 0;
 	return (int) rv.status;

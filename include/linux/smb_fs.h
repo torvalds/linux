@@ -58,53 +58,6 @@ static inline struct smb_inode_info *SMB_I(struct inode *inode)
 /* where to find the base of the SMB packet proper */
 #define smb_base(buf) ((u8 *)(((u8 *)(buf))+4))
 
-#ifdef DEBUG_SMB_MALLOC
-
-#include <linux/slab.h>
-
-extern int smb_malloced;
-extern int smb_current_vmalloced;
-extern int smb_current_kmalloced;
-
-static inline void *
-smb_vmalloc(unsigned int size)
-{
-        smb_malloced += 1;
-        smb_current_vmalloced += 1;
-        return vmalloc(size);
-}
-
-static inline void
-smb_vfree(void *obj)
-{
-        smb_current_vmalloced -= 1;
-        vfree(obj);
-}
-
-static inline void *
-smb_kmalloc(size_t size, int flags)
-{
-	smb_malloced += 1;
-	smb_current_kmalloced += 1;
-	return kmalloc(size, flags);
-}
-
-static inline void
-smb_kfree(void *obj)
-{
-	smb_current_kmalloced -= 1;
-	kfree(obj);
-}
-
-#else /* DEBUG_SMB_MALLOC */
-
-#define smb_kmalloc(s,p)	kmalloc(s,p)
-#define smb_kfree(o)		kfree(o)
-#define smb_vmalloc(s)		vmalloc(s)
-#define smb_vfree(o)		vfree(o)
-
-#endif /* DEBUG_SMB_MALLOC */
-
 /*
  * Flags for the in-memory inode
  */

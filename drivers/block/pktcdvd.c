@@ -247,7 +247,7 @@ static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
 	return rb_entry(n, struct pkt_rb_node, rb_node);
 }
 
-static inline void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
+static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
 {
 	rb_erase(&node->rb_node, &pd->bio_queue);
 	mempool_free(node, pd->rb_pool);
@@ -315,7 +315,7 @@ static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *nod
 /*
  * Add a bio to a single linked list defined by its head and tail pointers.
  */
-static inline void pkt_add_list_last(struct bio *bio, struct bio **list_head, struct bio **list_tail)
+static void pkt_add_list_last(struct bio *bio, struct bio **list_head, struct bio **list_tail)
 {
 	bio->bi_next = NULL;
 	if (*list_tail) {

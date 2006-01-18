@@ -6,14 +6,6 @@
 
 /* ---------------------------------------------------------------------- */
 
-struct msp_matrix {
-  int input;
-  int output;
-};
-
-/* ioctl for MSP_SET_MATRIX will have to be registered */
-#define MSP_SET_MATRIX     _IOW('m',17,struct msp_matrix)
-
 /* This macro is allowed for *constants* only, gcc must calculate it
    at compile time.  Remember -- no floats in kernel mode */
 #define MSP_CARRIER(freq) ((int)((float)(freq / 18.432) * (1 << 24)))

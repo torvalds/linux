@@ -56,7 +56,7 @@ static inline int buf_check_overflow(struct cbuf *buf)
 	return buf->p > buf->ep;
 }
 
-static inline int buf_check_size(struct cbuf *buf, int len)
+static int buf_check_size(struct cbuf *buf, int len)
 {
 	if (buf->p + len > buf->ep) {
 		if (buf->p < buf->ep) {
@@ -72,7 +72,7 @@ static inline int buf_check_size(struct cbuf *buf, int len)
 	return 1;
 }
 
-static inline void *buf_alloc(struct cbuf *buf, int len)
+static void *buf_alloc(struct cbuf *buf, int len)
 {
 	void *ret = NULL;
 
@@ -84,7 +84,7 @@ static inline void *buf_alloc(struct cbuf *buf, int len)
 	return ret;
 }
 
-static inline void buf_put_int8(struct cbuf *buf, u8 val)
+static void buf_put_int8(struct cbuf *buf, u8 val)
 {
 	if (buf_check_size(buf, 1)) {
 		buf->p[0] = val;
@@ -92,7 +92,7 @@ static inline void buf_put_int8(struct cbuf *buf, u8 val)
 	}
 }
 
-static inline void buf_put_int16(struct cbuf *buf, u16 val)
+static void buf_put_int16(struct cbuf *buf, u16 val)
 {
 	if (buf_check_size(buf, 2)) {
 		*(__le16 *) buf->p = cpu_to_le16(val);
@@ -100,7 +100,7 @@ static inline void buf_put_int16(struct cbuf *buf, u16 val)
 	}
 }
 
-static inline void buf_put_int32(struct cbuf *buf, u32 val)
+static void buf_put_int32(struct cbuf *buf, u32 val)
 {
 	if (buf_check_size(buf, 4)) {
 		*(__le32 *)buf->p = cpu_to_le32(val);
@@ -108,7 +108,7 @@ static inline void buf_put_int32(struct cbuf *buf, u32 val)
 	}
 }
 
-static inline void buf_put_int64(struct cbuf *buf, u64 val)
+static void buf_put_int64(struct cbuf *buf, u64 val)
 {
 	if (buf_check_size(buf, 8)) {
 		*(__le64 *)buf->p = cpu_to_le64(val);
@@ -116,7 +116,7 @@ static inline void buf_put_int64(struct cbuf *buf, u64 val)
 	}
 }
 
-static inline void buf_put_stringn(struct cbuf *buf, const char *s, u16 slen)
+static void buf_put_stringn(struct cbuf *buf, const char *s, u16 slen)
 {
 	if (buf_check_size(buf, slen + 2)) {
 		buf_put_int16(buf, slen);
@@ -130,7 +130,7 @@ static inline void buf_put_string(struct cbuf *buf, const char *s)
 	buf_put_stringn(buf, s, strlen(s));
 }
 
-static inline u8 buf_get_int8(struct cbuf *buf)
+static u8 buf_get_int8(struct cbuf *buf)
 {
 	u8 ret = 0;
 
@@ -142,7 +142,7 @@ static inline u8 buf_get_int8(struct cbuf *buf)
 	return ret;
 }
 
-static inline u16 buf_get_int16(struct cbuf *buf)
+static u16 buf_get_int16(struct cbuf *buf)
 {
 	u16 ret = 0;
 
@@ -154,7 +154,7 @@ static inline u16 buf_get_int16(struct cbuf *buf)
 	return ret;
 }
 
-static inline u32 buf_get_int32(struct cbuf *buf)
+static u32 buf_get_int32(struct cbuf *buf)
 {
 	u32 ret = 0;
 
@@ -166,7 +166,7 @@ static inline u32 buf_get_int32(struct cbuf *buf)
 	return ret;
 }
 
-static inline u64 buf_get_int64(struct cbuf *buf)
+static u64 buf_get_int64(struct cbuf *buf)
 {
 	u64 ret = 0;
 
@@ -178,7 +178,7 @@ static inline u64 buf_get_int64(struct cbuf *buf)
 	return ret;
 }
 
-static inline void buf_get_str(struct cbuf *buf, struct v9fs_str *vstr)
+static void buf_get_str(struct cbuf *buf, struct v9fs_str *vstr)
 {
 	vstr->len = buf_get_int16(buf);
 	if (!buf_check_overflow(buf) && buf_check_size(buf, vstr->len)) {
@@ -190,7 +190,7 @@ static inline void buf_get_str(struct cbuf *buf, struct v9fs_str *vstr)
 	}
 }
 
-static inline void buf_get_qid(struct cbuf *bufp, struct v9fs_qid *qid)
+static void buf_get_qid(struct cbuf *bufp, struct v9fs_qid *qid)
 {
 	qid->type = buf_get_int8(bufp);
 	qid->version = buf_get_int32(bufp);
@@ -254,7 +254,7 @@ static int v9fs_size_wstat(struct v9fs_wstat *wstat, int extended)
  *
  */
 
-static inline void
+static void
 buf_get_stat(struct cbuf *bufp, struct v9fs_stat *stat, int extended)
 {
 	stat->size = buf_get_int16(bufp);
@@ -427,7 +427,7 @@ static inline void v9fs_put_int64(struct cbuf *bufp, u64 val, u64 * p)
 	buf_put_int64(bufp, val);
 }
 
-static inline void
+static void
 v9fs_put_str(struct cbuf *bufp, char *data, struct v9fs_str *str)
 {
 	if (data) {
@@ -441,7 +441,7 @@ v9fs_put_str(struct cbuf *bufp, char *data, struct v9fs_str *str)
 	buf_put_stringn(bufp, data, str->len);
 }
 
-static inline int
+static int
 v9fs_put_user_data(struct cbuf *bufp, const char __user * data, int count,
 		   unsigned char **pdata)
 {

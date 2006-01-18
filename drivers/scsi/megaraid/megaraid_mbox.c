@@ -1266,7 +1266,7 @@ megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
  * return the scb from the head of the free list. NULL if there are none
  * available
  **/
-static inline scb_t *
+static scb_t *
 megaraid_alloc_scb(adapter_t *adapter, struct scsi_cmnd *scp)
 {
 	struct list_head	*head = &adapter->kscb_pool;
@@ -1329,7 +1329,7 @@ megaraid_dealloc_scb(adapter_t *adapter, scb_t *scb)
  *
  * prepare the scatter-gather list
  */
-static inline int
+static int
 megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 {
 	struct scatterlist	*sgl;
@@ -1402,7 +1402,7 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
  *
  * post the command to the controller if mailbox is availble.
  */
-static inline int
+static int
 mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 {
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
@@ -2070,7 +2070,7 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
  *
  * Returns:	1 if the interrupt is valid, 0 otherwise
  */
-static inline int
+static int
 megaraid_ack_sequence(adapter_t *adapter)
 {
 	mraid_device_t		*raid_dev = ADAP2RAIDDEV(adapter);
@@ -2208,7 +2208,7 @@ megaraid_isr(int irq, void *devp, struct pt_regs *regs)
  *
  * DMA sync if required.
  */
-static inline void
+static void
 megaraid_mbox_sync_scb(adapter_t *adapter, scb_t *scb)
 {
 	mbox_ccb_t	*ccb;

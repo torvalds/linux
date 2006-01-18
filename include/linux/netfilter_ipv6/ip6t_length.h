@@ -1,10 +1,8 @@
 #ifndef _IP6T_LENGTH_H
 #define _IP6T_LENGTH_H
 
-struct ip6t_length_info {
-	u_int16_t  min, max;
-	u_int8_t   invert;
-};
+#include <linux/netfilter/xt_length.h>
+#define ip6t_length_info xt_length_info
 
 #endif /*_IP6T_LENGTH_H*/
 	

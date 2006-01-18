@@ -112,15 +112,6 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 	int Lies;
 	unsigned long flags;
 
-#ifdef STACK
-	RIOStackCheck("RIORouteRup");
-#endif
-#ifdef CHECK
-	CheckPacketP(PacketP);
-	CheckHostP(HostP);
-	CheckRup(Rup);
-	CheckHost(Host);
-#endif
 	/*
 	 ** Is this unit telling us it's current link topology?
 	 */
@@ -540,9 +531,6 @@ uint unit;
 
 		for (port = 0; port < PORTS_PER_RTA; port++, PortN++) {
 			ushort dest_port = port + 8;
-#if 0
-			uint PktInt;
-#endif
 			WORD *TxPktP;
 			PKT *Pkt;
 
@@ -623,10 +611,6 @@ uint UnitId;
 	unsigned long flags;
 	rio_spin_lock_irqsave(&HostP->HostLock, flags);
 
-#ifdef CHECK
-	CheckHostP(HostP);
-	CheckUnitId(UnitId);
-#endif
 	if (RIOCheck(HostP, UnitId)) {
 		rio_dprintk(RIO_DEBUG_ROUTE, "Unit %d is NOT isolated\n", UnitId);
 		rio_spin_unlock_irqrestore(&HostP->HostLock, flags);
@@ -651,10 +635,6 @@ uint UnitId;
 {
 	uint link, unit;
 
-#ifdef CHECK
-	CheckHostP(HostP);
-	CheckUnitId(UnitId);
-#endif
 	UnitId--;		/* this trick relies on the Unit Id being UNSIGNED! */
 
 	if (UnitId >= MAX_RUP)	/* dontcha just lurv unsigned maths! */
@@ -684,10 +664,6 @@ uint UnitId;
 {
 	unsigned char link;
 
-#ifdef CHECK
-	CheckHostP(HostP);
-	CheckUnitId(UnitId);
-#endif
 /* 	rio_dprint(RIO_DEBUG_ROUTE, ("Check to see if unit %d has a route to the host\n",UnitId)); */
 	rio_dprintk(RIO_DEBUG_ROUTE, "RIOCheck : UnitID = %d\n", UnitId);
 

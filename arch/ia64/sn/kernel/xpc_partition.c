@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -28,7 +28,7 @@
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/nodepda.h>
 #include <asm/sn/addrs.h>
-#include "xpc.h"
+#include <asm/sn/xpc.h>
 
 
 /* XPC is exiting flag */
@@ -771,7 +771,8 @@ xpc_identify_act_IRQ_req(int nasid)
 		}
 	}
 
-	if (!xpc_partition_disengaged(part)) {
+	if (part->disengage_request_timeout > 0 &&
+					!xpc_partition_disengaged(part)) {
 		/* still waiting on other side to disengage from us */
 		return;
 	}
@@ -873,6 +874,9 @@ xpc_partition_disengaged(struct xpc_partition *part)
 			 * request in a timely fashion, so assume it's dead.
 			 */
 
+			dev_info(xpc_part, "disengage from remote partition %d "
+				"timed out\n", partid);
+			xpc_disengage_request_timedout = 1;
 			xpc_clear_partition_engaged(1UL << partid);
 			disengaged = 1;
 		}

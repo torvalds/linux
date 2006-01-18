@@ -35,7 +35,7 @@
 
 #include <net/ieee80211.h>
 
-static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
+static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct sk_buff *skb,
 					struct ieee80211_rx_stats *rx_stats)
 {
@@ -165,7 +165,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
  * Responsible for handling management control frames
  *
  * Called by ieee80211_rx */
-static inline int
+static int
 ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats, u16 type,
 			u16 stype)
@@ -266,7 +266,7 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 }
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
-static inline int
+static int
 ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			   struct ieee80211_crypt_data *crypt)
 {
@@ -297,7 +297,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 }
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
-static inline int
+static int
 ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
 				struct sk_buff *skb, int keyidx,
 				struct ieee80211_crypt_data *crypt)
@@ -1156,7 +1156,7 @@ static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct iee
 
 /***************************************************/
 
-static inline int ieee80211_network_init(struct ieee80211_device *ieee, struct ieee80211_probe_response
+static int ieee80211_network_init(struct ieee80211_device *ieee, struct ieee80211_probe_response
 					 *beacon,
 					 struct ieee80211_network *network,
 					 struct ieee80211_rx_stats *stats)
@@ -1235,7 +1235,7 @@ static inline int is_same_network(struct ieee80211_network *src,
 		!memcmp(src->ssid, dst->ssid, src->ssid_len));
 }
 
-static inline void update_network(struct ieee80211_network *dst,
+static void update_network(struct ieee80211_network *dst,
 				  struct ieee80211_network *src)
 {
 	int qos_active;
@@ -1294,7 +1294,7 @@ static inline int is_beacon(int fc)
 	return (WLAN_FC_GET_STYPE(le16_to_cpu(fc)) == IEEE80211_STYPE_BEACON);
 }
 
-static inline void ieee80211_process_probe_response(struct ieee80211_device
+static void ieee80211_process_probe_response(struct ieee80211_device
 						    *ieee, struct
 						    ieee80211_probe_response
 						    *beacon, struct ieee80211_rx_stats

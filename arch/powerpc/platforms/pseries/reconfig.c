@@ -350,6 +350,100 @@ static int do_remove_node(char *buf)
 	return rv;
 }
 
+static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
+{
+	char *handle_str;
+	phandle handle;
+	*npp = NULL;
+
+	handle_str = buf;
+
+	buf = strchr(buf, ' ');
+	if (!buf)
+		return NULL;
+	*buf = '\0';
+	buf++;
+
+	handle = simple_strtoul(handle_str, NULL, 10);
+
+	*npp = of_find_node_by_phandle(handle);
+	return buf;
+}
+
+static int do_add_property(char *buf, size_t bufsize)
+{
+	struct property *prop = NULL;
+	struct device_node *np;
+	unsigned char *value;
+	char *name, *end;
+	int length;
+	end = buf + bufsize;
+	buf = parse_node(buf, bufsize, &np);
+
+	if (!np)
+		return -ENODEV;
+
+	if (parse_next_property(buf, end, &name, &length, &value) == NULL)
+		return -EINVAL;
+
+	prop = new_property(name, length, value, NULL);
+	if (!prop)
+		return -ENOMEM;
+
+	prom_add_property(np, prop);
+
+	return 0;
+}
+
+static int do_remove_property(char *buf, size_t bufsize)
+{
+	struct device_node *np;
+	char *tmp;
+	struct property *prop;
+	buf = parse_node(buf, bufsize, &np);
+
+	if (!np)
+		return -ENODEV;
+
+	tmp = strchr(buf,' ');
+	if (tmp)
+		*tmp = '\0';
+
+	if (strlen(buf) == 0)
+		return -EINVAL;
+
+	prop = of_find_property(np, buf, NULL);
+
+	return prom_remove_property(np, prop);
+}
+
+static int do_update_property(char *buf, size_t bufsize)
+{
+	struct device_node *np;
+	unsigned char *value;
+	char *name, *end;
+	int length;
+	struct property *newprop, *oldprop;
+	buf = parse_node(buf, bufsize, &np);
+	end = buf + bufsize;
+
+	if (!np)
+		return -ENODEV;
+
+	if (parse_next_property(buf, end, &name, &length, &value) == NULL)
+		return -EINVAL;
+
+	newprop = new_property(name, length, value, NULL);
+	if (!newprop)
+		return -ENOMEM;
+
+	oldprop = of_find_property(np, name,NULL);
+	if (!oldprop)
+		return -ENODEV;
+
+	return prom_update_property(np, newprop, oldprop);
+}
+
 /**
  * ofdt_write - perform operations on the Open Firmware device tree
  *
@@ -392,6 +486,12 @@ static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t coun
 		rv = do_add_node(tmp, count - (tmp - kbuf));
 	else if (!strcmp(kbuf, "remove_node"))
 		rv = do_remove_node(tmp);
+	else if (!strcmp(kbuf, "add_property"))
+		rv = do_add_property(tmp, count - (tmp - kbuf));
+	else if (!strcmp(kbuf, "remove_property"))
+		rv = do_remove_property(tmp, count - (tmp - kbuf));
+	else if (!strcmp(kbuf, "update_property"))
+		rv = do_update_property(tmp, count - (tmp - kbuf));
 	else
 		rv = -EINVAL;
 out:

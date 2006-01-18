@@ -50,7 +50,7 @@ void pipe_wait(struct inode * inode)
 	mutex_lock(PIPE_MUTEX(*inode));
 }
 
-static inline int
+static int
 pipe_iov_copy_from_user(void *to, struct iovec *iov, unsigned long len)
 {
 	unsigned long copy;
@@ -70,7 +70,7 @@ pipe_iov_copy_from_user(void *to, struct iovec *iov, unsigned long len)
 	return 0;
 }
 
-static inline int
+static int
 pipe_iov_copy_to_user(struct iovec *iov, const void *from, unsigned long len)
 {
 	unsigned long copy;

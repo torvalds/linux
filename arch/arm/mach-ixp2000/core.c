@@ -106,6 +106,16 @@ static struct map_desc ixp2000_io_desc[] __initdata = {
 		.length		= IXP2000_MSF_SIZE,
 		.type		= MT_IXP2000_DEVICE,
 	}, {
+		.virtual	= IXP2000_SCRATCH_RING_VIRT_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_SCRATCH_RING_PHYS_BASE),
+		.length		= IXP2000_SCRATCH_RING_SIZE,
+		.type		= MT_IXP2000_DEVICE,
+	}, {
+		.virtual	= IXP2000_SRAM0_VIRT_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_SRAM0_PHYS_BASE),
+		.length		= IXP2000_SRAM0_SIZE,
+		.type		= MT_IXP2000_DEVICE,
+	}, {
 		.virtual	= IXP2000_PCI_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_IO_PHYS_BASE),
 		.length		= IXP2000_PCI_IO_SIZE,

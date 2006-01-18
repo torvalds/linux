@@ -87,6 +87,15 @@
   Deepak Saxena     : dsaxena@plexity.net
                     : Intel IXDP2x01 (XScale ixp2x00 NPU) platform support
 
+  Dmitry Pervushin  : dpervushin@ru.mvista.com
+                    : PNX010X platform support
+
+  Deepak Saxena     : dsaxena@plexity.net
+                    : Intel IXDP2351 platform support
+
+  Dmitry Pervushin  : dpervushin@ru.mvista.com
+                    : PNX010X platform support
+
 */
 
 /* Always include 'config.h' first in case the user wants to turn on
@@ -171,6 +180,10 @@ static unsigned int cs8900_irq_map[] = {12,0,0,0};
 static unsigned int netcard_portlist[] __initdata =
    { 0x0300, 0};
 static unsigned int cs8900_irq_map[] = {1,0,0,0};
+#elif defined(CONFIG_MACH_IXDP2351)
+static unsigned int netcard_portlist[] __initdata = {IXDP2351_VIRT_CS8900_BASE, 0};
+static unsigned int cs8900_irq_map[] = {IRQ_IXDP2351_CS8900, 0, 0, 0};
+#include <asm/irq.h>
 #elif defined(CONFIG_ARCH_IXDP2X01)
 #include <asm/irq.h>
 static unsigned int netcard_portlist[] __initdata = {IXDP2X01_CS8900_VIRT_BASE, 0};
@@ -338,44 +351,54 @@ out:
 }
 #endif
 
-#if defined(CONFIG_ARCH_IXDP2X01)
-static int
+#if defined(CONFIG_MACH_IXDP2351)
+static u16
 readword(unsigned long base_addr, int portno)
 {
-	return (u16)__raw_readl(base_addr + (portno << 1));
+	return __raw_readw(base_addr + (portno << 1));
 }
 
 static void
-writeword(unsigned long base_addr, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
-	__raw_writel((u16)value, base_addr + (portno << 1));
+	__raw_writew(value, base_addr + (portno << 1));
 }
-#else
-#if defined(CONFIG_ARCH_PNX010X)
-static int
+#elif defined(CONFIG_ARCH_IXDP2X01)
+static u16
+readword(unsigned long base_addr, int portno)
+{
+	return __raw_readl(base_addr + (portno << 1));
+}
+
+static void
+writeword(unsigned long base_addr, int portno, u16 value)
+{
+	__raw_writel(value, base_addr + (portno << 1));
+}
+#elif defined(CONFIG_ARCH_PNX010X)
+static u16
 readword(unsigned long base_addr, int portno)
 {
 	return inw(base_addr + (portno << 1));
 }
 
 static void
-writeword(unsigned long base_addr, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
 	outw(value, base_addr + (portno << 1));
 }
 #else
-static int
+static u16
 readword(unsigned long base_addr, int portno)
 {
 	return inw(base_addr + portno);
 }
 
 static void
-writeword(unsigned long base_addr, int portno, int value)
+writeword(unsigned long base_addr, int portno, u16 value)
 {
 	outw(value, base_addr + portno);
 }
-#endif
 #endif
 
 static void
@@ -384,11 +407,11 @@ readwords(unsigned long base_addr, int portno, void *buf, int length)
 	u8 *buf8 = (u8 *)buf;
 
 	do {
-		u32 tmp32;
+		u16 tmp16;
 
-		tmp32 = readword(base_addr, portno);
-		*buf8++ = (u8)tmp32;
-		*buf8++ = (u8)(tmp32 >> 8);
+		tmp16 = readword(base_addr, portno);
+		*buf8++ = (u8)tmp16;
+		*buf8++ = (u8)(tmp16 >> 8);
 	} while (--length);
 }
 
@@ -398,23 +421,23 @@ writewords(unsigned long base_addr, int portno, void *buf, int length)
 	u8 *buf8 = (u8 *)buf;
 
 	do {
-		u32 tmp32;
+		u16 tmp16;
 
-		tmp32 = *buf8++;
-		tmp32 |= (*buf8++) << 8;
-		writeword(base_addr, portno, tmp32);
+		tmp16 = *buf8++;
+		tmp16 |= (*buf8++) << 8;
+		writeword(base_addr, portno, tmp16);
 	} while (--length);
 }
 
-static int
-readreg(struct net_device *dev, int regno)
+static u16
+readreg(struct net_device *dev, u16 regno)
 {
 	writeword(dev->base_addr, ADD_PORT, regno);
 	return readword(dev->base_addr, DATA_PORT);
 }
 
 static void
-writereg(struct net_device *dev, int regno, int value)
+writereg(struct net_device *dev, u16 regno, u16 value)
 {
 	writeword(dev->base_addr, ADD_PORT, regno);
 	writeword(dev->base_addr, DATA_PORT, value);
@@ -780,7 +803,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	} else {
 		i = lp->isa_config & INT_NO_MASK;
 		if (lp->chip_type == CS8900) {
-#if defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX010X)
+#if defined(CONFIG_MACH_IXDP2351) || defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX010X)
 		        i = cs8900_irq_map[0];
 #else
 			/* Translate the IRQ using the IRQ mapping table. */
@@ -1012,7 +1035,7 @@ skip_this_frame:
 
 void  __init reset_chip(struct net_device *dev)
 {
-#ifndef CONFIG_ARCH_IXDP2X01
+#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01)
 	struct net_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 #endif
@@ -1023,7 +1046,7 @@ void  __init reset_chip(struct net_device *dev)
 	/* wait 30 ms */
 	msleep(30);
 
-#ifndef CONFIG_ARCH_IXDP2X01
+#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01)
 	if (lp->chip_type != CS8900) {
 		/* Hardware problem requires PNP registers to be reconfigured after a reset */
 		writeword(ioaddr, ADD_PORT, PP_CS8920_ISAINT);
@@ -1287,7 +1310,7 @@ net_open(struct net_device *dev)
 	else
 #endif
 	{
-#if !defined(CONFIG_ARCH_IXDP2X01) && !defined(CONFIG_ARCH_PNX010X)
+#if !defined(CONFIG_MACH_IXDP2351) && !defined(CONFIG_ARCH_IXDP2X01) && !defined(CONFIG_ARCH_PNX010X)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			printk(KERN_ERR "%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
                                dev->name, dev->irq, lp->irq_map);

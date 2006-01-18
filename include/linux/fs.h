@@ -1290,6 +1290,9 @@ extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 
 extern int vfs_statfs(struct super_block *, struct kstatfs *);
 
+/* /sys/fs */
+extern struct subsystem fs_subsys;
+
 #define FLOCK_VERIFY_READ  1
 #define FLOCK_VERIFY_WRITE 2
 
@@ -1383,6 +1386,12 @@ extern int register_chrdev(unsigned int, const char *,
 extern int unregister_chrdev(unsigned int, const char *);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern int chrdev_open(struct inode *, struct file *);
+extern int get_chrdev_list(char *);
+extern void *acquire_chrdev_list(void);
+extern int count_chrdev_list(void);
+extern void *get_next_chrdev(void *);
+extern int get_chrdev_info(void *, int *, char **);
+extern void release_chrdev_list(void *);
 
 /* fs/block_dev.c */
 #define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
@@ -1391,6 +1400,11 @@ extern const char *bdevname(struct block_device *bdev, char *buffer);
 extern struct block_device *lookup_bdev(const char *);
 extern struct block_device *open_bdev_excl(const char *, int, void *);
 extern void close_bdev_excl(struct block_device *);
+extern void *acquire_blkdev_list(void);
+extern int count_blkdev_list(void);
+extern void *get_next_blkdev(void *);
+extern int get_blkdev_info(void *, int *, char **);
+extern void release_blkdev_list(void *);
 
 extern void init_special_inode(struct inode *, umode_t, dev_t);
 

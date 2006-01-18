@@ -36,6 +36,11 @@ struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
 };
 
+struct rtas_suspend_me_data {
+	long waiting;
+	struct rtas_args *args;
+};
+
 EXPORT_SYMBOL(rtas);
 
 DEFINE_SPINLOCK(rtas_data_buf_lock);
@@ -556,6 +561,80 @@ void rtas_os_term(char *str)
 	} while (status == RTAS_BUSY);
 }
 
+static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
+#ifdef CONFIG_PPC_PSERIES
+static void rtas_percpu_suspend_me(void *info)
+{
+	long rc;
+	long flags;
+	struct rtas_suspend_me_data *data =
+		(struct rtas_suspend_me_data *)info;
+
+	/*
+	 * We use "waiting" to indicate our state.  As long
+	 * as it is >0, we are still trying to all join up.
+	 * If it goes to 0, we have successfully joined up and
+	 * one thread got H_Continue.  If any error happens,
+	 * we set it to <0.
+	 */
+	local_irq_save(flags);
+	do {
+		rc = plpar_hcall_norets(H_JOIN);
+		smp_rmb();
+	} while (rc == H_Success && data->waiting > 0);
+	if (rc == H_Success)
+		goto out;
+
+	if (rc == H_Continue) {
+		data->waiting = 0;
+		rtas_call(ibm_suspend_me_token, 0, 1,
+			  data->args->args);
+	} else {
+		data->waiting = -EBUSY;
+		printk(KERN_ERR "Error on H_Join hypervisor call\n");
+	}
+
+out:
+	/* before we restore interrupts, make sure we don't
+	 * generate a spurious soft lockup errors
+	 */
+	touch_softlockup_watchdog();
+	local_irq_restore(flags);
+	return;
+}
+
+static int rtas_ibm_suspend_me(struct rtas_args *args)
+{
+	int i;
+
+	struct rtas_suspend_me_data data;
+
+	data.waiting = 1;
+	data.args = args;
+
+	/* Call function on all CPUs.  One of us will make the
+	 * rtas call
+	 */
+	if (on_each_cpu(rtas_percpu_suspend_me, &data, 1, 0))
+		data.waiting = -EINVAL;
+
+	if (data.waiting != 0)
+		printk(KERN_ERR "Error doing global join\n");
+
+	/* Prod each CPU.  This won't hurt, and will wake
+	 * anyone we successfully put to sleep with H_Join
+	 */
+	for_each_cpu(i)
+		plpar_hcall_norets(H_PROD, i);
+
+	return data.waiting;
+}
+#else /* CONFIG_PPC_PSERIES */
+static int rtas_ibm_suspend_me(struct rtas_args *args)
+{
+	return -ENOSYS;
+}
+#endif
 
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {
@@ -563,6 +642,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	unsigned long flags;
 	char *buff_copy, *errbuf = NULL;
 	int nargs;
+	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -580,6 +660,17 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	if (copy_from_user(args.args, uargs->args,
 			   nargs * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
+
+	if (args.token == RTAS_UNKNOWN_SERVICE)
+		return -EINVAL;
+
+	/* Need to handle ibm,suspend_me call specially */
+	if (args.token == ibm_suspend_me_token) {
+		rc = rtas_ibm_suspend_me(&args);
+		if (rc)
+			return rc;
+		goto copy_return;
+	}
 
 	buff_copy = get_errorlog_buffer();
 
@@ -604,6 +695,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 		kfree(buff_copy);
 	}
 
+ copy_return:
 	/* Copy out args. */
 	if (copy_to_user(uargs->args + nargs,
 			 args.args + nargs,
@@ -675,8 +767,10 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (_machine == PLATFORM_PSERIES_LPAR)
+	if (_machine == PLATFORM_PSERIES_LPAR) {
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
+		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
+	}
 #endif
 	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
 

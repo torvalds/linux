@@ -420,7 +420,7 @@ typedef struct TAG_TW_Device_Extension {
 	u32			max_sector_count;
 	u32			aen_count;
 	struct Scsi_Host	*host;
-	struct semaphore	ioctl_sem;
+	struct mutex		ioctl_lock;
 	unsigned short		aen_queue[TW_Q_LENGTH];
 	unsigned char		aen_head;
 	unsigned char		aen_tail;

@@ -1359,6 +1359,30 @@ restart:
 	return 0;
 }
 
+void mpol_shared_policy_init(struct shared_policy *info, int policy,
+				nodemask_t *policy_nodes)
+{
+	info->root = RB_ROOT;
+	spin_lock_init(&info->lock);
+
+	if (policy != MPOL_DEFAULT) {
+		struct mempolicy *newpol;
+
+		/* Falls back to MPOL_DEFAULT on any error */
+		newpol = mpol_new(policy, policy_nodes);
+		if (!IS_ERR(newpol)) {
+			/* Create pseudo-vma that contains just the policy */
+			struct vm_area_struct pvma;
+
+			memset(&pvma, 0, sizeof(struct vm_area_struct));
+			/* Policy covers entire file */
+			pvma.vm_end = TASK_SIZE;
+			mpol_set_shared_policy(info, &pvma, newpol);
+			mpol_free(newpol);
+		}
+	}
+}
+
 int mpol_set_shared_policy(struct shared_policy *info,
 			struct vm_area_struct *vma, struct mempolicy *npol)
 {

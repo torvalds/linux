@@ -25,17 +25,7 @@ config ZFTAPE
 	  support", above) then `zft-compressor' will be loaded
 	  automatically by zftape when needed.
 
-	  Despite its name, zftape does NOT use compression by default.  The
-	  file <file:Documentation/ftape.txt> contains a short description of
-	  the most important changes in the file system interface compared to
-	  previous versions of ftape.  The ftape home page
-	  <http://www.instmath.rwth-aachen.de/~heine/ftape/> contains
-	  further information.
-
-	  IMPORTANT NOTE: zftape can read archives created by previous
-	  versions of ftape and provide file mark support (i.e. fast skipping
-	  between tape archives) but previous version of ftape will lack file
-	  mark support when reading archives produced by zftape.
+	  Despite its name, zftape does NOT use compression by default.
 
 config ZFT_DFLT_BLK_SZ
 	int "Default block size"

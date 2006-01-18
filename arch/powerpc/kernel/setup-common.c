@@ -100,7 +100,8 @@ void machine_shutdown(void)
 void machine_restart(char *cmd)
 {
 	machine_shutdown();
-	ppc_md.restart(cmd);
+	if (ppc_md.restart)
+		ppc_md.restart(cmd);
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
@@ -112,7 +113,8 @@ void machine_restart(char *cmd)
 void machine_power_off(void)
 {
 	machine_shutdown();
-	ppc_md.power_off();
+	if (ppc_md.power_off)
+		ppc_md.power_off();
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
@@ -129,7 +131,8 @@ EXPORT_SYMBOL_GPL(pm_power_off);
 void machine_halt(void)
 {
 	machine_shutdown();
-	ppc_md.halt();
+	if (ppc_md.halt)
+		ppc_md.halt();
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif

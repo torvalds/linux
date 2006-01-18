@@ -477,7 +477,7 @@ static inline int idedisk_supports_lba48(const struct hd_driveid *id)
 	       && id->lba_capacity_2;
 }
 
-static inline void idedisk_check_hpa(ide_drive_t *drive)
+static void idedisk_check_hpa(ide_drive_t *drive)
 {
 	unsigned long long capacity, set_max;
 	int lba48 = idedisk_supports_lba48(drive->id);
@@ -997,9 +997,8 @@ static void ide_cacheflush_p(ide_drive_t *drive)
 		printk(KERN_INFO "%s: wcache flush failed!\n", drive->name);
 }
 
-static int ide_disk_remove(struct device *dev)
+static void ide_disk_remove(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	struct ide_disk_obj *idkp = drive->driver_data;
 	struct gendisk *g = idkp->disk;
 
@@ -1010,8 +1009,6 @@ static int ide_disk_remove(struct device *dev)
 	ide_cacheflush_p(drive);
 
 	ide_disk_put(idkp);
-
-	return 0;
 }
 
 static void ide_disk_release(struct kref *kref)
@@ -1027,12 +1024,10 @@ static void ide_disk_release(struct kref *kref)
 	kfree(idkp);
 }
 
-static int ide_disk_probe(struct device *dev);
+static int ide_disk_probe(ide_drive_t *drive);
 
-static void ide_device_shutdown(struct device *dev)
+static void ide_device_shutdown(ide_drive_t *drive)
 {
-	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
-
 #ifdef	CONFIG_ALPHA
 	/* On Alpha, halt(8) doesn't actually turn the machine off,
 	   it puts you into the sort of firmware monitor. Typically,
@@ -1054,7 +1049,7 @@ static void ide_device_shutdown(struct device *dev)
 	}
 
 	printk("Shutdown: %s\n", drive->name);
-	dev->bus->suspend(dev, PMSG_SUSPEND);
+	drive->gendev.bus->suspend(&drive->gendev, PMSG_SUSPEND);
 }
 
 static ide_driver_t idedisk_driver = {
@@ -1062,10 +1057,10 @@ static ide_driver_t idedisk_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-disk",
 		.bus		= &ide_bus_type,
-		.probe		= ide_disk_probe,
-		.remove		= ide_disk_remove,
-		.shutdown	= ide_device_shutdown,
 	},
+	.probe			= ide_disk_probe,
+	.remove			= ide_disk_remove,
+	.shutdown		= ide_device_shutdown,
 	.version		= IDEDISK_VERSION,
 	.media			= ide_disk,
 	.supports_dsc_overlap	= 0,
@@ -1182,9 +1177,8 @@ static struct block_device_operations idedisk_ops = {
 
 MODULE_DESCRIPTION("ATA DISK Driver");
 
-static int ide_disk_probe(struct device *dev)
+static int ide_disk_probe(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	struct ide_disk_obj *idkp;
 	struct gendisk *g;
 

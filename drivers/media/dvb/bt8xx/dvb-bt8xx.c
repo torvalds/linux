@@ -779,9 +779,8 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 	return 0;
 }
 
-static int dvb_bt8xx_probe(struct device *dev)
+static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 {
-	struct bttv_sub_device *sub = to_bttv_sub_dev(dev);
 	struct dvb_bt8xx_card *card;
 	struct pci_dev* bttv_pci_dev;
 	int ret;
@@ -890,13 +889,13 @@ static int dvb_bt8xx_probe(struct device *dev)
 		return ret;
 	}
 
-	dev_set_drvdata(dev, card);
+	dev_set_drvdata(&sub->dev, card);
 	return 0;
 }
 
-static int dvb_bt8xx_remove(struct device *dev)
+static void dvb_bt8xx_remove(struct bttv_sub_device *sub)
 {
-	struct dvb_bt8xx_card *card = dev_get_drvdata(dev);
+	struct dvb_bt8xx_card *card = dev_get_drvdata(&sub->dev);
 
 	dprintk("dvb_bt8xx: unloading card%d\n", card->bttv_nr);
 
@@ -912,21 +911,19 @@ static int dvb_bt8xx_remove(struct device *dev)
 	dvb_unregister_adapter(&card->dvb_adapter);
 
 	kfree(card);
-
-	return 0;
 }
 
 static struct bttv_sub_driver driver = {
 	.drv = {
 		.name		= "dvb-bt8xx",
-		.probe		= dvb_bt8xx_probe,
-		.remove		= dvb_bt8xx_remove,
-		/* FIXME:
-		 * .shutdown	= dvb_bt8xx_shutdown,
-		 * .suspend	= dvb_bt8xx_suspend,
-		 * .resume	= dvb_bt8xx_resume,
-		 */
 	},
+	.probe		= dvb_bt8xx_probe,
+	.remove		= dvb_bt8xx_remove,
+	/* FIXME:
+	 * .shutdown	= dvb_bt8xx_shutdown,
+	 * .suspend	= dvb_bt8xx_suspend,
+	 * .resume	= dvb_bt8xx_resume,
+	 */
 };
 
 static int __init dvb_bt8xx_init(void)

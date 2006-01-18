@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 struct block_device;
 struct completion;
@@ -469,7 +470,7 @@ struct Scsi_Host {
 	spinlock_t		default_lock;
 	spinlock_t		*host_lock;
 
-	struct semaphore	scan_mutex;/* serialize scanning activity */
+	struct mutex		scan_mutex;/* serialize scanning activity */
 
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */

@@ -176,7 +176,7 @@ static void put_all_bios(conf_t *conf, r1bio_t *r1_bio)
 	}
 }
 
-static inline void free_r1bio(r1bio_t *r1_bio)
+static void free_r1bio(r1bio_t *r1_bio)
 {
 	conf_t *conf = mddev_to_conf(r1_bio->mddev);
 
@@ -190,7 +190,7 @@ static inline void free_r1bio(r1bio_t *r1_bio)
 	mempool_free(r1_bio, conf->r1bio_pool);
 }
 
-static inline void put_buf(r1bio_t *r1_bio)
+static void put_buf(r1bio_t *r1_bio)
 {
 	conf_t *conf = mddev_to_conf(r1_bio->mddev);
 	int i;

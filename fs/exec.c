@@ -575,7 +575,7 @@ static int exec_mmap(struct mm_struct *mm)
  * disturbing other processes.  (Other processes might share the signal
  * table via the CLONE_SIGHAND option to clone().)
  */
-static inline int de_thread(struct task_struct *tsk)
+static int de_thread(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *newsighand, *oldsighand = tsk->sighand;
@@ -780,7 +780,7 @@ no_thread_group:
  * so that a new one can be started
  */
 
-static inline void flush_old_files(struct files_struct * files)
+static void flush_old_files(struct files_struct * files)
 {
 	long j = -1;
 	struct fdtable *fdt;
@@ -964,7 +964,7 @@ int prepare_binprm(struct linux_binprm *bprm)
 
 EXPORT_SYMBOL(prepare_binprm);
 
-static inline int unsafe_exec(struct task_struct *p)
+static int unsafe_exec(struct task_struct *p)
 {
 	int unsafe = 0;
 	if (p->ptrace & PT_PTRACED) {

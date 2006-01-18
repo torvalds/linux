@@ -530,7 +530,7 @@ static void __init attach_opl3sa2_mss(struct address_info* hw_config, struct res
 	if (hw_config->slots[0] != -1) {
 		/* Did the MSS driver install? */
 		if(num_mixers == (initial_mixers + 1)) {
-			/* The MSS mixer is installed, reroute mixers appropiately */
+			/* The MSS mixer is installed, reroute mixers appropriately */
 			AD1848_REROUTE(SOUND_MIXER_LINE1, SOUND_MIXER_CD);
 			AD1848_REROUTE(SOUND_MIXER_LINE2, SOUND_MIXER_SYNTH);
 			AD1848_REROUTE(SOUND_MIXER_LINE3, SOUND_MIXER_LINE);

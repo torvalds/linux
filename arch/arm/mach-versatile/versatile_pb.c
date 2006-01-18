@@ -100,7 +100,6 @@ arch_initcall(versatile_pb_init);
 
 MACHINE_START(VERSATILE_PB, "ARM-Versatile PB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_ram	= 0x00000000,
 	.phys_io	= 0x101f1000,
 	.io_pg_offst	= ((0xf11f1000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,

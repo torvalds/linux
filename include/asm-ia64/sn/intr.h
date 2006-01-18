@@ -40,7 +40,7 @@ struct sn_irq_info {
 	int		irq_cpuid;	/* kernel logical cpuid	     */
 	int		irq_irq;	/* the IRQ number */
 	int		irq_int_bit;	/* Bridge interrupt pin */
-	uint64_t	irq_xtalkaddr;	/* xtalkaddr IRQ is sent to  */
+	u64	irq_xtalkaddr;	/* xtalkaddr IRQ is sent to  */
 	int		irq_bridge_type;/* pciio asic type (pciio.h) */
 	void	       *irq_bridge;	/* bridge generating irq     */
 	void	       *irq_pciioinfo;	/* associated pciio_info_t   */

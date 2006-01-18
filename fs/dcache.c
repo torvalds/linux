@@ -94,7 +94,7 @@ static void d_free(struct dentry *dentry)
  * d_iput() operation if defined.
  * Called with dcache_lock and per dentry lock held, drops both.
  */
-static inline void dentry_iput(struct dentry * dentry)
+static void dentry_iput(struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	if (inode) {

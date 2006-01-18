@@ -52,7 +52,7 @@ target(struct sk_buff **pskb,
 
 static int
 checkentry(const char *tablename,
-	   const struct ipt_entry *e,
+	   const void *e_void,
            void *targinfo,
            unsigned int targinfosize,
            unsigned int hook_mask)

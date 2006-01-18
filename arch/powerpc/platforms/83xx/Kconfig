@@ -7,6 +7,7 @@ choice
 
 config MPC834x_SYS
 	bool "Freescale MPC834x SYS"
+	select DEFAULT_UIMAGE
 	help
 	  This option enables support for the MPC 834x SYS evaluation board.
 

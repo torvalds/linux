@@ -13,3 +13,4 @@
 #define __must_check		__attribute__((warn_unused_result))
 #endif
 
+#define __always_inline		inline __attribute__((always_inline))

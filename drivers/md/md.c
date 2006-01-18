@@ -3395,6 +3395,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	mddev->ctime         = get_seconds();
 
 	mddev->level         = info->level;
+	mddev->clevel[0]     = 0;
 	mddev->size          = info->size;
 	mddev->raid_disks    = info->raid_disks;
 	/* don't set md_minor, it is determined by which /dev/md* was

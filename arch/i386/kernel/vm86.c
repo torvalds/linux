@@ -4,7 +4,7 @@
  *  Copyright (C) 1994  Linus Torvalds
  *
  *  29 dec 2001 - Fixed oopses caused by unchecked access to the vm86
- *                stack - Manfred Spraul <manfreds@colorfullife.com>
+ *                stack - Manfred Spraul <manfred@colorfullife.com>
  *
  *  22 mar 2002 - Manfred detected the stackfaults, but didn't handle
  *                them correctly. Now the emulation will be in a

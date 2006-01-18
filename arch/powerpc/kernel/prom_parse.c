@@ -113,7 +113,8 @@ static unsigned int of_bus_default_get_flags(u32 *addr)
 
 static int of_bus_pci_match(struct device_node *np)
 {
-	return !strcmp(np->type, "pci");
+	/* "vci" is for the /chaos bridge on 1st-gen PCI powermacs */
+	return !strcmp(np->type, "pci") || !strcmp(np->type, "vci");
 }
 
 static void of_bus_pci_count_cells(struct device_node *np,

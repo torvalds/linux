@@ -63,13 +63,6 @@ static int i2c_bus_resume(struct device * dev)
 	return rc;
 }
 
-struct bus_type i2c_bus_type = {
-	.name =		"i2c",
-	.match =	i2c_device_match,
-	.suspend =      i2c_bus_suspend,
-	.resume =       i2c_bus_resume,
-};
-
 static int i2c_device_probe(struct device *dev)
 {
 	return -ENODEV;
@@ -79,6 +72,15 @@ static int i2c_device_remove(struct device *dev)
 {
 	return 0;
 }
+
+struct bus_type i2c_bus_type = {
+	.name =		"i2c",
+	.match =	i2c_device_match,
+	.probe =	i2c_device_probe,
+	.remove =	i2c_device_remove,
+	.suspend =      i2c_bus_suspend,
+	.resume =       i2c_bus_resume,
+};
 
 void i2c_adapter_dev_release(struct device *dev)
 {
@@ -90,8 +92,6 @@ struct device_driver i2c_adapter_driver = {
 	.owner = THIS_MODULE,
 	.name =	"i2c_adapter",
 	.bus = &i2c_bus_type,
-	.probe = i2c_device_probe,
-	.remove = i2c_device_remove,
 };
 
 static void i2c_adapter_class_dev_release(struct class_device *dev)
@@ -294,8 +294,6 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	/* add the driver to the list of i2c drivers in the driver core */
 	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
-	driver->driver.probe = i2c_device_probe;
-	driver->driver.remove = i2c_device_remove;
 
 	res = driver_register(&driver->driver);
 	if (res)

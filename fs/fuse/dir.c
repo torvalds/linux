@@ -23,8 +23,7 @@
 /*
  * Calculate the time in jiffies until a dentry/attributes are valid
  */
-static inline unsigned long time_to_jiffies(unsigned long sec,
-					    unsigned long nsec)
+static unsigned long time_to_jiffies(unsigned long sec, unsigned long nsec)
 {
 	struct timespec ts = {sec, nsec};
 	return jiffies + timespec_to_jiffies(&ts);
@@ -157,7 +156,7 @@ static int dir_alias(struct inode *inode)
 	return 0;
 }
 
-static inline int invalid_nodeid(u64 nodeid)
+static int invalid_nodeid(u64 nodeid)
 {
 	return !nodeid || nodeid == FUSE_ROOT_ID;
 }
@@ -166,7 +165,7 @@ static struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
 
-static inline int valid_mode(int m)
+static int valid_mode(int m)
 {
 	return S_ISREG(m) || S_ISDIR(m) || S_ISLNK(m) || S_ISCHR(m) ||
 		S_ISBLK(m) || S_ISFIFO(m) || S_ISSOCK(m);
@@ -763,13 +762,6 @@ static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
 	return 0;
 }
 
-static inline size_t fuse_send_readdir(struct fuse_req *req, struct file *file,
-				       struct inode *inode, loff_t pos,
-				       size_t count)
-{
-	return fuse_send_read_common(req, file, inode, pos, count, 1);
-}
-
 static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 {
 	int err;
@@ -793,7 +785,9 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	}
 	req->num_pages = 1;
 	req->pages[0] = page;
-	nbytes = fuse_send_readdir(req, file, inode, file->f_pos, PAGE_SIZE);
+	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
+	request_send(fc, req);
+	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err)

@@ -193,7 +193,7 @@ int is_orphaned_pgrp(int pgrp)
 	return retval;
 }
 
-static inline int has_stopped_jobs(int pgrp)
+static int has_stopped_jobs(int pgrp)
 {
 	int retval = 0;
 	struct task_struct *p;
@@ -230,7 +230,7 @@ static inline int has_stopped_jobs(int pgrp)
  *
  * NOTE that reparent_to_init() gives the caller full capabilities.
  */
-static inline void reparent_to_init(void)
+static void reparent_to_init(void)
 {
 	write_lock_irq(&tasklist_lock);
 
@@ -244,7 +244,9 @@ static inline void reparent_to_init(void)
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
 	current->exit_signal = SIGCHLD;
 
-	if ((current->policy == SCHED_NORMAL) && (task_nice(current) < 0))
+	if ((current->policy == SCHED_NORMAL ||
+			current->policy == SCHED_BATCH)
+				&& (task_nice(current) < 0))
 		set_user_nice(current, 0);
 	/* cpus_allowed? */
 	/* rt_priority? */
@@ -367,7 +369,7 @@ void daemonize(const char *name, ...)
 
 EXPORT_SYMBOL(daemonize);
 
-static inline void close_files(struct files_struct * files)
+static void close_files(struct files_struct * files)
 {
 	int i, j;
 	struct fdtable *fdt;
@@ -541,7 +543,7 @@ static inline void choose_new_parent(task_t *p, task_t *reaper, task_t *child_re
 	p->real_parent = reaper;
 }
 
-static inline void reparent_thread(task_t *p, task_t *father, int traced)
+static void reparent_thread(task_t *p, task_t *father, int traced)
 {
 	/* We don't want people slaying init.  */
 	if (p->exit_signal != -1)
@@ -605,7 +607,7 @@ static inline void reparent_thread(task_t *p, task_t *father, int traced)
  * group, and if no such member exists, give it to
  * the global child reaper process (ie "init")
  */
-static inline void forget_original_parent(struct task_struct * father,
+static void forget_original_parent(struct task_struct * father,
 					  struct list_head *to_release)
 {
 	struct task_struct *p, *reaper = father;

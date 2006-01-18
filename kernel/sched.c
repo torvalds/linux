@@ -521,7 +521,7 @@ static inline void sched_info_dequeued(task_t *t)
  * long it was waiting to run.  We also note when it began so that we
  * can keep stats on how long its timeslice is.
  */
-static inline void sched_info_arrive(task_t *t)
+static void sched_info_arrive(task_t *t)
 {
 	unsigned long now = jiffies, diff = 0;
 	struct runqueue *rq = task_rq(t);
@@ -748,10 +748,14 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 	unsigned long long __sleep_time = now - p->timestamp;
 	unsigned long sleep_time;
 
-	if (__sleep_time > NS_MAX_SLEEP_AVG)
-		sleep_time = NS_MAX_SLEEP_AVG;
-	else
-		sleep_time = (unsigned long)__sleep_time;
+	if (unlikely(p->policy == SCHED_BATCH))
+		sleep_time = 0;
+	else {
+		if (__sleep_time > NS_MAX_SLEEP_AVG)
+			sleep_time = NS_MAX_SLEEP_AVG;
+		else
+			sleep_time = (unsigned long)__sleep_time;
+	}
 
 	if (likely(sleep_time > 0)) {
 		/*
@@ -1003,7 +1007,7 @@ void kick_process(task_t *p)
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
  */
-static inline unsigned long __source_load(int cpu, int type, enum idle_type idle)
+static unsigned long __source_load(int cpu, int type, enum idle_type idle)
 {
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long running = rq->nr_running;
@@ -1866,7 +1870,7 @@ void sched_exec(void)
  * pull_task - move a task from a remote runqueue to the local runqueue.
  * Both runqueues must be locked.
  */
-static inline
+static
 void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 	       runqueue_t *this_rq, prio_array_t *this_array, int this_cpu)
 {
@@ -1888,7 +1892,7 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 /*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
  */
-static inline
+static
 int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
 		     struct sched_domain *sd, enum idle_type idle,
 		     int *all_pinned)
@@ -2374,7 +2378,7 @@ out_balanced:
  * idle_balance is called by schedule() if this_cpu is about to become
  * idle. Attempts to pull tasks from other CPUs.
  */
-static inline void idle_balance(int this_cpu, runqueue_t *this_rq)
+static void idle_balance(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *sd;
 
@@ -2758,7 +2762,7 @@ static inline void wakeup_busy_runqueue(runqueue_t *rq)
 		resched_task(rq->idle);
 }
 
-static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
+static void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *tmp, *sd = NULL;
 	cpumask_t sibling_map;
@@ -2812,7 +2816,7 @@ static inline unsigned long smt_slice(task_t *p, struct sched_domain *sd)
 	return p->time_slice * (100 - sd->per_cpu_gain) / 100;
 }
 
-static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
+static int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 {
 	struct sched_domain *tmp, *sd = NULL;
 	cpumask_t sibling_map;
@@ -3560,7 +3564,7 @@ void set_user_nice(task_t *p, long nice)
 	 * The RT priorities are set via sched_setscheduler(), but we still
 	 * allow the 'normal' nice value to be set - but as expected
 	 * it wont have any effect on scheduling until the task is
-	 * not SCHED_NORMAL:
+	 * not SCHED_NORMAL/SCHED_BATCH:
 	 */
 	if (rt_task(p)) {
 		p->static_prio = NICE_TO_PRIO(nice);
@@ -3706,10 +3710,16 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
 	BUG_ON(p->array);
 	p->policy = policy;
 	p->rt_priority = prio;
-	if (policy != SCHED_NORMAL)
+	if (policy != SCHED_NORMAL && policy != SCHED_BATCH) {
 		p->prio = MAX_RT_PRIO-1 - p->rt_priority;
-	else
+	} else {
 		p->prio = p->static_prio;
+		/*
+		 * SCHED_BATCH tasks are treated as perpetual CPU hogs:
+		 */
+		if (policy == SCHED_BATCH)
+			p->sleep_avg = 0;
+	}
 }
 
 /**
@@ -3733,29 +3743,35 @@ recheck:
 	if (policy < 0)
 		policy = oldpolicy = p->policy;
 	else if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_NORMAL)
-			return -EINVAL;
+			policy != SCHED_NORMAL && policy != SCHED_BATCH)
+		return -EINVAL;
 	/*
 	 * Valid priorities for SCHED_FIFO and SCHED_RR are
-	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_NORMAL is 0.
+	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_NORMAL and
+	 * SCHED_BATCH is 0.
 	 */
 	if (param->sched_priority < 0 ||
 	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
-	if ((policy == SCHED_NORMAL) != (param->sched_priority == 0))
+	if ((policy == SCHED_NORMAL || policy == SCHED_BATCH)
+					!= (param->sched_priority == 0))
 		return -EINVAL;
 
 	/*
 	 * Allow unprivileged RT tasks to decrease priority:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
-		/* can't change policy */
-		if (policy != p->policy &&
-			!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
+		/*
+		 * can't change policy, except between SCHED_NORMAL
+		 * and SCHED_BATCH:
+		 */
+		if (((policy != SCHED_NORMAL && p->policy != SCHED_BATCH) &&
+			(policy != SCHED_BATCH && p->policy != SCHED_NORMAL)) &&
+				!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
 			return -EPERM;
 		/* can't increase priority */
-		if (policy != SCHED_NORMAL &&
+		if ((policy != SCHED_NORMAL && policy != SCHED_BATCH) &&
 		    param->sched_priority > p->rt_priority &&
 		    param->sched_priority >
 				p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
@@ -4233,6 +4249,7 @@ asmlinkage long sys_sched_get_priority_max(int policy)
 		ret = MAX_USER_RT_PRIO-1;
 		break;
 	case SCHED_NORMAL:
+	case SCHED_BATCH:
 		ret = 0;
 		break;
 	}
@@ -4256,6 +4273,7 @@ asmlinkage long sys_sched_get_priority_min(int policy)
 		ret = 1;
 		break;
 	case SCHED_NORMAL:
+	case SCHED_BATCH:
 		ret = 0;
 	}
 	return ret;
@@ -5990,7 +6008,7 @@ next_sg:
  * Detach sched domains from a group of cpus specified in cpu_map
  * These cpus will now be attached to the NULL domain
  */
-static inline void detach_destroy_domains(const cpumask_t *cpu_map)
+static void detach_destroy_domains(const cpumask_t *cpu_map)
 {
 	int i;
 

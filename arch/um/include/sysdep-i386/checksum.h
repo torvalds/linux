@@ -36,7 +36,7 @@ unsigned int csum_partial_copy_nocheck(const unsigned char *src, unsigned char *
 				       int len, int sum)
 {
 	memcpy(dst, src, len);
-	return(csum_partial(dst, len, sum));
+	return csum_partial(dst, len, sum);
 }
 
 /*
@@ -104,7 +104,7 @@ static inline unsigned short ip_fast_csum(unsigned char * iph,
 	: "=r" (sum), "=r" (iph), "=r" (ihl)
 	: "1" (iph), "2" (ihl)
 	: "memory");
-	return(sum);
+	return sum;
 }
 
 /*

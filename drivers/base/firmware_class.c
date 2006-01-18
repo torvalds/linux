@@ -48,7 +48,7 @@ struct firmware_priv {
 	struct timer_list timeout;
 };
 
-static inline void
+static void
 fw_load_abort(struct firmware_priv *fw_priv)
 {
 	set_bit(FW_STATUS_ABORT, &fw_priv->status);

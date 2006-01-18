@@ -47,6 +47,22 @@ config MTD_MS02NV
 	  accelerator.  Say Y here if you have a DECstation 5000/2x0 or a
 	  DECsystem 5900 equipped with such a module.
 
+config MTD_DATAFLASH
+	tristate "Support for AT45xxx DataFlash"
+	depends on MTD && SPI_MASTER && EXPERIMENTAL
+	help
+	  This enables access to AT45xxx DataFlash chips, using SPI.
+	  Sometimes DataFlash chips are packaged inside MMC-format
+	  cards; at this writing, the MMC stack won't handle those.
+
+config MTD_M25P80
+	tristate "Support for M25 SPI Flash"
+	depends on MTD && SPI_MASTER && EXPERIMENTAL
+	help
+	  This enables access to ST M25P80 and similar SPI flash chips,
+	  used for program and data storage.  Set up your spi devices
+	  with the right board-specific platform data.
+
 config MTD_SLRAM
 	tristate "Uncached system RAM"
 	depends on MTD
@@ -202,6 +218,7 @@ config MTD_DOC2001PLUS
 config MTD_DOCPROBE
 	tristate
 	select MTD_DOCECC
+	select OBSOLETE_INTERMODULE
 
 config MTD_DOCECC
 	tristate

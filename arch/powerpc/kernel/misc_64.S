@@ -39,7 +39,7 @@ _GLOBAL(reloc_offset)
 	mflr	r0
 	bl	1f
 1:	mflr	r3
-	LOADADDR(r4,1b)
+	LOAD_REG_IMMEDIATE(r4,1b)
 	subf	r3,r4,r3
 	mtlr	r0
 	blr
@@ -51,7 +51,7 @@ _GLOBAL(add_reloc_offset)
 	mflr	r0
 	bl	1f
 1:	mflr	r5
-	LOADADDR(r4,1b)
+	LOAD_REG_IMMEDIATE(r4,1b)
 	subf	r5,r4,r5
 	add	r3,r3,r5
 	mtlr	r0
@@ -498,15 +498,15 @@ _GLOBAL(identify_cpu)
  */
 _GLOBAL(do_cpu_ftr_fixups)
 	/* Get CPU 0 features */
-	LOADADDR(r6,cur_cpu_spec)
+	LOAD_REG_IMMEDIATE(r6,cur_cpu_spec)
 	sub	r6,r6,r3
 	ld	r4,0(r6)
 	sub	r4,r4,r3
 	ld	r4,CPU_SPEC_FEATURES(r4)
 	/* Get the fixup table */
-	LOADADDR(r6,__start___ftr_fixup)
+	LOAD_REG_IMMEDIATE(r6,__start___ftr_fixup)
 	sub	r6,r6,r3
-	LOADADDR(r7,__stop___ftr_fixup)
+	LOAD_REG_IMMEDIATE(r7,__stop___ftr_fixup)
 	sub	r7,r7,r3
 	/* Do the fixup */
 1:	cmpld	r6,r7

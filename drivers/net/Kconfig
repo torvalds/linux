@@ -1387,7 +1387,7 @@ config FORCEDETH
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on NET_PCI && (ISA || ARCH_IXDP2X01 || ARCH_PNX010X)
+	depends on NET_PCI && (ISA || MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -2675,10 +2675,6 @@ config SHAPER
 	  An alternative to this traffic shaper is the experimental
 	  Class-Based Queueing (CBQ) scheduling support which you get if you
 	  say Y to "QoS and/or fair queueing" above.
-
-	  To set up and configure shaper devices, you need the shapecfg
-	  program, available from <ftp://shadow.cabi.net/pub/Linux/> in the
-	  shaper package.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called shaper.  If unsure, say N.

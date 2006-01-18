@@ -957,7 +957,7 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	default:
 		if (fb->fb_ioctl == NULL)
 			return -EINVAL;
-		return fb->fb_ioctl(inode, file, cmd, arg, info);
+		return fb->fb_ioctl(info, cmd, arg);
 	}
 }
 
@@ -1107,7 +1107,7 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	default:
 		if (fb->fb_compat_ioctl)
-			ret = fb->fb_compat_ioctl(file, cmd, arg, info);
+			ret = fb->fb_compat_ioctl(info, cmd, arg);
 		break;
 	}
 	unlock_kernel();
@@ -1135,7 +1135,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (fb->fb_mmap) {
 		int res;
 		lock_kernel();
-		res = fb->fb_mmap(info, file, vma);
+		res = fb->fb_mmap(info, vma);
 		unlock_kernel();
 		return res;
 	}

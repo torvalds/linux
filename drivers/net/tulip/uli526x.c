@@ -1689,9 +1689,9 @@ MODULE_AUTHOR("Peer Chen, peer.chen@uli.com.tw");
 MODULE_DESCRIPTION("ULi M5261/M5263 fast ethernet driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(debug, "i");
-MODULE_PARM(mode, "i");
-MODULE_PARM(cr6set, "i");
+module_param(debug, int, 0644);
+module_param(mode, int, 0);
+module_param(cr6set, int, 0);
 MODULE_PARM_DESC(debug, "ULi M5261/M5263 enable debugging (0-1)");
 MODULE_PARM_DESC(mode, "ULi M5261/M5263: Bit 0: 10/100Mbps, bit 2: duplex, bit 8: HomePNA");
 

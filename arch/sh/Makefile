@@ -17,10 +17,30 @@
 cflags-y				:= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	:= -ml
 
+isa-y					:= any
+isa-$(CONFIG_CPU_SH2)			:= sh2
+isa-$(CONFIG_CPU_SH3)			:= sh3
+isa-$(CONFIG_CPU_SH4)			:= sh4
+isa-$(CONFIG_CPU_SH4A)			:= sh4a
+isa-$(CONFIG_CPU_SH2A)			:= sh2a
+
+isa-$(CONFIG_SH_DSP)			:= $(isa-y)-dsp
+
+ifndef CONFIG_MMU
+isa-y			:= $(isa-y)-nommu
+endif
+
+ifndef CONFIG_SH_FPU
+isa-y			:= $(isa-y)-nofpu
+endif
+
+cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
+
 cflags-$(CONFIG_CPU_SH2)		+= -m2
 cflags-$(CONFIG_CPU_SH3)		+= -m3
 cflags-$(CONFIG_CPU_SH4)		+= -m4 \
 	$(call cc-option,-mno-implicit-fp,-m4-nofpu)
+cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a-nofpu,)
 
 cflags-$(CONFIG_SH_DSP)			+= -Wa,-dsp
 cflags-$(CONFIG_SH_KGDB)		+= -g
@@ -67,9 +87,7 @@ machdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)	:= se/7300
 machdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se/73180
 machdir-$(CONFIG_SH_STB1_HARP)			:= harp
 machdir-$(CONFIG_SH_STB1_OVERDRIVE)		:= overdrive
-machdir-$(CONFIG_SH_HP620)			:= hp6xx/hp620
-machdir-$(CONFIG_SH_HP680)			:= hp6xx/hp680
-machdir-$(CONFIG_SH_HP690)			:= hp6xx/hp690
+machdir-$(CONFIG_SH_HP6XX)			:= hp6xx
 machdir-$(CONFIG_SH_CQREEK)			:= cqreek
 machdir-$(CONFIG_SH_DMIDA)			:= dmida
 machdir-$(CONFIG_SH_EC3104)			:= ec3104
@@ -119,30 +137,38 @@ boot := arch/sh/boot
 
 CPPFLAGS_vmlinux.lds := -traditional
 
+ifneq ($(KBUILD_SRC),)
+incdir-prefix	:= $(srctree)/include/asm-sh/
+else
+incdir-prefix	:=
+endif
+
 #	Update machine arch and proc symlinks if something which affects
 #	them changed.  We use .arch and .mach to indicate when they were
 #	updated last, otherwise make uses the target directory mtime.
 
 include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) include/config/MARKER
 	@echo '  SYMLINK include/asm-sh/cpu -> include/asm-sh/$(cpuincdir-y)'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-sh
-	$(Q)ln -fsn $(srctree)/include/asm-sh/$(cpuincdir-y) include/asm-sh/cpu
-else
-	$(Q)ln -fsn $(cpuincdir-y) include/asm-sh/cpu
-endif
+	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
+	$(Q)ln -fsn $(incdir-prefix)$(cpuincdir-y) include/asm-sh/cpu
 	@touch $@
+
+#	Most boards have their own mach directories.  For the ones that
+#	don't, just reference the parent directory so the semantics are
+#	kept roughly the same.
 
 include/asm-sh/.mach: $(wildcard include/config/sh/*.h) include/config/MARKER
-	@echo '  SYMLINK include/asm-sh/mach -> include/asm-sh/$(incdir-y)'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-sh
-	$(Q)ln -fsn $(srctree)/include/asm-sh/$(incdir-y) include/asm-sh/mach
-else
-	$(Q)ln -fsn $(incdir-y) include/asm-sh/mach
-endif
+	@echo -n '  SYMLINK include/asm-sh/mach -> '
+	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
+	$(Q)if [ -d $(incdir-prefix)$(incdir-y) ]; then \
+		echo -e 'include/asm-sh/$(incdir-y)'; \
+		ln -fsn $(incdir-prefix)$(incdir-y) \
+			include/asm-sh/mach; \
+	else \
+		echo -e 'include/asm-sh'; \
+		ln -fsn $(incdir-prefix) include/asm-sh/mach; \
+	fi
 	@touch $@
-
 
 archprepare: maketools include/asm-sh/.cpu include/asm-sh/.mach
 

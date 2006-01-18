@@ -988,7 +988,7 @@ _GLOBAL(enter_rtas)
 	stwu	r1,-INT_FRAME_SIZE(r1)
 	mflr	r0
 	stw	r0,INT_FRAME_SIZE+4(r1)
-	LOADADDR(r4, rtas)
+	LOAD_REG_ADDR(r4, rtas)
 	lis	r6,1f@ha	/* physical return address for rtas */
 	addi	r6,r6,1f@l
 	tophys(r6,r6)

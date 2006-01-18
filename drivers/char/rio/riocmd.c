@@ -387,12 +387,6 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *
 
 	func_enter();
 
-#ifdef CHECK
-	CheckHost(Host);
-	CheckHostP(HostP);
-	CheckPacketP(PacketP);
-#endif
-
 	/*
 	 ** 16 port RTA note:
 	 ** Command rup packets coming from the RTA will have pkt->data[1] (which
@@ -406,10 +400,6 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *
 	SysPort = UnixRupP->BaseSysPort + (RBYTE(PktCmdP->PhbNum) % (ushort) PORTS_PER_RTA);
 	rio_dprintk(RIO_DEBUG_CMD, "Command on rup %d, port %d\n", rup, SysPort);
 
-#ifdef CHECK
-	CheckRup(rup);
-	CheckUnixRupP(UnixRupP);
-#endif
 	if (UnixRupP->BaseSysPort == NO_PORT) {
 		rio_dprintk(RIO_DEBUG_CMD, "OBSCURE ERROR!\n");
 		rio_dprintk(RIO_DEBUG_CMD, "Diagnostics follow. Please WRITE THESE DOWN and report them to Specialix Technical Support\n");
@@ -429,9 +419,6 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *
 		rio_dprintk(RIO_DEBUG_CMD, "COMMAND information: Host Port Number 0x%x, " "Command Code 0x%x\n", PktCmdP->PhbNum, PktCmdP->Command);
 		return TRUE;
 	}
-#ifdef CHECK
-	CheckSysPort(SysPort);
-#endif
 	PortP = p->RIOPortp[SysPort];
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 	switch (RBYTE(PktCmdP->Command)) {
@@ -604,11 +591,6 @@ int RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
 	struct UnixRup *UnixRupP;
 	unsigned long flags;
 
-#ifdef CHECK
-	CheckHostP(HostP);
-	CheckRup(Rup);
-	CheckCmdBlkP(CmdBlkP);
-#endif
 	if (Rup >= (ushort) (MAX_RUP + LINKS_PER_UNIT)) {
 		rio_dprintk(RIO_DEBUG_CMD, "Illegal rup number %d in RIOQueueCmdBlk\n", Rup);
 		RIOFreeCmdBlk(CmdBlkP);
@@ -806,9 +788,6 @@ void RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 			 ** If it returns RIO_FAIL then don't
 			 ** send this command yet!
 			 */
-#ifdef CHECK
-			CheckCmdBlkP(CmdBlkP);
-#endif
 			if (!(CmdBlkP->PreFuncP ? (*CmdBlkP->PreFuncP) (CmdBlkP->PreArg, CmdBlkP) : TRUE)) {
 				rio_dprintk(RIO_DEBUG_CMD, "Not ready to start command 0x%x\n", (int) CmdBlkP);
 			} else {
@@ -816,9 +795,6 @@ void RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 				/*
 				 ** Whammy! blat that pack!
 				 */
-#ifdef CHECK
-				CheckPacketP((PKT *) RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt));
-#endif
 				HostP->Copy((caddr_t) & CmdBlkP->Packet, RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt), sizeof(PKT));
 
 				/*
@@ -852,9 +828,6 @@ int RIOWFlushMark(int iPortP, struct CmdBlk *CmdBlkP)
 	unsigned long flags;
 
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
-#ifdef CHECK
-	CheckPortP(PortP);
-#endif
 	PortP->WflushFlag++;
 	PortP->MagicFlags |= MAGIC_FLUSH;
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
@@ -894,9 +867,6 @@ int RIOUnUse(int iPortP, struct CmdBlk *CmdBlkP)
 
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 
-#ifdef CHECK
-	CheckPortP(PortP);
-#endif
 	rio_dprintk(RIO_DEBUG_CMD, "Decrement in use count for port\n");
 
 	if (PortP->InUse) {

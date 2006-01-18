@@ -84,83 +84,16 @@ static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
 	 * squirrelled away.  ELF notes happen to provide
 	 * all of that that no need to invent something new.
 	 */
-	buf = &crash_notes[cpu][0];
+	buf = (u32*)per_cpu_ptr(crash_notes, cpu);
+	if (!buf) 
+		return;
+
 	memset(&prstatus, 0, sizeof(prstatus));
 	prstatus.pr_pid = current->pid;
 	elf_core_copy_regs(&prstatus.pr_reg, regs);
 	buf = append_elf_note(buf, "CORE", NT_PRSTATUS, &prstatus,
 			sizeof(prstatus));
 	final_note(buf);
-}
-
-/* FIXME Merge this with xmon_save_regs ?? */
-static inline void crash_get_current_regs(struct pt_regs *regs)
-{
-	unsigned long tmp1, tmp2;
-
-	__asm__ __volatile__ (
-		"std    0,0(%2)\n"
-		"std    1,8(%2)\n"
-		"std    2,16(%2)\n"
-		"std    3,24(%2)\n"
-		"std    4,32(%2)\n"
-		"std    5,40(%2)\n"
-		"std    6,48(%2)\n"
-		"std    7,56(%2)\n"
-		"std    8,64(%2)\n"
-		"std    9,72(%2)\n"
-		"std    10,80(%2)\n"
-		"std    11,88(%2)\n"
-		"std    12,96(%2)\n"
-		"std    13,104(%2)\n"
-		"std    14,112(%2)\n"
-		"std    15,120(%2)\n"
-		"std    16,128(%2)\n"
-		"std    17,136(%2)\n"
-		"std    18,144(%2)\n"
-		"std    19,152(%2)\n"
-		"std    20,160(%2)\n"
-		"std    21,168(%2)\n"
-		"std    22,176(%2)\n"
-		"std    23,184(%2)\n"
-		"std    24,192(%2)\n"
-		"std    25,200(%2)\n"
-		"std    26,208(%2)\n"
-		"std    27,216(%2)\n"
-		"std    28,224(%2)\n"
-		"std    29,232(%2)\n"
-		"std    30,240(%2)\n"
-		"std    31,248(%2)\n"
-		"mfmsr  %0\n"
-		"std    %0, 264(%2)\n"
-		"mfctr  %0\n"
-		"std    %0, 280(%2)\n"
-		"mflr   %0\n"
-		"std    %0, 288(%2)\n"
-		"bl     1f\n"
-	"1:      mflr   %1\n"
-		"std    %1, 256(%2)\n"
-		"mtlr   %0\n"
-		"mfxer  %0\n"
-		"std    %0, 296(%2)\n"
-		: "=&r" (tmp1), "=&r" (tmp2)
-		: "b" (regs));
-}
-
-/* We may have saved_regs from where the error came from
- * or it is NULL if via a direct panic().
- */
-static void crash_save_self(struct pt_regs *saved_regs)
-{
-	struct pt_regs regs;
-	int cpu;
-
-	cpu = smp_processor_id();
-	if (saved_regs)
-		memcpy(&regs, saved_regs, sizeof(regs));
-	else
-		crash_get_current_regs(&regs);
-	crash_save_this_cpu(&regs, cpu);
 }
 
 #ifdef CONFIG_SMP
@@ -260,5 +193,5 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	 */
 	crashing_cpu = smp_processor_id();
 	crash_kexec_prepare_cpus();
-	crash_save_self(regs);
+	crash_save_this_cpu(regs, crashing_cpu);
 }

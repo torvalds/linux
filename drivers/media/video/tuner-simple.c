@@ -79,722 +79,16 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 #define TUNER_PLL_LOCKED   0x40
 #define TUNER_STEREO_MK3   0x04
 
-#define TUNER_MAX_RANGES   3
-
-/* ---------------------------------------------------------------------- */
-
-struct tunertype
-{
-	char *name;
-
-	int count;
-	struct {
-		unsigned short thresh;
-		unsigned char cb;
-	} ranges[TUNER_MAX_RANGES];
-	unsigned char config;
-};
-
-/*
- *	The floats in the tuner struct are computed at compile time
- *	by gcc and cast back to integers. Thus we don't violate the
- *	"no float in kernel" rule.
+#define TUNER_PARAM_ANALOG 0  /* to be removed */
+/* FIXME:
+ * Right now, all tuners are using the first tuner_params[] array element
+ * for analog mode. In the future, we will be merging similar tuner
+ * definitions together, such that each tuner definition will have a
+ * tuner_params struct for each available video standard. At that point,
+ * TUNER_PARAM_ANALOG will be removed, and the tuner_params[] array
+ * element will be chosen based on the video standard in use.
+ *
  */
-static struct tunertype tuners[] = {
-	/* 0-9 */
-	[TUNER_TEMIC_PAL] = { /* TEMIC PAL */
-		.name   = "Temic PAL (4002 FH5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 140.25 /*MHz*/, 0x02, },
-			{ 16 * 463.25 /*MHz*/, 0x04, },
-			{ 16 * 999.99        , 0x01, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_PAL_I] = { /* Philips PAL_I */
-		.name   = "Philips PAL_I (FI1246 and compatibles)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 140.25 /*MHz*/, 0xa0, },
-			{ 16 * 463.25 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_NTSC] = { /* Philips NTSC */
-		.name   = "Philips NTSC (FI1236,FM1236 and compatibles)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0xa0, },
-			{ 16 * 451.25 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_SECAM] = { /* Philips SECAM */
-		.name   = "Philips (SECAM+PAL_BG) (FI1216MF, FM1216MF, FR1216MF)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 168.25 /*MHz*/, 0xa7, },
-			{ 16 * 447.25 /*MHz*/, 0x97, },
-			{ 16 * 999.99        , 0x37, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_ABSENT] = { /* Tuner Absent */
-		.name   = "NoTuner",
-		.count  = 1,
-		.ranges = {
-			{ 0, 0x00, },
-		},
-		.config = 0x00,
-	},
-	[TUNER_PHILIPS_PAL] = { /* Philips PAL */
-		.name   = "Philips PAL_BG (FI1216 and compatibles)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 168.25 /*MHz*/, 0xa0, },
-			{ 16 * 447.25 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_NTSC] = { /* TEMIC NTSC */
-		.name   = "Temic NTSC (4032 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0x02, },
-			{ 16 * 463.25 /*MHz*/, 0x04, },
-			{ 16 * 999.99        , 0x01, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_PAL_I] = { /* TEMIC PAL_I */
-		.name   = "Temic PAL_I (4062 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0x02, },
-			{ 16 * 450.00 /*MHz*/, 0x04, },
-			{ 16 * 999.99        , 0x01, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4036FY5_NTSC] = { /* TEMIC NTSC */
-		.name   = "Temic NTSC (4036 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0xa0, },
-			{ 16 * 463.25 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_ALPS_TSBH1_NTSC] = { /* TEMIC NTSC */
-		.name   = "Alps HSBH1",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 137.25 /*MHz*/, 0x01, },
-			{ 16 * 385.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-
-	/* 10-19 */
-	[TUNER_ALPS_TSBE1_PAL] = { /* TEMIC PAL */
-		.name   = "Alps TSBE1",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 137.25 /*MHz*/, 0x01, },
-			{ 16 * 385.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_ALPS_TSBB5_PAL_I] = { /* Alps PAL_I */
-		.name   = "Alps TSBB5",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 133.25 /*MHz*/, 0x01, },
-			{ 16 * 351.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_ALPS_TSBE5_PAL] = { /* Alps PAL */
-		.name   = "Alps TSBE5",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 133.25 /*MHz*/, 0x01, },
-			{ 16 * 351.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_ALPS_TSBC5_PAL] = { /* Alps PAL */
-		.name   = "Alps TSBC5",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 133.25 /*MHz*/, 0x01, },
-			{ 16 * 351.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4006FH5_PAL] = { /* TEMIC PAL */
-		.name   = "Temic PAL_BG (4006FH5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_ALPS_TSHC6_NTSC] = { /* Alps NTSC */
-		.name   = "Alps TSCH6",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 137.25 /*MHz*/, 0x14, },
-			{ 16 * 385.25 /*MHz*/, 0x12, },
-			{ 16 * 999.99        , 0x11, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_PAL_DK] = { /* TEMIC PAL */
-		.name   = "Temic PAL_DK (4016 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 168.25 /*MHz*/, 0xa0, },
-			{ 16 * 456.25 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_NTSC_M] = { /* Philips NTSC */
-		.name   = "Philips NTSC_M (MK2)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0xa0, },
-			{ 16 * 454.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4066FY5_PAL_I] = { /* TEMIC PAL_I */
-		.name   = "Temic PAL_I (4066 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 169.00 /*MHz*/, 0xa0, },
-			{ 16 * 454.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4006FN5_MULTI_PAL] = { /* TEMIC PAL */
-		.name   = "Temic PAL* auto (4006 FN5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 169.00 /*MHz*/, 0xa0, },
-			{ 16 * 454.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-
-	/* 20-29 */
-	[TUNER_TEMIC_4009FR5_PAL] = { /* TEMIC PAL */
-		.name   = "Temic PAL_BG (4009 FR5) or PAL_I (4069 FR5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 141.00 /*MHz*/, 0xa0, },
-			{ 16 * 464.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4039FR5_NTSC] = { /* TEMIC NTSC */
-		.name   = "Temic NTSC (4039 FR5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 158.00 /*MHz*/, 0xa0, },
-			{ 16 * 453.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4046FM5] = { /* TEMIC PAL */
-		.name   = "Temic PAL/SECAM multi (4046 FM5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 169.00 /*MHz*/, 0xa0, },
-			{ 16 * 454.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_PAL_DK] = { /* Philips PAL */
-		.name   = "Philips PAL_DK (FI1256 and compatibles)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_FQ1216ME] = { /* Philips PAL */
-		.name   = "Philips PAL/SECAM multi (FQ1216ME)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_PAL_I_FM] = { /* LGINNOTEK PAL_I */
-		.name   = "LG PAL_I+FM (TAPC-I001D)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_PAL_I] = { /* LGINNOTEK PAL_I */
-		.name   = "LG PAL_I (TAPC-I701D)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_NTSC_FM] = { /* LGINNOTEK NTSC */
-		.name   = "LG NTSC+FM (TPI8NSR01F)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 210.00 /*MHz*/, 0xa0, },
-			{ 16 * 497.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_PAL_FM] = { /* LGINNOTEK PAL */
-		.name   = "LG PAL_BG+FM (TPI8PSB01D)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_PAL] = { /* LGINNOTEK PAL */
-		.name   = "LG PAL_BG (TPI8PSB11D)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0xa0, },
-			{ 16 * 450.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-
-	/* 30-39 */
-	[TUNER_TEMIC_4009FN5_MULTI_PAL_FM] = { /* TEMIC PAL */
-		.name   = "Temic PAL* auto + FM (4009 FN5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 141.00 /*MHz*/, 0xa0, },
-			{ 16 * 464.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_SHARP_2U5JF5540_NTSC] = { /* SHARP NTSC */
-		.name   = "SHARP NTSC_JP (2U5JF5540)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 137.25 /*MHz*/, 0x01, },
-			{ 16 * 317.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_Samsung_PAL_TCPM9091PD27] = { /* Samsung PAL */
-		.name   = "Samsung PAL TCPM9091PD27",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 169 /*MHz*/, 0xa0, },
-			{ 16 * 464 /*MHz*/, 0x90, },
-			{ 16 * 999.99     , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_MT2032] = { /* Microtune PAL|NTSC */
-		.name   = "MT20xx universal",
-	  /* see mt20xx.c for details */ },
-	[TUNER_TEMIC_4106FH5] = { /* TEMIC PAL */
-		.name   = "Temic PAL_BG (4106 FH5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 141.00 /*MHz*/, 0xa0, },
-			{ 16 * 464.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4012FY5] = { /* TEMIC PAL */
-		.name   = "Temic PAL_DK/SECAM_L (4012 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 140.25 /*MHz*/, 0x02, },
-			{ 16 * 463.25 /*MHz*/, 0x04, },
-			{ 16 * 999.99        , 0x01, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEMIC_4136FY5] = { /* TEMIC NTSC */
-		.name   = "Temic NTSC (4136 FY5)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 158.00 /*MHz*/, 0xa0, },
-			{ 16 * 453.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_PAL_NEW_TAPC] = { /* LGINNOTEK PAL */
-		.name   = "LG PAL (newer TAPC series)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0x01, },
-			{ 16 * 450.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_FM1216ME_MK3] = { /* Philips PAL */
-		.name   = "Philips PAL/SECAM multi (FM1216ME MK3)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 158.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_NTSC_NEW_TAPC] = { /* LGINNOTEK NTSC */
-		.name   = "LG NTSC (newer TAPC series)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0x01, },
-			{ 16 * 450.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-
-	/* 40-49 */
-	[TUNER_HITACHI_NTSC] = { /* HITACHI NTSC */
-		.name   = "HITACHI V7-J180AT",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0x01, },
-			{ 16 * 450.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_PAL_MK] = { /* Philips PAL */
-		.name   = "Philips PAL_MK (FI1216 MK)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 140.25 /*MHz*/, 0x01, },
-			{ 16 * 463.25 /*MHz*/, 0xc2, },
-			{ 16 * 999.99        , 0xcf, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_ATSC] = { /* Philips ATSC */
-		.name   = "Philips 1236D ATSC/NTSC dual in",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0xa0, },
-			{ 16 * 454.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_FM1236_MK3] = { /* Philips NTSC */
-		.name   = "Philips NTSC MK3 (FM1236MK3 or FM1236/F)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_4IN1] = { /* Philips NTSC */
-		.name   = "Philips 4 in 1 (ATI TV Wonder Pro/Conexant)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_MICROTUNE_4049FM5] = { /* Microtune PAL */
-		.name   = "Microtune 4049 FM5",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 141.00 /*MHz*/, 0xa0, },
-			{ 16 * 464.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PANASONIC_VP27] = { /* Panasonic NTSC */
-		.name   = "Panasonic VP27s/ENGE4324D",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 454.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0xce,
-	},
-	[TUNER_LG_NTSC_TAPE] = { /* LGINNOTEK NTSC */
-		.name   = "LG NTSC (TAPE series)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TNF_8831BGFF] = { /* Philips PAL */
-		.name   = "Tenna TNF 8831 BGFF)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 161.25 /*MHz*/, 0xa0, },
-			{ 16 * 463.25 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_MICROTUNE_4042FI5] = { /* Microtune NTSC */
-		.name   = "Microtune 4042 FI5 ATSC/NTSC dual in",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 162.00 /*MHz*/, 0xa2, },
-			{ 16 * 457.00 /*MHz*/, 0x94, },
-			{ 16 * 999.99        , 0x31, },
-		},
-		.config = 0x8e,
-	},
-
-	/* 50-59 */
-	[TUNER_TCL_2002N] = { /* TCL NTSC */
-		.name   = "TCL 2002N",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 172.00 /*MHz*/, 0x01, },
-			{ 16 * 448.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_FM1256_IH3] = { /* Philips PAL */
-		.name   = "Philips PAL/SECAM_D (FM 1256 I-H3)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_THOMSON_DTT7610] = { /* THOMSON ATSC */
-		.name   = "Thomson DTT 7610 (ATSC/NTSC)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0x39, },
-			{ 16 * 454.00 /*MHz*/, 0x3a, },
-			{ 16 * 999.99        , 0x3c, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_FQ1286] = { /* Philips NTSC */
-		.name   = "Philips FQ1286",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x41, },
-			{ 16 * 454.00 /*MHz*/, 0x42, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_TDA8290] = { /* Philips PAL|NTSC */
-		.name   = "tda8290+75",
-	  /* see tda8290.c for details */ },
-	[TUNER_TCL_2002MB] = { /* TCL PAL */
-		.name   = "TCL 2002MB",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 170.00 /*MHz*/, 0x01, },
-			{ 16 * 450.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0xce,
-	},
-	[TUNER_PHILIPS_FQ1216AME_MK4] = { /* Philips PAL */
-		.name   = "Philips PAL/SECAM multi (FQ1216AME MK4)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0xce,
-	},
-	[TUNER_PHILIPS_FQ1236A_MK4] = { /* Philips NTSC */
-		.name   = "Philips FQ1236A MK4",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 442.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_YMEC_TVF_8531MF] = { /* Philips NTSC */
-		.name   = "Ymec TVision TVF-8531MF/8831MF/8731MF",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0xa0, },
-			{ 16 * 454.00 /*MHz*/, 0x90, },
-			{ 16 * 999.99        , 0x30, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_YMEC_TVF_5533MF] = { /* Philips NTSC */
-		.name   = "Ymec TVision TVF-5533MF",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01, },
-			{ 16 * 454.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-
-	/* 60-69 */
-	[TUNER_THOMSON_DTT761X] = { /* THOMSON ATSC */
-		/* DTT 7611 7611A 7612 7613 7613A 7614 7615 7615A */
-		.name   = "Thomson DTT 761X (ATSC/NTSC)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 145.25 /*MHz*/, 0x39, },
-			{ 16 * 415.25 /*MHz*/, 0x3a, },
-			{ 16 * 999.99        , 0x3c, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TENA_9533_DI] = { /* Philips PAL */
-		.name   = "Tena TNF9533-D/IF/TNF9533-B/DF",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.25 /*MHz*/, 0x01, },
-			{ 16 * 464.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_TEA5767] = { /* Philips RADIO */
-		.name   = "Philips TEA5767HN FM Radio",
-	  /* see tea5767.c for details */},
-	[TUNER_PHILIPS_FMD1216ME_MK3] = { /* Philips PAL */
-		.name   = "Philips FMD1216ME MK3 Hybrid Tuner",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x51, },
-			{ 16 * 442.00 /*MHz*/, 0x52, },
-			{ 16 * 999.99        , 0x54, },
-		},
-		.config = 0x86,
-	},
-	[TUNER_LG_TDVS_H062F] = { /* LGINNOTEK ATSC */
-		.name   = "LG TDVS-H062F/TUA6034",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0x01 },
-			{ 16 * 455.00 /*MHz*/, 0x02 },
-			{ 16 * 999.99        , 0x04 },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_YMEC_TVF66T5_B_DFF] = { /* Philips PAL */
-		.name   = "Ymec TVF66T5-B/DFF",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.25 /*MHz*/, 0x01, },
-			{ 16 * 464.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_LG_NTSC_TALN_MINI] = { /* LGINNOTEK NTSC */
-		.name   = "LG NTSC (TALN mini series)",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 137.25 /*MHz*/, 0x01, },
-			{ 16 * 373.25 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x08, },
-		},
-		.config = 0x8e,
-	},
-	[TUNER_PHILIPS_TD1316] = { /* Philips PAL */
-		.name   = "Philips TD1316 Hybrid Tuner",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 160.00 /*MHz*/, 0xa1, },
-			{ 16 * 442.00 /*MHz*/, 0xa2, },
-			{ 16 * 999.99        , 0xa4, },
-		},
-		.config = 0xc8,
-	},
-	[TUNER_PHILIPS_TUV1236D] = { /* Philips ATSC */
-		.name   = "Philips TUV1236D ATSC/NTSC dual in",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0x01, },
-			{ 16 * 454.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0xce,
-	},
-	[TUNER_TNF_5335MF] = { /* Philips NTSC */
-		.name   = "Tena TNF 5335 MF",
-		.count  = 3,
-		.ranges = {
-			{ 16 * 157.25 /*MHz*/, 0x01, },
-			{ 16 * 454.00 /*MHz*/, 0x02, },
-			{ 16 * 999.99        , 0x04, },
-		},
-		.config = 0x8e,
-	},
-};
-
-unsigned const int tuner_count = ARRAY_SIZE(tuners);
 
 /* ---------------------------------------------------------------------- */
 
@@ -842,16 +136,23 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	u8 config, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
-	unsigned char buffer[4];
-	int rc, IFPCoff, i;
+	u8 buffer[4];
+	int rc, IFPCoff, i, j;
 
 	tun = &tuners[t->type];
-	for (i = 0; i < tun->count; i++) {
-		if (freq > tun->ranges[i].thresh)
+	j = TUNER_PARAM_ANALOG;
+
+	for (i = 0; i < tun->params[j].count; i++) {
+		if (freq > tun->params[j].ranges[i].limit)
 			continue;
 		break;
 	}
-	config = tun->ranges[i].cb;
+	if (i == tun->params[j].count) {
+		tuner_dbg("TV frequency out of range (%d > %d)",
+				freq, tun->params[j].ranges[i - 1].limit);
+		freq = tun->params[j].ranges[--i].limit;
+	}
+	config = tun->params[j].ranges[i].cb;
 	/*  i == 0 -> VHF_LO  */
 	/*  i == 1 -> VHF_HI  */
 	/*  i == 2 -> UHF     */
@@ -914,7 +215,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 
 	case TUNER_MICROTUNE_4042FI5:
 		/* Set the charge pump for fast tuning */
-		tun->config |= TUNER_CHARGE_PUMP;
+		tun->params[j].config |= TUNER_CHARGE_PUMP;
 		break;
 
 	case TUNER_PHILIPS_TUV1236D:
@@ -942,20 +243,6 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* FIXME: input */
 		break;
 	}
-
-	/*
-	 * Philips FI1216MK2 remark from specification :
-	 * for channel selection involving band switching, and to ensure
-	 * smooth tuning to the desired channel without causing
-	 * unnecessary charge pump action, it is recommended to consider
-	 * the difference between wanted channel frequency and the
-	 * current channel frequency.  Unnecessary charge pump action
-	 * will result in very low tuning voltage which may drive the
-	 * oscillator to extreme conditions.
-	 *
-	 * Progfou: specification says to send config data before
-	 * frequency in case (wanted frequency < current frequency).
-	 */
 
 	/* IFPCoff = Video Intermediate Frequency - Vif:
 		940  =16*58.75  NTSC/J (Japan)
@@ -988,17 +275,18 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 					offset / 16, offset % 16 * 100 / 16,
 					div);
 
-	if (t->type == TUNER_PHILIPS_SECAM && freq < t->freq) {
-		buffer[0] = tun->config;
+	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
+		buffer[0] = tun->params[j].config;
 		buffer[1] = config;
 		buffer[2] = (div>>8) & 0x7f;
 		buffer[3] = div      & 0xff;
 	} else {
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
-		buffer[2] = tun->config;
+		buffer[2] = tun->params[j].config;
 		buffer[3] = config;
 	}
+	t->last_div = div;
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		  buffer[0],buffer[1],buffer[2],buffer[3]);
 
@@ -1024,10 +312,10 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		}
 
 		/* Set the charge pump for optimized phase noise figure */
-		tun->config &= ~TUNER_CHARGE_PUMP;
+		tun->params[j].config &= ~TUNER_CHARGE_PUMP;
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
-		buffer[2] = tun->config;
+		buffer[2] = tun->params[j].config;
 		buffer[3] = config;
 		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		       buffer[0],buffer[1],buffer[2],buffer[3]);
@@ -1041,13 +329,15 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tunertype *tun;
 	struct tuner *t = i2c_get_clientdata(c);
-	unsigned char buffer[4];
-	unsigned div;
-	int rc;
+	u8 buffer[4];
+	u16 div;
+	int rc, j;
 
 	tun = &tuners[t->type];
+	j = TUNER_PARAM_ANALOG;
+
 	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
-	buffer[2] = (tun->config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
+	buffer[2] = (tun->params[j].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
 
 	switch (t->type) {
 	case TUNER_TENA_9533_DI:
@@ -1076,9 +366,19 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	}
 	buffer[0] = (div>>8) & 0x7f;
 	buffer[1] = div      & 0xff;
+	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
+		buffer[0] = buffer[2];
+		buffer[1] = buffer[3];
+		buffer[2] = (div>>8) & 0x7f;
+		buffer[3] = div      & 0xff;
+	} else {
+		buffer[0] = (div>>8) & 0x7f;
+		buffer[1] = div      & 0xff;
+	}
 
 	tuner_dbg("radio 0x%02x 0x%02x 0x%02x 0x%02x\n",
 	       buffer[0],buffer[1],buffer[2],buffer[3]);
+	t->last_div = div;
 
 	if (4 != (rc = i2c_master_send(c,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
@@ -1092,10 +392,10 @@ int default_tuner_init(struct i2c_client *c)
 		   t->type, tuners[t->type].name);
 	strlcpy(c->name, tuners[t->type].name, sizeof(c->name));
 
-	t->tv_freq    = default_set_tv_freq;
-	t->radio_freq = default_set_radio_freq;
+	t->set_tv_freq = default_set_tv_freq;
+	t->set_radio_freq = default_set_radio_freq;
 	t->has_signal = tuner_signal;
-	t->is_stereo  = tuner_stereo;
+	t->is_stereo = tuner_stereo;
 	t->standby = NULL;
 
 	return 0;

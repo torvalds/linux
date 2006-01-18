@@ -1,11 +1,11 @@
 /*
  *  drivers/s390/s390_rdev.c
  *  s390 root device
- *   $Revision: 1.2 $
+ *   $Revision: 1.4 $
  *
  *    Copyright (C) 2002, 2005 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
- *    Author(s): Cornelia Huck (cohuck@de.ibm.com)
+ *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		  Carsten Otte  (cotte@de.ibm.com)
  */
 

@@ -311,8 +311,6 @@ int pcmcia_register_driver(struct pcmcia_driver *driver)
 	/* initialize common fields */
 	driver->drv.bus = &pcmcia_bus_type;
 	driver->drv.owner = driver->owner;
-	driver->drv.probe = pcmcia_device_probe;
-	driver->drv.remove = pcmcia_device_remove;
 
 	return driver_register(&driver->drv);
 }
@@ -1200,6 +1198,8 @@ struct bus_type pcmcia_bus_type = {
 	.uevent = pcmcia_bus_uevent,
 	.match = pcmcia_bus_match,
 	.dev_attrs = pcmcia_dev_attrs,
+	.probe = pcmcia_device_probe,
+	.remove = pcmcia_device_remove,
 	.suspend = pcmcia_dev_suspend,
 	.resume = pcmcia_dev_resume,
 };

@@ -49,8 +49,6 @@ static int zfcp_task_management_function(struct zfcp_unit *, u8,
 
 static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int, scsi_id_t,
 					  scsi_lun_t);
-static struct zfcp_port *zfcp_port_lookup(struct zfcp_adapter *, int,
-					  scsi_id_t);
 
 static struct device_attribute *zfcp_sysfs_sdev_attrs[];
 
@@ -406,18 +404,6 @@ zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id,
 	return retval;
 }
 
-static struct zfcp_port *
-zfcp_port_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id)
-{
-	struct zfcp_port *port;
-
-	list_for_each_entry(port, &adapter->port_list_head, list) {
-		if (port->rport && (id == port->rport->scsi_target_id))
-			return port;
-	}
-	return (struct zfcp_port *) NULL;
-}
-
 /**
  * zfcp_scsi_eh_abort_handler - abort the specified SCSI command
  * @scpnt: pointer to scsi_cmnd to be aborted 
@@ -731,70 +717,164 @@ zfcp_fsf_start_scsi_er_timer(struct zfcp_adapter *adapter)
 /*
  * Support functions for FC transport class
  */
-static void
-zfcp_get_port_id(struct scsi_target *starget)
+static struct fc_host_statistics*
+zfcp_init_fc_host_stats(struct zfcp_adapter *adapter)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct zfcp_adapter *adapter = (struct zfcp_adapter *)shost->hostdata[0];
-	struct zfcp_port *port;
-	unsigned long flags;
+	struct fc_host_statistics *fc_stats;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	port = zfcp_port_lookup(adapter, starget->channel, starget->id);
-	if (port)
-		fc_starget_port_id(starget) = port->d_id;
-	else
-		fc_starget_port_id(starget) = -1;
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	if (!adapter->fc_stats) {
+		fc_stats = kmalloc(sizeof(*fc_stats), GFP_KERNEL);
+		if (!fc_stats)
+			return NULL;
+		adapter->fc_stats = fc_stats; /* freed in adater_dequeue */
+	}
+	memset(adapter->fc_stats, 0, sizeof(*adapter->fc_stats));
+	return adapter->fc_stats;
 }
 
 static void
-zfcp_get_port_name(struct scsi_target *starget)
+zfcp_adjust_fc_host_stats(struct fc_host_statistics *fc_stats,
+			  struct fsf_qtcb_bottom_port *data,
+			  struct fsf_qtcb_bottom_port *old)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct zfcp_adapter *adapter = (struct zfcp_adapter *)shost->hostdata[0];
-	struct zfcp_port *port;
-	unsigned long flags;
-
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	port = zfcp_port_lookup(adapter, starget->channel, starget->id);
-	if (port)
-		fc_starget_port_name(starget) = port->wwpn;
-	else
-		fc_starget_port_name(starget) = -1;
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	fc_stats->seconds_since_last_reset = data->seconds_since_last_reset -
+		old->seconds_since_last_reset;
+	fc_stats->tx_frames = data->tx_frames - old->tx_frames;
+	fc_stats->tx_words = data->tx_words - old->tx_words;
+	fc_stats->rx_frames = data->rx_frames - old->rx_frames;
+	fc_stats->rx_words = data->rx_words - old->rx_words;
+	fc_stats->lip_count = data->lip - old->lip;
+	fc_stats->nos_count = data->nos - old->nos;
+	fc_stats->error_frames = data->error_frames - old->error_frames;
+	fc_stats->dumped_frames = data->dumped_frames - old->dumped_frames;
+	fc_stats->link_failure_count = data->link_failure - old->link_failure;
+	fc_stats->loss_of_sync_count = data->loss_of_sync - old->loss_of_sync;
+	fc_stats->loss_of_signal_count = data->loss_of_signal -
+		old->loss_of_signal;
+	fc_stats->prim_seq_protocol_err_count = data->psp_error_counts -
+		old->psp_error_counts;
+	fc_stats->invalid_tx_word_count = data->invalid_tx_words -
+		old->invalid_tx_words;
+	fc_stats->invalid_crc_count = data->invalid_crcs - old->invalid_crcs;
+	fc_stats->fcp_input_requests = data->input_requests -
+		old->input_requests;
+	fc_stats->fcp_output_requests = data->output_requests -
+		old->output_requests;
+	fc_stats->fcp_control_requests = data->control_requests -
+		old->control_requests;
+	fc_stats->fcp_input_megabytes = data->input_mb - old->input_mb;
+	fc_stats->fcp_output_megabytes = data->output_mb - old->output_mb;
 }
 
 static void
-zfcp_get_node_name(struct scsi_target *starget)
+zfcp_set_fc_host_stats(struct fc_host_statistics *fc_stats,
+		       struct fsf_qtcb_bottom_port *data)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct zfcp_adapter *adapter = (struct zfcp_adapter *)shost->hostdata[0];
-	struct zfcp_port *port;
-	unsigned long flags;
+	fc_stats->seconds_since_last_reset = data->seconds_since_last_reset;
+	fc_stats->tx_frames = data->tx_frames;
+	fc_stats->tx_words = data->tx_words;
+	fc_stats->rx_frames = data->rx_frames;
+	fc_stats->rx_words = data->rx_words;
+	fc_stats->lip_count = data->lip;
+	fc_stats->nos_count = data->nos;
+	fc_stats->error_frames = data->error_frames;
+	fc_stats->dumped_frames = data->dumped_frames;
+	fc_stats->link_failure_count = data->link_failure;
+	fc_stats->loss_of_sync_count = data->loss_of_sync;
+	fc_stats->loss_of_signal_count = data->loss_of_signal;
+	fc_stats->prim_seq_protocol_err_count = data->psp_error_counts;
+	fc_stats->invalid_tx_word_count = data->invalid_tx_words;
+	fc_stats->invalid_crc_count = data->invalid_crcs;
+	fc_stats->fcp_input_requests = data->input_requests;
+	fc_stats->fcp_output_requests = data->output_requests;
+	fc_stats->fcp_control_requests = data->control_requests;
+	fc_stats->fcp_input_megabytes = data->input_mb;
+	fc_stats->fcp_output_megabytes = data->output_mb;
+}
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	port = zfcp_port_lookup(adapter, starget->channel, starget->id);
-	if (port)
-		fc_starget_node_name(starget) = port->wwnn;
-	else
-		fc_starget_node_name(starget) = -1;
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+/**
+ * zfcp_get_fc_host_stats - provide fc_host_statistics for scsi_transport_fc
+ *
+ * assumption: scsi_transport_fc synchronizes calls of
+ *             get_fc_host_stats and reset_fc_host_stats
+ *             (XXX to be checked otherwise introduce locking)
+ */
+static struct fc_host_statistics *
+zfcp_get_fc_host_stats(struct Scsi_Host *shost)
+{
+	struct zfcp_adapter *adapter;
+	struct fc_host_statistics *fc_stats;
+	struct fsf_qtcb_bottom_port *data;
+	int ret;
+
+	adapter = (struct zfcp_adapter *)shost->hostdata[0];
+	fc_stats = zfcp_init_fc_host_stats(adapter);
+	if (!fc_stats)
+		return NULL;
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return NULL;
+	memset(data, 0, sizeof(*data));
+
+	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
+	if (ret) {
+		kfree(data);
+		return NULL; /* XXX return zeroed fc_stats? */
+	}
+
+	if (adapter->stats_reset &&
+	    ((jiffies/HZ - adapter->stats_reset) <
+	     data->seconds_since_last_reset)) {
+		zfcp_adjust_fc_host_stats(fc_stats, data,
+					  adapter->stats_reset_data);
+	} else
+		zfcp_set_fc_host_stats(fc_stats, data);
+
+	kfree(data);
+	return fc_stats;
+}
+
+static void
+zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
+{
+	struct zfcp_adapter *adapter;
+	struct fsf_qtcb_bottom_port *data, *old_data;
+	int ret;
+
+	adapter = (struct zfcp_adapter *)shost->hostdata[0];
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return;
+	memset(data, 0, sizeof(*data));
+
+	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
+	if (ret == 0) {
+		adapter->stats_reset = jiffies/HZ;
+		old_data = adapter->stats_reset_data;
+		adapter->stats_reset_data = data; /* finally freed in
+						     adater_dequeue */
+		kfree(old_data);
+	}
 }
 
 struct fc_function_template zfcp_transport_functions = {
-	.get_starget_port_id = zfcp_get_port_id,
-	.get_starget_port_name = zfcp_get_port_name,
-	.get_starget_node_name = zfcp_get_node_name,
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
 	.show_starget_node_name = 1,
 	.show_rport_supported_classes = 1,
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
+	.show_host_permanent_port_name = 1,
 	.show_host_supported_classes = 1,
+	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
 	.show_host_serial_number = 1,
+	.get_fc_host_stats = zfcp_get_fc_host_stats,
+	.reset_fc_host_stats = zfcp_reset_fc_host_stats,
+	/* no functions registered for following dynamic attributes but
+	   directly set by LLDD */
+	.show_host_port_type = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
 };

@@ -42,6 +42,7 @@
 #include <linux/mount.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 
@@ -113,7 +114,7 @@ static struct ib_client ucm_client = {
 	.remove = ib_ucm_remove_one
 };
 
-static DECLARE_MUTEX(ctx_id_mutex);
+static DEFINE_MUTEX(ctx_id_mutex);
 static DEFINE_IDR(ctx_id_table);
 static DECLARE_BITMAP(dev_map, IB_UCM_MAX_DEVICES);
 
@@ -121,7 +122,7 @@ static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
 {
 	struct ib_ucm_context *ctx;
 
-	down(&ctx_id_mutex);
+	mutex_lock(&ctx_id_mutex);
 	ctx = idr_find(&ctx_id_table, id);
 	if (!ctx)
 		ctx = ERR_PTR(-ENOENT);
@@ -129,7 +130,7 @@ static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
 		ctx = ERR_PTR(-EINVAL);
 	else
 		atomic_inc(&ctx->ref);
-	up(&ctx_id_mutex);
+	mutex_unlock(&ctx_id_mutex);
 
 	return ctx;
 }
@@ -186,9 +187,9 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 		if (!result)
 			goto error;
 
-		down(&ctx_id_mutex);
+		mutex_lock(&ctx_id_mutex);
 		result = idr_get_new(&ctx_id_table, ctx, &ctx->id);
-		up(&ctx_id_mutex);
+		mutex_unlock(&ctx_id_mutex);
 	} while (result == -EAGAIN);
 
 	if (result)
@@ -550,9 +551,9 @@ static ssize_t ib_ucm_create_id(struct ib_ucm_file *file,
 err2:
 	ib_destroy_cm_id(ctx->cm_id);
 err1:
-	down(&ctx_id_mutex);
+	mutex_lock(&ctx_id_mutex);
 	idr_remove(&ctx_id_table, ctx->id);
-	up(&ctx_id_mutex);
+	mutex_unlock(&ctx_id_mutex);
 	kfree(ctx);
 	return result;
 }
@@ -572,7 +573,7 @@ static ssize_t ib_ucm_destroy_id(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	down(&ctx_id_mutex);
+	mutex_lock(&ctx_id_mutex);
 	ctx = idr_find(&ctx_id_table, cmd.id);
 	if (!ctx)
 		ctx = ERR_PTR(-ENOENT);
@@ -580,7 +581,7 @@ static ssize_t ib_ucm_destroy_id(struct ib_ucm_file *file,
 		ctx = ERR_PTR(-EINVAL);
 	else
 		idr_remove(&ctx_id_table, ctx->id);
-	up(&ctx_id_mutex);
+	mutex_unlock(&ctx_id_mutex);
 
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
@@ -1280,9 +1281,9 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 				 struct ib_ucm_context, file_list);
 		up(&file->mutex);
 
-		down(&ctx_id_mutex);
+		mutex_lock(&ctx_id_mutex);
 		idr_remove(&ctx_id_table, ctx->id);
-		up(&ctx_id_mutex);
+		mutex_unlock(&ctx_id_mutex);
 
 		ib_destroy_cm_id(ctx->cm_id);
 		ib_ucm_cleanup_events(ctx);

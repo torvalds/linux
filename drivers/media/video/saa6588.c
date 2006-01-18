@@ -50,15 +50,15 @@ static unsigned int rbds = 0;
 static unsigned int plvl = 0;
 static unsigned int bufblocks = 100;
 
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
-MODULE_PARM(xtal, "i");
+module_param(xtal, int, 0);
 MODULE_PARM_DESC(xtal, "select oscillator frequency (0..3), default 0");
-MODULE_PARM(rbds, "i");
+module_param(rbds, int, 0);
 MODULE_PARM_DESC(rbds, "select mode, 0=RDS, 1=RBDS, default 0");
-MODULE_PARM(plvl, "i");
+module_param(plvl, int, 0);
 MODULE_PARM_DESC(plvl, "select pause level (0..3), default 0");
-MODULE_PARM(bufblocks, "i");
+module_param(bufblocks, int, 0);
 MODULE_PARM_DESC(bufblocks, "number of buffered blocks, default 100");
 
 MODULE_DESCRIPTION("v4l2 driver module for SAA6588 RDS decoder");

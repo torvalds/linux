@@ -3,7 +3,7 @@
  *
  * SuperH-specific DMA management API
  *
- * Copyright (C) 2003, 2004  Paul Mundt
+ * Copyright (C) 2003, 2004, 2005  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
 #include <linux/list.h>
+#include <linux/platform_device.h>
 #include <asm/dma.h>
 
 DEFINE_SPINLOCK(dma_spin_lock);
@@ -55,16 +56,14 @@ static LIST_HEAD(registered_dmac_list);
 
 struct dma_info *get_dma_info(unsigned int chan)
 {
-	struct list_head *pos, *tmp;
+	struct dma_info *info;
 	unsigned int total = 0;
 
 	/*
 	 * Look for each DMAC's range to determine who the owner of
 	 * the channel is.
 	 */
-	list_for_each_safe(pos, tmp, &registered_dmac_list) {
-		struct dma_info *info = list_entry(pos, struct dma_info, list);
-
+	list_for_each_entry(info, &registered_dmac_list, list) {
 		total += info->nr_channels;
 		if (chan > total)
 			continue;
@@ -73,6 +72,20 @@ struct dma_info *get_dma_info(unsigned int chan)
 	}
 
 	return NULL;
+}
+
+static unsigned int get_nr_channels(void)
+{
+	struct dma_info *info;
+	unsigned int nr = 0;
+
+	if (unlikely(list_empty(&registered_dmac_list)))
+		return nr;
+
+	list_for_each_entry(info, &registered_dmac_list, list)
+		nr += info->nr_channels;
+
+	return nr;
 }
 
 struct dma_channel *get_dma_channel(unsigned int chan)
@@ -173,7 +186,7 @@ int dma_xfer(unsigned int chan, unsigned long from,
 static int dma_read_proc(char *buf, char **start, off_t off,
 			 int len, int *eof, void *data)
 {
-	struct list_head *pos, *tmp;
+	struct dma_info *info;
 	char *p = buf;
 
 	if (list_empty(&registered_dmac_list))
@@ -182,8 +195,7 @@ static int dma_read_proc(char *buf, char **start, off_t off,
 	/*
 	 * Iterate over each registered DMAC
 	 */
-	list_for_each_safe(pos, tmp, &registered_dmac_list) {
-		struct dma_info *info = list_entry(pos, struct dma_info, list);
+	list_for_each_entry(info, &registered_dmac_list, list) {
 		int i;
 
 		/*
@@ -205,9 +217,9 @@ static int dma_read_proc(char *buf, char **start, off_t off,
 #endif
 
 
-int __init register_dmac(struct dma_info *info)
+int register_dmac(struct dma_info *info)
 {
-	int i;
+	unsigned int total_channels, i;
 
 	INIT_LIST_HEAD(&info->list);
 
@@ -216,6 +228,11 @@ int __init register_dmac(struct dma_info *info)
 	       info->nr_channels > 1 ? "s" : "");
 
 	BUG_ON((info->flags & DMAC_CHANNELS_CONFIGURED) && !info->channels);
+
+	info->pdev = platform_device_register_simple((char *)info->name, -1,
+						     NULL, 0);
+	if (IS_ERR(info->pdev))
+		return PTR_ERR(info->pdev);
 
 	/*
 	 * Don't touch pre-configured channels
@@ -232,10 +249,12 @@ int __init register_dmac(struct dma_info *info)
 		memset(info->channels, 0, size);
 	}
 
+	total_channels = get_nr_channels();
 	for (i = 0; i < info->nr_channels; i++) {
 		struct dma_channel *chan = info->channels + i;
 
 		chan->chan = i;
+		chan->vchan = i + total_channels;
 
 		memcpy(chan->dev_id, "Unused", 7);
 
@@ -245,9 +264,7 @@ int __init register_dmac(struct dma_info *info)
 		init_MUTEX(&chan->sem);
 		init_waitqueue_head(&chan->wait_queue);
 
-#ifdef CONFIG_SYSFS
-		dma_create_sysfs_files(chan);
-#endif
+		dma_create_sysfs_files(chan, info);
 	}
 
 	list_add(&info->list, &registered_dmac_list);
@@ -255,12 +272,18 @@ int __init register_dmac(struct dma_info *info)
 	return 0;
 }
 
-void __exit unregister_dmac(struct dma_info *info)
+void unregister_dmac(struct dma_info *info)
 {
+	unsigned int i;
+
+	for (i = 0; i < info->nr_channels; i++)
+		dma_remove_sysfs_files(info->channels + i, info);
+
 	if (!(info->flags & DMAC_CHANNELS_CONFIGURED))
 		kfree(info->channels);
 
 	list_del(&info->list);
+	platform_device_unregister(info->pdev);
 }
 
 static int __init dma_api_init(void)

@@ -2734,7 +2734,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk)
 	 * BIOS does tho. Right now, all this PM stuff is pmac-only for that
 	 * reason. --BenH
 	 */
-#if defined(CONFIG_PM) && defined(CONFIG_PPC_OF)
+#if defined(CONFIG_PM) && defined(CONFIG_PPC_PMAC)
 	if (_machine == _MACH_Pmac && rinfo->of_node) {
 		if (rinfo->is_mobility && rinfo->pm_reg &&
 		    rinfo->family <= CHIP_FAMILY_RV250)
@@ -2778,12 +2778,12 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk)
 		OUTREG(TV_DAC_CNTL, INREG(TV_DAC_CNTL) | 0x07000000);
 #endif
 	}
-#endif /* defined(CONFIG_PM) && defined(CONFIG_PPC_OF) */
+#endif /* defined(CONFIG_PM) && defined(CONFIG_PPC_PMAC) */
 }
 
 void radeonfb_pm_exit(struct radeonfb_info *rinfo)
 {
-#if defined(CONFIG_PM) && defined(CONFIG_PPC_OF)
+#if defined(CONFIG_PM) && defined(CONFIG_PPC_PMAC)
 	if (rinfo->pm_mode != radeon_pm_none)
 		pmac_set_early_video_resume(NULL, NULL);
 #endif

@@ -392,7 +392,6 @@ static void __init h3100_map_io(void)
 }
 
 MACHINE_START(H3100, "Compaq iPAQ H3100")
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
@@ -510,7 +509,6 @@ static void __init h3600_map_io(void)
 }
 
 MACHINE_START(H3600, "Compaq iPAQ H3600")
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,
@@ -897,7 +895,6 @@ static void __init h3800_map_io(void)
 }
 
 MACHINE_START(H3800, "Compaq iPAQ H3800")
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,

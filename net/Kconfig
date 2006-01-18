@@ -159,6 +159,7 @@ source "net/ipx/Kconfig"
 source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
+source "net/tipc/Kconfig"
 
 config NET_DIVERT
 	bool "Frame Diverter (EXPERIMENTAL)"

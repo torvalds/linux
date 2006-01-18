@@ -184,7 +184,6 @@ static int sx_poll = HZ;
 
 static struct tty_driver *specialix_driver;
 static unsigned char * tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static unsigned long baud_table[] =  {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
@@ -2555,8 +2554,6 @@ static int __init specialix_init_module(void)
 	int i;
 
 	func_enter();
-
-	init_MUTEX(&tmp_buf_sem); /* Init de the semaphore - pvdl */
 
 	if (iobase[0] || iobase[1] || iobase[2] || iobase[3]) {
 		for(i = 0; i < SX_NBOARD; i++) {
