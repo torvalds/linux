@@ -560,7 +560,11 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	SET_INODE_JOURNAL(inode);
 	OCFS2_I(inode)->ip_open_count++;
 
-	status = ocfs2_meta_lock(inode, NULL, &bh, 1);
+	/* Skip recovery waits here - journal inode metadata never
+	 * changes in a live cluster so it can be considered an
+	 * exception to the rule. */
+	status = ocfs2_meta_lock_full(inode, NULL, &bh, 1,
+				      OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		if (status != -ERESTARTSYS)
 			mlog(ML_ERROR, "Could not get lock on journal!\n");
