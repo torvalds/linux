@@ -38,13 +38,11 @@
 #include <net/tipc/tipc_bearer.h>
 #include <net/tipc/tipc_msg.h>
 #include <linux/netdevice.h>
-#include <linux/version.h>
 
 #define MAX_ETH_BEARERS		2
-#define TIPC_PROTOCOL		0x88ca
-#define ETH_LINK_PRIORITY	10
+#define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
 #define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
-
+#define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
 
 /**
  * struct eth_bearer - Ethernet bearer data structure
@@ -78,7 +76,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		clone->nh.raw = clone->data;
 		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
 		clone->dev = dev;
-		dev->hard_header(clone, dev, TIPC_PROTOCOL, 
+		dev->hard_header(clone, dev, ETH_P_TIPC, 
 				 &dest->dev_addr.eth_addr,
 				 dev->dev_addr, clone->len);
 		dev_queue_xmit(clone);
@@ -141,7 +139,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 		return -EDQUOT;
 	if (!eb_ptr->dev) {
 		eb_ptr->dev = dev;
-		eb_ptr->tipc_packet_type.type = __constant_htons(TIPC_PROTOCOL);
+		eb_ptr->tipc_packet_type.type = __constant_htons(ETH_P_TIPC);
 		eb_ptr->tipc_packet_type.dev = dev;
 		eb_ptr->tipc_packet_type.func = recv_msg;
 		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
@@ -240,13 +238,13 @@ static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size
 }
 
 /**
- * eth_media_start - activate Ethernet bearer support
+ * tipc_eth_media_start - activate Ethernet bearer support
  *
  * Register Ethernet media type with TIPC bearer code.  Also register
  * with OS for notifications about device state changes.
  */
 
-int eth_media_start(void)
+int tipc_eth_media_start(void)
 {                       
 	struct tipc_media_addr bcast_addr;
 	int res;
@@ -260,7 +258,7 @@ int eth_media_start(void)
 	res = tipc_register_media(TIPC_MEDIA_TYPE_ETH, "eth",
 				  enable_bearer, disable_bearer, send_msg, 
 				  eth_addr2str, &bcast_addr, ETH_LINK_PRIORITY, 
-				  ETH_LINK_TOLERANCE, TIPC_DEF_LINK_WIN);
+				  ETH_LINK_TOLERANCE, ETH_LINK_WINDOW);
 	if (res)
 		return res;
 
@@ -273,10 +271,10 @@ int eth_media_start(void)
 }
 
 /**
- * eth_media_stop - deactivate Ethernet bearer support
+ * tipc_eth_media_stop - deactivate Ethernet bearer support
  */
 
-void eth_media_stop(void)
+void tipc_eth_media_stop(void)
 {
 	int i;
 

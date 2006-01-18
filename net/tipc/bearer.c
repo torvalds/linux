@@ -48,7 +48,7 @@
 static struct media *media_list = 0;
 static u32 media_count = 0;
 
-struct bearer *bearers = 0;
+struct bearer *tipc_bearers = 0;
 
 /**
  * media_name_valid - validate media name
@@ -107,7 +107,7 @@ int  tipc_register_media(u32 media_type,
 	u32 i;
 	int res = -EINVAL;
 
-	write_lock_bh(&net_lock);
+	write_lock_bh(&tipc_net_lock);
 	if (!media_list)
 		goto exit;
 
@@ -119,7 +119,8 @@ int  tipc_register_media(u32 media_type,
 		warn("Media registration error: no broadcast address supplied\n");
 		goto exit;
 	}
-	if (bearer_priority >= TIPC_NUM_LINK_PRI) {
+	if ((bearer_priority < TIPC_MIN_LINK_PRI) &&
+	    (bearer_priority > TIPC_MAX_LINK_PRI)) {
 		warn("Media registration error: priority %u\n", bearer_priority);
 		goto exit;
 	}
@@ -164,15 +165,15 @@ int  tipc_register_media(u32 media_type,
 	dbg("Media <%s> registered\n", name);
 	res = 0;
 exit:
-	write_unlock_bh(&net_lock);
+	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 
 /**
- * media_addr_printf - record media address in print buffer
+ * tipc_media_addr_printf - record media address in print buffer
  */
 
-void media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
+void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 {
 	struct media *m_ptr;
 	u32 media_type;
@@ -200,25 +201,25 @@ void media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 }
 
 /**
- * media_get_names - record names of registered media in buffer
+ * tipc_media_get_names - record names of registered media in buffer
  */
 
-struct sk_buff *media_get_names(void)
+struct sk_buff *tipc_media_get_names(void)
 {
 	struct sk_buff *buf;
 	struct media *m_ptr;
 	int i;
 
-	buf = cfg_reply_alloc(MAX_MEDIA * TLV_SPACE(TIPC_MAX_MEDIA_NAME));
+	buf = tipc_cfg_reply_alloc(MAX_MEDIA * TLV_SPACE(TIPC_MAX_MEDIA_NAME));
 	if (!buf)
 		return NULL;
 
-	read_lock_bh(&net_lock);
+	read_lock_bh(&tipc_net_lock);
 	for (i = 0, m_ptr = media_list; i < media_count; i++, m_ptr++) {
-		cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME, m_ptr->name, 
-			       strlen(m_ptr->name) + 1);
+		tipc_cfg_append_tlv(buf, TIPC_TLV_MEDIA_NAME, m_ptr->name, 
+				    strlen(m_ptr->name) + 1);
 	}
-	read_unlock_bh(&net_lock);
+	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }
 
@@ -282,7 +283,7 @@ static struct bearer *bearer_find(const char *name)
 	struct bearer *b_ptr;
 	u32 i;
 
-	for (i = 0, b_ptr = bearers; i < MAX_BEARERS; i++, b_ptr++) {
+	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
 		if (b_ptr->active && (!strcmp(b_ptr->publ.name, name)))
 			return b_ptr;
 	}
@@ -290,16 +291,16 @@ static struct bearer *bearer_find(const char *name)
 }
 
 /**
- * bearer_find - locates bearer object with matching interface name
+ * tipc_bearer_find_interface - locates bearer object with matching interface name
  */
 
-struct bearer *bearer_find_interface(const char *if_name)
+struct bearer *tipc_bearer_find_interface(const char *if_name)
 {
 	struct bearer *b_ptr;
 	char *b_if_name;
 	u32 i;
 
-	for (i = 0, b_ptr = bearers; i < MAX_BEARERS; i++, b_ptr++) {
+	for (i = 0, b_ptr = tipc_bearers; i < MAX_BEARERS; i++, b_ptr++) {
 		if (!b_ptr->active)
 			continue;
 		b_if_name = strchr(b_ptr->publ.name, ':') + 1;
@@ -310,54 +311,54 @@ struct bearer *bearer_find_interface(const char *if_name)
 }
 
 /**
- * bearer_get_names - record names of bearers in buffer
+ * tipc_bearer_get_names - record names of bearers in buffer
  */
 
-struct sk_buff *bearer_get_names(void)
+struct sk_buff *tipc_bearer_get_names(void)
 {
 	struct sk_buff *buf;
 	struct media *m_ptr;
 	struct bearer *b_ptr;
 	int i, j;
 
-	buf = cfg_reply_alloc(MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME));
+	buf = tipc_cfg_reply_alloc(MAX_BEARERS * TLV_SPACE(TIPC_MAX_BEARER_NAME));
 	if (!buf)
 		return NULL;
 
-	read_lock_bh(&net_lock);
+	read_lock_bh(&tipc_net_lock);
 	for (i = 0, m_ptr = media_list; i < media_count; i++, m_ptr++) {
 		for (j = 0; j < MAX_BEARERS; j++) {
-			b_ptr = &bearers[j];
+			b_ptr = &tipc_bearers[j];
 			if (b_ptr->active && (b_ptr->media == m_ptr)) {
-				cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME, 
-					       b_ptr->publ.name, 
-					       strlen(b_ptr->publ.name) + 1);
+				tipc_cfg_append_tlv(buf, TIPC_TLV_BEARER_NAME, 
+						    b_ptr->publ.name, 
+						    strlen(b_ptr->publ.name) + 1);
 			}
 		}
 	}
-	read_unlock_bh(&net_lock);
+	read_unlock_bh(&tipc_net_lock);
 	return buf;
 }
 
-void bearer_add_dest(struct bearer *b_ptr, u32 dest)
+void tipc_bearer_add_dest(struct bearer *b_ptr, u32 dest)
 {
-	nmap_add(&b_ptr->nodes, dest);
-	disc_update_link_req(b_ptr->link_req);
-	bcbearer_sort();
+	tipc_nmap_add(&b_ptr->nodes, dest);
+	tipc_disc_update_link_req(b_ptr->link_req);
+	tipc_bcbearer_sort();
 }
 
-void bearer_remove_dest(struct bearer *b_ptr, u32 dest)
+void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest)
 {
-	nmap_remove(&b_ptr->nodes, dest);
-	disc_update_link_req(b_ptr->link_req);
-	bcbearer_sort();
+	tipc_nmap_remove(&b_ptr->nodes, dest);
+	tipc_disc_update_link_req(b_ptr->link_req);
+	tipc_bcbearer_sort();
 }
 
 /*
  * bearer_push(): Resolve bearer congestion. Force the waiting
  * links to push out their unsent packets, one packet per link
  * per iteration, until all packets are gone or congestion reoccurs.
- * 'net_lock' is read_locked when this function is called
+ * 'tipc_net_lock' is read_locked when this function is called
  * bearer.lock must be taken before calling
  * Returns binary true(1) ore false(0)
  */
@@ -371,7 +372,7 @@ static int bearer_push(struct bearer *b_ptr)
 
 	while (!list_empty(&b_ptr->cong_links) && (res != PUSH_FAILED)) {
 		list_for_each_entry_safe(ln, tln, &b_ptr->cong_links, link_list) {
-			res = link_push_packet(ln);
+			res = tipc_link_push_packet(ln);
 			if (res == PUSH_FAILED)
 				break;
 			if (res == PUSH_FINISHED)
@@ -381,7 +382,7 @@ static int bearer_push(struct bearer *b_ptr)
 	return list_empty(&b_ptr->cong_links);
 }
 
-void bearer_lock_push(struct bearer *b_ptr)
+void tipc_bearer_lock_push(struct bearer *b_ptr)
 {
 	int res;
 
@@ -389,7 +390,7 @@ void bearer_lock_push(struct bearer *b_ptr)
 	res = bearer_push(b_ptr);
 	spin_unlock_bh(&b_ptr->publ.lock);
 	if (res)
-		bcbearer_push();
+		tipc_bcbearer_push();
 }
 
 
@@ -404,7 +405,7 @@ void tipc_continue(struct tipc_bearer *tb_ptr)
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->continue_count++;
 	if (!list_empty(&b_ptr->cong_links))
-		k_signal((Handler)bearer_lock_push, (unsigned long)b_ptr);
+		tipc_k_signal((Handler)tipc_bearer_lock_push, (unsigned long)b_ptr);
 	b_ptr->publ.blocked = 0;
 	spin_unlock_bh(&b_ptr->publ.lock);
 }
@@ -413,11 +414,11 @@ void tipc_continue(struct tipc_bearer *tb_ptr)
  * Schedule link for sending of messages after the bearer 
  * has been deblocked by 'continue()'. This method is called 
  * when somebody tries to send a message via this link while 
- * the bearer is congested. 'net_lock' is in read_lock here
+ * the bearer is congested. 'tipc_net_lock' is in read_lock here
  * bearer.lock is busy
  */
 
-static void bearer_schedule_unlocked(struct bearer *b_ptr, struct link *l_ptr)
+static void tipc_bearer_schedule_unlocked(struct bearer *b_ptr, struct link *l_ptr)
 {
 	list_move_tail(&l_ptr->link_list, &b_ptr->cong_links);
 }
@@ -426,24 +427,24 @@ static void bearer_schedule_unlocked(struct bearer *b_ptr, struct link *l_ptr)
  * Schedule link for sending of messages after the bearer 
  * has been deblocked by 'continue()'. This method is called 
  * when somebody tries to send a message via this link while 
- * the bearer is congested. 'net_lock' is in read_lock here,
+ * the bearer is congested. 'tipc_net_lock' is in read_lock here,
  * bearer.lock is free
  */
 
-void bearer_schedule(struct bearer *b_ptr, struct link *l_ptr)
+void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr)
 {
 	spin_lock_bh(&b_ptr->publ.lock);
-	bearer_schedule_unlocked(b_ptr, l_ptr);
+	tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
 	spin_unlock_bh(&b_ptr->publ.lock);
 }
 
 
 /*
- * bearer_resolve_congestion(): Check if there is bearer congestion,
+ * tipc_bearer_resolve_congestion(): Check if there is bearer congestion,
  * and if there is, try to resolve it before returning.
- * 'net_lock' is read_locked when this function is called
+ * 'tipc_net_lock' is read_locked when this function is called
  */
-int bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
 {
 	int res = 1;
 
@@ -451,7 +452,7 @@ int bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
 		return 1;
 	spin_lock_bh(&b_ptr->publ.lock);
 	if (!bearer_push(b_ptr)) {
-		bearer_schedule_unlocked(b_ptr, l_ptr);
+		tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
 		res = 0;
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
@@ -476,14 +477,19 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 
 	if (tipc_mode != TIPC_NET_MODE)
 		return -ENOPROTOOPT;
+
 	if (!bearer_name_validate(name, &b_name) ||
-	    !addr_domain_valid(bcast_scope) ||
-	    !in_scope(bcast_scope, tipc_own_addr) ||
-	    (priority > TIPC_NUM_LINK_PRI))
+	    !tipc_addr_domain_valid(bcast_scope) ||
+	    !in_scope(bcast_scope, tipc_own_addr))
 		return -EINVAL;
 
-	write_lock_bh(&net_lock);
-	if (!bearers)
+	if ((priority < TIPC_MIN_LINK_PRI ||
+	     priority > TIPC_MAX_LINK_PRI) &&
+	    (priority != TIPC_MEDIA_LINK_PRI))
+		return -EINVAL;
+
+	write_lock_bh(&tipc_net_lock);
+	if (!tipc_bearers)
 		goto failed;
 
 	m_ptr = media_find(b_name.media_name);
@@ -491,22 +497,23 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 		warn("No media <%s>\n", b_name.media_name);
 		goto failed;
 	}
-	if (priority == TIPC_NUM_LINK_PRI)
+
+	if (priority == TIPC_MEDIA_LINK_PRI)
 		priority = m_ptr->priority;
 
 restart:
 	bearer_id = MAX_BEARERS;
 	with_this_prio = 1;
 	for (i = MAX_BEARERS; i-- != 0; ) {
-		if (!bearers[i].active) {
+		if (!tipc_bearers[i].active) {
 			bearer_id = i;
 			continue;
 		}
-		if (!strcmp(name, bearers[i].publ.name)) {
+		if (!strcmp(name, tipc_bearers[i].publ.name)) {
 			warn("Bearer <%s> already enabled\n", name);
 			goto failed;
 		}
-		if ((bearers[i].priority == priority) &&
+		if ((tipc_bearers[i].priority == priority) &&
 		    (++with_this_prio > 2)) {
 			if (priority-- == 0) {
 				warn("Third bearer <%s> with priority %u, unable to lower to %u\n",
@@ -523,7 +530,7 @@ restart:
 		goto failed;
 	}
 
-	b_ptr = &bearers[bearer_id];
+	b_ptr = &tipc_bearers[bearer_id];
 	memset(b_ptr, 0, sizeof(struct bearer));
 
 	strcpy(b_ptr->publ.name, name);
@@ -542,16 +549,16 @@ restart:
 	INIT_LIST_HEAD(&b_ptr->cong_links);
 	INIT_LIST_HEAD(&b_ptr->links);
 	if (m_ptr->bcast) {
-		b_ptr->link_req = disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
-						     bcast_scope, 2);
+		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
+							  bcast_scope, 2);
 	}
 	b_ptr->publ.lock = SPIN_LOCK_UNLOCKED;
-	write_unlock_bh(&net_lock);
-	info("Enabled bearer <%s>, discovery domain %s\n",
-	     name, addr_string_fill(addr_string, bcast_scope));
+	write_unlock_bh(&tipc_net_lock);
+	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
+	     name, addr_string_fill(addr_string, bcast_scope), priority);
 	return 0;
 failed:
-	write_unlock_bh(&net_lock);
+	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 
@@ -569,11 +576,11 @@ int tipc_block_bearer(const char *name)
 	if (tipc_mode != TIPC_NET_MODE)
 		return -ENOPROTOOPT;
 
-	read_lock_bh(&net_lock);
+	read_lock_bh(&tipc_net_lock);
 	b_ptr = bearer_find(name);
 	if (!b_ptr) {
 		warn("Attempt to block unknown bearer <%s>\n", name);
-		read_unlock_bh(&net_lock);
+		read_unlock_bh(&tipc_net_lock);
 		return -EINVAL;
 	}
 
@@ -583,11 +590,11 @@ int tipc_block_bearer(const char *name)
 		struct node *n_ptr = l_ptr->owner;
 
 		spin_lock_bh(&n_ptr->lock);
-		link_reset(l_ptr);
+		tipc_link_reset(l_ptr);
 		spin_unlock_bh(&n_ptr->lock);
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
-	read_unlock_bh(&net_lock);
+	read_unlock_bh(&tipc_net_lock);
 	info("Blocked bearer <%s>\n", name);
 	return TIPC_OK;
 }
@@ -595,7 +602,7 @@ int tipc_block_bearer(const char *name)
 /**
  * bearer_disable -
  * 
- * Note: This routine assumes caller holds net_lock.
+ * Note: This routine assumes caller holds tipc_net_lock.
  */
 
 static int bearer_disable(const char *name)
@@ -613,19 +620,19 @@ static int bearer_disable(const char *name)
 		return -EINVAL;
 	}
 
-	disc_stop_link_req(b_ptr->link_req);
+	tipc_disc_stop_link_req(b_ptr->link_req);
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->link_req = NULL;
 	b_ptr->publ.blocked = 1;
 	if (b_ptr->media->disable_bearer) {
 		spin_unlock_bh(&b_ptr->publ.lock);
-		write_unlock_bh(&net_lock);
+		write_unlock_bh(&tipc_net_lock);
 		b_ptr->media->disable_bearer(&b_ptr->publ);
-		write_lock_bh(&net_lock);
+		write_lock_bh(&tipc_net_lock);
 		spin_lock_bh(&b_ptr->publ.lock);
 	}
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		link_delete(l_ptr);
+		tipc_link_delete(l_ptr);
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
 	info("Disabled bearer <%s>\n", name);
@@ -637,54 +644,54 @@ int tipc_disable_bearer(const char *name)
 {
 	int res;
 
-	write_lock_bh(&net_lock);
+	write_lock_bh(&tipc_net_lock);
 	res = bearer_disable(name);
-	write_unlock_bh(&net_lock);
+	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 
 
 
-int bearer_init(void)
+int tipc_bearer_init(void)
 {
 	int res;
 
-	write_lock_bh(&net_lock);
-	bearers = kmalloc(MAX_BEARERS * sizeof(struct bearer), GFP_ATOMIC);
+	write_lock_bh(&tipc_net_lock);
+	tipc_bearers = kmalloc(MAX_BEARERS * sizeof(struct bearer), GFP_ATOMIC);
 	media_list = kmalloc(MAX_MEDIA * sizeof(struct media), GFP_ATOMIC);
-	if (bearers && media_list) {
-		memset(bearers, 0, MAX_BEARERS * sizeof(struct bearer));
+	if (tipc_bearers && media_list) {
+		memset(tipc_bearers, 0, MAX_BEARERS * sizeof(struct bearer));
 		memset(media_list, 0, MAX_MEDIA * sizeof(struct media));
 		res = TIPC_OK;
 	} else {
-		kfree(bearers);
+		kfree(tipc_bearers);
 		kfree(media_list);
-		bearers = 0;
+		tipc_bearers = 0;
 		media_list = 0;
 		res = -ENOMEM;
 	}
-	write_unlock_bh(&net_lock);
+	write_unlock_bh(&tipc_net_lock);
 	return res;
 }
 
-void bearer_stop(void)
+void tipc_bearer_stop(void)
 {
 	u32 i;
 
-	if (!bearers)
+	if (!tipc_bearers)
 		return;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (bearers[i].active)
-			bearers[i].publ.blocked = 1;
+		if (tipc_bearers[i].active)
+			tipc_bearers[i].publ.blocked = 1;
 	}
 	for (i = 0; i < MAX_BEARERS; i++) {
-		if (bearers[i].active)
-			bearer_disable(bearers[i].publ.name);
+		if (tipc_bearers[i].active)
+			bearer_disable(tipc_bearers[i].publ.name);
 	}
-	kfree(bearers);
+	kfree(tipc_bearers);
 	kfree(media_list);
-	bearers = 0;
+	tipc_bearers = 0;
 	media_list = 0;
 	media_count = 0;
 }

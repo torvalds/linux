@@ -54,7 +54,7 @@ struct reference {
 };
 
 /**
- * struct ref_table - table of TIPC object reference entries
+ * struct tipc_ref_table - table of TIPC object reference entries
  * @entries: pointer to array of reference entries
  * @index_mask: bitmask for array index portion of reference values
  * @first_free: array index of first unused object reference entry
@@ -68,24 +68,24 @@ struct ref_table {
 	u32 last_free;
 };
 
-extern struct ref_table ref_table;
+extern struct ref_table tipc_ref_table;
 
-int ref_table_init(u32 requested_size, u32 start);
-void ref_table_stop(void);
+int tipc_ref_table_init(u32 requested_size, u32 start);
+void tipc_ref_table_stop(void);
 
-u32 ref_acquire(void *object, spinlock_t **lock);
-void ref_discard(u32 ref);
+u32 tipc_ref_acquire(void *object, spinlock_t **lock);
+void tipc_ref_discard(u32 ref);
 
 
 /**
- * ref_lock - lock referenced object and return pointer to it
+ * tipc_ref_lock - lock referenced object and return pointer to it
  */
 
-static inline void *ref_lock(u32 ref)
+static inline void *tipc_ref_lock(u32 ref)
 {
-	if (likely(ref_table.entries)) {
+	if (likely(tipc_ref_table.entries)) {
 		struct reference *r =
-			&ref_table.entries[ref & ref_table.index_mask];
+			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
 
 		spin_lock_bh(&r->lock);
 		if (likely(r->data.reference == ref))
@@ -96,31 +96,31 @@ static inline void *ref_lock(u32 ref)
 }
 
 /**
- * ref_unlock - unlock referenced object 
+ * tipc_ref_unlock - unlock referenced object 
  */
 
-static inline void ref_unlock(u32 ref)
+static inline void tipc_ref_unlock(u32 ref)
 {
-	if (likely(ref_table.entries)) {
+	if (likely(tipc_ref_table.entries)) {
 		struct reference *r =
-			&ref_table.entries[ref & ref_table.index_mask];
+			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
 
 		if (likely(r->data.reference == ref))
 			spin_unlock_bh(&r->lock);
 		else
-			err("ref_unlock() invoked using obsolete reference\n");
+			err("tipc_ref_unlock() invoked using obsolete reference\n");
 	}
 }
 
 /**
- * ref_deref - return pointer referenced object (without locking it)
+ * tipc_ref_deref - return pointer referenced object (without locking it)
  */
 
-static inline void *ref_deref(u32 ref)
+static inline void *tipc_ref_deref(u32 ref)
 {
-	if (likely(ref_table.entries)) {
+	if (likely(tipc_ref_table.entries)) {
 		struct reference *r = 
-			&ref_table.entries[ref & ref_table.index_mask];
+			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
 
 		if (likely(r->data.reference == ref))
 			return r->object;
