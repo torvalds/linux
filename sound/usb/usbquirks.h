@@ -1091,7 +1091,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 	/* TODO: add Edirol UA-101 support */
-	/* TODO: add Roland G-70 support */
+{
+	/* has ID 0x0081 when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x0080),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Roland",
+		.product_name = "G-70",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0003,
+			.in_cables  = 0x0003
+		}
+	}
+},
 	/* TODO: add Roland V-SYNTH XT support */
 	/* TODO: add BOSS GT-PRO support */
 {
