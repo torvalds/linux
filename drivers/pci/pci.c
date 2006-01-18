@@ -19,7 +19,6 @@
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
-#if 0
 
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
@@ -34,7 +33,7 @@ pci_bus_max_busnr(struct pci_bus* bus)
 	struct list_head *tmp;
 	unsigned char max, n;
 
-	max = bus->number;
+	max = bus->subordinate;
 	list_for_each(tmp, &bus->children) {
 		n = pci_bus_max_busnr(pci_bus_b(tmp));
 		if(n > max)
@@ -42,7 +41,9 @@ pci_bus_max_busnr(struct pci_bus* bus)
 	}
 	return max;
 }
+EXPORT_SYMBOL_GPL(pci_bus_max_busnr);
 
+#if 0
 /**
  * pci_max_busnr - returns maximum PCI bus number
  *

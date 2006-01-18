@@ -516,6 +516,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 		  void *userdata);
 int pci_cfg_space_size(struct pci_dev *dev);
+unsigned char pci_bus_max_busnr(struct pci_bus* bus);
 
 /* kmem_cache style wrapper around pci_alloc_consistent() */
 
