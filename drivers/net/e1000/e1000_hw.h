@@ -902,14 +902,14 @@ struct e1000_ffvt_entry {
 #define E1000_TXDCTL   0x03828  /* TX Descriptor Control - RW */
 #define E1000_TADV     0x0382C  /* TX Interrupt Absolute Delay Val - RW */
 #define E1000_TSPMT    0x03830  /* TCP Segmentation PAD & Min Threshold - RW */
-#define E1000_TARC0    0x03840 /* TX Arbitration Count (0) */
-#define E1000_TDBAL1   0x03900 /* TX Desc Base Address Low (1) - RW */
-#define E1000_TDBAH1   0x03904 /* TX Desc Base Address High (1) - RW */
-#define E1000_TDLEN1   0x03908 /* TX Desc Length (1) - RW */
-#define E1000_TDH1     0x03910 /* TX Desc Head (1) - RW */
-#define E1000_TDT1     0x03918 /* TX Desc Tail (1) - RW */
-#define E1000_TXDCTL1  0x03928 /* TX Descriptor Control (1) - RW */
-#define E1000_TARC1    0x03940 /* TX Arbitration Count (1) */
+#define E1000_TARC0    0x03840  /* TX Arbitration Count (0) */
+#define E1000_TDBAL1   0x03900  /* TX Desc Base Address Low (1) - RW */
+#define E1000_TDBAH1   0x03904  /* TX Desc Base Address High (1) - RW */
+#define E1000_TDLEN1   0x03908  /* TX Desc Length (1) - RW */
+#define E1000_TDH1     0x03910  /* TX Desc Head (1) - RW */
+#define E1000_TDT1     0x03918  /* TX Desc Tail (1) - RW */
+#define E1000_TXDCTL1  0x03928  /* TX Descriptor Control (1) - RW */
+#define E1000_TARC1    0x03940  /* TX Arbitration Count (1) */
 #define E1000_CRCERRS  0x04000  /* CRC Error Count - R/clr */
 #define E1000_ALGNERRC 0x04004  /* Alignment Error Count - R/clr */
 #define E1000_SYMERRS  0x04008  /* Symbol Error Count - R/clr */
@@ -1764,7 +1764,6 @@ struct e1000_hw {
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 #define E1000_TXDCTL_COUNT_DESC 0x00400000 /* Enable the counting of desc.
                                               still to be processed. */
-
 /* Transmit Configuration Word */
 #define E1000_TXCW_FD         0x00000020        /* TXCW full duplex */
 #define E1000_TXCW_HD         0x00000040        /* TXCW half duplex */

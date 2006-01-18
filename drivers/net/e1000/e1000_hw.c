@@ -1600,10 +1600,10 @@ e1000_phy_setup_autoneg(struct e1000_hw *hw)
     if(ret_val)
         return ret_val;
 
-        /* Read the MII 1000Base-T Control Register (Address 9). */
-        ret_val = e1000_read_phy_reg(hw, PHY_1000T_CTRL, &mii_1000t_ctrl_reg);
-        if(ret_val)
-            return ret_val;
+    /* Read the MII 1000Base-T Control Register (Address 9). */
+    ret_val = e1000_read_phy_reg(hw, PHY_1000T_CTRL, &mii_1000t_ctrl_reg);
+    if(ret_val)
+        return ret_val;
 
     /* Need to parse both autoneg_advertised and fc and set up
      * the appropriate PHY registers.  First we will parse for
@@ -3916,7 +3916,7 @@ e1000_read_eeprom(struct e1000_hw *hw,
         }
     }
 
-    if(eeprom->use_eerd == TRUE) {
+    if (eeprom->use_eerd == TRUE) {
         ret_val = e1000_read_eeprom_eerd(hw, offset, words, data);
         if ((e1000_is_onboard_nvm_eeprom(hw) == TRUE) ||
             (hw->mac_type != e1000_82573))
@@ -4423,7 +4423,7 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
             return -E1000_ERR_EEPROM;
         }
 
-	/* If STM opcode located in bits 15:8 of flop, reset firmware */
+        /* If STM opcode located in bits 15:8 of flop, reset firmware */
         if ((flop & 0xFF00) == E1000_STM_OPCODE) {
             E1000_WRITE_REG(hw, HICR, E1000_HICR_FW_RESET);
         }
@@ -4431,7 +4431,7 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
         /* Perform the flash update */
         E1000_WRITE_REG(hw, EECD, eecd | E1000_EECD_FLUPD);
 
-	for (i=0; i < attempts; i++) {
+        for (i=0; i < attempts; i++) {
             eecd = E1000_READ_REG(hw, EECD);
             if ((eecd & E1000_EECD_FLUPD) == 0) {
                 break;
@@ -4504,6 +4504,7 @@ e1000_read_mac_addr(struct e1000_hw * hw)
         hw->perm_mac_addr[i] = (uint8_t) (eeprom_data & 0x00FF);
         hw->perm_mac_addr[i+1] = (uint8_t) (eeprom_data >> 8);
     }
+
     switch (hw->mac_type) {
     default:
         break;
@@ -6840,7 +6841,8 @@ int32_t
 e1000_check_phy_reset_block(struct e1000_hw *hw)
 {
     uint32_t manc = 0;
-    if(hw->mac_type > e1000_82547_rev_2)
+
+    if (hw->mac_type > e1000_82547_rev_2)
         manc = E1000_READ_REG(hw, MANC);
     return (manc & E1000_MANC_BLK_PHY_RST_ON_IDE) ?
 	    E1000_BLK_PHY_RESET : E1000_SUCCESS;
