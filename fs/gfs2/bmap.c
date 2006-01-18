@@ -999,7 +999,7 @@ static int do_shrink(struct gfs2_inode *ip, uint64_t size,
 }
 
 /**
- * gfs2_truncatei - make a file a give size
+ * gfs2_truncatei - make a file a given size
  * @ip: the inode
  * @size: the size to make the file
  * @truncator: function to truncate the last partial block
@@ -1123,84 +1123,5 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
 	}
 
 	return 0;
-}
-
-/**
- * do_gfm - Copy out the dinode/indirect blocks of a file
- * @ip: the file
- * @dibh: the dinode buffer
- * @bh: the indirect buffer we're looking at
- * @top: the first pointer in the block
- * @bottom: one more than the last pointer in the block
- * @height: the height the block is at
- * @data: a pointer to a struct gfs2_user_buffer structure
- *
- * If this is a journaled file, copy out the data too.
- *
- * Returns: errno
- */
-
-static int do_gfm(struct gfs2_inode *ip, struct buffer_head *dibh,
-		  struct buffer_head *bh, uint64_t *top, uint64_t *bottom,
-		  unsigned int height, void *data)
-{
-	struct gfs2_user_buffer *ub = (struct gfs2_user_buffer *)data;
-	int error;
-
-	error = gfs2_add_bh_to_ub(ub, bh);
-	if (error)
-		return error;
-
-	if (!S_ISDIR(ip->i_di.di_mode) ||
-	    height + 1 != ip->i_di.di_height)
-		return 0;
-
-	for (; top < bottom; top++)
-		if (*top) {
-			struct buffer_head *data_bh;
-
-			error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*top),
-					       DIO_START | DIO_WAIT,
-					       &data_bh);
-			if (error)
-				return error;
-
-			error = gfs2_add_bh_to_ub(ub, data_bh);
-
-			brelse(data_bh);
-
-			if (error)
-				return error;
-		}
-
-	return 0;
-}
-
-/**
- * gfs2_get_file_meta - return all the metadata for a file
- * @ip: the file
- * @ub: the structure representing the meta
- *
- * Returns: errno
- */
-
-int gfs2_get_file_meta(struct gfs2_inode *ip, struct gfs2_user_buffer *ub)
-{
-	int error;
-
-	if (gfs2_is_stuffed(ip)) {
-		struct buffer_head *dibh;
-		error = gfs2_meta_inode_buffer(ip, &dibh);
-		if (!error) {
-			error = gfs2_add_bh_to_ub(ub, dibh);
-			brelse(dibh);
-		}
-	} else {
-		struct metapath mp;
-		find_metapath(ip, 0, &mp);
-		error = recursive_scan(ip, NULL, &mp, 0, 0, 1, do_gfm, ub);
-	}
-
-	return error;
 }
 

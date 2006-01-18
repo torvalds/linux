@@ -34,6 +34,4 @@ void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
 			      unsigned int len, int *alloc_required);
 
-int gfs2_get_file_meta(struct gfs2_inode *ip, struct gfs2_user_buffer *ub);
-
 #endif /* __BMAP_DOT_H__ */

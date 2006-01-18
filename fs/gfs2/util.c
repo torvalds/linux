@@ -221,36 +221,6 @@ int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	return rv;
 }
 
-/**
- * gfs2_add_bh_to_ub - copy a buffer up to user space
- * @ub: the structure representing where to copy
- * @bh: the buffer
- *
- * Returns: errno
- */
-
-int gfs2_add_bh_to_ub(struct gfs2_user_buffer *ub, struct buffer_head *bh)
-{
-	uint64_t blkno = bh->b_blocknr;
-
-	if (ub->ub_count + sizeof(uint64_t) + bh->b_size > ub->ub_size)
-		return -ENOMEM;
-
-	if (copy_to_user(ub->ub_data + ub->ub_count,
-			  &blkno,
-			  sizeof(uint64_t)))
-		return -EFAULT;
-	ub->ub_count += sizeof(uint64_t);
-
-	if (copy_to_user(ub->ub_data + ub->ub_count,
-			  bh->b_data,
-			  bh->b_size))
-		return -EFAULT;
-	ub->ub_count += bh->b_size;
-
-	return 0;
-}
-
 void gfs2_icbit_munge(struct gfs2_sbd *sdp, unsigned char **bitmap,
 		      unsigned int bit, int new_value)
 {

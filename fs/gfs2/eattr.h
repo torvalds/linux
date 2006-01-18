@@ -74,8 +74,6 @@ int gfs2_ea_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er);
 
 int gfs2_ea_dealloc(struct gfs2_inode *ip);
 
-int gfs2_get_eattr_meta(struct gfs2_inode *ip, struct gfs2_user_buffer *ub);
-
 /* Exported to acl.c */
 
 int gfs2_ea_find(struct gfs2_inode *ip,

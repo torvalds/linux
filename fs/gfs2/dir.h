@@ -46,6 +46,4 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip);
 int gfs2_diradd_alloc_required(struct gfs2_inode *dip, struct qstr *filename,
 			      int *alloc_required);
 
-int gfs2_get_dir_meta(struct gfs2_inode *ip, struct gfs2_user_buffer *ub);
-
 #endif /* __DIR_DOT_H__ */

@@ -152,14 +152,6 @@ extern kmem_cache_t *gfs2_glock_cachep;
 extern kmem_cache_t *gfs2_inode_cachep;
 extern kmem_cache_t *gfs2_bufdata_cachep;
 
-struct gfs2_user_buffer {
-	char __user *ub_data;
-	unsigned int ub_size;
-	unsigned int ub_count;
-};
-
-int gfs2_add_bh_to_ub(struct gfs2_user_buffer *ub, struct buffer_head *bh);
-
 static inline unsigned int gfs2_tune_get_i(struct gfs2_tune *gt,
 					   unsigned int *p)
 {
