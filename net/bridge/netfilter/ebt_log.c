@@ -95,7 +95,9 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		       "tos=0x%02X, IP proto=%d", NIPQUAD(ih->saddr),
 		       NIPQUAD(ih->daddr), ih->tos, ih->protocol);
 		if (ih->protocol == IPPROTO_TCP ||
-		    ih->protocol == IPPROTO_UDP) {
+		    ih->protocol == IPPROTO_UDP ||
+		    ih->protocol == IPPROTO_SCTP ||
+		    ih->protocol == IPPROTO_DCCP) {
 			struct tcpudphdr _ports, *pptr;
 
 			pptr = skb_header_pointer(skb, ih->ihl*4,

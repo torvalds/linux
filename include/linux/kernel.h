@@ -228,6 +228,7 @@ extern void dump_stack(void);
 	ntohs((addr).s6_addr16[6]), \
 	ntohs((addr).s6_addr16[7])
 #define NIP6_FMT "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
+#define NIP6_SEQFMT "%04x%04x%04x%04x%04x%04x%04x%04x"
 
 #if defined(__LITTLE_ENDIAN)
 #define HIPQUAD(addr) \

@@ -118,7 +118,7 @@ static int match(const struct sk_buff *skb,
 	return ret;
 }
 
-static int checkentry(const char *tablename, const struct ip6t_ip6 *ip,
+static int checkentry(const char *tablename, const void *ip_void,
                       void *matchinfo, unsigned int matchsize,
                       unsigned int hook_mask)
 {
