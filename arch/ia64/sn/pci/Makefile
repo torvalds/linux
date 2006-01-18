@@ -7,4 +7,6 @@
 #
 # Makefile for the sn pci general routines.
 
+CPPFLAGS += -I$(srctree)/arch/ia64/sn/include
+
 obj-y := pci_dma.o tioca_provider.o tioce_provider.o pcibr/

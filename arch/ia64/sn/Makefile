@@ -9,6 +9,4 @@
 # Makefile for the sn ia64 subplatform
 #
 
-CPPFLAGS += -I$(srctree)/arch/ia64/sn/include
-
 obj-y += kernel/ pci/

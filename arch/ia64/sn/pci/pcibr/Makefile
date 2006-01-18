@@ -7,5 +7,7 @@
 #
 # Makefile for the sn2 io routines.
 
+CPPFLAGS += -I$(srctree)/arch/ia64/sn/include
+
 obj-y				+=  pcibr_dma.o pcibr_reg.o \
 				    pcibr_ate.o pcibr_provider.o
