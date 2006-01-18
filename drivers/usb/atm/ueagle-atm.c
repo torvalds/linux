@@ -1013,7 +1013,7 @@ static int request_cmvs(struct uea_softc *sc,
 	int ret, size;
 	u8 *data;
 	char *file;
-	static char cmv_name[256] = FW_DIR;
+	char cmv_name[FIRMWARE_NAME_MAX]; /* 30 bytes stack variable */
 
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
