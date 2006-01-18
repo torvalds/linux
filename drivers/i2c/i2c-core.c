@@ -920,12 +920,11 @@ s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 			       u8 length, u8 *values)
 {
 	union i2c_smbus_data data;
-	int i;
+
 	if (length > I2C_SMBUS_BLOCK_MAX)
 		length = I2C_SMBUS_BLOCK_MAX;
-	for (i = 1; i <= length; i++)
-		data.block[i] = values[i-1];
 	data.block[0] = length;
+	memcpy(&data.block[1], values, length);
 	return i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 			      I2C_SMBUS_WRITE,command,
 			      I2C_SMBUS_BLOCK_DATA,&data);
@@ -935,16 +934,14 @@ s32 i2c_smbus_write_block_data(struct i2c_client *client, u8 command,
 s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client, u8 command, u8 *values)
 {
 	union i2c_smbus_data data;
-	int i;
+
 	if (i2c_smbus_xfer(client->adapter,client->addr,client->flags,
 	                      I2C_SMBUS_READ,command,
 	                      I2C_SMBUS_I2C_BLOCK_DATA,&data))
 		return -1;
-	else {
-		for (i = 1; i <= data.block[0]; i++)
-			values[i-1] = data.block[i];
-		return data.block[0];
-	}
+
+	memcpy(values, &data.block[1], data.block[0]);
+	return data.block[0];
 }
 
 s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client, u8 command,
