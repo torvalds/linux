@@ -29,11 +29,73 @@
 #include "e1000.h"
 
 /* Change Log
- * 6.0.58       4/20/05
- *   o Accepted ethtool cleanup patch from Stephen Hemminger 
- * 6.0.44+	2/15/05
- *   o applied Anton's patch to resolve tx hang in hardware
- *   o Applied Andrew Mortons patch - e1000 stops working after resume
+ * 6.3.9	12/16/2005
+ *   o incorporate fix for recycled skbs from IBM LTC
+ * 6.3.7	11/18/2005
+ *   o Honor eeprom setting for enabling/disabling Wake On Lan
+ * 6.3.5 	11/17/2005
+ *   o Fix memory leak in rx ring handling for PCI Express adapters
+ * 6.3.4	11/8/05
+ *   o Patch from Jesper Juhl to remove redundant NULL checks for kfree
+ * 6.3.2	9/20/05
+ *   o Render logic that sets/resets DRV_LOAD as inline functions to 
+ *     avoid code replication. If f/w is AMT then set DRV_LOAD only when
+ *     network interface is open.
+ *   o Handle DRV_LOAD set/reset in cases where AMT uses VLANs.
+ *   o Adjust PBA partioning for Jumbo frames using MTU size and not
+ *     rx_buffer_len
+ * 6.3.1	9/19/05
+ *   o Use adapter->tx_timeout_factor in Tx Hung Detect logic 
+       (e1000_clean_tx_irq)
+ *   o Support for 8086:10B5 device (Quad Port)
+ * 6.2.14	9/15/05
+ *   o In AMT enabled configurations, set/reset DRV_LOAD bit on interface 
+ *     open/close 
+ * 6.2.13       9/14/05
+ *   o Invoke e1000_check_mng_mode only for 8257x controllers since it 
+ *     accesses the FWSM that is not supported in other controllers
+ * 6.2.12       9/9/05
+ *   o Add support for device id E1000_DEV_ID_82546GB_QUAD_COPPER
+ *   o set RCTL:SECRC only for controllers newer than 82543. 
+ *   o When the n/w interface comes down reset DRV_LOAD bit to notify f/w.
+ *     This code was moved from e1000_remove to e1000_close
+ * 6.2.10       9/6/05
+ *   o Fix error in updating RDT in el1000_alloc_rx_buffers[_ps] -- one off.
+ *   o Enable fc by default on 82573 controllers (do not read eeprom)
+ *   o Fix rx_errors statistic not to include missed_packet_count
+ *   o Fix rx_dropped statistic not to include missed_packet_count 
+       (Padraig Brady)
+ * 6.2.9        8/30/05
+ *   o Remove call to update statistics from the controller ib e1000_get_stats
+ * 6.2.8        8/30/05
+ *   o Improved algorithm for rx buffer allocation/rdt update
+ *   o Flow control watermarks relative to rx PBA size
+ *   o Simplified 'Tx Hung' detect logic
+ * 6.2.7 	8/17/05
+ *   o Report rx buffer allocation failures and tx timeout counts in stats
+ * 6.2.6 	8/16/05
+ *   o Implement workaround for controller erratum -- linear non-tso packet
+ *     following a TSO gets written back prematurely
+ * 6.2.5	8/15/05
+ *   o Set netdev->tx_queue_len based on link speed/duplex settings.
+ *   o Fix net_stats.rx_fifo_errors <p@draigBrady.com>
+ *   o Do not power off PHY if SoL/IDER session is active
+ * 6.2.4	8/10/05
+ *   o Fix loopback test setup/cleanup for 82571/3 controllers
+ *   o Fix parsing of outgoing packets (e1000_transfer_dhcp_info) to treat
+ *     all packets as raw
+ *   o Prevent operations that will cause the PHY to be reset if SoL/IDER
+ *     sessions are active and log a message
+ * 6.2.2	7/21/05
+ *   o used fixed size descriptors for all MTU sizes, reduces memory load
+ * 6.2.1	7/21/05
+ *   o Performance tweaks, including copybreak and prefetch
+ * 6.1.2	4/13/05
+ *   o Fixed ethtool diagnostics
+ *   o Enabled flow control to take default eeprom settings
+ *   o Added stats_lock around e1000_read_phy_reg commands to avoid concurrent
+ *     calls, one from mii_ioctl and other from within update_stats while 
+ *     processing MIIREG ioctl.
  */
 
 char e1000_driver_name[] = "e1000";
