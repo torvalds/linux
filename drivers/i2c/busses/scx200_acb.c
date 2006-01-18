@@ -45,12 +45,6 @@ static int base[MAX_DEVICES] = { 0x820, 0x840 };
 module_param_array(base, int, NULL, 0);
 MODULE_PARM_DESC(base, "Base addresses for the ACCESS.bus controllers");
 
-#ifdef DEBUG
-#define DBG(x...) printk(KERN_DEBUG NAME ": " x)
-#else
-#define DBG(x...)
-#endif
-
 /* The hardware supports interrupt driven mode too, but I haven't
    implemented that. */
 #define POLLED_MODE 1
@@ -119,8 +113,8 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 {
 	const char *errmsg;
 
-	DBG("state %s, status = 0x%02x\n",
-	    scx200_acb_state_name[iface->state], status);
+	dev_dbg(&iface->adapter.dev, "state %s, status = 0x%02x\n",
+		scx200_acb_state_name[iface->state], status);
 
 	if (status & ACBST_BER) {
 		errmsg = "bus error";
@@ -209,8 +203,8 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 	return;
 
  negack:
-	DBG("negative acknowledge in state %s\n",
-	    scx200_acb_state_name[iface->state]);
+	dev_dbg(&iface->adapter.dev, "negative ack in state %s\n",
+		scx200_acb_state_name[iface->state]);
 
 	iface->state = state_idle;
 	iface->result = -ENXIO;
@@ -326,17 +320,13 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 		return -EINVAL;
 	}
 
-	DBG("size=%d, address=0x%x, command=0x%x, len=%d, read=%d\n",
-	    size, address, command, len, rw == I2C_SMBUS_READ);
+	dev_dbg(&adapter->dev,
+		"size=%d, address=0x%x, command=0x%x, len=%d, read=%d\n",
+		size, address, command, len, rw);
 
 	if (!len && rw == I2C_SMBUS_READ) {
-		dev_warn(&adapter->dev, "zero length read\n");
+		dev_dbg(&adapter->dev, "zero length read\n");
 		return -EINVAL;
-	}
-
-	if (len && !buffer) {
-		dev_warn(&adapter->dev, "nonzero length but no buffer\n");
-		return -EFAULT;
 	}
 
 	down(&iface->sem);
@@ -375,7 +365,7 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 		data->word = le16_to_cpu(cur_word);
 
 #ifdef DEBUG
-	DBG(": transfer done, result: %d", rc);
+	dev_dbg(&adapter->dev, "transfer done, result: %d", rc);
 	if (buffer) {
 		int i;
 		printk(" data:");
@@ -412,7 +402,7 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 	outb(0x70, ACBCTL2);
 
 	if (inb(ACBCTL2) != 0x70) {
-		DBG("ACBCTL2 readback failed\n");
+		pr_debug(NAME ": ACBCTL2 readback failed\n");
 		return -ENXIO;
 	}
 
@@ -420,7 +410,8 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 
 	val = inb(ACBCTL1);
 	if (val) {
-		DBG("disabled, but ACBCTL1=0x%02x\n", val);
+		pr_debug(NAME ": disabled, but ACBCTL1=0x%02x\n",
+			val);
 		return -ENXIO;
 	}
 
@@ -430,7 +421,8 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 
 	val = inb(ACBCTL1);
 	if ((val & ACBCTL1_NMINTE) != ACBCTL1_NMINTE) {
-		DBG("enabled, but NMINTE won't be set, ACBCTL1=0x%02x\n", val);
+		pr_debug(NAME ": enabled, but NMINTE won't be set, "
+			 "ACBCTL1=0x%02x\n", val);
 		return -ENXIO;
 	}
 
@@ -464,7 +456,7 @@ static int  __init scx200_acb_create(int base, int index)
 	snprintf(description, sizeof(description),
 		 "NatSemi SCx200 ACCESS.bus [%s]", adapter->name);
 	if (request_region(base, 8, description) == 0) {
-		dev_err(&adapter->dev, "can't allocate io 0x%x-0x%x\n",
+		printk(KERN_ERR NAME ": can't allocate io 0x%x-0x%x\n",
 			base, base + 8-1);
 		rc = -EBUSY;
 		goto errout;
@@ -473,14 +465,14 @@ static int  __init scx200_acb_create(int base, int index)
 
 	rc = scx200_acb_probe(iface);
 	if (rc) {
-		dev_warn(&adapter->dev, "probe failed\n");
+		printk(KERN_WARNING NAME ": probe failed\n");
 		goto errout;
 	}
 
 	scx200_acb_reset(iface);
 
 	if (i2c_add_adapter(adapter) < 0) {
-		dev_err(&adapter->dev, "failed to register\n");
+		printk(KERN_ERR NAME ": failed to register\n");
 		rc = -ENODEV;
 		goto errout;
 	}
