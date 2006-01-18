@@ -77,7 +77,7 @@ void gfs2_inum_print(struct gfs2_inum *no)
 	pv(no, no_addr, "%llu");
 }
 
-void gfs2_meta_header_in(struct gfs2_meta_header *mh, char *buf)
+static void gfs2_meta_header_in(struct gfs2_meta_header *mh, char *buf)
 {
 	struct gfs2_meta_header *str = (struct gfs2_meta_header *)buf;
 
@@ -86,7 +86,7 @@ void gfs2_meta_header_in(struct gfs2_meta_header *mh, char *buf)
 	mh->mh_format = be16_to_cpu(str->mh_format);
 }
 
-void gfs2_meta_header_out(struct gfs2_meta_header *mh, char *buf)
+static void gfs2_meta_header_out(struct gfs2_meta_header *mh, char *buf)
 {
 	struct gfs2_meta_header *str = (struct gfs2_meta_header *)buf;
 
