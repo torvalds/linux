@@ -574,13 +574,13 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta
 }
 
 /**
- * gfs2_meta_pin - Pin a metadata buffer in memory
+ * gfs2_pin - Pin a buffer in memory
  * @sdp: the filesystem the buffer belongs to
  * @bh: The buffer to be pinned
  *
  */
 
-void gfs2_meta_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
+void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd = get_v2bd(bh);
 
@@ -609,15 +609,15 @@ void gfs2_meta_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 }
 
 /**
- * gfs2_meta_unpin - Unpin a buffer
+ * gfs2_unpin - Unpin a buffer
  * @sdp: the filesystem the buffer belongs to
  * @bh: The buffer to unpin
  * @ai:
  *
  */
 
-void gfs2_meta_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		     struct gfs2_ail *ai)
+void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
+	        struct gfs2_ail *ai)
 {
 	struct gfs2_bufdata *bd = get_v2bd(bh);
 

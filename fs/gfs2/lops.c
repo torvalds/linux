@@ -79,7 +79,7 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	gfs2_trans_add_gl(bd->bd_gl);
 
 	gfs2_meta_check(sdp, bd->bd_bh);
-	gfs2_meta_pin(sdp, bd->bd_bh);
+	gfs2_pin(sdp, bd->bd_bh);
 
 	gfs2_log_lock(sdp);
 	sdp->sd_log_num_buf++;
@@ -169,7 +169,7 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 		list_del_init(&bd->bd_le.le_list);
 		sdp->sd_log_num_buf--;
 
-		gfs2_meta_unpin(sdp, bd->bd_bh, ai);
+		gfs2_unpin(sdp, bd->bd_bh, ai);
 	}
 	gfs2_assert_warn(sdp, !sdp->sd_log_num_buf);
 }
