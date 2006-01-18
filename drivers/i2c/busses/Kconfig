@@ -389,10 +389,11 @@ config SCx200_I2C_SDA
 	  also be specified with a module parameter.
 
 config SCx200_ACB
-	tristate "NatSemi SCx200 ACCESS.bus"
+	tristate "Geode ACCESS.bus support"
 	depends on I2C && PCI
 	help
-	  Enable the use of the ACCESS.bus controllers of a SCx200 processor.
+	  Enable the use of the ACCESS.bus controllers on the Geode SCx200 and
+	  SC1100 processors and the CS5535 and CS5536 Geode companion devices.
 
 	  If you don't know what to do here, say N.
 
