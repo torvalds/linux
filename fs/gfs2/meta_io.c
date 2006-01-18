@@ -537,13 +537,13 @@ int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags)
 }
 
 /**
- * gfs2_meta_attach_bufdata - attach a struct gfs2_bufdata structure to a buffer
+ * gfs2_attach_bufdata - attach a struct gfs2_bufdata structure to a buffer
  * @gl: the glock the buffer belongs to
  * @bh: The buffer to be attached to
- *
+ * @meta: Flag to indicate whether its metadata or not
  */
 
-void gfs2_meta_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh)
+void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 {
 	struct gfs2_bufdata *bd;
 
@@ -563,7 +563,10 @@ void gfs2_meta_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh)
 	bd->bd_gl = gl;
 
 	INIT_LIST_HEAD(&bd->bd_list_tr);
-	lops_init_le(&bd->bd_le, &gfs2_buf_lops);
+	if (meta)
+		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
+	else
+		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
 
 	set_v2bd(bh, bd);
 
