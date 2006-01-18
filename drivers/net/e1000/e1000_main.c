@@ -88,8 +88,6 @@
  *     sessions are active and log a message
  * 6.2.2	7/21/05
  *   o used fixed size descriptors for all MTU sizes, reduces memory load
- * 6.2.1	7/21/05
- *   o Performance tweaks, including copybreak and prefetch
  * 6.1.2	4/13/05
  *   o Fixed ethtool diagnostics
  *   o Enabled flow control to take default eeprom settings
@@ -3615,8 +3613,8 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
-	struct e1000_rx_desc *rx_desc;
-	struct e1000_buffer *buffer_info;
+	struct e1000_rx_desc *rx_desc, *next_rxd;
+	struct e1000_buffer *buffer_info, *next_buffer;
 	unsigned long flags;
 	uint32_t length;
 	uint8_t last_byte;
@@ -3629,7 +3627,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while (rx_desc->status & E1000_RXD_STAT_DD) {
-		struct sk_buff *skb;
+		struct sk_buff *skb, *next_skb;
 		u8 status;
 #ifdef CONFIG_E1000_NAPI
 		if (*work_done >= work_to_do)
@@ -3638,6 +3636,13 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 #endif
 		status = rx_desc->status;
 		skb = buffer_info->skb;
+		buffer_info->skb = NULL;
+
+		if (++i == rx_ring->count) i = 0;
+		next_rxd = E1000_RX_DESC(*rx_ring, i);
+		next_buffer = &rx_ring->buffer_info[i];
+		next_skb = next_buffer->skb;
+
 		cleaned = TRUE;
 		cleaned_count++;
 		pci_unmap_single(pdev,
@@ -3769,6 +3774,8 @@ next_desc:
 			cleaned_count = 0;
 		}
 
+		rx_desc = next_rxd;
+		buffer_info = next_buffer;
 	}
 	rx_ring->next_to_clean = i;
 
@@ -3794,13 +3801,13 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
                       struct e1000_rx_ring *rx_ring)
 #endif
 {
-	union e1000_rx_desc_packet_split *rx_desc;
+	union e1000_rx_desc_packet_split *rx_desc, *next_rxd;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
-	struct e1000_buffer *buffer_info;
+	struct e1000_buffer *buffer_info, *next_buffer;
 	struct e1000_ps_page *ps_page;
 	struct e1000_ps_page_dma *ps_page_dma;
-	struct sk_buff *skb;
+	struct sk_buff *skb, *next_skb;
 	unsigned int i, j;
 	uint32_t length, staterr;
 	int cleaned_count = 0;
@@ -3809,9 +3816,9 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
+	buffer_info = &rx_ring->buffer_info[i];
 
 	while (staterr & E1000_RXD_STAT_DD) {
-		buffer_info = &rx_ring->buffer_info[i];
 		ps_page = &rx_ring->ps_page[i];
 		ps_page_dma = &rx_ring->ps_page_dma[i];
 #ifdef CONFIG_E1000_NAPI
@@ -3819,13 +3826,18 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			break;
 		(*work_done)++;
 #endif
+		skb = buffer_info->skb;
+
+		if (++i == rx_ring->count) i = 0;
+		next_rxd = E1000_RX_DESC_PS(*rx_ring, i);
+		next_buffer = &rx_ring->buffer_info[i];
+		next_skb = next_buffer->skb;
+
 		cleaned = TRUE;
 		cleaned_count++;
 		pci_unmap_single(pdev, buffer_info->dma,
 				 buffer_info->length,
 				 PCI_DMA_FROMDEVICE);
-
-		skb = buffer_info->skb;
 
 		if (unlikely(!(staterr & E1000_RXD_STAT_EOP))) {
 			E1000_DBG("%s: Packet Split buffers didn't pick up"
@@ -3907,6 +3919,9 @@ next_desc:
 			adapter->alloc_rx_buf(adapter, rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
+
+		rx_desc = next_rxd;
+		buffer_info = next_buffer;
 
 		staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
 	}
