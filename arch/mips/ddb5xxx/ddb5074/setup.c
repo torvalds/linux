@@ -14,6 +14,7 @@
 #include <linux/ide.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
+#include <linux/pm.h>
 
 #include <asm/addrspace.h>
 #include <asm/bcache.h>
@@ -95,7 +96,7 @@ void __init plat_setup(void)
 
 	_machine_restart = ddb_machine_restart;
 	_machine_halt = ddb_machine_halt;
-	_machine_power_off = ddb_machine_power_off;
+	pm_power_off = ddb_machine_power_off;
 
 	ddb_out32(DDB_BAR0, 0);
 

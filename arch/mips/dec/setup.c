@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/pm.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
@@ -158,7 +159,7 @@ void __init plat_setup(void)
 
 	_machine_restart = dec_machine_restart;
 	_machine_halt = dec_machine_halt;
-	_machine_power_off = dec_machine_power_off;
+	pm_power_off = dec_machine_power_off;
 
 	ioport_resource.start = ~0UL;
 	ioport_resource.end = 0UL;

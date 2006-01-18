@@ -53,6 +53,8 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/timex.h>
+#include <linux/pm.h>
+
 #include <asm/bootinfo.h>
 #include <asm/page.h>
 #include <asm/io.h>
@@ -814,7 +816,7 @@ void __init toshiba_rbtx4927_setup(void)
 				       ":ResetRoutines\n");
 	_machine_restart = toshiba_rbtx4927_restart;
 	_machine_halt = toshiba_rbtx4927_halt;
-	_machine_power_off = toshiba_rbtx4927_power_off;
+	pm_power_off = toshiba_rbtx4927_power_off;
 
 #ifdef CONFIG_PCI
 

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1997, 1998, 2001, 03, 05 by Ralf Baechle
+ * Copyright (C) 1997, 1998, 2001, 03, 05, 06 by Ralf Baechle
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
+#include <linux/pm.h>
 #include <linux/timer.h>
 
 #include <asm/io.h>
@@ -232,7 +233,7 @@ static int __init reboot_setup(void)
 {
 	_machine_restart = sgi_machine_restart;
 	_machine_halt = sgi_machine_halt;
-	_machine_power_off = sgi_machine_power_off;
+	pm_power_off = sgi_machine_power_off;
 
 	request_irq(SGI_PANEL_IRQ, panel_int, 0, "Front Panel", NULL);
 	init_timer(&blink_timer);

@@ -23,6 +23,7 @@
  *
  */
 #include <linux/config.h>
+#include <linux/pm.h>
 
 #include <asm/io.h>
 #include <asm/reboot.h>
@@ -65,9 +66,9 @@ void mips_reboot_setup(void)
 	_machine_restart = mips_machine_restart;
 	_machine_halt = mips_machine_halt;
 #if defined(CONFIG_MIPS_ATLAS)
-	_machine_power_off = atlas_machine_power_off;
+	pm_power_off = atlas_machine_power_off;
 #endif
 #if defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MIPS_SEAD)
-	_machine_power_off = mips_machine_halt;
+	pm_power_off = mips_machine_halt;
 #endif
 }
