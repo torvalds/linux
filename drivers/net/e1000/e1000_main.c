@@ -1653,23 +1653,8 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		rctl |= adapter->rx_buffer_len << 0x11;
 	} else {
 		rctl &= ~E1000_RCTL_SZ_4096;
-		rctl |= E1000_RCTL_BSEX; 
-		switch (adapter->rx_buffer_len) {
-		case E1000_RXBUFFER_2048:
-		default:
-			rctl |= E1000_RCTL_SZ_2048;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
-		case E1000_RXBUFFER_4096:
-			rctl |= E1000_RCTL_SZ_4096;
-			break;
-		case E1000_RXBUFFER_8192:
-			rctl |= E1000_RCTL_SZ_8192;
-			break;
-		case E1000_RXBUFFER_16384:
-			rctl |= E1000_RCTL_SZ_16384;
-			break;
-		}
+		rctl &= ~E1000_RCTL_BSEX;
+		rctl |= E1000_RCTL_SZ_2048;
 	}
 
 #ifndef CONFIG_E1000_DISABLE_PACKET_SPLIT
@@ -3571,7 +3556,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_rx_desc *rx_desc;
 	struct e1000_buffer *buffer_info;
-	struct sk_buff *skb;
 	unsigned long flags;
 	uint32_t length;
 	uint8_t last_byte;
@@ -3581,9 +3565,10 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC(*rx_ring, i);
+	buffer_info = &rx_ring->buffer_info[i];
 
-	while(rx_desc->status & E1000_RXD_STAT_DD) {
-		buffer_info = &rx_ring->buffer_info[i];
+	while (rx_desc->status & E1000_RXD_STAT_DD) {
+		struct sk_buff *skb;
 		u8 status;
 #ifdef CONFIG_E1000_NAPI
 		if(*work_done >= work_to_do)
@@ -3591,6 +3576,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		(*work_done)++;
 #endif
 		status = rx_desc->status;
+		skb = buffer_info->skb;
 		cleaned = TRUE;
 		cleaned_count++;
 		pci_unmap_single(pdev,
@@ -3598,20 +3584,50 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		                 buffer_info->length,
 		                 PCI_DMA_FROMDEVICE);
 
-		skb = buffer_info->skb;
 		length = le16_to_cpu(rx_desc->length);
 
-		if(unlikely(!(rx_desc->status & E1000_RXD_STAT_EOP))) {
-			/* All receives must fit into a single buffer */
-			E1000_DBG("%s: Receive packet consumed multiple"
-				  " buffers\n", netdev->name);
-			dev_kfree_skb_irq(skb);
+		skb_put(skb, length);
+
+		if (!(status & E1000_RXD_STAT_EOP)) {
+			if (!rx_ring->rx_skb_top) {
+				rx_ring->rx_skb_top = skb;
+				rx_ring->rx_skb_top->len = length;
+				rx_ring->rx_skb_prev = skb;
+			} else {
+				if (skb_shinfo(rx_ring->rx_skb_top)->frag_list) {
+					rx_ring->rx_skb_prev->next = skb;
+					skb->prev = rx_ring->rx_skb_prev;
+				} else {
+					skb_shinfo(rx_ring->rx_skb_top)->frag_list = skb;
+				}
+				rx_ring->rx_skb_prev = skb;
+				rx_ring->rx_skb_top->data_len += length;
+			}
 			goto next_desc;
+		} else {
+			if (rx_ring->rx_skb_top) {
+				if (skb_shinfo(rx_ring->rx_skb_top)
+							->frag_list) {
+					rx_ring->rx_skb_prev->next = skb;
+					skb->prev = rx_ring->rx_skb_prev;
+				} else
+					skb_shinfo(rx_ring->rx_skb_top)
+							->frag_list = skb;
+
+				rx_ring->rx_skb_top->data_len += length;
+				rx_ring->rx_skb_top->len +=
+					rx_ring->rx_skb_top->data_len;
+
+				skb = rx_ring->rx_skb_top;
+				multi_descriptor = TRUE;
+				rx_ring->rx_skb_top = NULL;
+				rx_ring->rx_skb_prev = NULL;
+			}
 		}
 
 		if(unlikely(rx_desc->errors & E1000_RXD_ERR_FRAME_ERR_MASK)) {
 			last_byte = *(skb->data + length - 1);
-			if(TBI_ACCEPT(&adapter->hw, rx_desc->status,
+			if (TBI_ACCEPT(&adapter->hw, status,
 			              rx_desc->errors, length, last_byte)) {
 				spin_lock_irqsave(&adapter->stats_lock, flags);
 				e1000_tbi_adjust_stats(&adapter->hw,
@@ -3668,7 +3684,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		}
 #else /* CONFIG_E1000_NAPI */
 		if(unlikely(adapter->vlgrp &&
-			    (rx_desc->status & E1000_RXD_STAT_VP))) {
+			    (status & E1000_RXD_STAT_VP))) {
 			vlan_hwaccel_rx(skb, adapter->vlgrp,
 					le16_to_cpu(rx_desc->special) &
 					E1000_RXD_SPC_VLAN_MASK);
@@ -3795,12 +3811,8 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		skb->protocol = eth_type_trans(skb, netdev);
 
 		if(likely(rx_desc->wb.upper.header_status &
-			  E1000_RXDPS_HDRSTAT_HDRSP)) {
+			  E1000_RXDPS_HDRSTAT_HDRSP))
 			adapter->rx_hdr_split++;
-#ifdef HAVE_RX_ZERO_COPY
-			skb_shinfo(skb)->zero_copy = TRUE;
-#endif
-	        }
 #ifdef CONFIG_E1000_NAPI
 		if(unlikely(adapter->vlgrp && (staterr & E1000_RXD_STAT_VP))) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
@@ -3940,20 +3952,22 @@ map_skb:
 		rx_desc = E1000_RX_DESC(*rx_ring, i);
 		rx_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
 
-		if(unlikely((i & ~(E1000_RX_BUFFER_WRITE - 1)) == i)) {
-			/* Force memory writes to complete before letting h/w
-			 * know there are new descriptors to fetch.  (Only
-			 * applicable for weak-ordered memory model archs,
-			 * such as IA-64). */
-			wmb();
-			writel(i, adapter->hw.hw_addr + rx_ring->rdt);
-		}
-
 		if(unlikely(++i == rx_ring->count)) i = 0;
 		buffer_info = &rx_ring->buffer_info[i];
 	}
 
-	rx_ring->next_to_use = i;
+	if (likely(rx_ring->next_to_use != i)) {
+		rx_ring->next_to_use = i;
+		if (unlikely(i-- == 0))
+			i = (rx_ring->count - 1);
+
+		/* Force memory writes to complete before letting h/w
+		 * know there are new descriptors to fetch.  (Only
+		 * applicable for weak-ordered memory model archs,
+		 * such as IA-64). */
+		wmb();
+		writel(i, adapter->hw.hw_addr + rx_ring->rdt);
+	}
 }
 
 /**
@@ -3988,8 +4002,10 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 				if (likely(!ps_page->ps_page[j])) {
 					ps_page->ps_page[j] =
 						alloc_page(GFP_ATOMIC);
-					if (unlikely(!ps_page->ps_page[j]))
+					if (unlikely(!ps_page->ps_page[j])) {
+						adapter->alloc_rx_buff_failed++;
 						goto no_buffers;
+					}
 					ps_page_dma->ps_page_dma[j] =
 						pci_map_page(pdev,
 							    ps_page->ps_page[j],
@@ -4008,8 +4024,10 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 
 		skb = dev_alloc_skb(adapter->rx_ps_bsize0 + NET_IP_ALIGN);
 
-		if(unlikely(!skb))
+		if (unlikely(!skb)) {
+			adapter->alloc_rx_buff_failed++;
 			break;
+		}
 
 		/* Make buffer alignment 2 beyond a 16 byte boundary
 		 * this will result in a 16 byte aligned IP header after
@@ -4027,19 +4045,6 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 
 		rx_desc->read.buffer_addr[0] = cpu_to_le64(buffer_info->dma);
 
-		if(unlikely((i & ~(E1000_RX_BUFFER_WRITE - 1)) == i)) {
-			/* Force memory writes to complete before letting h/w
-			 * know there are new descriptors to fetch.  (Only
-			 * applicable for weak-ordered memory model archs,
-			 * such as IA-64). */
-			wmb();
-			/* Hardware increments by 16 bytes, but packet split
-			 * descriptors are 32 bytes...so we increment tail
-			 * twice as much.
-			 */
-			writel(i<<1, adapter->hw.hw_addr + rx_ring->rdt);
-		}
-
 		if(unlikely(++i == rx_ring->count)) i = 0;
 		buffer_info = &rx_ring->buffer_info[i];
 		ps_page = &rx_ring->ps_page[i];
@@ -4047,7 +4052,21 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 	}
 
 no_buffers:
-	rx_ring->next_to_use = i;
+	if (likely(rx_ring->next_to_use != i)) {
+		rx_ring->next_to_use = i;
+		if (unlikely(i-- == 0)) i = (rx_ring->count - 1);
+
+		/* Force memory writes to complete before letting h/w
+		 * know there are new descriptors to fetch.  (Only
+		 * applicable for weak-ordered memory model archs,
+		 * such as IA-64). */
+		wmb();
+		/* Hardware increments by 16 bytes, but packet split
+		 * descriptors are 32 bytes...so we increment tail
+		 * twice as much.
+		 */
+		writel(i<<1, adapter->hw.hw_addr + rx_ring->rdt);
+	}
 }
 
 /**
