@@ -1214,16 +1214,9 @@ static int gfs2_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	atomic_inc(&ip->i_sbd->sd_ops_file);
 
 	switch (cmd) {
-	case GFS2_IOCTL_IDENTIFY: {
-		unsigned int x = GFS2_MAGIC;
-		if (copy_to_user((unsigned int __user *)arg, &x, sizeof(unsigned int)))
-			return -EFAULT;
-		return 0;
-
 	case GFS2_IOCTL_SETFLAGS:
 	case GFS2_IOCTL_GETFLAGS:
 		return gfs2_ioctl_flags(ip, cmd, arg);
-	}
 
 	default:
 		return -ENOTTY;
