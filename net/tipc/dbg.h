@@ -44,16 +44,16 @@ struct print_buf {
 	struct print_buf *next;
 };
 
-void printbuf_init(struct print_buf *pb, char *buf, u32 sz);
-void printbuf_reset(struct print_buf *pb);
-int  printbuf_empty(struct print_buf *pb);
-int  printbuf_validate(struct print_buf *pb);
-void printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from);
+void tipc_printbuf_init(struct print_buf *pb, char *buf, u32 sz);
+void tipc_printbuf_reset(struct print_buf *pb);
+int  tipc_printbuf_empty(struct print_buf *pb);
+int  tipc_printbuf_validate(struct print_buf *pb);
+void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from);
 
-void log_reinit(int log_size);
-void log_stop(void);
+void tipc_log_reinit(int log_size);
+void tipc_log_stop(void);
 
-struct sk_buff *log_resize(const void *req_tlv_area, int req_tlv_space);
-struct sk_buff *log_dump(void);
+struct sk_buff *tipc_log_resize(const void *req_tlv_area, int req_tlv_space);
+struct sk_buff *tipc_log_dump(void);
 
 #endif

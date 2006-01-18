@@ -37,7 +37,7 @@
 #ifndef _TIPC_BEARER_H
 #define _TIPC_BEARER_H
 
-#include <net/tipc/tipc_bearer.h>
+#include "core.h"
 #include "bcast.h"
 
 #define MAX_BEARERS 8
@@ -114,26 +114,24 @@ struct bearer_name {
 
 struct link;
 
-extern struct bearer *bearers;
+extern struct bearer *tipc_bearers;
 
-void media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
-struct sk_buff *media_get_names(void);
+void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
+struct sk_buff *tipc_media_get_names(void);
 
-struct sk_buff *bearer_get_names(void);
-void bearer_add_dest(struct bearer *b_ptr, u32 dest);
-void bearer_remove_dest(struct bearer *b_ptr, u32 dest);
-void bearer_schedule(struct bearer *b_ptr, struct link *l_ptr);
-struct bearer *bearer_find_interface(const char *if_name);
-int bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr);
-int bearer_init(void);
-void bearer_stop(void);
-int bearer_broadcast(struct sk_buff *buf, struct tipc_bearer *b_ptr,
-		     struct tipc_media_addr *dest);
-void bearer_lock_push(struct bearer *b_ptr);
+struct sk_buff *tipc_bearer_get_names(void);
+void tipc_bearer_add_dest(struct bearer *b_ptr, u32 dest);
+void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest);
+void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr);
+struct bearer *tipc_bearer_find_interface(const char *if_name);
+int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr);
+int tipc_bearer_init(void);
+void tipc_bearer_stop(void);
+void tipc_bearer_lock_push(struct bearer *b_ptr);
 
 
 /**
- * bearer_send- sends buffer to destination over bearer 
+ * tipc_bearer_send- sends buffer to destination over bearer 
  * 
  * Returns true (1) if successful, or false (0) if unable to send
  * 
@@ -150,23 +148,23 @@ void bearer_lock_push(struct bearer *b_ptr);
  * and let TIPC's link code deal with the undelivered message. 
  */
 
-static inline int bearer_send(struct bearer *b_ptr, struct sk_buff *buf,
-			      struct tipc_media_addr *dest)
+static inline int tipc_bearer_send(struct bearer *b_ptr, struct sk_buff *buf,
+				   struct tipc_media_addr *dest)
 {
 	return !b_ptr->media->send_msg(buf, &b_ptr->publ, dest);
 }
 
 /**
- * bearer_congested - determines if bearer is currently congested
+ * tipc_bearer_congested - determines if bearer is currently congested
  */
 
-static inline int bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
+static inline int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
 {
 	if (unlikely(b_ptr->publ.blocked))
 		return 1;
 	if (likely(list_empty(&b_ptr->cong_links)))
 		return 0;
-	return !bearer_resolve_congestion(b_ptr, l_ptr);
+	return !tipc_bearer_resolve_congestion(b_ptr, l_ptr);
 }
 
 #endif

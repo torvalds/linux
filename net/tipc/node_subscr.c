@@ -41,39 +41,39 @@
 #include "addr.h"
 
 /**
- * nodesub_subscribe - create "node down" subscription for specified node
+ * tipc_nodesub_subscribe - create "node down" subscription for specified node
  */
 
-void nodesub_subscribe(struct node_subscr *node_sub, u32 addr, 
+void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr, 
 		       void *usr_handle, net_ev_handler handle_down)
 {
 	node_sub->node = 0;
 	if (addr == tipc_own_addr)
 		return;
-	if (!addr_node_valid(addr)) {
+	if (!tipc_addr_node_valid(addr)) {
 		warn("node_subscr with illegal %x\n", addr);
 		return;
 	}
 
 	node_sub->handle_node_down = handle_down;
 	node_sub->usr_handle = usr_handle;
-	node_sub->node = node_find(addr);
+	node_sub->node = tipc_node_find(addr);
 	assert(node_sub->node);
-	node_lock(node_sub->node);
+	tipc_node_lock(node_sub->node);
 	list_add_tail(&node_sub->nodesub_list, &node_sub->node->nsub);
-	node_unlock(node_sub->node);
+	tipc_node_unlock(node_sub->node);
 }
 
 /**
- * nodesub_unsubscribe - cancel "node down" subscription (if any)
+ * tipc_nodesub_unsubscribe - cancel "node down" subscription (if any)
  */
 
-void nodesub_unsubscribe(struct node_subscr *node_sub)
+void tipc_nodesub_unsubscribe(struct node_subscr *node_sub)
 {
 	if (!node_sub->node)
 		return;
 
-	node_lock(node_sub->node);
+	tipc_node_lock(node_sub->node);
 	list_del_init(&node_sub->nodesub_list);
-	node_unlock(node_sub->node);
+	tipc_node_unlock(node_sub->node);
 }

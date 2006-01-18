@@ -93,7 +93,7 @@ int disc_create_link(const struct tipc_link_create *argv)
  * disc_lost_link(): A link has lost contact
  */
 
-void disc_link_event(u32 addr, char *name, int up) 
+void tipc_disc_link_event(u32 addr, char *name, int up) 
 {
 	if (in_own_cluster(addr))
 		return;
@@ -103,17 +103,17 @@ void disc_link_event(u32 addr, char *name, int up)
 }
 
 /** 
- * disc_init_msg - initialize a link setup message
+ * tipc_disc_init_msg - initialize a link setup message
  * @type: message type (request or response)
  * @req_links: number of links associated with message
  * @dest_domain: network domain of node(s) which should respond to message
  * @b_ptr: ptr to bearer issuing message
  */
 
-struct sk_buff *disc_init_msg(u32 type,
-			      u32 req_links,
-			      u32 dest_domain,
-			      struct bearer *b_ptr)
+struct sk_buff *tipc_disc_init_msg(u32 type,
+				   u32 req_links,
+				   u32 dest_domain,
+				   struct bearer *b_ptr)
 {
 	struct sk_buff *buf = buf_acquire(DSC_H_SIZE);
 	struct tipc_msg *msg;
@@ -132,11 +132,11 @@ struct sk_buff *disc_init_msg(u32 type,
 }
 
 /**
- * disc_recv_msg - handle incoming link setup message (request or response)
+ * tipc_disc_recv_msg - handle incoming link setup message (request or response)
  * @buf: buffer containing message
  */
 
-void disc_recv_msg(struct sk_buff *buf)
+void tipc_disc_recv_msg(struct sk_buff *buf)
 {
 	struct bearer *b_ptr = (struct bearer *)TIPC_SKB_CB(buf)->handle;
 	struct link *link;
@@ -153,9 +153,9 @@ void disc_recv_msg(struct sk_buff *buf)
 
 	if (net_id != tipc_net_id)
 		return;
-	if (!addr_domain_valid(dest))
+	if (!tipc_addr_domain_valid(dest))
 		return;
-	if (!addr_node_valid(orig))
+	if (!tipc_addr_node_valid(orig))
 		return;
 	if (orig == tipc_own_addr)
 		return;
@@ -169,11 +169,11 @@ void disc_recv_msg(struct sk_buff *buf)
 		/* Always accept link here */
 		struct sk_buff *rbuf;
 		struct tipc_media_addr *addr;
-		struct node *n_ptr = node_find(orig);
+		struct node *n_ptr = tipc_node_find(orig);
 		int link_up;
 		dbg(" in own cluster\n");
 		if (n_ptr == NULL) {
-			n_ptr = node_create(orig);
+			n_ptr = tipc_node_create(orig);
 		}
 		if (n_ptr == NULL) {
 			warn("Memory squeeze; Failed to create node\n");
@@ -183,7 +183,7 @@ void disc_recv_msg(struct sk_buff *buf)
 		link = n_ptr->links[b_ptr->identity];
 		if (!link) {
 			dbg("creating link\n");
-			link = link_create(b_ptr, orig, &media_addr);
+			link = tipc_link_create(b_ptr, orig, &media_addr);
 			if (!link) {
 				spin_unlock_bh(&n_ptr->lock);                
 				return;
@@ -196,13 +196,13 @@ void disc_recv_msg(struct sk_buff *buf)
 			warn("New bearer address for %s\n", 
 			     addr_string_fill(addr_string, orig));
 			memcpy(addr, &media_addr, sizeof(*addr));
-			link_reset(link);     
+			tipc_link_reset(link);     
 		}
-		link_up = link_is_up(link);
+		link_up = tipc_link_is_up(link);
 		spin_unlock_bh(&n_ptr->lock);                
 		if ((type == DSC_RESP_MSG) || link_up)
 			return;
-		rbuf = disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
+		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
 		if (rbuf != NULL) {
 			msg_dbg(buf_msg(rbuf),"SEND:");
 			b_ptr->media->send_msg(rbuf, &b_ptr->publ, &media_addr);
@@ -212,11 +212,11 @@ void disc_recv_msg(struct sk_buff *buf)
 }
 
 /**
- * disc_stop_link_req - stop sending periodic link setup requests
+ * tipc_disc_stop_link_req - stop sending periodic link setup requests
  * @req: ptr to link request structure
  */
 
-void disc_stop_link_req(struct link_req *req) 
+void tipc_disc_stop_link_req(struct link_req *req) 
 {
 	if (!req)
 		return;
@@ -228,11 +228,11 @@ void disc_stop_link_req(struct link_req *req)
 } 
 
 /**
- * disc_update_link_req - update frequency of periodic link setup requests
+ * tipc_disc_update_link_req - update frequency of periodic link setup requests
  * @req: ptr to link request structure
  */
 
-void disc_update_link_req(struct link_req *req) 
+void tipc_disc_update_link_req(struct link_req *req) 
 {
 	if (!req)
 		return;
@@ -282,7 +282,7 @@ static void disc_timeout(struct link_req *req)
 }
 
 /**
- * disc_init_link_req - start sending periodic link setup requests
+ * tipc_disc_init_link_req - start sending periodic link setup requests
  * @b_ptr: ptr to bearer issuing requests
  * @dest: destination address for request messages
  * @dest_domain: network domain of node(s) which should respond to message
@@ -291,10 +291,10 @@ static void disc_timeout(struct link_req *req)
  * Returns pointer to link request structure, or NULL if unable to create.
  */
 
-struct link_req *disc_init_link_req(struct bearer *b_ptr, 
-				    const struct tipc_media_addr *dest,
-				    u32 dest_domain,
-				    u32 req_links) 
+struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr, 
+					 const struct tipc_media_addr *dest,
+					 u32 dest_domain,
+					 u32 req_links) 
 {
 	struct link_req *req;
 
@@ -302,7 +302,7 @@ struct link_req *disc_init_link_req(struct bearer *b_ptr,
 	if (!req)
 		return NULL;
 
-	req->buf = disc_init_msg(DSC_REQ_MSG, req_links, dest_domain, b_ptr);
+	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, req_links, dest_domain, b_ptr);
 	if (!req->buf) {
 		kfree(req);
 		return NULL;

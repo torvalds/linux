@@ -8,7 +8,12 @@ menu "TIPC Configuration (EXPERIMENTAL)"
 config TIPC
 	tristate "The TIPC Protocol (EXPERIMENTAL)"
 	---help---
-	  TBD.
+	  The Transparent Inter Process Communication (TIPC) protocol is
+	  specially designed for intra cluster communication. This protocol
+	  originates from Ericsson where it has been used in carrier grade
+	  cluster applications for many years.
+	
+	  For more information about TIPC, see http://tipc.sourceforge.net.
 
 	  This protocol support is also available as a module ( = code which
 	  can be inserted in and removed from the running kernel whenever you

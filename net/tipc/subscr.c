@@ -118,14 +118,14 @@ static void subscr_send_event(struct subscription *sub,
 }
 
 /**
- * subscr_overlap - test for subscription overlap with the given values
+ * tipc_subscr_overlap - test for subscription overlap with the given values
  *
  * Returns 1 if there is overlap, otherwise 0.
  */
 
-int subscr_overlap(struct subscription *sub, 
-		   u32 found_lower, 
-		   u32 found_upper)
+int tipc_subscr_overlap(struct subscription *sub, 
+			u32 found_lower, 
+			u32 found_upper)
 
 {
 	if (found_lower < sub->seq.lower)
@@ -138,22 +138,22 @@ int subscr_overlap(struct subscription *sub,
 }
 
 /**
- * subscr_report_overlap - issue event if there is subscription overlap
+ * tipc_subscr_report_overlap - issue event if there is subscription overlap
  * 
  * Protected by nameseq.lock in name_table.c
  */
 
-void subscr_report_overlap(struct subscription *sub, 
-			   u32 found_lower, 
-			   u32 found_upper,
-			   u32 event, 
-			   u32 port_ref, 
-			   u32 node,
-			   int must)
+void tipc_subscr_report_overlap(struct subscription *sub, 
+				u32 found_lower, 
+				u32 found_upper,
+				u32 event, 
+				u32 port_ref, 
+				u32 node,
+				int must)
 {
 	dbg("Rep overlap %u:%u,%u<->%u,%u\n", sub->seq.type, sub->seq.lower,
 	    sub->seq.upper, found_lower, found_upper);
-	if (!subscr_overlap(sub, found_lower, found_upper))
+	if (!tipc_subscr_overlap(sub, found_lower, found_upper))
 		return;
 	if (!must && (sub->filter != TIPC_SUB_PORTS))
 		return;
@@ -172,13 +172,13 @@ static void subscr_timeout(struct subscription *sub)
 	/* Validate subscriber reference (in case subscriber is terminating) */
 
 	subscriber_ref = sub->owner->ref;
-	subscriber = (struct subscriber *)ref_lock(subscriber_ref);
+	subscriber = (struct subscriber *)tipc_ref_lock(subscriber_ref);
 	if (subscriber == NULL)
 		return;
 
 	/* Unlink subscription from name table */
 
-	nametbl_unsubscribe(sub);
+	tipc_nametbl_unsubscribe(sub);
 
 	/* Notify subscriber of timeout, then unlink subscription */
 
@@ -192,7 +192,7 @@ static void subscr_timeout(struct subscription *sub)
 
 	/* Now destroy subscription */
 
-	ref_unlock(subscriber_ref);
+	tipc_ref_unlock(subscriber_ref);
 	k_term_timer(&sub->timer);
 	kfree(sub);
 	atomic_dec(&topsrv.subscription_count);
@@ -216,7 +216,7 @@ static void subscr_terminate(struct subscriber *subscriber)
 
 	/* Invalidate subscriber reference */
 
-	ref_discard(subscriber->ref);
+	tipc_ref_discard(subscriber->ref);
 	spin_unlock_bh(subscriber->lock);
 
 	/* Destroy any existing subscriptions for subscriber */
@@ -227,7 +227,7 @@ static void subscr_terminate(struct subscriber *subscriber)
 			k_cancel_timer(&sub->timer);
 			k_term_timer(&sub->timer);
 		}
-		nametbl_unsubscribe(sub);
+		tipc_nametbl_unsubscribe(sub);
 		list_del(&sub->subscription_list);
 		dbg("Term: Removed sub %u,%u,%u from subscriber %x list\n",
 		    sub->seq.type, sub->seq.lower, sub->seq.upper, subscriber);
@@ -315,7 +315,7 @@ static void subscr_subscribe(struct tipc_subscr *s,
 		k_start_timer(&sub->timer, sub->timeout);
 	}
 	sub->owner = subscriber;
-	nametbl_subscribe(sub);
+	tipc_nametbl_subscribe(sub);
 }
 
 /**
@@ -332,7 +332,7 @@ static void subscr_conn_shutdown_event(void *usr_handle,
 	struct subscriber *subscriber;
 	spinlock_t *subscriber_lock;
 
-	subscriber = ref_lock((u32)(unsigned long)usr_handle);
+	subscriber = tipc_ref_lock((u32)(unsigned long)usr_handle);
 	if (subscriber == NULL)
 		return;
 
@@ -354,7 +354,7 @@ static void subscr_conn_msg_event(void *usr_handle,
 	struct subscriber *subscriber;
 	spinlock_t *subscriber_lock;
 
-	subscriber = ref_lock((u32)(unsigned long)usr_handle);
+	subscriber = tipc_ref_lock((u32)(unsigned long)usr_handle);
 	if (subscriber == NULL)
 		return;
 
@@ -401,7 +401,7 @@ static void subscr_named_msg_event(void *usr_handle,
 	memset(subscriber, 0, sizeof(struct subscriber));
 	INIT_LIST_HEAD(&subscriber->subscription_list);
 	INIT_LIST_HEAD(&subscriber->subscriber_list);
-	subscriber->ref = ref_acquire(subscriber, &subscriber->lock);
+	subscriber->ref = tipc_ref_acquire(subscriber, &subscriber->lock);
 	if (subscriber->ref == 0) {
 		warn("Failed to acquire subscriber reference\n");
 		kfree(subscriber);
@@ -423,7 +423,7 @@ static void subscr_named_msg_event(void *usr_handle,
 			&subscriber->port_ref);
 	if (subscriber->port_ref == 0) {
 		warn("Memory squeeze; failed to create subscription port\n");
-		ref_discard(subscriber->ref);
+		tipc_ref_discard(subscriber->ref);
 		kfree(subscriber);
 		return;
 	}
@@ -432,7 +432,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Add subscriber to topology server's subscriber list */
 
-	ref_lock(subscriber->ref);
+	tipc_ref_lock(subscriber->ref);
 	spin_lock_bh(&topsrv.lock);
 	list_add(&subscriber->subscriber_list, &topsrv.subscriber_list);
 	spin_unlock_bh(&topsrv.lock);
@@ -451,7 +451,7 @@ static void subscr_named_msg_event(void *usr_handle,
 	spin_unlock_bh(subscriber_lock);
 }
 
-int subscr_start(void)
+int tipc_subscr_start(void)
 {
 	struct tipc_name_seq seq = {TIPC_TOP_SRV, TIPC_TOP_SRV, TIPC_TOP_SRV};
 	int res = -1;
@@ -481,7 +481,7 @@ int subscr_start(void)
  	if (res)
 		goto failed;
 
- 	res = nametbl_publish_rsv(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
+ 	res = tipc_nametbl_publish_rsv(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
  	if (res)
 		goto failed;
 
@@ -496,7 +496,7 @@ failed:
 	return res;
 }
 
-void subscr_stop(void)
+void tipc_subscr_stop(void)
 {
 	struct subscriber *subscriber;
 	struct subscriber *subscriber_temp;
@@ -507,7 +507,7 @@ void subscr_stop(void)
 		list_for_each_entry_safe(subscriber, subscriber_temp, 
 					 &topsrv.subscriber_list,
 					 subscriber_list) {
-			ref_lock(subscriber->ref);
+			tipc_ref_lock(subscriber->ref);
 			subscriber_lock = subscriber->lock;
 			subscr_terminate(subscriber);
 			spin_unlock_bh(subscriber_lock);
@@ -522,6 +522,6 @@ int tipc_ispublished(struct tipc_name const *name)
 {
 	u32 domain = 0;
 
-	return(nametbl_translate(name->type, name->instance,&domain) != 0);
+	return(tipc_nametbl_translate(name->type, name->instance,&domain) != 0);
 }
 
