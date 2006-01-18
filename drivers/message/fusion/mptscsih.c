@@ -560,11 +560,24 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	MPT_SCSI_HOST	*hd;
 	SCSIIORequest_t	*pScsiReq;
 	SCSIIOReply_t	*pScsiReply;
-	u16		 req_idx;
+	u16		 req_idx, req_idx_MR;
 
 	hd = (MPT_SCSI_HOST *) ioc->sh->hostdata;
 
 	req_idx = le16_to_cpu(mf->u.frame.hwhdr.msgctxu.fld.req_idx);
+	req_idx_MR = (mr != NULL) ?
+	    le16_to_cpu(mr->u.frame.hwhdr.msgctxu.fld.req_idx) : req_idx;
+	if ((req_idx != req_idx_MR) ||
+	    (mf->u.frame.linkage.arg1 == 0xdeadbeaf)) {
+		printk(MYIOC_s_ERR_FMT "Received a mf that was already freed\n",
+		    ioc->name);
+		printk (MYIOC_s_ERR_FMT
+		    "req_idx=%x req_idx_MR=%x mf=%p mr=%p sc=%p\n",
+		    ioc->name, req_idx, req_idx_MR, mf, mr,
+		    hd->ScsiLookup[req_idx_MR]);
+		return 0;
+	}
+
 	sc = hd->ScsiLookup[req_idx];
 	if (sc == NULL) {
 		MPIHeader_t *hdr = (MPIHeader_t *)mf;
