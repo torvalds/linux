@@ -158,7 +158,7 @@ static int	mptscsih_writeIOCPage4(MPT_SCSI_HOST *hd, int target_id, int bus);
 int		mptscsih_scandv_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
 static int	mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *iocmd);
 static void	mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice);
-static void	mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtTarget *vtarget);
+static void	mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtDevice *vdevice);
 static int	mptscsih_is_phys_disk(MPT_ADAPTER *ioc, int id);
 
 #ifdef MPTSCSIH_ENABLE_DOMAIN_VALIDATION
@@ -2308,7 +2308,7 @@ mptscsih_slave_destroy(struct scsi_device *sdev)
 	vtarget->luns[0] &= ~(1 << vdevice->lun);
 	vtarget->num_luns--;
 	if (vtarget->num_luns == 0) {
-		mptscsih_negotiate_to_asyn_narrow(hd, vtarget);
+		mptscsih_negotiate_to_asyn_narrow(hd, vdevice);
 		if (hd->ioc->bus_type == SPI) {
 			if (mptscsih_is_phys_disk(hd->ioc, vtarget->target_id)) {
 				hd->ioc->spi_data.forceDv |= MPT_SCSICFG_RELOAD_IOC_PG3;
@@ -3899,8 +3899,9 @@ mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *io)
  *
  */
 static void
-mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtTarget *vtarget)
+mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 {
+	VirtTarget		*vtarget = vdevice->vtarget;
 	MPT_ADAPTER		*ioc= hd->ioc;
 	SCSIDevicePage1_t	*pcfg1Data;
 	CONFIGPARMS		 cfg;
@@ -3910,7 +3911,8 @@ mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtTarget *vtarget)
 	int			 requested, configuration, data,i;
 	u8			 flags, factor;
 
-	if (ioc->bus_type != SPI)
+	if ((ioc->bus_type != SPI) ||
+		(!vdevice->configured_lun))
 		return;
 
 	if (!ioc->spi_data.sdp1length)
@@ -3946,7 +3948,7 @@ mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtTarget *vtarget)
 			}
 			mptscsih_setDevicePage1Flags(0, MPT_ASYNC, 0, &requested,
 				&configuration, flags);
-			dnegoprintk(("syncronize cache: id=%d width=0 factor=MPT_ASYNC "
+			dnegoprintk(("nego asyn narrow: id=%d width=0 factor=MPT_ASYNC "
 				"offset=0 negoFlags=%x request=%x config=%x\n",
 				id, flags, requested, configuration));
 			pcfg1Data->RequestedParameters = cpu_to_le32(requested);
@@ -3959,7 +3961,7 @@ mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtTarget *vtarget)
 		flags = vtarget->negoFlags;
 		mptscsih_setDevicePage1Flags(0, MPT_ASYNC, 0, &requested,
 				&configuration, flags);
-		dnegoprintk(("syncronize cache: id=%d width=0 factor=MPT_ASYNC "
+		dnegoprintk(("nego asyn narrow: id=%d width=0 factor=MPT_ASYNC "
 			"offset=0 negoFlags=%x request=%x config=%x\n",
 			vtarget->target_id, flags, requested, configuration));
 		pcfg1Data->RequestedParameters = cpu_to_le32(requested);
