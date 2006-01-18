@@ -169,8 +169,8 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	}
 
 	adap->nr =  id & MAX_ID_MASK;
-	init_MUTEX(&adap->bus_lock);
-	init_MUTEX(&adap->clist_lock);
+	mutex_init(&adap->bus_lock);
+	mutex_init(&adap->clist_lock);
 	list_add_tail(&adap->list,&adapters);
 	INIT_LIST_HEAD(&adap->clients);
 
@@ -385,9 +385,9 @@ int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 {
 	int rval;
 
-	down(&adapter->clist_lock);
+	mutex_lock(&adapter->clist_lock);
 	rval = __i2c_check_addr(adapter, addr);
-	up(&adapter->clist_lock);
+	mutex_unlock(&adapter->clist_lock);
 
 	return rval;
 }
@@ -396,13 +396,13 @@ int i2c_attach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
-	down(&adapter->clist_lock);
+	mutex_lock(&adapter->clist_lock);
 	if (__i2c_check_addr(client->adapter, client->addr)) {
-		up(&adapter->clist_lock);
+		mutex_unlock(&adapter->clist_lock);
 		return -EBUSY;
 	}
 	list_add_tail(&client->list,&adapter->clients);
-	up(&adapter->clist_lock);
+	mutex_unlock(&adapter->clist_lock);
 	
 	if (adapter->client_register)  {
 		if (adapter->client_register(client))  {
@@ -451,12 +451,12 @@ int i2c_detach_client(struct i2c_client *client)
 		}
 	}
 
-	down(&adapter->clist_lock);
+	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
 	init_completion(&client->released);
 	device_remove_file(&client->dev, &dev_attr_client_name);
 	device_unregister(&client->dev);
-	up(&adapter->clist_lock);
+	mutex_unlock(&adapter->clist_lock);
 	wait_for_completion(&client->released);
 
  out:
@@ -514,19 +514,19 @@ void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 	struct list_head  *item;
 	struct i2c_client *client;
 
-	down(&adap->clist_lock);
+	mutex_lock(&adap->clist_lock);
 	list_for_each(item,&adap->clients) {
 		client = list_entry(item, struct i2c_client, list);
 		if (!try_module_get(client->driver->driver.owner))
 			continue;
 		if (NULL != client->driver->command) {
-			up(&adap->clist_lock);
+			mutex_unlock(&adap->clist_lock);
 			client->driver->command(client,cmd,arg);
-			down(&adap->clist_lock);
+			mutex_lock(&adap->clist_lock);
 		}
 		module_put(client->driver->driver.owner);
        }
-       up(&adap->clist_lock);
+       mutex_unlock(&adap->clist_lock);
 }
 
 static int __init i2c_init(void)
@@ -570,9 +570,9 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 		}
 #endif
 
-		down(&adap->bus_lock);
+		mutex_lock(&adap->bus_lock);
 		ret = adap->algo->master_xfer(adap,msgs,num);
-		up(&adap->bus_lock);
+		mutex_unlock(&adap->bus_lock);
 
 		return ret;
 	} else {
@@ -1116,10 +1116,10 @@ s32 i2c_smbus_xfer(struct i2c_adapter * adapter, u16 addr, unsigned short flags,
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC;
 
 	if (adapter->algo->smbus_xfer) {
-		down(&adapter->bus_lock);
+		mutex_lock(&adapter->bus_lock);
 		res = adapter->algo->smbus_xfer(adapter,addr,flags,read_write,
 		                                command,size,data);
-		up(&adapter->bus_lock);
+		mutex_unlock(&adapter->bus_lock);
 	} else
 		res = i2c_smbus_xfer_emulated(adapter,addr,flags,read_write,
 	                                      command,size,data);
