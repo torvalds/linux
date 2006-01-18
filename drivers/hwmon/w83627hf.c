@@ -28,6 +28,7 @@
     w83627hf	9	3	2	3	0x20	0x5ca3	no	yes(LPC)
     w83627thf	7	3	3	3	0x90	0x5ca3	no	yes(LPC)
     w83637hf	7	3	3	3	0x80	0x5ca3	no	yes(LPC)
+    w83687thf	7	3	3	3	0x90	0x5ca3	no	yes(LPC)
     w83697hf	8	2	2	2	0x60	0x5ca3	no	yes(LPC)
 
     For other winbond chips, and for i2c support in the above chips,
@@ -63,7 +64,7 @@ MODULE_PARM_DESC(force_i2c,
 static unsigned short address;
 
 /* Insmod parameters */
-enum chips { any_chip, w83627hf, w83627thf, w83697hf, w83637hf };
+enum chips { any_chip, w83627hf, w83627thf, w83697hf, w83637hf, w83687thf };
 
 static int reset;
 module_param(reset, bool, 0);
@@ -100,6 +101,10 @@ static int VAL;		/* The value to read/write */
 #define W83627THF_GPIO5_EN	0x30 /* w83627thf only */
 #define W83627THF_GPIO5_IOSR	0xf3 /* w83627thf only */
 #define W83627THF_GPIO5_DR	0xf4 /* w83627thf only */
+
+#define W83687THF_VID_EN	0x29 /* w83687thf only */
+#define W83687THF_VID_CFG	0xF0 /* w83687thf only */
+#define W83687THF_VID_DATA	0xF1 /* w83687thf only */
 
 static inline void
 superio_outb(int reg, int val)
@@ -139,6 +144,7 @@ superio_exit(void)
 #define W627THF_DEVID 0x82
 #define W697_DEVID 0x60
 #define W637_DEVID 0x70
+#define W687THF_DEVID 0x85
 #define WINB_ACT_REG 0x30
 #define WINB_BASE_REG 0x60
 /* Constants specified below */
@@ -202,11 +208,11 @@ superio_exit(void)
 #define W83627HF_REG_PWM1 0x5A
 #define W83627HF_REG_PWM2 0x5B
 
-#define W83627THF_REG_PWM1		0x01	/* 697HF and 637HF too */
-#define W83627THF_REG_PWM2		0x03	/* 697HF and 637HF too */
-#define W83627THF_REG_PWM3		0x11	/* 637HF too */
+#define W83627THF_REG_PWM1		0x01	/* 697HF/637HF/687THF too */
+#define W83627THF_REG_PWM2		0x03	/* 697HF/637HF/687THF too */
+#define W83627THF_REG_PWM3		0x11	/* 637HF/687THF too */
 
-#define W83627THF_REG_VRM_OVT_CFG 	0x18	/* 637HF too */
+#define W83627THF_REG_VRM_OVT_CFG 	0x18	/* 637HF/687THF too */
 
 static const u8 regpwm_627hf[] = { W83627HF_REG_PWM1, W83627HF_REG_PWM2 };
 static const u8 regpwm[] = { W83627THF_REG_PWM1, W83627THF_REG_PWM2,
@@ -319,7 +325,7 @@ struct w83627hf_data {
 				   Default = 3435.
 				   Other Betas unimplemented */
 	u8 vrm;
-	u8 vrm_ovt;		/* Register value, 627thf & 637hf only */
+	u8 vrm_ovt;		/* Register value, 627THF/637HF/687THF only */
 };
 
 
@@ -414,7 +420,8 @@ static ssize_t show_in_0(struct w83627hf_data *data, char *buf, u8 reg)
 	long in0;
 
 	if ((data->vrm_ovt & 0x01) &&
-		(w83627thf == data->type || w83637hf == data->type))
+		(w83627thf == data->type || w83637hf == data->type
+		 || w83687thf == data->type))
 
 		/* use VRM9 calculation */
 		in0 = (long)((reg * 488 + 70000 + 50) / 100);
@@ -455,7 +462,8 @@ static ssize_t store_regs_in_min0(struct device *dev, struct device_attribute *a
 	mutex_lock(&data->update_lock);
 	
 	if ((data->vrm_ovt & 0x01) &&
-		(w83627thf == data->type || w83637hf == data->type))
+		(w83627thf == data->type || w83637hf == data->type
+		 || w83687thf == data->type))
 
 		/* use VRM9 calculation */
 		data->in_min[0] =
@@ -482,7 +490,8 @@ static ssize_t store_regs_in_max0(struct device *dev, struct device_attribute *a
 	mutex_lock(&data->update_lock);
 
 	if ((data->vrm_ovt & 0x01) &&
-		(w83627thf == data->type || w83637hf == data->type))
+		(w83627thf == data->type || w83637hf == data->type
+		 || w83687thf == data->type))
 		
 		/* use VRM9 calculation */
 		data->in_max[0] =
@@ -981,7 +990,8 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr)
 	if(val != W627_DEVID &&
 	   val != W627THF_DEVID &&
 	   val != W697_DEVID &&
-	   val != W637_DEVID) {
+	   val != W637_DEVID &&
+	   val != W687THF_DEVID) {
 		superio_exit();
 		return -ENODEV;
 	}
@@ -1035,6 +1045,8 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 		kind = w83627thf;
 	else if(val == W637_DEVID)
 		kind = w83637hf;
+	else if (val == W687THF_DEVID)
+		kind = w83687thf;
 	else {
 		dev_info(&adapter->dev,
 			 "Unsupported chip (dev_id=0x%02X).\n", val);
@@ -1072,6 +1084,8 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 		client_name = "w83697hf";
 	} else if (kind == w83637hf) {
 		client_name = "w83637hf";
+	} else if (kind == w83687thf) {
+		client_name = "w83687thf";
 	}
 
 	/* Fill in the remaining client fields and put into the global list */
@@ -1107,7 +1121,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	device_create_file_in(new_client, 2);
 	device_create_file_in(new_client, 3);
 	device_create_file_in(new_client, 4);
-	if (kind != w83627thf && kind != w83637hf) {
+	if (kind == w83627hf || kind == w83697hf) {
 		device_create_file_in(new_client, 5);
 		device_create_file_in(new_client, 6);
 	}
@@ -1140,7 +1154,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 
 	device_create_file_pwm(new_client, 1);
 	device_create_file_pwm(new_client, 2);
-	if (kind == w83627thf || kind == w83637hf)
+	if (kind == w83627thf || kind == w83637hf || kind == w83687thf)
 		device_create_file_pwm(new_client, 3);
 
 	device_create_file_sensor(new_client, 1);
@@ -1248,6 +1262,33 @@ exit:
 	return res;
 }
 
+static int w83687thf_read_vid(struct i2c_client *client)
+{
+	int res = 0xff;
+
+	superio_enter();
+	superio_select(W83627HF_LD_HWM);
+
+	/* Make sure these GPIO pins are enabled */
+	if (!(superio_inb(W83687THF_VID_EN) & (1 << 2))) {
+		dev_dbg(&client->dev, "VID disabled, no VID function\n");
+		goto exit;
+	}
+
+	/* Make sure the pins are configured for input */
+	if (!(superio_inb(W83687THF_VID_CFG) & (1 << 4))) {
+		dev_dbg(&client->dev, "VID configured as output, "
+			"no VID function\n");
+		goto exit;
+	}
+
+	res = superio_inb(W83687THF_VID_DATA) & 0x3f;
+
+exit:
+	superio_exit();
+	return res;
+}
+
 static int w83627hf_write_value(struct i2c_client *client, u16 reg, u16 value)
 {
 	struct w83627hf_data *data = i2c_get_clientdata(client);
@@ -1325,10 +1366,13 @@ static void w83627hf_init_client(struct i2c_client *client)
 		data->vid = (lo & 0x0f) | ((hi & 0x01) << 4);
 	} else if (w83627thf == data->type) {
 		data->vid = w83627thf_read_gpio5(client);
+	} else if (w83687thf == data->type) {
+		data->vid = w83687thf_read_vid(client);
 	}
 
 	/* Read VRM & OVT Config only once */
-	if (w83627thf == data->type || w83637hf == data->type) {
+	if (w83627thf == data->type || w83637hf == data->type
+	 || w83687thf == data->type) {
 		data->vrm_ovt = 
 			w83627hf_read_value(client, W83627THF_REG_VRM_OVT_CFG);
 	}
@@ -1395,7 +1439,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 		for (i = 0; i <= 8; i++) {
 			/* skip missing sensors */
 			if (((data->type == w83697hf) && (i == 1)) ||
-			    ((data->type == w83627thf || data->type == w83637hf)
+			    ((data->type != w83627hf && data->type != w83697hf)
 			    && (i == 5 || i == 6)))
 				continue;
 			data->in[i] =

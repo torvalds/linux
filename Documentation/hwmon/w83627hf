@@ -18,6 +18,10 @@ Supported chips:
     Prefix: 'w83637hf'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: http://www.winbond.com/PDF/sheet/w83637hf.pdf
+  * Winbond W83687THF
+    Prefix: 'w83687thf'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: Provided by Winbond on request
 
 Authors:
         Frodo Looijaard <frodol@dds.nl>,
