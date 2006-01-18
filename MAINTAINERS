@@ -1176,8 +1176,8 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/aegl/linux-2.6.git
 S:	Maintained
 
 SN-IA64 (Itanium) SUB-PLATFORM
-P:	Greg Edwards
-M:	edwardsg@sgi.com
+P:	Jes Sorensen
+M:	jes@sgi.com
 L:	linux-altix@sgi.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.sgi.com/altix
