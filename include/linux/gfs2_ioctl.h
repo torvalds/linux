@@ -14,19 +14,8 @@
 
 /* Ioctls implemented */
 
-#define GFS2_IOCTL_IDENTIFY      _GFS2C_(1)
-#define GFS2_IOCTL_SUPER         _GFS2C_(2)
 #define GFS2_IOCTL_SETFLAGS      _GFS2C_(3)
 #define GFS2_IOCTL_GETFLAGS      _GFS2C_(4)
-
-struct gfs2_ioctl {
-	unsigned int gi_argc;
-	const char **gi_argv;
-
-        char __user *gi_data;
-	unsigned int gi_size;
-	uint64_t gi_offset;
-};
 
 #endif /* ___GFS2_IOCTL_DOT_H__ */
 
