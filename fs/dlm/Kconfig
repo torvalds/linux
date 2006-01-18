@@ -1,0 +1,30 @@
+menu "Distributed Lock Manager"
+	depends on INET && EXPERIMENTAL
+
+config DLM
+	tristate "Distributed Lock Manager (DLM)"
+	depends on SYSFS
+	depends on IPV6 || IPV6=n
+	select IP_SCTP
+	select CONFIGFS_FS
+	help
+	A general purpose distributed lock manager for kernel or userspace
+	applications.
+
+config DLM_DEVICE
+	tristate "DLM device for userspace access"
+	depends on DLM
+	help
+	This module creates a misc device through which the dlm lockspace
+	and locking functions become available to userspace applications
+	(usually through the libdlm library).
+
+config DLM_DEBUG
+	bool "DLM debugging"
+	depends on DLM
+	help
+	Under the debugfs mount point, the name of each lockspace will
+	appear as a file in the "dlm" directory.  The output is the
+	list of resource and locks the local node knows about.
+
+endmenu
