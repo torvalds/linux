@@ -54,12 +54,6 @@
 #include <asm/uaccess.h>
 #include <asm/unwind.h>
 
-/*
- * Power off function, if any
- */ 
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
-
 void default_idle(void)
 {
 	barrier();
@@ -142,6 +136,7 @@ void machine_halt(void)
 	*/
 }
 
+void (*chassis_power_off)(void);
 
 /*
  * This routine is called from sys_reboot to actually turn off the
@@ -150,8 +145,8 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	/* If there is a registered power off handler, call it. */
-	if(pm_power_off)
-		pm_power_off();
+	if (chassis_power_off)
+		chassis_power_off();
 
 	/* Put the soft power button back under hardware control.
 	 * If the user had already pressed the power button, the
@@ -167,6 +162,8 @@ void machine_power_off(void)
 	       KERN_EMERG "Please power this system off now.");
 }
 
+void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 /*
  * Create a kernel thread
