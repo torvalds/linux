@@ -8936,14 +8936,12 @@ static int ipw_request_direct_scan(struct ipw_priv *priv, char *essid,
 	IPW_DEBUG_HC("starting request direct scan!\n");
 
 	if (priv->status & (STATUS_SCANNING | STATUS_SCAN_ABORTING)) {
-		err = wait_event_interruptible(priv->wait_state,
-					       !(priv->
-						 status & (STATUS_SCANNING |
-							   STATUS_SCAN_ABORTING)));
-		if (err) {
-			IPW_DEBUG_HC("aborting direct scan");
-			goto done;
-		}
+		/* We should not sleep here; otherwise we will block most
+		 * of the system (for instance, we hold rtnl_lock when we
+		 * get here).
+		 */
+		err = -EAGAIN;
+		goto done;
 	}
 	memset(&scan, 0, sizeof(scan));
 

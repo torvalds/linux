@@ -1696,11 +1696,13 @@ M: mtk-manpages@gmx.net
 W: ftp://ftp.kernel.org/pub/linux/docs/manpages
 S: Maintained
 
-MARVELL MV64340 ETHERNET DRIVER
+MARVELL MV643XX ETHERNET DRIVER
+P:	Dale Farnsworth
+M:	dale@farnsworth.org
 P:	Manish Lachwani
-L:	linux-mips@linux-mips.org
+M:	mlachwani@mvista.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Odd Fixes for 2.4; Maintained for 2.6.
 
 MATROX FRAMEBUFFER DRIVER
 P:	Petr Vandrovec

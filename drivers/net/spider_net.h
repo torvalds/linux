@@ -33,25 +33,32 @@ extern struct ethtool_ops spider_net_ethtool_ops;
 
 extern char spider_net_driver_name[];
 
-#define SPIDER_NET_MAX_MTU			2308
+#define SPIDER_NET_MAX_FRAME			2312
+#define SPIDER_NET_MAX_MTU			2294
 #define SPIDER_NET_MIN_MTU			64
 
 #define SPIDER_NET_RXBUF_ALIGN			128
 
-#define SPIDER_NET_RX_DESCRIPTORS_DEFAULT	64
+#define SPIDER_NET_RX_DESCRIPTORS_DEFAULT	256
 #define SPIDER_NET_RX_DESCRIPTORS_MIN		16
-#define SPIDER_NET_RX_DESCRIPTORS_MAX		256
+#define SPIDER_NET_RX_DESCRIPTORS_MAX		512
 
-#define SPIDER_NET_TX_DESCRIPTORS_DEFAULT	64
+#define SPIDER_NET_TX_DESCRIPTORS_DEFAULT	256
 #define SPIDER_NET_TX_DESCRIPTORS_MIN		16
-#define SPIDER_NET_TX_DESCRIPTORS_MAX		256
+#define SPIDER_NET_TX_DESCRIPTORS_MAX		512
+
+#define SPIDER_NET_TX_TIMER			20
 
 #define SPIDER_NET_RX_CSUM_DEFAULT		1
 
-#define SPIDER_NET_WATCHDOG_TIMEOUT 5*HZ
-#define SPIDER_NET_NAPI_WEIGHT 64
+#define SPIDER_NET_WATCHDOG_TIMEOUT		50*HZ
+#define SPIDER_NET_NAPI_WEIGHT			64
 
-#define SPIDER_NET_FIRMWARE_LEN		1024
+#define SPIDER_NET_FIRMWARE_SEQS	6
+#define SPIDER_NET_FIRMWARE_SEQWORDS	1024
+#define SPIDER_NET_FIRMWARE_LEN		(SPIDER_NET_FIRMWARE_SEQS * \
+					 SPIDER_NET_FIRMWARE_SEQWORDS * \
+					 sizeof(u32))
 #define SPIDER_NET_FIRMWARE_NAME	"spider_fw.bin"
 
 /** spider_net SMMIO registers */
@@ -142,14 +149,12 @@ extern char spider_net_driver_name[];
 /** SCONFIG registers */
 #define SPIDER_NET_SCONFIG_IOACTE	0x00002810
 
-/** hardcoded register values */
-#define SPIDER_NET_INT0_MASK_VALUE	0x3f7fe3ff
-#define SPIDER_NET_INT1_MASK_VALUE	0xffffffff
+/** interrupt mask registers */
+#define SPIDER_NET_INT0_MASK_VALUE	0x3f7fe2c7
+#define SPIDER_NET_INT1_MASK_VALUE	0xffff7ff7
 /* no MAC aborts -> auto retransmission */
-#define SPIDER_NET_INT2_MASK_VALUE	0xfffffff1
+#define SPIDER_NET_INT2_MASK_VALUE	0xffef7ff1
 
-/* clear counter when interrupt sources are cleared
-#define SPIDER_NET_FRAMENUM_VALUE	0x0001f001 */
 /* we rely on flagged descriptor interrupts */
 #define SPIDER_NET_FRAMENUM_VALUE	0x00000000
 /* set this first, then the FRAMENUM_VALUE */
@@ -168,7 +173,7 @@ extern char spider_net_driver_name[];
 #if 0
 #define SPIDER_NET_WOL_VALUE		0x00000000
 #endif
-#define SPIDER_NET_IPSECINIT_VALUE	0x00f000f8
+#define SPIDER_NET_IPSECINIT_VALUE	0x6f716f71
 
 /* pause frames: automatic, no upper retransmission count */
 /* outside loopback mode: ETOMOD signal dont matter, not connected */
@@ -318,6 +323,10 @@ enum spider_net_int2_status {
 #define SPIDER_NET_RXINT	( (1 << SPIDER_NET_GDAFDCINT) | \
 				  (1 << SPIDER_NET_GRMFLLINT) )
 
+#define SPIDER_NET_ERRINT	( 0xffffffff & \
+				  (~SPIDER_NET_TXINT) & \
+				  (~SPIDER_NET_RXINT) )
+
 #define SPIDER_NET_GPREXEC		0x80000000
 #define SPIDER_NET_GPRDAT_MASK		0x0000ffff
 
@@ -358,9 +367,6 @@ enum spider_net_int2_status {
 /* descr ready, descr is in middle of chain, get interrupt on completion */
 #define SPIDER_NET_DMAC_RX_CARDOWNED	0xa0800000
 
-/* multicast is no problem */
-#define SPIDER_NET_DATA_ERROR_MASK	0xffffbfff
-
 enum spider_net_descr_status {
 	SPIDER_NET_DESCR_COMPLETE		= 0x00, /* used in rx and tx */
 	SPIDER_NET_DESCR_RESPONSE_ERROR		= 0x01, /* used in rx and tx */
@@ -373,9 +379,9 @@ enum spider_net_descr_status {
 
 struct spider_net_descr {
 	/* as defined by the hardware */
-	dma_addr_t buf_addr;
+	u32 buf_addr;
 	u32 buf_size;
-	dma_addr_t next_descr_addr;
+	u32 next_descr_addr;
 	u32 dmac_cmd_status;
 	u32 result_size;
 	u32 valid_size;	/* all zeroes for tx */
@@ -384,7 +390,7 @@ struct spider_net_descr {
 
 	/* used in the driver */
 	struct sk_buff *skb;
-	dma_addr_t bus_addr;
+	u32 bus_addr;
 	struct spider_net_descr *next;
 	struct spider_net_descr *prev;
 } __attribute__((aligned(32)));
@@ -396,21 +402,21 @@ struct spider_net_descr_chain {
 };
 
 /* descriptor data_status bits */
-#define SPIDER_NET_RXIPCHK		29
-#define SPIDER_NET_TCPUDPIPCHK		28
-#define SPIDER_NET_DATA_STATUS_CHK_MASK	(1 << SPIDER_NET_RXIPCHK | \
-					 1 << SPIDER_NET_TCPUDPIPCHK)
-
+#define SPIDER_NET_RX_IPCHK		29
+#define SPIDER_NET_RX_TCPCHK		28
 #define SPIDER_NET_VLAN_PACKET		21
+#define SPIDER_NET_DATA_STATUS_CKSUM_MASK ( (1 << SPIDER_NET_RX_IPCHK) | \
+					  (1 << SPIDER_NET_RX_TCPCHK) )
 
 /* descriptor data_error bits */
-#define SPIDER_NET_RXIPCHKERR		27
-#define SPIDER_NET_RXTCPCHKERR		26
-#define SPIDER_NET_DATA_ERROR_CHK_MASK	(1 << SPIDER_NET_RXIPCHKERR | \
-					 1 << SPIDER_NET_RXTCPCHKERR)
+#define SPIDER_NET_RX_IPCHKERR		27
+#define SPIDER_NET_RX_RXTCPCHKERR	28
 
-/* the cases we don't pass the packet to the stack */
-#define SPIDER_NET_DESTROY_RX_FLAGS	0x70138000
+#define SPIDER_NET_DATA_ERR_CKSUM_MASK	(1 << SPIDER_NET_RX_IPCHKERR)
+
+/* the cases we don't pass the packet to the stack.
+ * 701b8000 would be correct, but every packets gets that flag */
+#define SPIDER_NET_DESTROY_RX_FLAGS	0x700b8000
 
 #define SPIDER_NET_DESCR_SIZE		32
 
@@ -445,13 +451,16 @@ struct spider_net_card {
 
 	struct spider_net_descr_chain tx_chain;
 	struct spider_net_descr_chain rx_chain;
-	spinlock_t chain_lock;
+	atomic_t rx_chain_refill;
+	atomic_t tx_chain_release;
 
 	struct net_device_stats netdev_stats;
 
 	struct spider_net_options options;
 
 	spinlock_t intmask_lock;
+	struct tasklet_struct rxram_full_tl;
+	struct timer_list tx_timer;
 
 	struct work_struct tx_timeout_task;
 	atomic_t tx_timeout_task_counter;

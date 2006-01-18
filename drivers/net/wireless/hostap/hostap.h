@@ -1,6 +1,15 @@
 #ifndef HOSTAP_H
 #define HOSTAP_H
 
+#include <linux/ethtool.h>
+
+#include "hostap_wlan.h"
+#include "hostap_ap.h"
+
+static const long freq_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
+				  2447, 2452, 2457, 2462, 2467, 2472, 2484 };
+#define FREQ_COUNT (sizeof(freq_list) / sizeof(freq_list[0]))
+
 /* hostap.c */
 
 extern struct proc_dir_entry *hostap_proc;
@@ -40,6 +49,26 @@ int prism2_update_comms_qual(struct net_device *dev);
 int prism2_sta_send_mgmt(local_info_t *local, u8 *dst, u16 stype,
 			 u8 *body, size_t bodylen);
 int prism2_sta_deauth(local_info_t *local, u16 reason);
+int prism2_wds_add(local_info_t *local, u8 *remote_addr,
+		   int rtnl_locked);
+int prism2_wds_del(local_info_t *local, u8 *remote_addr,
+		   int rtnl_locked, int do_not_remove);
+
+
+/* hostap_ap.c */
+
+int ap_control_add_mac(struct mac_restrictions *mac_restrictions, u8 *mac);
+int ap_control_del_mac(struct mac_restrictions *mac_restrictions, u8 *mac);
+void ap_control_flush_macs(struct mac_restrictions *mac_restrictions);
+int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev, u8 *mac);
+void ap_control_kickall(struct ap_data *ap);
+void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
+			 struct ieee80211_crypt_data ***crypt);
+int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
+			   struct iw_quality qual[], int buf_size,
+			   int aplist);
+int prism2_ap_translate_scan(struct net_device *dev, char *buffer);
+int prism2_hostapd(struct ap_data *ap, struct prism2_hostapd_param *param);
 
 
 /* hostap_proc.c */
@@ -52,6 +81,14 @@ void hostap_remove_proc(local_info_t *local);
 
 void hostap_info_init(local_info_t *local);
 void hostap_info_process(local_info_t *local, struct sk_buff *skb);
+
+
+/* hostap_ioctl.c */
+
+extern const struct iw_handler_def hostap_iw_handler_def;
+extern struct ethtool_ops prism2_ethtool_ops;
+
+int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 
 #endif /* HOSTAP_H */

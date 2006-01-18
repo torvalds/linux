@@ -21,15 +21,10 @@
 #define PRISM2_DOWNLOAD_SUPPORT
 #endif
 
-#ifdef PRISM2_DOWNLOAD_SUPPORT
-/* Allow writing firmware images into flash, i.e., to non-volatile storage.
- * Before you enable this option, you should make absolutely sure that you are
- * using prism2_srec utility that comes with THIS version of the driver!
- * In addition, please note that it is possible to kill your card with
- * non-volatile download if you are using incorrect image. This feature has not
- * been fully tested, so please be careful with it. */
-/* #define PRISM2_NON_VOLATILE_DOWNLOAD */
-#endif /* PRISM2_DOWNLOAD_SUPPORT */
+/* Allow kernel configuration to enable non-volatile download support. */
+#ifdef CONFIG_HOSTAP_FIRMWARE_NVRAM
+#define PRISM2_NON_VOLATILE_DOWNLOAD
+#endif
 
 /* Save low-level I/O for debugging. This should not be enabled in normal use.
  */
