@@ -31,6 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/msr.h>
 
@@ -74,7 +75,7 @@ struct scx200_acb_iface {
 	struct scx200_acb_iface *next;
 	struct i2c_adapter adapter;
 	unsigned base;
-	struct semaphore sem;
+	struct mutex mutex;
 
 	/* State machine data */
 	enum scx200_acb_state state;
@@ -314,7 +315,7 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 		return -EINVAL;
 	}
 
-	down(&iface->sem);
+	mutex_lock(&iface->mutex);
 
 	iface->address_byte = (address << 1) | rw;
 	iface->command = command;
@@ -338,7 +339,7 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 
 	rc = iface->result;
 
-	up(&iface->sem);
+	mutex_unlock(&iface->mutex);
 
 	if (rc == 0 && size == I2C_SMBUS_WORD_DATA && rw == I2C_SMBUS_READ)
 		data->word = le16_to_cpu(cur_word);
@@ -431,7 +432,7 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 	adapter->algo = &scx200_acb_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 
-	init_MUTEX(&iface->sem);
+	mutex_init(&iface->mutex);
 
 	snprintf(description, sizeof(description), "%s ACCESS.bus [%s]",
 		 text, adapter->name);

@@ -64,7 +64,6 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 
 
 /* ALI1535 SMBus address offsets */
