@@ -333,6 +333,7 @@ static struct platform_device *ixp46x_devices[] __initdata = {
 };
 
 unsigned long ixp4xx_exp_bus_size;
+EXPORT_SYMBOL(ixp4xx_exp_bus_size);
 
 void __init ixp4xx_sys_init(void)
 {
@@ -352,7 +353,7 @@ void __init ixp4xx_sys_init(void)
 		}
 	}
 
-	printk("IXP4xx: Using %uMiB expansion bus window size\n",
+	printk("IXP4xx: Using %luMiB expansion bus window size\n",
 			ixp4xx_exp_bus_size >> 20);
 }
 

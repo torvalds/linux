@@ -146,7 +146,7 @@ void __init omap_serial_init(void)
 			if (IS_ERR(uart1_ck))
 				printk("Could not get uart1_ck\n");
 			else {
-				clk_use(uart1_ck);
+				clk_enable(uart1_ck);
 				if (cpu_is_omap1510())
 					clk_set_rate(uart1_ck, 12000000);
 			}
@@ -166,7 +166,7 @@ void __init omap_serial_init(void)
 			if (IS_ERR(uart2_ck))
 				printk("Could not get uart2_ck\n");
 			else {
-				clk_use(uart2_ck);
+				clk_enable(uart2_ck);
 				if (cpu_is_omap1510())
 					clk_set_rate(uart2_ck, 12000000);
 				else
@@ -188,7 +188,7 @@ void __init omap_serial_init(void)
 			if (IS_ERR(uart3_ck))
 				printk("Could not get uart3_ck\n");
 			else {
-				clk_use(uart3_ck);
+				clk_enable(uart3_ck);
 				if (cpu_is_omap1510())
 					clk_set_rate(uart3_ck, 12000000);
 			}
