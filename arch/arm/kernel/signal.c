@@ -30,15 +30,21 @@
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn))
 
 /*
+ * With EABI, the syscall number has to be loaded into r7.
+ */
+#define MOV_R7_NR_SIGRETURN	(0xe3a07000 | (__NR_sigreturn - __NR_SYSCALL_BASE))
+#define MOV_R7_NR_RT_SIGRETURN	(0xe3a07000 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
+
+/*
  * For Thumb syscalls, we pass the syscall number via r7.  We therefore
  * need two 16-bit instructions.
  */
 #define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_sigreturn - __NR_SYSCALL_BASE))
 #define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
 
-const unsigned long sigreturn_codes[4] = {
-	SWI_SYS_SIGRETURN,	SWI_THUMB_SIGRETURN,
-	SWI_SYS_RT_SIGRETURN,	SWI_THUMB_RT_SIGRETURN
+const unsigned long sigreturn_codes[7] = {
+	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
+	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
 };
 
 static int do_signal(sigset_t *oldset, struct pt_regs * regs, int syscall);
@@ -189,7 +195,7 @@ struct aux_sigframe {
 struct sigframe {
 	struct sigcontext sc;
 	unsigned long extramask[_NSIG_WORDS-1];
-	unsigned long retcode;
+	unsigned long retcode[2];
 	struct aux_sigframe aux __attribute__((aligned(8)));
 };
 
@@ -198,7 +204,7 @@ struct rt_sigframe {
 	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
-	unsigned long retcode;
+	unsigned long retcode[2];
 	struct aux_sigframe aux __attribute__((aligned(8)));
 };
 
@@ -436,12 +442,13 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	if (ka->sa.sa_flags & SA_RESTORER) {
 		retcode = (unsigned long)ka->sa.sa_restorer;
 	} else {
-		unsigned int idx = thumb;
+		unsigned int idx = thumb << 1;
 
 		if (ka->sa.sa_flags & SA_SIGINFO)
-			idx += 2;
+			idx += 3;
 
-		if (__put_user(sigreturn_codes[idx], rc))
+		if (__put_user(sigreturn_codes[idx],   rc) ||
+		    __put_user(sigreturn_codes[idx+1], rc+1))
 			return 1;
 
 		if (cpsr & MODE32_BIT) {
@@ -456,7 +463,7 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 			 * the return code written onto the stack.
 			 */
 			flush_icache_range((unsigned long)rc,
-					   (unsigned long)(rc + 1));
+					   (unsigned long)(rc + 2));
 
 			retcode = ((unsigned long)rc) + thumb;
 		}
@@ -488,7 +495,7 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 	}
 
 	if (err == 0)
-		err = setup_return(regs, ka, &frame->retcode, frame, usig);
+		err = setup_return(regs, ka, frame->retcode, frame, usig);
 
 	return err;
 }
@@ -522,7 +529,7 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	if (err == 0)
-		err = setup_return(regs, ka, &frame->retcode, frame, usig);
+		err = setup_return(regs, ka, frame->retcode, frame, usig);
 
 	if (err == 0) {
 		/*
