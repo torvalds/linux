@@ -1843,7 +1843,7 @@ M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
 M:	kaber@coreworks.de
 L:	netdev@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/davem/net-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 
 IPVS
