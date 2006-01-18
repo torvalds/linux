@@ -126,16 +126,19 @@ enum {
 
 	ATA_FLAG_SUSPENDED	= (1 << 12), /* port is suspended */
 
+	ATA_FLAG_PIO_LBA48	= (1 << 13), /* Host DMA engine is LBA28 only */
+	ATA_FLAG_IRQ_MASK	= (1 << 14), /* Mask IRQ in PIO xfers */
+
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
 	ATA_QCFLAG_SINGLE	= (1 << 4), /* no s/g, just a single buffer */
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
 
 	/* various lengths of time */
-	ATA_TMOUT_EDD		= 5 * HZ,	/* hueristic */
+	ATA_TMOUT_EDD		= 5 * HZ,	/* heuristic */
 	ATA_TMOUT_PIO		= 30 * HZ,
-	ATA_TMOUT_BOOT		= 30 * HZ,	/* hueristic */
-	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* hueristic */
+	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
+	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
 	ATA_TMOUT_CDB		= 30 * HZ,
 	ATA_TMOUT_CDB_QUICK	= 5 * HZ,
 	ATA_TMOUT_INTERNAL	= 30 * HZ,
@@ -499,6 +502,8 @@ extern int ata_scsi_slave_config(struct scsi_device *sdev);
 /*
  * Timing helpers
  */
+
+extern unsigned int ata_pio_need_iordy(const struct ata_device *);
 extern int ata_timing_compute(struct ata_device *, unsigned short,
 			      struct ata_timing *, int, int);
 extern void ata_timing_merge(const struct ata_timing *,
