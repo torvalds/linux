@@ -124,8 +124,17 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 		errmsg = "not master";
 		goto error;
 	}
-	if (status & ACBST_NEGACK)
-		goto negack;
+	if (status & ACBST_NEGACK) {
+		dev_dbg(&iface->adapter.dev, "negative ack in state %s\n",
+			scx200_acb_state_name[iface->state]);
+
+		iface->state = state_idle;
+		iface->result = -ENXIO;
+
+		outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
+		outb(ACBST_STASTR | ACBST_NEGACK, ACBST);
+		return;
+	}
 
 	switch (iface->state) {
 	case state_idle:
@@ -202,29 +211,8 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 
 	return;
 
- negack:
-	dev_dbg(&iface->adapter.dev, "negative ack in state %s\n",
-		scx200_acb_state_name[iface->state]);
-
-	iface->state = state_idle;
-	iface->result = -ENXIO;
-
-	outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
-	outb(ACBST_STASTR | ACBST_NEGACK, ACBST);
-	return;
-
  error:
 	dev_err(&iface->adapter.dev, "%s in state %s\n", errmsg,
-		scx200_acb_state_name[iface->state]);
-
-	iface->state = state_idle;
-	iface->result = -EIO;
-	iface->needs_reset = 1;
-}
-
-static void scx200_acb_timeout(struct scx200_acb_iface *iface)
-{
-	dev_err(&iface->adapter.dev, "timeout in state %s\n",
 		scx200_acb_state_name[iface->state]);
 
 	iface->state = state_idle;
@@ -235,7 +223,7 @@ static void scx200_acb_timeout(struct scx200_acb_iface *iface)
 #ifdef POLLED_MODE
 static void scx200_acb_poll(struct scx200_acb_iface *iface)
 {
-	u8 status = 0;
+	u8 status;
 	unsigned long timeout;
 
 	timeout = jiffies + POLL_TIMEOUT;
@@ -248,7 +236,12 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 		msleep(10);
 	}
 
-	scx200_acb_timeout(iface);
+	dev_err(&iface->adapter.dev, "timeout in state %s\n",
+		scx200_acb_state_name[iface->state]);
+
+	iface->state = state_idle;
+	iface->result = -EIO;
+	iface->needs_reset = 1;
 }
 #endif /* POLLED_MODE */
 
@@ -291,13 +284,8 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 		break;
 
 	case I2C_SMBUS_BYTE:
-		if (rw == I2C_SMBUS_READ) {
-			len = 1;
-			buffer = &data->byte;
-		} else {
-			len = 1;
-			buffer = &command;
-		}
+		len = 1;
+		buffer = rw ? &data->byte : &command;
 		break;
 
 	case I2C_SMBUS_BYTE_DATA:
@@ -331,9 +319,7 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 
 	down(&iface->sem);
 
-	iface->address_byte = address<<1;
-	if (rw == I2C_SMBUS_READ)
-		iface->address_byte |= 1;
+	iface->address_byte = (address << 1) | rw;
 	iface->command = command;
 	iface->ptr = buffer;
 	iface->len = len;
@@ -433,7 +419,7 @@ static int  __init scx200_acb_create(int base, int index)
 {
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
-	int rc = 0;
+	int rc;
 	char description[64];
 
 	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
@@ -459,14 +445,14 @@ static int  __init scx200_acb_create(int base, int index)
 		printk(KERN_ERR NAME ": can't allocate io 0x%x-0x%x\n",
 			base, base + 8-1);
 		rc = -EBUSY;
-		goto errout;
+		goto errout_free;
 	}
 	iface->base = base;
 
 	rc = scx200_acb_probe(iface);
 	if (rc) {
 		printk(KERN_WARNING NAME ": probe failed\n");
-		goto errout;
+		goto errout_release;
 	}
 
 	scx200_acb_reset(iface);
@@ -474,7 +460,7 @@ static int  __init scx200_acb_create(int base, int index)
 	if (i2c_add_adapter(adapter) < 0) {
 		printk(KERN_ERR NAME ": failed to register\n");
 		rc = -ENODEV;
-		goto errout;
+		goto errout_release;
 	}
 
 	lock_kernel();
@@ -484,12 +470,11 @@ static int  __init scx200_acb_create(int base, int index)
 
 	return 0;
 
+ errout_release:
+	release_region(iface->base, 8);
+ errout_free:
+	kfree(iface);
  errout:
-	if (iface) {
-		if (iface->base)
-			release_region(iface->base, 8);
-		kfree(iface);
-	}
 	return rc;
 }
 
