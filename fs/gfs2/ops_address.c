@@ -429,13 +429,13 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 
 static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
-	struct gfs2_databuf *db;
+	struct gfs2_bufdata *bd;
 
 	gfs2_log_lock(sdp);
-	db = get_v2db(bh);
-	if (db) {
-		db->db_bh = NULL;
-		set_v2db(bh, NULL);
+	bd = get_v2bd(bh);
+	if (bd) {
+		bd->bd_bh = NULL;
+		set_v2bd(bh, NULL);
 		gfs2_log_unlock(sdp);
 		brelse(bh);
 	} else

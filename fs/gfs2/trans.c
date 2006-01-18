@@ -199,17 +199,17 @@ void gfs2_trans_add_rg(struct gfs2_rgrpd *rgd)
 
 void gfs2_trans_add_databuf(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
-	struct gfs2_databuf *db;
+	struct gfs2_bufdata *bd;
 
-	db = get_v2db(bh);
-	if (!db) {
-		db = kmalloc(sizeof(struct gfs2_databuf),
-			     GFP_KERNEL | __GFP_NOFAIL);
-		lops_init_le(&db->db_le, &gfs2_databuf_lops);
+	bd = get_v2bd(bh);
+	if (!bd) {
+		bd = kmalloc(sizeof(struct gfs2_bufdata),
+			     GFP_NOFS | __GFP_NOFAIL);
+		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
 		get_bh(bh);
-		db->db_bh = bh;
-		set_v2db(bh, db);
-		lops_add(sdp, &db->db_le);
+		bd->bd_bh = bh;
+		set_v2bd(bh, bd);
+		lops_add(sdp, &bd->bd_le);
 	}
 }
 

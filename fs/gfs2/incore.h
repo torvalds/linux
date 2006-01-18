@@ -25,7 +25,6 @@ struct gfs2_log_element;
 struct gfs2_bitmap;
 struct gfs2_rgrpd;
 struct gfs2_bufdata;
-struct gfs2_databuf;
 struct gfs2_glock_operations;
 struct gfs2_holder;
 struct gfs2_glock;
@@ -114,11 +113,6 @@ struct gfs2_bufdata {
 	struct gfs2_ail *bd_ail;
 	struct list_head bd_ail_st_list;
 	struct list_head bd_ail_gl_list;
-};
-
-struct gfs2_databuf {
-	struct gfs2_log_element db_le;
-	struct buffer_head *db_bh;
 };
 
 struct gfs2_glock_operations {

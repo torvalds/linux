@@ -45,8 +45,6 @@ enum {
 #define set_v2fp(file, fp) (file)->private_data = (fp)
 #define get_v2bd(bh) ((struct gfs2_bufdata *)(bh)->b_private)
 #define set_v2bd(bh, bd) (bh)->b_private = (bd)
-#define get_v2db(bh) ((struct gfs2_databuf *)(bh)->b_private)
-#define set_v2db(bh, db) (bh)->b_private = (db)
 
 #define get_transaction ((struct gfs2_trans *)(current->journal_info))
 #define set_transaction(tr) (current->journal_info) = (tr)

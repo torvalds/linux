@@ -442,15 +442,15 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 {
 	struct list_head *head = &sdp->sd_log_le_databuf;
 	LIST_HEAD(started);
-	struct gfs2_databuf *db;
+	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
 
 	while (!list_empty(head)) {
-		db = list_entry(head->prev, struct gfs2_databuf, db_le.le_list);
-		list_move(&db->db_le.le_list, &started);
+		bd = list_entry(head->prev, struct gfs2_bufdata, bd_le.le_list);
+		list_move(&bd->bd_le.le_list, &started);
 
 		gfs2_log_lock(sdp);
-		bh = db->db_bh;
+		bh = bd->bd_bh;
 		if (bh) {
 			get_bh(bh);
 			gfs2_log_unlock(sdp);
@@ -464,22 +464,22 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	}
 
 	while (!list_empty(&started)) {
-		db = list_entry(started.next, struct gfs2_databuf,
-				db_le.le_list);
-		list_del(&db->db_le.le_list);
+		bd = list_entry(started.next, struct gfs2_bufdata,
+				bd_le.le_list);
+		list_del(&bd->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
 
 		gfs2_log_lock(sdp);
-		bh = db->db_bh;
+		bh = bd->bd_bh;
 		if (bh) {
-			set_v2db(bh, NULL);
+			set_v2bd(bh, NULL);
 			gfs2_log_unlock(sdp);
 			wait_on_buffer(bh);
 			brelse(bh);
 		} else
 			gfs2_log_unlock(sdp);
 
-		kfree(db);
+		kfree(bd);
 	}
 
 	gfs2_assert_warn(sdp, !sdp->sd_log_num_databuf);
