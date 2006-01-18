@@ -224,4 +224,4 @@ EXPORT_SYMBOL(config_item_init);
 EXPORT_SYMBOL(config_group_init);
 EXPORT_SYMBOL(config_item_get);
 EXPORT_SYMBOL(config_item_put);
-
+EXPORT_SYMBOL(config_group_find_obj);
