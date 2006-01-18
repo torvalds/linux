@@ -665,13 +665,6 @@ struct PKT *PacketP;
 	struct CmdBlk *CmdBlkP;
 	uint sequence;
 
-#ifdef CHECK
-	CheckHost(Host);
-	CheckRup(Rup);
-	CheckHostP(HostP);
-	CheckPacketP(PacketP);
-#endif
-
 	/*
 	** If we haven't been told what to boot, we can't boot it.
 	*/
@@ -956,11 +949,6 @@ static int RIOBootComplete( struct rio_info *p, struct Host *HostP, uint Rup, st
 	    MyType = "RTA";
 	    MyName = HostP->Mapping[Rup].Name;
 	}
-#ifdef CHECK
-	CheckString(MyType);
-	CheckString(MyName);
-#endif
-
 	MyLink = RBYTE(PktCmdP->LinkNum);
 
 	/*
@@ -1309,52 +1297,3 @@ struct Host *HostP;
 	}
 }
 
-#if 0
-/*
-	Function:	This function is to disable the disk interrupt 
-    Returns :   Nothing
-*/
-void
-disable_interrupt(vector)
-int	vector;
-{
-	int	ps;
-	int	val;
-
-	disable(ps);
-	if (vector > 40)  {
-		val = 1 << (vector - 40);
-		__outb(S8259+1, __inb(S8259+1) | val);
-	}
-	else {
-		val = 1 << (vector - 32);
-		__outb(M8259+1, __inb(M8259+1) | val);
-	}
-	restore(ps);
-}
-
-/*
-	Function:	This function is to enable the disk interrupt 
-    Returns :   Nothing
-*/
-void
-enable_interrupt(vector)
-int	vector;
-{
-	int	ps;
-	int	val;
-
-	disable(ps);
-	if (vector > 40)  {
-		val = 1 << (vector - 40);
-		val = ~val;
-		__outb(S8259+1, __inb(S8259+1) & val);
-	}
-	else {
-		val = 1 << (vector - 32);
-		val = ~val;
-		__outb(M8259+1, __inb(M8259+1) & val);
-	}
-	restore(ps);
-}
-#endif

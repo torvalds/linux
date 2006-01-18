@@ -80,6 +80,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_deferred_ok", E1000_STAT(stats.dc) },
 	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
 	{ "tx_multi_coll_ok", E1000_STAT(stats.mcc) },
+	{ "tx_timeout_count", E1000_STAT(tx_timeout_count) },
 	{ "rx_long_length_errors", E1000_STAT(stats.roc) },
 	{ "rx_short_length_errors", E1000_STAT(stats.ruc) },
 	{ "rx_align_errors", E1000_STAT(stats.algnerrc) },
@@ -93,9 +94,20 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
 	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
 	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
+	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
 };
-#define E1000_STATS_LEN	\
+
+#ifdef CONFIG_E1000_MQ
+#define E1000_QUEUE_STATS_LEN \
+	(((struct e1000_adapter *)netdev->priv)->num_tx_queues + \
+	 ((struct e1000_adapter *)netdev->priv)->num_rx_queues) \
+	* (sizeof(struct e1000_queue_stats) / sizeof(uint64_t))
+#else
+#define E1000_QUEUE_STATS_LEN 0
+#endif
+#define E1000_GLOBAL_STATS_LEN	\
 	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)
+#define E1000_STATS_LEN (E1000_GLOBAL_STATS_LEN + E1000_QUEUE_STATS_LEN)
 static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register test  (offline)", "Eeprom test    (offline)",
 	"Interrupt test (offline)", "Loopback test  (offline)",
@@ -183,7 +195,15 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if(ecmd->autoneg == AUTONEG_ENABLE) {
+	/* When SoL/IDER sessions are active, autoneg/speed/duplex
+	 * cannot be changed */
+	if (e1000_check_phy_reset_block(hw)) {
+		DPRINTK(DRV, ERR, "Cannot change link characteristics "
+		        "when SoL/IDER is active.\n");
+		return -EINVAL;
+	}
+
+	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->autoneg = 1;
 		if(hw->media_type == e1000_media_type_fiber)
 			hw->autoneg_advertised = ADVERTISED_1000baseT_Full |
@@ -567,21 +587,21 @@ e1000_get_drvinfo(struct net_device *netdev,
 
 	strncpy(drvinfo->driver,  e1000_driver_name, 32);
 	strncpy(drvinfo->version, e1000_driver_version, 32);
-	
-	/* EEPROM image version # is reported as firware version # for
+
+	/* EEPROM image version # is reported as firmware version # for
 	 * 8257{1|2|3} controllers */
 	e1000_read_eeprom(&adapter->hw, 5, 1, &eeprom_data);
 	switch (adapter->hw.mac_type) {
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_82573:
-		sprintf(firmware_version, "%d.%d-%d", 
+		sprintf(firmware_version, "%d.%d-%d",
 			(eeprom_data & 0xF000) >> 12,
 			(eeprom_data & 0x0FF0) >> 4,
 			eeprom_data & 0x000F);
 		break;
 	default:
-		sprintf(firmware_version, "n/a");
+		sprintf(firmware_version, "N/A");
 	}
 
 	strncpy(drvinfo->fw_version, firmware_version, 32);
@@ -623,8 +643,8 @@ e1000_set_ringparam(struct net_device *netdev,
 	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
 	int i, err, tx_ring_size, rx_ring_size;
 
-	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_queues;
-	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_queues;
+	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
+	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 
 	if (netif_running(adapter->netdev))
 		e1000_down(adapter);
@@ -663,10 +683,10 @@ e1000_set_ringparam(struct net_device *netdev,
 		E1000_MAX_TXD : E1000_MAX_82544_TXD));
 	E1000_ROUNDUP(txdr->count, REQ_TX_DESCRIPTOR_MULTIPLE); 
 
-	for (i = 0; i < adapter->num_queues; i++) {
+	for (i = 0; i < adapter->num_tx_queues; i++)
 		txdr[i].count = txdr->count;
+	for (i = 0; i < adapter->num_rx_queues; i++)
 		rxdr[i].count = rxdr->count;
-	}
 
 	if(netif_running(adapter->netdev)) {
 		/* Try to get new resources before deleting old */
@@ -979,18 +999,17 @@ e1000_free_desc_rings(struct e1000_adapter *adapter)
 		}
 	}
 
-	if(txdr->desc) {
+	if (txdr->desc) {
 		pci_free_consistent(pdev, txdr->size, txdr->desc, txdr->dma);
 		txdr->desc = NULL;
 	}
-	if(rxdr->desc) {
+	if (rxdr->desc) {
 		pci_free_consistent(pdev, rxdr->size, rxdr->desc, rxdr->dma);
 		rxdr->desc = NULL;
 	}
 
 	kfree(txdr->buffer_info);
 	txdr->buffer_info = NULL;
-
 	kfree(rxdr->buffer_info);
 	rxdr->buffer_info = NULL;
 
@@ -1327,11 +1346,11 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 static int
 e1000_setup_loopback_test(struct e1000_adapter *adapter)
 {
-	uint32_t rctl;
 	struct e1000_hw *hw = &adapter->hw;
+	uint32_t rctl;
 
 	if (hw->media_type == e1000_media_type_fiber ||
-	   hw->media_type == e1000_media_type_internal_serdes) {
+	    hw->media_type == e1000_media_type_internal_serdes) {
 		switch (hw->mac_type) {
 		case e1000_82545:
 		case e1000_82546:
@@ -1362,25 +1381,25 @@ e1000_setup_loopback_test(struct e1000_adapter *adapter)
 static void
 e1000_loopback_cleanup(struct e1000_adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	uint32_t rctl;
 	uint16_t phy_reg;
-	struct e1000_hw *hw = &adapter->hw;
 
-	rctl = E1000_READ_REG(&adapter->hw, RCTL);
+	rctl = E1000_READ_REG(hw, RCTL);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
-	E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
+	E1000_WRITE_REG(hw, RCTL, rctl);
 
 	switch (hw->mac_type) {
 	case e1000_82571:
 	case e1000_82572:
 		if (hw->media_type == e1000_media_type_fiber ||
-		   hw->media_type == e1000_media_type_internal_serdes){
+		    hw->media_type == e1000_media_type_internal_serdes) {
 #define E1000_SERDES_LB_OFF 0x400
 			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_OFF);
 			msec_delay(10);
 			break;
 		}
-		/* fall thru for Cu adapters */
+		/* Fall Through */
 	case e1000_82545:
 	case e1000_82546:
 	case e1000_82545_rev_3:
@@ -1401,7 +1420,7 @@ static void
 e1000_create_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
 {
 	memset(skb->data, 0xFF, frame_size);
-	frame_size = (frame_size % 2) ? (frame_size - 1) : frame_size;
+	frame_size &= ~1;
 	memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
 	memset(&skb->data[frame_size / 2 + 10], 0xBE, 1);
 	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
@@ -1410,7 +1429,7 @@ e1000_create_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
 static int
 e1000_check_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
 {
-	frame_size = (frame_size % 2) ? (frame_size - 1) : frame_size;
+	frame_size &= ~1;
 	if(*(skb->data + 3) == 0xFF) {
 		if((*(skb->data + frame_size / 2 + 10) == 0xBE) &&
 		   (*(skb->data + frame_size / 2 + 12) == 0xAF)) {
@@ -1488,14 +1507,25 @@ e1000_run_loopback_test(struct e1000_adapter *adapter)
 static int
 e1000_loopback_test(struct e1000_adapter *adapter, uint64_t *data)
 {
-	if((*data = e1000_setup_desc_rings(adapter))) goto err_loopback;
-	if((*data = e1000_setup_loopback_test(adapter)))
-		goto err_loopback_setup;
+	/* PHY loopback cannot be performed if SoL/IDER
+	 * sessions are active */
+	if (e1000_check_phy_reset_block(&adapter->hw)) {
+		DPRINTK(DRV, ERR, "Cannot do PHY loopback test "
+		        "when SoL/IDER is active.\n");
+		*data = 0;
+		goto out;
+	}
+
+	if ((*data = e1000_setup_desc_rings(adapter)))
+		goto out;
+	if ((*data = e1000_setup_loopback_test(adapter)))
+		goto err_loopback;
 	*data = e1000_run_loopback_test(adapter);
 	e1000_loopback_cleanup(adapter);
-err_loopback_setup:
-	e1000_free_desc_rings(adapter);
+
 err_loopback:
+	e1000_free_desc_rings(adapter);
+out:
 	return *data;
 }
 
@@ -1617,6 +1647,7 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
 		/* Wake events only supported on port A for dual fiber */
 		if(E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1) {
 			wol->supported = 0;
@@ -1660,6 +1691,7 @@ e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
+	case E1000_DEV_ID_82571EB_FIBER:
 		/* Wake events only supported on port A for dual fiber */
 		if(E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
 			return wol->wolopts ? -EOPNOTSUPP : 0;
@@ -1721,21 +1753,21 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 		mod_timer(&adapter->blink_timer, jiffies);
 		msleep_interruptible(data * 1000);
 		del_timer_sync(&adapter->blink_timer);
-	}
-	else if(adapter->hw.mac_type < e1000_82573) {
-		E1000_WRITE_REG(&adapter->hw, LEDCTL, (E1000_LEDCTL_LED2_BLINK_RATE |
-			E1000_LEDCTL_LED0_BLINK | E1000_LEDCTL_LED2_BLINK |
-			(E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED2_MODE_SHIFT) |
-			(E1000_LEDCTL_MODE_LINK_ACTIVITY << E1000_LEDCTL_LED0_MODE_SHIFT) |
-			(E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED1_MODE_SHIFT)));
+	} else if (adapter->hw.mac_type < e1000_82573) {
+		E1000_WRITE_REG(&adapter->hw, LEDCTL,
+			(E1000_LEDCTL_LED2_BLINK_RATE |
+			 E1000_LEDCTL_LED0_BLINK | E1000_LEDCTL_LED2_BLINK |
+			 (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED2_MODE_SHIFT) |
+			 (E1000_LEDCTL_MODE_LINK_ACTIVITY << E1000_LEDCTL_LED0_MODE_SHIFT) |
+			 (E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED1_MODE_SHIFT)));
 		msleep_interruptible(data * 1000);
-	}
-	else {
-		E1000_WRITE_REG(&adapter->hw, LEDCTL, (E1000_LEDCTL_LED2_BLINK_RATE |
-			E1000_LEDCTL_LED1_BLINK | E1000_LEDCTL_LED2_BLINK | 
-			(E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED2_MODE_SHIFT) |
-			(E1000_LEDCTL_MODE_LINK_ACTIVITY << E1000_LEDCTL_LED1_MODE_SHIFT) |
-			(E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED0_MODE_SHIFT)));
+	} else {
+		E1000_WRITE_REG(&adapter->hw, LEDCTL,
+			(E1000_LEDCTL_LED2_BLINK_RATE |
+			 E1000_LEDCTL_LED1_BLINK | E1000_LEDCTL_LED2_BLINK |
+			 (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED2_MODE_SHIFT) |
+			 (E1000_LEDCTL_MODE_LINK_ACTIVITY << E1000_LEDCTL_LED1_MODE_SHIFT) |
+			 (E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED0_MODE_SHIFT)));
 		msleep_interruptible(data * 1000);
 	}
 
@@ -1768,19 +1800,43 @@ e1000_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+#ifdef CONFIG_E1000_MQ
+	uint64_t *queue_stat;
+	int stat_count = sizeof(struct e1000_queue_stats) / sizeof(uint64_t);
+	int j, k;
+#endif
 	int i;
 
 	e1000_update_stats(adapter);
-	for(i = 0; i < E1000_STATS_LEN; i++) {
-		char *p = (char *)adapter+e1000_gstrings_stats[i].stat_offset;	
-		data[i] = (e1000_gstrings_stats[i].sizeof_stat == 
+	for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {
+		char *p = (char *)adapter+e1000_gstrings_stats[i].stat_offset;
+		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}
+#ifdef CONFIG_E1000_MQ
+	for (j = 0; j < adapter->num_tx_queues; j++) {
+		queue_stat = (uint64_t *)&adapter->tx_ring[j].tx_stats;
+		for (k = 0; k < stat_count; k++)
+			data[i + k] = queue_stat[k];
+		i += k;
+	}
+	for (j = 0; j < adapter->num_rx_queues; j++) {
+		queue_stat = (uint64_t *)&adapter->rx_ring[j].rx_stats;
+		for (k = 0; k < stat_count; k++)
+			data[i + k] = queue_stat[k];
+		i += k;
+	}
+#endif
+/*	BUG_ON(i != E1000_STATS_LEN); */
 }
 
 static void 
 e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 {
+#ifdef CONFIG_E1000_MQ
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+#endif
+	uint8_t *p = data;
 	int i;
 
 	switch(stringset) {
@@ -1789,11 +1845,26 @@ e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 			E1000_TEST_LEN*ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_STATS:
-		for (i=0; i < E1000_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN, 
-			e1000_gstrings_stats[i].stat_string,
-			ETH_GSTRING_LEN);
+		for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {
+			memcpy(p, e1000_gstrings_stats[i].stat_string,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
 		}
+#ifdef CONFIG_E1000_MQ
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			sprintf(p, "tx_queue_%u_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "tx_queue_%u_bytes", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			sprintf(p, "rx_queue_%u_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_bytes", i);
+			p += ETH_GSTRING_LEN;
+		}
+#endif
+/*		BUG_ON(p - data != E1000_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	}
 }

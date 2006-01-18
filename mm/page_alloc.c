@@ -1735,7 +1735,7 @@ static void __init calculate_zone_totalpages(struct pglist_data *pgdat,
  * up by free_all_bootmem() once the early boot process is
  * done. Non-atomic initialization, single-pass.
  */
-void __devinit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		unsigned long start_pfn)
 {
 	struct page *page;
@@ -1788,7 +1788,7 @@ void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
 	memmap_init_zone((size), (nid), (zone), (start_pfn))
 #endif
 
-static int __devinit zone_batchsize(struct zone *zone)
+static int __meminit zone_batchsize(struct zone *zone)
 {
 	int batch;
 
@@ -1882,7 +1882,7 @@ static struct per_cpu_pageset
  * Dynamically allocate memory for the
  * per cpu pageset array in struct zone.
  */
-static int __devinit process_zones(int cpu)
+static int __meminit process_zones(int cpu)
 {
 	struct zone *zone, *dzone;
 
@@ -1923,7 +1923,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
+static int __meminit pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {
@@ -1963,7 +1963,7 @@ void __init setup_per_cpu_pageset(void)
 
 #endif
 
-static __devinit
+static __meminit
 void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
 {
 	int i;
@@ -1983,7 +1983,7 @@ void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
 		init_waitqueue_head(zone->wait_table + i);
 }
 
-static __devinit void zone_pcp_init(struct zone *zone)
+static __meminit void zone_pcp_init(struct zone *zone)
 {
 	int cpu;
 	unsigned long batch = zone_batchsize(zone);
@@ -2001,7 +2001,7 @@ static __devinit void zone_pcp_init(struct zone *zone)
 		zone->name, zone->present_pages, batch);
 }
 
-static __devinit void init_currently_empty_zone(struct zone *zone,
+static __meminit void init_currently_empty_zone(struct zone *zone,
 		unsigned long zone_start_pfn, unsigned long size)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;

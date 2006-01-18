@@ -132,8 +132,8 @@ static inline u64 sal_get_pcibus_info(u64 segment, u64 busnum, u64 address)
  * Retrieve the pci device information given the bus and device|function number.
  */
 static inline u64
-sal_get_pcidev_info(u64 segment, u64 bus_number, u64 devfn, u64 pci_dev, 
-			u64 sn_irq_info)
+sal_get_pcidev_info(u64 segment, u64 bus_number, u64 devfn, u64 pci_dev,
+		    u64 sn_irq_info)
 {
 	struct ia64_sal_retval ret_stuff;
 	ret_stuff.status = 0;
@@ -141,7 +141,7 @@ sal_get_pcidev_info(u64 segment, u64 bus_number, u64 devfn, u64 pci_dev,
 
 	SAL_CALL_NOLOCK(ret_stuff,
 			(u64) SN_SAL_IOIF_GET_PCIDEV_INFO,
-			(u64) segment, (u64) bus_number, (u64) devfn, 
+			(u64) segment, (u64) bus_number, (u64) devfn,
 			(u64) pci_dev,
 			sn_irq_info, 0, 0);
 	return ret_stuff.v0;
@@ -268,7 +268,7 @@ static void sn_fixup_ionodes(void)
  */
 static void
 sn_pci_window_fixup(struct pci_dev *dev, unsigned int count,
-		    int64_t * pci_addrs)
+		    s64 * pci_addrs)
 {
 	struct pci_controller *controller = PCI_CONTROLLER(dev->bus);
 	unsigned int i;
@@ -328,7 +328,7 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
  	struct pci_bus *host_pci_bus;
  	struct pci_dev *host_pci_dev;
 	struct pcidev_info *pcidev_info;
-	int64_t pci_addrs[PCI_ROM_RESOURCE + 1];
+	s64 pci_addrs[PCI_ROM_RESOURCE + 1];
  	struct sn_irq_info *sn_irq_info;
  	unsigned long size;
  	unsigned int bus_no, devfn;

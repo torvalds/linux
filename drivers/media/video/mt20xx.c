@@ -353,8 +353,8 @@ static int mt2032_init(struct i2c_client *c)
 	} while (xok != 1 );
 	t->xogc=xogc;
 
-	t->tv_freq    = mt2032_set_tv_freq;
-	t->radio_freq = mt2032_set_radio_freq;
+	t->set_tv_freq    = mt2032_set_tv_freq;
+	t->set_radio_freq = mt2032_set_radio_freq;
 	return(1);
 }
 
@@ -481,8 +481,8 @@ static int mt2050_init(struct i2c_client *c)
 	i2c_master_recv(c,buf,1);
 
 	tuner_dbg("mt2050: sro is %x\n",buf[0]);
-	t->tv_freq    = mt2050_set_tv_freq;
-	t->radio_freq = mt2050_set_radio_freq;
+	t->set_tv_freq    = mt2050_set_tv_freq;
+	t->set_radio_freq = mt2050_set_radio_freq;
 	return 0;
 }
 
@@ -494,8 +494,8 @@ int microtune_init(struct i2c_client *c)
 	int company_code;
 
 	memset(buf,0,sizeof(buf));
-	t->tv_freq    = NULL;
-	t->radio_freq = NULL;
+	t->set_tv_freq    = NULL;
+	t->set_radio_freq = NULL;
 	t->standby    = NULL;
 	if (t->std & V4L2_STD_525_60) {
 		tuner_dbg("pinnacle ntsc\n");

@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/sysdev.h>
+#include <linux/device.h>
 #include <asm/cpu/dma.h>
 #include <asm/semaphore.h>
 
@@ -54,8 +55,8 @@ enum {
  * DMA channel capabilities / flags
  */
 enum {
-	DMA_CONFIGURED			= 0x00,
 	DMA_TEI_CAPABLE			= 0x01,
+	DMA_CONFIGURED			= 0x02,
 };
 
 extern spinlock_t dma_spin_lock;
@@ -74,7 +75,8 @@ struct dma_ops {
 struct dma_channel {
 	char dev_id[16];
 
-	unsigned int chan;
+	unsigned int chan;		/* Physical channel number */
+	unsigned int vchan;		/* Virtual channel number */
 	unsigned int mode;
 	unsigned int count;
 
@@ -91,6 +93,8 @@ struct dma_channel {
 };
 
 struct dma_info {
+	struct platform_device *pdev;
+
 	const char *name;
 	unsigned int nr_channels;
 	unsigned long flags;
@@ -130,7 +134,11 @@ extern void unregister_dmac(struct dma_info *info);
 
 #ifdef CONFIG_SYSFS
 /* arch/sh/drivers/dma/dma-sysfs.c */
-extern int dma_create_sysfs_files(struct dma_channel *);
+extern int dma_create_sysfs_files(struct dma_channel *, struct dma_info *);
+extern void dma_remove_sysfs_files(struct dma_channel *, struct dma_info *);
+#else
+#define dma_create_sysfs_file(channel, info)		do { } while (0)
+#define dma_remove_sysfs_file(channel, info)		do { } while (0)
 #endif
 
 #ifdef CONFIG_PCI

@@ -50,20 +50,20 @@ ipv6header_match(const struct sk_buff *skb,
 	len = skb->len - ptr;
 	temp = 0;
 
-        while (ip6t_ext_hdr(nexthdr)) {
+	while (ip6t_ext_hdr(nexthdr)) {
 		struct ipv6_opt_hdr _hdr, *hp;
-        	int hdrlen;
+		int hdrlen;
 
 		/* Is there enough space for the next ext header? */
-                if (len < (int)sizeof(struct ipv6_opt_hdr))
-                        return 0;
+		if (len < (int)sizeof(struct ipv6_opt_hdr))
+			return 0;
 		/* No more exthdr -> evaluate */
-                if (nexthdr == NEXTHDR_NONE) {
+		if (nexthdr == NEXTHDR_NONE) {
 			temp |= MASK_NONE;
 			break;
 		}
 		/* ESP -> evaluate */
-                if (nexthdr == NEXTHDR_ESP) {
+		if (nexthdr == NEXTHDR_ESP) {
 			temp |= MASK_ESP;
 			break;
 		}
@@ -72,43 +72,43 @@ ipv6header_match(const struct sk_buff *skb,
 		BUG_ON(hp == NULL);
 
 		/* Calculate the header length */
-                if (nexthdr == NEXTHDR_FRAGMENT) {
-                        hdrlen = 8;
-                } else if (nexthdr == NEXTHDR_AUTH)
-                        hdrlen = (hp->hdrlen+2)<<2;
-                else
-                        hdrlen = ipv6_optlen(hp);
+		if (nexthdr == NEXTHDR_FRAGMENT) {
+			hdrlen = 8;
+		} else if (nexthdr == NEXTHDR_AUTH)
+			hdrlen = (hp->hdrlen + 2) << 2;
+		else
+			hdrlen = ipv6_optlen(hp);
 
 		/* set the flag */
-		switch (nexthdr){
-			case NEXTHDR_HOP:
-				temp |= MASK_HOPOPTS;
-				break;
-			case NEXTHDR_ROUTING:
-				temp |= MASK_ROUTING;
-				break;
-			case NEXTHDR_FRAGMENT:
-				temp |= MASK_FRAGMENT;
-				break;
-			case NEXTHDR_AUTH:
-				temp |= MASK_AH;
-				break;
-			case NEXTHDR_DEST:
-				temp |= MASK_DSTOPTS;
-				break;
-			default:
-				return 0;
-				break;
+		switch (nexthdr) {
+		case NEXTHDR_HOP:
+			temp |= MASK_HOPOPTS;
+			break;
+		case NEXTHDR_ROUTING:
+			temp |= MASK_ROUTING;
+			break;
+		case NEXTHDR_FRAGMENT:
+			temp |= MASK_FRAGMENT;
+			break;
+		case NEXTHDR_AUTH:
+			temp |= MASK_AH;
+			break;
+		case NEXTHDR_DEST:
+			temp |= MASK_DSTOPTS;
+			break;
+		default:
+			return 0;
+			break;
 		}
 
-                nexthdr = hp->nexthdr;
-                len -= hdrlen;
-                ptr += hdrlen;
+		nexthdr = hp->nexthdr;
+		len -= hdrlen;
+		ptr += hdrlen;
 		if (ptr > skb->len)
 			break;
-        }
+	}
 
-	if ( (nexthdr != NEXTHDR_NONE ) && (nexthdr != NEXTHDR_ESP) )
+	if ((nexthdr != NEXTHDR_NONE) && (nexthdr != NEXTHDR_ESP))
 		temp |= MASK_PROTO;
 
 	if (info->modeflag)
@@ -137,8 +137,8 @@ ipv6header_checkentry(const char *tablename,
 		return 0;
 
 	/* invflags is 0 or 0xff in hard mode */
-	if ((!info->modeflag) && info->invflags != 0x00
-			      && info->invflags != 0xFF)
+	if ((!info->modeflag) && info->invflags != 0x00 &&
+	    info->invflags != 0xFF)
 		return 0;
 
 	return 1;
@@ -152,7 +152,7 @@ static struct ip6t_match ip6t_ipv6header_match = {
 	.me		= THIS_MODULE,
 };
 
-static int  __init ipv6header_init(void)
+static int __init ipv6header_init(void)
 {
 	return ip6t_register_match(&ip6t_ipv6header_match);
 }
@@ -164,4 +164,3 @@ static void __exit ipv6header_exit(void)
 
 module_init(ipv6header_init);
 module_exit(ipv6header_exit);
-

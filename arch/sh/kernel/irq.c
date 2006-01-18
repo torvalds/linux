@@ -8,38 +8,13 @@
  * SuperH version:  Copyright (C) 1999  Niibe Yutaka
  */
 
-/*
- * IRQs are in fact implemented a bit like signal handlers for the kernel.
- * Naturally it's not a 1:1 relation, but there are similarities.
- */
-
-#include <linux/config.h>
-#include <linux/module.h>
-#include <linux/ptrace.h>
-#include <linux/errno.h>
-#include <linux/kernel_stat.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
-#include <linux/ioport.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/random.h>
-#include <linux/smp.h>
-#include <linux/smp_lock.h>
-#include <linux/init.h>
-#include <linux/seq_file.h>
-#include <linux/kallsyms.h>
-#include <linux/bitops.h>
-
-#include <asm/system.h>
-#include <asm/io.h>
-#include <asm/pgalloc.h>
-#include <asm/delay.h>
-#include <asm/irq.h>
 #include <linux/irq.h>
-
+#include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
+#include <linux/seq_file.h>
+#include <asm/irq.h>
+#include <asm/processor.h>
+#include <asm/cpu/mmu_context.h>
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
@@ -66,7 +41,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
-	if (i < ACTUAL_NR_IRQS) {
+	if (i < NR_IRQS) {
 		spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
@@ -86,19 +61,32 @@ unlock:
 }
 #endif
 
+
 asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		      unsigned long r6, unsigned long r7,
 		      struct pt_regs regs)
-{	
-	int irq;
+{
+	int irq = r4;
 
 	irq_enter();
-	asm volatile("stc	r2_bank, %0\n\t"
-		     "shlr2	%0\n\t"
-		     "shlr2	%0\n\t"
-		     "shlr	%0\n\t"
-		     "add	#-16, %0\n\t"
-		     :"=z" (irq));
+
+#ifdef CONFIG_CPU_HAS_INTEVT
+	__asm__ __volatile__ (
+#ifdef CONFIG_CPU_HAS_SR_RB
+		"stc	r2_bank, %0\n\t"
+#else
+		"mov.l	@%1, %0\n\t"
+#endif
+		"shlr2	%0\n\t"
+		"shlr2	%0\n\t"
+		"shlr	%0\n\t"
+		"add	#-16, %0\n\t"
+		: "=z" (irq), "=r" (r4)
+		: "1" (INTEVT)
+		: "memory"
+	);
+#endif
+
 	irq = irq_demux(irq);
 	__do_IRQ(irq, &regs);
 	irq_exit();

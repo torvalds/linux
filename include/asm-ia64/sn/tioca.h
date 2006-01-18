@@ -19,47 +19,47 @@
  */
 
 struct tioca {
-	uint64_t	ca_id;				/* 0x000000 */
-	uint64_t	ca_control1;			/* 0x000008 */
-	uint64_t	ca_control2;			/* 0x000010 */
-	uint64_t	ca_status1;			/* 0x000018 */
-	uint64_t	ca_status2;			/* 0x000020 */
-	uint64_t	ca_gart_aperature;		/* 0x000028 */
-	uint64_t	ca_gfx_detach;			/* 0x000030 */
-	uint64_t	ca_inta_dest_addr;		/* 0x000038 */
-	uint64_t	ca_intb_dest_addr;		/* 0x000040 */
-	uint64_t	ca_err_int_dest_addr;		/* 0x000048 */
-	uint64_t	ca_int_status;			/* 0x000050 */
-	uint64_t	ca_int_status_alias;		/* 0x000058 */
-	uint64_t	ca_mult_error;			/* 0x000060 */
-	uint64_t	ca_mult_error_alias;		/* 0x000068 */
-	uint64_t	ca_first_error;			/* 0x000070 */
-	uint64_t	ca_int_mask;			/* 0x000078 */
-	uint64_t	ca_crm_pkterr_type;		/* 0x000080 */
-	uint64_t	ca_crm_pkterr_type_alias;	/* 0x000088 */
-	uint64_t	ca_crm_ct_error_detail_1;	/* 0x000090 */
-	uint64_t	ca_crm_ct_error_detail_2;	/* 0x000098 */
-	uint64_t	ca_crm_tnumto;			/* 0x0000A0 */
-	uint64_t	ca_gart_err;			/* 0x0000A8 */
-	uint64_t	ca_pcierr_type;			/* 0x0000B0 */
-	uint64_t	ca_pcierr_addr;			/* 0x0000B8 */
+	u64	ca_id;				/* 0x000000 */
+	u64	ca_control1;			/* 0x000008 */
+	u64	ca_control2;			/* 0x000010 */
+	u64	ca_status1;			/* 0x000018 */
+	u64	ca_status2;			/* 0x000020 */
+	u64	ca_gart_aperature;		/* 0x000028 */
+	u64	ca_gfx_detach;			/* 0x000030 */
+	u64	ca_inta_dest_addr;		/* 0x000038 */
+	u64	ca_intb_dest_addr;		/* 0x000040 */
+	u64	ca_err_int_dest_addr;		/* 0x000048 */
+	u64	ca_int_status;			/* 0x000050 */
+	u64	ca_int_status_alias;		/* 0x000058 */
+	u64	ca_mult_error;			/* 0x000060 */
+	u64	ca_mult_error_alias;		/* 0x000068 */
+	u64	ca_first_error;			/* 0x000070 */
+	u64	ca_int_mask;			/* 0x000078 */
+	u64	ca_crm_pkterr_type;		/* 0x000080 */
+	u64	ca_crm_pkterr_type_alias;	/* 0x000088 */
+	u64	ca_crm_ct_error_detail_1;	/* 0x000090 */
+	u64	ca_crm_ct_error_detail_2;	/* 0x000098 */
+	u64	ca_crm_tnumto;			/* 0x0000A0 */
+	u64	ca_gart_err;			/* 0x0000A8 */
+	u64	ca_pcierr_type;			/* 0x0000B0 */
+	u64	ca_pcierr_addr;			/* 0x0000B8 */
 
-	uint64_t	ca_pad_0000C0[3];		/* 0x0000{C0..D0} */
+	u64	ca_pad_0000C0[3];		/* 0x0000{C0..D0} */
 
-	uint64_t	ca_pci_rd_buf_flush;		/* 0x0000D8 */
-	uint64_t	ca_pci_dma_addr_extn;		/* 0x0000E0 */
-	uint64_t	ca_agp_dma_addr_extn;		/* 0x0000E8 */
-	uint64_t	ca_force_inta;			/* 0x0000F0 */
-	uint64_t	ca_force_intb;			/* 0x0000F8 */
-	uint64_t	ca_debug_vector_sel;		/* 0x000100 */
-	uint64_t	ca_debug_mux_core_sel;		/* 0x000108 */
-	uint64_t	ca_debug_mux_pci_sel;		/* 0x000110 */
-	uint64_t	ca_debug_domain_sel;		/* 0x000118 */
+	u64	ca_pci_rd_buf_flush;		/* 0x0000D8 */
+	u64	ca_pci_dma_addr_extn;		/* 0x0000E0 */
+	u64	ca_agp_dma_addr_extn;		/* 0x0000E8 */
+	u64	ca_force_inta;			/* 0x0000F0 */
+	u64	ca_force_intb;			/* 0x0000F8 */
+	u64	ca_debug_vector_sel;		/* 0x000100 */
+	u64	ca_debug_mux_core_sel;		/* 0x000108 */
+	u64	ca_debug_mux_pci_sel;		/* 0x000110 */
+	u64	ca_debug_domain_sel;		/* 0x000118 */
 
-	uint64_t	ca_pad_000120[28];		/* 0x0001{20..F8} */
+	u64	ca_pad_000120[28];		/* 0x0001{20..F8} */
 
-	uint64_t	ca_gart_ptr_table;		/* 0x200 */
-	uint64_t	ca_gart_tlb_addr[8];		/* 0x2{08..40} */
+	u64	ca_gart_ptr_table;		/* 0x200 */
+	u64	ca_gart_tlb_addr[8];		/* 0x2{08..40} */
 };
 
 /*

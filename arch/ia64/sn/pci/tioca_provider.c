@@ -16,7 +16,7 @@
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/tioca_provider.h>
 
-uint32_t tioca_gart_found;
+u32 tioca_gart_found;
 EXPORT_SYMBOL(tioca_gart_found);	/* used by agp-sgi */
 
 LIST_HEAD(tioca_list);
@@ -34,8 +34,8 @@ static int tioca_gart_init(struct tioca_kernel *);
 static int
 tioca_gart_init(struct tioca_kernel *tioca_kern)
 {
-	uint64_t ap_reg;
-	uint64_t offset;
+	u64 ap_reg;
+	u64 offset;
 	struct page *tmp;
 	struct tioca_common *tioca_common;
 	struct tioca __iomem *ca_base;
@@ -214,7 +214,7 @@ void
 tioca_fastwrite_enable(struct tioca_kernel *tioca_kern)
 {
 	int cap_ptr;
-	uint32_t reg;
+	u32 reg;
 	struct tioca __iomem *tioca_base;
 	struct pci_dev *pdev;
 	struct tioca_common *common;
@@ -276,7 +276,7 @@ EXPORT_SYMBOL(tioca_fastwrite_enable);	/* used by agp-sgi */
  *                                 We will always use 0x1
  * 55:55 - Swap bytes		   Currently unused
  */
-static uint64_t
+static u64
 tioca_dma_d64(unsigned long paddr)
 {
 	dma_addr_t bus_addr;
@@ -318,15 +318,15 @@ tioca_dma_d64(unsigned long paddr)
  * and so a given CA can only directly target nodes in the range
  * xxx - xxx+255.
  */
-static uint64_t
-tioca_dma_d48(struct pci_dev *pdev, uint64_t paddr)
+static u64
+tioca_dma_d48(struct pci_dev *pdev, u64 paddr)
 {
 	struct tioca_common *tioca_common;
 	struct tioca __iomem *ca_base;
-	uint64_t ct_addr;
+	u64 ct_addr;
 	dma_addr_t bus_addr;
-	uint32_t node_upper;
-	uint64_t agp_dma_extn;
+	u32 node_upper;
+	u64 agp_dma_extn;
 	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(pdev);
 
 	tioca_common = (struct tioca_common *)pcidev_info->pdi_pcibus_info;
@@ -367,10 +367,10 @@ tioca_dma_d48(struct pci_dev *pdev, uint64_t paddr)
  * dma_addr_t is guarenteed to be contiguous in CA bus space.
  */
 static dma_addr_t
-tioca_dma_mapped(struct pci_dev *pdev, uint64_t paddr, size_t req_size)
+tioca_dma_mapped(struct pci_dev *pdev, u64 paddr, size_t req_size)
 {
 	int i, ps, ps_shift, entry, entries, mapsize, last_entry;
-	uint64_t xio_addr, end_xio_addr;
+	u64 xio_addr, end_xio_addr;
 	struct tioca_common *tioca_common;
 	struct tioca_kernel *tioca_kern;
 	dma_addr_t bus_addr = 0;
@@ -514,10 +514,10 @@ tioca_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
  * The mapping mode used is based on the devices dma_mask.  As a last resort
  * use the GART mapped mode.
  */
-static uint64_t
-tioca_dma_map(struct pci_dev *pdev, uint64_t paddr, size_t byte_count)
+static u64
+tioca_dma_map(struct pci_dev *pdev, u64 paddr, size_t byte_count)
 {
-	uint64_t mapaddr;
+	u64 mapaddr;
 
 	/*
 	 * If card is 64 or 48 bit addresable, use a direct mapping.  32
@@ -554,8 +554,8 @@ tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
 {
 	struct tioca_common *soft = arg;
 	struct ia64_sal_retval ret_stuff;
-	uint64_t segment;
-	uint64_t busnum;
+	u64 segment;
+	u64 busnum;
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 
@@ -620,7 +620,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	INIT_LIST_HEAD(&tioca_kern->ca_dmamaps);
 	tioca_kern->ca_closest_node =
 	    nasid_to_cnodeid(tioca_common->ca_closest_nasid);
-	tioca_common->ca_kernel_private = (uint64_t) tioca_kern;
+	tioca_common->ca_kernel_private = (u64) tioca_kern;
 
 	bus = pci_find_bus(tioca_common->ca_common.bs_persist_segment,
 		tioca_common->ca_common.bs_persist_busnum);

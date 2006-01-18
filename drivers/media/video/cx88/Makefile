@@ -5,6 +5,7 @@ cx8802-objs	:= cx88-mpeg.o
 
 obj-$(CONFIG_VIDEO_CX88) += cx88xx.o cx8800.o cx8802.o cx88-blackbird.o
 obj-$(CONFIG_VIDEO_CX88_DVB) += cx88-dvb.o cx88-vp3054-i2c.o
+obj-$(CONFIG_VIDEO_CX88_ALSA) += cx88-alsa.o
 
 EXTRA_CFLAGS += -I$(src)/..
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core

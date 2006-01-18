@@ -2492,6 +2492,7 @@ static int __init espserial_init(void)
 	}
 
 	memset((void *)info, 0, sizeof(struct esp_struct));
+	spin_lock_init(&info->lock);
 	/* rx_trigger, tx_trigger are needed by autoconfig */
 	info->config.rx_trigger = rx_trigger;
 	info->config.tx_trigger = tx_trigger;
@@ -2528,7 +2529,6 @@ static int __init espserial_init(void)
 		init_waitqueue_head(&info->close_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 		init_waitqueue_head(&info->break_wait);
-		spin_lock_init(&info->lock);
 		ports = info;
 		printk(KERN_INFO "ttyP%d at 0x%04x (irq = %d) is an ESP ",
 			info->line, info->port, info->irq);

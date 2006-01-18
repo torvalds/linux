@@ -375,7 +375,7 @@ int conf_write(const char *name)
 		if (!out_h)
 			return 1;
 	}
-	sym = sym_lookup("KERNELRELEASE", 0);
+	sym = sym_lookup("KERNELVERSION", 0);
 	sym_calc_value(sym);
 	time(&now);
 	env = getenv("KCONFIG_NOTIMESTAMP");

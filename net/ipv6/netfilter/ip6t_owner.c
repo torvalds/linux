@@ -36,14 +36,14 @@ match(const struct sk_buff *skb,
 	if (!skb->sk || !skb->sk->sk_socket || !skb->sk->sk_socket->file)
 		return 0;
 
-	if(info->match & IP6T_OWNER_UID) {
-		if((skb->sk->sk_socket->file->f_uid != info->uid) ^
+	if (info->match & IP6T_OWNER_UID) {
+		if ((skb->sk->sk_socket->file->f_uid != info->uid) ^
 		    !!(info->invert & IP6T_OWNER_UID))
 			return 0;
 	}
 
-	if(info->match & IP6T_OWNER_GID) {
-		if((skb->sk->sk_socket->file->f_gid != info->gid) ^
+	if (info->match & IP6T_OWNER_GID) {
+		if ((skb->sk->sk_socket->file->f_gid != info->gid) ^
 		    !!(info->invert & IP6T_OWNER_GID))
 			return 0;
 	}
@@ -53,23 +53,23 @@ match(const struct sk_buff *skb,
 
 static int
 checkentry(const char *tablename,
-           const void  *ip,
-           void *matchinfo,
-           unsigned int matchsize,
-           unsigned int hook_mask)
+	   const void *ip,
+	   void *matchinfo,
+	   unsigned int matchsize,
+	   unsigned int hook_mask)
 {
 	const struct ip6t_owner_info *info = matchinfo;
 
-        if (hook_mask
-            & ~((1 << NF_IP6_LOCAL_OUT) | (1 << NF_IP6_POST_ROUTING))) {
-                printk("ip6t_owner: only valid for LOCAL_OUT or POST_ROUTING.\n");
-                return 0;
-        }
+	if (hook_mask
+	    & ~((1 << NF_IP6_LOCAL_OUT) | (1 << NF_IP6_POST_ROUTING))) {
+		printk("ip6t_owner: only valid for LOCAL_OUT or POST_ROUTING.\n");
+		return 0;
+	}
 
 	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_owner_info)))
 		return 0;
 
-	if (info->match & (IP6T_OWNER_PID|IP6T_OWNER_SID)) {
+	if (info->match & (IP6T_OWNER_PID | IP6T_OWNER_SID)) {
 		printk("ipt_owner: pid and sid matching "
 		       "not supported anymore\n");
 		return 0;

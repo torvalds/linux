@@ -132,16 +132,6 @@ more than 512 ports.... */
 */
 #define IRQ_RATE_LIMIT 200
 
-#if 0
-/* Not implemented */
-/* 
- * The following defines are mostly for testing purposes. But if you need
- * some nice reporting in your syslog, you can define them also.
- */
-#define RIO_REPORT_FIFO
-#define RIO_REPORT_OVERRUN
-#endif
-
 
 /* These constants are derived from SCO Source */
 static struct Conf
@@ -573,21 +563,6 @@ static void rio_shutdown_port(void *ptr)
 
 	PortP = (struct Port *) ptr;
 	PortP->gs.tty = NULL;
-#if 0
-	port->gs.flags &= ~GS_ACTIVE;
-	if (!port->gs.tty) {
-		rio_dprintk(RIO_DBUG_TTY, "No tty.\n");
-		return;
-	}
-	if (!port->gs.tty->termios) {
-		rio_dprintk(RIO_DEBUG_TTY, "No termios.\n");
-		return;
-	}
-	if (port->gs.tty->termios->c_cflag & HUPCL) {
-		rio_setsignals(port, 0, 0);
-	}
-#endif
-
 	func_exit();
 }
 
@@ -663,11 +638,6 @@ static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd
 
 	rc = 0;
 	switch (cmd) {
-#if 0
-	case TIOCGSOFTCAR:
-		rc = put_user(((tty->termios->c_cflag & CLOCAL) ? 1 : 0), (unsigned int *) arg);
-		break;
-#endif
 	case TIOCSSOFTCAR:
 		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
 			tty->termios->c_cflag = (tty->termios->c_cflag & ~CLOCAL) | (ival ? CLOCAL : 0);
@@ -709,36 +679,6 @@ static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd
 		if (access_ok(VERIFY_READ, (void *) arg, sizeof(struct serial_struct)))
 			rc = gs_setserial(&PortP->gs, (struct serial_struct *) arg);
 		break;
-#if 0
-		/*
-		 * note: these IOCTLs no longer reach here.  Use
-		 * tiocmset/tiocmget driver methods instead.  The
-		 * #if 0 disablement predates this comment.
-		 */
-	case TIOCMGET:
-		rc = -EFAULT;
-		if (access_ok(VERIFY_WRITE, (void *) arg, sizeof(unsigned int))) {
-			rc = 0;
-			ival = rio_getsignals(port);
-			put_user(ival, (unsigned int *) arg);
-		}
-		break;
-	case TIOCMBIS:
-		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
-			rio_setsignals(port, ((ival & TIOCM_DTR) ? 1 : -1), ((ival & TIOCM_RTS) ? 1 : -1));
-		}
-		break;
-	case TIOCMBIC:
-		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
-			rio_setsignals(port, ((ival & TIOCM_DTR) ? 0 : -1), ((ival & TIOCM_RTS) ? 0 : -1));
-		}
-		break;
-	case TIOCMSET:
-		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
-			rio_setsignals(port, ((ival & TIOCM_DTR) ? 1 : 0), ((ival & TIOCM_RTS) ? 1 : 0));
-		}
-		break;
-#endif
 	default:
 		rc = -ENOIOCTLCMD;
 		break;

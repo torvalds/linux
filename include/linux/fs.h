@@ -1290,6 +1290,9 @@ extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 
 extern int vfs_statfs(struct super_block *, struct kstatfs *);
 
+/* /sys/fs */
+extern struct subsystem fs_subsys;
+
 #define FLOCK_VERIFY_READ  1
 #define FLOCK_VERIFY_WRITE 2
 

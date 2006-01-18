@@ -109,6 +109,8 @@ int sh_device_register(struct sh_dev *dev)
 	/* This is needed for USB OHCI to work */
 	if (dev->dma_mask)
 		dev->dev.dma_mask = dev->dma_mask;
+	if (dev->coherent_dma_mask)
+		dev->dev.coherent_dma_mask = dev->coherent_dma_mask;
 
 	snprintf(dev->dev.bus_id, BUS_ID_SIZE, "%s%u",
 		 dev->name, dev->dev_id);

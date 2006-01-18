@@ -1,5 +1,12 @@
 /* /proc routines for Host AP driver */
 
+#include <linux/types.h>
+#include <linux/proc_fs.h>
+#include <net/ieee80211_crypt.h>
+
+#include "hostap_wlan.h"
+#include "hostap.h"
+
 #define PROC_LIMIT (PAGE_SIZE - 80)
 
 

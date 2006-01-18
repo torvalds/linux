@@ -1,11 +1,13 @@
 /* ioctl() (mostly Linux Wireless Extensions) routines for Host AP driver */
 
-#ifdef in_atomic
-/* Get kernel_locked() for in_atomic() */
+#include <linux/types.h>
 #include <linux/smp_lock.h>
-#endif
 #include <linux/ethtool.h>
+#include <net/ieee80211_crypt.h>
 
+#include "hostap_wlan.h"
+#include "hostap.h"
+#include "hostap_ap.h"
 
 static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 {
@@ -3910,7 +3912,7 @@ static void prism2_get_drvinfo(struct net_device *dev,
 		 local->sta_fw_ver & 0xff);
 }
 
-static struct ethtool_ops prism2_ethtool_ops = {
+struct ethtool_ops prism2_ethtool_ops = {
 	.get_drvinfo = prism2_get_drvinfo
 };
 
@@ -3985,7 +3987,7 @@ static const iw_handler prism2_private_handler[] =
 	(iw_handler) prism2_ioctl_priv_readmif,		/* 3 */
 };
 
-static const struct iw_handler_def hostap_iw_handler_def =
+const struct iw_handler_def hostap_iw_handler_def =
 {
 	.num_standard	= sizeof(prism2_handler) / sizeof(iw_handler),
 	.num_private	= sizeof(prism2_private_handler) / sizeof(iw_handler),

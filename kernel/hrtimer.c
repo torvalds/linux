@@ -272,7 +272,7 @@ void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
  * @interval:	the interval to forward
  *
  * Forward the timer expiry so it will expire in the future.
- * The number of overruns is added to the overrun field.
+ * Returns the number of overruns.
  */
 unsigned long
 hrtimer_forward(struct hrtimer *timer, ktime_t interval)
@@ -641,7 +641,8 @@ schedule_hrtimer_interruptible(struct hrtimer *timer,
 static long __sched
 nanosleep_restart(struct restart_block *restart, clockid_t clockid)
 {
-	struct timespec __user *rmtp, tu;
+	struct timespec __user *rmtp;
+	struct timespec tu;
 	void *rfn_save = restart->fn;
 	struct hrtimer timer;
 	ktime_t rem;

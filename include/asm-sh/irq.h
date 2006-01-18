@@ -15,12 +15,19 @@
 #include <asm/machvec.h>
 #include <asm/ptrace.h>		/* for pt_regs */
 
-#if defined(CONFIG_SH_HP600) || \
+#if defined(CONFIG_SH_HP6XX) || \
     defined(CONFIG_SH_RTS7751R2D) || \
     defined(CONFIG_SH_HS7751RVOIP) || \
-    defined(CONFIG_SH_SH03)
+    defined(CONFIG_SH_HS7751RVOIP) || \
+    defined(CONFIG_SH_SH03) || \
+    defined(CONFIG_SH_R7780RP) || \
+    defined(CONFIG_SH_LANDISK)
 #include <asm/mach/ide.h>
 #endif
+
+#ifndef CONFIG_CPU_SUBTYPE_SH7780
+
+#define INTC_DMAC0_MSK	0
 
 #if defined(CONFIG_CPU_SH3)
 #define INTC_IPRA	0xfffffee2UL
@@ -235,8 +242,9 @@
 #define SCIF1_IPR_ADDR	INTC_IPRB
 #define SCIF1_IPR_POS	1
 #define SCIF1_PRIORITY	3
-#endif
-#endif
+#endif /* ST40STB1 */
+
+#endif /* 775x / SH4-202 / ST40STB1 */
 
 /* NR_IRQS is made from three components:
  *   1. ONCHIP_NR_IRQS - number of IRLS + on-chip peripherial modules
@@ -245,37 +253,35 @@
  */
 
 /* 1. ONCHIP_NR_IRQS */
-#ifdef CONFIG_SH_GENERIC
+#if defined(CONFIG_CPU_SUBTYPE_SH7604)
+# define ONCHIP_NR_IRQS 24	// Actually 21
+#elif defined(CONFIG_CPU_SUBTYPE_SH7707)
+# define ONCHIP_NR_IRQS 64
+# define PINT_NR_IRQS   16
+#elif defined(CONFIG_CPU_SUBTYPE_SH7708)
+# define ONCHIP_NR_IRQS 32
+#elif defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7705)
+# define ONCHIP_NR_IRQS 64	// Actually 61
+# define PINT_NR_IRQS   16
+#elif defined(CONFIG_CPU_SUBTYPE_SH7750)
+# define ONCHIP_NR_IRQS 48	// Actually 44
+#elif defined(CONFIG_CPU_SUBTYPE_SH7751)
+# define ONCHIP_NR_IRQS 72
+#elif defined(CONFIG_CPU_SUBTYPE_SH7760)
+# define ONCHIP_NR_IRQS 112	/* XXX */
+#elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
+# define ONCHIP_NR_IRQS 72
+#elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
 # define ONCHIP_NR_IRQS 144
-#else
-# if defined(CONFIG_CPU_SUBTYPE_SH7604)
-#  define ONCHIP_NR_IRQS 24	// Actually 21
-# elif defined(CONFIG_CPU_SUBTYPE_SH7707)
-#  define ONCHIP_NR_IRQS 64
-#  define PINT_NR_IRQS   16
-# elif defined(CONFIG_CPU_SUBTYPE_SH7708)
-#  define ONCHIP_NR_IRQS 32
-# elif defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-       defined(CONFIG_CPU_SUBTYPE_SH7705)
-#  define ONCHIP_NR_IRQS 64	// Actually 61
-#  define PINT_NR_IRQS   16
-# elif defined(CONFIG_CPU_SUBTYPE_SH7750)
-#  define ONCHIP_NR_IRQS 48	// Actually 44
-# elif defined(CONFIG_CPU_SUBTYPE_SH7751)
-#  define ONCHIP_NR_IRQS 72
-# elif defined(CONFIG_CPU_SUBTYPE_SH7760)
-#  define ONCHIP_NR_IRQS 110
-# elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
-#  define ONCHIP_NR_IRQS 72
-# elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
-#  define ONCHIP_NR_IRQS 144
-# elif defined(CONFIG_CPU_SUBTYPE_SH7300)
-#  define ONCHIP_NR_IRQS 109
-# endif
+#elif defined(CONFIG_CPU_SUBTYPE_SH7300)
+# define ONCHIP_NR_IRQS 109
+#elif defined(CONFIG_SH_UNKNOWN)	/* Most be last */
+# define ONCHIP_NR_IRQS 144
 #endif
 
 /* 2. PINT_NR_IRQS */
-#ifdef CONFIG_SH_GENERIC
+#ifdef CONFIG_SH_UNKNOWN
 # define PINT_NR_IRQS 16
 #else
 # ifndef PINT_NR_IRQS
@@ -288,22 +294,22 @@
 #endif
 
 /* 3. OFFCHIP_NR_IRQS */
-#ifdef CONFIG_SH_GENERIC
+#if defined(CONFIG_HD64461)
+# define OFFCHIP_NR_IRQS 18
+#elif defined (CONFIG_SH_BIGSUR) /* must be before CONFIG_HD64465 */
+# define OFFCHIP_NR_IRQS 48
+#elif defined(CONFIG_HD64465)
 # define OFFCHIP_NR_IRQS 16
+#elif defined (CONFIG_SH_EC3104)
+# define OFFCHIP_NR_IRQS 16
+#elif defined (CONFIG_SH_DREAMCAST)
+# define OFFCHIP_NR_IRQS 96
+#elif defined (CONFIG_SH_TITAN)
+# define OFFCHIP_NR_IRQS 4
+#elif defined(CONFIG_SH_UNKNOWN)
+# define OFFCHIP_NR_IRQS 16	/* Must also be last */
 #else
-# if defined(CONFIG_HD64461)
-#  define OFFCHIP_NR_IRQS 18
-# elif defined (CONFIG_SH_BIGSUR) /* must be before CONFIG_HD64465 */
-#  define OFFCHIP_NR_IRQS 48
-# elif defined(CONFIG_HD64465)
-#  define OFFCHIP_NR_IRQS 16
-# elif defined (CONFIG_SH_EC3104)
-#  define OFFCHIP_NR_IRQS 16
-# elif defined (CONFIG_SH_DREAMCAST)
-#  define OFFCHIP_NR_IRQS 96
-# else
-#  define OFFCHIP_NR_IRQS 0
-# endif
+# define OFFCHIP_NR_IRQS 0
 #endif
 
 #if OFFCHIP_NR_IRQS > 0
@@ -312,16 +318,6 @@
 
 /* NR_IRQS. 1+2+3 */
 #define NR_IRQS (ONCHIP_NR_IRQS + PINT_NR_IRQS + OFFCHIP_NR_IRQS)
-
-/* In a generic kernel, NR_IRQS is an upper bound, and we should use
- * ACTUAL_NR_IRQS (which uses the machine vector) to get the correct value.
- */
-#ifdef CONFIG_SH_GENERIC
-# define ACTUAL_NR_IRQS (sh_mv.mv_nr_irqs)
-#else
-# define ACTUAL_NR_IRQS NR_IRQS
-#endif
-
 
 extern void disable_irq(unsigned int);
 extern void disable_irq_nosync(unsigned int);
@@ -542,9 +538,6 @@ extern int ipr_irq_demux(int irq);
 
 extern int ipr_irq_demux(int irq);
 #define __irq_demux(irq) ipr_irq_demux(irq)
-
-#else
-#define __irq_demux(irq) irq
 #endif /* CONFIG_CPU_SUBTYPE_SH7707 || CONFIG_CPU_SUBTYPE_SH7709 */
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7751) || \
@@ -557,18 +550,35 @@ extern int ipr_irq_demux(int irq);
 #define INTC_ICR_IRLM	(1<<7)
 #endif
 
-#ifdef CONFIG_CPU_SUBTYPE_ST40STB1
+#else
+#include <asm/irq-sh7780.h>
+#endif
 
-#define INTC2_FIRST_IRQ 64
-#define NR_INTC2_IRQS 25
-
+/* SH with INTC2-style interrupts */
+#ifdef CONFIG_CPU_HAS_INTC2_IRQ
+#if defined(CONFIG_CPU_SUBTYPE_ST40STB1)
 #define INTC2_BASE	0xfe080000
-#define INTC2_INTC2MODE	(INTC2_BASE+0x80)
-
-#define INTC2_INTPRI_OFFSET	0x00
+#define INTC2_FIRST_IRQ 64
 #define INTC2_INTREQ_OFFSET	0x20
 #define INTC2_INTMSK_OFFSET	0x40
 #define INTC2_INTMSKCLR_OFFSET	0x60
+#define NR_INTC2_IRQS	25
+#elif defined(CONFIG_CPU_SUBTYPE_SH7760)
+#define INTC2_BASE	0xfe080000
+#define INTC2_FIRST_IRQ 48	/* INTEVT 0x800 */
+#define INTC2_INTREQ_OFFSET	0x20
+#define INTC2_INTMSK_OFFSET	0x40
+#define INTC2_INTMSKCLR_OFFSET	0x60
+#define NR_INTC2_IRQS	64
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+#define INTC2_BASE	0xffd40000
+#define INTC2_FIRST_IRQ	22
+#define INTC2_INTMSK_OFFSET	(0x38)
+#define INTC2_INTMSKCLR_OFFSET	(0x3c)
+#define NR_INTC2_IRQS	60
+#endif
+
+#define INTC2_INTPRI_OFFSET	0x00
 
 void make_intc2_irq(unsigned int irq,
 		    unsigned int ipr_offset, unsigned int ipr_shift,
@@ -577,13 +587,16 @@ void make_intc2_irq(unsigned int irq,
 void init_IRQ_intc2(void);
 void intc2_add_clear_irq(int irq, int (*fn)(int));
 
-#endif	/* CONFIG_CPU_SUBTYPE_ST40STB1 */
+#endif
 
 static inline int generic_irq_demux(int irq)
 {
 	return irq;
 }
 
+#ifndef __irq_demux
+#define __irq_demux(irq)	(irq)
+#endif
 #define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		__irq_demux(sh_mv.mv_irq_demux(irq))
 

@@ -527,7 +527,7 @@ static int ptrace_getfpregs(struct task_struct *tsk, void *ufp)
 static int ptrace_setfpregs(struct task_struct *tsk, void *ufp)
 {
 	set_stopped_child_used_math(tsk);
-	return copy_from_user(&task_threas_info(tsk)->fpstate, ufp,
+	return copy_from_user(&task_thread_info(tsk)->fpstate, ufp,
 			      sizeof(struct user_fp)) ? -EFAULT : 0;
 }
 

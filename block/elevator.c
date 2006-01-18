@@ -149,13 +149,20 @@ static void elevator_setup_default(void)
 	if (!chosen_elevator[0])
 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 
+	/*
+	 * Be backwards-compatible with previous kernels, so users
+	 * won't get the wrong elevator.
+	 */
+	if (!strcmp(chosen_elevator, "as"))
+		strcpy(chosen_elevator, "anticipatory");
+
  	/*
- 	 * If the given scheduler is not available, fall back to no-op.
+ 	 * If the given scheduler is not available, fall back to the default
  	 */
  	if ((e = elevator_find(chosen_elevator)))
 		elevator_put(e);
 	else
- 		strcpy(chosen_elevator, "noop");
+ 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 }
 
 static int __init elevator_setup(char *str)

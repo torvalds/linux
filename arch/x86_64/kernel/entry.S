@@ -41,6 +41,7 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/hw_irq.h>
+#include <asm/page.h>
 
 	.code64
 
@@ -674,9 +675,6 @@ ENTRY(spurious_interrupt)
 
 	/* error code is on the stack already */
 	/* handle NMI like exceptions that can happen everywhere */
-#ifndef DEBUG_IST
-# define DEBUG_IST 0
-#endif
 	.macro paranoidentry sym, ist=0
 	SAVE_ALL
 	cld
@@ -695,11 +693,11 @@ ENTRY(spurious_interrupt)
 	movq ORIG_RAX(%rsp),%rsi
 	movq $-1,ORIG_RAX(%rsp)
 	.if \ist
-	subq	$EXCEPTION_STACK_SIZE, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
+	subq	$EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
 	.endif
 	call \sym
 	.if \ist
-	addq	$EXCEPTION_STACK_SIZE, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
+	addq	$EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
 	.endif
 	cli
 	.endm
@@ -918,7 +916,7 @@ KPROBE_ENTRY(debug)
  	INTR_FRAME
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8		
-	paranoidentry do_debug, DEBUG_IST
+	paranoidentry do_debug, DEBUG_STACK
 	jmp paranoid_exit
 	CFI_ENDPROC
 	.previous .text
@@ -976,7 +974,7 @@ KPROBE_ENTRY(int3)
  	INTR_FRAME
  	pushq $0
  	CFI_ADJUST_CFA_OFFSET 8
- 	paranoidentry do_int3, DEBUG_IST
+ 	paranoidentry do_int3, DEBUG_STACK
  	jmp paranoid_exit
  	CFI_ENDPROC
 	.previous .text

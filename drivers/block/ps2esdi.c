@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/hdreg.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

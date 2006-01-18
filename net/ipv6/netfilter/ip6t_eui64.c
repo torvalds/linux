@@ -27,45 +27,45 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
+	unsigned char eui64[8];
+	int i = 0;
 
-    unsigned char eui64[8];
-    int i=0;
+	if (!(skb->mac.raw >= skb->head &&
+	      (skb->mac.raw + ETH_HLEN) <= skb->data) &&
+	    offset != 0) {
+		*hotdrop = 1;
+		return 0;
+	}
 
-     if ( !(skb->mac.raw >= skb->head
-                && (skb->mac.raw + ETH_HLEN) <= skb->data)
-                && offset != 0) {
-                        *hotdrop = 1;
-                        return 0;
-                }
-    
-    memset(eui64, 0, sizeof(eui64));
+	memset(eui64, 0, sizeof(eui64));
 
-    if (eth_hdr(skb)->h_proto == ntohs(ETH_P_IPV6)) {
-      if (skb->nh.ipv6h->version == 0x6) { 
-         memcpy(eui64, eth_hdr(skb)->h_source, 3);
-         memcpy(eui64 + 5, eth_hdr(skb)->h_source + 3, 3);
-	 eui64[3]=0xff;
-	 eui64[4]=0xfe;
-	 eui64[0] |= 0x02;
+	if (eth_hdr(skb)->h_proto == ntohs(ETH_P_IPV6)) {
+		if (skb->nh.ipv6h->version == 0x6) {
+			memcpy(eui64, eth_hdr(skb)->h_source, 3);
+			memcpy(eui64 + 5, eth_hdr(skb)->h_source + 3, 3);
+			eui64[3] = 0xff;
+			eui64[4] = 0xfe;
+			eui64[0] |= 0x02;
 
-	 i=0;
-	 while ((skb->nh.ipv6h->saddr.s6_addr[8+i] ==
-			 eui64[i]) && (i<8)) i++;
+			i = 0;
+			while ((skb->nh.ipv6h->saddr.s6_addr[8+i] == eui64[i])
+			       && (i < 8))
+				i++;
 
-	 if ( i == 8 )
-	 	return 1;
-      }
-    }
+			if (i == 8)
+				return 1;
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 static int
 ip6t_eui64_checkentry(const char *tablename,
-		   const void  *ip,
-		   void *matchinfo,
-		   unsigned int matchsize,
-		   unsigned int hook_mask)
+		      const void *ip,
+		      void *matchinfo,
+		      unsigned int matchsize,
+		      unsigned int hook_mask)
 {
 	if (hook_mask
 	    & ~((1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_IN) |

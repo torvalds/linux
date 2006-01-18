@@ -24,6 +24,7 @@
 #include <linux/kmod.h>
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
+#include <linux/etherdevice.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
 #include <net/ieee80211_crypt.h>
@@ -45,57 +46,6 @@ MODULE_VERSION(PRISM2_VERSION);
 #define PRISM2_MIN_MTU 256
 /* FIX: */
 #define PRISM2_MAX_MTU (PRISM2_MAX_FRAME_SIZE - (6 /* LLC */ + 8 /* WEP */))
-
-
-/* hostap.c */
-static int prism2_wds_add(local_info_t *local, u8 *remote_addr,
-			  int rtnl_locked);
-static int prism2_wds_del(local_info_t *local, u8 *remote_addr,
-			  int rtnl_locked, int do_not_remove);
-
-/* hostap_ap.c */
-static int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
-				  struct iw_quality qual[], int buf_size,
-				  int aplist);
-static int prism2_ap_translate_scan(struct net_device *dev, char *buffer);
-static int prism2_hostapd(struct ap_data *ap,
-			  struct prism2_hostapd_param *param);
-static void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
-				struct ieee80211_crypt_data ***crypt);
-static void ap_control_kickall(struct ap_data *ap);
-#ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-static int ap_control_add_mac(struct mac_restrictions *mac_restrictions,
-			      u8 *mac);
-static int ap_control_del_mac(struct mac_restrictions *mac_restrictions,
-			      u8 *mac);
-static void ap_control_flush_macs(struct mac_restrictions *mac_restrictions);
-static int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev,
-			       u8 *mac);
-#endif /* !PRISM2_NO_KERNEL_IEEE80211_MGMT */
-
-
-static const long freq_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
-				  2447, 2452, 2457, 2462, 2467, 2472, 2484 };
-#define FREQ_COUNT (sizeof(freq_list) / sizeof(freq_list[0]))
-
-
-/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-static unsigned char rfc1042_header[] =
-{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-static unsigned char bridge_tunnel_header[] =
-{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
-/* No encapsulation header if EtherType < 0x600 (=length) */
-
-
-/* FIX: these could be compiled separately and linked together to hostap.o */
-#include "hostap_ap.c"
-#include "hostap_info.c"
-#include "hostap_ioctl.c"
-#include "hostap_proc.c"
-#include "hostap_80211_rx.c"
-#include "hostap_80211_tx.c"
 
 
 struct net_device * hostap_add_interface(struct local_info *local,
@@ -196,8 +146,8 @@ static inline int prism2_wds_special_addr(u8 *addr)
 }
 
 
-static int prism2_wds_add(local_info_t *local, u8 *remote_addr,
-			  int rtnl_locked)
+int prism2_wds_add(local_info_t *local, u8 *remote_addr,
+		   int rtnl_locked)
 {
 	struct net_device *dev;
 	struct list_head *ptr;
@@ -258,8 +208,8 @@ static int prism2_wds_add(local_info_t *local, u8 *remote_addr,
 }
 
 
-static int prism2_wds_del(local_info_t *local, u8 *remote_addr,
-			  int rtnl_locked, int do_not_remove)
+int prism2_wds_del(local_info_t *local, u8 *remote_addr,
+		   int rtnl_locked, int do_not_remove)
 {
 	unsigned long flags;
 	struct list_head *ptr;

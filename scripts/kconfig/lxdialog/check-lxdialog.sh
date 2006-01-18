@@ -4,11 +4,22 @@
 # What library to link
 ldflags()
 {
-	if [ `uname` == SunOS ]; then
-		echo '-lcurses'
-	else
-		echo '-lncurses'
+	echo "main() {}" | $cc -lncursesw -xc - -o /dev/null 2> /dev/null
+	if [ $? -eq 0 ]; then
+		echo '-lncursesw'
+		exit
 	fi
+	echo "main() {}" | $cc -lncurses -xc - -o /dev/null 2> /dev/null
+	if [ $? -eq 0 ]; then
+		echo '-lncurses'
+		exit
+	fi
+	echo "main() {}" | $cc -lcurses -xc - -o /dev/null 2> /dev/null
+	if [ $? -eq 0 ]; then
+		echo '-lcurses'
+		exit
+	fi
+	exit 1
 }
 
 # Where is ncurses.h?
@@ -28,7 +39,7 @@ ccflags()
 compiler=""
 # Check if we can link to ncurses
 check() {
-	echo "main() {}" | $compiler -xc -
+	echo "main() {}" | $cc -xc - -o /dev/null 2> /dev/null
 	if [ $? != 0 ]; then
 		echo " *** Unable to find the ncurses libraries."          1>&2
 		echo " *** make menuconfig require the ncurses libraries"  1>&2
@@ -51,13 +62,15 @@ fi
 case "$1" in
 	"-check")
 		shift
-		compiler="$@"
+		cc="$@"
 		check
 		;;
 	"-ccflags")
 		ccflags
 		;;
 	"-ldflags")
+		shift
+		cc="$@"
 		ldflags
 		;;
 	"*")

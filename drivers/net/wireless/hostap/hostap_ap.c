@@ -16,6 +16,14 @@
  *   (8802.11: 5.5)
  */
 
+#include <linux/proc_fs.h>
+#include <linux/delay.h>
+#include <linux/random.h>
+
+#include "hostap_wlan.h"
+#include "hostap.h"
+#include "hostap_ap.h"
+
 static int other_ap_policy[MAX_PARM_DEVICES] = { AP_OTHER_AP_SKIP_ALL,
 						 DEF_INTS };
 module_param_array(other_ap_policy, int, NULL, 0444);
@@ -360,8 +368,7 @@ static int ap_control_proc_read(char *page, char **start, off_t off,
 }
 
 
-static int ap_control_add_mac(struct mac_restrictions *mac_restrictions,
-			      u8 *mac)
+int ap_control_add_mac(struct mac_restrictions *mac_restrictions, u8 *mac)
 {
 	struct mac_entry *entry;
 
@@ -380,8 +387,7 @@ static int ap_control_add_mac(struct mac_restrictions *mac_restrictions,
 }
 
 
-static int ap_control_del_mac(struct mac_restrictions *mac_restrictions,
-			      u8 *mac)
+int ap_control_del_mac(struct mac_restrictions *mac_restrictions, u8 *mac)
 {
 	struct list_head *ptr;
 	struct mac_entry *entry;
@@ -433,7 +439,7 @@ static int ap_control_mac_deny(struct mac_restrictions *mac_restrictions,
 }
 
 
-static void ap_control_flush_macs(struct mac_restrictions *mac_restrictions)
+void ap_control_flush_macs(struct mac_restrictions *mac_restrictions)
 {
 	struct list_head *ptr, *n;
 	struct mac_entry *entry;
@@ -454,8 +460,7 @@ static void ap_control_flush_macs(struct mac_restrictions *mac_restrictions)
 }
 
 
-static int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev,
-			       u8 *mac)
+int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev, u8 *mac)
 {
 	struct sta_info *sta;
 	u16 resp;
@@ -486,7 +491,7 @@ static int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev,
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
 
-static void ap_control_kickall(struct ap_data *ap)
+void ap_control_kickall(struct ap_data *ap)
 {
 	struct list_head *ptr, *n;
 	struct sta_info *sta;
@@ -2321,9 +2326,9 @@ static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 }
 
 
-static int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
-				  struct iw_quality qual[], int buf_size,
-				  int aplist)
+int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
+			   struct iw_quality qual[], int buf_size,
+			   int aplist)
 {
 	struct ap_data *ap = local->ap;
 	struct list_head *ptr;
@@ -2363,7 +2368,7 @@ static int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 
 /* Translate our list of Access Points & Stations to a card independant
  * format that the Wireless Tools will understand - Jean II */
-static int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
+int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -2608,8 +2613,7 @@ static int prism2_hostapd_sta_clear_stats(struct ap_data *ap,
 }
 
 
-static int prism2_hostapd(struct ap_data *ap,
-			  struct prism2_hostapd_param *param)
+int prism2_hostapd(struct ap_data *ap, struct prism2_hostapd_param *param)
 {
 	switch (param->cmd) {
 	case PRISM2_HOSTAPD_FLUSH:
@@ -3207,8 +3211,8 @@ void hostap_update_rates(local_info_t *local)
 }
 
 
-static void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
-				struct ieee80211_crypt_data ***crypt)
+void * ap_crypt_get_ptrs(struct ap_data *ap, u8 *addr, int permanent,
+			 struct ieee80211_crypt_data ***crypt)
 {
 	struct sta_info *sta;
 

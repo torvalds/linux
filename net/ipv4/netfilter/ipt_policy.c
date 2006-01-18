@@ -95,7 +95,10 @@ match_policy_out(const struct sk_buff *skb, const struct ipt_policy_info *info)
 static int match(const struct sk_buff *skb,
                  const struct net_device *in,
                  const struct net_device *out,
-                 const void *matchinfo, int offset, int *hotdrop)
+                 const void *matchinfo,
+                 int offset,
+                 unsigned int protoff,
+                 int *hotdrop)
 {
 	const struct ipt_policy_info *info = matchinfo;
 	int ret;
@@ -113,7 +116,7 @@ static int match(const struct sk_buff *skb,
 	return ret;
 }
 
-static int checkentry(const char *tablename, const struct ipt_ip *ip,
+static int checkentry(const char *tablename, const void *ip_void,
                       void *matchinfo, unsigned int matchsize,
                       unsigned int hook_mask)
 {
