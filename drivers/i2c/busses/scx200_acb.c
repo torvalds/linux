@@ -47,10 +47,7 @@ static int base[MAX_DEVICES] = { 0x820, 0x840 };
 module_param_array(base, int, NULL, 0);
 MODULE_PARM_DESC(base, "Base addresses for the ACCESS.bus controllers");
 
-/* The hardware supports interrupt driven mode too, but I haven't
-   implemented that. */
-#define POLLED_MODE 1
-#define POLL_TIMEOUT (HZ)
+#define POLL_TIMEOUT	(HZ/5)
 
 enum scx200_acb_state {
 	state_idle,
@@ -222,7 +219,6 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 	iface->needs_reset = 1;
 }
 
-#ifdef POLLED_MODE
 static void scx200_acb_poll(struct scx200_acb_iface *iface)
 {
 	u8 status;
@@ -235,7 +231,7 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 			scx200_acb_machine(iface, status);
 			return;
 		}
-		msleep(10);
+		yield();
 	}
 
 	dev_err(&iface->adapter.dev, "timeout in state %s\n",
@@ -245,7 +241,6 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 	iface->result = -EIO;
 	iface->needs_reset = 1;
 }
-#endif /* POLLED_MODE */
 
 static void scx200_acb_reset(struct scx200_acb_iface *iface)
 {
@@ -335,12 +330,8 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 	else
 		iface->state = state_address;
 
-#ifdef POLLED_MODE
 	while (iface->state != state_idle)
 		scx200_acb_poll(iface);
-#else /* POLLED_MODE */
-#error Interrupt driven mode not implemented
-#endif /* POLLED_MODE */	
 
 	if (iface->needs_reset)
 		scx200_acb_reset(iface);
