@@ -195,14 +195,14 @@ static void gdlm_recovery_done(lm_lockspace_t *lockspace, unsigned int jid,
 {
 	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
 	ls->recover_jid_done = jid;
-	kobject_uevent(&ls->kobj, KOBJ_CHANGE, NULL);
+	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
 }
 
 static void gdlm_others_may_mount(lm_lockspace_t *lockspace)
 {
 	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
 	ls->first_done = 1;
-	kobject_uevent(&ls->kobj, KOBJ_CHANGE, NULL);
+	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
 }
 
 /* Userspace gets the offline uevent, blocks new gfs locks on
@@ -213,7 +213,7 @@ static void gdlm_withdraw(lm_lockspace_t *lockspace)
 {
 	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
 
-	kobject_uevent(&ls->kobj, KOBJ_OFFLINE, NULL);
+	kobject_uevent(&ls->kobj, KOBJ_OFFLINE);
 
 	wait_event_interruptible(ls->wait_control,
 				 test_bit(DFL_WITHDRAW, &ls->flags));
