@@ -537,6 +537,11 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 			pci_fixup_parent_subordinate_busnr(child, max);
 			/* Now we can scan all subordinate buses... */
 			max = pci_scan_child_bus(child);
+			/*
+			 * now fix it up again since we have found
+			 * the real value of max.
+			 */
+			pci_fixup_parent_subordinate_busnr(child, max);
 		} else {
 			/*
 			 * For CardBus bridges, we leave 4 bus numbers
