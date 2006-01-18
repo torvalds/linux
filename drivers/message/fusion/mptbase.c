@@ -178,7 +178,7 @@ static void	mpt_get_fw_exp_ver(char *buf, MPT_ADAPTER *ioc);
 static int	ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *evReply, int *evHandlers);
 static void	mpt_sp_ioc_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf);
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
-static void	mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info);
+static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
 
 /* module entry point */
@@ -317,7 +317,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 		if (ioc->bus_type == FC)
 			mpt_fc_log_info(ioc, log_info);
 		else if (ioc->bus_type == SPI)
-			mpt_sp_log_info(ioc, log_info);
+			mpt_spi_log_info(ioc, log_info);
 		else if (ioc->bus_type == SAS)
 			mpt_sas_log_info(ioc, log_info);
 	}
@@ -1492,6 +1492,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		free_irq(ioc->pci_irq, ioc);
 		if (mpt_msi_enable)
 			pci_disable_msi(pdev);
+		if (ioc->alt_ioc)
+			ioc->alt_ioc->alt_ioc = NULL;
 		iounmap(mem);
 		kfree(ioc);
 		pci_set_drvdata(pdev, NULL);
@@ -2168,6 +2170,10 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 	sz_last = ioc->alloc_total;
 	dprintk((KERN_INFO MYNAM ": %s: free'd %d of %d bytes\n",
 			ioc->name, sz_first-sz_last+(int)sizeof(*ioc), sz_first));
+
+	if (ioc->alt_ioc)
+		ioc->alt_ioc->alt_ioc = NULL;
+
 	kfree(ioc);
 }
 
@@ -6204,7 +6210,7 @@ mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	mpt_sp_log_info - Log information returned from SCSI Parallel IOC.
+ *	mpt_spi_log_info - Log information returned from SCSI Parallel IOC.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@mr: Pointer to MPT reply frame
  *	@log_info: U32 LogInfo word from the IOC
@@ -6212,7 +6218,7 @@ mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
  *	Refer to lsi/sp_log.h.
  */
 static void
-mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info)
+mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 {
 	u32 info = log_info & 0x00FF0000;
 	char *desc = "unknown";
