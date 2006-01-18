@@ -17,7 +17,7 @@
 #include <asm/io.h>
 #include <asm/gt64120.h>
 
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 
 extern int cobalt_board_id;
 

@@ -369,7 +369,7 @@ load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 # Cobalt Server
 #
 core-$(CONFIG_MIPS_COBALT)	+= arch/mips/cobalt/
-cflags-$(CONFIG_MIPS_COBALT)	+= -Iinclude/asm-mips/cobalt
+cflags-$(CONFIG_MIPS_COBALT)	+= -Iinclude/asm-mips/mach-cobalt
 load-$(CONFIG_MIPS_COBALT)	+= 0xffffffff80080000
 
 #
