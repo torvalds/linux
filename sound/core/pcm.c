@@ -1105,7 +1105,6 @@ EXPORT_SYMBOL(snd_pcm_new_stream);
 EXPORT_SYMBOL(snd_pcm_notify);
 EXPORT_SYMBOL(snd_pcm_open_substream);
 EXPORT_SYMBOL(snd_pcm_release_substream);
-EXPORT_SYMBOL(snd_pcm_format_name);
   /* pcm_native.c */
 EXPORT_SYMBOL(snd_pcm_link_rwlock);
 #ifdef CONFIG_PM
