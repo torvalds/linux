@@ -120,24 +120,6 @@ void gfs2_sb_in(struct gfs2_sb *sb, char *buf)
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
 }
 
-void gfs2_sb_out(struct gfs2_sb *sb, char *buf)
-{
-	struct gfs2_sb *str = (struct gfs2_sb *)buf;
-
-	gfs2_meta_header_out(&sb->sb_header, buf);
-
-	str->sb_fs_format = cpu_to_be32(sb->sb_fs_format);
-	str->sb_multihost_format = cpu_to_be32(sb->sb_multihost_format);
-	str->sb_bsize = cpu_to_be32(sb->sb_bsize);
-	str->sb_bsize_shift = cpu_to_be32(sb->sb_bsize_shift);
-
-	gfs2_inum_out(&sb->sb_master_dir, (char *)&str->sb_master_dir);
-	gfs2_inum_out(&sb->sb_root_dir, (char *)&str->sb_root_dir);
-
-	memcpy(str->sb_lockproto, sb->sb_lockproto, GFS2_LOCKNAME_LEN);
-	memcpy(str->sb_locktable, sb->sb_locktable, GFS2_LOCKNAME_LEN);
-}
-
 void gfs2_sb_print(struct gfs2_sb *sb)
 {
 	gfs2_meta_header_print(&sb->sb_header);
@@ -344,30 +326,6 @@ void gfs2_dinode_print(struct gfs2_dinode *di)
 	pv(di, di_eattr, "%llu");
 }
 
-void gfs2_dirent_in(struct gfs2_dirent *de, char *buf)
-{
-	struct gfs2_dirent *str = (struct gfs2_dirent *)buf;
-
-	gfs2_inum_in(&de->de_inum, buf);
-	de->de_hash = be32_to_cpu(str->de_hash);
-	de->de_rec_len = be32_to_cpu(str->de_rec_len);
-	de->de_name_len = str->de_name_len;
-	de->de_type = str->de_type;
-}
-
-void gfs2_dirent_out(struct gfs2_dirent *de, char *buf)
-{
-	struct gfs2_dirent *str = (struct gfs2_dirent *)buf;
-
-	gfs2_inum_out(&de->de_inum, buf);
-	str->de_hash = cpu_to_be32(de->de_hash);
-	str->de_rec_len = cpu_to_be32(de->de_rec_len);
-	str->de_name_len = de->de_name_len;
-	str->de_type = de->de_type;
-	str->__pad1 = 0;
-	str->__pad2 = 0;
-}
-
 void gfs2_dirent_print(struct gfs2_dirent *de, char *name)
 {
 	char buf[GFS2_FNAMESIZE + 1];
@@ -392,18 +350,6 @@ void gfs2_leaf_in(struct gfs2_leaf *lf, char *buf)
 	lf->lf_entries = be16_to_cpu(str->lf_entries);
 	lf->lf_dirent_format = be32_to_cpu(str->lf_dirent_format);
 	lf->lf_next = be64_to_cpu(str->lf_next);
-}
-
-void gfs2_leaf_out(struct gfs2_leaf *lf, char *buf)
-{
-	struct gfs2_leaf *str = (struct gfs2_leaf *)buf;
-
-	gfs2_meta_header_out(&lf->lf_header, buf);
-	str->lf_depth = cpu_to_be16(lf->lf_depth);
-	str->lf_entries = cpu_to_be16(lf->lf_entries);
-	str->lf_dirent_format = cpu_to_be32(lf->lf_dirent_format);
-	str->lf_next = cpu_to_be64(lf->lf_next);
-	memset(&str->lf_reserved, 0, sizeof(str->lf_reserved));
 }
 
 void gfs2_leaf_print(struct gfs2_leaf *lf)
@@ -568,15 +514,6 @@ void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf)
 	qc->qc_change = be64_to_cpu(str->qc_change);
 	qc->qc_flags = be32_to_cpu(str->qc_flags);
 	qc->qc_id = be32_to_cpu(str->qc_id);
-}
-
-void gfs2_quota_change_out(struct gfs2_quota_change *qc, char *buf)
-{
-	struct gfs2_quota_change *str = (struct gfs2_quota_change *)buf;
-
-	str->qc_change = cpu_to_be64(qc->qc_change);
-	str->qc_flags = cpu_to_be32(qc->qc_flags);
-	str->qc_id = cpu_to_be32(qc->qc_id);
 }
 
 void gfs2_quota_change_print(struct gfs2_quota_change *qc)
