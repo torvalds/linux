@@ -1,27 +1,25 @@
-/*  linux/drivers/i2c/scx200_acb.c 
-
+/*
     Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
 
     National Semiconductor SCx200 ACCESS.bus support
-    
+
     Based on i2c-keywest.c which is:
         Copyright (c) 2001 Benjamin Herrenschmidt <benh@kernel.crashing.org>
         Copyright (c) 2000 Philip Edelbrock <phil@stimpy.netroedge.com>
-    
+
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
     published by the Free Software Foundation; either version 2 of the
     License, or (at your option) any later version.
-   
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
     General Public License for more details.
-   
+
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #include <linux/module.h>
@@ -79,8 +77,7 @@ static const char *scx200_acb_state_name[] = {
 };
 
 /* Physical interface */
-struct scx200_acb_iface
-{
+struct scx200_acb_iface {
 	struct scx200_acb_iface *next;
 	struct i2c_adapter adapter;
 	unsigned base;
@@ -100,7 +97,7 @@ struct scx200_acb_iface
 #define ACBSDA		(iface->base + 0)
 #define ACBST		(iface->base + 1)
 #define    ACBST_SDAST		0x40 /* SDA Status */
-#define    ACBST_BER		0x20 
+#define    ACBST_BER		0x20
 #define    ACBST_NEGACK		0x10 /* Negative Acknowledge */
 #define    ACBST_STASTR		0x08 /* Stall After Start */
 #define    ACBST_MASTER		0x02
@@ -109,9 +106,9 @@ struct scx200_acb_iface
 #define ACBCTL1		(iface->base + 3)
 #define    ACBCTL1_STASTRE	0x80
 #define    ACBCTL1_NMINTE	0x40
-#define	   ACBCTL1_ACK		0x10
-#define	   ACBCTL1_STOP		0x02
-#define	   ACBCTL1_START	0x01
+#define    ACBCTL1_ACK		0x10
+#define    ACBCTL1_STOP		0x02
+#define    ACBCTL1_START	0x01
 #define ACBADDR		(iface->base + 4)
 #define ACBCTL2		(iface->base + 5)
 #define    ACBCTL2_ENABLE	0x01
@@ -122,7 +119,7 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 {
 	const char *errmsg;
 
-	DBG("state %s, status = 0x%02x\n", 
+	DBG("state %s, status = 0x%02x\n",
 	    scx200_acb_state_name[iface->state], status);
 
 	if (status & ACBST_BER) {
@@ -160,10 +157,10 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 	case state_repeat_start:
 		outb(inb(ACBCTL1) | ACBCTL1_START, ACBCTL1);
 		/* fallthrough */
-		
+
 	case state_quick:
 		if (iface->address_byte & 1) {
-			if (iface->len == 1) 
+			if (iface->len == 1)
 				outb(inb(ACBCTL1) | ACBCTL1_ACK, ACBCTL1);
 			else
 				outb(inb(ACBCTL1) & ~ACBCTL1_ACK, ACBCTL1);
@@ -202,17 +199,17 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 			outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
 			break;
 		}
-		
+
 		outb(*iface->ptr++, ACBSDA);
 		--iface->len;
-		
+
 		break;
 	}
 
 	return;
 
  negack:
-	DBG("negative acknowledge in state %s\n", 
+	DBG("negative acknowledge in state %s\n",
 	    scx200_acb_state_name[iface->state]);
 
 	iface->state = state_idle;
@@ -231,7 +228,7 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 	iface->needs_reset = 1;
 }
 
-static void scx200_acb_timeout(struct scx200_acb_iface *iface) 
+static void scx200_acb_timeout(struct scx200_acb_iface *iface)
 {
 	dev_err(&iface->adapter.dev, "timeout in state %s\n",
 		scx200_acb_state_name[iface->state]);
@@ -264,7 +261,7 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 static void scx200_acb_reset(struct scx200_acb_iface *iface)
 {
 	/* Disable the ACCESS.bus device and Configure the SCL
-           frequency: 16 clock cycles */
+	   frequency: 16 clock cycles */
 	outb(0x70, ACBCTL2);
 	/* Polling mode */
 	outb(0, ACBCTL1);
@@ -283,9 +280,9 @@ static void scx200_acb_reset(struct scx200_acb_iface *iface)
 }
 
 static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
-				u16 address, unsigned short flags,	
-				char rw, u8 command, int size, 
-				union i2c_smbus_data *data)
+				 u16 address, unsigned short flags,
+				 char rw, u8 command, int size,
+				 union i2c_smbus_data *data)
 {
 	struct scx200_acb_iface *iface = i2c_get_adapdata(adapter);
 	int len;
@@ -295,9 +292,10 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
-	    	len = 0;
-	    	buffer = NULL;
-	    	break;
+		len = 0;
+		buffer = NULL;
+		break;
+
 	case I2C_SMBUS_BYTE:
 		if (rw == I2C_SMBUS_READ) {
 			len = 1;
@@ -306,22 +304,26 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 			len = 1;
 			buffer = &command;
 		}
-	    	break;
+		break;
+
 	case I2C_SMBUS_BYTE_DATA:
-	    	len = 1;
-	    	buffer = &data->byte;
-	    	break;
+		len = 1;
+		buffer = &data->byte;
+		break;
+
 	case I2C_SMBUS_WORD_DATA:
 		len = 2;
-	    	cur_word = cpu_to_le16(data->word);
-	    	buffer = (u8 *)&cur_word;
+		cur_word = cpu_to_le16(data->word);
+		buffer = (u8 *)&cur_word;
 		break;
+
 	case I2C_SMBUS_BLOCK_DATA:
-	    	len = data->block[0];
-	    	buffer = &data->block[1];
+		len = data->block[0];
+		buffer = &data->block[1];
 		break;
+
 	default:
-	    	return -EINVAL;
+		return -EINVAL;
 	}
 
 	DBG("size=%d, address=0x%x, command=0x%x, len=%d, read=%d\n",
@@ -370,7 +372,7 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 	up(&iface->sem);
 
 	if (rc == 0 && size == I2C_SMBUS_WORD_DATA && rw == I2C_SMBUS_READ)
-	    	data->word = le16_to_cpu(cur_word);
+		data->word = le16_to_cpu(cur_word);
 
 #ifdef DEBUG
 	DBG(": transfer done, result: %d", rc);
@@ -406,7 +408,7 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 	u8 val;
 
 	/* Disable the ACCESS.bus device and Configure the SCL
-           frequency: 16 clock cycles */
+	   frequency: 16 clock cycles */
 	outb(0x70, ACBCTL2);
 
 	if (inb(ACBCTL2) != 0x70) {
@@ -459,7 +461,8 @@ static int  __init scx200_acb_create(int base, int index)
 
 	init_MUTEX(&iface->sem);
 
-	snprintf(description, sizeof(description), "NatSemi SCx200 ACCESS.bus [%s]", adapter->name);
+	snprintf(description, sizeof(description),
+		 "NatSemi SCx200 ACCESS.bus [%s]", adapter->name);
 	if (request_region(base, 8, description) == 0) {
 		dev_err(&adapter->dev, "can't allocate io 0x%x-0x%x\n",
 			base, base + 8-1);
@@ -528,6 +531,7 @@ static int __init scx200_acb_init(void)
 static void __exit scx200_acb_cleanup(void)
 {
 	struct scx200_acb_iface *iface;
+
 	lock_kernel();
 	while ((iface = scx200_acb_list) != NULL) {
 		scx200_acb_list = iface->next;
@@ -543,11 +547,3 @@ static void __exit scx200_acb_cleanup(void)
 
 module_init(scx200_acb_init);
 module_exit(scx200_acb_cleanup);
-
-/*
-    Local variables:
-        compile-command: "make -k -C ../.. SUBDIRS=drivers/i2c modules"
-        c-basic-offset: 8
-    End:
-*/
-
