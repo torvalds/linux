@@ -35,7 +35,6 @@
 #include <linux/usb.h>
 #include "hid.h"
 #include <linux/hiddev.h>
-#include <linux/devfs_fs_kernel.h>
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 #define HIDDEV_MINOR_BASE	0
@@ -832,12 +831,10 @@ static /* const */ struct usb_driver hiddev_driver = {
 
 int __init hiddev_init(void)
 {
-	devfs_mk_dir("usb/hid");
 	return usb_register(&hiddev_driver);
 }
 
 void hiddev_exit(void)
 {
 	usb_deregister(&hiddev_driver);
-	devfs_remove("usb/hid");
 }
