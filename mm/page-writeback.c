@@ -46,7 +46,7 @@
 static long ratelimit_pages = 32;
 
 static long total_pages;	/* The total number of pages in the machine. */
-static int dirty_exceeded;	/* Dirty mem may be over limit */
+static int dirty_exceeded __cacheline_aligned_in_smp;	/* Dirty mem may be over limit */
 
 /*
  * When balance_dirty_pages decides that the caller needs to perform some
@@ -212,7 +212,8 @@ static void balance_dirty_pages(struct address_space *mapping)
 		if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
 			break;
 
-		dirty_exceeded = 1;
+		if (!dirty_exceeded)
+			dirty_exceeded = 1;
 
 		/* Note: nr_reclaimable denotes nr_dirty + nr_unstable.
 		 * Unstable writes are a feature of certain networked
@@ -234,7 +235,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 		blk_congestion_wait(WRITE, HZ/10);
 	}
 
-	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
+	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh && dirty_exceeded)
 		dirty_exceeded = 0;
 
 	if (writeback_in_progress(bdi))
