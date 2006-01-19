@@ -976,6 +976,36 @@ static unsigned interleave_nodes(struct mempolicy *policy)
 	return nid;
 }
 
+/*
+ * Depending on the memory policy provide a node from which to allocate the
+ * next slab entry.
+ */
+unsigned slab_node(struct mempolicy *policy)
+{
+	if (in_interrupt())
+		return numa_node_id();
+
+	switch (policy->policy) {
+	case MPOL_INTERLEAVE:
+		return interleave_nodes(policy);
+
+	case MPOL_BIND:
+		/*
+		 * Follow bind policy behavior and start allocation at the
+		 * first node.
+		 */
+		return policy->v.zonelist->zones[0]->zone_pgdat->node_id;
+
+	case MPOL_PREFERRED:
+		if (policy->v.preferred_node >= 0)
+			return policy->v.preferred_node;
+		/* Fall through */
+
+	default:
+		return numa_node_id();
+	}
+}
+
 /* Do static interleaving for a VMA with known offset. */
 static unsigned offset_il_node(struct mempolicy *pol,
 		struct vm_area_struct *vma, unsigned long off)

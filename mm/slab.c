@@ -103,6 +103,7 @@
 #include	<linux/rcupdate.h>
 #include	<linux/string.h>
 #include	<linux/nodemask.h>
+#include	<linux/mempolicy.h>
 #include	<linux/mutex.h>
 
 #include	<asm/uaccess.h>
@@ -773,6 +774,8 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 }
 
 #ifdef CONFIG_NUMA
+static void *__cache_alloc_node(kmem_cache_t *, gfp_t, int);
+
 static inline struct array_cache **alloc_alien_cache(int node, int limit)
 {
 	struct array_cache **ac_ptr;
@@ -2569,6 +2572,15 @@ static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 {
 	void *objp;
 	struct array_cache *ac;
+
+#ifdef CONFIG_NUMA
+	if (current->mempolicy) {
+		int nid = slab_node(current->mempolicy);
+
+		if (nid != numa_node_id())
+			return __cache_alloc_node(cachep, flags, nid);
+	}
+#endif
 
 	check_irq_off();
 	ac = ac_data(cachep);
