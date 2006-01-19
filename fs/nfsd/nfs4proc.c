@@ -210,6 +210,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 				goto out;
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
+			open->op_stateowner->so_confirmed = 1;
 			/*
 			 * The CURRENT_FH is already set to the file being
 			 * opened.  (1) set open->op_cinfo, (2) set
@@ -221,6 +222,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 				goto out;
 			break;
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
+			open->op_stateowner->so_confirmed = 1;
 			printk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
 			status = nfserr_notsupp;
