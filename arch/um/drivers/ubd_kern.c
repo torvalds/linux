@@ -1194,15 +1194,16 @@ int open_ubd_file(char *file, struct openflags *openflags,
 	int fd, err, sectorsize, asked_switch, mode = 0644;
 
 	fd = os_open_file(file, *openflags, mode);
-	if(fd < 0){
-		if((fd == -ENOENT) && (create_cow_out != NULL))
+	if (fd < 0) {
+		if ((fd == -ENOENT) && (create_cow_out != NULL))
 			*create_cow_out = 1;
-                if(!openflags->w ||
-                   ((fd != -EROFS) && (fd != -EACCES))) return(fd);
+                if (!openflags->w ||
+                   ((fd != -EROFS) && (fd != -EACCES)))
+			return fd;
 		openflags->w = 0;
 		fd = os_open_file(file, *openflags, mode);
-		if(fd < 0)
-			return(fd);
+		if (fd < 0)
+			return fd;
         }
 
 	err = os_lock_file(fd, openflags->w);
@@ -1212,7 +1213,8 @@ int open_ubd_file(char *file, struct openflags *openflags,
 	}
 
 	/* Succesful return case! */
-	if(backing_file_out == NULL) return(fd);
+	if(backing_file_out == NULL)
+		return(fd);
 
 	err = read_cow_header(file_reader, &fd, &version, &backing_file, &mtime,
 			      &size, &sectorsize, &align, bitmap_offset_out);
@@ -1221,7 +1223,8 @@ int open_ubd_file(char *file, struct openflags *openflags,
 		       "errno = %d\n", file, -err);
 		goto out_close;
 	}
-	if(err) return(fd);
+	if(err)
+		return(fd);
 
 	asked_switch = path_requires_switch(*backing_file_out, backing_file, file);
 
@@ -1230,24 +1233,24 @@ int open_ubd_file(char *file, struct openflags *openflags,
 		printk("Switching backing file to '%s'\n", *backing_file_out);
 		err = write_cow_header(file, fd, *backing_file_out,
 				       sectorsize, align, &size);
-		if(err){
+		if (err) {
 			printk("Switch failed, errno = %d\n", -err);
 			goto out_close;
 		}
-	}
-	else {
+	} else {
 		*backing_file_out = backing_file;
 		err = backing_file_mismatch(*backing_file_out, size, mtime);
-		if(err) goto out_close;
+		if (err)
+			goto out_close;
 	}
 
 	cow_sizes(version, size, sectorsize, align, *bitmap_offset_out,
 		  bitmap_len_out, data_offset_out);
 
-        return(fd);
+        return fd;
  out_close:
 	os_close_file(fd);
-	return(err);
+	return err;
 }
 
 int create_cow_file(char *cow_file, char *backing_file, struct openflags flags,
