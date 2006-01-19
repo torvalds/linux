@@ -12,7 +12,6 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "user_util.h"
-#include "kern_util.h"
 #include "user.h"
 #include "signal_kern.h"
 #include "sysdep/sigcontext.h"
@@ -47,6 +46,17 @@ void alarm_handler(ARCH_SIGHDLR_PARAM)
 
 	if(sig == SIGALRM)
 		switch_timers(1);
+}
+
+extern void do_boot_timer_handler(struct sigcontext * sc);
+
+void boot_timer_handler(ARCH_SIGHDLR_PARAM)
+{
+	struct sigcontext *sc;
+
+	ARCH_GET_SIGCONTEXT(sc, sig);
+
+	do_boot_timer_handler(sc);
 }
 
 void set_sigstack(void *sig_stack, int size)

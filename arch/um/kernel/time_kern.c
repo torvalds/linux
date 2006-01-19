@@ -84,12 +84,11 @@ void timer_irq(union uml_pt_regs *regs)
 	}
 }
 
-void boot_timer_handler(int sig)
+void do_boot_timer_handler(struct sigcontext * sc)
 {
 	struct pt_regs regs;
 
-	CHOOSE_MODE((void)
-		    (UPT_SC(&regs.regs) = (struct sigcontext *) (&sig + 1)),
+	CHOOSE_MODE((void) (UPT_SC(&regs.regs) = sc),
 		    (void) (regs.regs.skas.is_user = 0));
 	do_timer(&regs);
 }
