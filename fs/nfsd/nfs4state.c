@@ -2744,10 +2744,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		if (lock_sop == NULL)
 			goto out;
 		lock_stp = alloc_init_lock_stateid(lock_sop, fp, open_stp);
-		if (lock_stp == NULL) {
-			release_stateowner(lock_sop);
+		if (lock_stp == NULL)
 			goto out;
-		}
 	} else {
 		/* lock (lock owner + lock stateid) already exists */
 		status = nfs4_preprocess_seqid_op(current_fh,
@@ -2815,7 +2813,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		status = nfserr_deadlock;
 	default:        
 		dprintk("NFSD: nfsd4_lock: posix_lock_file() failed! status %d\n",status);
-		goto out_destroy_new_stateid;
+		goto out;
 	}
 
 conflicting_lock:
@@ -2829,17 +2827,9 @@ conflicting_lock:
 		goto out;
 	}
 	nfs4_set_lock_denied(conflock, &lock->lk_denied);
-
-out_destroy_new_stateid:
-	if (lock->lk_is_new) {
-		dprintk("NFSD: nfsd4_lock: destroy new stateid!\n");
-		/*
-		 * An error encountered after instantiation of the new
-		 * stateid has forced us to destroy it.
-		 */
-		release_state_owner(lock_stp, LOCK_STATE);
-	}
 out:
+	if (status && lock->lk_is_new && lock_sop)
+		release_stateowner(lock_sop);
 	if (lock->lk_stateowner) {
 		nfs4_get_stateowner(lock->lk_stateowner);
 		*replay_owner = lock->lk_stateowner;
