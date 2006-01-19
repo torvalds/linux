@@ -184,7 +184,7 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
 
 	type = rec.type;
 	if (type != HFS_CDR_THD && type != HFS_CDR_FTH) {
-		printk("HFS-fs: Found bad thread record in catalog\n");
+		printk(KERN_ERR "hfs: found bad thread record in catalog\n");
 		return -EIO;
 	}
 

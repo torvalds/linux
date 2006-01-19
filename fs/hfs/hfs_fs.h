@@ -35,9 +35,6 @@
 #define dprint(flg, fmt, args...) \
 	if (flg & DBG_MASK) printk(fmt , ## args)
 
-#define hfs_warn(format, args...) printk(KERN_WARNING format , ## args)
-#define hfs_error(format, args...) printk(KERN_ERR format , ## args)
-
 /*
  * struct hfs_inode_info
  *
