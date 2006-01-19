@@ -2574,7 +2574,7 @@ static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 	struct array_cache *ac;
 
 #ifdef CONFIG_NUMA
-	if (current->mempolicy) {
+	if (unlikely(current->mempolicy && !in_interrupt())) {
 		int nid = slab_node(current->mempolicy);
 
 		if (nid != numa_node_id())

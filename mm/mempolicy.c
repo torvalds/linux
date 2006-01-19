@@ -982,9 +982,6 @@ static unsigned interleave_nodes(struct mempolicy *policy)
  */
 unsigned slab_node(struct mempolicy *policy)
 {
-	if (in_interrupt())
-		return numa_node_id();
-
 	switch (policy->policy) {
 	case MPOL_INTERLEAVE:
 		return interleave_nodes(policy);
