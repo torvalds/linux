@@ -470,7 +470,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			atomic_inc(&crypt->refcnt);
 			if (crypt->ops->build_iv)
 				crypt->ops->build_iv(skb_frag, hdr_len,
-						     crypt->priv);
+				      ieee->sec.keys[ieee->sec.active_key],
+				      ieee->sec.key_sizes[ieee->sec.active_key],
+				      crypt->priv);
 			atomic_dec(&crypt->refcnt);
 		}
 
