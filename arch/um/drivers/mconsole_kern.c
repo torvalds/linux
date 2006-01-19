@@ -20,6 +20,7 @@
 #include "linux/namei.h"
 #include "linux/proc_fs.h"
 #include "linux/syscalls.h"
+#include "linux/console.h"
 #include "asm/irq.h"
 #include "asm/uaccess.h"
 #include "user_util.h"
@@ -34,7 +35,7 @@
 #include "irq_kern.h"
 #include "choose-mode.h"
 
-static int do_unlink_socket(struct notifier_block *notifier, 
+static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)
 {
 	return(mconsole_unlink_socket());
@@ -46,12 +47,12 @@ static struct notifier_block reboot_notifier = {
 	.priority		= 0,
 };
 
-/* Safe without explicit locking for now.  Tasklets provide their own 
+/* Safe without explicit locking for now.  Tasklets provide their own
  * locking, and the interrupt handler is safe because it can't interrupt
  * itself and it can only happen on CPU 0.
  */
 
-LIST_HEAD(mc_requests);
+static LIST_HEAD(mc_requests);
 
 static void mc_work_proc(void *unused)
 {
@@ -60,7 +61,7 @@ static void mc_work_proc(void *unused)
 
 	while(!list_empty(&mc_requests)){
 		local_save_flags(flags);
-		req = list_entry(mc_requests.next, struct mconsole_entry, 
+		req = list_entry(mc_requests.next, struct mconsole_entry,
 				 list);
 		list_del(&req->list);
 		local_irq_restore(flags);
@@ -69,7 +70,7 @@ static void mc_work_proc(void *unused)
 	}
 }
 
-DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
+static DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
 
 static irqreturn_t mconsole_interrupt(int irq, void *dev_id,
 				      struct pt_regs *regs)
@@ -103,8 +104,8 @@ void mconsole_version(struct mc_request *req)
 {
 	char version[256];
 
-	sprintf(version, "%s %s %s %s %s", system_utsname.sysname, 
-		system_utsname.nodename, system_utsname.release, 
+	sprintf(version, "%s %s %s %s %s", system_utsname.sysname,
+		system_utsname.nodename, system_utsname.release,
 		system_utsname.version, system_utsname.machine);
 	mconsole_reply(req, version, 0, 0);
 }
@@ -348,7 +349,7 @@ static struct mc_device *mconsole_find_dev(char *name)
 
 #define CONFIG_BUF_SIZE 64
 
-static void mconsole_get_config(int (*get_config)(char *, char *, int, 
+static void mconsole_get_config(int (*get_config)(char *, char *, int,
 						  char **),
 				struct mc_request *req, char *name)
 {
@@ -389,7 +390,6 @@ static void mconsole_get_config(int (*get_config)(char *, char *, int,
  out:
 	if(buf != default_buf)
 		kfree(buf);
-	
 }
 
 void mconsole_config(struct mc_request *req)
@@ -420,9 +420,9 @@ void mconsole_config(struct mc_request *req)
 
 void mconsole_remove(struct mc_request *req)
 {
-	struct mc_device *dev;	
+	struct mc_device *dev;
 	char *ptr = req->request.data, *err_msg = "";
-        char error[256];
+	char error[256];
 	int err, start, end, n;
 
 	ptr += strlen("remove");
@@ -433,37 +433,112 @@ void mconsole_remove(struct mc_request *req)
 		return;
 	}
 
-        ptr = &ptr[strlen(dev->name)];
+	ptr = &ptr[strlen(dev->name)];
 
-        err = 1;
-        n = (*dev->id)(&ptr, &start, &end);
-        if(n < 0){
-                err_msg = "Couldn't parse device number";
-                goto out;
-        }
-        else if((n < start) || (n > end)){
-                sprintf(error, "Invalid device number - must be between "
-                        "%d and %d", start, end);
-                err_msg = error;
-                goto out;
-        }
+	err = 1;
+	n = (*dev->id)(&ptr, &start, &end);
+	if(n < 0){
+		err_msg = "Couldn't parse device number";
+		goto out;
+	}
+	else if((n < start) || (n > end)){
+		sprintf(error, "Invalid device number - must be between "
+			"%d and %d", start, end);
+		err_msg = error;
+		goto out;
+	}
 
 	err = (*dev->remove)(n);
-        switch(err){
-        case -ENODEV:
-                err_msg = "Device doesn't exist";
-                break;
-        case -EBUSY:
-                err_msg = "Device is currently open";
-                break;
-        default:
-                break;
-        }
- out:
+	switch(err){
+	case -ENODEV:
+		err_msg = "Device doesn't exist";
+		break;
+	case -EBUSY:
+		err_msg = "Device is currently open";
+		break;
+	default:
+		break;
+	}
+out:
 	mconsole_reply(req, err_msg, err, 0);
 }
 
+static DEFINE_SPINLOCK(console_lock);
+static LIST_HEAD(clients);
+static char console_buf[MCONSOLE_MAX_DATA];
+static int console_index = 0;
+
+static void console_write(struct console *console, const char *string,
+			  unsigned len)
+{
+	struct list_head *ele;
+	int n;
+
+	if(list_empty(&clients))
+		return;
+
+	while(1){
+		n = min(len, ARRAY_SIZE(console_buf) - console_index);
+		strncpy(&console_buf[console_index], string, n);
+		console_index += n;
+		string += n;
+		len -= n;
+		if(len == 0)
+			return;
+
+		list_for_each(ele, &clients){
+			struct mconsole_entry *entry;
+
+			entry = list_entry(ele, struct mconsole_entry, list);
+			mconsole_reply_len(&entry->request, console_buf,
+					   console_index, 0, 1);
+		}
+
+		console_index = 0;
+	}
+}
+
+static struct console mc_console = { .name	= "mc",
+				     .write	= console_write,
+				     .flags	= CON_ENABLED,
+				     .index	= -1 };
+
+static int mc_add_console(void)
+{
+	register_console(&mc_console);
+	return 0;
+}
+
+late_initcall(mc_add_console);
+
+static void with_console(struct mc_request *req, void (*proc)(void *),
+			 void *arg)
+{
+	struct mconsole_entry entry;
+	unsigned long flags;
+
+	INIT_LIST_HEAD(&entry.list);
+	entry.request = *req;
+	list_add(&entry.list, &clients);
+	spin_lock_irqsave(&console_lock, flags);
+
+	(*proc)(arg);
+
+	mconsole_reply_len(req, console_buf, console_index, 0, 0);
+	console_index = 0;
+
+	spin_unlock_irqrestore(&console_lock, flags);
+	list_del(&entry.list);
+}
+
 #ifdef CONFIG_MAGIC_SYSRQ
+static void sysrq_proc(void *arg)
+{
+	char *op = arg;
+
+	handle_sysrq(*op, &current->thread.regs, NULL);
+}
+
 void mconsole_sysrq(struct mc_request *req)
 {
 	char *ptr = req->request.data;
@@ -471,8 +546,13 @@ void mconsole_sysrq(struct mc_request *req)
 	ptr += strlen("sysrq");
 	while(isspace(*ptr)) ptr++;
 
-	mconsole_reply(req, "", 0, 0);
-	handle_sysrq(*ptr, &current->thread.regs, NULL);
+	/* With 'b', the system will shut down without a chance to reply,
+	 * so in this case, we reply first.
+	 */
+	if(*ptr == 'b')
+		mconsole_reply(req, "", 0, 0);
+
+	with_console(req, sysrq_proc, ptr);
 }
 #else
 void mconsole_sysrq(struct mc_request *req)
@@ -481,6 +561,14 @@ void mconsole_sysrq(struct mc_request *req)
 }
 #endif
 
+static void stack_proc(void *arg)
+{
+	struct task_struct *from = current, *to = arg;
+
+	to->thread.saved_task = from;
+	switch_to(from, to, from);
+}
+
 /* Mconsole stack trace
  *  Added by Allan Graves, Jeff Dike
  *  Dumps a stacks registers to the linux console.
@@ -488,37 +576,34 @@ void mconsole_sysrq(struct mc_request *req)
  */
 void do_stack(struct mc_request *req)
 {
-        char *ptr = req->request.data;
-        int pid_requested= -1;
-        struct task_struct *from = NULL;
+	char *ptr = req->request.data;
+	int pid_requested= -1;
+	struct task_struct *from = NULL;
 	struct task_struct *to = NULL;
 
-        /* Would be nice:
-         * 1) Send showregs output to mconsole.
+	/* Would be nice:
+	 * 1) Send showregs output to mconsole.
 	 * 2) Add a way to stack dump all pids.
 	 */
 
-        ptr += strlen("stack");
-        while(isspace(*ptr)) ptr++;
+	ptr += strlen("stack");
+	while(isspace(*ptr)) ptr++;
 
-        /* Should really check for multiple pids or reject bad args here */
-        /* What do the arguments in mconsole_reply mean? */
-        if(sscanf(ptr, "%d", &pid_requested) == 0){
-                mconsole_reply(req, "Please specify a pid", 1, 0);
-                return;
-        }
+	/* Should really check for multiple pids or reject bad args here */
+	/* What do the arguments in mconsole_reply mean? */
+	if(sscanf(ptr, "%d", &pid_requested) == 0){
+		mconsole_reply(req, "Please specify a pid", 1, 0);
+		return;
+	}
 
-        from = current;
-        to = find_task_by_pid(pid_requested);
+	from = current;
 
-        if((to == NULL) || (pid_requested == 0)) {
-                mconsole_reply(req, "Couldn't find that pid", 1, 0);
-                return;
-        }
-        to->thread.saved_task = current;
-
-        switch_to(from, to, from);
-        mconsole_reply(req, "Stack Dumped to console and message log", 0, 0);
+	to = find_task_by_pid(pid_requested);
+	if((to == NULL) || (pid_requested == 0)) {
+		mconsole_reply(req, "Couldn't find that pid", 1, 0);
+		return;
+	}
+	with_console(req, stack_proc, to);
 }
 
 void mconsole_stack(struct mc_request *req)
@@ -534,9 +619,9 @@ void mconsole_stack(struct mc_request *req)
 /* Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.
  */
-static char *notify_socket = NULL; 
+static char *notify_socket = NULL;
 
-int mconsole_init(void)
+static int mconsole_init(void)
 {
 	/* long to avoid size mismatch warnings from gcc */
 	long sock;
@@ -563,16 +648,16 @@ int mconsole_init(void)
 	}
 
 	if(notify_socket != NULL){
-		notify_socket = uml_strdup(notify_socket);
+		notify_socket = kstrdup(notify_socket, GFP_KERNEL);
 		if(notify_socket != NULL)
 			mconsole_notify(notify_socket, MCONSOLE_SOCKET,
-					mconsole_socket_name, 
+					mconsole_socket_name,
 					strlen(mconsole_socket_name) + 1);
 		else printk(KERN_ERR "mconsole_setup failed to strdup "
 			    "string\n");
 	}
 
-	printk("mconsole (version %d) initialized on %s\n", 
+	printk("mconsole (version %d) initialized on %s\n",
 	       MCONSOLE_VERSION, mconsole_socket_name);
 	return(0);
 }
@@ -585,7 +670,7 @@ static int write_proc_mconsole(struct file *file, const char __user *buffer,
 	char *buf;
 
 	buf = kmalloc(count + 1, GFP_KERNEL);
-	if(buf == NULL) 
+	if(buf == NULL)
 		return(-ENOMEM);
 
 	if(copy_from_user(buf, buffer, count)){
@@ -661,7 +746,7 @@ static int notify_panic(struct notifier_block *self, unsigned long unused1,
 
 	if(notify_socket == NULL) return(0);
 
-	mconsole_notify(notify_socket, MCONSOLE_PANIC, message, 
+	mconsole_notify(notify_socket, MCONSOLE_PANIC, message,
 			strlen(message) + 1);
 	return(0);
 }
@@ -686,14 +771,3 @@ char *mconsole_notify_socket(void)
 }
 
 EXPORT_SYMBOL(mconsole_notify_socket);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

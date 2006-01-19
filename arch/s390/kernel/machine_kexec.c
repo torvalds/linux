@@ -85,7 +85,7 @@ kexec_halt_all_cpus(void *kernel_image)
 		pfault_fini();
 #endif
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
 		signal_processor(smp_processor_id(), sigp_stop);
 
 	/* Wait for all other cpus to enter stopped state */

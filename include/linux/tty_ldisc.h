@@ -81,14 +81,6 @@
  * 	pointer of flag bytes which indicate whether a character was
  * 	received with a parity error, etc.
  * 
- * int	(*receive_room)(struct tty_struct *);
- *
- * 	This function is called by the low-level tty driver to
- * 	determine how many characters the line discpline can accept.
- * 	The low-level driver must not send more characters than was
- * 	indicated by receive_room, or the line discpline may drop
- * 	those characters.
- * 
  * void	(*write_wakeup)(struct tty_struct *);
  *
  * 	This function is called by the low-level tty driver to signal
@@ -136,7 +128,6 @@ struct tty_ldisc {
 	 */
 	void	(*receive_buf)(struct tty_struct *, const unsigned char *cp,
 			       char *fp, int count);
-	int	(*receive_room)(struct tty_struct *);
 	void	(*write_wakeup)(struct tty_struct *);
 
 	struct  module *owner;

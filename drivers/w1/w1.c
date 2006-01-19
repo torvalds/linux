@@ -142,12 +142,12 @@ static struct bin_attribute w1_slave_attr_bin_id = {
 /* Default family */
 static struct w1_family w1_default_family;
 
-static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size);
+static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size);
 
 static struct bus_type w1_bus_type = {
 	.name = "w1",
 	.match = w1_master_match,
-	.hotplug = w1_hotplug,
+	.uevent = w1_uevent,
 };
 
 struct device_driver w1_master_driver = {
@@ -361,7 +361,7 @@ void w1_destroy_master_attributes(struct w1_master *master)
 }
 
 #ifdef CONFIG_HOTPLUG
-static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	struct w1_master *md = NULL;
 	struct w1_slave *sl = NULL;
@@ -377,7 +377,7 @@ static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffe
 		event_owner = "slave";
 		name = sl->name;
 	} else {
-		dev_dbg(dev, "Unknown hotplug event.\n");
+		dev_dbg(dev, "Unknown event.\n");
 		return -EINVAL;
 	}
 
@@ -386,18 +386,18 @@ static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffe
 	if (dev->driver != &w1_slave_driver || !sl)
 		return 0;
 
-	err = add_hotplug_env_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_FID=%02X", sl->reg_num.family);
+	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_FID=%02X", sl->reg_num.family);
 	if (err)
 		return err;
 
-	err = add_hotplug_env_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_SLAVE_ID=%024LX", (u64)sl->reg_num.id);
+	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_SLAVE_ID=%024LX", (u64)sl->reg_num.id);
 	if (err)
 		return err;
 
 	return 0;
 };
 #else
-static int w1_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	return 0;
 }

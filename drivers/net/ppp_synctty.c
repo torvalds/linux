@@ -237,7 +237,7 @@ ppp_sync_open(struct tty_struct *tty)
 		goto out_free;
 
 	tty->disc_data = ap;
-
+	tty->receive_room = 65536;
 	return 0;
 
  out_free:
@@ -384,12 +384,6 @@ ppp_sync_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int
-ppp_sync_room(struct tty_struct *tty)
-{
-	return 65535;
-}
-
 /*
  * This can now be called from hard interrupt level as well
  * as soft interrupt level or mainline.
@@ -439,7 +433,6 @@ static struct tty_ldisc ppp_sync_ldisc = {
 	.write	= ppp_sync_write,
 	.ioctl	= ppp_synctty_ioctl,
 	.poll	= ppp_sync_poll,
-	.receive_room = ppp_sync_room,
 	.receive_buf = ppp_sync_receive,
 	.write_wakeup = ppp_sync_wakeup,
 };

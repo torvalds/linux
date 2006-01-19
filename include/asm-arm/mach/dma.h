@@ -25,13 +25,15 @@ struct dma_ops {
 };
 
 struct dma_struct {
+	void		*addr;		/* single DMA address		*/
+	unsigned long	count;		/* single DMA size		*/
 	struct scatterlist buf;		/* single DMA			*/
 	int		sgcount;	/* number of DMA SG		*/
 	struct scatterlist *sg;		/* DMA Scatter-Gather List	*/
 
 	unsigned int	active:1;	/* Transfer active		*/
 	unsigned int	invalid:1;	/* Address/Count changed	*/
-	unsigned int	using_sg:1;	/* using scatter list?		*/
+
 	dmamode_t	dma_mode;	/* DMA mode			*/
 	int		speed;		/* DMA speed			*/
 

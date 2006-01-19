@@ -20,14 +20,15 @@
  */
 
 #include <sound/driver.h>
-#include <asm/dma.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/moduleparam.h>
+#include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
-#define SNDRV_LEGACY_AUTO_PROBE
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
@@ -70,11 +71,12 @@ MODULE_PARM_DESC(channels, "GF1 channels for GUS Classic driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Classic driver.");
 
-static snd_card_t *snd_gusclassic_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct platform_device *devices[SNDRV_CARDS];
+
 
 #define PFX	"gusclassic: "
 
-static int __init snd_gusclassic_detect(snd_gus_card_t * gus)
+static int __init snd_gusclassic_detect(struct snd_gus_card * gus)
 {
 	unsigned char d;
 
@@ -93,7 +95,7 @@ static int __init snd_gusclassic_detect(snd_gus_card_t * gus)
 	return 0;
 }
 
-static void __init snd_gusclassic_init(int dev, snd_gus_card_t * gus)
+static void __init snd_gusclassic_init(int dev, struct snd_gus_card * gus)
 {
 	gus->equal_irq = 0;
 	gus->codec_flag = 0;
@@ -101,20 +103,19 @@ static void __init snd_gusclassic_init(int dev, snd_gus_card_t * gus)
 	gus->joystick_dac = joystick_dac[dev];
 }
 
-static int __init snd_gusclassic_probe(int dev)
+static int __init snd_gusclassic_probe(struct platform_device *pdev)
 {
+	int dev = pdev->id;
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
 	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
 	int xirq, xdma1, xdma2;
-	snd_card_t *card;
-	struct snd_gusclassic *guscard;
-	snd_gus_card_t *gus = NULL;
+	struct snd_card *card;
+	struct snd_gus_card *gus = NULL;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
-	guscard = (struct snd_gusclassic *)card->private_data;
 	if (pcm_channels[dev] < 2)
 		pcm_channels[dev] = 2;
 
@@ -143,12 +144,31 @@ static int __init snd_gusclassic_probe(int dev)
 		}
 	}
 
-
-	if ((err = snd_gus_create(card,
-				  port[dev],
-				  xirq, xdma1, xdma2,
-			          0, channels[dev], pcm_channels[dev],
-			          0, &gus)) < 0)
+	if (port[dev] != SNDRV_AUTO_PORT) {
+		err = snd_gus_create(card,
+				     port[dev],
+				     xirq, xdma1, xdma2,
+				     0, channels[dev], pcm_channels[dev],
+				     0, &gus);
+	} else {
+		/* auto-probe legacy ports */
+		static unsigned long possible_ports[] = {
+			0x220, 0x230, 0x240, 0x250, 0x260,
+		};
+		int i;
+		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
+			err = snd_gus_create(card,
+					     possible_ports[i],
+					     xirq, xdma1, xdma2,
+					     0, channels[dev], pcm_channels[dev],
+					     0, &gus);
+			if (err >= 0) {
+				port[dev] = possible_ports[i];
+				break;
+			}
+		}
+	}
+	if (err < 0)
 		goto _err;
 
 	if ((err = snd_gusclassic_detect(gus)) < 0)
@@ -178,13 +198,12 @@ static int __init snd_gusclassic_probe(int dev)
 	if (dma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", xdma2);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &pdev->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
-	snd_gusclassic_cards[dev] = card;
+	platform_set_drvdata(pdev, card);
 	return 0;
 
  _err:
@@ -192,53 +211,70 @@ static int __init snd_gusclassic_probe(int dev)
 	return err;
 }
 
-static int __init snd_gusclassic_legacy_auto_probe(unsigned long xport)
+static int snd_gusclassic_remove(struct platform_device *devptr)
 {
-	static int dev;
-	int res;
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
 
-	for ( ; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
-			continue;
-		port[dev] = xport;
-		res = snd_gusclassic_probe(dev);
-		if (res < 0)
-			port[dev] = SNDRV_AUTO_PORT;
-		return res;
-	}
-	return -ENODEV;
+#define GUSCLASSIC_DRIVER	"snd_gusclassic"
+
+static struct platform_driver snd_gusclassic_driver = {
+	.probe		= snd_gusclassic_probe,
+	.remove		= snd_gusclassic_remove,
+	/* FIXME: suspend/resume */
+	.driver		= {
+		.name	= GUSCLASSIC_DRIVER
+	},
+};
+
+static void __init_or_module snd_gusclassic_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_gusclassic_driver);
 }
 
 static int __init alsa_card_gusclassic_init(void)
 {
-	static unsigned long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260, -1};
-	int dev, cards, i;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
-		if (port[dev] == SNDRV_AUTO_PORT)
-			continue;
-		if (snd_gusclassic_probe(dev) >= 0)
-			cards++;
+	err = platform_driver_register(&snd_gusclassic_driver);
+	if (err < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(GUSCLASSIC_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
-	i = snd_legacy_auto_probe(possible_ports, snd_gusclassic_legacy_auto_probe);
-	if (i > 0)
-		cards += i;
-
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "GUS Classic soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_gusclassic_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_gusclassic_exit(void)
 {
-	int idx;
-	
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_gusclassic_cards[idx]);
+	snd_gusclassic_unregister_all();
 }
 
 module_init(alsa_card_gusclassic_init)

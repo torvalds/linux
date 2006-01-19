@@ -67,13 +67,13 @@ extern pgm_check_handler_t do_monitor_call;
 
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 #define FOURLONG "%08lx %08lx %08lx %08lx\n"
 static int kstack_depth_to_print = 12;
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 #define FOURLONG "%016lx %016lx %016lx %016lx\n"
 static int kstack_depth_to_print = 20;
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 /*
  * For show_trace we have tree different stack to consider:
@@ -136,8 +136,8 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 	sp = __show_trace(sp, S390_lowcore.async_stack - ASYNC_SIZE,
 			  S390_lowcore.async_stack);
 	if (task)
-		__show_trace(sp, (unsigned long) task->thread_info,
-			     (unsigned long) task->thread_info + THREAD_SIZE);
+		__show_trace(sp, (unsigned long) task_stack_page(task),
+			     (unsigned long) task_stack_page(task) + THREAD_SIZE);
 	else
 		__show_trace(sp, S390_lowcore.thread_info,
 			     S390_lowcore.thread_info + THREAD_SIZE);
@@ -240,7 +240,7 @@ char *task_show_regs(struct task_struct *task, char *buffer)
 {
 	struct pt_regs *regs;
 
-	regs = __KSTK_PTREGS(task);
+	regs = task_pt_regs(task);
 	buffer += sprintf(buffer, "task: %p, ksp: %p\n",
 		       task, (void *)task->thread.ksp);
 	buffer += sprintf(buffer, "User PSW : %p %p\n",
@@ -702,12 +702,12 @@ void __init trap_init(void)
         pgm_check_table[0x11] = &do_dat_exception;
         pgm_check_table[0x12] = &translation_exception;
         pgm_check_table[0x13] = &special_op_exception;
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
         pgm_check_table[0x38] = &do_dat_exception;
 	pgm_check_table[0x39] = &do_dat_exception;
 	pgm_check_table[0x3A] = &do_dat_exception;
         pgm_check_table[0x3B] = &do_dat_exception;
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
         pgm_check_table[0x15] = &operand_exception;
         pgm_check_table[0x1C] = &space_switch_exception;
         pgm_check_table[0x1D] = &hfp_sqrt_exception;

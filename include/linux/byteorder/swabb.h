@@ -77,7 +77,7 @@
 /*
  * Allow constant folding
  */
-#if defined(__GNUC__) && (__GNUC__ >= 2) && defined(__OPTIMIZE__)
+#if defined(__GNUC__) && defined(__OPTIMIZE__)
 #  define __swahw32(x) \
 (__builtin_constant_p((__u32)(x)) ? \
  ___swahw32((x)) : \

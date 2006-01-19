@@ -16,6 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/sysctl.h>
+#include <linux/capability.h>
 #include <linux/ctype.h>
 #include <linux/threads.h>
 #include <linux/smp_lock.h>

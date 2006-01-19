@@ -1,1 +1,1 @@
-#include <asm-m68k/ioctl.h>
+#include <asm-generic/ioctl.h>

@@ -220,6 +220,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
 	struct list_head *_p;
+	struct sk_buff *pkt = msg->pkt;
 	int ret, fresh = 0;
 	__be32 x_epoch, x_connid;
 	__be16 x_port, x_servid;
@@ -229,10 +230,10 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 	_enter("%p{{%hu}},%u,%hu",
 	       peer,
 	       peer->trans->port,
-	       ntohs(msg->pkt->h.uh->source),
+	       ntohs(pkt->h.uh->source),
 	       ntohs(msg->hdr.serviceId));
 
-	x_port		= msg->pkt->h.uh->source;
+	x_port		= pkt->h.uh->source;
 	x_epoch		= msg->hdr.epoch;
 	x_clflag	= msg->hdr.flags & RXRPC_CLIENT_INITIATED;
 	x_connid	= htonl(ntohl(msg->hdr.cid) & RXRPC_CIDMASK);
@@ -267,7 +268,7 @@ int rxrpc_connection_lookup(struct rxrpc_peer *peer,
 		/* fill in the specifics */
 		candidate->addr.sin_family	= AF_INET;
 		candidate->addr.sin_port	= x_port;
-		candidate->addr.sin_addr.s_addr = msg->pkt->nh.iph->saddr;
+		candidate->addr.sin_addr.s_addr = pkt->nh.iph->saddr;
 		candidate->in_epoch		= x_epoch;
 		candidate->out_epoch		= x_epoch;
 		candidate->in_clientflag	= RXRPC_CLIENT_INITIATED;
@@ -675,6 +676,7 @@ int rxrpc_conn_receive_call_packet(struct rxrpc_connection *conn,
 				   struct rxrpc_message *msg)
 {
 	struct rxrpc_message *pmsg;
+	struct dst_entry *dst;
 	struct list_head *_p;
 	unsigned cix, seq;
 	int ret = 0;
@@ -710,10 +712,10 @@ int rxrpc_conn_receive_call_packet(struct rxrpc_connection *conn,
 
 	call->pkt_rcv_count++;
 
-	if (msg->pkt->dst && msg->pkt->dst->dev)
+	dst = msg->pkt->dst;
+	if (dst && dst->dev)
 		conn->peer->if_mtu =
-			msg->pkt->dst->dev->mtu -
-			msg->pkt->dst->dev->hard_header_len;
+			dst->dev->mtu - dst->dev->hard_header_len;
 
 	/* queue on the call in seq order */
 	rxrpc_get_message(msg);

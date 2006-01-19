@@ -60,7 +60,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 
 	if((stack_out != NULL) && (*stack_out != 0))
 		stack = *stack_out;
-	else stack = alloc_stack(0, um_in_interrupt());
+	else stack = alloc_stack(0, __cant_sleep());
 	if(stack == 0)
 		return(-ENOMEM);
 
@@ -124,7 +124,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	unsigned long stack, sp;
 	int pid, status, err;
 
-	stack = alloc_stack(stack_order, um_in_interrupt());
+	stack = alloc_stack(stack_order, __cant_sleep());
 	if(stack == 0) return(-ENOMEM);
 
 	sp = stack + (page_size() << stack_order) - sizeof(void *);

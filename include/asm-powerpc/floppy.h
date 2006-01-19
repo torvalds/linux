@@ -9,6 +9,7 @@
  */
 #ifndef __ASM_POWERPC_FLOPPY_H
 #define __ASM_POWERPC_FLOPPY_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <asm/machdep.h>
@@ -102,4 +103,5 @@ static int FDC2 = -1;
 
 #define EXTRA_FLOPPY_PARAMS
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_FLOPPY_H */

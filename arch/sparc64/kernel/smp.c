@@ -335,7 +335,7 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 
 	p = fork_idle(cpu);
 	callin_flag = 0;
-	cpu_new_thread = p->thread_info;
+	cpu_new_thread = task_thread_info(p);
 	cpu_set(cpu, cpu_callout_map);
 
 	cpu_find_by_mid(cpu, &cpu_node);

@@ -304,8 +304,7 @@ static void unlink_from_pool(struct inet_peer *p)
 			/* look for a node to insert instead of p */
 			struct inet_peer *t;
 			t = lookup_rightempty(p);
-			if (*stackptr[-1] != t)
-				BUG();
+			BUG_ON(*stackptr[-1] != t);
 			**--stackptr = t->avl_left;
 			/* t is removed, t->v4daddr > x->v4daddr for any
 			 * x in p->avl_left subtree.
@@ -314,8 +313,7 @@ static void unlink_from_pool(struct inet_peer *p)
 			t->avl_left = p->avl_left;
 			t->avl_right = p->avl_right;
 			t->avl_height = p->avl_height;
-			if (delp[1] != &p->avl_left)
-				BUG();
+			BUG_ON(delp[1] != &p->avl_left);
 			delp[1] = &t->avl_left; /* was &p->avl_left */
 		}
 		peer_avl_rebalance(stack, stackptr);
@@ -401,6 +399,7 @@ struct inet_peer *inet_getpeer(__u32 daddr, int create)
 		return NULL;
 	n->v4daddr = daddr;
 	atomic_set(&n->refcnt, 1);
+	atomic_set(&n->rid, 0);
 	n->ip_id_count = secure_ip_id(daddr);
 	n->tcp_ts_stamp = 0;
 

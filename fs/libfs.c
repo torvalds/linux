@@ -74,7 +74,7 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 {
-	down(&file->f_dentry->d_inode->i_sem);
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += file->f_pos;
@@ -82,7 +82,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			if (offset >= 0)
 				break;
 		default:
-			up(&file->f_dentry->d_inode->i_sem);
+			mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -93,20 +93,20 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			loff_t n = file->f_pos - 2;
 
 			spin_lock(&dcache_lock);
-			list_del(&cursor->d_child);
+			list_del(&cursor->d_u.d_child);
 			p = file->f_dentry->d_subdirs.next;
 			while (n && p != &file->f_dentry->d_subdirs) {
 				struct dentry *next;
-				next = list_entry(p, struct dentry, d_child);
+				next = list_entry(p, struct dentry, d_u.d_child);
 				if (!d_unhashed(next) && next->d_inode)
 					n--;
 				p = p->next;
 			}
-			list_add_tail(&cursor->d_child, p);
+			list_add_tail(&cursor->d_u.d_child, p);
 			spin_unlock(&dcache_lock);
 		}
 	}
-	up(&file->f_dentry->d_inode->i_sem);
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -126,7 +126,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	struct dentry *dentry = filp->f_dentry;
 	struct dentry *cursor = filp->private_data;
-	struct list_head *p, *q = &cursor->d_child;
+	struct list_head *p, *q = &cursor->d_u.d_child;
 	ino_t ino;
 	int i = filp->f_pos;
 
@@ -153,7 +153,7 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			}
 			for (p=q->next; p != &dentry->d_subdirs; p=p->next) {
 				struct dentry *next;
-				next = list_entry(p, struct dentry, d_child);
+				next = list_entry(p, struct dentry, d_u.d_child);
 				if (d_unhashed(next) || !next->d_inode)
 					continue;
 
@@ -261,7 +261,7 @@ int simple_empty(struct dentry *dentry)
 	int ret = 0;
 
 	spin_lock(&dcache_lock);
-	list_for_each_entry(child, &dentry->d_subdirs, d_child)
+	list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child)
 		if (simple_positive(child))
 			goto out;
 	ret = 1;
@@ -356,7 +356,7 @@ int simple_commit_write(struct file *file, struct page *page,
 
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_sem.
+	 * cannot change under us because we hold the i_mutex.
 	 */
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);

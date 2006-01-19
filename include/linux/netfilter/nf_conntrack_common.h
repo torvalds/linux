@@ -154,6 +154,9 @@ struct ip_conntrack_stat
 	unsigned int expect_delete;
 };
 
+/* call to create an explicit dependency on nf_conntrack. */
+extern void need_conntrack(void);
+
 #endif /* __KERNEL__ */
 
 #endif /* _NF_CONNTRACK_COMMON_H */

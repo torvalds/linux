@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  August 11, 2000
  *
- *    mpi_ioc.h Version:  01.05.09
+ *    mpi_ioc.h Version:  01.05.10
  *
  *  Version History
  *  ---------------
@@ -83,6 +83,10 @@
  *                      Removed IOCFacts Reply EEDP Capability bit.
  *  06-24-05  01.05.09  Added 5 new IOCFacts Reply IOCCapabilities bits.
  *                      Added Max SATA Targets to SAS Discovery Error event.
+ *  08-30-05  01.05.10  Added 4 new events and their event data structures.
+ *                      Added new ReasonCode value for SAS Device Status Change
+ *                      event.
+ *                      Added new family code for FC949E.
  *  --------------------------------------------------------------------------
  */
 
@@ -464,6 +468,10 @@ typedef struct _MSG_EVENT_ACK_REPLY
 #define MPI_EVENT_PERSISTENT_TABLE_FULL     (0x00000011)
 #define MPI_EVENT_SAS_PHY_LINK_STATUS       (0x00000012)
 #define MPI_EVENT_SAS_DISCOVERY_ERROR       (0x00000013)
+#define MPI_EVENT_IR_RESYNC_UPDATE          (0x00000014)
+#define MPI_EVENT_IR2                       (0x00000015)
+#define MPI_EVENT_SAS_DISCOVERY             (0x00000016)
+#define MPI_EVENT_LOG_ENTRY_ADDED           (0x00000021)
 
 /* AckRequired field values */
 
@@ -479,6 +487,29 @@ typedef struct _EVENT_DATA_EVENT_CHANGE
     U16                     Reserved1;                  /* 02h */
 } EVENT_DATA_EVENT_CHANGE, MPI_POINTER PTR_EVENT_DATA_EVENT_CHANGE,
   EventDataEventChange_t, MPI_POINTER pEventDataEventChange_t;
+
+/* LogEntryAdded Event data */
+
+/* this structure matches MPI_LOG_0_ENTRY in mpi_cnfg.h */
+#define MPI_EVENT_DATA_LOG_ENTRY_DATA_LENGTH    (0x1C)
+typedef struct _EVENT_DATA_LOG_ENTRY
+{
+    U32         TimeStamp;                          /* 00h */
+    U32         Reserved1;                          /* 04h */
+    U16         LogSequence;                        /* 08h */
+    U16         LogEntryQualifier;                  /* 0Ah */
+    U8          LogData[MPI_EVENT_DATA_LOG_ENTRY_DATA_LENGTH]; /* 0Ch */
+} EVENT_DATA_LOG_ENTRY, MPI_POINTER PTR_EVENT_DATA_LOG_ENTRY,
+  MpiEventDataLogEntry_t, MPI_POINTER pMpiEventDataLogEntry_t;
+
+typedef struct _EVENT_DATA_LOG_ENTRY_ADDED
+{
+    U16                     LogSequence;            /* 00h */
+    U16                     Reserved1;              /* 02h */
+    U32                     Reserved2;              /* 04h */
+    EVENT_DATA_LOG_ENTRY    LogEntry;               /* 08h */
+} EVENT_DATA_LOG_ENTRY_ADDED, MPI_POINTER PTR_EVENT_DATA_LOG_ENTRY_ADDED,
+  MpiEventDataLogEntryAdded_t, MPI_POINTER pMpiEventDataLogEntryAdded_t;
 
 /* SCSI Event data for Port, Bus and Device forms */
 
@@ -538,6 +569,7 @@ typedef struct _EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
 #define MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA            (0x05)
 #define MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED      (0x06)
 #define MPI_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED           (0x07)
+#define MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET (0x08)
 
 
 /* SCSI Event data for Queue Full event */
@@ -578,6 +610,79 @@ typedef struct _EVENT_DATA_RAID
 #define MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED             (0x09)
 #define MPI_EVENT_RAID_RC_SMART_DATA                    (0x0A)
 #define MPI_EVENT_RAID_RC_REPLACE_ACTION_STARTED        (0x0B)
+
+
+/* MPI Integrated RAID Resync Update Event data */
+
+typedef struct _MPI_EVENT_DATA_IR_RESYNC_UPDATE
+{
+    U8                      VolumeID;                   /* 00h */
+    U8                      VolumeBus;                  /* 01h */
+    U8                      ResyncComplete;             /* 02h */
+    U8                      Reserved1;                  /* 03h */
+    U32                     Reserved2;                  /* 04h */
+} MPI_EVENT_DATA_IR_RESYNC_UPDATE,
+  MPI_POINTER PTR_MPI_EVENT_DATA_IR_RESYNC_UPDATE,
+  MpiEventDataIrResyncUpdate_t, MPI_POINTER pMpiEventDataIrResyncUpdate_t;
+
+/* MPI IR2 Event data */
+
+/* MPI_LD_STATE or MPI_PD_STATE */
+typedef struct _IR2_STATE_CHANGED
+{
+    U16                 PreviousState;  /* 00h */
+    U16                 NewState;       /* 02h */
+} IR2_STATE_CHANGED, MPI_POINTER PTR_IR2_STATE_CHANGED;
+
+typedef struct _IR2_PD_INFO
+{
+    U16                 DeviceHandle;           /* 00h */
+    U8                  TruncEnclosureHandle;   /* 02h */
+    U8                  TruncatedSlot;          /* 03h */
+} IR2_PD_INFO, MPI_POINTER PTR_IR2_PD_INFO;
+
+typedef union _MPI_IR2_RC_EVENT_DATA
+{
+    IR2_STATE_CHANGED   StateChanged;
+    U32                 Lba;
+    IR2_PD_INFO         PdInfo;
+} MPI_IR2_RC_EVENT_DATA, MPI_POINTER PTR_MPI_IR2_RC_EVENT_DATA;
+
+typedef struct _MPI_EVENT_DATA_IR2
+{
+    U8                      TargetID;             /* 00h */
+    U8                      Bus;                  /* 01h */
+    U8                      ReasonCode;           /* 02h */
+    U8                      PhysDiskNum;          /* 03h */
+    MPI_IR2_RC_EVENT_DATA   IR2EventData;         /* 04h */
+} MPI_EVENT_DATA_IR2, MPI_POINTER PTR_MPI_EVENT_DATA_IR2,
+  MpiEventDataIR2_t, MPI_POINTER pMpiEventDataIR2_t;
+
+/* MPI IR2 Event data ReasonCode values */
+#define MPI_EVENT_IR2_RC_LD_STATE_CHANGED           (0x01)
+#define MPI_EVENT_IR2_RC_PD_STATE_CHANGED           (0x02)
+#define MPI_EVENT_IR2_RC_BAD_BLOCK_TABLE_FULL       (0x03)
+#define MPI_EVENT_IR2_RC_PD_INSERTED                (0x04)
+#define MPI_EVENT_IR2_RC_PD_REMOVED                 (0x05)
+#define MPI_EVENT_IR2_RC_FOREIGN_CFG_DETECTED       (0x06)
+#define MPI_EVENT_IR2_RC_REBUILD_MEDIUM_ERROR       (0x07)
+
+/* defines for logical disk states */
+#define MPI_LD_STATE_OPTIMAL                        (0x00)
+#define MPI_LD_STATE_DEGRADED                       (0x01)
+#define MPI_LD_STATE_FAILED                         (0x02)
+#define MPI_LD_STATE_MISSING                        (0x03)
+#define MPI_LD_STATE_OFFLINE                        (0x04)
+
+/* defines for physical disk states */
+#define MPI_PD_STATE_ONLINE                         (0x00)
+#define MPI_PD_STATE_MISSING                        (0x01)
+#define MPI_PD_STATE_NOT_COMPATIBLE                 (0x02)
+#define MPI_PD_STATE_FAILED                         (0x03)
+#define MPI_PD_STATE_INITIALIZING                   (0x04)
+#define MPI_PD_STATE_OFFLINE_AT_HOST_REQUEST        (0x05)
+#define MPI_PD_STATE_FAILED_AT_HOST_REQUEST         (0x06)
+#define MPI_PD_STATE_OFFLINE_FOR_ANOTHER_REASON     (0xFF)
 
 /* MPI Link Status Change Event data */
 
@@ -659,6 +764,20 @@ typedef struct _EVENT_DATA_SAS_PHY_LINK_STATUS
 #define MPI_EVENT_SAS_PLS_LR_RATE_SATA_OOB_COMPLETE         (0x03)
 #define MPI_EVENT_SAS_PLS_LR_RATE_1_5                       (0x08)
 #define MPI_EVENT_SAS_PLS_LR_RATE_3_0                       (0x09)
+
+/* SAS Discovery Event data */
+
+typedef struct _EVENT_DATA_SAS_DISCOVERY
+{
+    U32                     DiscoveryStatus;            /* 00h */
+    U32                     Reserved1;                  /* 04h */
+} EVENT_DATA_SAS_DISCOVERY, MPI_POINTER PTR_EVENT_DATA_SAS_DISCOVERY,
+  EventDataSasDiscovery_t, MPI_POINTER pEventDataSasDiscovery_t;
+
+#define MPI_EVENT_SAS_DSCVRY_COMPLETE                       (0x00000000)
+#define MPI_EVENT_SAS_DSCVRY_IN_PROGRESS                    (0x00000001)
+#define MPI_EVENT_SAS_DSCVRY_PHY_BITS_MASK                  (0xFFFF0000)
+#define MPI_EVENT_SAS_DSCVRY_PHY_BITS_SHIFT                 (16)
 
 /* SAS Discovery Errror Event data */
 
@@ -869,6 +988,7 @@ typedef struct _MPI_FW_HEADER
 #define MPI_FW_HEADER_PID_FAMILY_919XL_FC       (0x0003) /* 919XL and 929XL */
 #define MPI_FW_HEADER_PID_FAMILY_939X_FC        (0x0004) /* 939X and 949X   */
 #define MPI_FW_HEADER_PID_FAMILY_959_FC         (0x0005)
+#define MPI_FW_HEADER_PID_FAMILY_949E_FC        (0x0006)
 /* SAS */
 #define MPI_FW_HEADER_PID_FAMILY_1064_SAS       (0x0001)
 #define MPI_FW_HEADER_PID_FAMILY_1068_SAS       (0x0002)

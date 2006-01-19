@@ -1059,7 +1059,7 @@ do {									\
 	"	.set	noat					\n"	\
 	"	move	$1, %0					\n"	\
 	"	# wrdsp $1, %x1					\n"	\
-	"	.word	0x7c2004f8 | (%x1 << 15)		\n"	\
+	"	.word	0x7c2004f8 | (%x1 << 11)		\n"	\
 	"	.set	pop					\n"	\
         :								\
 	: "r" (val), "i" (mask));					\

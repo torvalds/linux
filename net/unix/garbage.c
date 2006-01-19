@@ -182,7 +182,7 @@ void unix_gc(void)
 	if (down_trylock(&unix_gc_sem))
 		return;
 
-	read_lock(&unix_table_lock);
+	spin_lock(&unix_table_lock);
 
 	forall_unix_sockets(i, s)
 	{
@@ -301,7 +301,7 @@ void unix_gc(void)
 		}
 		u->gc_tree = GC_ORPHAN;
 	}
-	read_unlock(&unix_table_lock);
+	spin_unlock(&unix_table_lock);
 
 	/*
 	 *	Here we are. Hitlist is filled. Die.

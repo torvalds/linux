@@ -48,8 +48,8 @@
 #include <linux/fsnotify.h>
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
-#ifdef CONFIG_NFSD_V4
 #include <linux/xattr.h>
+#ifdef CONFIG_NFSD_V4
 #include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
 #include <linux/nfsd_idmap.h>
@@ -365,8 +365,30 @@ out_nfserr:
 	goto out;
 }
 
-#if defined(CONFIG_NFSD_V4)
+#if defined(CONFIG_NFSD_V2_ACL) || \
+    defined(CONFIG_NFSD_V3_ACL) || \
+    defined(CONFIG_NFSD_V4)
+static ssize_t nfsd_getxattr(struct dentry *dentry, char *key, void **buf)
+{
+	ssize_t buflen;
+	int error;
 
+	buflen = vfs_getxattr(dentry, key, NULL, 0);
+	if (buflen <= 0)
+		return buflen;
+
+	*buf = kmalloc(buflen, GFP_KERNEL);
+	if (!*buf)
+		return -ENOMEM;
+
+	error = vfs_getxattr(dentry, key, *buf, buflen);
+	if (error < 0)
+		return error;
+	return buflen;
+}
+#endif
+
+#if defined(CONFIG_NFSD_V4)
 static int
 set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
 {
@@ -374,7 +396,6 @@ set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
 	size_t buflen;
 	char *buf = NULL;
 	int error = 0;
-	struct inode *inode = dentry->d_inode;
 
 	buflen = posix_acl_xattr_size(pacl->a_count);
 	buf = kmalloc(buflen, GFP_KERNEL);
@@ -388,15 +409,7 @@ set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
 		goto out;
 	}
 
-	error = -EOPNOTSUPP;
-	if (inode->i_op && inode->i_op->setxattr) {
-		down(&inode->i_sem);
-		security_inode_setxattr(dentry, key, buf, len, 0);
-		error = inode->i_op->setxattr(dentry, key, buf, len, 0);
-		if (!error)
-			security_inode_post_setxattr(dentry, key, buf, len, 0);
-		up(&inode->i_sem);
-	}
+	error = vfs_setxattr(dentry, key, buf, len, 0);
 out:
 	kfree(buf);
 	return error;
@@ -455,44 +468,19 @@ out_nfserr:
 static struct posix_acl *
 _get_posix_acl(struct dentry *dentry, char *key)
 {
-	struct inode *inode = dentry->d_inode;
-	char *buf = NULL;
-	int buflen, error = 0;
+	void *buf = NULL;
 	struct posix_acl *pacl = NULL;
+	int buflen;
 
-	error = -EOPNOTSUPP;
-	if (inode->i_op == NULL)
-		goto out_err;
-	if (inode->i_op->getxattr == NULL)
-		goto out_err;
-
-	error = security_inode_getxattr(dentry, key);
-	if (error)
-		goto out_err;
-
-	buflen = inode->i_op->getxattr(dentry, key, NULL, 0);
-	if (buflen <= 0) {
-		error = buflen < 0 ? buflen : -ENODATA;
-		goto out_err;
-	}
-
-	buf = kmalloc(buflen, GFP_KERNEL);
-	if (buf == NULL) {
-		error = -ENOMEM;
-		goto out_err;
-	}
-
-	error = inode->i_op->getxattr(dentry, key, buf, buflen);
-	if (error < 0)
-		goto out_err;
+	buflen = nfsd_getxattr(dentry, key, &buf);
+	if (!buflen)
+		buflen = -ENODATA;
+	if (buflen <= 0)
+		return ERR_PTR(buflen);
 
 	pacl = posix_acl_from_xattr(buf, buflen);
- out:
 	kfree(buf);
 	return pacl;
- out_err:
-	pacl = ERR_PTR(error);
-	goto out;
 }
 
 int
@@ -717,33 +705,40 @@ nfsd_close(struct file *filp)
  * As this calls fsync (not fdatasync) there is no need for a write_inode
  * after it.
  */
-static inline void nfsd_dosync(struct file *filp, struct dentry *dp,
-			       struct file_operations *fop)
+static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
+			      struct file_operations *fop)
 {
 	struct inode *inode = dp->d_inode;
 	int (*fsync) (struct file *, struct dentry *, int);
+	int err;
 
-	filemap_fdatawrite(inode->i_mapping);
-	if (fop && (fsync = fop->fsync))
-		fsync(filp, dp, 0);
-	filemap_fdatawait(inode->i_mapping);
+	err = filemap_fdatawrite(inode->i_mapping);
+	if (err == 0 && fop && (fsync = fop->fsync))
+		err = fsync(filp, dp, 0);
+	if (err == 0)
+		err = filemap_fdatawait(inode->i_mapping);
+
+	return err;
 }
 	
 
-static void
+static int
 nfsd_sync(struct file *filp)
 {
+        int err;
 	struct inode *inode = filp->f_dentry->d_inode;
 	dprintk("nfsd: sync file %s\n", filp->f_dentry->d_name.name);
-	down(&inode->i_sem);
-	nfsd_dosync(filp, filp->f_dentry, filp->f_op);
-	up(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
+	err=nfsd_dosync(filp, filp->f_dentry, filp->f_op);
+	mutex_unlock(&inode->i_mutex);
+
+	return err;
 }
 
-void
+int
 nfsd_sync_dir(struct dentry *dp)
 {
-	nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
+	return nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
 }
 
 /*
@@ -820,7 +815,7 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 	return size;
 }
 
-static inline int
+static int
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
@@ -874,7 +869,17 @@ out:
 	return err;
 }
 
-static inline int
+static void kill_suid(struct dentry *dentry)
+{
+	struct iattr	ia;
+	ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
+
+	mutex_lock(&dentry->d_inode->i_mutex);
+	notify_change(dentry, &ia);
+	mutex_unlock(&dentry->d_inode->i_mutex);
+}
+
+static int
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
 	   			unsigned long cnt, int *stablep)
@@ -886,9 +891,9 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int			err = 0;
 	int			stable = *stablep;
 
+#ifdef MSNFS
 	err = nfserr_perm;
 
-#ifdef MSNFS
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		(!lock_may_write(file->f_dentry->d_inode, offset, cnt)))
 		goto out;
@@ -927,14 +932,8 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	}
 
 	/* clear setuid/setgid flag after write */
-	if (err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID))) {
-		struct iattr	ia;
-		ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
-
-		down(&inode->i_sem);
-		notify_change(dentry, &ia);
-		up(&inode->i_sem);
-	}
+	if (err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID)))
+		kill_suid(dentry);
 
 	if (err >= 0 && stable) {
 		static ino_t	last_ino;
@@ -962,7 +961,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 			if (inode->i_state & I_DIRTY) {
 				dprintk("nfsd: write sync %d\n", current->pid);
-				nfsd_sync(file);
+				err=nfsd_sync(file);
 			}
 #if 0
 			wake_up(&inode->i_wait);
@@ -1066,7 +1065,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return err;
 	if (EX_ISSYNC(fhp->fh_export)) {
 		if (file->f_op && file->f_op->fsync) {
-			nfsd_sync(file);
+			err = nfserrno(nfsd_sync(file));
 		} else {
 			err = nfserr_notsupp;
 		}
@@ -1134,7 +1133,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				"nfsd_create: parent %s/%s not locked!\n",
 				dentry->d_parent->d_name.name,
 				dentry->d_name.name);
-			err = -EIO;
+			err = nfserr_io;
 			goto out;
 		}
 	}
@@ -1177,7 +1176,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (EX_ISSYNC(fhp->fh_export)) {
-		nfsd_sync_dir(dentry);
+		err = nfserrno(nfsd_sync_dir(dentry));
 		write_inode_now(dchild->d_inode, 1);
 	}
 
@@ -1187,9 +1186,11 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	 * send along the gid when it tries to implement setgid
 	 * directories via NFS.
 	 */
-	err = 0;
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0)
-		err = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0) {
+		int err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		if (err2)
+			err = err2;
+	}
 	/*
 	 * Update the file handle to get the new inode info.
 	 */
@@ -1308,16 +1309,9 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (EX_ISSYNC(fhp->fh_export)) {
-		nfsd_sync_dir(dentry);
+		err = nfserrno(nfsd_sync_dir(dentry));
 		/* setattr will sync the child (or not) */
 	}
-
-	/*
-	 * Update the filehandle to get the new inode info.
-	 */
-	err = fh_update(resfhp);
-	if (err)
-		goto out;
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
 		/* Cram the verifier into atime/mtime/mode */
@@ -1339,8 +1333,17 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	 * implement setgid directories via NFS. Clear out all that cruft.
 	 */
  set_attr:
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0)
- 		err = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0) {
+ 		int err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		if (err2)
+			err = err2;
+	}
+
+	/*
+	 * Update the filehandle to get the new inode info.
+	 */
+	if (!err)
+		err = fh_update(resfhp);
 
  out:
 	fh_unlock(fhp);
@@ -1449,10 +1452,10 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	} else
 		err = vfs_symlink(dentry->d_inode, dnew, path, mode);
 
-	if (!err) {
+	if (!err)
 		if (EX_ISSYNC(fhp->fh_export))
-			nfsd_sync_dir(dentry);
-	} else
+			err = nfsd_sync_dir(dentry);
+	if (err)
 		err = nfserrno(err);
 	fh_unlock(fhp);
 
@@ -1508,7 +1511,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = vfs_link(dold, dirp, dnew);
 	if (!err) {
 		if (EX_ISSYNC(ffhp->fh_export)) {
-			nfsd_sync_dir(ddir);
+			err = nfserrno(nfsd_sync_dir(ddir));
 			write_inode_now(dest, 1);
 		}
 	} else {
@@ -1592,13 +1595,14 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if ((ffhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		((atomic_read(&odentry->d_count) > 1)
 		 || (atomic_read(&ndentry->d_count) > 1))) {
-			err = nfserr_perm;
+			err = -EPERM;
 	} else
 #endif
 	err = vfs_rename(fdir, odentry, tdir, ndentry);
 	if (!err && EX_ISSYNC(tfhp->fh_export)) {
-		nfsd_sync_dir(tdentry);
-		nfsd_sync_dir(fdentry);
+		err = nfsd_sync_dir(tdentry);
+		if (!err)
+			err = nfsd_sync_dir(fdentry);
 	}
 
  out_dput_new:
@@ -1663,7 +1667,7 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 #ifdef MSNFS
 		if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 			(atomic_read(&rdentry->d_count) > 1)) {
-			err = nfserr_perm;
+			err = -EPERM;
 		} else
 #endif
 		err = vfs_unlink(dirp, rdentry);
@@ -1673,17 +1677,14 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 
 	dput(rdentry);
 
-	if (err)
-		goto out_nfserr;
-	if (EX_ISSYNC(fhp->fh_export)) 
-		nfsd_sync_dir(dentry);
-
-out:
-	return err;
+	if (err == 0 &&
+	    EX_ISSYNC(fhp->fh_export))
+			err = nfsd_sync_dir(dentry);
 
 out_nfserr:
 	err = nfserrno(err);
-	goto out;
+out:
+	return err;
 }
 
 /*
@@ -1874,39 +1875,25 @@ nfsd_get_posix_acl(struct svc_fh *fhp, int type)
 	ssize_t size;
 	struct posix_acl *acl;
 
-	if (!IS_POSIXACL(inode) || !inode->i_op || !inode->i_op->getxattr)
+	if (!IS_POSIXACL(inode))
 		return ERR_PTR(-EOPNOTSUPP);
-	switch(type) {
-		case ACL_TYPE_ACCESS:
-			name = POSIX_ACL_XATTR_ACCESS;
-			break;
-		case ACL_TYPE_DEFAULT:
-			name = POSIX_ACL_XATTR_DEFAULT;
-			break;
-		default:
-			return ERR_PTR(-EOPNOTSUPP);
+
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		name = POSIX_ACL_XATTR_ACCESS;
+		break;
+	case ACL_TYPE_DEFAULT:
+		name = POSIX_ACL_XATTR_DEFAULT;
+		break;
+	default:
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	size = inode->i_op->getxattr(fhp->fh_dentry, name, NULL, 0);
+	size = nfsd_getxattr(fhp->fh_dentry, name, &value);
+	if (size < 0)
+		return ERR_PTR(size);
 
-	if (size < 0) {
-		acl = ERR_PTR(size);
-		goto getout;
-	} else if (size > 0) {
-		value = kmalloc(size, GFP_KERNEL);
-		if (!value) {
-			acl = ERR_PTR(-ENOMEM);
-			goto getout;
-		}
-		size = inode->i_op->getxattr(fhp->fh_dentry, name, value, size);
-		if (size < 0) {
-			acl = ERR_PTR(size);
-			goto getout;
-		}
-	}
 	acl = posix_acl_from_xattr(value, size);
-
-getout:
 	kfree(value);
 	return acl;
 }
@@ -1947,16 +1934,13 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 	} else
 		size = 0;
 
-	if (!fhp->fh_locked)
-		fh_lock(fhp);  /* unlocking is done automatically */
 	if (size)
-		error = inode->i_op->setxattr(fhp->fh_dentry, name,
-					      value, size, 0);
+		error = vfs_setxattr(fhp->fh_dentry, name, value, size, 0);
 	else {
 		if (!S_ISDIR(inode->i_mode) && type == ACL_TYPE_DEFAULT)
 			error = 0;
 		else {
-			error = inode->i_op->removexattr(fhp->fh_dentry, name);
+			error = vfs_removexattr(fhp->fh_dentry, name);
 			if (error == -ENODATA)
 				error = 0;
 		}

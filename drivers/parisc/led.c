@@ -3,7 +3,7 @@
  *
  *      (c) Copyright 2000 Red Hat Software
  *      (c) Copyright 2000 Helge Deller <hdeller@redhat.com>
- *      (c) Copyright 2001-2004 Helge Deller <deller@gmx.de>
+ *      (c) Copyright 2001-2005 Helge Deller <deller@gmx.de>
  *      (c) Copyright 2001 Randolph Chung <tausq@debian.org>
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/utsname.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
@@ -56,13 +57,13 @@
    relatively large amount of CPU time, some of the calculations can be 
    turned off with the following variables (controlled via procfs) */
 
-static int led_type = -1;
+static int led_type __read_mostly = -1;
 static unsigned char lastleds;	/* LED state from most recent update */
-static unsigned int led_heartbeat = 1;
-static unsigned int led_diskio = 1;
-static unsigned int led_lanrxtx = 1;
-static char lcd_text[32];
-static char lcd_text_default[32];
+static unsigned int led_heartbeat __read_mostly = 1;
+static unsigned int led_diskio    __read_mostly = 1;
+static unsigned int led_lanrxtx   __read_mostly = 1;
+static char lcd_text[32]          __read_mostly;
+static char lcd_text_default[32]  __read_mostly;
 
 
 static struct workqueue_struct *led_wq;
@@ -108,7 +109,7 @@ struct pdc_chassis_lcd_info_ret_block {
 /* lcd_info is pre-initialized to the values needed to program KittyHawk LCD's 
  * HP seems to have used Sharp/Hitachi HD44780 LCDs most of the time. */
 static struct pdc_chassis_lcd_info_ret_block
-lcd_info __attribute__((aligned(8))) =
+lcd_info __attribute__((aligned(8))) __read_mostly =
 {
 	.model =		DISPLAY_MODEL_LCD,
 	.lcd_width =		16,
@@ -144,7 +145,7 @@ static int start_task(void)
 device_initcall(start_task);
 
 /* ptr to LCD/LED-specific function */
-static void (*led_func_ptr) (unsigned char);
+static void (*led_func_ptr) (unsigned char) __read_mostly;
 
 #ifdef CONFIG_PROC_FS
 static int led_proc_read(char *page, char **start, off_t off, int count, 
@@ -347,7 +348,7 @@ static void led_LCD_driver(unsigned char leds)
    ** 
    ** led_get_net_activity()
    ** 
-   ** calculate if there was TX- or RX-troughput on the network interfaces
+   ** calculate if there was TX- or RX-throughput on the network interfaces
    ** (analog to dev_get_info() from net/core/dev.c)
    **   
  */

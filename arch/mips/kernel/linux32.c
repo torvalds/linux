@@ -420,7 +420,7 @@ asmlinkage ssize_t sys32_pread(unsigned int fd, char * buf,
 		goto out;
 	pos = merge_64(a4, a5);
 	ret = rw_verify_area(READ, file, &pos, count);
-	if (ret)
+	if (ret < 0)
 		goto out;
 	ret = -EINVAL;
 	if (!file->f_op || !(read = file->f_op->read))
@@ -455,7 +455,7 @@ asmlinkage ssize_t sys32_pwrite(unsigned int fd, const char * buf,
 		goto out;
 	pos = merge_64(a4, a5);
 	ret = rw_verify_area(WRITE, file, &pos, count);
-	if (ret)
+	if (ret < 0)
 		goto out;
 	ret = -EINVAL;
 	if (!file->f_op || !(write = file->f_op->write))

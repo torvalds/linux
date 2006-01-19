@@ -43,6 +43,7 @@ typedef struct __user_cap_data_struct {
 #ifdef __KERNEL__
 
 #include <linux/spinlock.h>
+#include <asm/current.h>
 
 /* #define STRICT_CAP_T_TYPECHECKS */
 
@@ -355,6 +356,8 @@ static inline kernel_cap_t cap_invert(kernel_cap_t c)
 #define cap_mask(c,mask)     do { cap_t(c) &= cap_t(mask); } while(0)
 
 #define cap_is_fs_cap(c)     (CAP_TO_MASK(c) & CAP_FS_MASK)
+
+extern int capable(int cap);
 
 #endif /* __KERNEL__ */
 

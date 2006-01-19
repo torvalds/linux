@@ -17,7 +17,7 @@
 #include <linux/i2o.h>
 
 #define OSM_NAME	"bus-osm"
-#define OSM_VERSION	"$Rev$"
+#define OSM_VERSION	"1.317"
 #define OSM_DESCRIPTION	"I2O Bus Adapter OSM"
 
 static struct i2o_driver i2o_bus_driver;
@@ -39,18 +39,18 @@ static struct i2o_class_id i2o_bus_class_id[] = {
  */
 static int i2o_bus_scan(struct i2o_device *dev)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
 		return -ETIMEDOUT;
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_BUS_SCAN << 24 | HOST_TID << 12 | dev->lct_data.tid,
-	       &msg->u.head[1]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_BUS_SCAN << 24 | HOST_TID << 12 | dev->lct_data.
+			tid);
 
-	return i2o_msg_post_wait(dev->iop, m, 60);
+	return i2o_msg_post_wait(dev->iop, msg, 60);
 };
 
 /**
@@ -59,8 +59,9 @@ static int i2o_bus_scan(struct i2o_device *dev)
  *
  *	Returns count.
  */
-static ssize_t i2o_bus_store_scan(struct device *d, struct device_attribute *attr, const char *buf,
-				  size_t count)
+static ssize_t i2o_bus_store_scan(struct device *d,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(d);
 	int rc;

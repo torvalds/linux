@@ -55,22 +55,6 @@ struct tcphdr {
 	__u16	urg_ptr;
 };
 
-#define TCP_ACTION_FIN	(1 << 7)
-
-enum {
-  TCPF_ESTABLISHED = (1 << 1),
-  TCPF_SYN_SENT  = (1 << 2),
-  TCPF_SYN_RECV  = (1 << 3),
-  TCPF_FIN_WAIT1 = (1 << 4),
-  TCPF_FIN_WAIT2 = (1 << 5),
-  TCPF_TIME_WAIT = (1 << 6),
-  TCPF_CLOSE     = (1 << 7),
-  TCPF_CLOSE_WAIT = (1 << 8),
-  TCPF_LAST_ACK  = (1 << 9),
-  TCPF_LISTEN    = (1 << 10),
-  TCPF_CLOSING   = (1 << 11) 
-};
-
 /*
  *	The union cast uses a gcc extension to avoid aliasing problems
  *  (union is compatible to any of its members)
@@ -254,10 +238,9 @@ struct tcp_sock {
 	__u32	snd_wl1;	/* Sequence for window update		*/
 	__u32	snd_wnd;	/* The window we expect to receive	*/
 	__u32	max_window;	/* Maximal window ever seen from peer	*/
-	__u32	pmtu_cookie;	/* Last pmtu seen by socket		*/
 	__u32	mss_cache;	/* Cached effective mss, not including SACKS */
 	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
-	__u16	ext_header_len;	/* Network protocol overhead (IP/IPv6 options) */
+	/* XXX Two bytes hole, try to pack */
 
 	__u32	window_clamp;	/* Maximal window to advertise		*/
 	__u32	rcv_ssthresh;	/* Current window clamp			*/
@@ -294,8 +277,6 @@ struct tcp_sock {
 	__u32	snd_cwnd_stamp;
 
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
-
-	struct tcp_func		*af_specific;	/* Operations which are AF_INET{4,6} specific	*/
 
  	__u32	rcv_wnd;	/* Current receiver window		*/
 	__u32	rcv_wup;	/* rcv_nxt on last window update sent	*/

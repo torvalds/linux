@@ -23,6 +23,4 @@
 #define L1_CACHE_SHIFT		4
 #endif
 
-#define L1_CACHE_SHIFT_MAX	L1_CACHE_SHIFT
-
 #endif /* __V850_CACHE_H__ */

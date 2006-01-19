@@ -18,11 +18,13 @@
  */
 
 
+#include <asm/byteorder.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/types.h>
 
 #define CAST6_BLOCK_SIZE 16
 #define CAST6_MIN_KEY_SIZE 16
@@ -384,7 +386,7 @@ cast6_setkey(void *ctx, const u8 * in_key, unsigned key_len, u32 * flags)
 {
 	int i;
 	u32 key[8];
-	u8 p_key[32]; /* padded key */
+	__be32 p_key[8]; /* padded key */
 	struct cast6_ctx *c = (struct cast6_ctx *) ctx;
 
 	if (key_len < 16 || key_len > 32 || key_len % 4 != 0) {
@@ -395,14 +397,14 @@ cast6_setkey(void *ctx, const u8 * in_key, unsigned key_len, u32 * flags)
 	memset (p_key, 0, 32);
 	memcpy (p_key, in_key, key_len);
 	
-	key[0] = p_key[0] << 24 | p_key[1] << 16 | p_key[2] << 8 | p_key[3];		/* A */
-	key[1] = p_key[4] << 24 | p_key[5] << 16 | p_key[6] << 8 | p_key[7];		/* B */
-	key[2] = p_key[8] << 24 | p_key[9] << 16 | p_key[10] << 8 | p_key[11];		/* C */
-	key[3] = p_key[12] << 24 | p_key[13] << 16 | p_key[14] << 8 | p_key[15];	/* D */
-	key[4] = p_key[16] << 24 | p_key[17] << 16 | p_key[18] << 8 | p_key[19];	/* E */
-	key[5] = p_key[20] << 24 | p_key[21] << 16 | p_key[22] << 8 | p_key[23];	/* F */
-	key[6] = p_key[24] << 24 | p_key[25] << 16 | p_key[26] << 8 | p_key[27];	/* G */
-	key[7] = p_key[28] << 24 | p_key[29] << 16 | p_key[30] << 8 | p_key[31];	/* H */
+	key[0] = be32_to_cpu(p_key[0]);		/* A */
+	key[1] = be32_to_cpu(p_key[1]);		/* B */
+	key[2] = be32_to_cpu(p_key[2]);		/* C */
+	key[3] = be32_to_cpu(p_key[3]);		/* D */
+	key[4] = be32_to_cpu(p_key[4]);		/* E */
+	key[5] = be32_to_cpu(p_key[5]);		/* F */
+	key[6] = be32_to_cpu(p_key[6]);		/* G */
+	key[7] = be32_to_cpu(p_key[7]);		/* H */
 	
 
 
@@ -444,14 +446,16 @@ static inline void QBAR (u32 * block, u8 * Kr, u32 * Km) {
 
 static void cast6_encrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
 	struct cast6_ctx * c = (struct cast6_ctx *)ctx;
+	const __be32 *src = (const __be32 *)inbuf;
+	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
 	u32 * Km; 
 	u8 * Kr;
 
-	block[0] = inbuf[0] << 24 | inbuf[1] << 16 | inbuf[2] << 8 | inbuf[3];
-	block[1] = inbuf[4] << 24 | inbuf[5] << 16 | inbuf[6] << 8 | inbuf[7];
-	block[2] = inbuf[8] << 24 | inbuf[9] << 16 | inbuf[10] << 8 | inbuf[11];
-	block[3] = inbuf[12] << 24 | inbuf[13] << 16 | inbuf[14] << 8 | inbuf[15];
+	block[0] = be32_to_cpu(src[0]);
+	block[1] = be32_to_cpu(src[1]);
+	block[2] = be32_to_cpu(src[2]);
+	block[3] = be32_to_cpu(src[3]);
 
 	Km = c->Km[0]; Kr = c->Kr[0]; Q (block, Kr, Km);
 	Km = c->Km[1]; Kr = c->Kr[1]; Q (block, Kr, Km);
@@ -465,35 +469,25 @@ static void cast6_encrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
 	Km = c->Km[9]; Kr = c->Kr[9]; QBAR (block, Kr, Km);
 	Km = c->Km[10]; Kr = c->Kr[10]; QBAR (block, Kr, Km);
 	Km = c->Km[11]; Kr = c->Kr[11]; QBAR (block, Kr, Km);
-	
-	outbuf[0] = (block[0] >> 24) & 0xff;
-	outbuf[1] = (block[0] >> 16) & 0xff;
-	outbuf[2] = (block[0] >> 8) & 0xff;
-	outbuf[3] = block[0] & 0xff;
-	outbuf[4] = (block[1] >> 24) & 0xff;
-	outbuf[5] = (block[1] >> 16) & 0xff;
-	outbuf[6] = (block[1] >> 8) & 0xff;
-	outbuf[7] = block[1] & 0xff;
-	outbuf[8] = (block[2] >> 24) & 0xff;
-	outbuf[9] = (block[2] >> 16) & 0xff;
-	outbuf[10] = (block[2] >> 8) & 0xff;
-	outbuf[11] = block[2] & 0xff;
-	outbuf[12] = (block[3] >> 24) & 0xff;
-	outbuf[13] = (block[3] >> 16) & 0xff;
-	outbuf[14] = (block[3] >> 8) & 0xff;
-	outbuf[15] = block[3] & 0xff;	
+
+	dst[0] = cpu_to_be32(block[0]);
+	dst[1] = cpu_to_be32(block[1]);
+	dst[2] = cpu_to_be32(block[2]);
+	dst[3] = cpu_to_be32(block[3]);
 }	
 
 static void cast6_decrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
 	struct cast6_ctx * c = (struct cast6_ctx *)ctx;
+	const __be32 *src = (const __be32 *)inbuf;
+	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
 	u32 * Km; 
 	u8 * Kr;
 
-	block[0] = inbuf[0] << 24 | inbuf[1] << 16 | inbuf[2] << 8 | inbuf[3];
-	block[1] = inbuf[4] << 24 | inbuf[5] << 16 | inbuf[6] << 8 | inbuf[7];
-	block[2] = inbuf[8] << 24 | inbuf[9] << 16 | inbuf[10] << 8 | inbuf[11];
-	block[3] = inbuf[12] << 24 | inbuf[13] << 16 | inbuf[14] << 8 | inbuf[15];
+	block[0] = be32_to_cpu(src[0]);
+	block[1] = be32_to_cpu(src[1]);
+	block[2] = be32_to_cpu(src[2]);
+	block[3] = be32_to_cpu(src[3]);
 
 	Km = c->Km[11]; Kr = c->Kr[11]; Q (block, Kr, Km);
 	Km = c->Km[10]; Kr = c->Kr[10]; Q (block, Kr, Km);
@@ -508,22 +502,10 @@ static void cast6_decrypt (void * ctx, u8 * outbuf, const u8 * inbuf) {
 	Km = c->Km[1]; Kr = c->Kr[1]; QBAR (block, Kr, Km);
 	Km = c->Km[0]; Kr = c->Kr[0]; QBAR (block, Kr, Km);
 	
-	outbuf[0] = (block[0] >> 24) & 0xff;
-	outbuf[1] = (block[0] >> 16) & 0xff;
-	outbuf[2] = (block[0] >> 8) & 0xff;
-	outbuf[3] = block[0] & 0xff;
-	outbuf[4] = (block[1] >> 24) & 0xff;
-	outbuf[5] = (block[1] >> 16) & 0xff;
-	outbuf[6] = (block[1] >> 8) & 0xff;
-	outbuf[7] = block[1] & 0xff;
-	outbuf[8] = (block[2] >> 24) & 0xff;
-	outbuf[9] = (block[2] >> 16) & 0xff;
-	outbuf[10] = (block[2] >> 8) & 0xff;
-	outbuf[11] = block[2] & 0xff;
-	outbuf[12] = (block[3] >> 24) & 0xff;
-	outbuf[13] = (block[3] >> 16) & 0xff;
-	outbuf[14] = (block[3] >> 8) & 0xff;
-	outbuf[15] = block[3] & 0xff;	
+	dst[0] = cpu_to_be32(block[0]);
+	dst[1] = cpu_to_be32(block[1]);
+	dst[2] = cpu_to_be32(block[2]);
+	dst[3] = cpu_to_be32(block[3]);
 }	
 
 static struct crypto_alg alg = {
@@ -531,6 +513,7 @@ static struct crypto_alg alg = {
 	.cra_flags = CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize = CAST6_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct cast6_ctx),
+	.cra_alignmask = 3,
 	.cra_module = THIS_MODULE,
 	.cra_list = LIST_HEAD_INIT(alg.cra_list),
 	.cra_u = {

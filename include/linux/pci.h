@@ -78,6 +78,23 @@ typedef int __bitwise pci_power_t;
 #define PCI_UNKNOWN	((pci_power_t __force) 5)
 #define PCI_POWER_ERROR	((pci_power_t __force) -1)
 
+/** The pci_channel state describes connectivity between the CPU and
+ *  the pci device.  If some PCI bus between here and the pci device
+ *  has crashed or locked up, this info is reflected here.
+ */
+typedef unsigned int __bitwise pci_channel_state_t;
+
+enum pci_channel_state {
+	/* I/O channel is in normal state */
+	pci_channel_io_normal = (__force pci_channel_state_t) 1,
+
+	/* I/O to channel is blocked */
+	pci_channel_io_frozen = (__force pci_channel_state_t) 2,
+
+	/* PCI card is dead */
+	pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
+};
+
 /*
  * The pci_dev structure is used to describe PCI devices.
  */
@@ -98,6 +115,7 @@ struct pci_dev {
 	unsigned int	class;		/* 3 bytes: (base,sub,prog-if) */
 	u8		hdr_type;	/* PCI header type (`multi' flag masked out) */
 	u8		rom_base_reg;	/* which config register controls the ROM */
+	u8		pin;  		/* which interrupt pin this device uses */
 
 	struct pci_driver *driver;	/* which driver has allocated this device */
 	u64		dma_mask;	/* Mask of the bits of bus address this
@@ -110,6 +128,7 @@ struct pci_dev {
 					   this is D0-D3, D0 being fully functional,
 					   and D3 being off. */
 
+	pci_channel_state_t error_state;	/* current connectivity state */
 	struct	device	dev;		/* Generic device interface */
 
 	/* device is compatible with these IDs */
@@ -232,6 +251,54 @@ struct pci_dynids {
 	unsigned int use_driver_data:1; /* pci_driver->driver_data is used */
 };
 
+/* ---------------------------------------------------------------- */
+/** PCI Error Recovery System (PCI-ERS).  If a PCI device driver provides
+ *  a set fof callbacks in struct pci_error_handlers, then that device driver
+ *  will be notified of PCI bus errors, and will be driven to recovery
+ *  when an error occurs.
+ */
+
+typedef unsigned int __bitwise pci_ers_result_t;
+
+enum pci_ers_result {
+	/* no result/none/not supported in device driver */
+	PCI_ERS_RESULT_NONE = (__force pci_ers_result_t) 1,
+
+	/* Device driver can recover without slot reset */
+	PCI_ERS_RESULT_CAN_RECOVER = (__force pci_ers_result_t) 2,
+
+	/* Device driver wants slot to be reset. */
+	PCI_ERS_RESULT_NEED_RESET = (__force pci_ers_result_t) 3,
+
+	/* Device has completely failed, is unrecoverable */
+	PCI_ERS_RESULT_DISCONNECT = (__force pci_ers_result_t) 4,
+
+	/* Device driver is fully recovered and operational */
+	PCI_ERS_RESULT_RECOVERED = (__force pci_ers_result_t) 5,
+};
+
+/* PCI bus error event callbacks */
+struct pci_error_handlers
+{
+	/* PCI bus error detected on this device */
+	pci_ers_result_t (*error_detected)(struct pci_dev *dev,
+	                      enum pci_channel_state error);
+
+	/* MMIO has been re-enabled, but not DMA */
+	pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
+
+	/* PCI Express link has been reset */
+	pci_ers_result_t (*link_reset)(struct pci_dev *dev);
+
+	/* PCI slot has been reset */
+	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
+
+	/* Device driver may resume normal operations */
+	void (*resume)(struct pci_dev *dev);
+};
+
+/* ---------------------------------------------------------------- */
+
 struct module;
 struct pci_driver {
 	struct list_head node;
@@ -244,6 +311,7 @@ struct pci_driver {
 	int  (*enable_wake) (struct pci_dev *dev, pci_power_t state, int enable);   /* Enable wake event */
 	void (*shutdown) (struct pci_dev *dev);
 
+	struct pci_error_handlers *err_handler;
 	struct device_driver	driver;
 	struct pci_dynids dynids;
 };
@@ -448,6 +516,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 
 void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 		  void *userdata);
+int pci_cfg_space_size(struct pci_dev *dev);
 
 /* kmem_cache style wrapper around pci_alloc_consistent() */
 

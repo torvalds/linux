@@ -1,8 +1,9 @@
 /*
  *  linux/fs/9p/9p.c
  *
- *  This file contains functions 9P2000 functions
+ *  This file contains functions to perform synchronous 9P calls
  *
+ *  Copyright (C) 2004 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
@@ -33,6 +34,7 @@
 #include "debug.h"
 #include "v9fs.h"
 #include "9p.h"
+#include "conv.h"
 #include "mux.h"
 
 /**
@@ -46,16 +48,21 @@
 
 int
 v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
-	       char *version, struct v9fs_fcall **fcall)
+	       char *version, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
 
 	dprintk(DEBUG_9P, "msize: %d version: %s\n", msize, version);
-	msg.id = TVERSION;
-	msg.params.tversion.msize = msize;
-	msg.params.tversion.version = version;
+	tc = v9fs_create_tversion(msize, version);
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
 }
 
 /**
@@ -71,19 +78,45 @@ v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
 
 int
 v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
-	      u32 fid, u32 afid, struct v9fs_fcall **fcall)
+	      u32 fid, u32 afid, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall* tc;
 
 	dprintk(DEBUG_9P, "uname '%s' aname '%s' fid %d afid %d\n", uname,
 		aname, fid, afid);
-	msg.id = TATTACH;
-	msg.params.tattach.fid = fid;
-	msg.params.tattach.afid = afid;
-	msg.params.tattach.uname = uname;
-	msg.params.tattach.aname = aname;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	tc = v9fs_create_tattach(fid, afid, uname, aname);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
+}
+
+static void v9fs_t_clunk_cb(void *a, struct v9fs_fcall *tc,
+	struct v9fs_fcall *rc, int err)
+{
+	int fid;
+	struct v9fs_session_info *v9ses;
+
+	if (err)
+		return;
+
+	fid = tc->params.tclunk.fid;
+	kfree(tc);
+
+	if (!rc)
+		return;
+
+	dprintk(DEBUG_9P, "tcall id %d rcall id %d\n", tc->id, rc->id);
+	v9ses = a;
+	if (rc->id == RCLUNK)
+		v9fs_put_idpool(fid, &v9ses->fidpool);
+
+	kfree(rc);
 }
 
 /**
@@ -95,16 +128,25 @@ v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
  */
 
 int
-v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid,
-	     struct v9fs_fcall **fcall)
+v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc, *rc;
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
-	msg.id = TCLUNK;
-	msg.params.tclunk.fid = fid;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	rc = NULL;
+	tc = v9fs_create_tclunk(fid);
+	if (!IS_ERR(tc))
+		ret = v9fs_mux_rpc(v9ses->mux, tc, &rc);
+	else
+		ret = PTR_ERR(tc);
+
+	if (ret)
+		dprintk(DEBUG_ERROR, "failed fid %d err %d\n", fid, ret);
+
+	v9fs_t_clunk_cb(v9ses, tc, rc, ret);
+	return ret;
 }
 
 /**
@@ -114,14 +156,21 @@ v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid,
  *
  */
 
-int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 tag)
+int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
 
-	dprintk(DEBUG_9P, "oldtag %d\n", tag);
-	msg.id = TFLUSH;
-	msg.params.tflush.oldtag = tag;
-	return v9fs_mux_rpc(v9ses, &msg, NULL);
+	dprintk(DEBUG_9P, "oldtag %d\n", oldtag);
+
+	tc = v9fs_create_tflush(oldtag);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, NULL);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
 }
 
 /**
@@ -133,17 +182,22 @@ int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 tag)
  */
 
 int
-v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid, struct v9fs_fcall **fcall)
+v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
-	if (fcall)
-		*fcall = NULL;
 
-	msg.id = TSTAT;
-	msg.params.tstat.fid = fid;
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	ret = -ENOMEM;
+	tc = v9fs_create_tstat(fid);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
 }
 
 /**
@@ -157,16 +211,21 @@ v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid, struct v9fs_fcall **fcall)
 
 int
 v9fs_t_wstat(struct v9fs_session_info *v9ses, u32 fid,
-	     struct v9fs_stat *stat, struct v9fs_fcall **fcall)
+	     struct v9fs_wstat *wstat, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
 
-	dprintk(DEBUG_9P, "fid %d length %d\n", fid, (int)stat->length);
-	msg.id = TWSTAT;
-	msg.params.twstat.fid = fid;
-	msg.params.twstat.stat = stat;
+	dprintk(DEBUG_9P, "fid %d\n", fid);
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	tc = v9fs_create_twstat(fid, wstat, v9ses->extended);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
 }
 
 /**
@@ -183,23 +242,27 @@ v9fs_t_wstat(struct v9fs_session_info *v9ses, u32 fid,
 
 int
 v9fs_t_walk(struct v9fs_session_info *v9ses, u32 fid, u32 newfid,
-	    char *name, struct v9fs_fcall **fcall)
+	    char *name, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
+	int nwname;
 
 	dprintk(DEBUG_9P, "fid %d newfid %d wname '%s'\n", fid, newfid, name);
-	msg.id = TWALK;
-	msg.params.twalk.fid = fid;
-	msg.params.twalk.newfid = newfid;
 
-	if (name) {
-		msg.params.twalk.nwname = 1;
-		msg.params.twalk.wnames = &name;
-	} else {
-		msg.params.twalk.nwname = 0;
-	}
+	if (name)
+		nwname = 1;
+	else
+		nwname = 0;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	tc = v9fs_create_twalk(fid, newfid, nwname, &name);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
 }
 
 /**
@@ -214,19 +277,21 @@ v9fs_t_walk(struct v9fs_session_info *v9ses, u32 fid, u32 newfid,
 
 int
 v9fs_t_open(struct v9fs_session_info *v9ses, u32 fid, u8 mode,
-	    struct v9fs_fcall **fcall)
+	    struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
-	long errorno = -1;
+	int ret;
+	struct v9fs_fcall *tc;
 
 	dprintk(DEBUG_9P, "fid %d mode %d\n", fid, mode);
-	msg.id = TOPEN;
-	msg.params.topen.fid = fid;
-	msg.params.topen.mode = mode;
 
-	errorno = v9fs_mux_rpc(v9ses, &msg, fcall);
+	tc = v9fs_create_topen(fid, mode);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
 
-	return errorno;
+	return ret;
 }
 
 /**
@@ -239,14 +304,21 @@ v9fs_t_open(struct v9fs_session_info *v9ses, u32 fid, u8 mode,
 
 int
 v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
-	      struct v9fs_fcall **fcall)
+	      struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
-	msg.id = TREMOVE;
-	msg.params.tremove.fid = fid;
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+
+	tc = v9fs_create_tremove(fid);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
+
+	return ret;
 }
 
 /**
@@ -262,20 +334,22 @@ v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
 
 int
 v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
-	      u32 perm, u8 mode, struct v9fs_fcall **fcall)
+	      u32 perm, u8 mode, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
+	int ret;
+	struct v9fs_fcall *tc;
 
 	dprintk(DEBUG_9P, "fid %d name '%s' perm %x mode %d\n",
 		fid, name, perm, mode);
 
-	msg.id = TCREATE;
-	msg.params.tcreate.fid = fid;
-	msg.params.tcreate.name = name;
-	msg.params.tcreate.perm = perm;
-	msg.params.tcreate.mode = mode;
+	tc = v9fs_create_tcreate(fid, name, perm, mode);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return ret;
 }
 
 /**
@@ -290,31 +364,29 @@ v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
 
 int
 v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
-	    u32 count, struct v9fs_fcall **fcall)
+	    u32 count, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
-	struct v9fs_fcall *rc = NULL;
-	long errorno = -1;
+	int ret;
+	struct v9fs_fcall *tc, *rc;
 
-	dprintk(DEBUG_9P, "fid %d offset 0x%lx count 0x%x\n", fid,
-		(long unsigned int)offset, count);
-	msg.id = TREAD;
-	msg.params.tread.fid = fid;
-	msg.params.tread.offset = offset;
-	msg.params.tread.count = count;
-	errorno = v9fs_mux_rpc(v9ses, &msg, &rc);
+	dprintk(DEBUG_9P, "fid %d offset 0x%llux count 0x%x\n", fid,
+		(long long unsigned) offset, count);
 
-	if (!errorno) {
-		errorno = rc->params.rread.count;
-		dump_data(rc->params.rread.data, rc->params.rread.count);
-	}
+	tc = v9fs_create_tread(fid, offset, count);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, &rc);
+		if (!ret)
+			ret = rc->params.rread.count;
+		if (rcp)
+			*rcp = rc;
+		else
+			kfree(rc);
 
-	if (fcall)
-		*fcall = rc;
-	else
-		kfree(rc);
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
 
-	return errorno;
+	return ret;
 }
 
 /**
@@ -328,32 +400,30 @@ v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
  */
 
 int
-v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid,
-	     u64 offset, u32 count, void *data, struct v9fs_fcall **fcall)
+v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid, u64 offset, u32 count,
+	const char __user *data, struct v9fs_fcall **rcp)
 {
-	struct v9fs_fcall msg;
-	struct v9fs_fcall *rc = NULL;
-	long errorno = -1;
+	int ret;
+	struct v9fs_fcall *tc, *rc;
 
-	dprintk(DEBUG_9P, "fid %d offset 0x%llx count 0x%x\n", fid,
-		(unsigned long long)offset, count);
-	dump_data(data, count);
+	dprintk(DEBUG_9P, "fid %d offset 0x%llux count 0x%x\n", fid,
+		(long long unsigned) offset, count);
 
-	msg.id = TWRITE;
-	msg.params.twrite.fid = fid;
-	msg.params.twrite.offset = offset;
-	msg.params.twrite.count = count;
-	msg.params.twrite.data = data;
+	tc = v9fs_create_twrite(fid, offset, count, data);
+	if (!IS_ERR(tc)) {
+		ret = v9fs_mux_rpc(v9ses->mux, tc, &rc);
 
-	errorno = v9fs_mux_rpc(v9ses, &msg, &rc);
+		if (!ret)
+			ret = rc->params.rwrite.count;
+		if (rcp)
+			*rcp = rc;
+		else
+			kfree(rc);
 
-	if (!errorno)
-		errorno = rc->params.rwrite.count;
+		kfree(tc);
+	} else
+		ret = PTR_ERR(tc);
 
-	if (fcall)
-		*fcall = rc;
-	else
-		kfree(rc);
-
-	return errorno;
+	return ret;
 }
+

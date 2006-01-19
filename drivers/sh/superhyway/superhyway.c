@@ -175,8 +175,6 @@ int superhyway_register_driver(struct superhyway_driver *drv)
 {
 	drv->drv.name	= drv->name;
 	drv->drv.bus	= &superhyway_bus_type;
-	drv->drv.probe	= superhyway_device_probe;
-	drv->drv.remove	= superhyway_device_remove;
 
 	return driver_register(&drv->drv);
 }
@@ -213,6 +211,8 @@ struct bus_type superhyway_bus_type = {
 #ifdef CONFIG_SYSFS
 	.dev_attrs	= superhyway_dev_attrs,
 #endif
+	.probe		= superhyway_device_probe,
+	.remove		= superhyway_device_remove,
 };
 
 static int __init superhyway_bus_init(void)

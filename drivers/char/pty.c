@@ -111,7 +111,7 @@ static int pty_write(struct tty_struct * tty, const unsigned char *buf, int coun
 	if (!to || tty->stopped)
 		return 0;
 
-	c = to->ldisc.receive_room(to);
+	c = to->receive_room;
 	if (c > count)
 		c = count;
 	to->ldisc.receive_buf(to, buf, NULL, c);
@@ -126,7 +126,7 @@ static int pty_write_room(struct tty_struct *tty)
 	if (!to || tty->stopped)
 		return 0;
 
-	return to->ldisc.receive_room(to);
+	return to->receive_room;
 }
 
 /*

@@ -43,10 +43,6 @@ MODULE_DESCRIPTION("Memory allocator for ALSA system.");
 MODULE_LICENSE("GPL");
 
 
-#ifndef SNDRV_CARDS
-#define SNDRV_CARDS	8
-#endif
-
 /*
  */
 

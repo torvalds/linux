@@ -21,6 +21,8 @@
 #include <linux/bitops.h>
 #include <asm/uaccess.h>
 
+#include "internal.h"
+
 static ssize_t proc_file_read(struct file *file, char __user *buf,
 			      size_t nbytes, loff_t *ppos);
 static ssize_t proc_file_write(struct file *file, const char __user *buffer,

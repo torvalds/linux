@@ -66,7 +66,7 @@ enum {
 
 static struct class *uverbs_class;
 
-DECLARE_MUTEX(ib_uverbs_idr_mutex);
+DEFINE_MUTEX(ib_uverbs_idr_mutex);
 DEFINE_IDR(ib_uverbs_pd_idr);
 DEFINE_IDR(ib_uverbs_mr_idr);
 DEFINE_IDR(ib_uverbs_mw_idr);
@@ -180,7 +180,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 	if (!context)
 		return 0;
 
-	down(&ib_uverbs_idr_mutex);
+	mutex_lock(&ib_uverbs_idr_mutex);
 
 	list_for_each_entry_safe(uobj, tmp, &context->ah_list, list) {
 		struct ib_ah *ah = idr_find(&ib_uverbs_ah_idr, uobj->id);
@@ -250,7 +250,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		kfree(uobj);
 	}
 
-	up(&ib_uverbs_idr_mutex);
+	mutex_unlock(&ib_uverbs_idr_mutex);
 
 	return context->device->dealloc_ucontext(context);
 }
@@ -653,7 +653,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	file->ucontext	 = NULL;
 	file->async_file = NULL;
 	kref_init(&file->ref);
-	init_MUTEX(&file->mutex);
+	mutex_init(&file->mutex);
 
 	filp->private_data = file;
 

@@ -121,9 +121,9 @@ out:
 static void
 nfsd4_sync_rec_dir(void)
 {
-	down(&rec_dir.dentry->d_inode->i_sem);
+	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
 	nfsd_sync_dir(rec_dir.dentry);
-	up(&rec_dir.dentry->d_inode->i_sem);
+	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 }
 
 int
@@ -143,7 +143,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	nfs4_save_user(&uid, &gid);
 
 	/* lock the parent */
-	down(&rec_dir.dentry->d_inode->i_sem);
+	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
 
 	dentry = lookup_one_len(dname, rec_dir.dentry, HEXDIR_LEN-1);
 	if (IS_ERR(dentry)) {
@@ -159,7 +159,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 out_put:
 	dput(dentry);
 out_unlock:
-	up(&rec_dir.dentry->d_inode->i_sem);
+	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 	if (status == 0) {
 		clp->cl_firststate = 1;
 		nfsd4_sync_rec_dir();
@@ -222,8 +222,7 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 
 	nfs4_save_user(&uid, &gid);
 
-	filp = dentry_open(dget(dir), mntget(rec_dir.mnt),
-			O_RDWR);
+	filp = dentry_open(dget(dir), mntget(rec_dir.mnt), O_RDONLY);
 	status = PTR_ERR(filp);
 	if (IS_ERR(filp))
 		goto out;
@@ -259,9 +258,9 @@ nfsd4_remove_clid_file(struct dentry *dir, struct dentry *dentry)
 		printk("nfsd4: non-file found in client recovery directory\n");
 		return -EINVAL;
 	}
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	status = vfs_unlink(dir->d_inode, dentry);
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 	return status;
 }
 
@@ -274,9 +273,9 @@ nfsd4_clear_clid_dir(struct dentry *dir, struct dentry *dentry)
 	 * any regular files anyway, just in case the directory was created by
 	 * a kernel from the future.... */
 	nfsd4_list_rec_dir(dentry, nfsd4_remove_clid_file);
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	status = vfs_rmdir(dir->d_inode, dentry);
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 	return status;
 }
 
@@ -288,9 +287,9 @@ nfsd4_unlink_clid_dir(char *name, int namlen)
 
 	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
 
-	down(&rec_dir.dentry->d_inode->i_sem);
+	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
 	dentry = lookup_one_len(name, rec_dir.dentry, namlen);
-	up(&rec_dir.dentry->d_inode->i_sem);
+	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
 		return status;
@@ -400,9 +399,10 @@ nfsd4_init_recdir(char *rec_dirname)
 
 	nfs4_save_user(&uid, &gid);
 
-	status = path_lookup(rec_dirname, LOOKUP_FOLLOW, &rec_dir);
-	if (status == -ENOENT)
-		printk("NFSD: recovery directory %s doesn't exist\n",
+	status = path_lookup(rec_dirname, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
+			&rec_dir);
+	if (status)
+		printk("NFSD: unable to find recovery directory %s\n",
 				rec_dirname);
 
 	if (!status)

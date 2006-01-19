@@ -64,8 +64,8 @@ static irqreturn_t amijoy_interrupt(int irq, void *dummy, struct pt_regs *fp)
 		if (amijoy[i]) {
 
 			switch (i) {
-				case 0: data = ~custom.joy0dat; button = (~ciaa.pra >> 6) & 1; break;
-				case 1: data = ~custom.joy1dat; button = (~ciaa.pra >> 7) & 1; break;
+				case 0: data = ~amiga_custom.joy0dat; button = (~ciaa.pra >> 6) & 1; break;
+				case 1: data = ~amiga_custom.joy1dat; button = (~ciaa.pra >> 7) & 1; break;
 			}
 
 			input_regs(amijoy_dev[i], fp);

@@ -29,9 +29,6 @@
 #include <linux/sysdev.h>
 #include <linux/timer.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/thread_info.h>
 #include <asm/mach/time.h>

@@ -13,7 +13,10 @@ obj-$(CONFIG_CHELSIO_T1) += chelsio/
 obj-$(CONFIG_BONDING) += bonding/
 obj-$(CONFIG_GIANFAR) += gianfar_driver.o
 
-gianfar_driver-objs := gianfar.o gianfar_ethtool.o gianfar_mii.o
+gianfar_driver-objs := gianfar.o \
+		gianfar_ethtool.o \
+		gianfar_mii.o \
+		gianfar_sysfs.o
 
 #
 # link order important here
@@ -59,6 +62,7 @@ spidernet-y += spider_net.o spider_net_ethtool.o sungem_phy.o
 obj-$(CONFIG_SPIDER_NET) += spidernet.o
 obj-$(CONFIG_TC35815) += tc35815.o
 obj-$(CONFIG_SKGE) += skge.o
+obj-$(CONFIG_SKY2) += sky2.o
 obj-$(CONFIG_SK98LIN) += sk98lin/
 obj-$(CONFIG_SKFP) += skfp/
 obj-$(CONFIG_VIA_RHINE) += via-rhine.o
@@ -121,6 +125,7 @@ ifeq ($(CONFIG_SLIP_COMPRESSED),y)
 endif
 
 obj-$(CONFIG_DUMMY) += dummy.o
+obj-$(CONFIG_IFB) += ifb.o
 obj-$(CONFIG_DE600) += de600.o
 obj-$(CONFIG_DE620) += de620.o
 obj-$(CONFIG_LANCE) += lance.o
@@ -202,6 +207,7 @@ obj-$(CONFIG_NET_TULIP) += tulip/
 obj-$(CONFIG_HAMRADIO) += hamradio/
 obj-$(CONFIG_IRDA) += irda/
 obj-$(CONFIG_ETRAX_ETHERNET) += cris/
+obj-$(CONFIG_ENP2611_MSF_NET) += ixp2000/
 
 obj-$(CONFIG_NETCONSOLE) += netconsole.o
 

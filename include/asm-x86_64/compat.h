@@ -198,8 +198,13 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 
 static __inline__ void __user *compat_alloc_user_space(long len)
 {
-	struct pt_regs *regs = (void *)current->thread.rsp0 - sizeof(struct pt_regs); 
+	struct pt_regs *regs = task_pt_regs(current);
 	return (void __user *)regs->rsp - len; 
+}
+
+static inline int is_compat_task(void)
+{
+	return current_thread_info()->status & TS_COMPAT;
 }
 
 #endif /* _ASM_X86_64_COMPAT_H */

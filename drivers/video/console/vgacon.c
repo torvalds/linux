@@ -56,6 +56,8 @@
 static DEFINE_SPINLOCK(vga_lock);
 static int cursor_size_lastfrom;
 static int cursor_size_lastto;
+static u32 vgacon_xres;
+static u32 vgacon_yres;
 static struct vgastate state;
 
 #define BLANK 0x0020
@@ -69,7 +71,7 @@ static struct vgastate state;
  * appear.
  */
 #undef TRIDENT_GLITCH
-
+#define VGA_FONTWIDTH       8   /* VGA does not support fontwidths != 8 */
 /*
  *  Interface used by the world
  */
@@ -325,6 +327,10 @@ static const char __init *vgacon_startup(void)
 		vga_scan_lines =
 		    vga_video_font_height * vga_video_num_lines;
 	}
+
+	vgacon_xres = ORIG_VIDEO_COLS * VGA_FONTWIDTH;
+	vgacon_yres = vga_scan_lines;
+
 	return display_desc;
 }
 
@@ -503,10 +509,18 @@ static int vgacon_doresize(struct vc_data *c,
 {
 	unsigned long flags;
 	unsigned int scanlines = height * c->vc_font.height;
-	u8 scanlines_lo, r7, vsync_end, mode;
+	u8 scanlines_lo, r7, vsync_end, mode, max_scan;
 
 	spin_lock_irqsave(&vga_lock, flags);
 
+	outb_p(VGA_CRTC_MAX_SCAN, vga_video_port_reg);
+	max_scan = inb_p(vga_video_port_val);
+
+	if (max_scan & 0x80)
+		scanlines <<= 1;
+
+	vgacon_xres = width * VGA_FONTWIDTH;
+	vgacon_yres = height * c->vc_font.height;
 	outb_p(VGA_CRTC_MODE, vga_video_port_reg);
 	mode = inb_p(vga_video_port_val);
 
@@ -551,6 +565,10 @@ static int vgacon_doresize(struct vc_data *c,
 
 static int vgacon_switch(struct vc_data *c)
 {
+	int x = c->vc_cols * VGA_FONTWIDTH;
+	int y = c->vc_rows * c->vc_font.height;
+	int rows = ORIG_VIDEO_LINES * vga_default_font_height/
+		c->vc_font.height;
 	/*
 	 * We need to save screen size here as it's the only way
 	 * we can spot the screen has been resized and we need to
@@ -566,10 +584,11 @@ static int vgacon_switch(struct vc_data *c)
 		scr_memcpyw((u16 *) c->vc_origin, (u16 *) c->vc_screenbuf,
 			    c->vc_screenbuf_size > vga_vram_size ?
 				vga_vram_size : c->vc_screenbuf_size);
-		if (!(vga_video_num_columns % 2) &&
-		    vga_video_num_columns <= ORIG_VIDEO_COLS &&
-		    vga_video_num_lines <= (ORIG_VIDEO_LINES *
-			vga_default_font_height) / c->vc_font.height)
+
+		if ((vgacon_xres != x || vgacon_yres != y) &&
+		    (!(vga_video_num_columns % 2) &&
+		     vga_video_num_columns <= ORIG_VIDEO_COLS &&
+		     vga_video_num_lines <= rows))
 			vgacon_doresize(c, c->vc_cols, c->vc_rows);
 	}
 
@@ -993,7 +1012,8 @@ static int vgacon_font_set(struct vc_data *c, struct console_font *font, unsigne
 	if (vga_video_type < VIDEO_TYPE_EGAM)
 		return -EINVAL;
 
-	if (font->width != 8 || (charcount != 256 && charcount != 512))
+	if (font->width != VGA_FONTWIDTH ||
+	    (charcount != 256 && charcount != 512))
 		return -EINVAL;
 
 	rc = vgacon_do_font_op(&state, font->data, 1, charcount == 512);
@@ -1010,7 +1030,7 @@ static int vgacon_font_get(struct vc_data *c, struct console_font *font)
 	if (vga_video_type < VIDEO_TYPE_EGAM)
 		return -EINVAL;
 
-	font->width = 8;
+	font->width = VGA_FONTWIDTH;
 	font->height = c->vc_font.height;
 	font->charcount = vga_512_chars ? 512 : 256;
 	if (!font->data)

@@ -21,26 +21,30 @@ config ACORN_PARTITION
 	  Support hard disks partitioned under Acorn operating systems.
 
 config ACORN_PARTITION_CUMANA
-	bool "Cumana partition support" if PARTITION_ADVANCED && ACORN_PARTITION
+	bool "Cumana partition support" if PARTITION_ADVANCED
 	default y if ARCH_ACORN
+	depends on ACORN_PARTITION
 	help
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned using the Cumana interface on Acorn machines.
 
 config ACORN_PARTITION_EESOX
-	bool "EESOX partition support" if PARTITION_ADVANCED && ACORN_PARTITION
+	bool "EESOX partition support" if PARTITION_ADVANCED
 	default y if ARCH_ACORN
+	depends on ACORN_PARTITION
 
 config ACORN_PARTITION_ICS
-	bool "ICS partition support" if PARTITION_ADVANCED && ACORN_PARTITION
+	bool "ICS partition support" if PARTITION_ADVANCED
 	default y if ARCH_ACORN
+	depends on ACORN_PARTITION
 	help
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned using the ICS interface on Acorn machines.
 
 config ACORN_PARTITION_ADFS
-	bool "Native filecore partition support" if PARTITION_ADVANCED && ACORN_PARTITION
+	bool "Native filecore partition support" if PARTITION_ADVANCED
 	default y if ARCH_ACORN
+	depends on ACORN_PARTITION
 	help
 	  The Acorn Disc Filing System is the standard file system of the
 	  RiscOS operating system which runs on Acorn's ARM-based Risc PC
@@ -48,15 +52,17 @@ config ACORN_PARTITION_ADFS
 	  `Y' here, Linux will support disk partitions created under ADFS.
 
 config ACORN_PARTITION_POWERTEC
-	bool "PowerTec partition support" if PARTITION_ADVANCED && ACORN_PARTITION
+	bool "PowerTec partition support" if PARTITION_ADVANCED
 	default y if ARCH_ACORN
+	depends on ACORN_PARTITION
 	help
 	  Support reading partition tables created on Acorn machines using
 	  the PowerTec SCSI drive.
 
 config ACORN_PARTITION_RISCIX
-	bool "RISCiX partition support" if PARTITION_ADVANCED && ACORN_PARTITION
+	bool "RISCiX partition support" if PARTITION_ADVANCED
 	default y if ARCH_ACORN
+	depends on ACORN_PARTITION
 	help
 	  Once upon a time, there was a native Unix port for the Acorn series
 	  of machines called RISCiX.  If you say 'Y' here, Linux will be able
@@ -85,7 +91,7 @@ config ATARI_PARTITION
 
 config IBM_PARTITION
 	bool "IBM disk label and partition support"
-	depends on PARTITION_ADVANCED && ARCH_S390
+	depends on PARTITION_ADVANCED && S390
 	help
 	  Say Y here if you would like to be able to read the hard disk
 	  partition table format used by IBM DASD disks operating under CMS.
@@ -216,6 +222,13 @@ config SUN_PARTITION
 	  given by the tar program ("man tar" or preferably "info tar"). If
 	  you don't know what all this is about, say N.
 
+config KARMA_PARTITION
+	bool "Karma Partition support"
+	depends on PARTITION_ADVANCED
+	help
+	  Say Y here if you would like to mount the Rio Karma MP3 player, as it
+	  uses a proprietary partition table.
+
 config EFI_PARTITION
 	bool "EFI GUID Partition support"
 	depends on PARTITION_ADVANCED
@@ -224,5 +237,3 @@ config EFI_PARTITION
 	  Say Y here if you would like to use hard disks under Linux which
 	  were partitioned using EFI GPT.  Presently only useful on the
 	  IA-64 platform.
-
-#      define_bool CONFIG_ACORN_PARTITION_CUMANA y

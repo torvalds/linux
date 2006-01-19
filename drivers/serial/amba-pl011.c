@@ -47,12 +47,12 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/serial.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/clock.h>
-#include <asm/hardware/amba_serial.h>
 
 #define UART_NR			14
 
@@ -120,15 +120,6 @@ pl011_rx_chars(struct uart_amba_port *uap)
 
 	status = readw(uap->port.membase + UART01x_FR);
 	while ((status & UART01x_FR_RXFE) == 0 && max_count--) {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
-
 		ch = readw(uap->port.membase + UART01x_DR) | UART_DUMMY_DR_RX;
 		flag = TTY_NORMAL;
 		uap->port.icount.rx++;
@@ -761,10 +752,6 @@ static int pl011_probe(struct amba_device *dev, void *id)
 		goto unmap;
 	}
 
-	ret = clk_use(uap->clk);
-	if (ret)
-		goto putclk;
-
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
@@ -782,8 +769,6 @@ static int pl011_probe(struct amba_device *dev, void *id)
 	if (ret) {
 		amba_set_drvdata(dev, NULL);
 		amba_ports[i] = NULL;
-		clk_unuse(uap->clk);
- putclk:
 		clk_put(uap->clk);
  unmap:
 		iounmap(base);
@@ -808,7 +793,6 @@ static int pl011_remove(struct amba_device *dev)
 			amba_ports[i] = NULL;
 
 	iounmap(uap->port.membase);
-	clk_unuse(uap->clk);
 	clk_put(uap->clk);
 	kfree(uap);
 	return 0;

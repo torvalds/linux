@@ -34,16 +34,16 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
-
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/clk.h>
+#include <linux/mutex.h>
 
 #include <asm/hardware.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/hardware/clock.h>
 #include <asm/arch/regs-clock.h>
 
 #include "clock.h"
@@ -52,7 +52,7 @@
 /* clock information */
 
 static LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 
 /* old functions */
 
@@ -103,7 +103,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 	else
 		idno = to_platform_device(dev)->id;
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 
 	list_for_each_entry(p, &clocks, list) {
 		if (p->id == idno &&
@@ -127,7 +127,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 		}
 	}
 
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 	return clk;
 }
 
@@ -150,18 +150,6 @@ void clk_disable(struct clk *clk)
 		(clk->enable)(clk, 0);
 }
 
-
-int clk_use(struct clk *clk)
-{
-	atomic_inc(&clk->used);
-	return 0;
-}
-
-
-void clk_unuse(struct clk *clk)
-{
-	atomic_dec(&clk->used);
-}
 
 unsigned long clk_get_rate(struct clk *clk)
 {
@@ -196,8 +184,6 @@ EXPORT_SYMBOL(clk_get);
 EXPORT_SYMBOL(clk_put);
 EXPORT_SYMBOL(clk_enable);
 EXPORT_SYMBOL(clk_disable);
-EXPORT_SYMBOL(clk_use);
-EXPORT_SYMBOL(clk_unuse);
 EXPORT_SYMBOL(clk_get_rate);
 EXPORT_SYMBOL(clk_round_rate);
 EXPORT_SYMBOL(clk_set_rate);
@@ -268,100 +254,101 @@ struct clk s3c24xx_uclk = {
 /* clock definitions */
 
 static struct clk init_clocks[] = {
-	{ .name    = "nand",
-	  .id	   = -1,
-	  .parent  = &clk_h,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_NAND
-	},
-	{ .name    = "lcd",
-	  .id	   = -1,
-	  .parent  = &clk_h,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_LCDC
-	},
-	{ .name    = "usb-host",
-	  .id	   = -1,
-	  .parent  = &clk_h,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_USBH
-	},
-	{ .name    = "usb-device",
-	  .id	   = -1,
-	  .parent  = &clk_h,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_USBD
-	},
-	{ .name    = "timers",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_PWMT
-	},
-	{ .name    = "sdi",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_SDI
-	},
-	{ .name    = "uart",
-	  .id	   = 0,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_UART0
-	},
-	{ .name    = "uart",
-	  .id	   = 1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_UART1
-	},
-	{ .name    = "uart",
-	  .id	   = 2,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_UART2
-	},
-	{ .name    = "gpio",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_GPIO
-	},
-	{ .name    = "rtc",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_RTC
-	},
-	{ .name    = "adc",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_ADC
-	},
-	{ .name    = "i2c",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_IIC
-	},
-	{ .name    = "iis",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_IIS
-	},
-	{ .name    = "spi",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .enable  = s3c24xx_clkcon_enable,
-	  .ctrlbit = S3C2410_CLKCON_SPI
-	},
-	{ .name    = "watchdog",
-	  .id	   = -1,
-	  .parent  = &clk_p,
-	  .ctrlbit = 0
+	{
+		.name		= "nand",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_NAND,
+	}, {
+		.name		= "lcd",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_LCDC,
+	}, {
+		.name		= "usb-host",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_USBH,
+	}, {
+		.name		= "usb-device",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_USBD,
+	}, {
+		.name		= "timers",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_PWMT,
+	}, {
+		.name		= "sdi",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_SDI,
+	}, {
+		.name		= "uart",
+		.id		= 0,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_UART0,
+	}, {
+		.name		= "uart",
+		.id		= 1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_UART1,
+	}, {
+		.name		= "uart",
+		.id		= 2,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_UART2,
+	}, {
+		.name		= "gpio",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_GPIO,
+	}, {
+		.name		= "rtc",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_RTC,
+	}, {
+		.name		= "adc",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_ADC,
+	}, {
+		.name		= "i2c",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_IIC,
+	}, {
+		.name		= "iis",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_IIS,
+	}, {
+		.name		= "spi",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c24xx_clkcon_enable,
+		.ctrlbit	= S3C2410_CLKCON_SPI,
+	}, {
+		.name		= "watchdog",
+		.id		= -1,
+		.parent		= &clk_p,
+		.ctrlbit	= 0,
 	}
 };
 
@@ -370,16 +357,15 @@ static struct clk init_clocks[] = {
 int s3c24xx_register_clock(struct clk *clk)
 {
 	clk->owner = THIS_MODULE;
-	atomic_set(&clk->used, 0);
 
 	if (clk->enable == NULL)
 		clk->enable = clk_null_enable;
 
 	/* add to the list of available clocks */
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->list, &clocks);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return 0;
 }
@@ -406,16 +392,15 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
 
-	/* it looks like just setting the register here is not good
-	 * enough, and causes the odd hang at initial boot time, so
-	 * do all of them indivdually.
+	/* We must be careful disabling the clocks we are not intending to
+	 * be using at boot time, as subsytems such as the LCD which do
+	 * their own DMA requests to the bus can cause the system to lockup
+	 * if they where in the middle of requesting bus access.
 	 *
-	 * I think disabling the LCD clock if the LCD is active is
-	 * very dangerous, and therefore the bootloader should be
-	 * careful to not enable the LCD clock if it is not needed.
-	 *
-	 * and of course, this looks neater
-	 */
+	 * Disabling the LCD clock if the LCD is active is very dangerous,
+	 * and therefore the bootloader should be  careful to not enable
+	 * the LCD clock if it is not needed.
+	*/
 
 	s3c24xx_clk_enable(S3C2410_CLKCON_NAND, 0);
 	s3c24xx_clk_enable(S3C2410_CLKCON_USBH, 0);

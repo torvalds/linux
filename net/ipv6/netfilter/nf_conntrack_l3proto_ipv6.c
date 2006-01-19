@@ -74,7 +74,7 @@ static int ipv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 static int ipv6_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "src=%x:%x:%x:%x:%x:%x:%x:%x dst=%x:%x:%x:%x:%x:%x:%x:%x ",
+	return seq_printf(s, "src=" NIP6_FMT " dst=" NIP6_FMT " ",
 			  NIP6(*((struct in6_addr *)tuple->src.u3.ip6)),
 			  NIP6(*((struct in6_addr *)tuple->dst.u3.ip6)));
 }
@@ -335,10 +335,10 @@ static struct nf_hook_ops ipv6_conntrack_local_in_ops = {
 #ifdef CONFIG_SYSCTL
 
 /* From nf_conntrack_proto_icmpv6.c */
-extern unsigned long nf_ct_icmpv6_timeout;
+extern unsigned int nf_ct_icmpv6_timeout;
 
 /* From nf_conntrack_frag6.c */
-extern unsigned long nf_ct_frag6_timeout;
+extern unsigned int nf_ct_frag6_timeout;
 extern unsigned int nf_ct_frag6_low_thresh;
 extern unsigned int nf_ct_frag6_high_thresh;
 
@@ -401,6 +401,48 @@ static ctl_table nf_ct_net_table[] = {
 };
 #endif
 
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+
+static int ipv6_tuple_to_nfattr(struct sk_buff *skb,
+				const struct nf_conntrack_tuple *tuple)
+{
+	NFA_PUT(skb, CTA_IP_V6_SRC, sizeof(u_int32_t) * 4,
+		&tuple->src.u3.ip6);
+	NFA_PUT(skb, CTA_IP_V6_DST, sizeof(u_int32_t) * 4,
+		&tuple->dst.u3.ip6);
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
+
+static const size_t cta_min_ip[CTA_IP_MAX] = {
+	[CTA_IP_V6_SRC-1]       = sizeof(u_int32_t)*4,
+	[CTA_IP_V6_DST-1]       = sizeof(u_int32_t)*4,
+};
+
+static int ipv6_nfattr_to_tuple(struct nfattr *tb[],
+				struct nf_conntrack_tuple *t)
+{
+	if (!tb[CTA_IP_V6_SRC-1] || !tb[CTA_IP_V6_DST-1])
+		return -EINVAL;
+
+	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
+		return -EINVAL;
+
+	memcpy(&t->src.u3.ip6, NFA_DATA(tb[CTA_IP_V6_SRC-1]), 
+	       sizeof(u_int32_t) * 4);
+	memcpy(&t->dst.u3.ip6, NFA_DATA(tb[CTA_IP_V6_DST-1]),
+	       sizeof(u_int32_t) * 4);
+
+	return 0;
+}
+#endif
+
 struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.l3proto		= PF_INET6,
 	.name			= "ipv6",
@@ -409,6 +451,11 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 = {
 	.print_tuple		= ipv6_print_tuple,
 	.print_conntrack	= ipv6_print_conntrack,
 	.prepare		= ipv6_prepare,
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.tuple_to_nfattr	= ipv6_tuple_to_nfattr,
+	.nfattr_to_tuple	= ipv6_nfattr_to_tuple,
+#endif
 	.get_features		= ipv6_get_features,
 	.me			= THIS_MODULE,
 };
@@ -537,7 +584,7 @@ MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
 
 static int __init init(void)
 {
-	need_nf_conntrack();
+	need_conntrack();
 	return init_or_cleanup(1);
 }
 
@@ -548,9 +595,3 @@ static void __exit fini(void)
 
 module_init(init);
 module_exit(fini);
-
-void need_ip6_conntrack(void)
-{
-}
-
-EXPORT_SYMBOL(need_ip6_conntrack);

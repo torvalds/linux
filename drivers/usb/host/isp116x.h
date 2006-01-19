@@ -259,7 +259,7 @@ struct isp116x {
 
 	struct isp116x_platform_data *board;
 
-	struct proc_dir_entry *pde;
+	struct dentry *dentry;
 	unsigned long stat1, stat2, stat4, stat8, stat16;
 
 	/* HC registers */
@@ -450,7 +450,7 @@ static void isp116x_write_reg32(struct isp116x *isp116x, unsigned reg,
 	isp116x_write_data32(isp116x, (u32) val);
 }
 
-#define isp116x_show_reg(d,r) {					\
+#define isp116x_show_reg_log(d,r,s) {				\
 	if ((r) < 0x20) {			                \
 		DBG("%-12s[%02x]: %08x\n", #r,			\
 			r, isp116x_read_reg32(d, r));		\
@@ -459,35 +459,60 @@ static void isp116x_write_reg32(struct isp116x *isp116x, unsigned reg,
 			r, isp116x_read_reg16(d, r));	    	\
 	}							\
 }
+#define isp116x_show_reg_seq(d,r,s) {				\
+	if ((r) < 0x20) {					\
+		seq_printf(s, "%-12s[%02x]: %08x\n", #r,	\
+			r, isp116x_read_reg32(d, r));		\
+	} else {						\
+		seq_printf(s, "%-12s[%02x]:     %04x\n", #r,	\
+			r, isp116x_read_reg16(d, r));		\
+	}							\
+}
 
-static inline void isp116x_show_regs(struct isp116x *isp116x)
+#define isp116x_show_regs(d,type,s) {			\
+	isp116x_show_reg_##type(d, HCREVISION, s);	\
+	isp116x_show_reg_##type(d, HCCONTROL, s);	\
+	isp116x_show_reg_##type(d, HCCMDSTAT, s);	\
+	isp116x_show_reg_##type(d, HCINTSTAT, s);	\
+	isp116x_show_reg_##type(d, HCINTENB, s);	\
+	isp116x_show_reg_##type(d, HCFMINTVL, s);	\
+	isp116x_show_reg_##type(d, HCFMREM, s);		\
+	isp116x_show_reg_##type(d, HCFMNUM, s);		\
+	isp116x_show_reg_##type(d, HCLSTHRESH, s);	\
+	isp116x_show_reg_##type(d, HCRHDESCA, s);	\
+	isp116x_show_reg_##type(d, HCRHDESCB, s);	\
+	isp116x_show_reg_##type(d, HCRHSTATUS, s);	\
+	isp116x_show_reg_##type(d, HCRHPORT1, s);	\
+	isp116x_show_reg_##type(d, HCRHPORT2, s);	\
+	isp116x_show_reg_##type(d, HCHWCFG, s);		\
+	isp116x_show_reg_##type(d, HCDMACFG, s);	\
+	isp116x_show_reg_##type(d, HCXFERCTR, s);	\
+	isp116x_show_reg_##type(d, HCuPINT, s);		\
+	isp116x_show_reg_##type(d, HCuPINTENB, s);	\
+	isp116x_show_reg_##type(d, HCCHIPID, s);	\
+	isp116x_show_reg_##type(d, HCSCRATCH, s);	\
+	isp116x_show_reg_##type(d, HCITLBUFLEN, s);	\
+	isp116x_show_reg_##type(d, HCATLBUFLEN, s);	\
+	isp116x_show_reg_##type(d, HCBUFSTAT, s);	\
+	isp116x_show_reg_##type(d, HCRDITL0LEN, s);	\
+	isp116x_show_reg_##type(d, HCRDITL1LEN, s);	\
+}
+
+/*
+   Dump registers for debugfs.
+*/
+static inline void isp116x_show_regs_seq(struct isp116x *isp116x,
+					  struct seq_file *s)
 {
-	isp116x_show_reg(isp116x, HCREVISION);
-	isp116x_show_reg(isp116x, HCCONTROL);
-	isp116x_show_reg(isp116x, HCCMDSTAT);
-	isp116x_show_reg(isp116x, HCINTSTAT);
-	isp116x_show_reg(isp116x, HCINTENB);
-	isp116x_show_reg(isp116x, HCFMINTVL);
-	isp116x_show_reg(isp116x, HCFMREM);
-	isp116x_show_reg(isp116x, HCFMNUM);
-	isp116x_show_reg(isp116x, HCLSTHRESH);
-	isp116x_show_reg(isp116x, HCRHDESCA);
-	isp116x_show_reg(isp116x, HCRHDESCB);
-	isp116x_show_reg(isp116x, HCRHSTATUS);
-	isp116x_show_reg(isp116x, HCRHPORT1);
-	isp116x_show_reg(isp116x, HCRHPORT2);
-	isp116x_show_reg(isp116x, HCHWCFG);
-	isp116x_show_reg(isp116x, HCDMACFG);
-	isp116x_show_reg(isp116x, HCXFERCTR);
-	isp116x_show_reg(isp116x, HCuPINT);
-	isp116x_show_reg(isp116x, HCuPINTENB);
-	isp116x_show_reg(isp116x, HCCHIPID);
-	isp116x_show_reg(isp116x, HCSCRATCH);
-	isp116x_show_reg(isp116x, HCITLBUFLEN);
-	isp116x_show_reg(isp116x, HCATLBUFLEN);
-	isp116x_show_reg(isp116x, HCBUFSTAT);
-	isp116x_show_reg(isp116x, HCRDITL0LEN);
-	isp116x_show_reg(isp116x, HCRDITL1LEN);
+	isp116x_show_regs(isp116x, seq, s);
+}
+
+/*
+   Dump registers to syslog.
+*/
+static inline void isp116x_show_regs_log(struct isp116x *isp116x)
+{
+	isp116x_show_regs(isp116x, log, NULL);
 }
 
 #if defined(URB_TRACE)

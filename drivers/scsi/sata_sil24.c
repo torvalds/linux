@@ -292,7 +292,6 @@ static struct scsi_host_template sil24_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1, /* NCQ not supported yet */
 };
 
 static const struct ata_port_operations sil24_ops = {
@@ -654,7 +653,8 @@ static void sil24_eng_timeout(struct ata_port *ap)
 	 */
 	printk(KERN_ERR "ata%u: command timeout\n", ap->id);
 	qc->scsidone = scsi_finish_command;
-	ata_qc_complete(qc, AC_ERR_OTHER);
+	qc->err_mask |= AC_ERR_OTHER;
+	ata_qc_complete(qc);
 
 	sil24_reset_controller(ap);
 }
@@ -711,8 +711,10 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 		sil24_reset_controller(ap);
 	}
 
-	if (qc)
-		ata_qc_complete(qc, err_mask);
+	if (qc) {
+		qc->err_mask |= err_mask;
+		ata_qc_complete(qc);
+	}
 }
 
 static inline void sil24_host_intr(struct ata_port *ap)
@@ -734,8 +736,10 @@ static inline void sil24_host_intr(struct ata_port *ap)
 		 */
 		sil24_update_tf(ap);
 
-		if (qc)
-			ata_qc_complete(qc, ac_err_mask(pp->tf.command));
+		if (qc) {
+			qc->err_mask |= ac_err_mask(pp->tf.command);
+			ata_qc_complete(qc);
+		}
 	} else
 		sil24_error_intr(ap, slot_stat);
 }

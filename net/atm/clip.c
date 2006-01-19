@@ -19,6 +19,7 @@
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>
 #include <linux/atmarp.h>
+#include <linux/capability.h>
 #include <linux/ip.h> /* for net/route.h */
 #include <linux/in.h> /* for struct sockaddr_in */
 #include <linux/if.h> /* for IFF_UP */

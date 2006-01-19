@@ -7,6 +7,7 @@
  * to continually duplicate across every architecture.
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
@@ -408,54 +409,62 @@ int ptrace_request(struct task_struct *child, long request,
 	return ret;
 }
 
-#ifndef __ARCH_SYS_PTRACE
-static int ptrace_get_task_struct(long request, long pid,
-		struct task_struct **childp)
+/**
+ * ptrace_traceme  --  helper for PTRACE_TRACEME
+ *
+ * Performs checks and sets PT_PTRACED.
+ * Should be used by all ptrace implementations for PTRACE_TRACEME.
+ */
+int ptrace_traceme(void)
 {
-	struct task_struct *child;
 	int ret;
 
 	/*
-	 * Callers use child == NULL as an indication to exit early even
-	 * when the return value is 0, so make sure it is non-NULL here.
+	 * Are we already being traced?
 	 */
-	*childp = NULL;
+	if (current->ptrace & PT_PTRACED)
+		return -EPERM;
+	ret = security_ptrace(current->parent, current);
+	if (ret)
+		return -EPERM;
+	/*
+	 * Set the ptrace bit in the process ptrace flags.
+	 */
+	current->ptrace |= PT_PTRACED;
+	return 0;
+}
 
-	if (request == PTRACE_TRACEME) {
-		/*
-		 * Are we already being traced?
-		 */
-		if (current->ptrace & PT_PTRACED)
-			return -EPERM;
-		ret = security_ptrace(current->parent, current);
-		if (ret)
-			return -EPERM;
-		/*
-		 * Set the ptrace bit in the process ptrace flags.
-		 */
-		current->ptrace |= PT_PTRACED;
-		return 0;
-	}
+/**
+ * ptrace_get_task_struct  --  grab a task struct reference for ptrace
+ * @pid:       process id to grab a task_struct reference of
+ *
+ * This function is a helper for ptrace implementations.  It checks
+ * permissions and then grabs a task struct for use of the actual
+ * ptrace implementation.
+ *
+ * Returns the task_struct for @pid or an ERR_PTR() on failure.
+ */
+struct task_struct *ptrace_get_task_struct(pid_t pid)
+{
+	struct task_struct *child;
 
 	/*
-	 * You may not mess with init
+	 * Tracing init is not allowed.
 	 */
 	if (pid == 1)
-		return -EPERM;
+		return ERR_PTR(-EPERM);
 
-	ret = -ESRCH;
 	read_lock(&tasklist_lock);
 	child = find_task_by_pid(pid);
 	if (child)
 		get_task_struct(child);
 	read_unlock(&tasklist_lock);
 	if (!child)
-		return -ESRCH;
-
-	*childp = child;
-	return 0;
+		return ERR_PTR(-ESRCH);
+	return child;
 }
 
+#ifndef __ARCH_SYS_PTRACE
 asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
@@ -465,9 +474,16 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 	 * This lock_kernel fixes a subtle race with suid exec
 	 */
 	lock_kernel();
-	ret = ptrace_get_task_struct(request, pid, &child);
-	if (!child)
+	if (request == PTRACE_TRACEME) {
+		ret = ptrace_traceme();
 		goto out;
+	}
+
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
+		goto out;
+	}
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);

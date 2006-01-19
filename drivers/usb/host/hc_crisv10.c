@@ -4397,7 +4397,7 @@ static int __init etrax_usb_hc_init(void)
         device_initialize(&fake_device);
         kobject_set_name(&fake_device.kobj, "etrax_usb");
         kobject_add(&fake_device.kobj);
-        kobject_hotplug(&fake_device.kobj, KOBJ_ADD);
+	kobject_uevent(&fake_device.kobj, KOBJ_ADD);
         hc->bus->controller = &fake_device;
 	usb_register_bus(hc->bus);
 

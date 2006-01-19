@@ -37,6 +37,16 @@ config USB_HIDINPUT
 
 	  If unsure, say Y.
 
+config USB_HIDINPUT_POWERBOOK
+	bool "Enable support for iBook/PowerBook special keys"
+	default n
+	depends on USB_HIDINPUT
+	help
+	  Say Y here if you want support for the special keys (Fn, Numlock) on
+	  Apple iBooks and PowerBooks.
+
+	  If unsure, say N.
+
 config HID_FF
 	bool "Force feedback support (EXPERIMENTAL)"
 	depends on USB_HIDINPUT && EXPERIMENTAL
@@ -272,6 +282,20 @@ config USB_ATI_REMOTE
 	  
 	  To compile this driver as a module, choose M here: the module will be
 	  called ati_remote.
+
+config USB_ATI_REMOTE2
+	tristate "ATI / Philips USB RF remote control"
+	depends on USB && INPUT
+	---help---
+	  Say Y here if you want to use an ATI or Philips USB RF remote control.
+	  These are RF remotes with USB receivers.
+	  ATI Remote Wonder II comes with some ATI's All-In-Wonder video cards
+	  and is also available as a separate product.
+	  This driver provides mouse pointer, left and right mouse buttons,
+	  and maps all the other remote buttons to keypress events.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ati_remote2.
 
 config USB_KEYSPAN_REMOTE
 	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"

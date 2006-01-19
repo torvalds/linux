@@ -172,7 +172,7 @@ extern struct nlm_host *nlm_find_client(void);
 /*
  * Server-side lock handling
  */
-int		  nlmsvc_async_call(struct nlm_rqst *, u32, rpc_action);
+int		  nlmsvc_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 u32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
 					struct nlm_lock *, int, struct nlm_cookie *);
 u32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);

@@ -1675,11 +1675,6 @@ static int strip_rebuild_header(struct sk_buff *skb)
 /************************************************************************/
 /* Receiving routines							*/
 
-static int strip_receive_room(struct tty_struct *tty)
-{
-	return 0x10000;		/* We can handle an infinite amount of data. :-) */
-}
-
 /*
  * This function parses the response to the ATS300? command,
  * extracting the radio version and serial number.
@@ -2424,7 +2419,7 @@ static struct net_device_stats *strip_get_stats(struct net_device *dev)
 /*
  * Here's the order things happen:
  * When the user runs "slattach -p strip ..."
- *  1. The TTY module calls strip_open
+ *  1. The TTY module calls strip_open;;
  *  2. strip_open calls strip_alloc
  *  3.                  strip_alloc calls register_netdev
  *  4.                  register_netdev calls strip_dev_init
@@ -2652,6 +2647,8 @@ static int strip_open(struct tty_struct *tty)
 
 	strip_info->tty = tty;
 	tty->disc_data = strip_info;
+	tty->receive_room = 65536;
+
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
 
@@ -2762,7 +2759,6 @@ static struct tty_ldisc strip_ldisc = {
 	.close = strip_close,
 	.ioctl = strip_ioctl,
 	.receive_buf = strip_receive_buf,
-	.receive_room = strip_receive_room,
 	.write_wakeup = strip_write_some_more,
 };
 

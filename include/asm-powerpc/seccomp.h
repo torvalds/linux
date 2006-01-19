@@ -1,6 +1,10 @@
 #ifndef _ASM_POWERPC_SECCOMP_H
+#define _ASM_POWERPC_SECCOMP_H
 
+#ifdef __KERNEL__
 #include <linux/thread_info.h>
+#endif
+
 #include <linux/unistd.h>
 
 #define __NR_seccomp_read __NR_read

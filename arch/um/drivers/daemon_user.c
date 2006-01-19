@@ -158,10 +158,16 @@ static void daemon_remove(void *data)
 	struct daemon_data *pri = data;
 
 	os_close_file(pri->fd);
+	pri->fd = -1;
 	os_close_file(pri->control);
+	pri->control = -1;
+
 	kfree(pri->data_addr);
+	pri->data_addr = NULL;
 	kfree(pri->ctl_addr);
+	pri->ctl_addr = NULL;
 	kfree(pri->local_addr);
+	pri->local_addr = NULL;
 }
 
 int daemon_user_write(int fd, void *buf, int len, struct daemon_data *pri)

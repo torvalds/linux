@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>October 6, 2005</date>
-     <edition>0.3.5</edition>
+     <date>November 17, 2005</date>
+     <edition>0.3.6</edition>
 
     <abstract>
       <para>
@@ -403,9 +403,8 @@
   static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
   /* definition of the chip-specific record */
-  typedef struct snd_mychip mychip_t;
-  struct snd_mychip {
-          snd_card_t *card;
+  struct mychip {
+          struct snd_card *card;
           // rest of implementation will be in the section
           // "PCI Resource Managements"
   };
@@ -413,7 +412,7 @@
   /* chip-specific destructor
    * (see "PCI Resource Managements")
    */
-  static int snd_mychip_free(mychip_t *chip)
+  static int snd_mychip_free(struct mychip *chip)
   {
           .... // will be implemented later...
   }
@@ -421,22 +420,21 @@
   /* component-destructor
    * (see "Management of Cards and Components")
    */
-  static int snd_mychip_dev_free(snd_device_t *device)
+  static int snd_mychip_dev_free(struct snd_device *device)
   {
-          mychip_t *chip = device->device_data;
-          return snd_mychip_free(chip);
+          return snd_mychip_free(device->device_data);
   }
 
   /* chip-specific constructor
    * (see "Management of Cards and Components")
    */
-  static int __devinit snd_mychip_create(snd_card_t *card,
+  static int __devinit snd_mychip_create(struct snd_card *card,
                                          struct pci_dev *pci,
-                                         mychip_t **rchip)
+                                         struct mychip **rchip)
   {
-          mychip_t *chip;
+          struct mychip *chip;
           int err;
-          static snd_device_ops_t ops = {
+          static struct snd_device_ops ops = {
                  .dev_free = snd_mychip_dev_free,
           };
 
@@ -474,8 +472,8 @@
                                const struct pci_device_id *pci_id)
   {
           static int dev;
-          snd_card_t *card;
-          mychip_t *chip;
+          struct snd_card *card;
+          struct mychip *chip;
           int err;
 
           /* (1) */
@@ -582,7 +580,7 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  snd_card_t *card;
+  struct snd_card *card;
   ....
   card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 ]]>
@@ -605,7 +603,7 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  mychip_t *chip;
+  struct mychip *chip;
   ....
   if ((err = snd_mychip_create(card, pci, &chip)) < 0) {
           snd_card_free(card);
@@ -806,7 +804,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_card_t *card;
+  struct snd_card *card;
   card = snd_card_new(index, id, module, extra_size);
 ]]>
           </programlisting>
@@ -830,7 +828,7 @@
       <para>
         After the card is created, you can attach the components
       (devices) to the card instance. On ALSA driver, a component is
-      represented as a <type>snd_device_t</type> object.
+      represented as a struct <structname>snd_device</structname> object.
       A component can be a PCM instance, a control interface, a raw
       MIDI interface, etc.  Each of such instances has one component
       entry.
@@ -891,14 +889,11 @@
       The chip-specific information, e.g. the i/o port address, its
       resource pointer, or the irq number, is stored in the
       chip-specific record.
-      Usually, the chip-specific record is typedef'ed as
-      <type>xxx_t</type> like the following:
 
         <informalexample>
           <programlisting>
 <![CDATA[
-  typedef struct snd_mychip mychip_t;
-  struct snd_mychip {
+  struct mychip {
           ....
   };
 ]]>
@@ -918,12 +913,12 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(mychip_t));
+  card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(struct mychip));
 ]]>
             </programlisting>
           </informalexample>
 
-          whether <type>mychip_t</type> is the type of the chip record.
+          whether struct <structname>mychip</structname> is the type of the chip record.
         </para>
 
         <para>
@@ -932,7 +927,7 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  mychip_t *chip = (mychip_t *)card->private_data;
+  struct mychip *chip = (struct mychip *)card->private_data;
 ]]>
             </programlisting>
           </informalexample>
@@ -954,8 +949,8 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  snd_card_t *card;
-  mychip_t *chip;
+  struct snd_card *card;
+  struct mychip *chip;
   card = snd_card_new(index[dev], id[dev], THIS_MODULE, NULL);
   .....
   chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -971,8 +966,8 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  struct snd_mychip {
-          snd_card_t *card;
+  struct mychip {
+          struct snd_card *card;
           ....
   };
 ]]>
@@ -1000,7 +995,7 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  static snd_device_ops_t ops = {
+  static struct snd_device_ops ops = {
           .dev_free =        snd_mychip_dev_free,
   };
   ....
@@ -1018,10 +1013,9 @@
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_mychip_dev_free(snd_device_t *device)
+  static int snd_mychip_dev_free(struct snd_device *device)
   {
-          mychip_t *chip = device->device_data;
-          return snd_mychip_free(chip);
+          return snd_mychip_free(device->device_data);
   }
 ]]>
             </programlisting>
@@ -1087,15 +1081,15 @@
           <title>PCI Resource Managements Example</title>
           <programlisting>
 <![CDATA[
-  struct snd_mychip {
-          snd_card_t *card;
+  struct mychip {
+          struct snd_card *card;
           struct pci_dev *pci;
 
           unsigned long port;
           int irq;
   };
 
-  static int snd_mychip_free(mychip_t *chip)
+  static int snd_mychip_free(struct mychip *chip)
   {
           /* disable hardware here if any */
           .... // (not implemented in this document)
@@ -1113,13 +1107,13 @@
   }
 
   /* chip-specific constructor */
-  static int __devinit snd_mychip_create(snd_card_t *card,
+  static int __devinit snd_mychip_create(struct snd_card *card,
                                          struct pci_dev *pci,
-                                         mychip_t **rchip)
+                                         struct mychip **rchip)
   {
-          mychip_t *chip;
+          struct mychip *chip;
           int err;
-          static snd_device_ops_t ops = {
+          static struct snd_device_ops ops = {
                  .dev_free = snd_mychip_dev_free,
           };
 
@@ -1155,8 +1149,7 @@
           }
           chip->port = pci_resource_start(pci, 0);
           if (request_irq(pci->irq, snd_mychip_interrupt,
-                          SA_INTERRUPT|SA_SHIRQ, "My Chip",
-                          (void *)chip)) {
+                          SA_INTERRUPT|SA_SHIRQ, "My Chip", chip)) {
                   printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
                   snd_mychip_free(chip);
                   return -EBUSY;
@@ -1268,14 +1261,14 @@
 
       <para>
         Now assume that this PCI device has an I/O port with 8 bytes
-        and an interrupt. Then <type>mychip_t</type> will have the
+        and an interrupt. Then struct <structname>mychip</structname> will have the
         following fields: 
 
         <informalexample>
           <programlisting>
 <![CDATA[
-  struct snd_mychip {
-          snd_card_t *card;
+  struct mychip {
+          struct snd_card *card;
 
           unsigned long port;
           int irq;
@@ -1330,8 +1323,7 @@
           <programlisting>
 <![CDATA[
   if (request_irq(pci->irq, snd_mychip_interrupt,
-                  SA_INTERRUPT|SA_SHIRQ, "My Chip",
-                  (void *)chip)) {
+                  SA_INTERRUPT|SA_SHIRQ, "My Chip", chip)) {
           printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
           snd_mychip_free(chip);
           return -EBUSY;
@@ -1372,7 +1364,7 @@
   static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id,
                                           struct pt_regs *regs)
   {
-          mychip_t *chip = dev_id;
+          struct mychip *chip = dev_id;
           ....
           return IRQ_HANDLED;
   }
@@ -1487,7 +1479,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  struct snd_mychip {
+  struct mychip {
           ....
           unsigned long iobase_phys;
           void __iomem *iobase_virt;
@@ -1517,7 +1509,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int snd_mychip_free(mychip_t *chip)
+  static int snd_mychip_free(struct mychip *chip)
   {
           ....
           if (chip->iobase_virt)
@@ -1537,7 +1529,7 @@
       <title>Registration of Device Struct</title>
       <para>
 	At some point, typically after calling <function>snd_device_new()</function>,
-	you need to register the <structname>struct device</structname> of the chip
+	you need to register the struct <structname>device</structname> of the chip
 	you're handling for udev and co.  ALSA provides a macro for compatibility with
 	older kernels.  Simply call like the following:
         <informalexample>
@@ -1739,7 +1731,7 @@
   ....
 
   /* hardware definition */
-  static snd_pcm_hardware_t snd_mychip_playback_hw = {
+  static struct snd_pcm_hardware snd_mychip_playback_hw = {
           .info = (SNDRV_PCM_INFO_MMAP |
                    SNDRV_PCM_INFO_INTERLEAVED |
                    SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1758,7 +1750,7 @@
   };
 
   /* hardware definition */
-  static snd_pcm_hardware_t snd_mychip_capture_hw = {
+  static struct snd_pcm_hardware snd_mychip_capture_hw = {
           .info = (SNDRV_PCM_INFO_MMAP |
                    SNDRV_PCM_INFO_INTERLEAVED |
                    SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1777,10 +1769,10 @@
   };
 
   /* open callback */
-  static int snd_mychip_playback_open(snd_pcm_substream_t *substream)
+  static int snd_mychip_playback_open(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
-          snd_pcm_runtime_t *runtime = substream->runtime;
+          struct mychip *chip = snd_pcm_substream_chip(substream);
+          struct snd_pcm_runtime *runtime = substream->runtime;
 
           runtime->hw = snd_mychip_playback_hw;
           // more hardware-initialization will be done here
@@ -1788,19 +1780,19 @@
   }
 
   /* close callback */
-  static int snd_mychip_playback_close(snd_pcm_substream_t *substream)
+  static int snd_mychip_playback_close(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
+          struct mychip *chip = snd_pcm_substream_chip(substream);
           // the hardware-specific codes will be here
           return 0;
 
   }
 
   /* open callback */
-  static int snd_mychip_capture_open(snd_pcm_substream_t *substream)
+  static int snd_mychip_capture_open(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
-          snd_pcm_runtime_t *runtime = substream->runtime;
+          struct mychip *chip = snd_pcm_substream_chip(substream);
+          struct snd_pcm_runtime *runtime = substream->runtime;
 
           runtime->hw = snd_mychip_capture_hw;
           // more hardware-initialization will be done here
@@ -1808,33 +1800,33 @@
   }
 
   /* close callback */
-  static int snd_mychip_capture_close(snd_pcm_substream_t *substream)
+  static int snd_mychip_capture_close(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
+          struct mychip *chip = snd_pcm_substream_chip(substream);
           // the hardware-specific codes will be here
           return 0;
 
   }
 
   /* hw_params callback */
-  static int snd_mychip_pcm_hw_params(snd_pcm_substream_t *substream,
-                               snd_pcm_hw_params_t * hw_params)
+  static int snd_mychip_pcm_hw_params(struct snd_pcm_substream *substream,
+                               struct snd_pcm_hw_params *hw_params)
   {
           return snd_pcm_lib_malloc_pages(substream,
                                      params_buffer_bytes(hw_params));
   }
 
   /* hw_free callback */
-  static int snd_mychip_pcm_hw_free(snd_pcm_substream_t *substream)
+  static int snd_mychip_pcm_hw_free(struct snd_pcm_substream *substream)
   {
           return snd_pcm_lib_free_pages(substream);
   }
 
   /* prepare callback */
-  static int snd_mychip_pcm_prepare(snd_pcm_substream_t *substream)
+  static int snd_mychip_pcm_prepare(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
-          snd_pcm_runtime_t *runtime = substream->runtime;
+          struct mychip *chip = snd_pcm_substream_chip(substream);
+          struct snd_pcm_runtime *runtime = substream->runtime;
 
           /* set up the hardware with the current configuration
            * for example...
@@ -1849,7 +1841,7 @@
   }
 
   /* trigger callback */
-  static int snd_mychip_pcm_trigger(snd_pcm_substream_t *substream,
+  static int snd_mychip_pcm_trigger(struct snd_pcm_substream *substream,
                                     int cmd)
   {
           switch (cmd) {
@@ -1866,9 +1858,9 @@
 
   /* pointer callback */
   static snd_pcm_uframes_t
-  snd_mychip_pcm_pointer(snd_pcm_substream_t *substream)
+  snd_mychip_pcm_pointer(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
+          struct mychip *chip = snd_pcm_substream_chip(substream);
           unsigned int current_ptr;
 
           /* get the current hardware pointer */
@@ -1877,7 +1869,7 @@
   }
 
   /* operators */
-  static snd_pcm_ops_t snd_mychip_playback_ops = {
+  static struct snd_pcm_ops snd_mychip_playback_ops = {
           .open =        snd_mychip_playback_open,
           .close =       snd_mychip_playback_close,
           .ioctl =       snd_pcm_lib_ioctl,
@@ -1889,7 +1881,7 @@
   };
 
   /* operators */
-  static snd_pcm_ops_t snd_mychip_capture_ops = {
+  static struct snd_pcm_ops snd_mychip_capture_ops = {
           .open =        snd_mychip_capture_open,
           .close =       snd_mychip_capture_close,
           .ioctl =       snd_pcm_lib_ioctl,
@@ -1905,9 +1897,9 @@
    */
 
   /* create a pcm device */
-  static int __devinit snd_mychip_new_pcm(mychip_t *chip)
+  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
   {
-          snd_pcm_t *pcm;
+          struct snd_pcm *pcm;
           int err;
 
           if ((err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1,
@@ -1944,9 +1936,9 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int __devinit snd_mychip_new_pcm(mychip_t *chip)
+  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
   {
-          snd_pcm_t *pcm;
+          struct snd_pcm *pcm;
           int err;
 
           if ((err = snd_pcm_new(chip->card, "My Chip", 0, 1, 1,
@@ -1989,13 +1981,13 @@
       specify more numbers, but they must be handled properly in
       open/close, etc. callbacks.  When you need to know which
       substream you are referring to, then it can be obtained from
-      <type>snd_pcm_substream_t</type> data passed to each callback
+      struct <structname>snd_pcm_substream</structname> data passed to each callback
       as follows: 
 
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_pcm_substream_t *substream;
+  struct snd_pcm_substream *substream;
   int index = substream->number;
 ]]>
           </programlisting>
@@ -2024,7 +2016,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static snd_pcm_ops_t snd_mychip_playback_ops = {
+  static struct snd_pcm_ops snd_mychip_playback_ops = {
           .open =        snd_mychip_pcm_open,
           .close =       snd_mychip_pcm_close,
           .ioctl =       snd_pcm_lib_ioctl,
@@ -2102,18 +2094,18 @@
           <title>PCM Instance with a Destructor</title>
           <programlisting>
 <![CDATA[
-  static void mychip_pcm_free(snd_pcm_t *pcm)
+  static void mychip_pcm_free(struct snd_pcm *pcm)
   {
-          mychip_t *chip = snd_pcm_chip(pcm);
+          struct mychip *chip = snd_pcm_chip(pcm);
           /* free your own data */
           kfree(chip->my_private_pcm_data);
           // do what you like else
           ....
   }
 
-  static int __devinit snd_mychip_new_pcm(mychip_t *chip)
+  static int __devinit snd_mychip_new_pcm(struct mychip *chip)
   {
-          snd_pcm_t *pcm;
+          struct snd_pcm *pcm;
           ....
           /* allocate your own data */
           chip->my_private_pcm_data = kmalloc(...);
@@ -2149,7 +2141,7 @@
 <![CDATA[
 struct _snd_pcm_runtime {
 	/* -- Status -- */
-	snd_pcm_substream_t *trigger_master;
+	struct snd_pcm_substream *trigger_master;
 	snd_timestamp_t trigger_tstamp;	/* trigger timestamp */
 	int overrange;
 	snd_pcm_uframes_t avail_max;
@@ -2192,8 +2184,8 @@ struct _snd_pcm_runtime {
 	snd_pcm_sync_id_t sync;		/* hardware synchronization ID */
 
 	/* -- mmap -- */
-	volatile snd_pcm_mmap_status_t *status;
-	volatile snd_pcm_mmap_control_t *control;
+	volatile struct snd_pcm_mmap_status *status;
+	volatile struct snd_pcm_mmap_control *control;
 	atomic_t mmap_count;
 
 	/* -- locking / scheduling -- */
@@ -2204,15 +2196,15 @@ struct _snd_pcm_runtime {
 
 	/* -- private section -- */
 	void *private_data;
-	void (*private_free)(snd_pcm_runtime_t *runtime);
+	void (*private_free)(struct snd_pcm_runtime *runtime);
 
 	/* -- hardware description -- */
-	snd_pcm_hardware_t hw;
-	snd_pcm_hw_constraints_t hw_constraints;
+	struct snd_pcm_hardware hw;
+	struct snd_pcm_hw_constraints hw_constraints;
 
 	/* -- interrupt callbacks -- */
-	void (*transfer_ack_begin)(snd_pcm_substream_t *substream);
-	void (*transfer_ack_end)(snd_pcm_substream_t *substream);
+	void (*transfer_ack_begin)(struct snd_pcm_substream *substream);
+	void (*transfer_ack_end)(struct snd_pcm_substream *substream);
 
 	/* -- timer -- */
 	unsigned int timer_resolution;	/* timer resolution */
@@ -2226,7 +2218,7 @@ struct _snd_pcm_runtime {
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
-	snd_pcm_oss_runtime_t oss;
+	struct snd_pcm_oss_runtime oss;
 #endif
 };
 ]]>
@@ -2252,7 +2244,7 @@ struct _snd_pcm_runtime {
 	<section id="pcm-interface-runtime-hw">
 	<title>Hardware Description</title>
 	<para>
-	  The hardware descriptor (<type>snd_pcm_hardware_t</type>)
+	  The hardware descriptor (struct <structname>snd_pcm_hardware</structname>)
 	contains the definitions of the fundamental hardware
 	configuration.  Above all, you'll need to define this in
 	<link linkend="pcm-interface-operators-open-callback"><citetitle>
@@ -2267,7 +2259,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-          snd_pcm_runtime_t *runtime = substream->runtime;
+          struct snd_pcm_runtime *runtime = substream->runtime;
           ...
           runtime->hw = snd_mychip_playback_hw; /* common definition */
           if (chip->model == VERY_OLD_ONE)
@@ -2282,7 +2274,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static snd_pcm_hardware_t snd_mychip_playback_hw = {
+  static struct snd_pcm_hardware snd_mychip_playback_hw = {
           .info = (SNDRV_PCM_INFO_MMAP |
                    SNDRV_PCM_INFO_INTERLEAVED |
                    SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -2337,9 +2329,14 @@ struct _snd_pcm_runtime {
         <constant>PAUSE</constant> bit means that the pcm supports the
         <quote>pause</quote> operation, while the
         <constant>RESUME</constant> bit means that the pcm supports
-        the <quote>suspend/resume</quote> operation. If these flags
-        are set, the <structfield>trigger</structfield> callback below
-        must handle the corresponding commands. 
+        the full <quote>suspend/resume</quote> operation.
+	If <constant>PAUSE</constant> flag is set,
+	the <structfield>trigger</structfield> callback below
+        must handle the corresponding (pause push/release) commands.
+	The suspend/resume trigger commands can be defined even without
+	<constant>RESUME</constant> flag.  See <link
+	linkend="power-management"><citetitle>
+	Power Management</citetitle></link> section for details.
         </para>
 
 	<para>
@@ -2512,7 +2509,7 @@ struct _snd_pcm_runtime {
 	<title>Running Status</title>
 	<para>
 	The running status can be referred via <constant>runtime-&gt;status</constant>.
-	This is the pointer to <type>snd_pcm_mmap_status_t</type>
+	This is the pointer to struct <structname>snd_pcm_mmap_status</structname>
 	record.  For example, you can get the current DMA hardware
 	pointer via <constant>runtime-&gt;status-&gt;hw_ptr</constant>.
 	</para>
@@ -2520,7 +2517,7 @@ struct _snd_pcm_runtime {
 	<para>
 	The DMA application pointer can be referred via
 	<constant>runtime-&gt;control</constant>, which points
-	<type>snd_pcm_mmap_control_t</type> record.
+	struct <structname>snd_pcm_mmap_control</structname> record.
 	However, accessing directly to this value is not recommended.
 	</para>
 	</section>
@@ -2542,9 +2539,9 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_open(snd_pcm_substream_t *substream)
+  static int snd_xxx_open(struct snd_pcm_substream *substream)
   {
-          my_pcm_data_t *data;
+          struct my_pcm_data *data;
           ....
           data = kmalloc(sizeof(*data), GFP_KERNEL);
           substream->runtime->private_data = data;
@@ -2586,7 +2583,7 @@ struct _snd_pcm_runtime {
 
       <para>
         The callback function takes at least the argument with
-        <type>snd_pcm_substream_t</type> pointer. For retrieving the
+        <structname>snd_pcm_substream</structname> pointer. For retrieving the
         chip record from the given substream instance, you can use the
         following macro. 
 
@@ -2594,7 +2591,7 @@ struct _snd_pcm_runtime {
           <programlisting>
 <![CDATA[
   int xxx() {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
+          struct mychip *chip = snd_pcm_substream_chip(substream);
           ....
   }
 ]]>
@@ -2616,7 +2613,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_open(snd_pcm_substream_t *substream);
+  static int snd_xxx_open(struct snd_pcm_substream *substream);
 ]]>
             </programlisting>
           </informalexample>
@@ -2631,10 +2628,10 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_open(snd_pcm_substream_t *substream)
+  static int snd_xxx_open(struct snd_pcm_substream *substream)
   {
-          mychip_t *chip = snd_pcm_substream_chip(substream);
-          snd_pcm_runtime_t *runtime = substream->runtime;
+          struct mychip *chip = snd_pcm_substream_chip(substream);
+          struct snd_pcm_runtime *runtime = substream->runtime;
 
           runtime->hw = snd_mychip_playback_hw;
           return 0;
@@ -2667,7 +2664,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_close(snd_pcm_substream_t *substream);
+  static int snd_xxx_close(struct snd_pcm_substream *substream);
 ]]>
             </programlisting>
           </informalexample>
@@ -2682,7 +2679,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_close(snd_pcm_substream_t *substream)
+  static int snd_xxx_close(struct snd_pcm_substream *substream)
   {
           ....
           kfree(substream->runtime->private_data);
@@ -2709,8 +2706,8 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_hw_params(snd_pcm_substream_t * substream,
-                               snd_pcm_hw_params_t * hw_params);
+  static int snd_xxx_hw_params(struct snd_pcm_substream *substream,
+                               struct snd_pcm_hw_params *hw_params);
 ]]>
             </programlisting>
           </informalexample>
@@ -2785,7 +2782,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_hw_free(snd_pcm_substream_t * substream);
+  static int snd_xxx_hw_free(struct snd_pcm_substream *substream);
 ]]>
             </programlisting>
           </informalexample>
@@ -2820,7 +2817,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_prepare(snd_pcm_substream_t * substream);
+  static int snd_xxx_prepare(struct snd_pcm_substream *substream);
 ]]>
             </programlisting>
           </informalexample>
@@ -2869,7 +2866,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_xxx_trigger(snd_pcm_substream_t * substream, int cmd);
+  static int snd_xxx_trigger(struct snd_pcm_substream *substream, int cmd);
 ]]>
             </programlisting>
           </informalexample>
@@ -2911,8 +2908,8 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          When the pcm supports the suspend/resume operation
-        (i.e. <constant>SNDRV_PCM_INFO_RESUME</constant> flag is set),
+          When the pcm supports the suspend/resume operation,
+	regardless of full or partial suspend/resume support,
         <constant>SUSPEND</constant> and <constant>RESUME</constant>
         commands must be handled, too.
         These commands are issued when the power-management status is
@@ -2921,6 +2918,8 @@ struct _snd_pcm_runtime {
         do suspend and resume of the pcm substream, and usually, they
         are identical with <constant>STOP</constant> and
         <constant>START</constant> commands, respectively.
+	  See <link linkend="power-management"><citetitle>
+	Power Management</citetitle></link> section for details.
         </para>
 
         <para>
@@ -2939,7 +2938,7 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static snd_pcm_uframes_t snd_xxx_pointer(snd_pcm_substream_t * substream)
+  static snd_pcm_uframes_t snd_xxx_pointer(struct snd_pcm_substream *substream)
 ]]>
             </programlisting>
           </informalexample>
@@ -3067,7 +3066,7 @@ struct _snd_pcm_runtime {
   static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id,
                                           struct pt_regs *regs)
   {
-          mychip_t *chip = dev_id;
+          struct mychip *chip = dev_id;
           spin_lock(&chip->lock);
           ....
           if (pcm_irq_invoked(chip)) {
@@ -3111,7 +3110,7 @@ struct _snd_pcm_runtime {
   static irqreturn_t snd_mychip_interrupt(int irq, void *dev_id,
                                           struct pt_regs *regs)
   {
-          mychip_t *chip = dev_id;
+          struct mychip *chip = dev_id;
           spin_lock(&chip->lock);
           ....
           if (pcm_irq_invoked(chip)) {
@@ -3221,13 +3220,13 @@ struct _snd_pcm_runtime {
 <![CDATA[
   static unsigned int rates[] =
           {4000, 10000, 22050, 44100};
-  static snd_pcm_hw_constraint_list_t constraints_rates = {
+  static struct snd_pcm_hw_constraint_list constraints_rates = {
           .count = ARRAY_SIZE(rates),
           .list = rates,
           .mask = 0,
   };
 
-  static int snd_mychip_pcm_open(snd_pcm_substream_t *substream)
+  static int snd_mychip_pcm_open(struct snd_pcm_substream *substream)
   {
           int err;
           ....
@@ -3249,19 +3248,20 @@ struct _snd_pcm_runtime {
         You can even define your own constraint rules.
         For example, let's suppose my_chip can manage a substream of 1 channel
         if and only if the format is S16_LE, otherwise it supports any format
-        specified in the <type>snd_pcm_hardware_t</type> stucture (or in any
+        specified in the <structname>snd_pcm_hardware</structname> stucture (or in any
         other constraint_list). You can build a rule like this:
 
         <example>
 	  <title>Example of Hardware Constraints for Channels</title>
 	  <programlisting>
 <![CDATA[
-  static int hw_rule_format_by_channels(snd_pcm_hw_params_t *params,
-                                        snd_pcm_hw_rule_t *rule)
+  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
+                                        struct snd_pcm_hw_rule *rule)
   {
-          snd_interval_t *c = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-          snd_mask_t *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-          snd_mask_t fmt;
+          struct snd_interval *c = hw_param_interval(params,
+                SNDRV_PCM_HW_PARAM_CHANNELS);
+          struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+          struct snd_mask fmt;
 
           snd_mask_any(&fmt);    /* Init the struct */
           if (c->min < 2) {
@@ -3298,12 +3298,13 @@ struct _snd_pcm_runtime {
 	 <title>Example of Hardware Constraints for Channels</title>
 	 <programlisting>
 <![CDATA[
-  static int hw_rule_channels_by_format(snd_pcm_hw_params_t *params,
-                                        snd_pcm_hw_rule_t *rule)
+  static int hw_rule_channels_by_format(struct snd_pcm_hw_params *params,
+                                        struct snd_pcm_hw_rule *rule)
   {
-          snd_interval_t *c = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-          snd_mask_t *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-          snd_interval_t ch;
+          struct snd_interval *c = hw_param_interval(params,
+                        SNDRV_PCM_HW_PARAM_CHANNELS);
+          struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+          struct snd_interval ch;
 
           snd_interval_any(&ch);
           if (f->bits[0] == SNDRV_PCM_FMTBIT_S16_LE) {
@@ -3376,13 +3377,13 @@ struct _snd_pcm_runtime {
       callbacks: <structfield>info</structfield>,
       <structfield>get</structfield> and
       <structfield>put</structfield>. Then, define a
-      <type>snd_kcontrol_new_t</type> record, such as: 
+      struct <structname>snd_kcontrol_new</structname> record, such as: 
 
         <example>
 	  <title>Definition of a Control</title>
           <programlisting>
 <![CDATA[
-  static snd_kcontrol_new_t my_control __devinitdata = {
+  static struct snd_kcontrol_new my_control __devinitdata = {
           .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
           .name = "PCM Playback Switch",
           .index = 0,
@@ -3599,7 +3600,7 @@ struct _snd_pcm_runtime {
         <para>
           The <structfield>info</structfield> callback is used to get
         the detailed information of this control. This must store the
-        values of the given <type>snd_ctl_elem_info_t</type>
+        values of the given struct <structname>snd_ctl_elem_info</structname>
         object. For example, for a boolean control with a single
         element will be: 
 
@@ -3607,8 +3608,8 @@ struct _snd_pcm_runtime {
 	    <title>Example of info callback</title>
             <programlisting>
 <![CDATA[
-  static int snd_myctl_info(snd_kcontrol_t *kcontrol,
-                          snd_ctl_elem_info_t *uinfo)
+  static int snd_myctl_info(struct snd_kcontrol *kcontrol,
+                          struct snd_ctl_elem_info *uinfo)
   {
           uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
           uinfo->count = 1;
@@ -3642,8 +3643,8 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_myctl_info(snd_kcontrol_t *kcontrol,
-                          snd_ctl_elem_info_t *uinfo)
+  static int snd_myctl_info(struct snd_kcontrol *kcontrol,
+                          struct snd_ctl_elem_info *uinfo)
   {
           static char *texts[4] = {
                   "First", "Second", "Third", "Fourth"
@@ -3678,10 +3679,10 @@ struct _snd_pcm_runtime {
 	    <title>Example of get callback</title>
             <programlisting>
 <![CDATA[
-  static int snd_myctl_get(snd_kcontrol_t *kcontrol,
-                           snd_ctl_elem_value_t *ucontrol)
+  static int snd_myctl_get(struct snd_kcontrol *kcontrol,
+                           struct snd_ctl_elem_value *ucontrol)
   {
-          mychip_t *chip = snd_kcontrol_chip(kcontrol);
+          struct mychip *chip = snd_kcontrol_chip(kcontrol);
           ucontrol->value.integer.value[0] = get_some_value(chip);
           return 0;
   }
@@ -3717,8 +3718,8 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  static int snd_sbmixer_get_single(snd_kcontrol_t *kcontrol,
-                                    snd_ctl_elem_value_t *ucontrol)
+  static int snd_sbmixer_get_single(struct snd_kcontrol *kcontrol,
+                                    struct snd_ctl_elem_value *ucontrol)
   {
           int reg = kcontrol->private_value & 0xff;
           int shift = (kcontrol->private_value >> 16) & 0xff;
@@ -3754,10 +3755,10 @@ struct _snd_pcm_runtime {
 	    <title>Example of put callback</title>
             <programlisting>
 <![CDATA[
-  static int snd_myctl_put(snd_kcontrol_t *kcontrol,
-                           snd_ctl_elem_value_t *ucontrol)
+  static int snd_myctl_put(struct snd_kcontrol *kcontrol,
+                           struct snd_ctl_elem_value *ucontrol)
   {
-          mychip_t *chip = snd_kcontrol_chip(kcontrol);
+          struct mychip *chip = snd_kcontrol_chip(kcontrol);
           int changed = 0;
           if (chip->current_value !=
                ucontrol->value.integer.value[0]) {
@@ -3814,7 +3815,7 @@ struct _snd_pcm_runtime {
         </informalexample>
 
         where <parameter>my_control</parameter> is the
-      <type>snd_kcontrol_new_t</type> object defined above, and chip
+      struct <structname>snd_kcontrol_new</structname> object defined above, and chip
       is the object pointer to be passed to
       kcontrol-&gt;private_data 
       which can be referred in callbacks. 
@@ -3822,7 +3823,7 @@ struct _snd_pcm_runtime {
 
       <para>
         <function>snd_ctl_new1()</function> allocates a new
-      <type>snd_kcontrol_t</type> instance (that's why the definition
+      <structname>snd_kcontrol</structname> instance (that's why the definition
       of <parameter>my_control</parameter> can be with
       <parameter>__devinitdata</parameter> 
       prefix), and <function>snd_ctl_add</function> assigns the given
@@ -3849,7 +3850,7 @@ struct _snd_pcm_runtime {
       control id pointer for the notification. The event-mask
       specifies the types of notification, for example, in the above
       example, the change of control values is notified.
-      The id pointer is the pointer of <type>snd_ctl_elem_id_t</type>
+      The id pointer is the pointer of struct <structname>snd_ctl_elem_id</structname>
       to be notified.
       You can find some examples in <filename>es1938.c</filename> or
       <filename>es1968.c</filename> for hardware volume interrupts. 
@@ -3882,35 +3883,35 @@ struct _snd_pcm_runtime {
 	    <title>Example of AC97 Interface</title>
             <programlisting>
 <![CDATA[
-  struct snd_mychip {
+  struct mychip {
           ....
-          ac97_t *ac97;
+          struct snd_ac97 *ac97;
           ....
   };
 
-  static unsigned short snd_mychip_ac97_read(ac97_t *ac97,
+  static unsigned short snd_mychip_ac97_read(struct snd_ac97 *ac97,
                                              unsigned short reg)
   {
-          mychip_t *chip = ac97->private_data;
+          struct mychip *chip = ac97->private_data;
           ....
           // read a register value here from the codec
           return the_register_value;
   }
 
-  static void snd_mychip_ac97_write(ac97_t *ac97,
+  static void snd_mychip_ac97_write(struct snd_ac97 *ac97,
                                    unsigned short reg, unsigned short val)
   {
-          mychip_t *chip = ac97->private_data;
+          struct mychip *chip = ac97->private_data;
           ....
           // write the given register value to the codec
   }
 
-  static int snd_mychip_ac97(mychip_t *chip)
+  static int snd_mychip_ac97(struct mychip *chip)
   {
-          ac97_bus_t *bus;
-          ac97_template_t ac97;
+          struct snd_ac97_bus *bus;
+          struct snd_ac97_template ac97;
           int err;
-          static ac97_bus_ops_t ops = {
+          static struct snd_ac97_bus_ops ops = {
                   .write = snd_mychip_ac97_write,
                   .read = snd_mychip_ac97_read,
           };
@@ -3937,8 +3938,8 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  ac97_bus_t *bus;
-  static ac97_bus_ops_t ops = {
+  struct snd_ac97_bus *bus;
+  static struct snd_ac97_bus_ops ops = {
         .write = snd_mychip_ac97_write,
         .read = snd_mychip_ac97_read,
   };
@@ -3952,13 +3953,14 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-      And then call <function>snd_ac97_mixer()</function> with an <type>ac97_template_t</type>
+      And then call <function>snd_ac97_mixer()</function> with an
+      struct <structname>snd_ac97_template</structname>
       record together with the bus pointer created above.
 
         <informalexample>
           <programlisting>
 <![CDATA[
-  ac97_template_t ac97;
+  struct snd_ac97_template ac97;
   int err;
 
   memset(&ac97, 0, sizeof(ac97));
@@ -3995,10 +3997,10 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static unsigned short snd_mychip_ac97_read(ac97_t *ac97,
+  static unsigned short snd_mychip_ac97_read(struct snd_ac97 *ac97,
                                              unsigned short reg)
   {
-          mychip_t *chip = ac97->private_data;
+          struct mychip *chip = ac97->private_data;
           ....
           return the_register_value;
   }
@@ -4016,7 +4018,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void snd_mychip_ac97_write(ac97_t *ac97,
+  static void snd_mychip_ac97_write(struct snd_ac97 *ac97,
                        unsigned short reg, unsigned short val)
 ]]>
           </programlisting>
@@ -4163,7 +4165,7 @@ struct _snd_pcm_runtime {
       <title>Multiple Codecs</title>
       <para>
         When there are several codecs on the same card, you need to
-      call <function>snd_ac97_new()</function> multiple times with
+      call <function>snd_ac97_mixer()</function> multiple times with
       ac97.num=1 or greater. The <structfield>num</structfield> field
       specifies the codec 
       number. 
@@ -4212,7 +4214,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_rawmidi_t *rmidi;
+  struct snd_rawmidi *rmidi;
   snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port, integrated,
                       irq, irq_flags, &rmidi);
 ]]>
@@ -4253,17 +4255,17 @@ struct _snd_pcm_runtime {
         Usually, the port address corresponds to the command port and
         port + 1 corresponds to the data port. If not, you may change
         the <structfield>cport</structfield> field of
-        <type>mpu401_t</type> manually 
-        afterward. However, <type>mpu401_t</type> pointer is not
+        struct <structname>snd_mpu401</structname> manually 
+        afterward. However, <structname>snd_mpu401</structname> pointer is not
         returned explicitly by
         <function>snd_mpu401_uart_new()</function>. You need to cast
         rmidi-&gt;private_data to
-        <type>mpu401_t</type> explicitly, 
+        <structname>snd_mpu401</structname> explicitly, 
 
         <informalexample>
           <programlisting>
 <![CDATA[
-  mpu401_t *mpu;
+  struct snd_mpu401 *mpu;
   mpu = rmidi->private_data;
 ]]>
           </programlisting>
@@ -4359,7 +4361,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_rawmidi_t *rmidi;
+  struct snd_rawmidi *rmidi;
   err = snd_rawmidi_new(chip->card, "MyMIDI", 0, outs, ins, &rmidi);
   if (err < 0)
           return err;
@@ -4419,7 +4421,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static snd_rawmidi_ops_t snd_mymidi_output_ops = {
+  static struct snd_rawmidi_ops snd_mymidi_output_ops = {
           .open =    snd_mymidi_output_open,
           .close =   snd_mymidi_output_close,
           .trigger = snd_mymidi_output_trigger,
@@ -4439,9 +4441,9 @@ struct _snd_pcm_runtime {
           <programlisting>
 <![CDATA[
   struct list_head *list;
-  snd_rawmidi_substream_t *substream;
+  struct snd_rawmidi_substream *substream;
   list_for_each(list, &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams) {
-          substream = list_entry(list, snd_rawmidi_substream_t, list);
+          substream = list_entry(list, struct snd_rawmidi_substream, list);
           sprintf(substream->name, "My MIDI Port %d", substream->number + 1);
   }
   /* same for SNDRV_RAWMIDI_STREAM_INPUT */
@@ -4463,12 +4465,12 @@ struct _snd_pcm_runtime {
 
       <para>
       If there is more than one port, your callbacks can determine the
-      port index from the snd_rawmidi_substream_t data passed to each
+      port index from the struct snd_rawmidi_substream data passed to each
       callback:
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_rawmidi_substream_t *substream;
+  struct snd_rawmidi_substream *substream;
   int index = substream->number;
 ]]>
           </programlisting>
@@ -4481,7 +4483,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int snd_xxx_open(snd_rawmidi_substream_t *substream);
+  static int snd_xxx_open(struct snd_rawmidi_substream *substream);
 ]]>
           </programlisting>
         </informalexample>
@@ -4499,7 +4501,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int snd_xxx_close(snd_rawmidi_substream_t *substream);
+  static int snd_xxx_close(struct snd_rawmidi_substream *substream);
 ]]>
           </programlisting>
         </informalexample>
@@ -4522,7 +4524,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void snd_xxx_output_trigger(snd_rawmidi_substream_t *substream, int up);
+  static void snd_xxx_output_trigger(struct snd_rawmidi_substream *substream, int up);
 ]]>
           </programlisting>
         </informalexample>
@@ -4547,7 +4549,7 @@ struct _snd_pcm_runtime {
 <![CDATA[
   unsigned char data;
   while (snd_rawmidi_transmit_peek(substream, &data, 1) == 1) {
-          if (mychip_try_to_transmit(data))
+          if (snd_mychip_try_to_transmit(data))
                   snd_rawmidi_transmit_ack(substream, 1);
           else
                   break; /* hardware FIFO full */
@@ -4564,11 +4566,11 @@ struct _snd_pcm_runtime {
           <informalexample>
             <programlisting>
 <![CDATA[
-  while (mychip_transmit_possible()) {
+  while (snd_mychip_transmit_possible()) {
           unsigned char data;
           if (snd_rawmidi_transmit(substream, &data, 1) != 1)
                   break; /* no more data */
-          mychip_transmit(data);
+          snd_mychip_transmit(data);
   }
 ]]>
             </programlisting>
@@ -4603,7 +4605,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void snd_xxx_input_trigger(snd_rawmidi_substream_t *substream, int up);
+  static void snd_xxx_input_trigger(struct snd_rawmidi_substream *substream, int up);
 ]]>
           </programlisting>
         </informalexample>
@@ -4647,7 +4649,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void snd_xxx_drain(snd_rawmidi_substream_t *substream);
+  static void snd_xxx_drain(struct snd_rawmidi_substream *substream);
 ]]>
           </programlisting>
         </informalexample>
@@ -4661,7 +4663,7 @@ struct _snd_pcm_runtime {
 
         <para>
         This callback is optional.  If you do not set
-        <structfield>drain</structfield> in the snd_rawmidi_ops_t
+        <structfield>drain</structfield> in the struct snd_rawmidi_ops
         structure, ALSA will simply wait for 50&nbsp;milliseconds
         instead.
         </para>
@@ -4703,7 +4705,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  opl3_t *opl3;
+  struct snd_opl3 *opl3;
   snd_opl3_create(card, lport, rport, OPL3_HW_OPL3_XXX,
                   integrated, &opl3);
 ]]>
@@ -4736,7 +4738,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  opl3_t *opl3;
+  struct snd_opl3 *opl3;
   snd_opl3_new(card, OPL3_HW_OPL3_XXX, &opl3);
 ]]>
           </programlisting>
@@ -4767,7 +4769,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_hwdep_t *opl3hwdep;
+  struct snd_hwdep *opl3hwdep;
   snd_opl3_hwdep_new(opl3, 0, 1, &opl3hwdep);
 ]]>
           </programlisting>
@@ -4804,7 +4806,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_hwdep_t *hw;
+  struct snd_hwdep *hw;
   snd_hwdep_new(card, "My HWDEP", 0, &hw);
 ]]>
           </programlisting>
@@ -4823,7 +4825,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  mydata_t *p = kmalloc(sizeof(*p), GFP_KERNEL);
+  struct mydata *p = kmalloc(sizeof(*p), GFP_KERNEL);
   hw->private_data = p;
   hw->private_free = mydata_free;
 ]]>
@@ -4835,9 +4837,9 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static void mydata_free(snd_hwdep_t *hw)
+  static void mydata_free(struct snd_hwdep *hw)
   {
-          mydata_t *p = hw->private_data;
+          struct mydata *p = hw->private_data;
           kfree(p);
   }
 ]]>
@@ -5061,9 +5063,9 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int playback_copy(snd_pcm_substream_t *substream, int channel,
+  static int playback_copy(struct snd_pcm_substream *substream, int channel,
                snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count);
-  static int capture_copy(snd_pcm_substream_t *substream, int channel,
+  static int capture_copy(struct snd_pcm_substream *substream, int channel,
                snd_pcm_uframes_t pos, void *dst, snd_pcm_uframes_t count);
 ]]>
           </programlisting>
@@ -5144,7 +5146,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  static int silence(snd_pcm_substream_t *substream, int channel,
+  static int silence(struct snd_pcm_substream *substream, int channel,
                      snd_pcm_uframes_t pos, snd_pcm_uframes_t count);
 ]]>
           </programlisting>
@@ -5211,7 +5213,7 @@ struct _snd_pcm_runtime {
         <informalexample>
           <programlisting>
 <![CDATA[
-  snd_pcm_sgbuf_t *sgbuf = (snd_pcm_sgbuf_t*)substream->dma_private;
+  struct snd_sg_buf *sgbuf = (struct snd_sg_buf_t*)substream->dma_private;
 ]]>
           </programlisting>
         </informalexample>
@@ -5266,7 +5268,7 @@ struct _snd_pcm_runtime {
   #include <linux/vmalloc.h>
 
   /* get the physical page pointer on the given offset */
-  static struct page *mychip_page(snd_pcm_substream_t *substream,
+  static struct page *mychip_page(struct snd_pcm_substream *substream,
                                   unsigned long offset)
   {
           void *pageptr = substream->runtime->dma_area + offset;
@@ -5301,7 +5303,7 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  snd_info_entry_t *entry;
+  struct snd_info_entry *entry;
   int err = snd_card_proc_new(card, "my-file", &entry);
 ]]>
         </programlisting>
@@ -5345,8 +5347,8 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static void my_proc_read(snd_info_entry_t *entry,
-                           snd_info_buffer_t *buffer);
+  static void my_proc_read(struct snd_info_entry *entry,
+                           struct snd_info_buffer *buffer);
 ]]>
         </programlisting>
       </informalexample>
@@ -5361,10 +5363,10 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static void my_proc_read(snd_info_entry_t *entry,
-                           snd_info_buffer_t *buffer)
+  static void my_proc_read(struct snd_info_entry *entry,
+                           struct snd_info_buffer *buffer)
   {
-          chip_t *chip = entry->private_data;
+          struct my_chip *chip = entry->private_data;
 
           snd_iprintf(buffer, "This is my chip!\n");
           snd_iprintf(buffer, "Port = %ld\n", chip->port);
@@ -5453,7 +5455,7 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static long my_file_io_read(snd_info_entry_t *entry,
+  static long my_file_io_read(struct snd_info_entry *entry,
                               void *file_private_data,
                               struct file *file,
                               char *buf,
@@ -5488,22 +5490,60 @@ struct _snd_pcm_runtime {
       <constant>CONFIG_PM</constant>. 
     </para>
 
+	<para>
+	If the driver supports the suspend/resume
+	<emphasis>fully</emphasis>, that is, the device can be
+	properly resumed to the status at the suspend is called,
+	you can set <constant>SNDRV_PCM_INFO_RESUME</constant> flag
+	to pcm info field.  Usually, this is possible when the
+	registers of ths chip can be safely saved and restored to the
+	RAM.  If this is set, the trigger callback is called with
+	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> after resume
+	callback is finished. 
+	</para>
+
+	<para>
+	Even if the driver doesn't support PM fully but only the
+	partial suspend/resume is possible, it's still worthy to
+	implement suspend/resume callbacks.  In such a case, applications
+	would reset the status by calling
+	<function>snd_pcm_prepare()</function> and restart the stream
+	appropriately.  Hence, you can define suspend/resume callbacks
+	below but don't set <constant>SNDRV_PCM_INFO_RESUME</constant>
+	info flag to the PCM.
+	</para>
+	
+	<para>
+	Note that the trigger with SUSPEND can be always called when
+	<function>snd_pcm_suspend_all</function> is called,
+	regardless of <constant>SNDRV_PCM_INFO_RESUME</constant> flag.
+	The <constant>RESUME</constant> flag affects only the behavior
+	of <function>snd_pcm_resume()</function>.
+	(Thus, in theory,
+	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> isn't needed
+	to be handled in the trigger callback when no
+	<constant>SNDRV_PCM_INFO_RESUME</constant> flag is set.  But,
+	it's better to keep it for compatibility reason.)
+	</para>
     <para>
-      ALSA provides the common power-management layer. Each card driver
-      needs to have only low-level suspend and resume callbacks.
+      In the earlier version of ALSA drivers, a common
+      power-management layer was provided, but it has been removed.
+      The driver needs to define the suspend/resume hooks according to
+      the bus the device is assigned.  In the case of PCI driver, the
+      callbacks look like below:
 
       <informalexample>
         <programlisting>
 <![CDATA[
   #ifdef CONFIG_PM
-  static int snd_my_suspend(snd_card_t *card, pm_message_t state)
+  static int snd_my_suspend(struct pci_dev *pci, pm_message_t state)
   {
-          .... // do things for suspsend
+          .... /* do things for suspsend */
           return 0;
   }
-  static int snd_my_resume(snd_card_t *card)
+  static int snd_my_resume(struct pci_dev *pci)
   {
-          .... // do things for suspsend
+          .... /* do things for suspsend */
           return 0;
   }
   #endif
@@ -5516,11 +5556,18 @@ struct _snd_pcm_runtime {
       The scheme of the real suspend job is as following.
 
       <orderedlist>
-        <listitem><para>Retrieve the chip data from pm_private_data field.</para></listitem>
+        <listitem><para>Retrieve the card and the chip data.</para></listitem>
+        <listitem><para>Call <function>snd_power_change_state()</function> with
+	  <constant>SNDRV_CTL_POWER_D3hot</constant> to change the
+	  power status.</para></listitem>
         <listitem><para>Call <function>snd_pcm_suspend_all()</function> to suspend the running PCM streams.</para></listitem>
+	<listitem><para>If AC97 codecs are used, call
+	<function>snd_ac97_resume()</function> for each codec.</para></listitem>
         <listitem><para>Save the register values if necessary.</para></listitem>
         <listitem><para>Stop the hardware if necessary.</para></listitem>
-        <listitem><para>Disable the PCI device by calling <function>pci_disable_device()</function>.</para></listitem>
+        <listitem><para>Disable the PCI device by calling
+	  <function>pci_disable_device()</function>.  Then, call
+          <function>pci_save_state()</function> at last.</para></listitem>
       </orderedlist>
     </para>
 
@@ -5530,18 +5577,24 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int mychip_suspend(snd_card_t *card, pm_message_t state)
+  static int mychip_suspend(struct pci_dev *pci, pm_message_t state)
   {
           /* (1) */
-          mychip_t *chip = card->pm_private_data;
+          struct snd_card *card = pci_get_drvdata(pci);
+          struct mychip *chip = card->private_data;
           /* (2) */
-          snd_pcm_suspend_all(chip->pcm);
+          snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
           /* (3) */
-          snd_mychip_save_registers(chip);
+          snd_pcm_suspend_all(chip->pcm);
           /* (4) */
-          snd_mychip_stop_hardware(chip);
+          snd_ac97_suspend(chip->ac97);
           /* (5) */
-          pci_disable_device(chip->pci);
+          snd_mychip_save_registers(chip);
+          /* (6) */
+          snd_mychip_stop_hardware(chip);
+          /* (7) */
+          pci_disable_device(pci);
+          pci_save_state(pci);
           return 0;
   }
 ]]>
@@ -5553,14 +5606,17 @@ struct _snd_pcm_runtime {
     The scheme of the real resume job is as following.
 
     <orderedlist>
-    <listitem><para>Retrieve the chip data from pm_private_data field.</para></listitem>
-    <listitem><para>Enable the pci device again by calling
-    <function>pci_enable_device()</function>.</para></listitem>
+    <listitem><para>Retrieve the card and the chip data.</para></listitem>
+    <listitem><para>Set up PCI.  First, call <function>pci_restore_state()</function>.
+    	Then enable the pci device again by calling <function>pci_enable_device()</function>.
+	Call <function>pci_set_master()</function> if necessary, too.</para></listitem>
     <listitem><para>Re-initialize the chip.</para></listitem>
     <listitem><para>Restore the saved registers if necessary.</para></listitem>
     <listitem><para>Resume the mixer, e.g. calling
     <function>snd_ac97_resume()</function>.</para></listitem>
     <listitem><para>Restart the hardware (if any).</para></listitem>
+    <listitem><para>Call <function>snd_power_change_state()</function> with
+	<constant>SNDRV_CTL_POWER_D0</constant> to notify the processes.</para></listitem>
     </orderedlist>
     </para>
 
@@ -5570,12 +5626,15 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static void mychip_resume(mychip_t *chip)
+  static int mychip_resume(struct pci_dev *pci)
   {
           /* (1) */
-          mychip_t *chip = card->pm_private_data;
+          struct snd_card *card = pci_get_drvdata(pci);
+          struct mychip *chip = card->private_data;
           /* (2) */
-          pci_enable_device(chip->pci);
+          pci_restore_state(pci);
+          pci_enable_device(pci);
+          pci_set_master(pci);
           /* (3) */
           snd_mychip_reinit_chip(chip);
           /* (4) */
@@ -5584,6 +5643,8 @@ struct _snd_pcm_runtime {
           snd_ac97_resume(chip->ac97);
           /* (6) */
           snd_mychip_restart_chip(chip);
+          /* (7) */
+          snd_power_change_state(card, SNDRV_CTL_POWER_D0);
           return 0;
   }
 ]]>
@@ -5592,8 +5653,23 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      OK, we have all callbacks now. Let's set up them now. In the
-      initialization of the card, add the following: 
+	As shown in the above, it's better to save registers after
+	suspending the PCM operations via
+	<function>snd_pcm_suspend_all()</function> or
+	<function>snd_pcm_suspend()</function>.  It means that the PCM
+	streams are already stoppped when the register snapshot is
+	taken.  But, remind that you don't have to restart the PCM
+	stream in the resume callback. It'll be restarted via 
+	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>
+	when necessary.
+    </para>
+
+    <para>
+      OK, we have all callbacks now. Let's set them up. In the
+      initialization of the card, make sure that you can get the chip
+      data from the card instance, typically via
+      <structfield>private_data</structfield> field, in case you
+      created the chip data individually.
 
       <informalexample>
         <programlisting>
@@ -5602,33 +5678,56 @@ struct _snd_pcm_runtime {
                                const struct pci_device_id *pci_id)
   {
           ....
-          snd_card_t *card;
-          mychip_t *chip;
+          struct snd_card *card;
+          struct mychip *chip;
           ....
-          snd_card_set_pm_callback(card, snd_my_suspend, snd_my_resume, chip);
+          card = snd_card_new(index[dev], id[dev], THIS_MODULE, NULL);
+          ....
+          chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+          ....
+          card->private_data = chip;
           ....
   }
 ]]>
         </programlisting>
       </informalexample>
 
-    Here you don't have to put ifdef CONFIG_PM around, since it's already
-    checked in the header and expanded to empty if not needed.
+	When you created the chip data with
+	<function>snd_card_new()</function>, it's anyway accessible
+	via <structfield>private_data</structfield> field.
+
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  static int __devinit snd_mychip_probe(struct pci_dev *pci,
+                               const struct pci_device_id *pci_id)
+  {
+          ....
+          struct snd_card *card;
+          struct mychip *chip;
+          ....
+          card = snd_card_new(index[dev], id[dev], THIS_MODULE,
+                              sizeof(struct mychip));
+          ....
+          chip = card->private_data;
+          ....
+  }
+]]>
+        </programlisting>
+      </informalexample>
+
     </para>
 
     <para>
-      If you need a space for saving the registers, you'll need to
-    allocate the buffer for it here, too, since it would be fatal
+      If you need a space for saving the registers, allocate the
+	buffer for it here, too, since it would be fatal
     if you cannot allocate a memory in the suspend phase.
     The allocated buffer should be released in the corresponding
     destructor.
     </para>
 
     <para>
-      And next, set suspend/resume callbacks to the pci_driver,
-      This can be done by passing a macro SND_PCI_PM_CALLBACKS
-      in the pci_driver struct.  This macro is expanded to the correct
-      (global) callbacks if CONFIG_PM is set.
+      And next, set suspend/resume callbacks to the pci_driver.
 
       <informalexample>
         <programlisting>
@@ -5638,7 +5737,10 @@ struct _snd_pcm_runtime {
           .id_table = snd_my_ids,
           .probe = snd_my_probe,
           .remove = __devexit_p(snd_my_remove),
-          SND_PCI_PM_CALLBACKS
+  #ifdef CONFIG_PM
+          .suspend = snd_my_suspend,
+          .resume = snd_my_resume,
+  #endif
   };
 ]]>
         </programlisting>

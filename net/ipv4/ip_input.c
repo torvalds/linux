@@ -128,6 +128,7 @@
 #include <linux/sockios.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
@@ -184,7 +185,6 @@ int ip_call_ra_chain(struct sk_buff *skb)
 					raw_rcv(last, skb2);
 			}
 			last = sk;
-			nf_reset(skb);
 		}
 	}
 
@@ -202,10 +202,6 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 	int ihl = skb->nh.iph->ihl*4;
 
 	__skb_pull(skb, ihl);
-
-	/* Free reference early: we don't need it any more, and it may
-           hold ip_conntrack module loaded indefinitely. */
-	nf_reset(skb);
 
         /* Point into the IP datagram, just past the header. */
         skb->h.raw = skb->data;
@@ -231,10 +227,12 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
 			int ret;
 
-			if (!ipprot->no_policy &&
-			    !xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-				kfree_skb(skb);
-				goto out;
+			if (!ipprot->no_policy) {
+				if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+					kfree_skb(skb);
+					goto out;
+				}
+				nf_reset(skb);
 			}
 			ret = ipprot->handler(skb);
 			if (ret < 0) {

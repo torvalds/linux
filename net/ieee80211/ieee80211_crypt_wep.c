@@ -75,22 +75,14 @@ static void prism2_wep_deinit(void *priv)
 	kfree(priv);
 }
 
-/* Perform WEP encryption on given skb that has at least 4 bytes of headroom
- * for IV and 4 bytes of tailroom for ICV. Both IV and ICV will be transmitted,
- * so the payload length increases with 8 bytes.
- *
- * WEP frame payload: IV + TX key idx, RC4(data), ICV = RC4(CRC32(data))
- */
-static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+/* Add WEP IV/key info to a frame that has at least 4 bytes of headroom */
+static int prism2_wep_build_iv(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
-	u32 crc, klen, len;
-	u8 key[WEP_KEY_LEN + 3];
-	u8 *pos, *icv;
-	struct scatterlist sg;
-
-	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
-	    skb->len < hdr_len)
+	u32 klen, len;
+	u8 *pos;
+	
+	if (skb_headroom(skb) < 4 || skb->len < hdr_len)
 		return -1;
 
 	len = skb->len - hdr_len;
@@ -112,15 +104,47 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 
 	/* Prepend 24-bit IV to RC4 key and TX frame */
-	*pos++ = key[0] = (wep->iv >> 16) & 0xff;
-	*pos++ = key[1] = (wep->iv >> 8) & 0xff;
-	*pos++ = key[2] = wep->iv & 0xff;
+	*pos++ = (wep->iv >> 16) & 0xff;
+	*pos++ = (wep->iv >> 8) & 0xff;
+	*pos++ = wep->iv & 0xff;
 	*pos++ = wep->key_idx << 6;
+
+	return 0;
+}
+
+/* Perform WEP encryption on given skb that has at least 4 bytes of headroom
+ * for IV and 4 bytes of tailroom for ICV. Both IV and ICV will be transmitted,
+ * so the payload length increases with 8 bytes.
+ *
+ * WEP frame payload: IV + TX key idx, RC4(data), ICV = RC4(CRC32(data))
+ */
+static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+{
+	struct prism2_wep_data *wep = priv;
+	u32 crc, klen, len;
+	u8 *pos, *icv;
+	struct scatterlist sg;
+	u8 key[WEP_KEY_LEN + 3];
+
+	/* other checks are in prism2_wep_build_iv */
+	if (skb_tailroom(skb) < 4)
+		return -1;
+	
+	/* add the IV to the frame */
+	if (prism2_wep_build_iv(skb, hdr_len, priv))
+		return -1;
+	
+	/* Copy the IV into the first 3 bytes of the key */
+	memcpy(key, skb->data + hdr_len, 3);
 
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);
+	
+	len = skb->len - hdr_len - 4;
+	pos = skb->data + hdr_len + 4;
+	klen = 3 + wep->key_len;
 
-	/* Append little-endian CRC32 and encrypt it to produce ICV */
+	/* Append little-endian CRC32 over only the data and encrypt it to produce ICV */
 	crc = ~crc32_le(~0, pos, len);
 	icv = skb_put(skb, 4);
 	icv[0] = crc;
@@ -231,6 +255,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
 	.name = "WEP",
 	.init = prism2_wep_init,
 	.deinit = prism2_wep_deinit,
+	.build_iv = prism2_wep_build_iv,
 	.encrypt_mpdu = prism2_wep_encrypt,
 	.decrypt_mpdu = prism2_wep_decrypt,
 	.encrypt_msdu = NULL,

@@ -6,6 +6,8 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
+
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>

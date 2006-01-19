@@ -44,7 +44,7 @@ loff_t_to_s32(loff_t offset)
 /*
  * XDR functions for basic NLM types
  */
-static inline u32 *nlm_decode_cookie(u32 *p, struct nlm_cookie *c)
+static u32 *nlm_decode_cookie(u32 *p, struct nlm_cookie *c)
 {
 	unsigned int	len;
 
@@ -79,7 +79,7 @@ nlm_encode_cookie(u32 *p, struct nlm_cookie *c)
 	return p;
 }
 
-static inline u32 *
+static u32 *
 nlm_decode_fh(u32 *p, struct nfs_fh *f)
 {
 	unsigned int	len;
@@ -119,7 +119,7 @@ nlm_encode_oh(u32 *p, struct xdr_netobj *oh)
 	return xdr_encode_netobj(p, oh);
 }
 
-static inline u32 *
+static u32 *
 nlm_decode_lock(u32 *p, struct nlm_lock *lock)
 {
 	struct file_lock	*fl = &lock->fl;

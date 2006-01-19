@@ -641,6 +641,7 @@ static char rcsid[] =
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -723,7 +724,7 @@ static unsigned int cy_isa_addresses[] = {
         0xDE000,
         0,0,0,0,0,0,0,0
 };
-#define NR_ISA_ADDRS (sizeof(cy_isa_addresses)/sizeof(unsigned char*))
+#define NR_ISA_ADDRS ARRAY_SIZE(cy_isa_addresses)
 
 #ifdef MODULE
 static long maddr[NR_CARDS] = { 0, };
@@ -1086,7 +1087,7 @@ cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
   int had_work;
   int mdm_change;
   int mdm_status;
-
+  int len;
     if((cinfo = (struct cyclades_card *)dev_id) == 0){
 #ifdef CY_DEBUG_INTERRUPTS
 	printk("cyy_interrupt: spurious interrupt %d\n\r", irq);
@@ -1163,63 +1164,43 @@ cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				info->icount.rx++;
                                 continue;
                             }
-                            if (tty->flip.count < TTY_FLIPBUF_SIZE){
-                                tty->flip.count++;
+                            if (tty_buffer_request_room(tty, 1)) {
                                 if (data & info->read_status_mask){
                                     if(data & CyBREAK){
-                                        *tty->flip.flag_buf_ptr++ =
-	    						    TTY_BREAK;
-                                        *tty->flip.char_buf_ptr++ =
-					  cy_readb(base_addr+(CyRDSR<<index));
+                                        tty_insert_flip_char(tty, cy_readb(base_addr+(CyRDSR<<index)), TTY_BREAK);
 					info->icount.rx++;
                                         if (info->flags & ASYNC_SAK){
                                             do_SAK(tty);
                                         }
                                     }else if(data & CyFRAME){
-                                        *tty->flip.flag_buf_ptr++ =
-							    TTY_FRAME;
-                                        *tty->flip.char_buf_ptr++ =
-					  cy_readb(base_addr+(CyRDSR<<index));
+                                        tty_insert_flip_char(tty, cy_readb(base_addr+(CyRDSR<<index)), TTY_FRAME);
 					info->icount.rx++;
 					info->idle_stats.frame_errs++;
                                     }else if(data & CyPARITY){
-                                        *tty->flip.flag_buf_ptr++ =
-							    TTY_PARITY;
-                                        *tty->flip.char_buf_ptr++ =
-					  cy_readb(base_addr+(CyRDSR<<index));
+					/* Pieces of seven... */
+                                        tty_insert_flip_char(tty, cy_readb(base_addr+(CyRDSR<<index)), TTY_PARITY);
 					info->icount.rx++;
 					info->idle_stats.parity_errs++;
                                     }else if(data & CyOVERRUN){
-                                        *tty->flip.flag_buf_ptr++ =
-							    TTY_OVERRUN;
-                                        *tty->flip.char_buf_ptr++ = 0;
+                                        tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 					info->icount.rx++;
                                         /* If the flip buffer itself is
                                            overflowing, we still lose
                                            the next incoming character.
                                          */
-                                        if(tty->flip.count
-					           < TTY_FLIPBUF_SIZE){
-                                            tty->flip.count++;
-                                            *tty->flip.flag_buf_ptr++ =
-							     TTY_NORMAL;
-                                           *tty->flip.char_buf_ptr++ =
-					    cy_readb(base_addr+(CyRDSR<<index));
-					    info->icount.rx++;
-                                        }
+                                        tty_insert_flip_char(tty, cy_readb(base_addr+(CyRDSR<<index)), TTY_FRAME);
+				        info->icount.rx++;
 					info->idle_stats.overruns++;
                                     /* These two conditions may imply */
                                     /* a normal read should be done. */
                                     /* }else if(data & CyTIMEOUT){ */
                                     /* }else if(data & CySPECHAR){ */
-                                    }else{
-                                        *tty->flip.flag_buf_ptr++ = 0;
-                                        *tty->flip.char_buf_ptr++ = 0;
-					info->icount.rx++;
+                                    }else {
+					tty_insert_flip_char(tty, 0, TTY_NORMAL);
+				        info->icount.rx++;
                                     }
                                 }else{
-                                    *tty->flip.flag_buf_ptr++ = 0;
-                                    *tty->flip.char_buf_ptr++ = 0;
+				    tty_insert_flip_char(tty, 0, TTY_NORMAL);
 				    info->icount.rx++;
                                 }
                             }else{
@@ -1240,14 +1221,10 @@ cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
                                info->mon.char_max = char_count;
                             info->mon.char_last = char_count;
 #endif
-                            while(char_count--){
-                                if (tty->flip.count >= TTY_FLIPBUF_SIZE){
-                                        break;
-                                }
-                                tty->flip.count++;
+			    len = tty_buffer_request_room(tty, char_count);
+                            while(len--){
                                 data = cy_readb(base_addr+(CyRDSR<<index));
-                                *tty->flip.flag_buf_ptr++ = TTY_NORMAL;
-                                *tty->flip.char_buf_ptr++ = data;
+				tty_insert_flip_char(tty, data, TTY_NORMAL);
 				info->idle_stats.recv_bytes++;
 				info->icount.rx++;
 #ifdef CY_16Y_HACK
@@ -1256,7 +1233,7 @@ cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
                             }
                              info->idle_stats.recv_idle = jiffies;
                         }
-                        schedule_delayed_work(&tty->flip.work, 1);
+                        schedule_delayed_work(&tty->buf.work, 1);
                     }
                     /* end of service */
                     cy_writeb(base_addr+(CyRIR<<index), (save_xir & 0x3f));
@@ -1551,6 +1528,7 @@ cyz_handle_rx(struct cyclades_port *info,
   struct cyclades_card *cinfo = &cy_card[info->card];
   struct tty_struct *tty = info->tty;
   volatile int char_count;
+  int len;
 #ifdef BLOCKMOVE
   int small_count;
 #else
@@ -1606,18 +1584,11 @@ cyz_handle_rx(struct cyclades_port *info,
 		tty->flip.count += small_count;
 	    }
 #else
-	    while(char_count--){
-		if (tty->flip.count >= N_TTY_BUF_SIZE - tty->read_cnt)
-                    break;
-
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-		    break;
-
+	    len = tty_buffer_request_room(tty, char_count);
+	    while(len--){
 		data = cy_readb(cinfo->base_addr + rx_bufaddr + new_rx_get);
 		new_rx_get = (new_rx_get + 1) & (rx_bufsize - 1);
-		tty->flip.count++;
-		*tty->flip.flag_buf_ptr++ = TTY_NORMAL;
-		*tty->flip.char_buf_ptr++ = data;
+		tty_insert_flip_char(tty, data, TTY_NORMAL);
 		info->idle_stats.recv_bytes++;
 		info->icount.rx++;
 	    }
@@ -1635,7 +1606,7 @@ cyz_handle_rx(struct cyclades_port *info,
 	    }
 #endif
 	    info->idle_stats.recv_idle = jiffies;
-	    schedule_delayed_work(&tty->flip.work, 1);
+	    schedule_delayed_work(&tty->buf.work, 1);
 	}
 	/* Update rx_get */
 	cy_writel(&buf_ctrl->rx_get, new_rx_get);
@@ -1763,23 +1734,17 @@ cyz_handle_cmd(struct cyclades_card *cinfo)
 
 	switch(cmd) {
 	    case C_CM_PR_ERROR:
-		tty->flip.count++;
-		*tty->flip.flag_buf_ptr++ = TTY_PARITY;
-		*tty->flip.char_buf_ptr++ = 0;
+		tty_insert_flip_char(tty, 0, TTY_PARITY);
 		info->icount.rx++;
 		special_count++;
 		break;
 	    case C_CM_FR_ERROR:
-		tty->flip.count++;
-		*tty->flip.flag_buf_ptr++ = TTY_FRAME;
-		*tty->flip.char_buf_ptr++ = 0;
+		tty_insert_flip_char(tty, 0, TTY_FRAME);
 		info->icount.rx++;
 		special_count++;
 		break;
 	    case C_CM_RXBRK:
-		tty->flip.count++;
-		*tty->flip.flag_buf_ptr++ = TTY_BREAK;
-		*tty->flip.char_buf_ptr++ = 0;
+		tty_insert_flip_char(tty, 0, TTY_BREAK);
 		info->icount.rx++;
 		special_count++;
 		break;
@@ -1844,7 +1809,7 @@ cyz_handle_cmd(struct cyclades_card *cinfo)
 	if(delta_count)
 	    cy_sched_event(info, Cy_EVENT_DELTA_WAKEUP);
 	if(special_count)
-	    schedule_delayed_work(&tty->flip.work, 1);
+	    schedule_delayed_work(&tty->buf.work, 1);
     }
 }
 

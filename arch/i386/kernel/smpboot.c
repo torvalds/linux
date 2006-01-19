@@ -875,8 +875,7 @@ static inline struct task_struct * alloc_idle_task(int cpu)
 		/* initialize thread_struct.  we really want to avoid destroy
 		 * idle tread
 		 */
-		idle->thread.esp = (unsigned long)(((struct pt_regs *)
-			(THREAD_SIZE + (unsigned long) idle->thread_info)) - 1);
+		idle->thread.esp = (unsigned long)task_pt_regs(idle);
 		init_idle(idle, cpu);
 		return idle;
 	}
@@ -902,6 +901,12 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	int timeout;
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
+
+	if (!cpu_gdt_descr[cpu].address &&
+	    !(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
+		printk("Failed to allocate GDT for CPU %d\n", cpu);
+		return 1;
+	}
 
 	++cpucount;
 
@@ -1090,6 +1095,7 @@ static void smp_tune_scheduling (void)
 			cachesize = 16; /* Pentiums, 2x8kB cache */
 			bandwidth = 100;
 		}
+		max_cache_size = cachesize * 1024;
 	}
 }
 

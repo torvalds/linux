@@ -65,9 +65,9 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 	}
 
 	/* attach QP to multicast group */
-	down(&priv->mcast_mutex);
+	mutex_lock(&priv->mcast_mutex);
 	ret = ib_attach_mcast(priv->qp, mgid, mlid);
-	up(&priv->mcast_mutex);
+	mutex_unlock(&priv->mcast_mutex);
 	if (ret)
 		ipoib_warn(priv, "failed to attach to multicast group, ret = %d\n", ret);
 
@@ -81,9 +81,9 @@ int ipoib_mcast_detach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
 
-	down(&priv->mcast_mutex);
+	mutex_lock(&priv->mcast_mutex);
 	ret = ib_detach_mcast(priv->qp, mgid, mlid);
-	up(&priv->mcast_mutex);
+	mutex_unlock(&priv->mcast_mutex);
 	if (ret)
 		ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
 

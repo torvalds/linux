@@ -35,7 +35,7 @@ static spinlock_t unwind_lock;
  * we can call unwind_init as early in the bootup process as 
  * possible (before the slab allocator is initialized)
  */
-static struct unwind_table kernel_unwind_table;
+static struct unwind_table kernel_unwind_table __read_mostly;
 static LIST_HEAD(unwind_tables);
 
 static inline const struct unwind_table_entry *

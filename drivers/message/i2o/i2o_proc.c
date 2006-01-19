@@ -28,7 +28,7 @@
  */
 
 #define OSM_NAME	"proc-osm"
-#define OSM_VERSION	"1.145"
+#define OSM_VERSION	"1.316"
 #define OSM_DESCRIPTION	"I2O ProcFS OSM"
 
 #define I2O_MAX_MODULES 4

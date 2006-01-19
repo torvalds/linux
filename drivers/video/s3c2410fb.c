@@ -87,6 +87,7 @@
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -96,7 +97,6 @@
 #include <asm/arch/regs-lcd.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/fb.h>
-#include <asm/hardware/clock.h>
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>
@@ -552,7 +552,7 @@ static inline void modify_gpio(void __iomem *reg,
  * s3c2410fb_init_registers - Initialise all LCD-related registers
  */
 
-int s3c2410fb_init_registers(struct s3c2410fb_info *fbi)
+static int s3c2410fb_init_registers(struct s3c2410fb_info *fbi)
 {
 	unsigned long flags;
 
@@ -634,7 +634,7 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id, struct pt_regs *r)
 
 static char driver_name[]="s3c2410fb";
 
-int __init s3c2410fb_probe(struct platform_device *pdev)
+static int __init s3c2410fb_probe(struct platform_device *pdev)
 {
 	struct s3c2410fb_info *info;
 	struct fb_info	   *fbinfo;
@@ -666,8 +666,6 @@ int __init s3c2410fb_probe(struct platform_device *pdev)
 	info = fbinfo->par;
 	info->fb = fbinfo;
 	platform_set_drvdata(pdev, fbinfo);
-
-	s3c2410fb_init_registers(info);
 
 	dprintk("devinit\n");
 
@@ -701,8 +699,8 @@ int __init s3c2410fb_probe(struct platform_device *pdev)
 	fbinfo->var.yres_virtual    = mach_info->yres.defval;
 	fbinfo->var.bits_per_pixel  = mach_info->bpp.defval;
 
-	fbinfo->var.upper_margin    = S3C2410_LCDCON2_GET_VBPD(mregs->lcdcon2) +1;
-	fbinfo->var.lower_margin    = S3C2410_LCDCON2_GET_VFPD(mregs->lcdcon2) +1;
+	fbinfo->var.upper_margin    = S3C2410_LCDCON2_GET_VBPD(mregs->lcdcon2) + 1;
+	fbinfo->var.lower_margin    = S3C2410_LCDCON2_GET_VFPD(mregs->lcdcon2) + 1;
 	fbinfo->var.vsync_len	    = S3C2410_LCDCON2_GET_VSPW(mregs->lcdcon2) + 1;
 
 	fbinfo->var.left_margin	    = S3C2410_LCDCON3_GET_HFPD(mregs->lcdcon3) + 1;
@@ -746,7 +744,6 @@ int __init s3c2410fb_probe(struct platform_device *pdev)
 		goto release_irq;
 	}
 
-	clk_use(info->clk);
 	clk_enable(info->clk);
 	dprintk("got and enabled clock\n");
 
@@ -783,7 +780,6 @@ free_video_memory:
 	s3c2410fb_unmap_video_memory(info);
 release_clock:
 	clk_disable(info->clk);
-	clk_unuse(info->clk);
 	clk_put(info->clk);
 release_irq:
 	free_irq(irq,info);
@@ -828,7 +824,6 @@ static int s3c2410fb_remove(struct platform_device *pdev)
 
  	if (info->clk) {
  		clk_disable(info->clk);
- 		clk_unuse(info->clk);
  		clk_put(info->clk);
  		info->clk = NULL;
 	}

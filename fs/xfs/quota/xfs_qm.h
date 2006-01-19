@@ -165,7 +165,7 @@ typedef struct xfs_dquot_acct {
 #define XFS_QM_IWARNLIMIT	5
 #define XFS_QM_RTBWARNLIMIT	5
 
-#define XFS_QM_LOCK(xqm)	(mutex_lock(&xqm##_lock, PINOD))
+#define XFS_QM_LOCK(xqm)	(mutex_lock(&xqm##_lock))
 #define XFS_QM_UNLOCK(xqm)	(mutex_unlock(&xqm##_lock))
 #define XFS_QM_HOLD(xqm)	((xqm)->qm_nrefs++)
 #define XFS_QM_RELE(xqm)	((xqm)->qm_nrefs--)

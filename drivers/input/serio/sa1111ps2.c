@@ -20,7 +20,6 @@
 #include <linux/spinlock.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 
 #include <asm/hardware/sa1111.h>

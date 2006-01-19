@@ -11,6 +11,33 @@ struct export_operations export_op_default;
 
 #define dprintk(fmt, args...) do{}while(0)
 
+static struct dentry *
+find_acceptable_alias(struct dentry *result,
+		int (*acceptable)(void *context, struct dentry *dentry),
+		void *context)
+{
+	struct dentry *dentry, *toput = NULL;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(dentry, &result->d_inode->i_dentry, d_alias) {
+		dget_locked(dentry);
+		spin_unlock(&dcache_lock);
+		if (toput)
+			dput(toput);
+		if (dentry != result && acceptable(context, dentry)) {
+			dput(result);
+			return dentry;
+		}
+		spin_lock(&dcache_lock);
+		toput = dentry;
+	}
+	spin_unlock(&dcache_lock);
+
+	if (toput)
+		dput(toput);
+	return NULL;
+}
+
 /**
  * find_exported_dentry - helper routine to implement export_operations->decode_fh
  * @sb:		The &super_block identifying the filesystem
@@ -52,8 +79,7 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 	struct dentry *target_dir;
 	int err;
 	struct export_operations *nops = sb->s_export_op;
-	struct list_head *le, *head;
-	struct dentry *toput = NULL;
+	struct dentry *alias;
 	int noprogress;
 	char nbuf[NAME_MAX+1];
 
@@ -79,27 +105,10 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 			/* there is no other dentry, so fail */
 			goto err_result;
 		}
-		/* try any other aliases */
-		spin_lock(&dcache_lock);
-		head = &result->d_inode->i_dentry;
-		list_for_each(le, head) {
-			struct dentry *dentry = list_entry(le, struct dentry, d_alias);
-			dget_locked(dentry);
-			spin_unlock(&dcache_lock);
-			if (toput)
-				dput(toput);
-			toput = NULL;
-			if (dentry != result &&
-			    acceptable(context, dentry)) {
-				dput(result);
-				return dentry;
-			}
-			spin_lock(&dcache_lock);
-			toput = dentry;
-		}
-		spin_unlock(&dcache_lock);
-		if (toput)
-			dput(toput);
+
+		alias = find_acceptable_alias(result, acceptable, context);
+		if (alias)
+			return alias;
 	}			
 
 	/* It's a directory, or we are required to confirm the file's
@@ -177,9 +186,9 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 			struct dentry *ppd;
 			struct dentry *npd;
 
-			down(&pd->d_inode->i_sem);
+			mutex_lock(&pd->d_inode->i_mutex);
 			ppd = CALL(nops,get_parent)(pd);
-			up(&pd->d_inode->i_sem);
+			mutex_unlock(&pd->d_inode->i_mutex);
 
 			if (IS_ERR(ppd)) {
 				err = PTR_ERR(ppd);
@@ -201,9 +210,9 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 				break;
 			}
 			dprintk("find_exported_dentry: found name: %s\n", nbuf);
-			down(&ppd->d_inode->i_sem);
+			mutex_lock(&ppd->d_inode->i_mutex);
 			npd = lookup_one_len(nbuf, ppd, strlen(nbuf));
-			up(&ppd->d_inode->i_sem);
+			mutex_unlock(&ppd->d_inode->i_mutex);
 			if (IS_ERR(npd)) {
 				err = PTR_ERR(npd);
 				dprintk("find_exported_dentry: lookup failed: %d\n", err);
@@ -242,9 +251,9 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 		struct dentry *nresult;
 		err = CALL(nops,get_name)(target_dir, nbuf, result);
 		if (!err) {
-			down(&target_dir->d_inode->i_sem);
+			mutex_lock(&target_dir->d_inode->i_mutex);
 			nresult = lookup_one_len(nbuf, target_dir, strlen(nbuf));
-			up(&target_dir->d_inode->i_sem);
+			mutex_unlock(&target_dir->d_inode->i_mutex);
 			if (!IS_ERR(nresult)) {
 				if (nresult->d_inode) {
 					dput(result);
@@ -258,26 +267,10 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 	/* now result is properly connected, it is our best bet */
 	if (acceptable(context, result))
 		return result;
-	/* one last try of the aliases.. */
-	spin_lock(&dcache_lock);
-	toput = NULL;
-	head = &result->d_inode->i_dentry;
-	list_for_each(le, head) {
-		struct dentry *dentry = list_entry(le, struct dentry, d_alias);
-		dget_locked(dentry);
-		spin_unlock(&dcache_lock);
-		if (toput) dput(toput);
-		if (dentry != result &&
-		    acceptable(context, dentry)) {
-			dput(result);
-			return dentry;
-		}
-		spin_lock(&dcache_lock);
-		toput = dentry;
-	}
-	spin_unlock(&dcache_lock);
-	if (toput)
-		dput(toput);
+
+	alias = find_acceptable_alias(result, acceptable, context);
+	if (alias)
+		return alias;
 
 	/* drat - I just cannot find anything acceptable */
 	dput(result);

@@ -6,6 +6,7 @@
  */
 #ifndef _ASM_DMA_MAPPING_H
 #define _ASM_DMA_MAPPING_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -229,7 +230,7 @@ static inline int dma_get_cache_alignment(void)
 #ifdef CONFIG_PPC64
 	/* no easy way to get cache size on all processors, so return
 	 * the maximum possible, to be safe */
-	return (1 << L1_CACHE_SHIFT_MAX);
+	return (1 << INTERNODE_CACHE_SHIFT);
 #else
 	/*
 	 * Each processor family will define its own L1_CACHE_SHIFT,
@@ -282,4 +283,5 @@ struct dma_mapping_ops {
 	int		(*dac_dma_supported)(struct device *dev, u64 mask);
 };
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_DMA_MAPPING_H */

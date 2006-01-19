@@ -1183,8 +1183,8 @@ static void __init setup_scache(void)
 	if (!sc_present)
 		return;
 
-	if ((c->isa_level == MIPS_CPU_ISA_M32 ||
-	     c->isa_level == MIPS_CPU_ISA_M64) &&
+	if ((c->isa_level == MIPS_CPU_ISA_M32R1 ||
+	     c->isa_level == MIPS_CPU_ISA_M64R1) &&
 	    !(c->scache.flags & MIPS_CACHE_NOT_PRESENT))
 		panic("Dunno how to handle MIPS32 / MIPS64 second level cache");
 

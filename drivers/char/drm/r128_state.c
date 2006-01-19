@@ -1,7 +1,7 @@
 /* r128_state.c -- State support for r128 -*- linux-c -*-
  * Created: Thu Jan 27 02:53:43 2000 by gareth@valinux.com
- *
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ */
+/* Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -220,7 +220,7 @@ static __inline__ void r128_emit_tex1(drm_r128_private_t * dev_priv)
 	ADVANCE_RING();
 }
 
-static __inline__ void r128_emit_state(drm_r128_private_t * dev_priv)
+static void r128_emit_state(drm_r128_private_t * dev_priv)
 {
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
@@ -1674,7 +1674,7 @@ static int r128_getparam(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void r128_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_r128_private_t *dev_priv = dev->dev_private;
@@ -1684,29 +1684,29 @@ void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void r128_driver_pretakedown(drm_device_t * dev)
+void r128_driver_lastclose(drm_device_t * dev)
 {
 	r128_do_cleanup_cce(dev);
 }
 
 drm_ioctl_desc_t r128_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_R128_INIT)] = {r128_cce_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_R128_CCE_START)] = {r128_cce_start, 1, 1},
-	[DRM_IOCTL_NR(DRM_R128_CCE_STOP)] = {r128_cce_stop, 1, 1},
-	[DRM_IOCTL_NR(DRM_R128_CCE_RESET)] = {r128_cce_reset, 1, 1},
-	[DRM_IOCTL_NR(DRM_R128_CCE_IDLE)] = {r128_cce_idle, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_RESET)] = {r128_engine_reset, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_FULLSCREEN)] = {r128_fullscreen, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_SWAP)] = {r128_cce_swap, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_FLIP)] = {r128_cce_flip, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_CLEAR)] = {r128_cce_clear, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_VERTEX)] = {r128_cce_vertex, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_INDICES)] = {r128_cce_indices, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_BLIT)] = {r128_cce_blit, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_DEPTH)] = {r128_cce_depth, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_STIPPLE)] = {r128_cce_stipple, 1, 0},
-	[DRM_IOCTL_NR(DRM_R128_INDIRECT)] = {r128_cce_indirect, 1, 1},
-	[DRM_IOCTL_NR(DRM_R128_GETPARAM)] = {r128_getparam, 1, 0},
+	[DRM_IOCTL_NR(DRM_R128_INIT)] = {r128_cce_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_R128_CCE_START)] = {r128_cce_start, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_R128_CCE_STOP)] = {r128_cce_stop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_R128_CCE_RESET)] = {r128_cce_reset, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_R128_CCE_IDLE)] = {r128_cce_idle, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_RESET)] = {r128_engine_reset, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_FULLSCREEN)] = {r128_fullscreen, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_SWAP)] = {r128_cce_swap, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_FLIP)] = {r128_cce_flip, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_CLEAR)] = {r128_cce_clear, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_VERTEX)] = {r128_cce_vertex, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_INDICES)] = {r128_cce_indices, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_BLIT)] = {r128_cce_blit, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_DEPTH)] = {r128_cce_depth, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_STIPPLE)] = {r128_cce_stipple, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_R128_INDIRECT)] = {r128_cce_indirect, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_R128_GETPARAM)] = {r128_getparam, DRM_AUTH},
 };
 
 int r128_max_ioctl = DRM_ARRAY_SIZE(r128_ioctls);

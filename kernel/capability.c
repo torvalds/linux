@@ -7,6 +7,7 @@
  * 30 May 2002:	Cleanup, Robert M. Love <rml@tech9.net>
  */ 
 
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/security.h>

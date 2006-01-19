@@ -9,6 +9,16 @@ config INIT_DEBUG
 	  Fill __init and __initdata at the end of boot. This helps debugging
 	  illegal uses of __init and __initdata after initialization.
 
+config DEBUG_RODATA
+       bool "Write protect kernel read-only data structures"
+       depends on DEBUG_KERNEL
+       help
+	 Mark the kernel read-only data as write-protected in the pagetables,
+	 in order to catch accidental (and incorrect) writes to such const data.
+	 This option may have a slight performance impact because a portion
+	 of the kernel code won't be covered by a 2MB TLB anymore.
+	 If in doubt, say "N".
+
 config IOMMU_DEBUG
        depends on GART_IOMMU && DEBUG_KERNEL
        bool "Enable IOMMU debugging"

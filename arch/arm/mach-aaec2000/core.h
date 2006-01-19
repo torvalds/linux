@@ -9,7 +9,7 @@
  *
  */
 
-#include <asm/hardware/amba_clcd.h>
+#include <linux/amba/clcd.h>
 
 struct sys_timer;
 

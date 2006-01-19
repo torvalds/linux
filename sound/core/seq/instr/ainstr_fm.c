@@ -30,11 +30,11 @@ MODULE_AUTHOR("Uros Bizjak <uros@kss-loka.si>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture FM Instrument support.");
 MODULE_LICENSE("GPL");
 
-static int snd_seq_fm_put(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_fm_put(void *private_data, struct snd_seq_kinstr *instr,
 			  char __user *instr_data, long len, int atomic, int cmd)
 {
-	fm_instrument_t *ip;
-	fm_xinstrument_t ix;
+	struct fm_instrument *ip;
+	struct fm_xinstrument ix;
 	int idx;
 
 	if (cmd != SNDRV_SEQ_INSTR_PUT_CMD_CREATE)
@@ -46,7 +46,7 @@ static int snd_seq_fm_put(void *private_data, snd_seq_kinstr_t *instr,
 		return -EFAULT;
 	if (ix.stype != FM_STRU_INSTR)
 		return -EINVAL;
-	ip = (fm_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct fm_instrument *)KINSTR_DATA(instr);
 	ip->share_id[0] = le32_to_cpu(ix.share_id[0]);
 	ip->share_id[1] = le32_to_cpu(ix.share_id[1]);
 	ip->share_id[2] = le32_to_cpu(ix.share_id[2]);
@@ -72,12 +72,12 @@ static int snd_seq_fm_put(void *private_data, snd_seq_kinstr_t *instr,
 	return 0;
 }
 
-static int snd_seq_fm_get(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_fm_get(void *private_data, struct snd_seq_kinstr *instr,
 			  char __user *instr_data, long len, int atomic,
 			  int cmd)
 {
-	fm_instrument_t *ip;
-	fm_xinstrument_t ix;
+	struct fm_instrument *ip;
+	struct fm_xinstrument ix;
 	int idx;
 	
 	if (cmd != SNDRV_SEQ_INSTR_GET_CMD_FULL)
@@ -85,7 +85,7 @@ static int snd_seq_fm_get(void *private_data, snd_seq_kinstr_t *instr,
 	if (len < (long)sizeof(ix))
 		return -ENOMEM;
 	memset(&ix, 0, sizeof(ix));
-	ip = (fm_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct fm_instrument *)KINSTR_DATA(instr);
 	ix.stype = FM_STRU_INSTR;
 	ix.share_id[0] = cpu_to_le32(ip->share_id[0]);
 	ix.share_id[1] = cpu_to_le32(ip->share_id[1]);
@@ -114,19 +114,19 @@ static int snd_seq_fm_get(void *private_data, snd_seq_kinstr_t *instr,
 	return 0;
 }
 
-static int snd_seq_fm_get_size(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_fm_get_size(void *private_data, struct snd_seq_kinstr *instr,
 			       long *size)
 {
-	*size = sizeof(fm_xinstrument_t);
+	*size = sizeof(struct fm_xinstrument);
 	return 0;
 }
 
-int snd_seq_fm_init(snd_seq_kinstr_ops_t *ops,
-		    snd_seq_kinstr_ops_t *next)
+int snd_seq_fm_init(struct snd_seq_kinstr_ops *ops,
+		    struct snd_seq_kinstr_ops *next)
 {
 	memset(ops, 0, sizeof(*ops));
 	// ops->private_data = private_data;
-	ops->add_len = sizeof(fm_instrument_t);
+	ops->add_len = sizeof(struct fm_instrument);
 	ops->instr_type = SNDRV_SEQ_INSTR_ID_OPL2_3;
 	ops->put = snd_seq_fm_put;
 	ops->get = snd_seq_fm_get;

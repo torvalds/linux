@@ -10,12 +10,13 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
- * Version	: v2.20.4.6 (Mar 07 2005)
+ * Version	: v2.20.4.7 (Nov 14 2005)
  *
  * Authors:
  * 	Atul Mukker		<Atul.Mukker@lsil.com>
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
  * 	Manoj Jose		<Manoj.Jose@lsil.com>
+ * 	Seokmann Ju		<Seokmann.Ju@lsil.com>
  *
  * List of supported controllers
  *
@@ -136,7 +137,7 @@ static int wait_till_fw_empty(adapter_t *);
 
 
 
-MODULE_AUTHOR("LSI Logic Corporation");
+MODULE_AUTHOR("sju@lsil.com");
 MODULE_DESCRIPTION("LSI Logic MegaRAID Mailbox Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGARAID_VERSION);
@@ -278,86 +279,20 @@ static struct pci_device_id pci_id_table_g[] =  {
 	{
 		PCI_VENDOR_ID_AMI,
 		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_QC,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
 	},
 	{
-		PCI_VENDOR_ID_AMI,
+		PCI_VENDOR_ID_LSI_LOGIC,
 		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_DC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_SC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_AMI,
-		PCI_SUBSYS_ID_PERC3_SC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_AMI,
-		PCI_SUBSYS_ID_PERC3_DC,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_0,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_0,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_1,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_1,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_2,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_2,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_I4_133_RAID,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_I4_133_RAID,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SATA_150_4,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_4,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SATA_150_6,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_6,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
 	},
 	{
 		PCI_VENDOR_ID_LSI_LOGIC,
 		PCI_DEVICE_ID_LINDSAY,
 		PCI_ANY_ID,
 		PCI_ANY_ID,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_INTEL_RAID_SRCS16,
-		PCI_VENDOR_ID_INTEL,
-		PCI_SUBSYS_ID_INTEL_RAID_SRCS16,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_INTEL_RAID_SRCU41L_LAKE_SHETEK,
-		PCI_VENDOR_ID_INTEL,
-		PCI_SUBSYS_ID_INTEL_RAID_SRCU41L_LAKE_SHETEK,
 	},
 	{0}	/* Terminating entry */
 };
@@ -1331,7 +1266,7 @@ megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
  * return the scb from the head of the free list. NULL if there are none
  * available
  **/
-static inline scb_t *
+static scb_t *
 megaraid_alloc_scb(adapter_t *adapter, struct scsi_cmnd *scp)
 {
 	struct list_head	*head = &adapter->kscb_pool;
@@ -1394,7 +1329,7 @@ megaraid_dealloc_scb(adapter_t *adapter, scb_t *scb)
  *
  * prepare the scatter-gather list
  */
-static inline int
+static int
 megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 {
 	struct scatterlist	*sgl;
@@ -1467,7 +1402,7 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
  *
  * post the command to the controller if mailbox is availble.
  */
-static inline int
+static int
 mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 {
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
@@ -2135,7 +2070,7 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
  *
  * Returns:	1 if the interrupt is valid, 0 otherwise
  */
-static inline int
+static int
 megaraid_ack_sequence(adapter_t *adapter)
 {
 	mraid_device_t		*raid_dev = ADAP2RAIDDEV(adapter);
@@ -2273,7 +2208,7 @@ megaraid_isr(int irq, void *devp, struct pt_regs *regs)
  *
  * DMA sync if required.
  */
-static inline void
+static void
 megaraid_mbox_sync_scb(adapter_t *adapter, scb_t *scb)
 {
 	mbox_ccb_t	*ccb;
@@ -2985,6 +2920,7 @@ mbox_post_sync_cmd_fast(adapter_t *adapter, uint8_t raw_mbox[])
 
 	for (i = 0; i < 0xFFFFF; i++) {
 		if (mbox->numstatus != 0xFF) break;
+		rmb();
 	}
 
 	if (i == 0xFFFFF) {

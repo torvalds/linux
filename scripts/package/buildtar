@@ -1,9 +1,9 @@
 #!/bin/sh
 
 #
-# buildtar 0.0.3
+# buildtar 0.0.4
 #
-# (C) 2004-2005 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
+# (C) 2004-2006 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
 #
 # This script is used to compile a tarball from the currently
 # prepared kernel. Based upon the builddeb script from
@@ -15,9 +15,8 @@ set -e
 #
 # Some variables and settings used throughout the script
 #
-version="${VERSION}.${PATCHLEVEL}.${SUBLEVEL}${EXTRAVERSION}${EXTRANAME}"
 tmpdir="${objtree}/tar-install"
-tarball="${objtree}/linux-${version}.tar"
+tarball="${objtree}/linux-${KERNELRELEASE}.tar"
 
 
 #
@@ -53,21 +52,17 @@ mkdir -p -- "${tmpdir}/boot"
 #
 # Try to install modules
 #
-if ! make INSTALL_MOD_PATH="${tmpdir}" modules_install; then
-	echo "" >&2
-	echo "Ignoring error at module_install time, since that could be" >&2
-	echo "a result of missing local modutils/module-init-tools," >&2
-	echo "or you just didn't compile in module support at all..." >&2
-	echo "" >&2
+if grep -q '^CONFIG_MODULES=y' "${objtree}/.config"; then
+	make ARCH="${ARCH}" O="${objtree}" KBUILD_SRC= INSTALL_MOD_PATH="${tmpdir}" modules_install
 fi
 
 
 #
 # Install basic kernel files
 #
-cp -v -- System.map "${tmpdir}/boot/System.map-${version}"
-cp -v -- .config "${tmpdir}/boot/config-${version}"
-cp -v -- vmlinux "${tmpdir}/boot/vmlinux-${version}"
+cp -v -- "${objtree}/System.map" "${tmpdir}/boot/System.map-${KERNELRELEASE}"
+cp -v -- "${objtree}/.config" "${tmpdir}/boot/config-${KERNELRELEASE}"
+cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 
 
 #
@@ -75,17 +70,17 @@ cp -v -- vmlinux "${tmpdir}/boot/vmlinux-${version}"
 #
 case "${ARCH}" in
 	i386)
-		[ -f arch/i386/boot/bzImage ] && cp -v -- arch/i386/boot/bzImage "${tmpdir}/boot/vmlinuz-${version}"
+		[ -f "${objtree}/arch/i386/boot/bzImage" ] && cp -v -- "${objtree}/arch/i386/boot/bzImage" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
 		;;
 	alpha)
-		[ -f arch/alpha/boot/vmlinux.gz ] && cp -v -- arch/alpha/boot/vmlinux.gz "${tmpdir}/boot/vmlinuz-${version}"
+		[ -f "${objtree}/arch/alpha/boot/vmlinux.gz" ] && cp -v -- "${objtree}/arch/alpha/boot/vmlinux.gz" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
 		;;
 	vax)
-		[ -f vmlinux.SYS ] && cp -v -- vmlinux.SYS "${tmpdir}/boot/vmlinux-${version}.SYS"
-		[ -f vmlinux.dsk ] && cp -v -- vmlinux.dsk "${tmpdir}/boot/vmlinux-${version}.dsk"
+		[ -f "${objtree}/vmlinux.SYS" ] && cp -v -- "${objtree}/vmlinux.SYS" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.SYS"
+		[ -f "${objtree}/vmlinux.dsk" ] && cp -v -- "${objtree}/vmlinux.dsk" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.dsk"
 		;;
 	*)
-		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${version}"
+		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
 		echo "" >&2
 		echo '** ** **  WARNING  ** ** **' >&2
 		echo "" >&2

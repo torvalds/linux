@@ -223,11 +223,6 @@ static void mux_read(struct uart_port *port)
 		if (MUX_EOFIFO(data))
 			break;
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			continue;
-
-		*tty->flip.char_buf_ptr = data & 0xffu;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
 		port->icount.rx++;
 
 		if (MUX_BREAK(data)) {
@@ -239,9 +234,7 @@ static void mux_read(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, data & 0xffu, NULL))
 			continue;
 
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
 	}
 	
 	if (start_count != port->icount.rx) {

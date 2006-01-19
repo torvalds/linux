@@ -204,78 +204,6 @@ _GLOBAL(call_setup_cpu)
 	mtctr	r5
 	bctr
 
-#if defined(CONFIG_CPU_FREQ_PMAC) && defined(CONFIG_6xx)
-
-/* This gets called by via-pmu.c to switch the PLL selection
- * on 750fx CPU. This function should really be moved to some
- * other place (as most of the cpufreq code in via-pmu
- */
-_GLOBAL(low_choose_750fx_pll)
-	/* Clear MSR:EE */
-	mfmsr	r7
-	rlwinm	r0,r7,0,17,15
-	mtmsr	r0
-
-	/* If switching to PLL1, disable HID0:BTIC */
-	cmplwi	cr0,r3,0
-	beq	1f
-	mfspr	r5,SPRN_HID0
-	rlwinm	r5,r5,0,27,25
-	sync
-	mtspr	SPRN_HID0,r5
-	isync
-	sync
-
-1:
-	/* Calc new HID1 value */
-	mfspr	r4,SPRN_HID1	/* Build a HID1:PS bit from parameter */
-	rlwinm	r5,r3,16,15,15	/* Clear out HID1:PS from value read */
-	rlwinm	r4,r4,0,16,14	/* Could have I used rlwimi here ? */
-	or	r4,r4,r5
-	mtspr	SPRN_HID1,r4
-
-	/* Store new HID1 image */
-	rlwinm	r6,r1,0,0,18
-	lwz	r6,TI_CPU(r6)
-	slwi	r6,r6,2
-	addis	r6,r6,nap_save_hid1@ha
-	stw	r4,nap_save_hid1@l(r6)
-
-	/* If switching to PLL0, enable HID0:BTIC */
-	cmplwi	cr0,r3,0
-	bne	1f
-	mfspr	r5,SPRN_HID0
-	ori	r5,r5,HID0_BTIC
-	sync
-	mtspr	SPRN_HID0,r5
-	isync
-	sync
-
-1:
-	/* Return */
-	mtmsr	r7
-	blr
-
-_GLOBAL(low_choose_7447a_dfs)
-	/* Clear MSR:EE */
-	mfmsr	r7
-	rlwinm	r0,r7,0,17,15
-	mtmsr	r0
-	
-	/* Calc new HID1 value */
-	mfspr	r4,SPRN_HID1
-	insrwi	r4,r3,1,9	/* insert parameter into bit 9 */
-	sync
-	mtspr	SPRN_HID1,r4
-	sync
-	isync
-
-	/* Return */
-	mtmsr	r7
-	blr
-
-#endif /* CONFIG_CPU_FREQ_PMAC && CONFIG_6xx */
-
 /*
  * complement mask on the msr then "or" some values on.
  *     _nmask_and_or_msr(nmask, value_to_or)
@@ -1197,7 +1125,7 @@ _GLOBAL(sys_call_table)
 	.long sys_ssetmask
 	.long sys_setreuid	/* 70 */
 	.long sys_setregid
-	.long ppc_sigsuspend
+	.long sys_sigsuspend
 	.long sys_sigpending
 	.long sys_sethostname
 	.long sys_setrlimit	/* 75 */
@@ -1303,7 +1231,7 @@ _GLOBAL(sys_call_table)
 	.long sys_rt_sigpending	/* 175 */
 	.long sys_rt_sigtimedwait
 	.long sys_rt_sigqueueinfo
-	.long ppc_rt_sigsuspend
+	.long sys_rt_sigsuspend
 	.long sys_pread64
 	.long sys_pwrite64	/* 180 */
 	.long sys_chown
@@ -1374,7 +1302,7 @@ _GLOBAL(sys_call_table)
 	.long sys_clock_gettime
 	.long sys_clock_getres
 	.long sys_clock_nanosleep
-	.long ppc_swapcontext
+	.long sys_swapcontext
 	.long sys_tgkill	/* 250 */
 	.long sys_utimes
 	.long sys_statfs64

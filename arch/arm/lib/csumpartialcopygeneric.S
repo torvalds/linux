@@ -23,7 +23,7 @@ len	.req	r2
 sum	.req	r3
 
 .Lzero:		mov	r0, sum
-		load_regs	ea
+		load_regs
 
 		/*
 		 * Align an unaligned destination pointer.  We know that
@@ -87,9 +87,7 @@ sum	.req	r3
 		b	.Ldone
 
 FN_ENTRY
-		mov	ip, sp
 		save_regs
-		sub	fp, ip, #4
 
 		cmp	len, #8			@ Ensure that we have at least
 		blo	.Lless8			@ 8 bytes to copy.
@@ -163,7 +161,7 @@ FN_ENTRY
 		ldr	sum, [sp, #0]		@ dst
 		tst	sum, #1
 		movne	r0, r0, ror #8
-		load_regs	ea
+		load_regs
 
 .Lsrc_not_aligned:
 		adc	sum, sum, #0		@ include C from dst alignment

@@ -515,7 +515,7 @@ static inline int prog_dmabuf_adc(struct solo1_state *s)
 	return 0;
 }
 
-static inline int prog_dmabuf_dac(struct solo1_state *s)
+static int prog_dmabuf_dac(struct solo1_state *s)
 {
 	unsigned long va;
 	int c;

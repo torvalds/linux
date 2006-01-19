@@ -245,6 +245,7 @@ static __inline__ int fls (unsigned int x)
 {
 	return __cntlz(x);
 }
+#define fls64(x)   generic_fls64(x)
 
 static __inline__ int
 find_next_bit(const unsigned long *addr, int size, int offset)

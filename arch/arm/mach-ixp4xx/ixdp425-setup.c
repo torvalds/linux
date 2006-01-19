@@ -14,6 +14,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -30,8 +31,6 @@ static struct flash_platform_data ixdp425_flash_data = {
 };
 
 static struct resource ixdp425_flash_resource = {
-	.start		= IXDP425_FLASH_BASE,
-	.end		= IXDP425_FLASH_BASE + IXDP425_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -108,17 +107,13 @@ static struct platform_device *ixdp425_devices[] __initdata = {
 	&ixdp425_uart
 };
 
-
 static void __init ixdp425_init(void)
 {
 	ixp4xx_sys_init();
 
-	/*
-	 * IXP465 has 32MB window
-	 */
-	if (machine_is_ixdp465()) {
-		ixdp425_flash_resource.end += IXDP425_FLASH_SIZE;
-	}
+	ixdp425_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	ixdp425_flash_resource.end =
+		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	platform_add_devices(ixdp425_devices, ARRAY_SIZE(ixdp425_devices));
 }
@@ -126,7 +121,6 @@ static void __init ixdp425_init(void)
 #ifdef CONFIG_ARCH_IXDP425
 MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
@@ -140,7 +134,6 @@ MACHINE_END
 #ifdef CONFIG_MACH_IXDP465
 MACHINE_START(IXDP465, "Intel IXDP465 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
@@ -154,7 +147,6 @@ MACHINE_END
 #ifdef CONFIG_ARCH_PRPMC1100
 MACHINE_START(IXCDP1100, "Intel IXCDP1100 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
@@ -174,7 +166,6 @@ MACHINE_END
 #ifdef CONFIG_ARCH_AVILA
 MACHINE_START(AVILA, "Gateworks Avila Network Platform")
 	/* Maintainer: Deepak Saxena <dsaxena@plexity.net> */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,

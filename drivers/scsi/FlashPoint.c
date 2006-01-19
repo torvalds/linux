@@ -149,7 +149,7 @@ typedef SCCBMGR_INFO *      PSCCBMGR_INFO;
 #define PCI_BUS_CARD          0x03
 #define VESA_BUS_CARD         0x04
 
-/* SCCB struc used for both SCCB and UCB manager compiles! 
+/* SCCB struct used for both SCCB and UCB manager compiles! 
  * The UCB Manager treats the SCCB as it's 'native hardware structure' 
  */
 

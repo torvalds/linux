@@ -258,15 +258,20 @@ int __init via_calibrate_decr(void)
 	volatile unsigned char __iomem *via;
 	int count = VIA_TIMER_FREQ_6 / 100;
 	unsigned int dstart, dend;
+	struct resource rsrc;
 
-	vias = find_devices("via-cuda");
+	vias = of_find_node_by_name(NULL, "via-cuda");
 	if (vias == 0)
-		vias = find_devices("via-pmu");
+		vias = of_find_node_by_name(NULL, "via-pmu");
 	if (vias == 0)
-		vias = find_devices("via");
-	if (vias == 0 || vias->n_addrs == 0)
+		vias = of_find_node_by_name(NULL, "via");
+	if (vias == 0 || of_address_to_resource(vias, 0, &rsrc))
 		return 0;
-	via = ioremap(vias->addrs[0].address, vias->addrs[0].size);
+	via = ioremap(rsrc.start, rsrc.end - rsrc.start + 1);
+	if (via == NULL) {
+		printk(KERN_ERR "Failed to map VIA for timer calibration !\n");
+		return 0;
+	}
 
 	/* set timer 1 for continuous interrupts */
 	out_8(&via[ACR], (via[ACR] & ~T1MODE) | T1MODE_CONT);

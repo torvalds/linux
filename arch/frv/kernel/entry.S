@@ -1076,7 +1076,7 @@ __entry_work_notifysig:
 	LEDS		0x6410
 	ori.p		gr4,#0,gr8
 	call		do_notify_resume
-	bra		__entry_return_direct
+	bra		__entry_resume_userspace
 
 	# perform syscall entry tracing
 __syscall_trace_entry:

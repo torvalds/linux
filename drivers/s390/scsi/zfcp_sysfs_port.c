@@ -65,8 +65,6 @@ static ssize_t zfcp_sysfs_port_##_name##_show(struct device *dev, struct device_
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_port_##_name##_show, NULL);
 
 ZFCP_DEFINE_PORT_ATTR(status, "0x%08x\n", atomic_read(&port->status));
-ZFCP_DEFINE_PORT_ATTR(wwnn, "0x%016llx\n", port->wwnn);
-ZFCP_DEFINE_PORT_ATTR(d_id, "0x%06x\n", port->d_id);
 ZFCP_DEFINE_PORT_ATTR(in_recovery, "%d\n", atomic_test_mask
 		      (ZFCP_STATUS_COMMON_ERP_INUSE, &port->status));
 ZFCP_DEFINE_PORT_ATTR(access_denied, "%d\n", atomic_test_mask
@@ -245,8 +243,6 @@ static struct attribute *zfcp_port_common_attrs[] = {
 	&dev_attr_failed.attr,
 	&dev_attr_in_recovery.attr,
 	&dev_attr_status.attr,
-	&dev_attr_wwnn.attr,
-	&dev_attr_d_id.attr,
 	&dev_attr_access_denied.attr,
 	NULL
 };

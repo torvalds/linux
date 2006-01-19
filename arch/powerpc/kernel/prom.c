@@ -29,6 +29,7 @@
 #include <linux/initrd.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/kexec.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -37,6 +38,7 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+#include <asm/kdump.h>
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/mmu.h>
@@ -55,21 +57,6 @@
 #define DBG(fmt...)
 #endif
 
-struct pci_reg_property {
-	struct pci_address addr;
-	u32 size_hi;
-	u32 size_lo;
-};
-
-struct isa_reg_property {
-	u32 space;
-	u32 address;
-	u32 size;
-};
-
-
-typedef int interpret_func(struct device_node *, unsigned long *,
-			   int, int, int);
 
 static int __initdata dt_root_addr_cells;
 static int __initdata dt_root_size_cells;
@@ -311,6 +298,16 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	int i, j, n, sense;
 	unsigned int *irq, virq;
 	struct device_node *ic;
+	int trace = 0;
+
+	//#define TRACE(fmt...) do { if (trace) { printk(fmt); mdelay(1000); } } while(0)
+#define TRACE(fmt...)
+
+	if (!strcmp(np->name, "smu-doorbell"))
+		trace = 1;
+
+	TRACE("Finishing SMU doorbell ! num_interrupt_controllers = %d\n",
+	      num_interrupt_controllers);
 
 	if (num_interrupt_controllers == 0) {
 		/*
@@ -345,11 +342,12 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	}
 
 	ints = (unsigned int *) get_property(np, "interrupts", &intlen);
+	TRACE("ints=%p, intlen=%d\n", ints, intlen);
 	if (ints == NULL)
 		return 0;
 	intrcells = prom_n_intr_cells(np);
 	intlen /= intrcells * sizeof(unsigned int);
-
+	TRACE("intrcells=%d, new intlen=%d\n", intrcells, intlen);
 	np->intrs = prom_alloc(intlen * sizeof(*(np->intrs)), mem_start);
 	if (!np->intrs)
 		return -ENOMEM;
@@ -360,6 +358,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	intrcount = 0;
 	for (i = 0; i < intlen; ++i, ints += intrcells) {
 		n = map_interrupt(&irq, &ic, np, ints, intrcells);
+		TRACE("map, irq=%d, ic=%p, n=%d\n", irq, ic, n);
 		if (n <= 0)
 			continue;
 
@@ -370,6 +369,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			np->intrs[intrcount].sense = map_isa_senses[sense];
 		} else {
 			virq = virt_irq_create_mapping(irq[0]);
+			TRACE("virq=%d\n", virq);
 #ifdef CONFIG_PPC64
 			if (virq == NO_IRQ) {
 				printk(KERN_CRIT "Could not allocate interrupt"
@@ -379,6 +379,12 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 #endif
 			np->intrs[intrcount].line = irq_offset_up(virq);
 			sense = (n > 1)? (irq[1] & 3): 1;
+
+			/* Apple uses bits in there in a different way, let's
+			 * only keep the real sense bit on macs
+			 */
+			if (_machine == PLATFORM_POWERMAC)
+				sense &= 0x1;
 			np->intrs[intrcount].sense = map_mpic_senses[sense];
 		}
 
@@ -388,12 +394,13 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
-			else if (!(name && !strcmp(name, "mac-io")))
+			else if (!(name && (!strcmp(name, "mac-io") ||
+					    !strcmp(name, "u4"))))
 				/* ignore other cascaded controllers, such as
 				   the k2-sata-root */
 				break;
 		}
-#endif
+#endif /* CONFIG_PPC64 */
 		if (n > 2) {
 			printk("hmmm, got %d intr cells for %s:", n,
 			       np->full_name);
@@ -408,234 +415,19 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	return 0;
 }
 
-static int __devinit interpret_pci_props(struct device_node *np,
-					 unsigned long *mem_start,
-					 int naddrc, int nsizec,
-					 int measure_only)
-{
-	struct address_range *adr;
-	struct pci_reg_property *pci_addrs;
-	int i, l, n_addrs;
-
-	pci_addrs = (struct pci_reg_property *)
-		get_property(np, "assigned-addresses", &l);
-	if (!pci_addrs)
-		return 0;
-
-	n_addrs = l / sizeof(*pci_addrs);
-
-	adr = prom_alloc(n_addrs * sizeof(*adr), mem_start);
-	if (!adr)
-		return -ENOMEM;
-
- 	if (measure_only)
- 		return 0;
-
- 	np->addrs = adr;
- 	np->n_addrs = n_addrs;
-
- 	for (i = 0; i < n_addrs; i++) {
- 		adr[i].space = pci_addrs[i].addr.a_hi;
- 		adr[i].address = pci_addrs[i].addr.a_lo |
-			((u64)pci_addrs[i].addr.a_mid << 32);
- 		adr[i].size = pci_addrs[i].size_lo;
-	}
-
-	return 0;
-}
-
-static int __init interpret_dbdma_props(struct device_node *np,
-					unsigned long *mem_start,
-					int naddrc, int nsizec,
-					int measure_only)
-{
-	struct reg_property32 *rp;
-	struct address_range *adr;
-	unsigned long base_address;
-	int i, l;
-	struct device_node *db;
-
-	base_address = 0;
-	if (!measure_only) {
-		for (db = np->parent; db != NULL; db = db->parent) {
-			if (!strcmp(db->type, "dbdma") && db->n_addrs != 0) {
-				base_address = db->addrs[0].address;
-				break;
-			}
-		}
-	}
-
-	rp = (struct reg_property32 *) get_property(np, "reg", &l);
-	if (rp != 0 && l >= sizeof(struct reg_property32)) {
-		i = 0;
-		adr = (struct address_range *) (*mem_start);
-		while ((l -= sizeof(struct reg_property32)) >= 0) {
-			if (!measure_only) {
-				adr[i].space = 2;
-				adr[i].address = rp[i].address + base_address;
-				adr[i].size = rp[i].size;
-			}
-			++i;
-		}
-		np->addrs = adr;
-		np->n_addrs = i;
-		(*mem_start) += i * sizeof(struct address_range);
-	}
-
-	return 0;
-}
-
-static int __init interpret_macio_props(struct device_node *np,
-					unsigned long *mem_start,
-					int naddrc, int nsizec,
-					int measure_only)
-{
-	struct reg_property32 *rp;
-	struct address_range *adr;
-	unsigned long base_address;
-	int i, l;
-	struct device_node *db;
-
-	base_address = 0;
-	if (!measure_only) {
-		for (db = np->parent; db != NULL; db = db->parent) {
-			if (!strcmp(db->type, "mac-io") && db->n_addrs != 0) {
-				base_address = db->addrs[0].address;
-				break;
-			}
-		}
-	}
-
-	rp = (struct reg_property32 *) get_property(np, "reg", &l);
-	if (rp != 0 && l >= sizeof(struct reg_property32)) {
-		i = 0;
-		adr = (struct address_range *) (*mem_start);
-		while ((l -= sizeof(struct reg_property32)) >= 0) {
-			if (!measure_only) {
-				adr[i].space = 2;
-				adr[i].address = rp[i].address + base_address;
-				adr[i].size = rp[i].size;
-			}
-			++i;
-		}
-		np->addrs = adr;
-		np->n_addrs = i;
-		(*mem_start) += i * sizeof(struct address_range);
-	}
-
-	return 0;
-}
-
-static int __init interpret_isa_props(struct device_node *np,
-				      unsigned long *mem_start,
-				      int naddrc, int nsizec,
-				      int measure_only)
-{
-	struct isa_reg_property *rp;
-	struct address_range *adr;
-	int i, l;
-
-	rp = (struct isa_reg_property *) get_property(np, "reg", &l);
-	if (rp != 0 && l >= sizeof(struct isa_reg_property)) {
-		i = 0;
-		adr = (struct address_range *) (*mem_start);
-		while ((l -= sizeof(struct isa_reg_property)) >= 0) {
-			if (!measure_only) {
-				adr[i].space = rp[i].space;
-				adr[i].address = rp[i].address;
-				adr[i].size = rp[i].size;
-			}
-			++i;
-		}
-		np->addrs = adr;
-		np->n_addrs = i;
-		(*mem_start) += i * sizeof(struct address_range);
-	}
-
-	return 0;
-}
-
-static int __init interpret_root_props(struct device_node *np,
-				       unsigned long *mem_start,
-				       int naddrc, int nsizec,
-				       int measure_only)
-{
-	struct address_range *adr;
-	int i, l;
-	unsigned int *rp;
-	int rpsize = (naddrc + nsizec) * sizeof(unsigned int);
-
-	rp = (unsigned int *) get_property(np, "reg", &l);
-	if (rp != 0 && l >= rpsize) {
-		i = 0;
-		adr = (struct address_range *) (*mem_start);
-		while ((l -= rpsize) >= 0) {
-			if (!measure_only) {
-				adr[i].space = 0;
-				adr[i].address = rp[naddrc - 1];
-				adr[i].size = rp[naddrc + nsizec - 1];
-			}
-			++i;
-			rp += naddrc + nsizec;
-		}
-		np->addrs = adr;
-		np->n_addrs = i;
-		(*mem_start) += i * sizeof(struct address_range);
-	}
-
-	return 0;
-}
-
 static int __devinit finish_node(struct device_node *np,
 				 unsigned long *mem_start,
-				 interpret_func *ifunc,
-				 int naddrc, int nsizec,
 				 int measure_only)
 {
 	struct device_node *child;
-	int *ip, rc = 0;
-
-	/* get the device addresses and interrupts */
-	if (ifunc != NULL)
-		rc = ifunc(np, mem_start, naddrc, nsizec, measure_only);
-	if (rc)
-		goto out;
+	int rc = 0;
 
 	rc = finish_node_interrupts(np, mem_start, measure_only);
 	if (rc)
 		goto out;
 
-	/* Look for #address-cells and #size-cells properties. */
-	ip = (int *) get_property(np, "#address-cells", NULL);
-	if (ip != NULL)
-		naddrc = *ip;
-	ip = (int *) get_property(np, "#size-cells", NULL);
-	if (ip != NULL)
-		nsizec = *ip;
-
-	if (!strcmp(np->name, "device-tree") || np->parent == NULL)
-		ifunc = interpret_root_props;
-	else if (np->type == 0)
-		ifunc = NULL;
-	else if (!strcmp(np->type, "pci") || !strcmp(np->type, "vci"))
-		ifunc = interpret_pci_props;
-	else if (!strcmp(np->type, "dbdma"))
-		ifunc = interpret_dbdma_props;
-	else if (!strcmp(np->type, "mac-io") || ifunc == interpret_macio_props)
-		ifunc = interpret_macio_props;
-	else if (!strcmp(np->type, "isa"))
-		ifunc = interpret_isa_props;
-	else if (!strcmp(np->name, "uni-n") || !strcmp(np->name, "u3"))
-		ifunc = interpret_root_props;
-	else if (!((ifunc == interpret_dbdma_props
-		    || ifunc == interpret_macio_props)
-		   && (!strcmp(np->type, "escc")
-		       || !strcmp(np->type, "media-bay"))))
-		ifunc = NULL;
-
 	for (child = np->child; child != NULL; child = child->sibling) {
-		rc = finish_node(child, mem_start, ifunc,
-				 naddrc, nsizec, measure_only);
+		rc = finish_node(child, mem_start, measure_only);
 		if (rc)
 			goto out;
 	}
@@ -697,10 +489,10 @@ void __init finish_device_tree(void)
 	 * reason and then remove those additional 16 bytes
 	 */
 	size = 16;
-	finish_node(allnodes, &size, NULL, 0, 0, 1);
+	finish_node(allnodes, &size, 1);
 	size -= 16;
 	end = start = (unsigned long) __va(lmb_alloc(size, 128));
-	finish_node(allnodes, &end, NULL, 0, 0, 0);
+	finish_node(allnodes, &end, 0);
 	BUG_ON(end != start + size);
 
 	DBG(" <- finish_device_tree\n");
@@ -1180,7 +972,7 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 #ifdef CONFIG_PPC_RTAS
-	/* To help early debugging via the front panel, we retreive a minimal
+	/* To help early debugging via the front panel, we retrieve a minimal
 	 * set of RTAS infos now if available
 	 */
 	{
@@ -1196,6 +988,16 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 		}
 	}
 #endif /* CONFIG_PPC_RTAS */
+
+#ifdef CONFIG_KEXEC
+       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+       if (lprop)
+               crashk_res.start = *lprop;
+
+       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+       if (lprop)
+               crashk_res.end = crashk_res.start + *lprop - 1;
+#endif
 
 	/* break now */
 	return 1;
@@ -1263,7 +1065,9 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
+	reg = (cell_t *)of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	if (reg == NULL)
+		reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
 		return 0;
 
@@ -1296,17 +1100,37 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 
 static void __init early_reserve_mem(void)
 {
-	unsigned long base, size;
-	unsigned long *reserve_map;
+	u64 base, size;
+	u64 *reserve_map;
 
-	reserve_map = (unsigned long *)(((unsigned long)initial_boot_params) +
+	reserve_map = (u64 *)(((unsigned long)initial_boot_params) +
 					initial_boot_params->off_mem_rsvmap);
+#ifdef CONFIG_PPC32
+	/* 
+	 * Handle the case where we might be booting from an old kexec
+	 * image that setup the mem_rsvmap as pairs of 32-bit values
+	 */
+	if (*reserve_map > 0xffffffffull) {
+		u32 base_32, size_32;
+		u32 *reserve_map_32 = (u32 *)reserve_map;
+
+		while (1) {
+			base_32 = *(reserve_map_32++);
+			size_32 = *(reserve_map_32++);
+			if (size_32 == 0)
+				break;
+			DBG("reserving: %lx -> %lx\n", base_32, size_32);
+			lmb_reserve(base_32, size_32);
+		}
+		return;
+	}
+#endif
 	while (1) {
 		base = *(reserve_map++);
 		size = *(reserve_map++);
 		if (size == 0)
 			break;
-		DBG("reserving: %lx -> %lx\n", base, size);
+		DBG("reserving: %llx -> %llx\n", base, size);
 		lmb_reserve(base, size);
 	}
 
@@ -1335,11 +1159,14 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
-	lmb_reserve(0, __pa(klimit));
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
 
 	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
+	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
+#ifdef CONFIG_CRASH_DUMP
+	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
+#endif
 	early_reserve_mem();
 
 	DBG("Scanning CPUs ...\n");
@@ -1800,9 +1627,13 @@ static void of_node_release(struct kref *kref)
 		kfree(prop->value);
 		kfree(prop);
 		prop = next;
+
+		if (!prop) {
+			prop = node->deadprops;
+			node->deadprops = NULL;
+		}
 	}
 	kfree(node->intrs);
-	kfree(node->addrs);
 	kfree(node->full_name);
 	kfree(node->data);
 	kfree(node);
@@ -1884,9 +1715,7 @@ void of_detach_node(const struct device_node *np)
  * This should probably be split up into smaller chunks.
  */
 
-static int of_finish_dynamic_node(struct device_node *node,
-				  unsigned long *unused1, int unused2,
-				  int unused3, int unused4)
+static int of_finish_dynamic_node(struct device_node *node)
 {
 	struct device_node *parent = of_get_parent(node);
 	int err = 0;
@@ -1907,7 +1736,8 @@ static int of_finish_dynamic_node(struct device_node *node,
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */
-	if ((ibm_phandle = (unsigned int *)get_property(node, "ibm,phandle", NULL)))
+	if ((ibm_phandle = (unsigned int *)get_property(node,
+							"ibm,phandle", NULL)))
 		node->linux_phandle = *ibm_phandle;
 
 out:
@@ -1922,7 +1752,9 @@ static int prom_reconfig_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
-		err = finish_node(node, NULL, of_finish_dynamic_node, 0, 0, 0);
+		err = of_finish_dynamic_node(node);
+		if (!err)
+			finish_node(node, NULL, 0);
 		if (err < 0) {
 			printk(KERN_ERR "finish_node returned %d\n", err);
 			err = NOTIFY_BAD;
@@ -1947,6 +1779,23 @@ static int __init prom_reconfig_setup(void)
 __initcall(prom_reconfig_setup);
 #endif
 
+struct property *of_find_property(struct device_node *np, const char *name,
+				  int *lenp)
+{
+	struct property *pp;
+
+	read_lock(&devtree_lock);
+	for (pp = np->properties; pp != 0; pp = pp->next)
+		if (strcmp(pp->name, name) == 0) {
+			if (lenp != 0)
+				*lenp = pp->length;
+			break;
+		}
+	read_unlock(&devtree_lock);
+
+	return pp;
+}
+
 /*
  * Find a property with a given name for a given node
  * and return the value.
@@ -1954,15 +1803,8 @@ __initcall(prom_reconfig_setup);
 unsigned char *get_property(struct device_node *np, const char *name,
 			    int *lenp)
 {
-	struct property *pp;
-
-	for (pp = np->properties; pp != 0; pp = pp->next)
-		if (strcmp(pp->name, name) == 0) {
-			if (lenp != 0)
-				*lenp = pp->length;
-			return pp->value;
-		}
-	return NULL;
+	struct property *pp = of_find_property(np,name,lenp);
+	return pp ? pp->value : NULL;
 }
 EXPORT_SYMBOL(get_property);
 
@@ -1996,175 +1838,82 @@ int prom_add_property(struct device_node* np, struct property* prop)
 	return 0;
 }
 
-/* I quickly hacked that one, check against spec ! */
-static inline unsigned long
-bus_space_to_resource_flags(unsigned int bus_space)
-{
-	u8 space = (bus_space >> 24) & 0xf;
-	if (space == 0)
-		space = 0x02;
-	if (space == 0x02)
-		return IORESOURCE_MEM;
-	else if (space == 0x01)
-		return IORESOURCE_IO;
-	else {
-		printk(KERN_WARNING "prom.c: bus_space_to_resource_flags(), space: %x\n",
-		    	bus_space);
-		return 0;
-	}
-}
-
-#ifdef CONFIG_PCI
-static struct resource *find_parent_pci_resource(struct pci_dev* pdev,
-						 struct address_range *range)
-{
-	unsigned long mask;
-	int i;
-
-	/* Check this one */
-	mask = bus_space_to_resource_flags(range->space);
-	for (i=0; i<DEVICE_COUNT_RESOURCE; i++) {
-		if ((pdev->resource[i].flags & mask) == mask &&
-			pdev->resource[i].start <= range->address &&
-			pdev->resource[i].end > range->address) {
-				if ((range->address + range->size - 1) > pdev->resource[i].end) {
-					/* Add better message */
-					printk(KERN_WARNING "PCI/OF resource overlap !\n");
-					return NULL;
-				}
-				break;
-			}
-	}
-	if (i == DEVICE_COUNT_RESOURCE)
-		return NULL;
-	return &pdev->resource[i];
-}
-
 /*
- * Request an OF device resource. Currently handles child of PCI devices,
- * or other nodes attached to the root node. Ultimately, put some
- * link to resources in the OF node.
+ * Remove a property from a node.  Note that we don't actually
+ * remove it, since we have given out who-knows-how-many pointers
+ * to the data using get-property.  Instead we just move the property
+ * to the "dead properties" list, so it won't be found any more.
  */
-struct resource *request_OF_resource(struct device_node* node, int index,
-				     const char* name_postfix)
+int prom_remove_property(struct device_node *np, struct property *prop)
 {
-	struct pci_dev* pcidev;
-	u8 pci_bus, pci_devfn;
-	unsigned long iomask;
-	struct device_node* nd;
-	struct resource* parent;
-	struct resource *res = NULL;
-	int nlen, plen;
+	struct property **next;
+	int found = 0;
 
-	if (index >= node->n_addrs)
-		goto fail;
-
-	/* Sanity check on bus space */
-	iomask = bus_space_to_resource_flags(node->addrs[index].space);
-	if (iomask & IORESOURCE_MEM)
-		parent = &iomem_resource;
-	else if (iomask & IORESOURCE_IO)
-		parent = &ioport_resource;
-	else
-		goto fail;
-
-	/* Find a PCI parent if any */
-	nd = node;
-	pcidev = NULL;
-	while (nd) {
-		if (!pci_device_from_OF_node(nd, &pci_bus, &pci_devfn))
-			pcidev = pci_find_slot(pci_bus, pci_devfn);
-		if (pcidev) break;
-		nd = nd->parent;
+	write_lock(&devtree_lock);
+	next = &np->properties;
+	while (*next) {
+		if (*next == prop) {
+			/* found the node */
+			*next = prop->next;
+			prop->next = np->deadprops;
+			np->deadprops = prop;
+			found = 1;
+			break;
+		}
+		next = &(*next)->next;
 	}
-	if (pcidev)
-		parent = find_parent_pci_resource(pcidev, &node->addrs[index]);
-	if (!parent) {
-		printk(KERN_WARNING "request_OF_resource(%s), parent not found\n",
-			node->name);
-		goto fail;
-	}
+	write_unlock(&devtree_lock);
 
-	res = __request_region(parent, node->addrs[index].address,
-			       node->addrs[index].size, NULL);
-	if (!res)
-		goto fail;
-	nlen = strlen(node->name);
-	plen = name_postfix ? strlen(name_postfix) : 0;
-	res->name = (const char *)kmalloc(nlen+plen+1, GFP_KERNEL);
-	if (res->name) {
-		strcpy((char *)res->name, node->name);
-		if (plen)
-			strcpy((char *)res->name+nlen, name_postfix);
-	}
-	return res;
-fail:
-	return NULL;
-}
-EXPORT_SYMBOL(request_OF_resource);
-
-int release_OF_resource(struct device_node *node, int index)
-{
-	struct pci_dev* pcidev;
-	u8 pci_bus, pci_devfn;
-	unsigned long iomask, start, end;
-	struct device_node* nd;
-	struct resource* parent;
-	struct resource *res = NULL;
-
-	if (index >= node->n_addrs)
-		return -EINVAL;
-
-	/* Sanity check on bus space */
-	iomask = bus_space_to_resource_flags(node->addrs[index].space);
-	if (iomask & IORESOURCE_MEM)
-		parent = &iomem_resource;
-	else if (iomask & IORESOURCE_IO)
-		parent = &ioport_resource;
-	else
-		return -EINVAL;
-
-	/* Find a PCI parent if any */
-	nd = node;
-	pcidev = NULL;
-	while(nd) {
-		if (!pci_device_from_OF_node(nd, &pci_bus, &pci_devfn))
-			pcidev = pci_find_slot(pci_bus, pci_devfn);
-		if (pcidev) break;
-		nd = nd->parent;
-	}
-	if (pcidev)
-		parent = find_parent_pci_resource(pcidev, &node->addrs[index]);
-	if (!parent) {
-		printk(KERN_WARNING "release_OF_resource(%s), parent not found\n",
-			node->name);
-		return -ENODEV;
-	}
-
-	/* Find us in the parent and its childs */
-	res = parent->child;
-	start = node->addrs[index].address;
-	end = start + node->addrs[index].size - 1;
-	while (res) {
-		if (res->start == start && res->end == end &&
-		    (res->flags & IORESOURCE_BUSY))
-		    	break;
-		if (res->start <= start && res->end >= end)
-			res = res->child;
-		else
-			res = res->sibling;
-	}
-	if (!res)
+	if (!found)
 		return -ENODEV;
 
-	if (res->name) {
-		kfree(res->name);
-		res->name = NULL;
-	}
-	release_resource(res);
-	kfree(res);
+#ifdef CONFIG_PROC_DEVICETREE
+	/* try to remove the proc node as well */
+	if (np->pde)
+		proc_device_tree_remove_prop(np->pde, prop);
+#endif /* CONFIG_PROC_DEVICETREE */
 
 	return 0;
 }
-EXPORT_SYMBOL(release_OF_resource);
-#endif /* CONFIG_PCI */
+
+/*
+ * Update a property in a node.  Note that we don't actually
+ * remove it, since we have given out who-knows-how-many pointers
+ * to the data using get-property.  Instead we just move the property
+ * to the "dead properties" list, and add the new property to the
+ * property list
+ */
+int prom_update_property(struct device_node *np,
+			 struct property *newprop,
+			 struct property *oldprop)
+{
+	struct property **next;
+	int found = 0;
+
+	write_lock(&devtree_lock);
+	next = &np->properties;
+	while (*next) {
+		if (*next == oldprop) {
+			/* found the node */
+			newprop->next = oldprop->next;
+			*next = newprop;
+			oldprop->next = np->deadprops;
+			np->deadprops = oldprop;
+			found = 1;
+			break;
+		}
+		next = &(*next)->next;
+	}
+	write_unlock(&devtree_lock);
+
+	if (!found)
+		return -ENODEV;
+
+#ifdef CONFIG_PROC_DEVICETREE
+	/* try to add to proc as well if it was initialized */
+	if (np->pde)
+		proc_device_tree_update_prop(np->pde, newprop, oldprop);
+#endif /* CONFIG_PROC_DEVICETREE */
+
+	return 0;
+}

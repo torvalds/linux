@@ -91,6 +91,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -1488,7 +1489,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 			}
 		}
 
-		if (prot->twsk_obj_size) {
+		if (prot->twsk_prot != NULL) {
 			static const char mask[] = "tw_sock_%s";
 
 			timewait_sock_slab_name = kmalloc(strlen(prot->name) + sizeof(mask) - 1, GFP_KERNEL);
@@ -1497,11 +1498,12 @@ int proto_register(struct proto *prot, int alloc_slab)
 				goto out_free_request_sock_slab;
 
 			sprintf(timewait_sock_slab_name, mask, prot->name);
-			prot->twsk_slab = kmem_cache_create(timewait_sock_slab_name,
-							    prot->twsk_obj_size,
-							    0, SLAB_HWCACHE_ALIGN,
-							    NULL, NULL);
-			if (prot->twsk_slab == NULL)
+			prot->twsk_prot->twsk_slab =
+				kmem_cache_create(timewait_sock_slab_name,
+						  prot->twsk_prot->twsk_obj_size,
+						  0, SLAB_HWCACHE_ALIGN,
+						  NULL, NULL);
+			if (prot->twsk_prot->twsk_slab == NULL)
 				goto out_free_timewait_sock_slab_name;
 		}
 	}
@@ -1548,12 +1550,12 @@ void proto_unregister(struct proto *prot)
 		prot->rsk_prot->slab = NULL;
 	}
 
-	if (prot->twsk_slab != NULL) {
-		const char *name = kmem_cache_name(prot->twsk_slab);
+	if (prot->twsk_prot != NULL && prot->twsk_prot->twsk_slab != NULL) {
+		const char *name = kmem_cache_name(prot->twsk_prot->twsk_slab);
 
-		kmem_cache_destroy(prot->twsk_slab);
+		kmem_cache_destroy(prot->twsk_prot->twsk_slab);
 		kfree(name);
-		prot->twsk_slab = NULL;
+		prot->twsk_prot->twsk_slab = NULL;
 	}
 }
 

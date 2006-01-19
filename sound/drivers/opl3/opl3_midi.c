@@ -60,7 +60,7 @@ static char opl3_volume_table[128] =
 };
 
 void snd_opl3_calc_volume(unsigned char *volbyte, int vel,
-			  snd_midi_channel_t *chan)
+			  struct snd_midi_channel *chan)
 {
 	int oldvol, newvol, n;
 	int volume;
@@ -93,7 +93,7 @@ static short opl3_note_table[16] =
 };
 
 static void snd_opl3_calc_pitch(unsigned char *fnum, unsigned char *blocknum,
-				int note, snd_midi_channel_t *chan)
+				int note, struct snd_midi_channel *chan)
 {
 	int block = ((note / 12) & 0x07) - 1;
 	int idx = (note % 12) + 2;
@@ -121,7 +121,7 @@ static void snd_opl3_calc_pitch(unsigned char *fnum, unsigned char *blocknum,
 
 
 #ifdef DEBUG_ALLOC
-static void debug_alloc(opl3_t *opl3, char *s, int voice) {
+static void debug_alloc(struct snd_opl3 *opl3, char *s, int voice) {
 	int i;
 	char *str = "x.24";
 
@@ -135,12 +135,12 @@ static void debug_alloc(opl3_t *opl3, char *s, int voice) {
 /*
  * Get a FM voice (channel) to play a note on.
  */
-static int opl3_get_voice(opl3_t *opl3, int instr_4op,
-			  snd_midi_channel_t *chan) {
+static int opl3_get_voice(struct snd_opl3 *opl3, int instr_4op,
+			  struct snd_midi_channel *chan) {
 	int chan_4op_1;		/* first voice for 4op instrument */
 	int chan_4op_2;		/* second voice for 4op instrument */
 
-	snd_opl3_voice_t *vp, *vp2;
+	struct snd_opl3_voice *vp, *vp2;
 	unsigned int voice_time;
 	int i;
 
@@ -237,13 +237,14 @@ static int opl3_get_voice(opl3_t *opl3, int instr_4op,
 void snd_opl3_timer_func(unsigned long data)
 {
 
-	opl3_t *opl3 = (opl3_t *)data;
+	struct snd_opl3 *opl3 = (struct snd_opl3 *)data;
+	unsigned long flags;
 	int again = 0;
 	int i;
 
-	spin_lock(&opl3->sys_timer_lock);
+	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
 	for (i = 0; i < opl3->max_voices; i++) {
-		snd_opl3_voice_t *vp = &opl3->voices[i];
+		struct snd_opl3_voice *vp = &opl3->voices[i];
 		if (vp->state > 0 && vp->note_off_check) {
 			if (vp->note_off == jiffies)
 				snd_opl3_note_off(opl3, vp->note, 0, vp->chan);
@@ -257,13 +258,13 @@ void snd_opl3_timer_func(unsigned long data)
 	} else {
 		opl3->sys_timer_status = 0;
 	}
-	spin_unlock(&opl3->sys_timer_lock);
+	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 }
 
 /*
  * Start system timer
  */
-static void snd_opl3_start_timer(opl3_t *opl3)
+static void snd_opl3_start_timer(struct snd_opl3 *opl3)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
@@ -285,15 +286,15 @@ static int snd_opl3_oss_map[MAX_OPL3_VOICES] = {
 /*
  * Start a note.
  */
-void snd_opl3_note_on(void *p, int note, int vel, snd_midi_channel_t *chan)
+void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 {
-	opl3_t *opl3;
-	snd_seq_instr_t wanted;
-	snd_seq_kinstr_t *kinstr;
+	struct snd_opl3 *opl3;
+	struct snd_seq_instr wanted;
+	struct snd_seq_kinstr *kinstr;
 	int instr_4op;
 
 	int voice;
-	snd_opl3_voice_t *vp, *vp2;
+	struct snd_opl3_voice *vp, *vp2;
 	unsigned short connect_mask;
 	unsigned char connection;
 	unsigned char vol_op[4];
@@ -310,7 +311,7 @@ void snd_opl3_note_on(void *p, int note, int vel, snd_midi_channel_t *chan)
 	unsigned char fnum, blocknum;
 	int i;
 
-	fm_instrument_t *fm;
+	struct fm_instrument *fm;
 	unsigned long flags;
 
 	opl3 = p;
@@ -615,13 +616,13 @@ void snd_opl3_note_on(void *p, int note, int vel, snd_midi_channel_t *chan)
 	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 }
 
-static void snd_opl3_kill_voice(opl3_t *opl3, int voice)
+static void snd_opl3_kill_voice(struct snd_opl3 *opl3, int voice)
 {
 	unsigned short reg_side;
 	unsigned char voice_offset;
 	unsigned short opl3_reg;
 
-	snd_opl3_voice_t *vp, *vp2;
+	struct snd_opl3_voice *vp, *vp2;
 
 	snd_assert(voice < MAX_OPL3_VOICES, return);
 
@@ -663,12 +664,12 @@ static void snd_opl3_kill_voice(opl3_t *opl3, int voice)
 /*
  * Release a note in response to a midi note off.
  */
-void snd_opl3_note_off(void *p, int note, int vel, snd_midi_channel_t *chan)
+void snd_opl3_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
 {
-  	opl3_t *opl3;
+  	struct snd_opl3 *opl3;
 
 	int voice;
-	snd_opl3_voice_t *vp;
+	struct snd_opl3_voice *vp;
 
 	unsigned long flags;
 
@@ -708,9 +709,9 @@ void snd_opl3_note_off(void *p, int note, int vel, snd_midi_channel_t *chan)
 /*
  * key pressure change
  */
-void snd_opl3_key_press(void *p, int note, int vel, snd_midi_channel_t *chan)
+void snd_opl3_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
 {
-  	opl3_t *opl3;
+  	struct snd_opl3 *opl3;
 
 	opl3 = p;
 #ifdef DEBUG_MIDI
@@ -722,9 +723,9 @@ void snd_opl3_key_press(void *p, int note, int vel, snd_midi_channel_t *chan)
 /*
  * terminate note
  */
-void snd_opl3_terminate_note(void *p, int note, snd_midi_channel_t *chan)
+void snd_opl3_terminate_note(void *p, int note, struct snd_midi_channel *chan)
 {
-  	opl3_t *opl3;
+  	struct snd_opl3 *opl3;
 
 	opl3 = p;
 #ifdef DEBUG_MIDI
@@ -733,7 +734,7 @@ void snd_opl3_terminate_note(void *p, int note, snd_midi_channel_t *chan)
 #endif
 }
 
-static void snd_opl3_update_pitch(opl3_t *opl3, int voice)
+static void snd_opl3_update_pitch(struct snd_opl3 *opl3, int voice)
 {
 	unsigned short reg_side;
 	unsigned char voice_offset;
@@ -741,7 +742,7 @@ static void snd_opl3_update_pitch(opl3_t *opl3, int voice)
 
 	unsigned char fnum, blocknum;
 
-	snd_opl3_voice_t *vp;
+	struct snd_opl3_voice *vp;
 
 	snd_assert(voice < MAX_OPL3_VOICES, return);
 
@@ -780,10 +781,10 @@ static void snd_opl3_update_pitch(opl3_t *opl3, int voice)
 /*
  * Update voice pitch controller
  */
-static void snd_opl3_pitch_ctrl(opl3_t *opl3, snd_midi_channel_t *chan)
+static void snd_opl3_pitch_ctrl(struct snd_opl3 *opl3, struct snd_midi_channel *chan)
 {
 	int voice;
-	snd_opl3_voice_t *vp;
+	struct snd_opl3_voice *vp;
 
 	unsigned long flags;
 
@@ -810,9 +811,9 @@ static void snd_opl3_pitch_ctrl(opl3_t *opl3, snd_midi_channel_t *chan)
  * Deal with a controler type event.  This includes all types of
  * control events, not just the midi controllers
  */
-void snd_opl3_control(void *p, int type, snd_midi_channel_t *chan)
+void snd_opl3_control(void *p, int type, struct snd_midi_channel *chan)
 {
-  	opl3_t *opl3;
+  	struct snd_opl3 *opl3;
 
 	opl3 = p;
 #ifdef DEBUG_MIDI
@@ -846,10 +847,10 @@ void snd_opl3_control(void *p, int type, snd_midi_channel_t *chan)
 /*
  * NRPN events
  */
-void snd_opl3_nrpn(void *p, snd_midi_channel_t *chan,
-		   snd_midi_channel_set_t *chset)
+void snd_opl3_nrpn(void *p, struct snd_midi_channel *chan,
+		   struct snd_midi_channel_set *chset)
 {
-  	opl3_t *opl3;
+  	struct snd_opl3 *opl3;
 
 	opl3 = p;
 #ifdef DEBUG_MIDI
@@ -862,9 +863,9 @@ void snd_opl3_nrpn(void *p, snd_midi_channel_t *chan,
  * receive sysex
  */
 void snd_opl3_sysex(void *p, unsigned char *buf, int len,
-		    int parsed, snd_midi_channel_set_t *chset)
+		    int parsed, struct snd_midi_channel_set *chset)
 {
-  	opl3_t *opl3;
+  	struct snd_opl3 *opl3;
 
 	opl3 = p;
 #ifdef DEBUG_MIDI

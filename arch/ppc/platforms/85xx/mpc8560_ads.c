@@ -56,10 +56,6 @@
 #include <syslib/ppc85xx_setup.h>
 
 
-static const char *GFAR_PHY_0 = "phy0:0";
-static const char *GFAR_PHY_1 = "phy0:1";
-static const char *GFAR_PHY_3 = "phy0:3";
-
 /* ************************************************************************
  *
  * Setup the architecture
@@ -99,20 +95,21 @@ mpc8560ads_setup_arch(void)
 	mdata->irq[2] = -1;
 	mdata->irq[3] = MPC85xx_IRQ_EXT5;
 	mdata->irq[31] = -1;
-	mdata->paddr += binfo->bi_immr_base;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_0;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_1;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 

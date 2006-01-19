@@ -10,6 +10,8 @@
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
 
+#include "internals.h"
+
 static struct proc_dir_entry *root_irq_dir, *irq_dir[NR_IRQS];
 
 #ifdef CONFIG_SMP
@@ -68,7 +70,9 @@ static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 	 */
 	cpus_and(tmp, new_value, cpu_online_map);
 	if (cpus_empty(tmp))
-		return -EINVAL;
+		/* Special case for empty set - allow the architecture
+		   code to set default SMP affinity. */
+		return select_smp_affinity(irq) ? -EINVAL : full_count;
 
 	proc_set_irq_affinity(irq, new_value);
 

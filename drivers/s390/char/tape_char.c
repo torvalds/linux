@@ -37,6 +37,8 @@ static int tapechar_open(struct inode *,struct file *);
 static int tapechar_release(struct inode *,struct file *);
 static int tapechar_ioctl(struct inode *, struct file *, unsigned int,
 			  unsigned long);
+static long tapechar_compat_ioctl(struct file *, unsigned int,
+			  unsigned long);
 
 static struct file_operations tape_fops =
 {
@@ -44,6 +46,7 @@ static struct file_operations tape_fops =
 	.read = tapechar_read,
 	.write = tapechar_write,
 	.ioctl = tapechar_ioctl,
+	.compat_ioctl = tapechar_compat_ioctl,
 	.open = tapechar_open,
 	.release = tapechar_release,
 };
@@ -461,6 +464,23 @@ tapechar_ioctl(struct inode *inp, struct file *filp,
 	if (device->discipline->ioctl_fn == NULL)
 		return -EINVAL;
 	return device->discipline->ioctl_fn(device, no, data);
+}
+
+static long
+tapechar_compat_ioctl(struct file *filp, unsigned int no, unsigned long data)
+{
+	struct tape_device *device = filp->private_data;
+	int rval = -ENOIOCTLCMD;
+
+	if (device->discipline->ioctl_fn) {
+		lock_kernel();
+		rval = device->discipline->ioctl_fn(device, no, data);
+		unlock_kernel();
+		if (rval == -EINVAL)
+			rval = -ENOIOCTLCMD;
+	}
+
+	return rval;
 }
 
 /*

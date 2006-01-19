@@ -80,7 +80,7 @@ static struct dma_ops pvr2_dma_ops = {
 };
 
 static struct dma_info pvr2_dma_info = {
-	.name		= "PowerVR 2 DMA",
+	.name		= "pvr2_dmac",
 	.nr_channels	= 1,
 	.ops		= &pvr2_dma_ops,
 	.flags		= DMAC_CHANNELS_TEI_CAPABLE,
@@ -98,6 +98,7 @@ static void __exit pvr2_dma_exit(void)
 {
 	free_dma(PVR2_CASCADE_CHAN);
 	free_irq(HW_EVENT_PVR2_DMA, 0);
+	unregister_dmac(&pvr2_dma_info);
 }
 
 subsys_initcall(pvr2_dma_init);

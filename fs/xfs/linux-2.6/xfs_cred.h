@@ -18,6 +18,8 @@
 #ifndef __XFS_CRED_H__
 #define __XFS_CRED_H__
 
+#include <linux/capability.h>
+
 /*
  * Credentials
  */
@@ -27,7 +29,7 @@ typedef struct cred {
 
 extern struct cred *sys_cred;
 
-/* this is a hack.. (assums sys_cred is the only cred_t in the system) */
+/* this is a hack.. (assumes sys_cred is the only cred_t in the system) */
 static __inline int capable_cred(cred_t *cr, int cid)
 {
 	return (cr == sys_cred) ? 1 : capable(cid);

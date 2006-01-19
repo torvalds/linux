@@ -45,11 +45,11 @@ static char *_typdef_h_sccs_ = "@(#)typdef.h	1.2";
 ** These types are ONLY to be used for refering to data structures
 ** on the RIO Host card!
 */
-typedef	volatile unsigned char	BYTE;
-typedef volatile unsigned short	WORD;
-typedef volatile unsigned int	DWORD;
-typedef	volatile unsigned short RIOP;
-typedef	volatile short          NUMBER;
+typedef volatile unsigned char BYTE;
+typedef volatile unsigned short WORD;
+typedef volatile unsigned int DWORD;
+typedef volatile unsigned short RIOP;
+typedef volatile short NUMBER;
 
 
 /*
@@ -59,13 +59,13 @@ typedef	volatile short          NUMBER;
 ** are here only to make the source compile.
 */
 /* typedef unsigned int	uint; */
-typedef unsigned long	ulong_t;
-typedef unsigned short	ushort_t;
-typedef unsigned char	uchar_t;
-typedef unsigned char	queue_t;
-typedef unsigned char	mblk_t;
-typedef	unsigned int 	paddr_t;
-typedef unsigned char   uchar;
+typedef unsigned long ulong_t;
+typedef unsigned short ushort_t;
+typedef unsigned char uchar_t;
+typedef unsigned char queue_t;
+typedef unsigned char mblk_t;
+typedef unsigned int paddr_t;
+typedef unsigned char uchar;
 
 #define	TPNULL	((ushort)(0x8000))
 
@@ -73,10 +73,10 @@ typedef unsigned char   uchar;
 /*
 ** RIO structures defined in other include files.
 */
-typedef struct PKT	 	PKT;
-typedef struct LPB	 	LPB;
-typedef struct RUP	 	RUP;
-typedef struct Port		Port;
-typedef struct DpRam		DpRam;
+typedef struct PKT PKT;
+typedef struct LPB LPB;
+typedef struct RUP RUP;
+typedef struct Port Port;
+typedef struct DpRam DpRam;
 
-#endif /* __rio_typdef_h__ */
+#endif				/* __rio_typdef_h__ */

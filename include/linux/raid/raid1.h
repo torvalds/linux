@@ -45,6 +45,8 @@ struct r1_private_data_s {
 
 	spinlock_t		resync_lock;
 	int			nr_pending;
+	int			nr_waiting;
+	int			nr_queued;
 	int			barrier;
 	sector_t		next_resync;
 	int			fullsync;  /* set to 1 if a full sync is needed,
@@ -52,10 +54,11 @@ struct r1_private_data_s {
 					    * Cleared when a sync completes.
 					    */
 
-	wait_queue_head_t	wait_idle;
-	wait_queue_head_t	wait_resume;
+	wait_queue_head_t	wait_barrier;
 
 	struct pool_info	*poolinfo;
+
+	struct page		*tmppage;
 
 	mempool_t *r1bio_pool;
 	mempool_t *r1buf_pool;
@@ -105,6 +108,13 @@ struct r1bio_s {
 	struct bio		*bios[0];
 	/* DO NOT PUT ANY NEW FIELDS HERE - bios array is contiguously alloced*/
 };
+
+/* when we get a read error on a read-only array, we redirect to another
+ * device without failing the first device, or trying to over-write to
+ * correct the read error.  To keep track of bad blocks on a per-bio
+ * level, we store IO_BLOCKED in the appropriate 'bios' pointer
+ */
+#define IO_BLOCKED ((struct bio*)1)
 
 /* bits for r1bio.state */
 #define	R1BIO_Uptodate	0

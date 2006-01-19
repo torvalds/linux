@@ -1177,3 +1177,10 @@ int in_gate_area_no_task(unsigned long addr)
 {
 	return 0;
 }
+
+struct page *filemap_nopage(struct vm_area_struct *area,
+			unsigned long address, int *type)
+{
+	BUG();
+	return NULL;
+}

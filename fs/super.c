@@ -72,7 +72,7 @@ static struct super_block *alloc_super(void)
 		INIT_HLIST_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
 		init_rwsem(&s->s_umount);
-		sema_init(&s->s_lock, 1);
+		mutex_init(&s->s_lock);
 		down_write(&s->s_umount);
 		s->s_count = S_BIAS;
 		atomic_set(&s->s_active, 1);
@@ -665,16 +665,6 @@ static int test_bdev_super(struct super_block *s, void *data)
 	return (void *)s->s_bdev == data;
 }
 
-static void bdev_uevent(struct block_device *bdev, enum kobject_action action)
-{
-	if (bdev->bd_disk) {
-		if (bdev->bd_part)
-			kobject_uevent(&bdev->bd_part->kobj, action, NULL);
-		else
-			kobject_uevent(&bdev->bd_disk->kobj, action, NULL);
-	}
-}
-
 struct super_block *get_sb_bdev(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data,
 	int (*fill_super)(struct super_block *, void *, int))
@@ -710,17 +700,14 @@ struct super_block *get_sb_bdev(struct file_system_type *fs_type,
 
 		s->s_flags = flags;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
-		s->s_old_blocksize = block_size(bdev);
-		sb_set_blocksize(s, s->s_old_blocksize);
+		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
 		if (error) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
 			s = ERR_PTR(error);
-		} else {
+		} else
 			s->s_flags |= MS_ACTIVE;
-			bdev_uevent(bdev, KOBJ_MOUNT);
-		}
 	}
 
 	return s;
@@ -736,7 +723,6 @@ void kill_block_super(struct super_block *sb)
 {
 	struct block_device *bdev = sb->s_bdev;
 
-	bdev_uevent(bdev, KOBJ_UMOUNT);
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
 	close_bdev_excl(bdev);

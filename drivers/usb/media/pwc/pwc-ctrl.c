@@ -109,7 +109,7 @@
 #define PT_RESET_CONTROL_FORMATTER		0x02
 #define PT_STATUS_FORMATTER			0x03
 
-static char *size2name[PSZ_MAX] =
+static const char *size2name[PSZ_MAX] =
 {
 	"subQCIF",
 	"QSIF",

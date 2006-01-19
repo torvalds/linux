@@ -91,7 +91,7 @@ To use the driver as a module, proceed as follows:
    with (M)
 5. Execute the command "make modules".
 6. Execute the command "make modules_install".
-   The appropiate modules will be installed.
+   The appropriate modules will be installed.
 7. Reboot your system.
 
 
@@ -245,7 +245,7 @@ Default:      Both
 This parameters is only relevant if auto-negotiation for this port is 
 not set to "Sense". If auto-negotiation is set to "On", all three values
 are possible. If it is set to "Off", only "Full" and "Half" are allowed.
-This parameter is usefull if your link partner does not support all
+This parameter is useful if your link partner does not support all
 possible combinations.
 
 Flow Control

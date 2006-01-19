@@ -11,6 +11,7 @@
 
 #include <linux/config.h>
 #include <linux/types.h>
+#include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/timer.h>
 #include <linux/module.h>
@@ -18,6 +19,7 @@
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/checksum.h>
+#include <net/route.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -38,7 +40,7 @@ static DEFINE_RWLOCK(masq_lock);
 /* FIXME: Multiple targets. --RR */
 static int
 masquerade_check(const char *tablename,
-		 const struct ipt_entry *e,
+		 const void *e,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)

@@ -24,6 +24,18 @@ config I2O
 
 	  If unsure, say N.
 
+config I2O_LCT_NOTIFY_ON_CHANGES
+	bool "Enable LCT notification"
+	depends on I2O
+	default y
+	---help---
+	  Only say N here if you have a I2O controller from SUN. The SUN
+	  firmware doesn't support LCT notification on changes. If this option
+	  is enabled on such a controller the driver will hang up in a endless
+	  loop. On all other controllers say Y.
+
+	  If unsure, say Y.
+
 config I2O_EXT_ADAPTEC
 	bool "Enable Adaptec extensions"
 	depends on I2O

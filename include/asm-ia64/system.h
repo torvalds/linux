@@ -219,14 +219,14 @@ extern void ia64_load_extra (struct task_struct *task);
 
 #define IA64_HAS_EXTRA_STATE(t)							\
 	((t)->thread.flags & (IA64_THREAD_DBG_VALID|IA64_THREAD_PM_VALID)	\
-	 || IS_IA32_PROCESS(ia64_task_regs(t)) || PERFMON_IS_SYSWIDE())
+	 || IS_IA32_PROCESS(task_pt_regs(t)) || PERFMON_IS_SYSWIDE())
 
 #define __switch_to(prev,next,last) do {							 \
 	if (IA64_HAS_EXTRA_STATE(prev))								 \
 		ia64_save_extra(prev);								 \
 	if (IA64_HAS_EXTRA_STATE(next))								 \
 		ia64_load_extra(next);								 \
-	ia64_psr(ia64_task_regs(next))->dfh = !ia64_is_local_fpu_owner(next);			 \
+	ia64_psr(task_pt_regs(next))->dfh = !ia64_is_local_fpu_owner(next);			 \
 	(last) = ia64_switch_to((next));							 \
 } while (0)
 
@@ -238,8 +238,8 @@ extern void ia64_load_extra (struct task_struct *task);
  * the latest fph state from another CPU.  In other words: eager save, lazy restore.
  */
 # define switch_to(prev,next,last) do {						\
-	if (ia64_psr(ia64_task_regs(prev))->mfh && ia64_is_local_fpu_owner(prev)) {				\
-		ia64_psr(ia64_task_regs(prev))->mfh = 0;			\
+	if (ia64_psr(task_pt_regs(prev))->mfh && ia64_is_local_fpu_owner(prev)) {				\
+		ia64_psr(task_pt_regs(prev))->mfh = 0;			\
 		(prev)->thread.flags |= IA64_THREAD_FPH_VALID;			\
 		__ia64_save_fpu((prev)->thread.fph);				\
 	}									\
@@ -279,6 +279,7 @@ extern void ia64_load_extra (struct task_struct *task);
 #define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
 
 void cpu_idle_wait(void);
+void sched_cacheflush(void);
 
 #define arch_align_stack(x) (x)
 

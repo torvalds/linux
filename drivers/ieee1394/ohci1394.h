@@ -219,8 +219,8 @@ struct ti_ohci {
 
 	int self_id_errors;
 
-	/* Tasklets for iso receive and transmit, used by video1394,
-	 * amdtp and dv1394 */
+	/* Tasklets for iso receive and transmit, used by video1394
+	 * and dv1394 */
 
 	struct list_head iso_tasklet_list;
 	spinlock_t iso_tasklet_list_lock;

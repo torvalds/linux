@@ -1,7 +1,7 @@
 /*
  * Support for PCI bridges found on Power Macintoshes.
  *
- * Copyright (C) 2003 Benjamin Herrenschmuidt (benh@kernel.crashing.org)
+ * Copyright (C) 2003-2005 Benjamin Herrenschmuidt (benh@kernel.crashing.org)
  * Copyright (C) 1997 Paul Mackerras (paulus@samba.org)
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/grackle.h>
 #ifdef CONFIG_PPC64
-#include <asm/iommu.h>
+//#include <asm/iommu.h>
 #include <asm/ppc-pci.h>
 #endif
 
@@ -44,6 +44,7 @@ static int add_bridge(struct device_node *dev);
 static int has_uninorth;
 #ifdef CONFIG_PPC64
 static struct pci_controller *u3_agp;
+static struct pci_controller *u4_pcie;
 static struct pci_controller *u3_ht;
 #endif /* CONFIG_PPC64 */
 
@@ -97,11 +98,8 @@ static void __init fixup_bus_range(struct device_node *bridge)
 
 	/* Lookup the "bus-range" property for the hose */
 	bus_range = (int *) get_property(bridge, "bus-range", &len);
-	if (bus_range == NULL || len < 2 * sizeof(int)) {
-		printk(KERN_WARNING "Can't get bus-range for %s\n",
-			       bridge->full_name);
+	if (bus_range == NULL || len < 2 * sizeof(int))
 		return;
-	}
 	bus_range[1] = fixup_one_level_bus_range(bridge->child, bus_range[1]);
 }
 
@@ -128,14 +126,14 @@ static void __init fixup_bus_range(struct device_node *bridge)
  */
 
 #define MACRISC_CFA0(devfn, off)	\
-	((1 << (unsigned long)PCI_SLOT(dev_fn)) \
-	| (((unsigned long)PCI_FUNC(dev_fn)) << 8) \
-	| (((unsigned long)(off)) & 0xFCUL))
+	((1 << (unsigned int)PCI_SLOT(dev_fn)) \
+	| (((unsigned int)PCI_FUNC(dev_fn)) << 8) \
+	| (((unsigned int)(off)) & 0xFCUL))
 
 #define MACRISC_CFA1(bus, devfn, off)	\
-	((((unsigned long)(bus)) << 16) \
-	|(((unsigned long)(devfn)) << 8) \
-	|(((unsigned long)(off)) & 0xFCUL) \
+	((((unsigned int)(bus)) << 16) \
+	|(((unsigned int)(devfn)) << 8) \
+	|(((unsigned int)(off)) & 0xFCUL) \
 	|1UL)
 
 static unsigned long macrisc_cfg_access(struct pci_controller* hose,
@@ -168,7 +166,8 @@ static int macrisc_read_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-
+	if (offset >= 0x100)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
 	addr = macrisc_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -199,7 +198,8 @@ static int macrisc_write_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-
+	if (offset >= 0x100)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
 	addr = macrisc_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -234,12 +234,13 @@ static struct pci_ops macrisc_pci_ops =
 /*
  * Verify that a specific (bus, dev_fn) exists on chaos
  */
-static int
-chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
+static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 {
 	struct device_node *np;
 	u32 *vendor, *device;
 
+	if (offset >= 0x100)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
 	np = pci_busdev_to_OF_node(bus, devfn);
 	if (np == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -285,15 +286,13 @@ static struct pci_ops chaos_pci_ops =
 };
 
 static void __init setup_chaos(struct pci_controller *hose,
-			       struct reg_property *addr)
+			       struct resource *addr)
 {
 	/* assume a `chaos' bridge */
 	hose->ops = &chaos_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
 }
-#else
-#define setup_chaos(hose, addr)
 #endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
@@ -326,7 +325,7 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 	else
 		busdn = hose->arch_data;
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->data && PCI_DN(dn)->devfn == devfn)
+		if (PCI_DN(dn) && PCI_DN(dn)->devfn == devfn)
 			break;
 	if (dn == NULL)
 		return -1;
@@ -343,10 +342,10 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 }
 
 #define U3_HT_CFA0(devfn, off)		\
-		((((unsigned long)devfn) << 8) | offset)
+		((((unsigned int)devfn) << 8) | offset)
 #define U3_HT_CFA1(bus, devfn, off)	\
 		(U3_HT_CFA0(devfn, off) \
-		+ (((unsigned long)bus) << 16) \
+		+ (((unsigned int)bus) << 16) \
 		+ 0x01000000UL)
 
 static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
@@ -356,9 +355,11 @@ static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
 		/* For now, we don't self probe U3 HT bridge */
 		if (PCI_SLOT(devfn) == 0)
 			return 0;
-		return ((unsigned long)hose->cfg_data) + U3_HT_CFA0(devfn, offset);
+		return ((unsigned long)hose->cfg_data) +
+			U3_HT_CFA0(devfn, offset);
 	} else
-		return ((unsigned long)hose->cfg_data) + U3_HT_CFA1(bus, devfn, offset);
+		return ((unsigned long)hose->cfg_data) +
+			U3_HT_CFA1(bus, devfn, offset);
 }
 
 static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
@@ -370,7 +371,8 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-
+	if (offset >= 0x100)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -419,7 +421,8 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-
+	if (offset >= 0x100)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
 	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -459,6 +462,112 @@ static struct pci_ops u3_ht_pci_ops =
 	u3_ht_read_config,
 	u3_ht_write_config
 };
+
+#define U4_PCIE_CFA0(devfn, off)	\
+	((1 << ((unsigned int)PCI_SLOT(dev_fn)))	\
+	 | (((unsigned int)PCI_FUNC(dev_fn)) << 8)	\
+	 | ((((unsigned int)(off)) >> 8) << 28) \
+	 | (((unsigned int)(off)) & 0xfcU))
+
+#define U4_PCIE_CFA1(bus, devfn, off)	\
+	((((unsigned int)(bus)) << 16) \
+	 |(((unsigned int)(devfn)) << 8)	\
+	 | ((((unsigned int)(off)) >> 8) << 28) \
+	 |(((unsigned int)(off)) & 0xfcU)	\
+	 |1UL)
+
+static unsigned long u4_pcie_cfg_access(struct pci_controller* hose,
+					u8 bus, u8 dev_fn, int offset)
+{
+	unsigned int caddr;
+
+	if (bus == hose->first_busno) {
+		caddr = U4_PCIE_CFA0(dev_fn, offset);
+	} else
+		caddr = U4_PCIE_CFA1(bus, dev_fn, offset);
+
+	/* Uninorth will return garbage if we don't read back the value ! */
+	do {
+		out_le32(hose->cfg_addr, caddr);
+	} while (in_le32(hose->cfg_addr) != caddr);
+
+	offset &= 0x03;
+	return ((unsigned long)hose->cfg_data) + offset;
+}
+
+static int u4_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
+			       int offset, int len, u32 *val)
+{
+	struct pci_controller *hose;
+	unsigned long addr;
+
+	hose = pci_bus_to_host(bus);
+	if (hose == NULL)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	if (offset >= 0x1000)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
+	addr = u4_pcie_cfg_access(hose, bus->number, devfn, offset);
+	if (!addr)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	/*
+	 * Note: the caller has already checked that offset is
+	 * suitably aligned and that len is 1, 2 or 4.
+	 */
+	switch (len) {
+	case 1:
+		*val = in_8((u8 *)addr);
+		break;
+	case 2:
+		*val = in_le16((u16 *)addr);
+		break;
+	default:
+		*val = in_le32((u32 *)addr);
+		break;
+	}
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static int u4_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
+				int offset, int len, u32 val)
+{
+	struct pci_controller *hose;
+	unsigned long addr;
+
+	hose = pci_bus_to_host(bus);
+	if (hose == NULL)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	if (offset >= 0x1000)
+		return  PCIBIOS_BAD_REGISTER_NUMBER;
+	addr = u4_pcie_cfg_access(hose, bus->number, devfn, offset);
+	if (!addr)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	/*
+	 * Note: the caller has already checked that offset is
+	 * suitably aligned and that len is 1, 2 or 4.
+	 */
+	switch (len) {
+	case 1:
+		out_8((u8 *)addr, val);
+		(void) in_8((u8 *)addr);
+		break;
+	case 2:
+		out_le16((u16 *)addr, val);
+		(void) in_le16((u16 *)addr);
+		break;
+	default:
+		out_le32((u32 *)addr, val);
+		(void) in_le32((u32 *)addr);
+		break;
+	}
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static struct pci_ops u4_pcie_pci_ops =
+{
+	u4_pcie_read_config,
+	u4_pcie_write_config
+};
+
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC32
@@ -532,7 +641,8 @@ static void __init init_p2pbridge(void)
 	}
 	if (early_read_config_word(hose, bus, devfn,
 				   PCI_BRIDGE_CONTROL, &val) < 0) {
-		printk(KERN_ERR "init_p2pbridge: couldn't read bridge control\n");
+		printk(KERN_ERR "init_p2pbridge: couldn't read bridge"
+		       " control\n");
 		return;
 	}
 	val &= ~PCI_BRIDGE_CTL_MASTER_ABORT;
@@ -576,36 +686,38 @@ static void __init fixup_nec_usb2(void)
 			continue;
 		early_read_config_dword(hose, bus, devfn, 0xe4, &data);
 		if (data & 1UL) {
-			printk("Found NEC PD720100A USB2 chip with disabled EHCI, fixing up...\n");
+			printk("Found NEC PD720100A USB2 chip with disabled"
+			       " EHCI, fixing up...\n");
 			data &= ~1UL;
 			early_write_config_dword(hose, bus, devfn, 0xe4, data);
-			early_write_config_byte(hose, bus, devfn | 2, PCI_INTERRUPT_LINE,
+			early_write_config_byte(hose, bus,
+						devfn | 2, PCI_INTERRUPT_LINE,
 				nec->intrs[0].line);
 		}
 	}
 }
 
 static void __init setup_bandit(struct pci_controller *hose,
-				struct reg_property *addr)
+				struct resource *addr)
 {
 	hose->ops = &macrisc_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
 	init_bandit(hose);
 }
 
 static int __init setup_uninorth(struct pci_controller *hose,
-				 struct reg_property *addr)
+				 struct resource *addr)
 {
 	pci_assign_all_buses = 1;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
 	/* We "know" that the bridge at f2000000 has the PCI slots. */
-	return addr->address == 0xf2000000;
+	return addr->start == 0xf2000000;
 }
-#endif
+#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
 static void __init setup_u3_agp(struct pci_controller* hose)
@@ -625,14 +737,35 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 	hose->ops = &macrisc_pci_ops;
 	hose->cfg_addr = ioremap(0xf0000000 + 0x800000, 0x1000);
 	hose->cfg_data = ioremap(0xf0000000 + 0xc00000, 0x1000);
-
 	u3_agp = hose;
+}
+
+static void __init setup_u4_pcie(struct pci_controller* hose)
+{
+	/* We currently only implement the "non-atomic" config space, to
+	 * be optimised later.
+	 */
+	hose->ops = &u4_pcie_pci_ops;
+	hose->cfg_addr = ioremap(0xf0000000 + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(0xf0000000 + 0xc00000, 0x1000);
+
+	/* The bus contains a bridge from root -> device, we need to
+	 * make it visible on bus 0 so that we pick the right type
+	 * of config cycles. If we didn't, we would have to force all
+	 * config cycles to be type 1. So we override the "bus-range"
+	 * property here
+	 */
+	hose->first_busno = 0x00;
+	hose->last_busno = 0xff;
+	u4_pcie = hose;
 }
 
 static void __init setup_u3_ht(struct pci_controller* hose)
 {
 	struct device_node *np = (struct device_node *)hose->arch_data;
+	struct pci_controller *other = NULL;
 	int i, cur;
+
 
 	hose->ops = &u3_ht_pci_ops;
 
@@ -667,10 +800,19 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 
 	u3_ht = hose;
 
-	if (u3_agp == NULL) {
-		DBG("U3 has no AGP, using full resource range\n");
+	if (u3_agp != NULL)
+		other = u3_agp;
+	else if (u4_pcie != NULL)
+		other = u4_pcie;
+
+	if (other == NULL) {
+		DBG("U3/4 has no AGP/PCIE, using full resource range\n");
 		return;
 	}
+
+	/* Fixup bus range vs. PCIE */
+	if (u4_pcie)
+		hose->last_busno = u4_pcie->first_busno - 1;
 
 	/* We "remove" the AGP resources from the resources allocated to HT,
 	 * that is we create "holes". However, that code does assumptions
@@ -679,7 +821,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 */
 	cur = 0;
 	for (i=0; i<3; i++) {
-		struct resource *res = &u3_agp->mem_resources[i];
+		struct resource *res = &other->mem_resources[i];
 		if (res->flags != IORESOURCE_MEM)
 			continue;
 		/* We don't care about "fine" resources */
@@ -722,7 +864,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 		hose->mem_resources[cur-1].end = res->start - 1;
 	}
 }
-#endif
+#endif /* CONFIG_PPC64 */
 
 /*
  * We assume that if we have a G3 powermac, we have one bridge called
@@ -733,24 +875,17 @@ static int __init add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
-#ifdef CONFIG_PPC32
-	struct reg_property *addr;
-#endif
+	struct resource rsrc;
 	char *disp_name;
 	int *bus_range;
-	int primary = 1;
+	int primary = 1, has_address = 0;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 
-#ifdef CONFIG_PPC32
-	/* XXX fix this */
-	addr = (struct reg_property *) get_property(dev, "reg", &len);
-	if (addr == NULL || len < sizeof(*addr)) {
-		printk(KERN_WARNING "Can't use %s: no address\n",
-		       dev->full_name);
-		return -ENODEV;
-	}
-#endif
+	/* Fetch host bridge registers address */
+	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
+
+	/* Get bus range if any */
 	bus_range = (int *) get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
@@ -770,6 +905,8 @@ static int __init add_bridge(struct device_node *dev)
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	disp_name = NULL;
+
+	/* 64 bits only bridges */
 #ifdef CONFIG_PPC64
 	if (device_is_compatible(dev, "u3-agp")) {
 		setup_u3_agp(hose);
@@ -779,28 +916,37 @@ static int __init add_bridge(struct device_node *dev)
 		setup_u3_ht(hose);
 		disp_name = "U3-HT";
 		primary = 1;
+	} else if (device_is_compatible(dev, "u4-pcie")) {
+		setup_u4_pcie(hose);
+		disp_name = "U4-PCIE";
+		primary = 0;
 	}
-	printk(KERN_INFO "Found %s PCI host bridge.  Firmware bus number: %d->%d\n",
-		disp_name, hose->first_busno, hose->last_busno);
-#else
+	printk(KERN_INFO "Found %s PCI host bridge.  Firmware bus number:"
+	       " %d->%d\n", disp_name, hose->first_busno, hose->last_busno);
+#endif /* CONFIG_PPC64 */
+
+	/* 32 bits only bridges */
+#ifdef CONFIG_PPC32
 	if (device_is_compatible(dev, "uni-north")) {
-		primary = setup_uninorth(hose, addr);
+		primary = setup_uninorth(hose, &rsrc);
 		disp_name = "UniNorth";
 	} else if (strcmp(dev->name, "pci") == 0) {
 		/* XXX assume this is a mpc106 (grackle) */
 		setup_grackle(hose);
 		disp_name = "Grackle (MPC106)";
 	} else if (strcmp(dev->name, "bandit") == 0) {
-		setup_bandit(hose, addr);
+		setup_bandit(hose, &rsrc);
 		disp_name = "Bandit";
 	} else if (strcmp(dev->name, "chaos") == 0) {
-		setup_chaos(hose, addr);
+		setup_chaos(hose, &rsrc);
 		disp_name = "Chaos";
 		primary = 0;
 	}
-	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. Firmware bus number: %d->%d\n",
-		disp_name, addr->address, hose->first_busno, hose->last_busno);
-#endif
+	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. "
+	       "Firmware bus number: %d->%d\n",
+		disp_name, rsrc.start, hose->first_busno, hose->last_busno);
+#endif /* CONFIG_PPC32 */
+
 	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 		hose, hose->cfg_addr, hose->cfg_data);
 
@@ -814,8 +960,7 @@ static int __init add_bridge(struct device_node *dev)
 	return 0;
 }
 
-static void __init
-pcibios_fixup_OF_interrupts(void)
+static void __init pcibios_fixup_OF_interrupts(void)
 {
 	struct pci_dev* dev = NULL;
 
@@ -835,8 +980,7 @@ pcibios_fixup_OF_interrupts(void)
 	}
 }
 
-void __init
-pmac_pcibios_fixup(void)
+void __init pmac_pcibios_fixup(void)
 {
 	/* Fixup interrupts according to OF tree */
 	pcibios_fixup_OF_interrupts();
@@ -899,6 +1043,8 @@ void __init pmac_pci_init(void)
 		pci_setup_phb_io(u3_ht, 1);
 	if (u3_agp)
 		pci_setup_phb_io(u3_agp, 0);
+	if (u4_pcie)
+		pci_setup_phb_io(u4_pcie, 0);
 
 	/*
 	 * On ppc64, fixup the IO resources on our host bridges as
@@ -911,7 +1057,8 @@ void __init pmac_pci_init(void)
 
 	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
 	 * assume there is no P2P bridge on the AGP bus, which should be a
-	 * safe assumptions hopefully.
+	 * safe assumptions for now. We should do something better in the
+	 * future though
 	 */
 	if (u3_agp) {
 		struct device_node *np = u3_agp->arch_data;
@@ -919,7 +1066,6 @@ void __init pmac_pci_init(void)
 		for (np = np->child; np; np = np->sibling)
 			PCI_DN(np)->busno = 0xf0;
 	}
-
 	/* pmac_check_ht_link(); */
 
 	/* Tell pci.c to not use the common resource allocation mechanism */
@@ -1126,7 +1272,8 @@ void pmac_pci_fixup_pciata(struct pci_dev* dev)
  good:
 	pci_read_config_byte(dev, PCI_CLASS_PROG, &progif);
 	if ((progif & 5) != 5) {
-		printk(KERN_INFO "Forcing PCI IDE into native mode: %s\n", pci_name(dev));
+		printk(KERN_INFO "Forcing PCI IDE into native mode: %s\n",
+		       pci_name(dev));
 		(void) pci_write_config_byte(dev, PCI_CLASS_PROG, progif|5);
 		if (pci_read_config_byte(dev, PCI_CLASS_PROG, &progif) ||
 		    (progif & 5) != 5)
@@ -1152,7 +1299,8 @@ static void fixup_k2_sata(struct pci_dev* dev)
 		for (i = 0; i < 6; i++) {
 			dev->resource[i].start = dev->resource[i].end = 0;
 			dev->resource[i].flags = 0;
-			pci_write_config_dword(dev, PCI_BASE_ADDRESS_0 + 4 * i, 0);
+			pci_write_config_dword(dev, PCI_BASE_ADDRESS_0 + 4 * i,
+					       0);
 		}
 	} else {
 		pci_read_config_word(dev, PCI_COMMAND, &cmd);
@@ -1161,7 +1309,8 @@ static void fixup_k2_sata(struct pci_dev* dev)
 		for (i = 0; i < 5; i++) {
 			dev->resource[i].start = dev->resource[i].end = 0;
 			dev->resource[i].flags = 0;
-			pci_write_config_dword(dev, PCI_BASE_ADDRESS_0 + 4 * i, 0);
+			pci_write_config_dword(dev, PCI_BASE_ADDRESS_0 + 4 * i,
+					       0);
 		}
 	}
 }

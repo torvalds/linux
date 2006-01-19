@@ -21,6 +21,8 @@ extern int dvb_usb_cxusb_debug;
 #define CMD_STREAMING_ON  0x36
 #define CMD_STREAMING_OFF 0x37
 
+#define CMD_GET_IR_CODE   0x47
+
 #define CMD_ANALOG        0x50
 #define CMD_DIGITAL       0x51
 

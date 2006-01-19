@@ -8,7 +8,6 @@
 
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
-#include <linux/firmware.h>
 #include <scsi/scsi_transport_fc.h>
 
 #include "qla_devtbl.h"
@@ -1015,11 +1014,13 @@ qla24xx_update_fw_options(scsi_qla_host_t *ha)
 	int rval;
 
 	/* Update Serial Link options. */
-	if ((ha->fw_seriallink_options24[0] & BIT_0) == 0)
+	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
 		return;
 
-	rval = qla2x00_set_serdes_params(ha, ha->fw_seriallink_options24[1],
-	    ha->fw_seriallink_options24[2], ha->fw_seriallink_options24[3]);
+	rval = qla2x00_set_serdes_params(ha,
+	    le16_to_cpu(ha->fw_seriallink_options24[1]),
+	    le16_to_cpu(ha->fw_seriallink_options24[2]),
+	    le16_to_cpu(ha->fw_seriallink_options24[3]));
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to update Serial Link options (%x).\n", rval);
@@ -1940,6 +1941,9 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 			    "information -- get_port_database=%x, "
 			    "loop_id=0x%04x\n",
 			    ha->host_no, rval2, new_fcport->loop_id));
+			DEBUG2(printk("scsi(%ld): Scheduling resync...\n",
+			    ha->host_no));
+			set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 			continue;
 		}
 
@@ -2649,7 +2653,8 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 
 		switch (format) {
 		case 0:
-			if (!IS_QLA2100(ha) && !IS_QLA2200(ha) &&
+			if (ql2xprocessrscn &&
+			    !IS_QLA2100(ha) && !IS_QLA2200(ha) &&
 			    !IS_QLA6312(ha) && !IS_QLA6322(ha) &&
 			    !IS_QLA24XX(ha) && !IS_QLA25XX(ha) &&
 			    ha->flags.init_done) {
@@ -3403,6 +3408,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	ha->node_name = icb->node_name;
 	ha->port_name = icb->port_name;
 
+	icb->execution_throttle = __constant_cpu_to_le16(0xFFFF);
+
 	ha->retry_count = le16_to_cpu(nv->login_retry_count);
 
 	/* Set minimum login_timeout to 4 seconds. */
@@ -3484,17 +3491,16 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	return (rval);
 }
 
+#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
+
 int
 qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 {
-	int		rval;
-	uint16_t	cnt;
-	uint16_t	*risc_code;
-	unsigned long	risc_address;
-	unsigned long	risc_code_size;
-	int		num;
-	int		i;
-	uint16_t	*req_ring;
+	int	rval, num, i;
+	uint32_t cnt;
+	uint16_t *risc_code;
+	uint32_t risc_addr, risc_size;
+	uint16_t *req_ring;
 	struct qla_fw_info *fw_iter;
 
 	rval = QLA_SUCCESS;
@@ -3504,37 +3510,29 @@ qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	*srisc_addr = *ha->brd_info->fw_info->fwstart;
 	while (fw_iter->addressing != FW_INFO_ADDR_NOMORE) {
 		risc_code = fw_iter->fwcode;
-		risc_code_size = *fw_iter->fwlen;
-
-		if (fw_iter->addressing == FW_INFO_ADDR_NORMAL) {
-			risc_address = *fw_iter->fwstart;
-		} else {
-			/* Extended address */
-			risc_address = *fw_iter->lfwstart;
-		}
+		risc_size = *fw_iter->fwlen;
+		if (fw_iter->addressing == FW_INFO_ADDR_NORMAL)
+			risc_addr = *fw_iter->fwstart;
+		else
+			risc_addr = *fw_iter->lfwstart;
 
 		num = 0;
 		rval = 0;
-		while (risc_code_size > 0 && !rval) {
+		while (risc_size > 0 && !rval) {
 			cnt = (uint16_t)(ha->fw_transfer_size >> 1);
-			if (cnt > risc_code_size)
-				cnt = risc_code_size;
+			if (cnt > risc_size)
+				cnt = risc_size;
 
 			DEBUG7(printk("scsi(%ld): Loading risc segment@ "
 			    "addr %p, number of bytes 0x%x, offset 0x%lx.\n",
-			    ha->host_no, risc_code, cnt, risc_address));
+			    ha->host_no, risc_code, cnt, risc_addr));
 
 			req_ring = (uint16_t *)ha->request_ring;
 			for (i = 0; i < cnt; i++)
 				req_ring[i] = cpu_to_le16(risc_code[i]);
 
-			if (fw_iter->addressing == FW_INFO_ADDR_NORMAL) {
-				rval = qla2x00_load_ram(ha, ha->request_dma,
-				    risc_address, cnt);
-			} else {
-				rval = qla2x00_load_ram_ext(ha,
-				    ha->request_dma, risc_address, cnt);
-			}
+			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
+			    cnt);
 			if (rval) {
 				DEBUG(printk("scsi(%ld): [ERROR] Failed to "
 				    "load segment %d of firmware\n",
@@ -3548,16 +3546,76 @@ qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 			}
 
 			risc_code += cnt;
-			risc_address += cnt;
-			risc_code_size -= cnt;
+			risc_addr += cnt;
+			risc_size -= cnt;
 			num++;
 		}
 
 		/* Next firmware sequence */
 		fw_iter++;
 	}
+	return rval;
+}
 
-	return (rval);
+int
+qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
+{
+	int	rval, num, i;
+	uint32_t cnt;
+	uint32_t *risc_code;
+	uint32_t risc_addr, risc_size;
+	uint32_t *req_ring;
+	struct qla_fw_info *fw_iter;
+
+	rval = QLA_SUCCESS;
+
+	/* Load firmware sequences */
+	fw_iter = ha->brd_info->fw_info;
+	*srisc_addr = *((uint32_t *)fw_iter->lfwstart);
+	while (fw_iter->addressing != FW_INFO_ADDR_NOMORE) {
+		risc_code = (uint32_t *)fw_iter->fwcode;
+		risc_size = *((uint32_t *)fw_iter->fwlen);
+		risc_addr = *((uint32_t *)fw_iter->lfwstart);
+
+		num = 0;
+		rval = 0;
+		while (risc_size > 0 && !rval) {
+			cnt = (uint32_t)(ha->fw_transfer_size >> 2);
+			if (cnt > risc_size)
+				cnt = risc_size;
+
+			DEBUG7(printk("scsi(%ld): Loading risc segment@ "
+			    "addr %p, number of bytes 0x%x, offset 0x%lx.\n",
+			    ha->host_no, risc_code, cnt, risc_addr));
+
+			req_ring = (uint32_t *)ha->request_ring;
+			for (i = 0; i < cnt; i++)
+				req_ring[i] = cpu_to_le32(risc_code[i]);
+
+			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
+			    cnt);
+			if (rval) {
+				DEBUG(printk("scsi(%ld): [ERROR] Failed to "
+				    "load segment %d of firmware\n",
+				    ha->host_no, num));
+				qla_printk(KERN_WARNING, ha,
+				    "[ERROR] Failed to load segment %d of "
+				    "firmware\n", num);
+
+				qla2x00_dump_regs(ha);
+				break;
+			}
+
+			risc_code += cnt;
+			risc_addr += cnt;
+			risc_size -= cnt;
+			num++;
+		}
+
+		/* Next firmware sequence */
+		fw_iter++;
+	}
+	return rval;
 }
 
 int
@@ -3617,8 +3675,8 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 			for (i = 0; i < dlen; i++)
 				dcode[i] = swab32(dcode[i]);
 
-			rval = qla2x00_load_ram_ext(ha, ha->request_dma,
-			    risc_addr, dlen);
+			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
+			    dlen);
 			if (rval) {
 				DEBUG(printk("scsi(%ld):[ERROR] Failed to load "
 				    "segment %d of firmware\n", ha->host_no,
@@ -3642,8 +3700,108 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	return rval;
 }
 
+#else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
+
 int
-qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
+qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
+{
+	int	rval;
+	int	i, fragment;
+	uint16_t *wcode, *fwcode;
+	uint32_t risc_addr, risc_size, fwclen, wlen, *seg;
+	struct fw_blob *blob;
+
+	/* Load firmware blob. */
+	blob = qla2x00_request_firmware(ha);
+	if (!blob) {
+		qla_printk(KERN_ERR, ha, "Firmware image unavailable.\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	rval = QLA_SUCCESS;
+
+	wcode = (uint16_t *)ha->request_ring;
+	*srisc_addr = 0;
+	fwcode = (uint16_t *)blob->fw->data;
+	fwclen = 0;
+
+	/* Validate firmware image by checking version. */
+	if (blob->fw->size < 8 * sizeof(uint16_t)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to verify integrity of firmware image (%Zd)!\n",
+		    blob->fw->size);
+		goto fail_fw_integrity;
+	}
+	for (i = 0; i < 4; i++)
+		wcode[i] = be16_to_cpu(fwcode[i + 4]);
+	if ((wcode[0] == 0xffff && wcode[1] == 0xffff && wcode[2] == 0xffff &&
+	    wcode[3] == 0xffff) || (wcode[0] == 0 && wcode[1] == 0 &&
+		wcode[2] == 0 && wcode[3] == 0)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to verify integrity of firmware image!\n");
+		qla_printk(KERN_WARNING, ha,
+		    "Firmware data: %04x %04x %04x %04x!\n", wcode[0],
+		    wcode[1], wcode[2], wcode[3]);
+		goto fail_fw_integrity;
+	}
+
+	seg = blob->segs;
+	while (*seg && rval == QLA_SUCCESS) {
+		risc_addr = *seg;
+		*srisc_addr = *srisc_addr == 0 ? *seg : *srisc_addr;
+		risc_size = be16_to_cpu(fwcode[3]);
+
+		/* Validate firmware image size. */
+		fwclen += risc_size * sizeof(uint16_t);
+		if (blob->fw->size < fwclen) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to verify integrity of firmware image "
+			    "(%Zd)!\n", blob->fw->size);
+			goto fail_fw_integrity;
+		}
+
+		fragment = 0;
+		while (risc_size > 0 && rval == QLA_SUCCESS) {
+			wlen = (uint16_t)(ha->fw_transfer_size >> 1);
+			if (wlen > risc_size)
+				wlen = risc_size;
+
+			DEBUG7(printk("scsi(%ld): Loading risc segment@ risc "
+			    "addr %x, number of words 0x%x.\n", ha->host_no,
+			    risc_addr, wlen));
+
+			for (i = 0; i < wlen; i++)
+				wcode[i] = swab16(fwcode[i]);
+
+			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
+			    wlen);
+			if (rval) {
+				DEBUG(printk("scsi(%ld):[ERROR] Failed to load "
+				    "segment %d of firmware\n", ha->host_no,
+				    fragment));
+				qla_printk(KERN_WARNING, ha,
+				    "[ERROR] Failed to load segment %d of "
+				    "firmware\n", fragment);
+				break;
+			}
+
+			fwcode += wlen;
+			risc_addr += wlen;
+			risc_size -= wlen;
+			fragment++;
+		}
+
+		/* Next segment. */
+		seg++;
+	}
+	return rval;
+
+fail_fw_integrity:
+	return QLA_FUNCTION_FAILED;
+}
+
+int
+qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 {
 	int	rval;
 	int	segments, fragment;
@@ -3651,14 +3809,13 @@ qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	uint32_t risc_addr;
 	uint32_t risc_size;
 	uint32_t i;
-	const struct firmware *fw_entry;
+	struct fw_blob *blob;
 	uint32_t *fwcode, fwclen;
 
-	if (request_firmware(&fw_entry, ha->brd_info->fw_fname,
-	    &ha->pdev->dev)) {
-		qla_printk(KERN_ERR, ha,
-		    "Firmware image file not available: '%s'\n",
-		    ha->brd_info->fw_fname);
+	/* Load firmware blob. */
+	blob = qla2x00_request_firmware(ha);
+	if (!blob) {
+		qla_printk(KERN_ERR, ha, "Firmware image unavailable.\n");
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -3667,14 +3824,14 @@ qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	segments = FA_RISC_CODE_SEGMENTS;
 	dcode = (uint32_t *)ha->request_ring;
 	*srisc_addr = 0;
-	fwcode = (uint32_t *)fw_entry->data;
+	fwcode = (uint32_t *)blob->fw->data;
 	fwclen = 0;
 
 	/* Validate firmware image by checking version. */
-	if (fw_entry->size < 8 * sizeof(uint32_t)) {
+	if (blob->fw->size < 8 * sizeof(uint32_t)) {
 		qla_printk(KERN_WARNING, ha,
-		    "Unable to verify integrity of flash firmware image "
-		    "(%Zd)!\n", fw_entry->size);
+		    "Unable to verify integrity of firmware image (%Zd)!\n",
+		    blob->fw->size);
 		goto fail_fw_integrity;
 	}
 	for (i = 0; i < 4; i++)
@@ -3684,7 +3841,7 @@ qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
 		dcode[3] == 0)) {
 		qla_printk(KERN_WARNING, ha,
-		    "Unable to verify integrity of flash firmware image!\n");
+		    "Unable to verify integrity of firmware image!\n");
 		qla_printk(KERN_WARNING, ha,
 		    "Firmware data: %08x %08x %08x %08x!\n", dcode[0],
 		    dcode[1], dcode[2], dcode[3]);
@@ -3698,10 +3855,11 @@ qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 
 		/* Validate firmware image size. */
 		fwclen += risc_size * sizeof(uint32_t);
-		if (fw_entry->size < fwclen) {
+		if (blob->fw->size < fwclen) {
 			qla_printk(KERN_WARNING, ha,
-			    "Unable to verify integrity of flash firmware "
-			    "image (%Zd)!\n", fw_entry->size);
+			    "Unable to verify integrity of firmware image "
+			    "(%Zd)!\n", blob->fw->size);
+
 			goto fail_fw_integrity;
 		}
 
@@ -3718,8 +3876,8 @@ qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 			for (i = 0; i < dlen; i++)
 				dcode[i] = swab32(fwcode[i]);
 
-			rval = qla2x00_load_ram_ext(ha, ha->request_dma,
-			    risc_addr, dlen);
+			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
+			    dlen);
 			if (rval) {
 				DEBUG(printk("scsi(%ld):[ERROR] Failed to load "
 				    "segment %d of firmware\n", ha->host_no,
@@ -3739,13 +3897,9 @@ qla24xx_load_risc_hotplug(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 		/* Next segment. */
 		segments--;
 	}
-
-	release_firmware(fw_entry);
 	return rval;
 
 fail_fw_integrity:
-
-	release_firmware(fw_entry);
 	return QLA_FUNCTION_FAILED;
-
 }
+#endif

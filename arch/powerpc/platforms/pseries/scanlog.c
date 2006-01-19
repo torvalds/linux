@@ -192,7 +192,7 @@ struct file_operations scanlog_fops = {
 	.release	= scanlog_release,
 };
 
-int __init scanlog_init(void)
+static int __init scanlog_init(void)
 {
 	struct proc_dir_entry *ent;
 
@@ -222,7 +222,7 @@ int __init scanlog_init(void)
 	return 0;
 }
 
-void __exit scanlog_cleanup(void)
+static void __exit scanlog_cleanup(void)
 {
 	if (proc_ppc64_scan_log_dump) {
 		kfree(proc_ppc64_scan_log_dump->data);

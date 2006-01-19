@@ -1095,7 +1095,7 @@ static int __init init_rme96xx(void)
 	devices = ((devices-1) & RME96xx_MASK_DEVS) + 1;
 	printk(KERN_INFO RME_MESS" reserving %d dsp device(s)\n",devices);
         numcards = 0;
-	return pci_module_init(&rme96xx_driver);
+	return pci_register_driver(&rme96xx_driver);
 }
 
 static void __exit cleanup_rme96xx(void)

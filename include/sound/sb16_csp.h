@@ -63,25 +63,25 @@
 #define SNDRV_SB_CSP_MAX_MICROCODE_FILE_SIZE	0x3000
 
 /* microcode header */
-typedef struct snd_sb_csp_mc_header {
+struct snd_sb_csp_mc_header {
 	char codec_name[16];		/* id name of codec */
 	unsigned short func_req;	/* requested function */
-} snd_sb_csp_mc_header_t;
+};
 
 /* microcode to be loaded */
-typedef struct snd_sb_csp_microcode {
-	snd_sb_csp_mc_header_t info;
+struct snd_sb_csp_microcode {
+	struct snd_sb_csp_mc_header info;
 	unsigned char data[SNDRV_SB_CSP_MAX_MICROCODE_FILE_SIZE];
-} snd_sb_csp_microcode_t;
+};
 
 /* start CSP with sample_width in mono/stereo */
-typedef struct snd_sb_csp_start {
+struct snd_sb_csp_start {
 	int sample_width;	/* sample width, look above */
 	int channels;		/* channels, look above */
-} snd_sb_csp_start_t;
+};
 
 /* CSP information */
-typedef struct snd_sb_csp_info {
+struct snd_sb_csp_info {
 	char codec_name[16];		/* id name of codec */
 	unsigned short func_nr;		/* function number */
 	unsigned int acc_format;	/* accepted PCM formats */
@@ -93,17 +93,17 @@ typedef struct snd_sb_csp_info {
 	unsigned short run_width;	/* current sample width */
 	unsigned short version;		/* version id: 0x10 - 0x1f */
 	unsigned short state;		/* state bits */
-} snd_sb_csp_info_t;
+};
 
 /* HWDEP controls */
 /* get CSP information */
-#define SNDRV_SB_CSP_IOCTL_INFO		_IOR('H', 0x10, snd_sb_csp_info_t)
+#define SNDRV_SB_CSP_IOCTL_INFO		_IOR('H', 0x10, struct snd_sb_csp_info)
 /* load microcode to CSP */
-#define SNDRV_SB_CSP_IOCTL_LOAD_CODE	_IOW('H', 0x11, snd_sb_csp_microcode_t)
+#define SNDRV_SB_CSP_IOCTL_LOAD_CODE	_IOW('H', 0x11, struct snd_sb_csp_microcode)
 /* unload microcode from CSP */
 #define SNDRV_SB_CSP_IOCTL_UNLOAD_CODE	_IO('H', 0x12)
 /* start CSP */
-#define SNDRV_SB_CSP_IOCTL_START		_IOW('H', 0x13, snd_sb_csp_start_t)
+#define SNDRV_SB_CSP_IOCTL_START		_IOW('H', 0x13, struct snd_sb_csp_start)
 /* stop CSP */
 #define SNDRV_SB_CSP_IOCTL_STOP		_IO('H', 0x14)
 /* pause CSP and DMA transfer */
@@ -115,25 +115,25 @@ typedef struct snd_sb_csp_info {
 #include "sb.h"
 #include "hwdep.h"
 
-typedef struct snd_sb_csp snd_sb_csp_t;
+struct snd_sb_csp;
 
 /*
  * CSP operators
  */
-typedef struct {
-	int (*csp_use) (snd_sb_csp_t * p);
-	int (*csp_unuse) (snd_sb_csp_t * p);
-	int (*csp_autoload) (snd_sb_csp_t * p, int pcm_sfmt, int play_rec_mode);
-	int (*csp_start) (snd_sb_csp_t * p, int sample_width, int channels);
-	int (*csp_stop) (snd_sb_csp_t * p);
-	int (*csp_qsound_transfer) (snd_sb_csp_t * p);
-} snd_sb_csp_ops_t;
+struct snd_sb_csp_ops {
+	int (*csp_use) (struct snd_sb_csp * p);
+	int (*csp_unuse) (struct snd_sb_csp * p);
+	int (*csp_autoload) (struct snd_sb_csp * p, int pcm_sfmt, int play_rec_mode);
+	int (*csp_start) (struct snd_sb_csp * p, int sample_width, int channels);
+	int (*csp_stop) (struct snd_sb_csp * p);
+	int (*csp_qsound_transfer) (struct snd_sb_csp * p);
+};
 
 /*
  * CSP private data
  */
 struct snd_sb_csp {
-	sb_t *chip;		/* SB16 DSP */
+	struct snd_sb *chip;		/* SB16 DSP */
 	int used;		/* usage flag - exclusive */
 	char codec_name[16];	/* name of codec */
 	unsigned short func_nr;	/* function number */
@@ -147,7 +147,7 @@ struct snd_sb_csp {
 	int version;		/* CSP version (0x10 - 0x1f) */
 	int running;		/* running state */
 
-	snd_sb_csp_ops_t ops;	/* operators */
+	struct snd_sb_csp_ops ops;	/* operators */
 
 	spinlock_t q_lock;	/* locking */
 	int q_enabled;		/* enabled flag */
@@ -155,13 +155,13 @@ struct snd_sb_csp {
 	int qpos_right;		/* right position */
 	int qpos_changed;	/* position changed flag */
 
-	snd_kcontrol_t *qsound_switch;
-	snd_kcontrol_t *qsound_space;
+	struct snd_kcontrol *qsound_switch;
+	struct snd_kcontrol *qsound_space;
 
 	struct semaphore access_mutex;	/* locking */
 };
 
-int snd_sb_csp_new(sb_t *chip, int device, snd_hwdep_t ** rhwdep);
+int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep);
 #endif
 
 #endif /* __SOUND_SB16_CSP */

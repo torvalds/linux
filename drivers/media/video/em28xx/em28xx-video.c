@@ -29,9 +29,11 @@
 #include <linux/i2c.h>
 #include <linux/version.h>
 #include <linux/video_decoder.h>
+#include <linux/mutex.h>
 
 #include "em28xx.h"
 #include <media/tuner.h>
+#include <media/v4l2-common.h>
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
@@ -106,7 +108,31 @@ static const unsigned char saa7114_i2c_init[] = {
 #define TVNORMS ARRAY_SIZE(tvnorms)
 
 /* supported controls */
+/* Common to all boards */
 static struct v4l2_queryctrl em28xx_qctrl[] = {
+	{
+		.id = V4L2_CID_AUDIO_VOLUME,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Volume",
+		.minimum = 0x0,
+		.maximum = 0x1f,
+		.step = 0x1,
+		.default_value = 0x1f,
+		.flags = 0,
+	},{
+		.id = V4L2_CID_AUDIO_MUTE,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.name = "Mute",
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 1,
+		.flags = 0,
+	}
+};
+
+/* FIXME: These are specific to saa711x - should be moved to its code */
+static struct v4l2_queryctrl saa711x_qctrl[] = {
 	{
 		.id = V4L2_CID_BRIGHTNESS,
 		.type = V4L2_CTRL_TYPE_INTEGER,
@@ -135,24 +161,6 @@ static struct v4l2_queryctrl em28xx_qctrl[] = {
 		.default_value = 0x10,
 		.flags = 0,
 	},{
-		.id = V4L2_CID_AUDIO_VOLUME,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Volume",
-		.minimum = 0x0,
-		.maximum = 0x1f,
-		.step = 0x1,
-		.default_value = 0x1f,
-		.flags = 0,
-	},{
-		.id = V4L2_CID_AUDIO_MUTE,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Mute",
-		.minimum = 0,
-		.maximum = 1,
-		.step = 1,
-		.default_value = 1,
-		.flags = 0,
-	},{
 		.id = V4L2_CID_RED_BALANCE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Red chroma balance",
@@ -179,12 +187,12 @@ static struct v4l2_queryctrl em28xx_qctrl[] = {
 		.step = 0x1,
 		.default_value = 0x20,
 		.flags = 0,
-	 }
+	}
 };
 
 static struct usb_driver em28xx_usb_driver;
 
-static DECLARE_MUTEX(em28xx_sysfs_lock);
+static DEFINE_MUTEX(em28xx_sysfs_lock);
 static DECLARE_RWSEM(em28xx_disconnect);
 
 /*********************  v4l2 interface  ******************************************/
@@ -280,6 +288,8 @@ static void video_mux(struct em28xx *dev, int index)
 	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,input,dev->ctl_ainput);
 
 	if (dev->has_msp34xx) {
+		if (dev->i2s_speed)
+			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
 		em28xx_i2c_call_clients(dev, VIDIOC_S_AUDIO, &dev->ctl_ainput);
 		ainput = EM28XX_AUDIO_SRC_TUNER;
 		em28xx_audio_source(dev, ainput);
@@ -385,7 +395,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 */
 static void em28xx_release_resources(struct em28xx *dev)
 {
-	down(&em28xx_sysfs_lock);
+	mutex_lock(&em28xx_sysfs_lock);
 
 	em28xx_info("V4L2 device /dev/video%d deregistered\n",
 		    dev->vdev->minor);
@@ -394,7 +404,7 @@ static void em28xx_release_resources(struct em28xx *dev)
 /*	video_unregister_device(dev->vbi_dev); */
 	em28xx_i2c_unregister(dev);
 	usb_put_dev(dev->udev);
-	up(&em28xx_sysfs_lock);
+	mutex_unlock(&em28xx_sysfs_lock);
 }
 
 /*
@@ -674,7 +684,6 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
  */
 static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
 {
-	s32 tmp;
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		ctrl->value = dev->mute;
@@ -682,6 +691,16 @@ static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_VOLUME:
 		ctrl->value = dev->volume;
 		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+/*FIXME: should be moved to saa711x */
+static int saa711x_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
+{
+	s32 tmp;
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		if ((tmp = em28xx_brightness_get(dev)) < 0)
 			return -EIO;
@@ -731,6 +750,15 @@ static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_VOLUME:
 		dev->volume = ctrl->value;
 		return em28xx_audio_analog_set(dev);
+	default:
+		return -EINVAL;
+	}
+}
+
+/*FIXME: should be moved to saa711x */
+static int saa711x_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		return em28xx_brightness_set(dev, ctrl->value);
 	case V4L2_CID_CONTRAST:
@@ -994,14 +1022,34 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_QUERYCTRL:
 		{
 			struct v4l2_queryctrl *qc = arg;
-			u8 i, n;
-			n = sizeof(em28xx_qctrl) / sizeof(em28xx_qctrl[0]);
-			for (i = 0; i < n; i++)
-				if (qc->id && qc->id == em28xx_qctrl[i].id) {
-					memcpy(qc, &(em28xx_qctrl[i]),
+			int i, id=qc->id;
+
+			memset(qc,0,sizeof(*qc));
+			qc->id=id;
+
+			if (!dev->has_msp34xx) {
+				for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
+					if (qc->id && qc->id == em28xx_qctrl[i].id) {
+						memcpy(qc, &(em28xx_qctrl[i]),
+						sizeof(*qc));
+						return 0;
+					}
+				}
+			}
+			if (dev->decoder == EM28XX_TVP5150) {
+				em28xx_i2c_call_clients(dev,cmd,qc);
+				if (qc->type)
+					return 0;
+				else
+					return -EINVAL;
+			}
+			for (i = 0; i < ARRAY_SIZE(saa711x_qctrl); i++) {
+				if (qc->id && qc->id == saa711x_qctrl[i].id) {
+					memcpy(qc, &(saa711x_qctrl[i]),
 					       sizeof(*qc));
 					return 0;
 				}
+			}
 
 			return -EINVAL;
 		}
@@ -1009,29 +1057,64 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_G_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
+			int retval=-EINVAL;
 
+			if (!dev->has_msp34xx)
+				retval=em28xx_get_ctrl(dev, ctrl);
+			if (retval==-EINVAL) {
+				if (dev->decoder == EM28XX_TVP5150) {
+					em28xx_i2c_call_clients(dev,cmd,arg);
+					return 0;
+				}
 
-			return em28xx_get_ctrl(dev, ctrl);
+				return saa711x_get_ctrl(dev, ctrl);
+			} else return retval;
 		}
 
-	case VIDIOC_S_CTRL_OLD:	/* ??? */
 	case VIDIOC_S_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
-			u8 i, n;
+			u8 i;
 
-
-			n = sizeof(em28xx_qctrl) / sizeof(em28xx_qctrl[0]);
-			for (i = 0; i < n; i++)
-				if (ctrl->id == em28xx_qctrl[i].id) {
-					if (ctrl->value <
-					    em28xx_qctrl[i].minimum
-					    || ctrl->value >
-					    em28xx_qctrl[i].maximum)
-						return -ERANGE;
-
-					return em28xx_set_ctrl(dev, ctrl);
+			if (!dev->has_msp34xx){
+				for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
+					if (ctrl->id == em28xx_qctrl[i].id) {
+						if (ctrl->value <
+						em28xx_qctrl[i].minimum
+						|| ctrl->value >
+						em28xx_qctrl[i].maximum)
+							return -ERANGE;
+						return em28xx_set_ctrl(dev, ctrl);
+					}
 				}
+			}
+
+			if (dev->decoder == EM28XX_TVP5150) {
+				em28xx_i2c_call_clients(dev,cmd,arg);
+				return 0;
+			} else if (!dev->has_msp34xx) {
+				for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
+					if (ctrl->id == em28xx_qctrl[i].id) {
+						if (ctrl->value <
+						em28xx_qctrl[i].minimum
+						|| ctrl->value >
+						em28xx_qctrl[i].maximum)
+							return -ERANGE;
+						return em28xx_set_ctrl(dev, ctrl);
+					}
+				}
+				for (i = 0; i < ARRAY_SIZE(saa711x_qctrl); i++) {
+					if (ctrl->id == saa711x_qctrl[i].id) {
+						if (ctrl->value <
+						saa711x_qctrl[i].minimum
+						|| ctrl->value >
+						saa711x_qctrl[i].maximum)
+							return -ERANGE;
+						return saa711x_set_ctrl(dev, ctrl);
+					}
+				}
+			}
+
 			return -EINVAL;
 		}
 
@@ -1187,7 +1270,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 		return -ENODEV;
 
 	if (video_debug > 1)
-		em28xx_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 
 	switch (cmd) {
 
@@ -1564,6 +1647,8 @@ static struct file_operations em28xx_v4l_fops = {
 	.poll = em28xx_v4l2_poll,
 	.mmap = em28xx_v4l2_mmap,
 	.llseek = no_llseek,
+	.compat_ioctl   = v4l_compat_ioctl32,
+
 };
 
 /******************************** usb interface *****************************************/
@@ -1777,12 +1862,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		em28xx_err(DRIVER_NAME ": out of memory!\n");
 		return -ENOMEM;
 	}
-	memset(dev, 0, sizeof(*dev));
 
 	/* compute alternate max packet sizes */
 	uif = udev->actconfig->interface[0];
@@ -1848,8 +1932,11 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	struct em28xx *dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
+/*FIXME: IR should be disconnected */
+
 	if (!dev)
 		return;
+
 
 	down_write(&em28xx_disconnect);
 
@@ -1884,7 +1971,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver em28xx_usb_driver = {
-	.owner = THIS_MODULE,
 	.name = "em28xx",
 	.probe = em28xx_usb_probe,
 	.disconnect = em28xx_usb_disconnect,

@@ -60,6 +60,7 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pci-bridge.h>
 #include <asm/ohare.h>
 #include <asm/mediabay.h>
@@ -74,8 +75,8 @@
 #include <asm/iommu.h>
 #include <asm/smu.h>
 #include <asm/pmc.h>
-#include <asm/mpic.h>
 #include <asm/lmb.h>
+#include <asm/udbg.h>
 
 #include "pmac.h"
 
@@ -277,7 +278,7 @@ static void __init l2cr_init(void)
 }
 #endif
 
-void __init pmac_setup_arch(void)
+static void __init pmac_setup_arch(void)
 {
 	struct device_node *cpu, *ic;
 	int *fp;
@@ -321,16 +322,6 @@ void __init pmac_setup_arch(void)
 	l2cr_init();
 #endif /* CONFIG_PPC32 */
 
-#ifdef CONFIG_PPC64
-	/* Probe motherboard chipset */
-	/* this is done earlier in setup_arch for 32-bit */
-	pmac_feature_init();
-
-	/* We can NAP */
-	powersave_nap = 1;
-	printk(KERN_INFO "Using native/NAP idle loop\n");
-#endif
-
 #ifdef CONFIG_KGDB
 	zs_kgdb_hook(0);
 #endif
@@ -354,7 +345,7 @@ void __init pmac_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	/* Check for Core99 */
-	if (find_devices("uni-n") || find_devices("u3"))
+	if (find_devices("uni-n") || find_devices("u3") || find_devices("u4"))
 		smp_ops = &core99_smp_ops;
 #ifdef CONFIG_PPC32
 	else
@@ -621,35 +612,31 @@ static void __init pmac_init_early(void)
 	 * and call ioremap
 	 */
 	hpte_init_native();
+#endif
 
-	/* Init SCC */
-	if (strstr(cmd_line, "sccdbg")) {
-		sccdbg = 1;
-		udbg_init_scc(NULL);
+	/* Enable early btext debug if requested */
+	if (strstr(cmd_line, "btextdbg")) {
+		udbg_adb_init_early();
+		register_early_udbg_console();
 	}
 
+	/* Probe motherboard chipset */
+	pmac_feature_init();
+
+	/* We can NAP */
+	powersave_nap = 1;
+	printk(KERN_INFO "Using native/NAP idle loop\n");
+
+	/* Initialize debug stuff */
+	udbg_scc_init(!!strstr(cmd_line, "sccdbg"));
+	udbg_adb_init(!!strstr(cmd_line, "btextdbg"));
+
+#ifdef CONFIG_PPC64
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
-	iommu_init_early_u3();
+	iommu_init_early_dart();
 #endif
-}
-
-static void __init pmac_progress(char *s, unsigned short hex)
-{
-#ifdef CONFIG_PPC64
-	if (sccdbg) {
-		udbg_puts(s);
-		udbg_puts("\n");
-		return;
-	}
-#endif
-#ifdef CONFIG_BOOTX_TEXT
-	if (boot_text_mapped) {
-		btext_drawstring(s);
-		btext_drawchar('\n');
-	}
-#endif /* CONFIG_BOOTX_TEXT */
 }
 
 /*
@@ -663,35 +650,14 @@ static int pmac_check_legacy_ioport(unsigned int baseport)
 
 static int __init pmac_declare_of_platform_devices(void)
 {
-	struct device_node *np, *npp;
+	struct device_node *np;
 
-	np = find_devices("uni-n");
-	if (np) {
-		for (np = np->child; np != NULL; np = np->sibling)
-			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "uni-n-i2c",
-							  NULL);
-				break;
-			}
-	}
-	np = find_devices("valkyrie");
+	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np)
 		of_platform_device_create(np, "valkyrie", NULL);
-	np = find_devices("platinum");
+	np = of_find_node_by_name(NULL, "platinum");
 	if (np)
 		of_platform_device_create(np, "platinum", NULL);
-
-	npp = of_find_node_by_name(NULL, "u3");
-	if (npp) {
-		for (np = NULL; (np = of_get_next_child(npp, np)) != NULL;) {
-			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c", NULL);
-				of_node_put(np);
-				break;
-			}
-		}
-		of_node_put(npp);
-	}
         np = of_find_node_by_type(NULL, "smu");
         if (np) {
 		of_platform_device_create(np, "smu", NULL);
@@ -718,7 +684,7 @@ static int __init pmac_probe(int platform)
 	 * occupies having to be broken up so the DART itself is not
 	 * part of the cacheable linar mapping
 	 */
-	alloc_u3_dart_table();
+	alloc_dart_table();
 #endif
 
 #ifdef CONFIG_PMAC_SMU
@@ -734,15 +700,17 @@ static int __init pmac_probe(int platform)
 }
 
 #ifdef CONFIG_PPC64
-static int pmac_probe_mode(struct pci_bus *bus)
+/* Move that to pci.c */
+static int pmac_pci_probe_mode(struct pci_bus *bus)
 {
 	struct device_node *node = bus->sysdata;
 
 	/* We need to use normal PCI probing for the AGP bus,
-	   since the device for the AGP bridge isn't in the tree. */
-	if (bus->self == NULL && device_is_compatible(node, "u3-agp"))
+	 * since the device for the AGP bridge isn't in the tree.
+	 */
+	if (bus->self == NULL && (device_is_compatible(node, "u3-agp") ||
+				  device_is_compatible(node, "u4-pcie")))
 		return PCI_PROBE_NORMAL;
-
 	return PCI_PROBE_DEVTREE;
 }
 #endif
@@ -756,7 +724,7 @@ struct machdep_calls __initdata pmac_md = {
 	.init_early		= pmac_init_early,
 	.show_cpuinfo		= pmac_show_cpuinfo,
 	.init_IRQ		= pmac_pic_init,
-	.get_irq		= mpic_get_irq,	/* changed later */
+	.get_irq		= NULL,	/* changed later */
 	.pcibios_fixup		= pmac_pcibios_fixup,
 	.restart		= pmac_restart,
 	.power_off		= pmac_power_off,
@@ -768,12 +736,17 @@ struct machdep_calls __initdata pmac_md = {
 	.calibrate_decr		= pmac_calibrate_decr,
 	.feature_call		= pmac_do_feature_call,
 	.check_legacy_ioport	= pmac_check_legacy_ioport,
-	.progress		= pmac_progress,
+	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
-	.pci_probe_mode		= pmac_probe_mode,
+	.pci_probe_mode		= pmac_pci_probe_mode,
 	.idle_loop		= native_idle,
 	.enable_pmcs		= power4_enable_pmcs,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
 #endif
+#endif /* CONFIG_PPC64 */
 #ifdef CONFIG_PPC32
 	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,
 	.pcibios_after_init	= pmac_pcibios_after_init,

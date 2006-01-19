@@ -577,8 +577,8 @@ struct ring_descr_hw {
 		struct {
 			u8		addr_res[3];
 			volatile u8	status;		/* descriptor status */
-		} rd_s __attribute__((packed));
-	} rd_u __attribute((packed));
+		} __attribute__((packed)) rd_s;
+	} __attribute((packed)) rd_u;
 } __attribute__ ((packed));
 
 #define rd_addr		rd_u.addr

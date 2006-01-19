@@ -63,7 +63,7 @@ The bus instance is created via snd_hda_bus_new().  You need to pass
 the card instance, the template, and the pointer to store the
 resultant bus instance.
 
-int snd_hda_bus_new(snd_card_t *card, const struct hda_bus_template *temp,
+int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 		    struct hda_bus **busp);
 
 It returns zero if successful.  A negative return value means any
@@ -166,14 +166,14 @@ The ops field contains the following callback functions:
 
 struct hda_pcm_ops {
 	int (*open)(struct hda_pcm_stream *info, struct hda_codec *codec,
-		    snd_pcm_substream_t *substream);
+		    struct snd_pcm_substream *substream);
 	int (*close)(struct hda_pcm_stream *info, struct hda_codec *codec,
-		     snd_pcm_substream_t *substream);
+		     struct snd_pcm_substream *substream);
 	int (*prepare)(struct hda_pcm_stream *info, struct hda_codec *codec,
 		       unsigned int stream_tag, unsigned int format,
-		       snd_pcm_substream_t *substream);
+		       struct snd_pcm_substream *substream);
 	int (*cleanup)(struct hda_pcm_stream *info, struct hda_codec *codec,
-		       snd_pcm_substream_t *substream);
+		       struct snd_pcm_substream *substream);
 };
 
 All are non-NULL, so you can call them safely without NULL check.
@@ -284,7 +284,7 @@ parameter, and PCI subsystem IDs.  If the matching entry is found, it
 returns the config field value.
 
 snd_hda_add_new_ctls() can be used to create and add control entries.
-Pass the zero-terminated array of snd_kcontrol_new_t.  The same array
+Pass the zero-terminated array of struct snd_kcontrol_new.  The same array
 can be passed to snd_hda_resume_ctls() for resume.
 Note that this will call control->put callback of these entries.  So,
 put callback should check codec->in_resume and force to restore the
@@ -292,7 +292,7 @@ given value if it's non-zero even if the value is identical with the
 cached value.
 
 Macros HDA_CODEC_VOLUME(), HDA_CODEC_MUTE() and their variables can be
-used for the entry of snd_kcontrol_new_t.
+used for the entry of struct snd_kcontrol_new.
 
 The input MUX helper callbacks for such a control are provided, too:
 snd_hda_input_mux_info() and snd_hda_input_mux_put().  See

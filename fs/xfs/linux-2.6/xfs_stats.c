@@ -34,7 +34,7 @@ xfs_read_xfsstats(
 	__uint64_t	xs_write_bytes = 0;
 	__uint64_t	xs_read_bytes = 0;
 
-	static struct xstats_entry {
+	static const struct xstats_entry {
 		char	*desc;
 		int	endpoint;
 	} xstats[] = {

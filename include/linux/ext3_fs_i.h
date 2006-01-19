@@ -87,7 +87,7 @@ struct ext3_inode_info {
 #ifdef CONFIG_EXT3_FS_XATTR
 	/*
 	 * Extended attributes can be read independently of the main file
-	 * data. Taking i_sem even when reading would cause contention
+	 * data. Taking i_mutex even when reading would cause contention
 	 * between readers of EAs and writers of regular file data, so
 	 * instead we synchronize on xattr_sem when reading or changing
 	 * EAs.

@@ -112,7 +112,7 @@ static __inline__ int test_and_set_bit(unsigned long nr,
 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
 
 	__asm__ __volatile__(
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:"	PPC_LLARX "%0,0,%3		# test_and_set_bit\n"
 	"or	%1,%0,%2 \n"
 	PPC405_ERR77(0,%3)
@@ -134,7 +134,7 @@ static __inline__ int test_and_clear_bit(unsigned long nr,
 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
 
 	__asm__ __volatile__(
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:"	PPC_LLARX "%0,0,%3		# test_and_clear_bit\n"
 	"andc	%1,%0,%2 \n"
 	PPC405_ERR77(0,%3)
@@ -156,7 +156,7 @@ static __inline__ int test_and_change_bit(unsigned long nr,
 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
 
 	__asm__ __volatile__(
-	EIEIO_ON_SMP
+	LWSYNC_ON_SMP
 "1:"	PPC_LLARX "%0,0,%3		# test_and_change_bit\n"
 	"xor	%1,%0,%2 \n"
 	PPC405_ERR77(0,%3)
@@ -310,6 +310,7 @@ static __inline__ int fls(unsigned int x)
 	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (x));
 	return 32 - lz;
 }
+#define fls64(x)   generic_fls64(x)
 
 /*
  * hweightN: returns the hamming weight (i.e. the number

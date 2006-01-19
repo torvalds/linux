@@ -230,10 +230,6 @@
 #include <asm/page.h>
 #include <asm/uaccess.h>
 
-#include <linux/pm.h>
-#include <linux/pm_legacy.h>
-static int maestro_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *d);
-
 #include "maestro.h"
 
 static struct pci_driver maestro_pci_driver;
@@ -3404,7 +3400,6 @@ maestro_probe(struct pci_dev *pcidev,const struct pci_device_id *pdid)
 	int i, ret;
 	struct ess_card *card;
 	struct ess_state *ess;
-	struct pm_dev *pmdev;
 	int num = 0;
 
 /* when built into the kernel, we only print version if device is found */
@@ -3449,11 +3444,6 @@ maestro_probe(struct pci_dev *pcidev,const struct pci_device_id *pdid)
 	
 	memset(card, 0, sizeof(*card));
 	card->pcidev = pcidev;
-
-	pmdev = pm_register(PM_PCI_DEV, PM_PCI_ID(pcidev),
-			maestro_pm_callback);
-	if (pmdev)
-		pmdev->data = card;
 
 	card->iobase = iobase;
 	card->card_type = card_type;
@@ -3634,7 +3624,7 @@ static int __init init_maestro(void)
 {
 	int rc;
 
-	rc = pci_module_init(&maestro_pci_driver);
+	rc = pci_register_driver(&maestro_pci_driver);
 	if (rc < 0)
 		return rc;
 
@@ -3670,7 +3660,6 @@ static int maestro_notifier(struct notifier_block *nb, unsigned long event, void
 static void cleanup_maestro(void) {
 	M_printk("maestro: unloading\n");
 	pci_unregister_driver(&maestro_pci_driver);
-	pm_unregister_all(maestro_pm_callback);
 	unregister_reboot_notifier(&maestro_nb);
 }
 
@@ -3689,144 +3678,6 @@ check_suspend(struct ess_card *card)
 	schedule();
 	remove_wait_queue(&(card->suspend_queue), &wait);
 	current->state = TASK_RUNNING;
-}
-
-static int 
-maestro_suspend(struct ess_card *card)
-{
-	unsigned long flags;
-	int i,j;
-
-	spin_lock_irqsave(&card->lock,flags); /* over-kill */
-
-	M_printk("maestro: apm in dev %p\n",card);
-
-	/* we have to read from the apu regs, need
-		to power it up */
-	maestro_power(card,ACPI_D0);
-
-	for(i=0;i<NR_DSPS;i++) {
-		struct ess_state *s = &card->channels[i];
-
-		if(s->dev_audio == -1)
-			continue;
-
-		M_printk("maestro: stopping apus for device %d\n",i);
-		stop_dac(s);
-		stop_adc(s);
-		for(j=0;j<6;j++) 
-			card->apu_map[s->apu[j]][5]=apu_get_register(s,j,5);
-
-	}
-
-	/* get rid of interrupts? */
-	if( card->dsps_open > 0)
-		stop_bob(&card->channels[0]);
-
-	card->in_suspend++;
-
-	spin_unlock_irqrestore(&card->lock,flags);
-
-	/* we trust in the bios to power down the chip on suspend.
-	 * XXX I'm also not sure that in_suspend will protect
-	 * against all reg accesses from here on out. 
-	 */
-	return 0;
-}
-static int 
-maestro_resume(struct ess_card *card)
-{
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&card->lock,flags); /* over-kill */
-
-	card->in_suspend = 0;
-
-	M_printk("maestro: resuming card at %p\n",card);
-
-	/* restore all our config */
-	maestro_config(card);
-	/* need to restore the base pointers.. */ 
-	if(card->dmapages) 
-		set_base_registers(&card->channels[0],card->dmapages);
-
-	mixer_push_state(card);
-
-	/* set each channels' apu control registers before
-	 * restoring audio 
-	 */
-	for(i=0;i<NR_DSPS;i++) {
-		struct ess_state *s = &card->channels[i];
-		int chan,reg;
-
-		if(s->dev_audio == -1)
-			continue;
-
-		for(chan = 0 ; chan < 6 ; chan++) {
-			wave_set_register(s,s->apu[chan]<<3,s->apu_base[chan]);
-			for(reg = 1 ; reg < NR_APU_REGS ; reg++)  
-				apu_set_register(s,chan,reg,s->card->apu_map[s->apu[chan]][reg]);
-		}
-		for(chan = 0 ; chan < 6 ; chan++)  
-			apu_set_register(s,chan,0,s->card->apu_map[s->apu[chan]][0] & 0xFF0F);
-	}
-
-	/* now we flip on the music */
-
-	if( card->dsps_open <= 0) {
-		/* this card's idle */
-		maestro_power(card,ACPI_D2);
-	} else {
-		/* ok, we're actually playing things on
-			this card */
-		maestro_power(card,ACPI_D0);
-		start_bob(&card->channels[0]);
-		for(i=0;i<NR_DSPS;i++) {
-			struct ess_state *s = &card->channels[i];
-
-			/* these use the apu_mode, and can handle
-				spurious calls */
-			start_dac(s);	
-			start_adc(s);	
-		}
-	}
-
-	spin_unlock_irqrestore(&card->lock,flags);
-
-	/* all right, we think things are ready, 
-		wake up people who were using the device
-		when we suspended */
-	wake_up(&(card->suspend_queue));
-
-	return 0;
-}
-
-int 
-maestro_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data) 
-{
-	struct ess_card *card = (struct ess_card*) dev->data;
-
-	if ( ! card ) goto out;
-
-	M_printk("maestro: pm event 0x%x received for card %p\n", rqst, card);
-	
-	switch (rqst) {
-		case PM_SUSPEND: 
-			maestro_suspend(card);
-		break;
-		case PM_RESUME: 
-			maestro_resume(card);
-		break;
-		/*
-		 * we'd also like to find out about
-		 * power level changes because some biosen
-		 * do mean things to the maestro when they
-		 * change their power state.
-		 */
-        }
-out:
-	return 0;
 }
 
 module_init(init_maestro);

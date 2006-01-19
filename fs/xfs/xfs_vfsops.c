@@ -53,6 +53,7 @@
 #include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_clnt.h"
+#include "xfs_fsops.h"
 
 STATIC int xfs_sync(bhv_desc_t *, int, cred_t *);
 
@@ -290,8 +291,8 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_IDELETE;
 	if (ap->flags & XFSMNT_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-	if (ap->flags & XFSMNT_COMPAT_ATTR)
-		mp->m_flags |= XFS_MOUNT_COMPAT_ATTR;
+	if (ap->flags & XFSMNT_ATTR2)
+		mp->m_flags |= XFS_MOUNT_ATTR2;
 
 	if (ap->flags2 & XFSMNT2_COMPAT_IOSIZE)
 		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
@@ -312,6 +313,8 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_NOUUID;
 	if (ap->flags & XFSMNT_BARRIER)
 		mp->m_flags |= XFS_MOUNT_BARRIER;
+	else
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 
 	return 0;
 }
@@ -330,10 +333,11 @@ xfs_finish_flags(
 
 	/* Fail a mount where the logbuf is smaller then the log stripe */
 	if (XFS_SB_VERSION_HASLOGV2(&mp->m_sb)) {
-		if ((ap->logbufsize == -1) &&
+		if ((ap->logbufsize <= 0) &&
 		    (mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE)) {
 			mp->m_logbsize = mp->m_sb.sb_logsunit;
-		} else if (ap->logbufsize < mp->m_sb.sb_logsunit) {
+		} else if (ap->logbufsize > 0 &&
+			   ap->logbufsize < mp->m_sb.sb_logsunit) {
 			cmn_err(CE_WARN,
 	"XFS: logbuf size must be greater than or equal to log stripe size");
 			return XFS_ERROR(EINVAL);
@@ -345,6 +349,10 @@ xfs_finish_flags(
 	"XFS: logbuf size for version 1 logs must be 16K or 32K");
 			return XFS_ERROR(EINVAL);
 		}
+	}
+
+	if (XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
+		mp->m_flags |= XFS_MOUNT_ATTR2;
 	}
 
 	/*
@@ -380,10 +388,6 @@ xfs_finish_flags(
 		 */
 		if (mp->m_sb.sb_shared_vn == 0 && (ap->flags & XFSMNT_DMAPI))
 			return XFS_ERROR(EINVAL);
-	}
-
-	if (XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
-		mp->m_flags &= ~XFS_MOUNT_COMPAT_ATTR;
 	}
 
 	return 0;
@@ -504,13 +508,13 @@ xfs_mount(
 	if (error)
 		goto error2;
 
+	if ((mp->m_flags & XFS_MOUNT_BARRIER) && !(vfsp->vfs_flag & VFS_RDONLY))
+		xfs_mountfs_check_barriers(mp);
+
 	error = XFS_IOINIT(vfsp, args, flags);
 	if (error)
 		goto error2;
 
-	if ((args->flags & XFSMNT_BARRIER) &&
-	    !(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY))
-		xfs_mountfs_check_barriers(mp);
 	return 0;
 
 error2:
@@ -654,6 +658,11 @@ xfs_mntupdate(
 		mp->m_flags |= XFS_MOUNT_NOATIME;
 	else
 		mp->m_flags &= ~XFS_MOUNT_NOATIME;
+
+	if (args->flags & XFSMNT_BARRIER)
+		mp->m_flags |= XFS_MOUNT_BARRIER;
+	else
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
 
 	if ((vfsp->vfs_flag & VFS_RDONLY) &&
 	    !(*flags & MS_RDONLY)) {
@@ -1634,6 +1643,7 @@ xfs_vget(
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
 #define MNTOPT_BARRIER	"barrier"	/* use writer barriers for log write and
 					 * unwritten extent conversion */
+#define MNTOPT_NOBARRIER "nobarrier"	/* .. disable */
 #define MNTOPT_OSYNCISOSYNC "osyncisosync" /* o_sync is REALLY o_sync */
 #define MNTOPT_64BITINODE   "inode64"	/* inodes can be allocated anywhere */
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
@@ -1680,7 +1690,6 @@ xfs_parseargs(
 	int			iosize;
 
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
-	args->flags |= XFSMNT_COMPAT_ATTR;
 
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
 	args->flags |= XFSMNT_IDELETE; /* default to on */
@@ -1806,6 +1815,8 @@ xfs_parseargs(
 			args->flags |= XFSMNT_NOUUID;
 		} else if (!strcmp(this_char, MNTOPT_BARRIER)) {
 			args->flags |= XFSMNT_BARRIER;
+		} else if (!strcmp(this_char, MNTOPT_NOBARRIER)) {
+			args->flags &= ~XFSMNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
 			args->flags &= ~XFSMNT_IDELETE;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
@@ -1815,9 +1826,9 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
 			args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_ATTR2)) {
-			args->flags &= ~XFSMNT_COMPAT_ATTR;
+			args->flags |= XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
-			args->flags |= XFSMNT_COMPAT_ATTR;
+			args->flags &= ~XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 printk("XFS: osyncisdsync is now the default, option is deprecated.\n");
@@ -1892,7 +1903,6 @@ xfs_showargs(
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
 		{ XFS_MOUNT_NORECOVERY,		"," MNTOPT_NORECOVERY },
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
-		{ XFS_MOUNT_BARRIER,		"," MNTOPT_BARRIER },
 		{ XFS_MOUNT_IDELETE,		"," MNTOPT_NOIKEEP },
 		{ 0, NULL }
 	};
@@ -1914,33 +1924,28 @@ xfs_showargs(
 
 	if (mp->m_logbufs > 0)
 		seq_printf(m, "," MNTOPT_LOGBUFS "=%d", mp->m_logbufs);
-
 	if (mp->m_logbsize > 0)
 		seq_printf(m, "," MNTOPT_LOGBSIZE "=%dk", mp->m_logbsize >> 10);
 
 	if (mp->m_logname)
 		seq_printf(m, "," MNTOPT_LOGDEV "=%s", mp->m_logname);
-
 	if (mp->m_rtname)
 		seq_printf(m, "," MNTOPT_RTDEV "=%s", mp->m_rtname);
 
 	if (mp->m_dalign > 0)
 		seq_printf(m, "," MNTOPT_SUNIT "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_dalign));
-
 	if (mp->m_swidth > 0)
 		seq_printf(m, "," MNTOPT_SWIDTH "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
-	if (!(mp->m_flags & XFS_MOUNT_COMPAT_ATTR))
-		seq_printf(m, "," MNTOPT_ATTR2);
-
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
+	if (mp->m_flags & XFS_MOUNT_BARRIER)
+		seq_printf(m, "," MNTOPT_BARRIER);
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);
-
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
 
@@ -1959,6 +1964,7 @@ xfs_freeze(
 	/* Push the superblock and write an unmount record */
 	xfs_log_unmount_write(mp);
 	xfs_unmountfs_writesb(mp);
+	xfs_fs_log_dummy(mp);
 }
 
 

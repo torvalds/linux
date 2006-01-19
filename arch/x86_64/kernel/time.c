@@ -71,14 +71,6 @@ unsigned long __wall_jiffies __section_wall_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
 
-static inline void rdtscll_sync(unsigned long *tsc)
-{
-#ifdef CONFIG_SMP
-	sync_core();
-#endif
-	rdtscll(*tsc);
-}
-
 /*
  * do_gettimeoffset() returns microseconds since last timer interrupt was
  * triggered by hardware. A memory read of HPET is slower than a register read
@@ -93,7 +85,7 @@ static inline unsigned int do_gettimeoffset_tsc(void)
 {
 	unsigned long t;
 	unsigned long x;
-	rdtscll_sync(&t);
+	t = get_cycles_sync();
 	if (t < vxtime.last_tsc) t = vxtime.last_tsc; /* hack */
 	x = ((t - vxtime.last_tsc) * vxtime.tsc_quot) >> 32;
 	return x;
@@ -259,8 +251,8 @@ static void set_rtc_mmss(unsigned long nowtime)
 #endif
 
 	{
-			BIN_TO_BCD(real_seconds);
-			BIN_TO_BCD(real_minutes);
+		BIN_TO_BCD(real_seconds);
+		BIN_TO_BCD(real_minutes);
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
 		CMOS_WRITE(real_minutes, RTC_MINUTES);
 	}
@@ -297,25 +289,21 @@ unsigned long long monotonic_clock(void)
 			last_offset = vxtime.last;
 			base = monotonic_base;
 			this_offset = hpet_readl(HPET_COUNTER);
-
 		} while (read_seqretry(&xtime_lock, seq));
 		offset = (this_offset - last_offset);
 		offset *=(NSEC_PER_SEC/HZ)/hpet_tick;
 		return base + offset;
-	}else{
+	} else {
 		do {
 			seq = read_seqbegin(&xtime_lock);
 
 			last_offset = vxtime.last_tsc;
 			base = monotonic_base;
 		} while (read_seqretry(&xtime_lock, seq));
-		sync_core();
-		rdtscll(this_offset);
+		this_offset = get_cycles_sync();
 		offset = (this_offset - last_offset)*1000/cpu_khz; 
 		return base + offset;
 	}
-
-
 }
 EXPORT_SYMBOL(monotonic_clock);
 
@@ -391,7 +379,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		delay = LATCH - 1 - delay;
 	}
 
-	rdtscll_sync(&tsc);
+	tsc = get_cycles_sync();
 
 	if (vxtime.mode == VXTIME_HPET) {
 		if (offset - vxtime.last > hpet_tick) {
@@ -471,6 +459,11 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  
 	write_sequnlock(&xtime_lock);
 
+#ifdef CONFIG_X86_LOCAL_APIC
+	if (using_apic_timer)
+		smp_send_timer_broadcast_ipi();
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -509,10 +502,10 @@ unsigned long long sched_clock(void)
 	return cycles_2_ns(a);
 }
 
-unsigned long get_cmos_time(void)
+static unsigned long get_cmos_time(void)
 {
-	unsigned int timeout, year, mon, day, hour, min, sec;
-	unsigned char last, this;
+	unsigned int timeout = 1000000, year, mon, day, hour, min, sec;
+	unsigned char uip = 0, this = 0;
 	unsigned long flags;
 
 /*
@@ -525,45 +518,41 @@ unsigned long get_cmos_time(void)
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
-	timeout = 1000000;
-	last = this = 0;
-
-	while (timeout && last && !this) {
-		last = this;
+	while (timeout && (!uip || this)) {
+		uip |= this;
 		this = CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP;
 		timeout--;
 	}
 
-/*
- * Here we are safe to assume the registers won't change for a whole second, so
- * we just go ahead and read them.
-	 */
-
-		sec = CMOS_READ(RTC_SECONDS);
-		min = CMOS_READ(RTC_MINUTES);
-		hour = CMOS_READ(RTC_HOURS);
-		day = CMOS_READ(RTC_DAY_OF_MONTH);
-		mon = CMOS_READ(RTC_MONTH);
-		year = CMOS_READ(RTC_YEAR);
+	/*
+	 * Here we are safe to assume the registers won't change for a whole
+	 * second, so we just go ahead and read them.
+ 	 */
+	sec = CMOS_READ(RTC_SECONDS);
+	min = CMOS_READ(RTC_MINUTES);
+	hour = CMOS_READ(RTC_HOURS);
+	day = CMOS_READ(RTC_DAY_OF_MONTH);
+	mon = CMOS_READ(RTC_MONTH);
+	year = CMOS_READ(RTC_YEAR);
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-/*
- * We know that x86-64 always uses BCD format, no need to check the config
- * register.
- */
+	/*
+	 * We know that x86-64 always uses BCD format, no need to check the
+	 * config register.
+ 	*/
 
-	    BCD_TO_BIN(sec);
-	    BCD_TO_BIN(min);
-	    BCD_TO_BIN(hour);
-	    BCD_TO_BIN(day);
-	    BCD_TO_BIN(mon);
-	    BCD_TO_BIN(year);
+	BCD_TO_BIN(sec);
+	BCD_TO_BIN(min);
+	BCD_TO_BIN(hour);
+	BCD_TO_BIN(day);
+	BCD_TO_BIN(mon);
+	BCD_TO_BIN(year);
 
-/*
- * x86-64 systems only exists since 2002.
- * This will work up to Dec 31, 2100
- */
+	/*
+	 * x86-64 systems only exists since 2002.
+	 * This will work up to Dec 31, 2100
+	 */
 	year += 2000;
 
 	return mktime(year, mon, day, hour, min, sec);
@@ -695,8 +684,7 @@ static unsigned int __init hpet_calibrate_tsc(void)
 	do {
 		local_irq_disable();
 		hpet_now = hpet_readl(HPET_COUNTER);
-		sync_core();
-		rdtscl(tsc_now);
+		tsc_now = get_cycles_sync();
 		local_irq_restore(flags);
 	} while ((tsc_now - tsc_start) < TICK_COUNT &&
 		 (hpet_now - hpet_start) < TICK_COUNT);
@@ -726,11 +714,9 @@ static unsigned int __init pit_calibrate_tsc(void)
 	outb(0xb0, 0x43);
 	outb((PIT_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
 	outb((PIT_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	rdtscll(start);
-	sync_core();
+	start = get_cycles_sync();
 	while ((inb(0x61) & 0x20) == 0);
-	sync_core();
-	rdtscll(end);
+	end = get_cycles_sync();
 
 	spin_unlock_irqrestore(&i8253_lock, flags);
 	
@@ -744,7 +730,7 @@ static __init int late_hpet_init(void)
 	unsigned int 		ntimer;
 
 	if (!vxtime.hpet_address)
-          return -1;
+        	return -1;
 
 	memset(&hd, 0, sizeof (hd));
 
@@ -878,8 +864,6 @@ static struct irqaction irq0 = {
 	timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
-extern void __init config_acpi_tables(void);
-
 void __init time_init(void)
 {
 	char *timename;
@@ -934,7 +918,7 @@ void __init time_init(void)
 	vxtime.mode = VXTIME_TSC;
 	vxtime.quot = (1000000L << 32) / vxtime_hz;
 	vxtime.tsc_quot = (1000L << 32) / cpu_khz;
-	rdtscll_sync(&vxtime.last_tsc);
+	vxtime.last_tsc = get_cycles_sync();
 	setup_irq(0, &irq0);
 
 	set_cyc2ns_scale(cpu_khz);
@@ -948,7 +932,7 @@ void __init time_init(void)
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
  */
-static __init int unsynchronized_tsc(void)
+__init int unsynchronized_tsc(void)
 {
 #ifdef CONFIG_SMP
 	if (oem_force_hpet_timer())
@@ -959,7 +943,7 @@ static __init int unsynchronized_tsc(void)
  		return 0;
 #endif
  	/* Assume multi socket systems are not synchronized */
- 	return num_online_cpus() > 1;
+ 	return num_present_cpus() > 1;
 }
 
 /*
@@ -998,6 +982,10 @@ __setup("report_lost_ticks", time_setup);
 
 static long clock_cmos_diff;
 static unsigned long sleep_start;
+
+/*
+ * sysfs support for the timer.
+ */
 
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
@@ -1041,7 +1029,6 @@ static struct sysdev_class timer_sysclass = {
 	set_kset_name("timer"),
 };
 
-
 /* XXX this driverfs stuff should probably go elsewhere later -john */
 static struct sys_device device_timer = {
 	.id	= 0,
@@ -1074,8 +1061,6 @@ device_initcall(time_init_device);
  * frequency, whichever is higher.
  */
 #include <linux/rtc.h>
-
-extern irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 #define DEFAULT_RTC_INT_FREQ 	64
 #define RTC_NUM_INTS 		1
@@ -1285,8 +1270,6 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 #endif
 
-
-
 static int __init nohpet_setup(char *s) 
 { 
 	nohpet = 1;
@@ -1303,5 +1286,3 @@ static int __init notsc_setup(char *s)
 }
 
 __setup("notsc", notsc_setup);
-
-

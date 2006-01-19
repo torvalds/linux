@@ -67,6 +67,9 @@
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
+/* Atmel AT91RM9200 SoC */
+#define PORT_AT91RM9200 49
+
 /* Macintosh Zilog type numbers */
 #define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
 #define PORT_PMAC_ZILOG	51
@@ -133,6 +136,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
+#include <linux/mutex.h>
 
 struct uart_port;
 struct uart_info;
@@ -281,7 +285,7 @@ struct uart_state {
 	struct uart_info	*info;
 	struct uart_port	*port;
 
-	struct semaphore	sem;
+	struct mutex		mutex;
 };
 
 #define UART_XMIT_SIZE	PAGE_SIZE

@@ -18,8 +18,6 @@
 #include <asm/irq.h>
 #include <asm/tlbflush.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 #if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_HD) || defined(CONFIG_BLK_DEV_IDE_MODULE) || defined(CONFIG_BLK_DEV_HD_MODULE)
 extern struct drive_info_struct drive_info;
 EXPORT_SYMBOL(drive_info);
@@ -27,7 +25,6 @@ EXPORT_SYMBOL(drive_info);
 
 /* platform dependent support */
 EXPORT_SYMBOL(boot_cpu_data);
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);

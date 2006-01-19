@@ -50,7 +50,7 @@ static inline unsigned long mmap_base(void)
 
 static inline int mmap_is_legacy(void)
 {
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	/*
 	 * Force standard allocation for 64 bit programs.
 	 */

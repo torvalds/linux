@@ -145,6 +145,7 @@ static struct arpt_table packet_filter = {
 	.lock		= RW_LOCK_UNLOCKED,
 	.private	= NULL,
 	.me		= THIS_MODULE,
+	.af		= NF_ARP,
 };
 
 /* The work comes in here from netfilter.c */

@@ -240,9 +240,9 @@ static unsigned			rt_hash_mask;
 static int			rt_hash_log;
 static unsigned int		rt_hash_rnd;
 
-static struct rt_cache_stat *rt_cache_stat;
-#define RT_CACHE_STAT_INC(field)					  \
-		(per_cpu_ptr(rt_cache_stat, raw_smp_processor_id())->field++)
+static DEFINE_PER_CPU(struct rt_cache_stat, rt_cache_stat);
+#define RT_CACHE_STAT_INC(field) \
+	(per_cpu(rt_cache_stat, raw_smp_processor_id()).field++)
 
 static int rt_intern_hash(unsigned hash, struct rtable *rth,
 				struct rtable **res);
@@ -401,7 +401,7 @@ static void *rt_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 		if (!cpu_possible(cpu))
 			continue;
 		*pos = cpu+1;
-		return per_cpu_ptr(rt_cache_stat, cpu);
+		return &per_cpu(rt_cache_stat, cpu);
 	}
 	return NULL;
 }
@@ -414,7 +414,7 @@ static void *rt_cpu_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		if (!cpu_possible(cpu))
 			continue;
 		*pos = cpu+1;
-		return per_cpu_ptr(rt_cache_stat, cpu);
+		return &per_cpu(rt_cache_stat, cpu);
 	}
 	return NULL;
 	
@@ -3160,10 +3160,6 @@ int __init ip_rt_init(void)
 	ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
 
-	rt_cache_stat = alloc_percpu(struct rt_cache_stat);
-	if (!rt_cache_stat)
-		return -ENOMEM;
-
 	devinet_init();
 	ip_fib_init();
 
@@ -3191,7 +3187,6 @@ int __init ip_rt_init(void)
 	if (!proc_net_fops_create("rt_cache", S_IRUGO, &rt_cache_seq_fops) ||
 	    !(rtstat_pde = create_proc_entry("rt_cache", S_IRUGO, 
 			    		     proc_net_stat))) {
-		free_percpu(rt_cache_stat);
 		return -ENOMEM;
 	}
 	rtstat_pde->proc_fops = &rt_cpu_seq_fops;

@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/module.h>
 #include <asm/pgalloc.h>
 
 /*****************************************************************************/
@@ -38,6 +39,8 @@ void flush_dcache_page(struct page *page)
 
 } /* end flush_dcache_page() */
 
+EXPORT_SYMBOL(flush_dcache_page);
+
 /*****************************************************************************/
 /*
  * ICI takes a virtual address and the page may not currently have one
@@ -64,3 +67,5 @@ void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 	}
 
 } /* end flush_icache_user_range() */
+
+EXPORT_SYMBOL(flush_icache_user_range);

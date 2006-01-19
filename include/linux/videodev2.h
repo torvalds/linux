@@ -642,6 +642,12 @@ typedef __u64 v4l2_std_id;
 #define V4L2_STD_ATSC_8_VSB     ((v4l2_std_id)0x01000000)
 #define V4L2_STD_ATSC_16_VSB    ((v4l2_std_id)0x02000000)
 
+/* some merged standards */
+#define V4L2_STD_MN	(V4L2_STD_PAL_M|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|V4L2_STD_NTSC)
+#define V4L2_STD_B	(V4L2_STD_PAL_B|V4L2_STD_PAL_B1|V4L2_STD_SECAM_B)
+#define V4L2_STD_GH	(V4L2_STD_PAL_G|V4L2_STD_PAL_H|V4L2_STD_SECAM_G|V4L2_STD_SECAM_H)
+#define V4L2_STD_DK	(V4L2_STD_PAL_DK|V4L2_STD_SECAM_DK)
+
 /* some common needed stuff */
 #define V4L2_STD_PAL_BG		(V4L2_STD_PAL_B		|\
 				 V4L2_STD_PAL_B1	|\
@@ -662,7 +668,8 @@ typedef __u64 v4l2_std_id;
 				 V4L2_STD_SECAM_G	|\
 				 V4L2_STD_SECAM_H	|\
 				 V4L2_STD_SECAM_DK	|\
-				 V4L2_STD_SECAM_L)
+				 V4L2_STD_SECAM_L       |\
+				 V4L2_STD_SECAM_LC)
 
 #define V4L2_STD_525_60		(V4L2_STD_PAL_M		|\
 				 V4L2_STD_PAL_60	|\
@@ -888,7 +895,6 @@ struct v4l2_audio
 
 /*  Flags for the 'mode' field */
 #define V4L2_AUDMODE_AVL		0x00001
-#define V4L2_AUDMODE_32BITS		0x00002
 
 struct v4l2_audioout
 {
@@ -1110,13 +1116,17 @@ int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
 /* names for fancy debug output */
 extern char *v4l2_field_names[];
 extern char *v4l2_type_names[];
-extern char *v4l2_ioctl_names[];
 
 /*  Compatibility layer interface  --  v4l1-compat module */
 typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
 			   unsigned int cmd, void *arg);
 int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
 			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
+
+/* 32 Bits compatibility layer for 64 bits processors */
+extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
+				unsigned long arg);
+
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_VIDEODEV2_H */

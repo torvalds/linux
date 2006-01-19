@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 15
-EXTRAVERSION =
+SUBLEVEL = 16
+EXTRAVERSION =-rc1
 NAME=Sliding Snow Leopard
 
 # *DOCUMENTATION*
@@ -106,12 +106,13 @@ KBUILD_OUTPUT := $(shell cd $(KBUILD_OUTPUT) && /bin/pwd)
 $(if $(KBUILD_OUTPUT),, \
      $(error output directory "$(saved-output)" does not exist))
 
-.PHONY: $(MAKECMDGOALS)
+.PHONY: $(MAKECMDGOALS) cdbuilddir
+$(MAKECMDGOALS) _all: cdbuilddir
 
-$(filter-out _all,$(MAKECMDGOALS)) _all:
+cdbuilddir:
 	$(if $(KBUILD_VERBOSE:1=),@)$(MAKE) -C $(KBUILD_OUTPUT) \
 	KBUILD_SRC=$(CURDIR) \
-	KBUILD_EXTMOD="$(KBUILD_EXTMOD)" -f $(CURDIR)/Makefile $@
+	KBUILD_EXTMOD="$(KBUILD_EXTMOD)" -f $(CURDIR)/Makefile $(MAKECMDGOALS)
 
 # Leave processing to above invocation of make
 skip-makefile := 1
@@ -141,24 +142,6 @@ VPATH		:= $(srctree)
 
 export srctree objtree VPATH TOPDIR
 
-nullstring :=
-space      := $(nullstring) # end of line
-
-# Take the contents of any files called localversion* and the config
-# variable CONFIG_LOCALVERSION and append them to KERNELRELEASE. Be
-# careful not to include files twice if building in the source
-# directory. LOCALVERSION from the command line override all of this
-
-localver := $(objtree)/localversion* $(srctree)/localversion*
-localver := $(sort $(wildcard $(localver)))
-# skip backup files (containing '~')
-localver := $(foreach f, $(localver), $(if $(findstring ~, $(f)),,$(f)))
-
-LOCALVERSION = $(subst $(space),, \
-	       $(shell cat /dev/null $(localver)) \
-	       $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
-
-KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)$(LOCALVERSION)
 
 # SUBARCH tells the usermode build what the underlying arch is.  That is set
 # first, and if a usermode build is happening, the "ARCH=um" on the command
@@ -169,7 +152,7 @@ KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)$(LOCALVERSION)
 SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 				  -e s/arm.*/arm/ -e s/sa110/arm/ \
 				  -e s/s390x/s390/ -e s/parisc64/parisc/ \
-				  -e s/ppc64/powerpc/ )
+				  -e s/ppc.*/powerpc/ )
 
 # Cross compiling and selecting different set of gcc/bin-utils
 # ---------------------------------------------------------------------------
@@ -251,7 +234,7 @@ export KBUILD_CHECKSRC KBUILD_SRC KBUILD_EXTMOD
 # If it is set to "silent_", nothing wil be printed at all, since
 # the variable $(silent_cmd_cc_o_c) doesn't exist.
 #
-# A simple variant is to prefix commands with $(Q) - that's usefull
+# A simple variant is to prefix commands with $(Q) - that's useful
 # for commands that shall be hidden in non-verbose mode.
 #
 #	$(Q)ln $@ :<
@@ -280,15 +263,18 @@ export quiet Q KBUILD_VERBOSE
 # cc support functions to be used (only) in arch/$(ARCH)/Makefile
 # See documentation in Documentation/kbuild/makefiles.txt
 
+# as-option
+# Usage: cflags-y += $(call as-option, -Wa$(comma)-isa=foo,)
+
+as-option = $(shell if $(CC) $(CFLAGS) $(1) -Wa,-Z -c -o /dev/null \
+	     -xassembler /dev/null > /dev/null 2>&1; then echo "$(1)"; \
+	     else echo "$(2)"; fi ;)
+
 # cc-option
 # Usage: cflags-y += $(call cc-option, -march=winchip-c6, -march=i586)
 
 cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
-
-# For backward compatibility
-check_gcc = $(warning check_gcc is deprecated - use cc-option) \
-            $(call cc-option, $(1),$(2))
 
 # cc-option-yn
 # Usage: flag := $(call cc-option-yn, -march=winchip-c6)
@@ -357,7 +343,11 @@ CFLAGS 		:= -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -ffreestanding
 AFLAGS		:= -D__ASSEMBLY__
 
-export	VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION LOCALVERSION KERNELRELEASE \
+# Read KERNELRELEASE from .kernelrelease (if it exists)
+KERNELRELEASE = $(shell cat .kernelrelease 2> /dev/null)
+KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
+
+export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION \
 	ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
 	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE \
 	HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
@@ -452,6 +442,7 @@ export KBUILD_DEFCONFIG
 config %config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+	$(Q)$(MAKE) .kernelrelease
 
 else
 # ===========================================================================
@@ -481,18 +472,20 @@ ifeq ($(dot-config),1)
 
 # Read in dependencies to all Kconfig* files, make sure to run
 # oldconfig if changes are detected.
--include .config.cmd
+-include .kconfig.d
 
 include .config
 
 # If .config needs to be updated, it will be done via the dependency
 # that autoconf has on .config.
 # To avoid any implicit rule to kick in, define an empty command
-.config: ;
+.config .kconfig.d: ;
 
 # If .config is newer than include/linux/autoconf.h, someone tinkered
-# with it and forgot to run make oldconfig
-include/linux/autoconf.h: .config
+# with it and forgot to run make oldconfig.
+# If kconfig.d is missing then we are probarly in a cleaned tree so
+# we execute the config step to be sure to catch updated Kconfig files
+include/linux/autoconf.h: .kconfig.d .config
 	$(Q)mkdir -p include/linux
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
 else
@@ -553,33 +546,13 @@ export KBUILD_IMAGE ?= vmlinux
 # images. Default is /boot, but you can set it to other values
 export	INSTALL_PATH ?= /boot
 
-# If CONFIG_LOCALVERSION_AUTO is set, we automatically perform some tests
-# and try to determine if the current source tree is a release tree, of any sort,
-# or if is a pure development tree.
-#
-# A 'release tree' is any tree with a git TAG associated
-# with it.  The primary goal of this is to make it safe for a native
-# git/CVS/SVN user to build a release tree (i.e, 2.6.9) and also to
-# continue developing against the current Linus tree, without having the Linus
-# tree overwrite the 2.6.9 tree when installed.
-#
-# Currently, only git is supported.
-# Other SCMs can edit scripts/setlocalversion and add the appropriate
-# checks as needed.
-
-
-ifdef CONFIG_LOCALVERSION_AUTO
-	localversion-auto := $(shell $(PERL) $(srctree)/scripts/setlocalversion $(srctree))
-	LOCALVERSION := $(LOCALVERSION)$(localversion-auto)
-endif
-
 #
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
 # relocations required by build roots.  This is not defined in the
 # makefile but the arguement can be passed to make if needed.
 #
 
-MODLIB	:= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
+MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
 
@@ -784,6 +757,48 @@ $(sort $(vmlinux-init) $(vmlinux-main)) $(vmlinux-lds): $(vmlinux-dirs) ;
 $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
+# Build the kernel release string
+# The KERNELRELEASE is stored in a file named .kernelrelease
+# to be used when executing for example make install or make modules_install
+#
+# Take the contents of any files called localversion* and the config
+# variable CONFIG_LOCALVERSION and append them to KERNELRELEASE.
+# LOCALVERSION from the command line override all of this
+
+nullstring :=
+space      := $(nullstring) # end of line
+
+___localver = $(objtree)/localversion* $(srctree)/localversion*
+__localver  = $(sort $(wildcard $(___localver)))
+# skip backup files (containing '~')
+_localver = $(foreach f, $(__localver), $(if $(findstring ~, $(f)),,$(f)))
+
+localver = $(subst $(space),, \
+	   $(shell cat /dev/null $(_localver)) \
+	   $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
+	       
+# If CONFIG_LOCALVERSION_AUTO is set scripts/setlocalversion is called
+# and if the SCM is know a tag from the SCM is appended.
+# The appended tag is determinded by the SCM used.
+#
+# Currently, only git is supported.
+# Other SCMs can edit scripts/setlocalversion and add the appropriate
+# checks as needed.
+ifdef CONFIG_LOCALVERSION_AUTO
+	_localver-auto = $(shell $(CONFIG_SHELL) \
+	                  $(srctree)/scripts/setlocalversion $(srctree))
+	localver-auto  = $(LOCALVERSION)$(_localver-auto)
+endif
+
+localver-full = $(localver)$(localver-auto)
+
+# Store (new) KERNELRELASE string in .kernelrelease
+kernelrelease = $(KERNELVERSION)$(localver-full)
+.kernelrelease: FORCE
+	$(Q)rm -f $@
+	$(Q)echo $(kernelrelease) > $@
+
+
 # Things we need to do before we recursively start building the kernel
 # or the modules are listed in "prepare".
 # A multi level approach is used. prepareN is processed before prepareN-1.
@@ -800,8 +815,7 @@ $(vmlinux-dirs): prepare scripts
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
 # 2) Create the include2 directory, used for the second asm symlink
-
-prepare3:
+prepare3: .kernelrelease
 ifneq ($(KBUILD_SRC),)
 	@echo '  Using $(srctree) as source for kernel'
 	$(Q)if [ -f $(srctree)/.config ]; then \
@@ -892,7 +906,7 @@ define filechk_version.h
 	)
 endef
 
-include/linux/version.h: $(srctree)/Makefile FORCE
+include/linux/version.h: $(srctree)/Makefile .config FORCE
 	$(call filechk,version.h)
 
 # ---------------------------------------------------------------------------
@@ -986,9 +1000,9 @@ CLEAN_FILES +=	vmlinux System.map \
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config include2
-MRPROPER_FILES += .config .config.old include/asm .version \
+MRPROPER_FILES += .config .config.old include/asm .version .old_version \
                   include/linux/autoconf.h include/linux/version.h \
-                  Module.symvers tags TAGS cscope*
+		  .kernelrelease Module.symvers tags TAGS cscope*
 
 # clean - Delete most, but leave enough to build external modules
 #
@@ -1066,7 +1080,7 @@ help:
 	@echo  '  all		  - Build all targets marked with [*]'
 	@echo  '* vmlinux	  - Build the bare kernel'
 	@echo  '* modules	  - Build all modules'
-	@echo  '  modules_install - Install all modules'
+	@echo  '  modules_install - Install all modules to INSTALL_MOD_PATH (default: /)'
 	@echo  '  dir/            - Build all files in dir and below'
 	@echo  '  dir/file.[ois]  - Build specified target only'
 	@echo  '  dir/file.ko     - Build module including final link'
@@ -1074,6 +1088,7 @@ help:
 	@echo  '  tags/TAGS	  - Generate tags file for editors'
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
+	@echo  '  kernelversion	  - Output the version stored in Makefile'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  buildcheck      - List dangling references to vmlinux discarded sections'
@@ -1240,8 +1255,11 @@ cscope: FORCE
 quiet_cmd_TAGS = MAKE   $@
 define cmd_TAGS
 	rm -f $@; \
-	ETAGSF=`etags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
-	$(all-sources) | xargs etags $$ETAGSF -a
+	ETAGSF=`etags --version | grep -i exuberant >/dev/null &&     \
+                echo "-I __initdata,__exitdata,__acquires,__releases  \
+                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
+                      --extra=+f --c-kinds=+px"`;                     \
+                $(all-sources) | xargs etags $$ETAGSF -a
 endef
 
 TAGS: FORCE
@@ -1251,8 +1269,11 @@ TAGS: FORCE
 quiet_cmd_tags = MAKE   $@
 define cmd_tags
 	rm -f $@; \
-	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
-	$(all-sources) | xargs ctags $$CTAGSF -a
+	CTAGSF=`ctags --version | grep -i exuberant >/dev/null &&     \
+                echo "-I __initdata,__exitdata,__acquires,__releases  \
+                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
+                      --extra=+f --c-kinds=+px"`;                     \
+                $(all-sources) | xargs ctags $$CTAGSF -a
 endef
 
 tags: FORCE
@@ -1288,7 +1309,10 @@ checkstack:
 	$(PERL) $(src)/scripts/checkstack.pl $(ARCH)
 
 kernelrelease:
-	@echo $(KERNELRELEASE)
+	$(if $(wildcard .kernelrelease), $(Q)echo $(KERNELRELEASE), \
+	$(error kernelrelease not valid - run 'make *config' to update it))
+kernelversion:
+	@echo $(KERNELVERSION)
 
 # FIXME Should go into a make.lib or something 
 # ===========================================================================

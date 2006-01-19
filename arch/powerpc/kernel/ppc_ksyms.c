@@ -76,11 +76,6 @@ EXPORT_SYMBOL(single_step_exception);
 EXPORT_SYMBOL(sys_sigreturn);
 #endif
 
-#if defined(CONFIG_PPC_PREP)
-EXPORT_SYMBOL(_prep_type);
-EXPORT_SYMBOL(ucSystemType);
-#endif
-
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
@@ -235,8 +230,7 @@ EXPORT_SYMBOL(__down_interruptible);
 EXPORT_SYMBOL(cpm_install_handler);
 EXPORT_SYMBOL(cpm_free_handler);
 #endif /* CONFIG_8xx */
-#if defined(CONFIG_8xx) || defined(CONFIG_40x) || defined(CONFIG_85xx) ||\
-	defined(CONFIG_83xx)
+#if defined(CONFIG_8xx) || defined(CONFIG_40x)
 EXPORT_SYMBOL(__res);
 #endif
 
@@ -249,7 +243,6 @@ EXPORT_SYMBOL(set_context);
 extern long mol_trampoline;
 EXPORT_SYMBOL(mol_trampoline); /* For MOL */
 EXPORT_SYMBOL(flush_hash_pages); /* For MOL */
-EXPORT_SYMBOL_GPL(__handle_mm_fault); /* For MOL */
 #ifdef CONFIG_SMP
 extern int mmu_hash_lock;
 EXPORT_SYMBOL(mmu_hash_lock); /* For MOL */

@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/system.h>
 #include <asm/leds.h>
@@ -35,7 +36,6 @@
 #include <asm/arch/regs-timer.h>
 #include <asm/arch/regs-irq.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/clock.h>
 
 #include "clock.h"
 #include "cpu.h"
@@ -191,7 +191,6 @@ static void s3c2410_timer_setup (void)
 		if (IS_ERR(clk))
 			panic("failed to get clock for system timer");
 
-		clk_use(clk);
 		clk_enable(clk);
 
 		pclk = clk_get_rate(clk);

@@ -1110,10 +1110,9 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 	u8 buf [] = {0,0,0,0,0};
 
 	/* allocate memory for the internal state */
-	state = (struct nxt200x_state*) kmalloc(sizeof(struct nxt200x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct nxt200x_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
-	memset(state,0,sizeof(*state));
 
 	/* setup the state */
 	state->config = config;

@@ -44,7 +44,9 @@
 #define MGA_DEFAULT_USEC_TIMEOUT	10000
 #define MGA_FREELIST_DEBUG		0
 
-static int mga_do_cleanup_dma(drm_device_t * dev);
+#define MINIMAL_CLEANUP 0
+#define FULL_CLEANUP 1
+static int mga_do_cleanup_dma(drm_device_t *dev, int full_cleanup);
 
 /* ================================================================
  * Engine control
@@ -391,7 +393,7 @@ int mga_freelist_put(drm_device_t * dev, drm_buf_t * buf)
  * DMA initialization, cleanup
  */
 
-int mga_driver_preinit(drm_device_t * dev, unsigned long flags)
+int mga_driver_load(drm_device_t * dev, unsigned long flags)
 {
 	drm_mga_private_t *dev_priv;
 
@@ -404,6 +406,14 @@ int mga_driver_preinit(drm_device_t * dev, unsigned long flags)
 
 	dev_priv->usec_timeout = MGA_DEFAULT_USEC_TIMEOUT;
 	dev_priv->chipset = flags;
+
+	dev_priv->mmio_base = drm_get_resource_start(dev, 1);
+	dev_priv->mmio_size = drm_get_resource_len(dev, 1);
+
+	dev->counters += 3;
+	dev->types[6] = _DRM_STAT_IRQ;
+	dev->types[7] = _DRM_STAT_PRIMARY;
+	dev->types[8] = _DRM_STAT_SECONDARY;
 
 	return 0;
 }
@@ -438,17 +448,19 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 	drm_buf_desc_t req;
 	drm_agp_mode_t mode;
 	drm_agp_info_t info;
+	drm_agp_buffer_t agp_req;
+	drm_agp_binding_t bind_req;
 
 	/* Acquire AGP. */
 	err = drm_agp_acquire(dev);
 	if (err) {
-		DRM_ERROR("Unable to acquire AGP\n");
+		DRM_ERROR("Unable to acquire AGP: %d\n", err);
 		return err;
 	}
 
 	err = drm_agp_info(dev, &info);
 	if (err) {
-		DRM_ERROR("Unable to get AGP info\n");
+		DRM_ERROR("Unable to get AGP info: %d\n", err);
 		return err;
 	}
 
@@ -472,18 +484,24 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 	}
 
 	/* Allocate and bind AGP memory. */
-	dev_priv->agp_pages = agp_size / PAGE_SIZE;
-	dev_priv->agp_mem = drm_alloc_agp(dev, dev_priv->agp_pages, 0);
-	if (dev_priv->agp_mem == NULL) {
-		dev_priv->agp_pages = 0;
+	agp_req.size = agp_size;
+	agp_req.type = 0;
+	err = drm_agp_alloc(dev, &agp_req);
+	if (err) {
+		dev_priv->agp_size = 0;
 		DRM_ERROR("Unable to allocate %uMB AGP memory\n",
 			  dma_bs->agp_size);
-		return DRM_ERR(ENOMEM);
+		return err;
 	}
+	
+	dev_priv->agp_size = agp_size;
+	dev_priv->agp_handle = agp_req.handle;
 
-	err = drm_bind_agp(dev_priv->agp_mem, 0);
+	bind_req.handle = agp_req.handle;
+	bind_req.offset = 0;
+	err = drm_agp_bind(dev, &bind_req);
 	if (err) {
-		DRM_ERROR("Unable to bind AGP memory\n");
+		DRM_ERROR("Unable to bind AGP memory: %d\n", err);
 		return err;
 	}
 
@@ -497,7 +515,7 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 	err = drm_addmap(dev, offset, warp_size,
 			 _DRM_AGP, _DRM_READ_ONLY, &dev_priv->warp);
 	if (err) {
-		DRM_ERROR("Unable to map WARP microcode\n");
+		DRM_ERROR("Unable to map WARP microcode: %d\n", err);
 		return err;
 	}
 
@@ -505,7 +523,7 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 	err = drm_addmap(dev, offset, dma_bs->primary_size,
 			 _DRM_AGP, _DRM_READ_ONLY, &dev_priv->primary);
 	if (err) {
-		DRM_ERROR("Unable to map primary DMA region\n");
+		DRM_ERROR("Unable to map primary DMA region: %d\n", err);
 		return err;
 	}
 
@@ -513,7 +531,7 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 	err = drm_addmap(dev, offset, secondary_size,
 			 _DRM_AGP, 0, &dev->agp_buffer_map);
 	if (err) {
-		DRM_ERROR("Unable to map secondary DMA region\n");
+		DRM_ERROR("Unable to map secondary DMA region: %d\n", err);
 		return err;
 	}
 
@@ -525,15 +543,29 @@ static int mga_do_agp_dma_bootstrap(drm_device_t * dev,
 
 	err = drm_addbufs_agp(dev, &req);
 	if (err) {
-		DRM_ERROR("Unable to add secondary DMA buffers\n");
+		DRM_ERROR("Unable to add secondary DMA buffers: %d\n", err);
 		return err;
+	}
+
+	{
+		drm_map_list_t *_entry;
+		unsigned long agp_token = 0;
+		
+		list_for_each_entry(_entry, &dev->maplist->head, head) {
+			if (_entry->map == dev->agp_buffer_map)
+				agp_token = _entry->user_token;
+		}
+		if (!agp_token)
+			return -EFAULT;
+
+		dev->agp_buffer_token = agp_token;
 	}
 
 	offset += secondary_size;
 	err = drm_addmap(dev, offset, agp_size - offset,
 			 _DRM_AGP, 0, &dev_priv->agp_textures);
 	if (err) {
-		DRM_ERROR("Unable to map AGP texture region\n");
+		DRM_ERROR("Unable to map AGP texture region %d\n", err);
 		return err;
 	}
 
@@ -603,7 +635,8 @@ static int mga_do_pci_dma_bootstrap(drm_device_t * dev,
 	err = drm_addmap(dev, 0, warp_size, _DRM_CONSISTENT,
 			 _DRM_READ_ONLY, &dev_priv->warp);
 	if (err != 0) {
-		DRM_ERROR("Unable to create mapping for WARP microcode\n");
+		DRM_ERROR("Unable to create mapping for WARP microcode: %d\n",
+			  err);
 		return err;
 	}
 
@@ -622,7 +655,7 @@ static int mga_do_pci_dma_bootstrap(drm_device_t * dev,
 	}
 
 	if (err != 0) {
-		DRM_ERROR("Unable to allocate primary DMA region\n");
+		DRM_ERROR("Unable to allocate primary DMA region: %d\n", err);
 		return DRM_ERR(ENOMEM);
 	}
 
@@ -646,7 +679,7 @@ static int mga_do_pci_dma_bootstrap(drm_device_t * dev,
 	}
 
 	if (bin_count == 0) {
-		DRM_ERROR("Unable to add secondary DMA buffers\n");
+		DRM_ERROR("Unable to add secondary DMA buffers: %d\n", err);
 		return err;
 	}
 
@@ -682,7 +715,7 @@ static int mga_do_dma_bootstrap(drm_device_t * dev,
 	err = drm_addmap(dev, dev_priv->mmio_base, dev_priv->mmio_size,
 			 _DRM_REGISTERS, _DRM_READ_ONLY, &dev_priv->mmio);
 	if (err) {
-		DRM_ERROR("Unable to map MMIO region\n");
+		DRM_ERROR("Unable to map MMIO region: %d\n", err);
 		return err;
 	}
 
@@ -690,7 +723,7 @@ static int mga_do_dma_bootstrap(drm_device_t * dev,
 			 _DRM_READ_ONLY | _DRM_LOCKED | _DRM_KERNEL,
 			 &dev_priv->status);
 	if (err) {
-		DRM_ERROR("Unable to map status region\n");
+		DRM_ERROR("Unable to map status region: %d\n", err);
 		return err;
 	}
 
@@ -708,7 +741,7 @@ static int mga_do_dma_bootstrap(drm_device_t * dev,
 	 */
 
 	if (err) {
-		mga_do_cleanup_dma(dev);
+		mga_do_cleanup_dma(dev, MINIMAL_CLEANUP);
 	}
 
 	/* Not only do we want to try and initialized PCI cards for PCI DMA,
@@ -731,34 +764,31 @@ int mga_dma_bootstrap(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_mga_dma_bootstrap_t bootstrap;
 	int err;
+	static const int modes[] = { 0, 1, 2, 2, 4, 4, 4, 4 };
+	const drm_mga_private_t *const dev_priv =
+		(drm_mga_private_t *) dev->dev_private;
 
 	DRM_COPY_FROM_USER_IOCTL(bootstrap,
 				 (drm_mga_dma_bootstrap_t __user *) data,
 				 sizeof(bootstrap));
 
 	err = mga_do_dma_bootstrap(dev, &bootstrap);
-	if (!err) {
-		static const int modes[] = { 0, 1, 2, 2, 4, 4, 4, 4 };
-		const drm_mga_private_t *const dev_priv =
-		    (drm_mga_private_t *) dev->dev_private;
-
-		if (dev_priv->agp_textures != NULL) {
-			bootstrap.texture_handle =
-			    dev_priv->agp_textures->offset;
-			bootstrap.texture_size = dev_priv->agp_textures->size;
-		} else {
-			bootstrap.texture_handle = 0;
-			bootstrap.texture_size = 0;
-		}
-
-		bootstrap.agp_mode = modes[bootstrap.agp_mode & 0x07];
-		if (DRM_COPY_TO_USER((void __user *)data, &bootstrap,
-				     sizeof(bootstrap))) {
-			err = DRM_ERR(EFAULT);
-		}
-	} else {
-		mga_do_cleanup_dma(dev);
+	if (err) {
+		mga_do_cleanup_dma(dev, FULL_CLEANUP);
+		return err;
 	}
+
+	if (dev_priv->agp_textures != NULL) {
+		bootstrap.texture_handle = dev_priv->agp_textures->offset;
+		bootstrap.texture_size = dev_priv->agp_textures->size;
+	} else {
+		bootstrap.texture_handle = 0;
+		bootstrap.texture_size = 0;
+	}
+
+	bootstrap.agp_mode = modes[bootstrap.agp_mode & 0x07];
+	DRM_COPY_TO_USER_IOCTL((drm_mga_dma_bootstrap_t __user *)data,
+			       bootstrap, sizeof(bootstrap));
 
 	return err;
 }
@@ -853,13 +883,13 @@ static int mga_do_init_dma(drm_device_t * dev, drm_mga_init_t * init)
 
 	ret = mga_warp_install_microcode(dev_priv);
 	if (ret < 0) {
-		DRM_ERROR("failed to install WARP ucode!\n");
+		DRM_ERROR("failed to install WARP ucode!: %d\n", ret);
 		return ret;
 	}
 
 	ret = mga_warp_init(dev_priv);
 	if (ret < 0) {
-		DRM_ERROR("failed to init WARP engine!\n");
+		DRM_ERROR("failed to init WARP engine!: %d\n", ret);
 		return ret;
 	}
 
@@ -904,7 +934,7 @@ static int mga_do_init_dma(drm_device_t * dev, drm_mga_init_t * init)
 	return 0;
 }
 
-static int mga_do_cleanup_dma(drm_device_t * dev)
+static int mga_do_cleanup_dma(drm_device_t *dev, int full_cleanup)
 {
 	int err = 0;
 	DRM_DEBUG("\n");
@@ -932,30 +962,38 @@ static int mga_do_cleanup_dma(drm_device_t * dev)
 
 		if (dev_priv->used_new_dma_init) {
 #if __OS_HAS_AGP
-			if (dev_priv->agp_mem != NULL) {
-				dev_priv->agp_textures = NULL;
-				drm_unbind_agp(dev_priv->agp_mem);
+			if (dev_priv->agp_handle != 0) {
+				drm_agp_binding_t unbind_req;
+				drm_agp_buffer_t free_req;
 
-				drm_free_agp(dev_priv->agp_mem,
-					     dev_priv->agp_pages);
-				dev_priv->agp_pages = 0;
-				dev_priv->agp_mem = NULL;
+				unbind_req.handle = dev_priv->agp_handle;
+				drm_agp_unbind(dev, &unbind_req);
+
+				free_req.handle = dev_priv->agp_handle;
+				drm_agp_free(dev, &free_req);
+	
+				dev_priv->agp_textures = NULL;
+				dev_priv->agp_size = 0;
+				dev_priv->agp_handle = 0;
 			}
 
 			if ((dev->agp != NULL) && dev->agp->acquired) {
 				err = drm_agp_release(dev);
 			}
 #endif
-			dev_priv->used_new_dma_init = 0;
 		}
 
 		dev_priv->warp = NULL;
 		dev_priv->primary = NULL;
-		dev_priv->mmio = NULL;
-		dev_priv->status = NULL;
 		dev_priv->sarea = NULL;
 		dev_priv->sarea_priv = NULL;
 		dev->agp_buffer_map = NULL;
+
+		if (full_cleanup) {
+			dev_priv->mmio = NULL;
+			dev_priv->status = NULL;
+			dev_priv->used_new_dma_init = 0;
+		}
 
 		memset(&dev_priv->prim, 0, sizeof(dev_priv->prim));
 		dev_priv->warp_pipe = 0;
@@ -967,7 +1005,7 @@ static int mga_do_cleanup_dma(drm_device_t * dev)
 		}
 	}
 
-	return err;
+	return 0;
 }
 
 int mga_dma_init(DRM_IOCTL_ARGS)
@@ -985,11 +1023,11 @@ int mga_dma_init(DRM_IOCTL_ARGS)
 	case MGA_INIT_DMA:
 		err = mga_do_init_dma(dev, &init);
 		if (err) {
-			(void)mga_do_cleanup_dma(dev);
+			(void)mga_do_cleanup_dma(dev, FULL_CLEANUP);
 		}
 		return err;
 	case MGA_CLEANUP_DMA:
-		return mga_do_cleanup_dma(dev);
+		return mga_do_cleanup_dma(dev, FULL_CLEANUP);
 	}
 
 	return DRM_ERR(EINVAL);
@@ -1118,7 +1156,7 @@ int mga_dma_buffers(DRM_IOCTL_ARGS)
 /**
  * Called just before the module is unloaded.
  */
-int mga_driver_postcleanup(drm_device_t * dev)
+int mga_driver_unload(drm_device_t * dev)
 {
 	drm_free(dev->dev_private, sizeof(drm_mga_private_t), DRM_MEM_DRIVER);
 	dev->dev_private = NULL;
@@ -1129,9 +1167,9 @@ int mga_driver_postcleanup(drm_device_t * dev)
 /**
  * Called when the last opener of the device is closed.
  */
-void mga_driver_pretakedown(drm_device_t * dev)
+void mga_driver_lastclose(drm_device_t * dev)
 {
-	mga_do_cleanup_dma(dev);
+	mga_do_cleanup_dma(dev, FULL_CLEANUP);
 }
 
 int mga_driver_dma_quiescent(drm_device_t * dev)

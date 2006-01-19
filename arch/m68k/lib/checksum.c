@@ -134,7 +134,7 @@ EXPORT_SYMBOL(csum_partial);
  */
 
 unsigned int
-csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
+csum_partial_copy_from_user(const unsigned char __user *src, unsigned char *dst,
 			    int len, int sum, int *csum_err)
 {
 	/*

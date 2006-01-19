@@ -92,7 +92,7 @@ int main(void)
 	DEFINE(TRAP_TRACE, TRAP_TRACE);
 
 	/* offsets into the custom struct */
-	DEFINE(CUSTOMBASE, &custom);
+	DEFINE(CUSTOMBASE, &amiga_custom);
 	DEFINE(C_INTENAR, offsetof(struct CUSTOM, intenar));
 	DEFINE(C_INTREQR, offsetof(struct CUSTOM, intreqr));
 	DEFINE(C_INTENA, offsetof(struct CUSTOM, intena));

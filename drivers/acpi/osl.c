@@ -204,11 +204,13 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size,
 
 	return AE_OK;
 }
+EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
 void acpi_os_unmap_memory(void __iomem * virt, acpi_size size)
 {
 	iounmap(virt);
 }
+EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status

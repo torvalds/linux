@@ -161,8 +161,13 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 					set_bit(X86_FEATURE_K6_MTRR, c->x86_capability);
 				break;
 			}
-			break;
 
+			if (c->x86_model == 10) {
+				/* AMD Geode LX is model 10 */
+				/* placeholder for any needed mods */
+				break;
+			}
+			break;
 		case 6: /* An Athlon/Duron */
  
 			/* Bit 15 of Athlon specific MSR 15, needs to be 0
@@ -211,6 +216,12 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 			c->x86_max_cores = 1;
 	}
 
+	if (cpuid_eax(0x80000000) >= 0x80000007) {
+		c->x86_power = cpuid_edx(0x80000007);
+		if (c->x86_power & (1<<8))
+			set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
+	}
+
 #ifdef CONFIG_X86_HT
 	/*
 	 * On a AMD dual core setup the lower bits of the APIC id
@@ -228,6 +239,7 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 		       cpu, c->x86_max_cores, cpu_core_id[cpu]);
 	}
 #endif
+
 }
 
 static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

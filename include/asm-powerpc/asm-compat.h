@@ -1,7 +1,6 @@
 #ifndef _ASM_POWERPC_ASM_COMPAT_H
 #define _ASM_POWERPC_ASM_COMPAT_H
 
-#include <linux/config.h>
 #include <asm/types.h>
 
 #ifdef __ASSEMBLY__
@@ -41,6 +40,7 @@
 
 #endif
 
+#ifdef __KERNEL__
 #ifdef CONFIG_IBM405_ERR77
 /* Erratum #77 on the 405 means we need a sync or dcbt before every
  * stwcx.  The old ATOMIC_SYNC_FIX covered some but not all of this.
@@ -50,6 +50,7 @@
 #else
 #define PPC405_ERR77(ra,rb)
 #define PPC405_ERR77_SYNC
+#endif
 #endif
 
 #endif /* _ASM_POWERPC_ASM_COMPAT_H */

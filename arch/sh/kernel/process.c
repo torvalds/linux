@@ -71,6 +71,16 @@ void cpu_idle(void)
 
 void machine_restart(char * __unused)
 {
+
+#ifdef CONFIG_KEXEC
+	struct kimage *image;
+	image = xchg(&kexec_image, 0);
+	if (image) {
+		machine_shutdown();
+		machine_kexec(image);
+	}
+#endif
+
 	/* SR.BL=1 and invoke address error to let CPU reset (manual reset) */
 	asm volatile("ldc %0, sr\n\t"
 		     "mov.l @%1, %0" : : "r" (0x10000000), "r" (0x80000001));
@@ -191,13 +201,8 @@ void flush_thread(void)
 {
 #if defined(CONFIG_SH_FPU)
 	struct task_struct *tsk = current;
-	struct pt_regs *regs = (struct pt_regs *)
-				((unsigned long)tsk->thread_info
-				 + THREAD_SIZE - sizeof(struct pt_regs)
-				 - sizeof(unsigned long));
-
 	/* Forget lazy FPU state */
-	clear_fpu(tsk, regs);
+	clear_fpu(tsk, task_pt_regs(tsk));
 	clear_used_math();
 #endif
 }
@@ -232,13 +237,7 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
 	struct pt_regs ptregs;
 	
-	ptregs = *(struct pt_regs *)
-		((unsigned long)tsk->thread_info + THREAD_SIZE
-		 - sizeof(struct pt_regs)
-#ifdef CONFIG_SH_DSP
-		 - sizeof(struct pt_dspregs)
-#endif
-		 - sizeof(unsigned long));
+	ptregs = *task_pt_regs(tsk);
 	elf_core_copy_regs(regs, &ptregs);
 
 	return 1;
@@ -252,11 +251,7 @@ dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *fpu)
 #if defined(CONFIG_SH_FPU)
 	fpvalid = !!tsk_used_math(tsk);
 	if (fpvalid) {
-		struct pt_regs *regs = (struct pt_regs *)
-					((unsigned long)tsk->thread_info
-					 + THREAD_SIZE - sizeof(struct pt_regs)
-					 - sizeof(unsigned long));
-		unlazy_fpu(tsk, regs);
+		unlazy_fpu(tsk, task_pt_regs(tsk));
 		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
 	}
 #endif
@@ -279,18 +274,13 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	copy_to_stopped_child_used_math(p);
 #endif
 
-	childregs = ((struct pt_regs *)
-		(THREAD_SIZE + (unsigned long) p->thread_info)
-#ifdef CONFIG_SH_DSP
-		- sizeof(struct pt_dspregs)
-#endif
-		- sizeof(unsigned long)) - 1;
+	childregs = task_pt_regs(p);
 	*childregs = *regs;
 
 	if (user_mode(regs)) {
 		childregs->regs[15] = usp;
 	} else {
-		childregs->regs[15] = (unsigned long)p->thread_info + THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	}
         if (clone_flags & CLONE_SETTLS) {
 		childregs->gbr = childregs->regs[0];
@@ -303,26 +293,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	p->thread.ubc_pc = 0;
 
 	return 0;
-}
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-	dump->magic = CMAGIC;
-	dump->start_code = current->mm->start_code;
-	dump->start_data  = current->mm->start_data;
-	dump->start_stack = regs->regs[15] & ~(PAGE_SIZE - 1);
-	dump->u_tsize = (current->mm->end_code - dump->start_code) >> PAGE_SHIFT;
-	dump->u_dsize = (current->mm->brk + (PAGE_SIZE-1) - dump->start_data) >> PAGE_SHIFT;
-	dump->u_ssize = (current->mm->start_stack - dump->start_stack +
-			 PAGE_SIZE - 1) >> PAGE_SHIFT;
-	/* Debug registers will come here. */
-
-	dump->regs = *regs;
-
-	dump->u_fpvalid = dump_fpu(regs, &dump->fpu);
 }
 
 /* Tracing by user break controller.  */
@@ -353,11 +323,7 @@ ubc_set_tracing(int asid, unsigned long pc)
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
 #if defined(CONFIG_SH_FPU)
-	struct pt_regs *regs = (struct pt_regs *)
-				((unsigned long)prev->thread_info
-				 + THREAD_SIZE - sizeof(struct pt_regs)
-				 - sizeof(unsigned long));
-	unlazy_fpu(prev, regs);
+	unlazy_fpu(prev, task_pt_regs(prev));
 #endif
 
 #ifdef CONFIG_PREEMPT
@@ -366,13 +332,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 		struct pt_regs *regs;
 
 		local_irq_save(flags);
-		regs = (struct pt_regs *)
-			((unsigned long)prev->thread_info
-			 + THREAD_SIZE - sizeof(struct pt_regs)
-#ifdef CONFIG_SH_DSP
-			 - sizeof(struct pt_dspregs)
-#endif
-			 - sizeof(unsigned long));
+		regs = task_pt_regs(prev);
 		if (user_mode(regs) && regs->regs[15] >= 0xc0000000) {
 			int offset = (int)regs->regs[15];
 
@@ -392,7 +352,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 	 */
 	asm volatile("ldc	%0, r7_bank"
 		     : /* no output */
-		     : "r" (next->thread_info));
+		     : "r" (task_thread_info(next)));
 
 #ifdef CONFIG_MMU
 	/* If no tasks are using the UBC, we're done */

@@ -56,6 +56,14 @@
 #define REMOTE_DISTANCE		20
 #define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
 #endif
+#ifndef RECLAIM_DISTANCE
+/*
+ * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
+ * (in whatever arch specific measurement units returned by node_distance())
+ * then switch on zone reclaim on boot.
+ */
+#define RECLAIM_DISTANCE 20
+#endif
 #ifndef PENALTY_FOR_NODE_WITH_CPUS
 #define PENALTY_FOR_NODE_WITH_CPUS	(1)
 #endif
@@ -86,7 +94,6 @@
 	.max_interval		= 2,			\
 	.busy_factor		= 8,			\
 	.imbalance_pct		= 110,			\
-	.cache_hot_time		= 0,			\
 	.cache_nice_tries	= 0,			\
 	.per_cpu_gain		= 25,			\
 	.busy_idx		= 0,			\
@@ -117,7 +124,6 @@
 	.max_interval		= 4,			\
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
-	.cache_hot_time		= (5*1000000/2),	\
 	.cache_nice_tries	= 1,			\
 	.per_cpu_gain		= 100,			\
 	.busy_idx		= 2,			\

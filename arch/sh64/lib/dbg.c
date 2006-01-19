@@ -174,7 +174,7 @@ void evt_debug(int evt, int ret_addr, int event, int tra, struct pt_regs *regs)
 	struct ring_node *rr;
 
 	pid = current->pid;
-	stack_bottom = (unsigned long) current->thread_info;
+	stack_bottom = (unsigned long) task_stack_page(current);
 	asm volatile("ori r15, 0, %0" : "=r" (sp));
 	rr = event_ring + event_ptr;
 	rr->evt = evt;

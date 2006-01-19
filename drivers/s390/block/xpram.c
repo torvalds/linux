@@ -160,7 +160,7 @@ static int xpram_page_in (unsigned long page_addr, unsigned int xpage_index)
                 "0: ipm   %0\n"
 		"   srl   %0,28\n"
 		"1:\n"
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 4\n"
 		"   .long  0b,1b\n"
@@ -208,7 +208,7 @@ static long xpram_page_out (unsigned long page_addr, unsigned int xpage_index)
                 "0: ipm   %0\n"
 		"   srl   %0,28\n"
 		"1:\n"
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 4\n"
 		"   .long  0b,1b\n"
@@ -328,31 +328,27 @@ fail:
 	return 0;
 }
 
-static int xpram_ioctl (struct inode *inode, struct file *filp,
-		 unsigned int cmd, unsigned long arg)
+static int xpram_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct hd_geometry __user *geo;
 	unsigned long size;
-	if (cmd != HDIO_GETGEO)
-		return -EINVAL;
+
 	/*
 	 * get geometry: we have to fake one...  trim the size to a
 	 * multiple of 64 (32k): tell we have 16 sectors, 4 heads,
 	 * whatever cylinders. Tell also that data starts at sector. 4.
 	 */
-	geo = (struct hd_geometry __user *) arg;
 	size = (xpram_pages * 8) & ~0x3f;
-	put_user(size >> 6, &geo->cylinders);
-	put_user(4, &geo->heads);
-	put_user(16, &geo->sectors);
-	put_user(4, &geo->start);
+	geo->cylinders = size >> 6;
+	geo->heads = 4;
+	geo->sectors = 16;
+	geo->start = 4;
 	return 0;
 }
 
 static struct block_device_operations xpram_devops =
 {
 	.owner	= THIS_MODULE,
-	.ioctl	= xpram_ioctl,
+	.getgeo	= xpram_getgeo,
 };
 
 /*

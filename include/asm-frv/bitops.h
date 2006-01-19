@@ -228,6 +228,7 @@ found_middle:
 							\
 	bit ? 33 - bit : bit;				\
 })
+#define fls64(x)   generic_fls64(x)
 
 /*
  * Every architecture must define this function. It's the fastest

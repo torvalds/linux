@@ -247,7 +247,7 @@ static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
 	return rb_entry(n, struct pkt_rb_node, rb_node);
 }
 
-static inline void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
+static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
 {
 	rb_erase(&node->rb_node, &pd->bio_queue);
 	mempool_free(node, pd->rb_pool);
@@ -315,7 +315,7 @@ static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *nod
 /*
  * Add a bio to a single linked list defined by its head and tail pointers.
  */
-static inline void pkt_add_list_last(struct bio *bio, struct bio **list_head, struct bio **list_tail)
+static void pkt_add_list_last(struct bio *bio, struct bio **list_head, struct bio **list_tail)
 {
 	bio->bi_next = NULL;
 	if (*list_tail) {
@@ -1955,9 +1955,12 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	if ((ret = blkdev_get(pd->bdev, FMODE_READ, O_RDONLY)))
 		goto out;
 
+	if ((ret = bd_claim(pd->bdev, pd)))
+		goto out_putdev;
+
 	if ((ret = pkt_get_last_written(pd, &lba))) {
 		printk("pktcdvd: pkt_get_last_written failed\n");
-		goto out_putdev;
+		goto out_unclaim;
 	}
 
 	set_capacity(pd->disk, lba << 2);
@@ -1967,7 +1970,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	q = bdev_get_queue(pd->bdev);
 	if (write) {
 		if ((ret = pkt_open_write(pd)))
-			goto out_putdev;
+			goto out_unclaim;
 		/*
 		 * Some CDRW drives can not handle writes larger than one packet,
 		 * even if the size is a multiple of the packet size.
@@ -1982,13 +1985,15 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	}
 
 	if ((ret = pkt_set_segment_merging(pd, q)))
-		goto out_putdev;
+		goto out_unclaim;
 
 	if (write)
 		printk("pktcdvd: %lukB available on disc\n", lba << 1);
 
 	return 0;
 
+out_unclaim:
+	bd_release(pd->bdev);
 out_putdev:
 	blkdev_put(pd->bdev);
 out:
@@ -2007,6 +2012,7 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 	pkt_lock_door(pd, 0);
 
 	pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
+	bd_release(pd->bdev);
 	blkdev_put(pd->bdev);
 }
 

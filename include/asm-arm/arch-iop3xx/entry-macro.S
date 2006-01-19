@@ -7,6 +7,7 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+#include <asm/arch/irqs.h>
 
 #if defined(CONFIG_ARCH_IOP321)
 		.macro  disable_fiq

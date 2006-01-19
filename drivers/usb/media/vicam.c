@@ -1236,6 +1236,7 @@ static struct file_operations vicam_fops = {
 	.read		= vicam_read,
 	.mmap		= vicam_mmap,
 	.ioctl		= vicam_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek		= no_llseek,
 };
 
@@ -1257,7 +1258,6 @@ static struct usb_device_id vicam_table[] = {
 MODULE_DEVICE_TABLE(usb, vicam_table);
 
 static struct usb_driver vicam_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "vicam",
 	.probe		= vicam_probe,
 	.disconnect	= vicam_disconnect,

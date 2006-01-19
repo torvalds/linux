@@ -14,7 +14,7 @@
    away for older version. 
  */
 
-#ifdef CONFIG_DEBUG_INFO
+#ifdef CONFIG_UNWIND_INFO
 
 #define CFI_STARTPROC .cfi_startproc
 #define CFI_ENDPROC .cfi_endproc
@@ -28,6 +28,7 @@
 #define CFI_RESTORE .cfi_restore
 #define CFI_REMEMBER_STATE .cfi_remember_state
 #define CFI_RESTORE_STATE .cfi_restore_state
+#define CFI_UNDEFINED .cfi_undefined
 
 #else
 
@@ -44,6 +45,7 @@
 #define CFI_RESTORE	#
 #define CFI_REMEMBER_STATE	#
 #define CFI_RESTORE_STATE	#
+#define CFI_UNDEFINED	#
 
 #endif
 

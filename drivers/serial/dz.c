@@ -216,8 +216,6 @@ static inline void dz_receive_chars(struct dz_port *dport)
 
 		if (!tty)
 			break;
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			break;
 
 		icount->rx++;
 

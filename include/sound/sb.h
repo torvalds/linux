@@ -60,7 +60,7 @@ enum sb_hw_type {
 
 #define SB_MPU_INPUT		1
 
-struct _snd_sb {
+struct snd_sb {
 	unsigned long port;		/* base port of DSP chip */
 	struct resource *res_port;
 	unsigned long mpu_port;		/* MPU port for SB DSP 4.0+ */
@@ -92,24 +92,26 @@ struct _snd_sb {
 
 	void *csp; /* used only when CONFIG_SND_SB16_CSP is set */
 
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
 
-	snd_rawmidi_t *rmidi;
-	snd_rawmidi_substream_t *midi_substream_input;
-	snd_rawmidi_substream_t *midi_substream_output;
+	struct snd_rawmidi *rmidi;
+	struct snd_rawmidi_substream *midi_substream_input;
+	struct snd_rawmidi_substream *midi_substream_output;
 	irqreturn_t (*rmidi_callback)(int irq, void *dev_id, struct pt_regs *regs);
 
 	spinlock_t reg_lock;
 	spinlock_t open_lock;
 	spinlock_t midi_input_lock;
 
-	snd_info_entry_t *proc_entry;
-};
+	struct snd_info_entry *proc_entry;
 
-typedef struct _snd_sb sb_t;
+#ifdef CONFIG_PM
+	unsigned char saved_regs[0x20];
+#endif
+};
 
 /* I/O ports */
 
@@ -267,48 +269,52 @@ typedef struct _snd_sb sb_t;
  *
  */
 
-static inline void snd_sb_ack_8bit(sb_t *chip)
+static inline void snd_sb_ack_8bit(struct snd_sb *chip)
 {
 	inb(SBP(chip, DATA_AVAIL));
 }
 
-static inline void snd_sb_ack_16bit(sb_t *chip)
+static inline void snd_sb_ack_16bit(struct snd_sb *chip)
 {
 	inb(SBP(chip, DATA_AVAIL_16));
 }
 
 /* sb_common.c */
-int snd_sbdsp_command(sb_t *chip, unsigned char val);
-int snd_sbdsp_get_byte(sb_t *chip);
-int snd_sbdsp_reset(sb_t *chip);
-int snd_sbdsp_create(snd_card_t *card,
+int snd_sbdsp_command(struct snd_sb *chip, unsigned char val);
+int snd_sbdsp_get_byte(struct snd_sb *chip);
+int snd_sbdsp_reset(struct snd_sb *chip);
+int snd_sbdsp_create(struct snd_card *card,
 		     unsigned long port,
 		     int irq,
 		     irqreturn_t (*irq_handler)(int, void *, struct pt_regs *),
 		     int dma8, int dma16,
 		     unsigned short hardware,
-		     sb_t **r_chip);
+		     struct snd_sb **r_chip);
 /* sb_mixer.c */
-void snd_sbmixer_write(sb_t *chip, unsigned char reg, unsigned char data);
-unsigned char snd_sbmixer_read(sb_t *chip, unsigned char reg);
-int snd_sbmixer_new(sb_t *chip);
+void snd_sbmixer_write(struct snd_sb *chip, unsigned char reg, unsigned char data);
+unsigned char snd_sbmixer_read(struct snd_sb *chip, unsigned char reg);
+int snd_sbmixer_new(struct snd_sb *chip);
+#ifdef CONFIG_PM
+void snd_sbmixer_suspend(struct snd_sb *chip);
+void snd_sbmixer_resume(struct snd_sb *chip);
+#endif
 
 /* sb8_init.c */
-int snd_sb8dsp_pcm(sb_t *chip, int device, snd_pcm_t ** rpcm);
+int snd_sb8dsp_pcm(struct snd_sb *chip, int device, struct snd_pcm ** rpcm);
 /* sb8.c */
-irqreturn_t snd_sb8dsp_interrupt(sb_t *chip);
-int snd_sb8_playback_open(snd_pcm_substream_t *substream);
-int snd_sb8_capture_open(snd_pcm_substream_t *substream);
-int snd_sb8_playback_close(snd_pcm_substream_t *substream);
-int snd_sb8_capture_close(snd_pcm_substream_t *substream);
+irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip);
+int snd_sb8_playback_open(struct snd_pcm_substream *substream);
+int snd_sb8_capture_open(struct snd_pcm_substream *substream);
+int snd_sb8_playback_close(struct snd_pcm_substream *substream);
+int snd_sb8_capture_close(struct snd_pcm_substream *substream);
 /* midi8.c */
-irqreturn_t snd_sb8dsp_midi_interrupt(sb_t *chip);
-int snd_sb8dsp_midi(sb_t *chip, int device, snd_rawmidi_t ** rrawmidi);
+irqreturn_t snd_sb8dsp_midi_interrupt(struct snd_sb *chip);
+int snd_sb8dsp_midi(struct snd_sb *chip, int device, struct snd_rawmidi ** rrawmidi);
 
 /* sb16_init.c */
-int snd_sb16dsp_pcm(sb_t *chip, int device, snd_pcm_t ** rpcm);
-const snd_pcm_ops_t *snd_sb16dsp_get_pcm_ops(int direction);
-int snd_sb16dsp_configure(sb_t *chip);
+int snd_sb16dsp_pcm(struct snd_sb *chip, int device, struct snd_pcm ** rpcm);
+const struct snd_pcm_ops *snd_sb16dsp_get_pcm_ops(int direction);
+int snd_sb16dsp_configure(struct snd_sb *chip);
 /* sb16.c */
 irqreturn_t snd_sb16dsp_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
@@ -328,7 +334,7 @@ enum {
 #define SB_MIXVAL_INPUT_SW(reg1, reg2, left_shift, right_shift) \
   ((reg1) | ((reg2) << 8) | ((left_shift) << 16) | ((right_shift) << 24))
 
-int snd_sbmixer_add_ctl(sb_t *chip, const char *name, int index, int type, unsigned long value);
+int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int type, unsigned long value);
 
 /* for ease of use */
 struct sbmix_elem {
@@ -352,7 +358,7 @@ struct sbmix_elem {
   .type = SB_MIX_INPUT_SW, \
   .private_value = SB_MIXVAL_INPUT_SW(reg1, reg2, left_shift, right_shift) }
 
-static inline int snd_sbmixer_add_ctl_elem(sb_t *chip, const struct sbmix_elem *c)
+static inline int snd_sbmixer_add_ctl_elem(struct snd_sb *chip, const struct sbmix_elem *c)
 {
 	return snd_sbmixer_add_ctl(chip, c->name, 0, c->type, c->private_value);
 }

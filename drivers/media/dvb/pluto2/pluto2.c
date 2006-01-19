@@ -584,11 +584,10 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 	struct dmx_demux *dmx;
 	int ret = -ENOMEM;
 
-	pluto = kmalloc(sizeof(struct pluto), GFP_KERNEL);
+	pluto = kzalloc(sizeof(struct pluto), GFP_KERNEL);
 	if (!pluto)
 		goto out;
 
-	memset(pluto, 0, sizeof(struct pluto));
 	pluto->pdev = pdev;
 
 	ret = pci_enable_device(pdev);

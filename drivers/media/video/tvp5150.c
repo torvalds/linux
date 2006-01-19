@@ -9,6 +9,7 @@
 #include <linux/videodev.h>
 #include <linux/delay.h>
 #include <linux/video_decoder.h>
+#include <media/v4l2-common.h>
 
 #include "tvp5150_reg.h"
 
@@ -28,33 +29,38 @@ static int debug = 0;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-#define dprintk(num, format, args...) \
+#define tvp5150_info(fmt, arg...) do { \
+	printk(KERN_INFO "%s %d-%04x: " fmt, c->driver->driver.name, \
+	       i2c_adapter_id(c->adapter), c->addr , ## arg); } while (0)
+#define tvp5150_dbg(num, fmt, arg...) \
 	do { \
 		if (debug >= num) \
-			printk(format, ##args); \
-	} while (0)
+			printk(KERN_DEBUG "%s debug %d-%04x: " fmt,\
+				c->driver->driver.name, \
+				i2c_adapter_id(c->adapter), \
+				c->addr , ## arg); } while (0)
 
 /* supported controls */
 static struct v4l2_queryctrl tvp5150_qctrl[] = {
 	{
-	 .id = V4L2_CID_BRIGHTNESS,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Brightness",
-	 .minimum = 0,
-	 .maximum = 255,
-	 .step = 1,
-	 .default_value = 0,
-	 .flags = 0,
-	 }, {
-	     .id = V4L2_CID_CONTRAST,
-	     .type = V4L2_CTRL_TYPE_INTEGER,
-	     .name = "Contrast",
-	     .minimum = 0,
-	     .maximum = 255,
-	     .step = 0x1,
-	     .default_value = 0x10,
-	     .flags = 0,
-	     }, {
+		.id = V4L2_CID_BRIGHTNESS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Brightness",
+		.minimum = 0,
+		.maximum = 255,
+		.step = 1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_CONTRAST,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Contrast",
+		.minimum = 0,
+		.maximum = 255,
+		.step = 0x1,
+		.default_value = 0x10,
+		.flags = 0,
+	}, {
 		 .id = V4L2_CID_SATURATION,
 		 .type = V4L2_CTRL_TYPE_INTEGER,
 		 .name = "Saturation",
@@ -63,16 +69,16 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		 .step = 0x1,
 		 .default_value = 0x10,
 		 .flags = 0,
-		 }, {
-		     .id = V4L2_CID_HUE,
-		     .type = V4L2_CTRL_TYPE_INTEGER,
-		     .name = "Hue",
-		     .minimum = -128,
-		     .maximum = 127,
-		     .step = 0x1,
-		     .default_value = 0x10,
-		     .flags = 0,
-		     }
+	}, {
+		.id = V4L2_CID_HUE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Hue",
+		.minimum = -128,
+		.maximum = 127,
+		.step = 0x1,
+		.default_value = 0x10,
+		.flags = 0,
+	}
 };
 
 struct tvp5150 {
@@ -87,19 +93,21 @@ struct tvp5150 {
 	int sat;
 };
 
-static inline int tvp5150_read(struct i2c_client *c, unsigned char addr)
+static int tvp5150_read(struct i2c_client *c, unsigned char addr)
 {
 	unsigned char buffer[1];
 	int rc;
 
 	buffer[0] = addr;
 	if (1 != (rc = i2c_master_send(c, buffer, 1)))
-		dprintk(0, "i2c i/o error: rc == %d (should be 1)\n", rc);
+		tvp5150_dbg(0, "i2c i/o error: rc == %d (should be 1)\n", rc);
 
 	msleep(10);
 
 	if (1 != (rc = i2c_master_recv(c, buffer, 1)))
-		dprintk(0, "i2c i/o error: rc == %d (should be 1)\n", rc);
+		tvp5150_dbg(0, "i2c i/o error: rc == %d (should be 1)\n", rc);
+
+	tvp5150_dbg(2, "tvp5150: read 0x%02x = 0x%02x\n", addr, buffer[0]);
 
 	return (buffer[0]);
 }
@@ -109,13 +117,12 @@ static inline void tvp5150_write(struct i2c_client *c, unsigned char addr,
 {
 	unsigned char buffer[2];
 	int rc;
-/*	struct tvp5150 *core = i2c_get_clientdata(c); */
 
 	buffer[0] = addr;
 	buffer[1] = value;
-	dprintk(1, "tvp5150: writing 0x%02x 0x%02x\n", buffer[0], buffer[1]);
+	tvp5150_dbg(2, "tvp5150: writing 0x%02x 0x%02x\n", buffer[0], buffer[1]);
 	if (2 != (rc = i2c_master_send(c, buffer, 2)))
-		dprintk(0, "i2c i/o error: rc == %d (should be 2)\n", rc);
+		tvp5150_dbg(0, "i2c i/o error: rc == %d (should be 2)\n", rc);
 }
 
 static void dump_reg(struct i2c_client *c)
@@ -437,48 +444,346 @@ enum tvp5150_input {
 static inline void tvp5150_selmux(struct i2c_client *c,
 				  enum tvp5150_input input)
 {
+	int opmode=0;
+
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
 
 	if (!decoder->enable)
 		input |= TVP5150_BLACK_SCREEN;
 
+	switch (input) {
+	case TVP5150_ANALOG_CH0:
+	case TVP5150_ANALOG_CH1:
+		opmode=0x30;		/* TV Mode */
+		break;
+	default:
+		opmode=0;		/* Auto Mode */
+		break;
+	}
+
+	tvp5150_write(c, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(c, TVP5150_VD_IN_SRC_SEL_1, input);
 };
 
-static inline void tvp5150_reset(struct i2c_client *c)
+struct i2c_reg_value {
+	unsigned char reg;
+	unsigned char value;
+};
+
+/* Default values as sugested at TVP5150AM1 datasheet */
+static const struct i2c_reg_value tvp5150_init_default[] = {
+	{ /* 0x00 */
+		TVP5150_VD_IN_SRC_SEL_1,0x00
+	},
+	{ /* 0x01 */
+		TVP5150_ANAL_CHL_CTL,0x15
+	},
+	{ /* 0x02 */
+		TVP5150_OP_MODE_CTL,0x00
+	},
+	{ /* 0x03 */
+		TVP5150_MISC_CTL,0x01
+	},
+	{ /* 0x06 */
+		TVP5150_COLOR_KIL_THSH_CTL,0x10
+	},
+	{ /* 0x07 */
+		TVP5150_LUMA_PROC_CTL_1,0x60
+	},
+	{ /* 0x08 */
+		TVP5150_LUMA_PROC_CTL_2,0x00
+	},
+	{ /* 0x09 */
+		TVP5150_BRIGHT_CTL,0x80
+	},
+	{ /* 0x0a */
+		TVP5150_SATURATION_CTL,0x80
+	},
+	{ /* 0x0b */
+		TVP5150_HUE_CTL,0x00
+	},
+	{ /* 0x0c */
+		TVP5150_CONTRAST_CTL,0x80
+	},
+	{ /* 0x0d */
+		TVP5150_DATA_RATE_SEL,0x47
+	},
+	{ /* 0x0e */
+		TVP5150_LUMA_PROC_CTL_3,0x00
+	},
+	{ /* 0x0f */
+		TVP5150_CONF_SHARED_PIN,0x08
+	},
+	{ /* 0x11 */
+		TVP5150_ACT_VD_CROP_ST_MSB,0x00
+	},
+	{ /* 0x12 */
+		TVP5150_ACT_VD_CROP_ST_LSB,0x00
+	},
+	{ /* 0x13 */
+		TVP5150_ACT_VD_CROP_STP_MSB,0x00
+	},
+	{ /* 0x14 */
+		TVP5150_ACT_VD_CROP_STP_LSB,0x00
+	},
+	{ /* 0x15 */
+		TVP5150_GENLOCK,0x01
+	},
+	{ /* 0x16 */
+		TVP5150_HORIZ_SYNC_START,0x80
+	},
+	{ /* 0x18 */
+		TVP5150_VERT_BLANKING_START,0x00
+	},
+	{ /* 0x19 */
+		TVP5150_VERT_BLANKING_STOP,0x00
+	},
+	{ /* 0x1a */
+		TVP5150_CHROMA_PROC_CTL_1,0x0c
+	},
+	{ /* 0x1b */
+		TVP5150_CHROMA_PROC_CTL_2,0x14
+	},
+	{ /* 0x1c */
+		TVP5150_INT_RESET_REG_B,0x00
+	},
+	{ /* 0x1d */
+		TVP5150_INT_ENABLE_REG_B,0x00
+	},
+	{ /* 0x1e */
+		TVP5150_INTT_CONFIG_REG_B,0x00
+	},
+	{ /* 0x28 */
+		TVP5150_VIDEO_STD,0x00
+	},
+	{ /* 0x2e */
+		TVP5150_MACROVISION_ON_CTR,0x0f
+	},
+	{ /* 0x2f */
+		TVP5150_MACROVISION_OFF_CTR,0x01
+	},
+	{ /* 0xbb */
+		TVP5150_TELETEXT_FIL_ENA,0x00
+	},
+	{ /* 0xc0 */
+		TVP5150_INT_STATUS_REG_A,0x00
+	},
+	{ /* 0xc1 */
+		TVP5150_INT_ENABLE_REG_A,0x00
+	},
+	{ /* 0xc2 */
+		TVP5150_INT_CONF,0x04
+	},
+	{ /* 0xc8 */
+		TVP5150_FIFO_INT_THRESHOLD,0x80
+	},
+	{ /* 0xc9 */
+		TVP5150_FIFO_RESET,0x00
+	},
+	{ /* 0xca */
+		TVP5150_LINE_NUMBER_INT,0x00
+	},
+	{ /* 0xcb */
+		TVP5150_PIX_ALIGN_REG_LOW,0x4e
+	},
+	{ /* 0xcc */
+		TVP5150_PIX_ALIGN_REG_HIGH,0x00
+	},
+	{ /* 0xcd */
+		TVP5150_FIFO_OUT_CTRL,0x01
+	},
+	{ /* 0xcf */
+		TVP5150_FULL_FIELD_ENA_1,0x00
+	},
+	{ /* 0xd0 */
+		TVP5150_FULL_FIELD_ENA_2,0x00
+	},
+	{ /* 0xfc */
+		TVP5150_FULL_FIELD_MODE_REG,0x7f
+	},
+	{ /* end of data */
+		0xff,0xff
+	}
+};
+
+/* Default values as sugested at TVP5150AM1 datasheet */
+static const struct i2c_reg_value tvp5150_init_enable[] = {
+	{
+		TVP5150_CONF_SHARED_PIN, 2
+	},{	/* Automatic offset and AGC enabled */
+		TVP5150_ANAL_CHL_CTL, 0x15
+	},{	/* Activate YCrCb output 0x9 or 0xd ? */
+		TVP5150_MISC_CTL, 0x6f
+	},{	/* Activates video std autodetection for all standards */
+		TVP5150_AUTOSW_MSK, 0x0
+	},{	/* Default format: 0x47. For 4:2:2: 0x40 */
+		TVP5150_DATA_RATE_SEL, 0x47
+	},{
+		TVP5150_CHROMA_PROC_CTL_1, 0x0c
+	},{
+		TVP5150_CHROMA_PROC_CTL_2, 0x54
+	},{	/* Non documented, but initialized on WinTV USB2 */
+		0x27, 0x20
+	},{
+		0xff,0xff
+	}
+};
+
+struct i2c_vbi_ram_value {
+	u16 reg;
+	unsigned char values[26];
+};
+
+static struct i2c_vbi_ram_value vbi_ram_default[] =
+{
+	{0x010, /* WST SECAM 6 */
+		{ 0xaa, 0xaa, 0xff, 0xff , 0xe7, 0x2e, 0x20, 0x26, 0xe6, 0xb4, 0x0e, 0x0, 0x0, 0x0, 0x10, 0x0 }
+	},
+	{0x030, /* WST PAL B 6 */
+		{ 0xaa, 0xaa, 0xff, 0xff , 0x27, 0x2e, 0x20, 0x2b, 0xa6, 0x72, 0x10, 0x0, 0x0, 0x0, 0x10, 0x0 }
+	},
+	{0x050, /* WST PAL C 6 */
+		{ 0xaa, 0xaa, 0xff, 0xff , 0xe7, 0x2e, 0x20, 0x22, 0xa6, 0x98, 0x0d, 0x0, 0x0, 0x0, 0x10, 0x0 }
+	},
+	{0x070, /* WST NTSC 6 */
+		{ 0xaa, 0xaa, 0xff, 0xff , 0x27, 0x2e, 0x20, 0x23, 0x69, 0x93, 0x0d, 0x0, 0x0, 0x0, 0x10, 0x0 }
+	},
+	{0x090, /* NABTS, NTSC 6 */
+		{ 0xaa, 0xaa, 0xff, 0xff , 0xe7, 0x2e, 0x20, 0x22, 0x69, 0x93, 0x0d, 0x0, 0x0, 0x0, 0x15, 0x0 }
+	},
+	{0x0b0, /* NABTS, NTSC-J 6 */
+		{ 0xaa, 0xaa, 0xff, 0xff , 0xa7, 0x2e, 0x20, 0x23, 0x69, 0x93, 0x0d, 0x0, 0x0, 0x0, 0x10, 0x0 }
+	},
+	{0x0d0, /* CC, PAL/SECAM 6 */
+		{ 0xaa, 0x2a, 0xff, 0x3f , 0x04, 0x51, 0x6e, 0x02, 0xa6, 0x7b, 0x09, 0x0, 0x0, 0x0, 0x27, 0x0 }
+	},
+	{0x0f0, /* CC, NTSC 6 */
+		{ 0xaa, 0x2a, 0xff, 0x3f , 0x04, 0x51, 0x6e, 0x02, 0x69, 0x8c, 0x09, 0x0, 0x0, 0x0, 0x27, 0x0 }
+	},
+	{0x110, /* WSS, PAL/SECAM 6 */
+		{ 0x5b, 0x55, 0xc5, 0xff , 0x0, 0x71, 0x6e, 0x42, 0xa6, 0xcd, 0x0f, 0x0, 0x0, 0x0, 0x3a, 0x0 }
+	},
+	{0x130, /* WSS, NTSC C */
+		{ 0x38, 0x00, 0x3f, 0x00 , 0x0, 0x71, 0x6e, 0x43, 0x69, 0x7c, 0x08, 0x0, 0x0, 0x0, 0x39, 0x0 }
+	},
+	{0x150, /* VITC, PAL/SECAM 6 */
+		{ 0x0, 0x0, 0x0, 0x0 , 0x0, 0x8f, 0x6d, 0x49, 0xa6, 0x85, 0x08, 0x0, 0x0, 0x0, 0x4c, 0x0 }
+	},
+	{0x170, /* VITC, NTSC 6 */
+		{ 0x0, 0x0, 0x0, 0x0 , 0x0, 0x8f, 0x6d, 0x49, 0x69, 0x94, 0x08, 0x0, 0x0, 0x0, 0x4c, 0x0 }
+	},
+	{ (u16)-1 }
+};
+
+static int tvp5150_write_inittab(struct i2c_client *c,
+				 const struct i2c_reg_value *regs)
+{
+	while (regs->reg != 0xff) {
+		tvp5150_write(c, regs->reg, regs->value);
+		regs++;
+	}
+	return 0;
+}
+
+static int tvp5150_vdp_init(struct i2c_client *c,
+				 const struct i2c_vbi_ram_value *regs)
+{
+	unsigned int i;
+
+	/* Disable Full Field */
+	tvp5150_write(c, TVP5150_FULL_FIELD_ENA_1, 0);
+
+	/* Before programming, Line mode should be at 0xff */
+	for (i=TVP5150_FULL_FIELD_ENA_2; i<=TVP5150_LINE_MODE_REG_44; i++)
+		tvp5150_write(c, i, 0xff);
+
+	/* Load Ram Table */
+	while (regs->reg != (u16)-1 ) {
+		tvp5150_write(c, TVP5150_CONF_RAM_ADDR_HIGH,regs->reg>>8);
+		tvp5150_write(c, TVP5150_CONF_RAM_ADDR_LOW,regs->reg);
+
+		for (i=0;i<16;i++)
+			tvp5150_write(c, TVP5150_VDP_CONF_RAM_DATA,regs->values[i]);
+
+		regs++;
+	}
+	return 0;
+}
+
+static int tvp5150_set_std(struct i2c_client *c, v4l2_std_id std)
 {
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
+	int fmt=0;
 
-	tvp5150_write(c, TVP5150_CONF_SHARED_PIN, 2);
+	decoder->norm=std;
 
-	/* Automatic offset and AGC enabled */
-	tvp5150_write(c, TVP5150_ANAL_CHL_CTL, 0x15);
+	/* First tests should be against specific std */
 
-	/* Normal Operation */
-//      tvp5150_write(c, TVP5150_OP_MODE_CTL, 0x00);
+	if (std == V4L2_STD_ALL) {
+		fmt=0;	/* Autodetect mode */
+	} else if (std & V4L2_STD_NTSC_443) {
+		fmt=0xa;
+	} else if (std & V4L2_STD_PAL_M) {
+		fmt=0x6;
+	} else if (std & (V4L2_STD_PAL_N| V4L2_STD_PAL_Nc)) {
+		fmt=0x8;
+	} else {
+		/* Then, test against generic ones */
+		if (std & V4L2_STD_NTSC) {
+			fmt=0x2;
+		} else if (std & V4L2_STD_PAL) {
+			fmt=0x4;
+		} else if (std & V4L2_STD_SECAM) {
+			fmt=0xc;
+		}
+	}
 
-	/* Activate YCrCb output 0x9 or 0xd ? */
-	tvp5150_write(c, TVP5150_MISC_CTL, 0x6f);
+	tvp5150_dbg(1,"Set video std register to %d.\n",fmt);
+	tvp5150_write(c, TVP5150_VIDEO_STD, fmt);
 
-	/* Activates video std autodetection for all standards */
-	tvp5150_write(c, TVP5150_AUTOSW_MSK, 0x0);
+	return 0;
+}
 
-	/* Default format: 0x47, 4:2:2: 0x40 */
-	tvp5150_write(c, TVP5150_DATA_RATE_SEL, 0x47);
+static inline void tvp5150_reset(struct i2c_client *c)
+{
+	u8 type, ver_656, msb_id, lsb_id, msb_rom, lsb_rom;
+	struct tvp5150 *decoder = i2c_get_clientdata(c);
 
+	type=tvp5150_read(c,TVP5150_AUTOSW_MSK);
+	msb_id=tvp5150_read(c,TVP5150_MSB_DEV_ID);
+	lsb_id=tvp5150_read(c,TVP5150_LSB_DEV_ID);
+	msb_rom=tvp5150_read(c,TVP5150_ROM_MAJOR_VER);
+	lsb_rom=tvp5150_read(c,TVP5150_ROM_MINOR_VER);
+
+	if (type==0xdc) {
+		ver_656=tvp5150_read(c,TVP5150_REV_SELECT);
+		tvp5150_info("tvp%02x%02xam1 detected 656 version is %d.\n",msb_id, lsb_id,ver_656);
+	} else if (type==0xfc) {
+		tvp5150_info("tvp%02x%02xa detected.\n",msb_id, lsb_id);
+	} else {
+		tvp5150_info("unknown tvp%02x%02x chip detected(%d).\n",msb_id,lsb_id,type);
+	}
+	tvp5150_info("Rom ver is %d.%d\n",msb_rom,lsb_rom);
+
+	/* Initializes TVP5150 to its default values */
+	tvp5150_write_inittab(c, tvp5150_init_default);
+
+	/* Initializes VDP registers */
+	tvp5150_vdp_init(c, vbi_ram_default);
+
+	/* Selects decoder input */
 	tvp5150_selmux(c, decoder->input);
 
-	tvp5150_write(c, TVP5150_CHROMA_PROC_CTL_1, 0x0c);
-	tvp5150_write(c, TVP5150_CHROMA_PROC_CTL_2, 0x54);
+	/* Initializes TVP5150 to stream enabled values */
+	tvp5150_write_inittab(c, tvp5150_init_enable);
 
-	tvp5150_write(c, 0x27, 0x20);	/* ?????????? */
-
-	tvp5150_write(c, TVP5150_VIDEO_STD, 0x0);	/* Auto switch */
-
+	/* Initialize image preferences */
 	tvp5150_write(c, TVP5150_BRIGHT_CTL, decoder->bright >> 8);
 	tvp5150_write(c, TVP5150_CONTRAST_CTL, decoder->contrast >> 8);
 	tvp5150_write(c, TVP5150_SATURATION_CTL, decoder->contrast >> 8);
 	tvp5150_write(c, TVP5150_HUE_CTL, (decoder->hue - 32768) >> 8);
+
+	tvp5150_set_std(c, decoder->norm);
 };
 
 static int tvp5150_get_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
@@ -498,9 +803,8 @@ static int tvp5150_get_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
 	case V4L2_CID_HUE:
 		ctrl->value = tvp5150_read(c, TVP5150_HUE_CTL);
 		return 0;
-	default:
-		return -EINVAL;
 	}
+	return -EINVAL;
 }
 
 static int tvp5150_set_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
@@ -520,28 +824,59 @@ static int tvp5150_set_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
 	case V4L2_CID_HUE:
 		tvp5150_write(c, TVP5150_HUE_CTL, ctrl->value);
 		return 0;
-	default:
-		return -EINVAL;
 	}
+	return -EINVAL;
 }
 
 /****************************************************************************
 			I2C Command
  ****************************************************************************/
-static int tvp5150_command(struct i2c_client *client,
+static int tvp5150_command(struct i2c_client *c,
 			   unsigned int cmd, void *arg)
 {
-	struct tvp5150 *decoder = i2c_get_clientdata(client);
+	struct tvp5150 *decoder = i2c_get_clientdata(c);
 
 	switch (cmd) {
 
 	case 0:
+	case VIDIOC_INT_RESET:
 	case DECODER_INIT:
-		tvp5150_reset(client);
+		tvp5150_reset(c);
+		break;
+	case VIDIOC_S_STD:
+		if (decoder->norm == *(v4l2_std_id *)arg)
+			break;
+		return tvp5150_set_std(c, *(v4l2_std_id *)arg);
+	case VIDIOC_G_STD:
+		*(v4l2_std_id *)arg = decoder->norm;
 		break;
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_INT_G_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (reg->i2c_id != I2C_DRIVERID_TVP5150)
+			return -EINVAL;
+		reg->val = tvp5150_read(c, reg->reg & 0xff);
+		break;
+	}
+
+	case VIDIOC_INT_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (reg->i2c_id != I2C_DRIVERID_TVP5150)
+			return -EINVAL;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		tvp5150_write(c, reg->reg & 0xff, reg->val & 0xff);
+		break;
+	}
+#endif
+
 	case DECODER_DUMP:
-		dump_reg(client);
+		dump_reg(c);
 		break;
 
 	case DECODER_GET_CAPABILITIES:
@@ -600,7 +935,7 @@ static int tvp5150_command(struct i2c_client *client,
 			}
 
 			decoder->input = *iarg;
-			tvp5150_selmux(client, decoder->input);
+			tvp5150_selmux(c, decoder->input);
 
 			break;
 		}
@@ -620,19 +955,18 @@ static int tvp5150_command(struct i2c_client *client,
 
 			decoder->enable = (*iarg != 0);
 
-			tvp5150_selmux(client, decoder->input);
+			tvp5150_selmux(c, decoder->input);
 
 			break;
 		}
 	case VIDIOC_QUERYCTRL:
 		{
 			struct v4l2_queryctrl *qc = arg;
-			u8 i, n;
+			int i;
 
-			dprintk(1, KERN_DEBUG "VIDIOC_QUERYCTRL");
+			tvp5150_dbg(1, "VIDIOC_QUERYCTRL called\n");
 
-			n = sizeof(tvp5150_qctrl) / sizeof(tvp5150_qctrl[0]);
-			for (i = 0; i < n; i++)
+			for (i = 0; i < ARRAY_SIZE(tvp5150_qctrl); i++)
 				if (qc->id && qc->id == tvp5150_qctrl[i].id) {
 					memcpy(qc, &(tvp5150_qctrl[i]),
 					       sizeof(*qc));
@@ -644,16 +978,14 @@ static int tvp5150_command(struct i2c_client *client,
 	case VIDIOC_G_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
-			dprintk(1, KERN_DEBUG "VIDIOC_G_CTRL");
+			tvp5150_dbg(1, "VIDIOC_G_CTRL called\n");
 
-			return tvp5150_get_ctrl(client, ctrl);
+			return tvp5150_get_ctrl(c, ctrl);
 		}
-	case VIDIOC_S_CTRL_OLD:	/* ??? */
 	case VIDIOC_S_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
 			u8 i, n;
-			dprintk(1, KERN_DEBUG "VIDIOC_S_CTRL");
 			n = sizeof(tvp5150_qctrl) / sizeof(tvp5150_qctrl[0]);
 			for (i = 0; i < n; i++)
 				if (ctrl->id == tvp5150_qctrl[i].id) {
@@ -662,11 +994,10 @@ static int tvp5150_command(struct i2c_client *client,
 					    || ctrl->value >
 					    tvp5150_qctrl[i].maximum)
 						return -ERANGE;
-					dprintk(1,
-						KERN_DEBUG
-						"VIDIOC_S_CTRL: id=%d, value=%d",
+					tvp5150_dbg(1,
+						"VIDIOC_S_CTRL: id=%d, value=%d\n",
 						ctrl->id, ctrl->value);
-					return tvp5150_set_ctrl(client, ctrl);
+					return tvp5150_set_ctrl(c, ctrl);
 				}
 			return -EINVAL;
 		}
@@ -677,25 +1008,25 @@ static int tvp5150_command(struct i2c_client *client,
 			if (decoder->bright != pic->brightness) {
 				/* We want 0 to 255 we get 0-65535 */
 				decoder->bright = pic->brightness;
-				tvp5150_write(client, TVP5150_BRIGHT_CTL,
+				tvp5150_write(c, TVP5150_BRIGHT_CTL,
 					      decoder->bright >> 8);
 			}
 			if (decoder->contrast != pic->contrast) {
 				/* We want 0 to 255 we get 0-65535 */
 				decoder->contrast = pic->contrast;
-				tvp5150_write(client, TVP5150_CONTRAST_CTL,
+				tvp5150_write(c, TVP5150_CONTRAST_CTL,
 					      decoder->contrast >> 8);
 			}
 			if (decoder->sat != pic->colour) {
 				/* We want 0 to 255 we get 0-65535 */
 				decoder->sat = pic->colour;
-				tvp5150_write(client, TVP5150_SATURATION_CTL,
+				tvp5150_write(c, TVP5150_SATURATION_CTL,
 					      decoder->contrast >> 8);
 			}
 			if (decoder->hue != pic->hue) {
 				/* We want -128 to 127 we get 0-65535 */
 				decoder->hue = pic->hue;
-				tvp5150_write(client, TVP5150_HUE_CTL,
+				tvp5150_write(c, TVP5150_HUE_CTL,
 					      (decoder->hue - 32768) >> 8);
 			}
 			break;
@@ -714,19 +1045,18 @@ static struct i2c_driver driver;
 
 static struct i2c_client client_template = {
 	.name = "(unset)",
-	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };
 
 static int tvp5150_detect_client(struct i2c_adapter *adapter,
 				 int address, int kind)
 {
-	struct i2c_client *client;
+	struct i2c_client *c;
 	struct tvp5150 *core;
 	int rv;
 
-	dprintk(1,
-		KERN_INFO
+	if (debug)
+		printk( KERN_INFO
 		"tvp5150.c: detecting tvp5150 client on address 0x%x\n",
 		address << 1);
 
@@ -739,22 +1069,21 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 	     I2C_FUNC_SMBUS_READ_BYTE | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
+	c = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	if (c == 0)
 		return -ENOMEM;
-	memcpy(client, &client_template, sizeof(struct i2c_client));
+	memcpy(c, &client_template, sizeof(struct i2c_client));
 
-	core = kmalloc(sizeof(struct tvp5150), GFP_KERNEL);
+	core = kzalloc(sizeof(struct tvp5150), GFP_KERNEL);
 	if (core == 0) {
-		kfree(client);
+		kfree(c);
 		return -ENOMEM;
 	}
-	memset(core, 0, sizeof(struct tvp5150));
-	i2c_set_clientdata(client, core);
+	i2c_set_clientdata(c, core);
 
-	rv = i2c_attach_client(client);
+	rv = i2c_attach_client(c);
 
-	core->norm = VIDEO_MODE_AUTO;
+	core->norm = V4L2_STD_ALL;
 	core->input = 2;
 	core->enable = 1;
 	core->bright = 32768;
@@ -763,37 +1092,41 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 	core->sat = 32768;
 
 	if (rv) {
-		kfree(client);
+		kfree(c);
 		kfree(core);
 		return rv;
 	}
 
 	if (debug > 1)
-		dump_reg(client);
+		dump_reg(c);
 	return 0;
 }
 
 static int tvp5150_attach_adapter(struct i2c_adapter *adapter)
 {
-	dprintk(1,
-		KERN_INFO
+	if (debug)
+		printk( KERN_INFO
 		"tvp5150.c: starting probe for adapter %s (0x%x)\n",
 		adapter->name, adapter->id);
 	return i2c_probe(adapter, &addr_data, &tvp5150_detect_client);
 }
 
-static int tvp5150_detach_client(struct i2c_client *client)
+static int tvp5150_detach_client(struct i2c_client *c)
 {
-	struct tvp5150 *decoder = i2c_get_clientdata(client);
+	struct tvp5150 *decoder = i2c_get_clientdata(c);
 	int err;
 
-	err = i2c_detach_client(client);
+	tvp5150_dbg(1,
+		"tvp5150.c: removing tvp5150 adapter on address 0x%x\n",
+		c->addr << 1);
+
+	err = i2c_detach_client(c);
 	if (err) {
 		return err;
 	}
 
 	kfree(decoder);
-	kfree(client);
+	kfree(c);
 
 	return 0;
 }
@@ -801,12 +1134,10 @@ static int tvp5150_detach_client(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner = THIS_MODULE,
-	.name = "tvp5150",
-
-	/* FIXME */
-	.id = I2C_DRIVERID_SAA7110,
-	.flags = I2C_DF_NOTIFY,
+	.driver = {
+		.name = "tvp5150",
+	},
+	.id = I2C_DRIVERID_TVP5150,
 
 	.attach_adapter = tvp5150_attach_adapter,
 	.detach_client = tvp5150_detach_client,

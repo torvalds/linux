@@ -70,6 +70,7 @@
  */
 
 //#define DEBUG /* pr_debug */
+#include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -165,7 +166,7 @@ static void collect_cpu_info (void *unused)
 
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 	/* see notes above for revision 1.07.  Apparent chip bug */
-	serialize_cpu();
+	sync_core();
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], uci->rev);
 	pr_debug("microcode: collect_cpu_info : sig=0x%x, pf=0x%x, rev=0x%x\n",
@@ -379,7 +380,7 @@ static void do_update_one (void * unused)
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 
 	/* see notes above for revision 1.07.  Apparent chip bug */
-	serialize_cpu();
+	sync_core();
 
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);

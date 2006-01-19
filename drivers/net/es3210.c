@@ -155,13 +155,6 @@ static int __init do_es_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, ES_IO_EXTENT);
-	iounmap(ei_status.mem);
-}
-
 #ifndef MODULE
 struct net_device * __init es_probe(int unit)
 {
@@ -454,6 +447,13 @@ init_module(void)
 	if (found)
 		return 0;
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, ES_IO_EXTENT);
+	iounmap(ei_status.mem);
 }
 
 void

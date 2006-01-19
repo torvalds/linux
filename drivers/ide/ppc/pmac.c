@@ -1271,7 +1271,7 @@ static int
 pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 {
 	struct device_node *np = pmif->node;
-	int *bidp, i;
+	int *bidp;
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
@@ -1430,7 +1430,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	pmif = &pmac_ide[i];
 	hwif = &ide_hwifs[i];
 
-	if (mdev->ofdev.node->n_addrs == 0) {
+	if (macio_resource_count(mdev) == 0) {
 		printk(KERN_WARNING "ide%d: no address for %s\n",
 		       i, mdev->ofdev.node->full_name);
 		return -ENXIO;
@@ -1686,7 +1686,7 @@ pmac_ide_probe(void)
 #else
 	macio_register_driver(&pmac_ide_macio_driver);
 	pci_register_driver(&pmac_ide_pci_driver);
-#endif	
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC

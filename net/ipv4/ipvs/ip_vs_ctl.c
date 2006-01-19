@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
@@ -35,6 +36,7 @@
 #include <linux/netfilter_ipv4.h>
 
 #include <net/ip.h>
+#include <net/route.h>
 #include <net/sock.h>
 
 #include <asm/uaccess.h>
@@ -447,7 +449,7 @@ ip_vs_service_get(__u32 fwmark, __u16 protocol, __u32 vaddr, __u16 vport)
   out:
 	read_unlock(&__ip_vs_svc_lock);
 
-	IP_VS_DBG(6, "lookup service: fwm %u %s %u.%u.%u.%u:%u %s\n",
+	IP_VS_DBG(9, "lookup service: fwm %u %s %u.%u.%u.%u:%u %s\n",
 		  fwmark, ip_vs_proto_name(protocol),
 		  NIPQUAD(vaddr), ntohs(vport),
 		  svc?"hit":"not hit");
@@ -597,7 +599,7 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, __u32 daddr, __u16 dport)
 	 */
 	list_for_each_entry_safe(dest, nxt, &ip_vs_dest_trash, n_list) {
 		IP_VS_DBG(3, "Destination %u/%u.%u.%u.%u:%u still in trash, "
-			  "refcnt=%d\n",
+			  "dest->refcnt=%d\n",
 			  dest->vfwmark,
 			  NIPQUAD(dest->addr), ntohs(dest->port),
 			  atomic_read(&dest->refcnt));
@@ -804,7 +806,7 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 	dest = ip_vs_trash_get_dest(svc, daddr, dport);
 	if (dest != NULL) {
 		IP_VS_DBG(3, "Get destination %u.%u.%u.%u:%u from trash, "
-			  "refcnt=%d, service %u/%u.%u.%u.%u:%u\n",
+			  "dest->refcnt=%d, service %u/%u.%u.%u.%u:%u\n",
 			  NIPQUAD(daddr), ntohs(dport),
 			  atomic_read(&dest->refcnt),
 			  dest->vfwmark,
@@ -949,7 +951,8 @@ static void __ip_vs_del_dest(struct ip_vs_dest *dest)
 		atomic_dec(&dest->svc->refcnt);
 		kfree(dest);
 	} else {
-		IP_VS_DBG(3, "Moving dest %u.%u.%u.%u:%u into trash, refcnt=%d\n",
+		IP_VS_DBG(3, "Moving dest %u.%u.%u.%u:%u into trash, "
+			  "dest->refcnt=%d\n",
 			  NIPQUAD(dest->addr), ntohs(dest->port),
 			  atomic_read(&dest->refcnt));
 		list_add(&dest->n_list, &ip_vs_dest_trash);

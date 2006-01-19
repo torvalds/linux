@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -26,9 +26,13 @@
 #include "mconsole_kern.h"
 #include "mem.h"
 #include "mem_kern.h"
+#include "sysdep/sigcontext.h"
+#include "sysdep/ptrace.h"
+#include "os.h"
 #ifdef CONFIG_MODE_SKAS
 #include "skas.h"
 #endif
+#include "os.h"
 
 /* Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by segv(). */
 int handle_page_fault(unsigned long address, unsigned long ip, 
@@ -125,6 +129,25 @@ out_of_memory:
 	goto out;
 }
 
+void segv_handler(int sig, union uml_pt_regs *regs)
+{
+	struct faultinfo * fi = UPT_FAULTINFO(regs);
+
+	if(UPT_IS_USER(regs) && !SEGV_IS_FIXABLE(fi)){
+		bad_segv(*fi, UPT_IP(regs));
+		return;
+	}
+	segv(*fi, UPT_IP(regs), UPT_IS_USER(regs), regs);
+}
+
+struct kern_handlers handlinfo_kern = {
+	.relay_signal = relay_signal,
+	.winch = winch,
+	.bus_handler = relay_signal,
+	.page_fault = segv_handler,
+	.sigio_handler = sigio_handler,
+	.timer_handler = timer_handler
+};
 /*
  * We give a *copy* of the faultinfo in the regs to segv.
  * This must be done, since nesting SEGVs could overwrite

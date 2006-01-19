@@ -121,11 +121,10 @@ static int linear_run (mddev_t *mddev)
 	sector_t curr_offset;
 	struct list_head *tmp;
 
-	conf = kmalloc (sizeof (*conf) + mddev->raid_disks*sizeof(dev_info_t),
+	conf = kzalloc (sizeof (*conf) + mddev->raid_disks*sizeof(dev_info_t),
 			GFP_KERNEL);
 	if (!conf)
 		goto out;
-	memset(conf, 0, sizeof(*conf) + mddev->raid_disks*sizeof(dev_info_t));
 	mddev->private = conf;
 
 	cnt = 0;
@@ -352,9 +351,10 @@ static void linear_status (struct seq_file *seq, mddev_t *mddev)
 }
 
 
-static mdk_personality_t linear_personality=
+static struct mdk_personality linear_personality =
 {
 	.name		= "linear",
+	.level		= LEVEL_LINEAR,
 	.owner		= THIS_MODULE,
 	.make_request	= linear_make_request,
 	.run		= linear_run,
@@ -364,16 +364,18 @@ static mdk_personality_t linear_personality=
 
 static int __init linear_init (void)
 {
-	return register_md_personality (LINEAR, &linear_personality);
+	return register_md_personality (&linear_personality);
 }
 
 static void linear_exit (void)
 {
-	unregister_md_personality (LINEAR);
+	unregister_md_personality (&linear_personality);
 }
 
 
 module_init(linear_init);
 module_exit(linear_exit);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("md-personality-1"); /* LINEAR */
+MODULE_ALIAS("md-personality-1"); /* LINEAR - deprecated*/
+MODULE_ALIAS("md-linear");
+MODULE_ALIAS("md-level--1");

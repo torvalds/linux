@@ -689,7 +689,7 @@ static void cpc_tty_rx_work(void * data)
 					}
 				}	
 				cpc_tty->buf_rx.first = cpc_tty->buf_rx.first->next;
-				kfree(buf);
+				kfree((void *)buf);
 				buf = cpc_tty->buf_rx.first;
 				flg_rx = 1;
 			}

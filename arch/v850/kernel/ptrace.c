@@ -58,7 +58,7 @@ static v850_reg_t *reg_save_addr (unsigned reg_offs, struct task_struct *t)
 		regs = thread_saved_regs (t);
 	else
 		/* Register saved during kernel entry (or not available).  */
-		regs = task_regs (t);
+		regs = task_pt_regs (t);
 
 	return (v850_reg_t *)((char *)regs + reg_offs);
 }

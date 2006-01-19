@@ -122,13 +122,13 @@ static unsigned char snd_cs4236_ext_map[18] = {
  *
  */
 
-static void snd_cs4236_ctrl_out(cs4231_t *chip, unsigned char reg, unsigned char val)
+static void snd_cs4236_ctrl_out(struct snd_cs4231 *chip, unsigned char reg, unsigned char val)
 {
 	outb(reg, chip->cport + 3);
 	outb(chip->cimage[reg] = val, chip->cport + 4);
 }
 
-static unsigned char snd_cs4236_ctrl_in(cs4231_t *chip, unsigned char reg)
+static unsigned char snd_cs4236_ctrl_in(struct snd_cs4231 *chip, unsigned char reg)
 {
 	outb(reg, chip->cport + 3);
 	return inb(chip->cport + 4);
@@ -140,7 +140,7 @@ static unsigned char snd_cs4236_ctrl_in(cs4231_t *chip, unsigned char reg)
 
 #define CLOCKS 8
 
-static ratnum_t clocks[CLOCKS] = {
+static struct snd_ratnum clocks[CLOCKS] = {
 	{ .num = 16934400, .den_min = 353, .den_max = 353, .den_step = 1 },
 	{ .num = 16934400, .den_min = 529, .den_max = 529, .den_step = 1 },
 	{ .num = 16934400, .den_min = 617, .den_max = 617, .den_step = 1 },
@@ -151,12 +151,12 @@ static ratnum_t clocks[CLOCKS] = {
 	{ .num = 16934400/16, .den_min = 21, .den_max = 192, .den_step = 1 }
 };
 
-static snd_pcm_hw_constraint_ratnums_t hw_constraints_clocks = {
+static struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
 	.nrats = CLOCKS,
 	.rats = clocks,
 };
 
-static int snd_cs4236_xrate(snd_pcm_runtime_t *runtime)
+static int snd_cs4236_xrate(struct snd_pcm_runtime *runtime)
 {
 	return snd_pcm_hw_constraint_ratnums(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 					     &hw_constraints_clocks);
@@ -181,7 +181,7 @@ static unsigned char divisor_to_rate_register(unsigned int divisor)
 	}
 }
 
-static void snd_cs4236_playback_format(cs4231_t *chip, snd_pcm_hw_params_t *params, unsigned char pdfr)
+static void snd_cs4236_playback_format(struct snd_cs4231 *chip, struct snd_pcm_hw_params *params, unsigned char pdfr)
 {
 	unsigned long flags;
 	unsigned char rate = divisor_to_rate_register(params->rate_den);
@@ -195,7 +195,7 @@ static void snd_cs4236_playback_format(cs4231_t *chip, snd_pcm_hw_params_t *para
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static void snd_cs4236_capture_format(cs4231_t *chip, snd_pcm_hw_params_t *params, unsigned char cdfr)
+static void snd_cs4236_capture_format(struct snd_cs4231 *chip, struct snd_pcm_hw_params *params, unsigned char cdfr)
 {
 	unsigned long flags;
 	unsigned char rate = divisor_to_rate_register(params->rate_den);
@@ -211,7 +211,7 @@ static void snd_cs4236_capture_format(cs4231_t *chip, snd_pcm_hw_params_t *param
 
 #ifdef CONFIG_PM
 
-static void snd_cs4236_suspend(cs4231_t *chip)
+static void snd_cs4236_suspend(struct snd_cs4231 *chip)
 {
 	int reg;
 	unsigned long flags;
@@ -226,7 +226,7 @@ static void snd_cs4236_suspend(cs4231_t *chip)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static void snd_cs4236_resume(cs4231_t *chip)
+static void snd_cs4236_resume(struct snd_cs4231 *chip)
 {
 	int reg;
 	unsigned long flags;
@@ -261,15 +261,15 @@ static void snd_cs4236_resume(cs4231_t *chip)
 
 #endif /* CONFIG_PM */
 
-int snd_cs4236_create(snd_card_t * card,
+int snd_cs4236_create(struct snd_card *card,
 		      unsigned long port,
 		      unsigned long cport,
 		      int irq, int dma1, int dma2,
 		      unsigned short hardware,
 		      unsigned short hwshare,
-		      cs4231_t ** rchip)
+		      struct snd_cs4231 ** rchip)
 {
-	cs4231_t *chip;
+	struct snd_cs4231 *chip;
 	unsigned char ver1, ver2;
 	unsigned int reg;
 	int err;
@@ -352,9 +352,9 @@ int snd_cs4236_create(snd_card_t * card,
 	return 0;
 }
 
-int snd_cs4236_pcm(cs4231_t *chip, int device, snd_pcm_t **rpcm)
+int snd_cs4236_pcm(struct snd_cs4231 *chip, int device, struct snd_pcm **rpcm)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 	
 	if ((err = snd_cs4231_pcm(chip, device, &pcm)) < 0)
@@ -375,7 +375,7 @@ int snd_cs4236_pcm(cs4231_t *chip, int device, snd_pcm_t **rpcm)
   .get = snd_cs4236_get_single, .put = snd_cs4236_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-static int snd_cs4236_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_cs4236_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 
@@ -386,9 +386,9 @@ static int snd_cs4236_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_cs4236_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
@@ -403,9 +403,9 @@ static int snd_cs4236_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_cs4236_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
@@ -432,9 +432,9 @@ static int snd_cs4236_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
   .get = snd_cs4236_get_singlec, .put = snd_cs4236_put_singlec, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-static int snd_cs4236_get_singlec(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_get_singlec(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
@@ -449,9 +449,9 @@ static int snd_cs4236_get_singlec(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_cs4236_put_singlec(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_put_singlec(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
@@ -478,7 +478,7 @@ static int snd_cs4236_put_singlec(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
   .get = snd_cs4236_get_double, .put = snd_cs4236_put_double, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
 
-static int snd_cs4236_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_cs4236_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -489,9 +489,9 @@ static int snd_cs4236_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_cs4236_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -511,9 +511,9 @@ static int snd_cs4236_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_cs4236_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -554,9 +554,9 @@ static int snd_cs4236_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
   .get = snd_cs4236_get_double1, .put = snd_cs4236_put_double1, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
 
-static int snd_cs4236_get_double1(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_get_double1(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -576,9 +576,9 @@ static int snd_cs4236_get_double1(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_cs4236_put_double1(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_put_double1(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -618,9 +618,9 @@ static inline int snd_cs4236_mixer_master_digital_invert_volume(int vol)
 	return (vol < 64) ? 63 - vol : 64 + (71 - vol);
 }        
 
-static int snd_cs4236_get_master_digital(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_get_master_digital(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -630,9 +630,9 @@ static int snd_cs4236_get_master_digital(snd_kcontrol_t * kcontrol, snd_ctl_elem
 	return 0;
 }
 
-static int snd_cs4236_put_master_digital(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_put_master_digital(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned short val1, val2;
@@ -677,9 +677,9 @@ static inline int snd_cs4235_mixer_output_accu_set_volume(int vol)
 	return 1 << 5;
 }
 
-static int snd_cs4235_get_output_accu(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4235_get_output_accu(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -689,9 +689,9 @@ static int snd_cs4235_get_output_accu(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 	return 0;
 }
 
-static int snd_cs4235_put_output_accu(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4235_put_output_accu(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned short val1, val2;
@@ -708,7 +708,7 @@ static int snd_cs4235_put_output_accu(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 	return change;
 }
 
-static snd_kcontrol_new_t snd_cs4236_controls[] = {
+static struct snd_kcontrol_new snd_cs4236_controls[] = {
 
 CS4236_DOUBLE("Master Digital Playback Switch", 0, CS4236_LEFT_MASTER, CS4236_RIGHT_MASTER, 7, 7, 1, 1),
 CS4236_DOUBLE("Master Digital Capture Switch", 0, CS4236_DAC_MUTE, CS4236_DAC_MUTE, 7, 6, 1, 1),
@@ -759,7 +759,7 @@ CS4231_SINGLE("Digital Loopback Playback Switch", 0, CS4231_LOOPBACK, 0, 1, 0),
 CS4236_DOUBLE1("Digital Loopback Playback Volume", 0, CS4231_LOOPBACK, CS4236_RIGHT_LOOPBACK, 2, 0, 63, 1)
 };
 
-static snd_kcontrol_new_t snd_cs4235_controls[] = {
+static struct snd_kcontrol_new snd_cs4235_controls[] = {
 
 CS4231_DOUBLE("Master Switch", 0, CS4235_LEFT_MASTER, CS4235_RIGHT_MASTER, 7, 7, 1, 1),
 CS4231_DOUBLE("Master Volume", 0, CS4235_LEFT_MASTER, CS4235_RIGHT_MASTER, 0, 0, 31, 1),
@@ -812,9 +812,9 @@ CS4231_DOUBLE("Analog Loopback Switch", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT
   .get = snd_cs4236_get_iec958_switch, .put = snd_cs4236_put_iec958_switch, \
   .private_value = 1 << 16 }
 
-static int snd_cs4236_get_iec958_switch(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_get_iec958_switch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -832,9 +832,9 @@ static int snd_cs4236_get_iec958_switch(snd_kcontrol_t * kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_cs4236_put_iec958_switch(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned short enable, val;
@@ -868,7 +868,7 @@ static int snd_cs4236_put_iec958_switch(snd_kcontrol_t * kcontrol, snd_ctl_elem_
 	return change;
 }
 
-static snd_kcontrol_new_t snd_cs4236_iec958_controls[] = {
+static struct snd_kcontrol_new snd_cs4236_iec958_controls[] = {
 CS4236_IEC958_ENABLE("IEC958 Output Enable", 0),
 CS4236_SINGLEC("IEC958 Output Validity", 0, 4, 4, 1, 0),
 CS4236_SINGLEC("IEC958 Output User", 0, 4, 5, 1, 0),
@@ -877,12 +877,12 @@ CS4236_SINGLEC("IEC958 Output Channel Status Low", 0, 5, 1, 127, 0),
 CS4236_SINGLEC("IEC958 Output Channel Status High", 0, 6, 0, 255, 0)
 };
 
-static snd_kcontrol_new_t snd_cs4236_3d_controls_cs4235[] = {
+static struct snd_kcontrol_new snd_cs4236_3d_controls_cs4235[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 4, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1)
 };
 
-static snd_kcontrol_new_t snd_cs4236_3d_controls_cs4237[] = {
+static struct snd_kcontrol_new snd_cs4236_3d_controls_cs4237[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 7, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1),
 CS4236_SINGLEC("3D Control - Center", 0, 2, 0, 15, 1),
@@ -890,19 +890,19 @@ CS4236_SINGLEC("3D Control - Mono", 0, 3, 6, 1, 0),
 CS4236_SINGLEC("3D Control - IEC958", 0, 3, 5, 1, 0)
 };
 
-static snd_kcontrol_new_t snd_cs4236_3d_controls_cs4238[] = {
+static struct snd_kcontrol_new snd_cs4236_3d_controls_cs4238[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 4, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1),
 CS4236_SINGLEC("3D Control - Volume", 0, 2, 0, 15, 1),
 CS4236_SINGLEC("3D Control - IEC958", 0, 3, 5, 1, 0)
 };
 
-int snd_cs4236_mixer(cs4231_t *chip)
+int snd_cs4236_mixer(struct snd_cs4231 *chip)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	unsigned int idx, count;
 	int err;
-	snd_kcontrol_new_t *kcontrol;
+	struct snd_kcontrol_new *kcontrol;
 
 	snd_assert(chip != NULL && chip->card != NULL, return -EINVAL);
 	card = chip->card;

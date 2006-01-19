@@ -82,6 +82,8 @@ unsigned int nf_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc;
 
+static unsigned int nf_conntrack_next_id = 1;
+static unsigned int nf_conntrack_expect_next_id = 1;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 struct notifier_block *nf_conntrack_chain;
 struct notifier_block *nf_conntrack_expect_chain;
@@ -184,12 +186,56 @@ DECLARE_MUTEX(nf_ct_cache_mutex);
 
 extern struct nf_conntrack_protocol nf_conntrack_generic_protocol;
 struct nf_conntrack_protocol *
-nf_ct_find_proto(u_int16_t l3proto, u_int8_t protocol)
+__nf_ct_proto_find(u_int16_t l3proto, u_int8_t protocol)
 {
 	if (unlikely(nf_ct_protos[l3proto] == NULL))
 		return &nf_conntrack_generic_protocol;
 
 	return nf_ct_protos[l3proto][protocol];
+}
+
+/* this is guaranteed to always return a valid protocol helper, since
+ * it falls back to generic_protocol */
+struct nf_conntrack_protocol *
+nf_ct_proto_find_get(u_int16_t l3proto, u_int8_t protocol)
+{
+	struct nf_conntrack_protocol *p;
+
+	preempt_disable();
+	p = __nf_ct_proto_find(l3proto, protocol);
+	if (p) {
+		if (!try_module_get(p->me))
+			p = &nf_conntrack_generic_protocol;
+	}
+	preempt_enable();
+	
+	return p;
+}
+
+void nf_ct_proto_put(struct nf_conntrack_protocol *p)
+{
+	module_put(p->me);
+}
+
+struct nf_conntrack_l3proto *
+nf_ct_l3proto_find_get(u_int16_t l3proto)
+{
+	struct nf_conntrack_l3proto *p;
+
+	preempt_disable();
+	p = __nf_ct_l3proto_find(l3proto);
+	if (p) {
+		if (!try_module_get(p->me))
+			p = &nf_conntrack_generic_l3proto;
+	}
+	preempt_enable();
+
+	return p;
+}
+
+void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p)
+{
+	module_put(p->me);
 }
 
 static int nf_conntrack_hash_rnd_initted;
@@ -384,7 +430,7 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 }
 
 /* nf_conntrack_expect helper functions */
-static void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
+void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 {
 	ASSERT_WRITE_LOCK(&nf_conntrack_lock);
 	NF_CT_ASSERT(!timer_pending(&exp->timeout));
@@ -402,6 +448,33 @@ static void expectation_timed_out(unsigned long ul_expect)
 	nf_ct_unlink_expect(exp);
 	write_unlock_bh(&nf_conntrack_lock);
 	nf_conntrack_expect_put(exp);
+}
+
+struct nf_conntrack_expect *
+__nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
+{
+	struct nf_conntrack_expect *i;
+	
+	list_for_each_entry(i, &nf_conntrack_expect_list, list) {
+		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
+			atomic_inc(&i->use);
+			return i;
+		}
+	}
+	return NULL;
+}
+
+/* Just find a expectation corresponding to a tuple. */
+struct nf_conntrack_expect *
+nf_conntrack_expect_find(const struct nf_conntrack_tuple *tuple)
+{
+	struct nf_conntrack_expect *i;
+	
+	read_lock_bh(&nf_conntrack_lock);
+	i = __nf_conntrack_expect_find(tuple);
+	read_unlock_bh(&nf_conntrack_lock);
+
+	return i;
 }
 
 /* If an expectation for this connection is found, it gets delete from
@@ -432,7 +505,7 @@ find_expectation(const struct nf_conntrack_tuple *tuple)
 }
 
 /* delete all expectations for this conntrack */
-static void remove_expectations(struct nf_conn *ct)
+void nf_ct_remove_expectations(struct nf_conn *ct)
 {
 	struct nf_conntrack_expect *i, *tmp;
 
@@ -462,7 +535,7 @@ clean_from_lists(struct nf_conn *ct)
 	LIST_DELETE(&nf_conntrack_hash[hr], &ct->tuplehash[IP_CT_DIR_REPLY]);
 
 	/* Destroy all pending expectations */
-	remove_expectations(ct);
+	nf_ct_remove_expectations(ct);
 }
 
 static void
@@ -482,12 +555,11 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	/* To make sure we don't get any weird locking issues here:
 	 * destroy_conntrack() MUST NOT be called with a write lock
 	 * to nf_conntrack_lock!!! -HW */
-	l3proto = nf_ct_find_l3proto(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num);
+	l3proto = __nf_ct_l3proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num);
 	if (l3proto && l3proto->destroy)
 		l3proto->destroy(ct);
 
-	proto = nf_ct_find_proto(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num,
-				 ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
+	proto = __nf_ct_proto_find(ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.protonum);
 	if (proto && proto->destroy)
 		proto->destroy(ct);
 
@@ -499,7 +571,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	 * except TFTP can create an expectation on the first packet,
 	 * before connection is in the list, so we need to clean here,
 	 * too. */
-	remove_expectations(ct);
+	nf_ct_remove_expectations(ct);
 
 	/* We overload first tuple to link into unconfirmed list. */
 	if (!nf_ct_is_confirmed(ct)) {
@@ -540,7 +612,7 @@ conntrack_tuple_cmp(const struct nf_conntrack_tuple_hash *i,
 		&& nf_ct_tuple_equal(tuple, &i->tuple);
 }
 
-static struct nf_conntrack_tuple_hash *
+struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 		    const struct nf_conn *ignored_conntrack)
 {
@@ -573,6 +645,29 @@ nf_conntrack_find_get(const struct nf_conntrack_tuple *tuple,
 	read_unlock_bh(&nf_conntrack_lock);
 
 	return h;
+}
+
+static void __nf_conntrack_hash_insert(struct nf_conn *ct,
+				       unsigned int hash,
+				       unsigned int repl_hash) 
+{
+	ct->id = ++nf_conntrack_next_id;
+	list_prepend(&nf_conntrack_hash[hash],
+		     &ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
+	list_prepend(&nf_conntrack_hash[repl_hash],
+		     &ct->tuplehash[IP_CT_DIR_REPLY].list);
+}
+
+void nf_conntrack_hash_insert(struct nf_conn *ct)
+{
+	unsigned int hash, repl_hash;
+
+	hash = hash_conntrack(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+	repl_hash = hash_conntrack(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+
+	write_lock_bh(&nf_conntrack_lock);
+	__nf_conntrack_hash_insert(ct, hash, repl_hash);
+	write_unlock_bh(&nf_conntrack_lock);
 }
 
 /* Confirm a connection given skb; places it in hash table */
@@ -621,10 +716,7 @@ __nf_conntrack_confirm(struct sk_buff **pskb)
 		/* Remove from unconfirmed list */
 		list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
 
-		list_prepend(&nf_conntrack_hash[hash],
-			     &ct->tuplehash[IP_CT_DIR_ORIGINAL]);
-		list_prepend(&nf_conntrack_hash[repl_hash],
-			     &ct->tuplehash[IP_CT_DIR_REPLY]);
+		__nf_conntrack_hash_insert(ct, hash, repl_hash);
 		/* Timer relative to confirmation time, not original
 		   setting time, otherwise we'd get timer wrap in
 		   weird delay cases. */
@@ -708,11 +800,39 @@ static inline int helper_cmp(const struct nf_conntrack_helper *i,
 }
 
 static struct nf_conntrack_helper *
-nf_ct_find_helper(const struct nf_conntrack_tuple *tuple)
+__nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
 {
 	return LIST_FIND(&helpers, helper_cmp,
 			 struct nf_conntrack_helper *,
 			 tuple);
+}
+
+struct nf_conntrack_helper *
+nf_ct_helper_find_get( const struct nf_conntrack_tuple *tuple)
+{
+	struct nf_conntrack_helper *helper;
+
+	/* need nf_conntrack_lock to assure that helper exists until
+	 * try_module_get() is called */
+	read_lock_bh(&nf_conntrack_lock);
+
+	helper = __nf_ct_helper_find(tuple);
+	if (helper) {
+		/* need to increase module usage count to assure helper will
+		 * not go away while the caller is e.g. busy putting a
+		 * conntrack in the hash that uses the helper */
+		if (!try_module_get(helper->me))
+			helper = NULL;
+	}
+
+	read_unlock_bh(&nf_conntrack_lock);
+
+	return helper;
+}
+
+void nf_ct_helper_put(struct nf_conntrack_helper *helper)
+{
+	module_put(helper->me);
 }
 
 static struct nf_conn *
@@ -744,7 +864,7 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	/*  find features needed by this conntrack. */
 	features = l3proto->get_features(orig);
 	read_lock_bh(&nf_conntrack_lock);
-	if (nf_ct_find_helper(repl) != NULL)
+	if (__nf_ct_helper_find(repl) != NULL)
 		features |= NF_CT_F_HELP;
 	read_unlock_bh(&nf_conntrack_lock);
 
@@ -794,7 +914,7 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 {
 	struct nf_conntrack_l3proto *l3proto;
 
-	l3proto = nf_ct_find_l3proto(orig->src.l3num);
+	l3proto = __nf_ct_l3proto_find(orig->src.l3num);
 	return __nf_conntrack_alloc(orig, repl, l3proto);
 }
 
@@ -853,7 +973,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		nf_conntrack_get(&conntrack->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
 	} else {
-		conntrack->helper = nf_ct_find_helper(&repl_tuple);
+		conntrack->helper = __nf_ct_helper_find(&repl_tuple);
 
 		NF_CT_STAT_INC(new);
         }
@@ -947,13 +1067,13 @@ nf_conntrack_in(int pf, unsigned int hooknum, struct sk_buff **pskb)
 		return NF_ACCEPT;
 	}
 
-	l3proto = nf_ct_find_l3proto((u_int16_t)pf);
+	l3proto = __nf_ct_l3proto_find((u_int16_t)pf);
 	if ((ret = l3proto->prepare(pskb, hooknum, &dataoff, &protonum)) <= 0) {
 		DEBUGP("not prepared to track yet or error occured\n");
 		return -ret;
 	}
 
-	proto = nf_ct_find_proto((u_int16_t)pf, protonum);
+	proto = __nf_ct_proto_find((u_int16_t)pf, protonum);
 
 	/* It may be an special packet, error, unclean...
 	 * inverse of the return code tells to the netfilter
@@ -1002,9 +1122,9 @@ int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 			 const struct nf_conntrack_tuple *orig)
 {
 	return nf_ct_invert_tuple(inverse, orig,
-				  nf_ct_find_l3proto(orig->src.l3num),
-				  nf_ct_find_proto(orig->src.l3num,
-						   orig->dst.protonum));
+				  __nf_ct_l3proto_find(orig->src.l3num),
+				  __nf_ct_proto_find(orig->src.l3num,
+						     orig->dst.protonum));
 }
 
 /* Would two expected things clash? */
@@ -1096,6 +1216,7 @@ static void nf_conntrack_expect_insert(struct nf_conntrack_expect *exp)
 	exp->timeout.expires = jiffies + exp->master->helper->timeout * HZ;
 	add_timer(&exp->timeout);
 
+	exp->id = ++nf_conntrack_expect_next_id;
 	atomic_inc(&exp->use);
 	NF_CT_STAT_INC(expect_create);
 }
@@ -1129,6 +1250,7 @@ static inline int refresh_timer(struct nf_conntrack_expect *i)
 int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 {
 	struct nf_conntrack_expect *i;
+	struct nf_conn *master = expect->master;
 	int ret;
 
 	DEBUGP("nf_conntrack_expect_related %p\n", related_to);
@@ -1149,9 +1271,9 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 		}
 	}
 	/* Will be over limit? */
-	if (expect->master->helper->max_expected && 
-	    expect->master->expecting >= expect->master->helper->max_expected)
-		evict_oldest_expect(expect->master);
+	if (master->helper->max_expected && 
+	    master->expecting >= master->helper->max_expected)
+		evict_oldest_expect(master);
 
 	nf_conntrack_expect_insert(expect);
 	nf_conntrack_expect_event(IPEXP_NEW, expect);
@@ -1175,7 +1297,7 @@ void nf_conntrack_alter_reply(struct nf_conn *conntrack,
 
 	conntrack->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
 	if (!conntrack->master && conntrack->expecting == 0)
-		conntrack->helper = nf_ct_find_helper(newreply);
+		conntrack->helper = __nf_ct_helper_find(newreply);
 	write_unlock_bh(&nf_conntrack_lock);
 }
 
@@ -1198,6 +1320,19 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 	write_unlock_bh(&nf_conntrack_lock);
 
 	return 0;
+}
+
+struct nf_conntrack_helper *
+__nf_conntrack_helper_find_byname(const char *name)
+{
+	struct nf_conntrack_helper *h;
+
+	list_for_each_entry(h, &helpers, list) {
+		if (!strcmp(h->name, name))
+			return h;
+	}
+
+	return NULL;
 }
 
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
@@ -1283,6 +1418,51 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		nf_conntrack_event_cache(event, skb);
 }
 
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+
+/* Generic function for tcp/udp/sctp/dccp and alike. This needs to be
+ * in ip_conntrack_core, since we don't want the protocols to autoload
+ * or depend on ctnetlink */
+int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
+			       const struct nf_conntrack_tuple *tuple)
+{
+	NFA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
+		&tuple->src.u.tcp.port);
+	NFA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
+		&tuple->dst.u.tcp.port);
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
+
+static const size_t cta_min_proto[CTA_PROTO_MAX] = {
+	[CTA_PROTO_SRC_PORT-1]  = sizeof(u_int16_t),
+	[CTA_PROTO_DST_PORT-1]  = sizeof(u_int16_t)
+};
+
+int nf_ct_port_nfattr_to_tuple(struct nfattr *tb[],
+			       struct nf_conntrack_tuple *t)
+{
+	if (!tb[CTA_PROTO_SRC_PORT-1] || !tb[CTA_PROTO_DST_PORT-1])
+		return -EINVAL;
+
+	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
+		return -EINVAL;
+
+	t->src.u.tcp.port =
+		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
+	t->dst.u.tcp.port =
+		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
+
+	return 0;
+}
+#endif
+
 /* Used by ipt_REJECT and ip6t_REJECT. */
 void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 {
@@ -1365,6 +1545,11 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced, int size)
 			   get_order(sizeof(struct list_head) * size));
 }
 
+void nf_conntrack_flush()
+{
+	nf_ct_iterate_cleanup(kill_all, NULL);
+}
+
 /* Mishearing the voices in his head, our hero wonders how he's
    supposed to kill the mall. */
 void nf_conntrack_cleanup(void)
@@ -1378,7 +1563,7 @@ void nf_conntrack_cleanup(void)
 
 	nf_ct_event_cache_flush();
  i_see_dead_people:
-	nf_ct_iterate_cleanup(kill_all, NULL);
+	nf_conntrack_flush();
 	if (atomic_read(&nf_conntrack_count) != 0) {
 		schedule();
 		goto i_see_dead_people;

@@ -136,10 +136,12 @@ extern irqreturn_t i830_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i830_driver_irq_preinstall(drm_device_t * dev);
 extern void i830_driver_irq_postinstall(drm_device_t * dev);
 extern void i830_driver_irq_uninstall(drm_device_t * dev);
-extern void i830_driver_pretakedown(drm_device_t * dev);
-extern void i830_driver_release(drm_device_t * dev, struct file *filp);
+extern int i830_driver_load(struct drm_device *, unsigned long flags);
+extern void i830_driver_preclose(drm_device_t * dev, DRMFILE filp);
+extern void i830_driver_lastclose(drm_device_t * dev);
+extern void i830_driver_reclaim_buffers_locked(drm_device_t * dev,
+					       struct file *filp);
 extern int i830_driver_dma_quiescent(drm_device_t * dev);
-extern void i830_driver_prerelease(drm_device_t * dev, DRMFILE filp);
 extern int i830_driver_device_is_agp(drm_device_t * dev);
 
 #define I830_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)

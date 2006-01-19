@@ -203,7 +203,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 						sizeof(struct tcphdr), 0));
 
 	/* Adjust IP TTL, DF */
-	nskb->nh.iph->ttl = MAXTTL;
+	nskb->nh.iph->ttl = dst_metric(nskb->dst, RTAX_HOPLIMIT);
 	/* Set DF, id = 0 */
 	nskb->nh.iph->frag_off = htons(IP_DF);
 	nskb->nh.iph->id = 0;
@@ -282,12 +282,13 @@ static unsigned int reject(struct sk_buff **pskb,
 }
 
 static int check(const char *tablename,
-		 const struct ipt_entry *e,
+		 const void *e_void,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)
 {
  	const struct ipt_reject_info *rejinfo = targinfo;
+	const struct ipt_entry *e = e_void;
 
  	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_reject_info))) {
   		DEBUGP("REJECT: targinfosize %u != 0\n", targinfosize);

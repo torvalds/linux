@@ -20,6 +20,9 @@ module_param(tv_antenna,        int, 0644);
 static unsigned int radio_antenna = 0;
 module_param(radio_antenna,     int, 0644);
 
+/* from tuner-core.c */
+extern int tuner_debug;
+
 /* ---------------------------------------------------------------------- */
 
 #define MT2032 0x04
@@ -350,8 +353,8 @@ static int mt2032_init(struct i2c_client *c)
 	} while (xok != 1 );
 	t->xogc=xogc;
 
-	t->tv_freq    = mt2032_set_tv_freq;
-	t->radio_freq = mt2032_set_radio_freq;
+	t->set_tv_freq    = mt2032_set_tv_freq;
+	t->set_radio_freq = mt2032_set_radio_freq;
 	return(1);
 }
 
@@ -478,8 +481,8 @@ static int mt2050_init(struct i2c_client *c)
 	i2c_master_recv(c,buf,1);
 
 	tuner_dbg("mt2050: sro is %x\n",buf[0]);
-	t->tv_freq    = mt2050_set_tv_freq;
-	t->radio_freq = mt2050_set_radio_freq;
+	t->set_tv_freq    = mt2050_set_tv_freq;
+	t->set_radio_freq = mt2050_set_radio_freq;
 	return 0;
 }
 
@@ -491,9 +494,16 @@ int microtune_init(struct i2c_client *c)
 	int company_code;
 
 	memset(buf,0,sizeof(buf));
-	t->tv_freq    = NULL;
-	t->radio_freq = NULL;
+	t->set_tv_freq    = NULL;
+	t->set_radio_freq = NULL;
 	t->standby    = NULL;
+	if (t->std & V4L2_STD_525_60) {
+		tuner_dbg("pinnacle ntsc\n");
+		t->radio_if2 = 41300 * 1000;
+	} else {
+		tuner_dbg("pinnacle pal\n");
+		t->radio_if2 = 33300 * 1000;
+	}
 	name = "unknown";
 
 	i2c_master_send(c,buf,1);

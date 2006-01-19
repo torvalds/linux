@@ -49,7 +49,6 @@
 #include <asm/hydra.h>
 #include <asm/sections.h>
 #include <asm/time.h>
-#include <asm/btext.h>
 #include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/rtas.h>
@@ -58,7 +57,6 @@
 #include "chrp.h"
 
 void rtas_indicator_progress(char *, unsigned short);
-void btext_progress(char *, unsigned short);
 
 int _chrp_type;
 EXPORT_SYMBOL(_chrp_type);
@@ -264,11 +262,6 @@ void __init chrp_setup_arch(void)
 		ppc_md.set_rtc_time	= rtas_set_rtc_time;
 	}
 
-#ifdef CONFIG_BOOTX_TEXT
-	if (ppc_md.progress == NULL && boot_text_mapped)
-		ppc_md.progress = btext_progress;
-#endif
-
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* this is fine for chrp */
 	initrd_below_start_ok = 1;
@@ -359,9 +352,10 @@ static void __init chrp_find_openpic(void)
 		opaddr = opprop[na-1];	/* assume 32-bit */
 		oplen /= na * sizeof(unsigned int);
 	} else {
-		if (np->n_addrs == 0)
+		struct resource r;
+		if (of_address_to_resource(np, 0, &r))
 			return;
-		opaddr = np->addrs[0].address;
+		opaddr = r.start;
 		oplen = 0;
 	}
 
@@ -384,7 +378,7 @@ static void __init chrp_find_openpic(void)
 	 */
 	if (oplen < len) {
 		printk(KERN_ERR "Insufficient addresses for distributed"
-		       " OpenPIC (%d < %d)\n", np->n_addrs, len);
+		       " OpenPIC (%d < %d)\n", oplen, len);
 		len = oplen;
 	}
 
@@ -522,12 +516,3 @@ void __init chrp_init(void)
 	smp_ops = &chrp_smp_ops;
 #endif /* CONFIG_SMP */
 }
-
-#ifdef CONFIG_BOOTX_TEXT
-void
-btext_progress(char *s, unsigned short hex)
-{
-	btext_drawstring(s);
-	btext_drawstring("\n");
-}
-#endif /* CONFIG_BOOTX_TEXT */

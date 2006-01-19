@@ -219,6 +219,10 @@ cifs_stats_write(struct file *file, const char __user *buffer,
 
         if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
 		read_lock(&GlobalSMBSeslock);
+#ifdef CONFIG_CIFS_STATS2
+		atomic_set(&totBufAllocCount, 0);
+		atomic_set(&totSmBufAllocCount, 0);
+#endif /* CONFIG_CIFS_STATS2 */
 		list_for_each(tmp, &GlobalTreeConnectionList) {
 			tcon = list_entry(tmp, struct cifsTconInfo,
 					cifsConnectionList);
@@ -276,6 +280,14 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			smBufAllocCount.counter,cifs_min_small);
 	length += item_length;
 	buf += item_length;
+#ifdef CONFIG_CIFS_STATS2
+        item_length = sprintf(buf, "Total Large %d Small %d Allocations\n",
+				atomic_read(&totBufAllocCount),
+		                atomic_read(&totSmBufAllocCount));
+	length += item_length;
+	buf += item_length;
+#endif /* CONFIG_CIFS_STATS2 */
+
 	item_length = 
 		sprintf(buf,"Operations (MIDs): %d\n",
 			midCount.counter);
@@ -389,8 +401,8 @@ static read_proc_t ntlmv2_enabled_read;
 static write_proc_t ntlmv2_enabled_write;
 static read_proc_t packet_signing_enabled_read;
 static write_proc_t packet_signing_enabled_write;
-static read_proc_t quotaEnabled_read;
-static write_proc_t quotaEnabled_write;
+static read_proc_t experimEnabled_read;
+static write_proc_t experimEnabled_write;
 static read_proc_t linuxExtensionsEnabled_read;
 static write_proc_t linuxExtensionsEnabled_write;
 
@@ -430,9 +442,9 @@ cifs_proc_init(void)
 		pde->write_proc = oplockEnabled_write;
 
 	pde = create_proc_read_entry("Experimental", 0, proc_fs_cifs,
-				quotaEnabled_read, NULL);
+				experimEnabled_read, NULL);
 	if (pde)
-		pde->write_proc = quotaEnabled_write;
+		pde->write_proc = experimEnabled_write;
 
 	pde = create_proc_read_entry("LinuxExtensionsEnabled", 0, proc_fs_cifs,
 				linuxExtensionsEnabled_read, NULL);
@@ -574,14 +586,13 @@ oplockEnabled_write(struct file *file, const char __user *buffer,
 }
 
 static int
-quotaEnabled_read(char *page, char **start, off_t off,
+experimEnabled_read(char *page, char **start, off_t off,
                    int count, int *eof, void *data)
 {
         int len;
 
         len = sprintf(page, "%d\n", experimEnabled);
-/* could also check if quotas are enabled in kernel
-	as a whole first */
+
         len -= off;
         *start = page + off;
 
@@ -596,21 +607,23 @@ quotaEnabled_read(char *page, char **start, off_t off,
         return len;
 }
 static int
-quotaEnabled_write(struct file *file, const char __user *buffer,
+experimEnabled_write(struct file *file, const char __user *buffer,
                     unsigned long count, void *data)
 {
-        char c;
-        int rc;
+	char c;
+	int rc;
 
-        rc = get_user(c, buffer);
-        if (rc)
-                return rc;
-        if (c == '0' || c == 'n' || c == 'N')
-                experimEnabled = 0;
-        else if (c == '1' || c == 'y' || c == 'Y')
-                experimEnabled = 1;
+	rc = get_user(c, buffer);
+	if (rc)
+		return rc;
+	if (c == '0' || c == 'n' || c == 'N')
+		experimEnabled = 0;
+	else if (c == '1' || c == 'y' || c == 'Y')
+		experimEnabled = 1;
+	else if (c == '2')
+		experimEnabled = 2;
 
-        return count;
+	return count;
 }
 
 static int
@@ -620,8 +633,6 @@ linuxExtensionsEnabled_read(char *page, char **start, off_t off,
         int len;
 
         len = sprintf(page, "%d\n", linuxExtEnabled);
-/* could also check if quotas are enabled in kernel
-	as a whole first */
         len -= off;
         *start = page + off;
 

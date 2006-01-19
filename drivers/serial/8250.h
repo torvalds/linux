@@ -51,12 +51,6 @@ struct serial8250_config {
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
 #define UART_BUG_NOMSR	(1 << 2)	/* UART has buggy MSR status bits (Au1x00) */
 
-#if defined(__i386__) && (defined(CONFIG_M386) || defined(CONFIG_M486))
-#define _INLINE_ inline
-#else
-#define _INLINE_
-#endif
-
 #define PROBE_RSA	(1 << 0)
 #define PROBE_ANY	(~0)
 

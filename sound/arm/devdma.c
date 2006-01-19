@@ -18,9 +18,9 @@
 
 #include "devdma.h"
 
-void devdma_hw_free(struct device *dev, snd_pcm_substream_t *substream)
+void devdma_hw_free(struct device *dev, struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dma_buffer *buf = runtime->dma_buffer_p;
 
 	if (runtime->dma_area == NULL)
@@ -34,9 +34,9 @@ void devdma_hw_free(struct device *dev, snd_pcm_substream_t *substream)
 	snd_pcm_set_runtime_buffer(substream, NULL);
 }
 
-int devdma_hw_alloc(struct device *dev, snd_pcm_substream_t *substream, size_t size)
+int devdma_hw_alloc(struct device *dev, struct snd_pcm_substream *substream, size_t size)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dma_buffer *buf = runtime->dma_buffer_p;
 	int ret = 0;
 
@@ -74,8 +74,8 @@ int devdma_hw_alloc(struct device *dev, snd_pcm_substream_t *substream, size_t s
 	return -ENOMEM;
 }
 
-int devdma_mmap(struct device *dev, snd_pcm_substream_t *substream, struct vm_area_struct *vma)
+int devdma_mmap(struct device *dev, struct snd_pcm_substream *substream, struct vm_area_struct *vma)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	return dma_mmap_coherent(dev, vma, runtime->dma_area, runtime->dma_addr, runtime->dma_bytes);
 }

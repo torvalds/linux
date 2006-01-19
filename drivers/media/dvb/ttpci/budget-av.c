@@ -37,6 +37,7 @@
 #include "stv0299.h"
 #include "tda10021.h"
 #include "tda1004x.h"
+#include "dvb-pll.h"
 #include <media/saa7146_vv.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -127,7 +128,7 @@ static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int ad
 	saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTHI);
 	udelay(1);
 
-	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 0xfff, 1, 0, 0);
+	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 0xfff, 1, 0, 1);
 
 	if (result == -ETIMEDOUT)
 		budget_av->slot_status = 0;
@@ -145,7 +146,7 @@ static int ciintf_write_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int a
 	saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTHI);
 	udelay(1);
 
-	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 0xfff, 1, value, 0, 0);
+	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 0xfff, 1, value, 0, 1);
 
 	if (result == -ETIMEDOUT)
 		budget_av->slot_status = 0;
@@ -192,7 +193,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 {
 	struct budget_av *budget_av = (struct budget_av *) ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
-	int timeout = 500; // 5 seconds (4.4.6 Ready)
+	int timeout = 50; // 5 seconds (4.4.6 Ready)
 
 	if (slot != 0)
 		return -EINVAL;
@@ -256,19 +257,37 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 {
 	struct budget_av *budget_av = (struct budget_av *) ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
+	int cam_present = 0;
 
 	if (slot != 0)
 		return -EINVAL;
 
-	if (!budget_av->slot_status) {
+	if (!budget_av->slot_status)
+	{
+		// first of all test the card detect line
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 		udelay(1);
 		if (saa7146_read(saa, PSR) & MASK_06)
 		{
+			cam_present = 1;
+		}
+		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
+
+		// that is unreliable however, so try and read from IO memory
+		if (!cam_present)
+		{
+			saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
+			if (ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1) != -ETIMEDOUT)
+			{
+				cam_present = 1;
+			}
+		}
+
+		// did we find something?
+		if (cam_present) {
 			printk(KERN_INFO "budget-av: cam inserted\n");
 			budget_av->slot_status = 1;
 		}
-		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
 	} else if (!open) {
 		saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
 		if (ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1) == -ETIMEDOUT)
@@ -484,6 +503,140 @@ static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
 	return 0;
 }
 
+#define MIN2(a,b) ((a) < (b) ? (a) : (b))
+#define MIN3(a,b,c) MIN2(MIN2(a,b),c)
+
+static int philips_su1278sh2_tua6100_pll_set(struct dvb_frontend *fe,
+					struct i2c_adapter *i2c,
+					struct dvb_frontend_parameters *params)
+{
+	u8 reg0 [2] = { 0x00, 0x00 };
+	u8 reg1 [4] = { 0x01, 0x00, 0x00, 0x00 };
+	u8 reg2 [3] = { 0x02, 0x00, 0x00 };
+	int _fband;
+	int first_ZF;
+	int R, A, N, P, M;
+	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = NULL,.len = 0 };
+	int freq = params->frequency;
+
+	first_ZF = (freq) / 1000;
+
+	if (abs(MIN2(abs(first_ZF-1190),abs(first_ZF-1790))) <
+		   abs(MIN3(abs(first_ZF-1202),abs(first_ZF-1542),abs(first_ZF-1890))))
+		_fband = 2;
+	else
+		_fband = 3;
+
+	if (_fband == 2) {
+		if (((first_ZF >= 950) && (first_ZF < 1350)) ||
+				    ((first_ZF >= 1430) && (first_ZF < 1950)))
+			reg0[1] = 0x07;
+		else if (((first_ZF >= 1350) && (first_ZF < 1430)) ||
+					 ((first_ZF >= 1950) && (first_ZF < 2150)))
+			reg0[1] = 0x0B;
+	}
+
+	if(_fband == 3) {
+		if (((first_ZF >= 950) && (first_ZF < 1350)) ||
+				    ((first_ZF >= 1455) && (first_ZF < 1950)))
+			reg0[1] = 0x07;
+		else if (((first_ZF >= 1350) && (first_ZF < 1420)) ||
+					 ((first_ZF >= 1950) && (first_ZF < 2150)))
+			reg0[1] = 0x0B;
+		else if ((first_ZF >= 1420) && (first_ZF < 1455))
+			reg0[1] = 0x0F;
+	}
+
+	if (first_ZF > 1525)
+		reg1[1] |= 0x80;
+	else
+		reg1[1] &= 0x7F;
+
+	if (_fband == 2) {
+		if (first_ZF > 1430) { /* 1430MHZ */
+			reg1[1] &= 0xCF; /* N2 */
+			reg2[1] &= 0xCF; /* R2 */
+			reg2[1] |= 0x10;
+		} else {
+			reg1[1] &= 0xCF; /* N2 */
+			reg1[1] |= 0x20;
+			reg2[1] &= 0xCF; /* R2 */
+			reg2[1] |= 0x10;
+		}
+	}
+
+	if (_fband == 3) {
+		if ((first_ZF >= 1455) &&
+				   (first_ZF < 1630)) {
+			reg1[1] &= 0xCF; /* N2 */
+			reg1[1] |= 0x20;
+			reg2[1] &= 0xCF; /* R2 */
+				   } else {
+					   if (first_ZF < 1455) {
+						   reg1[1] &= 0xCF; /* N2 */
+						   reg1[1] |= 0x20;
+						   reg2[1] &= 0xCF; /* R2 */
+						   reg2[1] |= 0x10;
+					   } else {
+						   if (first_ZF >= 1630) {
+							   reg1[1] &= 0xCF; /* N2 */
+							   reg2[1] &= 0xCF; /* R2 */
+							   reg2[1] |= 0x10;
+						   }
+					   }
+				   }
+	}
+
+	/* set ports, enable P0 for symbol rates > 4Ms/s */
+	if (params->u.qpsk.symbol_rate >= 4000000)
+		reg1[1] |= 0x0c;
+	else
+		reg1[1] |= 0x04;
+
+	reg2[1] |= 0x0c;
+
+	R = 64;
+	A = 64;
+	P = 64;	 //32
+
+	M = (freq * R) / 4;		/* in Mhz */
+	N = (M - A * 1000) / (P * 1000);
+
+	reg1[1] |= (N >> 9) & 0x03;
+	reg1[2]	 = (N >> 1) & 0xff;
+	reg1[3]	 = (N << 7) & 0x80;
+
+	reg2[1] |= (R >> 8) & 0x03;
+	reg2[2]	 = R & 0xFF;	/* R */
+
+	reg1[3] |= A & 0x7f;	/* A */
+
+	if (P == 64)
+		reg1[1] |= 0x40; /* Prescaler 64/65 */
+
+	reg0[1] |= 0x03;
+
+	/* already enabled - do not reenable i2c repeater or TX fails */
+	msg.buf = reg0;
+	msg.len = sizeof(reg0);
+	if (i2c_transfer(i2c, &msg, 1) != 1)
+		return -EIO;
+
+	stv0299_enable_plli2c(fe);
+	msg.buf = reg1;
+	msg.len = sizeof(reg1);
+	if (i2c_transfer(i2c, &msg, 1) != 1)
+		return -EIO;
+
+	stv0299_enable_plli2c(fe);
+	msg.buf = reg2;
+	msg.len = sizeof(reg2);
+	if (i2c_transfer(i2c, &msg, 1) != 1)
+		return -EIO;
+
+	return 0;
+}
+
 static u8 typhoon_cinergy1200s_inittab[] = {
 	0x01, 0x15,
 	0x02, 0x30,
@@ -553,6 +706,18 @@ static struct stv0299_config cinergy_1200s_config = {
 	.pll_set = philips_su1278_ty_ci_pll_set,
 };
 
+static struct stv0299_config cinergy_1200s_1894_0010_config = {
+	.demod_address = 0x68,
+	.inittab = typhoon_cinergy1200s_inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.skip_reinit = 0,
+	.lock_output = STV0229_LOCKOUTPUT_1,
+	.volt13_op0_op1 = STV0299_VOLT13_OP0,
+	.min_delay_ms = 100,
+	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
+	.pll_set = philips_su1278sh2_tua6100_pll_set,
+};
 
 static int philips_cu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
@@ -700,8 +865,117 @@ static struct tda1004x_config philips_tu1216_config = {
 	.request_firmware = philips_tu1216_request_firmware,
 };
 
+static u8 philips_sd1878_inittab[] = {
+	0x01, 0x15,
+	0x02, 0x30,
+	0x03, 0x00,
+	0x04, 0x7d,
+	0x05, 0x35,
+	0x06, 0x40,
+	0x07, 0x00,
+	0x08, 0x43,
+	0x09, 0x02,
+	0x0C, 0x51,
+	0x0D, 0x82,
+	0x0E, 0x23,
+	0x10, 0x3f,
+	0x11, 0x84,
+	0x12, 0xb9,
+	0x15, 0xc9,
+	0x16, 0x19,
+	0x17, 0x8c,
+	0x18, 0x59,
+	0x19, 0xf8,
+	0x1a, 0xfe,
+	0x1c, 0x7f,
+	0x1d, 0x00,
+	0x1e, 0x00,
+	0x1f, 0x50,
+	0x20, 0x00,
+	0x21, 0x00,
+	0x22, 0x00,
+	0x23, 0x00,
+	0x28, 0x00,
+	0x29, 0x28,
+	0x2a, 0x14,
+	0x2b, 0x0f,
+	0x2c, 0x09,
+	0x2d, 0x09,
+	0x31, 0x1f,
+	0x32, 0x19,
+	0x33, 0xfc,
+	0x34, 0x93,
+	0xff, 0xff
+};
 
+static int philips_sd1878_tda8261_pll_set(struct dvb_frontend *fe,
+		struct i2c_adapter *i2c,
+		struct dvb_frontend_parameters *params)
+{
+	u8              buf[4];
+	int             rc;
+	struct i2c_msg  tuner_msg = {.addr=0x60,.flags=0,.buf=buf,.len=sizeof(buf)};
 
+	if((params->frequency < 950000) || (params->frequency > 2150000))
+		return -EINVAL;
+
+	rc=dvb_pll_configure(&dvb_pll_philips_sd1878_tda8261, buf,
+			params->frequency, 0);
+	if(rc < 0) return rc;
+
+	if(i2c_transfer(i2c, &tuner_msg, 1) != 1)
+		return -EIO;
+
+    return 0;
+}
+
+static int philips_sd1878_ci_set_symbol_rate(struct dvb_frontend *fe,
+		u32 srate, u32 ratio)
+{
+	u8 aclk = 0;
+	u8 bclk = 0;
+	u8 m1;
+
+	aclk = 0xb5;
+	if (srate < 2000000)
+		bclk = 0x86;
+	else if (srate < 5000000)
+		bclk = 0x89;
+	else if (srate < 15000000)
+		bclk = 0x8f;
+	else if (srate < 45000000)
+		bclk = 0x95;
+
+	m1 = 0x14;
+	if (srate < 4000000)
+		m1 = 0x10;
+
+	stv0299_writereg(fe, 0x0e, 0x23);
+	stv0299_writereg(fe, 0x0f, 0x94);
+	stv0299_writereg(fe, 0x10, 0x39);
+	stv0299_writereg(fe, 0x13, aclk);
+	stv0299_writereg(fe, 0x14, bclk);
+	stv0299_writereg(fe, 0x15, 0xc9);
+	stv0299_writereg(fe, 0x1f, (ratio >> 16) & 0xff);
+	stv0299_writereg(fe, 0x20, (ratio >> 8) & 0xff);
+	stv0299_writereg(fe, 0x21, (ratio) & 0xf0);
+	stv0299_writereg(fe, 0x0f, 0x80 | m1);
+
+	return 0;
+}
+
+static struct stv0299_config philips_sd1878_config = {
+	.demod_address = 0x68,
+	.inittab = philips_sd1878_inittab,
+	.mclk = 88000000UL,
+	.invert = 0,
+	.skip_reinit = 0,
+	.lock_output = STV0229_LOCKOUTPUT_1,
+	.volt13_op0_op1 = STV0299_VOLT13_OP0,
+	.min_delay_ms = 100,
+	.set_symbol_rate = philips_sd1878_ci_set_symbol_rate,
+	.pll_set = philips_sd1878_tda8261_pll_set,
+};
 
 static u8 read_pwm(struct budget_av *budget_av)
 {
@@ -722,7 +996,10 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS_KNC1_PLUS	0x0011
 #define SUBID_DVBS_TYPHOON	0x4f56
 #define SUBID_DVBS_CINERGY1200	0x1154
+#define SUBID_DVBS_CYNERGY1200N 0x1155
 
+#define SUBID_DVBS_TV_STAR	0x0014
+#define SUBID_DVBS_TV_STAR_CI	0x0016
 #define SUBID_DVBC_KNC1		0x0020
 #define SUBID_DVBC_KNC1_PLUS	0x0021
 #define SUBID_DVBC_CINERGY1200	0x1156
@@ -749,6 +1026,22 @@ static void frontend_init(struct budget_av *budget_av)
 	switch (saa->pci->subsystem_device) {
 
 	case SUBID_DVBS_KNC1:
+		if (saa->pci->subsystem_vendor == 0x1894) {
+			fe = stv0299_attach(&cinergy_1200s_1894_0010_config,
+					     &budget_av->budget.i2c_adap);
+		} else {
+			fe = stv0299_attach(&typhoon_config,
+					     &budget_av->budget.i2c_adap);
+		}
+		break;
+
+	case SUBID_DVBS_TV_STAR:
+	case SUBID_DVBS_TV_STAR_CI:
+	case SUBID_DVBS_CYNERGY1200N:
+		fe = stv0299_attach(&philips_sd1878_config,
+				&budget_av->budget.i2c_adap);
+		break;
+
 	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_TYPHOON:
 		fe = stv0299_attach(&typhoon_config,
@@ -854,10 +1147,8 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dprintk(2, "dev: %p\n", dev);
 
-	if (!(budget_av = kmalloc(sizeof(struct budget_av), GFP_KERNEL)))
+	if (!(budget_av = kzalloc(sizeof(struct budget_av), GFP_KERNEL)))
 		return -ENOMEM;
-
-	memset(budget_av, 0, sizeof(struct budget_av));
 
 	budget_av->has_saa7113 = 0;
 	budget_av->budget.ci_present = 0;
@@ -993,22 +1284,28 @@ static struct saa7146_extension budget_extension;
 MAKE_BUDGET_INFO(knc1s, "KNC1 DVB-S", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(knc1c, "KNC1 DVB-C", BUDGET_KNC1C);
 MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
+MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
 MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1cp, "KNC1 DVB-C Plus", BUDGET_KNC1CP);
 MAKE_BUDGET_INFO(knc1tp, "KNC1 DVB-T Plus", BUDGET_KNC1TP);
 MAKE_BUDGET_INFO(cin1200s, "TerraTec Cinergy 1200 DVB-S", BUDGET_CIN1200S);
+MAKE_BUDGET_INFO(cin1200sn, "TerraTec Cinergy 1200 DVB-S", BUDGET_CIN1200S);
 MAKE_BUDGET_INFO(cin1200c, "Terratec Cinergy 1200 DVB-C", BUDGET_CIN1200C);
 MAKE_BUDGET_INFO(cin1200t, "Terratec Cinergy 1200 DVB-T", BUDGET_CIN1200T);
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x4f56),
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x0010),
+	MAKE_EXTENSION_PCI(knc1s, 0x1894, 0x0010),
 	MAKE_EXTENSION_PCI(knc1sp, 0x1131, 0x0011),
+	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0014),
+	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0016),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
 	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),
 	MAKE_EXTENSION_PCI(knc1t, 0x1894, 0x0030),
 	MAKE_EXTENSION_PCI(knc1tp, 0x1894, 0x0031),
 	MAKE_EXTENSION_PCI(cin1200s, 0x153b, 0x1154),
+	MAKE_EXTENSION_PCI(cin1200sn, 0x153b, 0x1155),
 	MAKE_EXTENSION_PCI(cin1200c, 0x153b, 0x1156),
 	MAKE_EXTENSION_PCI(cin1200t, 0x153b, 0x1157),
 	{

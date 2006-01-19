@@ -174,7 +174,9 @@ int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 	acpi_status status;
 	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
 	struct pci_dev *pdev = dev;
+	struct pci_bus *parent;
 	u8 *path_name;
+
 	/*
 	 * Per PCI firmware specification, we should run the ACPI _OSC
 	 * method to get control of hotplug hardware before using it.
@@ -190,17 +192,18 @@ int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 		 */
 		if (!pdev || !pdev->bus->parent)
 			break;
+		parent = pdev->bus->parent;
 		dbg("Could not find %s in acpi namespace, trying parent\n",
 				pci_name(pdev));
-		if (!pdev->bus->parent->self)
+		if (!parent->self)
 			/* Parent must be a host bridge */
 			handle = acpi_get_pci_rootbridge_handle(
-					pci_domain_nr(pdev->bus->parent),
-					pdev->bus->parent->number);
+					pci_domain_nr(parent),
+					parent->number);
 		else
 			handle = DEVICE_ACPI_HANDLE(
-					&(pdev->bus->parent->self->dev));
-		pdev = pdev->bus->parent->self;
+					&(parent->self->dev));
+		pdev = parent->self;
 	}
 
 	while (handle) {

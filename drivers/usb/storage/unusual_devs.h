@@ -79,13 +79,6 @@ UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001,
 		US_SC_8070, US_PR_USBAT, init_usbat, 0),
 #endif
 
-/* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
-UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
-		"VIA Technologies Inc.",
-		"USB 2.0 Card Reader",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
-
 /* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
  * and Olaf Hering <olh@suse.de> (different bcd's, same vendor/product)
  * for USB floppies that need the SINGLE_LUN enforcement.
@@ -95,6 +88,13 @@ UNUSUAL_DEV(  0x0409, 0x0040, 0x0000, 0x9999,
 		"NEC USB UF000x",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
+
+/* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
+UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
+		"VIA Technologies Inc.",
+		"USB 2.0 Card Reader",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
 
 /* Deduced by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
  * Entry needed for flags: US_FL_FIX_INQUIRY because initial inquiry message
@@ -187,6 +187,14 @@ UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Patch for Nikon coolpix 2000
+ * Submitted by Fabien Cosse <fabien.cosse@wanadoo.fr>*/
+UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
+		"NIKON",
+		"NIKON DSC E2000",
+		US_SC_DEVICE, US_PR_DEVICE,NULL,
+		US_FL_NOT_LOCKABLE ),
+
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
  * Frank Copeland <fjc@thingy.apana.org.au> */
@@ -276,14 +284,14 @@ UNUSUAL_DEV(  0x04e6, 0x0002, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x04e6, 0x0003, 0x0000, 0x9999, 
 		"Sandisk",
 		"ImageMate SDDR09",
-		US_SC_SCSI, US_PR_EUSB_SDDR09, NULL,
-		US_FL_SINGLE_LUN ),
+		US_SC_SCSI, US_PR_EUSB_SDDR09, usb_stor_sddr09_init,
+		0),
 
 /* This entry is from Andries.Brouwer@cwi.nl */
 UNUSUAL_DEV(  0x04e6, 0x0005, 0x0100, 0x0208,
 		"SCM Microsystems",
 		"eUSB SmartMedia / CompactFlash Adapter",
-		US_SC_SCSI, US_PR_DPCM_USB, sddr09_init, 
+		US_SC_SCSI, US_PR_DPCM_USB, usb_stor_sddr09_dpcm_init,
 		0), 
 #endif
 
@@ -527,6 +535,13 @@ UNUSUAL_DEV(  0x057b, 0x0022, 0x0000, 0x9999,
 		"Silicon Media R/W",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, 0),
 
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+UNUSUAL_DEV(  0x0584, 0x0008, 0x0102, 0x0102,
+		"Fujifilm",
+		"DPC-R1 (Alauda)",
+ 		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
+#endif
+
 /* Fabrizio Fellini <fello@libero.it> */
 UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Fujifilm",
@@ -673,8 +688,8 @@ UNUSUAL_DEV(  0x0644, 0x0000, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x066b, 0x0105, 0x0100, 0x0100, 
 		"Olympus",
 		"Camedia MAUSB-2",
-		US_SC_SCSI, US_PR_EUSB_SDDR09, NULL,
-		US_FL_SINGLE_LUN ),
+		US_SC_SCSI, US_PR_EUSB_SDDR09, usb_stor_sddr09_init,
+		0),
 #endif
 
 /* Reported by Darsen Lu <darsen@micro.ee.nthu.edu.tw> */
@@ -739,8 +754,8 @@ UNUSUAL_DEV(  0x0781, 0x0100, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x0781, 0x0200, 0x0000, 0x9999, 
 		"Sandisk",
 		"ImageMate SDDR-09",
-		US_SC_SCSI, US_PR_EUSB_SDDR09, NULL,
-		US_FL_SINGLE_LUN ),
+		US_SC_SCSI, US_PR_EUSB_SDDR09, usb_stor_sddr09_init,
+		0),
 #endif
 
 #ifdef CONFIG_USB_STORAGE_FREECOM
@@ -774,6 +789,13 @@ UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate (DPCM_USB)",
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
+#endif
+
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+UNUSUAL_DEV(  0x07b4, 0x010a, 0x0102, 0x0102,
+		"Olympus",
+		"MAUSB-10 (Alauda)",
+ 		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
 #endif
 
 #ifdef CONFIG_USB_STORAGE_DATAFAB
@@ -1134,3 +1156,27 @@ UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999,
 		US_SC_SCSI, US_PR_SDDR55, NULL,
 		US_FL_SINGLE_LUN),
 #endif
+
+/* Control/Bulk transport for all SubClass values */
+USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_8020, US_PR_CB, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_QIC, US_PR_CB, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_UFI, US_PR_CB, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_8070, US_PR_CB, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_SCSI, US_PR_CB, USB_US_TYPE_STOR),
+
+/* Control/Bulk/Interrupt transport for all SubClass values */
+USUAL_DEV(US_SC_RBC, US_PR_CBI, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_8020, US_PR_CBI, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_QIC, US_PR_CBI, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_UFI, US_PR_CBI, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_8070, US_PR_CBI, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_SCSI, US_PR_CBI, USB_US_TYPE_STOR),
+
+/* Bulk-only transport for all SubClass values */
+USUAL_DEV(US_SC_RBC, US_PR_BULK, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_8020, US_PR_BULK, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_QIC, US_PR_BULK, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_UFI, US_PR_BULK, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_8070, US_PR_BULK, USB_US_TYPE_STOR),
+USUAL_DEV(US_SC_SCSI, US_PR_BULK, 0),

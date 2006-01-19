@@ -1222,7 +1222,7 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 	return if_num;
 }
 
-static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned int num)
+static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 {
 	struct net_device *net = dvbnet->device[num];
 	struct dvb_net_priv *priv;
@@ -1296,9 +1296,9 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if ((unsigned int) parg >= DVB_NET_DEVICES_MAX)
+		if ((unsigned long) parg >= DVB_NET_DEVICES_MAX)
 			return -EINVAL;
-		ret = dvb_net_remove_if(dvbnet, (unsigned int) parg);
+		ret = dvb_net_remove_if(dvbnet, (unsigned long) parg);
 		if (!ret)
 			module_put(dvbdev->adapter->module);
 		return ret;

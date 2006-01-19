@@ -29,12 +29,11 @@
 #define CA_MIDI_MODE_INPUT	MPU401_MODE_INPUT
 #define CA_MIDI_MODE_OUTPUT	MPU401_MODE_OUTPUT
 
-typedef struct ca_midi ca_midi_t;
-struct ca_midi {
+struct snd_ca_midi {
 
-	snd_rawmidi_t *rmidi;
-	snd_rawmidi_substream_t *substream_input;
-	snd_rawmidi_substream_t *substream_output;
+	struct snd_rawmidi *rmidi;
+	struct snd_rawmidi_substream *substream_input;
+	struct snd_rawmidi_substream *substream_output;
 
 	void *dev_id;
 
@@ -52,18 +51,16 @@ struct ca_midi {
 	int input_avail, output_ready;
 	int ack, reset, enter_uart;
 
-	void (*interrupt)(ca_midi_t *midi, unsigned int status);
-	void (*interrupt_enable)(ca_midi_t *midi, int intr);
-	void (*interrupt_disable)(ca_midi_t *midi, int intr);
+	void (*interrupt)(struct snd_ca_midi *midi, unsigned int status);
+	void (*interrupt_enable)(struct snd_ca_midi *midi, int intr);
+	void (*interrupt_disable)(struct snd_ca_midi *midi, int intr);
 
-	unsigned char (*read)(ca_midi_t *midi, int idx);
-	void (*write)(ca_midi_t *midi, int data, int idx);
+	unsigned char (*read)(struct snd_ca_midi *midi, int idx);
+	void (*write)(struct snd_ca_midi *midi, int data, int idx);
 
 	/* get info from dev_id */
-	snd_card_t *(*get_dev_id_card)(void *dev_id);
+	struct snd_card *(*get_dev_id_card)(void *dev_id);
 	int (*get_dev_id_port)(void *dev_id);
 };
 
-int __devinit ca_midi_init(void *card, ca_midi_t *midi, int device, char *name);
-
-
+int ca_midi_init(void *card, struct snd_ca_midi *midi, int device, char *name);

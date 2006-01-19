@@ -72,11 +72,11 @@ static ctlr_info_t *hba[MAX_CTLR];
 
 static int eisa[8];
 
-#define NR_PRODUCTS (sizeof(products)/sizeof(struct board_type))
+#define NR_PRODUCTS ARRAY_SIZE(products)
 
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
- *  access = Address of the struct of function pointers 
+ *  access = Address of the struct of function pointers
  */
 static struct board_type products[] = {
 	{ 0x0040110E, "IDA",			&smart1_access },
@@ -160,6 +160,7 @@ static int sendcmd(
 static int ida_open(struct inode *inode, struct file *filep);
 static int ida_release(struct inode *inode, struct file *filep);
 static int ida_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, unsigned long arg);
+static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io);
 
 static void do_ida_request(request_queue_t *q);
@@ -199,6 +200,7 @@ static struct block_device_operations ida_fops  = {
 	.open		= ida_open,
 	.release	= ida_release,
 	.ioctl		= ida_ioctl,
+	.getgeo		= ida_getgeo,
 	.revalidate_disk= ida_revalidate,
 };
 
@@ -1036,7 +1038,7 @@ static inline void complete_command(cmdlist_t *cmd, int timeout)
 	complete_buffers(cmd->rq->bio, ok);
 
         DBGPX(printk("Done with %p\n", cmd->rq););
-	end_that_request_last(cmd->rq);
+	end_that_request_last(cmd->rq, ok ? 1 : -EIO);
 }
 
 /*
@@ -1124,6 +1126,23 @@ static void ida_timer(unsigned long tdata)
 	h->misc_tflags = 0;
 }
 
+static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	drv_info_t *drv = get_drv(bdev->bd_disk);
+
+	if (drv->cylinders) {
+		geo->heads = drv->heads;
+		geo->sectors = drv->sectors;
+		geo->cylinders = drv->cylinders;
+	} else {
+		geo->heads = 0xff;
+		geo->sectors = 0x3f;
+		geo->cylinders = drv->nr_blks / (0xff*0x3f);
+	}
+
+	return 0;
+}
+
 /*
  *  ida_ioctl does some miscellaneous stuff like reporting drive geometry,
  *  setting readahead and submitting commands from userspace to the controller.
@@ -1133,27 +1152,10 @@ static int ida_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, 
 	drv_info_t *drv = get_drv(inode->i_bdev->bd_disk);
 	ctlr_info_t *host = get_host(inode->i_bdev->bd_disk);
 	int error;
-	int diskinfo[4];
-	struct hd_geometry __user *geo = (struct hd_geometry __user *)arg;
 	ida_ioctl_t __user *io = (ida_ioctl_t __user *)arg;
 	ida_ioctl_t *my_io;
 
 	switch(cmd) {
-	case HDIO_GETGEO:
-		if (drv->cylinders) {
-			diskinfo[0] = drv->heads;
-			diskinfo[1] = drv->sectors;
-			diskinfo[2] = drv->cylinders;
-		} else {
-			diskinfo[0] = 0xff;
-			diskinfo[1] = 0x3f;
-			diskinfo[2] = drv->nr_blks / (0xff*0x3f);
-		}
-		put_user(diskinfo[0], &geo->heads);
-		put_user(diskinfo[1], &geo->sectors);
-		put_user(diskinfo[2], &geo->cylinders);
-		put_user(get_start_sect(inode->i_bdev), &geo->start);
-		return 0;
 	case IDAGETDRVINFO:
 		if (copy_to_user(&io->c.drv, drv, sizeof(drv_info_t)))
 			return -EFAULT;

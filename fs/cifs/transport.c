@@ -206,7 +206,6 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int
 smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	  struct sockaddr *sin)
@@ -299,7 +298,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 
 int
 SendReceive2(const unsigned int xid, struct cifsSesInfo *ses, 
-	     struct kvec *iov, int n_vec, int *pbytes_returned,
+	     struct kvec *iov, int n_vec, int * pRespBufType /* ret */, 
 	     const int long_op)
 {
 	int rc = 0;
@@ -307,6 +306,8 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	unsigned long timeout;
 	struct mid_q_entry *midQ;
 	struct smb_hdr *in_buf = iov[0].iov_base;
+	
+	*pRespBufType = CIFS_NO_BUFFER;  /* no response buf yet */
 
 	if (ses == NULL) {
 		cERROR(1,("Null smb session"));
@@ -392,8 +393,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		return -ENOMEM;
 	}
 
-/* BB FIXME */
-/* 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number); */
+ 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 #ifdef CONFIG_CIFS_STATS2
@@ -489,21 +489,23 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			receive_len, xid));
 		rc = -EIO;
 	} else {		/* rcvd frame is ok */
-
 		if (midQ->resp_buf && 
 			(midQ->midState == MID_RESPONSE_RECEIVED)) {
-			in_buf->smb_buf_length = receive_len;
-			/* BB verify that length would not overrun small buf */
-			memcpy((char *)in_buf + 4,
-			       (char *)midQ->resp_buf + 4,
-			       receive_len);
 
-			dump_smb(in_buf, 80);
+			iov[0].iov_base = (char *)midQ->resp_buf;
+			if(midQ->largeBuf)
+				*pRespBufType = CIFS_LARGE_BUFFER;
+			else
+				*pRespBufType = CIFS_SMALL_BUFFER;
+			iov[0].iov_len = receive_len + 4;
+			iov[1].iov_len = 0;
+
+			dump_smb(midQ->resp_buf, 80);
 			/* convert the length into a more usable form */
 			if((receive_len > 24) &&
 			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
 					SECMODE_SIGN_ENABLED))) {
-				rc = cifs_verify_signature(in_buf,
+				rc = cifs_verify_signature(midQ->resp_buf,
 						ses->server->mac_signing_key,
 						midQ->sequence_number+1);
 				if(rc) {
@@ -512,18 +514,19 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 				}
 			}
 
-			*pbytes_returned = in_buf->smb_buf_length;
-
 			/* BB special case reconnect tid and uid here? */
 			/* BB special case Errbadpassword and pwdexpired here */
-			rc = map_smb_to_linux_error(in_buf);
+			rc = map_smb_to_linux_error(midQ->resp_buf);
 
 			/* convert ByteCount if necessary */
 			if (receive_len >=
 			    sizeof (struct smb_hdr) -
 			    4 /* do not count RFC1001 header */  +
-			    (2 * in_buf->WordCount) + 2 /* bcc */ )
-				BCC(in_buf) = le16_to_cpu(BCC_LE(in_buf));
+			    (2 * midQ->resp_buf->WordCount) + 2 /* bcc */ )
+				BCC(midQ->resp_buf) = 
+					le16_to_cpu(BCC_LE(midQ->resp_buf));
+			midQ->resp_buf = NULL;  /* mark it so will not be freed
+						by DeleteMidQEntry */
 		} else {
 			rc = -EIO;
 			cFYI(1,("Bad MID state?"));
@@ -549,7 +552,6 @@ out_unlock2:
 
 	return rc;
 }
-#endif /* CIFS_EXPERIMENTAL */
 
 int
 SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
@@ -790,7 +792,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 				BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
 		} else {
 			rc = -EIO;
-			cERROR(1,("Bad MID state? "));
+			cERROR(1,("Bad MID state?"));
 		}
 	}
 cifs_no_response_exit:

@@ -2571,8 +2571,7 @@ atafb_pan_display(struct fb_var_screeninfo *var, int con, struct fb_info *info)
 }
 
 static int
-atafb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	       unsigned long arg, int con, struct fb_info *info)
+atafb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 #ifdef FBCMD_GET_CURRENTPAR

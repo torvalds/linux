@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -178,6 +179,8 @@ void disable_irq_nosync(unsigned int irq)
 	spin_unlock_irqrestore(&level->lock, flags);
 }
 
+EXPORT_SYMBOL(disable_irq_nosync);
+
 /**
  *	disable_irq - disable an irq and wait for completion
  *	@irq: Interrupt to disable
@@ -203,6 +206,8 @@ void disable_irq(unsigned int irq)
 	}
 #endif
 }
+
+EXPORT_SYMBOL(disable_irq);
 
 /**
  *	enable_irq - enable handling of an irq
@@ -267,6 +272,8 @@ void enable_irq(unsigned int irq)
 
 	spin_unlock_irqrestore(&level->lock, flags);
 }
+
+EXPORT_SYMBOL(enable_irq);
 
 /*****************************************************************************/
 /*
@@ -425,6 +432,8 @@ int request_irq(unsigned int irq,
 	return retval;
 }
 
+EXPORT_SYMBOL(request_irq);
+
 /**
  *	free_irq - free an interrupt
  *	@irq: Interrupt line to free
@@ -496,6 +505,8 @@ void free_irq(unsigned int irq, void *dev_id)
 	}
 }
 
+EXPORT_SYMBOL(free_irq);
+
 /*
  * IRQ autodetection code..
  *
@@ -519,6 +530,8 @@ unsigned long probe_irq_on(void)
 	return 0;
 }
 
+EXPORT_SYMBOL(probe_irq_on);
+
 /*
  * Return a mask of triggered interrupts (this
  * can handle only legacy ISA interrupts).
@@ -541,6 +554,8 @@ unsigned int probe_irq_mask(unsigned long xmask)
 	up(&probe_sem);
 	return 0;
 }
+
+EXPORT_SYMBOL(probe_irq_mask);
 
 /*
  * Return the one interrupt that triggered (this can
@@ -570,6 +585,8 @@ int probe_irq_off(unsigned long xmask)
 	up(&probe_sem);
 	return -1;
 }
+
+EXPORT_SYMBOL(probe_irq_off);
 
 /* this was setup_x86_irq but it seems pretty generic */
 int setup_irq(unsigned int irq, struct irqaction *new)

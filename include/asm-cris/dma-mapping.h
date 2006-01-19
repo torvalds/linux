@@ -153,7 +153,7 @@ dma_set_mask(struct device *dev, u64 mask)
 static inline int
 dma_get_cache_alignment(void)
 {
-	return (1 << L1_CACHE_SHIFT_MAX);
+	return (1 << INTERNODE_CACHE_SHIFT);
 }
 
 #define dma_is_consistent(d)	(1)

@@ -838,6 +838,7 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
 #define UART3_ADDR                0xB1400000
 
 #define USB_OHCI_BASE             0x14020000 // phys addr for ioremap
+#define USB_OHCI_LEN              0x00060000
 #define USB_HOST_CONFIG           0xB4027ffc
 
 #define AU1550_ETH0_BASE      0xB0500000
@@ -1017,10 +1018,12 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
   #define I2S_CONTROL_D         (1<<1)
   #define I2S_CONTROL_CE        (1<<0)
 
-#ifndef CONFIG_SOC_AU1200
-
 /* USB Host Controller */
+#ifndef USB_OHCI_LEN
 #define USB_OHCI_LEN              0x00100000
+#endif
+
+#ifndef CONFIG_SOC_AU1200
 
 /* USB Device Controller */
 #define USBD_EP0RD                0xB0200000

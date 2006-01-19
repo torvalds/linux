@@ -34,10 +34,6 @@ config FORCE_MAX_ZONEORDER
         int
         default 9
 
-config UID16
-	bool
-	default y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

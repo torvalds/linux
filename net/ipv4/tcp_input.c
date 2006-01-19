@@ -115,8 +115,8 @@ int sysctl_tcp_abc = 1;
 /* Adapt the MSS value used to make delayed ack decision to the 
  * real world.
  */ 
-static inline void tcp_measure_rcv_mss(struct sock *sk,
-				       const struct sk_buff *skb)
+static void tcp_measure_rcv_mss(struct sock *sk,
+				const struct sk_buff *skb)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	const unsigned int lss = icsk->icsk_ack.last_seg_size; 
@@ -246,8 +246,8 @@ static int __tcp_grow_window(const struct sock *sk, struct tcp_sock *tp,
 	return 0;
 }
 
-static inline void tcp_grow_window(struct sock *sk, struct tcp_sock *tp,
-				   struct sk_buff *skb)
+static void tcp_grow_window(struct sock *sk, struct tcp_sock *tp,
+			    struct sk_buff *skb)
 {
 	/* Check #1 */
 	if (tp->rcv_ssthresh < tp->window_clamp &&
@@ -339,6 +339,26 @@ static void tcp_clamp_window(struct sock *sk, struct tcp_sock *tp)
 	}
 	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf)
 		tp->rcv_ssthresh = min(tp->window_clamp, 2U*tp->advmss);
+}
+
+
+/* Initialize RCV_MSS value.
+ * RCV_MSS is an our guess about MSS used by the peer.
+ * We haven't any direct information about the MSS.
+ * It's better to underestimate the RCV_MSS rather than overestimate.
+ * Overestimations make us ACKing less frequently than needed.
+ * Underestimations are more easy to detect and fix by tcp_measure_rcv_mss().
+ */
+void tcp_initialize_rcv_mss(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned int hint = min_t(unsigned int, tp->advmss, tp->mss_cache);
+
+	hint = min(hint, tp->rcv_wnd/2);
+	hint = min(hint, TCP_MIN_RCVMSS);
+	hint = max(hint, TCP_MIN_MSS);
+
+	inet_csk(sk)->icsk_ack.rcv_mss = hint;
 }
 
 /* Receiver "autotuning" code.
@@ -733,6 +753,27 @@ __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst)
 			cwnd = (tp->mss_cache > 1095) ? 3 : 4;
 	}
 	return min_t(__u32, cwnd, tp->snd_cwnd_clamp);
+}
+
+/* Set slow start threshold and cwnd not falling to slow start */
+void tcp_enter_cwr(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tp->prior_ssthresh = 0;
+	tp->bytes_acked = 0;
+	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
+		tp->undo_marker = 0;
+		tp->snd_ssthresh = inet_csk(sk)->icsk_ca_ops->ssthresh(sk);
+		tp->snd_cwnd = min(tp->snd_cwnd,
+				   tcp_packets_in_flight(tp) + 1U);
+		tp->snd_cwnd_cnt = 0;
+		tp->high_seq = tp->snd_nxt;
+		tp->snd_cwnd_stamp = tcp_time_stamp;
+		TCP_ECN_queue_cwr(tp);
+
+		tcp_set_ca_state(sk, TCP_CA_CWR);
+	}
 }
 
 /* Initialize metrics on socket. */
@@ -2070,8 +2111,8 @@ static inline void tcp_ack_update_rtt(struct sock *sk, const int flag,
 		tcp_ack_no_tstamp(sk, seq_rtt, flag);
 }
 
-static inline void tcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
-				  u32 in_flight, int good)
+static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
+			   u32 in_flight, int good)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	icsk->icsk_ca_ops->cong_avoid(sk, ack, rtt, in_flight, good);
@@ -2082,7 +2123,7 @@ static inline void tcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
  * RFC2988 recommends to restart timer to now+rto.
  */
 
-static inline void tcp_ack_packets_out(struct sock *sk, struct tcp_sock *tp)
+static void tcp_ack_packets_out(struct sock *sk, struct tcp_sock *tp)
 {
 	if (!tp->packets_out) {
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
@@ -2147,7 +2188,7 @@ static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 	return acked;
 }
 
-static inline u32 tcp_usrtt(const struct sk_buff *skb)
+static u32 tcp_usrtt(const struct sk_buff *skb)
 {
 	struct timeval tv, now;
 
@@ -2342,7 +2383,7 @@ static int tcp_ack_update_window(struct sock *sk, struct tcp_sock *tp,
 
 			if (nwin > tp->max_window) {
 				tp->max_window = nwin;
-				tcp_sync_mss(sk, tp->pmtu_cookie);
+				tcp_sync_mss(sk, inet_csk(sk)->icsk_pmtu_cookie);
 			}
 		}
 	}
@@ -2583,8 +2624,8 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 /* Fast parse options. This hopes to only see timestamps.
  * If it is wrong it falls back on tcp_parse_options().
  */
-static inline int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
-					 struct tcp_sock *tp)
+static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
+				  struct tcp_sock *tp)
 {
 	if (th->doff == sizeof(struct tcphdr)>>2) {
 		tp->rx_opt.saw_tstamp = 0;
@@ -2804,8 +2845,7 @@ static void tcp_fin(struct sk_buff *skb, struct sock *sk, struct tcphdr *th)
 	}
 }
 
-static __inline__ int
-tcp_sack_extend(struct tcp_sack_block *sp, u32 seq, u32 end_seq)
+static inline int tcp_sack_extend(struct tcp_sack_block *sp, u32 seq, u32 end_seq)
 {
 	if (!after(seq, sp->end_seq) && !after(sp->start_seq, end_seq)) {
 		if (before(seq, sp->start_seq))
@@ -2817,7 +2857,7 @@ tcp_sack_extend(struct tcp_sack_block *sp, u32 seq, u32 end_seq)
 	return 0;
 }
 
-static inline void tcp_dsack_set(struct tcp_sock *tp, u32 seq, u32 end_seq)
+static void tcp_dsack_set(struct tcp_sock *tp, u32 seq, u32 end_seq)
 {
 	if (tp->rx_opt.sack_ok && sysctl_tcp_dsack) {
 		if (before(seq, tp->rcv_nxt))
@@ -2832,7 +2872,7 @@ static inline void tcp_dsack_set(struct tcp_sock *tp, u32 seq, u32 end_seq)
 	}
 }
 
-static inline void tcp_dsack_extend(struct tcp_sock *tp, u32 seq, u32 end_seq)
+static void tcp_dsack_extend(struct tcp_sock *tp, u32 seq, u32 end_seq)
 {
 	if (!tp->rx_opt.dsack)
 		tcp_dsack_set(tp, seq, end_seq);
@@ -2890,7 +2930,7 @@ static void tcp_sack_maybe_coalesce(struct tcp_sock *tp)
 	}
 }
 
-static __inline__ void tcp_sack_swap(struct tcp_sack_block *sack1, struct tcp_sack_block *sack2)
+static inline void tcp_sack_swap(struct tcp_sack_block *sack1, struct tcp_sack_block *sack2)
 {
 	__u32 tmp;
 
@@ -3307,7 +3347,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 			int offset = start - TCP_SKB_CB(skb)->seq;
 			int size = TCP_SKB_CB(skb)->end_seq - start;
 
-			if (offset < 0) BUG();
+			BUG_ON(offset < 0);
 			if (size > 0) {
 				size = min(copy, size);
 				if (skb_copy_bits(skb, offset, skb_put(nskb, size), size))
@@ -3455,7 +3495,7 @@ void tcp_cwnd_application_limited(struct sock *sk)
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
-static inline int tcp_should_expand_sndbuf(struct sock *sk, struct tcp_sock *tp)
+static int tcp_should_expand_sndbuf(struct sock *sk, struct tcp_sock *tp)
 {
 	/* If the user specified a specific send buffer setting, do
 	 * not modify it.
@@ -3502,7 +3542,7 @@ static void tcp_new_space(struct sock *sk)
 	sk->sk_write_space(sk);
 }
 
-static inline void tcp_check_space(struct sock *sk)
+static void tcp_check_space(struct sock *sk)
 {
 	if (sock_flag(sk, SOCK_QUEUE_SHRUNK)) {
 		sock_reset_flag(sk, SOCK_QUEUE_SHRUNK);
@@ -3512,7 +3552,7 @@ static inline void tcp_check_space(struct sock *sk)
 	}
 }
 
-static __inline__ void tcp_data_snd_check(struct sock *sk, struct tcp_sock *tp)
+static inline void tcp_data_snd_check(struct sock *sk, struct tcp_sock *tp)
 {
 	tcp_push_pending_frames(sk, tp);
 	tcp_check_space(sk);
@@ -3544,7 +3584,7 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	}
 }
 
-static __inline__ void tcp_ack_snd_check(struct sock *sk)
+static inline void tcp_ack_snd_check(struct sock *sk)
 {
 	if (!inet_csk_ack_scheduled(sk)) {
 		/* We sent a data segment already. */
@@ -3692,8 +3732,7 @@ static int __tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
 	return result;
 }
 
-static __inline__ int
-tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
+static inline int tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
 {
 	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
 		__tcp_checksum_complete_user(sk, skb);
@@ -3967,12 +4006,12 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 					 struct tcphdr *th, unsigned len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	int saved_clamp = tp->rx_opt.mss_clamp;
 
 	tcp_parse_options(skb, &tp->rx_opt, 0);
 
 	if (th->ack) {
-		struct inet_connection_sock *icsk;
 		/* rfc793:
 		 * "If the state is SYN-SENT then
 		 *    first check the ACK bit
@@ -4061,7 +4100,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		if (tp->rx_opt.sack_ok && sysctl_tcp_fack)
 			tp->rx_opt.sack_ok |= 2;
 
-		tcp_sync_mss(sk, tp->pmtu_cookie);
+		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
 
 		/* Remember, tcp_poll() does not lock socket!
@@ -4072,7 +4111,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		tcp_set_state(sk, TCP_ESTABLISHED);
 
 		/* Make sure socket is routed, for correct metrics.  */
-		tp->af_specific->rebuild_header(sk);
+		icsk->icsk_af_ops->rebuild_header(sk);
 
 		tcp_init_metrics(sk);
 
@@ -4097,8 +4136,6 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			sk->sk_state_change(sk);
 			sk_wake_async(sk, 0, POLL_OUT);
 		}
-
-		icsk = inet_csk(sk);
 
 		if (sk->sk_write_pending ||
 		    icsk->icsk_accept_queue.rskq_defer_accept ||
@@ -4173,7 +4210,7 @@ discard:
 		if (tp->ecn_flags&TCP_ECN_OK)
 			sock_set_flag(sk, SOCK_NO_LARGESEND);
 
-		tcp_sync_mss(sk, tp->pmtu_cookie);
+		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
 
 
@@ -4220,6 +4257,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			  struct tcphdr *th, unsigned len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	int queued = 0;
 
 	tp->rx_opt.saw_tstamp = 0;
@@ -4236,7 +4274,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			goto discard;
 
 		if(th->syn) {
-			if(tp->af_specific->conn_request(sk, skb) < 0)
+			if (icsk->icsk_af_ops->conn_request(sk, skb) < 0)
 				return 1;
 
 			/* Now we have several options: In theory there is 
@@ -4349,7 +4387,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				/* Make sure socket is routed, for
 				 * correct metrics.
 				 */
-				tp->af_specific->rebuild_header(sk);
+				icsk->icsk_af_ops->rebuild_header(sk);
 
 				tcp_init_metrics(sk);
 
@@ -4475,3 +4513,4 @@ EXPORT_SYMBOL(sysctl_tcp_abc);
 EXPORT_SYMBOL(tcp_parse_options);
 EXPORT_SYMBOL(tcp_rcv_established);
 EXPORT_SYMBOL(tcp_rcv_state_process);
+EXPORT_SYMBOL(tcp_initialize_rcv_mss);

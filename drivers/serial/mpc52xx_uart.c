@@ -37,11 +37,11 @@
  * by the bootloader or in the platform init code.
  *
  * The idx field must be equal to the PSC index ( e.g. 0 for PSC1, 1 for PSC2,
- * and so on). So the PSC1 is mapped to /dev/ttyS0, PSC2 to /dev/ttyS1 and so
- * on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly for
- * the console code : without this 1:1 mapping, at early boot time, when we are
- * parsing the kernel args console=ttyS?, we wouldn't know wich PSC it will be
- * mapped to.
+ * and so on). So the PSC1 is mapped to /dev/ttyPSC0, PSC2 to /dev/ttyPSC1 and
+ * so on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly
+ * fpr the console code : without this 1:1 mapping, at early boot time, when we
+ * are parsing the kernel args console=ttyPSC?, we wouldn't know wich PSC it
+ * will be mapped to.
  */
 
 #include <linux/config.h>
@@ -64,6 +64,10 @@
 
 #include <linux/serial_core.h>
 
+
+/* We've been assigned a range on the "Low-density serial ports" major */
+#define SERIAL_PSC_MAJOR	204
+#define SERIAL_PSC_MINOR	148
 
 
 #define ISR_PASS_LIMIT 256	/* Max number of iteration in the interrupt */
@@ -401,17 +405,13 @@ static inline int
 mpc52xx_uart_int_rx_chars(struct uart_port *port, struct pt_regs *regs)
 {
 	struct tty_struct *tty = port->info->tty;
-	unsigned char ch;
+	unsigned char ch, flag;
 	unsigned short status;
 
 	/* While we can read, do so ! */
 	while ( (status = in_be16(&PSC(port)->mpc52xx_psc_status)) &
 	        MPC52xx_PSC_SR_RXRDY) {
 
-		/* If we are full, just stop reading */
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			break;
-		
 		/* Get the char */
 		ch = in_8(&PSC(port)->mpc52xx_psc_buffer_8);
 
@@ -424,45 +424,35 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port, struct pt_regs *regs)
 #endif
 
 		/* Store it */
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = 0;
+
+		flag = TTY_NORMAL;
 		port->icount.rx++;
 	
 		if ( status & (MPC52xx_PSC_SR_PE |
 		               MPC52xx_PSC_SR_FE |
-		               MPC52xx_PSC_SR_RB |
-		               MPC52xx_PSC_SR_OE) ) {
+		               MPC52xx_PSC_SR_RB) ) {
 			
 			if (status & MPC52xx_PSC_SR_RB) {
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 				uart_handle_break(port);
 			} else if (status & MPC52xx_PSC_SR_PE)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (status & MPC52xx_PSC_SR_FE)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
-			if (status & MPC52xx_PSC_SR_OE) {
-				/*
-				 * Overrun is special, since it's
-				 * reported immediately, and doesn't
-				 * affect the current character
-				 */
-				if (tty->flip.count < (TTY_FLIPBUF_SIZE-1)) {
-					tty->flip.flag_buf_ptr++;
-					tty->flip.char_buf_ptr++;
-					tty->flip.count++;
-				}
-				*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			}
+				flag = TTY_FRAME;
 
 			/* Clear error condition */
 			out_8(&PSC(port)->command,MPC52xx_PSC_RST_ERR_STAT);
 
 		}
-
-		tty->flip.char_buf_ptr++;
-		tty->flip.flag_buf_ptr++;
-		tty->flip.count++;
-
+		tty_insert_flip_char(tty, ch, flag);
+		if (status & MPC52xx_PSC_SR_OE) {
+			/*
+			 * Overrun is special, since it's
+			 * reported immediately, and doesn't
+			 * affect the current character
+			 */
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
 	}
 
 	tty_flip_buffer_push(tty);
@@ -668,15 +658,15 @@ mpc52xx_console_setup(struct console *co, char *options)
 }
 
 
-extern struct uart_driver mpc52xx_uart_driver;
+static struct uart_driver mpc52xx_uart_driver;
 
 static struct console mpc52xx_console = {
-	.name	= "ttyS",
+	.name	= "ttyPSC",
 	.write	= mpc52xx_console_write,
 	.device	= uart_console_device,
 	.setup	= mpc52xx_console_setup,
 	.flags	= CON_PRINTBUFFER,
-	.index	= -1,	/* Specified on the cmdline (e.g. console=ttyS0 ) */
+	.index	= -1,	/* Specified on the cmdline (e.g. console=ttyPSC0 ) */
 	.data	= &mpc52xx_uart_driver,
 };
 
@@ -703,10 +693,10 @@ console_initcall(mpc52xx_console_init);
 static struct uart_driver mpc52xx_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "mpc52xx_psc_uart",
-	.dev_name	= "ttyS",
-	.devfs_name	= "ttyS",
-	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.dev_name	= "ttyPSC",
+	.devfs_name	= "ttyPSC",
+	.major		= SERIAL_PSC_MAJOR,
+	.minor		= SERIAL_PSC_MINOR,
 	.nr		= MPC52xx_PSC_MAXNUM,
 	.cons		= MPC52xx_PSC_CONSOLE,
 };

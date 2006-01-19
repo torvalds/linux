@@ -658,22 +658,14 @@ static void do_hd_request (request_queue_t * q)
 	enable_irq(HD_IRQ);
 }
 
-static int hd_ioctl(struct inode * inode, struct file * file,
-	unsigned int cmd, unsigned long arg)
+static int hd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct hd_i_struct *disk = inode->i_bdev->bd_disk->private_data;
-	struct hd_geometry __user *loc = (struct hd_geometry __user *) arg;
-	struct hd_geometry g; 
+	struct hd_i_struct *disk = bdev->bd_disk->private_data;
 
-	if (cmd != HDIO_GETGEO)
-		return -EINVAL;
-	if (!loc)
-		return -EINVAL;
-	g.heads = disk->head;
-	g.sectors = disk->sect;
-	g.cylinders = disk->cyl;
-	g.start = get_start_sect(inode->i_bdev);
-	return copy_to_user(loc, &g, sizeof g) ? -EFAULT : 0; 
+	geo->heads = disk->head;
+	geo->sectors = disk->sect;
+	geo->cylinders = disk->cyl;
+	return 0;
 }
 
 /*
@@ -695,7 +687,7 @@ static irqreturn_t hd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static struct block_device_operations hd_fops = {
-	.ioctl =	hd_ioctl,
+	.getgeo =	hd_getgeo,
 };
 
 /*

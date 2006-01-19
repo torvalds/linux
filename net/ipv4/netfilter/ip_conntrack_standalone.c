@@ -27,6 +27,7 @@
 #endif
 #include <net/checksum.h>
 #include <net/ip.h>
+#include <net/route.h>
 
 #define ASSERT_READ_LOCK(x)
 #define ASSERT_WRITE_LOCK(x)
@@ -450,30 +451,6 @@ static unsigned int ip_conntrack_defrag(unsigned int hooknum,
 	return NF_ACCEPT;
 }
 
-static unsigned int ip_refrag(unsigned int hooknum,
-			      struct sk_buff **pskb,
-			      const struct net_device *in,
-			      const struct net_device *out,
-			      int (*okfn)(struct sk_buff *))
-{
-	struct rtable *rt = (struct rtable *)(*pskb)->dst;
-
-	/* We've seen it coming out the other side: confirm */
-	if (ip_confirm(hooknum, pskb, in, out, okfn) != NF_ACCEPT)
-		return NF_DROP;
-
-	/* Local packets are never produced too large for their
-	   interface.  We degfragment them at LOCAL_OUT, however,
-	   so we have to refragment them here. */
-	if ((*pskb)->len > dst_mtu(&rt->u.dst) &&
-	    !skb_shinfo(*pskb)->tso_size) {
-		/* No hook can be after us, so this should be OK. */
-		ip_fragment(*pskb, okfn);
-		return NF_STOLEN;
-	}
-	return NF_ACCEPT;
-}
-
 static unsigned int ip_conntrack_local(unsigned int hooknum,
 				       struct sk_buff **pskb,
 				       const struct net_device *in,
@@ -543,7 +520,7 @@ static struct nf_hook_ops ip_conntrack_helper_in_ops = {
 
 /* Refragmenter; last chance. */
 static struct nf_hook_ops ip_conntrack_out_ops = {
-	.hook		= ip_refrag,
+	.hook		= ip_confirm,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
 	.hooknum	= NF_IP_POST_ROUTING,
@@ -567,28 +544,28 @@ extern int ip_conntrack_max;
 extern unsigned int ip_conntrack_htable_size;
 
 /* From ip_conntrack_proto_tcp.c */
-extern unsigned long ip_ct_tcp_timeout_syn_sent;
-extern unsigned long ip_ct_tcp_timeout_syn_recv;
-extern unsigned long ip_ct_tcp_timeout_established;
-extern unsigned long ip_ct_tcp_timeout_fin_wait;
-extern unsigned long ip_ct_tcp_timeout_close_wait;
-extern unsigned long ip_ct_tcp_timeout_last_ack;
-extern unsigned long ip_ct_tcp_timeout_time_wait;
-extern unsigned long ip_ct_tcp_timeout_close;
-extern unsigned long ip_ct_tcp_timeout_max_retrans;
+extern unsigned int ip_ct_tcp_timeout_syn_sent;
+extern unsigned int ip_ct_tcp_timeout_syn_recv;
+extern unsigned int ip_ct_tcp_timeout_established;
+extern unsigned int ip_ct_tcp_timeout_fin_wait;
+extern unsigned int ip_ct_tcp_timeout_close_wait;
+extern unsigned int ip_ct_tcp_timeout_last_ack;
+extern unsigned int ip_ct_tcp_timeout_time_wait;
+extern unsigned int ip_ct_tcp_timeout_close;
+extern unsigned int ip_ct_tcp_timeout_max_retrans;
 extern int ip_ct_tcp_loose;
 extern int ip_ct_tcp_be_liberal;
 extern int ip_ct_tcp_max_retrans;
 
 /* From ip_conntrack_proto_udp.c */
-extern unsigned long ip_ct_udp_timeout;
-extern unsigned long ip_ct_udp_timeout_stream;
+extern unsigned int ip_ct_udp_timeout;
+extern unsigned int ip_ct_udp_timeout_stream;
 
 /* From ip_conntrack_proto_icmp.c */
-extern unsigned long ip_ct_icmp_timeout;
+extern unsigned int ip_ct_icmp_timeout;
 
 /* From ip_conntrack_proto_icmp.c */
-extern unsigned long ip_ct_generic_timeout;
+extern unsigned int ip_ct_generic_timeout;
 
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min = 0;
@@ -967,7 +944,7 @@ module_exit(fini);
 
 /* Some modules need us, but don't depend directly on any symbol.
    They should call this. */
-void need_ip_conntrack(void)
+void need_conntrack(void)
 {
 }
 
@@ -985,7 +962,7 @@ EXPORT_SYMBOL(ip_ct_get_tuple);
 EXPORT_SYMBOL(invert_tuplepr);
 EXPORT_SYMBOL(ip_conntrack_alter_reply);
 EXPORT_SYMBOL(ip_conntrack_destroyed);
-EXPORT_SYMBOL(need_ip_conntrack);
+EXPORT_SYMBOL(need_conntrack);
 EXPORT_SYMBOL(ip_conntrack_helper_register);
 EXPORT_SYMBOL(ip_conntrack_helper_unregister);
 EXPORT_SYMBOL(ip_ct_iterate_cleanup);

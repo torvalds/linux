@@ -282,43 +282,43 @@ typedef struct setup_parm {
 
 typedef struct T30_s {
 	/* session parameters */
-	__u8 resolution		__attribute__ ((packed));
-	__u8 rate		__attribute__ ((packed));
-	__u8 width		__attribute__ ((packed));
-	__u8 length		__attribute__ ((packed));
-	__u8 compression	__attribute__ ((packed));
-	__u8 ecm		__attribute__ ((packed));
-	__u8 binary		__attribute__ ((packed));
-	__u8 scantime		__attribute__ ((packed));
-	__u8 id[FAXIDLEN]	__attribute__ ((packed));
+	__u8 resolution;
+	__u8 rate;
+	__u8 width;
+	__u8 length;
+	__u8 compression;
+	__u8 ecm;
+	__u8 binary;
+	__u8 scantime;
+	__u8 id[FAXIDLEN];
 	/* additional parameters */
-	__u8 phase		__attribute__ ((packed));
-	__u8 direction		__attribute__ ((packed));
-	__u8 code		__attribute__ ((packed));
-	__u8 badlin		__attribute__ ((packed));
-	__u8 badmul		__attribute__ ((packed));
-	__u8 bor		__attribute__ ((packed));
-	__u8 fet		__attribute__ ((packed));
-	__u8 pollid[FAXIDLEN]	__attribute__ ((packed));
-	__u8 cq			__attribute__ ((packed));
-	__u8 cr			__attribute__ ((packed));
-	__u8 ctcrty		__attribute__ ((packed));
-	__u8 minsp		__attribute__ ((packed));
-	__u8 phcto		__attribute__ ((packed));
-	__u8 rel		__attribute__ ((packed));
-	__u8 nbc		__attribute__ ((packed));
+	__u8 phase;
+	__u8 direction;
+	__u8 code;
+	__u8 badlin;
+	__u8 badmul;
+	__u8 bor;
+	__u8 fet;
+	__u8 pollid[FAXIDLEN];
+	__u8 cq;
+	__u8 cr;
+	__u8 ctcrty;
+	__u8 minsp;
+	__u8 phcto;
+	__u8 rel;
+	__u8 nbc;
 	/* remote station parameters */
-	__u8 r_resolution	__attribute__ ((packed));
-	__u8 r_rate		__attribute__ ((packed));
-	__u8 r_width		__attribute__ ((packed));
-	__u8 r_length		__attribute__ ((packed));
-	__u8 r_compression	__attribute__ ((packed));
-	__u8 r_ecm		__attribute__ ((packed));
-	__u8 r_binary		__attribute__ ((packed));
-	__u8 r_scantime		__attribute__ ((packed));
-	__u8 r_id[FAXIDLEN]	__attribute__ ((packed));
-	__u8 r_code		__attribute__ ((packed));
-} T30_s;
+	__u8 r_resolution;
+	__u8 r_rate;
+	__u8 r_width;
+	__u8 r_length;
+	__u8 r_compression;
+	__u8 r_ecm;
+	__u8 r_binary;
+	__u8 r_scantime;
+	__u8 r_id[FAXIDLEN];
+	__u8 r_code;
+} __attribute__((packed)) T30_s;
 
 #define ISDN_TTY_FAX_CONN_IN	0
 #define ISDN_TTY_FAX_CONN_OUT	1

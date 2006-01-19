@@ -979,7 +979,7 @@ static int gbefb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static int gbefb_mmap(struct fb_info *info, struct file *file,
+static int gbefb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma)
 {
 	unsigned long size = vma->vm_end - vma->vm_start;
@@ -1000,7 +1000,6 @@ static int gbefb_mmap(struct fb_info *info, struct file *file,
 		pgprot_fb(pgprot_val(vma->vm_page_prot));
 
 	vma->vm_flags |= VM_IO | VM_RESERVED;
-	vma->vm_file = file;
 
 	/* look for the starting tile */
 	tile = &gbe_tiles.cpu[offset >> TILE_SHIFT];

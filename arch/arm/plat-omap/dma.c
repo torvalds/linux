@@ -64,7 +64,7 @@ static int dma_chan_count;
 static spinlock_t dma_chan_lock;
 static struct omap_dma_lch dma_chan[OMAP_LOGICAL_DMA_CH_COUNT];
 
-const static u8 omap1_dma_irq[OMAP_LOGICAL_DMA_CH_COUNT] = {
+static const u8 omap1_dma_irq[OMAP_LOGICAL_DMA_CH_COUNT] = {
 	INT_DMA_CH0_6, INT_DMA_CH1_7, INT_DMA_CH2_8, INT_DMA_CH3,
 	INT_DMA_CH4, INT_DMA_CH5, INT_1610_DMA_CH6, INT_1610_DMA_CH7,
 	INT_1610_DMA_CH8, INT_1610_DMA_CH9, INT_1610_DMA_CH10,

@@ -203,6 +203,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -888,7 +889,7 @@ static int tw_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int 
 	dprintk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl()\n");
 
 	/* Only let one of these through at a time */
-	if (down_interruptible(&tw_dev->ioctl_sem))
+	if (mutex_lock_interruptible(&tw_dev->ioctl_lock))
 		return -EINTR;
 
 	/* First copy down the buffer length */
@@ -1029,7 +1030,7 @@ out2:
 	/* Now free ioctl buf memory */
 	dma_free_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted+sizeof(TW_New_Ioctl) - 1, cpu_addr, dma_handle);
 out:
-	up(&tw_dev->ioctl_sem);
+	mutex_unlock(&tw_dev->ioctl_lock);
 	return retval;
 } /* End tw_chrdev_ioctl() */
 
@@ -1270,7 +1271,7 @@ static int tw_initialize_device_extension(TW_Device_Extension *tw_dev)
 	tw_dev->pending_tail = TW_Q_START;
 	tw_dev->chrdev_request_id = TW_IOCTL_CHRDEV_FREE;
 
-	init_MUTEX(&tw_dev->ioctl_sem);
+	mutex_init(&tw_dev->ioctl_lock);
 	init_waitqueue_head(&tw_dev->ioctl_wqueue);
 
 	return 0;

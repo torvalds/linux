@@ -39,19 +39,19 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_rom_h_sccs = "@(#)rom.h	1.1" ;
+static char *_rio_rom_h_sccs = "@(#)rom.h	1.1";
 #endif
 #endif
 
-typedef struct  ROM  ROM ;
-struct  ROM  {
-                 u_short    slx ;
-                 char       pcb_letter_rev ;
-                 char       pcb_number_rev ;
-                 char       serial[4] ;
-                 char       year ;
-                 char       week ;
-             } ;
+typedef struct ROM ROM;
+struct ROM {
+	u_short slx;
+	char pcb_letter_rev;
+	char pcb_number_rev;
+	char serial[4];
+	char year;
+	char week;
+};
 
 #endif
 
@@ -60,5 +60,3 @@ struct  ROM  {
 #define ROM_LENGTH  0x20
 
 /*********** end of file ***********/
-
-

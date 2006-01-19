@@ -49,7 +49,7 @@ MODULE_DESCRIPTION("iptables special SNAT module for consistent sourceip");
 
 static int
 same_check(const char *tablename,
-	      const struct ipt_entry *e,
+	      const void *e,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)

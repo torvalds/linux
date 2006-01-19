@@ -107,6 +107,7 @@ static int im_region_status(unsigned long v_addr, unsigned long size,
 		if (v_addr < (unsigned long) tmp->addr + tmp->size)
 			break;
 
+	*vm = NULL;
 	if (tmp) {
 		if (im_region_overlaps(v_addr, size, tmp))
 			return IM_REGION_OVERLAP;
@@ -127,7 +128,6 @@ static int im_region_status(unsigned long v_addr, unsigned long size,
 		}
 	}
 
-	*vm = NULL;
 	return IM_REGION_UNUSED;
 }
 

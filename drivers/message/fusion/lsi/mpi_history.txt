@@ -6,25 +6,25 @@
  Copyright (c) 2000-2005 LSI Logic Corporation.
 
  ---------------------------------------
- Header Set Release Version:    01.05.10
- Header Set Release Date:       03-11-05
+ Header Set Release Version:    01.05.12
+ Header Set Release Date:       08-30-05
  ---------------------------------------
 
  Filename               Current version     Prior version
  ----------             ---------------     -------------
- mpi.h                  01.05.08            01.05.07
- mpi_ioc.h              01.05.09            01.05.08
- mpi_cnfg.h             01.05.09            01.05.08
- mpi_init.h             01.05.05            01.05.04
- mpi_targ.h             01.05.05            01.05.04
+ mpi.h                  01.05.10            01.05.09
+ mpi_ioc.h              01.05.10            01.05.09
+ mpi_cnfg.h             01.05.11            01.05.10
+ mpi_init.h             01.05.06            01.05.06
+ mpi_targ.h             01.05.05            01.05.05
  mpi_fc.h               01.05.01            01.05.01
  mpi_lan.h              01.05.01            01.05.01
  mpi_raid.h             01.05.02            01.05.02
  mpi_tool.h             01.05.03            01.05.03
  mpi_inb.h              01.05.01            01.05.01
- mpi_sas.h              01.05.01            01.05.01
- mpi_type.h             01.05.01            01.05.01
- mpi_history.txt        01.05.09            01.05.09
+ mpi_sas.h              01.05.02            01.05.01
+ mpi_type.h             01.05.02            01.05.01
+ mpi_history.txt        01.05.12            01.05.11
 
 
  *  Date      Version   Description
@@ -91,6 +91,8 @@ mpi.h
  *  06-24-05  01.05.08  Added function codes for SCSI IO 32 and
  *                      TargetAssistExtended requests.
  *                      Added EEDP IOCStatus codes.
+ *  08-03-05  01.05.09  Bumped MPI_HEADER_VERSION_UNIT.
+ *  08-30-05  01.05.10  Added 2 new IOCStatus codes for Target.
  *  --------------------------------------------------------------------------
 
 mpi_ioc.h
@@ -164,6 +166,10 @@ mpi_ioc.h
  *                      Removed IOCFacts Reply EEDP Capability bit.
  *  06-24-05  01.05.09  Added 5 new IOCFacts Reply IOCCapabilities bits.
  *                      Added Max SATA Targets to SAS Discovery Error event.
+ *  08-30-05  01.05.10  Added 4 new events and their event data structures.
+ *                      Added new ReasonCode value for SAS Device Status Change
+ *                      event.
+ *                      Added new family code for FC949E.
  *  --------------------------------------------------------------------------
 
 mpi_cnfg.h
@@ -402,6 +408,23 @@ mpi_cnfg.h
  *                      Added OwnerDevHandle and Flags field to SAS PHY Page 0.
  *                      Added IOC GPIO Flags define to SAS Enclosure Page 0.
  *                      Fixed the value for MPI_SAS_IOUNIT1_CONTROL_DEV_SATA_SUPPORT.
+ *  08-03-05  01.05.10  Removed ISDataScrubRate and ISResyncRate from
+ *                      Manufacturing Page 4.
+ *                      Added MPI_IOUNITPAGE1_SATA_WRITE_CACHE_DISABLE bit.
+ *                      Added NumDevsPerEnclosure field to SAS IO Unit page 2.
+ *                      Added MPI_SAS_IOUNIT2_FLAGS_HOST_ASSIGNED_PHYS_MAP
+ *                      define.
+ *                      Added EnclosureHandle field to SAS Expander page 0.
+ *                      Removed redundant NumTableEntriesProg field from SAS
+ *                      Expander Page 1.
+ *  08-30-05  01.05.11  Added DeviceID for FC949E and changed the DeviceID for
+ *                      SAS1078.
+ *                      Added more defines for Manufacturing Page 4 Flags field.
+ *                      Added more defines for IOCSettings and added
+ *                      ExpanderSpinup field to Bios Page 1.
+ *                      Added postpone SATA Init bit to SAS IO Unit Page 1
+ *                      ControlFlags.
+ *                      Changed LogEntry format for Log Page 0.
  *  --------------------------------------------------------------------------
 
 mpi_init.h
@@ -442,6 +465,8 @@ mpi_init.h
  *                      addressing.
  *  06-24-05  01.05.05  Added SCSI IO 32 structures and defines.
  *                      Added four new defines for SEP SlotStatus.
+ *  08-03-05  01.05.06  Fixed some MPI_SCSIIO32_MSGFLGS_ defines to make them
+ *                      unique in the first 32 characters.
  *  --------------------------------------------------------------------------
 
 mpi_targ.h
@@ -582,6 +607,9 @@ mpi_inb.h
 
 mpi_sas.h
  *  08-19-04  01.05.01  Original release.
+ *  08-30-05  01.05.02  Added DeviceInfo bit for SEP.
+ *                      Added PrimFlags and Primitive field to SAS IO Unit
+ *                      Control request, and added a new operation code.
  *  --------------------------------------------------------------------------
 
 mpi_type.h
@@ -592,24 +620,25 @@ mpi_type.h
  *  08-08-01  01.02.01  Original release for v1.2 work.
  *  05-11-04  01.03.01  Original release for MPI v1.3.
  *  08-19-04  01.05.01  Original release for MPI v1.5.
+ *  08-30-05  01.05.02  Added PowerPC option to #ifdef's.
  *  --------------------------------------------------------------------------
 
 mpi_history.txt         Parts list history
 
-Filename    01.05.10  01.05.09
-----------  --------  --------
-mpi.h       01.05.08  01.05.07
-mpi_ioc.h   01.05.09  01.05.08
-mpi_cnfg.h  01.05.09  01.05.08
-mpi_init.h  01.05.05  01.05.04
-mpi_targ.h  01.05.05  01.05.04
-mpi_fc.h    01.05.01  01.05.01
-mpi_lan.h   01.05.01  01.05.01
-mpi_raid.h  01.05.02  01.05.02
-mpi_tool.h  01.05.03  01.05.03
-mpi_inb.h   01.05.01  01.05.01
-mpi_sas.h   01.05.01  01.05.01
-mpi_type.h  01.05.01  01.05.01
+Filename    01.05.12  01.05.11  01.05.10  01.05.09
+----------  --------  --------  --------  --------
+mpi.h       01.05.10  01.05.09  01.05.08  01.05.07
+mpi_ioc.h   01.05.10  01.05.09  01.05.09  01.05.08
+mpi_cnfg.h  01.05.11  01.05.10  01.05.09  01.05.08
+mpi_init.h  01.05.06  01.05.06  01.05.05  01.05.04
+mpi_targ.h  01.05.05  01.05.05  01.05.05  01.05.04
+mpi_fc.h    01.05.01  01.05.01  01.05.01  01.05.01
+mpi_lan.h   01.05.01  01.05.01  01.05.01  01.05.01
+mpi_raid.h  01.05.02  01.05.02  01.05.02  01.05.02
+mpi_tool.h  01.05.03  01.05.03  01.05.03  01.05.03
+mpi_inb.h   01.05.01  01.05.01  01.05.01  01.05.01
+mpi_sas.h   01.05.02  01.05.01  01.05.01  01.05.01
+mpi_type.h  01.05.02  01.05.01  01.05.01  01.05.01
 
 Filename    01.05.08   01.05.07   01.05.06   01.05.05   01.05.04   01.05.03
 ----------  --------   --------   --------   --------   --------   --------

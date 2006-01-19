@@ -357,7 +357,6 @@ static const struct usb_device_id	products [] = {
 MODULE_DEVICE_TABLE(usb, products);
 
 static struct usb_driver zaurus_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"zaurus",
 	.id_table =	products,
 	.probe =	usbnet_probe,

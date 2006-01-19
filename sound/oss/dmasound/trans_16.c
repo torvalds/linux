@@ -17,6 +17,7 @@
 #include <asm/uaccess.h>
 #include "dmasound.h"
 
+extern int expand_bal;	/* Balance factor for expanding (not volume!) */
 static short dmasound_alaw2dma16[] ;
 static short dmasound_ulaw2dma16[] ;
 

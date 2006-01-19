@@ -127,7 +127,7 @@ payload of each frame is reduced to 492 bytes.
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-static inline int ieee80211_copy_snap(u8 * data, u16 h_proto)
+static int ieee80211_copy_snap(u8 * data, u16 h_proto)
 {
 	struct ieee80211_snap_hdr *snap;
 	u8 *oui;
@@ -150,7 +150,7 @@ static inline int ieee80211_copy_snap(u8 * data, u16 h_proto)
 	return SNAP_SIZE + sizeof(u16);
 }
 
-static inline int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
+static int ieee80211_encrypt_fragment(struct ieee80211_device *ieee,
 					     struct sk_buff *frag, int hdr_len)
 {
 	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
@@ -288,7 +288,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Determine total amount of storage required for TXB packets */
 	bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
-	if (host_encrypt)
+	if (host_encrypt || host_build_iv)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		    IEEE80211_FCTL_PROTECTED;
 	else

@@ -43,7 +43,7 @@ static inline void set_bit(int nr, volatile unsigned long * addr)
 {
 	__asm__ __volatile__( LOCK_PREFIX
 		"btsl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"Ir" (nr));
 }
 
@@ -60,7 +60,7 @@ static inline void __set_bit(int nr, volatile unsigned long * addr)
 {
 	__asm__(
 		"btsl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"Ir" (nr));
 }
 
@@ -78,7 +78,7 @@ static inline void clear_bit(int nr, volatile unsigned long * addr)
 {
 	__asm__ __volatile__( LOCK_PREFIX
 		"btrl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"Ir" (nr));
 }
 
@@ -86,7 +86,7 @@ static inline void __clear_bit(int nr, volatile unsigned long * addr)
 {
 	__asm__ __volatile__(
 		"btrl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"Ir" (nr));
 }
 #define smp_mb__before_clear_bit()	barrier()
@@ -105,7 +105,7 @@ static inline void __change_bit(int nr, volatile unsigned long * addr)
 {
 	__asm__ __volatile__(
 		"btcl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"Ir" (nr));
 }
 
@@ -123,7 +123,7 @@ static inline void change_bit(int nr, volatile unsigned long * addr)
 {
 	__asm__ __volatile__( LOCK_PREFIX
 		"btcl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"Ir" (nr));
 }
 
@@ -142,7 +142,7 @@ static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
 
 	__asm__ __volatile__( LOCK_PREFIX
 		"btsl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"Ir" (nr) : "memory");
 	return oldbit;
 }
@@ -162,7 +162,7 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long * addr)
 
 	__asm__(
 		"btsl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"Ir" (nr));
 	return oldbit;
 }
@@ -182,7 +182,7 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long * addr)
 
 	__asm__ __volatile__( LOCK_PREFIX
 		"btrl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"Ir" (nr) : "memory");
 	return oldbit;
 }
@@ -202,7 +202,7 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 
 	__asm__(
 		"btrl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"Ir" (nr));
 	return oldbit;
 }
@@ -214,7 +214,7 @@ static inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
 
 	__asm__ __volatile__(
 		"btcl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"Ir" (nr) : "memory");
 	return oldbit;
 }
@@ -233,7 +233,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long* addr)
 
 	__asm__ __volatile__( LOCK_PREFIX
 		"btcl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"Ir" (nr) : "memory");
 	return oldbit;
 }
@@ -247,7 +247,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long* addr)
 static int test_bit(int nr, const volatile void * addr);
 #endif
 
-static inline int constant_test_bit(int nr, const volatile unsigned long *addr)
+static __always_inline int constant_test_bit(int nr, const volatile unsigned long *addr)
 {
 	return ((1UL << (nr & 31)) & (addr[nr >> 5])) != 0;
 }
@@ -332,9 +332,9 @@ static inline unsigned long __ffs(unsigned long word)
  * Returns the bit-number of the first set bit, not the number of the byte
  * containing a bit.
  */
-static inline int find_first_bit(const unsigned long *addr, unsigned size)
+static inline unsigned find_first_bit(const unsigned long *addr, unsigned size)
 {
-	int x = 0;
+	unsigned x = 0;
 
 	while (x < size) {
 		unsigned long val = *addr++;
@@ -367,11 +367,7 @@ static inline unsigned long ffz(unsigned long word)
 	return word;
 }
 
-/*
- * fls: find last bit set.
- */
-
-#define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 #ifdef __KERNEL__
 
@@ -407,6 +403,23 @@ static inline int ffs(int x)
 	int r;
 
 	__asm__("bsfl %1,%0\n\t"
+		"jnz 1f\n\t"
+		"movl $-1,%0\n"
+		"1:" : "=r" (r) : "rm" (x));
+	return r+1;
+}
+
+/**
+ * fls - find last bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs.
+ */
+static inline int fls(int x)
+{
+	int r;
+
+	__asm__("bsrl %1,%0\n\t"
 		"jnz 1f\n\t"
 		"movl $-1,%0\n"
 		"1:" : "=r" (r) : "rm" (x));

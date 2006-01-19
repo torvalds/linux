@@ -17,6 +17,9 @@
 
 #define PREFIX "TEA5767 "
 
+/* from tuner-core.c */
+extern int tuner_debug;
+
 /*****************************************************************************/
 
 /******************************
@@ -59,7 +62,7 @@
 
 #define TEA5767_PORT1_HIGH	0x01
 
-/* Forth register */
+/* Fourth register */
 #define TEA5767_PORT2_HIGH	0x80
 /* Chips stops working. Only I2C bus remains on */
 #define TEA5767_STDBY		0x40
@@ -82,7 +85,7 @@
 /* If activate PORT 1 indicates SEARCH or else it is used as PORT1 */
 #define TEA5767_SRCH_IND	0x01
 
-/* Fiveth register */
+/* Fifth register */
 
 /* By activating, it will use Xtal at 13 MHz as reference for divider */
 #define TEA5767_PLLREF_ENABLE	0x80
@@ -106,13 +109,13 @@
 #define TEA5767_STEREO_MASK	0x80
 #define TEA5767_IF_CNTR_MASK	0x7f
 
-/* Four register */
+/* Fourth register */
 #define TEA5767_ADC_LEVEL_MASK	0xf0
 
 /* should be 0 */
 #define TEA5767_CHIP_ID_MASK	0x0f
 
-/* Fiveth register */
+/* Fifth register */
 /* Reserved for future extensions */
 #define TEA5767_RESERVED_MASK	0xff
 
@@ -217,19 +220,19 @@ static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 		tuner_dbg ("TEA5767 radio HIGH LO inject xtal @ 13 MHz\n");
 		buffer[2] |= TEA5767_HIGH_LO_INJECT;
 		buffer[4] |= TEA5767_PLLREF_ENABLE;
-		div = (frq * 4000 / 16 + 700000 + 225000 + 25000) / 50000;
+		div = (frq * (4000 / 16) + 700000 + 225000 + 25000) / 50000;
 		break;
 	case TEA5767_LOW_LO_13MHz:
 		tuner_dbg ("TEA5767 radio LOW LO inject xtal @ 13 MHz\n");
 
 		buffer[4] |= TEA5767_PLLREF_ENABLE;
-		div = (frq * 4000 / 16 - 700000 - 225000 + 25000) / 50000;
+		div = (frq * (4000 / 16) - 700000 - 225000 + 25000) / 50000;
 		break;
 	case TEA5767_LOW_LO_32768:
 		tuner_dbg ("TEA5767 radio LOW LO inject xtal @ 32,768 MHz\n");
 		buffer[3] |= TEA5767_XTAL_32768;
 		/* const 700=4000*175 Khz - to adjust freq to right value */
-		div = ((frq * 4000 / 16 - 700000 - 225000) + 16384) >> 15;
+		div = ((frq * (4000 / 16) - 700000 - 225000) + 16384) >> 15;
 		break;
 	case TEA5767_HIGH_LO_32768:
 	default:
@@ -264,7 +267,7 @@ static int tea5767_signal(struct i2c_client *c)
 	if (5 != (rc = i2c_master_recv(c, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
-	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << (13 - 4));
+	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << 8);
 }
 
 static int tea5767_stereo(struct i2c_client *c)
@@ -347,8 +350,8 @@ int tea5767_tuner_init(struct i2c_client *c)
 	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
 	strlcpy(c->name, "tea5767", sizeof(c->name));
 
-	t->tv_freq = set_tv_freq;
-	t->radio_freq = set_radio_freq;
+	t->set_tv_freq = set_tv_freq;
+	t->set_radio_freq = set_radio_freq;
 	t->has_signal = tea5767_signal;
 	t->is_stereo = tea5767_stereo;
 	t->standby = tea5767_standby;

@@ -151,7 +151,7 @@ struct usb_stv {
 };
 
 
-static unsigned char red[256] = { 
+static const unsigned char red[256] = {
 	0, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 
 	18, 18, 18, 18, 18, 18, 18, 25, 30, 35, 38, 42, 
 	44, 47, 50, 53, 54, 57, 59, 61, 63, 65, 67, 69, 
@@ -176,7 +176,7 @@ static unsigned char red[256] = {
 	220, 220, 221, 221 
 }; 
 
-static unsigned char green[256] = {
+static const unsigned char green[256] = {
 	0, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 
 	21, 21, 21, 21, 21, 21, 21, 28, 34, 39, 43, 47, 
 	50, 53, 56, 59, 61, 64, 66, 68, 71, 73, 75, 77, 
@@ -201,7 +201,7 @@ static unsigned char green[256] = {
 	245, 245, 246, 246 
 }; 
 
-static unsigned char blue[256] = {
+static const unsigned char blue[256] = {
 	0, 23, 23, 23, 23, 23, 23, 23, 23, 23, 23, 23, 
 	23, 23, 23, 23, 23, 23, 23, 30, 37, 42, 47, 51, 
 	55, 58, 61, 64, 67, 70, 72, 74, 78, 80, 82, 84, 

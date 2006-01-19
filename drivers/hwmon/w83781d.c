@@ -269,17 +269,18 @@ static struct w83781d_data *w83781d_update_device(struct device *dev);
 static void w83781d_init_client(struct i2c_client *client);
 
 static struct i2c_driver w83781d_driver = {
-	.owner = THIS_MODULE,
-	.name = "w83781d",
+	.driver = {
+		.name = "w83781d",
+	},
 	.id = I2C_DRIVERID_W83781D,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = w83781d_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
 
 static struct i2c_driver w83781d_isa_driver = {
-	.owner = THIS_MODULE,
-	.name = "w83781d-isa",
+	.driver = {
+		.name = "w83781d-isa",
+	},
 	.attach_adapter = w83781d_isa_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
@@ -1012,7 +1013,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	
 	if (is_isa)
 		if (!request_region(address, W83781D_EXTENT,
-				    w83781d_isa_driver.name)) {
+				    w83781d_isa_driver.driver.name)) {
 			dev_dbg(&adapter->dev, "Request of region "
 				"0x%x-0x%x for w83781d failed\n", address,
 				address + W83781D_EXTENT - 1);

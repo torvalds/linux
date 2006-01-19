@@ -6,7 +6,7 @@
  *          Title:  MPI Message independent structures and definitions
  *  Creation Date:  July 27, 2000
  *
- *    mpi.h Version:  01.05.08
+ *    mpi.h Version:  01.05.10
  *
  *  Version History
  *  ---------------
@@ -74,6 +74,8 @@
  *  06-24-05  01.05.08  Added function codes for SCSI IO 32 and
  *                      TargetAssistExtended requests.
  *                      Added EEDP IOCStatus codes.
+ *  08-03-05  01.05.09  Bumped MPI_HEADER_VERSION_UNIT.
+ *  08-30-05  01.05.10  Added 2 new IOCStatus codes for Target.
  *  --------------------------------------------------------------------------
  */
 
@@ -104,7 +106,7 @@
 /* Note: The major versions of 0xe0 through 0xff are reserved */
 
 /* versioning for this MPI header set */
-#define MPI_HEADER_VERSION_UNIT             (0x0A)
+#define MPI_HEADER_VERSION_UNIT             (0x0C)
 #define MPI_HEADER_VERSION_DEV              (0x00)
 #define MPI_HEADER_VERSION_UNIT_MASK        (0xFF00)
 #define MPI_HEADER_VERSION_UNIT_SHIFT       (8)
@@ -711,6 +713,8 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_TARGET_DATA_OFFSET_ERROR   (0x006D)
 #define MPI_IOCSTATUS_TARGET_TOO_MUCH_WRITE_DATA (0x006E)
 #define MPI_IOCSTATUS_TARGET_IU_TOO_SHORT        (0x006F)
+#define MPI_IOCSTATUS_TARGET_ACK_NAK_TIMEOUT     (0x0070)
+#define MPI_IOCSTATUS_TARGET_NAK_RECEIVED        (0x0071)
 
 /****************************************************************************/
 /*  Additional FCP target values (obsolete)                                 */
@@ -745,7 +749,7 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_LAN_CANCELED              (0x0087)
 
 /****************************************************************************/
-/*  Serial Attached SCSI values                                                              */
+/*  Serial Attached SCSI values                                             */
 /****************************************************************************/
 
 #define MPI_IOCSTATUS_SAS_SMP_REQUEST_FAILED    (0x0090)

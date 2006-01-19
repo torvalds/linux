@@ -185,5 +185,6 @@ void relay_destroy_buf(struct rchan_buf *buf)
 void relay_remove_buf(struct kref *kref)
 {
 	struct rchan_buf *buf = container_of(kref, struct rchan_buf, kref);
-	relayfs_remove(buf->dentry);
+	buf->chan->cb->remove_buf_file(buf->dentry);
+	relay_destroy_buf(buf);
 }

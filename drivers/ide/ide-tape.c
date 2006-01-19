@@ -4682,9 +4682,8 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	idetape_add_settings(drive);
 }
 
-static int ide_tape_remove(struct device *dev)
+static void ide_tape_remove(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	idetape_tape_t *tape = drive->driver_data;
 
 	ide_unregister_subdriver(drive, tape->driver);
@@ -4692,8 +4691,6 @@ static int ide_tape_remove(struct device *dev)
 	ide_unregister_region(tape->disk);
 
 	ide_tape_put(tape);
-
-	return 0;
 }
 
 static void ide_tape_release(struct kref *kref)
@@ -4745,16 +4742,16 @@ static ide_proc_entry_t idetape_proc[] = {
 
 #endif
 
-static int ide_tape_probe(struct device *);
+static int ide_tape_probe(ide_drive_t *);
 
 static ide_driver_t idetape_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
 		.name		= "ide-tape",
 		.bus		= &ide_bus_type,
-		.probe		= ide_tape_probe,
-		.remove		= ide_tape_remove,
 	},
+	.probe			= ide_tape_probe,
+	.remove			= ide_tape_remove,
 	.version		= IDETAPE_VERSION,
 	.media			= ide_tape,
 	.supports_dsc_overlap 	= 1,
@@ -4825,9 +4822,8 @@ static struct block_device_operations idetape_block_ops = {
 	.ioctl		= idetape_ioctl,
 };
 
-static int ide_tape_probe(struct device *dev)
+static int ide_tape_probe(ide_drive_t *drive)
 {
-	ide_drive_t *drive = to_ide_device(dev);
 	idetape_tape_t *tape;
 	struct gendisk *g;
 	int minor;
@@ -4883,9 +4879,9 @@ static int ide_tape_probe(struct device *dev)
 	idetape_setup(drive, tape, minor);
 
 	class_device_create(idetape_sysfs_class, NULL,
-			MKDEV(IDETAPE_MAJOR, minor), dev, "%s", tape->name);
+			MKDEV(IDETAPE_MAJOR, minor), &drive->gendev, "%s", tape->name);
 	class_device_create(idetape_sysfs_class, NULL,
-			MKDEV(IDETAPE_MAJOR, minor + 128), dev, "n%s", tape->name);
+			MKDEV(IDETAPE_MAJOR, minor + 128), &drive->gendev, "n%s", tape->name);
 
 	devfs_mk_cdev(MKDEV(HWIF(drive)->major, minor),
 			S_IFCHR | S_IRUGO | S_IWUGO,
@@ -4947,6 +4943,7 @@ out:
 	return error;
 }
 
+MODULE_ALIAS("ide:*m-tape*");
 module_init(idetape_init);
 module_exit(idetape_exit);
 MODULE_ALIAS_CHARDEV_MAJOR(IDETAPE_MAJOR);

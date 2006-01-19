@@ -43,7 +43,7 @@ static int nand_width = 1; /* default x8*/
 /*
  * Define partitions for flash device
  */
-const static struct mtd_partition partition_info[] = {
+static const struct mtd_partition partition_info[] = {
 	{
 		.name 	= "NAND FS 0",
 	  	.offset = 0,

@@ -201,7 +201,7 @@ again:
 	if ((signed long)(get_ccount() - next) > 0)
 		goto again;
 
-	/* Allow platform to do something usefull (Wdog). */
+	/* Allow platform to do something useful (Wdog). */
 
 	platform_heartbeat();
 

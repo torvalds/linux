@@ -197,7 +197,6 @@ static void kbtab_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver kbtab_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"kbtab",
 	.probe =	kbtab_probe,
 	.disconnect =	kbtab_disconnect,

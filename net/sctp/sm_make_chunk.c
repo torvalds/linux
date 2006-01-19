@@ -1287,7 +1287,7 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 			- (bodysize % SCTP_COOKIE_MULTIPLE);
 	*cookie_len = headersize + bodysize;
 
-	retval = (sctp_cookie_param_t *)kmalloc(*cookie_len, GFP_ATOMIC);
+	retval = kmalloc(*cookie_len, GFP_ATOMIC);
 
 	if (!retval) {
 		*cookie_len = 0;

@@ -5,6 +5,9 @@
  * pages.  A pagevec is a multipage container which is used for that.
  */
 
+#ifndef _LINUX_PAGEVEC_H
+#define _LINUX_PAGEVEC_H
+
 /* 14 pointers + two long's align the pagevec structure to a power of two */
 #define PAGEVEC_SIZE	14
 
@@ -83,3 +86,5 @@ static inline void pagevec_lru_add(struct pagevec *pvec)
 	if (pagevec_count(pvec))
 		__pagevec_lru_add(pvec);
 }
+
+#endif /* _LINUX_PAGEVEC_H */

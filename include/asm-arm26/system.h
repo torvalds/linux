@@ -111,8 +111,18 @@ extern struct task_struct *__switch_to(struct task_struct *, struct thread_info 
 
 #define switch_to(prev,next,last)					\
 do {									\
-	last = __switch_to(prev,prev->thread_info,next->thread_info);	\
+	last = __switch_to(prev,task_thread_info(prev),task_thread_info(next));	\
 } while (0)
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
 
 /*
  * Save the current interrupt enable state & disable IRQs

@@ -354,8 +354,9 @@ static int scsi_dev_info_list_add_str(char *dev_list)
  *     @model, if found, return the matching flags value, else return
  *     the host or global default settings.
  **/
-int scsi_get_device_flags(struct scsi_device *sdev, unsigned char *vendor,
-			  unsigned char *model)
+int scsi_get_device_flags(struct scsi_device *sdev,
+			  const unsigned char *vendor,
+			  const unsigned char *model)
 {
 	struct scsi_dev_info_list *devinfo;
 	unsigned int bflags;

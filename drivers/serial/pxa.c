@@ -107,14 +107,6 @@ receive_chars(struct uart_pxa_port *up, int *status, struct pt_regs *regs)
 	int max_count = 256;
 
 	do {
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
 		ch = serial_in(up, UART_RX);
 		flag = TTY_NORMAL;
 		up->port.icount.rx++;

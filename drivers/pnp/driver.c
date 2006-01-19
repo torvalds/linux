@@ -146,10 +146,59 @@ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
+static int pnp_bus_suspend(struct device *dev, pm_message_t state)
+{
+	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver * pnp_drv = pnp_dev->driver;
+	int error;
+
+	if (!pnp_drv)
+		return 0;
+
+	if (pnp_drv->suspend) {
+		error = pnp_drv->suspend(pnp_dev, state);
+		if (error)
+			return error;
+	}
+
+	if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE) &&
+	    pnp_can_disable(pnp_dev)) {
+	    	error = pnp_stop_dev(pnp_dev);
+	    	if (error)
+	    		return error;
+	}
+
+	return 0;
+}
+
+static int pnp_bus_resume(struct device *dev)
+{
+	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver * pnp_drv = pnp_dev->driver;
+	int error;
+
+	if (!pnp_drv)
+		return 0;
+
+	if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)) {
+		error = pnp_start_dev(pnp_dev);
+		if (error)
+			return error;
+	}
+
+	if (pnp_drv->resume)
+		return pnp_drv->resume(pnp_dev);
+
+	return 0;
+}
 
 struct bus_type pnp_bus_type = {
 	.name	= "pnp",
 	.match	= pnp_bus_match,
+	.probe	= pnp_device_probe,
+	.remove	= pnp_device_remove,
+	.suspend = pnp_bus_suspend,
+	.resume = pnp_bus_resume,
 };
 
 
@@ -168,8 +217,6 @@ int pnp_register_driver(struct pnp_driver *drv)
 
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pnp_bus_type;
-	drv->driver.probe = pnp_device_probe;
-	drv->driver.remove = pnp_device_remove;
 
 	count = driver_register(&drv->driver);
 

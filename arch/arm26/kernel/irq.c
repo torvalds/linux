@@ -141,7 +141,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i < NR_IRQS) {
 	    	action = irq_desc[i].action;
 		if (!action)
-			continue;
+			goto out;
 		seq_printf(p, "%3d: %10u ", i, kstat_irqs(i));
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next) {
@@ -152,6 +152,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		show_fiq_list(p, v);
 		seq_printf(p, "Err: %10lu\n", irq_err_count);
 	}
+out:
 	return 0;
 }
 

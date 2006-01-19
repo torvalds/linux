@@ -13,9 +13,6 @@
 # define L1_CACHE_SHIFT		5
 #endif
 
-/* XXX: this is valid for x86 and x86_64. */
-#define L1_CACHE_SHIFT_MAX	7	/* largest L1 which this arch supports */
-
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
 #endif

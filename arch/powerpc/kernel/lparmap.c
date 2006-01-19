@@ -7,7 +7,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <asm/mmu.h>
-#include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/iseries/lpar_map.h>
 
 const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
@@ -16,16 +16,16 @@ const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
 	.xSegmentTableOffs = STAB0_PAGE,
 
 	.xEsids = {
-		{ .xKernelEsid = GET_ESID(KERNELBASE),
-		  .xKernelVsid = KERNEL_VSID(KERNELBASE), },
-		{ .xKernelEsid = GET_ESID(VMALLOCBASE),
-		  .xKernelVsid = KERNEL_VSID(VMALLOCBASE), },
+		{ .xKernelEsid = GET_ESID(PAGE_OFFSET),
+		  .xKernelVsid = KERNEL_VSID(PAGE_OFFSET), },
+		{ .xKernelEsid = GET_ESID(VMALLOC_START),
+		  .xKernelVsid = KERNEL_VSID(VMALLOC_START), },
 	},
 
 	.xRanges = {
 		{ .xPages = HvPagesToMap,
 		  .xOffset = 0,
-		  .xVPN = KERNEL_VSID(KERNELBASE) << (SID_SHIFT - HW_PAGE_SHIFT),
+		  .xVPN = KERNEL_VSID(PAGE_OFFSET) << (SID_SHIFT - HW_PAGE_SHIFT),
 		},
 	},
 };

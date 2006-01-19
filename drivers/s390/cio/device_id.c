@@ -3,7 +3,7 @@
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
- *    Author(s): Cornelia Huck(cohuck@de.ibm.com)
+ *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  * Sense ID functions.
@@ -27,7 +27,7 @@
 /*
  * diag210 is used under VM to get information about a virtual device
  */
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 int
 diag210(struct diag210 * addr)
 {
@@ -256,16 +256,17 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		 *     sense id information. So, for intervention required,
 		 *     we use the "whack it until it talks" strategy...
 		 */
-		CIO_MSG_EVENT(2, "SenseID : device %04x on Subchannel %04x "
-			      "reports cmd reject\n",
-			      cdev->private->devno, sch->irq);
+		CIO_MSG_EVENT(2, "SenseID : device %04x on Subchannel "
+			      "0.%x.%04x reports cmd reject\n",
+			      cdev->private->devno, sch->schid.ssid,
+			      sch->schid.sch_no);
 		return -EOPNOTSUPP;
 	}
 	if (irb->esw.esw0.erw.cons) {
-		CIO_MSG_EVENT(2, "SenseID : UC on dev %04x, "
+		CIO_MSG_EVENT(2, "SenseID : UC on dev 0.%x.%04x, "
 			      "lpum %02X, cnt %02d, sns :"
 			      " %02X%02X%02X%02X %02X%02X%02X%02X ...\n",
-			      cdev->private->devno,
+			      cdev->private->ssid, cdev->private->devno,
 			      irb->esw.esw0.sublog.lpum,
 			      irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
@@ -277,16 +278,17 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 	if (irb->scsw.cc == 3) {
 		if ((sch->orb.lpm &
 		     sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
-			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x on"
-				      " subchannel %04x is 'not operational'\n",
-				      sch->orb.lpm, cdev->private->devno,
-				      sch->irq);
+			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x "
+				      "on subchannel 0.%x.%04x is "
+				      "'not operational'\n", sch->orb.lpm,
+				      cdev->private->devno, sch->schid.ssid,
+				      sch->schid.sch_no);
 		return -EACCES;
 	}
 	/* Hmm, whatever happened, try again. */
 	CIO_MSG_EVENT(2, "SenseID : start_IO() for device %04x on "
-		      "subchannel %04x returns status %02X%02X\n",
-		      cdev->private->devno, sch->irq,
+		      "subchannel 0.%x.%04x returns status %02X%02X\n",
+		      cdev->private->devno, sch->schid.ssid, sch->schid.sch_no,
 		      irb->scsw.dstat, irb->scsw.cstat);
 	return -EAGAIN;
 }

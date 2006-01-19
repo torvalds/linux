@@ -403,7 +403,7 @@ int hci_get_conn_list(void __user *arg)
 
 	size = sizeof(req) + req.conn_num * sizeof(*ci);
 
-	if (!(cl = (void *) kmalloc(size, GFP_KERNEL)))
+	if (!(cl = kmalloc(size, GFP_KERNEL)))
 		return -ENOMEM;
 
 	if (!(hdev = hci_dev_get(req.dev_id))) {

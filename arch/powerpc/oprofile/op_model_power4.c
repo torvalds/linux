@@ -252,7 +252,7 @@ static unsigned long get_pc(struct pt_regs *regs)
 		return (unsigned long)__va(pc);
 
 	/* Not sure where we were */
-	if (pc < KERNELBASE)
+	if (!is_kernel_addr(pc))
 		/* function descriptor madness */
 		return *((unsigned long *)kernel_unknown_bucket);
 
@@ -264,7 +264,7 @@ static int get_kernel(unsigned long pc)
 	int is_kernel;
 
 	if (!mmcra_has_sihv) {
-		is_kernel = (pc >= KERNELBASE);
+		is_kernel = is_kernel_addr(pc);
 	} else {
 		unsigned long mmcra = mfspr(SPRN_MMCRA);
 		is_kernel = ((mmcra & MMCRA_SIPR) == 0);

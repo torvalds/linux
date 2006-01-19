@@ -456,11 +456,6 @@ out:
 
 /* ----------------------------------------------------------------------- */
 
-static int sixpack_receive_room(struct tty_struct *tty)
-{
-	return 65536;  /* We can handle an infinite amount of data. :-) */
-}
-
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
@@ -671,6 +666,7 @@ static int sixpack_open(struct tty_struct *tty)
 
 	/* Done.  We have linked the TTY line to a channel. */
 	tty->disc_data = sp;
+	tty->receive_room = 65536;
 
 	/* Now we're ready to register. */
 	if (register_netdev(dev))
@@ -802,7 +798,6 @@ static struct tty_ldisc sp_ldisc = {
 	.close		= sixpack_close,
 	.ioctl		= sixpack_ioctl,
 	.receive_buf	= sixpack_receive_buf,
-	.receive_room	= sixpack_receive_room,
 	.write_wakeup	= sixpack_write_wakeup,
 };
 

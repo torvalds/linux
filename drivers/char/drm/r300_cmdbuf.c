@@ -52,8 +52,8 @@ static const int r300_cliprect_cntl[4] = {
  * Emit up to R300_SIMULTANEOUS_CLIPRECTS cliprects from the given command
  * buffer, starting with index n.
  */
-static int r300_emit_cliprects(drm_radeon_private_t * dev_priv,
-			       drm_radeon_kcmd_buffer_t * cmdbuf, int n)
+static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
+			       drm_radeon_kcmd_buffer_t *cmdbuf, int n)
 {
 	drm_clip_rect_t box;
 	int nr;
@@ -216,6 +216,7 @@ void r300_init_reg_flags(void)
 	ADD_RANGE(R300_TX_UNK1_0, 16);
 	ADD_RANGE(R300_TX_SIZE_0, 16);
 	ADD_RANGE(R300_TX_FORMAT_0, 16);
+	ADD_RANGE(R300_TX_PITCH_0, 16);
 	/* Texture offset is dangerous and needs more checking */
 	ADD_RANGE_MARK(R300_TX_OFFSET_0, 16, MARK_CHECK_OFFSET);
 	ADD_RANGE(R300_TX_UNK4_0, 16);
@@ -242,7 +243,7 @@ static __inline__ int r300_check_range(unsigned reg, int count)
 
   /* we expect offsets passed to the framebuffer to be either within video memory or
      within AGP space */
-static __inline__ int r300_check_offset(drm_radeon_private_t * dev_priv,
+static __inline__ int r300_check_offset(drm_radeon_private_t *dev_priv,
 					u32 offset)
 {
 	/* we realy want to check against end of video aperture
@@ -317,8 +318,8 @@ static __inline__ int r300_emit_carefully_checked_packet0(drm_radeon_private_t *
  *
  * Note that checks are performed on contents and addresses of the registers
  */
-static __inline__ int r300_emit_packet0(drm_radeon_private_t * dev_priv,
-					drm_radeon_kcmd_buffer_t * cmdbuf,
+static __inline__ int r300_emit_packet0(drm_radeon_private_t *dev_priv,
+					drm_radeon_kcmd_buffer_t *cmdbuf,
 					drm_r300_cmd_header_t header)
 {
 	int reg;
@@ -363,8 +364,8 @@ static __inline__ int r300_emit_packet0(drm_radeon_private_t * dev_priv,
  * the graphics card.
  * Called by r300_do_cp_cmdbuf.
  */
-static __inline__ int r300_emit_vpu(drm_radeon_private_t * dev_priv,
-				    drm_radeon_kcmd_buffer_t * cmdbuf,
+static __inline__ int r300_emit_vpu(drm_radeon_private_t *dev_priv,
+				    drm_radeon_kcmd_buffer_t *cmdbuf,
 				    drm_r300_cmd_header_t header)
 {
 	int sz;
@@ -400,8 +401,8 @@ static __inline__ int r300_emit_vpu(drm_radeon_private_t * dev_priv,
  * Emit a clear packet from userspace.
  * Called by r300_emit_packet3.
  */
-static __inline__ int r300_emit_clear(drm_radeon_private_t * dev_priv,
-				      drm_radeon_kcmd_buffer_t * cmdbuf)
+static __inline__ int r300_emit_clear(drm_radeon_private_t *dev_priv,
+				      drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	RING_LOCALS;
 
@@ -421,8 +422,8 @@ static __inline__ int r300_emit_clear(drm_radeon_private_t * dev_priv,
 	return 0;
 }
 
-static __inline__ int r300_emit_3d_load_vbpntr(drm_radeon_private_t * dev_priv,
-					       drm_radeon_kcmd_buffer_t * cmdbuf,
+static __inline__ int r300_emit_3d_load_vbpntr(drm_radeon_private_t *dev_priv,
+					       drm_radeon_kcmd_buffer_t *cmdbuf,
 					       u32 header)
 {
 	int count, i, k;
@@ -489,8 +490,8 @@ static __inline__ int r300_emit_3d_load_vbpntr(drm_radeon_private_t * dev_priv,
 	return 0;
 }
 
-static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t * dev_priv,
-					    drm_radeon_kcmd_buffer_t * cmdbuf)
+static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
+					    drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	u32 header;
 	int count;
@@ -554,8 +555,8 @@ static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t * dev_priv,
  * Emit a rendering packet3 from userspace.
  * Called by r300_do_cp_cmdbuf.
  */
-static __inline__ int r300_emit_packet3(drm_radeon_private_t * dev_priv,
-					drm_radeon_kcmd_buffer_t * cmdbuf,
+static __inline__ int r300_emit_packet3(drm_radeon_private_t *dev_priv,
+					drm_radeon_kcmd_buffer_t *cmdbuf,
 					drm_r300_cmd_header_t header)
 {
 	int n;
@@ -623,7 +624,7 @@ static __inline__ int r300_emit_packet3(drm_radeon_private_t * dev_priv,
 /**
  * Emit the sequence to pacify R300.
  */
-static __inline__ void r300_pacify(drm_radeon_private_t * dev_priv)
+static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
 {
 	RING_LOCALS;
 
@@ -657,9 +658,10 @@ static void r300_discard_buffer(drm_device_t * dev, drm_buf_t * buf)
  * commands on the DMA ring buffer.
  * Called by the ioctl handler function radeon_cp_cmdbuf.
  */
-int r300_do_cp_cmdbuf(drm_device_t * dev,
+int r300_do_cp_cmdbuf(drm_device_t *dev,
 		      DRMFILE filp,
-		      drm_file_t * filp_priv, drm_radeon_kcmd_buffer_t * cmdbuf)
+		      drm_file_t *filp_priv,
+		      drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_device_dma_t *dma = dev->dma;

@@ -28,6 +28,7 @@
 #include <net/xfrm.h>
 #include <net/icmp.h>
 #include <net/ipcomp.h>
+#include <net/protocol.h>
 
 struct ipcomp_tfms {
 	struct list_head list;

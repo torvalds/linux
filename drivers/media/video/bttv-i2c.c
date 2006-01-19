@@ -28,10 +28,11 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/jiffies.h>
-#include <asm/io.h>
 
 #include "bttvp.h"
+#include <media/v4l2-common.h>
+#include <linux/jiffies.h>
+#include <asm/io.h>
 
 static struct i2c_algo_bit_data bttv_i2c_algo_bit_template;
 static struct i2c_adapter bttv_i2c_adap_sw_template;
@@ -40,9 +41,9 @@ static struct i2c_client bttv_i2c_client_template;
 
 static int attach_inform(struct i2c_client *client);
 
-static int i2c_debug = 0;
-static int i2c_hw = 0;
-static int i2c_scan = 0;
+static int i2c_debug;
+static int i2c_hw;
+static int i2c_scan;
 module_param(i2c_debug, int, 0644);
 module_param(i2c_hw,    int, 0444);
 module_param(i2c_scan,  int, 0444);
@@ -105,10 +106,8 @@ static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 
 static struct i2c_adapter bttv_i2c_adap_sw_template = {
 	.owner             = THIS_MODULE,
-#ifdef I2C_CLASS_TV_ANALOG
 	.class             = I2C_CLASS_TV_ANALOG,
-#endif
-	.name              = "bt848",
+	.name              = "bttv",
 	.id                = I2C_HW_B_BT848,
 	.client_register   = attach_inform,
 };
@@ -275,10 +274,8 @@ static struct i2c_algorithm bttv_algo = {
 };
 
 static struct i2c_adapter bttv_i2c_adap_hw_template = {
-	.owner         = THIS_MODULE,
-#ifdef I2C_CLASS_TV_ANALOG
+	.owner             = THIS_MODULE,
 	.class         = I2C_CLASS_TV_ANALOG,
-#endif
 	.name          = "bt878",
 	.id            = I2C_HW_B_BT848 /* FIXME */,
 	.algo          = &bttv_algo,
@@ -300,7 +297,7 @@ static int attach_inform(struct i2c_client *client)
 
 	if (bttv_debug)
 		printk(KERN_DEBUG "bttv%d: %s i2c attach [addr=0x%x,client=%s]\n",
-			btv->c.nr,client->driver->name,client->addr,
+			btv->c.nr, client->driver->driver.name, client->addr,
 			client->name);
 	if (!client->driver->command)
 		return 0;
@@ -441,12 +438,10 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 	i2c_set_adapdata(&btv->c.i2c_adap, btv);
 	btv->i2c_client.adapter = &btv->c.i2c_adap;
 
-#ifdef I2C_CLASS_TV_ANALOG
 	if (bttv_tvcards[btv->c.type].no_video)
 		btv->c.i2c_adap.class &= ~I2C_CLASS_TV_ANALOG;
 	if (bttv_tvcards[btv->c.type].has_dvb)
 		btv->c.i2c_adap.class |= I2C_CLASS_TV_DIGITAL;
-#endif
 
 	if (btv->use_i2c_hw) {
 		btv->i2c_rc = i2c_add_adapter(&btv->c.i2c_adap);

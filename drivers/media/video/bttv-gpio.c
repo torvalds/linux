@@ -47,9 +47,29 @@ static int bttv_sub_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+static int bttv_sub_probe(struct device *dev)
+{
+	struct bttv_sub_device *sdev = to_bttv_sub_dev(dev);
+	struct bttv_sub_driver *sub = to_bttv_sub_drv(dev->driver);
+
+	return sub->probe ? sub->probe(sdev) : -ENODEV;
+}
+
+static int bttv_sub_remove(struct device *dev)
+{
+	struct bttv_sub_device *sdev = to_bttv_sub_dev(dev);
+	struct bttv_sub_driver *sub = to_bttv_sub_drv(dev->driver);
+
+	if (sub->remove)
+		sub->remove(sdev);
+	return 0;
+}
+
 struct bus_type bttv_sub_bus_type = {
-	.name  = "bttv-sub",
-	.match = &bttv_sub_bus_match,
+	.name   = "bttv-sub",
+	.match  = &bttv_sub_bus_match,
+	.probe  = bttv_sub_probe,
+	.remove = bttv_sub_remove,
 };
 EXPORT_SYMBOL(bttv_sub_bus_type);
 
@@ -64,10 +84,9 @@ int bttv_sub_add_device(struct bttv_core *core, char *name)
 	struct bttv_sub_device *sub;
 	int err;
 
-	sub = kmalloc(sizeof(*sub),GFP_KERNEL);
+	sub = kzalloc(sizeof(*sub),GFP_KERNEL);
 	if (NULL == sub)
 		return -ENOMEM;
-	memset(sub,0,sizeof(*sub));
 
 	sub->core        = core;
 	sub->dev.parent  = &core->pci->dev;
@@ -111,24 +130,6 @@ void bttv_gpio_irq(struct bttv_core *core)
 		if (drv && drv->gpio_irq)
 			drv->gpio_irq(dev);
 	}
-}
-
-int bttv_any_irq(struct bttv_core *core)
-{
-	struct bttv_sub_driver *drv;
-	struct bttv_sub_device *dev;
-	struct list_head *item;
-	int handled = 0;
-
-	list_for_each(item,&core->subs) {
-		dev = list_entry(item,struct bttv_sub_device,list);
-		drv = to_bttv_sub_drv(dev->dev.driver);
-		if (drv && drv->any_irq) {
-			if (drv->any_irq(dev))
-				handled = 1;
-		}
-	}
-	return handled;
 }
 
 /* ----------------------------------------------------------------------- */

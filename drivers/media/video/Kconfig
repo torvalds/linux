@@ -7,6 +7,15 @@ menu "Video For Linux"
 
 comment "Video Adapters"
 
+config VIDEO_ADV_DEBUG
+	bool "Enable advanced debug functionality"
+	depends on VIDEO_DEV
+	default n
+	---help---
+	  Say Y here to enable advanced debugging functionality on some
+	  V4L devices.
+	  In doubt, say N.
+
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on VIDEO_DEV && PCI && I2C
@@ -174,7 +183,7 @@ config VIDEO_STRADIS
 	help
 	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
 	  driver for PCI.  There is a product page at
-	  <http://www.stradis.com/decoder.html>.
+	  <http://www.stradis.com/>.
 
 config VIDEO_ZORAN
 	tristate "Zoran ZR36057/36067 Video For Linux"
@@ -342,6 +351,6 @@ config VIDEO_DECODER
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
 	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
-	  video  decoders.
+	  video decoders.
 
 endmenu

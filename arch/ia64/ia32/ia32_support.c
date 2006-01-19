@@ -58,7 +58,7 @@ load_desc (u16 selector)
 void
 ia32_load_segment_descriptors (struct task_struct *task)
 {
-	struct pt_regs *regs = ia64_task_regs(task);
+	struct pt_regs *regs = task_pt_regs(task);
 
 	/* Setup the segment descriptors */
 	regs->r24 = load_desc(regs->r16 >> 16);		/* ESD */
@@ -113,7 +113,7 @@ void
 ia32_load_state (struct task_struct *t)
 {
 	unsigned long eflag, fsr, fcr, fir, fdr, tssd;
-	struct pt_regs *regs = ia64_task_regs(t);
+	struct pt_regs *regs = task_pt_regs(t);
 
 	eflag = t->thread.eflag;
 	fsr = t->thread.fsr;

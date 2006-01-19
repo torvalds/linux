@@ -793,7 +793,6 @@ static int dn_nsp_rx_packet(struct sk_buff *skb)
 got_it:
 	if (sk != NULL) {
 		struct dn_scp *scp = DN_SK(sk);
-		int ret;
 
 		/* Reset backoff */
 		scp->nsp_rxtshift = 0;
@@ -807,21 +806,7 @@ got_it:
 				goto free_out;
 		}
 
-		bh_lock_sock(sk);
-		ret = NET_RX_SUCCESS;
-		if (decnet_debug_level & 8)
-			printk(KERN_DEBUG "NSP: 0x%02x 0x%02x 0x%04x 0x%04x %d\n",
-				(int)cb->rt_flags, (int)cb->nsp_flags, 
-				(int)cb->src_port, (int)cb->dst_port, 
-				!!sock_owned_by_user(sk));
-		if (!sock_owned_by_user(sk))
-			ret = dn_nsp_backlog_rcv(sk, skb);
-		else
-			sk_add_backlog(sk, skb);
-		bh_unlock_sock(sk);
-		sock_put(sk);
-
-		return ret;
+		return sk_receive_skb(sk, skb);
 	}
 
 	return dn_nsp_no_socket(skb, reason);

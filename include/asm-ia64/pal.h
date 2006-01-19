@@ -927,7 +927,7 @@ static inline s64
 ia64_pal_cache_flush (u64 cache_type, u64 invalidate, u64 *progress, u64 *vector)
 {
 	struct ia64_pal_retval iprv;
-	PAL_CALL_IC_OFF(iprv, PAL_CACHE_FLUSH, cache_type, invalidate, *progress);
+	PAL_CALL(iprv, PAL_CACHE_FLUSH, cache_type, invalidate, *progress);
 	if (vector)
 		*vector = iprv.v0;
 	*progress = iprv.v1;

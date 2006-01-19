@@ -57,7 +57,7 @@
 
 static DEFINE_SPINLOCK(eisa_irq_lock);
 
-void __iomem *eisa_eeprom_addr;
+void __iomem *eisa_eeprom_addr __read_mostly;
 
 /* We can only have one EISA adapter in the system because neither
  * implementation can be flexed.
@@ -141,7 +141,7 @@ static int slave_mask;
  * in the furure. 
  */
 /* irq 13,8,2,1,0 must be edge */
-static unsigned int eisa_irq_level; /* default to edge triggered */
+static unsigned int eisa_irq_level __read_mostly; /* default to edge triggered */
 
 
 /* called by free irq */

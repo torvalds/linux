@@ -21,9 +21,6 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
-#define MAX_DMA_ADDRESS			0xffffffff
-#define MAX_DMA_CHANNELS		0
-
 /* Hardware registers for omap1 */
 #define OMAP_DMA_BASE			(0xfffed800)
 #define OMAP_DMA_GCR			(OMAP_DMA_BASE + 0x400)

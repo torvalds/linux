@@ -6,6 +6,8 @@
 
 #include <asm/cio.h>
 
+#include "schid.h"
+
 /*
  * path grouping stuff
  */
@@ -33,18 +35,24 @@ struct path_state {
 	__u8  resvd  : 3;	/* reserved */
 } __attribute__ ((packed));
 
+struct extended_cssid {
+	u8 version;
+	u8 cssid;
+} __attribute__ ((packed));
+
 struct pgid {
 	union {
 		__u8 fc;   	/* SPID function code */
 		struct path_state ps;	/* SNID path state */
 	} inf;
-	__u32 cpu_addr	: 16;	/* CPU address */
+	union {
+		__u32 cpu_addr	: 16;	/* CPU address */
+		struct extended_cssid ext_cssid;
+	} pgid_high;
 	__u32 cpu_id	: 24;	/* CPU identification */
 	__u32 cpu_model : 16;	/* CPU model */
 	__u32 tod_high;		/* high word TOD clock */
 } __attribute__ ((packed));
-
-extern struct pgid global_pgid;
 
 #define MAX_CIWS 8
 
@@ -68,7 +76,8 @@ struct ccw_device_private {
 	atomic_t onoff;
 	unsigned long registered;
 	__u16 devno;		/* device number */
-	__u16 irq;		/* subchannel number */
+	__u16 sch_no;		/* subchannel number */
+	__u8 ssid;              /* subchannel set id */
 	__u8 imask;		/* lpm mask for SNID/SID/SPGID */
 	int iretry;		/* retry counter SNID/SID/SPGID */
 	struct {
@@ -106,6 +115,7 @@ struct ccw_device_private {
  * Currently, we only care about I/O subchannels (type 0), these
  * have a ccw_device connected to them.
  */
+struct subchannel;
 struct css_driver {
 	unsigned int subchannel_type;
 	struct device_driver drv;
@@ -113,6 +123,9 @@ struct css_driver {
 	int (*notify)(struct device *, int);
 	void (*verify)(struct device *);
 	void (*termination)(struct device *);
+	int (*probe)(struct subchannel *);
+	int (*remove)(struct subchannel *);
+	void (*shutdown)(struct subchannel *);
 };
 
 /*
@@ -121,15 +134,27 @@ struct css_driver {
 extern struct bus_type css_bus_type;
 extern struct css_driver io_subchannel_driver;
 
-int css_probe_device(int irq);
-extern struct subchannel * get_subchannel_by_schid(int irq);
-extern unsigned int highest_subchannel;
+extern int css_probe_device(struct subchannel_id);
+extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
+extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 
-#define __MAX_SUBCHANNELS 65536
+#define __MAX_SUBCHANNEL 65535
+#define __MAX_SSID 3
+#define __MAX_CHPID 255
+#define __MAX_CSSID 0
+
+struct channel_subsystem {
+	u8 cssid;
+	int valid;
+	struct channel_path *chps[__MAX_CHPID + 1];
+	struct device device;
+	struct pgid global_pgid;
+};
+#define to_css(dev) container_of(dev, struct channel_subsystem, device)
 
 extern struct bus_type css_bus_type;
-extern struct device css_bus_device;
+extern struct channel_subsystem *css[];
 
 /* Some helper functions for disconnected state. */
 int device_is_disconnected(struct subchannel *);
@@ -144,7 +169,7 @@ void device_set_waiting(struct subchannel *);
 void device_kill_pending_timer(struct subchannel *);
 
 /* Helper functions to build lists for the slow path. */
-int css_enqueue_subchannel_slow(unsigned long schid);
+extern int css_enqueue_subchannel_slow(struct subchannel_id schid);
 void css_walk_subchannel_slow_list(void (*fn)(unsigned long));
 void css_clear_subchannel_slow_list(void);
 int css_slow_subchannels_exist(void);

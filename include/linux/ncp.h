@@ -20,29 +20,29 @@
 #define NCP_DEALLOC_SLOT_REQUEST (0x5555)
 
 struct ncp_request_header {
-	__u16 type __attribute__((packed));
-	__u8 sequence __attribute__((packed));
-	__u8 conn_low __attribute__((packed));
-	__u8 task __attribute__((packed));
-	__u8 conn_high __attribute__((packed));
-	__u8 function __attribute__((packed));
-	__u8 data[0] __attribute__((packed));
-};
+	__u16 type;
+	__u8 sequence;
+	__u8 conn_low;
+	__u8 task;
+	__u8 conn_high;
+	__u8 function;
+	__u8 data[0];
+} __attribute__((packed));
 
 #define NCP_REPLY                (0x3333)
 #define NCP_WATCHDOG		 (0x3E3E)
 #define NCP_POSITIVE_ACK         (0x9999)
 
 struct ncp_reply_header {
-	__u16 type __attribute__((packed));
-	__u8 sequence __attribute__((packed));
-	__u8 conn_low __attribute__((packed));
-	__u8 task __attribute__((packed));
-	__u8 conn_high __attribute__((packed));
-	__u8 completion_code __attribute__((packed));
-	__u8 connection_state __attribute__((packed));
-	__u8 data[0] __attribute__((packed));
-};
+	__u16 type;
+	__u8 sequence;
+	__u8 conn_low;
+	__u8 task;
+	__u8 conn_high;
+	__u8 completion_code;
+	__u8 connection_state;
+	__u8 data[0];
+} __attribute__((packed));
 
 #define NCP_VOLNAME_LEN (16)
 #define NCP_NUMBER_OF_VOLUMES (256)
@@ -128,37 +128,37 @@ struct nw_nfs_info {
 };
 
 struct nw_info_struct {
-	__u32 spaceAlloc __attribute__((packed));
-	__le32 attributes __attribute__((packed));
-	__u16 flags __attribute__((packed));
-	__le32 dataStreamSize __attribute__((packed));
-	__le32 totalStreamSize __attribute__((packed));
-	__u16 numberOfStreams __attribute__((packed));
-	__le16 creationTime __attribute__((packed));
-	__le16 creationDate __attribute__((packed));
-	__u32 creatorID __attribute__((packed));
-	__le16 modifyTime __attribute__((packed));
-	__le16 modifyDate __attribute__((packed));
-	__u32 modifierID __attribute__((packed));
-	__le16 lastAccessDate __attribute__((packed));
-	__u16 archiveTime __attribute__((packed));
-	__u16 archiveDate __attribute__((packed));
-	__u32 archiverID __attribute__((packed));
-	__u16 inheritedRightsMask __attribute__((packed));
-	__le32 dirEntNum __attribute__((packed));
-	__le32 DosDirNum __attribute__((packed));
-	__u32 volNumber __attribute__((packed));
-	__u32 EADataSize __attribute__((packed));
-	__u32 EAKeyCount __attribute__((packed));
-	__u32 EAKeySize __attribute__((packed));
-	__u32 NSCreator __attribute__((packed));
-	__u8 nameLen __attribute__((packed));
-	__u8 entryName[256] __attribute__((packed));
+	__u32 spaceAlloc;
+	__le32 attributes;
+	__u16 flags;
+	__le32 dataStreamSize;
+	__le32 totalStreamSize;
+	__u16 numberOfStreams;
+	__le16 creationTime;
+	__le16 creationDate;
+	__u32 creatorID;
+	__le16 modifyTime;
+	__le16 modifyDate;
+	__u32 modifierID;
+	__le16 lastAccessDate;
+	__u16 archiveTime;
+	__u16 archiveDate;
+	__u32 archiverID;
+	__u16 inheritedRightsMask;
+	__le32 dirEntNum;
+	__le32 DosDirNum;
+	__u32 volNumber;
+	__u32 EADataSize;
+	__u32 EAKeyCount;
+	__u32 EAKeySize;
+	__u32 NSCreator;
+	__u8 nameLen;
+	__u8 entryName[256];
 	/* libncp may depend on there being nothing after entryName */
 #ifdef __KERNEL__
 	struct nw_nfs_info nfs;
 #endif
-};
+} __attribute__((packed));
 
 /* modify mask - use with MODIFY_DOS_INFO structure */
 #define DM_ATTRIBUTES		  (cpu_to_le32(0x02))
@@ -176,26 +176,26 @@ struct nw_info_struct {
 #define DM_MAXIMUM_SPACE	  (cpu_to_le32(0x2000))
 
 struct nw_modify_dos_info {
-	__le32 attributes __attribute__((packed));
-	__le16 creationDate __attribute__((packed));
-	__le16 creationTime __attribute__((packed));
-	__u32 creatorID __attribute__((packed));
-	__le16 modifyDate __attribute__((packed));
-	__le16 modifyTime __attribute__((packed));
-	__u32 modifierID __attribute__((packed));
-	__u16 archiveDate __attribute__((packed));
-	__u16 archiveTime __attribute__((packed));
-	__u32 archiverID __attribute__((packed));
-	__le16 lastAccessDate __attribute__((packed));
-	__u16 inheritanceGrantMask __attribute__((packed));
-	__u16 inheritanceRevokeMask __attribute__((packed));
-	__u32 maximumSpace __attribute__((packed));
-};
+	__le32 attributes;
+	__le16 creationDate;
+	__le16 creationTime;
+	__u32 creatorID;
+	__le16 modifyDate;
+	__le16 modifyTime;
+	__u32 modifierID;
+	__u16 archiveDate;
+	__u16 archiveTime;
+	__u32 archiverID;
+	__le16 lastAccessDate;
+	__u16 inheritanceGrantMask;
+	__u16 inheritanceRevokeMask;
+	__u32 maximumSpace;
+} __attribute__((packed));
 
 struct nw_search_sequence {
-	__u8 volNumber __attribute__((packed));
-	__u32 dirBase __attribute__((packed));
-	__u32 sequence __attribute__((packed));
-};
+	__u8 volNumber;
+	__u32 dirBase;
+	__u32 sequence;
+} __attribute__((packed));
 
 #endif				/* _LINUX_NCP_H */

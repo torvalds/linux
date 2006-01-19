@@ -123,7 +123,6 @@ static void __init nslu2_init(void)
 
 MACHINE_START(NSLU2, "Linksys NSLU2")
 	/* Maintainer: www.nslu2-linux.org */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,

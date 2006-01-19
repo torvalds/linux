@@ -1,5 +1,6 @@
 #ifndef __ASM_POWERPC_MMU_CONTEXT_H
 #define __ASM_POWERPC_MMU_CONTEXT_H
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/mmu_context.h>
@@ -86,4 +87,5 @@ static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 }
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_MMU_CONTEXT_H */

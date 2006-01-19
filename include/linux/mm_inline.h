@@ -38,3 +38,4 @@ del_page_from_lru(struct zone *zone, struct page *page)
 		zone->nr_inactive--;
 	}
 }
+

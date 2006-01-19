@@ -9,9 +9,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/compiler.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/icmpv6.h>
+#include <linux/netfilter_ipv6.h>
 #include <net/dsfield.h>
 #include <net/inet_ecn.h>
 #include <net/ipv6.h>
@@ -92,7 +94,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	return ret;
 }
 
-int xfrm6_output(struct sk_buff *skb)
+static int xfrm6_output_one(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
@@ -110,29 +112,35 @@ int xfrm6_output(struct sk_buff *skb)
 			goto error_nolock;
 	}
 
-	spin_lock_bh(&x->lock);
-	err = xfrm_state_check(x, skb);
-	if (err)
-		goto error;
+	do {
+		spin_lock_bh(&x->lock);
+		err = xfrm_state_check(x, skb);
+		if (err)
+			goto error;
 
-	xfrm6_encap(skb);
+		xfrm6_encap(skb);
 
-	err = x->type->output(x, skb);
-	if (err)
-		goto error;
+		err = x->type->output(x, skb);
+		if (err)
+			goto error;
 
-	x->curlft.bytes += skb->len;
-	x->curlft.packets++;
+		x->curlft.bytes += skb->len;
+		x->curlft.packets++;
 
-	spin_unlock_bh(&x->lock);
+		spin_unlock_bh(&x->lock);
 
-	skb->nh.raw = skb->data;
-	
-	if (!(skb->dst = dst_pop(dst))) {
-		err = -EHOSTUNREACH;
-		goto error_nolock;
-	}
-	err = NET_XMIT_BYPASS;
+		skb->nh.raw = skb->data;
+		
+		if (!(skb->dst = dst_pop(dst))) {
+			err = -EHOSTUNREACH;
+			goto error_nolock;
+		}
+		dst = skb->dst;
+		x = dst->xfrm;
+	} while (x && !x->props.mode);
+
+	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+	err = 0;
 
 out_exit:
 	return err;
@@ -141,4 +149,34 @@ error:
 error_nolock:
 	kfree_skb(skb);
 	goto out_exit;
+}
+
+static int xfrm6_output_finish(struct sk_buff *skb)
+{
+	int err;
+
+	while (likely((err = xfrm6_output_one(skb)) == 0)) {
+		nf_reset(skb);
+	
+		err = nf_hook(PF_INET6, NF_IP6_LOCAL_OUT, &skb, NULL,
+			      skb->dst->dev, dst_output);
+		if (unlikely(err != 1))
+			break;
+
+		if (!skb->dst->xfrm)
+			return dst_output(skb);
+
+		err = nf_hook(PF_INET6, NF_IP6_POST_ROUTING, &skb, NULL,
+			      skb->dst->dev, xfrm6_output_finish);
+		if (unlikely(err != 1))
+			break;
+	}
+
+	return err;
+}
+
+int xfrm6_output(struct sk_buff *skb)
+{
+	return NF_HOOK(PF_INET6, NF_IP6_POST_ROUTING, skb, NULL, skb->dst->dev,
+		       xfrm6_output_finish);
 }

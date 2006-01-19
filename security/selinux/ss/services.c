@@ -1712,11 +1712,11 @@ int security_get_bools(int *len, char ***names, int **values)
 		goto out;
 	}
 
-	*names = (char**)kcalloc(*len, sizeof(char*), GFP_ATOMIC);
+       *names = kcalloc(*len, sizeof(char*), GFP_ATOMIC);
 	if (!*names)
 		goto err;
 
-	*values = (int*)kcalloc(*len, sizeof(int), GFP_ATOMIC);
+       *values = kcalloc(*len, sizeof(int), GFP_ATOMIC);
 	if (!*values)
 		goto err;
 
@@ -1724,7 +1724,7 @@ int security_get_bools(int *len, char ***names, int **values)
 		size_t name_len;
 		(*values)[i] = policydb.bool_val_to_struct[i]->state;
 		name_len = strlen(policydb.p_bool_val_to_name[i]) + 1;
-		(*names)[i] = (char*)kmalloc(sizeof(char) * name_len, GFP_ATOMIC);
+               (*names)[i] = kmalloc(sizeof(char) * name_len, GFP_ATOMIC);
 		if (!(*names)[i])
 			goto err;
 		strncpy((*names)[i], policydb.p_bool_val_to_name[i], name_len);

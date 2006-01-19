@@ -1231,10 +1231,8 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		 * when we don't need to worry about it at all.
 		 *
 		 * if ((!S_ISDIR(ip->i_mode))
-		 *    && (tblk->flag & COMMIT_DELETE) == 0) {
-		 *	filemap_fdatawrite(ip->i_mapping);
-		 *	filemap_fdatawait(ip->i_mapping);
-		 * }
+		 *    && (tblk->flag & COMMIT_DELETE) == 0)
+		 *	filemap_write_and_wait(ip->i_mapping);
 		 */
 
 		/*

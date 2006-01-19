@@ -31,9 +31,9 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 #include <asm/hardware.h>
 
 #define OCPI_BASE		0xfffec320
@@ -88,7 +88,7 @@ static int __init omap_ocpi_init(void)
 	if (IS_ERR(ocpi_ck))
 		return PTR_ERR(ocpi_ck);
 
-	clk_use(ocpi_ck);
+	clk_enable(ocpi_ck);
 	ocpi_enable();
 	printk("OMAP OCPI interconnect driver loaded\n");
 
@@ -102,7 +102,7 @@ static void __exit omap_ocpi_exit(void)
 	if (!cpu_is_omap16xx())
 		return;
 
-	clk_unuse(ocpi_ck);
+	clk_disable(ocpi_ck);
 	clk_put(ocpi_ck);
 }
 

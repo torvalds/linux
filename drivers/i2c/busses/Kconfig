@@ -236,27 +236,17 @@ config I2C_IXP2000
 	  This support is also available as a module. If so, the module
 	  will be called i2c-ixp2000.
 
-config I2C_KEYWEST
-	tristate "Powermac Keywest I2C interface"
+config I2C_POWERMAC
+	tristate "Powermac I2C interface"
 	depends on I2C && PPC_PMAC
+	default y
 	help
-	  This supports the use of the I2C interface in the combo-I/O
-	  chip on recent Apple machines.  Say Y if you have such a machine.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-keywest.
-
-config I2C_PMAC_SMU
-	tristate "Powermac SMU I2C interface"
-	depends on I2C && PMAC_SMU
-	help
-	  This supports the use of the I2C interface in the SMU
-	  chip on recent Apple machines like the iMac G5.  It is used
-	  among others by the thermal control driver for those machines.
-	  Say Y if you have such a machine.
+	  This exposes the various PowerMac i2c interfaces to the linux i2c
+	  layer and to userland. It is used by various drivers on the powemac
+	  platform, thus should generally be enabled.
 
 	  This support is also available as a module.  If so, the module
-	  will be called i2c-pmac-smu.
+	  will be called i2c-powermac.
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/52xx"

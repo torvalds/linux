@@ -494,6 +494,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 {
 	struct tps65010		*tps;
 	int			status;
+	unsigned long		irqflags;
 
 	if (the_tps) {
 		dev_dbg(&bus->dev, "only one %s for now\n", DRIVER_NAME);
@@ -520,13 +521,14 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 	}
 
 #ifdef	CONFIG_ARM
+	irqflags = SA_SAMPLE_RANDOM | SA_TRIGGER_LOW;
 	if (machine_is_omap_h2()) {
 		tps->model = TPS65010;
 		omap_cfg_reg(W4_GPIO58);
 		tps->irq = OMAP_GPIO_IRQ(58);
 		omap_request_gpio(58);
 		omap_set_gpio_direction(58, 1);
-		set_irq_type(tps->irq, IRQT_FALLING);
+		irqflags |= SA_TRIGGER_FALLING;
 	}
 	if (machine_is_omap_osk()) {
 		tps->model = TPS65010;
@@ -534,7 +536,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		tps->irq = OMAP_GPIO_IRQ(OMAP_MPUIO(1));
 		omap_request_gpio(OMAP_MPUIO(1));
 		omap_set_gpio_direction(OMAP_MPUIO(1), 1);
-		set_irq_type(tps->irq, IRQT_FALLING);
+		irqflags |= SA_TRIGGER_FALLING;
 	}
 	if (machine_is_omap_h3()) {
 		tps->model = TPS65013;
@@ -542,13 +544,12 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		// FIXME set up this board's IRQ ...
 	}
 #else
-#define set_irq_type(num,trigger)	do{}while(0)
+	irqflags = SA_SAMPLE_RANDOM;
 #endif
 
 	if (tps->irq > 0) {
-		set_irq_type(tps->irq, IRQT_LOW);
 		status = request_irq(tps->irq, tps65010_irq,
-			SA_SAMPLE_RANDOM, DRIVER_NAME, tps);
+			irqflags, DRIVER_NAME, tps);
 		if (status < 0) {
 			dev_dbg(&tps->client.dev, "can't get IRQ %d, err %d\n",
 					tps->irq, status);
@@ -637,9 +638,9 @@ static int __init tps65010_scan_bus(struct i2c_adapter *bus)
 }
 
 static struct i2c_driver tps65010_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "tps65010",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "tps65010",
+	},
 	.attach_adapter	= tps65010_scan_bus,
 	.detach_client	= __exit_p(tps65010_detach_client),
 };

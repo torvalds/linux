@@ -57,7 +57,6 @@ static unsigned short  *pmi_base  = NULL;
 static void            (*pmi_start)(void);
 static void            (*pmi_pal)(void);
 static int             depth;
-static int             vga_compat;
 
 /* --------------------------------------------------------------------- */
 
@@ -66,15 +65,6 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 {
 #ifdef __i386__
 	int offset;
-
-	if (!ypan)
-		return -EINVAL;
-	if (var->xoffset)
-		return -EINVAL;
-	if (var->yoffset > var->yres_virtual)
-		return -EINVAL;
-	if ((ypan==1) && var->yoffset+var->yres > var->yres_virtual)
-		return -EINVAL;
 
 	offset = (var->yoffset * info->fix.line_length + var->xoffset) / 4;
 
@@ -88,37 +78,6 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
                   "D" (&pmi_start));    /* EDI */
 #endif
 	return 0;
-}
-
-static int vesafb_blank(int blank, struct fb_info *info)
-{
-	int err = 1;
-
-	if (vga_compat) {
-		int loop = 10000;
-		u8 seq = 0, crtc17 = 0;
-
-		if (blank == FB_BLANK_POWERDOWN) {
-			seq = 0x20;
-			crtc17 = 0x00;
-			err = 0;
-		} else {
-			seq = 0x00;
-			crtc17 = 0x80;
-			err = (blank == FB_BLANK_UNBLANK) ? 0 : -EINVAL;
-		}
-
-		vga_wseq(NULL, 0x00, 0x01);
-		seq |= vga_rseq(NULL, 0x01) & ~0x20;
-		vga_wseq(NULL, 0x00, seq);
-
-		crtc17 |= vga_rcrt(NULL, 0x17) & ~0x80;
-		while (loop--);
-		vga_wcrt(NULL, 0x17, crtc17);
-		vga_wseq(NULL, 0x00, 0x03);
-	}
-
-	return err;
 }
 
 static void vesa_setpalette(int regno, unsigned red, unsigned green,
@@ -205,7 +164,6 @@ static struct fb_ops vesafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= vesafb_setcolreg,
 	.fb_pan_display	= vesafb_pan_display,
-	.fb_blank       = vesafb_blank,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
@@ -459,9 +417,8 @@ static int __init vesafb_probe(struct platform_device *dev)
 	info->flags = FBINFO_FLAG_DEFAULT |
 		(ypan) ? FBINFO_HWACCEL_YPAN : 0;
 
-	vga_compat = (screen_info.capabilities & 2) ? 0 : 1;
-	printk("vesafb: Mode is %sVGA compatible\n",
-	       (vga_compat) ? "" : "not ");
+	if (!ypan)
+		info->fbops->fb_pan_display = NULL;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
 		err = -ENOMEM;

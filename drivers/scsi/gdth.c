@@ -328,7 +328,7 @@
  * hdr_channel:x                x - number of virtual bus for host drives
  * shared_access:Y              disable driver reserve/release protocol to 
  *                              access a shared resource from several nodes, 
- *                              appropiate controller firmware required
+ *                              appropriate controller firmware required
  * shared_access:N              enable driver reserve/release protocol
  * probe_eisa_isa:Y             scan for EISA/ISA controllers
  * probe_eisa_isa:N             do not scan for EISA/ISA controllers

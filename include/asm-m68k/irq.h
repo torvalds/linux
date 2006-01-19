@@ -23,6 +23,15 @@
 #endif
 
 /*
+ * The hardirq mask has to be large enough to have
+ * space for potentially all IRQ sources in the system
+ * nesting on a single CPU:
+ */
+#if (1 << HARDIRQ_BITS) < NR_IRQS
+# error HARDIRQ_BITS is too low!
+#endif
+
+/*
  * Interrupt source definitions
  * General interrupt sources are the level 1-7.
  * Adding an interrupt service routine for one of these sources
@@ -70,8 +79,6 @@ static __inline__ int irq_canonicalize(int irq)
 
 extern void (*enable_irq)(unsigned int);
 extern void (*disable_irq)(unsigned int);
-
-#define disable_irq_nosync	disable_irq
 #define enable_irq_nosync	enable_irq
 
 struct pt_regs;

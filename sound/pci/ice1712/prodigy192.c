@@ -36,12 +36,12 @@
 #include "prodigy192.h"
 #include "stac946x.h"
 
-static inline void stac9460_put(ice1712_t *ice, int reg, unsigned char val)
+static inline void stac9460_put(struct snd_ice1712 *ice, int reg, unsigned char val)
 {
 	snd_vt1724_write_i2c(ice, PRODIGY192_STAC9460_ADDR, reg, val);
 }
 
-static inline unsigned char stac9460_get(ice1712_t *ice, int reg)
+static inline unsigned char stac9460_get(struct snd_ice1712 *ice, int reg)
 {
 	return snd_vt1724_read_i2c(ice, PRODIGY192_STAC9460_ADDR, reg);
 }
@@ -49,7 +49,7 @@ static inline unsigned char stac9460_get(ice1712_t *ice, int reg)
 /*
  * DAC mute control
  */
-static int stac9460_dac_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int stac9460_dac_mute_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -58,9 +58,9 @@ static int stac9460_dac_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int stac9460_dac_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char val;
 	int idx;
 
@@ -73,9 +73,9 @@ static int stac9460_dac_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int stac9460_dac_mute_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int stac9460_dac_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char new, old;
 	int idx;
 	int change;
@@ -96,7 +96,7 @@ static int stac9460_dac_mute_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 /*
  * DAC volume attenuation mixer control
  */
-static int stac9460_dac_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int stac9460_dac_vol_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -105,9 +105,9 @@ static int stac9460_dac_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int stac9460_dac_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac9460_dac_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int idx;
 	unsigned char vol;
 
@@ -121,9 +121,9 @@ static int stac9460_dac_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int stac9460_dac_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int idx;
 	unsigned char tmp, ovol, nvol;
 	int change;
@@ -145,7 +145,7 @@ static int stac9460_dac_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 /*
  * ADC mute control
  */
-static int stac9460_adc_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int stac9460_adc_mute_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 2;
@@ -154,9 +154,9 @@ static int stac9460_adc_mute_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int stac9460_adc_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac9460_adc_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char val;
 	int i;
 
@@ -168,9 +168,9 @@ static int stac9460_adc_mute_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int stac9460_adc_mute_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int stac9460_adc_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char new, old;
 	int i, reg;
 	int change;
@@ -190,7 +190,7 @@ static int stac9460_adc_mute_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 /*
  * ADC gain mixer control
  */
-static int stac9460_adc_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int stac9460_adc_vol_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -199,9 +199,9 @@ static int stac9460_adc_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int stac9460_adc_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac9460_adc_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int i, reg;
 	unsigned char vol;
 
@@ -214,9 +214,9 @@ static int stac9460_adc_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int stac9460_adc_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int i, reg;
 	unsigned char ovol, nvol;
 	int change;
@@ -237,7 +237,7 @@ static int stac9460_adc_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 /*
  * Headphone Amplifier
  */
-static int aureon_set_headphone_amp(ice1712_t *ice, int enable)
+static int aureon_set_headphone_amp(struct snd_ice1712 *ice, int enable)
 {
 	unsigned int tmp, tmp2;
 
@@ -253,14 +253,14 @@ static int aureon_set_headphone_amp(ice1712_t *ice, int enable)
 	return 0;
 }
 
-static int aureon_get_headphone_amp(ice1712_t *ice)
+static int aureon_get_headphone_amp(struct snd_ice1712 *ice)
 {
 	unsigned int tmp = snd_ice1712_gpio_read(ice);
 
 	return ( tmp & AUREON_HP_SEL )!= 0;
 }
 
-static int aureon_bool_info(snd_kcontrol_t *k, snd_ctl_elem_info_t *uinfo)
+static int aureon_bool_info(struct snd_kcontrol *k, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -269,18 +269,18 @@ static int aureon_bool_info(snd_kcontrol_t *k, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int aureon_hpamp_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int aureon_hpamp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.integer.value[0] = aureon_get_headphone_amp(ice);
 	return 0;
 }
 
 
-static int aureon_hpamp_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int aureon_hpamp_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	return aureon_set_headphone_amp(ice,ucontrol->value.integer.value[0]);
 }
@@ -288,16 +288,16 @@ static int aureon_hpamp_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 /*
  * Deemphasis
  */
-static int aureon_deemp_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int aureon_deemp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	ucontrol->value.integer.value[0] = (wm_get(ice, WM_DAC_CTRL2) & 0xf) == 0xf;
 	return 0;
 }
 
-static int aureon_deemp_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int aureon_deemp_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int temp, temp2;
 	temp2 = temp = wm_get(ice, WM_DAC_CTRL2);
 	if (ucontrol->value.integer.value[0])
@@ -314,7 +314,7 @@ static int aureon_deemp_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 /*
  * ADC Oversampling
  */
-static int aureon_oversampling_info(snd_kcontrol_t *k, snd_ctl_elem_info_t *uinfo)
+static int aureon_oversampling_info(struct snd_kcontrol *k, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[2] = { "128x", "64x"	};
 
@@ -329,17 +329,17 @@ static int aureon_oversampling_info(snd_kcontrol_t *k, snd_ctl_elem_info_t *uinf
         return 0;
 }
 
-static int aureon_oversampling_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int aureon_oversampling_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	ucontrol->value.enumerated.item[0] = (wm_get(ice, WM_MASTER) & 0x8) == 0x8;
 	return 0;
 }
 
-static int aureon_oversampling_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int aureon_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	int temp, temp2;
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	temp2 = temp = wm_get(ice, WM_MASTER);
 
@@ -360,7 +360,7 @@ static int aureon_oversampling_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
  * mixers
  */
 
-static snd_kcontrol_new_t stac_controls[] __devinitdata = {
+static struct snd_kcontrol_new stac_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -442,7 +442,7 @@ static snd_kcontrol_new_t stac_controls[] __devinitdata = {
 #endif
 };
 
-static int __devinit prodigy192_add_controls(ice1712_t *ice)
+static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 {
 	unsigned int i;
 	int err;
@@ -459,7 +459,7 @@ static int __devinit prodigy192_add_controls(ice1712_t *ice)
 /*
  * initialize the chip
  */
-static int __devinit prodigy192_init(ice1712_t *ice)
+static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 {
 	static unsigned short stac_inits_prodigy[] = {
 		STAC946X_RESET, 0,

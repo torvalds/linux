@@ -30,6 +30,7 @@
  */
 
 #include <linux/reiserfs_fs.h>
+#include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/errno.h>
@@ -67,11 +68,11 @@ static struct dentry *create_xa_root(struct super_block *sb)
 		goto out;
 	} else if (!xaroot->d_inode) {
 		int err;
-		down(&privroot->d_inode->i_sem);
+		mutex_lock(&privroot->d_inode->i_mutex);
 		err =
 		    privroot->d_inode->i_op->mkdir(privroot->d_inode, xaroot,
 						   0700);
-		up(&privroot->d_inode->i_sem);
+		mutex_unlock(&privroot->d_inode->i_mutex);
 
 		if (err) {
 			dput(xaroot);
@@ -115,8 +116,8 @@ static struct dentry *__get_xa_root(struct super_block *s)
 }
 
 /* Returns the dentry (or NULL) referring to the root of the extended
- * attribute directory tree. If it has already been retreived, it is used.
- * Otherwise, we attempt to retreive it from disk. It may also return
+ * attribute directory tree. If it has already been retrieved, it is used.
+ * Otherwise, we attempt to retrieve it from disk. It may also return
  * a pointer-encoded error.
  */
 static inline struct dentry *get_xa_root(struct super_block *s)
@@ -219,7 +220,7 @@ static struct dentry *get_xa_file_dentry(const struct inode *inode,
 	} else if (flags & XATTR_REPLACE || flags & FL_READONLY) {
 		goto out;
 	} else {
-		/* inode->i_sem is down, so nothing else can try to create
+		/* inode->i_mutex is down, so nothing else can try to create
 		 * the same xattr */
 		err = xadir->d_inode->i_op->create(xadir->d_inode, xafile,
 						   0700 | S_IFREG, NULL);
@@ -268,7 +269,7 @@ static struct file *open_xa_file(const struct inode *inode, const char *name,
  * and don't mess with f->f_pos, but the idea is the same.  Do some
  * action on each and every entry in the directory.
  *
- * we're called with i_sem held, so there are no worries about the directory
+ * we're called with i_mutex held, so there are no worries about the directory
  * changing underneath us.
  */
 static int __xattr_readdir(struct file *filp, void *dirent, filldir_t filldir)
@@ -426,7 +427,7 @@ int xattr_readdir(struct file *file, filldir_t filler, void *buf)
 	int res = -ENOTDIR;
 	if (!file->f_op || !file->f_op->readdir)
 		goto out;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 //        down(&inode->i_zombie);
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
@@ -435,7 +436,7 @@ int xattr_readdir(struct file *file, filldir_t filler, void *buf)
 		unlock_kernel();
 	}
 //        up(&inode->i_zombie);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
       out:
 	return res;
 }
@@ -480,7 +481,7 @@ static inline __u32 xattr_hash(const char *msg, int len)
 /* Generic extended attribute operations that can be used by xa plugins */
 
 /*
- * inode->i_sem: down
+ * inode->i_mutex: down
  */
 int
 reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
@@ -496,12 +497,6 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	struct inode *xinode;
 	struct iattr newattrs;
 	__u32 xahash = 0;
-
-	if (IS_RDONLY(inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
 
 	if (get_inode_sd_version(inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
@@ -535,7 +530,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	/* Resize it so we're ok to write there */
 	newattrs.ia_size = buffer_size;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
-	down(&xinode->i_sem);
+	mutex_lock(&xinode->i_mutex);
 	err = notify_change(fp->f_dentry, &newattrs);
 	if (err)
 		goto out_filp;
@@ -598,7 +593,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	}
 
       out_filp:
-	up(&xinode->i_sem);
+	mutex_unlock(&xinode->i_mutex);
 	fput(fp);
 
       out:
@@ -606,7 +601,7 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 }
 
 /*
- * inode->i_sem: down
+ * inode->i_mutex: down
  */
 int
 reiserfs_xattr_get(const struct inode *inode, const char *name, void *buffer,
@@ -758,9 +753,6 @@ int reiserfs_xattr_del(struct inode *inode, const char *name)
 	struct dentry *dir;
 	int err;
 
-	if (IS_RDONLY(inode))
-		return -EROFS;
-
 	dir = open_xa_dir(inode, FL_READONLY);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
@@ -793,7 +785,7 @@ reiserfs_delete_xattrs_filler(void *buf, const char *name, int namelen,
 
 }
 
-/* This is called w/ inode->i_sem downed */
+/* This is called w/ inode->i_mutex downed */
 int reiserfs_delete_xattrs(struct inode *inode)
 {
 	struct file *fp;
@@ -946,7 +938,7 @@ int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs)
 
 /*
  * Inode operation getxattr()
- * Preliminary locking: we down dentry->d_inode->i_sem
+ * Preliminary locking: we down dentry->d_inode->i_mutex
  */
 ssize_t
 reiserfs_getxattr(struct dentry * dentry, const char *name, void *buffer,
@@ -970,7 +962,7 @@ reiserfs_getxattr(struct dentry * dentry, const char *name, void *buffer,
 /*
  * Inode operation setxattr()
  *
- * dentry->d_inode->i_sem down
+ * dentry->d_inode->i_mutex down
  */
 int
 reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
@@ -983,12 +975,6 @@ reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	if (!xah || !reiserfs_xattrs(dentry->d_sb) ||
 	    get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
-
-	if (IS_RDONLY(dentry->d_inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode))
-		return -EROFS;
 
 	reiserfs_write_lock_xattr_i(dentry->d_inode);
 	lock = !has_xattr_dir(dentry->d_inode);
@@ -1008,7 +994,7 @@ reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 /*
  * Inode operation removexattr()
  *
- * dentry->d_inode->i_sem down
+ * dentry->d_inode->i_mutex down
  */
 int reiserfs_removexattr(struct dentry *dentry, const char *name)
 {
@@ -1018,12 +1004,6 @@ int reiserfs_removexattr(struct dentry *dentry, const char *name)
 	if (!xah || !reiserfs_xattrs(dentry->d_sb) ||
 	    get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
-
-	if (IS_RDONLY(dentry->d_inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode))
-		return -EPERM;
 
 	reiserfs_write_lock_xattr_i(dentry->d_inode);
 	reiserfs_read_lock_xattrs(dentry->d_sb);
@@ -1091,7 +1071,7 @@ reiserfs_listxattr_filler(void *buf, const char *name, int namelen,
 /*
  * Inode operation listxattr()
  *
- * Preliminary locking: we down dentry->d_inode->i_sem
+ * Preliminary locking: we down dentry->d_inode->i_mutex
  */
 ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 {
@@ -1289,9 +1269,9 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 		if (!IS_ERR(dentry)) {
 			if (!(mount_flags & MS_RDONLY) && !dentry->d_inode) {
 				struct inode *inode = dentry->d_parent->d_inode;
-				down(&inode->i_sem);
+				mutex_lock(&inode->i_mutex);
 				err = inode->i_op->mkdir(inode, dentry, 0700);
-				up(&inode->i_sem);
+				mutex_unlock(&inode->i_mutex);
 				if (err) {
 					dput(dentry);
 					dentry = NULL;

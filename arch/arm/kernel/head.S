@@ -33,6 +33,8 @@
 #define MACHINFO_PGOFFIO	12
 #define MACHINFO_NAME		16
 
+#define KERNEL_RAM_ADDR	(PAGE_OFFSET + TEXT_OFFSET)
+
 /*
  * swapper_pg_dir is the virtual address of the initial page table.
  * We place the page tables 16K below KERNEL_RAM_ADDR.  Therefore, we must
@@ -249,12 +251,11 @@ __turn_mmu_on:
  * r10 = procinfo
  *
  * Returns:
- *  r0, r3, r5, r6, r7 corrupted
+ *  r0, r3, r6, r7 corrupted
  *  r4 = physical page table address
  */
 	.type	__create_page_tables, %function
 __create_page_tables:
-	ldr	r5, [r8, #MACHINFO_PHYSRAM]	@ physram
 	pgtbl	r4				@ page table address
 
 	/*
@@ -301,7 +302,7 @@ __create_page_tables:
 	 * Then map first 1MB of ram in case it contains our boot params.
 	 */
 	add	r0, r4, #PAGE_OFFSET >> 18
-	orr	r6, r5, r7
+	orr	r6, r7, #PHYS_OFFSET
 	str	r6, [r0]
 
 #ifdef CONFIG_XIP_KERNEL
@@ -309,7 +310,7 @@ __create_page_tables:
 	 * Map some ram to cover our .data and .bss areas.
 	 * Mapping 3MB should be plenty.
 	 */
-	sub	r3, r4, r5
+	sub	r3, r4, #PHYS_OFFSET
 	mov	r3, r3, lsr #20
 	add	r0, r0, r3, lsl #2
 	add	r6, r6, r3, lsl #20

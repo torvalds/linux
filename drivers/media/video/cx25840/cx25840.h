@@ -24,47 +24,60 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-extern int cx25840_debug;
-
-#define cx25840_dbg(fmt, arg...) do { if (cx25840_debug) \
-	printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
-#define cx25840_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
-#define cx25840_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
-#define CX25840_CID_CARDTYPE (V4L2_CID_PRIVATE_BASE+0)
-
-/* The CARDTYPE_PVR150_WORKAROUND cardtype activates a workaround for a
-   hardware bug that is present in PVR150 (and possible PVR500) cards that
-   have certain NTSC tuners (tveeprom model numbers 85, 99 and 112). The
+/* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
+   present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
+   certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
    audio autodetect fails on some channels for these models and the workaround
    is to select the audio standard explicitly. Many thanks to Hauppauge for
    providing this information. */
-enum cx25840_cardtype {
-	CARDTYPE_PVR150,
-	CARDTYPE_PG600,
-	CARDTYPE_PVR150_WORKAROUND,
+#define CX25840_CID_ENABLE_PVR150_WORKAROUND (V4L2_CID_PRIVATE_BASE+0)
+
+enum cx25840_video_input {
+	/* Composite video inputs In1-In8 */
+	CX25840_COMPOSITE1 = 1,
+	CX25840_COMPOSITE2,
+	CX25840_COMPOSITE3,
+	CX25840_COMPOSITE4,
+	CX25840_COMPOSITE5,
+	CX25840_COMPOSITE6,
+	CX25840_COMPOSITE7,
+	CX25840_COMPOSITE8,
+
+	/* S-Video inputs consist of one luma input (In1-In4) ORed with one
+	   chroma input (In5-In8) */
+	CX25840_SVIDEO_LUMA1 = 0x10,
+	CX25840_SVIDEO_LUMA2 = 0x20,
+	CX25840_SVIDEO_LUMA3 = 0x30,
+	CX25840_SVIDEO_LUMA4 = 0x40,
+	CX25840_SVIDEO_CHROMA4 = 0x400,
+	CX25840_SVIDEO_CHROMA5 = 0x500,
+	CX25840_SVIDEO_CHROMA6 = 0x600,
+	CX25840_SVIDEO_CHROMA7 = 0x700,
+	CX25840_SVIDEO_CHROMA8 = 0x800,
+
+	/* S-Video aliases for common luma/chroma combinations */
+	CX25840_SVIDEO1 = 0x510,
+	CX25840_SVIDEO2 = 0x620,
+	CX25840_SVIDEO3 = 0x730,
+	CX25840_SVIDEO4 = 0x840,
 };
 
-enum cx25840_input {
-	CX25840_TUNER,
-	CX25840_COMPOSITE0,
-	CX25840_COMPOSITE1,
-	CX25840_SVIDEO0,
-	CX25840_SVIDEO1
+enum cx25840_audio_input {
+	/* Audio inputs: serial or In4-In8 */
+	CX25840_AUDIO_SERIAL,
+	CX25840_AUDIO4 = 4,
+	CX25840_AUDIO5,
+	CX25840_AUDIO6,
+	CX25840_AUDIO7,
+	CX25840_AUDIO8,
 };
 
 struct cx25840_state {
-	enum cx25840_cardtype cardtype;
-	enum cx25840_input input;
-	int audio_input;
-	enum v4l2_audio_clock_freq audclk_freq;
+	int pvr150_workaround;
+	int radio;
+	enum cx25840_video_input vid_input;
+	enum cx25840_audio_input aud_input;
+	u32 audclk_freq;
 };
 
 /* ----------------------------------------------------------------------- */
@@ -83,6 +96,7 @@ int cx25840_loadfw(struct i2c_client *client);
 /* ----------------------------------------------------------------------- */
 /* cx25850-audio.c                                                         */
 int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg);
+void cx25840_audio_set_path(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-vbi.c                                                           */

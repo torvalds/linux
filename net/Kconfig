@@ -150,6 +150,7 @@ endif
 
 source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
+source "net/tipc/Kconfig"
 source "net/atm/Kconfig"
 source "net/bridge/Kconfig"
 source "net/8021q/Kconfig"

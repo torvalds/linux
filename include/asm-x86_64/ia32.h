@@ -169,6 +169,8 @@ int ia32_child_tls(struct task_struct *p, struct pt_regs *childregs);
 struct linux_binprm;
 extern int ia32_setup_arg_pages(struct linux_binprm *bprm,
 				unsigned long stack_top, int exec_stack);
+struct mm_struct;
+extern void ia32_pick_mmap_layout(struct mm_struct *mm);
 
 #endif
 

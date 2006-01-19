@@ -41,3 +41,14 @@ to. Writing to this file will accept one of
 It will only change to 'firmware' or 'platform' if the system supports
 it. 
 
+/sys/power/image_size controls the size of the image created by
+the suspend-to-disk mechanism.  It can be written a string
+representing a non-negative integer that will be used as an upper
+limit of the image size, in megabytes.  The suspend-to-disk mechanism will
+do its best to ensure the image size will not exceed that number.  However,
+if this turns out to be impossible, it will try to suspend anyway using the
+smallest image possible.  In particular, if "0" is written to this file, the
+suspend image will be as small as possible.
+
+Reading from this file will display the current image size limit, which
+is set to 500 MB by default.

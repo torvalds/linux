@@ -18,7 +18,6 @@
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
-#include <linux/kobject_uevent.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -478,8 +477,8 @@ static int __init input_proc_init(void)
 
 	entry->owner = THIS_MODULE;
 	input_fileops = *entry->proc_fops;
+	input_fileops.poll = input_devices_poll;
 	entry->proc_fops = &input_fileops;
-	entry->proc_fops->poll = input_devices_poll;
 
 	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
 	if (!entry)
@@ -529,10 +528,65 @@ INPUT_DEV_STRING_ATTR_SHOW(name);
 INPUT_DEV_STRING_ATTR_SHOW(phys);
 INPUT_DEV_STRING_ATTR_SHOW(uniq);
 
+static int print_modalias_bits(char *buf, int size, char prefix, unsigned long *arr,
+			       unsigned int min, unsigned int max)
+{
+	int len, i;
+
+	len = snprintf(buf, size, "%c", prefix);
+	for (i = min; i < max; i++)
+		if (arr[LONG(i)] & BIT(i))
+			len += snprintf(buf + len, size - len, "%X,", i);
+	return len;
+}
+
+static int print_modalias(char *buf, int size, struct input_dev *id)
+{
+	int len;
+
+	len = snprintf(buf, size, "input:b%04Xv%04Xp%04Xe%04X-",
+		       id->id.bustype,
+		       id->id.vendor,
+		       id->id.product,
+		       id->id.version);
+
+	len += print_modalias_bits(buf + len, size - len, 'e', id->evbit,
+				   0, EV_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'k', id->keybit,
+				   KEY_MIN_INTERESTING, KEY_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'r', id->relbit,
+				   0, REL_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'a', id->absbit,
+				   0, ABS_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'm', id->mscbit,
+				   0, MSC_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'l', id->ledbit,
+				   0, LED_MAX);
+	len += print_modalias_bits(buf + len, size - len, 's', id->sndbit,
+				   0, SND_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'f', id->ffbit,
+				   0, FF_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'w', id->swbit,
+				   0, SW_MAX);
+	return len;
+}
+
+static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
+{
+	struct input_dev *id = to_input_dev(dev);
+	ssize_t len;
+
+	len = print_modalias(buf, PAGE_SIZE, id);
+	len += snprintf(buf + len, PAGE_SIZE-len, "\n");
+	return len;
+}
+static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
+
 static struct attribute *input_dev_attrs[] = {
 	&class_device_attr_name.attr,
 	&class_device_attr_phys.attr,
 	&class_device_attr_uniq.attr,
+	&class_device_attr_modalias.attr,
 	NULL
 };
 
@@ -611,10 +665,10 @@ static void input_dev_release(struct class_device *class_dev)
 }
 
 /*
- * Input hotplugging interface - loading event handlers based on
+ * Input uevent interface - loading event handlers based on
  * device bitfields.
  */
-static int input_add_hotplug_bm_var(char **envp, int num_envp, int *cur_index,
+static int input_add_uevent_bm_var(char **envp, int num_envp, int *cur_index,
 				    char *buffer, int buffer_size, int *cur_len,
 				    const char *name, unsigned long *bitmap, int max)
 {
@@ -639,7 +693,7 @@ static int input_add_hotplug_bm_var(char **envp, int num_envp, int *cur_index,
 
 #define INPUT_ADD_HOTPLUG_VAR(fmt, val...)				\
 	do {								\
-		int err = add_hotplug_env_var(envp, num_envp, &i,	\
+		int err = add_uevent_var(envp, num_envp, &i,	\
 					buffer, buffer_size, &len,	\
 					fmt, val);			\
 		if (err)						\
@@ -648,15 +702,15 @@ static int input_add_hotplug_bm_var(char **envp, int num_envp, int *cur_index,
 
 #define INPUT_ADD_HOTPLUG_BM_VAR(name, bm, max)				\
 	do {								\
-		int err = input_add_hotplug_bm_var(envp, num_envp, &i,	\
+		int err = input_add_uevent_bm_var(envp, num_envp, &i,	\
 					buffer, buffer_size, &len,	\
 					name, bm, max);			\
 		if (err)						\
 			return err;					\
 	} while (0)
 
-static int input_dev_hotplug(struct class_device *cdev, char **envp,
-			     int num_envp, char *buffer, int buffer_size)
+static int input_dev_uevent(struct class_device *cdev, char **envp,
+			    int num_envp, char *buffer, int buffer_size)
 {
 	struct input_dev *dev = to_input_dev(cdev);
 	int i = 0;
@@ -690,15 +744,18 @@ static int input_dev_hotplug(struct class_device *cdev, char **envp,
 	if (test_bit(EV_SW, dev->evbit))
 		INPUT_ADD_HOTPLUG_BM_VAR("SW=", dev->swbit, SW_MAX);
 
-	envp[i] = NULL;
+	envp[i++] = buffer + len;
+	len += snprintf(buffer + len, buffer_size - len, "MODALIAS=");
+	len += print_modalias(buffer + len, buffer_size - len, dev) + 1;
 
+	envp[i] = NULL;
 	return 0;
 }
 
 struct class input_class = {
 	.name			= "input",
 	.release		= input_dev_release,
-	.hotplug		= input_dev_hotplug,
+	.uevent			= input_dev_uevent,
 };
 
 struct input_dev *input_allocate_device(void)

@@ -44,6 +44,19 @@ config USB_CXACRU
 	  To compile this driver as a module, choose M here: the
 	  module will be called cxacru.
 
+config USB_UEAGLEATM
+	tristate "ADI 930 and eagle USB DSL modem"
+	depends on USB_ATM
+	select FW_LOADER
+	help
+	  Say Y here if you have an ADSL USB modem based on the ADI 930
+	  or eagle chipset. In order to use your modem you will need to
+	  install firmwares and CMV (Command Management Variables); see
+	  <https://gna.org/projects/ueagleatm/> for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ueagle-atm.
+
 config USB_XUSBATM
 	tristate "Other USB DSL modem support"
 	depends on USB_ATM

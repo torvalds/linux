@@ -56,7 +56,12 @@ extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 
 /*
  * Architecture ioremap implementation.
+ *
+ * __ioremap takes CPU physical address.
+ *
+ * __ioremap_pfn takes a Page Frame Number and an offset into that page
  */
+extern void __iomem * __ioremap_pfn(unsigned long, unsigned long, size_t, unsigned long);
 extern void __iomem * __ioremap(unsigned long, size_t, unsigned long);
 extern void __iounmap(void __iomem *addr);
 
@@ -261,6 +266,7 @@ out:
  *
  * ioremap takes a PCI memory address, as specified in
  * Documentation/IO-mapping.txt.
+ *
  */
 #ifndef __arch_ioremap
 #define ioremap(cookie,size)		__ioremap(cookie,size,0)

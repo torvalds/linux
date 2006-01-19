@@ -36,6 +36,7 @@
 #include "xfs_mac.h"
 #include "xfs_attr.h"
 
+#include <linux/capability.h>
 #include <linux/posix_acl_xattr.h>
 
 STATIC int	xfs_acl_setmode(vnode_t *, xfs_acl_t *, int *);

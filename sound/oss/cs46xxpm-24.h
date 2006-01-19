@@ -38,13 +38,9 @@
 */
 static int cs46xx_suspend_tbl(struct pci_dev *pcidev, pm_message_t state);
 static int cs46xx_resume_tbl(struct pci_dev *pcidev);
-#define cs_pm_register(a, b, c)  NULL
-#define cs_pm_unregister_all(a) 
 #define CS46XX_SUSPEND_TBL cs46xx_suspend_tbl
 #define CS46XX_RESUME_TBL cs46xx_resume_tbl
 #else
-#define cs_pm_register(a, b, c) pm_register((a), (b), (c));
-#define cs_pm_unregister_all(a) pm_unregister_all((a));
 #define CS46XX_SUSPEND_TBL cs46xx_null
 #define CS46XX_RESUME_TBL cs46xx_null
 #endif

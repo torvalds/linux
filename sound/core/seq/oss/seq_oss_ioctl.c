@@ -28,7 +28,7 @@
 #include "seq_oss_midi.h"
 #include "seq_oss_event.h"
 
-static int snd_seq_oss_synth_info_user(seq_oss_devinfo_t *dp, void __user *arg)
+static int snd_seq_oss_synth_info_user(struct seq_oss_devinfo *dp, void __user *arg)
 {
 	struct synth_info info;
 
@@ -41,7 +41,7 @@ static int snd_seq_oss_synth_info_user(seq_oss_devinfo_t *dp, void __user *arg)
 	return 0;
 }
 
-static int snd_seq_oss_midi_info_user(seq_oss_devinfo_t *dp, void __user *arg)
+static int snd_seq_oss_midi_info_user(struct seq_oss_devinfo *dp, void __user *arg)
 {
 	struct midi_info info;
 
@@ -54,24 +54,24 @@ static int snd_seq_oss_midi_info_user(seq_oss_devinfo_t *dp, void __user *arg)
 	return 0;
 }
 
-static int snd_seq_oss_oob_user(seq_oss_devinfo_t *dp, void __user *arg)
+static int snd_seq_oss_oob_user(struct seq_oss_devinfo *dp, void __user *arg)
 {
 	unsigned char ev[8];
-	snd_seq_event_t tmpev;
+	struct snd_seq_event tmpev;
 
 	if (copy_from_user(ev, arg, 8))
 		return -EFAULT;
 	memset(&tmpev, 0, sizeof(tmpev));
 	snd_seq_oss_fill_addr(dp, &tmpev, dp->addr.port, dp->addr.client);
 	tmpev.time.tick = 0;
-	if (! snd_seq_oss_process_event(dp, (evrec_t*)ev, &tmpev)) {
+	if (! snd_seq_oss_process_event(dp, (union evrec *)ev, &tmpev)) {
 		snd_seq_oss_dispatch(dp, &tmpev, 0, 0);
 	}
 	return 0;
 }
 
 int
-snd_seq_oss_ioctl(seq_oss_devinfo_t *dp, unsigned int cmd, unsigned long carg)
+snd_seq_oss_ioctl(struct seq_oss_devinfo *dp, unsigned int cmd, unsigned long carg)
 {
 	int dev, val;
 	void __user *arg = (void __user *)carg;

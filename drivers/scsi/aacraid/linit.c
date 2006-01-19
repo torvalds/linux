@@ -46,7 +46,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
-#include <linux/ioctl32.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include <asm/semaphore.h>
@@ -201,10 +200,10 @@ static struct aac_driver_ident aac_drivers[] = {
 	{ aac_rkt_init, "aacraid",  "ADAPTEC ", "Callisto        ", 2, AAC_QUIRK_MASTER }, /* Jupiter Platform */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "ASR-2020SA       ", 1 }, /* ASR-2020SA SATA PCI-X ZCR (Skyhawk) */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "ASR-2025SA       ", 1 }, /* ASR-2025SA SATA SO-DIMM PCI-X ZCR (Terminator) */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-2410SA SATA ", 1 }, /* AAR-2410SA PCI SATA 4ch (Jaguar II) */
-	{ aac_rx_init, "aacraid",  "DELL    ", "CERC SR2        ", 1 }, /* CERC SATA RAID 2 PCI SATA 6ch (DellCorsair) */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-2810SA SATA ", 1 }, /* AAR-2810SA PCI SATA 8ch (Corsair-8) */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-21610SA SATA", 1 }, /* AAR-21610SA PCI SATA 16ch (Corsair-16) */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-2410SA SATA ", 1, AAC_QUIRK_17SG }, /* AAR-2410SA PCI SATA 4ch (Jaguar II) */
+	{ aac_rx_init, "aacraid",  "DELL    ", "CERC SR2        ", 1, AAC_QUIRK_17SG }, /* CERC SATA RAID 2 PCI SATA 6ch (DellCorsair) */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-2810SA SATA ", 1, AAC_QUIRK_17SG }, /* AAR-2810SA PCI SATA 8ch (Corsair-8) */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-21610SA SATA", 1, AAC_QUIRK_17SG }, /* AAR-21610SA PCI SATA 16ch (Corsair-16) */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "ASR-2026ZCR     ", 1 }, /* ESD SO-DIMM PCI-X SATA ZCR (Prowler) */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "AAR-2610SA      ", 1 }, /* SATA 6Ch (Bearcat) */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "ASR-2240S       ", 1 }, /* ASR-2240S (SabreExpress) */
@@ -575,7 +574,15 @@ static ssize_t aac_show_model(struct class_device *class_dev,
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
 	int len;
 
-	len = snprintf(buf, PAGE_SIZE, "%s\n",
+	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
+		char * cp = dev->supplement_adapter_info.AdapterTypeText;
+		while (*cp && *cp != ' ')
+			++cp;
+		while (*cp == ' ')
+			++cp;
+		len = snprintf(buf, PAGE_SIZE, "%s\n", cp);
+	} else
+		len = snprintf(buf, PAGE_SIZE, "%s\n",
 		  aac_drivers[dev->cardtype].model);
 	return len;
 }
@@ -586,7 +593,15 @@ static ssize_t aac_show_vendor(struct class_device *class_dev,
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
 	int len;
 
-	len = snprintf(buf, PAGE_SIZE, "%s\n",
+	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
+		char * cp = dev->supplement_adapter_info.AdapterTypeText;
+		while (*cp && *cp != ' ')
+			++cp;
+		len = snprintf(buf, PAGE_SIZE, "%.*s\n",
+		  (int)(cp - (char *)dev->supplement_adapter_info.AdapterTypeText),
+		  dev->supplement_adapter_info.AdapterTypeText);
+	} else
+		len = snprintf(buf, PAGE_SIZE, "%s\n",
 		  aac_drivers[dev->cardtype].vname);
 	return len;
 }
@@ -834,6 +849,13 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
  	if ((aac_drivers[index].quirks & AAC_QUIRK_34SG) && 
 			(aac->scsi_host_ptr->sg_tablesize > 34)) {
  		aac->scsi_host_ptr->sg_tablesize = 34;
+ 		aac->scsi_host_ptr->max_sectors
+ 		  = (aac->scsi_host_ptr->sg_tablesize * 8) + 112;
+ 	}
+
+ 	if ((aac_drivers[index].quirks & AAC_QUIRK_17SG) &&
+			(aac->scsi_host_ptr->sg_tablesize > 17)) {
+ 		aac->scsi_host_ptr->sg_tablesize = 17;
  		aac->scsi_host_ptr->max_sectors
  		  = (aac->scsi_host_ptr->sg_tablesize * 8) + 112;
  	}

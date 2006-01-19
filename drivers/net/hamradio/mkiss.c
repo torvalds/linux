@@ -515,6 +515,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 			count = kiss_esc(p, (unsigned char *)ax->xbuff, len);
 		}
   	}
+	spin_unlock_bh(&ax->buflock);
 
 	set_bit(TTY_DO_WRITE_WAKEUP, &ax->tty->flags);
 	actual = ax->tty->driver->write(ax->tty, ax->xbuff, count);
@@ -752,6 +753,7 @@ static int mkiss_open(struct tty_struct *tty)
 
 	ax->tty = tty;
 	tty->disc_data = ax;
+	tty->receive_room = 65535;
 
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
@@ -939,11 +941,6 @@ static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		tty->driver->unthrottle(tty);
 }
 
-static int mkiss_receive_room(struct tty_struct *tty)
-{
-	return 65536;  /* We can handle an infinite amount of data. :-) */
-}
-
 /*
  * Called by the driver when there's room for more data.  If we have
  * more packets to send, we send them here.
@@ -982,7 +979,6 @@ static struct tty_ldisc ax_ldisc = {
 	.close		= mkiss_close,
 	.ioctl		= mkiss_ioctl,
 	.receive_buf	= mkiss_receive_buf,
-	.receive_room	= mkiss_receive_room,
 	.write_wakeup	= mkiss_write_wakeup
 };
 

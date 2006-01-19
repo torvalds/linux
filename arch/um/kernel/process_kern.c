@@ -36,11 +36,9 @@
 #include "kern_util.h"
 #include "kern.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "init.h"
 #include "irq_user.h"
 #include "mem_user.h"
-#include "time_user.h"
 #include "tlb.h"
 #include "frame_kern.h"
 #include "sigcontext.h"
@@ -108,7 +106,7 @@ void set_current(void *t)
 {
 	struct task_struct *task = t;
 
-	cpu_tasks[task->thread_info->cpu] = ((struct cpu_task) 
+	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task)
 		{ external_pid(task), task });
 }
 
@@ -289,17 +287,27 @@ EXPORT_SYMBOL(disable_hlt);
 
 void *um_kmalloc(int size)
 {
-	return(kmalloc(size, GFP_KERNEL));
+	return kmalloc(size, GFP_KERNEL);
 }
 
 void *um_kmalloc_atomic(int size)
 {
-	return(kmalloc(size, GFP_ATOMIC));
+	return kmalloc(size, GFP_ATOMIC);
 }
 
 void *um_vmalloc(int size)
 {
-	return(vmalloc(size));
+	return vmalloc(size);
+}
+
+void *um_vmalloc_atomic(int size)
+{
+	return __vmalloc(size, GFP_ATOMIC | __GFP_HIGHMEM, PAGE_KERNEL);
+}
+
+int __cant_sleep(void) {
+	return in_atomic() || irqs_disabled() || in_interrupt();
+	/* Is in_interrupt() really needed? */
 }
 
 unsigned long get_fault_addr(void)
@@ -323,10 +331,6 @@ int user_context(unsigned long sp)
 	stack = sp & (PAGE_MASK << CONFIG_KERNEL_STACK_ORDER);
 	return(stack != (unsigned long) current_thread);
 }
-
-extern void remove_umid_dir(void);
-
-__uml_exitcall(remove_umid_dir);
 
 extern exitcall_t __uml_exitcall_begin, __uml_exitcall_end;
 
@@ -373,11 +377,6 @@ int smp_sigio_handler(void)
 		return(1);
 #endif
 	return(0);
-}
-
-int um_in_interrupt(void)
-{
-	return(in_interrupt());
 }
 
 int cpu(void)

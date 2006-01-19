@@ -11,10 +11,18 @@
 #ifndef _ASM_MODULE_H
 #define _ASM_MODULE_H
 
-#define module_map(x)		vmalloc(x)
-#define module_unmap(x)		vfree(x)
-#define module_arch_init(x)	(0)
-#define arch_init_modules(x)	do { } while (0)
+struct mod_arch_specific
+{
+};
+
+#define Elf_Shdr	Elf32_Shdr
+#define Elf_Sym		Elf32_Sym
+#define Elf_Ehdr	Elf32_Ehdr
+
+/*
+ * Include the architecture version.
+ */
+#define MODULE_ARCH_VERMAGIC __stringify(PROCESSOR_MODEL_NAME) " "
 
 #endif /* _ASM_MODULE_H */
 

@@ -451,12 +451,11 @@ zr36016_setup (struct videocodec *codec)
 		return -ENOSPC;
 	}
 	//mem structure init
-	codec->data = ptr = kmalloc(sizeof(struct zr36016), GFP_KERNEL);
+	codec->data = ptr = kzalloc(sizeof(struct zr36016), GFP_KERNEL);
 	if (NULL == ptr) {
 		dprintk(1, KERN_ERR "zr36016: Can't get enough memory!\n");
 		return -ENOMEM;
 	}
-	memset(ptr, 0, sizeof(struct zr36016));
 
 	snprintf(ptr->name, sizeof(ptr->name), "zr36016[%d]",
 		 zr36016_codecs);

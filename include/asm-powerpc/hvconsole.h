@@ -21,6 +21,7 @@
 
 #ifndef _PPC64_HVCONSOLE_H
 #define _PPC64_HVCONSOLE_H
+#ifdef __KERNEL__
 
 /*
  * This is the max number of console adapters that can/will be found as
@@ -46,4 +47,5 @@ extern struct hvc_struct * __devinit hvc_alloc(uint32_t vtermno, int irq,
 						 struct hv_ops *ops);
 /* remove a vterm from hvc tty operation (modele_exit or hotplug remove) */
 extern int __devexit hvc_remove(struct hvc_struct *hp);
+#endif /* __KERNEL__ */
 #endif /* _PPC64_HVCONSOLE_H */

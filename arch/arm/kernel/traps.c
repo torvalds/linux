@@ -23,7 +23,6 @@
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -165,7 +164,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	} else if (verify_stack(fp)) {
 		printk("invalid frame pointer 0x%08x", fp);
 		ok = 0;
-	} else if (fp < (unsigned long)(tsk->thread_info + 1))
+	} else if (fp < (unsigned long)end_of_stack(tsk))
 		printk("frame pointer underflow");
 	printk("\n");
 
@@ -211,7 +210,7 @@ static void __die(const char *str, int err, struct thread_info *thread, struct p
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem("Stack: ", regs->ARM_sp,
-			 THREAD_SIZE + (unsigned long)tsk->thread_info);
+			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
 		dump_backtrace(regs, tsk);
 		dump_instr(regs);
 	}
@@ -405,7 +404,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if ((no >> 16) != 0x9f)
+	if ((no >> 16) != (__ARM_NR_BASE>> 16))
 		return bad_syscall(no, regs);
 
 	switch (no & 0xffff) {

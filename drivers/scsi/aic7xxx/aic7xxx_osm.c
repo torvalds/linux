@@ -375,7 +375,7 @@ static void ahc_linux_queue_cmd_complete(struct ahc_softc *ahc,
 					 struct scsi_cmnd *cmd);
 static void ahc_linux_sem_timeout(u_long arg);
 static void ahc_linux_freeze_simq(struct ahc_softc *ahc);
-static void ahc_linux_release_simq(u_long arg);
+static void ahc_linux_release_simq(struct ahc_softc *ahc);
 static int  ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag);
 static void ahc_linux_initialize_scsi_bus(struct ahc_softc *ahc);
 static u_int ahc_linux_user_tagdepth(struct ahc_softc *ahc,
@@ -1061,10 +1061,11 @@ uint32_t aic7xxx_verbose;
 int
 ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *template)
 {
-	char	 buf[80];
-	struct	 Scsi_Host *host;
+	char	buf[80];
+	struct	Scsi_Host *host;
 	char	*new_name;
-	u_long	 s;
+	u_long	s;
+	int	retval;
 
 	template->name = ahc->description;
 	host = scsi_host_alloc(template, sizeof(struct ahc_softc *));
@@ -1072,7 +1073,6 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 		return (ENOMEM);
 
 	*((struct ahc_softc **)host->hostdata) = ahc;
-	ahc_lock(ahc, &s);
 	ahc->platform_data->host = host;
 	host->can_queue = AHC_MAX_QUEUE;
 	host->cmd_per_lun = 2;
@@ -1083,7 +1083,9 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 	host->max_lun = AHC_NUM_LUNS;
 	host->max_channel = (ahc->features & AHC_TWIN) ? 1 : 0;
 	host->sg_tablesize = AHC_NSEG;
+	ahc_lock(ahc, &s);
 	ahc_set_unit(ahc, ahc_linux_unit++);
+	ahc_unlock(ahc, &s);
 	sprintf(buf, "scsi%d", host->host_no);
 	new_name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
 	if (new_name != NULL) {
@@ -1093,13 +1095,19 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 	host->unique_id = ahc->unit;
 	ahc_linux_initialize_scsi_bus(ahc);
 	ahc_intr_enable(ahc, TRUE);
-	ahc_unlock(ahc, &s);
 
 	host->transportt = ahc_linux_transport_template;
 
-	scsi_add_host(host, (ahc->dev_softc ? &ahc->dev_softc->dev : NULL)); /* XXX handle failure */
+	retval = scsi_add_host(host,
+			(ahc->dev_softc ? &ahc->dev_softc->dev : NULL));
+	if (retval) {
+		printk(KERN_WARNING "aic7xxx: scsi_add_host failed\n");
+		scsi_host_put(host);
+		return retval;
+	}
+
 	scsi_scan_host(host);
-	return (0);
+	return 0;
 }
 
 /*
@@ -1112,9 +1120,12 @@ ahc_linux_initialize_scsi_bus(struct ahc_softc *ahc)
 {
 	int i;
 	int numtarg;
+	unsigned long s;
 
 	i = 0;
 	numtarg = 0;
+
+	ahc_lock(ahc, &s);
 
 	if (aic7xxx_no_reset != 0)
 		ahc->flags &= ~(AHC_RESET_BUS_A|AHC_RESET_BUS_B);
@@ -1162,16 +1173,12 @@ ahc_linux_initialize_scsi_bus(struct ahc_softc *ahc)
 		ahc_update_neg_request(ahc, &devinfo, tstate,
 				       tinfo, AHC_NEG_ALWAYS);
 	}
+	ahc_unlock(ahc, &s);
 	/* Give the bus some time to recover */
 	if ((ahc->flags & (AHC_RESET_BUS_A|AHC_RESET_BUS_B)) != 0) {
 		ahc_linux_freeze_simq(ahc);
-		init_timer(&ahc->platform_data->reset_timer);
-		ahc->platform_data->reset_timer.data = (u_long)ahc;
-		ahc->platform_data->reset_timer.expires =
-		    jiffies + (AIC7XXX_RESET_DELAY * HZ)/1000;
-		ahc->platform_data->reset_timer.function =
-		    ahc_linux_release_simq;
-		add_timer(&ahc->platform_data->reset_timer);
+		msleep(AIC7XXX_RESET_DELAY);
+		ahc_linux_release_simq(ahc);
 	}
 }
 
@@ -2051,6 +2058,9 @@ ahc_linux_sem_timeout(u_long arg)
 static void
 ahc_linux_freeze_simq(struct ahc_softc *ahc)
 {
+	unsigned long s;
+
+	ahc_lock(ahc, &s);
 	ahc->platform_data->qfrozen++;
 	if (ahc->platform_data->qfrozen == 1) {
 		scsi_block_requests(ahc->platform_data->host);
@@ -2060,16 +2070,14 @@ ahc_linux_freeze_simq(struct ahc_softc *ahc)
 					CAM_LUN_WILDCARD, SCB_LIST_NULL,
 					ROLE_INITIATOR, CAM_REQUEUE_REQ);
 	}
+	ahc_unlock(ahc, &s);
 }
 
 static void
-ahc_linux_release_simq(u_long arg)
+ahc_linux_release_simq(struct ahc_softc *ahc)
 {
-	struct ahc_softc *ahc;
 	u_long s;
 	int    unblock_reqs;
-
-	ahc = (struct ahc_softc *)arg;
 
 	unblock_reqs = 0;
 	ahc_lock(ahc, &s);

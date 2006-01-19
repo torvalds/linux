@@ -209,7 +209,7 @@ enum {
 #define VT1724_MT_PDMA1_COUNT		0x76	/* word */
 
 
-unsigned char snd_vt1724_read_i2c(ice1712_t *ice, unsigned char dev, unsigned char addr);
-void snd_vt1724_write_i2c(ice1712_t *ice, unsigned char dev, unsigned char addr, unsigned char data);
+unsigned char snd_vt1724_read_i2c(struct snd_ice1712 *ice, unsigned char dev, unsigned char addr);
+void snd_vt1724_write_i2c(struct snd_ice1712 *ice, unsigned char dev, unsigned char addr, unsigned char data);
 
 #endif /* __SOUND_VT1724_H */

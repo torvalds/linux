@@ -118,13 +118,12 @@ static void maceps2_close(struct serio *dev)
 }
 
 
-static struct serio * __init maceps2_allocate_port(int idx)
+static struct serio * __devinit maceps2_allocate_port(int idx)
 {
 	struct serio *serio;
 
-	serio = kmalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (serio) {
-		memset(serio, 0, sizeof(struct serio));
 		serio->id.type		= SERIO_8042;
 		serio->write		= maceps2_write;
 		serio->open		= maceps2_open;
@@ -138,24 +137,13 @@ static struct serio * __init maceps2_allocate_port(int idx)
 	return serio;
 }
 
-
-static int __init maceps2_init(void)
+static int __devinit maceps2_probe(struct platform_device *dev)
 {
-	maceps2_device = platform_device_register_simple("maceps2", -1, NULL, 0);
-	if (IS_ERR(maceps2_device))
-		return PTR_ERR(maceps2_device);
-
-	port_data[0].port = &mace->perif.ps2.keyb;
-	port_data[0].irq  = MACEISA_KEYB_IRQ;
-	port_data[1].port = &mace->perif.ps2.mouse;
-	port_data[1].irq  = MACEISA_MOUSE_IRQ;
-
 	maceps2_port[0] = maceps2_allocate_port(0);
 	maceps2_port[1] = maceps2_allocate_port(1);
 	if (!maceps2_port[0] || !maceps2_port[1]) {
 		kfree(maceps2_port[0]);
 		kfree(maceps2_port[1]);
-		platform_device_unregister(maceps2_device);
 		return -ENOMEM;
 	}
 
@@ -165,11 +153,59 @@ static int __init maceps2_init(void)
 	return 0;
 }
 
-static void __exit maceps2_exit(void)
+static int __devexit maceps2_remove(struct platform_device *dev)
 {
 	serio_unregister_port(maceps2_port[0]);
 	serio_unregister_port(maceps2_port[1]);
+
+	return 0;
+}
+
+static struct platform_driver maceps2_driver = {
+	.driver		= {
+		.name	= "maceps2",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= maceps2_probe,
+	.remove		= __devexit_p(maceps2_remove),
+};
+
+static int __init maceps2_init(void)
+{
+	int error;
+
+	error = platform_driver_register(&maceps2_driver);
+	if (error)
+		return error;
+
+	maceps2_device = platform_device_alloc("maceps2", -1);
+	if (!maceps2_device) {
+		error = -ENOMEM;
+		goto err_unregister_driver;
+	}
+
+	port_data[0].port = &mace->perif.ps2.keyb;
+	port_data[0].irq  = MACEISA_KEYB_IRQ;
+	port_data[1].port = &mace->perif.ps2.mouse;
+	port_data[1].irq  = MACEISA_MOUSE_IRQ;
+
+	error = platform_device_add(maceps2_device);
+	if (error)
+		goto err_free_device;
+
+	return 0;
+
+ err_free_device:
+	platform_device_put(maceps2_device);
+ err_unregister_driver:
+	platform_driver_unregister(&maceps2_driver);
+	return error;
+}
+
+static void __exit maceps2_exit(void)
+{
 	platform_device_unregister(maceps2_device);
+	platform_driver_unregister(&maceps2_driver);
 }
 
 module_init(maceps2_init);

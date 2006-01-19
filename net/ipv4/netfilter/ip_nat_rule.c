@@ -95,6 +95,7 @@ static struct ipt_table nat_table = {
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
+	.af		= AF_INET,
 };
 
 /* Source NAT */
@@ -168,7 +169,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 }
 
 static int ipt_snat_checkentry(const char *tablename,
-			       const struct ipt_entry *e,
+			       const void *entry,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hook_mask)
@@ -201,7 +202,7 @@ static int ipt_snat_checkentry(const char *tablename,
 }
 
 static int ipt_dnat_checkentry(const char *tablename,
-			       const struct ipt_entry *e,
+			       const void *entry,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hook_mask)

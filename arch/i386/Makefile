@@ -37,14 +37,11 @@ CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
 # CPU-specific tuning. Anything which can be shared with UML should go here.
 include $(srctree)/arch/i386/Makefile.cpu
 
-# -mregparm=3 works ok on gcc-3.0 and later
-#
-GCC_VERSION			:= $(call cc-version)
-cflags-$(CONFIG_REGPARM) 	+= $(shell if [ $(GCC_VERSION) -ge 0300 ] ; then echo "-mregparm=3"; fi ;)
+cflags-$(CONFIG_REGPARM) += -mregparm=3
 
-# Disable unit-at-a-time mode, it makes gcc use a lot more stack
-# due to the lack of sharing of stacklots.
-CFLAGS += $(call cc-option,-fno-unit-at-a-time)
+# Disable unit-at-a-time mode on pre-gcc-4.0 compilers, it makes gcc use
+# a lot more stack due to the lack of sharing of stacklots:
+CFLAGS				+= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
 
 CFLAGS += $(cflags-y)
 
@@ -103,7 +100,7 @@ AFLAGS += $(mflags-y)
 boot := arch/i386/boot
 
 .PHONY: zImage bzImage compressed zlilo bzlilo \
-	zdisk bzdisk fdimage fdimage144 fdimage288 install kernel_install
+	zdisk bzdisk fdimage fdimage144 fdimage288 install
 
 all: bzImage
 
@@ -125,8 +122,7 @@ zdisk bzdisk: vmlinux
 fdimage fdimage144 fdimage288: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) $@
 
-install: vmlinux
-install kernel_install:
+install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
 
 archclean:

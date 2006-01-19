@@ -566,6 +566,25 @@ static inline int VN_BAD(struct vnode *vp)
 }
 
 /*
+ * Extracting atime values in various formats
+ */
+static inline void vn_atime_to_bstime(struct vnode *vp, xfs_bstime_t *bs_atime)
+{
+	bs_atime->tv_sec = vp->v_inode.i_atime.tv_sec;
+	bs_atime->tv_nsec = vp->v_inode.i_atime.tv_nsec;
+}
+
+static inline void vn_atime_to_timespec(struct vnode *vp, struct timespec *ts)
+{
+	*ts = vp->v_inode.i_atime;
+}
+
+static inline void vn_atime_to_time_t(struct vnode *vp, time_t *tt)
+{
+	*tt = vp->v_inode.i_atime.tv_sec;
+}
+
+/*
  * Some useful predicates.
  */
 #define VN_MAPPED(vp)	mapping_mapped(LINVFS_GET_IP(vp)->i_mapping)

@@ -17,6 +17,7 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
 
 struct preg {
 	unsigned char r;
@@ -88,24 +89,26 @@ int macio_probe(void)
 int macio_init(void)
 {
 	struct device_node *adbs;
+	struct resource r;
 
 	adbs = find_compatible_devices("adb", "chrp,adb0");
 	if (adbs == 0)
 		return -ENXIO;
 
 #if 0
-	{ int i;
+	{ int i = 0;
 
 	printk("macio_adb_init: node = %p, addrs =", adbs->node);
-	for (i = 0; i < adbs->n_addrs; ++i)
-		printk(" %x(%x)", adbs->addrs[i].address, adbs->addrs[i].size);
+	while(!of_address_to_resource(adbs, i, &r))
+		printk(" %x(%x)", r.start, r.end - r.start);
 	printk(", intrs =");
 	for (i = 0; i < adbs->n_intrs; ++i)
 		printk(" %x", adbs->intrs[i].line);
 	printk("\n"); }
 #endif
-	
-	adb = ioremap(adbs->addrs->address, sizeof(struct adb_regs));
+	if (of_address_to_resource(adbs, 0, &r))
+		return -ENXIO;
+	adb = ioremap(r.start, sizeof(struct adb_regs));
 
 	out_8(&adb->ctrl.r, 0);
 	out_8(&adb->intr.r, 0);

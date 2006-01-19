@@ -25,7 +25,7 @@
 
 #include <net/pkt_sched.h>
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 
 /*	Network Emulation Queuing algorithm.
 	====================================
@@ -65,11 +65,12 @@ struct netem_sched_data {
 	u32 jitter;
 	u32 duplicate;
 	u32 reorder;
+	u32 corrupt;
 
 	struct crndstate {
 		unsigned long last;
 		unsigned long rho;
-	} delay_cor, loss_cor, dup_cor, reorder_cor;
+	} delay_cor, loss_cor, dup_cor, reorder_cor, corrupt_cor;
 
 	struct disttable {
 		u32  size;
@@ -181,6 +182,23 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 		rootq->enqueue(skb2, rootq);
 		q->duplicate = dupsave;
+	}
+
+	/*
+	 * Randomized packet corruption.
+	 * Make copy if needed since we are modifying
+	 * If packet is going to be hardware checksummed, then
+	 * do it now in software before we mangle it.
+	 */
+	if (q->corrupt && q->corrupt >= get_crandom(&q->corrupt_cor)) {
+		if (!(skb = skb_unshare(skb, GFP_ATOMIC))
+		    || (skb->ip_summed == CHECKSUM_HW
+			&& skb_checksum_help(skb, 0))) {
+			sch->qstats.drops++;
+			return NET_XMIT_DROP;
+		}
+
+		skb->data[net_random() % skb_headlen(skb)] ^= 1<<(net_random() % 8);
 	}
 
 	if (q->gap == 0 		/* not doing reordering */
@@ -382,6 +400,20 @@ static int get_reorder(struct Qdisc *sch, const struct rtattr *attr)
 	return 0;
 }
 
+static int get_corrupt(struct Qdisc *sch, const struct rtattr *attr)
+{
+	struct netem_sched_data *q = qdisc_priv(sch);
+	const struct tc_netem_corrupt *r = RTA_DATA(attr);
+
+	if (RTA_PAYLOAD(attr) != sizeof(*r))
+		return -EINVAL;
+
+	q->corrupt = r->probability;
+	init_crandom(&q->corrupt_cor, r->correlation);
+	return 0;
+}
+
+/* Parse netlink message to set options */
 static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -432,13 +464,19 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 			if (ret)
 				return ret;
 		}
+
 		if (tb[TCA_NETEM_REORDER-1]) {
 			ret = get_reorder(sch, tb[TCA_NETEM_REORDER-1]);
 			if (ret)
 				return ret;
 		}
-	}
 
+		if (tb[TCA_NETEM_CORRUPT-1]) {
+			ret = get_corrupt(sch, tb[TCA_NETEM_CORRUPT-1]);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return 0;
 }
@@ -564,6 +602,7 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_netem_qopt qopt;
 	struct tc_netem_corr cor;
 	struct tc_netem_reorder reorder;
+	struct tc_netem_corrupt corrupt;
 
 	qopt.latency = q->latency;
 	qopt.jitter = q->jitter;
@@ -581,6 +620,10 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	reorder.probability = q->reorder;
 	reorder.correlation = q->reorder_cor.rho;
 	RTA_PUT(skb, TCA_NETEM_REORDER, sizeof(reorder), &reorder);
+
+	corrupt.probability = q->corrupt;
+	corrupt.correlation = q->corrupt_cor.rho;
+	RTA_PUT(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt);
 
 	rta->rta_len = skb->tail - b;
 

@@ -514,9 +514,10 @@ static inline int sym_setup_cdb(struct sym_hcb *np, struct scsi_cmnd *cmd, struc
  */
 int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *cp)
 {
-	int dir;
 	struct sym_tcb *tp = &np->target[cp->target];
 	struct sym_lcb *lp = sym_lp(tp, cp->lun);
+	u32 lastp, goalp;
+	int dir;
 
 	/*
 	 *  Build the CDB.
@@ -534,15 +535,47 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 			sym_set_cam_status(cmd, DID_ERROR);
 			goto out_abort;
 		}
+
+		/*
+		 *  No segments means no data.
+		 */
+		if (!cp->segments)
+			dir = DMA_NONE;
 	} else {
 		cp->data_len = 0;
 		cp->segments = 0;
 	}
 
 	/*
-	 *  Set data pointers.
+	 *  Set the data pointer.
 	 */
-	sym_setup_data_pointers(np, cp, dir);
+	switch (dir) {
+	case DMA_BIDIRECTIONAL:
+		printk("%s: got DMA_BIDIRECTIONAL command", sym_name(np));
+		sym_set_cam_status(cmd, DID_ERROR);
+		goto out_abort;
+	case DMA_TO_DEVICE:
+		goalp = SCRIPTA_BA(np, data_out2) + 8;
+		lastp = goalp - 8 - (cp->segments * (2*4));
+		break;
+	case DMA_FROM_DEVICE:
+		cp->host_flags |= HF_DATA_IN;
+		goalp = SCRIPTA_BA(np, data_in2) + 8;
+		lastp = goalp - 8 - (cp->segments * (2*4));
+		break;
+	case DMA_NONE:
+	default:
+		lastp = goalp = SCRIPTB_BA(np, no_data);
+		break;
+	}
+
+	/*
+	 *  Set all pointers values needed by SCRIPTS.
+	 */
+	cp->phys.head.lastp = cpu_to_scr(lastp);
+	cp->phys.head.savep = cpu_to_scr(lastp);
+	cp->startp	    = cp->phys.head.savep;
+	cp->goalp	    = cpu_to_scr(goalp);
 
 	/*
 	 *  When `#ifed 1', the code below makes the driver 
@@ -563,10 +596,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	/*
 	 *	activate this job.
 	 */
-	if (lp)
-		sym_start_next_ccbs(np, lp, 2);
-	else
-		sym_put_start_queue(np, cp);
+	sym_start_next_ccbs(np, lp, 2);
 	return 0;
 
 out_abort:
@@ -981,15 +1011,14 @@ static int device_queue_depth(struct sym_hcb *np, int target, int lun)
 
 static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 {
-	struct sym_hcb *np;
-	struct sym_tcb *tp;
+	struct sym_hcb *np = sym_get_hcb(sdev->host);
+	struct sym_tcb *tp = &np->target[sdev->id];
+	struct sym_lcb *lp;
 
 	if (sdev->id >= SYM_CONF_MAX_TARGET || sdev->lun >= SYM_CONF_MAX_LUN)
 		return -ENXIO;
 
-	np = sym_get_hcb(sdev->host);
-	tp = &np->target[sdev->id];
-
+	tp->starget = sdev->sdev_target;
 	/*
 	 * Fail the device init if the device is flagged NOSCAN at BOOT in
 	 * the NVRAM.  This may speed up boot and maintain coherency with
@@ -999,33 +1028,39 @@ static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 	 * lun devices behave badly when asked for a non zero LUN.
 	 */
 
-	if ((tp->usrflags & SYM_SCAN_BOOT_DISABLED) ||
-	    ((tp->usrflags & SYM_SCAN_LUNS_DISABLED) && sdev->lun != 0)) {
+	if (tp->usrflags & SYM_SCAN_BOOT_DISABLED) {
 		tp->usrflags &= ~SYM_SCAN_BOOT_DISABLED;
+		starget_printk(KERN_INFO, tp->starget,
+				"Scan at boot disabled in NVRAM\n");
 		return -ENXIO;
 	}
 
-	tp->starget = sdev->sdev_target;
+	if (tp->usrflags & SYM_SCAN_LUNS_DISABLED) {
+		if (sdev->lun != 0)
+			return -ENXIO;
+		starget_printk(KERN_INFO, tp->starget,
+				"Multiple LUNs disabled in NVRAM\n");
+	}
+
+	lp = sym_alloc_lcb(np, sdev->id, sdev->lun);
+	if (!lp)
+		return -ENOMEM;
+
+	spi_min_period(tp->starget) = tp->usr_period;
+	spi_max_width(tp->starget) = tp->usr_width;
+
 	return 0;
 }
 
 /*
  * Linux entry point for device queue sizing.
  */
-static int sym53c8xx_slave_configure(struct scsi_device *device)
+static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 {
-	struct sym_hcb *np = sym_get_hcb(device->host);
-	struct sym_tcb *tp = &np->target[device->id];
-	struct sym_lcb *lp;
+	struct sym_hcb *np = sym_get_hcb(sdev->host);
+	struct sym_tcb *tp = &np->target[sdev->id];
+	struct sym_lcb *lp = sym_lp(tp, sdev->lun);
 	int reqtags, depth_to_use;
-
-	/*
-	 *  Allocate the LCB if not yet.
-	 *  If it fail, we may well be in the sh*t. :)
-	 */
-	lp = sym_alloc_lcb(np, device->id, device->lun);
-	if (!lp)
-		return -ENOMEM;
 
 	/*
 	 *  Get user flags.
@@ -1038,10 +1073,10 @@ static int sym53c8xx_slave_configure(struct scsi_device *device)
 	 *  Use at least 2.
 	 *  Donnot use more than our maximum.
 	 */
-	reqtags = device_queue_depth(np, device->id, device->lun);
+	reqtags = device_queue_depth(np, sdev->id, sdev->lun);
 	if (reqtags > tp->usrtags)
 		reqtags = tp->usrtags;
-	if (!device->tagged_supported)
+	if (!sdev->tagged_supported)
 		reqtags = 0;
 #if 1 /* Avoid to locally queue commands for no good reasons */
 	if (reqtags > SYM_CONF_MAX_TAG)
@@ -1050,17 +1085,28 @@ static int sym53c8xx_slave_configure(struct scsi_device *device)
 #else
 	depth_to_use = (reqtags ? SYM_CONF_MAX_TAG : 2);
 #endif
-	scsi_adjust_queue_depth(device,
-				(device->tagged_supported ?
+	scsi_adjust_queue_depth(sdev,
+				(sdev->tagged_supported ?
 				 MSG_SIMPLE_TAG : 0),
 				depth_to_use);
 	lp->s.scdev_depth = depth_to_use;
-	sym_tune_dev_queuing(tp, device->lun, reqtags);
+	sym_tune_dev_queuing(tp, sdev->lun, reqtags);
 
-	if (!spi_initial_dv(device->sdev_target))
-		spi_dv_device(device);
+	if (!spi_initial_dv(sdev->sdev_target))
+		spi_dv_device(sdev);
 
 	return 0;
+}
+
+static void sym53c8xx_slave_destroy(struct scsi_device *sdev)
+{
+	struct sym_hcb *np = sym_get_hcb(sdev->host);
+	struct sym_lcb *lp = sym_lp(&np->target[sdev->id], sdev->lun);
+
+	if (lp->itlq_tbl)
+		sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK * 4, "ITLQ_TBL");
+	kfree(lp->cb_tags);
+	sym_mfree_dma(lp, sizeof(*lp), "LCB");
 }
 
 /*
@@ -1497,7 +1543,7 @@ static int sym_setup_bus_dma_mask(struct sym_hcb *np)
 {
 #if SYM_CONF_DMA_ADDRESSING_MODE > 0
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 1
-#define	DMA_DAC_MASK	0x000000ffffffffffULL /* 40-bit */
+#define	DMA_DAC_MASK	DMA_40BIT_MASK
 #elif SYM_CONF_DMA_ADDRESSING_MODE == 2
 #define	DMA_DAC_MASK	DMA_64BIT_MASK
 #endif
@@ -1926,6 +1972,7 @@ static struct scsi_host_template sym2_template = {
 	.queuecommand		= sym53c8xx_queue_command,
 	.slave_alloc		= sym53c8xx_slave_alloc,
 	.slave_configure	= sym53c8xx_slave_configure,
+	.slave_destroy		= sym53c8xx_slave_destroy,
 	.eh_abort_handler	= sym53c8xx_eh_abort_handler,
 	.eh_device_reset_handler = sym53c8xx_eh_device_reset_handler,
 	.eh_bus_reset_handler	= sym53c8xx_eh_bus_reset_handler,

@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
 #include <net/checksum.h>
@@ -55,7 +56,7 @@ match(const struct sk_buff *skb,
 	/* Make sure this isn't an evil packet */
 	/*DEBUGP("ipv6_esp entered \n");*/
 
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_ESP) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_ESP, NULL) < 0)
 		return 0;
 
 	eh = skb_header_pointer(skb, ptr, sizeof(_esp), &_esp);
@@ -75,7 +76,7 @@ match(const struct sk_buff *skb,
 /* Called when user tries to insert an entry of this type. */
 static int
 checkentry(const char *tablename,
-	   const struct ip6t_ip6 *ip,
+	   const void *ip,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)

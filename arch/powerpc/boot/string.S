@@ -107,10 +107,12 @@ memcpy:
 	rlwinm.	r7,r5,32-3,3,31		/* r7 = r5 >> 3 */
 	addi	r6,r3,-4
 	addi	r4,r4,-4
-	beq	2f			/* if less than 8 bytes to do */
+	beq	3f			/* if less than 8 bytes to do */
 	andi.	r0,r6,3			/* get dest word aligned */
 	mtctr	r7
 	bne	5f
+	andi.	r0,r4,3			/* check src word aligned too */
+	bne	3f
 1:	lwz	r7,4(r4)
 	lwzu	r8,8(r4)
 	stw	r7,4(r6)
@@ -132,6 +134,11 @@ memcpy:
 	bdnz	4b
 	blr
 5:	subfic	r0,r0,4
+	cmpw	cr1,r0,r5
+	add	r7,r0,r4
+	andi.	r7,r7,3			/* will source be word-aligned too? */
+	ble	cr1,3b
+	bne	3b			/* do byte-by-byte if not */
 	mtctr	r0
 6:	lbz	r7,4(r4)
 	addi	r4,r4,1
@@ -149,10 +156,12 @@ backwards_memcpy:
 	rlwinm.	r7,r5,32-3,3,31		/* r7 = r5 >> 3 */
 	add	r6,r3,r5
 	add	r4,r4,r5
-	beq	2f
+	beq	3f
 	andi.	r0,r6,3
 	mtctr	r7
 	bne	5f
+	andi.	r0,r4,3
+	bne	3f
 1:	lwz	r7,-4(r4)
 	lwzu	r8,-8(r4)
 	stw	r7,-4(r6)
@@ -171,7 +180,12 @@ backwards_memcpy:
 	stbu	r0,-1(r6)
 	bdnz	4b
 	blr
-5:	mtctr	r0
+5:	cmpw	cr1,r0,r5
+	subf	r7,r0,r4
+	andi.	r7,r7,3
+	ble	cr1,3b
+	bne	3b
+	mtctr	r0
 6:	lbzu	r7,-1(r4)
 	stbu	r7,-1(r6)
 	bdnz	6b

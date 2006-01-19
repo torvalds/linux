@@ -25,7 +25,6 @@
 #define kdebug(FMT, a...)	do {} while(0)
 #endif
 
-extern struct key_type key_type_dead;
 extern struct key_type key_type_user;
 
 /*****************************************************************************/
@@ -108,12 +107,13 @@ extern struct key *request_key_and_link(struct key_type *type,
 struct request_key_auth {
 	struct key		*target_key;
 	struct task_struct	*context;
+	const char		*callout_info;
 	pid_t			pid;
 };
 
 extern struct key_type key_type_request_key_auth;
 extern struct key *request_key_auth_new(struct key *target,
-					struct key **_rkakey);
+					const char *callout_info);
 
 extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 
@@ -137,6 +137,8 @@ extern long keyctl_instantiate_key(key_serial_t, const void __user *,
 				   size_t, key_serial_t);
 extern long keyctl_negate_key(key_serial_t, unsigned, key_serial_t);
 extern long keyctl_set_reqkey_keyring(int);
+extern long keyctl_set_timeout(key_serial_t, unsigned);
+extern long keyctl_assume_authority(key_serial_t);
 
 
 /*

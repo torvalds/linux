@@ -96,7 +96,7 @@
  *    name. We then convert the name to the current NLS code page, and proceed
  *    searching for a dentry with this name, etc, as in case 2), above.
  *
- * Locking: Caller must hold i_sem on the directory.
+ * Locking: Caller must hold i_mutex on the directory.
  */
 static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 		struct nameidata *nd)
@@ -254,7 +254,7 @@ handle_name:
 	nls_name.hash = full_name_hash(nls_name.name, nls_name.len);
 
 	/*
-	 * Note: No need for dent->d_lock lock as i_sem is held on the
+	 * Note: No need for dent->d_lock lock as i_mutex is held on the
 	 * parent inode.
 	 */
 
@@ -374,7 +374,7 @@ struct inode_operations ntfs_dir_inode_ops = {
  * The code is based on the ext3 ->get_parent() implementation found in
  * fs/ext3/namei.c::ext3_get_parent().
  *
- * Note: ntfs_get_parent() is called with @child_dent->d_inode->i_sem down.
+ * Note: ntfs_get_parent() is called with @child_dent->d_inode->i_mutex down.
  *
  * Return the dentry of the parent directory on success or the error code on
  * error (IS_ERR() is true).

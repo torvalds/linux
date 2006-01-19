@@ -51,6 +51,7 @@
 #include <asm/pgtable.h>
 #include <asm/bitops.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
@@ -70,41 +71,60 @@
 #define DBG(fmt...)
 #endif
 
-extern void generic_find_legacy_serial_ports(u64 *physport,
-		unsigned int *default_speed);
+static unsigned long maple_find_nvram_base(void)
+{
+	struct device_node *rtcs;
+	unsigned long result = 0;
+
+	/* find NVRAM device */
+	rtcs = of_find_compatible_node(NULL, "nvram", "AMD8111");
+	if (rtcs) {
+		struct resource r;
+		if (of_address_to_resource(rtcs, 0, &r)) {
+			printk(KERN_EMERG "Maple: Unable to translate NVRAM"
+			       " address\n");
+			goto bail;
+		}
+		if (!(r.flags & IORESOURCE_IO)) {
+			printk(KERN_EMERG "Maple: NVRAM address isn't PIO!\n");
+			goto bail;
+		}
+		result = r.start;
+	} else
+		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
+ bail:
+	of_node_put(rtcs);
+	return result;
+}
 
 static void maple_restart(char *cmd)
 {
 	unsigned int maple_nvram_base;
 	unsigned int maple_nvram_offset;
 	unsigned int maple_nvram_command;
-	struct device_node *rtcs;
+	struct device_node *sp;
 
-	/* find NVRAM device */
-	rtcs = find_compatible_devices("nvram", "AMD8111");
-	if (rtcs && rtcs->addrs) {
-		maple_nvram_base = rtcs->addrs[0].address;
-	} else {
-		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
-		printk(KERN_EMERG "Maple: Manual Restart Required\n");
-		return;
-	}
+	maple_nvram_base = maple_find_nvram_base();
+	if (maple_nvram_base == 0)
+		goto fail;
 
 	/* find service processor device */
-	rtcs = find_devices("service-processor");
-	if (!rtcs) {
+	sp = of_find_node_by_name(NULL, "service-processor");
+	if (!sp) {
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
-		printk(KERN_EMERG "Maple: Manual Restart Required\n");
-		return;
+		goto fail;
 	}
-	maple_nvram_offset = *(unsigned int*) get_property(rtcs,
+	maple_nvram_offset = *(unsigned int*) get_property(sp,
 			"restart-addr", NULL);
-	maple_nvram_command = *(unsigned int*) get_property(rtcs,
+	maple_nvram_command = *(unsigned int*) get_property(sp,
 			"restart-value", NULL);
+	of_node_put(sp);
 
 	/* send command */
 	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
 	for (;;) ;
+ fail:
+	printk(KERN_EMERG "Maple: Manual Restart Required\n");
 }
 
 static void maple_power_off(void)
@@ -112,33 +132,29 @@ static void maple_power_off(void)
 	unsigned int maple_nvram_base;
 	unsigned int maple_nvram_offset;
 	unsigned int maple_nvram_command;
-	struct device_node *rtcs;
+	struct device_node *sp;
 
-	/* find NVRAM device */
-	rtcs = find_compatible_devices("nvram", "AMD8111");
-	if (rtcs && rtcs->addrs) {
-		maple_nvram_base = rtcs->addrs[0].address;
-	} else {
-		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
-		printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
-		return;
-	}
+	maple_nvram_base = maple_find_nvram_base();
+	if (maple_nvram_base == 0)
+		goto fail;
 
 	/* find service processor device */
-	rtcs = find_devices("service-processor");
-	if (!rtcs) {
+	sp = of_find_node_by_name(NULL, "service-processor");
+	if (!sp) {
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
-		printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
-		return;
+		goto fail;
 	}
-	maple_nvram_offset = *(unsigned int*) get_property(rtcs,
+	maple_nvram_offset = *(unsigned int*) get_property(sp,
 			"power-off-addr", NULL);
-	maple_nvram_command = *(unsigned int*) get_property(rtcs,
+	maple_nvram_command = *(unsigned int*) get_property(sp,
 			"power-off-value", NULL);
+	of_node_put(sp);
 
 	/* send command */
 	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
 	for (;;) ;
+ fail:
+	printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
 }
 
 static void maple_halt(void)
@@ -181,9 +197,6 @@ void __init maple_setup_arch(void)
  */
 static void __init maple_init_early(void)
 {
-	unsigned int default_speed;
-	u64 physport;
-
 	DBG(" -> maple_init_early\n");
 
 	/* Initialize hash table, from now on, we can take hash faults
@@ -191,24 +204,10 @@ static void __init maple_init_early(void)
 	 */
 	hpte_init_native();
 
-	/* Find the serial port */
-	generic_find_legacy_serial_ports(&physport, &default_speed);
-
-	DBG("phys port addr: %lx\n", (long)physport);
-
-	if (physport) {
-		void *comport;
-		/* Map the uart for udbg. */
-		comport = (void *)ioremap(physport, 16);
-		udbg_init_uart(comport, default_speed);
-
-		DBG("Hello World !\n");
-	}
-
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
-	iommu_init_early_u3();
+	iommu_init_early_dart();
 
 	DBG(" <- maple_init_early\n");
 }
@@ -270,7 +269,7 @@ static int __init maple_probe(int platform)
 	 * occupies having to be broken up so the DART itself is not
 	 * part of the cacheable linar mapping
 	 */
-	alloc_u3_dart_table();
+	alloc_dart_table();
 
 	return 1;
 }
@@ -292,4 +291,9 @@ struct machdep_calls __initdata maple_md = {
       	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= maple_progress,
 	.idle_loop		= native_idle,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
+#endif
 };

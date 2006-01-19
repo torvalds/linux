@@ -356,10 +356,11 @@ int save_vga(struct vgastate *state)
 {
 	struct regstate *saved;
 
-	saved = kmalloc(sizeof(struct regstate), GFP_KERNEL);
+	saved = kzalloc(sizeof(struct regstate), GFP_KERNEL);
+
 	if (saved == NULL)
 		return 1;
-	memset (saved, 0, sizeof(struct regstate));
+
 	state->vidstate = (void *)saved;
 		
 	if (state->flags & VGA_SAVE_CMAP) {

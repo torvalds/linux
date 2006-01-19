@@ -641,7 +641,7 @@ static void lmc_watchdog (unsigned long data) /*fold00*/
     spin_lock_irqsave(&sc->lmc_lock, flags);
 
     if(sc->check != 0xBEAFCAFE){
-        printk("LMC: Corrupt net_device stuct, breaking out\n");
+        printk("LMC: Corrupt net_device struct, breaking out\n");
 	spin_unlock_irqrestore(&sc->lmc_lock, flags);
         return;
     }

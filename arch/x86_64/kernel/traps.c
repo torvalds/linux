@@ -70,7 +70,6 @@ asmlinkage void reserved(void);
 asmlinkage void alignment_check(void);
 asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
-asmlinkage void call_debug(void);
 
 struct notifier_block *die_chain;
 static DEFINE_SPINLOCK(die_notifier_lock);
@@ -121,19 +120,31 @@ int printk_address(unsigned long address)
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 					unsigned *usedp, const char **idp)
 {
-	static const char ids[N_EXCEPTION_STACKS][8] = {
+	static char ids[][8] = {
 		[DEBUG_STACK - 1] = "#DB",
 		[NMI_STACK - 1] = "NMI",
 		[DOUBLEFAULT_STACK - 1] = "#DF",
 		[STACKFAULT_STACK - 1] = "#SS",
 		[MCE_STACK - 1] = "#MC",
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		[N_EXCEPTION_STACKS ... N_EXCEPTION_STACKS + DEBUG_STKSZ / EXCEPTION_STKSZ - 2] = "#DB[?]"
+#endif
 	};
 	unsigned k;
 
 	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
 		unsigned long end;
 
-		end = per_cpu(init_tss, cpu).ist[k];
+		switch (k + 1) {
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		case DEBUG_STACK:
+			end = cpu_pda(cpu)->debugstack + DEBUG_STKSZ;
+			break;
+#endif
+		default:
+			end = per_cpu(init_tss, cpu).ist[k];
+			break;
+		}
 		if (stack >= end)
 			continue;
 		if (stack >= end - EXCEPTION_STKSZ) {
@@ -143,6 +154,22 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			*idp = ids[k];
 			return (unsigned long *)end;
 		}
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+		if (k == DEBUG_STACK - 1 && stack >= end - DEBUG_STKSZ) {
+			unsigned j = N_EXCEPTION_STACKS - 1;
+
+			do {
+				++j;
+				end -= EXCEPTION_STKSZ;
+				ids[j][4] = '1' + (j - N_EXCEPTION_STACKS);
+			} while (stack < end - EXCEPTION_STKSZ);
+			if (*usedp & (1U << j))
+				break;
+			*usedp |= 1U << j;
+			*idp = ids[j];
+			return (unsigned long *)end;
+		}
+#endif
 	}
 	return NULL;
 }
@@ -156,9 +183,8 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 
 void show_trace(unsigned long *stack)
 {
-	unsigned long addr;
 	const unsigned cpu = safe_smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *)cpu_pda[cpu].irqstackptr;
+	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	int i;
 	unsigned used = 0;
 
@@ -166,8 +192,14 @@ void show_trace(unsigned long *stack)
 
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
-		addr = *stack++; \
+		unsigned long addr = *stack++; \
 		if (kernel_text_address(addr)) { \
+			if (i > 50) { \
+				printk("\n       "); \
+				i = 0; \
+			} \
+			else \
+				i += printk(" "); \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
@@ -177,25 +209,19 @@ void show_trace(unsigned long *stack)
 			 * out the call path that was taken. \
 			 */ \
 			i += printk_address(addr); \
-			if (i > 50) { \
-				printk("\n       "); \
-				i = 0; \
-			} \
-			else \
-				i += printk(" "); \
 		} \
 	} while (0)
 
-	for(i = 0; ; ) {
+	for(i = 11; ; ) {
 		const char *id;
 		unsigned long *estack_end;
 		estack_end = in_exception_stack(cpu, (unsigned long)stack,
 						&used, &id);
 
 		if (estack_end) {
-			i += printk(" <%s> ", id);
+			i += printk(" <%s>", id);
 			HANDLE_STACK (stack < estack_end);
-			i += printk(" <EOE> ");
+			i += printk(" <EOE>");
 			stack = (unsigned long *) estack_end[-2];
 			continue;
 		}
@@ -205,11 +231,11 @@ void show_trace(unsigned long *stack)
 				(IRQSTACKSIZE - 64) / sizeof(*irqstack);
 
 			if (stack >= irqstack && stack < irqstack_end) {
-				i += printk(" <IRQ> ");
+				i += printk(" <IRQ>");
 				HANDLE_STACK (stack < irqstack_end);
 				stack = (unsigned long *) (irqstack_end[-1]);
 				irqstack_end = NULL;
-				i += printk(" <EOI> ");
+				i += printk(" <EOI>");
 				continue;
 			}
 		}
@@ -226,8 +252,8 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 	unsigned long *stack;
 	int i;
 	const int cpu = safe_smp_processor_id();
-	unsigned long *irqstack_end = (unsigned long *) (cpu_pda[cpu].irqstackptr);
-	unsigned long *irqstack = (unsigned long *) (cpu_pda[cpu].irqstackptr - IRQSTACKSIZE);    
+	unsigned long *irqstack_end = (unsigned long *) (cpu_pda(cpu)->irqstackptr);
+	unsigned long *irqstack = (unsigned long *) (cpu_pda(cpu)->irqstackptr - IRQSTACKSIZE);
 
 	// debugging aid: "show_stack(NULL, NULL);" prints the
 	// back trace for this cpu.
@@ -275,14 +301,14 @@ void show_registers(struct pt_regs *regs)
 	int in_kernel = !user_mode(regs);
 	unsigned long rsp;
 	const int cpu = safe_smp_processor_id(); 
-	struct task_struct *cur = cpu_pda[cpu].pcurrent; 
+	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
 
 		rsp = regs->rsp;
 
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
-		cur->comm, cur->pid, cur->thread_info, cur);
+		cur->comm, cur->pid, task_thread_info(cur), cur);
 
 	/*
 	 * When in-kernel, we also print out the stack and code at the
@@ -314,20 +340,26 @@ bad:
 void handle_BUG(struct pt_regs *regs)
 { 
 	struct bug_frame f;
-	char tmp;
+	long len;
+	const char *prefix = "";
 
 	if (user_mode(regs))
 		return; 
-	if (__copy_from_user(&f, (struct bug_frame *) regs->rip, 
+	if (__copy_from_user(&f, (const void __user *) regs->rip,
 			     sizeof(struct bug_frame)))
 		return; 
 	if (f.filename >= 0 ||
 	    f.ud2[0] != 0x0f || f.ud2[1] != 0x0b) 
 		return;
-	if (__get_user(tmp, (char *)(long)f.filename))
+	len = __strnlen_user((char *)(long)f.filename, PATH_MAX) - 1;
+	if (len < 0 || len >= PATH_MAX)
 		f.filename = (int)(long)"unmapped filename";
+	else if (len > 50) {
+		f.filename += len - 50;
+		prefix = "...";
+	}
 	printk("----------- [cut here ] --------- [please bite here ] ---------\n");
-	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", (char *)(long)f.filename, f.line);
+	printk(KERN_ALERT "Kernel BUG at %s%.50s:%d\n", prefix, (char *)(long)f.filename, f.line);
 } 
 
 #ifdef CONFIG_BUG
@@ -382,7 +414,7 @@ void __die(const char * str, struct pt_regs * regs, long err)
 	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
-	notify_die(DIE_OOPS, (char *)str, regs, err, 255, SIGSEGV);
+	notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV);
 	show_registers(regs);
 	/* Executive summary in case the oops scrolled away */
 	printk(KERN_ALERT "RIP ");
@@ -398,11 +430,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	__die(str, regs, err);
 	oops_end(flags);
 	do_exit(SIGSEGV); 
-}
-static inline void die_if_kernel(const char * str, struct pt_regs * regs, long err)
-{
-	if (!(regs->eflags & VM_MASK) && (regs->cs == __KERNEL_CS))
-		die(str, regs, err);
 }
 
 void die_nmi(char *str, struct pt_regs *regs)
@@ -426,19 +453,20 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 			      struct pt_regs * regs, long error_code,
 			      siginfo_t *info)
 {
+	struct task_struct *tsk = current;
+
 	conditional_sti(regs);
 
-	if (user_mode(regs)) {
-		struct task_struct *tsk = current;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = trapnr;
 
+	if (user_mode(regs)) {
 		if (exception_trace && unhandled_signal(tsk, signr))
 			printk(KERN_INFO
 			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid, str,
 			       regs->rip,regs->rsp,error_code); 
 
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = trapnr;
 		if (info)
 			force_sig_info(signr, info, tsk);
 		else
@@ -485,7 +513,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 DO_ERROR_INFO( 0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->rip)
 DO_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid operand", invalid_op, ILL_ILLOPN, regs->rip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->rip)
 DO_ERROR( 7, SIGSEGV, "device not available", device_not_available)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
@@ -493,24 +521,41 @@ DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 DO_ERROR(18, SIGSEGV, "reserved", reserved)
 DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
-DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
+
+asmlinkage void do_double_fault(struct pt_regs * regs, long error_code)
+{
+	static const char str[] = "double fault";
+	struct task_struct *tsk = current;
+
+	/* Return not checked because double check cannot be ignored */
+	notify_die(DIE_TRAP, str, regs, error_code, 8, SIGSEGV);
+
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 8;
+
+	/* This is always a kernel trap and never fixable (and thus must
+	   never return). */
+	for (;;)
+		die(str, regs, error_code);
+}
 
 asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 						long error_code)
 {
+	struct task_struct *tsk = current;
+
 	conditional_sti(regs);
 
-	if (user_mode(regs)) {
-		struct task_struct *tsk = current;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 13;
 
+	if (user_mode(regs)) {
 		if (exception_trace && unhandled_signal(tsk, SIGSEGV))
 			printk(KERN_INFO
 		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid,
 			       regs->rip,regs->rsp,error_code); 
 
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = 13;
 		force_sig(SIGSEGV, tsk);
 		return;
 	} 
@@ -573,7 +618,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		reason = get_nmi_reason();
 
 	if (!(reason & 0xc0)) {
-		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 0, SIGINT)
+		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 2, SIGINT)
 								== NOTIFY_STOP)
 			return;
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -589,7 +634,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		unknown_nmi_error(reason, regs);
 		return;
 	}
-	if (notify_die(DIE_NMI, "nmi", regs, reason, 0, SIGINT) == NOTIFY_STOP)
+	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
 		return; 
 
 	/* AK: following checks seem to be broken on modern chipsets. FIXME */
@@ -600,6 +645,7 @@ asmlinkage void default_do_nmi(struct pt_regs *regs)
 		io_check_error(reason, regs);
 }
 
+/* runs on IST stack. */
 asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
@@ -620,7 +666,7 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
 		;
 	/* Exception from user space */
 	else if (user_mode(eregs))
-		regs = ((struct pt_regs *)current->thread.rsp0) - 1;
+		regs = task_pt_regs(current);
 	/* Exception from kernel and interrupts are enabled. Move to
  	   kernel process stack. */
 	else if (eregs->eflags & X86_EFLAGS_IF)
@@ -684,11 +730,9 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_BRKPT;
-	if (!user_mode(regs))
-		goto clear_dr7; 
+	info.si_addr = user_mode(regs) ? (void __user *)regs->rip : NULL;
+	force_sig_info(SIGTRAP, &info, tsk);
 
-	info.si_addr = (void __user *)regs->rip;
-	force_sig_info(SIGTRAP, &info, tsk);	
 clear_dr7:
 	set_debugreg(0UL, 7);
 	return;
@@ -698,7 +742,7 @@ clear_TF_reenable:
 	regs->eflags &= ~TF_MASK;
 }
 
-static int kernel_math_error(struct pt_regs *regs, char *str)
+static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
 {
 	const struct exception_table_entry *fixup;
 	fixup = search_exception_tables(regs->rip);
@@ -706,8 +750,9 @@ static int kernel_math_error(struct pt_regs *regs, char *str)
 		regs->rip = fixup->fixup;
 		return 1;
 	}
-	notify_die(DIE_GPF, str, regs, 0, 16, SIGFPE);
+	notify_die(DIE_GPF, str, regs, 0, trapnr, SIGFPE);
 	/* Illegal floating point operation in the kernel */
+	current->thread.trap_no = trapnr;
 	die(str, regs, 0);
 	return 0;
 }
@@ -726,7 +771,7 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 
 	conditional_sti(regs);
 	if (!user_mode(regs) &&
-	    kernel_math_error(regs, "kernel x87 math error"))
+	    kernel_math_error(regs, "kernel x87 math error", 16))
 		return;
 
 	/*
@@ -795,7 +840,7 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 
 	conditional_sti(regs);
 	if (!user_mode(regs) &&
-        	kernel_math_error(regs, "kernel simd math error"))
+        	kernel_math_error(regs, "kernel simd math error", 19))
 		return;
 
 	/*
@@ -867,12 +912,7 @@ asmlinkage void math_state_restore(void)
 	if (!used_math())
 		init_fpu(me);
 	restore_fpu_checking(&me->thread.i387.fxsave);
-	me->thread_info->status |= TS_USEDFPU;
-}
-
-void do_call_debug(struct pt_regs *regs) 
-{ 
-	notify_die(DIE_CALL, "debug call", regs, 0, 255, SIGINT); 
+	task_thread_info(me)->status |= TS_USEDFPU;
 }
 
 void __init trap_init(void)
@@ -880,9 +920,9 @@ void __init trap_init(void)
 	set_intr_gate(0,&divide_error);
 	set_intr_gate_ist(1,&debug,DEBUG_STACK);
 	set_intr_gate_ist(2,&nmi,NMI_STACK);
-	set_system_gate(3,&int3);
-	set_system_gate(4,&overflow);	/* int4-5 can be called from all */
-	set_system_gate(5,&bounds);
+ 	set_system_gate_ist(3,&int3,DEBUG_STACK); /* int3 can be called from all */
+	set_system_gate(4,&overflow);	/* int4 can be called from all */
+	set_intr_gate(5,&bounds);
 	set_intr_gate(6,&invalid_op);
 	set_intr_gate(7,&device_not_available);
 	set_intr_gate_ist(8,&double_fault, DOUBLEFAULT_STACK);
@@ -903,8 +943,6 @@ void __init trap_init(void)
 #ifdef CONFIG_IA32_EMULATION
 	set_system_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
 #endif
-       
-	set_intr_gate(KDB_VECTOR, call_debug);
        
 	/*
 	 * Should be a barrier for any external CPU state.

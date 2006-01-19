@@ -1083,23 +1083,33 @@ static int swim3_add_device(struct device_node *swim)
 {
 	struct device_node *mediabay;
 	struct floppy_state *fs = &floppy_states[floppy_count];
+	struct resource res_reg, res_dma;
 
-	if (swim->n_addrs < 2)
-	{
-		printk(KERN_INFO "swim3: expecting 2 addrs (n_addrs:%d, n_intrs:%d)\n",
-		       swim->n_addrs, swim->n_intrs);
+	if (of_address_to_resource(swim, 0, &res_reg) ||
+	    of_address_to_resource(swim, 1, &res_dma)) {
+		printk(KERN_ERR "swim3: Can't get addresses\n");
+		return -EINVAL;
+	}
+	if (request_mem_region(res_reg.start, res_reg.end - res_reg.start + 1,
+			       " (reg)") == NULL) {
+		printk(KERN_ERR "swim3: Can't request register space\n");
+		return -EINVAL;
+	}
+	if (request_mem_region(res_dma.start, res_dma.end - res_dma.start + 1,
+			       " (dma)") == NULL) {
+		release_mem_region(res_reg.start,
+				   res_reg.end - res_reg.start + 1);
+		printk(KERN_ERR "swim3: Can't request DMA space\n");
 		return -EINVAL;
 	}
 
-	if (swim->n_intrs < 2)
-	{
-		printk(KERN_INFO "swim3: expecting 2 intrs (n_addrs:%d, n_intrs:%d)\n",
-		       swim->n_addrs, swim->n_intrs);
-		return -EINVAL;
-	}
-
-	if (!request_OF_resource(swim, 0, NULL)) {
-		printk(KERN_INFO "swim3: can't request IO resource !\n");
+	if (swim->n_intrs < 2) {
+		printk(KERN_INFO "swim3: expecting 2 intrs (n_intrs:%d)\n",
+		       swim->n_intrs);
+		release_mem_region(res_reg.start,
+				   res_reg.end - res_reg.start + 1);
+		release_mem_region(res_dma.start,
+				   res_dma.end - res_dma.start + 1);
 		return -EINVAL;
 	}
 
@@ -1110,10 +1120,8 @@ static int swim3_add_device(struct device_node *swim)
 	memset(fs, 0, sizeof(*fs));
 	spin_lock_init(&fs->lock);
 	fs->state = idle;
-	fs->swim3 = (struct swim3 __iomem *)
-		ioremap(swim->addrs[0].address, 0x200);
-	fs->dma = (struct dbdma_regs __iomem *)
-		ioremap(swim->addrs[1].address, 0x200);
+	fs->swim3 = (struct swim3 __iomem *)ioremap(res_reg.start, 0x200);
+	fs->dma = (struct dbdma_regs __iomem *)ioremap(res_dma.start, 0x200);
 	fs->swim3_intr = swim->intrs[0].line;
 	fs->dma_intr = swim->intrs[1].line;
 	fs->cur_cyl = -1;

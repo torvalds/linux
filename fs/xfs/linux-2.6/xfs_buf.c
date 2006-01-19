@@ -31,76 +31,77 @@
 #include <linux/kthread.h>
 #include "xfs_linux.h"
 
-STATIC kmem_cache_t *pagebuf_zone;
-STATIC kmem_shaker_t pagebuf_shake;
+STATIC kmem_zone_t *xfs_buf_zone;
+STATIC kmem_shaker_t xfs_buf_shake;
+STATIC int xfsbufd(void *);
 STATIC int xfsbufd_wakeup(int, gfp_t);
-STATIC void pagebuf_delwri_queue(xfs_buf_t *, int);
+STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
 
 STATIC struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
 
-#ifdef PAGEBUF_TRACE
+#ifdef XFS_BUF_TRACE
 void
-pagebuf_trace(
-	xfs_buf_t	*pb,
+xfs_buf_trace(
+	xfs_buf_t	*bp,
 	char		*id,
 	void		*data,
 	void		*ra)
 {
-	ktrace_enter(pagebuf_trace_buf,
-		pb, id,
-		(void *)(unsigned long)pb->pb_flags,
-		(void *)(unsigned long)pb->pb_hold.counter,
-		(void *)(unsigned long)pb->pb_sema.count.counter,
+	ktrace_enter(xfs_buf_trace_buf,
+		bp, id,
+		(void *)(unsigned long)bp->b_flags,
+		(void *)(unsigned long)bp->b_hold.counter,
+		(void *)(unsigned long)bp->b_sema.count.counter,
 		(void *)current,
 		data, ra,
-		(void *)(unsigned long)((pb->pb_file_offset>>32) & 0xffffffff),
-		(void *)(unsigned long)(pb->pb_file_offset & 0xffffffff),
-		(void *)(unsigned long)pb->pb_buffer_length,
+		(void *)(unsigned long)((bp->b_file_offset>>32) & 0xffffffff),
+		(void *)(unsigned long)(bp->b_file_offset & 0xffffffff),
+		(void *)(unsigned long)bp->b_buffer_length,
 		NULL, NULL, NULL, NULL, NULL);
 }
-ktrace_t *pagebuf_trace_buf;
-#define PAGEBUF_TRACE_SIZE	4096
-#define PB_TRACE(pb, id, data)	\
-	pagebuf_trace(pb, id, (void *)data, (void *)__builtin_return_address(0))
+ktrace_t *xfs_buf_trace_buf;
+#define XFS_BUF_TRACE_SIZE	4096
+#define XB_TRACE(bp, id, data)	\
+	xfs_buf_trace(bp, id, (void *)data, (void *)__builtin_return_address(0))
 #else
-#define PB_TRACE(pb, id, data)	do { } while (0)
+#define XB_TRACE(bp, id, data)	do { } while (0)
 #endif
 
-#ifdef PAGEBUF_LOCK_TRACKING
-# define PB_SET_OWNER(pb)	((pb)->pb_last_holder = current->pid)
-# define PB_CLEAR_OWNER(pb)	((pb)->pb_last_holder = -1)
-# define PB_GET_OWNER(pb)	((pb)->pb_last_holder)
+#ifdef XFS_BUF_LOCK_TRACKING
+# define XB_SET_OWNER(bp)	((bp)->b_last_holder = current->pid)
+# define XB_CLEAR_OWNER(bp)	((bp)->b_last_holder = -1)
+# define XB_GET_OWNER(bp)	((bp)->b_last_holder)
 #else
-# define PB_SET_OWNER(pb)	do { } while (0)
-# define PB_CLEAR_OWNER(pb)	do { } while (0)
-# define PB_GET_OWNER(pb)	do { } while (0)
+# define XB_SET_OWNER(bp)	do { } while (0)
+# define XB_CLEAR_OWNER(bp)	do { } while (0)
+# define XB_GET_OWNER(bp)	do { } while (0)
 #endif
 
-#define pb_to_gfp(flags) \
-	((((flags) & PBF_READ_AHEAD) ? __GFP_NORETRY : \
-	  ((flags) & PBF_DONT_BLOCK) ? GFP_NOFS : GFP_KERNEL) | __GFP_NOWARN)
+#define xb_to_gfp(flags) \
+	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : \
+	  ((flags) & XBF_DONT_BLOCK) ? GFP_NOFS : GFP_KERNEL) | __GFP_NOWARN)
 
-#define pb_to_km(flags) \
-	 (((flags) & PBF_DONT_BLOCK) ? KM_NOFS : KM_SLEEP)
+#define xb_to_km(flags) \
+	 (((flags) & XBF_DONT_BLOCK) ? KM_NOFS : KM_SLEEP)
 
-#define pagebuf_allocate(flags) \
-	kmem_zone_alloc(pagebuf_zone, pb_to_km(flags))
-#define pagebuf_deallocate(pb) \
-	kmem_zone_free(pagebuf_zone, (pb));
+#define xfs_buf_allocate(flags) \
+	kmem_zone_alloc(xfs_buf_zone, xb_to_km(flags))
+#define xfs_buf_deallocate(bp) \
+	kmem_zone_free(xfs_buf_zone, (bp));
 
 /*
- * Page Region interfaces.
+ *	Page Region interfaces.
  *
- * For pages in filesystems where the blocksize is smaller than the
- * pagesize, we use the page->private field (long) to hold a bitmap
- * of uptodate regions within the page.
+ *	For pages in filesystems where the blocksize is smaller than the
+ *	pagesize, we use the page->private field (long) to hold a bitmap
+ * 	of uptodate regions within the page.
  *
- * Each such region is "bytes per page / bits per long" bytes long.
+ *	Each such region is "bytes per page / bits per long" bytes long.
  *
- * NBPPR == number-of-bytes-per-page-region
- * BTOPR == bytes-to-page-region (rounded up)
- * BTOPRT == bytes-to-page-region-truncated (rounded down)
+ *	NBPPR == number-of-bytes-per-page-region
+ *	BTOPR == bytes-to-page-region (rounded up)
+ *	BTOPRT == bytes-to-page-region-truncated (rounded down)
  */
 #if (BITS_PER_LONG == 32)
 #define PRSHIFT		(PAGE_CACHE_SHIFT - 5)	/* (32 == 1<<5) */
@@ -159,7 +160,7 @@ test_page_region(
 }
 
 /*
- * Mapping of multi-page buffers into contiguous virtual space
+ *	Mapping of multi-page buffers into contiguous virtual space
  */
 
 typedef struct a_list {
@@ -172,7 +173,7 @@ STATIC int		as_list_len;
 STATIC DEFINE_SPINLOCK(as_lock);
 
 /*
- * Try to batch vunmaps because they are costly.
+ *	Try to batch vunmaps because they are costly.
  */
 STATIC void
 free_address(
@@ -215,83 +216,83 @@ purge_addresses(void)
 }
 
 /*
- *	Internal pagebuf object manipulation
+ *	Internal xfs_buf_t object manipulation
  */
 
 STATIC void
-_pagebuf_initialize(
-	xfs_buf_t		*pb,
+_xfs_buf_initialize(
+	xfs_buf_t		*bp,
 	xfs_buftarg_t		*target,
-	loff_t			range_base,
+	xfs_off_t		range_base,
 	size_t			range_length,
-	page_buf_flags_t	flags)
+	xfs_buf_flags_t		flags)
 {
 	/*
-	 * We don't want certain flags to appear in pb->pb_flags.
+	 * We don't want certain flags to appear in b_flags.
 	 */
-	flags &= ~(PBF_LOCK|PBF_MAPPED|PBF_DONT_BLOCK|PBF_READ_AHEAD);
+	flags &= ~(XBF_LOCK|XBF_MAPPED|XBF_DONT_BLOCK|XBF_READ_AHEAD);
 
-	memset(pb, 0, sizeof(xfs_buf_t));
-	atomic_set(&pb->pb_hold, 1);
-	init_MUTEX_LOCKED(&pb->pb_iodonesema);
-	INIT_LIST_HEAD(&pb->pb_list);
-	INIT_LIST_HEAD(&pb->pb_hash_list);
-	init_MUTEX_LOCKED(&pb->pb_sema); /* held, no waiters */
-	PB_SET_OWNER(pb);
-	pb->pb_target = target;
-	pb->pb_file_offset = range_base;
+	memset(bp, 0, sizeof(xfs_buf_t));
+	atomic_set(&bp->b_hold, 1);
+	init_MUTEX_LOCKED(&bp->b_iodonesema);
+	INIT_LIST_HEAD(&bp->b_list);
+	INIT_LIST_HEAD(&bp->b_hash_list);
+	init_MUTEX_LOCKED(&bp->b_sema); /* held, no waiters */
+	XB_SET_OWNER(bp);
+	bp->b_target = target;
+	bp->b_file_offset = range_base;
 	/*
 	 * Set buffer_length and count_desired to the same value initially.
 	 * I/O routines should use count_desired, which will be the same in
 	 * most cases but may be reset (e.g. XFS recovery).
 	 */
-	pb->pb_buffer_length = pb->pb_count_desired = range_length;
-	pb->pb_flags = flags;
-	pb->pb_bn = XFS_BUF_DADDR_NULL;
-	atomic_set(&pb->pb_pin_count, 0);
-	init_waitqueue_head(&pb->pb_waiters);
+	bp->b_buffer_length = bp->b_count_desired = range_length;
+	bp->b_flags = flags;
+	bp->b_bn = XFS_BUF_DADDR_NULL;
+	atomic_set(&bp->b_pin_count, 0);
+	init_waitqueue_head(&bp->b_waiters);
 
-	XFS_STATS_INC(pb_create);
-	PB_TRACE(pb, "initialize", target);
+	XFS_STATS_INC(xb_create);
+	XB_TRACE(bp, "initialize", target);
 }
 
 /*
- * Allocate a page array capable of holding a specified number
- * of pages, and point the page buf at it.
+ *	Allocate a page array capable of holding a specified number
+ *	of pages, and point the page buf at it.
  */
 STATIC int
-_pagebuf_get_pages(
-	xfs_buf_t		*pb,
+_xfs_buf_get_pages(
+	xfs_buf_t		*bp,
 	int			page_count,
-	page_buf_flags_t	flags)
+	xfs_buf_flags_t		flags)
 {
 	/* Make sure that we have a page list */
-	if (pb->pb_pages == NULL) {
-		pb->pb_offset = page_buf_poff(pb->pb_file_offset);
-		pb->pb_page_count = page_count;
-		if (page_count <= PB_PAGES) {
-			pb->pb_pages = pb->pb_page_array;
+	if (bp->b_pages == NULL) {
+		bp->b_offset = xfs_buf_poff(bp->b_file_offset);
+		bp->b_page_count = page_count;
+		if (page_count <= XB_PAGES) {
+			bp->b_pages = bp->b_page_array;
 		} else {
-			pb->pb_pages = kmem_alloc(sizeof(struct page *) *
-					page_count, pb_to_km(flags));
-			if (pb->pb_pages == NULL)
+			bp->b_pages = kmem_alloc(sizeof(struct page *) *
+					page_count, xb_to_km(flags));
+			if (bp->b_pages == NULL)
 				return -ENOMEM;
 		}
-		memset(pb->pb_pages, 0, sizeof(struct page *) * page_count);
+		memset(bp->b_pages, 0, sizeof(struct page *) * page_count);
 	}
 	return 0;
 }
 
 /*
- *	Frees pb_pages if it was malloced.
+ *	Frees b_pages if it was allocated.
  */
 STATIC void
-_pagebuf_free_pages(
+_xfs_buf_free_pages(
 	xfs_buf_t	*bp)
 {
-	if (bp->pb_pages != bp->pb_page_array) {
-		kmem_free(bp->pb_pages,
-			  bp->pb_page_count * sizeof(struct page *));
+	if (bp->b_pages != bp->b_page_array) {
+		kmem_free(bp->b_pages,
+			  bp->b_page_count * sizeof(struct page *));
 	}
 }
 
@@ -299,79 +300,79 @@ _pagebuf_free_pages(
  *	Releases the specified buffer.
  *
  * 	The modification state of any associated pages is left unchanged.
- * 	The buffer most not be on any hash - use pagebuf_rele instead for
+ * 	The buffer most not be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
 void
-pagebuf_free(
+xfs_buf_free(
 	xfs_buf_t		*bp)
 {
-	PB_TRACE(bp, "free", 0);
+	XB_TRACE(bp, "free", 0);
 
-	ASSERT(list_empty(&bp->pb_hash_list));
+	ASSERT(list_empty(&bp->b_hash_list));
 
-	if (bp->pb_flags & _PBF_PAGE_CACHE) {
+	if (bp->b_flags & _XBF_PAGE_CACHE) {
 		uint		i;
 
-		if ((bp->pb_flags & PBF_MAPPED) && (bp->pb_page_count > 1))
-			free_address(bp->pb_addr - bp->pb_offset);
+		if ((bp->b_flags & XBF_MAPPED) && (bp->b_page_count > 1))
+			free_address(bp->b_addr - bp->b_offset);
 
-		for (i = 0; i < bp->pb_page_count; i++)
-			page_cache_release(bp->pb_pages[i]);
-		_pagebuf_free_pages(bp);
-	} else if (bp->pb_flags & _PBF_KMEM_ALLOC) {
+		for (i = 0; i < bp->b_page_count; i++)
+			page_cache_release(bp->b_pages[i]);
+		_xfs_buf_free_pages(bp);
+	} else if (bp->b_flags & _XBF_KMEM_ALLOC) {
 		 /*
-		  * XXX(hch): bp->pb_count_desired might be incorrect (see
-		  * pagebuf_associate_memory for details), but fortunately
+		  * XXX(hch): bp->b_count_desired might be incorrect (see
+		  * xfs_buf_associate_memory for details), but fortunately
 		  * the Linux version of kmem_free ignores the len argument..
 		  */
-		kmem_free(bp->pb_addr, bp->pb_count_desired);
-		_pagebuf_free_pages(bp);
+		kmem_free(bp->b_addr, bp->b_count_desired);
+		_xfs_buf_free_pages(bp);
 	}
 
-	pagebuf_deallocate(bp);
+	xfs_buf_deallocate(bp);
 }
 
 /*
  *	Finds all pages for buffer in question and builds it's page list.
  */
 STATIC int
-_pagebuf_lookup_pages(
+_xfs_buf_lookup_pages(
 	xfs_buf_t		*bp,
 	uint			flags)
 {
-	struct address_space	*mapping = bp->pb_target->pbr_mapping;
-	size_t			blocksize = bp->pb_target->pbr_bsize;
-	size_t			size = bp->pb_count_desired;
+	struct address_space	*mapping = bp->b_target->bt_mapping;
+	size_t			blocksize = bp->b_target->bt_bsize;
+	size_t			size = bp->b_count_desired;
 	size_t			nbytes, offset;
-	gfp_t			gfp_mask = pb_to_gfp(flags);
+	gfp_t			gfp_mask = xb_to_gfp(flags);
 	unsigned short		page_count, i;
 	pgoff_t			first;
-	loff_t			end;
+	xfs_off_t		end;
 	int			error;
 
-	end = bp->pb_file_offset + bp->pb_buffer_length;
-	page_count = page_buf_btoc(end) - page_buf_btoct(bp->pb_file_offset);
+	end = bp->b_file_offset + bp->b_buffer_length;
+	page_count = xfs_buf_btoc(end) - xfs_buf_btoct(bp->b_file_offset);
 
-	error = _pagebuf_get_pages(bp, page_count, flags);
+	error = _xfs_buf_get_pages(bp, page_count, flags);
 	if (unlikely(error))
 		return error;
-	bp->pb_flags |= _PBF_PAGE_CACHE;
+	bp->b_flags |= _XBF_PAGE_CACHE;
 
-	offset = bp->pb_offset;
-	first = bp->pb_file_offset >> PAGE_CACHE_SHIFT;
+	offset = bp->b_offset;
+	first = bp->b_file_offset >> PAGE_CACHE_SHIFT;
 
-	for (i = 0; i < bp->pb_page_count; i++) {
+	for (i = 0; i < bp->b_page_count; i++) {
 		struct page	*page;
 		uint		retries = 0;
 
 	      retry:
 		page = find_or_create_page(mapping, first + i, gfp_mask);
 		if (unlikely(page == NULL)) {
-			if (flags & PBF_READ_AHEAD) {
-				bp->pb_page_count = i;
-				for (i = 0; i < bp->pb_page_count; i++)
-					unlock_page(bp->pb_pages[i]);
+			if (flags & XBF_READ_AHEAD) {
+				bp->b_page_count = i;
+				for (i = 0; i < bp->b_page_count; i++)
+					unlock_page(bp->b_pages[i]);
 				return -ENOMEM;
 			}
 
@@ -387,13 +388,13 @@ _pagebuf_lookup_pages(
 					"deadlock in %s (mode:0x%x)\n",
 					__FUNCTION__, gfp_mask);
 
-			XFS_STATS_INC(pb_page_retries);
+			XFS_STATS_INC(xb_page_retries);
 			xfsbufd_wakeup(0, gfp_mask);
 			blk_congestion_wait(WRITE, HZ/50);
 			goto retry;
 		}
 
-		XFS_STATS_INC(pb_page_found);
+		XFS_STATS_INC(xb_page_found);
 
 		nbytes = min_t(size_t, size, PAGE_CACHE_SIZE - offset);
 		size -= nbytes;
@@ -401,27 +402,27 @@ _pagebuf_lookup_pages(
 		if (!PageUptodate(page)) {
 			page_count--;
 			if (blocksize >= PAGE_CACHE_SIZE) {
-				if (flags & PBF_READ)
-					bp->pb_locked = 1;
+				if (flags & XBF_READ)
+					bp->b_locked = 1;
 			} else if (!PagePrivate(page)) {
 				if (test_page_region(page, offset, nbytes))
 					page_count++;
 			}
 		}
 
-		bp->pb_pages[i] = page;
+		bp->b_pages[i] = page;
 		offset = 0;
 	}
 
-	if (!bp->pb_locked) {
-		for (i = 0; i < bp->pb_page_count; i++)
-			unlock_page(bp->pb_pages[i]);
+	if (!bp->b_locked) {
+		for (i = 0; i < bp->b_page_count; i++)
+			unlock_page(bp->b_pages[i]);
 	}
 
-	if (page_count == bp->pb_page_count)
-		bp->pb_flags |= PBF_DONE;
+	if (page_count == bp->b_page_count)
+		bp->b_flags |= XBF_DONE;
 
-	PB_TRACE(bp, "lookup_pages", (long)page_count);
+	XB_TRACE(bp, "lookup_pages", (long)page_count);
 	return error;
 }
 
@@ -429,23 +430,23 @@ _pagebuf_lookup_pages(
  *	Map buffer into kernel address-space if nessecary.
  */
 STATIC int
-_pagebuf_map_pages(
+_xfs_buf_map_pages(
 	xfs_buf_t		*bp,
 	uint			flags)
 {
 	/* A single page buffer is always mappable */
-	if (bp->pb_page_count == 1) {
-		bp->pb_addr = page_address(bp->pb_pages[0]) + bp->pb_offset;
-		bp->pb_flags |= PBF_MAPPED;
-	} else if (flags & PBF_MAPPED) {
+	if (bp->b_page_count == 1) {
+		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
+		bp->b_flags |= XBF_MAPPED;
+	} else if (flags & XBF_MAPPED) {
 		if (as_list_len > 64)
 			purge_addresses();
-		bp->pb_addr = vmap(bp->pb_pages, bp->pb_page_count,
-				VM_MAP, PAGE_KERNEL);
-		if (unlikely(bp->pb_addr == NULL))
+		bp->b_addr = vmap(bp->b_pages, bp->b_page_count,
+					VM_MAP, PAGE_KERNEL);
+		if (unlikely(bp->b_addr == NULL))
 			return -ENOMEM;
-		bp->pb_addr += bp->pb_offset;
-		bp->pb_flags |= PBF_MAPPED;
+		bp->b_addr += bp->b_offset;
+		bp->b_flags |= XBF_MAPPED;
 	}
 
 	return 0;
@@ -456,9 +457,7 @@ _pagebuf_map_pages(
  */
 
 /*
- *	_pagebuf_find
- *
- *	Looks up, and creates if absent, a lockable buffer for
+ *	Look up, and creates if absent, a lockable buffer for
  *	a given range of an inode.  The buffer is returned
  *	locked.	 If other overlapping buffers exist, they are
  *	released before the new buffer is created and locked,
@@ -466,55 +465,55 @@ _pagebuf_map_pages(
  *	are unlocked.  No I/O is implied by this call.
  */
 xfs_buf_t *
-_pagebuf_find(
+_xfs_buf_find(
 	xfs_buftarg_t		*btp,	/* block device target		*/
-	loff_t			ioff,	/* starting offset of range	*/
+	xfs_off_t		ioff,	/* starting offset of range	*/
 	size_t			isize,	/* length of range		*/
-	page_buf_flags_t	flags,	/* PBF_TRYLOCK			*/
-	xfs_buf_t		*new_pb)/* newly allocated buffer	*/
+	xfs_buf_flags_t		flags,
+	xfs_buf_t		*new_bp)
 {
-	loff_t			range_base;
+	xfs_off_t		range_base;
 	size_t			range_length;
 	xfs_bufhash_t		*hash;
-	xfs_buf_t		*pb, *n;
+	xfs_buf_t		*bp, *n;
 
 	range_base = (ioff << BBSHIFT);
 	range_length = (isize << BBSHIFT);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(range_length < (1 << btp->pbr_sshift)));
-	ASSERT(!(range_base & (loff_t)btp->pbr_smask));
+	ASSERT(!(range_length < (1 << btp->bt_sshift)));
+	ASSERT(!(range_base & (xfs_off_t)btp->bt_smask));
 
 	hash = &btp->bt_hash[hash_long((unsigned long)ioff, btp->bt_hashshift)];
 
 	spin_lock(&hash->bh_lock);
 
-	list_for_each_entry_safe(pb, n, &hash->bh_list, pb_hash_list) {
-		ASSERT(btp == pb->pb_target);
-		if (pb->pb_file_offset == range_base &&
-		    pb->pb_buffer_length == range_length) {
+	list_for_each_entry_safe(bp, n, &hash->bh_list, b_hash_list) {
+		ASSERT(btp == bp->b_target);
+		if (bp->b_file_offset == range_base &&
+		    bp->b_buffer_length == range_length) {
 			/*
-			 * If we look at something bring it to the
+			 * If we look at something, bring it to the
 			 * front of the list for next time.
 			 */
-			atomic_inc(&pb->pb_hold);
-			list_move(&pb->pb_hash_list, &hash->bh_list);
+			atomic_inc(&bp->b_hold);
+			list_move(&bp->b_hash_list, &hash->bh_list);
 			goto found;
 		}
 	}
 
 	/* No match found */
-	if (new_pb) {
-		_pagebuf_initialize(new_pb, btp, range_base,
+	if (new_bp) {
+		_xfs_buf_initialize(new_bp, btp, range_base,
 				range_length, flags);
-		new_pb->pb_hash = hash;
-		list_add(&new_pb->pb_hash_list, &hash->bh_list);
+		new_bp->b_hash = hash;
+		list_add(&new_bp->b_hash_list, &hash->bh_list);
 	} else {
-		XFS_STATS_INC(pb_miss_locked);
+		XFS_STATS_INC(xb_miss_locked);
 	}
 
 	spin_unlock(&hash->bh_lock);
-	return new_pb;
+	return new_bp;
 
 found:
 	spin_unlock(&hash->bh_lock);
@@ -523,74 +522,72 @@ found:
 	 * if this does not work then we need to drop the
 	 * spinlock and do a hard attempt on the semaphore.
 	 */
-	if (down_trylock(&pb->pb_sema)) {
-		if (!(flags & PBF_TRYLOCK)) {
+	if (down_trylock(&bp->b_sema)) {
+		if (!(flags & XBF_TRYLOCK)) {
 			/* wait for buffer ownership */
-			PB_TRACE(pb, "get_lock", 0);
-			pagebuf_lock(pb);
-			XFS_STATS_INC(pb_get_locked_waited);
+			XB_TRACE(bp, "get_lock", 0);
+			xfs_buf_lock(bp);
+			XFS_STATS_INC(xb_get_locked_waited);
 		} else {
 			/* We asked for a trylock and failed, no need
 			 * to look at file offset and length here, we
-			 * know that this pagebuf at least overlaps our
-			 * pagebuf and is locked, therefore our buffer
-			 * either does not exist, or is this buffer
+			 * know that this buffer at least overlaps our
+			 * buffer and is locked, therefore our buffer
+			 * either does not exist, or is this buffer.
 			 */
-
-			pagebuf_rele(pb);
-			XFS_STATS_INC(pb_busy_locked);
-			return (NULL);
+			xfs_buf_rele(bp);
+			XFS_STATS_INC(xb_busy_locked);
+			return NULL;
 		}
 	} else {
 		/* trylock worked */
-		PB_SET_OWNER(pb);
+		XB_SET_OWNER(bp);
 	}
 
-	if (pb->pb_flags & PBF_STALE) {
-		ASSERT((pb->pb_flags & _PBF_DELWRI_Q) == 0);
-		pb->pb_flags &= PBF_MAPPED;
+	if (bp->b_flags & XBF_STALE) {
+		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
+		bp->b_flags &= XBF_MAPPED;
 	}
-	PB_TRACE(pb, "got_lock", 0);
-	XFS_STATS_INC(pb_get_locked);
-	return (pb);
+	XB_TRACE(bp, "got_lock", 0);
+	XFS_STATS_INC(xb_get_locked);
+	return bp;
 }
 
 /*
- *	xfs_buf_get_flags assembles a buffer covering the specified range.
- *
+ *	Assembles a buffer covering the specified range.
  *	Storage in memory for all portions of the buffer will be allocated,
  *	although backing storage may not be.
  */
 xfs_buf_t *
-xfs_buf_get_flags(			/* allocate a buffer		*/
+xfs_buf_get_flags(
 	xfs_buftarg_t		*target,/* target for buffer		*/
-	loff_t			ioff,	/* starting offset of range	*/
+	xfs_off_t		ioff,	/* starting offset of range	*/
 	size_t			isize,	/* length of range		*/
-	page_buf_flags_t	flags)	/* PBF_TRYLOCK			*/
+	xfs_buf_flags_t		flags)
 {
-	xfs_buf_t		*pb, *new_pb;
+	xfs_buf_t		*bp, *new_bp;
 	int			error = 0, i;
 
-	new_pb = pagebuf_allocate(flags);
-	if (unlikely(!new_pb))
+	new_bp = xfs_buf_allocate(flags);
+	if (unlikely(!new_bp))
 		return NULL;
 
-	pb = _pagebuf_find(target, ioff, isize, flags, new_pb);
-	if (pb == new_pb) {
-		error = _pagebuf_lookup_pages(pb, flags);
+	bp = _xfs_buf_find(target, ioff, isize, flags, new_bp);
+	if (bp == new_bp) {
+		error = _xfs_buf_lookup_pages(bp, flags);
 		if (error)
 			goto no_buffer;
 	} else {
-		pagebuf_deallocate(new_pb);
-		if (unlikely(pb == NULL))
+		xfs_buf_deallocate(new_bp);
+		if (unlikely(bp == NULL))
 			return NULL;
 	}
 
-	for (i = 0; i < pb->pb_page_count; i++)
-		mark_page_accessed(pb->pb_pages[i]);
+	for (i = 0; i < bp->b_page_count; i++)
+		mark_page_accessed(bp->b_pages[i]);
 
-	if (!(pb->pb_flags & PBF_MAPPED)) {
-		error = _pagebuf_map_pages(pb, flags);
+	if (!(bp->b_flags & XBF_MAPPED)) {
+		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
 			printk(KERN_WARNING "%s: failed to map pages\n",
 					__FUNCTION__);
@@ -598,97 +595,97 @@ xfs_buf_get_flags(			/* allocate a buffer		*/
 		}
 	}
 
-	XFS_STATS_INC(pb_get);
+	XFS_STATS_INC(xb_get);
 
 	/*
 	 * Always fill in the block number now, the mapped cases can do
 	 * their own overlay of this later.
 	 */
-	pb->pb_bn = ioff;
-	pb->pb_count_desired = pb->pb_buffer_length;
+	bp->b_bn = ioff;
+	bp->b_count_desired = bp->b_buffer_length;
 
-	PB_TRACE(pb, "get", (unsigned long)flags);
-	return pb;
+	XB_TRACE(bp, "get", (unsigned long)flags);
+	return bp;
 
  no_buffer:
-	if (flags & (PBF_LOCK | PBF_TRYLOCK))
-		pagebuf_unlock(pb);
-	pagebuf_rele(pb);
+	if (flags & (XBF_LOCK | XBF_TRYLOCK))
+		xfs_buf_unlock(bp);
+	xfs_buf_rele(bp);
 	return NULL;
 }
 
 xfs_buf_t *
 xfs_buf_read_flags(
 	xfs_buftarg_t		*target,
-	loff_t			ioff,
+	xfs_off_t		ioff,
 	size_t			isize,
-	page_buf_flags_t	flags)
+	xfs_buf_flags_t		flags)
 {
-	xfs_buf_t		*pb;
+	xfs_buf_t		*bp;
 
-	flags |= PBF_READ;
+	flags |= XBF_READ;
 
-	pb = xfs_buf_get_flags(target, ioff, isize, flags);
-	if (pb) {
-		if (!XFS_BUF_ISDONE(pb)) {
-			PB_TRACE(pb, "read", (unsigned long)flags);
-			XFS_STATS_INC(pb_get_read);
-			pagebuf_iostart(pb, flags);
-		} else if (flags & PBF_ASYNC) {
-			PB_TRACE(pb, "read_async", (unsigned long)flags);
+	bp = xfs_buf_get_flags(target, ioff, isize, flags);
+	if (bp) {
+		if (!XFS_BUF_ISDONE(bp)) {
+			XB_TRACE(bp, "read", (unsigned long)flags);
+			XFS_STATS_INC(xb_get_read);
+			xfs_buf_iostart(bp, flags);
+		} else if (flags & XBF_ASYNC) {
+			XB_TRACE(bp, "read_async", (unsigned long)flags);
 			/*
 			 * Read ahead call which is already satisfied,
 			 * drop the buffer
 			 */
 			goto no_buffer;
 		} else {
-			PB_TRACE(pb, "read_done", (unsigned long)flags);
+			XB_TRACE(bp, "read_done", (unsigned long)flags);
 			/* We do not want read in the flags */
-			pb->pb_flags &= ~PBF_READ;
+			bp->b_flags &= ~XBF_READ;
 		}
 	}
 
-	return pb;
+	return bp;
 
  no_buffer:
-	if (flags & (PBF_LOCK | PBF_TRYLOCK))
-		pagebuf_unlock(pb);
-	pagebuf_rele(pb);
+	if (flags & (XBF_LOCK | XBF_TRYLOCK))
+		xfs_buf_unlock(bp);
+	xfs_buf_rele(bp);
 	return NULL;
 }
 
 /*
- * If we are not low on memory then do the readahead in a deadlock
- * safe manner.
+ *	If we are not low on memory then do the readahead in a deadlock
+ *	safe manner.
  */
 void
-pagebuf_readahead(
+xfs_buf_readahead(
 	xfs_buftarg_t		*target,
-	loff_t			ioff,
+	xfs_off_t		ioff,
 	size_t			isize,
-	page_buf_flags_t	flags)
+	xfs_buf_flags_t		flags)
 {
 	struct backing_dev_info *bdi;
 
-	bdi = target->pbr_mapping->backing_dev_info;
+	bdi = target->bt_mapping->backing_dev_info;
 	if (bdi_read_congested(bdi))
 		return;
 
-	flags |= (PBF_TRYLOCK|PBF_ASYNC|PBF_READ_AHEAD);
+	flags |= (XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
 	xfs_buf_read_flags(target, ioff, isize, flags);
 }
 
 xfs_buf_t *
-pagebuf_get_empty(
+xfs_buf_get_empty(
 	size_t			len,
 	xfs_buftarg_t		*target)
 {
-	xfs_buf_t		*pb;
+	xfs_buf_t		*bp;
 
-	pb = pagebuf_allocate(0);
-	if (pb)
-		_pagebuf_initialize(pb, target, 0, len, 0);
-	return pb;
+	bp = xfs_buf_allocate(0);
+	if (bp)
+		_xfs_buf_initialize(bp, target, 0, len, 0);
+	return bp;
 }
 
 static inline struct page *
@@ -704,8 +701,8 @@ mem_to_page(
 }
 
 int
-pagebuf_associate_memory(
-	xfs_buf_t		*pb,
+xfs_buf_associate_memory(
+	xfs_buf_t		*bp,
 	void			*mem,
 	size_t			len)
 {
@@ -722,40 +719,40 @@ pagebuf_associate_memory(
 		page_count++;
 
 	/* Free any previous set of page pointers */
-	if (pb->pb_pages)
-		_pagebuf_free_pages(pb);
+	if (bp->b_pages)
+		_xfs_buf_free_pages(bp);
 
-	pb->pb_pages = NULL;
-	pb->pb_addr = mem;
+	bp->b_pages = NULL;
+	bp->b_addr = mem;
 
-	rval = _pagebuf_get_pages(pb, page_count, 0);
+	rval = _xfs_buf_get_pages(bp, page_count, 0);
 	if (rval)
 		return rval;
 
-	pb->pb_offset = offset;
+	bp->b_offset = offset;
 	ptr = (size_t) mem & PAGE_CACHE_MASK;
 	end = PAGE_CACHE_ALIGN((size_t) mem + len);
 	end_cur = end;
 	/* set up first page */
-	pb->pb_pages[0] = mem_to_page(mem);
+	bp->b_pages[0] = mem_to_page(mem);
 
 	ptr += PAGE_CACHE_SIZE;
-	pb->pb_page_count = ++i;
+	bp->b_page_count = ++i;
 	while (ptr < end) {
-		pb->pb_pages[i] = mem_to_page((void *)ptr);
-		pb->pb_page_count = ++i;
+		bp->b_pages[i] = mem_to_page((void *)ptr);
+		bp->b_page_count = ++i;
 		ptr += PAGE_CACHE_SIZE;
 	}
-	pb->pb_locked = 0;
+	bp->b_locked = 0;
 
-	pb->pb_count_desired = pb->pb_buffer_length = len;
-	pb->pb_flags |= PBF_MAPPED;
+	bp->b_count_desired = bp->b_buffer_length = len;
+	bp->b_flags |= XBF_MAPPED;
 
 	return 0;
 }
 
 xfs_buf_t *
-pagebuf_get_no_daddr(
+xfs_buf_get_noaddr(
 	size_t			len,
 	xfs_buftarg_t		*target)
 {
@@ -764,10 +761,10 @@ pagebuf_get_no_daddr(
 	void			*data;
 	int			error;
 
-	bp = pagebuf_allocate(0);
+	bp = xfs_buf_allocate(0);
 	if (unlikely(bp == NULL))
 		goto fail;
-	_pagebuf_initialize(bp, target, 0, len, 0);
+	_xfs_buf_initialize(bp, target, 0, len, 0);
 
  try_again:
 	data = kmem_alloc(malloc_len, KM_SLEEP | KM_MAYFAIL);
@@ -776,78 +773,73 @@ pagebuf_get_no_daddr(
 
 	/* check whether alignment matches.. */
 	if ((__psunsigned_t)data !=
-	    ((__psunsigned_t)data & ~target->pbr_smask)) {
+	    ((__psunsigned_t)data & ~target->bt_smask)) {
 		/* .. else double the size and try again */
 		kmem_free(data, malloc_len);
 		malloc_len <<= 1;
 		goto try_again;
 	}
 
-	error = pagebuf_associate_memory(bp, data, len);
+	error = xfs_buf_associate_memory(bp, data, len);
 	if (error)
 		goto fail_free_mem;
-	bp->pb_flags |= _PBF_KMEM_ALLOC;
+	bp->b_flags |= _XBF_KMEM_ALLOC;
 
-	pagebuf_unlock(bp);
+	xfs_buf_unlock(bp);
 
-	PB_TRACE(bp, "no_daddr", data);
+	XB_TRACE(bp, "no_daddr", data);
 	return bp;
  fail_free_mem:
 	kmem_free(data, malloc_len);
  fail_free_buf:
-	pagebuf_free(bp);
+	xfs_buf_free(bp);
  fail:
 	return NULL;
 }
 
 /*
- *	pagebuf_hold
- *
  *	Increment reference count on buffer, to hold the buffer concurrently
  *	with another thread which may release (free) the buffer asynchronously.
- *
  *	Must hold the buffer already to call this function.
  */
 void
-pagebuf_hold(
-	xfs_buf_t		*pb)
+xfs_buf_hold(
+	xfs_buf_t		*bp)
 {
-	atomic_inc(&pb->pb_hold);
-	PB_TRACE(pb, "hold", 0);
+	atomic_inc(&bp->b_hold);
+	XB_TRACE(bp, "hold", 0);
 }
 
 /*
- *	pagebuf_rele
- *
- *	pagebuf_rele releases a hold on the specified buffer.  If the
- *	the hold count is 1, pagebuf_rele calls pagebuf_free.
+ *	Releases a hold on the specified buffer.  If the
+ *	the hold count is 1, calls xfs_buf_free.
  */
 void
-pagebuf_rele(
-	xfs_buf_t		*pb)
+xfs_buf_rele(
+	xfs_buf_t		*bp)
 {
-	xfs_bufhash_t		*hash = pb->pb_hash;
+	xfs_bufhash_t		*hash = bp->b_hash;
 
-	PB_TRACE(pb, "rele", pb->pb_relse);
+	XB_TRACE(bp, "rele", bp->b_relse);
 
-	if (atomic_dec_and_lock(&pb->pb_hold, &hash->bh_lock)) {
-		if (pb->pb_relse) {
-			atomic_inc(&pb->pb_hold);
+	if (atomic_dec_and_lock(&bp->b_hold, &hash->bh_lock)) {
+		if (bp->b_relse) {
+			atomic_inc(&bp->b_hold);
 			spin_unlock(&hash->bh_lock);
-			(*(pb->pb_relse)) (pb);
-		} else if (pb->pb_flags & PBF_FS_MANAGED) {
+			(*(bp->b_relse)) (bp);
+		} else if (bp->b_flags & XBF_FS_MANAGED) {
 			spin_unlock(&hash->bh_lock);
 		} else {
-			ASSERT(!(pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q)));
-			list_del_init(&pb->pb_hash_list);
+			ASSERT(!(bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)));
+			list_del_init(&bp->b_hash_list);
 			spin_unlock(&hash->bh_lock);
-			pagebuf_free(pb);
+			xfs_buf_free(bp);
 		}
 	} else {
 		/*
 		 * Catch reference count leaks
 		 */
-		ASSERT(atomic_read(&pb->pb_hold) >= 0);
+		ASSERT(atomic_read(&bp->b_hold) >= 0);
 	}
 }
 
@@ -863,168 +855,122 @@ pagebuf_rele(
  */
 
 /*
- *	pagebuf_cond_lock
- *
- *	pagebuf_cond_lock locks a buffer object, if it is not already locked.
- *	Note that this in no way
- *	locks the underlying pages, so it is only useful for synchronizing
- *	concurrent use of page buffer objects, not for synchronizing independent
- *	access to the underlying pages.
+ *	Locks a buffer object, if it is not already locked.
+ *	Note that this in no way locks the underlying pages, so it is only
+ *	useful for synchronizing concurrent use of buffer objects, not for
+ *	synchronizing independent access to the underlying pages.
  */
 int
-pagebuf_cond_lock(			/* lock buffer, if not locked	*/
-					/* returns -EBUSY if locked)	*/
-	xfs_buf_t		*pb)
+xfs_buf_cond_lock(
+	xfs_buf_t		*bp)
 {
 	int			locked;
 
-	locked = down_trylock(&pb->pb_sema) == 0;
+	locked = down_trylock(&bp->b_sema) == 0;
 	if (locked) {
-		PB_SET_OWNER(pb);
+		XB_SET_OWNER(bp);
 	}
-	PB_TRACE(pb, "cond_lock", (long)locked);
-	return(locked ? 0 : -EBUSY);
+	XB_TRACE(bp, "cond_lock", (long)locked);
+	return locked ? 0 : -EBUSY;
 }
 
 #if defined(DEBUG) || defined(XFS_BLI_TRACE)
-/*
- *	pagebuf_lock_value
- *
- *	Return lock value for a pagebuf
- */
 int
-pagebuf_lock_value(
-	xfs_buf_t		*pb)
+xfs_buf_lock_value(
+	xfs_buf_t		*bp)
 {
-	return(atomic_read(&pb->pb_sema.count));
+	return atomic_read(&bp->b_sema.count);
 }
 #endif
 
 /*
- *	pagebuf_lock
- *
- *	pagebuf_lock locks a buffer object.  Note that this in no way
- *	locks the underlying pages, so it is only useful for synchronizing
- *	concurrent use of page buffer objects, not for synchronizing independent
- *	access to the underlying pages.
+ *	Locks a buffer object.
+ *	Note that this in no way locks the underlying pages, so it is only
+ *	useful for synchronizing concurrent use of buffer objects, not for
+ *	synchronizing independent access to the underlying pages.
  */
-int
-pagebuf_lock(
-	xfs_buf_t		*pb)
+void
+xfs_buf_lock(
+	xfs_buf_t		*bp)
 {
-	PB_TRACE(pb, "lock", 0);
-	if (atomic_read(&pb->pb_io_remaining))
-		blk_run_address_space(pb->pb_target->pbr_mapping);
-	down(&pb->pb_sema);
-	PB_SET_OWNER(pb);
-	PB_TRACE(pb, "locked", 0);
-	return 0;
+	XB_TRACE(bp, "lock", 0);
+	if (atomic_read(&bp->b_io_remaining))
+		blk_run_address_space(bp->b_target->bt_mapping);
+	down(&bp->b_sema);
+	XB_SET_OWNER(bp);
+	XB_TRACE(bp, "locked", 0);
 }
 
 /*
- *	pagebuf_unlock
- *
- *	pagebuf_unlock releases the lock on the buffer object created by
- *	pagebuf_lock or pagebuf_cond_lock (not any pinning of underlying pages
- *	created by pagebuf_pin).
- *
+ *	Releases the lock on the buffer object.
  *	If the buffer is marked delwri but is not queued, do so before we
- *	unlock the buffer as we need to set flags correctly. We also need to
+ *	unlock the buffer as we need to set flags correctly.  We also need to
  *	take a reference for the delwri queue because the unlocker is going to
  *	drop their's and they don't know we just queued it.
  */
 void
-pagebuf_unlock(				/* unlock buffer		*/
-	xfs_buf_t		*pb)	/* buffer to unlock		*/
+xfs_buf_unlock(
+	xfs_buf_t		*bp)
 {
-	if ((pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q)) == PBF_DELWRI) {
-		atomic_inc(&pb->pb_hold);
-		pb->pb_flags |= PBF_ASYNC;
-		pagebuf_delwri_queue(pb, 0);
+	if ((bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)) == XBF_DELWRI) {
+		atomic_inc(&bp->b_hold);
+		bp->b_flags |= XBF_ASYNC;
+		xfs_buf_delwri_queue(bp, 0);
 	}
 
-	PB_CLEAR_OWNER(pb);
-	up(&pb->pb_sema);
-	PB_TRACE(pb, "unlock", 0);
+	XB_CLEAR_OWNER(bp);
+	up(&bp->b_sema);
+	XB_TRACE(bp, "unlock", 0);
 }
 
 
 /*
  *	Pinning Buffer Storage in Memory
- */
-
-/*
- *	pagebuf_pin
- *
- *	pagebuf_pin locks all of the memory represented by a buffer in
- *	memory.  Multiple calls to pagebuf_pin and pagebuf_unpin, for
- *	the same or different buffers affecting a given page, will
- *	properly count the number of outstanding "pin" requests.  The
- *	buffer may be released after the pagebuf_pin and a different
- *	buffer used when calling pagebuf_unpin, if desired.
- *	pagebuf_pin should be used by the file system when it wants be
- *	assured that no attempt will be made to force the affected
- *	memory to disk.	 It does not assure that a given logical page
- *	will not be moved to a different physical page.
+ *	Ensure that no attempt to force a buffer to disk will succeed.
  */
 void
-pagebuf_pin(
-	xfs_buf_t		*pb)
+xfs_buf_pin(
+	xfs_buf_t		*bp)
 {
-	atomic_inc(&pb->pb_pin_count);
-	PB_TRACE(pb, "pin", (long)pb->pb_pin_count.counter);
+	atomic_inc(&bp->b_pin_count);
+	XB_TRACE(bp, "pin", (long)bp->b_pin_count.counter);
 }
 
-/*
- *	pagebuf_unpin
- *
- *	pagebuf_unpin reverses the locking of memory performed by
- *	pagebuf_pin.  Note that both functions affected the logical
- *	pages associated with the buffer, not the buffer itself.
- */
 void
-pagebuf_unpin(
-	xfs_buf_t		*pb)
+xfs_buf_unpin(
+	xfs_buf_t		*bp)
 {
-	if (atomic_dec_and_test(&pb->pb_pin_count)) {
-		wake_up_all(&pb->pb_waiters);
-	}
-	PB_TRACE(pb, "unpin", (long)pb->pb_pin_count.counter);
+	if (atomic_dec_and_test(&bp->b_pin_count))
+		wake_up_all(&bp->b_waiters);
+	XB_TRACE(bp, "unpin", (long)bp->b_pin_count.counter);
 }
 
 int
-pagebuf_ispin(
-	xfs_buf_t		*pb)
+xfs_buf_ispin(
+	xfs_buf_t		*bp)
 {
-	return atomic_read(&pb->pb_pin_count);
+	return atomic_read(&bp->b_pin_count);
 }
 
-/*
- *	pagebuf_wait_unpin
- *
- *	pagebuf_wait_unpin waits until all of the memory associated
- *	with the buffer is not longer locked in memory.  It returns
- *	immediately if none of the affected pages are locked.
- */
-static inline void
-_pagebuf_wait_unpin(
-	xfs_buf_t		*pb)
+STATIC void
+xfs_buf_wait_unpin(
+	xfs_buf_t		*bp)
 {
 	DECLARE_WAITQUEUE	(wait, current);
 
-	if (atomic_read(&pb->pb_pin_count) == 0)
+	if (atomic_read(&bp->b_pin_count) == 0)
 		return;
 
-	add_wait_queue(&pb->pb_waiters, &wait);
+	add_wait_queue(&bp->b_waiters, &wait);
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (atomic_read(&pb->pb_pin_count) == 0)
+		if (atomic_read(&bp->b_pin_count) == 0)
 			break;
-		if (atomic_read(&pb->pb_io_remaining))
-			blk_run_address_space(pb->pb_target->pbr_mapping);
+		if (atomic_read(&bp->b_io_remaining))
+			blk_run_address_space(bp->b_target->bt_mapping);
 		schedule();
 	}
-	remove_wait_queue(&pb->pb_waiters, &wait);
+	remove_wait_queue(&bp->b_waiters, &wait);
 	set_current_state(TASK_RUNNING);
 }
 
@@ -1032,241 +978,216 @@ _pagebuf_wait_unpin(
  *	Buffer Utility Routines
  */
 
-/*
- *	pagebuf_iodone
- *
- *	pagebuf_iodone marks a buffer for which I/O is in progress
- *	done with respect to that I/O.	The pb_iodone routine, if
- *	present, will be called as a side-effect.
- */
 STATIC void
-pagebuf_iodone_work(
+xfs_buf_iodone_work(
 	void			*v)
 {
 	xfs_buf_t		*bp = (xfs_buf_t *)v;
 
-	if (bp->pb_iodone)
-		(*(bp->pb_iodone))(bp);
-	else if (bp->pb_flags & PBF_ASYNC)
+	if (bp->b_iodone)
+		(*(bp->b_iodone))(bp);
+	else if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
 }
 
 void
-pagebuf_iodone(
-	xfs_buf_t		*pb,
+xfs_buf_ioend(
+	xfs_buf_t		*bp,
 	int			schedule)
 {
-	pb->pb_flags &= ~(PBF_READ | PBF_WRITE);
-	if (pb->pb_error == 0)
-		pb->pb_flags |= PBF_DONE;
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE);
+	if (bp->b_error == 0)
+		bp->b_flags |= XBF_DONE;
 
-	PB_TRACE(pb, "iodone", pb->pb_iodone);
+	XB_TRACE(bp, "iodone", bp->b_iodone);
 
-	if ((pb->pb_iodone) || (pb->pb_flags & PBF_ASYNC)) {
+	if ((bp->b_iodone) || (bp->b_flags & XBF_ASYNC)) {
 		if (schedule) {
-			INIT_WORK(&pb->pb_iodone_work, pagebuf_iodone_work, pb);
-			queue_work(xfslogd_workqueue, &pb->pb_iodone_work);
+			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work, bp);
+			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
 		} else {
-			pagebuf_iodone_work(pb);
+			xfs_buf_iodone_work(bp);
 		}
 	} else {
-		up(&pb->pb_iodonesema);
+		up(&bp->b_iodonesema);
 	}
 }
 
-/*
- *	pagebuf_ioerror
- *
- *	pagebuf_ioerror sets the error code for a buffer.
- */
 void
-pagebuf_ioerror(			/* mark/clear buffer error flag */
-	xfs_buf_t		*pb,	/* buffer to mark		*/
-	int			error)	/* error to store (0 if none)	*/
+xfs_buf_ioerror(
+	xfs_buf_t		*bp,
+	int			error)
 {
 	ASSERT(error >= 0 && error <= 0xffff);
-	pb->pb_error = (unsigned short)error;
-	PB_TRACE(pb, "ioerror", (unsigned long)error);
+	bp->b_error = (unsigned short)error;
+	XB_TRACE(bp, "ioerror", (unsigned long)error);
 }
 
 /*
- *	pagebuf_iostart
- *
- *	pagebuf_iostart initiates I/O on a buffer, based on the flags supplied.
- *	If necessary, it will arrange for any disk space allocation required,
- *	and it will break up the request if the block mappings require it.
- *	The pb_iodone routine in the buffer supplied will only be called
+ *	Initiate I/O on a buffer, based on the flags supplied.
+ *	The b_iodone routine in the buffer supplied will only be called
  *	when all of the subsidiary I/O requests, if any, have been completed.
- *	pagebuf_iostart calls the pagebuf_ioinitiate routine or
- *	pagebuf_iorequest, if the former routine is not defined, to start
- *	the I/O on a given low-level request.
  */
 int
-pagebuf_iostart(			/* start I/O on a buffer	  */
-	xfs_buf_t		*pb,	/* buffer to start		  */
-	page_buf_flags_t	flags)	/* PBF_LOCK, PBF_ASYNC, PBF_READ, */
-					/* PBF_WRITE, PBF_DELWRI,	  */
-					/* PBF_DONT_BLOCK		  */
+xfs_buf_iostart(
+	xfs_buf_t		*bp,
+	xfs_buf_flags_t		flags)
 {
 	int			status = 0;
 
-	PB_TRACE(pb, "iostart", (unsigned long)flags);
+	XB_TRACE(bp, "iostart", (unsigned long)flags);
 
-	if (flags & PBF_DELWRI) {
-		pb->pb_flags &= ~(PBF_READ | PBF_WRITE | PBF_ASYNC);
-		pb->pb_flags |= flags & (PBF_DELWRI | PBF_ASYNC);
-		pagebuf_delwri_queue(pb, 1);
+	if (flags & XBF_DELWRI) {
+		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_ASYNC);
+		bp->b_flags |= flags & (XBF_DELWRI | XBF_ASYNC);
+		xfs_buf_delwri_queue(bp, 1);
 		return status;
 	}
 
-	pb->pb_flags &= ~(PBF_READ | PBF_WRITE | PBF_ASYNC | PBF_DELWRI | \
-			PBF_READ_AHEAD | _PBF_RUN_QUEUES);
-	pb->pb_flags |= flags & (PBF_READ | PBF_WRITE | PBF_ASYNC | \
-			PBF_READ_AHEAD | _PBF_RUN_QUEUES);
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_ASYNC | XBF_DELWRI | \
+			XBF_READ_AHEAD | _XBF_RUN_QUEUES);
+	bp->b_flags |= flags & (XBF_READ | XBF_WRITE | XBF_ASYNC | \
+			XBF_READ_AHEAD | _XBF_RUN_QUEUES);
 
-	BUG_ON(pb->pb_bn == XFS_BUF_DADDR_NULL);
+	BUG_ON(bp->b_bn == XFS_BUF_DADDR_NULL);
 
 	/* For writes allow an alternate strategy routine to precede
 	 * the actual I/O request (which may not be issued at all in
 	 * a shutdown situation, for example).
 	 */
-	status = (flags & PBF_WRITE) ?
-		pagebuf_iostrategy(pb) : pagebuf_iorequest(pb);
+	status = (flags & XBF_WRITE) ?
+		xfs_buf_iostrategy(bp) : xfs_buf_iorequest(bp);
 
 	/* Wait for I/O if we are not an async request.
 	 * Note: async I/O request completion will release the buffer,
 	 * and that can already be done by this point.  So using the
 	 * buffer pointer from here on, after async I/O, is invalid.
 	 */
-	if (!status && !(flags & PBF_ASYNC))
-		status = pagebuf_iowait(pb);
+	if (!status && !(flags & XBF_ASYNC))
+		status = xfs_buf_iowait(bp);
 
 	return status;
 }
 
-/*
- * Helper routine for pagebuf_iorequest
- */
-
 STATIC __inline__ int
-_pagebuf_iolocked(
-	xfs_buf_t		*pb)
+_xfs_buf_iolocked(
+	xfs_buf_t		*bp)
 {
-	ASSERT(pb->pb_flags & (PBF_READ|PBF_WRITE));
-	if (pb->pb_flags & PBF_READ)
-		return pb->pb_locked;
+	ASSERT(bp->b_flags & (XBF_READ | XBF_WRITE));
+	if (bp->b_flags & XBF_READ)
+		return bp->b_locked;
 	return 0;
 }
 
 STATIC __inline__ void
-_pagebuf_iodone(
-	xfs_buf_t		*pb,
+_xfs_buf_ioend(
+	xfs_buf_t		*bp,
 	int			schedule)
 {
-	if (atomic_dec_and_test(&pb->pb_io_remaining) == 1) {
-		pb->pb_locked = 0;
-		pagebuf_iodone(pb, schedule);
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
+		bp->b_locked = 0;
+		xfs_buf_ioend(bp, schedule);
 	}
 }
 
 STATIC int
-bio_end_io_pagebuf(
+xfs_buf_bio_end_io(
 	struct bio		*bio,
 	unsigned int		bytes_done,
 	int			error)
 {
-	xfs_buf_t		*pb = (xfs_buf_t *)bio->bi_private;
-	unsigned int		blocksize = pb->pb_target->pbr_bsize;
+	xfs_buf_t		*bp = (xfs_buf_t *)bio->bi_private;
+	unsigned int		blocksize = bp->b_target->bt_bsize;
 	struct bio_vec		*bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 
 	if (bio->bi_size)
 		return 1;
 
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		pb->pb_error = EIO;
+		bp->b_error = EIO;
 
 	do {
 		struct page	*page = bvec->bv_page;
 
-		if (unlikely(pb->pb_error)) {
-			if (pb->pb_flags & PBF_READ)
+		if (unlikely(bp->b_error)) {
+			if (bp->b_flags & XBF_READ)
 				ClearPageUptodate(page);
 			SetPageError(page);
-		} else if (blocksize == PAGE_CACHE_SIZE) {
+		} else if (blocksize >= PAGE_CACHE_SIZE) {
 			SetPageUptodate(page);
 		} else if (!PagePrivate(page) &&
-				(pb->pb_flags & _PBF_PAGE_CACHE)) {
+				(bp->b_flags & _XBF_PAGE_CACHE)) {
 			set_page_region(page, bvec->bv_offset, bvec->bv_len);
 		}
 
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
 
-		if (_pagebuf_iolocked(pb)) {
+		if (_xfs_buf_iolocked(bp)) {
 			unlock_page(page);
 		}
 	} while (bvec >= bio->bi_io_vec);
 
-	_pagebuf_iodone(pb, 1);
+	_xfs_buf_ioend(bp, 1);
 	bio_put(bio);
 	return 0;
 }
 
 STATIC void
-_pagebuf_ioapply(
-	xfs_buf_t		*pb)
+_xfs_buf_ioapply(
+	xfs_buf_t		*bp)
 {
 	int			i, rw, map_i, total_nr_pages, nr_pages;
 	struct bio		*bio;
-	int			offset = pb->pb_offset;
-	int			size = pb->pb_count_desired;
-	sector_t		sector = pb->pb_bn;
-	unsigned int		blocksize = pb->pb_target->pbr_bsize;
-	int			locking = _pagebuf_iolocked(pb);
+	int			offset = bp->b_offset;
+	int			size = bp->b_count_desired;
+	sector_t		sector = bp->b_bn;
+	unsigned int		blocksize = bp->b_target->bt_bsize;
+	int			locking = _xfs_buf_iolocked(bp);
 
-	total_nr_pages = pb->pb_page_count;
+	total_nr_pages = bp->b_page_count;
 	map_i = 0;
 
-	if (pb->pb_flags & _PBF_RUN_QUEUES) {
-		pb->pb_flags &= ~_PBF_RUN_QUEUES;
-		rw = (pb->pb_flags & PBF_READ) ? READ_SYNC : WRITE_SYNC;
+	if (bp->b_flags & _XBF_RUN_QUEUES) {
+		bp->b_flags &= ~_XBF_RUN_QUEUES;
+		rw = (bp->b_flags & XBF_READ) ? READ_SYNC : WRITE_SYNC;
 	} else {
-		rw = (pb->pb_flags & PBF_READ) ? READ : WRITE;
+		rw = (bp->b_flags & XBF_READ) ? READ : WRITE;
 	}
 
-	if (pb->pb_flags & PBF_ORDERED) {
-		ASSERT(!(pb->pb_flags & PBF_READ));
+	if (bp->b_flags & XBF_ORDERED) {
+		ASSERT(!(bp->b_flags & XBF_READ));
 		rw = WRITE_BARRIER;
 	}
 
-	/* Special code path for reading a sub page size pagebuf in --
+	/* Special code path for reading a sub page size buffer in --
 	 * we populate up the whole page, and hence the other metadata
 	 * in the same page.  This optimization is only valid when the
-	 * filesystem block size and the page size are equal.
+	 * filesystem block size is not smaller than the page size.
 	 */
-	if ((pb->pb_buffer_length < PAGE_CACHE_SIZE) &&
-	    (pb->pb_flags & PBF_READ) && locking &&
-	    (blocksize == PAGE_CACHE_SIZE)) {
+	if ((bp->b_buffer_length < PAGE_CACHE_SIZE) &&
+	    (bp->b_flags & XBF_READ) && locking &&
+	    (blocksize >= PAGE_CACHE_SIZE)) {
 		bio = bio_alloc(GFP_NOIO, 1);
 
-		bio->bi_bdev = pb->pb_target->pbr_bdev;
+		bio->bi_bdev = bp->b_target->bt_bdev;
 		bio->bi_sector = sector - (offset >> BBSHIFT);
-		bio->bi_end_io = bio_end_io_pagebuf;
-		bio->bi_private = pb;
+		bio->bi_end_io = xfs_buf_bio_end_io;
+		bio->bi_private = bp;
 
-		bio_add_page(bio, pb->pb_pages[0], PAGE_CACHE_SIZE, 0);
+		bio_add_page(bio, bp->b_pages[0], PAGE_CACHE_SIZE, 0);
 		size = 0;
 
-		atomic_inc(&pb->pb_io_remaining);
+		atomic_inc(&bp->b_io_remaining);
 
 		goto submit_io;
 	}
 
 	/* Lock down the pages which we need to for the request */
-	if (locking && (pb->pb_flags & PBF_WRITE) && (pb->pb_locked == 0)) {
+	if (locking && (bp->b_flags & XBF_WRITE) && (bp->b_locked == 0)) {
 		for (i = 0; size; i++) {
 			int		nbytes = PAGE_CACHE_SIZE - offset;
-			struct page	*page = pb->pb_pages[i];
+			struct page	*page = bp->b_pages[i];
 
 			if (nbytes > size)
 				nbytes = size;
@@ -1276,30 +1197,30 @@ _pagebuf_ioapply(
 			size -= nbytes;
 			offset = 0;
 		}
-		offset = pb->pb_offset;
-		size = pb->pb_count_desired;
+		offset = bp->b_offset;
+		size = bp->b_count_desired;
 	}
 
 next_chunk:
-	atomic_inc(&pb->pb_io_remaining);
+	atomic_inc(&bp->b_io_remaining);
 	nr_pages = BIO_MAX_SECTORS >> (PAGE_SHIFT - BBSHIFT);
 	if (nr_pages > total_nr_pages)
 		nr_pages = total_nr_pages;
 
 	bio = bio_alloc(GFP_NOIO, nr_pages);
-	bio->bi_bdev = pb->pb_target->pbr_bdev;
+	bio->bi_bdev = bp->b_target->bt_bdev;
 	bio->bi_sector = sector;
-	bio->bi_end_io = bio_end_io_pagebuf;
-	bio->bi_private = pb;
+	bio->bi_end_io = xfs_buf_bio_end_io;
+	bio->bi_private = bp;
 
 	for (; size && nr_pages; nr_pages--, map_i++) {
-		int	nbytes = PAGE_CACHE_SIZE - offset;
+		int	rbytes, nbytes = PAGE_CACHE_SIZE - offset;
 
 		if (nbytes > size)
 			nbytes = size;
 
-		if (bio_add_page(bio, pb->pb_pages[map_i],
-					nbytes, offset) < nbytes)
+		rbytes = bio_add_page(bio, bp->b_pages[map_i], nbytes, offset);
+		if (rbytes < nbytes)
 			break;
 
 		offset = 0;
@@ -1315,107 +1236,102 @@ submit_io:
 			goto next_chunk;
 	} else {
 		bio_put(bio);
-		pagebuf_ioerror(pb, EIO);
+		xfs_buf_ioerror(bp, EIO);
 	}
 }
 
-/*
- *	pagebuf_iorequest -- the core I/O request routine.
- */
 int
-pagebuf_iorequest(			/* start real I/O		*/
-	xfs_buf_t		*pb)	/* buffer to convey to device	*/
+xfs_buf_iorequest(
+	xfs_buf_t		*bp)
 {
-	PB_TRACE(pb, "iorequest", 0);
+	XB_TRACE(bp, "iorequest", 0);
 
-	if (pb->pb_flags & PBF_DELWRI) {
-		pagebuf_delwri_queue(pb, 1);
+	if (bp->b_flags & XBF_DELWRI) {
+		xfs_buf_delwri_queue(bp, 1);
 		return 0;
 	}
 
-	if (pb->pb_flags & PBF_WRITE) {
-		_pagebuf_wait_unpin(pb);
+	if (bp->b_flags & XBF_WRITE) {
+		xfs_buf_wait_unpin(bp);
 	}
 
-	pagebuf_hold(pb);
+	xfs_buf_hold(bp);
 
 	/* Set the count to 1 initially, this will stop an I/O
 	 * completion callout which happens before we have started
-	 * all the I/O from calling pagebuf_iodone too early.
+	 * all the I/O from calling xfs_buf_ioend too early.
 	 */
-	atomic_set(&pb->pb_io_remaining, 1);
-	_pagebuf_ioapply(pb);
-	_pagebuf_iodone(pb, 0);
+	atomic_set(&bp->b_io_remaining, 1);
+	_xfs_buf_ioapply(bp);
+	_xfs_buf_ioend(bp, 0);
 
-	pagebuf_rele(pb);
+	xfs_buf_rele(bp);
 	return 0;
 }
 
 /*
- *	pagebuf_iowait
- *
- *	pagebuf_iowait waits for I/O to complete on the buffer supplied.
- *	It returns immediately if no I/O is pending.  In any case, it returns
- *	the error code, if any, or 0 if there is no error.
+ *	Waits for I/O to complete on the buffer supplied.
+ *	It returns immediately if no I/O is pending.
+ *	It returns the I/O error code, if any, or 0 if there was no error.
  */
 int
-pagebuf_iowait(
-	xfs_buf_t		*pb)
+xfs_buf_iowait(
+	xfs_buf_t		*bp)
 {
-	PB_TRACE(pb, "iowait", 0);
-	if (atomic_read(&pb->pb_io_remaining))
-		blk_run_address_space(pb->pb_target->pbr_mapping);
-	down(&pb->pb_iodonesema);
-	PB_TRACE(pb, "iowaited", (long)pb->pb_error);
-	return pb->pb_error;
+	XB_TRACE(bp, "iowait", 0);
+	if (atomic_read(&bp->b_io_remaining))
+		blk_run_address_space(bp->b_target->bt_mapping);
+	down(&bp->b_iodonesema);
+	XB_TRACE(bp, "iowaited", (long)bp->b_error);
+	return bp->b_error;
 }
 
-caddr_t
-pagebuf_offset(
-	xfs_buf_t		*pb,
+xfs_caddr_t
+xfs_buf_offset(
+	xfs_buf_t		*bp,
 	size_t			offset)
 {
 	struct page		*page;
 
-	offset += pb->pb_offset;
+	if (bp->b_flags & XBF_MAPPED)
+		return XFS_BUF_PTR(bp) + offset;
 
-	page = pb->pb_pages[offset >> PAGE_CACHE_SHIFT];
-	return (caddr_t) page_address(page) + (offset & (PAGE_CACHE_SIZE - 1));
+	offset += bp->b_offset;
+	page = bp->b_pages[offset >> PAGE_CACHE_SHIFT];
+	return (xfs_caddr_t)page_address(page) + (offset & (PAGE_CACHE_SIZE-1));
 }
 
 /*
- *	pagebuf_iomove
- *
  *	Move data into or out of a buffer.
  */
 void
-pagebuf_iomove(
-	xfs_buf_t		*pb,	/* buffer to process		*/
+xfs_buf_iomove(
+	xfs_buf_t		*bp,	/* buffer to process		*/
 	size_t			boff,	/* starting buffer offset	*/
 	size_t			bsize,	/* length to copy		*/
 	caddr_t			data,	/* data address			*/
-	page_buf_rw_t		mode)	/* read/write flag		*/
+	xfs_buf_rw_t		mode)	/* read/write/zero flag		*/
 {
 	size_t			bend, cpoff, csize;
 	struct page		*page;
 
 	bend = boff + bsize;
 	while (boff < bend) {
-		page = pb->pb_pages[page_buf_btoct(boff + pb->pb_offset)];
-		cpoff = page_buf_poff(boff + pb->pb_offset);
+		page = bp->b_pages[xfs_buf_btoct(boff + bp->b_offset)];
+		cpoff = xfs_buf_poff(boff + bp->b_offset);
 		csize = min_t(size_t,
-			      PAGE_CACHE_SIZE-cpoff, pb->pb_count_desired-boff);
+			      PAGE_CACHE_SIZE-cpoff, bp->b_count_desired-boff);
 
 		ASSERT(((csize + cpoff) <= PAGE_CACHE_SIZE));
 
 		switch (mode) {
-		case PBRW_ZERO:
+		case XBRW_ZERO:
 			memset(page_address(page) + cpoff, 0, csize);
 			break;
-		case PBRW_READ:
+		case XBRW_READ:
 			memcpy(data, page_address(page) + cpoff, csize);
 			break;
-		case PBRW_WRITE:
+		case XBRW_WRITE:
 			memcpy(page_address(page) + cpoff, data, csize);
 		}
 
@@ -1425,12 +1341,12 @@ pagebuf_iomove(
 }
 
 /*
- *	Handling of buftargs.
+ *	Handling of buffer targets (buftargs).
  */
 
 /*
- * Wait for any bufs with callbacks that have been submitted but
- * have not yet returned... walk the hash list for the target.
+ *	Wait for any bufs with callbacks that have been submitted but
+ *	have not yet returned... walk the hash list for the target.
  */
 void
 xfs_wait_buftarg(
@@ -1444,15 +1360,15 @@ xfs_wait_buftarg(
 		hash = &btp->bt_hash[i];
 again:
 		spin_lock(&hash->bh_lock);
-		list_for_each_entry_safe(bp, n, &hash->bh_list, pb_hash_list) {
-			ASSERT(btp == bp->pb_target);
-			if (!(bp->pb_flags & PBF_FS_MANAGED)) {
+		list_for_each_entry_safe(bp, n, &hash->bh_list, b_hash_list) {
+			ASSERT(btp == bp->b_target);
+			if (!(bp->b_flags & XBF_FS_MANAGED)) {
 				spin_unlock(&hash->bh_lock);
 				/*
 				 * Catch superblock reference count leaks
 				 * immediately
 				 */
-				BUG_ON(bp->pb_bn == 0);
+				BUG_ON(bp->b_bn == 0);
 				delay(100);
 				goto again;
 			}
@@ -1462,9 +1378,9 @@ again:
 }
 
 /*
- * Allocate buffer hash table for a given target.
- * For devices containing metadata (i.e. not the log/realtime devices)
- * we need to allocate a much larger hash table.
+ *	Allocate buffer hash table for a given target.
+ *	For devices containing metadata (i.e. not the log/realtime devices)
+ *	we need to allocate a much larger hash table.
  */
 STATIC void
 xfs_alloc_bufhash(
@@ -1487,9 +1403,32 @@ STATIC void
 xfs_free_bufhash(
 	xfs_buftarg_t		*btp)
 {
-	kmem_free(btp->bt_hash,
-			(1 << btp->bt_hashshift) * sizeof(xfs_bufhash_t));
+	kmem_free(btp->bt_hash, (1<<btp->bt_hashshift) * sizeof(xfs_bufhash_t));
 	btp->bt_hash = NULL;
+}
+
+/*
+ *	buftarg list for delwrite queue processing
+ */
+STATIC LIST_HEAD(xfs_buftarg_list);
+STATIC DEFINE_SPINLOCK(xfs_buftarg_lock);
+
+STATIC void
+xfs_register_buftarg(
+	xfs_buftarg_t           *btp)
+{
+	spin_lock(&xfs_buftarg_lock);
+	list_add(&btp->bt_list, &xfs_buftarg_list);
+	spin_unlock(&xfs_buftarg_lock);
+}
+
+STATIC void
+xfs_unregister_buftarg(
+	xfs_buftarg_t           *btp)
+{
+	spin_lock(&xfs_buftarg_lock);
+	list_del(&btp->bt_list);
+	spin_unlock(&xfs_buftarg_lock);
 }
 
 void
@@ -1499,9 +1438,16 @@ xfs_free_buftarg(
 {
 	xfs_flush_buftarg(btp, 1);
 	if (external)
-		xfs_blkdev_put(btp->pbr_bdev);
+		xfs_blkdev_put(btp->bt_bdev);
 	xfs_free_bufhash(btp);
-	iput(btp->pbr_mapping->host);
+	iput(btp->bt_mapping->host);
+
+	/* Unregister the buftarg first so that we don't get a
+	 * wakeup finding a non-existent task
+	 */
+	xfs_unregister_buftarg(btp);
+	kthread_stop(btp->bt_task);
+
 	kmem_free(btp, sizeof(*btp));
 }
 
@@ -1512,11 +1458,11 @@ xfs_setsize_buftarg_flags(
 	unsigned int		sectorsize,
 	int			verbose)
 {
-	btp->pbr_bsize = blocksize;
-	btp->pbr_sshift = ffs(sectorsize) - 1;
-	btp->pbr_smask = sectorsize - 1;
+	btp->bt_bsize = blocksize;
+	btp->bt_sshift = ffs(sectorsize) - 1;
+	btp->bt_smask = sectorsize - 1;
 
-	if (set_blocksize(btp->pbr_bdev, sectorsize)) {
+	if (set_blocksize(btp->bt_bdev, sectorsize)) {
 		printk(KERN_WARNING
 			"XFS: Cannot set_blocksize to %u on device %s\n",
 			sectorsize, XFS_BUFTARG_NAME(btp));
@@ -1536,10 +1482,10 @@ xfs_setsize_buftarg_flags(
 }
 
 /*
-* When allocating the initial buffer target we have not yet
-* read in the superblock, so don't know what sized sectors
-* are being used is at this early stage.  Play safe.
-*/
+ *	When allocating the initial buffer target we have not yet
+ *	read in the superblock, so don't know what sized sectors
+ *	are being used is at this early stage.  Play safe.
+ */
 STATIC int
 xfs_setsize_buftarg_early(
 	xfs_buftarg_t		*btp,
@@ -1587,8 +1533,28 @@ xfs_mapping_buftarg(
 	mapping->a_ops = &mapping_aops;
 	mapping->backing_dev_info = bdi;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
-	btp->pbr_mapping = mapping;
+	btp->bt_mapping = mapping;
 	return 0;
+}
+
+STATIC int
+xfs_alloc_delwrite_queue(
+	xfs_buftarg_t		*btp)
+{
+	int	error = 0;
+
+	INIT_LIST_HEAD(&btp->bt_list);
+	INIT_LIST_HEAD(&btp->bt_delwrite_queue);
+	spinlock_init(&btp->bt_delwrite_lock, "delwri_lock");
+	btp->bt_flags = 0;
+	btp->bt_task = kthread_run(xfsbufd, btp, "xfsbufd");
+	if (IS_ERR(btp->bt_task)) {
+		error = PTR_ERR(btp->bt_task);
+		goto out_error;
+	}
+	xfs_register_buftarg(btp);
+out_error:
+	return error;
 }
 
 xfs_buftarg_t *
@@ -1600,11 +1566,13 @@ xfs_alloc_buftarg(
 
 	btp = kmem_zalloc(sizeof(*btp), KM_SLEEP);
 
-	btp->pbr_dev =  bdev->bd_dev;
-	btp->pbr_bdev = bdev;
+	btp->bt_dev =  bdev->bd_dev;
+	btp->bt_bdev = bdev;
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
 	if (xfs_mapping_buftarg(btp, bdev))
+		goto error;
+	if (xfs_alloc_delwrite_queue(btp))
 		goto error;
 	xfs_alloc_bufhash(btp, external);
 	return btp;
@@ -1616,83 +1584,81 @@ error:
 
 
 /*
- * Pagebuf delayed write buffer handling
+ *	Delayed write buffer handling
  */
-
-STATIC LIST_HEAD(pbd_delwrite_queue);
-STATIC DEFINE_SPINLOCK(pbd_delwrite_lock);
-
 STATIC void
-pagebuf_delwri_queue(
-	xfs_buf_t		*pb,
+xfs_buf_delwri_queue(
+	xfs_buf_t		*bp,
 	int			unlock)
 {
-	PB_TRACE(pb, "delwri_q", (long)unlock);
-	ASSERT((pb->pb_flags & (PBF_DELWRI|PBF_ASYNC)) ==
-					(PBF_DELWRI|PBF_ASYNC));
+	struct list_head	*dwq = &bp->b_target->bt_delwrite_queue;
+	spinlock_t		*dwlk = &bp->b_target->bt_delwrite_lock;
 
-	spin_lock(&pbd_delwrite_lock);
+	XB_TRACE(bp, "delwri_q", (long)unlock);
+	ASSERT((bp->b_flags&(XBF_DELWRI|XBF_ASYNC)) == (XBF_DELWRI|XBF_ASYNC));
+
+	spin_lock(dwlk);
 	/* If already in the queue, dequeue and place at tail */
-	if (!list_empty(&pb->pb_list)) {
-		ASSERT(pb->pb_flags & _PBF_DELWRI_Q);
-		if (unlock) {
-			atomic_dec(&pb->pb_hold);
-		}
-		list_del(&pb->pb_list);
+	if (!list_empty(&bp->b_list)) {
+		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
+		if (unlock)
+			atomic_dec(&bp->b_hold);
+		list_del(&bp->b_list);
 	}
 
-	pb->pb_flags |= _PBF_DELWRI_Q;
-	list_add_tail(&pb->pb_list, &pbd_delwrite_queue);
-	pb->pb_queuetime = jiffies;
-	spin_unlock(&pbd_delwrite_lock);
+	bp->b_flags |= _XBF_DELWRI_Q;
+	list_add_tail(&bp->b_list, dwq);
+	bp->b_queuetime = jiffies;
+	spin_unlock(dwlk);
 
 	if (unlock)
-		pagebuf_unlock(pb);
+		xfs_buf_unlock(bp);
 }
 
 void
-pagebuf_delwri_dequeue(
-	xfs_buf_t		*pb)
+xfs_buf_delwri_dequeue(
+	xfs_buf_t		*bp)
 {
+	spinlock_t		*dwlk = &bp->b_target->bt_delwrite_lock;
 	int			dequeued = 0;
 
-	spin_lock(&pbd_delwrite_lock);
-	if ((pb->pb_flags & PBF_DELWRI) && !list_empty(&pb->pb_list)) {
-		ASSERT(pb->pb_flags & _PBF_DELWRI_Q);
-		list_del_init(&pb->pb_list);
+	spin_lock(dwlk);
+	if ((bp->b_flags & XBF_DELWRI) && !list_empty(&bp->b_list)) {
+		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
+		list_del_init(&bp->b_list);
 		dequeued = 1;
 	}
-	pb->pb_flags &= ~(PBF_DELWRI|_PBF_DELWRI_Q);
-	spin_unlock(&pbd_delwrite_lock);
+	bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
+	spin_unlock(dwlk);
 
 	if (dequeued)
-		pagebuf_rele(pb);
+		xfs_buf_rele(bp);
 
-	PB_TRACE(pb, "delwri_dq", (long)dequeued);
+	XB_TRACE(bp, "delwri_dq", (long)dequeued);
 }
 
 STATIC void
-pagebuf_runall_queues(
+xfs_buf_runall_queues(
 	struct workqueue_struct	*queue)
 {
 	flush_workqueue(queue);
 }
-
-/* Defines for pagebuf daemon */
-STATIC struct task_struct *xfsbufd_task;
-STATIC int xfsbufd_force_flush;
-STATIC int xfsbufd_force_sleep;
 
 STATIC int
 xfsbufd_wakeup(
 	int			priority,
 	gfp_t			mask)
 {
-	if (xfsbufd_force_sleep)
-		return 0;
-	xfsbufd_force_flush = 1;
-	barrier();
-	wake_up_process(xfsbufd_task);
+	xfs_buftarg_t		*btp;
+
+	spin_lock(&xfs_buftarg_lock);
+	list_for_each_entry(btp, &xfs_buftarg_list, bt_list) {
+		if (test_bit(XBT_FORCE_SLEEP, &btp->bt_flags))
+			continue;
+		set_bit(XBT_FORCE_FLUSH, &btp->bt_flags);
+		wake_up_process(btp->bt_task);
+	}
+	spin_unlock(&xfs_buftarg_lock);
 	return 0;
 }
 
@@ -1702,67 +1668,70 @@ xfsbufd(
 {
 	struct list_head	tmp;
 	unsigned long		age;
-	xfs_buftarg_t		*target;
-	xfs_buf_t		*pb, *n;
+	xfs_buftarg_t		*target = (xfs_buftarg_t *)data;
+	xfs_buf_t		*bp, *n;
+	struct list_head	*dwq = &target->bt_delwrite_queue;
+	spinlock_t		*dwlk = &target->bt_delwrite_lock;
 
 	current->flags |= PF_MEMALLOC;
 
 	INIT_LIST_HEAD(&tmp);
 	do {
 		if (unlikely(freezing(current))) {
-			xfsbufd_force_sleep = 1;
+			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
 			refrigerator();
 		} else {
-			xfsbufd_force_sleep = 0;
+			clear_bit(XBT_FORCE_SLEEP, &target->bt_flags);
 		}
 
 		schedule_timeout_interruptible(
 			xfs_buf_timer_centisecs * msecs_to_jiffies(10));
 
 		age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
-		spin_lock(&pbd_delwrite_lock);
-		list_for_each_entry_safe(pb, n, &pbd_delwrite_queue, pb_list) {
-			PB_TRACE(pb, "walkq1", (long)pagebuf_ispin(pb));
-			ASSERT(pb->pb_flags & PBF_DELWRI);
+		spin_lock(dwlk);
+		list_for_each_entry_safe(bp, n, dwq, b_list) {
+			XB_TRACE(bp, "walkq1", (long)xfs_buf_ispin(bp));
+			ASSERT(bp->b_flags & XBF_DELWRI);
 
-			if (!pagebuf_ispin(pb) && !pagebuf_cond_lock(pb)) {
-				if (!xfsbufd_force_flush &&
+			if (!xfs_buf_ispin(bp) && !xfs_buf_cond_lock(bp)) {
+				if (!test_bit(XBT_FORCE_FLUSH,
+						&target->bt_flags) &&
 				    time_before(jiffies,
-						pb->pb_queuetime + age)) {
-					pagebuf_unlock(pb);
+						bp->b_queuetime + age)) {
+					xfs_buf_unlock(bp);
 					break;
 				}
 
-				pb->pb_flags &= ~(PBF_DELWRI|_PBF_DELWRI_Q);
-				pb->pb_flags |= PBF_WRITE;
-				list_move(&pb->pb_list, &tmp);
+				bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
+				bp->b_flags |= XBF_WRITE;
+				list_move(&bp->b_list, &tmp);
 			}
 		}
-		spin_unlock(&pbd_delwrite_lock);
+		spin_unlock(dwlk);
 
 		while (!list_empty(&tmp)) {
-			pb = list_entry(tmp.next, xfs_buf_t, pb_list);
-			target = pb->pb_target;
+			bp = list_entry(tmp.next, xfs_buf_t, b_list);
+			ASSERT(target == bp->b_target);
 
-			list_del_init(&pb->pb_list);
-			pagebuf_iostrategy(pb);
+			list_del_init(&bp->b_list);
+			xfs_buf_iostrategy(bp);
 
-			blk_run_address_space(target->pbr_mapping);
+			blk_run_address_space(target->bt_mapping);
 		}
 
 		if (as_list_len > 0)
 			purge_addresses();
 
-		xfsbufd_force_flush = 0;
+		clear_bit(XBT_FORCE_FLUSH, &target->bt_flags);
 	} while (!kthread_should_stop());
 
 	return 0;
 }
 
 /*
- * Go through all incore buffers, and release buffers if they belong to
- * the given device. This is used in filesystem error handling to
- * preserve the consistency of its metadata.
+ *	Go through all incore buffers, and release buffers if they belong to
+ *	the given device. This is used in filesystem error handling to
+ *	preserve the consistency of its metadata.
  */
 int
 xfs_flush_buftarg(
@@ -1770,73 +1739,72 @@ xfs_flush_buftarg(
 	int			wait)
 {
 	struct list_head	tmp;
-	xfs_buf_t		*pb, *n;
+	xfs_buf_t		*bp, *n;
 	int			pincount = 0;
+	struct list_head	*dwq = &target->bt_delwrite_queue;
+	spinlock_t		*dwlk = &target->bt_delwrite_lock;
 
-	pagebuf_runall_queues(xfsdatad_workqueue);
-	pagebuf_runall_queues(xfslogd_workqueue);
+	xfs_buf_runall_queues(xfsdatad_workqueue);
+	xfs_buf_runall_queues(xfslogd_workqueue);
 
 	INIT_LIST_HEAD(&tmp);
-	spin_lock(&pbd_delwrite_lock);
-	list_for_each_entry_safe(pb, n, &pbd_delwrite_queue, pb_list) {
-
-		if (pb->pb_target != target)
-			continue;
-
-		ASSERT(pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q));
-		PB_TRACE(pb, "walkq2", (long)pagebuf_ispin(pb));
-		if (pagebuf_ispin(pb)) {
+	spin_lock(dwlk);
+	list_for_each_entry_safe(bp, n, dwq, b_list) {
+		ASSERT(bp->b_target == target);
+		ASSERT(bp->b_flags & (XBF_DELWRI | _XBF_DELWRI_Q));
+		XB_TRACE(bp, "walkq2", (long)xfs_buf_ispin(bp));
+		if (xfs_buf_ispin(bp)) {
 			pincount++;
 			continue;
 		}
 
-		list_move(&pb->pb_list, &tmp);
+		list_move(&bp->b_list, &tmp);
 	}
-	spin_unlock(&pbd_delwrite_lock);
+	spin_unlock(dwlk);
 
 	/*
 	 * Dropped the delayed write list lock, now walk the temporary list
 	 */
-	list_for_each_entry_safe(pb, n, &tmp, pb_list) {
-		pagebuf_lock(pb);
-		pb->pb_flags &= ~(PBF_DELWRI|_PBF_DELWRI_Q);
-		pb->pb_flags |= PBF_WRITE;
+	list_for_each_entry_safe(bp, n, &tmp, b_list) {
+		xfs_buf_lock(bp);
+		bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
+		bp->b_flags |= XBF_WRITE;
 		if (wait)
-			pb->pb_flags &= ~PBF_ASYNC;
+			bp->b_flags &= ~XBF_ASYNC;
 		else
-			list_del_init(&pb->pb_list);
+			list_del_init(&bp->b_list);
 
-		pagebuf_iostrategy(pb);
+		xfs_buf_iostrategy(bp);
 	}
 
 	/*
 	 * Remaining list items must be flushed before returning
 	 */
 	while (!list_empty(&tmp)) {
-		pb = list_entry(tmp.next, xfs_buf_t, pb_list);
+		bp = list_entry(tmp.next, xfs_buf_t, b_list);
 
-		list_del_init(&pb->pb_list);
-		xfs_iowait(pb);
-		xfs_buf_relse(pb);
+		list_del_init(&bp->b_list);
+		xfs_iowait(bp);
+		xfs_buf_relse(bp);
 	}
 
 	if (wait)
-		blk_run_address_space(target->pbr_mapping);
+		blk_run_address_space(target->bt_mapping);
 
 	return pincount;
 }
 
 int __init
-pagebuf_init(void)
+xfs_buf_init(void)
 {
 	int		error = -ENOMEM;
 
-#ifdef PAGEBUF_TRACE
-	pagebuf_trace_buf = ktrace_alloc(PAGEBUF_TRACE_SIZE, KM_SLEEP);
+#ifdef XFS_BUF_TRACE
+	xfs_buf_trace_buf = ktrace_alloc(XFS_BUF_TRACE_SIZE, KM_SLEEP);
 #endif
 
-	pagebuf_zone = kmem_zone_init(sizeof(xfs_buf_t), "xfs_buf");
-	if (!pagebuf_zone)
+	xfs_buf_zone = kmem_zone_init(sizeof(xfs_buf_t), "xfs_buf");
+	if (!xfs_buf_zone)
 		goto out_free_trace_buf;
 
 	xfslogd_workqueue = create_workqueue("xfslogd");
@@ -1847,42 +1815,33 @@ pagebuf_init(void)
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
-	xfsbufd_task = kthread_run(xfsbufd, NULL, "xfsbufd");
-	if (IS_ERR(xfsbufd_task)) {
-		error = PTR_ERR(xfsbufd_task);
+	xfs_buf_shake = kmem_shake_register(xfsbufd_wakeup);
+	if (!xfs_buf_shake)
 		goto out_destroy_xfsdatad_workqueue;
-	}
-
-	pagebuf_shake = kmem_shake_register(xfsbufd_wakeup);
-	if (!pagebuf_shake)
-		goto out_stop_xfsbufd;
 
 	return 0;
 
- out_stop_xfsbufd:
-	kthread_stop(xfsbufd_task);
  out_destroy_xfsdatad_workqueue:
 	destroy_workqueue(xfsdatad_workqueue);
  out_destroy_xfslogd_workqueue:
 	destroy_workqueue(xfslogd_workqueue);
  out_free_buf_zone:
-	kmem_zone_destroy(pagebuf_zone);
+	kmem_zone_destroy(xfs_buf_zone);
  out_free_trace_buf:
-#ifdef PAGEBUF_TRACE
-	ktrace_free(pagebuf_trace_buf);
+#ifdef XFS_BUF_TRACE
+	ktrace_free(xfs_buf_trace_buf);
 #endif
 	return error;
 }
 
 void
-pagebuf_terminate(void)
+xfs_buf_terminate(void)
 {
-	kmem_shake_deregister(pagebuf_shake);
-	kthread_stop(xfsbufd_task);
+	kmem_shake_deregister(xfs_buf_shake);
 	destroy_workqueue(xfsdatad_workqueue);
 	destroy_workqueue(xfslogd_workqueue);
-	kmem_zone_destroy(pagebuf_zone);
-#ifdef PAGEBUF_TRACE
-	ktrace_free(pagebuf_trace_buf);
+	kmem_zone_destroy(xfs_buf_zone);
+#ifdef XFS_BUF_TRACE
+	ktrace_free(xfs_buf_trace_buf);
 #endif
 }

@@ -42,8 +42,8 @@
  */
 
 #include <linux/init.h>
-#include <asm/atomic.h>
 #include <asm/types.h>
+#include <asm/atomic.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -267,7 +267,7 @@ static int audit_set_failure(int state, uid_t loginuid)
 	return old;
 }
 
-int kauditd_thread(void *dummy)
+static int kauditd_thread(void *dummy)
 {
 	struct sk_buff *skb;
 

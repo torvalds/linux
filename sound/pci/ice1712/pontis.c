@@ -76,7 +76,7 @@
 /*
  * get the current register value of WM codec
  */
-static unsigned short wm_get(ice1712_t *ice, int reg)
+static unsigned short wm_get(struct snd_ice1712 *ice, int reg)
 {
 	reg <<= 1;
 	return ((unsigned short)ice->akm[0].images[reg] << 8) |
@@ -86,14 +86,14 @@ static unsigned short wm_get(ice1712_t *ice, int reg)
 /*
  * set the register value of WM codec and remember it
  */
-static void wm_put_nocache(ice1712_t *ice, int reg, unsigned short val)
+static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	unsigned short cval;
 	cval = (reg << 9) | val;
 	snd_vt1724_write_i2c(ice, WM_DEV, cval >> 8, cval & 0xff);
 }
 
-static void wm_put(ice1712_t *ice, int reg, unsigned short val)
+static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	wm_put_nocache(ice, reg, val);
 	reg <<= 1;
@@ -109,7 +109,7 @@ static void wm_put(ice1712_t *ice, int reg, unsigned short val)
 #define DAC_RES	128
 #define DAC_MIN	(DAC_0dB - DAC_RES)
 
-static int wm_dac_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int wm_dac_vol_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -118,9 +118,9 @@ static int wm_dac_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int wm_dac_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_dac_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 	int i;
 
@@ -134,9 +134,9 @@ static int wm_dac_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontr
 	return 0;
 }
 
-static int wm_dac_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short oval, nval;
 	int i, idx, change = 0;
 
@@ -164,7 +164,7 @@ static int wm_dac_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontr
 #define ADC_RES	128
 #define ADC_MIN	(ADC_0dB - ADC_RES)
 
-static int wm_adc_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int wm_adc_vol_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -173,9 +173,9 @@ static int wm_adc_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int wm_adc_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_adc_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 	int i;
 
@@ -189,9 +189,9 @@ static int wm_adc_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontr
 	return 0;
 }
 
-static int wm_adc_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short ovol, nvol;
 	int i, idx, change = 0;
 
@@ -213,7 +213,7 @@ static int wm_adc_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontr
 /*
  * ADC input mux mixer control
  */
-static int wm_adc_mux_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int wm_adc_mux_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -222,9 +222,9 @@ static int wm_adc_mux_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int wm_adc_mux_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_adc_mux_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int bit = kcontrol->private_value;
 
 	down(&ice->gpio_mutex);
@@ -233,9 +233,9 @@ static int wm_adc_mux_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucont
 	return 0;
 }
 
-static int wm_adc_mux_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_adc_mux_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	int bit = kcontrol->private_value;
 	unsigned short oval, nval;
 	int change;
@@ -257,7 +257,7 @@ static int wm_adc_mux_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucont
 /*
  * Analog bypass (In -> Out)
  */
-static int wm_bypass_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int wm_bypass_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -266,9 +266,9 @@ static int wm_bypass_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int wm_bypass_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_bypass_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	down(&ice->gpio_mutex);
 	ucontrol->value.integer.value[0] = (wm_get(ice, WM_OUT_MUX) & 0x04) ? 1 : 0;
@@ -276,9 +276,9 @@ static int wm_bypass_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontr
 	return 0;
 }
 
-static int wm_bypass_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_bypass_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short val, oval;
 	int change = 0;
 
@@ -299,7 +299,7 @@ static int wm_bypass_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontr
 /*
  * Left/Right swap
  */
-static int wm_chswap_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int wm_chswap_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -308,9 +308,9 @@ static int wm_chswap_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int wm_chswap_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_chswap_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	down(&ice->gpio_mutex);
 	ucontrol->value.integer.value[0] = (wm_get(ice, WM_DAC_CTRL1) & 0xf0) != 0x90;
@@ -318,9 +318,9 @@ static int wm_chswap_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontr
 	return 0;
 }
 
-static int wm_chswap_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int wm_chswap_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned short val, oval;
 	int change = 0;
 
@@ -343,7 +343,7 @@ static int wm_chswap_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontr
 /*
  * write data in the SPI mode
  */
-static void set_gpio_bit(ice1712_t *ice, unsigned int bit, int val)
+static void set_gpio_bit(struct snd_ice1712 *ice, unsigned int bit, int val)
 {
 	unsigned int tmp = snd_ice1712_gpio_read(ice);
 	if (val)
@@ -353,7 +353,7 @@ static void set_gpio_bit(ice1712_t *ice, unsigned int bit, int val)
 	snd_ice1712_gpio_write(ice, tmp);
 }
 
-static void spi_send_byte(ice1712_t *ice, unsigned char data)
+static void spi_send_byte(struct snd_ice1712 *ice, unsigned char data)
 {
 	int i;
 	for (i = 0; i < 8; i++) {
@@ -367,7 +367,7 @@ static void spi_send_byte(ice1712_t *ice, unsigned char data)
 	}
 }
 
-static unsigned int spi_read_byte(ice1712_t *ice)
+static unsigned int spi_read_byte(struct snd_ice1712 *ice)
 {
 	int i;
 	unsigned int val = 0;
@@ -386,7 +386,7 @@ static unsigned int spi_read_byte(ice1712_t *ice)
 }
 
 
-static void spi_write(ice1712_t *ice, unsigned int dev, unsigned int reg, unsigned int data)
+static void spi_write(struct snd_ice1712 *ice, unsigned int dev, unsigned int reg, unsigned int data)
 {
 	snd_ice1712_gpio_set_dir(ice, PONTIS_CS_CS|PONTIS_CS_WDATA|PONTIS_CS_CLK);
 	snd_ice1712_gpio_set_mask(ice, ~(PONTIS_CS_CS|PONTIS_CS_WDATA|PONTIS_CS_CLK));
@@ -402,7 +402,7 @@ static void spi_write(ice1712_t *ice, unsigned int dev, unsigned int reg, unsign
 	snd_ice1712_gpio_set_dir(ice, ice->gpio.direction);
 }
 
-static unsigned int spi_read(ice1712_t *ice, unsigned int dev, unsigned int reg)
+static unsigned int spi_read(struct snd_ice1712 *ice, unsigned int dev, unsigned int reg)
 {
 	unsigned int val;
 	snd_ice1712_gpio_set_dir(ice, PONTIS_CS_CS|PONTIS_CS_WDATA|PONTIS_CS_CLK);
@@ -429,7 +429,7 @@ static unsigned int spi_read(ice1712_t *ice, unsigned int dev, unsigned int reg)
 /*
  * SPDIF input source
  */
-static int cs_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int cs_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = {
 		"Coax",		/* RXP0 */
@@ -445,9 +445,9 @@ static int cs_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 	return 0;
 }
 
-static int cs_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cs_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	down(&ice->gpio_mutex);
 	ucontrol->value.enumerated.item[0] = ice->gpio.saved[0];
@@ -455,9 +455,9 @@ static int cs_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontro
 	return 0;
 }
 
-static int cs_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cs_source_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned char val;
 	int change = 0;
 
@@ -476,7 +476,7 @@ static int cs_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontro
 /*
  * GPIO controls
  */
-static int pontis_gpio_mask_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int pontis_gpio_mask_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -485,9 +485,9 @@ static int pontis_gpio_mask_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int pontis_gpio_mask_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int pontis_gpio_mask_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	down(&ice->gpio_mutex);
 	/* 4-7 reserved */
 	ucontrol->value.integer.value[0] = (~ice->gpio.write_mask & 0xffff) | 0x00f0;
@@ -495,9 +495,9 @@ static int pontis_gpio_mask_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 	
-static int pontis_gpio_mask_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int pontis_gpio_mask_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int changed;
 	down(&ice->gpio_mutex);
@@ -509,9 +509,9 @@ static int pontis_gpio_mask_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return changed;
 }
 
-static int pontis_gpio_dir_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int pontis_gpio_dir_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	down(&ice->gpio_mutex);
 	/* 4-7 reserved */
 	ucontrol->value.integer.value[0] = ice->gpio.direction & 0xff0f;
@@ -519,9 +519,9 @@ static int pontis_gpio_dir_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 	
-static int pontis_gpio_dir_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int pontis_gpio_dir_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int changed;
 	down(&ice->gpio_mutex);
@@ -533,9 +533,9 @@ static int pontis_gpio_dir_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *
 	return changed;
 }
 
-static int pontis_gpio_data_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int pontis_gpio_data_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	down(&ice->gpio_mutex);
 	snd_ice1712_gpio_set_dir(ice, ice->gpio.direction);
 	snd_ice1712_gpio_set_mask(ice, ice->gpio.write_mask);
@@ -544,9 +544,9 @@ static int pontis_gpio_data_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int pontis_gpio_data_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int pontis_gpio_data_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ice1712_t *ice = snd_kcontrol_chip(kcontrol);
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 	unsigned int val, nval;
 	int changed = 0;
 	down(&ice->gpio_mutex);
@@ -566,7 +566,7 @@ static int pontis_gpio_data_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
  * mixers
  */
 
-static snd_kcontrol_new_t pontis_controls[] __devinitdata = {
+static struct snd_kcontrol_new pontis_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Volume",
@@ -646,9 +646,9 @@ static snd_kcontrol_new_t pontis_controls[] __devinitdata = {
 /*
  * WM codec registers
  */
-static void wm_proc_regs_write(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
+static void wm_proc_regs_write(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	ice1712_t *ice = (ice1712_t *)entry->private_data;
+	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
 	char line[64];
 	unsigned int reg, val;
 	down(&ice->gpio_mutex);
@@ -661,9 +661,9 @@ static void wm_proc_regs_write(snd_info_entry_t *entry, snd_info_buffer_t *buffe
 	up(&ice->gpio_mutex);
 }
 
-static void wm_proc_regs_read(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
+static void wm_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	ice1712_t *ice = (ice1712_t *)entry->private_data;
+	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
 	int reg, val;
 
 	down(&ice->gpio_mutex);
@@ -674,9 +674,9 @@ static void wm_proc_regs_read(snd_info_entry_t *entry, snd_info_buffer_t *buffer
 	up(&ice->gpio_mutex);
 }
 
-static void wm_proc_init(ice1712_t *ice)
+static void wm_proc_init(struct snd_ice1712 *ice)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(ice->card, "wm_codec", &entry)) {
 		snd_info_set_text_ops(entry, ice, 1024, wm_proc_regs_read);
 		entry->mode |= S_IWUSR;
@@ -685,9 +685,9 @@ static void wm_proc_init(ice1712_t *ice)
 	}
 }
 
-static void cs_proc_regs_read(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
+static void cs_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	ice1712_t *ice = (ice1712_t *)entry->private_data;
+	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
 	int reg, val;
 
 	down(&ice->gpio_mutex);
@@ -700,16 +700,16 @@ static void cs_proc_regs_read(snd_info_entry_t *entry, snd_info_buffer_t *buffer
 	up(&ice->gpio_mutex);
 }
 
-static void cs_proc_init(ice1712_t *ice)
+static void cs_proc_init(struct snd_ice1712 *ice)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(ice->card, "cs_codec", &entry)) {
 		snd_info_set_text_ops(entry, ice, 1024, cs_proc_regs_read);
 	}
 }
 
 
-static int __devinit pontis_add_controls(ice1712_t *ice)
+static int __devinit pontis_add_controls(struct snd_ice1712 *ice)
 {
 	unsigned int i;
 	int err;
@@ -730,7 +730,7 @@ static int __devinit pontis_add_controls(ice1712_t *ice)
 /*
  * initialize the chip
  */
-static int __devinit pontis_init(ice1712_t *ice)
+static int __devinit pontis_init(struct snd_ice1712 *ice)
 {
 	static unsigned short wm_inits[] = {
 		/* These come first to reduce init pop noise */
@@ -781,7 +781,7 @@ static int __devinit pontis_init(ice1712_t *ice)
 	ice->num_total_adcs = 2;
 
 	/* to remeber the register values */
-	ice->akm = kzalloc(sizeof(akm4xxx_t), GFP_KERNEL);
+	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
 		return -ENOMEM;
 	ice->akm_codecs = 1;

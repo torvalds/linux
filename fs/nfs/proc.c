@@ -111,6 +111,9 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	};
 	int	status;
 
+	/* Mask out the non-modebit related stuff from attr->ia_mode */
+	sattr->ia_mode &= S_IALLUGO;
+
 	dprintk("NFS call  setattr\n");
 	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(inode), NFSPROC_SETATTR, &arg, fattr, 0);
@@ -547,10 +550,9 @@ nfs_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 extern u32 * nfs_decode_dirent(u32 *, struct nfs_entry *, int);
 
-static void
-nfs_read_done(struct rpc_task *task)
+static void nfs_read_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_read_data *data = (struct nfs_read_data *) task->tk_calldata;
+	struct nfs_read_data *data = calldata;
 
 	if (task->tk_status >= 0) {
 		nfs_refresh_inode(data->inode, data->res.fattr);
@@ -560,8 +562,13 @@ nfs_read_done(struct rpc_task *task)
 		if (data->args.offset + data->args.count >= data->res.fattr->size)
 			data->res.eof = 1;
 	}
-	nfs_readpage_result(task);
+	nfs_readpage_result(task, calldata);
 }
+
+static const struct rpc_call_ops nfs_read_ops = {
+	.rpc_call_done = nfs_read_done,
+	.rpc_release = nfs_readdata_release,
+};
 
 static void
 nfs_proc_read_setup(struct nfs_read_data *data)
@@ -580,19 +587,23 @@ nfs_proc_read_setup(struct nfs_read_data *data)
 	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs_read_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs_read_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 
-static void
-nfs_write_done(struct rpc_task *task)
+static void nfs_write_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data = (struct nfs_write_data *) task->tk_calldata;
+	struct nfs_write_data *data = calldata;
 
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
-	nfs_writeback_done(task);
+	nfs_writeback_done(task, calldata);
 }
+
+static const struct rpc_call_ops nfs_write_ops = {
+	.rpc_call_done = nfs_write_done,
+	.rpc_release = nfs_writedata_release,
+};
 
 static void
 nfs_proc_write_setup(struct nfs_write_data *data, int how)
@@ -614,7 +625,7 @@ nfs_proc_write_setup(struct nfs_write_data *data, int how)
 	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs_write_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs_write_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 

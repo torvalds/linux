@@ -5,6 +5,7 @@
  *  (C) Copyright 2002 Christoph Hellwig
  */
 
+#include <linux/capability.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/mempolicy.h>

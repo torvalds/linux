@@ -514,7 +514,7 @@ static void core99_nvram_sync(void)
 #endif
 }
 
-static int __init core99_nvram_setup(struct device_node *dp)
+static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
 {
 	int i;
 	u32 gen_bank0, gen_bank1;
@@ -528,7 +528,7 @@ static int __init core99_nvram_setup(struct device_node *dp)
 		printk(KERN_ERR "nvram: can't allocate ram image\n");
 		return -ENOMEM;
 	}
-	nvram_data = ioremap(dp->addrs[0].address, NVRAM_SIZE*2);
+	nvram_data = ioremap(addr, NVRAM_SIZE*2);
 	nvram_naddrs = 1; /* Make sure we get the correct case */
 
 	DBG("nvram: Checking bank 0...\n");
@@ -549,6 +549,7 @@ static int __init core99_nvram_setup(struct device_node *dp)
 	ppc_md.nvram_write	= core99_nvram_write;
 	ppc_md.nvram_size	= core99_nvram_size;
 	ppc_md.nvram_sync	= core99_nvram_sync;
+	ppc_md.machine_shutdown	= core99_nvram_sync;
 	/* 
 	 * Maybe we could be smarter here though making an exclusive list
 	 * of known flash chips is a bit nasty as older OF didn't provide us
@@ -569,34 +570,48 @@ static int __init core99_nvram_setup(struct device_node *dp)
 int __init pmac_nvram_init(void)
 {
 	struct device_node *dp;
+	struct resource r1, r2;
+	unsigned int s1 = 0, s2 = 0;
 	int err = 0;
 
 	nvram_naddrs = 0;
 
-	dp = find_devices("nvram");
+	dp = of_find_node_by_name(NULL, "nvram");
 	if (dp == NULL) {
 		printk(KERN_ERR "Can't find NVRAM device\n");
 		return -ENODEV;
 	}
-	nvram_naddrs = dp->n_addrs;
+
+	/* Try to obtain an address */
+	if (of_address_to_resource(dp, 0, &r1) == 0) {
+		nvram_naddrs = 1;
+		s1 = (r1.end - r1.start) + 1;
+		if (of_address_to_resource(dp, 1, &r2) == 0) {
+			nvram_naddrs = 2;
+			s2 = (r2.end - r2.start) + 1;
+		}
+	}
+
 	is_core_99 = device_is_compatible(dp, "nvram,flash");
-	if (is_core_99)
-		err = core99_nvram_setup(dp);
+	if (is_core_99) {
+		err = core99_nvram_setup(dp, r1.start);
+		goto bail;
+	}
+
 #ifdef CONFIG_PPC32
-	else if (_machine == _MACH_chrp && nvram_naddrs == 1) {
-		nvram_data = ioremap(dp->addrs[0].address + isa_mem_base,
-				     dp->addrs[0].size);
+	if (_machine == _MACH_chrp && nvram_naddrs == 1) {
+		nvram_data = ioremap(r1.start, s1);
 		nvram_mult = 1;
 		ppc_md.nvram_read_val	= direct_nvram_read_byte;
 		ppc_md.nvram_write_val	= direct_nvram_write_byte;
 	} else if (nvram_naddrs == 1) {
-		nvram_data = ioremap(dp->addrs[0].address, dp->addrs[0].size);
-		nvram_mult = (dp->addrs[0].size + NVRAM_SIZE - 1) / NVRAM_SIZE;
+		nvram_data = ioremap(r1.start, s1);
+		nvram_mult = (s1 + NVRAM_SIZE - 1) / NVRAM_SIZE;
 		ppc_md.nvram_read_val	= direct_nvram_read_byte;
 		ppc_md.nvram_write_val	= direct_nvram_write_byte;
 	} else if (nvram_naddrs == 2) {
-		nvram_addr = ioremap(dp->addrs[0].address, dp->addrs[0].size);
-		nvram_data = ioremap(dp->addrs[1].address, dp->addrs[1].size);
+		nvram_addr = ioremap(r1.start, s1);
+		nvram_data = ioremap(r2.start, s2);
 		ppc_md.nvram_read_val	= indirect_nvram_read_byte;
 		ppc_md.nvram_write_val	= indirect_nvram_write_byte;
 	} else if (nvram_naddrs == 0 && sys_ctrler == SYS_CTRLER_PMU) {
@@ -605,13 +620,15 @@ int __init pmac_nvram_init(void)
 		ppc_md.nvram_read_val	= pmu_nvram_read_byte;
 		ppc_md.nvram_write_val	= pmu_nvram_write_byte;
 #endif /* CONFIG_ADB_PMU */
-	}
-#endif
-	else {
+	} else {
 		printk(KERN_ERR "Incompatible type of NVRAM\n");
-		return -ENXIO;
+		err = -ENXIO;
 	}
-	lookup_partitions();
+#endif /* CONFIG_PPC32 */
+bail:
+	of_node_put(dp);
+	if (err == 0)
+		lookup_partitions();
 	return err;
 }
 

@@ -285,19 +285,6 @@ static void irport_start(struct irport_cb *self)
 }
 
 /*
- * Function irport_probe (void)
- *
- *    Start IO port 
- *
- */
-int irport_probe(int iobase)
-{
-	IRDA_DEBUG(4, "%s(), iobase=%#x\n", __FUNCTION__, iobase);
-
-	return 0;
-}
-
-/*
  * Function irport_get_fcr (speed)
  *
  *    Compute value of fcr
@@ -382,7 +369,7 @@ static void irport_change_speed(void *priv, __u32 speed)
  *    we cannot use schedule_timeout() when we are in interrupt context
  *
  */
-int __irport_change_speed(struct irda_task *task)
+static int __irport_change_speed(struct irda_task *task)
 {
 	struct irport_cb *self;
 	__u32 speed = (__u32) task->param;

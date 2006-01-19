@@ -11,14 +11,14 @@ config USB_EHCI_HCD
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
 	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
 	  If your USB host controller supports USB 2.0, you will likely want to
-	  configure this Host Controller Driver.  At this writing, the primary
-	  implementation of EHCI is a chip from NEC, widely available in add-on
-	  PCI cards, but implementations are in the works from other vendors
-	  including Intel and Philips.  Motherboard support is appearing.
+	  configure this Host Controller Driver.  At the time of this writing, 
+	  the primary implementation of EHCI is a chip from NEC, widely available
+	  in add-on PCI cards, but implementations are in the works from other 
+	  vendors including Intel and Philips.  Motherboard support is appearing.
 
 	  EHCI controllers are packaged with "companion" host controllers (OHCI
 	  or UHCI) to handle USB 1.1 devices connected to root hub ports.  Ports
-	  will connect to EHCI if it the device is high speed, otherwise they
+	  will connect to EHCI if the device is high speed, otherwise they
 	  connect to a companion controller.  If you configure EHCI, you should
 	  probably configure the OHCI (for NEC and some other vendors) USB Host
 	  Controller Driver or UHCI (for Via motherboards) Host Controller

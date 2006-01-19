@@ -14,6 +14,7 @@
 #include <linux/signal.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 
 #include <asm/system.h>
 #include <asm/ebus.h>
@@ -69,6 +70,9 @@ void machine_power_off(void)
 	}
 	machine_halt();
 }
+
+void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 #ifdef CONFIG_PCI
 static int powerd(void *__unused)

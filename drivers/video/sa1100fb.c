@@ -178,7 +178,6 @@
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/mach-types.h>
 #include <asm/uaccess.h>
 #include <asm/arch/assabet.h>
@@ -816,7 +815,7 @@ static int sa1100fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int sa1100fb_mmap(struct fb_info *info, struct file *file,
+static int sa1100fb_mmap(struct fb_info *info,
 			 struct vm_area_struct *vma)
 {
 	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
@@ -1455,7 +1454,11 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 static int __init sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
-	int ret;
+	int ret, irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return -EINVAL;
 
 	if (!request_mem_region(0xb0100000, 0x10000, "LCD"))
 		return -EBUSY;
@@ -1470,7 +1473,7 @@ static int __init sa1100fb_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed;
 
-	ret = request_irq(IRQ_LCD, sa1100fb_handle_irq, SA_INTERRUPT,
+	ret = request_irq(irq, sa1100fb_handle_irq, SA_INTERRUPT,
 			  "LCD", fbi);
 	if (ret) {
 		printk(KERN_ERR "sa1100fb: request_irq failed: %d\n", ret);
@@ -1492,7 +1495,7 @@ static int __init sa1100fb_probe(struct platform_device *pdev)
 
 	ret = register_framebuffer(&fbi->fb);
 	if (ret < 0)
-		goto failed;
+		goto err_free_irq;
 
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = sa1100fb_freq_transition;
@@ -1504,7 +1507,9 @@ static int __init sa1100fb_probe(struct platform_device *pdev)
 	/* This driver cannot be unloaded at the moment */
 	return 0;
 
-failed:
+ err_free_irq:
+	free_irq(irq, fbi);
+ failed:
 	platform_set_drvdata(pdev, NULL);
 	kfree(fbi);
 	release_mem_region(0xb0100000, 0x10000);

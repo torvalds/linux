@@ -30,31 +30,6 @@
 
 #include "drm_pciids.h"
 
-static int postinit(struct drm_device *dev, unsigned long flags)
-{
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d: %s\n",
-		 DRIVER_NAME,
-		 DRIVER_MAJOR,
-		 DRIVER_MINOR,
-		 DRIVER_PATCHLEVEL,
-		 DRIVER_DATE, dev->primary.minor, pci_pretty_name(dev->pdev)
-	    );
-	return 0;
-}
-
-static int version(drm_version_t * version)
-{
-	int len;
-
-	version->version_major = DRIVER_MAJOR;
-	version->version_minor = DRIVER_MINOR;
-	version->version_patchlevel = DRIVER_PATCHLEVEL;
-	DRM_COPY(version->name, DRIVER_NAME);
-	DRM_COPY(version->date, DRIVER_DATE);
-	DRM_COPY(version->desc, DRIVER_DESC);
-	return 0;
-}
-
 static struct pci_device_id pciidlist[] = {
 	savage_PCI_IDS
 };
@@ -63,13 +38,13 @@ static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_HAVE_DMA | DRIVER_PCI_DMA,
 	.dev_priv_size = sizeof(drm_savage_buf_priv_t),
-	.preinit = savage_preinit,
-	.postinit = postinit,
-	.postcleanup = savage_postcleanup,
+	.load = savage_driver_load,
+	.firstopen = savage_driver_firstopen,
+	.lastclose = savage_driver_lastclose,
+	.unload = savage_driver_unload,
 	.reclaim_buffers = savage_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
-	.version = version,
 	.ioctls = savage_ioctls,
 	.dma_ioctl = savage_bci_buffers,
 	.fops = {
@@ -80,12 +55,19 @@ static struct drm_driver driver = {
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
-		 }
-	,
+	},
+
 	.pci_driver = {
-		       .name = DRIVER_NAME,
-		       .id_table = pciidlist,
-		       }
+		 .name = DRIVER_NAME,
+		 .id_table = pciidlist,
+	},
+
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
 static int __init savage_init(void)

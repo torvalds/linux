@@ -716,10 +716,8 @@ static void ncp_put_super(struct super_block *sb)
 	fput(server->ncp_filp);
 	kill_proc(server->m.wdog_pid, SIGTERM, 1);
 
-	if (server->priv.data) 
-		ncp_kfree_s(server->priv.data, server->priv.len);
-	if (server->auth.object_name)
-		ncp_kfree_s(server->auth.object_name, server->auth.object_name_len);
+	kfree(server->priv.data);
+	kfree(server->auth.object_name);
 	vfree(server->packet);
 	sb->s_fs_info = NULL;
 	kfree(server);
@@ -958,11 +956,6 @@ out:
 	return result;
 }
 
-#ifdef DEBUG_NCP_MALLOC
-int ncp_malloced;
-int ncp_current_malloced;
-#endif
-
 static struct super_block *ncp_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
@@ -981,10 +974,6 @@ static int __init init_ncp_fs(void)
 	int err;
 	DPRINTK("ncpfs: init_module called\n");
 
-#ifdef DEBUG_NCP_MALLOC
-	ncp_malloced = 0;
-	ncp_current_malloced = 0;
-#endif
 	err = init_inodecache();
 	if (err)
 		goto out1;
@@ -1003,10 +992,6 @@ static void __exit exit_ncp_fs(void)
 	DPRINTK("ncpfs: cleanup_module called\n");
 	unregister_filesystem(&ncp_fs_type);
 	destroy_inodecache();
-#ifdef DEBUG_NCP_MALLOC
-	PRINTK("ncp_malloced: %d\n", ncp_malloced);
-	PRINTK("ncp_current_malloced: %d\n", ncp_current_malloced);
-#endif
 }
 
 module_init(init_ncp_fs)

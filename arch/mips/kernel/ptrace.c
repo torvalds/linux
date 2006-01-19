@@ -64,8 +64,7 @@ int ptrace_getregs (struct task_struct *child, __s64 __user *data)
 	if (!access_ok(VERIFY_WRITE, data, 38 * 8))
 		return -EIO;
 
-	regs = (struct pt_regs *) ((unsigned long) child->thread_info +
-	       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
 		__put_user (regs->regs[i], data + i);
@@ -92,8 +91,7 @@ int ptrace_setregs (struct task_struct *child, __s64 __user *data)
 	if (!access_ok(VERIFY_READ, data, 38 * 8))
 		return -EIO;
 
-	regs = (struct pt_regs *) ((unsigned long) child->thread_info +
-	       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
 		__get_user (regs->regs[i], data + i);
@@ -198,8 +196,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		struct pt_regs *regs;
 		unsigned long tmp = 0;
 
-		regs = (struct pt_regs *) ((unsigned long) child->thread_info +
-		       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+		regs = task_pt_regs(child);
 		ret = 0;  /* Default return value. */
 
 		switch (addr) {
@@ -280,12 +277,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				ret = -EIO;
 				goto out;
 			}
-			if (child->thread.dsp.used_dsp) {
-				dregs = __get_dsp_regs(child);
-				tmp = (unsigned long) (dregs[addr - DSP_BASE]);
-			} else {
-				tmp = -1;	/* DSP registers yet used  */
-			}
+			dregs = __get_dsp_regs(child);
+			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
 			break;
 		}
 		case DSP_CONTROL:
@@ -318,8 +311,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_POKEUSR: {
 		struct pt_regs *regs;
 		ret = 0;
-		regs = (struct pt_regs *) ((unsigned long) child->thread_info +
-		       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+		regs = task_pt_regs(child);
 
 		switch (addr) {
 		case 0 ... 31:
@@ -446,7 +438,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_GET_THREAD_AREA:
-		ret = put_user(child->thread_info->tp_value,
+		ret = put_user(task_thread_info(child)->tp_value,
 				(unsigned long __user *) data);
 		break;
 

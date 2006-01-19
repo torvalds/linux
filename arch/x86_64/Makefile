@@ -31,6 +31,7 @@ cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
 cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
 CFLAGS += $(cflags-y)
 
+CFLAGS += -m64
 CFLAGS += -mno-red-zone
 CFLAGS += -mcmodel=kernel
 CFLAGS += -pipe
@@ -38,8 +39,10 @@ CFLAGS += -pipe
 # actually it makes the kernel smaller too.
 CFLAGS += -fno-reorder-blocks	
 CFLAGS += -Wno-sign-compare
-ifneq ($(CONFIG_DEBUG_INFO),y)
+ifneq ($(CONFIG_UNWIND_INFO),y)
 CFLAGS += -fno-asynchronous-unwind-tables
+endif
+ifneq ($(CONFIG_DEBUG_INFO),y)
 # -fweb shrinks the kernel a bit, but the difference is very small
 # it also messes up debugging, so don't use it for now.
 #CFLAGS += $(call cc-option,-fweb)
@@ -49,6 +52,8 @@ endif
 CFLAGS += $(call cc-option,-funit-at-a-time)
 # prevent gcc from generating any FP code by mistake
 CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
+
+AFLAGS += -m64
 
 head-y := arch/x86_64/kernel/head.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task.o
 
@@ -80,8 +85,11 @@ bzlilo: vmlinux
 bzdisk: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) zdisk
 
-install fdimage fdimage144 fdimage288: vmlinux
+fdimage fdimage144 fdimage288: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
+
+install:
+	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@ 
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)

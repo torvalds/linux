@@ -11,7 +11,8 @@
 #ifndef _STG4000INTERFACE_H
 #define _STG4000INTERFACE_H
 
-struct pci_dev;
+#include <linux/pci.h>
+#include <video/kyro.h>
 
 /*
  * Ramdac Setup

@@ -46,10 +46,10 @@
  *      1.11a   Daniele Bellucci: Audit create_proc_read_entry in rtc_init
  *	1.12	Venkatesh Pallipadi: Hooks for emulating rtc on HPET base-timer
  *		CONFIG_HPET_EMULATE_RTC
- *
+ *	1.12ac	Alan Cox: Allow read access to the day of week register
  */
 
-#define RTC_VERSION		"1.12"
+#define RTC_VERSION		"1.12ac"
 
 #define RTC_IO_EXTENT	0x8
 
@@ -1250,9 +1250,9 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave
-	 * tm_wday, tm_yday and tm_isdst untouched. Even though the
-	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
-	 * by the RTC when initially set to a non-zero value.
+	 * tm_wday, tm_yday and tm_isdst untouched. Note that while the
+	 * RTC has RTC_DAY_OF_WEEK, we should usually ignore it, as it is
+	 * only updated by the RTC when initially set to a non-zero value.
 	 */
 	spin_lock_irq(&rtc_lock);
 	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
@@ -1261,6 +1261,9 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	rtc_tm->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
 	rtc_tm->tm_mon = CMOS_READ(RTC_MONTH);
 	rtc_tm->tm_year = CMOS_READ(RTC_YEAR);
+	/* Only set from 2.6.16 onwards */
+	rtc_tm->tm_wday = CMOS_READ(RTC_DAY_OF_WEEK);
+
 #ifdef CONFIG_MACH_DECSTATION
 	real_year = CMOS_READ(RTC_DEC_YEAR);
 #endif
@@ -1275,6 +1278,7 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 		BCD_TO_BIN(rtc_tm->tm_mday);
 		BCD_TO_BIN(rtc_tm->tm_mon);
 		BCD_TO_BIN(rtc_tm->tm_year);
+		BCD_TO_BIN(rtc_tm->tm_wday);
 	}
 
 #ifdef CONFIG_MACH_DECSTATION

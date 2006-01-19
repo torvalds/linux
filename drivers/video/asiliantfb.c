@@ -549,7 +549,7 @@ asiliantfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	if (!request_mem_region(addr, size, "asiliantfb"))
 		return -EBUSY;
 
-	p = framebuffer_alloc(sizeof(u32) * 256, &dp->dev);
+	p = framebuffer_alloc(sizeof(u32) * 16, &dp->dev);
 	if (!p)	{
 		release_mem_region(addr, size);
 		return -ENOMEM;

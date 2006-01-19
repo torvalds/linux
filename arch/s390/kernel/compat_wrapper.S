@@ -1289,7 +1289,7 @@ sys32_timer_create_wrapper:
 	lgfr	%r2,%r2			# timer_t (int)
 	llgtr	%r3,%r3			# struct compat_sigevent *
 	llgtr	%r4,%r4			# timer_t *
-	jg	sys32_timer_create
+	jg	compat_sys_timer_create
 
 	.globl	sys32_timer_settime_wrapper
 sys32_timer_settime_wrapper:

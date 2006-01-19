@@ -487,11 +487,11 @@ smb_put_super(struct super_block *sb)
 	if (server->conn_pid)
 		kill_proc(server->conn_pid, SIGTERM, 1);
 
-	smb_kfree(server->ops);
+	kfree(server->ops);
 	smb_unload_nls(server);
 	sb->s_fs_info = NULL;
 	smb_unlock_server(server);
-	smb_kfree(server);
+	kfree(server);
 }
 
 static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
@@ -519,11 +519,10 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_op = &smb_sops;
 	sb->s_time_gran = 100;
 
-	server = smb_kmalloc(sizeof(struct smb_sb_info), GFP_KERNEL);
+	server = kzalloc(sizeof(struct smb_sb_info), GFP_KERNEL);
 	if (!server)
 		goto out_no_server;
 	sb->s_fs_info = server;
-	memset(server, 0, sizeof(struct smb_sb_info));
 
 	server->super_block = sb;
 	server->mnt = NULL;
@@ -542,8 +541,8 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	/* FIXME: move these to the smb_sb_info struct */
 	VERBOSE("alloc chunk = %d\n", sizeof(struct smb_ops) +
 		sizeof(struct smb_mount_data_kernel));
-	mem = smb_kmalloc(sizeof(struct smb_ops) +
-			  sizeof(struct smb_mount_data_kernel), GFP_KERNEL);
+	mem = kmalloc(sizeof(struct smb_ops) +
+		      sizeof(struct smb_mount_data_kernel), GFP_KERNEL);
 	if (!mem)
 		goto out_no_mem;
 
@@ -621,12 +620,12 @@ out_no_root:
 out_no_smbiod:
 	smb_unload_nls(server);
 out_bad_option:
-	smb_kfree(mem);
+	kfree(mem);
 out_no_mem:
 	if (!server->mnt)
 		printk(KERN_ERR "smb_fill_super: allocation failure\n");
 	sb->s_fs_info = NULL;
-	smb_kfree(server);
+	kfree(server);
 	goto out_fail;
 out_wrong_data:
 	printk(KERN_ERR "smbfs: mount_data version %d is not supported\n", ver);
@@ -697,8 +696,7 @@ smb_notify_change(struct dentry *dentry, struct iattr *attr)
 			DENTRY_PATH(dentry),
 			(long) inode->i_size, (long) attr->ia_size);
 
-		filemap_fdatawrite(inode->i_mapping);
-		filemap_fdatawait(inode->i_mapping);
+		filemap_write_and_wait(inode->i_mapping);
 
 		error = smb_open(dentry, O_WRONLY);
 		if (error)
@@ -783,12 +781,6 @@ out:
 	return error;
 }
 
-#ifdef DEBUG_SMB_MALLOC
-int smb_malloced;
-int smb_current_kmalloced;
-int smb_current_vmalloced;
-#endif
-
 static struct super_block *smb_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
@@ -807,12 +799,6 @@ static int __init init_smb_fs(void)
 {
 	int err;
 	DEBUG1("registering ...\n");
-
-#ifdef DEBUG_SMB_MALLOC
-	smb_malloced = 0;
-	smb_current_kmalloced = 0;
-	smb_current_vmalloced = 0;
-#endif
 
 	err = init_inodecache();
 	if (err)
@@ -838,11 +824,6 @@ static void __exit exit_smb_fs(void)
 	unregister_filesystem(&smb_fs_type);
 	smb_destroy_request_cache();
 	destroy_inodecache();
-#ifdef DEBUG_SMB_MALLOC
-	printk(KERN_DEBUG "smb_malloced: %d\n", smb_malloced);
-	printk(KERN_DEBUG "smb_current_kmalloced: %d\n",smb_current_kmalloced);
-	printk(KERN_DEBUG "smb_current_vmalloced: %d\n",smb_current_vmalloced);
-#endif
 }
 
 module_init(init_smb_fs)

@@ -1498,7 +1498,7 @@ gotten:
 		update_mmu_cache(vma, address, entry);
 		lazy_mmu_prot_update(entry);
 		lru_cache_add_active(new_page);
-		page_add_anon_rmap(new_page, vma, address);
+		page_add_new_anon_rmap(new_page, vma, address);
 
 		/* Free the old page.. */
 		new_page = old_page;
@@ -1770,8 +1770,31 @@ out_big:
 out_busy:
 	return -ETXTBSY;
 }
-
 EXPORT_SYMBOL(vmtruncate);
+
+int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
+{
+	struct address_space *mapping = inode->i_mapping;
+
+	/*
+	 * If the underlying filesystem is not going to provide
+	 * a way to truncate a range of blocks (punch a hole) -
+	 * we should return failure right now.
+	 */
+	if (!inode->i_op || !inode->i_op->truncate_range)
+		return -ENOSYS;
+
+	mutex_lock(&inode->i_mutex);
+	down_write(&inode->i_alloc_sem);
+	unmap_mapping_range(mapping, offset, (end - offset), 1);
+	truncate_inode_pages_range(mapping, offset, end);
+	inode->i_op->truncate_range(inode, offset, end);
+	up_write(&inode->i_alloc_sem);
+	mutex_unlock(&inode->i_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(vmtruncate_range);
 
 /* 
  * Primitive swap readahead code. We simply read an aligned block of
@@ -1954,8 +1977,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			goto release;
 		inc_mm_counter(mm, anon_rss);
 		lru_cache_add_active(page);
-		SetPageReferenced(page);
-		page_add_anon_rmap(page, vma, address);
+		page_add_new_anon_rmap(page, vma, address);
 	} else {
 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
 		page = ZERO_PAGE(address);
@@ -2086,7 +2108,7 @@ retry:
 		if (anon) {
 			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
-			page_add_anon_rmap(new_page, vma, address);
+			page_add_new_anon_rmap(new_page, vma, address);
 		} else {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);
@@ -2244,6 +2266,8 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
 }
+
+EXPORT_SYMBOL_GPL(__handle_mm_fault);
 
 #ifndef __PAGETABLE_PUD_FOLDED
 /*

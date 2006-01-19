@@ -128,7 +128,6 @@ static struct dvb_usb_properties umt_properties = {
 };
 
 static struct usb_driver umt_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_umt_010",
 	.probe		= umt_probe,
 	.disconnect = dvb_usb_device_exit,

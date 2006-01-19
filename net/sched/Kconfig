@@ -44,7 +44,7 @@ if NET_SCHED
 
 choice
 	prompt "Packet scheduler clock source"
-	default NET_SCH_CLK_JIFFIES
+	default NET_SCH_CLK_GETTIMEOFDAY
 	---help---
 	  Packet schedulers need a monotonic clock that increments at a static
 	  rate. The kernel provides several suitable interfaces, each with
@@ -411,7 +411,7 @@ config NET_EMATCH_META
 	tristate "Metadata"
 	depends on NET_EMATCH
 	---help---
-	  Say Y here if you want to be ablt to classify packets based on
+	  Say Y here if you want to be able to classify packets based on
 	  metadata such as load average, netfilter attributes, socket
 	  attributes and routing decisions.
 

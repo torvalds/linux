@@ -1,5 +1,6 @@
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
+#ifdef __KERNEL__
 
 /*
  * Simple spin lock operations.  
@@ -45,7 +46,7 @@ static __inline__ unsigned long __spin_trylock(raw_spinlock_t *lock)
 
 	token = LOCK_TOKEN;
 	__asm__ __volatile__(
-"1:	lwarx		%0,0,%2		# __spin_trylock\n\
+"1:	lwarx		%0,0,%2\n\
 	cmpwi		0,%0,0\n\
 	bne-		2f\n\
 	stwcx.		%1,0,%2\n\
@@ -79,7 +80,7 @@ static int __inline__ __raw_spin_trylock(raw_spinlock_t *lock)
 
 #if defined(CONFIG_PPC_SPLPAR) || defined(CONFIG_PPC_ISERIES)
 /* We only yield to the hypervisor if we are in shared processor mode */
-#define SHARED_PROCESSOR (get_paca()->lppaca.shared_proc)
+#define SHARED_PROCESSOR (get_lppaca()->shared_proc)
 extern void __spin_yield(raw_spinlock_t *lock);
 extern void __rw_yield(raw_rwlock_t *lock);
 #else /* SPLPAR || ISERIES */
@@ -123,8 +124,8 @@ static void __inline__ __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long
 
 static __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__(SYNC_ON_SMP"	# __raw_spin_unlock"
-			     : : :"memory");
+	__asm__ __volatile__("# __raw_spin_unlock\n\t"
+				LWSYNC_ON_SMP: : :"memory");
 	lock->slock = 0;
 }
 
@@ -166,7 +167,7 @@ static long __inline__ __read_trylock(raw_rwlock_t *rw)
 	long tmp;
 
 	__asm__ __volatile__(
-"1:	lwarx		%0,0,%1		# read_trylock\n"
+"1:	lwarx		%0,0,%1\n"
 	__DO_SIGN_EXTEND
 "	addic.		%0,%0,1\n\
 	ble-		2f\n"
@@ -191,7 +192,7 @@ static __inline__ long __write_trylock(raw_rwlock_t *rw)
 
 	token = WRLOCK_TOKEN;
 	__asm__ __volatile__(
-"1:	lwarx		%0,0,%2	# write_trylock\n\
+"1:	lwarx		%0,0,%2\n\
 	cmpwi		0,%0,0\n\
 	bne-		2f\n"
 	PPC405_ERR77(0,%1)
@@ -248,8 +249,9 @@ static void __inline__ __raw_read_unlock(raw_rwlock_t *rw)
 	long tmp;
 
 	__asm__ __volatile__(
-	"eieio				# read_unlock\n\
-1:	lwarx		%0,0,%1\n\
+	"# read_unlock\n\t"
+	LWSYNC_ON_SMP
+"1:	lwarx		%0,0,%1\n\
 	addic		%0,%0,-1\n"
 	PPC405_ERR77(0,%1)
 "	stwcx.		%0,0,%1\n\
@@ -261,9 +263,10 @@ static void __inline__ __raw_read_unlock(raw_rwlock_t *rw)
 
 static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	__asm__ __volatile__(SYNC_ON_SMP"	# write_unlock"
-			     : : :"memory");
+	__asm__ __volatile__("# write_unlock\n\t"
+				LWSYNC_ON_SMP: : :"memory");
 	rw->lock = 0;
 }
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_SPINLOCK_H */

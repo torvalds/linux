@@ -93,14 +93,15 @@ EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
 /* also used by kexec */
 void machine_shutdown(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	if (ppc_md.machine_shutdown)
+		ppc_md.machine_shutdown();
 }
 
 void machine_restart(char *cmd)
 {
 	machine_shutdown();
-	ppc_md.restart(cmd);
+	if (ppc_md.restart)
+		ppc_md.restart(cmd);
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
@@ -112,7 +113,8 @@ void machine_restart(char *cmd)
 void machine_power_off(void)
 {
 	machine_shutdown();
-	ppc_md.power_off();
+	if (ppc_md.power_off)
+		ppc_md.power_off();
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
@@ -129,7 +131,8 @@ EXPORT_SYMBOL_GPL(pm_power_off);
 void machine_halt(void)
 {
 	machine_shutdown();
-	ppc_md.halt();
+	if (ppc_md.halt)
+		ppc_md.halt();
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
@@ -294,129 +297,6 @@ struct seq_operations cpuinfo_op = {
 	.show =	show_cpuinfo,
 };
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-static int __init set_preferred_console(void)
-{
-	struct device_node *prom_stdout = NULL;
-	char *name;
-	u32 *spd;
-	int offset = 0;
-
-	DBG(" -> set_preferred_console()\n");
-
-	/* The user has requested a console so this is already set up. */
-	if (strstr(saved_command_line, "console=")) {
-		DBG(" console was specified !\n");
-		return -EBUSY;
-	}
-
-	if (!of_chosen) {
-		DBG(" of_chosen is NULL !\n");
-		return -ENODEV;
-	}
-	/* We are getting a weird phandle from OF ... */
-	/* ... So use the full path instead */
-	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name == NULL) {
-		DBG(" no linux,stdout-path !\n");
-		return -ENODEV;
-	}
-	prom_stdout = of_find_node_by_path(name);
-	if (!prom_stdout) {
-		DBG(" can't find stdout package %s !\n", name);
-		return -ENODEV;
-	}	
-	DBG("stdout is %s\n", prom_stdout->full_name);
-
-	name = (char *)get_property(prom_stdout, "name", NULL);
-	if (!name) {
-		DBG(" stdout package has no name !\n");
-		goto not_found;
-	}
-	spd = (u32 *)get_property(prom_stdout, "current-speed", NULL);
-
-	if (0)
-		;
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	else if (strcmp(name, "serial") == 0) {
-		int i;
-		u32 *reg = (u32 *)get_property(prom_stdout, "reg", &i);
-		if (i > 8) {
-			switch (reg[1]) {
-				case 0x3f8:
-					offset = 0;
-					break;
-				case 0x2f8:
-					offset = 1;
-					break;
-				case 0x898:
-					offset = 2;
-					break;
-				case 0x890:
-					offset = 3;
-					break;
-				default:
-					/* We dont recognise the serial port */
-					goto not_found;
-			}
-		}
-	}
-#endif /* CONFIG_SERIAL_8250_CONSOLE */
-#ifdef CONFIG_PPC_PSERIES
-	else if (strcmp(name, "vty") == 0) {
- 		u32 *reg = (u32 *)get_property(prom_stdout, "reg", NULL);
- 		char *compat = (char *)get_property(prom_stdout, "compatible", NULL);
-
- 		if (reg && compat && (strcmp(compat, "hvterm-protocol") == 0)) {
- 			/* Host Virtual Serial Interface */
- 			switch (reg[0]) {
- 				case 0x30000000:
- 					offset = 0;
- 					break;
- 				case 0x30000001:
- 					offset = 1;
- 					break;
- 				default:
-					goto not_found;
- 			}
-			of_node_put(prom_stdout);
-			DBG("Found hvsi console at offset %d\n", offset);
- 			return add_preferred_console("hvsi", offset, NULL);
- 		} else {
- 			/* pSeries LPAR virtual console */
-			of_node_put(prom_stdout);
-			DBG("Found hvc console\n");
- 			return add_preferred_console("hvc", 0, NULL);
- 		}
-	}
-#endif /* CONFIG_PPC_PSERIES */
-#ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
-	else if (strcmp(name, "ch-a") == 0)
-		offset = 0;
-	else if (strcmp(name, "ch-b") == 0)
-		offset = 1;
-#endif /* CONFIG_SERIAL_PMACZILOG_CONSOLE */
-	else
-		goto not_found;
-	of_node_put(prom_stdout);
-
-	DBG("Found serial console at ttyS%d\n", offset);
-
-	if (spd) {
-		static char __initdata opt[16];
-		sprintf(opt, "%d", *spd);
-		return add_preferred_console("ttyS", offset, opt);
-	} else
-		return add_preferred_console("ttyS", offset, NULL);
-
- not_found:
-	DBG("No preferred console found !\n");
-	of_node_put(prom_stdout);
-	return -ENODEV;
-}
-console_initcall(set_preferred_console);
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
 void __init check_for_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -442,7 +322,7 @@ void __init check_for_initrd(void)
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
 	 * look sensible. If not, clear initrd reference.
 	 */
-	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
+	if (is_kernel_addr(initrd_start) && is_kernel_addr(initrd_end) &&
 	    initrd_end > initrd_start)
 		ROOT_DEV = Root_RAM0;
 	else

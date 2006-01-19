@@ -17,6 +17,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
@@ -83,21 +84,6 @@ struct ea_buffer {
 #define EA_NEW		0x0004
 #define EA_MALLOC	0x0008
 
-/* Namespaces */
-#define XATTR_SYSTEM_PREFIX "system."
-#define XATTR_SYSTEM_PREFIX_LEN (sizeof (XATTR_SYSTEM_PREFIX) - 1)
-
-#define XATTR_USER_PREFIX "user."
-#define XATTR_USER_PREFIX_LEN (sizeof (XATTR_USER_PREFIX) - 1)
-
-#define XATTR_OS2_PREFIX "os2."
-#define XATTR_OS2_PREFIX_LEN (sizeof (XATTR_OS2_PREFIX) - 1)
-
-/* XATTR_SECURITY_PREFIX is defined in include/linux/xattr.h */
-#define XATTR_SECURITY_PREFIX_LEN (sizeof (XATTR_SECURITY_PREFIX) - 1)
-
-#define XATTR_TRUSTED_PREFIX "trusted."
-#define XATTR_TRUSTED_PREFIX_LEN (sizeof (XATTR_TRUSTED_PREFIX) - 1)
 
 /*
  * These three routines are used to recognize on-disk extended attributes
@@ -773,36 +759,23 @@ static int can_set_system_xattr(struct inode *inode, const char *name,
 static int can_set_xattr(struct inode *inode, const char *name,
 			 const void *value, size_t value_len)
 {
-	if (IS_RDONLY(inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
-
-	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
-		/*
-		 * "system.*"
-		 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return can_set_system_xattr(inode, name, value, value_len);
 
-	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) == 0)
-		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
-
-#ifdef CONFIG_JFS_SECURITY
-	if (strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)
-	    == 0)
-		return 0;	/* Leave it to the security module */
-#endif
-		
-	if((strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) != 0) &&
-	   (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) != 0))
+	/*
+	 * Don't allow setting an attribute in an unknown namespace.
+	 */
+	if (strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) &&
+	    strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) &&
+	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) &&
+	    strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN))
 		return -EOPNOTSUPP;
 
 	if (!S_ISREG(inode->i_mode) &&
 	    (!S_ISDIR(inode->i_mode) || inode->i_mode &S_ISVTX))
 		return -EPERM;
 
-	return permission(inode, MAY_WRITE, NULL);
+	return 0;
 }
 
 int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
@@ -972,22 +945,6 @@ int jfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	return rc;
 }
 
-static int can_get_xattr(struct inode *inode, const char *name)
-{
-#ifdef CONFIG_JFS_SECURITY
-	if(strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) == 0)
-		return 0;
-#endif
-
-	if(strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) == 0)
-		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
-
-	if(strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) == 0)
-		return 0;
-
-	return permission(inode, MAY_READ, NULL);
-}
-
 ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 		       size_t buf_size)
 {
@@ -998,11 +955,7 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 	ssize_t size;
 	int namelen = strlen(name);
 	char *os2name = NULL;
-	int rc;
 	char *value;
-
-	if ((rc = can_get_xattr(inode, name)))
-		return rc;
 
 	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
 		os2name = kmalloc(namelen - XATTR_OS2_PREFIX_LEN + 1,

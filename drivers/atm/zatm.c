@@ -669,11 +669,13 @@ printk("NONONONOO!!!!\n");
 		u32 *put;
 		int i;
 
-		dsc = (u32 *) kmalloc(uPD98401_TXPD_SIZE*2+
-		    uPD98401_TXBD_SIZE*ATM_SKB(skb)->iovcnt,GFP_ATOMIC);
+		dsc = kmalloc(uPD98401_TXPD_SIZE * 2 +
+			uPD98401_TXBD_SIZE * ATM_SKB(skb)->iovcnt, GFP_ATOMIC);
 		if (!dsc) {
-			if (vcc->pop) vcc->pop(vcc,skb);
-			else dev_kfree_skb_irq(skb);
+			if (vcc->pop)
+				vcc->pop(vcc, skb);
+			else
+				dev_kfree_skb_irq(skb);
 			return -EAGAIN;
 		}
 		/* @@@ should check alignment */
@@ -683,7 +685,7 @@ printk("NONONONOO!!!!\n");
 		    (ATM_SKB(skb)->atm_options & ATM_ATMOPT_CLP ?
 		    uPD98401_CLPM_1 : uPD98401_CLPM_0));
 		dsc[1] = 0;
-		dsc[2] = ATM_SKB(skb)->iovcnt*uPD98401_TXBD_SIZE;
+		dsc[2] = ATM_SKB(skb)->iovcnt * uPD98401_TXBD_SIZE;
 		dsc[3] = virt_to_bus(put);
 		for (i = 0; i < ATM_SKB(skb)->iovcnt; i++) {
 			*put++ = ((struct iovec *) skb->data)[i].iov_len;

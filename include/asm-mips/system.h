@@ -159,10 +159,20 @@ struct task_struct;
 do {									\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
-	(last) = resume(prev, next, next->thread_info);			\
+	(last) = resume(prev, next, task_thread_info(next));		\
 	if (cpu_has_dsp)						\
 		__restore_dsp(current);					\
 } while(0)
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
 
 static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 {

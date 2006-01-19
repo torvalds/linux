@@ -394,7 +394,7 @@ static void rs_360_start(struct tty_struct *tty)
 static _INLINE_ void receive_chars(ser_info_t *info)
 {
 	struct tty_struct *tty = info->tty;
-	unsigned char ch, *cp;
+	unsigned char ch, flag, *cp;
 	/*int	ignored = 0;*/
 	int	i;
 	ushort	status;
@@ -438,24 +438,15 @@ static _INLINE_ void receive_chars(ser_info_t *info)
 		cp = (char *)bdp->buf;
 		status = bdp->status;
 
-		/* Check to see if there is room in the tty buffer for
-		 * the characters in our BD buffer.  If not, we exit
-		 * now, leaving the BD with the characters.  We'll pick
-		 * them up again on the next receive interrupt (which could
-		 * be a timeout).
-		 */
-		if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE)
-			break;
-
 		while (i-- > 0) {
 			ch = *cp++;
-			*tty->flip.char_buf_ptr = ch;
 			icount->rx++;
 
 #ifdef SERIAL_DEBUG_INTR
 			printk("DR%02x:%02x...", ch, status);
 #endif
-			*tty->flip.flag_buf_ptr = 0;
+			flag = TTY_NORMAL;
+
 			if (status & (BD_SC_BR | BD_SC_FR |
 				       BD_SC_PR | BD_SC_OV)) {
 				/*
@@ -490,30 +481,18 @@ static _INLINE_ void receive_chars(ser_info_t *info)
 					if (info->flags & ASYNC_SAK)
 						do_SAK(tty);
 				} else if (status & BD_SC_PR)
-					*tty->flip.flag_buf_ptr = TTY_PARITY;
+					flag = TTY_PARITY;
 				else if (status & BD_SC_FR)
-					*tty->flip.flag_buf_ptr = TTY_FRAME;
-				if (status & BD_SC_OV) {
-					/*
-					 * Overrun is special, since it's
-					 * reported immediately, and doesn't
-					 * affect the current character
-					 */
-					if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-						tty->flip.count++;
-						tty->flip.flag_buf_ptr++;
-						tty->flip.char_buf_ptr++;
-						*tty->flip.flag_buf_ptr =
-								TTY_OVERRUN;
-					}
-				}
+					flag = TTY_FRAME;
 			}
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				break;
-
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, ch, flag);
+			if (status & BD_SC_OV)
+				/*
+				 * Overrun is special, since it's
+				 * reported immediately, and doesn't
+				 * affect the current character
+				 */
+				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
 
 		/* This BD is ready to be used again.  Clear status.
@@ -541,12 +520,7 @@ static _INLINE_ void receive_break(ser_info_t *info)
 	/* Check to see if there is room in the tty buffer for
 	 * the break.  If not, we exit now, losing the break.  FIXME
 	 */
-	if ((tty->flip.count + 1) >= TTY_FLIPBUF_SIZE)
-		return;
-	*(tty->flip.flag_buf_ptr++) = TTY_BREAK;
-	*(tty->flip.char_buf_ptr++) = 0;
-	tty->flip.count++;
-
+	tty_insert_flip_char(tty, 0, TTY_BREAK);
 	schedule_work(&tty->flip.work);
 }
 

@@ -5,7 +5,8 @@
 /*
  * This driver needs external firmware. Please use the command
  * "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
- * download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+ * download/extract it, and then copy it to /usr/lib/hotplug/firmware
+ * or /lib/firmware (depending on configuration of firmware hotplug).
  */
 #define SP887X_DEFAULT_FIRMWARE "dvb-fe-sp887x.fw"
 
@@ -581,7 +582,7 @@ static struct dvb_frontend_ops sp887x_ops = {
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-		        FE_CAN_RECOVER
+			FE_CAN_RECOVER
 	},
 
 	.release = sp887x_release,

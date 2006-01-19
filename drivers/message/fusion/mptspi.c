@@ -103,13 +103,16 @@ static int	mptspiTaskCtx = -1;
 static int	mptspiInternalCtx = -1; /* Used only for internal commands */
 
 static struct scsi_host_template mptspi_driver_template = {
+	.module				= THIS_MODULE,
 	.proc_name			= "mptspi",
 	.proc_info			= mptscsih_proc_info,
 	.name				= "MPT SPI Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptscsih_qcmd,
+	.target_alloc			= mptscsih_target_alloc,
 	.slave_alloc			= mptscsih_slave_alloc,
 	.slave_configure		= mptscsih_slave_configure,
+	.target_destroy			= mptscsih_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_abort_handler		= mptscsih_abort,
@@ -155,11 +158,10 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	MPT_SCSI_HOST		*hd;
 	MPT_ADAPTER 		*ioc;
 	unsigned long		 flags;
-	int			 sz, ii;
+	int			 ii;
 	int			 numSGE = 0;
 	int			 scale;
 	int			 ioc_cap;
-	u8			*mem;
 	int			error=0;
 	int			r;
 
@@ -177,13 +179,15 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 		  "Skipping because it's not operational!\n",
 		  ioc->name);
-		return -ENODEV;
+		error = -ENODEV;
+		goto out_mptspi_probe;
 	}
 
 	if (!ioc->active) {
 		printk(MYIOC_s_WARN_FMT "Skipping because it's disabled!\n",
 		  ioc->name);
-		return -ENODEV;
+		error = -ENODEV;
+		goto out_mptspi_probe;
 	}
 
 	/*  Sanity check - ensure at least 1 port is INITIATOR capable
@@ -208,7 +212,8 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 			"Unable to register controller with SCSI subsystem\n",
 			ioc->name);
-                return -1;
+		error = -1;
+		goto out_mptspi_probe;
         }
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
@@ -282,36 +287,27 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* SCSI needs scsi_cmnd lookup table!
 	 * (with size equal to req_depth*PtrSz!)
 	 */
-	sz = ioc->req_depth * sizeof(void *);
-	mem = kmalloc(sz, GFP_ATOMIC);
-	if (mem == NULL) {
+	hd->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
+	if (!hd->ScsiLookup) {
 		error = -ENOMEM;
-		goto mptspi_probe_failed;
+		goto out_mptspi_probe;
 	}
 
-	memset(mem, 0, sz);
-	hd->ScsiLookup = (struct scsi_cmnd **) mem;
-
-	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p, sz=%d\n",
-		 ioc->name, hd->ScsiLookup, sz));
+	dprintk((MYIOC_s_INFO_FMT "ScsiLookup @ %p\n",
+		 ioc->name, hd->ScsiLookup));
 
 	/* Allocate memory for the device structures.
 	 * A non-Null pointer at an offset
 	 * indicates a device exists.
 	 * max_id = 1 + maximum id (hosts.h)
 	 */
-	sz = sh->max_id * sizeof(void *);
-	mem = kmalloc(sz, GFP_ATOMIC);
-	if (mem == NULL) {
+	hd->Targets = kcalloc(sh->max_id, sizeof(void *), GFP_ATOMIC);
+	if (!hd->Targets) {
 		error = -ENOMEM;
-		goto mptspi_probe_failed;
+		goto out_mptspi_probe;
 	}
 
-	memset(mem, 0, sz);
-	hd->Targets = (VirtDevice **) mem;
-
-	dprintk((KERN_INFO
-	  "  Targets @ %p, sz=%d\n", hd->Targets, sz));
+	dprintk((KERN_INFO "  vdev @ %p\n", hd->Targets));
 
 	/* Clear the TM flags
 	 */
@@ -385,13 +381,13 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if(error) {
 		dprintk((KERN_ERR MYNAM
 		  "scsi_add_host failed\n"));
-		goto mptspi_probe_failed;
+		goto out_mptspi_probe;
 	}
 
 	scsi_scan_host(sh);
 	return 0;
 
-mptspi_probe_failed:
+out_mptspi_probe:
 
 	mptscsih_remove(pdev);
 	return error;

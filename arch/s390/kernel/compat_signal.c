@@ -467,8 +467,6 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 	if (err)
 		goto badframe; 
 
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
 	set_fs (KERNEL_DS);
 	do_sigaltstack((stack_t __user *)&st, NULL, regs->gprs[15]);
 	set_fs (old_fs);

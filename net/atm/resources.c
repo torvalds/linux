@@ -16,6 +16,7 @@
 #include <linux/kernel.h> /* for barrier */
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 #include <net/sock.h>	 /* for struct sock */
 

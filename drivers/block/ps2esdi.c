@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/hdreg.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -81,8 +82,7 @@ static void (*current_int_handler) (u_int) = NULL;
 static void ps2esdi_normal_interrupt_handler(u_int);
 static void ps2esdi_initial_reset_int_handler(u_int);
 static void ps2esdi_geometry_int_handler(u_int);
-static int ps2esdi_ioctl(struct inode *inode, struct file *file,
-			 u_int cmd, u_long arg);
+static int ps2esdi_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static int ps2esdi_read_status_words(int num_words, int max_words, u_short * buffer);
 
@@ -132,7 +132,7 @@ static struct ps2esdi_i_struct ps2esdi_info[MAX_HD] =
 static struct block_device_operations ps2esdi_fops =
 {
 	.owner		= THIS_MODULE,
-	.ioctl		= ps2esdi_ioctl,
+	.getgeo		= ps2esdi_getgeo,
 };
 
 static struct gendisk *ps2esdi_gendisk[2];
@@ -1058,21 +1058,13 @@ static void dump_cmd_complete_status(u_int int_ret_code)
 
 }
 
-static int ps2esdi_ioctl(struct inode *inode,
-			 struct file *file, u_int cmd, u_long arg)
+static int ps2esdi_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct ps2esdi_i_struct *p = inode->i_bdev->bd_disk->private_data;
-	struct ps2esdi_geometry geom;
+	struct ps2esdi_i_struct *p = bdev->bd_disk->private_data;
 
-	if (cmd != HDIO_GETGEO)
-		return -EINVAL;
-	memset(&geom, 0, sizeof(geom));
-	geom.heads = p->head;
-	geom.sectors = p->sect;
-	geom.cylinders = p->cyl;
-	geom.start = get_start_sect(inode->i_bdev);
-	if (copy_to_user((void __user *)arg, &geom, sizeof(geom)))
-		return -EFAULT;
+	geo->heads = p->head;
+	geo->sectors = p->sect;
+	geo->cylinders = p->cyl;
 	return 0;
 }
 

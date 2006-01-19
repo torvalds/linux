@@ -1098,6 +1098,23 @@ static void __init quirk_alder_ioapic(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_EESSC,	quirk_alder_ioapic );
 #endif
 
+enum ide_combined_type { COMBINED = 0, IDE = 1, LIBATA = 2 };
+/* Defaults to combined */
+static enum ide_combined_type combined_mode;
+
+static int __init combined_setup(char *str)
+{
+	if (!strncmp(str, "ide", 3))
+		combined_mode = IDE;
+	else if (!strncmp(str, "libata", 6))
+		combined_mode = LIBATA;
+	else /* "combined" or anything else defaults to old behavior */
+		combined_mode = COMBINED;
+
+	return 1;
+}
+__setup("combined_mode=", combined_setup);
+
 #ifdef CONFIG_SCSI_SATA_INTEL_COMBINED
 static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 {
@@ -1125,6 +1142,9 @@ static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 	case 0x27c4:
 		ich = 7;
 		break;
+	case 0x2828:	/* ICH8M */
+		ich = 8;
+		break;
 	default:
 		/* we do not handle this PCI device */
 		return;
@@ -1144,7 +1164,7 @@ static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 		else
 			return;			/* not in combined mode */
 	} else {
-		WARN_ON((ich != 6) && (ich != 7));
+		WARN_ON((ich != 6) && (ich != 7) && (ich != 8));
 		tmp &= 0x3;  /* interesting bits 1:0 */
 		if (tmp & (1 << 0))
 			comb = (1 << 2);	/* PATA port 0, SATA port 1 */
@@ -1163,6 +1183,19 @@ static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 	/* if SATA port is in native mode, we're ok. */
 	if (prog & comb)
 		return;
+
+	/* Don't reserve any so the IDE driver can get them (but only if
+	 * combined_mode=ide).
+	 */
+	if (combined_mode == IDE)
+		return;
+
+	/* Grab them both for libata if combined_mode=libata. */
+	if (combined_mode == LIBATA) {
+		request_region(0x1f0, 8, "libata");	/* port 0 */
+		request_region(0x170, 8, "libata");	/* port 1 */
+		return;
+	}
 
 	/* SATA port is in legacy mode.  Reserve port so that
 	 * IDE driver does not attempt to use it.  If request_region
@@ -1311,6 +1344,32 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	}
 	pci_do_fixups(dev, start, end);
 }
+
+/* Enable 1k I/O space granularity on the Intel P64H2 */
+static void __devinit quirk_p64h2_1k_io(struct pci_dev *dev)
+{
+	u16 en1k;
+	u8 io_base_lo, io_limit_lo;
+	unsigned long base, limit;
+	struct resource *res = dev->resource + PCI_BRIDGE_RESOURCES;
+
+	pci_read_config_word(dev, 0x40, &en1k);
+
+	if (en1k & 0x200) {
+		printk(KERN_INFO "PCI: Enable I/O Space to 1 KB Granularity\n");
+
+		pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
+		pci_read_config_byte(dev, PCI_IO_LIMIT, &io_limit_lo);
+		base = (io_base_lo & (PCI_IO_RANGE_MASK | 0x0c)) << 8;
+		limit = (io_limit_lo & (PCI_IO_RANGE_MASK | 0x0c)) << 8;
+
+		if (base <= limit) {
+			res->start = base;
+			res->end = limit + 0x3ff;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	0x1460,		quirk_p64h2_1k_io);
 
 EXPORT_SYMBOL(pcie_mch_quirk);
 #ifdef CONFIG_HOTPLUG

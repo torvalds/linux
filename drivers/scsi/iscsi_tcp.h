@@ -71,7 +71,8 @@
 #define ISCSI_MGMT_CMDS_MAX		32	/* must be power of 2 */
 #define ISCSI_MGMT_ITT_OFFSET		0xa00
 #define ISCSI_SG_TABLESIZE		SG_ALL
-#define ISCSI_CMD_PER_LUN		128
+#define ISCSI_DEF_CMD_PER_LUN		32
+#define ISCSI_MAX_CMD_PER_LUN		128
 #define ISCSI_TCP_MAX_CMD_LEN		16
 
 #define ITT_MASK			(0xfff)
@@ -157,7 +158,7 @@ struct iscsi_conn {
 	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
 	struct kfifo		*xmitqueue;	/* data-path cmd queue */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
-	struct semaphore	xmitsema;	/* serializes connection xmit,
+	struct mutex		xmitmutex;	/* serializes connection xmit,
 						 * access to kfifos:	  *
 						 * xmitqueue, writequeue, *
 						 * immqueue, mgmtqueue    */
@@ -190,6 +191,8 @@ struct iscsi_conn {
 	uint32_t		sendpage_failures_cnt;
 	uint32_t		discontiguous_hdr_cnt;
 	uint32_t		eh_abort_cnt;
+
+	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 };
 
 struct iscsi_session {
@@ -239,8 +242,8 @@ struct iscsi_session {
 
 struct iscsi_buf {
 	struct scatterlist	sg;
-	struct kvec		iov;
 	unsigned int		sent;
+	char			use_sendmsg;
 };
 
 struct iscsi_data_task {

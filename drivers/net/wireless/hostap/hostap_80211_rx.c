@@ -1,7 +1,18 @@
 #include <linux/etherdevice.h>
+#include <net/ieee80211_crypt.h>
 
 #include "hostap_80211.h"
 #include "hostap.h"
+#include "hostap_ap.h"
+
+/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
+/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
+static unsigned char rfc1042_header[] =
+{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
+static unsigned char bridge_tunnel_header[] =
+{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+/* No encapsulation header if EtherType < 0x600 (=length) */
 
 void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 			  struct hostap_80211_rx_status *rx_stats)
@@ -435,7 +446,7 @@ static void hostap_rx_sta_beacon(local_info_t *local, struct sk_buff *skb,
 }
 
 
-static inline int
+static int
 hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 		     struct hostap_80211_rx_status *rx_stats, u16 type,
 		     u16 stype)
@@ -499,7 +510,7 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 
 
 /* Called only as a tasklet (software IRQ) */
-static inline struct net_device *prism2_rx_get_wds(local_info_t *local,
+static struct net_device *prism2_rx_get_wds(local_info_t *local,
 						   u8 *addr)
 {
 	struct hostap_interface *iface = NULL;
@@ -519,7 +530,7 @@ static inline struct net_device *prism2_rx_get_wds(local_info_t *local,
 }
 
 
-static inline int
+static int
 hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr_4addr *hdr,
 		    u16 fc, struct net_device **wds)
 {
@@ -615,7 +626,7 @@ static int hostap_is_eapol_frame(local_info_t *local, struct sk_buff *skb)
 
 
 /* Called only as a tasklet (software IRQ) */
-static inline int
+static int
 hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 			struct ieee80211_crypt_data *crypt)
 {
@@ -654,7 +665,7 @@ hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 
 
 /* Called only as a tasklet (software IRQ) */
-static inline int
+static int
 hostap_rx_frame_decrypt_msdu(local_info_t *local, struct sk_buff *skb,
 			     int keyidx, struct ieee80211_crypt_data *crypt)
 {

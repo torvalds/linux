@@ -276,7 +276,7 @@ static void hp100_RegisterDump(struct net_device *dev);
  * Convert an address in a kernel buffer to a bus/phys/dma address.
  * This work *only* for memory fragments part of lp->page_vaddr,
  * because it was properly DMA allocated via pci_alloc_consistent(),
- * so we just need to "retreive" the original mapping to bus/phys/dma
+ * so we just need to "retrieve" the original mapping to bus/phys/dma
  * address - Jean II */
 static inline dma_addr_t virt_to_whatever(struct net_device *dev, u32 * ptr)
 {

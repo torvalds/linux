@@ -1089,7 +1089,7 @@ static struct pci_driver ad1889_driver = {
 
 static int __init ad1889_init_module(void)
 {
-	return pci_module_init(&ad1889_driver);
+	return pci_register_driver(&ad1889_driver);
 }
 
 static void ad1889_exit_module(void)

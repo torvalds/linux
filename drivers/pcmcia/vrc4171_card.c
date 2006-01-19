@@ -1,7 +1,7 @@
 /*
  * vrc4171_card.c, NEC VRC4171 Card Controller driver for Socket Services.
  *
- * Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ * Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 #include "i82365.h"
 
 MODULE_DESCRIPTION("NEC VRC4171 Card Controllers driver for Socket Services");
-MODULE_AUTHOR("Yoichi Yuasa <yuasa@hh.iij4u.or.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
 MODULE_LICENSE("GPL");
 
 #define CARD_MAX_SLOTS		2
@@ -301,75 +301,6 @@ static int pccard_get_status(struct pcmcia_socket *sock, u_int *value)
 	return 0;
 }
 
-static inline u_char get_Vcc_value(uint8_t voltage)
-{
-	switch (voltage) {
-	case VCC_STATUS_3V:
-		return 33;
-	case VCC_STATUS_5V:
-		return 50;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static inline u_char get_Vpp_value(uint8_t power, u_char Vcc)
-{
-	if ((power & 0x03) == 0x01 || (power & 0x03) == 0x02)
-		return Vcc;
-
-	return 0;
-}
-
-static int pccard_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	unsigned int slot;
-	uint8_t power, voltage, control, cscint;
-
-	if (sock == NULL || sock->sock >= CARD_MAX_SLOTS || state == NULL)
-		return -EINVAL;
-
-	slot = sock->sock;
-
-	power = exca_read_byte(slot, I365_POWER);
-	voltage = exca_read_byte(slot, CARD_VOLTAGE_SELECT);
-
-	state->Vcc = get_Vcc_value(voltage);
-	state->Vpp = get_Vpp_value(power, state->Vcc);
-
-	state->flags = 0;
-	if (power & POWER_ENABLE)
-		state->flags |= SS_PWR_AUTO;
-	if (power & I365_PWR_OUT)
-		state->flags |= SS_OUTPUT_ENA;
-
-	control = exca_read_byte(slot, I365_INTCTL);
-	if (control & I365_PC_IOCARD)
-		state->flags |= SS_IOCARD;
-	if (!(control & I365_PC_RESET))
-		state->flags |= SS_RESET;
-
-        cscint = exca_read_byte(slot, I365_CSCINT);
-	state->csc_mask = 0;
-	if (state->flags & SS_IOCARD) {
-		if (cscint & I365_CSC_STSCHG)
-			state->flags |= SS_STSCHG;
-	} else {
-		if (cscint & I365_CSC_BVD1)
-			state->csc_mask |= SS_BATDEAD;
-		if (cscint & I365_CSC_BVD2)
-			state->csc_mask |= SS_BATWARN;
-	}
-	if (cscint & I365_CSC_READY)
-		state->csc_mask |= SS_READY;
-	if (cscint & I365_CSC_DETECT)
-		state->csc_mask |= SS_DETECT;
-
-	return 0;
-}
-
 static inline uint8_t set_Vcc_value(u_char Vcc)
 {
 	switch (Vcc) {
@@ -551,7 +482,6 @@ static int pccard_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map 
 static struct pccard_operations vrc4171_pccard_operations = {
 	.init			= pccard_init,
 	.get_status		= pccard_get_status,
-	.get_socket		= pccard_get_socket,
 	.set_socket		= pccard_set_socket,
 	.set_io_map		= pccard_set_io_map,
 	.set_mem_map		= pccard_set_mem_map,

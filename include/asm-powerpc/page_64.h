@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PAGE_64_H
 #define _ASM_POWERPC_PAGE_64_H
+#ifdef __KERNEL__
 
 /*
  * Copyright (C) 2001 PPC64 Team, IBM Corp
@@ -24,16 +25,6 @@
  * HW_PAGE_SHIFT, that is 4K pages.
  */
 #define PAGE_FACTOR		(PAGE_SHIFT - HW_PAGE_SHIFT)
-
-#define REGION_SIZE   4UL
-#define REGION_SHIFT  60UL
-#define REGION_MASK   (((1UL<<REGION_SIZE)-1UL)<<REGION_SHIFT)
-
-#define VMALLOCBASE		ASM_CONST(0xD000000000000000)
-#define VMALLOC_REGION_ID	(VMALLOCBASE >> REGION_SHIFT)
-#define KERNEL_REGION_ID	(KERNELBASE >> REGION_SHIFT)
-#define USER_REGION_ID		(0UL)
-#define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
 
 /* Segment size */
 #define SID_SHIFT		28
@@ -180,4 +171,5 @@ extern unsigned int HPAGE_SHIFT;
 
 #include <asm-generic/page.h>
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PAGE_64_H */

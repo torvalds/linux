@@ -31,17 +31,17 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 #define __FAIL_ADDR_MASK 0x7ffff000
 #define __FIXUP_MASK 0x7fffffff
 #define __SUBCODE_MASK 0x0200
 #define __PF_RES_FIELD 0ULL
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 #define __FAIL_ADDR_MASK -4096L
 #define __FIXUP_MASK ~0L
 #define __SUBCODE_MASK 0x0600
 #define __PF_RES_FIELD 0x8000000000000000ULL
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 #ifdef CONFIG_SYSCTL
 extern int sysctl_userprocess_debug;
@@ -393,11 +393,11 @@ int pfault_init(void)
 		"2:\n"
 		".section __ex_table,\"a\"\n"
 		"   .align 4\n"
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		"   .long  0b,1b\n"
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 		"   .quad  0b,1b\n"
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 		".previous"
                 : "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc" );
         __ctl_set_bit(0, 9);
@@ -417,11 +417,11 @@ void pfault_fini(void)
 		"0:\n"
 		".section __ex_table,\"a\"\n"
 		"   .align 4\n"
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		"   .long  0b,0b\n"
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 		"   .quad  0b,0b\n"
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 		".previous"
 		: : "a" (&refbk), "m" (refbk) : "cc" );
 }

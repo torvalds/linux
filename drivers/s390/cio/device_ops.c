@@ -1,12 +1,12 @@
 /*
  *  drivers/s390/cio/device_ops.c
  *
- *   $Revision: 1.57 $
+ *   $Revision: 1.61 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *               Cornelia Huck (cohuck@de.ibm.com)
+ *               Cornelia Huck (cornelia.huck@de.ibm.com)
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -570,7 +570,7 @@ ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 int
 _ccw_device_get_subchannel_number(struct ccw_device *cdev)
 {
-	return cdev->private->irq;
+	return cdev->private->sch_no;
 }
 
 int

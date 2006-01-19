@@ -13,10 +13,10 @@
 
 static int __devinit snd_vortex_mixer(vortex_t * vortex)
 {
-	ac97_bus_t *pbus;
-	ac97_template_t ac97;
+	struct snd_ac97_bus *pbus;
+	struct snd_ac97_template ac97;
 	int err;
-	static ac97_bus_ops_t ops = {
+	static struct snd_ac97_bus_ops ops = {
 		.write = vortex_codec_write,
 		.read = vortex_codec_read,
 	};

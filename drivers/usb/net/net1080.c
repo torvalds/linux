@@ -593,7 +593,6 @@ static const struct usb_device_id	products [] = {
 MODULE_DEVICE_TABLE(usb, products);
 
 static struct usb_driver net1080_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"net1080",
 	.id_table =	products,
 	.probe =	usbnet_probe,

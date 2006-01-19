@@ -1033,9 +1033,9 @@ When kbuild executes the following steps are followed (roughly):
 
 	Example:
 		#arch/i386/Makefile
-		GCC_VERSION := $(call cc-version)
 		cflags-y += $(shell \
-		if [ $(GCC_VERSION) -ge 0300 ] ; then echo "-mregparm=3"; fi ;)
+		if [ $(call cc-version) -ge 0300 ] ; then \
+			echo "-mregparm=3"; fi ;)
 
 	In the above example -mregparm=3 is only used for gcc version greater
 	than or equal to gcc 3.0.

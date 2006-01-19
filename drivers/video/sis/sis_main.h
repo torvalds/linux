@@ -727,9 +727,14 @@ static int	sisfb_ioctl(struct inode *inode, struct file *file,
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
+			    unsigned long arg);
+#else
 static int	sisfb_ioctl(struct inode *inode, struct file *file,
 				unsigned int cmd, unsigned long arg,
 				struct fb_info *info);
+#endif
 static int	sisfb_set_par(struct fb_info *info);
 static int	sisfb_blank(int blank,
 				struct fb_info *info);

@@ -40,6 +40,7 @@ static struct alps_model_info alps_model_data[] = {
 	{ { 0x33, 0x02, 0x0a },	0x88, 0xf8, ALPS_OLDPROTO },		/* UMAX-530T */
 	{ { 0x53, 0x02, 0x0a },	0xf8, 0xf8, 0 },
 	{ { 0x53, 0x02, 0x14 },	0xf8, 0xf8, 0 },
+	{ { 0x60, 0x03, 0xc8 }, 0xf8, 0xf8, 0 },			/* HP ze1115 */
 	{ { 0x63, 0x02, 0x0a },	0xf8, 0xf8, 0 },
 	{ { 0x63, 0x02, 0x14 },	0xf8, 0xf8, 0 },
 	{ { 0x63, 0x02, 0x28 },	0xf8, 0xf8, ALPS_FW_BK_2 },		/* Fujitsu Siemens S6010 */
@@ -347,6 +348,40 @@ static int alps_tap_mode(struct psmouse *psmouse, int enable)
 	return 0;
 }
 
+/*
+ * alps_poll() - poll the touchpad for current motion packet.
+ * Used in resync.
+ */
+static int alps_poll(struct psmouse *psmouse)
+{
+	struct alps_data *priv = psmouse->private;
+	unsigned char buf[6];
+	int poll_failed;
+
+	if (priv->i->flags & ALPS_PASS)
+		alps_passthrough_mode(psmouse, 1);
+
+	poll_failed = ps2_command(&psmouse->ps2dev, buf,
+				  PSMOUSE_CMD_POLL | (psmouse->pktsize << 8)) < 0;
+
+	if (priv->i->flags & ALPS_PASS)
+		alps_passthrough_mode(psmouse, 0);
+
+	if (poll_failed || (buf[0] & priv->i->mask0) != priv->i->byte0)
+		return -1;
+
+	if ((psmouse->badbyte & 0xc8) == 0x08) {
+/*
+ * Poll the track stick ...
+ */
+		if (ps2_command(&psmouse->ps2dev, buf, PSMOUSE_CMD_POLL | (3 << 8)))
+			return -1;
+	}
+
+	memcpy(psmouse->packet, buf, sizeof(buf));
+	return 0;
+}
+
 static int alps_reconnect(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
@@ -450,9 +485,13 @@ int alps_init(struct psmouse *psmouse)
 	input_register_device(priv->dev2);
 
 	psmouse->protocol_handler = alps_process_byte;
+	psmouse->poll = alps_poll;
 	psmouse->disconnect = alps_disconnect;
 	psmouse->reconnect = alps_reconnect;
 	psmouse->pktsize = 6;
+
+	/* We are having trouble resyncing ALPS touchpads so disable it for now */
+	psmouse->resync_time = 0;
 
 	return 0;
 

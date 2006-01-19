@@ -206,9 +206,7 @@ static int aty_valid_pll_ct(const struct fb_info *info, u32 vclk_per, struct pll
 {
 	u32 q;
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
-#ifdef DEBUG
 	int pllvclk;
-#endif
 
 	/* FIXME: use the VTB/GTB /{3,6,12} post dividers if they're better suited */
 	q = par->ref_clk_per * pll->pll_ref_div * 4 / vclk_per;
@@ -223,13 +221,26 @@ static int aty_valid_pll_ct(const struct fb_info *info, u32 vclk_per, struct pll
 	pll->vclk_post_div_real = postdividers[pll->vclk_post_div];
 	//    pll->vclk_post_div <<= 6;
 	pll->vclk_fb_div = q * pll->vclk_post_div_real / 8;
-#ifdef DEBUG
 	pllvclk = (1000000 * 2 * pll->vclk_fb_div) /
 		(par->ref_clk_per * pll->pll_ref_div);
+#ifdef DEBUG
 	printk("atyfb(%s): pllvclk=%d MHz, vclk=%d MHz\n",
 		__FUNCTION__, pllvclk, pllvclk / pll->vclk_post_div_real);
 #endif
 	pll->pll_vclk_cntl = 0x03; /* VCLK = PLL_VCLK/VCLKx_POST */
+
+	/* Set ECP (scaler/overlay clock) divider */
+	if (par->pll_limits.ecp_max) {
+		int ecp = pllvclk / pll->vclk_post_div_real;
+		int ecp_div = 0;
+
+		while (ecp > par->pll_limits.ecp_max && ecp_div < 2) {
+			ecp >>= 1;
+			ecp_div++;
+		}
+		pll->pll_vclk_cntl |= ecp_div << 4;
+	}
+
 	return 0;
 }
 

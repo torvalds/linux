@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
+#include <net/protocol.h>
 #include <net/xfrm.h>
 #include <asm/scatterlist.h>
 
@@ -331,8 +332,7 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/"
-		 "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/" NIP6_FMT "\n",
 		 ntohl(ah->spi), NIP6(iph->daddr));
 
 	xfrm_state_put(x);

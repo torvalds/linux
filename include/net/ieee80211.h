@@ -363,8 +363,9 @@ enum ieee80211_reasoncode {
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
+ *       information for frames received.
+ *       For ieee80211_rx_mgt, you need to set at least the 'len' parameter.
+ */
 struct ieee80211_rx_stats {
 	u32 mac_time;
 	s8 rssi;
@@ -1088,6 +1089,7 @@ extern int ieee80211_tx_frame(struct ieee80211_device *ieee,
 /* ieee80211_rx.c */
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
+/* make sure to set stats->len */
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);

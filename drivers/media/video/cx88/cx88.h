@@ -179,6 +179,14 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_ATI_HDTVWONDER          34
 #define CX88_BOARD_WINFAST_DTV1000         35
 #define CX88_BOARD_AVERTV_303              36
+#define CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1  37
+#define CX88_BOARD_HAUPPAUGE_NOVASE2_S1    38
+#define CX88_BOARD_KWORLD_DVBS_100         39
+#define CX88_BOARD_HAUPPAUGE_HVR1100       40
+#define CX88_BOARD_HAUPPAUGE_HVR1100LP     41
+#define CX88_BOARD_DNTV_LIVE_DVB_T_PRO     42
+#define CX88_BOARD_KWORLD_DVB_T_CX22702    43
+#define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL 44
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -280,6 +288,9 @@ struct cx88_core {
 	unsigned int               tda9887_conf;
 	unsigned int               has_radio;
 
+	/* Supported V4L _STD_ tuner formats */
+	unsigned int               tuner_formats;
+
 	/* config info -- dvb */
 	struct dvb_pll_desc        *pll_desc;
 	unsigned int               pll_addr;
@@ -301,6 +312,9 @@ struct cx88_core {
 
 	/* various v4l controls */
 	u32                        freq;
+
+	/* cx88-video needs to access cx8802 for hybrid tuner pll access. */
+	struct cx8802_dev          *dvbdev;
 };
 
 struct cx8800_dev;
@@ -411,6 +425,8 @@ struct cx8802_dev {
 	struct videobuf_dvb        dvb;
 	void*                      fe_handle;
 	int                        (*fe_release)(void *handle);
+
+	void			   *card_priv;
 	/* for switching modulation types */
 	unsigned char              ts_gen_cntrl;
 
@@ -447,7 +463,6 @@ struct cx8802_dev {
 
 extern void cx88_print_irqbits(char *name, char *tag, char **strings,
 			       u32 bits, u32 mask);
-extern void cx88_print_ioctl(char *name, unsigned int cmd);
 
 extern int cx88_core_irq(struct cx88_core *core, u32 status);
 extern void cx88_wakeup(struct cx88_core *core,

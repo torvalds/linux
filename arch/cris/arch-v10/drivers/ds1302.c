@@ -148,6 +148,7 @@
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <linux/bcd.h>
+#include <linux/capability.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>

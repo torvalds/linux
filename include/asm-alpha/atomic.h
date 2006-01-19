@@ -176,6 +176,7 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 }
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 #define atomic_add_unless(v, a, u)				\
 ({								\
@@ -216,4 +217,5 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#include <asm-generic/atomic.h>
 #endif /* _ALPHA_ATOMIC_H */

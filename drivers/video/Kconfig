@@ -993,12 +993,6 @@ config FB_ATY_GENERIC_LCD
 	  Say Y if you have a laptop with an ATI Rage LT PRO, Rage Mobility,
 	  Rage XC, or Rage XL chipset.
 
-config FB_ATY_XL_INIT
-	bool "Rage XL No-BIOS Init support"
-	depends on FB_ATY_CT
-	help
-	  Say Y here to support booting a Rage XL without BIOS support.
-
 config FB_ATY_GX
 	bool "Mach64 GX support" if PCI
 	depends on FB_ATY
@@ -1151,7 +1145,7 @@ config FB_VOODOO1
 
 config FB_CYBLA
 	tristate "Cyberblade/i1 support"
-	depends on FB && PCI
+	depends on FB && PCI && X86_32 && !64BIT
 	select FB_CFB_IMAGEBLIT
 	select VIDEO_SELECT
 	---help---
@@ -1376,7 +1370,7 @@ config FB_PXA
 
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
-	  module will be called vfb. If you want to compile it as a module,
+	  module will be called pxafb. If you want to compile it as a module,
 	  say M here and read <file:Documentation/modules.txt>.
 
 	  If unsure, say N.
@@ -1409,7 +1403,7 @@ config FB_W100
 
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
-	  module will be called vfb. If you want to compile it as a module,
+	  module will be called w100fb. If you want to compile it as a module,
 	  say M here and read <file:Documentation/modules.txt>.
 
 	  If unsure, say N.

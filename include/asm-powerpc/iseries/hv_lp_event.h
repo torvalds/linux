@@ -1,5 +1,4 @@
 /*
- * HvLpEvent.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,17 +31,8 @@
  * partitions through PLIC.
  */
 
-struct HvEventFlags {
-	u8	xValid:1;	/* Indicates a valid request	x00-x00 */
-	u8	xRsvd1:4;	/* Reserved			... */
-	u8	xAckType:1;	/* Immediate or deferred	... */
-	u8	xAckInd:1;	/* Indicates if ACK required	... */
-	u8	xFunction:1;	/* Interrupt or Acknowledge	... */
-};
-
-
 struct HvLpEvent {
-	struct HvEventFlags xFlags;	/* Event flags		      x00-x00 */
+	u8	flags;			/* Event flags		      x00-x00 */
 	u8	xType;			/* Type of message	      x01-x01 */
 	u16	xSubtype;		/* Subtype for event	      x02-x03 */
 	u8	xSourceLp;		/* Source LP		      x04-x04 */
@@ -126,6 +116,11 @@ extern int HvLpEvent_closePath(HvLpEvent_Type eventType, HvLpIndex lpIndex);
 #define HvLpEvent_AckType_ImmediateAck 0
 #define HvLpEvent_AckType_DeferredAck 1
 
+#define HV_LP_EVENT_INT			0x01
+#define HV_LP_EVENT_DO_ACK		0x02
+#define HV_LP_EVENT_DEFERRED_ACK	0x04
+#define HV_LP_EVENT_VALID		0x80
+
 #define HvLpDma_Direction_LocalToRemote 0
 #define HvLpDma_Direction_RemoteToLocal 1
 
@@ -138,5 +133,30 @@ extern int HvLpEvent_closePath(HvLpEvent_Type eventType, HvLpIndex lpIndex);
 #define HvLpDma_Rc_PathClosed 3
 #define HvLpDma_Rc_InvalidAddress 4
 #define HvLpDma_Rc_InvalidLength 5
+
+static inline int hvlpevent_is_valid(struct HvLpEvent *h)
+{
+	return h->flags & HV_LP_EVENT_VALID;
+}
+
+static inline void hvlpevent_invalidate(struct HvLpEvent *h)
+{
+	h->flags &= ~ HV_LP_EVENT_VALID;
+}
+
+static inline int hvlpevent_is_int(struct HvLpEvent *h)
+{
+	return h->flags & HV_LP_EVENT_INT;
+}
+
+static inline int hvlpevent_is_ack(struct HvLpEvent *h)
+{
+	return !hvlpevent_is_int(h);
+}
+
+static inline int hvlpevent_need_ack(struct HvLpEvent *h)
+{
+	return h->flags & HV_LP_EVENT_DO_ACK;
+}
 
 #endif /* _ASM_POWERPC_ISERIES_HV_LP_EVENT_H */

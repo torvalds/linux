@@ -16,9 +16,6 @@
 #error "Do not include this directly, instead #include <asm/hardware.h>"
 #endif
 
-#define	COYOTE_FLASH_BASE	IXP4XX_EXP_BUS_CS0_BASE_PHYS
-#define	COYOTE_FLASH_SIZE	IXP4XX_EXP_BUS_CSX_REGION_SIZE * 2
-
 /* PCI controller GPIO to IRQ pin mappings */
 #define	COYOTE_PCI_SLOT0_PIN	6
 #define	COYOTE_PCI_SLOT1_PIN	11
@@ -26,7 +23,7 @@
 #define	COYOTE_PCI_SLOT0_DEVID	14
 #define	COYOTE_PCI_SLOT1_DEVID	15
 
-#define	COYOTE_IDE_BASE_PHYS	IXP4XX_EXP_BUS_CS3_BASE_PHYS
+#define	COYOTE_IDE_BASE_PHYS	IXP4XX_EXP_BUS_BASE(3)
 #define	COYOTE_IDE_BASE_VIRT	0xFFFE1000
 #define	COYOTE_IDE_REGION_SIZE	0x1000
 

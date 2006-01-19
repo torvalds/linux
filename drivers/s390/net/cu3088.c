@@ -1,11 +1,11 @@
 /*
- * $Id: cu3088.c,v 1.35 2005/03/30 19:28:52 richtera Exp $
+ * $Id: cu3088.c,v 1.38 2006/01/12 14:33:09 cohuck Exp $
  *
  * CTC / LCS ccw_device driver
  *
  * Copyright (C) 2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
  * Author(s): Arnd Bergmann <arndb@de.ibm.com>
- *            Cornelia Huck <cohuck@de.ibm.com>
+ *            Cornelia Huck <cornelia.huck@de.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
+#include <asm/s390_rdev.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
 

@@ -25,6 +25,7 @@
 #include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/arch/memory.h>
+#include <asm/sizes.h>
 
 #ifndef TASK_SIZE
 /*
@@ -48,6 +49,14 @@
 #endif
 
 /*
+ * Size of DMA-consistent memory region.  Must be multiple of 2M,
+ * between 2MB and 14MB inclusive.
+ */
+#ifndef CONSISTENT_DMA_SIZE
+#define CONSISTENT_DMA_SIZE SZ_2M
+#endif
+
+/*
  * Physical vs virtual RAM address space conversion.  These are
  * private definitions which should NOT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
@@ -56,6 +65,12 @@
 #define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
 #define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
 #endif
+
+/*
+ * Convert a physical address to a Page Frame Number and back
+ */
+#define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
+#define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
 
 /*
  * The module space lives between the addresses given by TASK_SIZE

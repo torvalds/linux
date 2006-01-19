@@ -65,7 +65,11 @@ struct rcu_ctrlblk {
 	long	cur;		/* Current batch number.                      */
 	long	completed;	/* Number of the last completed batch         */
 	int	next_pending;	/* Is the next batch already waiting?         */
-} ____cacheline_maxaligned_in_smp;
+
+	spinlock_t	lock	____cacheline_internodealigned_in_smp;
+	cpumask_t	cpumask; /* CPUs that need to switch in order    */
+	                         /* for current batch to proceed.        */
+} ____cacheline_internodealigned_in_smp;
 
 /* Is batch a before batch b ? */
 static inline int rcu_batch_before(long a, long b)
@@ -125,36 +129,7 @@ static inline void rcu_bh_qsctr_inc(int cpu)
 	rdp->passed_quiesc = 1;
 }
 
-static inline int __rcu_pending(struct rcu_ctrlblk *rcp,
-						struct rcu_data *rdp)
-{
-	/* This cpu has pending rcu entries and the grace period
-	 * for them has completed.
-	 */
-	if (rdp->curlist && !rcu_batch_before(rcp->completed, rdp->batch))
-		return 1;
-
-	/* This cpu has no pending entries, but there are new entries */
-	if (!rdp->curlist && rdp->nxtlist)
-		return 1;
-
-	/* This cpu has finished callbacks to invoke */
-	if (rdp->donelist)
-		return 1;
-
-	/* The rcu core waits for a quiescent state from the cpu */
-	if (rdp->quiescbatch != rcp->cur || rdp->qs_pending)
-		return 1;
-
-	/* nothing to do */
-	return 0;
-}
-
-static inline int rcu_pending(int cpu)
-{
-	return __rcu_pending(&rcu_ctrlblk, &per_cpu(rcu_data, cpu)) ||
-		__rcu_pending(&rcu_bh_ctrlblk, &per_cpu(rcu_bh_data, cpu));
-}
+extern int rcu_pending(int cpu);
 
 /**
  * rcu_read_lock - mark the beginning of an RCU read-side critical section.

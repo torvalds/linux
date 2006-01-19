@@ -18,19 +18,8 @@ extern int deactivate_all_fds(void);
 extern void forward_interrupts(int pid);
 extern void init_irq_signals(int on_sigstack);
 extern void forward_ipi(int fd, int pid);
-extern void free_irq_later(int irq, void *dev_id);
 extern int activate_ipi(int fd, int pid);
 extern unsigned long irq_lock(void);
 extern void irq_unlock(unsigned long flags);
-#endif
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+#endif

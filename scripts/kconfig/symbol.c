@@ -61,10 +61,10 @@ void sym_init(void)
 	if (p)
 		sym_add_default(sym, p);
 
-	sym = sym_lookup("KERNELRELEASE", 0);
+	sym = sym_lookup("KERNELVERSION", 0);
 	sym->type = S_STRING;
 	sym->flags |= SYMBOL_AUTO;
-	p = getenv("KERNELRELEASE");
+	p = getenv("KERNELVERSION");
 	if (p)
 		sym_add_default(sym, p);
 

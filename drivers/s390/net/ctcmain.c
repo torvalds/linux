@@ -1,5 +1,5 @@
 /*
- * $Id: ctcmain.c,v 1.78 2005/09/07 12:18:02 pavlic Exp $
+ * $Id: ctcmain.c,v 1.79 2006/01/11 11:32:18 cohuck Exp $
  *
  * CTC / ESCON network driver
  *
@@ -8,7 +8,7 @@
  * Fixes by : Jochen Röhrig (roehrig@de.ibm.com)
  *            Arnaldo Carvalho de Melo <acme@conectiva.com.br>
 	      Peter Tiedemann (ptiedem@de.ibm.com)
- * Driver Model stuff by : Cornelia Huck <cohuck@de.ibm.com>
+ * Driver Model stuff by : Cornelia Huck <huckc@de.ibm.com>
  *
  * Documentation used:
  *  - Principles of Operation (IBM doc#: SA22-7201-06)
@@ -37,7 +37,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * RELEASE-TAG: CTC/ESCON network driver $Revision: 1.78 $
+ * RELEASE-TAG: CTC/ESCON network driver $Revision: 1.79 $
  *
  */
 #undef DEBUG
@@ -248,7 +248,7 @@ static void
 print_banner(void)
 {
 	static int printed = 0;
-	char vbuf[] = "$Revision: 1.78 $";
+	char vbuf[] = "$Revision: 1.79 $";
 	char *version = vbuf;
 
 	if (printed)

@@ -42,9 +42,9 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>		/* for capable() */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/capability.h>
 #include <linux/ctype.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
@@ -56,7 +56,7 @@
 #include <asm/uaccess.h>
 #include <asm/hardware.h>
 
-#define PDCS_VERSION	"0.09"
+#define PDCS_VERSION	"0.10"
 
 #define PDCS_ADDR_PPRI	0x00
 #define PDCS_ADDR_OSID	0x40
@@ -70,7 +70,7 @@ MODULE_DESCRIPTION("sysfs interface to HP PDC Stable Storage data");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PDCS_VERSION);
 
-static unsigned long pdcs_size = 0;
+static unsigned long pdcs_size __read_mostly;
 
 /* This struct defines what we need to deal with a parisc pdc path entry */
 struct pdcspath_entry {
@@ -194,7 +194,8 @@ pdcspath_store(struct pdcspath_entry *entry)
 		return -EIO;
 	}
 		
-	entry->ready = 1;
+	/* kobject is already registered */
+	entry->ready = 2;
 	
 	DPRINTK("%s: device: 0x%p\n", __func__, entry->dev);
 	
@@ -653,15 +654,21 @@ pdcs_register_pathentries(void)
 {
 	unsigned short i;
 	struct pdcspath_entry *entry;
+	int err;
 	
 	for (i = 0; (entry = pdcspath_entries[i]); i++) {
 		if (pdcspath_fetch(entry) < 0)
 			continue;
 
-		kobject_set_name(&entry->kobj, "%s", entry->name);
+		if ((err = kobject_set_name(&entry->kobj, "%s", entry->name)))
+			return err;
 		kobj_set_kset_s(entry, paths_subsys);
-		kobject_register(&entry->kobj);
-
+		if ((err = kobject_register(&entry->kobj)))
+			return err;
+		
+		/* kobject is now registered */
+		entry->ready = 2;
+		
 		if (!entry->dev)
 			continue;
 
@@ -675,14 +682,14 @@ pdcs_register_pathentries(void)
 /**
  * pdcs_unregister_pathentries - Routine called when unregistering the module.
  */
-static inline void __exit
+static inline void
 pdcs_unregister_pathentries(void)
 {
 	unsigned short i;
 	struct pdcspath_entry *entry;
 	
 	for (i = 0; (entry = pdcspath_entries[i]); i++)
-		if (entry->ready)
+		if (entry->ready >= 2)
 			kobject_unregister(&entry->kobj);	
 }
 
@@ -704,7 +711,7 @@ pdc_stable_init(void)
 
 	/* For now we'll register the pdc subsys within this driver */
 	if ((rc = firmware_register(&pdc_subsys)))
-		return rc;
+		goto fail_firmreg;
 
 	/* Don't forget the info entry */
 	for (i = 0; (attr = pdcs_subsys_attrs[i]) && !error; i++)
@@ -713,12 +720,25 @@ pdc_stable_init(void)
 	
 	/* register the paths subsys as a subsystem of pdc subsys */
 	kset_set_kset_s(&paths_subsys, pdc_subsys);
-	subsystem_register(&paths_subsys);
+	if ((rc= subsystem_register(&paths_subsys)))
+		goto fail_subsysreg;
 
 	/* now we create all "files" for the paths subsys */
-	pdcs_register_pathentries();
+	if ((rc = pdcs_register_pathentries()))
+		goto fail_pdcsreg;
+
+	return rc;
 	
-	return 0;
+fail_pdcsreg:
+	pdcs_unregister_pathentries();
+	subsystem_unregister(&paths_subsys);
+	
+fail_subsysreg:
+	firmware_unregister(&pdc_subsys);
+	
+fail_firmreg:
+	printk(KERN_INFO "PDC Stable Storage bailing out\n");
+	return rc;
 }
 
 static void __exit

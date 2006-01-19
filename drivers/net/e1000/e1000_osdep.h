@@ -47,7 +47,7 @@
 	                	BUG(); \
 			} else { \
 				msleep(x); \
-			} } while(0)
+			} } while (0)
 
 /* Some workarounds require millisecond delays and are run during interrupt
  * context.  Most notably, when establishing link, the phy may need tweaking

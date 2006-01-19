@@ -49,8 +49,6 @@ static struct security_operations capability_ops = {
 	.vm_enough_memory =             cap_vm_enough_memory,
 };
 
-#define MY_NAME __stringify(KBUILD_MODNAME)
-
 /* flag to keep track of how we were registered */
 static int secondary;
 
@@ -67,7 +65,7 @@ static int __init capability_init (void)
 	/* register ourselves with the security framework */
 	if (register_security (&capability_ops)) {
 		/* try registering with primary module */
-		if (mod_reg_security (MY_NAME, &capability_ops)) {
+		if (mod_reg_security (KBUILD_MODNAME, &capability_ops)) {
 			printk (KERN_INFO "Failure registering capabilities "
 				"with primary security module.\n");
 			return -EINVAL;
@@ -85,7 +83,7 @@ static void __exit capability_exit (void)
 		return;
 	/* remove ourselves from the security framework */
 	if (secondary) {
-		if (mod_unreg_security (MY_NAME, &capability_ops))
+		if (mod_unreg_security (KBUILD_MODNAME, &capability_ops))
 			printk (KERN_INFO "Failure unregistering capabilities "
 				"with primary module.\n");
 		return;
