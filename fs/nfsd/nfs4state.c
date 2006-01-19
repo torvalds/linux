@@ -1609,26 +1609,26 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 {
 	struct file *filp = stp->st_vfs_file;
 	struct inode *inode = filp->f_dentry->d_inode;
-	unsigned int share_access;
+	unsigned int share_access, new_writer;
 	int status;
 
 	set_access(&share_access, stp->st_access_bmap);
-	share_access = ~share_access;
-	share_access &= open->op_share_access;
+	new_writer = (~share_access) & open->op_share_access
+			& NFS4_SHARE_ACCESS_WRITE;
 
-	if (!(share_access & NFS4_SHARE_ACCESS_WRITE))
-		return nfsd4_truncate(rqstp, cur_fh, open);
-
-	status = get_write_access(inode);
-	if (status)
-		return nfserrno(status);
+	if (new_writer) {
+		status = get_write_access(inode);
+		if (status)
+			return nfserrno(status);
+	}
 	status = nfsd4_truncate(rqstp, cur_fh, open);
 	if (status) {
-		put_write_access(inode);
+		if (new_writer)
+			put_write_access(inode);
 		return status;
 	}
 	/* remember the open */
-	filp->f_mode = (filp->f_mode | FMODE_WRITE) & ~FMODE_READ;
+	filp->f_mode |= open->op_share_access;
 	set_bit(open->op_share_access, &stp->st_access_bmap);
 	set_bit(open->op_share_deny, &stp->st_deny_bmap);
 
