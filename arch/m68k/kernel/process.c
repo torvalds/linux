@@ -129,6 +129,9 @@ void machine_power_off(void)
 	for (;;);
 }
 
+void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
+
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
