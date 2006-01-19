@@ -2761,7 +2761,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		goto conflicting_lock;
 	case (EDEADLK):
 		status = nfserr_deadlock;
+		dprintk("NFSD: nfsd4_lock: posix_lock_file() failed! status %d\n",status);
+		goto out;
 	default:        
+		status = nfserrno(status);
 		dprintk("NFSD: nfsd4_lock: posix_lock_file() failed! status %d\n",status);
 		goto out;
 	}
