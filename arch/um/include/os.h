@@ -195,6 +195,8 @@ extern unsigned long long os_usecs(void);
 /* tt.c
  * for tt mode only (will be deleted in future...)
  */
+extern void stop(void);
+extern int wait_for_stop(int pid, int sig, int cont_type, void *relay);
 extern int protect_memory(unsigned long addr, unsigned long len,
 			  int r, int w, int x, int must_succeed);
 extern void forward_pending_sigio(int target);
@@ -234,5 +236,13 @@ extern int set_signals(int enable);
 /* trap.c */
 extern void os_fill_handlinfo(struct kern_handlers h);
 extern void do_longjmp(void *p, int val);
+
+/* util.c */
+extern void stack_protections(unsigned long address);
+extern void task_protections(unsigned long address);
+extern int raw(int fd);
+extern void setup_machinename(char *machine_out);
+extern void setup_hostinfo(void);
+extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
 
 #endif
