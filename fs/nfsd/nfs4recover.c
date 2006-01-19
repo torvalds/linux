@@ -399,9 +399,10 @@ nfsd4_init_recdir(char *rec_dirname)
 
 	nfs4_save_user(&uid, &gid);
 
-	status = path_lookup(rec_dirname, LOOKUP_FOLLOW, &rec_dir);
-	if (status == -ENOENT)
-		printk("NFSD: recovery directory %s doesn't exist\n",
+	status = path_lookup(rec_dirname, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
+			&rec_dir);
+	if (status)
+		printk("NFSD: unable to find recovery directory %s\n",
 				rec_dirname);
 
 	if (!status)
