@@ -511,7 +511,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
  * don't bother checking the port ranges against the current socket
  * values.
  */
-int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
+static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c = p_dev->function_config;
@@ -537,7 +537,7 @@ int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 } /* pcmcia_release_io */
 
 
-int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
+static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c= p_dev->function_config;
