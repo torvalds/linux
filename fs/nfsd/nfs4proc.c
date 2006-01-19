@@ -592,25 +592,21 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_se
 	status = nfs_ok;
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
 		nfs4_lock_state();
-		if ((status = nfs4_preprocess_stateid_op(current_fh,
-						&setattr->sa_stateid,
-						CHECK_FH | WR_STATE, NULL))) {
-			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!\n");
-			goto out_unlock;
-		}
+		status = nfs4_preprocess_stateid_op(current_fh,
+			&setattr->sa_stateid, CHECK_FH | WR_STATE, NULL);
 		nfs4_unlock_state();
+		if (status) {
+			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!");
+			return status;
+		}
 	}
 	status = nfs_ok;
 	if (setattr->sa_acl != NULL)
 		status = nfsd4_set_nfs4_acl(rqstp, current_fh, setattr->sa_acl);
 	if (status)
-		goto out;
+		return status;
 	status = nfsd_setattr(rqstp, current_fh, &setattr->sa_iattr,
 				0, (time_t)0);
-out:
-	return status;
-out_unlock:
-	nfs4_unlock_state();
 	return status;
 }
 
@@ -628,14 +624,16 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 		return nfserr_inval;
 
 	nfs4_lock_state();
-	if ((status = nfs4_preprocess_stateid_op(current_fh, stateid,
-					CHECK_FH | WR_STATE, &filp))) {
-		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
-		goto out;
-	}
+	status = nfs4_preprocess_stateid_op(current_fh, stateid,
+					CHECK_FH | WR_STATE, &filp);
 	if (filp)
 		get_file(filp);
 	nfs4_unlock_state();
+
+	if (status) {
+		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
+		return status;
+	}
 
 	write->wr_bytes_written = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
@@ -651,9 +649,6 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 
 	if (status == nfserr_symlink)
 		status = nfserr_inval;
-	return status;
-out:
-	nfs4_unlock_state();
 	return status;
 }
 
