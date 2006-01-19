@@ -1514,7 +1514,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 	case IEEE80211_STYPE_DEAUTH:
 		printk("DEAUTH from AP\n");
 		if (ieee->handle_deauth != NULL)
-			ieee->handle_deauth(ieee->dev, (struct ieee80211_auth *)
+			ieee->handle_deauth(ieee->dev, (struct ieee80211_deauth *)
 					    header);
 		break;
 	default:
