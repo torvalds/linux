@@ -43,6 +43,9 @@
 #define HFSP_HARDLINK_TYPE	0x686c6e6b	/* 'hlnk' */
 #define HFSP_HFSPLUS_CREATOR	0x6866732b	/* 'hfs+' */
 
+#define HFSP_SYMLINK_TYPE	0x736c6e6b	/* 'slnk' */
+#define HFSP_SYMLINK_CREATOR	0x72686170	/* 'rhap' */
+
 #define HFSP_MOUNT_VERSION	0x482b4c78	/* 'H+Lx' */
 
 /* Structures used on disk */

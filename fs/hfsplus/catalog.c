@@ -119,8 +119,13 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 			file->access_date = hfsp_now2mt();
 		if (cnid == inode->i_ino) {
 			hfsplus_set_perms(inode, &file->permissions);
-			file->user_info.fdType = cpu_to_be32(HFSPLUS_SB(inode->i_sb).type);
-			file->user_info.fdCreator = cpu_to_be32(HFSPLUS_SB(inode->i_sb).creator);
+			if (S_ISLNK(inode->i_mode)) {
+				file->user_info.fdType = cpu_to_be32(HFSP_SYMLINK_TYPE);
+				file->user_info.fdCreator = cpu_to_be32(HFSP_SYMLINK_CREATOR);
+			} else {
+				file->user_info.fdType = cpu_to_be32(HFSPLUS_SB(inode->i_sb).type);
+				file->user_info.fdCreator = cpu_to_be32(HFSPLUS_SB(inode->i_sb).creator);
+			}
 			if ((file->permissions.rootflags | file->permissions.userflags) & HFSPLUS_FLG_IMMUTABLE)
 				file->flags |= cpu_to_be16(HFSPLUS_FILE_LOCKED);
 		} else {
