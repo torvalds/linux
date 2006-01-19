@@ -65,6 +65,13 @@ start_:
 			 */
 #endif
 
+#if defined(CONFIG_XILINX_VIRTEX_4_FX)
+	/* PPC errata 213: only for Virtex-4 FX */
+	mfccr0  0
+	oris    0,0,0x50000000@h
+	mtccr0  0
+#endif
+
 	mflr	r3	/* Save our actual starting address. */
 
 	/* The following functions we call must not modify r3 or r4.....
