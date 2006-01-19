@@ -307,3 +307,5 @@ ENTRY(sys_call_table)
 	.long sys_readlinkat		/* 305 */
 	.long sys_fchmodat
 	.long sys_faccessat
+	.long sys_pselect6
+	.long sys_ppoll
