@@ -1429,90 +1429,61 @@ static struct lock_manager_operations nfsd_lease_mng_ops = {
 };
 
 
-/*
- * nfsd4_process_open1()
- * 	lookup stateowner.
- * 		found:
- * 			check confirmed 
- * 				confirmed:
- * 					check seqid
- * 				not confirmed:
- * 					delete owner
- * 					create new owner
- * 		notfound:
- * 			verify clientid
- * 			create new owner
- *
- * called with nfs4_lock_state() held.
- */
 int
 nfsd4_process_open1(struct nfsd4_open *open)
 {
-	int status;
 	clientid_t *clientid = &open->op_clientid;
 	struct nfs4_client *clp = NULL;
 	unsigned int strhashval;
 	struct nfs4_stateowner *sop = NULL;
 
-	status = nfserr_inval;
 	if (!check_name(open->op_owner))
-		goto out;
+		return nfserr_inval;
 
 	if (STALE_CLIENTID(&open->op_clientid))
 		return nfserr_stale_clientid;
 
 	strhashval = ownerstr_hashval(clientid->cl_id, open->op_owner);
 	sop = find_openstateowner_str(strhashval, open);
-	if (sop) {
-		open->op_stateowner = sop;
-		if (!sop->so_confirmed) {
-			/* Replace any unconfirmed stateowner without
-			 * even checking for replays */
-			clp = sop->so_client;
-			release_stateowner(sop);
-		} else if (open->op_seqid == sop->so_seqid) {
-			/* normal case */
-			goto renew;
-		} else if (open->op_seqid == sop->so_seqid - 1) {
-			/* replay */
-			if (sop->so_replay.rp_buflen)
-				return NFSERR_REPLAY_ME;
-			else {
-				/* The original OPEN failed so spectacularly
-				 * that we don't even have replay data saved!
-				 * Therefore, we have no choice but to continue
-				 * processing this OPEN; presumably, we'll
-				 * fail again for the same reason.
-				 */
-				dprintk("nfsd4_process_open1:"
-					" replay with no replay cache\n");
-				goto renew;
-			}
-		} else {
-			status = nfserr_bad_seqid;
-			goto out;
-		}
-	} else {
-		/* nfs4_stateowner not found.
-		 * Verify clientid and instantiate new nfs4_stateowner.
-		 * If verify fails this is presumably the result of the
-		 * client's lease expiring.
-		 */
-		status = nfserr_expired;
+	open->op_stateowner = sop;
+	if (!sop) {
+		/* Make sure the client's lease hasn't expired. */
 		clp = find_confirmed_client(clientid);
 		if (clp == NULL)
-			goto out;
+			return nfserr_expired;
+		goto renew;
 	}
-	status = nfserr_resource;
-	sop = alloc_init_open_stateowner(strhashval, clp, open);
-	if (sop == NULL)
-		goto out;
-	open->op_stateowner = sop;
+	if (!sop->so_confirmed) {
+		/* Replace unconfirmed owners without checking for replay. */
+		clp = sop->so_client;
+		release_stateowner(sop);
+		open->op_stateowner = NULL;
+		goto renew;
+	}
+	if (open->op_seqid == sop->so_seqid - 1) {
+		if (sop->so_replay.rp_buflen)
+			return NFSERR_REPLAY_ME;
+		/* The original OPEN failed so spectacularly
+		 * that we don't even have replay data saved!
+		 * Therefore, we have no choice but to continue
+		 * processing this OPEN; presumably, we'll
+		 * fail again for the same reason.
+		 */
+		dprintk("nfsd4_process_open1: replay with no replay cache\n");
+		goto renew;
+	}
+	if (open->op_seqid != sop->so_seqid)
+		return nfserr_bad_seqid;
 renew:
-	status = nfs_ok;
+	if (open->op_stateowner == NULL) {
+		sop = alloc_init_open_stateowner(strhashval, clp, open);
+		if (sop == NULL)
+			return nfserr_resource;
+		open->op_stateowner = sop;
+	}
+	list_del_init(&sop->so_close_lru);
 	renew_client(sop->so_client);
-out:
-	return status;
+	return nfs_ok;
 }
 
 static inline int
