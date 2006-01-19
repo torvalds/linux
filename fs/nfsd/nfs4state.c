@@ -1600,7 +1600,7 @@ nfsd4_truncate(struct svc_rqst *rqstp, struct svc_fh *fh,
 	if (!open->op_truncate)
 		return 0;
 	if (!(open->op_share_access & NFS4_SHARE_ACCESS_WRITE))
-		return -EINVAL;
+		return nfserr_inval;
 	return nfsd_setattr(rqstp, fh, &iattr, 0, (time_t)0);
 }
 
