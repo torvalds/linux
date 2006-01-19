@@ -1088,7 +1088,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	sop->so_seqid = open->op_seqid;
 	sop->so_confirmed = 0;
 	rp = &sop->so_replay;
-	rp->rp_status = NFSERR_SERVERFAULT;
+	rp->rp_status = nfserr_serverfault;
 	rp->rp_buflen = 0;
 	rp->rp_buf = rp->rp_ibuf;
 	return sop;
@@ -2583,7 +2583,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	sop->so_seqid = lock->lk_new_lock_seqid + 1;
 	sop->so_confirmed = 1;
 	rp = &sop->so_replay;
-	rp->rp_status = NFSERR_SERVERFAULT;
+	rp->rp_status = nfserr_serverfault;
 	rp->rp_buflen = 0;
 	rp->rp_buf = rp->rp_ibuf;
 	return sop;
