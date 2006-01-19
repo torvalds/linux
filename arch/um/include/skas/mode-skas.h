@@ -14,9 +14,6 @@ extern unsigned long exec_fpx_regs[];
 extern int have_fpx_regs;
 
 extern void sig_handler_common_skas(int sig, void *sc_ptr);
-extern void halt_skas(void);
-extern void reboot_skas(void);
 extern void kill_off_processes_skas(void);
-extern int is_skas_winch(int pid, int fd, void *data);
 
 #endif

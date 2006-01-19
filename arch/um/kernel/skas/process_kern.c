@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -32,7 +32,7 @@ void switch_to_skas(void *prev, void *next)
 	if(current->pid == 0)
 		switch_timers(0);
 
-	switch_threads(&from->thread.mode.skas.switch_buf, 
+	switch_threads(&from->thread.mode.skas.switch_buf,
 		       to->thread.mode.skas.switch_buf);
 
 	if(current->pid == 0)
@@ -48,8 +48,8 @@ void new_thread_handler(int sig)
 
 	fn = current->thread.request.u.thread.proc;
 	arg = current->thread.request.u.thread.arg;
-	change_sig(SIGUSR1, 1);
-	thread_wait(&current->thread.mode.skas.switch_buf, 
+	os_usr1_signal(1);
+	thread_wait(&current->thread.mode.skas.switch_buf,
 		    current->thread.mode.skas.fork_buf);
 
 	if(current->thread.prev_sched != NULL)
@@ -80,8 +80,8 @@ void release_thread_skas(struct task_struct *task)
 
 void fork_handler(int sig)
 {
-        change_sig(SIGUSR1, 1);
- 	thread_wait(&current->thread.mode.skas.switch_buf, 
+	os_usr1_signal(1);
+	thread_wait(&current->thread.mode.skas.switch_buf,
 		    current->thread.mode.skas.fork_buf);
   	
 	force_flush_all();
@@ -91,13 +91,13 @@ void fork_handler(int sig)
 	schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
 
-	/* Handle any immediate reschedules or signals */
+/* Handle any immediate reschedules or signals */
 	interrupt_end();
 	userspace(&current->thread.regs.regs);
 }
 
 int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
-		     unsigned long stack_top, struct task_struct * p, 
+		     unsigned long stack_top, struct task_struct * p,
 		     struct pt_regs *regs)
 {
   	void (*handler)(int);
@@ -121,8 +121,6 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 	return(0);
 }
 
-extern void map_stub_pages(int fd, unsigned long code,
-			   unsigned long data, unsigned long stack);
 int new_mm(unsigned long stack)
 {
 	int fd;

@@ -232,6 +232,7 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern void os_usr1_signal(int on);
 
 /* trap.c */
 extern void os_fill_handlinfo(struct kern_handlers h);
@@ -271,5 +272,23 @@ extern int unmap(struct mm_id * mm_idp, void *addr, unsigned long len,
 extern int protect(struct mm_id * mm_idp, unsigned long addr,
 		   unsigned long len, int r, int w, int x, int done,
 		   void **data);
+
+/* skas/process.c */
+extern int is_skas_winch(int pid, int fd, void *data);
+extern int start_userspace(unsigned long stub_stack);
+extern int copy_context_skas0(unsigned long stack, int pid);
+extern void userspace(union uml_pt_regs *regs);
+extern void map_stub_pages(int fd, unsigned long code,
+			   unsigned long data, unsigned long stack);
+extern void new_thread(void *stack, void **switch_buf_ptr,
+			 void **fork_buf_ptr, void (*handler)(int));
+extern void thread_wait(void *sw, void *fb);
+extern void switch_threads(void *me, void *next);
+extern int start_idle_thread(void *stack, void *switch_buf_ptr,
+			     void **fork_buf_ptr);
+extern void initial_thread_cb_skas(void (*proc)(void *),
+				 void *arg);
+extern void halt_skas(void);
+extern void reboot_skas(void);
 
 #endif

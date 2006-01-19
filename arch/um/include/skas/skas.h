@@ -13,21 +13,12 @@ extern int userspace_pid[];
 extern int proc_mm, ptrace_faultinfo, ptrace_ldt;
 extern int skas_needs_stub;
 
-extern void switch_threads(void *me, void *next);
-extern void thread_wait(void *sw, void *fb);
-extern void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
-		       void (*handler)(int));
-extern int start_idle_thread(void *stack, void *switch_buf_ptr,
-			     void **fork_buf_ptr);
 extern int user_thread(unsigned long stack, int flags);
-extern void userspace(union uml_pt_regs *regs);
 extern void new_thread_proc(void *stack, void (*handler)(int sig));
 extern void new_thread_handler(int sig);
 extern void handle_syscall(union uml_pt_regs *regs);
 extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 extern int new_mm(unsigned long stack);
-extern int start_userspace(unsigned long stub_stack);
-extern int copy_context_skas0(unsigned long stack, int pid);
 extern void get_skas_faultinfo(int pid, struct faultinfo * fi);
 extern long execute_syscall_skas(void *r);
 extern unsigned long current_stub_stack(void);

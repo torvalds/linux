@@ -194,3 +194,8 @@ int set_signals(int enable)
 
 	return(ret);
 }
+
+void os_usr1_signal(int on)
+{
+	change_sig(SIGUSR1, on);
+}
