@@ -18,13 +18,11 @@
 
 static int hfsplus_readpage(struct file *file, struct page *page)
 {
-	//printk("readpage: %lu\n", page->index);
 	return block_read_full_page(page, hfsplus_get_block);
 }
 
 static int hfsplus_writepage(struct page *page, struct writeback_control *wbc)
 {
-	//printk("writepage: %lu\n", page->index);
 	return block_write_full_page(page, hfsplus_get_block, wbc);
 }
 
@@ -92,7 +90,6 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 		} while (--i && nidx < tree->node_count);
 		spin_unlock(&tree->hash_lock);
 	}
-	//printk("releasepage: %lu,%x = %d\n", page->index, mask, res);
 	return res ? try_to_free_buffers(page) : 0;
 }
 
@@ -467,7 +464,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_mtime = hfsp_mt2ut(file->content_mod_date);
 		inode->i_ctime = inode->i_mtime;
 	} else {
-		printk("HFS+-fs: bad catalog entry used to create inode\n");
+		printk(KERN_ERR "hfs: bad catalog entry used to create inode\n");
 		res = -EIO;
 	}
 	return res;

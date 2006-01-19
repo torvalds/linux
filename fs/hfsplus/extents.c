@@ -349,10 +349,9 @@ int hfsplus_file_extend(struct inode *inode)
 
 	if (HFSPLUS_SB(sb).alloc_file->i_size * 8 < HFSPLUS_SB(sb).total_blocks - HFSPLUS_SB(sb).free_blocks + 8) {
 		// extend alloc file
-		printk("extend alloc file! (%Lu,%u,%u)\n", HFSPLUS_SB(sb).alloc_file->i_size * 8,
+		printk(KERN_ERR "hfs: extend alloc file! (%Lu,%u,%u)\n", HFSPLUS_SB(sb).alloc_file->i_size * 8,
 			HFSPLUS_SB(sb).total_blocks, HFSPLUS_SB(sb).free_blocks);
 		return -ENOSPC;
-		//BUG();
 	}
 
 	down(&HFSPLUS_I(inode).extents_lock);

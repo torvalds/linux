@@ -139,7 +139,7 @@ int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 
 	type = be16_to_cpu(tmp.type);
 	if (type != HFSPLUS_FOLDER_THREAD && type != HFSPLUS_FILE_THREAD) {
-		printk("HFS+-fs: Found bad thread record in catalog\n");
+		printk(KERN_ERR "hfs: found bad thread record in catalog\n");
 		return -EIO;
 	}
 

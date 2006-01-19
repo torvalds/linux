@@ -70,7 +70,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
 			*start = (sector_t)te.cdte_addr.lba << 2;
 			return 0;
 		}
-		printk(KERN_ERR "HFS: Invalid session number or type of track\n");
+		printk(KERN_ERR "hfs: invalid session number or type of track\n");
 		return -EINVAL;
 	}
 	ms_info.addr_format = CDROM_LBA;
@@ -143,7 +143,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		blocksize >>= 1;
 
 	if (sb_set_blocksize(sb, blocksize) != blocksize) {
-		printk("HFS+: unable to blocksize to %u!\n", blocksize);
+		printk(KERN_ERR "hfs: unable to set blocksize to %u!\n", blocksize);
 		return -EINVAL;
 	}
 

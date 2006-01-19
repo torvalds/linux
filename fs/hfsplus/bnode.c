@@ -358,7 +358,7 @@ void hfs_bnode_unlink(struct hfs_bnode *node)
 
 	// move down?
 	if (!node->prev && !node->next) {
-		printk("hfs_btree_del_level\n");
+		printk(KERN_DEBUG "hfs_btree_del_level\n");
 	}
 	if (!node->parent) {
 		tree->root = 0;
@@ -379,7 +379,7 @@ struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
 	struct hfs_bnode *node;
 
 	if (cnid >= tree->node_count) {
-		printk("HFS+-fs: request for non-existent node %d in B*Tree\n", cnid);
+		printk(KERN_ERR "hfs: request for non-existent node %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
@@ -402,7 +402,7 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 	loff_t off;
 
 	if (cnid >= tree->node_count) {
-		printk("HFS+-fs: request for non-existent node %d in B*Tree\n", cnid);
+		printk(KERN_ERR "hfs: request for non-existent node %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
@@ -576,8 +576,9 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
 	node = hfs_bnode_findhash(tree, num);
 	spin_unlock(&tree->hash_lock);
 	if (node) {
-		printk("new node %u already hashed?\n", num);
-		BUG();
+		printk(KERN_CRIT "new node %u already hashed?\n", num);
+		WARN_ON(1);
+		return node;
 	}
 	node = __hfs_bnode_create(tree, num);
 	if (!node)
