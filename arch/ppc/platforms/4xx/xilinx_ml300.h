@@ -41,7 +41,7 @@ typedef struct board_info {
 #define PPC4xx_ONB_IO_VADDR	0u
 #define PPC4xx_ONB_IO_SIZE	0u
 
-#define PPC4xx_MACHINE_NAME "Xilinx ML300"
+#define PPC4xx_MACHINE_NAME "Xilinx ML300 Reference System"
 
 #endif /* __ASM_XILINX_ML300_H__ */
 #endif /* __KERNEL__ */
