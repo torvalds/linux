@@ -431,7 +431,8 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_size = 2 + be32_to_cpu(folder->valence);
 		inode->i_atime = hfsp_mt2ut(folder->access_date);
 		inode->i_mtime = hfsp_mt2ut(folder->content_mod_date);
-		inode->i_ctime = inode->i_mtime;
+		inode->i_ctime = hfsp_mt2ut(folder->attribute_mod_date);
+		HFSPLUS_I(inode).create_date = folder->create_date;
 		HFSPLUS_I(inode).fs_blocks = 0;
 		inode->i_op = &hfsplus_dir_inode_operations;
 		inode->i_fop = &hfsplus_dir_operations;
@@ -462,7 +463,8 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		}
 		inode->i_atime = hfsp_mt2ut(file->access_date);
 		inode->i_mtime = hfsp_mt2ut(file->content_mod_date);
-		inode->i_ctime = inode->i_mtime;
+		inode->i_ctime = hfsp_mt2ut(file->attribute_mod_date);
+		HFSPLUS_I(inode).create_date = file->create_date;
 	} else {
 		printk(KERN_ERR "hfs: bad catalog entry used to create inode\n");
 		res = -EIO;

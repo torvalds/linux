@@ -166,6 +166,7 @@ struct hfsplus_inode_info {
 	struct inode *rsrc_inode;
 	unsigned long flags;
 
+	__be32 create_date;
 	/* Device number in hfsplus_permissions in catalog */
 	u32 dev;
 	/* BSD system and user file flags */

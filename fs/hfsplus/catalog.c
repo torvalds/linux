@@ -94,8 +94,11 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 		memset(folder, 0, sizeof(*folder));
 		folder->type = cpu_to_be16(HFSPLUS_FOLDER);
 		folder->id = cpu_to_be32(inode->i_ino);
-		folder->create_date = folder->content_mod_date =
-			folder->attribute_mod_date = folder->access_date = hfsp_now2mt();
+		HFSPLUS_I(inode).create_date =
+			folder->create_date =
+			folder->content_mod_date =
+			folder->attribute_mod_date =
+			folder->access_date = hfsp_now2mt();
 		hfsplus_set_perms(inode, &folder->permissions);
 		if (inode == HFSPLUS_SB(inode->i_sb).hidden_dir)
 			/* invisible and namelocked */
@@ -109,8 +112,11 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 		file->type = cpu_to_be16(HFSPLUS_FILE);
 		file->flags = cpu_to_be16(HFSPLUS_FILE_THREAD_EXISTS);
 		file->id = cpu_to_be32(cnid);
-		file->create_date = file->content_mod_date =
-			file->attribute_mod_date = file->access_date = hfsp_now2mt();
+		HFSPLUS_I(inode).create_date =
+			file->create_date =
+			file->content_mod_date =
+			file->attribute_mod_date =
+			file->access_date = hfsp_now2mt();
 		if (cnid == inode->i_ino) {
 			hfsplus_set_perms(inode, &file->permissions);
 			file->user_info.fdType = cpu_to_be32(HFSPLUS_SB(inode->i_sb).type);
