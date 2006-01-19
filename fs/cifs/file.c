@@ -553,13 +553,13 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		}
 		ptmp = pCFileStruct->srch_inf.ntwrk_buf_start;
 		if (ptmp) {
-   /* BB removeme BB */	cFYI(1, ("freeing smb buf in srch struct in closedir"));
+			cFYI(1, ("closedir free smb buf in srch struct"));
 			pCFileStruct->srch_inf.ntwrk_buf_start = NULL;
 			cifs_buf_release(ptmp);
 		}
 		ptmp = pCFileStruct->search_resume_name;
 		if (ptmp) {
-   /* BB removeme BB */	cFYI(1, ("freeing resume name in closedir"));
+			cFYI(1, ("closedir free resume name"));
 			pCFileStruct->search_resume_name = NULL;
 			kfree(ptmp);
 		}
@@ -868,10 +868,9 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				if (rc != 0)
 					break;
 			}
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 			/* BB FIXME We can not sign across two buffers yet */
-			if((experimEnabled) && ((pTcon->ses->server->secMode & 
-			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0)) {
+			if((pTcon->ses->server->secMode & 
+			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0) {
 				struct kvec iov[2];
 				unsigned int len;
 
@@ -887,7 +886,6 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 						iov, 1, long_op);
 			} else
 			/* BB FIXME fixup indentation of line below */
-#endif			
 			rc = CIFSSMBWrite(xid, pTcon,
 				 open_file->netfid,
 				 min_t(const int, cifs_sb->wsize, 
@@ -1024,7 +1022,6 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
@@ -1227,7 +1224,6 @@ retry:
 
 	return rc;
 }
-#endif
 
 static int cifs_writepage(struct page* page, struct writeback_control *wbc)
 {
@@ -1426,6 +1422,7 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 		rc = -EAGAIN;
 		smb_read_data = NULL;
 		while (rc == -EAGAIN) {
+			int buf_type = CIFS_NO_BUFFER;
 			if ((open_file->invalidHandle) && 
 			    (!open_file->closePend)) {
 				rc = cifs_reopen_file(file->f_dentry->d_inode,
@@ -1434,20 +1431,22 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 					break;
 			}
 			rc = CIFSSMBRead(xid, pTcon,
-					open_file->netfid,
-					current_read_size, *poffset,
-					&bytes_read, &smb_read_data);
+					 open_file->netfid,
+					 current_read_size, *poffset,
+					 &bytes_read, &smb_read_data,
+					 &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
 			if (copy_to_user(current_offset, 
 					 smb_read_data + 4 /* RFC1001 hdr */
 					 + le16_to_cpu(pSMBr->DataOffset), 
 					 bytes_read)) {
 				rc = -EFAULT;
-				FreeXid(xid);
-				return rc;
-            }
+			}
 			if (smb_read_data) {
-				cifs_buf_release(smb_read_data);
+				if(buf_type == CIFS_SMALL_BUFFER)
+					cifs_small_buf_release(smb_read_data);
+				else if(buf_type == CIFS_LARGE_BUFFER)
+					cifs_buf_release(smb_read_data);
 				smb_read_data = NULL;
 			}
 		}
@@ -1480,6 +1479,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	int xid;
 	char *current_offset;
 	struct cifsFileInfo *open_file;
+	int buf_type = CIFS_NO_BUFFER;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
@@ -1516,9 +1516,10 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 					break;
 			}
 			rc = CIFSSMBRead(xid, pTcon,
-					open_file->netfid,
-					current_read_size, *poffset,
-					&bytes_read, &current_offset);
+					 open_file->netfid,
+					 current_read_size, *poffset,
+					 &bytes_read, &current_offset,
+					 &buf_type);
 		}
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
@@ -1616,6 +1617,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	struct smb_com_read_rsp *pSMBr;
 	struct pagevec lru_pvec;
 	struct cifsFileInfo *open_file;
+	int buf_type = CIFS_NO_BUFFER;
 
 	xid = GetXid();
 	if (file->private_data == NULL) {
@@ -1672,14 +1674,17 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			}
 
 			rc = CIFSSMBRead(xid, pTcon,
-					open_file->netfid,
-					read_size, offset,
-					&bytes_read, &smb_read_data);
-
+					 open_file->netfid,
+					 read_size, offset,
+					 &bytes_read, &smb_read_data,
+					 &buf_type);
 			/* BB more RC checks ? */
 			if (rc== -EAGAIN) {
 				if (smb_read_data) {
-					cifs_buf_release(smb_read_data);
+					if(buf_type == CIFS_SMALL_BUFFER)
+						cifs_small_buf_release(smb_read_data);
+					else if(buf_type == CIFS_LARGE_BUFFER)
+						cifs_buf_release(smb_read_data);
 					smb_read_data = NULL;
 				}
 			}
@@ -1736,7 +1741,10 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			break;
 		}
 		if (smb_read_data) {
-			cifs_buf_release(smb_read_data);
+			if(buf_type == CIFS_SMALL_BUFFER)
+				cifs_small_buf_release(smb_read_data);
+			else if(buf_type == CIFS_LARGE_BUFFER)
+				cifs_buf_release(smb_read_data);
 			smb_read_data = NULL;
 		}
 		bytes_read = 0;
@@ -1746,7 +1754,10 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 
 /* need to free smb_read_data buf before exit */
 	if (smb_read_data) {
-		cifs_buf_release(smb_read_data);
+		if(buf_type == CIFS_SMALL_BUFFER)
+			cifs_small_buf_release(smb_read_data);
+		else if(buf_type == CIFS_LARGE_BUFFER)
+			cifs_buf_release(smb_read_data);
 		smb_read_data = NULL;
 	} 
 
@@ -1825,10 +1836,20 @@ int is_size_safe_to_change(struct cifsInodeInfo *cifsInode)
 		open_file =  find_writable_file(cifsInode);
  
 	if(open_file) {
+		struct cifs_sb_info *cifs_sb;
+
 		/* there is not actually a write pending so let
 		this handle go free and allow it to
 		be closable if needed */
 		atomic_dec(&open_file->wrtPending);
+
+		cifs_sb = CIFS_SB(cifsInode->vfs_inode.i_sb);
+		if ( cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO ) {
+			/* since no page cache to corrupt on directio 
+			we can change size safely */
+			return 1;
+		}
+
 		return 0;
 	} else
 		return 1;
@@ -1873,9 +1894,7 @@ struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
 	.readpages = cifs_readpages,
 	.writepage = cifs_writepage,
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.writepages = cifs_writepages,
-#endif
 	.prepare_write = cifs_prepare_write,
 	.commit_write = cifs_commit_write,
 	.set_page_dirty = __set_page_dirty_nobuffers,

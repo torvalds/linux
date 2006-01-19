@@ -513,6 +513,17 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
 	return written;
 }
 
+static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
+{
+	/* origin == SEEK_END => we must revalidate the cached file length */
+	if (origin == 2) {
+		int retval = cifs_revalidate(file->f_dentry);
+		if (retval < 0)
+			return (loff_t)retval;
+	}
+	return remote_llseek(file, offset, origin);
+}
+
 static struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
@@ -586,6 +597,7 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -609,7 +621,7 @@ struct file_operations cifs_file_direct_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
-
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
@@ -627,6 +639,7 @@ struct file_operations cifs_file_nobrl_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -649,7 +662,7 @@ struct file_operations cifs_file_direct_nobrl_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
-
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
@@ -733,7 +746,7 @@ cifs_init_request_bufs(void)
 		kmem_cache_destroy(cifs_req_cachep);
 		return -ENOMEM;
 	}
-	/* 256 (MAX_CIFS_HDR_SIZE bytes is enough for most SMB responses and
+	/* MAX_CIFS_SMALL_BUFFER_SIZE bytes is enough for most SMB responses and
 	almost all handle based requests (but not write response, nor is it
 	sufficient for path based requests).  A smaller size would have
 	been more efficient (compacting multiple slab items on one 4k page) 
@@ -742,7 +755,8 @@ cifs_init_request_bufs(void)
 	efficient to alloc 1 per page off the slab compared to 17K (5page) 
 	alloc of large cifs buffers even when page debugging is on */
 	cifs_sm_req_cachep = kmem_cache_create("cifs_small_rq",
-			MAX_CIFS_HDR_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN, 
+			NULL, NULL);
 	if (cifs_sm_req_cachep == NULL) {
 		mempool_destroy(cifs_req_poolp);
 		kmem_cache_destroy(cifs_req_cachep);
@@ -954,6 +968,12 @@ init_cifs(void)
 	atomic_set(&tconInfoReconnectCount, 0);
 
 	atomic_set(&bufAllocCount, 0);
+	atomic_set(&smBufAllocCount, 0);
+#ifdef CONFIG_CIFS_STATS2
+	atomic_set(&totBufAllocCount, 0);
+	atomic_set(&totSmBufAllocCount, 0);
+#endif /* CONFIG_CIFS_STATS2 */
+
 	atomic_set(&midCount, 0);
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
