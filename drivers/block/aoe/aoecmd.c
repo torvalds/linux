@@ -647,7 +647,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	ulong flags, sysminor, aoemajor;
 	u16 bufcnt;
 	struct sk_buff *sl;
-	enum { MAXFRAMES = 8 };
+	enum { MAXFRAMES = 16 };
 
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ch = (struct aoe_cfghdr *) (h+1);
