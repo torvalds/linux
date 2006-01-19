@@ -755,6 +755,21 @@ svcauth_gss_set_client(struct svc_rqst *rqstp)
 	return SVC_OK;
 }
 
+static inline int
+gss_write_init_verf(struct svc_rqst *rqstp, struct rsi *rsip)
+{
+	struct rsc *rsci;
+
+	if (rsip->major_status != GSS_S_COMPLETE)
+		return gss_write_null_verf(rqstp);
+	rsci = gss_svc_searchbyctx(&rsip->out_handle);
+	if (rsci == NULL) {
+		rsip->major_status = GSS_S_NO_CONTEXT;
+		return gss_write_null_verf(rqstp);
+	}
+	return gss_write_verf(rqstp, rsci->mechctx, GSS_SEQ_WIN);
+}
+
 /*
  * Accept an rpcsec packet.
  * If context establishment, punt to user space
@@ -890,18 +905,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 		case -ENOENT:
 			goto drop;
 		case 0:
-			if (rsip->major_status == GSS_S_COMPLETE) {
-				rsci = gss_svc_searchbyctx(&rsip->out_handle);
-				if (!rsci) {
-					goto drop;
-				}
-				if (gss_write_verf(rqstp, rsci->mechctx,
-							GSS_SEQ_WIN))
-					goto drop;
-			} else {
-				if (gss_write_null_verf(rqstp))
-					goto drop;
-			}
+			if (gss_write_init_verf(rqstp, rsip))
+				goto drop;
 			if (resv->iov_len + 4 > PAGE_SIZE)
 				goto drop;
 			svc_putu32(resv, rpc_success);
