@@ -1572,3 +1572,71 @@ static int __init kswapd_init(void)
 }
 
 module_init(kswapd_init)
+
+#ifdef CONFIG_NUMA
+/*
+ * Zone reclaim mode
+ *
+ * If non-zero call zone_reclaim when the number of free pages falls below
+ * the watermarks.
+ *
+ * In the future we may add flags to the mode. However, the page allocator
+ * should only have to check that zone_reclaim_mode != 0 before calling
+ * zone_reclaim().
+ */
+int zone_reclaim_mode __read_mostly;
+
+/*
+ * Mininum time between zone reclaim scans
+ */
+#define ZONE_RECLAIM_INTERVAL HZ/2
+/*
+ * Try to free up some pages from this zone through reclaim.
+ */
+int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+{
+	int nr_pages = 1 << order;
+	struct task_struct *p = current;
+	struct reclaim_state reclaim_state;
+	struct scan_control sc = {
+		.gfp_mask	= gfp_mask,
+		.may_writepage	= 0,
+		.may_swap	= 0,
+		.nr_mapped	= read_page_state(nr_mapped),
+		.nr_scanned	= 0,
+		.nr_reclaimed	= 0,
+		.priority	= 0
+	};
+
+	if (!(gfp_mask & __GFP_WAIT) ||
+		zone->zone_pgdat->node_id != numa_node_id() ||
+		zone->all_unreclaimable ||
+		atomic_read(&zone->reclaim_in_progress) > 0)
+			return 0;
+
+	if (time_before(jiffies,
+		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
+			return 0;
+
+	disable_swap_token();
+
+	if (nr_pages > SWAP_CLUSTER_MAX)
+		sc.swap_cluster_max = nr_pages;
+	else
+		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
+
+	cond_resched();
+	p->flags |= PF_MEMALLOC;
+	reclaim_state.reclaimed_slab = 0;
+	p->reclaim_state = &reclaim_state;
+	shrink_zone(zone, &sc);
+	p->reclaim_state = NULL;
+	current->flags &= ~PF_MEMALLOC;
+
+	if (sc.nr_reclaimed == 0)
+		zone->last_unsuccessful_zone_reclaim = jiffies;
+
+	return sc.nr_reclaimed > nr_pages;
+}
+#endif
+

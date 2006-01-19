@@ -176,6 +176,17 @@ extern int try_to_free_pages(struct zone **, gfp_t);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
 
+#ifdef CONFIG_NUMA
+extern int zone_reclaim_mode;
+extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+#else
+#define zone_reclaim_mode 0
+static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_MIGRATION
 extern int isolate_lru_page(struct page *p);
 extern int putback_lru_pages(struct list_head *l);
