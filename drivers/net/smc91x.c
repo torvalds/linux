@@ -2221,6 +2221,10 @@ static int smc_drv_probe(struct platform_device *pdev)
 
 	ndev->dma = (unsigned char)-1;
 	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq < 0) {
+		ret = -ENODEV;
+		goto out_free_netdev;
+	}
 
 	ret = smc_request_attrib(pdev);
 	if (ret)
