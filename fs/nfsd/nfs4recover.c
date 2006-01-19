@@ -222,8 +222,7 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 
 	nfs4_save_user(&uid, &gid);
 
-	filp = dentry_open(dget(dir), mntget(rec_dir.mnt),
-			O_RDWR);
+	filp = dentry_open(dget(dir), mntget(rec_dir.mnt), O_RDONLY);
 	status = PTR_ERR(filp);
 	if (IS_ERR(filp))
 		goto out;
