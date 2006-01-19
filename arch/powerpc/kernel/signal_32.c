@@ -1128,7 +1128,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 {
 	siginfo_t info;
 	struct k_sigaction ka;
-	unsigned int frame, newsp;
+	unsigned int newsp;
 	int signr, ret;
 
 #ifdef CONFIG_PPC32
@@ -1139,10 +1139,10 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	}
 #endif
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else if (!oldset)
 		oldset = &current->blocked;
-
-	newsp = frame = 0;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 #ifdef CONFIG_PPC32
@@ -1173,8 +1173,14 @@ no_signal:
 		}
 	}
 
-	if (signr == 0)
+	if (signr == 0) {
+		/* No signal to deliver -- put the saved sigmask back */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+		}
 		return 0;		/* no signals delivered */
+	}
 
 	if ((ka.sa.sa_flags & SA_ONSTACK) && current->sas_ss_size
 	    && !on_sig_stack(regs->gpr[1]))
@@ -1207,6 +1213,10 @@ no_signal:
 			sigaddset(&current->blocked, signr);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
+		/* A signal was successfully delivered; the saved sigmask is in
+		   its frame, and we can clear the TIF_RESTORE_SIGMASK flag */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
 	}
 
 	return ret;

@@ -298,8 +298,10 @@
 #define __NR_inotify_rm_watch	277
 #define __NR_spu_run		278
 #define __NR_spu_create		279
+#define __NR_pselect6		280
+#define __NR_ppoll		281
 
-#define __NR_syscalls		280
+#define __NR_syscalls		282
 
 #ifdef __KERNEL__
 #define __NR__exit __NR_exit
