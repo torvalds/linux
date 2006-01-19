@@ -316,8 +316,9 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	vhdr = HFSPLUS_SB(sb).s_vhdr;
 
 	/* Copy parts of the volume header into the superblock */
-	sb->s_magic = be16_to_cpu(vhdr->signature);
-	if (be16_to_cpu(vhdr->version) != HFSPLUS_CURRENT_VERSION) {
+	sb->s_magic = HFSPLUS_VOLHEAD_SIG;
+	if (be16_to_cpu(vhdr->version) < HFSPLUS_MIN_VERSION ||
+	    be16_to_cpu(vhdr->version) > HFSPLUS_CURRENT_VERSION) {
 		printk(KERN_ERR "hfs: wrong filesystem version\n");
 		goto cleanup;
 	}

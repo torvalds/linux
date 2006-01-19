@@ -31,17 +31,8 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 
 	init_MUTEX(&tree->tree_lock);
 	spin_lock_init(&tree->hash_lock);
-	/* Set the correct compare function */
 	tree->sb = sb;
 	tree->cnid = id;
-	if (id == HFSPLUS_EXT_CNID) {
-		tree->keycmp = hfsplus_ext_cmp_key;
-	} else if (id == HFSPLUS_CAT_CNID) {
-		tree->keycmp = hfsplus_cat_cmp_key;
-	} else {
-		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
-		goto free_tree;
-	}
 	tree->inode = iget(sb, id);
 	if (!tree->inode)
 		goto free_tree;
@@ -63,6 +54,20 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 	tree->node_size = be16_to_cpu(head->node_size);
 	tree->max_key_len = be16_to_cpu(head->max_key_len);
 	tree->depth = be16_to_cpu(head->depth);
+
+	/* Set the correct compare function */
+	if (id == HFSPLUS_EXT_CNID) {
+		tree->keycmp = hfsplus_ext_cmp_key;
+	} else if (id == HFSPLUS_CAT_CNID) {
+		if ((HFSPLUS_SB(sb).flags & HFSPLUS_SB_HFSX) &&
+		    (head->key_type == HFSPLUS_KEY_BINARY))
+			tree->keycmp = hfsplus_cat_bin_cmp_key;
+		else
+			tree->keycmp = hfsplus_cat_case_cmp_key;
+	} else {
+		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
+		goto fail_page;
+	}
 
 	size = tree->node_size;
 	if (!size || size & (size - 1))

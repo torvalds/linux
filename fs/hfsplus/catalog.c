@@ -13,7 +13,8 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 
-int hfsplus_cat_cmp_key(hfsplus_btree_key *k1, hfsplus_btree_key *k2)
+int hfsplus_cat_case_cmp_key(const hfsplus_btree_key *k1,
+			     const hfsplus_btree_key *k2)
 {
 	__be32 k1p, k2p;
 
@@ -22,7 +23,20 @@ int hfsplus_cat_cmp_key(hfsplus_btree_key *k1, hfsplus_btree_key *k2)
 	if (k1p != k2p)
 		return be32_to_cpu(k1p) < be32_to_cpu(k2p) ? -1 : 1;
 
-	return hfsplus_unistrcmp(&k1->cat.name, &k2->cat.name);
+	return hfsplus_strcasecmp(&k1->cat.name, &k2->cat.name);
+}
+
+int hfsplus_cat_bin_cmp_key(const hfsplus_btree_key *k1,
+			    const hfsplus_btree_key *k2)
+{
+	__be32 k1p, k2p;
+
+	k1p = k1->cat.parent;
+	k2p = k2->cat.parent;
+	if (k1p != k2p)
+		return be32_to_cpu(k1p) < be32_to_cpu(k2p) ? -1 : 1;
+
+	return hfsplus_strcmp(&k1->cat.name, &k2->cat.name);
 }
 
 void hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,

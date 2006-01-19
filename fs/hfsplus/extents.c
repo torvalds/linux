@@ -16,7 +16,8 @@
 #include "hfsplus_raw.h"
 
 /* Compare two extents keys, returns 0 on same, pos/neg for difference */
-int hfsplus_ext_cmp_key(hfsplus_btree_key *k1, hfsplus_btree_key *k2)
+int hfsplus_ext_cmp_key(const hfsplus_btree_key *k1,
+			const hfsplus_btree_key *k2)
 {
 	__be32 k1id, k2id;
 	__be32 k1s, k2s;

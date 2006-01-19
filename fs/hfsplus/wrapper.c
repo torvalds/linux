@@ -28,8 +28,11 @@ static int hfsplus_read_mdb(void *bufptr, struct hfsplus_wd *wd)
 {
 	u32 extent;
 	u16 attrib;
+	__be16 sig;
 
-	if (be16_to_cpu(*(__be16 *)(bufptr + HFSP_WRAPOFF_EMBEDSIG)) != HFSPLUS_VOLHEAD_SIG)
+	sig = *(__be16 *)(bufptr + HFSP_WRAPOFF_EMBEDSIG);
+	if (sig != cpu_to_be16(HFSPLUS_VOLHEAD_SIG) &&
+	    sig != cpu_to_be16(HFSPLUS_VOLHEAD_SIGX))
 		return 0;
 
 	attrib = be16_to_cpu(*(__be16 *)(bufptr + HFSP_WRAPOFF_ATTRIB));
@@ -114,6 +117,10 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		}
 		if (vhdr->signature == cpu_to_be16(HFSPLUS_VOLHEAD_SIG))
 			break;
+		if (vhdr->signature == cpu_to_be16(HFSPLUS_VOLHEAD_SIGX)) {
+			HFSPLUS_SB(sb).flags |= HFSPLUS_SB_HFSX;
+			break;
+		}
 		brelse(bh);
 
 		/* check for a partition block
@@ -158,7 +165,9 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		return -EIO;
 
 	/* should still be the same... */
-	if (be16_to_cpu(vhdr->signature) != HFSPLUS_VOLHEAD_SIG)
+	if (vhdr->signature != (HFSPLUS_SB(sb).flags & HFSPLUS_SB_HFSX ?
+				cpu_to_be16(HFSPLUS_VOLHEAD_SIGX) :
+				cpu_to_be16(HFSPLUS_VOLHEAD_SIG)))
 		goto error;
 	HFSPLUS_SB(sb).s_vhbh = bh;
 	HFSPLUS_SB(sb).s_vhdr = vhdr;
