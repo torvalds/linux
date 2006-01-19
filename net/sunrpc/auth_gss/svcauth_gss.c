@@ -586,6 +586,20 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 }
 
 static int
+gss_write_null_verf(struct svc_rqst *rqstp)
+{
+	u32     *p;
+
+	svc_putu32(rqstp->rq_res.head, htonl(RPC_AUTH_NULL));
+	p = rqstp->rq_res.head->iov_base + rqstp->rq_res.head->iov_len;
+	/* don't really need to check if head->iov_len > PAGE_SIZE ... */
+	*p++ = 0;
+	if (!xdr_ressize_check(rqstp, p))
+		return -1;
+	return 0;
+}
+
+static int
 gss_write_verf(struct svc_rqst *rqstp, struct gss_ctx *ctx_id, u32 seq)
 {
 	u32			xdr_seq;
@@ -876,12 +890,18 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 		case -ENOENT:
 			goto drop;
 		case 0:
-			rsci = gss_svc_searchbyctx(&rsip->out_handle);
-			if (!rsci) {
-				goto drop;
+			if (rsip->major_status == GSS_S_COMPLETE) {
+				rsci = gss_svc_searchbyctx(&rsip->out_handle);
+				if (!rsci) {
+					goto drop;
+				}
+				if (gss_write_verf(rqstp, rsci->mechctx,
+							GSS_SEQ_WIN))
+					goto drop;
+			} else {
+				if (gss_write_null_verf(rqstp))
+					goto drop;
 			}
-			if (gss_write_verf(rqstp, rsci->mechctx, GSS_SEQ_WIN))
-				goto drop;
 			if (resv->iov_len + 4 > PAGE_SIZE)
 				goto drop;
 			svc_putu32(resv, rpc_success);
