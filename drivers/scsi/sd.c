@@ -1571,8 +1571,6 @@ static int sd_probe(struct device *dev)
 			'a' + m1, 'a' + m2, 'a' + m3);
 	}
 
-	strcpy(gd->devfs_name, sdp->devfs_name);
-
 	gd->private_data = &sdkp->driver;
 	gd->queue = sdkp->device->request_queue;
 

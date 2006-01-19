@@ -687,12 +687,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	if (inq_result[7] & 0x10)
 		sdev->sdtr = 1;
 
-	sprintf(sdev->devfs_name, "scsi/host%d/bus%d/target%d/lun%d",
-				sdev->host->host_no, sdev->channel,
-				sdev->id, sdev->lun);
-
 	/*
-	 * End driverfs/devfs code.
+	 * End sysfs code.
 	 */
 
 	if ((sdev->scsi_level >= SCSI_2) && (inq_result[7] & 2) &&

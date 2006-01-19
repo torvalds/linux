@@ -48,7 +48,6 @@ static const char * osst_version = "0.99.3";
 #include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/moduleparam.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/dma.h>
@@ -106,8 +105,6 @@ static struct osst_dev_parm {
        { "max_sg_segs",         &max_sg_segs         }
 };
 #endif
-
-static char *osst_formats[ST_NBR_MODES] ={"", "l", "m", "a"};
 
 /* Some default definitions have been moved to osst_options.h */
 #define OSST_BUFFER_SIZE (OSST_BUFFER_BLOCKS * ST_KILOBYTE)
@@ -5667,7 +5664,7 @@ static int osst_probe(struct device *dev)
 	struct st_partstat * STps;
 	struct osst_buffer * buffer;
 	struct gendisk	   * drive;
-	int		     i, mode, dev_num;
+	int		     i, dev_num;
 
 	if (SDp->type != TYPE_TAPE || !osst_supports(SDp))
 		return -ENODEV;
@@ -5803,18 +5800,6 @@ static int osst_probe(struct device *dev)
 		snprintf(name, 8, "%s%s", "n", tape_name(tpnt));
 		osst_sysfs_add(MKDEV(OSST_MAJOR, dev_num + 128), dev, tpnt, name);
 	}
-	for (mode = 0; mode < ST_NBR_MODES; ++mode) {
-		/*  Rewind entry  */
-		devfs_mk_cdev(MKDEV(OSST_MAJOR, dev_num + (mode << 5)),
-				S_IFCHR | S_IRUGO | S_IWUGO,
-				"%s/ot%s", SDp->devfs_name, osst_formats[mode]);
-
-		/*  No-rewind entry  */
-		devfs_mk_cdev(MKDEV(OSST_MAJOR, dev_num + (mode << 5) + 128),
-				S_IFCHR | S_IRUGO | S_IWUGO,
-				"%s/ot%sn", SDp->devfs_name, osst_formats[mode]);
-	}
-	drive->number = devfs_register_tape(SDp->devfs_name);
 
 	sdev_printk(KERN_INFO, SDp,
 		"osst :I: Attached OnStream %.5s tape as %s\n",
@@ -5831,7 +5816,7 @@ static int osst_remove(struct device *dev)
 {
 	struct scsi_device * SDp = to_scsi_device(dev);
 	struct osst_tape * tpnt;
-	int i, mode;
+	int i;
 
 	if ((SDp->type != TYPE_TAPE) || (osst_nr_dev <= 0))
 		return 0;
@@ -5842,11 +5827,6 @@ static int osst_remove(struct device *dev)
 			osst_sysfs_destroy(MKDEV(OSST_MAJOR, i));
 			osst_sysfs_destroy(MKDEV(OSST_MAJOR, i+128));
 			tpnt->device = NULL;
-			for (mode = 0; mode < ST_NBR_MODES; ++mode) {
-				devfs_remove("%s/ot%s", SDp->devfs_name, osst_formats[mode]);
-				devfs_remove("%s/ot%sn", SDp->devfs_name, osst_formats[mode]);
-			}
-			devfs_unregister_tape(tpnt->drive->number);
 			put_disk(tpnt->drive);
 			os_scsi_tapes[i] = NULL;
 			osst_nr_dev--;

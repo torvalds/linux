@@ -44,7 +44,6 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
 #include <linux/moduleparam.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/cdev.h>
 #include <linux/seq_file.h>
 #include <linux/blkdev.h>
@@ -1456,14 +1455,10 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	k = error;
 	sdp = sg_dev_arr[k];
 
-	devfs_mk_cdev(MKDEV(SCSI_GENERIC_MAJOR, k),
-			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP,
-			"%s/generic", scsidp->devfs_name);
 	error = cdev_add(cdev, MKDEV(SCSI_GENERIC_MAJOR, k), 1);
-	if (error) {
-		devfs_remove("%s/generic", scsidp->devfs_name);
+	if (error)
 		goto out;
-	}
+
 	sdp->cdev = cdev;
 	if (sg_sysfs_valid) {
 		struct class_device * sg_class_member;
@@ -1553,7 +1548,6 @@ sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 		class_device_destroy(sg_sysfs_class, MKDEV(SCSI_GENERIC_MAJOR, k));
 		cdev_del(sdp->cdev);
 		sdp->cdev = NULL;
-		devfs_remove("%s/generic", scsidp->devfs_name);
 		put_disk(sdp->disk);
 		sdp->disk = NULL;
 		if (NULL == sdp->headfp)
