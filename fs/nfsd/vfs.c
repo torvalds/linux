@@ -710,14 +710,15 @@ static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
 {
 	struct inode *inode = dp->d_inode;
 	int (*fsync) (struct file *, struct dentry *, int);
-	int err = nfs_ok;
+	int err;
 
-	filemap_fdatawrite(inode->i_mapping);
-	if (fop && (fsync = fop->fsync))
-		err=fsync(filp, dp, 0);
-	filemap_fdatawait(inode->i_mapping);
+	err = filemap_fdatawrite(inode->i_mapping);
+	if (err == 0 && fop && (fsync = fop->fsync))
+		err = fsync(filp, dp, 0);
+	if (err == 0)
+		err = filemap_fdatawait(inode->i_mapping);
 
-	return nfserrno(err);
+	return err;
 }
 	
 
@@ -734,10 +735,10 @@ nfsd_sync(struct file *filp)
 	return err;
 }
 
-void
+int
 nfsd_sync_dir(struct dentry *dp)
 {
-	nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
+	return nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
 }
 
 /*
@@ -1065,6 +1066,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (EX_ISSYNC(fhp->fh_export)) {
 		if (file->f_op && file->f_op->fsync) {
 			err = nfsd_sync(file);
+			err = nfserrno(err);
 		} else {
 			err = nfserr_notsupp;
 		}
@@ -1175,7 +1177,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (EX_ISSYNC(fhp->fh_export)) {
-		nfsd_sync_dir(dentry);
+		err = nfsd_sync_dir(dentry);
 		write_inode_now(dchild->d_inode, 1);
 	}
 
@@ -1185,9 +1187,11 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	 * send along the gid when it tries to implement setgid
 	 * directories via NFS.
 	 */
-	err = 0;
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0)
-		err = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0) {
+		int err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		if (err2)
+			err = err2;
+	}
 	/*
 	 * Update the file handle to get the new inode info.
 	 */
@@ -1306,16 +1310,11 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (EX_ISSYNC(fhp->fh_export)) {
-		nfsd_sync_dir(dentry);
+		err = nfsd_sync_dir(dentry);
+		if (err)
+			err = nfserrno(err);
 		/* setattr will sync the child (or not) */
 	}
-
-	/*
-	 * Update the filehandle to get the new inode info.
-	 */
-	err = fh_update(resfhp);
-	if (err)
-		goto out;
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
 		/* Cram the verifier into atime/mtime/mode */
@@ -1337,8 +1336,17 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	 * implement setgid directories via NFS. Clear out all that cruft.
 	 */
  set_attr:
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0)
- 		err = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0) {
+ 		int err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		if (err2)
+			err = nfserrno(err2);
+	}
+
+	/*
+	 * Update the filehandle to get the new inode info.
+	 */
+	if (!err)
+		err = fh_update(resfhp);
 
  out:
 	fh_unlock(fhp);
@@ -1447,10 +1455,10 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	} else
 		err = vfs_symlink(dentry->d_inode, dnew, path, mode);
 
-	if (!err) {
+	if (!err)
 		if (EX_ISSYNC(fhp->fh_export))
-			nfsd_sync_dir(dentry);
-	} else
+			err = nfsd_sync_dir(dentry);
+	if (err)
 		err = nfserrno(err);
 	fh_unlock(fhp);
 
@@ -1506,8 +1514,10 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = vfs_link(dold, dirp, dnew);
 	if (!err) {
 		if (EX_ISSYNC(ffhp->fh_export)) {
-			nfsd_sync_dir(ddir);
+			err = nfsd_sync_dir(ddir);
 			write_inode_now(dest, 1);
+			if (err)
+				err = nfserrno(err);
 		}
 	} else {
 		if (err == -EXDEV && rqstp->rq_vers == 2)
@@ -1595,8 +1605,9 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 #endif
 	err = vfs_rename(fdir, odentry, tdir, ndentry);
 	if (!err && EX_ISSYNC(tfhp->fh_export)) {
-		nfsd_sync_dir(tdentry);
-		nfsd_sync_dir(fdentry);
+		err = nfsd_sync_dir(tdentry);
+		if (!err)
+			err = nfsd_sync_dir(fdentry);
 	}
 
  out_dput_new:
@@ -1671,17 +1682,14 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 
 	dput(rdentry);
 
-	if (err)
-		goto out_nfserr;
-	if (EX_ISSYNC(fhp->fh_export)) 
-		nfsd_sync_dir(dentry);
-
-out:
-	return err;
+	if (err == 0 &&
+	    EX_ISSYNC(fhp->fh_export))
+			err = nfsd_sync_dir(dentry);
 
 out_nfserr:
 	err = nfserrno(err);
-	goto out;
+out:
+	return err;
 }
 
 /*
