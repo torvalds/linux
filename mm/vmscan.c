@@ -586,7 +586,7 @@ static inline void move_to_lru(struct page *page)
 }
 
 /*
- * Add isolated pages on the list back to the LRU
+ * Add isolated pages on the list back to the LRU.
  *
  * returns the number of pages put back.
  */
@@ -760,46 +760,33 @@ next:
 	return nr_failed + retry;
 }
 
-static void lru_add_drain_per_cpu(void *dummy)
-{
-	lru_add_drain();
-}
-
 /*
  * Isolate one page from the LRU lists and put it on the
- * indicated list. Do necessary cache draining if the
- * page is not on the LRU lists yet.
+ * indicated list with elevated refcount.
  *
  * Result:
  *  0 = page not on LRU list
  *  1 = page removed from LRU list and added to the specified list.
- * -ENOENT = page is being freed elsewhere.
  */
 int isolate_lru_page(struct page *page)
 {
-	int rc = 0;
-	struct zone *zone = page_zone(page);
+	int ret = 0;
 
-redo:
-	spin_lock_irq(&zone->lru_lock);
-	rc = __isolate_lru_page(page);
-	if (rc == 1) {
-		if (PageActive(page))
-			del_page_from_active_list(zone, page);
-		else
-			del_page_from_inactive_list(zone, page);
+	if (PageLRU(page)) {
+		struct zone *zone = page_zone(page);
+		spin_lock_irq(&zone->lru_lock);
+		if (TestClearPageLRU(page)) {
+			ret = 1;
+			get_page(page);
+			if (PageActive(page))
+				del_page_from_active_list(zone, page);
+			else
+				del_page_from_inactive_list(zone, page);
+		}
+		spin_unlock_irq(&zone->lru_lock);
 	}
-	spin_unlock_irq(&zone->lru_lock);
-	if (rc == 0) {
-		/*
-		 * Maybe this page is still waiting for a cpu to drain it
-		 * from one of the lru lists?
-		 */
-		rc = schedule_on_each_cpu(lru_add_drain_per_cpu, NULL);
-		if (rc == 0 && PageLRU(page))
-			goto redo;
-	}
-	return rc;
+
+	return ret;
 }
 #endif
 
@@ -831,18 +818,20 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
-		switch (__isolate_lru_page(page)) {
-		case 1:
-			/* Succeeded to isolate page */
-			list_move(&page->lru, dst);
-			nr_taken++;
-			break;
-		case -ENOENT:
-			/* Not possible to isolate */
-			list_move(&page->lru, src);
-			break;
-		default:
+		if (!TestClearPageLRU(page))
 			BUG();
+		list_del(&page->lru);
+		if (get_page_testone(page)) {
+			/*
+			 * It is being freed elsewhere
+			 */
+			__put_page(page);
+			SetPageLRU(page);
+			list_add(&page->lru, src);
+			continue;
+		} else {
+			list_add(&page->lru, dst);
+			nr_taken++;
 		}
 	}
 

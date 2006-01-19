@@ -208,6 +208,17 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		page = vm_normal_page(vma, addr, *pte);
 		if (!page)
 			continue;
+		/*
+		 * The check for PageReserved here is important to avoid
+		 * handling zero pages and other pages that may have been
+		 * marked special by the system.
+		 *
+		 * If the PageReserved would not be checked here then f.e.
+		 * the location of the zero page could have an influence
+		 * on MPOL_MF_STRICT, zero pages would be counted for
+		 * the per node stats, and there would be useless attempts
+		 * to put zero pages on the migration list.
+		 */
 		if (PageReserved(page))
 			continue;
 		nid = page_to_nid(page);
@@ -216,11 +227,8 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 		if (flags & MPOL_MF_STATS)
 			gather_stats(page, private);
-		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
-			spin_unlock(ptl);
+		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
 			migrate_page_add(vma, page, private, flags);
-			spin_lock(ptl);
-		}
 		else
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -308,6 +316,10 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 {
 	int err;
 	struct vm_area_struct *first, *vma, *prev;
+
+	/* Clear the LRU lists so pages can be isolated */
+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+		lru_add_drain_all();
 
 	first = find_vma(mm, start);
 	if (!first)
@@ -555,15 +567,8 @@ static void migrate_page_add(struct vm_area_struct *vma,
 	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
 	    mapping_writably_mapped(page->mapping) ||
 	    single_mm_mapping(vma->vm_mm, page->mapping)) {
-		int rc = isolate_lru_page(page);
-
-		if (rc == 1)
+		if (isolate_lru_page(page))
 			list_add(&page->lru, pagelist);
-		/*
-		 * If the isolate attempt was not successful then we just
-		 * encountered an unswappable page. Something must be wrong.
-	 	 */
-		WARN_ON(rc == 0);
 	}
 }
 
