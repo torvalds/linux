@@ -2032,6 +2032,30 @@ again:
 			     dlm->reco.new_master);
 			status = -EEXIST;
 		} else {
+			status = 0;
+
+			/* see if recovery was already finished elsewhere */
+			spin_lock(&dlm->spinlock);
+			if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
+				status = -EINVAL;	
+				mlog(0, "%s: got reco EX lock, but "
+				     "node got recovered already\n", dlm->name);
+				if (dlm->reco.new_master != O2NM_INVALID_NODE_NUM) {
+					mlog(ML_ERROR, "%s: new master is %u "
+					     "but no dead node!\n", 
+					     dlm->name, dlm->reco.new_master);
+					BUG();
+				}
+			}
+			spin_unlock(&dlm->spinlock);
+		}
+
+		/* if this node has actually become the recovery master,
+		 * set the master and send the messages to begin recovery */
+		if (!status) {
+			mlog(0, "%s: dead=%u, this=%u, sending "
+			     "begin_reco now\n", dlm->name, 
+			     dlm->reco.dead_node, dlm->node_num);
 			status = dlm_send_begin_reco_message(dlm,
 				      dlm->reco.dead_node);
 			/* this always succeeds */
