@@ -151,8 +151,6 @@ static void handle_trap(int pid, union uml_pt_regs *regs, int local_using_sysemu
 }
 
 extern int __syscall_stub_start;
-int stub_code_fd = -1;
-__u64 stub_code_offset;
 
 static int userspace_tramp(void *stack)
 {
@@ -167,30 +165,30 @@ static int userspace_tramp(void *stack)
 		/* This has a pte, but it can't be mapped in with the usual
 		 * tlb_flush mechanism because this is part of that mechanism
 		 */
+		int fd;
+		__u64 offset;
+		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
 		addr = mmap64((void *) UML_CONFIG_STUB_CODE, page_size(),
-			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE,
-			      stub_code_fd, stub_code_offset);
+			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 		if(addr == MAP_FAILED){
-			printk("mapping stub code failed, errno = %d\n",
+			printk("mapping mmap stub failed, errno = %d\n",
 			       errno);
 			exit(1);
 		}
 
 		if(stack != NULL){
-			int fd;
-			__u64 offset;
 			fd = phys_mapping(to_phys(stack), &offset);
 			addr = mmap((void *) UML_CONFIG_STUB_DATA, page_size(),
 				    PROT_READ | PROT_WRITE,
 				    MAP_FIXED | MAP_SHARED, fd, offset);
 			if(addr == MAP_FAILED){
-				printk("mapping stub stack failed, "
+				printk("mapping segfault stack failed, "
 				       "errno = %d\n", errno);
 				exit(1);
 			}
 		}
 	}
-	if(!ptrace_faultinfo){
+	if(!ptrace_faultinfo && (stack != NULL)){
 		unsigned long v = UML_CONFIG_STUB_CODE +
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
@@ -215,10 +213,6 @@ int start_userspace(unsigned long stub_stack)
 	void *stack;
 	unsigned long sp;
 	int pid, status, n, flags;
-
-	if ( stub_code_fd == -1 )
-		stub_code_fd = phys_mapping(to_phys(&__syscall_stub_start),
-					    &stub_code_offset);
 
 	stack = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC,
 		     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -306,7 +300,6 @@ void userspace(union uml_pt_regs *regs)
 			        printk("userspace - child stopped with signal "
 				       "%d\n", WSTOPSIG(status));
 			}
-		    again:
 			pid = userspace_pid[0];
 			interrupt_end();
 
@@ -395,6 +388,9 @@ void map_stub_pages(int fd, unsigned long code,
 {
 	struct proc_mm_op mmop;
 	int n;
+	__u64 code_offset;
+	int code_fd = phys_mapping(to_phys((void *) &__syscall_stub_start),
+				   &code_offset);
 
 	mmop = ((struct proc_mm_op) { .op        = MM_MMAP,
 				      .u         =
@@ -403,8 +399,8 @@ void map_stub_pages(int fd, unsigned long code,
 					  .len     = PAGE_SIZE,
 					  .prot    = PROT_EXEC,
 					  .flags   = MAP_FIXED | MAP_PRIVATE,
-					  .fd      = stub_code_fd,
-					  .offset  = stub_code_offset
+					  .fd      = code_fd,
+					  .offset  = code_offset
 	} } });
 	n = os_write_file(fd, &mmop, sizeof(mmop));
 	if(n != sizeof(mmop))
