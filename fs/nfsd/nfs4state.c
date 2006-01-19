@@ -1178,7 +1178,6 @@ release_stateid(struct nfs4_stateid *stp, int flags)
 		locks_remove_posix(filp, (fl_owner_t) stp->st_stateowner);
 	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
-	stp = NULL;
 }
 
 static void
@@ -1189,22 +1188,6 @@ move_to_close_lru(struct nfs4_stateowner *sop)
 	unhash_stateowner(sop);
 	list_add_tail(&sop->so_close_lru, &close_lru);
 	sop->so_time = get_seconds();
-}
-
-static void
-release_state_owner(struct nfs4_stateid *stp, int flag)
-{
-	struct nfs4_stateowner *sop = stp->st_stateowner;
-
-	dprintk("NFSD: release_state_owner\n");
-	release_stateid(stp, flag);
-
-	/* place unused nfs4_stateowners on so_close_lru list to be
-	 * released by the laundromat service after the lease period
-	 * to enable us to handle CLOSE replay
-	 */
-	if (sop->so_confirmed && list_empty(&sop->so_stateids))
-		move_to_close_lru(sop);
 }
 
 static int
@@ -2423,15 +2406,19 @@ nfsd4_close(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_clos
 					CHECK_FH | OPEN_STATE | CLOSE_STATE,
 					&close->cl_stateowner, &stp, NULL)))
 		goto out; 
-	/*
-	*  Return success, but first update the stateid.
-	*/
 	status = nfs_ok;
 	update_stateid(&stp->st_stateid);
 	memcpy(&close->cl_stateid, &stp->st_stateid, sizeof(stateid_t));
 
-	/* release_state_owner() calls nfsd_close() if needed */
-	release_state_owner(stp, OPEN_STATE);
+	/* release_stateid() calls nfsd_close() if needed */
+	release_stateid(stp, OPEN_STATE);
+
+	/* place unused nfs4_stateowners on so_close_lru list to be
+	 * released by the laundromat service after the lease period
+	 * to enable us to handle CLOSE replay
+	 */
+	if (list_empty(&close->cl_stateowner->so_stateids))
+		move_to_close_lru(close->cl_stateowner);
 out:
 	if (close->cl_stateowner) {
 		nfs4_get_stateowner(close->cl_stateowner);
