@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -16,8 +16,8 @@ extern int skas_needs_stub;
 extern void switch_threads(void *me, void *next);
 extern void thread_wait(void *sw, void *fb);
 extern void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
-                       void (*handler)(int));
-extern int start_idle_thread(void *stack, void *switch_buf_ptr, 
+		       void (*handler)(int));
+extern int start_idle_thread(void *stack, void *switch_buf_ptr,
 			     void **fork_buf_ptr);
 extern int user_thread(unsigned long stack, int flags);
 extern void userspace(union uml_pt_regs *regs);
@@ -40,10 +40,10 @@ extern void get_skas_faultinfo(int pid, struct faultinfo * fi);
 extern long execute_syscall_skas(void *r);
 extern unsigned long current_stub_stack(void);
 extern long run_syscall_stub(struct mm_id * mm_idp,
-                             int syscall, unsigned long *args, long expected,
-                             void **addr, int done);
+			     int syscall, unsigned long *args, long expected,
+			     void **addr, int done);
 extern long syscall_stub_data(struct mm_id * mm_idp,
-                              unsigned long *data, int data_count,
-                              void **addr, void **stub_addr);
+			      unsigned long *data, int data_count,
+			      void **addr, void **stub_addr);
 
 #endif

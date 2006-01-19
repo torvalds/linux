@@ -39,14 +39,3 @@ extern int thread_pid_skas(struct task_struct *task);
 #define kmem_end_skas (host_task_size - 1024 * 1024)
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
