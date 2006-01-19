@@ -2700,6 +2700,11 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	if (check_lock_length(lock->lk_offset, lock->lk_length))
 		 return nfserr_inval;
 
+	if ((status = fh_verify(rqstp, current_fh, S_IFREG, MAY_LOCK))) {
+		dprintk("NFSD: nfsd4_lock: permission denied!\n");
+		return status;
+	}
+
 	nfs4_lock_state();
 
 	if (lock->lk_is_new) {
@@ -2757,11 +2762,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	/* lock->lk_stateowner and lock_stp have been created or found */
 	filp = lock_stp->st_vfs_file;
 
-	if ((status = fh_verify(rqstp, current_fh, S_IFREG, MAY_LOCK))) {
-		dprintk("NFSD: nfsd4_lock: permission denied!\n");
-		goto out;
-	}
-
 	status = nfserr_grace;
 	if (nfs4_in_grace() && !lock->lk_reclaim)
 		goto out;
@@ -2802,8 +2802,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	*/
 
 	status = posix_lock_file(filp, &file_lock);
-	if (file_lock.fl_ops && file_lock.fl_ops->fl_release_private)
-		file_lock.fl_ops->fl_release_private(&file_lock);
 	dprintk("NFSD: nfsd4_lock: posix_lock_file status %d\n",status);
 	switch (-status) {
 	case 0: /* success! */
@@ -2977,8 +2975,6 @@ nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	*  Try to unlock the file in the VFS.
 	*/
 	status = posix_lock_file(filp, &file_lock); 
-	if (file_lock.fl_ops && file_lock.fl_ops->fl_release_private)
-		file_lock.fl_ops->fl_release_private(&file_lock);
 	if (status) {
 		dprintk("NFSD: nfs4_locku: posix_lock_file failed!\n");
 		goto out_nfserr;
