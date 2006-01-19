@@ -13,7 +13,6 @@
 #include "user_util.h"
 #include "kern_util.h"
 #include "irq_user.h"
-#include "time_user.h"
 #include "mem_user.h"
 #include "os.h"
 #include "tlb.h"

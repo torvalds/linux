@@ -190,7 +190,6 @@ extern int os_protect_memory(void *addr, unsigned long len,
 			     int r, int w, int x);
 extern int os_unmap_memory(void *addr, int len);
 extern void os_flush_stdout(void);
-extern unsigned long long os_usecs(void);
 
 /* tt.c
  * for tt mode only (will be deleted in future...)
@@ -244,5 +243,16 @@ extern int raw(int fd);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(void);
 extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
+
+/* time.c */
+#define BILLION (1000 * 1000 * 1000)
+
+extern void switch_timers(int to_real);
+extern void idle_sleep(int secs);
+extern void enable_timer(void);
+extern void disable_timer(void);
+extern void user_time_init(void);
+extern void uml_idle_timer(void);
+extern unsigned long long os_nsecs(void);
 
 #endif

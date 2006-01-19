@@ -18,8 +18,8 @@
 #include "sysdep/sigcontext.h"
 #include "sysdep/signal.h"
 #include "sigcontext.h"
-#include "time_user.h"
 #include "mode.h"
+#include "os.h"
 
 void sig_handler(ARCH_SIGHDLR_PARAM)
 {

@@ -27,7 +27,6 @@
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"
 #include "ptrace_user.h"
-#include "time_user.h"
 #include "init.h"
 #include "os.h"
 #include "uml-config.h"
