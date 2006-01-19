@@ -109,7 +109,7 @@ aoeblk_release(struct inode *inode, struct file *filp)
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	if (--d->nopen == 0 && !(d->flags & DEVFL_UP)) {
+	if (--d->nopen == 0) {
 		spin_unlock_irqrestore(&d->lock, flags);
 		aoecmd_cfg(d->aoemajor, d->aoeminor);
 		return 0;
