@@ -286,6 +286,8 @@ rexmit(struct aoedev *d, struct frame *f)
 	h = (struct aoe_hdr *) f->data;
 	f->tag = n;
 	h->tag = cpu_to_be32(n);
+	memcpy(h->dst, d->addr, sizeof h->dst);
+	memcpy(h->src, d->ifp->dev_addr, sizeof h->src);
 
 	skb = skb_prepare(d, f);
 	if (skb) {
