@@ -1,5 +1,5 @@
 /*
- * arch/ppc/platforms/4xx/virtex-ii_pro.h
+ * arch/ppc/platforms/4xx/virtex.h
  *
  * Include file that defines the Xilinx Virtex-II Pro processor
  *
@@ -12,8 +12,8 @@
  */
 
 #ifdef __KERNEL__
-#ifndef __ASM_VIRTEXIIPRO_H__
-#define __ASM_VIRTEXIIPRO_H__
+#ifndef __ASM_VIRTEX_H__
+#define __ASM_VIRTEX_H__
 
 #include <linux/config.h>
 #include <platforms/4xx/xparameters/xparameters.h>
@@ -95,5 +95,5 @@
 
 #include <asm/ibm405.h>
 
-#endif				/* __ASM_VIRTEXIIPRO_H__ */
+#endif				/* __ASM_VIRTEX_H__ */
 #endif				/* __KERNEL__ */

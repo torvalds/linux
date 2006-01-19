@@ -208,9 +208,14 @@ config 405GPR
 	depends on SYCAMORE
 	default y
 
-config VIRTEX_II_PRO
+config XILINX_VIRTEX_II_PRO
 	bool
 	depends on XILINX_ML300
+	default y
+
+config XILINX_VIRTEX
+	bool
+	depends on XILINX_VIRTEX_II_PRO
 	default y
 
 config STB03xxx

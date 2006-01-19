@@ -16,7 +16,7 @@
 #define __ASM_XILINX_ML300_H__
 
 /* ML300 has a Xilinx Virtex-II Pro processor */
-#include <platforms/4xx/virtex-ii_pro.h>
+#include <platforms/4xx/virtex.h>
 
 #ifndef __ASSEMBLY__
 

@@ -22,7 +22,7 @@
 #include <asm/machdep.h>
 #include <asm/ocp.h>
 
-#include <platforms/4xx/virtex-ii_pro.h>	/* for NR_SER_PORTS */
+#include <platforms/4xx/virtex.h>	/* for NR_SER_PORTS */
 
 /*
  * As an overview of how the following functions (platform_init,

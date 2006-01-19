@@ -1,5 +1,5 @@
 /*
- * arch/ppc/platforms/4xx/virtex-ii_pro.c
+ * arch/ppc/platforms/4xx/virtex.c
  *
  * Author: MontaVista Software, Inc.
  *         source@mvista.com
@@ -12,7 +12,7 @@
 #include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ocp.h>
-#include "virtex-ii_pro.h"
+#include <platforms/4xx/virtex.h>
 
 /* Have OCP take care of the serial ports. */
 struct ocp_def core_ocp[] = {
