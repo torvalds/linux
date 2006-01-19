@@ -127,6 +127,7 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 			file->user_info.fdType = cpu_to_be32(HFSP_HARDLINK_TYPE);
 			file->user_info.fdCreator = cpu_to_be32(HFSP_HFSPLUS_CREATOR);
 			file->user_info.fdFlags = cpu_to_be16(0x100);
+			file->create_date = HFSPLUS_I(HFSPLUS_SB(inode->i_sb).hidden_dir).create_date;
 			file->permissions.dev = cpu_to_be32(HFSPLUS_I(inode).dev);
 		}
 		return sizeof(*file);
