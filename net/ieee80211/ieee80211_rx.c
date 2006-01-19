@@ -1047,7 +1047,9 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			break;
 
 		case MFIE_TYPE_TIM:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: ignored\n");
+			network->tim.tim_count = info_element->data[0];
+			network->tim.tim_period = info_element->data[1];
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: partially ignored\n");
 			break;
 
 		case MFIE_TYPE_ERP_INFO:
@@ -1276,6 +1278,7 @@ static void update_network(struct ieee80211_network *dst,
 	dst->listen_interval = src->listen_interval;
 	dst->atim_window = src->atim_window;
 	dst->erp_value = src->erp_value;
+	dst->tim = src->tim;
 
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
 	dst->wpa_ie_len = src->wpa_ie_len;
