@@ -1764,10 +1764,11 @@ nfsd4_encode_dirent(struct readdir_cd *ccd, const char *name, int namlen,
 		 */
 		if (!(cd->rd_bmval[0] & FATTR4_WORD0_RDATTR_ERROR))
 			goto fail;
-		nfserr = nfserr_toosmall;
 		p = nfsd4_encode_rdattr_error(p, buflen, nfserr);
-		if (p == NULL)
+		if (p == NULL) {
+			nfserr = nfserr_toosmall;
 			goto fail;
+		}
 	}
 	cd->buflen -= (p - cd->buffer);
 	cd->buffer = p;
