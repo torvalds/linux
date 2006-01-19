@@ -21,6 +21,9 @@
 #ifdef CONFIG_40x
 #include <asm/io.h>
 #endif
+#ifdef CONFIG_XILINX_VIRTEX
+#include <platforms/4xx/xparameters/xparameters.h>
+#endif
 extern unsigned long timebase_period_ns;
 
 /* For those boards that don't provide one.

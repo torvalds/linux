@@ -172,11 +172,6 @@ config IBM_OCP
 	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || YUCCA || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
 	default y
 
-config XILINX_OCP
-	bool
-	depends on XILINX_ML300
-	default y
-
 config IBM_EMAC4
 	bool
 	depends on 440GX || 440SP || 440SPE
