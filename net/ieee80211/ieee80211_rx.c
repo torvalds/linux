@@ -754,7 +754,14 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		memset(skb->cb, 0, sizeof(skb->cb));
 		skb->dev = dev;
 		skb->ip_summed = CHECKSUM_NONE;	/* 802.11 crc not sufficient */
-		netif_rx(skb);
+		if (netif_rx(skb) == NET_RX_DROP) {
+			/* netif_rx always succeeds, but it might drop
+			 * the packet.  If it drops the packet, we log that
+			 * in our stats. */
+			IEEE80211_DEBUG_DROP
+			    ("RX: netif_rx dropped the packet\n");
+			stats->rx_dropped++;
+		}
 	}
 
       rx_exit:
