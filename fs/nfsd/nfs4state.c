@@ -1465,8 +1465,16 @@ nfsd4_process_open1(struct nfsd4_open *open)
 	sop = find_openstateowner_str(strhashval, open);
 	if (sop) {
 		open->op_stateowner = sop;
-		/* check for replay */
-		if (open->op_seqid == sop->so_seqid - 1){
+		if (!sop->so_confirmed) {
+			/* Replace any unconfirmed stateowner without
+			 * even checking for replays */
+			clp = sop->so_client;
+			release_stateowner(sop);
+		} else if (open->op_seqid == sop->so_seqid) {
+			/* normal case */
+			goto renew;
+		} else if (open->op_seqid == sop->so_seqid - 1) {
+			/* replay */
 			if (sop->so_replay.rp_buflen)
 				return NFSERR_REPLAY_ME;
 			else {
@@ -1480,19 +1488,9 @@ nfsd4_process_open1(struct nfsd4_open *open)
 					" replay with no replay cache\n");
 				goto renew;
 			}
-		} else if (sop->so_confirmed) {
-			if (open->op_seqid == sop->so_seqid)
-				goto renew;
+		} else {
 			status = nfserr_bad_seqid;
 			goto out;
-		} else {
-			/* If we get here, we received an OPEN for an
-			 * unconfirmed nfs4_stateowner. Since the seqid's are
-			 * different, purge the existing nfs4_stateowner, and
-			 * instantiate a new one.
-			 */
-			clp = sop->so_client;
-			release_stateowner(sop);
 		}
 	} else {
 		/* nfs4_stateowner not found.
