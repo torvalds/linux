@@ -255,17 +255,5 @@ __asm__ __volatile__(LOCK "orl %0,%1" \
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
 
-/* ECC atomic, DMA, SMP and interrupt safe scrub function */
-
-static __inline__ void atomic_scrub(unsigned long *virt_addr, u32 size)
-{
-	u32 i;
-	for (i = 0; i < size / 4; i++, virt_addr++)
-		/* Very carefully read and write to memory atomically
-		 * so we are interrupt, DMA and SMP safe.
-		 */
-		__asm__ __volatile__("lock; addl $0, %0"::"m"(*virt_addr));
-}
-
 #include <asm-generic/atomic.h>
 #endif

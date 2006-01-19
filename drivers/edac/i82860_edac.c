@@ -253,7 +253,7 @@ static struct pci_driver i82860_driver = {
 	.id_table = i82860_pci_tbl,
 };
 
-int __init i82860_init(void)
+static int __init i82860_init(void)
 {
 	int pci_rc;
 

@@ -338,7 +338,7 @@ static struct pci_driver amd76x_driver = {
 	.id_table = amd76x_pci_tbl,
 };
 
-int __init amd76x_init(void)
+static int __init amd76x_init(void)
 {
 	return pci_register_driver(&amd76x_driver);
 }

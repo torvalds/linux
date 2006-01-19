@@ -381,7 +381,7 @@ static struct pci_driver r82600_driver = {
 };
 
 
-int __init r82600_init(void)
+static int __init r82600_init(void)
 {
 	return pci_register_driver(&r82600_driver);
 }

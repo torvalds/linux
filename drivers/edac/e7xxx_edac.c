@@ -537,7 +537,7 @@ static struct pci_driver e7xxx_driver = {
 };
 
 
-int __init e7xxx_init(void)
+static int __init e7xxx_init(void)
 {
 	return pci_register_driver(&e7xxx_driver);
 }

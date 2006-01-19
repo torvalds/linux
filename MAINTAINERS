@@ -867,6 +867,15 @@ L:	ebtables-devel@lists.sourceforge.net
 W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
+EDAC-CORE
+P:      Doug Thompson
+M:      norsk5@xmission.com, dthompson@linuxnetworx.com
+P:      Dave Peterson
+M:      dsp@llnl.gov, dave_peterson@pobox.com
+L:      bluesmoke-devel@lists.sourceforge.net
+W:      bluesmoke.sourceforge.net
+S:      Maintained
+
 EEPRO100 NETWORK DRIVER
 P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg

@@ -483,7 +483,7 @@ static struct pci_driver i82875p_driver = {
 };
 
 
-int __init i82875p_init(void)
+static int __init i82875p_init(void)
 {
 	int pci_rc;
 

@@ -25,8 +25,7 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 
 	/* enable access to config space*/
 	pci_read_config_byte(dev, 0xf4, &config);
-	config |= 0x2;
-	pci_write_config_byte(dev, 0xf4, config);
+	pci_write_config_byte(dev, 0xf4, config|0x2);
 
 	/* read xTPR register */
 	raw_pci_ops->read(0, 0, 0x40, 0x4c, 2, &word);
@@ -42,9 +41,9 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 #endif
 	}
 
-	config &= ~0x2;
-	/* disable access to config space*/
-	pci_write_config_byte(dev, 0xf4, config);
+	/* put back the original value for config space*/
+	if (!(config & 0x2))
+		pci_write_config_byte(dev, 0xf4, config);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7320_MCH,	quirk_intel_irqbalance);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7525_MCH,	quirk_intel_irqbalance);

@@ -13,7 +13,7 @@
  * 	Wang Zhenyu at intel.com
  * 	Dave Jiang at mvista.com
  *
- * $Id: bluesmoke_e752x.c,v 1.5.2.11 2005/10/05 00:43:44 dsp_llnl Exp $
+ * $Id: edac_e752x.c,v 1.5.2.11 2005/10/05 00:43:44 dsp_llnl Exp $
  *
  */
 
@@ -376,14 +376,14 @@ static inline void process_threshold_ce(struct mem_ctl_info *mci, u16 error,
 		       mci->mc_idx);
 }
 
-char *global_message[11] = {
+static char *global_message[11] = {
 	"PCI Express C1", "PCI Express C", "PCI Express B1",
 	"PCI Express B", "PCI Express A1", "PCI Express A",
 	"DMA Controler", "HUB Interface", "System Bus",
 	"DRAM Controler", "Internal Buffer"
 };
 
-char *fatal_message[2] = { "Non-Fatal ", "Fatal " };
+static char *fatal_message[2] = { "Non-Fatal ", "Fatal " };
 
 static void do_global_error(int fatal, u32 errors)
 {
@@ -405,7 +405,7 @@ static inline void global_error(int fatal, u32 errors, int *error_found,
 		do_global_error(fatal, errors);
 }
 
-char *hub_message[7] = {
+static char *hub_message[7] = {
 	"HI Address or Command Parity", "HI Illegal Access",
 	"HI Internal Parity", "Out of Range Access",
 	"HI Data Parity", "Enhanced Config Access",
@@ -432,7 +432,7 @@ static inline void hub_error(int fatal, u8 errors, int *error_found,
 		do_hub_error(fatal, errors);
 }
 
-char *membuf_message[4] = {
+static char *membuf_message[4] = {
 	"Internal PMWB to DRAM parity",
 	"Internal PMWB to System Bus Parity",
 	"Internal System Bus or IO to PMWB Parity",
@@ -458,6 +458,7 @@ static inline void membuf_error(u8 errors, int *error_found, int handle_error)
 		do_membuf_error(errors);
 }
 
+#if 0
 char *sysbus_message[10] = {
 	"Addr or Request Parity",
 	"Data Strobe Glitch",
@@ -469,6 +470,7 @@ char *sysbus_message[10] = {
 	"Memory Parity",
 	"IO Subsystem Parity"
 };
+#endif  /*  0  */
 
 static void do_sysbus_error(int fatal, u32 errors)
 {
@@ -1044,7 +1046,7 @@ static struct pci_driver e752x_driver = {
 };
 
 
-int __init e752x_init(void)
+static int __init e752x_init(void)
 {
 	int pci_rc;
 
