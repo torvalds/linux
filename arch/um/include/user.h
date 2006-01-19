@@ -18,6 +18,7 @@ extern int open_gdb_chan(void);
 extern unsigned long strlcpy(char *, const char *, unsigned long);
 extern unsigned long strlcat(char *, const char *, unsigned long);
 extern void *um_vmalloc(int size);
+extern void *um_vmalloc_atomic(int size);
 extern void vfree(void *ptr);
 
 #endif
