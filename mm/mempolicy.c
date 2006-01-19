@@ -185,8 +185,8 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 }
 
 static void gather_stats(struct page *, void *);
-static void migrate_page_add(struct vm_area_struct *vma,
-	struct page *page, struct list_head *pagelist, unsigned long flags);
+static void migrate_page_add(struct page *page, struct list_head *pagelist,
+				unsigned long flags);
 
 /* Scan through pages checking if pages follow certain conditions. */
 static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
@@ -228,7 +228,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		if (flags & MPOL_MF_STATS)
 			gather_stats(page, private);
 		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-			migrate_page_add(vma, page, private, flags);
+			migrate_page_add(page, private, flags);
 		else
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -531,42 +531,13 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
  * page migration
  */
 
-/* Check if we are the only process mapping the page in question */
-static inline int single_mm_mapping(struct mm_struct *mm,
-			struct address_space *mapping)
-{
-	struct vm_area_struct *vma;
-	struct prio_tree_iter iter;
-	int rc = 1;
-
-	spin_lock(&mapping->i_mmap_lock);
-	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX)
-		if (mm != vma->vm_mm) {
-			rc = 0;
-			goto out;
-		}
-	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
-		if (mm != vma->vm_mm) {
-			rc = 0;
-			goto out;
-		}
-out:
-	spin_unlock(&mapping->i_mmap_lock);
-	return rc;
-}
-
-/*
- * Add a page to be migrated to the pagelist
- */
-static void migrate_page_add(struct vm_area_struct *vma,
-	struct page *page, struct list_head *pagelist, unsigned long flags)
+static void migrate_page_add(struct page *page, struct list_head *pagelist,
+				unsigned long flags)
 {
 	/*
-	 * Avoid migrating a page that is shared by others and not writable.
+	 * Avoid migrating a page that is shared with others.
 	 */
-	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
-	    mapping_writably_mapped(page->mapping) ||
-	    single_mm_mapping(vma->vm_mm, page->mapping)) {
+	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
 		if (isolate_lru_page(page))
 			list_add(&page->lru, pagelist);
 	}
