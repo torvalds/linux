@@ -278,6 +278,24 @@ int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node)
 	return dead;
 }
 
+int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout)
+{
+	if (timeout) {
+		mlog(ML_NOTICE, "%s: waiting %dms for notification of "
+		     "death of node %u\n", dlm->name, timeout, node);
+		wait_event_timeout(dlm->dlm_reco_thread_wq,
+			   dlm_is_node_dead(dlm, node),
+			   msecs_to_jiffies(timeout));
+	} else {
+		mlog(ML_NOTICE, "%s: waiting indefinitely for notification "
+		     "of death of node %u\n", dlm->name, node);
+		wait_event(dlm->dlm_reco_thread_wq,
+			   dlm_is_node_dead(dlm, node));
+	}
+	/* for now, return 0 */
+	return 0;
+}
+
 /* callers of the top-level api calls (dlmlock/dlmunlock) should
  * block on the dlm->reco.event when recovery is in progress.
  * the dlm recovery thread will set this state when it begins

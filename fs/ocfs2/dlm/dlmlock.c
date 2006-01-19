@@ -646,7 +646,19 @@ retry_lock:
 			mlog(0, "retrying lock with migration/"
 			     "recovery/in progress\n");
 			msleep(100);
-			dlm_wait_for_recovery(dlm);
+			/* no waiting for dlm_reco_thread */
+			if (recovery) {
+				if (status == DLM_RECOVERING) {
+					mlog(0, "%s: got RECOVERING "
+					     "for $REOCVERY lock, master "
+					     "was %u\n", dlm->name, 
+					     res->owner);
+					dlm_wait_for_node_death(dlm, res->owner, 
+							DLM_NODE_DEATH_WAIT_MAX);
+				}
+			} else {
+				dlm_wait_for_recovery(dlm);
+			}
 			goto retry_lock;
 		}
 
