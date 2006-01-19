@@ -2725,11 +2725,11 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 				        lock->lk_new_open_seqid,
 		                        &lock->lk_new_open_stateid,
 		                        CHECK_FH | OPEN_STATE,
-		                        &lock->lk_stateowner, &open_stp,
+		                        &lock->lk_replay_owner, &open_stp,
 					lock);
 		if (status)
 			goto out;
-		open_sop = lock->lk_stateowner;
+		open_sop = lock->lk_replay_owner;
 		/* create lockowner and lock stateid */
 		fp = open_stp->st_file;
 		strhashval = lock_ownerstr_hashval(fp->fi_inode, 
@@ -2752,12 +2752,12 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 				       lock->lk_old_lock_seqid, 
 				       &lock->lk_old_lock_stateid, 
 				       CHECK_FH | LOCK_STATE, 
-				       &lock->lk_stateowner, &lock_stp, lock);
+				       &lock->lk_replay_owner, &lock_stp, lock);
 		if (status)
 			goto out;
-		lock_sop = lock->lk_stateowner;
+		lock_sop = lock->lk_replay_owner;
 	}
-	/* lock->lk_stateowner and lock_stp have been created or found */
+	/* lock->lk_replay_owner and lock_stp have been created or found */
 	filp = lock_stp->st_vfs_file;
 
 	status = nfserr_grace;
@@ -2830,9 +2830,9 @@ conflicting_lock:
 out:
 	if (status && lock->lk_is_new && lock_sop)
 		release_stateowner(lock_sop);
-	if (lock->lk_stateowner) {
-		nfs4_get_stateowner(lock->lk_stateowner);
-		*replay_owner = lock->lk_stateowner;
+	if (lock->lk_replay_owner) {
+		nfs4_get_stateowner(lock->lk_replay_owner);
+		*replay_owner = lock->lk_replay_owner;
 	}
 	nfs4_unlock_state();
 	return status;
