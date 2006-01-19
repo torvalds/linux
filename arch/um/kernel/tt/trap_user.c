@@ -18,7 +18,7 @@ void sig_handler_common_tt(int sig, void *sc_ptr)
 {
 	struct sigcontext *sc = sc_ptr;
 	struct tt_regs save_regs, *r;
-	int save_errno = errno, is_user;
+	int save_errno = errno, is_user = 0;
 	void (*handler)(int, union uml_pt_regs *);
 
 	/* This is done because to allow SIGSEGV to be delivered inside a SEGV
@@ -35,7 +35,8 @@ void sig_handler_common_tt(int sig, void *sc_ptr)
                 GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
         }
 	save_regs = *r;
-	is_user = user_context(SC_SP(sc));
+	if (sc)
+		is_user = user_context(SC_SP(sc));
 	r->sc = sc;
 	if(sig != SIGUSR2) 
 		r->syscall = -1;
