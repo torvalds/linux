@@ -246,6 +246,7 @@ struct svc_deferred_req {
 	u32			prot;	/* protocol (UDP or TCP) */
 	struct sockaddr_in	addr;
 	struct svc_sock		*svsk;	/* where reply must go */
+	u32			daddr;	/* where reply must come from */
 	struct cache_deferred_req handle;
 	int			argslen;
 	u32			args[0];
