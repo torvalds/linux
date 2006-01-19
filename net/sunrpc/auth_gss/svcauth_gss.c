@@ -420,7 +420,8 @@ static int rsc_parse(struct cache_detail *cd,
 			gss_mech_put(gm);
 			goto out;
 		}
-		if (gss_import_sec_context(buf, len, gm, &rsci.mechctx)) {
+		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx);
+		if (status) {
 			gss_mech_put(gm);
 			goto out;
 		}
