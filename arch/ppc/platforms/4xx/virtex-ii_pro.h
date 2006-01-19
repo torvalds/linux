@@ -16,7 +16,7 @@
 #define __ASM_VIRTEXIIPRO_H__
 
 #include <linux/config.h>
-#include <asm/xparameters.h>
+#include <platforms/4xx/xparameters/xparameters.h>
 
 /* serial defines */
 
