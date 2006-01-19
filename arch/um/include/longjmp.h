@@ -5,13 +5,13 @@
 #include "os.h"
 
 #define UML_SIGLONGJMP(buf, val) do { \
-	siglongjmp(*buf, val);		\
+	longjmp(*buf, val);	\
 } while(0)
 
 #define UML_SIGSETJMP(buf, enable) ({ \
 	int n; \
 	enable = get_signals(); \
-	n = sigsetjmp(*buf, 1); \
+	n = setjmp(*buf); \
 	if(n != 0) \
 		set_signals(enable); \
 	n; })
