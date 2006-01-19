@@ -11,6 +11,7 @@
 #include "../os/include/file.h"
 #include "sysdep/ptrace.h"
 #include "kern_util.h"
+#include "skas/mm_id.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -254,5 +255,21 @@ extern void disable_timer(void);
 extern void user_time_init(void);
 extern void uml_idle_timer(void);
 extern unsigned long long os_nsecs(void);
+
+/* skas/mem.c */
+extern long run_syscall_stub(struct mm_id * mm_idp,
+			     int syscall, unsigned long *args, long expected,
+			     void **addr, int done);
+extern long syscall_stub_data(struct mm_id * mm_idp,
+			      unsigned long *data, int data_count,
+			      void **addr, void **stub_addr);
+extern int map(struct mm_id * mm_idp, unsigned long virt,
+	       unsigned long len, int r, int w, int x, int phys_fd,
+	       unsigned long long offset, int done, void **data);
+extern int unmap(struct mm_id * mm_idp, void *addr, unsigned long len,
+		 int done, void **data);
+extern int protect(struct mm_id * mm_idp, unsigned long addr,
+		   unsigned long len, int r, int w, int x, int done,
+		   void **data);
 
 #endif
