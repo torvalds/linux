@@ -1340,7 +1340,8 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 
 extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
 		       struct file *filp);
-extern long do_sys_open(const char __user *filename, int flags, int mode);
+extern long do_sys_open(int fdf, const char __user *filename, int flags,
+			int mode);
 extern struct file *filp_open(const char *, int, int);
 extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);
 extern int filp_close(struct file *, fl_owner_t id);
@@ -1479,7 +1480,7 @@ static inline void allow_write_access(struct file *file)
 }
 extern int do_pipe(int *);
 
-extern int open_namei(const char *, int, int, struct nameidata *);
+extern int open_namei(int dfd, const char *, int, int, struct nameidata *);
 extern int may_open(struct nameidata *, int, int);
 
 extern int kernel_read(struct file *, unsigned long, char *, unsigned long);
@@ -1677,6 +1678,8 @@ extern int vfs_readdir(struct file *, filldir_t, void *);
 
 extern int vfs_stat(char __user *, struct kstat *);
 extern int vfs_lstat(char __user *, struct kstat *);
+extern int vfs_stat_fd(int dfd, char __user *, struct kstat *);
+extern int vfs_lstat_fd(int dfd, char __user *, struct kstat *);
 extern int vfs_fstat(unsigned int, struct kstat *);
 
 extern int vfs_ioctl(struct file *, unsigned int, unsigned int, unsigned long);

@@ -68,10 +68,10 @@ asmlinkage long compat_sys_utime(char __user *filename, struct compat_utimbuf __
 		tv[0].tv_usec = 0;
 		tv[1].tv_usec = 0;
 	}
-	return do_utimes(filename, t ? tv : NULL);
+	return do_utimes(AT_FDCWD, filename, t ? tv : NULL);
 }
 
-asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
+asmlinkage long compat_sys_futimesat(int dfd, char __user *filename, struct compat_timeval __user *t)
 {
 	struct timeval tv[2];
 
@@ -82,14 +82,19 @@ asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval _
 		    get_user(tv[1].tv_usec, &t[1].tv_usec))
 			return -EFAULT; 
 	} 
-	return do_utimes(filename, t ? tv : NULL);
+	return do_utimes(dfd, filename, t ? tv : NULL);
+}
+
+asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
+{
+	return compat_sys_futimesat(AT_FDCWD, filename, t);
 }
 
 asmlinkage long compat_sys_newstat(char __user * filename,
 		struct compat_stat __user *statbuf)
 {
 	struct kstat stat;
-	int error = vfs_stat(filename, &stat);
+	int error = vfs_stat_fd(AT_FDCWD, filename, &stat);
 
 	if (!error)
 		error = cp_compat_stat(&stat, statbuf);
@@ -100,10 +105,31 @@ asmlinkage long compat_sys_newlstat(char __user * filename,
 		struct compat_stat __user *statbuf)
 {
 	struct kstat stat;
-	int error = vfs_lstat(filename, &stat);
+	int error = vfs_lstat_fd(AT_FDCWD, filename, &stat);
 
 	if (!error)
 		error = cp_compat_stat(&stat, statbuf);
+	return error;
+}
+
+asmlinkage long compat_sys_newfstatat(int dfd, char __user *filename,
+		struct compat_stat __user *statbuf, int flag)
+{
+	struct kstat stat;
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, &stat);
+	else
+		error = vfs_stat_fd(dfd, filename, &stat);
+
+	if (!error)
+		error = cp_compat_stat(&stat, statbuf);
+
+out:
 	return error;
 }
 
@@ -1290,7 +1316,17 @@ out:
 asmlinkage long
 compat_sys_open(const char __user *filename, int flags, int mode)
 {
-	return do_sys_open(filename, flags, mode);
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
+}
+
+/*
+ * Exactly like fs/open.c:sys_openat(), except that it doesn't set the
+ * O_LARGEFILE flag.
+ */
+asmlinkage long
+compat_sys_openat(int dfd, const char __user *filename, int flags, int mode)
+{
+	return do_sys_open(dfd, filename, flags, mode);
 }
 
 /*
