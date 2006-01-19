@@ -143,6 +143,7 @@ config HOSTFS
 
 config HPPFS
 	tristate "HoneyPot ProcFS (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 	help
 	hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
 	entries to be overridden, removed, or fabricated from the host.
@@ -154,10 +155,6 @@ config HPPFS
 
 	You only need this if you are setting up a UML honeypot.  Otherwise,
 	it is safe to say 'N' here.
-
-	If you are actively using it, please report any problems, since it's
-	getting fixed. In this moment, it is experimental on 2.6 (it works on
-	2.4).
 
 config MCONSOLE
 	bool "Management console"
@@ -243,8 +240,16 @@ config NEST_LEVEL
         Only change this if you are running nested UMLs.
 
 config HIGHMEM
-	bool "Highmem support"
-	depends on !64BIT
+	bool "Highmem support (EXPERIMENTAL)"
+	depends on !64BIT && EXPERIMENTAL
+	default n
+	help
+	This was used to allow UML to run with big amounts of memory.
+	Currently it is unstable, so if unsure say N.
+
+	To use big amounts of memory, it is recommended to disable TT mode (i.e.
+	CONFIG_MODE_TT) and enable static linking (i.e. CONFIG_STATIC_LINK) -
+	this should allow the guest to use up to 2.75G of memory.
 
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
@@ -269,17 +274,13 @@ endmenu
 
 source "init/Kconfig"
 
-source "net/Kconfig"
-
-source "drivers/base/Kconfig"
+source "drivers/block/Kconfig"
 
 source "arch/um/Kconfig.char"
 
-source "drivers/block/Kconfig"
+source "drivers/base/Kconfig"
 
-config NETDEVICES
-	bool
-	default NET
+source "net/Kconfig"
 
 source "arch/um/Kconfig.net"
 
