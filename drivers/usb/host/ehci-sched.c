@@ -1399,7 +1399,7 @@ itd_complete (
 	 */
 
 	/* give urb back to the driver ... can be out-of-order */
-	dev = usb_get_dev (urb->dev);
+	dev = urb->dev;
 	ehci_urb_done (ehci, urb, regs);
 	urb = NULL;
 
@@ -1418,7 +1418,6 @@ itd_complete (
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
 	}
 	iso_stream_put (ehci, stream);
-	usb_put_dev (dev);
 
 	return 1;
 }
@@ -1765,7 +1764,7 @@ sitd_complete (
 	 */
 
 	/* give urb back to the driver */
-	dev = usb_get_dev (urb->dev);
+	dev = urb->dev;
 	ehci_urb_done (ehci, urb, regs);
 	urb = NULL;
 
@@ -1784,7 +1783,6 @@ sitd_complete (
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
 	}
 	iso_stream_put (ehci, stream);
-	usb_put_dev (dev);
 
 	return 1;
 }

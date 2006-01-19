@@ -179,7 +179,6 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 		qh->hep = hep;
 		qh->udev = udev;
 		hep->hcpriv = qh;
-		usb_get_dev(udev);
 
 	} else {		/* Skeleton QH */
 		qh->state = QH_STATE_ACTIVE;
@@ -197,7 +196,6 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	list_del(&qh->node);
 	if (qh->udev) {
 		qh->hep->hcpriv = NULL;
-		usb_put_dev(qh->udev);
 		uhci_free_td(uhci, qh->dummy_td);
 	}
 	dma_pool_free(uhci->qh_pool, qh, qh->dma_handle);

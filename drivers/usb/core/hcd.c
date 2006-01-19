@@ -1105,7 +1105,6 @@ static void urb_unlink (struct urb *urb)
 	spin_lock_irqsave (&hcd_data_lock, flags);
 	list_del_init (&urb->urb_list);
 	spin_unlock_irqrestore (&hcd_data_lock, flags);
-	usb_put_dev (urb->dev);
 }
 
 
@@ -1145,7 +1144,6 @@ static int hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	case HC_STATE_RUNNING:
 	case HC_STATE_RESUMING:
 doit:
-		usb_get_dev (urb->dev);
 		list_add_tail (&urb->urb_list, &ep->urb_list);
 		status = 0;
 		break;

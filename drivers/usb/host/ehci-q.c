@@ -702,7 +702,7 @@ qh_make (
 	}
 
 	/* support for tt scheduling, and access to toggles */
-	qh->dev = usb_get_dev (urb->dev);
+	qh->dev = urb->dev;
 
 	/* using TT? */
 	switch (urb->dev->speed) {

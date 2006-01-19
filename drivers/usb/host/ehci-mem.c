@@ -75,7 +75,6 @@ static void qh_destroy (struct kref *kref)
 	}
 	if (qh->dummy)
 		ehci_qtd_free (ehci, qh->dummy);
-	usb_put_dev (qh->dev);
 	dma_pool_free (ehci->qh_pool, qh, qh->qh_dma);
 }
 
