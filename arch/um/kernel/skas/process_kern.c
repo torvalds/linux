@@ -20,7 +20,6 @@
 #include "tlb.h"
 #include "kern.h"
 #include "mode.h"
-#include "proc_mm.h"
 #include "registers.h"
 
 void switch_to_skas(void *prev, void *next)
@@ -125,24 +124,13 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 
 extern void map_stub_pages(int fd, unsigned long code,
 			   unsigned long data, unsigned long stack);
-int new_mm(int from, unsigned long stack)
+int new_mm(unsigned long stack)
 {
-	struct proc_mm_op copy;
-	int n, fd;
+	int fd;
 
 	fd = os_open_file("/proc/mm", of_cloexec(of_write(OPENFLAGS())), 0);
 	if(fd < 0)
 		return(fd);
-
-	if(from != -1){
-		copy = ((struct proc_mm_op) { .op 	= MM_COPY_SEGMENTS,
-					      .u 	=
-					      { .copy_segments	= from } } );
-		n = os_write_file(fd, &copy, sizeof(copy));
-		if(n != sizeof(copy))
-			printk("new_mm : /proc/mm copy_segments failed, "
-			       "err = %d\n", -n);
-	}
 
 	if(skas_needs_stub)
 		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);

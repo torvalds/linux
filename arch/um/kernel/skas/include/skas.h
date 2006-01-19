@@ -33,7 +33,7 @@ extern int protect(struct mm_id * mm_idp, unsigned long addr,
 		   unsigned long len, int r, int w, int x, int done,
 		   void **data);
 extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
-extern int new_mm(int from, unsigned long stack);
+extern int new_mm(unsigned long stack);
 extern int start_userspace(unsigned long stub_stack);
 extern int copy_context_skas0(unsigned long stack, int pid);
 extern void get_skas_faultinfo(int pid, struct faultinfo * fi);
