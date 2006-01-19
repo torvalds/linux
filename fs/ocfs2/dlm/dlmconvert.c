@@ -421,7 +421,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_lockstatus *lksb;
 	enum dlm_status status = DLM_NORMAL;
 	u32 flags;
-	int call_ast = 0, kick_thread = 0;
+	int call_ast = 0, kick_thread = 0, ast_reserved = 0;
 
 	if (!dlm_grab(dlm)) {
 		dlm_error(DLM_REJECTED);
@@ -490,6 +490,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	status = __dlm_lockres_state_to_status(res);
 	if (status == DLM_NORMAL) {
 		__dlm_lockres_reserve_ast(res);
+		ast_reserved = 1;
 		res->state |= DLM_LOCK_RES_IN_PROGRESS;
 		status = __dlmconvert_master(dlm, res, lock, flags,
 					     cnv->requested_type,
@@ -512,10 +513,10 @@ leave:
 	else
 		dlm_lock_put(lock);
 
-	/* either queue the ast or release it */
+	/* either queue the ast or release it, if reserved */
 	if (call_ast)
 		dlm_queue_ast(dlm, lock);
-	else
+	else if (ast_reserved)
 		dlm_lockres_release_ast(dlm, res);
 
 	if (kick_thread)
