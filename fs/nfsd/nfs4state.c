@@ -2989,9 +2989,10 @@ check_for_locks(struct file *filp, struct nfs4_stateowner *lowner)
 
 	lock_kernel();
 	for (flpp = &inode->i_flock; *flpp != NULL; flpp = &(*flpp)->fl_next) {
-		if ((*flpp)->fl_owner == (fl_owner_t)lowner)
+		if ((*flpp)->fl_owner == (fl_owner_t)lowner) {
 			status = 1;
 			goto out;
+		}
 	}
 out:
 	unlock_kernel();
