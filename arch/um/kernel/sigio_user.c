@@ -337,70 +337,103 @@ int ignore_sigio_fd(int fd)
 	return(err);
 }
 
-static int setup_initial_poll(int fd)
+static struct pollfd* setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
-	p = um_kmalloc_atomic(sizeof(struct pollfd));
-	if(p == NULL){
+	p = um_kmalloc(sizeof(struct pollfd));
+	if (p == NULL) {
 		printk("setup_initial_poll : failed to allocate poll\n");
-		return(-1);
+		return NULL;
 	}
 	*p = ((struct pollfd) { .fd  	= fd,
 				.events 	= POLLIN,
 				.revents 	= 0 });
-	current_poll = ((struct pollfds) { .poll 	= p,
-					   .used 	= 1,
-					   .size 	= 1 });
-	return(0);
+	return p;
 }
 
 void write_sigio_workaround(void)
 {
 	unsigned long stack;
+	struct pollfd *p;
 	int err;
+	int l_write_sigio_fds[2];
+	int l_sigio_private[2];
+	int l_write_sigio_pid;
 
+	/* We call this *tons* of times - and most ones we must just fail. */
 	sigio_lock();
-	if(write_sigio_pid != -1)
-		goto out;
+	l_write_sigio_pid = write_sigio_pid;
+	sigio_unlock();
 
-	err = os_pipe(write_sigio_fds, 1, 1);
+	if (l_write_sigio_pid != -1)
+		return;
+
+	err = os_pipe(l_write_sigio_fds, 1, 1);
 	if(err < 0){
 		printk("write_sigio_workaround - os_pipe 1 failed, "
 		       "err = %d\n", -err);
-		goto out;
+		return;
 	}
-	err = os_pipe(sigio_private, 1, 1);
+	err = os_pipe(l_sigio_private, 1, 1);
 	if(err < 0){
-		printk("write_sigio_workaround - os_pipe 2 failed, "
+		printk("write_sigio_workaround - os_pipe 1 failed, "
 		       "err = %d\n", -err);
 		goto out_close1;
 	}
-	if(setup_initial_poll(sigio_private[1]))
+
+	p = setup_initial_poll(l_sigio_private[1]);
+	if(!p)
 		goto out_close2;
 
-	write_sigio_pid = run_helper_thread(write_sigio_thread, NULL, 
+	sigio_lock();
+
+	/* Did we race? Don't try to optimize this, please, it's not so likely
+	 * to happen, and no more than once at the boot. */
+	if(write_sigio_pid != -1)
+		goto out_unlock;
+
+	write_sigio_pid = run_helper_thread(write_sigio_thread, NULL,
 					    CLONE_FILES | CLONE_VM, &stack, 0);
 
-	if(write_sigio_pid < 0) goto out_close2;
+	if (write_sigio_pid < 0)
+		goto out_clear;
 
-	if(write_sigio_irq(write_sigio_fds[0])) 
+	if (write_sigio_irq(l_write_sigio_fds[0]))
 		goto out_kill;
 
- out:
+	/* Success, finally. */
+	memcpy(write_sigio_fds, l_write_sigio_fds, sizeof(l_write_sigio_fds));
+	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
+
+	current_poll = ((struct pollfds) { .poll 	= p,
+					   .used 	= 1,
+					   .size 	= 1 });
+
 	sigio_unlock();
 	return;
 
  out_kill:
-	os_kill_process(write_sigio_pid, 1);
+	l_write_sigio_pid = write_sigio_pid;
 	write_sigio_pid = -1;
- out_close2:
-	os_close_file(sigio_private[0]);
-	os_close_file(sigio_private[1]);
- out_close1:
-	os_close_file(write_sigio_fds[0]);
-	os_close_file(write_sigio_fds[1]);
 	sigio_unlock();
+	/* Going to call waitpid, avoid holding the lock. */
+	os_kill_process(l_write_sigio_pid, 1);
+	goto out_free;
+
+ out_clear:
+	write_sigio_pid = -1;
+ out_unlock:
+	sigio_unlock();
+ out_free:
+	kfree(p);
+ out_close2:
+	os_close_file(l_sigio_private[0]);
+	os_close_file(l_sigio_private[1]);
+ out_close1:
+	os_close_file(l_write_sigio_fds[0]);
+	os_close_file(l_write_sigio_fds[1]);
+	return;
 }
 
 int read_sigio_fd(int fd)
