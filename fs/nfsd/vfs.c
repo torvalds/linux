@@ -815,7 +815,7 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 	return size;
 }
 
-static inline int
+static int
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
@@ -879,7 +879,7 @@ static void kill_suid(struct dentry *dentry)
 	mutex_unlock(&dentry->d_inode->i_mutex);
 }
 
-static inline int
+static int
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
 	   			unsigned long cnt, int *stablep)
