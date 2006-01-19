@@ -402,10 +402,10 @@ static int imx_startup(struct uart_port *port)
 			     DRIVER_NAME, sport);
 	if (retval) goto error_out2;
 
-	retval = request_irq(sport->rtsirq, imx_rtsint, 0,
+	retval = request_irq(sport->rtsirq, imx_rtsint,
+			     SA_TRIGGER_FALLING | SA_TRIGGER_RISING,
 			     DRIVER_NAME, sport);
 	if (retval) goto error_out3;
-	set_irq_type(sport->rtsirq, IRQT_BOTHEDGE);
 
 	/*
 	 * Finally, clear and enable interrupts
