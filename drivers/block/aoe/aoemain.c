@@ -89,7 +89,7 @@ aoe_init(void)
 	}
 
 	printk(KERN_INFO
-	       "aoe: aoe_init: AoE v2.6-%s initialised.\n",
+	       "aoe: aoe_init: AoE v%s initialised.\n",
 	       VERSION);
 	discover_timer(TINIT);
 	return 0;
