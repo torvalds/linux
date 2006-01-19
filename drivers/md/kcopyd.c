@@ -8,6 +8,7 @@
  * completion notification.
  */
 
+#include <asm/types.h>
 #include <asm/atomic.h>
 
 #include <linux/blkdev.h>
