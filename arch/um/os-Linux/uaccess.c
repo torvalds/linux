@@ -6,6 +6,7 @@
 
 #include <setjmp.h>
 #include <string.h>
+#include "longjmp.h"
 
 unsigned long __do_user_copy(void *to, const void *from, int n,
 			     void **fault_addr, void **fault_catcher,
@@ -13,10 +14,11 @@ unsigned long __do_user_copy(void *to, const void *from, int n,
 					int n), int *faulted_out)
 {
 	unsigned long *faddrp = (unsigned long *) fault_addr, ret;
+	int enable;
 
 	sigjmp_buf jbuf;
 	*fault_catcher = &jbuf;
-	if(sigsetjmp(jbuf, 1) == 0){
+	if(UML_SIGSETJMP(&jbuf, enable) == 0){
 		(*op)(to, from, n);
 		ret = 0;
 		*faulted_out = 0;

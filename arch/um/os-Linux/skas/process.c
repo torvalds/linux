@@ -34,6 +34,7 @@
 #include "mem.h"
 #include "uml-config.h"
 #include "process.h"
+#include "longjmp.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
@@ -433,6 +434,7 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 {
 	unsigned long flags;
 	sigjmp_buf switch_buf, fork_buf;
+	int enable;
 
 	*switch_buf_ptr = &switch_buf;
 	*fork_buf_ptr = &fork_buf;
@@ -447,7 +449,7 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 	 */
 	flags = get_signals();
 	block_signals();
-	if(sigsetjmp(fork_buf, 1) == 0)
+	if(UML_SIGSETJMP(&fork_buf, enable) == 0)
 		new_thread_proc(stack, handler);
 
 	remove_sigstack();
@@ -458,20 +460,22 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 void thread_wait(void *sw, void *fb)
 {
 	sigjmp_buf buf, **switch_buf = sw, *fork_buf;
+	int enable;
 
 	*switch_buf = &buf;
 	fork_buf = fb;
-	if(sigsetjmp(buf, 1) == 0)
+	if(UML_SIGSETJMP(&buf, enable) == 0)
 		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)
 {
 	sigjmp_buf my_buf, **me_ptr = me, *next_buf = next;
+	int enable;
 
 	*me_ptr = &my_buf;
-	if(sigsetjmp(my_buf, 1) == 0)
-		siglongjmp(*next_buf, 1);
+	if(UML_SIGSETJMP(&my_buf, enable) == 0)
+		UML_SIGLONGJMP(next_buf, 1);
 }
 
 static sigjmp_buf initial_jmpbuf;
@@ -484,14 +488,14 @@ static sigjmp_buf *cb_back;
 int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 {
 	sigjmp_buf **switch_buf = switch_buf_ptr;
-	int n;
+	int n, enable;
 
 	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
 		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
 		    SIGVTALRM, -1);
 
 	*fork_buf_ptr = &initial_jmpbuf;
-	n = sigsetjmp(initial_jmpbuf, 1);
+	n = UML_SIGSETJMP(&initial_jmpbuf, enable);
 	switch(n){
 	case INIT_JMP_NEW_THREAD:
 		new_thread_proc((void *) stack, new_thread_handler);
@@ -501,7 +505,7 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 		break;
 	case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
-		siglongjmp(*cb_back, 1);
+		UML_SIGLONGJMP(cb_back, 1);
 		break;
 	case INIT_JMP_HALT:
 		kmalloc_ok = 0;
@@ -512,20 +516,21 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 	default:
 		panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
-	siglongjmp(**switch_buf, 1);
+	UML_SIGLONGJMP(*switch_buf, 1);
 }
 
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 {
 	sigjmp_buf here;
+	int enable;
 
 	cb_proc = proc;
 	cb_arg = arg;
 	cb_back = &here;
 
 	block_signals();
-	if(sigsetjmp(here, 1) == 0)
-		siglongjmp(initial_jmpbuf, INIT_JMP_CALLBACK);
+	if(UML_SIGSETJMP(&here, enable) == 0)
+		UML_SIGLONGJMP(&initial_jmpbuf, INIT_JMP_CALLBACK);
 	unblock_signals();
 
 	cb_proc = NULL;
@@ -536,13 +541,13 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 void halt_skas(void)
 {
 	block_signals();
-	siglongjmp(initial_jmpbuf, INIT_JMP_HALT);
+	UML_SIGLONGJMP(&initial_jmpbuf, INIT_JMP_HALT);
 }
 
 void reboot_skas(void)
 {
 	block_signals();
-	siglongjmp(initial_jmpbuf, INIT_JMP_REBOOT);
+	UML_SIGLONGJMP(&initial_jmpbuf, INIT_JMP_REBOOT);
 }
 
 void switch_mm_skas(struct mm_id *mm_idp)

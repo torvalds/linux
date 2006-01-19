@@ -81,19 +81,7 @@ extern void scan_elf_aux( char **envp);
 int main(int argc, char **argv, char **envp)
 {
 	char **new_argv;
-	sigset_t mask;
 	int ret, i, err;
-
-	/* Enable all signals except SIGIO - in some environments, we can
-	 * enter with some signals blocked
-	 */
-
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGIO);
-	if(sigprocmask(SIG_SETMASK, &mask, NULL) < 0){
-		perror("sigprocmask");
-		exit(1);
-	}
 
 #ifdef UML_CONFIG_CMDLINE_ON_HOST
 	/* Allocate memory for thread command lines */

@@ -30,6 +30,7 @@
 #include "ptrace_user.h"
 #include "uml-config.h"
 #include "os.h"
+#include "longjmp.h"
 
 void stack_protections(unsigned long address)
 {
