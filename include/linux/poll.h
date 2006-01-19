@@ -92,7 +92,11 @@ void zero_fd_set(unsigned long nr, unsigned long *fdset)
 	memset(fdset, 0, FDS_BYTES(nr));
 }
 
-extern int do_select(int n, fd_set_bits *fds, long *timeout);
+#define MAX_INT64_SECONDS (((s64)(~((u64)0)>>1)/HZ)-1)
+
+extern int do_select(int n, fd_set_bits *fds, s64 *timeout);
+extern int do_sys_poll(struct pollfd __user * ufds, unsigned int nfds,
+		       s64 *timeout);
 
 #endif /* KERNEL */
 

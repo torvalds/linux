@@ -179,12 +179,11 @@ get_max:
 #define POLLOUT_SET (POLLWRBAND | POLLWRNORM | POLLOUT | POLLERR)
 #define POLLEX_SET (POLLPRI)
 
-int do_select(int n, fd_set_bits *fds, long *timeout)
+int do_select(int n, fd_set_bits *fds, s64 *timeout)
 {
 	struct poll_wqueues table;
 	poll_table *wait;
 	int retval, i;
-	long __timeout = *timeout;
 
 	rcu_read_lock();
 	retval = max_select_fd(n, fds);
@@ -196,11 +195,12 @@ int do_select(int n, fd_set_bits *fds, long *timeout)
 
 	poll_initwait(&table);
 	wait = &table.pt;
-	if (!__timeout)
+	if (!*timeout)
 		wait = NULL;
 	retval = 0;
 	for (;;) {
 		unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
+		long __timeout;
 
 		set_current_state(TASK_INTERRUPTIBLE);
 
@@ -255,22 +255,32 @@ int do_select(int n, fd_set_bits *fds, long *timeout)
 				*rexp = res_ex;
 		}
 		wait = NULL;
-		if (retval || !__timeout || signal_pending(current))
+		if (retval || !*timeout || signal_pending(current))
 			break;
 		if(table.error) {
 			retval = table.error;
 			break;
 		}
+
+		if (*timeout < 0) {
+			/* Wait indefinitely */
+			__timeout = MAX_SCHEDULE_TIMEOUT;
+		} else if (unlikely(*timeout >= (s64)MAX_SCHEDULE_TIMEOUT - 1)) {
+			/* Wait for longer than MAX_SCHEDULE_TIMEOUT. Do it in a loop */
+			__timeout = MAX_SCHEDULE_TIMEOUT - 1;
+			*timeout -= __timeout;
+		} else {
+			__timeout = *timeout;
+			*timeout = 0;
+		}
 		__timeout = schedule_timeout(__timeout);
+		if (*timeout >= 0)
+			*timeout += __timeout;
 	}
 	__set_current_state(TASK_RUNNING);
 
 	poll_freewait(&table);
 
-	/*
-	 * Up-to-date the caller timeout.
-	 */
-	*timeout = __timeout;
 	return retval;
 }
 
@@ -295,35 +305,13 @@ static void select_bits_free(void *bits, int size)
 #define MAX_SELECT_SECONDS \
 	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
 
-asmlinkage long
-sys_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp)
+static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+			   fd_set __user *exp, s64 *timeout)
 {
 	fd_set_bits fds;
 	char *bits;
-	long timeout;
 	int ret, size, max_fdset;
 	struct fdtable *fdt;
-
-	timeout = MAX_SCHEDULE_TIMEOUT;
-	if (tvp) {
-		time_t sec, usec;
-
-		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
-		    || __get_user(sec, &tvp->tv_sec)
-		    || __get_user(usec, &tvp->tv_usec)) {
-			ret = -EFAULT;
-			goto out_nofds;
-		}
-
-		ret = -EINVAL;
-		if (sec < 0 || usec < 0)
-			goto out_nofds;
-
-		if ((unsigned long) sec < MAX_SELECT_SECONDS) {
-			timeout = ROUND_UP(usec, 1000000/HZ);
-			timeout += sec * (unsigned long) HZ;
-		}
-	}
 
 	ret = -EINVAL;
 	if (n < 0)
@@ -362,18 +350,7 @@ sys_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 	zero_fd_set(n, fds.res_out);
 	zero_fd_set(n, fds.res_ex);
 
-	ret = do_select(n, &fds, &timeout);
-
-	if (tvp && !(current->personality & STICKY_TIMEOUTS)) {
-		time_t sec = 0, usec = 0;
-		if (timeout) {
-			sec = timeout / HZ;
-			usec = timeout % HZ;
-			usec *= (1000000/HZ);
-		}
-		put_user(sec, &tvp->tv_sec);
-		put_user(usec, &tvp->tv_usec);
-	}
+	ret = do_select(n, &fds, timeout);
 
 	if (ret < 0)
 		goto out;
@@ -394,6 +371,154 @@ out:
 out_nofds:
 	return ret;
 }
+
+asmlinkage long sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+			fd_set __user *exp, struct timeval __user *tvp)
+{
+	s64 timeout = -1;
+	struct timeval tv;
+	int ret;
+
+	if (tvp) {
+		if (copy_from_user(&tv, tvp, sizeof(tv)))
+			return -EFAULT;
+
+		if (tv.tv_sec < 0 || tv.tv_usec < 0)
+			return -EINVAL;
+
+		/* Cast to u64 to make GCC stop complaining */
+		if ((u64)tv.tv_sec >= (u64)MAX_INT64_SECONDS)
+			timeout = -1;	/* infinite */
+		else {
+			timeout = ROUND_UP(tv.tv_usec, USEC_PER_SEC/HZ);
+			timeout += tv.tv_sec * HZ;
+		}
+	}
+
+	ret = core_sys_select(n, inp, outp, exp, &timeout);
+
+	if (tvp) {
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
+		tv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
+		tv.tv_sec = timeout;
+		if (copy_to_user(tvp, &tv, sizeof(tv))) {
+sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND)
+				ret = -EINTR;
+		}
+	}
+
+	return ret;
+}
+
+#ifdef TIF_RESTORE_SIGMASK
+asmlinkage long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,
+		fd_set __user *exp, struct timespec __user *tsp,
+		const sigset_t __user *sigmask, size_t sigsetsize)
+{
+	s64 timeout = MAX_SCHEDULE_TIMEOUT;
+	sigset_t ksigmask, sigsaved;
+	struct timespec ts;
+	int ret;
+
+	if (tsp) {
+		if (copy_from_user(&ts, tsp, sizeof(ts)))
+			return -EFAULT;
+
+		if (ts.tv_sec < 0 || ts.tv_nsec < 0)
+			return -EINVAL;
+
+		/* Cast to u64 to make GCC stop complaining */
+		if ((u64)ts.tv_sec >= (u64)MAX_INT64_SECONDS)
+			timeout = -1;	/* infinite */
+		else {
+			timeout = ROUND_UP(ts.tv_nsec, NSEC_PER_SEC/HZ);
+			timeout += ts.tv_sec * HZ;
+		}
+	}
+
+	if (sigmask) {
+		/* XXX: Don't preclude handling different sized sigset_t's.  */
+		if (sigsetsize != sizeof(sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ksigmask, sigmask, sizeof(ksigmask)))
+			return -EFAULT;
+
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	ret = core_sys_select(n, inp, outp, exp, &timeout);
+
+	if (tsp) {
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
+		ts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) * 1000;
+		ts.tv_sec = timeout;
+		if (copy_to_user(tsp, &ts, sizeof(ts))) {
+sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND)
+				ret = -EINTR;
+		}
+	}
+
+	if (ret == -ERESTARTNOHAND) {
+		/*
+		 * Don't restore the signal mask yet. Let do_signal() deliver
+		 * the signal on the way back to userspace, before the signal
+		 * mask is restored.
+		 */
+		if (sigmask) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+					sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+	} else if (sigmask)
+		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+
+	return ret;
+}
+
+/*
+ * Most architectures can't handle 7-argument syscalls. So we provide a
+ * 6-argument version where the sixth argument is a pointer to a structure
+ * which has a pointer to the sigset_t itself followed by a size_t containing
+ * the sigset size.
+ */
+asmlinkage long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
+	fd_set __user *exp, struct timespec __user *tsp, void __user *sig)
+{
+	size_t sigsetsize = 0;
+	sigset_t __user *up = NULL;
+
+	if (sig) {
+		if (!access_ok(VERIFY_READ, sig, sizeof(void *)+sizeof(size_t))
+		    || __get_user(up, (sigset_t * __user *)sig)
+		    || __get_user(sigsetsize,
+				(size_t * __user)(sig+sizeof(void *))))
+			return -EFAULT;
+	}
+
+	return sys_pselect7(n, inp, outp, exp, tsp, up, sigsetsize);
+}
+#endif /* TIF_RESTORE_SIGMASK */
 
 struct poll_list {
 	struct poll_list *next;
@@ -436,16 +561,19 @@ static void do_pollfd(unsigned int num, struct pollfd * fdpage,
 }
 
 static int do_poll(unsigned int nfds,  struct poll_list *list,
-			struct poll_wqueues *wait, long timeout)
+		   struct poll_wqueues *wait, s64 *timeout)
 {
 	int count = 0;
 	poll_table* pt = &wait->pt;
 
-	if (!timeout)
+	/* Optimise the no-wait case */
+	if (!(*timeout))
 		pt = NULL;
  
 	for (;;) {
 		struct poll_list *walk;
+		long __timeout;
+
 		set_current_state(TASK_INTERRUPTIBLE);
 		walk = list;
 		while(walk != NULL) {
@@ -453,18 +581,36 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 			walk = walk->next;
 		}
 		pt = NULL;
-		if (count || !timeout || signal_pending(current))
+		if (count || !*timeout || signal_pending(current))
 			break;
 		count = wait->error;
 		if (count)
 			break;
-		timeout = schedule_timeout(timeout);
+
+		if (*timeout < 0) {
+			/* Wait indefinitely */
+			__timeout = MAX_SCHEDULE_TIMEOUT;
+		} else if (unlikely(*timeout >= (s64)MAX_SCHEDULE_TIMEOUT-1)) {
+			/*
+			 * Wait for longer than MAX_SCHEDULE_TIMEOUT. Do it in
+			 * a loop
+			 */
+			__timeout = MAX_SCHEDULE_TIMEOUT - 1;
+			*timeout -= __timeout;
+		} else {
+			__timeout = *timeout;
+			*timeout = 0;
+		}
+
+		__timeout = schedule_timeout(__timeout);
+		if (*timeout >= 0)
+			*timeout += __timeout;
 	}
 	__set_current_state(TASK_RUNNING);
 	return count;
 }
 
-asmlinkage long sys_poll(struct pollfd __user * ufds, unsigned int nfds, long timeout)
+int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 {
 	struct poll_wqueues table;
  	int fdcount, err;
@@ -481,14 +627,6 @@ asmlinkage long sys_poll(struct pollfd __user * ufds, unsigned int nfds, long ti
 	rcu_read_unlock();
 	if (nfds > max_fdset && nfds > OPEN_MAX)
 		return -EINVAL;
-
-	if (timeout) {
-		/* Careful about overflow in the intermediate values */
-		if ((unsigned long) timeout < MAX_SCHEDULE_TIMEOUT / HZ)
-			timeout = (unsigned long)(timeout*HZ+999)/1000+1;
-		else /* Negative or overflow */
-			timeout = MAX_SCHEDULE_TIMEOUT;
-	}
 
 	poll_initwait(&table);
 
@@ -519,6 +657,7 @@ asmlinkage long sys_poll(struct pollfd __user * ufds, unsigned int nfds, long ti
 		}
 		i -= pp->len;
 	}
+
 	fdcount = do_poll(nfds, head, &table, timeout);
 
 	/* OK, now copy the revents fields back to user space. */
@@ -547,3 +686,98 @@ out_fds:
 	poll_freewait(&table);
 	return err;
 }
+
+asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
+			long timeout_msecs)
+{
+	s64 timeout_jiffies = 0;
+
+	if (timeout_msecs) {
+#if HZ > 1000
+		/* We can only overflow if HZ > 1000 */
+		if (timeout_msecs / 1000 > (s64)0x7fffffffffffffffULL / (s64)HZ)
+			timeout_jiffies = -1;
+		else
+#endif
+			timeout_jiffies = msecs_to_jiffies(timeout_msecs);
+	}
+
+	return do_sys_poll(ufds, nfds, &timeout_jiffies);
+}
+
+#ifdef TIF_RESTORE_SIGMASK
+asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
+	struct timespec __user *tsp, const sigset_t __user *sigmask,
+	size_t sigsetsize)
+{
+	sigset_t ksigmask, sigsaved;
+	struct timespec ts;
+	s64 timeout = -1;
+	int ret;
+
+	if (tsp) {
+		if (copy_from_user(&ts, tsp, sizeof(ts)))
+			return -EFAULT;
+
+		/* Cast to u64 to make GCC stop complaining */
+		if ((u64)ts.tv_sec >= (u64)MAX_INT64_SECONDS)
+			timeout = -1;	/* infinite */
+		else {
+			timeout = ROUND_UP(ts.tv_nsec, NSEC_PER_SEC/HZ);
+			timeout += ts.tv_sec * HZ;
+		}
+	}
+
+	if (sigmask) {
+		/* XXX: Don't preclude handling different sized sigset_t's.  */
+		if (sigsetsize != sizeof(sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ksigmask, sigmask, sizeof(ksigmask)))
+			return -EFAULT;
+
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	ret = do_sys_poll(ufds, nfds, &timeout);
+
+	/* We can restart this syscall, usually */
+	if (ret == -EINTR) {
+		/*
+		 * Don't restore the signal mask yet. Let do_signal() deliver
+		 * the signal on the way back to userspace, before the signal
+		 * mask is restored.
+		 */
+		if (sigmask) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+					sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+		ret = -ERESTARTNOHAND;
+	} else if (sigmask)
+		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+
+	if (tsp && timeout >= 0) {
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
+		/* Yes, we know it's actually an s64, but it's also positive. */
+		ts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) * 1000;
+		ts.tv_sec = timeout;
+		if (copy_to_user(tsp, &ts, sizeof(ts))) {
+		sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND && timeout >= 0)
+				ret = -EINTR;
+		}
+	}
+
+	return ret;
+}
+#endif /* TIF_RESTORE_SIGMASK */
