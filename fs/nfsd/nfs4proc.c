@@ -594,10 +594,6 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_se
 {
 	int status = nfs_ok;
 
-	if (!current_fh->fh_dentry)
-		return nfserr_nofilehandle;
-
-	status = nfs_ok;
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
 		nfs4_lock_state();
 		status = nfs4_preprocess_stateid_op(current_fh,
@@ -799,17 +795,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		/* All operations except RENEW, SETCLIENTID, RESTOREFH
 		* SETCLIENTID_CONFIRM, PUTFH and PUTROOTFH
 		* require a valid current filehandle
-		*
-		* SETATTR NOFILEHANDLE error handled in nfsd4_setattr
-		* due to required returned bitmap argument
 		*/
 		if ((!current_fh->fh_dentry) &&
 		   !((op->opnum == OP_PUTFH) || (op->opnum == OP_PUTROOTFH) ||
 		   (op->opnum == OP_SETCLIENTID) ||
 		   (op->opnum == OP_SETCLIENTID_CONFIRM) ||
 		   (op->opnum == OP_RENEW) || (op->opnum == OP_RESTOREFH) ||
-		   (op->opnum == OP_RELEASE_LOCKOWNER) ||
-		   (op->opnum == OP_SETATTR))) {
+		   (op->opnum == OP_RELEASE_LOCKOWNER))) {
 			op->status = nfserr_nofilehandle;
 			goto encode_op;
 		}
