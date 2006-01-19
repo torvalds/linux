@@ -317,6 +317,11 @@ static int eth_configure(int n, void *init, char *mac,
 		return 1;
 	}
 
+	lp = dev->priv;
+	/* This points to the transport private data. It's still clear, but we
+	 * must memset it to 0 *now*. Let's help the drivers. */
+	memset(lp, 0, size);
+
 	/* sysfs register */
 	if (!driver_registered) {
 		platform_driver_register(&uml_net_driver);
@@ -358,7 +363,6 @@ static int eth_configure(int n, void *init, char *mac,
 		free_netdev(dev);
 		return 1;
 	}
-	lp = dev->priv;
 
 	/* lp.user is the first four bytes of the transport data, which
 	 * has already been initialized.  This structure assignment will
