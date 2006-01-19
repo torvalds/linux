@@ -870,6 +870,17 @@ static ctl_table vm_table[] = {
 		.strategy	= &sysctl_jiffies,
 	},
 #endif
+#ifdef CONFIG_NUMA
+	{
+		.ctl_name	= VM_ZONE_RECLAIM_MODE,
+		.procname	= "zone_reclaim_mode",
+		.data		= &zone_reclaim_mode,
+		.maxlen		= sizeof(zone_reclaim_mode),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.strategy	= &zero,
+	},
+#endif
 	{ .ctl_name = 0 }
 };
 

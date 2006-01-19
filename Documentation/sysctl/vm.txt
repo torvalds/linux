@@ -27,6 +27,7 @@ Currently, these files are in /proc/sys/vm:
 - laptop_mode
 - block_dump
 - drop-caches
+- zone_reclaim_mode
 
 ==============================================================
 
@@ -120,3 +121,20 @@ set to pcp->high/4.  The upper limit of batch is (PAGE_SHIFT * 8)
 
 The initial value is zero.  Kernel does not use this value at boot time to set
 the high water marks for each per cpu page list.
+
+===============================================================
+
+zone_reclaim_mode:
+
+This is set during bootup to 1 if it is determined that pages from
+remote zones will cause a significant performance reduction. The
+page allocator will then reclaim easily reusable pages (those page
+cache pages that are currently not used) before going off node.
+
+The user can override this setting. It may be beneficial to switch
+off zone reclaim if the system is used for a file server and all
+of memory should be used for caching files from disk.
+
+It may be beneficial to switch this on if one wants to do zone
+reclaim regardless of the numa distances in the system.
+
