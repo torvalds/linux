@@ -162,6 +162,11 @@ int kobject_add(struct kobject * kobj)
 		return -ENOENT;
 	if (!kobj->k_name)
 		kobj->k_name = kobj->name;
+	if (!kobj->k_name) {
+		pr_debug("kobject attempted to be registered with no name!\n");
+		WARN_ON(1);
+		return -EINVAL;
+	}
 	parent = kobject_get(kobj->parent);
 
 	pr_debug("kobject %s: registering. parent: %s, set: %s\n",
