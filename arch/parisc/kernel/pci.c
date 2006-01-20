@@ -57,7 +57,7 @@ static int pci_hba_count __read_mostly;
 
 /* parisc_pci_hba used by pci_port->in/out() ops to lookup bus data.  */
 #define PCI_HBA_MAX 32
-struct pci_hba_data *parisc_pci_hba[PCI_HBA_MAX] __read_mostly;
+static struct pci_hba_data *parisc_pci_hba[PCI_HBA_MAX] __read_mostly;
 
 
 /********************************************************************

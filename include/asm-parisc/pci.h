@@ -203,8 +203,6 @@ struct pci_bios_ops {
 */
 extern struct pci_port_ops *pci_port;
 extern struct pci_bios_ops *pci_bios;
-extern int pci_hba_count;
-extern struct pci_hba_data *parisc_pci_hba[];
 
 #ifdef CONFIG_PCI
 extern void pcibios_register_hba(struct pci_hba_data *);
