@@ -1022,12 +1022,14 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* stop async schedule right now? */
 	if (unlikely (qh == ehci->async)) {
 		/* can't get here without STS_ASS set */
-		if (ehci_to_hcd(ehci)->state != HC_STATE_HALT) {
+		if (ehci_to_hcd(ehci)->state != HC_STATE_HALT
+				&& !ehci->reclaim) {
+			/* ... and CMD_IAAD clear */
 			writel (cmd & ~CMD_ASE, &ehci->regs->command);
 			wmb ();
 			// handshake later, if we need to
+			timer_action_done (ehci, TIMER_ASYNC_OFF);
 		}
-		timer_action_done (ehci, TIMER_ASYNC_OFF);
 		return;
 	} 
 
