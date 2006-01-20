@@ -31,7 +31,7 @@ static inline void dlm_delete_debug_file(struct dlm_ls *ls) { }
 #endif
 
 static int			ls_count;
-static struct semaphore		ls_lock;
+static struct mutex		ls_lock;
 static struct list_head		lslist;
 static spinlock_t		lslist_lock;
 static struct task_struct *	scand_task;
@@ -177,7 +177,7 @@ int dlm_lockspace_init(void)
 	int error;
 
 	ls_count = 0;
-	init_MUTEX(&ls_lock);
+	mutex_init(&ls_lock);
 	INIT_LIST_HEAD(&lslist);
 	spin_lock_init(&lslist_lock);
 
@@ -351,10 +351,9 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		return -EEXIST;
 	}
 
-	ls = kmalloc(sizeof(struct dlm_ls) + namelen, GFP_KERNEL);
+	ls = kzalloc(sizeof(struct dlm_ls) + namelen, GFP_KERNEL);
 	if (!ls)
 		goto out;
-	memset(ls, 0, sizeof(struct dlm_ls) + namelen);
 	memcpy(ls->ls_name, name, namelen);
 	ls->ls_namelen = namelen;
 	ls->ls_exflags = flags;
@@ -398,7 +397,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	}
 
 	INIT_LIST_HEAD(&ls->ls_waiters);
-	init_MUTEX(&ls->ls_waiters_sem);
+	mutex_init(&ls->ls_waiters_mutex);
 
 	INIT_LIST_HEAD(&ls->ls_nodes);
 	INIT_LIST_HEAD(&ls->ls_nodes_gone);
@@ -416,14 +415,14 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	ls->ls_uevent_result = 0;
 
 	ls->ls_recoverd_task = NULL;
-	init_MUTEX(&ls->ls_recoverd_active);
+	mutex_init(&ls->ls_recoverd_active);
 	spin_lock_init(&ls->ls_recover_lock);
 	ls->ls_recover_status = 0;
 	ls->ls_recover_seq = 0;
 	ls->ls_recover_args = NULL;
 	init_rwsem(&ls->ls_in_recovery);
 	INIT_LIST_HEAD(&ls->ls_requestqueue);
-	init_MUTEX(&ls->ls_requestqueue_lock);
+	mutex_init(&ls->ls_requestqueue_mutex);
 
 	ls->ls_recover_buf = kmalloc(dlm_config.buffer_size, GFP_KERNEL);
 	if (!ls->ls_recover_buf)
@@ -493,7 +492,7 @@ int dlm_new_lockspace(char *name, int namelen, void **lockspace,
 {
 	int error = 0;
 
-	down(&ls_lock);
+	mutex_lock(&ls_lock);
 	if (!ls_count)
 		error = threads_start();
 	if (error)
@@ -503,7 +502,7 @@ int dlm_new_lockspace(char *name, int namelen, void **lockspace,
 	if (!error)
 		ls_count++;
  out:
-	up(&ls_lock);
+	mutex_unlock(&ls_lock);
 	return error;
 }
 
@@ -629,11 +628,11 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	kobject_unregister(&ls->ls_kobj);
 	kfree(ls);
 
-	down(&ls_lock);
+	mutex_lock(&ls_lock);
 	ls_count--;
 	if (!ls_count)
 		threads_stop();
-	up(&ls_lock);
+	mutex_unlock(&ls_lock);
 
 	module_put(THIS_MODULE);
 	return 0;

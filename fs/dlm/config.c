@@ -162,7 +162,7 @@ struct spaces {
 struct space {
 	struct config_group group;
 	struct list_head members;
-	struct semaphore members_lock;
+	struct mutex members_lock;
 	int members_count;
 };
 
@@ -374,7 +374,7 @@ static struct config_group *make_space(struct config_group *g, const char *name)
 	sp->group.default_groups[1] = NULL;
 
 	INIT_LIST_HEAD(&sp->members);
-	init_MUTEX(&sp->members_lock);
+	mutex_init(&sp->members_lock);
 	sp->members_count = 0;
 	return &sp->group;
 
@@ -453,10 +453,10 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 	nd->nodeid = -1;
 	nd->weight = 1;  /* default weight of 1 if none is set */
 
-	down(&sp->members_lock);
+	mutex_lock(&sp->members_lock);
 	list_add(&nd->list, &sp->members);
 	sp->members_count++;
-	up(&sp->members_lock);
+	mutex_unlock(&sp->members_lock);
 
 	return &nd->item;
 }
@@ -466,10 +466,10 @@ static void drop_node(struct config_group *g, struct config_item *i)
 	struct space *sp = to_space(g->cg_item.ci_parent);
 	struct node *nd = to_node(i);
 
-	down(&sp->members_lock);
+	mutex_lock(&sp->members_lock);
 	list_del(&nd->list);
 	sp->members_count--;
-	up(&sp->members_lock);
+	mutex_unlock(&sp->members_lock);
 
 	config_item_put(i);
 }
@@ -677,7 +677,7 @@ int dlm_nodeid_list(char *lsname, int **ids_out)
 	if (!sp)
 		return -EEXIST;
 
-	down(&sp->members_lock);
+	mutex_lock(&sp->members_lock);
 	if (!sp->members_count) {
 		rv = 0;
 		goto out;
@@ -698,7 +698,7 @@ int dlm_nodeid_list(char *lsname, int **ids_out)
 
 	*ids_out = ids;
  out:
-	up(&sp->members_lock);
+	mutex_unlock(&sp->members_lock);
 	put_space(sp);
 	return rv;
 }
@@ -713,14 +713,14 @@ int dlm_node_weight(char *lsname, int nodeid)
 	if (!sp)
 		goto out;
 
-	down(&sp->members_lock);
+	mutex_lock(&sp->members_lock);
 	list_for_each_entry(nd, &sp->members, list) {
 		if (nd->nodeid != nodeid)
 			continue;
 		w = nd->weight;
 		break;
 	}
-	up(&sp->members_lock);
+	mutex_unlock(&sp->members_lock);
 	put_space(sp);
  out:
 	return w;

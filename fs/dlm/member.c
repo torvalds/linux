@@ -52,7 +52,7 @@ static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 	struct dlm_member *memb;
 	int w;
 
-	memb = kmalloc(sizeof(struct dlm_member), GFP_KERNEL);
+	memb = kzalloc(sizeof(struct dlm_member), GFP_KERNEL);
 	if (!memb)
 		return -ENOMEM;
 
@@ -79,9 +79,9 @@ static int dlm_is_member(struct dlm_ls *ls, int nodeid)
 
 	list_for_each_entry(memb, &ls->ls_nodes, list) {
 		if (memb->nodeid == nodeid)
-			return TRUE;
+			return 1;
 	}
-	return FALSE;
+	return 0;
 }
 
 int dlm_is_removed(struct dlm_ls *ls, int nodeid)
@@ -90,9 +90,9 @@ int dlm_is_removed(struct dlm_ls *ls, int nodeid)
 
 	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
 		if (memb->nodeid == nodeid)
-			return TRUE;
+			return 1;
 	}
-	return FALSE;
+	return 0;
 }
 
 static void clear_memb_list(struct list_head *head)
@@ -178,10 +178,10 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	/* move departed members from ls_nodes to ls_nodes_gone */
 
 	list_for_each_entry_safe(memb, safe, &ls->ls_nodes, list) {
-		found = FALSE;
+		found = 0;
 		for (i = 0; i < rv->node_count; i++) {
 			if (memb->nodeid == rv->nodeids[i]) {
-				found = TRUE;
+				found = 1;
 				break;
 			}
 		}
@@ -271,10 +271,9 @@ int dlm_ls_start(struct dlm_ls *ls)
 	int *ids = NULL;
 	int error, count;
 
-	rv = kmalloc(sizeof(struct dlm_recover), GFP_KERNEL);
+	rv = kzalloc(sizeof(struct dlm_recover), GFP_KERNEL);
 	if (!rv)
 		return -ENOMEM;
-	memset(rv, 0, sizeof(struct dlm_recover));
 
 	error = count = dlm_nodeid_list(ls->ls_name, &ids);
 	if (error <= 0)

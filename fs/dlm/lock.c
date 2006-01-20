@@ -215,15 +215,15 @@ static inline int is_master_copy(struct dlm_lkb *lkb)
 {
 	if (lkb->lkb_flags & DLM_IFL_MSTCPY)
 		DLM_ASSERT(lkb->lkb_nodeid, dlm_print_lkb(lkb););
-	return (lkb->lkb_flags & DLM_IFL_MSTCPY) ? TRUE : FALSE;
+	return (lkb->lkb_flags & DLM_IFL_MSTCPY) ? 1 : 0;
 }
 
 static inline int middle_conversion(struct dlm_lkb *lkb)
 {
 	if ((lkb->lkb_grmode==DLM_LOCK_PR && lkb->lkb_rqmode==DLM_LOCK_CW) ||
 	    (lkb->lkb_rqmode==DLM_LOCK_PR && lkb->lkb_grmode==DLM_LOCK_CW))
-		return TRUE;
-	return FALSE;
+		return 1;
+	return 0;
 }
 
 static inline int down_conversion(struct dlm_lkb *lkb)
@@ -269,7 +269,7 @@ static struct dlm_rsb *create_rsb(struct dlm_ls *ls, char *name, int len)
 	r->res_ls = ls;
 	r->res_length = len;
 	memcpy(r->res_name, name, len);
-	init_MUTEX(&r->res_sem);
+	mutex_init(&r->res_mutex);
 
 	INIT_LIST_HEAD(&r->res_lookup);
 	INIT_LIST_HEAD(&r->res_grantqueue);
@@ -712,7 +712,7 @@ static void add_to_waiters(struct dlm_lkb *lkb, int mstype)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 
-	down(&ls->ls_waiters_sem);
+	mutex_lock(&ls->ls_waiters_mutex);
 	if (lkb->lkb_wait_type) {
 		log_print("add_to_waiters error %d", lkb->lkb_wait_type);
 		goto out;
@@ -721,7 +721,7 @@ static void add_to_waiters(struct dlm_lkb *lkb, int mstype)
 	kref_get(&lkb->lkb_ref);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
  out:
-	up(&ls->ls_waiters_sem);
+	mutex_unlock(&ls->ls_waiters_mutex);
 }
 
 static int _remove_from_waiters(struct dlm_lkb *lkb)
@@ -745,9 +745,9 @@ static int remove_from_waiters(struct dlm_lkb *lkb)
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int error;
 
-	down(&ls->ls_waiters_sem);
+	mutex_lock(&ls->ls_waiters_mutex);
 	error = _remove_from_waiters(lkb);
-	up(&ls->ls_waiters_sem);
+	mutex_unlock(&ls->ls_waiters_mutex);
 	return error;
 }
 
@@ -775,14 +775,14 @@ static int shrink_bucket(struct dlm_ls *ls, int b)
 	int count = 0, found;
 
 	for (;;) {
-		found = FALSE;
+		found = 0;
 		write_lock(&ls->ls_rsbtbl[b].lock);
 		list_for_each_entry_reverse(r, &ls->ls_rsbtbl[b].toss,
 					    res_hashchain) {
 			if (!time_after_eq(jiffies, r->res_toss_time +
 					   dlm_config.toss_secs * HZ))
 				continue;
-			found = TRUE;
+			found = 1;
 			break;
 		}
 
@@ -1027,9 +1027,9 @@ static inline int first_in_list(struct dlm_lkb *lkb, struct list_head *head)
 	struct dlm_lkb *first = list_entry(head->next, struct dlm_lkb,
 					   lkb_statequeue);
 	if (lkb->lkb_id == first->lkb_id)
-		return TRUE;
+		return 1;
 
-	return FALSE;
+	return 0;
 }
 
 /* Return 1 if the locks' ranges overlap.  If the lkb has no range then it is
@@ -1038,13 +1038,13 @@ static inline int first_in_list(struct dlm_lkb *lkb, struct list_head *head)
 static inline int ranges_overlap(struct dlm_lkb *lkb1, struct dlm_lkb *lkb2)
 {
 	if (!lkb1->lkb_range || !lkb2->lkb_range)
-		return TRUE;
+		return 1;
 
 	if (lkb1->lkb_range[RQ_RANGE_END] < lkb2->lkb_range[GR_RANGE_START] ||
 	    lkb1->lkb_range[RQ_RANGE_START] > lkb2->lkb_range[GR_RANGE_END])
-		return FALSE;
+		return 0;
 
-	return TRUE;
+	return 1;
 }
 
 /* Check if the given lkb conflicts with another lkb on the queue. */
@@ -1057,9 +1057,9 @@ static int queue_conflict(struct list_head *head, struct dlm_lkb *lkb)
 		if (this == lkb)
 			continue;
 		if (ranges_overlap(lkb, this) && !modes_compat(this, lkb))
-			return TRUE;
+			return 1;
 	}
-	return FALSE;
+	return 0;
 }
 
 /*
@@ -1103,7 +1103,7 @@ static int conversion_deadlock_detect(struct dlm_rsb *rsb, struct dlm_lkb *lkb)
 			continue;
 
 		if (!modes_compat(this, lkb) && !modes_compat(lkb, this))
-			return TRUE;
+			return 1;
 	}
 
 	/* if lkb is on the convert queue and is preventing the first
@@ -1114,10 +1114,10 @@ static int conversion_deadlock_detect(struct dlm_rsb *rsb, struct dlm_lkb *lkb)
 	if (self && self != first) {
 		if (!modes_compat(lkb, first) &&
 		    !queue_conflict(&rsb->res_grantqueue, first))
-			return TRUE;
+			return 1;
 	}
 
-	return FALSE;
+	return 0;
 }
 
 /*
@@ -1157,7 +1157,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	 */
 
 	if (lkb->lkb_exflags & DLM_LKF_EXPEDITE)
-		return TRUE;
+		return 1;
 
 	/*
 	 * A shortcut. Without this, !queue_conflict(grantqueue, lkb) would be
@@ -1200,7 +1200,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	 */
 
 	if (now && conv && !(lkb->lkb_exflags & DLM_LKF_QUECVT))
-		return TRUE;
+		return 1;
 
 	/*
 	 * When using range locks the NOORDER flag is set to avoid the standard
@@ -1208,7 +1208,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	 */
 
 	if (lkb->lkb_exflags & DLM_LKF_NOORDER)
-		return TRUE;
+		return 1;
 
 	/*
 	 * 6-3: Once in that queue [CONVERTING], a conversion request cannot be
@@ -1217,7 +1217,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	 */
 
 	if (!now && conv && first_in_list(lkb, &r->res_convertqueue))
-		return TRUE;
+		return 1;
 
 	/*
 	 * 6-4: By default, a new request is immediately granted only if all
@@ -1232,7 +1232,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 
 	if (now && !conv && list_empty(&r->res_convertqueue) &&
 	    list_empty(&r->res_waitqueue))
-		return TRUE;
+		return 1;
 
 	/*
 	 * 6-4: Once a lock request is in the queue of ungranted new requests,
@@ -1244,7 +1244,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 
 	if (!now && !conv && list_empty(&r->res_convertqueue) &&
 	    first_in_list(lkb, &r->res_waitqueue))
-		return TRUE;
+		return 1;
 
  out:
 	/*
@@ -1257,7 +1257,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 		lkb->lkb_sbflags |= DLM_SBF_DEMOTED;
 	}
 
-	return FALSE;
+	return 0;
 }
 
 /*
@@ -1308,7 +1308,7 @@ static int grant_pending_convert(struct dlm_rsb *r, int high)
 
 	list_for_each_entry_safe(lkb, s, &r->res_convertqueue, lkb_statequeue) {
 		demoted = is_demoted(lkb);
-		if (can_be_granted(r, lkb, FALSE)) {
+		if (can_be_granted(r, lkb, 0)) {
 			grant_lock_pending(r, lkb);
 			grant_restart = 1;
 		} else {
@@ -1333,7 +1333,7 @@ static int grant_pending_wait(struct dlm_rsb *r, int high)
 	struct dlm_lkb *lkb, *s;
 
 	list_for_each_entry_safe(lkb, s, &r->res_waitqueue, lkb_statequeue) {
-		if (can_be_granted(r, lkb, FALSE))
+		if (can_be_granted(r, lkb, 0))
 			grant_lock_pending(r, lkb);
                 else
 			high = max_t(int, lkb->lkb_rqmode, high);
@@ -1705,7 +1705,7 @@ static int do_request(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	int error = 0;
 
-	if (can_be_granted(r, lkb, TRUE)) {
+	if (can_be_granted(r, lkb, 1)) {
 		grant_lock(r, lkb);
 		queue_cast(r, lkb, 0);
 		goto out;
@@ -1733,7 +1733,7 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	/* changing an existing lock may allow others to be granted */
 
-	if (can_be_granted(r, lkb, TRUE)) {
+	if (can_be_granted(r, lkb, 1)) {
 		grant_lock(r, lkb);
 		queue_cast(r, lkb, 0);
 		grant_pending_locks(r);
@@ -2556,7 +2556,7 @@ static void receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
-	int error, reply = TRUE;
+	int error, reply = 1;
 
 	error = find_lkb(ls, ms->m_remid, &lkb);
 	if (error)
@@ -3205,7 +3205,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb, *safe;
 
-	down(&ls->ls_waiters_sem);
+	mutex_lock(&ls->ls_waiters_mutex);
 
 	list_for_each_entry_safe(lkb, safe, &ls->ls_waiters, lkb_wait_reply) {
 		log_debug(ls, "pre recover waiter lkid %x type %d flags %x",
@@ -3253,7 +3253,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 				  lkb->lkb_wait_type);
 		}
 	}
-	up(&ls->ls_waiters_sem);
+	mutex_unlock(&ls->ls_waiters_mutex);
 }
 
 static int remove_resend_waiter(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
@@ -3261,7 +3261,7 @@ static int remove_resend_waiter(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	struct dlm_lkb *lkb;
 	int rv = 0;
 
-	down(&ls->ls_waiters_sem);
+	mutex_lock(&ls->ls_waiters_mutex);
 	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
 		if (lkb->lkb_flags & DLM_IFL_RESEND) {
 			rv = lkb->lkb_wait_type;
@@ -3270,7 +3270,7 @@ static int remove_resend_waiter(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 			break;
 		}
 	}
-	up(&ls->ls_waiters_sem);
+	mutex_unlock(&ls->ls_waiters_mutex);
 
 	if (!rv)
 		lkb = NULL;

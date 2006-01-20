@@ -63,12 +63,12 @@ static void print_lock(struct seq_file *s, struct dlm_lkb *lkb,
 		/* FIXME: this warns on Alpha */
 		if (lkb->lkb_status == DLM_LKSTS_CONVERT
 		    || lkb->lkb_status == DLM_LKSTS_GRANTED)
-			seq_printf(s, " %" PRIx64 "-%" PRIx64,
+			seq_printf(s, " %llx-%llx",
 				   lkb->lkb_range[GR_RANGE_START],
 				   lkb->lkb_range[GR_RANGE_END]);
 		if (lkb->lkb_status == DLM_LKSTS_CONVERT
 		    || lkb->lkb_status == DLM_LKSTS_WAITING)
-			seq_printf(s, " (%" PRIx64 "-%" PRIx64 ")",
+			seq_printf(s, " (%llx-%llx)",
 				   lkb->lkb_range[RQ_RANGE_START],
 				   lkb->lkb_range[RQ_RANGE_END]);
 	}

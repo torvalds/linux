@@ -38,12 +38,12 @@ static inline int is_master(struct dlm_rsb *r)
 
 static inline void lock_rsb(struct dlm_rsb *r)
 {
-	down(&r->res_sem);
+	mutex_lock(&r->res_mutex);
 }
 
 static inline void unlock_rsb(struct dlm_rsb *r)
 {
-	up(&r->res_sem);
+	mutex_unlock(&r->res_mutex);
 }
 
 #endif

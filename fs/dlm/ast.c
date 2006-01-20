@@ -21,7 +21,7 @@ static struct list_head		ast_queue;
 static spinlock_t		ast_queue_lock;
 static struct task_struct *	astd_task;
 static unsigned long		astd_wakeflags;
-static struct semaphore		astd_running;
+static struct mutex		astd_running;
 
 
 void dlm_del_ast(struct dlm_lkb *lkb)
@@ -56,7 +56,7 @@ static void process_asts(void)
 	int type = 0, found, bmode;
 
 	for (;;) {
-		found = FALSE;
+		found = 0;
 		spin_lock(&ast_queue_lock);
 		list_for_each_entry(lkb, &ast_queue, lkb_astqueue) {
 			r = lkb->lkb_resource;
@@ -68,7 +68,7 @@ static void process_asts(void)
 			list_del(&lkb->lkb_astqueue);
 			type = lkb->lkb_ast_type;
 			lkb->lkb_ast_type = 0;
-			found = TRUE;
+			found = 1;
 			break;
 		}
 		spin_unlock(&ast_queue_lock);
@@ -117,10 +117,10 @@ static int dlm_astd(void *data)
 			schedule();
 		set_current_state(TASK_RUNNING);
 
-		down(&astd_running);
+		mutex_lock(&astd_running);
 		if (test_and_clear_bit(WAKE_ASTS, &astd_wakeflags))
 			process_asts();
-		up(&astd_running);
+		mutex_unlock(&astd_running);
 	}
 	return 0;
 }
@@ -140,7 +140,7 @@ int dlm_astd_start(void)
 
 	INIT_LIST_HEAD(&ast_queue);
 	spin_lock_init(&ast_queue_lock);
-	init_MUTEX(&astd_running);
+	mutex_init(&astd_running);
 
 	p = kthread_run(dlm_astd, NULL, "dlm_astd");
 	if (IS_ERR(p))
@@ -157,11 +157,11 @@ void dlm_astd_stop(void)
 
 void dlm_astd_suspend(void)
 {
-	down(&astd_running);
+	mutex_lock(&astd_running);
 }
 
 void dlm_astd_resume(void)
 {
-	up(&astd_running);
+	mutex_unlock(&astd_running);
 }
 

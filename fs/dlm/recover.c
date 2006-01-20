@@ -420,7 +420,7 @@ int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 	r = recover_list_find(ls, rc->rc_id);
 	if (!r) {
-		log_error(ls, "dlm_recover_master_reply no id %"PRIx64"",
+		log_error(ls, "dlm_recover_master_reply no id %llx",
 			  rc->rc_id);
 		goto out;
 	}
@@ -477,8 +477,8 @@ static int all_queues_empty(struct dlm_rsb *r)
 	if (!list_empty(&r->res_grantqueue) ||
 	    !list_empty(&r->res_convertqueue) ||
 	    !list_empty(&r->res_waitqueue))
-		return FALSE;
-	return TRUE;
+		return 0;
+	return 1;
 }
 
 static int recover_locks(struct dlm_rsb *r)
@@ -586,18 +586,18 @@ static void recover_lvb(struct dlm_rsb *r)
 {
 	struct dlm_lkb *lkb, *high_lkb = NULL;
 	uint32_t high_seq = 0;
-	int lock_lvb_exists = FALSE;
-	int big_lock_exists = FALSE;
+	int lock_lvb_exists = 0;
+	int big_lock_exists = 0;
 	int lvblen = r->res_ls->ls_lvblen;
 
 	list_for_each_entry(lkb, &r->res_grantqueue, lkb_statequeue) {
 		if (!(lkb->lkb_exflags & DLM_LKF_VALBLK))
 			continue;
 
-		lock_lvb_exists = TRUE;
+		lock_lvb_exists = 1;
 
 		if (lkb->lkb_grmode > DLM_LOCK_CR) {
-			big_lock_exists = TRUE;
+			big_lock_exists = 1;
 			goto setflag;
 		}
 
@@ -611,10 +611,10 @@ static void recover_lvb(struct dlm_rsb *r)
 		if (!(lkb->lkb_exflags & DLM_LKF_VALBLK))
 			continue;
 
-		lock_lvb_exists = TRUE;
+		lock_lvb_exists = 1;
 
 		if (lkb->lkb_grmode > DLM_LOCK_CR) {
-			big_lock_exists = TRUE;
+			big_lock_exists = 1;
 			goto setflag;
 		}
 

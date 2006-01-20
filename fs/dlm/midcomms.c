@@ -119,7 +119,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 
 		switch (msg->h_cmd) {
 		case DLM_MSG:
-			dlm_receive_message(msg, nodeid, FALSE);
+			dlm_receive_message(msg, nodeid, 0);
 			break;
 
 		case DLM_RCOM:

@@ -43,7 +43,7 @@
 static struct file_operations _dlm_fops;
 static const char *name_prefix="dlm";
 static struct list_head user_ls_list;
-static struct semaphore user_ls_lock;
+static struct mutex user_ls_lock;
 
 /* Lock infos are stored in here indexed by lock ID */
 static DEFINE_IDR(lockinfo_idr);
@@ -53,6 +53,7 @@ static rwlock_t lockinfo_lock;
 #define LI_FLAG_COMPLETE   1
 #define LI_FLAG_FIRSTLOCK  2
 #define LI_FLAG_PERSISTENT 3
+#define LI_FLAG_ONLIST     4
 
 /* flags in ls_flags*/
 #define LS_FLAG_DELETED   1
@@ -211,18 +212,18 @@ static struct user_ls *find_lockspace(int minor)
 {
 	struct user_ls *lsinfo;
 
-	down(&user_ls_lock);
+	mutex_lock(&user_ls_lock);
 	lsinfo = __find_lockspace(minor);
-	up(&user_ls_lock);
+	mutex_unlock(&user_ls_lock);
 
 	return lsinfo;
 }
 
 static void add_lockspace_to_list(struct user_ls *lsinfo)
 {
-	down(&user_ls_lock);
+	mutex_lock(&user_ls_lock);
 	list_add(&lsinfo->ls_list, &user_ls_list);
-	up(&user_ls_lock);
+	mutex_unlock(&user_ls_lock);
 }
 
 /* Register a lockspace with the DLM and create a misc
@@ -235,12 +236,11 @@ static int register_lockspace(char *name, struct user_ls **ls, int flags)
 
 	namelen = strlen(name)+strlen(name_prefix)+2;
 
-	newls = kmalloc(sizeof(struct user_ls), GFP_KERNEL);
+	newls = kzalloc(sizeof(struct user_ls), GFP_KERNEL);
 	if (!newls)
 		return -ENOMEM;
-	memset(newls, 0, sizeof(struct user_ls));
 
-	newls->ls_miscinfo.name = kmalloc(namelen, GFP_KERNEL);
+	newls->ls_miscinfo.name = kzalloc(namelen, GFP_KERNEL);
 	if (!newls->ls_miscinfo.name) {
 		kfree(newls);
 		return -ENOMEM;
@@ -277,7 +277,7 @@ static int register_lockspace(char *name, struct user_ls **ls, int flags)
 	return 0;
 }
 
-/* Called with the user_ls_lock semaphore held */
+/* Called with the user_ls_lock mutex held */
 static int unregister_lockspace(struct user_ls *lsinfo, int force)
 {
 	int status;
@@ -305,11 +305,10 @@ static int unregister_lockspace(struct user_ls *lsinfo, int force)
 static void add_to_astqueue(struct lock_info *li, void *astaddr, void *astparam,
 			    int lvb_updated)
 {
-	struct ast_info *ast = kmalloc(sizeof(struct ast_info), GFP_KERNEL);
+	struct ast_info *ast = kzalloc(sizeof(struct ast_info), GFP_KERNEL);
 	if (!ast)
 		return;
 
-	memset(ast, 0, sizeof(*ast));
 	ast->result.user_astparam = astparam;
 	ast->result.user_astaddr  = astaddr;
 	ast->result.user_lksb     = li->li_user_lksb;
@@ -382,6 +381,7 @@ static void ast_routine(void *param)
 
 			spin_lock(&li->li_file->fi_li_lock);
 			list_del(&li->li_ownerqueue);
+			clear_bit(LI_FLAG_ONLIST, &li->li_flags);
 			spin_unlock(&li->li_file->fi_li_lock);
 			release_lockinfo(li);
 			return;
@@ -437,7 +437,7 @@ static int dlm_open(struct inode *inode, struct file *file)
 	if (!lsinfo)
 		return -ENOENT;
 
-	f = kmalloc(sizeof(struct file_info), GFP_KERNEL);
+	f = kzalloc(sizeof(struct file_info), GFP_KERNEL);
 	if (!f)
 		return -ENOMEM;
 
@@ -570,7 +570,7 @@ static int dlm_close(struct inode *inode, struct file *file)
 	 * then free the struct. If it's an AUTOFREE lockspace
 	 * then free the whole thing.
 	 */
-	down(&user_ls_lock);
+	mutex_lock(&user_ls_lock);
 	if (atomic_dec_and_test(&lsinfo->ls_refcnt)) {
 
 		if (lsinfo->ls_lockspace) {
@@ -582,7 +582,7 @@ static int dlm_close(struct inode *inode, struct file *file)
 			kfree(lsinfo);
 		}
 	}
-	up(&user_ls_lock);
+	mutex_unlock(&user_ls_lock);
 	put_file_info(f);
 
 	/* Restore signals */
@@ -620,10 +620,10 @@ static int do_user_remove_lockspace(struct file_info *fi, uint8_t cmd,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	down(&user_ls_lock);
+	mutex_lock(&user_ls_lock);
 	lsinfo = __find_lockspace(kparams->minor);
 	if (!lsinfo) {
-		up(&user_ls_lock);
+		mutex_unlock(&user_ls_lock);
 		return -EINVAL;
 	}
 
@@ -631,7 +631,7 @@ static int do_user_remove_lockspace(struct file_info *fi, uint8_t cmd,
 		force = 2;
 
 	status = unregister_lockspace(lsinfo, force);
-	up(&user_ls_lock);
+	mutex_unlock(&user_ls_lock);
 
 	return status;
 }
@@ -752,7 +752,7 @@ static struct lock_info *allocate_lockinfo(struct file_info *fi, uint8_t cmd,
 	if (!try_module_get(THIS_MODULE))
 		return NULL;
 
-	li = kmalloc(sizeof(struct lock_info), GFP_KERNEL);
+	li = kzalloc(sizeof(struct lock_info), GFP_KERNEL);
 	if (li) {
 		li->li_magic     = LOCKINFO_MAGIC;
 		li->li_file      = fi;
@@ -800,8 +800,10 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 
 		/* If this is a persistent lock we will have to create a
 		   lockinfo again */
-		if (!li && DLM_LKF_PERSISTENT) {
+		if (!li && (kparams->flags & DLM_LKF_PERSISTENT)) {
 			li = allocate_lockinfo(fi, cmd, kparams);
+			if (!li)
+				return -ENOMEM;
 
 			li->li_lksb.sb_lkid = kparams->lkid;
 			li->li_castaddr  = kparams->castaddr;
@@ -887,6 +889,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 
 		spin_lock(&fi->fi_li_lock);
 		list_add(&li->li_ownerqueue, &fi->fi_li_list);
+		set_bit(LI_FLAG_ONLIST, &li->li_flags);
 		spin_unlock(&fi->fi_li_lock);
 		if (add_lockinfo(li))
 			printk(KERN_WARNING "Add lockinfo failed\n");
@@ -914,12 +917,13 @@ static int do_user_unlock(struct file_info *fi, uint8_t cmd,
 	li = get_lockinfo(kparams->lkid);
 	if (!li) {
 		li = allocate_lockinfo(fi, cmd, kparams);
+		if (!li)
+			return -ENOMEM;
 		spin_lock(&fi->fi_li_lock);
 		list_add(&li->li_ownerqueue, &fi->fi_li_list);
+		set_bit(LI_FLAG_ONLIST, &li->li_flags);
 		spin_unlock(&fi->fi_li_lock);
 	}
- 	if (!li)
-		return -ENOMEM;
 
 	if (li->li_magic != LOCKINFO_MAGIC)
 		return -EINVAL;
@@ -931,6 +935,12 @@ static int do_user_unlock(struct file_info *fi, uint8_t cmd,
 	/* Cancelling a conversion doesn't remove the lock...*/
 	if (kparams->flags & DLM_LKF_CANCEL && li->li_grmode != -1)
 		convert_cancel = 1;
+
+	/* Wait until dlm_lock() has completed */
+	if (!test_bit(LI_FLAG_ONLIST, &li->li_flags)) {
+		down(&li->li_firstlock);
+		up(&li->li_firstlock);
+	}
 
 	/* dlm_unlock() passes a 0 for castaddr which means don't overwrite
 	   the existing li_castaddr as that's the completion routine for
@@ -947,6 +957,7 @@ static int do_user_unlock(struct file_info *fi, uint8_t cmd,
 	if (!status && !convert_cancel) {
 		spin_lock(&fi->fi_li_lock);
 		list_del(&li->li_ownerqueue);
+		clear_bit(LI_FLAG_ONLIST, &li->li_flags);
 		spin_unlock(&fi->fi_li_lock);
 	}
 
@@ -1055,7 +1066,7 @@ static int __init dlm_device_init(void)
 	int r;
 
 	INIT_LIST_HEAD(&user_ls_list);
-	init_MUTEX(&user_ls_lock);
+	mutex_init(&user_ls_lock);
 	rwlock_init(&lockinfo_lock);
 
 	ctl_device.name = "dlm-control";

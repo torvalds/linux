@@ -33,7 +33,7 @@ static void put_free_de(struct dlm_ls *ls, struct dlm_direntry *de)
 
 static struct dlm_direntry *get_free_de(struct dlm_ls *ls, int len)
 {
-	int found = FALSE;
+	int found = 0;
 	struct dlm_direntry *de;
 
 	spin_lock(&ls->ls_recover_list_lock);
@@ -42,7 +42,7 @@ static struct dlm_direntry *get_free_de(struct dlm_ls *ls, int len)
 			list_del(&de->list);
 			de->master_nodeid = 0;
 			memset(de->name, 0, len);
-			found = TRUE;
+			found = 1;
 			break;
 		}
 	}

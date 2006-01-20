@@ -45,9 +45,9 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	unsigned long start;
 	int error, neg = 0;
 
-	log_debug(ls, "recover %"PRIx64"", rv->seq);
+	log_debug(ls, "recover %llx", rv->seq);
 
-	down(&ls->ls_recoverd_active);
+	mutex_lock(&ls->ls_recoverd_active);
 
 	/*
 	 * Suspending and resuming dlm_astd ensures that no lkb's from this ls
@@ -199,16 +199,16 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_astd_wake();
 
-	log_debug(ls, "recover %"PRIx64" done: %u ms", rv->seq,
+	log_debug(ls, "recover %llx done: %u ms", rv->seq,
 		  jiffies_to_msecs(jiffies - start));
-	up(&ls->ls_recoverd_active);
+	mutex_unlock(&ls->ls_recoverd_active);
 
 	return 0;
 
  fail:
 	dlm_release_root_list(ls);
-	log_debug(ls, "recover %"PRIx64" error %d", rv->seq, error);
-	up(&ls->ls_recoverd_active);
+	log_debug(ls, "recover %llx error %d", rv->seq, error);
+	mutex_unlock(&ls->ls_recoverd_active);
 	return error;
 }
 
@@ -275,11 +275,11 @@ void dlm_recoverd_stop(struct dlm_ls *ls)
 
 void dlm_recoverd_suspend(struct dlm_ls *ls)
 {
-	down(&ls->ls_recoverd_active);
+	mutex_lock(&ls->ls_recoverd_active);
 }
 
 void dlm_recoverd_resume(struct dlm_ls *ls)
 {
-	up(&ls->ls_recoverd_active);
+	mutex_unlock(&ls->ls_recoverd_active);
 }
 

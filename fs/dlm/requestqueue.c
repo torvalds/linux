@@ -47,9 +47,9 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_header *hd)
 	e->nodeid = nodeid;
 	memcpy(e->request, hd, length);
 
-	down(&ls->ls_requestqueue_lock);
+	mutex_lock(&ls->ls_requestqueue_mutex);
 	list_add_tail(&e->list, &ls->ls_requestqueue);
-	up(&ls->ls_requestqueue_lock);
+	mutex_unlock(&ls->ls_requestqueue_mutex);
 }
 
 int dlm_process_requestqueue(struct dlm_ls *ls)
@@ -58,19 +58,19 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 	struct dlm_header *hd;
 	int error = 0;
 
-	down(&ls->ls_requestqueue_lock);
+	mutex_lock(&ls->ls_requestqueue_mutex);
 
 	for (;;) {
 		if (list_empty(&ls->ls_requestqueue)) {
-			up(&ls->ls_requestqueue_lock);
+			mutex_unlock(&ls->ls_requestqueue_mutex);
 			error = 0;
 			break;
 		}
 		e = list_entry(ls->ls_requestqueue.next, struct rq_entry, list);
-		up(&ls->ls_requestqueue_lock);
+		mutex_unlock(&ls->ls_requestqueue_mutex);
 
 		hd = (struct dlm_header *) e->request;
-		error = dlm_receive_message(hd, e->nodeid, TRUE);
+		error = dlm_receive_message(hd, e->nodeid, 1);
 
 		if (error == -EINTR) {
 			/* entry is left on requestqueue */
@@ -78,13 +78,13 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 			break;
 		}
 
-		down(&ls->ls_requestqueue_lock);
+		mutex_lock(&ls->ls_requestqueue_mutex);
 		list_del(&e->list);
 		kfree(e);
 
 		if (dlm_locking_stopped(ls)) {
 			log_debug(ls, "process_requestqueue abort running");
-			up(&ls->ls_requestqueue_lock);
+			mutex_unlock(&ls->ls_requestqueue_mutex);
 			error = -EINTR;
 			break;
 		}
@@ -105,15 +105,15 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 void dlm_wait_requestqueue(struct dlm_ls *ls)
 {
 	for (;;) {
-		down(&ls->ls_requestqueue_lock);
+		mutex_lock(&ls->ls_requestqueue_mutex);
 		if (list_empty(&ls->ls_requestqueue))
 			break;
 		if (dlm_locking_stopped(ls))
 			break;
-		up(&ls->ls_requestqueue_lock);
+		mutex_unlock(&ls->ls_requestqueue_mutex);
 		schedule();
 	}
-	up(&ls->ls_requestqueue_lock);
+	mutex_unlock(&ls->ls_requestqueue_mutex);
 }
 
 static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
@@ -170,7 +170,7 @@ void dlm_purge_requestqueue(struct dlm_ls *ls)
 	struct dlm_message *ms;
 	struct rq_entry *e, *safe;
 
-	down(&ls->ls_requestqueue_lock);
+	mutex_lock(&ls->ls_requestqueue_mutex);
 	list_for_each_entry_safe(e, safe, &ls->ls_requestqueue, list) {
 		ms = (struct dlm_message *) e->request;
 
@@ -179,6 +179,6 @@ void dlm_purge_requestqueue(struct dlm_ls *ls)
 			kfree(e);
 		}
 	}
-	up(&ls->ls_requestqueue_lock);
+	mutex_unlock(&ls->ls_requestqueue_mutex);
 }
 

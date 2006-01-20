@@ -35,26 +35,13 @@
 #include <linux/kref.h>
 #include <linux/kernel.h>
 #include <linux/jhash.h>
+#include <linux/mutex.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
 
 #define DLM_LOCKSPACE_LEN	64
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#if (BITS_PER_LONG == 64)
-#define PRIx64 "lx"
-#else
-#define PRIx64 "Lx"
-#endif
 
 /* Size of the temp buffer midcomms allocates on the stack.
    We try to make this large enough so most messages fit.
@@ -266,7 +253,7 @@ struct dlm_lkb {
 struct dlm_rsb {
 	struct dlm_ls		*res_ls;	/* the lockspace */
 	struct kref		res_ref;
-	struct semaphore	res_sem;
+	struct mutex		res_mutex;
 	unsigned long		res_flags;
 	int			res_length;	/* length of rsb name */
 	int			res_nodeid;
@@ -449,7 +436,7 @@ struct dlm_ls {
 	struct dlm_dirtable	*ls_dirtbl;
 	uint32_t		ls_dirtbl_size;
 
-	struct semaphore	ls_waiters_sem;
+	struct mutex		ls_waiters_mutex;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
 
 	struct list_head	ls_nodes;	/* current nodes in ls */
@@ -472,14 +459,14 @@ struct dlm_ls {
 
 	struct timer_list	ls_timer;
 	struct task_struct	*ls_recoverd_task;
-	struct semaphore	ls_recoverd_active;
+	struct mutex		ls_recoverd_active;
 	spinlock_t		ls_recover_lock;
 	uint32_t		ls_recover_status; /* DLM_RS_ */
 	uint64_t		ls_recover_seq;
 	struct dlm_recover	*ls_recover_args;
 	struct rw_semaphore	ls_in_recovery;	/* block local requests */
 	struct list_head	ls_requestqueue;/* queue remote requests */
-	struct semaphore	ls_requestqueue_lock;
+	struct mutex		ls_requestqueue_mutex;
 	char			*ls_recover_buf;
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
