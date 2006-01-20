@@ -891,6 +891,12 @@ MODULE_LICENSE ("GPL");
 #include "ehci-pci.c"
 #endif
 
-#if !defined(CONFIG_PCI)
+#ifdef CONFIG_PPC_83xx
+#include "ehci-fsl.c"
+#endif
+
+#if !(defined(CONFIG_PCI) || \
+      defined(CONFIG_PPC_83xx) \
+     )
 #error "missing bus glue for ehci-hcd"
 #endif
