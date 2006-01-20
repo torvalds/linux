@@ -60,7 +60,6 @@ static void ixj_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "ixj_detach(0x%p)\n", link);
 
-	link->state &= ~DEV_RELEASE_PENDING;
 	if (link->state & DEV_CONFIG)
 		ixj_cs_release(link);
 

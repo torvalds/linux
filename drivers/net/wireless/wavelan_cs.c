@@ -4744,7 +4744,6 @@ static int wavelan_resume(struct pcmcia_device *link)
 {
 	struct net_device *	dev = (struct net_device *) link->priv;
 
-	link->state &= ~DEV_SUSPEND;
 	if ((link->state & DEV_CONFIG) && (link->open))	{
 		wv_hw_reset(dev);
 		netif_device_attach(dev);

@@ -945,7 +945,7 @@ static ssize_t pcmcia_show_pm_state(struct device *dev, struct device_attribute 
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 
-	if (p_dev->dev.power.power_state.event != PM_EVENT_ON)
+	if (p_dev->suspended)
 		return sprintf(buf, "off\n");
 	else
 		return sprintf(buf, "on\n");
@@ -960,11 +960,9 @@ static ssize_t pcmcia_store_pm_state(struct device *dev, struct device_attribute
         if (!count)
                 return -EINVAL;
 
-	if ((p_dev->dev.power.power_state.event == PM_EVENT_ON) &&
-	    (!strncmp(buf, "off", 3)))
+	if ((!p_dev->suspended) && !strncmp(buf, "off", 3))
 		ret = dpm_runtime_suspend(dev, PMSG_SUSPEND);
-	else if ((p_dev->dev.power.power_state.event != PM_EVENT_ON) &&
-		 (!strncmp(buf, "on", 2)))
+	else if (p_dev->suspended && !strncmp(buf, "on", 2))
 		dpm_runtime_resume(dev);
 
 	return ret ? ret : count;
@@ -1030,7 +1028,7 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	struct pcmcia_driver *p_drv = NULL;
-	int ret;
+	int ret = 0;
 
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
@@ -1038,14 +1036,16 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 	if (p_drv && p_drv->suspend) {
 		ret = p_drv->suspend(p_dev);
 		if (ret)
-			return ret;
-		p_dev->state |= DEV_SUSPEND;
-			if ((p_dev->state & DEV_CONFIG) &&
-			    !(p_dev->state & DEV_SUSPEND_NORELEASE))
-				pcmcia_release_configuration(p_dev);
+			goto out;
+		if ((p_dev->state & DEV_CONFIG) &&
+		    !(p_dev->state & DEV_SUSPEND_NORELEASE))
+			pcmcia_release_configuration(p_dev);
 	}
 
-	return 0;
+ out:
+	if (!ret)
+		p_dev->suspended = 1;
+	return ret;
 }
 
 
@@ -1053,24 +1053,26 @@ static int pcmcia_dev_resume(struct device * dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
         struct pcmcia_driver *p_drv = NULL;
-	int ret;
+	int ret = 0;
 
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
 
 	if (p_drv && p_drv->resume) {
-		p_dev->state &= ~DEV_SUSPEND;
-			if ((p_dev->state & DEV_CONFIG) &&
-			    !(p_dev->state & DEV_SUSPEND_NORELEASE)){
-				ret = pcmcia_request_configuration(p_dev,
-						 &p_dev->conf);
-				if (ret)
-					return ret;
-			}
-		return p_drv->resume(p_dev);
+		if ((p_dev->state & DEV_CONFIG) &&
+		    !(p_dev->state & DEV_SUSPEND_NORELEASE)){
+			ret = pcmcia_request_configuration(p_dev,
+							   &p_dev->conf);
+			if (ret)
+				goto out;
+		}
+		ret = p_drv->resume(p_dev);
 	}
 
-	return 0;
+ out:
+	if (!ret)
+		p_dev->suspended = 0;
+	return ret;
 }
 
 

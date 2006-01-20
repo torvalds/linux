@@ -108,8 +108,6 @@ typedef struct dev_node_t {
 #define DEV_CONFIG		0x02
 #define DEV_SUSPEND_NORELEASE	0x04
 #define DEV_CONFIG_PENDING	0x10
-#define DEV_RELEASE_PENDING	0x20
-#define DEV_SUSPEND		0x40
 #define DEV_BUSY		0x80
 
 #define DEV_OK(l) \
@@ -163,13 +161,15 @@ struct pcmcia_device {
 
 	u_int			p_state;
 
+	u8			suspended:1;
+	u8			reserved:3;
+
 	/* information about this device */
 	u8			has_manf_id:1;
 	u8			has_card_id:1;
 	u8			has_func_id:1;
 
 	u8			allow_func_id_match:1;
-	u8			reserved:4;
 
 	u8			func_id;
 	u16			manf_id;

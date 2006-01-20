@@ -220,7 +220,7 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static int card_present(void *arg)
 { 
 	struct pcmcia_device *link = (struct pcmcia_device *)arg;
-	if (link->state & DEV_SUSPEND)
+	if (link->suspended)
 		return 0;
 	else if (link->state & DEV_PRESENT)
 		return 1;
