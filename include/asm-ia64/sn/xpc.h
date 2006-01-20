@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
+#include <linux/completion.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sn/bte.h>
@@ -335,8 +337,7 @@ struct xpc_openclose_args {
  * and consumed by the intended recipient.
  */
 struct xpc_notify {
-	struct semaphore sema;		/* notify semaphore */
-	volatile u8 type;			/* type of notification */
+	volatile u8 type;		/* type of notification */
 
 	/* the following two fields are only used if type == XPC_N_CALL */
 	xpc_notify_func func;		/* user's notify function */
@@ -465,8 +466,8 @@ struct xpc_channel {
 	xpc_channel_func func;		/* user's channel function */
 	void *key;			/* pointer to user's key */
 
-	struct semaphore msg_to_pull_sema; /* next msg to pull serialization */
-	struct semaphore wdisconnect_sema; /* wait for channel disconnect */
+	struct mutex msg_to_pull_mutex;	/* next msg to pull serialization */
+	struct completion wdisconnect_wait; /* wait for channel disconnect */
 
 	struct xpc_openclose_args *local_openclose_args; /* args passed on */
 					/* opening or closing of channel */
