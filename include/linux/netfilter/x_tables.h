@@ -19,7 +19,7 @@ struct xt_get_revision
 /* For standard target */
 #define XT_RETURN (-NF_REPEAT - 1)
 
-#define XT_ALIGN(s) (((s) + (__alignof__(void *)-1)) & ~(__alignof__(void *)-1))
+#define XT_ALIGN(s) (((s) + (__alignof__(u_int64_t)-1)) & ~(__alignof__(u_int64_t)-1))
 
 /* Standard return verdict, or do jump. */
 #define XT_STANDARD_TARGET ""
