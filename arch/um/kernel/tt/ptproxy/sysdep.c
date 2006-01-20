@@ -15,6 +15,7 @@ terms and conditions.
 #include "ptrace_user.h"
 #include "user_util.h"
 #include "user.h"
+#include "os.h"
 
 int get_syscall(pid_t pid, long *arg1, long *arg2, long *arg3, long *arg4, 
 		long *arg5)

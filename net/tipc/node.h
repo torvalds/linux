@@ -92,31 +92,31 @@ struct node {
 	} bclink;
 };
 
-extern struct node *nodes;
+extern struct node *tipc_nodes;
 extern u32 tipc_own_tag;
 
-struct node *node_create(u32 addr);
-void node_delete(struct node *n_ptr);
-struct node *node_attach_link(struct link *l_ptr);
-void node_detach_link(struct node *n_ptr, struct link *l_ptr);
-void node_link_down(struct node *n_ptr, struct link *l_ptr);
-void node_link_up(struct node *n_ptr, struct link *l_ptr);
-int node_has_active_links(struct node *n_ptr);
-int node_has_redundant_links(struct node *n_ptr);
-u32 node_select_router(struct node *n_ptr, u32 ref);
-struct node *node_select_next_hop(u32 addr, u32 selector);
-int node_is_up(struct node *n_ptr);
-void node_add_router(struct node *n_ptr, u32 router);
-void node_remove_router(struct node *n_ptr, u32 router);
-struct sk_buff *node_get_links(const void *req_tlv_area, int req_tlv_space);
-struct sk_buff *node_get_nodes(const void *req_tlv_area, int req_tlv_space);
+struct node *tipc_node_create(u32 addr);
+void tipc_node_delete(struct node *n_ptr);
+struct node *tipc_node_attach_link(struct link *l_ptr);
+void tipc_node_detach_link(struct node *n_ptr, struct link *l_ptr);
+void tipc_node_link_down(struct node *n_ptr, struct link *l_ptr);
+void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr);
+int tipc_node_has_active_links(struct node *n_ptr);
+int tipc_node_has_redundant_links(struct node *n_ptr);
+u32 tipc_node_select_router(struct node *n_ptr, u32 ref);
+struct node *tipc_node_select_next_hop(u32 addr, u32 selector);
+int tipc_node_is_up(struct node *n_ptr);
+void tipc_node_add_router(struct node *n_ptr, u32 router);
+void tipc_node_remove_router(struct node *n_ptr, u32 router);
+struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space);
+struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space);
 
-static inline struct node *node_find(u32 addr)
+static inline struct node *tipc_node_find(u32 addr)
 {
 	if (likely(in_own_cluster(addr)))
-		return local_nodes[tipc_node(addr)];
-	else if (addr_domain_valid(addr)) {
-		struct cluster *c_ptr = cluster_find(addr);
+		return tipc_local_nodes[tipc_node(addr)];
+	else if (tipc_addr_domain_valid(addr)) {
+		struct cluster *c_ptr = tipc_cltr_find(addr);
 
 		if (c_ptr)
 			return c_ptr->nodes[tipc_node(addr)];
@@ -124,19 +124,19 @@ static inline struct node *node_find(u32 addr)
 	return 0;
 }
 
-static inline struct node *node_select(u32 addr, u32 selector)
+static inline struct node *tipc_node_select(u32 addr, u32 selector)
 {
 	if (likely(in_own_cluster(addr)))
-		return local_nodes[tipc_node(addr)];
-	return node_select_next_hop(addr, selector);
+		return tipc_local_nodes[tipc_node(addr)];
+	return tipc_node_select_next_hop(addr, selector);
 }
 
-static inline void node_lock(struct node *n_ptr)
+static inline void tipc_node_lock(struct node *n_ptr)
 {
 	spin_lock_bh(&n_ptr->lock);
 }
 
-static inline void node_unlock(struct node *n_ptr)
+static inline void tipc_node_unlock(struct node *n_ptr)
 {
 	spin_unlock_bh(&n_ptr->lock);
 }

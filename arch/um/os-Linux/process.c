@@ -18,6 +18,7 @@
 #include "process.h"
 #include "irq_user.h"
 #include "kern_util.h"
+#include "longjmp.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -205,24 +206,13 @@ void init_new_thread_signals(int altstack)
 
 int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
 {
-       sigjmp_buf buf;
-       int n;
+	sigjmp_buf buf;
+	int n, enable;
 
-       *jmp_ptr = &buf;
-       n = sigsetjmp(buf, 1);
-       if(n != 0)
-               return(n);
-       (*fn)(arg);
-       return(0);
+	*jmp_ptr = &buf;
+	n = UML_SIGSETJMP(&buf, enable);
+	if(n != 0)
+		return(n);
+	(*fn)(arg);
+	return(0);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

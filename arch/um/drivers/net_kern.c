@@ -68,6 +68,11 @@ static int uml_net_rx(struct net_device *dev)
 	return pkt_len;
 }
 
+static void uml_dev_close(void* dev)
+{
+	dev_close( (struct net_device *) dev);
+}
+
 irqreturn_t uml_net_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
@@ -80,15 +85,21 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	spin_lock(&lp->lock);
 	while((err = uml_net_rx(dev)) > 0) ;
 	if(err < 0) {
+		DECLARE_WORK(close_work, uml_dev_close, dev);
 		printk(KERN_ERR 
 		       "Device '%s' read returned %d, shutting it down\n", 
 		       dev->name, err);
-		dev_close(dev);
+		/* dev_close can't be called in interrupt context, and takes
+		 * again lp->lock.
+		 * And dev_close() can be safely called multiple times on the
+		 * same device, since it tests for (dev->flags & IFF_UP). So
+		 * there's no harm in delaying the device shutdown. */
+		schedule_work(&close_work);
 		goto out;
 	}
 	reactivate_fd(lp->fd, UM_ETH_IRQ);
 
- out:
+out:
 	spin_unlock(&lp->lock);
 	return(IRQ_HANDLED);
 }
@@ -317,6 +328,11 @@ static int eth_configure(int n, void *init, char *mac,
 		return 1;
 	}
 
+	lp = dev->priv;
+	/* This points to the transport private data. It's still clear, but we
+	 * must memset it to 0 *now*. Let's help the drivers. */
+	memset(lp, 0, size);
+
 	/* sysfs register */
 	if (!driver_registered) {
 		platform_driver_register(&uml_net_driver);
@@ -358,7 +374,6 @@ static int eth_configure(int n, void *init, char *mac,
 		free_netdev(dev);
 		return 1;
 	}
-	lp = dev->priv;
 
 	/* lp.user is the first four bytes of the transport data, which
 	 * has already been initialized.  This structure assignment will

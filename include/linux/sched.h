@@ -809,6 +809,7 @@ struct task_struct {
 	struct sighand_struct *sighand;
 
 	sigset_t blocked, real_blocked;
+	sigset_t saved_sigmask;		/* To be restored with TIF_RESTORE_SIGMASK */
 	struct sigpending pending;
 
 	unsigned long sas_ss_sp;

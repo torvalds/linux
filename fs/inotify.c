@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/writeback.h>
 #include <linux/inotify.h>
+#include <linux/syscalls.h>
 
 #include <asm/ioctls.h>
 

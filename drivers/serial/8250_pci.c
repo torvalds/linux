@@ -940,6 +940,7 @@ enum pci_board_num_t {
 	pbn_b2_bt_2_921600,
 	pbn_b2_bt_4_921600,
 
+	pbn_b3_2_115200,
 	pbn_b3_4_115200,
 	pbn_b3_8_115200,
 
@@ -1311,6 +1312,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.uart_offset	= 8,
 	},
 
+	[pbn_b3_2_115200] = {
+		.flags		= FL_BASE3,
+		.num_ports	= 2,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
 	[pbn_b3_4_115200] = {
 		.flags		= FL_BASE3,
 		.num_ports	= 4,
@@ -2272,6 +2279,9 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_nec_nile4 },
 
+	{	PCI_VENDOR_ID_DCI, PCI_DEVICE_ID_DCI_PCCOM2,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b3_2_115200 },
 	{	PCI_VENDOR_ID_DCI, PCI_DEVICE_ID_DCI_PCCOM4,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b3_4_115200 },

@@ -289,6 +289,9 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		total += result;
 	} while (count);
 
+	if(inode->i_mapping->nrpages)
+		invalidate_inode_pages2(inode->i_mapping);
+
 	return total;
 }
 
@@ -299,4 +302,5 @@ struct file_operations v9fs_file_operations = {
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
+	.mmap = generic_file_mmap,
 };

@@ -71,6 +71,9 @@ struct scan_control {
 
 	int may_writepage;
 
+	/* Can pages be swapped as part of reclaim? */
+	int may_swap;
+
 	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
 	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
 	 * In this context, it doesn't matter that we scan the
@@ -458,6 +461,8 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		 * Try to allocate it some swap space here.
 		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
+			if (!sc->may_swap)
+				goto keep_locked;
 			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
 		}
@@ -586,7 +591,7 @@ static inline void move_to_lru(struct page *page)
 }
 
 /*
- * Add isolated pages on the list back to the LRU
+ * Add isolated pages on the list back to the LRU.
  *
  * returns the number of pages put back.
  */
@@ -760,46 +765,33 @@ next:
 	return nr_failed + retry;
 }
 
-static void lru_add_drain_per_cpu(void *dummy)
-{
-	lru_add_drain();
-}
-
 /*
  * Isolate one page from the LRU lists and put it on the
- * indicated list. Do necessary cache draining if the
- * page is not on the LRU lists yet.
+ * indicated list with elevated refcount.
  *
  * Result:
  *  0 = page not on LRU list
  *  1 = page removed from LRU list and added to the specified list.
- * -ENOENT = page is being freed elsewhere.
  */
 int isolate_lru_page(struct page *page)
 {
-	int rc = 0;
-	struct zone *zone = page_zone(page);
+	int ret = 0;
 
-redo:
-	spin_lock_irq(&zone->lru_lock);
-	rc = __isolate_lru_page(page);
-	if (rc == 1) {
-		if (PageActive(page))
-			del_page_from_active_list(zone, page);
-		else
-			del_page_from_inactive_list(zone, page);
+	if (PageLRU(page)) {
+		struct zone *zone = page_zone(page);
+		spin_lock_irq(&zone->lru_lock);
+		if (TestClearPageLRU(page)) {
+			ret = 1;
+			get_page(page);
+			if (PageActive(page))
+				del_page_from_active_list(zone, page);
+			else
+				del_page_from_inactive_list(zone, page);
+		}
+		spin_unlock_irq(&zone->lru_lock);
 	}
-	spin_unlock_irq(&zone->lru_lock);
-	if (rc == 0) {
-		/*
-		 * Maybe this page is still waiting for a cpu to drain it
-		 * from one of the lru lists?
-		 */
-		rc = schedule_on_each_cpu(lru_add_drain_per_cpu, NULL);
-		if (rc == 0 && PageLRU(page))
-			goto redo;
-	}
-	return rc;
+
+	return ret;
 }
 #endif
 
@@ -831,18 +823,20 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
-		switch (__isolate_lru_page(page)) {
-		case 1:
-			/* Succeeded to isolate page */
-			list_move(&page->lru, dst);
-			nr_taken++;
-			break;
-		case -ENOENT:
-			/* Not possible to isolate */
-			list_move(&page->lru, src);
-			break;
-		default:
+		if (!TestClearPageLRU(page))
 			BUG();
+		list_del(&page->lru);
+		if (get_page_testone(page)) {
+			/*
+			 * It is being freed elsewhere
+			 */
+			__put_page(page);
+			SetPageLRU(page);
+			list_add(&page->lru, src);
+			continue;
+		} else {
+			list_add(&page->lru, dst);
+			nr_taken++;
 		}
 	}
 
@@ -1177,6 +1171,7 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 
 	sc.gfp_mask = gfp_mask;
 	sc.may_writepage = 0;
+	sc.may_swap = 1;
 
 	inc_page_state(allocstall);
 
@@ -1279,6 +1274,7 @@ loop_again:
 	total_reclaimed = 0;
 	sc.gfp_mask = GFP_KERNEL;
 	sc.may_writepage = 0;
+	sc.may_swap = 1;
 	sc.nr_mapped = read_page_state(nr_mapped);
 
 	inc_page_state(pageoutrun);
@@ -1576,3 +1572,71 @@ static int __init kswapd_init(void)
 }
 
 module_init(kswapd_init)
+
+#ifdef CONFIG_NUMA
+/*
+ * Zone reclaim mode
+ *
+ * If non-zero call zone_reclaim when the number of free pages falls below
+ * the watermarks.
+ *
+ * In the future we may add flags to the mode. However, the page allocator
+ * should only have to check that zone_reclaim_mode != 0 before calling
+ * zone_reclaim().
+ */
+int zone_reclaim_mode __read_mostly;
+
+/*
+ * Mininum time between zone reclaim scans
+ */
+#define ZONE_RECLAIM_INTERVAL HZ/2
+/*
+ * Try to free up some pages from this zone through reclaim.
+ */
+int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+{
+	int nr_pages = 1 << order;
+	struct task_struct *p = current;
+	struct reclaim_state reclaim_state;
+	struct scan_control sc = {
+		.gfp_mask	= gfp_mask,
+		.may_writepage	= 0,
+		.may_swap	= 0,
+		.nr_mapped	= read_page_state(nr_mapped),
+		.nr_scanned	= 0,
+		.nr_reclaimed	= 0,
+		.priority	= 0
+	};
+
+	if (!(gfp_mask & __GFP_WAIT) ||
+		zone->zone_pgdat->node_id != numa_node_id() ||
+		zone->all_unreclaimable ||
+		atomic_read(&zone->reclaim_in_progress) > 0)
+			return 0;
+
+	if (time_before(jiffies,
+		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
+			return 0;
+
+	disable_swap_token();
+
+	if (nr_pages > SWAP_CLUSTER_MAX)
+		sc.swap_cluster_max = nr_pages;
+	else
+		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
+
+	cond_resched();
+	p->flags |= PF_MEMALLOC;
+	reclaim_state.reclaimed_slab = 0;
+	p->reclaim_state = &reclaim_state;
+	shrink_zone(zone, &sc);
+	p->reclaim_state = NULL;
+	current->flags &= ~PF_MEMALLOC;
+
+	if (sc.nr_reclaimed == 0)
+		zone->last_unsuccessful_zone_reclaim = jiffies;
+
+	return sc.nr_reclaimed > nr_pages;
+}
+#endif
+

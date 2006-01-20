@@ -3,8 +3,8 @@
 # Licensed under the GPL
 #
 
-obj-y := trap.o
+obj-y := mem.o process.o trap.o
 
-USER_OBJS := trap.o
+USER_OBJS := mem.o process.o trap.o
 
 include arch/um/scripts/Makefile.rules

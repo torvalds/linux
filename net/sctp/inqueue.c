@@ -73,8 +73,10 @@ void sctp_inq_free(struct sctp_inq *queue)
 	/* If there is a packet which is currently being worked on,
 	 * free it as well.
 	 */
-	if (queue->in_progress)
+	if (queue->in_progress) {
 		sctp_chunk_free(queue->in_progress);
+		queue->in_progress = NULL;
+	}
 
 	if (queue->malloced) {
 		/* Dump the master memory segment.  */

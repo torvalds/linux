@@ -37,7 +37,7 @@
 #ifndef _TIPC_MSG_H
 #define _TIPC_MSG_H
 
-#include <net/tipc/tipc_msg.h>
+#include "core.h"
 
 #define TIPC_VERSION              2
 #define DATA_LOW                  TIPC_LOW_IMPORTANCE
@@ -805,14 +805,14 @@ static inline int msg_build(struct tipc_msg *hdr,
 	return -EFAULT;
 }
 
+static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
+{
+	memcpy(&((int *)m)[5], a, sizeof(*a));
+}
 
-struct tipc_media_addr;
-
-extern void msg_set_media_addr(struct tipc_msg *m,
-			       struct tipc_media_addr *a);
-
-extern void msg_get_media_addr(struct tipc_msg *m,
-			       struct tipc_media_addr *a);
-
+static inline void msg_get_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
+{
+	memcpy(a, &((int*)m)[5], sizeof(*a));
+}
 
 #endif

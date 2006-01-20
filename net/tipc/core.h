@@ -37,6 +37,11 @@
 #ifndef _TIPC_CORE_H
 #define _TIPC_CORE_H
 
+#include <linux/tipc.h>
+#include <linux/tipc_config.h>
+#include <net/tipc/tipc_msg.h>
+#include <net/tipc/tipc_port.h>
+#include <net/tipc/tipc_bearer.h>
 #include <net/tipc/tipc.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -60,9 +65,9 @@
 #define assert(i)  BUG_ON(!(i))
 
 struct tipc_msg;
-extern struct print_buf *CONS, *LOG;
-extern struct print_buf *TEE(struct print_buf *, struct print_buf *);
-void msg_print(struct print_buf*,struct tipc_msg *,const char*);
+extern struct print_buf *TIPC_CONS, *TIPC_LOG;
+extern struct print_buf *TIPC_TEE(struct print_buf *, struct print_buf *);
+void tipc_msg_print(struct print_buf*,struct tipc_msg *,const char*);
 void tipc_printf(struct print_buf *, const char *fmt, ...);
 void tipc_dump(struct print_buf*,const char *fmt, ...);
 
@@ -79,7 +84,7 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define info(fmt, arg...) tipc_printf(TIPC_OUTPUT, KERN_NOTICE "TIPC: " fmt, ## arg)
 
 #define dbg(fmt, arg...)  do {if (DBG_OUTPUT) tipc_printf(DBG_OUTPUT, fmt, ## arg);} while(0)
-#define msg_dbg(msg, txt) do {if (DBG_OUTPUT) msg_print(DBG_OUTPUT, msg, txt);} while(0)
+#define msg_dbg(msg, txt) do {if (DBG_OUTPUT) tipc_msg_print(DBG_OUTPUT, msg, txt);} while(0)
 #define dump(fmt, arg...) do {if (DBG_OUTPUT) tipc_dump(DBG_OUTPUT, fmt, ##arg);} while(0)
 
 
@@ -89,15 +94,15 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
  * here, or on a per .c file basis, by redefining these symbols.  The following
  * print buffer options are available:
  *
- * NULL			: Output to null print buffer (i.e. print nowhere)
- * CONS			: Output to system console
- * LOG			: Output to TIPC log buffer 
- * &buf 		: Output to user-defined buffer (struct print_buf *)
- * TEE(&buf_a,&buf_b)	: Output to two print buffers (eg. TEE(CONS,LOG) )
+ * NULL				: Output to null print buffer (i.e. print nowhere)
+ * TIPC_CONS			: Output to system console
+ * TIPC_LOG			: Output to TIPC log buffer 
+ * &buf				: Output to user-defined buffer (struct print_buf *)
+ * TIPC_TEE(&buf_a,&buf_b)	: Output to two print buffers (eg. TIPC_TEE(TIPC_CONS,TIPC_LOG) )
  */
 
 #ifndef TIPC_OUTPUT
-#define TIPC_OUTPUT TEE(CONS,LOG)
+#define TIPC_OUTPUT TIPC_TEE(TIPC_CONS,TIPC_LOG)
 #endif
 
 #ifndef DBG_OUTPUT
@@ -162,10 +167,10 @@ extern atomic_t tipc_user_count;
  * Routines available to privileged subsystems
  */
 
-extern int  start_core(void);
-extern void stop_core(void);
-extern int  start_net(void);
-extern void stop_net(void);
+extern int  tipc_core_start(void);
+extern void tipc_core_stop(void);
+extern int  tipc_core_start_net(void);
+extern void tipc_core_stop_net(void);
 
 static inline int delimit(int val, int min, int max)
 {
@@ -183,7 +188,7 @@ static inline int delimit(int val, int min, int max)
 
 typedef void (*Handler) (unsigned long);
 
-u32 k_signal(Handler routine, unsigned long argument);
+u32 tipc_k_signal(Handler routine, unsigned long argument);
 
 /**
  * k_init_timer - initialize a timer

@@ -95,7 +95,6 @@ static int hfs_releasepage(struct page *page, gfp_t mask)
 		} while (--i && nidx < tree->node_count);
 		spin_unlock(&tree->hash_lock);
 	}
-	//printk("releasepage: %lu,%x = %d\n", page->index, mask, res);
 	return res ? try_to_free_buffers(page) : 0;
 }
 

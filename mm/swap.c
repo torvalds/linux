@@ -174,6 +174,32 @@ void lru_add_drain(void)
 	put_cpu();
 }
 
+#ifdef CONFIG_NUMA
+static void lru_add_drain_per_cpu(void *dummy)
+{
+	lru_add_drain();
+}
+
+/*
+ * Returns 0 for success
+ */
+int lru_add_drain_all(void)
+{
+	return schedule_on_each_cpu(lru_add_drain_per_cpu, NULL);
+}
+
+#else
+
+/*
+ * Returns 0 for success
+ */
+int lru_add_drain_all(void)
+{
+	lru_add_drain();
+	return 0;
+}
+#endif
+
 /*
  * This path almost never happens for VM activity - pages are normally
  * freed via pagevecs.  But it gets used by networking.

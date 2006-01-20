@@ -164,6 +164,7 @@ void machine_restart(char * cmd)
 	panic("Reboot failed!");
 }
 
+#ifdef CONFIG_COMPAT
 static void show_regwindow32(struct pt_regs *regs)
 {
 	struct reg_window32 __user *rw;
@@ -189,6 +190,9 @@ static void show_regwindow32(struct pt_regs *regs)
 	       r_w.ins[0], r_w.ins[1], r_w.ins[2], r_w.ins[3],
 	       r_w.ins[4], r_w.ins[5], r_w.ins[6], r_w.ins[7]);
 }
+#else
+#define show_regwindow32(regs)	do { } while (0)
+#endif
 
 static void show_regwindow(struct pt_regs *regs)
 {

@@ -81,12 +81,12 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	case 1:
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
 		if (entry.type != HFS_CDR_THD) {
-			printk("HFS: bad catalog folder thread\n");
+			printk(KERN_ERR "hfs: bad catalog folder thread\n");
 			err = -EIO;
 			goto out;
 		}
 		//if (fd.entrylength < HFS_MIN_THREAD_SZ) {
-		//	printk("HFS: truncated catalog thread\n");
+		//	printk(KERN_ERR "hfs: truncated catalog thread\n");
 		//	err = -EIO;
 		//	goto out;
 		//}
@@ -105,7 +105,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	for (;;) {
 		if (be32_to_cpu(fd.key->cat.ParID) != inode->i_ino) {
-			printk("HFS: walked past end of dir\n");
+			printk(KERN_ERR "hfs: walked past end of dir\n");
 			err = -EIO;
 			goto out;
 		}
@@ -114,7 +114,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		len = hfs_mac2asc(sb, strbuf, &fd.key->cat.CName);
 		if (type == HFS_CDR_DIR) {
 			if (fd.entrylength < sizeof(struct hfs_cat_dir)) {
-				printk("HFS: small dir entry\n");
+				printk(KERN_ERR "hfs: small dir entry\n");
 				err = -EIO;
 				goto out;
 			}
@@ -123,7 +123,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				break;
 		} else if (type == HFS_CDR_FIL) {
 			if (fd.entrylength < sizeof(struct hfs_cat_file)) {
-				printk("HFS: small file entry\n");
+				printk(KERN_ERR "hfs: small file entry\n");
 				err = -EIO;
 				goto out;
 			}
@@ -131,7 +131,7 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				    be32_to_cpu(entry.file.FlNum), DT_REG))
 				break;
 		} else {
-			printk("HFS: bad catalog entry type %d\n", type);
+			printk(KERN_ERR "hfs: bad catalog entry type %d\n", type);
 			err = -EIO;
 			goto out;
 		}

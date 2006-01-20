@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002  Jeff Dike (jdike@karaya.com) and
  * Lars Brinkhoff.
  * Licensed under the GPL

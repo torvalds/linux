@@ -3,7 +3,7 @@
  *
  *   vfs operations that deal with dentries
  * 
- *   Copyright (C) International Business Machines  Corp., 2002,2003
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -200,8 +200,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			(oplock & CIFS_CREATE_ACTION))
 			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
-					(__u64)current->euid,
-					(__u64)current->egid,
+					(__u64)current->fsuid,
+					(__u64)current->fsgid,
 					0 /* dev */,
 					cifs_sb->local_nls, 
 					cifs_sb->mnt_cifs_flags & 
@@ -325,7 +325,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	else if (pTcon->ses->capabilities & CAP_UNIX) {
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path,
-				mode,(__u64)current->euid,(__u64)current->egid,
+				mode,(__u64)current->fsuid,(__u64)current->fsgid,
 				device_number, cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags & 
 					CIFS_MOUNT_MAP_SPECIAL_CHR);

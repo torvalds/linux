@@ -41,18 +41,7 @@
 #include "bearer.h"
 
 
-void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(&((int *)m)[5], a, sizeof(*a));
-}
-
-void msg_get_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(a, &((int*)m)[5], sizeof(*a));
-}
-
-
-void msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str)
+void tipc_msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 {
 	u32 usr = msg_user(msg);
 	tipc_printf(buf, str);
@@ -318,7 +307,7 @@ void msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		tipc_printf(buf, ":REQL(%u):", msg_req_links(msg));
 		tipc_printf(buf, ":DDOM(%x):", msg_dest_domain(msg));
 		tipc_printf(buf, ":NETID(%u):", msg_bc_netid(msg));
-		media_addr_printf(buf, orig);
+		tipc_media_addr_printf(buf, orig);
 	}
 	if (msg_user(msg) == BCAST_PROTOCOL) {
 		tipc_printf(buf, "BCNACK:AFTER(%u):", msg_bcgap_after(msg));
@@ -326,9 +315,9 @@ void msg_print(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 	}
 	tipc_printf(buf, "\n");
 	if ((usr == CHANGEOVER_PROTOCOL) && (msg_msgcnt(msg))) {
-		msg_print(buf,msg_get_wrapped(msg),"      /");
+		tipc_msg_print(buf,msg_get_wrapped(msg),"      /");
 	}
 	if ((usr == MSG_FRAGMENTER) && (msg_type(msg) == FIRST_FRAGMENT)) {
-		msg_print(buf,msg_get_wrapped(msg),"      /");
+		tipc_msg_print(buf,msg_get_wrapped(msg),"      /");
 	}
 }

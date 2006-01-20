@@ -36,7 +36,7 @@
 #define HFSPLUS_TYPE_DATA 0x00
 #define HFSPLUS_TYPE_RSRC 0xFF
 
-typedef int (*btree_keycmp)(hfsplus_btree_key *, hfsplus_btree_key *);
+typedef int (*btree_keycmp)(const hfsplus_btree_key *, const hfsplus_btree_key *);
 
 #define NODE_HASH_SIZE	256
 
@@ -149,6 +149,7 @@ struct hfsplus_sb_info {
 #define HFSPLUS_SB_WRITEBACKUP	0x0001
 #define HFSPLUS_SB_NODECOMPOSE	0x0002
 #define HFSPLUS_SB_FORCE	0x0004
+#define HFSPLUS_SB_HFSX		0x0008
 
 
 struct hfsplus_inode_info {
@@ -165,6 +166,7 @@ struct hfsplus_inode_info {
 	struct inode *rsrc_inode;
 	unsigned long flags;
 
+	__be32 create_date;
 	/* Device number in hfsplus_permissions in catalog */
 	u32 dev;
 	/* BSD system and user file flags */
@@ -303,7 +305,8 @@ int hfs_brec_read(struct hfs_find_data *, void *, int);
 int hfs_brec_goto(struct hfs_find_data *, int);
 
 /* catalog.c */
-int hfsplus_cat_cmp_key(hfsplus_btree_key *, hfsplus_btree_key *);
+int hfsplus_cat_case_cmp_key(const hfsplus_btree_key *, const hfsplus_btree_key *);
+int hfsplus_cat_bin_cmp_key(const hfsplus_btree_key *, const hfsplus_btree_key *);
 void hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *, u32, struct qstr *);
 int hfsplus_find_cat(struct super_block *, u32, struct hfs_find_data *);
 int hfsplus_create_cat(u32, struct inode *, struct qstr *, struct inode *);
@@ -312,7 +315,7 @@ int hfsplus_rename_cat(u32, struct inode *, struct qstr *,
 		       struct inode *, struct qstr *);
 
 /* extents.c */
-int hfsplus_ext_cmp_key(hfsplus_btree_key *, hfsplus_btree_key *);
+int hfsplus_ext_cmp_key(const hfsplus_btree_key *, const hfsplus_btree_key *);
 void hfsplus_ext_write_extent(struct inode *);
 int hfsplus_get_block(struct inode *, sector_t, struct buffer_head *, int);
 int hfsplus_free_fork(struct super_block *, u32, struct hfsplus_fork_raw *, int);
@@ -350,7 +353,8 @@ extern u16 hfsplus_decompose_table[];
 extern u16 hfsplus_compose_table[];
 
 /* unicode.c */
-int hfsplus_unistrcmp(const struct hfsplus_unistr *, const struct hfsplus_unistr *);
+int hfsplus_strcasecmp(const struct hfsplus_unistr *, const struct hfsplus_unistr *);
+int hfsplus_strcmp(const struct hfsplus_unistr *, const struct hfsplus_unistr *);
 int hfsplus_uni2asc(struct super_block *, const struct hfsplus_unistr *, char *, int *);
 int hfsplus_asc2uni(struct super_block *, struct hfsplus_unistr *, const char *, int);
 

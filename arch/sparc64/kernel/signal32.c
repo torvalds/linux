@@ -32,9 +32,6 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-int do_signal32(sigset_t *oldset, struct pt_regs *regs,
-		unsigned long orig_o0, int ret_from_syscall);
-
 /* Signal frames: the original one (compatible with SunOS):
  *
  * Set up a signal frame... Make the stack look the way SunOS
@@ -224,102 +221,6 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 		return -EFAULT;
 
 	return 0;
-}
-
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- * This is really tricky on the Sparc, watch out...
- */
-asmlinkage void _sigpause32_common(compat_old_sigset_t set, struct pt_regs *regs)
-{
-	sigset_t saveset;
-
-	set &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	siginitset(&current->blocked, set);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-
-	/* Condition codes and return value where set here for sigpause,
-	 * and so got used by setup_frame, which again causes sigreturn()
-	 * to return -EINTR.
-	 */
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		/*
-		 * Return -EINTR and set condition code here,
-		 * so the interrupted system call actually returns
-		 * these.
-		 */
-		regs->tstate |= TSTATE_ICARRY;
-		regs->u_regs[UREG_I0] = EINTR;
-		if (do_signal32(&saveset, regs, 0, 0))
-			return;
-	}
-}
-
-asmlinkage void do_rt_sigsuspend32(u32 uset, size_t sigsetsize, struct pt_regs *regs)
-{
-	sigset_t oldset, set;
-	compat_sigset_t set32;
-        
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (((compat_size_t)sigsetsize) != sizeof(sigset_t)) {
-		regs->tstate |= TSTATE_ICARRY;
-		regs->u_regs[UREG_I0] = EINVAL;
-		return;
-	}
-	if (copy_from_user(&set32, compat_ptr(uset), sizeof(set32))) {
-		regs->tstate |= TSTATE_ICARRY;
-		regs->u_regs[UREG_I0] = EFAULT;
-		return;
-	}
-	switch (_NSIG_WORDS) {
-	case 4: set.sig[3] = set32.sig[6] + (((long)set32.sig[7]) << 32);
-	case 3: set.sig[2] = set32.sig[4] + (((long)set32.sig[5]) << 32);
-	case 2: set.sig[1] = set32.sig[2] + (((long)set32.sig[3]) << 32);
-	case 1: set.sig[0] = set32.sig[0] + (((long)set32.sig[1]) << 32);
-	}
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	oldset = current->blocked;
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-
-	/* Condition codes and return value where set here for sigpause,
-	 * and so got used by setup_frame, which again causes sigreturn()
-	 * to return -EINTR.
-	 */
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		/*
-		 * Return -EINTR and set condition code here,
-		 * so the interrupted system call actually returns
-		 * these.
-		 */
-		regs->tstate |= TSTATE_ICARRY;
-		regs->u_regs[UREG_I0] = EINTR;
-		if (do_signal32(&oldset, regs, 0, 0))
-			return;
-	}
 }
 
 static int restore_fpu_state32(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
@@ -1362,8 +1263,8 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-int do_signal32(sigset_t *oldset, struct pt_regs * regs,
-		unsigned long orig_i0, int restart_syscall)
+void do_signal32(sigset_t *oldset, struct pt_regs * regs,
+		 unsigned long orig_i0, int restart_syscall)
 {
 	siginfo_t info;
 	struct signal_deliver_cookie cookie;
@@ -1380,7 +1281,15 @@ int do_signal32(sigset_t *oldset, struct pt_regs * regs,
 			syscall_restart32(orig_i0, regs, &ka.sa);
 		handle_signal32(signr, &ka, &info, oldset,
 				regs, svr4_signal);
-		return 1;
+
+		/* a signal was successfully delivered; the saved
+		 * sigmask will have been stored in the signal frame,
+		 * and will be restored by sigreturn, so we can simply
+		 * clear the TIF_RESTORE_SIGMASK flag.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		return;
 	}
 	if (cookie.restart_syscall &&
 	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
@@ -1397,7 +1306,14 @@ int do_signal32(sigset_t *oldset, struct pt_regs * regs,
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
-	return 0;
+
+	/* if there's no signal to deliver, we just put the saved sigmask
+	 * back
+	 */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }
 
 struct sigstack32 {

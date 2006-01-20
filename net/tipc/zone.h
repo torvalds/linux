@@ -54,18 +54,18 @@ struct _zone {
 	u32 links;
 };
 
-struct node *zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref);
-u32 zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref);
-void zone_remove_as_router(struct _zone *z_ptr, u32 router);
-void zone_send_external_routes(struct _zone *z_ptr, u32 dest);
-struct _zone *zone_create(u32 addr);
-void zone_delete(struct _zone *z_ptr);
-void zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr);
-u32 zone_next_node(u32 addr);
+struct node *tipc_zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref);
+u32 tipc_zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref);
+void tipc_zone_remove_as_router(struct _zone *z_ptr, u32 router);
+void tipc_zone_send_external_routes(struct _zone *z_ptr, u32 dest);
+struct _zone *tipc_zone_create(u32 addr);
+void tipc_zone_delete(struct _zone *z_ptr);
+void tipc_zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr);
+u32 tipc_zone_next_node(u32 addr);
 
-static inline struct _zone *zone_find(u32 addr)
+static inline struct _zone *tipc_zone_find(u32 addr)
 {
-	return net.zones[tipc_zone(addr)];
+	return tipc_net.zones[tipc_zone(addr)];
 }
 
 #endif

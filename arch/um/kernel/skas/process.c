@@ -18,7 +18,6 @@
 #include <asm/types.h>
 #include "user.h"
 #include "ptrace_user.h"
-#include "time_user.h"
 #include "sysdep/ptrace.h"
 #include "user_util.h"
 #include "kern_util.h"

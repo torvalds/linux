@@ -149,13 +149,15 @@ struct zone {
 	unsigned long		pages_scanned;	   /* since last reclaim */
 	int			all_unreclaimable; /* All pages pinned */
 
-	/*
-	 * Does the allocator try to reclaim pages from the zone as soon
-	 * as it fails a watermark_ok() in __alloc_pages?
-	 */
-	int			reclaim_pages;
 	/* A count of how many reclaimers are scanning this zone */
 	atomic_t		reclaim_in_progress;
+
+	/*
+	 * timestamp (in jiffies) of the last zone reclaim that did not
+	 * result in freeing of pages. This is used to avoid repeated scans
+	 * if all memory in the zone is in use.
+	 */
+	unsigned long		last_unsuccessful_zone_reclaim;
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is

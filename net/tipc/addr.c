@@ -47,7 +47,7 @@ u32 tipc_get_addr(void)
 }
 
 /**
- * addr_domain_valid - validates a network domain address
+ * tipc_addr_domain_valid - validates a network domain address
  * 
  * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>, 
  * where Z, C, and N are non-zero and do not exceed the configured limits.
@@ -55,7 +55,7 @@ u32 tipc_get_addr(void)
  * Returns 1 if domain address is valid, otherwise 0
  */
 
-int addr_domain_valid(u32 addr)
+int tipc_addr_domain_valid(u32 addr)
 {
 	u32 n = tipc_node(addr);
 	u32 c = tipc_cluster(addr);
@@ -79,7 +79,7 @@ int addr_domain_valid(u32 addr)
 }
 
 /**
- * addr_node_valid - validates a proposed network address for this node
+ * tipc_addr_node_valid - validates a proposed network address for this node
  * 
  * Accepts <Z.C.N>, where Z, C, and N are non-zero and do not exceed 
  * the configured limits.
@@ -87,8 +87,8 @@ int addr_domain_valid(u32 addr)
  * Returns 1 if address can be used, otherwise 0
  */
 
-int addr_node_valid(u32 addr)
+int tipc_addr_node_valid(u32 addr)
 {
-	return (addr_domain_valid(addr) && tipc_node(addr));
+	return (tipc_addr_domain_valid(addr) && tipc_node(addr));
 }
 

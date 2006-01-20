@@ -22,6 +22,7 @@
 
 #include <linux/config.h>
 #include <linux/transport_class.h>
+#include <linux/mutex.h>
 
 struct scsi_transport_template;
 struct scsi_target;

@@ -33,7 +33,7 @@
  *     mapping->i_mmap_lock
  *       anon_vma->lock
  *         mm->page_table_lock or pte_lock
- *           zone->lru_lock (in mark_page_accessed)
+ *           zone->lru_lock (in mark_page_accessed, isolate_lru_page)
  *           swap_lock (in swap_duplicate, swap_info_get)
  *             mmlist_lock (in mmput, drain_mmlist and others)
  *             mapping->private_lock (in __set_page_dirty_buffers)

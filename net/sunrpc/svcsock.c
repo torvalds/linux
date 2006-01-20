@@ -1527,6 +1527,7 @@ svc_defer(struct cache_req *req)
 		dr->handle.owner = rqstp->rq_server;
 		dr->prot = rqstp->rq_prot;
 		dr->addr = rqstp->rq_addr;
+		dr->daddr = rqstp->rq_daddr;
 		dr->argslen = rqstp->rq_arg.len >> 2;
 		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base-skip, dr->argslen<<2);
 	}
@@ -1552,6 +1553,7 @@ static int svc_deferred_recv(struct svc_rqst *rqstp)
 	rqstp->rq_arg.len = dr->argslen<<2;
 	rqstp->rq_prot        = dr->prot;
 	rqstp->rq_addr        = dr->addr;
+	rqstp->rq_daddr       = dr->daddr;
 	return dr->argslen<<2;
 }
 

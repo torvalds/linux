@@ -177,6 +177,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		inode->i_blocks = 0;
 		inode->i_rdev = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_mapping->a_ops = &v9fs_addr_operations;
 
 		switch (mode & S_IFMT) {
 		case S_IFIFO:

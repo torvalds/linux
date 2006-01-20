@@ -64,7 +64,6 @@ int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd)
 		else
 			e = rec - 1;
 	} while (b <= e);
-	//printk("%d: %d,%d,%d\n", bnode->this, b, e, rec);
 	if (rec != e && e >= 0) {
 		len = hfs_brec_lenoff(bnode, e, &off);
 		keylen = hfs_brec_keylen(bnode, e);
@@ -127,7 +126,7 @@ int hfs_brec_find(struct hfs_find_data *fd)
 	return res;
 
 invalid:
-	printk("HFS: inconsistency in B*Tree (%d,%d,%d,%u,%u)\n",
+	printk(KERN_ERR "hfs: inconsistency in B*Tree (%d,%d,%d,%u,%u)\n",
 		height, bnode->height, bnode->type, nidx, parent);
 	res = -EIO;
 release:

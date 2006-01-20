@@ -40,12 +40,12 @@
  */
  
 #include <linux/config.h> 
+#include <linux/types.h>
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
 #include <asm/current.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
-#include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <linux/errno.h>

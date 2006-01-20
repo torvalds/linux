@@ -20,6 +20,7 @@ Jeff Dike (jdike@karaya.com) : Modified for integration into uml
 #include "kern_util.h"
 #include "ptrace_user.h"
 #include "tt.h"
+#include "os.h"
 
 long proxy_ptrace(struct debugger *debugger, int arg1, pid_t arg2,
 		  long arg3, long arg4, pid_t child, int *ret)

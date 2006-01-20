@@ -377,6 +377,7 @@ int32_t e1000_swfw_sync_acquire(struct e1000_hw *hw, uint16_t mask);
 void e1000_swfw_sync_release(struct e1000_hw *hw, uint16_t mask);
 
 /* Filters (multicast, vlan, receive) */
+void e1000_mc_addr_list_update(struct e1000_hw *hw, uint8_t * mc_addr_list, uint32_t mc_addr_count, uint32_t pad, uint32_t rar_used_count);
 uint32_t e1000_hash_mc_addr(struct e1000_hw *hw, uint8_t * mc_addr);
 void e1000_mta_set(struct e1000_hw *hw, uint32_t hash_value);
 void e1000_rar_set(struct e1000_hw *hw, uint8_t * mc_addr, uint32_t rar_index);
@@ -401,7 +402,9 @@ void e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t * value);
 void e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t * value);
 /* Port I/O is only supported on 82544 and newer */
 uint32_t e1000_io_read(struct e1000_hw *hw, unsigned long port);
+uint32_t e1000_read_reg_io(struct e1000_hw *hw, uint32_t offset);
 void e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value);
+void e1000_enable_pciex_master(struct e1000_hw *hw);
 int32_t e1000_disable_pciex_master(struct e1000_hw *hw);
 int32_t e1000_get_software_semaphore(struct e1000_hw *hw);
 void e1000_release_software_semaphore(struct e1000_hw *hw);
@@ -899,14 +902,14 @@ struct e1000_ffvt_entry {
 #define E1000_TXDCTL   0x03828  /* TX Descriptor Control - RW */
 #define E1000_TADV     0x0382C  /* TX Interrupt Absolute Delay Val - RW */
 #define E1000_TSPMT    0x03830  /* TCP Segmentation PAD & Min Threshold - RW */
-#define E1000_TARC0    0x03840 /* TX Arbitration Count (0) */
-#define E1000_TDBAL1   0x03900 /* TX Desc Base Address Low (1) - RW */
-#define E1000_TDBAH1   0x03904 /* TX Desc Base Address High (1) - RW */
-#define E1000_TDLEN1   0x03908 /* TX Desc Length (1) - RW */
-#define E1000_TDH1     0x03910 /* TX Desc Head (1) - RW */
-#define E1000_TDT1     0x03918 /* TX Desc Tail (1) - RW */
-#define E1000_TXDCTL1  0x03928 /* TX Descriptor Control (1) - RW */
-#define E1000_TARC1    0x03940 /* TX Arbitration Count (1) */
+#define E1000_TARC0    0x03840  /* TX Arbitration Count (0) */
+#define E1000_TDBAL1   0x03900  /* TX Desc Base Address Low (1) - RW */
+#define E1000_TDBAH1   0x03904  /* TX Desc Base Address High (1) - RW */
+#define E1000_TDLEN1   0x03908  /* TX Desc Length (1) - RW */
+#define E1000_TDH1     0x03910  /* TX Desc Head (1) - RW */
+#define E1000_TDT1     0x03918  /* TX Desc Tail (1) - RW */
+#define E1000_TXDCTL1  0x03928  /* TX Descriptor Control (1) - RW */
+#define E1000_TARC1    0x03940  /* TX Arbitration Count (1) */
 #define E1000_CRCERRS  0x04000  /* CRC Error Count - R/clr */
 #define E1000_ALGNERRC 0x04004  /* Alignment Error Count - R/clr */
 #define E1000_SYMERRS  0x04008  /* Symbol Error Count - R/clr */
@@ -1761,7 +1764,6 @@ struct e1000_hw {
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 #define E1000_TXDCTL_COUNT_DESC 0x00400000 /* Enable the counting of desc.
                                               still to be processed. */
-
 /* Transmit Configuration Word */
 #define E1000_TXCW_FD         0x00000020        /* TXCW full duplex */
 #define E1000_TXCW_HD         0x00000040        /* TXCW half duplex */
