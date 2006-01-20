@@ -2250,13 +2250,8 @@ qla2x00_do_dpc(void *data)
 						DEBUG(printk("scsi(%ld): port login OK: logged in ID 0x%x\n",
 						    ha->host_no, fcport->loop_id));
 
-						fcport->port_login_retry_count =
-						    ha->port_down_retry_count * PORT_RETRY_TIME;
-						atomic_set(&fcport->state, FCS_ONLINE);
-						atomic_set(&fcport->port_down_timer,
-						    ha->port_down_retry_count * PORT_RETRY_TIME);
-
-						fcport->login_retry = 0;
+						qla2x00_update_fcport(ha,
+						    fcport);
 					} else if (status == 1) {
 						set_bit(RELOGIN_NEEDED, &ha->dpc_flags);
 						/* retry the login again */

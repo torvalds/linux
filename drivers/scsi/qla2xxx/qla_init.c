@@ -32,7 +32,6 @@ static int qla2x00_fw_ready(scsi_qla_host_t *);
 static int qla2x00_configure_hba(scsi_qla_host_t *);
 static int qla2x00_configure_loop(scsi_qla_host_t *);
 static int qla2x00_configure_local_loop(scsi_qla_host_t *);
-static void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 static int qla2x00_configure_fabric(scsi_qla_host_t *);
 static int qla2x00_find_all_fabric_devs(scsi_qla_host_t *, struct list_head *);
 static int qla2x00_device_resync(scsi_qla_host_t *);
@@ -2039,7 +2038,7 @@ qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
  * Context:
  *	Kernel context.
  */
-static void
+void
 qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 	uint16_t	index;
