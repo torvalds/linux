@@ -2041,10 +2041,6 @@ qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
 void
 qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
-	uint16_t	index;
-	unsigned long flags;
-	srb_t *sp;
-
 	fcport->ha = ha;
 	fcport->login_retry = 0;
 	fcport->port_login_retry_count = ha->port_down_retry_count *
@@ -2052,28 +2048,6 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
 	    PORT_RETRY_TIME);
 	fcport->flags &= ~FCF_LOGIN_NEEDED;
-
-	/*
-	 * Check for outstanding cmd on tape Bypass LUN discovery if active
-	 * command on tape.
-	 */
-	if (fcport->flags & FCF_TAPE_PRESENT) {
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-		for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
-			fc_port_t *sfcp;
-
-			if ((sp = ha->outstanding_cmds[index]) != 0) {
-				sfcp = sp->fcport;
-				if (sfcp == fcport) {
-					atomic_set(&fcport->state, FCS_ONLINE);
-					spin_unlock_irqrestore(
-					    &ha->hardware_lock, flags);
-					return;
-				}
-			}
-		}
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	}
 
 	if (fcport->port_type == FCT_INITIATOR ||
 	    fcport->port_type == FCT_BROADCAST)
