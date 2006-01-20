@@ -781,7 +781,7 @@ static int snd_opl3sa2_pnp_resume(struct pnp_dev *pdev)
 #endif
 
 static struct pnp_driver opl3sa2_pnp_driver = {
-	.name = "opl3sa2-pnpbios",
+	.name = "snd-opl3sa2-pnpbios",
 	.id_table = snd_opl3sa2_pnpbiosids,
 	.probe = snd_opl3sa2_pnp_detect,
 	.remove = __devexit_p(snd_opl3sa2_pnp_remove),
@@ -848,7 +848,7 @@ static int snd_opl3sa2_pnp_cresume(struct pnp_card_link *pcard)
 
 static struct pnp_card_driver opl3sa2_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
-	.name = "opl3sa2",
+	.name = "snd-opl3sa2-cpnp",
 	.id_table = snd_opl3sa2_pnpids,
 	.probe = snd_opl3sa2_pnp_cdetect,
 	.remove = __devexit_p(snd_opl3sa2_pnp_cremove),
