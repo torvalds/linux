@@ -177,29 +177,34 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		}
 		break;
 
-	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-		for (i = 0; i < res->data.extended_irq.interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(res_table,
-				res->data.extended_irq.interrupts[i],
-				res->data.extended_irq.triggering,
-				res->data.extended_irq.polarity);
-		}
-		break;
 	case ACPI_RESOURCE_TYPE_DMA:
 		if (res->data.dma.channel_count > 0)
 			pnpacpi_parse_allocated_dmaresource(res_table,
 					res->data.dma.channels[0]);
 		break;
+
 	case ACPI_RESOURCE_TYPE_IO:
 		pnpacpi_parse_allocated_ioresource(res_table,
 				res->data.io.minimum,
 				res->data.io.address_length);
 		break;
+
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
+		break;
+
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
 		pnpacpi_parse_allocated_ioresource(res_table,
 				res->data.fixed_io.address,
 				res->data.fixed_io.address_length);
 		break;
+
+	case ACPI_RESOURCE_TYPE_VENDOR:
+		break;
+
+	case ACPI_RESOURCE_TYPE_END_TAG:
+		break;
+
 	case ACPI_RESOURCE_TYPE_MEMORY24:
 		pnpacpi_parse_allocated_memresource(res_table,
 				res->data.memory24.minimum,
@@ -230,8 +235,22 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		res->data.address64.minimum,
 		res->data.address64.address_length);
 		break;
-	case ACPI_RESOURCE_TYPE_VENDOR:
+
+	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 		break;
+
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+		for (i = 0; i < res->data.extended_irq.interrupt_count; i++) {
+			pnpacpi_parse_allocated_irqresource(res_table,
+				res->data.extended_irq.interrupts[i],
+				res->data.extended_irq.triggering,
+				res->data.extended_irq.polarity);
+		}
+		break;
+
+	case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
+		break;
+
 	default:
 		pnp_warn("PnPACPI: unknown resource type %d", res->type);
 		return AE_ERROR;
@@ -510,35 +529,11 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		case ACPI_RESOURCE_TYPE_IRQ:
 			pnpacpi_parse_irq_option(option, &res->data.irq);
 			break;
-		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-			pnpacpi_parse_ext_irq_option(option,
-				&res->data.extended_irq);
-			break;
+
 		case ACPI_RESOURCE_TYPE_DMA:
 			pnpacpi_parse_dma_option(option, &res->data.dma);	
 			break;
-		case ACPI_RESOURCE_TYPE_IO:
-			pnpacpi_parse_port_option(option, &res->data.io);
-			break;
-		case ACPI_RESOURCE_TYPE_FIXED_IO:
-			pnpacpi_parse_fixed_port_option(option,
-				&res->data.fixed_io);
-			break;
-		case ACPI_RESOURCE_TYPE_MEMORY24:
-			pnpacpi_parse_mem24_option(option, &res->data.memory24);
-			break;
-		case ACPI_RESOURCE_TYPE_MEMORY32:
-			pnpacpi_parse_mem32_option(option, &res->data.memory32);
-			break;
-		case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-			pnpacpi_parse_fixed_mem32_option(option,
-				&res->data.fixed_memory32);
-			break;
-		case ACPI_RESOURCE_TYPE_ADDRESS16:
-		case ACPI_RESOURCE_TYPE_ADDRESS32:
-		case ACPI_RESOURCE_TYPE_ADDRESS64:
-			pnpacpi_parse_address_option(option, res);
-			break;
+
 		case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 			switch (res->data.start_dpf.compatibility_priority) {
 				case ACPI_GOOD_CONFIGURATION:
@@ -562,6 +557,7 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 				return AE_ERROR;
 			parse_data->option = option;	
 			break;
+
 		case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 			/*only one EndDependentFn is allowed*/
 			if (!parse_data->option_independent) {
@@ -571,6 +567,50 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 			parse_data->option = parse_data->option_independent;
 			parse_data->option_independent = NULL;
 			break;
+
+		case ACPI_RESOURCE_TYPE_IO:
+			pnpacpi_parse_port_option(option, &res->data.io);
+			break;
+
+		case ACPI_RESOURCE_TYPE_FIXED_IO:
+			pnpacpi_parse_fixed_port_option(option,
+				&res->data.fixed_io);
+			break;
+
+		case ACPI_RESOURCE_TYPE_VENDOR:
+		case ACPI_RESOURCE_TYPE_END_TAG:
+			break;
+
+		case ACPI_RESOURCE_TYPE_MEMORY24:
+			pnpacpi_parse_mem24_option(option, &res->data.memory24);
+			break;
+
+		case ACPI_RESOURCE_TYPE_MEMORY32:
+			pnpacpi_parse_mem32_option(option, &res->data.memory32);
+			break;
+
+		case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+			pnpacpi_parse_fixed_mem32_option(option,
+				&res->data.fixed_memory32);
+			break;
+
+		case ACPI_RESOURCE_TYPE_ADDRESS16:
+		case ACPI_RESOURCE_TYPE_ADDRESS32:
+		case ACPI_RESOURCE_TYPE_ADDRESS64:
+			pnpacpi_parse_address_option(option, res);
+			break;
+
+		case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+			break;
+
+		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+			pnpacpi_parse_ext_irq_option(option,
+				&res->data.extended_irq);
+			break;
+
+		case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
+			break;
+
 		default:
 			pnp_warn("PnPACPI: unknown resource type %d", res->type);
 			return AE_ERROR;
@@ -605,7 +645,6 @@ static acpi_status pnpacpi_count_resources(struct acpi_resource *res,
 	int *res_cnt = (int *)data;
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
-	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 	case ACPI_RESOURCE_TYPE_DMA:
 	case ACPI_RESOURCE_TYPE_IO:
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
@@ -615,7 +654,13 @@ static acpi_status pnpacpi_count_resources(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		(*res_cnt) ++;
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_VENDOR:
+	case ACPI_RESOURCE_TYPE_END_TAG:
+	case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 	default:
 		return AE_OK;
 	}
@@ -628,7 +673,6 @@ static acpi_status pnpacpi_type_resources(struct acpi_resource *res,
 	struct acpi_resource **resource = (struct acpi_resource **)data;	
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
-	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 	case ACPI_RESOURCE_TYPE_DMA:
 	case ACPI_RESOURCE_TYPE_IO:
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
@@ -638,8 +682,14 @@ static acpi_status pnpacpi_type_resources(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		(*resource)->type = res->type;
 		(*resource)++;
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
+	case ACPI_RESOURCE_TYPE_VENDOR:
+	case ACPI_RESOURCE_TYPE_END_TAG:
+	case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 	default:
 		return AE_OK;
 	}
@@ -828,12 +878,6 @@ int pnpacpi_encode_resources(struct pnp_resource_table *res_table,
 			irq++;
 			break;
 
-		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-			pnp_dbg("Encode ext irq");
-			pnpacpi_encode_ext_irq(resource,
-				&res_table->irq_resource[irq]);
-			irq++;
-			break;
 		case ACPI_RESOURCE_TYPE_DMA:
 			pnp_dbg("Encode dma");
 			pnpacpi_encode_dma(resource,
@@ -870,6 +914,21 @@ int pnpacpi_encode_resources(struct pnp_resource_table *res_table,
 				&res_table->mem_resource[mem]);
 			mem ++;
 			break;
+		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+			pnp_dbg("Encode ext irq");
+			pnpacpi_encode_ext_irq(resource,
+				&res_table->irq_resource[irq]);
+			irq++;
+			break;
+		case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+		case ACPI_RESOURCE_TYPE_END_DEPENDENT:
+		case ACPI_RESOURCE_TYPE_VENDOR:
+		case ACPI_RESOURCE_TYPE_END_TAG:
+		case ACPI_RESOURCE_TYPE_ADDRESS16:
+		case ACPI_RESOURCE_TYPE_ADDRESS32:
+		case ACPI_RESOURCE_TYPE_ADDRESS64:
+		case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+		case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 		default: /* other type */
 			pnp_warn("unknown resource type %d", resource->type);
 			return -EINVAL;
