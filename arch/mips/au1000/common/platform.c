@@ -278,9 +278,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1100_lcd_device,
 #endif
 #ifdef CONFIG_SOC_AU1200
-#if 0	/* fixme */
 	&au1xxx_usb_ehci_device,
-#endif
 	&au1xxx_usb_gdt_device,
 	&au1xxx_usb_otg_device,
 	&au1200_lcd_device,
