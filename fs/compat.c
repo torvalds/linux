@@ -1743,7 +1743,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		if ((u64)tv.tv_sec >= (u64)MAX_INT64_SECONDS)
 			timeout = -1;	/* infinite */
 		else {
-			timeout = ROUND_UP(tv.tv_sec, 1000000/HZ);
+			timeout = ROUND_UP(tv.tv_usec, 1000000/HZ);
 			timeout += tv.tv_sec * HZ;
 		}
 	}
@@ -1884,7 +1884,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 		/* We assume that ts.tv_sec is always lower than
 		   the number of seconds that can be expressed in
 		   an s64. Otherwise the compiler bitches at us */
-		timeout = ROUND_UP(ts.tv_sec, 1000000000/HZ);
+		timeout = ROUND_UP(ts.tv_nsec, 1000000000/HZ);
 		timeout += ts.tv_sec * HZ;
 	}
 
