@@ -55,10 +55,8 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
-#ifdef CONFIG_NET_RADIO
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
-#endif
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
