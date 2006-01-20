@@ -470,7 +470,8 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *plug,
 	/* format change */
 	if (srcformat.format != dstformat.format) {
 		tmpformat.format = dstformat.format;
-		if (tmpformat.format == SNDRV_PCM_FORMAT_MU_LAW) {
+		if (srcformat.format == SNDRV_PCM_FORMAT_MU_LAW ||
+		    tmpformat.format == SNDRV_PCM_FORMAT_MU_LAW) {
 			err = snd_pcm_plugin_build_mulaw(plug,
 							 &srcformat, &tmpformat,
 							 &plugin);
