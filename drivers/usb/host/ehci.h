@@ -89,6 +89,8 @@ struct ehci_hcd {			/* one per controller */
 	u32			command;
 
 	unsigned		is_tdi_rh_tt:1;	/* TDI roothub with TT */
+	unsigned		no_selective_suspend:1;
+	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */
 #ifdef EHCI_STATS
@@ -97,7 +99,6 @@ struct ehci_hcd {			/* one per controller */
 #else
 #	define COUNT(x) do {} while (0)
 #endif
-	u8			sbrn;		/* packed release number */
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */ 
