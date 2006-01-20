@@ -37,6 +37,9 @@ obj-$(CONFIG_SBC82xx)		+= sbc82xx.o
 obj-$(CONFIG_SPRUCE)		+= spruce.o
 obj-$(CONFIG_LITE5200)		+= lite5200.o
 obj-$(CONFIG_EV64360)		+= ev64360.o
+obj-$(CONFIG_MPC86XADS)		+= mpc866ads_setup.o
+obj-$(CONFIG_MPC885ADS)		+= mpc885ads_setup.o
+obj-$(CONFIG_ADS8272)		+= mpc8272ads_setup.o
 
 ifeq ($(CONFIG_SMP),y)
 obj-$(CONFIG_PPC_CHRP)		+= chrp_smp.o
