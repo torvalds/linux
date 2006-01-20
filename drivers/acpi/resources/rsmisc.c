@@ -328,14 +328,6 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 
 	ACPI_FUNCTION_TRACE("rs_convert_resource_to_aml");
 
-	/* Validate the Resource pointer, must be 32-bit aligned */
-
-	if (((acpi_native_uint) resource) & 0x3) {
-		acpi_os_printf
-		    ("**** SET: Misaligned resource pointer: %p Type %2.2X Len %X\n",
-		     resource, resource->type, resource->length);
-	}
-
 	/*
 	 * First table entry must be ACPI_RSC_INITxxx and must contain the
 	 * table length (# of table entries)
