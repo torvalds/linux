@@ -707,6 +707,7 @@ iso_stream_init (
 	} else {
 		u32		addr;
 		int		think_time;
+		int		hs_transfers;
 
 		addr = dev->ttport << 24;
 		if (!ehci_is_TDI(ehci)
@@ -719,6 +720,7 @@ iso_stream_init (
 		think_time = dev->tt ? dev->tt->think_time : 0;
 		stream->tt_usecs = NS_TO_US (think_time + usb_calc_bus_time (
 				dev->speed, is_input, 1, maxp));
+		hs_transfers = max (1u, (maxp + 187) / 188);
 		if (is_input) {
 			u32	tmp;
 
@@ -727,12 +729,11 @@ iso_stream_init (
 			stream->usecs = HS_USECS_ISO (1);
 			stream->raw_mask = 1;
 
-			/* pessimistic c-mask */
-			tmp = usb_calc_bus_time (USB_SPEED_FULL, 1, 0, maxp)
-					/ (125 * 1000);
-			stream->raw_mask |= 3 << (tmp + 9);
+			/* c-mask as specified in USB 2.0 11.18.4 3.c */
+			tmp = (1 << (hs_transfers + 2)) - 1;
+			stream->raw_mask |= tmp << (8 + 2);
 		} else
-			stream->raw_mask = smask_out [maxp / 188];
+			stream->raw_mask = smask_out [hs_transfers - 1];
 		bandwidth = stream->usecs + stream->c_usecs;
 		bandwidth /= 1 << (interval + 2);
 
