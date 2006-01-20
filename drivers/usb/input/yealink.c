@@ -907,7 +907,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
 	ret = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
 	if (ret != USB_PKT_LEN)
-		err("invalid payload size %d, expected %d", ret, USB_PKT_LEN);
+		err("invalid payload size %d, expected %zd", ret, USB_PKT_LEN);
 
 	/* initialise irq urb */
 	usb_fill_int_urb(yld->urb_irq, udev, pipe, yld->irq_data,
