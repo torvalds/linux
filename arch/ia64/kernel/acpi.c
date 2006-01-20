@@ -284,6 +284,7 @@ acpi_parse_plat_int_src(acpi_table_entry_header * header,
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 unsigned int can_cpei_retarget(void)
 {
 	extern int cpe_vector;
@@ -319,6 +320,7 @@ void set_cpei_target_cpu(unsigned int cpu)
 {
 	acpi_cpei_phys_cpuid = cpu_physical_id(cpu);
 }
+#endif
 
 unsigned int get_cpei_target_cpu(void)
 {
