@@ -179,6 +179,8 @@ static struct pnp_card_device_id snd_sb16_pnpids[] = {
 	{ .id = "CTL0086", .devs = { { "CTL0041" } } },
 	/* Sound Blaster Vibra16X */
 	{ .id = "CTL00f0", .devs = { { "CTL0043" } } },
+	/* Sound Blaster 16 (Virtual PC 2004) */
+	{ .id = "tBA03b0", .devs = { {.id="PNPb003" } } },
 #else  /* SNDRV_SBAWE defined */
 	/* Sound Blaster AWE 32 PnP */
 	{ .id = "CTL0035", .devs = { { "CTL0031" }, { "CTL0021" } } },
@@ -235,8 +237,6 @@ static struct pnp_card_device_id snd_sb16_pnpids[] = {
 	{ .id = "CTLXXXX" , .devs = { { "CTL0044" }, { "CTL0023" } } },
 	{ .id = "CTLXXXX" , .devs = { { "CTL0045" }, { "CTL0022" } } },
 #endif /* SNDRV_SBAWE */
-	/* Sound Blaster 16 PnP (Virtual PC 2004)*/
-	{ .id = "tBA03b0", .devs = { { "PNPb003" } } },
 	{ .id = "", }
 };
 
