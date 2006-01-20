@@ -32,7 +32,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.05"
+#define DRIVER_VERSION "v0.06"
 #define DRIVER_DESC "Silicon Labs CP2101/CP2102 RS232 serial adaptor driver"
 
 /*
@@ -55,11 +55,15 @@ static int debug;
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
-	{ USB_DEVICE(0x10C4, 0xEA60) },	/* Silicon Labs factory default */
-	{ USB_DEVICE(0x10C4, 0x80CA) },	/* Degree Controls Inc */
-	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
 	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
-	{ USB_DEVICE(0x10AB, 0x10C5) },	/* Siemens MC60 Cable */
+	{ USB_DEVICE(0x10AB, 0x10C5) }, /* Siemens MC60 Cable */
+	{ USB_DEVICE(0x10B5, 0xAC70) }, /* Nokia CA-42 USB */
+	{ USB_DEVICE(0x10C4, 0x807A) }, /* Crumb128 board */
+	{ USB_DEVICE(0x10C4, 0x80CA) }, /* Degree Controls Inc */
+	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
+	{ USB_DEVICE(0x10C4, 0x813D) }, /* Burnside Telecom Deskmobile */
+	{ USB_DEVICE(0x10C4, 0x815E) }, /* Helicomm IP-Link 1220-DVM */
+	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ } /* Terminating Entry */
 };
