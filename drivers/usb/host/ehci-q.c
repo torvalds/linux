@@ -721,7 +721,14 @@ qh_make (
 		info1 |= maxp << 16;
 
 		info2 |= (EHCI_TUNE_MULT_TT << 30);
-		info2 |= urb->dev->ttport << 23;
+
+		/* Some Freescale processors have an erratum in which the
+		 * port number in the queue head was 0..N-1 instead of 1..N.
+		 */
+		if (ehci_has_fsl_portno_bug(ehci))
+			info2 |= (urb->dev->ttport-1) << 23;
+		else
+			info2 |= urb->dev->ttport << 23;
 
 		/* set the address of the TT; for TDI's integrated
 		 * root hub tt, leave it zeroed.

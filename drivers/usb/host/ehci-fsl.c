@@ -198,6 +198,16 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 		mpc83xx_setup_phy(ehci, pdata->phy_mode, 0);
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
+		unsigned int chip, rev, svr;
+
+		svr = mfspr(SPRN_SVR);
+		chip = svr >> 16;
+		rev = (svr >> 4) & 0xf;
+
+		/* Deal with USB Erratum #14 on MPC834x Rev 1.0 & 1.1 chips */
+		if ((rev == 1) && (chip >= 0x8050) && (chip <= 0x8055))
+			ehci->has_fsl_port_bug = 1;
+
 		if (pdata->port_enables & FSL_USB2_PORT0_ENABLED)
 			mpc83xx_setup_phy(ehci, pdata->phy_mode, 0);
 		if (pdata->port_enables & FSL_USB2_PORT1_ENABLED)
