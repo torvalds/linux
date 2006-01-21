@@ -701,7 +701,7 @@ static void ipw_init_ordinals(struct ipw_priv *priv)
 
 }
 
-u32 ipw_register_toggle(u32 reg)
+static u32 ipw_register_toggle(u32 reg)
 {
 	reg &= ~IPW_START_STANDBY;
 	if (reg & IPW_GATE_ODMA)
@@ -726,7 +726,7 @@ u32 ipw_register_toggle(u32 reg)
 #define LD_TIME_LINK_OFF 2700
 #define LD_TIME_ACT_ON 250
 
-void ipw_led_link_on(struct ipw_priv *priv)
+static void ipw_led_link_on(struct ipw_priv *priv)
 {
 	unsigned long flags;
 	u32 led;
@@ -769,7 +769,7 @@ static void ipw_bg_led_link_on(void *data)
 	up(&priv->sem);
 }
 
-void ipw_led_link_off(struct ipw_priv *priv)
+static void ipw_led_link_off(struct ipw_priv *priv)
 {
 	unsigned long flags;
 	u32 led;
@@ -847,6 +847,7 @@ static void __ipw_led_activity_on(struct ipw_priv *priv)
 	}
 }
 
+#if 0
 void ipw_led_activity_on(struct ipw_priv *priv)
 {
 	unsigned long flags;
@@ -854,8 +855,9 @@ void ipw_led_activity_on(struct ipw_priv *priv)
 	__ipw_led_activity_on(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
+#endif  /*  0  */
 
-void ipw_led_activity_off(struct ipw_priv *priv)
+static void ipw_led_activity_off(struct ipw_priv *priv)
 {
 	unsigned long flags;
 	u32 led;
@@ -890,7 +892,7 @@ static void ipw_bg_led_activity_off(void *data)
 	up(&priv->sem);
 }
 
-void ipw_led_band_on(struct ipw_priv *priv)
+static void ipw_led_band_on(struct ipw_priv *priv)
 {
 	unsigned long flags;
 	u32 led;
@@ -925,7 +927,7 @@ void ipw_led_band_on(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-void ipw_led_band_off(struct ipw_priv *priv)
+static void ipw_led_band_off(struct ipw_priv *priv)
 {
 	unsigned long flags;
 	u32 led;
@@ -948,24 +950,24 @@ void ipw_led_band_off(struct ipw_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-void ipw_led_radio_on(struct ipw_priv *priv)
+static void ipw_led_radio_on(struct ipw_priv *priv)
 {
 	ipw_led_link_on(priv);
 }
 
-void ipw_led_radio_off(struct ipw_priv *priv)
+static void ipw_led_radio_off(struct ipw_priv *priv)
 {
 	ipw_led_activity_off(priv);
 	ipw_led_link_off(priv);
 }
 
-void ipw_led_link_up(struct ipw_priv *priv)
+static void ipw_led_link_up(struct ipw_priv *priv)
 {
 	/* Set the Link Led on for all nic types */
 	ipw_led_link_on(priv);
 }
 
-void ipw_led_link_down(struct ipw_priv *priv)
+static void ipw_led_link_down(struct ipw_priv *priv)
 {
 	ipw_led_activity_off(priv);
 	ipw_led_link_off(priv);
@@ -974,7 +976,7 @@ void ipw_led_link_down(struct ipw_priv *priv)
 		ipw_led_radio_off(priv);
 }
 
-void ipw_led_init(struct ipw_priv *priv)
+static void ipw_led_init(struct ipw_priv *priv)
 {
 	priv->nic_type = priv->eeprom[EEPROM_NIC_TYPE];
 
@@ -1025,7 +1027,7 @@ void ipw_led_init(struct ipw_priv *priv)
 	}
 }
 
-void ipw_led_shutdown(struct ipw_priv *priv)
+static void ipw_led_shutdown(struct ipw_priv *priv)
 {
 	ipw_led_activity_off(priv);
 	ipw_led_link_off(priv);
@@ -6204,7 +6206,8 @@ static int ipw_wpa_set_auth_algs(struct ipw_priv *priv, int value)
 	return ret;
 }
 
-void ipw_wpa_assoc_frame(struct ipw_priv *priv, char *wpa_ie, int wpa_ie_len)
+static void ipw_wpa_assoc_frame(struct ipw_priv *priv, char *wpa_ie,
+				int wpa_ie_len)
 {
 	/* make sure WPA is enabled */
 	ipw_wpa_enable(priv, 1);
@@ -10059,7 +10062,7 @@ static void ipw_bg_rf_kill(void *data)
 	up(&priv->sem);
 }
 
-void ipw_link_up(struct ipw_priv *priv)
+static void ipw_link_up(struct ipw_priv *priv)
 {
 	priv->last_seq_num = -1;
 	priv->last_frag_num = -1;
@@ -10094,7 +10097,7 @@ static void ipw_bg_link_up(void *data)
 	up(&priv->sem);
 }
 
-void ipw_link_down(struct ipw_priv *priv)
+static void ipw_link_down(struct ipw_priv *priv)
 {
 	ipw_led_link_down(priv);
 	netif_carrier_off(priv->net_dev);

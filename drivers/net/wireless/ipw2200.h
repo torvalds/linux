@@ -852,7 +852,7 @@ struct ipw_scan_request_ext {
 	u16 dwell_time[IPW_SCAN_TYPES];
 } __attribute__ ((packed));
 
-extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
+static inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 {
 	if (index % 2)
 		return scan->scan_type[index / 2] & 0x0F;
@@ -860,7 +860,7 @@ extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 		return (scan->scan_type[index / 2] & 0xF0) >> 4;
 }
 
-extern inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan,
+static inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan,
 				     u8 index, u8 scan_type)
 {
 	if (index % 2)
