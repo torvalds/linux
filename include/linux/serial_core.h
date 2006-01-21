@@ -287,6 +287,9 @@ struct uart_state {
 };
 
 #define UART_XMIT_SIZE	PAGE_SIZE
+
+typedef unsigned int __bitwise__ uif_t;
+
 /*
  * This is the state information which is only valid when the port
  * is open; it may be freed by the core driver once the device has
@@ -296,17 +299,16 @@ struct uart_state {
 struct uart_info {
 	struct tty_struct	*tty;
 	struct circ_buf		xmit;
-	unsigned int		flags;
+	uif_t			flags;
 
 /*
- * These are the flags that specific to info->flags, and reflect our
- * internal state.  They can not be accessed via port->flags.  Low
- * level drivers must not change these, but may query them instead.
+ * Definitions for info->flags.  These are _private_ to serial_core, and
+ * are specific to this structure.  They may be queried by low level drivers.
  */
-#define UIF_CHECK_CD		(1 << 25)
-#define UIF_CTS_FLOW		(1 << 26)
-#define UIF_NORMAL_ACTIVE	(1 << 29)
-#define UIF_INITIALIZED		(1 << 31)
+#define UIF_CHECK_CD		((__force uif_t) (1 << 25))
+#define UIF_CTS_FLOW		((__force uif_t) (1 << 26))
+#define UIF_NORMAL_ACTIVE	((__force uif_t) (1 << 29))
+#define UIF_INITIALIZED		((__force uif_t) (1 << 31))
 
 	int			blocked_open;
 
