@@ -430,7 +430,7 @@ static inline int uart_handle_break(struct uart_port *port)
 		port->sysrq = 0;
 	}
 #endif
-	if (info->flags & UPF_SAK)
+	if (port->flags & UPF_SAK)
 		do_SAK(info->tty);
 	return 0;
 }
