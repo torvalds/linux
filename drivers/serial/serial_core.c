@@ -1870,7 +1870,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 	mutex_lock(&state->mutex);
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
-		struct uart_ops *ops = port->ops;
+		const struct uart_ops *ops = port->ops;
 
 		spin_lock_irq(&port->lock);
 		ops->stop_tx(port);
@@ -1932,7 +1932,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	}
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
-		struct uart_ops *ops = port->ops;
+		const struct uart_ops *ops = port->ops;
 		int ret;
 
 		ops->set_mctrl(port, 0);
