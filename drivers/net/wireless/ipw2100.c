@@ -5771,8 +5771,8 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 	return ret;
 }
 
-void ipw2100_wpa_assoc_frame(struct ipw2100_priv *priv,
-			     char *wpa_ie, int wpa_ie_len)
+static void ipw2100_wpa_assoc_frame(struct ipw2100_priv *priv,
+				    char *wpa_ie, int wpa_ie_len)
 {
 
 	struct ipw2100_wpa_assoc_frame frame;
