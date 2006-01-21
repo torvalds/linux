@@ -203,6 +203,8 @@ struct uart_icount {
 	__u32	buf_overrun;
 };
 
+typedef unsigned int __bitwise__ upf_t;
+
 struct uart_port {
 	spinlock_t		lock;			/* port lock */
 	unsigned int		iobase;			/* in/out[bwl] */
@@ -230,29 +232,29 @@ struct uart_port {
 	unsigned long		sysrq;			/* sysrq timeout */
 #endif
 
-	unsigned int		flags;
+	upf_t			flags;
 
-#define UPF_FOURPORT		(1 << 1)
-#define UPF_SAK			(1 << 2)
-#define UPF_SPD_MASK		(0x1030)
-#define UPF_SPD_HI		(0x0010)
-#define UPF_SPD_VHI		(0x0020)
-#define UPF_SPD_CUST		(0x0030)
-#define UPF_SPD_SHI		(0x1000)
-#define UPF_SPD_WARP		(0x1010)
-#define UPF_SKIP_TEST		(1 << 6)
-#define UPF_AUTO_IRQ		(1 << 7)
-#define UPF_HARDPPS_CD		(1 << 11)
-#define UPF_LOW_LATENCY		(1 << 13)
-#define UPF_BUGGY_UART		(1 << 14)
-#define UPF_MAGIC_MULTIPLIER	(1 << 16)
-#define UPF_CONS_FLOW		(1 << 23)
-#define UPF_SHARE_IRQ		(1 << 24)
-#define UPF_BOOT_AUTOCONF	(1 << 28)
-#define UPF_IOREMAP		(1 << 31)
+#define UPF_FOURPORT		((__force upf_t) (1 << 1))
+#define UPF_SAK			((__force upf_t) (1 << 2))
+#define UPF_SPD_MASK		((__force upf_t) (0x1030))
+#define UPF_SPD_HI		((__force upf_t) (0x0010))
+#define UPF_SPD_VHI		((__force upf_t) (0x0020))
+#define UPF_SPD_CUST		((__force upf_t) (0x0030))
+#define UPF_SPD_SHI		((__force upf_t) (0x1000))
+#define UPF_SPD_WARP		((__force upf_t) (0x1010))
+#define UPF_SKIP_TEST		((__force upf_t) (1 << 6))
+#define UPF_AUTO_IRQ		((__force upf_t) (1 << 7))
+#define UPF_HARDPPS_CD		((__force upf_t) (1 << 11))
+#define UPF_LOW_LATENCY		((__force upf_t) (1 << 13))
+#define UPF_BUGGY_UART		((__force upf_t) (1 << 14))
+#define UPF_MAGIC_MULTIPLIER	((__force upf_t) (1 << 16))
+#define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
+#define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
+#define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
+#define UPF_IOREMAP		((__force upf_t) (1 << 31))
 
-#define UPF_CHANGE_MASK		(0x17fff)
-#define UPF_USR_MASK		(UPF_SPD_MASK|UPF_LOW_LATENCY)
+#define UPF_CHANGE_MASK		((__force upf_t) (0x17fff))
+#define UPF_USR_MASK		((__force upf_t) (UPF_SPD_MASK|UPF_LOW_LATENCY))
 
 	unsigned int		mctrl;			/* current modem ctrl settings */
 	unsigned int		timeout;		/* character-based timeout */
