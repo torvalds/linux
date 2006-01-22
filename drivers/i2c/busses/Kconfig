@@ -390,7 +390,7 @@ config SCx200_I2C_SDA
 
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"
-	depends on I2C && PCI
+	depends on X86_32 && I2C && PCI
 	help
 	  Enable the use of the ACCESS.bus controllers on the Geode SCx200 and
 	  SC1100 processors and the CS5535 and CS5536 Geode companion devices.
