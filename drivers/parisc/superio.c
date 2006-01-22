@@ -89,6 +89,9 @@ static struct superio_device sio_dev;
 #define DBG_INIT(x...)
 #endif
 
+#define SUPERIO	"SuperIO"
+#define PFX	SUPERIO ": "
+
 static irqreturn_t
 superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
 {
@@ -117,7 +120,7 @@ superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
 	local_irq = results & 0x0f;
 
 	if (local_irq == 2 || local_irq > 7) {
-		printk(KERN_ERR "SuperIO: slave interrupted!\n");
+		printk(KERN_ERR PFX "slave interrupted!\n");
 		return IRQ_HANDLED;
 	}
 
@@ -128,7 +131,7 @@ superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
 		outb(OCW3_ISR,IC_PIC1+0);
 		results = inb(IC_PIC1+0);
 		if ((results & 0x80) == 0) { /* if ISR7 not set: spurious */
-			printk(KERN_WARNING "SuperIO: spurious interrupt!\n");
+			printk(KERN_WARNING PFX "spurious interrupt!\n");
 			return IRQ_HANDLED;
 		}
 	}
@@ -163,27 +166,27 @@ superio_init(struct pci_dev *pcidev)
 	/* ...then properly fixup the USB to point at suckyio PIC */
 	sio->usb_pdev->irq = superio_fixup_irq(sio->usb_pdev);
 
-	printk(KERN_INFO "SuperIO: Found NS87560 Legacy I/O device at %s (IRQ %i) \n",
+	printk(KERN_INFO PFX "Found NS87560 Legacy I/O device at %s (IRQ %i) \n",
 	       pci_name(pdev), pdev->irq);
 
 	pci_read_config_dword (pdev, SIO_SP1BAR, &sio->sp1_base);
 	sio->sp1_base &= ~1;
-	printk (KERN_INFO "SuperIO: Serial port 1 at 0x%x\n", sio->sp1_base);
+	printk(KERN_INFO PFX "Serial port 1 at 0x%x\n", sio->sp1_base);
 
 	pci_read_config_dword (pdev, SIO_SP2BAR, &sio->sp2_base);
 	sio->sp2_base &= ~1;
-	printk (KERN_INFO "SuperIO: Serial port 2 at 0x%x\n", sio->sp2_base);
+	printk(KERN_INFO PFX "Serial port 2 at 0x%x\n", sio->sp2_base);
 
 	pci_read_config_dword (pdev, SIO_PPBAR, &sio->pp_base);
 	sio->pp_base &= ~1;
-	printk (KERN_INFO "SuperIO: Parallel port at 0x%x\n", sio->pp_base);
+	printk(KERN_INFO PFX "Parallel port at 0x%x\n", sio->pp_base);
 
 	pci_read_config_dword (pdev, SIO_FDCBAR, &sio->fdc_base);
 	sio->fdc_base &= ~1;
-	printk (KERN_INFO "SuperIO: Floppy controller at 0x%x\n", sio->fdc_base);
+	printk(KERN_INFO PFX "Floppy controller at 0x%x\n", sio->fdc_base);
 	pci_read_config_dword (pdev, SIO_ACPIBAR, &sio->acpi_base);
 	sio->acpi_base &= ~1;
-	printk (KERN_INFO "SuperIO: ACPI at 0x%x\n", sio->acpi_base);
+	printk(KERN_INFO PFX "ACPI at 0x%x\n", sio->acpi_base);
 
 	request_region (IC_PIC1, 0x1f, "pic1");
 	request_region (IC_PIC2, 0x1f, "pic2");
@@ -263,14 +266,14 @@ superio_init(struct pci_dev *pcidev)
 	/* Setup USB power regulation */
 	outb(1, sio->acpi_base + USB_REG_CR);
 	if (inb(sio->acpi_base + USB_REG_CR) & 1)
-		printk(KERN_INFO "SuperIO: USB regulator enabled\n");
+		printk(KERN_INFO PFX "USB regulator enabled\n");
 	else
-		printk(KERN_ERR "USB regulator not initialized!\n");
+		printk(KERN_ERR PFX "USB regulator not initialized!\n");
 
 	if (request_irq(pdev->irq, superio_interrupt, SA_INTERRUPT,
-			"SuperIO", (void *)sio)) {
+			SUPERIO, (void *)sio)) {
 
-		printk(KERN_ERR "SuperIO: could not get irq\n");
+		printk(KERN_ERR PFX "could not get irq\n");
 		BUG();
 		return;
 	}
@@ -284,7 +287,7 @@ static void superio_disable_irq(unsigned int irq)
 	u8 r8;
 
 	if ((irq < 1) || (irq == 2) || (irq > 7)) {
-		printk(KERN_ERR "SuperIO: Illegal irq number.\n");
+		printk(KERN_ERR PFX "Illegal irq number.\n");
 		BUG();
 		return;
 	}
@@ -301,7 +304,7 @@ static void superio_enable_irq(unsigned int irq)
 	u8 r8;
 
 	if ((irq < 1) || (irq == 2) || (irq > 7)) {
-		printk(KERN_ERR "SuperIO: Illegal irq number (%d).\n", irq);
+		printk(KERN_ERR PFX "Illegal irq number (%d).\n", irq);
 		BUG();
 		return;
 	}
@@ -319,7 +322,7 @@ static unsigned int superio_startup_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type superio_interrupt_type = {
-	.typename =	"SuperIO",
+	.typename =	SUPERIO,
 	.startup =	superio_startup_irq,
 	.shutdown =	superio_disable_irq,
 	.enable =	superio_enable_irq,
@@ -413,7 +416,7 @@ static void __devinit superio_serial_init(void)
 
 	retval = early_serial_setup(&serial[0]);
 	if (retval < 0) {
-		printk(KERN_WARNING "SuperIO: Register Serial #0 failed.\n");
+		printk(KERN_WARNING PFX "Register Serial #0 failed.\n");
 		return;
 	}
 
@@ -423,7 +426,7 @@ static void __devinit superio_serial_init(void)
 	retval = early_serial_setup(&serial[1]);
 
 	if (retval < 0)
-		printk(KERN_WARNING "SuperIO: Register Serial #1 failed.\n");
+		printk(KERN_WARNING PFX "Register Serial #1 failed.\n");
 #endif /* CONFIG_SERIAL_8250 */
 }
 
@@ -437,7 +440,7 @@ static void __devinit superio_parport_init(void)
 			PARPORT_DMA_NONE /* dma */,
 			NULL /*struct pci_dev* */) )
 
-		printk(KERN_WARNING "SuperIO: Probing parallel port failed.\n");
+		printk(KERN_WARNING PFX "Probing parallel port failed.\n");
 #endif	/* CONFIG_PARPORT_PC */
 }
 
@@ -499,7 +502,7 @@ static struct pci_device_id superio_tbl[] = {
 };
 
 static struct pci_driver superio_driver = {
-	.name =         "SuperIO",
+	.name =         SUPERIO,
 	.id_table =     superio_tbl,
 	.probe =        superio_probe,
 };
