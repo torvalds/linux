@@ -574,7 +574,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 	// PR: FIXME: hostap has additional conditions in the "if" below:
 	// ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
-	if ((frag != 0 || (fc & IEEE80211_FCTL_MOREFRAGS))) {
+	if ((frag != 0) || (fc & IEEE80211_FCTL_MOREFRAGS)) {
 		int flen;
 		struct sk_buff *frag_skb = ieee80211_frag_cache_get(ieee, hdr);
 		IEEE80211_DEBUG_FRAG("Rx Fragment received (%u)\n", frag);
