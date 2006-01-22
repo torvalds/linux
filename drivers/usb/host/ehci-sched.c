@@ -1063,6 +1063,7 @@ sitd_slot_ok (
 
 		/* for IN, check CSPLIT */
 		if (stream->c_usecs) {
+			uf = uframe & 7;
 			max_used = 100 - stream->c_usecs;
 			do {
 				tmp = 1 << uf;
