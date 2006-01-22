@@ -1549,7 +1549,8 @@ static int eth_change_mtu (struct net_device *net, int new_mtu)
 {
 	struct eth_dev	*dev = netdev_priv(net);
 
-	// FIXME if rndis, don't change while link's live
+	if (dev->rndis)
+		return -EBUSY;
 
 	if (new_mtu <= ETH_HLEN || new_mtu > ETH_FRAME_LEN)
 		return -ERANGE;
