@@ -328,7 +328,7 @@ static void mv_host_stop(struct ata_host_set *host_set);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
-static int mv_qc_issue(struct ata_queued_cmd *qc);
+static unsigned int mv_qc_issue(struct ata_queued_cmd *qc);
 static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 				struct pt_regs *regs);
 static void mv_eng_timeout(struct ata_port *ap);
@@ -1040,7 +1040,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_qc_issue(struct ata_queued_cmd *qc)
+static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 {
 	void __iomem *port_mmio = mv_ap_base(qc->ap);
 	struct mv_port_priv *pp = qc->ap->private_data;

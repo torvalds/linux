@@ -174,7 +174,7 @@ static void pdc20621_get_from_dimm(struct ata_probe_ent *pe,
 static void pdc20621_put_to_dimm(struct ata_probe_ent *pe,
 				 void *psource, u32 offset, u32 size);
 static void pdc20621_irq_clear(struct ata_port *ap);
-static int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc);
+static unsigned int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc);
 
 
 static struct scsi_host_template pdc_sata_sht = {
@@ -678,7 +678,7 @@ static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 	}
 }
 
-static int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
