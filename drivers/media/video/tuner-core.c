@@ -216,6 +216,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
 		default_tuner_init(c);
+		break;
 	default:
 		default_tuner_init(c);
 		break;
