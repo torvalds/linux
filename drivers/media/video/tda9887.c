@@ -876,7 +876,7 @@ static int tda9887_resume(struct device * dev)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.id             = -1, /* FIXME */
+	.id             = I2C_DRIVERID_TDA9887,
 	.attach_adapter = tda9887_probe,
 	.detach_client  = tda9887_detach,
 	.command        = tda9887_command,
