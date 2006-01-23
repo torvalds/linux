@@ -504,7 +504,9 @@ static void ahci_phy_reset(struct ata_port *ap)
 	struct ata_device *dev = &ap->device[0];
 	u32 new_tmp, tmp;
 
+	ahci_stop_engine(ap);
 	__sata_phy_reset(ap);
+	ahci_start_engine(ap);
 
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		return;
