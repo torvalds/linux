@@ -253,7 +253,7 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 * val)
 	if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
 		return ret;
 	else if (((u8) ret) & 0x01) {
-		em28xx_warn ("AC97 command still being exectuted: not handled properly!\n");
+		em28xx_warn ("AC97 command still being executed: not handled properly!\n");
 	}
 	return 0;
 }
