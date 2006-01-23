@@ -4,7 +4,7 @@ config DVB_B2C2_FLEXCOP
 	select DVB_STV0299
 	select DVB_MT352
 	select DVB_MT312
-	select DVB_NXT2002
+	select DVB_NXT200X
 	select DVB_STV0297
 	select DVB_BCM3510
 	select DVB_LGDT330X

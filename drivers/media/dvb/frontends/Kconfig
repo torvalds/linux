@@ -166,18 +166,6 @@ config DVB_STV0297
 comment "ATSC (North American/Korean Terresterial DTV) frontends"
 	depends on DVB_CORE
 
-config DVB_NXT2002
-	tristate "Nxt2002 based"
-	depends on DVB_CORE
-	select FW_LOADER
-	help
-	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
-
-	  This driver needs external firmware. Please use the command
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2002" to
-	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
-	  or /lib/firmware (depending on configuration of firmware hotplug).
-
 config DVB_NXT200X
 	tristate "Nextwave NXT2002/NXT2004 based"
 	depends on DVB_CORE
