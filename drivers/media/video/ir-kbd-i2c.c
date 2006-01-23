@@ -89,6 +89,11 @@ static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
 static int debug;
 module_param(debug, int, 0644);    /* debug level (0,1,2) */
 
+static int hauppauge = 0;
+module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
+MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
+
+
 #define DEVNAME "ir-kbd-i2c"
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG DEVNAME ": " fmt , ## arg)
@@ -336,7 +341,11 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		name        = "Hauppauge";
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = ir_codes_rc5_tv;
+		if (hauppauge == 1) {
+			ir_codes    = ir_codes_rc5_tv_grey;
+		} else {
+			ir_codes    = ir_codes_rc5_tv;
+		}
 		break;
 	case 0x30:
 		name        = "KNC One";
