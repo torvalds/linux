@@ -275,6 +275,9 @@ static struct hda_board_config stac922x_cfg_tbl[] = {
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x0013,
 	  .config = STAC_D945GTP5 },	/* Intel D955XBK - 5 Stack */
+	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x0417,
+	  .config = STAC_D945GTP5 },	/* Intel D975XBK - 5 Stack */
 	{} /* terminator */
 };
 
