@@ -160,7 +160,8 @@ struct msp_matrix {
 
 /* Used to generate VBI signals on a video signal. v4l2_sliced_vbi_data is
    filled with the data packets that should be output. Note that if you set
-   the line field to 0, then that VBI signal is disabled. */
+   the line field to 0, then that VBI signal is disabled. If no
+   valid VBI data was found, then the type field is set to 0 on return. */
 #define VIDIOC_INT_S_VBI_DATA 		_IOW ('d', 105, struct v4l2_sliced_vbi_data)
 
 /* Used to obtain the sliced VBI packet from a readback register. Not all
