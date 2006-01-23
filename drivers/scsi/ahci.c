@@ -680,7 +680,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	 	 * not being called from the SCSI EH.
 	 	 */
 		qc->scsidone = scsi_finish_command;
-		qc->err_mask |= AC_ERR_OTHER;
+		qc->err_mask |= AC_ERR_TIMEOUT;
 		ata_qc_complete(qc);
 	}
 
