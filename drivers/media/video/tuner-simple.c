@@ -133,7 +133,7 @@ static int tuner_stereo(struct i2c_client *c)
 static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
-	u8 cb, tuneraddr;
+	u8 config, cb, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
 	u8 buffer[4];
@@ -152,6 +152,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 				freq, tun->params[j].ranges[i - 1].limit);
 		freq = tun->params[j].ranges[--i].limit;
 	}
+	config = tun->params[j].ranges[i].config;
 	cb     = tun->params[j].ranges[i].cb;
 	/*  i == 0 -> VHF_LO  */
 	/*  i == 1 -> VHF_HI  */
@@ -215,7 +216,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 
 	case TUNER_MICROTUNE_4042FI5:
 		/* Set the charge pump for fast tuning */
-		tun->params[j].config |= TUNER_CHARGE_PUMP;
+		config |= TUNER_CHARGE_PUMP;
 		break;
 
 	case TUNER_PHILIPS_TUV1236D:
@@ -276,14 +277,14 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 					div);
 
 	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
-		buffer[0] = tun->params[j].config;
+		buffer[0] = config;
 		buffer[1] = cb;
 		buffer[2] = (div>>8) & 0x7f;
 		buffer[3] = div      & 0xff;
 	} else {
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
-		buffer[2] = tun->params[j].config;
+		buffer[2] = config;
 		buffer[3] = cb;
 	}
 	t->last_div = div;
@@ -312,10 +313,10 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		}
 
 		/* Set the charge pump for optimized phase noise figure */
-		tun->params[j].config &= ~TUNER_CHARGE_PUMP;
+		config &= ~TUNER_CHARGE_PUMP;
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
-		buffer[2] = tun->params[j].config;
+		buffer[2] = config;
 		buffer[3] = cb;
 		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		       buffer[0],buffer[1],buffer[2],buffer[3]);
@@ -337,7 +338,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	j = TUNER_PARAM_ANALOG;
 
 	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
-	buffer[2] = (tun->params[j].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
+	buffer[2] = (tun->params[j].ranges[0].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
 
 	switch (t->type) {
 	case TUNER_TENA_9533_DI:
