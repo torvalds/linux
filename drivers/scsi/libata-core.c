@@ -1125,8 +1125,10 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
-	if (ata_qc_issue(qc))
-		goto issue_fail;
+	if (ata_qc_issue(qc)) {
+		qc->err_mask = AC_ERR_OTHER;
+		ata_qc_complete(qc);
+	}
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
@@ -1155,11 +1157,6 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	ata_qc_free(qc);
 
 	return err_mask;
-
- issue_fail:
-	ata_qc_free(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-	return AC_ERR_OTHER;
 }
 
 /**
@@ -3687,10 +3684,10 @@ int ata_qc_issue(struct ata_queued_cmd *qc)
 	if (ata_should_dma_map(qc)) {
 		if (qc->flags & ATA_QCFLAG_SG) {
 			if (ata_sg_setup(qc))
-				goto err_out;
+				goto sg_err;
 		} else if (qc->flags & ATA_QCFLAG_SINGLE) {
 			if (ata_sg_setup_one(qc))
-				goto err_out;
+				goto sg_err;
 		}
 	} else {
 		qc->flags &= ~ATA_QCFLAG_DMAMAP;
@@ -3703,7 +3700,8 @@ int ata_qc_issue(struct ata_queued_cmd *qc)
 
 	return ap->ops->qc_issue(qc);
 
-err_out:
+sg_err:
+	qc->flags &= ~ATA_QCFLAG_DMAMAP;
 	return -1;
 }
 
