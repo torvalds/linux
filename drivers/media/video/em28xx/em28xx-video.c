@@ -897,7 +897,6 @@ static int em28xx_set_norm(struct em28xx *dev, int width, int height)
 	return 0;
 }
 
-
 static int em28xx_get_fmt(struct em28xx *dev, struct v4l2_format *format)
 {
 	em28xx_videodbg("VIDIOC_G_FMT: type=%s\n",
@@ -909,7 +908,9 @@ static int em28xx_get_fmt(struct em28xx *dev, struct v4l2_format *format)
 		"V4L2_BUF_TYPE_SLICED_VBI_CAPTURE " :
 		"not supported");
 
-	if (format->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+	switch (format->type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	{
 		format->fmt.pix.width = dev->width;
 		format->fmt.pix.height = dev->height;
 		format->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
@@ -920,12 +921,161 @@ static int em28xx_get_fmt(struct em28xx *dev, struct v4l2_format *format)
 
 		em28xx_videodbg("VIDIOC_G_FMT: %dx%d\n", dev->width,
 			dev->height);
+		break;
+	}
+
+	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+	{
+		format->fmt.sliced.service_set=0;
+
+		em28xx_i2c_call_clients(dev,VIDIOC_G_FMT,format);
+
+		if (format->fmt.sliced.service_set==0)
+			return -EINVAL;
+
+		break;
+	}
+
+	default:
+		return -EINVAL;
+	}
+	return (0);
+}
+
+static int em28xx_set_fmt(struct em28xx *dev, unsigned int cmd, struct v4l2_format *format)
+{
+	u32 i;
+	int ret = 0;
+	int width = format->fmt.pix.width;
+	int height = format->fmt.pix.height;
+	unsigned int hscale, vscale;
+	unsigned int maxh, maxw;
+
+	maxw = norm_maxw(dev);
+	maxh = norm_maxh(dev);
+
+	em28xx_videodbg("%s: type=%s\n",
+			cmd == VIDIOC_TRY_FMT ?
+			"VIDIOC_TRY_FMT" : "VIDIOC_S_FMT",
+			format->type == V4L2_BUF_TYPE_VIDEO_CAPTURE ?
+			"V4L2_BUF_TYPE_VIDEO_CAPTURE" :
+			format->type == V4L2_BUF_TYPE_VBI_CAPTURE ?
+			"V4L2_BUF_TYPE_VBI_CAPTURE " :
+			"not supported");
+
+	if (format->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
+		em28xx_i2c_call_clients(dev,VIDIOC_G_FMT,format);
+
+		if (format->fmt.sliced.service_set==0)
+			return -EINVAL;
+
 		return 0;
 	}
 
-	return -EINVAL;
-}
 
+	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	em28xx_videodbg("%s: requested %dx%d\n",
+		cmd == VIDIOC_TRY_FMT ?
+		"VIDIOC_TRY_FMT" : "VIDIOC_S_FMT",
+		format->fmt.pix.width, format->fmt.pix.height);
+
+	/* FIXME: Move some code away from here */
+	/* width must even because of the YUYV format */
+	/* height must be even because of interlacing */
+	height &= 0xfffe;
+	width &= 0xfffe;
+
+	if (height < 32)
+		height = 32;
+	if (height > maxh)
+		height = maxh;
+	if (width < 48)
+		width = 48;
+	if (width > maxw)
+		width = maxw;
+
+	if(dev->is_em2800){
+		/* the em2800 can only scale down to 50% */
+		if(height % (maxh / 2))
+			height=maxh;
+		if(width % (maxw / 2))
+			width=maxw;
+		/* according to empiatech support */
+		/* the MaxPacketSize is to small to support */
+		/* framesizes larger than 640x480 @ 30 fps */
+		/* or 640x576 @ 25 fps. As this would cut */
+		/* of a part of the image we prefer */
+		/* 360x576 or 360x480 for now */
+		if(width == maxw && height == maxh)
+			width /= 2;
+	}
+
+	if ((hscale =
+	(((unsigned long)maxw) << 12) / width - 4096L) >=
+	0x4000)
+		hscale = 0x3fff;
+	width =
+	(((unsigned long)maxw) << 12) / (hscale + 4096L);
+
+	if ((vscale =
+	(((unsigned long)maxh) << 12) / height - 4096L) >=
+	0x4000)
+		vscale = 0x3fff;
+	height =
+	(((unsigned long)maxh) << 12) / (vscale + 4096L);
+
+	format->fmt.pix.width = width;
+	format->fmt.pix.height = height;
+	format->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	format->fmt.pix.bytesperline = width * 2;
+	format->fmt.pix.sizeimage = width * 2 * height;
+	format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	format->fmt.pix.field = V4L2_FIELD_INTERLACED;
+
+	em28xx_videodbg("%s: returned %dx%d (%d, %d)\n",
+		cmd ==
+		VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
+		"VIDIOC_S_FMT", format->fmt.pix.width,
+		format->fmt.pix.height, hscale, vscale);
+
+	if (cmd == VIDIOC_TRY_FMT)
+		return 0;
+
+	for (i = 0; i < dev->num_frames; i++)
+		if (dev->frame[i].vma_use_count) {
+			em28xx_videodbg("VIDIOC_S_FMT failed. "
+				"Unmap the buffers first.\n");
+			return -EINVAL;
+		}
+
+	/* stop io in case it is already in progress */
+	if (dev->stream == STREAM_ON) {
+		em28xx_videodbg("VIDIOC_SET_FMT: interupting stream\n");
+		if ((ret = em28xx_stream_interrupt(dev)))
+			return ret;
+	}
+
+	em28xx_release_buffers(dev);
+	dev->io = IO_NONE;
+
+	/* set new image size */
+	dev->width = width;
+	dev->height = height;
+	dev->frame_size = dev->width * dev->height * 2;
+	dev->field_size = dev->frame_size >> 1;	/*both_fileds ? dev->frame_size>>1 : dev->frame_size; */
+	dev->bytesperline = dev->width * 2;
+	dev->hscale = hscale;
+	dev->vscale = vscale;
+	em28xx_uninit_isoc(dev);
+	em28xx_set_alternate(dev);
+	em28xx_capture_start(dev, 1);
+	em28xx_resolution_set(dev);
+	em28xx_init_isoc(dev);
+
+	return 0;
+}
 
 /*
  * em28xx_v4l2_do_ioctl()
@@ -983,24 +1133,6 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 
 			em28xx_set_norm(dev, dev->width, dev->height);
 
-/*
-		dev->width=norm_maxw(dev);
-		dev->height=norm_maxh(dev);
-		dev->frame_size=dev->width*dev->height*2;
-		dev->field_size=dev->frame_size>>1;
-		dev->bytesperline=dev->width*2;
-		dev->hscale=0;
-		dev->vscale=0;
-
-		em28xx_resolution_set(dev);
-*/
-/*
-		em28xx_uninit_isoc(dev);
-		em28xx_set_alternate(dev);
-		em28xx_capture_start(dev, 1);
-		em28xx_resolution_set(dev);
-		em28xx_init_isoc(dev);
-*/
 			em28xx_i2c_call_clients(dev, DECODER_SET_NORM,
 						&tvnorms[i].mode);
 			em28xx_i2c_call_clients(dev, VIDIOC_S_STD,
@@ -1396,138 +1528,8 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 
 	case VIDIOC_TRY_FMT:
 	case VIDIOC_S_FMT:
-		{
-			struct v4l2_format *format = arg;
-			u32 i;
-			int ret = 0;
-			int width = format->fmt.pix.width;
-			int height = format->fmt.pix.height;
-			unsigned int hscale, vscale;
-			unsigned int maxh, maxw;
+		return em28xx_set_fmt(dev, cmd, (struct v4l2_format *)arg);
 
-			maxw = norm_maxw(dev);
-			maxh = norm_maxh(dev);
-
-/*		int both_fields; */
-
-			em28xx_videodbg("%s: type=%s\n",
-				 cmd ==
-				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
-				 "VIDIOC_S_FMT",
-				 format->type ==
-				 V4L2_BUF_TYPE_VIDEO_CAPTURE ?
-				 "V4L2_BUF_TYPE_VIDEO_CAPTURE" : format->type ==
-				 V4L2_BUF_TYPE_VBI_CAPTURE ?
-				 "V4L2_BUF_TYPE_VBI_CAPTURE " :
-				 "not supported");
-
-			if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return -EINVAL;
-
-			em28xx_videodbg("%s: requested %dx%d\n",
-				 cmd ==
-				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
-				 "VIDIOC_S_FMT", format->fmt.pix.width,
-				 format->fmt.pix.height);
-
-			/* FIXME: Move some code away from here */
-			/* width must even because of the YUYV format */
-			/* height must be even because of interlacing */
-			height &= 0xfffe;
-			width &= 0xfffe;
-
-			if (height < 32)
-				height = 32;
-			if (height > maxh)
-				height = maxh;
-			if (width < 48)
-				width = 48;
-			if (width > maxw)
-				width = maxw;
-
-			if(dev->is_em2800){
-				/* the em2800 can only scale down to 50% */
-				if(height % (maxh / 2))
-					height=maxh;
-				if(width % (maxw / 2))
-					width=maxw;
-				/* according to empiatech support */
-				/* the MaxPacketSize is to small to support */
-				/* framesizes larger than 640x480 @ 30 fps */
-				/* or 640x576 @ 25 fps. As this would cut */
-				/* of a part of the image we prefer */
-				/* 360x576 or 360x480 for now */
-				if(width == maxw && height == maxh)
-					width /= 2;
-			}
-
-			if ((hscale =
-			     (((unsigned long)maxw) << 12) / width - 4096L) >=
-			    0x4000)
-				hscale = 0x3fff;
-			width =
-			    (((unsigned long)maxw) << 12) / (hscale + 4096L);
-
-			if ((vscale =
-			     (((unsigned long)maxh) << 12) / height - 4096L) >=
-			    0x4000)
-				vscale = 0x3fff;
-			height =
-			    (((unsigned long)maxh) << 12) / (vscale + 4096L);
-
-			format->fmt.pix.width = width;
-			format->fmt.pix.height = height;
-			format->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-			format->fmt.pix.bytesperline = width * 2;
-			format->fmt.pix.sizeimage = width * 2 * height;
-			format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-			format->fmt.pix.field = V4L2_FIELD_INTERLACED;
-
-			em28xx_videodbg("%s: returned %dx%d (%d, %d)\n",
-				 cmd ==
-				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
-				 "VIDIOC_S_FMT", format->fmt.pix.width,
-				 format->fmt.pix.height, hscale, vscale);
-
-			if (cmd == VIDIOC_TRY_FMT)
-				return 0;
-
-			for (i = 0; i < dev->num_frames; i++)
-				if (dev->frame[i].vma_use_count) {
-					em28xx_videodbg("VIDIOC_S_FMT failed. "
-						"Unmap the buffers first.\n");
-					return -EINVAL;
-				}
-
-			/* stop io in case it is already in progress */
-			if (dev->stream == STREAM_ON) {
-				em28xx_videodbg("VIDIOC_SET_FMT: interupting stream\n");
-				if ((ret = em28xx_stream_interrupt(dev)))
-					return ret;
-			}
-
-			em28xx_release_buffers(dev);
-			dev->io = IO_NONE;
-
-			/* set new image size */
-			dev->width = width;
-			dev->height = height;
-			dev->frame_size = dev->width * dev->height * 2;
-			dev->field_size = dev->frame_size >> 1;	/*both_fileds ? dev->frame_size>>1 : dev->frame_size; */
-			dev->bytesperline = dev->width * 2;
-			dev->hscale = hscale;
-			dev->vscale = vscale;
-/*			dev->both_fileds = both_fileds; */
-			em28xx_uninit_isoc(dev);
-			em28xx_set_alternate(dev);
-			em28xx_capture_start(dev, 1);
-			em28xx_resolution_set(dev);
-			em28xx_init_isoc(dev);
-
-			return 0;
-		}
-
-		/* --- streaming capture ------------------------------------- */
 	case VIDIOC_REQBUFS:
 		{
 			struct v4l2_requestbuffers *rb = arg;
