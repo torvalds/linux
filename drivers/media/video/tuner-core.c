@@ -449,7 +449,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			printk("%02x ",buffer[i]);
 		printk("\n");
 	}
-	/* TEA5767 autodetection code - only for addr = 0xc0 */
+	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
 		switch (addr) {
 		case 0x42:
