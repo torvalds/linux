@@ -83,7 +83,7 @@ struct snd_mem_list {
  *  Hacks
  */
 
-#if defined(__i386__) || defined(__ppc__) || defined(__x86_64__)
+#if defined(__i386__)
 /*
  * A hack to allocate large buffers via dma_alloc_coherent()
  *
