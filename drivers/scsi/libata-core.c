@@ -1072,6 +1072,24 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	   timing API will get this right anyway */
 }
 
+static inline void
+ata_queue_packet_task(struct ata_port *ap)
+{
+	queue_work(ata_wq, &ap->packet_task);
+}
+
+static inline void
+ata_queue_pio_task(struct ata_port *ap)
+{
+	queue_work(ata_wq, &ap->pio_task);
+}
+
+static inline void
+ata_queue_delayed_pio_task(struct ata_port *ap, unsigned long delay)
+{
+	queue_delayed_work(ata_wq, &ap->pio_task, delay);
+}
+
 void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
@@ -3414,7 +3432,7 @@ fsm_start:
 	}
 
 	if (timeout)
-		queue_delayed_work(ata_wq, &ap->pio_task, timeout);
+		ata_queue_delayed_pio_task(ap, timeout);
 	else if (!qc_completed)
 		goto fsm_start;
 }
@@ -3737,26 +3755,26 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		ata_qc_set_polling(qc);
 		ata_tf_to_host(ap, &qc->tf);
 		ap->hsm_task_state = HSM_ST;
-		queue_work(ata_wq, &ap->pio_task);
+		ata_queue_pio_task(ap);
 		break;
 
 	case ATA_PROT_ATAPI:
 		ata_qc_set_polling(qc);
 		ata_tf_to_host(ap, &qc->tf);
-		queue_work(ata_wq, &ap->packet_task);
+		ata_queue_packet_task(ap);
 		break;
 
 	case ATA_PROT_ATAPI_NODATA:
 		ap->flags |= ATA_FLAG_NOINTR;
 		ata_tf_to_host(ap, &qc->tf);
-		queue_work(ata_wq, &ap->packet_task);
+		ata_queue_packet_task(ap);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
 		ap->flags |= ATA_FLAG_NOINTR;
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		queue_work(ata_wq, &ap->packet_task);
+		ata_queue_packet_task(ap);
 		break;
 
 	default:
@@ -4187,7 +4205,7 @@ static void atapi_packet_task(void *_data)
 
 		/* PIO commands are handled by polling */
 		ap->hsm_task_state = HSM_ST;
-		queue_work(ata_wq, &ap->pio_task);
+		ata_queue_pio_task(ap);
 	}
 
 	return;
