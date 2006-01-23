@@ -1766,6 +1766,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vpic.depth = 16;
 	dev->vpic.palette = VIDEO_PALETTE_YUV422;
 
+	em28xx_pre_card_setup(dev);
 #ifdef CONFIG_MODULES
 	/* request some modules */
 	if (dev->decoder == EM28XX_SAA7113 || dev->decoder == EM28XX_SAA7114)
