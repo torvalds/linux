@@ -1072,24 +1072,12 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	   timing API will get this right anyway */
 }
 
-struct ata_exec_internal_arg {
-	unsigned int err_mask;
-	struct ata_taskfile *tf;
-	struct completion *waiting;
-};
-
-int ata_qc_complete_internal(struct ata_queued_cmd *qc)
+void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
-	struct ata_exec_internal_arg *arg = qc->private_data;
-	struct completion *waiting = arg->waiting;
+	struct completion *waiting = qc->private_data;
 
-	if (!(qc->err_mask & ~AC_ERR_DEV))
-		qc->ap->ops->tf_read(qc->ap, arg->tf);
-	arg->err_mask = qc->err_mask;
-	arg->waiting = NULL;
+	qc->ap->ops->tf_read(qc->ap, &qc->tf);
 	complete(waiting);
-
-	return 0;
 }
 
 /**
@@ -1120,7 +1108,7 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	DECLARE_COMPLETION(wait);
 	unsigned long flags;
-	struct ata_exec_internal_arg arg;
+	unsigned int err_mask;
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
@@ -1134,9 +1122,7 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 		qc->nsect = buflen / ATA_SECT_SIZE;
 	}
 
-	arg.waiting = &wait;
-	arg.tf = tf;
-	qc->private_data = &arg;
+	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
 	if (ata_qc_issue(qc))
@@ -1153,7 +1139,7 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 		 * before the caller cleans up, it will result in a
 		 * spurious interrupt.  We can live with that.
 		 */
-		if (arg.waiting) {
+		if (qc->flags & ATA_QCFLAG_ACTIVE) {
 			qc->err_mask = AC_ERR_OTHER;
 			ata_qc_complete(qc);
 			printk(KERN_WARNING "ata%u: qc timeout (cmd 0x%x)\n",
@@ -1163,7 +1149,12 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}
 
-	return arg.err_mask;
+	*tf = qc->tf;
+	err_mask = qc->err_mask;
+
+	ata_qc_free(qc);
+
+	return err_mask;
 
  issue_fail:
 	ata_qc_free(qc);
@@ -3633,8 +3624,6 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 
 void ata_qc_complete(struct ata_queued_cmd *qc)
 {
-	int rc;
-
 	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
 	assert(qc->flags & ATA_QCFLAG_ACTIVE);
 
@@ -3648,17 +3637,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* call completion callback */
-	rc = qc->complete_fn(qc);
-
-	/* if callback indicates not to complete command (non-zero),
-	 * return immediately
-	 */
-	if (rc != 0)
-		return;
-
-	ata_qc_free(qc);
-
-	VPRINTK("EXIT\n");
+	qc->complete_fn(qc);
 }
 
 static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
