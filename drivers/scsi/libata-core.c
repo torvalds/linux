@@ -73,7 +73,6 @@ static int fgb(u32 bitmap);
 static int ata_choose_xfer_mode(const struct ata_port *ap,
 				u8 *xfer_mode_out,
 				unsigned int *xfer_shift_out);
-static void __ata_qc_complete(struct ata_queued_cmd *qc);
 
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
@@ -3593,21 +3592,6 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	return qc;
 }
 
-static void __ata_qc_complete(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned int tag;
-
-	qc->flags = 0;
-	tag = qc->tag;
-	if (likely(ata_tag_valid(tag))) {
-		if (tag == ap->active_tag)
-			ap->active_tag = ATA_TAG_POISON;
-		qc->tag = ATA_TAG_POISON;
-		clear_bit(tag, &ap->qactive);
-	}
-}
-
 /**
  *	ata_qc_free - free unused ata_queued_cmd
  *	@qc: Command to complete
@@ -3620,9 +3604,19 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc)
  */
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
+	unsigned int tag;
+
 	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
 
-	__ata_qc_complete(qc);
+	qc->flags = 0;
+	tag = qc->tag;
+	if (likely(ata_tag_valid(tag))) {
+		if (tag == ap->active_tag)
+			ap->active_tag = ATA_TAG_POISON;
+		qc->tag = ATA_TAG_POISON;
+		clear_bit(tag, &ap->qactive);
+	}
 }
 
 /**
@@ -3662,7 +3656,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	if (rc != 0)
 		return;
 
-	__ata_qc_complete(qc);
+	ata_qc_free(qc);
 
 	VPRINTK("EXIT\n");
 }
