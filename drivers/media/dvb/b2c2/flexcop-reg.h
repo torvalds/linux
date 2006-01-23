@@ -16,8 +16,6 @@ typedef enum {
 	FLEXCOP_III,
 } flexcop_revision_t;
 
-extern const char *flexcop_revision_names[];
-
 typedef enum {
 	FC_UNK = 0,
 	FC_AIR_DVB,
@@ -33,8 +31,6 @@ typedef enum {
 	FC_USB = 0,
 	FC_PCI,
 } flexcop_bus_t;
-
-extern const char *flexcop_device_names[];
 
 /* FlexCop IBI Registers */
 #if defined(__LITTLE_ENDIAN)
