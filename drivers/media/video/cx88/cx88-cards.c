@@ -1298,6 +1298,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	switch (tv.model)
 	{
 	case 28552: /* WinTV-PVR 'Roslyn' (No IR) */
+	case 34519: /* WinTV-PCI-FM */
 	case 90002: /* Nova-T-PCI (9002) */
 	case 92001: /* Nova-S-Plus (Video and IR) */
 	case 92002: /* Nova-S-Plus (Video and IR) */
