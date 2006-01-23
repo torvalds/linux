@@ -637,12 +637,15 @@ static void tvp5150_vbi_get_cap(const struct i2c_vbi_ram_value *regs,
  *	LSB = field1
  *	MSB = field2
  */
-static int tvp5150_set_vbi(struct i2c_client *c, unsigned int type,
-					u8 flags, int line, const int fields)
+static int tvp5150_set_vbi(struct i2c_client *c,
+			const struct i2c_vbi_ram_value *regs,
+			unsigned int type,u8 flags, int line,
+			const int fields)
 {
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
 	v4l2_std_id std=decoder->norm;
 	u8 reg;
+	int pos=0;
 
 	if (std == V4L2_STD_ALL) {
 		tvp5150_err("VBI can't be configured without knowing number of lines\n");
@@ -653,9 +656,23 @@ static int tvp5150_set_vbi(struct i2c_client *c, unsigned int type,
 	}
 
 	if (line<6||line>27)
-		return -EINVAL;
+		return 0;
 
-	type=type | (flags & 0xf0);
+	while (regs->reg != (u16)-1 ) {
+		if ((type & regs->type.vbi_type) &&
+		    (line>=regs->type.ini_line) &&
+		    (line<=regs->type.end_line)) {
+			type=regs->type.vbi_type;
+			break;
+		}
+
+		regs++;
+		pos++;
+	}
+	if (regs->reg == (u16)-1)
+		return 0;
+
+	type=pos | (flags & 0xf0);
 	reg=((line-6)<<1)+TVP5150_LINE_MODE_INI;
 
 	if (fields&1) {
@@ -666,7 +683,7 @@ static int tvp5150_set_vbi(struct i2c_client *c, unsigned int type,
 		tvp5150_write(c, reg+1, type);
 	}
 
-	return 0;
+	return type;
 }
 
 static int tvp5150_set_std(struct i2c_client *c, v4l2_std_id std)
@@ -821,7 +838,27 @@ static int tvp5150_command(struct i2c_client *c,
 		tvp5150_vbi_get_cap(vbi_ram_default, cap);
 		break;
 	}
+	case VIDIOC_S_FMT:
+	{
+		struct v4l2_format *fmt;
+		struct v4l2_sliced_vbi_format *svbi;
+		int i;
 
+		fmt = arg;
+		if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
+			return -EINVAL;
+		svbi = &fmt->fmt.sliced;
+		if (svbi->service_set != 0) {
+			for (i = 0; i <= 23; i++) {
+				svbi->service_lines[1][i] = 0;
+
+				svbi->service_lines[0][i]=tvp5150_set_vbi(c,
+					 vbi_ram_default,
+					 svbi->service_lines[0][i],0xf0,i,3);
+			}
+		}
+		break;
+	}
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	case VIDIOC_INT_G_REGISTER:
 	{
