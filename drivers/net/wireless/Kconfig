@@ -501,6 +501,14 @@ config PRISM54
 
 source "drivers/net/wireless/hostap/Kconfig"
 
+config BCM43XX
+       tristate "Broadcom BCM43xx wireless support"
+       depends on PCI && IEEE80211 && NET_RADIO && IEEE80211_SOFTMAC && EXPERIMENTAL
+	select FW_LOADER
+       ---help---
+	This is an experimental driver for the Broadcom 43xx wireless chip,
+	found in the Apple Airport Extreme and various other devices.
+
 # yes, this works even when no drivers are selected
 config NET_WIRELESS
 	bool
