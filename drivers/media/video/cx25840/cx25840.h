@@ -78,6 +78,7 @@ struct cx25840_state {
 	enum cx25840_video_input vid_input;
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
+	int audmode;
 };
 
 /* ----------------------------------------------------------------------- */

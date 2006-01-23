@@ -398,15 +398,16 @@ static void tuner_status(struct i2c_client *client)
 	tuner_info("Tuner mode:      %s\n", p);
 	tuner_info("Frequency:       %lu.%02lu MHz\n", freq, freq_fraction);
 	tuner_info("Standard:        0x%08llx\n", t->std);
-	if (t->mode == V4L2_TUNER_RADIO) {
-		if (t->has_signal) {
-			tuner_info("Signal strength: %d\n", t->has_signal(client));
-		}
-		if (t->is_stereo) {
-			tuner_info("Stereo:          %s\n", t->is_stereo(client) ? "yes" : "no");
-		}
+	if (t->mode != V4L2_TUNER_RADIO)
+	       return;
+	if (t->has_signal) {
+		tuner_info("Signal strength: %d\n", t->has_signal(client));
+	}
+	if (t->is_stereo) {
+		tuner_info("Stereo:          %s\n", t->is_stereo(client) ? "yes" : "no");
 	}
 }
+
 /* ---------------------------------------------------------------------- */
 
 /* static var Used only in tuner_attach and tuner_probe */
@@ -737,33 +738,29 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				return 0;
 			switch_v4l2();
 
-			if (V4L2_TUNER_RADIO == t->mode) {
-
-				if (t->has_signal)
-					tuner->signal = t->has_signal(client);
-
-				if (t->is_stereo) {
-					if (t->is_stereo(client)) {
-						tuner->rxsubchans =
-						    V4L2_TUNER_SUB_STEREO |
-						    V4L2_TUNER_SUB_MONO;
-					} else {
-						tuner->rxsubchans =
-						    V4L2_TUNER_SUB_MONO;
-					}
-				}
-
-				tuner->capability |=
-				    V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
-
-				tuner->audmode = t->audmode;
-
-				tuner->rangelow = radio_range[0] * 16000;
-				tuner->rangehigh = radio_range[1] * 16000;
-			} else {
+			tuner->type = t->mode;
+			if (t->mode != V4L2_TUNER_RADIO) {
 				tuner->rangelow = tv_range[0] * 16;
 				tuner->rangehigh = tv_range[1] * 16;
+				break;
 			}
+
+			/* radio mode */
+			if (t->has_signal)
+				tuner->signal = t->has_signal(client);
+
+			tuner->rxsubchans =
+				V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
+			if (t->is_stereo) {
+				tuner->rxsubchans = t->is_stereo(client) ?
+					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+			}
+
+			tuner->capability |=
+			    V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+			tuner->audmode = t->audmode;
+			tuner->rangelow = radio_range[0] * 16000;
+			tuner->rangehigh = radio_range[1] * 16000;
 			break;
 		}
 	case VIDIOC_S_TUNER:
@@ -775,10 +772,11 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 			switch_v4l2();
 
-			if (V4L2_TUNER_RADIO == t->mode) {
-				t->audmode = tuner->audmode;
-				set_radio_freq(client, t->radio_freq);
-			}
+			/* do nothing unless we're a radio tuner */
+			if (t->mode != V4L2_TUNER_RADIO)
+				break;
+			t->audmode = tuner->audmode;
+			set_radio_freq(client, t->radio_freq);
 			break;
 		}
 	case VIDIOC_LOG_STATUS:

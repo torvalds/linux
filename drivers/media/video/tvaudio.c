@@ -130,6 +130,7 @@ struct CHIPSTATE {
 	struct timer_list    wt;
 	int                  done;
 	int                  watch_stereo;
+	int 		     audmode;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -1514,6 +1515,7 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;
+	chip->audmode = V4L2_TUNER_MODE_LANG1;
 	/* register */
 	i2c_attach_client(&chip->c);
 
@@ -1671,6 +1673,8 @@ static int chip_command(struct i2c_client *client,
 		struct v4l2_tuner *vt = arg;
 		int mode = 0;
 
+		if (chip->radio)
+			break;
 		switch (vt->audmode) {
 		case V4L2_TUNER_MODE_MONO:
 			mode = VIDEO_SOUND_MONO;
@@ -1685,8 +1689,9 @@ static int chip_command(struct i2c_client *client,
 			mode = VIDEO_SOUND_LANG2;
 			break;
 		default:
-			break;
+			return -EINVAL;
 		}
+		chip->audmode = vt->audmode;
 
 		if (desc->setmode && mode) {
 			chip->watch_stereo = 0;
@@ -1704,7 +1709,7 @@ static int chip_command(struct i2c_client *client,
 
 		if (chip->radio)
 			break;
-		vt->audmode = 0;
+		vt->audmode = chip->audmode;
 		vt->rxsubchans = 0;
 		vt->capability = V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
@@ -1716,19 +1721,12 @@ static int chip_command(struct i2c_client *client,
 			vt->rxsubchans |= V4L2_TUNER_SUB_MONO;
 		if (mode & VIDEO_SOUND_STEREO)
 			vt->rxsubchans |= V4L2_TUNER_SUB_STEREO;
+		/* Note: for SAP it should be mono/lang2 or stereo/lang2.
+		   When this module is converted fully to v4l2, then this
+		   should change for those chips that can detect SAP. */
 		if (mode & VIDEO_SOUND_LANG1)
-			vt->rxsubchans |= V4L2_TUNER_SUB_LANG1 |
-					  V4L2_TUNER_SUB_LANG2;
-
-		mode = chip->mode;
-		if (mode & VIDEO_SOUND_MONO)
-			vt->audmode = V4L2_TUNER_MODE_MONO;
-		if (mode & VIDEO_SOUND_STEREO)
-			vt->audmode = V4L2_TUNER_MODE_STEREO;
-		if (mode & VIDEO_SOUND_LANG1)
-			vt->audmode = V4L2_TUNER_MODE_LANG1;
-		if (mode & VIDEO_SOUND_LANG2)
-			vt->audmode = V4L2_TUNER_MODE_LANG2;
+			vt->rxsubchans = V4L2_TUNER_SUB_LANG1 |
+					 V4L2_TUNER_SUB_LANG2;
 		break;
 	}
 
