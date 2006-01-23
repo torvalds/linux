@@ -823,18 +823,17 @@ static void usb_deregister_bus (struct usb_bus *bus)
 
 /**
  * register_root_hub - called by usb_add_hcd() to register a root hub
- * @usb_dev: the usb root hub device to be registered.
  * @hcd: host controller for this root hub
  *
  * This function registers the root hub with the USB subsystem.  It sets up
- * the device properly in the device tree and stores the root_hub pointer
- * in the bus structure, then calls usb_new_device() to register the usb
- * device.  It also assigns the root hub's USB address (always 1).
+ * the device properly in the device tree and then calls usb_new_device()
+ * to register the usb device.  It also assigns the root hub's USB address
+ * (always 1).
  */
-static int register_root_hub (struct usb_device *usb_dev,
-		struct usb_hcd *hcd)
+static int register_root_hub(struct usb_hcd *hcd)
 {
 	struct device *parent_dev = hcd->self.controller;
+	struct usb_device *usb_dev = hcd->self.root_hub;
 	const int devnum = 1;
 	int retval;
 
@@ -846,12 +845,10 @@ static int register_root_hub (struct usb_device *usb_dev,
 	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 
 	mutex_lock(&usb_bus_list_lock);
-	usb_dev->bus->root_hub = usb_dev;
 
 	usb_dev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(64);
 	retval = usb_get_device_descriptor(usb_dev, USB_DT_DEVICE_SIZE);
 	if (retval != sizeof usb_dev->descriptor) {
-		usb_dev->bus->root_hub = NULL;
 		mutex_unlock(&usb_bus_list_lock);
 		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
 				usb_dev->dev.bus_id, retval);
@@ -860,7 +857,6 @@ static int register_root_hub (struct usb_device *usb_dev,
 
 	retval = usb_new_device (usb_dev);
 	if (retval) {
-		usb_dev->bus->root_hub = NULL;
 		dev_err (parent_dev, "can't register root hub for %s, %d\n",
 				usb_dev->dev.bus_id, retval);
 	}
@@ -1772,12 +1768,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	/* till now HC has been in an indeterminate state ... */
-	if (hcd->driver->reset && (retval = hcd->driver->reset(hcd)) < 0) {
-		dev_err(hcd->self.controller, "can't reset\n");
-		return retval;
-	}
-
+	/* HC is in reset state, but accessible.  Now do the one-time init,
+	 * bottom up so that hcds can customize the root hubs before khubd
+	 * starts talking to them.  (Note, bus id is assigned early too.)
+	 */
 	if ((retval = hcd_buffer_create(hcd)) != 0) {
 		dev_dbg(hcd->self.controller, "pool alloc failed\n");
 		return retval;
@@ -1786,6 +1780,42 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if ((retval = usb_register_bus(&hcd->self)) < 0)
 		goto err_register_bus;
 
+	if ((rhdev = usb_alloc_dev(NULL, &hcd->self, 0)) == NULL) {
+		dev_err(hcd->self.controller, "unable to allocate root hub\n");
+		retval = -ENOMEM;
+		goto err_allocate_root_hub;
+	}
+	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
+			USB_SPEED_FULL;
+	hcd->self.root_hub = rhdev;
+
+	/* "reset" is misnamed; its role is now one-time init. the controller
+	 * should already have been reset (and boot firmware kicked off etc).
+	 */
+	if (hcd->driver->reset && (retval = hcd->driver->reset(hcd)) < 0) {
+		dev_err(hcd->self.controller, "can't setup\n");
+		goto err_hcd_driver_setup;
+	}
+
+	/* wakeup flag init is in transition; for now we can't rely on PCI to
+	 * initialize these bits properly, so we let reset() override it.
+	 * This init should _precede_ the reset() once PCI behaves.
+	 */
+	device_init_wakeup(&rhdev->dev,
+			device_can_wakeup(hcd->self.controller));
+
+	// ... all these hcd->*_wakeup flags will vanish
+	hcd->can_wakeup = device_can_wakeup(hcd->self.controller);
+
+	/* hcd->driver->reset() reported can_wakeup, probably with
+	 * assistance from board's boot firmware.
+	 * NOTE:  normal devices won't enable wakeup by default.
+	 */
+	if (hcd->can_wakeup)
+		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
+	hcd->remote_wakeup = hcd->can_wakeup;
+
+	/* enable irqs just before we start the controller */
 	if (hcd->driver->irq) {
 		char	buf[8], *bufp = buf;
 
@@ -1817,56 +1847,32 @@ int usb_add_hcd(struct usb_hcd *hcd,
 					(unsigned long long)hcd->rsrc_start);
 	}
 
-	/* Allocate the root hub before calling hcd->driver->start(),
-	 * but don't register it until afterward so that the hardware
-	 * is running.
-	 */
-	if ((rhdev = usb_alloc_dev(NULL, &hcd->self, 0)) == NULL) {
-		dev_err(hcd->self.controller, "unable to allocate root hub\n");
-		retval = -ENOMEM;
-		goto err_allocate_root_hub;
-	}
-
-	/* Although in principle hcd->driver->start() might need to use rhdev,
-	 * none of the current drivers do.
-	 */
 	if ((retval = hcd->driver->start(hcd)) < 0) {
 		dev_err(hcd->self.controller, "startup error %d\n", retval);
 		goto err_hcd_driver_start;
 	}
 
-	/* hcd->driver->start() reported can_wakeup, probably with
-	 * assistance from board's boot firmware.
-	 * NOTE:  normal devices won't enable wakeup by default.
-	 */
-	if (hcd->can_wakeup)
-		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
-	hcd->remote_wakeup = hcd->can_wakeup;
-
-	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
-			USB_SPEED_FULL;
+	/* starting here, usbcore will pay attention to this root hub */
 	rhdev->bus_mA = min(500u, hcd->power_budget);
-	if ((retval = register_root_hub(rhdev, hcd)) != 0)
+	if ((retval = register_root_hub(hcd)) != 0)
 		goto err_register_root_hub;
 
 	if (hcd->uses_new_polling && hcd->poll_rh)
 		usb_hcd_poll_rh_status(hcd);
 	return retval;
 
- err_register_root_hub:
+err_register_root_hub:
 	hcd->driver->stop(hcd);
-
- err_hcd_driver_start:
-	usb_put_dev(rhdev);
-
- err_allocate_root_hub:
+err_hcd_driver_start:
 	if (hcd->irq >= 0)
 		free_irq(irqnum, hcd);
-
- err_request_irq:
+err_request_irq:
+err_hcd_driver_setup:
+	hcd->self.root_hub = NULL;
+	usb_put_dev(rhdev);
+err_allocate_root_hub:
 	usb_deregister_bus(&hcd->self);
-
- err_register_bus:
+err_register_bus:
 	hcd_buffer_destroy(hcd);
 	return retval;
 } 
