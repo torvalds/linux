@@ -326,7 +326,7 @@ struct dvb_pll_desc dvb_pll_tuv1236d = {
 };
 EXPORT_SYMBOL(dvb_pll_tuv1236d);
 
-/* Samsung TBMV30111IN
+/* Samsung TBMV30111IN / TBMV30712IN1
  * used in Air2PC ATSC - 2nd generation (nxt2002)
  */
 struct dvb_pll_desc dvb_pll_tbmv30111in = {

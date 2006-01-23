@@ -1,9 +1,10 @@
 /*
  *    Support for NXT2002 and NXT2004 - VSB/QAM
  *
- *    Copyright (C) 2005 Kirk Lapray (kirk.lapray@gmail.com)
+ *    Copyright (C) 2005 Kirk Lapray <kirk.lapray@gmail.com>
+ *    Copyright (C) 2006 Michael Krufky <mkrufky@m1k.net>
  *    based on nxt2002 by Taylor Jacob <rtjacob@earthlink.net>
- *    and nxt2004 by Jean-Francois Thibert (jeanfrancois@sagetv.com)
+ *    and nxt2004 by Jean-Francois Thibert <jeanfrancois@sagetv.com>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -614,7 +615,17 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	/* write sdm1 input */
 	buf[0] = 0x10;
 	buf[1] = 0x00;
-	nxt200x_writebytes(state, 0x58, buf, 2);
+	switch (state->demod_chip) {
+		case NXT2002:
+			nxt200x_writereg_multibyte(state, 0x58, buf, 2);
+			break;
+		case NXT2004:
+			nxt200x_writebytes(state, 0x58, buf, 2);
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
 
 	/* write sdmx input */
 	switch (p->u.vsb.modulation) {
@@ -632,7 +643,17 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 				break;
 	}
 	buf[1] = 0x00;
-	nxt200x_writebytes(state, 0x5C, buf, 2);
+	switch (state->demod_chip) {
+		case NXT2002:
+			nxt200x_writereg_multibyte(state, 0x5C, buf, 2);
+			break;
+		case NXT2004:
+			nxt200x_writebytes(state, 0x5C, buf, 2);
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
 
 	/* write adc power lpf fc */
 	buf[0] = 0x05;
@@ -648,7 +669,17 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	/* write accumulator2 input */
 	buf[0] = 0x80;
 	buf[1] = 0x00;
-	nxt200x_writebytes(state, 0x4B, buf, 2);
+	switch (state->demod_chip) {
+		case NXT2002:
+			nxt200x_writereg_multibyte(state, 0x4B, buf, 2);
+			break;
+		case NXT2004:
+			nxt200x_writebytes(state, 0x4B, buf, 2);
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
 
 	/* write kg1 */
 	buf[0] = 0x00;
@@ -714,8 +745,19 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	/* write accumulator2 input */
 	buf[0] = 0x80;
 	buf[1] = 0x00;
-	nxt200x_writebytes(state, 0x49, buf,2);
-	nxt200x_writebytes(state, 0x4B, buf,2);
+	switch (state->demod_chip) {
+		case NXT2002:
+			nxt200x_writereg_multibyte(state, 0x49, buf, 2);
+			nxt200x_writereg_multibyte(state, 0x4B, buf, 2);
+			break;
+		case NXT2004:
+			nxt200x_writebytes(state, 0x49, buf, 2);
+			nxt200x_writebytes(state, 0x4B, buf, 2);
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
 
 	/* write agc control reg */
 	buf[0] = 0x04;
@@ -1199,7 +1241,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("NXT200X (ATSC 8VSB & ITU-T J.83 AnnexB 64/256 QAM) Demodulator Driver");
-MODULE_AUTHOR("Kirk Lapray, Jean-Francois Thibert, and Taylor Jacob");
+MODULE_AUTHOR("Kirk Lapray, Michael Krufky, Jean-Francois Thibert, and Taylor Jacob");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(nxt200x_attach);
