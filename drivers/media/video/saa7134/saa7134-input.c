@@ -169,7 +169,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_KWORLD_XPERT:
 	case SAA7134_BOARD_AVACSSMARTTV:
-		ir_codes     = ir_codes_avacssmart;
+		ir_codes     = ir_codes_pixelview;
 		mask_keycode = 0x00001F;
 		mask_keyup   = 0x000020;
 		polling      = 50; // ms
@@ -181,7 +181,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_305:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
-		ir_codes     = ir_codes_md2819;
+		ir_codes     = ir_codes_avermedia;
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
 		polling      = 50; // ms
@@ -190,7 +190,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
-		ir_codes     = ir_codes_avacssmart;
+		ir_codes     = ir_codes_pixelview;
 		mask_keycode = 0x00001f;
 		mask_keyup   = 0x000060;
 		polling      = 50; // ms

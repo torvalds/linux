@@ -32,50 +32,6 @@ IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_empty);
 
-IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE] = {
-	[ 0x22 ] = KEY_0,
-	[ 0x28 ] = KEY_1,
-	[ 0x18 ] = KEY_2,
-	[ 0x38 ] = KEY_3,
-	[ 0x24 ] = KEY_4,
-	[ 0x14 ] = KEY_5,
-	[ 0x34 ] = KEY_6,
-	[ 0x2c ] = KEY_7,
-	[ 0x1c ] = KEY_8,
-	[ 0x3c ] = KEY_9,
-
-	[ 0x30 ] = KEY_EJECTCD,     // Unmarked on my controller
-	[ 0x00 ] = KEY_POWER,
-	[ 0x12 ] = BTN_LEFT,        // DISPLAY/L
-	[ 0x32 ] = BTN_RIGHT,       // LOOP/R
-	[ 0x0a ] = KEY_MUTE,
-	[ 0x26 ] = KEY_RECORD,
-	[ 0x16 ] = KEY_PAUSE,
-	[ 0x36 ] = KEY_STOP,
-	[ 0x1e ] = KEY_VOLUMEDOWN,
-	[ 0x3e ] = KEY_VOLUMEUP,
-
-	[ 0x20 ] = KEY_TUNER,       // TV/FM
-	[ 0x10 ] = KEY_CD,
-	[ 0x08 ] = KEY_VIDEO,
-	[ 0x04 ] = KEY_AUDIO,
-	[ 0x0c ] = KEY_ZOOM,        // full screen
-	[ 0x02 ] = KEY_INFO,        // preview
-	[ 0x2a ] = KEY_SEARCH,      // autoscan
-	[ 0x1a ] = KEY_STOP,        // freeze
-	[ 0x3a ] = KEY_RECORD,      // capture
-	[ 0x06 ] = KEY_PLAY,        // unmarked
-	[ 0x2e ] = KEY_RED,         // unmarked
-	[ 0x0e ] = KEY_GREEN,       // unmarked
-
-	[ 0x21 ] = KEY_YELLOW,      // unmarked
-	[ 0x11 ] = KEY_CHANNELDOWN,
-	[ 0x31 ] = KEY_CHANNELUP,
-	[ 0x01 ] = KEY_BLUE,        // unmarked
-};
-
-EXPORT_SYMBOL_GPL(ir_codes_avermedia);
-
 /* Matt Jesson <dvb@jesson.eclipse.co.uk */
 IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 	[ 0x28 ] = KEY_0,         //'0' / 'enter'
@@ -162,7 +118,7 @@ EXPORT_SYMBOL_GPL(ir_codes_apac_viewcomp);
 
 /* ---------------------------------------------------------------------- */
 
-IR_KEYTAB_TYPE ir_codes_conceptronic[IR_KEYTAB_SIZE] = {
+IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE] = {
 
 	[ 0x1e ] = KEY_POWER,       // power
 	[ 0x07 ] = KEY_MEDIA,       // source
@@ -224,7 +180,7 @@ IR_KEYTAB_TYPE ir_codes_conceptronic[IR_KEYTAB_SIZE] = {
 	[ 0x18 ] = KEY_MUTE         // mute/unmute
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_conceptronic);
+EXPORT_SYMBOL_GPL(ir_codes_pixelview);
 
 IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE] = {
 	[ 0x00 ] = KEY_0,
@@ -888,52 +844,8 @@ IR_KEYTAB_TYPE ir_codes_eztv[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_eztv);
 
-IR_KEYTAB_TYPE ir_codes_avacssmart[IR_KEYTAB_SIZE] = {
-	[ 0x1e ] = KEY_POWER,		// power
-	[ 0x1c ] = KEY_SEARCH,		// scan
-	[ 0x07 ] = KEY_SELECT,		// source
-
-	[ 0x16 ] = KEY_VOLUMEUP,
-	[ 0x14 ] = KEY_VOLUMEDOWN,
-	[ 0x1f ] = KEY_CHANNELUP,
-	[ 0x17 ] = KEY_CHANNELDOWN,
-	[ 0x18 ] = KEY_MUTE,
-
-	[ 0x02 ] = KEY_0,
-	[ 0x01 ] = KEY_1,
-	[ 0x0b ] = KEY_2,
-	[ 0x1b ] = KEY_3,
-	[ 0x05 ] = KEY_4,
-	[ 0x09 ] = KEY_5,
-	[ 0x15 ] = KEY_6,
-	[ 0x06 ] = KEY_7,
-	[ 0x0a ] = KEY_8,
-	[ 0x12 ] = KEY_9,
-	[ 0x10 ] = KEY_DOT,
-
-	[ 0x03 ] = KEY_TUNER,		// tv/fm
-	[ 0x04 ] = KEY_REWIND,		// fm tuning left or function left
-	[ 0x0c ] = KEY_FORWARD,		// fm tuning right or function right
-
-	[ 0x00 ] = KEY_RECORD,
-	[ 0x08 ] = KEY_STOP,
-	[ 0x11 ] = KEY_PLAY,
-
-	[ 0x19 ] = KEY_ZOOM,
-	[ 0x0e ] = KEY_MENU,		// function
-	[ 0x13 ] = KEY_AGAIN,		// recall
-	[ 0x1d ] = KEY_RESTART,		// reset
-	[ 0x1a ] = KEY_SHUFFLE,		// snapshot/shuffle
-
-// FIXME
-	[ 0x0d ] = KEY_F21,		// mts
-	[ 0x0f ] = KEY_F22,		// min
-};
-
-EXPORT_SYMBOL_GPL(ir_codes_avacssmart);
-
 /* Alex Hermann <gaaf@gmx.net> */
-IR_KEYTAB_TYPE ir_codes_md2819[IR_KEYTAB_SIZE] = {
+IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE] = {
 	[ 0x28 ] = KEY_1,
 	[ 0x18 ] = KEY_2,
 	[ 0x38 ] = KEY_3,
@@ -945,41 +857,41 @@ IR_KEYTAB_TYPE ir_codes_md2819[IR_KEYTAB_SIZE] = {
 	[ 0x3c ] = KEY_9,
 	[ 0x22 ] = KEY_0,
 
-	[ 0x20 ] = KEY_TV,		// TV/FM
-	[ 0x10 ] = KEY_CD,		// CD
-	[ 0x30 ] = KEY_TEXT,		// TELETEXT
-	[ 0x00 ] = KEY_POWER,		// POWER
+	[ 0x20 ] = KEY_TV,		/* TV/FM */
+	[ 0x10 ] = KEY_CD,		/* CD */
+	[ 0x30 ] = KEY_TEXT,		/* TELETEXT */
+	[ 0x00 ] = KEY_POWER,		/* POWER */
 
-	[ 0x08 ] = KEY_VIDEO,		// VIDEO
-	[ 0x04 ] = KEY_AUDIO,		// AUDIO
-	[ 0x0c ] = KEY_ZOOM,		// FULL SCREEN
+	[ 0x08 ] = KEY_VIDEO,		/* VIDEO */
+	[ 0x04 ] = KEY_AUDIO,		/* AUDIO */
+	[ 0x0c ] = KEY_ZOOM,		/* FULL SCREEN */
 
-	[ 0x12 ] = KEY_SUBTITLE,		// DISPLAY	- ???
-	[ 0x32 ] = KEY_REWIND,		// LOOP		- ???
-	[ 0x02 ] = KEY_PRINT,		// PREVIEW	- ???
+	[ 0x12 ] = KEY_SUBTITLE,	/* DISPLAY */
+	[ 0x32 ] = KEY_REWIND,		/* LOOP	*/
+	[ 0x02 ] = KEY_PRINT,		/* PREVIEW */
 
-	[ 0x2a ] = KEY_SEARCH,		// AUTOSCAN
-	[ 0x1a ] = KEY_SLEEP,		// FREEZE	- ???
-	[ 0x3a ] = KEY_SHUFFLE,		// SNAPSHOT	- ???
-	[ 0x0a ] = KEY_MUTE,		// MUTE
+	[ 0x2a ] = KEY_SEARCH,		/* AUTOSCAN */
+	[ 0x1a ] = KEY_SLEEP,		/* FREEZE */
+	[ 0x3a ] = KEY_SHUFFLE,		/* SNAPSHOT */
+	[ 0x0a ] = KEY_MUTE,		/* MUTE */
 
-	[ 0x26 ] = KEY_RECORD,		// RECORD
-	[ 0x16 ] = KEY_PAUSE,		// PAUSE
-	[ 0x36 ] = KEY_STOP,		// STOP
-	[ 0x06 ] = KEY_PLAY,		// PLAY
+	[ 0x26 ] = KEY_RECORD,		/* RECORD */
+	[ 0x16 ] = KEY_PAUSE,		/* PAUSE */
+	[ 0x36 ] = KEY_STOP,		/* STOP */
+	[ 0x06 ] = KEY_PLAY,		/* PLAY */
 
-	[ 0x2e ] = KEY_RED,		// <RED>
-	[ 0x21 ] = KEY_GREEN,		// <GREEN>
-	[ 0x0e ] = KEY_YELLOW,		// <YELLOW>
-	[ 0x01 ] = KEY_BLUE,		// <BLUE>
+	[ 0x2e ] = KEY_RED,		/* RED */
+	[ 0x21 ] = KEY_GREEN,		/* GREEN */
+	[ 0x0e ] = KEY_YELLOW,		/* YELLOW */
+	[ 0x01 ] = KEY_BLUE,		/* BLUE */
 
-	[ 0x1e ] = KEY_VOLUMEDOWN,	// VOLUME-
-	[ 0x3e ] = KEY_VOLUMEUP,		// VOLUME+
-	[ 0x11 ] = KEY_CHANNELDOWN,	// CHANNEL/PAGE-
-	[ 0x31 ] = KEY_CHANNELUP		// CHANNEL/PAGE+
+	[ 0x1e ] = KEY_VOLUMEDOWN,	/* VOLUME- */
+	[ 0x3e ] = KEY_VOLUMEUP,	/* VOLUME+ */
+	[ 0x11 ] = KEY_CHANNELDOWN,	/* CHANNEL/PAGE- */
+	[ 0x31 ] = KEY_CHANNELUP	/* CHANNEL/PAGE+ */
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_md2819);
+EXPORT_SYMBOL_GPL(ir_codes_avermedia);
 
 IR_KEYTAB_TYPE ir_codes_videomate_tv_pvr[IR_KEYTAB_SIZE] = {
 	[ 0x14 ] = KEY_MUTE,
@@ -1500,38 +1412,4 @@ IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_hauppauge_new);
-
-IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE] = {
-	[ 0x02 ] = KEY_0,
-	[ 0x01 ] = KEY_1,
-	[ 0x0b ] = KEY_2,
-	[ 0x1b ] = KEY_3,
-	[ 0x05 ] = KEY_4,
-	[ 0x09 ] = KEY_5,
-	[ 0x15 ] = KEY_6,
-	[ 0x06 ] = KEY_7,
-	[ 0x0a ] = KEY_8,
-	[ 0x12 ] = KEY_9,
-
-	[ 0x03 ] = KEY_TUNER,		/* TV/FM */
-	[ 0x07 ] = KEY_SEARCH,		/* scan */
-	[ 0x1c ] = KEY_ZOOM,		/* full screen */
-	[ 0x1e ] = KEY_POWER,
-	[ 0x17 ] = KEY_VOLUMEDOWN,
-	[ 0x1f ] = KEY_VOLUMEUP,
-	[ 0x14 ] = KEY_CHANNELDOWN,
-	[ 0x16 ] = KEY_CHANNELUP,
-	[ 0x18 ] = KEY_MUTE,
-
-	[ 0x00 ] = KEY_LIST,		/* source */
-	[ 0x13 ] = KEY_INFO,		/* loop */
-	[ 0x10 ] = KEY_LAST,		/* +100 */
-	[ 0x0d ] = KEY_CLEAR,		/* reset */
-	[ 0x0c ] = BTN_RIGHT,		/* fun++ */
-	[ 0x04 ] = BTN_LEFT,		/* fun-- */
-	[ 0x0e ] = KEY_GOTO,		/* function */
-	[ 0x0f ] = KEY_STOP,		/* freeze */
-};
-
-EXPORT_SYMBOL_GPL(ir_codes_pixelview);
 

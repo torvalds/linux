@@ -63,7 +63,7 @@ extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_conceptronic[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_dntv_live_dvb_t[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE];
@@ -78,8 +78,7 @@ extern IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_flydvb[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_cinergy[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_eztv[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_avacssmart[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_md2819[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_videomate_tv_pvr[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_gotview7135[IR_KEYTAB_SIZE];
@@ -90,7 +89,6 @@ extern IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
 
 #endif
 
