@@ -209,6 +209,7 @@ struct em28xx {
 	/* generic device properties */
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
+	int devno;		/* marks the number of this device */
 	unsigned int is_em2800;
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
