@@ -52,9 +52,9 @@
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/mman.h>
+#include <linux/mutex.h>
 
 #include <asm/intrinsics.h>
-#include <asm/semaphore.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -86,7 +86,7 @@
  * while doing so.
  */
 /* XXX make per-mm: */
-static DECLARE_MUTEX(ia32_mmap_sem);
+static DEFINE_MUTEX(ia32_mmap_mutex);
 
 asmlinkage long
 sys32_execve (char __user *name, compat_uptr_t __user *argv, compat_uptr_t __user *envp,
@@ -895,11 +895,11 @@ ia32_do_mmap (struct file *file, unsigned long addr, unsigned long len, int prot
 	prot = get_prot32(prot);
 
 #if PAGE_SHIFT > IA32_PAGE_SHIFT
-	down(&ia32_mmap_sem);
+	mutex_lock(&ia32_mmap_mutex);
 	{
 		addr = emulate_mmap(file, addr, len, prot, flags, offset);
 	}
-	up(&ia32_mmap_sem);
+	mutex_unlock(&ia32_mmap_mutex);
 #else
 	down_write(&current->mm->mmap_sem);
 	{
@@ -1000,11 +1000,9 @@ sys32_munmap (unsigned int start, unsigned int len)
 	if (start >= end)
 		return 0;
 
-	down(&ia32_mmap_sem);
-	{
-		ret = sys_munmap(start, end - start);
-	}
-	up(&ia32_mmap_sem);
+	mutex_lock(&ia32_mmap_mutex);
+	ret = sys_munmap(start, end - start);
+	mutex_unlock(&ia32_mmap_mutex);
 #endif
 	return ret;
 }
@@ -1056,7 +1054,7 @@ sys32_mprotect (unsigned int start, unsigned int len, int prot)
 	if (retval < 0)
 		return retval;
 
-	down(&ia32_mmap_sem);
+	mutex_lock(&ia32_mmap_mutex);
 	{
 		if (offset_in_page(start)) {
 			/* start address is 4KB aligned but not page aligned. */
@@ -1080,7 +1078,7 @@ sys32_mprotect (unsigned int start, unsigned int len, int prot)
 		retval = sys_mprotect(start, end - start, prot);
 	}
   out:
-	up(&ia32_mmap_sem);
+	mutex_unlock(&ia32_mmap_mutex);
 	return retval;
 #endif
 }
@@ -1124,11 +1122,9 @@ sys32_mremap (unsigned int addr, unsigned int old_len, unsigned int new_len,
 	old_len = PAGE_ALIGN(old_end) - addr;
 	new_len = PAGE_ALIGN(new_end) - addr;
 
-	down(&ia32_mmap_sem);
-	{
-		ret = sys_mremap(addr, old_len, new_len, flags, new_addr);
-	}
-	up(&ia32_mmap_sem);
+	mutex_lock(&ia32_mmap_mutex);
+	ret = sys_mremap(addr, old_len, new_len, flags, new_addr);
+	mutex_unlock(&ia32_mmap_mutex);
 
 	if ((ret >= 0) && (old_len < new_len)) {
 		/* mremap expanded successfully */
