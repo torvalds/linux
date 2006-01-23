@@ -170,7 +170,6 @@ void msp3400c_setmode(struct i2c_client *client, int type)
 
 	v4l_dbg(1, msp_debug, client, "setmode: %d\n", type);
 	state->mode       = type;
-	state->audmode    = V4L2_TUNER_MODE_MONO;
 	state->rxsubchans = V4L2_TUNER_SUB_MONO;
 
 	msp_write_dem(client, 0x00bb, msp3400c_init_data[type].ad_cv);
@@ -210,7 +209,7 @@ void msp3400c_setmode(struct i2c_client *client, int type)
 }
 
 /* turn on/off nicam + stereo */
-void msp3400c_setstereo(struct i2c_client *client, int mode)
+void msp3400c_setstereo(struct i2c_client *client, int audmode)
 {
 	static char *strmode[] = { "mono", "stereo", "lang2", "lang1" };
 	struct msp_state *state = i2c_get_clientdata(client);
@@ -222,16 +221,16 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 		 * it's never called
 		 */
 		v4l_dbg(1, msp_debug, client, "setstereo called with mode=%d instead of set_source (ignored)\n",
-		     mode);
+		     audmode);
 		return;
 	}
 
 	/* switch demodulator */
 	switch (state->mode) {
 	case MSP_MODE_FM_TERRA:
-		v4l_dbg(1, msp_debug, client, "FM setstereo: %s\n", strmode[mode]);
+		v4l_dbg(1, msp_debug, client, "FM setstereo: %s\n", strmode[audmode]);
 		msp3400c_setcarrier(client, state->second, state->main);
-		switch (mode) {
+		switch (audmode) {
 		case V4L2_TUNER_MODE_STEREO:
 			msp_write_dsp(client, 0x000e, 0x3001);
 			break;
@@ -243,8 +242,8 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 		}
 		break;
 	case MSP_MODE_FM_SAT:
-		v4l_dbg(1, msp_debug, client, "SAT setstereo: %s\n", strmode[mode]);
-		switch (mode) {
+		v4l_dbg(1, msp_debug, client, "SAT setstereo: %s\n", strmode[audmode]);
+		switch (audmode) {
 		case V4L2_TUNER_MODE_MONO:
 			msp3400c_setcarrier(client, MSP_CARRIER(6.5), MSP_CARRIER(6.5));
 			break;
@@ -262,21 +261,21 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 	case MSP_MODE_FM_NICAM1:
 	case MSP_MODE_FM_NICAM2:
 	case MSP_MODE_AM_NICAM:
-		v4l_dbg(1, msp_debug, client, "NICAM setstereo: %s\n",strmode[mode]);
+		v4l_dbg(1, msp_debug, client, "NICAM setstereo: %s\n",strmode[audmode]);
 		msp3400c_setcarrier(client,state->second,state->main);
 		if (state->nicam_on)
 			nicam=0x0100;
 		break;
 	case MSP_MODE_BTSC:
-		v4l_dbg(1, msp_debug, client, "BTSC setstereo: %s\n",strmode[mode]);
+		v4l_dbg(1, msp_debug, client, "BTSC setstereo: %s\n",strmode[audmode]);
 		nicam=0x0300;
 		break;
 	case MSP_MODE_EXTERN:
-		v4l_dbg(1, msp_debug, client, "extern setstereo: %s\n",strmode[mode]);
+		v4l_dbg(1, msp_debug, client, "extern setstereo: %s\n",strmode[audmode]);
 		nicam = 0x0200;
 		break;
 	case MSP_MODE_FM_RADIO:
-		v4l_dbg(1, msp_debug, client, "FM-Radio setstereo: %s\n",strmode[mode]);
+		v4l_dbg(1, msp_debug, client, "FM-Radio setstereo: %s\n",strmode[audmode]);
 		break;
 	default:
 		v4l_dbg(1, msp_debug, client, "mono setstereo\n");
@@ -284,7 +283,7 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 	}
 
 	/* switch audio */
-	switch (mode) {
+	switch (audmode) {
 	case V4L2_TUNER_MODE_STEREO:
 		src = 0x0020 | nicam;
 		break;
@@ -759,7 +758,6 @@ int msp3410d_thread(void *data)
 		case 0x0040: /* FM radio */
 			state->mode = MSP_MODE_FM_RADIO;
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			state->audmode = V4L2_TUNER_MODE_STEREO;
 			state->nicam_on = 0;
 			state->watch_stereo = 0;
 			/* not needed in theory if we have radio, but
@@ -779,7 +777,6 @@ int msp3410d_thread(void *data)
 		case 0x0005:
 			state->mode = MSP_MODE_FM_TERRA;
 			state->rxsubchans = V4L2_TUNER_SUB_MONO;
-			state->audmode = V4L2_TUNER_MODE_MONO;
 			state->nicam_on = 0;
 			state->watch_stereo = 1;
 			break;

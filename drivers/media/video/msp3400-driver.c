@@ -653,7 +653,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		if (scart) {
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			state->audmode = V4L2_TUNER_MODE_STEREO;
 			msp_set_scart(client, scart, 0);
 			msp_write_dsp(client, 0x000d, 0x1900);
 			if (state->opmode != OPMODE_AUTOSELECT)
@@ -831,11 +830,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 
-		msp_any_detect_stereo(client);
-		if (state->audmode == V4L2_TUNER_MODE_STEREO) {
-			a->capability = V4L2_AUDCAP_STEREO;
-		}
-
+		a->capability = V4L2_AUDCAP_STEREO;
+		a->mode = 0;  /* TODO: add support for AVL */
 		break;
 	}
 
@@ -865,14 +861,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		if (scart) {
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			state->audmode = V4L2_TUNER_MODE_STEREO;
 			msp_set_scart(client, scart, 0);
 			msp_write_dsp(client, 0x000d, 0x1900);
-		}
-		if (sarg->capability == V4L2_AUDCAP_STEREO) {
-			state->audmode = V4L2_TUNER_MODE_STEREO;
-		} else {
-			state->audmode &= ~V4L2_TUNER_MODE_STEREO;
 		}
 		msp_any_set_audmode(client, state->audmode);
 		msp_wake_thread(client);
@@ -898,11 +888,10 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct v4l2_tuner *vt = (struct v4l2_tuner *)arg;
 
-		if (state->radio)
+		if (state->radio)  /* TODO: add mono/stereo support for radio */
 			break;
 		/* only set audmode */
-		if (vt->audmode != -1 && vt->audmode != 0)
-			msp_any_set_audmode(client, vt->audmode);
+		msp_any_set_audmode(client, vt->audmode);
 		break;
 	}
 
@@ -927,7 +916,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 		break;
-
 	}
 
 	case VIDIOC_S_AUDOUT:
@@ -1094,6 +1082,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	memset(state, 0, sizeof(*state));
 	state->v4l2_std = V4L2_STD_NTSC;
+	state->audmode = V4L2_TUNER_MODE_STEREO;
 	state->volume = 58880;	/* 0db gain */
 	state->balance = 32768;	/* 0db gain */
 	state->bass = 32768;
