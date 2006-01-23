@@ -279,23 +279,23 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	switch(type)
 	{
 		case VFL_TYPE_GRABBER:
-			base=0;
-			end=64;
+			base=MINOR_VFL_TYPE_GRABBER_MIN;
+			end=MINOR_VFL_TYPE_GRABBER_MAX+1;
 			name_base = "video";
 			break;
 		case VFL_TYPE_VTX:
-			base=192;
-			end=224;
+			base=MINOR_VFL_TYPE_VTX_MIN;
+			end=MINOR_VFL_TYPE_VTX_MAX+1;
 			name_base = "vtx";
 			break;
 		case VFL_TYPE_VBI:
-			base=224;
-			end=256;
+			base=MINOR_VFL_TYPE_VBI_MIN;
+			end=MINOR_VFL_TYPE_VBI_MAX+1;
 			name_base = "vbi";
 			break;
 		case VFL_TYPE_RADIO:
-			base=64;
-			end=128;
+			base=MINOR_VFL_TYPE_RADIO_MIN;
+			end=MINOR_VFL_TYPE_RADIO_MAX+1;
 			name_base = "radio";
 			break;
 		default:

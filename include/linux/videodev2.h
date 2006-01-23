@@ -21,7 +21,7 @@
 #include <linux/compiler.h> /* need __user */
 
 
-#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.15 */
+#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.17 */
 #define HAVE_V4L2 1
 
 /*
@@ -47,6 +47,16 @@
 #define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
 
 #ifdef __KERNEL__
+
+/* Minor device allocation */
+#define MINOR_VFL_TYPE_GRABBER_MIN   0
+#define MINOR_VFL_TYPE_GRABBER_MAX  63
+#define MINOR_VFL_TYPE_RADIO_MIN    64
+#define MINOR_VFL_TYPE_RADIO_MAX   127
+#define MINOR_VFL_TYPE_VTX_MIN     192
+#define MINOR_VFL_TYPE_VTX_MAX     223
+#define MINOR_VFL_TYPE_VBI_MIN     224
+#define MINOR_VFL_TYPE_VBI_MAX     255
 
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
@@ -949,13 +959,15 @@ struct v4l2_sliced_vbi_format
 	__u32   reserved[2];            /* must be zero */
 };
 
-/* Teletext WST, defined on ITU-R BT.653-2 */
+/* Teletext World System Teletext
+   (WST), defined on ITU-R BT.653-2 */
 #define V4L2_SLICED_TELETEXT_PAL_B      (0x000001)
 #define V4L2_SLICED_TELETEXT_PAL_C      (0x000002)
 #define V4L2_SLICED_TELETEXT_NTSC_B     (0x000010)
 #define V4L2_SLICED_TELETEXT_SECAM      (0x000020)
 
-/* Teletext NABTS, defined on ITU-R BT.653-2 */
+/* Teletext North American Broadcast Teletext Specification
+   (NABTS), defined on ITU-R BT.653-2 */
 #define V4L2_SLICED_TELETEXT_NTSC_C     (0x000040)
 #define V4L2_SLICED_TELETEXT_NTSC_D     (0x000080)
 
@@ -976,8 +988,24 @@ struct v4l2_sliced_vbi_format
 #define V4l2_SLICED_VITC_625		(0x010000)
 #define V4l2_SLICED_VITC_525		(0x020000)
 
-/* Compat macro - Should be removed for 2.6.18 */
-#define V4L2_SLICED_TELETEXT_B V4L2_SLICED_TELETEXT_PAL_B
+#define V4L2_SLICED_TELETEXT_B		(V4L2_SLICED_TELETEXT_PAL_B  |\
+					 V4L2_SLICED_TELETEXT_NTSC_B)
+
+#define V4L2_SLICED_TELETEXT		(V4L2_SLICED_TELETEXT_PAL_B  |\
+					 V4L2_SLICED_TELETEXT_PAL_C  |\
+					 V4L2_SLICED_TELETEXT_SECAM  |\
+					 V4L2_SLICED_TELETEXT_NTSC_B |\
+					 V4L2_SLICED_TELETEXT_NTSC_C |\
+					 V4L2_SLICED_TELETEXT_NTSC_D)
+
+#define V4L2_SLICED_CAPTION		(V4L2_SLICED_CAPTION_525     |\
+					 V4L2_SLICED_CAPTION_625)
+
+#define V4L2_SLICED_WSS			(V4L2_SLICED_WSS_525         |\
+					 V4L2_SLICED_WSS_625)
+
+#define V4L2_SLICED_VITC		(V4L2_SLICED_VITC_525        |\
+					 V4L2_SLICED_VITC_625)
 
 #define V4L2_SLICED_VBI_525             (V4L2_SLICED_TELETEXT_NTSC_B |\
 					 V4L2_SLICED_TELETEXT_NTSC_C |\
