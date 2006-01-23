@@ -1,3 +1,10 @@
+/*
+ * tvp5150 - Texas Instruments TVP5150A/AM1 video decoder registers
+ *
+ * Copyright (c) 2005,2006 Mauro Carvalho Chehab (mchehab@infradead.org)
+ * This code is placed under the terms of the GNU General Public License v2
+ */
+
 #define TVP5150_VD_IN_SRC_SEL_1      0x00 /* Video input source selection #1 */
 #define TVP5150_ANAL_CHL_CTL         0x01 /* Analog channel controls */
 #define TVP5150_OP_MODE_CTL          0x02 /* Operation mode controls */

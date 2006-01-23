@@ -791,7 +791,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 					case 0:
 						lcr[i] |= 0xf << (4 * x);
 						break;
-					case V4L2_SLICED_TELETEXT_B:
+					case V4L2_SLICED_TELETEXT_PAL_B:
 						lcr[i] |= 1 << (4 * x);
 						break;
 					case V4L2_SLICED_CAPTION_525:
@@ -820,7 +820,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 static int saa7115_get_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 {
 	static u16 lcr2vbi[] = {
-		0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
+		0, V4L2_SLICED_TELETEXT_PAL_B, 0,	/* 1 */
 		0, V4L2_SLICED_CAPTION_525,	/* 4 */
 		V4L2_SLICED_WSS_625, 0,		/* 5 */
 		V4L2_SLICED_VPS, 0, 0, 0, 0,	/* 7 */
@@ -985,7 +985,7 @@ static void saa7115_decode_vbi_line(struct i2c_client *client,
 	/* decode payloads */
 	switch (id2) {
 	case 1:
-		vbi->type = V4L2_SLICED_TELETEXT_B;
+		vbi->type = V4L2_SLICED_TELETEXT_PAL_B;
 		break;
 	case 4:
 		if (!saa7115_odd_parity(p[0]) || !saa7115_odd_parity(p[1]))
