@@ -391,8 +391,8 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	div = (freq + desc->entries[i].offset) / desc->entries[i].stepsize;
 	buf[0] = div >> 8;
 	buf[1] = div & 0xff;
-	buf[2] = desc->entries[i].cb1;
-	buf[3] = desc->entries[i].cb2;
+	buf[2] = desc->entries[i].config;
+	buf[3] = desc->entries[i].cb;
 
 	if (desc->setbw)
 		desc->setbw(buf, freq, bandwidth);

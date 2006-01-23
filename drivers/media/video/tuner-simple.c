@@ -133,7 +133,7 @@ static int tuner_stereo(struct i2c_client *c)
 static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
-	u8 config, tuneraddr;
+	u8 cb, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
 	u8 buffer[4];
@@ -152,7 +152,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 				freq, tun->params[j].ranges[i - 1].limit);
 		freq = tun->params[j].ranges[--i].limit;
 	}
-	config = tun->params[j].ranges[i].cb;
+	cb     = tun->params[j].ranges[i].cb;
 	/*  i == 0 -> VHF_LO  */
 	/*  i == 1 -> VHF_HI  */
 	/*  i == 2 -> UHF     */
@@ -164,40 +164,40 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* 0x01 -> ??? no change ??? */
 		/* 0x02 -> PAL BDGHI / SECAM L */
 		/* 0x04 -> ??? PAL others / SECAM others ??? */
-		config &= ~0x02;
+		cb &= ~0x02;
 		if (t->std & V4L2_STD_SECAM)
-			config |= 0x02;
+			cb |= 0x02;
 		break;
 
 	case TUNER_TEMIC_4046FM5:
-		config &= ~0x0f;
+		cb &= ~0x0f;
 
 		if (t->std & V4L2_STD_PAL_BG) {
-			config |= TEMIC_SET_PAL_BG;
+			cb |= TEMIC_SET_PAL_BG;
 
 		} else if (t->std & V4L2_STD_PAL_I) {
-			config |= TEMIC_SET_PAL_I;
+			cb |= TEMIC_SET_PAL_I;
 
 		} else if (t->std & V4L2_STD_PAL_DK) {
-			config |= TEMIC_SET_PAL_DK;
+			cb |= TEMIC_SET_PAL_DK;
 
 		} else if (t->std & V4L2_STD_SECAM_L) {
-			config |= TEMIC_SET_PAL_L;
+			cb |= TEMIC_SET_PAL_L;
 
 		}
 		break;
 
 	case TUNER_PHILIPS_FQ1216ME:
-		config &= ~0x0f;
+		cb &= ~0x0f;
 
 		if (t->std & (V4L2_STD_PAL_BG|V4L2_STD_PAL_DK)) {
-			config |= PHILIPS_SET_PAL_BGDK;
+			cb |= PHILIPS_SET_PAL_BGDK;
 
 		} else if (t->std & V4L2_STD_PAL_I) {
-			config |= PHILIPS_SET_PAL_I;
+			cb |= PHILIPS_SET_PAL_I;
 
 		} else if (t->std & V4L2_STD_SECAM_L) {
-			config |= PHILIPS_SET_PAL_L;
+			cb |= PHILIPS_SET_PAL_L;
 
 		}
 		break;
@@ -207,9 +207,9 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* 0x01 -> ATSC antenna input 2 */
 		/* 0x02 -> NTSC antenna input 1 */
 		/* 0x03 -> NTSC antenna input 2 */
-		config &= ~0x03;
+		cb &= ~0x03;
 		if (!(t->std & V4L2_STD_ATSC))
-			config |= 2;
+			cb |= 2;
 		/* FIXME: input */
 		break;
 
@@ -227,9 +227,9 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[1] = 0x00;
 		buffer[2] = 0x17;
 		buffer[3] = 0x00;
-		config &= ~0x40;
+		cb &= ~0x40;
 		if (t->std & V4L2_STD_ATSC) {
-			config |= 0x40;
+			cb |= 0x40;
 			buffer[1] = 0x04;
 		}
 		/* set to the correct mode (analog or digital) */
@@ -277,14 +277,14 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 
 	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = tun->params[j].config;
-		buffer[1] = config;
+		buffer[1] = cb;
 		buffer[2] = (div>>8) & 0x7f;
 		buffer[3] = div      & 0xff;
 	} else {
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
 		buffer[2] = tun->params[j].config;
-		buffer[3] = config;
+		buffer[3] = cb;
 	}
 	t->last_div = div;
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
@@ -316,7 +316,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[0] = (div>>8) & 0x7f;
 		buffer[1] = div      & 0xff;
 		buffer[2] = tun->params[j].config;
-		buffer[3] = config;
+		buffer[3] = cb;
 		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		       buffer[0],buffer[1],buffer[2],buffer[3]);
 

@@ -15,8 +15,8 @@ struct dvb_pll_desc {
 		u32 limit;
 		u32 offset;
 		u32 stepsize;
-		u8  cb1;
-		u8  cb2;
+		u8  config;
+		u8  cb;
 	} entries[12];
 };
 
