@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/head.S
- *
  * Initial board bringup code for many different boards.
  *
  * Author: Tom Rini

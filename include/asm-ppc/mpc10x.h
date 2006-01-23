@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/mpc10x.h
- *
  * Common routines for the Motorola SPS MPC106/8240/107 Host bridge/Mem
  * ctlr/EPIC/etc.
  *

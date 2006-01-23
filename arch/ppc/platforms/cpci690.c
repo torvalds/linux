@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/cpci690.c
- *
  * Board setup routines for the Force CPCI690 board.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>

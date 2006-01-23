@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/radstone_ppc7d.c
- *
  * Board setup routines for the Radstone PPC7D boards.
  *
  * Author: James Chapman <jchapman@katalix.com>

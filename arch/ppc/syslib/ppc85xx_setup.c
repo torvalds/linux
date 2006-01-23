@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ppc85xx_setup.c
- *
  * MPC85XX common board code
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

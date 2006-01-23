@@ -1,6 +1,4 @@
 /*
- *  linux/arch/ppc64/kernel/vdso.c
- *
  *    Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
  *

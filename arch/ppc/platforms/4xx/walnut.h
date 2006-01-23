@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/walnut.h
- *
  * Walnut board definitions
  *
  * Copyright (c) 2005 DENX Software Engineering

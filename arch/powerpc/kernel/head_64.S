@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/head.S
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *

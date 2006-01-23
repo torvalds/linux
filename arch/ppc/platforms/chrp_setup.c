@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/setup.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
  *  Modified by Cort Dougan (cort@cs.nmt.edu)

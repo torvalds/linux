@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/4xx_io/serial_sicc.c
- *
  *  Driver for IBM STB3xxx SICC serial port
  *
  *  Based on drivers/char/serial_amba.c, by ARM Ltd.

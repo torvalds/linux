@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/gen550_dbg.c
- *
  * A library of polled 16550 serial routines.  These are intended to
  * be used to support progress messages, xmon, kgdb, etc. on a
  * variety of platforms.

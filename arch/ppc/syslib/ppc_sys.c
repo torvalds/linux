@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ppc_sys.c
- *
  * PPC System library functions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

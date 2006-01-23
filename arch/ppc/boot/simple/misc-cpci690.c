@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/misc-cpci690.c
- *
  * Add birec data for Force CPCI690 board.
  *
  * Author: Mark A. Greer <source@mvista.com>

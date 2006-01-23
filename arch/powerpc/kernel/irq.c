@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/irq.c
- *
  *  Derived from arch/i386/kernel/irq.c
  *    Copyright (C) 1992 Linus Torvalds
  *  Adapted from arch/i386 by Gary Thomas

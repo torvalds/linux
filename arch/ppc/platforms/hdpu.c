@@ -1,7 +1,4 @@
-
 /*
- * arch/ppc/platforms/hdpu_setup.c
- *
  * Board setup routines for the Sky Computers HDPU Compute Blade.
  *
  * Written by Brian Waite <waite@skycomputers.com>

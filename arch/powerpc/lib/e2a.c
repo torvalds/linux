@@ -1,9 +1,7 @@
 /*
- *  arch/ppc64/lib/e2a.c
- *
  *  EBCDIC to ASCII conversion
  *
- * This function moved here from arch/ppc64/kernel/viopath.c
+ * This function moved here from arch/powerpc/platforms/iseries/viopath.c 
  *
  * (C) Copyright 2000-2004 IBM Corporation
  *

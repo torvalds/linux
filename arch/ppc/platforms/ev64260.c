@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ev64260.c
- *
  * Board setup routines for the Marvell/Galileo EV-64260-BP Evaluation Board.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/mpc8560_ads.h
- *
  * MPC8540ADS board definitions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

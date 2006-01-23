@@ -958,7 +958,7 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 	 *
 	 * i386     no
 	 * x86_64   no
-	 * ppc64    yes (see arch/ppc64/kernel/misc.S)
+	 * ppc64    yes (see arch/powerpc/platforms/iseries/misc.S)
 	 *
 	 * This also happens with vm86 emulation in a non-nested manner
 	 * (entries without exits), so this case must be caught.

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/xilinx_pic.c
- *
  * Interrupt controller driver for Xilinx Virtex-II Pro.
  *
  * Author: MontaVista Software, Inc.

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc52xx_pci.c
- *
  * PCI code for the Freescale MPC52xx embedded CPU.
  *
  *

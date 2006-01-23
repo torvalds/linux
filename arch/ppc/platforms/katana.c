@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/katana.c
- *
  * Board setup routines for the Artesyn Katana cPCI boards.
  *
  * Author: Tim Montgomery <timm@artesyncp.com>

@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/chrp_time.c
- *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
  *
  * Adapted for PowerPC (PReP) by Gary Thomas

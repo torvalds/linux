@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/83xx/mpc834x_sys.h
- *
  * MPC834X SYS common board definitions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

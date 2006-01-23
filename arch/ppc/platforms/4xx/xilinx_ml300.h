@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/xilinx_ml300.h
- *
  * Include file that defines the Xilinx ML300 evaluation board
  *
  * Author: MontaVista Software, Inc.

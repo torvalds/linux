@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/apus_setup.c
- *
  *  Copyright (C) 1998, 1999  Jesper Skov
  *
  *  Basically what is needed to replace functionality found in

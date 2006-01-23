@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/pal4_pci.c
- *
  * PCI support for SBS Palomar IV
  *
  * Author: Dan Cox

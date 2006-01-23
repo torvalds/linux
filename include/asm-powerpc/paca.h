@@ -54,7 +54,7 @@ struct paca_struct {
 #endif /* CONFIG_PPC_ISERIES */
 
 	/*
-	 * MAGIC: the spinlock functions in arch/ppc64/lib/locks.c
+	 * MAGIC: the spinlock functions in arch/powerpc/lib/locks.c 
 	 * load lock_token and paca_index with a single lwz
 	 * instruction.  They must travel together and be properly
 	 * aligned.

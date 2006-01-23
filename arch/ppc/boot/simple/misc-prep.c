@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/misc-prep.c
- *
  * Maintainer: Tom Rini <trini@kernel.crashing.org>
  *
  * In the past: Gary Thomas, Cort Dougan <cort@cs.nmt.edu>

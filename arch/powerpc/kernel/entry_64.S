@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/entry.S
- *
  *  PowerPC version 
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *  Rewritten by Cort Dougan (cort@cs.nmt.edu) for PReP
@@ -374,7 +372,7 @@ _GLOBAL(ret_from_fork)
  * the fork code also.
  *
  * The code which creates the new task context is in 'copy_thread'
- * in arch/ppc64/kernel/process.c
+ * in arch/powerpc/kernel/process.c 
  */
 	.align	7
 _GLOBAL(_switch)

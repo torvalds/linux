@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/process.c
- *
  *  Derived from "arch/i386/kernel/process.c"
  *    Copyright (C) 1995  Linus Torvalds
  *

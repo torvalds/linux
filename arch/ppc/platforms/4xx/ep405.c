@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ep405.c
- *
  * Embedded Planet 405GP board
  * http://www.embeddedplanet.com
  *

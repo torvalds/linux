@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/xilinx_ml300.c
- *
  * Xilinx ML300 evaluation board initialization
  *
  * Author: MontaVista Software, Inc.

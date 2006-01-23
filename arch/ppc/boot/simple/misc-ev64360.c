@@ -1,5 +1,4 @@
 /*
- * arch/ppc/boot/simple/misc-ev64360.c
  * Copyright (C) 2005 Lee Nicks <allinux@gmail.com>
  *
  * Based on arch/ppc/boot/simple/misc-katana.c from:
