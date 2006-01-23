@@ -44,45 +44,6 @@
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 
-/* Mark Phalan <phalanm@o2.ie> */
-static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
-	[  0 ] = KEY_KP0,
-	[  1 ] = KEY_KP1,
-	[  2 ] = KEY_KP2,
-	[  3 ] = KEY_KP3,
-	[  4 ] = KEY_KP4,
-	[  5 ] = KEY_KP5,
-	[  6 ] = KEY_KP6,
-	[  7 ] = KEY_KP7,
-	[  8 ] = KEY_KP8,
-	[  9 ] = KEY_KP9,
-
-	[ 18 ] = KEY_POWER,
-	[ 16 ] = KEY_MUTE,
-	[ 31 ] = KEY_VOLUMEDOWN,
-	[ 27 ] = KEY_VOLUMEUP,
-	[ 26 ] = KEY_CHANNELUP,
-	[ 30 ] = KEY_CHANNELDOWN,
-	[ 14 ] = KEY_PAGEUP,
-	[ 29 ] = KEY_PAGEDOWN,
-	[ 19 ] = KEY_SOUND,
-
-	[ 24 ] = KEY_KPPLUSMINUS,	/* CH +/- */
-	[ 22 ] = KEY_SUBTITLE,		/* CC */
-	[ 13 ] = KEY_TEXT,		/* TTX */
-	[ 11 ] = KEY_TV,		/* AIR/CBL */
-	[ 17 ] = KEY_PC,		/* PC/TV */
-	[ 23 ] = KEY_OK,		/* CH RTN */
-	[ 25 ] = KEY_MODE, 		/* FUNC */
-	[ 12 ] = KEY_SEARCH, 		/* AUTOSCAN */
-
-	/* Not sure what to do with these ones! */
-	[ 15 ] = KEY_SELECT, 		/* SOURCE */
-	[ 10 ] = KEY_KPPLUS,		/* +100 */
-	[ 20 ] = KEY_KPEQUAL,		/* SYNC */
-	[ 28 ] = KEY_MEDIA,             /* PC/TV */
-};
-
 /* ----------------------------------------------------------------------- */
 /* insmod parameters                                                       */
 
@@ -342,7 +303,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
 		if (hauppauge == 1) {
-			ir_codes    = ir_codes_rc5_tv_grey;
+			ir_codes    = ir_codes_hauppauge_new;
 		} else {
 			ir_codes    = ir_codes_rc5_tv;
 		}
