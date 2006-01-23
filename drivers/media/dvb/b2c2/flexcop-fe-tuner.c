@@ -346,7 +346,7 @@ static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 static struct nxt200x_config samsung_tbmv_config = {
 	.demod_address    = 0x0a,
 	.pll_address      = 0xc2,
-	.pll_desc         = &dvb_pll_tbmv30111in,
+	.pll_desc         = &dvb_pll_samsung_tbmv,
 };
 
 static struct bcm3510_config air2pc_atsc_first_gen_config = {
