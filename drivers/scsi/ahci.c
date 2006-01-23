@@ -721,7 +721,7 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		ahci_restart_port(ap, status);
 
 		if (qc) {
-			qc->err_mask |= AC_ERR_OTHER;
+			qc->err_mask |= err_mask;
 			ata_qc_complete(qc);
 		}
 	}
