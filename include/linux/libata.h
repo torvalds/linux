@@ -500,6 +500,9 @@ extern int ata_scsi_device_suspend(struct scsi_device *);
 extern int ata_device_resume(struct ata_port *, struct ata_device *);
 extern int ata_device_suspend(struct ata_port *, struct ata_device *);
 extern int ata_ratelimit(void);
+extern unsigned int ata_busy_sleep(struct ata_port *ap,
+				   unsigned long timeout_pat,
+				   unsigned long timeout);
 
 /*
  * Default driver ops implementations

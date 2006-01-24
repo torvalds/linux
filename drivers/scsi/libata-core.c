@@ -61,9 +61,6 @@
 
 #include "libata.h"
 
-static unsigned int ata_busy_sleep (struct ata_port *ap,
-				    unsigned long tmout_pat,
-			    	    unsigned long tmout);
 static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
@@ -1960,9 +1957,8 @@ err_out:
  *
  */
 
-static unsigned int ata_busy_sleep (struct ata_port *ap,
-				    unsigned long tmout_pat,
-			    	    unsigned long tmout)
+unsigned int ata_busy_sleep (struct ata_port *ap,
+			     unsigned long tmout_pat, unsigned long tmout)
 {
 	unsigned long timer_start, timeout;
 	u8 status;
@@ -5167,6 +5163,7 @@ EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
+EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_error);
