@@ -8,7 +8,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2005 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2005-2006 Silicon Graphics, Inc.  All rights reserved.
  */
 
 
@@ -27,14 +27,11 @@ extern int sn_prom_feature_available(int id);
  * "false" for new features.
  *
  * Use:
- * 		if (sn_prom_feature_available(PRF_FEATURE_XXX))
+ * 		if (sn_prom_feature_available(PRF_XXX))
  * 			...
  */
 
-/*
- * Example: feature XXX
- */
-#define PRF_FEATURE_XXX		0
+#define PRF_PAL_CACHE_FLUSH_SAFE		0
 
 
 
