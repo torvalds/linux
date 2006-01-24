@@ -2876,10 +2876,10 @@ restart:
 		 */
 		TXN_UNLOCK();
 		tid = txBegin(ip->i_sb, COMMIT_INODE | COMMIT_FORCE);
-		down(&jfs_ip->commit_sem);
+		mutex_lock(&jfs_ip->commit_mutex);
 		txCommit(tid, 1, &ip, 0);
 		txEnd(tid);
-		up(&jfs_ip->commit_sem);
+		mutex_unlock(&jfs_ip->commit_mutex);
 		/*
 		 * Just to be safe.  I don't know how
 		 * long we can run without blocking
@@ -2952,7 +2952,7 @@ int jfs_sync(void *arg)
 				 * Inode is being freed
 				 */
 				list_del_init(&jfs_ip->anon_inode_list);
-			} else if (! down_trylock(&jfs_ip->commit_sem)) {
+			} else if (! !mutex_trylock(&jfs_ip->commit_mutex)) {
 				/*
 				 * inode will be removed from anonymous list
 				 * when it is committed
@@ -2961,7 +2961,7 @@ int jfs_sync(void *arg)
 				tid = txBegin(ip->i_sb, COMMIT_INODE);
 				rc = txCommit(tid, 1, &ip, 0);
 				txEnd(tid);
-				up(&jfs_ip->commit_sem);
+				mutex_unlock(&jfs_ip->commit_mutex);
 
 				iput(ip);
 				/*
@@ -2971,7 +2971,7 @@ int jfs_sync(void *arg)
 				cond_resched();
 				TXN_LOCK();
 			} else {
-				/* We can't get the commit semaphore.  It may
+				/* We can't get the commit mutex.  It may
 				 * be held by a thread waiting for tlock's
 				 * so let's not block here.  Save it to
 				 * put back on the anon_list.

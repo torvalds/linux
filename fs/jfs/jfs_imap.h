@@ -140,8 +140,8 @@ struct dinomap {
 struct inomap {
 	struct dinomap im_imap;		/* 4096: inode allocation control */
 	struct inode *im_ipimap;	/* 4: ptr to inode for imap   */
-	struct semaphore im_freelock;	/* 4: iag free list lock      */
-	struct semaphore im_aglock[MAXAG];	/* 512: per AG locks          */
+	struct mutex im_freelock;	/* 4: iag free list lock      */
+	struct mutex im_aglock[MAXAG];	/* 512: per AG locks          */
 	u32 *im_DBGdimap;
 	atomic_t im_numinos;	/* num of backed inodes */
 	atomic_t im_numfree;	/* num of free backed inodes */

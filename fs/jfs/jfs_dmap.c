@@ -64,9 +64,9 @@
  *	to the persistent bitmaps in dmaps) is guarded by (busy) buffers.
  */
 
-#define BMAP_LOCK_INIT(bmp)	init_MUTEX(&bmp->db_bmaplock)
-#define BMAP_LOCK(bmp)		down(&bmp->db_bmaplock)
-#define BMAP_UNLOCK(bmp)	up(&bmp->db_bmaplock)
+#define BMAP_LOCK_INIT(bmp)	mutex_init(&bmp->db_bmaplock)
+#define BMAP_LOCK(bmp)		mutex_lock(&bmp->db_bmaplock)
+#define BMAP_UNLOCK(bmp)	mutex_unlock(&bmp->db_bmaplock)
 
 /*
  * forward references

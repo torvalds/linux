@@ -19,6 +19,7 @@
 #ifndef _H_JFS_INCORE
 #define _H_JFS_INCORE
 
+#include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
@@ -62,12 +63,12 @@ struct jfs_inode_info {
 	 */
 	struct rw_semaphore rdwrlock;
 	/*
-	 * commit_sem serializes transaction processing on an inode.
+	 * commit_mutex serializes transaction processing on an inode.
 	 * It must be taken after beginning a transaction (txBegin), since
 	 * dirty inodes may be committed while a new transaction on the
 	 * inode is blocked in txBegin or TxBeginAnon
 	 */
-	struct semaphore commit_sem;
+	struct mutex commit_mutex;
 	/* xattr_sem allows us to access the xattrs without taking i_mutex */
 	struct rw_semaphore xattr_sem;
 	lid_t	xtlid;		/* lid of xtree lock on directory */

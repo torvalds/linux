@@ -66,14 +66,14 @@ static HLIST_HEAD(aggregate_hash);
  * imap locks
  */
 /* iag free list lock */
-#define IAGFREE_LOCK_INIT(imap)		init_MUTEX(&imap->im_freelock)
-#define IAGFREE_LOCK(imap)		down(&imap->im_freelock)
-#define IAGFREE_UNLOCK(imap)		up(&imap->im_freelock)
+#define IAGFREE_LOCK_INIT(imap)		mutex_init(&imap->im_freelock)
+#define IAGFREE_LOCK(imap)		mutex_lock(&imap->im_freelock)
+#define IAGFREE_UNLOCK(imap)		mutex_unlock(&imap->im_freelock)
 
 /* per ag iag list locks */
-#define AG_LOCK_INIT(imap,index)	init_MUTEX(&(imap->im_aglock[index]))
-#define AG_LOCK(imap,agno)		down(&imap->im_aglock[agno])
-#define AG_UNLOCK(imap,agno)		up(&imap->im_aglock[agno])
+#define AG_LOCK_INIT(imap,index)	mutex_init(&(imap->im_aglock[index]))
+#define AG_LOCK(imap,agno)		mutex_lock(&imap->im_aglock[agno])
+#define AG_UNLOCK(imap,agno)		mutex_unlock(&imap->im_aglock[agno])
 
 /*
  * forward references
@@ -1261,7 +1261,7 @@ int diFree(struct inode *ip)
 	 * to be freed by the transaction;  
 	 */
 	tid = txBegin(ipimap->i_sb, COMMIT_FORCE);
-	down(&JFS_IP(ipimap)->commit_sem);
+	mutex_lock(&JFS_IP(ipimap)->commit_mutex);
 
 	/* acquire tlock of the iag page of the freed ixad 
 	 * to force the page NOHOMEOK (even though no data is
@@ -1294,7 +1294,7 @@ int diFree(struct inode *ip)
 	rc = txCommit(tid, 1, &iplist[0], COMMIT_FORCE);
 
 	txEnd(tid);
-	up(&JFS_IP(ipimap)->commit_sem);
+	mutex_unlock(&JFS_IP(ipimap)->commit_mutex);
 
 	/* unlock the AG inode map information */
 	AG_UNLOCK(imap, agno);
@@ -2554,13 +2554,13 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 		 * addressing structure pointing to the new iag page;
 		 */
 		tid = txBegin(sb, COMMIT_FORCE);
-		down(&JFS_IP(ipimap)->commit_sem);
+		mutex_lock(&JFS_IP(ipimap)->commit_mutex);
 
 		/* update the inode map addressing structure to point to it */
 		if ((rc =
 		     xtInsert(tid, ipimap, 0, blkno, xlen, &xaddr, 0))) {
 			txEnd(tid);
-			up(&JFS_IP(ipimap)->commit_sem);
+			mutex_unlock(&JFS_IP(ipimap)->commit_mutex);
 			/* Free the blocks allocated for the iag since it was
 			 * not successfully added to the inode map
 			 */
@@ -2626,7 +2626,7 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 		rc = txCommit(tid, 1, &iplist[0], COMMIT_FORCE);
 
 		txEnd(tid);
-		up(&JFS_IP(ipimap)->commit_sem);
+		mutex_unlock(&JFS_IP(ipimap)->commit_mutex);
 
 		duplicateIXtree(sb, blkno, xlen, &xaddr);
 

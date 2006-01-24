@@ -87,9 +87,9 @@ DECLARE_WAIT_QUEUE_HEAD(jfs_IO_thread_wait);
 /*
  *	log read/write serialization (per log)
  */
-#define LOG_LOCK_INIT(log)	init_MUTEX(&(log)->loglock)
-#define LOG_LOCK(log)		down(&((log)->loglock))
-#define LOG_UNLOCK(log)		up(&((log)->loglock))
+#define LOG_LOCK_INIT(log)	mutex_init(&(log)->loglock)
+#define LOG_LOCK(log)		mutex_lock(&((log)->loglock))
+#define LOG_UNLOCK(log)		mutex_unlock(&((log)->loglock))
 
 
 /*
