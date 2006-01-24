@@ -126,6 +126,7 @@ Code	Seq#	Include File		Comments
 'e'	00-1F	linux/video_encoder.h	conflict!
 'e'	00-1F	net/irda/irtty.h	conflict!
 'f'	00-1F	linux/ext2_fs.h
+'g'	00-1F	linux/gfs2_ioctl.h
 'h'	00-7F				Charon filesystem
 					<mailto:zapman@interlan.net>
 'i'	00-3F	linux/i2o.h

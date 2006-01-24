@@ -10,12 +10,8 @@
 #ifndef __GFS2_IOCTL_DOT_H__
 #define __GFS2_IOCTL_DOT_H__
 
-#define _GFS2C_(x)               (('G' << 16) | ('2' << 8) | (x))
-
-/* Ioctls implemented */
-
-#define GFS2_IOCTL_SETFLAGS      _GFS2C_(3)
-#define GFS2_IOCTL_GETFLAGS      _GFS2C_(4)
+#define GFS2_IOCTL_SETFLAGS	_IOW('g', 3, long)
+#define GFS2_IOCTL_GETFLAGS	_IOR('g', 4, long)
 
 #endif /* ___GFS2_IOCTL_DOT_H__ */
 
