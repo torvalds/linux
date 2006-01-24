@@ -78,8 +78,6 @@ struct usb_hcd {	/* usb_bus.hcpriv points to this */
 #define HCD_FLAG_HW_ACCESSIBLE	0x00000001
 #define HCD_FLAG_SAW_IRQ	0x00000002
 
-	unsigned		can_wakeup:1;	/* hw supports wakeup? */
-	unsigned		remote_wakeup:1;/* sw should use wakeup? */
 	unsigned		rh_registered:1;/* is root hub registered? */
 
 	/* The next flag is a stopgap, to be removed when all the HCDs

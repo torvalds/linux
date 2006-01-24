@@ -1006,12 +1006,18 @@ void usb_set_device_state(struct usb_device *udev,
 		;	/* do nothing */
 	else if (new_state != USB_STATE_NOTATTACHED) {
 		udev->state = new_state;
-		if (new_state == USB_STATE_CONFIGURED)
-			device_init_wakeup(&udev->dev,
-				(udev->actconfig->desc.bmAttributes
-				 & USB_CONFIG_ATT_WAKEUP));
-		else if (new_state != USB_STATE_SUSPENDED)
-			device_init_wakeup(&udev->dev, 0);
+
+		/* root hub wakeup capabilities are managed out-of-band
+		 * and may involve silicon errata ... ignore them here.
+		 */
+		if (udev->parent) {
+			if (new_state == USB_STATE_CONFIGURED)
+				device_init_wakeup(&udev->dev,
+					(udev->actconfig->desc.bmAttributes
+					 & USB_CONFIG_ATT_WAKEUP));
+			else if (new_state != USB_STATE_SUSPENDED)
+				device_init_wakeup(&udev->dev, 0);
+		}
 	} else
 		recursively_mark_NOTATTACHED(udev);
 	spin_unlock_irqrestore(&device_state_lock, flags);
@@ -1877,9 +1883,9 @@ int usb_resume_device(struct usb_device *udev)
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
 
-#ifdef	CONFIG_USB_SUSPEND
 	/* selective resume of one downstream hub-to-device port */
 	if (udev->parent) {
+#ifdef	CONFIG_USB_SUSPEND
 		if (udev->state == USB_STATE_SUSPENDED) {
 			// NOTE swsusp may bork us, device state being wrong...
 			// NOTE this fails if parent is also suspended...
@@ -1887,8 +1893,8 @@ int usb_resume_device(struct usb_device *udev)
 					udev->portnum, udev);
 		} else
 			status = 0;
-	} else
 #endif
+	} else
 		status = finish_device_resume(udev);
 	if (status < 0)
 		dev_dbg(&udev->dev, "can't resume, status %d\n",

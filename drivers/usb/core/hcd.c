@@ -367,21 +367,39 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 
 	/* DEVICE REQUESTS */
 
+	/* The root hub's remote wakeup enable bit is implemented using
+	 * driver model wakeup flags.  If this system supports wakeup
+	 * through USB, userspace may change the default "allow wakeup"
+	 * policy through sysfs or these calls.
+	 *
+	 * Most root hubs support wakeup from downstream devices, for
+	 * runtime power management (disabling USB clocks and reducing
+	 * VBUS power usage).  However, not all of them do so; silicon,
+	 * board, and BIOS bugs here are not uncommon, so these can't
+	 * be treated quite like external hubs.
+	 *
+	 * Likewise, not all root hubs will pass wakeup events upstream,
+	 * to wake up the whole system.  So don't assume root hub and
+	 * controller capabilities are identical.
+	 */
+
 	case DeviceRequest | USB_REQ_GET_STATUS:
-		tbuf [0] = (hcd->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP)
+		tbuf [0] = (device_may_wakeup(&hcd->self.root_hub->dev)
+					<< USB_DEVICE_REMOTE_WAKEUP)
 				| (1 << USB_DEVICE_SELF_POWERED);
 		tbuf [1] = 0;
 		len = 2;
 		break;
 	case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
 		if (wValue == USB_DEVICE_REMOTE_WAKEUP)
-			hcd->remote_wakeup = 0;
+			device_set_wakeup_enable(&hcd->self.root_hub->dev, 0);
 		else
 			goto error;
 		break;
 	case DeviceOutRequest | USB_REQ_SET_FEATURE:
-		if (hcd->can_wakeup && wValue == USB_DEVICE_REMOTE_WAKEUP)
-			hcd->remote_wakeup = 1;
+		if (device_can_wakeup(&hcd->self.root_hub->dev)
+				&& wValue == USB_DEVICE_REMOTE_WAKEUP)
+			device_set_wakeup_enable(&hcd->self.root_hub->dev, 1);
 		else
 			goto error;
 		break;
@@ -410,7 +428,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				bufp = fs_rh_config_descriptor;
 				len = sizeof fs_rh_config_descriptor;
 			}
-			if (hcd->can_wakeup)
+			if (device_can_wakeup(&hcd->self.root_hub->dev))
 				patch_wakeup = 1;
 			break;
 		case USB_DT_STRING << 8:
@@ -1804,16 +1822,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	device_init_wakeup(&rhdev->dev,
 			device_can_wakeup(hcd->self.controller));
 
-	// ... all these hcd->*_wakeup flags will vanish
-	hcd->can_wakeup = device_can_wakeup(hcd->self.controller);
-
-	/* hcd->driver->reset() reported can_wakeup, probably with
-	 * assistance from board's boot firmware.
-	 * NOTE:  normal devices won't enable wakeup by default.
-	 */
-	if (hcd->can_wakeup)
+	/* NOTE: root hub and controller capabilities may not be the same */
+	if (device_can_wakeup(hcd->self.controller)
+			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
-	hcd->remote_wakeup = hcd->can_wakeup;
 
 	/* enable irqs just before we start the controller */
 	if (hcd->driver->irq) {
