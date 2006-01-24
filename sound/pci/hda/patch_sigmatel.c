@@ -691,7 +691,13 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec, const struct aut
 					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
 	}
 
-	spec->multiout.num_dacs = cfg->line_outs;
+	if (cfg->line_outs)
+		spec->multiout.num_dacs = cfg->line_outs;
+	else if (cfg->hp_pin) {
+		spec->multiout.dac_nids[0] = snd_hda_codec_read(codec, cfg->hp_pin, 0,
+					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
+		spec->multiout.num_dacs = 1;
+	}
 
 	return 0;
 }
