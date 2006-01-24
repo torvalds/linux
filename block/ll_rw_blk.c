@@ -332,6 +332,7 @@ int blk_queue_ordered(request_queue_t *q, unsigned ordered,
 		return -EINVAL;
 	}
 
+	q->ordered = ordered;
 	q->next_ordered = ordered;
 	q->prepare_flush_fn = prepare_flush_fn;
 
