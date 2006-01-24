@@ -2201,6 +2201,17 @@ static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 #define SEARCH_SNAPSHOT 1
 
 #define SNAPSHOT_ADDR(ofs) (priv->snapshot[((ofs) >> 12) & 0xff] + ((ofs) & 0xfff))
+static void ipw2100_snapshot_free(struct ipw2100_priv *priv)
+{
+	int i;
+	if (!priv->snapshot[0])
+		return;
+	for (i = 0; i < 0x30; i++)
+		kfree(priv->snapshot[i]);
+	priv->snapshot[0] = NULL;
+}
+
+#ifdef CONFIG_IPW2100_DEBUG_C3
 static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 {
 	int i;
@@ -2219,16 +2230,6 @@ static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 	}
 
 	return 1;
-}
-
-static void ipw2100_snapshot_free(struct ipw2100_priv *priv)
-{
-	int i;
-	if (!priv->snapshot[0])
-		return;
-	for (i = 0; i < 0x30; i++)
-		kfree(priv->snapshot[i]);
-	priv->snapshot[0] = NULL;
 }
 
 static u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
@@ -2269,6 +2270,7 @@ static u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
 
 	return ret;
 }
+#endif
 
 /*
  *
