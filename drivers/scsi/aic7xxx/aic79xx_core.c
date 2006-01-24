@@ -3332,6 +3332,15 @@ ahd_update_neg_table(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		con_opts |= WIDEXFER;
 
 	/*
+	 * Slow down our CRC interval to be
+	 * compatible with packetized U320 devices
+	 * that can't handle a CRC at full speed
+	 */
+	if (ahd->features & AHD_AIC79XXB_SLOWCRC) {
+		con_opts |= ENSLOWCRC;
+	}
+
+	/*
 	 * During packetized transfers, the target will
 	 * give us the oportunity to send command packets
 	 * without us asserting attention.
@@ -6740,6 +6749,18 @@ ahd_chip_init(struct ahd_softc *ahd)
 
 	ahd_loadseq(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
+
+	if (ahd->features & AHD_AIC79XXB_SLOWCRC) {
+		u_int negodat3 = ahd_inb(ahd, NEGCONOPTS);
+
+		negodat3 |= ENSLOWCRC;
+		ahd_outb(ahd, NEGCONOPTS, negodat3);
+		negodat3 = ahd_inb(ahd, NEGCONOPTS);
+		if (!(negodat3 & ENSLOWCRC))
+			printf("aic79xx: failed to set the SLOWCRC bit\n");
+		else
+			printf("aic79xx: SLOWCRC bit set\n");
+	}
 }
 
 /*
