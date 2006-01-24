@@ -55,6 +55,7 @@ static int associate = 1;
 static int auto_create = 1;
 static int led = 0;
 static int disable = 0;
+static int bt_coexist = 0;
 static int hwcrypto = 1;
 static const char ipw_modes[] = {
 	'a', 'b', 'g', '?'
@@ -9656,7 +9657,7 @@ static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev)
 static  void init_sys_config(struct ipw_sys_config *sys_config)
 {
 	memset(sys_config, 0, sizeof(struct ipw_sys_config));
-	sys_config->bt_coexistence = 1;	/* We may need to look into prvStaBtConfig */
+	sys_config->bt_coexistence = 0;
 	sys_config->answer_broadcast_ssid_probe = 0;
 	sys_config->accept_all_data_frames = 0;
 	sys_config->accept_non_directed_frames = 1;
@@ -10362,6 +10363,20 @@ static int ipw_config(struct ipw_priv *priv)
 
 	/* set basic system config settings */
 	init_sys_config(&priv->sys_config);
+
+	/* Support Bluetooth if we have BT h/w on board, and user wants to.
+	 * Does not support BT priority yet (don't abort or defer our Tx) */
+	if (bt_coexist) {
+		unsigned char bt_caps = priv->eeprom[EEPROM_SKU_CAPABILITY];	
+
+		if (bt_caps & EEPROM_SKU_CAP_BT_CHANNEL_SIG)
+			priv->sys_config.bt_coexistence
+				|= CFG_BT_COEXISTENCE_SIGNAL_CHNL;
+		if (bt_caps & EEPROM_SKU_CAP_BT_OOB)
+			priv->sys_config.bt_coexistence
+				|= CFG_BT_COEXISTENCE_OOB;
+	}
+
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC)
 		priv->sys_config.answer_broadcast_ssid_probe = 1;
 	else
@@ -11350,6 +11365,9 @@ MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS,2=Monitor)");
 module_param(mode, int, 0444);
 MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS)");
 #endif
+
+module_param(bt_coexist, int, 0444);
+MODULE_PARM_DESC(bt_coexist, "enable bluetooth coexistence (default off)");
 
 module_param(hwcrypto, int, 0444);
 MODULE_PARM_DESC(hwcrypto, "enable hardware crypto (default on)");

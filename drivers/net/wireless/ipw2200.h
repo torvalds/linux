@@ -1566,12 +1566,17 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_BSS_CHANNELS_BG  (GET_EEPROM_ADDR(0x2c,LSB))	/* 2 bytes  */
 #define EEPROM_HW_VERSION       (GET_EEPROM_ADDR(0x72,LSB))	/* 2 bytes  */
 
-/* NIC type as found in the one byte EEPROM_NIC_TYPE  offset*/
+/* NIC type as found in the one byte EEPROM_NIC_TYPE offset */
 #define EEPROM_NIC_TYPE_0 0
 #define EEPROM_NIC_TYPE_1 1
 #define EEPROM_NIC_TYPE_2 2
 #define EEPROM_NIC_TYPE_3 3
 #define EEPROM_NIC_TYPE_4 4
+
+/* Bluetooth Coexistence capabilities as found in EEPROM_SKU_CAPABILITY */
+#define EEPROM_SKU_CAP_BT_CHANNEL_SIG  0x01 /* we can tell BT our channel # */
+#define EEPROM_SKU_CAP_BT_PRIORITY     0x02 /* BT can take priority over us */
+#define EEPROM_SKU_CAP_BT_OOB          0x04 /* we can signal BT out-of-band */
 
 #define FW_MEM_REG_LOWER_BOUND          0x00300000
 #define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)
@@ -1869,21 +1874,23 @@ struct ipw_cmd_log {
 	struct host_cmd cmd;
 };
 
-#define CFG_BT_COEXISTENCE_MIN                  0x00
-#define CFG_BT_COEXISTENCE_DEFER                0x02
-#define CFG_BT_COEXISTENCE_KILL                 0x04
-#define CFG_BT_COEXISTENCE_WME_OVER_BT          0x08
-#define CFG_BT_COEXISTENCE_OOB                  0x10
-#define CFG_BT_COEXISTENCE_MAX                  0xFF
-#define CFG_BT_COEXISTENCE_DEF                  0x80	/* read Bt from EEPROM */
+/* SysConfig command parameters ... */
+/* bt_coexistence param */
+#define CFG_BT_COEXISTENCE_SIGNAL_CHNL  0x01 /* tell BT our chnl # */
+#define CFG_BT_COEXISTENCE_DEFER        0x02 /* defer our Tx if BT traffic */
+#define CFG_BT_COEXISTENCE_KILL         0x04 /* kill our Tx if BT traffic */
+#define CFG_BT_COEXISTENCE_WME_OVER_BT  0x08 /* multimedia extensions */
+#define CFG_BT_COEXISTENCE_OOB          0x10 /* signal BT via out-of-band */
 
-#define CFG_CTS_TO_ITSELF_ENABLED_MIN	0x0
-#define CFG_CTS_TO_ITSELF_ENABLED_MAX	0x1
+/* clear-to-send to self param */
+#define CFG_CTS_TO_ITSELF_ENABLED_MIN	0x00
+#define CFG_CTS_TO_ITSELF_ENABLED_MAX	0x01
 #define CFG_CTS_TO_ITSELF_ENABLED_DEF	CFG_CTS_TO_ITSELF_ENABLED_MIN
 
-#define CFG_SYS_ANTENNA_BOTH                      0x000
-#define CFG_SYS_ANTENNA_A                         0x001
-#define CFG_SYS_ANTENNA_B                         0x003
+/* Antenna diversity param (h/w can select best antenna, based on signal) */
+#define CFG_SYS_ANTENNA_BOTH            0x00 /* NIC selects best antenna */
+#define CFG_SYS_ANTENNA_A               0x01 /* force antenna A */
+#define CFG_SYS_ANTENNA_B               0x03 /* force antenna B */
 
 /*
  * The definitions below were lifted off the ipw2100 driver, which only
