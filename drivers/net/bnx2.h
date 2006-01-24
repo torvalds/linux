@@ -3956,6 +3956,7 @@ struct bnx2 {
 #define NO_WOL_FLAG			8
 #define USING_DAC_FLAG			0x10
 #define USING_MSI_FLAG			0x20
+#define ASF_ENABLE_FLAG			0x40
 
 	u32			phy_flags;
 #define PHY_SERDES_FLAG			1

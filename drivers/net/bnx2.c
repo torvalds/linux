@@ -1916,11 +1916,11 @@ bnx2_set_rx_mode(struct net_device *dev)
 				  BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG);
 	sort_mode = 1 | BNX2_RPM_SORT_USER0_BC_EN;
 #ifdef BCM_VLAN
-	if (!bp->vlgrp) {
+	if (!bp->vlgrp && !(bp->flags & ASF_ENABLE_FLAG))
 		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
-	}
 #else
-	rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
+	if (!(bp->flags & ASF_ENABLE_FLAG))
+		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
 #endif
 	if (dev->flags & IFF_PROMISC) {
 		/* Promiscuous mode. */
@@ -3217,6 +3217,10 @@ bnx2_init_chip(struct bnx2 *bp)
 	REG_WR(bp, BNX2_HC_COMMAND, BNX2_HC_COMMAND_CLR_STAT_NOW);
 
 	REG_WR(bp, BNX2_HC_ATTN_BITS_ENABLE, STATUS_ATTN_BITS_LINK_STATE);
+
+	if (REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_FEATURE) &
+	    BNX2_PORT_FEATURE_ASF_ENABLED)
+		bp->flags |= ASF_ENABLE_FLAG;
 
 	/* Initialize the receive filter. */
 	bnx2_set_rx_mode(bp->dev);
