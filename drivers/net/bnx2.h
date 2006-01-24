@@ -4072,6 +4072,7 @@ struct bnx2 {
 	struct net_device_stats net_stats;
 
 	struct flash_spec	*flash_info;
+	u32			flash_size;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
@@ -4272,6 +4273,9 @@ struct fw_info {
 #define BNX2_SHARED_HW_CFG_LED_MODE_MAC		 0
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY1	 0x100
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY2	 0x200
+
+#define BNX2_SHARED_HW_CFG_CONFIG2		0x00000040
+#define BNX2_SHARED_HW_CFG2_NVM_SIZE_MASK	 0x00fff000
 
 #define BNX2_DEV_INFO_BC_REV			0x0000004c
 

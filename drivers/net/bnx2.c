@@ -2724,8 +2724,15 @@ bnx2_init_nvram(struct bnx2 *bp)
 	if (j == entry_count) {
 		bp->flash_info = NULL;
 		printk(KERN_ALERT PFX "Unknown flash/EEPROM type.\n");
-		rc = -ENODEV;
+		return -ENODEV;
 	}
+
+	val = REG_RD_IND(bp, bp->shmem_base + BNX2_SHARED_HW_CFG_CONFIG2);
+	val &= BNX2_SHARED_HW_CFG2_NVM_SIZE_MASK;
+	if (val)
+		bp->flash_size = val;
+	else
+		bp->flash_size = bp->flash_info->total_size;
 
 	return rc;
 }
@@ -4809,10 +4816,10 @@ bnx2_get_eeprom_len(struct net_device *dev)
 {
   	struct bnx2 *bp = dev->priv;
 
-	if (bp->flash_info == 0)
+	if (bp->flash_info == NULL)
 		return 0;
 
-	return (int) bp->flash_info->total_size;
+	return (int) bp->flash_size;
 }
 
 static int
