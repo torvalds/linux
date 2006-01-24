@@ -56,7 +56,7 @@ static int auto_create = 1;
 static int led = 0;
 static int disable = 0;
 static int bt_coexist = 0;
-static int hwcrypto = 1;
+static int hwcrypto = 0;
 static int roaming = 1;
 static const char ipw_modes[] = {
 	'a', 'b', 'g', '?'
@@ -11304,7 +11304,7 @@ module_param(bt_coexist, int, 0444);
 MODULE_PARM_DESC(bt_coexist, "enable bluetooth coexistence (default off)");
 
 module_param(hwcrypto, int, 0444);
-MODULE_PARM_DESC(hwcrypto, "enable hardware crypto (default on)");
+MODULE_PARM_DESC(hwcrypto, "enable hardware crypto (default off)");
 
 module_param(cmdlog, int, 0444);
 MODULE_PARM_DESC(cmdlog,
