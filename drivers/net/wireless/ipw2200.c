@@ -57,6 +57,7 @@ static int led = 0;
 static int disable = 0;
 static int bt_coexist = 0;
 static int hwcrypto = 1;
+static int roaming = 1;
 static const char ipw_modes[] = {
 	'a', 'b', 'g', '?'
 };
@@ -4187,8 +4188,9 @@ static void ipw_handle_missed_beacon(struct ipw_priv *priv,
 		return;
 	}
 
-	if (missed_count > priv->roaming_threshold &&
-	    missed_count <= priv->disassociate_threshold) {
+	if (roaming &&
+	    (missed_count > priv->roaming_threshold &&
+	     missed_count <= priv->disassociate_threshold)) {
 		/* If we are not already roaming, set the ROAM
 		 * bit in the status and kick off a scan.
 		 * This can happen several times before we reach
@@ -4216,7 +4218,6 @@ static void ipw_handle_missed_beacon(struct ipw_priv *priv,
 	}
 
 	IPW_DEBUG_NOTIF("Missed beacon: %d\n", missed_count);
-
 }
 
 /**
@@ -11377,6 +11378,9 @@ MODULE_PARM_DESC(hwcrypto, "enable hardware crypto (default on)");
 module_param(cmdlog, int, 0444);
 MODULE_PARM_DESC(cmdlog,
 		 "allocate a ring buffer for logging firmware commands");
+
+module_param(roaming, int, 0444);
+MODULE_PARM_DESC(roaming, "enable roaming support (default on)");
 
 module_exit(ipw_exit);
 module_init(ipw_init);
