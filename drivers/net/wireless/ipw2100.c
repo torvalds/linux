@@ -1672,6 +1672,18 @@ static int ipw2100_start_scan(struct ipw2100_priv *priv)
 	return err;
 }
 
+static const struct ieee80211_geo ipw_geos[] = {
+	{			/* Restricted */
+	 "---",
+	 .bg_channels = 14,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}, {2467, 12},
+		{2472, 13}, {2484, 14}},
+	 },
+};
+
 static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 {
 	unsigned long flags;
@@ -1726,6 +1738,13 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 		rc = 1;
 		goto exit;
 	}
+
+	/* Initialize the geo */
+	if (ieee80211_set_geo(priv->ieee, &ipw_geos[0])) {
+		printk(KERN_WARNING DRV_NAME "Could not set geo\n");
+		return 0;
+	}
+	priv->ieee->freq_band = IEEE80211_24GHZ_BAND;
 
 	lock = LOCK_NONE;
 	if (ipw2100_set_ordinal(priv, IPW_ORD_PERS_DB_LOCK, &lock, &ord_len)) {
