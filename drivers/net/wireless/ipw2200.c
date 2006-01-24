@@ -2112,8 +2112,8 @@ static void ipw_scan_check(void *data)
 	struct ipw_priv *priv = data;
 	if (priv->status & (STATUS_SCANNING | STATUS_SCAN_ABORTING)) {
 		IPW_DEBUG_SCAN("Scan completion watchdog resetting "
-			       "adapter (%dms).\n",
-			       IPW_SCAN_CHECK_WATCHDOG / 100);
+			       "adapter after (%dms).\n",
+			       jiffies_to_msecs(IPW_SCAN_CHECK_WATCHDOG));
 		queue_work(priv->workqueue, &priv->adapter_restart);
 	}
 }
@@ -2518,7 +2518,7 @@ static void ipw_eeprom_init_sram(struct ipw_priv *priv)
 	/*
 	   If the data looks correct, then copy it to our private
 	   copy.  Otherwise let the firmware know to perform the operation
-	   on it's own
+	   on its own.
 	 */
 	if ((priv->eeprom + EEPROM_VERSION) != 0) {
 		IPW_DEBUG_INFO("Writing EEPROM data into SRAM\n");
@@ -2836,6 +2836,7 @@ static inline int ipw_alive(struct ipw_priv *priv)
 	return ipw_read32(priv, 0x90) == 0xd55555d5;
 }
 
+/* timeout in msec, attempted in 10-msec quanta */
 static int ipw_poll_bit(struct ipw_priv *priv, u32 addr, u32 mask,
 			       int timeout)
 {
@@ -2864,10 +2865,11 @@ static int ipw_stop_master(struct ipw_priv *priv)
 	/* stop master. typical delay - 0 */
 	ipw_set_bit(priv, IPW_RESET_REG, IPW_RESET_REG_STOP_MASTER);
 
+	/* timeout is in msec, polled in 10-msec quanta */
 	rc = ipw_poll_bit(priv, IPW_RESET_REG,
 			  IPW_RESET_REG_MASTER_DISABLED, 100);
 	if (rc < 0) {
-		IPW_ERROR("stop master failed in 10ms\n");
+		IPW_ERROR("wait for stop master failed after 100ms\n");
 		return -1;
 	}
 
@@ -3100,7 +3102,7 @@ static int ipw_stop_nic(struct ipw_priv *priv)
 	rc = ipw_poll_bit(priv, IPW_RESET_REG,
 			  IPW_RESET_REG_MASTER_DISABLED, 500);
 	if (rc < 0) {
-		IPW_ERROR("wait for reg master disabled failed\n");
+		IPW_ERROR("wait for reg master disabled failed after 500ms\n");
 		return rc;
 	}
 
@@ -3362,7 +3364,7 @@ static int ipw_load(struct ipw_priv *priv)
 	/* kick start the device */
 	ipw_start_nic(priv);
 
-	/* wait for the device to finish it's initial startup sequence */
+	/* wait for the device to finish its initial startup sequence */
 	rc = ipw_poll_bit(priv, IPW_INTA_RW,
 			  IPW_INTA_BIT_FW_INITIALIZATION_DONE, 500);
 	if (rc < 0) {
@@ -3426,7 +3428,7 @@ static int ipw_load(struct ipw_priv *priv)
 	rc = ipw_poll_bit(priv, IPW_INTA_RW,
 			  IPW_INTA_BIT_FW_INITIALIZATION_DONE, 500);
 	if (rc < 0) {
-		IPW_ERROR("device failed to start after 500ms\n");
+		IPW_ERROR("device failed to start within 500ms\n");
 		goto error;
 	}
 	IPW_DEBUG_INFO("device response after %dms\n", rc);
@@ -4981,7 +4983,7 @@ static void ipw_bg_rx_queue_replenish(void *data)
 }
 
 /* Assumes that the skb field of the buffers in 'pool' is kept accurate.
- * If an SKB has been detached, the POOL needs to have it's SKB set to NULL
+ * If an SKB has been detached, the POOL needs to have its SKB set to NULL
  * This free routine walks the list of POOL entries and if SKB is set to
  * non NULL it is unmapped and freed
  */
@@ -5321,10 +5323,10 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 	if (priv->ieee->scan_age != 0 &&
 	    time_after(jiffies, network->last_scanned + priv->ieee->scan_age)) {
 		IPW_DEBUG_MERGE("Network '%s (" MAC_FMT ")' excluded "
-				"because of age: %lums.\n",
+				"because of age: %ums.\n",
 				escape_essid(network->ssid, network->ssid_len),
 				MAC_ARG(network->bssid),
-				1000 * (jiffies - network->last_scanned) / HZ);
+				jiffies_to_msecs(jiffies - network->last_scanned));
 		return 0;
 	}
 
@@ -5531,11 +5533,11 @@ static int ipw_best_network(struct ipw_priv *priv,
 	if (network->last_associate &&
 	    time_after(network->last_associate + (HZ * 3UL), jiffies)) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
-				"because of storming (%lus since last "
+				"because of storming (%ums since last "
 				"assoc attempt).\n",
 				escape_essid(network->ssid, network->ssid_len),
 				MAC_ARG(network->bssid),
-				(jiffies - network->last_associate) / HZ);
+				jiffies_to_msecs(jiffies - network->last_associate));
 		return 0;
 	}
 
@@ -5543,10 +5545,10 @@ static int ipw_best_network(struct ipw_priv *priv,
 	if (priv->ieee->scan_age != 0 &&
 	    time_after(jiffies, network->last_scanned + priv->ieee->scan_age)) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
-				"because of age: %lums.\n",
+				"because of age: %ums.\n",
 				escape_essid(network->ssid, network->ssid_len),
 				MAC_ARG(network->bssid),
-				1000 * (jiffies - network->last_scanned) / HZ);
+				jiffies_to_msecs(jiffies - network->last_scanned));
 		return 0;
 	}
 
