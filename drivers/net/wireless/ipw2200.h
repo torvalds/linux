@@ -33,6 +33,7 @@
 #include <linux/moduleparam.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -1121,7 +1122,7 @@ struct ipw_priv {
 	struct ieee80211_device *ieee;
 
 	spinlock_t lock;
-	struct semaphore sem;
+	struct mutex mutex;
 
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
