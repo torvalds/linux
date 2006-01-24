@@ -1,6 +1,6 @@
 /* bnx2.c: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004, 2005 Broadcom Corporation
+ * Copyright (c) 2004, 2005, 2006 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.30"
-#define DRV_MODULE_RELDATE	"October 11, 2005"
+#define DRV_MODULE_VERSION	"1.4.31"
+#define DRV_MODULE_RELDATE	"January 19, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -4790,9 +4790,8 @@ bnx2_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	info->fw_version[0] = ((bp->fw_ver & 0xff000000) >> 24) + '0';
 	info->fw_version[2] = ((bp->fw_ver & 0xff0000) >> 16) + '0';
 	info->fw_version[4] = ((bp->fw_ver & 0xff00) >> 8) + '0';
-	info->fw_version[6] = (bp->fw_ver & 0xff) + '0';
-	info->fw_version[1] = info->fw_version[3] = info->fw_version[5] = '.';
-	info->fw_version[7] = 0;
+	info->fw_version[1] = info->fw_version[3] = '.';
+	info->fw_version[5] = 0;
 }
 
 static void
