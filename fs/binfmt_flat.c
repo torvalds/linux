@@ -77,8 +77,6 @@ static int load_flat_shared_library(int id, struct lib_info *p);
 static int load_flat_binary(struct linux_binprm *, struct pt_regs * regs);
 static int flat_core_dump(long signr, struct pt_regs * regs, struct file *file);
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 static struct linux_binfmt flat_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_flat_binary,
@@ -444,19 +442,22 @@ static int load_flat_file(struct linux_binprm * bprm,
 	flags     = ntohl(hdr->flags);
 	rev       = ntohl(hdr->rev);
 
-	if (flags & FLAT_FLAG_KTRACE)
-		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
-
-	if (strncmp(hdr->magic, "bFLT", 4) ||
-			(rev != FLAT_VERSION && rev != OLD_FLAT_VERSION)) {
+	if (strncmp(hdr->magic, "bFLT", 4)) {
 		/*
 		 * because a lot of people do not manage to produce good
 		 * flat binaries,  we leave this printk to help them realise
 		 * the problem.  We only print the error if its not a script file
 		 */
 		if (strncmp(hdr->magic, "#!", 2))
-			printk("BINFMT_FLAT: bad magic/rev (0x%x, need 0x%x)\n",
-					rev, (int) FLAT_VERSION);
+			printk("BINFMT_FLAT: bad header magic\n");
+		return -ENOEXEC;
+	}
+
+	if (flags & FLAT_FLAG_KTRACE)
+		printk("BINFMT_FLAT: Loading file: %s\n", bprm->filename);
+
+	if (rev != FLAT_VERSION && rev != OLD_FLAT_VERSION) {
+		printk("BINFMT_FLAT: bad flat file version 0x%x (supported 0x%x and 0x%x)\n", rev, FLAT_VERSION, OLD_FLAT_VERSION);
 		return -ENOEXEC;
 	}
 	

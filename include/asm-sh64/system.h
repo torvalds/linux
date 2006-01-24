@@ -132,7 +132,7 @@ static __inline__ void local_irq_disable(void)
 	(flags != 0);			\
 })
 
-extern __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
+static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 {
 	unsigned long flags, retval;
 
@@ -143,7 +143,7 @@ extern __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
 	return retval;
 }
 
-extern __inline__ unsigned long xchg_u8(volatile unsigned char * m, unsigned long val)
+static inline unsigned long xchg_u8(volatile unsigned char * m, unsigned long val)
 {
 	unsigned long flags, retval;
 

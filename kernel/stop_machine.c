@@ -87,13 +87,9 @@ static int stop_machine(void)
 {
 	int i, ret = 0;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
-	mm_segment_t old_fs = get_fs();
 
 	/* One high-prio thread per cpu.  We'll do this one. */
-	set_fs(KERNEL_DS);
-	sys_sched_setscheduler(current->pid, SCHED_FIFO,
-				(struct sched_param __user *)&param);
-	set_fs(old_fs);
+	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	atomic_set(&stopmachine_thread_ack, 0);
 	stopmachine_num_threads = 0;
@@ -119,13 +115,12 @@ static int stop_machine(void)
 		return ret;
 	}
 
-	/* Don't schedule us away at this point, please. */
-	local_irq_disable();
-
 	/* Now they are all started, make them hold the CPUs, ready. */
+	preempt_disable();
 	stopmachine_set_state(STOPMACHINE_PREPARE);
 
 	/* Make them disable irqs. */
+	local_irq_disable();
 	stopmachine_set_state(STOPMACHINE_DISABLE_IRQ);
 
 	return 0;
@@ -135,6 +130,7 @@ static void restart_machine(void)
 {
 	stopmachine_set_state(STOPMACHINE_EXIT);
 	local_irq_enable();
+	preempt_enable_no_resched();
 }
 
 struct stop_machine_data

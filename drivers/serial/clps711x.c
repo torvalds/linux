@@ -104,8 +104,6 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 	while (!(status & SYSFLG_URXFE)) {
 		ch = clps_readl(UARTDR(port));
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			goto ignore_char;
 		port->icount.rx++;
 
 		flg = TTY_NORMAL;

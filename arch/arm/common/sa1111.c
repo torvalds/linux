@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
+#include <asm/sizes.h>
 
 #include <asm/hardware/sa1111.h>
 
@@ -131,6 +132,17 @@ static struct sa1111_dev_info sa1111_devices[] = {
 		},
 	},
 };
+
+void __init sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes)
+{
+	unsigned int sz = SZ_1M >> PAGE_SHIFT;
+
+	if (node != 0)
+		sz = 0;
+
+	size[1] = size[0] - sz;
+	size[0] = sz;
+}
 
 /*
  * SA1111 interrupt support.  Since clearing an IRQ while there are
@@ -1235,14 +1247,14 @@ static int sa1111_bus_remove(struct device *dev)
 struct bus_type sa1111_bus_type = {
 	.name		= "sa1111-rab",
 	.match		= sa1111_match,
+	.probe		= sa1111_bus_probe,
+	.remove		= sa1111_bus_remove,
 	.suspend	= sa1111_bus_suspend,
 	.resume		= sa1111_bus_resume,
 };
 
 int sa1111_driver_register(struct sa1111_driver *driver)
 {
-	driver->drv.probe = sa1111_bus_probe;
-	driver->drv.remove = sa1111_bus_remove;
 	driver->drv.bus = &sa1111_bus_type;
 	return driver_register(&driver->drv);
 }
@@ -1266,7 +1278,7 @@ static void __exit sa1111_exit(void)
 	bus_unregister(&sa1111_bus_type);
 }
 
-module_init(sa1111_init);
+subsys_initcall(sa1111_init);
 module_exit(sa1111_exit);
 
 MODULE_DESCRIPTION("Intel Corporation SA1111 core driver");

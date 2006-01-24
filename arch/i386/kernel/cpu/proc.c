@@ -3,6 +3,7 @@
 #include <linux/string.h>
 #include <asm/semaphore.h>
 #include <linux/seq_file.h>
+#include <linux/cpufreq.h>
 
 /*
  *	Get CPU information for use by the procfs.
@@ -28,7 +29,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, "syscall", NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, "mp", "nx", NULL, "mmxext", NULL,
-		NULL, "fxsr_opt", NULL, NULL, NULL, "lm", "3dnowext", "3dnow",
+		NULL, "fxsr_opt", "rdtscp", NULL, NULL, "lm", "3dnowext", "3dnow",
 
 		/* Transmeta-defined */
 		"recovery", "longrun", NULL, "lrti", NULL, NULL, NULL, NULL,
@@ -39,7 +40,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		/* Other (Linux-defined) */
 		"cxmmx", "k6_mtrr", "cyrix_arr", "centaur_mcr",
 		NULL, NULL, NULL, NULL,
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"constant_tsc", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
@@ -56,10 +57,20 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* AMD-defined (#2) */
-		"lahf_lm", "cmp_legacy", NULL, NULL, NULL, NULL, NULL, NULL,
+		"lahf_lm", "cmp_legacy", "svm", NULL, "cr8legacy", NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	};
+	static char *x86_power_flags[] = {
+		"ts",	/* temperature sensor */
+		"fid",  /* frequency id control */
+		"vid",  /* voltage id control */
+		"ttp",  /* thermal trip */
+		"tm",
+		"stc",
+		NULL,
+		/* nothing */	/* constant_tsc - moved to flags */
 	};
 	struct cpuinfo_x86 *c = v;
 	int i, n = c - cpu_data;
@@ -86,20 +97,22 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "stepping\t: unknown\n");
 
 	if ( cpu_has(c, X86_FEATURE_TSC) ) {
+		unsigned int freq = cpufreq_quick_get(n);
+		if (!freq)
+			freq = cpu_khz;
 		seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
-			cpu_khz / 1000, (cpu_khz % 1000));
+			freq / 1000, (freq % 1000));
 	}
 
 	/* Cache size */
 	if (c->x86_cache_size >= 0)
 		seq_printf(m, "cache size\t: %d KB\n", c->x86_cache_size);
 #ifdef CONFIG_X86_HT
-	if (c->x86_num_cores * smp_num_siblings > 1) {
+	if (c->x86_max_cores * smp_num_siblings > 1) {
 		seq_printf(m, "physical id\t: %d\n", phys_proc_id[n]);
-		seq_printf(m, "siblings\t: %d\n",
-				c->x86_num_cores * smp_num_siblings);
+		seq_printf(m, "siblings\t: %d\n", cpus_weight(cpu_core_map[n]));
 		seq_printf(m, "core id\t\t: %d\n", cpu_core_id[n]);
-		seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
+		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 	}
 #endif
 	
@@ -127,6 +140,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		if ( test_bit(i, c->x86_capability) &&
 		     x86_cap_flags[i] != NULL )
 			seq_printf(m, " %s", x86_cap_flags[i]);
+
+	for (i = 0; i < 32; i++)
+		if (c->x86_power & (1 << i)) {
+			if (i < ARRAY_SIZE(x86_power_flags) &&
+			    x86_power_flags[i])
+				seq_printf(m, "%s%s",
+					   x86_power_flags[i][0]?" ":"",
+					   x86_power_flags[i]);
+			else
+				seq_printf(m, " [%d]", i);
+		}
 
 	seq_printf(m, "\nbogomips\t: %lu.%02lu\n\n",
 		     c->loops_per_jiffy/(500000/HZ),

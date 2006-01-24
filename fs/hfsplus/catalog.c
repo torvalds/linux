@@ -13,7 +13,8 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 
-int hfsplus_cat_cmp_key(hfsplus_btree_key *k1, hfsplus_btree_key *k2)
+int hfsplus_cat_case_cmp_key(const hfsplus_btree_key *k1,
+			     const hfsplus_btree_key *k2)
 {
 	__be32 k1p, k2p;
 
@@ -22,7 +23,20 @@ int hfsplus_cat_cmp_key(hfsplus_btree_key *k1, hfsplus_btree_key *k2)
 	if (k1p != k2p)
 		return be32_to_cpu(k1p) < be32_to_cpu(k2p) ? -1 : 1;
 
-	return hfsplus_unistrcmp(&k1->cat.name, &k2->cat.name);
+	return hfsplus_strcasecmp(&k1->cat.name, &k2->cat.name);
+}
+
+int hfsplus_cat_bin_cmp_key(const hfsplus_btree_key *k1,
+			    const hfsplus_btree_key *k2)
+{
+	__be32 k1p, k2p;
+
+	k1p = k1->cat.parent;
+	k2p = k2->cat.parent;
+	if (k1p != k2p)
+		return be32_to_cpu(k1p) < be32_to_cpu(k2p) ? -1 : 1;
+
+	return hfsplus_strcmp(&k1->cat.name, &k2->cat.name);
 }
 
 void hfsplus_cat_build_key(struct super_block *sb, hfsplus_btree_key *key,
@@ -80,8 +94,11 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 		memset(folder, 0, sizeof(*folder));
 		folder->type = cpu_to_be16(HFSPLUS_FOLDER);
 		folder->id = cpu_to_be32(inode->i_ino);
-		folder->create_date = folder->content_mod_date =
-			folder->attribute_mod_date = folder->access_date = hfsp_now2mt();
+		HFSPLUS_I(inode).create_date =
+			folder->create_date =
+			folder->content_mod_date =
+			folder->attribute_mod_date =
+			folder->access_date = hfsp_now2mt();
 		hfsplus_set_perms(inode, &folder->permissions);
 		if (inode == HFSPLUS_SB(inode->i_sb).hidden_dir)
 			/* invisible and namelocked */
@@ -95,18 +112,27 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry, u32 cnid, struct i
 		file->type = cpu_to_be16(HFSPLUS_FILE);
 		file->flags = cpu_to_be16(HFSPLUS_FILE_THREAD_EXISTS);
 		file->id = cpu_to_be32(cnid);
-		file->create_date = file->content_mod_date =
-			file->attribute_mod_date = file->access_date = hfsp_now2mt();
+		HFSPLUS_I(inode).create_date =
+			file->create_date =
+			file->content_mod_date =
+			file->attribute_mod_date =
+			file->access_date = hfsp_now2mt();
 		if (cnid == inode->i_ino) {
 			hfsplus_set_perms(inode, &file->permissions);
-			file->user_info.fdType = cpu_to_be32(HFSPLUS_SB(inode->i_sb).type);
-			file->user_info.fdCreator = cpu_to_be32(HFSPLUS_SB(inode->i_sb).creator);
+			if (S_ISLNK(inode->i_mode)) {
+				file->user_info.fdType = cpu_to_be32(HFSP_SYMLINK_TYPE);
+				file->user_info.fdCreator = cpu_to_be32(HFSP_SYMLINK_CREATOR);
+			} else {
+				file->user_info.fdType = cpu_to_be32(HFSPLUS_SB(inode->i_sb).type);
+				file->user_info.fdCreator = cpu_to_be32(HFSPLUS_SB(inode->i_sb).creator);
+			}
 			if ((file->permissions.rootflags | file->permissions.userflags) & HFSPLUS_FLG_IMMUTABLE)
 				file->flags |= cpu_to_be16(HFSPLUS_FILE_LOCKED);
 		} else {
 			file->user_info.fdType = cpu_to_be32(HFSP_HARDLINK_TYPE);
 			file->user_info.fdCreator = cpu_to_be32(HFSP_HFSPLUS_CREATOR);
 			file->user_info.fdFlags = cpu_to_be16(0x100);
+			file->create_date = HFSPLUS_I(HFSPLUS_SB(inode->i_sb).hidden_dir).create_date;
 			file->permissions.dev = cpu_to_be32(HFSPLUS_I(inode).dev);
 		}
 		return sizeof(*file);
@@ -139,7 +165,7 @@ int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 
 	type = be16_to_cpu(tmp.type);
 	if (type != HFSPLUS_FOLDER_THREAD && type != HFSPLUS_FILE_THREAD) {
-		printk("HFS+-fs: Found bad thread record in catalog\n");
+		printk(KERN_ERR "hfs: found bad thread record in catalog\n");
 		return -EIO;
 	}
 

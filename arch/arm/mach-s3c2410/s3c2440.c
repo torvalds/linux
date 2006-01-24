@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
+#include <linux/clk.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -36,7 +37,6 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-serial.h>

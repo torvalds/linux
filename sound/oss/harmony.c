@@ -1236,7 +1236,7 @@ harmony_driver_probe(struct parisc_device *dev)
 	}
 
 	/* Set the HPA of harmony */
-	harmony.hpa = (struct harmony_hpa *)dev->hpa;
+	harmony.hpa = (struct harmony_hpa *)dev->hpa.start;
 	harmony.dev = dev;
 
 	/* Grab the ID and revision from the device */
@@ -1250,7 +1250,7 @@ harmony_driver_probe(struct parisc_device *dev)
 
 	printk(KERN_INFO "Lasi Harmony Audio driver " HARMONY_VERSION ", "
 			"h/w id %i, rev. %i at 0x%lx, IRQ %i\n",
-			id, rev, dev->hpa, harmony.dev->irq);
+			id, rev, dev->hpa.start, harmony.dev->irq);
 	
 	/* Make sure the control bit isn't set, although I don't think it 
 	   ever is. */

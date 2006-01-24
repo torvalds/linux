@@ -50,7 +50,11 @@ struct tpm_vendor_specific {
 	u8 req_complete_mask;
 	u8 req_complete_val;
 	u8 req_canceled;
-	u16 base;		/* TPM base address */
+	void __iomem *iobase;		/* ioremapped address */
+	unsigned long base;		/* TPM base address */
+
+	int region_size;
+	int have_region;
 
 	int (*recv) (struct tpm_chip *, u8 *, size_t);
 	int (*send) (struct tpm_chip *, u8 *, size_t);
@@ -73,9 +77,12 @@ struct tpm_chip {
 	struct semaphore buffer_mutex;
 
 	struct timer_list user_read_timer;	/* user needs to claim result */
+	struct work_struct work;
 	struct semaphore tpm_mutex;	/* tpm is processing */
 
 	struct tpm_vendor_specific *vendor;
+
+	struct dentry **bios_dir;
 
 	struct list_head list;
 };
@@ -102,3 +109,16 @@ extern ssize_t tpm_read(struct file *, char __user *, size_t, loff_t *);
 extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *, pm_message_t);
 extern int tpm_pm_resume(struct device *);
+
+#ifdef CONFIG_ACPI
+extern struct dentry ** tpm_bios_log_setup(char *);
+extern void tpm_bios_log_teardown(struct dentry **);
+#else
+static inline struct dentry* tpm_bios_log_setup(char *name)
+{
+	return NULL;
+}
+static inline void tpm_bios_log_teardown(struct dentry **dir)
+{
+}
+#endif

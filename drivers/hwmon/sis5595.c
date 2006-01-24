@@ -198,8 +198,9 @@ static struct sis5595_data *sis5595_update_device(struct device *dev);
 static void sis5595_init_client(struct i2c_client *client);
 
 static struct i2c_driver sis5595_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "sis5595",
+	.driver = {
+		.name	= "sis5595",
+	},
 	.attach_adapter	= sis5595_detect,
 	.detach_client	= sis5595_detach_client,
 };
@@ -484,7 +485,8 @@ static int sis5595_detect(struct i2c_adapter *adapter)
 	if (force_addr)
 		address = force_addr & ~(SIS5595_EXTENT - 1);
 	/* Reserve the ISA region */
-	if (!request_region(address, SIS5595_EXTENT, sis5595_driver.name)) {
+	if (!request_region(address, SIS5595_EXTENT,
+			    sis5595_driver.driver.name)) {
 		err = -EBUSY;
 		goto exit;
 	}

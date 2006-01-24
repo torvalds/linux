@@ -493,6 +493,7 @@ extern void sk_stream_kill_queues(struct sock *sk);
 extern int sk_wait_data(struct sock *sk, long *timeo);
 
 struct request_sock_ops;
+struct timewait_sock_ops;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -557,11 +558,10 @@ struct proto {
 	kmem_cache_t		*slab;
 	unsigned int		obj_size;
 
-	kmem_cache_t		*twsk_slab;
-	unsigned int		twsk_obj_size;
 	atomic_t		*orphan_count;
 
 	struct request_sock_ops	*rsk_prot;
+	struct timewait_sock_ops *twsk_prot;
 
 	struct module		*owner;
 
@@ -856,8 +856,8 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb, int needlock)
 		
 		filter = sk->sk_filter;
 		if (filter) {
-			int pkt_len = sk_run_filter(skb, filter->insns,
-						    filter->len);
+			unsigned int pkt_len = sk_run_filter(skb, filter->insns,
+							     filter->len);
 			if (!pkt_len)
 				err = -EPERM;
 			else
@@ -924,6 +924,29 @@ static inline void sock_put(struct sock *sk)
 {
 	if (atomic_dec_and_test(&sk->sk_refcnt))
 		sk_free(sk);
+}
+
+static inline int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int rc = NET_RX_SUCCESS;
+
+	if (sk_filter(sk, skb, 0))
+		goto discard_and_relse;
+
+	skb->dev = NULL;
+
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk))
+		rc = sk->sk_backlog_rcv(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
+out:
+	sock_put(sk);
+	return rc;
+discard_and_relse:
+	kfree_skb(skb);
+	goto out;
 }
 
 /* Detach socket from process context.
@@ -1166,7 +1189,10 @@ static inline int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
  
 static inline int sock_error(struct sock *sk)
 {
-	int err = xchg(&sk->sk_err, 0);
+	int err;
+	if (likely(!sk->sk_err))
+		return 0;
+	err = xchg(&sk->sk_err, 0);
 	return -err;
 }
 

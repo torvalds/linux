@@ -53,6 +53,7 @@
 #include <asm/i8259.h>
 #include <asm/open_pic.h>
 #include <asm/xmon.h>
+#include "mem_pieces.h"
 
 unsigned long chrp_get_rtc_time(void);
 int chrp_set_rtc_time(unsigned long nowtime);
@@ -65,7 +66,6 @@ void rtas_display_progress(char *, unsigned short);
 void rtas_indicator_progress(char *, unsigned short);
 void btext_progress(char *, unsigned short);
 
-extern unsigned long pmac_find_end_of_memory(void);
 extern int of_show_percpuinfo(struct seq_file *, int);
 
 int _chrp_type;
@@ -404,7 +404,6 @@ static struct irqaction xmon_irqaction = {
 void __init chrp_init_IRQ(void)
 {
 	struct device_node *np;
-	int i;
 	unsigned long chrp_int_ack = 0;
 	unsigned char init_senses[NR_IRQS - NUM_8259_INTERRUPTS];
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
@@ -468,6 +467,75 @@ chrp_init2(void)
 		ppc_md.progress("  Have fun!    ", 0x7777);
 }
 
+static struct device_node *memory_node;
+
+static int __init get_mem_prop(char *name, struct mem_pieces *mp)
+{
+	struct reg_property *rp;
+	int i, s;
+	unsigned int *ip;
+	int nac = prom_n_addr_cells(memory_node);
+	int nsc = prom_n_size_cells(memory_node);
+
+	ip = (unsigned int *) get_property(memory_node, name, &s);
+	if (ip == NULL) {
+		printk(KERN_ERR "error: couldn't get %s property on /memory\n",
+		       name);
+		return 0;
+	}
+	s /= (nsc + nac) * 4;
+	rp = mp->regions;
+	for (i = 0; i < s; ++i, ip += nac+nsc) {
+		if (nac >= 2 && ip[nac-2] != 0)
+			continue;
+		rp->address = ip[nac-1];
+		if (nsc >= 2 && ip[nac+nsc-2] != 0)
+			rp->size = ~0U;
+		else
+			rp->size = ip[nac+nsc-1];
+		++rp;
+	}
+	mp->n_regions = rp - mp->regions;
+
+	/* Make sure the pieces are sorted. */
+	mem_pieces_sort(mp);
+	mem_pieces_coalesce(mp);
+	return 1;
+}
+
+static unsigned long __init chrp_find_end_of_memory(void)
+{
+	unsigned long a, total;
+	struct mem_pieces phys_mem;
+
+	/*
+	 * Find out where physical memory is, and check that it
+	 * starts at 0 and is contiguous.  It seems that RAM is
+	 * always physically contiguous on Power Macintoshes.
+	 *
+	 * Supporting discontiguous physical memory isn't hard,
+	 * it just makes the virtual <-> physical mapping functions
+	 * more complicated (or else you end up wasting space
+	 * in mem_map).
+	 */
+	memory_node = find_devices("memory");
+	if (memory_node == NULL || !get_mem_prop("reg", &phys_mem)
+	    || phys_mem.n_regions == 0)
+		panic("No RAM??");
+	a = phys_mem.regions[0].address;
+	if (a != 0)
+		panic("RAM doesn't start at physical address 0");
+	total = phys_mem.regions[0].size;
+
+	if (phys_mem.n_regions > 1) {
+		printk("RAM starting at 0x%x is not contiguous\n",
+		       phys_mem.regions[1].address);
+		printk("Using RAM from 0 to 0x%lx\n", total-1);
+	}
+
+	return total;
+}
+
 void __init
 chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	  unsigned long r6, unsigned long r7)
@@ -526,7 +594,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.get_rtc_time   = chrp_get_rtc_time;
 	ppc_md.calibrate_decr = chrp_calibrate_decr;
 
-	ppc_md.find_end_of_memory = pmac_find_end_of_memory;
+	ppc_md.find_end_of_memory = chrp_find_end_of_memory;
 
 	if (rtas_data) {
 		struct device_node *rtas;

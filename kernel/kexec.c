@@ -6,6 +6,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/slab.h>
@@ -25,6 +26,9 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/semaphore.h>
+
+/* Per cpu memory for storing cpu states in case of system crash. */
+note_buf_t* crash_notes;
 
 /* Location of the reserved area for the crash kernel */
 struct resource crashk_res = {
@@ -1054,9 +1058,24 @@ void crash_kexec(struct pt_regs *regs)
 	if (!locked) {
 		image = xchg(&kexec_crash_image, NULL);
 		if (image) {
-			machine_crash_shutdown(regs);
+			struct pt_regs fixed_regs;
+			crash_setup_regs(&fixed_regs, regs);
+			machine_crash_shutdown(&fixed_regs);
 			machine_kexec(image);
 		}
 		xchg(&kexec_lock, 0);
 	}
 }
+
+static int __init crash_notes_memory_init(void)
+{
+	/* Allocate memory for saving cpu registers. */
+	crash_notes = alloc_percpu(note_buf_t);
+	if (!crash_notes) {
+		printk("Kexec: Memory allocation for saving cpu register"
+		" states failed\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+module_init(crash_notes_memory_init)

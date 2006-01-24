@@ -59,6 +59,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	stw	r5,TZONE_TZ_DSTTIME(r11)
 
 1:	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -83,7 +84,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	/* Check for supported clock IDs */
 	cmpli	cr0,r3,CLOCK_REALTIME
 	cmpli	cr1,r3,CLOCK_MONOTONIC
-	cror	cr0,cr0,cr1
+	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
 	bne	cr0,99f
 
 	mflr	r12			/* r12 saves lr */
@@ -91,7 +92,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	mr	r10,r3			/* r10 saves id */
 	mr	r11,r4			/* r11 saves tp */
 	bl	__get_datapage@local	/* get data page */
-	mr	r9, r3			/* datapage ptr in r9 */
+	mr	r9,r3			/* datapage ptr in r9 */
 	beq	cr1,50f			/* if monotonic -> jump there */
 
 	/*
@@ -117,6 +118,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	mulli	r5,r5,1000
 	stw	r5,TSPC32_TV_NSEC(r11)
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -173,14 +175,19 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	add	r4,r4,r7
 	lis	r5,NSEC_PER_SEC@h
 	ori	r5,r5,NSEC_PER_SEC@l
-	cmpli	cr0,r4,r5
+	cmpl	cr0,r4,r5
+	cmpli	cr1,r4,0
 	blt	1f
 	subf	r4,r5,r4
 	addi	r3,r3,1
+1:	bge	cr1,1f
+	addi	r3,r3,-1
+	add	r4,r4,r5
 1:	stw	r3,TSPC32_TV_SEC(r11)
 	stw	r4,TSPC32_TV_NSEC(r11)
 
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -210,11 +217,12 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 	/* Check for supported clock IDs */
 	cmpwi	cr0,r3,CLOCK_REALTIME
 	cmpwi	cr1,r3,CLOCK_MONOTONIC
-	cror	cr0,cr0,cr1
+	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
 	bne	cr0,99f
 
 	li	r3,0
 	cmpli	cr0,r4,0
+	crclr	cr0*4+so
 	beqlr
 	lis	r5,CLOCK_REALTIME_RES@h
 	ori	r5,r5,CLOCK_REALTIME_RES@l

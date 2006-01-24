@@ -20,16 +20,17 @@
  */
 
 #include <sound/driver.h>
-#include <asm/dma.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/moduleparam.h>
+#include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/es1688.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
-#define SNDRV_LEGACY_AUTO_PROBE
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
@@ -68,19 +69,20 @@ MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for ESx688 driver.");
 module_param_array(dma8, int, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for ESx688 driver.");
 
-static snd_card_t *snd_audiodrive_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct platform_device *devices[SNDRV_CARDS];
 
 #define PFX	"es1688: "
 
-static int __init snd_audiodrive_probe(int dev)
+static int __init snd_es1688_probe(struct platform_device *pdev)
 {
+	int dev = pdev->id;
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
 	static int possible_dmas[] = {1, 3, 0, -1};
 	int xirq, xdma, xmpu_irq;
-	snd_card_t *card;
-	es1688_t *chip;
-	opl3_t *opl3;
-	snd_pcm_t *pcm;
+	struct snd_card *card;
+	struct snd_es1688 *chip;
+	struct snd_opl3 *opl3;
+	struct snd_pcm *pcm;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
@@ -105,10 +107,30 @@ static int __init snd_audiodrive_probe(int dev)
 		}
 	}
 
-	if ((err = snd_es1688_create(card, port[dev], mpu_port[dev],
-				     xirq, xmpu_irq, xdma,
-				     ES1688_HW_AUTO, &chip)) < 0)
-		goto _err;
+	if (port[dev] != SNDRV_AUTO_PORT) {
+		if ((err = snd_es1688_create(card, port[dev], mpu_port[dev],
+					     xirq, xmpu_irq, xdma,
+					     ES1688_HW_AUTO, &chip)) < 0)
+			goto _err;
+	} else {
+		/* auto-probe legacy ports */
+		static unsigned long possible_ports[] = {
+			0x220, 0x240, 0x260,
+		};
+		int i;
+		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
+			err = snd_es1688_create(card, possible_ports[i],
+						mpu_port[dev],
+						xirq, xmpu_irq, xdma,
+						ES1688_HW_AUTO, &chip);
+			if (err >= 0) {
+				port[dev] = possible_ports[i];
+				break;
+			}
+		}
+		if (i >= ARRAY_SIZE(possible_ports))
+			goto _err;
+	}
 
 	if ((err = snd_es1688_pcm(chip, 0, &pcm)) < 0)
 		goto _err;
@@ -136,13 +158,12 @@ static int __init snd_audiodrive_probe(int dev)
 			goto _err;
 	}
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &pdev->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
-	snd_audiodrive_cards[dev] = card;
+	platform_set_drvdata(pdev, card);
 	return 0;
 
  _err:
@@ -150,53 +171,70 @@ static int __init snd_audiodrive_probe(int dev)
 	return err;
 }
 
-static int __init snd_audiodrive_legacy_auto_probe(unsigned long xport)
+static int snd_es1688_remove(struct platform_device *devptr)
 {
-	static int dev;
-	int res;
-	
-	for ( ; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
-			continue;
-		port[dev] = xport;
-		res = snd_audiodrive_probe(dev);
-		if (res < 0)
-			port[dev] = SNDRV_AUTO_PORT;
-		return res;
-	}
-	return -ENODEV;
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define ES1688_DRIVER	"snd_es1688"
+
+static struct platform_driver snd_es1688_driver = {
+	.probe		= snd_es1688_probe,
+	.remove		= snd_es1688_remove,
+	/* FIXME: suspend/resume */
+	.driver		= {
+		.name	= ES1688_DRIVER
+	},
+};
+
+static void __init_or_module snd_es1688_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_es1688_driver);
 }
 
 static int __init alsa_card_es1688_init(void)
 {
-	static unsigned long possible_ports[] = {0x220, 0x240, 0x260, -1};
-	int dev, cards = 0, i;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
-		if (port[dev] == SNDRV_AUTO_PORT)
-			continue;
-		if (snd_audiodrive_probe(dev) >= 0)
-			cards++;
+	err = platform_driver_register(&snd_es1688_driver);
+	if (err < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(ES1688_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
-	i = snd_legacy_auto_probe(possible_ports, snd_audiodrive_legacy_auto_probe);
-	if (i > 0)
-		cards += i;
-
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "ESS AudioDrive ES1688 soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_es1688_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_es1688_exit(void)
 {
-	int idx;
-
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_audiodrive_cards[idx]);
+	snd_es1688_unregister_all();
 }
 
 module_init(alsa_card_es1688_init)

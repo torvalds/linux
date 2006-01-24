@@ -2,7 +2,7 @@
  *
  *			Linux MegaRAID device driver
  *
- * Copyright © 2002  LSI Logic Corporation.
+ * Copyright (c) 2002  LSI Logic Corporation.
  *
  *	   This program is free software; you can redistribute it and/or
  *	   modify it under the terms of the GNU General Public License
@@ -17,7 +17,8 @@
  * Copyright (c) 2003  Christoph Hellwig  <hch@lst.de>
  *	  - new-style, hotplug-aware pci probing and scsi registration
  *
- * Version : v2.00.3 (Feb 19, 2003) - Atul Mukker <Atul.Mukker@lsil.com>
+ * Version : v2.00.4 Mon Nov 14 14:02:43 EST 2005 - Seokmann Ju
+ * 						<Seokmann.Ju@lsil.com>
  *
  * Description: Linux device driver for LSI Logic MegaRAID controller
  *
@@ -51,10 +52,10 @@
 
 #include "megaraid.h"
 
-#define MEGARAID_MODULE_VERSION "2.00.3"
+#define MEGARAID_MODULE_VERSION "2.00.4"
 
-MODULE_AUTHOR ("LSI Logic Corporation");
-MODULE_DESCRIPTION ("LSI Logic MegaRAID driver");
+MODULE_AUTHOR ("sju@lsil.com");
+MODULE_DESCRIPTION ("LSI Logic MegaRAID legacy driver");
 MODULE_LICENSE ("GPL");
 MODULE_VERSION(MEGARAID_MODULE_VERSION);
 
@@ -362,6 +363,7 @@ megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 	adapter_t	*adapter;
 	scb_t	*scb;
 	int	busy=0;
+	unsigned long flags;
 
 	adapter = (adapter_t *)scmd->device->host->hostdata;
 
@@ -377,23 +379,25 @@ megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 	 * return 0 in that case.
 	 */
 
+	spin_lock_irqsave(&adapter->lock, flags);
 	scb = mega_build_cmd(adapter, scmd, &busy);
+	if (!scb)
+		goto out;
 
-	if(scb) {
-		scb->state |= SCB_PENDQ;
-		list_add_tail(&scb->list, &adapter->pending_list);
+	scb->state |= SCB_PENDQ;
+	list_add_tail(&scb->list, &adapter->pending_list);
 
-		/*
-		 * Check if the HBA is in quiescent state, e.g., during a
-		 * delete logical drive opertion. If it is, don't run
-		 * the pending_list.
-		 */
-		if(atomic_read(&adapter->quiescent) == 0) {
-			mega_runpendq(adapter);
-		}
-		return 0;
-	}
+	/*
+	 * Check if the HBA is in quiescent state, e.g., during a
+	 * delete logical drive opertion. If it is, don't run
+	 * the pending_list.
+	 */
+	if (atomic_read(&adapter->quiescent) == 0)
+		mega_runpendq(adapter);
 
+	busy = 0;
+ out:
+	spin_unlock_irqrestore(&adapter->lock, flags);
 	return busy;
 }
 
@@ -661,7 +665,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 					sg->offset;
 			} else
 				buf = cmd->request_buffer;
-			memset(cmd->request_buffer, 0, cmd->cmnd[4]);
+			memset(buf, 0, cmd->cmnd[4]);
 			if (cmd->use_sg) {
 				struct scatterlist *sg;
 
@@ -1683,7 +1687,7 @@ mega_rundoneq (adapter_t *adapter)
 
 	list_for_each(pos, &adapter->completed_list) {
 
-		Scsi_Pointer* spos = (Scsi_Pointer *)pos;
+		struct scsi_pointer* spos = (struct scsi_pointer *)pos;
 
 		cmd = list_entry(spos, Scsi_Cmnd, SCp);
 		cmd->scsi_done(cmd);
@@ -1981,7 +1985,7 @@ megaraid_reset(struct scsi_cmnd *cmd)
 	mc.cmd = MEGA_CLUSTER_CMD;
 	mc.opcode = MEGA_RESET_RESERVATIONS;
 
-	if( mega_internal_command(adapter, LOCK_INT, &mc, NULL) != 0 ) {
+	if( mega_internal_command(adapter, &mc, NULL) != 0 ) {
 		printk(KERN_WARNING
 				"megaraid: reservation reset failed.\n");
 	}
@@ -3011,7 +3015,7 @@ proc_rdrv(adapter_t *adapter, char *page, int start, int end )
 		mc.cmd = FC_NEW_CONFIG;
 		mc.opcode = OP_DCMD_READ_CONFIG;
 
-		if( mega_internal_command(adapter, LOCK_INT, &mc, NULL) ) {
+		if( mega_internal_command(adapter, &mc, NULL) ) {
 
 			len = sprintf(page, "40LD read config failed.\n");
 
@@ -3029,11 +3033,11 @@ proc_rdrv(adapter_t *adapter, char *page, int start, int end )
 	else {
 		mc.cmd = NEW_READ_CONFIG_8LD;
 
-		if( mega_internal_command(adapter, LOCK_INT, &mc, NULL) ) {
+		if( mega_internal_command(adapter, &mc, NULL) ) {
 
 			mc.cmd = READ_CONFIG_8LD;
 
-			if( mega_internal_command(adapter, LOCK_INT, &mc,
+			if( mega_internal_command(adapter, &mc,
 						NULL) ){
 
 				len = sprintf(page,
@@ -3632,7 +3636,7 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			/*
 			 * Issue the command
 			 */
-			mega_internal_command(adapter, LOCK_INT, &mc, pthru);
+			mega_internal_command(adapter, &mc, pthru);
 
 			rval = mega_n_to_m((void __user *)arg, &mc);
 
@@ -3715,7 +3719,7 @@ freemem_and_return:
 			/*
 			 * Issue the command
 			 */
-			mega_internal_command(adapter, LOCK_INT, &mc, NULL);
+			mega_internal_command(adapter, &mc, NULL);
 
 			rval = mega_n_to_m((void __user *)arg, &mc);
 
@@ -4234,7 +4238,7 @@ mega_do_del_logdrv(adapter_t *adapter, int logdrv)
 	mc.opcode = OP_DEL_LOGDRV;
 	mc.subopcode = logdrv;
 
-	rval = mega_internal_command(adapter, LOCK_INT, &mc, NULL);
+	rval = mega_internal_command(adapter, &mc, NULL);
 
 	/* log this event */
 	if(rval) {
@@ -4367,7 +4371,7 @@ mega_adapinq(adapter_t *adapter, dma_addr_t dma_handle)
 
 	mc.xferaddr = (u32)dma_handle;
 
-	if ( mega_internal_command(adapter, LOCK_INT, &mc, NULL) != 0 ) {
+	if ( mega_internal_command(adapter, &mc, NULL) != 0 ) {
 		return -1;
 	}
 
@@ -4435,7 +4439,7 @@ mega_internal_dev_inquiry(adapter_t *adapter, u8 ch, u8 tgt,
 	mc.cmd = MEGA_MBOXCMD_PASSTHRU;
 	mc.xferaddr = (u32)pthru_dma_handle;
 
-	rval = mega_internal_command(adapter, LOCK_INT, &mc, pthru);
+	rval = mega_internal_command(adapter, &mc, pthru);
 
 	pci_free_consistent(pdev, sizeof(mega_passthru), pthru,
 			pthru_dma_handle);
@@ -4449,7 +4453,6 @@ mega_internal_dev_inquiry(adapter_t *adapter, u8 ch, u8 tgt,
 /**
  * mega_internal_command()
  * @adapter - pointer to our soft state
- * @ls - the scope of the exclusion lock.
  * @mc - the mailbox command
  * @pthru - Passthru structure for DCDB commands
  *
@@ -4463,8 +4466,7 @@ mega_internal_dev_inquiry(adapter_t *adapter, u8 ch, u8 tgt,
  * Note: parameter 'pthru' is null for non-passthru commands.
  */
 static int
-mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
-		mega_passthru *pthru )
+mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 {
 	Scsi_Cmnd	*scmd;
 	struct	scsi_device *sdev;
@@ -4477,7 +4479,7 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 	 * serialized. This is so because we want to reserve maximum number of
 	 * available command ids for the I/O commands.
 	 */
-	down(&adapter->int_mtx);
+	mutex_lock(&adapter->int_mtx);
 
 	scb = &adapter->int_scb;
 	memset(scb, 0, sizeof(scb_t));
@@ -4508,14 +4510,7 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 
 	scb->idx = CMDID_INT_CMDS;
 
-	/*
-	 * Get the lock only if the caller has not acquired it already
-	 */
-	if( ls == LOCK_INT ) spin_lock_irqsave(&adapter->lock, flags);
-
 	megaraid_queue(scmd, mega_internal_done);
-
-	if( ls == LOCK_INT ) spin_unlock_irqrestore(&adapter->lock, flags);
 
 	wait_for_completion(&adapter->int_waitq);
 
@@ -4532,7 +4527,7 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 			mc->cmd, mc->opcode, mc->subopcode, scmd->result);
 	}
 
-	up(&adapter->int_mtx);
+	mutex_unlock(&adapter->int_mtx);
 
 	return rval;
 }
@@ -4559,7 +4554,7 @@ mega_internal_done(Scsi_Cmnd *scmd)
 static struct scsi_host_template megaraid_template = {
 	.module				= THIS_MODULE,
 	.name				= "MegaRAID",
-	.proc_name			= "megaraid",
+	.proc_name			= "megaraid_legacy",
 	.info				= megaraid_info,
 	.queuecommand			= megaraid_queue,	
 	.bios_param			= megaraid_biosparam,
@@ -4683,7 +4678,6 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	adapter->flag = flag;
 	spin_lock_init(&adapter->lock);
-	scsi_assign_lock(host, &adapter->lock);
 
 	host->cmd_per_lun = max_cmd_per_lun;
 	host->max_sectors = max_sectors_per_io;
@@ -4872,7 +4866,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		adapter->has_64bit_addr = 0;
 	}
 		
-	init_MUTEX(&adapter->int_mtx);
+	mutex_init(&adapter->int_mtx);
 	init_completion(&adapter->int_waitq);
 
 	adapter->this_id = DEFAULT_INITIATOR_ID;
@@ -5044,21 +5038,11 @@ megaraid_shutdown(struct pci_dev *pdev)
 }
 
 static struct pci_device_id megaraid_pci_tbl[] = {
-	{PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DISCOVERY,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_PERC4_DI,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, BOARD_64BIT},
-	{PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_PERC4_QC_VERDE,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, BOARD_64BIT},
 	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID2,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_AMI_MEGARAID3,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
 };
@@ -5102,7 +5086,7 @@ static int __init megaraid_init(void)
 	 * First argument (major) to register_chrdev implies a dynamic
 	 * major number allocation.
 	 */
-	major = register_chrdev(0, "megadev", &megadev_fops);
+	major = register_chrdev(0, "megadev_legacy", &megadev_fops);
 	if (!major) {
 		printk(KERN_WARNING
 				"megaraid: failed to register char device\n");
@@ -5116,7 +5100,7 @@ static void __exit megaraid_exit(void)
 	/*
 	 * Unregister the character device interface to the driver.
 	 */
-	unregister_chrdev(major, "megadev");
+	unregister_chrdev(major, "megadev_legacy");
 
 	pci_unregister_driver(&megaraid_pci_driver);
 

@@ -19,6 +19,15 @@ config PM
 	  will issue the hlt instruction if nothing is to be done, thereby
 	  sending the processor to sleep and saving power.
 
+config PM_LEGACY
+	bool "Legacy Power Management API"
+	depends on PM
+	default y
+	---help---
+	   Support for pm_register() and friends.
+
+	   If unsure, say Y.
+
 config PM_DEBUG
 	bool "Power Management Debug Support"
 	depends on PM
@@ -29,7 +38,7 @@ config PM_DEBUG
 
 config SOFTWARE_SUSPEND
 	bool "Software Suspend"
-	depends on PM && SWAP && (X86 && (!SMP || SUSPEND_SMP)) || ((FVR || PPC32) && !SMP)
+	depends on PM && SWAP && (X86 && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP)
 	---help---
 	  Enable the possibility of suspending the machine.
 	  It doesn't need APM.

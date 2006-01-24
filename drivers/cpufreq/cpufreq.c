@@ -41,7 +41,6 @@ static DEFINE_SPINLOCK(cpufreq_driver_lock);
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static void handle_update(void *data);
-static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci);
 
 /**
  * Two notifier lists: the "policy" list is involved in the 
@@ -127,7 +126,7 @@ static unsigned int debug_ratelimit = 1;
 static unsigned int disable_ratelimit = 1;
 static DEFINE_SPINLOCK(disable_ratelimit_lock);
 
-static inline void cpufreq_debug_enable_ratelimit(void)
+static void cpufreq_debug_enable_ratelimit(void)
 {
 	unsigned long flags;
 
@@ -137,7 +136,7 @@ static inline void cpufreq_debug_enable_ratelimit(void)
 	spin_unlock_irqrestore(&disable_ratelimit_lock, flags);
 }
 
-static inline void cpufreq_debug_disable_ratelimit(void)
+static void cpufreq_debug_disable_ratelimit(void)
 {
 	unsigned long flags;
 
@@ -206,7 +205,7 @@ static inline void cpufreq_debug_disable_ratelimit(void) { return; }
 static unsigned long l_p_j_ref;
 static unsigned int  l_p_j_ref_freq;
 
-static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
+static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 {
 	if (ci->flags & CPUFREQ_CONST_LOOPS)
 		return;
@@ -693,8 +692,8 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long flags;
 	struct cpufreq_policy *data;
-	struct sys_device *cpu_sys_dev;
 #ifdef CONFIG_SMP
+	struct sys_device *cpu_sys_dev;
 	unsigned int j;
 #endif
 
@@ -820,6 +819,30 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq, unsigne
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 }
+
+
+/** 
+ * cpufreq_quick_get - get the CPU frequency (in kHz) frpm policy->cur
+ * @cpu: CPU number
+ *
+ * This is the last known freq, without actually getting it from the driver.
+ * Return value will be same as what is shown in scaling_cur_freq in sysfs.
+ */
+unsigned int cpufreq_quick_get(unsigned int cpu)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	unsigned int ret = 0;
+
+	if (policy) {
+		down(&policy->lock);
+		ret = policy->cur;
+		up(&policy->lock);
+		cpufreq_cpu_put(policy);
+	}
+
+	return (ret);
+}
+EXPORT_SYMBOL(cpufreq_quick_get);
 
 
 /** 
@@ -1113,21 +1136,13 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 {
 	int retval = -EINVAL;
 
-	/*
-	 * If we are already in context of hotplug thread, we dont need to
-	 * acquire the hotplug lock. Otherwise acquire cpucontrol to prevent
-	 * hotplug from removing this cpu that we are working on.
-	 */
-	if (!current_in_cpu_hotplug())
-		lock_cpu_hotplug();
-
+	lock_cpu_hotplug();
 	dprintk("target for CPU %u: %u kHz, relation %u\n", policy->cpu,
 		target_freq, relation);
 	if (cpu_online(policy->cpu) && cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
 
-	if (!current_in_cpu_hotplug())
-		unlock_cpu_hotplug();
+	unlock_cpu_hotplug();
 
 	return retval;
 }

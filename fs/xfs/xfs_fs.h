@@ -3,15 +3,15 @@
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it would be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
@@ -65,6 +65,8 @@ struct fsxattr {
 #define XFS_XFLAG_RTINHERIT	0x00000100	/* create with rt bit set */
 #define XFS_XFLAG_PROJINHERIT	0x00000200	/* create with parents projid */
 #define XFS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
+#define XFS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
+#define XFS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
 #define XFS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
 
 /*

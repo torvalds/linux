@@ -7,6 +7,15 @@ menu "Video For Linux"
 
 comment "Video Adapters"
 
+config VIDEO_ADV_DEBUG
+	bool "Enable advanced debug functionality"
+	depends on VIDEO_DEV
+	default n
+	---help---
+	  Say Y here to enable advanced debugging functionality on some
+	  V4L devices.
+	  In doubt, say N.
+
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on VIDEO_DEV && PCI && I2C
@@ -26,14 +35,11 @@ config VIDEO_BT848
 	  module will be called bttv.
 
 config VIDEO_BT848_DVB
-	tristate "DVB/ATSC Support for bt878 based TV cards"
+	bool "DVB/ATSC Support for bt878 based TV cards"
 	depends on VIDEO_BT848 && DVB_CORE
 	select DVB_BT8XX
 	---help---
 	  This adds support for DVB/ATSC cards based on the BT878 chip.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dvb-bt8xx.
 
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
@@ -177,7 +183,7 @@ config VIDEO_STRADIS
 	help
 	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
 	  driver for PCI.  There is a product page at
-	  <http://www.stradis.com/decoder.html>.
+	  <http://www.stradis.com/>.
 
 config VIDEO_ZORAN
 	tristate "Zoran ZR36057/36067 Video For Linux"
@@ -191,7 +197,7 @@ config VIDEO_ZORAN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zr36067.
- 
+
 config VIDEO_ZORAN_BUZ
 	tristate "Iomega Buz support"
 	depends on VIDEO_ZORAN
@@ -207,8 +213,8 @@ config VIDEO_ZORAN_DC10
 
 config VIDEO_ZORAN_DC30
 	tristate "Pinnacle/Miro DC30(+) support"
- 	depends on VIDEO_ZORAN
- 	help
+	depends on VIDEO_ZORAN
+	help
 	  Support for the Pinnacle/Miro DC30(+) MJPEG capture/playback
 	  card. This also supports really old DC10 cards based on the
 	  zr36050 MJPEG codec and zr36016 VFE.
@@ -263,7 +269,7 @@ config VIDEO_MXB
 	---help---
 	  This is a video4linux driver for the 'Multimedia eXtension Board'
 	  TV card by Siemens-Nixdorf.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxb.
 
@@ -277,7 +283,7 @@ config VIDEO_DPC
 	  for SAA7146 bases boards, so if you have some unsupported
 	  saa7146 based, analog video card, chances are good that it
 	  will work with this skeleton driver.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called dpc7146.
 
@@ -288,7 +294,7 @@ config VIDEO_HEXIUM_ORION
 	---help---
 	  This is a video4linux driver for the Hexium HV-PCI6 and
 	  Orion frame grabber cards by Hexium.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_orion.
 
@@ -300,7 +306,7 @@ config VIDEO_HEXIUM_GEMINI
 	  This is a video4linux driver for the Hexium Gemini frame
 	  grabber card by Hexium. Please note that the Gemini Dual
 	  card is *not* fully supported.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 
@@ -332,5 +338,19 @@ config VIDEO_M32R_AR_M64278
 	---help---
 	  Say Y here to use the Renesas M64278E-800 camera module,
 	  which supports VGA(640x480 pixcels) size of images.
+
+config VIDEO_AUDIO_DECODER
+	tristate "Add support for additional audio chipsets"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Say Y here to compile drivers for WM8775 and CS53L32A audio
+	  decoders.
+
+config VIDEO_DECODER
+	tristate "Add support for additional video chipsets"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
+	  video decoders.
 
 endmenu

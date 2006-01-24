@@ -65,7 +65,7 @@ static struct dvb_usb_rc_key a800_rc_keys[] = {
 
 };
 
-int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int a800_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[5];
 	if (usb_control_msg(d->udev,usb_rcvctrlpipe(d->udev,0),
@@ -144,7 +144,6 @@ static struct dvb_usb_properties a800_properties = {
 };
 
 static struct usb_driver a800_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_a800",
 	.probe		= a800_probe,
 	.disconnect = dvb_usb_device_exit,

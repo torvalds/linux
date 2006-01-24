@@ -81,6 +81,30 @@ void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop
 	__proc_device_tree_add_prop(pde, prop);
 }
 
+void proc_device_tree_remove_prop(struct proc_dir_entry *pde,
+				  struct property *prop)
+{
+	remove_proc_entry(prop->name, pde);
+}
+
+void proc_device_tree_update_prop(struct proc_dir_entry *pde,
+				  struct property *newprop,
+				  struct property *oldprop)
+{
+	struct proc_dir_entry *ent;
+
+	for (ent = pde->subdir; ent != NULL; ent = ent->next)
+		if (ent->data == oldprop)
+			break;
+	if (ent == NULL) {
+		printk(KERN_WARNING "device-tree: property \"%s\" "
+		       " does not exist\n", oldprop->name);
+	} else {
+		ent->data = newprop;
+		ent->size = newprop->length;
+	}
+}
+
 /*
  * Process a node, adding entries for its children and its properties.
  */

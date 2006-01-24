@@ -161,8 +161,13 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 					set_bit(X86_FEATURE_K6_MTRR, c->x86_capability);
 				break;
 			}
-			break;
 
+			if (c->x86_model == 10) {
+				/* AMD Geode LX is model 10 */
+				/* placeholder for any needed mods */
+				break;
+			}
+			break;
 		case 6: /* An Athlon/Duron */
  
 			/* Bit 15 of Athlon specific MSR 15, needs to be 0
@@ -206,9 +211,15 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	display_cacheinfo(c);
 
 	if (cpuid_eax(0x80000000) >= 0x80000008) {
-		c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-		if (c->x86_num_cores & (c->x86_num_cores - 1))
-			c->x86_num_cores = 1;
+		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
+		if (c->x86_max_cores & (c->x86_max_cores - 1))
+			c->x86_max_cores = 1;
+	}
+
+	if (cpuid_eax(0x80000000) >= 0x80000007) {
+		c->x86_power = cpuid_edx(0x80000007);
+		if (c->x86_power & (1<<8))
+			set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
 	}
 
 #ifdef CONFIG_X86_HT
@@ -217,17 +228,18 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	 * distingush the cores.  Assumes number of cores is a power
 	 * of two.
 	 */
-	if (c->x86_num_cores > 1) {
+	if (c->x86_max_cores > 1) {
 		int cpu = smp_processor_id();
 		unsigned bits = 0;
-		while ((1 << bits) < c->x86_num_cores)
+		while ((1 << bits) < c->x86_max_cores)
 			bits++;
 		cpu_core_id[cpu] = phys_proc_id[cpu] & ((1<<bits)-1);
 		phys_proc_id[cpu] >>= bits;
 		printk(KERN_INFO "CPU %d(%d) -> Core %d\n",
-		       cpu, c->x86_num_cores, cpu_core_id[cpu]);
+		       cpu, c->x86_max_cores, cpu_core_id[cpu]);
 	}
 #endif
+
 }
 
 static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

@@ -83,102 +83,98 @@ static char *_riocmd_c_sccs_ = "@(#)riocmd.c	1.2";
 static struct IdentifyRta IdRta;
 static struct KillNeighbour KillUnit;
 
-int
-RIOFoadRta(struct Host *HostP, struct Map *MapP)
+int RIOFoadRta(struct Host *HostP, struct Map *MapP)
 {
 	struct CmdBlk *CmdBlkP;
 
-	rio_dprintk (RIO_DEBUG_CMD, "FOAD RTA\n");
+	rio_dprintk(RIO_DEBUG_CMD, "FOAD RTA\n");
 
 	CmdBlkP = RIOGetCmdBlk();
 
-	if ( !CmdBlkP ) {
-		rio_dprintk (RIO_DEBUG_CMD, "FOAD RTA: GetCmdBlk failed\n");
+	if (!CmdBlkP) {
+		rio_dprintk(RIO_DEBUG_CMD, "FOAD RTA: GetCmdBlk failed\n");
 		return -ENXIO;
 	}
 
 	CmdBlkP->Packet.dest_unit = MapP->ID;
 	CmdBlkP->Packet.dest_port = BOOT_RUP;
-	CmdBlkP->Packet.src_unit  = 0;
-	CmdBlkP->Packet.src_port  = BOOT_RUP;
-	CmdBlkP->Packet.len	   = 0x84;
-	CmdBlkP->Packet.data[0]   = IFOAD;
-	CmdBlkP->Packet.data[1]   = 0;
-	CmdBlkP->Packet.data[2]   = IFOAD_MAGIC & 0xFF;
-	CmdBlkP->Packet.data[3]   = (IFOAD_MAGIC >> 8) & 0xFF;
+	CmdBlkP->Packet.src_unit = 0;
+	CmdBlkP->Packet.src_port = BOOT_RUP;
+	CmdBlkP->Packet.len = 0x84;
+	CmdBlkP->Packet.data[0] = IFOAD;
+	CmdBlkP->Packet.data[1] = 0;
+	CmdBlkP->Packet.data[2] = IFOAD_MAGIC & 0xFF;
+	CmdBlkP->Packet.data[3] = (IFOAD_MAGIC >> 8) & 0xFF;
 
-	if ( RIOQueueCmdBlk( HostP, MapP->ID-1, CmdBlkP) == RIO_FAIL ) {
-		rio_dprintk (RIO_DEBUG_CMD, "FOAD RTA: Failed to queue foad command\n");
+	if (RIOQueueCmdBlk(HostP, MapP->ID - 1, CmdBlkP) == RIO_FAIL) {
+		rio_dprintk(RIO_DEBUG_CMD, "FOAD RTA: Failed to queue foad command\n");
 		return -EIO;
 	}
 	return 0;
 }
 
-int
-RIOZombieRta(struct Host *HostP, struct Map *MapP)
+int RIOZombieRta(struct Host *HostP, struct Map *MapP)
 {
 	struct CmdBlk *CmdBlkP;
 
-	rio_dprintk (RIO_DEBUG_CMD, "ZOMBIE RTA\n");
+	rio_dprintk(RIO_DEBUG_CMD, "ZOMBIE RTA\n");
 
 	CmdBlkP = RIOGetCmdBlk();
 
-	if ( !CmdBlkP ) {
-		rio_dprintk (RIO_DEBUG_CMD, "ZOMBIE RTA: GetCmdBlk failed\n");
+	if (!CmdBlkP) {
+		rio_dprintk(RIO_DEBUG_CMD, "ZOMBIE RTA: GetCmdBlk failed\n");
 		return -ENXIO;
 	}
 
 	CmdBlkP->Packet.dest_unit = MapP->ID;
 	CmdBlkP->Packet.dest_port = BOOT_RUP;
-	CmdBlkP->Packet.src_unit  = 0;
-	CmdBlkP->Packet.src_port  = BOOT_RUP;
-	CmdBlkP->Packet.len	   = 0x84;
-	CmdBlkP->Packet.data[0]   = ZOMBIE;
-	CmdBlkP->Packet.data[1]   = 0;
-	CmdBlkP->Packet.data[2]   = ZOMBIE_MAGIC & 0xFF;
-	CmdBlkP->Packet.data[3]   = (ZOMBIE_MAGIC >> 8) & 0xFF;
+	CmdBlkP->Packet.src_unit = 0;
+	CmdBlkP->Packet.src_port = BOOT_RUP;
+	CmdBlkP->Packet.len = 0x84;
+	CmdBlkP->Packet.data[0] = ZOMBIE;
+	CmdBlkP->Packet.data[1] = 0;
+	CmdBlkP->Packet.data[2] = ZOMBIE_MAGIC & 0xFF;
+	CmdBlkP->Packet.data[3] = (ZOMBIE_MAGIC >> 8) & 0xFF;
 
-	if ( RIOQueueCmdBlk( HostP, MapP->ID-1, CmdBlkP) == RIO_FAIL ) {
-		rio_dprintk (RIO_DEBUG_CMD, "ZOMBIE RTA: Failed to queue zombie command\n");
+	if (RIOQueueCmdBlk(HostP, MapP->ID - 1, CmdBlkP) == RIO_FAIL) {
+		rio_dprintk(RIO_DEBUG_CMD, "ZOMBIE RTA: Failed to queue zombie command\n");
 		return -EIO;
 	}
 	return 0;
 }
 
-int
-RIOCommandRta(struct rio_info *p, uint RtaUnique,
-	int (* func)(struct Host *HostP, struct Map *MapP))
+int RIOCommandRta(struct rio_info *p, uint RtaUnique, int (*func) (struct Host * HostP, struct Map * MapP))
 {
 	uint Host;
 
-	rio_dprintk (RIO_DEBUG_CMD, "Command RTA 0x%x func 0x%x\n", RtaUnique, (int)func);
+	rio_dprintk(RIO_DEBUG_CMD, "Command RTA 0x%x func 0x%x\n", RtaUnique, (int) func);
 
-	if ( !RtaUnique )
-		return(0);
+	if (!RtaUnique)
+		return (0);
 
-	for ( Host = 0; Host < p->RIONumHosts; Host++ ) {
+	for (Host = 0; Host < p->RIONumHosts; Host++) {
 		uint Rta;
 		struct Host *HostP = &p->RIOHosts[Host];
 
-		for ( Rta = 0; Rta < RTAS_PER_HOST; Rta++ ) {
+		for (Rta = 0; Rta < RTAS_PER_HOST; Rta++) {
 			struct Map *MapP = &HostP->Mapping[Rta];
 
-			if ( MapP->RtaUniqueNum == RtaUnique ) {
+			if (MapP->RtaUniqueNum == RtaUnique) {
 				uint Link;
 
 				/*
-				** now, lets just check we have a route to it...
-				** IF the routing stuff is working, then one of the
-				** topology entries for this unit will have a legit
-				** route *somewhere*. We care not where - if its got
-				** any connections, we can get to it.
-				*/
-				for ( Link = 0; Link < LINKS_PER_UNIT; Link++ ) {
-					if ( MapP->Topology[Link].Unit <= (uchar)MAX_RUP ) {
+				 ** now, lets just check we have a route to it...
+				 ** IF the routing stuff is working, then one of the
+				 ** topology entries for this unit will have a legit
+				 ** route *somewhere*. We care not where - if its got
+				 ** any connections, we can get to it.
+				 */
+				for (Link = 0; Link < LINKS_PER_UNIT; Link++) {
+					if (MapP->Topology[Link].Unit <= (uchar) MAX_RUP) {
 						/*
-						** Its worth trying the operation...
-						*/
-						return (*func)( HostP, MapP );
+						 ** Its worth trying the operation...
+						 */
+						return (*func) (HostP, MapP);
 					}
 				}
 			}
@@ -188,60 +184,59 @@ RIOCommandRta(struct rio_info *p, uint RtaUnique,
 }
 
 
-int
-RIOIdentifyRta(struct rio_info *p, caddr_t arg)
+int RIOIdentifyRta(struct rio_info *p, caddr_t arg)
 {
 	uint Host;
 
-	if ( copyin( (int)arg, (caddr_t)&IdRta, sizeof(IdRta) ) == COPYFAIL ) {
-		rio_dprintk (RIO_DEBUG_CMD, "RIO_IDENTIFY_RTA copy failed\n");
+	if (copyin((int) arg, (caddr_t) & IdRta, sizeof(IdRta)) == COPYFAIL) {
+		rio_dprintk(RIO_DEBUG_CMD, "RIO_IDENTIFY_RTA copy failed\n");
 		p->RIOError.Error = COPYIN_FAILED;
 		return -EFAULT;
 	}
 
-	for ( Host = 0 ; Host < p->RIONumHosts; Host++ ) {
+	for (Host = 0; Host < p->RIONumHosts; Host++) {
 		uint Rta;
 		struct Host *HostP = &p->RIOHosts[Host];
 
-		for ( Rta = 0; Rta < RTAS_PER_HOST; Rta++ ) {
+		for (Rta = 0; Rta < RTAS_PER_HOST; Rta++) {
 			struct Map *MapP = &HostP->Mapping[Rta];
 
-			if ( MapP->RtaUniqueNum == IdRta.RtaUnique ) {
+			if (MapP->RtaUniqueNum == IdRta.RtaUnique) {
 				uint Link;
 				/*
-				** now, lets just check we have a route to it...
-				** IF the routing stuff is working, then one of the
-				** topology entries for this unit will have a legit
-				** route *somewhere*. We care not where - if its got
-				** any connections, we can get to it.
-				*/
-				for ( Link = 0; Link < LINKS_PER_UNIT; Link++ ) {
-					if ( MapP->Topology[Link].Unit <= (uchar)MAX_RUP ) {
+				 ** now, lets just check we have a route to it...
+				 ** IF the routing stuff is working, then one of the
+				 ** topology entries for this unit will have a legit
+				 ** route *somewhere*. We care not where - if its got
+				 ** any connections, we can get to it.
+				 */
+				for (Link = 0; Link < LINKS_PER_UNIT; Link++) {
+					if (MapP->Topology[Link].Unit <= (uchar) MAX_RUP) {
 						/*
-						** Its worth trying the operation...
-						*/
+						 ** Its worth trying the operation...
+						 */
 						struct CmdBlk *CmdBlkP;
 
-						rio_dprintk (RIO_DEBUG_CMD, "IDENTIFY RTA\n");
+						rio_dprintk(RIO_DEBUG_CMD, "IDENTIFY RTA\n");
 
 						CmdBlkP = RIOGetCmdBlk();
 
-						if ( !CmdBlkP ) {
-							rio_dprintk (RIO_DEBUG_CMD, "IDENTIFY RTA: GetCmdBlk failed\n");
+						if (!CmdBlkP) {
+							rio_dprintk(RIO_DEBUG_CMD, "IDENTIFY RTA: GetCmdBlk failed\n");
 							return -ENXIO;
 						}
-		
+
 						CmdBlkP->Packet.dest_unit = MapP->ID;
 						CmdBlkP->Packet.dest_port = BOOT_RUP;
-						CmdBlkP->Packet.src_unit  = 0;
-						CmdBlkP->Packet.src_port  = BOOT_RUP;
-						CmdBlkP->Packet.len	   = 0x84;
-						CmdBlkP->Packet.data[0]   = IDENTIFY;
-						CmdBlkP->Packet.data[1]   = 0;
-						CmdBlkP->Packet.data[2]   = IdRta.ID;
-		
-						if ( RIOQueueCmdBlk( HostP, MapP->ID-1, CmdBlkP) == RIO_FAIL ) {
-							rio_dprintk (RIO_DEBUG_CMD, "IDENTIFY RTA: Failed to queue command\n");
+						CmdBlkP->Packet.src_unit = 0;
+						CmdBlkP->Packet.src_port = BOOT_RUP;
+						CmdBlkP->Packet.len = 0x84;
+						CmdBlkP->Packet.data[0] = IDENTIFY;
+						CmdBlkP->Packet.data[1] = 0;
+						CmdBlkP->Packet.data[2] = IdRta.ID;
+
+						if (RIOQueueCmdBlk(HostP, MapP->ID - 1, CmdBlkP) == RIO_FAIL) {
+							rio_dprintk(RIO_DEBUG_CMD, "IDENTIFY RTA: Failed to queue command\n");
 							return -EIO;
 						}
 						return 0;
@@ -249,114 +244,110 @@ RIOIdentifyRta(struct rio_info *p, caddr_t arg)
 				}
 			}
 		}
-	} 
+	}
 	return -ENOENT;
 }
 
 
-int
-RIOKillNeighbour(struct rio_info *p, caddr_t arg)
+int RIOKillNeighbour(struct rio_info *p, caddr_t arg)
 {
 	uint Host;
 	uint ID;
 	struct Host *HostP;
 	struct CmdBlk *CmdBlkP;
 
-	rio_dprintk (RIO_DEBUG_CMD, "KILL HOST NEIGHBOUR\n");
+	rio_dprintk(RIO_DEBUG_CMD, "KILL HOST NEIGHBOUR\n");
 
-	if ( copyin( (int)arg, (caddr_t)&KillUnit, sizeof(KillUnit) ) == COPYFAIL ) {
-		rio_dprintk (RIO_DEBUG_CMD, "RIO_KILL_NEIGHBOUR copy failed\n");
+	if (copyin((int) arg, (caddr_t) & KillUnit, sizeof(KillUnit)) == COPYFAIL) {
+		rio_dprintk(RIO_DEBUG_CMD, "RIO_KILL_NEIGHBOUR copy failed\n");
 		p->RIOError.Error = COPYIN_FAILED;
 		return -EFAULT;
 	}
 
-	if ( KillUnit.Link > 3 )
+	if (KillUnit.Link > 3)
 		return -ENXIO;
- 
+
 	CmdBlkP = RIOGetCmdBlk();
 
-	if ( !CmdBlkP ) {
-		rio_dprintk (RIO_DEBUG_CMD, "UFOAD: GetCmdBlk failed\n");
+	if (!CmdBlkP) {
+		rio_dprintk(RIO_DEBUG_CMD, "UFOAD: GetCmdBlk failed\n");
 		return -ENXIO;
 	}
 
 	CmdBlkP->Packet.dest_unit = 0;
-	CmdBlkP->Packet.src_unit  = 0;
+	CmdBlkP->Packet.src_unit = 0;
 	CmdBlkP->Packet.dest_port = BOOT_RUP;
-	CmdBlkP->Packet.src_port  = BOOT_RUP;
-	CmdBlkP->Packet.len	   = 0x84;
-	CmdBlkP->Packet.data[0]   = UFOAD;
-	CmdBlkP->Packet.data[1]   = KillUnit.Link;
-	CmdBlkP->Packet.data[2]   = UFOAD_MAGIC & 0xFF;
-	CmdBlkP->Packet.data[3]   = (UFOAD_MAGIC >> 8) & 0xFF;
+	CmdBlkP->Packet.src_port = BOOT_RUP;
+	CmdBlkP->Packet.len = 0x84;
+	CmdBlkP->Packet.data[0] = UFOAD;
+	CmdBlkP->Packet.data[1] = KillUnit.Link;
+	CmdBlkP->Packet.data[2] = UFOAD_MAGIC & 0xFF;
+	CmdBlkP->Packet.data[3] = (UFOAD_MAGIC >> 8) & 0xFF;
 
-	for ( Host = 0; Host < p->RIONumHosts; Host++ ) {
+	for (Host = 0; Host < p->RIONumHosts; Host++) {
 		ID = 0;
 		HostP = &p->RIOHosts[Host];
 
-		if ( HostP->UniqueNum == KillUnit.UniqueNum ) {
-			if ( RIOQueueCmdBlk( HostP, RTAS_PER_HOST+KillUnit.Link,
-							CmdBlkP) == RIO_FAIL ) {
-				rio_dprintk (RIO_DEBUG_CMD, "UFOAD: Failed queue command\n");
+		if (HostP->UniqueNum == KillUnit.UniqueNum) {
+			if (RIOQueueCmdBlk(HostP, RTAS_PER_HOST + KillUnit.Link, CmdBlkP) == RIO_FAIL) {
+				rio_dprintk(RIO_DEBUG_CMD, "UFOAD: Failed queue command\n");
 				return -EIO;
 			}
 			return 0;
 		}
 
-		for ( ID=0; ID < RTAS_PER_HOST; ID++ ) {
-			if ( HostP->Mapping[ID].RtaUniqueNum == KillUnit.UniqueNum ) {
-				CmdBlkP->Packet.dest_unit = ID+1;
-				if ( RIOQueueCmdBlk( HostP, ID, CmdBlkP) == RIO_FAIL ) {
-					rio_dprintk (RIO_DEBUG_CMD, "UFOAD: Failed queue command\n");
+		for (ID = 0; ID < RTAS_PER_HOST; ID++) {
+			if (HostP->Mapping[ID].RtaUniqueNum == KillUnit.UniqueNum) {
+				CmdBlkP->Packet.dest_unit = ID + 1;
+				if (RIOQueueCmdBlk(HostP, ID, CmdBlkP) == RIO_FAIL) {
+					rio_dprintk(RIO_DEBUG_CMD, "UFOAD: Failed queue command\n");
 					return -EIO;
 				}
 				return 0;
 			}
 		}
 	}
-	RIOFreeCmdBlk( CmdBlkP );
+	RIOFreeCmdBlk(CmdBlkP);
 	return -ENXIO;
 }
 
-int
-RIOSuspendBootRta(struct Host *HostP, int ID, int Link)
+int RIOSuspendBootRta(struct Host *HostP, int ID, int Link)
 {
 	struct CmdBlk *CmdBlkP;
 
-	rio_dprintk (RIO_DEBUG_CMD, "SUSPEND BOOT ON RTA ID %d, link %c\n", ID, 'A' + Link);
+	rio_dprintk(RIO_DEBUG_CMD, "SUSPEND BOOT ON RTA ID %d, link %c\n", ID, 'A' + Link);
 
 	CmdBlkP = RIOGetCmdBlk();
 
-	if ( !CmdBlkP ) {
-		rio_dprintk (RIO_DEBUG_CMD, "SUSPEND BOOT ON RTA: GetCmdBlk failed\n");
+	if (!CmdBlkP) {
+		rio_dprintk(RIO_DEBUG_CMD, "SUSPEND BOOT ON RTA: GetCmdBlk failed\n");
 		return -ENXIO;
 	}
 
 	CmdBlkP->Packet.dest_unit = ID;
 	CmdBlkP->Packet.dest_port = BOOT_RUP;
-	CmdBlkP->Packet.src_unit  = 0;
-	CmdBlkP->Packet.src_port  = BOOT_RUP;
-	CmdBlkP->Packet.len	   = 0x84;
-	CmdBlkP->Packet.data[0]   = IWAIT;
-	CmdBlkP->Packet.data[1]   = Link;
-	CmdBlkP->Packet.data[2]   = IWAIT_MAGIC & 0xFF;
-	CmdBlkP->Packet.data[3]   = (IWAIT_MAGIC >> 8) & 0xFF;
+	CmdBlkP->Packet.src_unit = 0;
+	CmdBlkP->Packet.src_port = BOOT_RUP;
+	CmdBlkP->Packet.len = 0x84;
+	CmdBlkP->Packet.data[0] = IWAIT;
+	CmdBlkP->Packet.data[1] = Link;
+	CmdBlkP->Packet.data[2] = IWAIT_MAGIC & 0xFF;
+	CmdBlkP->Packet.data[3] = (IWAIT_MAGIC >> 8) & 0xFF;
 
-	if ( RIOQueueCmdBlk( HostP, ID - 1, CmdBlkP) == RIO_FAIL ) {
-		rio_dprintk (RIO_DEBUG_CMD, "SUSPEND BOOT ON RTA: Failed to queue iwait command\n");
+	if (RIOQueueCmdBlk(HostP, ID - 1, CmdBlkP) == RIO_FAIL) {
+		rio_dprintk(RIO_DEBUG_CMD, "SUSPEND BOOT ON RTA: Failed to queue iwait command\n");
 		return -EIO;
 	}
 	return 0;
 }
 
-int
-RIOFoadWakeup(struct rio_info *p)
+int RIOFoadWakeup(struct rio_info *p)
 {
 	int port;
 	register struct Port *PortP;
 	unsigned long flags;
 
-	for ( port=0; port<RIO_PORTS; port++) {
+	for (port = 0; port < RIO_PORTS; port++) {
 		PortP = p->RIOPortp[port];
 
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
@@ -377,16 +368,15 @@ RIOFoadWakeup(struct rio_info *p)
 		PortP->TxBufferOut = 0;
 		rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 	}
-	return(0);
+	return (0);
 }
 
 /*
 ** Incoming command on the COMMAND_RUP to be processed.
 */
-static int
-RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *PacketP)
+static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 {
-	struct PktCmd *PktCmdP = (struct PktCmd *)PacketP->data;
+	struct PktCmd *PktCmdP = (struct PktCmd *) PacketP->data;
 	struct Port *PortP;
 	struct UnixRup *UnixRupP;
 	ushort SysPort;
@@ -395,128 +385,101 @@ RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *PacketP)
 	ushort subCommand;
 	unsigned long flags;
 
-	func_enter ();
-
-#ifdef CHECK
-	CheckHost( Host );
-	CheckHostP( HostP );
-	CheckPacketP( PacketP );
-#endif
+	func_enter();
 
 	/*
-	** 16 port RTA note:
-	** Command rup packets coming from the RTA will have pkt->data[1] (which
-	** translates to PktCmdP->PhbNum) set to the host port number for the
-	** particular unit. To access the correct BaseSysPort for a 16 port RTA,
-	** we can use PhbNum to get the rup number for the appropriate 8 port
-	** block (for the first block, this should be equal to 'Rup').
-	*/
-	rup = RBYTE(PktCmdP->PhbNum) / (ushort)PORTS_PER_RTA;
+	 ** 16 port RTA note:
+	 ** Command rup packets coming from the RTA will have pkt->data[1] (which
+	 ** translates to PktCmdP->PhbNum) set to the host port number for the
+	 ** particular unit. To access the correct BaseSysPort for a 16 port RTA,
+	 ** we can use PhbNum to get the rup number for the appropriate 8 port
+	 ** block (for the first block, this should be equal to 'Rup').
+	 */
+	rup = RBYTE(PktCmdP->PhbNum) / (ushort) PORTS_PER_RTA;
 	UnixRupP = &HostP->UnixRups[rup];
-	SysPort = UnixRupP->BaseSysPort + 
-			(RBYTE(PktCmdP->PhbNum) % (ushort)PORTS_PER_RTA);
-	rio_dprintk (RIO_DEBUG_CMD, "Command on rup %d, port %d\n", rup, SysPort);
+	SysPort = UnixRupP->BaseSysPort + (RBYTE(PktCmdP->PhbNum) % (ushort) PORTS_PER_RTA);
+	rio_dprintk(RIO_DEBUG_CMD, "Command on rup %d, port %d\n", rup, SysPort);
 
-#ifdef CHECK
-	CheckRup( rup );
-	CheckUnixRupP( UnixRupP );
-#endif
-	if ( UnixRupP->BaseSysPort == NO_PORT ) {
-		rio_dprintk (RIO_DEBUG_CMD, "OBSCURE ERROR!\n");
-		rio_dprintk (RIO_DEBUG_CMD, "Diagnostics follow. Please WRITE THESE DOWN and report them to Specialix Technical Support\n");
-		rio_dprintk (RIO_DEBUG_CMD, "CONTROL information: Host number %d, name ``%s''\n", 
-			     HostP-p->RIOHosts, HostP->Name );
-		rio_dprintk (RIO_DEBUG_CMD, "CONTROL information: Rup number  0x%x\n", rup);
+	if (UnixRupP->BaseSysPort == NO_PORT) {
+		rio_dprintk(RIO_DEBUG_CMD, "OBSCURE ERROR!\n");
+		rio_dprintk(RIO_DEBUG_CMD, "Diagnostics follow. Please WRITE THESE DOWN and report them to Specialix Technical Support\n");
+		rio_dprintk(RIO_DEBUG_CMD, "CONTROL information: Host number %d, name ``%s''\n", HostP - p->RIOHosts, HostP->Name);
+		rio_dprintk(RIO_DEBUG_CMD, "CONTROL information: Rup number  0x%x\n", rup);
 
-		if ( Rup >= (ushort)MAX_RUP ) {
-			rio_dprintk (RIO_DEBUG_CMD, "CONTROL information: This is the RUP for RTA ``%s''\n",
-				     HostP->Mapping[Rup].Name);
+		if (Rup >= (ushort) MAX_RUP) {
+			rio_dprintk(RIO_DEBUG_CMD, "CONTROL information: This is the RUP for RTA ``%s''\n", HostP->Mapping[Rup].Name);
 		} else
-			rio_dprintk (RIO_DEBUG_CMD, "CONTROL information: This is the RUP for link ``%c'' of host ``%s''\n", 
-				     ('A' + Rup - MAX_RUP), HostP->Name);
+			rio_dprintk(RIO_DEBUG_CMD, "CONTROL information: This is the RUP for link ``%c'' of host ``%s''\n", ('A' + Rup - MAX_RUP), HostP->Name);
 
-		rio_dprintk (RIO_DEBUG_CMD, "PACKET information: Destination 0x%x:0x%x\n",
-			     PacketP->dest_unit, PacketP->dest_port );
-		rio_dprintk (RIO_DEBUG_CMD, "PACKET information: Source	  0x%x:0x%x\n",
-			     PacketP->src_unit, PacketP->src_port );
-		rio_dprintk (RIO_DEBUG_CMD, "PACKET information: Length	  0x%x (%d)\n", PacketP->len,PacketP->len );
-		rio_dprintk (RIO_DEBUG_CMD, "PACKET information: Control	 0x%x (%d)\n", PacketP->control, PacketP->control);
-		rio_dprintk (RIO_DEBUG_CMD, "PACKET information: Check	   0x%x (%d)\n", PacketP->csum, PacketP->csum );
-		rio_dprintk (RIO_DEBUG_CMD, "COMMAND information: Host Port Number 0x%x, "
-					"Command Code 0x%x\n", PktCmdP->PhbNum, PktCmdP->Command );
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Destination 0x%x:0x%x\n", PacketP->dest_unit, PacketP->dest_port);
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Source	  0x%x:0x%x\n", PacketP->src_unit, PacketP->src_port);
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Length	  0x%x (%d)\n", PacketP->len, PacketP->len);
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Control	 0x%x (%d)\n", PacketP->control, PacketP->control);
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Check	   0x%x (%d)\n", PacketP->csum, PacketP->csum);
+		rio_dprintk(RIO_DEBUG_CMD, "COMMAND information: Host Port Number 0x%x, " "Command Code 0x%x\n", PktCmdP->PhbNum, PktCmdP->Command);
 		return TRUE;
 	}
-
-#ifdef CHECK
-	CheckSysPort( SysPort );
-#endif
-	PortP = p->RIOPortp[ SysPort ];
+	PortP = p->RIOPortp[SysPort];
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
-	switch( RBYTE(PktCmdP->Command) ) {
-		case BREAK_RECEIVED:
-			rio_dprintk (RIO_DEBUG_CMD, "Received a break!\n");
-			/* If the current line disc. is not multi-threading and
-	   			the current processor is not the default, reset rup_intr
-	   			and return FALSE to ensure that the command packet is
-	   			not freed. */
-			/* Call tmgr HANGUP HERE */
-			/* Fix this later when every thing works !!!! RAMRAJ */
-			gs_got_break (&PortP->gs);
+	switch (RBYTE(PktCmdP->Command)) {
+	case BREAK_RECEIVED:
+		rio_dprintk(RIO_DEBUG_CMD, "Received a break!\n");
+		/* If the current line disc. is not multi-threading and
+		   the current processor is not the default, reset rup_intr
+		   and return FALSE to ensure that the command packet is
+		   not freed. */
+		/* Call tmgr HANGUP HERE */
+		/* Fix this later when every thing works !!!! RAMRAJ */
+		gs_got_break(&PortP->gs);
+		break;
+
+	case COMPLETE:
+		rio_dprintk(RIO_DEBUG_CMD, "Command complete on phb %d host %d\n", RBYTE(PktCmdP->PhbNum), HostP - p->RIOHosts);
+		subCommand = 1;
+		switch (RBYTE(PktCmdP->SubCommand)) {
+		case MEMDUMP:
+			rio_dprintk(RIO_DEBUG_CMD, "Memory dump cmd (0x%x) from addr 0x%x\n", RBYTE(PktCmdP->SubCommand), RWORD(PktCmdP->SubAddr));
 			break;
+		case READ_REGISTER:
+			rio_dprintk(RIO_DEBUG_CMD, "Read register (0x%x)\n", RWORD(PktCmdP->SubAddr));
+			p->CdRegister = (RBYTE(PktCmdP->ModemStatus) & MSVR1_HOST);
+			break;
+		default:
+			subCommand = 0;
+			break;
+		}
+		if (subCommand)
+			break;
+		rio_dprintk(RIO_DEBUG_CMD, "New status is 0x%x was 0x%x\n", RBYTE(PktCmdP->PortStatus), PortP->PortState);
+		if (PortP->PortState != RBYTE(PktCmdP->PortStatus)) {
+			rio_dprintk(RIO_DEBUG_CMD, "Mark status & wakeup\n");
+			PortP->PortState = RBYTE(PktCmdP->PortStatus);
+			/* What should we do here ...
+			   wakeup( &PortP->PortState );
+			 */
+		} else
+			rio_dprintk(RIO_DEBUG_CMD, "No change\n");
 
-		case COMPLETE:
-			rio_dprintk (RIO_DEBUG_CMD, "Command complete on phb %d host %d\n",
-			     RBYTE(PktCmdP->PhbNum), HostP-p->RIOHosts);
-			subCommand = 1;
-			switch (RBYTE(PktCmdP->SubCommand)) {
-				case MEMDUMP :
-			rio_dprintk (RIO_DEBUG_CMD, "Memory dump cmd (0x%x) from addr 0x%x\n",
-				     RBYTE(PktCmdP->SubCommand), RWORD(PktCmdP->SubAddr));
-					break;
-				case READ_REGISTER :
-			rio_dprintk (RIO_DEBUG_CMD, "Read register (0x%x)\n", RWORD(PktCmdP->SubAddr));
-					p->CdRegister = (RBYTE(PktCmdP->ModemStatus) & MSVR1_HOST);
-					break;
-				default :
-					subCommand = 0;
-				break;
-			}
-			if (subCommand)
-				break;
-			rio_dprintk (RIO_DEBUG_CMD, "New status is 0x%x was 0x%x\n",
-				     RBYTE(PktCmdP->PortStatus),PortP->PortState);
-			if (PortP->PortState != RBYTE(PktCmdP->PortStatus)) {
-				rio_dprintk (RIO_DEBUG_CMD, "Mark status & wakeup\n");
-				PortP->PortState = RBYTE(PktCmdP->PortStatus);
-				/* What should we do here ...
-				wakeup( &PortP->PortState );
-				*/
-		} else 
-			rio_dprintk (RIO_DEBUG_CMD, "No change\n");
-
-			/* FALLTHROUGH */
-		case MODEM_STATUS:
+		/* FALLTHROUGH */
+	case MODEM_STATUS:
+		/*
+		 ** Knock out the tbusy and tstop bits, as these are not relevant
+		 ** to the check for modem status change (they're just there because
+		 ** it's a convenient place to put them!).
+		 */
+		ReportedModemStatus = RBYTE(PktCmdP->ModemStatus);
+		if ((PortP->ModemState & MSVR1_HOST) == (ReportedModemStatus & MSVR1_HOST)) {
+			rio_dprintk(RIO_DEBUG_CMD, "Modem status unchanged 0x%x\n", PortP->ModemState);
 			/*
-			** Knock out the tbusy and tstop bits, as these are not relevant
-			** to the check for modem status change (they're just there because
-			** it's a convenient place to put them!).
-			*/
-			ReportedModemStatus = RBYTE(PktCmdP->ModemStatus);
-			if ((PortP->ModemState & MSVR1_HOST) ==
-					(ReportedModemStatus & MSVR1_HOST)) {
-				rio_dprintk (RIO_DEBUG_CMD, "Modem status unchanged 0x%x\n", PortP->ModemState);
-				/*
-				** Update ModemState just in case tbusy or tstop states have
-				** changed.
-				*/
-				PortP->ModemState = ReportedModemStatus;
-			}
-			else {
-				rio_dprintk (RIO_DEBUG_CMD, "Modem status change from 0x%x to 0x%x\n",
-				     PortP->ModemState, ReportedModemStatus);
-				PortP->ModemState = ReportedModemStatus;
+			 ** Update ModemState just in case tbusy or tstop states have
+			 ** changed.
+			 */
+			PortP->ModemState = ReportedModemStatus;
+		} else {
+			rio_dprintk(RIO_DEBUG_CMD, "Modem status change from 0x%x to 0x%x\n", PortP->ModemState, ReportedModemStatus);
+			PortP->ModemState = ReportedModemStatus;
 #ifdef MODEM_SUPPORT
-				if ( PortP->Mapped ) {
+			if (PortP->Mapped) {
 				/***********************************************************\
 				*************************************************************
 				***													   ***
@@ -525,68 +488,67 @@ RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *PacketP)
 				*************************************************************
 				\***********************************************************/
 				/*
-				** If the device is a modem, then check the modem
-				** carrier.
-				*/
+				 ** If the device is a modem, then check the modem
+				 ** carrier.
+				 */
 				if (PortP->gs.tty == NULL)
 					break;
 				if (PortP->gs.tty->termios == NULL)
 					break;
-			  
-				if (!(PortP->gs.tty->termios->c_cflag & CLOCAL) &&
-				((PortP->State & (RIO_MOPEN|RIO_WOPEN)))) {
 
-					rio_dprintk (RIO_DEBUG_CMD, "Is there a Carrier?\n");
-			/*
-			** Is there a carrier?
-			*/
-					if ( PortP->ModemState & MSVR1_CD ) {
-			/*
-			** Has carrier just appeared?
-			*/
+				if (!(PortP->gs.tty->termios->c_cflag & CLOCAL) && ((PortP->State & (RIO_MOPEN | RIO_WOPEN)))) {
+
+					rio_dprintk(RIO_DEBUG_CMD, "Is there a Carrier?\n");
+					/*
+					 ** Is there a carrier?
+					 */
+					if (PortP->ModemState & MSVR1_CD) {
+						/*
+						 ** Has carrier just appeared?
+						 */
 						if (!(PortP->State & RIO_CARR_ON)) {
-							rio_dprintk (RIO_DEBUG_CMD, "Carrier just came up.\n");
+							rio_dprintk(RIO_DEBUG_CMD, "Carrier just came up.\n");
 							PortP->State |= RIO_CARR_ON;
-				/*
-				** wakeup anyone in WOPEN
-				*/
-							if (PortP->State & (PORT_ISOPEN | RIO_WOPEN) )
-								wake_up_interruptible (&PortP->gs.open_wait);
+							/*
+							 ** wakeup anyone in WOPEN
+							 */
+							if (PortP->State & (PORT_ISOPEN | RIO_WOPEN))
+								wake_up_interruptible(&PortP->gs.open_wait);
 #ifdef STATS
-				PortP->Stat.ModemOnCnt++;
+							PortP->Stat.ModemOnCnt++;
 #endif
-			}
+						}
 					} else {
-			/*
-			** Has carrier just dropped?
-			*/
+						/*
+						 ** Has carrier just dropped?
+						 */
 						if (PortP->State & RIO_CARR_ON) {
-							if (PortP->State & (PORT_ISOPEN|RIO_WOPEN|RIO_MOPEN))
-								tty_hangup (PortP->gs.tty);
+							if (PortP->State & (PORT_ISOPEN | RIO_WOPEN | RIO_MOPEN))
+								tty_hangup(PortP->gs.tty);
 							PortP->State &= ~RIO_CARR_ON;
-							rio_dprintk (RIO_DEBUG_CMD, "Carrirer just went down\n");
+							rio_dprintk(RIO_DEBUG_CMD, "Carrirer just went down\n");
 #ifdef STATS
-				PortP->Stat.ModemOffCnt++;
+							PortP->Stat.ModemOffCnt++;
 #endif
+						}
+					}
+				}
 			}
-			}
-		}
-		}
 #endif
-			}
-			break;
+		}
+		break;
 
-		default:
-			rio_dprintk (RIO_DEBUG_CMD, "Unknown command %d on CMD_RUP of host %d\n",
-			     RBYTE(PktCmdP->Command),HostP-p->RIOHosts);
-			break;
+	default:
+		rio_dprintk(RIO_DEBUG_CMD, "Unknown command %d on CMD_RUP of host %d\n", RBYTE(PktCmdP->Command), HostP - p->RIOHosts);
+		break;
 	}
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 
-	func_exit ();
+	func_exit();
 
 	return TRUE;
 }
+
 /*
 ** The command mechanism:
 **	Each rup has a chain of commands associated with it.
@@ -600,12 +562,11 @@ RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT *PacketP)
 /*
 ** Allocate an empty command block.
 */
-struct CmdBlk *
-RIOGetCmdBlk(void)
+struct CmdBlk *RIOGetCmdBlk(void)
 {
 	struct CmdBlk *CmdBlkP;
 
-	CmdBlkP = (struct CmdBlk *)sysbrk(sizeof(struct CmdBlk));
+	CmdBlkP = (struct CmdBlk *) sysbrk(sizeof(struct CmdBlk));
 	if (CmdBlkP)
 		bzero(CmdBlkP, sizeof(struct CmdBlk));
 
@@ -615,31 +576,24 @@ RIOGetCmdBlk(void)
 /*
 ** Return a block to the head of the free list.
 */
-void
-RIOFreeCmdBlk(struct CmdBlk *CmdBlkP)
+void RIOFreeCmdBlk(struct CmdBlk *CmdBlkP)
 {
-	sysfree((void *)CmdBlkP, sizeof(struct CmdBlk));
+	sysfree((void *) CmdBlkP, sizeof(struct CmdBlk));
 }
 
 /*
 ** attach a command block to the list of commands to be performed for
 ** a given rup.
 */
-int
-RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
+int RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
 {
 	struct CmdBlk **Base;
 	struct UnixRup *UnixRupP;
 	unsigned long flags;
 
-#ifdef CHECK
-	CheckHostP( HostP );
-	CheckRup( Rup );
-	CheckCmdBlkP( CmdBlkP );
-#endif
-	if ( Rup >= (ushort)(MAX_RUP+LINKS_PER_UNIT) ) {
-		rio_dprintk (RIO_DEBUG_CMD, "Illegal rup number %d in RIOQueueCmdBlk\n",Rup);
-		RIOFreeCmdBlk( CmdBlkP );
+	if (Rup >= (ushort) (MAX_RUP + LINKS_PER_UNIT)) {
+		rio_dprintk(RIO_DEBUG_CMD, "Illegal rup number %d in RIOQueueCmdBlk\n", Rup);
+		RIOFreeCmdBlk(CmdBlkP);
 		return RIO_FAIL;
 	}
 
@@ -648,57 +602,52 @@ RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
 	rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
 
 	/*
-	** If the RUP is currently inactive, then put the request
-	** straight on the RUP....
-	*/
-	if ( (UnixRupP->CmdsWaitingP == NULL) && (UnixRupP->CmdPendingP == NULL) && 
-	     (RWORD(UnixRupP->RupP->txcontrol) == TX_RUP_INACTIVE ) &&
-		(CmdBlkP->PreFuncP ? (*CmdBlkP->PreFuncP)(CmdBlkP->PreArg,CmdBlkP)
-							:TRUE)) {
-		rio_dprintk (RIO_DEBUG_CMD, "RUP inactive-placing command straight on. Cmd byte is 0x%x\n",
-					     CmdBlkP->Packet.data[0]);
+	 ** If the RUP is currently inactive, then put the request
+	 ** straight on the RUP....
+	 */
+	if ((UnixRupP->CmdsWaitingP == NULL) && (UnixRupP->CmdPendingP == NULL) && (RWORD(UnixRupP->RupP->txcontrol) == TX_RUP_INACTIVE) && (CmdBlkP->PreFuncP ? (*CmdBlkP->PreFuncP) (CmdBlkP->PreArg, CmdBlkP)
+																	     : TRUE)) {
+		rio_dprintk(RIO_DEBUG_CMD, "RUP inactive-placing command straight on. Cmd byte is 0x%x\n", CmdBlkP->Packet.data[0]);
 
 		/*
-		** Whammy! blat that pack!
-		*/
-		HostP->Copy( (caddr_t)&CmdBlkP->Packet, 
-			RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt ), sizeof(PKT) );
+		 ** Whammy! blat that pack!
+		 */
+		HostP->Copy((caddr_t) & CmdBlkP->Packet, RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt), sizeof(PKT));
 
 		/*
-		** place command packet on the pending position.
-		*/
+		 ** place command packet on the pending position.
+		 */
 		UnixRupP->CmdPendingP = CmdBlkP;
 
 		/*
-		** set the command register
-		*/
-		WWORD(UnixRupP->RupP->txcontrol , TX_PACKET_READY);
+		 ** set the command register
+		 */
+		WWORD(UnixRupP->RupP->txcontrol, TX_PACKET_READY);
 
 		rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
 
 		return RIO_SUCCESS;
 	}
-	rio_dprintk (RIO_DEBUG_CMD, "RUP active - en-queing\n");
+	rio_dprintk(RIO_DEBUG_CMD, "RUP active - en-queing\n");
 
-	if ( UnixRupP->CmdsWaitingP != NULL)
-		rio_dprintk (RIO_DEBUG_CMD, "Rup active - command waiting\n");
-	if ( UnixRupP->CmdPendingP != NULL )
-		rio_dprintk (RIO_DEBUG_CMD, "Rup active - command pending\n");
-	if ( RWORD(UnixRupP->RupP->txcontrol) != TX_RUP_INACTIVE )
-		rio_dprintk (RIO_DEBUG_CMD, "Rup active - command rup not ready\n");
+	if (UnixRupP->CmdsWaitingP != NULL)
+		rio_dprintk(RIO_DEBUG_CMD, "Rup active - command waiting\n");
+	if (UnixRupP->CmdPendingP != NULL)
+		rio_dprintk(RIO_DEBUG_CMD, "Rup active - command pending\n");
+	if (RWORD(UnixRupP->RupP->txcontrol) != TX_RUP_INACTIVE)
+		rio_dprintk(RIO_DEBUG_CMD, "Rup active - command rup not ready\n");
 
 	Base = &UnixRupP->CmdsWaitingP;
 
-	rio_dprintk (RIO_DEBUG_CMD, "First try to queue cmdblk 0x%x at 0x%x\n", (int)CmdBlkP,(int)Base);
+	rio_dprintk(RIO_DEBUG_CMD, "First try to queue cmdblk 0x%x at 0x%x\n", (int) CmdBlkP, (int) Base);
 
-	while ( *Base ) {
-		rio_dprintk (RIO_DEBUG_CMD, "Command cmdblk 0x%x here\n", (int)(*Base));
+	while (*Base) {
+		rio_dprintk(RIO_DEBUG_CMD, "Command cmdblk 0x%x here\n", (int) (*Base));
 		Base = &((*Base)->NextP);
-		rio_dprintk (RIO_DEBUG_CMD, "Now try to queue cmd cmdblk 0x%x at 0x%x\n",
-					     (int)CmdBlkP,(int)Base);
+		rio_dprintk(RIO_DEBUG_CMD, "Now try to queue cmd cmdblk 0x%x at 0x%x\n", (int) CmdBlkP, (int) Base);
 	}
 
-	rio_dprintk (RIO_DEBUG_CMD, "Will queue cmdblk 0x%x at 0x%x\n",(int)CmdBlkP,(int)Base);
+	rio_dprintk(RIO_DEBUG_CMD, "Will queue cmdblk 0x%x at 0x%x\n", (int) CmdBlkP, (int) Base);
 
 	*Base = CmdBlkP;
 
@@ -713,8 +662,7 @@ RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
 ** Here we go - if there is an empty rup, fill it!
 ** must be called at splrio() or higher.
 */
-void
-RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
+void RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 {
 	register struct CmdBlk *CmdBlkP;
 	register struct UnixRup *UnixRupP;
@@ -723,262 +671,234 @@ RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 	unsigned long flags;
 
 
-	Rup = MAX_RUP+LINKS_PER_UNIT;
+	Rup = MAX_RUP + LINKS_PER_UNIT;
 
-	do {	/* do this loop for each RUP */
+	do {			/* do this loop for each RUP */
 		/*
-		** locate the rup we are processing & lock it
-		*/
+		 ** locate the rup we are processing & lock it
+		 */
 		UnixRupP = &HostP->UnixRups[--Rup];
 
 		spin_lock_irqsave(&UnixRupP->RupLock, flags);
 
 		/*
-		** First check for incoming commands:
-		*/
-		if ( RWORD(UnixRupP->RupP->rxcontrol) != RX_RUP_INACTIVE ) {
+		 ** First check for incoming commands:
+		 */
+		if (RWORD(UnixRupP->RupP->rxcontrol) != RX_RUP_INACTIVE) {
 			int FreeMe;
 
-			PacketP =(PKT *)RIO_PTR(HostP->Caddr,RWORD(UnixRupP->RupP->rxpkt));
+			PacketP = (PKT *) RIO_PTR(HostP->Caddr, RWORD(UnixRupP->RupP->rxpkt));
 
-			ShowPacket( DBG_CMD, PacketP );
+			ShowPacket(DBG_CMD, PacketP);
 
-			switch ( RBYTE(PacketP->dest_port) ) {
-				case BOOT_RUP:
-					rio_dprintk (RIO_DEBUG_CMD, "Incoming Boot %s packet '%x'\n", 
-						RBYTE(PacketP->len) & 0x80 ? "Command":"Data", 
-							     RBYTE(PacketP->data[0])); 
-					rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
-					FreeMe= RIOBootRup(p, Rup,HostP,PacketP);
-					rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
-					break;
+			switch (RBYTE(PacketP->dest_port)) {
+			case BOOT_RUP:
+				rio_dprintk(RIO_DEBUG_CMD, "Incoming Boot %s packet '%x'\n", RBYTE(PacketP->len) & 0x80 ? "Command" : "Data", RBYTE(PacketP->data[0]));
+				rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
+				FreeMe = RIOBootRup(p, Rup, HostP, PacketP);
+				rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
+				break;
 
-				case COMMAND_RUP:
-					/*
-					** Free the RUP lock as loss of carrier causes a
-					** ttyflush which will (eventually) call another
-					** routine that uses the RUP lock.
-					*/
-					rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
-					FreeMe= RIOCommandRup(p, Rup,HostP,PacketP);
-					if (PacketP->data[5] == MEMDUMP) {
-						rio_dprintk (RIO_DEBUG_CMD, "Memdump from 0x%x complete\n",
-								     *(ushort *) &(PacketP->data[6]));
-						HostP->Copy( (caddr_t)&(PacketP->data[8]), 
-								(caddr_t)p->RIOMemDump, 32 );
-					}
-					rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
-					break;
+			case COMMAND_RUP:
+				/*
+				 ** Free the RUP lock as loss of carrier causes a
+				 ** ttyflush which will (eventually) call another
+				 ** routine that uses the RUP lock.
+				 */
+				rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
+				FreeMe = RIOCommandRup(p, Rup, HostP, PacketP);
+				if (PacketP->data[5] == MEMDUMP) {
+					rio_dprintk(RIO_DEBUG_CMD, "Memdump from 0x%x complete\n", *(ushort *) & (PacketP->data[6]));
+					HostP->Copy((caddr_t) & (PacketP->data[8]), (caddr_t) p->RIOMemDump, 32);
+				}
+				rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
+				break;
 
-				case ROUTE_RUP:
-					rio_spin_unlock_irqrestore( &UnixRupP->RupLock, flags);
-					FreeMe = RIORouteRup(p, Rup, HostP, PacketP );
-					rio_spin_lock_irqsave( &UnixRupP->RupLock, flags );
-					break;
+			case ROUTE_RUP:
+				rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
+				FreeMe = RIORouteRup(p, Rup, HostP, PacketP);
+				rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
+				break;
 
-				default:
-					rio_dprintk (RIO_DEBUG_CMD, "Unknown RUP %d\n", RBYTE(PacketP->dest_port));
-					FreeMe = 1;
-					break;
+			default:
+				rio_dprintk(RIO_DEBUG_CMD, "Unknown RUP %d\n", RBYTE(PacketP->dest_port));
+				FreeMe = 1;
+				break;
 			}
 
-			if ( FreeMe ) {
-				rio_dprintk (RIO_DEBUG_CMD, "Free processed incoming command packet\n");
-				put_free_end(HostP,PacketP);
+			if (FreeMe) {
+				rio_dprintk(RIO_DEBUG_CMD, "Free processed incoming command packet\n");
+				put_free_end(HostP, PacketP);
 
-				WWORD(UnixRupP->RupP->rxcontrol , RX_RUP_INACTIVE);
+				WWORD(UnixRupP->RupP->rxcontrol, RX_RUP_INACTIVE);
 
-				if ( RWORD(UnixRupP->RupP->handshake)==PHB_HANDSHAKE_SET ) {
-					rio_dprintk (RIO_DEBUG_CMD, "Handshake rup %d\n",Rup);
-					WWORD(UnixRupP->RupP->handshake,
-						PHB_HANDSHAKE_SET|PHB_HANDSHAKE_RESET);
+				if (RWORD(UnixRupP->RupP->handshake) == PHB_HANDSHAKE_SET) {
+					rio_dprintk(RIO_DEBUG_CMD, "Handshake rup %d\n", Rup);
+					WWORD(UnixRupP->RupP->handshake, PHB_HANDSHAKE_SET | PHB_HANDSHAKE_RESET);
 				}
 			}
 		}
 
 		/*
-		** IF a command was running on the port, 
-		** and it has completed, then tidy it up.
-		*/
-		if ( (CmdBlkP = UnixRupP->CmdPendingP) && /* ASSIGN! */
-		     (RWORD(UnixRupP->RupP->txcontrol) == TX_RUP_INACTIVE)) {
+		 ** IF a command was running on the port,
+		 ** and it has completed, then tidy it up.
+		 */
+		if ((CmdBlkP = UnixRupP->CmdPendingP) &&	/* ASSIGN! */
+		    (RWORD(UnixRupP->RupP->txcontrol) == TX_RUP_INACTIVE)) {
 			/*
-			** we are idle.
-			** there is a command in pending.
-			** Therefore, this command has finished.
-			** So, wakeup whoever is waiting for it (and tell them
-			** what happened).
-			*/
-			if ( CmdBlkP->Packet.dest_port == BOOT_RUP )
-				rio_dprintk (RIO_DEBUG_CMD, "Free Boot %s Command Block '%x'\n", 
-						CmdBlkP->Packet.len & 0x80 ? "Command":"Data", 
-							     CmdBlkP->Packet.data[0]);
+			 ** we are idle.
+			 ** there is a command in pending.
+			 ** Therefore, this command has finished.
+			 ** So, wakeup whoever is waiting for it (and tell them
+			 ** what happened).
+			 */
+			if (CmdBlkP->Packet.dest_port == BOOT_RUP)
+				rio_dprintk(RIO_DEBUG_CMD, "Free Boot %s Command Block '%x'\n", CmdBlkP->Packet.len & 0x80 ? "Command" : "Data", CmdBlkP->Packet.data[0]);
 
-			rio_dprintk (RIO_DEBUG_CMD, "Command 0x%x completed\n",(int)CmdBlkP);
+			rio_dprintk(RIO_DEBUG_CMD, "Command 0x%x completed\n", (int) CmdBlkP);
 
 			/*
-			** Clear the Rup lock to prevent mutual exclusion.
-			*/
-			if ( CmdBlkP->PostFuncP ) {
+			 ** Clear the Rup lock to prevent mutual exclusion.
+			 */
+			if (CmdBlkP->PostFuncP) {
 				rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
-				(*CmdBlkP->PostFuncP) (CmdBlkP->PostArg,CmdBlkP);
+				(*CmdBlkP->PostFuncP) (CmdBlkP->PostArg, CmdBlkP);
 				rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
 			}
 
 			/*
-			** ....clear the pending flag....
-			*/
+			 ** ....clear the pending flag....
+			 */
 			UnixRupP->CmdPendingP = NULL;
 
 			/*
-			** ....and return the command block to the freelist.
-			*/
-			RIOFreeCmdBlk( CmdBlkP );
+			 ** ....and return the command block to the freelist.
+			 */
+			RIOFreeCmdBlk(CmdBlkP);
 		}
 
 		/*
-		** If there is a command for this rup, and the rup
-		** is idle, then process the command
-		*/
-		if ( (CmdBlkP = UnixRupP->CmdsWaitingP) && /* ASSIGN! */
-			(UnixRupP->CmdPendingP == NULL) &&
-		     (RWORD(UnixRupP->RupP->txcontrol) == TX_RUP_INACTIVE)) {
+		 ** If there is a command for this rup, and the rup
+		 ** is idle, then process the command
+		 */
+		if ((CmdBlkP = UnixRupP->CmdsWaitingP) &&	/* ASSIGN! */
+		    (UnixRupP->CmdPendingP == NULL) && (RWORD(UnixRupP->RupP->txcontrol) == TX_RUP_INACTIVE)) {
 			/*
-			** if the pre-function is non-zero, call it.
-			** If it returns RIO_FAIL then don't
-			** send this command yet!
-			*/
-#ifdef CHECK
-			CheckCmdBlkP (CmdBlkP);
-#endif
-			if ( !(CmdBlkP->PreFuncP ?
-				(*CmdBlkP->PreFuncP)(CmdBlkP->PreArg, CmdBlkP) : TRUE)) {
-				rio_dprintk (RIO_DEBUG_CMD, "Not ready to start command 0x%x\n",(int)CmdBlkP);
-			}
-			else {
-				rio_dprintk (RIO_DEBUG_CMD, "Start new command 0x%x Cmd byte is 0x%x\n",
-							     (int)CmdBlkP, CmdBlkP->Packet.data[0]);
+			 ** if the pre-function is non-zero, call it.
+			 ** If it returns RIO_FAIL then don't
+			 ** send this command yet!
+			 */
+			if (!(CmdBlkP->PreFuncP ? (*CmdBlkP->PreFuncP) (CmdBlkP->PreArg, CmdBlkP) : TRUE)) {
+				rio_dprintk(RIO_DEBUG_CMD, "Not ready to start command 0x%x\n", (int) CmdBlkP);
+			} else {
+				rio_dprintk(RIO_DEBUG_CMD, "Start new command 0x%x Cmd byte is 0x%x\n", (int) CmdBlkP, CmdBlkP->Packet.data[0]);
 				/*
-				** Whammy! blat that pack!
-				*/
-#ifdef CHECK
-				CheckPacketP ((PKT *)RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt));
-#endif
-				HostP->Copy( (caddr_t)&CmdBlkP->Packet, 
-					RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt), sizeof(PKT));
+				 ** Whammy! blat that pack!
+				 */
+				HostP->Copy((caddr_t) & CmdBlkP->Packet, RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt), sizeof(PKT));
 
 				/*
-				** remove the command from the rup command queue...
-				*/
+				 ** remove the command from the rup command queue...
+				 */
 				UnixRupP->CmdsWaitingP = CmdBlkP->NextP;
 
 				/*
-				** ...and place it on the pending position.
-				*/
+				 ** ...and place it on the pending position.
+				 */
 				UnixRupP->CmdPendingP = CmdBlkP;
 
 				/*
-				** set the command register
-				*/
-				WWORD(UnixRupP->RupP->txcontrol,TX_PACKET_READY);
+				 ** set the command register
+				 */
+				WWORD(UnixRupP->RupP->txcontrol, TX_PACKET_READY);
 
 				/*
-				** the command block will be freed
-				** when the command has been processed.
-				*/
+				 ** the command block will be freed
+				 ** when the command has been processed.
+				 */
 			}
 		}
 		spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
-	} while ( Rup );
+	} while (Rup);
 }
 
-int
-RIOWFlushMark(int iPortP, struct CmdBlk *CmdBlkP)
+int RIOWFlushMark(int iPortP, struct CmdBlk *CmdBlkP)
 {
-	struct Port *	PortP = (struct Port *)iPortP;
+	struct Port *PortP = (struct Port *) iPortP;
 	unsigned long flags;
 
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
-#ifdef CHECK
-	CheckPortP( PortP );
-#endif
 	PortP->WflushFlag++;
 	PortP->MagicFlags |= MAGIC_FLUSH;
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
-	return RIOUnUse( iPortP, CmdBlkP );
+	return RIOUnUse(iPortP, CmdBlkP);
 }
 
-int
-RIORFlushEnable(int iPortP, struct CmdBlk *CmdBlkP)
+int RIORFlushEnable(int iPortP, struct CmdBlk *CmdBlkP)
 {
-	struct Port *	PortP = (struct Port *)iPortP;
+	struct Port *PortP = (struct Port *) iPortP;
 	PKT *PacketP;
 	unsigned long flags;
 
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 
-	while ( can_remove_receive(&PacketP, PortP) ) {
+	while (can_remove_receive(&PacketP, PortP)) {
 		remove_receive(PortP);
-		ShowPacket(DBG_PROC, PacketP );
-		put_free_end( PortP->HostP, PacketP );
+		ShowPacket(DBG_PROC, PacketP);
+		put_free_end(PortP->HostP, PacketP);
 	}
 
-	if ( RWORD(PortP->PhbP->handshake)==PHB_HANDSHAKE_SET ) {
+	if (RWORD(PortP->PhbP->handshake) == PHB_HANDSHAKE_SET) {
 		/*
-		** MAGIC! (Basically, handshake the RX buffer, so that
-		** the RTAs upstream can be re-enabled.)
-		*/
-		rio_dprintk (RIO_DEBUG_CMD, "Util: Set RX handshake bit\n");
-		WWORD(PortP->PhbP->handshake, PHB_HANDSHAKE_SET|PHB_HANDSHAKE_RESET);
+		 ** MAGIC! (Basically, handshake the RX buffer, so that
+		 ** the RTAs upstream can be re-enabled.)
+		 */
+		rio_dprintk(RIO_DEBUG_CMD, "Util: Set RX handshake bit\n");
+		WWORD(PortP->PhbP->handshake, PHB_HANDSHAKE_SET | PHB_HANDSHAKE_RESET);
 	}
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
-	return RIOUnUse( iPortP, CmdBlkP );
+	return RIOUnUse(iPortP, CmdBlkP);
 }
 
-int
-RIOUnUse(int iPortP, struct CmdBlk *CmdBlkP)
+int RIOUnUse(int iPortP, struct CmdBlk *CmdBlkP)
 {
-	struct Port *	PortP = (struct Port *)iPortP;
+	struct Port *PortP = (struct Port *) iPortP;
 	unsigned long flags;
 
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 
-#ifdef CHECK
-	CheckPortP( PortP );
-#endif
-	rio_dprintk (RIO_DEBUG_CMD, "Decrement in use count for port\n");
+	rio_dprintk(RIO_DEBUG_CMD, "Decrement in use count for port\n");
 
 	if (PortP->InUse) {
-		if ( --PortP->InUse != NOT_INUSE ) {
+		if (--PortP->InUse != NOT_INUSE) {
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			return 0;
 		}
 	}
 	/*
-	** While PortP->InUse is set (i.e. a preemptive command has been sent to
-	** the RTA and is awaiting completion), any transmit data is prevented from
-	** being transferred from the write queue into the transmit packets
-	** (add_transmit) and no furthur transmit interrupt will be sent for that
-	** data. The next interrupt will occur up to 500ms later (RIOIntr is called
-	** twice a second as a saftey measure). This was the case when kermit was
-	** used to send data into a RIO port. After each packet was sent, TCFLSH
-	** was called to flush the read queue preemptively. PortP->InUse was
-	** incremented, thereby blocking the 6 byte acknowledgement packet
-	** transmitted back. This acknowledgment hung around for 500ms before
-	** being sent, thus reducing input performance substantially!.
-	** When PortP->InUse becomes NOT_INUSE, we must ensure that any data
-	** hanging around in the transmit buffer is sent immediately.
-	*/
+	 ** While PortP->InUse is set (i.e. a preemptive command has been sent to
+	 ** the RTA and is awaiting completion), any transmit data is prevented from
+	 ** being transferred from the write queue into the transmit packets
+	 ** (add_transmit) and no furthur transmit interrupt will be sent for that
+	 ** data. The next interrupt will occur up to 500ms later (RIOIntr is called
+	 ** twice a second as a saftey measure). This was the case when kermit was
+	 ** used to send data into a RIO port. After each packet was sent, TCFLSH
+	 ** was called to flush the read queue preemptively. PortP->InUse was
+	 ** incremented, thereby blocking the 6 byte acknowledgement packet
+	 ** transmitted back. This acknowledgment hung around for 500ms before
+	 ** being sent, thus reducing input performance substantially!.
+	 ** When PortP->InUse becomes NOT_INUSE, we must ensure that any data
+	 ** hanging around in the transmit buffer is sent immediately.
+	 */
 	WWORD(PortP->HostP->ParmMapP->tx_intr, 1);
 	/* What to do here ..
-	wakeup( (caddr_t)&(PortP->InUse) );
-	*/
+	   wakeup( (caddr_t)&(PortP->InUse) );
+	 */
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 	return 0;
 }
 
-void
-ShowPacket(uint Flags, struct PKT *PacketP)
+void ShowPacket(uint Flags, struct PKT *PacketP)
 {
 }
 

@@ -18,12 +18,12 @@
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/clock.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 

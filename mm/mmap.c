@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
+#include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -611,7 +612,7 @@ again:			remove_next = 1 + (end > next->vm_end);
  * If the vma has a ->close operation then the driver probably needs to release
  * per-vma resources, so we don't attempt to merge those.
  */
-#define VM_SPECIAL (VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED)
+#define VM_SPECIAL (VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_RESERVED | VM_PFNMAP)
 
 static inline int is_mergeable_vma(struct vm_area_struct *vma,
 			struct file *file, unsigned long vm_flags)
@@ -1076,17 +1077,6 @@ munmap_back:
 		error = file->f_op->mmap(file, vma);
 		if (error)
 			goto unmap_and_free_vma;
-		if ((vma->vm_flags & (VM_SHARED | VM_WRITE | VM_RESERVED))
-						== (VM_WRITE | VM_RESERVED)) {
-			printk(KERN_WARNING "program %s is using MAP_PRIVATE, "
-				"PROT_WRITE mmap of VM_RESERVED memory, which "
-				"is deprecated. Please report this to "
-				"linux-kernel@vger.kernel.org\n",current->comm);
-			if (vma->vm_ops && vma->vm_ops->close)
-				vma->vm_ops->close(vma);
-			error = -EACCES;
-			goto unmap_and_free_vma;
-		}
 	} else if (vm_flags & VM_SHARED) {
 		error = shmem_zero_setup(vma);
 		if (error)
@@ -1501,7 +1491,7 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
  * PA-RISC uses this for its stack; IA64 for its Register Backing Store.
  * vma is the last one with address > vma->vm_end.  Have to extend vma.
  */
-#ifdef CONFIG_STACK_GROWSUP
+#ifndef CONFIG_IA64
 static inline
 #endif
 int expand_upwards(struct vm_area_struct *vma, unsigned long address)

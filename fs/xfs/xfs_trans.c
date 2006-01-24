@@ -1014,6 +1014,7 @@ xfs_trans_cancel(
 	xfs_log_item_t		*lip;
 	int			i;
 #endif
+	xfs_mount_t		*mp = tp->t_mountp;
 
 	/*
 	 * See if the caller is being too lazy to figure out if
@@ -1026,9 +1027,10 @@ xfs_trans_cancel(
 	 * filesystem.  This happens in paths where we detect
 	 * corruption and decide to give up.
 	 */
-	if ((tp->t_flags & XFS_TRANS_DIRTY) &&
-	    !XFS_FORCED_SHUTDOWN(tp->t_mountp))
-		xfs_force_shutdown(tp->t_mountp, XFS_CORRUPT_INCORE);
+	if ((tp->t_flags & XFS_TRANS_DIRTY) && !XFS_FORCED_SHUTDOWN(mp)) {
+		XFS_ERROR_REPORT("xfs_trans_cancel", XFS_ERRLEVEL_LOW, mp);
+		xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+	}
 #ifdef DEBUG
 	if (!(flags & XFS_TRANS_ABORT)) {
 		licp = &(tp->t_items);
@@ -1040,7 +1042,7 @@ xfs_trans_cancel(
 				}
 
 				lip = lidp->lid_item;
-				if (!XFS_FORCED_SHUTDOWN(tp->t_mountp))
+				if (!XFS_FORCED_SHUTDOWN(mp))
 					ASSERT(!(lip->li_type == XFS_LI_EFD));
 			}
 			licp = licp->lic_next;
@@ -1048,7 +1050,7 @@ xfs_trans_cancel(
 	}
 #endif
 	xfs_trans_unreserve_and_mod_sb(tp);
-	XFS_TRANS_UNRESERVE_AND_MOD_DQUOTS(tp->t_mountp, tp);
+	XFS_TRANS_UNRESERVE_AND_MOD_DQUOTS(mp, tp);
 
 	if (tp->t_ticket) {
 		if (flags & XFS_TRANS_RELEASE_LOG_RES) {
@@ -1057,7 +1059,7 @@ xfs_trans_cancel(
 		} else {
 			log_flags = 0;
 		}
-		xfs_log_done(tp->t_mountp, tp->t_ticket, NULL, log_flags);
+		xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
 	}
 
 	/* mark this thread as no longer being in a transaction */

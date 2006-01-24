@@ -668,9 +668,8 @@ static void __init am79c961_banner(void)
 		printk(KERN_INFO "%s", version);
 }
 
-static int __init am79c961_probe(struct device *_dev)
+static int __init am79c961_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(_dev);
 	struct resource *res;
 	struct net_device *dev;
 	struct dev_priv *priv;
@@ -758,15 +757,16 @@ out:
 	return ret;
 }
 
-static struct device_driver am79c961_driver = {
-	.name		= "am79c961",
-	.bus		= &platform_bus_type,
+static struct platform_driver am79c961_driver = {
 	.probe		= am79c961_probe,
+	.driver		= {
+		.name	= "am79c961",
+	},
 };
 
 static int __init am79c961_init(void)
 {
-	return driver_register(&am79c961_driver);
+	return platform_driver_register(&am79c961_driver);
 }
 
 __initcall(am79c961_init);

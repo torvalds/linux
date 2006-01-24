@@ -47,6 +47,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/acct.h>
+#include <linux/capability.h>
 #include <linux/file.h>
 #include <linux/tty.h>
 #include <linux/security.h>
@@ -427,6 +428,7 @@ static void do_acct_process(long exitcode, struct file *file)
 	u64 elapsed;
 	u64 run_time;
 	struct timespec uptime;
+	unsigned long jiffies;
 
 	/*
 	 * First check to see if there is enough free_space to continue
@@ -467,12 +469,12 @@ static void do_acct_process(long exitcode, struct file *file)
 #endif
 	do_div(elapsed, AHZ);
 	ac.ac_btime = xtime.tv_sec - elapsed;
-	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(
-					    current->signal->utime +
-					    current->group_leader->utime));
-	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(
-					    current->signal->stime +
-					    current->group_leader->stime));
+	jiffies = cputime_to_jiffies(cputime_add(current->group_leader->utime,
+						 current->signal->utime));
+	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(jiffies));
+	jiffies = cputime_to_jiffies(cputime_add(current->group_leader->stime,
+						 current->signal->stime));
+	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(jiffies));
 	/* we really need to bite the bullet and change layout */
 	ac.ac_uid = current->uid;
 	ac.ac_gid = current->gid;
@@ -580,7 +582,8 @@ void acct_process(long exitcode)
 void acct_update_integrals(struct task_struct *tsk)
 {
 	if (likely(tsk->mm)) {
-		long delta = tsk->stime - tsk->acct_stimexpd;
+		long delta =
+			cputime_to_jiffies(tsk->stime) - tsk->acct_stimexpd;
 
 		if (delta == 0)
 			return;

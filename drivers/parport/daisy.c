@@ -144,9 +144,9 @@ again:
 	add_dev (numdevs++, port, -1);
 
 	/* Find out the legacy device's IEEE 1284 device ID. */
-	deviceid = kmalloc (1000, GFP_KERNEL);
+	deviceid = kmalloc (1024, GFP_KERNEL);
 	if (deviceid) {
-		if (parport_device_id (numdevs - 1, deviceid, 1000) > 2)
+		if (parport_device_id (numdevs - 1, deviceid, 1024) > 2)
 			detected++;
 
 		kfree (deviceid);
@@ -252,7 +252,7 @@ struct pardevice *parport_open (int devnum, const char *name,
 		selected = port->daisy;
 		parport_release (dev);
 
-		if (selected != port->daisy) {
+		if (selected != daisy) {
 			/* No corresponding device. */
 			parport_unregister_device (dev);
 			return NULL;
@@ -344,9 +344,9 @@ static int cpp_daisy (struct parport *port, int cmd)
 			      PARPORT_CONTROL_STROBE,
 			      PARPORT_CONTROL_STROBE);
 	udelay (1);
+	s = parport_read_status (port);
 	parport_frob_control (port, PARPORT_CONTROL_STROBE, 0);
 	udelay (1);
-	s = parport_read_status (port);
 	parport_write_data (port, 0xff); udelay (2);
 
 	return s;
@@ -395,15 +395,15 @@ int parport_daisy_select (struct parport *port, int daisy, int mode)
 		case IEEE1284_MODE_EPP:
 		case IEEE1284_MODE_EPPSL:
 		case IEEE1284_MODE_EPPSWE:
-			return (cpp_daisy (port, 0x20 + daisy) &
-				PARPORT_STATUS_ERROR);
+			return !(cpp_daisy (port, 0x20 + daisy) &
+				 PARPORT_STATUS_ERROR);
 
 		// For these modes we should switch to ECP mode:
 		case IEEE1284_MODE_ECP:
 		case IEEE1284_MODE_ECPRLE:
 		case IEEE1284_MODE_ECPSWE: 
-			return (cpp_daisy (port, 0xd0 + daisy) &
-				PARPORT_STATUS_ERROR);
+			return !(cpp_daisy (port, 0xd0 + daisy) &
+				 PARPORT_STATUS_ERROR);
 
 		// Nothing was told for BECP in Daisy chain specification.
 		// May be it's wise to use ECP?
@@ -413,8 +413,8 @@ int parport_daisy_select (struct parport *port, int daisy, int mode)
 		case IEEE1284_MODE_BYTE:
 		case IEEE1284_MODE_COMPAT:
 		default:
-			return (cpp_daisy (port, 0xe0 + daisy) &
-				PARPORT_STATUS_ERROR);
+			return !(cpp_daisy (port, 0xe0 + daisy) &
+				 PARPORT_STATUS_ERROR);
 	}
 }
 
@@ -436,7 +436,7 @@ static int select_port (struct parport *port)
 
 static int assign_addrs (struct parport *port)
 {
-	unsigned char s, last_dev;
+	unsigned char s;
 	unsigned char daisy;
 	int thisdev = numdevs;
 	int detected;
@@ -472,10 +472,13 @@ static int assign_addrs (struct parport *port)
 	}
 
 	parport_write_data (port, 0x78); udelay (2);
-	last_dev = 0; /* We've just been speaking to a device, so we
-			 know there must be at least _one_ out there. */
+	s = parport_read_status (port);
 
-	for (daisy = 0; daisy < 4; daisy++) {
+	for (daisy = 0;
+	     (s & (PARPORT_STATUS_PAPEROUT|PARPORT_STATUS_SELECT))
+		     == (PARPORT_STATUS_PAPEROUT|PARPORT_STATUS_SELECT)
+		     && daisy < 4;
+	     ++daisy) {
 		parport_write_data (port, daisy);
 		udelay (2);
 		parport_frob_control (port,
@@ -485,14 +488,18 @@ static int assign_addrs (struct parport *port)
 		parport_frob_control (port, PARPORT_CONTROL_STROBE, 0);
 		udelay (1);
 
-		if (last_dev)
-			/* No more devices. */
+		add_dev (numdevs++, port, daisy);
+
+		/* See if this device thought it was the last in the
+		 * chain. */
+		if (!(s & PARPORT_STATUS_BUSY))
 			break;
 
-		last_dev = !(parport_read_status (port)
-			     & PARPORT_STATUS_BUSY);
-
-		add_dev (numdevs++, port, daisy);
+		/* We are seeing pass through status now. We see
+		   last_dev from next device or if last_dev does not
+		   work status lines from some non-daisy chain
+		   device. */
+		s = parport_read_status (port);
 	}
 
 	parport_write_data (port, 0xff); udelay (2);
@@ -501,11 +508,11 @@ static int assign_addrs (struct parport *port)
 		 detected);
 
 	/* Ask the new devices to introduce themselves. */
-	deviceid = kmalloc (1000, GFP_KERNEL);
+	deviceid = kmalloc (1024, GFP_KERNEL);
 	if (!deviceid) return 0;
 
 	for (daisy = 0; thisdev < numdevs; thisdev++, daisy++)
-		parport_device_id (thisdev, deviceid, 1000);
+		parport_device_id (thisdev, deviceid, 1024);
 
 	kfree (deviceid);
 	return detected;

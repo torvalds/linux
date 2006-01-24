@@ -8,6 +8,10 @@
  * Small id to pointer translation service avoiding fixed sized
  * tables.
  */
+
+#ifndef __IDR_H__
+#define __IDR_H__
+
 #include <linux/types.h>
 #include <linux/bitops.h>
 
@@ -77,3 +81,5 @@ int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
 void idr_remove(struct idr *idp, int id);
 void idr_destroy(struct idr *idp);
 void idr_init(struct idr *idp);
+
+#endif /* __IDR_H__ */

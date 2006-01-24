@@ -19,12 +19,12 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/kmi.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/amba_kmi.h>
-#include <asm/hardware/clock.h>
 
 #define KMI_BASE	(kmi->base)
 
@@ -72,13 +72,9 @@ static int amba_kmi_open(struct serio *io)
 	unsigned int divisor;
 	int ret;
 
-	ret = clk_use(kmi->clk);
-	if (ret)
-		goto out;
-
 	ret = clk_enable(kmi->clk);
 	if (ret)
-		goto clk_unuse;
+		goto out;
 
 	divisor = clk_get_rate(kmi->clk) / 8000000 - 1;
 	writeb(divisor, KMICLKDIV);
@@ -97,8 +93,6 @@ static int amba_kmi_open(struct serio *io)
 
  clk_disable:
 	clk_disable(kmi->clk);
- clk_unuse:
-	clk_unuse(kmi->clk);
  out:
 	return ret;
 }
@@ -111,7 +105,6 @@ static void amba_kmi_close(struct serio *io)
 
 	free_irq(kmi->irq, kmi);
 	clk_disable(kmi->clk);
-	clk_unuse(kmi->clk);
 }
 
 static int amba_kmi_probe(struct amba_device *dev, void *id)

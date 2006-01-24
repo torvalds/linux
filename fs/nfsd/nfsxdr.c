@@ -37,7 +37,7 @@ static u32	nfs_ftypes[] = {
 /*
  * XDR functions for basic NFS types
  */
-static inline u32 *
+static u32 *
 decode_fh(u32 *p, struct svc_fh *fhp)
 {
 	fh_init(fhp, NFS_FHSIZE);
@@ -151,47 +151,45 @@ decode_sattr(u32 *p, struct iattr *iap)
 	return p;
 }
 
-static inline u32 *
-encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
+static u32 *
+encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp,
+	     struct kstat *stat)
 {
-	struct vfsmount *mnt = fhp->fh_export->ex_mnt;
 	struct dentry	*dentry = fhp->fh_dentry;
-	struct kstat stat;
 	int type;
 	struct timespec time;
 
-	vfs_getattr(mnt, dentry, &stat);
-	type = (stat.mode & S_IFMT);
+	type = (stat->mode & S_IFMT);
 
 	*p++ = htonl(nfs_ftypes[type >> 12]);
-	*p++ = htonl((u32) stat.mode);
-	*p++ = htonl((u32) stat.nlink);
-	*p++ = htonl((u32) nfsd_ruid(rqstp, stat.uid));
-	*p++ = htonl((u32) nfsd_rgid(rqstp, stat.gid));
+	*p++ = htonl((u32) stat->mode);
+	*p++ = htonl((u32) stat->nlink);
+	*p++ = htonl((u32) nfsd_ruid(rqstp, stat->uid));
+	*p++ = htonl((u32) nfsd_rgid(rqstp, stat->gid));
 
-	if (S_ISLNK(type) && stat.size > NFS_MAXPATHLEN) {
+	if (S_ISLNK(type) && stat->size > NFS_MAXPATHLEN) {
 		*p++ = htonl(NFS_MAXPATHLEN);
 	} else {
-		*p++ = htonl((u32) stat.size);
+		*p++ = htonl((u32) stat->size);
 	}
-	*p++ = htonl((u32) stat.blksize);
+	*p++ = htonl((u32) stat->blksize);
 	if (S_ISCHR(type) || S_ISBLK(type))
-		*p++ = htonl(new_encode_dev(stat.rdev));
+		*p++ = htonl(new_encode_dev(stat->rdev));
 	else
 		*p++ = htonl(0xffffffff);
-	*p++ = htonl((u32) stat.blocks);
+	*p++ = htonl((u32) stat->blocks);
 	if (is_fsid(fhp, rqstp->rq_reffh))
 		*p++ = htonl((u32) fhp->fh_export->ex_fsid);
 	else
-		*p++ = htonl(new_encode_dev(stat.dev));
-	*p++ = htonl((u32) stat.ino);
-	*p++ = htonl((u32) stat.atime.tv_sec);
-	*p++ = htonl(stat.atime.tv_nsec ? stat.atime.tv_nsec / 1000 : 0);
+		*p++ = htonl(new_encode_dev(stat->dev));
+	*p++ = htonl((u32) stat->ino);
+	*p++ = htonl((u32) stat->atime.tv_sec);
+	*p++ = htonl(stat->atime.tv_nsec ? stat->atime.tv_nsec / 1000 : 0);
 	lease_get_mtime(dentry->d_inode, &time); 
 	*p++ = htonl((u32) time.tv_sec);
 	*p++ = htonl(time.tv_nsec ? time.tv_nsec / 1000 : 0); 
-	*p++ = htonl((u32) stat.ctime.tv_sec);
-	*p++ = htonl(stat.ctime.tv_nsec ? stat.ctime.tv_nsec / 1000 : 0);
+	*p++ = htonl((u32) stat->ctime.tv_sec);
+	*p++ = htonl(stat->ctime.tv_nsec ? stat->ctime.tv_nsec / 1000 : 0);
 
 	return p;
 }
@@ -199,7 +197,9 @@ encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
 /* Helper function for NFSv2 ACL code */
 u32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
 {
-	return encode_fattr(rqstp, p, fhp);
+	struct kstat stat;
+	vfs_getattr(fhp->fh_export->ex_mnt, fhp->fh_dentry, &stat);
+	return encode_fattr(rqstp, p, fhp, &stat);
 }
 
 /*
@@ -394,7 +394,7 @@ int
 nfssvc_encode_attrstat(struct svc_rqst *rqstp, u32 *p,
 					struct nfsd_attrstat *resp)
 {
-	p = encode_fattr(rqstp, p, &resp->fh);
+	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -403,7 +403,7 @@ nfssvc_encode_diropres(struct svc_rqst *rqstp, u32 *p,
 					struct nfsd_diropres *resp)
 {
 	p = encode_fh(p, &resp->fh);
-	p = encode_fattr(rqstp, p, &resp->fh);
+	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -428,7 +428,7 @@ int
 nfssvc_encode_readres(struct svc_rqst *rqstp, u32 *p,
 					struct nfsd_readres *resp)
 {
-	p = encode_fattr(rqstp, p, &resp->fh);
+	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	*p++ = htonl(resp->count);
 	xdr_ressize_check(rqstp, p);
 

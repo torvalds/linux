@@ -820,7 +820,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 				break;
 
 			/*
-			 *	Find the Scsi_Device associated with the SCSI
+			 *	Find the scsi_device associated with the SCSI
 			 * address. Make sure we have the right array, and if
 			 * so set the flag to initiate a new re-config once we
 			 * see an AifEnConfigChange AIF come through.
@@ -987,7 +987,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 
 	/*
-	 *	Find the Scsi_Device associated with the SCSI address,
+	 *	Find the scsi_device associated with the SCSI address,
 	 * and mark it as changed, invalidating the cache. This deals
 	 * with changes to existing device IDs.
 	 */

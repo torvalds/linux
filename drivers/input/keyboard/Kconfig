@@ -143,16 +143,6 @@ config KEYBOARD_SPITZ
 	  To compile this driver as a module, choose M here: the
 	  module will be called spitzkbd.
 
-config KEYBOARD_MAPLE
-	tristate "Maple bus keyboard"
-	depends on SH_DREAMCAST && MAPLE
-	help
-	  Say Y here if you have a DreamCast console running Linux and have
-	  a keyboard attached to its Maple bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called maple_keyb.
-
 config KEYBOARD_AMIGA
 	tristate "Amiga keyboard"
 	depends on AMIGA

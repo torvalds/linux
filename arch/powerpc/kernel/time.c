@@ -130,6 +130,34 @@ unsigned long tb_last_stamp;
  */
 DEFINE_PER_CPU(unsigned long, last_jiffy);
 
+void __delay(unsigned long loops)
+{
+	unsigned long start;
+	int diff;
+
+	if (__USE_RTC()) {
+		start = get_rtcl();
+		do {
+			/* the RTCL register wraps at 1000000000 */
+			diff = get_rtcl() - start;
+			if (diff < 0)
+				diff += 1000000000;
+		} while (diff < loops);
+	} else {
+		start = get_tbl();
+		while (get_tbl() - start < loops)
+			HMT_low();
+		HMT_medium();
+	}
+}
+EXPORT_SYMBOL(__delay);
+
+void udelay(unsigned long usecs)
+{
+	__delay(tb_ticks_per_usec * usecs);
+}
+EXPORT_SYMBOL(udelay);
+
 static __inline__ void timer_check_rtc(void)
 {
         /*
@@ -403,7 +431,7 @@ void timer_interrupt(struct pt_regs * regs)
 	profile_tick(CPU_PROFILING, regs);
 
 #ifdef CONFIG_PPC_ISERIES
-	get_paca()->lppaca.int_dword.fields.decr_int = 0;
+	get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
 	while ((ticks = tb_ticks_since(per_cpu(last_jiffy, cpu)))
@@ -670,10 +698,6 @@ void __init time_init(void)
 	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
 	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &res);
 	tb_to_xs = res.result_low;
-
-#ifdef CONFIG_PPC64
-	get_paca()->default_decr = tb_ticks_per_jiffy;
-#endif
 
 	/*
 	 * Compute scale factor for sched_clock.

@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/string.h>
+#include <linux/if_arp.h>
 #include <linux/inetdevice.h>
 #include <linux/inet.h>
 #include <linux/interrupt.h>
@@ -702,7 +703,7 @@ int netpoll_setup(struct netpoll *np)
 		}
 	}
 
-	if (!memcmp(np->local_mac, "\0\0\0\0\0\0", 6) && ndev->dev_addr)
+	if (is_zero_ether_addr(np->local_mac) && ndev->dev_addr)
 		memcpy(np->local_mac, ndev->dev_addr, 6);
 
 	if (!np->local_ip) {

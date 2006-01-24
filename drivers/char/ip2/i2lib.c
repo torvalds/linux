@@ -854,7 +854,7 @@ i2Input(i2ChanStrPtr pCh)
 		count += IBUF_SIZE;
 	}
 	// Don't give more than can be taken by the line discipline
-	amountToMove = pCh->pTTY->ldisc.receive_room( pCh->pTTY );
+	amountToMove = pCh->pTTY->receive_room;
 	if (count > amountToMove) {
 		count = amountToMove;
 	}

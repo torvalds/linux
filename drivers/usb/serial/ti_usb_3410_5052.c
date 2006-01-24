@@ -248,11 +248,11 @@ static struct usb_device_id ti_id_table_combined[] = {
 };
 
 static struct usb_driver ti_usb_driver = {
-	.owner			= THIS_MODULE,
 	.name			= "ti_usb_3410_5052",
 	.probe			= usb_serial_probe,
 	.disconnect		= usb_serial_disconnect,
 	.id_table		= ti_id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver ti_1port_device = {
@@ -351,17 +351,14 @@ static int __init ti_init(void)
 	int i,j;
 	int ret;
 
-
 	/* insert extra vendor and product ids */
-	j = sizeof(ti_id_table_3410)/sizeof(struct usb_device_id)
-		- TI_EXTRA_VID_PID_COUNT - 1;
+	j = ARRAY_SIZE(ti_id_table_3410) - TI_EXTRA_VID_PID_COUNT - 1;
 	for (i=0; i<min(vendor_3410_count,product_3410_count); i++,j++) {
 		ti_id_table_3410[j].idVendor = vendor_3410[i];
 		ti_id_table_3410[j].idProduct = product_3410[i];
 		ti_id_table_3410[j].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 	}
-	j = sizeof(ti_id_table_5052)/sizeof(struct usb_device_id)
-		- TI_EXTRA_VID_PID_COUNT - 1;
+	j = ARRAY_SIZE(ti_id_table_5052) - TI_EXTRA_VID_PID_COUNT - 1;
 	for (i=0; i<min(vendor_5052_count,product_5052_count); i++,j++) {
 		ti_id_table_5052[j].idVendor = vendor_5052[i];
 		ti_id_table_5052[j].idProduct = product_5052[i];
@@ -1283,24 +1280,18 @@ static void ti_recv(struct device *dev, struct tty_struct *tty,
 	int cnt;
 
 	do {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				dev_err(dev, "%s - dropping data, %d bytes lost\n", __FUNCTION__, length);
-				return;
-			}
+		cnt = tty_buffer_request_room(tty, length);
+		if (cnt < length) {
+			dev_err(dev, "%s - dropping data, %d bytes lost\n", __FUNCTION__, length - cnt);
+			if(cnt == 0)
+				break;
 		}
-		cnt = min(length, TTY_FLIPBUF_SIZE - tty->flip.count);
-		memcpy(tty->flip.char_buf_ptr, data, cnt);
-		memset(tty->flip.flag_buf_ptr, 0, cnt);
-		tty->flip.char_buf_ptr += cnt;
-		tty->flip.flag_buf_ptr += cnt;
-		tty->flip.count += cnt;
+		tty_insert_flip_string(tty, data, cnt);
+		tty_flip_buffer_push(tty);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);
 
-	tty_flip_buffer_push(tty);
 }
 
 

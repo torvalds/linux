@@ -7,6 +7,7 @@
 #include "infblock.h"
 #include "infutil.h"
 
+#if 0
 int zlib_inflateSync(
 	z_streamp z
 )
@@ -57,6 +58,7 @@ int zlib_inflateSync(
   z->state->mode = BLOCKS;
   return Z_OK;
 }
+#endif  /*  0  */
 
 
 /* Returns true if inflate is currently at the end of a block generated
@@ -66,6 +68,7 @@ int zlib_inflateSync(
  * decompressing, PPP checks that at the end of input packet, inflate is
  * waiting for these length bytes.
  */
+#if 0
 int zlib_inflateSyncPoint(
 	z_streamp z
 )
@@ -74,6 +77,7 @@ int zlib_inflateSyncPoint(
     return Z_STREAM_ERROR;
   return zlib_inflate_blocks_sync_point(z->state->blocks);
 }
+#endif  /*  0  */
 
 /*
  * This subroutine adds the data at next_in/avail_in to the output history

@@ -100,21 +100,6 @@ static inline int sctp_rcv_checksum(struct sk_buff *skb)
 	return 0;
 }
 
-/* The free routine for skbuffs that sctp receives */
-static void sctp_rfree(struct sk_buff *skb)
-{
-	atomic_sub(sizeof(struct sctp_chunk),&skb->sk->sk_rmem_alloc);
-	sock_rfree(skb);
-}
-
-/* The ownership wrapper routine to do receive buffer accounting */
-static void sctp_rcv_set_owner_r(struct sk_buff *skb, struct sock *sk)
-{
-	skb_set_owner_r(skb,sk);
-	skb->destructor = sctp_rfree;
-	atomic_add(sizeof(struct sctp_chunk),&sk->sk_rmem_alloc);
-}
-
 struct sctp_input_cb {
 	union {
 		struct inet_skb_parm	h4;
@@ -217,9 +202,6 @@ int sctp_rcv(struct sk_buff *skb)
 		rcvr = &ep->base;
 	}
 
-	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
-		goto discard_release;
-
 	/*
 	 * RFC 2960, 8.4 - Handle "Out of the blue" Packets.
 	 * An SCTP packet is called an "out of the blue" (OOTB)
@@ -243,6 +225,7 @@ int sctp_rcv(struct sk_buff *skb)
 
 	if (!xfrm_policy_check(sk, XFRM_POLICY_IN, skb, family))
 		goto discard_release;
+	nf_reset(skb);
 
 	ret = sk_filter(sk, skb, 1);
 	if (ret)
@@ -255,8 +238,6 @@ int sctp_rcv(struct sk_buff *skb)
 		goto discard_release;
 	}
 	SCTP_INPUT_CB(skb)->chunk = chunk;
-
-	sctp_rcv_set_owner_r(skb,sk);
 
 	/* Remember what endpoint is to handle this packet. */
 	chunk->rcvr = rcvr;
@@ -276,20 +257,26 @@ int sctp_rcv(struct sk_buff *skb)
 	 */
 	sctp_bh_lock_sock(sk);
 
+	/* It is possible that the association could have moved to a different
+	 * socket if it is peeled off. If so, update the sk.
+	 */ 
+	if (sk != rcvr->sk) {
+		sctp_bh_lock_sock(rcvr->sk);
+		sctp_bh_unlock_sock(sk);
+		sk = rcvr->sk;
+	}
+
 	if (sock_owned_by_user(sk))
 		sk_add_backlog(sk, skb);
 	else
 		sctp_backlog_rcv(sk, skb);
 
-	/* Release the sock and any reference counts we took in the
-	 * lookup calls.
+	/* Release the sock and the sock ref we took in the lookup calls.
+	 * The asoc/ep ref will be released in sctp_backlog_rcv.
 	 */
 	sctp_bh_unlock_sock(sk);
-	if (asoc)
-		sctp_association_put(asoc);
-	else
-		sctp_endpoint_put(ep);
 	sock_put(sk);
+
 	return ret;
 
 discard_it:
@@ -315,28 +302,84 @@ discard_release:
 int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
-	struct sctp_inq *inqueue = &chunk->rcvr->inqueue;
+ 	struct sctp_inq *inqueue = NULL;
+ 	struct sctp_ep_common *rcvr = NULL;
 
-	sctp_inq_push(inqueue, chunk);
+ 	rcvr = chunk->rcvr;
+
+	BUG_TRAP(rcvr->sk == sk);
+
+ 	if (rcvr->dead) {
+ 		sctp_chunk_free(chunk);
+ 	} else {
+ 		inqueue = &chunk->rcvr->inqueue;
+ 		sctp_inq_push(inqueue, chunk);
+ 	}
+
+	/* Release the asoc/ep ref we took in the lookup calls in sctp_rcv. */ 
+ 	if (SCTP_EP_TYPE_ASSOCIATION == rcvr->type)
+ 		sctp_association_put(sctp_assoc(rcvr));
+ 	else
+ 		sctp_endpoint_put(sctp_ep(rcvr));
+  
         return 0;
+}
+
+void sctp_backlog_migrate(struct sctp_association *assoc, 
+			  struct sock *oldsk, struct sock *newsk)
+{
+	struct sk_buff *skb;
+	struct sctp_chunk *chunk;
+
+	skb = oldsk->sk_backlog.head;
+	oldsk->sk_backlog.head = oldsk->sk_backlog.tail = NULL;
+	while (skb != NULL) {
+		struct sk_buff *next = skb->next;
+
+		chunk = SCTP_INPUT_CB(skb)->chunk;
+		skb->next = NULL;
+		if (&assoc->base == chunk->rcvr)
+			sk_add_backlog(newsk, skb);
+		else
+			sk_add_backlog(oldsk, skb);
+		skb = next;
+	}
 }
 
 /* Handle icmp frag needed error. */
 void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			   struct sctp_transport *t, __u32 pmtu)
 {
-	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
-		printk(KERN_WARNING "%s: Reported pmtu %d too low, "
-		       "using default minimum of %d\n", __FUNCTION__, pmtu,
-		       SCTP_DEFAULT_MINSEGMENT);
-		pmtu = SCTP_DEFAULT_MINSEGMENT;
+	if (sock_owned_by_user(sk) || !t || (t->pathmtu == pmtu))
+		return;
+
+	if (t->param_flags & SPP_PMTUD_ENABLE) {
+		if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
+			printk(KERN_WARNING "%s: Reported pmtu %d too low, "
+			       "using default minimum of %d\n",
+			       __FUNCTION__, pmtu,
+			       SCTP_DEFAULT_MINSEGMENT);
+			/* Use default minimum segment size and disable
+			 * pmtu discovery on this transport.
+			 */
+			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
+			t->param_flags = (t->param_flags & ~SPP_HB) |
+				SPP_PMTUD_DISABLE;
+		} else {
+			t->pathmtu = pmtu;
+		}
+
+		/* Update association pmtu. */
+		sctp_assoc_sync_pmtu(asoc);
 	}
 
-	if (!sock_owned_by_user(sk) && t && (t->pmtu != pmtu)) {
-		t->pmtu = pmtu;
-		sctp_assoc_sync_pmtu(asoc);
-		sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
-	}
+	/* Retransmit with the new pmtu setting.
+	 * Normally, if PMTU discovery is disabled, an ICMP Fragmentation
+	 * Needed will never be sent, but if a message was sent before
+	 * PMTU discovery was disabled that was larger than the PMTU, it
+	 * would not be fragmented, so it must be re-transmitted fragmented.	 
+	 */
+	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
 }
 
 /*
@@ -545,10 +588,16 @@ int sctp_rcv_ootb(struct sk_buff *skb)
 	sctp_errhdr_t *err;
 
 	ch = (sctp_chunkhdr_t *) skb->data;
-	ch_end = ((__u8 *) ch) + WORD_ROUND(ntohs(ch->length));
 
 	/* Scan through all the chunks in the packet.  */
-	while (ch_end > (__u8 *)ch && ch_end < skb->tail) {
+	do {
+		/* Break out if chunk length is less then minimal. */
+		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
+			break;
+
+		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
+		if (ch_end > skb->tail)
+			break;
 
 		/* RFC 8.4, 2) If the OOTB packet contains an ABORT chunk, the
 		 * receiver MUST silently discard the OOTB packet and take no
@@ -579,8 +628,7 @@ int sctp_rcv_ootb(struct sk_buff *skb)
 		}
 
 		ch = (sctp_chunkhdr_t *) ch_end;
-	        ch_end = ((__u8 *) ch) + WORD_ROUND(ntohs(ch->length));
-	}
+	} while (ch_end < skb->tail);
 
 	return 0;
 

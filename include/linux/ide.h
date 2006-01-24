@@ -18,21 +18,11 @@
 #include <linux/bio.h>
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/completion.h>
 #include <asm/byteorder.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/semaphore.h>
-
-/*
- * This is the multiple IDE interface driver, as evolved from hd.c.
- * It supports up to four IDE interfaces, on one or more IRQs (usually 14 & 15).
- * There can be up to two drives per interface, as per the ATA-2 spec.
- *
- * Primary i/f:    ide0: major=3;  (hda)         minor=0; (hdb)         minor=64
- * Secondary i/f:  ide1: major=22; (hdc or hd1a) minor=0; (hdd or hd1b) minor=64
- * Tertiary i/f:   ide2: major=33; (hde)         minor=0; (hdf)         minor=64
- * Quaternary i/f: ide3: major=34; (hdg)         minor=0; (hdh)         minor=64
- */
 
 /******************************************************************************
  * IDE driver configuration options (play with these as desired):
@@ -192,11 +182,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define WAIT_WORSTCASE	(30*HZ)	/* 30sec  - worst case when spinning up */
 #define WAIT_CMD	(10*HZ)	/* 10sec  - maximum wait for an IRQ to happen */
 #define WAIT_MIN_SLEEP	(2*HZ/100)	/* 20msec - minimum sleep time */
-
-#define HOST(hwif,chipset)					\
-{								\
-	return ((hwif)->chipset == chipset) ? 1 : 0;		\
-}
 
 /*
  * Check for an interrupt and acknowledge the interrupt status
@@ -391,45 +376,6 @@ typedef union {
 } ata_nsector_t, ata_data_t, atapi_bcount_t, ata_index_t;
 
 /*
- * ATA-IDE Error Register
- *
- * mark		: Bad address mark
- * tzero	: Couldn't find track 0
- * abrt		: Aborted Command
- * mcr		: Media Change Request
- * id		: ID field not found
- * mce		: Media Change Event
- * ecc		: Uncorrectable ECC error
- * bdd		: dual meaing
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned mark		:1;
-		unsigned tzero		:1;
-		unsigned abrt		:1;
-		unsigned mcr		:1;
-		unsigned id		:1;
-		unsigned mce		:1;
-		unsigned ecc		:1;
-		unsigned bdd		:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned bdd		:1;
-		unsigned ecc		:1;
-		unsigned mce		:1;
-		unsigned id		:1;
-		unsigned mcr		:1;
-		unsigned abrt		:1;
-		unsigned tzero		:1;
-		unsigned mark		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} ata_error_t;
-
-/*
  * ATA-IDE Select Register, aka Device-Head
  *
  * head		: always zeros here
@@ -502,39 +448,6 @@ typedef union {
 #endif
 	} b;
 } ata_status_t, atapi_status_t;
-
-/*
- * ATA-IDE Control Register
- *
- * bit0		: Should be set to zero
- * nIEN		: device INTRQ to host
- * SRST		: host soft reset bit
- * bit3		: ATA-2 thingy, Should be set to 1
- * reserved456	: Reserved
- * HOB		: 48-bit address ordering, High Ordered Bit
- */
-typedef union {
-	unsigned all			: 8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned bit0		: 1;
-		unsigned nIEN		: 1;
-		unsigned SRST		: 1;
-		unsigned bit3		: 1;
-		unsigned reserved456	: 3;
-		unsigned HOB		: 1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned HOB		: 1;
-		unsigned reserved456	: 3;
-		unsigned bit3		: 1;
-		unsigned SRST		: 1;
-		unsigned nIEN		: 1;
-		unsigned bit0		: 1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} ata_control_t;
 
 /*
  * ATAPI Feature Register
@@ -616,39 +529,6 @@ typedef union {
 #endif
 	} b;
 } atapi_error_t;
-
-/*
- * ATAPI floppy Drive Select Register
- *
- * sam_lun	: Logical unit number
- * reserved3	: Reserved
- * drv		: The responding drive will be drive 0 (0) or drive 1 (1)
- * one5		: Should be set to 1
- * reserved6	: Reserved
- * one7		: Should be set to 1
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned sam_lun	:3;
-		unsigned reserved3	:1;
-		unsigned drv		:1;
-		unsigned one5		:1;
-		unsigned reserved6	:1;
-		unsigned one7		:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned one7		:1;
-		unsigned reserved6	:1;
-		unsigned one5		:1;
-		unsigned drv		:1;
-		unsigned reserved3	:1;
-		unsigned sam_lun	:3;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} atapi_select_t;
 
 /*
  * Status returned from various ide_ functions
@@ -759,7 +639,7 @@ typedef struct ide_drive_s {
 	int		crc_count;	/* crc counter to reduce drive speed */
 	struct list_head list;
 	struct device	gendev;
-	struct semaphore gendev_rel_sem;	/* to deal with device release() */
+	struct completion gendev_rel_comp;	/* to deal with device release() */
 } ide_drive_t;
 
 #define to_ide_device(dev)container_of(dev, ide_drive_t, gendev)
@@ -915,14 +795,14 @@ typedef struct hwif_s {
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 
 	struct device	gendev;
-	struct semaphore gendev_rel_sem; /* To deal with device release() */
+	struct completion gendev_rel_comp; /* To deal with device release() */
 
 	void		*hwif_data;	/* extra hwif data */
 
 	unsigned dma;
 
 	void (*led_act)(void *data, int rw);
-} ____cacheline_maxaligned_in_smp ide_hwif_t;
+} ____cacheline_internodealigned_in_smp ide_hwif_t;
 
 /*
  *  internal ide interrupt handler type
@@ -1089,9 +969,11 @@ enum {
 
 /*
  * Subdrivers support.
+ *
+ * The gendriver.owner field should be set to the module owner of this driver.
+ * The gendriver.name field should be set to the name of this driver
  */
 typedef struct ide_driver_s {
-	struct module			*owner;
 	const char			*version;
 	u8				media;
 	unsigned supports_dsc_overlap	: 1;
@@ -1099,12 +981,14 @@ typedef struct ide_driver_s {
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
 	ide_startstop_t	(*abort)(ide_drive_t *, struct request *rq);
-	int		(*ioctl)(ide_drive_t *, struct inode *, struct file *, unsigned int, unsigned long);
 	ide_proc_entry_t	*proc;
-	void		(*ata_prebuilder)(ide_drive_t *);
-	void		(*atapi_prebuilder)(ide_drive_t *);
 	struct device_driver	gen_driver;
+	int		(*probe)(ide_drive_t *);
+	void		(*remove)(ide_drive_t *);
+	void		(*shutdown)(ide_drive_t *);
 } ide_driver_t;
+
+#define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
 
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
 
@@ -1199,37 +1083,11 @@ extern u64 ide_get_error_location(ide_drive_t *, char *);
  */
 typedef enum {
 	ide_wait,	/* insert rq at end of list, and wait for it */
-	ide_next,	/* insert rq immediately after current request */
 	ide_preempt,	/* insert rq in front of current request */
 	ide_head_wait,	/* insert rq in front of current request and wait for it */
 	ide_end		/* insert rq at end of list, but don't wait for it */
 } ide_action_t;
 
-/*
- * This function issues a special IDE device request
- * onto the request queue.
- *
- * If action is ide_wait, then the rq is queued at the end of the
- * request queue, and the function sleeps until it has been processed.
- * This is for use when invoked from an ioctl handler.
- *
- * If action is ide_preempt, then the rq is queued at the head of
- * the request queue, displacing the currently-being-processed
- * request and this function returns immediately without waiting
- * for the new rq to be completed.  This is VERY DANGEROUS, and is
- * intended for careful use by the ATAPI tape/cdrom driver code.
- *
- * If action is ide_next, then the rq is queued immediately after
- * the currently-being-processed-request (if any), and the function
- * returns without waiting for the new rq to be completed.  As above,
- * This is VERY DANGEROUS, and is intended for careful use by the
- * ATAPI tape/cdrom driver code.
- *
- * If action is ide_end, then the rq is queued at the end of the
- * request queue, and the function returns immediately without waiting
- * for the new rq to be completed. This is again intended for careful
- * use by the ATAPI tape/cdrom driver code.
- */
 extern int ide_do_drive_cmd(ide_drive_t *, struct request *, ide_action_t);
 
 /*
@@ -1322,7 +1180,6 @@ extern int ide_spin_wait_hwgroup(ide_drive_t *);
 extern void ide_timer_expiry(unsigned long);
 extern irqreturn_t ide_intr(int irq, void *dev_id, struct pt_regs *regs);
 extern void do_ide_request(request_queue_t *);
-extern void ide_init_subdrivers(void);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
 
@@ -1395,6 +1252,12 @@ void ide_init_sg_cmd(ide_drive_t *, struct request *);
 #define GOOD_DMA_DRIVE		1
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
+struct drive_list_entry {
+	const char *id_model;
+	const char *id_firmware;
+};
+
+int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
 int ide_use_dma(ide_drive_t *);

@@ -65,6 +65,7 @@ extern unsigned nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
 extern int nfs_callback_up(void);
 extern int nfs_callback_down(void);
 
+extern unsigned int nfs_callback_set_tcpport;
 extern unsigned short nfs_callback_tcpport;
 
 #endif /* __LINUX_FS_NFS_CALLBACK_H */

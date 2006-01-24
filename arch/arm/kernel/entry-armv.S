@@ -3,6 +3,7 @@
  *
  *  Copyright (C) 1996,1997,1998 Russell King.
  *  ARM700 fix by Matthew Godbolt (linux-user@willothewisp.demon.co.uk)
+ *  nommu support by Hyok S. Choi (hyok.choi@samsung.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,8 +19,6 @@
 #include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
-#include <asm/hardware.h>		/* should be moved into entry-macro.S */
-#include <asm/arch/irqs.h>		/* should be moved into entry-macro.S */
 #include <asm/arch/entry-macro.S>
 
 #include "entry-header.S"
@@ -106,14 +105,24 @@ common_invalid:
 /*
  * SVC mode handlers
  */
+
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5)
+#define SPFIX(code...) code
+#else
+#define SPFIX(code...)
+#endif
+
 	.macro	svc_entry
 	sub	sp, sp, #S_FRAME_SIZE
+ SPFIX(	tst	sp, #4		)
+ SPFIX(	bicne	sp, sp, #4	)
 	stmib	sp, {r1 - r12}
 
 	ldmia	r0, {r1 - r3}
 	add	r5, sp, #S_SP		@ here for interlock avoidance
 	mov	r4, #-1			@  ""  ""      ""       ""
 	add	r0, sp, #S_FRAME_SIZE   @  ""  ""      ""       ""
+ SPFIX(	addne	r0, r0, #4	)
 	str	r1, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
 
@@ -304,7 +313,14 @@ __pabt_svc:
 
 /*
  * User mode handlers
+ *
+ * EABI note: sp_svc is always 64-bit aligned here, so should S_FRAME_SIZE
  */
+
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5) && (S_FRAME_SIZE & 7)
+#error "sizeof(struct pt_regs) must be a multiple of 8"
+#endif
+
 	.macro	usr_entry
 	sub	sp, sp, #S_FRAME_SIZE
 	stmib	sp, {r1 - r12}
@@ -540,7 +556,11 @@ ENTRY(__switch_to)
 	add	ip, r1, #TI_CPU_SAVE
 	ldr	r3, [r2, #TI_TP_VALUE]
 	stmia	ip!, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
+#ifndef CONFIG_MMU
+	add	r2, r2, #TI_CPU_DOMAIN
+#else
 	ldr	r6, [r2, #TI_CPU_DOMAIN]!
+#endif
 #if __LINUX_ARM_ARCH__ >= 6
 #ifdef CONFIG_CPU_MPCORE
 	clrex
@@ -558,7 +578,9 @@ ENTRY(__switch_to)
 	mov	r4, #0xffff0fff
 	str	r3, [r4, #-15]			@ TLS val at 0xffff0ff0
 #endif
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
+#endif
 #ifdef CONFIG_VFP
 	@ Always disable VFP so we can lazily save/restore the old
 	@ state. This occurs in the context of the previous thread.
@@ -614,6 +636,47 @@ __kuser_helper_start:
 /*
  * Reference prototype:
  *
+ *	void __kernel_memory_barrier(void)
+ *
+ * Input:
+ *
+ *	lr = return address
+ *
+ * Output:
+ *
+ *	none
+ *
+ * Clobbered:
+ *
+ *	the Z flag might be lost
+ *
+ * Definition and user space usage example:
+ *
+ *	typedef void (__kernel_dmb_t)(void);
+ *	#define __kernel_dmb (*(__kernel_dmb_t *)0xffff0fa0)
+ *
+ * Apply any needed memory barrier to preserve consistency with data modified
+ * manually and __kuser_cmpxchg usage.
+ *
+ * This could be used as follows:
+ *
+ * #define __kernel_dmb() \
+ *         asm volatile ( "mov r0, #0xffff0fff; mov lr, pc; sub pc, r0, #95" \
+ *	        : : : "lr","cc" )
+ */
+
+__kuser_memory_barrier:				@ 0xffff0fa0
+
+#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_SMP)
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
+	mov	pc, lr
+
+	.align	5
+
+/*
+ * Reference prototype:
+ *
  *	int __kernel_cmpxchg(int oldval, int newval, int *ptr)
  *
  * Input:
@@ -641,6 +704,8 @@ __kuser_helper_start:
  * Return zero if *ptr was changed or non-zero if no exchange happened.
  * The C flag is also set if *ptr was changed to allow for assembly
  * optimization in the calling code.
+ *
+ * Note: this routine already includes memory barriers as needed.
  *
  * For example, a user space atomic_add implementation could look like this:
  *
@@ -670,8 +735,11 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * The kernel itself must perform the operation.
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
+	stmfd	sp!, {r7, lr}
+	mov	r7, #0xff00		@ 0xfff0 into r7 for EABI
+	orr	r7, r7, #0xf0
 	swi	#0x9ffff0
-	mov	pc, lr
+	ldmfd	sp!, {r7, pc}
 
 #elif __LINUX_ARM_ARCH__ < 6
 
@@ -698,10 +766,16 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 
 #else
 
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
 	ldrex	r3, [r2]
 	subs	r3, r3, r0
 	strexeq	r3, r1, [r2]
 	rsbs	r0, r3, #0
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
 	mov	pc, lr
 
 #endif

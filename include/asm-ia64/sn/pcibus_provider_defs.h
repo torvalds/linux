@@ -29,13 +29,13 @@
  */
 
 struct pcibus_bussoft {
-	uint32_t		bs_asic_type;	/* chipset type */
-	uint32_t		bs_xid;		/* xwidget id */
-	uint32_t		bs_persist_busnum; /* Persistent Bus Number */
-	uint32_t		bs_persist_segment; /* Segment Number */
-	uint64_t		bs_legacy_io;	/* legacy io pio addr */
-	uint64_t		bs_legacy_mem;	/* legacy mem pio addr */
-	uint64_t		bs_base;	/* widget base */
+	u32		bs_asic_type;	/* chipset type */
+	u32		bs_xid;		/* xwidget id */
+	u32		bs_persist_busnum; /* Persistent Bus Number */
+	u32		bs_persist_segment; /* Segment Number */
+	u64		bs_legacy_io;	/* legacy io pio addr */
+	u64		bs_legacy_mem;	/* legacy mem pio addr */
+	u64		bs_base;	/* widget base */
 	struct xwidget_info	*bs_xwidget_info;
 };
 

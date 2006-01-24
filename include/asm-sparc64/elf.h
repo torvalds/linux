@@ -119,7 +119,7 @@ typedef struct {
 #endif
 
 #define ELF_CORE_COPY_TASK_REGS(__tsk, __elf_regs)	\
-	({ ELF_CORE_COPY_REGS((*(__elf_regs)), (__tsk)->thread_info->kregs); 1; })
+	({ ELF_CORE_COPY_REGS((*(__elf_regs)), task_pt_regs(__tsk)); 1; })
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.

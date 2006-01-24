@@ -92,7 +92,6 @@ static struct Aurora_port aurora_port[AURORA_TNPORTS] =  {
 
 /* no longer used. static struct Aurora_board * IRQ_to_board[16] = { NULL, } ;*/
 static unsigned char * tmp_buf = NULL;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 DECLARE_TASK_QUEUE(tq_aurora);
 
@@ -124,25 +123,25 @@ static inline int aurora_paranoia_check(struct Aurora_port const * port,
  */
 
 /* Get board number from pointer */
-extern inline int board_No (struct Aurora_board const * bp)
+static inline int board_No (struct Aurora_board const * bp)
 {
 	return bp - aurora_board;
 }
 
 /* Get port number from pointer */
-extern inline int port_No (struct Aurora_port const * port)
+static inline int port_No (struct Aurora_port const * port)
 {
 	return AURORA_PORT(port - aurora_port); 
 }
 
 /* Get pointer to board from pointer to port */
-extern inline struct Aurora_board * port_Board(struct Aurora_port const * port)
+static inline struct Aurora_board * port_Board(struct Aurora_port const * port)
 {
 	return &aurora_board[AURORA_BOARD(port - aurora_port)];
 }
 
 /* Wait for Channel Command Register ready */
-extern inline void aurora_wait_CCR(struct aurora_reg128 * r)
+static inline void aurora_wait_CCR(struct aurora_reg128 * r)
 {
 	unsigned long delay;
 
@@ -161,7 +160,7 @@ printk("aurora_wait_CCR\n");
  */
 
 /* Must be called with enabled interrupts */
-extern inline void aurora_long_delay(unsigned long delay)
+static inline void aurora_long_delay(unsigned long delay)
 {
 	unsigned long i;
 
@@ -420,7 +419,7 @@ static void aurora_release_io_range(struct Aurora_board *bp)
 	sbus_iounmap((unsigned long)bp->r3, 4);
 }
 
-extern inline void aurora_mark_event(struct Aurora_port * port, int event)
+static inline void aurora_mark_event(struct Aurora_port * port, int event)
 {
 #ifdef AURORA_DEBUG
 	printk("aurora_mark_event: start\n");

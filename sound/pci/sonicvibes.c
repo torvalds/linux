@@ -195,9 +195,7 @@ MODULE_PARM_DESC(dmaio, "DDMA i/o base address for S3 SonicVibes soundcard.");
 
  */
 
-typedef struct _snd_sonicvibes sonicvibes_t;
-
-struct _snd_sonicvibes {
+struct sonicvibes {
 	unsigned long dma1size;
 	unsigned long dma2size;
 	int irq;
@@ -224,20 +222,20 @@ struct _snd_sonicvibes {
 	unsigned int mode;
 
 	struct pci_dev *pci;
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
-	snd_rawmidi_t *rmidi;
-	snd_hwdep_t *fmsynth;	/* S3FM */
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
+	struct snd_rawmidi *rmidi;
+	struct snd_hwdep *fmsynth;	/* S3FM */
 
 	spinlock_t reg_lock;
 
 	unsigned int p_dma_size;
 	unsigned int c_dma_size;
 
-	snd_kcontrol_t *master_mute;
-	snd_kcontrol_t *master_volume;
+	struct snd_kcontrol *master_mute;
+	struct snd_kcontrol *master_volume;
 
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
@@ -251,13 +249,13 @@ static struct pci_device_id snd_sonic_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_sonic_ids);
 
-static ratden_t sonicvibes_adc_clock = {
+static struct snd_ratden sonicvibes_adc_clock = {
 	.num_min = 4000 * 65536,
 	.num_max = 48000UL * 65536,
 	.num_step = 1,
 	.den = 65536,
 };
-static snd_pcm_hw_constraint_ratdens_t snd_sonicvibes_hw_constraints_adc_clock = {
+static struct snd_pcm_hw_constraint_ratdens snd_sonicvibes_hw_constraints_adc_clock = {
 	.nrats = 1,
 	.rats = &sonicvibes_adc_clock,
 };
@@ -266,7 +264,7 @@ static snd_pcm_hw_constraint_ratdens_t snd_sonicvibes_hw_constraints_adc_clock =
  *  common I/O routines
  */
 
-static inline void snd_sonicvibes_setdmaa(sonicvibes_t * sonic,
+static inline void snd_sonicvibes_setdmaa(struct sonicvibes * sonic,
 					  unsigned int addr,
 					  unsigned int count)
 {
@@ -279,7 +277,7 @@ static inline void snd_sonicvibes_setdmaa(sonicvibes_t * sonic,
 #endif
 }
 
-static inline void snd_sonicvibes_setdmac(sonicvibes_t * sonic,
+static inline void snd_sonicvibes_setdmac(struct sonicvibes * sonic,
 					  unsigned int addr,
 					  unsigned int count)
 {
@@ -294,18 +292,18 @@ static inline void snd_sonicvibes_setdmac(sonicvibes_t * sonic,
 #endif
 }
 
-static inline unsigned int snd_sonicvibes_getdmaa(sonicvibes_t * sonic)
+static inline unsigned int snd_sonicvibes_getdmaa(struct sonicvibes * sonic)
 {
 	return (inl(sonic->dmaa_port + SV_DMA_COUNT0) & 0xffffff) + 1;
 }
 
-static inline unsigned int snd_sonicvibes_getdmac(sonicvibes_t * sonic)
+static inline unsigned int snd_sonicvibes_getdmac(struct sonicvibes * sonic)
 {
 	/* note: dmac is working in word mode!!! */
 	return ((inl(sonic->dmac_port + SV_DMA_COUNT0) & 0xffffff) + 1) << 1;
 }
 
-static void snd_sonicvibes_out1(sonicvibes_t * sonic,
+static void snd_sonicvibes_out1(struct sonicvibes * sonic,
 				unsigned char reg,
 				unsigned char value)
 {
@@ -315,7 +313,7 @@ static void snd_sonicvibes_out1(sonicvibes_t * sonic,
 	udelay(10);
 }
 
-static void snd_sonicvibes_out(sonicvibes_t * sonic,
+static void snd_sonicvibes_out(struct sonicvibes * sonic,
 			       unsigned char reg,
 			       unsigned char value)
 {
@@ -329,7 +327,7 @@ static void snd_sonicvibes_out(sonicvibes_t * sonic,
 	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
-static unsigned char snd_sonicvibes_in1(sonicvibes_t * sonic, unsigned char reg)
+static unsigned char snd_sonicvibes_in1(struct sonicvibes * sonic, unsigned char reg)
 {
 	unsigned char value;
 
@@ -340,7 +338,7 @@ static unsigned char snd_sonicvibes_in1(sonicvibes_t * sonic, unsigned char reg)
 	return value;
 }
 
-static unsigned char snd_sonicvibes_in(sonicvibes_t * sonic, unsigned char reg)
+static unsigned char snd_sonicvibes_in(struct sonicvibes * sonic, unsigned char reg)
 {
 	unsigned long flags;
 	unsigned char value;
@@ -355,7 +353,7 @@ static unsigned char snd_sonicvibes_in(sonicvibes_t * sonic, unsigned char reg)
 }
 
 #if 0
-static void snd_sonicvibes_debug(sonicvibes_t * sonic)
+static void snd_sonicvibes_debug(struct sonicvibes * sonic)
 {
 	printk("SV REGS:          INDEX = 0x%02x  ", inb(SV_REG(sonic, INDEX)));
 	printk("                 STATUS = 0x%02x\n", inb(SV_REG(sonic, STATUS)));
@@ -427,7 +425,7 @@ static void snd_sonicvibes_debug(sonicvibes_t * sonic)
 
 #endif
 
-static void snd_sonicvibes_setfmt(sonicvibes_t * sonic,
+static void snd_sonicvibes_setfmt(struct sonicvibes * sonic,
                                   unsigned char mask,
                                   unsigned char value)
 {
@@ -483,7 +481,7 @@ static void snd_sonicvibes_pll(unsigned int rate,
 #endif
 }
 
-static void snd_sonicvibes_setpll(sonicvibes_t * sonic,
+static void snd_sonicvibes_setpll(struct sonicvibes * sonic,
                                   unsigned char reg,
                                   unsigned int rate)
 {
@@ -499,7 +497,7 @@ static void snd_sonicvibes_setpll(sonicvibes_t * sonic,
 	}
 }
 
-static void snd_sonicvibes_set_adc_rate(sonicvibes_t * sonic, unsigned int rate)
+static void snd_sonicvibes_set_adc_rate(struct sonicvibes * sonic, unsigned int rate)
 {
 	unsigned long flags;
 	unsigned int div;
@@ -520,8 +518,8 @@ static void snd_sonicvibes_set_adc_rate(sonicvibes_t * sonic, unsigned int rate)
 	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
-static int snd_sonicvibes_hw_constraint_dac_rate(snd_pcm_hw_params_t *params,
-						 snd_pcm_hw_rule_t *rule)
+static int snd_sonicvibes_hw_constraint_dac_rate(struct snd_pcm_hw_params *params,
+						 struct snd_pcm_hw_rule *rule)
 {
 	unsigned int rate, div, r, m, n;
 
@@ -545,7 +543,7 @@ static int snd_sonicvibes_hw_constraint_dac_rate(snd_pcm_hw_params_t *params,
 	return 0;
 }
 
-static void snd_sonicvibes_set_dac_rate(sonicvibes_t * sonic, unsigned int rate)
+static void snd_sonicvibes_set_dac_rate(struct sonicvibes * sonic, unsigned int rate)
 {
 	unsigned int div;
 	unsigned long flags;
@@ -559,7 +557,7 @@ static void snd_sonicvibes_set_dac_rate(sonicvibes_t * sonic, unsigned int rate)
 	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
-static int snd_sonicvibes_trigger(sonicvibes_t * sonic, int what, int cmd)
+static int snd_sonicvibes_trigger(struct sonicvibes * sonic, int what, int cmd)
 {
 	int result = 0;
 
@@ -583,7 +581,7 @@ static int snd_sonicvibes_trigger(sonicvibes_t * sonic, int what, int cmd)
 
 static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	sonicvibes_t *sonic = dev_id;
+	struct sonicvibes *sonic = dev_id;
 	unsigned char status;
 
 	status = inb(SV_REG(sonic, STATUS));
@@ -646,35 +644,35 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id, struct pt_reg
  *  PCM part
  */
 
-static int snd_sonicvibes_playback_trigger(snd_pcm_substream_t * substream,
+static int snd_sonicvibes_playback_trigger(struct snd_pcm_substream *substream,
 					   int cmd)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
 	return snd_sonicvibes_trigger(sonic, 1, cmd);
 }
 
-static int snd_sonicvibes_capture_trigger(snd_pcm_substream_t * substream,
+static int snd_sonicvibes_capture_trigger(struct snd_pcm_substream *substream,
 					  int cmd)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
 	return snd_sonicvibes_trigger(sonic, 2, cmd);
 }
 
-static int snd_sonicvibes_hw_params(snd_pcm_substream_t * substream,
-				    snd_pcm_hw_params_t * hw_params)
+static int snd_sonicvibes_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_sonicvibes_hw_free(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int snd_sonicvibes_playback_prepare(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_playback_prepare(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned char fmt = 0;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -695,10 +693,10 @@ static int snd_sonicvibes_playback_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_sonicvibes_capture_prepare(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_capture_prepare(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned char fmt = 0;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -720,9 +718,9 @@ static int snd_sonicvibes_capture_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static snd_pcm_uframes_t snd_sonicvibes_playback_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_sonicvibes_playback_pointer(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
 	size_t ptr;
 
 	if (!(sonic->enable & 1))
@@ -731,9 +729,9 @@ static snd_pcm_uframes_t snd_sonicvibes_playback_pointer(snd_pcm_substream_t * s
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static snd_pcm_uframes_t snd_sonicvibes_capture_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_sonicvibes_capture_pointer(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
 	size_t ptr;
 	if (!(sonic->enable & 2))
 		return 0;
@@ -741,7 +739,7 @@ static snd_pcm_uframes_t snd_sonicvibes_capture_pointer(snd_pcm_substream_t * su
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static snd_pcm_hardware_t snd_sonicvibes_playback =
+static struct snd_pcm_hardware snd_sonicvibes_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -760,7 +758,7 @@ static snd_pcm_hardware_t snd_sonicvibes_playback =
 	.fifo_size =		0,
 };
 
-static snd_pcm_hardware_t snd_sonicvibes_capture =
+static struct snd_pcm_hardware snd_sonicvibes_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -779,10 +777,10 @@ static snd_pcm_hardware_t snd_sonicvibes_capture =
 	.fifo_size =		0,
 };
 
-static int snd_sonicvibes_playback_open(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_playback_open(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	sonic->mode |= SV_MODE_PLAY;
 	sonic->playback_substream = substream;
@@ -791,10 +789,10 @@ static int snd_sonicvibes_playback_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_sonicvibes_capture_open(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_capture_open(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	sonic->mode |= SV_MODE_CAPTURE;
 	sonic->capture_substream = substream;
@@ -804,25 +802,25 @@ static int snd_sonicvibes_capture_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_sonicvibes_playback_close(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_playback_close(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
 
 	sonic->playback_substream = NULL;
 	sonic->mode &= ~SV_MODE_PLAY;
 	return 0;
 }
 
-static int snd_sonicvibes_capture_close(snd_pcm_substream_t * substream)
+static int snd_sonicvibes_capture_close(struct snd_pcm_substream *substream)
 {
-	sonicvibes_t *sonic = snd_pcm_substream_chip(substream);
+	struct sonicvibes *sonic = snd_pcm_substream_chip(substream);
 
 	sonic->capture_substream = NULL;
 	sonic->mode &= ~SV_MODE_CAPTURE;
 	return 0;
 }
 
-static snd_pcm_ops_t snd_sonicvibes_playback_ops = {
+static struct snd_pcm_ops snd_sonicvibes_playback_ops = {
 	.open =		snd_sonicvibes_playback_open,
 	.close =	snd_sonicvibes_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -833,7 +831,7 @@ static snd_pcm_ops_t snd_sonicvibes_playback_ops = {
 	.pointer =	snd_sonicvibes_playback_pointer,
 };
 
-static snd_pcm_ops_t snd_sonicvibes_capture_ops = {
+static struct snd_pcm_ops snd_sonicvibes_capture_ops = {
 	.open =		snd_sonicvibes_capture_open,
 	.close =	snd_sonicvibes_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -844,16 +842,9 @@ static snd_pcm_ops_t snd_sonicvibes_capture_ops = {
 	.pointer =	snd_sonicvibes_capture_pointer,
 };
 
-static void snd_sonicvibes_pcm_free(snd_pcm_t *pcm)
+static int __devinit snd_sonicvibes_pcm(struct sonicvibes * sonic, int device, struct snd_pcm ** rpcm)
 {
-	sonicvibes_t *sonic = pcm->private_data;
-	sonic->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static int __devinit snd_sonicvibes_pcm(sonicvibes_t * sonic, int device, snd_pcm_t ** rpcm)
-{
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	if ((err = snd_pcm_new(sonic->card, "s3_86c617", device, 1, 1, &pcm)) < 0)
@@ -864,7 +855,6 @@ static int __devinit snd_sonicvibes_pcm(sonicvibes_t * sonic, int device, snd_pc
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sonicvibes_capture_ops);
 
 	pcm->private_data = sonic;
-	pcm->private_free = snd_sonicvibes_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "S3 SonicVibes");
 	sonic->pcm = pcm;
@@ -886,7 +876,7 @@ static int __devinit snd_sonicvibes_pcm(sonicvibes_t * sonic, int device, snd_pc
   .info = snd_sonicvibes_info_mux, \
   .get = snd_sonicvibes_get_mux, .put = snd_sonicvibes_put_mux }
 
-static int snd_sonicvibes_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sonicvibes_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[7] = {
 		"CD", "PCM", "Aux1", "Line", "Aux0", "Mic", "Mix"
@@ -901,9 +891,9 @@ static int snd_sonicvibes_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_sonicvibes_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sonicvibes_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	
 	spin_lock_irq(&sonic->reg_lock);
 	ucontrol->value.enumerated.item[0] = ((snd_sonicvibes_in1(sonic, SV_IREG_LEFT_ADC) & SV_RECSRC_OUT) >> 5) - 1;
@@ -912,9 +902,9 @@ static int snd_sonicvibes_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_sonicvibes_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sonicvibes_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	unsigned short left, right, oval1, oval2;
 	int change;
 	
@@ -941,7 +931,7 @@ static int snd_sonicvibes_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
   .get = snd_sonicvibes_get_single, .put = snd_sonicvibes_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-static int snd_sonicvibes_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sonicvibes_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 
@@ -952,9 +942,9 @@ static int snd_sonicvibes_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_inf
 	return 0;
 }
 
-static int snd_sonicvibes_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sonicvibes_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -968,9 +958,9 @@ static int snd_sonicvibes_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_val
 	return 0;
 }
 
-static int snd_sonicvibes_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sonicvibes_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -997,7 +987,7 @@ static int snd_sonicvibes_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_val
   .get = snd_sonicvibes_get_double, .put = snd_sonicvibes_put_double, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
 
-static int snd_sonicvibes_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sonicvibes_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -1008,9 +998,9 @@ static int snd_sonicvibes_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_inf
 	return 0;
 }
 
-static int snd_sonicvibes_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sonicvibes_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int shift_left = (kcontrol->private_value >> 16) & 0x07;
@@ -1029,9 +1019,9 @@ static int snd_sonicvibes_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_val
 	return 0;
 }
 
-static int snd_sonicvibes_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sonicvibes_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int shift_left = (kcontrol->private_value >> 16) & 0x07;
@@ -1061,7 +1051,7 @@ static int snd_sonicvibes_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_val
 	return change;
 }
 
-static snd_kcontrol_new_t snd_sonicvibes_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_sonicvibes_controls[] __devinitdata = {
 SONICVIBES_DOUBLE("Capture Volume", 0, SV_IREG_LEFT_ADC, SV_IREG_RIGHT_ADC, 0, 0, 15, 0),
 SONICVIBES_DOUBLE("Aux Playback Switch", 0, SV_IREG_LEFT_AUX1, SV_IREG_RIGHT_AUX1, 7, 7, 1, 1),
 SONICVIBES_DOUBLE("Aux Playback Volume", 0, SV_IREG_LEFT_AUX1, SV_IREG_RIGHT_AUX1, 0, 0, 31, 1),
@@ -1085,17 +1075,17 @@ SONICVIBES_SINGLE("Loopback Capture Volume", 0, SV_IREG_ADC_OUTPUT_CTRL, 2, 63, 
 SONICVIBES_MUX("Capture Source", 0)
 };
 
-static void snd_sonicvibes_master_free(snd_kcontrol_t *kcontrol)
+static void snd_sonicvibes_master_free(struct snd_kcontrol *kcontrol)
 {
-	sonicvibes_t *sonic = snd_kcontrol_chip(kcontrol);
+	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	sonic->master_mute = NULL;
 	sonic->master_volume = NULL;
 }
 
-static int __devinit snd_sonicvibes_mixer(sonicvibes_t * sonic)
+static int __devinit snd_sonicvibes_mixer(struct sonicvibes * sonic)
 {
-	snd_card_t *card;
-	snd_kcontrol_t *kctl;
+	struct snd_card *card;
+	struct snd_kcontrol *kctl;
 	unsigned int idx;
 	int err;
 
@@ -1118,10 +1108,10 @@ static int __devinit snd_sonicvibes_mixer(sonicvibes_t * sonic)
 
  */
 
-static void snd_sonicvibes_proc_read(snd_info_entry_t *entry, 
-				     snd_info_buffer_t * buffer)
+static void snd_sonicvibes_proc_read(struct snd_info_entry *entry, 
+				     struct snd_info_buffer *buffer)
 {
-	sonicvibes_t *sonic = entry->private_data;
+	struct sonicvibes *sonic = entry->private_data;
 	unsigned char tmp;
 
 	tmp = sonic->srs_space & 0x0f;
@@ -1148,9 +1138,9 @@ static void snd_sonicvibes_proc_read(snd_info_entry_t *entry,
 	snd_iprintf(buffer, "MIDI to ext. Tx  : %s\n", tmp & 0x04 ? "on" : "off");
 }
 
-static void __devinit snd_sonicvibes_proc_init(sonicvibes_t * sonic)
+static void __devinit snd_sonicvibes_proc_init(struct sonicvibes * sonic)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(sonic->card, "sonicvibes", &entry))
 		snd_info_set_text_ops(entry, sonic, 1024, snd_sonicvibes_proc_read);
@@ -1161,10 +1151,10 @@ static void __devinit snd_sonicvibes_proc_init(sonicvibes_t * sonic)
  */
 
 #ifdef SUPPORT_JOYSTICK
-static snd_kcontrol_new_t snd_sonicvibes_game_control __devinitdata =
+static struct snd_kcontrol_new snd_sonicvibes_game_control __devinitdata =
 SONICVIBES_SINGLE("Joystick Speed", 0, SV_IREG_GAME_PORT, 1, 15, 0);
 
-static int __devinit snd_sonicvibes_create_gameport(sonicvibes_t *sonic)
+static int __devinit snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 {
 	struct gameport *gp;
 
@@ -1186,7 +1176,7 @@ static int __devinit snd_sonicvibes_create_gameport(sonicvibes_t *sonic)
 	return 0;
 }
 
-static void snd_sonicvibes_free_gameport(sonicvibes_t *sonic)
+static void snd_sonicvibes_free_gameport(struct sonicvibes *sonic)
 {
 	if (sonic->gameport) {
 		gameport_unregister_port(sonic->gameport);
@@ -1194,11 +1184,11 @@ static void snd_sonicvibes_free_gameport(sonicvibes_t *sonic)
 	}
 }
 #else
-static inline int snd_sonicvibes_create_gameport(sonicvibes_t *sonic) { return -ENOSYS; }
-static inline void snd_sonicvibes_free_gameport(sonicvibes_t *sonic) { }
+static inline int snd_sonicvibes_create_gameport(struct sonicvibes *sonic) { return -ENOSYS; }
+static inline void snd_sonicvibes_free_gameport(struct sonicvibes *sonic) { }
 #endif
 
-static int snd_sonicvibes_free(sonicvibes_t *sonic)
+static int snd_sonicvibes_free(struct sonicvibes *sonic)
 {
 	snd_sonicvibes_free_gameport(sonic);
 	pci_write_config_dword(sonic->pci, 0x40, sonic->dmaa_port);
@@ -1213,22 +1203,22 @@ static int snd_sonicvibes_free(sonicvibes_t *sonic)
 	return 0;
 }
 
-static int snd_sonicvibes_dev_free(snd_device_t *device)
+static int snd_sonicvibes_dev_free(struct snd_device *device)
 {
-	sonicvibes_t *sonic = device->device_data;
+	struct sonicvibes *sonic = device->device_data;
 	return snd_sonicvibes_free(sonic);
 }
 
-static int __devinit snd_sonicvibes_create(snd_card_t * card,
+static int __devinit snd_sonicvibes_create(struct snd_card *card,
 					struct pci_dev *pci,
 					int reverb,
 					int mge,
-					sonicvibes_t ** rsonic)
+					struct sonicvibes ** rsonic)
 {
-	sonicvibes_t *sonic;
+	struct sonicvibes *sonic;
 	unsigned int dmaa, dmac;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_sonicvibes_dev_free,
 	};
 
@@ -1373,7 +1363,7 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
  *  MIDI section
  */
 
-static snd_kcontrol_new_t snd_sonicvibes_midi_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_sonicvibes_midi_controls[] __devinitdata = {
 SONICVIBES_SINGLE("SonicVibes Wave Source RAM", 0, SV_IREG_WAVE_SOURCE, 0, 1, 0),
 SONICVIBES_SINGLE("SonicVibes Wave Source RAM+ROM", 0, SV_IREG_WAVE_SOURCE, 1, 1, 0),
 SONICVIBES_SINGLE("SonicVibes Onboard Synth", 0, SV_IREG_MPU401, 0, 1, 0),
@@ -1381,24 +1371,25 @@ SONICVIBES_SINGLE("SonicVibes External Rx to Synth", 0, SV_IREG_MPU401, 1, 1, 0)
 SONICVIBES_SINGLE("SonicVibes External Tx", 0, SV_IREG_MPU401, 2, 1, 0)
 };
 
-static int snd_sonicvibes_midi_input_open(mpu401_t * mpu)
+static int snd_sonicvibes_midi_input_open(struct snd_mpu401 * mpu)
 {
-	sonicvibes_t *sonic = mpu->private_data;
+	struct sonicvibes *sonic = mpu->private_data;
 	outb(sonic->irqmask &= ~SV_MIDI_MASK, SV_REG(sonic, IRQMASK));
 	return 0;
 }
 
-static void snd_sonicvibes_midi_input_close(mpu401_t * mpu)
+static void snd_sonicvibes_midi_input_close(struct snd_mpu401 * mpu)
 {
-	sonicvibes_t *sonic = mpu->private_data;
+	struct sonicvibes *sonic = mpu->private_data;
 	outb(sonic->irqmask |= SV_MIDI_MASK, SV_REG(sonic, IRQMASK));
 }
 
-static int __devinit snd_sonicvibes_midi(sonicvibes_t * sonic, snd_rawmidi_t * rmidi)
+static int __devinit snd_sonicvibes_midi(struct sonicvibes * sonic,
+					 struct snd_rawmidi *rmidi)
 {
-	mpu401_t * mpu = rmidi->private_data;
-	snd_card_t *card = sonic->card;
-	snd_rawmidi_str_t *dir;
+	struct snd_mpu401 * mpu = rmidi->private_data;
+	struct snd_card *card = sonic->card;
+	struct snd_rawmidi_str *dir;
 	unsigned int idx;
 	int err;
 
@@ -1416,10 +1407,10 @@ static int __devinit snd_sonic_probe(struct pci_dev *pci,
 				     const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	sonicvibes_t *sonic;
-	snd_rawmidi_t *midi_uart;
-	opl3_t *opl3;
+	struct snd_card *card;
+	struct sonicvibes *sonic;
+	struct snd_rawmidi *midi_uart;
+	struct snd_opl3 *opl3;
 	int idx, err;
 
 	if (dev >= SNDRV_CARDS)

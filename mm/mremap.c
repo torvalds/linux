@@ -13,6 +13,7 @@
 #include <linux/shm.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/highmem.h>
 #include <linux/security.h>
@@ -323,7 +324,7 @@ unsigned long do_mremap(unsigned long addr,
 	/* We can't remap across vm area boundaries */
 	if (old_len > vma->vm_end - addr)
 		goto out;
-	if (vma->vm_flags & VM_DONTEXPAND) {
+	if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP)) {
 		if (new_len > old_len)
 			goto out;
 	}

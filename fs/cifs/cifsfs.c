@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/vfs.h>
 #include <linux/mempool.h>
+#include <linux/delay.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -429,6 +430,11 @@ static void cifs_umount_begin(struct super_block * sblock)
 	{
 		cFYI(1,("wake up tasks now - umount begin not complete"));
 		wake_up_all(&tcon->ses->server->request_q);
+		wake_up_all(&tcon->ses->server->response_q);
+		msleep(1); /* yield */
+		/* we have to kick the requests once more */
+		wake_up_all(&tcon->ses->server->response_q);
+		msleep(1);
 	}
 /* BB FIXME - finish add checks for tidStatus BB */
 
@@ -483,56 +489,40 @@ cifs_get_sb(struct file_system_type *fs_type,
 	return sb;
 }
 
-static ssize_t
-cifs_read_wrapper(struct file * file, char __user *read_data, size_t read_size,
-          loff_t * poffset)
+static ssize_t cifs_file_writev(struct file *file, const struct iovec *iov,
+				unsigned long nr_segs, loff_t *ppos)
 {
-	if(file->f_dentry == NULL)
-		return -EIO;
-	else if(file->f_dentry->d_inode == NULL)
-		return -EIO;
-
-	cFYI(1,("In read_wrapper size %zd at %lld",read_size,*poffset));
-
-	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheRead) {
-		return generic_file_read(file,read_data,read_size,poffset);
-	} else {
-		/* BB do we need to lock inode from here until after invalidate? */
-/*		if(file->f_dentry->d_inode->i_mapping) {
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-			filemap_fdatawait(file->f_dentry->d_inode->i_mapping);
-		}*/
-/*		cifs_revalidate(file->f_dentry);*/ /* BB fixme */
-
-		/* BB we should make timer configurable - perhaps 
-		   by simply calling cifs_revalidate here */
-		/* invalidate_remote_inode(file->f_dentry->d_inode);*/
-		return generic_file_read(file,read_data,read_size,poffset);
-	}
-}
-
-static ssize_t
-cifs_write_wrapper(struct file * file, const char __user *write_data,
-           size_t write_size, loff_t * poffset) 
-{
+	struct inode *inode = file->f_dentry->d_inode;
 	ssize_t written;
 
-	if(file->f_dentry == NULL)
-		return -EIO;
-	else if(file->f_dentry->d_inode == NULL)
-		return -EIO;
-
-	cFYI(1,("In write_wrapper size %zd at %lld",write_size,*poffset));
-
-	written = generic_file_write(file,write_data,write_size,poffset);
-	if(!CIFS_I(file->f_dentry->d_inode)->clientCanCacheAll)  {
-		if(file->f_dentry->d_inode->i_mapping) {
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-		}
-	}
+	written = generic_file_writev(file, iov, nr_segs, ppos);
+	if (!CIFS_I(inode)->clientCanCacheAll)
+		filemap_fdatawrite(inode->i_mapping);
 	return written;
 }
 
+static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
+				   size_t count, loff_t pos)
+{
+	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
+	ssize_t written;
+
+	written = generic_file_aio_write(iocb, buf, count, pos);
+	if (!CIFS_I(inode)->clientCanCacheAll)
+		filemap_fdatawrite(inode->i_mapping);
+	return written;
+}
+
+static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
+{
+	/* origin == SEEK_END => we must revalidate the cached file length */
+	if (origin == 2) {
+		int retval = cifs_revalidate(file->f_dentry);
+		if (retval < 0)
+			return (loff_t)retval;
+	}
+	return remote_llseek(file, offset, origin);
+}
 
 static struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
@@ -594,8 +584,12 @@ struct inode_operations cifs_symlink_inode_ops = {
 };
 
 struct file_operations cifs_file_ops = {
-	.read = cifs_read_wrapper,
-	.write = cifs_write_wrapper, 
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.readv = generic_file_readv,
+	.writev = cifs_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -603,15 +597,12 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-	.readv = generic_file_readv,
-	.writev = generic_file_writev,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
@@ -630,7 +621,48 @@ struct file_operations cifs_file_direct_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
+	.llseek = cifs_llseek,
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+struct file_operations cifs_file_nobrl_ops = {
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.readv = generic_file_readv,
+	.writev = cifs_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = cifs_file_aio_write,
+	.open = cifs_open,
+	.release = cifs_close,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.mmap  = cifs_file_mmap,
+	.sendfile = generic_file_sendfile,
+	.llseek = cifs_llseek,
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl	= cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+
+struct file_operations cifs_file_direct_nobrl_ops = {
+	/* no mmap, no aio, no readv - 
+	   BB reevaluate whether they can be done with directio, no cache */
+	.read = cifs_user_read,
+	.write = cifs_user_write,
+	.open = cifs_open,
+	.release = cifs_close,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
@@ -714,7 +746,7 @@ cifs_init_request_bufs(void)
 		kmem_cache_destroy(cifs_req_cachep);
 		return -ENOMEM;
 	}
-	/* 256 (MAX_CIFS_HDR_SIZE bytes is enough for most SMB responses and
+	/* MAX_CIFS_SMALL_BUFFER_SIZE bytes is enough for most SMB responses and
 	almost all handle based requests (but not write response, nor is it
 	sufficient for path based requests).  A smaller size would have
 	been more efficient (compacting multiple slab items on one 4k page) 
@@ -723,7 +755,8 @@ cifs_init_request_bufs(void)
 	efficient to alloc 1 per page off the slab compared to 17K (5page) 
 	alloc of large cifs buffers even when page debugging is on */
 	cifs_sm_req_cachep = kmem_cache_create("cifs_small_rq",
-			MAX_CIFS_HDR_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN, 
+			NULL, NULL);
 	if (cifs_sm_req_cachep == NULL) {
 		mempool_destroy(cifs_req_poolp);
 		kmem_cache_destroy(cifs_req_cachep);
@@ -841,9 +874,9 @@ static int cifs_oplock_thread(void * dummyarg)
 				DeleteOplockQEntry(oplock_item);
 				/* can not grab inode sem here since it would
 				deadlock when oplock received on delete 
-				since vfs_unlink holds the i_sem across
+				since vfs_unlink holds the i_mutex across
 				the call */
-				/* down(&inode->i_sem);*/
+				/* mutex_lock(&inode->i_mutex);*/
 				if (S_ISREG(inode->i_mode)) {
 					rc = filemap_fdatawrite(inode->i_mapping);
 					if(CIFS_I(inode)->clientCanCacheRead == 0) {
@@ -852,7 +885,7 @@ static int cifs_oplock_thread(void * dummyarg)
 					}
 				} else
 					rc = 0;
-				/* up(&inode->i_sem);*/
+				/* mutex_unlock(&inode->i_mutex);*/
 				if (rc)
 					CIFS_I(inode)->write_behind_rc = rc;
 				cFYI(1,("Oplock flush inode %p rc %d",inode,rc));
@@ -882,6 +915,9 @@ static int cifs_oplock_thread(void * dummyarg)
 
 static int cifs_dnotify_thread(void * dummyarg)
 {
+	struct list_head *tmp;
+	struct cifsSesInfo *ses;
+
 	daemonize("cifsdnotifyd");
 	allow_signal(SIGTERM);
 
@@ -890,7 +926,19 @@ static int cifs_dnotify_thread(void * dummyarg)
 		if(try_to_freeze())
 			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(39*HZ);
+		schedule_timeout(15*HZ);
+		read_lock(&GlobalSMBSeslock);
+		/* check if any stuck requests that need
+		   to be woken up and wakeq so the
+		   thread can wake up and error out */
+		list_for_each(tmp, &GlobalSMBSessionList) {
+			ses = list_entry(tmp, struct cifsSesInfo, 
+				cifsSessionList);
+			if(ses && ses->server && 
+			     atomic_read(&ses->server->inFlight))
+				wake_up_all(&ses->server->response_q);
+		}
+		read_unlock(&GlobalSMBSeslock);
 	} while(!signal_pending(current));
 	complete_and_exit (&cifs_dnotify_exited, 0);
 }
@@ -920,6 +968,12 @@ init_cifs(void)
 	atomic_set(&tconInfoReconnectCount, 0);
 
 	atomic_set(&bufAllocCount, 0);
+	atomic_set(&smBufAllocCount, 0);
+#ifdef CONFIG_CIFS_STATS2
+	atomic_set(&totBufAllocCount, 0);
+	atomic_set(&totSmBufAllocCount, 0);
+#endif /* CONFIG_CIFS_STATS2 */
+
 	atomic_set(&midCount, 0);
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;

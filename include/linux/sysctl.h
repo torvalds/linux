@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/compiler.h>
 
 struct file;
@@ -125,7 +124,7 @@ enum
 	KERN_OVERFLOWUID=46,	/* int: overflow UID */
 	KERN_OVERFLOWGID=47,	/* int: overflow GID */
 	KERN_SHMPATH=48,	/* string: path to shm fs */
-	KERN_HOTPLUG=49,	/* string: path to hotplug policy agent */
+	KERN_HOTPLUG=49,	/* string: path to uevent helper (deprecated) */
 	KERN_IEEE_EMULATION_WARNINGS=50, /* int: unimplemented ieee instructions */
 	KERN_S390_USER_DEBUG_LOGGING=51,  /* int: dumps of user faults */
 	KERN_CORE_USES_PID=52,		/* int: use core or core.%pid */
@@ -181,6 +180,9 @@ enum
 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
 	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
+	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
+	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
+	VM_ZONE_RECLAIM_MODE=31,/* reclaim local zone memory before going off node */
 };
 
 
@@ -391,6 +393,7 @@ enum
 	NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR=109,
 	NET_TCP_CONG_CONTROL=110,
 	NET_TCP_ABC=111,
+	NET_IPV4_IPFRAG_MAX_DIST=112,
 };
 
 enum {
@@ -671,6 +674,9 @@ enum {
 	NET_DECNET_DST_GC_INTERVAL = 9,
 	NET_DECNET_CONF = 10,
 	NET_DECNET_NO_FC_MAX_CWND = 11,
+	NET_DECNET_MEM = 12,
+	NET_DECNET_RMEM = 13,
+	NET_DECNET_WMEM = 14,
 	NET_DECNET_DEBUG_LEVEL = 255
 };
 
@@ -715,6 +721,7 @@ enum {
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
 	NET_SCTP_SNDBUF_POLICY		 = 15,
 	NET_SCTP_SACK_TIMEOUT		 = 16,
+	NET_SCTP_RCVBUF_POLICY		 = 17,
 };
 
 /* /proc/sys/net/bridge */
@@ -858,6 +865,7 @@ enum
 };
 
 #ifdef __KERNEL__
+#include <linux/list.h>
 
 extern void sysctl_init(void);
 

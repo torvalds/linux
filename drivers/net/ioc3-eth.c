@@ -1360,7 +1360,7 @@ static struct pci_driver ioc3_driver = {
 
 static int __init ioc3_init_module(void)
 {
-	return pci_module_init(&ioc3_driver);
+	return pci_register_driver(&ioc3_driver);
 }
 
 static void __exit ioc3_cleanup_module(void)

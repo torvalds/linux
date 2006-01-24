@@ -16,7 +16,8 @@
 #include "hfsplus_raw.h"
 
 /* Compare two extents keys, returns 0 on same, pos/neg for difference */
-int hfsplus_ext_cmp_key(hfsplus_btree_key *k1, hfsplus_btree_key *k2)
+int hfsplus_ext_cmp_key(const hfsplus_btree_key *k1,
+			const hfsplus_btree_key *k2)
 {
 	__be32 k1id, k2id;
 	__be32 k1s, k2s;
@@ -349,10 +350,9 @@ int hfsplus_file_extend(struct inode *inode)
 
 	if (HFSPLUS_SB(sb).alloc_file->i_size * 8 < HFSPLUS_SB(sb).total_blocks - HFSPLUS_SB(sb).free_blocks + 8) {
 		// extend alloc file
-		printk("extend alloc file! (%Lu,%u,%u)\n", HFSPLUS_SB(sb).alloc_file->i_size * 8,
+		printk(KERN_ERR "hfs: extend alloc file! (%Lu,%u,%u)\n", HFSPLUS_SB(sb).alloc_file->i_size * 8,
 			HFSPLUS_SB(sb).total_blocks, HFSPLUS_SB(sb).free_blocks);
 		return -ENOSPC;
-		//BUG();
 	}
 
 	down(&HFSPLUS_I(inode).extents_lock);

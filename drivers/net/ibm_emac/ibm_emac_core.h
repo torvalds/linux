@@ -189,6 +189,8 @@ struct ocp_enet_private {
 	struct timer_list		link_timer;
 	int				reset_failed;
 
+	int				stop_timeout;	/* in us */
+
 	struct ibm_emac_error_stats	estats;
 	struct net_device_stats		nstats;
 

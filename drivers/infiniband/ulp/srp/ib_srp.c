@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/random.h>
+#include <linux/jiffies.h>
 
 #include <asm/atomic.h>
 
@@ -802,12 +803,20 @@ static int srp_post_recv(struct srp_target_port *target)
 
 /*
  * Must be called with target->scsi_host->host_lock held to protect
- * req_lim and tx_head.
+ * req_lim and tx_head.  Lock cannot be dropped between call here and
+ * call to __srp_post_send().
  */
 static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target)
 {
 	if (target->tx_head - target->tx_tail >= SRP_SQ_SIZE)
 		return NULL;
+
+	if (unlikely(target->req_lim < 1)) {
+		if (printk_ratelimit())
+			printk(KERN_DEBUG PFX "Target has req_lim %d\n",
+			       target->req_lim);
+		return NULL;
+	}
 
 	return target->tx_ring[target->tx_head & SRP_SQ_SIZE];
 }
@@ -822,11 +831,6 @@ static int __srp_post_send(struct srp_target_port *target,
 	struct ib_sge list;
 	struct ib_send_wr wr, *bad_wr;
 	int ret = 0;
-
-	if (target->req_lim < 1) {
-		printk(KERN_ERR PFX "Target has req_lim %d\n", target->req_lim);
-		return -EAGAIN;
-	}
 
 	list.addr   = iu->dma;
 	list.length = len;
@@ -1417,6 +1421,8 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	if (!target_host)
 		return -ENOMEM;
 
+	target_host->max_lun = SRP_MAX_LUN;
+
 	target = host_to_target(target_host);
 	memset(target, 0, sizeof *target);
 
@@ -1510,8 +1516,7 @@ static ssize_t show_port(struct class_device *class_dev, char *buf)
 
 static CLASS_DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static struct srp_host *srp_add_port(struct ib_device *device,
-				     __be64 node_guid, u8 port)
+static struct srp_host *srp_add_port(struct ib_device *device, u8 port)
 {
 	struct srp_host *host;
 
@@ -1526,7 +1531,7 @@ static struct srp_host *srp_add_port(struct ib_device *device,
 	host->port = port;
 
 	host->initiator_port_id[7] = port;
-	memcpy(host->initiator_port_id + 8, &node_guid, 8);
+	memcpy(host->initiator_port_id + 8, &device->node_guid, 8);
 
 	host->pd   = ib_alloc_pd(device);
 	if (IS_ERR(host->pd))
@@ -1574,22 +1579,11 @@ static void srp_add_one(struct ib_device *device)
 {
 	struct list_head *dev_list;
 	struct srp_host *host;
-	struct ib_device_attr *dev_attr;
 	int s, e, p;
-
-	dev_attr = kmalloc(sizeof *dev_attr, GFP_KERNEL);
-	if (!dev_attr)
-		return;
-
-	if (ib_query_device(device, dev_attr)) {
-		printk(KERN_WARNING PFX "Couldn't query node GUID for %s.\n",
-		       device->name);
-		goto out;
-	}
 
 	dev_list = kmalloc(sizeof *dev_list, GFP_KERNEL);
 	if (!dev_list)
-		goto out;
+		return;
 
 	INIT_LIST_HEAD(dev_list);
 
@@ -1602,15 +1596,12 @@ static void srp_add_one(struct ib_device *device)
 	}
 
 	for (p = s; p <= e; ++p) {
-		host = srp_add_port(device, dev_attr->node_guid, p);
+		host = srp_add_port(device, p);
 		if (host)
 			list_add_tail(&host->list, dev_list);
 	}
 
 	ib_set_client_data(device, &srp_client, dev_list);
-
-out:
-	kfree(dev_attr);
 }
 
 static void srp_remove_one(struct ib_device *device)

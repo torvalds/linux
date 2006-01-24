@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- *  $Id: pci.c,v 1.13 2005/11/07 11:14:27 gleixner Exp $
+ *  $Id: pci.c,v 1.14 2005/11/17 08:20:27 dwmw2 Exp $
  *
  * Generic PCI memory map driver.  We support the following boards:
  *  - Intel IQ80310 ATU.
@@ -102,7 +102,7 @@ static void mtd_pci_copyto(struct map_info *_map, unsigned long to, const void *
 	memcpy_toio(map->base + map->translate(map, to), from, len);
 }
 
-static struct map_info mtd_pci_map = {
+static const struct map_info mtd_pci_map = {
 	.phys =		NO_XIP,
 	.copy_from =	mtd_pci_copyfrom,
 	.copy_to =	mtd_pci_copyto,

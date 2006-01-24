@@ -15,6 +15,7 @@
 struct kyrofb_info {
 	void __iomem *regbase;
 
+	u32 palette[16];
 	u32 HTot;	/* Hor Total Time    */
 	u32 HFP;	/* Hor Front Porch   */
 	u32 HST;	/* Hor Sync Time     */

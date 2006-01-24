@@ -5,8 +5,10 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 struct block_device;
+struct completion;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
@@ -295,6 +297,12 @@ struct scsi_host_template {
 	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
 
 	/*
+	 * suspend support
+	 */
+	int (*resume)(struct scsi_device *);
+	int (*suspend)(struct scsi_device *);
+
+	/*
 	 * Name of proc directory
 	 */
 	char *proc_name;
@@ -391,7 +399,6 @@ struct scsi_host_template {
 	/*
 	 * ordered write support
 	 */
-	unsigned ordered_flush:1;
 	unsigned ordered_tag:1;
 
 	/*
@@ -463,14 +470,12 @@ struct Scsi_Host {
 	spinlock_t		default_lock;
 	spinlock_t		*host_lock;
 
-	struct semaphore	scan_mutex;/* serialize scanning activity */
+	struct mutex		scan_mutex;/* serialize scanning activity */
 
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */
-	struct semaphore      * eh_action; /* Wait for specific actions on the
-                                          host. */
-	unsigned int            eh_active:1; /* Indicates the eh thread is awake and active if
-                                          this is true. */
+	struct completion     * eh_action; /* Wait for specific actions on the
+					      host. */
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;

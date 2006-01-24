@@ -66,7 +66,7 @@ enum {
 
 static struct class *uverbs_class;
 
-DECLARE_MUTEX(ib_uverbs_idr_mutex);
+DEFINE_MUTEX(ib_uverbs_idr_mutex);
 DEFINE_IDR(ib_uverbs_pd_idr);
 DEFINE_IDR(ib_uverbs_mr_idr);
 DEFINE_IDR(ib_uverbs_mw_idr);
@@ -160,6 +160,18 @@ void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
 	spin_unlock_irq(&file->async_file->lock);
 }
 
+static void ib_uverbs_detach_umcast(struct ib_qp *qp,
+				    struct ib_uqp_object *uobj)
+{
+	struct ib_uverbs_mcast_entry *mcast, *tmp;
+
+	list_for_each_entry_safe(mcast, tmp, &uobj->mcast_list, list) {
+		ib_detach_mcast(qp, &mcast->gid, mcast->lid);
+		list_del(&mcast->list);
+		kfree(mcast);
+	}
+}
+
 static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 				      struct ib_ucontext *context)
 {
@@ -168,7 +180,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 	if (!context)
 		return 0;
 
-	down(&ib_uverbs_idr_mutex);
+	mutex_lock(&ib_uverbs_idr_mutex);
 
 	list_for_each_entry_safe(uobj, tmp, &context->ah_list, list) {
 		struct ib_ah *ah = idr_find(&ib_uverbs_ah_idr, uobj->id);
@@ -180,13 +192,14 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 	list_for_each_entry_safe(uobj, tmp, &context->qp_list, list) {
 		struct ib_qp *qp = idr_find(&ib_uverbs_qp_idr, uobj->id);
-		struct ib_uevent_object *uevent =
-			container_of(uobj, struct ib_uevent_object, uobject);
+		struct ib_uqp_object *uqp =
+			container_of(uobj, struct ib_uqp_object, uevent.uobject);
 		idr_remove(&ib_uverbs_qp_idr, uobj->id);
+		ib_uverbs_detach_umcast(qp, uqp);
 		ib_destroy_qp(qp);
 		list_del(&uobj->list);
-		ib_uverbs_release_uevent(file, uevent);
-		kfree(uevent);
+		ib_uverbs_release_uevent(file, &uqp->uevent);
+		kfree(uqp);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->cq_list, list) {
@@ -237,7 +250,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		kfree(uobj);
 	}
 
-	up(&ib_uverbs_idr_mutex);
+	mutex_unlock(&ib_uverbs_idr_mutex);
 
 	return context->device->dealloc_ucontext(context);
 }
@@ -640,7 +653,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	file->ucontext	 = NULL;
 	file->async_file = NULL;
 	kref_init(&file->ref);
-	init_MUTEX(&file->mutex);
+	mutex_init(&file->mutex);
 
 	filp->private_data = file;
 

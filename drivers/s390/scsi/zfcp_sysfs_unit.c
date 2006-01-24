@@ -65,7 +65,6 @@ static ssize_t zfcp_sysfs_unit_##_name##_show(struct device *dev, struct device_
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_unit_##_name##_show, NULL);
 
 ZFCP_DEFINE_UNIT_ATTR(status, "0x%08x\n", atomic_read(&unit->status));
-ZFCP_DEFINE_UNIT_ATTR(scsi_lun, "0x%x\n", unit->scsi_lun);
 ZFCP_DEFINE_UNIT_ATTR(in_recovery, "%d\n", atomic_test_mask
 		      (ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status));
 ZFCP_DEFINE_UNIT_ATTR(access_denied, "%d\n", atomic_test_mask
@@ -138,7 +137,6 @@ static DEVICE_ATTR(failed, S_IWUSR | S_IRUGO, zfcp_sysfs_unit_failed_show,
 		   zfcp_sysfs_unit_failed_store);
 
 static struct attribute *zfcp_unit_attrs[] = {
-	&dev_attr_scsi_lun.attr,
 	&dev_attr_failed.attr,
 	&dev_attr_in_recovery.attr,
 	&dev_attr_status.attr,

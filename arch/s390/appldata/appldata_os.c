@@ -141,19 +141,19 @@ static void appldata_get_os_data(void *data)
 	j = 0;
 	for_each_online_cpu(i) {
 		os_data->os_cpu[j].per_cpu_user =
-					kstat_cpu(i).cpustat.user;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.user);
 		os_data->os_cpu[j].per_cpu_nice =
-					kstat_cpu(i).cpustat.nice;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.nice);
 		os_data->os_cpu[j].per_cpu_system =
-					kstat_cpu(i).cpustat.system;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.system);
 		os_data->os_cpu[j].per_cpu_idle =
-					kstat_cpu(i).cpustat.idle;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.idle);
 		os_data->os_cpu[j].per_cpu_irq =
-					kstat_cpu(i).cpustat.irq;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.irq);
 		os_data->os_cpu[j].per_cpu_softirq =
-					kstat_cpu(i).cpustat.softirq;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.softirq);
 		os_data->os_cpu[j].per_cpu_iowait =
-					kstat_cpu(i).cpustat.iowait;
+			cputime_to_jiffies(kstat_cpu(i).cpustat.iowait);
 		j++;
 	}
 

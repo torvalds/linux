@@ -15,7 +15,7 @@ include $(srctree)/$(MACHINE)/Makefile.boot
 endif
 
 # Note: the following conditions must always be true:
-#   ZRELADDR == virt_to_phys(TEXTADDR)
+#   ZRELADDR == virt_to_phys(PAGE_OFFSET + TEXT_OFFSET)
 #   PARAMS_PHYS must be within 4MB of ZRELADDR
 #   INITRD_PHYS must be in RAM
 ZRELADDR    := $(zreladdr-y)

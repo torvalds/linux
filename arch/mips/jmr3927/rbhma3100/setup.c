@@ -60,6 +60,8 @@
 #include <asm/mipsregs.h>
 #include <asm/traps.h>
 
+extern void puts(unsigned char *cp);
+
 /* Tick Timer divider */
 #define JMR3927_TIMER_CCD	0	/* 1/2 */
 #define JMR3927_TIMER_CLK	(JMR3927_IMCLK / (2 << JMR3927_TIMER_CCD))
@@ -357,7 +359,7 @@ static void __init jmr3927_board_init(void)
 		       jmr3927_io_dipsw());
 }
 
-void __init plat_setup(void)
+void __init tx3927_setup(void)
 {
 	int i;
 

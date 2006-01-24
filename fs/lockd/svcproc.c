@@ -23,7 +23,8 @@
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 
 static u32	nlmsvc_callback(struct svc_rqst *, u32, struct nlm_res *);
-static void	nlmsvc_callback_exit(struct rpc_task *);
+
+static const struct rpc_call_ops nlmsvc_callback_ops;
 
 #ifdef CONFIG_LOCKD_V4
 static u32
@@ -518,7 +519,7 @@ nlmsvc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_res *resp)
 	call->a_host  = host;
 	memcpy(&call->a_args, resp, sizeof(*resp));
 
-	if (nlmsvc_async_call(call, proc, nlmsvc_callback_exit) < 0)
+	if (nlmsvc_async_call(call, proc, &nlmsvc_callback_ops) < 0)
 		goto error;
 
 	return rpc_success;
@@ -528,10 +529,9 @@ nlmsvc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_res *resp)
 	return rpc_system_err;
 }
 
-static void
-nlmsvc_callback_exit(struct rpc_task *task)
+static void nlmsvc_callback_exit(struct rpc_task *task, void *data)
 {
-	struct nlm_rqst	*call = (struct nlm_rqst *) task->tk_calldata;
+	struct nlm_rqst	*call = data;
 
 	if (task->tk_status < 0) {
 		dprintk("lockd: %4d callback failed (errno = %d)\n",
@@ -540,6 +540,10 @@ nlmsvc_callback_exit(struct rpc_task *task)
 	nlm_release_host(call->a_host);
 	kfree(call);
 }
+
+static const struct rpc_call_ops nlmsvc_callback_ops = {
+	.rpc_call_done = nlmsvc_callback_exit,
+};
 
 /*
  * NLM Server procedures.

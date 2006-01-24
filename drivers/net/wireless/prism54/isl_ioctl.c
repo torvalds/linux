@@ -748,7 +748,7 @@ prism54_get_essid(struct net_device *ndev, struct iw_request_info *info,
 	if (essid->length) {
 		dwrq->flags = 1;	/* set ESSID to ON for Wireless Extensions */
 		/* if it is to big, trunk it */
-		dwrq->length = min(IW_ESSID_MAX_SIZE, essid->length + 1);
+		dwrq->length = min(IW_ESSID_MAX_SIZE, essid->length);
 	} else {
 		dwrq->flags = 0;
 		dwrq->length = 0;

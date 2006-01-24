@@ -24,6 +24,7 @@
  *		reachable.  otherwise, round-robin the list.
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -413,11 +414,14 @@ static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
 	rt = ip6_rt_copy(ort);
 
 	if (rt) {
-		ipv6_addr_copy(&rt->rt6i_dst.addr, daddr);
-
-		if (!(rt->rt6i_flags&RTF_GATEWAY))
+		if (!(rt->rt6i_flags&RTF_GATEWAY)) {
+			if (rt->rt6i_dst.plen != 128 &&
+			    ipv6_addr_equal(&rt->rt6i_dst.addr, daddr))
+				rt->rt6i_flags |= RTF_ANYCAST;
 			ipv6_addr_copy(&rt->rt6i_gateway, daddr);
+		}
 
+		ipv6_addr_copy(&rt->rt6i_dst.addr, daddr);
 		rt->rt6i_dst.plen = 128;
 		rt->rt6i_flags |= RTF_CACHE;
 		rt->u.dst.flags |= DST_HOST;
@@ -829,7 +833,7 @@ int ip6_route_add(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh,
 	}
 
 	rt->u.dst.obsolete = -1;
-	rt->rt6i_expires = clock_t_to_jiffies(rtmsg->rtmsg_info);
+	rt->rt6i_expires = jiffies + clock_t_to_jiffies(rtmsg->rtmsg_info);
 	if (nlh && (r = NLMSG_DATA(nlh))) {
 		rt->rt6i_protocol = r->rtm_protocol;
 	} else {
@@ -1413,7 +1417,9 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->u.dst.obsolete = -1;
 
 	rt->rt6i_flags = RTF_UP | RTF_NONEXTHOP;
-	if (!anycast)
+	if (anycast)
+		rt->rt6i_flags |= RTF_ANYCAST;
+	else
 		rt->rt6i_flags |= RTF_LOCAL;
 	rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
 	if (rt->rt6i_nexthop == NULL) {
@@ -1701,10 +1707,8 @@ static void fib6_dump_end(struct netlink_callback *cb)
 		fib6_walker_unlink(w);
 		kfree(w);
 	}
-	if (cb->args[1]) {
-		cb->done = (void*)cb->args[1];
-		cb->args[1] = 0;
-	}
+	cb->done = (void*)cb->args[1];
+	cb->args[1] = 0;
 }
 
 static int fib6_dump_done(struct netlink_callback *cb)

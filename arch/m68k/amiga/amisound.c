@@ -24,6 +24,8 @@ static const signed char sine_data[] = {
 };
 #define DATA_SIZE	(sizeof(sine_data)/sizeof(sine_data[0]))
 
+#define custom amiga_custom
+
     /*
      * The minimum period for audio may be modified by the frame buffer
      * device since it depends on htotal (for OCS/ECS/AGA)

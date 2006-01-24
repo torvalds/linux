@@ -22,7 +22,7 @@
 
 #include <linux/compat.h>
 
-struct sndrv_hwdep_dsp_image32 {
+struct snd_hwdep_dsp_image32 {
 	u32 index;
 	unsigned char name[64];
 	u32 image;	/* pointer */
@@ -30,10 +30,10 @@ struct sndrv_hwdep_dsp_image32 {
 	u32 driver_data;
 } /* don't set packed attribute here */;
 
-static int snd_hwdep_dsp_load_compat(snd_hwdep_t *hw,
-				     struct sndrv_hwdep_dsp_image32 __user *src)
+static int snd_hwdep_dsp_load_compat(struct snd_hwdep *hw,
+				     struct snd_hwdep_dsp_image32 __user *src)
 {
-	struct sndrv_hwdep_dsp_image *dst;
+	struct snd_hwdep_dsp_image *dst;
 	compat_caddr_t ptr;
 	u32 val;
 
@@ -56,12 +56,13 @@ static int snd_hwdep_dsp_load_compat(snd_hwdep_t *hw,
 }
 
 enum {
-	SNDRV_HWDEP_IOCTL_DSP_LOAD32   = _IOW('H', 0x03, struct sndrv_hwdep_dsp_image32)
+	SNDRV_HWDEP_IOCTL_DSP_LOAD32   = _IOW('H', 0x03, struct snd_hwdep_dsp_image32)
 };
 
-static long snd_hwdep_ioctl_compat(struct file * file, unsigned int cmd, unsigned long arg)
+static long snd_hwdep_ioctl_compat(struct file * file, unsigned int cmd,
+				   unsigned long arg)
 {
-	snd_hwdep_t *hw = file->private_data;
+	struct snd_hwdep *hw = file->private_data;
 	void __user *argp = compat_ptr(arg);
 	switch (cmd) {
 	case SNDRV_HWDEP_IOCTL_PVERSION:

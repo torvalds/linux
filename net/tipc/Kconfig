@@ -1,0 +1,117 @@
+#
+# TIPC configuration
+#
+
+menu "TIPC Configuration (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+
+config TIPC
+	tristate "The TIPC Protocol (EXPERIMENTAL)"
+	---help---
+	  The Transparent Inter Process Communication (TIPC) protocol is
+	  specially designed for intra cluster communication. This protocol
+	  originates from Ericsson where it has been used in carrier grade
+	  cluster applications for many years.
+	
+	  For more information about TIPC, see http://tipc.sourceforge.net.
+
+	  This protocol support is also available as a module ( = code which
+	  can be inserted in and removed from the running kernel whenever you
+	  want). The module will be called tipc. If you want to compile it
+	  as a module, say M here and read <file:Documentation/modules.txt>.
+
+	  If in doubt, say N.
+
+config TIPC_ADVANCED
+	bool "TIPC: Advanced configuration"
+	depends on TIPC
+	default n
+	help
+	  Saying Y here will open some advanced configuration
+          for TIPC. Most users do not need to bother, so if
+          unsure, just say N.
+
+config TIPC_ZONES
+	int "Maximum number of zones in network"
+	depends on TIPC && TIPC_ADVANCED
+	default "3"
+	help
+	 Max number of zones inside TIPC network. Max supported value 
+         is 255 zones, minimum is 1
+
+	 Default is 3 zones in a network; setting this to higher
+	 allows more zones but might use more memory.
+
+config TIPC_CLUSTERS
+	int "Maximum number of clusters in a zone"
+	depends on TIPC && TIPC_ADVANCED
+	default "1"
+	help
+          ***Only 1 (one cluster in a zone) is supported by current code.
+          Any value set here will be overridden.***
+
+          (Max number of clusters inside TIPC zone. Max supported 
+          value is 4095 clusters, minimum is 1.
+
+	  Default is 1; setting this to smaller value might save 
+          some memory, setting it to higher
+	  allows more clusters and might consume more memory.)
+
+config TIPC_NODES
+	int "Maximum number of nodes in cluster"
+	depends on TIPC && TIPC_ADVANCED
+	default "255"
+	help
+	  Maximum number of nodes inside a TIPC cluster. Maximum 
+          supported value is 2047 nodes, minimum is 8. 
+
+	  Setting this to a smaller value saves some memory, 
+	  setting it to higher allows more nodes.
+
+config TIPC_SLAVE_NODES
+	int "Maximum number of slave nodes in cluster"
+	depends on TIPC && TIPC_ADVANCED
+	default "0"
+	help
+          ***This capability is not supported by current code.***
+	  
+	  Maximum number of slave nodes inside a TIPC cluster. Maximum 
+          supported value is 2047 nodes, minimum is 0. 
+
+	  Setting this to a smaller value saves some memory, 
+	  setting it to higher allows more nodes.
+
+config TIPC_PORTS
+	int "Maximum number of ports in a node"
+	depends on TIPC && TIPC_ADVANCED
+	default "8191"
+	help
+	  Maximum number of ports within a node. Maximum 
+          supported value is 64535 nodes, minimum is 127. 
+
+	  Setting this to a smaller value saves some memory, 
+	  setting it to higher allows more ports.
+
+config TIPC_LOG
+	int "Size of log buffer"
+	depends on TIPC && TIPC_ADVANCED
+	default 0
+	help
+ 	  Size (in bytes) of TIPC's internal log buffer, which records the
+	  occurrence of significant events.  Maximum supported value
+	  is 32768 bytes, minimum is 0.
+
+	  There is no need to enable the log buffer unless the node will be
+	  managed remotely via TIPC.
+
+config TIPC_DEBUG
+	bool "Enable debugging support"
+	depends on TIPC
+	default n
+	help
+ 	  This will enable debugging of TIPC.
+
+	  Only say Y here if you are having trouble with TIPC.  It will
+	  enable the display of detailed information about what is going on.
+
+endmenu

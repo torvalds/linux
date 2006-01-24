@@ -132,24 +132,6 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	siginfo_t siginfo;
 	int sig, code;
 
-	/* break.b always sets cr.iim to 0, which causes problems for
-	 * debuggers.  Get the real break number from the original instruction,
-	 * but only for kernel code.  User space break.b is left alone, to
-	 * preserve the existing behaviour.  All break codings have the same
-	 * format, so there is no need to check the slot type.
-	 */
-	if (break_num == 0 && !user_mode(regs)) {
-		struct ia64_psr *ipsr = ia64_psr(regs);
-		unsigned long *bundle = (unsigned long *)regs->cr_iip;
-		unsigned long slot;
-		switch (ipsr->ri) {
-		      case 0:  slot = (bundle[0] >>  5); break;
-		      case 1:  slot = (bundle[0] >> 46) | (bundle[1] << 18); break;
-		      default: slot = (bundle[1] >> 23); break;
-		}
-		break_num = ((slot >> 36 & 1) << 20) | (slot >> 6 & 0xfffff);
-	}
-
 	/* SIGILL, SIGFPE, SIGSEGV, and SIGBUS want these field initialized: */
 	siginfo.si_addr = (void __user *) (regs->cr_iip + ia64_psr(regs)->ri);
 	siginfo.si_imm = break_num;
@@ -548,12 +530,15 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		if (fsys_mode(current, &regs)) {
 			extern char __kernel_syscall_via_break[];
 			/*
-			 * Got a trap in fsys-mode: Taken Branch Trap and Single Step trap
-			 * need special handling; Debug trap is not supposed to happen.
+			 * Got a trap in fsys-mode: Taken Branch Trap
+			 * and Single Step trap need special handling;
+			 * Debug trap is ignored (we disable it here
+			 * and re-enable it in the lower-privilege trap).
 			 */
 			if (unlikely(vector == 29)) {
-				die("Got debug trap in fsys-mode---not supposed to happen!",
-				    &regs, 0);
+				set_thread_flag(TIF_DB_DISABLED);
+				ia64_psr(&regs)->db = 0;
+				ia64_psr(&regs)->lp = 1;
 				return;
 			}
 			/* re-do the system call via break 0x100000: */
@@ -607,10 +592,19 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 	      case 34:
 		if (isr & 0x2) {
 			/* Lower-Privilege Transfer Trap */
+
+			/* If we disabled debug traps during an fsyscall,
+			 * re-enable them here.
+			 */
+			if (test_thread_flag(TIF_DB_DISABLED)) {
+				clear_thread_flag(TIF_DB_DISABLED);
+				ia64_psr(&regs)->db = 1;
+			}
+
 			/*
-			 * Just clear PSR.lp and then return immediately: all the
-			 * interesting work (e.g., signal delivery is done in the kernel
-			 * exit path).
+			 * Just clear PSR.lp and then return immediately:
+			 * all the interesting work (e.g., signal delivery)
+			 * is done in the kernel exit path.
 			 */
 			ia64_psr(&regs)->lp = 0;
 			return;

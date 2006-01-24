@@ -495,6 +495,7 @@ static void mmc_decode_cid(struct mmc_card *card)
 
 		case 2: /* MMC v2.0 - v2.2 */
 		case 3: /* MMC v3.1 - v3.3 */
+		case 4: /* MMC v4 */
 			card->cid.manfid	= UNSTUFF_BITS(resp, 120, 8);
 			card->cid.oemid		= UNSTUFF_BITS(resp, 104, 16);
 			card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
@@ -550,6 +551,11 @@ static void mmc_decode_csd(struct mmc_card *card)
 		csd->capacity	  = (1 + m) << (e + 2);
 
 		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+		csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
+		csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
+		csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
+		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
+		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
 	} else {
 		/*
 		 * We only understand CSD structure v1.1 and v1.2.
@@ -579,6 +585,11 @@ static void mmc_decode_csd(struct mmc_card *card)
 		csd->capacity	  = (1 + m) << (e + 2);
 
 		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+		csd->read_partial = UNSTUFF_BITS(resp, 79, 1);
+		csd->write_misalign = UNSTUFF_BITS(resp, 78, 1);
+		csd->read_misalign = UNSTUFF_BITS(resp, 77, 1);
+		csd->write_blkbits = UNSTUFF_BITS(resp, 22, 4);
+		csd->write_partial = UNSTUFF_BITS(resp, 21, 1);
 	}
 }
 
@@ -679,7 +690,15 @@ static void mmc_idle_cards(struct mmc_host *host)
 }
 
 /*
- * Apply power to the MMC stack.
+ * Apply power to the MMC stack.  This is a two-stage process.
+ * First, we enable power to the card without the clock running.
+ * We then wait a bit for the power to stabilise.  Finally,
+ * enable the bus drivers and clock to the card.
+ *
+ * We must _NOT_ enable the clock prior to power stablising.
+ *
+ * If a host does all the power sequencing itself, ignore the
+ * initial MMC_POWER_UP stage.
  */
 static void mmc_power_up(struct mmc_host *host)
 {
@@ -816,7 +835,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 
 			cmd.opcode = SD_SEND_RELATIVE_ADDR;
 			cmd.arg = 0;
-			cmd.flags = MMC_RSP_R1;
+			cmd.flags = MMC_RSP_R6;
 
 			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
 			if (err != MMC_ERR_NONE)
@@ -932,8 +951,9 @@ static void mmc_read_scrs(struct mmc_host *host)
 
 		sg_init_one(&sg, (u8*)card->raw_scr, 8);
 
-		err = mmc_wait_for_req(host, &mrq);
-		if (err != MMC_ERR_NONE) {
+		mmc_wait_for_req(host, &mrq);
+
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
 			mmc_card_set_dead(card);
 			continue;
 		}

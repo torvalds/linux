@@ -15,7 +15,6 @@
 #include "kern_util.h"
 #include "user.h"
 #include "process.h"
-#include "signal_user.h"
 #include "sigio.h"
 #include "irq_user.h"
 #include "os.h"
@@ -29,7 +28,6 @@ struct irq_fd {
 	int pid;
 	int events;
 	int current_events;
-	int freed;
 };
 
 static struct irq_fd *active_fds = NULL;
@@ -41,9 +39,11 @@ static int pollfds_size = 0;
 
 extern int io_count, intr_count;
 
+extern void free_irqs(void);
+
 void sigio_handler(int sig, union uml_pt_regs *regs)
 {
-	struct irq_fd *irq_fd, *next;
+	struct irq_fd *irq_fd;
 	int i, n;
 
 	if(smp_sigio_handler()) return;
@@ -66,29 +66,15 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 			irq_fd = irq_fd->next;
 		}
 
-		for(irq_fd = active_fds; irq_fd != NULL; irq_fd = next){
-			next = irq_fd->next;
+		for(irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next){
 			if(irq_fd->current_events != 0){
 				irq_fd->current_events = 0;
 				do_IRQ(irq_fd->irq, regs);
-
-				/* This is here because the next irq may be
-				 * freed in the handler.  If a console goes
-				 * away, both the read and write irqs will be
-				 * freed.  After do_IRQ, ->next will point to
-				 * a good IRQ.
-				 * Irqs can't be freed inside their handlers,
-				 * so the next best thing is to have them
-				 * marked as needing freeing, so that they
-				 * can be freed here.
-				 */
-				next = irq_fd->next;
-				if(irq_fd->freed){
-					free_irq(irq_fd->irq, irq_fd->id);
-				}
 			}
 		}
 	}
+
+	free_irqs();
 }
 
 int activate_ipi(int fd, int pid)
@@ -136,8 +122,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 				     .irq 		= irq,
 				     .pid  		= pid,
 				     .events 		= events,
-				     .current_events 	= 0,
-				     .freed 		= 0  } );
+				     .current_events 	= 0 } );
 
 	/* Critical section - locked by a spinlock because this stuff can
 	 * be changed from interrupt handlers.  The stuff above is done 
@@ -311,26 +296,6 @@ static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 	*index_out = i;
  out:
 	return(irq);
-}
-
-void free_irq_later(int irq, void *dev_id)
-{
-	struct irq_fd *irq_fd;
-	unsigned long flags;
-
-	flags = irq_lock();
-	for(irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next){
-		if((irq_fd->irq == irq) && (irq_fd->id == dev_id))
-			break;
-	}
-	if(irq_fd == NULL){
-		printk("free_irq_later found no irq, irq = %d, "
-		       "dev_id = 0x%p\n", irq, dev_id);
-		goto out;
-	}
-	irq_fd->freed = 1;
- out:
-	irq_unlock(flags);
 }
 
 void reactivate_fd(int fd, int irqnum)

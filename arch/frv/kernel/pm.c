@@ -13,7 +13,9 @@
 
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
@@ -26,6 +28,7 @@
 #include "local.h"
 
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 extern void frv_change_cmode(int);
 

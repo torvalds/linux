@@ -30,7 +30,7 @@
 #     - See include/linux/module.h for more details
 
 # Step 4 is solely used to allow module versioning in external modules,
-# where the CRC of each module is retreived from the Module.symers file.
+# where the CRC of each module is retrieved from the Module.symers file.
 
 .PHONY: _modpost
 _modpost: __modpost

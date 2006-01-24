@@ -126,6 +126,7 @@ struct nfsd3_setaclargs {
 struct nfsd3_attrstat {
 	__u32			status;
 	struct svc_fh		fh;
+	struct kstat            stat;
 };
 
 /* LOOKUP, CREATE, MKDIR, SYMLINK, MKNOD */

@@ -16,7 +16,7 @@ obj-$(CONFIG_LOGO_M32R_CLUT224)		+= logo_m32r_clut224.o
 
 # How to generate logo's
 
-# Use logo-cfiles to retreive list of .c files to be built
+# Use logo-cfiles to retrieve list of .c files to be built
 logo-cfiles = $(notdir $(patsubst %.$(2), %.c, \
               $(wildcard $(srctree)/$(src)/*$(1).$(2))))
 

@@ -13,5 +13,6 @@ extern char _eextratext[] __attribute__((weak));
 extern char _end[];
 extern char __per_cpu_start[], __per_cpu_end[];
 extern char __kprobes_text_start[], __kprobes_text_end[];
+extern char __initdata_begin[], __initdata_end[];
 
 #endif /* _ASM_GENERIC_SECTIONS_H_ */

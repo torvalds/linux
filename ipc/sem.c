@@ -56,7 +56,7 @@
  * /proc/sysvipc/sem support (c) 1999 Dragos Acostachioaie <dragos@iname.com>
  *
  * SMP-threaded, sysctl's added
- * (c) 1999 Manfred Spraul <manfreds@colorfullife.com>
+ * (c) 1999 Manfred Spraul <manfred@colorfullife.com>
  * Enforced range limit on SEM_UNDO
  * (c) 2001 Red Hat Inc <alan@redhat.com>
  * Lockless wakeup
@@ -73,6 +73,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
 #include "util.h"
@@ -381,6 +382,7 @@ static void update_queue (struct sem_array * sma)
 			/* hands-off: q will disappear immediately after
 			 * writing q->status.
 			 */
+			smp_wmb();
 			q->status = error;
 			q = n;
 		} else {
@@ -461,6 +463,7 @@ static void freeary (struct sem_array *sma, int id)
 		n = q->next;
 		q->status = IN_WAKEUP;
 		wake_up_process(q->sleeper); /* doesn't sleep */
+		smp_wmb();
 		q->status = -EIDRM;	/* hands-off q */
 		q = n;
 	}

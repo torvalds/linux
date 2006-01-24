@@ -338,7 +338,7 @@ struct aiptek {
  * the bitmap which comes from the tablet. This hides the
  * issue that the F_keys are not sequentially numbered.
  */
-static int macroKeyEvents[] = {
+static const int macroKeyEvents[] = {
 	KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
 	KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11,
 	KEY_F12, KEY_F13, KEY_F14, KEY_F15, KEY_F16, KEY_F17,
@@ -2093,7 +2093,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Programming the tablet macro keys needs to be done with a for loop
 	 * as the keycodes are discontiguous.
 	 */
-	for (i = 0; i < sizeof(macroKeyEvents) / sizeof(macroKeyEvents[0]); ++i)
+	for (i = 0; i < ARRAY_SIZE(macroKeyEvents); ++i)
 		set_bit(macroKeyEvents[i], inputdev->keybit);
 
 	/*
@@ -2103,7 +2103,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * values.
 	 */
 	input_set_abs_params(inputdev, ABS_X, 0, 2999, 0, 0);
-	input_set_abs_params(inputdev, ABS_X, 0, 2249, 0, 0);
+	input_set_abs_params(inputdev, ABS_Y, 0, 2249, 0, 0);
 	input_set_abs_params(inputdev, ABS_PRESSURE, 0, 511, 0, 0);
 	input_set_abs_params(inputdev, ABS_TILT_X, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
 	input_set_abs_params(inputdev, ABS_TILT_Y, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
@@ -2135,7 +2135,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * not an error :-)
 	 */
 
-	for (i = 0; i < sizeof(speeds) / sizeof(speeds[0]); ++i) {
+	for (i = 0; i < ARRAY_SIZE(speeds); ++i) {
 		aiptek->curSetting.programmableDelay = speeds[i];
 		(void)aiptek_program_tablet(aiptek);
 		if (aiptek->inputdev->absmax[ABS_X] > 0) {
@@ -2190,7 +2190,6 @@ fail1:	input_free_device(inputdev);
 static void aiptek_disconnect(struct usb_interface *intf);
 
 static struct usb_driver aiptek_driver = {
-	.owner = THIS_MODULE,
 	.name = "aiptek",
 	.probe = aiptek_probe,
 	.disconnect = aiptek_disconnect,

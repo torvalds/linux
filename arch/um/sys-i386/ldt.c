@@ -16,6 +16,8 @@
 #include "choose-mode.h"
 #include "kern.h"
 #include "mode_kern.h"
+#include "proc_mm.h"
+#include "os.h"
 
 extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
 
@@ -228,7 +230,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 		size = LDT_ENTRY_SIZE*LDT_DIRECT_ENTRIES;
 		if(size > bytecount)
 			size = bytecount;
-		if(copy_to_user(ptr, ldt->entries, size))
+		if(copy_to_user(ptr, ldt->u.entries, size))
 			err = -EFAULT;
 		bytecount -= size;
 		ptr += size;
@@ -239,7 +241,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 			size = PAGE_SIZE;
 			if(size > bytecount)
 				size = bytecount;
-			if(copy_to_user(ptr, ldt->pages[i], size)){
+			if(copy_to_user(ptr, ldt->u.pages[i], size)){
 				err = -EFAULT;
 				break;
 			}
@@ -321,10 +323,11 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 		    i*LDT_ENTRIES_PER_PAGE <= ldt_info.entry_number;
 		    i++){
 			if(i == 0)
-				memcpy(&entry0, ldt->entries, sizeof(entry0));
-			ldt->pages[i] = (struct ldt_entry *)
-					__get_free_page(GFP_KERNEL|__GFP_ZERO);
-			if(!ldt->pages[i]){
+				memcpy(&entry0, ldt->u.entries,
+				       sizeof(entry0));
+			ldt->u.pages[i] = (struct ldt_entry *)
+				__get_free_page(GFP_KERNEL|__GFP_ZERO);
+			if(!ldt->u.pages[i]){
 				err = -ENOMEM;
 				/* Undo the change in host */
 				memset(&ldt_info, 0, sizeof(ldt_info));
@@ -332,8 +335,9 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 				goto out_unlock;
 			}
 			if(i == 0) {
-				memcpy(ldt->pages[0], &entry0, sizeof(entry0));
-				memcpy(ldt->pages[0]+1, ldt->entries+1,
+				memcpy(ldt->u.pages[0], &entry0,
+				       sizeof(entry0));
+				memcpy(ldt->u.pages[0]+1, ldt->u.entries+1,
 				       sizeof(entry0)*(LDT_DIRECT_ENTRIES-1));
 			}
 			ldt->entry_count = (i + 1) * LDT_ENTRIES_PER_PAGE;
@@ -343,9 +347,9 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 		ldt->entry_count = ldt_info.entry_number + 1;
 
 	if(ldt->entry_count <= LDT_DIRECT_ENTRIES)
-		ldt_p = ldt->entries + ldt_info.entry_number;
+		ldt_p = ldt->u.entries + ldt_info.entry_number;
 	else
-		ldt_p = ldt->pages[ldt_info.entry_number/LDT_ENTRIES_PER_PAGE] +
+		ldt_p = ldt->u.pages[ldt_info.entry_number/LDT_ENTRIES_PER_PAGE] +
 			ldt_info.entry_number%LDT_ENTRIES_PER_PAGE;
 
 	if(ldt_info.base_addr == 0 && ldt_info.limit == 0 &&
@@ -454,13 +458,14 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 	int i;
 	long page, err=0;
 	void *addr = NULL;
+	struct proc_mm_op copy;
 
-	memset(&desc, 0, sizeof(desc));
 
 	if(!ptrace_ldt)
 		init_MUTEX(&new_mm->ldt.semaphore);
 
 	if(!from_mm){
+		memset(&desc, 0, sizeof(desc));
 		/*
 		 * We have to initialize a clean ldt.
 		 */
@@ -492,8 +497,26 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 			}
 		}
 		new_mm->ldt.entry_count = 0;
+
+		goto out;
 	}
-	else if (!ptrace_ldt) {
+
+	if(proc_mm){
+		/* We have a valid from_mm, so we now have to copy the LDT of
+		 * from_mm to new_mm, because using proc_mm an new mm with
+		 * an empty/default LDT was created in new_mm()
+		 */
+		copy = ((struct proc_mm_op) { .op 	= MM_COPY_SEGMENTS,
+					      .u 	=
+					      { .copy_segments =
+							from_mm->id.u.mm_fd } } );
+		i = os_write_file(new_mm->id.u.mm_fd, &copy, sizeof(copy));
+		if(i != sizeof(copy))
+			printk("new_mm : /proc/mm copy_segments failed, "
+			       "err = %d\n", -i);
+	}
+
+	if(!ptrace_ldt) {
 		/* Our local LDT is used to supply the data for
 		 * modify_ldt(READLDT), if PTRACE_LDT isn't available,
 		 * i.e., we have to use the stub for modify_ldt, which
@@ -501,8 +524,8 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 		 */
 		down(&from_mm->ldt.semaphore);
 		if(from_mm->ldt.entry_count <= LDT_DIRECT_ENTRIES){
-			memcpy(new_mm->ldt.entries, from_mm->ldt.entries,
-			       sizeof(new_mm->ldt.entries));
+			memcpy(new_mm->ldt.u.entries, from_mm->ldt.u.entries,
+			       sizeof(new_mm->ldt.u.entries));
 		}
 		else{
 			i = from_mm->ldt.entry_count / LDT_ENTRIES_PER_PAGE;
@@ -512,15 +535,17 @@ long init_new_ldt(struct mmu_context_skas * new_mm,
 					err = -ENOMEM;
 					break;
 				}
-				new_mm->ldt.pages[i] = (struct ldt_entry*)page;
-				memcpy(new_mm->ldt.pages[i],
-				       from_mm->ldt.pages[i], PAGE_SIZE);
+				new_mm->ldt.u.pages[i] =
+					(struct ldt_entry *) page;
+				memcpy(new_mm->ldt.u.pages[i],
+				       from_mm->ldt.u.pages[i], PAGE_SIZE);
 			}
 		}
 		new_mm->ldt.entry_count = from_mm->ldt.entry_count;
 		up(&from_mm->ldt.semaphore);
 	}
 
+    out:
 	return err;
 }
 
@@ -532,7 +557,7 @@ void free_ldt(struct mmu_context_skas * mm)
 	if(!ptrace_ldt && mm->ldt.entry_count > LDT_DIRECT_ENTRIES){
 		i = mm->ldt.entry_count / LDT_ENTRIES_PER_PAGE;
 		while(i-- > 0){
-			free_page((long )mm->ldt.pages[i]);
+			free_page((long )mm->ldt.u.pages[i]);
 		}
 	}
 	mm->ldt.entry_count = 0;

@@ -72,7 +72,12 @@ struct usb_hcd {	/* usb_bus.hcpriv points to this */
 	 * hardware info/state
 	 */
 	const struct hc_driver	*driver;	/* hw-specific hooks */
-	unsigned		saw_irq : 1;
+
+	/* Flags that need to be manipulated atomically */
+	unsigned long		flags;
+#define HCD_FLAG_HW_ACCESSIBLE	0x00000001
+#define HCD_FLAG_SAW_IRQ	0x00000002
+
 	unsigned		can_wakeup:1;	/* hw supports wakeup? */
 	unsigned		remote_wakeup:1;/* sw should use wakeup? */
 	unsigned		rh_registered:1;/* is root hub registered? */
@@ -375,6 +380,7 @@ extern int usb_find_interface_driver (struct usb_device *dev,
 #ifdef CONFIG_PM
 extern void usb_hcd_suspend_root_hub (struct usb_hcd *hcd);
 extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
+extern void usb_root_hub_lost_power (struct usb_device *rhdev);
 extern int hcd_bus_suspend (struct usb_bus *bus);
 extern int hcd_bus_resume (struct usb_bus *bus);
 #else

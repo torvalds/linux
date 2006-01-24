@@ -944,9 +944,9 @@ typedef struct {
     ulong               dma32_cnt, dma64_cnt;   /* statistics: DMA buffer */
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-    Scsi_Device         *sdev;
+    struct scsi_device         *sdev;
 #else
-    Scsi_Device         sdev;
+    struct scsi_device         sdev;
 #endif
 } gdth_ha_str;
 

@@ -49,6 +49,7 @@ struct ir_input_state {
 
 extern IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];

@@ -35,61 +35,62 @@
 #error "Add some code here"
 #endif
 
-typedef struct ttable_dst ttable_dst_t;
-typedef struct route_private_data route_t;
+struct ttable_dst;
 
-typedef void (*route_channel_f)(snd_pcm_plugin_t *plugin,
-			      const snd_pcm_plugin_channel_t *src_channels,
-			      snd_pcm_plugin_channel_t *dst_channel,
-			      ttable_dst_t* ttable, snd_pcm_uframes_t frames);
+typedef void (*route_channel_f)(struct snd_pcm_plugin *plugin,
+				const struct snd_pcm_plugin_channel *src_channels,
+				struct snd_pcm_plugin_channel *dst_channel,
+				struct ttable_dst *ttable, snd_pcm_uframes_t frames);
 
-typedef struct {
+struct ttable_src {
 	int channel;
 	int as_int;
-} ttable_src_t;
+};
 
 struct ttable_dst {
 	int att;	/* Attenuated */
 	unsigned int nsrcs;
-	ttable_src_t* srcs;
+	struct ttable_src *srcs;
 	route_channel_f func;
 };
 
-struct route_private_data {
+struct route_priv {
 	enum {R_UINT32=0, R_UINT64=1} sum_type;
 	int get, put;
 	int conv;
 	int src_sample_size;
-	ttable_dst_t ttable[0];
+	struct ttable_dst ttable[0];
 };
 
-typedef union {
+union sum {
 	u_int32_t as_uint32;
 	u_int64_t as_uint64;
-} sum_t;
+};
 
 
-static void route_to_channel_from_zero(snd_pcm_plugin_t *plugin,
-				     const snd_pcm_plugin_channel_t *src_channels ATTRIBUTE_UNUSED,
-				     snd_pcm_plugin_channel_t *dst_channel,
-				     ttable_dst_t* ttable ATTRIBUTE_UNUSED, snd_pcm_uframes_t frames)
+static void route_to_channel_from_zero(struct snd_pcm_plugin *plugin,
+				       const struct snd_pcm_plugin_channel *src_channels,
+				       struct snd_pcm_plugin_channel *dst_channel,
+				       struct ttable_dst *ttable,
+				       snd_pcm_uframes_t frames)
 {
 	if (dst_channel->wanted)
 		snd_pcm_area_silence(&dst_channel->area, 0, frames, plugin->dst_format.format);
 	dst_channel->enabled = 0;
 }
 
-static void route_to_channel_from_one(snd_pcm_plugin_t *plugin,
-				    const snd_pcm_plugin_channel_t *src_channels,
-				    snd_pcm_plugin_channel_t *dst_channel,
-				    ttable_dst_t* ttable, snd_pcm_uframes_t frames)
+static void route_to_channel_from_one(struct snd_pcm_plugin *plugin,
+				      const struct snd_pcm_plugin_channel *src_channels,
+				      struct snd_pcm_plugin_channel *dst_channel,
+				      struct ttable_dst *ttable,
+				      snd_pcm_uframes_t frames)
 {
 #define CONV_LABELS
 #include "plugin_ops.h"
 #undef CONV_LABELS
-	route_t *data = (route_t *)plugin->extra_data;
+	struct route_priv *data = (struct route_priv *)plugin->extra_data;
 	void *conv;
-	const snd_pcm_plugin_channel_t *src_channel = NULL;
+	const struct snd_pcm_plugin_channel *src_channel = NULL;
 	unsigned int srcidx;
 	char *src, *dst;
 	int src_step, dst_step;
@@ -120,10 +121,10 @@ static void route_to_channel_from_one(snd_pcm_plugin_t *plugin,
 	}
 }
 
-static void route_to_channel(snd_pcm_plugin_t *plugin,
-			   const snd_pcm_plugin_channel_t *src_channels,
-			   snd_pcm_plugin_channel_t *dst_channel,
-			   ttable_dst_t* ttable, snd_pcm_uframes_t frames)
+static void route_to_channel(struct snd_pcm_plugin *plugin,
+			     const struct snd_pcm_plugin_channel *src_channels,
+			     struct snd_pcm_plugin_channel *dst_channel,
+			     struct ttable_dst *ttable, snd_pcm_uframes_t frames)
 {
 #define GET_U_LABELS
 #define PUT_U32_LABELS
@@ -153,18 +154,18 @@ static void route_to_channel(snd_pcm_plugin_t *plugin,
 					 &&norm_int64_16_att,
 					 &&norm_int64_24_att,
 	};
-	route_t *data = (route_t *)plugin->extra_data;
+	struct route_priv *data = (struct route_priv *)plugin->extra_data;
 	void *zero, *get, *add, *norm, *put_u32;
 	int nsrcs = ttable->nsrcs;
 	char *dst;
 	int dst_step;
 	char *srcs[nsrcs];
 	int src_steps[nsrcs];
-	ttable_src_t src_tt[nsrcs];
+	struct ttable_src src_tt[nsrcs];
 	u_int32_t sample = 0;
 	int srcidx, srcidx1 = 0;
 	for (srcidx = 0; srcidx < nsrcs; ++srcidx) {
-		const snd_pcm_plugin_channel_t *src_channel = &src_channels[ttable->srcs[srcidx].channel];
+		const struct snd_pcm_plugin_channel *src_channel = &src_channels[ttable->srcs[srcidx].channel];
 		if (!src_channel->enabled)
 			continue;
 		srcs[srcidx1] = src_channel->area.addr + src_channel->area.first / 8;
@@ -191,8 +192,8 @@ static void route_to_channel(snd_pcm_plugin_t *plugin,
 	dst_step = dst_channel->area.step / 8;
 
 	while (frames-- > 0) {
-		ttable_src_t *ttp = src_tt;
-		sum_t sum;
+		struct ttable_src *ttp = src_tt;
+		union sum sum;
 
 		/* Zero sum */
 		goto *zero;
@@ -297,47 +298,47 @@ static void route_to_channel(snd_pcm_plugin_t *plugin,
 	}
 }
 
-static int route_src_channels_mask(snd_pcm_plugin_t *plugin,
-				   bitset_t *dst_vmask,
-				   bitset_t **src_vmask)
+static int route_src_channels_mask(struct snd_pcm_plugin *plugin,
+				   unsigned long *dst_vmask,
+				   unsigned long **src_vmask)
 {
-	route_t *data = (route_t *)plugin->extra_data;
+	struct route_priv *data = (struct route_priv *)plugin->extra_data;
 	int schannels = plugin->src_format.channels;
 	int dchannels = plugin->dst_format.channels;
-	bitset_t *vmask = plugin->src_vmask;
+	unsigned long *vmask = plugin->src_vmask;
 	int channel;
-	ttable_dst_t *dp = data->ttable;
-	bitset_zero(vmask, schannels);
+	struct ttable_dst *dp = data->ttable;
+	bitmap_zero(vmask, schannels);
 	for (channel = 0; channel < dchannels; channel++, dp++) {
 		unsigned int src;
-		ttable_src_t *sp;
-		if (!bitset_get(dst_vmask, channel))
+		struct ttable_src *sp;
+		if (!test_bit(channel, dst_vmask))
 			continue;
 		sp = dp->srcs;
 		for (src = 0; src < dp->nsrcs; src++, sp++)
-			bitset_set(vmask, sp->channel);
+			set_bit(sp->channel, vmask);
 	}
 	*src_vmask = vmask;
 	return 0;
 }
 
-static int route_dst_channels_mask(snd_pcm_plugin_t *plugin,
-				   bitset_t *src_vmask,
-				   bitset_t **dst_vmask)
+static int route_dst_channels_mask(struct snd_pcm_plugin *plugin,
+				   unsigned long *src_vmask,
+				   unsigned long **dst_vmask)
 {
-	route_t *data = (route_t *)plugin->extra_data;
+	struct route_priv *data = (struct route_priv *)plugin->extra_data;
 	int dchannels = plugin->dst_format.channels;
-	bitset_t *vmask = plugin->dst_vmask;
+	unsigned long *vmask = plugin->dst_vmask;
 	int channel;
-	ttable_dst_t *dp = data->ttable;
-	bitset_zero(vmask, dchannels);
+	struct ttable_dst *dp = data->ttable;
+	bitmap_zero(vmask, dchannels);
 	for (channel = 0; channel < dchannels; channel++, dp++) {
 		unsigned int src;
-		ttable_src_t *sp;
+		struct ttable_src *sp;
 		sp = dp->srcs;
 		for (src = 0; src < dp->nsrcs; src++, sp++) {
-			if (bitset_get(src_vmask, sp->channel)) {
-				bitset_set(vmask, channel);
+			if (test_bit(sp->channel, src_vmask)) {
+				set_bit(channel, vmask);
 				break;
 			}
 		}
@@ -346,33 +347,33 @@ static int route_dst_channels_mask(snd_pcm_plugin_t *plugin,
 	return 0;
 }
 
-static void route_free(snd_pcm_plugin_t *plugin)
+static void route_free(struct snd_pcm_plugin *plugin)
 {
-	route_t *data = (route_t *)plugin->extra_data;
+	struct route_priv *data = (struct route_priv *)plugin->extra_data;
 	unsigned int dst_channel;
 	for (dst_channel = 0; dst_channel < plugin->dst_format.channels; ++dst_channel) {
 		kfree(data->ttable[dst_channel].srcs);
 	}
 }
 
-static int route_load_ttable(snd_pcm_plugin_t *plugin, 
-			     const route_ttable_entry_t* src_ttable)
+static int route_load_ttable(struct snd_pcm_plugin *plugin, 
+			     const int *src_ttable)
 {
-	route_t *data;
+	struct route_priv *data;
 	unsigned int src_channel, dst_channel;
-	const route_ttable_entry_t *sptr;
-	ttable_dst_t *dptr;
+	const int *sptr;
+	struct ttable_dst *dptr;
 	if (src_ttable == NULL)
 		return 0;
-	data = (route_t *)plugin->extra_data;
+	data = (struct route_priv *)plugin->extra_data;
 	dptr = data->ttable;
 	sptr = src_ttable;
 	plugin->private_free = route_free;
 	for (dst_channel = 0; dst_channel < plugin->dst_format.channels; ++dst_channel) {
-		route_ttable_entry_t t = 0;
+		int t = 0;
 		int att = 0;
 		int nsrcs = 0;
-		ttable_src_t srcs[plugin->src_format.channels];
+		struct ttable_src srcs[plugin->src_format.channels];
 		for (src_channel = 0; src_channel < plugin->src_format.channels; ++src_channel) {
 			snd_assert(*sptr >= 0 || *sptr <= FULL, return -ENXIO);
 			if (*sptr != 0) {
@@ -405,21 +406,21 @@ static int route_load_ttable(snd_pcm_plugin_t *plugin,
 	return 0;
 }
 
-static snd_pcm_sframes_t route_transfer(snd_pcm_plugin_t *plugin,
-			      const snd_pcm_plugin_channel_t *src_channels,
-			      snd_pcm_plugin_channel_t *dst_channels,
+static snd_pcm_sframes_t route_transfer(struct snd_pcm_plugin *plugin,
+			      const struct snd_pcm_plugin_channel *src_channels,
+			      struct snd_pcm_plugin_channel *dst_channels,
 			      snd_pcm_uframes_t frames)
 {
-	route_t *data;
+	struct route_priv *data;
 	int src_nchannels, dst_nchannels;
 	int dst_channel;
-	ttable_dst_t *ttp;
-	snd_pcm_plugin_channel_t *dvp;
+	struct ttable_dst *ttp;
+	struct snd_pcm_plugin_channel *dvp;
 
 	snd_assert(plugin != NULL && src_channels != NULL && dst_channels != NULL, return -ENXIO);
 	if (frames == 0)
 		return 0;
-	data = (route_t *)plugin->extra_data;
+	data = (struct route_priv *)plugin->extra_data;
 
 	src_nchannels = plugin->src_format.channels;
 	dst_nchannels = plugin->dst_format.channels;
@@ -469,14 +470,14 @@ int getput_index(int format)
 	return width * 4 + endian * 2 + sign;
 }
 
-int snd_pcm_plugin_build_route(snd_pcm_plug_t *plug,
-			       snd_pcm_plugin_format_t *src_format,
-			       snd_pcm_plugin_format_t *dst_format,
-			       route_ttable_entry_t *ttable,
-			       snd_pcm_plugin_t **r_plugin)
+int snd_pcm_plugin_build_route(struct snd_pcm_substream *plug,
+			       struct snd_pcm_plugin_format *src_format,
+			       struct snd_pcm_plugin_format *dst_format,
+			       int *ttable,
+			       struct snd_pcm_plugin **r_plugin)
 {
-	route_t *data;
-	snd_pcm_plugin_t *plugin;
+	struct route_priv *data;
+	struct snd_pcm_plugin *plugin;
 	int err;
 
 	snd_assert(r_plugin != NULL, return -ENXIO);
@@ -488,12 +489,13 @@ int snd_pcm_plugin_build_route(snd_pcm_plug_t *plug,
 
 	err = snd_pcm_plugin_build(plug, "attenuated route conversion",
 				   src_format, dst_format,
-				   sizeof(route_t) + sizeof(data->ttable[0]) * dst_format->channels,
+				   sizeof(struct route_priv) +
+				   sizeof(data->ttable[0]) * dst_format->channels,
 				   &plugin);
 	if (err < 0)
 		return err;
 
-	data = (route_t *) plugin->extra_data;
+	data = (struct route_priv *)plugin->extra_data;
 
 	data->get = getput_index(src_format->format);
 	snd_assert(data->get >= 0 && data->get < 4*2*2, return -EINVAL);

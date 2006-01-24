@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -22,9 +22,11 @@
 #include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
+#include <linux/completion.h>
 #include <asm/sn/bte.h>
 #include <asm/sn/sn_sal.h>
-#include "xpc.h"
+#include <asm/sn/xpc.h>
 
 
 /*
@@ -56,8 +58,8 @@ xpc_initialize_channels(struct xpc_partition *part, partid_t partid)
 		atomic_set(&ch->n_to_notify, 0);
 
 		spin_lock_init(&ch->lock);
-		sema_init(&ch->msg_to_pull_sema, 1);	/* mutex */
-		sema_init(&ch->wdisconnect_sema, 0);	/* event wait */
+		mutex_init(&ch->msg_to_pull_mutex);
+		init_completion(&ch->wdisconnect_wait);
 
 		atomic_set(&ch->n_on_msg_allocate_wq, 0);
 		init_waitqueue_head(&ch->msg_allocate_wq);
@@ -534,7 +536,6 @@ static enum xpc_retval
 xpc_allocate_msgqueues(struct xpc_channel *ch)
 {
 	unsigned long irq_flags;
-	int i;
 	enum xpc_retval ret;
 
 
@@ -550,11 +551,6 @@ xpc_allocate_msgqueues(struct xpc_channel *ch)
 		kfree(ch->notify_queue);
 		ch->notify_queue = NULL;
 		return ret;
-	}
-
-	for (i = 0; i < ch->local_nentries; i++) {
-		/* use a semaphore as an event wait queue */
-		sema_init(&ch->notify_queue[i].sema, 0);
 	}
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
@@ -779,6 +775,12 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	/* both sides are disconnected now */
 
+	if (ch->flags & XPC_C_CONNECTCALLOUT) {
+		spin_unlock_irqrestore(&ch->lock, *irq_flags);
+		xpc_disconnect_callout(ch, xpcDisconnected);
+		spin_lock_irqsave(&ch->lock, *irq_flags);
+	}
+
 	/* it's now safe to free the channel's message queues */
 	xpc_free_msgqueues(ch);
 
@@ -793,10 +795,8 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	}
 
 	if (ch->flags & XPC_C_WDISCONNECT) {
-		spin_unlock_irqrestore(&ch->lock, *irq_flags);
-		up(&ch->wdisconnect_sema);
-		spin_lock_irqsave(&ch->lock, *irq_flags);
-
+		/* we won't lose the CPU since we're holding ch->lock */
+		complete(&ch->wdisconnect_wait);
 	} else if (ch->delayed_IPI_flags) {
 		if (part->act_state != XPC_P_DEACTIVATING) {
 			/* time to take action on any delayed IPI flags */
@@ -1086,12 +1086,12 @@ xpc_connect_channel(struct xpc_channel *ch)
 	struct xpc_registration *registration = &xpc_registrations[ch->number];
 
 
-	if (down_trylock(&registration->sema) != 0) {
+	if (mutex_trylock(&registration->mutex) == 0) {
 		return xpcRetry;
 	}
 
 	if (!XPC_CHANNEL_REGISTERED(ch->number)) {
-		up(&registration->sema);
+		mutex_unlock(&registration->mutex);
 		return xpcUnregistered;
 	}
 
@@ -1102,7 +1102,7 @@ xpc_connect_channel(struct xpc_channel *ch)
 
 	if (ch->flags & XPC_C_DISCONNECTING) {
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
-		up(&registration->sema);
+		mutex_unlock(&registration->mutex);
 		return ch->reason;
 	}
 
@@ -1134,7 +1134,7 @@ xpc_connect_channel(struct xpc_channel *ch)
 			 * channel lock be locked and will unlock and relock
 			 * the channel lock as needed.
 			 */
-			up(&registration->sema);
+			mutex_unlock(&registration->mutex);
 			XPC_DISCONNECT_CHANNEL(ch, xpcUnequalMsgSizes,
 								&irq_flags);
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
@@ -1149,7 +1149,7 @@ xpc_connect_channel(struct xpc_channel *ch)
 		atomic_inc(&xpc_partitions[ch->partid].nchannels_active);
 	}
 
-	up(&registration->sema);
+	mutex_unlock(&registration->mutex);
 
 
 	/* initiate the connection */
@@ -1645,7 +1645,7 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 
 
 void
-xpc_disconnecting_callout(struct xpc_channel *ch)
+xpc_disconnect_callout(struct xpc_channel *ch, enum xpc_retval reason)
 {
 	/*
 	 * Let the channel's registerer know that the channel is being
@@ -1654,15 +1654,13 @@ xpc_disconnecting_callout(struct xpc_channel *ch)
 	 */
 
 	if (ch->func != NULL) {
-		dev_dbg(xpc_chan, "ch->func() called, reason=xpcDisconnecting,"
-			" partid=%d, channel=%d\n", ch->partid, ch->number);
+		dev_dbg(xpc_chan, "ch->func() called, reason=%d, partid=%d, "
+			"channel=%d\n", reason, ch->partid, ch->number);
 
-		ch->func(xpcDisconnecting, ch->partid, ch->number, NULL,
-								ch->key);
+		ch->func(reason, ch->partid, ch->number, NULL, ch->key);
 
-		dev_dbg(xpc_chan, "ch->func() returned, reason="
-			"xpcDisconnecting, partid=%d, channel=%d\n",
-			ch->partid, ch->number);
+		dev_dbg(xpc_chan, "ch->func() returned, reason=%d, partid=%d, "
+			"channel=%d\n", reason, ch->partid, ch->number);
 	}
 }
 
@@ -2085,7 +2083,7 @@ xpc_pull_remote_msg(struct xpc_channel *ch, s64 get)
 	enum xpc_retval ret;
 
 
-	if (down_interruptible(&ch->msg_to_pull_sema) != 0) {
+	if (mutex_lock_interruptible(&ch->msg_to_pull_mutex) != 0) {
 		/* we were interrupted by a signal */
 		return NULL;
 	}
@@ -2121,7 +2119,7 @@ xpc_pull_remote_msg(struct xpc_channel *ch, s64 get)
 
 			XPC_DEACTIVATE_PARTITION(part, ret);
 
-			up(&ch->msg_to_pull_sema);
+			mutex_unlock(&ch->msg_to_pull_mutex);
 			return NULL;
 		}
 
@@ -2130,7 +2128,7 @@ xpc_pull_remote_msg(struct xpc_channel *ch, s64 get)
 		ch->next_msg_to_pull += nmsgs;
 	}
 
-	up(&ch->msg_to_pull_sema);
+	mutex_unlock(&ch->msg_to_pull_mutex);
 
 	/* return the message we were looking for */
 	msg_offset = (get % ch->remote_nentries) * ch->msg_size;

@@ -36,8 +36,8 @@
 /* xtime and wall_jiffies keep wall-clock time */
 extern unsigned long wall_jiffies;
 
-static long clocktick;	/* timer cycles per tick */
-static long halftick;
+static long clocktick __read_mostly;	/* timer cycles per tick */
+static long halftick __read_mostly;
 
 #ifdef CONFIG_SMP
 extern void smp_do_timer(struct pt_regs *regs);

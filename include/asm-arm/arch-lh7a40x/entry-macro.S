@@ -7,6 +7,8 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
+#include <asm/hardware.h>
+#include <asm/arch/irqs.h>
 
 # if defined (CONFIG_ARCH_LH7A400) && defined (CONFIG_ARCH_LH7A404)
 #  error "LH7A400 and LH7A404 are mutually exclusive"

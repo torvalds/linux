@@ -30,7 +30,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/signal.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+
 #include "../pci.h"
 #include "pciehp.h"
 
@@ -748,7 +753,7 @@ static int hpc_power_on_slot(struct slot * slot)
 {
 	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
 	u16 slot_cmd;
-	u16 slot_ctrl;
+	u16 slot_ctrl, slot_status;
 
 	int retval = 0;
 
@@ -765,6 +770,14 @@ static int hpc_power_on_slot(struct slot * slot)
 		return -1;
 	}
 
+	/* Clear sticky power-fault bit from previous power failures */
+	hp_register_read_word(php_ctlr->pci_dev,
+			SLOT_STATUS(slot->ctrl->cap_base), slot_status);
+	slot_status &= PWR_FAULT_DETECTED;
+	if (slot_status)
+		hp_register_write_word(php_ctlr->pci_dev,
+			SLOT_STATUS(slot->ctrl->cap_base), slot_status);
+
 	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (retval) {
@@ -774,8 +787,13 @@ static int hpc_power_on_slot(struct slot * slot)
 
 	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_ON;
 
+	/* Enable detection that we turned off at slot power-off time */
 	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
+		slot_cmd = slot_cmd |
+		           PWR_FAULT_DETECT_ENABLE |
+		           MRL_DETECT_ENABLE |
+		           PRSN_DETECT_ENABLE |
+		           HP_INTR_ENABLE;
 
 	retval = pcie_write_cmd(slot, slot_cmd);
 
@@ -820,8 +838,18 @@ static int hpc_power_off_slot(struct slot * slot)
 
 	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_OFF;
 
+	/*
+	 * If we get MRL or presence detect interrupts now, the isr
+	 * will notice the sticky power-fault bit too and issue power
+	 * indicator change commands. This will lead to an endless loop
+	 * of command completions, since the power-fault bit remains on
+	 * till the slot is powered on again.
+	 */
 	if (!pciehp_poll_mode)
-		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
+		slot_cmd = (slot_cmd &
+		            ~PWR_FAULT_DETECT_ENABLE &
+		            ~MRL_DETECT_ENABLE &
+		            ~PRSN_DETECT_ENABLE) | HP_INTR_ENABLE;
 
 	retval = pcie_write_cmd(slot, slot_cmd);
 

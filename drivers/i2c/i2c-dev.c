@@ -42,8 +42,7 @@ static struct i2c_client i2cdev_client_template;
 struct i2c_dev {
 	int minor;
 	struct i2c_adapter *adap;
-	struct class_device class_dev;
-	struct completion released;	/* FIXME, we need a class_device_unregister() */
+	struct class_device *class_dev;
 };
 #define to_i2c_dev(d) container_of(d, struct i2c_dev, class_dev)
 
@@ -105,7 +104,10 @@ static void return_i2c_dev(struct i2c_dev *i2c_dev)
 
 static ssize_t show_adapter_name(struct class_device *class_dev, char *buf)
 {
-	struct i2c_dev *i2c_dev = to_i2c_dev(class_dev);
+	struct i2c_dev *i2c_dev = i2c_dev_get_by_minor(MINOR(class_dev->devt));
+
+	if (!i2c_dev)
+		return -ENODEV;
 	return sprintf(buf, "%s\n", i2c_dev->adap->name);
 }
 static CLASS_DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
@@ -408,21 +410,12 @@ static struct file_operations i2cdev_fops = {
 	.release	= i2cdev_release,
 };
 
-static void release_i2c_dev(struct class_device *dev)
-{
-	struct i2c_dev *i2c_dev = to_i2c_dev(dev);
-	complete(&i2c_dev->released);
-}
-
-static struct class i2c_dev_class = {
-	.name		= "i2c-dev",
-	.release	= &release_i2c_dev,
-};
+static struct class *i2c_dev_class;
 
 static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
-	int retval;
+	struct device *dev;
 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
@@ -434,21 +427,20 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 	/* register this i2c device with the driver core */
 	i2c_dev->adap = adap;
 	if (adap->dev.parent == &platform_bus)
-		i2c_dev->class_dev.dev = &adap->dev;
+		dev = &adap->dev;
 	else
-		i2c_dev->class_dev.dev = adap->dev.parent;
-	i2c_dev->class_dev.class = &i2c_dev_class;
-	i2c_dev->class_dev.devt = MKDEV(I2C_MAJOR, i2c_dev->minor);
-	snprintf(i2c_dev->class_dev.class_id, BUS_ID_SIZE, "i2c-%d", i2c_dev->minor);
-	retval = class_device_register(&i2c_dev->class_dev);
-	if (retval)
+		dev = adap->dev.parent;
+	i2c_dev->class_dev = class_device_create(i2c_dev_class, NULL,
+						 MKDEV(I2C_MAJOR, i2c_dev->minor),
+						 dev, "i2c-%d", i2c_dev->minor);
+	if (!i2c_dev->class_dev)
 		goto error;
-	class_device_create_file(&i2c_dev->class_dev, &class_device_attr_name);
+	class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
 	return 0;
 error:
 	return_i2c_dev(i2c_dev);
 	kfree(i2c_dev);
-	return retval;
+	return -ENODEV;
 }
 
 static int i2cdev_detach_adapter(struct i2c_adapter *adap)
@@ -459,10 +451,8 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 	if (!i2c_dev)
 		return -ENODEV;
 
-	init_completion(&i2c_dev->released);
 	return_i2c_dev(i2c_dev);
-	class_device_unregister(&i2c_dev->class_dev);
-	wait_for_completion(&i2c_dev->released);
+	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, i2c_dev->minor));
 	kfree(i2c_dev);
 
 	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
@@ -474,21 +464,14 @@ static int i2cdev_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-static int i2cdev_command(struct i2c_client *client, unsigned int cmd,
-                           void *arg)
-{
-	return -1;
-}
-
 static struct i2c_driver i2cdev_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "dev_driver",
+	.driver = {
+		.name	= "dev_driver",
+	},
 	.id		= I2C_DRIVERID_I2CDEV,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= i2cdev_attach_adapter,
 	.detach_adapter	= i2cdev_detach_adapter,
 	.detach_client	= i2cdev_detach_client,
-	.command	= i2cdev_command,
 };
 
 static struct i2c_client i2cdev_client_template = {
@@ -507,8 +490,8 @@ static int __init i2c_dev_init(void)
 	if (res)
 		goto out;
 
-	res = class_register(&i2c_dev_class);
-	if (res)
+	i2c_dev_class = class_create(THIS_MODULE, "i2c-dev");
+	if (IS_ERR(i2c_dev_class))
 		goto out_unreg_chrdev;
 
 	res = i2c_add_driver(&i2cdev_driver);
@@ -518,7 +501,7 @@ static int __init i2c_dev_init(void)
 	return 0;
 
 out_unreg_class:
-	class_unregister(&i2c_dev_class);
+	class_destroy(i2c_dev_class);
 out_unreg_chrdev:
 	unregister_chrdev(I2C_MAJOR, "i2c");
 out:
@@ -529,7 +512,7 @@ out:
 static void __exit i2c_dev_exit(void)
 {
 	i2c_del_driver(&i2cdev_driver);
-	class_unregister(&i2c_dev_class);
+	class_destroy(i2c_dev_class);
 	unregister_chrdev(I2C_MAJOR,"i2c");
 }
 

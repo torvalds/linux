@@ -257,9 +257,10 @@ pcf8583_command(struct i2c_client *client, unsigned int cmd, void *arg)
 }
 
 static struct i2c_driver pcf8583_driver = {
-	.name		= "PCF8583",
+	.driver = {
+		.name	= "PCF8583",
+	},
 	.id		= I2C_DRIVERID_PCF8583,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= pcf8583_probe,
 	.detach_client	= pcf8583_detach,
 	.command	= pcf8583_command

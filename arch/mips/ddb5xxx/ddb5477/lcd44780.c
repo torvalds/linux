@@ -55,7 +55,7 @@ void lcd44780_data(unsigned char c)
 
 void lcd44780_puts(const char* s)
 {
-	int i,j;
+	int j;
 	int pos = 0;
 
 	lcd44780_command(LCD44780_CLEAR);
@@ -76,8 +76,12 @@ void lcd44780_puts(const char* s)
 		}
 	}
 #ifdef LCD44780_PUTS_PAUSE
-	for(i = 1; i < 2000; i++)
-		lcd44780_wait();
+	{
+		int i;
+
+		for(i = 1; i < 2000; i++)
+			lcd44780_wait();
+	}
 #endif
 }
 

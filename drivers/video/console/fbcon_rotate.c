@@ -18,8 +18,7 @@
 #include "fbcon.h"
 #include "fbcon_rotate.h"
 
-static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc,
-			     struct display *p)
+static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 	int len, err = 0;
@@ -28,12 +27,12 @@ static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc,
 	u8 *dst;
 
 	if (vc->vc_font.data == ops->fontdata &&
-	    p->con_rotate == ops->cur_rotate)
+	    ops->p->con_rotate == ops->cur_rotate)
 		goto finished;
 
 	src = ops->fontdata = vc->vc_font.data;
-	ops->cur_rotate = p->con_rotate;
-	len = (!p->userfont) ? 256 : FNTCHARCNT(src);
+	ops->cur_rotate = ops->p->con_rotate;
+	len = (!ops->p->userfont) ? 256 : FNTCHARCNT(src);
 	s_cellsize = ((vc->vc_font.width + 7)/8) *
 		vc->vc_font.height;
 	d_cellsize = s_cellsize;

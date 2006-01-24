@@ -398,13 +398,7 @@ static int tda8290_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	return 0;
 }
 
-
 /*---------------------------------------------------------------------*/
-
-#define V4L2_STD_MN	(V4L2_STD_PAL_M|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|V4L2_STD_NTSC)
-#define V4L2_STD_B	(V4L2_STD_PAL_B|V4L2_STD_PAL_B1|V4L2_STD_SECAM_B)
-#define V4L2_STD_GH	(V4L2_STD_PAL_G|V4L2_STD_PAL_H|V4L2_STD_SECAM_G|V4L2_STD_SECAM_H)
-#define V4L2_STD_DK	(V4L2_STD_PAL_DK|V4L2_STD_SECAM_DK)
 
 static void set_audio(struct tuner *t)
 {
@@ -437,6 +431,10 @@ static void set_audio(struct tuner *t)
 		t->sgIF = 124;
 		t->tda8290_easy_mode = 0x20;
 		mode = "L";
+	} else if (t->std & V4L2_STD_SECAM_LC) {
+		t->sgIF = 20;
+		t->tda8290_easy_mode = 0x40;
+		mode = "LC";
 	}
     tuner_dbg("setting tda8290 to system %s\n", mode);
 }
@@ -569,8 +567,8 @@ int tda8290_init(struct i2c_client *c)
 	}
 	tuner_info("tuner: type set to %s\n", c->name);
 
-	t->tv_freq    = set_tv_freq;
-	t->radio_freq = set_radio_freq;
+	t->set_tv_freq    = set_tv_freq;
+	t->set_radio_freq = set_radio_freq;
 	t->has_signal = has_signal;
 	t->standby = standby;
 	t->tda827x_lpsel = 0;

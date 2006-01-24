@@ -1056,7 +1056,7 @@ MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 #define IPMI_MEM_ADDR_SPACE 1
 #define IPMI_IO_ADDR_SPACE  2
 
-#if defined(CONFIG_ACPI) || defined(CONFIG_X86) || defined(CONFIG_PCI)
+#if defined(CONFIG_ACPI) || defined(CONFIG_DMI) || defined(CONFIG_PCI)
 static int is_new_interface(int intf, u8 addr_space, unsigned long base_addr)
 {
 	int i;
@@ -1669,7 +1669,7 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 }
 #endif
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DMI
 typedef struct dmi_ipmi_data
 {
 	u8   		type;
@@ -1829,7 +1829,7 @@ static int try_init_smbios(int intf_num, struct smi_info **new_info)
 	       ipmi_data->slave_addr);
 	return 0;
 }
-#endif /* CONFIG_X86 */
+#endif /* CONFIG_DMI */
 
 #ifdef CONFIG_PCI
 
@@ -2203,7 +2203,7 @@ static void setup_xaction_handlers(struct smi_info *smi_info)
 
 static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 {
-	if (smi_info->thread != ERR_PTR(-ENOMEM))
+	if (smi_info->thread != NULL && smi_info->thread != ERR_PTR(-ENOMEM))
 		kthread_stop(smi_info->thread);
 	del_timer_sync(&smi_info->si_timer);
 }
@@ -2222,7 +2222,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	if (rv && si_trydefaults)
 		rv = try_init_acpi(intf_num, &new_smi);
 #endif
-#ifdef CONFIG_X86
+#ifdef CONFIG_DMI
 	if (rv && si_trydefaults)
 		rv = try_init_smbios(intf_num, &new_smi);
 #endif
@@ -2399,7 +2399,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 			new_smi->handlers->cleanup(new_smi->si_sm);
 		kfree(new_smi->si_sm);
 	}
-	new_smi->io_cleanup(new_smi);
+	if (new_smi->io_cleanup)
+		new_smi->io_cleanup(new_smi);
 
 	return rv;
 }
@@ -2432,7 +2433,7 @@ static __init int init_ipmi_si(void)
 
 	printk(KERN_INFO "IPMI System Interface driver.\n");
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DMI
 	dmi_find_bmc();
 #endif
 
@@ -2518,7 +2519,8 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 
 	kfree(to_clean->si_sm);
 
-	to_clean->io_cleanup(to_clean);
+	if (to_clean->io_cleanup)
+		to_clean->io_cleanup(to_clean);
 }
 
 static __exit void cleanup_ipmi_si(void)

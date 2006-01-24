@@ -25,27 +25,25 @@
 #include <sound/asound.h>
 #include <linux/poll.h>
 
-typedef enum sndrv_hwdep_iface snd_hwdep_iface_t;
-typedef struct sndrv_hwdep_info snd_hwdep_info_t;
-typedef struct sndrv_hwdep_dsp_status snd_hwdep_dsp_status_t;
-typedef struct sndrv_hwdep_dsp_image snd_hwdep_dsp_image_t;
+struct snd_hwdep;
 
-typedef struct _snd_hwdep_ops {
-	long long (*llseek) (snd_hwdep_t *hw, struct file * file, long long offset, int orig);
-	long (*read) (snd_hwdep_t * hw, char __user *buf, long count, loff_t *offset);
-	long (*write) (snd_hwdep_t * hw, const char __user *buf, long count, loff_t *offset);
-	int (*open) (snd_hwdep_t * hw, struct file * file);
-	int (*release) (snd_hwdep_t * hw, struct file * file);
-	unsigned int (*poll) (snd_hwdep_t * hw, struct file * file, poll_table * wait);
-	int (*ioctl) (snd_hwdep_t * hw, struct file * file, unsigned int cmd, unsigned long arg);
-	int (*ioctl_compat) (snd_hwdep_t * hw, struct file * file, unsigned int cmd, unsigned long arg);
-	int (*mmap) (snd_hwdep_t * hw, struct file * file, struct vm_area_struct * vma);
-	int (*dsp_status) (snd_hwdep_t * hw, snd_hwdep_dsp_status_t * status);
-	int (*dsp_load) (snd_hwdep_t * hw, snd_hwdep_dsp_image_t * image);
-} snd_hwdep_ops_t;
+struct snd_hwdep_ops {
+	long long (*llseek) (struct snd_hwdep *hw, struct file * file, long long offset, int orig);
+	long (*read) (struct snd_hwdep *hw, char __user *buf, long count, loff_t *offset);
+	long (*write) (struct snd_hwdep *hw, const char __user *buf, long count, loff_t *offset);
+	int (*open) (struct snd_hwdep * hw, struct file * file);
+	int (*release) (struct snd_hwdep *hw, struct file * file);
+	unsigned int (*poll) (struct snd_hwdep *hw, struct file * file, poll_table * wait);
+	int (*ioctl) (struct snd_hwdep *hw, struct file * file, unsigned int cmd, unsigned long arg);
+	int (*ioctl_compat) (struct snd_hwdep *hw, struct file * file, unsigned int cmd, unsigned long arg);
+	int (*mmap) (struct snd_hwdep *hw, struct file * file, struct vm_area_struct * vma);
+	int (*dsp_status) (struct snd_hwdep *hw, struct snd_hwdep_dsp_status *status);
+	int (*dsp_load) (struct snd_hwdep *hw, struct snd_hwdep_dsp_image *image);
+};
 
-struct _snd_hwdep {
-	snd_card_t *card;
+struct snd_hwdep {
+	struct snd_card *card;
+	struct list_head list;
 	int device;
 	char id[32];
 	char name[80];
@@ -57,10 +55,10 @@ struct _snd_hwdep {
 	int ossreg;
 #endif
 
-	snd_hwdep_ops_t ops;
+	struct snd_hwdep_ops ops;
 	wait_queue_head_t open_wait;
 	void *private_data;
-	void (*private_free) (snd_hwdep_t *hwdep);
+	void (*private_free) (struct snd_hwdep *hwdep);
 
 	struct semaphore open_mutex;
 	int used;
@@ -68,6 +66,7 @@ struct _snd_hwdep {
 	unsigned int exclusive: 1;
 };
 
-extern int snd_hwdep_new(snd_card_t * card, char *id, int device, snd_hwdep_t ** rhwdep);
+extern int snd_hwdep_new(struct snd_card *card, char *id, int device,
+			 struct snd_hwdep **rhwdep);
 
 #endif /* __SOUND_HWDEP_H */

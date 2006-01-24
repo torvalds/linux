@@ -74,7 +74,7 @@ static int sa1100dog_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t sa1100dog_write(struct file *file, const char *data, size_t len, loff_t *ppos)
+static ssize_t sa1100dog_write(struct file *file, const char __user *data, size_t len, loff_t *ppos)
 {
 	if (len)
 		/* Refresh OSMR3 timer. */
@@ -96,20 +96,20 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		ret = copy_to_user((struct watchdog_info *)arg, &ident,
+		ret = copy_to_user((struct watchdog_info __user *)arg, &ident,
 				   sizeof(ident)) ? -EFAULT : 0;
 		break;
 
 	case WDIOC_GETSTATUS:
-		ret = put_user(0, (int *)arg);
+		ret = put_user(0, (int __user *)arg);
 		break;
 
 	case WDIOC_GETBOOTSTATUS:
-		ret = put_user(boot_status, (int *)arg);
+		ret = put_user(boot_status, (int __user *)arg);
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		ret = get_user(time, (int *)arg);
+		ret = get_user(time, (int __user *)arg);
 		if (ret)
 			break;
 
@@ -123,7 +123,7 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 		/*fall through*/
 
 	case WDIOC_GETTIMEOUT:
-		ret = put_user(pre_margin / OSCR_FREQ, (int *)arg);
+		ret = put_user(pre_margin / OSCR_FREQ, (int __user *)arg);
 		break;
 
 	case WDIOC_KEEPALIVE:

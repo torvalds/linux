@@ -3,7 +3,7 @@
  *
  * sysfs interface for SH DMA API
  *
- * Copyright (C) 2004  Paul Mundt
+ * Copyright (C) 2004, 2005  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -12,7 +12,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/err.h>
 #include <linux/string.h>
 #include <asm/dma.h>
 
@@ -77,7 +79,7 @@ static ssize_t dma_store_config(struct sys_device *dev,
 	unsigned long config;
 
 	config = simple_strtoul(buf, NULL, 0);
-	dma_configure_channel(channel->chan, config);
+	dma_configure_channel(channel->vchan, config);
 
 	return count;
 }
@@ -111,12 +113,13 @@ static SYSDEV_ATTR(field, S_IRUGO, dma_show_##field, NULL);
 dma_ro_attr(count, "0x%08x\n");
 dma_ro_attr(flags, "0x%08lx\n");
 
-int __init dma_create_sysfs_files(struct dma_channel *chan)
+int dma_create_sysfs_files(struct dma_channel *chan, struct dma_info *info)
 {
 	struct sys_device *dev = &chan->dev;
+	char name[16];
 	int ret;
 
-	dev->id  = chan->chan;
+	dev->id  = chan->vchan;
 	dev->cls = &dma_sysclass;
 
 	ret = sysdev_register(dev);
@@ -129,6 +132,24 @@ int __init dma_create_sysfs_files(struct dma_channel *chan)
 	sysdev_create_file(dev, &attr_flags);
 	sysdev_create_file(dev, &attr_config);
 
-	return 0;
+	snprintf(name, sizeof(name), "dma%d", chan->chan);
+	return sysfs_create_link(&info->pdev->dev.kobj, &dev->kobj, name);
+}
+
+void dma_remove_sysfs_files(struct dma_channel *chan, struct dma_info *info)
+{
+	struct sys_device *dev = &chan->dev;
+	char name[16];
+
+	sysdev_remove_file(dev, &attr_dev_id);
+	sysdev_remove_file(dev, &attr_count);
+	sysdev_remove_file(dev, &attr_mode);
+	sysdev_remove_file(dev, &attr_flags);
+	sysdev_remove_file(dev, &attr_config);
+
+	snprintf(name, sizeof(name), "dma%d", chan->chan);
+	sysfs_remove_link(&info->pdev->dev.kobj, name);
+
+	sysdev_unregister(dev);
 }
 

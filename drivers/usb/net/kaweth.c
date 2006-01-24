@@ -175,7 +175,6 @@ MODULE_DEVICE_TABLE (usb, usb_klsi_table);
  *     kaweth_driver
  ****************************************************************/
 static struct usb_driver kaweth_driver = {
-	.owner =	THIS_MODULE,
 	.name =		driver_name,
 	.probe =	kaweth_probe,
 	.disconnect =	kaweth_disconnect,
@@ -219,7 +218,6 @@ struct kaweth_device
 
 	__u32 status;
 	int end;
-	int removed;
 	int suspend_lowmem_rx;
 	int suspend_lowmem_ctrl;
 	int linkstate;
@@ -699,6 +697,7 @@ static int kaweth_close(struct net_device *net)
 
 	usb_kill_urb(kaweth->irq_urb);
 	usb_kill_urb(kaweth->rx_urb);
+	usb_kill_urb(kaweth->tx_urb);
 
 	flush_scheduled_work();
 
@@ -749,13 +748,6 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 	int res;
 
 	spin_lock(&kaweth->device_lock);
-
-	if (kaweth->removed) {
-	/* our device is undergoing disconnection - we bail out */
-		spin_unlock(&kaweth->device_lock);
-		dev_kfree_skb_irq(skb);
-		return 0;
-	}
 
 	kaweth_async_set_rx_mode(kaweth);
 	netif_stop_queue(net);
@@ -1136,10 +1128,6 @@ static void kaweth_disconnect(struct usb_interface *intf)
 		return;
 	}
 	netdev = kaweth->net;
-	kaweth->removed = 1;
-	usb_kill_urb(kaweth->irq_urb);
-	usb_kill_urb(kaweth->rx_urb);
-	usb_kill_urb(kaweth->tx_urb);
 
 	kaweth_dbg("Unregistering net device");
 	unregister_netdev(netdev);

@@ -66,7 +66,7 @@ struct elevator_type
 };
 
 /*
- * each queue has an elevator_queue assoicated with it
+ * each queue has an elevator_queue associated with it
  */
 struct elevator_queue
 {
@@ -114,8 +114,6 @@ extern ssize_t elv_iosched_store(request_queue_t *, const char *, size_t);
 extern int elevator_init(request_queue_t *, char *);
 extern void elevator_exit(elevator_t *);
 extern int elv_rq_merge_ok(struct request *, struct bio *);
-extern int elv_try_merge(struct request *, struct bio *);
-extern int elv_try_last_merge(request_queue_t *, struct bio *);
 
 /*
  * Return values from elevator merger
@@ -130,6 +128,7 @@ extern int elv_try_last_merge(request_queue_t *, struct bio *);
 #define ELEVATOR_INSERT_FRONT	1
 #define ELEVATOR_INSERT_BACK	2
 #define ELEVATOR_INSERT_SORT	3
+#define ELEVATOR_INSERT_REQUEUE	4
 
 /*
  * return values from elevator_may_queue_fn

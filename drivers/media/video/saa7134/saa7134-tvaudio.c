@@ -180,8 +180,8 @@ static void tvaudio_init(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_AUDIO_CLOCK0,      clock        & 0xff);
 	saa_writeb(SAA7134_AUDIO_CLOCK1,     (clock >>  8) & 0xff);
 	saa_writeb(SAA7134_AUDIO_CLOCK2,     (clock >> 16) & 0xff);
-	// frame locked audio was reported not to be reliable
-	saa_writeb(SAA7134_AUDIO_PLL_CTRL,   0x02);
+	/* frame locked audio is mandatory for NICAM */
+	saa_writeb(SAA7134_AUDIO_PLL_CTRL,   0x01);
 
 	saa_writeb(SAA7134_NICAM_ERROR_LOW,  0x14);
 	saa_writeb(SAA7134_NICAM_ERROR_HIGH, 0x50);
@@ -809,7 +809,12 @@ static int tvaudio_thread_ddep(void *data)
 			dprintk("ddep override: %s\n",stdres[audio_ddep]);
 		} else if (&card(dev).radio == dev->input) {
 			dprintk("FM Radio\n");
-			norms = (0x0f << 2) | 0x01;
+			if (dev->tuner_type == TUNER_PHILIPS_TDA8290) {
+				norms = (0x11 << 2) | 0x01;
+				saa_dsp_writel(dev, 0x42c >> 2, 0x729555);
+			} else {
+				norms = (0x0f << 2) | 0x01;
+			}
 		} else {
 			/* (let chip) scan for sound carrier */
 			norms = 0;

@@ -67,7 +67,7 @@ static inline int match_tcp(const struct sk_buff *skb,
 
 static int match(const struct sk_buff *skb, const struct net_device *in,
 		 const struct net_device *out, const void *matchinfo,
-		 int offset, int *hotdrop)
+		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_ecn_info *info = matchinfo;
 
@@ -85,11 +85,12 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 1;
 }
 
-static int checkentry(const char *tablename, const struct ipt_ip *ip,
+static int checkentry(const char *tablename, const void *ip_void,
 		      void *matchinfo, unsigned int matchsize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_ecn_info *info = matchinfo;
+	const struct ipt_ip *ip = ip_void;
 
 	if (matchsize != IPT_ALIGN(sizeof(struct ipt_ecn_info)))
 		return 0;

@@ -540,8 +540,7 @@ void skb_icv_walk(const struct sk_buff *skb, struct crypto_tfm *tfm,
 			start = end;
 		}
 	}
-	if (len)
-		BUG();
+	BUG_ON(len);
 }
 EXPORT_SYMBOL_GPL(skb_icv_walk);
 
@@ -610,8 +609,7 @@ skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 			start = end;
 		}
 	}
-	if (len)
-		BUG();
+	BUG_ON(len);
 	return elt;
 }
 EXPORT_SYMBOL_GPL(skb_to_sgvec);

@@ -167,28 +167,28 @@ MODULE_PARM_DESC(enable, "Enable "NAME_ALLCAPS".");
 static int snd_usX2Y_card_used[SNDRV_CARDS];
 
 static void usX2Y_usb_disconnect(struct usb_device* usb_device, void* ptr);
-static void snd_usX2Y_card_private_free(snd_card_t *card);
+static void snd_usX2Y_card_private_free(struct snd_card *card);
 
 /* 
  * pipe 4 is used for switching the lamps, setting samplerate, volumes ....   
  */
-static void i_usX2Y_Out04Int(struct urb* urb, struct pt_regs *regs)
+static void i_usX2Y_Out04Int(struct urb *urb, struct pt_regs *regs)
 {
 #ifdef CONFIG_SND_DEBUG
 	if (urb->status) {
 		int 		i;
-		usX2Ydev_t*	usX2Y = urb->context;
+		struct usX2Ydev *usX2Y = urb->context;
 		for (i = 0; i < 10 && usX2Y->AS04.urb[i] != urb; i++);
 		snd_printdd("i_usX2Y_Out04Int() urb %i status=%i\n", i, urb->status);
 	}
 #endif
 }
 
-static void i_usX2Y_In04Int(struct urb* urb, struct pt_regs *regs)
+static void i_usX2Y_In04Int(struct urb *urb, struct pt_regs *regs)
 {
 	int			err = 0;
-	usX2Ydev_t		*usX2Y = urb->context;
-	us428ctls_sharedmem_t	*us428ctls = usX2Y->us428ctls_sharedmem;
+	struct usX2Ydev		*usX2Y = urb->context;
+	struct us428ctls_sharedmem	*us428ctls = usX2Y->us428ctls_sharedmem;
 
 	usX2Y->In04IntCalls++;
 
@@ -239,10 +239,10 @@ static void i_usX2Y_In04Int(struct urb* urb, struct pt_regs *regs)
 					send = 0;
 				for (j = 0; j < URBS_AsyncSeq  &&  !err; ++j)
 					if (0 == usX2Y->AS04.urb[j]->status) {
-						us428_p4out_t *p4out = us428ctls->p4out + send;	// FIXME if more then 1 p4out is new, 1 gets lost.
+						struct us428_p4out *p4out = us428ctls->p4out + send;	// FIXME if more then 1 p4out is new, 1 gets lost.
 						usb_fill_bulk_urb(usX2Y->AS04.urb[j], usX2Y->chip.dev,
 								  usb_sndbulkpipe(usX2Y->chip.dev, 0x04), &p4out->val.vol, 
-								  p4out->type == eLT_Light ? sizeof(us428_lights_t) : 5,
+								  p4out->type == eLT_Light ? sizeof(struct us428_lights) : 5,
 								  i_usX2Y_Out04Int, usX2Y);
 						err = usb_submit_urb(usX2Y->AS04.urb[j], GFP_ATOMIC);
 						us428ctls->p4outSent = send;
@@ -261,7 +261,7 @@ static void i_usX2Y_In04Int(struct urb* urb, struct pt_regs *regs)
 /*
  * Prepare some urbs
  */
-int usX2Y_AsyncSeq04_init(usX2Ydev_t* usX2Y)
+int usX2Y_AsyncSeq04_init(struct usX2Ydev *usX2Y)
 {
 	int	err = 0,
 		i;
@@ -283,9 +283,8 @@ int usX2Y_AsyncSeq04_init(usX2Ydev_t* usX2Y)
 	return err;
 }
 
-int usX2Y_In04_init(usX2Ydev_t* usX2Y)
+int usX2Y_In04_init(struct usX2Ydev *usX2Y)
 {
-	int	err = 0;
 	if (! (usX2Y->In04urb = usb_alloc_urb(0, GFP_KERNEL)))
 		return -ENOMEM;
 
@@ -299,11 +298,10 @@ int usX2Y_In04_init(usX2Ydev_t* usX2Y)
 			 usX2Y->In04Buf, 21,
 			 i_usX2Y_In04Int, usX2Y,
 			 10);
-	err = usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
-	return err;
+	return usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
 }
 
-static void usX2Y_unlinkSeq(snd_usX2Y_AsyncSeq_t* S)
+static void usX2Y_unlinkSeq(struct snd_usX2Y_AsyncSeq *S)
 {
 	int	i;
 	for (i = 0; i < URBS_AsyncSeq; ++i) {
@@ -336,16 +334,16 @@ static struct usb_device_id snd_usX2Y_usb_id_table[] = {
 	{ /* terminator */ }
 };
 
-static snd_card_t* usX2Y_create_card(struct usb_device* device)
+static struct snd_card *usX2Y_create_card(struct usb_device *device)
 {
 	int		dev;
-	snd_card_t*	card;
+	struct snd_card *	card;
 	for (dev = 0; dev < SNDRV_CARDS; ++dev)
 		if (enable[dev] && !snd_usX2Y_card_used[dev])
 			break;
 	if (dev >= SNDRV_CARDS)
 		return NULL;
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(usX2Ydev_t));
+	card = snd_card_new(index[dev], id[dev], THIS_MODULE, sizeof(struct usX2Ydev));
 	if (!card)
 		return NULL;
 	snd_usX2Y_card_used[usX2Y(card)->chip.index = dev] = 1;
@@ -369,10 +367,10 @@ static snd_card_t* usX2Y_create_card(struct usb_device* device)
 }
 
 
-static void* usX2Y_usb_probe(struct usb_device* device, struct usb_interface *intf, const struct usb_device_id* device_id)
+static void *usX2Y_usb_probe(struct usb_device *device, struct usb_interface *intf, const struct usb_device_id *device_id)
 {
 	int		err;
-	snd_card_t*	card;
+	struct snd_card *	card;
 	if (le16_to_cpu(device->descriptor.idVendor) != 0x1604 ||
 	    (le16_to_cpu(device->descriptor.idProduct) != USB_ID_US122 &&
 	     le16_to_cpu(device->descriptor.idProduct) != USB_ID_US224 &&
@@ -409,14 +407,13 @@ static void snd_usX2Y_disconnect(struct usb_interface *intf)
 
 MODULE_DEVICE_TABLE(usb, snd_usX2Y_usb_id_table);
 static struct usb_driver snd_usX2Y_usb_driver = {
- 	.owner =	THIS_MODULE,
 	.name =		"snd-usb-usx2y",
 	.probe =	snd_usX2Y_probe,
 	.disconnect =	snd_usX2Y_disconnect,
 	.id_table =	snd_usX2Y_usb_id_table,
 };
 
-static void snd_usX2Y_card_private_free(snd_card_t *card)
+static void snd_usX2Y_card_private_free(struct snd_card *card)
 {
 	kfree(usX2Y(card)->In04Buf);
 	usb_free_urb(usX2Y(card)->In04urb);
@@ -429,23 +426,24 @@ static void snd_usX2Y_card_private_free(snd_card_t *card)
 /*
  * Frees the device.
  */
-static void usX2Y_usb_disconnect(struct usb_device* device, void* ptr)
+static void usX2Y_usb_disconnect(struct usb_device *device, void* ptr)
 {
 	if (ptr) {
-		usX2Ydev_t* usX2Y = usX2Y((snd_card_t*)ptr);
-		struct list_head* p;
+		struct snd_card *card = ptr;
+		struct usX2Ydev *usX2Y = usX2Y(card);
+		struct list_head *p;
 		usX2Y->chip.shutdown = 1;
 		usX2Y->chip_status = USX2Y_STAT_CHIP_HUP;
 		usX2Y_unlinkSeq(&usX2Y->AS04);
 		usb_kill_urb(usX2Y->In04urb);
-		snd_card_disconnect((snd_card_t*)ptr);
+		snd_card_disconnect(card);
 		/* release the midi resources */
 		list_for_each(p, &usX2Y->chip.midi_list) {
 			snd_usbmidi_disconnect(p);
 		}
 		if (usX2Y->us428ctls_sharedmem) 
 			wake_up(&usX2Y->us428ctls_wait_queue_head);
-		snd_card_free((snd_card_t*)ptr);
+		snd_card_free(card);
 	}
 }
 

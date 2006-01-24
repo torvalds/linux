@@ -197,7 +197,7 @@ static inline void print_state(struct hvsi_struct *hp)
 	};
 	const char *name = state_names[hp->state];
 
-	if (hp->state > (sizeof(state_names)/sizeof(char*)))
+	if (hp->state > ARRAY_SIZE(state_names))
 		name = "UNKNOWN";
 
 	pr_debug("hvsi%i: state = %s\n", hp->index, name);

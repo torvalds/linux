@@ -218,7 +218,7 @@ static struct pci_driver kahlua_driver = {
 static int __init kahlua_init_module(void)
 {
 	printk(KERN_INFO "Cyrix Kahlua VSA1 XpressAudio support (c) Copyright 2003 Red Hat Inc\n");
-	return pci_module_init(&kahlua_driver);
+	return pci_register_driver(&kahlua_driver);
 }
 
 static void __devexit kahlua_cleanup_module(void)

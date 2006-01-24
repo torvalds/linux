@@ -29,6 +29,7 @@
 #include "saa7134.h"
 
 #include <media/saa6752hs.h>
+#include <media/v4l2-common.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -36,6 +37,7 @@ MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
 static unsigned int empress_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
+
 module_param_array(empress_nr, int, NULL, 0444);
 MODULE_PARM_DESC(empress_nr,"ts device number");
 
@@ -162,7 +164,7 @@ static int ts_do_ioctl(struct inode *inode, struct file *file,
 	struct saa7134_dev *dev = file->private_data;
 
 	if (debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case VIDIOC_QUERYCAP:
 	{

@@ -18,10 +18,6 @@ config XTENSA
 	  with reasonable minimum requirements.  The Xtensa Linux project has
 	  a home page at <http://xtensa.sourceforge.net/>.
 
-config UID16
-	bool
-	default n
-
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y

@@ -308,6 +308,8 @@ process making the call:
 	KEY_SPEC_USER_KEYRING		-4	UID-specific keyring
 	KEY_SPEC_USER_SESSION_KEYRING	-5	UID-session keyring
 	KEY_SPEC_GROUP_KEYRING		-6	GID-specific keyring
+	KEY_SPEC_REQKEY_AUTH_KEY	-7	assumed request_key()
+						  authorisation key
 
 
 The main syscalls are:
@@ -498,7 +500,11 @@ The keyctl syscall functions are:
      keyring is full, error ENFILE will result.
 
      The link procedure checks the nesting of the keyrings, returning ELOOP if
-     it appears to deep or EDEADLK if the link would introduce a cycle.
+     it appears too deep or EDEADLK if the link would introduce a cycle.
+
+     Any links within the keyring to keys that match the new key in terms of
+     type and description will be discarded from the keyring as the new one is
+     added.
 
 
  (*) Unlink a key or keyring from another keyring:
@@ -626,6 +632,41 @@ The keyctl syscall functions are:
      [1] The default default is: the thread keyring if there is one, otherwise
      the process keyring if there is one, otherwise the session keyring if
      there is one, otherwise the user default session keyring.
+
+
+ (*) Set the timeout on a key.
+
+	long keyctl(KEYCTL_SET_TIMEOUT, key_serial_t key, unsigned timeout);
+
+     This sets or clears the timeout on a key. The timeout can be 0 to clear
+     the timeout or a number of seconds to set the expiry time that far into
+     the future.
+
+     The process must have attribute modification access on a key to set its
+     timeout. Timeouts may not be set with this function on negative, revoked
+     or expired keys.
+
+
+ (*) Assume the authority granted to instantiate a key
+
+	long keyctl(KEYCTL_ASSUME_AUTHORITY, key_serial_t key);
+
+     This assumes or divests the authority required to instantiate the
+     specified key. Authority can only be assumed if the thread has the
+     authorisation key associated with the specified key in its keyrings
+     somewhere.
+
+     Once authority is assumed, searches for keys will also search the
+     requester's keyrings using the requester's security label, UID, GID and
+     groups.
+
+     If the requested authority is unavailable, error EPERM will be returned,
+     likewise if the authority has been revoked because the target key is
+     already instantiated.
+
+     If the specified key is 0, then any assumed authority will be divested.
+
+     The assumed authorititive key is inherited across fork and exec.
 
 
 ===============
@@ -856,24 +897,6 @@ The structure has a number of fields, some of which are mandatory:
      This method does not have to lock the key in order to attach a payload.
      The fact that KEY_FLAG_INSTANTIATED is not set in key->flags prevents
      anything else from gaining access to the key.
-
-     It is safe to sleep in this method.
-
-
- (*) int (*duplicate)(struct key *key, const struct key *source);
-
-     If this type of key can be duplicated, then this method should be
-     provided. It is called to copy the payload attached to the source into the
-     new key. The data length on the new key will have been updated and the
-     quota adjusted already.
-
-     This method will be called with the source key's semaphore read-locked to
-     prevent its payload from being changed, thus RCU constraints need not be
-     applied to the source key.
-
-     This method does not have to lock the destination key in order to attach a
-     payload. The fact that KEY_FLAG_INSTANTIATED is not set in key->flags
-     prevents anything else from gaining access to the key.
 
      It is safe to sleep in this method.
 

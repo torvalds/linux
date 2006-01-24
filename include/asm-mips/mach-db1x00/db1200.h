@@ -220,5 +220,8 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define BOARD_PC1_INT DB1200_PC1_INT
 #define BOARD_CARD_INSERTED(SOCKET) bcsr->sig_status & (1<<(8+(2*SOCKET)))
 
+/* Nand chip select */
+#define NAND_CS 1
+
 #endif /* __ASM_DB1200_H */
 

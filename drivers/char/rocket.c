@@ -325,19 +325,16 @@ static void rp_do_receive(struct r_port *info,
 {
 	unsigned int CharNStat;
 	int ToRecv, wRecv, space = 0, count;
-	unsigned char *cbuf;
-	char *fbuf;
+	unsigned char *cbuf, *chead;
+	char *fbuf, *fhead;
 	struct tty_ldisc *ld;
 
 	ld = tty_ldisc_ref(tty);
 
 	ToRecv = sGetRxCnt(cp);
-	if (ld)
-		space = ld->receive_room(tty);
+	space = tty->receive_room;
 	if (space > 2 * TTY_FLIPBUF_SIZE)
 		space = 2 * TTY_FLIPBUF_SIZE;
-	cbuf = tty->flip.char_buf;
-	fbuf = tty->flip.flag_buf;
 	count = 0;
 #ifdef ROCKET_DEBUG_INTR
 	printk(KERN_INFO "rp_do_receive(%d, %d)...", ToRecv, space);
@@ -350,8 +347,12 @@ static void rp_do_receive(struct r_port *info,
 	if (ToRecv > space)
 		ToRecv = space;
 
+	ToRecv = tty_prepare_flip_string_flags(tty, &chead, &fhead, ToRecv);
 	if (ToRecv <= 0)
 		goto done;
+
+	cbuf = chead;
+	fbuf = fhead;
 
 	/*
 	 * if status indicates there are errored characters in the
@@ -399,7 +400,7 @@ static void rp_do_receive(struct r_port *info,
 			else if (CharNStat & STMRCVROVRH)
 				*fbuf++ = TTY_OVERRUN;
 			else
-				*fbuf++ = 0;
+				*fbuf++ = TTY_NORMAL;
 			*cbuf++ = CharNStat & 0xff;
 			count++;
 			ToRecv--;
@@ -426,13 +427,13 @@ static void rp_do_receive(struct r_port *info,
 			sInStrW(sGetTxRxDataIO(cp), (unsigned short *) cbuf, wRecv);
 		if (ToRecv & 1)
 			cbuf[ToRecv - 1] = sInB(sGetTxRxDataIO(cp));
-		memset(fbuf, 0, ToRecv);
+		memset(fbuf, TTY_NORMAL, ToRecv);
 		cbuf += ToRecv;
 		fbuf += ToRecv;
 		count += ToRecv;
 	}
 	/*  Push the data up to the tty layer */
-	ld->receive_buf(tty, tty->flip.char_buf, tty->flip.flag_buf, count);
+	ld->receive_buf(tty, cbuf, fbuf, count);
 done:
 	tty_ldisc_deref(ld);
 }

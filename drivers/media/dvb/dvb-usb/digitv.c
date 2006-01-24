@@ -32,7 +32,7 @@ static int digitv_ctrl_msg(struct dvb_usb_device *d,
 	sndbuf[1] = vv;
 	sndbuf[2] = wo ? wlen : rlen;
 
-	if (!wo) {
+	if (wo) {
 		memcpy(&sndbuf[3],wbuf,wlen);
 		dvb_usb_generic_write(d,sndbuf,7);
 	} else {
@@ -148,7 +148,7 @@ static struct dvb_usb_rc_key digitv_rc_keys[] = {
 };
 
 /* TODO is it really the NEC protocol ? */
-int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[5];
 
@@ -233,7 +233,6 @@ static struct dvb_usb_properties digitv_properties = {
 };
 
 static struct usb_driver digitv_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_digitv",
 	.probe		= digitv_probe,
 	.disconnect = dvb_usb_device_exit,

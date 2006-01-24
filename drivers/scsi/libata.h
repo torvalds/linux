@@ -29,9 +29,11 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"1.12"	/* must be exactly four chars */
+#define DRV_VERSION	"1.20"	/* must be exactly four chars */
 
 struct ata_scsi_args {
+	struct ata_port		*ap;
+	struct ata_device	*dev;
 	u16			*id;
 	struct scsi_cmnd	*cmd;
 	void			(*done)(struct scsi_cmnd *);
@@ -39,10 +41,9 @@ struct ata_scsi_args {
 
 /* libata-core.c */
 extern int atapi_enabled;
-extern int ata_qc_complete_noop(struct ata_queued_cmd *qc, unsigned int err_mask);
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
-extern void ata_rwcmd_protocol(struct ata_queued_cmd *qc);
+extern int ata_rwcmd_protocol(struct ata_queued_cmd *qc);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
 extern int ata_qc_issue(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
@@ -54,8 +55,6 @@ extern int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg);
 
 
 /* libata-scsi.c */
-extern void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
-			 struct scsi_cmnd *cmd);
 extern void ata_scsi_scan_host(struct ata_port *ap);
 extern int ata_scsi_error(struct Scsi_Host *host);
 extern unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,

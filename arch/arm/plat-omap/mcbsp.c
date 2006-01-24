@@ -19,6 +19,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/delay.h>
 #include <asm/io.h>
@@ -29,8 +30,6 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/dsp_common.h>
 #include <asm/arch/mcbsp.h>
-
-#include <asm/hardware/clock.h>
 
 #ifdef CONFIG_MCBSP_DEBUG
 #define DBG(x...)	printk(x)
@@ -191,11 +190,11 @@ static int omap_mcbsp_check(unsigned int id)
 static void omap_mcbsp_dsp_request(void)
 {
 	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
-		clk_use(mcbsp_dsp_ck);
-		clk_use(mcbsp_api_ck);
+		clk_enable(mcbsp_dsp_ck);
+		clk_enable(mcbsp_api_ck);
 
 		/* enable 12MHz clock to mcbsp 1 & 3 */
-		clk_use(mcbsp_dspxor_ck);
+		clk_enable(mcbsp_dspxor_ck);
 
 		/*
 		 * DSP external peripheral reset
@@ -209,9 +208,9 @@ static void omap_mcbsp_dsp_request(void)
 static void omap_mcbsp_dsp_free(void)
 {
 	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
-		clk_unuse(mcbsp_dspxor_ck);
-		clk_unuse(mcbsp_dsp_ck);
-		clk_unuse(mcbsp_api_ck);
+		clk_disable(mcbsp_dspxor_ck);
+		clk_disable(mcbsp_dsp_ck);
+		clk_disable(mcbsp_api_ck);
 	}
 }
 

@@ -28,6 +28,7 @@
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/sched.h>
 #include <linux/file.h>
 
 #include <net/sock.h>
@@ -424,7 +425,7 @@ static void xs_close(struct rpc_xprt *xprt)
 	struct sock *sk = xprt->inet;
 
 	if (!sk)
-		return;
+		goto clear_close_wait;
 
 	dprintk("RPC:      xs_close xprt %p\n", xprt);
 
@@ -441,6 +442,10 @@ static void xs_close(struct rpc_xprt *xprt)
 	sk->sk_no_check = 0;
 
 	sock_release(sock);
+clear_close_wait:
+	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
+	smp_mb__after_clear_bit();
 }
 
 /**
@@ -800,9 +805,13 @@ static void xs_tcp_state_change(struct sock *sk)
 	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:
 		break;
+	case TCP_CLOSE_WAIT:
+		/* Try to schedule an autoclose RPC calls */
+		set_bit(XPRT_CLOSE_WAIT, &xprt->state);
+		if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
+			schedule_work(&xprt->task_cleanup);
 	default:
 		xprt_disconnect(xprt);
-		break;
 	}
  out:
 	read_unlock(&sk->sk_callback_lock);
@@ -920,6 +929,18 @@ static void xs_udp_timer(struct rpc_task *task)
 	xprt_adjust_cwnd(task, -ETIMEDOUT);
 }
 
+/**
+ * xs_set_port - reset the port number in the remote endpoint address
+ * @xprt: generic transport
+ * @port: new port number
+ *
+ */
+static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
+{
+	dprintk("RPC:      setting port for xprt %p to %u\n", xprt, port);
+	xprt->addr.sin_port = htons(port);
+}
+
 static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
@@ -990,6 +1011,7 @@ static void xs_udp_connect_worker(void *args)
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
 		sk->sk_no_check = UDP_CSUM_NORCV;
+		sk->sk_allocation = GFP_ATOMIC;
 
 		xprt_set_connected(xprt);
 
@@ -1074,6 +1096,7 @@ static void xs_tcp_connect_worker(void *args)
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
+		sk->sk_allocation = GFP_ATOMIC;
 
 		/* socket options */
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
@@ -1158,7 +1181,10 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
 	.release_xprt		= xprt_release_xprt_cong,
+	.set_port		= xs_set_port,
 	.connect		= xs_connect,
+	.buf_alloc		= rpc_malloc,
+	.buf_free		= rpc_free,
 	.send_request		= xs_udp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_rtt,
 	.timer			= xs_udp_timer,
@@ -1170,7 +1196,10 @@ static struct rpc_xprt_ops xs_udp_ops = {
 static struct rpc_xprt_ops xs_tcp_ops = {
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xprt_release_xprt,
+	.set_port		= xs_set_port,
 	.connect		= xs_connect,
+	.buf_alloc		= rpc_malloc,
+	.buf_free		= rpc_free,
 	.send_request		= xs_tcp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
 	.close			= xs_close,

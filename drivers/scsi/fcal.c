@@ -70,7 +70,7 @@ static unsigned char target2alpa[] = {
 
 static int fcal_encode_addr(Scsi_Cmnd *SCpnt, u16 *addr, fc_channel *fc, fcp_cmnd *fcmd);
 
-int fcal_slave_configure(Scsi_Device *device)
+int fcal_slave_configure(struct scsi_device *device)
 {
 	int depth_to_use;
 	
@@ -89,7 +89,7 @@ int fcal_slave_configure(Scsi_Device *device)
 
 /* Detect all FC Arbitrated Loops attached to the machine.
    fc4 module has done all the work for us... */
-int __init fcal_detect(Scsi_Host_Template *tpnt)
+int __init fcal_detect(struct scsi_host_template *tpnt)
 {
 	int nfcals = 0;
 	fc_channel *fc;
@@ -244,7 +244,7 @@ int fcal_proc_info (struct Scsi_Host *host, char *buffer, char **start, off_t of
 			SPRINTF ("  [AL-PA: %02x, Port WWN: %08x%08x, Node WWN: %08x%08x] Not responded to PRLI\n",
 				 alpa, u1[0], u1[1], u2[0], u2[1]);
 		} else {
-			Scsi_Device *scd;
+			struct scsi_device *scd;
 			shost_for_each_device(scd, host)
 				if (scd->id == target) {
 					SPRINTF ("  [AL-PA: %02x, Id: %02d, Port WWN: %08x%08x, Node WWN: %08x%08x]  ",
@@ -297,7 +297,7 @@ static int fcal_encode_addr(Scsi_Cmnd *SCpnt, u16 *addr, fc_channel *fc, fcp_cmn
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= "Fibre Channel Arbitrated Loop",
 	.detect			= fcal_detect,
 	.release		= fcal_release,	

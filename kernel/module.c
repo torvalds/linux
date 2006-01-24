@@ -28,6 +28,7 @@
 #include <linux/syscalls.h>
 #include <linux/fcntl.h>
 #include <linux/rcupdate.h>
+#include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
@@ -496,15 +497,15 @@ static void module_unload_free(struct module *mod)
 }
 
 #ifdef CONFIG_MODULE_FORCE_UNLOAD
-static inline int try_force(unsigned int flags)
+static inline int try_force_unload(unsigned int flags)
 {
 	int ret = (flags & O_TRUNC);
 	if (ret)
-		add_taint(TAINT_FORCED_MODULE);
+		add_taint(TAINT_FORCED_RMMOD);
 	return ret;
 }
 #else
-static inline int try_force(unsigned int flags)
+static inline int try_force_unload(unsigned int flags)
 {
 	return 0;
 }
@@ -524,7 +525,7 @@ static int __try_stop_module(void *_sref)
 
 	/* If it's not unused, quit unless we are told to block. */
 	if ((sref->flags & O_NONBLOCK) && module_refcount(sref->mod) != 0) {
-		if (!(*sref->forced = try_force(sref->flags)))
+		if (!(*sref->forced = try_force_unload(sref->flags)))
 			return -EWOULDBLOCK;
 	}
 
@@ -609,7 +610,7 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 	/* If it has an init func, it must have an exit func to unload */
 	if ((mod->init != NULL && mod->exit == NULL)
 	    || mod->unsafe) {
-		forced = try_force(flags);
+		forced = try_force_unload(flags);
 		if (!forced) {
 			/* This module can't be removed */
 			ret = -EBUSY;
@@ -958,7 +959,6 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 	unsigned long ret;
 	const unsigned long *crc;
 
-	spin_lock_irq(&modlist_lock);
 	ret = __find_symbol(name, &owner, &crc, mod->license_gplok);
 	if (ret) {
 		/* use_module can fail due to OOM, or module unloading */
@@ -966,7 +966,6 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 		    !use_module(mod, owner))
 			ret = 0;
 	}
-	spin_unlock_irq(&modlist_lock);
 	return ret;
 }
 
@@ -1203,6 +1202,39 @@ void *__symbol_get(const char *symbol)
 	return (void *)value;
 }
 EXPORT_SYMBOL_GPL(__symbol_get);
+
+/*
+ * Ensure that an exported symbol [global namespace] does not already exist
+ * in the Kernel or in some other modules exported symbol table.
+ */
+static int verify_export_symbols(struct module *mod)
+{
+	const char *name = NULL;
+	unsigned long i, ret = 0;
+	struct module *owner;
+	const unsigned long *crc;
+
+	for (i = 0; i < mod->num_syms; i++)
+	        if (__find_symbol(mod->syms[i].name, &owner, &crc, 1)) {
+			name = mod->syms[i].name;
+			ret = -ENOEXEC;
+			goto dup;
+		}
+
+	for (i = 0; i < mod->num_gpl_syms; i++)
+	        if (__find_symbol(mod->gpl_syms[i].name, &owner, &crc, 1)) {
+			name = mod->gpl_syms[i].name;
+			ret = -ENOEXEC;
+			goto dup;
+		}
+
+dup:
+	if (ret)
+		printk(KERN_ERR "%s: exports duplicate symbol %s (owned by %s)\n",
+			mod->name, name, module_name(owner));
+
+	return ret;
+}
 
 /* Change all symbols so that sh_value encodes the pointer directly. */
 static int simplify_symbols(Elf_Shdr *sechdrs,
@@ -1715,6 +1747,11 @@ static struct module *load_module(void __user *umod,
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
+	if (strcmp(mod->name, "ndiswrapper") == 0)
+		add_taint(TAINT_PROPRIETARY_MODULE);
+	if (strcmp(mod->name, "driverloader") == 0)
+		add_taint(TAINT_PROPRIETARY_MODULE);
+
 #ifdef CONFIG_MODULE_UNLOAD
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
@@ -1766,6 +1803,12 @@ static struct module *load_module(void __user *umod,
 		if (err < 0)
 			goto cleanup;
 	}
+
+        /* Find duplicate symbols */
+	err = verify_export_symbols(mod);
+
+	if (err < 0)
+		goto cleanup;
 
   	/* Set up and sort exception table */
 	mod->num_exentries = sechdrs[exindex].sh_size / sizeof(*mod->extable);
@@ -1854,8 +1897,7 @@ static struct module *load_module(void __user *umod,
 	kfree(args);
  free_hdr:
 	vfree(hdr);
-	if (err < 0) return ERR_PTR(err);
-	else return ptr;
+	return ERR_PTR(err);
 
  truncated:
 	printk(KERN_ERR "Module len %lu truncated\n", len);

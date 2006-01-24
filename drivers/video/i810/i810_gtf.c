@@ -14,6 +14,7 @@
 
 #include "i810_regs.h"
 #include "i810.h"
+#include "i810_main.h"
 
 /*
  * FIFO and Watermark tables - based almost wholly on i810_wmark.c in 

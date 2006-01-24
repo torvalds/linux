@@ -371,6 +371,11 @@ static struct agp_device_ids via_agp_device_ids[] __devinitdata =
 		.device_id	= PCI_DEVICE_ID_VIA_3296_0,
 		.chipset_name	= "P4M800",
 	},
+	/* P4M800CE */
+	{
+		.device_id	= PCI_DEVICE_ID_VIA_P4M800CE,
+		.chipset_name	= "P4M800CE",
+	},
 
 	{ }, /* dummy final entry, always present */
 };
@@ -511,6 +516,7 @@ static struct pci_device_id agp_via_pci_table[] = {
 	ID(PCI_DEVICE_ID_VIA_3269_0),
 	ID(PCI_DEVICE_ID_VIA_83_87XX_1),
 	ID(PCI_DEVICE_ID_VIA_3296_0),
+	ID(PCI_DEVICE_ID_VIA_P4M800CE),
 	{ }
 };
 

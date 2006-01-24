@@ -514,7 +514,7 @@ int __init w100fb_probe(struct platform_device *pdev)
 	if (remapped_fbuf == NULL)
 		goto out;
 
-	info=framebuffer_alloc(sizeof(struct w100fb_par), dev);
+	info=framebuffer_alloc(sizeof(struct w100fb_par), &pdev->dev);
 	if (!info) {
 		err = -ENOMEM;
 		goto out;

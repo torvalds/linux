@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <asm/semaphore.h>
+
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 
@@ -183,6 +184,58 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
+/* The new pinnacle PCTV remote (with the colored buttons)
+ *
+ * Ricardo Cerqueira <v4l@cerqueira.org>
+ */
+
+int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char b[4];
+	unsigned int start = 0,parity = 0,code = 0;
+
+	/* poll IR chip */
+	if (4 != i2c_master_recv(&ir->c,b,4)) {
+		dprintk(2,"read error\n");
+		return -EIO;
+	}
+
+	for (start = 0; start<4; start++) {
+		if (b[start] == 0x80) {
+			code=b[(start+3)%4];
+			parity=b[(start+2)%4];
+		}
+	}
+
+	/* Empty Request */
+	if (parity==0)
+		return 0;
+
+	/* Repeating... */
+	if (ir->old == parity)
+		return 0;
+
+
+	ir->old = parity;
+
+	/* Reduce code value to fit inside IR_KEYTAB_SIZE
+	 *
+	 * this is the only value that results in 42 unique
+	 * codes < 128
+	 */
+
+	code %= 0x88;
+
+	*ir_raw = code;
+	*ir_key = code;
+
+	dprintk(1,"Pinnacle PCTV key %02x\n", code);
+
+	return 1;
+}
+
+EXPORT_SYMBOL_GPL(get_key_pinnacle);
+
 /* ----------------------------------------------------------------------- */
 
 static void ir_key_poll(struct IR_i2c *ir)
@@ -225,9 +278,10 @@ static int ir_detach(struct i2c_client *client);
 static int ir_probe(struct i2c_adapter *adap);
 
 static struct i2c_driver driver = {
-	.name           = "ir remote kbd driver",
-	.id             = I2C_DRIVERID_EXP3, /* FIXME */
-	.flags          = I2C_DF_NOTIFY,
+	.driver = {
+		.name   = "ir-kbd-i2c",
+	},
+	.id             = I2C_DRIVERID_INFRARED,
 	.attach_adapter = ir_probe,
 	.detach_client  = ir_detach,
 };
@@ -244,23 +298,25 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	char *name;
 	int ir_type;
-        struct IR_i2c *ir;
+	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 
-	ir = kzalloc(sizeof(struct IR_i2c), GFP_KERNEL);
+	ir = kzalloc(sizeof(struct IR_i2c),GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ir || !input_dev) {
-		kfree(ir);
 		input_free_device(input_dev);
-                return -ENOMEM;
+		kfree(ir);
+		return -ENOMEM;
 	}
+	memset(ir,0,sizeof(*ir));
 
 	ir->c = client_template;
 	ir->input = input_dev;
 
-	i2c_set_clientdata(&ir->c, ir);
 	ir->c.adapter = adap;
 	ir->c.addr    = addr;
+
+	i2c_set_clientdata(&ir->c, ir);
 
 	switch(addr) {
 	case 0x64:
@@ -308,7 +364,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	/* register i2c device
 	 * At device register, IR codes may be changed to be
 	 * board dependent.
-	*/
+	 */
 	i2c_attach_client(&ir->c);
 
 	/* If IR not supported or disabled, unregisters driver */
@@ -324,13 +380,15 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		 ir->c.dev.bus_id);
 
 	/* init + register input device */
-	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
-	input_dev->id.bustype	= BUS_I2C;
-	input_dev->name		= ir->c.name;
-	input_dev->phys		= ir->phys;
+	ir_input_init(input_dev,&ir->ir,ir_type,ir->ir_codes);
+	input_dev->id.bustype = BUS_I2C;
+	input_dev->name       = ir->c.name;
+	input_dev->phys       = ir->phys;
 
 	/* register event device */
 	input_register_device(ir->input);
+	printk(DEVNAME ": %s detected at %s [%s]\n",
+	       ir->input->name,ir->input->phys,adap->name);
 
 	/* start polling via eventd */
 	INIT_WORK(&ir->work, ir_work, ir);

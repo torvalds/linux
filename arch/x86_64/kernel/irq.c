@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/io_apic.h>
+#include <asm/idle.h>
 
 atomic_t irq_err_count;
 #ifdef CONFIG_X86_IO_APIC
@@ -69,13 +70,13 @@ skip:
 		seq_printf(p, "NMI: ");
 		for (j = 0; j < NR_CPUS; j++)
 			if (cpu_online(j))
-				seq_printf(p, "%10u ", cpu_pda[j].__nmi_count);
+				seq_printf(p, "%10u ", cpu_pda(j)->__nmi_count);
 		seq_putc(p, '\n');
 #ifdef CONFIG_X86_LOCAL_APIC
 		seq_printf(p, "LOC: ");
 		for (j = 0; j < NR_CPUS; j++)
 			if (cpu_online(j))
-				seq_printf(p, "%10u ", cpu_pda[j].apic_timer_irqs);
+				seq_printf(p, "%10u ", cpu_pda(j)->apic_timer_irqs);
 		seq_putc(p, '\n');
 #endif
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
@@ -98,6 +99,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	/* high bits used in ret_from_ code  */
 	unsigned irq = regs->orig_rax & 0xff;
 
+	exit_idle();
 	irq_enter();
 
 	__do_IRQ(irq, regs);

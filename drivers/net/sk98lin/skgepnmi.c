@@ -611,7 +611,7 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
  * Description:
  *	Calls a general sub-function for all this stuff. The preset does
  *	the same as a set, but returns just before finally setting the
- *	new value. This is usefull to check if a set might be successfull.
+ *	new value. This is useful to check if a set might be successfull.
  *	If the instance -1 is passed, an array of values is supposed and
  *	all instances of the OID will be set.
  *
@@ -654,7 +654,7 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
  * Description:
  *	Calls a general sub-function for all this stuff. The preset does
  *	the same as a set, but returns just before finally setting the
- *	new value. This is usefull to check if a set might be successfull.
+ *	new value. This is useful to check if a set might be successfull.
  *	If the instance -1 is passed, an array of values is supposed and
  *	all instances of the OID will be set.
  *
@@ -870,7 +870,7 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
  * Description:
  *	Calls a general sub-function for all this set stuff. The preset does
  *	the same as a set, but returns just before finally setting the
- *	new value. This is usefull to check if a set might be successfull.
+ *	new value. This is useful to check if a set might be successfull.
  *	The sub-function runs through the IdTable, checks which OIDs are able
  *	to set, and calls the handler function of the OID to perform the
  *	preset. The return value of the function will also be stored in
@@ -6473,7 +6473,7 @@ unsigned int PhysPortIndex)	/* Physical port index */
  *
  * Description:
  *	The COMMON module only tells us if the mode is half or full duplex.
- *	But in the decade of auto sensing it is usefull for the user to
+ *	But in the decade of auto sensing it is useful for the user to
  *	know if the mode was negotiated or forced. Therefore we have a
  *	look to the mode, which was last used by the negotiation process.
  *

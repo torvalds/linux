@@ -197,7 +197,7 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 	case IPPROTO_ICMP: {
 		struct icmphdr _icmph, *ich;
-		static size_t required_len[NR_ICMP_TYPES+1]
+		static const size_t required_len[NR_ICMP_TYPES+1]
 			= { [ICMP_ECHOREPLY] = 4,
 			    [ICMP_DEST_UNREACH]
 			    = 8 + sizeof(struct iphdr),
@@ -351,7 +351,7 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
-struct nf_loginfo default_loginfo = {
+static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
@@ -431,7 +431,7 @@ ipt_log_target(struct sk_buff **pskb,
 }
 
 static int ipt_log_checkentry(const char *tablename,
-			      const struct ipt_entry *e,
+			      const void *e,
 			      void *targinfo,
 			      unsigned int targinfosize,
 			      unsigned int hook_mask)

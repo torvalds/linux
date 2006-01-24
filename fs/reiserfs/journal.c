@@ -1039,6 +1039,10 @@ static int flush_commit_list(struct super_block *s,
 	}
 	atomic_dec(&journal->j_async_throttle);
 
+	/* We're skipping the commit if there's an error */
+	if (retval || reiserfs_is_journal_aborted(journal))
+		barrier = 0;
+
 	/* wait on everything written so far before writing the commit
 	 * if we are in barrier mode, send the commit down now
 	 */
@@ -1077,10 +1081,16 @@ static int flush_commit_list(struct super_block *s,
 	BUG_ON(atomic_read(&(jl->j_commit_left)) != 1);
 
 	if (!barrier) {
-		if (buffer_dirty(jl->j_commit_bh))
-			BUG();
-		mark_buffer_dirty(jl->j_commit_bh);
-		sync_dirty_buffer(jl->j_commit_bh);
+		/* If there was a write error in the journal - we can't commit
+		 * this transaction - it will be invalid and, if successful,
+		 * will just end up propogating the write error out to
+		 * the file system. */
+		if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
+			if (buffer_dirty(jl->j_commit_bh))
+				BUG();
+			mark_buffer_dirty(jl->j_commit_bh) ;
+			sync_dirty_buffer(jl->j_commit_bh) ;
+		}
 	} else
 		wait_on_buffer(jl->j_commit_bh);
 
@@ -2757,6 +2767,15 @@ int journal_init(struct super_block *p_s_sb, const char *j_dev_name,
 	journal->j_cnode_used = 0;
 	journal->j_must_wait = 0;
 
+	if (journal->j_cnode_free == 0) {
+        	reiserfs_warning(p_s_sb, "journal-2004: Journal cnode memory "
+		                 "allocation failed (%ld bytes). Journal is "
+		                 "too large for available memory. Usually "
+		                 "this is due to a journal that is too large.",
+		                 sizeof (struct reiserfs_journal_cnode) * num_cnodes);
+        	goto free_and_return;
+	}
+
 	init_journal_hash(p_s_sb);
 	jl = journal->j_current_jl;
 	jl->j_list_bitmap = get_list_bitmap(p_s_sb, jl);
@@ -3906,10 +3925,13 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 		flush = 1;
 	}
 #ifdef REISERFS_PREALLOCATE
-	/* quota ops might need to nest, setup the journal_info pointer for them */
+	/* quota ops might need to nest, setup the journal_info pointer for them
+	 * and raise the refcount so that it is > 0. */
 	current->journal_info = th;
+	th->t_refcount++;
 	reiserfs_discard_all_prealloc(th);	/* it should not involve new blocks into
 						 * the transaction */
+	th->t_refcount--;
 	current->journal_info = th->t_handle_save;
 #endif
 

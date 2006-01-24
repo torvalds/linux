@@ -45,7 +45,7 @@
 
 #ifndef ASM
 static int generic_NCR5380_abort(Scsi_Cmnd *);
-static int generic_NCR5380_detect(Scsi_Host_Template *);
+static int generic_NCR5380_detect(struct scsi_host_template *);
 static int generic_NCR5380_release_resources(struct Scsi_Host *);
 static int generic_NCR5380_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int generic_NCR5380_bus_reset(Scsi_Cmnd *);

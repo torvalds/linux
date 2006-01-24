@@ -1,13 +1,10 @@
-/**************************************************************************
- *             Copyright (C) 2005, Silicon Graphics, Inc.                 *
- *									  *
- *  These coded instructions, statements, and computer programs	 contain  *
- *  unpublished	 proprietary  information of Silicon Graphics, Inc., and  *
- *  are protected by Federal copyright law.  They  may	not be disclosed  *
- *  to	third  parties	or copied or duplicated in any form, in whole or  *
- *  in part, without the prior written consent of Silicon Graphics, Inc.  *
- *									  *
- **************************************************************************/
+/*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (c) 2003-2005 Silicon Graphics, Inc. All rights reserved.
+ */
 
 #ifndef _ASM_IA64_SN_CE_PROVIDER_H
 #define _ASM_IA64_SN_CE_PROVIDER_H
@@ -24,9 +21,9 @@
 struct tioce_common {
 	struct pcibus_bussoft	ce_pcibus;	/* common pciio header */
 
-	uint32_t		ce_rev;
-	uint64_t		ce_kernel_private;
-	uint64_t		ce_prom_private;
+	u32		ce_rev;
+	u64		ce_kernel_private;
+	u64		ce_prom_private;
 };
 
 struct tioce_kernel {
@@ -34,31 +31,31 @@ struct tioce_kernel {
 	spinlock_t		ce_lock;
 	struct list_head	ce_dmamap_list;
 
-	uint64_t		ce_ate40_shadow[TIOCE_NUM_M40_ATES];
-	uint64_t		ce_ate3240_shadow[TIOCE_NUM_M3240_ATES];
-	uint32_t		ce_ate3240_pagesize;
+	u64		ce_ate40_shadow[TIOCE_NUM_M40_ATES];
+	u64		ce_ate3240_shadow[TIOCE_NUM_M3240_ATES];
+	u32		ce_ate3240_pagesize;
 
-	uint8_t			ce_port1_secondary;
+	u8			ce_port1_secondary;
 
 	/* per-port resources */
 	struct {
 		int 		dirmap_refcnt;
-		uint64_t	dirmap_shadow;
+		u64	dirmap_shadow;
 	} ce_port[TIOCE_NUM_PORTS];
 };
 
 struct tioce_dmamap {
 	struct list_head	ce_dmamap_list;	/* headed by tioce_kernel */
-	uint32_t		refcnt;
+	u32		refcnt;
 
-	uint64_t		nbytes;		/* # bytes mapped */
+	u64		nbytes;		/* # bytes mapped */
 
-	uint64_t		ct_start;	/* coretalk start address */
-	uint64_t		pci_start;	/* bus start address */
+	u64		ct_start;	/* coretalk start address */
+	u64		pci_start;	/* bus start address */
 
-	uint64_t		*ate_hw;	/* hw ptr of first ate in map */
-	uint64_t		*ate_shadow;	/* shadow ptr of firat ate */
-	uint16_t		ate_count;	/* # ate's in the map */
+	u64		*ate_hw;	/* hw ptr of first ate in map */
+	u64		*ate_shadow;	/* shadow ptr of firat ate */
+	u16		ate_count;	/* # ate's in the map */
 };
 
 extern int tioce_init_provider(void);

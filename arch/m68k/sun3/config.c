@@ -160,9 +160,6 @@ void __init config_sun3(void)
 	mach_hwclk           =  sun3_hwclk;
 	mach_halt	     =  sun3_halt;
 	mach_get_hardware_list = sun3_get_hardware_list;
-#if defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp	     = &dummy_con;
-#endif
 
 	memory_start = ((((int)&_end) + 0x2000) & ~0x1fff);
 // PROM seems to want the last couple of physical pages. --m

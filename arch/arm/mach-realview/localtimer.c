@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/smp.h>
+#include <linux/jiffies.h>
 
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_twd.h>
@@ -20,8 +21,6 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-
-#include "core.h"
 
 #define TWD_BASE(cpu)	(__io_address(REALVIEW_TWD_BASE) + \
 			 ((cpu) * REALVIEW_TWD_SIZE))

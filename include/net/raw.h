@@ -19,6 +19,8 @@
 
 #include <linux/config.h>
 
+#include <net/protocol.h>
+
 extern struct proto raw_prot;
 
 extern void 	raw_err(struct sock *, struct sk_buff *, u32 info);

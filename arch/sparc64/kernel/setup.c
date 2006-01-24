@@ -520,7 +520,7 @@ void __init setup_arch(char **cmdline_p)
 	rd_doload = ((ram_flags & RAMDISK_LOAD_FLAG) != 0);	
 #endif
 
-	init_task.thread_info->kregs = &fake_swapper_regs;
+	task_thread_info(&init_task)->kregs = &fake_swapper_regs;
 
 #ifdef CONFIG_IP_PNP
 	if (!ic_set_manually) {
@@ -561,6 +561,8 @@ static int __init set_preferred_console(void)
 		serial_console = 1;
 	} else if (idev == PROMDEV_ITTYB && odev == PROMDEV_OTTYB) {
 		serial_console = 2;
+	} else if (idev == PROMDEV_IRSC && odev == PROMDEV_ORSC) {
+		serial_console = 3;
 	} else {
 		prom_printf("Inconsistent console: "
 			    "input %d, output %d\n",
@@ -587,6 +589,8 @@ extern void mmu_info(struct seq_file *);
 unsigned int dcache_parity_tl1_occurred;
 unsigned int icache_parity_tl1_occurred;
 
+static int ncpus_probed;
+
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
 	seq_printf(m, 
@@ -595,8 +599,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "promlib\t\t: Version 3 Revision %d\n"
 		   "prom\t\t: %d.%d.%d\n"
 		   "type\t\t: sun4u\n"
-		   "ncpus probed\t: %ld\n"
-		   "ncpus active\t: %ld\n"
+		   "ncpus probed\t: %d\n"
+		   "ncpus active\t: %d\n"
 		   "D$ parity tl1\t: %u\n"
 		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
@@ -610,8 +614,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   prom_prev >> 16,
 		   (prom_prev >> 8) & 0xff,
 		   prom_prev & 0xff,
-		   (long)num_possible_cpus(),
-		   (long)num_online_cpus(),
+		   ncpus_probed,
+		   num_online_cpus(),
 		   dcache_parity_tl1_occurred,
 		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
@@ -677,6 +681,15 @@ static int __init topology_init(void)
 	int i, err;
 
 	err = -ENOMEM;
+
+	/* Count the number of physically present processors in
+	 * the machine, even on uniprocessor, so that /proc/cpuinfo
+	 * output is consistent with 2.4.x
+	 */
+	ncpus_probed = 0;
+	while (!cpu_find_by_instance(ncpus_probed, NULL, NULL))
+		ncpus_probed++;
+
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_possible(i)) {
 			struct cpu *p = kmalloc(sizeof(*p), GFP_KERNEL);

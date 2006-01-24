@@ -38,6 +38,7 @@
 #include <net/protocol.h>
 #include <net/tcp.h>
 #include <net/udp.h>
+#include <linux/inetdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/sock.h>
@@ -98,7 +99,7 @@ fold_field(void *mib[], int offt)
 }
 
 /* snmp items */
-static struct snmp_mib snmp4_ipstats_list[] = {
+static const struct snmp_mib snmp4_ipstats_list[] = {
 	SNMP_MIB_ITEM("InReceives", IPSTATS_MIB_INRECEIVES),
 	SNMP_MIB_ITEM("InHdrErrors", IPSTATS_MIB_INHDRERRORS),
 	SNMP_MIB_ITEM("InAddrErrors", IPSTATS_MIB_INADDRERRORS),
@@ -119,7 +120,7 @@ static struct snmp_mib snmp4_ipstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp4_icmp_list[] = {
+static const struct snmp_mib snmp4_icmp_list[] = {
 	SNMP_MIB_ITEM("InMsgs", ICMP_MIB_INMSGS),
 	SNMP_MIB_ITEM("InErrors", ICMP_MIB_INERRORS),
 	SNMP_MIB_ITEM("InDestUnreachs", ICMP_MIB_INDESTUNREACHS),
@@ -149,7 +150,7 @@ static struct snmp_mib snmp4_icmp_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp4_tcp_list[] = {
+static const struct snmp_mib snmp4_tcp_list[] = {
 	SNMP_MIB_ITEM("RtoAlgorithm", TCP_MIB_RTOALGORITHM),
 	SNMP_MIB_ITEM("RtoMin", TCP_MIB_RTOMIN),
 	SNMP_MIB_ITEM("RtoMax", TCP_MIB_RTOMAX),
@@ -167,7 +168,7 @@ static struct snmp_mib snmp4_tcp_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp4_udp_list[] = {
+static const struct snmp_mib snmp4_udp_list[] = {
 	SNMP_MIB_ITEM("InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("InErrors", UDP_MIB_INERRORS),
@@ -175,7 +176,7 @@ static struct snmp_mib snmp4_udp_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp4_net_list[] = {
+static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("SyncookiesSent", LINUX_MIB_SYNCOOKIESSENT),
 	SNMP_MIB_ITEM("SyncookiesRecv", LINUX_MIB_SYNCOOKIESRECV),
 	SNMP_MIB_ITEM("SyncookiesFailed", LINUX_MIB_SYNCOOKIESFAILED),

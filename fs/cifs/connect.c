@@ -76,12 +76,19 @@ struct smb_vol {
 	unsigned setuids:1;
 	unsigned noperm:1;
 	unsigned no_psx_acl:1; /* set if posix acl support should be disabled */
+	unsigned cifs_acl:1;
 	unsigned no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	unsigned server_ino:1; /* use inode numbers from server ie UniqueId */
 	unsigned direct_io:1;
 	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
 	unsigned sfu_emul:1;
+	unsigned krb5:1;
+	unsigned ntlm:1;
+	unsigned ntlmv2:1;
+	unsigned nullauth:1; /* attempt to authenticate with null user */
+	unsigned sign:1;
+	unsigned seal:1;     /* encrypt */
 	unsigned nocase;     /* request case insensitive filenames */
 	unsigned nobrl;      /* disable sending byte range locks to srv */
 	unsigned int rsize;
@@ -508,7 +515,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		/* else length ok */
 		reconnect = 0;
 
-		if(pdu_length > MAX_CIFS_HDR_SIZE - 4) {
+		if(pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
 			isLargeBuf = TRUE;
 			memcpy(bigbuf, smallbuf, 4);
 			smb_buffer = bigbuf;
@@ -777,7 +784,7 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
 	vol->rw = TRUE;
-
+	vol->ntlm = TRUE;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
 
@@ -903,6 +910,39 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				printk(KERN_WARNING "CIFS: ip address too long\n");
 				return 1;
 			}
+                } else if (strnicmp(data, "sec", 3) == 0) { 
+                        if (!value || !*value) {
+				cERROR(1,("no security value specified"));
+                                continue;
+                        } else if (strnicmp(value, "krb5i", 5) == 0) {
+				vol->sign = 1;
+				vol->krb5 = 1;
+			} else if (strnicmp(value, "krb5p", 5) == 0) {
+				/* vol->seal = 1; 
+				   vol->krb5 = 1; */
+				cERROR(1,("Krb5 cifs privacy not supported"));
+				return 1;
+			} else if (strnicmp(value, "krb5", 4) == 0) {
+				vol->krb5 = 1;
+			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
+				vol->ntlmv2 = 1;
+				vol->sign = 1;
+			} else if (strnicmp(value, "ntlmv2", 6) == 0) {
+				vol->ntlmv2 = 1;
+			} else if (strnicmp(value, "ntlmi", 5) == 0) {
+				vol->ntlm = 1;
+				vol->sign = 1;
+			} else if (strnicmp(value, "ntlm", 4) == 0) {
+				/* ntlm is default so can be turned off too */
+				vol->ntlm = 1;
+			} else if (strnicmp(value, "nontlm", 6) == 0) {
+				vol->ntlm = 0;
+			} else if (strnicmp(value, "none", 4) == 0) {
+				vol->nullauth = 1; 
+                        } else {
+                                cERROR(1,("bad security option: %s", value));
+                                return 1;
+                        }
 		} else if ((strnicmp(data, "unc", 3) == 0)
 			   || (strnicmp(data, "target", 6) == 0)
 			   || (strnicmp(data, "path", 4) == 0)) {
@@ -1120,6 +1160,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->server_ino = 1;
 		} else if (strnicmp(data, "noserverino",9) == 0) {
 			vol->server_ino = 0;
+		} else if (strnicmp(data, "cifsacl",7) == 0) {
+			vol->cifs_acl = 1;
+		} else if (strnicmp(data, "nocifsacl", 9) == 0) {
+			vol->cifs_acl = 0;
 		} else if (strnicmp(data, "acl",3) == 0) {
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl",5) == 0) {
@@ -1546,7 +1590,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cFYI(1, ("Username: %s ", volume_info.username));
 
 	} else {
-		cifserror("No username specified ");
+		cifserror("No username specified");
         /* In userspace mount helper we can get user name from alternate
            locations such as env variables and files on disk */
 		kfree(volume_info.UNC);
@@ -1587,7 +1631,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		return -EINVAL;
 	} else /* which servers DFS root would we conect to */ {
 		cERROR(1,
-		       ("CIFS mount error: No UNC path (e.g. -o unc=//192.168.1.100/public) specified  "));
+		       ("CIFS mount error: No UNC path (e.g. -o unc=//192.168.1.100/public) specified"));
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
 		FreeXid(xid);
@@ -1626,7 +1670,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 
 	if (srvTcp) {
-		cFYI(1, ("Existing tcp session with server found "));                
+		cFYI(1, ("Existing tcp session with server found"));                
 	} else {	/* create socket */
 		if(volume_info.port)
 			sin_server.sin_port = htons(volume_info.port);
@@ -1689,11 +1733,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (existingCifsSes) {
 		pSesInfo = existingCifsSes;
-		cFYI(1, ("Existing smb sess found "));
+		cFYI(1, ("Existing smb sess found"));
 		kfree(volume_info.password);
 		/* volume_info.UNC freed at end of function */
 	} else if (!rc) {
-		cFYI(1, ("Existing smb sess not found "));
+		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
 		if (pSesInfo == NULL)
 			rc = -ENOMEM;
@@ -1751,7 +1795,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifs_sb->mnt_gid = volume_info.linux_gid;
 		cifs_sb->mnt_file_mode = volume_info.file_mode;
 		cifs_sb->mnt_dir_mode = volume_info.dir_mode;
-		cFYI(1,("file mode: 0x%x  dir mode: 0x%x",cifs_sb->mnt_file_mode,cifs_sb->mnt_dir_mode));
+		cFYI(1,("file mode: 0x%x  dir mode: 0x%x",
+			cifs_sb->mnt_file_mode,cifs_sb->mnt_dir_mode));
 
 		if(volume_info.noperm)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
@@ -1767,6 +1812,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 		if(volume_info.nobrl)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+		if(volume_info.cifs_acl)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
 
 		if(volume_info.direct_io) {
 			cFYI(1,("mounting share using direct i/o"));
@@ -1777,7 +1824,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		    find_unc(sin_server.sin_addr.s_addr, volume_info.UNC,
 			     volume_info.username);
 		if (tcon) {
-			cFYI(1, ("Found match on UNC path "));
+			cFYI(1, ("Found match on UNC path"));
 			/* we can have only one retry value for a connection
 			   to a share so for resources mounted more than once
 			   to the same server share the last value passed in 
@@ -1926,7 +1973,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	__u32 capabilities;
 	__u16 count;
 
-	cFYI(1, ("In sesssetup "));
+	cFYI(1, ("In sesssetup"));
 	if(ses == NULL)
 		return -EINVAL;
 	user = ses->userName;
@@ -1986,32 +2033,32 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			bytes_returned = 0; /* skill null user */
 	        else
 			bytes_returned =
-			        cifs_strtoUCS((wchar_t *) bcc_ptr, user, 100,
+			        cifs_strtoUCS((__le16 *) bcc_ptr, user, 100,
 					nls_codepage);
 		/* convert number of 16 bit words to bytes */
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;	/* trailing null */
 		if (domain == NULL)
 			bytes_returned =
-			    cifs_strtoUCS((wchar_t *) bcc_ptr,
+			    cifs_strtoUCS((__le16 *) bcc_ptr,
 					  "CIFS_LINUX_DOM", 32, nls_codepage);
 		else
 			bytes_returned =
-			    cifs_strtoUCS((wchar_t *) bcc_ptr, domain, 64,
+			    cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
 					  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, "Linux version ",
+		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, system_utsname.release,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release,
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, CIFS_NETWORK_OPSYS,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
 				  64, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
@@ -2081,7 +2128,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 				if(ses->serverOS == NULL)
 					goto sesssetup_nomem;
 				cifs_strfromUCS_le(ses->serverOS,
-					   (wchar_t *)bcc_ptr, len,nls_codepage);
+					   (__le16 *)bcc_ptr, len,nls_codepage);
 				bcc_ptr += 2 * (len + 1);
 				remaining_words -= len + 1;
 				ses->serverOS[2 * len] = 0;
@@ -2093,7 +2140,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					if(ses->serverNOS == NULL)
 						goto sesssetup_nomem;
 					cifs_strfromUCS_le(ses->serverNOS,
-							   (wchar_t *)bcc_ptr,len,nls_codepage);
+							   (__le16 *)bcc_ptr,len,nls_codepage);
 					bcc_ptr += 2 * (len + 1);
 					ses->serverNOS[2 * len] = 0;
 					ses->serverNOS[1 + (2 * len)] = 0;
@@ -2111,7 +2158,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						if(ses->serverDomain == NULL)
 							goto sesssetup_nomem;
 						cifs_strfromUCS_le(ses->serverDomain,
-						     (wchar_t *)bcc_ptr,len,nls_codepage);
+						     (__le16 *)bcc_ptr,len,nls_codepage);
 						bcc_ptr += 2 * (len + 1);
 						ses->serverDomain[2*len] = 0;
 						ses->serverDomain[1+(2*len)] = 0;
@@ -2255,30 +2302,30 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			bcc_ptr++;
 		}
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, user, 100, nls_codepage);
+		    cifs_strtoUCS((__le16 *) bcc_ptr, user, 100, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;	/* convert num of 16 bit words to bytes */
 		bcc_ptr += 2;	/* trailing null */
 		if (domain == NULL)
 			bytes_returned =
-			    cifs_strtoUCS((wchar_t *) bcc_ptr,
+			    cifs_strtoUCS((__le16 *) bcc_ptr,
 					  "CIFS_LINUX_DOM", 32, nls_codepage);
 		else
 			bytes_returned =
-			    cifs_strtoUCS((wchar_t *) bcc_ptr, domain, 64,
+			    cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
 					  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, "Linux version ",
+		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, system_utsname.release, 32,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release, 32,
 				  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, CIFS_NETWORK_OPSYS,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
 				  64, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;
@@ -2357,7 +2404,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					ses->serverOS =
 					    kzalloc(2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,
-							   (wchar_t *)
+							   (__le16 *)
 							   bcc_ptr, len,
 							   nls_codepage);
 					bcc_ptr += 2 * (len + 1);
@@ -2372,7 +2419,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						    kzalloc(2 * (len + 1),
 							    GFP_KERNEL);
 						cifs_strfromUCS_le(ses->serverNOS,
-								   (wchar_t *)bcc_ptr,
+								   (__le16 *)bcc_ptr,
 								   len,
 								   nls_codepage);
 						bcc_ptr += 2 * (len + 1);
@@ -2384,9 +2431,8 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
                             /* last string is not always null terminated (for e.g. for Windows XP & 2000) */
 							ses->serverDomain = kzalloc(2*(len+1),GFP_KERNEL);
 							cifs_strfromUCS_le(ses->serverDomain,
-							     (wchar_t *)bcc_ptr, 
-                                 len,
-							     nls_codepage);
+							     (__le16 *)bcc_ptr, 
+							     len, nls_codepage);
 							bcc_ptr += 2*(len+1);
 							ses->serverDomain[2*len] = 0;
 							ses->serverDomain[1+(2*len)] = 0;
@@ -2560,16 +2606,16 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 		}
 
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, "Linux version ",
+		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, system_utsname.release, 32,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release, 32,
 				  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;	/* null terminate Linux version */
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, CIFS_NETWORK_OPSYS,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
 				  64, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		*(bcc_ptr + 1) = 0;
@@ -2673,7 +2719,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 					ses->serverOS =
 					    kzalloc(2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,
-							   (wchar_t *)
+							   (__le16 *)
 							   bcc_ptr, len,
 							   nls_codepage);
 					bcc_ptr += 2 * (len + 1);
@@ -2690,7 +2736,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 							    GFP_KERNEL);
 						cifs_strfromUCS_le(ses->
 								   serverNOS,
-								   (wchar_t *)
+								   (__le16 *)
 								   bcc_ptr,
 								   len,
 								   nls_codepage);
@@ -2708,23 +2754,15 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 								     1),
 								    GFP_KERNEL);
 							cifs_strfromUCS_le
-							    (ses->
-							     serverDomain,
-							     (wchar_t *)
-							     bcc_ptr, len,
-							     nls_codepage);
+							    (ses->serverDomain,
+							     (__le16 *)bcc_ptr,
+							     len, nls_codepage);
 							bcc_ptr +=
 							    2 * (len + 1);
-							ses->
-							    serverDomain[2
-									 * len]
+							ses->serverDomain[2*len]
 							    = 0;
-							ses->
-							    serverDomain[1
-									 +
-									 (2
-									  *
-									  len)]
+							ses->serverDomain
+								[1 + (2 * len)]
 							    = 0;
 						} /* else no more room so create dummy domain string */
 						else
@@ -2903,7 +2941,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
 			__u16 len =
-			    cifs_strtoUCS((wchar_t *) bcc_ptr, domain, 64,
+			    cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
 					  nls_codepage);
 			len *= 2;
 			SecurityBlob->DomainName.MaximumLength =
@@ -2921,7 +2959,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
 			__u16 len =
-			    cifs_strtoUCS((wchar_t *) bcc_ptr, user, 64,
+			    cifs_strtoUCS((__le16 *) bcc_ptr, user, 64,
 					  nls_codepage);
 			len *= 2;
 			SecurityBlob->UserName.MaximumLength =
@@ -2934,7 +2972,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			    cpu_to_le16(len);
 		}
 
-		/* SecurityBlob->WorkstationName.Length = cifs_strtoUCS((wchar_t *) bcc_ptr, "AMACHINE",64, nls_codepage);
+		/* SecurityBlob->WorkstationName.Length = cifs_strtoUCS((__le16 *) bcc_ptr, "AMACHINE",64, nls_codepage);
 		   SecurityBlob->WorkstationName.Length *= 2;
 		   SecurityBlob->WorkstationName.MaximumLength = cpu_to_le16(SecurityBlob->WorkstationName.Length);
 		   SecurityBlob->WorkstationName.Buffer = cpu_to_le32(SecurityBlobLength);
@@ -2947,16 +2985,16 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			bcc_ptr++;
 		}
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, "Linux version ",
+		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
 				  32, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, system_utsname.release, 32,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release, 32,
 				  nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		bcc_ptr += 2;	/* null term version string */
 		bytes_returned =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, CIFS_NETWORK_OPSYS,
+		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
 				  64, nls_codepage);
 		bcc_ptr += 2 * bytes_returned;
 		*(bcc_ptr + 1) = 0;
@@ -3069,7 +3107,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					ses->serverOS =
 					    kzalloc(2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,
-							   (wchar_t *)
+							   (__le16 *)
 							   bcc_ptr, len,
 							   nls_codepage);
 					bcc_ptr += 2 * (len + 1);
@@ -3086,7 +3124,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 							    GFP_KERNEL);
 						cifs_strfromUCS_le(ses->
 								   serverNOS,
-								   (wchar_t *)
+								   (__le16 *)
 								   bcc_ptr,
 								   len,
 								   nls_codepage);
@@ -3105,7 +3143,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 							cifs_strfromUCS_le
 							    (ses->
 							     serverDomain,
-							     (wchar_t *)
+							     (__le16 *)
 							     bcc_ptr, len,
 							     nls_codepage);
 							bcc_ptr +=
@@ -3211,9 +3249,26 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 
 	pSMB->AndXCommand = 0xFF;
 	pSMB->Flags = cpu_to_le16(TCON_EXTENDED_SECINFO);
-	pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
 	bcc_ptr = &pSMB->Password[0];
-	bcc_ptr++;		/* skip password */
+	if((ses->server->secMode) & SECMODE_USER) {
+		pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
+		bcc_ptr++;              /* skip password */
+	} else {
+		pSMB->PasswordLength = cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
+		   specified as required (when that support is added to
+		   the vfs in the future) as only NTLM or the much
+		   weaker LANMAN (which we do not send) is accepted
+		   by Samba (not sure whether other servers allow
+		   NTLMv2 password here) */
+		SMBNTencrypt(ses->password,
+			     ses->server->cryptKey,
+			     bcc_ptr);
+
+		bcc_ptr += CIFS_SESSION_KEY_SIZE;
+		*bcc_ptr = 0;
+		bcc_ptr++; /* align */
+	}
 
 	if(ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
@@ -3227,11 +3282,10 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	if (ses->capabilities & CAP_UNICODE) {
 		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
 		length =
-		    cifs_strtoUCS((wchar_t *) bcc_ptr, tree, 100, nls_codepage);
+		    cifs_strtoUCS((__le16 *) bcc_ptr, tree, 100, nls_codepage);
 		bcc_ptr += 2 * length;	/* convert num of 16 bit words to bytes */
 		bcc_ptr += 2;	/* skip trailing null */
 	} else {		/* ASCII */
-
 		strcpy(bcc_ptr, tree);
 		bcc_ptr += strlen(tree) + 1;
 	}
@@ -3263,7 +3317,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 				tcon->nativeFileSystem =
 				    kzalloc(length + 2, GFP_KERNEL);
 				cifs_strfromUCS_le(tcon->nativeFileSystem,
-						   (wchar_t *) bcc_ptr,
+						   (__le16 *) bcc_ptr,
 						   length, nls_codepage);
 				bcc_ptr += 2 * length;
 				bcc_ptr[0] = 0;	/* null terminate the string */

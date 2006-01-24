@@ -32,7 +32,7 @@
 
 #define xoffsetof(type,tag)	((long)(&((type)NULL)->tag) - (long)(NULL))
 
-#define parm_offset(tag)	xoffsetof(soundfont_voice_parm_t*, tag)
+#define parm_offset(tag)	xoffsetof(struct soundfont_voice_parm *, tag)
 
 #define PARM_IS_BYTE		(1 << 0)
 #define PARM_IS_WORD		(1 << 1)
@@ -97,10 +97,10 @@ static struct emux_parm_defs {
 
 /* set byte effect value */
 static void
-effect_set_byte(unsigned char *valp, snd_midi_channel_t *chan, int type)
+effect_set_byte(unsigned char *valp, struct snd_midi_channel *chan, int type)
 {
 	short effect;
-	snd_emux_effect_table_t *fx = chan->private;
+	struct snd_emux_effect_table *fx = chan->private;
 
 	effect = fx->val[type];
 	if (fx->flag[type] == EMUX_FX_FLAG_ADD) {
@@ -118,10 +118,10 @@ effect_set_byte(unsigned char *valp, snd_midi_channel_t *chan, int type)
 
 /* set word effect value */
 static void
-effect_set_word(unsigned short *valp, snd_midi_channel_t *chan, int type)
+effect_set_word(unsigned short *valp, struct snd_midi_channel *chan, int type)
 {
 	int effect;
-	snd_emux_effect_table_t *fx = chan->private;
+	struct snd_emux_effect_table *fx = chan->private;
 
 	effect = *(unsigned short*)&fx->val[type];
 	if (fx->flag[type] == EMUX_FX_FLAG_ADD)
@@ -135,10 +135,10 @@ effect_set_word(unsigned short *valp, snd_midi_channel_t *chan, int type)
 
 /* address offset */
 static int
-effect_get_offset(snd_midi_channel_t *chan, int lo, int hi, int mode)
+effect_get_offset(struct snd_midi_channel *chan, int lo, int hi, int mode)
 {
 	int addr = 0;
-	snd_emux_effect_table_t *fx = chan->private;
+	struct snd_emux_effect_table *fx = chan->private;
 
 	if (fx->flag[hi])
 		addr = (short)fx->val[hi];
@@ -153,7 +153,8 @@ effect_get_offset(snd_midi_channel_t *chan, int lo, int hi, int mode)
 #ifdef CONFIG_SND_SEQUENCER_OSS
 /* change effects - for OSS sequencer compatibility */
 void
-snd_emux_send_effect_oss(snd_emux_port_t *port, snd_midi_channel_t *chan, int type, int val)
+snd_emux_send_effect_oss(struct snd_emux_port *port,
+			 struct snd_midi_channel *chan, int type, int val)
 {
 	int mode;
 
@@ -173,13 +174,14 @@ snd_emux_send_effect_oss(snd_emux_port_t *port, snd_midi_channel_t *chan, int ty
  * if update is necessary, call emu8000_control
  */
 void
-snd_emux_send_effect(snd_emux_port_t *port, snd_midi_channel_t *chan, int type, int val, int mode)
+snd_emux_send_effect(struct snd_emux_port *port, struct snd_midi_channel *chan,
+		     int type, int val, int mode)
 {
 	int i;
 	int offset;
 	unsigned char *srcp, *origp;
-	snd_emux_t *emu;
-	snd_emux_effect_table_t *fx;
+	struct snd_emux *emu;
+	struct snd_emux_effect_table *fx;
 	unsigned long flags;
 
 	emu = port->emu;
@@ -206,7 +208,7 @@ snd_emux_send_effect(snd_emux_port_t *port, snd_midi_channel_t *chan, int type, 
 	/* modify the register values */
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (i = 0; i < emu->max_voices; i++) {
-		snd_emux_voice_t *vp = &emu->voices[i];
+		struct snd_emux_voice *vp = &emu->voices[i];
 		if (!STATE_IS_PLAYING(vp->state) || vp->chan != chan)
 			continue;
 		srcp = (unsigned char*)&vp->reg.parm + offset;
@@ -228,10 +230,10 @@ snd_emux_send_effect(snd_emux_port_t *port, snd_midi_channel_t *chan, int type, 
 
 /* copy wavetable registers to voice table */
 void
-snd_emux_setup_effect(snd_emux_voice_t *vp)
+snd_emux_setup_effect(struct snd_emux_voice *vp)
 {
-	snd_midi_channel_t *chan = vp->chan;
-	snd_emux_effect_table_t *fx;
+	struct snd_midi_channel *chan = vp->chan;
+	struct snd_emux_effect_table *fx;
 	unsigned char *srcp;
 	int i;
 
@@ -275,10 +277,11 @@ snd_emux_setup_effect(snd_emux_voice_t *vp)
  * effect table
  */
 void
-snd_emux_create_effect(snd_emux_port_t *p)
+snd_emux_create_effect(struct snd_emux_port *p)
 {
 	int i;
-	p->effect = kcalloc(p->chset.max_channels, sizeof(snd_emux_effect_table_t), GFP_KERNEL);
+	p->effect = kcalloc(p->chset.max_channels,
+			    sizeof(struct snd_emux_effect_table), GFP_KERNEL);
 	if (p->effect) {
 		for (i = 0; i < p->chset.max_channels; i++)
 			p->chset.channels[i].private = p->effect + i;
@@ -289,17 +292,18 @@ snd_emux_create_effect(snd_emux_port_t *p)
 }
 
 void
-snd_emux_delete_effect(snd_emux_port_t *p)
+snd_emux_delete_effect(struct snd_emux_port *p)
 {
 	kfree(p->effect);
 	p->effect = NULL;
 }
 
 void
-snd_emux_clear_effect(snd_emux_port_t *p)
+snd_emux_clear_effect(struct snd_emux_port *p)
 {
 	if (p->effect) {
-		memset(p->effect, 0, sizeof(snd_emux_effect_table_t) * p->chset.max_channels);
+		memset(p->effect, 0, sizeof(struct snd_emux_effect_table) *
+		       p->chset.max_channels);
 	}
 }
 

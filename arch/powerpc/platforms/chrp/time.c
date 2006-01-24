@@ -21,6 +21,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/init.h>
 #include <linux/bcd.h>
+#include <linux/ioport.h>
 
 #include <asm/io.h>
 #include <asm/nvram.h>
@@ -37,14 +38,16 @@ static int nvram_data = NVRAM_DATA;
 long __init chrp_time_init(void)
 {
 	struct device_node *rtcs;
+	struct resource r;
 	int base;
 
 	rtcs = find_compatible_devices("rtc", "pnpPNP,b00");
 	if (rtcs == NULL)
 		rtcs = find_compatible_devices("rtc", "ds1385-rtc");
-	if (rtcs == NULL || rtcs->addrs == NULL)
+	if (rtcs == NULL || of_address_to_resource(rtcs, 0, &r))
 		return 0;
-	base = rtcs->addrs[0].address;
+	
+	base = r.start;
 	nvram_as1 = 0;
 	nvram_as0 = base;
 	nvram_data = base + 1;
@@ -87,7 +90,6 @@ int chrp_set_rtc_time(struct rtc_time *tmarg)
 
 	chrp_cmos_clock_write((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
 
-        tm.tm_year -= 1900;
 	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
 		BIN_TO_BCD(tm.tm_sec);
 		BIN_TO_BCD(tm.tm_min);
@@ -156,7 +158,7 @@ void chrp_get_rtc_time(struct rtc_time *tm)
 		BCD_TO_BIN(mon);
 		BCD_TO_BIN(year);
 	}
-	if ((year += 1900) < 1970)
+	if (year < 70)
 		year += 100;
 	tm->tm_sec = sec;
 	tm->tm_min = min;

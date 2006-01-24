@@ -524,9 +524,6 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 	if (copy_from_user(&uprog, arg, sizeof(uprog)))
 		return -EFAULT;
 
-	if (uprog.len > BPF_MAXINSNS)
-		return -EINVAL;
-
 	if (!uprog.len) {
 		*p = NULL;
 		return 0;

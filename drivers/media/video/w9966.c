@@ -187,6 +187,7 @@ static struct file_operations w9966_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = w9966_v4l_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.read           = w9966_v4l_read,
 	.llseek         = no_llseek,
 };

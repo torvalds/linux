@@ -1101,7 +1101,7 @@ static int btaudio_init_module(void)
 	       digital ? "digital" : "",
 	       analog && digital ? "+" : "",
 	       analog ? "analog" : "");
-	return pci_module_init(&btaudio_pci_driver);
+	return pci_register_driver(&btaudio_pci_driver);
 }
 
 static void btaudio_cleanup_module(void)

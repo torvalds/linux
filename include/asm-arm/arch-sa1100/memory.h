@@ -18,20 +18,10 @@
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_SA1111
-static inline void
-__arch_adjust_zones(int node, unsigned long *size, unsigned long *holes)
-{
-	unsigned int sz = SZ_1M >> PAGE_SHIFT;
-
-	if (node != 0)
-		sz = 0;
-
-	size[1] = size[0] - sz;
-	size[0] = sz;
-}
+void sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 
 #define arch_adjust_zones(node, size, holes) \
-	__arch_adjust_zones(node, size, holes)
+	sa1111_adjust_zones(node, size, holes)
 
 #define ISA_DMA_THRESHOLD	(PHYS_OFFSET + SZ_1M - 1)
 

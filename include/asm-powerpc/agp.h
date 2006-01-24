@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_AGP_H
 #define _ASM_POWERPC_AGP_H
+#ifdef __KERNEL__
 
 #include <asm/io.h>
 
@@ -18,4 +19,5 @@
 #define free_gatt_pages(table, order)	\
 	free_pages((unsigned long)(table), (order))
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_AGP_H */

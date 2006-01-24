@@ -11,7 +11,7 @@
  * Ted Ts'o, 2/11/93.
  * Modified for sysctl support, 1/8/97, Chris Horn.
  * Fixed SMP synchronization, 08/08/99, Manfred Spraul
- *     manfreds@colorfullife.com
+ *     manfred@colorfullife.com
  * Rewrote bits to get rid of console_lock
  *	01Mar01 Andrew Morton <andrewm@uow.edu.au>
  */
@@ -491,7 +491,10 @@ __attribute__((weak)) unsigned long long printk_clock(void)
 	return sched_clock();
 }
 
-/*
+/**
+ * printk - print a kernel message
+ * @fmt: format string
+ *
  * This is printk.  It can be called from any context.  We want it to work.
  *
  * We try to grab the console_sem.  If we succeed, it's easy - we log the output and
@@ -503,6 +506,9 @@ __attribute__((weak)) unsigned long long printk_clock(void)
  * One effect of this deferred printing is that code which calls printk() and
  * then changes console_loglevel may break. This is because console_loglevel
  * is inspected when the actual printing occurs.
+ *
+ * See also:
+ * printf(3)
  */
 
 asmlinkage int printk(const char *fmt, ...)
@@ -563,7 +569,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 				   p[1] <= '7' && p[2] == '>') {
 					loglev_char = p[1];
 					p += 3;
-					printed_len += 3;
+					printed_len -= 3;
 				} else {
 					loglev_char = default_message_loglevel
 						+ '0';
@@ -578,7 +584,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 
 				for (tp = tbuf; tp < tbuf + tlen; tp++)
 					emit_log_char(*tp);
-				printed_len += tlen - 3;
+				printed_len += tlen;
 			} else {
 				if (p[0] != '<' || p[1] < '0' ||
 				   p[1] > '7' || p[2] != '>') {
@@ -586,8 +592,8 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 					emit_log_char(default_message_loglevel
 						+ '0');
 					emit_log_char('>');
+					printed_len += 3;
 				}
-				printed_len += 3;
 			}
 			log_level_unknown = 0;
 			if (!*p)
@@ -655,6 +661,9 @@ static void call_console_drivers(unsigned long start, unsigned long end)
 
 /**
  * add_preferred_console - add a device to the list of preferred consoles.
+ * @name: device name
+ * @idx: device index
+ * @options: options for this console
  *
  * The last preferred console added will be used for kernel messages
  * and stdin/out/err for init.  Normally this is used by console_setup
@@ -764,7 +773,8 @@ void release_console_sem(void)
 }
 EXPORT_SYMBOL(release_console_sem);
 
-/** console_conditional_schedule - yield the CPU if required
+/**
+ * console_conditional_schedule - yield the CPU if required
  *
  * If the console code is currently allowed to sleep, and
  * if this CPU should yield the CPU to another task, do
@@ -946,7 +956,7 @@ int unregister_console(struct console *console)
 	if (console_drivers == console) {
 		console_drivers=console->next;
 		res = 0;
-	} else {
+	} else if (console_drivers) {
 		for (a=console_drivers->next, b=console_drivers ;
 		     a; b=a, a=b->next) {
 			if (a == console) {
@@ -976,6 +986,8 @@ EXPORT_SYMBOL(unregister_console);
 
 /**
  * tty_write_message - write a message to a certain tty, not just the console.
+ * @tty: the destination tty_struct
+ * @msg: the message to write
  *
  * This is used for messages that need to be redirected to a specific tty.
  * We don't put it into the syslog queue right now maybe in the future if

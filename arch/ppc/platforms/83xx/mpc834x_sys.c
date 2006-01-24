@@ -3,7 +3,7 @@
  *
  * MPC834x SYS board specific routines
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *
@@ -51,9 +51,6 @@
 
 #include <syslib/ppc83xx_setup.h>
 
-static const char *GFAR_PHY_0 = "phy0:0";
-static const char *GFAR_PHY_1 = "phy0:1";
-
 #ifndef CONFIG_PCI
 unsigned long isa_io_base = 0;
 unsigned long isa_mem_base = 0;
@@ -73,12 +70,19 @@ mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 	     *       A      B      C      D
 	     */
 	{
-		{PIRQA, PIRQB,  PIRQC,  PIRQD}, /* idsel 0x11 */
-		{PIRQC, PIRQD,  PIRQA,  PIRQB}, /* idsel 0x12 */
-		{PIRQD, PIRQA,  PIRQB,  PIRQC}  /* idsel 0x13 */
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x11 */
+		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x12 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},	/* idsel 0x13 */
+		{0, 0, 0, 0},
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x15 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},	/* idsel 0x16 */
+		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x17 */
+		{PIRQB, PIRQC, PIRQD, PIRQA},	/* idsel 0x18 */
+		{0, 0, 0, 0},			/* idsel 0x19 */
+		{0, 0, 0, 0},			/* idsel 0x20 */
 	};
 
-	const long min_idsel = 0x11, max_idsel = 0x13, irqs_per_slot = 4;
+	const long min_idsel = 0x11, max_idsel = 0x20, irqs_per_slot = 4;
 	return PCI_IRQ_TABLE_LOOKUP;
 }
 
@@ -122,20 +126,21 @@ mpc834x_sys_setup_arch(void)
 	mdata->irq[1] = MPC83xx_IRQ_EXT2;
 	mdata->irq[2] = -1;
 	mdata->irq[31] = -1;
-	mdata->paddr += binfo->bi_immr_base;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC83xx_TSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_0;
+		pdata->bus_id = 0;
+		pdata->phy_id = 0;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC83xx_TSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->bus_id = GFAR_PHY_1;
+		pdata->bus_id = 0;
+		pdata->phy_id = 1;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 

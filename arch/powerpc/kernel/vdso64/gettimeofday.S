@@ -1,4 +1,5 @@
-/*
+
+	/*
  * Userland implementation of gettimeofday() for 64 bits processes in a
  * ppc64 kernel for use in the vDSO
  *
@@ -51,6 +52,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	stw	r4,TZONE_TZ_MINWEST(r10)
 	stw	r5,TZONE_TZ_DSTTIME(r10)
 1:	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0			/* always success */
 	blr
   .cfi_endproc
@@ -68,7 +70,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	/* Check for supported clock IDs */
 	cmpwi	cr0,r3,CLOCK_REALTIME
 	cmpwi	cr1,r3,CLOCK_MONOTONIC
-	cror	cr0,cr0,cr1
+	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
 	bne	cr0,99f
 
 	mflr	r12			/* r12 saves lr */
@@ -84,19 +86,21 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 
 	bl	V_LOCAL_FUNC(__do_get_xsec)	/* get xsec from tb & kernel */
 
-	lis     r7,0x3b9a		/* r7 = 1000000000 = NSEC_PER_SEC */
-	ori     r7,r7,0xca00
+	lis     r7,15			/* r7 = 1000000 = USEC_PER_SEC */
+	ori     r7,r7,16960
 	rldicl  r5,r4,44,20		/* r5 = sec = xsec / XSEC_PER_SEC */
 	rldicr  r6,r5,20,43		/* r6 = sec * XSEC_PER_SEC */
 	std	r5,TSPC64_TV_SEC(r11)	/* store sec in tv */
 	subf	r0,r6,r4		/* r0 = xsec = (xsec - r6) */
-	mulld   r0,r0,r7		/* nsec = (xsec * NSEC_PER_SEC) /
+	mulld   r0,r0,r7		/* usec = (xsec * USEC_PER_SEC) /
 					 * XSEC_PER_SEC
 					 */
 	rldicl  r0,r0,44,20
+	mulli	r0,r0,1000		/* nsec = usec * 1000 */
 	std	r0,TSPC64_TV_NSEC(r11)	/* store nsec in tp */
 
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -106,15 +110,16 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 
 50:	bl	V_LOCAL_FUNC(__do_get_xsec)	/* get xsec from tb & kernel */
 
-	lis     r7,0x3b9a		/* r7 = 1000000000 = NSEC_PER_SEC */
-	ori     r7,r7,0xca00
+	lis     r7,15			/* r7 = 1000000 = USEC_PER_SEC */
+	ori     r7,r7,16960
 	rldicl  r5,r4,44,20		/* r5 = sec = xsec / XSEC_PER_SEC */
 	rldicr  r6,r5,20,43		/* r6 = sec * XSEC_PER_SEC */
 	subf	r0,r6,r4		/* r0 = xsec = (xsec - r6) */
-	mulld   r0,r0,r7		/* nsec = (xsec * NSEC_PER_SEC) /
+	mulld   r0,r0,r7		/* usec = (xsec * USEC_PER_SEC) /
 					 * XSEC_PER_SEC
 					 */
 	rldicl  r6,r0,44,20
+	mulli	r6,r6,1000		/* nsec = usec * 1000 */
 
 	/* now we must fixup using wall to monotonic. We need to snapshot
 	 * that value and do the counter trick again. Fortunately, we still
@@ -123,8 +128,8 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 * can be used
 	 */
 
-	lwz	r4,WTOM_CLOCK_SEC(r9)
-	lwz	r7,WTOM_CLOCK_NSEC(r9)
+	lwa	r4,WTOM_CLOCK_SEC(r3)
+	lwa	r7,WTOM_CLOCK_NSEC(r3)
 
 	/* We now have our result in r4,r7. We create a fake dependency
 	 * on that result and re-check the counter
@@ -144,14 +149,19 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	add	r7,r7,r6
 	lis	r9,NSEC_PER_SEC@h
 	ori	r9,r9,NSEC_PER_SEC@l
-	cmpli	cr0,r7,r9
+	cmpl	cr0,r7,r9
+	cmpli	cr1,r7,0
 	blt	1f
 	subf	r7,r9,r7
 	addi	r4,r4,1
+1:	bge	cr1,1f
+	addi	r4,r4,-1
+	add	r7,r7,r9
 1:	std	r4,TSPC64_TV_SEC(r11)
 	std	r7,TSPC64_TV_NSEC(r11)
 
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -181,11 +191,12 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 	/* Check for supported clock IDs */
 	cmpwi	cr0,r3,CLOCK_REALTIME
 	cmpwi	cr1,r3,CLOCK_MONOTONIC
-	cror	cr0,cr0,cr1
+	cror	cr0*4+eq,cr0*4+eq,cr1*4+eq
 	bne	cr0,99f
 
 	li	r3,0
 	cmpli	cr0,r4,0
+	crclr	cr0*4+so
 	beqlr
 	lis	r5,CLOCK_REALTIME_RES@h
 	ori	r5,r5,CLOCK_REALTIME_RES@l

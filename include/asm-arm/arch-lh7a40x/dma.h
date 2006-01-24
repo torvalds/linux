@@ -7,11 +7,3 @@
  *  version 2 as published by the Free Software Foundation.
  *
  */
-
-#ifndef __ASM_ARCH_DMA_H
-#define __ASM_ARCH_DMA_H
-
-#define MAX_DMA_ADDRESS		0xffffffff
-#define MAX_DMA_CHANNELS	0 /* All DMA is internal to CPU */
-
-#endif /* _ASM_ARCH_DMA_H */

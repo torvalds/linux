@@ -1,0 +1,108 @@
+AACRAID Driver for Linux (take two)
+
+Introduction
+-------------------------
+The aacraid driver adds support for Adaptec (http://www.adaptec.com)
+RAID controllers. This is a major rewrite from the original
+Adaptec supplied driver. It has signficantly cleaned up both the code
+and the running binary size (the module is less than half the size of
+the original).
+
+Supported Cards/Chipsets
+-------------------------
+	PCI ID (pci.ids)	OEM	Product
+	9005:0285:9005:028a	Adaptec	2020ZCR (Skyhawk)
+	9005:0285:9005:028e	Adaptec	2020SA (Skyhawk)
+	9005:0285:9005:028b	Adaptec 2025ZCR (Terminator)
+	9005:0285:9005:028f	Adaptec 2025SA (Terminator)
+	9005:0285:9005:0286	Adaptec	2120S (Crusader)
+	9005:0286:9005:028d	Adaptec	2130S (Lancer)
+	9005:0285:9005:0285	Adaptec	2200S (Vulcan)
+	9005:0285:9005:0287	Adaptec	2200S (Vulcan-2m)
+	9005:0286:9005:028c	Adaptec	2230S (Lancer)
+	9005:0286:9005:028c	Adaptec	2230SLP (Lancer)
+	9005:0285:9005:0296	Adaptec	2240S (SabreExpress)
+	9005:0285:9005:0290	Adaptec	2410SA (Jaguar)
+	9005:0285:9005:0293	Adaptec 21610SA (Corsair-16)
+	9005:0285:103c:3227	Adaptec 2610SA (Bearcat)
+	9005:0285:9005:0292	Adaptec	2810SA (Corsair-8)
+	9005:0285:9005:0294	Adaptec	Prowler
+	9005:0286:9005:029d	Adaptec	2420SA (Intruder)
+	9005:0286:9005:029c	Adaptec	2620SA (Intruder)
+	9005:0286:9005:029b	Adaptec	2820SA (Intruder)
+	9005:0286:9005:02a7	Adaptec	2830SA (Skyray)
+	9005:0286:9005:02a8	Adaptec	2430SA (Skyray)
+	9005:0285:9005:0288	Adaptec	3230S (Harrier)
+	9005:0285:9005:0289	Adaptec	3240S (Tornado)
+	9005:0285:9005:0298	Adaptec	4000SAS (BlackBird)
+	9005:0285:9005:0297	Adaptec	4005SAS (AvonPark)
+	9005:0285:9005:0299	Adaptec	4800SAS (Marauder-X)
+	9005:0285:9005:029a	Adaptec	4805SAS (Marauder-E)
+	9005:0286:9005:02a2	Adaptec	4810SAS (Hurricane)
+	1011:0046:9005:0364	Adaptec	5400S (Mustang)
+	1011:0046:9005:0365	Adaptec	5400S (Mustang)
+	9005:0283:9005:0283	Adaptec	Catapult (3210S with arc firmware)
+	9005:0284:9005:0284	Adaptec	Tomcat (3410S with arc firmware)
+	9005:0287:9005:0800	Adaptec	Themisto (Jupiter)
+	9005:0200:9005:0200	Adaptec	Themisto (Jupiter)
+	9005:0286:9005:0800	Adaptec	Callisto (Jupiter)
+	1011:0046:9005:1364	Dell	PERC 2/QC (Quad Channel, Mustang)
+	1028:0001:1028:0001	Dell	PERC 2/Si (Iguana)
+	1028:0003:1028:0003	Dell	PERC 3/Si (SlimFast)
+	1028:0002:1028:0002	Dell	PERC 3/Di (Opal)
+	1028:0004:1028:0004	Dell	PERC 3/DiF (Iguana)
+	1028:0002:1028:00d1	Dell	PERC 3/DiV (Viper)
+	1028:0002:1028:00d9	Dell	PERC 3/DiL (Lexus)
+	1028:000a:1028:0106	Dell	PERC 3/DiJ (Jaguar)
+	1028:000a:1028:011b	Dell	PERC 3/DiD (Dagger)
+	1028:000a:1028:0121	Dell	PERC 3/DiB (Boxster)
+	9005:0285:1028:0287	Dell	PERC 320/DC (Vulcan)
+	9005:0285:1028:0291	Dell	CERC 2 (DellCorsair)
+	1011:0046:103c:10c2	HP	NetRAID-4M (Mustang)
+	9005:0285:17aa:0286	Legend	S220 (Crusader)
+	9005:0285:17aa:0287	Legend	S230 (Vulcan)
+	9005:0285:9005:0290	IBM	ServeRAID 7t (Jaguar)
+	9005:0285:1014:02F2	IBM	ServeRAID 8i (AvonPark)
+	9005:0285:1014:0312	IBM	ServeRAID 8i (AvonParkLite)
+	9005:0286:1014:9580	IBM	ServeRAID 8k/8k-l8 (Aurora)
+	9005:0286:1014:9540	IBM	ServeRAID 8k/8k-l4 (AuroraLite)
+	9005:0286:9005:029f	ICP	ICP9014R0 (Lancer)
+	9005:0286:9005:029e	ICP	ICP9024R0 (Lancer)
+	9005:0286:9005:02a0	ICP	ICP9047MA (Lancer)
+	9005:0286:9005:02a1	ICP	ICP9087MA (Lancer)
+	9005:0286:9005:02a4	ICP	ICP9085LI (Marauder-X)
+	9005:0286:9005:02a5	ICP	ICP5085BR (Marauder-E)
+	9005:0286:9005:02a3	ICP	ICP5085AU (Hurricane)
+	9005:0286:9005:02a6	ICP	ICP9067MA (Intruder-6)
+	9005:0286:9005:02a9	ICP	ICP5087AU (Skyray)
+	9005:0286:9005:02aa	ICP	ICP5047AU (Skyray)
+
+People
+-------------------------
+Alan Cox <alan@redhat.com>
+Christoph Hellwig <hch@infradead.org>	(updates for new-style PCI probing and SCSI host registration,
+					 small cleanups/fixes)
+Matt Domsch <matt_domsch@dell.com>	(revision ioctl, adapter messages)
+Deanna Bonds                            (non-DASD support, PAE fibs and 64 bit, added new adaptec controllers
+					 added new ioctls, changed scsi interface to use new error handler,
+					 increased the number of fibs and outstanding commands to a container)
+
+					(fixed 64bit and 64G memory model, changed confusing naming convention
+					 where fibs that go to the hardware are consistently called hw_fibs and
+					 not just fibs like the name of the driver tracking structure)
+Mark Salyzyn <Mark_Salyzyn@adaptec.com> Fixed panic issues and added some new product ids for upcoming hbas. Performance tuning, card failover and bug mitigations.
+
+Original Driver
+-------------------------
+Adaptec Unix OEM Product Group
+
+Mailing List
+-------------------------
+linux-scsi@vger.kernel.org (Interested parties troll here)
+Also note this is very different to Brian's original driver
+so don't expect him to support it.
+Adaptec does support this driver.  Contact Adaptec tech support or
+aacraid@adaptec.com
+
+Original by Brian Boerner February 2001
+Rewritten by Alan Cox, November 2001

@@ -20,9 +20,9 @@
 #include <linux/kref.h>
 
 /*
- * Tracks changes to rchan_buf struct
+ * Tracks changes to rchan/rchan_buf structs
  */
-#define RELAYFS_CHANNEL_VERSION		5
+#define RELAYFS_CHANNEL_VERSION		6
 
 /*
  * Per-cpu relay channel buffer
@@ -60,22 +60,9 @@ struct rchan
 	struct rchan_callbacks *cb;	/* client callbacks */
 	struct kref kref;		/* channel refcount */
 	void *private_data;		/* for user-defined data */
+	size_t last_toobig;		/* tried to log event > subbuf size */
 	struct rchan_buf *buf[NR_CPUS]; /* per-cpu channel buffers */
 };
-
-/*
- * Relayfs inode
- */
-struct relayfs_inode_info
-{
-	struct inode vfs_inode;
-	struct rchan_buf *buf;
-};
-
-static inline struct relayfs_inode_info *RELAYFS_I(struct inode *inode)
-{
-	return container_of(inode, struct relayfs_inode_info, vfs_inode);
-}
 
 /*
  * Relay channel client callbacks
@@ -123,6 +110,46 @@ struct rchan_callbacks
 	 */
         void (*buf_unmapped)(struct rchan_buf *buf,
 			     struct file *filp);
+	/*
+	 * create_buf_file - create file to represent a relayfs channel buffer
+	 * @filename: the name of the file to create
+	 * @parent: the parent of the file to create
+	 * @mode: the mode of the file to create
+	 * @buf: the channel buffer
+	 * @is_global: outparam - set non-zero if the buffer should be global
+	 *
+	 * Called during relay_open(), once for each per-cpu buffer,
+	 * to allow the client to create a file to be used to
+	 * represent the corresponding channel buffer.  If the file is
+	 * created outside of relayfs, the parent must also exist in
+	 * that filesystem.
+	 *
+	 * The callback should return the dentry of the file created
+	 * to represent the relay buffer.
+	 *
+	 * Setting the is_global outparam to a non-zero value will
+	 * cause relay_open() to create a single global buffer rather
+	 * than the default set of per-cpu buffers.
+	 *
+	 * See Documentation/filesystems/relayfs.txt for more info.
+	 */
+	struct dentry *(*create_buf_file)(const char *filename,
+					  struct dentry *parent,
+					  int mode,
+					  struct rchan_buf *buf,
+					  int *is_global);
+
+	/*
+	 * remove_buf_file - remove file representing a relayfs channel buffer
+	 * @dentry: the dentry of the file to remove
+	 *
+	 * Called during relay_close(), once for each per-cpu buffer,
+	 * to allow the client to remove a file used to represent a
+	 * channel buffer.
+	 *
+	 * The callback should return 0 if successful, negative if not.
+	 */
+	int (*remove_buf_file)(struct dentry *dentry);
 };
 
 /*
@@ -147,6 +174,12 @@ extern size_t relay_switch_subbuf(struct rchan_buf *buf,
 extern struct dentry *relayfs_create_dir(const char *name,
 					 struct dentry *parent);
 extern int relayfs_remove_dir(struct dentry *dentry);
+extern struct dentry *relayfs_create_file(const char *name,
+					  struct dentry *parent,
+					  int mode,
+					  struct file_operations *fops,
+					  void *data);
+extern int relayfs_remove_file(struct dentry *dentry);
 
 /**
  *	relay_write - write data into the channel
@@ -246,10 +279,9 @@ static inline void subbuf_start_reserve(struct rchan_buf *buf,
 }
 
 /*
- * exported relayfs file operations, fs/relayfs/inode.c
+ * exported relay file operations, fs/relayfs/inode.c
  */
-
-extern struct file_operations relayfs_file_operations;
+extern struct file_operations relay_file_operations;
 
 #endif /* _LINUX_RELAYFS_FS_H */
 

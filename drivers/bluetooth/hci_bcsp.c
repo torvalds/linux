@@ -494,7 +494,7 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 	}
 }
 
-static inline void bcsp_complete_rx_pkt(struct hci_uart *hu)
+static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 {
 	struct bcsp_struct *bcsp = hu->priv;
 	int pass_up;

@@ -2755,8 +2755,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	SET_NETDEV_DEV(dev, dmdev);
 
 
-	if (test_bit(FLAG_MPI,&ai->flags))
-		reset_card (dev, 1);
+	reset_card (dev, 1);
+	msleep(400);
 
 	rc = request_irq( dev->irq, airo_interrupt, SA_SHIRQ, dev->name, dev );
 	if (rc) {
@@ -4037,7 +4037,7 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 		Cmd cmd;
 		Resp rsp;
 
-		if (test_bit(FLAG_ENABLED, &ai->flags))
+		if (test_bit(FLAG_ENABLED, &ai->flags) && (RID_WEP_TEMP != rid))
 			printk(KERN_ERR
 				"%s: MAC should be disabled (rid=%04x)\n",
 				__FUNCTION__, rid);
@@ -5093,9 +5093,9 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		printk(KERN_INFO "Setting key %d\n", index);
 	}
 
-	disable_MAC(ai, lock);
+	if (perm) disable_MAC(ai, lock);
 	writeWepKeyRid(ai, &wkr, perm, lock);
-	enable_MAC(ai, &rsp, lock);
+	if (perm) enable_MAC(ai, &rsp, lock);
 	return 0;
 }
 
@@ -5668,13 +5668,13 @@ static int airo_set_freq(struct net_device *dev,
 		int channel = fwrq->m;
 		/* We should do a better check than that,
 		 * based on the card capability !!! */
-		if((channel < 1) || (channel > 16)) {
+		if((channel < 1) || (channel > 14)) {
 			printk(KERN_DEBUG "%s: New channel value of %d is invalid!\n", dev->name, fwrq->m);
 			rc = -EINVAL;
 		} else {
 			readConfigRid(local, 1);
 			/* Yes ! We can set it !!! */
-			local->config.channelSet = (u16)(channel - 1);
+			local->config.channelSet = (u16) channel;
 			set_bit (FLAG_COMMIT, &local->flags);
 		}
 	}
@@ -5692,6 +5692,7 @@ static int airo_get_freq(struct net_device *dev,
 {
 	struct airo_info *local = dev->priv;
 	StatusRid status_rid;		/* Card status info */
+	int ch;
 
 	readConfigRid(local, 1);
 	if ((local->config.opmode & 0xFF) == MODE_STA_ESS)
@@ -5699,16 +5700,14 @@ static int airo_get_freq(struct net_device *dev,
 	else
 		readStatusRid(local, &status_rid, 1);
 
-#ifdef WEXT_USECHANNELS
-	fwrq->m = ((int)status_rid.channel) + 1;
-	fwrq->e = 0;
-#else
-	{
-		int f = (int)status_rid.channel;
-		fwrq->m = frequency_list[f] * 100000;
+	ch = (int)status_rid.channel;
+	if((ch > 0) && (ch < 15)) {
+		fwrq->m = frequency_list[ch - 1] * 100000;
 		fwrq->e = 1;
+	} else {
+		fwrq->m = ch;
+		fwrq->e = 0;
 	}
-#endif
 
 	return 0;
 }
@@ -5783,7 +5782,7 @@ static int airo_get_essid(struct net_device *dev,
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */
-	dwrq->length = status_rid.SSIDlen + 1;
+	dwrq->length = status_rid.SSIDlen;
 	dwrq->flags = 1; /* active */
 
 	return 0;
@@ -6170,6 +6169,8 @@ static int airo_set_encode(struct net_device *dev,
 {
 	struct airo_info *local = dev->priv;
 	CapabilityRid cap_rid;		/* Card capability info */
+	int perm = ( dwrq->flags & IW_ENCODE_TEMP ? 0 : 1 );
+	u16 currentAuthType = local->config.authType;
 
 	/* Is WEP supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
@@ -6212,7 +6213,7 @@ static int airo_set_encode(struct net_device *dev,
 			/* Copy the key in the driver */
 			memcpy(key.key, extra, dwrq->length);
 			/* Send the key to the card */
-			set_wep_key(local, index, key.key, key.len, 1, 1);
+			set_wep_key(local, index, key.key, key.len, perm, 1);
 		}
 		/* WE specify that if a valid key is set, encryption
 		 * should be enabled (user may turn it off later)
@@ -6220,13 +6221,12 @@ static int airo_set_encode(struct net_device *dev,
 		if((index == current_index) && (key.len > 0) &&
 		   (local->config.authType == AUTH_OPEN)) {
 			local->config.authType = AUTH_ENCRYPT;
-			set_bit (FLAG_COMMIT, &local->flags);
 		}
 	} else {
 		/* Do we want to just set the transmit key index ? */
 		int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 		if ((index >= 0) && (index < ((cap_rid.softCap & 0x80)?4:1))) {
-			set_wep_key(local, index, NULL, 0, 1, 1);
+			set_wep_key(local, index, NULL, 0, perm, 1);
 		} else
 			/* Don't complain if only change the mode */
 			if(!dwrq->flags & IW_ENCODE_MODE) {
@@ -6241,7 +6241,7 @@ static int airo_set_encode(struct net_device *dev,
 	if(dwrq->flags & IW_ENCODE_OPEN)
 		local->config.authType = AUTH_ENCRYPT;	// Only Wep
 	/* Commit the changes to flags if needed */
-	if(dwrq->flags & IW_ENCODE_MODE)
+	if (local->config.authType != currentAuthType)
 		set_bit (FLAG_COMMIT, &local->flags);
 	return -EINPROGRESS;		/* Call commit handler */
 }

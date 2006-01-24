@@ -72,7 +72,6 @@
 
 TODC_ALLOC();
 
-unsigned char ucSystemType;
 unsigned char ucBoardRev;
 unsigned char ucBoardRevMaj, ucBoardRevMin;
 
@@ -954,7 +953,6 @@ prep_calibrate_decr(void)
 static void __init
 prep_init_IRQ(void)
 {
-	int i;
 	unsigned int pci_viddid, pci_did;
 
 	if (OpenPIC_Addr != NULL) {

@@ -19,7 +19,7 @@
 			    : "=a" (a__), "=d" (b__) \
 			    : "c" (msr)); \
        val = a__ | (b__<<32); \
-} while(0); 
+} while(0)
 
 #define wrmsr(msr,val1,val2) \
      __asm__ __volatile__("wrmsr" \
@@ -56,7 +56,7 @@
                       ".section __ex_table,\"a\"\n"		\
                       " .align 8\n"				\
                       " .quad 1b,3b\n"				\
-                      ".previous":"=&bDS" (ret__), "=a"(a), "=d"(b)\
+                      ".previous":"=&bDS" (ret__), "=a"(*(a)), "=d"(*(b))\
                       :"c"(msr), "i"(-EIO), "0"(0));		\
 	  ret__; })		
 

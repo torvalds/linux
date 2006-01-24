@@ -28,7 +28,7 @@ the image from specifications.
 CPIO ARCHIVE method
 
 You can create a cpio archive that contains the early userspace image.
-Youre cpio archive should be specified in CONFIG_INITRAMFS_SOURCE and it
+Your cpio archive should be specified in CONFIG_INITRAMFS_SOURCE and it
 will be used directly.  Only a single cpio file may be specified in
 CONFIG_INITRAMFS_SOURCE and directory and file names are not allowed in
 combination with a cpio archive.

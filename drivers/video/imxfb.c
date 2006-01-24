@@ -554,7 +554,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 
 	inf = pdev->dev.platform_data;
 	if(!inf) {
-		dev_err(dev,"No platform_data available\n");
+		dev_err(&pdev->dev,"No platform_data available\n");
 		return -ENOMEM;
 	}
 
@@ -579,7 +579,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 	if (!inf->fixed_screen_cpu) {
 		ret = imxfb_map_video_memory(info);
 		if (ret) {
-			dev_err(dev, "Failed to allocate video RAM: %d\n", ret);
+			dev_err(&pdev->dev, "Failed to allocate video RAM: %d\n", ret);
 			ret = -ENOMEM;
 			goto failed_map;
 		}
@@ -608,7 +608,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 	imxfb_set_par(info);
 	ret = register_framebuffer(info);
 	if (ret < 0) {
-		dev_err(dev, "failed to register framebuffer\n");
+		dev_err(&pdev->dev, "failed to register framebuffer\n");
 		goto failed_register;
 	}
 

@@ -22,8 +22,8 @@
 
 #include <linux/compat.h>
 
-struct sndrv_seq_port_info32 {
-	struct sndrv_seq_addr addr;	/* client/port numbers */
+struct snd_seq_port_info32 {
+	struct snd_seq_addr addr;	/* client/port numbers */
 	char name[64];			/* port name */
 
 	u32 capability;	/* port capability bits */
@@ -41,11 +41,11 @@ struct sndrv_seq_port_info32 {
 	char reserved[59];		/* for future use */
 };
 
-static int snd_seq_call_port_info_ioctl(client_t *client, unsigned int cmd,
-					struct sndrv_seq_port_info32 __user *data32)
+static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned int cmd,
+					struct snd_seq_port_info32 __user *data32)
 {
 	int err = -EFAULT;
-	snd_seq_port_info_t *data;
+	struct snd_seq_port_info *data;
 	mm_segment_t fs;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
@@ -80,16 +80,16 @@ static int snd_seq_call_port_info_ioctl(client_t *client, unsigned int cmd,
  */
 
 enum {
-	SNDRV_SEQ_IOCTL_CREATE_PORT32 = _IOWR('S', 0x20, struct sndrv_seq_port_info32),
-	SNDRV_SEQ_IOCTL_DELETE_PORT32 = _IOW ('S', 0x21, struct sndrv_seq_port_info32),
-	SNDRV_SEQ_IOCTL_GET_PORT_INFO32 = _IOWR('S', 0x22, struct sndrv_seq_port_info32),
-	SNDRV_SEQ_IOCTL_SET_PORT_INFO32 = _IOW ('S', 0x23, struct sndrv_seq_port_info32),
-	SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT32 = _IOWR('S', 0x52, struct sndrv_seq_port_info32),
+	SNDRV_SEQ_IOCTL_CREATE_PORT32 = _IOWR('S', 0x20, struct snd_seq_port_info32),
+	SNDRV_SEQ_IOCTL_DELETE_PORT32 = _IOW ('S', 0x21, struct snd_seq_port_info32),
+	SNDRV_SEQ_IOCTL_GET_PORT_INFO32 = _IOWR('S', 0x22, struct snd_seq_port_info32),
+	SNDRV_SEQ_IOCTL_SET_PORT_INFO32 = _IOW ('S', 0x23, struct snd_seq_port_info32),
+	SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT32 = _IOWR('S', 0x52, struct snd_seq_port_info32),
 };
 
 static long snd_seq_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	client_t *client = (client_t *) file->private_data;
+	struct snd_seq_client *client = file->private_data;
 	void __user *argp = compat_ptr(arg);
 
 	snd_assert(client != NULL, return -ENXIO);

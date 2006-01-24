@@ -146,12 +146,12 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/ecard.h>
 
 #include "../scsi.h"
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport_spi.h>
 #include "acornscsi.h"
 #include "msgqueue.h"
 #include "scsi.h"
@@ -896,7 +896,7 @@ void acornscsi_done(AS_Host *host, Scsi_Cmnd **SCpntp, unsigned int result)
  * Notes    : this will only be one SG entry or less
  */
 static
-void acornscsi_data_updateptr(AS_Host *host, Scsi_Pointer *SCp, unsigned int length)
+void acornscsi_data_updateptr(AS_Host *host, struct scsi_pointer *SCp, unsigned int length)
 {
     SCp->ptr += length;
     SCp->this_residual -= length;
@@ -1370,7 +1370,7 @@ void acornscsi_sendmessage(AS_Host *host)
 
 	host->scsi.last_message = msg->msg[0];
 #if (DEBUG & DEBUG_MESSAGES)
-	scsi_print_msg(msg->msg);
+	spi_print_msg(msg->msg);
 #endif
 	break;
 
@@ -1392,7 +1392,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	while ((msg = msgqueue_getmsg(&host->scsi.msgs, msgnr++)) != NULL) {
 	    unsigned int i;
 #if (DEBUG & DEBUG_MESSAGES)
-	    scsi_print_msg(msg);
+	    spi_print_msg(msg);
 #endif
 	    i = 0;
 	    if (acornscsi_write_pio(host, msg->msg, &i, msg->length, 1000000))
@@ -1488,7 +1488,7 @@ void acornscsi_message(AS_Host *host)
 #if (DEBUG & DEBUG_MESSAGES)
     printk("scsi%d.%c: message in: ",
 	    host->host->host_no, acornscsi_target(host));
-    scsi_print_msg(message);
+    spi_print_msg(message);
     printk("\n");
 #endif
 
@@ -2862,7 +2862,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
 			int length, int inout)
 {
     int pos, begin = 0, devidx;
-    Scsi_Device *scd;
+    struct scsi_device *scd;
     AS_Host *host;
     char *p = buffer;
 
@@ -2971,7 +2971,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
     return pos;
 }
 
-static Scsi_Host_Template acornscsi_template = {
+static struct scsi_host_template acornscsi_template = {
 	.module			= THIS_MODULE,
 	.proc_info		= acornscsi_proc_info,
 	.name			= "AcornSCSI",

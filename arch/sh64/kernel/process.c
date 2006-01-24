@@ -744,7 +744,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	}
 #endif
 	/* Copy from sh version */
-	childregs = ((struct pt_regs *)(THREAD_SIZE + (unsigned long) p->thread_info )) - 1;
+	childregs = (struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1;
 
 	*childregs = *regs;
 
@@ -752,7 +752,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->regs[15] = usp;
 		p->thread.uregs = childregs;
 	} else {
-		childregs->regs[15] = (unsigned long)p->thread_info + THREAD_SIZE;
+		childregs->regs[15] = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	}
 
 	childregs->regs[9] = 0; /* Set return value for child */
@@ -773,26 +773,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	childregs->regs[15] = se;
 
 	return 0;
-}
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-	dump->magic = CMAGIC;
-	dump->start_code = current->mm->start_code;
-	dump->start_data  = current->mm->start_data;
-	dump->start_stack = regs->regs[15] & ~(PAGE_SIZE - 1);
-	dump->u_tsize = (current->mm->end_code - dump->start_code) >> PAGE_SHIFT;
-	dump->u_dsize = (current->mm->brk + (PAGE_SIZE-1) - dump->start_data) >> PAGE_SHIFT;
-	dump->u_ssize = (current->mm->start_stack - dump->start_stack +
-			 PAGE_SIZE - 1) >> PAGE_SHIFT;
-	/* Debug registers will come here. */
-
-	dump->regs = *regs;
-
-	dump->u_fpvalid = dump_fpu(regs, &dump->fpu);
 }
 
 asmlinkage int sys_fork(unsigned long r2, unsigned long r3,

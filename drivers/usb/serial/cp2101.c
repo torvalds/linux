@@ -60,17 +60,18 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
 	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) },	/* Siemens MC60 Cable */
+	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ } /* Terminating Entry */
 };
 
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver cp2101_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "cp2101",
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
 	.id_table	= id_table,
+	.no_dynamic_id	= 	1,
 };
 
 static struct usb_serial_driver cp2101_device = {

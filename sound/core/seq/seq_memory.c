@@ -32,16 +32,12 @@
 #include "seq_info.h"
 #include "seq_lock.h"
 
-/* semaphore in struct file record */
-#define semaphore_of(fp)	((fp)->f_dentry->d_inode->i_sem)
-
-
-static inline int snd_seq_pool_available(pool_t *pool)
+static inline int snd_seq_pool_available(struct snd_seq_pool *pool)
 {
 	return pool->total_elements - atomic_read(&pool->counter);
 }
 
-static inline int snd_seq_output_ok(pool_t *pool)
+static inline int snd_seq_output_ok(struct snd_seq_pool *pool)
 {
 	return snd_seq_pool_available(pool) >= pool->room;
 }
@@ -72,7 +68,7 @@ static inline int snd_seq_output_ok(pool_t *pool)
  * call dump function to expand external data.
  */
 
-static int get_var_len(const snd_seq_event_t *event)
+static int get_var_len(const struct snd_seq_event *event)
 {
 	if ((event->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE)
 		return -EINVAL;
@@ -80,10 +76,11 @@ static int get_var_len(const snd_seq_event_t *event)
 	return event->data.ext.len & ~SNDRV_SEQ_EXT_MASK;
 }
 
-int snd_seq_dump_var_event(const snd_seq_event_t *event, snd_seq_dump_func_t func, void *private_data)
+int snd_seq_dump_var_event(const struct snd_seq_event *event,
+			   snd_seq_dump_func_t func, void *private_data)
 {
 	int len, err;
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 
 	if ((len = get_var_len(event)) <= 0)
 		return len;
@@ -108,9 +105,9 @@ int snd_seq_dump_var_event(const snd_seq_event_t *event, snd_seq_dump_func_t fun
 		return func(private_data, event->data.ext.ptr, len);
 	}
 
-	cell = (snd_seq_event_cell_t*)event->data.ext.ptr;
+	cell = (struct snd_seq_event_cell *)event->data.ext.ptr;
 	for (; len > 0 && cell; cell = cell->next) {
-		int size = sizeof(snd_seq_event_t);
+		int size = sizeof(struct snd_seq_event);
 		if (len < size)
 			size = len;
 		err = func(private_data, &cell->event, size);
@@ -142,7 +139,8 @@ static int seq_copy_in_user(char __user **bufptr, const void *src, int size)
 	return 0;
 }
 
-int snd_seq_expand_var_event(const snd_seq_event_t *event, int count, char *buf, int in_kernel, int size_aligned)
+int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char *buf,
+			     int in_kernel, int size_aligned)
 {
 	int len, newlen;
 	int err;
@@ -174,17 +172,18 @@ int snd_seq_expand_var_event(const snd_seq_event_t *event, int count, char *buf,
  * release this cell, free extended data if available
  */
 
-static inline void free_cell(pool_t *pool, snd_seq_event_cell_t *cell)
+static inline void free_cell(struct snd_seq_pool *pool,
+			     struct snd_seq_event_cell *cell)
 {
 	cell->next = pool->free;
 	pool->free = cell;
 	atomic_dec(&pool->counter);
 }
 
-void snd_seq_cell_free(snd_seq_event_cell_t * cell)
+void snd_seq_cell_free(struct snd_seq_event_cell * cell)
 {
 	unsigned long flags;
-	pool_t *pool;
+	struct snd_seq_pool *pool;
 
 	snd_assert(cell != NULL, return);
 	pool = cell->pool;
@@ -194,7 +193,7 @@ void snd_seq_cell_free(snd_seq_event_cell_t * cell)
 	free_cell(pool, cell);
 	if (snd_seq_ev_is_variable(&cell->event)) {
 		if (cell->event.data.ext.len & SNDRV_SEQ_EXT_CHAINED) {
-			snd_seq_event_cell_t *curp, *nextptr;
+			struct snd_seq_event_cell *curp, *nextptr;
 			curp = cell->event.data.ext.ptr;
 			for (; curp; curp = nextptr) {
 				nextptr = curp->next;
@@ -215,9 +214,11 @@ void snd_seq_cell_free(snd_seq_event_cell_t * cell)
 /*
  * allocate an event cell.
  */
-static int snd_seq_cell_alloc(pool_t *pool, snd_seq_event_cell_t **cellp, int nonblock, struct file *file)
+static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
+			      struct snd_seq_event_cell **cellp,
+			      int nonblock, struct file *file)
 {
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 	int err = -EAGAIN;
 	wait_queue_t wait;
@@ -280,11 +281,13 @@ __error:
  * if the event has external data, the data is decomposed to additional
  * cells.
  */
-int snd_seq_event_dup(pool_t *pool, snd_seq_event_t *event, snd_seq_event_cell_t **cellp, int nonblock, struct file *file)
+int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
+		      struct snd_seq_event_cell **cellp, int nonblock,
+		      struct file *file)
 {
 	int ncells, err;
 	unsigned int extlen;
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 
 	*cellp = NULL;
 
@@ -292,7 +295,7 @@ int snd_seq_event_dup(pool_t *pool, snd_seq_event_t *event, snd_seq_event_cell_t
 	extlen = 0;
 	if (snd_seq_ev_is_variable(event)) {
 		extlen = event->data.ext.len & ~SNDRV_SEQ_EXT_MASK;
-		ncells = (extlen + sizeof(snd_seq_event_t) - 1) / sizeof(snd_seq_event_t);
+		ncells = (extlen + sizeof(struct snd_seq_event) - 1) / sizeof(struct snd_seq_event);
 	}
 	if (ncells >= pool->total_elements)
 		return -ENOMEM;
@@ -309,18 +312,18 @@ int snd_seq_event_dup(pool_t *pool, snd_seq_event_t *event, snd_seq_event_cell_t
 		int len = extlen;
 		int is_chained = event->data.ext.len & SNDRV_SEQ_EXT_CHAINED;
 		int is_usrptr = event->data.ext.len & SNDRV_SEQ_EXT_USRPTR;
-		snd_seq_event_cell_t *src, *tmp, *tail;
+		struct snd_seq_event_cell *src, *tmp, *tail;
 		char *buf;
 
 		cell->event.data.ext.len = extlen | SNDRV_SEQ_EXT_CHAINED;
 		cell->event.data.ext.ptr = NULL;
 
-		src = (snd_seq_event_cell_t*)event->data.ext.ptr;
+		src = (struct snd_seq_event_cell *)event->data.ext.ptr;
 		buf = (char *)event->data.ext.ptr;
 		tail = NULL;
 
 		while (ncells-- > 0) {
-			int size = sizeof(snd_seq_event_t);
+			int size = sizeof(struct snd_seq_event);
 			if (len < size)
 				size = len;
 			err = snd_seq_cell_alloc(pool, &tmp, nonblock, file);
@@ -358,7 +361,8 @@ __error:
   
 
 /* poll wait */
-int snd_seq_pool_poll_wait(pool_t *pool, struct file *file, poll_table *wait)
+int snd_seq_pool_poll_wait(struct snd_seq_pool *pool, struct file *file,
+			   poll_table *wait)
 {
 	poll_wait(file, &pool->output_sleep, wait);
 	return snd_seq_output_ok(pool);
@@ -366,17 +370,17 @@ int snd_seq_pool_poll_wait(pool_t *pool, struct file *file, poll_table *wait)
 
 
 /* allocate room specified number of events */
-int snd_seq_pool_init(pool_t *pool)
+int snd_seq_pool_init(struct snd_seq_pool *pool)
 {
 	int cell;
-	snd_seq_event_cell_t *cellptr;
+	struct snd_seq_event_cell *cellptr;
 	unsigned long flags;
 
 	snd_assert(pool != NULL, return -EINVAL);
 	if (pool->ptr)			/* should be atomic? */
 		return 0;
 
-	pool->ptr = vmalloc(sizeof(snd_seq_event_cell_t) * pool->size);
+	pool->ptr = vmalloc(sizeof(struct snd_seq_event_cell) * pool->size);
 	if (pool->ptr == NULL) {
 		snd_printd("seq: malloc for sequencer events failed\n");
 		return -ENOMEM;
@@ -402,10 +406,10 @@ int snd_seq_pool_init(pool_t *pool)
 }
 
 /* remove events */
-int snd_seq_pool_done(pool_t *pool)
+int snd_seq_pool_done(struct snd_seq_pool *pool)
 {
 	unsigned long flags;
-	snd_seq_event_cell_t *ptr;
+	struct snd_seq_event_cell *ptr;
 	int max_count = 5 * HZ;
 
 	snd_assert(pool != NULL, return -EINVAL);
@@ -446,9 +450,9 @@ int snd_seq_pool_done(pool_t *pool)
 
 
 /* init new memory pool */
-pool_t *snd_seq_pool_new(int poolsize)
+struct snd_seq_pool *snd_seq_pool_new(int poolsize)
 {
-	pool_t *pool;
+	struct snd_seq_pool *pool;
 
 	/* create pool block */
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
@@ -472,9 +476,9 @@ pool_t *snd_seq_pool_new(int poolsize)
 }
 
 /* remove memory pool */
-int snd_seq_pool_delete(pool_t **ppool)
+int snd_seq_pool_delete(struct snd_seq_pool **ppool)
 {
-	pool_t *pool = *ppool;
+	struct snd_seq_pool *pool = *ppool;
 
 	*ppool = NULL;
 	if (pool == NULL)
@@ -497,7 +501,8 @@ void __exit snd_sequencer_memory_done(void)
 
 
 /* exported to seq_clientmgr.c */
-void snd_seq_info_pool(snd_info_buffer_t * buffer, pool_t *pool, char *space)
+void snd_seq_info_pool(struct snd_info_buffer *buffer,
+		       struct snd_seq_pool *pool, char *space)
 {
 	if (pool == NULL)
 		return;

@@ -44,7 +44,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "conv.h"
 #include "fid.h"
 
 static void v9fs_clear_inode(struct inode *);
@@ -92,7 +91,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_op = &v9fs_super_ops;
 
 	sb->s_flags = flags | MS_ACTIVE | MS_SYNCHRONOUS | MS_DIRSYNC |
-	    MS_NODIRATIME | MS_NOATIME;
+	    MS_NOATIME;
 }
 
 /**
@@ -123,12 +122,13 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	dprintk(DEBUG_VFS, " \n");
 
-	v9ses = kcalloc(1, sizeof(struct v9fs_session_info), GFP_KERNEL);
+	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
 		return ERR_PTR(-ENOMEM);
 
 	if ((newfid = v9fs_session_init(v9ses, dev_name, data)) < 0) {
 		dprintk(DEBUG_ERROR, "problem initiating session\n");
+		kfree(v9ses);
 		return ERR_PTR(newfid);
 	}
 
@@ -157,7 +157,7 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 	stat_result = v9fs_t_stat(v9ses, newfid, &fcall);
 	if (stat_result < 0) {
 		dprintk(DEBUG_ERROR, "stat error\n");
-		v9fs_t_clunk(v9ses, newfid, NULL);
+		v9fs_t_clunk(v9ses, newfid);
 		v9fs_put_idpool(newfid, &v9ses->fidpool);
 	} else {
 		/* Setup the Root Inode */
@@ -167,10 +167,10 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 			goto put_back_sb;
 		}
 
-		root_fid->qid = fcall->params.rstat.stat->qid;
+		root_fid->qid = fcall->params.rstat.stat.qid;
 		root->d_inode->i_ino =
-		    v9fs_qid2ino(&fcall->params.rstat.stat->qid);
-		v9fs_mistat2inode(fcall->params.rstat.stat, root->d_inode, sb);
+		    v9fs_qid2ino(&fcall->params.rstat.stat.qid);
+		v9fs_stat2inode(&fcall->params.rstat.stat, root->d_inode, sb);
 	}
 
 	kfree(fcall);

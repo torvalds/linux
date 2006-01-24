@@ -95,7 +95,7 @@ unsigned long drm_alloc_pages(int order, int area)
 	unsigned long addr;
 	unsigned int sz;
 
-	address = __get_free_pages(GFP_KERNEL, order);
+	address = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
 	if (!address)
 		return 0;
 
@@ -145,15 +145,11 @@ DRM_AGP_MEM *drm_alloc_agp(drm_device_t * dev, int pages, u32 type)
 	return drm_agp_allocate_memory(dev->agp->bridge, pages, type);
 }
 
-EXPORT_SYMBOL(drm_alloc_agp);
-
 /** Wrapper around agp_free_memory() */
 int drm_free_agp(DRM_AGP_MEM * handle, int pages)
 {
 	return drm_agp_free_memory(handle) ? 0 : -EINVAL;
 }
-
-EXPORT_SYMBOL(drm_free_agp);
 
 /** Wrapper around agp_bind_memory() */
 int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start)
@@ -161,14 +157,10 @@ int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start)
 	return drm_agp_bind_memory(handle, start);
 }
 
-EXPORT_SYMBOL(drm_bind_agp);
-
 /** Wrapper around agp_unbind_memory() */
 int drm_unbind_agp(DRM_AGP_MEM * handle)
 {
 	return drm_agp_unbind_memory(handle);
 }
-
-EXPORT_SYMBOL(drm_unbind_agp);
 #endif				/* agp */
 #endif				/* debug_memory */

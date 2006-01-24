@@ -5,7 +5,7 @@
  * Driver for the MDIO bus controller in the Gianfar register space
  *
  * Author: Andy Fleming
- * Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ * Maintainer: Kumar Gala
  *
  * Copyright (c) 2002-2004 Freescale Semiconductor, Inc.
  *
@@ -24,6 +24,7 @@
 #define MII_READ_COMMAND       0x00000001
 
 #define GFAR_SUPPORTED (SUPPORTED_10baseT_Half \
+		| SUPPORTED_10baseT_Full \
 		| SUPPORTED_100baseT_Half \
 		| SUPPORTED_100baseT_Full \
 		| SUPPORTED_Autoneg \

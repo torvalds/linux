@@ -34,7 +34,6 @@ extern void (*mach_power_off)( void );
 extern unsigned long (*mach_hd_init) (unsigned long, unsigned long);
 extern void (*mach_hd_setup)(char *, int *);
 extern long mach_max_dma_address;
-extern void (*mach_floppy_setup)(char *, int *);
 extern void (*mach_heartbeat) (int);
 extern void (*mach_l2_flush) (int);
 extern void (*mach_beep) (unsigned int, unsigned int);

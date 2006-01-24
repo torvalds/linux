@@ -26,7 +26,7 @@ config INPUT_PCSPKR
 
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
-	depends on PCI && (SPARC32 || SPARC64)
+	depends on PCI && SPARC
 	help
 	  Say Y here if you want the standard Speaker on Sparc PCI systems
 	  to be used for bells and whistles.
@@ -39,6 +39,16 @@ config INPUT_SPARCSPKR
 config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
+
+config INPUT_WISTRON_BTNS
+	tristate "x86 Wistron laptop button interface"
+	depends on X86 && !X86_64
+	help
+	  Say Y here for support of Winstron laptop button interface, used on
+	  laptops of various brands, including Acer and Fujitsu-Siemens.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called wistron_btns.
 
 config INPUT_UINPUT
 	tristate "User level driver support"

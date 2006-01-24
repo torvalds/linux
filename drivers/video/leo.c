@@ -32,9 +32,8 @@ static int leo_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int leo_blank(int, struct fb_info *);
 
-static int leo_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int leo_ioctl(struct inode *, struct file *, unsigned int,
-		     unsigned long, struct fb_info *);
+static int leo_mmap(struct fb_info *, struct vm_area_struct *);
+static int leo_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int leo_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
@@ -51,6 +50,9 @@ static struct fb_ops leo_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= leo_mmap,
 	.fb_ioctl		= leo_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 #define LEO_OFF_LC_SS0_KRN	0x00200000UL
@@ -194,7 +196,6 @@ struct leo_par {
 	unsigned long		fbsize;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 static void leo_wait(struct leo_lx_krn __iomem *lx_krn)
@@ -361,7 +362,7 @@ static struct sbus_mmap_map leo_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int leo_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int leo_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct leo_par *par = (struct leo_par *)info->par;
 
@@ -371,8 +372,7 @@ static int leo_mmap(struct fb_info *info, struct file *file, struct vm_area_stru
 				  vma);
 }
 
-static int leo_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg, struct fb_info *info)
+static int leo_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct leo_par *par = (struct leo_par *) info->par;
 

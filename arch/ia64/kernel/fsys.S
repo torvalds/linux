@@ -903,5 +903,6 @@ fsyscall_table:
 	data8 0
 	data8 0
 	data8 0
+	data8 0							// 1280
 
 	.org fsyscall_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

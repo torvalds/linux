@@ -3512,9 +3512,8 @@ static int orinoco_ioctl_setpower(struct net_device *dev,
 			break;
 		default:
 			err = -EINVAL;
-		}
-		if (err)
 			goto out;
+		}
 		
 		if (prq->flags & IW_POWER_TIMEOUT) {
 			priv->pm_on = 1;

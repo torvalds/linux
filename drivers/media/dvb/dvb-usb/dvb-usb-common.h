@@ -24,7 +24,7 @@ extern int dvb_usb_disable_rc_polling;
 #define deb_mem(args...)  dprintk(dvb_usb_debug,0x80,args)
 
 /* commonly used  methods */
-extern int usb_cypress_load_firmware(struct usb_device *, const char *, int);
+extern int dvb_usb_download_firmware(struct usb_device *, struct dvb_usb_properties *);
 
 extern int dvb_usb_urb_submit(struct dvb_usb_device *);
 extern int dvb_usb_urb_kill(struct dvb_usb_device *);

@@ -260,7 +260,7 @@ extern void omap_init_irq(void);
  * The definition of NR_IRQS is in board-specific header file, which is
  * included via hardware.h
  */
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #ifndef NR_IRQS
 #define NR_IRQS                 IH_BOARD_BASE

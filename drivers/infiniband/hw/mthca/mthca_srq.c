@@ -201,7 +201,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	if (mthca_is_memfree(dev))
 		srq->max = roundup_pow_of_two(srq->max + 1);
 
-	ds = min(64UL,
+	ds = max(64UL,
 		 roundup_pow_of_two(sizeof (struct mthca_next_seg) +
 				    srq->max_gs * sizeof (struct mthca_data_seg)));
 	srq->wqe_shift = long_log2(ds);

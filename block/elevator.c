@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/block/elevator.c
- *
  *  Block device elevator/IO-scheduler.
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
@@ -66,7 +64,7 @@ inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_rq_merge_ok);
 
-inline int elv_try_merge(struct request *__rq, struct bio *bio)
+static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 {
 	int ret = ELEVATOR_NO_MERGE;
 
@@ -82,7 +80,6 @@ inline int elv_try_merge(struct request *__rq, struct bio *bio)
 
 	return ret;
 }
-EXPORT_SYMBOL(elv_try_merge);
 
 static struct elevator_type *elevator_find(const char *name)
 {
@@ -152,12 +149,20 @@ static void elevator_setup_default(void)
 	if (!chosen_elevator[0])
 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 
+	/*
+	 * Be backwards-compatible with previous kernels, so users
+	 * won't get the wrong elevator.
+	 */
+	if (!strcmp(chosen_elevator, "as"))
+		strcpy(chosen_elevator, "anticipatory");
+
  	/*
- 	 * If the given scheduler is not available, fall back to no-op.
+ 	 * If the given scheduler is not available, fall back to the default
  	 */
- 	if (!(e = elevator_find(chosen_elevator)))
- 		strcpy(chosen_elevator, "noop");
-	elevator_put(e);
+ 	if ((e = elevator_find(chosen_elevator)))
+		elevator_put(e);
+	else
+ 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 }
 
 static int __init elevator_setup(char *str)
@@ -190,14 +195,14 @@ int elevator_init(request_queue_t *q, char *name)
 
 	eq = kmalloc(sizeof(struct elevator_queue), GFP_KERNEL);
 	if (!eq) {
-		elevator_put(e->elevator_type);
+		elevator_put(e);
 		return -ENOMEM;
 	}
 
 	ret = elevator_attach(q, e, eq);
 	if (ret) {
 		kfree(eq);
-		elevator_put(e->elevator_type);
+		elevator_put(e);
 	}
 
 	return ret;
@@ -225,6 +230,7 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
+	q->nr_sorted--;
 
 	boundary = q->end_sector;
 
@@ -283,6 +289,7 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 
 	if (e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
+	q->nr_sorted--;
 
 	q->last_merge = rq;
 }
@@ -303,21 +310,38 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 
 	rq->flags &= ~REQ_STARTED;
 
-	/*
-	 * if this is the flush, requeue the original instead and drop the flush
-	 */
-	if (rq->flags & REQ_BAR_FLUSH) {
-		clear_bit(QUEUE_FLAG_FLUSH, &q->queue_flags);
-		rq = rq->end_io_data;
-	}
+	__elv_add_request(q, rq, ELEVATOR_INSERT_REQUEUE, 0);
+}
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+static void elv_drain_elevator(request_queue_t *q)
+{
+	static int printed;
+	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
+		;
+	if (q->nr_sorted == 0)
+		return;
+	if (printed++ < 10) {
+		printk(KERN_ERR "%s: forced dispatching is broken "
+		       "(nr_sorted=%u), please report this\n",
+		       q->elevator->elevator_type->elevator_name, q->nr_sorted);
+	}
 }
 
 void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		       int plug)
 {
+	struct list_head *pos;
+	unsigned ordseq;
+
+	if (q->ordcolor)
+		rq->flags |= REQ_ORDERED_COLOR;
+
 	if (rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
+		/*
+		 * toggle ordered color
+		 */
+		q->ordcolor ^= 1;
+
 		/*
 		 * barriers implicitly indicate back insertion
 		 */
@@ -348,9 +372,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 
 	case ELEVATOR_INSERT_BACK:
 		rq->flags |= REQ_SOFTBARRIER;
-
-		while (q->elevator->ops->elevator_dispatch_fn(q, 1))
-			;
+		elv_drain_elevator(q);
 		list_add_tail(&rq->queuelist, &q->queue_head);
 		/*
 		 * We kick the queue here for the following reasons.
@@ -369,6 +391,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(!blk_fs_request(rq));
 		rq->flags |= REQ_SORTED;
+		q->nr_sorted++;
 		if (q->last_merge == NULL && rq_mergeable(rq))
 			q->last_merge = rq;
 		/*
@@ -377,6 +400,30 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		 * elevator_add_req_fn.
 		 */
 		q->elevator->ops->elevator_add_req_fn(q, rq);
+		break;
+
+	case ELEVATOR_INSERT_REQUEUE:
+		/*
+		 * If ordered flush isn't in progress, we do front
+		 * insertion; otherwise, requests should be requeued
+		 * in ordseq order.
+		 */
+		rq->flags |= REQ_SOFTBARRIER;
+
+		if (q->ordseq == 0) {
+			list_add(&rq->queuelist, &q->queue_head);
+			break;
+		}
+
+		ordseq = blk_ordered_req_seq(rq);
+
+		list_for_each(pos, &q->queue_head) {
+			struct request *pos_rq = list_entry_rq(pos);
+			if (ordseq <= blk_ordered_req_seq(pos_rq))
+				break;
+		}
+
+		list_add_tail(&rq->queuelist, pos);
 		break;
 
 	default:
@@ -408,25 +455,16 @@ static inline struct request *__elv_next_request(request_queue_t *q)
 {
 	struct request *rq;
 
-	if (unlikely(list_empty(&q->queue_head) &&
-		     !q->elevator->ops->elevator_dispatch_fn(q, 0)))
-		return NULL;
+	while (1) {
+		while (!list_empty(&q->queue_head)) {
+			rq = list_entry_rq(q->queue_head.next);
+			if (blk_do_ordered(q, &rq))
+				return rq;
+		}
 
-	rq = list_entry_rq(q->queue_head.next);
-
-	/*
-	 * if this is a barrier write and the device has to issue a
-	 * flush sequence to support it, check how far we are
-	 */
-	if (blk_fs_request(rq) && blk_barrier_rq(rq)) {
-		BUG_ON(q->ordered == QUEUE_ORDERED_NONE);
-
-		if (q->ordered == QUEUE_ORDERED_FLUSH &&
-		    !blk_barrier_preflush(rq))
-			rq = blk_start_pre_flush(q, rq);
+		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))
+			return NULL;
 	}
-
-	return rq;
 }
 
 struct request *elv_next_request(request_queue_t *q)
@@ -484,7 +522,7 @@ struct request *elv_next_request(request_queue_t *q)
 			blkdev_dequeue_request(rq);
 			rq->flags |= REQ_QUIET;
 			end_that_request_chunk(rq, 0, nr_bytes);
-			end_that_request_last(rq);
+			end_that_request_last(rq, 0);
 		} else {
 			printk(KERN_ERR "%s: bad return=%d\n", __FUNCTION__,
 								ret);
@@ -525,33 +563,19 @@ int elv_queue_empty(request_queue_t *q)
 
 struct request *elv_latter_request(request_queue_t *q, struct request *rq)
 {
-	struct list_head *next;
-
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_latter_req_fn)
 		return e->ops->elevator_latter_req_fn(q, rq);
-
-	next = rq->queuelist.next;
-	if (next != &q->queue_head && next != &rq->queuelist)
-		return list_entry_rq(next);
-
 	return NULL;
 }
 
 struct request *elv_former_request(request_queue_t *q, struct request *rq)
 {
-	struct list_head *prev;
-
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_former_req_fn)
 		return e->ops->elevator_former_req_fn(q, rq);
-
-	prev = rq->queuelist.prev;
-	if (prev != &q->queue_head && prev != &rq->queuelist)
-		return list_entry_rq(prev);
-
 	return NULL;
 }
 
@@ -596,6 +620,20 @@ void elv_completed_request(request_queue_t *q, struct request *rq)
 		q->in_flight--;
 		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
 			e->ops->elevator_completed_req_fn(q, rq);
+	}
+
+	/*
+	 * Check if the queue is waiting for fs requests to be
+	 * drained for flush sequence.
+	 */
+	if (unlikely(q->ordseq)) {
+		struct request *first_rq = list_entry_rq(q->queue_head.next);
+		if (q->in_flight == 0 &&
+		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
+		    blk_ordered_req_seq(first_rq) > QUEUE_ORDSEQ_DRAIN) {
+			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
+			q->request_fn(q);
+		}
 	}
 }
 
@@ -691,13 +729,15 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 
 	set_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 
-	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
-		;
+	elv_drain_elevator(q);
 
 	while (q->rq.elvpriv) {
+		blk_remove_plug(q);
+		q->request_fn(q);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
+		elv_drain_elevator(q);
 	}
 
 	spin_unlock_irq(q->queue_lock);
@@ -744,13 +784,15 @@ error:
 ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
+	size_t len;
 	struct elevator_type *e;
 
-	memset(elevator_name, 0, sizeof(elevator_name));
-	strncpy(elevator_name, name, sizeof(elevator_name));
+	elevator_name[sizeof(elevator_name) - 1] = '\0';
+	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
+	len = strlen(elevator_name);
 
-	if (elevator_name[strlen(elevator_name) - 1] == '\n')
-		elevator_name[strlen(elevator_name) - 1] = '\0';
+	if (len && elevator_name[len - 1] == '\n')
+		elevator_name[len - 1] = '\0';
 
 	e = elevator_get(elevator_name);
 	if (!e) {

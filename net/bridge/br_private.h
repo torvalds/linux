@@ -27,6 +27,10 @@
 #define BR_PORT_BITS	10
 #define BR_MAX_PORTS	(1<<BR_PORT_BITS)
 
+#define BR_PORT_DEBOUNCE (HZ/10)
+
+#define BR_VERSION	"2.1"
+
 typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
 typedef __u16 port_id;
@@ -78,6 +82,7 @@ struct net_bridge_port
 	struct timer_list		hold_timer;
 	struct timer_list		message_age_timer;
 	struct kobject			kobj;
+	struct work_struct		carrier_check;
 	struct rcu_head			rcu;
 };
 
@@ -90,6 +95,7 @@ struct net_bridge
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 	struct list_head		age_list;
+	unsigned long			feature_mask;
 
 	/* STP */
 	bridge_id			designated_root;
@@ -201,6 +207,7 @@ extern void br_stp_disable_bridge(struct net_bridge *br);
 extern void br_stp_enable_port(struct net_bridge_port *p);
 extern void br_stp_disable_port(struct net_bridge_port *p);
 extern void br_stp_recalculate_bridge_id(struct net_bridge *br);
+extern void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *a);
 extern void br_stp_set_bridge_priority(struct net_bridge *br,
 				       u16 newprio);
 extern void br_stp_set_port_priority(struct net_bridge_port *p,

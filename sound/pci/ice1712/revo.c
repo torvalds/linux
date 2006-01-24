@@ -33,7 +33,7 @@
 #include "envy24ht.h"
 #include "revo.h"
 
-static void revo_i2s_mclk_changed(ice1712_t *ice)
+static void revo_i2s_mclk_changed(struct snd_ice1712 *ice)
 {
 	/* assert PRST# to converters; MT05 bit 7 */
 	outb(inb(ICEMT1724(ice, AC97_CMD)) | 0x80, ICEMT1724(ice, AC97_CMD));
@@ -45,7 +45,7 @@ static void revo_i2s_mclk_changed(ice1712_t *ice)
 /*
  * change the rate of envy24HT, AK4355 and AK4381
  */
-static void revo_set_rate_val(akm4xxx_t *ak, unsigned int rate)
+static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	unsigned char old, tmp, dfs;
 	int reg, shift;
@@ -61,7 +61,7 @@ static void revo_set_rate_val(akm4xxx_t *ak, unsigned int rate)
 	else
 		dfs = 0;
 
-	if (ak->type == SND_AK4355) {
+	if (ak->type == SND_AK4355 || ak->type == SND_AK4358) {
 		reg = 2;
 		shift = 4;
 	} else {
@@ -87,7 +87,7 @@ static void revo_set_rate_val(akm4xxx_t *ak, unsigned int rate)
  * initialize the chips on M-Audio Revolution cards
  */
 
-static akm4xxx_t akm_revo_front __devinitdata = {
+static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
@@ -107,7 +107,7 @@ static struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static akm4xxx_t akm_revo_surround __devinitdata = {
+static struct snd_akm4xxx akm_revo_surround __devinitdata = {
 	.type = SND_AK4355,
 	.idx_offset = 1,
 	.num_dacs = 6,
@@ -128,9 +128,29 @@ static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static int __devinit revo_init(ice1712_t *ice)
+static struct snd_akm4xxx akm_revo51 __devinitdata = {
+	.type = SND_AK4358,
+	.num_dacs = 6,
+	.ops = {
+		.set_rate_val = revo_set_rate_val
+	}
+};
+
+static struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
+	.caddr = 2,
+	.cif = 0,
+	.data_mask = VT1724_REVO_CDOUT,
+	.clk_mask = VT1724_REVO_CCLK,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_addr = 0,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.add_flags = VT1724_REVO_CCLK, /* high at init */
+	.mask_flags = 0,
+};
+
+static int __devinit revo_init(struct snd_ice1712 *ice)
 {
-	akm4xxx_t *ak;
+	struct snd_akm4xxx *ak;
 	int err;
 
 	/* determine I2C, DACs and ADCs */
@@ -138,26 +158,37 @@ static int __devinit revo_init(ice1712_t *ice)
 	case VT1724_SUBDEVICE_REVOLUTION71:
 		ice->num_total_dacs = 8;
 		ice->num_total_adcs = 2;
+		ice->gpio.i2s_mclk_changed = revo_i2s_mclk_changed;
+		break;
+	case VT1724_SUBDEVICE_REVOLUTION51:
+		ice->num_total_dacs = 6;
+		ice->num_total_adcs = 2;
 		break;
 	default:
 		snd_BUG();
 		return -EINVAL;
 	}
 
-	ice->gpio.i2s_mclk_changed = revo_i2s_mclk_changed;
-
 	/* second stage of initialization, analog parts and others */
-	ak = ice->akm = kcalloc(2, sizeof(akm4xxx_t), GFP_KERNEL);
+	ak = ice->akm = kcalloc(2, sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 2;
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_REVOLUTION71:
+		ice->akm_codecs = 2;
 		if ((err = snd_ice1712_akm4xxx_init(ak, &akm_revo_front, &akm_revo_front_priv, ice)) < 0)
 			return err;
 		if ((err = snd_ice1712_akm4xxx_init(ak + 1, &akm_revo_surround, &akm_revo_surround_priv, ice)) < 0)
 			return err;
 		/* unmute all codecs */
+		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);
+		break;
+	case VT1724_SUBDEVICE_REVOLUTION51:
+		ice->akm_codecs = 1;
+		if ((err = snd_ice1712_akm4xxx_init(ak, &akm_revo51, &akm_revo51_priv, ice)) < 0)
+			return err;
+		/* unmute all codecs - needed! */
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);
 		break;
 	}
@@ -166,12 +197,13 @@ static int __devinit revo_init(ice1712_t *ice)
 }
 
 
-static int __devinit revo_add_controls(ice1712_t *ice)
+static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 {
 	int err;
 
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_REVOLUTION71:
+	case VT1724_SUBDEVICE_REVOLUTION51:
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
@@ -185,6 +217,13 @@ struct snd_ice1712_card_info snd_vt1724_revo_cards[] __devinitdata = {
 		.subvendor = VT1724_SUBDEVICE_REVOLUTION71,
 		.name = "M Audio Revolution-7.1",
 		.model = "revo71",
+		.chip_init = revo_init,
+		.build_controls = revo_add_controls,
+	},
+	{
+		.subvendor = VT1724_SUBDEVICE_REVOLUTION51,
+		.name = "M Audio Revolution-5.1",
+		.model = "revo51",
 		.chip_init = revo_init,
 		.build_controls = revo_add_controls,
 	},

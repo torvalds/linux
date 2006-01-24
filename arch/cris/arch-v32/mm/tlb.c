@@ -198,9 +198,9 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	per_cpu(current_pgd, cpu) = next->pgd;
 
 	/* Switch context in the MMU. */
-        if (tsk && tsk->thread_info)
+        if (tsk && task_thread_info(tsk))
         {
-          SPEC_REG_WR(SPEC_REG_PID, next->context.page_id | tsk->thread_info->tls);
+          SPEC_REG_WR(SPEC_REG_PID, next->context.page_id | task_thread_info(tsk)->tls);
         }
         else
         {

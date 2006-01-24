@@ -184,7 +184,7 @@ typedef struct _INQUIRYDATA
 #endif
 
 // function prototypes
-int Pci2000_Detect			(Scsi_Host_Template *tpnt);
+int Pci2000_Detect			(struct scsi_host_template *tpnt);
 int Pci2000_Command			(Scsi_Cmnd *SCpnt);
 int Pci2000_QueueCommand	(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *));
 int Pci2000_Abort			(Scsi_Cmnd *SCpnt);

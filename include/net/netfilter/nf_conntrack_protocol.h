@@ -12,6 +12,7 @@
 #include <net/netfilter/nf_conntrack.h>
 
 struct seq_file;
+struct nfattr;
 
 struct nf_conntrack_protocol
 {
@@ -66,6 +67,18 @@ struct nf_conntrack_protocol
 		     enum ip_conntrack_info *ctinfo,
 		     int pf, unsigned int hooknum);
 
+	/* convert protoinfo to nfnetink attributes */
+	int (*to_nfattr)(struct sk_buff *skb, struct nfattr *nfa,
+			 const struct nf_conn *ct);
+
+	/* convert nfnetlink attributes to protoinfo */
+	int (*from_nfattr)(struct nfattr *tb[], struct nf_conn *ct);
+
+	int (*tuple_to_nfattr)(struct sk_buff *skb,
+			       const struct nf_conntrack_tuple *t);
+	int (*nfattr_to_tuple)(struct nfattr *tb[],
+			       struct nf_conntrack_tuple *t);
+
 	/* Module (if any) which this is connected to. */
 	struct module *me;
 };
@@ -80,11 +93,22 @@ extern struct nf_conntrack_protocol nf_conntrack_generic_protocol;
 extern struct nf_conntrack_protocol **nf_ct_protos[PF_MAX];
 
 extern struct nf_conntrack_protocol *
-nf_ct_find_proto(u_int16_t l3proto, u_int8_t protocol);
+__nf_ct_proto_find(u_int16_t l3proto, u_int8_t protocol);
+
+extern struct nf_conntrack_protocol *
+nf_ct_proto_find_get(u_int16_t l3proto, u_int8_t protocol);
+
+extern void nf_ct_proto_put(struct nf_conntrack_protocol *p);
 
 /* Protocol registration. */
 extern int nf_conntrack_protocol_register(struct nf_conntrack_protocol *proto);
 extern void nf_conntrack_protocol_unregister(struct nf_conntrack_protocol *proto);
+
+/* Generic netlink helpers */
+extern int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
+				      const struct nf_conntrack_tuple *tuple);
+extern int nf_ct_port_nfattr_to_tuple(struct nfattr *tb[],
+				      struct nf_conntrack_tuple *t);
 
 /* Log invalid packets */
 extern unsigned int nf_ct_log_invalid;

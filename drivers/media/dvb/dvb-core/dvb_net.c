@@ -151,6 +151,8 @@ struct dvb_net_priv {
 	unsigned char ule_bridged;		/* Whether the ULE_BRIDGED extension header was found. */
 	int ule_sndu_remain;			/* Nr. of bytes still required for current ULE SNDU. */
 	unsigned long ts_count;			/* Current ts cell counter. */
+
+	struct semaphore mutex;
 };
 
 
@@ -711,7 +713,7 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	if (buffer1_len > 32768)
 		printk(KERN_WARNING "length > 32k: %zu.\n", buffer1_len);
 	/* printk("TS callback: %u bytes, %u TS cells @ %p.\n",
-	          buffer1_len, buffer1_len / TS_SZ, buffer1); */
+		  buffer1_len, buffer1_len / TS_SZ, buffer1); */
 	dvb_net_ule(dev, buffer1, buffer1_len);
 	return 0;
 }
@@ -719,8 +721,8 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 
 static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 {
-        u8 *eth;
-        struct sk_buff *skb;
+	u8 *eth;
+	struct sk_buff *skb;
 	struct net_device_stats *stats = &(((struct dvb_net_priv *) dev->priv)->stats);
 	int snap = 0;
 
@@ -752,7 +754,7 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 			return;
 		}
 		snap = 8;
-        }
+	}
 	if (pkt[7]) {
 		/* FIXME: assemble datagram from multiple sections */
 		stats->rx_errors++;
@@ -776,14 +778,14 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */
-        eth[0]=pkt[0x0b];
-        eth[1]=pkt[0x0a];
-        eth[2]=pkt[0x09];
-        eth[3]=pkt[0x08];
-        eth[4]=pkt[0x04];
-        eth[5]=pkt[0x03];
+	eth[0]=pkt[0x0b];
+	eth[1]=pkt[0x0a];
+	eth[2]=pkt[0x09];
+	eth[3]=pkt[0x08];
+	eth[4]=pkt[0x04];
+	eth[5]=pkt[0x03];
 
-        eth[6]=eth[7]=eth[8]=eth[9]=eth[10]=eth[11]=0;
+	eth[6]=eth[7]=eth[8]=eth[9]=eth[10]=eth[11]=0;
 
 	if (snap) {
 		eth[12] = pkt[18];
@@ -805,7 +807,7 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 
 	stats->rx_packets++;
 	stats->rx_bytes+=skb->len;
-        netif_rx(skb);
+	netif_rx(skb);
 }
 
 static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
@@ -813,7 +815,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 		 struct dmx_section_filter *filter,
 		 enum dmx_success success)
 {
-        struct net_device *dev = filter->priv;
+	struct net_device *dev = filter->priv;
 
 	/**
 	 * we rely on the DVB API definition where exactly one complete
@@ -881,12 +883,13 @@ static int dvb_net_filter_sec_set(struct net_device *dev,
 
 static int dvb_net_feed_start(struct net_device *dev)
 {
-	int ret, i;
+	int ret = 0, i;
 	struct dvb_net_priv *priv = dev->priv;
-        struct dmx_demux *demux = priv->demux;
-        unsigned char *mac = (unsigned char *) dev->dev_addr;
+	struct dmx_demux *demux = priv->demux;
+	unsigned char *mac = (unsigned char *) dev->dev_addr;
 
 	dprintk("%s: rx_mode %i\n", __FUNCTION__, priv->rx_mode);
+	down(&priv->mutex);
 	if (priv->tsfeed || priv->secfeed || priv->secfilter || priv->multi_secfilter[0])
 		printk("%s: BUG %d\n", __FUNCTION__, __LINE__);
 
@@ -900,7 +903,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 					 dvb_net_sec_callback);
 		if (ret<0) {
 			printk("%s: could not allocate section feed\n", dev->name);
-			return ret;
+			goto error;
 		}
 
 		ret = priv->secfeed->set(priv->secfeed, priv->pid, 32768, 1);
@@ -909,7 +912,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 			printk("%s: could not set section feed\n", dev->name);
 			priv->demux->release_section_feed(priv->demux, priv->secfeed);
 			priv->secfeed=NULL;
-			return ret;
+			goto error;
 		}
 
 		if (priv->rx_mode != RX_MODE_PROMISC) {
@@ -948,7 +951,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		ret = demux->allocate_ts_feed(demux, &priv->tsfeed, dvb_net_ts_callback);
 		if (ret < 0) {
 			printk("%s: could not allocate ts feed\n", dev->name);
-			return ret;
+			goto error;
 		}
 
 		/* Set netdevice pointer for ts decaps callback. */
@@ -962,23 +965,26 @@ static int dvb_net_feed_start(struct net_device *dev)
 			printk("%s: could not set ts feed\n", dev->name);
 			priv->demux->release_ts_feed(priv->demux, priv->tsfeed);
 			priv->tsfeed = NULL;
-			return ret;
+			goto error;
 		}
 
 		dprintk("%s: start filtering\n", __FUNCTION__);
 		priv->tsfeed->start_filtering(priv->tsfeed);
 	} else
-		return -EINVAL;
+		ret = -EINVAL;
 
-	return 0;
+error:
+	up(&priv->mutex);
+	return ret;
 }
 
 static int dvb_net_feed_stop(struct net_device *dev)
 {
 	struct dvb_net_priv *priv = dev->priv;
-	int i;
+	int i, ret = 0;
 
 	dprintk("%s\n", __FUNCTION__);
+	down(&priv->mutex);
 	if (priv->feedtype == DVB_NET_FEEDTYPE_MPE) {
 		if (priv->secfeed) {
 			if (priv->secfeed->is_filtering) {
@@ -1019,8 +1025,9 @@ static int dvb_net_feed_stop(struct net_device *dev)
 		else
 			printk("%s: no ts feed to stop\n", dev->name);
 	} else
-		return -EINVAL;
-	return 0;
+		ret = -EINVAL;
+	up(&priv->mutex);
+	return ret;
 }
 
 
@@ -1044,8 +1051,8 @@ static void wq_set_multicast_list (void *data)
 	struct dvb_net_priv *priv = dev->priv;
 
 	dvb_net_feed_stop(dev);
-
 	priv->rx_mode = RX_MODE_UNI;
+	spin_lock_bh(&dev->xmit_lock);
 
 	if (dev->flags & IFF_PROMISC) {
 		dprintk("%s: promiscuous mode\n", dev->name);
@@ -1070,6 +1077,7 @@ static void wq_set_multicast_list (void *data)
 		}
 	}
 
+	spin_unlock_bh(&dev->xmit_lock);
 	dvb_net_feed_start(dev);
 }
 
@@ -1121,12 +1129,12 @@ static int dvb_net_stop(struct net_device *dev)
 	struct dvb_net_priv *priv = dev->priv;
 
 	priv->in_use--;
-        return dvb_net_feed_stop(dev);
+	return dvb_net_feed_stop(dev);
 }
 
 static struct net_device_stats * dvb_net_get_stats(struct net_device *dev)
 {
-        return &((struct dvb_net_priv*) dev->priv)->stats;
+	return &((struct dvb_net_priv*) dev->priv)->stats;
 }
 
 static void dvb_net_setup(struct net_device *dev)
@@ -1200,6 +1208,7 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 
 	INIT_WORK(&priv->set_multicast_list_wq, wq_set_multicast_list, net);
 	INIT_WORK(&priv->restart_net_feed_wq, wq_restart_net_feed, net);
+	init_MUTEX(&priv->mutex);
 
 	net->base_addr = pid;
 
@@ -1213,7 +1222,7 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 	return if_num;
 }
 
-static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned int num)
+static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 {
 	struct net_device *net = dvbnet->device[num];
 	struct dvb_net_priv *priv;
@@ -1287,9 +1296,9 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if ((unsigned int) parg >= DVB_NET_DEVICES_MAX)
+		if ((unsigned long) parg >= DVB_NET_DEVICES_MAX)
 			return -EINVAL;
-		ret = dvb_net_remove_if(dvbnet, (unsigned int) parg);
+		ret = dvb_net_remove_if(dvbnet, (unsigned long) parg);
 		if (!ret)
 			module_put(dvbdev->adapter->module);
 		return ret;
@@ -1351,10 +1360,10 @@ static struct file_operations dvb_net_fops = {
 };
 
 static struct dvb_device dvbdev_net = {
-        .priv = NULL,
-        .users = 1,
-        .writers = 1,
-        .fops = &dvb_net_fops,
+	.priv = NULL,
+	.users = 1,
+	.writers = 1,
+	.fops = &dvb_net_fops,
 };
 
 

@@ -239,7 +239,7 @@ xfs_qm_dquot_logitem_pushbuf(
 	 * trying to duplicate our effort.
 	 */
 	ASSERT(qip->qli_pushbuf_flag != 0);
-	ASSERT(qip->qli_push_owner == get_thread_id());
+	ASSERT(qip->qli_push_owner == current_pid());
 
 	/*
 	 * If flushlock isn't locked anymore, chances are that the
@@ -333,7 +333,7 @@ xfs_qm_dquot_logitem_trylock(
 			qip->qli_pushbuf_flag = 1;
 			ASSERT(qip->qli_format.qlf_blkno == dqp->q_blkno);
 #ifdef DEBUG
-			qip->qli_push_owner = get_thread_id();
+			qip->qli_push_owner = current_pid();
 #endif
 			/*
 			 * The dquot is left locked.

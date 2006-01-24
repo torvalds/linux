@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
+#include <linux/capability.h>
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>

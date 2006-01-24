@@ -18,6 +18,10 @@
 #include <asm/smp.h>
 
 #ifdef CONFIG_NUMA
+
+/* Nodes w/o CPUs are preferred for memory allocations, see build_zonelists */
+#define PENALTY_FOR_NODE_WITH_CPUS 255
+
 /*
  * Returns the number of the node containing CPU 'cpu'
  */
@@ -38,7 +42,7 @@
 /*
  * Returns the number of the first CPU on Node 'node'.
  */
-#define node_to_first_cpu(node) (__ffs(node_to_cpumask(node)))
+#define node_to_first_cpu(node) (first_cpu(node_to_cpumask(node)))
 
 /*
  * Determines the node for a given pci bus
@@ -55,7 +59,6 @@ void build_cpu_to_node_map(void);
 	.max_interval		= 4,			\
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
-	.cache_hot_time		= (10*1000000),		\
 	.per_cpu_gain		= 100,			\
 	.cache_nice_tries	= 2,			\
 	.busy_idx		= 2,			\
@@ -81,7 +84,6 @@ void build_cpu_to_node_map(void);
 	.max_interval		= 8*(min(num_online_cpus(), 32)), \
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
-	.cache_hot_time		= (10*1000000),		\
 	.cache_nice_tries	= 2,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\

@@ -45,10 +45,6 @@
  * mode */
 int usb_stor_euscsi_init(struct us_data *us);
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-int sddr09_init(struct us_data *us);
-#endif
-
 /* This function is required to activate all four slots on the UCR-61S2B
  * flash reader */
 int usb_stor_ucr61s2b_init(struct us_data *us);

@@ -112,28 +112,6 @@ static struct slot *find_slot(struct device_node *dn)
         return NULL;
 }
 
-static void rpadlpar_claim_one_bus(struct pci_bus *b)
-{
-	struct list_head *ld;
-	struct pci_bus *child_bus;
-
-	for (ld = b->devices.next; ld != &b->devices; ld = ld->next) {
-		struct pci_dev *dev = pci_dev_b(ld);
-		int i;
-
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
-			if (r->parent || !r->start || !r->flags)
-				continue;
-			rpaphp_claim_resource(dev, i);
-		}
-	}
-
-	list_for_each_entry(child_bus, &b->children, node)
-		rpadlpar_claim_one_bus(child_bus);
-}
-
 static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
 					struct device_node *dev_dn)
 {
@@ -154,7 +132,8 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	struct pci_controller *phb = pdn->phb;
 	struct pci_dev *dev = NULL;
 
-	rpaphp_eeh_init_nodes(dn);
+	eeh_add_device_tree_early(dn);
+
 	/* Add EADS device to PHB bus, adding new entry to bus->devices */
 	dev = of_create_pci_dev(dn, phb->bus, pdn->devfn);
 	if (!dev) {
@@ -170,7 +149,7 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	rpaphp_init_new_devs(dev->subordinate);
 
 	/* Claim new bus resources */
-	rpadlpar_claim_one_bus(dev->bus);
+	pcibios_claim_one_bus(dev->bus);
 
 	/* ioremap() for child bus, which may or may not succeed */
 	(void) remap_bus_range(dev->bus);

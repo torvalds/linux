@@ -962,7 +962,6 @@ MODULE_DEVICE_TABLE (usb, mdc800_table);
  */
 static struct usb_driver mdc800_usb_driver =
 {
-	.owner =	THIS_MODULE,
 	.name =		"mdc800",
 	.probe =	mdc800_usb_probe,
 	.disconnect =	mdc800_usb_disconnect,

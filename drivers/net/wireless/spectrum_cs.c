@@ -57,17 +57,6 @@ module_param(ignore_cis_vcc, int, 0);
 MODULE_PARM_DESC(ignore_cis_vcc, "Allow voltage mismatch between card and socket");
 
 /********************************************************************/
-/* Magic constants						    */
-/********************************************************************/
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card
- * configuration database.
- */
-static dev_info_t dev_info = DRIVER_NAME;
-
-/********************************************************************/
 /* Data structures						    */
 /********************************************************************/
 
@@ -78,19 +67,12 @@ struct orinoco_pccard {
 	dev_node_t node;
 };
 
-/*
- * A linked list of "instances" of the device.  Each actual PCMCIA
- * card corresponds to one device instance, and is described by one
- * dev_link_t structure (defined in ds.h).
- */
-static dev_link_t *dev_list; /* = NULL */
-
 /********************************************************************/
 /* Function prototypes						    */
 /********************************************************************/
 
+static void spectrum_cs_config(dev_link_t *link);
 static void spectrum_cs_release(dev_link_t *link);
-static void spectrum_cs_detach(dev_link_t *link);
 
 /********************************************************************/
 /* Firmware downloader						    */
@@ -601,19 +583,17 @@ spectrum_cs_hard_reset(struct orinoco_private *priv)
  * The dev_link structure is initialized, but we don't actually
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
-static dev_link_t *
-spectrum_cs_attach(void)
+static int
+spectrum_cs_attach(struct pcmcia_device *p_dev)
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	dev = alloc_orinocodev(sizeof(*card), spectrum_cs_hard_reset);
 	if (! dev)
-		return NULL;
+		return -ENOMEM;
 	priv = netdev_priv(dev);
 	card = priv->card;
 
@@ -635,23 +615,13 @@ spectrum_cs_attach(void)
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	/* FIXME: need a lock? */
-	link->next = dev_list;
-	dev_list = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210; /* FIXME: what does this mean? */
-	client_reg.event_callback_args.client_data = link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	spectrum_cs_config(link);
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		spectrum_cs_detach(link);
-		return NULL;
-	}
-
-	return link;
+	return 0;
 }				/* spectrum_cs_attach */
 
 /*
@@ -660,27 +630,14 @@ spectrum_cs_attach(void)
  * are freed.  Otherwise, the structures will be freed when the device
  * is released.
  */
-static void spectrum_cs_detach(dev_link_t *link)
+static void spectrum_cs_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	BUG_ON(*linkp == NULL);
 
 	if (link->state & DEV_CONFIG)
 		spectrum_cs_release(link);
 
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
 	DEBUG(0, PFX "detach: link=%p link->dev=%p\n", link, link->dev);
 	if (link->dev) {
 		DEBUG(0, PFX "About to unregister net device %p\n",
@@ -948,82 +905,56 @@ spectrum_cs_release(dev_link_t *link)
 		ioport_unmap(priv->hw.iobase);
 }				/* spectrum_cs_release */
 
-/*
- * The card status event handler.  Mostly, this schedules other stuff
- * to run after an event is received.
- */
+
 static int
-spectrum_cs_event(event_t event, int priority,
-		       event_callback_args_t * args)
+spectrum_cs_suspend(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
-	int err = 0;
 	unsigned long flags;
+	int err = 0;
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			unsigned long flags;
+	link->state |= DEV_SUSPEND;
+	/* Mark the device as stopped, to block IO until later */
+	if (link->state & DEV_CONFIG) {
+		spin_lock_irqsave(&priv->lock, flags);
 
-			spin_lock_irqsave(&priv->lock, flags);
-			netif_device_detach(dev);
-			priv->hw_unavailable++;
-			spin_unlock_irqrestore(&priv->lock, flags);
-		}
-		break;
+		err = __orinoco_down(dev);
+		if (err)
+			printk(KERN_WARNING "%s: Error %d downing interface\n",
+			       dev->name, err);
 
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		spectrum_cs_config(link);
-		break;
+		netif_device_detach(dev);
+		priv->hw_unavailable++;
 
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		/* Mark the device as stopped, to block IO until later */
-		if (link->state & DEV_CONFIG) {
-			/* This is probably racy, but I can't think of
-                           a better way, short of rewriting the PCMCIA
-                           layer to not suck :-( */
-			spin_lock_irqsave(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->lock, flags);
 
-			err = __orinoco_down(dev);
-			if (err)
-				printk(KERN_WARNING "%s: %s: Error %d downing interface\n",
-				       dev->name,
-				       event == CS_EVENT_PM_SUSPEND ? "SUSPEND" : "RESET_PHYSICAL",
-				       err);
-
-			netif_device_detach(dev);
-			priv->hw_unavailable++;
-
-			spin_unlock_irqrestore(&priv->lock, flags);
-
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			/* FIXME: should we double check that this is
-			 * the same card as we had before */
-			pcmcia_request_configuration(link->handle, &link->conf);
-			netif_device_attach(dev);
-			priv->hw_unavailable--;
-			schedule_work(&priv->reset_work);
-		}
-		break;
+		pcmcia_release_configuration(link->handle);
 	}
 
-	return err;
-}				/* spectrum_cs_event */
+	return 0;
+}
+
+static int
+spectrum_cs_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+	struct orinoco_private *priv = netdev_priv(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		/* FIXME: should we double check that this is
+		 * the same card as we had before */
+		pcmcia_request_configuration(link->handle, &link->conf);
+		netif_device_attach(dev);
+		priv->hw_unavailable--;
+		schedule_work(&priv->reset_work);
+	}
+	return 0;
+}
+
 
 /********************************************************************/
 /* Module initialization					    */
@@ -1048,9 +979,10 @@ static struct pcmcia_driver orinoco_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
 	},
-	.attach		= spectrum_cs_attach,
-	.detach		= spectrum_cs_detach,
-	.event		= spectrum_cs_event,
+	.probe		= spectrum_cs_attach,
+	.remove		= spectrum_cs_detach,
+	.suspend	= spectrum_cs_suspend,
+	.resume		= spectrum_cs_resume,
 	.id_table       = spectrum_cs_ids,
 };
 
@@ -1066,7 +998,6 @@ static void __exit
 exit_spectrum_cs(void)
 {
 	pcmcia_unregister_driver(&orinoco_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_spectrum_cs);

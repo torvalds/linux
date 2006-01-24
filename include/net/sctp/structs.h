@@ -127,9 +127,9 @@ extern struct sctp_globals {
 	 * RTO.Alpha		    - 1/8  (3 when converted to right shifts.)
 	 * RTO.Beta		    - 1/4  (2 when converted to right shifts.)
 	 */
-	__u32 rto_initial;
-	__u32 rto_min;
-	__u32 rto_max;
+	unsigned long rto_initial;
+	unsigned long rto_min;
+	unsigned long rto_max;
 
 	/* Note: rto_alpha and rto_beta are really defined as inverse
 	 * powers of two to facilitate integer operations.
@@ -140,11 +140,17 @@ extern struct sctp_globals {
 	/* Max.Burst		    - 4 */
 	int max_burst;
 
-	/* Valid.Cookie.Life	    - 60  seconds  */
-	int valid_cookie_life;
-
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	int cookie_preserve_enable;
+
+	/* Valid.Cookie.Life	    - 60  seconds  */
+	unsigned long valid_cookie_life;
+
+	/* Delayed SACK timeout  200ms default*/
+	unsigned long sack_timeout;
+
+	/* HB.interval		    - 30 seconds  */
+	unsigned long hb_interval;
 
 	/* Association.Max.Retrans  - 10 attempts
 	 * Path.Max.Retrans	    - 5	 attempts (per destination address)
@@ -161,11 +167,12 @@ extern struct sctp_globals {
 	 */
 	int sndbuf_policy;
 
-	/* Delayed SACK timeout  200ms default*/
-	int sack_timeout;
-
-	/* HB.interval		    - 30 seconds  */
-	int hb_interval;
+	/*
+	 * Policy for preforming sctp/socket accounting
+	 * 0   - do socket level accounting, all assocs share sk_rcvbuf
+	 * 1   - do sctp accounting, each asoc may use sk_rcvbuf bytes
+	 */
+	int rcvbuf_policy;
 
 	/* The following variables are implementation specific.	 */
 
@@ -218,6 +225,7 @@ extern struct sctp_globals {
 #define sctp_cookie_preserve_enable	(sctp_globals.cookie_preserve_enable)
 #define sctp_max_retrans_association	(sctp_globals.max_retrans_association)
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
+#define sctp_rcvbuf_policy	 	(sctp_globals.rcvbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
 #define sctp_sack_timeout		(sctp_globals.sack_timeout)
@@ -268,6 +276,24 @@ struct sctp_sock {
 	__u16 default_flags;
 	__u32 default_context;
 	__u32 default_timetolive;
+
+	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
+	 * the destination address every heartbeat interval. This value
+	 * will be inherited by all new associations.
+	 */
+	__u32 hbinterval;
+
+	/* This is the max_retrans value for new associations. */
+	__u16 pathmaxrxt;
+
+	/* The initial Path MTU to use for new associations. */
+	__u32 pathmtu;
+
+	/* The default SACK delay timeout for new associations. */
+	__u32 sackdelay;
+
+	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	__u32 param_flags;
 
 	struct sctp_initmsg initmsg;
 	struct sctp_rtoinfo rtoinfo;
@@ -379,8 +405,9 @@ struct sctp_cookie {
 /* The format of our cookie that we send to our peer. */
 struct sctp_signed_cookie {
 	__u8 signature[SCTP_SECRET_SIZE];
+	__u32 __pad;		/* force sctp_cookie alignment to 64 bits */
 	struct sctp_cookie c;
-};
+} __attribute__((packed));
 
 /* This is another convenience type to allocate memory for address
  * params for the maximum size and pass such structures around
@@ -801,7 +828,7 @@ struct sctp_transport {
 	__u32 rtt;		/* This is the most recent RTT.	 */
 
 	/* RTO	       : The current retransmission timeout value.  */
-	__u32 rto;
+	unsigned long rto;
 
 	/* RTTVAR      : The current RTT variation.  */
 	__u32 rttvar;
@@ -837,9 +864,6 @@ struct sctp_transport {
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
 
-	/* PMTU	      : The current known path MTU.  */
-	__u32 pmtu;
-
 	/* Destination */
 	struct dst_entry *dst;
 	/* Source address. */
@@ -854,7 +878,10 @@ struct sctp_transport {
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval.
 	 */
-	int hb_interval;
+	unsigned long hbinterval;
+
+	/* SACK delay timeout */
+	unsigned long sackdelay;
 
 	/* When was the last time (in jiffies) that we heard from this
 	 * transport?  We use this to pick new active and retran paths.
@@ -866,6 +893,18 @@ struct sctp_transport {
 	 */
 	unsigned long last_time_ecne_reduced;
 
+	/* This is the max_retrans value for the transport and will
+	 * be initialized from the assocs value.  This can be changed
+	 * using SCTP_SET_PEER_ADDR_PARAMS socket option.
+	 */
+	__u16 pathmaxrxt;
+
+	/* PMTU	      : The current known path MTU.  */
+	__u32 pathmtu;
+
+	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	__u32 param_flags;
+
 	/* The number of times INIT has been sent on this transport. */
 	int init_sent_count;
 
@@ -874,21 +913,10 @@ struct sctp_transport {
 	 */
 	int state;
 
-	/* hb_allowed  : The current heartbeat state of this destination,
-	 *	       :  i.e. ALLOW-HB, NO-HEARTBEAT, etc.
-	 */
-	int hb_allowed;
-
 	/* These are the error stats for this destination.  */
 
 	/* Error count : The current error count for this destination.	*/
 	unsigned short error_count;
-
-	/* This is the max_retrans value for the transport and will
-	 * be initialized to proto.max_retrans.path.  This can be changed
-	 * using SCTP_SET_PEER_ADDR_PARAMS socket option.
-	 */
-	int max_retrans;
 
 	/* Per	       : A timer used by each destination.
 	 * Destination :
@@ -1222,11 +1250,19 @@ struct sctp_endpoint {
 	int last_key;
 	int key_changed_at;
 
-	/* Default timeouts.  */
-	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
-
+ 	/* digest:  This is a digest of the sctp cookie.  This field is
+ 	 * 	    only used on the receive path when we try to validate
+ 	 * 	    that the cookie has not been tampered with.  We put
+ 	 * 	    this here so we pre-allocate this once and can re-use
+ 	 * 	    on every receive.
+ 	 */
+ 	__u8 digest[SCTP_SIGNATURE_SIZE];
+ 
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
+
+	/* rcvbuf acct. policy.	*/
+	__u32 rcvbuf_policy;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1472,9 +1508,9 @@ struct sctp_association {
 	 * These values will be initialized by system defaults, but can
 	 * be modified via the SCTP_RTOINFO socket option.
 	 */
-	__u32 rto_initial;
-	__u32 rto_max;
-	__u32 rto_min;
+	unsigned long rto_initial;
+	unsigned long rto_max;
+	unsigned long rto_min;
 
 	/* Maximum number of new data packets that can be sent in a burst.  */
 	int max_burst;
@@ -1492,9 +1528,32 @@ struct sctp_association {
 	__u16 init_retries;
 
 	/* The largest timeout or RTO value to use in attempting an INIT */
-	__u16 max_init_timeo;
+	unsigned long max_init_timeo;
 
-	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
+	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
+	 * the destination address every heartbeat interval. This value
+	 * will be inherited by all new transports.
+	 */
+	unsigned long hbinterval;
+
+	/* This is the max_retrans value for new transports in the
+	 * association.
+	 */
+	__u16 pathmaxrxt;
+
+	/* Association : The smallest PMTU discovered for all of the
+	 * PMTU	       : peer's transport addresses.
+	 */
+	__u32 pathmtu;
+
+	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	__u32 param_flags;
+
+	/* SACK delay timeout */
+	unsigned long sackdelay;
+
+
+	unsigned long timeouts[SCTP_NUM_TIMEOUT_TYPES];
 	struct timer_list timers[SCTP_NUM_TIMEOUT_TYPES];
 
 	/* Transport to which SHUTDOWN chunk was last sent.  */
@@ -1553,15 +1612,15 @@ struct sctp_association {
 	 */
 	int sndbuf_used;
 
+	/* This is the amount of memory that this association has allocated
+	 * in the receive path at any given time.
+	 */
+	atomic_t rmem_alloc;
+
 	/* This is the wait queue head for send requests waiting on
 	 * the association sndbuf space.
 	 */
 	wait_queue_head_t	wait;
-
-	/* Association : The smallest PMTU discovered for all of the
-	 * PMTU	       : peer's transport addresses.
-	 */
-	__u32 pmtu;
 
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;
@@ -1599,7 +1658,10 @@ struct sctp_association {
 	/* How many duplicated TSNs have we seen?  */
 	int numduptsns;
 
-	/* Number of seconds of idle time before an association is closed.  */
+	/* Number of seconds of idle time before an association is closed.
+	 * In the association context, this is really used as a boolean
+	 * since the real timeout is stored in the timeouts array
+	 */
 	__u32 autoclose;
 
 	/* These are to support

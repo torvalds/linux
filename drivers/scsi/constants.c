@@ -1065,7 +1065,7 @@ struct error_info2 {
 	const char * fmt;
 };
 
-static struct error_info2 additional2[] =
+static const struct error_info2 additional2[] =
 {
 	{0x40,0x00,0x7f,"Ram failure (%x)"},
 	{0x40,0x80,0xff,"Diagnostic failure on component (%x)"},
@@ -1077,7 +1077,7 @@ static struct error_info2 additional2[] =
 };
 
 /* description of the sense key values */
-static const char *snstext[] = {
+static const char * const snstext[] = {
 	"No Sense",	    /* 0: There is no sense information */
 	"Recovered Error",  /* 1: The last command completed successfully
 				  but used error correction */
@@ -1278,114 +1278,6 @@ void scsi_print_req_sense(const char *devclass, struct scsi_request *sreq)
 }
 EXPORT_SYMBOL(scsi_print_req_sense);
 
-#ifdef CONFIG_SCSI_CONSTANTS
-static const char *one_byte_msgs[] = {
-/* 0x00 */ "Command Complete", NULL, "Save Pointers",
-/* 0x03 */ "Restore Pointers", "Disconnect", "Initiator Error", 
-/* 0x06 */ "Abort", "Message Reject", "Nop", "Message Parity Error",
-/* 0x0a */ "Linked Command Complete", "Linked Command Complete w/flag",
-/* 0x0c */ "Bus device reset", "Abort Tag", "Clear Queue", 
-/* 0x0f */ "Initiate Recovery", "Release Recovery"
-};
-#define NO_ONE_BYTE_MSGS (sizeof(one_byte_msgs)  / sizeof (const char *))
-
-static const char *two_byte_msgs[] = {
-/* 0x20 */ "Simple Queue Tag", "Head of Queue Tag", "Ordered Queue Tag"
-/* 0x23 */ "Ignore Wide Residue"
-};
-#define NO_TWO_BYTE_MSGS (sizeof(two_byte_msgs)  / sizeof (const char *))
-
-static const char *extended_msgs[] = {
-/* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
-/* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request"
-};
-#define NO_EXTENDED_MSGS (sizeof(two_byte_msgs)  / sizeof (const char *))
-
-
-int scsi_print_msg (const unsigned char *msg)
-{
-	int len = 0, i;
-	if (msg[0] == EXTENDED_MESSAGE) {
-		len = 3 + msg[1];
-		if (msg[2] < NO_EXTENDED_MSGS)
-			printk ("%s ", extended_msgs[msg[2]]); 
-		else 
-			printk ("Extended Message, reserved code (0x%02x) ",
-				(int) msg[2]);
-		switch (msg[2]) {
-		case EXTENDED_MODIFY_DATA_POINTER:
-			printk("pointer = %d", (int) (msg[3] << 24) |
-				(msg[4] << 16) | (msg[5] << 8) | msg[6]);
-			break;
-		case EXTENDED_SDTR:
-			printk("period = %d ns, offset = %d",
-				(int) msg[3] * 4, (int) msg[4]);
-			break;
-		case EXTENDED_WDTR:
-			printk("width = 2^%d bytes", msg[3]);
-			break;
-		default:
-		for (i = 2; i < len; ++i) 
-			printk("%02x ", msg[i]);
-		}
-	/* Identify */
-	} else if (msg[0] & 0x80) {
-		printk("Identify disconnect %sallowed %s %d ",
-			(msg[0] & 0x40) ? "" : "not ",
-			(msg[0] & 0x20) ? "target routine" : "lun",
-			msg[0] & 0x7);
-		len = 1;
-	/* Normal One byte */
-	} else if (msg[0] < 0x1f) {
-		if (msg[0] < NO_ONE_BYTE_MSGS)
-			printk(one_byte_msgs[msg[0]]);
-		else
-			printk("reserved (%02x) ", msg[0]);
-		len = 1;
-	/* Two byte */
-	} else if (msg[0] <= 0x2f) {
-		if ((msg[0] - 0x20) < NO_TWO_BYTE_MSGS)
-			printk("%s %02x ", two_byte_msgs[msg[0] - 0x20], 
-				msg[1]);
-		else 
-			printk("reserved two byte (%02x %02x) ", 
-				msg[0], msg[1]);
-		len = 2;
-	} else 
-		printk("reserved");
-	return len;
-}
-EXPORT_SYMBOL(scsi_print_msg);
-
-#else  /* ifndef CONFIG_SCSI_CONSTANTS */
-
-int scsi_print_msg (const unsigned char *msg)
-{
-	int len = 0, i;
-
-	if (msg[0] == EXTENDED_MESSAGE) {
-		len = 3 + msg[1];
-		for (i = 0; i < len; ++i)
-			printk("%02x ", msg[i]);
-	/* Identify */
-	} else if (msg[0] & 0x80) {
-		printk("%02x ", msg[0]);
-		len = 1;
-	/* Normal One byte */
-	} else if (msg[0] < 0x1f) {
-		printk("%02x ", msg[0]);
-		len = 1;
-	/* Two byte */
-	} else if (msg[0] <= 0x2f) {
-		printk("%02x %02x", msg[0], msg[1]);
-		len = 2;
-	} else 
-		printk("%02x ", msg[0]);
-	return len;
-}
-EXPORT_SYMBOL(scsi_print_msg);
-#endif /* ! CONFIG_SCSI_CONSTANTS */
-
 void scsi_print_command(struct scsi_cmnd *cmd)
 {
 	/* Assume appended output (i.e. not at start of line) */
@@ -1397,7 +1289,7 @@ EXPORT_SYMBOL(scsi_print_command);
 
 #ifdef CONFIG_SCSI_CONSTANTS
 
-static const char * hostbyte_table[]={
+static const char * const hostbyte_table[]={
 "DID_OK", "DID_NO_CONNECT", "DID_BUS_BUSY", "DID_TIME_OUT", "DID_BAD_TARGET", 
 "DID_ABORT", "DID_PARITY", "DID_ERROR", "DID_RESET", "DID_BAD_INTR",
 "DID_PASSTHROUGH", "DID_SOFT_ERROR", "DID_IMM_RETRY"};
@@ -1422,12 +1314,12 @@ void scsi_print_hostbyte(int scsiresult)
 
 #ifdef CONFIG_SCSI_CONSTANTS
 
-static const char * driverbyte_table[]={
+static const char * const driverbyte_table[]={
 "DRIVER_OK", "DRIVER_BUSY", "DRIVER_SOFT",  "DRIVER_MEDIA", "DRIVER_ERROR", 
 "DRIVER_INVALID", "DRIVER_TIMEOUT", "DRIVER_HARD", "DRIVER_SENSE"};
 #define NUM_DRIVERBYTE_STRS (sizeof(driverbyte_table) / sizeof(const char *))
 
-static const char * driversuggest_table[]={"SUGGEST_OK",
+static const char * const driversuggest_table[]={"SUGGEST_OK",
 "SUGGEST_RETRY", "SUGGEST_ABORT", "SUGGEST_REMAP", "SUGGEST_DIE",
 "SUGGEST_5", "SUGGEST_6", "SUGGEST_7", "SUGGEST_SENSE"};
 #define NUM_SUGGEST_STRS (sizeof(driversuggest_table) / sizeof(const char *))

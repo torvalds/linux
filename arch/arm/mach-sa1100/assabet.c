@@ -293,7 +293,8 @@ static void __init get_assabet_scr(void)
 	GPDR |= 0x3fc;			/* Configure GPIO 9:2 as outputs */
 	GPSR = 0x3fc;			/* Write 0xFF to GPIO 9:2 */
 	GPDR &= ~(0x3fc);		/* Configure GPIO 9:2 as inputs */
-	for(i = 100; i--; scr = GPLR);	/* Read GPIO 9:2 */
+	for(i = 100; i--; )		/* Read GPIO 9:2 */
+		scr = GPLR;
 	GPDR |= 0x3fc;			/*  restore correct pin direction */
 	scr &= 0x3fc;			/* save as system configuration byte. */
 	SCR_value = scr;
@@ -446,7 +447,6 @@ static void __init assabet_map_io(void)
 
 
 MACHINE_START(ASSABET, "Intel-Assabet")
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.boot_params	= 0xc0000100,

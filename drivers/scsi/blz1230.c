@@ -94,7 +94,7 @@ static volatile unsigned char cmd_buffer[16];
 				 */
 
 /***************************************************************** Detection */
-int __init blz1230_esp_detect(Scsi_Host_Template *tpnt)
+int __init blz1230_esp_detect(struct scsi_host_template *tpnt)
 {
 	struct NCR_ESP *esp;
 	struct zorro_dev *z = NULL;
@@ -224,7 +224,7 @@ static int dma_can_transfer(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 static void dma_dump_state(struct NCR_ESP *esp)
 {
 	ESPLOG(("intreq:<%04x>, intena:<%04x>\n",
-		custom.intreqr, custom.intenar));
+		amiga_custom.intreqr, amiga_custom.intenar));
 }
 
 void dma_init_read(struct NCR_ESP *esp, __u32 addr, int length)
@@ -298,7 +298,7 @@ static int dma_irq_p(struct NCR_ESP *esp)
 
 static int dma_ports_p(struct NCR_ESP *esp)
 {
-	return ((custom.intenar) & IF_PORTS);
+	return ((amiga_custom.intenar) & IF_PORTS);
 }
 
 static void dma_setup(struct NCR_ESP *esp, __u32 addr, int count, int write)
@@ -328,7 +328,7 @@ int blz1230_esp_release(struct Scsi_Host *instance)
 }
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "esp-blz1230",
 	.proc_info		= esp_proc_info,
 	.name			= "Blizzard1230 SCSI IV",

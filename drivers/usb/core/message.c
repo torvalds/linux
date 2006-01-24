@@ -3,13 +3,6 @@
  */
 
 #include <linux/config.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/pci.h>	/* for scatterlist macros */
 #include <linux/usb.h>
 #include <linux/module.h>
@@ -1394,6 +1387,12 @@ free_interfaces:
 	if (dev->state != USB_STATE_ADDRESS)
 		usb_disable_device (dev, 1);	// Skip ep0
 
+	i = dev->bus_mA - cp->desc.bMaxPower * 2;
+	if (i < 0)
+		dev_warn(&dev->dev, "new config #%d exceeds power "
+				"limit by %dmA\n",
+				configuration, -i);
+
 	if ((ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_CONFIGURATION, 0, configuration, 0,
 			NULL, 0, USB_CTRL_SET_TIMEOUT)) < 0)
@@ -1457,12 +1456,11 @@ free_interfaces:
 		 */
 		for (i = 0; i < nintf; ++i) {
 			struct usb_interface *intf = cp->interface[i];
-			struct usb_host_interface *alt = intf->cur_altsetting;
 
 			dev_dbg (&dev->dev,
 				"adding %s (config #%d, interface %d)\n",
 				intf->dev.bus_id, configuration,
-				alt->desc.bInterfaceNumber);
+				intf->cur_altsetting->desc.bInterfaceNumber);
 			ret = device_add (&intf->dev);
 			if (ret != 0) {
 				dev_err(&dev->dev,

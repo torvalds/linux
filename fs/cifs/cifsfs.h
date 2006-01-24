@@ -63,6 +63,8 @@ extern struct inode_operations cifs_symlink_inode_ops;
 /* Functions related to files and directories */
 extern struct file_operations cifs_file_ops;
 extern struct file_operations cifs_file_direct_ops; /* if directio mount */
+extern struct file_operations cifs_file_nobrl_ops;
+extern struct file_operations cifs_file_direct_nobrl_ops; /* if directio mount */
 extern int cifs_open(struct inode *inode, struct file *file);
 extern int cifs_close(struct inode *inode, struct file *file);
 extern int cifs_closedir(struct inode *inode, struct file *file);
@@ -97,5 +99,5 @@ extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 extern int cifs_ioctl (struct inode * inode, struct file * filep,
 		       unsigned int command, unsigned long arg);
-#define CIFS_VERSION   "1.39"
+#define CIFS_VERSION   "1.40"
 #endif				/* _CIFSFS_H */

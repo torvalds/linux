@@ -197,6 +197,7 @@ storage_class_specifier:
 type_specifier:
 	simple_type_specifier
 	| cvar_qualifier
+	| TYPEOF_KEYW '(' decl_specifier_seq '*' ')'
 	| TYPEOF_KEYW '(' decl_specifier_seq ')'
 
 	/* References to s/u/e's defined elsewhere.  Rearrange things

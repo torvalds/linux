@@ -569,12 +569,6 @@ gdb_cris_strtol (const char *s, char **endptr, int base)
 	return x;
 }
 
-int
-double_this(int x)
-{
-        return 2 * x;
-}
-
 /********************************* Register image ****************************/
 /* Copy the content of a register image into another. The size n is
    the size of the register image. Due to struct assignment generation of

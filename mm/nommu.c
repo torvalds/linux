@@ -1045,7 +1045,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 
 EXPORT_SYMBOL(find_vma);
 
-struct page *follow_page(struct mm_struct *mm, unsigned long address,
+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 			unsigned int foll_flags)
 {
 	return NULL;
@@ -1176,4 +1176,11 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 int in_gate_area_no_task(unsigned long addr)
 {
 	return 0;
+}
+
+struct page *filemap_nopage(struct vm_area_struct *area,
+			unsigned long address, int *type)
+{
+	BUG();
+	return NULL;
 }

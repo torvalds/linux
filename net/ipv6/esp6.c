@@ -36,6 +36,7 @@
 #include <linux/random.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
+#include <net/protocol.h>
 #include <linux/icmpv6.h>
 
 static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
@@ -248,7 +249,7 @@ static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 	if (esp->conf.padlen)
 		mtu = ALIGN(mtu, esp->conf.padlen);
 
-	return mtu + x->props.header_len + esp->auth.icv_full_len;
+	return mtu + x->props.header_len + esp->auth.icv_trunc_len;
 }
 
 static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -265,8 +266,7 @@ static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET6);
 	if (!x)
 		return;
-	printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/"
-			"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n", 
+	printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/" NIP6_FMT "\n", 
 			ntohl(esph->spi), NIP6(iph->daddr));
 	xfrm_state_put(x);
 }

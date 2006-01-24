@@ -8,11 +8,11 @@
 #include <asm/semaphore.h>
 
 struct jffs2_inode_info {
-	/* We need an internal semaphore similar to inode->i_sem.
+	/* We need an internal mutex similar to inode->i_mutex.
 	   Unfortunately, we can't used the existing one, because
 	   either the GC would deadlock, or we'd have to release it
 	   before letting GC proceed. Or we'd have to put ugliness
-	   into the GC code so it didn't attempt to obtain the i_sem
+	   into the GC code so it didn't attempt to obtain the i_mutex
 	   for the inode(s) which are already locked */
 	struct semaphore sem;
 

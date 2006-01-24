@@ -557,6 +557,10 @@ static struct agp_device_ids uninorth_agp_device_ids[] __devinitdata = {
 		.device_id	= PCI_DEVICE_ID_APPLE_U3H_AGP,
 		.chipset_name	= "U3H",
 	},
+	{
+		.device_id	= PCI_DEVICE_ID_APPLE_IPID2_AGP,
+		.chipset_name	= "UniNorth/Intrepid2",
+	},
 };
 
 static int __devinit agp_uninorth_probe(struct pci_dev *pdev,

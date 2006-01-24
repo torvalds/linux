@@ -54,6 +54,7 @@
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/route.h>
 #include <net/sctp/sctp.h>
 #include <net/addrconf.h>
 #include <net/inet_common.h>
@@ -530,6 +531,9 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 {
 	struct rtable *rt = (struct rtable *)dst;
 
+	if (!asoc)
+		return;
+
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
 		saddr->v4.sin_port = asoc->base.bind_addr.port;  
@@ -826,7 +830,7 @@ static struct notifier_block sctp_inetaddr_notifier = {
 };
 
 /* Socket operations.  */
-static struct proto_ops inet_seqpacket_ops = {
+static const struct proto_ops inet_seqpacket_ops = {
 	.family      = PF_INET,
 	.owner       = THIS_MODULE,
 	.release     = inet_release,       /* Needs to be wrapped... */
@@ -1046,6 +1050,9 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Sendbuffer growth	    - do per-socket accounting */
 	sctp_sndbuf_policy		= 0;
+
+	/* Rcvbuffer growth	    - do per-socket accounting */
+	sctp_rcvbuf_policy		= 0;
 
 	/* HB.interval              - 30 seconds */
 	sctp_hb_interval		= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;

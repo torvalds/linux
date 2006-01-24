@@ -55,6 +55,7 @@ union map_info *dm_get_mapinfo(struct bio *bio)
  */
 #define DMF_BLOCK_IO 0
 #define DMF_SUSPENDED 1
+#define DMF_FROZEN 2
 
 struct mapped_device {
 	struct rw_semaphore io_lock;
@@ -97,7 +98,7 @@ struct mapped_device {
 	 * freeze/thaw support require holding onto a super block
 	 */
 	struct super_block *frozen_sb;
-	struct block_device *frozen_bdev;
+	struct block_device *suspended_bdev;
 };
 
 #define MIN_IOS 256
@@ -292,7 +293,7 @@ struct dm_table *dm_get_table(struct mapped_device *md)
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
-static inline void dec_pending(struct dm_io *io, int error)
+static void dec_pending(struct dm_io *io, int error)
 {
 	if (error)
 		io->error = error;
@@ -767,6 +768,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
 	md->queue->backing_dev_info.congested_data = md;
 	blk_queue_make_request(md->queue, dm_request);
+	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	md->queue->issue_flush_fn = dm_flush_all;
 
@@ -836,9 +838,9 @@ static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	down(&md->frozen_bdev->bd_inode->i_sem);
-	i_size_write(md->frozen_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	up(&md->frozen_bdev->bd_inode->i_sem);
+	mutex_lock(&md->suspended_bdev->bd_inode->i_mutex);
+	i_size_write(md->suspended_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
+	mutex_unlock(&md->suspended_bdev->bd_inode->i_mutex);
 }
 
 static int __bind(struct mapped_device *md, struct dm_table *t)
@@ -902,10 +904,9 @@ int dm_create_with_minor(unsigned int minor, struct mapped_device **result)
 	return create_aux(minor, 1, result);
 }
 
-void *dm_get_mdptr(dev_t dev)
+static struct mapped_device *dm_find_md(dev_t dev)
 {
 	struct mapped_device *md;
-	void *mdptr = NULL;
 	unsigned minor = MINOR(dev);
 
 	if (MAJOR(dev) != _major || minor >= (1 << MINORBITS))
@@ -914,12 +915,32 @@ void *dm_get_mdptr(dev_t dev)
 	down(&_minor_lock);
 
 	md = idr_find(&_minor_idr, minor);
-
-	if (md && (dm_disk(md)->first_minor == minor))
-		mdptr = md->interface_ptr;
+	if (!md || (dm_disk(md)->first_minor != minor))
+		md = NULL;
 
 	up(&_minor_lock);
 
+	return md;
+}
+
+struct mapped_device *dm_get_md(dev_t dev)
+{
+	struct mapped_device *md = dm_find_md(dev);
+
+	if (md)
+		dm_get(md);
+
+	return md;
+}
+
+void *dm_get_mdptr(dev_t dev)
+{
+	struct mapped_device *md;
+	void *mdptr = NULL;
+
+	md = dm_find_md(dev);
+	if (md)
+		mdptr = md->interface_ptr;
 	return mdptr;
 }
 
@@ -991,43 +1012,33 @@ out:
  */
 static int lock_fs(struct mapped_device *md)
 {
-	int r = -ENOMEM;
-
-	md->frozen_bdev = bdget_disk(md->disk, 0);
-	if (!md->frozen_bdev) {
-		DMWARN("bdget failed in lock_fs");
-		goto out;
-	}
+	int r;
 
 	WARN_ON(md->frozen_sb);
 
-	md->frozen_sb = freeze_bdev(md->frozen_bdev);
+	md->frozen_sb = freeze_bdev(md->suspended_bdev);
 	if (IS_ERR(md->frozen_sb)) {
 		r = PTR_ERR(md->frozen_sb);
-		goto out_bdput;
+		md->frozen_sb = NULL;
+		return r;
 	}
 
+	set_bit(DMF_FROZEN, &md->flags);
+
 	/* don't bdput right now, we don't want the bdev
-	 * to go away while it is locked.  We'll bdput
-	 * in unlock_fs
+	 * to go away while it is locked.
 	 */
 	return 0;
-
-out_bdput:
-	bdput(md->frozen_bdev);
-	md->frozen_sb = NULL;
-	md->frozen_bdev = NULL;
-out:
-	return r;
 }
 
 static void unlock_fs(struct mapped_device *md)
 {
-	thaw_bdev(md->frozen_bdev, md->frozen_sb);
-	bdput(md->frozen_bdev);
+	if (!test_bit(DMF_FROZEN, &md->flags))
+		return;
 
+	thaw_bdev(md->suspended_bdev, md->frozen_sb);
 	md->frozen_sb = NULL;
-	md->frozen_bdev = NULL;
+	clear_bit(DMF_FROZEN, &md->flags);
 }
 
 /*
@@ -1037,7 +1048,7 @@ static void unlock_fs(struct mapped_device *md)
  * dm_bind_table, dm_suspend must be called to flush any in
  * flight bios and ensure that any further io gets deferred.
  */
-int dm_suspend(struct mapped_device *md)
+int dm_suspend(struct mapped_device *md, int do_lockfs)
 {
 	struct dm_table *map = NULL;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1053,10 +1064,19 @@ int dm_suspend(struct mapped_device *md)
 	/* This does not get reverted if there's an error later. */
 	dm_table_presuspend_targets(map);
 
-	/* Flush I/O to the device. */
-	r = lock_fs(md);
-	if (r)
+	md->suspended_bdev = bdget_disk(md->disk, 0);
+	if (!md->suspended_bdev) {
+		DMWARN("bdget failed in dm_suspend");
+		r = -ENOMEM;
 		goto out;
+	}
+
+	/* Flush I/O to the device. */
+	if (do_lockfs) {
+		r = lock_fs(md);
+		if (r)
+			goto out;
+	}
 
 	/*
 	 * First we set the BLOCK_IO flag so no more ios will be mapped.
@@ -1105,6 +1125,11 @@ int dm_suspend(struct mapped_device *md)
 	r = 0;
 
 out:
+	if (r && md->suspended_bdev) {
+		bdput(md->suspended_bdev);
+		md->suspended_bdev = NULL;
+	}
+
 	dm_table_put(map);
 	up(&md->suspend_lock);
 	return r;
@@ -1134,6 +1159,9 @@ int dm_resume(struct mapped_device *md)
 	up_write(&md->io_lock);
 
 	unlock_fs(md);
+
+	bdput(md->suspended_bdev);
+	md->suspended_bdev = NULL;
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
 

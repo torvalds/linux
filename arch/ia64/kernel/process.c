@@ -202,12 +202,9 @@ default_idle (void)
 {
 	local_irq_enable();
 	while (!need_resched()) {
-		if (can_do_pal_halt) {
-			local_irq_disable();
-			if (!need_resched())
-				safe_halt();
-			local_irq_enable();
-		} else
+		if (can_do_pal_halt)
+			safe_halt();
+		else
 			cpu_relax();
 	}
 }
@@ -272,10 +269,14 @@ cpu_idle (void)
 {
 	void (*mark_idle)(int) = ia64_mark_idle;
   	int cpu = smp_processor_id();
-	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	/* endless idle loop with no priority at all */
 	while (1) {
+		if (can_do_pal_halt)
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+		else
+			set_thread_flag(TIF_POLLING_NRFLAG);
+
 		if (!need_resched()) {
 			void (*idle)(void);
 #ifdef CONFIG_SMP
@@ -327,7 +328,7 @@ ia64_save_extra (struct task_struct *task)
 #endif
 
 #ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(ia64_task_regs(task)))
+	if (IS_IA32_PROCESS(task_pt_regs(task)))
 		ia32_save_state(task);
 #endif
 }
@@ -352,7 +353,7 @@ ia64_load_extra (struct task_struct *task)
 #endif
 
 #ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(ia64_task_regs(task)))
+	if (IS_IA32_PROCESS(task_pt_regs(task)))
 		ia32_load_state(task);
 #endif
 }
@@ -487,7 +488,7 @@ copy_thread (int nr, unsigned long clone_flags,
 	 * If we're cloning an IA32 task then save the IA32 extra
 	 * state from the current task to the new task
 	 */
-	if (IS_IA32_PROCESS(ia64_task_regs(current))) {
+	if (IS_IA32_PROCESS(task_pt_regs(current))) {
 		ia32_save_state(p);
 		if (clone_flags & CLONE_SETTLS)
 			retval = ia32_clone_tls(p, child_ptregs);
@@ -700,7 +701,7 @@ int
 kernel_thread_helper (int (*fn)(void *), void *arg)
 {
 #ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(ia64_task_regs(current))) {
+	if (IS_IA32_PROCESS(task_pt_regs(current))) {
 		/* A kernel thread is always a 64-bit process. */
 		current->thread.map_base  = DEFAULT_MAP_BASE;
 		current->thread.task_size = DEFAULT_TASK_SIZE;
@@ -717,18 +718,16 @@ kernel_thread_helper (int (*fn)(void *), void *arg)
 void
 flush_thread (void)
 {
-	/*
-	 * Remove function-return probe instances associated with this task
-	 * and put them back on the free list. Do not insert an exit probe for
-	 * this function, it will be disabled by kprobe_flush_task if you do.
-	 */
-	kprobe_flush_task(current);
-
 	/* drop floating-point and debug-register state if it exists: */
 	current->thread.flags &= ~(IA64_THREAD_FPH_VALID | IA64_THREAD_DBG_VALID);
 	ia64_drop_fpu(current);
-	if (IS_IA32_PROCESS(ia64_task_regs(current)))
+#ifdef CONFIG_IA32_SUPPORT
+	if (IS_IA32_PROCESS(task_pt_regs(current))) {
 		ia32_drop_partial_page_list(current);
+		current->thread.task_size = IA32_PAGE_OFFSET;
+		set_fs(USER_DS);
+	}
+#endif
 }
 
 /*
@@ -756,7 +755,7 @@ exit_thread (void)
 	if (current->thread.flags & IA64_THREAD_DBG_VALID)
 		pfm_release_debug_registers(current);
 #endif
-	if (IS_IA32_PROCESS(ia64_task_regs(current)))
+	if (IS_IA32_PROCESS(task_pt_regs(current)))
 		ia32_drop_partial_page_list(current);
 }
 

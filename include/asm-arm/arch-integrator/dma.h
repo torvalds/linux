@@ -17,12 +17,3 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __ASM_ARCH_DMA_H
-#define __ASM_ARCH_DMA_H
-
-#define MAX_DMA_ADDRESS		0xffffffff
-
-#define MAX_DMA_CHANNELS	0
-
-#endif /* _ASM_ARCH_DMA_H */
-

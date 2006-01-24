@@ -28,8 +28,8 @@ SUPPORTED CAMERAS:
 Xirlink "C-It" camera, also known as "IBM PC Camera".
 The device uses proprietary ASIC (and compression method);
 it is manufactured by Xirlink. See http://www.xirlink.com/
-http://www.ibmpccamera.com or http://www.c-itnow.com/ for
-details and pictures.
+(renamed to http://www.veo.com), http://www.ibmpccamera.com,
+or http://www.c-itnow.com/ for details and pictures.
 
 This very chipset ("X Chip", as marked at the factory)
 is used in several other cameras, and they are supported

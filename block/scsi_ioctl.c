@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/capability.h>
 #include <linux/completion.h>
 #include <linux/cdrom.h>
 #include <linux/slab.h>
@@ -46,7 +47,7 @@ EXPORT_SYMBOL(scsi_command_size);
 
 static int sg_get_version(int __user *p)
 {
-	static int sg_version_num = 30527;
+	static const int sg_version_num = 30527;
 	return put_user(sg_version_num, p);
 }
 
@@ -190,16 +191,21 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_write(GPCMD_SET_STREAMING),
 	};
 	unsigned char type = cmd_type[cmd[0]];
+	int has_write_perm = 0;
 
 	/* Anybody who can open the device can do a read-safe command */
 	if (type & CMD_READ_SAFE)
 		return 0;
 
+	/*
+	 * file can be NULL from ioctl_by_bdev()...
+	 */
+	if (file)
+		has_write_perm = file->f_mode & FMODE_WRITE;
+
 	/* Write-safe commands just require a writable open.. */
-	if (type & CMD_WRITE_SAFE) {
-		if (file->f_mode & FMODE_WRITE)
-			return 0;
-	}
+	if ((type & CMD_WRITE_SAFE) && has_write_perm)
+		return 0;
 
 	/* And root can do any command.. */
 	if (capable(CAP_SYS_RAWIO))
@@ -233,7 +239,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (verify_command(file, cmd))
 		return -EPERM;
 
-	if (hdr->dxfer_len > (q->max_sectors << 9))
+	if (hdr->dxfer_len > (q->max_hw_sectors << 9))
 		return -EIO;
 
 	if (hdr->dxfer_len)
@@ -442,11 +448,37 @@ error:
 	return err;
 }
 
+
+/* Send basic block requests */
+static int __blk_send_generic(request_queue_t *q, struct gendisk *bd_disk, int cmd, int data)
+{
+	struct request *rq;
+	int err;
+
+	rq = blk_get_request(q, WRITE, __GFP_WAIT);
+	rq->flags |= REQ_BLOCK_PC;
+	rq->data = NULL;
+	rq->data_len = 0;
+	rq->timeout = BLK_DEFAULT_TIMEOUT;
+	memset(rq->cmd, 0, sizeof(rq->cmd));
+	rq->cmd[0] = cmd;
+	rq->cmd[4] = data;
+	rq->cmd_len = 6;
+	err = blk_execute_rq(q, bd_disk, rq, 0);
+	blk_put_request(rq);
+
+	return err;
+}
+
+static inline int blk_send_start_stop(request_queue_t *q, struct gendisk *bd_disk, int data)
+{
+	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
+}
+
 int scsi_cmd_ioctl(struct file *file, struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
 {
 	request_queue_t *q;
-	struct request *rq;
-	int close = 0, err;
+	int err;
 
 	q = bd_disk->queue;
 	if (!q)
@@ -564,19 +596,10 @@ int scsi_cmd_ioctl(struct file *file, struct gendisk *bd_disk, unsigned int cmd,
 			err = sg_scsi_ioctl(file, q, bd_disk, arg);
 			break;
 		case CDROMCLOSETRAY:
-			close = 1;
+			err = blk_send_start_stop(q, bd_disk, 0x03);
+			break;
 		case CDROMEJECT:
-			rq = blk_get_request(q, WRITE, __GFP_WAIT);
-			rq->flags |= REQ_BLOCK_PC;
-			rq->data = NULL;
-			rq->data_len = 0;
-			rq->timeout = BLK_DEFAULT_TIMEOUT;
-			memset(rq->cmd, 0, sizeof(rq->cmd));
-			rq->cmd[0] = GPCMD_START_STOP_UNIT;
-			rq->cmd[4] = 0x02 + (close != 0);
-			rq->cmd_len = 6;
-			err = blk_execute_rq(q, bd_disk, rq, 0);
-			blk_put_request(rq);
+			err = blk_send_start_stop(q, bd_disk, 0x02);
 			break;
 		default:
 			err = -ENOTTY;

@@ -968,7 +968,7 @@ static inline int maven_compute_timming(struct maven_data* md,
 	return 0;
 }
 
-static inline int maven_program_timming(struct maven_data* md,
+static int maven_program_timming(struct maven_data* md,
 		const struct mavenregs* m) {
 	struct i2c_client* c = md->client;
 
@@ -1288,18 +1288,13 @@ static int maven_detach_client(struct i2c_client* client) {
 	return 0;
 }
 
-static int maven_command(struct i2c_client* client, unsigned int cmd, void* arg) {
-	return -ENOIOCTLCMD;	/* or -EINVAL, depends on who will call this */
-}
-
 static struct i2c_driver maven_driver={
-	.owner		= THIS_MODULE,
-	.name		= "maven",
+	.driver = {
+		.name	= "maven",
+	},
 	.id		= I2C_DRIVERID_MGATVO,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= maven_attach_adapter,
 	.detach_client	= maven_detach_client,
-	.command	= maven_command,
 };
 
 /* ************************** */

@@ -40,10 +40,11 @@ config CRYPTO_SHA1
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
-config CRYPTO_SHA1_Z990
-	tristate "SHA1 digest algorithm for IBM zSeries z990"
-	depends on CRYPTO && ARCH_S390
+config CRYPTO_SHA1_S390
+	tristate "SHA1 digest algorithm (s390)"
+	depends on CRYPTO && S390
 	help
+	  This is the s390 hardware accelerated implementation of the
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
@@ -52,6 +53,16 @@ config CRYPTO_SHA256
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 	  
+	  This version of SHA implements a 256 bit hash with 128 bits of
+	  security against collision attacks.
+
+config CRYPTO_SHA256_S390
+	tristate "SHA256 digest algorithm (s390)"
+	depends on CRYPTO && S390
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA256 secure hash standard (DFIPS 180-2).
+
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
 
@@ -98,9 +109,9 @@ config CRYPTO_DES
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
-config CRYPTO_DES_Z990
-	tristate "DES and Triple DES cipher algorithms for IBM zSeries z990"
-	depends on CRYPTO && ARCH_S390
+config CRYPTO_DES_S390
+	tristate "DES and Triple DES cipher algorithms (s390)"
+	depends on CRYPTO && S390
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
@@ -146,7 +157,7 @@ config CRYPTO_SERPENT
 
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
-	depends on CRYPTO && !(X86 || UML_X86)
+	depends on CRYPTO
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -203,6 +214,26 @@ config CRYPTO_AES_X86_64
 	  The AES specifies three key sizes: 128, 192 and 256 bits	  
 
 	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+config CRYPTO_AES_S390
+	tristate "AES cipher algorithms (s390)"
+	depends on CRYPTO && S390
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing
+	  environments regardless of its use in feedback or non-feedback
+	  modes. Its key setup time is excellent, and its key agility is
+	  good. Rijndael's very low memory requirements make it very well
+	  suited for restricted-space environments, in which it also
+	  demonstrates excellent performance. Rijndael's operations are
+	  among the easiest to defend against power and timing attacks.
+
+	  On s390 the System z9-109 currently only supports the key size
+	  of 128 bit.
 
 config CRYPTO_CAST5
 	tristate "CAST5 (CAST-128) cipher algorithm"

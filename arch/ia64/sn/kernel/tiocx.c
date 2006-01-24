@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <asm/system.h>
@@ -65,7 +66,7 @@ static int tiocx_match(struct device *dev, struct device_driver *drv)
 
 }
 
-static int tiocx_hotplug(struct device *dev, char **envp, int num_envp,
+static int tiocx_uevent(struct device *dev, char **envp, int num_envp,
 			 char *buffer, int buffer_size)
 {
 	return -ENODEV;
@@ -75,12 +76,6 @@ static void tiocx_bus_release(struct device *dev)
 {
 	kfree(to_cx_dev(dev));
 }
-
-struct bus_type tiocx_bus_type = {
-	.name = "tiocx",
-	.match = tiocx_match,
-	.hotplug = tiocx_hotplug,
-};
 
 /**
  * cx_device_match - Find cx_device in the id table.
@@ -148,6 +143,14 @@ static int cx_driver_remove(struct device *dev)
 	return 0;
 }
 
+struct bus_type tiocx_bus_type = {
+	.name = "tiocx",
+	.match = tiocx_match,
+	.uevent = tiocx_uevent,
+	.probe = cx_device_probe,
+	.remove = cx_driver_remove,
+};
+
 /**
  * cx_driver_register - Register the driver.
  * @cx_driver: driver table (cx_drv struct) from driver
@@ -161,8 +164,6 @@ int cx_driver_register(struct cx_drv *cx_driver)
 {
 	cx_driver->driver.name = cx_driver->name;
 	cx_driver->driver.bus = &tiocx_bus_type;
-	cx_driver->driver.probe = cx_device_probe;
-	cx_driver->driver.remove = cx_driver_remove;
 
 	return driver_register(&cx_driver->driver);
 }
@@ -244,7 +245,7 @@ static int cx_device_reload(struct cx_dev *cx_dev)
 				  cx_dev->bt);
 }
 
-static inline uint64_t tiocx_intr_alloc(nasid_t nasid, int widget,
+static inline u64 tiocx_intr_alloc(nasid_t nasid, int widget,
 					u64 sn_irq_info,
 					int req_irq, nasid_t req_nasid,
 					int req_slice)
@@ -301,7 +302,7 @@ struct sn_irq_info *tiocx_irq_alloc(nasid_t nasid, int widget, int irq,
 
 void tiocx_irq_free(struct sn_irq_info *sn_irq_info)
 {
-	uint64_t bridge = (uint64_t) sn_irq_info->irq_bridge;
+	u64 bridge = (u64) sn_irq_info->irq_bridge;
 	nasid_t nasid = NASID_GET(bridge);
 	int widget;
 
@@ -312,12 +313,12 @@ void tiocx_irq_free(struct sn_irq_info *sn_irq_info)
 	}
 }
 
-uint64_t tiocx_dma_addr(uint64_t addr)
+u64 tiocx_dma_addr(u64 addr)
 {
 	return PHYS_TO_TIODMA(addr);
 }
 
-uint64_t tiocx_swin_base(int nasid)
+u64 tiocx_swin_base(int nasid)
 {
 	return TIO_SWIN_BASE(nasid, TIOCX_CORELET);
 }
@@ -334,8 +335,8 @@ EXPORT_SYMBOL(tiocx_swin_base);
 
 static void tio_conveyor_set(nasid_t nasid, int enable_flag)
 {
-	uint64_t ice_frz;
-	uint64_t disable_cb = (1ull << 61);
+	u64 ice_frz;
+	u64 disable_cb = (1ull << 61);
 
 	if (!(nasid & 1))
 		return;
@@ -387,7 +388,7 @@ static int is_fpga_tio(int nasid, int *bt)
 
 static int bitstream_loaded(nasid_t nasid)
 {
-	uint64_t cx_credits;
+	u64 cx_credits;
 
 	cx_credits = REMOTE_HUB_L(nasid, TIO_ICE_PMI_TX_DYN_CREDIT_STAT_CB3);
 	cx_credits &= TIO_ICE_PMI_TX_DYN_CREDIT_STAT_CB3_CREDIT_CNT_MASK;
@@ -403,14 +404,14 @@ static int tiocx_reload(struct cx_dev *cx_dev)
 	nasid_t nasid = cx_dev->cx_id.nasid;
 
 	if (bitstream_loaded(nasid)) {
-		uint64_t cx_id;
+		u64 cx_id;
 		int rv;
 
 		rv = ia64_sn_sysctl_tio_clock_reset(nasid);
 		if (rv) {
 			printk(KERN_ALERT "CX port JTAG reset failed.\n");
 		} else {
-			cx_id = *(volatile uint64_t *)
+			cx_id = *(volatile u64 *)
 				(TIO_SWIN_BASE(nasid, TIOCX_CORELET) +
 					  WIDGET_ID);
 			part_num = XWIDGET_PART_NUM(cx_id);

@@ -60,6 +60,11 @@ static unsigned int audio_debug = 0;
 module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
 
+static unsigned int always_analog = 0;
+module_param(always_analog,int,0644);
+MODULE_PARM_DESC(always_analog,"force analog audio out");
+
+
 #define dprintk(fmt, arg...)	if (audio_debug) \
 	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
 
@@ -119,13 +124,10 @@ static void set_audio_registers(struct cx88_core *core, const struct rlist *l)
 
 static void set_audio_start(struct cx88_core *core, u32 mode)
 {
-	// mute
+	/* mute */
 	cx_write(AUD_VOL_CTL, (1 << 6));
 
-	// start programming
-	cx_write(MO_AUD_DMACNTRL, 0x0000);
-	msleep(100);
-	//cx_write(AUD_CTL, 0x0000);
+	/* start programming */
 	cx_write(AUD_INIT, mode);
 	cx_write(AUD_INIT_LD, 0x0001);
 	cx_write(AUD_SOFT_RESET, 0x0001);
@@ -135,25 +137,37 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 {
 	u32 volume;
 
+#ifndef USING_CX88_ALSA
+	/* restart dma; This avoids buzz in NICAM and is good in others  */
+	cx88_stop_audio_dma(core);
+#endif
+	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
+#ifndef USING_CX88_ALSA
+	cx88_start_audio_dma(core);
+#endif
+
 	if (cx88_boards[core->board].blackbird) {
-		// sets sound input from external adc
-		cx_set(AUD_CTL, EN_I2SIN_ENABLE);
-		//cx_write(AUD_I2SINPUTCNTL, 0);
+		/* sets sound input from external adc */
+		if (core->board == CX88_BOARD_HAUPPAUGE_ROSLYN)
+			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
+		else
+			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
-		// 'pass-thru mode': this enables the i2s output to the mpeg encoder
+		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */
 		cx_set(AUD_CTL, EN_I2SOUT_ENABLE);
 		cx_write(AUD_I2SOUTPUTCNTL, 1);
 		cx_write(AUD_I2SCNTL, 0);
-		//cx_write(AUD_APB_IN_RATE_ADJ, 0);
-	} else {
+		/* cx_write(AUD_APB_IN_RATE_ADJ, 0); */
+	}
+	if ((always_analog) || (!cx88_boards[core->board].blackbird)) {
 		ctl |= EN_DAC_ENABLE;
 		cx_write(AUD_CTL, ctl);
 	}
 
 	/* finish programming */
 	cx_write(AUD_SOFT_RESET, 0x0000);
-	cx_write(MO_AUD_DMACNTRL, 0x0003);
 
 	/* unmute */
 	volume = cx_sread(SHADOW_AUD_VOL_CTL);
@@ -313,7 +327,6 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		{AUD_RATE_ADJ3, 0x00000100},
 		{AUD_RATE_ADJ4, 0x00000400},
 		{AUD_RATE_ADJ5, 0x00001000},
-		//{ AUD_DMD_RA_DDS,        0x00c0d5ce },
 		{AUD_ERRLOGPERIOD_R, 0x00000fff},
 		{AUD_ERRINTRPTTHSHLD1_R, 0x000003ff},
 		{AUD_ERRINTRPTTHSHLD2_R, 0x000000ff},
@@ -351,12 +364,12 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		set_audio_registers(core, nicam_l);
 		break;
 	case WW_I:
-		dprintk("%s PAL-I NICAM (status: devel)\n", __FUNCTION__);
+		dprintk("%s PAL-I NICAM (status: known-good)\n", __FUNCTION__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_i);
 		break;
 	default:
-		dprintk("%s PAL-BGDK NICAM (status: unknown)\n", __FUNCTION__);
+		dprintk("%s PAL-BGDK NICAM (status: known-good)\n", __FUNCTION__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_default);
 		break;
@@ -715,8 +728,7 @@ int cx88_detect_nicam(struct cx88_core *core)
 		/* if bit1=1 then nicam is detected */
 		j += ((cx_read(AUD_NICAM_STATUS2) & 0x02) >> 1);
 
-		/* 3x detected: absolutly sure now */
-		if (j == 3) {
+		if (j == 1) {
 			dprintk("nicam is detected.\n");
 			return 1;
 		}

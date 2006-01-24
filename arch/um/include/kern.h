@@ -17,7 +17,7 @@ extern int errno;
 
 extern int clone(int (*proc)(void *), void *sp, int flags, void *data);
 extern int sleep(int);
-extern int printf(char *fmt, ...);
+extern int printf(const char *fmt, ...);
 extern char *strerror(int errnum);
 extern char *ptsname(int __fd);
 extern int munmap(void *, int);
@@ -35,15 +35,6 @@ extern int read(unsigned int, char *, int);
 extern int pipe(int *);
 extern int sched_yield(void);
 extern int ptrace(int op, int pid, long addr, long data);
+
 #endif
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

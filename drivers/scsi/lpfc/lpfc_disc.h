@@ -73,6 +73,8 @@ struct lpfc_nodelist {
 	struct lpfc_hba      *nlp_phba;
 	struct lpfc_work_evt nodev_timeout_evt;
 	struct lpfc_work_evt els_retry_evt;
+	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
+	unsigned long last_q_full_time;		/* jiffy of last queue full */
 };
 
 /* Defines for nlp_flag (uint32) */

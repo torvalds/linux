@@ -1,5 +1,4 @@
 /*
- * ItLpNaca.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -37,17 +36,13 @@ struct ItLpNaca {
 	u8	xLpIndex;		// LP Index			x0B-x0B
 	u16	xMaxLpQueues;		// Number of allocated queues	x0C-x0D
 	u16	xLpQueueOffset;		// Offset to start of LP queues	x0E-x0F
-	u8	xPirEnvironMode:8;	// Piranha or hardware		x10-x10
-	u8	xPirConsoleMode:8;	// Piranha console indicator	x11-x11
-	u8	xPirDasdMode:8;		// Piranha dasd indicator	x12-x12
+	u8	xPirEnvironMode;	// Piranha or hardware		x10-x10
+	u8	xPirConsoleMode;	// Piranha console indicator	x11-x11
+	u8	xPirDasdMode;		// Piranha dasd indicator	x12-x12
 	u8	xRsvd1_0[5];		// Reserved for Piranha related	x13-x17
-	u8	xLparInstalled:1;	// Is LPAR installed on system	x18-x1F
-	u8	xSysPartitioned:1;	// Is the system partitioned	...
-	u8	xHwSyncedTBs:1;		// Hardware synced TBs		...
-	u8	xIntProcUtilHmt:1;	// Utilize HMT for interrupts	...
-	u8	xRsvd1_1:4;		// Reserved			...
-	u8	xSpVpdFormat:8;		// VPD areas are in CSP format	...
-	u8	xIntProcRatio:8;	// Ratio of int procs to procs	...
+	u8	flags;			// flags, see below		x18-x1F
+	u8	xSpVpdFormat;		// VPD areas are in CSP format	...
+	u8	xIntProcRatio;		// Ratio of int procs to procs	...
 	u8	xRsvd1_2[5];		// Reserved			...
 	u16	xRsvd1_3;		// Reserved			x20-x21
 	u16	xPlicVrmIndex;		// VRM index of PLIC		x22-x23
@@ -76,5 +71,10 @@ struct ItLpNaca {
 };
 
 extern struct ItLpNaca		itLpNaca;
+
+#define ITLPNACA_LPAR		0x80	/* Is LPAR installed on the system */
+#define ITLPNACA_PARTITIONED	0x40	/* Is the system partitioned */
+#define ITLPNACA_HWSYNCEDTBS	0x20	/* Hardware synced TBs */
+#define ITLPNACA_HMTINT		0x10	/* Utilize MHT for interrupts */
 
 #endif /* _ASM_POWERPC_ISERIES_IT_LP_NACA_H */

@@ -298,6 +298,7 @@ static inline int ffs(int x)
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 /*
  * hweightN: returns the hamming weight (i.e. the number

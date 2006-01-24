@@ -259,6 +259,7 @@
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport_spi.h>
 #include "aha152x.h"
 
 
@@ -424,7 +425,7 @@ MODULE_DEVICE_TABLE(isapnp, id_table);
 
 static int registered_count=0;
 static struct Scsi_Host *aha152x_host[2];
-static Scsi_Host_Template aha152x_driver_template;
+static struct scsi_host_template aha152x_driver_template;
 
 /*
  * internal states of the host
@@ -1845,7 +1846,7 @@ static void msgi_run(struct Scsi_Host *shpnt)
 #if defined(AHA152X_DEBUG)
 		if (HOSTDATA(shpnt)->debug & debug_msgi) {
 			printk(INFO_LEAD "inbound message %02x ", CMDINFO(CURRENT_SC), MSGI(0));
-			scsi_print_msg(&MSGI(0));
+			spi_print_msg(&MSGI(0));
 			printk("\n");
 		}
 #endif
@@ -1933,7 +1934,7 @@ static void msgi_run(struct Scsi_Host *shpnt)
 						break;
 
 					printk(INFO_LEAD, CMDINFO(CURRENT_SC));
-					scsi_print_msg(&MSGI(0));
+					spi_print_msg(&MSGI(0));
 					printk("\n");
 
 					ticks = (MSGI(3) * 4 + 49) / 50;
@@ -2031,7 +2032,7 @@ static void msgo_init(struct Scsi_Host *shpnt)
 		int i;
 
 		printk(DEBUG_LEAD "messages( ", CMDINFO(CURRENT_SC));
-		for (i=0; i<MSGOLEN; i+=scsi_print_msg(&MSGO(i)), printk(" "))
+		for (i=0; i<MSGOLEN; i+=spi_print_msg(&MSGO(i)), printk(" "))
 			;
 		printk(")\n");
 	}
@@ -3464,7 +3465,7 @@ static int aha152x_proc_info(struct Scsi_Host *shpnt, char *buffer, char **start
 	return thislength < length ? thislength : length;
 }
 
-static Scsi_Host_Template aha152x_driver_template = {
+static struct scsi_host_template aha152x_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= AHA152X_REVID,
 	.proc_name			= "aha152x",

@@ -99,7 +99,6 @@ cflags-$(CONFIG_M68360)		:= -m68332
 AFLAGS += $(cflags-y)
 
 CFLAGS += $(cflags-y)
-CFLAGS += -O1 -g
 CFLAGS += -D__linux__
 CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 

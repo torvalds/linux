@@ -259,8 +259,6 @@ __setup("hpet=", hpet_setup);
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
 
-extern irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-
 #define DEFAULT_RTC_INT_FREQ 	64
 #define RTC_NUM_INTS 		1
 

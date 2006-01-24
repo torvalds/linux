@@ -5,7 +5,7 @@
  *
  * Rewrite, cleanup: 
  *
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Dynamic DMA mapping support, pSeries-specific parts, both SMP and LPAR.
  *
@@ -50,8 +50,6 @@
 #include "plpar_wrappers.h"
 
 #define DBG(fmt...)
-
-extern int is_python(struct device_node *);
 
 static void tce_build_pSeries(struct iommu_table *tbl, long index, 
 			      long npages, unsigned long uaddr, 
@@ -109,6 +107,9 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rc;
 	union tce_entry tce;
 
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
+
 	tce.te_word = 0;
 	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	tce.te_rdwr = 1;
@@ -143,10 +144,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	union tce_entry tce, *tcep;
 	long l, limit;
 
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
-
-	if (npages == 1)
+	if (TCE_PAGE_FACTOR == 0 && npages == 1)
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					   direction);
 
@@ -163,6 +161,9 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 						   uaddr, direction);
 		__get_cpu_var(tce_page) = tcep;
 	}
+
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
 
 	tce.te_word = 0;
 	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
@@ -433,7 +434,7 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 		return;
 	}
 
-	ppci = pdn->data;
+	ppci = PCI_DN(pdn);
 	if (!ppci->iommu_table) {
 		/* Bussubno hasn't been copied yet.
 		 * Do it now because iommu_table_setparms_lpar needs it.
@@ -480,10 +481,10 @@ static void iommu_dev_setup_pSeries(struct pci_dev *dev)
 	 * an already allocated iommu table is found and use that.
 	 */
 
-	while (dn && dn->data && PCI_DN(dn)->iommu_table == NULL)
+	while (dn && PCI_DN(dn) && PCI_DN(dn)->iommu_table == NULL)
 		dn = dn->parent;
 
-	if (dn && dn->data) {
+	if (dn && PCI_DN(dn)) {
 		PCI_DN(mydn)->iommu_table = PCI_DN(dn)->iommu_table;
 	} else {
 		DBG("iommu_dev_setup_pSeries, dev %p (%s) has no iommu table\n", dev, pci_name(dev));
@@ -494,7 +495,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 {
 	int err = NOTIFY_OK;
 	struct device_node *np = node;
-	struct pci_dn *pci = np->data;
+	struct pci_dn *pci = PCI_DN(np);
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
@@ -530,7 +531,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 */
 	dn = pci_device_to_OF_node(dev);
 
-	for (pdn = dn; pdn && pdn->data && !PCI_DN(pdn)->iommu_table;
+	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->iommu_table;
 	     pdn = pdn->parent) {
 		dma_window = (unsigned int *)
 			get_property(pdn, "ibm,dma-window", NULL);
@@ -549,7 +550,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 		DBG("Found DMA window, allocating table\n");
 	}
 
-	pci = pdn->data;
+	pci = PCI_DN(pdn);
 	if (!pci->iommu_table) {
 		/* iommu_table_setparms_lpar needs bussubno. */
 		pci->bussubno = pci->phb->bus->number;

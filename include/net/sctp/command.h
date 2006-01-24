@@ -120,6 +120,7 @@ typedef union {
 	int error;
 	sctp_state_t state;
 	sctp_event_timeout_t to;
+	unsigned long zero;
 	void *ptr;
 	struct sctp_chunk *chunk;
 	struct sctp_association *asoc;
@@ -148,17 +149,17 @@ static inline sctp_arg_t SCTP_NULL(void)
 }
 static inline sctp_arg_t SCTP_NOFORCE(void)
 {
-	sctp_arg_t retval; retval.i32 = 0; return retval;
+	sctp_arg_t retval = {.zero = 0UL}; retval.i32 = 0; return retval;
 }
 static inline sctp_arg_t SCTP_FORCE(void)
 {
-	sctp_arg_t retval; retval.i32 = 1; return retval;
+	sctp_arg_t retval = {.zero = 0UL}; retval.i32 = 1; return retval;
 }
 
 #define SCTP_ARG_CONSTRUCTOR(name, type, elt) \
 static inline sctp_arg_t	\
 SCTP_## name (type arg)		\
-{ sctp_arg_t retval; retval.elt = arg; return retval; }
+{ sctp_arg_t retval = {.zero = 0UL}; retval.elt = arg; return retval; }
 
 SCTP_ARG_CONSTRUCTOR(I32,	__s32, i32)
 SCTP_ARG_CONSTRUCTOR(U32,	__u32, u32)

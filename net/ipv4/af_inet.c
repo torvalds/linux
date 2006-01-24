@@ -79,6 +79,7 @@
 #include <linux/string.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -93,6 +94,7 @@
 #include <linux/smp_lock.h>
 #include <linux/inet.h>
 #include <linux/igmp.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -228,13 +230,14 @@ static int inet_create(struct socket *sock, int protocol)
 	unsigned char answer_flags;
 	char answer_no_check;
 	int try_loading_module = 0;
-	int err = -ESOCKTNOSUPPORT;
+	int err;
 
 	sock->state = SS_UNCONNECTED;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
 lookup_protocol:
+	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
 	list_for_each_rcu(p, &inetsw[sock->type]) {
 		answer = list_entry(p, struct inet_protosw, list);
@@ -252,6 +255,7 @@ lookup_protocol:
 			if (IPPROTO_IP == answer->protocol)
 				break;
 		}
+		err = -EPROTONOSUPPORT;
 		answer = NULL;
 	}
 
@@ -280,9 +284,6 @@ lookup_protocol:
 	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
 		goto out_rcu_unlock;
-	err = -EPROTONOSUPPORT;
-	if (!protocol)
-		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
 	answer_prot = answer->prot;
@@ -303,6 +304,7 @@ lookup_protocol:
 		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
+	inet->is_icsk = INET_PROTOSW_ICSK & answer_flags;
 
 	if (SOCK_RAW == sock->type) {
 		inet->num = protocol;
@@ -776,16 +778,16 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			err = devinet_ioctl(cmd, (void __user *)arg);
 			break;
 		default:
-			if (!sk->sk_prot->ioctl ||
-			    (err = sk->sk_prot->ioctl(sk, cmd, arg)) ==
-			    					-ENOIOCTLCMD)
-				err = dev_ioctl(cmd, (void __user *)arg);
+			if (sk->sk_prot->ioctl)
+				err = sk->sk_prot->ioctl(sk, cmd, arg);
+			else
+				err = -ENOIOCTLCMD;
 			break;
 	}
 	return err;
 }
 
-struct proto_ops inet_stream_ops = {
+const struct proto_ops inet_stream_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -806,7 +808,7 @@ struct proto_ops inet_stream_ops = {
 	.sendpage =	tcp_sendpage
 };
 
-struct proto_ops inet_dgram_ops = {
+const struct proto_ops inet_dgram_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -831,7 +833,7 @@ struct proto_ops inet_dgram_ops = {
  * For SOCK_RAW sockets; should be the same as inet_dgram_ops but without
  * udp_poll
  */
-static struct proto_ops inet_sockraw_ops = {
+static const struct proto_ops inet_sockraw_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -870,7 +872,8 @@ static struct inet_protosw inetsw_array[] =
                 .ops =        &inet_stream_ops,
                 .capability = -1,
                 .no_check =   0,
-                .flags =      INET_PROTOSW_PERMANENT,
+                .flags =      INET_PROTOSW_PERMANENT |
+			      INET_PROTOSW_ICSK,
         },
 
         {

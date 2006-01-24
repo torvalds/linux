@@ -122,6 +122,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/flow.h>
 #include <asm/system.h>
 #include <asm/ioctls.h>
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -149,10 +150,11 @@ static void dn_keepalive(struct sock *sk);
 #define DN_SK_HASH_MASK (DN_SK_HASH_SIZE - 1)
 
 
-static struct proto_ops dn_proto_ops;
+static const struct proto_ops dn_proto_ops;
 static DEFINE_RWLOCK(dn_hash_lock);
 static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
+static atomic_t decnet_memory_allocated;
 
 static int __dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen, int flags);
 static int __dn_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen, int flags);
@@ -446,10 +448,26 @@ static void dn_destruct(struct sock *sk)
 	dst_release(xchg(&sk->sk_dst_cache, NULL));
 }
 
+static int dn_memory_pressure;
+
+static void dn_enter_memory_pressure(void)
+{
+	if (!dn_memory_pressure) {
+		dn_memory_pressure = 1;
+	}
+}
+
 static struct proto dn_proto = {
-	.name	  = "DECNET",
-	.owner	  = THIS_MODULE,
-	.obj_size = sizeof(struct dn_sock),
+	.name			= "NSP",
+	.owner			= THIS_MODULE,
+	.enter_memory_pressure	= dn_enter_memory_pressure,
+	.memory_pressure	= &dn_memory_pressure,
+	.memory_allocated	= &decnet_memory_allocated,
+	.sysctl_mem		= sysctl_decnet_mem,
+	.sysctl_wmem		= sysctl_decnet_wmem,
+	.sysctl_rmem		= sysctl_decnet_rmem,
+	.max_header		= DN_MAX_NSP_DATA_HEADER + 64,
+	.obj_size		= sizeof(struct dn_sock),
 };
 
 static struct sock *dn_alloc_sock(struct socket *sock, gfp_t gfp)
@@ -470,6 +488,8 @@ static struct sock *dn_alloc_sock(struct socket *sock, gfp_t gfp)
 	sk->sk_family      = PF_DECnet;
 	sk->sk_protocol    = 0;
 	sk->sk_allocation  = gfp;
+	sk->sk_sndbuf	   = sysctl_decnet_wmem[1];
+	sk->sk_rcvbuf	   = sysctl_decnet_rmem[1];
 
 	/* Initialization of DECnet Session Control Port		*/
 	scp = DN_SK(sk);
@@ -1233,7 +1253,7 @@ static int dn_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		err = dev_ioctl(cmd, (void __user *)arg);
+		err = -ENOIOCTLCMD;
 		break;
 	}
 
@@ -1664,16 +1684,14 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 
+	if (sk->sk_shutdown & RCV_SHUTDOWN) {
+		rv = 0;
+		goto out;
+	}
+
 	rv = dn_check_state(sk, NULL, 0, &timeo, flags);
 	if (rv)
 		goto out;
-
-	if (sk->sk_shutdown & RCV_SHUTDOWN) {
-		if (!(flags & MSG_NOSIGNAL))
-			send_sig(SIGPIPE, current, 0);
-		rv = -EPIPE;
-		goto out;
-	}
 
 	if (flags & ~(MSG_PEEK|MSG_OOB|MSG_WAITALL|MSG_DONTWAIT|MSG_NOSIGNAL)) {
 		rv = -EOPNOTSUPP;
@@ -1928,6 +1946,8 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_shutdown & SEND_SHUTDOWN) {
 		err = -EPIPE;
+		if (!(flags & MSG_NOSIGNAL))
+			send_sig(SIGPIPE, current, 0);
 		goto out_err;
 	}
 
@@ -2323,7 +2343,7 @@ static struct net_proto_family	dn_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops dn_proto_ops = {
+static const struct proto_ops dn_proto_ops = {
 	.family =	AF_DECnet,
 	.owner =	THIS_MODULE,
 	.release =	dn_release,

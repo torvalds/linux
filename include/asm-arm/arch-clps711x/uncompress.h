@@ -19,7 +19,7 @@
  */
 #include <linux/config.h>
 #include <asm/arch/io.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 #include <asm/hardware/clps7111.h>
 
 #undef CLPS7111_BASE

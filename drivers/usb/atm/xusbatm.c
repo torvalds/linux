@@ -140,7 +140,6 @@ static int xusbatm_usb_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver xusbatm_usb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= xusbatm_driver_name,
 	.probe		= xusbatm_usb_probe,
 	.disconnect	= usbatm_usb_disconnect,

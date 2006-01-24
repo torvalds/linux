@@ -61,6 +61,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
+#include <linux/mutex.h>
 
 #include <asm/processor.h>	/* for boot_cpu_data */
 #include <asm/pgtable.h>
@@ -106,7 +107,7 @@ static dpt_sig_S DPTI_sig = {
  *============================================================================
  */
 
-static DECLARE_MUTEX(adpt_configuration_lock);
+static DEFINE_MUTEX(adpt_configuration_lock);
 
 static struct i2o_sys_tbl *sys_tbl = NULL;
 static int sys_tbl_ind = 0;
@@ -537,13 +538,13 @@ static int adpt_proc_info(struct Scsi_Host *host, char *buffer, char **start, of
 	 */
 
 	// Find HBA (host bus adapter) we are looking for
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
 		if (pHba->host == host) {
 			break;	/* found adapter */
 		}
 	}
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 	if (pHba == NULL) {
 		return 0;
 	}
@@ -660,7 +661,12 @@ static int adpt_abort(struct scsi_cmnd * cmd)
 	msg[2] = 0;
 	msg[3]= 0; 
 	msg[4] = (u32)cmd;
-	if( (rcode = adpt_i2o_post_wait(pHba, msg, sizeof(msg), FOREVER)) != 0){
+	if (pHba->host)
+		spin_lock_irq(pHba->host->host_lock);
+	rcode = adpt_i2o_post_wait(pHba, msg, sizeof(msg), FOREVER);
+	if (pHba->host)
+		spin_unlock_irq(pHba->host->host_lock);
+	if (rcode != 0) {
 		if(rcode == -EOPNOTSUPP ){
 			printk(KERN_INFO"%s: Abort cmd not supported\n",pHba->name);
 			return FAILED;
@@ -697,10 +703,15 @@ static int adpt_device_reset(struct scsi_cmnd* cmd)
 	msg[2] = 0;
 	msg[3] = 0;
 
+	if (pHba->host)
+		spin_lock_irq(pHba->host->host_lock);
 	old_state = d->state;
 	d->state |= DPTI_DEV_RESET;
-	if( (rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER)) ){
-		d->state = old_state;
+	rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER);
+	d->state = old_state;
+	if (pHba->host)
+		spin_unlock_irq(pHba->host->host_lock);
+	if (rcode != 0) {
 		if(rcode == -EOPNOTSUPP ){
 			printk(KERN_INFO"%s: Device reset not supported\n",pHba->name);
 			return FAILED;
@@ -708,7 +719,6 @@ static int adpt_device_reset(struct scsi_cmnd* cmd)
 		printk(KERN_INFO"%s: Device reset failed\n",pHba->name);
 		return FAILED;
 	} else {
-		d->state = old_state;
 		printk(KERN_INFO"%s: Device reset successful\n",pHba->name);
 		return SUCCESS;
 	}
@@ -721,6 +731,7 @@ static int adpt_bus_reset(struct scsi_cmnd* cmd)
 {
 	adpt_hba* pHba;
 	u32 msg[4];
+	u32 rcode;
 
 	pHba = (adpt_hba*)cmd->device->host->hostdata[0];
 	memset(msg, 0, sizeof(msg));
@@ -729,7 +740,12 @@ static int adpt_bus_reset(struct scsi_cmnd* cmd)
 	msg[1] = (I2O_HBA_BUS_RESET<<24|HOST_TID<<12|pHba->channel[cmd->device->channel].tid);
 	msg[2] = 0;
 	msg[3] = 0;
-	if(adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER) ){
+	if (pHba->host)
+		spin_lock_irq(pHba->host->host_lock);
+	rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER);
+	if (pHba->host)
+		spin_unlock_irq(pHba->host->host_lock);
+	if (rcode != 0) {
 		printk(KERN_WARNING"%s: Bus reset failed.\n",pHba->name);
 		return FAILED;
 	} else {
@@ -816,7 +832,7 @@ static int adpt_hba_reset(adpt_hba* pHba)
 static void adpt_i2o_sys_shutdown(void)
 {
 	adpt_hba *pHba, *pNext;
-	struct adpt_i2o_post_wait_data *p1, *p2;
+	struct adpt_i2o_post_wait_data *p1, *old;
 
 	 printk(KERN_INFO"Shutting down Adaptec I2O controllers.\n");
 	 printk(KERN_INFO"   This could take a few minutes if there are many devices attached\n");
@@ -830,13 +846,14 @@ static void adpt_i2o_sys_shutdown(void)
 	}
 
 	/* Remove any timedout entries from the wait queue.  */
-	p2 = NULL;
 //	spin_lock_irqsave(&adpt_post_wait_lock, flags);
 	/* Nothing should be outstanding at this point so just
 	 * free them 
 	 */
-	for(p1 = adpt_post_wait_queue; p1; p2 = p1, p1 = p2->next) {
-		kfree(p1);
+	for(p1 = adpt_post_wait_queue; p1;) {
+		old = p1;
+		p1 = p1->next;
+		kfree(old);
 	}
 //	spin_unlock_irqrestore(&adpt_post_wait_lock, flags);
 	adpt_post_wait_queue = NULL;
@@ -882,6 +899,12 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	if(pci_enable_device(pDev)) {
 		return -EINVAL;
 	}
+
+	if (pci_request_regions(pDev, "dpt_i2o")) {
+		PERROR("dpti: adpt_config_hba: pci request region failed\n");
+		return -EINVAL;
+	}
+
 	pci_set_master(pDev);
 	if (pci_set_dma_mask(pDev, 0xffffffffffffffffULL) &&
 	    pci_set_dma_mask(pDev, 0xffffffffULL))
@@ -907,10 +930,6 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 		raptorFlag = TRUE;
 	}
 
-	if (pci_request_regions(pDev, "dpt_i2o")) {
-		PERROR("dpti: adpt_config_hba: pci request region failed\n");
-		return -EINVAL;
-	}
 	base_addr_virt = ioremap(base_addr0_phys,hba_map0_area_size);
 	if (!base_addr_virt) {
 		pci_release_regions(pDev);
@@ -942,7 +961,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	}
 	memset(pHba, 0, sizeof(adpt_hba));
 
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 
 	if(hba_chain != NULL){
 		for(p = hba_chain; p->next; p = p->next);
@@ -955,7 +974,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	sprintf(pHba->name, "dpti%d", hba_count);
 	hba_count++;
 	
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 
 	pHba->pDev = pDev;
 	pHba->base_addr_phys = base_addr0_phys;
@@ -1011,7 +1030,7 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	struct adpt_device* pNext;
 
 
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 	// scsi_unregister calls our adpt_release which
 	// does a quiese
 	if(pHba->host){
@@ -1030,7 +1049,7 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	}
 
 	hba_count--;
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 
 	iounmap(pHba->base_addr_virt);
 	pci_release_regions(pHba->pDev);
@@ -1533,7 +1552,7 @@ static int adpt_i2o_parse_lct(adpt_hba* pHba)
  
 static int adpt_i2o_install_device(adpt_hba* pHba, struct i2o_device *d)
 {
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 	d->controller=pHba;
 	d->owner=NULL;
 	d->next=pHba->devices;
@@ -1544,7 +1563,7 @@ static int adpt_i2o_install_device(adpt_hba* pHba, struct i2o_device *d)
 	pHba->devices=d;
 	*d->dev_name = 0;
 
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 	return 0;
 }
 
@@ -1559,24 +1578,24 @@ static int adpt_open(struct inode *inode, struct file *file)
 	if (minor >= hba_count) {
 		return -ENXIO;
 	}
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
 		if (pHba->unit == minor) {
 			break;	/* found adapter */
 		}
 	}
 	if (pHba == NULL) {
-		up(&adpt_configuration_lock);
+		mutex_unlock(&adpt_configuration_lock);
 		return -ENXIO;
 	}
 
 //	if(pHba->in_use){
-	//	up(&adpt_configuration_lock);
+	//	mutex_unlock(&adpt_configuration_lock);
 //		return -EBUSY;
 //	}
 
 	pHba->in_use = 1;
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 
 	return 0;
 }
@@ -1590,13 +1609,13 @@ static int adpt_close(struct inode *inode, struct file *file)
 	if (minor >= hba_count) {
 		return -ENXIO;
 	}
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
 		if (pHba->unit == minor) {
 			break;	/* found adapter */
 		}
 	}
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 	if (pHba == NULL) {
 		return -ENXIO;
 	}
@@ -1894,13 +1913,13 @@ static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd,
 	if (minor >= DPTI_MAX_HBA){
 		return -ENXIO;
 	}
-	down(&adpt_configuration_lock);
+	mutex_lock(&adpt_configuration_lock);
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
 		if (pHba->unit == minor) {
 			break;	/* found adapter */
 		}
 	}
-	up(&adpt_configuration_lock);
+	mutex_unlock(&adpt_configuration_lock);
 	if(pHba == NULL){
 		return -ENXIO;
 	}

@@ -3,7 +3,7 @@
  *
  * MPC85xx Internal Memory Map
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor, Inc
  *

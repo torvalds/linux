@@ -118,7 +118,7 @@ static int kafscmd(void *arg)
 	_SRXAFSCM_xxxx_t func;
 	int die;
 
-	printk("kAFS: Started kafscmd %d\n", current->pid);
+	printk(KERN_INFO "kAFS: Started kafscmd %d\n", current->pid);
 
 	daemonize("kafscmd");
 

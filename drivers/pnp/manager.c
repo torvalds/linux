@@ -470,23 +470,14 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 }
 
 /**
- * pnp_activate_dev - activates a PnP device for use
+ * pnp_start_dev - low-level start of the PnP device
  * @dev: pointer to the desired device
  *
- * does not validate or set resources so be careful.
+ * assumes that resources have alread been allocated
  */
-int pnp_activate_dev(struct pnp_dev *dev)
+
+int pnp_start_dev(struct pnp_dev *dev)
 {
-	if (!dev)
-		return -EINVAL;
-	if (dev->active) {
-		return 0; /* the device is already active */
-	}
-
-	/* ensure resources are allocated */
-	if (pnp_auto_config_dev(dev))
-		return -EBUSY;
-
 	if (!pnp_can_write(dev)) {
 		pnp_info("Device %s does not supported activation.", dev->dev.bus_id);
 		return -EINVAL;
@@ -497,8 +488,59 @@ int pnp_activate_dev(struct pnp_dev *dev)
 		return -EIO;
 	}
 
-	dev->active = 1;
 	pnp_info("Device %s activated.", dev->dev.bus_id);
+
+	return 0;
+}
+
+/**
+ * pnp_stop_dev - low-level disable of the PnP device
+ * @dev: pointer to the desired device
+ *
+ * does not free resources
+ */
+
+int pnp_stop_dev(struct pnp_dev *dev)
+{
+	if (!pnp_can_disable(dev)) {
+		pnp_info("Device %s does not supported disabling.", dev->dev.bus_id);
+		return -EINVAL;
+	}
+	if (dev->protocol->disable(dev)<0) {
+		pnp_err("Failed to disable device %s.", dev->dev.bus_id);
+		return -EIO;
+	}
+
+	pnp_info("Device %s disabled.", dev->dev.bus_id);
+
+	return 0;
+}
+
+/**
+ * pnp_activate_dev - activates a PnP device for use
+ * @dev: pointer to the desired device
+ *
+ * does not validate or set resources so be careful.
+ */
+int pnp_activate_dev(struct pnp_dev *dev)
+{
+	int error;
+
+	if (!dev)
+		return -EINVAL;
+	if (dev->active) {
+		return 0; /* the device is already active */
+	}
+
+	/* ensure resources are allocated */
+	if (pnp_auto_config_dev(dev))
+		return -EBUSY;
+
+	error = pnp_start_dev(dev);
+	if (error)
+		return error;
+
+	dev->active = 1;
 
 	return 1;
 }
@@ -511,23 +553,19 @@ int pnp_activate_dev(struct pnp_dev *dev)
  */
 int pnp_disable_dev(struct pnp_dev *dev)
 {
+	int error;
+
         if (!dev)
                 return -EINVAL;
 	if (!dev->active) {
 		return 0; /* the device is already disabled */
 	}
 
-	if (!pnp_can_disable(dev)) {
-		pnp_info("Device %s does not supported disabling.", dev->dev.bus_id);
-		return -EINVAL;
-	}
-	if (dev->protocol->disable(dev)<0) {
-		pnp_err("Failed to disable device %s.", dev->dev.bus_id);
-		return -EIO;
-	}
+	error = pnp_stop_dev(dev);
+	if (error)
+		return error;
 
 	dev->active = 0;
-	pnp_info("Device %s disabled.", dev->dev.bus_id);
 
 	/* release the resources so that other devices can use them */
 	down(&pnp_res_mutex);
@@ -558,6 +596,8 @@ EXPORT_SYMBOL(pnp_manual_config_dev);
 #if 0
 EXPORT_SYMBOL(pnp_auto_config_dev);
 #endif
+EXPORT_SYMBOL(pnp_start_dev);
+EXPORT_SYMBOL(pnp_stop_dev);
 EXPORT_SYMBOL(pnp_activate_dev);
 EXPORT_SYMBOL(pnp_disable_dev);
 EXPORT_SYMBOL(pnp_resource_change);

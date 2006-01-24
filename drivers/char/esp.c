@@ -160,7 +160,6 @@ static void rs_wait_until_sent(struct tty_struct *, int);
  * memory if large numbers of serial ports are open.
  */
 static unsigned char *tmp_buf;
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int serial_paranoia_check(struct esp_struct *info,
 					char *name, const char *routine)
@@ -345,26 +344,22 @@ static inline void receive_chars_pio(struct esp_struct *info, int num_bytes)
 
 	for (i = 0; i < num_bytes; i++) {
 		if (!(err_buf->data[i] & status_mask)) {
-			*(tty->flip.char_buf_ptr++) = pio_buf->data[i];
+			int flag = 0;
 
 			if (err_buf->data[i] & 0x04) {
-				*(tty->flip.flag_buf_ptr++) = TTY_BREAK;
-
+				flag = TTY_BREAK;
 				if (info->flags & ASYNC_SAK)
 					do_SAK(tty);
 			}
 			else if (err_buf->data[i] & 0x02)
-				*(tty->flip.flag_buf_ptr++) = TTY_FRAME;
+				flag = TTY_FRAME;
 			else if (err_buf->data[i] & 0x01)
-				*(tty->flip.flag_buf_ptr++) = TTY_PARITY;
-			else
-				*(tty->flip.flag_buf_ptr++) = 0;
-		
-			tty->flip.count++;
+				flag = TTY_PARITY;
+			tty_insert_flip_char(tty, pio_buf->data[i], flag);
 		}
 	}
 
-	schedule_delayed_work(&tty->flip.work, 1);
+	schedule_delayed_work(&tty->buf.work, 1);
 
 	info->stat_flags &= ~ESP_STAT_RX_TIMEOUT;
 	release_pio_buffer(pio_buf);
@@ -397,7 +392,6 @@ static inline void receive_chars_dma_done(struct esp_struct *info,
 	int num_bytes;
 	unsigned long flags;
 	
-	
 	flags=claim_dma_lock();
 	disable_dma(dma);
 	clear_dma_ff(dma);
@@ -408,38 +402,31 @@ static inline void receive_chars_dma_done(struct esp_struct *info,
 	
 	info->icount.rx += num_bytes;
 
-	memcpy(tty->flip.char_buf_ptr, dma_buffer, num_bytes);
-	tty->flip.char_buf_ptr += num_bytes;
-	tty->flip.count += num_bytes;
-	memset(tty->flip.flag_buf_ptr, 0, num_bytes);
-	tty->flip.flag_buf_ptr += num_bytes;
-
 	if (num_bytes > 0) {
-		tty->flip.flag_buf_ptr--;
+		tty_insert_flip_string(tty, dma_buffer, num_bytes - 1);
 
 		status &= (0x1c & info->read_status_mask);
-
-		if (status & info->ignore_status_mask) {
-			tty->flip.count--;
-			tty->flip.char_buf_ptr--;
-			tty->flip.flag_buf_ptr--;
-		} else if (status & 0x10) {
-			*tty->flip.flag_buf_ptr = TTY_BREAK;
-			(info->icount.brk)++;
-			if (info->flags & ASYNC_SAK)
-				do_SAK(tty);
-		} else if (status & 0x08) {
-			*tty->flip.flag_buf_ptr = TTY_FRAME;
-			(info->icount.frame)++;
-		}
-		else if (status & 0x04) {
-			*tty->flip.flag_buf_ptr = TTY_PARITY;
-			(info->icount.parity)++;
-		}
-
-		tty->flip.flag_buf_ptr++;
 		
-		schedule_delayed_work(&tty->flip.work, 1);
+		/* Is the status significant or do we throw the last byte ? */
+		if (!(status & info->ignore_status_mask)) {
+			int statflag = 0;
+
+			if (status & 0x10) {
+				statflag = TTY_BREAK;
+				(info->icount.brk)++;
+				if (info->flags & ASYNC_SAK)
+					do_SAK(tty);
+			} else if (status & 0x08) {
+				statflag = TTY_FRAME;
+				(info->icount.frame)++;
+			}
+			else if (status & 0x04) {
+				statflag = TTY_PARITY;
+				(info->icount.parity)++;
+			}
+			tty_insert_flip_char(tty, dma_buffer[num_bytes - 1], statflag);
+		}
+		schedule_delayed_work(&tty->buf.work, 1);
 	}
 
 	if (dma_bytes != num_bytes) {
@@ -693,8 +680,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id,
 		num_bytes = serial_in(info, UART_ESI_STAT1) << 8;
 		num_bytes |= serial_in(info, UART_ESI_STAT2);
 
-		if (num_bytes > (TTY_FLIPBUF_SIZE - info->tty->flip.count))
-		  num_bytes = TTY_FLIPBUF_SIZE - info->tty->flip.count;
+		num_bytes = tty_buffer_request_room(info->tty, num_bytes);
 
 		if (num_bytes) {
 			if (dma_bytes ||
@@ -2506,6 +2492,7 @@ static int __init espserial_init(void)
 	}
 
 	memset((void *)info, 0, sizeof(struct esp_struct));
+	spin_lock_init(&info->lock);
 	/* rx_trigger, tx_trigger are needed by autoconfig */
 	info->config.rx_trigger = rx_trigger;
 	info->config.tx_trigger = tx_trigger;
@@ -2542,7 +2529,6 @@ static int __init espserial_init(void)
 		init_waitqueue_head(&info->close_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 		init_waitqueue_head(&info->break_wait);
-		spin_lock_init(&info->lock);
 		ports = info;
 		printk(KERN_INFO "ttyP%d at 0x%04x (irq = %d) is an ESP ",
 			info->line, info->port, info->irq);

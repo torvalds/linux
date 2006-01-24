@@ -37,11 +37,11 @@
 #define DEBUGP(fmt , ...)
 #endif
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 #define PLT_ENTRY_SIZE 12
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 #define PLT_ENTRY_SIZE 20
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 void *module_alloc(unsigned long size)
 {
@@ -294,17 +294,17 @@ apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			unsigned int *ip;
 			ip = me->module_core + me->arch.plt_offset +
 				info->plt_offset;
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 			ip[0] = 0x0d105810; /* basr 1,0; l 1,6(1); br 1 */
 			ip[1] = 0x100607f1;
 			ip[2] = val;
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 			ip[0] = 0x0d10e310; /* basr 1,0; lg 1,10(1); br 1 */
 			ip[1] = 0x100a0004;
 			ip[2] = 0x07f10000;
 			ip[3] = (unsigned int) (val >> 32);
 			ip[4] = (unsigned int) val;
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 			info->plt_initialized = 1;
 		}
 		if (r_type == R_390_PLTOFF16 ||

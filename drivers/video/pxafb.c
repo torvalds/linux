@@ -395,7 +395,7 @@ static int pxafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int pxafb_mmap(struct fb_info *info, struct file *file,
+static int pxafb_mmap(struct fb_info *info,
 		      struct vm_area_struct *vma)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
@@ -1396,7 +1396,8 @@ static struct platform_driver pxafb_driver = {
 int __devinit pxafb_setup(char *options)
 {
 # ifdef CONFIG_FB_PXA_PARAMETERS
-	strlcpy(g_options, options, sizeof(g_options));
+	if (options)
+		strlcpy(g_options, options, sizeof(g_options));
 # endif
 	return 0;
 }

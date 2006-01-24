@@ -283,15 +283,16 @@ static int handle_dst_tag(struct dst_state *state, struct ca_msg *p_ca_message, 
 		hw_buffer->msg[4] = 0x03;
 		hw_buffer->msg[5] = length & 0xff;
 		hw_buffer->msg[6] = 0x00;
+
 		/*
 		 *	Need to compute length for EN50221 section 8.3.2, for the time being
 		 *	assuming 8.3.2 is not applicable
 		 */
 		memcpy(&hw_buffer->msg[7], &p_ca_message->msg[4], length);
 	}
+
 	return 0;
 }
-
 
 static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 length, u8 reply)
 {
@@ -406,7 +407,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	}
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
 
-	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg))) {
+	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg))) {
 		result = -EFAULT;
 		goto free_mem_and_exit;
 	}
@@ -579,7 +580,7 @@ static int dst_ca_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
+static ssize_t dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
 	int bytes_read = 0;
 
@@ -588,7 +589,7 @@ static int dst_ca_read(struct file *file, char __user *buffer, size_t length, lo
 	return bytes_read;
 }
 
-static int dst_ca_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset)
+static ssize_t dst_ca_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device write.");
 

@@ -59,7 +59,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 
 		if ((t1 & PORT_PE) && !(t1 & PORT_OWNER))
 			t2 |= PORT_SUSPEND;
-		if (hcd->remote_wakeup)
+		if (device_may_wakeup(&hcd->self.root_hub->dev))
 			t2 |= PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E;
 		else
 			t2 &= ~(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E);
@@ -93,6 +93,13 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	spin_lock_irq (&ehci->lock);
+
+	/* Ideally and we've got a real resume here, and no port's power
+	 * was lost.  (For PCI, that means Vaux was maintained.)  But we
+	 * could instead be restoring a swsusp snapshot -- so that BIOS was
+	 * the last user of the controller, not reset/pm hardware keeping
+	 * state we gave to it.
+	 */
 
 	/* re-init operational registers in case we lost power */
 	if (readl (&ehci->regs->intr_enable) == 0) {
@@ -510,7 +517,7 @@ static int ehci_hub_control (
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			if (hcd->remote_wakeup)
+			if (device_may_wakeup(&hcd->self.root_hub->dev))
 				temp |= PORT_WAKE_BITS;
 			writel (temp | PORT_SUSPEND,
 				&ehci->regs->port_status [wIndex]);

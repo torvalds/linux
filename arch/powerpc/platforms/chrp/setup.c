@@ -49,7 +49,6 @@
 #include <asm/hydra.h>
 #include <asm/sections.h>
 #include <asm/time.h>
-#include <asm/btext.h>
 #include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/rtas.h>
@@ -58,7 +57,6 @@
 #include "chrp.h"
 
 void rtas_indicator_progress(char *, unsigned short);
-void btext_progress(char *, unsigned short);
 
 int _chrp_type;
 EXPORT_SYMBOL(_chrp_type);
@@ -257,10 +255,12 @@ void __init chrp_setup_arch(void)
 	if (rtas_token("display-character") >= 0)
 		ppc_md.progress = rtas_progress;
 
-#ifdef CONFIG_BOOTX_TEXT
-	if (ppc_md.progress == NULL && boot_text_mapped)
-		ppc_md.progress = btext_progress;
-#endif
+	/* use RTAS time-of-day routines if available */
+	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
+		ppc_md.get_boot_time	= rtas_get_boot_time;
+		ppc_md.get_rtc_time	= rtas_get_rtc_time;
+		ppc_md.set_rtc_time	= rtas_set_rtc_time;
+	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* this is fine for chrp */
@@ -352,9 +352,10 @@ static void __init chrp_find_openpic(void)
 		opaddr = opprop[na-1];	/* assume 32-bit */
 		oplen /= na * sizeof(unsigned int);
 	} else {
-		if (np->n_addrs == 0)
+		struct resource r;
+		if (of_address_to_resource(np, 0, &r))
 			return;
-		opaddr = np->addrs[0].address;
+		opaddr = r.start;
 		oplen = 0;
 	}
 
@@ -377,7 +378,7 @@ static void __init chrp_find_openpic(void)
 	 */
 	if (oplen < len) {
 		printk(KERN_ERR "Insufficient addresses for distributed"
-		       " OpenPIC (%d < %d)\n", np->n_addrs, len);
+		       " OpenPIC (%d < %d)\n", oplen, len);
 		len = oplen;
 	}
 
@@ -505,20 +506,13 @@ void __init chrp_init(void)
 	ppc_md.halt           = rtas_halt;
 
 	ppc_md.time_init      = chrp_time_init;
+	ppc_md.calibrate_decr = chrp_calibrate_decr;
+
+	/* this may get overridden with rtas routines later... */
 	ppc_md.set_rtc_time   = chrp_set_rtc_time;
 	ppc_md.get_rtc_time   = chrp_get_rtc_time;
-	ppc_md.calibrate_decr = chrp_calibrate_decr;
 
 #ifdef CONFIG_SMP
 	smp_ops = &chrp_smp_ops;
 #endif /* CONFIG_SMP */
 }
-
-#ifdef CONFIG_BOOTX_TEXT
-void
-btext_progress(char *s, unsigned short hex)
-{
-	btext_drawstring(s);
-	btext_drawstring("\n");
-}
-#endif /* CONFIG_BOOTX_TEXT */

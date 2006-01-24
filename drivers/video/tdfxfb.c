@@ -291,7 +291,7 @@ static inline void banshee_make_room(struct tdfx_par *par, int size)
  
 static int banshee_wait_idle(struct fb_info *info)
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par; 
+	struct tdfx_par *par = info->par;
 	int i = 0;
 
 	banshee_make_room(par, 1);
@@ -364,7 +364,7 @@ static u32 do_calc_pll(int freq, int* freq_out)
 
 static void do_write_regs(struct fb_info *info, struct banshee_reg* reg) 
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par; 
+	struct tdfx_par *par = info->par;
 	int i;
 
 	banshee_wait_idle(info);
@@ -469,7 +469,7 @@ static unsigned long do_lfb_size(struct tdfx_par *par, unsigned short dev_id)
 
 static int tdfxfb_check_var(struct fb_var_screeninfo *var,struct fb_info *info) 
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par; 
+	struct tdfx_par *par = info->par;
 	u32 lpitch;
 
 	if (var->bits_per_pixel != 8  && var->bits_per_pixel != 16 &&
@@ -558,7 +558,7 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var,struct fb_info *info)
 
 static int tdfxfb_set_par(struct fb_info *info)
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;	
+	struct tdfx_par *par = info->par;
 	u32 hdispend, hsyncsta, hsyncend, htotal;
 	u32 hd, hs, he, ht, hbs, hbe;
 	u32 vd, vs, ve, vt, vbs, vbe;
@@ -780,7 +780,7 @@ static int tdfxfb_set_par(struct fb_info *info)
 static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,  
 			    unsigned blue,unsigned transp,struct fb_info *info) 
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 	u32 rgbcol;
    
 	if (regno >= info->cmap.len || regno > 255) return 1;
@@ -794,11 +794,15 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			break;
 		/* Truecolor has no hardware color palettes. */
 		case FB_VISUAL_TRUECOLOR:
-			rgbcol = (CNVT_TOHW( red, info->var.red.length) << info->var.red.offset) |
-				 (CNVT_TOHW( green, info->var.green.length) << info->var.green.offset) |
-				 (CNVT_TOHW( blue, info->var.blue.length) << info->var.blue.offset) |
-				 (CNVT_TOHW( transp, info->var.transp.length) << info->var.transp.offset);
-				((u32*)(info->pseudo_palette))[regno] = rgbcol;
+			rgbcol = (CNVT_TOHW( red, info->var.red.length) <<
+				  info->var.red.offset) |
+				 (CNVT_TOHW( green, info->var.green.length) <<
+				  info->var.green.offset) |
+				 (CNVT_TOHW( blue, info->var.blue.length) <<
+				  info->var.blue.offset) |
+				 (CNVT_TOHW( transp, info->var.transp.length) <<
+				  info->var.transp.offset);
+				par->palette[regno] = rgbcol;
 			break;
 		default:
 			DPRINTK("bad depth %u\n", info->var.bits_per_pixel);
@@ -810,7 +814,7 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 /* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
 static int tdfxfb_blank(int blank, struct fb_info *info)
 { 
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 	u32 dacmode, state = 0, vgablank = 0;
 
 	dacmode = tdfx_inl(par, DACMODE);
@@ -855,7 +859,7 @@ static int tdfxfb_blank(int blank, struct fb_info *info)
 static int tdfxfb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info) 
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 	u32 addr;  	
 
 	if (nopan || var->xoffset || (var->yoffset > var->yres_virtual))
@@ -878,7 +882,7 @@ static int tdfxfb_pan_display(struct fb_var_screeninfo *var,
  */
 static void tdfxfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect) 
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 	u32 bpp = info->var.bits_per_pixel;
 	u32 stride = info->fix.line_length;
 	u32 fmt= stride | ((bpp+((bpp==8) ? 0 : 8)) << 13); 
@@ -894,7 +898,7 @@ static void tdfxfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect
 	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
 		tdfx_outl(par,	COLORFORE, rect->color);
 	} else { /* FB_VISUAL_TRUECOLOR */
-		tdfx_outl(par, COLORFORE, ((u32*)(info->pseudo_palette))[rect->color]);
+		tdfx_outl(par, COLORFORE, par->palette[rect->color]);
 	}
 	tdfx_outl(par,	COMMAND_2D, COMMAND_2D_FILLRECT | (tdfx_rop << 24));
 	tdfx_outl(par,	DSTSIZE,    rect->width | (rect->height << 16));
@@ -906,7 +910,7 @@ static void tdfxfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect
  */
 static void tdfxfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)  
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
    	u32 sx = area->sx, sy = area->sy, dx = area->dx, dy = area->dy;
 	u32 bpp = info->var.bits_per_pixel;
 	u32 stride = info->fix.line_length;
@@ -938,7 +942,7 @@ static void tdfxfb_copyarea(struct fb_info *info, const struct fb_copyarea *area
 
 static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image) 
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 	int size = image->height * ((image->width * image->depth + 7)>>3);
 	int fifo_free;
 	int i, stride = info->fix.line_length;
@@ -961,8 +965,10 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 				break;
 			case FB_VISUAL_TRUECOLOR:
 			default:
-				tdfx_outl(par, COLORFORE, ((u32*)(info->pseudo_palette))[image->fg_color]);
-				tdfx_outl(par, COLORBACK, ((u32*)(info->pseudo_palette))[image->bg_color]);
+				tdfx_outl(par, COLORFORE,
+					  par->palette[image->fg_color]);
+				tdfx_outl(par, COLORBACK,
+					  par->palette[image->bg_color]);
 		}
 #ifdef __BIG_ENDIAN
 		srcfmt = 0x400000 | BIT(20);
@@ -1007,7 +1013,7 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 #ifdef TDFX_HARDWARE_CURSOR
 static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 	unsigned long flags;
 
 	/*
@@ -1157,18 +1163,17 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 {
 	struct tdfx_par *default_par;
 	struct fb_info *info;
-	int size, err, lpitch;
+	int err, lpitch;
 
 	if ((err = pci_enable_device(pdev))) {
 		printk(KERN_WARNING "tdfxfb: Can't enable pdev: %d\n", err);
 		return err;
 	}
 
-	size = sizeof(struct tdfx_par)+256*sizeof(u32);
+	info = framebuffer_alloc(sizeof(struct tdfx_par), &pdev->dev);
 
-	info = framebuffer_alloc(size, &pdev->dev);
-
-	if (!info)	return -ENOMEM;
+	if (!info)
+		return -ENOMEM;
 		
 	default_par = info->par;
  
@@ -1248,7 +1253,7 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
    
 	info->fbops		= &tdfxfb_ops;
 	info->fix		= tdfx_fix; 	
-	info->pseudo_palette	= (void *)(default_par + 1); 
+	info->pseudo_palette	= default_par->palette;
 	info->flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 #ifdef CONFIG_FB_3DFX_ACCEL
 	info->flags             |= FBINFO_HWACCEL_FILLRECT |
@@ -1307,7 +1312,7 @@ out_err:
 }
 
 #ifndef MODULE
-void tdfxfb_setup(char *options)
+static void tdfxfb_setup(char *options)
 {
 	char* this_opt;
 
@@ -1340,7 +1345,7 @@ void tdfxfb_setup(char *options)
 static void __devexit tdfxfb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
-	struct tdfx_par *par = (struct tdfx_par *) info->par;
+	struct tdfx_par *par = info->par;
 
 	unregister_framebuffer(info);
 	iounmap(par->regbase_virt);

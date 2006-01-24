@@ -1,6 +1,7 @@
-#include <linux/sched.h>		/* for capable() */
+#include <linux/capability.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/hdreg.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/smp_lock.h>
@@ -245,6 +246,27 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		set_device_ro(bdev, n);
 		unlock_kernel();
 		return 0;
+	case HDIO_GETGEO: {
+		struct hd_geometry geo;
+
+		if (!arg)
+			return -EINVAL;
+		if (!disk->fops->getgeo)
+			return -ENOTTY;
+
+		/*
+		 * We need to set the startsect first, the driver may
+		 * want to override it.
+		 */
+		geo.start = get_start_sect(bdev);
+		ret = disk->fops->getgeo(bdev, &geo);
+		if (ret)
+			return ret;
+		if (copy_to_user((struct hd_geometry __user *)arg, &geo,
+					sizeof(geo)))
+			return -EFAULT;
+		return 0;
+	}
 	}
 
 	lock_kernel();

@@ -316,9 +316,10 @@ static int stop(mddev_t *mddev)
 	return 0;
 }
 
-static mdk_personality_t faulty_personality =
+static struct mdk_personality faulty_personality =
 {
 	.name		= "faulty",
+	.level		= LEVEL_FAULTY,
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
@@ -329,15 +330,17 @@ static mdk_personality_t faulty_personality =
 
 static int __init raid_init(void)
 {
-	return register_md_personality(FAULTY, &faulty_personality);
+	return register_md_personality(&faulty_personality);
 }
 
 static void raid_exit(void)
 {
-	unregister_md_personality(FAULTY);
+	unregister_md_personality(&faulty_personality);
 }
 
 module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-10"); /* faulty */
+MODULE_ALIAS("md-faulty");
+MODULE_ALIAS("md-level--5");

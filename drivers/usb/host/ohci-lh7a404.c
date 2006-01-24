@@ -17,6 +17,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/signal.h>
 
 #include <asm/hardware.h>
 
@@ -219,7 +220,7 @@ static int ohci_hcd_lh7a404_drv_probe(struct platform_device *pdev)
 
 static int ohci_hcd_lh7a404_drv_remove(struct platform_device *pdev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_lh7a404_remove(hcd, pdev);
 	return 0;

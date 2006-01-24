@@ -207,7 +207,7 @@ static inline void usbatm_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 **  urbs  **
 ************/
 
-static inline struct urb *usbatm_pop_urb(struct usbatm_channel *channel)
+static struct urb *usbatm_pop_urb(struct usbatm_channel *channel)
 {
 	struct urb *urb;
 
@@ -224,7 +224,7 @@ static inline struct urb *usbatm_pop_urb(struct usbatm_channel *channel)
 	return urb;
 }
 
-static inline int usbatm_submit_urb(struct urb *urb)
+static int usbatm_submit_urb(struct urb *urb)
 {
 	struct usbatm_channel *channel = urb->context;
 	int ret;
@@ -646,14 +646,14 @@ static void usbatm_destroy_instance(struct kref *kref)
 	kfree(instance);
 }
 
-void usbatm_get_instance(struct usbatm_data *instance)
+static void usbatm_get_instance(struct usbatm_data *instance)
 {
 	dbg("%s", __func__);
 
 	kref_get(&instance->refcount);
 }
 
-void usbatm_put_instance(struct usbatm_data *instance)
+static void usbatm_put_instance(struct usbatm_data *instance)
 {
 	dbg("%s", __func__);
 
@@ -879,7 +879,7 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 
  fail:
 	instance->atm_dev = NULL;
-	shutdown_atm_dev(atm_dev); /* usbatm_atm_dev_close will eventually be called */
+	atm_dev_deregister(atm_dev); /* usbatm_atm_dev_close will eventually be called */
 	return ret;
 }
 
@@ -1164,7 +1164,7 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 
 	/* ATM finalize */
 	if (instance->atm_dev)
-		shutdown_atm_dev(instance->atm_dev);
+		atm_dev_deregister(instance->atm_dev);
 
 	usbatm_put_instance(instance);	/* taken in usbatm_usb_probe */
 }

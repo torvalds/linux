@@ -36,8 +36,6 @@
 #include <asm/hardware.h>	/* Pick up IXP2000-specific bits */
 #include <asm/arch/gpio.h>
 
-static struct device_driver ixp2000_i2c_driver;
-
 static inline int ixp2000_scl_pin(void *data)
 {
 	return ((struct ixp2000_i2c_pins*)data)->scl_pin;
@@ -120,7 +118,7 @@ static int ixp2000_i2c_probe(struct platform_device *plat_dev)
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP2000,
-	strlcpy(drv_data->adapter.name, ixp2000_i2c_driver.name,
+	strlcpy(drv_data->adapter.name, plat_dev->dev.driver->name,
 		I2C_NAME_SIZE);
 	drv_data->adapter.algo_data = &drv_data->algo_data,
 
@@ -132,7 +130,7 @@ static int ixp2000_i2c_probe(struct platform_device *plat_dev)
 	gpio_line_set(gpio->sda_pin, 0);
 
 	if ((err = i2c_bit_add_bus(&drv_data->adapter)) != 0) {
-		dev_err(dev, "Could not install, error %d\n", err);
+		dev_err(&plat_dev->dev, "Could not install, error %d\n", err);
 		kfree(drv_data);
 		return err;
 	} 

@@ -164,12 +164,12 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 		/* assert the Wakeup interrupt in the Device Interrupt Register */
 		isl38xx_w32_flush(device_base, ISL38XX_DEV_INT_WAKEUP,
 				  ISL38XX_DEV_INT_REG);
+
+#if VERBOSE > SHOW_ERROR_MESSAGES
 		udelay(ISL38XX_WRITEIO_DELAY);
 
 		/* perform another read on the Device Status Register */
 		reg = readl(device_base + ISL38XX_CTRL_STAT_REG);
-
-#if VERBOSE > SHOW_ERROR_MESSAGES
 		do_gettimeofday(&current_time);
 		DEBUG(SHOW_TRACING, "%08li.%08li Device register read %08x\n",
 		      current_time.tv_sec, (long)current_time.tv_usec, reg);

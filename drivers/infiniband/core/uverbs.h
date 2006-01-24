@@ -41,6 +41,7 @@
 
 #include <linux/kref.h>
 #include <linux/idr.h>
+#include <linux/mutex.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
@@ -88,7 +89,7 @@ struct ib_uverbs_event_file {
 
 struct ib_uverbs_file {
 	struct kref				ref;
-	struct semaphore			mutex;
+	struct mutex				mutex;
 	struct ib_uverbs_device		       *device;
 	struct ib_ucontext		       *ucontext;
 	struct ib_event_handler			event_handler;
@@ -105,10 +106,21 @@ struct ib_uverbs_event {
 	u32				       *counter;
 };
 
+struct ib_uverbs_mcast_entry {
+	struct list_head	list;
+	union ib_gid 		gid;
+	u16 			lid;
+};
+
 struct ib_uevent_object {
 	struct ib_uobject	uobject;
 	struct list_head	event_list;
 	u32			events_reported;
+};
+
+struct ib_uqp_object {
+	struct ib_uevent_object	uevent;
+	struct list_head 	mcast_list;
 };
 
 struct ib_ucq_object {
@@ -120,7 +132,7 @@ struct ib_ucq_object {
 	u32			async_events_reported;
 };
 
-extern struct semaphore ib_uverbs_idr_mutex;
+extern struct mutex ib_uverbs_idr_mutex;
 extern struct idr ib_uverbs_pd_idr;
 extern struct idr ib_uverbs_mr_idr;
 extern struct idr ib_uverbs_mw_idr;

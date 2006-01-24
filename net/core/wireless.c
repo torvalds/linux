@@ -78,6 +78,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>			/* for __init */
 #include <linux/if_arp.h>		/* ARPHRD_ETHER */
+#include <linux/etherdevice.h>		/* compare_ether_addr */
 
 #include <linux/wireless.h>		/* Pretty obvious */
 #include <net/iw_handler.h>		/* New driver API */
@@ -1506,7 +1507,7 @@ void wireless_spy_update(struct net_device *	dev,
 
 	/* Update all records that match */
 	for(i = 0; i < spydata->spy_number; i++)
-		if(!memcmp(address, spydata->spy_address[i], ETH_ALEN)) {
+		if(!compare_ether_addr(address, spydata->spy_address[i])) {
 			memcpy(&(spydata->spy_stat[i]), wstats,
 			       sizeof(struct iw_quality));
 			match = i;

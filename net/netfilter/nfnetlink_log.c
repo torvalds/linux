@@ -151,7 +151,7 @@ instance_create(u_int16_t group_num, int pid)
 		goto out_unlock;
 
 	INIT_HLIST_NODE(&inst->hlist);
-	inst->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&inst->lock);
 	/* needs to be two, since we _put() after creation */
 	atomic_set(&inst->use, 2);
 
@@ -862,11 +862,9 @@ out_put:
 
 static struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
 	[NFULNL_MSG_PACKET]	= { .call = nfulnl_recv_unsupp,
-				    .attr_count = NFULA_MAX,
-				    .cap_required = CAP_NET_ADMIN, },
+				    .attr_count = NFULA_MAX, },
 	[NFULNL_MSG_CONFIG]	= { .call = nfulnl_recv_config,
-				    .attr_count = NFULA_CFG_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFULA_CFG_MAX, },
 };
 
 static struct nfnetlink_subsystem nfulnl_subsys = {

@@ -283,9 +283,9 @@ static int therm_pm72_detach(struct i2c_adapter *adapter);
 
 static struct i2c_driver therm_pm72_driver =
 {
-	.owner		= THIS_MODULE,
-	.name		= "therm_pm72",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "therm_pm72",
+	},
 	.attach_adapter	= therm_pm72_attach,
 	.detach_adapter	= therm_pm72_detach,
 };
@@ -630,12 +630,12 @@ static int read_eeprom(int cpu, struct mpu_data *out)
 	sprintf(nodename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
 	np = of_find_node_by_path(nodename);
 	if (np == NULL) {
-		printk(KERN_ERR "therm_pm72: Failed to retreive cpuid node from device-tree\n");
+		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid node from device-tree\n");
 		return -ENODEV;
 	}
 	data = (u8 *)get_property(np, "cpuid", &len);
 	if (data == NULL) {
-		printk(KERN_ERR "therm_pm72: Failed to retreive cpuid property from device-tree\n");
+		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid property from device-tree\n");
 		of_node_put(np);
 		return -ENODEV;
 	}
@@ -923,7 +923,7 @@ static void do_monitor_cpu_combined(void)
 	if (temp_combi >= ((state0->mpu.tmax + 8) << 16)) {
 		printk(KERN_WARNING "Warning ! Temperature way above maximum (%d) !\n",
 		       temp_combi >> 16);
-		state0->overtemp = CPU_MAX_OVERTEMP;
+		state0->overtemp += CPU_MAX_OVERTEMP / 4;
 	} else if (temp_combi > (state0->mpu.tmax << 16))
 		state0->overtemp++;
 	else
@@ -933,7 +933,7 @@ static void do_monitor_cpu_combined(void)
 	if (state0->overtemp > 0) {
 		state0->rpm = state0->mpu.rmaxn_exhaust_fan;
 		state0->intake_rpm = intake = state0->mpu.rmaxn_intake_fan;
-		pump = state0->pump_min;
+		pump = state0->pump_max;
 		goto do_set_fans;
 	}
 
@@ -998,7 +998,7 @@ static void do_monitor_cpu_split(struct cpu_pid_state *state)
 		printk(KERN_WARNING "Warning ! CPU %d temperature way above maximum"
 		       " (%d) !\n",
 		       state->index, temp >> 16);
-		state->overtemp = CPU_MAX_OVERTEMP;
+		state->overtemp += CPU_MAX_OVERTEMP / 4;
 	} else if (temp > (state->mpu.tmax << 16))
 		state->overtemp++;
 	else
@@ -1060,7 +1060,7 @@ static void do_monitor_cpu_rack(struct cpu_pid_state *state)
 		printk(KERN_WARNING "Warning ! CPU %d temperature way above maximum"
 		       " (%d) !\n",
 		       state->index, temp >> 16);
-		state->overtemp = CPU_MAX_OVERTEMP;
+		state->overtemp = CPU_MAX_OVERTEMP / 4;
 	} else if (temp > (state->mpu.tmax << 16))
 		state->overtemp++;
 	else
@@ -1988,18 +1988,13 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 
 static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
 {
-	int rc;
-
 	state = state_detached;
 
 	/* Lookup the fans in the device tree */
 	fcu_lookup_fans(dev->node);
 
 	/* Add the driver */
-	rc = i2c_add_driver(&therm_pm72_driver);
-	if (rc < 0)
-		return rc;
-	return 0;
+	return i2c_add_driver(&therm_pm72_driver);
 }
 
 static int fcu_of_remove(struct of_device* dev)

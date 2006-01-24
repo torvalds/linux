@@ -402,7 +402,6 @@ static void driver_disconnect(struct usb_interface *intf)
 }
 
 struct usb_driver usbfs_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbfs",
 	.probe =	driver_probe,
 	.disconnect =	driver_disconnect,
@@ -1350,9 +1349,7 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 	/* let kernel drivers try to (re)bind to the interface */
 	case USBDEVFS_CONNECT:
 		usb_unlock_device(ps->dev);
-		usb_lock_all_devices();
 		bus_rescan_devices(intf->dev.bus);
-		usb_unlock_all_devices();
 		usb_lock_device(ps->dev);
 		break;
 
@@ -1392,13 +1389,13 @@ static int proc_ioctl_default(struct dev_state *ps, void __user *arg)
 }
 
 #ifdef CONFIG_COMPAT
-static int proc_ioctl_compat(struct dev_state *ps, void __user *arg)
+static int proc_ioctl_compat(struct dev_state *ps, compat_uptr_t arg)
 {
 	struct usbdevfs_ioctl32 __user *uioc;
 	struct usbdevfs_ioctl ctrl;
 	u32 udata;
 
-	uioc = compat_ptr(arg);
+	uioc = compat_ptr((long)arg);
 	if (get_user(ctrl.ifno, &uioc->ifno) ||
 	    get_user(ctrl.ioctl_code, &uioc->ioctl_code) ||
 	    __get_user(udata, &uioc->data))
@@ -1511,7 +1508,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 
 	case USBDEVFS_IOCTL32:
 		snoop(&dev->dev, "%s: IOCTL\n", __FUNCTION__);
-		ret = proc_ioctl_compat(ps, p);
+		ret = proc_ioctl_compat(ps, (compat_uptr_t)(long)p);
 		break;
 #endif
 

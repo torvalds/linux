@@ -25,6 +25,8 @@
 #include <linux/rmap.h>
 #include <linux/security.h>
 #include <linux/backing-dev.h>
+#include <linux/mutex.h>
+#include <linux/capability.h>
 #include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
@@ -45,12 +47,12 @@ struct swap_list_t swap_list = {-1, -1};
 
 struct swap_info_struct swap_info[MAX_SWAPFILES];
 
-static DECLARE_MUTEX(swapon_sem);
+static DEFINE_MUTEX(swapon_mutex);
 
 /*
  * We need this because the bdev->unplug_fn can sleep and we cannot
  * hold swap_lock while calling the unplug_fn. And swap_lock
- * cannot be turned into a semaphore.
+ * cannot be turned into a mutex.
  */
 static DECLARE_RWSEM(swap_unplug_sem);
 
@@ -207,6 +209,26 @@ swp_entry_t get_swap_page(void)
 
 	nr_swap_pages++;
 noswap:
+	spin_unlock(&swap_lock);
+	return (swp_entry_t) {0};
+}
+
+swp_entry_t get_swap_page_of_type(int type)
+{
+	struct swap_info_struct *si;
+	pgoff_t offset;
+
+	spin_lock(&swap_lock);
+	si = swap_info + type;
+	if (si->flags & SWP_WRITEOK) {
+		nr_swap_pages--;
+		offset = scan_swap_map(si);
+		if (offset) {
+			spin_unlock(&swap_lock);
+			return swp_entry(type, offset);
+		}
+		nr_swap_pages++;
+	}
 	spin_unlock(&swap_lock);
 	return (swp_entry_t) {0};
 }
@@ -1140,7 +1162,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	up_write(&swap_unplug_sem);
 
 	destroy_swap_extents(p);
-	down(&swapon_sem);
+	mutex_lock(&swapon_mutex);
 	spin_lock(&swap_lock);
 	drain_mmlist();
 
@@ -1159,7 +1181,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	p->swap_map = NULL;
 	p->flags = 0;
 	spin_unlock(&swap_lock);
-	up(&swapon_sem);
+	mutex_unlock(&swapon_mutex);
 	vfree(swap_map);
 	inode = mapping->host;
 	if (S_ISBLK(inode->i_mode)) {
@@ -1167,9 +1189,9 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 		set_blocksize(bdev, p->old_block_size);
 		bd_release(bdev);
 	} else {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		inode->i_flags &= ~S_SWAPFILE;
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	filp_close(swap_file, NULL);
 	err = 0;
@@ -1188,7 +1210,7 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 	int i;
 	loff_t l = *pos;
 
-	down(&swapon_sem);
+	mutex_lock(&swapon_mutex);
 
 	for (i = 0; i < nr_swapfiles; i++, ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
@@ -1217,7 +1239,7 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 
 static void swap_stop(struct seq_file *swap, void *v)
 {
-	up(&swapon_sem);
+	mutex_unlock(&swapon_mutex);
 }
 
 static int swap_show(struct seq_file *swap, void *v)
@@ -1386,7 +1408,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		p->bdev = bdev;
 	} else if (S_ISREG(inode->i_mode)) {
 		p->bdev = inode->i_sb->s_bdev;
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		did_down = 1;
 		if (IS_SWAPFILE(inode)) {
 			error = -EBUSY;
@@ -1422,7 +1444,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 	else if (!memcmp("SWAPSPACE2",swap_header->magic.magic,10))
 		swap_header_version = 2;
 	else {
-		printk("Unable to find swap-space signature\n");
+		printk(KERN_ERR "Unable to find swap-space signature\n");
 		error = -EINVAL;
 		goto bad_swap;
 	}
@@ -1473,7 +1495,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 			goto bad_swap;
 		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
 			goto bad_swap;
-		
+
 		/* OK, set up the swap map and apply the bad block list */
 		if (!(p->swap_map = vmalloc(maxpages * sizeof(short)))) {
 			error = -ENOMEM;
@@ -1482,17 +1504,17 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 
 		error = 0;
 		memset(p->swap_map, 0, maxpages * sizeof(short));
-		for (i=0; i<swap_header->info.nr_badpages; i++) {
-			int page = swap_header->info.badpages[i];
-			if (page <= 0 || page >= swap_header->info.last_page)
+		for (i = 0; i < swap_header->info.nr_badpages; i++) {
+			int page_nr = swap_header->info.badpages[i];
+			if (page_nr <= 0 || page_nr >= swap_header->info.last_page)
 				error = -EINVAL;
 			else
-				p->swap_map[page] = SWAP_MAP_BAD;
+				p->swap_map[page_nr] = SWAP_MAP_BAD;
 		}
 		nr_good_pages = swap_header->info.last_page -
 				swap_header->info.nr_badpages -
 				1 /* header page */;
-		if (error) 
+		if (error)
 			goto bad_swap;
 	}
 
@@ -1519,7 +1541,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		goto bad_swap;
 	}
 
-	down(&swapon_sem);
+	mutex_lock(&swapon_mutex);
 	spin_lock(&swap_lock);
 	p->flags = SWP_ACTIVE;
 	nr_swap_pages += nr_good_pages;
@@ -1545,7 +1567,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		swap_info[prev].next = p - swap_info;
 	}
 	spin_unlock(&swap_lock);
-	up(&swapon_sem);
+	mutex_unlock(&swapon_mutex);
 	error = 0;
 	goto out;
 bad_swap:
@@ -1576,7 +1598,7 @@ out:
 	if (did_down) {
 		if (!error)
 			inode->i_flags |= S_SWAPFILE;
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	return error;
 }

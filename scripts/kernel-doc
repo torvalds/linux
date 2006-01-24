@@ -117,6 +117,8 @@ use strict;
 # struct my_struct {
 #     int a;
 #     int b;
+# /* private: */
+#     int c;
 # };
 #
 # All descriptions can be multiline, except the short function description.
@@ -1304,6 +1306,12 @@ sub dump_struct($$) {
 	# ignore embedded structs or unions
 	$members =~ s/{.*?}//g;
 
+	# ignore members marked private:
+	$members =~ s/\/\*.*?private:.*?public:.*?\*\///gos;
+	$members =~ s/\/\*.*?private:.*//gos;
+	# strip comments:
+	$members =~ s/\/\*.*?\*\///gos;
+
 	create_parameterlist($members, ';', $file);
 
 	output_declaration($declaration_name,
@@ -1329,6 +1337,7 @@ sub dump_enum($$) {
     my $x = shift;
     my $file = shift;
 
+    $x =~ s@/\*.*?\*/@@gos;	# strip comments.
     if ($x =~ /enum\s+(\w+)\s*{(.*)}/) {
         $declaration_name = $1;
         my $members = $2;
@@ -1365,6 +1374,7 @@ sub dump_typedef($$) {
     my $x = shift;
     my $file = shift;
 
+    $x =~ s@/\*.*?\*/@@gos;	# strip comments.
     while (($x =~ /\(*.\)\s*;$/) || ($x =~ /\[*.\]\s*;$/)) {
         $x =~ s/\(*.\)\s*;$/;/;
 	$x =~ s/\[*.\]\s*;$/;/;
@@ -1395,6 +1405,7 @@ sub create_parameterlist($$$) {
     my $type;
     my $param;
 
+    # temporarily replace commas inside function pointer definition
     while ($args =~ /(\([^\),]+),/) {
         $args =~ s/(\([^\),]+),/$1#/g;
     }
@@ -1420,7 +1431,7 @@ sub create_parameterlist($$$) {
 	    $type = $arg;
 	    $type =~ s/([^\(]+\(\*)$param/$1/;
 	    push_parameter($param, $type, $file);
-	} else {
+	} elsif ($arg) {
 	    $arg =~ s/\s*:\s*/:/g;
 	    $arg =~ s/\s*\[/\[/g;
 
@@ -1455,11 +1466,10 @@ sub push_parameter($$$) {
 	my $param_name = $param;
 	$param_name =~ s/\[.*//;
 
-	if ($type eq "" && $param eq "...")
+	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
 	    $type="";
-	    $param="...";
-	    $parameterdescs{"..."} = "variable arguments";
+	    $parameterdescs{$param} = "variable arguments";
 	}
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
@@ -1467,7 +1477,11 @@ sub push_parameter($$$) {
 	    $param="void";
 	    $parameterdescs{void} = "no arguments";
 	}
-	if (defined $type && $type && !defined $parameterdescs{$param_name}) {
+	# warn if parameter has no description
+	# (but ignore ones starting with # as these are no parameters
+	# but inline preprocessor statements
+	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
+
 	    $parameterdescs{$param_name} = $undescribed;
 
 	    if (($type eq 'function') || ($type eq 'enum')) {
@@ -1628,7 +1642,6 @@ sub process_state3_type($$) {
     my $x = shift;
     my $file = shift;
 
-    $x =~ s@/\*.*?\*/@@gos;	# strip comments.
     $x =~ s@[\r\n]+@ @gos; # strip newlines/cr's.
     $x =~ s@^\s+@@gos; # strip leading spaces
     $x =~ s@\s+$@@gos; # strip trailing spaces

@@ -80,10 +80,12 @@
 /*
  * Define standard taskfile in/out register
  */
-#define IDE_TASKFILE_STD_OUT_FLAGS	0xFE
 #define IDE_TASKFILE_STD_IN_FLAGS	0xFE
-#define IDE_HOB_STD_OUT_FLAGS		0x3C
 #define IDE_HOB_STD_IN_FLAGS		0x3C
+#ifndef __KERNEL__
+#define IDE_TASKFILE_STD_OUT_FLAGS	0xFE
+#define IDE_HOB_STD_OUT_FLAGS		0x3C
+#endif
 
 typedef unsigned char task_ioreg_t;
 typedef unsigned long sata_ioreg_t;

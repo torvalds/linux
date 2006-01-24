@@ -33,7 +33,7 @@
 /*
  * protoypes
  */
-static int insert_queue(seq_oss_devinfo_t *dp, evrec_t *rec, struct file *opt);
+static int insert_queue(struct seq_oss_devinfo *dp, union evrec *rec, struct file *opt);
 
 
 /*
@@ -41,12 +41,12 @@ static int insert_queue(seq_oss_devinfo_t *dp, evrec_t *rec, struct file *opt);
  */
 
 int
-snd_seq_oss_read(seq_oss_devinfo_t *dp, char __user *buf, int count)
+snd_seq_oss_read(struct seq_oss_devinfo *dp, char __user *buf, int count)
 {
-	seq_oss_readq_t *readq = dp->readq;
+	struct seq_oss_readq *readq = dp->readq;
 	int result = 0, err = 0;
 	int ev_len;
-	evrec_t rec;
+	union evrec rec;
 	unsigned long flags;
 
 	if (readq == NULL || ! is_read_mode(dp->file_mode))
@@ -93,11 +93,11 @@ snd_seq_oss_read(seq_oss_devinfo_t *dp, char __user *buf, int count)
  */
 
 int
-snd_seq_oss_write(seq_oss_devinfo_t *dp, const char __user *buf, int count, struct file *opt)
+snd_seq_oss_write(struct seq_oss_devinfo *dp, const char __user *buf, int count, struct file *opt)
 {
 	int result = 0, err = 0;
 	int ev_size, fmt;
-	evrec_t rec;
+	union evrec rec;
 
 	if (! is_write_mode(dp->file_mode) || dp->writeq == NULL)
 		return -ENXIO;
@@ -161,10 +161,10 @@ snd_seq_oss_write(seq_oss_devinfo_t *dp, const char __user *buf, int count, stru
  * return: 0 = OK, non-zero = NG
  */
 static int
-insert_queue(seq_oss_devinfo_t *dp, evrec_t *rec, struct file *opt)
+insert_queue(struct seq_oss_devinfo *dp, union evrec *rec, struct file *opt)
 {
 	int rc = 0;
-	snd_seq_event_t event;
+	struct snd_seq_event event;
 
 	/* if this is a timing event, process the current time */
 	if (snd_seq_oss_process_timer_event(dp->timer, rec))
@@ -197,7 +197,7 @@ insert_queue(seq_oss_devinfo_t *dp, evrec_t *rec, struct file *opt)
  */
   
 unsigned int
-snd_seq_oss_poll(seq_oss_devinfo_t *dp, struct file *file, poll_table * wait)
+snd_seq_oss_poll(struct seq_oss_devinfo *dp, struct file *file, poll_table * wait)
 {
 	unsigned int mask = 0;
 

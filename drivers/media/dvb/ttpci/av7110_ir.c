@@ -17,6 +17,8 @@ static int av_cnt;
 static struct av7110 *av_list[4];
 static struct input_dev *input_dev;
 
+static u8 delay_timer_finished;
+
 static u16 key_map [256] = {
 	KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7,
 	KEY_8, KEY_9, KEY_BACK, 0, KEY_POWER, KEY_MUTE, 0, KEY_INFO,
@@ -112,13 +114,16 @@ static void av7110_emit_key(unsigned long parm)
 	if (timer_pending(&keyup_timer)) {
 		del_timer(&keyup_timer);
 		if (keyup_timer.data != keycode || new_toggle != old_toggle) {
+			delay_timer_finished = 0;
 			input_event(input_dev, EV_KEY, keyup_timer.data, !!0);
 			input_event(input_dev, EV_KEY, keycode, !0);
 		} else
-			input_event(input_dev, EV_KEY, keycode, 2);
-
-	} else
+			if (delay_timer_finished)
+				input_event(input_dev, EV_KEY, keycode, 2);
+	} else {
+		delay_timer_finished = 0;
 		input_event(input_dev, EV_KEY, keycode, !0);
+	}
 
 	keyup_timer.expires = jiffies + UP_TIMEOUT;
 	keyup_timer.data = keycode;
@@ -145,7 +150,8 @@ static void input_register_keys(void)
 
 static void input_repeat_key(unsigned long data)
 {
-       /* dummy routine to disable autorepeat in the input driver */
+	/* called by the input driver after rep[REP_DELAY] ms */
+	delay_timer_finished = 1;
 }
 
 

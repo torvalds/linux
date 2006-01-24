@@ -28,7 +28,7 @@ extern int sn_ioif_inited;
 static struct list_head **sn_irq_lh;
 static spinlock_t sn_irq_info_lock = SPIN_LOCK_UNLOCKED; /* non-IRQ lock */
 
-static inline uint64_t sn_intr_alloc(nasid_t local_nasid, int local_widget,
+static inline u64 sn_intr_alloc(nasid_t local_nasid, int local_widget,
 				     u64 sn_irq_info,
 				     int req_irq, nasid_t req_nasid,
 				     int req_slice)
@@ -123,7 +123,7 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 
 	list_for_each_entry_safe(sn_irq_info, sn_irq_info_safe,
 				 sn_irq_lh[irq], list) {
-		uint64_t bridge;
+		u64 bridge;
 		int local_widget, status;
 		nasid_t local_nasid;
 		struct sn_irq_info *new_irq_info;
@@ -134,7 +134,7 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 			break;
 		memcpy(new_irq_info, sn_irq_info, sizeof(struct sn_irq_info));
 
-		bridge = (uint64_t) new_irq_info->irq_bridge;
+		bridge = (u64) new_irq_info->irq_bridge;
 		if (!bridge) {
 			kfree(new_irq_info);
 			break; /* irq is not a device interrupt */
@@ -349,10 +349,10 @@ static void force_interrupt(int irq)
  */
 static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 {
-	uint64_t regval;
+	u64 regval;
 	int irr_reg_num;
 	int irr_bit;
-	uint64_t irr_reg;
+	u64 irr_reg;
 	struct pcidev_info *pcidev_info;
 	struct pcibus_info *pcibus_info;
 

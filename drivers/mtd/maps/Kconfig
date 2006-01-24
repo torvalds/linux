@@ -62,7 +62,7 @@ config MTD_PHYSMAP_BANKWIDTH
 
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
-	depends on (SPARC32 || SPARC64) && MTD_CFI
+	depends on SPARC && MTD_CFI
 	help
 	  This provides a 'mapping' driver which supports the way in
 	  which user-programmable flash chips are connected on various
@@ -94,7 +94,7 @@ config MTD_NETSC520
 
 config MTD_TS5500
 	tristate "JEDEC Flash device mapped on Technologic Systems TS-5500"
-	depends on ELAN
+	depends on X86
 	select MTD_PARTITIONS
 	select MTD_JEDECPROBE
 	select MTD_CFI_AMDSTD
@@ -473,14 +473,6 @@ config MTD_IXP2000
 	  IXDP425 and Coyote. If you have an IXP2000 based board and
 	  would like to use the flash chips on it, say 'Y'.
 
-config MTD_EPXA10DB
-	tristate "CFI Flash device mapped on Epxa10db"
-	depends on MTD_CFI && MTD_PARTITIONS && ARCH_CAMELOT
-	help
-	  This enables support for the flash devices on the Altera
-	  Excalibur XA10 Development Board. If you are building a kernel
-	  for on of these boards then you should say 'Y' otherwise say 'N'.
-
 config MTD_FORTUNET
 	tristate "CFI Flash device mapped on the FortuNet board"
 	depends on MTD_CFI && MTD_PARTITIONS && SA1100_FORTUNET
@@ -537,12 +529,6 @@ config MTD_MPC1211
 	help
 	  This enables access to the flash chips on the Interface MPC-1211(CTP/PCI/MPC-SH02).
 	  If you have such a board, say 'Y'.
-
-config MTD_PQ2FADS
-	tristate "JEDEC flash SIMM mapped on PQ2FADS and 8272ADS boards"
-	depends on (ADS8272 || PQ2FADS) && MTD_PARTITIONS && MTD_JEDECPROBE && MTD_PHYSMAP && MTD_CFI_GEOMETRY && MTD_CFI_INTELEXT
-	help
-	 This enables access to flash SIMM on PQ2FADS-like boards
 
 config MTD_OMAP_NOR
 	tristate "TI OMAP board mappings"

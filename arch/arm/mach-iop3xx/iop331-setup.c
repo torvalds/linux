@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
-#include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -50,30 +50,72 @@ static struct map_desc iop331_std_desc[] __initdata = {
 	}
 };
 
-static struct uart_port iop331_serial_ports[] = {
-	{
-		.membase	= (char*)(IOP331_UART0_VIRT),
-		.mapbase	= (IOP331_UART0_PHYS),
-		.irq		= IRQ_IOP331_UART0,
-		.flags		= UPF_SKIP_TEST,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= IOP331_UART_XTAL,
-		.line		= 0,
-		.type		= PORT_XSCALE,
-		.fifosize	= 32
-	} , {
-		.membase	= (char*)(IOP331_UART1_VIRT),
-		.mapbase	= (IOP331_UART1_PHYS),
-		.irq		= IRQ_IOP331_UART1,
-		.flags		= UPF_SKIP_TEST,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= IOP331_UART_XTAL,
-		.line		= 1,
-		.type		= PORT_XSCALE,
-		.fifosize	= 32
+static struct resource iop33x_uart0_resources[] = {
+	[0] = {
+		.start = IOP331_UART0_PHYS,
+		.end = IOP331_UART0_PHYS + 0x3f,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IOP331_UART0,
+		.end = IRQ_IOP331_UART0,
+		.flags = IORESOURCE_IRQ
 	}
+};
+
+static struct resource iop33x_uart1_resources[] = {
+	[0] = {
+		.start = IOP331_UART1_PHYS,
+		.end = IOP331_UART1_PHYS + 0x3f,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IOP331_UART1,
+		.end = IRQ_IOP331_UART1,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+static struct plat_serial8250_port iop33x_uart0_data[] = {
+	{
+       .membase     = (char*)(IOP331_UART0_VIRT),
+       .mapbase     = (IOP331_UART0_PHYS),
+       .irq         = IRQ_IOP331_UART0,
+       .uartclk     = IOP331_UART_XTAL,
+       .regshift    = 2,
+       .iotype      = UPIO_MEM,
+       .flags       = UPF_SKIP_TEST,
+	},
+	{  },
+};
+
+static struct plat_serial8250_port iop33x_uart1_data[] = {
+	{
+       .membase     = (char*)(IOP331_UART1_VIRT),
+       .mapbase     = (IOP331_UART1_PHYS),
+       .irq         = IRQ_IOP331_UART1,
+       .uartclk     = IOP331_UART_XTAL,
+       .regshift    = 2,
+       .iotype      = UPIO_MEM,
+       .flags       = UPF_SKIP_TEST,
+	},
+	{  },
+};
+
+static struct platform_device iop33x_uart0 = {
+       .name = "serial8250",
+       .id = 0,
+       .dev.platform_data = iop33x_uart0_data,
+       .num_resources = 2,
+       .resource = iop33x_uart0_resources,
+};
+
+static struct platform_device iop33x_uart1 = {
+       .name = "serial8250",
+       .id = 1,
+       .dev.platform_data = iop33x_uart1_data,
+       .num_resources = 2,
+       .resource = iop33x_uart1_resources,
 };
 
 static struct resource iop33x_i2c_0_resources[] = {
@@ -117,6 +159,8 @@ static struct platform_device iop33x_i2c_1_controller = {
 };
 
 static struct platform_device *iop33x_devices[] __initdata = {
+	&iop33x_uart0,
+	&iop33x_uart1,
 	&iop33x_i2c_0_controller,
 	&iop33x_i2c_1_controller
 };
@@ -133,8 +177,6 @@ void __init iop33x_init(void)
 void __init iop331_map_io(void)
 {
 	iotable_init(iop331_std_desc, ARRAY_SIZE(iop331_std_desc));
-	early_serial_setup(&iop331_serial_ports[0]);
-	early_serial_setup(&iop331_serial_ports[1]);
 }
 
 #ifdef CONFIG_ARCH_IOP331
@@ -153,7 +195,6 @@ extern void iq80332_map_io(void);
 #if defined(CONFIG_ARCH_IQ80331)
 MACHINE_START(IQ80331, "Intel IQ80331")
 	/* Maintainer: Intel Corp. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= 0xfefff000,
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc, // virtual, physical
 	.map_io		= iq80331_map_io,
@@ -166,7 +207,6 @@ MACHINE_END
 #elif defined(CONFIG_MACH_IQ80332)
 MACHINE_START(IQ80332, "Intel IQ80332")
 	/* Maintainer: Intel Corp. */
-	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= 0xfefff000,
 	.io_pg_offst	= ((0xfffff000) >> 18) & 0xfffc, // virtual, physical
 	.map_io		= iq80332_map_io,

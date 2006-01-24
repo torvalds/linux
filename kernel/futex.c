@@ -201,21 +201,6 @@ static int get_futex_key(unsigned long uaddr, union futex_key *key)
 	 * from swap.  But that's a lot of code to duplicate here
 	 * for a rare case, so we simply fetch the page.
 	 */
-
-	/*
-	 * Do a quick atomic lookup first - this is the fastpath.
-	 */
-	page = follow_page(mm, uaddr, FOLL_TOUCH|FOLL_GET);
-	if (likely(page != NULL)) {
-		key->shared.pgoff =
-			page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-		put_page(page);
-		return 0;
-	}
-
-	/*
-	 * Do it the general way.
-	 */
 	err = get_user_pages(current, mm, uaddr, 1, 0, 0, &page, NULL);
 	if (err >= 0) {
 		key->shared.pgoff =
@@ -285,7 +270,13 @@ static void wake_futex(struct futex_q *q)
 	/*
 	 * The waiting task can free the futex_q as soon as this is written,
 	 * without taking any locks.  This must come last.
+	 *
+	 * A memory barrier is required here to prevent the following store
+	 * to lock_ptr from getting ahead of the wakeup. Clearing the lock
+	 * at the end of wake_up_all() does not prevent this store from
+	 * moving.
 	 */
+	wmb();
 	q->lock_ptr = NULL;
 }
 
@@ -364,6 +355,13 @@ retry:
 		spin_unlock(&bh1->lock);
 		if (bh1 != bh2)
 			spin_unlock(&bh2->lock);
+
+#ifndef CONFIG_MMU
+		/* we don't get EFAULT from MMU faults if we don't have an MMU,
+		 * but we might get them from range checking */
+		ret = op_ret;
+		goto out;
+#endif
 
 		if (unlikely(op_ret != -EFAULT)) {
 			ret = op_ret;

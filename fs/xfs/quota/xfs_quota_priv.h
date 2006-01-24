@@ -51,7 +51,7 @@
 #define XFS_QI_MPLNEXT(mp)	((mp)->m_quotainfo->qi_dqlist.qh_next)
 #define XFS_QI_MPLNDQUOTS(mp)	((mp)->m_quotainfo->qi_dqlist.qh_nelems)
 
-#define XQMLCK(h)			(mutex_lock(&((h)->qh_lock), PINOD))
+#define XQMLCK(h)			(mutex_lock(&((h)->qh_lock)))
 #define XQMUNLCK(h)			(mutex_unlock(&((h)->qh_lock)))
 #ifdef DEBUG
 struct xfs_dqhash;

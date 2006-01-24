@@ -92,9 +92,9 @@ int main(void)
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_PREEMPT, offsetof(struct thread_info, preempt_count));
-	DEFINE(TI_SC_NOERR, offsetof(struct thread_info, syscall_noerror));
-#ifdef CONFIG_PPC32
+	DEFINE(TI_SIGFRAME, offsetof(struct thread_info, nvgprs_frame));
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
+#ifdef CONFIG_PPC32
 	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 #endif /* CONFIG_PPC32 */
@@ -131,13 +131,11 @@ int main(void)
 	DEFINE(PACALOWHTLBAREAS, offsetof(struct paca_struct, context.low_htlb_areas));
 	DEFINE(PACAHIGHHTLBAREAS, offsetof(struct paca_struct, context.high_htlb_areas));
 #endif /* CONFIG_HUGETLB_PAGE */
-	DEFINE(PACADEFAULTDECR, offsetof(struct paca_struct, default_decr));
 	DEFINE(PACA_EXGEN, offsetof(struct paca_struct, exgen));
 	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
 	DEFINE(PACA_EXSLB, offsetof(struct paca_struct, exslb));
-	DEFINE(PACA_EXDSI, offsetof(struct paca_struct, exdsi));
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
-	DEFINE(PACALPPACA, offsetof(struct paca_struct, lppaca));
+	DEFINE(PACALPPACAPTR, offsetof(struct paca_struct, lppaca_ptr));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
 
 	DEFINE(LPPACASRR0, offsetof(struct lppaca, saved_srr0));
@@ -270,13 +268,15 @@ int main(void)
 	DEFINE(TVAL64_TV_USEC, offsetof(struct timeval, tv_usec));
 	DEFINE(TVAL32_TV_SEC, offsetof(struct compat_timeval, tv_sec));
 	DEFINE(TVAL32_TV_USEC, offsetof(struct compat_timeval, tv_usec));
+	DEFINE(TSPC64_TV_SEC, offsetof(struct timespec, tv_sec));
+	DEFINE(TSPC64_TV_NSEC, offsetof(struct timespec, tv_nsec));
 	DEFINE(TSPC32_TV_SEC, offsetof(struct compat_timespec, tv_sec));
 	DEFINE(TSPC32_TV_NSEC, offsetof(struct compat_timespec, tv_nsec));
 #else
 	DEFINE(TVAL32_TV_SEC, offsetof(struct timeval, tv_sec));
 	DEFINE(TVAL32_TV_USEC, offsetof(struct timeval, tv_usec));
-	DEFINE(TSPEC32_TV_SEC, offsetof(struct timespec, tv_sec));
-	DEFINE(TSPEC32_TV_NSEC, offsetof(struct timespec, tv_nsec));
+	DEFINE(TSPC32_TV_SEC, offsetof(struct timespec, tv_sec));
+	DEFINE(TSPC32_TV_NSEC, offsetof(struct timespec, tv_nsec));
 #endif
 	/* timeval/timezone offsets for use by vdso */
 	DEFINE(TZONE_TZ_MINWEST, offsetof(struct timezone, tz_minuteswest));

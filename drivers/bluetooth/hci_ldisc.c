@@ -279,6 +279,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 
 	tty->disc_data = hu;
 	hu->tty = tty;
+	tty->receive_room = 65536;
 
 	spin_lock_init(&hu->rx_lock);
 
@@ -346,20 +347,6 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
 
 	if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
 		hci_uart_tx_wakeup(hu);
-}
-
-/* hci_uart_tty_room()
- * 
- *    Callback function from tty driver. Return the amount of 
- *    space left in the receiver's buffer to decide if remote
- *    transmitter is to be throttled.
- *
- * Arguments:        tty    pointer to associated tty instance data
- * Return Value:    number of bytes left in receive buffer
- */
-static int hci_uart_tty_room (struct tty_struct *tty)
-{
-	return 65536;
 }
 
 /* hci_uart_tty_receive()
@@ -544,7 +531,6 @@ static int __init hci_uart_init(void)
 	hci_uart_ldisc.write		= hci_uart_tty_write;
 	hci_uart_ldisc.ioctl		= hci_uart_tty_ioctl;
 	hci_uart_ldisc.poll		= hci_uart_tty_poll;
-	hci_uart_ldisc.receive_room	= hci_uart_tty_room;
 	hci_uart_ldisc.receive_buf	= hci_uart_tty_receive;
 	hci_uart_ldisc.write_wakeup	= hci_uart_tty_wakeup;
 	hci_uart_ldisc.owner		= THIS_MODULE;

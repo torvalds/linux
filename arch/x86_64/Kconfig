@@ -69,10 +69,32 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config DMI
+	bool
+	default y
+
 source "init/Kconfig"
 
 
 menu "Processor type and features"
+
+choice
+	prompt "Subarchitecture Type"
+	default X86_PC
+
+config X86_PC
+	bool "PC-compatible"
+	help
+	  Choose this option if your computer is a standard PC or compatible.
+
+config X86_VSMP
+	bool "Support for ScaleMP vSMP"
+	 help
+	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
+	  supposed to run on these EM64T-based machines.  Only choose this option
+	  if you have one of these machines.
+
+endchoice
 
 choice
 	prompt "Processor family"
@@ -226,22 +248,42 @@ config SCHED_SMT
 
 source "kernel/Kconfig.preempt"
 
-config K8_NUMA
-       bool "K8 NUMA support"
-       select NUMA
+config NUMA
+       bool "Non Uniform Memory Access (NUMA) Support"
        depends on SMP
        help
-	  Enable NUMA (Non Unified Memory Architecture) support for
-	  AMD Opteron Multiprocessor systems. The kernel will try to allocate
-	  memory used by a CPU on the local memory controller of the CPU
-	  and add some more NUMA awareness to the kernel.
-	  This code is recommended on all multiprocessor Opteron systems
-	  and normally doesn't hurt on others.
+	 Enable NUMA (Non Uniform Memory Access) support. The kernel 
+	 will try to allocate memory used by a CPU on the local memory 
+	 controller of the CPU and add some more NUMA awareness to the kernel.
+	 This code is recommended on all multiprocessor Opteron systems.
+	 If the system is EM64T, you should say N unless your system is EM64T 
+	 NUMA. 
+
+config K8_NUMA
+       bool "Old style AMD Opteron NUMA detection"
+       depends on NUMA
+       default y
+       help
+	 Enable K8 NUMA node topology detection.  You should say Y here if
+	 you have a multi processor AMD K8 system. This uses an old
+	 method to read the NUMA configurtion directly from the builtin
+	 Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
+	 instead, which also takes priority if both are compiled in.   
+
+# Dummy CONFIG option to select ACPI_NUMA from drivers/acpi/Kconfig.
+
+config X86_64_ACPI_NUMA
+       bool "ACPI NUMA detection"
+       depends on NUMA
+       select ACPI 
+       select ACPI_NUMA
+       default y
+       help
+	 Enable ACPI SRAT based node topology detection.
 
 config NUMA_EMU
-	bool "NUMA emulation support"
-	select NUMA
-	depends on SMP
+	bool "NUMA emulation"
+	depends on NUMA
 	help
 	  Enable NUMA emulation. A flat machine will be split
 	  into virtual nodes when booted with "numa=fake=N", where N is the
@@ -252,9 +294,6 @@ config ARCH_DISCONTIGMEM_ENABLE
        depends on NUMA
        default y
 
-config NUMA
-       bool
-       default n
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
@@ -266,7 +305,11 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on NUMA
+	depends on (NUMA || EXPERIMENTAL)
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -276,6 +319,7 @@ source "mm/Kconfig"
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
+	depends on NUMA
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"
@@ -311,7 +355,7 @@ config HPET_TIMER
 	  <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
 config X86_PM_TIMER
-	bool "PM timer"
+	bool "PM timer" if EMBEDDED
 	depends on ACPI
 	default y
 	help
@@ -330,32 +374,24 @@ config HPET_EMULATE_RTC
 	depends on HPET_TIMER && RTC=y
 
 config GART_IOMMU
-	bool "IOMMU support"
+	bool "K8 GART IOMMU support"
 	default y
+	select SWIOTLB
 	depends on PCI
 	help
 	  Support the IOMMU. Needed to run systems with more than 3GB of memory
 	  properly with 32-bit PCI devices that do not support DAC (Double Address
 	  Cycle). The IOMMU can be turned off at runtime with the iommu=off parameter.
 	  Normally the kernel will take the right choice by itself.
-	  This option includes a driver for the AMD Opteron/Athlon64 IOMMU
-	  and a software emulation used on some other systems.
+	  This option includes a driver for the AMD Opteron/Athlon64 northbridge IOMMU
+	  and a software emulation used on other systems.
 	  If unsure, say Y.
 
 # need this always enabled with GART_IOMMU for the VIA workaround
 config SWIOTLB
-       bool
-       depends on GART_IOMMU
-       default y
-
-config DUMMY_IOMMU
 	bool
-	depends on !GART_IOMMU && !SWIOTLB
 	default y
-	help
-	  Don't use IOMMU code. This will cause problems when you have more than 4GB
-	  of memory and any 32-bit devices. Don't turn on unless you know what you
-	  are doing.
+	depends on GART_IOMMU
 
 config X86_MCE
 	bool "Machine check support" if EMBEDDED
@@ -374,16 +410,13 @@ config X86_MCE_INTEL
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
 
-config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if EMBEDDED
-	default "0x100000"
+config X86_MCE_AMD
+	bool "AMD MCE features"
+	depends on X86_MCE && X86_LOCAL_APIC
+	default y
 	help
-	  This gives the physical address where the kernel is loaded.
-	  Primarily used in the case of kexec on panic where the
-	  fail safe kernel needs to run at a different address than
-	  the panic-ed kernel.
-
-	  Don't change this unless you know what you are doing.
+	   Additional support for AMD specific MCE features such as
+	   the DRAM Error Threshold.
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
@@ -401,6 +434,31 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
+
+config CRASH_DUMP
+	bool "kernel crash dumps (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+		Generate crash dump after being started by kexec.
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	default "0x1000000" if CRASH_DUMP
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded. Normally
+	  for regular kernels this value is 0x100000 (1MB). But in the case
+	  of kexec on panic the fail safe kernel needs to run at a different
+	  address than the panic-ed kernel. This option is used to set the load
+	  address for kernels used to capture crash dump on being kexec'ed
+	  after panic. The default value for crash dump kernels is
+	  0x1000000 (16MB). This can also be set based on the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel. Typically this parameter is set as
+	  crashkernel=64M@16M. Please take a look at
+	  Documentation/kdump/kdump.txt for more details about crash dumps.
+
+	  Don't change this unless you know what you are doing.
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
@@ -502,7 +560,7 @@ config IA32_EMULATION
 	  left.
 
 config IA32_AOUT
-       bool "IA32 a.out support"
+       tristate "IA32 a.out support"
        depends on IA32_EMULATION
        help
          Support old a.out binaries in the 32bit emulation.
@@ -515,11 +573,6 @@ config COMPAT
 config SYSVIPC_COMPAT
 	bool
 	depends on COMPAT && SYSVIPC
-	default y
-
-config UID16
-	bool
-	depends on IA32_EMULATION
 	default y
 
 endmenu

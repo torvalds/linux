@@ -376,16 +376,18 @@ static void rh_inc(struct region_hash *rh, region_t region)
 	read_lock(&rh->hash_lock);
 	reg = __rh_find(rh, region);
 
+	spin_lock_irq(&rh->region_lock);
 	atomic_inc(&reg->pending);
 
-	spin_lock_irq(&rh->region_lock);
 	if (reg->state == RH_CLEAN) {
-		rh->log->type->mark_region(rh->log, reg->key);
-
 		reg->state = RH_DIRTY;
 		list_del_init(&reg->list);	/* take off the clean list */
-	}
-	spin_unlock_irq(&rh->region_lock);
+		spin_unlock_irq(&rh->region_lock);
+
+		rh->log->type->mark_region(rh->log, reg->key);
+	} else
+		spin_unlock_irq(&rh->region_lock);
+
 
 	read_unlock(&rh->hash_lock);
 }
@@ -408,21 +410,17 @@ static void rh_dec(struct region_hash *rh, region_t region)
 	reg = __rh_lookup(rh, region);
 	read_unlock(&rh->hash_lock);
 
+	spin_lock_irqsave(&rh->region_lock, flags);
 	if (atomic_dec_and_test(&reg->pending)) {
-		spin_lock_irqsave(&rh->region_lock, flags);
-		if (atomic_read(&reg->pending)) { /* check race */
-			spin_unlock_irqrestore(&rh->region_lock, flags);
-			return;
-		}
 		if (reg->state == RH_RECOVERING) {
 			list_add_tail(&reg->list, &rh->quiesced_regions);
 		} else {
 			reg->state = RH_CLEAN;
 			list_add(&reg->list, &rh->clean_regions);
 		}
-		spin_unlock_irqrestore(&rh->region_lock, flags);
 		should_wake = 1;
 	}
+	spin_unlock_irqrestore(&rh->region_lock, flags);
 
 	if (should_wake)
 		wake();
@@ -564,6 +562,8 @@ struct mirror_set {
 	region_t nr_regions;
 	int in_sync;
 
+	struct mirror *default_mirror;	/* Default mirror */
+
 	unsigned int nr_mirrors;
 	struct mirror mirror[0];
 };
@@ -613,7 +613,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 	unsigned long flags = 0;
 
 	/* fill in the source */
-	m = ms->mirror + DEFAULT_MIRROR;
+	m = ms->default_mirror;
 	from.bdev = m->dev->bdev;
 	from.sector = m->offset + region_to_sector(reg->rh, reg->key);
 	if (reg->key == (ms->nr_regions - 1)) {
@@ -629,7 +629,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 
 	/* fill in the destinations */
 	for (i = 0, dest = to; i < ms->nr_mirrors; i++) {
-		if (i == DEFAULT_MIRROR)
+		if (&ms->mirror[i] == ms->default_mirror)
 			continue;
 
 		m = ms->mirror + i;
@@ -684,7 +684,7 @@ static void do_recovery(struct mirror_set *ms)
 static struct mirror *choose_mirror(struct mirror_set *ms, sector_t sector)
 {
 	/* FIXME: add read balancing */
-	return ms->mirror + DEFAULT_MIRROR;
+	return ms->default_mirror;
 }
 
 /*
@@ -711,7 +711,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 		if (rh_in_sync(&ms->rh, region, 0))
 			m = choose_mirror(ms, bio->bi_sector);
 		else
-			m = ms->mirror + DEFAULT_MIRROR;
+			m = ms->default_mirror;
 
 		map_bio(ms, m, bio);
 		generic_make_request(bio);
@@ -835,7 +835,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		rh_delay(&ms->rh, bio);
 
 	while ((bio = bio_list_pop(&nosync))) {
-		map_bio(ms, ms->mirror + DEFAULT_MIRROR, bio);
+		map_bio(ms, ms->default_mirror, bio);
 		generic_make_request(bio);
 	}
 }
@@ -902,6 +902,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	ms->nr_mirrors = nr_mirrors;
 	ms->nr_regions = dm_sector_div_up(ti->len, region_size);
 	ms->in_sync = 0;
+	ms->default_mirror = &ms->mirror[DEFAULT_MIRROR];
 
 	if (rh_init(&ms->rh, ms, dl, region_size, ms->nr_regions)) {
 		ti->error = "dm-mirror: Error creating dirty region hash";

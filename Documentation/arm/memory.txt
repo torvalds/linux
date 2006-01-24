@@ -1,7 +1,7 @@
 		Kernel Memory Layout on ARM Linux
 
 		Russell King <rmk@arm.linux.org.uk>
-			May 21, 2004 (2.6.6)
+		     November 17, 2005 (2.6.15)
 
 This document describes the virtual memory layout which the Linux
 kernel uses for ARM processors.  It indicates which regions are
@@ -37,6 +37,8 @@ ff000000	ffbfffff	Reserved for future expansion of DMA
 				mapping region.
 
 VMALLOC_END	feffffff	Free for platform use, recommended.
+				VMALLOC_END must be aligned to a 2MB
+				boundary.
 
 VMALLOC_START	VMALLOC_END-1	vmalloc() / ioremap() space.
 				Memory returned by vmalloc/ioremap will

@@ -35,6 +35,7 @@
 #include <linux/videodev.h>
 #include <linux/pci.h>
 #include <linux/input.h>
+#include <linux/mutex.h>
 #include <asm/scatterlist.h>
 #include <asm/io.h>
 
@@ -44,6 +45,7 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>
+
 
 #include "bt848.h"
 #include "bttv.h"
@@ -72,6 +74,8 @@
 
 #define UNSET (-1U)
 
+#define clamp(x, low, high) min (max (low, x), high)
+
 /* ---------------------------------------------------------- */
 
 struct bttv_tvnorm {
@@ -87,6 +91,9 @@ struct bttv_tvnorm {
 	u8    vbipack;
 	u16   vtotal;
 	int   sram;
+	/* ITU-R frame line number of the first VBI line we can
+	   capture, of the first and second field. */
+	u16   vbistart[2];
 };
 extern const struct bttv_tvnorm bttv_tvnorms[];
 
@@ -268,11 +275,13 @@ struct bttv {
 	/* card configuration info */
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
 	unsigned int tuner_type;  /* tuner chip type */
-	unsigned int pinnacle_id;
+	unsigned int tda9887_conf;
 	unsigned int svhs;
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
+	int (*custom_irq)(struct bttv *btv);
+
 	int use_i2c_hw;
 
 	/* old gpio interface */
@@ -297,13 +306,13 @@ struct bttv {
 
 	/* infrared remote */
 	int has_remote;
-	struct bttv_input *remote;
+	struct bttv_ir *remote;
 
 	/* locking */
 	spinlock_t s_lock;
-	struct semaphore lock;
+	struct mutex lock;
 	int resources;
-	struct semaphore reslock;
+	struct mutex reslock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif

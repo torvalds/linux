@@ -78,7 +78,9 @@ Randy Dunlap's patch scripts:
 http://www.xenotime.net/linux/scripts/patching-scripts-002.tar.gz
 
 Andrew Morton's patch scripts:
-http://www.zip.com.au/~akpm/linux/patches/patch-scripts-0.20
+http://www.zip.com.au/~akpm/linux/patches/
+Instead of these scripts, quilt is the recommended patch management
+tool (see above).
 
 
 
@@ -97,7 +99,7 @@ need to split up your patch.  See #3, next.
 
 3) Separate your changes.
 
-Separate each logical change into its own patch.
+Separate _logical changes_ into a single patch file.
 
 For example, if your changes include both bug fixes and performance
 enhancements for a single driver, separate those changes into two
@@ -112,6 +114,10 @@ If one patch depends on another patch in order for a change to be
 complete, that is OK.  Simply note "this patch depends on patch X"
 in your patch description.
 
+If you cannot condense your patch set into a smaller set of patches,
+then only post say 15 or so at a time and wait for review and integration.
+
+
 
 4) Select e-mail destination.
 
@@ -123,6 +129,10 @@ If no maintainer is listed, or the maintainer does not respond, send
 your patch to the primary Linux kernel developer's mailing list,
 linux-kernel@vger.kernel.org.  Most kernel developers monitor this
 e-mail list, and can comment on your changes.
+
+
+Do not send more than 15 patches at once to the vger mailing lists!!!
+
 
 Linus Torvalds is the final arbiter of all changes accepted into the
 Linux kernel.  His e-mail address is <torvalds@osdl.org>.  He gets
@@ -149,6 +159,9 @@ USB, framebuffer devices, the VFS, the SCSI subsystem, etc.  See the
 MAINTAINERS file for a mailing list that relates specifically to
 your change.
 
+Majordomo lists of VGER.KERNEL.ORG at:
+	<http://vger.kernel.org/vger-lists.html>
+
 If changes affect userland-kernel interfaces, please send
 the MAN-PAGES maintainer (as listed in the MAINTAINERS file)
 a man-pages patch, or at least a notification of the change,
@@ -158,7 +171,7 @@ Even if the maintainer did not respond in step #4, make sure to ALWAYS
 copy the maintainer when you change their code.
 
 For small patches you may want to CC the Trivial Patch Monkey
-trivial@rustcorp.com.au set up by Rusty Russell; which collects "trivial"
+trivial@kernel.org managed by Adrian Bunk; which collects "trivial"
 patches. Trivial patches must qualify for one of the following rules:
  Spelling fixes in documentation
  Spelling fixes which could break grep(1).
@@ -171,7 +184,7 @@ patches. Trivial patches must qualify for one of the following rules:
  since people copy, as long as it's trivial)
  Any fix by the author/maintainer of the file. (ie. patch monkey
  in re-transmission mode)
-URL: <http://www.kernel.org/pub/linux/kernel/people/rusty/trivial/>
+URL: <http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/>
 
 
 
@@ -373,27 +386,14 @@ a diffstat, to show what files have changed, and the number of inserted
 and deleted lines per file.  A diffstat is especially useful on bigger
 patches.  Other comments relevant only to the moment or the maintainer,
 not suitable for the permanent changelog, should also go here.
+Use diffstat options "-p 1 -w 70" so that filenames are listed from the
+top of the kernel source tree and don't use too much horizontal space
+(easily fit in 80 columns, maybe with some indentation).
 
 See more details on the proper patch format in the following
 references.
 
 
-13) More references for submitting patches
-
-Andrew Morton, "The perfect patch" (tpp).
-  <http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt>
-
-Jeff Garzik, "Linux kernel patch submission format."
-  <http://linux.yyz.us/patch-format.html>
-
-Greg KH, "How to piss off a kernel subsystem maintainer"
-  <http://www.kroah.com/log/2005/03/31/>
-
-Kernel Documentation/CodingStyle
-  <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>
-
-Linus Torvald's mail on the canonical patch format:
-  <http://lkml.org/lkml/2005/4/7/183>
 
 
 -----------------------------------
@@ -466,3 +466,31 @@ and 'extern __inline__'.
 Don't try to anticipate nebulous future cases which may or may not
 be useful:  "Make it as simple as you can, and no simpler."
 
+
+
+----------------------
+SECTION 3 - REFERENCES
+----------------------
+
+Andrew Morton, "The perfect patch" (tpp).
+  <http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt>
+
+Jeff Garzik, "Linux kernel patch submission format."
+  <http://linux.yyz.us/patch-format.html>
+
+Greg Kroah-Hartman "How to piss off a kernel subsystem maintainer".
+  <http://www.kroah.com/log/2005/03/31/>
+  <http://www.kroah.com/log/2005/07/08/>
+  <http://www.kroah.com/log/2005/10/19/>
+  <http://www.kroah.com/log/2006/01/11/>
+
+NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!.
+  <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
+
+Kernel Documentation/CodingStyle
+  <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>
+
+Linus Torvald's mail on the canonical patch format:
+  <http://lkml.org/lkml/2005/4/7/183>
+--
+Last updated on 17 Nov 2005.

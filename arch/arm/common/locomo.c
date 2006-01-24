@@ -623,8 +623,6 @@ static int locomo_resume(struct platform_device *dev)
 	locomo_writel(0x1, lchip->base + LOCOMO_KEYBOARD + LOCOMO_KCMD);
 
 	spin_unlock_irqrestore(&lchip->lock, flags);
-
-	dev->power.saved_state = NULL;
 	kfree(save);
 
 	return 0;
@@ -775,7 +773,7 @@ static int locomo_probe(struct platform_device *dev)
 
 static int locomo_remove(struct platform_device *dev)
 {
-	struct locomo *lchip = platform__get_drvdata(dev);
+	struct locomo *lchip = platform_get_drvdata(dev);
 
 	if (lchip) {
 		__locomo_remove(lchip);
@@ -1105,14 +1103,14 @@ static int locomo_bus_remove(struct device *dev)
 struct bus_type locomo_bus_type = {
 	.name		= "locomo-bus",
 	.match		= locomo_match,
+	.probe		= locomo_bus_probe,
+	.remove		= locomo_bus_remove,
 	.suspend	= locomo_bus_suspend,
 	.resume		= locomo_bus_resume,
 };
 
 int locomo_driver_register(struct locomo_driver *driver)
 {
-	driver->drv.probe = locomo_bus_probe;
-	driver->drv.remove = locomo_bus_remove;
 	driver->drv.bus = &locomo_bus_type;
 	return driver_register(&driver->drv);
 }

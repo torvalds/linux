@@ -19,7 +19,7 @@ void flexcop_smc_ctrl(struct flexcop_device *fc, int onoff)
 	flexcop_set_ibi_value(ctrl_208,SMC_Enable_sig,onoff);
 }
 
-void flexcop_null_filter_ctrl(struct flexcop_device *fc, int onoff)
+static void flexcop_null_filter_ctrl(struct flexcop_device *fc, int onoff)
 {
 	flexcop_set_ibi_value(ctrl_208,Null_filter_sig,onoff);
 }

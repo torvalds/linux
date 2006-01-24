@@ -6,7 +6,13 @@
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
- *  Documentation available under NDA only
+ *  Documentation for CMD680:
+ *  http://gkernel.sourceforge.net/specs/sii/sii-0680a-v1.31.pdf.bz2
+ *
+ *  Documentation for SiI 3112:
+ *  http://gkernel.sourceforge.net/specs/sii/3112A_SiI-DS-0095-B2.pdf.bz2
+ *
+ *  Errata and other documentation only available under NDA.
  *
  *
  *  FAQ Items:

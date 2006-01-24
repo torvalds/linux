@@ -93,7 +93,6 @@ endif
 #
 cflags-y			+= -I $(TOPDIR)/include/asm/gcc
 cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
-cflags-y			+= $(call cc-option, -finline-limit=100000)
 LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 MODFLAGS			+= -mlong-calls
 
@@ -700,6 +699,7 @@ load-$(CONFIG_SNI_RM200_PCI)	+= 0xffffffff80600000
 #
 core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/jmr3927/rbhma3100/ \
 				   arch/mips/jmr3927/common/
+cflags-$(CONFIG_TOSHIBA_JMR3927) += -Iinclude/asm-mips/mach-jmr3927
 load-$(CONFIG_TOSHIBA_JMR3927)	+= 0xffffffff80050000
 
 #

@@ -259,13 +259,7 @@ static void ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 	struct tty_struct *tty = up->port.info->tty;	/* XXX info==NULL? */
 
 	while (1) {
-		unsigned char ch, r1;
-
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			tty->flip.work.func((void *)tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				return;		/* XXX Ignores SysRq when we need it most. Fix. */
-		}
+		unsigned char ch, r1, flag;
 
 		r1 = read_zsreg(channel, R1);
 		if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR)) {
@@ -303,8 +297,7 @@ static void ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 		}
 
 		/* A real serial line, record the character and status.  */
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
+		flag = TTY_NORMAL;
 		up->port.icount.rx++;
 		if (r1 & (BRK_ABRT | PAR_ERR | Rx_OVR | CRC_ERR)) {
 			if (r1 & BRK_ABRT) {
@@ -321,28 +314,21 @@ static void ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 				up->port.icount.overrun++;
 			r1 &= up->port.read_status_mask;
 			if (r1 & BRK_ABRT)
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			else if (r1 & PAR_ERR)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (r1 & CRC_ERR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(&up->port, ch, regs))
 			goto next_char;
 
 		if (up->port.ignore_status_mask == 0xff ||
-		    (r1 & up->port.ignore_status_mask) == 0) {
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
-		if ((r1 & Rx_OVR) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
+		    (r1 & up->port.ignore_status_mask) == 0)
+		    	tty_insert_flip_char(tty, ch, flag);
+
+		if (r1 & Rx_OVR)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	next_char:
 		ch = readb(&channel->control);
 		ZSDELAY();

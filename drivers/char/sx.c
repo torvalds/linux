@@ -345,9 +345,9 @@ static int si_probe_addrs[]= {0xc0000, 0xd0000, 0xe0000,
                               0xc8000, 0xd8000, 0xe8000, 0xa0000};
 static int si1_probe_addrs[]= { 0xd0000};
 
-#define NR_SX_ADDRS (sizeof(sx_probe_addrs)/sizeof (int))
-#define NR_SI_ADDRS (sizeof(si_probe_addrs)/sizeof (int))
-#define NR_SI1_ADDRS (sizeof(si1_probe_addrs)/sizeof (int))
+#define NR_SX_ADDRS ARRAY_SIZE(sx_probe_addrs)
+#define NR_SI_ADDRS ARRAY_SIZE(si_probe_addrs)
+#define NR_SI1_ADDRS ARRAY_SIZE(si1_probe_addrs)
 
 
 /* Set the mask to all-ones. This alas, only supports 32 interrupts. 
@@ -1085,6 +1085,7 @@ static inline void sx_receive_chars (struct sx_port *port)
 	int rx_op;
 	struct tty_struct *tty;
 	int copied=0;
+	unsigned char *rp;
 
 	func_enter2 ();
 	tty = port->gs.tty;
@@ -1095,8 +1096,8 @@ static inline void sx_receive_chars (struct sx_port *port)
 		sx_dprintk (SX_DEBUG_RECEIVE, "rxop=%d, c = %d.\n", rx_op, c); 
 
 		/* Don't copy more bytes than there is room for in the buffer */
-		if (tty->flip.count + c > TTY_FLIPBUF_SIZE) 
-			c = TTY_FLIPBUF_SIZE - tty->flip.count;
+
+		c = tty_prepare_flip_string(tty, &rp, c);
 
 		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c); 
 
@@ -1111,14 +1112,8 @@ static inline void sx_receive_chars (struct sx_port *port)
 		sx_dprintk (SX_DEBUG_RECEIVE , "Copying over %d chars. First is %d at %lx\n", c, 
 		            read_sx_byte (port->board, CHAN_OFFSET(port,hi_rxbuf) + rx_op),
 		            CHAN_OFFSET(port, hi_rxbuf)); 
-		memcpy_fromio (tty->flip.char_buf_ptr, 
+		memcpy_fromio (rp,
 		               port->board->base + CHAN_OFFSET(port,hi_rxbuf) + rx_op, c);
-		memset(tty->flip.flag_buf_ptr, TTY_NORMAL, c);
-
-		/* Update the kernel buffer end */
-		tty->flip.count += c;
-		tty->flip.char_buf_ptr += c;
-		tty->flip.flag_buf_ptr += c;
 
 		/* This one last. ( Not essential.)
 		   It allows the card to start putting more data into the buffer! 

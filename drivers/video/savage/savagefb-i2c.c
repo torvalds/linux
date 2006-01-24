@@ -49,7 +49,7 @@
 
 static void savage4_gpio_setscl(void *data, int val)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 	unsigned int r;
 
 	r = readl(chan->ioaddr + chan->reg);
@@ -63,7 +63,7 @@ static void savage4_gpio_setscl(void *data, int val)
 
 static void savage4_gpio_setsda(void *data, int val)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 
 	unsigned int r;
 	r = readl(chan->ioaddr + chan->reg);
@@ -77,21 +77,21 @@ static void savage4_gpio_setsda(void *data, int val)
 
 static int savage4_gpio_getscl(void *data)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 
 	return (0 != (readl(chan->ioaddr + chan->reg) & SAVAGE4_I2C_SCL_IN));
 }
 
 static int savage4_gpio_getsda(void *data)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 
 	return (0 != (readl(chan->ioaddr + chan->reg) & SAVAGE4_I2C_SDA_IN));
 }
 
 static void prosavage_gpio_setscl(void* data, int val)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 	u32			  r;
 
 	SET_CR_IX(chan->ioaddr, chan->reg);
@@ -107,7 +107,7 @@ static void prosavage_gpio_setscl(void* data, int val)
 
 static void prosavage_gpio_setsda(void* data, int val)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 	unsigned int r;
 
 	SET_CR_IX(chan->ioaddr, chan->reg);
@@ -123,7 +123,7 @@ static void prosavage_gpio_setsda(void* data, int val)
 
 static int prosavage_gpio_getscl(void* data)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 
 	SET_CR_IX(chan->ioaddr, chan->reg);
 	return (0 != (GET_CR_DATA(chan->ioaddr) & PROSAVAGE_I2C_SCL_IN));
@@ -131,7 +131,7 @@ static int prosavage_gpio_getscl(void* data)
 
 static int prosavage_gpio_getsda(void* data)
 {
-	struct savagefb_i2c_chan *chan = (struct savagefb_i2c_chan *)data;
+	struct savagefb_i2c_chan *chan = data;
 
 	SET_CR_IX(chan->ioaddr, chan->reg);
 	return (0 != (GET_CR_DATA(chan->ioaddr) & PROSAVAGE_I2C_SDA_IN));
@@ -140,10 +140,9 @@ static int prosavage_gpio_getsda(void* data)
 static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 				const char *name)
 {
-	int (*add_bus)(struct i2c_adapter *) = symbol_get(i2c_bit_add_bus);
 	int rc = 0;
 
-	if (add_bus && chan->par) {
+	if (chan->par) {
 		strcpy(chan->adapter.name, name);
 		chan->adapter.owner		= THIS_MODULE;
 		chan->adapter.id		= I2C_HW_B_SAVAGE;
@@ -161,7 +160,7 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 		chan->algo.setscl(chan, 1);
 		udelay(20);
 
-		rc = add_bus(&chan->adapter);
+		rc = i2c_bit_add_bus(&chan->adapter);
 
 		if (rc == 0)
 			dev_dbg(&chan->par->pcidev->dev,
@@ -169,8 +168,6 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 		else
 			dev_warn(&chan->par->pcidev->dev,
 				 "Failed to register I2C bus %s.\n", name);
-
-		symbol_put(i2c_bit_add_bus);
 	} else
 		chan->par = NULL;
 
@@ -179,7 +176,7 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 
 void savagefb_create_i2c_busses(struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	par->chan.par	= par;
 
 	switch(info->fix.accel) {
@@ -193,6 +190,7 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 		par->chan.algo.getscl = prosavage_gpio_getscl;
 		break;
 	case FB_ACCEL_SAVAGE4:
+	case FB_ACCEL_SAVAGE2000:
 		par->chan.reg         = 0xff20;
 		par->chan.ioaddr      = par->mmio.vbase;
 		par->chan.algo.setsda = savage4_gpio_setsda;
@@ -209,14 +207,10 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 
 void savagefb_delete_i2c_busses(struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
-	int (*del_bus)(struct i2c_adapter *) =
-		symbol_get(i2c_bit_del_bus);
+	struct savagefb_par *par = info->par;
 
-	if (del_bus && par->chan.par) {
-		del_bus(&par->chan.adapter);
-		symbol_put(i2c_bit_del_bus);
-	}
+	if (par->chan.par)
+		i2c_bit_del_bus(&par->chan.adapter);
 
 	par->chan.par = NULL;
 }
@@ -224,8 +218,6 @@ void savagefb_delete_i2c_busses(struct fb_info *info)
 static u8 *savage_do_probe_i2c_edid(struct savagefb_i2c_chan *chan)
 {
 	u8 start = 0x0;
-	int (*transfer)(struct i2c_adapter *, struct i2c_msg *, int) =
-		symbol_get(i2c_transfer);
 	struct i2c_msg msgs[] = {
 		{
 			.addr	= SAVAGE_DDC,
@@ -239,21 +231,19 @@ static u8 *savage_do_probe_i2c_edid(struct savagefb_i2c_chan *chan)
 	};
 	u8 *buf = NULL;
 
-	if (transfer && chan->par) {
+	if (chan->par) {
 		buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
 
 		if (buf) {
 			msgs[1].buf = buf;
 
-			if (transfer(&chan->adapter, msgs, 2) != 2) {
+			if (i2c_transfer(&chan->adapter, msgs, 2) != 2) {
 				dev_dbg(&chan->par->pcidev->dev,
 					"Unable to read EDID block.\n");
 				kfree(buf);
 				buf = NULL;
 			}
 		}
-
-		symbol_put(i2c_transfer);
 	}
 
 	return buf;

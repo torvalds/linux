@@ -26,7 +26,7 @@
  *    (typically the drive fan)
  *  - the main control (first control) gets the target value scaled with
  *    the first pair of factors, and is then modified as below
- *  - the value of the target of the CPU Fan control loop is retreived,
+ *  - the value of the target of the CPU Fan control loop is retrieved,
  *    scaled with the second pair of factors, and the max of that and
  *    the scaled target is applied to the main control.
  *
@@ -207,7 +207,7 @@ static struct wf_smu_sys_fans_param wf_smu_sys_all_params[] = {
 	},
 	/* Model ID 3 */
 	{
-		.model_id	= 2,
+		.model_id	= 3,
 		.itarget	= 0x350000,
 		.gd		= 0x08e00000,
 		.gp		= 0x00566666,
@@ -219,7 +219,7 @@ static struct wf_smu_sys_fans_param wf_smu_sys_all_params[] = {
 	},
 	/* Model ID 5 */
 	{
-		.model_id	= 2,
+		.model_id	= 5,
 		.itarget	= 0x3a0000,
 		.gd		= 0x15400000,
 		.gp		= 0x00233333,

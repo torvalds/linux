@@ -1533,12 +1533,12 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 		}
 	} else {
 		DBG(4, "Rejected client [%s] with driver [%s]", 
-		    client->name, client->driver->name)
+		    client->name, client->driver->driver.name)
 		return -EINVAL;
 	}
 
 	DBG(5, "I2C attach client [%s] with driver [%s]",
-	    client->name, client->driver->name)
+	    client->name, client->driver->driver.name)
 
 	return 0;
 }
@@ -2958,7 +2958,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 	};
 
 	#define V4L1_IOCTL(cmd) \
-	        ((_IOC_NR((cmd)) < sizeof(v4l1_ioctls)/sizeof(char*)) ? \
+	        ((_IOC_NR((cmd)) < ARRAY_SIZE(v4l1_ioctls)) ? \
 	        v4l1_ioctls[_IOC_NR((cmd))] : "?")
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
@@ -3490,6 +3490,7 @@ static struct file_operations w9968cf_fops = {
 	.release = w9968cf_release,
 	.read =    w9968cf_read,
 	.ioctl =   w9968cf_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.mmap =    w9968cf_mmap,
 	.llseek =  no_llseek,
 };
@@ -3554,7 +3555,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 
 	/* Allocate 2 bytes of memory for camera control USB transfers */
-	if (!(cam->control_buffer = (u16*)kmalloc(2, GFP_KERNEL))) {
+	if (!(cam->control_buffer = kmalloc(2, GFP_KERNEL))) {
 		DBG(1,"Couldn't allocate memory for camera control transfers")
 		err = -ENOMEM;
 		goto fail;
@@ -3562,7 +3563,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	memset(cam->control_buffer, 0, 2);
 
 	/* Allocate 8 bytes of memory for USB data transfers to the FSB */
-	if (!(cam->data_buffer = (u16*)kmalloc(8, GFP_KERNEL))) {
+	if (!(cam->data_buffer = kmalloc(8, GFP_KERNEL))) {
 		DBG(1, "Couldn't allocate memory for data "
 		       "transfers to the FSB")
 		err = -ENOMEM;
@@ -3668,7 +3669,6 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 
 
 static struct usb_driver w9968cf_usb_driver = {
-	.owner =      THIS_MODULE,
 	.name =       "w9968cf",
 	.id_table =   winbond_id_table,
 	.probe =      w9968cf_usb_probe,

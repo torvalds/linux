@@ -65,11 +65,11 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_device *d)
 		d->tuner_pass_ctrl(d->fe,0,msg[0].addr);
 
 	if (b2[0] == 0xfe) {
-		info("this device has the Thomson Cable onboard. Which is default.");
+		info("This device has the Thomson Cable onboard. Which is default.");
 		dibusb_thomson_tuner_attach(d);
 	} else {
 		u8 bpll[4] = { 0x0b, 0xf5, 0x85, 0xab };
-		info("this device has the Panasonic ENV77H11D5 onboard.");
+		info("This device has the Panasonic ENV77H11D5 onboard.");
 		d->pll_addr = 0x60;
 		memcpy(d->pll_init,bpll,4);
 		d->pll_desc = &dvb_pll_tda665x;
@@ -98,15 +98,15 @@ static int dibusb_probe(struct usb_interface *intf,
 
 /* do not change the order of the ID table */
 static struct usb_device_id dibusb_dib3000mb_table [] = {
-/* 00 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_COLD)},
-/* 01 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_WARM)},
+/* 00 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_COLD) },
+/* 01 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_WARM) },
 /* 02 */	{ USB_DEVICE(USB_VID_COMPRO,		USB_PID_COMPRO_DVBU2000_COLD) },
 /* 03 */	{ USB_DEVICE(USB_VID_COMPRO,		USB_PID_COMPRO_DVBU2000_WARM) },
 /* 04 */	{ USB_DEVICE(USB_VID_COMPRO_UNK,	USB_PID_COMPRO_DVBU2000_UNK_COLD) },
 /* 05 */	{ USB_DEVICE(USB_VID_DIBCOM,		USB_PID_DIBCOM_MOD3000_COLD) },
 /* 06 */	{ USB_DEVICE(USB_VID_DIBCOM,		USB_PID_DIBCOM_MOD3000_WARM) },
-/* 07 */	{ USB_DEVICE(USB_VID_EMPIA,			USB_PID_KWORLD_VSTREAM_COLD) },
-/* 08 */	{ USB_DEVICE(USB_VID_EMPIA,			USB_PID_KWORLD_VSTREAM_WARM) },
+/* 07 */	{ USB_DEVICE(USB_VID_EMPIA,		USB_PID_KWORLD_VSTREAM_COLD) },
+/* 08 */	{ USB_DEVICE(USB_VID_EMPIA,		USB_PID_KWORLD_VSTREAM_WARM) },
 /* 09 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_GRANDTEC_DVBT_USB_COLD) },
 /* 10 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_GRANDTEC_DVBT_USB_WARM) },
 /* 11 */	{ USB_DEVICE(USB_VID_GRANDTEC,		USB_PID_DIBCOM_MOD3000_COLD) },
@@ -117,27 +117,34 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 /* 16 */	{ USB_DEVICE(USB_VID_VISIONPLUS,	USB_PID_TWINHAN_VP7041_WARM) },
 /* 17 */	{ USB_DEVICE(USB_VID_TWINHAN,		USB_PID_TWINHAN_VP7041_COLD) },
 /* 18 */	{ USB_DEVICE(USB_VID_TWINHAN,		USB_PID_TWINHAN_VP7041_WARM) },
-/* 19 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_COLD) },
-/* 20 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_WARM) },
-/* 21 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_COLD) },
-/* 22 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ULTIMA_TVBOX_AN2235_WARM) },
+/* 19 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_COLD) },
+/* 20 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_WARM) },
+/* 21 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_AN2235_COLD) },
+/* 22 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_AN2235_WARM) },
 /* 23 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_COLD) },
 
 /* device ID with default DIBUSB2_0-firmware and with the hacked firmware */
 /* 24 */	{ USB_DEVICE(USB_VID_ADSTECH,		USB_PID_ADSTECH_USB2_WARM) },
-/* 25 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_COLD) },
-/* 26 */	{ USB_DEVICE(USB_VID_KYE,			USB_PID_KYE_DVB_T_WARM) },
+/* 25 */	{ USB_DEVICE(USB_VID_KYE,		USB_PID_KYE_DVB_T_COLD) },
+/* 26 */	{ USB_DEVICE(USB_VID_KYE,		USB_PID_KYE_DVB_T_WARM) },
 
 /* 27 */	{ USB_DEVICE(USB_VID_KWORLD,		USB_PID_KWORLD_VSTREAM_COLD) },
 
-/* 28 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,		USB_PID_ULTIMA_TVBOX_USB2_COLD) },
-/* 29 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,		USB_PID_ULTIMA_TVBOX_USB2_WARM) },
+/* 28 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_USB2_COLD) },
+/* 29 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ULTIMA_TVBOX_USB2_WARM) },
 
-// #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+/*
+ * XXX: As Artec just 'forgot' to program the EEPROM on some Artec T1 devices
+ *      we don't catch these faulty IDs (namely 'Cypress FX1 USB controller') that
+ *      have been left on the device. If you don't have such a device but an Artec
+ *      device that's supposed to work with this driver but is not detected by it,
+ *      free to enable CONFIG_DVB_USB_DIBUSB_MB_FAULTY via your kernel config.
+ */
 
-#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 /* 30 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
 #endif
+
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mb_table);
@@ -257,7 +264,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 		}
 	},
 
-#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 	.num_device_descs = 2,
 #else
 	.num_device_descs = 1,
@@ -267,11 +274,12 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 			{ &dibusb_dib3000mb_table[20], NULL },
 			{ &dibusb_dib3000mb_table[21], NULL },
 		},
-#ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
+#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
 			{ &dibusb_dib3000mb_table[30], NULL },
 			{ NULL },
 		},
+		{ NULL },
 #endif
 	}
 };
@@ -323,6 +331,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 			{ &dibusb_dib3000mb_table[27], NULL },
 			{ NULL }
 		},
+		{ NULL },
 	}
 };
 
@@ -369,11 +378,11 @@ static struct dvb_usb_properties artec_t1_usb2_properties = {
 			{ &dibusb_dib3000mb_table[28], NULL },
 			{ &dibusb_dib3000mb_table[29], NULL },
 		},
+		{ NULL },
 	}
 };
 
 static struct usb_driver dibusb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_dibusb_mb",
 	.probe		= dibusb_probe,
 	.disconnect = dvb_usb_device_exit,

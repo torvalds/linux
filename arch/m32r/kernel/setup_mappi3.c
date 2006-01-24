@@ -19,12 +19,6 @@
 
 #define irq2port(x) (M32R_ICU_CR1_PORTL + ((x - 1) * sizeof(unsigned long)))
 
-#ifndef CONFIG_SMP
-typedef struct {
-	unsigned long icucr;  /* ICU Control Register */
-} icu_data_t;
-#endif /* CONFIG_SMP */
-
 icu_data_t icu_data[NR_IRQS];
 
 static void disable_mappi3_irq(unsigned int irq)
@@ -151,7 +145,7 @@ void __init init_IRQ(void)
 	disable_mappi3_irq(M32R_IRQ_INT1);
 #endif /* CONFIG_USB */
 
-	/* ICUCR40: CFC IREQ */
+	/* CFC IREQ */
 	irq_desc[PLD_IRQ_CFIREQ].status = IRQ_DISABLED;
 	irq_desc[PLD_IRQ_CFIREQ].handler = &mappi3_irq_type;
 	irq_desc[PLD_IRQ_CFIREQ].action = 0;
@@ -160,7 +154,7 @@ void __init init_IRQ(void)
 	disable_mappi3_irq(PLD_IRQ_CFIREQ);
 
 #if defined(CONFIG_M32R_CFC)
-	/* ICUCR41: CFC Insert */
+	/* ICUCR41: CFC Insert & eject */
 	irq_desc[PLD_IRQ_CFC_INSERT].status = IRQ_DISABLED;
 	irq_desc[PLD_IRQ_CFC_INSERT].handler = &mappi3_irq_type;
 	irq_desc[PLD_IRQ_CFC_INSERT].action = 0;
@@ -168,14 +162,16 @@ void __init init_IRQ(void)
 	icu_data[PLD_IRQ_CFC_INSERT].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD00;
 	disable_mappi3_irq(PLD_IRQ_CFC_INSERT);
 
-	/* ICUCR42: CFC Eject */
-	irq_desc[PLD_IRQ_CFC_EJECT].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFC_EJECT].handler = &mappi3_irq_type;
-	irq_desc[PLD_IRQ_CFC_EJECT].action = 0;
-	irq_desc[PLD_IRQ_CFC_EJECT].depth = 1;	/* disable nested irq */
-	icu_data[PLD_IRQ_CFC_EJECT].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
-	disable_mappi3_irq(PLD_IRQ_CFC_EJECT);
 #endif /* CONFIG_M32R_CFC */
+
+	/* IDE IREQ */
+	irq_desc[PLD_IRQ_IDEIREQ].status = IRQ_DISABLED;
+	irq_desc[PLD_IRQ_IDEIREQ].handler = &mappi3_irq_type;
+	irq_desc[PLD_IRQ_IDEIREQ].action = 0;
+	irq_desc[PLD_IRQ_IDEIREQ].depth = 1;	/* disable nested irq */
+	icu_data[PLD_IRQ_IDEIREQ].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
+	disable_mappi3_irq(PLD_IRQ_IDEIREQ);
+
 }
 
 #if defined(CONFIG_SMC91X)

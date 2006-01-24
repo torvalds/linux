@@ -56,6 +56,7 @@
 #define  SN_SAL_BUS_CONFIG		   	   0x02000037
 #define  SN_SAL_SYS_SERIAL_GET			   0x02000038
 #define  SN_SAL_PARTITION_SERIAL_GET		   0x02000039
+#define  SN_SAL_SYSCTL_PARTITION_GET               0x0200003a
 #define  SN_SAL_SYSTEM_POWER_DOWN		   0x0200003b
 #define  SN_SAL_GET_MASTER_BASEIO_NASID		   0x0200003c
 #define  SN_SAL_COHERENCE                          0x0200003d
@@ -74,7 +75,8 @@
 #define  SN_SAL_IOIF_GET_HUBDEV_INFO		   0x02000055
 #define  SN_SAL_IOIF_GET_PCIBUS_INFO		   0x02000056
 #define  SN_SAL_IOIF_GET_PCIDEV_INFO		   0x02000057
-#define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058
+#define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058	// deprecated
+#define  SN_SAL_IOIF_GET_DEVICE_DMAFLUSH_LIST	   0x0200005a
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
 #define SN_SAL_BTE_RECOVER			   0x02000061
@@ -271,7 +273,7 @@ ia64_sn_console_putc(char ch)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTC, (uint64_t)ch, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTC, (u64)ch, 0, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;
 }
@@ -288,7 +290,7 @@ ia64_sn_console_putb(const char *buf, int len)
 	ret_stuff.v0 = 0; 
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTB, (uint64_t)buf, (uint64_t)len, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_PUTB, (u64)buf, (u64)len, 0, 0, 0, 0, 0);
 
 	if ( ret_stuff.status == 0 ) {
 		return ret_stuff.v0;
@@ -308,7 +310,7 @@ ia64_sn_plat_specific_err_print(int (*hook)(const char*, ...), char *rec)
 	ret_stuff.v0 = 0;
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
-	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_PRINT_ERROR, (uint64_t)hook, (uint64_t)rec, 0, 0, 0, 0, 0);
+	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_PRINT_ERROR, (u64)hook, (u64)rec, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;
 }
@@ -396,7 +398,7 @@ ia64_sn_console_intr_status(void)
  * Enable an interrupt on the SAL console device.
  */
 static inline void
-ia64_sn_console_intr_enable(uint64_t intr)
+ia64_sn_console_intr_enable(u64 intr)
 {
 	struct ia64_sal_retval ret_stuff;
 
@@ -413,7 +415,7 @@ ia64_sn_console_intr_enable(uint64_t intr)
  * Disable an interrupt on the SAL console device.
  */
 static inline void
-ia64_sn_console_intr_disable(uint64_t intr)
+ia64_sn_console_intr_disable(u64 intr)
 {
 	struct ia64_sal_retval ret_stuff;
 
@@ -439,7 +441,7 @@ ia64_sn_console_xmit_chars(char *buf, int len)
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_CONSOLE_XMIT_CHARS,
-		 (uint64_t)buf, (uint64_t)len,
+		 (u64)buf, (u64)len,
 		 0, 0, 0, 0, 0);
 
 	if (ret_stuff.status == 0) {
@@ -578,6 +580,21 @@ sn_partition_serial_number_val(void) {
 		sn_partition_serial_number = ia64_sn_partition_serial_get();
 	}
 	return sn_partition_serial_number;
+}
+
+/*
+ * Returns the partition id of the nasid passed in as an argument,
+ * or INVALID_PARTID if the partition id cannot be retrieved.
+ */
+static inline partid_t
+ia64_sn_sysctl_partition_get(nasid_t nasid)
+{
+	struct ia64_sal_retval ret_stuff;
+	SAL_CALL(ret_stuff, SN_SAL_SYSCTL_PARTITION_GET, nasid,
+		0, 0, 0, 0, 0, 0);
+	if (ret_stuff.status != 0)
+	    return -1;
+	return ((partid_t)ret_stuff.v0);
 }
 
 /*
@@ -1018,6 +1035,24 @@ ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 	ret_stuff.v2 = 0;
 	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_GET_SN_INFO, fc, 0, 0, 0, 0, 0, 0);
 
+/***** BEGIN HACK - temp til old proms no longer supported ********/
+	if (ret_stuff.status == SALRET_NOT_IMPLEMENTED) {
+		int nasid = get_sapicid() & 0xfff;;
+#define SH_SHUB_ID_NODES_PER_BIT_MASK 0x001f000000000000UL
+#define SH_SHUB_ID_NODES_PER_BIT_SHFT 48
+		if (shubtype) *shubtype = 0;
+		if (nasid_bitmask) *nasid_bitmask = 0x7ff;
+		if (nasid_shift) *nasid_shift = 38;
+		if (systemsize) *systemsize = 10;
+		if (sharing_domain_size) *sharing_domain_size = 8;
+		if (partid) *partid = ia64_sn_sysctl_partition_get(nasid);
+		if (coher) *coher = nasid >> 9;
+		if (reg) *reg = (HUB_L((u64 *) LOCAL_MMR_ADDR(SH1_SHUB_ID)) & SH_SHUB_ID_NODES_PER_BIT_MASK) >>
+			SH_SHUB_ID_NODES_PER_BIT_SHFT;
+		return 0;
+	}
+/***** END HACK *******/
+
 	if (ret_stuff.status < 0)
 		return ret_stuff.status;
 
@@ -1066,7 +1101,7 @@ ia64_sn_bte_recovery(nasid_t nasid)
 	struct ia64_sal_retval rv;
 
 	rv.status = 0;
-	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, 0, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, (u64)nasid, 0, 0, 0, 0, 0, 0);
 	if (rv.status == SALRET_NOT_IMPLEMENTED)
 		return 0;
 	return (int) rv.status;

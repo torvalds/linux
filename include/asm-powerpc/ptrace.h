@@ -87,7 +87,7 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 
 #define force_successful_syscall_return()   \
 	do { \
-		current_thread_info()->syscall_noerror = 1; \
+		set_thread_flag(TIF_NOERROR); \
 	} while(0)
 
 /*

@@ -22,6 +22,7 @@
 
 
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -92,10 +93,13 @@ static int inet6_create(struct socket *sock, int protocol)
 	struct proto *answer_prot;
 	unsigned char answer_flags;
 	char answer_no_check;
-	int rc;
+	int try_loading_module = 0;
+	int err;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
+lookup_protocol:
+	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
 	list_for_each_rcu(p, &inetsw6[sock->type]) {
 		answer = list_entry(p, struct inet_protosw, list);
@@ -113,21 +117,37 @@ static int inet6_create(struct socket *sock, int protocol)
 			if (IPPROTO_IP == answer->protocol)
 				break;
 		}
+		err = -EPROTONOSUPPORT;
 		answer = NULL;
 	}
 
-	rc = -ESOCKTNOSUPPORT;
-	if (!answer)
-		goto out_rcu_unlock;
-	rc = -EPERM;
+	if (!answer) {
+		if (try_loading_module < 2) {
+			rcu_read_unlock();
+			/*
+			 * Be more specific, e.g. net-pf-10-proto-132-type-1
+			 * (net-pf-PF_INET6-proto-IPPROTO_SCTP-type-SOCK_STREAM)
+			 */
+			if (++try_loading_module == 1)
+				request_module("net-pf-%d-proto-%d-type-%d",
+						PF_INET6, protocol, sock->type);
+			/*
+			 * Fall back to generic, e.g. net-pf-10-proto-132
+			 * (net-pf-PF_INET6-proto-IPPROTO_SCTP)
+			 */
+			else
+				request_module("net-pf-%d-proto-%d",
+						PF_INET6, protocol);
+			goto lookup_protocol;
+		} else
+			goto out_rcu_unlock;
+	}
+
+	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
-		goto out_rcu_unlock;
-	rc = -EPROTONOSUPPORT;
-	if (!protocol)
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
-
 	answer_prot = answer->prot;
 	answer_no_check = answer->no_check;
 	answer_flags = answer->flags;
@@ -135,19 +155,20 @@ static int inet6_create(struct socket *sock, int protocol)
 
 	BUG_TRAP(answer_prot->slab != NULL);
 
-	rc = -ENOBUFS;
+	err = -ENOBUFS;
 	sk = sk_alloc(PF_INET6, GFP_KERNEL, answer_prot, 1);
 	if (sk == NULL)
 		goto out;
 
 	sock_init_data(sock, sk);
 
-	rc = 0;
+	err = 0;
 	sk->sk_no_check = answer_no_check;
 	if (INET_PROTOSW_REUSE & answer_flags)
 		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
+	inet->is_icsk = INET_PROTOSW_ICSK & answer_flags;
 
 	if (SOCK_RAW == sock->type) {
 		inet->num = protocol;
@@ -202,14 +223,14 @@ static int inet6_create(struct socket *sock, int protocol)
 		sk->sk_prot->hash(sk);
 	}
 	if (sk->sk_prot->init) {
-		rc = sk->sk_prot->init(sk);
-		if (rc) {
+		err = sk->sk_prot->init(sk);
+		if (err) {
 			sk_common_release(sk);
 			goto out;
 		}
 	}
 out:
-	return rc;
+	return err;
 out_rcu_unlock:
 	rcu_read_unlock();
 	goto out;
@@ -370,6 +391,8 @@ int inet6_destroy_sock(struct sock *sk)
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(inet6_destroy_sock);
+
 /*
  *	This does both peername and sockname.
  */
@@ -412,7 +435,6 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
-	int err = -EINVAL;
 
 	switch(cmd) 
 	{
@@ -431,16 +453,15 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCSIFDSTADDR:
 		return addrconf_set_dstaddr((void __user *) arg);
 	default:
-		if (!sk->sk_prot->ioctl ||
-		    (err = sk->sk_prot->ioctl(sk, cmd, arg)) == -ENOIOCTLCMD)
-			return(dev_ioctl(cmd,(void __user *) arg));		
-		return err;
+		if (!sk->sk_prot->ioctl)
+			return -ENOIOCTLCMD;
+		return sk->sk_prot->ioctl(sk, cmd, arg);
 	}
 	/*NOTREACHED*/
 	return(0);
 }
 
-struct proto_ops inet6_stream_ops = {
+const struct proto_ops inet6_stream_ops = {
 	.family =	PF_INET6,
 	.owner =	THIS_MODULE,
 	.release =	inet6_release,
@@ -461,7 +482,7 @@ struct proto_ops inet6_stream_ops = {
 	.sendpage =	tcp_sendpage
 };
 
-struct proto_ops inet6_dgram_ops = {
+const struct proto_ops inet6_dgram_ops = {
 	.family =	PF_INET6,
 	.owner =	THIS_MODULE,
 	.release =	inet6_release,
@@ -489,7 +510,7 @@ static struct net_proto_family inet6_family_ops = {
 };
 
 /* Same as inet6_dgram_ops, sans udp_poll.  */
-static struct proto_ops inet6_sockraw_ops = {
+static const struct proto_ops inet6_sockraw_ops = {
 	.family =	PF_INET6,
 	.owner =	THIS_MODULE,
 	.release =	inet6_release,
@@ -590,17 +611,90 @@ inet6_unregister_protosw(struct inet_protosw *p)
 	}
 }
 
+int inet6_sk_rebuild_header(struct sock *sk)
+{
+	int err;
+	struct dst_entry *dst;
+	struct ipv6_pinfo *np = inet6_sk(sk);
+
+	dst = __sk_dst_check(sk, np->dst_cookie);
+
+	if (dst == NULL) {
+		struct inet_sock *inet = inet_sk(sk);
+		struct in6_addr *final_p = NULL, final;
+		struct flowi fl;
+
+		memset(&fl, 0, sizeof(fl));
+		fl.proto = sk->sk_protocol;
+		ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
+		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
+		fl.fl6_flowlabel = np->flow_label;
+		fl.oif = sk->sk_bound_dev_if;
+		fl.fl_ip_dport = inet->dport;
+		fl.fl_ip_sport = inet->sport;
+
+		if (np->opt && np->opt->srcrt) {
+			struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
+			ipv6_addr_copy(&final, &fl.fl6_dst);
+			ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
+			final_p = &final;
+		}
+
+		err = ip6_dst_lookup(sk, &dst, &fl);
+		if (err) {
+			sk->sk_route_caps = 0;
+			return err;
+		}
+		if (final_p)
+			ipv6_addr_copy(&fl.fl6_dst, final_p);
+
+		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
+			sk->sk_err_soft = -err;
+			return err;
+		}
+
+		ip6_dst_store(sk, dst, NULL);
+		sk->sk_route_caps = dst->dev->features &
+			~(NETIF_F_IP_CSUM | NETIF_F_TSO);
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(inet6_sk_rebuild_header);
+
+int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
+{
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct inet6_skb_parm *opt = IP6CB(skb);
+
+	if (np->rxopt.all) {
+		if ((opt->hop && (np->rxopt.bits.hopopts ||
+				  np->rxopt.bits.ohopopts)) ||
+		    ((IPV6_FLOWINFO_MASK & *(u32*)skb->nh.raw) &&
+		     np->rxopt.bits.rxflow) ||
+		    (opt->srcrt && (np->rxopt.bits.srcrt ||
+		     np->rxopt.bits.osrcrt)) ||
+		    ((opt->dst1 || opt->dst0) &&
+		     (np->rxopt.bits.dstopts || np->rxopt.bits.odstopts)))
+			return 1;
+	}
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
+
 int
 snmp6_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
 {
 	if (ptr == NULL)
 		return -EINVAL;
 
-	ptr[0] = __alloc_percpu(mibsize, mibalign);
+	ptr[0] = __alloc_percpu(mibsize);
 	if (!ptr[0])
 		goto err0;
 
-	ptr[1] = __alloc_percpu(mibsize, mibalign);
+	ptr[1] = __alloc_percpu(mibsize);
 	if (!ptr[1])
 		goto err1;
 
@@ -699,12 +793,14 @@ static int __init inet6_init(void)
 	/* Register the family here so that the init calls below will
 	 * be able to create sockets. (?? is this dangerous ??)
 	 */
-	(void) sock_register(&inet6_family_ops);
+	err = sock_register(&inet6_family_ops);
+	if (err)
+		goto out_unregister_raw_proto;
 
 	/* Initialise ipv6 mibs */
 	err = init_ipv6_mibs();
 	if (err)
-		goto out_unregister_raw_proto;
+		goto out_unregister_sock;
 	
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
@@ -796,6 +892,8 @@ icmp_fail:
 	ipv6_sysctl_unregister();
 #endif
 	cleanup_ipv6_mibs();
+out_unregister_sock:
+	sock_unregister(PF_INET6);
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
 out_unregister_udp_proto:

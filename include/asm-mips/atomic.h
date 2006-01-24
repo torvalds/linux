@@ -24,9 +24,8 @@
 #define _ASM_ATOMIC_H
 
 #include <asm/cpu-features.h>
+#include <asm/interrupt.h>
 #include <asm/war.h>
-
-extern spinlock_t atomic_lock;
 
 typedef struct { volatile int counter; } atomic_t;
 
@@ -85,9 +84,9 @@ static __inline__ void atomic_add(int i, atomic_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		v->counter += i;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -127,9 +126,9 @@ static __inline__ void atomic_sub(int i, atomic_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		v->counter -= i;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -173,11 +172,11 @@ static __inline__ int atomic_add_return(int i, atomic_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		result = v->counter;
 		result += i;
 		v->counter = result;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 
 	return result;
@@ -220,22 +219,23 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		result = v->counter;
 		result -= i;
 		v->counter = result;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 
 	return result;
 }
 
 /*
- * atomic_sub_if_positive - add integer to atomic variable
+ * atomic_sub_if_positive - conditionally subtract integer from atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic_t
  *
- * Atomically test @v and decrement if it is greater than 0.
- * The function returns the old value of @v minus 1.
+ * Atomically test @v and subtract @i if @v is greater or equal than @i.
+ * The function returns the old value of @v minus @i.
  */
 static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
@@ -276,16 +276,38 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		result = v->counter;
 		result -= i;
 		if (result >= 0)
 			v->counter = result;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 
 	return result;
 }
+
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+
+/**
+ * atomic_add_unless - add unless the number is a given value
+ * @v: pointer of type atomic_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * Atomically adds @a to @v, so long as it was not @u.
+ * Returns non-zero if @v was not @u, and zero otherwise.
+ */
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
@@ -410,9 +432,9 @@ static __inline__ void atomic64_add(long i, atomic64_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		v->counter += i;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -452,9 +474,9 @@ static __inline__ void atomic64_sub(long i, atomic64_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		v->counter -= i;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 }
 
@@ -498,11 +520,11 @@ static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		result = v->counter;
 		result += i;
 		v->counter = result;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 
 	return result;
@@ -545,22 +567,23 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		result = v->counter;
 		result -= i;
 		v->counter = result;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 
 	return result;
 }
 
 /*
- * atomic64_sub_if_positive - add integer to atomic variable
+ * atomic64_sub_if_positive - conditionally subtract integer from atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic64_t
  *
- * Atomically test @v and decrement if it is greater than 0.
- * The function returns the old value of @v minus 1.
+ * Atomically test @v and subtract @i if @v is greater or equal than @i.
+ * The function returns the old value of @v minus @i.
  */
 static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 {
@@ -601,12 +624,12 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 	} else {
 		unsigned long flags;
 
-		spin_lock_irqsave(&atomic_lock, flags);
+		local_irq_save(flags);
 		result = v->counter;
 		result -= i;
 		if (result >= 0)
 			v->counter = result;
-		spin_unlock_irqrestore(&atomic_lock, flags);
+		local_irq_restore(flags);
 	}
 
 	return result;
@@ -690,4 +713,5 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#include <asm-generic/atomic.h>
 #endif /* _ASM_ATOMIC_H */

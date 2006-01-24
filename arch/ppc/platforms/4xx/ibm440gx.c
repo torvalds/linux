@@ -58,7 +58,6 @@ static struct ocp_func_emac_data ibm440gx_emac2_def = {
 	.wol_irq        = 65,  		/* WOL interrupt number */
 	.mdio_idx       = -1,           /* No shared MDIO */
 	.tah_idx	= 0,		/* TAH device index */
-	.jumbo		= 1,		/* Jumbo frames supported */
 };
 
 static struct ocp_func_emac_data ibm440gx_emac3_def = {
@@ -72,7 +71,6 @@ static struct ocp_func_emac_data ibm440gx_emac3_def = {
 	.wol_irq        = 67,  		/* WOL interrupt number */
 	.mdio_idx       = -1,           /* No shared MDIO */
 	.tah_idx	= 1,		/* TAH device index */
-	.jumbo		= 1,		/* Jumbo frames supported */
 };
 OCP_SYSFS_EMAC_DATA()
 

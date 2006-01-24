@@ -41,4 +41,5 @@ Hotplug Firmware Loading for 2.6 kernels
 For 2.6 kernels the firmware is loaded at the point that the driver module is
 loaded.  See linux/Documentation/dvb/firmware.txt for more information.
 
-Copy the three files downloaded above into the /usr/lib/hotplug/firmware directory.
+Copy the three files downloaded above into the /usr/lib/hotplug/firmware or
+/lib/firmware directory (depending on configuration of firmware hotplug).

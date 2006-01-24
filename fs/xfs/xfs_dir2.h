@@ -72,9 +72,6 @@ typedef struct xfs_dir2_put_args {
 	struct uio	*uio;		/* uio control structure */
 } xfs_dir2_put_args_t;
 
-#define	XFS_DIR_IS_V2(mp)	((mp)->m_dirversion == 2)
-extern xfs_dirops_t	xfsv2_dirops;
-
 /*
  * Other interfaces used by the rest of the dir v2 code.
  */

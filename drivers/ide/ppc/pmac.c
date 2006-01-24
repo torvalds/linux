@@ -1271,7 +1271,7 @@ static int
 pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 {
 	struct device_node *np = pmif->node;
-	int *bidp, i;
+	int *bidp;
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
@@ -1401,20 +1401,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	/* We probe the hwif now */
 	probe_hwif_init(hwif);
 
-	/* The code IDE code will have set hwif->present if we have devices attached,
-	 * if we don't, the discard the interface except if we are on a media bay slot
-	 */
-	if (!hwif->present && !pmif->mediabay) {
-		printk(KERN_INFO "ide%d: Bus empty, interface released.\n",
-			hwif->index);
-		default_hwif_iops(hwif);
-		for (i = IDE_DATA_OFFSET; i <= IDE_CONTROL_OFFSET; ++i)
-			hwif->io_ports[i] = 0;
-		hwif->chipset = ide_unknown;
-		hwif->noprobe = 1;
-		return -ENODEV;
-	}
-
 	return 0;
 }
 
@@ -1444,7 +1430,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	pmif = &pmac_ide[i];
 	hwif = &ide_hwifs[i];
 
-	if (mdev->ofdev.node->n_addrs == 0) {
+	if (macio_resource_count(mdev) == 0) {
 		printk(KERN_WARNING "ide%d: no address for %s\n",
 		       i, mdev->ofdev.node->full_name);
 		return -ENXIO;
@@ -1667,10 +1653,15 @@ static struct macio_driver pmac_ide_macio_driver =
 };
 
 static struct pci_device_id pmac_ide_pci_match[] = {
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_ATA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID_ATA100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_K2_ATA100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_ATA,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID_ATA100,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_K2_ATA100,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_SH_ATA,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID2_ATA,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 };
 
@@ -1695,7 +1686,7 @@ pmac_ide_probe(void)
 #else
 	macio_register_driver(&pmac_ide_macio_driver);
 	pci_register_driver(&pmac_ide_pci_driver);
-#endif	
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC

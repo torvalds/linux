@@ -37,9 +37,8 @@ static void ffb_imageblit(struct fb_info *, const struct fb_image *);
 static void ffb_fillrect(struct fb_info *, const struct fb_fillrect *);
 static void ffb_copyarea(struct fb_info *, const struct fb_copyarea *);
 static int ffb_sync(struct fb_info *);
-static int ffb_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int ffb_ioctl(struct inode *, struct file *, unsigned int,
-		     unsigned long, struct fb_info *);
+static int ffb_mmap(struct fb_info *, struct vm_area_struct *);
+static int ffb_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int ffb_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
@@ -57,6 +56,9 @@ static struct fb_ops ffb_ops = {
 	.fb_sync		= ffb_sync,
 	.fb_mmap		= ffb_mmap,
 	.fb_ioctl		= ffb_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 /* Register layout and definitions */
@@ -356,7 +358,6 @@ struct ffb_par {
 	int			prom_parent_node;
 	int			dac_rev;
 	int			board_type;
-	struct list_head	list;
 };
 
 static void FFBFifo(struct ffb_par *par, int n)
@@ -837,7 +838,7 @@ static struct sbus_mmap_map ffb_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int ffb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int ffb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct ffb_par *par = (struct ffb_par *)info->par;
 
@@ -846,8 +847,7 @@ static int ffb_mmap(struct fb_info *info, struct file *file, struct vm_area_stru
 				  0, vma);
 }
 
-static int ffb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg, struct fb_info *info)
+static int ffb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct ffb_par *par = (struct ffb_par *) info->par;
 

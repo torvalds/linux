@@ -9,6 +9,7 @@
  *	Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -200,6 +201,8 @@ struct ip6_flowlabel * fl6_sock_lookup(struct sock *sk, u32 label)
 	return NULL;
 }
 
+EXPORT_SYMBOL_GPL(fl6_sock_lookup);
+
 void fl6_free_socklist(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -225,20 +228,16 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 					 struct ip6_flowlabel * fl,
 					 struct ipv6_txoptions * fopt)
 {
-	struct ipv6_txoptions * fl_opt = fl ? fl->opt : NULL;
-
-	if (fopt == NULL || fopt->opt_flen == 0) {
-		if (!fl_opt || !fl_opt->dst0opt || fl_opt->srcrt)
-			return fl_opt;
-	}
-
+	struct ipv6_txoptions * fl_opt = fl->opt;
+	
+	if (fopt == NULL || fopt->opt_flen == 0)
+		return fl_opt;
+	
 	if (fl_opt != NULL) {
 		opt_space->hopopt = fl_opt->hopopt;
-		opt_space->dst0opt = fl_opt->srcrt ? fl_opt->dst0opt : NULL;
+		opt_space->dst0opt = fl_opt->dst0opt;
 		opt_space->srcrt = fl_opt->srcrt;
 		opt_space->opt_nflen = fl_opt->opt_nflen;
-		if (fl_opt->dst0opt && !fl_opt->srcrt)
-			opt_space->opt_nflen -= ipv6_optlen(fl_opt->dst0opt);
 	} else {
 		if (fopt->opt_nflen == 0)
 			return fopt;
@@ -630,9 +629,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 {
 	while(fl) {
 		seq_printf(seq,
-			   "%05X %-1d %-6d %-6d %-6ld %-8ld "
-			   "%02x%02x%02x%02x%02x%02x%02x%02x "
-			   "%-4d\n",
+			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_SEQFMT " %-4d\n",
 			   (unsigned)ntohl(fl->label),
 			   fl->share,
 			   (unsigned)fl->owner,
@@ -648,8 +645,8 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "Label S Owner  Users  Linger Expires  "
-			      "Dst                              Opt\n");
+		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
+			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
 	else
 		ip6fl_fl_seq_show(seq, v);
 	return 0;

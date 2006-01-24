@@ -12,6 +12,7 @@
 #include <linux/efi.h>
 #include <linux/dmi.h>
 #include <linux/ctype.h>
+#include <linux/pm.h>
 #include <asm/uaccess.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
@@ -109,6 +110,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 2400"),
+		},
+	},
+	{	/* Handle problems with rebooting on HP laptops */
+		.callback = set_bios_reboot,
+		.ident = "HP Compaq Laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq"),
 		},
 	},
 	{ }
@@ -347,10 +356,10 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	machine_shutdown();
-
-	if (pm_power_off)
+	if (pm_power_off) {
+		machine_shutdown();
 		pm_power_off();
+	}
 }
 
 

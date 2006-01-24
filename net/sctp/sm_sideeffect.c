@@ -157,9 +157,12 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 {
 	__u32 ctsn, max_tsn_seen;
 	struct sctp_chunk *sack;
+	struct sctp_transport *trans = asoc->peer.last_data_from;
 	int error = 0;
 
-	if (force)
+	if (force || 
+	    (!trans && (asoc->param_flags & SPP_SACKDELAY_DISABLE)) ||
+	    (trans && (trans->param_flags & SPP_SACKDELAY_DISABLE)))
 		asoc->peer.sack_needed = 1;
 
 	ctsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
@@ -189,7 +192,22 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 	if (!asoc->peer.sack_needed) {
 		/* We will need a SACK for the next packet.  */
 		asoc->peer.sack_needed = 1;
-		goto out;
+
+		/* Set the SACK delay timeout based on the
+		 * SACK delay for the last transport
+		 * data was received from, or the default
+		 * for the association.
+		 */
+		if (trans)
+			asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = 
+				trans->sackdelay;
+		else
+			asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = 
+				asoc->sackdelay;
+
+		/* Restart the SACK timer. */
+		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
+				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 	} else {
 		if (asoc->a_rwnd > asoc->rwnd)
 			asoc->a_rwnd = asoc->rwnd;
@@ -205,7 +223,7 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 	}
-out:
+
 	return error;
 nomem:
 	error = -ENOMEM;
@@ -385,7 +403,7 @@ sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
 	NULL,
 	sctp_generate_t4_rto_event,
 	sctp_generate_t5_shutdown_guard_event,
-	sctp_generate_heartbeat_event,
+	NULL,
 	sctp_generate_sack_event,
 	sctp_generate_autoclose_event,
 };
@@ -415,7 +433,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	asoc->overall_error_count++;
 
 	if (transport->state != SCTP_INACTIVE &&
-	    (transport->error_count++ >= transport->max_retrans)) {
+	    (transport->error_count++ >= transport->pathmaxrxt)) {
 		SCTP_DEBUG_PRINTK_IPADDR("transport_strike:association %p",
 					 " transport IP: port:%d failed.\n",
 					 asoc,
@@ -689,9 +707,9 @@ static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 		 * increased due to timer expirations.
 		 */
 		asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
-			asoc->ep->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT];
+						asoc->rto_initial;
 		asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
-			asoc->ep->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE];
+						asoc->rto_initial;
 	}
 
 	if (sctp_state(asoc, ESTABLISHED) ||
@@ -1232,8 +1250,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_TIMER_START:
 			timer = &asoc->timers[cmd->obj.to];
 			timeout = asoc->timeouts[cmd->obj.to];
-			if (!timeout)
-				BUG();
+			BUG_ON(!timeout);
 
 			timer->expires = jiffies + timeout;
 			sctp_association_hold(asoc);
@@ -1283,7 +1300,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 					"T1 INIT Timeout adjustment"
 					" init_err_counter: %d"
 					" cycle: %d"
-					" timeout: %d\n",
+					" timeout: %ld\n",
 					asoc->init_err_counter,
 					asoc->init_cycle,
 					asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT]);
@@ -1311,7 +1328,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			SCTP_DEBUG_PRINTK(
 				"T1 COOKIE Timeout adjustment"
 				" init_err_counter: %d"
-				" timeout: %d\n",
+				" timeout: %ld\n",
 				asoc->init_err_counter,
 				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE]);
 

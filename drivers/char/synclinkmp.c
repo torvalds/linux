@@ -2196,7 +2196,7 @@ void isr_rxint(SLMP_INFO * info)
 			if ( tty ) {
 				if (!(status & info->ignore_status_mask1)) {
 					if (info->read_status_mask1 & BRKD) {
-						*tty->flip.flag_buf_ptr = TTY_BREAK;
+						tty_insert_flip_char(tty, 0, TTY_BREAK);
 						if (info->flags & ASYNC_SAK)
 							do_SAK(tty);
 					}
@@ -2240,15 +2240,9 @@ void isr_rxrdy(SLMP_INFO * info)
 
 	while((status = read_reg(info,CST0)) & BIT0)
 	{
+		int flag = 0;
+		int over = 0;
 		DataByte = read_reg(info,TRB);
-
-		if ( tty ) {
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				continue;
-
-			*tty->flip.char_buf_ptr = DataByte;
-			*tty->flip.flag_buf_ptr = 0;
-		}
 
 		icount->rx++;
 
@@ -2272,42 +2266,34 @@ void isr_rxrdy(SLMP_INFO * info)
 
 			if ( tty ) {
 				if (status & PE)
-					*tty->flip.flag_buf_ptr = TTY_PARITY;
+					flag = TTY_PARITY;
 				else if (status & FRME)
-					*tty->flip.flag_buf_ptr = TTY_FRAME;
+					flag = TTY_FRAME;
 				if (status & OVRN) {
 					/* Overrun is special, since it's
 					 * reported immediately, and doesn't
 					 * affect the current character
 					 */
-					if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-						tty->flip.count++;
-						tty->flip.flag_buf_ptr++;
-						tty->flip.char_buf_ptr++;
-						*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-					}
+					over = 1;
 				}
 			}
 		}	/* end of if (error) */
 
 		if ( tty ) {
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, DataByte, flag);
+			if (over)
+				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_ISR ) {
-		printk("%s(%d):%s isr_rxrdy() flip count=%d\n",
-			__FILE__,__LINE__,info->device_name,
-			tty ? tty->flip.count : 0);
 		printk("%s(%d):%s rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,info->device_name,
 			icount->rx,icount->brk,icount->parity,
 			icount->frame,icount->overrun);
 	}
 
-	if ( tty && tty->flip.count )
+	if ( tty )
 		tty_flip_buffer_push(tty);
 }
 
@@ -5104,7 +5090,7 @@ void tx_load_dma_buffer(SLMP_INFO *info, const char *buf, unsigned int count)
 int register_test(SLMP_INFO *info)
 {
 	static unsigned char testval[] = {0x00, 0xff, 0xaa, 0x55, 0x69, 0x96};
-	static unsigned int count = sizeof(testval)/sizeof(unsigned char);
+	static unsigned int count = ARRAY_SIZE(testval);
 	unsigned int i;
 	int rc = TRUE;
 	unsigned long flags;
@@ -5422,7 +5408,7 @@ int memory_test(SLMP_INFO *info)
 {
 	static unsigned long testval[] = { 0x0, 0x55555555, 0xaaaaaaaa,
 		0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
-	unsigned long count = sizeof(testval)/sizeof(unsigned long);
+	unsigned long count = ARRAY_SIZE(testval);
 	unsigned long i;
 	unsigned long limit = SCA_MEM_SIZE/sizeof(unsigned long);
 	unsigned long * addr = (unsigned long *)info->memory_base;

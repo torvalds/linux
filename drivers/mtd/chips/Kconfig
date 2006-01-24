@@ -31,6 +31,7 @@ config MTD_JEDECPROBE
 
 config MTD_GEN_PROBE
 	tristate
+	select OBSOLETE_INTERMODULE
 
 config MTD_CFI_ADV_OPTIONS
 	bool "Flash chip driver advanced configuration options"
@@ -259,7 +260,7 @@ config MTD_ABSENT
 	  with this driver will return -ENODEV upon access.
 
 config MTD_OBSOLETE_CHIPS
-	depends on MTD && BROKEN
+	depends on MTD
 	bool "Older (theoretically obsoleted now) drivers for non-CFI chips"
 	help
 	  This option does not enable any code directly, but will allow you to
@@ -272,7 +273,7 @@ config MTD_OBSOLETE_CHIPS
 
 config MTD_AMDSTD
 	tristate "AMD compatible flash chip support (non-CFI)"
-	depends on MTD && MTD_OBSOLETE_CHIPS
+	depends on MTD && MTD_OBSOLETE_CHIPS && BROKEN
 	help
 	  This option enables support for flash chips using AMD-compatible
 	  commands, including some which are not CFI-compatible and hence
@@ -290,7 +291,7 @@ config MTD_SHARP
 
 config MTD_JEDEC
 	tristate "JEDEC device support"
-	depends on MTD && MTD_OBSOLETE_CHIPS
+	depends on MTD && MTD_OBSOLETE_CHIPS && BROKEN
 	help
 	  Enable older older JEDEC flash interface devices for self
 	  programming flash.  It is commonly used in older AMD chips.  It is

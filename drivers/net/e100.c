@@ -1,25 +1,25 @@
 /*******************************************************************************
 
-  
+
   Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of the GNU General Public License as published by the Free 
-  Software Foundation; either version 2 of the License, or (at your option) 
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
   any later version.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
+  this program; if not, write to the Free Software Foundation, Inc., 59
   Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
+
   The full GNU General Public License is included in this distribution in the
   file called LICENSE.
-  
+
   Contact Information:
   Linux NICS <linux.nics@intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
@@ -132,6 +132,10 @@
  * 	TODO:
  * 	o several entry points race with dev->close
  * 	o check for tx-no-resources/stop Q races with tx clean/wake Q
+ *
+ *	FIXES:
+ * 2005/12/02 - Michael O'Donnell <Michael.ODonnell at stratus dot com>
+ *	- Stratus87247: protect MDI control register manipulations
  */
 
 #include <linux/config.h>
@@ -156,7 +160,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.4.14-k2"DRV_EXT
+#define DRV_VERSION		"3.5.10-k2"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -316,7 +320,7 @@ enum cuc_dump {
 	cuc_dump_complete       = 0x0000A005,
 	cuc_dump_reset_complete = 0x0000A007,
 };
-		
+
 enum port {
 	software_reset  = 0x0000,
 	selftest        = 0x0001,
@@ -578,6 +582,7 @@ struct nic {
 	u16 leds;
 	u16 eeprom_wc;
 	u16 eeprom[256];
+	spinlock_t mdio_lock;
 };
 
 static inline void e100_write_flush(struct nic *nic)
@@ -587,7 +592,7 @@ static inline void e100_write_flush(struct nic *nic)
 	(void)readb(&nic->csr->scb.status);
 }
 
-static inline void e100_enable_irq(struct nic *nic)
+static void e100_enable_irq(struct nic *nic)
 {
 	unsigned long flags;
 
@@ -597,7 +602,7 @@ static inline void e100_enable_irq(struct nic *nic)
 	e100_write_flush(nic);
 }
 
-static inline void e100_disable_irq(struct nic *nic)
+static void e100_disable_irq(struct nic *nic)
 {
 	unsigned long flags;
 
@@ -710,10 +715,10 @@ static u16 e100_eeprom_read(struct nic *nic, u16 *addr_len, u16 addr)
 		ctrl = (cmd_addr_data & (1 << i)) ? eecs | eedi : eecs;
 		writeb(ctrl, &nic->csr->eeprom_ctrl_lo);
 		e100_write_flush(nic); udelay(4);
-		
+
 		writeb(ctrl | eesk, &nic->csr->eeprom_ctrl_lo);
 		e100_write_flush(nic); udelay(4);
-		
+
 		/* Eeprom drives a dummy zero to EEDO after receiving
 		 * complete address.  Use this to adjust addr_len. */
 		ctrl = readb(&nic->csr->eeprom_ctrl_lo);
@@ -721,7 +726,7 @@ static u16 e100_eeprom_read(struct nic *nic, u16 *addr_len, u16 addr)
 			*addr_len -= (i - 16);
 			i = 17;
 		}
-		
+
 		data = (data << 1) | (ctrl & eedo ? 1 : 0);
 	}
 
@@ -786,7 +791,7 @@ static int e100_eeprom_save(struct nic *nic, u16 start, u16 count)
 
 #define E100_WAIT_SCB_TIMEOUT 20000 /* we might have to wait 100ms!!! */
 #define E100_WAIT_SCB_FAST 20       /* delay like the old code */
-static inline int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
+static int e100_exec_cmd(struct nic *nic, u8 cmd, dma_addr_t dma_addr)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -817,7 +822,7 @@ err_unlock:
 	return err;
 }
 
-static inline int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
+static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
 	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
 {
 	struct cb *cb;
@@ -876,15 +881,35 @@ static u16 mdio_ctrl(struct nic *nic, u32 addr, u32 dir, u32 reg, u16 data)
 {
 	u32 data_out = 0;
 	unsigned int i;
+	unsigned long flags;
 
+
+	/*
+	 * Stratus87247: we shouldn't be writing the MDI control
+	 * register until the Ready bit shows True.  Also, since
+	 * manipulation of the MDI control registers is a multi-step
+	 * procedure it should be done under lock.
+	 */
+	spin_lock_irqsave(&nic->mdio_lock, flags);
+	for (i = 100; i; --i) {
+		if (readl(&nic->csr->mdi_ctrl) & mdi_ready)
+			break;
+		udelay(20);
+	}
+	if (unlikely(!i)) {
+		printk("e100.mdio_ctrl(%s) won't go Ready\n",
+			nic->netdev->name );
+		spin_unlock_irqrestore(&nic->mdio_lock, flags);
+		return 0;		/* No way to indicate timeout error */
+	}
 	writel((reg << 16) | (addr << 21) | dir | data, &nic->csr->mdi_ctrl);
 
-	for(i = 0; i < 100; i++) {
+	for (i = 0; i < 100; i++) {
 		udelay(20);
-		if((data_out = readl(&nic->csr->mdi_ctrl)) & mdi_ready)
+		if ((data_out = readl(&nic->csr->mdi_ctrl)) & mdi_ready)
 			break;
 	}
-
+	spin_unlock_irqrestore(&nic->mdio_lock, flags);
 	DPRINTK(HW, DEBUG,
 		"%s:addr=%d, reg=%d, data_in=0x%04X, data_out=0x%04X\n",
 		dir == mdi_read ? "READ" : "WRITE", addr, reg, data, data_out);
@@ -903,8 +928,8 @@ static void mdio_write(struct net_device *netdev, int addr, int reg, int data)
 
 static void e100_get_defaults(struct nic *nic)
 {
-	struct param_range rfds = { .min = 16, .max = 256, .count = 64 };
-	struct param_range cbs  = { .min = 64, .max = 256, .count = 64 };
+	struct param_range rfds = { .min = 16, .max = 256, .count = 256 };
+	struct param_range cbs  = { .min = 64, .max = 256, .count = 128 };
 
 	pci_read_config_byte(nic->pdev, PCI_REVISION_ID, &nic->rev_id);
 	/* MAC type is encoded as rev ID; exception: ICH is treated as 82559 */
@@ -1007,25 +1032,298 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		c[16], c[17], c[18], c[19], c[20], c[21], c[22], c[23]);
 }
 
-static void e100_load_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
-{
-	int i;
-	static const u32 ucode[UCODE_SIZE] = {
-		/* NFS packets are misinterpreted as TCO packets and
-		 * incorrectly routed to the BMC over SMBus.  This
-		 * microcode patch checks the fragmented IP bit in the
-		 * NFS/UDP header to distinguish between NFS and TCO. */
-		0x0EF70E36, 0x1FFF1FFF, 0x1FFF1FFF, 0x1FFF1FFF, 0x1FFF1FFF,
-		0x1FFF1FFF, 0x00906E41, 0x00800E3C, 0x00E00E39, 0x00000000,
-		0x00906EFD, 0x00900EFD,	0x00E00EF8,
-	};
+/********************************************************/
+/*  Micro code for 8086:1229 Rev 8                      */
+/********************************************************/
 
-	if(nic->mac == mac_82551_F || nic->mac == mac_82551_10) {
-		for(i = 0; i < UCODE_SIZE; i++)
+/*  Parameter values for the D101M B-step  */
+#define D101M_CPUSAVER_TIMER_DWORD		78
+#define D101M_CPUSAVER_BUNDLE_DWORD		65
+#define D101M_CPUSAVER_MIN_SIZE_DWORD		126
+
+#define D101M_B_RCVBUNDLE_UCODE \
+{\
+0x00550215, 0xFFFF0437, 0xFFFFFFFF, 0x06A70789, 0xFFFFFFFF, 0x0558FFFF, \
+0x000C0001, 0x00101312, 0x000C0008, 0x00380216, \
+0x0010009C, 0x00204056, 0x002380CC, 0x00380056, \
+0x0010009C, 0x00244C0B, 0x00000800, 0x00124818, \
+0x00380438, 0x00000000, 0x00140000, 0x00380555, \
+0x00308000, 0x00100662, 0x00100561, 0x000E0408, \
+0x00134861, 0x000C0002, 0x00103093, 0x00308000, \
+0x00100624, 0x00100561, 0x000E0408, 0x00100861, \
+0x000C007E, 0x00222C21, 0x000C0002, 0x00103093, \
+0x00380C7A, 0x00080000, 0x00103090, 0x00380C7A, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x0010009C, 0x00244C2D, 0x00010004, 0x00041000, \
+0x003A0437, 0x00044010, 0x0038078A, 0x00000000, \
+0x00100099, 0x00206C7A, 0x0010009C, 0x00244C48, \
+0x00130824, 0x000C0001, 0x00101213, 0x00260C75, \
+0x00041000, 0x00010004, 0x00130826, 0x000C0006, \
+0x002206A8, 0x0013C926, 0x00101313, 0x003806A8, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00080600, 0x00101B10, 0x00050004, 0x00100826, \
+0x00101210, 0x00380C34, 0x00000000, 0x00000000, \
+0x0021155B, 0x00100099, 0x00206559, 0x0010009C, \
+0x00244559, 0x00130836, 0x000C0000, 0x00220C62, \
+0x000C0001, 0x00101B13, 0x00229C0E, 0x00210C0E, \
+0x00226C0E, 0x00216C0E, 0x0022FC0E, 0x00215C0E, \
+0x00214C0E, 0x00380555, 0x00010004, 0x00041000, \
+0x00278C67, 0x00040800, 0x00018100, 0x003A0437, \
+0x00130826, 0x000C0001, 0x00220559, 0x00101313, \
+0x00380559, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00130831, 0x0010090B, 0x00124813, \
+0x000CFF80, 0x002606AB, 0x00041000, 0x00010004, \
+0x003806A8, 0x00000000, 0x00000000, 0x00000000, \
+}
+
+/********************************************************/
+/*  Micro code for 8086:1229 Rev 9                      */
+/********************************************************/
+
+/*  Parameter values for the D101S  */
+#define D101S_CPUSAVER_TIMER_DWORD		78
+#define D101S_CPUSAVER_BUNDLE_DWORD		67
+#define D101S_CPUSAVER_MIN_SIZE_DWORD		128
+
+#define D101S_RCVBUNDLE_UCODE \
+{\
+0x00550242, 0xFFFF047E, 0xFFFFFFFF, 0x06FF0818, 0xFFFFFFFF, 0x05A6FFFF, \
+0x000C0001, 0x00101312, 0x000C0008, 0x00380243, \
+0x0010009C, 0x00204056, 0x002380D0, 0x00380056, \
+0x0010009C, 0x00244F8B, 0x00000800, 0x00124818, \
+0x0038047F, 0x00000000, 0x00140000, 0x003805A3, \
+0x00308000, 0x00100610, 0x00100561, 0x000E0408, \
+0x00134861, 0x000C0002, 0x00103093, 0x00308000, \
+0x00100624, 0x00100561, 0x000E0408, 0x00100861, \
+0x000C007E, 0x00222FA1, 0x000C0002, 0x00103093, \
+0x00380F90, 0x00080000, 0x00103090, 0x00380F90, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x0010009C, 0x00244FAD, 0x00010004, 0x00041000, \
+0x003A047E, 0x00044010, 0x00380819, 0x00000000, \
+0x00100099, 0x00206FFD, 0x0010009A, 0x0020AFFD, \
+0x0010009C, 0x00244FC8, 0x00130824, 0x000C0001, \
+0x00101213, 0x00260FF7, 0x00041000, 0x00010004, \
+0x00130826, 0x000C0006, 0x00220700, 0x0013C926, \
+0x00101313, 0x00380700, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00080600, 0x00101B10, 0x00050004, 0x00100826, \
+0x00101210, 0x00380FB6, 0x00000000, 0x00000000, \
+0x002115A9, 0x00100099, 0x002065A7, 0x0010009A, \
+0x0020A5A7, 0x0010009C, 0x002445A7, 0x00130836, \
+0x000C0000, 0x00220FE4, 0x000C0001, 0x00101B13, \
+0x00229F8E, 0x00210F8E, 0x00226F8E, 0x00216F8E, \
+0x0022FF8E, 0x00215F8E, 0x00214F8E, 0x003805A3, \
+0x00010004, 0x00041000, 0x00278FE9, 0x00040800, \
+0x00018100, 0x003A047E, 0x00130826, 0x000C0001, \
+0x002205A7, 0x00101313, 0x003805A7, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00130831, \
+0x0010090B, 0x00124813, 0x000CFF80, 0x00260703, \
+0x00041000, 0x00010004, 0x00380700  \
+}
+
+/********************************************************/
+/*  Micro code for the 8086:1229 Rev F/10               */
+/********************************************************/
+
+/*  Parameter values for the D102 E-step  */
+#define D102_E_CPUSAVER_TIMER_DWORD		42
+#define D102_E_CPUSAVER_BUNDLE_DWORD		54
+#define D102_E_CPUSAVER_MIN_SIZE_DWORD		46
+
+#define     D102_E_RCVBUNDLE_UCODE \
+{\
+0x007D028F, 0x0E4204F9, 0x14ED0C85, 0x14FA14E9, 0x0EF70E36, 0x1FFF1FFF, \
+0x00E014B9, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014BD, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014D5, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014C1, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014C8, 0x00000000, 0x00000000, 0x00000000, \
+0x00200600, 0x00E014EE, 0x00000000, 0x00000000, \
+0x0030FF80, 0x00940E46, 0x00038200, 0x00102000, \
+0x00E00E43, 0x00000000, 0x00000000, 0x00000000, \
+0x00300006, 0x00E014FB, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00906E41, 0x00800E3C, 0x00E00E39, 0x00000000, \
+0x00906EFD, 0x00900EFD, 0x00E00EF8, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+}
+
+static void e100_setup_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+{
+/* *INDENT-OFF* */
+	static struct {
+		u32 ucode[UCODE_SIZE + 1];
+		u8 mac;
+		u8 timer_dword;
+		u8 bundle_dword;
+		u8 min_size_dword;
+	} ucode_opts[] = {
+		{ D101M_B_RCVBUNDLE_UCODE,
+		  mac_82559_D101M,
+		  D101M_CPUSAVER_TIMER_DWORD,
+		  D101M_CPUSAVER_BUNDLE_DWORD,
+		  D101M_CPUSAVER_MIN_SIZE_DWORD },
+		{ D101S_RCVBUNDLE_UCODE,
+		  mac_82559_D101S,
+		  D101S_CPUSAVER_TIMER_DWORD,
+		  D101S_CPUSAVER_BUNDLE_DWORD,
+		  D101S_CPUSAVER_MIN_SIZE_DWORD },
+		{ D102_E_RCVBUNDLE_UCODE,
+		  mac_82551_F,
+		  D102_E_CPUSAVER_TIMER_DWORD,
+		  D102_E_CPUSAVER_BUNDLE_DWORD,
+		  D102_E_CPUSAVER_MIN_SIZE_DWORD },
+		{ D102_E_RCVBUNDLE_UCODE,
+		  mac_82551_10,
+		  D102_E_CPUSAVER_TIMER_DWORD,
+		  D102_E_CPUSAVER_BUNDLE_DWORD,
+		  D102_E_CPUSAVER_MIN_SIZE_DWORD },
+		{ {0}, 0, 0, 0, 0}
+	}, *opts;
+/* *INDENT-ON* */
+
+/*************************************************************************
+*  CPUSaver parameters
+*
+*  All CPUSaver parameters are 16-bit literals that are part of a
+*  "move immediate value" instruction.  By changing the value of
+*  the literal in the instruction before the code is loaded, the
+*  driver can change the algorithm.
+*
+*  INTDELAY - This loads the dead-man timer with its inital value.
+*    When this timer expires the interrupt is asserted, and the
+*    timer is reset each time a new packet is received.  (see
+*    BUNDLEMAX below to set the limit on number of chained packets)
+*    The current default is 0x600 or 1536.  Experiments show that
+*    the value should probably stay within the 0x200 - 0x1000.
+*
+*  BUNDLEMAX -
+*    This sets the maximum number of frames that will be bundled.  In
+*    some situations, such as the TCP windowing algorithm, it may be
+*    better to limit the growth of the bundle size than let it go as
+*    high as it can, because that could cause too much added latency.
+*    The default is six, because this is the number of packets in the
+*    default TCP window size.  A value of 1 would make CPUSaver indicate
+*    an interrupt for every frame received.  If you do not want to put
+*    a limit on the bundle size, set this value to xFFFF.
+*
+*  BUNDLESMALL -
+*    This contains a bit-mask describing the minimum size frame that
+*    will be bundled.  The default masks the lower 7 bits, which means
+*    that any frame less than 128 bytes in length will not be bundled,
+*    but will instead immediately generate an interrupt.  This does
+*    not affect the current bundle in any way.  Any frame that is 128
+*    bytes or large will be bundled normally.  This feature is meant
+*    to provide immediate indication of ACK frames in a TCP environment.
+*    Customers were seeing poor performance when a machine with CPUSaver
+*    enabled was sending but not receiving.  The delay introduced when
+*    the ACKs were received was enough to reduce total throughput, because
+*    the sender would sit idle until the ACK was finally seen.
+*
+*    The current default is 0xFF80, which masks out the lower 7 bits.
+*    This means that any frame which is x7F (127) bytes or smaller
+*    will cause an immediate interrupt.  Because this value must be a
+*    bit mask, there are only a few valid values that can be used.  To
+*    turn this feature off, the driver can write the value xFFFF to the
+*    lower word of this instruction (in the same way that the other
+*    parameters are used).  Likewise, a value of 0xF800 (2047) would
+*    cause an interrupt to be generated for every frame, because all
+*    standard Ethernet frames are <= 2047 bytes in length.
+*************************************************************************/
+
+/* if you wish to disable the ucode functionality, while maintaining the
+ * workarounds it provides, set the following defines to:
+ * BUNDLESMALL 0
+ * BUNDLEMAX 1
+ * INTDELAY 1
+ */
+#define BUNDLESMALL 1
+#define BUNDLEMAX (u16)6
+#define INTDELAY (u16)1536 /* 0x600 */
+
+	/* do not load u-code for ICH devices */
+	if (nic->flags & ich)
+		goto noloaducode;
+
+	/* Search for ucode match against h/w rev_id */
+	for (opts = ucode_opts; opts->mac; opts++) {
+		int i;
+		u32 *ucode = opts->ucode;
+		if (nic->mac != opts->mac)
+			continue;
+
+		/* Insert user-tunable settings */
+		ucode[opts->timer_dword] &= 0xFFFF0000;
+		ucode[opts->timer_dword] |= INTDELAY;
+		ucode[opts->bundle_dword] &= 0xFFFF0000;
+		ucode[opts->bundle_dword] |= BUNDLEMAX;
+		ucode[opts->min_size_dword] &= 0xFFFF0000;
+		ucode[opts->min_size_dword] |= (BUNDLESMALL) ? 0xFFFF : 0xFF80;
+
+		for (i = 0; i < UCODE_SIZE; i++)
 			cb->u.ucode[i] = cpu_to_le32(ucode[i]);
-		cb->command = cpu_to_le16(cb_ucode);
-	} else
-		cb->command = cpu_to_le16(cb_nop);
+		cb->command = cpu_to_le16(cb_ucode | cb_el);
+		return;
+	}
+
+noloaducode:
+	cb->command = cpu_to_le16(cb_nop | cb_el);
+}
+
+static inline int e100_exec_cb_wait(struct nic *nic, struct sk_buff *skb,
+	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
+{
+	int err = 0, counter = 50;
+	struct cb *cb = nic->cb_to_clean;
+
+	if ((err = e100_exec_cb(nic, NULL, e100_setup_ucode)))
+		DPRINTK(PROBE,ERR, "ucode cmd failed with error %d\n", err);
+
+	/* must restart cuc */
+	nic->cuc_cmd = cuc_start;
+
+	/* wait for completion */
+	e100_write_flush(nic);
+	udelay(10);
+
+	/* wait for possibly (ouch) 500ms */
+	while (!(cb->status & cpu_to_le16(cb_complete))) {
+		msleep(10);
+		if (!--counter) break;
+	}
+
+	/* ack any interupts, something could have been set */
+	writeb(~0, &nic->csr->scb.stat_ack);
+
+	/* if the command failed, or is not OK, notify and return */
+	if (!counter || !(cb->status & cpu_to_le16(cb_ok))) {
+		DPRINTK(PROBE,ERR, "ucode load failed\n");
+		err = -EPERM;
+	}
+
+	return err;
 }
 
 static void e100_setup_iaaddr(struct nic *nic, struct cb *cb,
@@ -1093,13 +1391,13 @@ static int e100_phy_init(struct nic *nic)
 		mdio_write(netdev, nic->mii.phy_id, MII_NSC_CONG, cong);
 	}
 
-	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) && 
+	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) &&
 	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000))) {
 		/* enable/disable MDI/MDI-X auto-switching.
 		   MDI/MDI-X auto-switching is disabled for 82551ER/QM chips */
 		if((nic->mac == mac_82551_E) || (nic->mac == mac_82551_F) ||
-		   (nic->mac == mac_82551_10) || (nic->mii.force_media) || 
-		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled)) 
+		   (nic->mac == mac_82551_10) || (nic->mii.force_media) ||
+		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled))
 			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, 0);
 		else
 			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, NCONFIG_AUTO_SWITCH);
@@ -1124,7 +1422,7 @@ static int e100_hw_init(struct nic *nic)
 		return err;
 	if((err = e100_exec_cmd(nic, ruc_load_base, 0)))
 		return err;
-	if((err = e100_exec_cb(nic, NULL, e100_load_ucode)))
+	if ((err = e100_exec_cb_wait(nic, NULL, e100_setup_ucode)))
 		return err;
 	if((err = e100_exec_cb(nic, NULL, e100_configure)))
 		return err;
@@ -1229,7 +1527,7 @@ static void e100_update_stats(struct nic *nic)
 		}
 	}
 
-	
+
 	if(e100_exec_cmd(nic, cuc_dump_reset, 0))
 		DPRINTK(TX_ERR, DEBUG, "exec cuc_dump_reset failed\n");
 }
@@ -1278,10 +1576,10 @@ static void e100_watchdog(unsigned long data)
 	mii_check_link(&nic->mii);
 
 	/* Software generated interrupt to recover from (rare) Rx
-	* allocation failure.
-	* Unfortunately have to use a spinlock to not re-enable interrupts
-	* accidentally, due to hardware that shares a register between the
-	* interrupt mask bit and the SW Interrupt generation bit */
+	 * allocation failure.
+	 * Unfortunately have to use a spinlock to not re-enable interrupts
+	 * accidentally, due to hardware that shares a register between the
+	 * interrupt mask bit and the SW Interrupt generation bit */
 	spin_lock_irq(&nic->cmd_lock);
 	writeb(readb(&nic->csr->scb.cmd_hi) | irq_sw_gen,&nic->csr->scb.cmd_hi);
 	spin_unlock_irq(&nic->cmd_lock);
@@ -1303,7 +1601,7 @@ static void e100_watchdog(unsigned long data)
 	mod_timer(&nic->watchdog, jiffies + E100_WATCHDOG_PERIOD);
 }
 
-static inline void e100_xmit_prepare(struct nic *nic, struct cb *cb,
+static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = nic->tx_command;
@@ -1353,7 +1651,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	return 0;
 }
 
-static inline int e100_tx_clean(struct nic *nic)
+static int e100_tx_clean(struct nic *nic)
 {
 	struct cb *cb;
 	int tx_cleaned = 0;
@@ -1464,7 +1762,7 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 }
 
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
-static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
+static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
 	if(!(rx->skb = dev_alloc_skb(RFD_BUF_LEN + NET_IP_ALIGN)))
 		return -ENOMEM;
@@ -1498,7 +1796,7 @@ static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 	return 0;
 }
 
-static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
+static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	unsigned int *work_done, unsigned int work_to_do)
 {
 	struct sk_buff *skb = rx->skb;
@@ -1558,7 +1856,7 @@ static inline int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	return 0;
 }
 
-static inline void e100_rx_clean(struct nic *nic, unsigned int *work_done,
+static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 	unsigned int work_to_do)
 {
 	struct rx *rx;
@@ -1566,7 +1864,7 @@ static inline void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 	struct rx *rx_to_start = NULL;
 
 	/* are we already rnr? then pay attention!!! this ensures that
-	 * the state machine progression never allows a start with a 
+	 * the state machine progression never allows a start with a
 	 * partially cleaned list, avoiding a race between hardware
 	 * and rx_to_clean when in NAPI mode */
 	if(RU_SUSPENDED == nic->ru_running)
@@ -1802,7 +2100,7 @@ static void e100_tx_timeout(struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 
-	/* Reset outside of interrupt context, to avoid request_irq 
+	/* Reset outside of interrupt context, to avoid request_irq
 	 * in interrupt context */
 	schedule_work(&nic->tx_timeout_task);
 }
@@ -2049,7 +2347,7 @@ static int e100_set_ringparam(struct net_device *netdev,
 	struct param_range *rfds = &nic->params.rfds;
 	struct param_range *cbs = &nic->params.cbs;
 
-	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending)) 
+	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
 	if(netif_running(netdev))
@@ -2323,6 +2621,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	/* locks must be initialized before calling hw_reset */
 	spin_lock_init(&nic->cb_lock);
 	spin_lock_init(&nic->cmd_lock);
+	spin_lock_init(&nic->mdio_lock);
 
 	/* Reset the device before pci_set_master() in case device is in some
 	 * funky state and has an interrupt pending - hint: we don't have the
@@ -2366,7 +2665,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		nic->flags |= wol_magic;
 
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	err = pci_enable_wake(pdev, 0, 0);
+	if (err)
+		DPRINTK(PROBE, ERR, "Error clearing wake event\n");
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev))) {
@@ -2417,6 +2718,7 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
+	int retval;
 
 	if(netif_running(netdev))
 		e100_down(nic);
@@ -2424,9 +2726,14 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(netdev);
 
 	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), nic->flags & (wol_magic | e100_asf(nic)));
+	retval = pci_enable_wake(pdev, pci_choose_state(pdev, state),
+	                         nic->flags & (wol_magic | e100_asf(nic)));
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error enabling wake\n");
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	retval = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error %d setting power state\n", retval);
 
 	return 0;
 }
@@ -2435,11 +2742,16 @@ static int e100_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
+	int retval;
 
-	pci_set_power_state(pdev, PCI_D0);
+	retval = pci_set_power_state(pdev, PCI_D0);
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error waking adapter\n");
 	pci_restore_state(pdev);
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	retval = pci_enable_wake(pdev, 0, 0);
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error clearing wake events\n");
 	if(e100_hw_init(nic))
 		DPRINTK(HW, ERR, "e100_hw_init failed\n");
 
@@ -2456,12 +2768,15 @@ static void e100_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
+	int retval;
 
 #ifdef CONFIG_PM
-	pci_enable_wake(pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
+	retval = pci_enable_wake(pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
 #else
-	pci_enable_wake(pdev, 0, nic->flags & (wol_magic));
+	retval = pci_enable_wake(pdev, 0, nic->flags & (wol_magic));
 #endif
+	if (retval)
+		DPRINTK(PROBE,ERR, "Error enabling wake\n");
 }
 
 
@@ -2474,7 +2789,7 @@ static struct pci_driver e100_driver = {
 	.suspend =      e100_suspend,
 	.resume =       e100_resume,
 #endif
-	.shutdown =	e100_shutdown,
+	.shutdown =     e100_shutdown,
 };
 
 static int __init e100_init_module(void)

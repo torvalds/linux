@@ -15,14 +15,6 @@
 #include <asm/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/usb.h>
 #include "hcd.h"
 
@@ -62,6 +54,9 @@ int hcd_buffer_create (struct usb_hcd *hcd)
 {
 	char		name [16];
 	int 		i, size;
+
+	if (!hcd->self.controller->dma_mask)
+		return 0;
 
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) { 
 		if (!(size = pool_max [i]))

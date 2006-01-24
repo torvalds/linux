@@ -55,9 +55,9 @@
 #define NF_CT_FRAG6_LOW_THRESH 196608  /* == 192*1024 */
 #define NF_CT_FRAG6_TIMEOUT IPV6_FRAG_TIMEOUT
 
-int nf_ct_frag6_high_thresh = 256*1024;
-int nf_ct_frag6_low_thresh = 192*1024;
-int nf_ct_frag6_timeout = IPV6_FRAG_TIMEOUT;
+unsigned int nf_ct_frag6_high_thresh = 256*1024;
+unsigned int nf_ct_frag6_low_thresh = 192*1024;
+unsigned long nf_ct_frag6_timeout = IPV6_FRAG_TIMEOUT;
 
 struct nf_ct_frag6_skb_cb
 {
@@ -70,8 +70,8 @@ struct nf_ct_frag6_skb_cb
 
 struct nf_ct_frag6_queue
 {
-	struct nf_ct_frag6_queue	*next;
-	struct list_head lru_list;		/* lru list member	*/
+	struct hlist_node	list;
+	struct list_head	lru_list;	/* lru list member	*/
 
 	__u32			id;		/* fragment id		*/
 	struct in6_addr		saddr;
@@ -90,24 +90,21 @@ struct nf_ct_frag6_queue
 #define FIRST_IN		2
 #define LAST_IN			1
 	__u16			nhoffset;
-	struct nf_ct_frag6_queue	**pprev;
 };
 
 /* Hash table. */
 
 #define FRAG6Q_HASHSZ	64
 
-static struct nf_ct_frag6_queue *nf_ct_frag6_hash[FRAG6Q_HASHSZ];
-static rwlock_t nf_ct_frag6_lock = RW_LOCK_UNLOCKED;
+static struct hlist_head nf_ct_frag6_hash[FRAG6Q_HASHSZ];
+static DEFINE_RWLOCK(nf_ct_frag6_lock);
 static u32 nf_ct_frag6_hash_rnd;
 static LIST_HEAD(nf_ct_frag6_lru_list);
 int nf_ct_frag6_nqueues = 0;
 
 static __inline__ void __fq_unlink(struct nf_ct_frag6_queue *fq)
 {
-	if (fq->next)
-		fq->next->pprev = fq->pprev;
-	*fq->pprev = fq->next;
+	hlist_del(&fq->list);
 	list_del(&fq->lru_list);
 	nf_ct_frag6_nqueues--;
 }
@@ -158,28 +155,18 @@ static void nf_ct_frag6_secret_rebuild(unsigned long dummy)
 	get_random_bytes(&nf_ct_frag6_hash_rnd, sizeof(u32));
 	for (i = 0; i < FRAG6Q_HASHSZ; i++) {
 		struct nf_ct_frag6_queue *q;
+		struct hlist_node *p, *n;
 
-		q = nf_ct_frag6_hash[i];
-		while (q) {
-			struct nf_ct_frag6_queue *next = q->next;
+		hlist_for_each_entry_safe(q, p, n, &nf_ct_frag6_hash[i], list) {
 			unsigned int hval = ip6qhashfn(q->id,
 						       &q->saddr,
 						       &q->daddr);
-
 			if (hval != i) {
-				/* Unlink. */
-				if (q->next)
-					q->next->pprev = q->pprev;
-				*q->pprev = q->next;
-
+				hlist_del(&q->list);
 				/* Relink to new hash chain. */
-				if ((q->next = nf_ct_frag6_hash[hval]) != NULL)
-					q->next->pprev = &q->next;
-				nf_ct_frag6_hash[hval] = q;
-				q->pprev = &nf_ct_frag6_hash[hval];
+				hlist_add_head(&q->list,
+					       &nf_ct_frag6_hash[hval]);
 			}
-
-			q = next;
 		}
 	}
 	write_unlock(&nf_ct_frag6_lock);
@@ -190,8 +177,10 @@ static void nf_ct_frag6_secret_rebuild(unsigned long dummy)
 atomic_t nf_ct_frag6_mem = ATOMIC_INIT(0);
 
 /* Memory Tracking Functions. */
-static inline void frag_kfree_skb(struct sk_buff *skb)
+static inline void frag_kfree_skb(struct sk_buff *skb, unsigned int *work)
 {
+	if (work)
+		*work -= skb->truesize;
 	atomic_sub(skb->truesize, &nf_ct_frag6_mem);
 	if (NFCT_FRAG6_CB(skb)->orig)
 		kfree_skb(NFCT_FRAG6_CB(skb)->orig);
@@ -199,8 +188,11 @@ static inline void frag_kfree_skb(struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-static inline void frag_free_queue(struct nf_ct_frag6_queue *fq)
+static inline void frag_free_queue(struct nf_ct_frag6_queue *fq,
+				   unsigned int *work)
 {
+	if (work)
+		*work -= sizeof(struct nf_ct_frag6_queue);
 	atomic_sub(sizeof(struct nf_ct_frag6_queue), &nf_ct_frag6_mem);
 	kfree(fq);
 }
@@ -218,7 +210,8 @@ static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 /* Destruction primitives. */
 
 /* Complete destruction of fq. */
-static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq)
+static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq,
+				unsigned int *work)
 {
 	struct sk_buff *fp;
 
@@ -230,17 +223,17 @@ static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq)
 	while (fp) {
 		struct sk_buff *xp = fp->next;
 
-		frag_kfree_skb(fp);
+		frag_kfree_skb(fp, work);
 		fp = xp;
 	}
 
-	frag_free_queue(fq);
+	frag_free_queue(fq, work);
 }
 
-static __inline__ void fq_put(struct nf_ct_frag6_queue *fq)
+static __inline__ void fq_put(struct nf_ct_frag6_queue *fq, unsigned int *work)
 {
 	if (atomic_dec_and_test(&fq->refcnt))
-		nf_ct_frag6_destroy(fq);
+		nf_ct_frag6_destroy(fq, work);
 }
 
 /* Kill fq entry. It is not destroyed immediately,
@@ -262,16 +255,21 @@ static void nf_ct_frag6_evictor(void)
 {
 	struct nf_ct_frag6_queue *fq;
 	struct list_head *tmp;
+	unsigned int work;
 
-	for (;;) {
-		if (atomic_read(&nf_ct_frag6_mem) <= nf_ct_frag6_low_thresh)
-			return;
+	work = atomic_read(&nf_ct_frag6_mem);
+	if (work <= nf_ct_frag6_low_thresh)
+		return;
+
+	work -= nf_ct_frag6_low_thresh;
+	while (work > 0) {
 		read_lock(&nf_ct_frag6_lock);
 		if (list_empty(&nf_ct_frag6_lru_list)) {
 			read_unlock(&nf_ct_frag6_lock);
 			return;
 		}
 		tmp = nf_ct_frag6_lru_list.next;
+		BUG_ON(tmp == NULL);
 		fq = list_entry(tmp, struct nf_ct_frag6_queue, lru_list);
 		atomic_inc(&fq->refcnt);
 		read_unlock(&nf_ct_frag6_lock);
@@ -281,7 +279,7 @@ static void nf_ct_frag6_evictor(void)
 			fq_kill(fq);
 		spin_unlock(&fq->lock);
 
-		fq_put(fq);
+		fq_put(fq, &work);
 	}
 }
 
@@ -298,27 +296,29 @@ static void nf_ct_frag6_expire(unsigned long data)
 
 out:
 	spin_unlock(&fq->lock);
-	fq_put(fq);
+	fq_put(fq, NULL);
 }
 
 /* Creation primitives. */
-
 
 static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 					  struct nf_ct_frag6_queue *fq_in)
 {
 	struct nf_ct_frag6_queue *fq;
+#ifdef CONFIG_SMP
+	struct hlist_node *n;
+#endif
 
 	write_lock(&nf_ct_frag6_lock);
 #ifdef CONFIG_SMP
-	for (fq = nf_ct_frag6_hash[hash]; fq; fq = fq->next) {
+	hlist_for_each_entry(fq, n, &nf_ct_frag6_hash[hash], list) {
 		if (fq->id == fq_in->id && 
 		    !ipv6_addr_cmp(&fq_in->saddr, &fq->saddr) &&
 		    !ipv6_addr_cmp(&fq_in->daddr, &fq->daddr)) {
 			atomic_inc(&fq->refcnt);
 			write_unlock(&nf_ct_frag6_lock);
 			fq_in->last_in |= COMPLETE;
-			fq_put(fq_in);
+			fq_put(fq_in, NULL);
 			return fq;
 		}
 	}
@@ -329,10 +329,7 @@ static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 		atomic_inc(&fq->refcnt);
 
 	atomic_inc(&fq->refcnt);
-	if ((fq->next = nf_ct_frag6_hash[hash]) != NULL)
-		fq->next->pprev = &fq->next;
-	nf_ct_frag6_hash[hash] = fq;
-	fq->pprev = &nf_ct_frag6_hash[hash];
+	hlist_add_head(&fq->list, &nf_ct_frag6_hash[hash]);
 	INIT_LIST_HEAD(&fq->lru_list);
 	list_add_tail(&fq->lru_list, &nf_ct_frag6_lru_list);
 	nf_ct_frag6_nqueues++;
@@ -360,7 +357,7 @@ nf_ct_frag6_create(unsigned int hash, u32 id, struct in6_addr *src,				   struct
 	init_timer(&fq->timer);
 	fq->timer.function = nf_ct_frag6_expire;
 	fq->timer.data = (long) fq;
-	fq->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&fq->lock);
 	atomic_set(&fq->refcnt, 1);
 
 	return nf_ct_frag6_intern(hash, fq);
@@ -373,10 +370,11 @@ static __inline__ struct nf_ct_frag6_queue *
 fq_find(u32 id, struct in6_addr *src, struct in6_addr *dst)
 {
 	struct nf_ct_frag6_queue *fq;
+	struct hlist_node *n;
 	unsigned int hash = ip6qhashfn(id, src, dst);
 
 	read_lock(&nf_ct_frag6_lock);
-	for (fq = nf_ct_frag6_hash[hash]; fq; fq = fq->next) {
+	hlist_for_each_entry(fq, n, &nf_ct_frag6_hash[hash], list) {
 		if (fq->id == id && 
 		    !ipv6_addr_cmp(src, &fq->saddr) &&
 		    !ipv6_addr_cmp(dst, &fq->daddr)) {
@@ -535,7 +533,7 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 				fq->fragments = next;
 
 			fq->meat -= free_it->len;
-			frag_kfree_skb(free_it);
+			frag_kfree_skb(free_it, NULL);
 		}
 	}
 
@@ -811,7 +809,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	if (nf_ct_frag6_queue(fq, clone, fhdr, nhoff) < 0) {
 		spin_unlock(&fq->lock);
 		DEBUGP("Can't insert skb to queue\n");
-		fq_put(fq);
+		fq_put(fq, NULL);
 		goto ret_orig;
 	}
 
@@ -822,7 +820,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	}
 	spin_unlock(&fq->lock);
 
-	fq_put(fq);
+	fq_put(fq, NULL);
 	return ret_skb;
 
 ret_orig:
@@ -881,5 +879,6 @@ int nf_ct_frag6_init(void)
 void nf_ct_frag6_cleanup(void)
 {
 	del_timer(&nf_ct_frag6_secret_timer);
+	nf_ct_frag6_low_thresh = 0;
 	nf_ct_frag6_evictor();
 }

@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#51 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#58 $
  *
  * $FreeBSD$
  */
@@ -522,12 +522,21 @@ do {								\
 static __inline uint16_t
 ahd_inw(struct ahd_softc *ahd, u_int port)
 {
+	/*
+	 * Read high byte first as some registers increment
+	 * or have other side effects when the low byte is
+	 * read.
+	 */
 	return ((ahd_inb(ahd, port+1) << 8) | ahd_inb(ahd, port));
 }
 
 static __inline void
 ahd_outw(struct ahd_softc *ahd, u_int port, u_int value)
 {
+	/*
+	 * Write low byte first to accomodate registers
+	 * such as PRGMCNT where the order maters.
+	 */
 	ahd_outb(ahd, port, value & 0xFF);
 	ahd_outb(ahd, port+1, (value >> 8) & 0xFF);
 }
@@ -684,7 +693,7 @@ ahd_inb_scbram(struct ahd_softc *ahd, u_int offset)
 	 * Razor #528
 	 */
 	value = ahd_inb(ahd, offset);
-	if ((ahd->flags & AHD_PCIX_SCBRAM_RD_BUG) != 0)
+	if ((ahd->bugs & AHD_PCIX_SCBRAM_RD_BUG) != 0)
 		ahd_inb(ahd, MODE_PTR);
 	return (value);
 }
@@ -727,7 +736,8 @@ ahd_lookup_scb(struct ahd_softc *ahd, u_int tag)
 static __inline void
 ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 {
-	struct hardware_scb *q_hscb;
+	struct	 hardware_scb *q_hscb;
+	struct	 map_node *q_hscb_map;
 	uint32_t saved_hscb_busaddr;
 
 	/*
@@ -743,6 +753,7 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 	 * locate the correct SCB by SCB_TAG.
 	 */
 	q_hscb = ahd->next_queued_hscb;
+	q_hscb_map = ahd->next_queued_hscb_map;
 	saved_hscb_busaddr = q_hscb->hscb_busaddr;
 	memcpy(q_hscb, scb->hscb, sizeof(*scb->hscb));
 	q_hscb->hscb_busaddr = saved_hscb_busaddr;
@@ -750,7 +761,9 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 
 	/* Now swap HSCB pointers. */
 	ahd->next_queued_hscb = scb->hscb;
+	ahd->next_queued_hscb_map = scb->hscb_map;
 	scb->hscb = q_hscb;
+	scb->hscb_map = q_hscb_map;
 
 	/* Now define the mapping from tag to SCB in the scbindex */
 	ahd->scb_data.scbindex[SCB_GET_TAG(scb)] = scb;
@@ -824,8 +837,9 @@ static __inline int	ahd_intr(struct ahd_softc *ahd);
 static __inline void
 ahd_sync_qoutfifo(struct ahd_softc *ahd, int op)
 {
-	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_dmamap,
-			/*offset*/0, /*len*/AHC_SCB_MAX * sizeof(uint16_t), op);
+	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
+			/*offset*/0,
+			/*len*/AHD_SCB_MAX * sizeof(struct ahd_completion), op);
 }
 
 static __inline void
@@ -834,7 +848,7 @@ ahd_sync_tqinfifo(struct ahd_softc *ahd, int op)
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0) {
 		ahd_dmamap_sync(ahd, ahd->shared_data_dmat,
-				ahd->shared_data_dmamap,
+				ahd->shared_data_map.dmamap,
 				ahd_targetcmd_offset(ahd, 0),
 				sizeof(struct target_cmd) * AHD_TMODE_CMDS,
 				op);
@@ -854,17 +868,17 @@ ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 	u_int retval;
 
 	retval = 0;
-	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_dmamap,
-			/*offset*/ahd->qoutfifonext, /*len*/2,
-			BUS_DMASYNC_POSTREAD);
-	if ((ahd->qoutfifo[ahd->qoutfifonext]
-	     & QOUTFIFO_ENTRY_VALID_LE) == ahd->qoutfifonext_valid_tag)
+	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
+			/*offset*/ahd->qoutfifonext * sizeof(*ahd->qoutfifo),
+			/*len*/sizeof(*ahd->qoutfifo), BUS_DMASYNC_POSTREAD);
+	if (ahd->qoutfifo[ahd->qoutfifonext].valid_tag
+	  == ahd->qoutfifonext_valid_tag)
 		retval |= AHD_RUN_QOUTFIFO;
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0
 	 && (ahd->flags & AHD_TQINFIFO_BLOCKED) == 0) {
 		ahd_dmamap_sync(ahd, ahd->shared_data_dmat,
-				ahd->shared_data_dmamap,
+				ahd->shared_data_map.dmamap,
 				ahd_targetcmd_offset(ahd, ahd->tqinfifofnext),
 				/*len*/sizeof(struct target_cmd),
 				BUS_DMASYNC_POSTREAD);

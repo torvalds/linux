@@ -452,13 +452,17 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 
 	/* Return if no suitable logo was found */
 	fb_logo.logo = fb_find_logo(depth);
+
+	if (!fb_logo.logo) {
+		return 0;
+	}
 	
 	if (rotate == FB_ROTATE_UR || rotate == FB_ROTATE_UD)
 		yres = info->var.yres;
 	else
 		yres = info->var.xres;
 
-	if (fb_logo.logo && fb_logo.logo->height > yres) {
+	if (fb_logo.logo->height > yres) {
 		fb_logo.logo = NULL;
 		return 0;
 	}
@@ -585,17 +589,19 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		return info->fbops->fb_read(file, buf, count, ppos);
 	
 	total_size = info->screen_size;
+
 	if (total_size == 0)
 		total_size = info->fix.smem_len;
 
 	if (p >= total_size)
-	    return 0;
+		return 0;
+
 	if (count >= total_size)
-	    count = total_size;
+		count = total_size;
+
 	if (count + p > total_size)
 		count = total_size - p;
 
-	cnt = 0;
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
 	if (!buffer)
@@ -632,6 +638,7 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	}
 
 	kfree(buffer);
+
 	return (err) ? err : cnt;
 }
 
@@ -644,7 +651,7 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	struct fb_info *info = registered_fb[fbidx];
 	u32 *buffer, *src;
 	u32 __iomem *dst;
-	int c, i, cnt = 0, err;
+	int c, i, cnt = 0, err = 0;
 	unsigned long total_size;
 
 	if (!info || !info->screen_base)
@@ -657,19 +664,19 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		return info->fbops->fb_write(file, buf, count, ppos);
 	
 	total_size = info->screen_size;
+
 	if (total_size == 0)
 		total_size = info->fix.smem_len;
 
 	if (p > total_size)
-	    return -ENOSPC;
+		return 0;
+
 	if (count >= total_size)
-	    count = total_size;
-	err = 0;
-	if (count + p > total_size) {
-	    count = total_size - p;
-	    err = -ENOSPC;
-	}
-	cnt = 0;
+		count = total_size;
+
+	if (count + p > total_size)
+		count = total_size - p;
+
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
 	if (!buffer)
@@ -683,12 +690,15 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	while (count) {
 		c = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		src = buffer;
+
 		if (copy_from_user(src, buf, c)) {
 			err = -EFAULT;
 			break;
 		}
+
 		for (i = c >> 2; i--; )
 			fb_writel(*src++, dst++);
+
 		if (c & 3) {
 			u8 *src8 = (u8 *) src;
 			u8 __iomem *dst8 = (u8 __iomem *) dst;
@@ -698,11 +708,13 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 			dst = (u32 __iomem *) dst8;
 		}
+
 		*ppos += c;
 		buf += c;
 		cnt += c;
 		count -= c;
 	}
+
 	kfree(buffer);
 
 	return (err) ? err : cnt;
@@ -718,14 +730,30 @@ static void try_to_load(int fb)
 int
 fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 {
+	struct fb_fix_screeninfo *fix = &info->fix;
         int xoffset = var->xoffset;
         int yoffset = var->yoffset;
-        int err;
+        int err = 0, yres = info->var.yres;
 
-        if (xoffset < 0 || yoffset < 0 || !info->fbops->fb_pan_display ||
-            xoffset + info->var.xres > info->var.xres_virtual ||
-            yoffset + info->var.yres > info->var.yres_virtual)
-                return -EINVAL;
+	if (var->yoffset > 0) {
+		if (var->vmode & FB_VMODE_YWRAP) {
+			if (!fix->ywrapstep || (var->yoffset % fix->ywrapstep))
+				err = -EINVAL;
+			else
+				yres = 0;
+		} else if (!fix->ypanstep || (var->yoffset % fix->ypanstep))
+			err = -EINVAL;
+	}
+
+	if (var->xoffset > 0 && (!fix->xpanstep ||
+				 (var->xoffset % fix->xpanstep)))
+		err = -EINVAL;
+
+        if (err || !info->fbops->fb_pan_display || xoffset < 0 ||
+	    yoffset < 0 || var->yoffset + yres > info->var.yres_virtual ||
+	    var->xoffset + info->var.xres > info->var.xres_virtual)
+		return -EINVAL;
+
 	if ((err = info->fbops->fb_pan_display(var, info)))
 		return err;
         info->var.xoffset = var->xoffset;
@@ -929,7 +957,7 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	default:
 		if (fb->fb_ioctl == NULL)
 			return -EINVAL;
-		return fb->fb_ioctl(inode, file, cmd, arg, info);
+		return fb->fb_ioctl(info, cmd, arg);
 	}
 }
 
@@ -1079,7 +1107,7 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	default:
 		if (fb->fb_compat_ioctl)
-			ret = fb->fb_compat_ioctl(file, cmd, arg, info);
+			ret = fb->fb_compat_ioctl(info, cmd, arg);
 		break;
 	}
 	unlock_kernel();
@@ -1107,7 +1135,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (fb->fb_mmap) {
 		int res;
 		lock_kernel();
-		res = fb->fb_mmap(info, file, vma);
+		res = fb->fb_mmap(info, vma);
 		unlock_kernel();
 		return res;
 	}
@@ -1206,6 +1234,7 @@ fb_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	if (!try_module_get(info->fbops->owner))
 		return -ENODEV;
+	file->private_data = info;
 	if (info->fbops->fb_open) {
 		res = info->fbops->fb_open(info,1);
 		if (res)
@@ -1217,11 +1246,9 @@ fb_open(struct inode *inode, struct file *file)
 static int 
 fb_release(struct inode *inode, struct file *file)
 {
-	int fbidx = iminor(inode);
-	struct fb_info *info;
+	struct fb_info * const info = file->private_data;
 
 	lock_kernel();
-	info = registered_fb[fbidx];
 	if (info->fbops->fb_release)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);

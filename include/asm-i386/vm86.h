@@ -16,7 +16,11 @@
 #define IF_MASK		0x00000200
 #define IOPL_MASK	0x00003000
 #define NT_MASK		0x00004000
+#ifdef CONFIG_VM86
 #define VM_MASK		0x00020000
+#else
+#define VM_MASK		0 /* ignored */
+#endif
 #define AC_MASK		0x00040000
 #define VIF_MASK	0x00080000	/* virtual interrupt flag */
 #define VIP_MASK	0x00100000	/* virtual interrupt pending */
@@ -200,8 +204,24 @@ struct kernel_vm86_struct {
  */
 };
 
+#ifdef CONFIG_VM86
+
 void handle_vm86_fault(struct kernel_vm86_regs *, long);
 int handle_vm86_trap(struct kernel_vm86_regs *, long, int);
+
+struct task_struct;
+void release_vm86_irqs(struct task_struct *);
+
+#else
+
+#define handle_vm86_fault(a, b)
+#define release_vm86_irqs(a)
+
+static inline int handle_vm86_trap(struct kernel_vm86_regs *a, long b, int c) {
+	return 0;
+}
+
+#endif /* CONFIG_VM86 */
 
 #endif /* __KERNEL__ */
 

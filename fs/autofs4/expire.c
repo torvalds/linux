@@ -105,7 +105,7 @@ repeat:
 	next = this_parent->d_subdirs.next;
 resume:
 	while (next != &this_parent->d_subdirs) {
-		struct dentry *dentry = list_entry(next, struct dentry, d_child);
+		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		/* Negative dentry - give up */
 		if (!simple_positive(dentry)) {
@@ -138,7 +138,7 @@ resume:
 	}
 
 	if (this_parent != top) {
-		next = this_parent->d_child.next;
+		next = this_parent->d_u.d_child.next;
 		this_parent = this_parent->d_parent;
 		goto resume;
 	}
@@ -163,7 +163,7 @@ repeat:
 	next = this_parent->d_subdirs.next;
 resume:
 	while (next != &this_parent->d_subdirs) {
-		struct dentry *dentry = list_entry(next, struct dentry, d_child);
+		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		/* Negative dentry - give up */
 		if (!simple_positive(dentry)) {
@@ -199,7 +199,7 @@ cont:
 	}
 
 	if (this_parent != parent) {
-		next = this_parent->d_child.next;
+		next = this_parent->d_u.d_child.next;
 		this_parent = this_parent->d_parent;
 		goto resume;
 	}
@@ -238,7 +238,7 @@ static struct dentry *autofs4_expire(struct super_block *sb,
 	/* On exit from the loop expire is set to a dgot dentry
 	 * to expire or it's NULL */
 	while ( next != &root->d_subdirs ) {
-		struct dentry *dentry = list_entry(next, struct dentry, d_child);
+		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		/* Negative dentry - give up */
 		if ( !simple_positive(dentry) ) {
@@ -302,7 +302,7 @@ next:
 			expired, (int)expired->d_name.len, expired->d_name.name);
 		spin_lock(&dcache_lock);
 		list_del(&expired->d_parent->d_subdirs);
-		list_add(&expired->d_parent->d_subdirs, &expired->d_child);
+		list_add(&expired->d_parent->d_subdirs, &expired->d_u.d_child);
 		spin_unlock(&dcache_lock);
 		return expired;
 	}

@@ -33,4 +33,20 @@ static inline void * phys_to_virt(unsigned long address)
  */
 #define xlate_dev_kmem_ptr(p)	p
 
+static inline void writeb(unsigned char b, volatile void __iomem *addr)
+{
+	*(volatile unsigned char __force *) addr = b;
+}
+static inline void writew(unsigned short b, volatile void __iomem *addr)
+{
+	*(volatile unsigned short __force *) addr = b;
+}
+static inline void writel(unsigned int b, volatile void __iomem *addr)
+{
+	*(volatile unsigned int __force *) addr = b;
+}
+#define __raw_writeb writeb
+#define __raw_writew writew
+#define __raw_writel writel
+
 #endif

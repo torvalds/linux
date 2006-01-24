@@ -251,7 +251,7 @@ tcp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 #define TCP_DIR_OUTPUT		4
 #define TCP_DIR_INPUT_ONLY	8
 
-static int tcp_state_off[IP_VS_DIR_LAST] = {
+static const int tcp_state_off[IP_VS_DIR_LAST] = {
 	[IP_VS_DIR_INPUT]		=	TCP_DIR_INPUT,
 	[IP_VS_DIR_OUTPUT]		=	TCP_DIR_OUTPUT,
 	[IP_VS_DIR_INPUT_ONLY]		=	TCP_DIR_INPUT_ONLY,
@@ -274,28 +274,6 @@ static int tcp_timeouts[IP_VS_TCP_S_LAST+1] = {
 	[IP_VS_TCP_S_SYNACK]		=	120*HZ,
 	[IP_VS_TCP_S_LAST]		=	2*HZ,
 };
-
-
-#if 0
-
-/* FIXME: This is going to die */
-
-static int tcp_timeouts_dos[IP_VS_TCP_S_LAST+1] = {
-	[IP_VS_TCP_S_NONE]		=	2*HZ,
-	[IP_VS_TCP_S_ESTABLISHED]	=	8*60*HZ,
-	[IP_VS_TCP_S_SYN_SENT]		=	60*HZ,
-	[IP_VS_TCP_S_SYN_RECV]		=	10*HZ,
-	[IP_VS_TCP_S_FIN_WAIT]		=	60*HZ,
-	[IP_VS_TCP_S_TIME_WAIT]		=	60*HZ,
-	[IP_VS_TCP_S_CLOSE]		=	10*HZ,
-	[IP_VS_TCP_S_CLOSE_WAIT]	=	60*HZ,
-	[IP_VS_TCP_S_LAST_ACK]		=	30*HZ,
-	[IP_VS_TCP_S_LISTEN]		=	2*60*HZ,
-	[IP_VS_TCP_S_SYNACK]		=	100*HZ,
-	[IP_VS_TCP_S_LAST]		=	2*HZ,
-};
-
-#endif
 
 static char * tcp_state_name_table[IP_VS_TCP_S_LAST+1] = {
 	[IP_VS_TCP_S_NONE]		=	"NONE",
@@ -448,7 +426,7 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 		struct ip_vs_dest *dest = cp->dest;
 
 		IP_VS_DBG(8, "%s %s [%c%c%c%c] %u.%u.%u.%u:%d->"
-			  "%u.%u.%u.%u:%d state: %s->%s cnt:%d\n",
+			  "%u.%u.%u.%u:%d state: %s->%s conn->refcnt:%d\n",
 			  pp->name,
 			  (state_off==TCP_DIR_OUTPUT)?"output ":"input ",
 			  th->syn? 'S' : '.',

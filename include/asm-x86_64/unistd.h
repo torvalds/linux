@@ -462,7 +462,7 @@ __SYSCALL(__NR_fremovexattr, sys_fremovexattr)
 #define __NR_tkill	200
 __SYSCALL(__NR_tkill, sys_tkill) 
 #define __NR_time      201
-__SYSCALL(__NR_time, sys_time64)
+__SYSCALL(__NR_time, sys_time)
 #define __NR_futex     202
 __SYSCALL(__NR_futex, sys_futex)
 #define __NR_sched_setaffinity    203
@@ -571,8 +571,37 @@ __SYSCALL(__NR_inotify_init, sys_inotify_init)
 __SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
 #define __NR_inotify_rm_watch	255
 __SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
+#define __NR_migrate_pages	256
+__SYSCALL(__NR_migrate_pages, sys_migrate_pages)
+#define __NR_openat		257
+__SYSCALL(__NR_openat, sys_openat)
+#define __NR_mkdirat		258
+__SYSCALL(__NR_mkdirat, sys_mkdirat)
+#define __NR_mknodat		259
+__SYSCALL(__NR_mknodat, sys_mknodat)
+#define __NR_fchownat		260
+__SYSCALL(__NR_fchownat, sys_fchownat)
+#define __NR_futimesat		261
+__SYSCALL(__NR_futimesat, sys_futimesat)
+#define __NR_newfstatat		262
+__SYSCALL(__NR_newfstatat, sys_newfstatat)
+#define __NR_unlinkat		263
+__SYSCALL(__NR_unlinkat, sys_unlinkat)
+#define __NR_renameat		264
+__SYSCALL(__NR_renameat, sys_renameat)
+#define __NR_linkat		265
+__SYSCALL(__NR_linkat, sys_linkat)
+#define __NR_symlinkat		266
+__SYSCALL(__NR_symlinkat, sys_symlinkat)
+#define __NR_readlinkat		267
+__SYSCALL(__NR_readlinkat, sys_readlinkat)
+#define __NR_fchmodat		268
+__SYSCALL(__NR_fchmodat, sys_fchmodat)
+#define __NR_faccessat		269
+__SYSCALL(__NR_faccessat, sys_faccessat)
 
-#define __NR_syscall_max __NR_inotify_rm_watch
+#define __NR_syscall_max __NR_faccessat
+
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */
@@ -608,6 +637,7 @@ do { \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_TIME
 #define __ARCH_WANT_COMPAT_SYS_TIME
 #endif
 

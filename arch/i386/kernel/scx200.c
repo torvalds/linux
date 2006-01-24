@@ -143,7 +143,7 @@ static int __init scx200_init(void)
 {
 	printk(KERN_INFO NAME ": NatSemi SCx200 Driver\n");
 
-	return pci_module_init(&scx200_pci_driver);
+	return pci_register_driver(&scx200_pci_driver);
 }
 
 static void __exit scx200_cleanup(void)

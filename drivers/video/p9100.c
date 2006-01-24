@@ -31,9 +31,8 @@ static int p9100_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			   unsigned, struct fb_info *);
 static int p9100_blank(int, struct fb_info *);
 
-static int p9100_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int p9100_ioctl(struct inode *, struct file *, unsigned int,
-		       unsigned long, struct fb_info *);
+static int p9100_mmap(struct fb_info *, struct vm_area_struct *);
+static int p9100_ioctl(struct fb_info *, unsigned int, unsigned long);
 
 /*
  *  Frame buffer operations
@@ -48,6 +47,9 @@ static struct fb_ops p9100_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= p9100_mmap,
 	.fb_ioctl		= p9100_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 /* P9100 control registers */
@@ -137,7 +139,6 @@ struct p9100_par {
 	unsigned long		fbsize;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 /**
@@ -220,7 +221,7 @@ static struct sbus_mmap_map p9100_mmap_map[] = {
 	{ 0,			0,		0		    }
 };
 
-static int p9100_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int p9100_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct p9100_par *par = (struct p9100_par *)info->par;
 
@@ -230,8 +231,8 @@ static int p9100_mmap(struct fb_info *info, struct file *file, struct vm_area_st
 				  vma);
 }
 
-static int p9100_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		       unsigned long arg, struct fb_info *info)
+static int p9100_ioctl(struct fb_info *info, unsigned int cmd,
+		       unsigned long arg)
 {
 	struct p9100_par *par = (struct p9100_par *) info->par;
 

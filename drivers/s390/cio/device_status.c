@@ -3,7 +3,7 @@
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
- *    Author(s): Cornelia Huck(cohuck@de.ibm.com)
+ *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  * Status accumulation and basic sense functions.
@@ -36,15 +36,16 @@ ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 		
 	CIO_MSG_EVENT(0, "Channel-Check or Interface-Control-Check "
 		      "received"
-		      " ... device %04X on subchannel %04X, dev_stat "
+		      " ... device %04x on subchannel 0.%x.%04x, dev_stat "
 		      ": %02X sch_stat : %02X\n",
-		      cdev->private->devno, cdev->private->irq,
+		      cdev->private->devno, cdev->private->ssid,
+		      cdev->private->sch_no,
 		      irb->scsw.dstat, irb->scsw.cstat);
 
 	if (irb->scsw.cc != 3) {
 		char dbf_text[15];
 
-		sprintf(dbf_text, "chk%x", cdev->private->irq);
+		sprintf(dbf_text, "chk%x", cdev->private->sch_no);
 		CIO_TRACE_EVENT(0, dbf_text);
 		CIO_HEX_EVENT(0, irb, sizeof (struct irb));
 	}
@@ -59,10 +60,11 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
-	stsch (sch->irq, &sch->schib);
+	stsch (sch->schid, &sch->schib);
 
-	CIO_MSG_EVENT(0, "%s(%04x) - path(s) %02x are "
-		      "not operational \n", __FUNCTION__, sch->irq,
+	CIO_MSG_EVENT(0, "%s(0.%x.%04x) - path(s) %02x are "
+		      "not operational \n", __FUNCTION__,
+		      sch->schid.ssid, sch->schid.sch_no,
 		      sch->schib.pmcw.pnom);
 
 	sch->lpm &= ~sch->schib.pmcw.pnom;

@@ -137,5 +137,14 @@ static inline unsigned char bridge_swizzle(unsigned char pin,
  */
 extern int pciauto_bus_scan(struct pci_controller *, int);
 
+#ifdef CONFIG_PCI
+extern unsigned long pci_address_to_pio(phys_addr_t address);
+#else
+static inline unsigned long pci_address_to_pio(phys_addr_t address)
+{
+	return (unsigned long)-1;
+}
+#endif
+
 #endif
 #endif /* __KERNEL__ */

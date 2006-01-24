@@ -109,15 +109,15 @@ struct xfsstats {
 	__uint32_t		vn_remove;	/* # times vn_remove called */
 	__uint32_t		vn_free;	/* # times vn_free called */
 #define XFSSTAT_END_BUF			(XFSSTAT_END_VNODE_OPS+9)
-	__uint32_t		pb_get;
-	__uint32_t		pb_create;
-	__uint32_t		pb_get_locked;
-	__uint32_t		pb_get_locked_waited;
-	__uint32_t		pb_busy_locked;
-	__uint32_t		pb_miss_locked;
-	__uint32_t		pb_page_retries;
-	__uint32_t		pb_page_found;
-	__uint32_t		pb_get_read;
+	__uint32_t		xb_get;
+	__uint32_t		xb_create;
+	__uint32_t		xb_get_locked;
+	__uint32_t		xb_get_locked_waited;
+	__uint32_t		xb_busy_locked;
+	__uint32_t		xb_miss_locked;
+	__uint32_t		xb_page_retries;
+	__uint32_t		xb_page_found;
+	__uint32_t		xb_get_read;
 /* Extra precision counters */
 	__uint64_t		xs_xstrat_bytes;
 	__uint64_t		xs_write_bytes;

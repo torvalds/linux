@@ -10,7 +10,7 @@
  * 		Split up af-specific functions
  *	Derek Atkins <derek@ihtfp.com>
  *		Add UDP Encapsulation
- * 	
+ *
  */
 
 #include <linux/workqueue.h>
@@ -70,6 +70,7 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 		x->type->destructor(x);
 		xfrm_put_type(x->type);
 	}
+	security_xfrm_state_free(x);
 	kfree(x);
 }
 
@@ -343,7 +344,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			      selector.
 			 */
 			if (x->km.state == XFRM_STATE_VALID) {
-				if (!xfrm_selector_match(&x->sel, fl, family))
+				if (!xfrm_selector_match(&x->sel, fl, family) ||
+				    !xfrm_sec_ctx_match(pol->security, x->security))
 					continue;
 				if (!best ||
 				    best->km.dying > x->km.dying ||
@@ -354,7 +356,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 				acquire_in_progress = 1;
 			} else if (x->km.state == XFRM_STATE_ERROR ||
 				   x->km.state == XFRM_STATE_EXPIRED) {
-				if (xfrm_selector_match(&x->sel, fl, family))
+ 				if (xfrm_selector_match(&x->sel, fl, family) &&
+				    xfrm_sec_ctx_match(pol->security, x->security))
 					error = -ESRCH;
 			}
 		}
@@ -431,6 +434,8 @@ void xfrm_state_insert(struct xfrm_state *x)
 	spin_lock_bh(&xfrm_state_lock);
 	__xfrm_state_insert(x);
 	spin_unlock_bh(&xfrm_state_lock);
+
+	xfrm_flush_all_bundles();
 }
 EXPORT_SYMBOL(xfrm_state_insert);
 
@@ -477,6 +482,9 @@ int xfrm_state_add(struct xfrm_state *x)
 out:
 	spin_unlock_bh(&xfrm_state_lock);
 	xfrm_state_put_afinfo(afinfo);
+
+	if (!err)
+		xfrm_flush_all_bundles();
 
 	if (x1) {
 		xfrm_state_delete(x1);

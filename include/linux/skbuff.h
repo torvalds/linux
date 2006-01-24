@@ -32,7 +32,6 @@
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
 #define HAVE_ALIGNABLE_SKB	/* Ditto 8)		   */
-#define SLAB_SKB 		/* Slabified skbuffs 	   */
 
 #define CHECKSUM_NONE 0
 #define CHECKSUM_HW 1
@@ -134,7 +133,7 @@ struct skb_frag_struct {
  */
 struct skb_shared_info {
 	atomic_t	dataref;
-	unsigned int	nr_frags;
+	unsigned short	nr_frags;
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
 	unsigned short  ufo_size;
@@ -206,6 +205,7 @@ enum {
  *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
+ *	@nfct_reasm: netfilter conntrack re-assembly pointer
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
@@ -251,7 +251,7 @@ struct sk_buff {
 	 * want to keep them across layers you have to do a skb_clone()
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
-	char			cb[40];
+	char			cb[48];
 
 	unsigned int		len,
 				data_len,
@@ -264,16 +264,14 @@ struct sk_buff {
 				nohdr:1,
 				nfctinfo:3;
 	__u8			pkt_type:3,
-				fclone:2;
+				fclone:2,
+				ipvs_property:1;
 	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
 	__u32			nfmark;
 	struct nf_conntrack	*nfct;
-#if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
-	__u8			ipvs_property:1;
-#endif
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct sk_buff		*nfct_reasm;
 #endif
@@ -928,7 +926,7 @@ static inline int skb_tailroom(const struct sk_buff *skb)
  *	Increase the headroom of an empty &sk_buff by reducing the tail
  *	room. This is only allowed for an empty buffer.
  */
-static inline void skb_reserve(struct sk_buff *skb, unsigned int len)
+static inline void skb_reserve(struct sk_buff *skb, int len)
 {
 	skb->data += len;
 	skb->tail += len;
@@ -1240,6 +1238,8 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 							int hlen,
 							struct iovec *iov);
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
+extern void	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
+					 unsigned int flags);
 extern unsigned int    skb_checksum(const struct sk_buff *skb, int offset,
 				    int len, unsigned int csum);
 extern int	       skb_copy_bits(const struct sk_buff *skb, int offset,

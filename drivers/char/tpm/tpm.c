@@ -43,6 +43,13 @@ static void user_reader_timeout(unsigned long ptr)
 {
 	struct tpm_chip *chip = (struct tpm_chip *) ptr;
 
+	schedule_work(&chip->work);
+}
+
+static void timeout_work(void * ptr)
+{
+	struct tpm_chip *chip = ptr;
+
 	down(&chip->buffer_mutex);
 	atomic_set(&chip->data_pending, 0);
 	memset(chip->data_buffer, 0, TPM_BUFSIZE);
@@ -370,6 +377,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	chip->num_opens--;
 	del_singleshot_timer_sync(&chip->user_read_timer);
+	flush_scheduled_work();
 	atomic_set(&chip->data_pending, 0);
 	put_device(chip->dev);
 	kfree(chip->data_buffer);
@@ -421,6 +429,7 @@ ssize_t tpm_read(struct file * file, char __user *buf,
 	int ret_size;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
+	flush_scheduled_work();
 	ret_size = atomic_read(&chip->data_pending);
 	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
@@ -428,8 +437,7 @@ ssize_t tpm_read(struct file * file, char __user *buf,
 			ret_size = size;
 
 		down(&chip->buffer_mutex);
-		if (copy_to_user
-		    ((void __user *) buf, chip->data_buffer, ret_size))
+		if (copy_to_user(buf, chip->data_buffer, ret_size))
 			ret_size = -EFAULT;
 		up(&chip->buffer_mutex);
 	}
@@ -458,9 +466,10 @@ void tpm_remove_hardware(struct device *dev)
 	kfree(chip->vendor->miscdev.name);
 
 	sysfs_remove_group(&dev->kobj, chip->vendor->attr_group);
+	tpm_bios_log_teardown(chip->bios_dir);
 
 	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES ] &=
-		!(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
+		~(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
 
 	kfree(chip);
 
@@ -528,6 +537,8 @@ int tpm_register_hardware(struct device *dev, struct tpm_vendor_specific *entry)
 	init_MUTEX(&chip->tpm_mutex);
 	INIT_LIST_HEAD(&chip->list);
 
+	INIT_WORK(&chip->work, timeout_work, chip);
+
 	init_timer(&chip->user_read_timer);
 	chip->user_read_timer.function = user_reader_timeout;
 	chip->user_read_timer.data = (unsigned long) chip;
@@ -582,6 +593,8 @@ dev_num_search_complete:
 	spin_unlock(&driver_lock);
 
 	sysfs_create_group(&dev->kobj, chip->vendor->attr_group);
+
+	chip->bios_dir = tpm_bios_log_setup(devname);
 
 	return 0;
 }

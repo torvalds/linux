@@ -711,7 +711,7 @@ static inline void isp2x00_disable_irqs(struct Scsi_Host *host)
 }
 
 
-static int isp2x00_detect(Scsi_Host_Template * tmpt)
+static int isp2x00_detect(struct scsi_host_template * tmpt)
 {
 	int hosts = 0;
 	unsigned long wait_time;
@@ -2210,7 +2210,7 @@ void isp2x00_print_scsi_cmd(Scsi_Cmnd * cmd)
 
 MODULE_LICENSE("GPL");
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
         .detect                 = isp2x00_detect,
         .release                = isp2x00_release,
         .info                   = isp2x00_info,

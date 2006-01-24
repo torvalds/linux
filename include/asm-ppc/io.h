@@ -27,6 +27,8 @@
 
 #if defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
+#elif defined(CONFIG_PPC_MPC52xx)
+#include <asm/mpc52xx.h>
 #elif defined(CONFIG_8xx)
 #include <asm/mpc8xx.h>
 #elif defined(CONFIG_8260)
@@ -543,6 +545,23 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 #ifdef CONFIG_8260_PCI9
 #include <asm/mpc8260_pci9.h>
+#endif
+
+#ifdef CONFIG_NOT_COHERENT_CACHE
+
+#define dma_cache_inv(_start,_size) \
+	invalidate_dcache_range(_start, (_start + _size))
+#define dma_cache_wback(_start,_size) \
+	clean_dcache_range(_start, (_start + _size))
+#define dma_cache_wback_inv(_start,_size) \
+	flush_dcache_range(_start, (_start + _size))
+
+#else
+
+#define dma_cache_inv(_start,_size)		do { } while (0)
+#define dma_cache_wback(_start,_size)		do { } while (0)
+#define dma_cache_wback_inv(_start,_size)	do { } while (0)
+
 #endif
 
 /*

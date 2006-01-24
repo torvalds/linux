@@ -1,6 +1,6 @@
 #include <media/saa7146_vv.h>
 
-#define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1) 
+#define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1)
 
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */
@@ -102,9 +102,9 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	/* finish current buffer */
 	if (NULL == q->curr) {
 		DEB_D(("aiii. no current buffer\n"));
-		return;	
+		return;
 	}
-			
+
 	q->curr->vb.state = state;
 	do_gettimeofday(&q->curr->vb.ts);
 	wake_up(&q->curr->vb.done);
@@ -143,13 +143,13 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 			// fixme: fix this for vflip != 0
 
 			saa7146_write(dev, PROT_ADDR1, 0);
-			saa7146_write(dev, MC2, (MASK_02|MASK_18));		
+			saa7146_write(dev, MC2, (MASK_02|MASK_18));
 
 			/* write the address of the rps-program */
 			saa7146_write(dev, RPS_ADDR0, dev->d_rps0.dma_handle);
 			/* turn on rps */
 			saa7146_write(dev, MC1, (MASK_12 | MASK_28));
-				
+
 /*
 			printk("vdma%d.base_even:     0x%08x\n", 1,saa7146_read(dev,BASE_EVEN1));
 			printk("vdma%d.base_odd:      0x%08x\n", 1,saa7146_read(dev,BASE_ODD1));
@@ -239,21 +239,23 @@ static int fops_open(struct inode *inode, struct file *file)
 	}
 
 	/* allocate per open data */
-	fh = kmalloc(sizeof(*fh),GFP_KERNEL);
+	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh) {
 		DEB_S(("cannot allocate memory for per open data.\n"));
 		result = -ENOMEM;
 		goto out;
 	}
-	memset(fh,0,sizeof(*fh));
-	
+
 	file->private_data = fh;
 	fh->dev = dev;
 	fh->type = type;
 
 	if( fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		DEB_S(("initializing vbi...\n"));
-		result = saa7146_vbi_uops.open(dev,file);
+		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
+			result = saa7146_vbi_uops.open(dev,file);
+		if (dev->ext_vv_data->vbi_fops.open)
+			dev->ext_vv_data->vbi_fops.open(inode, file);
 	} else {
 		DEB_S(("initializing video...\n"));
 		result = saa7146_video_uops.open(dev,file);
@@ -275,7 +277,7 @@ out:
 		file->private_data = NULL;
 	}
 	up(&saa7146_devices_lock);
-        return result;
+	return result;
 }
 
 static int fops_release(struct inode *inode, struct file *file)
@@ -289,7 +291,10 @@ static int fops_release(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 
 	if( fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		saa7146_vbi_uops.release(dev,file);
+		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
+			saa7146_vbi_uops.release(dev,file);
+		if (dev->ext_vv_data->vbi_fops.release)
+			dev->ext_vv_data->vbi_fops.release(inode, file);
 	} else {
 		saa7146_video_uops.release(dev,file);
 	}
@@ -332,6 +337,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 		BUG();
 		return 0;
 	}
+
 	return videobuf_mmap_mapper(q,vma);
 }
 
@@ -381,12 +387,33 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 		}
 	case V4L2_BUF_TYPE_VBI_CAPTURE: {
 //		DEB_EE(("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, data:%p, count:%lu\n", file, data, (unsigned long)count));
-		return saa7146_vbi_uops.read(file,data,count,ppos);
+		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
+			return saa7146_vbi_uops.read(file,data,count,ppos);
+		else
+			return -EINVAL;
 		}
 		break;
 	default:
 		BUG();
 		return 0;
+	}
+}
+
+static ssize_t fops_write(struct file *file, const char __user *data, size_t count, loff_t *ppos)
+{
+	struct saa7146_fh *fh = file->private_data;
+
+	switch (fh->type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		return -EINVAL;
+	case V4L2_BUF_TYPE_VBI_CAPTURE:
+		if (fh->dev->ext_vv_data->vbi_fops.write)
+			return fh->dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
+		else
+			return -EINVAL;
+	default:
+		BUG();
+		return -EINVAL;
 	}
 }
 
@@ -396,6 +423,7 @@ static struct file_operations video_fops =
 	.open		= fops_open,
 	.release	= fops_release,
 	.read		= fops_read,
+	.write		= fops_write,
 	.poll		= fops_poll,
 	.mmap		= fops_mmap,
 	.ioctl		= fops_ioctl,
@@ -405,7 +433,7 @@ static struct file_operations video_fops =
 static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 {
 	u32 isr = status;
-	
+
 	DEB_INT(("dev:%p, isr:0x%08x\n",dev,(u32)status));
 
 	if (0 != (isr & (MASK_27))) {
@@ -435,12 +463,11 @@ static struct video_device device_template =
 
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
-	struct saa7146_vv *vv = kmalloc (sizeof(struct saa7146_vv),GFP_KERNEL);
+	struct saa7146_vv *vv = kzalloc (sizeof(struct saa7146_vv),GFP_KERNEL);
 	if( NULL == vv ) {
 		ERR(("out of memory. aborting.\n"));
 		return -1;
 	}
-	memset(vv, 0x0, sizeof(*vv));
 
 	DEB_EE(("dev:%p\n",dev));
 
@@ -454,11 +481,11 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	   handle different devices that might need different
 	   configuration data) */
 	dev->ext_vv_data = ext_vv;
-	
+
 	vv->video_minor = -1;
 	vv->vbi_minor = -1;
 
-	vv->d_clipping.cpu_addr = pci_alloc_consistent(dev->pci, SAA7146_CLIPPING_MEM, &vv->d_clipping.dma_handle);	
+	vv->d_clipping.cpu_addr = pci_alloc_consistent(dev->pci, SAA7146_CLIPPING_MEM, &vv->d_clipping.dma_handle);
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR(("out of memory. aborting.\n"));
 		kfree(vv);
@@ -467,8 +494,9 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	memset(vv->d_clipping.cpu_addr, 0x0, SAA7146_CLIPPING_MEM);
 
 	saa7146_video_uops.init(dev,vv);
-	saa7146_vbi_uops.init(dev,vv);
-	
+	if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
+		saa7146_vbi_uops.init(dev,vv);
+
 	dev->vv_data = vv;
 	dev->vv_callback = &vv_callback;
 
@@ -480,12 +508,12 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 	struct saa7146_vv *vv = dev->vv_data;
 
 	DEB_EE(("dev:%p\n",dev));
- 
+
 	pci_free_consistent(dev->pci, SAA7146_RPS_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
- 	kfree(vv);
+	kfree(vv);
 	dev->vv_data = NULL;
 	dev->vv_callback = NULL;
-	
+
 	return 0;
 }
 
@@ -498,7 +526,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	DEB_EE(("dev:%p, name:'%s', type:%d\n",dev,name,type));
 
 	// released by vfd->release
- 	vfd = video_device_alloc();
+	vfd = video_device_alloc();
 	if (vfd == NULL)
 		return -ENOMEM;
 
@@ -530,7 +558,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev)
 {
 	struct saa7146_vv *vv = dev->vv_data;
-	
+
 	DEB_EE(("dev:%p\n",dev));
 
 	if( VFL_TYPE_GRABBER == (*vid)->type ) {

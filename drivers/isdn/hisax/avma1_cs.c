@@ -69,8 +69,6 @@ module_param(isdnprot, int, 0);
 
 static void avma1cs_config(dev_link_t *link);
 static void avma1cs_release(dev_link_t *link);
-static int avma1cs_event(event_t event, int priority,
-			  event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -78,16 +76,8 @@ static int avma1cs_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *avma1cs_attach(void);
-static void avma1cs_detach(dev_link_t *);
+static void avma1cs_detach(struct pcmcia_device *p_dev);
 
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "avma1_cs";
 
 /*
    A linked list of "instances" of the skeleton device.  Each actual
@@ -99,15 +89,7 @@ static dev_info_t dev_info = "avma1_cs";
    device numbers are used to derive the corresponding array index.
 */
 
-static dev_link_t *dev_list = NULL;
-
 /*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
    A driver needs to provide a dev_node_t structure for each device
    on a card.  In some cases, there is only one device per card (for
    example, ethernet cards, modems).  In other cases, there may be
@@ -134,26 +116,24 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static dev_link_t *avma1cs_attach(void)
+static int avma1cs_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     local_info_t *local;
-    int ret;
-    
+
     DEBUG(0, "avma1cs_attach()\n");
 
     /* Initialize the dev_link_t structure */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     if (!link)
-	return NULL;
+	return -ENOMEM;
     memset(link, 0, sizeof(struct dev_link_t));
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) {
 	kfree(link);
-	return NULL;
+	return -ENOMEM;
     }
     memset(local, 0, sizeof(local_info_t));
     link->priv = local;
@@ -178,20 +158,13 @@ static dev_link_t *avma1cs_attach(void)
     link->conf.ConfigIndex = 1;
     link->conf.Present = PRESENT_OPTION;
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	avma1cs_detach(link);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    avma1cs_config(link);
+
+    return 0;
 } /* avma1cs_attach */
 
 /*======================================================================
@@ -203,42 +176,17 @@ static dev_link_t *avma1cs_attach(void)
 
 ======================================================================*/
 
-static void avma1cs_detach(dev_link_t *link)
+static void avma1cs_detach(struct pcmcia_device *p_dev)
 {
-    dev_link_t **linkp;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "avma1cs_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
-    if (link->state & DEV_CONFIG) {
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "avma1_cs: detach postponed, '%s' "
-	       "still locked\n", link->dev->dev_name);
-#endif
-	link->state |= DEV_STALE_LINK;
-	return;
-    }
+    if (link->state & DEV_CONFIG)
+	    avma1cs_release(link);
 
-    /* Break the link with Card Services */
-    if (link->handle)
-    	pcmcia_deregister_client(link->handle);
-    
-    /* Unlink device structure, free pieces */
-    *linkp = link->next;
     kfree(link->priv);
     kfree(link);
-    
 } /* avma1cs_detach */
 
 /*======================================================================
@@ -440,58 +388,30 @@ static void avma1cs_release(dev_link_t *link)
     pcmcia_release_io(link->handle, &link->io);
     pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
-    
-    if (link->state & DEV_STALE_LINK)
-	avma1cs_detach(link);
 } /* avma1cs_release */
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-    
-======================================================================*/
-
-static int avma1cs_event(event_t event, int priority,
-			  event_callback_args_t *args)
+static int avma1cs_suspend(struct pcmcia_device *dev)
 {
-    dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(dev);
 
-    DEBUG(1, "avma1cs_event(0x%06x)\n", event);
-    
-    switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-	    if (link->state & DEV_CONFIG)
-		avma1cs_release(link);
-	    break;
-	case CS_EVENT_CARD_INSERTION:
-	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	    avma1cs_config(link);
-	    break;
-	case CS_EVENT_PM_SUSPEND:
-	    link->state |= DEV_SUSPEND;
-	    /* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-	    if (link->state & DEV_CONFIG)
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
 		pcmcia_release_configuration(link->handle);
-	    break;
-	case CS_EVENT_PM_RESUME:
-	    link->state &= ~DEV_SUSPEND;
-	    /* Fall through... */
-	case CS_EVENT_CARD_RESET:
- 	    if (link->state & DEV_CONFIG)
+
+	return 0;
+}
+
+static int avma1cs_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
 		pcmcia_request_configuration(link->handle, &link->conf);
-	    break;
-    }
-    return 0;
-} /* avma1cs_event */
+
+	return 0;
+}
+
 
 static struct pcmcia_device_id avma1cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN A", 0x95d42008, 0xadc9d4bb),
@@ -505,10 +425,11 @@ static struct pcmcia_driver avma1cs_driver = {
 	.drv		= {
 		.name	= "avma1_cs",
 	},
-	.attach		= avma1cs_attach,
-	.event		= avma1cs_event,
-	.detach		= avma1cs_detach,
+	.probe		= avma1cs_attach,
+	.remove		= avma1cs_detach,
 	.id_table	= avma1cs_ids,
+	.suspend	= avma1cs_suspend,
+	.resume		= avma1cs_resume,
 };
  
 /*====================================================================*/
@@ -521,7 +442,6 @@ static int __init init_avma1_cs(void)
 static void __exit exit_avma1_cs(void)
 {
 	pcmcia_unregister_driver(&avma1cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_avma1_cs);

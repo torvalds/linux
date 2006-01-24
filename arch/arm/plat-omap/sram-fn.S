@@ -12,7 +12,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/arch/io.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 	.text
 

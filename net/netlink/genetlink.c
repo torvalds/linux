@@ -222,11 +222,6 @@ int genl_register_family(struct genl_family *family)
 		goto errout_locked;
 	}
 
-	if (!try_module_get(family->owner)) {
-		err = -EBUSY;
-		goto errout_locked;
-	}
-
 	if (family->id == GENL_ID_GENERATE) {
 		u16 newid = genl_generate_id();
 
@@ -283,7 +278,6 @@ int genl_unregister_family(struct genl_family *family)
 		INIT_LIST_HEAD(&family->ops_list);
 		genl_unlock();
 
-		module_put(family->owner);
 		kfree(family->attrbuf);
 		genl_ctrl_event(CTRL_CMD_DELFAMILY, family);
 		return 0;
@@ -441,7 +435,7 @@ errout:
 }
 
 static struct sk_buff *ctrl_build_msg(struct genl_family *family, u32 pid,
-				      int seq, int cmd)
+				      int seq, u8 cmd)
 {
 	struct sk_buff *skb;
 	int err;
@@ -535,7 +529,6 @@ static struct genl_family genl_ctrl = {
 	.name = "nlctrl",
 	.version = 0x1,
 	.maxattr = CTRL_ATTR_MAX,
-	.owner = THIS_MODULE,
 };
 
 static int __init genl_init(void)

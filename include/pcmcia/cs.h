@@ -382,7 +382,6 @@ enum service {
 struct pcmcia_socket;
 
 int pcmcia_access_configuration_register(struct pcmcia_device *p_dev, conf_reg_t *reg);
-int pcmcia_deregister_client(struct pcmcia_device *p_dev);
 int pcmcia_get_configuration_info(struct pcmcia_device *p_dev, config_info_t *config);
 int pcmcia_get_first_window(window_handle_t *win, win_req_t *req);
 int pcmcia_get_next_window(window_handle_t *win, win_req_t *req);
@@ -390,7 +389,6 @@ int pcmcia_get_status(struct pcmcia_device *p_dev, cs_status_t *status);
 int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
-int pcmcia_register_client(client_handle_t *handle, client_reg_t *req);
 int pcmcia_release_configuration(struct pcmcia_device *p_dev);
 int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req);
 int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req);

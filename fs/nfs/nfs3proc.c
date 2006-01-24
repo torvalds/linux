@@ -68,6 +68,23 @@ nfs3_async_handle_jukebox(struct rpc_task *task)
 	return 1;
 }
 
+static int
+do_proc_get_root(struct rpc_clnt *client, struct nfs_fh *fhandle,
+		 struct nfs_fsinfo *info)
+{
+	int	status;
+
+	dprintk("%s: call  fsinfo\n", __FUNCTION__);
+	nfs_fattr_init(info->fattr);
+	status = rpc_call(client, NFS3PROC_FSINFO, fhandle, info, 0);
+	dprintk("%s: reply fsinfo: %d\n", __FUNCTION__, status);
+	if (!(info->fattr->valid & NFS_ATTR_FATTR)) {
+		status = rpc_call(client, NFS3PROC_GETATTR, fhandle, info->fattr, 0);
+		dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
+	}
+	return status;
+}
+
 /*
  * Bare-bones access to getattr: this is for nfs_read_super.
  */
@@ -77,14 +94,9 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 {
 	int	status;
 
-	dprintk("%s: call  fsinfo\n", __FUNCTION__);
-	nfs_fattr_init(info->fattr);
-	status = rpc_call(server->client_sys, NFS3PROC_FSINFO, fhandle, info, 0);
-	dprintk("%s: reply fsinfo: %d\n", __FUNCTION__, status);
-	if (!(info->fattr->valid & NFS_ATTR_FATTR)) {
-		status = rpc_call(server->client_sys, NFS3PROC_GETATTR, fhandle, info->fattr, 0);
-		dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
-	}
+	status = do_proc_get_root(server->client, fhandle, info);
+	if (status && server->client_sys != server->client)
+		status = do_proc_get_root(server->client_sys, fhandle, info);
 	return status;
 }
 
@@ -732,18 +744,22 @@ nfs3_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
 
-static void
-nfs3_read_done(struct rpc_task *task)
+static void nfs3_read_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_read_data *data = (struct nfs_read_data *) task->tk_calldata;
+	struct nfs_read_data *data = calldata;
 
 	if (nfs3_async_handle_jukebox(task))
 		return;
 	/* Call back common NFS readpage processing */
 	if (task->tk_status >= 0)
 		nfs_refresh_inode(data->inode, &data->fattr);
-	nfs_readpage_result(task);
+	nfs_readpage_result(task, calldata);
 }
+
+static const struct rpc_call_ops nfs3_read_ops = {
+	.rpc_call_done = nfs3_read_done,
+	.rpc_release = nfs_readdata_release,
+};
 
 static void
 nfs3_proc_read_setup(struct nfs_read_data *data)
@@ -762,22 +778,25 @@ nfs3_proc_read_setup(struct nfs_read_data *data)
 	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs3_read_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs3_read_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 
-static void
-nfs3_write_done(struct rpc_task *task)
+static void nfs3_write_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data;
+	struct nfs_write_data *data = calldata;
 
 	if (nfs3_async_handle_jukebox(task))
 		return;
-	data = (struct nfs_write_data *)task->tk_calldata;
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
-	nfs_writeback_done(task);
+	nfs_writeback_done(task, calldata);
 }
+
+static const struct rpc_call_ops nfs3_write_ops = {
+	.rpc_call_done = nfs3_write_done,
+	.rpc_release = nfs_writedata_release,
+};
 
 static void
 nfs3_proc_write_setup(struct nfs_write_data *data, int how)
@@ -806,22 +825,25 @@ nfs3_proc_write_setup(struct nfs_write_data *data, int how)
 	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs3_write_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs3_write_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 
-static void
-nfs3_commit_done(struct rpc_task *task)
+static void nfs3_commit_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data;
+	struct nfs_write_data *data = calldata;
 
 	if (nfs3_async_handle_jukebox(task))
 		return;
-	data = (struct nfs_write_data *)task->tk_calldata;
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
-	nfs_commit_done(task);
+	nfs_commit_done(task, calldata);
 }
+
+static const struct rpc_call_ops nfs3_commit_ops = {
+	.rpc_call_done = nfs3_commit_done,
+	.rpc_release = nfs_commit_release,
+};
 
 static void
 nfs3_proc_commit_setup(struct nfs_write_data *data, int how)
@@ -840,7 +862,7 @@ nfs3_proc_commit_setup(struct nfs_write_data *data, int how)
 	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs3_commit_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs3_commit_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 

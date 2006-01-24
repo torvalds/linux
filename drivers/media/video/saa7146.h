@@ -73,7 +73,6 @@ struct saa7146
         unsigned int nr;
 	unsigned long irq;          /* IRQ used by SAA7146 card */
 	unsigned short id;
-	struct pci_dev *dev;
 	unsigned char revision;
 	unsigned char boardcfg[64];	/* 64 bytes of config from eeprom */
 	unsigned long saa7146_adr;   /* bus address of IO mem from PCI BIOS */

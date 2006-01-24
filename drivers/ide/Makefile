@@ -48,6 +48,6 @@ obj-$(CONFIG_BLK_DEV_IDECD)		+= ide-cd.o
 obj-$(CONFIG_BLK_DEV_IDETAPE)		+= ide-tape.o
 obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy.o
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ arm/
+obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ arm/ mips/
 obj-$(CONFIG_BLK_DEV_HD)		+= legacy/
 obj-$(CONFIG_ETRAX_IDE)		+= cris/

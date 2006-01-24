@@ -290,7 +290,7 @@ static __inline__ int find_next_zero_bit (const void * addr, int size, int offse
 	tmp = *p;
 
 found_first:
-	tmp |= ~0UL >> size;
+	tmp |= ~0UL << size;
 found_middle:
 	return result + ffz(tmp);
 }
@@ -499,5 +499,6 @@ found_middle:
  * fls: find last bit set.
  */
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 #endif /* _M68KNOMMU_BITOPS_H */

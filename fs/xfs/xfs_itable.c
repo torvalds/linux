@@ -56,6 +56,7 @@ xfs_bulkstat_one_iget(
 {
 	xfs_dinode_core_t *dic;		/* dinode core info pointer */
 	xfs_inode_t	*ip;		/* incore inode pointer */
+	vnode_t		*vp;
 	int		error;
 
 	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, bno);
@@ -72,6 +73,7 @@ xfs_bulkstat_one_iget(
 		goto out_iput;
 	}
 
+	vp = XFS_ITOV(ip);
 	dic = &ip->i_d;
 
 	/* xfs_iget returns the following without needing
@@ -84,8 +86,7 @@ xfs_bulkstat_one_iget(
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
-	buf->bs_atime.tv_sec = dic->di_atime.t_sec;
-	buf->bs_atime.tv_nsec = dic->di_atime.t_nsec;
+	vn_atime_to_bstime(vp, &buf->bs_atime);
 	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
 	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
 	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;

@@ -420,13 +420,20 @@ static void __init bootmem_init(struct meminfo *mi)
  * Set up device the mappings.  Since we clear out the page tables for all
  * mappings above VMALLOC_END, we will remove any debug device mappings.
  * This means you have to be careful how you debug this function, or any
- * called function.  (Do it by code inspection!)
+ * called function.  This means you can't use any function or debugging
+ * method which may touch any device, otherwise the kernel _will_ crash.
  */
 static void __init devicemaps_init(struct machine_desc *mdesc)
 {
 	struct map_desc map;
 	unsigned long addr;
 	void *vectors;
+
+	/*
+	 * Allocate the vector page early.
+	 */
+	vectors = alloc_bootmem_low_pages(PAGE_SIZE);
+	BUG_ON(!vectors);
 
 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
@@ -461,12 +468,6 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	create_mapping(&map);
 #endif
 
-	flush_cache_all();
-	local_flush_tlb_all();
-
-	vectors = alloc_bootmem_low_pages(PAGE_SIZE);
-	BUG_ON(!vectors);
-
 	/*
 	 * Create a mapping for the machine vectors at the high-vectors
 	 * location (0xffff0000).  If we aren't using high-vectors, also
@@ -491,12 +492,13 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 		mdesc->map_io();
 
 	/*
-	 * Finally flush the tlb again - this ensures that we're in a
-	 * consistent state wrt the writebuffer if the writebuffer needs
-	 * draining.  After this point, we can start to touch devices
-	 * again.
+	 * Finally flush the caches and tlb to ensure that we're in a
+	 * consistent state wrt the writebuffer.  This also ensures that
+	 * any write-allocated cache lines in the vector page are written
+	 * back.  After this point, we can start to touch devices again.
 	 */
 	local_flush_tlb_all();
+	flush_cache_all();
 }
 
 /*

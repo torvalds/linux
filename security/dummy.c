@@ -14,6 +14,7 @@
 
 #undef DEBUG
 
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -776,8 +777,42 @@ static inline int dummy_sk_alloc_security (struct sock *sk, int family, gfp_t pr
 static inline void dummy_sk_free_security (struct sock *sk)
 {
 }
+
+static unsigned int dummy_sk_getsid(struct sock *sk, struct flowi *fl, u8 dir)
+{
+	return 0;
+}
 #endif	/* CONFIG_SECURITY_NETWORK */
 
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static inline int dummy_xfrm_policy_clone_security(struct xfrm_policy *old, struct xfrm_policy *new)
+{
+	return 0;
+}
+
+static void dummy_xfrm_policy_free_security(struct xfrm_policy *xp)
+{
+}
+
+static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static void dummy_xfrm_state_free_security(struct xfrm_state *x)
+{
+}
+
+static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+{
+	return 0;
+}
+#endif /* CONFIG_SECURITY_NETWORK_XFRM */
 static int dummy_register_security (const char *name, struct security_operations *ops)
 {
 	return -EINVAL;
@@ -970,7 +1005,16 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, socket_getpeersec);
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
-#endif	/* CONFIG_SECURITY_NETWORK */
+	set_to_dummy_if_null(ops, sk_getsid);
+ #endif	/* CONFIG_SECURITY_NETWORK */
+#ifdef  CONFIG_SECURITY_NETWORK_XFRM
+	set_to_dummy_if_null(ops, xfrm_policy_alloc_security);
+	set_to_dummy_if_null(ops, xfrm_policy_clone_security);
+	set_to_dummy_if_null(ops, xfrm_policy_free_security);
+	set_to_dummy_if_null(ops, xfrm_state_alloc_security);
+	set_to_dummy_if_null(ops, xfrm_state_free_security);
+	set_to_dummy_if_null(ops, xfrm_policy_lookup);
+#endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS
 	set_to_dummy_if_null(ops, key_alloc);
 	set_to_dummy_if_null(ops, key_free);

@@ -39,7 +39,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 
 	if (response != NULL && rlen > 0) {
 		memset(response, 0, rlen);
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		asm volatile (	"lra	2,0(%2)\n"
 				"lr	4,%3\n"
 				"o	4,%6\n"
@@ -55,7 +55,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				: "a" (cpcmd_buf), "d" (cmdlen),
 				"a" (response), "d" (rlen), "m" (mask)
 				: "cc", "2", "3", "4", "5" );
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
                 asm volatile (	"lrag	2,0(%2)\n"
 				"lgr	4,%3\n"
 				"o	4,%6\n"
@@ -73,11 +73,11 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				: "a" (cpcmd_buf), "d" (cmdlen),
 				"a" (response), "d" (rlen), "m" (mask)
 				: "cc", "2", "3", "4", "5" );
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
                 EBCASC(response, rlen);
         } else {
 		return_len = 0;
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
                 asm volatile (	"lra	2,0(%1)\n"
 				"lr	3,%2\n"
 				"diag	2,3,0x8\n"
@@ -85,7 +85,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				: "=d" (return_code)
 				: "a" (cpcmd_buf), "d" (cmdlen)
 				: "2", "3"  );
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
                 asm volatile (	"lrag	2,0(%1)\n"
 				"lgr	3,%2\n"
 				"sam31\n"
@@ -95,7 +95,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				: "=d" (return_code)
 				: "a" (cpcmd_buf), "d" (cmdlen)
 				: "2", "3" );
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
         }
 	spin_unlock_irqrestore(&cpcmd_lock, flags);
 	if (response_code != NULL)
@@ -105,7 +105,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 
 EXPORT_SYMBOL(__cpcmd);
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 {
 	char *lowbuf;
@@ -129,4 +129,4 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 }
 
 EXPORT_SYMBOL(cpcmd);
-#endif		/* CONFIG_ARCH_S390X */
+#endif		/* CONFIG_64BIT */

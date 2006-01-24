@@ -63,7 +63,7 @@
   /* class 5 */
 #define MMC_ERASE_GROUP_START    35   /* ac   [31:0] data addr   R1  */
 #define MMC_ERASE_GROUP_END      36   /* ac   [31:0] data addr   R1  */
-#define MMC_ERASE                37   /* ac                      R1b */
+#define MMC_ERASE                38   /* ac                      R1b */
 
   /* class 9 */
 #define MMC_FAST_IO              39   /* ac   <Complex>          R4  */
@@ -74,7 +74,7 @@
 
   /* class 8 */
 #define MMC_APP_CMD              55   /* ac   [31:16] RCA        R1  */
-#define MMC_GEN_CMD              56   /* adtc [0] RD/WR          R1b */
+#define MMC_GEN_CMD              56   /* adtc [0] RD/WR          R1  */
 
 /* SD commands                           type  argument     response */
   /* class 8 */

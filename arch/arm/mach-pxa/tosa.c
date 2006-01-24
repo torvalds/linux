@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -295,7 +295,6 @@ static void __init fixup_tosa(struct machine_desc *desc,
 }
 
 MACHINE_START(TOSA, "SHARP Tosa")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup          = fixup_tosa,

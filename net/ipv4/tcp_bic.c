@@ -30,8 +30,6 @@ static int fast_convergence = 1;
 static int max_increment = 16;
 static int low_window = 14;
 static int beta = 819;		/* = 819/1024 (BICTCP_BETA_SCALE) */
-static int low_utilization_threshold = 153;
-static int low_utilization_period = 2;
 static int initial_ssthresh = 100;
 static int smooth_part = 20;
 
@@ -43,10 +41,6 @@ module_param(low_window, int, 0644);
 MODULE_PARM_DESC(low_window, "lower bound on congestion window (for TCP friendliness)");
 module_param(beta, int, 0644);
 MODULE_PARM_DESC(beta, "beta for multiplicative increase");
-module_param(low_utilization_threshold, int, 0644);
-MODULE_PARM_DESC(low_utilization_threshold, "percent (scaled by 1024) for low utilization mode");
-module_param(low_utilization_period, int, 0644);
-MODULE_PARM_DESC(low_utilization_period, "if average delay exceeds then goto to low utilization mode (seconds)");
 module_param(initial_ssthresh, int, 0644);
 MODULE_PARM_DESC(initial_ssthresh, "initial value of slow start threshold");
 module_param(smooth_part, int, 0644);
@@ -60,11 +54,6 @@ struct bictcp {
 	u32	loss_cwnd;	/* congestion window at last loss */
 	u32	last_cwnd;	/* the last snd_cwnd */
 	u32	last_time;	/* time when updated last_cwnd */
-	u32	delay_min;	/* min delay */
-	u32	delay_max;	/* max delay */
-	u32	last_delay;
-	u8	low_utilization;/* 0: high; 1: low */
-	u32	low_utilization_start;	/* starting time of low utilization detection*/
 	u32	epoch_start;	/* beginning of an epoch */
 #define ACK_RATIO_SHIFT	4
 	u32	delayed_ack;	/* estimate the ratio of Packets/ACKs << 4 */
@@ -77,11 +66,6 @@ static inline void bictcp_reset(struct bictcp *ca)
 	ca->loss_cwnd = 0;
 	ca->last_cwnd = 0;
 	ca->last_time = 0;
-	ca->delay_min = 0;
-	ca->delay_max = 0;
-	ca->last_delay = 0;
-	ca->low_utilization = 0;
-	ca->low_utilization_start = 0;
 	ca->epoch_start = 0;
 	ca->delayed_ack = 2 << ACK_RATIO_SHIFT;
 }
@@ -143,8 +127,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	}
 
 	/* if in slow start or link utilization is very low */
-	if ( ca->loss_cwnd == 0 ||
-	     (cwnd > ca->loss_cwnd && ca->low_utilization)) {
+	if (ca->loss_cwnd == 0) {
 		if (ca->cnt > 20) /* increase cwnd 5% per RTT */
 			ca->cnt = 20;
 	}
@@ -154,68 +137,11 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 		ca->cnt = 1;
 }
 
-
-/* Detect low utilization in congestion avoidance */
-static inline void bictcp_low_utilization(struct sock *sk, int flag)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
-	u32 dist, delay;
-
-	/* No time stamp */
-	if (!(tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr) ||
-	     /* Discard delay samples right after fast recovery */
-	     tcp_time_stamp < ca->epoch_start + HZ ||
-	     /* this delay samples may not be accurate */
-	     flag == 0) {
-		ca->last_delay = 0;
-		goto notlow;
-	}
-
-	delay = ca->last_delay<<3;	/* use the same scale as tp->srtt*/
-	ca->last_delay = tcp_time_stamp - tp->rx_opt.rcv_tsecr;
-	if (delay == 0) 		/* no previous delay sample */
-		goto notlow;
-
-	/* first time call or link delay decreases */
-	if (ca->delay_min == 0 || ca->delay_min > delay) {
-		ca->delay_min = ca->delay_max = delay;
-		goto notlow;
-	}
-
-	if (ca->delay_max < delay)
-		ca->delay_max = delay;
-
-	/* utilization is low, if avg delay < dist*threshold
-	   for checking_period time */
-	dist = ca->delay_max - ca->delay_min;
-	if (dist <= ca->delay_min>>6 ||
-	    tp->srtt - ca->delay_min >=  (dist*low_utilization_threshold)>>10)
-		goto notlow;
-
-	if (ca->low_utilization_start == 0) {
-		ca->low_utilization = 0;
-		ca->low_utilization_start = tcp_time_stamp;
-	} else if ((s32)(tcp_time_stamp - ca->low_utilization_start)
-			> low_utilization_period*HZ) {
-		ca->low_utilization = 1;
-	}
-
-	return;
-
- notlow:
-	ca->low_utilization = 0;
-	ca->low_utilization_start = 0;
-
-}
-
 static void bictcp_cong_avoid(struct sock *sk, u32 ack,
 			      u32 seq_rtt, u32 in_flight, int data_acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
-
-	bictcp_low_utilization(sk, data_acked);
 
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
@@ -248,11 +174,6 @@ static u32 bictcp_recalc_ssthresh(struct sock *sk)
 	struct bictcp *ca = inet_csk_ca(sk);
 
 	ca->epoch_start = 0;	/* end of epoch */
-
-	/* in case of wrong delay_max*/
-	if (ca->delay_min > 0 && ca->delay_max > ca->delay_min)
-		ca->delay_max = ca->delay_min
-			+ ((ca->delay_max - ca->delay_min)* 90) / 100;
 
 	/* Wmax and fast convergence */
 	if (tp->snd_cwnd < ca->last_max_cwnd && fast_convergence)
@@ -289,14 +210,14 @@ static void bictcp_state(struct sock *sk, u8 new_state)
 		bictcp_reset(inet_csk_ca(sk));
 }
 
-/* Track delayed acknowledgement ratio using sliding window
+/* Track delayed acknowledgment ratio using sliding window
  * ratio = (15*ratio + sample) / 16
  */
 static void bictcp_acked(struct sock *sk, u32 cnt)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (cnt > 0 && 	icsk->icsk_ca_state == TCP_CA_Open) {
+	if (cnt > 0 && icsk->icsk_ca_state == TCP_CA_Open) {
 		struct bictcp *ca = inet_csk_ca(sk);
 		cnt -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ca->delayed_ack += cnt;

@@ -63,6 +63,7 @@
 #include <linux/wait.h>
 #include <linux/time.h>
 #include <linux/ip.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -153,10 +154,6 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 	*((struct sctp_chunk **)(chunk->skb->cb)) = chunk;
 
 	asoc->sndbuf_used += SCTP_DATA_SNDSIZE(chunk) +
-				sizeof(struct sk_buff) +
-				sizeof(struct sctp_chunk);
-
-	sk->sk_wmem_queued += SCTP_DATA_SNDSIZE(chunk) +
 				sizeof(struct sk_buff) +
 				sizeof(struct sctp_chunk);
 
@@ -864,7 +861,7 @@ SCTP_STATIC int sctp_setsockopt_bindx(struct sock* sk,
 		return -EFAULT;
 
 	/* Alloc space for the address array in kernel memory.  */
-	kaddrs = (struct sockaddr *)kmalloc(addrs_size, GFP_KERNEL);
+	kaddrs = kmalloc(addrs_size, GFP_KERNEL);
 	if (unlikely(!kaddrs))
 		return -ENOMEM;
 
@@ -1154,7 +1151,7 @@ SCTP_STATIC int sctp_setsockopt_connectx(struct sock* sk,
 		return -EFAULT;
 
 	/* Alloc space for the address array in kernel memory.  */
-	kaddrs = (struct sockaddr *)kmalloc(addrs_size, GFP_KERNEL);
+	kaddrs = kmalloc(addrs_size, GFP_KERNEL);
 	if (unlikely(!kaddrs))
 		return -ENOMEM;
 
@@ -1932,7 +1929,6 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
 	if (copy_from_user(&sp->autoclose, optval, optlen))
 		return -EFAULT;
 
-	sp->ep->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] = sp->autoclose * HZ;
 	return 0;
 }
 
@@ -1946,107 +1942,379 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  * address's parameters:
  *
  *  struct sctp_paddrparams {
- *      sctp_assoc_t            spp_assoc_id;
- *      struct sockaddr_storage spp_address;
- *      uint32_t                spp_hbinterval;
- *      uint16_t                spp_pathmaxrxt;
- *  };
+ *     sctp_assoc_t            spp_assoc_id;
+ *     struct sockaddr_storage spp_address;
+ *     uint32_t                spp_hbinterval;
+ *     uint16_t                spp_pathmaxrxt;
+ *     uint32_t                spp_pathmtu;
+ *     uint32_t                spp_sackdelay;
+ *     uint32_t                spp_flags;
+ * };
  *
- *   spp_assoc_id    - (UDP style socket) This is filled in the application,
- *                     and identifies the association for this query.
+ *   spp_assoc_id    - (one-to-many style socket) This is filled in the
+ *                     application, and identifies the association for
+ *                     this query.
  *   spp_address     - This specifies which address is of interest.
  *   spp_hbinterval  - This contains the value of the heartbeat interval,
- *                     in milliseconds.  A value of 0, when modifying the
- *                     parameter, specifies that the heartbeat on this
- *                     address should be disabled. A value of UINT32_MAX
- *                     (4294967295), when modifying the parameter,
- *                     specifies that a heartbeat should be sent
- *                     immediately to the peer address, and the current
- *                     interval should remain unchanged.
+ *                     in milliseconds.  If a  value of zero
+ *                     is present in this field then no changes are to
+ *                     be made to this parameter.
  *   spp_pathmaxrxt  - This contains the maximum number of
  *                     retransmissions before this address shall be
- *                     considered unreachable.
+ *                     considered unreachable. If a  value of zero
+ *                     is present in this field then no changes are to
+ *                     be made to this parameter.
+ *   spp_pathmtu     - When Path MTU discovery is disabled the value
+ *                     specified here will be the "fixed" path mtu.
+ *                     Note that if the spp_address field is empty
+ *                     then all associations on this address will
+ *                     have this fixed path mtu set upon them.
+ *
+ *   spp_sackdelay   - When delayed sack is enabled, this value specifies
+ *                     the number of milliseconds that sacks will be delayed
+ *                     for. This value will apply to all addresses of an
+ *                     association if the spp_address field is empty. Note
+ *                     also, that if delayed sack is enabled and this
+ *                     value is set to 0, no change is made to the last
+ *                     recorded delayed sack timer value.
+ *
+ *   spp_flags       - These flags are used to control various features
+ *                     on an association. The flag field may contain
+ *                     zero or more of the following options.
+ *
+ *                     SPP_HB_ENABLE  - Enable heartbeats on the
+ *                     specified address. Note that if the address
+ *                     field is empty all addresses for the association
+ *                     have heartbeats enabled upon them.
+ *
+ *                     SPP_HB_DISABLE - Disable heartbeats on the
+ *                     speicifed address. Note that if the address
+ *                     field is empty all addresses for the association
+ *                     will have their heartbeats disabled. Note also
+ *                     that SPP_HB_ENABLE and SPP_HB_DISABLE are
+ *                     mutually exclusive, only one of these two should
+ *                     be specified. Enabling both fields will have
+ *                     undetermined results.
+ *
+ *                     SPP_HB_DEMAND - Request a user initiated heartbeat
+ *                     to be made immediately.
+ *
+ *                     SPP_PMTUD_ENABLE - This field will enable PMTU
+ *                     discovery upon the specified address. Note that
+ *                     if the address feild is empty then all addresses
+ *                     on the association are effected.
+ *
+ *                     SPP_PMTUD_DISABLE - This field will disable PMTU
+ *                     discovery upon the specified address. Note that
+ *                     if the address feild is empty then all addresses
+ *                     on the association are effected. Not also that
+ *                     SPP_PMTUD_ENABLE and SPP_PMTUD_DISABLE are mutually
+ *                     exclusive. Enabling both will have undetermined
+ *                     results.
+ *
+ *                     SPP_SACKDELAY_ENABLE - Setting this flag turns
+ *                     on delayed sack. The time specified in spp_sackdelay
+ *                     is used to specify the sack delay for this address. Note
+ *                     that if spp_address is empty then all addresses will
+ *                     enable delayed sack and take on the sack delay
+ *                     value specified in spp_sackdelay.
+ *                     SPP_SACKDELAY_DISABLE - Setting this flag turns
+ *                     off delayed sack. If the spp_address field is blank then
+ *                     delayed sack is disabled for the entire association. Note
+ *                     also that this field is mutually exclusive to
+ *                     SPP_SACKDELAY_ENABLE, setting both will have undefined
+ *                     results.
  */
-static int sctp_setsockopt_peer_addr_params(struct sock *sk,
-					    char __user *optval, int optlen)
+int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
+				struct sctp_transport   *trans,
+				struct sctp_association *asoc,
+				struct sctp_sock        *sp,
+				int                      hb_change,
+				int                      pmtud_change,
+				int                      sackdelay_change)
 {
-	struct sctp_paddrparams params;
-	struct sctp_transport *trans;
 	int error;
 
-	if (optlen != sizeof(struct sctp_paddrparams))
-		return -EINVAL;
-	if (copy_from_user(&params, optval, optlen))
-		return -EFAULT;
-
-	/*
-	 * API 7. Socket Options (setting the default value for the endpoint)
-	 * All options that support specific settings on an association by
-	 * filling in either an association id variable or a sockaddr_storage
-	 * SHOULD also support setting of the same value for the entire endpoint
-	 * (i.e. future associations). To accomplish this the following logic is
-	 * used when setting one of these options:
-
-	 * c) If neither the sockaddr_storage or association identification is
-	 *    set i.e. the sockaddr_storage is set to all 0's (INADDR_ANY) and
-	 *    the association identification is 0, the settings are a default
-	 *    and to be applied to the endpoint (all future associations).
-	 */
-
-	/* update default value for endpoint (all future associations) */
-	if (!params.spp_assoc_id && 
-	    sctp_is_any(( union sctp_addr *)&params.spp_address)) {
-		/* Manual heartbeat on an endpoint is invalid. */
-		if (0xffffffff == params.spp_hbinterval)
-			return -EINVAL;
-		else if (params.spp_hbinterval)
-			sctp_sk(sk)->paddrparam.spp_hbinterval =
-						params.spp_hbinterval;
-		if (params.spp_pathmaxrxt)
-			sctp_sk(sk)->paddrparam.spp_pathmaxrxt =
-						params.spp_pathmaxrxt;
-		return 0;
-	}
-
-	trans = sctp_addr_id2transport(sk, &params.spp_address,
-				       params.spp_assoc_id);
-	if (!trans)
-		return -EINVAL;
-
-	/* Applications can enable or disable heartbeats for any peer address
-	 * of an association, modify an address's heartbeat interval, force a
-	 * heartbeat to be sent immediately, and adjust the address's maximum
-	 * number of retransmissions sent before an address is considered
-	 * unreachable.
-	 *
-	 * The value of the heartbeat interval, in milliseconds. A value of
-	 * UINT32_MAX (4294967295), when modifying the parameter, specifies
-	 * that a heartbeat should be sent immediately to the peer address,
-	 * and the current interval should remain unchanged.
-	 */
-	if (0xffffffff == params.spp_hbinterval) {
+	if (params->spp_flags & SPP_HB_DEMAND && trans) {
 		error = sctp_primitive_REQUESTHEARTBEAT (trans->asoc, trans);
 		if (error)
 			return error;
-	} else {
-	/* The value of the heartbeat interval, in milliseconds. A value of 0,
-	 * when modifying the parameter, specifies that the heartbeat on this
-	 * address should be disabled.
-	 */
-		if (params.spp_hbinterval) {
-			trans->hb_allowed = 1;
-			trans->hb_interval = 
-				msecs_to_jiffies(params.spp_hbinterval);
-		} else
-			trans->hb_allowed = 0;
 	}
 
-	/* spp_pathmaxrxt contains the maximum number of retransmissions
-	 * before this address shall be considered unreachable.
-	 */
-	if (params.spp_pathmaxrxt)
-		trans->max_retrans = params.spp_pathmaxrxt;
+	if (params->spp_hbinterval) {
+		if (trans) {
+			trans->hbinterval = msecs_to_jiffies(params->spp_hbinterval);
+		} else if (asoc) {
+			asoc->hbinterval = msecs_to_jiffies(params->spp_hbinterval);
+		} else {
+			sp->hbinterval = params->spp_hbinterval;
+		}
+	}
 
+	if (hb_change) {
+		if (trans) {
+			trans->param_flags =
+				(trans->param_flags & ~SPP_HB) | hb_change;
+		} else if (asoc) {
+			asoc->param_flags =
+				(asoc->param_flags & ~SPP_HB) | hb_change;
+		} else {
+			sp->param_flags =
+				(sp->param_flags & ~SPP_HB) | hb_change;
+		}
+	}
+
+	if (params->spp_pathmtu) {
+		if (trans) {
+			trans->pathmtu = params->spp_pathmtu;
+			sctp_assoc_sync_pmtu(asoc);
+		} else if (asoc) {
+			asoc->pathmtu = params->spp_pathmtu;
+			sctp_frag_point(sp, params->spp_pathmtu);
+		} else {
+			sp->pathmtu = params->spp_pathmtu;
+		}
+	}
+
+	if (pmtud_change) {
+		if (trans) {
+			int update = (trans->param_flags & SPP_PMTUD_DISABLE) &&
+				(params->spp_flags & SPP_PMTUD_ENABLE);
+			trans->param_flags =
+				(trans->param_flags & ~SPP_PMTUD) | pmtud_change;
+			if (update) {
+				sctp_transport_pmtu(trans);
+				sctp_assoc_sync_pmtu(asoc);
+			}
+		} else if (asoc) {
+			asoc->param_flags =
+				(asoc->param_flags & ~SPP_PMTUD) | pmtud_change;
+		} else {
+			sp->param_flags =
+				(sp->param_flags & ~SPP_PMTUD) | pmtud_change;
+		}
+	}
+
+	if (params->spp_sackdelay) {
+		if (trans) {
+			trans->sackdelay =
+				msecs_to_jiffies(params->spp_sackdelay);
+		} else if (asoc) {
+			asoc->sackdelay =
+				msecs_to_jiffies(params->spp_sackdelay);
+		} else {
+			sp->sackdelay = params->spp_sackdelay;
+		}
+	}
+
+	if (sackdelay_change) {
+		if (trans) {
+			trans->param_flags =
+				(trans->param_flags & ~SPP_SACKDELAY) |
+				sackdelay_change;
+		} else if (asoc) {
+			asoc->param_flags =
+				(asoc->param_flags & ~SPP_SACKDELAY) |
+				sackdelay_change;
+		} else {
+			sp->param_flags =
+				(sp->param_flags & ~SPP_SACKDELAY) |
+				sackdelay_change;
+		}
+	}
+
+	if (params->spp_pathmaxrxt) {
+		if (trans) {
+			trans->pathmaxrxt = params->spp_pathmaxrxt;
+		} else if (asoc) {
+			asoc->pathmaxrxt = params->spp_pathmaxrxt;
+		} else {
+			sp->pathmaxrxt = params->spp_pathmaxrxt;
+		}
+	}
+
+	return 0;
+}
+
+static int sctp_setsockopt_peer_addr_params(struct sock *sk,
+					    char __user *optval, int optlen)
+{
+	struct sctp_paddrparams  params;
+	struct sctp_transport   *trans = NULL;
+	struct sctp_association *asoc = NULL;
+	struct sctp_sock        *sp = sctp_sk(sk);
+	int error;
+	int hb_change, pmtud_change, sackdelay_change;
+
+	if (optlen != sizeof(struct sctp_paddrparams))
+		return - EINVAL;
+
+	if (copy_from_user(&params, optval, optlen))
+		return -EFAULT;
+
+	/* Validate flags and value parameters. */
+	hb_change        = params.spp_flags & SPP_HB;
+	pmtud_change     = params.spp_flags & SPP_PMTUD;
+	sackdelay_change = params.spp_flags & SPP_SACKDELAY;
+
+	if (hb_change        == SPP_HB ||
+	    pmtud_change     == SPP_PMTUD ||
+	    sackdelay_change == SPP_SACKDELAY ||
+	    params.spp_sackdelay > 500 ||
+	    (params.spp_pathmtu
+	    && params.spp_pathmtu < SCTP_DEFAULT_MINSEGMENT))
+		return -EINVAL;
+
+	/* If an address other than INADDR_ANY is specified, and
+	 * no transport is found, then the request is invalid.
+	 */
+	if (!sctp_is_any(( union sctp_addr *)&params.spp_address)) {
+		trans = sctp_addr_id2transport(sk, &params.spp_address,
+					       params.spp_assoc_id);
+		if (!trans)
+			return -EINVAL;
+	}
+
+	/* Get association, if assoc_id != 0 and the socket is a one
+	 * to many style socket, and an association was not found, then
+	 * the id was invalid.
+	 */
+	asoc = sctp_id2assoc(sk, params.spp_assoc_id);
+	if (!asoc && params.spp_assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
+
+	/* Heartbeat demand can only be sent on a transport or
+	 * association, but not a socket.
+	 */
+	if (params.spp_flags & SPP_HB_DEMAND && !trans && !asoc)
+		return -EINVAL;
+
+	/* Process parameters. */
+	error = sctp_apply_peer_addr_params(&params, trans, asoc, sp,
+					    hb_change, pmtud_change,
+					    sackdelay_change);
+
+	if (error)
+		return error;
+
+	/* If changes are for association, also apply parameters to each
+	 * transport.
+	 */
+	if (!trans && asoc) {
+		struct list_head *pos;
+
+		list_for_each(pos, &asoc->peer.transport_addr_list) {
+			trans = list_entry(pos, struct sctp_transport,
+					   transports);
+			sctp_apply_peer_addr_params(&params, trans, asoc, sp,
+						    hb_change, pmtud_change,
+						    sackdelay_change);
+		}
+	}
+
+	return 0;
+}
+
+/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+ *
+ *   This options will get or set the delayed ack timer.  The time is set
+ *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
+ *   endpoints default delayed ack timer value.  If the assoc_id field is
+ *   non-zero, then the set or get effects the specified association.
+ *
+ *   struct sctp_assoc_value {
+ *       sctp_assoc_t            assoc_id;
+ *       uint32_t                assoc_value;
+ *   };
+ *
+ *     assoc_id    - This parameter, indicates which association the
+ *                   user is preforming an action upon. Note that if
+ *                   this field's value is zero then the endpoints
+ *                   default value is changed (effecting future
+ *                   associations only).
+ *
+ *     assoc_value - This parameter contains the number of milliseconds
+ *                   that the user is requesting the delayed ACK timer
+ *                   be set to. Note that this value is defined in
+ *                   the standard to be between 200 and 500 milliseconds.
+ *
+ *                   Note: a value of zero will leave the value alone,
+ *                   but disable SACK delay. A non-zero value will also
+ *                   enable SACK delay.
+ */
+
+static int sctp_setsockopt_delayed_ack_time(struct sock *sk,
+					    char __user *optval, int optlen)
+{
+	struct sctp_assoc_value  params;
+	struct sctp_transport   *trans = NULL;
+	struct sctp_association *asoc = NULL;
+	struct sctp_sock        *sp = sctp_sk(sk);
+
+	if (optlen != sizeof(struct sctp_assoc_value))
+		return - EINVAL;
+
+	if (copy_from_user(&params, optval, optlen))
+		return -EFAULT;
+
+	/* Validate value parameter. */
+	if (params.assoc_value > 500)
+		return -EINVAL;
+
+	/* Get association, if assoc_id != 0 and the socket is a one
+	 * to many style socket, and an association was not found, then
+	 * the id was invalid.
+ 	 */
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
+
+	if (params.assoc_value) {
+		if (asoc) {
+			asoc->sackdelay =
+				msecs_to_jiffies(params.assoc_value);
+			asoc->param_flags = 
+				(asoc->param_flags & ~SPP_SACKDELAY) |
+				SPP_SACKDELAY_ENABLE;
+		} else {
+			sp->sackdelay = params.assoc_value;
+			sp->param_flags = 
+				(sp->param_flags & ~SPP_SACKDELAY) |
+				SPP_SACKDELAY_ENABLE;
+		}
+	} else {
+		if (asoc) {
+			asoc->param_flags = 
+				(asoc->param_flags & ~SPP_SACKDELAY) |
+				SPP_SACKDELAY_DISABLE;
+		} else {
+			sp->param_flags = 
+				(sp->param_flags & ~SPP_SACKDELAY) |
+				SPP_SACKDELAY_DISABLE;
+		}
+	}
+
+	/* If change is for association, also apply to each transport. */
+	if (asoc) {
+		struct list_head *pos;
+
+		list_for_each(pos, &asoc->peer.transport_addr_list) {
+			trans = list_entry(pos, struct sctp_transport,
+					   transports);
+			if (params.assoc_value) {
+				trans->sackdelay =
+					msecs_to_jiffies(params.assoc_value);
+				trans->param_flags = 
+					(trans->param_flags & ~SPP_SACKDELAY) |
+					SPP_SACKDELAY_ENABLE;
+			} else {
+				trans->param_flags = 
+					(trans->param_flags & ~SPP_SACKDELAY) |
+					SPP_SACKDELAY_DISABLE;
+			}
+		}
+	}
+ 
 	return 0;
 }
 
@@ -2339,7 +2607,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
 	/* Update the frag_point of the existing associations. */
 	list_for_each(pos, &(sp->ep->asocs)) {
 		asoc = list_entry(pos, struct sctp_association, asocs);
-		asoc->frag_point = sctp_frag_point(sp, asoc->pmtu); 
+		asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu); 
 	}
 
 	return 0;
@@ -2494,6 +2762,10 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 
 	case SCTP_PEER_ADDR_PARAMS:
 		retval = sctp_setsockopt_peer_addr_params(sk, optval, optlen);
+		break;
+
+	case SCTP_DELAYED_ACK_TIME:
+		retval = sctp_setsockopt_delayed_ack_time(sk, optval, optlen);
 		break;
 
 	case SCTP_INITMSG:
@@ -2720,8 +2992,13 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	/* Default Peer Address Parameters.  These defaults can
 	 * be modified via SCTP_PEER_ADDR_PARAMS
 	 */
-	sp->paddrparam.spp_hbinterval = jiffies_to_msecs(sctp_hb_interval);
-	sp->paddrparam.spp_pathmaxrxt = sctp_max_retrans_path;
+	sp->hbinterval  = jiffies_to_msecs(sctp_hb_interval);
+	sp->pathmaxrxt  = sctp_max_retrans_path;
+	sp->pathmtu     = 0; // allow default discovery
+	sp->sackdelay   = jiffies_to_msecs(sctp_sack_timeout);
+	sp->param_flags = SPP_HB_ENABLE |
+	                  SPP_PMTUD_ENABLE |
+	                  SPP_SACKDELAY_ENABLE;
 
 	/* If enabled no SCTP message fragmentation will be performed.
 	 * Configure through SCTP_DISABLE_FRAGMENTS socket option.
@@ -2870,7 +3147,7 @@ static int sctp_getsockopt_sctp_status(struct sock *sk, int len,
 	status.sstat_primary.spinfo_cwnd = transport->cwnd;
 	status.sstat_primary.spinfo_srtt = transport->srtt;
 	status.sstat_primary.spinfo_rto = jiffies_to_msecs(transport->rto);
-	status.sstat_primary.spinfo_mtu = transport->pmtu;
+	status.sstat_primary.spinfo_mtu = transport->pathmtu;
 
 	if (status.sstat_primary.spinfo_state == SCTP_UNKNOWN)
 		status.sstat_primary.spinfo_state = SCTP_ACTIVE;
@@ -2929,7 +3206,7 @@ static int sctp_getsockopt_peer_addr_info(struct sock *sk, int len,
 	pinfo.spinfo_cwnd = transport->cwnd;
 	pinfo.spinfo_srtt = transport->srtt;
 	pinfo.spinfo_rto = jiffies_to_msecs(transport->rto);
-	pinfo.spinfo_mtu = transport->pmtu;
+	pinfo.spinfo_mtu = transport->pathmtu;
 
 	if (pinfo.spinfo_state == SCTP_UNKNOWN)
 		pinfo.spinfo_state = SCTP_ACTIVE;
@@ -3091,69 +3368,227 @@ out:
  * address's parameters:
  *
  *  struct sctp_paddrparams {
- *      sctp_assoc_t            spp_assoc_id;
- *      struct sockaddr_storage spp_address;
- *      uint32_t                spp_hbinterval;
- *      uint16_t                spp_pathmaxrxt;
- *  };
+ *     sctp_assoc_t            spp_assoc_id;
+ *     struct sockaddr_storage spp_address;
+ *     uint32_t                spp_hbinterval;
+ *     uint16_t                spp_pathmaxrxt;
+ *     uint32_t                spp_pathmtu;
+ *     uint32_t                spp_sackdelay;
+ *     uint32_t                spp_flags;
+ * };
  *
- *   spp_assoc_id    - (UDP style socket) This is filled in the application,
- *                     and identifies the association for this query.
+ *   spp_assoc_id    - (one-to-many style socket) This is filled in the
+ *                     application, and identifies the association for
+ *                     this query.
  *   spp_address     - This specifies which address is of interest.
  *   spp_hbinterval  - This contains the value of the heartbeat interval,
- *                     in milliseconds.  A value of 0, when modifying the
- *                     parameter, specifies that the heartbeat on this
- *                     address should be disabled. A value of UINT32_MAX
- *                     (4294967295), when modifying the parameter,
- *                     specifies that a heartbeat should be sent
- *                     immediately to the peer address, and the current
- *                     interval should remain unchanged.
+ *                     in milliseconds.  If a  value of zero
+ *                     is present in this field then no changes are to
+ *                     be made to this parameter.
  *   spp_pathmaxrxt  - This contains the maximum number of
  *                     retransmissions before this address shall be
- *                     considered unreachable.
+ *                     considered unreachable. If a  value of zero
+ *                     is present in this field then no changes are to
+ *                     be made to this parameter.
+ *   spp_pathmtu     - When Path MTU discovery is disabled the value
+ *                     specified here will be the "fixed" path mtu.
+ *                     Note that if the spp_address field is empty
+ *                     then all associations on this address will
+ *                     have this fixed path mtu set upon them.
+ *
+ *   spp_sackdelay   - When delayed sack is enabled, this value specifies
+ *                     the number of milliseconds that sacks will be delayed
+ *                     for. This value will apply to all addresses of an
+ *                     association if the spp_address field is empty. Note
+ *                     also, that if delayed sack is enabled and this
+ *                     value is set to 0, no change is made to the last
+ *                     recorded delayed sack timer value.
+ *
+ *   spp_flags       - These flags are used to control various features
+ *                     on an association. The flag field may contain
+ *                     zero or more of the following options.
+ *
+ *                     SPP_HB_ENABLE  - Enable heartbeats on the
+ *                     specified address. Note that if the address
+ *                     field is empty all addresses for the association
+ *                     have heartbeats enabled upon them.
+ *
+ *                     SPP_HB_DISABLE - Disable heartbeats on the
+ *                     speicifed address. Note that if the address
+ *                     field is empty all addresses for the association
+ *                     will have their heartbeats disabled. Note also
+ *                     that SPP_HB_ENABLE and SPP_HB_DISABLE are
+ *                     mutually exclusive, only one of these two should
+ *                     be specified. Enabling both fields will have
+ *                     undetermined results.
+ *
+ *                     SPP_HB_DEMAND - Request a user initiated heartbeat
+ *                     to be made immediately.
+ *
+ *                     SPP_PMTUD_ENABLE - This field will enable PMTU
+ *                     discovery upon the specified address. Note that
+ *                     if the address feild is empty then all addresses
+ *                     on the association are effected.
+ *
+ *                     SPP_PMTUD_DISABLE - This field will disable PMTU
+ *                     discovery upon the specified address. Note that
+ *                     if the address feild is empty then all addresses
+ *                     on the association are effected. Not also that
+ *                     SPP_PMTUD_ENABLE and SPP_PMTUD_DISABLE are mutually
+ *                     exclusive. Enabling both will have undetermined
+ *                     results.
+ *
+ *                     SPP_SACKDELAY_ENABLE - Setting this flag turns
+ *                     on delayed sack. The time specified in spp_sackdelay
+ *                     is used to specify the sack delay for this address. Note
+ *                     that if spp_address is empty then all addresses will
+ *                     enable delayed sack and take on the sack delay
+ *                     value specified in spp_sackdelay.
+ *                     SPP_SACKDELAY_DISABLE - Setting this flag turns
+ *                     off delayed sack. If the spp_address field is blank then
+ *                     delayed sack is disabled for the entire association. Note
+ *                     also that this field is mutually exclusive to
+ *                     SPP_SACKDELAY_ENABLE, setting both will have undefined
+ *                     results.
  */
 static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
-						char __user *optval, int __user *optlen)
+					    char __user *optval, int __user *optlen)
 {
-	struct sctp_paddrparams params;
-	struct sctp_transport *trans;
+	struct sctp_paddrparams  params;
+	struct sctp_transport   *trans = NULL;
+	struct sctp_association *asoc = NULL;
+	struct sctp_sock        *sp = sctp_sk(sk);
 
 	if (len != sizeof(struct sctp_paddrparams))
 		return -EINVAL;
+
 	if (copy_from_user(&params, optval, len))
 		return -EFAULT;
 
-	/* If no association id is specified retrieve the default value
-	 * for the endpoint that will be used for all future associations
+	/* If an address other than INADDR_ANY is specified, and
+	 * no transport is found, then the request is invalid.
 	 */
-	if (!params.spp_assoc_id &&
-	    sctp_is_any(( union sctp_addr *)&params.spp_address)) {
-		params.spp_hbinterval = sctp_sk(sk)->paddrparam.spp_hbinterval;
-		params.spp_pathmaxrxt = sctp_sk(sk)->paddrparam.spp_pathmaxrxt;
-
-		goto done;
+	if (!sctp_is_any(( union sctp_addr *)&params.spp_address)) {
+		trans = sctp_addr_id2transport(sk, &params.spp_address,
+					       params.spp_assoc_id);
+		if (!trans) {
+			SCTP_DEBUG_PRINTK("Failed no transport\n");
+			return -EINVAL;
+		}
 	}
 
-	trans = sctp_addr_id2transport(sk, &params.spp_address,
-				       params.spp_assoc_id);
-	if (!trans)
+	/* Get association, if assoc_id != 0 and the socket is a one
+	 * to many style socket, and an association was not found, then
+	 * the id was invalid.
+	 */
+	asoc = sctp_id2assoc(sk, params.spp_assoc_id);
+	if (!asoc && params.spp_assoc_id && sctp_style(sk, UDP)) {
+		SCTP_DEBUG_PRINTK("Failed no association\n");
+		return -EINVAL;
+	}
+
+	if (trans) {
+		/* Fetch transport values. */
+		params.spp_hbinterval = jiffies_to_msecs(trans->hbinterval);
+		params.spp_pathmtu    = trans->pathmtu;
+		params.spp_pathmaxrxt = trans->pathmaxrxt;
+		params.spp_sackdelay  = jiffies_to_msecs(trans->sackdelay);
+
+		/*draft-11 doesn't say what to return in spp_flags*/
+		params.spp_flags      = trans->param_flags;
+	} else if (asoc) {
+		/* Fetch association values. */
+		params.spp_hbinterval = jiffies_to_msecs(asoc->hbinterval);
+		params.spp_pathmtu    = asoc->pathmtu;
+		params.spp_pathmaxrxt = asoc->pathmaxrxt;
+		params.spp_sackdelay  = jiffies_to_msecs(asoc->sackdelay);
+
+		/*draft-11 doesn't say what to return in spp_flags*/
+		params.spp_flags      = asoc->param_flags;
+	} else {
+		/* Fetch socket values. */
+		params.spp_hbinterval = sp->hbinterval;
+		params.spp_pathmtu    = sp->pathmtu;
+		params.spp_sackdelay  = sp->sackdelay;
+		params.spp_pathmaxrxt = sp->pathmaxrxt;
+
+		/*draft-11 doesn't say what to return in spp_flags*/
+		params.spp_flags      = sp->param_flags;
+	}
+
+	if (copy_to_user(optval, &params, len))
+		return -EFAULT;
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+
+	return 0;
+}
+
+/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+ *
+ *   This options will get or set the delayed ack timer.  The time is set
+ *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
+ *   endpoints default delayed ack timer value.  If the assoc_id field is
+ *   non-zero, then the set or get effects the specified association.
+ *
+ *   struct sctp_assoc_value {
+ *       sctp_assoc_t            assoc_id;
+ *       uint32_t                assoc_value;
+ *   };
+ *
+ *     assoc_id    - This parameter, indicates which association the
+ *                   user is preforming an action upon. Note that if
+ *                   this field's value is zero then the endpoints
+ *                   default value is changed (effecting future
+ *                   associations only).
+ *
+ *     assoc_value - This parameter contains the number of milliseconds
+ *                   that the user is requesting the delayed ACK timer
+ *                   be set to. Note that this value is defined in
+ *                   the standard to be between 200 and 500 milliseconds.
+ *
+ *                   Note: a value of zero will leave the value alone,
+ *                   but disable SACK delay. A non-zero value will also
+ *                   enable SACK delay.
+ */
+static int sctp_getsockopt_delayed_ack_time(struct sock *sk, int len,
+					    char __user *optval,
+					    int __user *optlen)
+{
+	struct sctp_assoc_value  params;
+	struct sctp_association *asoc = NULL;
+	struct sctp_sock        *sp = sctp_sk(sk);
+
+	if (len != sizeof(struct sctp_assoc_value))
+		return - EINVAL;
+
+	if (copy_from_user(&params, optval, len))
+		return -EFAULT;
+
+	/* Get association, if assoc_id != 0 and the socket is a one
+	 * to many style socket, and an association was not found, then
+	 * the id was invalid.
+ 	 */
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+	if (!asoc && params.assoc_id && sctp_style(sk, UDP))
 		return -EINVAL;
 
-	/* The value of the heartbeat interval, in milliseconds. A value of 0,
-	 * when modifying the parameter, specifies that the heartbeat on this
-	 * address should be disabled.
-	 */
-	if (!trans->hb_allowed)
-		params.spp_hbinterval = 0;
-	else
-		params.spp_hbinterval = jiffies_to_msecs(trans->hb_interval);
+	if (asoc) {
+		/* Fetch association values. */
+		if (asoc->param_flags & SPP_SACKDELAY_ENABLE)
+			params.assoc_value = jiffies_to_msecs(
+				asoc->sackdelay);
+		else
+			params.assoc_value = 0;
+	} else {
+		/* Fetch socket values. */
+		if (sp->param_flags & SPP_SACKDELAY_ENABLE)
+			params.assoc_value  = sp->sackdelay;
+		else
+			params.assoc_value  = 0;
+	}
 
-	/* spp_pathmaxrxt contains the maximum number of retransmissions
-	 * before this address shall be considered unreachable.
-	 */
-	params.spp_pathmaxrxt = trans->max_retrans;
-
-done:
 	if (copy_to_user(optval, &params, len))
 		return -EFAULT;
 
@@ -3426,7 +3861,7 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 }
 
 static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
-				    void * __user *to, size_t space_left)
+				    void __user **to, size_t space_left)
 {
 	struct list_head *pos;
 	struct sctp_sockaddr_entry *addr;
@@ -4020,6 +4455,10 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_getsockopt_peer_addr_params(sk, len, optval,
 							  optlen);
 		break;
+	case SCTP_DELAYED_ACK_TIME:
+		retval = sctp_getsockopt_delayed_ack_time(sk, len, optval,
+							  optlen);
+		break;
 	case SCTP_INITMSG:
 		retval = sctp_getsockopt_initmsg(sk, len, optval, optlen);
 		break;
@@ -4427,7 +4866,7 @@ cleanup:
  * tcp_poll().  Note that, based on these implementations, we don't
  * lock the socket in this function, even though it seems that,
  * ideally, locking or some other mechanisms can be used to ensure
- * the integrity of the counters (sndbuf and wmem_queued) used
+ * the integrity of the counters (sndbuf and wmem_alloc) used
  * in this place.  We assume that we don't need locks either until proven
  * otherwise.
  *
@@ -4744,11 +5183,6 @@ static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 	struct sk_buff *skb;
 	long timeo;
 
-	/* Caller is allowed not to check sk->sk_err before calling.  */
-	error = sock_error(sk);
-	if (error)
-		goto no_packet;
-
 	timeo = sock_rcvtimeo(sk, noblock);
 
 	SCTP_DEBUG_PRINTK("Timeout: timeo: %ld, MAX: %ld.\n",
@@ -4774,6 +5208,11 @@ static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 
 		if (skb)
 			return skb;
+
+		/* Caller is allowed not to check sk->sk_err before calling. */
+		error = sock_error(sk);
+		if (error)
+			goto no_packet;
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
@@ -4831,10 +5270,6 @@ static void sctp_wfree(struct sk_buff *skb)
 	asoc = chunk->asoc;
 	sk = asoc->base.sk;
 	asoc->sndbuf_used -= SCTP_DATA_SNDSIZE(chunk) +
-				sizeof(struct sk_buff) +
-				sizeof(struct sctp_chunk);
-
-	sk->sk_wmem_queued -= SCTP_DATA_SNDSIZE(chunk) +
 				sizeof(struct sk_buff) +
 				sizeof(struct sctp_chunk);
 
@@ -4921,7 +5356,7 @@ void sctp_write_space(struct sock *sk)
 
 /* Is there any sndbuf space available on the socket?
  *
- * Note that wmem_queued is the sum of the send buffers on all of the
+ * Note that sk_wmem_alloc is the sum of the send buffers on all of the
  * associations on the same socket.  For a UDP-style socket with
  * multiple associations, it is possible for it to be "unwriteable"
  * prematurely.  I assume that this is acceptable because
@@ -4934,7 +5369,7 @@ static int sctp_writeable(struct sock *sk)
 {
 	int amt = 0;
 
-	amt = sk->sk_sndbuf - sk->sk_wmem_queued;
+	amt = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
 	if (amt < 0)
 		amt = 0;
 	return amt;
@@ -5115,8 +5550,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	sctp_skb_for_each(skb, &oldsk->sk_receive_queue, tmp) {
 		event = sctp_skb2event(skb);
 		if (event->asoc == assoc) {
+			sock_rfree(skb);
 			__skb_unlink(skb, &oldsk->sk_receive_queue);
 			__skb_queue_tail(&newsk->sk_receive_queue, skb);
+			skb_set_owner_r(skb, newsk);
 		}
 	}
 
@@ -5144,8 +5581,10 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		sctp_skb_for_each(skb, &oldsp->pd_lobby, tmp) {
 			event = sctp_skb2event(skb);
 			if (event->asoc == assoc) {
+				sock_rfree(skb);
 				__skb_unlink(skb, &oldsp->pd_lobby);
 				__skb_queue_tail(queue, skb);
+				skb_set_owner_r(skb, newsk);
 			}
 		}
 
@@ -5163,8 +5602,12 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 */
 	newsp->type = type;
 
+	spin_lock_bh(&oldsk->sk_lock.slock);
+	/* Migrate the backlog from oldsk to newsk. */
+	sctp_backlog_migrate(assoc, oldsk, newsk);
 	/* Migrate the association to the new socket. */
 	sctp_assoc_migrate(assoc, newsk);
+	spin_unlock_bh(&oldsk->sk_lock.slock);
 
 	/* If the association on the newsk is already closed before accept()
 	 * is called, set RCV_SHUTDOWN flag.

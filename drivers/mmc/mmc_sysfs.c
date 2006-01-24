@@ -80,7 +80,7 @@ static int mmc_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 static int
-mmc_bus_hotplug(struct device *dev, char **envp, int num_envp, char *buf,
+mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
 		int buf_size)
 {
 	struct mmc_card *card = dev_to_mmc_card(dev);
@@ -136,17 +136,7 @@ static int mmc_bus_resume(struct device *dev)
 	return ret;
 }
 
-static struct bus_type mmc_bus_type = {
-	.name		= "mmc",
-	.dev_attrs	= mmc_dev_attrs,
-	.match		= mmc_bus_match,
-	.hotplug	= mmc_bus_hotplug,
-	.suspend	= mmc_bus_suspend,
-	.resume		= mmc_bus_resume,
-};
-
-
-static int mmc_drv_probe(struct device *dev)
+static int mmc_bus_probe(struct device *dev)
 {
 	struct mmc_driver *drv = to_mmc_driver(dev->driver);
 	struct mmc_card *card = dev_to_mmc_card(dev);
@@ -154,7 +144,7 @@ static int mmc_drv_probe(struct device *dev)
 	return drv->probe(card);
 }
 
-static int mmc_drv_remove(struct device *dev)
+static int mmc_bus_remove(struct device *dev)
 {
 	struct mmc_driver *drv = to_mmc_driver(dev->driver);
 	struct mmc_card *card = dev_to_mmc_card(dev);
@@ -164,6 +154,16 @@ static int mmc_drv_remove(struct device *dev)
 	return 0;
 }
 
+static struct bus_type mmc_bus_type = {
+	.name		= "mmc",
+	.dev_attrs	= mmc_dev_attrs,
+	.match		= mmc_bus_match,
+	.uevent		= mmc_bus_uevent,
+	.probe		= mmc_bus_probe,
+	.remove		= mmc_bus_remove,
+	.suspend	= mmc_bus_suspend,
+	.resume		= mmc_bus_resume,
+};
 
 /**
  *	mmc_register_driver - register a media driver
@@ -172,8 +172,6 @@ static int mmc_drv_remove(struct device *dev)
 int mmc_register_driver(struct mmc_driver *drv)
 {
 	drv->drv.bus = &mmc_bus_type;
-	drv->drv.probe = mmc_drv_probe;
-	drv->drv.remove = mmc_drv_remove;
 	return driver_register(&drv->drv);
 }
 

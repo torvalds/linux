@@ -28,6 +28,7 @@
 #include <linux/video_decoder.h>
 
 #include "em28xx.h"
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 
 /* ----------------------------------------------------------- */
@@ -41,7 +42,7 @@ module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
 #define dprintk1(lvl,fmt, args...) if (i2c_debug>=lvl) do {\
-			printk(fmt , ##args); } while (0)
+			printk(fmt, ##args); } while (0)
 #define dprintk2(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
 			printk(KERN_DEBUG "%s at %s: " fmt, \
 			dev->name, __FUNCTION__ , ##args); } while (0)
@@ -486,9 +487,7 @@ static struct i2c_adapter em28xx_adap_template = {
 	.inc_use = inc_use,
 	.dec_use = dec_use,
 #endif
-#ifdef I2C_CLASS_TV_ANALOG
 	.class = I2C_CLASS_TV_ANALOG,
-#endif
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,
 	.algo = &em28xx_algo,
@@ -497,7 +496,6 @@ static struct i2c_adapter em28xx_adap_template = {
 
 static struct i2c_client em28xx_client_template = {
 	.name = "em28xx internal",
-	.flags = I2C_CLIENT_ALLOW_USE,
 };
 
 /* ----------------------------------------------------------- */

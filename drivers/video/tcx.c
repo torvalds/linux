@@ -33,9 +33,8 @@ static int tcx_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int tcx_blank(int, struct fb_info *);
 
-static int tcx_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int tcx_ioctl(struct inode *, struct file *, unsigned int,
-		     unsigned long, struct fb_info *);
+static int tcx_mmap(struct fb_info *, struct vm_area_struct *);
+static int tcx_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int tcx_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
@@ -52,6 +51,9 @@ static struct fb_ops tcx_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= tcx_mmap,
 	.fb_ioctl		= tcx_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 /* THC definitions */
@@ -122,7 +124,6 @@ struct tcx_par {
 	int			lowdepth;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 /* Reset control plane so that WID is 8-bit plane. */
@@ -300,7 +301,7 @@ static struct sbus_mmap_map __tcx_mmap_map[TCX_MMAP_ENTRIES] = {
 	{ .size = 0 }
 };
 
-static int tcx_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int tcx_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct tcx_par *par = (struct tcx_par *)info->par;
 
@@ -310,8 +311,8 @@ static int tcx_mmap(struct fb_info *info, struct file *file, struct vm_area_stru
 				  vma);
 }
 
-static int tcx_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg, struct fb_info *info)
+static int tcx_ioctl(struct fb_info *info, unsigned int cmd,
+		     unsigned long arg)
 {
 	struct tcx_par *par = (struct tcx_par *) info->par;
 
@@ -441,7 +442,7 @@ static void tcx_init_one(struct sbus_dev *sdev)
 
 	tcx_reset(&all->info);
 
-	tcx_blank(0, &all->info);
+	tcx_blank(FB_BLANK_UNBLANK, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
 		printk(KERN_ERR "tcx: Could not allocate color map.\n");

@@ -28,16 +28,15 @@
 #define L1_CACHE_ALIGN(x)       (((x)+(L1_CACHE_BYTES-1))&~(L1_CACHE_BYTES-1))
 
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
-#define L1_CACHE_SHIFT_MAX 5	/* largest L1 which this arch supports */
 
-extern void flush_data_cache_local(void);  /* flushes local data-cache only */
-extern void flush_instruction_cache_local(void); /* flushes local code-cache only */
+extern void flush_data_cache_local(void *);  /* flushes local data-cache only */
+extern void flush_instruction_cache_local(void *); /* flushes local code-cache only */
 #ifdef CONFIG_SMP
 extern void flush_data_cache(void); /* flushes data-cache only (all processors) */
 extern void flush_instruction_cache(void); /* flushes i-cache only (all processors) */
 #else
-#define flush_data_cache flush_data_cache_local
-#define flush_instruction_cache flush_instruction_cache_local
+#define flush_data_cache() flush_data_cache_local(NULL)
+#define flush_instruction_cache() flush_instruction_cache_local(NULL)
 #endif
 
 extern void parisc_cache_init(void);	/* initializes cache-flushing */

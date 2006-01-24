@@ -15,7 +15,6 @@
 #include <linux/in.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>

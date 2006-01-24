@@ -116,11 +116,11 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver kl5kusb105d_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"kl5kusb105d",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver kl5kusb105d_device = {
@@ -648,7 +648,6 @@ static void klsi_105_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		usb_serial_debug_data(debug, &port->dev, __FUNCTION__,
 				      urb->actual_length, data);
 	} else {
-		int i;
 		int bytes_sent = ((__u8 *) data)[0] +
 				 ((unsigned int) ((__u8 *) data)[1] << 8);
 		tty = port->tty;
@@ -669,16 +668,8 @@ static void klsi_105_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 			bytes_sent = urb->actual_length - 2;
 		}
 
-		for (i = 2; i < 2+bytes_sent; i++) {
-			/* if we insert more than TTY_FLIPBUF_SIZE characters,
-			 * we drop them. */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
-			/* this doesn't actually push the data through unless 
-			 * tty->low_latency is set */
-			tty_insert_flip_char(tty, ((__u8*) data)[i], 0);
-		}
+		tty_buffer_request_room(tty, bytes_sent);
+		tty_insert_flip_string(tty, data + 2, bytes_sent);
 		tty_flip_buffer_push(tty);
 
 		/* again lockless, but debug info only */

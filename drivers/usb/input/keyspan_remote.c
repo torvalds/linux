@@ -95,7 +95,7 @@ struct usb_keyspan {
  * Currently there are 15 and 17 button models so RESERVED codes
  * are blank areas in the mapping.
  */
-static int keyspan_key_table[] = {
+static const int keyspan_key_table[] = {
 	KEY_RESERVED,		/* 0 is just a place holder. */
 	KEY_RESERVED,
 	KEY_STOP,
@@ -160,7 +160,8 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 	 * though so it's not too big a deal
 	 */
 	if (dev->data.pos >= dev->data.len) {
-		dev_dbg(&dev->udev, "%s - Error ran out of data. pos: %d, len: %d\n",
+		dev_dbg(&dev->udev->dev,
+			"%s - Error ran out of data. pos: %d, len: %d\n",
 			__FUNCTION__, dev->data.pos, dev->data.len);
 		return -1;
 	}
@@ -306,7 +307,7 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			err("Bad message recieved, no stop bit found.\n");
 		}
 
-		dev_dbg(&remote->udev,
+		dev_dbg(&remote->udev->dev,
 			"%s found valid message: system: %d, button: %d, toggle: %d\n",
 			__FUNCTION__, message.system, message.button, message.toggle);
 
@@ -558,7 +559,6 @@ static void keyspan_disconnect(struct usb_interface *interface)
  */
 static struct usb_driver keyspan_driver =
 {
-	.owner =	THIS_MODULE,
 	.name =		"keyspan_remote",
 	.probe =	keyspan_probe,
 	.disconnect =	keyspan_disconnect,

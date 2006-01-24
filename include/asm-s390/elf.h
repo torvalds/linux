@@ -163,7 +163,7 @@ static inline int dump_regs(struct pt_regs *ptregs, elf_gregset_t *regs)
 
 static inline int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
-	struct pt_regs *ptregs = __KSTK_PTREGS(tsk);
+	struct pt_regs *ptregs = task_pt_regs(tsk);
 	memcpy(&regs->psw, &ptregs->psw, sizeof(regs->psw)+sizeof(regs->gprs));
 	memcpy(regs->acrs, tsk->thread.acrs, sizeof(regs->acrs));
 	regs->orig_gpr2 = ptregs->orig_gpr2;

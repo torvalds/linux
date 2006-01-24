@@ -372,12 +372,12 @@ int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
 		      struct hermes_response *resp);
 int hermes_allocate(hermes_t *hw, u16 size, u16 *fid);
 
-int hermes_bap_pread(hermes_t *hw, int bap, void *buf, unsigned len,
+int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
 		       u16 id, u16 offset);
-int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, unsigned len,
+int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 			u16 id, u16 offset);
 int hermes_bap_pwrite_pad(hermes_t *hw, int bap, const void *buf,
-			unsigned data_len, unsigned len, u16 id, u16 offset);
+			unsigned data_len, int len, u16 id, u16 offset);
 int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned buflen,
 		    u16 *length, void *buf);
 int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,

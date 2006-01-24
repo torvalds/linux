@@ -1,4 +1,9 @@
 /*
+        Added support for the AMD Geode LX RNG
+	(c) Copyright 2004-2005 Advanced Micro Devices, Inc.
+
+	derived from
+
  	Hardware driver for the Intel/AMD/VIA Random Number Generators (RNG)
 	(c) Copyright 2003 Red Hat Inc <jgarzik@redhat.com>
  
@@ -95,6 +100,11 @@ static unsigned int via_data_present (void);
 static u32 via_data_read (void);
 #endif
 
+static int __init geode_init(struct pci_dev *dev);
+static void geode_cleanup(void);
+static unsigned int geode_data_present (void);
+static u32 geode_data_read (void);
+
 struct rng_operations {
 	int (*init) (struct pci_dev *dev);
 	void (*cleanup) (void);
@@ -122,6 +132,7 @@ enum {
 	rng_hw_intel,
 	rng_hw_amd,
 	rng_hw_via,
+	rng_hw_geode,
 };
 
 static struct rng_operations rng_vendor_ops[] = {
@@ -139,6 +150,9 @@ static struct rng_operations rng_vendor_ops[] = {
 	/* rng_hw_via */
 	{ via_init, via_cleanup, via_data_present, via_data_read, 1 },
 #endif
+
+	/* rng_hw_geode */
+	{ geode_init, geode_cleanup, geode_data_present, geode_data_read, 4 }
 };
 
 /*
@@ -155,9 +169,13 @@ static struct pci_device_id rng_pci_tbl[] = {
 
 	{ 0x8086, 0x2418, PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_intel },
 	{ 0x8086, 0x2428, PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_intel },
+	{ 0x8086, 0x2430, PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_intel },
 	{ 0x8086, 0x2448, PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_intel },
 	{ 0x8086, 0x244e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_intel },
 	{ 0x8086, 0x245e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_intel },
+
+	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LX_AES,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, rng_hw_geode },
 
 	{ 0, },	/* terminate list */
 };
@@ -460,6 +478,57 @@ static void via_cleanup(void)
 }
 #endif
 
+/***********************************************************************
+ *
+ * AMD Geode RNG operations
+ *
+ */
+
+static void __iomem *geode_rng_base = NULL;
+
+#define GEODE_RNG_DATA_REG   0x50
+#define GEODE_RNG_STATUS_REG 0x54
+
+static u32 geode_data_read(void)
+{
+	u32 val;
+
+	assert(geode_rng_base != NULL);
+	val = readl(geode_rng_base + GEODE_RNG_DATA_REG);
+	return val;
+}
+
+static unsigned int geode_data_present(void)
+{
+	u32 val;
+
+	assert(geode_rng_base != NULL);
+	val = readl(geode_rng_base + GEODE_RNG_STATUS_REG);
+	return val;
+}
+
+static void geode_cleanup(void)
+{
+	iounmap(geode_rng_base);
+  	geode_rng_base = NULL;
+}
+
+static int geode_init(struct pci_dev *dev)
+{
+	unsigned long rng_base = pci_resource_start(dev, 0);
+
+	if (rng_base == 0)
+		return 1;
+
+	geode_rng_base = ioremap(rng_base, 0x58);
+
+	if (geode_rng_base == NULL) {
+		printk(KERN_ERR PFX "Cannot ioremap RNG memory\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
 
 /***********************************************************************
  *
@@ -574,7 +643,7 @@ static int __init rng_init (void)
 
 	DPRINTK ("ENTER\n");
 
-	/* Probe for Intel, AMD RNGs */
+	/* Probe for Intel, AMD, Geode RNGs */
 	for_each_pci_dev(pdev) {
 		ent = pci_match_id(rng_pci_tbl, pdev);
 		if (ent) {

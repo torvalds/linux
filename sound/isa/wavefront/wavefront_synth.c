@@ -115,17 +115,10 @@ MODULE_PARM_DESC(osrun_time, "how many seconds to wait for the ICS2115 OS");
 
 #ifdef WF_DEBUG
 
-#if defined(NEW_MACRO_VARARGS) || __GNUC__ >= 3
 #define DPRINT(cond, ...) \
        if ((dev->debug & (cond)) == (cond)) { \
 	     snd_printk (__VA_ARGS__); \
        }
-#else
-#define DPRINT(cond, args...) \
-       if ((dev->debug & (cond)) == (cond)) { \
-	     snd_printk (args); \
-       }
-#endif
 #else
 #define DPRINT(cond, args...)
 #endif /* WF_DEBUG */
@@ -144,13 +137,13 @@ MODULE_PARM_DESC(osrun_time, "how many seconds to wait for the ICS2115 OS");
 static int wavefront_delete_sample (snd_wavefront_t *, int sampnum);
 static int wavefront_find_free_sample (snd_wavefront_t *);
 
-typedef struct {
+struct wavefront_command {
 	int cmd;
 	char *action;
 	unsigned int read_cnt;
 	unsigned int write_cnt;
 	int need_ack;
-} wavefront_command;
+};
 
 static struct {
 	int errno;
@@ -170,7 +163,7 @@ static struct {
 
 #define NEEDS_ACK 1
 
-static wavefront_command wavefront_commands[] = {
+static struct wavefront_command wavefront_commands[] = {
 	{ WFC_SET_SYNTHVOL, "set synthesizer volume", 0, 1, NEEDS_ACK },
 	{ WFC_GET_SYNTHVOL, "get synthesizer volume", 1, 0, 0},
 	{ WFC_SET_NVOICES, "set number of voices", 0, 1, NEEDS_ACK },
@@ -249,7 +242,7 @@ wavefront_errorstr (int errnum)
 	return "Unknown WaveFront error";
 }
 
-static wavefront_command *
+static struct wavefront_command *
 wavefront_get_command (int cmd) 
 
 {
@@ -261,7 +254,7 @@ wavefront_get_command (int cmd)
 		}
 	}
 
-	return (wavefront_command *) 0;
+	return NULL;
 }
 
 static inline int
@@ -345,9 +338,9 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 	int ack;
 	unsigned int i;
 	int c;
-	wavefront_command *wfcmd;
+	struct wavefront_command *wfcmd;
 
-	if ((wfcmd = wavefront_get_command (cmd)) == (wavefront_command *) 0) {
+	if ((wfcmd = wavefront_get_command (cmd)) == NULL) {
 		snd_printk ("command 0x%x not supported.\n",
 			cmd);
 		return 1;
@@ -1625,7 +1618,7 @@ wavefront_synth_control (snd_wavefront_card_t *acard,
 }
 
 int 
-snd_wavefront_synth_open (snd_hwdep_t *hw, struct file *file)
+snd_wavefront_synth_open (struct snd_hwdep *hw, struct file *file)
 
 {
 	if (!try_module_get(hw->card->module))
@@ -1635,7 +1628,7 @@ snd_wavefront_synth_open (snd_hwdep_t *hw, struct file *file)
 }
 
 int 
-snd_wavefront_synth_release (snd_hwdep_t *hw, struct file *file)
+snd_wavefront_synth_release (struct snd_hwdep *hw, struct file *file)
 
 {
 	module_put(hw->card->module);
@@ -1643,18 +1636,18 @@ snd_wavefront_synth_release (snd_hwdep_t *hw, struct file *file)
 }
 
 int
-snd_wavefront_synth_ioctl (snd_hwdep_t *hw, struct file *file,
+snd_wavefront_synth_ioctl (struct snd_hwdep *hw, struct file *file,
 			   unsigned int cmd, unsigned long arg)
 
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	snd_wavefront_t *dev;
 	snd_wavefront_card_t *acard;
 	wavefront_control *wc;
 	void __user *argp = (void __user *)arg;
 	int err;
 
-	card = (snd_card_t *) hw->card;
+	card = (struct snd_card *) hw->card;
 
 	snd_assert(card != NULL, return -ENODEV);
 

@@ -190,6 +190,8 @@ boot-$(CONFIG_REDWOOD_5)	+= embed_config.o
 boot-$(CONFIG_REDWOOD_6)	+= embed_config.o
 boot-$(CONFIG_8xx)		+= embed_config.o
 boot-$(CONFIG_8260)		+= embed_config.o
+boot-$(CONFIG_EP405)		+= embed_config.o
+boot-$(CONFIG_XILINX_ML300)	+= embed_config.o
 boot-$(CONFIG_BSEIP)		+= iic.o
 boot-$(CONFIG_MBX)		+= iic.o pci.o qspan_pci.o
 boot-$(CONFIG_MV64X60)		+= misc-mv64x60.o
@@ -262,11 +264,11 @@ $(images)/zImage.initrd-STRIPELF: $(obj)/zvmlinux.initrd
 		skip=64 bs=1k
 
 $(images)/zImage-TREE: $(obj)/zvmlinux $(MKTREE)
-	$(MKTREE) $(obj)/zvmlinux $(images)/zImage.$(end-y) $(ENTRYPOINT)
+	$(MKTREE) $(obj)/zvmlinux $(images)/zImage.$(end-y) $(entrypoint-y)
 
 $(images)/zImage.initrd-TREE: $(obj)/zvmlinux.initrd $(MKTREE)
 	$(MKTREE) $(obj)/zvmlinux.initrd $(images)/zImage.initrd.$(end-y) \
-		$(ENTRYPOINT)
+		$(entrypoint-y)
 
 $(images)/zImage-PPLUS: $(obj)/zvmlinux $(MKPREP) $(MKBUGBOOT)
 	$(MKPREP) -pbp $(obj)/zvmlinux $(images)/zImage.$(end-y)

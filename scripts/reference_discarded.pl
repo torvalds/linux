@@ -71,6 +71,11 @@ foreach $object (keys(%object)) {
 # printf("ignoring %d conglomerate(s)\n", $ignore);
 
 # printf("Scanning objects\n");
+
+# Keith Ownes <kaos@sgi.com> commented:
+# For our future {in}sanity, add a comment that this is the ppc .opd
+# section, not the ia64 .opd section.
+# ia64 .opd should not point to discarded sections.
 $errorcount = 0;
 foreach $object (keys(%object)) {
 	my $from;
@@ -88,6 +93,7 @@ foreach $object (keys(%object)) {
 		    ($from !~ /\.text\.exit$/ &&
 		     $from !~ /\.exit\.text$/ &&
 		     $from !~ /\.data\.exit$/ &&
+		     $from !~ /\.opd$/ &&
 		     $from !~ /\.exit\.data$/ &&
 		     $from !~ /\.altinstructions$/ &&
 		     $from !~ /\.pdr$/ &&

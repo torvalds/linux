@@ -26,9 +26,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-#define DEBUG	1
-#endif
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -309,7 +306,6 @@ servo_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver servo_driver = {
-	.owner = THIS_MODULE,
 	.name = "phidgetservo",
 	.probe = servo_probe,
 	.disconnect = servo_disconnect,

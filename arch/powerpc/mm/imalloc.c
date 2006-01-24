@@ -14,8 +14,9 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/semaphore.h>
-#include <asm/imalloc.h>
 #include <asm/cacheflush.h>
+
+#include "mmu_decl.h"
 
 static DECLARE_MUTEX(imlist_sem);
 struct vm_struct * imlist = NULL;
@@ -106,6 +107,7 @@ static int im_region_status(unsigned long v_addr, unsigned long size,
 		if (v_addr < (unsigned long) tmp->addr + tmp->size)
 			break;
 
+	*vm = NULL;
 	if (tmp) {
 		if (im_region_overlaps(v_addr, size, tmp))
 			return IM_REGION_OVERLAP;
@@ -126,7 +128,6 @@ static int im_region_status(unsigned long v_addr, unsigned long size,
 		}
 	}
 
-	*vm = NULL;
 	return IM_REGION_UNUSED;
 }
 

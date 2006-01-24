@@ -302,7 +302,7 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 	int count = 0;
 
 	if (tsk != NULL)
-		task_base = (unsigned long) tsk->thread_info;
+		task_base = (unsigned long) task_stack_page(tsk);
 	else
 		task_base = (unsigned long) current_thread_info();
 
@@ -337,7 +337,7 @@ EXPORT_SYMBOL(dump_stack);
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	return tsk->thread_info->kpc;
+	return task_thread_info(tsk)->kpc;
 }
 
 /*
@@ -392,7 +392,7 @@ void flush_thread(void)
 		/* We must fixup kregs as well. */
 		/* XXX This was not fixed for ti for a while, worked. Unused? */
 		current->thread.kregs = (struct pt_regs *)
-		    ((char *)current->thread_info + (THREAD_SIZE - TRACEREG_SZ));
+		    (task_stack_page(current) + (THREAD_SIZE - TRACEREG_SZ));
 	}
 }
 
@@ -459,7 +459,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {
-	struct thread_info *ti = p->thread_info;
+	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
 	char *new_stack;
 
@@ -482,7 +482,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	 *  V                      V (stk.fr.) V  (pt_regs)  { (stk.fr.) }
 	 *  +----- - - - - - ------+===========+============={+==========}+
 	 */
-	new_stack = (char*)ti + THREAD_SIZE;
+	new_stack = task_stack_page(p) + THREAD_SIZE;
 	if (regs->psr & PSR_PS)
 		new_stack -= STACKFRAME_SZ;
 	new_stack -= STACKFRAME_SZ + TRACEREG_SZ;
@@ -724,7 +724,7 @@ unsigned long get_wchan(struct task_struct *task)
             task->state == TASK_RUNNING)
 		goto out;
 
-	fp = task->thread_info->ksp + bias;
+	fp = task_thread_info(task)->ksp + bias;
 	do {
 		/* Bogus frame pointer? */
 		if (fp < (task_base + sizeof(struct thread_info)) ||

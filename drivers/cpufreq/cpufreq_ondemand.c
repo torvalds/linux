@@ -89,7 +89,7 @@ static inline unsigned int get_cpu_idle_time(unsigned int cpu)
 {
 	return	kstat_cpu(cpu).cpustat.idle +
 		kstat_cpu(cpu).cpustat.iowait +
-		( !dbs_tuners_ins.ignore_nice ? 
+		( dbs_tuners_ins.ignore_nice ?
 		  kstat_cpu(cpu).cpustat.nice :
 		  0);
 }
@@ -122,7 +122,7 @@ static ssize_t show_##file_name						\
 show_one(sampling_rate, sampling_rate);
 show_one(sampling_down_factor, sampling_down_factor);
 show_one(up_threshold, up_threshold);
-show_one(ignore_nice, ignore_nice);
+show_one(ignore_nice_load, ignore_nice);
 
 static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused, 
 		const char *buf, size_t count)
@@ -182,7 +182,7 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 	return count;
 }
 
-static ssize_t store_ignore_nice(struct cpufreq_policy *policy,
+static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 		const char *buf, size_t count)
 {
 	unsigned int input;
@@ -223,7 +223,7 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 define_one_rw(sampling_rate);
 define_one_rw(sampling_down_factor);
 define_one_rw(up_threshold);
-define_one_rw(ignore_nice);
+define_one_rw(ignore_nice_load);
 
 static struct attribute * dbs_attributes[] = {
 	&sampling_rate_max.attr,
@@ -231,7 +231,7 @@ static struct attribute * dbs_attributes[] = {
 	&sampling_rate.attr,
 	&sampling_down_factor.attr,
 	&up_threshold.attr,
-	&ignore_nice.attr,
+	&ignore_nice_load.attr,
 	NULL
 };
 

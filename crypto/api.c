@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 David S. Miller (davem@redhat.com)
+ * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.no>
  * and Nettle, by Niels Möller.
@@ -18,9 +19,11 @@
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include "internal.h"
 
 LIST_HEAD(crypto_alg_list);
@@ -39,6 +42,7 @@ static inline void crypto_alg_put(struct crypto_alg *alg)
 static struct crypto_alg *crypto_alg_lookup(const char *name)
 {
 	struct crypto_alg *q, *alg = NULL;
+	int best = -1;
 
 	if (!name)
 		return NULL;
@@ -46,11 +50,23 @@ static struct crypto_alg *crypto_alg_lookup(const char *name)
 	down_read(&crypto_alg_sem);
 	
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (!(strcmp(q->cra_name, name))) {
-			if (crypto_alg_get(q))
-				alg = q;
+		int exact, fuzzy;
+
+		exact = !strcmp(q->cra_driver_name, name);
+		fuzzy = !strcmp(q->cra_name, name);
+		if (!exact && !(fuzzy && q->cra_priority > best))
+			continue;
+
+		if (unlikely(!crypto_alg_get(q)))
+			continue;
+
+		best = q->cra_priority;
+		if (alg)
+			crypto_alg_put(alg);
+		alg = q;
+
+		if (exact)
 			break;
-		}
 	}
 	
 	up_read(&crypto_alg_sem);
@@ -207,9 +223,26 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	kfree(tfm);
 }
 
+static inline int crypto_set_driver_name(struct crypto_alg *alg)
+{
+	static const char suffix[] = "-generic";
+	char *driver_name = (char *)alg->cra_driver_name;
+	int len;
+
+	if (*driver_name)
+		return 0;
+
+	len = strlcpy(driver_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
+	if (len + sizeof(suffix) > CRYPTO_MAX_ALG_NAME)
+		return -ENAMETOOLONG;
+
+	memcpy(driver_name + len, suffix, sizeof(suffix));
+	return 0;
+}
+
 int crypto_register_alg(struct crypto_alg *alg)
 {
-	int ret = 0;
+	int ret;
 	struct crypto_alg *q;
 
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
@@ -218,13 +251,20 @@ int crypto_register_alg(struct crypto_alg *alg)
 	if (alg->cra_alignmask & alg->cra_blocksize)
 		return -EINVAL;
 
-	if (alg->cra_blocksize > PAGE_SIZE)
+	if (alg->cra_blocksize > PAGE_SIZE / 8)
+		return -EINVAL;
+
+	if (alg->cra_priority < 0)
 		return -EINVAL;
 	
+	ret = crypto_set_driver_name(alg);
+	if (unlikely(ret))
+		return ret;
+
 	down_write(&crypto_alg_sem);
 	
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (!(strcmp(q->cra_name, alg->cra_name))) {
+		if (!strcmp(q->cra_driver_name, alg->cra_driver_name)) {
 			ret = -EEXIST;
 			goto out;
 		}

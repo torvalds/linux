@@ -1,12 +1,12 @@
 /*
  *  drivers/s390/cio/blacklist.c
  *   S/390 common I/O routines -- blacklisting of specific devices
- *   $Revision: 1.35 $
+ *   $Revision: 1.42 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
- *		 Cornelia Huck (cohuck@de.ibm.com)
+ *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
  */
 
@@ -15,6 +15,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
 
@@ -34,10 +35,10 @@
  * These can be single devices or ranges of devices
  */
 
-/* 65536 bits to indicate if a devno is blacklisted or not */
-#define __BL_DEV_WORDS ((__MAX_SUBCHANNELS + (8*sizeof(long) - 1)) / \
+/* 65536 bits for each set to indicate if a devno is blacklisted or not */
+#define __BL_DEV_WORDS ((__MAX_SUBCHANNEL + (8*sizeof(long) - 1)) / \
 			 (8*sizeof(long)))
-static unsigned long bl_dev[__BL_DEV_WORDS];
+static unsigned long bl_dev[__MAX_SSID + 1][__BL_DEV_WORDS];
 typedef enum {add, free} range_action;
 
 /*
@@ -45,21 +46,23 @@ typedef enum {add, free} range_action;
  * (Un-)blacklist the devices from-to
  */
 static inline void
-blacklist_range (range_action action, unsigned int from, unsigned int to)
+blacklist_range (range_action action, unsigned int from, unsigned int to,
+		 unsigned int ssid)
 {
 	if (!to)
 		to = from;
 
-	if (from > to || to > __MAX_SUBCHANNELS) {
+	if (from > to || to > __MAX_SUBCHANNEL || ssid > __MAX_SSID) {
 		printk (KERN_WARNING "Invalid blacklist range "
-			"0x%04x to 0x%04x, skipping\n", from, to);
+			"0.%x.%04x to 0.%x.%04x, skipping\n",
+			ssid, from, ssid, to);
 		return;
 	}
 	for (; from <= to; from++) {
 		if (action == add)
-			set_bit (from, bl_dev);
+			set_bit (from, bl_dev[ssid]);
 		else
-			clear_bit (from, bl_dev);
+			clear_bit (from, bl_dev[ssid]);
 	}
 }
 
@@ -69,7 +72,7 @@ blacklist_range (range_action action, unsigned int from, unsigned int to)
  * Shamelessly grabbed from dasd_devmap.c.
  */
 static inline int
-blacklist_busid(char **str, int *id0, int *id1, int *devno)
+blacklist_busid(char **str, int *id0, int *ssid, int *devno)
 {
 	int val, old_style;
 	char *sav;
@@ -86,7 +89,7 @@ blacklist_busid(char **str, int *id0, int *id1, int *devno)
 		goto confused;
 	val = simple_strtoul(*str, str, 16);
 	if (old_style || (*str)[0] != '.') {
-		*id0 = *id1 = 0;
+		*id0 = *ssid = 0;
 		if (val < 0 || val > 0xffff)
 			goto confused;
 		*devno = val;
@@ -105,7 +108,7 @@ blacklist_busid(char **str, int *id0, int *id1, int *devno)
 	val = simple_strtoul(*str, str, 16);
 	if (val < 0 || val > 0xff || (*str)++[0] != '.')
 		goto confused;
-	*id1 = val;
+	*ssid = val;
 	if (!isxdigit((*str)[0]))	/* We require at least one hex digit */
 		goto confused;
 	val = simple_strtoul(*str, str, 16);
@@ -125,7 +128,7 @@ confused:
 static inline int
 blacklist_parse_parameters (char *str, range_action action)
 {
-	unsigned int from, to, from_id0, to_id0, from_id1, to_id1;
+	unsigned int from, to, from_id0, to_id0, from_ssid, to_ssid;
 
 	while (*str != 0 && *str != '\n') {
 		range_action ra = action;
@@ -142,23 +145,25 @@ blacklist_parse_parameters (char *str, range_action action)
 		 */
 		if (strncmp(str,"all,",4) == 0 || strcmp(str,"all") == 0 ||
 		    strncmp(str,"all\n",4) == 0 || strncmp(str,"all ",4) == 0) {
-			from = 0;
-			to = __MAX_SUBCHANNELS;
+			int j;
+
 			str += 3;
+			for (j=0; j <= __MAX_SSID; j++)
+				blacklist_range(ra, 0, __MAX_SUBCHANNEL, j);
 		} else {
 			int rc;
 
 			rc = blacklist_busid(&str, &from_id0,
-					     &from_id1, &from);
+					     &from_ssid, &from);
 			if (rc)
 				continue;
 			to = from;
 			to_id0 = from_id0;
-			to_id1 = from_id1;
+			to_ssid = from_ssid;
 			if (*str == '-') {
 				str++;
 				rc = blacklist_busid(&str, &to_id0,
-						     &to_id1, &to);
+						     &to_ssid, &to);
 				if (rc)
 					continue;
 			}
@@ -168,18 +173,19 @@ blacklist_parse_parameters (char *str, range_action action)
 					strsep(&str, ",\n"));
 				continue;
 			}
-			if ((from_id0 != to_id0) || (from_id1 != to_id1)) {
+			if ((from_id0 != to_id0) ||
+			    (from_ssid != to_ssid)) {
 				printk(KERN_WARNING "invalid cio_ignore range "
 					"%x.%x.%04x-%x.%x.%04x\n",
-					from_id0, from_id1, from,
-					to_id0, to_id1, to);
+					from_id0, from_ssid, from,
+					to_id0, to_ssid, to);
 				continue;
 			}
+			pr_debug("blacklist_setup: adding range "
+				 "from %x.%x.%04x to %x.%x.%04x\n",
+				 from_id0, from_ssid, from, to_id0, to_ssid, to);
+			blacklist_range (ra, from, to, to_ssid);
 		}
-		/* FIXME: ignoring id0 and id1 here. */
-		pr_debug("blacklist_setup: adding range "
-			 "from 0.0.%04x to 0.0.%04x\n", from, to);
-		blacklist_range (ra, from, to);
 	}
 	return 1;
 }
@@ -213,12 +219,33 @@ __setup ("cio_ignore=", blacklist_setup);
  * Used by validate_subchannel()
  */
 int
-is_blacklisted (int devno)
+is_blacklisted (int ssid, int devno)
 {
-	return test_bit (devno, bl_dev);
+	return test_bit (devno, bl_dev[ssid]);
 }
 
 #ifdef CONFIG_PROC_FS
+static int
+__s390_redo_validation(struct subchannel_id schid, void *data)
+{
+	int ret;
+	struct subchannel *sch;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		/* Already known. */
+		put_device(&sch->dev);
+		return 0;
+	}
+	ret = css_probe_device(schid);
+	if (ret == -ENXIO)
+		return ret; /* We're through. */
+	if (ret == -ENOMEM)
+		/* Stop validation for now. Bad, but no need for a panic. */
+		return ret;
+	return 0;
+}
+
 /*
  * Function: s390_redo_validation
  * Look for no longer blacklisted devices
@@ -226,29 +253,9 @@ is_blacklisted (int devno)
 static inline void
 s390_redo_validation (void)
 {
-	unsigned int irq;
-
 	CIO_TRACE_EVENT (0, "redoval");
-	for (irq = 0; irq < __MAX_SUBCHANNELS; irq++) {
-		int ret;
-		struct subchannel *sch;
 
-		sch = get_subchannel_by_schid(irq);
-		if (sch) {
-			/* Already known. */
-			put_device(&sch->dev);
-			continue;
-		}
-		ret = css_probe_device(irq);
-		if (ret == -ENXIO)
-			break; /* We're through. */
-		if (ret == -ENOMEM)
-			/*
-			 * Stop validation for now. Bad, but no need for a
-			 * panic.
-			 */
-			break;
-	}
+	for_each_subchannel(__s390_redo_validation, NULL);
 }
 
 /*
@@ -278,41 +285,90 @@ blacklist_parse_proc_parameters (char *buf)
 	s390_redo_validation ();
 }
 
-/* FIXME: These should be real bus ids and not home-grown ones! */
-static int cio_ignore_read (char *page, char **start, off_t off,
-			    int count, int *eof, void *data)
+/* Iterator struct for all devices. */
+struct ccwdev_iter {
+	int devno;
+	int ssid;
+	int in_range;
+};
+
+static void *
+cio_ignore_proc_seq_start(struct seq_file *s, loff_t *offset)
 {
-	const unsigned int entry_size = 18; /* "0.0.ABCD-0.0.EFGH\n" */
-	long devno;
-	int len;
+	struct ccwdev_iter *iter;
 
-	len = 0;
-	for (devno = off; /* abuse the page variable
-			   * as counter, see fs/proc/generic.c */
-	     devno < __MAX_SUBCHANNELS && len + entry_size < count; devno++) {
-		if (!test_bit(devno, bl_dev))
-			continue;
-		len += sprintf(page + len, "0.0.%04lx", devno);
-		if (test_bit(devno + 1, bl_dev)) { /* print range */
-			while (++devno < __MAX_SUBCHANNELS)
-				if (!test_bit(devno, bl_dev))
-					break;
-			len += sprintf(page + len, "-0.0.%04lx", --devno);
-		}
-		len += sprintf(page + len, "\n");
-	}
-
-	if (devno < __MAX_SUBCHANNELS)
-		*eof = 1;
-	*start = (char *) (devno - off); /* number of checked entries */
-	return len;
+	if (*offset >= (__MAX_SUBCHANNEL + 1) * (__MAX_SSID + 1))
+		return NULL;
+	iter = kzalloc(sizeof(struct ccwdev_iter), GFP_KERNEL);
+	if (!iter)
+		return ERR_PTR(-ENOMEM);
+	iter->ssid = *offset / (__MAX_SUBCHANNEL + 1);
+	iter->devno = *offset % (__MAX_SUBCHANNEL + 1);
+	return iter;
 }
 
-static int cio_ignore_write(struct file *file, const char __user *user_buf,
-			     unsigned long user_len, void *data)
+static void
+cio_ignore_proc_seq_stop(struct seq_file *s, void *it)
+{
+	if (!IS_ERR(it))
+		kfree(it);
+}
+
+static void *
+cio_ignore_proc_seq_next(struct seq_file *s, void *it, loff_t *offset)
+{
+	struct ccwdev_iter *iter;
+
+	if (*offset >= (__MAX_SUBCHANNEL + 1) * (__MAX_SSID + 1))
+		return NULL;
+	iter = it;
+	if (iter->devno == __MAX_SUBCHANNEL) {
+		iter->devno = 0;
+		iter->ssid++;
+		if (iter->ssid > __MAX_SSID)
+			return NULL;
+	} else
+		iter->devno++;
+	(*offset)++;
+	return iter;
+}
+
+static int
+cio_ignore_proc_seq_show(struct seq_file *s, void *it)
+{
+	struct ccwdev_iter *iter;
+
+	iter = it;
+	if (!is_blacklisted(iter->ssid, iter->devno))
+		/* Not blacklisted, nothing to output. */
+		return 0;
+	if (!iter->in_range) {
+		/* First device in range. */
+		if ((iter->devno == __MAX_SUBCHANNEL) ||
+		    !is_blacklisted(iter->ssid, iter->devno + 1))
+			/* Singular device. */
+			return seq_printf(s, "0.%x.%04x\n",
+					  iter->ssid, iter->devno);
+		iter->in_range = 1;
+		return seq_printf(s, "0.%x.%04x-", iter->ssid, iter->devno);
+	}
+	if ((iter->devno == __MAX_SUBCHANNEL) ||
+	    !is_blacklisted(iter->ssid, iter->devno + 1)) {
+		/* Last device in range. */
+		iter->in_range = 0;
+		return seq_printf(s, "0.%x.%04x\n", iter->ssid, iter->devno);
+	}
+	return 0;
+}
+
+static ssize_t
+cio_ignore_write(struct file *file, const char __user *user_buf,
+		 size_t user_len, loff_t *offset)
 {
 	char *buf;
 
+	if (*offset)
+		return -EINVAL;
 	if (user_len > 65536)
 		user_len = 65536;
 	buf = vmalloc (user_len + 1); /* maybe better use the stack? */
@@ -330,6 +386,27 @@ static int cio_ignore_write(struct file *file, const char __user *user_buf,
 	return user_len;
 }
 
+static struct seq_operations cio_ignore_proc_seq_ops = {
+	.start = cio_ignore_proc_seq_start,
+	.stop  = cio_ignore_proc_seq_stop,
+	.next  = cio_ignore_proc_seq_next,
+	.show  = cio_ignore_proc_seq_show,
+};
+
+static int
+cio_ignore_proc_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &cio_ignore_proc_seq_ops);
+}
+
+static struct file_operations cio_ignore_proc_fops = {
+	.open    = cio_ignore_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+	.write   = cio_ignore_write,
+};
+
 static int
 cio_ignore_proc_init (void)
 {
@@ -340,8 +417,7 @@ cio_ignore_proc_init (void)
 	if (!entry)
 		return 0;
 
-	entry->read_proc  = cio_ignore_read;
-	entry->write_proc = cio_ignore_write;
+	entry->proc_fops = &cio_ignore_proc_fops;
 
 	return 1;
 }

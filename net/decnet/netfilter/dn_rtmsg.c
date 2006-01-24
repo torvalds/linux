@@ -26,8 +26,6 @@
 #include <net/dn.h>
 #include <net/dn_route.h>
 
-#include <linux/netfilter_decnet.h>
-
 static struct sock *dnrmg = NULL;
 
 

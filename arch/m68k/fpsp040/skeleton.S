@@ -381,10 +381,8 @@ fpsp_done:
 .Lnotkern:
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
-	tstb	%curptr@(TASK_NEEDRESCHED)
-	jne	ret_from_exception	| deliver signals,
-					| reschedule etc..
-	RESTORE_ALL
+	| deliver signals, reschedule etc..
+	jra	ret_from_exception
 
 |
 |	mem_write --- write to user or supervisor address space

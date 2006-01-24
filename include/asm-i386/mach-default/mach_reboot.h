@@ -19,7 +19,7 @@ static inline void kb_wait(void)
 static inline void mach_reboot(void)
 {
 	int i;
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 10; i++) {
 		kb_wait();
 		udelay(50);
 		outb(0x60, 0x64);	/* write Controller Command Byte */

@@ -33,12 +33,12 @@ MODULE_LICENSE("GPL");
 /*
  * create a new hardware dependent device for Emu8000
  */
-static int snd_emu8000_new_device(snd_seq_device_t *dev)
+static int snd_emu8000_new_device(struct snd_seq_device *dev)
 {
-	emu8000_t *hw;
-	snd_emux_t *emu;
+	struct snd_emu8000 *hw;
+	struct snd_emux *emu;
 
-	hw = *(emu8000_t**)SNDRV_SEQ_DEVICE_ARGPTR(dev);
+	hw = *(struct snd_emu8000**)SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (hw == NULL)
 		return -EINVAL;
 
@@ -92,9 +92,9 @@ static int snd_emu8000_new_device(snd_seq_device_t *dev)
 /*
  * free all resources
  */
-static int snd_emu8000_delete_device(snd_seq_device_t *dev)
+static int snd_emu8000_delete_device(struct snd_seq_device *dev)
 {
-	emu8000_t *hw;
+	struct snd_emu8000 *hw;
 
 	if (dev->driver_data == NULL)
 		return 0; /* no synth was allocated actually */
@@ -118,11 +118,12 @@ static int snd_emu8000_delete_device(snd_seq_device_t *dev)
 static int __init alsa_emu8000_init(void)
 {
 	
-	static snd_seq_dev_ops_t ops = {
+	static struct snd_seq_dev_ops ops = {
 		snd_emu8000_new_device,
 		snd_emu8000_delete_device,
 	};
-	return snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_EMU8000, &ops, sizeof(emu8000_t*));
+	return snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_EMU8000, &ops,
+					      sizeof(struct snd_emu8000*));
 }
 
 static void __exit alsa_emu8000_exit(void)

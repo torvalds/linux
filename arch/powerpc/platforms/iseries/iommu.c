@@ -3,7 +3,7 @@
  *
  * Rewrite, cleanup:
  *
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Dynamic DMA mapping support, iSeries-specific parts.
  *
@@ -33,6 +33,8 @@
 #include <asm/abs_addr.h>
 #include <asm/pci-bridge.h>
 #include <asm/iseries/hv_call_xm.h>
+
+#include "iommu.h"
 
 extern struct list_head iSeries_Global_Device_List;
 

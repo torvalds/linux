@@ -85,6 +85,10 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	if (size < le16_to_cpu(kfib->header.SenderSize))
 		size = le16_to_cpu(kfib->header.SenderSize);
 	if (size > dev->max_fib_size) {
+		if (size > 2048) {
+			retval = -EINVAL;
+			goto cleanup;
+		}
 		/* Highjack the hw_fib */
 		hw_fib = fibptr->hw_fib;
 		hw_fib_pa = fibptr->hw_fib_pa;

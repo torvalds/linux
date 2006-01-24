@@ -681,6 +681,21 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_SEND] = "Send",			[KEY_REPLY] = "Reply",
 	[KEY_FORWARDMAIL] = "ForwardMail",	[KEY_SAVE] = "Save",
 	[KEY_DOCUMENTS] = "Documents",
+	[KEY_FN] = "Fn",			[KEY_FN_ESC] = "Fn+ESC",
+	[KEY_FN_1] = "Fn+1",			[KEY_FN_2] = "Fn+2",
+	[KEY_FN_B] = "Fn+B",			[KEY_FN_D] = "Fn+D",
+	[KEY_FN_E] = "Fn+E",			[KEY_FN_F] = "Fn+F",
+	[KEY_FN_S] = "Fn+S",
+	[KEY_FN_F1] = "Fn+F1",			[KEY_FN_F2] = "Fn+F2",
+	[KEY_FN_F3] = "Fn+F3",			[KEY_FN_F4] = "Fn+F4",
+	[KEY_FN_F5] = "Fn+F5",			[KEY_FN_F6] = "Fn+F6",
+	[KEY_FN_F7] = "Fn+F7",			[KEY_FN_F8] = "Fn+F8",
+	[KEY_FN_F9] = "Fn+F9",			[KEY_FN_F10] = "Fn+F10",
+	[KEY_FN_F11] = "Fn+F11",		[KEY_FN_F12] = "Fn+F12",
+	[KEY_KBDILLUMTOGGLE] = "KbdIlluminationToggle",
+	[KEY_KBDILLUMDOWN] = "KbdIlluminationDown",
+	[KEY_KBDILLUMUP] = "KbdIlluminationUp",
+	[KEY_SWITCHVIDEOMODE] = "SwitchVideoMode",
 };
 
 static char *relatives[REL_MAX + 1] = {

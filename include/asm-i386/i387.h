@@ -49,19 +49,19 @@ static inline void __save_init_fpu( struct task_struct *tsk )
 		X86_FEATURE_FXSR,
 		"m" (tsk->thread.i387.fxsave)
 		:"memory");
-	tsk->thread_info->status &= ~TS_USEDFPU;
+	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
 #define __unlazy_fpu( tsk ) do { \
-	if ((tsk)->thread_info->status & TS_USEDFPU) \
+	if (task_thread_info(tsk)->status & TS_USEDFPU) \
 		save_init_fpu( tsk ); \
 } while (0)
 
 #define __clear_fpu( tsk )					\
 do {								\
-	if ((tsk)->thread_info->status & TS_USEDFPU) {		\
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {		\
 		asm volatile("fnclex ; fwait");				\
-		(tsk)->thread_info->status &= ~TS_USEDFPU;	\
+		task_thread_info(tsk)->status &= ~TS_USEDFPU;	\
 		stts();						\
 	}							\
 } while (0)

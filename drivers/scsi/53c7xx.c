@@ -282,6 +282,7 @@
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_transport_spi.h>
 #include "53c7xx.h"
 #include <linux/stat.h>
 #include <linux/stddef.h>
@@ -343,7 +344,7 @@ static void NCR53c7x0_soft_reset (struct Scsi_Host *host);
 /* Size of event list (per host adapter) */
 static int track_events = 0;
 static struct Scsi_Host *first_host = NULL;	/* Head of list of NCR boards */
-static Scsi_Host_Template *the_template = NULL;	
+static struct scsi_host_template *the_template = NULL;
 
 /* NCR53c710 script handling code */
 
@@ -1103,7 +1104,7 @@ NCR53c7x0_init (struct Scsi_Host *host) {
 }
 
 /* 
- * Function : int ncr53c7xx_init(Scsi_Host_Template *tpnt, int board, int chip,
+ * Function : int ncr53c7xx_init(struct scsi_host_template *tpnt, int board, int chip,
  *	unsigned long base, int io_port, int irq, int dma, long long options,
  *	int clock);
  *
@@ -1118,7 +1119,7 @@ NCR53c7x0_init (struct Scsi_Host *host) {
  */
 
 int 
-ncr53c7xx_init (Scsi_Host_Template *tpnt, int board, int chip,
+ncr53c7xx_init (struct scsi_host_template *tpnt, int board, int chip,
     unsigned long base, int io_port, int irq, int dma, 
     long long options, int clock)
 {
@@ -1724,7 +1725,7 @@ NCR53c7xx_run_tests (struct Scsi_Host *host) {
 		printk ("scsi%d : status ", host->host_no);
 		scsi_print_status (status);
 		printk ("\nscsi%d : message ", host->host_no);
-		scsi_print_msg (&msg);
+		spi_print_msg(&msg);
 		printk ("\n");
 	    } else if (hostdata->test_completed == 3) {
 		printk("scsi%d : test 2 no connection with target %d\n",
@@ -2313,7 +2314,7 @@ NCR53c7x0_dstat_sir_intr (struct Scsi_Host *host, struct
 	    printk ("scsi%d : received message", host->host_no);
 	    if (c) 
 	    	printk (" from target %d lun %d ", c->device->id, c->device->lun);
-	    scsi_print_msg ((unsigned char *) hostdata->msg_buf);
+	    spi_print_msg((unsigned char *) hostdata->msg_buf);
 	    printk("\n");
 	}
 	
@@ -5540,7 +5541,7 @@ print_dsa (struct Scsi_Host *host, u32 *dsa, const char *prefix) {
 	    i > 0 && !check_address ((unsigned long) ptr, 1);
 	    ptr += len, i -= len) {
 	    printk("               ");
-	    len = scsi_print_msg (ptr);
+	    len = spi_print_msg(ptr);
 	    printk("\n");
 	    if (!len)
 		break;

@@ -106,8 +106,7 @@ enum {
 	FBCON_LOGO_DONTSHOW	= -3	/* do not show the logo */
 };
 
-struct display fb_display[MAX_NR_CONSOLES];
-EXPORT_SYMBOL(fb_display);
+static struct display fb_display[MAX_NR_CONSOLES];
 
 static signed char con2fb_map[MAX_NR_CONSOLES];
 static signed char con2fb_map_boot[MAX_NR_CONSOLES];
@@ -210,13 +209,13 @@ static irqreturn_t fb_vbl_detect(int irq, void *dummy, struct pt_regs *fp)
 #endif
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
-static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
+static inline void fbcon_set_rotation(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	if (!(info->flags & FBINFO_MISC_TILEBLITTING) &&
-	    p->con_rotate < 4)
-		ops->rotate = p->con_rotate;
+	    ops->p->con_rotate < 4)
+		ops->rotate = ops->p->con_rotate;
 	else
 		ops->rotate = 0;
 }
@@ -266,7 +265,7 @@ static void fbcon_rotate_all(struct fb_info *info, u32 rotate)
 	fbcon_set_all_vcs(info);
 }
 #else
-static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
+static inline void fbcon_set_rotation(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 
@@ -403,7 +402,7 @@ static void fb_flashcursor(void *private)
 	c = scr_readw((u16 *) vc->vc_pos);
 	mode = (!ops->cursor_flash || ops->cursor_state.enable) ?
 		CM_ERASE : CM_DRAW;
-	ops->cursor(vc, info, p, mode, softback_lines, get_color(vc, info, c, 1),
+	ops->cursor(vc, info, mode, softback_lines, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
 	release_console_sem();
 }
@@ -648,31 +647,27 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 }
 
 #ifdef CONFIG_FB_TILEBLITTING
-static void set_blitting_type(struct vc_data *vc, struct fb_info *info,
-			      struct display *p)
+static void set_blitting_type(struct vc_data *vc, struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 
-	if ((info->flags & FBINFO_MISC_TILEBLITTING))
-		fbcon_set_tileops(vc, info, p, ops);
-	else {
-		struct display *disp;
+	ops->p = &fb_display[vc->vc_num];
 
-		disp = (p) ? p : &fb_display[vc->vc_num];
-		fbcon_set_rotation(info, disp);
+	if ((info->flags & FBINFO_MISC_TILEBLITTING))
+		fbcon_set_tileops(vc, info);
+	else {
+		fbcon_set_rotation(info);
 		fbcon_set_bitops(ops);
 	}
 }
 #else
-static void set_blitting_type(struct vc_data *vc, struct fb_info *info,
-			      struct display *p)
+static void set_blitting_type(struct vc_data *vc, struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *disp;
 
 	info->flags &= ~FBINFO_MISC_TILEBLITTING;
-	disp = (p) ? p : &fb_display[vc->vc_num];
-	fbcon_set_rotation(info, disp);
+	ops->p = &fb_display[vc->vc_num];
+	fbcon_set_rotation(info);
 	fbcon_set_bitops(ops);
 }
 #endif /* CONFIG_MISC_TILEBLITTING */
@@ -692,15 +687,14 @@ static int con2fb_acquire_newinfo(struct vc_data *vc, struct fb_info *info,
 		err = -ENODEV;
 
 	if (!err) {
-		ops = kmalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
+		ops = kzalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
 		if (!ops)
 			err = -ENOMEM;
 	}
 
 	if (!err) {
-		memset(ops, 0, sizeof(struct fbcon_ops));
 		info->fbcon_par = ops;
-		set_blitting_type(vc, info, NULL);
+		set_blitting_type(vc, info);
 	}
 
 	if (err) {
@@ -924,19 +918,18 @@ static const char *fbcon_startup(void)
 		return NULL;
 	}
 
-	ops = kmalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
+	ops = kzalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
 	if (!ops) {
 		module_put(owner);
 		return NULL;
 	}
 
-	memset(ops, 0, sizeof(struct fbcon_ops));
 	ops->currcon = -1;
 	ops->graphics = 1;
 	ops->cur_rotate = -1;
 	info->fbcon_par = ops;
 	p->con_rotate = rotate;
-	set_blitting_type(vc, info, NULL);
+	set_blitting_type(vc, info);
 
 	if (info->fix.type != FB_TYPE_TEXT) {
 		if (fbcon_softback_size) {
@@ -1096,7 +1089,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	ops = info->fbcon_par;
 	p->con_rotate = rotate;
-	set_blitting_type(vc, info, NULL);
+	set_blitting_type(vc, info);
 
 	cols = vc->vc_cols;
 	rows = vc->vc_rows;
@@ -1113,7 +1106,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	 *
 	 * We need to do it in fbcon_init() to prevent screen corruption.
 	 */
-	if (CON_IS_VISIBLE(vc)) {
+	if (CON_IS_VISIBLE(vc) && vc->vc_mode == KD_TEXT) {
 		if (info->fbops->fb_set_par &&
 		    !(ops->flags & FBCON_FLAGS_INIT))
 			info->fbops->fb_set_par(info);
@@ -1144,9 +1137,9 @@ static void fbcon_init(struct vc_data *vc, int init)
 	if (vc == svc && softback_buf)
 		fbcon_update_softback(vc);
 
-	if (ops->rotate_font && ops->rotate_font(info, vc, p)) {
+	if (ops->rotate_font && ops->rotate_font(info, vc)) {
 		ops->rotate = FB_ROTATE_UR;
-		set_blitting_type(vc, info, p);
+		set_blitting_type(vc, info);
 	}
 
 }
@@ -1246,7 +1239,6 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *p = &fb_display[vc->vc_num];
 	int y;
  	int c = scr_readw((u16 *) vc->vc_pos);
 
@@ -1263,7 +1255,7 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 		y = 0;
 	}
 
-	ops->cursor(vc, info, p, mode, y, get_color(vc, info, c, 1),
+	ops->cursor(vc, info, mode, y, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
 	vbl_cursor_cnt = CURSOR_DRAW_DELAY;
 }
@@ -1414,16 +1406,13 @@ static __inline__ void ypan_up_redraw(struct vc_data *vc, int t, int count)
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct display *p = &fb_display[vc->vc_num];
-	int redraw = 0;
 
 	p->yscroll += count;
+
 	if (p->yscroll > p->vrows - vc->vc_rows) {
 		p->yscroll -= p->vrows - vc->vc_rows;
-		redraw = 1;
-	}
-
-	if (redraw)
 		fbcon_redraw_move(vc, p, t + count, vc->vc_rows - count, t);
+	}
 
 	ops->var.xoffset = 0;
 	ops->var.yoffset = p->yscroll * vc->vc_font.height;
@@ -1465,16 +1454,13 @@ static __inline__ void ypan_down_redraw(struct vc_data *vc, int t, int count)
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct display *p = &fb_display[vc->vc_num];
-	int redraw = 0;
 
 	p->yscroll -= count;
+
 	if (p->yscroll < 0) {
 		p->yscroll += p->vrows - vc->vc_rows;
-		redraw = 1;
-	}
-
-	if (redraw)
 		fbcon_redraw_move(vc, p, t, vc->vc_rows - count, t + count);
+	}
 
 	ops->var.xoffset = 0;
 	ops->var.yoffset = p->yscroll * vc->vc_font.height;
@@ -1971,7 +1957,8 @@ static __inline__ void updatescrollmode(struct display *p,
 		divides(ypan, vc->vc_font.height) && vyres > yres;
 	int good_wrap = (cap & FBINFO_HWACCEL_YWRAP) &&
 		divides(ywrap, vc->vc_font.height) &&
-		divides(vc->vc_font.height, vyres);
+		divides(vc->vc_font.height, vyres) &&
+		divides(vc->vc_font.height, yres);
 	int reading_fast = cap & FBINFO_READS_FAST;
 	int fast_copyarea = (cap & FBINFO_HWACCEL_COPYAREA) &&
 		!(cap & FBINFO_HWACCEL_DISABLED);
@@ -2051,7 +2038,7 @@ static int fbcon_switch(struct vc_data *vc)
 	struct fbcon_ops *ops;
 	struct display *p = &fb_display[vc->vc_num];
 	struct fb_var_screeninfo var;
-	int i, prev_console;
+	int i, prev_console, charcnt = 256;
 
 	info = registered_fb[con2fb_map[vc->vc_num]];
 	ops = info->fbcon_par;
@@ -2106,23 +2093,34 @@ static int fbcon_switch(struct vc_data *vc)
 	fb_set_var(info, &var);
 	ops->var = info->var;
 
-	if (old_info != NULL && old_info != info) {
+	if (old_info != NULL && (old_info != info ||
+				 info->flags & FBINFO_MISC_ALWAYS_SETPAR)) {
 		if (info->fbops->fb_set_par)
 			info->fbops->fb_set_par(info);
-		fbcon_del_cursor_timer(old_info);
-		fbcon_add_cursor_timer(info);
+
+		if (old_info != info) {
+			fbcon_del_cursor_timer(old_info);
+			fbcon_add_cursor_timer(info);
+		}
 	}
 
-	set_blitting_type(vc, info, p);
+	set_blitting_type(vc, info);
 	ops->cursor_reset = 1;
 
-	if (ops->rotate_font && ops->rotate_font(info, vc, p)) {
+	if (ops->rotate_font && ops->rotate_font(info, vc)) {
 		ops->rotate = FB_ROTATE_UR;
-		set_blitting_type(vc, info, p);
+		set_blitting_type(vc, info);
 	}
 
 	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
+
+	if (p->userfont)
+		charcnt = FNTCHARCNT(vc->vc_font.data);
+
+	if (charcnt > 256)
+		vc->vc_complement_mask <<= 1;
+
 	updatescrollmode(p, info, vc);
 
 	switch (p->scrollmode) {
@@ -2142,8 +2140,12 @@ static int fbcon_switch(struct vc_data *vc)
 
 	scrollback_max = 0;
 	scrollback_current = 0;
-	ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-	ops->update_start(info);
+
+	if (!fbcon_is_inactive(vc, info)) {
+	    ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
+	    ops->update_start(info);
+	}
+
 	fbcon_set_palette(vc, color_table); 	
 	fbcon_clear_margins(vc, 0);
 
@@ -2187,11 +2189,14 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 		ops->graphics = 1;
 
 		if (!blank) {
+			if (info->fbops->fb_save_state)
+				info->fbops->fb_save_state(info);
 			var.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 			fb_set_var(info, &var);
 			ops->graphics = 0;
 			ops->var = info->var;
-		}
+		} else if (info->fbops->fb_restore_state)
+			info->fbops->fb_restore_state(info);
 	}
 
  	if (!fbcon_is_inactive(vc, info)) {
@@ -2727,7 +2732,7 @@ static void fbcon_modechanged(struct fb_info *info)
 		return;
 
 	p = &fb_display[vc->vc_num];
-	set_blitting_type(vc, info, p);
+	set_blitting_type(vc, info);
 
 	if (CON_IS_VISIBLE(vc)) {
 		var_to_display(p, &info->var, info);
@@ -2739,8 +2744,12 @@ static void fbcon_modechanged(struct fb_info *info)
 		updatescrollmode(p, info, vc);
 		scrollback_max = 0;
 		scrollback_current = 0;
-		ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-		ops->update_start(info);
+
+		if (!fbcon_is_inactive(vc, info)) {
+		    ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
+		    ops->update_start(info);
+		}
+
 		fbcon_set_palette(vc, color_table);
 		update_screen(vc);
 		if (softback_buf)
@@ -2765,7 +2774,7 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 			continue;
 
 		p = &fb_display[vc->vc_num];
-		set_blitting_type(vc, info, p);
+		set_blitting_type(vc, info);
 		var_to_display(p, &info->var, info);
 		cols = FBCON_SWAP(ops->rotate, info->var.xres, info->var.yres);
 		rows = FBCON_SWAP(ops->rotate, info->var.yres, info->var.xres);
@@ -2777,14 +2786,21 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 			updatescrollmode(p, info, vc);
 			scrollback_max = 0;
 			scrollback_current = 0;
-			ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-			ops->update_start(info);
+
+			if (!fbcon_is_inactive(vc, info)) {
+			    ops->var.xoffset = ops->var.yoffset =
+				p->yscroll = 0;
+			    ops->update_start(info);
+			}
+
 			fbcon_set_palette(vc, color_table);
 			update_screen(vc);
 			if (softback_buf)
 				fbcon_update_softback(vc);
 		}
 	}
+
+	ops->p = &fb_display[ops->currcon];
 }
 
 static int fbcon_mode_deleted(struct fb_info *info,

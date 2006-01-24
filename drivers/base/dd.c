@@ -62,11 +62,11 @@ void device_bind_driver(struct device * dev)
  *	because we don't know the format of the ID structures, nor what
  *	is to be considered a match and what is not.
  *
- *
  *	This function returns 1 if a match is found, an error if one
  *	occurs (that is not -ENODEV or -ENXIO), and 0 otherwise.
  *
- *	This function must be called with @dev->sem held.
+ *	This function must be called with @dev->sem held.  When called
+ *	for a USB interface, @dev->parent->sem must be held as well.
  */
 int driver_probe_device(struct device_driver * drv, struct device * dev)
 {
@@ -78,7 +78,13 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	pr_debug("%s: Matched Device %s with Driver %s\n",
 		 drv->bus->name, dev->bus_id, drv->name);
 	dev->driver = drv;
-	if (drv->probe) {
+	if (dev->bus->probe) {
+		ret = dev->bus->probe(dev);
+		if (ret) {
+			dev->driver = NULL;
+			goto ProbeFailed;
+		}
+	} else if (drv->probe) {
 		ret = drv->probe(dev);
 		if (ret) {
 			dev->driver = NULL;
@@ -124,6 +130,8 @@ static int __device_attach(struct device_driver * drv, void * data)
  *
  *	Returns 1 if the device was bound to a driver;
  *	0 if no matching device was found; error code otherwise.
+ *
+ *	When called for a USB interface, @dev->parent->sem must be held.
  */
 int device_attach(struct device * dev)
 {
@@ -153,11 +161,14 @@ static int __driver_attach(struct device * dev, void * data)
 	 * is an error.
 	 */
 
+	if (dev->parent)	/* Needed for USB */
+		down(&dev->parent->sem);
 	down(&dev->sem);
 	if (!dev->driver)
 		driver_probe_device(drv, dev);
 	up(&dev->sem);
-
+	if (dev->parent)
+		up(&dev->parent->sem);
 
 	return 0;
 }
@@ -183,6 +194,8 @@ void driver_attach(struct device_driver * drv)
  *	Manually detach device from driver.
  *
  *	__device_release_driver() must be called with @dev->sem held.
+ *	When called for a USB interface, @dev->parent->sem must be held
+ *	as well.
  */
 
 static void __device_release_driver(struct device * dev)
@@ -196,7 +209,9 @@ static void __device_release_driver(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "driver");
 		klist_remove(&dev->knode_driver);
 
-		if (drv->remove)
+		if (dev->bus->remove)
+			dev->bus->remove(dev);
+		else if (drv->remove)
 			drv->remove(dev);
 		dev->driver = NULL;
 		put_driver(drv);
@@ -225,20 +240,24 @@ void driver_detach(struct device_driver * drv)
 	struct device * dev;
 
 	for (;;) {
-		spin_lock_irq(&drv->klist_devices.k_lock);
+		spin_lock(&drv->klist_devices.k_lock);
 		if (list_empty(&drv->klist_devices.k_list)) {
-			spin_unlock_irq(&drv->klist_devices.k_lock);
+			spin_unlock(&drv->klist_devices.k_lock);
 			break;
 		}
 		dev = list_entry(drv->klist_devices.k_list.prev,
 				struct device, knode_driver.n_node);
 		get_device(dev);
-		spin_unlock_irq(&drv->klist_devices.k_lock);
+		spin_unlock(&drv->klist_devices.k_lock);
 
+		if (dev->parent)	/* Needed for USB */
+			down(&dev->parent->sem);
 		down(&dev->sem);
 		if (dev->driver == drv)
 			__device_release_driver(dev);
 		up(&dev->sem);
+		if (dev->parent)
+			up(&dev->parent->sem);
 		put_device(dev);
 	}
 }

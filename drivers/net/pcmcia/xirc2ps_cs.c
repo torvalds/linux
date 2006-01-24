@@ -292,8 +292,6 @@ static void mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg,
 static int has_ce2_string(dev_link_t * link);
 static void xirc2ps_config(dev_link_t * link);
 static void xirc2ps_release(dev_link_t * link);
-static int xirc2ps_event(event_t event, int priority,
-			 event_callback_args_t * args);
 
 /****************
  * The attach() and detach() entry points are used to create and destroy
@@ -301,8 +299,7 @@ static int xirc2ps_event(event_t event, int priority,
  * needed to manage one actual PCMCIA card.
  */
 
-static dev_link_t *xirc2ps_attach(void);
-static void xirc2ps_detach(dev_link_t *);
+static void xirc2ps_detach(struct pcmcia_device *p_dev);
 
 /****************
  * You'll also need to prototype all the functions that will actually
@@ -312,14 +309,6 @@ static void xirc2ps_detach(dev_link_t *);
  */
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card configuration
- * database.
- */
-
-static dev_info_t dev_info = "xirc2ps_cs";
 
 /****************
  * A linked list of "instances" of the device.  Each actual
@@ -331,15 +320,7 @@ static dev_info_t dev_info = "xirc2ps_cs";
  * device numbers are used to derive the corresponding array index.
  */
 
-static dev_link_t *dev_list;
-
 /****************
- * A dev_link_t structure has fields for most things that are needed
- * to keep track of a socket, but there will usually be some device
- * specific information that also needs to be kept track of.  The
- * 'priv' pointer in a dev_link_t structure can be used to point to
- * a device-specific private data structure, like this.
- *
  * A driver needs to provide a dev_node_t structure for each device
  * on a card.  In some cases, there is only one device per card (for
  * example, ethernet cards, modems).  In other cases, there may be
@@ -571,21 +552,19 @@ mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
  * card insertion event.
  */
 
-static dev_link_t *
-xirc2ps_attach(void)
+static int
+xirc2ps_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     struct net_device *dev;
     local_info_t *local;
-    int err;
 
     DEBUG(0, "attach()\n");
 
     /* Allocate the device structure */
     dev = alloc_etherdev(sizeof(local_info_t));
     if (!dev)
-	    return NULL;
+	    return -ENOMEM;
     local = netdev_priv(dev);
     link = &local->link;
     link->priv = dev;
@@ -614,19 +593,13 @@ xirc2ps_attach(void)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    if ((err = pcmcia_register_client(&link->handle, &client_reg))) {
-	cs_error(link->handle, RegisterClient, err);
-	xirc2ps_detach(link);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    xirc2ps_config(link);
+
+    return 0;
 } /* xirc2ps_attach */
 
 /****************
@@ -637,40 +610,19 @@ xirc2ps_attach(void)
  */
 
 static void
-xirc2ps_detach(dev_link_t * link)
+xirc2ps_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
 
     DEBUG(0, "detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link)
-	    break;
-    if (!*linkp) {
-	DEBUG(0, "detach(0x%p): dev_link lost\n", link);
-	return;
-    }
 
     if (link->dev)
 	unregister_netdev(dev);
 
-    /*
-     * If the device is currently configured and active, we won't
-     * actually delete it yet.	Instead, it is marked so that when
-     * the release() function is called, that will trigger a proper
-     * detach().
-     */
     if (link->state & DEV_CONFIG)
 	xirc2ps_release(link);
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-
-    /* Unlink device structure, free it */
-    *linkp = link->next;
     free_netdev(dev);
 } /* xirc2ps_detach */
 
@@ -1157,67 +1109,41 @@ xirc2ps_release(dev_link_t *link)
 
 /*====================================================================*/
 
-/****************
- * The card status event handler.  Mostly, this schedules other
- * stuff to run after an event is received.  A CARD_REMOVAL event
- * also sets some flags to discourage the net drivers from trying
- * to talk to the card any more.
- *
- * When a CARD_REMOVAL event is received, we immediately set a flag
- * to block future accesses to this device.  All the functions that
- * actually access the device should check this flag to make sure
- * the card is still present.
- */
 
-static int
-xirc2ps_event(event_t event, int priority,
-	      event_callback_args_t * args)
+static int xirc2ps_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-    DEBUG(0, "event(%d)\n", (int)event);
-
-    switch (event) {
-    case CS_EVENT_REGISTRATION_COMPLETE:
-	DEBUG(0, "registration complete\n");
-	break;
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	xirc2ps_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG) {
-	    if (link->open) {
-		netif_device_detach(dev);
-		do_powerdown(dev);
-	    }
-	    pcmcia_release_configuration(link->handle);
+		if (link->open) {
+			netif_device_detach(dev);
+			do_powerdown(dev);
+		}
+		pcmcia_release_configuration(link->handle);
 	}
-	break;
-    case CS_EVENT_PM_RESUME:
+
+	return 0;
+}
+
+static int xirc2ps_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
 	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		do_reset(dev,1);
-		netif_device_attach(dev);
-	    }
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			do_reset(dev,1);
+			netif_device_attach(dev);
+		}
 	}
-	break;
-    }
-    return 0;
-} /* xirc2ps_event */
+
+	return 0;
+}
+
 
 /*====================================================================*/
 
@@ -1672,7 +1598,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     switch(cmd) {
       case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
 	data[0] = 0;		/* we have only this address */
-	/* fall trough */
+	/* fall through */
       case SIOCGMIIREG:		/* Read the specified MII register. */
 	data[3] = mii_rd(ioaddr, data[0] & 0x1f, data[1] & 0x1f);
 	break;
@@ -2009,10 +1935,11 @@ static struct pcmcia_driver xirc2ps_cs_driver = {
 	.drv		= {
 		.name	= "xirc2ps_cs",
 	},
-	.attach		= xirc2ps_attach,
-	.event		= xirc2ps_event,
-	.detach		= xirc2ps_detach,
+	.probe		= xirc2ps_attach,
+	.remove		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,
+	.suspend	= xirc2ps_suspend,
+	.resume		= xirc2ps_resume,
 };
 
 static int __init
@@ -2025,7 +1952,6 @@ static void __exit
 exit_xirc2ps_cs(void)
 {
 	pcmcia_unregister_driver(&xirc2ps_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_xirc2ps_cs);

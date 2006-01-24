@@ -18,13 +18,11 @@
 
 static int hfsplus_readpage(struct file *file, struct page *page)
 {
-	//printk("readpage: %lu\n", page->index);
 	return block_read_full_page(page, hfsplus_get_block);
 }
 
 static int hfsplus_writepage(struct page *page, struct writeback_control *wbc)
 {
-	//printk("writepage: %lu\n", page->index);
 	return block_write_full_page(page, hfsplus_get_block, wbc);
 }
 
@@ -92,7 +90,6 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 		} while (--i && nidx < tree->node_count);
 		spin_unlock(&tree->hash_lock);
 	}
-	//printk("releasepage: %lu,%x = %d\n", page->index, mask, res);
 	return res ? try_to_free_buffers(page) : 0;
 }
 
@@ -182,11 +179,6 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	igrab(dir);
 	hlist_add_head(&inode->i_hash, &HFSPLUS_SB(sb).rsrc_inodes);
 	mark_inode_dirty(inode);
-	{
-	void hfsplus_inode_check(struct super_block *sb);
-	atomic_inc(&HFSPLUS_SB(sb).inode_cnt);
-	hfsplus_inode_check(sb);
-	}
 out:
 	d_add(dentry, inode);
 	return NULL;
@@ -276,13 +268,13 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	if (atomic_read(&file->f_count) != 0)
 		return 0;
 	if (atomic_dec_and_test(&HFSPLUS_I(inode).opencnt)) {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		hfsplus_file_truncate(inode);
 		if (inode->i_flags & S_DEAD) {
 			hfsplus_delete_cat(inode->i_ino, HFSPLUS_SB(sb).hidden_dir, NULL);
 			hfsplus_delete_inode(inode);
 		}
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	return 0;
 }
@@ -317,11 +309,6 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	if (!inode)
 		return NULL;
 
-	{
-	void hfsplus_inode_check(struct super_block *sb);
-	atomic_inc(&HFSPLUS_SB(sb).inode_cnt);
-	hfsplus_inode_check(sb);
-	}
 	inode->i_ino = HFSPLUS_SB(sb).next_cnid++;
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;
@@ -444,7 +431,8 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_size = 2 + be32_to_cpu(folder->valence);
 		inode->i_atime = hfsp_mt2ut(folder->access_date);
 		inode->i_mtime = hfsp_mt2ut(folder->content_mod_date);
-		inode->i_ctime = inode->i_mtime;
+		inode->i_ctime = hfsp_mt2ut(folder->attribute_mod_date);
+		HFSPLUS_I(inode).create_date = folder->create_date;
 		HFSPLUS_I(inode).fs_blocks = 0;
 		inode->i_op = &hfsplus_dir_inode_operations;
 		inode->i_fop = &hfsplus_dir_operations;
@@ -475,9 +463,10 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		}
 		inode->i_atime = hfsp_mt2ut(file->access_date);
 		inode->i_mtime = hfsp_mt2ut(file->content_mod_date);
-		inode->i_ctime = inode->i_mtime;
+		inode->i_ctime = hfsp_mt2ut(file->attribute_mod_date);
+		HFSPLUS_I(inode).create_date = file->create_date;
 	} else {
-		printk("HFS+-fs: bad catalog entry used to create inode\n");
+		printk(KERN_ERR "hfs: bad catalog entry used to create inode\n");
 		res = -EIO;
 	}
 	return res;

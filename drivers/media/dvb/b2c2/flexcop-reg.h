@@ -39,10 +39,12 @@ extern const char *flexcop_device_names[];
 /* FlexCop IBI Registers */
 #if defined(__LITTLE_ENDIAN)
 	#include "flexcop_ibi_value_le.h"
-#elif defined(__BIG_ENDIAN)
+#else
+#if defined(__BIG_ENDIAN)
 	#include "flexcop_ibi_value_be.h"
 #else
 	#error no endian defined
+#endif
 #endif
 
 #define fc_data_Tag_ID_DVB  0x3e

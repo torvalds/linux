@@ -64,37 +64,42 @@ isdn_tty_try_read(modem_info * info, struct sk_buff *skb)
 	int c;
 	int len;
 	struct tty_struct *tty;
+	char last;
 
 	if (info->online) {
 		if ((tty = info->tty)) {
 			if (info->mcr & UART_MCR_RTS) {
-				c = TTY_FLIPBUF_SIZE - tty->flip.count;
 				len = skb->len
 #ifdef CONFIG_ISDN_AUDIO
 					+ ISDN_AUDIO_SKB_DLECOUNT(skb)
 #endif
 					;
+
+				c = tty_buffer_request_room(tty, len);
 				if (c >= len) {
 #ifdef CONFIG_ISDN_AUDIO
-					if (ISDN_AUDIO_SKB_DLECOUNT(skb))
-						while (skb->len--) {
+					if (ISDN_AUDIO_SKB_DLECOUNT(skb)) {
+						int l = skb->len;
+						unsigned char *dp = skb->data;
+						while (--l) {
 							if (*skb->data == DLE)
 								tty_insert_flip_char(tty, DLE, 0);
-							tty_insert_flip_char(tty, *skb->data++, 0);
+							tty_insert_flip_char(tty, *dp++, 0);
+						}
+						last = *dp;
 					} else {
 #endif
-						memcpy(tty->flip.char_buf_ptr,
-						       skb->data, len);
-						tty->flip.count += len;
-						tty->flip.char_buf_ptr += len;
-						memset(tty->flip.flag_buf_ptr, 0, len);
-						tty->flip.flag_buf_ptr += len;
+						if(len > 1)
+							tty_insert_flip_string(tty, skb->data, len - 1);
+						last = skb->data[len - 1];
 #ifdef CONFIG_ISDN_AUDIO
 					}
 #endif
 					if (info->emu.mdmreg[REG_CPPP] & BIT_CPPP)
-						tty->flip.flag_buf_ptr[len - 1] = 0xff;
-					schedule_delayed_work(&tty->flip.work, 1);
+						tty_insert_flip_char(tty, last, 0xFF);
+					else
+						tty_insert_flip_char(tty, last, TTY_NORMAL);
+					tty_flip_buffer_push(tty);
 					kfree_skb(skb);
 					return 1;
 				}
@@ -114,7 +119,6 @@ isdn_tty_readmodem(void)
 	int resched = 0;
 	int midx;
 	int i;
-	int c;
 	int r;
 	struct tty_struct *tty;
 	modem_info *info;
@@ -131,20 +135,13 @@ isdn_tty_readmodem(void)
 #endif
 				if ((tty = info->tty)) {
 					if (info->mcr & UART_MCR_RTS) {
-						c = TTY_FLIPBUF_SIZE - tty->flip.count;
-						if (c > 0) {
-							r = isdn_readbchan(info->isdn_driver, info->isdn_channel,
-									   tty->flip.char_buf_ptr,
-									   tty->flip.flag_buf_ptr, c, NULL);
-							/* CISCO AsyncPPP Hack */
-							if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
-								memset(tty->flip.flag_buf_ptr, 0, r);
-							tty->flip.count += r;
-							tty->flip.flag_buf_ptr += r;
-							tty->flip.char_buf_ptr += r;
-							if (r)
-								schedule_delayed_work(&tty->flip.work, 1);
-						}
+						/* CISCO AsyncPPP Hack */
+						if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
+							r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 0);
+						else
+							r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 1);
+						if (r)
+							tty_flip_buffer_push(tty);
 					} else
 						r = 1;
 				} else
@@ -249,7 +246,7 @@ isdn_tty_rcv_skb(int i, int di, int channel, struct sk_buff *skb)
 	}
 #endif
 #endif
-	/* Try to deliver directly via tty-flip-buf if queue is empty */
+	/* Try to deliver directly via tty-buf if queue is empty */
 	spin_lock_irqsave(&info->readlock, flags);
 	if (skb_queue_empty(&dev->drv[di]->rpqueue[channel]))
 		if (isdn_tty_try_read(info, skb)) {
@@ -534,7 +531,7 @@ isdn_tty_senddown(modem_info * info)
 /* The next routine is called once from within timer-interrupt
  * triggered within isdn_tty_modem_ncarrier(). It calls
  * isdn_tty_modem_result() to stuff a "NO CARRIER" Message
- * into the tty's flip-buffer.
+ * into the tty's buffer.
  */
 static void
 isdn_tty_modem_do_ncarrier(unsigned long data)
@@ -2347,6 +2344,7 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 	u_long flags;
 	struct sk_buff *skb = NULL;
 	char *sp = NULL;
+	int l = strlen(msg);
 
 	if (!msg) {
 		printk(KERN_WARNING "isdn_tty: Null-Message in isdn_tty_at_cout\n");
@@ -2359,16 +2357,16 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 		return;
 	}
 
-	/* use queue instead of direct flip, if online and */
-	/* data is in queue or flip buffer is full */
-	if ((info->online) && (((tty->flip.count + strlen(msg)) >= TTY_FLIPBUF_SIZE) ||
-	    (!skb_queue_empty(&dev->drv[info->isdn_driver]->rpqueue[info->isdn_channel])))) {
-		skb = alloc_skb(strlen(msg), GFP_ATOMIC);
+	/* use queue instead of direct, if online and */
+	/* data is in queue or buffer is full */
+	if ((info->online && tty_buffer_request_room(tty, l) < l) ||
+	    (!skb_queue_empty(&dev->drv[info->isdn_driver]->rpqueue[info->isdn_channel]))) {
+		skb = alloc_skb(l, GFP_ATOMIC);
 		if (!skb) {
 			spin_unlock_irqrestore(&info->readlock, flags);
 			return;
 		}
-		sp = skb_put(skb, strlen(msg));
+		sp = skb_put(skb, l);
 #ifdef CONFIG_ISDN_AUDIO
 		ISDN_AUDIO_SKB_DLECOUNT(skb) = 0;
 		ISDN_AUDIO_SKB_LOCK(skb) = 0;
@@ -2392,9 +2390,8 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 		if (skb) {
 			*sp++ = c;
 		} else {
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
+			if(tty_insert_flip_char(tty, c, TTY_NORMAL) == 0)
 				break;
-			tty_insert_flip_char(tty, c, 0);
 		}
 	}
 	if (skb) {
@@ -2402,12 +2399,12 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 		dev->drv[info->isdn_driver]->rcvcount[info->isdn_channel] += skb->len;
 		spin_unlock_irqrestore(&info->readlock, flags);
 		/* Schedule dequeuing */
-		if ((dev->modempoll) && (info->rcvsched))
+		if (dev->modempoll && info->rcvsched)
 			isdn_timer_ctrl(ISDN_TIMER_MODEMREAD, 1);
 
 	} else {
 		spin_unlock_irqrestore(&info->readlock, flags);
-		schedule_delayed_work(&tty->flip.work, 1);
+		tty_flip_buffer_push(tty);
 	}
 }
 

@@ -3,7 +3,7 @@
  *
  * MPC85xx definitions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor, Inc
  *
@@ -36,6 +36,10 @@
 #endif
 #ifdef CONFIG_STX_GP3
 #include <platforms/85xx/stx_gp3.h>
+#endif
+#if defined(CONFIG_TQM8540) || defined(CONFIG_TQM8541) || \
+	defined(CONFIG_TQM8555) || defined(CONFIG_TQM8560)
+#include <platforms/85xx/tqm85xx.h>
 #endif
 
 #define _IO_BASE        isa_io_base

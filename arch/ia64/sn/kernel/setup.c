@@ -30,6 +30,7 @@
 #include <linux/root_dev.h>
 #include <linux/nodemask.h>
 #include <linux/pm.h>
+#include <linux/efi.h>
 
 #include <asm/io.h>
 #include <asm/sal.h>
@@ -242,6 +243,135 @@ static void __init sn_check_for_wars(void)
 	}
 }
 
+/*
+ * Scan the EFI PCDP table (if it exists) for an acceptable VGA console
+ * output device.  If one exists, pick it and set sn_legacy_{io,mem} to
+ * reflect the bus offsets needed to address it.
+ *
+ * Since pcdp support in SN is not supported in the 2.4 kernel (or at least
+ * the one lbs is based on) just declare the needed structs here.
+ *
+ * Reference spec http://www.dig64.org/specifications/DIG64_PCDPv20.pdf
+ *
+ * Returns 0 if no acceptable vga is found, !0 otherwise.
+ *
+ * Note:  This stuff is duped here because Altix requires the PCDP to
+ * locate a usable VGA device due to lack of proper ACPI support.  Structures
+ * could be used from drivers/firmware/pcdp.h, but it was decided that moving
+ * this file to a more public location just for Altix use was undesireable.
+ */
+
+struct hcdp_uart_desc {
+	u8	pad[45];
+};
+
+struct pcdp {
+	u8	signature[4];	/* should be 'HCDP' */
+	u32	length;
+	u8	rev;		/* should be >=3 for pcdp, <3 for hcdp */
+	u8	sum;
+	u8	oem_id[6];
+	u64	oem_tableid;
+	u32	oem_rev;
+	u32	creator_id;
+	u32	creator_rev;
+	u32	num_type0;
+	struct hcdp_uart_desc uart[0];	/* num_type0 of these */
+	/* pcdp descriptors follow */
+}  __attribute__((packed));
+
+struct pcdp_device_desc {
+	u8	type;
+	u8	primary;
+	u16	length;
+	u16	index;
+	/* interconnect specific structure follows */
+	/* device specific structure follows that */
+}  __attribute__((packed));
+
+struct pcdp_interface_pci {
+	u8	type;		/* 1 == pci */
+	u8	reserved;
+	u16	length;
+	u8	segment;
+	u8	bus;
+	u8 	dev;
+	u8	fun;
+	u16	devid;
+	u16	vendid;
+	u32	acpi_interrupt;
+	u64	mmio_tra;
+	u64	ioport_tra;
+	u8	flags;
+	u8	translation;
+}  __attribute__((packed));
+
+struct pcdp_vga_device {
+	u8	num_eas_desc;
+	/* ACPI Extended Address Space Desc follows */
+}  __attribute__((packed));
+
+/* from pcdp_device_desc.primary */
+#define PCDP_PRIMARY_CONSOLE	0x01
+
+/* from pcdp_device_desc.type */
+#define PCDP_CONSOLE_INOUT	0x0
+#define PCDP_CONSOLE_DEBUG	0x1
+#define PCDP_CONSOLE_OUT	0x2
+#define PCDP_CONSOLE_IN		0x3
+#define PCDP_CONSOLE_TYPE_VGA	0x8
+
+#define PCDP_CONSOLE_VGA	(PCDP_CONSOLE_TYPE_VGA | PCDP_CONSOLE_OUT)
+
+/* from pcdp_interface_pci.type */
+#define PCDP_IF_PCI		1
+
+/* from pcdp_interface_pci.translation */
+#define PCDP_PCI_TRANS_IOPORT	0x02
+#define PCDP_PCI_TRANS_MMIO	0x01
+
+static void
+sn_scan_pcdp(void)
+{
+	u8 *bp;
+	struct pcdp *pcdp;
+	struct pcdp_device_desc device;
+	struct pcdp_interface_pci if_pci;
+	extern struct efi efi;
+
+	pcdp = efi.hcdp;
+	if (! pcdp)
+		return;		/* no hcdp/pcdp table */
+
+	if (pcdp->rev < 3)
+		return;		/* only support PCDP (rev >= 3) */
+
+	for (bp = (u8 *)&pcdp->uart[pcdp->num_type0];
+	     bp < (u8 *)pcdp + pcdp->length;
+	     bp += device.length) {
+		memcpy(&device, bp, sizeof(device));
+		if (! (device.primary & PCDP_PRIMARY_CONSOLE))
+			continue;	/* not primary console */
+
+		if (device.type != PCDP_CONSOLE_VGA)
+			continue;	/* not VGA descriptor */
+
+		memcpy(&if_pci, bp+sizeof(device), sizeof(if_pci));
+		if (if_pci.type != PCDP_IF_PCI)
+			continue;	/* not PCI interconnect */
+
+		if (if_pci.translation & PCDP_PCI_TRANS_IOPORT)
+			vga_console_iobase =
+				if_pci.ioport_tra | __IA64_UNCACHED_OFFSET;
+
+		if (if_pci.translation & PCDP_PCI_TRANS_MMIO)
+			vga_console_membase =
+				if_pci.mmio_tra | __IA64_UNCACHED_OFFSET;
+
+		break; /* once we find the primary, we're done */
+	}
+}
+
 /**
  * sn_setup - SN platform setup routine
  * @cmdline_p: kernel command line
@@ -263,16 +393,35 @@ void __init sn_setup(char **cmdline_p)
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 	/*
-	 * If there was a primary vga adapter identified through the
-	 * EFI PCDP table, make it the preferred console.  Otherwise
-	 * zero out conswitchp.
+	 * Handle SN vga console.
+	 *
+	 * SN systems do not have enough ACPI table information
+	 * being passed from prom to identify VGA adapters and the legacy
+	 * addresses to access them.  Until that is done, SN systems rely
+	 * on the PCDP table to identify the primary VGA console if one
+	 * exists.
+	 *
+	 * However, kernel PCDP support is optional, and even if it is built
+	 * into the kernel, it will not be used if the boot cmdline contains
+	 * console= directives.
+	 *
+	 * So, to work around this mess, we duplicate some of the PCDP code
+	 * here so that the primary VGA console (as defined by PCDP) will
+	 * work on SN systems even if a different console (e.g. serial) is
+	 * selected on the boot line (or CONFIG_EFI_PCDP is off).
 	 */
+
+	if (! vga_console_membase)
+		sn_scan_pcdp();
 
 	if (vga_console_membase) {
 		/* usable vga ... make tty0 the preferred default console */
-		add_preferred_console("tty", 0, NULL);
+		if (!strstr(*cmdline_p, "console="))
+			add_preferred_console("tty", 0, NULL);
 	} else {
 		printk(KERN_DEBUG "SGI: Disabling VGA console\n");
+		if (!strstr(*cmdline_p, "console="))
+			add_preferred_console("ttySG", 0, NULL);
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
 #else

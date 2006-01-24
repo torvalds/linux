@@ -19,7 +19,6 @@
 #include <linux/compat.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
-#include <linux/ioctl32.h>
 #include <linux/syscalls.h>
 #include <linux/types.h>
 #include <linux/fs.h>

@@ -51,16 +51,23 @@ do { \
 #if DEBUG_DUMP_PKT
 static inline void dump_data(const unsigned char *data, unsigned int datalen)
 {
-	int i, j;
-	int len = datalen;
+	int i, n;
+	char buf[5*8];
 
-	printk(KERN_DEBUG "data ");
-	for (i = 0; i < len; i += 4) {
-		for (j = 0; (j < 4) && (i + j < len); j++)
-			printk(KERN_DEBUG "%02x", data[i + j]);
-		printk(KERN_DEBUG " ");
+	n = 0;
+	i = 0;
+	while (i < datalen) {
+		n += snprintf(buf+n, sizeof(buf)-n, "%02x", data[i++]);
+		if (i%4 == 0)
+			n += snprintf(buf+n, sizeof(buf)-n, " ");
+
+		if (i%16 == 0) {
+			dprintk(DEBUG_ERROR, "%s\n", buf);
+			n = 0;
+		}
 	}
-	printk(KERN_DEBUG "\n");
+
+	dprintk(DEBUG_ERROR, "%s\n", buf);
 }
 #else				/* DEBUG_DUMP_PKT */
 static inline void dump_data(const unsigned char *data, unsigned int datalen)

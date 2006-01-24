@@ -7,7 +7,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #define LSR 	0x14
 #define TEMPTY 	0x40

@@ -1,10 +1,13 @@
-Revision 5, 2005-07-29
+Revision 6, 2005-11-20
 Jean Delvare <khali@linux-fr.org>
 Greg KH <greg@kroah.com>
 
 This is a guide on how to convert I2C chip drivers from Linux 2.4 to
 Linux 2.6. I have been using existing drivers (lm75, lm78) as examples.
 Then I converted a driver myself (lm83) and updated this document.
+Note that this guide is strongly oriented towards hardware monitoring
+drivers. Many points are still valid for other type of drivers, but
+others may be irrelevant.
 
 There are two sets of points below. The first set concerns technical
 changes. The second set concerns coding policy. Both are mandatory.
@@ -22,16 +25,20 @@ Technical changes:
   #include <linux/module.h>
   #include <linux/init.h>
   #include <linux/slab.h>
+  #include <linux/jiffies.h>
   #include <linux/i2c.h>
+  #include <linux/i2c-isa.h>	/* for ISA drivers */
   #include <linux/hwmon.h>	/* for hardware monitoring drivers */
   #include <linux/hwmon-sysfs.h>
   #include <linux/hwmon-vid.h>	/* if you need VRM support */
+  #include <linux/err.h>	/* for class registration */
   #include <asm/io.h>		/* if you have I/O operations */
   Please respect this inclusion order. Some extra headers may be
   required for a given driver (e.g. "lm75.h").
 
 * [Addresses] SENSORS_I2C_END becomes I2C_CLIENT_END, ISA addresses
-  are no more handled by the i2c core.
+  are no more handled by the i2c core. Address ranges are no more
+  supported either, define each individual address separately.
   SENSORS_INSMOD_<n> becomes I2C_CLIENT_INSMOD_<n>.
 
 * [Client data] Get rid of sysctl_id. Try using standard names for
@@ -48,23 +55,23 @@ Technical changes:
       int kind);
   static void lm75_init_client(struct i2c_client *client);
   static int lm75_detach_client(struct i2c_client *client);
-  static void lm75_update_client(struct i2c_client *client);
+  static struct lm75_data lm75_update_device(struct device *dev);
 
 * [Sysctl] All sysctl stuff is of course gone (defines, ctl_table
   and functions). Instead, you have to define show and set functions for
   each sysfs file. Only define set for writable values. Take a look at an
-  existing 2.6 driver for details (lm78 for example). Don't forget
+  existing 2.6 driver for details (it87 for example). Don't forget
   to define the attributes for each file (this is that step that
   links callback functions). Use the file names specified in
-  Documentation/i2c/sysfs-interface for the individual files. Also
+  Documentation/hwmon/sysfs-interface for the individual files. Also
   convert the units these files read and write to the specified ones.
   If you need to add a new type of file, please discuss it on the
   sensors mailing list <lm-sensors@lm-sensors.org> by providing a
-  patch to the Documentation/i2c/sysfs-interface file.
+  patch to the Documentation/hwmon/sysfs-interface file.
 
 * [Attach] For I2C drivers, the attach function should make sure
-  that the adapter's class has I2C_CLASS_HWMON, using the
-  following construct:
+  that the adapter's class has I2C_CLASS_HWMON (or whatever class is
+  suitable for your driver), using the following construct:
   if (!(adapter->class & I2C_CLASS_HWMON))
           return 0;
   ISA-only drivers of course don't need this.
@@ -72,63 +79,72 @@ Technical changes:
 
 * [Detect] As mentioned earlier, the flags parameter is gone.
   The type_name and client_name strings are replaced by a single
-  name string, which will be filled with a lowercase, short string
-  (typically the driver name, e.g. "lm75").
+  name string, which will be filled with a lowercase, short string.
   In i2c-only drivers, drop the i2c_is_isa_adapter check, it's
   useless. Same for isa-only drivers, as the test would always be
   true. Only hybrid drivers (which are quite rare) still need it.
-  The errorN labels are reduced to the number needed. If that number
-  is 2 (i2c-only drivers), it is advised that the labels are named
-  exit and exit_free. For i2c+isa drivers, labels should be named
-  ERROR0, ERROR1 and ERROR2. Don't forget to properly set err before
+  The labels used for error paths are reduced to the number needed.
+  It is advised that the labels are given descriptive names such as
+  exit and exit_free. Don't forget to properly set err before
   jumping to error labels. By the way, labels should be left-aligned.
   Use kzalloc instead of kmalloc.
   Use i2c_set_clientdata to set the client data (as opposed to
   a direct access to client->data).
-  Use strlcpy instead of strcpy to copy the client name.
+  Use strlcpy instead of strcpy or snprintf to copy the client name.
   Replace the sysctl directory registration by calls to
   device_create_file. Move the driver initialization before any
   sysfs file creation.
+  Register the client with the hwmon class (using hwmon_device_register)
+  if applicable.
   Drop client->id.
   Drop any 24RF08 corruption prevention you find, as this is now done
   at the i2c-core level, and doing it twice voids it.
+  Don't add I2C_CLIENT_ALLOW_USE to client->flags, it's the default now.
 
 * [Init] Limits must not be set by the driver (can be done later in
   user-space). Chip should not be reset default (although a module
-  parameter may be used to force is), and initialization should be
+  parameter may be used to force it), and initialization should be
   limited to the strictly necessary steps.
 
-* [Detach] Get rid of data, remove the call to
-  i2c_deregister_entry. Do not log an error message if
-  i2c_detach_client fails, as i2c-core will now do it for you.
+* [Detach] Remove the call to i2c_deregister_entry. Do not log an
+  error message if i2c_detach_client fails, as i2c-core will now do
+  it for you.
+  Unregister from the hwmon class if applicable.
 
-* [Update] Don't access client->data directly, use
-  i2c_get_clientdata(client) instead.
+* [Update] The function prototype changed, it is now
+  passed a device structure, which you have to convert to a client
+  using to_i2c_client(dev). The update function should return a
+  pointer to the client data.
+  Don't access client->data directly, use i2c_get_clientdata(client)
+  instead.
+  Use time_after() instead of direct jiffies comparison.
 
-* [Interface] Init function should not print anything. Make sure
-  there is a MODULE_LICENSE() line, at the bottom of the file
-  (after MODULE_AUTHOR() and MODULE_DESCRIPTION(), in this order).
+* [Interface] Make sure there is a MODULE_LICENSE() line, at the bottom
+  of the file (after MODULE_AUTHOR() and MODULE_DESCRIPTION(), in this
+  order).
+
+* [Driver] The flags field of the i2c_driver structure is gone.
+  I2C_DF_NOTIFY is now the default behavior.
+  The i2c_driver structure has a driver member, which is itself a
+  structure, those name member should be initialized to a driver name
+  string. i2c_driver itself has no name member anymore.
 
 Coding policy:
 
 * [Copyright] Use (C), not (c), for copyright.
 
 * [Debug/log] Get rid of #ifdef DEBUG/#endif constructs whenever you
-  can. Calls to printk/pr_debug for debugging purposes are replaced
-  by calls to dev_dbg. Here is an example on how to call it (taken
-  from lm75_detect):
+  can. Calls to printk for debugging purposes are replaced by calls to
+  dev_dbg where possible, else to pr_debug. Here is an example of how
+  to call it (taken from lm75_detect):
   dev_dbg(&client->dev, "Starting lm75 update\n");
   Replace other printk calls with the dev_info, dev_err or dev_warn
   function, as appropriate.
 
-* [Constants] Constants defines (registers, conversions, initial
-  values) should be aligned. This greatly improves readability.
-  Same goes for variables declarations. Alignments are achieved by the
-  means of tabs, not spaces. Remember that tabs are set to 8 in the
-  Linux kernel code.
-
-* [Structure definition] The name field should be standardized. All
-  lowercase and as simple as the driver name itself (e.g. "lm75").
+* [Constants] Constants defines (registers, conversions) should be
+  aligned. This greatly improves readability.
+  Alignments are achieved by the means of tabs, not spaces. Remember
+  that tabs are set to 8 in the Linux kernel code.
 
 * [Layout] Avoid extra empty lines between comments and what they
   comment. Respect the coding style (see Documentation/CodingStyle),

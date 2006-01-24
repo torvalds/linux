@@ -135,7 +135,6 @@ static void __init cerf_init(void)
 
 MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")
 	/* Maintainer: support@intrinsyc.com */
-	.phys_ram	= 0xc0000000,
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
 	.map_io		= cerf_map_io,

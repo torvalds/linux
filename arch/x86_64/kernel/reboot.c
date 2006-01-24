@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/pm.h>
 #include <asm/io.h>
 #include <asm/kdebug.h>
 #include <asm/delay.h>
@@ -77,6 +78,7 @@ static inline void kb_wait(void)
 
 void machine_shutdown(void)
 {
+	unsigned long flags;
 	/* Stop the cpus and apics */
 #ifdef CONFIG_SMP
 	int reboot_cpu_id;
@@ -98,7 +100,7 @@ void machine_shutdown(void)
 	smp_send_stop();
 #endif
 
-	local_irq_disable();
+	local_irq_save(flags);
 
 #ifndef CONFIG_SMP
 	disable_local_APIC();
@@ -106,7 +108,7 @@ void machine_shutdown(void)
 
 	disable_IO_APIC();
 
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 void machine_emergency_restart(void)
@@ -120,7 +122,7 @@ void machine_emergency_restart(void)
 		/* Could also try the reset bit in the Hammer NB */
 		switch (reboot_type) { 
 		case BOOT_KBD:
-		for (i=0; i<100; i++) {
+		for (i=0; i<10; i++) {
 			kb_wait();
 			udelay(50);
 			outb(0xfe,0x64);         /* pulse reset low */
@@ -153,10 +155,11 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	if (!reboot_force) {
-		machine_shutdown();
-	}
-	if (pm_power_off)
+	if (pm_power_off) {
+		if (!reboot_force) {
+			machine_shutdown();
+		}
 		pm_power_off();
+	}
 }
 

@@ -39,7 +39,7 @@
  * o  lanai_change_qos() isn't written yet
  *
  * o  There aren't any ioctl's yet -- I'd like to eventually support
- *    setting loopback and LED modes that way.  (see lanai_ioctl)
+ *    setting loopback and LED modes that way.
  *
  * o  If the segmentation engine or DMA gets shut down we should restart
  *    card as per section 17.0i.  (see lanai_reset)
@@ -305,7 +305,7 @@ struct lanai_dev {
  * vci with their bit set
  */
 static void vci_bitfield_iterate(struct lanai_dev *lanai,
-	/*const*/ unsigned long *lp,
+	const unsigned long *lp,
 	void (*func)(struct lanai_dev *,vci_t vci))
 {
 	vci_t vci = find_first_bit(lp, NUM_VCI);
@@ -951,7 +951,7 @@ static int __devinit eeprom_read(struct lanai_dev *lanai)
 /* read a big-endian 4-byte value out of eeprom */
 static inline u32 eeprom_be4(const struct lanai_dev *lanai, int address)
 {
-	return be32_to_cpup((u32 *) (&lanai->eeprom[address]));
+	return be32_to_cpup((const u32 *) &lanai->eeprom[address]);
 }
 
 /* Checksum/validate EEPROM contents */
@@ -1160,7 +1160,7 @@ static inline int vcc_tx_space(const struct lanai_vcc *lvcc, int endptr)
 }
 
 /* test if VCC is currently backlogged */
-static inline int vcc_is_backlogged(/*const*/ struct lanai_vcc *lvcc)
+static inline int vcc_is_backlogged(const struct lanai_vcc *lvcc)
 {
 	return !skb_queue_empty(&lvcc->tx.backlog);
 }
@@ -1395,7 +1395,8 @@ static void vcc_rx_aal5(struct lanai_vcc *lvcc, int endptr)
 {
 	int size;
 	struct sk_buff *skb;
-	/*const*/ u32 *x, *end = &lvcc->rx.buf.start[endptr * 4];
+	const u32 *x;
+	u32 *end = &lvcc->rx.buf.start[endptr * 4];
 	int n = ((unsigned long) end) - ((unsigned long) lvcc->rx.buf.ptr);
 	if (n < 0)
 		n += lanai_buf_size(&lvcc->rx.buf);
@@ -2111,7 +2112,7 @@ static int lanai_normalize_ci(struct lanai_dev *lanai,
  * shifted by that much as we compute
  *
  */
-static int pcr_to_cbricg(/*const*/ struct atm_qos *qos)
+static int pcr_to_cbricg(const struct atm_qos *qos)
 {
 	int rounddown = 0;	/* 1 = Round PCR down, i.e. round ICG _up_ */
 	int x, icg, pcr = atm_pcr_goal(&qos->txtp);
@@ -2434,93 +2435,6 @@ static int lanai_open(struct atm_vcc *atmvcc)
 	return result;
 }
 
-#if 0
-/* ioctl operations for card */
-/* NOTE: these are all DEBUGGING ONLY currently */
-static int lanai_ioctl(struct atm_dev *atmdev, unsigned int cmd, void __user *arg)
-{
-	int result = 0;
-	struct lanai_dev *lanai = (struct lanai_dev *) atmdev->dev_data;
-	switch(cmd) {
-		case 2106275:
-			shutdown_atm_dev(atmdev);
-			return 0;
-		case 2200000: {
-			unsigned long flags;
-			spin_lock_irqsave(&lanai->servicelock, flags);
-			run_service(lanai);
-			spin_unlock_irqrestore(&lanai->servicelock, flags);
-			return 0; }
-		case 2200002:
-			get_statistics(lanai);
-			return 0;
-		case 2200003: {
-			unsigned int i;
-			for (i = 0; i <= 0x5C ; i += 4) {
-				if (i==0x48) /* Write-only butt reg */
-					continue;
-				printk(KERN_CRIT DEV_LABEL "  0x%02X: "
-				    "0x%08X\n", i,
-				    (unsigned int) readl(lanai->base + i));
-				barrier(); mb();
-				pcistatus_check(lanai, 0);
-				barrier(); mb();
-			}
-			return 0; }
-		case 2200004: {
-			u8 b;
-			u16 w;
-			u32 dw;
-			struct pci_dev *pci = lanai->pci;
-			(void) pci_read_config_word(pci, PCI_VENDOR_ID, &w);
-			DPRINTK("vendor = 0x%X\n", (unsigned int) w);
-			(void) pci_read_config_word(pci, PCI_DEVICE_ID, &w);
-			DPRINTK("device = 0x%X\n", (unsigned int) w);
-			(void) pci_read_config_word(pci, PCI_COMMAND, &w);
-			DPRINTK("command = 0x%X\n", (unsigned int) w);
-			(void) pci_read_config_word(pci, PCI_STATUS, &w);
-			DPRINTK("status = 0x%X\n", (unsigned int) w);
-			(void) pci_read_config_dword(pci,
-			    PCI_CLASS_REVISION, &dw);
-			DPRINTK("class/revision = 0x%X\n", (unsigned int) dw);
-			(void) pci_read_config_byte(pci,
-			    PCI_CACHE_LINE_SIZE, &b);
-			DPRINTK("cache line size = 0x%X\n", (unsigned int) b);
-			(void) pci_read_config_byte(pci, PCI_LATENCY_TIMER, &b);
-			DPRINTK("latency = %d (0x%X)\n",
-			    (int) b, (unsigned int) b);
-			(void) pci_read_config_byte(pci, PCI_HEADER_TYPE, &b);
-			DPRINTK("header type = 0x%X\n", (unsigned int) b);
-			(void) pci_read_config_byte(pci, PCI_BIST, &b);
-			DPRINTK("bist = 0x%X\n", (unsigned int) b);
-			/* skipping a few here */
-			(void) pci_read_config_byte(pci,
-			    PCI_INTERRUPT_LINE, &b);
-			DPRINTK("pci_int_line = 0x%X\n", (unsigned int) b);
-			(void) pci_read_config_byte(pci,
-			    PCI_INTERRUPT_PIN, &b);
-			DPRINTK("pci_int_pin = 0x%X\n", (unsigned int) b);
-			(void) pci_read_config_byte(pci, PCI_MIN_GNT, &b);
-			DPRINTK("min_gnt = 0x%X\n", (unsigned int) b);
-			(void) pci_read_config_byte(pci, PCI_MAX_LAT, &b);
-			DPRINTK("max_lat = 0x%X\n", (unsigned int) b); }
-			return 0;
-#ifdef USE_POWERDOWN
-		case 2200005:
-			DPRINTK("Coming out of powerdown\n");
-			lanai->conf1 &= ~CONFIG1_POWERDOWN;
-			conf1_write(lanai);
-			return 0;
-#endif
-		default:
-			result = -ENOIOCTLCMD;
-	}
-	return result;
-}
-#else /* !0 */
-#define lanai_ioctl NULL
-#endif /* 0 */
-
 static int lanai_send(struct atm_vcc *atmvcc, struct sk_buff *skb)
 {
 	struct lanai_vcc *lvcc = (struct lanai_vcc *) atmvcc->dev_data;
@@ -2678,7 +2592,6 @@ static const struct atmdev_ops ops = {
 	.dev_close	= lanai_dev_close,
 	.open		= lanai_open,
 	.close		= lanai_close,
-	.ioctl		= lanai_ioctl,
 	.getsockopt	= NULL,
 	.setsockopt	= NULL,
 	.send		= lanai_send,
@@ -2760,6 +2673,7 @@ static void __exit lanai_module_exit(void)
 	 * gone, so there isn't much to do
 	 */
 	DPRINTK("cleanup_module()\n");
+	pci_unregister_driver(&lanai_driver);
 }
 
 module_init(lanai_module_init);

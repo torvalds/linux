@@ -10,7 +10,7 @@
 #ifdef MODULE
 #define MODULE_PARAM_PREFIX /* empty */
 #else
-#define MODULE_PARAM_PREFIX __stringify(KBUILD_MODNAME) "."
+#define MODULE_PARAM_PREFIX KBUILD_MODNAME "."
 #endif
 
 #ifdef MODULE

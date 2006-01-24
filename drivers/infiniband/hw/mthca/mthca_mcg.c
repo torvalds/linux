@@ -111,7 +111,8 @@ static int find_mgm(struct mthca_dev *dev,
 			goto out;
 		if (status) {
 			mthca_err(dev, "READ_MGM returned status %02x\n", status);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out;
 		}
 
 		if (!memcmp(mgm->gid, zero_gid, 16)) {
@@ -126,7 +127,7 @@ static int find_mgm(struct mthca_dev *dev,
 			goto out;
 
 		*prev = *index;
-		*index = be32_to_cpu(mgm->next_gid_index) >> 5;
+		*index = be32_to_cpu(mgm->next_gid_index) >> 6;
 	} while (*index);
 
 	*index = -1;
@@ -153,8 +154,10 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		return PTR_ERR(mailbox);
 	mgm = mailbox->buf;
 
-	if (down_interruptible(&dev->mcg_table.sem))
-		return -EINTR;
+	if (down_interruptible(&dev->mcg_table.sem)) {
+		err = -EINTR;
+		goto err_sem;
+	}
 
 	err = find_mgm(dev, gid->raw, mailbox, &hash, &prev, &index);
 	if (err)
@@ -181,9 +184,8 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			err = -EINVAL;
 			goto out;
 		}
-
+		memset(mgm, 0, sizeof *mgm);
 		memcpy(mgm->gid, gid->raw, 16);
-		mgm->next_gid_index = 0;
 	}
 
 	for (i = 0; i < MTHCA_QP_PER_MGM; ++i)
@@ -209,6 +211,7 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	if (status) {
 		mthca_err(dev, "WRITE_MGM returned status %02x\n", status);
 		err = -EINVAL;
+		goto out;
 	}
 
 	if (!link)
@@ -223,7 +226,7 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		goto out;
 	}
 
-	mgm->next_gid_index = cpu_to_be32(index << 5);
+	mgm->next_gid_index = cpu_to_be32(index << 6);
 
 	err = mthca_WRITE_MGM(dev, prev, mailbox, &status);
 	if (err)
@@ -234,7 +237,12 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
  out:
+	if (err && link && index != -1) {
+		BUG_ON(index < dev->limits.num_mgms);
+		mthca_free(&dev->mcg_table.alloc, index);
+	}
 	up(&dev->mcg_table.sem);
+ err_sem:
 	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
@@ -255,8 +263,10 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		return PTR_ERR(mailbox);
 	mgm = mailbox->buf;
 
-	if (down_interruptible(&dev->mcg_table.sem))
-		return -EINTR;
+	if (down_interruptible(&dev->mcg_table.sem)) {
+		err = -EINTR;
+		goto err_sem;
+	}
 
 	err = find_mgm(dev, gid->raw, mailbox, &hash, &prev, &index);
 	if (err)
@@ -305,13 +315,11 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	if (i != 1)
 		goto out;
 
-	goto out;
-
 	if (prev == -1) {
 		/* Remove entry from MGM */
-		if (be32_to_cpu(mgm->next_gid_index) >> 5) {
-			err = mthca_READ_MGM(dev,
-					     be32_to_cpu(mgm->next_gid_index) >> 5,
+		int amgm_index_to_free = be32_to_cpu(mgm->next_gid_index) >> 6;
+		if (amgm_index_to_free) {
+			err = mthca_READ_MGM(dev, amgm_index_to_free,
 					     mailbox, &status);
 			if (err)
 				goto out;
@@ -332,9 +340,13 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			err = -EINVAL;
 			goto out;
 		}
+		if (amgm_index_to_free) {
+			BUG_ON(amgm_index_to_free < dev->limits.num_mgms);
+			mthca_free(&dev->mcg_table.alloc, amgm_index_to_free);
+		}
 	} else {
 		/* Remove entry from AMGM */
-		index = be32_to_cpu(mgm->next_gid_index) >> 5;
+		int curr_next_index = be32_to_cpu(mgm->next_gid_index) >> 6;
 		err = mthca_READ_MGM(dev, prev, mailbox, &status);
 		if (err)
 			goto out;
@@ -344,7 +356,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			goto out;
 		}
 
-		mgm->next_gid_index = cpu_to_be32(index << 5);
+		mgm->next_gid_index = cpu_to_be32(curr_next_index << 6);
 
 		err = mthca_WRITE_MGM(dev, prev, mailbox, &status);
 		if (err)
@@ -354,10 +366,13 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			err = -EINVAL;
 			goto out;
 		}
+		BUG_ON(index < dev->limits.num_mgms);
+		mthca_free(&dev->mcg_table.alloc, index);
 	}
 
  out:
 	up(&dev->mcg_table.sem);
+ err_sem:
 	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
@@ -365,11 +380,12 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 int __devinit mthca_init_mcg_table(struct mthca_dev *dev)
 {
 	int err;
+	int table_size = dev->limits.num_mgms + dev->limits.num_amgms;
 
 	err = mthca_alloc_init(&dev->mcg_table.alloc,
-			       dev->limits.num_amgms,
-			       dev->limits.num_amgms - 1,
-			       0);
+			       table_size,
+			       table_size - 1,
+			       dev->limits.num_mgms);
 	if (err)
 		return err;
 

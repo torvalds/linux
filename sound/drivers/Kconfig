@@ -6,7 +6,6 @@ menu "Generic devices"
 
 config SND_MPU401_UART
         tristate
-	select SND_TIMER
         select SND_RAWMIDI
 
 config SND_OPL3_LIB
@@ -24,12 +23,19 @@ config SND_VX_LIB
 	select SND_HWDEP
 	select SND_PCM
 
+config SND_AC97_CODEC
+	tristate
+	select SND_PCM
+	select SND_AC97_BUS
+
+config SND_AC97_BUS
+	tristate
+
 
 config SND_DUMMY
 	tristate "Dummy (/dev/null) soundcard"
 	depends on SND
 	select SND_PCM
-	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include the dummy driver.  This driver does
 	  nothing, but emulates various mixer controls and PCM devices.
@@ -45,7 +51,6 @@ config SND_VIRMIDI
 	depends on SND_SEQUENCER
 	select SND_TIMER
 	select SND_RAWMIDI
-	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include the virtual MIDI driver.  This driver
 	  allows to connect applications using raw MIDI devices to
@@ -59,9 +64,7 @@ config SND_VIRMIDI
 config SND_MTPAV
 	tristate "MOTU MidiTimePiece AV multiport MIDI"
 	depends on SND
-	select SND_TIMER
 	select SND_RAWMIDI
-	select SND_GENERIC_DRIVER
 	help
 	  To use a MOTU MidiTimePiece AV multiport MIDI adapter
 	  connected to the parallel port, say Y here and make sure that
@@ -73,9 +76,7 @@ config SND_MTPAV
 config SND_SERIAL_U16550
 	tristate "UART16550 serial MIDI driver"
 	depends on SND
-	select SND_TIMER
 	select SND_RAWMIDI
-	select SND_GENERIC_DRIVER
 	help
 	  To include support for MIDI serial port interfaces, say Y here
 	  and read <file:Documentation/sound/alsa/serial-u16550.txt>.
@@ -92,7 +93,6 @@ config SND_MPU401
 	tristate "Generic MPU-401 UART driver"
 	depends on SND
 	select SND_MPU401_UART
-	select SND_GENERIC_DRIVER
 	help
 	  Say Y here to include support for MIDI ports compatible with
 	  the Roland MPU-401 interface in UART mode.

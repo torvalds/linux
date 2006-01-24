@@ -31,9 +31,8 @@
 static int cg14_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 
-static int cg14_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int cg14_ioctl(struct inode *, struct file *, unsigned int,
-		      unsigned long, struct fb_info *);
+static int cg14_mmap(struct fb_info *, struct vm_area_struct *);
+static int cg14_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int cg14_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
@@ -49,6 +48,9 @@ static struct fb_ops cg14_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= cg14_mmap,
 	.fb_ioctl		= cg14_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 #define CG14_MCR_INTENABLE_SHIFT	7
@@ -203,7 +205,6 @@ struct cg14_par {
 	int			mode;
 	int			ramsize;
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 static void __cg14_reset(struct cg14_par *par)
@@ -266,7 +267,7 @@ static int cg14_setcolreg(unsigned regno,
 	return 0;
 }
 
-static int cg14_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int cg14_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct cg14_par *par = (struct cg14_par *) info->par;
 
@@ -275,8 +276,7 @@ static int cg14_mmap(struct fb_info *info, struct file *file, struct vm_area_str
 				  par->iospace, vma);
 }
 
-static int cg14_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		      unsigned long arg, struct fb_info *info)
+static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct cg14_par *par = (struct cg14_par *) info->par;
 	struct cg14_regs __iomem *regs = par->regs;

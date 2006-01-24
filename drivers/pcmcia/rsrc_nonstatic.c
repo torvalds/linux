@@ -75,10 +75,9 @@ static DECLARE_MUTEX(rsrc_sem);
 static struct resource *
 make_resource(unsigned long b, unsigned long n, int flags, char *name)
 {
-	struct resource *res = kmalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
 	if (res) {
-		memset(res, 0, sizeof(*res));
 		res->name = name;
 		res->start = b;
 		res->end = b + n - 1;
@@ -200,12 +199,11 @@ static void do_io_probe(struct pcmcia_socket *s, kio_addr_t base, kio_addr_t num
 	   base, base+num-1);
 
     /* First, what does a floating port look like? */
-    b = kmalloc(256, GFP_KERNEL);
+    b = kzalloc(256, GFP_KERNEL);
     if (!b) {
             printk(KERN_ERR "do_io_probe: unable to kmalloc 256 bytes");
             return;
     }
-    memset(b, 0, 256);
     for (i = base, most = 0; i < base+num; i += 8) {
 	res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA IO probe");
 	if (!res)
@@ -407,69 +405,79 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
 
 static u_long inv_probe(struct resource_map *m, struct pcmcia_socket *s)
 {
-    struct socket_data *s_data = s->resource_data;
-    u_long ok;
-    if (m == &s_data->mem_db)
-	return 0;
-    ok = inv_probe(m->next, s);
-    if (ok) {
-	if (m->base >= 0x100000)
-	    sub_interval(&s_data->mem_db, m->base, m->num);
-	return ok;
-    }
-    if (m->base < 0x100000)
-	return 0;
-    return do_mem_probe(m->base, m->num, s);
+	struct socket_data *s_data = s->resource_data;
+	u_long ok;
+	if (m == &s_data->mem_db)
+		return 0;
+	ok = inv_probe(m->next, s);
+	if (ok) {
+		if (m->base >= 0x100000)
+			sub_interval(&s_data->mem_db, m->base, m->num);
+		return ok;
+	}
+	if (m->base < 0x100000)
+		return 0;
+	return do_mem_probe(m->base, m->num, s);
 }
 
-static void validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
+static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 {
-    struct resource_map *m, mm;
-    static u_char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
-    u_long b, i, ok = 0;
-    struct socket_data *s_data = s->resource_data;
+	struct resource_map *m, mm;
+	static unsigned char order[] = { 0xd0, 0xe0, 0xc0, 0xf0 };
+	unsigned long b, i, ok = 0;
+	struct socket_data *s_data = s->resource_data;
 
-    /* We do up to four passes through the list */
-    if (probe_mask & MEM_PROBE_HIGH) {
-	if (inv_probe(s_data->mem_db.next, s) > 0)
-	    return;
-	printk(KERN_NOTICE "cs: warning: no high memory space "
-	       "available!\n");
-    }
-    if ((probe_mask & MEM_PROBE_LOW) == 0)
-	return;
-    for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
-	mm = *m;
-	/* Only probe < 1 MB */
-	if (mm.base >= 0x100000) continue;
-	if ((mm.base | mm.num) & 0xffff) {
-	    ok += do_mem_probe(mm.base, mm.num, s);
-	    continue;
+	/* We do up to four passes through the list */
+	if (probe_mask & MEM_PROBE_HIGH) {
+		if (inv_probe(s_data->mem_db.next, s) > 0)
+			return 0;
+		printk(KERN_NOTICE "cs: warning: no high memory space "
+		       "available!\n");
+		return -ENODEV;
 	}
-	/* Special probe for 64K-aligned block */
-	for (i = 0; i < 4; i++) {
-	    b = order[i] << 12;
-	    if ((b >= mm.base) && (b+0x10000 <= mm.base+mm.num)) {
-		if (ok >= mem_limit)
-		    sub_interval(&s_data->mem_db, b, 0x10000);
-		else
-		    ok += do_mem_probe(b, 0x10000, s);
-	    }
+
+	for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
+		mm = *m;
+		/* Only probe < 1 MB */
+		if (mm.base >= 0x100000)
+			continue;
+		if ((mm.base | mm.num) & 0xffff) {
+			ok += do_mem_probe(mm.base, mm.num, s);
+			continue;
+		}
+		/* Special probe for 64K-aligned block */
+		for (i = 0; i < 4; i++) {
+			b = order[i] << 12;
+			if ((b >= mm.base) && (b+0x10000 <= mm.base+mm.num)) {
+				if (ok >= mem_limit)
+					sub_interval(&s_data->mem_db, b, 0x10000);
+				else
+					ok += do_mem_probe(b, 0x10000, s);
+			}
+		}
 	}
-    }
+
+	if (ok > 0)
+		return 0;
+
+	return -ENODEV;
 }
 
 #else /* CONFIG_PCMCIA_PROBE */
 
-static void validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
+static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 {
 	struct resource_map *m, mm;
 	struct socket_data *s_data = s->resource_data;
+	unsigned long ok = 0;
 
 	for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
 		mm = *m;
-		do_mem_probe(mm.base, mm.num, s);
+		ok += do_mem_probe(mm.base, mm.num, s);
 	}
+	if (ok > 0)
+		return 0;
+	return -ENODEV;
 }
 
 #endif /* CONFIG_PCMCIA_PROBE */
@@ -478,27 +486,30 @@ static void validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 /*
  * Locking note: Must be called with skt_sem held!
  */
-static void pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
+static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
 {
 	struct socket_data *s_data = s->resource_data;
-	if (probe_mem) {
-		unsigned int probe_mask;
+	unsigned int probe_mask = MEM_PROBE_LOW;
+	int ret = 0;
 
-		down(&rsrc_sem);
+	if (!probe_mem)
+		return 0;
 
-		probe_mask = MEM_PROBE_LOW;
-		if (s->features & SS_CAP_PAGE_REGS)
-			probe_mask = MEM_PROBE_HIGH;
+	down(&rsrc_sem);
 
-		if (probe_mask & ~s_data->rsrc_mem_probe) {
+	if (s->features & SS_CAP_PAGE_REGS)
+		probe_mask = MEM_PROBE_HIGH;
+
+	if (probe_mask & ~s_data->rsrc_mem_probe) {
+		if (s->state & SOCKET_PRESENT)
+			ret = validate_mem(s, probe_mask);
+		if (!ret)
 			s_data->rsrc_mem_probe |= probe_mask;
-
-			if (s->state & SOCKET_PRESENT)
-				validate_mem(s, probe_mask);
-		}
-
-		up(&rsrc_sem);
 	}
+
+	up(&rsrc_sem);
+
+	return ret;
 }
 
 struct pcmcia_align_data {
@@ -837,10 +848,9 @@ static int nonstatic_init(struct pcmcia_socket *s)
 {
 	struct socket_data *data;
 
-	data = kmalloc(sizeof(struct socket_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct socket_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memset(data, 0, sizeof(struct socket_data));
 
 	data->mem_db.next = &data->mem_db;
 	data->io_db.next = &data->io_db;

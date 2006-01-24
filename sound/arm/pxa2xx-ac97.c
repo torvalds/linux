@@ -37,69 +37,74 @@ static DECLARE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
 static volatile long gsr_bits;
 
-static unsigned short pxa2xx_ac97_read(ac97_t *ac97, unsigned short reg)
+/*
+ * Beware PXA27x bugs:
+ *
+ *   o Slot 12 read from modem space will hang controller.
+ *   o CDONE, SDONE interrupt fails after any slot 12 IO.
+ *
+ * We therefore have an hybrid approach for waiting on SDONE (interrupt or
+ * 1 jiffy timeout if interrupt never comes).
+ */ 
+
+static unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	unsigned short val = -1;
 	volatile u32 *reg_addr;
 
 	down(&car_mutex);
-	if (CAR & CAR_CAIP) {
-		printk(KERN_CRIT"%s: CAR_CAIP already set\n", __FUNCTION__);
-		goto out;
-	}
 
 	/* set up primary or secondary codec space */
 	reg_addr = (ac97->num & 1) ? &SAC_REG_BASE : &PAC_REG_BASE;
 	reg_addr += (reg >> 1);
 
 	/* start read access across the ac97 link */
+	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	val = *reg_addr;
 	if (reg == AC97_GPIO_STATUS)
 		goto out;
-	wait_event_timeout(gsr_wq, gsr_bits & GSR_SDONE, 1);
-	if (!gsr_bits & GSR_SDONE) {
+	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 &&
+	    !((GSR | gsr_bits) & GSR_SDONE)) {
 		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
-				__FUNCTION__, reg, gsr_bits);
+				__FUNCTION__, reg, GSR | gsr_bits);
 		val = -1;
 		goto out;
 	}
 
 	/* valid data now */
+	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	val = *reg_addr;			
 	/* but we've just started another cycle... */
-	wait_event_timeout(gsr_wq, gsr_bits & GSR_SDONE, 1);
+	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
 
 out:	up(&car_mutex);
 	return val;
 }
 
-static void pxa2xx_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
+static void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 {
 	volatile u32 *reg_addr;
 
 	down(&car_mutex);
 
-	if (CAR & CAR_CAIP) {
-		printk(KERN_CRIT "%s: CAR_CAIP already set\n", __FUNCTION__);
-		goto out;
-	}
-
 	/* set up primary or secondary codec space */
 	reg_addr = (ac97->num & 1) ? &SAC_REG_BASE : &PAC_REG_BASE;
 	reg_addr += (reg >> 1);
+
+	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	*reg_addr = val;
-	wait_event_timeout(gsr_wq, gsr_bits & GSR_CDONE, 1);
-	if (!gsr_bits & GSR_SDONE)
+	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 &&
+	    !((GSR | gsr_bits) & GSR_CDONE))
 		printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n",
-				__FUNCTION__, reg, gsr_bits);
+				__FUNCTION__, reg, GSR | gsr_bits);
 
-out:	up(&car_mutex);
+	up(&car_mutex);
 }
 
-static void pxa2xx_ac97_reset(ac97_t *ac97)
+static void pxa2xx_ac97_reset(struct snd_ac97 *ac97)
 {
 	/* First, try cold reset */
 	GCR &=  GCR_COLD_RST;  /* clear everything but nCRST */
@@ -172,13 +177,13 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_NONE;
 }
 
-static ac97_bus_ops_t pxa2xx_ac97_ops = {
+static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.read	= pxa2xx_ac97_read,
 	.write	= pxa2xx_ac97_write,
 	.reset	= pxa2xx_ac97_reset,
 };
 
-static pxa2xx_pcm_dma_params_t pxa2xx_ac97_pcm_out = {
+static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_out = {
 	.name			= "AC97 PCM out",
 	.dev_addr		= __PREG(PCDR),
 	.drcmr			= &DRCMRTXPCDR,
@@ -186,7 +191,7 @@ static pxa2xx_pcm_dma_params_t pxa2xx_ac97_pcm_out = {
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
 
-static pxa2xx_pcm_dma_params_t pxa2xx_ac97_pcm_in = {
+static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_in = {
 	.name			= "AC97 PCM in",
 	.dev_addr		= __PREG(PCDR),
 	.drcmr			= &DRCMRRXPCDR,
@@ -194,12 +199,12 @@ static pxa2xx_pcm_dma_params_t pxa2xx_ac97_pcm_in = {
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
 
-static snd_pcm_t *pxa2xx_ac97_pcm;
-static ac97_t *pxa2xx_ac97_ac97;
+static struct snd_pcm *pxa2xx_ac97_pcm;
+static struct snd_ac97 *pxa2xx_ac97_ac97;
 
-static int pxa2xx_ac97_pcm_startup(snd_pcm_substream_t *substream)
+static int pxa2xx_ac97_pcm_startup(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	pxa2xx_audio_ops_t *platform_ops;
 	int r;
 
@@ -218,7 +223,7 @@ static int pxa2xx_ac97_pcm_startup(snd_pcm_substream_t *substream)
 		return 0;
 }
 
-static void pxa2xx_ac97_pcm_shutdown(snd_pcm_substream_t *substream)
+static void pxa2xx_ac97_pcm_shutdown(struct snd_pcm_substream *substream)
 {
 	pxa2xx_audio_ops_t *platform_ops;
 
@@ -227,15 +232,15 @@ static void pxa2xx_ac97_pcm_shutdown(snd_pcm_substream_t *substream)
 		platform_ops->shutdown(substream, platform_ops->priv);
 }
 
-static int pxa2xx_ac97_pcm_prepare(snd_pcm_substream_t *substream)
+static int pxa2xx_ac97_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int reg = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		  AC97_PCM_FRONT_DAC_RATE : AC97_PCM_LR_ADC_RATE;
 	return snd_ac97_set_rate(pxa2xx_ac97_ac97, reg, runtime->rate);
 }
 
-static pxa2xx_pcm_client_t pxa2xx_ac97_pcm_client = {
+static struct pxa2xx_pcm_client pxa2xx_ac97_pcm_client = {
 	.playback_params	= &pxa2xx_ac97_pcm_out,
 	.capture_params		= &pxa2xx_ac97_pcm_in,
 	.startup		= pxa2xx_ac97_pcm_startup,
@@ -245,39 +250,37 @@ static pxa2xx_pcm_client_t pxa2xx_ac97_pcm_client = {
 
 #ifdef CONFIG_PM
 
-static int pxa2xx_ac97_do_suspend(snd_card_t *card, pm_message_t state)
+static int pxa2xx_ac97_do_suspend(struct snd_card *card, pm_message_t state)
 {
-	if (card->power_state != SNDRV_CTL_POWER_D3cold) {
-		pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
-		snd_pcm_suspend_all(pxa2xx_ac97_pcm);
-		snd_ac97_suspend(pxa2xx_ac97_ac97);
-		snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-		if (platform_ops && platform_ops->suspend)
-			platform_ops->suspend(platform_ops->priv);
-		GCR |= GCR_ACLINK_OFF;
-		pxa_set_cken(CKEN2_AC97, 0);
-	}
+	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
+	snd_pcm_suspend_all(pxa2xx_ac97_pcm);
+	snd_ac97_suspend(pxa2xx_ac97_ac97);
+	if (platform_ops && platform_ops->suspend)
+		platform_ops->suspend(platform_ops->priv);
+	GCR |= GCR_ACLINK_OFF;
+	pxa_set_cken(CKEN2_AC97, 0);
 
 	return 0;
 }
 
-static int pxa2xx_ac97_do_resume(snd_card_t *card)
+static int pxa2xx_ac97_do_resume(struct snd_card *card)
 {
-	if (card->power_state != SNDRV_CTL_POWER_D0) {
-		pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
-		pxa_set_cken(CKEN2_AC97, 1);
-		if (platform_ops && platform_ops->resume)
-			platform_ops->resume(platform_ops->priv);
-		snd_ac97_resume(pxa2xx_ac97_ac97);
-		snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-	}
+	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
+
+	pxa_set_cken(CKEN2_AC97, 1);
+	if (platform_ops && platform_ops->resume)
+		platform_ops->resume(platform_ops->priv);
+	snd_ac97_resume(pxa2xx_ac97_ac97);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;
 }
 
 static int pxa2xx_ac97_suspend(struct platform_device *dev, pm_message_t state)
 {
-	snd_card_t *card = platform_get_drvdata(dev);
+	struct snd_card *card = platform_get_drvdata(dev);
 	int ret = 0;
 
 	if (card)
@@ -288,7 +291,7 @@ static int pxa2xx_ac97_suspend(struct platform_device *dev, pm_message_t state)
 
 static int pxa2xx_ac97_resume(struct platform_device *dev)
 {
-	snd_card_t *card = platform_get_drvdata(dev);
+	struct snd_card *card = platform_get_drvdata(dev);
 	int ret = 0;
 
 	if (card)
@@ -304,9 +307,9 @@ static int pxa2xx_ac97_resume(struct platform_device *dev)
 
 static int pxa2xx_ac97_probe(struct platform_device *dev)
 {
-	snd_card_t *card;
-	ac97_bus_t *ac97_bus;
-	ac97_template_t ac97_template;
+	struct snd_card *card;
+	struct snd_ac97_bus *ac97_bus;
+	struct snd_ac97_template ac97_template;
 	int ret;
 
 	ret = -ENOMEM;
@@ -349,8 +352,6 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s (%s)", dev->dev.driver->name, card->mixername);
 
-	snd_card_set_pm_callback(card, pxa2xx_ac97_do_suspend,
-				 pxa2xx_ac97_do_resume, NULL);
 	ret = snd_card_register(card);
 	if (ret == 0) {
 		platform_set_drvdata(dev, card);
@@ -370,7 +371,7 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 
 static int pxa2xx_ac97_remove(struct platform_device *dev)
 {
-	snd_card_t *card = platform_get_drvdata(dev);
+	struct snd_card *card = platform_get_drvdata(dev);
 
 	if (card) {
 		snd_card_free(card);

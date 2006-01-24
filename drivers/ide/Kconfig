@@ -625,7 +625,7 @@ config BLK_DEV_NS87415
 	tristate "NS87415 chipset support"
 	help
 	  This driver adds detection and support for the NS87415 chip
-	  (used in SPARC64, among others).
+	  (used mainly on SPARC64 and PA-RISC machines).
 
 	  Please read the comments at the top of <file:drivers/ide/pci/ns87415.c>.
 
@@ -787,6 +787,10 @@ config BLK_DEV_IDE_PMAC_BLINK
 	  This option enables the use of the sleep LED as a hard drive
 	  activity LED.
 
+config BLK_DEV_IDE_SWARM
+	tristate "IDE for Sibyte evaluation boards"
+	depends on SIBYTE_SB1xxx_SOC
+
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
        depends on SOC_AU1200
@@ -802,14 +806,6 @@ config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
        bool "MDMA2+DbDMA IDE for AMD Alchemy Au1200"
        depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
 endchoice
-
-config BLK_DEV_IDE_AU1XXX_BURSTABLE_ON
-        bool "Enable burstable Mode on DbDMA"
-        default false
-        depends BLK_DEV_IDE_AU1XXX
-        help
-          This option enable the burstable Flag on DbDMA controller
-          (cf. "AMD Alchemy 'Au1200' Processor Data Book - PRELIMINARY").
 
 config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        int "Maximum transfer size (KB) per request (up to 128)"
@@ -936,7 +932,7 @@ config BLK_DEV_Q40IDE
 
 config BLK_DEV_MPC8xx_IDE
 	bool "MPC8xx IDE support"
-	depends on 8xx
+	depends on 8xx && IDE=y && BLK_DEV_IDE=y
 	help
 	  This option provides support for IDE on Motorola MPC8xx Systems.
 	  Please see 'Type of MPC8xx IDE interface' for details.

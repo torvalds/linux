@@ -79,6 +79,7 @@ enum fc_port_state {
 	FC_PORTSTATE_LINKDOWN,
 	FC_PORTSTATE_ERROR,
 	FC_PORTSTATE_LOOPBACK,
+	FC_PORTSTATE_DELETED,
 };
 
 
@@ -302,6 +303,7 @@ struct fc_host_attrs {
 	/* Fixed Attributes */
 	u64 node_name;
 	u64 port_name;
+	u64 permanent_port_name;
 	u32 supported_classes;
 	u8  supported_fc4s[FC_FC4_LIST_SIZE];
 	char symbolic_name[FC_SYMBOLIC_NAME_SIZE];
@@ -325,12 +327,20 @@ struct fc_host_attrs {
 	struct list_head rport_bindings;
 	u32 next_rport_number;
 	u32 next_target_id;
+	u8 flags;
+ 	struct work_struct rport_del_work;
 };
+
+/* values for struct fc_host_attrs "flags" field: */
+#define FC_SHOST_RPORT_DEL_SCHEDULED	0x01
+
 
 #define fc_host_node_name(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->node_name)
 #define fc_host_port_name(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->port_name)
+#define fc_host_permanent_port_name(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->permanent_port_name)
 #define fc_host_supported_classes(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->supported_classes)
 #define fc_host_supported_fc4s(x)	\
@@ -365,6 +375,10 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->next_rport_number)
 #define fc_host_next_target_id(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->next_target_id)
+#define fc_host_flags(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->flags)
+#define fc_host_rport_del_work(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->rport_del_work)
 
 
 /* The functions by which the transport class and the driver communicate */
@@ -415,6 +429,7 @@ struct fc_function_template {
 	/* host fixed attributes */
 	unsigned long	show_host_node_name:1;
 	unsigned long	show_host_port_name:1;
+	unsigned long	show_host_permanent_port_name:1;
 	unsigned long	show_host_supported_classes:1;
 	unsigned long	show_host_supported_fc4s:1;
 	unsigned long	show_host_symbolic_name:1;

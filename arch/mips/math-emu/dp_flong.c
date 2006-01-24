@@ -33,8 +33,6 @@ ieee754dp ieee754dp_flong(s64 x)
 
 	CLEARCX;
 
-	xc = ( 0 ? xc : xc );
-
 	if (x == 0)
 		return ieee754dp_zero(0);
 	if (x == 1 || x == -1)

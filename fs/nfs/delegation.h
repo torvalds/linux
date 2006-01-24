@@ -21,6 +21,7 @@ struct nfs_delegation {
 #define NFS_DELEGATION_NEED_RECLAIM 1
 	long flags;
 	loff_t maxsize;
+	__u64 change_attr;
 };
 
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
@@ -30,6 +31,7 @@ int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *s
 
 struct inode *nfs_delegation_find_inode(struct nfs4_client *clp, const struct nfs_fh *fhandle);
 void nfs_return_all_delegations(struct super_block *sb);
+void nfs_expire_all_delegations(struct nfs4_client *clp);
 void nfs_handle_cb_pathdown(struct nfs4_client *clp);
 
 void nfs_delegation_mark_reclaim(struct nfs4_client *clp);

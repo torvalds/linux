@@ -22,6 +22,7 @@
  *		Patrick McHardy :	LRU queue of frag heads for evictor.
  */
 
+#include <linux/compiler.h>
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -38,6 +39,7 @@
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/checksum.h>
+#include <net/inetpeer.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/inet.h>
@@ -56,6 +58,8 @@
 int sysctl_ipfrag_high_thresh = 256*1024;
 int sysctl_ipfrag_low_thresh = 192*1024;
 
+int sysctl_ipfrag_max_dist = 64;
+
 /* Important NOTE! Fragment queue must be destroyed before MSL expires.
  * RFC791 is wrong proposing to prolongate timer each fragment arrival by TTL.
  */
@@ -71,7 +75,7 @@ struct ipfrag_skb_cb
 
 /* Describe an entry in the "incomplete datagrams" queue. */
 struct ipq {
-	struct ipq	*next;		/* linked list pointers			*/
+	struct hlist_node list;
 	struct list_head lru_list;	/* lru list member 			*/
 	u32		user;
 	u32		saddr;
@@ -89,9 +93,10 @@ struct ipq {
 	spinlock_t	lock;
 	atomic_t	refcnt;
 	struct timer_list timer;	/* when will this queue expire?		*/
-	struct ipq	**pprev;
-	int		iif;
 	struct timeval	stamp;
+	int             iif;
+	unsigned int    rid;
+	struct inet_peer *peer;
 };
 
 /* Hash table. */
@@ -99,7 +104,7 @@ struct ipq {
 #define IPQ_HASHSZ	64
 
 /* Per-bucket lock is easy to add now. */
-static struct ipq *ipq_hash[IPQ_HASHSZ];
+static struct hlist_head ipq_hash[IPQ_HASHSZ];
 static DEFINE_RWLOCK(ipfrag_lock);
 static u32 ipfrag_hash_rnd;
 static LIST_HEAD(ipq_lru_list);
@@ -107,9 +112,7 @@ int ip_frag_nqueues = 0;
 
 static __inline__ void __ipq_unlink(struct ipq *qp)
 {
-	if(qp->next)
-		qp->next->pprev = qp->pprev;
-	*qp->pprev = qp->next;
+	hlist_del(&qp->list);
 	list_del(&qp->lru_list);
 	ip_frag_nqueues--;
 }
@@ -139,27 +142,18 @@ static void ipfrag_secret_rebuild(unsigned long dummy)
 	get_random_bytes(&ipfrag_hash_rnd, sizeof(u32));
 	for (i = 0; i < IPQ_HASHSZ; i++) {
 		struct ipq *q;
+		struct hlist_node *p, *n;
 
-		q = ipq_hash[i];
-		while (q) {
-			struct ipq *next = q->next;
+		hlist_for_each_entry_safe(q, p, n, &ipq_hash[i], list) {
 			unsigned int hval = ipqhashfn(q->id, q->saddr,
 						      q->daddr, q->protocol);
 
 			if (hval != i) {
-				/* Unlink. */
-				if (q->next)
-					q->next->pprev = q->pprev;
-				*q->pprev = q->next;
+				hlist_del(&q->list);
 
 				/* Relink to new hash chain. */
-				if ((q->next = ipq_hash[hval]) != NULL)
-					q->next->pprev = &q->next;
-				ipq_hash[hval] = q;
-				q->pprev = &ipq_hash[hval];
+				hlist_add_head(&q->list, &ipq_hash[hval]);
 			}
-
-			q = next;
 		}
 	}
 	write_unlock(&ipfrag_lock);
@@ -206,6 +200,9 @@ static void ip_frag_destroy(struct ipq *qp, int *work)
 
 	BUG_TRAP(qp->last_in&COMPLETE);
 	BUG_TRAP(del_timer(&qp->timer) == 0);
+
+	if (qp->peer)
+		inet_putpeer(qp->peer);
 
 	/* Release all fragment data. */
 	fp = qp->fragments;
@@ -310,14 +307,16 @@ out:
 static struct ipq *ip_frag_intern(unsigned int hash, struct ipq *qp_in)
 {
 	struct ipq *qp;
-
+#ifdef CONFIG_SMP
+	struct hlist_node *n;
+#endif
 	write_lock(&ipfrag_lock);
 #ifdef CONFIG_SMP
 	/* With SMP race we have to recheck hash table, because
 	 * such entry could be created on other cpu, while we
 	 * promoted read lock to write lock.
 	 */
-	for(qp = ipq_hash[hash]; qp; qp = qp->next) {
+	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
 		if(qp->id == qp_in->id		&&
 		   qp->saddr == qp_in->saddr	&&
 		   qp->daddr == qp_in->daddr	&&
@@ -337,10 +336,7 @@ static struct ipq *ip_frag_intern(unsigned int hash, struct ipq *qp_in)
 		atomic_inc(&qp->refcnt);
 
 	atomic_inc(&qp->refcnt);
-	if((qp->next = ipq_hash[hash]) != NULL)
-		qp->next->pprev = &qp->next;
-	ipq_hash[hash] = qp;
-	qp->pprev = &ipq_hash[hash];
+	hlist_add_head(&qp->list, &ipq_hash[hash]);
 	INIT_LIST_HEAD(&qp->lru_list);
 	list_add_tail(&qp->lru_list, &ipq_lru_list);
 	ip_frag_nqueues++;
@@ -366,6 +362,7 @@ static struct ipq *ip_frag_create(unsigned hash, struct iphdr *iph, u32 user)
 	qp->meat = 0;
 	qp->fragments = NULL;
 	qp->iif = 0;
+	qp->peer = sysctl_ipfrag_max_dist ? inet_getpeer(iph->saddr, 1) : NULL;
 
 	/* Initialize a timer for this entry. */
 	init_timer(&qp->timer);
@@ -386,15 +383,16 @@ out_nomem:
  */
 static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 {
-	__u16 id = iph->id;
+	__be16 id = iph->id;
 	__u32 saddr = iph->saddr;
 	__u32 daddr = iph->daddr;
 	__u8 protocol = iph->protocol;
 	unsigned int hash = ipqhashfn(id, saddr, daddr, protocol);
 	struct ipq *qp;
+	struct hlist_node *n;
 
 	read_lock(&ipfrag_lock);
-	for(qp = ipq_hash[hash]; qp; qp = qp->next) {
+	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
 		if(qp->id == id		&&
 		   qp->saddr == saddr	&&
 		   qp->daddr == daddr	&&
@@ -410,6 +408,56 @@ static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 	return ip_frag_create(hash, iph, user);
 }
 
+/* Is the fragment too far ahead to be part of ipq? */
+static inline int ip_frag_too_far(struct ipq *qp)
+{
+	struct inet_peer *peer = qp->peer;
+	unsigned int max = sysctl_ipfrag_max_dist;
+	unsigned int start, end;
+
+	int rc;
+
+	if (!peer || !max)
+		return 0;
+
+	start = qp->rid;
+	end = atomic_inc_return(&peer->rid);
+	qp->rid = end;
+
+	rc = qp->fragments && (end - start) > max;
+
+	if (rc) {
+		IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
+	}
+
+	return rc;
+}
+
+static int ip_frag_reinit(struct ipq *qp)
+{
+	struct sk_buff *fp;
+
+	if (!mod_timer(&qp->timer, jiffies + sysctl_ipfrag_time)) {
+		atomic_inc(&qp->refcnt);
+		return -ETIMEDOUT;
+	}
+
+	fp = qp->fragments;
+	do {
+		struct sk_buff *xp = fp->next;
+		frag_kfree_skb(fp, NULL);
+		fp = xp;
+	} while (fp);
+
+	qp->last_in = 0;
+	qp->len = 0;
+	qp->meat = 0;
+	qp->fragments = NULL;
+	qp->iif = 0;
+
+	return 0;
+}
+
 /* Add new segment to existing queue. */
 static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
@@ -419,6 +467,12 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 
 	if (qp->last_in & COMPLETE)
 		goto err;
+
+	if (!(IPCB(skb)->flags & IPSKB_FRAG_COMPLETE) &&
+	    unlikely(ip_frag_too_far(qp)) && unlikely(ip_frag_reinit(qp))) {
+		ipq_kill(qp);
+		goto err;
+	}
 
  	offset = ntohs(skb->nh.iph->frag_off);
 	flags = offset & ~IP_OFFSET;

@@ -4,12 +4,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/usb.h>
 #include "hcd.h"
 

@@ -16,6 +16,7 @@
  */
 #ifndef _LINUX_IP_H
 #define _LINUX_IP_H
+#include <linux/types.h>
 #include <asm/byteorder.h>
 
 #define IPTOS_TOS_MASK		0x1E
@@ -78,126 +79,6 @@
 #define	IPOPT_TS_TSANDADDR	1		/* timestamps and addresses */
 #define	IPOPT_TS_PRESPEC	3		/* specified modules only */
 
-#ifdef __KERNEL__
-#include <linux/config.h>
-#include <linux/types.h>
-#include <net/request_sock.h>
-#include <net/sock.h>
-#include <linux/igmp.h>
-#include <net/flow.h>
-
-struct ip_options {
-  __u32		faddr;				/* Saved first hop address */
-  unsigned char	optlen;
-  unsigned char srr;
-  unsigned char rr;
-  unsigned char ts;
-  unsigned char is_setbyuser:1,			/* Set by setsockopt?			*/
-                is_data:1,			/* Options in __data, rather than skb	*/
-                is_strictroute:1,		/* Strict source route			*/
-                srr_is_hit:1,			/* Packet destination addr was our one	*/
-                is_changed:1,			/* IP checksum more not valid		*/	
-                rr_needaddr:1,			/* Need to record addr of outgoing dev	*/
-                ts_needtime:1,			/* Need to record timestamp		*/
-                ts_needaddr:1;			/* Need to record addr of outgoing dev  */
-  unsigned char router_alert;
-  unsigned char __pad1;
-  unsigned char __pad2;
-  unsigned char __data[0];
-};
-
-#define optlength(opt) (sizeof(struct ip_options) + opt->optlen)
-
-struct inet_request_sock {
-	struct request_sock	req;
-	u32			loc_addr;
-	u32			rmt_addr;
-	u16			rmt_port;
-	u16			snd_wscale : 4, 
-				rcv_wscale : 4, 
-				tstamp_ok  : 1,
-				sack_ok	   : 1,
-				wscale_ok  : 1,
-				ecn_ok	   : 1,
-				acked	   : 1;
-	struct ip_options	*opt;
-};
-
-static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
-{
-	return (struct inet_request_sock *)sk;
-}
-
-struct ipv6_pinfo;
-
-struct inet_sock {
-	/* sk and pinet6 has to be the first two members of inet_sock */
-	struct sock		sk;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct ipv6_pinfo	*pinet6;
-#endif
-	/* Socket demultiplex comparisons on incoming packets. */
-	__u32			daddr;		/* Foreign IPv4 addr */
-	__u32			rcv_saddr;	/* Bound local IPv4 addr */
-	__u16			dport;		/* Destination port */
-	__u16			num;		/* Local port */
-	__u32			saddr;		/* Sending source */
-	__s16			uc_ttl;		/* Unicast TTL */
-	__u16			cmsg_flags;
-	struct ip_options	*opt;
-	__u16			sport;		/* Source port */
-	__u16			id;		/* ID counter for DF pkts */
-	__u8			tos;		/* TOS */
-	__u8			mc_ttl;		/* Multicasting TTL */
-	__u8			pmtudisc;
-	unsigned		recverr : 1,
-				freebind : 1,
-				hdrincl : 1,
-				mc_loop : 1;
-	int			mc_index;	/* Multicast device index */
-	__u32			mc_addr;
-	struct ip_mc_socklist	*mc_list;	/* Group array */
-	/*
-	 * Following members are used to retain the infomation to build
-	 * an ip header on each ip fragmentation while the socket is corked.
-	 */
-	struct {
-		unsigned int		flags;
-		unsigned int		fragsize;
-		struct ip_options	*opt;
-		struct rtable		*rt;
-		int			length; /* Total length of all frames */
-		u32			addr;
-		struct flowi		fl;
-	} cork;
-};
-
-#define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
-#define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
-
-static inline struct inet_sock *inet_sk(const struct sock *sk)
-{
-	return (struct inet_sock *)sk;
-}
-
-static inline void __inet_sk_copy_descendant(struct sock *sk_to,
-					     const struct sock *sk_from,
-					     const int ancestor_size)
-{
-	memcpy(inet_sk(sk_to) + 1, inet_sk(sk_from) + 1,
-	       sk_from->sk_prot->obj_size - ancestor_size);
-}
-#if !(defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE))
-static inline void inet_sk_copy_descendant(struct sock *sk_to,
-					   const struct sock *sk_from)
-{
-	__inet_sk_copy_descendant(sk_to, sk_from, sizeof(struct inet_sock));
-}
-#endif
-#endif
-
-extern int inet_sk_rebuild_header(struct sock *sk);
-
 struct iphdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8	ihl:4,
@@ -209,14 +90,14 @@ struct iphdr {
 #error	"Please fix <asm/byteorder.h>"
 #endif
 	__u8	tos;
-	__u16	tot_len;
-	__u16	id;
-	__u16	frag_off;
+	__be16	tot_len;
+	__be16	id;
+	__be16	frag_off;
 	__u8	ttl;
 	__u8	protocol;
 	__u16	check;
-	__u32	saddr;
-	__u32	daddr;
+	__be32	saddr;
+	__be32	daddr;
 	/*The options start here. */
 };
 

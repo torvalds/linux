@@ -50,9 +50,7 @@ static DECLARE_MUTEX(gameport_sem);
 
 static LIST_HEAD(gameport_list);
 
-static struct bus_type gameport_bus = {
-	.name =	"gameport",
-};
+static struct bus_type gameport_bus;
 
 static void gameport_add_port(struct gameport *gameport);
 static void gameport_destroy_port(struct gameport *gameport);
@@ -339,14 +337,20 @@ static struct gameport_event *gameport_get_event(void)
 	return event;
 }
 
-static void gameport_handle_events(void)
+static void gameport_handle_event(void)
 {
 	struct gameport_event *event;
 	struct gameport_driver *gameport_drv;
 
 	down(&gameport_sem);
 
-	while ((event = gameport_get_event())) {
+	/*
+	 * Note that we handle only one event here to give swsusp
+	 * a chance to freeze kgameportd thread. Gameport events
+	 * should be pretty rare so we are not concerned about
+	 * taking performance hit.
+	 */
+	if ((event = gameport_get_event())) {
 
 		switch (event->type) {
 			case GAMEPORT_REGISTER_PORT:
@@ -433,7 +437,7 @@ static struct gameport *gameport_get_pending_child(struct gameport *parent)
 static int gameport_thread(void *nothing)
 {
 	do {
-		gameport_handle_events();
+		gameport_handle_event();
 		wait_event_interruptible(gameport_wait,
 			kthread_should_stop() || !list_empty(&gameport_event_list));
 		try_to_freeze();
@@ -697,11 +701,15 @@ static int gameport_driver_remove(struct device *dev)
 	return 0;
 }
 
+static struct bus_type gameport_bus = {
+	.name =	"gameport",
+	.probe = gameport_driver_probe,
+	.remove = gameport_driver_remove,
+};
+
 void __gameport_register_driver(struct gameport_driver *drv, struct module *owner)
 {
 	drv->driver.bus = &gameport_bus;
-	drv->driver.probe = gameport_driver_probe;
-	drv->driver.remove = gameport_driver_remove;
 	gameport_queue_event(drv, owner, GAMEPORT_REGISTER_DRIVER);
 }
 

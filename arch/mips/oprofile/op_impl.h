@@ -12,8 +12,8 @@
 
 struct pt_regs;
 
-extern void null_perf_irq(struct pt_regs *regs);
-extern void (*perf_irq)(struct pt_regs *regs);
+extern int null_perf_irq(struct pt_regs *regs);
+extern int (*perf_irq)(struct pt_regs *regs);
 
 /* Per-counter configuration as set via oprofilefs.  */
 struct op_counter_config {

@@ -900,7 +900,7 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(const struct sctp_endpoint *ep,
 	 * HEARTBEAT is sent (see Section 8.3).
 	 */
 
-	if (transport->hb_allowed) {
+	if (transport->param_flags & SPP_HB_ENABLE) {
 		if (SCTP_DISPOSITION_NOMEM ==
 				sctp_sf_heartbeat(ep, asoc, type, arg,
 						  commands))
@@ -1036,14 +1036,14 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		if (from_addr.sa.sa_family == AF_INET6) {
 			printk(KERN_WARNING
 			       "%s association %p could not find address "
-			       "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			       NIP6_FMT "\n",
 			       __FUNCTION__,
 			       asoc,
 			       NIP6(from_addr.v6.sin6_addr));
 		} else {
 			printk(KERN_WARNING
 			       "%s association %p could not find address "
-			       "%u.%u.%u.%u\n",
+			       NIPQUAD_FMT "\n",
 			       __FUNCTION__,
 			       asoc,
 			       NIPQUAD(from_addr.v4.sin_addr.s_addr));
@@ -1051,7 +1051,7 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		return SCTP_DISPOSITION_DISCARD;
 	}
 
-	max_interval = link->hb_interval + link->rto;
+	max_interval = link->hbinterval + link->rto;
 
 	/* Check if the timestamp looks valid.  */
 	if (time_after(hbinfo->sent_at, jiffies) ||
@@ -2691,13 +2691,8 @@ sctp_disposition_t sctp_sf_eat_data_6_2(const struct sctp_endpoint *ep,
 	 * document allow. However, an SCTP transmitter MUST NOT be
 	 * more aggressive than the following algorithms allow.
 	 */
-	if (chunk->end_of_packet) {
+	if (chunk->end_of_packet)
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
-
-		/* Start the SACK timer.  */
-		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
-				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
-	}
 
 	return SCTP_DISPOSITION_CONSUME;
 
@@ -2721,13 +2716,9 @@ discard_force:
 	return SCTP_DISPOSITION_DISCARD;
 
 discard_noforce:
-	if (chunk->end_of_packet) {
+	if (chunk->end_of_packet)
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
 
-		/* Start the SACK timer.  */
-		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
-				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
-	}
 	return SCTP_DISPOSITION_DISCARD;
 consume:
 	return SCTP_DISPOSITION_CONSUME;
@@ -3099,6 +3090,8 @@ sctp_disposition_t sctp_sf_ootb(const struct sctp_endpoint *ep,
 			break;
 
 		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
+		if (ch_end > skb->tail)
+			break;
 
 		if (SCTP_CID_SHUTDOWN_ACK == ch->type)
 			ootb_shut_ack = 1;
@@ -3442,9 +3435,6 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn(const struct sctp_endpoint *ep,
 	 * send another. 
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
-	/* Start the SACK timer.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 
 	return SCTP_DISPOSITION_CONSUME;
 
@@ -5160,6 +5150,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	sctp_verb_t deliver;
 	int tmp;
 	__u32 tsn;
+	int account_value;
+	struct sock *sk = asoc->base.sk;
 
 	data_hdr = chunk->subh.data_hdr = (sctp_datahdr_t *)chunk->skb->data;
 	skb_pull(chunk->skb, sizeof(sctp_datahdr_t));
@@ -5168,6 +5160,26 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	SCTP_DEBUG_PRINTK("eat_data: TSN 0x%x.\n", tsn);
 
 	/* ASSERT:  Now skb->data is really the user data.  */
+
+	/*
+	 * if we are established, and we have used up our receive
+	 * buffer memory, drop the frame
+	 */
+	if (asoc->state == SCTP_STATE_ESTABLISHED) {
+		/*
+		 * If the receive buffer policy is 1, then each
+		 * association can allocate up to sk_rcvbuf bytes
+		 * otherwise, all the associations in aggregate
+		 * may allocate up to sk_rcvbuf bytes
+		 */
+		if (asoc->ep->rcvbuf_policy)
+			account_value = atomic_read(&asoc->rmem_alloc);
+		else
+			account_value = atomic_read(&sk->sk_rmem_alloc);
+
+		if (account_value > sk->sk_rcvbuf)
+			return SCTP_IERROR_IGNORE_TSN;
+	}
 
 	/* Process ECN based congestion.
 	 *

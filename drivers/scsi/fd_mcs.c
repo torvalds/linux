@@ -343,7 +343,7 @@ static void fd_mcs_make_bus_idle(struct Scsi_Host *shpnt)
 		outb(0x01 | PARITY_MASK, TMC_Cntl_port);
 }
 
-static int fd_mcs_detect(Scsi_Host_Template * tpnt)
+static int fd_mcs_detect(struct scsi_host_template * tpnt)
 {
 	int loop;
 	struct Scsi_Host *shpnt;
@@ -1343,7 +1343,7 @@ static int fd_mcs_biosparam(struct scsi_device * disk, struct block_device *bdev
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name			= "fd_mcs",
 	.proc_info			= fd_mcs_proc_info,
 	.detect				= fd_mcs_detect,

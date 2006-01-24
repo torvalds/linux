@@ -264,6 +264,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 * sigkill.  perhaps it should be put in the status
 		 * that it wants to exit.
 		 */
+		ret = 0;
 		DBG("sys_ptrace(KILL)\n");
 		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			goto out_tsk;
@@ -344,11 +345,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_GETEVENTMSG:
                 ret = put_user(child->ptrace_message, (unsigned int __user *) data);
-		goto out;
+		goto out_tsk;
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
-		goto out;
+		goto out_tsk;
 	}
 
 out_wake_notrap:

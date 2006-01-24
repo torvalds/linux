@@ -17,7 +17,7 @@
 
 /* Control word. */
 struct cword {
-	int __attribute__ ((__packed__))
+	unsigned int __attribute__ ((__packed__))
 		rounds:4,
 		algo:3,
 		keygen:1,

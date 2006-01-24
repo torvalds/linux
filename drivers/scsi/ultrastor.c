@@ -343,7 +343,7 @@ static void log_ultrastor_abort(struct ultrastor_config *config,
 }
 #endif
 
-static int ultrastor_14f_detect(Scsi_Host_Template * tpnt)
+static int ultrastor_14f_detect(struct scsi_host_template * tpnt)
 {
     size_t i;
     unsigned char in_byte, version_byte = 0;
@@ -525,7 +525,7 @@ out_release_port:
     return FALSE;
 }
 
-static int ultrastor_24f_detect(Scsi_Host_Template * tpnt)
+static int ultrastor_24f_detect(struct scsi_host_template * tpnt)
 {
   int i;
   struct Scsi_Host * shpnt = NULL;
@@ -637,7 +637,7 @@ static int ultrastor_24f_detect(Scsi_Host_Template * tpnt)
   return FALSE;
 }
 
-static int ultrastor_detect(Scsi_Host_Template * tpnt)
+static int ultrastor_detect(struct scsi_host_template * tpnt)
 {
 	tpnt->proc_name = "ultrastor";
 	return ultrastor_14f_detect(tpnt) || ultrastor_24f_detect(tpnt);
@@ -1184,7 +1184,7 @@ static irqreturn_t do_ultrastor_interrupt(int irq, void *dev_id,
 
 MODULE_LICENSE("GPL");
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name              = "UltraStor 14F/24F/34F",
 	.detect            = ultrastor_detect,
 	.release	   = ultrastor_release,

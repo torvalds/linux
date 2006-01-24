@@ -2,12 +2,12 @@
     Conexant 22702 DVB OFDM demodulator driver
 
     based on:
-        Alps TDMB7 DVB OFDM demodulator driver
+	Alps TDMB7 DVB OFDM demodulator driver
 
     Copyright (C) 2001-2002 Convergence Integrated Media GmbH
 	  Holger Waechtler <holger@convergence.de>
 
-    Copyright (C) 2004 Steven Toth <steve@toth.demon.co.uk>
+    Copyright (C) 2004 Steven Toth <stoth@hauppauge.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -195,6 +195,16 @@ static int cx22702_get_tps (struct cx22702_state *state, struct dvb_ofdm_paramet
 	return 0;
 }
 
+static int cx22702_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct cx22702_state* state = fe->demodulator_priv;
+	dprintk ("%s(%d)\n", __FUNCTION__, enable);
+	if (enable)
+		return cx22702_writereg (state, 0x0D, cx22702_readreg(state, 0x0D) & 0xfe);
+	else
+		return cx22702_writereg (state, 0x0D, cx22702_readreg(state, 0x0D) | 1);
+}
+
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
 static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
@@ -202,7 +212,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 	struct cx22702_state* state = fe->demodulator_priv;
 
 	/* set PLL */
-	cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) &0xfe);
+	cx22702_i2c_gate_ctrl(fe, 1);
 	if (state->config->pll_set) {
 		state->config->pll_set(fe, p);
 	} else if (state->config->pll_desc) {
@@ -216,7 +226,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 	} else {
 		BUG();
 	}
-	cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) | 1);
+	cx22702_i2c_gate_ctrl(fe, 0);
 
 	/* set inversion */
 	cx22702_set_inversion (state, p->inversion);
@@ -349,11 +359,10 @@ static int cx22702_init (struct dvb_frontend* fe)
 	cx22702_writereg (state, 0xf8, (state->config->output_mode << 1) & 0x02);
 
 	/* init PLL */
-	if (state->config->pll_init) {
-		cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) & 0xfe);
+	if (state->config->pll_init)
 		state->config->pll_init(fe);
-		cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) | 1);
-	}
+
+	cx22702_i2c_gate_ctrl(fe, 0);
 
 	return 0;
 }
@@ -531,6 +540,7 @@ static struct dvb_frontend_ops cx22702_ops = {
 	.read_signal_strength = cx22702_read_signal_strength,
 	.read_snr = cx22702_read_snr,
 	.read_ucblocks = cx22702_read_ucblocks,
+	.i2c_gate_ctrl = cx22702_i2c_gate_ctrl,
 };
 
 module_param(debug, int, 0644);

@@ -31,7 +31,6 @@
  * to reduce code space and undefined function references.
  */
 
-#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/threads.h>
 #include <linux/kernel_stat.h>
@@ -44,18 +43,12 @@
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/proc_fs.h>
-#include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/cpumask.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
-#ifdef CONFIG_PPC64
-#include <linux/kallsyms.h>
-#endif
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -66,16 +59,16 @@
 #include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
-#ifdef CONFIG_PPC64
-#include <asm/iseries/it_lp_queue.h>
+#ifdef CONFIG_PPC_ISERIES
 #include <asm/paca.h>
 #endif
 
-static int ppc_spurious_interrupts;
-
-#if defined(CONFIG_PPC_ISERIES) && defined(CONFIG_SMP)
-extern void iSeries_smp_message_recv(struct pt_regs *);
+int __irq_offset_value;
+#ifdef CONFIG_PPC32
+EXPORT_SYMBOL(__irq_offset_value);
 #endif
+
+static int ppc_spurious_interrupts;
 
 #ifdef CONFIG_PPC32
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
@@ -98,7 +91,6 @@ extern atomic_t ipi_sent;
 EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
-int __irq_offset_value;
 u64 ppc64_interrupt_controller;
 #endif /* CONFIG_PPC64 */
 
@@ -191,49 +183,6 @@ void fixup_irqs(cpumask_t map)
 }
 #endif
 
-#ifdef CONFIG_PPC_ISERIES
-void do_IRQ(struct pt_regs *regs)
-{
-	struct paca_struct *lpaca;
-
-	irq_enter();
-
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 2KB free? */
-	{
-		long sp;
-
-		sp = __get_SP() & (THREAD_SIZE-1);
-
-		if (unlikely(sp < (sizeof(struct thread_info) + 2048))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-				sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
-
-	lpaca = get_paca();
-#ifdef CONFIG_SMP
-	if (lpaca->lppaca.int_dword.fields.ipi_cnt) {
-		lpaca->lppaca.int_dword.fields.ipi_cnt = 0;
-		iSeries_smp_message_recv(regs);
-	}
-#endif /* CONFIG_SMP */
-	if (hvlpevent_is_pending())
-		process_hvlpevents(regs);
-
-	irq_exit();
-
-	if (lpaca->lppaca.int_dword.fields.decr_int) {
-		lpaca->lppaca.int_dword.fields.decr_int = 0;
-		/* Signal a fake decrementer interrupt */
-		timer_interrupt(regs);
-	}
-}
-
-#else	/* CONFIG_PPC_ISERIES */
-
 void do_IRQ(struct pt_regs *regs)
 {
 	int irq;
@@ -282,16 +231,20 @@ void do_IRQ(struct pt_regs *regs)
 		} else
 #endif
 			__do_IRQ(irq, regs);
-	} else
-#ifdef CONFIG_PPC32
-		if (irq != -2)
-#endif
-			/* That's not SMP safe ... but who cares ? */
-			ppc_spurious_interrupts++;
-        irq_exit();
-}
+	} else if (irq != -2)
+		/* That's not SMP safe ... but who cares ? */
+		ppc_spurious_interrupts++;
 
-#endif	/* CONFIG_PPC_ISERIES */
+        irq_exit();
+
+#ifdef CONFIG_PPC_ISERIES
+	if (get_lppaca()->int_dword.fields.decr_int) {
+		get_lppaca()->int_dword.fields.decr_int = 0;
+		/* Signal a fake decrementer interrupt */
+		timer_interrupt(regs);
+	}
+#endif
+}
 
 void __init init_IRQ(void)
 {
@@ -311,7 +264,6 @@ void __init init_IRQ(void)
 }
 
 #ifdef CONFIG_PPC64
-#ifndef CONFIG_PPC_ISERIES
 /*
  * Virtual IRQ mapping code, used on systems with XICS interrupt controllers.
  */
@@ -419,8 +371,6 @@ unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
 	return NO_IRQ;
 
 }
-
-#endif /* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS];

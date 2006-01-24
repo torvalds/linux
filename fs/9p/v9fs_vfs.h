@@ -39,15 +39,15 @@
  */
 
 extern struct file_system_type v9fs_fs_type;
+extern struct address_space_operations v9fs_addr_operations;
 extern struct file_operations v9fs_file_operations;
 extern struct file_operations v9fs_dir_operations;
 extern struct dentry_operations v9fs_dentry_operations;
 
 struct inode *v9fs_get_inode(struct super_block *sb, int mode);
 ino_t v9fs_qid2ino(struct v9fs_qid *qid);
-void v9fs_mistat2inode(struct v9fs_stat *, struct inode *,
-		       struct super_block *);
+void v9fs_stat2inode(struct v9fs_stat *, struct inode *, struct super_block *);
 int v9fs_dir_release(struct inode *inode, struct file *filp);
 int v9fs_file_open(struct inode *inode, struct file *file);
-void v9fs_inode2mistat(struct inode *inode, struct v9fs_stat *mistat);
+void v9fs_inode2stat(struct inode *inode, struct v9fs_stat *stat);
 void v9fs_dentry_release(struct dentry *);

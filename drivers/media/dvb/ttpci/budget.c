@@ -112,6 +112,7 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
  *   Routines for the Fujitsu Siemens Activy budget card
  *   22 kHz tone and DiSEqC are handled by the frontend.
  *   Voltage must be set here.
+ *   GPIO 1: LNBP EN, GPIO 2: LNBP VSEL
  */
 static int SetVoltage_Activy (struct budget *budget, fe_sec_voltage_t voltage)
 {
@@ -121,10 +122,15 @@ static int SetVoltage_Activy (struct budget *budget, fe_sec_voltage_t voltage)
 
 	switch (voltage) {
 		case SEC_VOLTAGE_13:
+			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
 			saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTLO);
 			break;
 		case SEC_VOLTAGE_18:
+			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
 			saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTHI);
+			break;
+		case SEC_VOLTAGE_OFF:
+			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTLO);
 			break;
 		default:
 			return -EINVAL;
@@ -206,7 +212,7 @@ static int lnbp21_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
-static int lnbp21_enable_high_lnb_voltage(struct dvb_frontend* fe, int arg)
+static int lnbp21_enable_high_lnb_voltage(struct dvb_frontend* fe, long arg)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 	u8 buf;
@@ -256,7 +262,7 @@ static int alps_bsrv2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	buf[2] = ((div & 0x18000) >> 10) | 0x95;
 	buf[3] = (pwr << 6) | 0x30;
 
-        // NOTE: since we're using a prescaler of 2, we set the
+	// NOTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
 	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
@@ -565,7 +571,7 @@ static u8 read_pwm(struct budget* budget)
 	struct i2c_msg msg[] = { { .addr = 0x50,.flags = 0,.buf = &b,.len = 1 },
 				 { .addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1} };
 
-        if ((i2c_transfer(&budget->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
+	if ((i2c_transfer(&budget->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
 		pwm = 0x48;
 
 	return pwm;
@@ -580,6 +586,7 @@ static void frontend_init(struct budget *budget)
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops->set_voltage = lnbp21_set_voltage;
 			budget->dvb_frontend->ops->enable_high_lnb_voltage = lnbp21_enable_high_lnb_voltage;
+			budget->dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
 			if (lnbp21_init(budget)) {
 				printk("%s: No LNBP21 found!\n", __FUNCTION__);
 				goto error_out;
@@ -593,7 +600,7 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = ves1x93_attach(&alps_bsrv2_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops->diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
-		        budget->dvb_frontend->ops->diseqc_send_burst = budget_diseqc_send_burst;
+			budget->dvb_frontend->ops->diseqc_send_burst = budget_diseqc_send_burst;
 			budget->dvb_frontend->ops->set_tone = budget_set_tone;
 			break;
 		}
@@ -624,7 +631,7 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = stv0299_attach(&alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops->set_voltage = siemens_budget_set_voltage;
-			break;
+			budget->dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
 		}
 		break;
 
@@ -632,7 +639,7 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = tda8083_attach(&grundig_29504_451_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops->set_voltage = siemens_budget_set_voltage;
-			break;
+			budget->dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
 		}
 		break;
 
@@ -738,7 +745,7 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_extension budget_extension = {
 	.name		= "budget dvb\0",
-	.flags		= 0,
+	.flags		= SAA7146_I2C_SHORT_DELAY,
 
 	.module		= THIS_MODULE,
 	.pci_tbl	= pci_tbl,

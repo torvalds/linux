@@ -1,51 +1,49 @@
 /*
- * include/asm-sh/io_generic.h
- *
- * Copyright 2000 Stuart Menefy (stuart.menefy@st.com)
- *
- * May be copied or modified under the terms of the GNU General Public
- * License.  See linux/COPYING for more information.
- *
- * Generic IO functions
+ * Trivial I/O routine definitions, intentionally meant to be included
+ * multiple times. Ugly I/O routine concatenation helpers taken from
+ * alpha. Must be included _before_ io.h to avoid preprocessor-induced
+ * routine mismatch.
  */
+#define IO_CONCAT(a,b)	_IO_CONCAT(a,b)
+#define _IO_CONCAT(a,b)	a ## _ ## b
 
-#ifndef _ASM_SH_IO_GENERIC_H
-#define _ASM_SH_IO_GENERIC_H
+#ifndef __IO_PREFIX
+#error "Don't include this header without a valid system prefix"
+#endif
 
-extern unsigned long generic_io_base;
+u8 IO_CONCAT(__IO_PREFIX,inb)(unsigned long);
+u16 IO_CONCAT(__IO_PREFIX,inw)(unsigned long);
+u32 IO_CONCAT(__IO_PREFIX,inl)(unsigned long);
 
-extern unsigned char generic_inb(unsigned long port);
-extern unsigned short generic_inw(unsigned long port);
-extern unsigned int generic_inl(unsigned long port);
+void IO_CONCAT(__IO_PREFIX,outb)(u8, unsigned long);
+void IO_CONCAT(__IO_PREFIX,outw)(u16, unsigned long);
+void IO_CONCAT(__IO_PREFIX,outl)(u32, unsigned long);
 
-extern void generic_outb(unsigned char value, unsigned long port);
-extern void generic_outw(unsigned short value, unsigned long port);
-extern void generic_outl(unsigned int value, unsigned long port);
+u8 IO_CONCAT(__IO_PREFIX,inb_p)(unsigned long);
+u16 IO_CONCAT(__IO_PREFIX,inw_p)(unsigned long);
+u32 IO_CONCAT(__IO_PREFIX,inl_p)(unsigned long);
+void IO_CONCAT(__IO_PREFIX,outb_p)(u8, unsigned long);
+void IO_CONCAT(__IO_PREFIX,outw_p)(u16, unsigned long);
+void IO_CONCAT(__IO_PREFIX,outl_p)(u32, unsigned long);
 
-extern unsigned char generic_inb_p(unsigned long port);
-extern unsigned short generic_inw_p(unsigned long port);
-extern unsigned int generic_inl_p(unsigned long port);
-extern void generic_outb_p(unsigned char value, unsigned long port);
-extern void generic_outw_p(unsigned short value, unsigned long port);
-extern void generic_outl_p(unsigned int value, unsigned long port);
+void IO_CONCAT(__IO_PREFIX,insb)(unsigned long, void *dst, unsigned long count);
+void IO_CONCAT(__IO_PREFIX,insw)(unsigned long, void *dst, unsigned long count);
+void IO_CONCAT(__IO_PREFIX,insl)(unsigned long, void *dst, unsigned long count);
+void IO_CONCAT(__IO_PREFIX,outsb)(unsigned long, const void *src, unsigned long count);
+void IO_CONCAT(__IO_PREFIX,outsw)(unsigned long, const void *src, unsigned long count);
+void IO_CONCAT(__IO_PREFIX,outsl)(unsigned long, const void *src, unsigned long count);
 
-extern void generic_insb(unsigned long port, void *addr, unsigned long count);
-extern void generic_insw(unsigned long port, void *addr, unsigned long count);
-extern void generic_insl(unsigned long port, void *addr, unsigned long count);
-extern void generic_outsb(unsigned long port, const void *addr, unsigned long count);
-extern void generic_outsw(unsigned long port, const void *addr, unsigned long count);
-extern void generic_outsl(unsigned long port, const void *addr, unsigned long count);
+u8 IO_CONCAT(__IO_PREFIX,readb)(void __iomem *);
+u16 IO_CONCAT(__IO_PREFIX,readw)(void __iomem *);
+u32 IO_CONCAT(__IO_PREFIX,readl)(void __iomem *);
+void IO_CONCAT(__IO_PREFIX,writeb)(u8, void __iomem *);
+void IO_CONCAT(__IO_PREFIX,writew)(u16, void __iomem *);
+void IO_CONCAT(__IO_PREFIX,writel)(u32, void __iomem *);
 
-extern unsigned char generic_readb(unsigned long addr);
-extern unsigned short generic_readw(unsigned long addr);
-extern unsigned int generic_readl(unsigned long addr);
-extern void generic_writeb(unsigned char b, unsigned long addr);
-extern void generic_writew(unsigned short b, unsigned long addr);
-extern void generic_writel(unsigned int b, unsigned long addr);
+void *IO_CONCAT(__IO_PREFIX,ioremap)(unsigned long offset, unsigned long size);
+void IO_CONCAT(__IO_PREFIX,iounmap)(void *addr);
 
-extern void *generic_ioremap(unsigned long offset, unsigned long size);
-extern void generic_iounmap(void *addr);
+void __iomem *IO_CONCAT(__IO_PREFIX,ioport_map)(unsigned long addr, unsigned int size);
+void IO_CONCAT(__IO_PREFIX,ioport_unmap)(void __iomem *addr);
 
-extern unsigned long generic_isa_port2addr(unsigned long offset);
-
-#endif /* _ASM_SH_IO_GENERIC_H */
+#undef __IO_PREFIX

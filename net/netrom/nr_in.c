@@ -99,7 +99,7 @@ static int nr_state1_machine(struct sock *sk, struct sk_buff *skb,
 		break;
 
 	case NR_RESET:
-		if (sysctl_netrom_reset_circuit);
+		if (sysctl_netrom_reset_circuit)
 			nr_disconnect(sk, ECONNRESET);
 		break;
 
@@ -130,7 +130,7 @@ static int nr_state2_machine(struct sock *sk, struct sk_buff *skb,
 		break;
 
 	case NR_RESET:
-		if (sysctl_netrom_reset_circuit);
+		if (sysctl_netrom_reset_circuit)
 			nr_disconnect(sk, ECONNRESET);
 		break;
 
@@ -265,7 +265,7 @@ static int nr_state3_machine(struct sock *sk, struct sk_buff *skb, int frametype
 		break;
 
 	case NR_RESET:
-		if (sysctl_netrom_reset_circuit);
+		if (sysctl_netrom_reset_circuit)
 			nr_disconnect(sk, ECONNRESET);
 		break;
 

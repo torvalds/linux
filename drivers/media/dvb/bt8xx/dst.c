@@ -1341,30 +1341,40 @@ static int dst_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int dst_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static int dst_set_frontend(struct dvb_frontend* fe,
+			    struct dvb_frontend_parameters* p,
+			    unsigned int mode_flags,
+			    int *delay,
+			    fe_status_t *status)
 {
 	struct dst_state *state = fe->demodulator_priv;
 
-	dst_set_freq(state, p->frequency);
-	dprintk(verbose, DST_DEBUG, 1, "Set Frequency=[%d]", p->frequency);
+	if (p != NULL) {
+		dst_set_freq(state, p->frequency);
+		dprintk(verbose, DST_DEBUG, 1, "Set Frequency=[%d]", p->frequency);
 
-	if (state->dst_type == DST_TYPE_IS_SAT) {
-		if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
-			dst_set_inversion(state, p->inversion);
-		dst_set_fec(state, p->u.qpsk.fec_inner);
-		dst_set_symbolrate(state, p->u.qpsk.symbol_rate);
-		dst_set_polarization(state);
-		dprintk(verbose, DST_DEBUG, 1, "Set Symbolrate=[%d]", p->u.qpsk.symbol_rate);
+		if (state->dst_type == DST_TYPE_IS_SAT) {
+			if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+				dst_set_inversion(state, p->inversion);
+			dst_set_fec(state, p->u.qpsk.fec_inner);
+			dst_set_symbolrate(state, p->u.qpsk.symbol_rate);
+			dst_set_polarization(state);
+			dprintk(verbose, DST_DEBUG, 1, "Set Symbolrate=[%d]", p->u.qpsk.symbol_rate);
 
-	} else if (state->dst_type == DST_TYPE_IS_TERR)
-		dst_set_bandwidth(state, p->u.ofdm.bandwidth);
-	else if (state->dst_type == DST_TYPE_IS_CABLE) {
-		dst_set_fec(state, p->u.qam.fec_inner);
-		dst_set_symbolrate(state, p->u.qam.symbol_rate);
-		dst_set_modulation(state, p->u.qam.modulation);
+		} else if (state->dst_type == DST_TYPE_IS_TERR)
+			dst_set_bandwidth(state, p->u.ofdm.bandwidth);
+		else if (state->dst_type == DST_TYPE_IS_CABLE) {
+			dst_set_fec(state, p->u.qam.fec_inner);
+			dst_set_symbolrate(state, p->u.qam.symbol_rate);
+			dst_set_modulation(state, p->u.qam.modulation);
+		}
+		dst_write_tuna(fe);
 	}
-	dst_write_tuna(fe);
 
+	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
+		dst_read_status(fe, status);
+
+	*delay = HZ/10;
 	return 0;
 }
 
@@ -1445,7 +1455,7 @@ static struct dvb_frontend_ops dst_dvbt_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.set_frontend = dst_set_frontend,
+	.tune = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
@@ -1469,7 +1479,7 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.set_frontend = dst_set_frontend,
+	.tune = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
@@ -1496,7 +1506,7 @@ static struct dvb_frontend_ops dst_dvbc_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.set_frontend = dst_set_frontend,
+	.tune = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,

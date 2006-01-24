@@ -1,6 +1,6 @@
 /*
  *    Disk Array driver for HP SA 5xxx and 6xxx Controllers
- *    Copyright 2000, 2005 Hewlett-Packard Development Company, L.P.
+ *    Copyright 2000, 2006 Hewlett-Packard Development Company, L.P.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -47,12 +47,12 @@
 #include <linux/completion.h>
 
 #define CCISS_DRIVER_VERSION(maj,min,submin) ((maj<<16)|(min<<8)|(submin))
-#define DRIVER_NAME "HP CISS Driver (v 2.6.8)"
-#define DRIVER_VERSION CCISS_DRIVER_VERSION(2,6,8)
+#define DRIVER_NAME "HP CISS Driver (v 2.6.10)"
+#define DRIVER_VERSION CCISS_DRIVER_VERSION(2,6,10)
 
 /* Embedded module documentation macros - see modules.h */
 MODULE_AUTHOR("Hewlett-Packard Company");
-MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 2.6.8");
+MODULE_DESCRIPTION("Driver for HP Controller SA5xxx SA6xxx version 2.6.10");
 MODULE_SUPPORTED_DEVICE("HP SA5i SA5i+ SA532 SA5300 SA5312 SA641 SA642 SA6400"
 			" SA6i P600 P800 P400 P400i E200 E200i");
 MODULE_LICENSE("GPL");
@@ -103,7 +103,7 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 };
 MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
 
-#define NR_PRODUCTS (sizeof(products)/sizeof(struct board_type))
+#define NR_PRODUCTS ARRAY_SIZE(products)
 
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
@@ -148,10 +148,12 @@ static struct board_type products[] = {
 static ctlr_info_t *hba[MAX_CTLR];
 
 static void do_cciss_request(request_queue_t *q);
+static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs);
 static int cciss_open(struct inode *inode, struct file *filep);
 static int cciss_release(struct inode *inode, struct file *filep);
 static int cciss_ioctl(struct inode *inode, struct file *filep, 
 		unsigned int cmd, unsigned long arg);
+static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static int revalidate_allvol(ctlr_info_t *host);
 static int cciss_revalidate(struct gendisk *disk);
@@ -165,7 +167,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			unsigned int block_size, InquiryData_struct *inq_buff,
 			drive_info_struct *drv);
 static void cciss_getgeometry(int cntl_num);
-
+static void __devinit cciss_interrupt_mode(ctlr_info_t *, struct pci_dev *, __u32);
 static void start_io( ctlr_info_t *h);
 static int sendcmd( __u8 cmd, int ctlr, void *buff, size_t size,
 	unsigned int use_unit_num, unsigned int log_unit, __u8 page_code,
@@ -193,6 +195,7 @@ static struct block_device_operations cciss_fops  = {
 	.open		= cciss_open, 
 	.release       	= cciss_release,
         .ioctl		= cciss_ioctl,
+        .getgeo		= cciss_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = cciss_compat_ioctl,
 #endif
@@ -281,7 +284,7 @@ static int cciss_proc_get_info(char *buffer, char **start, off_t offset,
                 h->product_name,
                 (unsigned long)h->board_id,
 		h->firm_ver[0], h->firm_ver[1], h->firm_ver[2], h->firm_ver[3],
-                (unsigned int)h->intr,
+                (unsigned int)h->intr[SIMPLE_MODE_INT],
                 h->num_luns, 
 		h->Qdepth, h->commands_outstanding,
 		h->maxQsinceinit, h->max_outstanding, h->maxSG);
@@ -632,6 +635,20 @@ static int cciss_ioctl32_big_passthru(struct file *file, unsigned cmd, unsigned 
 	return err;
 }
 #endif
+
+static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	drive_info_struct *drv = get_drv(bdev->bd_disk);
+
+	if (!drv->cylinders)
+		return -ENXIO;
+
+	geo->heads = drv->heads;
+	geo->sectors = drv->sectors;
+	geo->cylinders = drv->cylinders;
+	return 0;
+}
+
 /*
  * ioctl 
  */
@@ -650,21 +667,6 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 #endif /* CCISS_DEBUG */ 
 	
 	switch(cmd) {
-	case HDIO_GETGEO:
-	{
-                struct hd_geometry driver_geo;
-                if (drv->cylinders) {
-                        driver_geo.heads = drv->heads;
-                        driver_geo.sectors = drv->sectors;
-                        driver_geo.cylinders = drv->cylinders;
-                } else
-			return -ENXIO;
-                driver_geo.start= get_start_sect(inode->i_bdev);
-                if (copy_to_user(argp, &driver_geo, sizeof(struct hd_geometry)))
-                        return  -EFAULT;
-                return(0);
-	}
-
 	case CCISS_GETPCIINFO:
 	{
 		cciss_pci_info_struct pciinfo;
@@ -1016,10 +1018,11 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 				status = -ENOMEM;
 				goto cleanup1;
 			}
-			if (ioc->Request.Type.Direction == XFER_WRITE &&
-				copy_from_user(buff[sg_used], data_ptr, sz)) {
+			if (ioc->Request.Type.Direction == XFER_WRITE) {
+				if (copy_from_user(buff[sg_used], data_ptr, sz)) {
 					status = -ENOMEM;
-					goto cleanup1;			
+					goto cleanup1;
+				}
 			} else {
 				memset(buff[sg_used], 0, sz);
 			}
@@ -1137,8 +1140,14 @@ static int revalidate_allvol(ctlr_info_t *host)
 
 	for(i=0; i< NWD; i++) {
 		struct gendisk *disk = host->gendisk[i];
-		if (disk->flags & GENHD_FL_UP)
-			del_gendisk(disk);
+		if (disk) {
+			request_queue_t *q = disk->queue;
+
+			if (disk->flags & GENHD_FL_UP)
+				del_gendisk(disk);
+			if (q)
+				blk_cleanup_queue(q);
+		}
 	}
 
         /*
@@ -1452,10 +1461,14 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 	 * allows us to delete disk zero but keep the controller registered.
 	*/
 	if (h->gendisk[0] != disk){
-		if (disk->flags & GENHD_FL_UP){
-			blk_cleanup_queue(disk->queue);
-		del_gendisk(disk);
-			drv->queue = NULL;
+		if (disk) {
+			request_queue_t *q = disk->queue;
+			if (disk->flags & GENHD_FL_UP)
+				del_gendisk(disk);
+			if (q) {
+				blk_cleanup_queue(q);
+				drv->queue = NULL;
+			}
 		}
 	}
 
@@ -1583,6 +1596,24 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
 		}
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
+		case 0: /* ABORT message */
+			c->Request.CDBLen = 12;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = cmd; /* abort */
+			c->Request.CDB[1] = 0;   /* abort a command */
+			/* buff contains the tag of the command to abort */
+			memcpy(&c->Request.CDB[4], buff, 8);
+			break;
+		case 1: /* RESET message */
+			c->Request.CDBLen = 12;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.Timeout = 0;
+			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
+			c->Request.CDB[0] = cmd;  /* reset */
+			c->Request.CDB[1] = 0x04; /* reset a LUN */
 		case 3:	/* No-Op message */
 			c->Request.CDBLen = 1;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
@@ -1869,6 +1900,52 @@ static unsigned long pollcomplete(int ctlr)
 	/* Invalid address to tell caller we ran out of time */
 	return 1;
 }
+
+static int add_sendcmd_reject(__u8 cmd, int ctlr, unsigned long complete)
+{
+	/* We get in here if sendcmd() is polling for completions
+	   and gets some command back that it wasn't expecting -- 
+	   something other than that which it just sent down.  
+	   Ordinarily, that shouldn't happen, but it can happen when 
+	   the scsi tape stuff gets into error handling mode, and
+	   starts using sendcmd() to try to abort commands and 
+	   reset tape drives.  In that case, sendcmd may pick up
+	   completions of commands that were sent to logical drives
+	   through the block i/o system, or cciss ioctls completing, etc. 
+	   In that case, we need to save those completions for later
+	   processing by the interrupt handler.
+	*/
+
+#ifdef CONFIG_CISS_SCSI_TAPE
+	struct sendcmd_reject_list *srl = &hba[ctlr]->scsi_rejects;	
+
+	/* If it's not the scsi tape stuff doing error handling, (abort */
+	/* or reset) then we don't expect anything weird. */
+	if (cmd != CCISS_RESET_MSG && cmd != CCISS_ABORT_MSG) {
+#endif
+		printk( KERN_WARNING "cciss cciss%d: SendCmd "
+		      "Invalid command list address returned! (%lx)\n",
+			ctlr, complete);
+		/* not much we can do. */
+#ifdef CONFIG_CISS_SCSI_TAPE
+		return 1;
+	}
+
+	/* We've sent down an abort or reset, but something else
+	   has completed */
+	if (srl->ncompletions >= (NR_CMDS + 2)) {
+		/* Uh oh.  No room to save it for later... */
+		printk(KERN_WARNING "cciss%d: Sendcmd: Invalid command addr, "
+			"reject list overflow, command lost!\n", ctlr);
+		return 1;
+	}
+	/* Save it for later */
+	srl->complete[srl->ncompletions] = complete;
+	srl->ncompletions++;
+#endif
+	return 0;
+}
+
 /*
  * Send a command to the controller, and wait for it to complete.  
  * Only used at init time. 
@@ -1891,7 +1968,7 @@ static int sendcmd(
 	unsigned long complete;
 	ctlr_info_t *info_p= hba[ctlr];
 	u64bit buff_dma_handle;
-	int status;
+	int status, done = 0;
 
 	if ((c = cmd_alloc(info_p, 1)) == NULL) {
 		printk(KERN_WARNING "cciss: unable to get memory");
@@ -1913,7 +1990,9 @@ resend_cmd1:
         info_p->access.set_intr_mask(info_p, CCISS_INTR_OFF);
 	
 	/* Make sure there is room in the command FIFO */
-        /* Actually it should be completely empty at this time. */
+        /* Actually it should be completely empty at this time */
+	/* unless we are in here doing error handling for the scsi */
+	/* tape side of the driver. */
         for (i = 200000; i > 0; i--) 
 	{
 		/* if fifo isn't full go */
@@ -1930,13 +2009,25 @@ resend_cmd1:
          * Send the cmd
          */
         info_p->access.submit_command(info_p, c);
-        complete = pollcomplete(ctlr);
+	done = 0;
+	do {
+		complete = pollcomplete(ctlr);
 
 #ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "cciss: command completed\n");
+		printk(KERN_DEBUG "cciss: command completed\n");
 #endif /* CCISS_DEBUG */
 
-	if (complete != 1) {
+		if (complete == 1) {
+			printk( KERN_WARNING
+				"cciss cciss%d: SendCmd Timeout out, "
+				"No command list address returned!\n",
+				ctlr);
+			status = IO_ERROR;
+			done = 1;
+			break;
+		}
+
+		/* This will need to change for direct lookup completions */
 		if ( (complete & CISS_ERROR_BIT)
 		     && (complete & ~CISS_ERROR_BIT) == c->busaddr)
 		     {
@@ -1976,6 +2067,10 @@ resend_cmd1:
 						status = IO_ERROR;
 						goto cleanup1;
 					}
+				} else if (c->err_info->CommandStatus == CMD_UNABORTABLE) {
+					printk(KERN_WARNING "cciss%d: command could not be aborted.\n", ctlr);
+					status = IO_ERROR;
+					goto cleanup1;
 				}
 				printk(KERN_WARNING "ciss ciss%d: sendcmd"
 				" Error %x \n", ctlr, 
@@ -1990,20 +2085,15 @@ resend_cmd1:
 				goto cleanup1;
 			}
 		}
+		/* This will need changing for direct lookup completions */
                 if (complete != c->busaddr) {
-                        printk( KERN_WARNING "cciss cciss%d: SendCmd "
-                      "Invalid command list address returned! (%lx)\n",
-                                ctlr, complete);
-			status = IO_ERROR;
-			goto cleanup1;
-                }
-        } else {
-                printk( KERN_WARNING
-                        "cciss cciss%d: SendCmd Timeout out, "
-                        "No command list address returned!\n",
-                        ctlr);
-		status = IO_ERROR;
-        }
+			if (add_sendcmd_reject(cmd, ctlr, complete) != 0) {
+				BUG(); /* we are pretty much hosed if we get here. */
+			}
+			continue;
+                } else
+			done = 1;
+        } while (!done);
 		
 cleanup1:	
 	/* unlock the data buffer from DMA */
@@ -2011,6 +2101,11 @@ cleanup1:
 	buff_dma_handle.val32.upper = c->SG[0].Addr.upper;
 	pci_unmap_single(info_p->pdev, (dma_addr_t) buff_dma_handle.val,
 				c->SG[0].Len, PCI_DMA_BIDIRECTIONAL);
+#ifdef CONFIG_CISS_SCSI_TAPE
+	/* if we saved some commands for later, process them now. */
+	if (info_p->scsi_rejects.ncompletions > 0)
+		do_cciss_intr(0, info_p, NULL);
+#endif
 	cmd_free(info_p, c, 1);
 	return (status);
 } 
@@ -2083,16 +2178,48 @@ static inline void resend_cciss_cmd( ctlr_info_t *h, CommandList_struct *c)
 
 	start_io(h);
 }
+
+static void cciss_softirq_done(struct request *rq)
+{
+	CommandList_struct *cmd = rq->completion_data;
+	ctlr_info_t *h = hba[cmd->ctlr];
+	u64bit temp64;
+	int i, ddir;
+
+	if (cmd->Request.Type.Direction == XFER_READ)
+		ddir = PCI_DMA_FROMDEVICE;
+	else
+		ddir = PCI_DMA_TODEVICE;
+
+	/* command did not need to be retried */
+	/* unmap the DMA mapping for all the scatter gather elements */
+	for(i=0; i<cmd->Header.SGList; i++) {
+		temp64.val32.lower = cmd->SG[i].Addr.lower;
+		temp64.val32.upper = cmd->SG[i].Addr.upper;
+		pci_unmap_page(h->pdev, temp64.val, cmd->SG[i].Len, ddir);
+	}
+
+	complete_buffers(rq->bio, rq->errors);
+
+#ifdef CCISS_DEBUG
+	printk("Done with %p\n", rq);
+#endif /* CCISS_DEBUG */ 
+
+	spin_lock_irq(&h->lock);
+	end_that_request_last(rq, rq->errors);
+	cmd_free(h, cmd,1);
+	spin_unlock_irq(&h->lock);
+}
+
 /* checks the status of the job and calls complete buffers to mark all 
- * buffers for the completed job. 
+ * buffers for the completed job. Note that this function does not need
+ * to hold the hba/queue lock.
  */ 
 static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 		int timeout)
 {
 	int status = 1;
-	int i;
 	int retry_cmd = 0;
-	u64bit temp64;
 		
 	if (timeout)
 		status = 0; 
@@ -2200,24 +2327,10 @@ static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 		resend_cciss_cmd(h,cmd);
 		return;
 	}	
-	/* command did not need to be retried */
-	/* unmap the DMA mapping for all the scatter gather elements */
-	for(i=0; i<cmd->Header.SGList; i++) {
-		temp64.val32.lower = cmd->SG[i].Addr.lower;
-		temp64.val32.upper = cmd->SG[i].Addr.upper;
-		pci_unmap_page(hba[cmd->ctlr]->pdev,
-			temp64.val, cmd->SG[i].Len,
-			(cmd->Request.Type.Direction == XFER_READ) ?
-				PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
-	}
-	complete_buffers(cmd->rq->bio, status);
 
-#ifdef CCISS_DEBUG
-	printk("Done with %p\n", cmd->rq);
-#endif /* CCISS_DEBUG */ 
-
-	end_that_request_last(cmd->rq);
-	cmd_free(h,cmd,1);
+	cmd->rq->completion_data = cmd;
+	cmd->rq->errors = status;
+	blk_complete_request(cmd->rq);
 }
 
 /* 
@@ -2335,6 +2448,48 @@ startio:
 	start_io(h);
 }
 
+static inline unsigned long get_next_completion(ctlr_info_t *h)
+{
+#ifdef CONFIG_CISS_SCSI_TAPE
+	/* Any rejects from sendcmd() lying around? Process them first */
+	if (h->scsi_rejects.ncompletions == 0)
+		return h->access.command_completed(h);
+	else {
+		struct sendcmd_reject_list *srl;
+		int n;
+		srl = &h->scsi_rejects;
+		n = --srl->ncompletions;
+		/* printk("cciss%d: processing saved reject\n", h->ctlr); */
+		printk("p");
+		return srl->complete[n];
+	}
+#else
+	return h->access.command_completed(h);
+#endif
+}
+
+static inline int interrupt_pending(ctlr_info_t *h)
+{
+#ifdef CONFIG_CISS_SCSI_TAPE
+	return ( h->access.intr_pending(h) 
+		|| (h->scsi_rejects.ncompletions > 0));
+#else
+	return h->access.intr_pending(h);
+#endif
+}
+
+static inline long interrupt_not_for_us(ctlr_info_t *h)
+{
+#ifdef CONFIG_CISS_SCSI_TAPE
+	return (((h->access.intr_pending(h) == 0) || 
+		 (h->interrupts_enabled == 0)) 
+	      && (h->scsi_rejects.ncompletions == 0));
+#else
+	return (((h->access.intr_pending(h) == 0) || 
+		 (h->interrupts_enabled == 0)));
+#endif
+}
+
 static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	ctlr_info_t *h = dev_id;
@@ -2344,19 +2499,15 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 	int j;
 	int start_queue = h->next_to_run;
 
-	/* Is this interrupt for us? */
-	if (( h->access.intr_pending(h) == 0) || (h->interrupts_enabled == 0))
+	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
-
 	/*
 	 * If there are completed commands in the completion queue,
 	 * we had better do something about it.
 	 */
 	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
-	while( h->access.intr_pending(h))
-	{
-		while((a = h->access.command_completed(h)) != FIFO_EMPTY) 
-		{
+	while (interrupt_pending(h)) {
+		while((a = get_next_completion(h)) != FIFO_EMPTY) {
 			a1 = a;
 			if ((a & 0x04)) {
 				a2 = (a >> 3);
@@ -2529,6 +2680,60 @@ static int find_PCI_BAR_index(struct pci_dev *pdev,
 	return -1;
 }
 
+/* If MSI/MSI-X is supported by the kernel we will try to enable it on
+ * controllers that are capable. If not, we use IO-APIC mode.
+ */
+
+static void __devinit cciss_interrupt_mode(ctlr_info_t *c, struct pci_dev *pdev, __u32 board_id)
+{
+#ifdef CONFIG_PCI_MSI
+        int err;
+        struct msix_entry cciss_msix_entries[4] = {{0,0}, {0,1},
+						   {0,2}, {0,3}};
+
+	/* Some boards advertise MSI but don't really support it */
+	if ((board_id == 0x40700E11) ||
+		(board_id == 0x40800E11) ||
+		(board_id == 0x40820E11) ||
+		(board_id == 0x40830E11))
+		goto default_int_mode;
+
+        if (pci_find_capability(pdev, PCI_CAP_ID_MSIX)) {
+                err = pci_enable_msix(pdev, cciss_msix_entries, 4);
+                if (!err) {
+                        c->intr[0] = cciss_msix_entries[0].vector;
+                        c->intr[1] = cciss_msix_entries[1].vector;
+                        c->intr[2] = cciss_msix_entries[2].vector;
+                        c->intr[3] = cciss_msix_entries[3].vector;
+                        c->msix_vector = 1;
+                        return;
+                }
+                if (err > 0) {
+                        printk(KERN_WARNING "cciss: only %d MSI-X vectors "
+                                        "available\n", err);
+                } else {
+                        printk(KERN_WARNING "cciss: MSI-X init failed %d\n",
+						err);
+                }
+        }
+        if (pci_find_capability(pdev, PCI_CAP_ID_MSI)) {
+                if (!pci_enable_msi(pdev)) {
+                        c->intr[SIMPLE_MODE_INT] = pdev->irq;
+                        c->msi_vector = 1;
+                        return;
+                } else {
+                        printk(KERN_WARNING "cciss: MSI init failed\n");
+        		c->intr[SIMPLE_MODE_INT] = pdev->irq;
+                        return;
+                }
+        }
+#endif /* CONFIG_PCI_MSI */
+	/* if we get here we're going to use the default interrupt mode */
+default_int_mode:
+        c->intr[SIMPLE_MODE_INT] = pdev->irq;
+	return;
+}
+
 static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 {
 	ushort subsystem_vendor_id, subsystem_device_id, command;
@@ -2589,7 +2794,10 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	printk("board_id = %x\n", board_id);
 #endif /* CCISS_DEBUG */ 
 
-	c->intr = pdev->irq;
+/* If the kernel supports MSI/MSI-X we will try to enable that functionality,
+ * else we use the IO-APIC interrupt assigned to us by system ROM.
+ */
+	cciss_interrupt_mode(c, pdev, board_id);
 
 	/*
 	 * Memory base addr is first addr , the second points to the config
@@ -2643,7 +2851,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	c->board_id = board_id;
 
 #ifdef CCISS_DEBUG
-	print_cfg_table(c->cfgtable); 
+	print_cfg_table(c->cfgtable);
 #endif /* CCISS_DEBUG */
 
 	for(i=0; i<NR_PRODUCTS; i++) {
@@ -2928,7 +3136,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	 * 8 controller support.
 	 */
 	if (i < MAX_CTLR_ORIG)
-		hba[i]->major = MAJOR_NR + i;
+		hba[i]->major = COMPAQ_CISS_MAJOR + i;
 	rc = register_blkdev(hba[i]->major, hba[i]->devname);
 	if(rc == -EBUSY || rc == -EINVAL) {
 		printk(KERN_ERR
@@ -2943,11 +3151,11 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	/* make sure the board interrupts are off */
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_OFF);
-	if( request_irq(hba[i]->intr, do_cciss_intr, 
+	if( request_irq(hba[i]->intr[SIMPLE_MODE_INT], do_cciss_intr,
 		SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM, 
 			hba[i]->devname, hba[i])) {
 		printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
-			hba[i]->intr, hba[i]->devname);
+			hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
 		goto clean2;
 	}
 	hba[i]->cmd_pool_bits = kmalloc(((NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG)*sizeof(unsigned long), GFP_KERNEL);
@@ -2963,7 +3171,15 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
                 printk( KERN_ERR "cciss: out of memory");
 		goto clean4;
 	}
-
+#ifdef CONFIG_CISS_SCSI_TAPE
+	hba[i]->scsi_rejects.complete = 
+		kmalloc(sizeof(hba[i]->scsi_rejects.complete[0]) * 
+			(NR_CMDS + 5), GFP_KERNEL);
+	if (hba[i]->scsi_rejects.complete == NULL) {
+                printk( KERN_ERR "cciss: out of memory");
+		goto clean4;
+	}
+#endif
 	spin_lock_init(&hba[i]->lock);
 
 	/* Initialize the pdev driver private data. 
@@ -3001,15 +3217,17 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		drv->queue = q;
 
 		q->backing_dev_info.ra_pages = READ_AHEAD;
-	blk_queue_bounce_limit(q, hba[i]->pdev->dma_mask);
+		blk_queue_bounce_limit(q, hba[i]->pdev->dma_mask);
 
-	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(q, MAXSGENTRIES);
+		/* This is a hardware imposed limit. */
+		blk_queue_max_hw_segments(q, MAXSGENTRIES);
 
-	/* This is a limit in the driver and could be eliminated. */
-	blk_queue_max_phys_segments(q, MAXSGENTRIES);
+		/* This is a limit in the driver and could be eliminated. */
+		blk_queue_max_phys_segments(q, MAXSGENTRIES);
 
-	blk_queue_max_sectors(q, 512);
+		blk_queue_max_sectors(q, 512);
+
+		blk_queue_softirq_done(q, cciss_softirq_done);
 
 		q->queuedata = hba[i];
 		sprintf(disk->disk_name, "cciss/c%dd%d", i, j);
@@ -3031,6 +3249,10 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	return(1);
 
 clean4:
+#ifdef CONFIG_CISS_SCSI_TAPE
+	if(hba[i]->scsi_rejects.complete)
+		kfree(hba[i]->scsi_rejects.complete);
+#endif
 	kfree(hba[i]->cmd_pool_bits);
 	if(hba[i]->cmd_pool)
 		pci_free_consistent(hba[i]->pdev,
@@ -3041,7 +3263,7 @@ clean4:
 			NR_CMDS * sizeof( ErrorInfo_struct),
 			hba[i]->errinfo_pool,
 			hba[i]->errinfo_pool_dhandle);
-	free_irq(hba[i]->intr, hba[i]);
+	free_irq(hba[i]->intr[SIMPLE_MODE_INT], hba[i]);
 clean2:
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
 clean1:
@@ -3082,7 +3304,15 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 		printk(KERN_WARNING "Error Flushing cache on controller %d\n", 
 			i);
 	}
-	free_irq(hba[i]->intr, hba[i]);
+	free_irq(hba[i]->intr[2], hba[i]);
+
+#ifdef CONFIG_PCI_MSI
+        if (hba[i]->msix_vector)
+                pci_disable_msix(hba[i]->pdev);
+        else if (hba[i]->msi_vector)
+                pci_disable_msi(hba[i]->pdev);
+#endif /* CONFIG_PCI_MSI */
+
 	pci_set_drvdata(pdev, NULL);
 	iounmap(hba[i]->vaddr);
 	cciss_unregister_scsi(i);  /* unhook from SCSI subsystem */
@@ -3092,9 +3322,13 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 	/* remove it from the disk list */
 	for (j = 0; j < NWD; j++) {
 		struct gendisk *disk = hba[i]->gendisk[j];
-		if (disk->flags & GENHD_FL_UP) {
-			del_gendisk(disk);
-			blk_cleanup_queue(disk->queue);
+		if (disk) {
+			request_queue_t *q = disk->queue;
+
+			if (disk->flags & GENHD_FL_UP) 
+				del_gendisk(disk);
+			if (q)
+				blk_cleanup_queue(q);
 		}
 	}
 
@@ -3103,6 +3337,9 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 	pci_free_consistent(hba[i]->pdev, NR_CMDS * sizeof( ErrorInfo_struct),
 		hba[i]->errinfo_pool, hba[i]->errinfo_pool_dhandle);
 	kfree(hba[i]->cmd_pool_bits);
+#ifdef CONFIG_CISS_SCSI_TAPE
+	kfree(hba[i]->scsi_rejects.complete);
+#endif
  	release_io_mem(hba[i]);
 	free_hba(i);
 }	
@@ -3123,7 +3360,7 @@ static int __init cciss_init(void)
 	printk(KERN_INFO DRIVER_NAME "\n");
 
 	/* Register for our PCI devices */
-	return pci_module_init(&cciss_pci_driver);
+	return pci_register_driver(&cciss_pci_driver);
 }
 
 static void __exit cciss_cleanup(void)

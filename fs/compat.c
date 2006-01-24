@@ -53,6 +53,8 @@
 #include <asm/mmu_context.h>
 #include <asm/ioctls.h>
 
+extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
+
 /*
  * Not all architectures have sys_utime, so implement this in terms
  * of sys_utimes.
@@ -68,10 +70,10 @@ asmlinkage long compat_sys_utime(char __user *filename, struct compat_utimbuf __
 		tv[0].tv_usec = 0;
 		tv[1].tv_usec = 0;
 	}
-	return do_utimes(filename, t ? tv : NULL);
+	return do_utimes(AT_FDCWD, filename, t ? tv : NULL);
 }
 
-asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
+asmlinkage long compat_sys_futimesat(int dfd, char __user *filename, struct compat_timeval __user *t)
 {
 	struct timeval tv[2];
 
@@ -82,14 +84,19 @@ asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval _
 		    get_user(tv[1].tv_usec, &t[1].tv_usec))
 			return -EFAULT; 
 	} 
-	return do_utimes(filename, t ? tv : NULL);
+	return do_utimes(dfd, filename, t ? tv : NULL);
+}
+
+asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval __user *t)
+{
+	return compat_sys_futimesat(AT_FDCWD, filename, t);
 }
 
 asmlinkage long compat_sys_newstat(char __user * filename,
 		struct compat_stat __user *statbuf)
 {
 	struct kstat stat;
-	int error = vfs_stat(filename, &stat);
+	int error = vfs_stat_fd(AT_FDCWD, filename, &stat);
 
 	if (!error)
 		error = cp_compat_stat(&stat, statbuf);
@@ -100,10 +107,31 @@ asmlinkage long compat_sys_newlstat(char __user * filename,
 		struct compat_stat __user *statbuf)
 {
 	struct kstat stat;
-	int error = vfs_lstat(filename, &stat);
+	int error = vfs_lstat_fd(AT_FDCWD, filename, &stat);
 
 	if (!error)
 		error = cp_compat_stat(&stat, statbuf);
+	return error;
+}
+
+asmlinkage long compat_sys_newfstatat(int dfd, char __user *filename,
+		struct compat_stat __user *statbuf, int flag)
+{
+	struct kstat stat;
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, &stat);
+	else
+		error = vfs_stat_fd(dfd, filename, &stat);
+
+	if (!error)
+		error = cp_compat_stat(&stat, statbuf);
+
+out:
 	return error;
 }
 
@@ -168,8 +196,8 @@ asmlinkage long compat_sys_statfs(const char __user *path, struct compat_statfs 
 	if (!error) {
 		struct kstatfs tmp;
 		error = vfs_statfs(nd.dentry->d_inode->i_sb, &tmp);
-		if (!error && put_compat_statfs(buf, &tmp))
-			error = -EFAULT;
+		if (!error)
+			error = put_compat_statfs(buf, &tmp);
 		path_release(&nd);
 	}
 	return error;
@@ -186,8 +214,8 @@ asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user 
 	if (!file)
 		goto out;
 	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &tmp);
-	if (!error && put_compat_statfs(buf, &tmp))
-		error = -EFAULT;
+	if (!error)
+		error = put_compat_statfs(buf, &tmp);
 	fput(file);
 out:
 	return error;
@@ -236,8 +264,8 @@ asmlinkage long compat_sys_statfs64(const char __user *path, compat_size_t sz, s
 	if (!error) {
 		struct kstatfs tmp;
 		error = vfs_statfs(nd.dentry->d_inode->i_sb, &tmp);
-		if (!error && put_compat_statfs64(buf, &tmp))
-			error = -EFAULT;
+		if (!error)
+			error = put_compat_statfs64(buf, &tmp);
 		path_release(&nd);
 	}
 	return error;
@@ -257,8 +285,8 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 	if (!file)
 		goto out;
 	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &tmp);
-	if (!error && put_compat_statfs64(buf, &tmp))
-		error = -EFAULT;
+	if (!error)
+		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
 out:
 	return error;
@@ -268,7 +296,6 @@ out:
 
 #define IOCTL_HASHSIZE 256
 static struct ioctl_trans *ioctl32_hash_table[IOCTL_HASHSIZE];
-static DECLARE_RWSEM(ioctl32_sem);
 
 extern struct ioctl_trans ioctl_start[];
 extern int ioctl_table_size;
@@ -390,14 +417,10 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		break;
 	}
 
-	/* When register_ioctl32_conversion is finally gone remove
-	   this lock! -AK */
-	down_read(&ioctl32_sem);
 	for (t = ioctl32_hash_table[ioctl32_hash(cmd)]; t; t = t->next) {
 		if (t->cmd == cmd)
 			goto found_handler;
 	}
-	up_read(&ioctl32_sem);
 
 	if (S_ISSOCK(filp->f_dentry->d_inode->i_mode) &&
 	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
@@ -417,11 +440,9 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		lock_kernel();
 		error = t->handler(fd, cmd, arg, filp);
 		unlock_kernel();
-		up_read(&ioctl32_sem);
 		goto out_fput;
 	}
 
-	up_read(&ioctl32_sem);
  do_ioctl:
 	error = vfs_ioctl(filp, fd, cmd, arg);
  out_fput:
@@ -501,9 +522,21 @@ asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 		ret = sys_fcntl(fd, cmd, (unsigned long)&f);
 		set_fs(old_fs);
 		if (cmd == F_GETLK && ret == 0) {
-			if ((f.l_start >= COMPAT_OFF_T_MAX) ||
-			    ((f.l_start + f.l_len) > COMPAT_OFF_T_MAX))
+			/* GETLK was successfule and we need to return the data...
+			 * but it needs to fit in the compat structure.
+			 * l_start shouldn't be too big, unless the original
+			 * start + end is greater than COMPAT_OFF_T_MAX, in which
+			 * case the app was asking for trouble, so we return
+			 * -EOVERFLOW in that case.
+			 * l_len could be too big, in which case we just truncate it,
+			 * and only allow the app to see that part of the conflicting
+			 * lock that might make sense to it anyway
+			 */
+
+			if (f.l_start > COMPAT_OFF_T_MAX)
 				ret = -EOVERFLOW;
+			if (f.l_len > COMPAT_OFF_T_MAX)
+				f.l_len = COMPAT_OFF_T_MAX;
 			if (ret == 0)
 				ret = put_compat_flock(&f, compat_ptr(arg));
 		}
@@ -522,9 +555,11 @@ asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 				(unsigned long)&f);
 		set_fs(old_fs);
 		if (cmd == F_GETLK64 && ret == 0) {
-			if ((f.l_start >= COMPAT_LOFF_T_MAX) ||
-			    ((f.l_start + f.l_len) > COMPAT_LOFF_T_MAX))
+			/* need to return lock information - see above for commentary */
+			if (f.l_start > COMPAT_LOFF_T_MAX)
 				ret = -EOVERFLOW;
+			if (f.l_len > COMPAT_LOFF_T_MAX)
+				f.l_len = COMPAT_LOFF_T_MAX;
 			if (ret == 0)
 				ret = put_compat_flock64(&f, compat_ptr(arg));
 		}
@@ -1177,7 +1212,7 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	}
 
 	ret = rw_verify_area(type, file, pos, tot_len);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	fnv = NULL;
@@ -1283,7 +1318,17 @@ out:
 asmlinkage long
 compat_sys_open(const char __user *filename, int flags, int mode)
 {
-	return do_sys_open(filename, flags, mode);
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
+}
+
+/*
+ * Exactly like fs/open.c:sys_openat(), except that it doesn't set the
+ * O_LARGEFILE flag.
+ */
+asmlinkage long
+compat_sys_openat(int dfd, const char __user *filename, int flags, int mode)
+{
+	return do_sys_open(dfd, filename, flags, mode);
 }
 
 /*
@@ -1530,7 +1575,7 @@ out_ret:
  * Ooo, nasty.  We need here to frob 32-bit unsigned longs to
  * 64-bit unsigned longs.
  */
-static inline
+static
 int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {
@@ -1563,7 +1608,7 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 	return 0;
 }
 
-static inline
+static
 void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 			unsigned long *fdset)
 {
@@ -1614,35 +1659,13 @@ static void select_bits_free(void *bits, int size)
 #define MAX_SELECT_SECONDS \
 	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
 
-asmlinkage long
-compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp,
-		compat_ulong_t __user *exp, struct compat_timeval __user *tvp)
+int compat_core_sys_select(int n, compat_ulong_t __user *inp,
+	compat_ulong_t __user *outp, compat_ulong_t __user *exp, s64 *timeout)
 {
 	fd_set_bits fds;
 	char *bits;
-	long timeout;
 	int size, max_fdset, ret = -EINVAL;
 	struct fdtable *fdt;
-
-	timeout = MAX_SCHEDULE_TIMEOUT;
-	if (tvp) {
-		time_t sec, usec;
-
-		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
-		    || __get_user(sec, &tvp->tv_sec)
-		    || __get_user(usec, &tvp->tv_usec)) {
-			ret = -EFAULT;
-			goto out_nofds;
-		}
-
-		if (sec < 0 || usec < 0)
-			goto out_nofds;
-
-		if ((unsigned long) sec < MAX_SELECT_SECONDS) {
-			timeout = ROUND_UP(usec, 1000000/HZ);
-			timeout += sec * (unsigned long) HZ;
-		}
-	}
 
 	if (n < 0)
 		goto out_nofds;
@@ -1680,19 +1703,7 @@ compat_sys_select(int n, compat_ulong_t __user *inp, compat_ulong_t __user *outp
 	zero_fd_set(n, fds.res_out);
 	zero_fd_set(n, fds.res_ex);
 
-	ret = do_select(n, &fds, &timeout);
-
-	if (tvp && !(current->personality & STICKY_TIMEOUTS)) {
-		time_t sec = 0, usec = 0;
-		if (timeout) {
-			sec = timeout / HZ;
-			usec = timeout % HZ;
-			usec *= (1000000/HZ);
-		}
-		if (put_user(sec, &tvp->tv_sec) ||
-		    put_user(usec, &tvp->tv_usec))
-			ret = -EFAULT;
-	}
+	ret = do_select(n, &fds, timeout);
 
 	if (ret < 0)
 		goto out;
@@ -1712,6 +1723,224 @@ out:
 out_nofds:
 	return ret;
 }
+
+asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
+	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
+	struct compat_timeval __user *tvp)
+{
+	s64 timeout = -1;
+	struct compat_timeval tv;
+	int ret;
+
+	if (tvp) {
+		if (copy_from_user(&tv, tvp, sizeof(tv)))
+			return -EFAULT;
+
+		if (tv.tv_sec < 0 || tv.tv_usec < 0)
+			return -EINVAL;
+
+		/* Cast to u64 to make GCC stop complaining */
+		if ((u64)tv.tv_sec >= (u64)MAX_INT64_SECONDS)
+			timeout = -1;	/* infinite */
+		else {
+			timeout = ROUND_UP(tv.tv_usec, 1000000/HZ);
+			timeout += tv.tv_sec * HZ;
+		}
+	}
+
+	ret = compat_core_sys_select(n, inp, outp, exp, &timeout);
+
+	if (tvp) {
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
+		tv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
+		tv.tv_sec = timeout;
+		if (copy_to_user(tvp, &tv, sizeof(tv))) {
+sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND)
+				ret = -EINTR;
+		}
+	}
+
+	return ret;
+}
+
+#ifdef TIF_RESTORE_SIGMASK
+asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
+	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
+	struct compat_timespec __user *tsp, compat_sigset_t __user *sigmask,
+	compat_size_t sigsetsize)
+{
+	compat_sigset_t ss32;
+	sigset_t ksigmask, sigsaved;
+	long timeout = MAX_SCHEDULE_TIMEOUT;
+	struct compat_timespec ts;
+	int ret;
+
+	if (tsp) {
+		if (copy_from_user(&ts, tsp, sizeof(ts)))
+			return -EFAULT;
+
+		if (ts.tv_sec < 0 || ts.tv_nsec < 0)
+			return -EINVAL;
+	}
+
+	if (sigmask) {
+		if (sigsetsize != sizeof(compat_sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
+			return -EFAULT;
+		sigset_from_compat(&ksigmask, &ss32);
+
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	do {
+		if (tsp) {
+			if ((unsigned long)ts.tv_sec < MAX_SELECT_SECONDS) {
+				timeout = ROUND_UP(ts.tv_nsec, 1000000000/HZ);
+				timeout += ts.tv_sec * (unsigned long)HZ;
+				ts.tv_sec = 0;
+				ts.tv_nsec = 0;
+			} else {
+				ts.tv_sec -= MAX_SELECT_SECONDS;
+				timeout = MAX_SELECT_SECONDS * HZ;
+			}
+		}
+
+		ret = compat_core_sys_select(n, inp, outp, exp, &timeout);
+
+	} while (!ret && !timeout && tsp && (ts.tv_sec || ts.tv_nsec));
+
+	if (tsp && !(current->personality & STICKY_TIMEOUTS)) {
+		ts.tv_sec += timeout / HZ;
+		ts.tv_nsec += (timeout % HZ) * (1000000000/HZ);
+		if (ts.tv_nsec >= 1000000000) {
+			ts.tv_sec++;
+			ts.tv_nsec -= 1000000000;
+		}
+		(void)copy_to_user(tsp, &ts, sizeof(ts));
+	}
+
+	if (ret == -ERESTARTNOHAND) {
+		/*
+		 * Don't restore the signal mask yet. Let do_signal() deliver
+		 * the signal on the way back to userspace, before the signal
+		 * mask is restored.
+		 */
+		if (sigmask) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+					sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+	} else if (sigmask)
+		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+
+	return ret;
+}
+
+asmlinkage long compat_sys_pselect6(int n, compat_ulong_t __user *inp,
+	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
+	struct compat_timespec __user *tsp, void __user *sig)
+{
+	compat_size_t sigsetsize = 0;
+	compat_uptr_t up = 0;
+
+	if (sig) {
+		if (!access_ok(VERIFY_READ, sig,
+				sizeof(compat_uptr_t)+sizeof(compat_size_t)) ||
+		    	__get_user(up, (compat_uptr_t __user *)sig) ||
+		    	__get_user(sigsetsize,
+				(compat_size_t __user *)(sig+sizeof(up))))
+			return -EFAULT;
+	}
+	return compat_sys_pselect7(n, inp, outp, exp, tsp, compat_ptr(up),
+					sigsetsize);
+}
+
+asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
+	unsigned int nfds, struct compat_timespec __user *tsp,
+	const compat_sigset_t __user *sigmask, compat_size_t sigsetsize)
+{
+	compat_sigset_t ss32;
+	sigset_t ksigmask, sigsaved;
+	struct compat_timespec ts;
+	s64 timeout = -1;
+	int ret;
+
+	if (tsp) {
+		if (copy_from_user(&ts, tsp, sizeof(ts)))
+			return -EFAULT;
+
+		/* We assume that ts.tv_sec is always lower than
+		   the number of seconds that can be expressed in
+		   an s64. Otherwise the compiler bitches at us */
+		timeout = ROUND_UP(ts.tv_nsec, 1000000000/HZ);
+		timeout += ts.tv_sec * HZ;
+	}
+
+	if (sigmask) {
+		if (sigsetsize |= sizeof(compat_sigset_t))
+			return -EINVAL;
+		if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
+			return -EFAULT;
+		sigset_from_compat(&ksigmask, &ss32);
+
+		sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
+		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
+	}
+
+	ret = do_sys_poll(ufds, nfds, &timeout);
+
+	/* We can restart this syscall, usually */
+	if (ret == -EINTR) {
+		/*
+		 * Don't restore the signal mask yet. Let do_signal() deliver
+		 * the signal on the way back to userspace, before the signal
+		 * mask is restored.
+		 */
+		if (sigmask) {
+			memcpy(&current->saved_sigmask, &sigsaved,
+				sizeof(sigsaved));
+			set_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+		ret = -ERESTARTNOHAND;
+	} else if (sigmask)
+		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+
+	if (tsp && timeout >= 0) {
+		if (current->personality & STICKY_TIMEOUTS)
+			goto sticky;
+		/* Yes, we know it's actually an s64, but it's also positive. */
+		ts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) * 1000;
+		ts.tv_sec = timeout;
+		if (copy_to_user(tsp, &ts, sizeof(ts))) {
+sticky:
+			/*
+			 * If an application puts its timeval in read-only
+			 * memory, we don't want the Linux-specific update to
+			 * the timeval to cause a fault after the select has
+			 * completed successfully. However, because we're not
+			 * updating the timeval, we can't restart the system
+			 * call.
+			 */
+			if (ret == -ERESTARTNOHAND && timeout >= 0)
+				ret = -EINTR;
+		}
+	}
+
+	return ret;
+}
+#endif /* TIF_RESTORE_SIGMASK */
 
 #if defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)
 /* Stuff for NFS server syscalls... */

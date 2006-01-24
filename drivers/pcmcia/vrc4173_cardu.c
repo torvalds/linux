@@ -6,7 +6,7 @@
  * 	NEC VRC4173 CARDU driver for Socket Services
  *	(This device doesn't support CardBus. it is supporting only 16bit PC Card.)
  *
- * Copyright 2002,2003 Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ * Copyright 2002,2003 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -41,7 +41,7 @@
 #include "vrc4173_cardu.h"
 
 MODULE_DESCRIPTION("NEC VRC4173 CARDU driver for Socket Services");
-MODULE_AUTHOR("Yoichi Yuasa <yuasa@hh.iij4u.or.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
 MODULE_LICENSE("GPL");
 
 static int vrc4173_cardu_slots;
@@ -194,48 +194,6 @@ static int cardu_get_status(unsigned int sock, u_int *value)
 		val |= SS_PENDING;
 
 	*value = val;
-
-	return 0;
-}
-
-static inline u_char get_Vcc_value(uint8_t val)
-{
-	switch (val & VCC_MASK) {
-	case VCC_3V:
-		return 33;
-	case VCC_5V:
-		return 50;
-	}
-
-	return 0;
-}
-
-static inline u_char get_Vpp_value(uint8_t val)
-{
-	switch (val & VPP_MASK) {
-	case VPP_12V:
-		return 120;
-	case VPP_VCC:
-		return get_Vcc_value(val);
-	}
-
-	return 0;
-}
-
-static int cardu_get_socket(unsigned int sock, socket_state_t *state)
-{
-	vrc4173_socket_t *socket = &cardu_sockets[sock];
-	uint8_t val;
-
-	val = exca_readb(socket, PWR_CNT);
-	state->Vcc = get_Vcc_value(val);
-	state->Vpp = get_Vpp_value(val);
-	state->flags = 0;
-	if (val & CARD_OUT_EN) state->flags |= SS_OUTPUT_ENA;
-
-	val = exca_readb(socket, INT_GEN_CNT);
-	if (!(val & CARD_REST0)) state->flags |= SS_RESET;
-	if (val & CARD_TYPE_IO) state->flags |= SS_IOCARD;
 
 	return 0;
 }
@@ -431,7 +389,6 @@ static struct pccard_operations cardu_operations = {
 	.register_callback	= cardu_register_callback,
 	.inquire_socket		= cardu_inquire_socket,
 	.get_status		= cardu_get_status,
-	.get_socket		= cardu_get_socket,
 	.set_socket		= cardu_set_socket,
 	.get_io_map		= cardu_get_io_map,
 	.set_io_map		= cardu_set_io_map,
@@ -604,7 +561,7 @@ static int __devinit vrc4173_cardu_init(void)
 {
 	vrc4173_cardu_slots = 0;
 
-	return pci_module_init(&vrc4173_cardu_driver);
+	return pci_register_driver(&vrc4173_cardu_driver);
 }
 
 static void __devexit vrc4173_cardu_exit(void)

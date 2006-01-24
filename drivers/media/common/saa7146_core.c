@@ -109,10 +109,9 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	struct page *pg;
 	int i;
 
-	sglist = kmalloc(sizeof(struct scatterlist)*nr_pages, GFP_KERNEL);
+	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
-	memset(sglist,0,sizeof(struct scatterlist)*nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
@@ -174,8 +173,8 @@ void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt)
 
 int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
 {
-        u32          *cpu;
-        dma_addr_t   dma_addr;
+	u32          *cpu;
+	dma_addr_t   dma_addr;
 
 	cpu = pci_alloc_consistent(pci, PAGE_SIZE, &dma_addr);
 	if (NULL == cpu) {
@@ -306,14 +305,12 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	struct saa7146_dev *dev;
 	int err = -ENOMEM;
 
-	dev = kmalloc(sizeof(struct saa7146_dev), GFP_KERNEL);
+	/* clear out mem for sure */
+	dev = kzalloc(sizeof(struct saa7146_dev), GFP_KERNEL);
 	if (!dev) {
 		ERR(("out of memory.\n"));
 		goto out;
 	}
-
-	/* clear out mem for sure */
-	memset(dev, 0x0, sizeof(struct saa7146_dev));
 
 	DEB_EE(("pci:%p\n",pci));
 
@@ -405,7 +402,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 
 	pci_set_drvdata(pci, dev);
 
-        init_MUTEX(&dev->lock);
+	init_MUTEX(&dev->lock);
 	spin_lock_init(&dev->int_slock);
 	spin_lock_init(&dev->slock);
 

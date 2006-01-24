@@ -42,20 +42,19 @@ static char *_param_h_sccs_ = "@(#)param.h	1.2";
 ** the param command block, as used in OPEN and PARAM calls.
 */
 
-struct phb_param
-{
-    BYTE    Cmd;        /* It is very important that these line up */
-    BYTE    Cor1;       /* with what is expected at the other end. */
-    BYTE    Cor2;       /* to confirm that you've got it right,    */
-    BYTE    Cor4;       /* check with cirrus/cirrus.h              */
-    BYTE    Cor5;
-    BYTE    TxXon;	/* Transmit X-On character */
-    BYTE    TxXoff;	/* Transmit X-Off character */
-    BYTE    RxXon;	/* Receive X-On character */
-    BYTE    RxXoff;	/* Receive X-Off character */
-    BYTE    LNext;	/* Literal-next character */
-    BYTE    TxBaud;	/* Transmit baudrate */
-    BYTE    RxBaud;	/* Receive baudrate */
+struct phb_param {
+	BYTE Cmd;		/* It is very important that these line up */
+	BYTE Cor1;		/* with what is expected at the other end. */
+	BYTE Cor2;		/* to confirm that you've got it right,    */
+	BYTE Cor4;		/* check with cirrus/cirrus.h              */
+	BYTE Cor5;
+	BYTE TxXon;		/* Transmit X-On character */
+	BYTE TxXoff;		/* Transmit X-Off character */
+	BYTE RxXon;		/* Receive X-On character */
+	BYTE RxXoff;		/* Receive X-Off character */
+	BYTE LNext;		/* Literal-next character */
+	BYTE TxBaud;		/* Transmit baudrate */
+	BYTE RxBaud;		/* Receive baudrate */
 };
 
 #endif

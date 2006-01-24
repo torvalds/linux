@@ -418,7 +418,7 @@ VmallocChunk:   111088 kB
        Dirty: Memory which is waiting to get written back to the disk
    Writeback: Memory which is actively being written back to the disk
       Mapped: files which have been mmaped, such as libraries
-              Slab: in-kernel data structures cache
+        Slab: in-kernel data structures cache
  CommitLimit: Based on the overcommit ratio ('vm.overcommit_ratio'),
               this is the total amount of  memory currently available to
               be allocated on the system. This limit is only adhered to
@@ -1301,6 +1301,23 @@ This file contains valid hold time of swap out protection token. The Linux
 VM has token based thrashing control mechanism and uses the token to prevent
 unnecessary page faults in thrashing situation. The unit of the value is
 second. The value would be useful to tune thrashing behavior.
+
+drop_caches
+-----------
+
+Writing to this will cause the kernel to drop clean caches, dentries and
+inodes from memory, causing that memory to become free.
+
+To free pagecache:
+	echo 1 > /proc/sys/vm/drop_caches
+To free dentries and inodes:
+	echo 2 > /proc/sys/vm/drop_caches
+To free pagecache, dentries and inodes:
+	echo 3 > /proc/sys/vm/drop_caches
+
+As this is a non-destructive operation and dirty objects are not freeable, the
+user should run `sync' first.
+
 
 2.5 /proc/sys/dev - Device specific parameters
 ----------------------------------------------

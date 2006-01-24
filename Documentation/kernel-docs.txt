@@ -196,7 +196,7 @@
        
      * Title: "Writing Linux Device Drivers"
        Author: Michael K. Johnson.
-       URL: http://people.redhat.com/johnsonm/devices.html
+       URL: http://users.evitech.fi/~tk/rtos/writing_linux_device_d.html
        Keywords: files, VFS, file operations, kernel interface, character
        vs block devices, I/O access, hardware interrupts, DMA, access to
        user memory, memory allocation, timers.
@@ -284,7 +284,7 @@
        
      * Title: "Linux Kernel Module Programming Guide"
        Author: Ori Pomerantz.
-       URL: http://www.tldp.org/LDP/lkmpg/mpg.html
+       URL: http://tldp.org/LDP/lkmpg/2.6/html/index.html
        Keywords: modules, GPL book, /proc, ioctls, system calls,
        interrupt handlers .
        Description: Very nice 92 pages GPL book on the topic of modules
@@ -292,7 +292,7 @@
        
      * Title: "Device File System (devfs) Overview"
        Author: Richard Gooch.
-       URL: http://www.atnf.csiro.au/~rgooch/linux/docs/devfs.txt
+       URL: http://www.atnf.csiro.au/people/rgooch/linux/docs/devfs.html
        Keywords: filesystem, /dev, devfs, dynamic devices, major/minor
        allocation, device management.
        Description: Document describing Richard Gooch's controversial
@@ -316,9 +316,8 @@
        
      * Title: "The Kernel Hacking HOWTO"
        Author: Various Talented People, and Rusty.
-       URL:
-       http://www.lisoleg.net/doc/Kernel-Hacking-HOWTO/kernel-hacking-HOW
-       TO.html
+       Location: in kernel tree, Documentation/DocBook/kernel-hacking/
+       (must be built as "make {htmldocs | psdocs | pdfdocs})
        Keywords: HOWTO, kernel contexts, deadlock, locking, modules,
        symbols, return conventions.
        Description: From the Introduction: "Please understand that I
@@ -332,13 +331,13 @@
        originally written for the 2.3 kernels, but nearly all of it
        applies to 2.2 too; 2.0 is slightly different".
        
-     * Title: "ALSA 0.5.0 Developer documentation"
-       Author: Stephan 'Jumpy' Bartels .
-       URL: http://www.math.TU-Berlin.de/~sbartels/alsa/
+     * Title: "Writing an ALSA Driver"
+       Author: Takashi Iwai <tiwai@suse.de>
+       URL: http://www.alsa-project.org/~iwai/writing-an-alsa-driver/index.html
        Keywords: ALSA, sound, soundcard, driver, lowlevel, hardware.
        Description: Advanced Linux Sound Architecture for developers,
-       both at kernel and user-level sides. Work in progress. ALSA is
-       supposed to be Linux's next generation sound architecture.
+       both at kernel and user-level sides. ALSA is the Linux kernel
+       sound architecture in the 2.6 kernel version.
        
      * Title: "Programming Guide for Linux USB Device Drivers"
        Author: Detlef Fliegl.
@@ -369,8 +368,8 @@
        filesystems, IPC and Networking Code.
        
      * Title: "Linux Kernel Mailing List Glossary"
-       Author: John Levon.
-       URL: http://www.movement.uklinux.net/glossary.html
+       Author: various
+       URL: http://kernelnewbies.org/glossary/
        Keywords: glossary, terms, linux-kernel.
        Description: From the introduction: "This glossary is intended as
        a brief description of some of the acronyms and terms you may hear
@@ -378,9 +377,8 @@
        
      * Title: "Linux Kernel Locking HOWTO"
        Author: Various Talented People, and Rusty.
-       URL:
-       http://netfilter.kernelnotes.org/unreliable-guides/kernel-locking-
-       HOWTO.html
+       Location: in kernel tree, Documentation/DocBook/kernel-locking/
+       (must be built as "make {htmldocs | psdocs | pdfdocs})
        Keywords: locks, locking, spinlock, semaphore, atomic, race
        condition, bottom halves, tasklets, softirqs.
        Description: The title says it all: document describing the
@@ -490,7 +488,7 @@
        
      * Title: "Get those boards talking under Linux."
        Author: Alex Ivchenko.
-       URL: http://www.ednmag.com/ednmag/reg/2000/06222000/13df2.htm
+       URL: http://www.edn.com/article/CA46968.html
        Keywords: data-acquisition boards, drivers, modules, interrupts,
        memory allocation.
        Description: Article written for people wishing to make their data
@@ -498,7 +496,7 @@
        overview on writing drivers, from the naming of functions to
        interrupt handling.
        Notes: Two-parts article. Part II is at
-       http://www.ednmag.com/ednmag/reg/2000/07062000/14df.htm
+       URL: http://www.edn.com/article/CA46998.html
        
      * Title: "Linux PCMCIA Programmer's Guide"
        Author: David Hinds.
@@ -529,7 +527,7 @@
        definitive guide for hackers, virus coders and system
        administrators."
        Author: pragmatic/THC.
-       URL: http://packetstorm.securify.com/groups/thc/LKM_HACKING.html
+       URL: http://packetstormsecurity.org/docs/hack/LKM_HACKING.html
        Keywords: syscalls, intercept, hide, abuse, symbol table.
        Description: Interesting paper on how to abuse the Linux kernel in
        order to intercept and modify syscalls, make
@@ -537,8 +535,7 @@
        write kernel modules based virus... and solutions for admins to
        avoid all those abuses.
        Notes: For 2.0.x kernels. Gives guidances to port it to 2.2.x
-       kernels. Also available in txt format at
-       http://www.blacknemesis.org/hacking/txt/cllkm.txt
+       kernels.
        
      BOOKS: (Not on-line)
    
@@ -557,7 +554,17 @@
        ISBN: 0-59600-008-1
        Notes: Further information in
        http://www.oreilly.com/catalog/linuxdrive2/
-       
+
+     * Title: "Linux Device Drivers, 3nd Edition"
+       Authors: Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman
+       Publisher: O'Reilly & Associates.
+       Date: 2005.
+       Pages: 636.
+       ISBN: 0-596-00590-3
+       Notes: Further information in
+       http://www.oreilly.com/catalog/linuxdrive3/
+       PDF format, URL: http://lwn.net/Kernel/LDD3/
+
      * Title: "Linux Kernel Internals"
        Author: Michael Beck.
        Publisher: Addison-Wesley.
@@ -766,12 +773,15 @@
        documents, FAQs...
        
      * Name: "linux-kernel mailing list archives and search engines"
+       URL: http://vger.kernel.org/vger-lists.html
        URL: http://www.uwsg.indiana.edu/hypermail/linux/kernel/index.html
-       URL: http://www.kernelnotes.org/lnxlists/linux-kernel/
-       URL: http://www.geocrawler.com
+       URL: http://marc.theaimsgroup.com/?l=linux-kernel
+       URL: http://groups.google.com/group/mlist.linux.kernel
+       URL: http://www.cs.helsinki.fi/linux/linux-kernel/
+       URL: http://www.lib.uaa.alaska.edu/linux-kernel/
        Keywords: linux-kernel, archives, search.
        Description: Some of the linux-kernel mailing list archivers. If
        you have a better/another one, please let me know.
      _________________________________________________________________
    
-   Document last updated on Thu Jun 28 15:09:39 CEST 2001
+   Document last updated on Sat 2005-NOV-19

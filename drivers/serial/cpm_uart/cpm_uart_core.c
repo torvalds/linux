@@ -7,7 +7,7 @@
  *  Based on ppc8xx.c by Thomas Gleixner
  *  Based on drivers/serial/amba.c by Russell King
  *
- *  Maintainer: Kumar Gala (kumar.gala@freescale.com) (CPM2)
+ *  Maintainer: Kumar Gala (galak@kernel.crashing.org) (CPM2)
  *              Pantelis Antoniou (panto@intracom.gr) (CPM1)
  *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
@@ -608,7 +608,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 
 		p = cpm2cpu_addr(bdp->cbd_bufaddr);
 
-		*p++ = xmit->buf[xmit->tail];
+		*p++ = port->x_char;
 		bdp->cbd_datlen = 1;
 		bdp->cbd_sc |= BD_SC_READY;
 		/* Get next BD. */

@@ -42,10 +42,6 @@ extern void pmac_ide_init_hwif_ports(hw_regs_t *hw,
 	unsigned long data_port, unsigned long ctrl_port, int *irq);
 
 extern int pmac_nvram_init(void);
-
-extern struct hw_interrupt_type pmac_pic;
-
-void pmac_pic_init(void);
-int pmac_get_irq(struct pt_regs *regs);
+extern void pmac_pic_init(void);
 
 #endif /* __PMAC_H__ */

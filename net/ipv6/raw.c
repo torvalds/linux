@@ -32,6 +32,7 @@
 #include <linux/icmpv6.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/skbuff.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 #include <asm/bug.h>
@@ -433,25 +434,14 @@ out:
 	return err;
 
 csum_copy_err:
-	/* Clear queue. */
-	if (flags&MSG_PEEK) {
-		int clear = 0;
-		spin_lock_bh(&sk->sk_receive_queue.lock);
-		if (skb == skb_peek(&sk->sk_receive_queue)) {
-			__skb_unlink(skb, &sk->sk_receive_queue);
-			clear = 1;
-		}
-		spin_unlock_bh(&sk->sk_receive_queue.lock);
-		if (clear)
-			kfree_skb(skb);
-	}
+	skb_kill_datagram(sk, skb, flags);
 
 	/* Error for blocking case is chosen to masquerade
 	   as some normal condition.
 	 */
 	err = (flags&MSG_DONTWAIT) ? -EAGAIN : -EHOSTUNREACH;
 	/* FIXME: increment a raw6 drops counter here */
-	goto out_free;
+	goto out;
 }
 
 static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
@@ -748,7 +738,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 	if (opt == NULL)
 		opt = np->opt;
-	opt = fl6_merge_options(&opt_space, flowlabel, opt);
+	if (flowlabel)
+		opt = fl6_merge_options(&opt_space, flowlabel, opt);
+	opt = ipv6_fixup_options(&opt_space, opt);
 
 	fl.proto = proto;
 	rawv6_probe_proto_opt(&fl, msg);

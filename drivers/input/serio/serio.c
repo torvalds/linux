@@ -59,9 +59,7 @@ static DECLARE_MUTEX(serio_sem);
 
 static LIST_HEAD(serio_list);
 
-static struct bus_type serio_bus = {
-	.name =	"serio",
-};
+static struct bus_type serio_bus;
 
 static void serio_add_port(struct serio *serio);
 static void serio_destroy_port(struct serio *serio);
@@ -269,14 +267,20 @@ static struct serio_event *serio_get_event(void)
 	return event;
 }
 
-static void serio_handle_events(void)
+static void serio_handle_event(void)
 {
 	struct serio_event *event;
 	struct serio_driver *serio_drv;
 
 	down(&serio_sem);
 
-	while ((event = serio_get_event())) {
+	/*
+	 * Note that we handle only one event here to give swsusp
+	 * a chance to freeze kseriod thread. Serio events should
+	 * be pretty rare so we are not concerned about taking
+	 * performance hit.
+	 */
+	if ((event = serio_get_event())) {
 
 		switch (event->type) {
 			case SERIO_REGISTER_PORT:
@@ -368,7 +372,7 @@ static struct serio *serio_get_pending_child(struct serio *parent)
 static int serio_thread(void *nothing)
 {
 	do {
-		serio_handle_events();
+		serio_handle_event();
 		wait_event_interruptible(serio_wait,
 			kthread_should_stop() || !list_empty(&serio_event_list));
 		try_to_freeze();
@@ -744,11 +748,15 @@ static int serio_driver_remove(struct device *dev)
 	return 0;
 }
 
+static struct bus_type serio_bus = {
+	.name =	"serio",
+	.probe = serio_driver_probe,
+	.remove = serio_driver_remove,
+};
+
 void __serio_register_driver(struct serio_driver *drv, struct module *owner)
 {
 	drv->driver.bus = &serio_bus;
-	drv->driver.probe = serio_driver_probe;
-	drv->driver.remove = serio_driver_remove;
 
 	serio_queue_event(drv, owner, SERIO_REGISTER_DRIVER);
 }
@@ -794,16 +802,16 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 
 #ifdef CONFIG_HOTPLUG
 
-#define SERIO_ADD_HOTPLUG_VAR(fmt, val...)				\
+#define SERIO_ADD_UEVENT_VAR(fmt, val...)				\
 	do {								\
-		int err = add_hotplug_env_var(envp, num_envp, &i,	\
+		int err = add_uevent_var(envp, num_envp, &i,	\
 					buffer, buffer_size, &len,	\
 					fmt, val);			\
 		if (err)						\
 			return err;					\
 	} while (0)
 
-static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int serio_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	struct serio *serio;
 	int i = 0;
@@ -814,21 +822,21 @@ static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *bu
 
 	serio = to_serio_port(dev);
 
-	SERIO_ADD_HOTPLUG_VAR("SERIO_TYPE=%02x", serio->id.type);
-	SERIO_ADD_HOTPLUG_VAR("SERIO_PROTO=%02x", serio->id.proto);
-	SERIO_ADD_HOTPLUG_VAR("SERIO_ID=%02x", serio->id.id);
-	SERIO_ADD_HOTPLUG_VAR("SERIO_EXTRA=%02x", serio->id.extra);
-	SERIO_ADD_HOTPLUG_VAR("MODALIAS=serio:ty%02Xpr%02Xid%02Xex%02X",
+	SERIO_ADD_UEVENT_VAR("SERIO_TYPE=%02x", serio->id.type);
+	SERIO_ADD_UEVENT_VAR("SERIO_PROTO=%02x", serio->id.proto);
+	SERIO_ADD_UEVENT_VAR("SERIO_ID=%02x", serio->id.id);
+	SERIO_ADD_UEVENT_VAR("SERIO_EXTRA=%02x", serio->id.extra);
+	SERIO_ADD_UEVENT_VAR("MODALIAS=serio:ty%02Xpr%02Xid%02Xex%02X",
 				serio->id.type, serio->id.proto, serio->id.id, serio->id.extra);
 	envp[i] = NULL;
 
 	return 0;
 }
-#undef SERIO_ADD_HOTPLUG_VAR
+#undef SERIO_ADD_UEVENT_VAR
 
 #else
 
-static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int serio_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	return -ENODEV;
 }
@@ -902,7 +910,7 @@ static int __init serio_init(void)
 	serio_bus.dev_attrs = serio_device_attrs;
 	serio_bus.drv_attrs = serio_driver_attrs;
 	serio_bus.match = serio_bus_match;
-	serio_bus.hotplug = serio_hotplug;
+	serio_bus.uevent = serio_uevent;
 	serio_bus.resume = serio_resume;
 	bus_register(&serio_bus);
 

@@ -762,7 +762,7 @@ static struct ip_conntrack_helper pptp = {
 	.help = conntrack_pptp_help
 };
 
-extern void __exit ip_ct_proto_gre_fini(void);
+extern void ip_ct_proto_gre_fini(void);
 extern int __init ip_ct_proto_gre_init(void);
 
 /* ip_conntrack_pptp initialization */

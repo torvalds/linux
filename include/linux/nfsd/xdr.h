@@ -88,10 +88,12 @@ struct nfsd_readdirargs {
 
 struct nfsd_attrstat {
 	struct svc_fh		fh;
+	struct kstat		stat;
 };
 
 struct nfsd_diropres  {
 	struct svc_fh		fh;
+	struct kstat		stat;
 };
 
 struct nfsd_readlinkres {
@@ -101,6 +103,7 @@ struct nfsd_readlinkres {
 struct nfsd_readres {
 	struct svc_fh		fh;
 	unsigned long		count;
+	struct kstat		stat;
 };
 
 struct nfsd_readdirres {

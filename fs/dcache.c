@@ -71,7 +71,7 @@ struct dentry_stat_t dentry_stat = {
 
 static void d_callback(struct rcu_head *head)
 {
-	struct dentry * dentry = container_of(head, struct dentry, d_rcu);
+	struct dentry * dentry = container_of(head, struct dentry, d_u.d_rcu);
 
 	if (dname_external(dentry))
 		kfree(dentry->d_name.name);
@@ -86,7 +86,7 @@ static void d_free(struct dentry *dentry)
 {
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
- 	call_rcu(&dentry->d_rcu, d_callback);
+ 	call_rcu(&dentry->d_u.d_rcu, d_callback);
 }
 
 /*
@@ -94,7 +94,7 @@ static void d_free(struct dentry *dentry)
  * d_iput() operation if defined.
  * Called with dcache_lock and per dentry lock held, drops both.
  */
-static inline void dentry_iput(struct dentry * dentry)
+static void dentry_iput(struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	if (inode) {
@@ -193,7 +193,7 @@ kill_it: {
   			list_del(&dentry->d_lru);
   			dentry_stat.nr_unused--;
   		}
-  		list_del(&dentry->d_child);
+  		list_del(&dentry->d_u.d_child);
 		dentry_stat.nr_dentry--;	/* For d_free, below */
 		/*drops the locks, at that point nobody can reach this dentry */
 		dentry_iput(dentry);
@@ -367,7 +367,7 @@ static inline void prune_one_dentry(struct dentry * dentry)
 	struct dentry * parent;
 
 	__d_drop(dentry);
-	list_del(&dentry->d_child);
+	list_del(&dentry->d_u.d_child);
 	dentry_stat.nr_dentry--;	/* For d_free, below */
 	dentry_iput(dentry);
 	parent = dentry->d_parent;
@@ -518,7 +518,7 @@ repeat:
 resume:
 	while (next != &this_parent->d_subdirs) {
 		struct list_head *tmp = next;
-		struct dentry *dentry = list_entry(tmp, struct dentry, d_child);
+		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
 		next = tmp->next;
 		/* Have we found a mount point ? */
 		if (d_mountpoint(dentry))
@@ -532,7 +532,7 @@ resume:
 	 * All done at this level ... ascend and resume the search.
 	 */
 	if (this_parent != parent) {
-		next = this_parent->d_child.next; 
+		next = this_parent->d_u.d_child.next;
 		this_parent = this_parent->d_parent;
 		goto resume;
 	}
@@ -569,7 +569,7 @@ repeat:
 resume:
 	while (next != &this_parent->d_subdirs) {
 		struct list_head *tmp = next;
-		struct dentry *dentry = list_entry(tmp, struct dentry, d_child);
+		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
 		next = tmp->next;
 
 		if (!list_empty(&dentry->d_lru)) {
@@ -610,7 +610,7 @@ dentry->d_parent->d_name.name, dentry->d_name.name, found);
 	 * All done at this level ... ascend and resume the search.
 	 */
 	if (this_parent != parent) {
-		next = this_parent->d_child.next; 
+		next = this_parent->d_u.d_child.next;
 		this_parent = this_parent->d_parent;
 #ifdef DCACHE_DEBUG
 printk(KERN_DEBUG "select_parent: ascending to %s/%s, found=%d\n",
@@ -753,12 +753,12 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 		dentry->d_parent = dget(parent);
 		dentry->d_sb = parent->d_sb;
 	} else {
-		INIT_LIST_HEAD(&dentry->d_child);
+		INIT_LIST_HEAD(&dentry->d_u.d_child);
 	}
 
 	spin_lock(&dcache_lock);
 	if (parent)
-		list_add(&dentry->d_child, &parent->d_subdirs);
+		list_add(&dentry->d_u.d_child, &parent->d_subdirs);
 	dentry_stat.nr_dentry++;
 	spin_unlock(&dcache_lock);
 
@@ -808,10 +808,14 @@ void d_instantiate(struct dentry *entry, struct inode * inode)
  *
  * Fill in inode information in the entry. On success, it returns NULL.
  * If an unhashed alias of "entry" already exists, then we return the
- * aliased dentry instead.
+ * aliased dentry instead and drop one reference to inode.
  *
  * Note that in order to avoid conflicts with rename() etc, the caller
  * had better be holding the parent directory semaphore.
+ *
+ * This also assumes that the inode count has been incremented
+ * (or otherwise set) by the caller to indicate that it is now
+ * in use by the dcache.
  */
 struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
 {
@@ -838,6 +842,7 @@ struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
 		dget_locked(alias);
 		spin_unlock(&dcache_lock);
 		BUG_ON(!d_unhashed(alias));
+		iput(inode);
 		return alias;
 	}
 	list_add(&entry->d_alias, &inode->i_dentry);
@@ -1310,8 +1315,8 @@ already_unhashed:
 	/* Unhash the target: dput() will then get rid of it */
 	__d_drop(target);
 
-	list_del(&dentry->d_child);
-	list_del(&target->d_child);
+	list_del(&dentry->d_u.d_child);
+	list_del(&target->d_u.d_child);
 
 	/* Switch the names.. */
 	switch_names(dentry, target);
@@ -1322,15 +1327,15 @@ already_unhashed:
 	if (IS_ROOT(dentry)) {
 		dentry->d_parent = target->d_parent;
 		target->d_parent = target;
-		INIT_LIST_HEAD(&target->d_child);
+		INIT_LIST_HEAD(&target->d_u.d_child);
 	} else {
 		do_switch(dentry->d_parent, target->d_parent);
 
 		/* And add them back to the (new) parent lists */
-		list_add(&target->d_child, &target->d_parent->d_subdirs);
+		list_add(&target->d_u.d_child, &target->d_parent->d_subdirs);
 	}
 
-	list_add(&dentry->d_child, &dentry->d_parent->d_subdirs);
+	list_add(&dentry->d_u.d_child, &dentry->d_parent->d_subdirs);
 	spin_unlock(&target->d_lock);
 	spin_unlock(&dentry->d_lock);
 	write_sequnlock(&rename_lock);
@@ -1568,7 +1573,7 @@ repeat:
 resume:
 	while (next != &this_parent->d_subdirs) {
 		struct list_head *tmp = next;
-		struct dentry *dentry = list_entry(tmp, struct dentry, d_child);
+		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
 		next = tmp->next;
 		if (d_unhashed(dentry)||!dentry->d_inode)
 			continue;
@@ -1579,7 +1584,7 @@ resume:
 		atomic_dec(&dentry->d_count);
 	}
 	if (this_parent != root) {
-		next = this_parent->d_child.next; 
+		next = this_parent->d_u.d_child.next;
 		atomic_dec(&this_parent->d_count);
 		this_parent = this_parent->d_parent;
 		goto resume;

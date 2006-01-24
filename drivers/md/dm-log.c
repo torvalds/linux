@@ -333,10 +333,10 @@ static int core_ctr(struct dirty_log *log, struct dm_target *ti,
 	lc->sync = sync;
 
 	/*
-	 * Work out how many words we need to hold the bitset.
+	 * Work out how many "unsigned long"s we need to hold the bitset.
 	 */
 	bitset_size = dm_round_up(region_count,
-				  sizeof(*lc->clean_bits) << BYTE_SHIFT);
+				  sizeof(unsigned long) << BYTE_SHIFT);
 	bitset_size >>= BYTE_SHIFT;
 
 	lc->bitset_uint32_count = bitset_size / 4;
@@ -573,7 +573,7 @@ static int core_get_resync_work(struct dirty_log *log, region_t *region)
 					     lc->sync_search);
 		lc->sync_search = *region + 1;
 
-		if (*region == lc->region_count)
+		if (*region >= lc->region_count)
 			return 0;
 
 	} while (log_test_bit(lc->recovering_bits, *region));

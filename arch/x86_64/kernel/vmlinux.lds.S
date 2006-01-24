@@ -8,6 +8,8 @@
 #include <asm/page.h>
 #include <linux/config.h>
 
+#undef i386	/* in case the preprocessor is a 32bit one */
+
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(phys_startup_64)
@@ -50,7 +52,7 @@ SECTIONS
 	*(.bss.page_aligned)	
 	*(.bss)
 	}
-  __bss_end = .;
+  __bss_stop = .;
 
   . = ALIGN(PAGE_SIZE);
   . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
@@ -189,7 +191,7 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ : {
 	*(.exitcall.exit)
-#ifndef CONFIG_DEBUG_INFO
+#ifndef CONFIG_UNWIND_INFO
 	*(.eh_frame)
 #endif
 	}

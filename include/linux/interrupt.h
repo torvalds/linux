@@ -9,6 +9,7 @@
 #include <linux/preempt.h>
 #include <linux/cpumask.h>
 #include <linux/hardirq.h>
+#include <linux/sched.h>
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
@@ -78,7 +79,7 @@ static inline void __deprecated save_flags(unsigned long *x)
 {
 	local_save_flags(*x);
 }
-#define save_flags(x) save_flags(&x);
+#define save_flags(x) save_flags(&x)
 static inline void __deprecated restore_flags(unsigned long x)
 {
 	local_irq_restore(x);
@@ -111,7 +112,7 @@ enum
 	TIMER_SOFTIRQ,
 	NET_TX_SOFTIRQ,
 	NET_RX_SOFTIRQ,
-	SCSI_SOFTIRQ,
+	BLOCK_SOFTIRQ,
 	TASKLET_SOFTIRQ
 };
 

@@ -132,14 +132,14 @@ void __init footbridge_init_irq(void)
 static struct map_desc fb_common_io_desc[] __initdata = {
 	{
 		.virtual	= ARMCSR_BASE,
-		.pfn		= DC21285_ARMCSR_BASE,
+		.pfn		= __phys_to_pfn(DC21285_ARMCSR_BASE),
 		.length		= ARMCSR_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= XBUS_BASE,
 		.pfn		= __phys_to_pfn(0x40000000),
 		.length		= XBUS_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}
 };
 
@@ -153,28 +153,28 @@ static struct map_desc ebsa285_host_io_desc[] __initdata = {
 		.virtual	= PCIMEM_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_MEM),
 		.length		= PCIMEM_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= PCICFG0_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_TYPE_0_CONFIG),
 		.length		= PCICFG0_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= PCICFG1_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_TYPE_1_CONFIG),
 		.length		= PCICFG1_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= PCIIACK_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_IACK),
 		.length		= PCIIACK_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= PCIO_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_IO),
 		.length		= PCIO_SIZE,
-		.type		= MT_DEVICE
-	}
+		.type		= MT_DEVICE,
+	},
 #endif
 };
 
@@ -187,13 +187,13 @@ static struct map_desc co285_io_desc[] __initdata = {
 		.virtual	= PCIO_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_IO),
 		.length		= PCIO_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= PCIMEM_BASE,
 		.pfn		= __phys_to_pfn(DC21285_PCI_MEM),
 		.length		= PCIMEM_SIZE,
-		.type		= MT_DEVICE
-	}
+		.type		= MT_DEVICE,
+	},
 #endif
 };
 

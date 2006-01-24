@@ -133,7 +133,7 @@ static void end_8259A_irq (unsigned int irq)
 {
 	if (irq > 256) { 
 		char var;
-		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, current->thread_info); 
+		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, task_thread_info(current));
 
 		BUG(); 
 	}
@@ -492,6 +492,7 @@ void invalidate_interrupt5(void);
 void invalidate_interrupt6(void);
 void invalidate_interrupt7(void);
 void thermal_interrupt(void);
+void threshold_interrupt(void);
 void i8254_timer_resume(void);
 
 static void setup_timer_hardware(void)
@@ -515,7 +516,7 @@ void i8254_timer_resume(void)
 }
 
 static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer"),
+	set_kset_name("timer_pit"),
 	.resume		= timer_resume,
 };
 
@@ -548,9 +549,8 @@ void __init init_IRQ(void)
 		int vector = FIRST_EXTERNAL_VECTOR + i;
 		if (i >= NR_IRQS)
 			break;
-		if (vector != IA32_SYSCALL_VECTOR && vector != KDB_VECTOR) { 
+		if (vector != IA32_SYSCALL_VECTOR)
 			set_intr_gate(vector, interrupt[i]);
-	}
 	}
 
 #ifdef CONFIG_SMP
@@ -580,6 +580,7 @@ void __init init_IRQ(void)
 	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 #endif	
 	set_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
+	set_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* self generated IPI for local APIC timer */

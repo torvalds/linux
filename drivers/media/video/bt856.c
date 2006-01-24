@@ -316,22 +316,19 @@ bt856_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_bt856;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	strlcpy(I2C_NAME(client), "bt856", sizeof(I2C_NAME(client)));
 
-	encoder = kmalloc(sizeof(struct bt856), GFP_KERNEL);
+	encoder = kzalloc(sizeof(struct bt856), GFP_KERNEL);
 	if (encoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(encoder, 0, sizeof(struct bt856));
 	encoder->norm = VIDEO_MODE_NTSC;
 	encoder->enable = 1;
 	i2c_set_clientdata(client, encoder);
@@ -405,11 +402,11 @@ bt856_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_bt856 = {
-	.owner = THIS_MODULE,
-	.name = "bt856",
+	.driver = {
+		.name = "bt856",
+	},
 
 	.id = I2C_DRIVERID_BT856,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = bt856_attach_adapter,
 	.detach_client = bt856_detach_client,

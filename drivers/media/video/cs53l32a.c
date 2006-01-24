@@ -27,7 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
@@ -38,20 +38,6 @@ static int debug = 0;
 module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debugging messages\n\t\t\t0=Off (default), 1=On");
-
-#define cs53l32a_dbg(fmt, arg...) \
-	do { \
-		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
-			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
-	} while (0)
-
-#define cs53l32a_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-#define cs53l32a_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
 
@@ -73,50 +59,59 @@ static int cs53l32a_read(struct i2c_client *client, u8 reg)
 static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 			    void *arg)
 {
-	int *input = arg;
+	struct v4l2_audio *input = arg;
+	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
-		switch (*input) {
-		case AUDIO_TUNER:
-			cs53l32a_write(client, 0x01, 0x01);
-			break;
-		case AUDIO_EXTERN:
-			cs53l32a_write(client, 0x01, 0x21);
-			break;
-		case AUDIO_MUTE:
-			cs53l32a_write(client, 0x03, 0xF0);
-			break;
-		case AUDIO_UNMUTE:
-			cs53l32a_write(client, 0x03, 0x30);
-			break;
-		default:
-			cs53l32a_err("Invalid input %d.\n", *input);
+	case VIDIOC_S_AUDIO:
+		/* There are 2 physical inputs, but the second input can be
+		   placed in two modes, the first mode bypasses the PGA (gain),
+		   the second goes through the PGA. Hence there are three
+		   possible inputs to choose from. */
+		if (input->index > 2) {
+			v4l_err(client, "Invalid input %d.\n", input->index);
 			return -EINVAL;
 		}
+		cs53l32a_write(client, 0x01, 0x01 + (input->index << 4));
+		break;
+
+	case VIDIOC_G_AUDIO:
+		memset(input, 0, sizeof(*input));
+		input->index = (cs53l32a_read(client, 0x01) >> 4) & 3;
+		break;
+
+	case VIDIOC_G_CTRL:
+		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
+			ctrl->value = (cs53l32a_read(client, 0x03) & 0xc0) != 0;
+			break;
+		}
+		if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
+			return -EINVAL;
+		ctrl->value = (s8)cs53l32a_read(client, 0x04);
 		break;
 
 	case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl = arg;
-
-			if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
-				return -EINVAL;
-			if (ctrl->value > 12 || ctrl->value < -90)
-				return -EINVAL;
-			cs53l32a_write(client, 0x04, (u8) ctrl->value);
-			cs53l32a_write(client, 0x05, (u8) ctrl->value);
+		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
+			cs53l32a_write(client, 0x03, ctrl->value ? 0xf0 : 0x30);
 			break;
 		}
+		if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
+			return -EINVAL;
+		if (ctrl->value > 12 || ctrl->value < -96)
+			return -EINVAL;
+		cs53l32a_write(client, 0x04, (u8) ctrl->value);
+		cs53l32a_write(client, 0x05, (u8) ctrl->value);
+		break;
 
 	case VIDIOC_LOG_STATUS:
 		{
 			u8 v = cs53l32a_read(client, 0x01);
 			u8 m = cs53l32a_read(client, 0x03);
+			s8 vol = cs53l32a_read(client, 0x04);
 
-			cs53l32a_info("Input: %s%s\n",
-				      v == 0x21 ? "external line in" : "tuner",
+			v4l_info(client, "Input:  %d%s\n", (v >> 4) & 3,
 				      (m & 0xC0) ? " (muted)" : "");
+			v4l_info(client, "Volume: %d dB\n", vol);
 			break;
 		}
 
@@ -146,23 +141,21 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
 
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
 
-	cs53l32a_info("chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
 
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
 
-		cs53l32a_dbg("Read Reg %d %02x\n", i, v);
+		v4l_dbg(1, debug, client, "Read Reg %d %02x\n", i, v);
 	}
 
 	/* Set cs53l32a internal register for Adaptec 2010/2410 setup */
@@ -180,7 +173,7 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
 
-		cs53l32a_dbg("Read Reg %d %02x\n", i, v);
+		v4l_dbg(1, debug, client, "Read Reg %d %02x\n", i, v);
 	}
 
 	i2c_attach_client(client);
@@ -190,11 +183,7 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 
 static int cs53l32a_probe(struct i2c_adapter *adapter)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adapter->class & I2C_CLASS_TV_ANALOG)
-#else
-	if (adapter->id == I2C_HW_B_BT848)
-#endif
 		return i2c_probe(adapter, &addr_data, cs53l32a_attach);
 	return 0;
 }
@@ -216,13 +205,13 @@ static int cs53l32a_detach(struct i2c_client *client)
 
 /* i2c implementation */
 static struct i2c_driver i2c_driver = {
-	.name = "cs53l32a",
+	.driver = {
+		.name = "cs53l32a",
+	},
 	.id = I2C_DRIVERID_CS53L32A,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = cs53l32a_probe,
 	.detach_client = cs53l32a_detach,
 	.command = cs53l32a_command,
-	.owner = THIS_MODULE,
 };
 
 

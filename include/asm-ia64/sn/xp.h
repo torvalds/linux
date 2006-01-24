@@ -18,6 +18,7 @@
 
 #include <linux/cache.h>
 #include <linux/hardirq.h>
+#include <linux/mutex.h>
 #include <asm/sn/types.h>
 #include <asm/sn/bte.h>
 
@@ -227,7 +228,9 @@ enum xpc_retval {
 
 	xpcOpenCloseError,	/* 50: channel open/close protocol error */
 
-	xpcUnknownReason	/* 51: unknown reason -- must be last in list */
+	xpcDisconnected,	/* 51: channel disconnected (closed) */
+
+	xpcUnknownReason	/* 52: unknown reason -- must be last in list */
 };
 
 
@@ -357,7 +360,7 @@ typedef void (*xpc_notify_func)(enum xpc_retval reason, partid_t partid,
  * the channel.
  */
 struct xpc_registration {
-	struct semaphore sema;
+	struct mutex mutex;
 	xpc_channel_func func;		/* function to call */
 	void *key;			/* pointer to user's key */
 	u16 nentries;			/* #of msg entries in local msg queue */

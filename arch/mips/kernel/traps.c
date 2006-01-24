@@ -519,7 +519,7 @@ static inline int simulate_llsc(struct pt_regs *regs)
  */
 static inline int simulate_rdhwr(struct pt_regs *regs)
 {
-	struct thread_info *ti = current->thread_info;
+	struct thread_info *ti = task_thread_info(current);
 	unsigned int opcode;
 
 	if (unlikely(get_insn_opcode(regs, &opcode)))
@@ -534,13 +534,14 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 		switch (rd) {
 			case 29:
 				regs->regs[rt] = ti->tp_value;
-				break;
+				return 0;
 			default:
 				return -EFAULT;
 		}
 	}
 
-	return 0;
+	/* Not ours.  */
+	return -EFAULT;
 }
 
 asmlinkage void do_ov(struct pt_regs *regs)

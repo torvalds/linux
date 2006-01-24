@@ -450,13 +450,13 @@
     */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
    static int ips_proc24_info(char *, char **, off_t, int, int, int);
-   static void ips_select_queue_depth(struct Scsi_Host *, Scsi_Device *);
+   static void ips_select_queue_depth(struct Scsi_Host *, struct scsi_device *);
    static int ips_biosparam(Disk *disk, kdev_t dev, int geom[]);
 #else
    static int ips_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
    static int ips_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 		sector_t capacity, int geom[]);
-   static int ips_slave_configure(Scsi_Device *SDptr);
+   static int ips_slave_configure(struct scsi_device *SDptr);
 #endif
 
 /*

@@ -88,7 +88,6 @@ static const char version[] =
 #include <linux/skbuff.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 #include "smc91x.h"
 
@@ -153,6 +152,12 @@ MODULE_LICENSE("GPL");
  * in the system
  */
 #define MEMORY_WAIT_TIME	16
+
+/*
+ * The maximum number of processing loops allowed for each call to the
+ * IRQ handler.  
+ */
+#define MAX_IRQ_LOOPS		8
 
 /*
  * This selects whether TX packets are sent one by one to the SMC91x internal
@@ -684,7 +689,6 @@ static void smc_hardware_send_pkt(unsigned long data)
 
 	/* queue the packet for TX */
 	SMC_SET_MMU_CMD(MC_ENQUEUE);
-	SMC_ACK_INT(IM_TX_EMPTY_INT);
 	smc_special_unlock(&lp->lock);
 
 	dev->trans_start = jiffies;
@@ -1207,6 +1211,7 @@ static void smc_phy_configure(void *data)
 	smc_phy_check_media(dev, 1);
 
 smc_phy_configure_exit:
+	SMC_SELECT_BANK(2);
 	spin_unlock_irq(&lp->lock);
 	lp->work_pending = 0;
 }
@@ -1305,7 +1310,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	SMC_SET_INT_MASK(0);
 
 	/* set a timeout value, so I don't stay here forever */
-	timeout = 8;
+	timeout = MAX_IRQ_LOOPS;
 
 	do {
 		status = SMC_GET_INT();
@@ -1372,10 +1377,13 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* restore register states */
 	SMC_SET_PTR(saved_pointer);
 	SMC_SET_INT_MASK(mask);
-
 	spin_unlock(&lp->lock);
 
-	DBG(3, "%s: Interrupt done (%d loops)\n", dev->name, 8-timeout);
+	if (timeout == MAX_IRQ_LOOPS)
+		PRINTK("%s: spurious interrupt (mask = 0x%02x)\n",
+		       dev->name, mask);
+	DBG(3, "%s: Interrupt done (%d loops)\n",
+	       dev->name, MAX_IRQ_LOOPS - timeout);
 
 	/*
 	 * We return IRQ_HANDLED unconditionally here even if there was
@@ -1998,11 +2006,9 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	}
 
 	/* Grab the IRQ */
-      	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
+      	retval = request_irq(dev->irq, &smc_interrupt, SMC_IRQ_FLAGS, dev->name, dev);
       	if (retval)
       		goto err_out;
-
-	set_irq_type(dev->irq, SMC_IRQ_TRIGGER_TYPE);
 
 #ifdef SMC_USE_PXA_DMA
 	{

@@ -434,22 +434,22 @@ typedef struct wf_multisample {
 } wavefront_multisample;
 
 typedef struct wf_alias {
-    INT16 OriginalSample __attribute__ ((packed));
+    INT16 OriginalSample;
 
-    struct wf_sample_offset sampleStartOffset __attribute__ ((packed));
-    struct wf_sample_offset loopStartOffset __attribute__ ((packed));
-    struct wf_sample_offset sampleEndOffset __attribute__ ((packed));
-    struct wf_sample_offset loopEndOffset __attribute__ ((packed));
+    struct wf_sample_offset sampleStartOffset;
+    struct wf_sample_offset loopStartOffset;
+    struct wf_sample_offset sampleEndOffset;
+    struct wf_sample_offset loopEndOffset;
 
-    INT16  FrequencyBias __attribute__ ((packed));
+    INT16  FrequencyBias;
 
-    UCHAR8 SampleResolution:2  __attribute__ ((packed));
-    UCHAR8 Unused1:1  __attribute__ ((packed));
-    UCHAR8 Loop:1 __attribute__ ((packed));
-    UCHAR8 Bidirectional:1  __attribute__ ((packed));
-    UCHAR8 Unused2:1 __attribute__ ((packed));
-    UCHAR8 Reverse:1 __attribute__ ((packed));
-    UCHAR8 Unused3:1 __attribute__ ((packed)); 
+    UCHAR8 SampleResolution:2;
+    UCHAR8 Unused1:1;
+    UCHAR8 Loop:1;
+    UCHAR8 Bidirectional:1;
+    UCHAR8 Unused2:1;
+    UCHAR8 Reverse:1;
+    UCHAR8 Unused3:1;
     
     /* This structure is meant to be padded only to 16 bits on their
        original. Of course, whoever wrote their documentation didn't
@@ -460,8 +460,8 @@ typedef struct wf_alias {
        standard 16->32 bit issues.
     */
 
-    UCHAR8 sixteen_bit_padding __attribute__ ((packed));
-} wavefront_alias;
+    UCHAR8 sixteen_bit_padding;
+} __attribute__((packed)) wavefront_alias;
 
 typedef struct wf_drum {
     UCHAR8 PatchNumber;

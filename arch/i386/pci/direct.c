@@ -13,7 +13,7 @@
 #define PCI_CONF1_ADDRESS(bus, devfn, reg) \
 	(0x80000000 | (bus << 16) | (devfn << 8) | (reg & ~3))
 
-static int pci_conf1_read(unsigned int seg, unsigned int bus,
+int pci_conf1_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value)
 {
 	unsigned long flags;
@@ -42,7 +42,7 @@ static int pci_conf1_read(unsigned int seg, unsigned int bus,
 	return 0;
 }
 
-static int pci_conf1_write(unsigned int seg, unsigned int bus,
+int pci_conf1_write(unsigned int seg, unsigned int bus,
 			   unsigned int devfn, int reg, int len, u32 value)
 {
 	unsigned long flags;
@@ -201,7 +201,7 @@ static int __init pci_sanity_check(struct pci_raw_ops *o)
 			return 1;
 	}
 
-	DBG("PCI: Sanity check failed\n");
+	DBG(KERN_WARNING "PCI: Sanity check failed\n");
 	return 0;
 }
 

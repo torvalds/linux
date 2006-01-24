@@ -31,15 +31,6 @@ static struct {
 } pnp_bios_callpoint;
 
 
-/* The PnP BIOS entries in the GDT */
-#define PNP_GDT    (GDT_ENTRY_PNPBIOS_BASE * 8)
-
-#define PNP_CS32   (PNP_GDT+0x00)	/* segment for calling fn */
-#define PNP_CS16   (PNP_GDT+0x08)	/* code segment for BIOS */
-#define PNP_DS     (PNP_GDT+0x10)	/* data segment for BIOS */
-#define PNP_TS1    (PNP_GDT+0x18)	/* transfer data segment */
-#define PNP_TS2    (PNP_GDT+0x20)	/* another data segment */
-
 /*
  * These are some opcodes for a "static asmlinkage"
  * As this code is *not* executed inside the linux kernel segment, but in a
@@ -67,16 +58,11 @@ __asm__(
 	".previous		\n"
 );
 
-#define Q_SET_SEL(cpu, selname, address, size) \
-do { \
-set_base(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], __va((u32)(address))); \
-set_limit(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], size); \
-} while(0)
-
 #define Q2_SET_SEL(cpu, selname, address, size) \
 do { \
-set_base(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], (u32)(address)); \
-set_limit(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], size); \
+struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
+set_base(gdt[(selname) >> 3], (u32)(address)); \
+set_limit(gdt[(selname) >> 3], size); \
 } while(0)
 
 static struct desc_struct bad_bios_desc = { 0, 0x00409200 };
@@ -115,8 +101,8 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 		return PNP_FUNCTION_NOT_SUPPORTED;
 
 	cpu = get_cpu();
-	save_desc_40 = per_cpu(cpu_gdt_table,cpu)[0x40 / 8];
-	per_cpu(cpu_gdt_table,cpu)[0x40 / 8] = bad_bios_desc;
+	save_desc_40 = get_cpu_gdt_table(cpu)[0x40 / 8];
+	get_cpu_gdt_table(cpu)[0x40 / 8] = bad_bios_desc;
 
 	/* On some boxes IRQ's during PnP BIOS calls are deadly.  */
 	spin_lock_irqsave(&pnp_bios_lock, flags);
@@ -158,7 +144,7 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 	);
 	spin_unlock_irqrestore(&pnp_bios_lock, flags);
 
-	per_cpu(cpu_gdt_table,cpu)[0x40 / 8] = save_desc_40;
+	get_cpu_gdt_table(cpu)[0x40 / 8] = save_desc_40;
 	put_cpu();
 
 	/* If we get here and this is set then the PnP BIOS faulted on us. */
@@ -290,12 +276,15 @@ int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
 static int __pnp_bios_get_dev_node(u8 *nodenum, char boot, struct pnp_bios_node *data)
 {
 	u16 status;
+	u16 tmp_nodenum;
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	if ( !boot && pnpbios_dont_use_current_config )
 		return PNP_FUNCTION_NOT_SUPPORTED;
+	tmp_nodenum = *nodenum;
 	status = call_pnp_bios(PNP_GET_SYS_DEV_NODE, 0, PNP_TS1, 0, PNP_TS2, boot ? 2 : 1, PNP_DS, 0,
-			       nodenum, sizeof(char), data, 65536);
+			       &tmp_nodenum, sizeof(tmp_nodenum), data, 65536);
+	*nodenum = tmp_nodenum;
 	return status;
 }
 
@@ -535,10 +524,12 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
 
 	set_base(bad_bios_desc, __va((unsigned long)0x40 << 4));
 	_set_limit((char *)&bad_bios_desc, 4095 - (0x40 << 4));
-	for(i=0; i < NR_CPUS; i++)
-	{
-		Q2_SET_SEL(i, PNP_CS32, &pnp_bios_callfunc, 64 * 1024);
-		Q_SET_SEL(i, PNP_CS16, header->fields.pm16cseg, 64 * 1024);
-		Q_SET_SEL(i, PNP_DS, header->fields.pm16dseg, 64 * 1024);
-	}
+ 	for (i = 0; i < NR_CPUS; i++) {
+  		struct desc_struct *gdt = get_cpu_gdt_table(i);
+  		if (!gdt)
+  			continue;
+ 		set_base(gdt[GDT_ENTRY_PNPBIOS_CS32], &pnp_bios_callfunc);
+ 		set_base(gdt[GDT_ENTRY_PNPBIOS_CS16], __va(header->fields.pm16cseg));
+ 		set_base(gdt[GDT_ENTRY_PNPBIOS_DS], __va(header->fields.pm16dseg));
+  	}
 }

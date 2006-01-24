@@ -27,14 +27,13 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/capability.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
 
 #include <asm/uaccess.h>
 
 #include "util.h"
-
-#define shm_flags	shm_perm.mode
 
 static struct file_operations shm_file_operations;
 static struct vm_operations_struct shm_vm_ops;
@@ -148,7 +147,7 @@ static void shm_close (struct vm_area_struct *shmd)
 	shp->shm_dtim = get_seconds();
 	shp->shm_nattch--;
 	if(shp->shm_nattch == 0 &&
-	   shp->shm_flags & SHM_DEST)
+	   shp->shm_perm.mode & SHM_DEST)
 		shm_destroy (shp);
 	else
 		shm_unlock(shp);
@@ -157,14 +156,22 @@ static void shm_close (struct vm_area_struct *shmd)
 
 static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 {
-	file_accessed(file);
-	vma->vm_ops = &shm_vm_ops;
-	shm_inc(file->f_dentry->d_inode->i_ino);
-	return 0;
+	int ret;
+
+	ret = shmem_mmap(file, vma);
+	if (ret == 0) {
+		vma->vm_ops = &shm_vm_ops;
+		shm_inc(file->f_dentry->d_inode->i_ino);
+	}
+
+	return ret;
 }
 
 static struct file_operations shm_file_operations = {
-	.mmap	= shm_mmap
+	.mmap	= shm_mmap,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = shmem_get_unmapped_area,
+#endif
 };
 
 static struct vm_operations_struct shm_vm_ops = {
@@ -197,7 +204,7 @@ static int newseg (key_t key, int shmflg, size_t size)
 		return -ENOMEM;
 
 	shp->shm_perm.key = key;
-	shp->shm_flags = (shmflg & S_IRWXUGO);
+	shp->shm_perm.mode = (shmflg & S_IRWXUGO);
 	shp->mlock_user = NULL;
 
 	shp->shm_perm.security = NULL;
@@ -337,7 +344,7 @@ static inline unsigned long copy_shmid_from_user(struct shm_setbuf *out, void __
 
 		out->uid	= tbuf.shm_perm.uid;
 		out->gid	= tbuf.shm_perm.gid;
-		out->mode	= tbuf.shm_flags;
+		out->mode	= tbuf.shm_perm.mode;
 
 		return 0;
 	    }
@@ -350,7 +357,7 @@ static inline unsigned long copy_shmid_from_user(struct shm_setbuf *out, void __
 
 		out->uid	= tbuf_old.shm_perm.uid;
 		out->gid	= tbuf_old.shm_perm.gid;
-		out->mode	= tbuf_old.shm_flags;
+		out->mode	= tbuf_old.shm_perm.mode;
 
 		return 0;
 	    }
@@ -552,13 +559,13 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 			if (!is_file_hugepages(shp->shm_file)) {
 				err = shmem_lock(shp->shm_file, 1, user);
 				if (!err) {
-					shp->shm_flags |= SHM_LOCKED;
+					shp->shm_perm.mode |= SHM_LOCKED;
 					shp->mlock_user = user;
 				}
 			}
 		} else if (!is_file_hugepages(shp->shm_file)) {
 			shmem_lock(shp->shm_file, 0, shp->mlock_user);
-			shp->shm_flags &= ~SHM_LOCKED;
+			shp->shm_perm.mode &= ~SHM_LOCKED;
 			shp->mlock_user = NULL;
 		}
 		shm_unlock(shp);
@@ -597,7 +604,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 			goto out_unlock_up;
 
 		if (shp->shm_nattch){
-			shp->shm_flags |= SHM_DEST;
+			shp->shm_perm.mode |= SHM_DEST;
 			/* Do not find it any more */
 			shp->shm_perm.key = IPC_PRIVATE;
 			shm_unlock(shp);
@@ -636,7 +643,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		
 		shp->shm_perm.uid = setbuf.uid;
 		shp->shm_perm.gid = setbuf.gid;
-		shp->shm_flags = (shp->shm_flags & ~S_IRWXUGO)
+		shp->shm_perm.mode = (shp->shm_perm.mode & ~S_IRWXUGO)
 			| (setbuf.mode & S_IRWXUGO);
 		shp->shm_ctim = get_seconds();
 		break;
@@ -769,7 +776,7 @@ invalid:
 		BUG();
 	shp->shm_nattch--;
 	if(shp->shm_nattch == 0 &&
-	   shp->shm_flags & SHM_DEST)
+	   shp->shm_perm.mode & SHM_DEST)
 		shm_destroy (shp);
 	else
 		shm_unlock(shp);
@@ -894,7 +901,7 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
 	return seq_printf(s, format,
 			  shp->shm_perm.key,
 			  shp->id,
-			  shp->shm_flags,
+			  shp->shm_perm.mode,
 			  shp->shm_segsz,
 			  shp->shm_cprid,
 			  shp->shm_lprid,

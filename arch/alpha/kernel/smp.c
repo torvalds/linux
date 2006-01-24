@@ -302,7 +302,7 @@ secondary_cpu_start(int cpuid, struct task_struct *idle)
 		 + hwrpb->processor_offset
 		 + cpuid * hwrpb->processor_size);
 	hwpcb = (struct pcb_struct *) cpu->hwpcb;
-	ipcb = &idle->thread_info->pcb;
+	ipcb = &task_thread_info(idle)->pcb;
 
 	/* Initialize the CPU's HWPCB to something just good enough for
 	   us to get started.  Immediately after starting, we'll swpctx

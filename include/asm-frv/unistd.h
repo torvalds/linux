@@ -313,7 +313,7 @@ do {									\
         unsigned long __sr2 = (res);					\
 	if (__builtin_expect(__sr2 >= (unsigned long)(-4095), 0)) {	\
 		errno = (-__sr2);					\
-		__sr2 = ULONG_MAX;					\
+		__sr2 = ~0UL;						\
 	}								\
 	return (type) __sr2;						\
 } while (0)
@@ -486,6 +486,7 @@ static inline pid_t wait(int * wait_stat)
 /* #define __ARCH_WANT_SYS_SIGPENDING */
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #endif
 
 /*

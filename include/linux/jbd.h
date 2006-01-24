@@ -16,8 +16,6 @@
 #ifndef _LINUX_JBD_H
 #define _LINUX_JBD_H
 
-#if defined(CONFIG_JBD) || defined(CONFIG_JBD_MODULE) || !defined(__KERNEL__)
-
 /* Allow this file to be included directly into e2fsprogs */
 #ifndef __KERNEL__
 #include "jfs_compat.h"
@@ -500,6 +498,12 @@ struct transaction_s
 	struct journal_head	*t_checkpoint_list;
 
 	/*
+	 * Doubly-linked circular list of all buffers submitted for IO while
+	 * checkpointing. [j_list_lock]
+	 */
+	struct journal_head	*t_checkpoint_io_list;
+
+	/*
 	 * Doubly-linked circular list of temporary buffers currently undergoing
 	 * IO in the log [j_list_lock]
 	 */
@@ -845,7 +849,7 @@ extern void journal_commit_transaction(journal_t *);
 
 /* Checkpoint list management */
 int __journal_clean_checkpoint_list(journal_t *journal);
-void __journal_remove_checkpoint(struct journal_head *);
+int __journal_remove_checkpoint(struct journal_head *);
 void __journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
 /* Buffer IO */
@@ -1083,19 +1087,4 @@ extern int jbd_blocks_per_page(struct inode *inode);
 
 #endif	/* __KERNEL__ */
 
-#endif	/* CONFIG_JBD || CONFIG_JBD_MODULE || !__KERNEL__ */
-
-/*
- * Compatibility no-ops which allow the kernel to compile without CONFIG_JBD
- * go here.
- */
-
-#if defined(__KERNEL__) && !(defined(CONFIG_JBD) || defined(CONFIG_JBD_MODULE))
-
-#define J_ASSERT(expr)			do {} while (0)
-#define J_ASSERT_BH(bh, expr)		do {} while (0)
-#define buffer_jbd(bh)			0
-#define journal_buffer_journal_lru(bh)	0
-
-#endif	/* defined(__KERNEL__) && !defined(CONFIG_JBD) */
 #endif	/* _LINUX_JBD_H */

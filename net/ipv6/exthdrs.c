@@ -152,7 +152,7 @@ static struct tlvtype_proc tlvprocdestopt_lst[] = {
 	{-1,			NULL}
 };
 
-static int ipv6_destopt_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
+static int ipv6_destopt_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
@@ -169,7 +169,7 @@ static int ipv6_destopt_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
 
 	if (ip6_parse_tlv(tlvprocdestopt_lst, skb)) {
 		skb->h.raw += ((skb->h.raw[1]+1)<<3);
-		*nhoffp = opt->dst1;
+		opt->nhoff = opt->dst1;
 		return 1;
 	}
 
@@ -192,7 +192,7 @@ void __init ipv6_destopt_init(void)
   NONE header. No data in packet.
  ********************************/
 
-static int ipv6_nodata_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
+static int ipv6_nodata_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 
@@ -215,7 +215,7 @@ void __init ipv6_nodata_init(void)
   Routing header.
  ********************************/
 
-static int ipv6_rthdr_rcv(struct sk_buff **skbp, unsigned int *nhoffp)
+static int ipv6_rthdr_rcv(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	struct inet6_skb_parm *opt = IP6CB(skb);
@@ -249,7 +249,7 @@ looped_back:
 		skb->h.raw += (hdr->hdrlen + 1) << 3;
 		opt->dst0 = opt->dst1;
 		opt->dst1 = 0;
-		*nhoffp = (&hdr->nexthdr) - skb->nh.raw;
+		opt->nhoff = (&hdr->nexthdr) - skb->nh.raw;
 		return 1;
 	}
 
@@ -413,6 +413,8 @@ ipv6_invert_rthdr(struct sock *sk, struct ipv6_rt_hdr *hdr)
 	return opt;
 }
 
+EXPORT_SYMBOL_GPL(ipv6_invert_rthdr);
+
 /**********************************
   Hop-by-hop options.
  **********************************/
@@ -485,9 +487,14 @@ static struct tlvtype_proc tlvprochopopt_lst[] = {
 
 int ipv6_parse_hopopts(struct sk_buff *skb, int nhoff)
 {
-	IP6CB(skb)->hop = sizeof(struct ipv6hdr);
-	if (ip6_parse_tlv(tlvprochopopt_lst, skb))
+	struct inet6_skb_parm *opt = IP6CB(skb);
+
+	opt->hop = sizeof(struct ipv6hdr);
+	if (ip6_parse_tlv(tlvprochopopt_lst, skb)) {
+		skb->h.raw += (skb->h.raw[1]+1)<<3;
+		opt->nhoff = sizeof(struct ipv6hdr);
 		return sizeof(struct ipv6hdr);
+	}
 	return -1;
 }
 
@@ -579,6 +586,8 @@ ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
 	return opt2;
 }
 
+EXPORT_SYMBOL_GPL(ipv6_dup_options);
+
 static int ipv6_renew_option(void *ohdr,
 			     struct ipv6_opt_hdr __user *newopt, int newoptlen,
 			     int inherit,
@@ -628,6 +637,7 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 	if (!tot_len)
 		return NULL;
 
+	tot_len += sizeof(*opt2);
 	opt2 = sock_kmalloc(sk, tot_len, GFP_ATOMIC);
 	if (!opt2)
 		return ERR_PTR(-ENOBUFS);
@@ -668,7 +678,26 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 
 	return opt2;
 out:
-	sock_kfree_s(sk, p, tot_len);
+	sock_kfree_s(sk, opt2, opt2->tot_len);
 	return ERR_PTR(err);
+}
+
+struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
+					  struct ipv6_txoptions *opt)
+{
+	/*
+	 * ignore the dest before srcrt unless srcrt is being included.
+	 * --yoshfuji
+	 */
+	if (opt && opt->dst0opt && !opt->srcrt) {
+		if (opt_space != opt) {
+			memcpy(opt_space, opt, sizeof(*opt_space));
+			opt = opt_space;
+		}
+		opt->opt_nflen -= ipv6_optlen(opt->dst0opt);
+		opt->dst0opt = NULL;
+	}
+
+	return opt;
 }
 

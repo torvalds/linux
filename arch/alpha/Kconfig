@@ -18,9 +18,6 @@ config MMU
 	bool
 	default y
 
-config UID16
-	bool
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -39,6 +36,19 @@ config GENERIC_ISA_DMA
 config GENERIC_IOMAP
 	bool
 	default n
+
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+config AUTO_IRQ_AFFINITY
+	bool
+	depends on SMP
+	default y
 
 source "init/Kconfig"
 

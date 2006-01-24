@@ -657,9 +657,7 @@ static void pm3fb_set_disp(const void *par, struct display *disp,
 static void pm3fb_detect(void);
 static int pm3fb_pan_display(const struct fb_var_screeninfo *var,
 			     struct fb_info_gen *info);
-static int pm3fb_ioctl(struct inode *inode, struct file *file,
-                       u_int cmd, u_long arg, int con,
-		       struct fb_info *info);
+static int pm3fb_ioctl(struct fb_info *info, u_int cmd, u_long arg);
 
 
 /* the struct that hold them together */
@@ -3438,9 +3436,7 @@ static int pm3fb_pan_display(const struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static int pm3fb_ioctl(struct inode *inode, struct file *file,
-                       u_int cmd, u_long arg, int con,
-		       struct fb_info *info)
+static int pm3fb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 {
 	struct pm3fb_info *l_fb_info = (struct pm3fb_info *) info;
 	u32 cm, i;

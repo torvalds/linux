@@ -11,6 +11,19 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_ADS7846
+	tristate "ADS 7846 based touchscreens"
+	depends on SPI_MASTER
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  ADS7846 controller, and your board-specific initialization
+	  code includes that in its table of SPI devices.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ads7846.
+
 config TOUCHSCREEN_BITSY
 	tristate "Compaq iPAQ H3600 (Bitsy) touchscreen"
 	depends on SA1100_BITSY
@@ -85,7 +98,7 @@ config TOUCHSCREEN_MK712
 
 config TOUCHSCREEN_HP600
 	tristate "HP Jornada 680/690 touchscreen"
-	depends on SH_HP600 && SH_ADC
+	depends on SH_HP6XX && SH_ADC
 	help
 	  Say Y here if you have a HP Jornada 680 or 690 and want to
           support the built-in touchscreen.

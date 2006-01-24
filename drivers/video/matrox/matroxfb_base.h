@@ -50,8 +50,6 @@
 #include <asm/mtrr.h>
 #endif
 
-#include "../console/fbcon.h"
-
 #if defined(CONFIG_PPC_PMAC)
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
@@ -350,8 +348,6 @@ struct matrox_bios {
 		unsigned char state, tvout;
 		      } output;
 };
-
-extern struct display fb_display[];
 
 struct matrox_switch;
 struct matroxfb_driver;

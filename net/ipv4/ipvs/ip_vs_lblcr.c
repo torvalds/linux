@@ -39,8 +39,10 @@
  *
  */
 
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/skbuff.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -412,33 +414,6 @@ ip_vs_lblcr_hash(struct ip_vs_lblcr_table *tbl, struct ip_vs_lblcr_entry *en)
 
 	return 1;
 }
-
-
-#if 0000
-/*
- *	Unhash ip_vs_lblcr_entry from ip_vs_lblcr_table.
- *	returns bool success.
- */
-static int ip_vs_lblcr_unhash(struct ip_vs_lblcr_table *tbl,
-			     struct ip_vs_lblcr_entry *en)
-{
-	if (list_empty(&en->list)) {
-		IP_VS_ERR("ip_vs_lblcr_unhash(): request for not hashed entry, "
-			  "called from %p\n", __builtin_return_address(0));
-		return 0;
-	}
-
-	/*
-	 * Remove it from the table
-	 */
-	write_lock(&tbl->lock);
-	list_del(&en->list);
-	INIT_LIST_HEAD(&en->list);
-	write_unlock(&tbl->lock);
-
-	return 1;
-}
-#endif
 
 
 /*

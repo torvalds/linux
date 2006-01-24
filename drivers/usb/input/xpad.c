@@ -70,7 +70,7 @@
 
 #define XPAD_PKT_LEN 32
 
-static struct xpad_device {
+static const struct xpad_device {
 	u16 idVendor;
 	u16 idProduct;
 	char *name;
@@ -81,13 +81,13 @@ static struct xpad_device {
 	{ 0x0000, 0x0000, "X-Box pad" }
 };
 
-static signed short xpad_btn[] = {
+static const signed short xpad_btn[] = {
 	BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z,	/* "analog" buttons */
 	BTN_START, BTN_BACK, BTN_THUMBL, BTN_THUMBR,	/* start/back/sticks */
 	-1						/* terminating entry */
 };
 
-static signed short xpad_abs[] = {
+static const signed short xpad_abs[] = {
 	ABS_X, ABS_Y,		/* left stick */
 	ABS_RX, ABS_RY,		/* right stick */
 	ABS_Z, ABS_RZ,		/* triggers left/right */
@@ -316,7 +316,6 @@ static void xpad_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver xpad_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "xpad",
 	.probe		= xpad_probe,
 	.disconnect	= xpad_disconnect,

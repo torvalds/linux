@@ -323,6 +323,7 @@ work_notifysig:				# deal with pending signals and
 
 	ALIGN
 work_notifysig_v86:
+#ifdef CONFIG_VM86
 	pushl %ecx			# save ti_flags for do_notify_resume
 	call save_v86_state		# %eax contains pt_regs pointer
 	popl %ecx
@@ -330,6 +331,7 @@ work_notifysig_v86:
 	xorl %edx, %edx
 	call do_notify_resume
 	jmp resume_userspace
+#endif
 
 	# perform syscall exit tracing
 	ALIGN
@@ -560,11 +562,10 @@ nmi_stack_fixup:
 nmi_debug_stack_check:
 	cmpw $__KERNEL_CS,16(%esp)
 	jne nmi_stack_correct
-	cmpl $debug - 1,(%esp)
-	jle nmi_stack_correct
+	cmpl $debug,(%esp)
+	jb nmi_stack_correct
 	cmpl $debug_esp_fix_insn,(%esp)
-	jle nmi_debug_stack_fixup
-nmi_debug_stack_fixup:
+	ja nmi_stack_correct
 	FIX_STACK(24,nmi_stack_correct, 1)
 	jmp nmi_stack_correct
 
@@ -658,6 +659,7 @@ ENTRY(spurious_interrupt_bug)
 	pushl $do_spurious_interrupt_bug
 	jmp error_code
 
+.section .rodata,"a"
 #include "syscall_table.S"
 
 syscall_table_size=(.-sys_call_table)

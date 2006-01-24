@@ -542,11 +542,11 @@ static struct usb_device_id ipaq_id_table [] = {
 MODULE_DEVICE_TABLE (usb, ipaq_id_table);
 
 static struct usb_driver ipaq_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ipaq",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	ipaq_id_table,
+	.no_dynamic_id = 	1,
 };
 
 
@@ -711,7 +711,7 @@ static void ipaq_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	struct usb_serial_port	*port = (struct usb_serial_port *)urb->context;
 	struct tty_struct	*tty;
 	unsigned char		*data = urb->transfer_buffer;
-	int			i, result;
+	int			result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -724,14 +724,8 @@ static void ipaq_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		for (i = 0; i < urb->actual_length ; ++i) {
-			/* if we insert more than TTY_FLIPBUF_SIZE characters, we drop them. */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
-			/* this doesn't actually push the data through unless tty->low_latency is set */
-			tty_insert_flip_char(tty, data[i], 0);
-		}
+		tty_buffer_request_room(tty, urb->actual_length);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 		bytes_in += urb->actual_length;
 	}

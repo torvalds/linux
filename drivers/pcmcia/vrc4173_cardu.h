@@ -5,7 +5,7 @@
  * BRIEF MODULE DESCRIPTION
  *	Include file for NEC VRC4173 CARDU.
  *
- * Copyright 2002 Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ * Copyright 2002 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the

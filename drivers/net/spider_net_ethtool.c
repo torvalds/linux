@@ -113,6 +113,23 @@ spider_net_ethtool_set_rx_csum(struct net_device *netdev, u32 n)
 	return 0;
 }
 
+static uint32_t
+spider_net_ethtool_get_tx_csum(struct net_device *netdev)
+{
+        return (netdev->features & NETIF_F_HW_CSUM) != 0;
+}
+
+static int
+spider_net_ethtool_set_tx_csum(struct net_device *netdev, uint32_t data)
+{
+        if (data)
+                netdev->features |= NETIF_F_HW_CSUM;
+        else
+                netdev->features &= ~NETIF_F_HW_CSUM;
+
+        return 0;
+}
+
 struct ethtool_ops spider_net_ethtool_ops = {
 	.get_settings		= spider_net_ethtool_get_settings,
 	.get_drvinfo		= spider_net_ethtool_get_drvinfo,
@@ -122,5 +139,7 @@ struct ethtool_ops spider_net_ethtool_ops = {
 	.nway_reset		= spider_net_ethtool_nway_reset,
 	.get_rx_csum		= spider_net_ethtool_get_rx_csum,
 	.set_rx_csum		= spider_net_ethtool_set_rx_csum,
+	.get_tx_csum		= spider_net_ethtool_get_tx_csum,
+	.set_tx_csum		= spider_net_ethtool_set_tx_csum,
 };
 

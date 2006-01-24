@@ -20,6 +20,12 @@ DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 #                        +--> DIR=file  (htmldocs)
 #                        +--> man/      (mandocs)
 
+
+# for PDF and PS output you can choose between xmlto and docbook-utils tools
+PDF_METHOD	= $(prefer-db2x)
+PS_METHOD	= $(prefer-db2x)
+
+
 ###
 # The targets that may be used.
 .PHONY:	xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs
@@ -93,27 +99,39 @@ C-procfs-example = procfs_example.xml
 C-procfs-example2 = $(addprefix $(obj)/,$(C-procfs-example))
 $(obj)/procfs-guide.xml: $(C-procfs-example2)
 
-###
-# Rules to generate postscript, PDF and HTML
-# db2html creates a directory. Generate a html file used for timestamp
+notfoundtemplate = echo "*** You have to install docbook-utils or xmlto ***"; \
+		   exit 1
+db2xtemplate = db2TYPE -o $(dir $@) $<
+xmltotemplate = xmlto TYPE $(XMLTOFLAGS) -o $(dir $@) $<
 
-quiet_cmd_db2ps = XMLTO    $@
-      cmd_db2ps = xmlto ps $(XMLTOFLAGS) -o $(dir $@) $<
+# determine which methods are available
+ifeq ($(shell which db2ps >/dev/null 2>&1 && echo found),found)
+	use-db2x = db2x
+	prefer-db2x = db2x
+else
+	use-db2x = notfound
+	prefer-db2x = $(use-xmlto)
+endif
+ifeq ($(shell which xmlto >/dev/null 2>&1 && echo found),found)
+	use-xmlto = xmlto
+	prefer-xmlto = xmlto
+else
+	use-xmlto = notfound
+	prefer-xmlto = $(use-db2x)
+endif
+
+# the commands, generated from the chosen template
+quiet_cmd_db2ps = PS      $@
+      cmd_db2ps = $(subst TYPE,ps, $($(PS_METHOD)template))
 %.ps : %.xml
-	@(which xmlto > /dev/null 2>&1) || \
-	 (echo "*** You need to install xmlto ***"; \
-	  exit 1)
 	$(call cmd,db2ps)
 
-quiet_cmd_db2pdf = XMLTO   $@
-      cmd_db2pdf = xmlto pdf $(XMLTOFLAGS) -o $(dir $@) $<
+quiet_cmd_db2pdf = PDF      $@
+      cmd_db2pdf = $(subst TYPE,pdf, $($(PDF_METHOD)template))
 %.pdf : %.xml
-	@(which xmlto > /dev/null 2>&1) || \
-	 (echo "*** You need to install xmlto ***"; \
-	  exit 1)
 	$(call cmd,db2pdf)
 
-quiet_cmd_db2html = XMLTO  $@
+quiet_cmd_db2html = HTML   $@
       cmd_db2html = xmlto xhtml $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
 		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/index.html"> \
          Goto $(patsubst %.html,%,$(notdir $@))</a><p>' > $@
@@ -127,7 +145,7 @@ quiet_cmd_db2html = XMLTO  $@
 	@if [ ! -z "$(PNG-$(basename $(notdir $@)))" ]; then \
             cp $(PNG-$(basename $(notdir $@))) $(patsubst %.html,%,$@); fi
 
-quiet_cmd_db2man = XMLTO   $@
+quiet_cmd_db2man = MAN     $@
       cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; gzip -f $(obj)/man/*.9; fi
 %.9 : %.xml
 	@(which xmlto > /dev/null 2>&1) || \

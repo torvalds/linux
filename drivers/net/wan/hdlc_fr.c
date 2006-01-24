@@ -545,8 +545,10 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 
 	hdlc->state.fr.reliable = reliable;
 	if (reliable) {
+#if 0
 		if (!netif_carrier_ok(dev))
 			netif_carrier_on(dev);
+#endif
 
 		hdlc->state.fr.n391cnt = 0; /* Request full status */
 		hdlc->state.fr.dce_changed = 1;
@@ -560,8 +562,10 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 			}
 		}
 	} else {
+#if 0
 		if (netif_carrier_ok(dev))
 			netif_carrier_off(dev);
+#endif
 
 		while (pvc) {		/* Deactivate all PVCs */
 			pvc_carrier(0, pvc);

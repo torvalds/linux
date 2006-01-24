@@ -1416,7 +1416,6 @@ execve_merge:
 	 add		%sp, PTREGS_OFF, %o0
 
 	.globl	sys_pipe, sys_sigpause, sys_nis_syscall
-	.globl	sys_sigsuspend, sys_rt_sigsuspend
 	.globl	sys_rt_sigreturn
 	.globl	sys_ptrace
 	.globl	sys_sigaltstack
@@ -1440,28 +1439,6 @@ sys32_sigaltstack:
 		 mov		%i6, %o2
 #endif
 		.align		32
-sys_sigsuspend:	add		%sp, PTREGS_OFF, %o0
-		call		do_sigsuspend
-		 add		%o7, 1f-.-4, %o7
-		nop
-sys_rt_sigsuspend: /* NOTE: %o0,%o1 have a correct value already */
-		add		%sp, PTREGS_OFF, %o2
-		call		do_rt_sigsuspend
-		 add		%o7, 1f-.-4, %o7
-		nop
-#ifdef CONFIG_COMPAT
-	.globl	sys32_rt_sigsuspend
-sys32_rt_sigsuspend: /* NOTE: %o0,%o1 have a correct value already */
-		srl		%o0, 0, %o0
-		add		%sp, PTREGS_OFF, %o2
-		call		do_rt_sigsuspend32
-		 add		%o7, 1f-.-4, %o7
-#endif
-		/* NOTE: %o0 has a correct value already */
-sys_sigpause:	add		%sp, PTREGS_OFF, %o1
-		call		do_sigpause
-		 add		%o7, 1f-.-4, %o7
-		nop
 #ifdef CONFIG_COMPAT
 	.globl	sys32_sigreturn
 sys32_sigreturn:
@@ -1657,13 +1634,10 @@ ret_sys_call:
 	/* Check if force_successful_syscall_return()
 	 * was invoked.
 	 */
-	ldub		[%curptr + TI_SYS_NOERROR], %l0
-	brz,pt		%l0, 1f
-	 nop
-	ba,pt		%xcc, 80f
+	ldub            [%curptr + TI_SYS_NOERROR], %l2
+	brnz,a,pn       %l2, 80f
 	 stb		%g0, [%curptr + TI_SYS_NOERROR]
 
-1:
 	cmp		%o0, -ERESTART_RESTARTBLOCK
 	bgeu,pn		%xcc, 1f
 	 andcc		%l0, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %l6

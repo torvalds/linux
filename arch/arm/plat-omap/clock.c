@@ -19,35 +19,36 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include <linux/clk.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/clock.h>
 
 LIST_HEAD(clocks);
-static DECLARE_MUTEX(clocks_sem);
+static DEFINE_MUTEX(clocks_mutex);
 DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
 
 /*-------------------------------------------------------------------------
- * Standard clock functions defined in asm/hardware/clock.h
+ * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
 struct clk * clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {
 		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
 	}
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return clk;
 }
@@ -59,12 +60,8 @@ int clk_enable(struct clk *clk)
 	int ret = 0;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (clk->enable)
-		ret = clk->enable(clk);
-	else if (arch_clock->clk_enable)
+	if (arch_clock->clk_enable)
 		ret = arch_clock->clk_enable(clk);
-	else
-		printk(KERN_ERR "Could not enable clock %s\n", clk->name);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return ret;
@@ -76,40 +73,11 @@ void clk_disable(struct clk *clk)
 	unsigned long flags;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	if (clk->disable)
-		clk->disable(clk);
-	else if (arch_clock->clk_disable)
+	if (arch_clock->clk_disable)
 		arch_clock->clk_disable(clk);
-	else
-		printk(KERN_ERR "Could not disable clock %s\n", clk->name);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
-
-int clk_use(struct clk *clk)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_use)
-		ret = arch_clock->clk_use(clk);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL(clk_use);
-
-void clk_unuse(struct clk *clk)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_unuse)
-		arch_clock->clk_unuse(clk);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-}
-EXPORT_SYMBOL(clk_unuse);
 
 int clk_get_usecount(struct clk *clk)
 {
@@ -145,7 +113,7 @@ void clk_put(struct clk *clk)
 EXPORT_SYMBOL(clk_put);
 
 /*-------------------------------------------------------------------------
- * Optional clock functions defined in asm/hardware/clock.h
+ * Optional clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
@@ -249,11 +217,11 @@ void propagate_rate(struct clk * tclk)
 
 int clk_register(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_add(&clk->node, &clocks);
 	if (clk->init)
 		clk->init(clk);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 
 	return 0;
 }
@@ -261,9 +229,9 @@ EXPORT_SYMBOL(clk_register);
 
 void clk_unregister(struct clk *clk)
 {
-	down(&clocks_sem);
+	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
-	up(&clocks_sem);
+	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
 

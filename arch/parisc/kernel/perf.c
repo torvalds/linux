@@ -42,6 +42,7 @@
  *  on every box. 
  */
 
+#include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
@@ -66,10 +67,10 @@ struct rdr_tbl_ent {
 	uint8_t		write_control;
 };
 
-static int perf_processor_interface = UNKNOWN_INTF;
-static int perf_enabled = 0;
+static int perf_processor_interface __read_mostly = UNKNOWN_INTF;
+static int perf_enabled __read_mostly = 0;
 static spinlock_t perf_lock;
-struct parisc_device *cpu_device = NULL;
+struct parisc_device *cpu_device __read_mostly = NULL;
 
 /* RDRs to write for PCX-W */
 static int perf_rdrs_W[] = 
@@ -196,8 +197,7 @@ static int perf_open(struct inode *inode, struct file *file);
 static ssize_t perf_read(struct file *file, char __user *buf, size_t cnt, loff_t *ppos);
 static ssize_t perf_write(struct file *file, const char __user *buf, size_t count, 
 	loff_t *ppos);
-static int perf_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	unsigned long arg);
+static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static void perf_start_counters(void);
 static int perf_stop_counters(uint32_t *raddr);
 static struct rdr_tbl_ent * perf_rdr_get_entry(uint32_t rdr_num);
@@ -438,48 +438,56 @@ static void perf_patch_images(void)
  * must be running on the processor that you wish to change.
  */
 
-static int perf_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	unsigned long arg)
+static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long error_start;
-	uint32_t raddr[4];	
+	uint32_t raddr[4];
+	int error = 0;
 
+	lock_kernel();
 	switch (cmd) {
 
 	    case PA_PERF_ON:
 			/* Start the counters */
 			perf_start_counters();
-			return 0;
+			break;
 
 	    case PA_PERF_OFF:
 			error_start = perf_stop_counters(raddr);
 			if (error_start != 0) {
 				printk(KERN_ERR "perf_off: perf_stop_counters = %ld\n", error_start);
-				return -EFAULT;	
+				error = -EFAULT;
+				break;
 			}
 
 			/* copy out the Counters */
 			if (copy_to_user((void __user *)arg, raddr, 
 					sizeof (raddr)) != 0) {
-				return -EFAULT;
+				error =  -EFAULT;
+				break;
 			}
-			return 0;
+			break;
 
 	    case PA_PERF_VERSION:
   	  		/* Return the version # */
-			return put_user(PERF_VERSION, (int *)arg);
+			error = put_user(PERF_VERSION, (int *)arg);
+			break;
 
 	    default:
-  	 		break;
+  	 		error = -ENOTTY;
 	}
-	return -ENOTTY;
+
+	unlock_kernel();
+
+	return error;
 }
 
 static struct file_operations perf_fops = {
 	.llseek = no_llseek,
 	.read = perf_read,
 	.write = perf_write,
-	.ioctl = perf_ioctl,
+	.unlocked_ioctl = perf_ioctl,
+	.compat_ioctl = perf_ioctl,
 	.open = perf_open,
 	.release = perf_release
 };

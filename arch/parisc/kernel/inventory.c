@@ -38,7 +38,7 @@
 */
 #undef DEBUG_PAT
 
-int pdc_type = PDC_TYPE_ILLEGAL;
+int pdc_type __read_mostly = PDC_TYPE_ILLEGAL;
 
 void __init setup_pdc(void)
 {
@@ -120,8 +120,8 @@ set_pmem_entry(physmem_range_t *pmem_ptr, unsigned long start,
 	 * pdc info is bad in this case).
 	 */
 
-	if (   ((start & (PAGE_SIZE - 1)) != 0)
-	    || ((pages4k & ((1UL << PDC_PAGE_ADJ_SHIFT) - 1)) != 0) ) {
+	if (unlikely( ((start & (PAGE_SIZE - 1)) != 0)
+	    || ((pages4k & ((1UL << PDC_PAGE_ADJ_SHIFT) - 1)) != 0) )) {
 
 		panic("Memory range doesn't align with page size!\n");
 	}
@@ -188,7 +188,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	temp = pa_pdc_cell.cba;
 	dev = alloc_pa_dev(PAT_GET_CBA(temp), &pa_pdc_cell.mod_path);
 	if (!dev) {
-		return PDC_NE_MOD;
+		return PDC_OK;
 	}
 
 	/* alloc_pa_dev sets dev->hpa */

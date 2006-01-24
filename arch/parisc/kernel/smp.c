@@ -39,7 +39,7 @@
 #include <asm/atomic.h>
 #include <asm/current.h>
 #include <asm/delay.h>
-#include <asm/pgalloc.h>	/* for flush_tlb_all() proto/macro */
+#include <asm/tlbflush.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>		/* for CPU_IRQ_REGION and friends */
@@ -58,9 +58,9 @@ DEFINE_SPINLOCK(smp_lock);
 
 volatile struct task_struct *smp_init_current_idle_task;
 
-static volatile int cpu_now_booting = 0;	/* track which CPU is booting */
+static volatile int cpu_now_booting __read_mostly = 0;	/* track which CPU is booting */
 
-static int parisc_max_cpus = 1;
+static int parisc_max_cpus __read_mostly = 1;
 
 /* online cpus are ones that we've managed to bring up completely
  * possible cpus are all valid cpu 
@@ -71,8 +71,8 @@ static int parisc_max_cpus = 1;
  * empty in the beginning.
  */
 
-cpumask_t cpu_online_map = CPU_MASK_NONE;	/* Bitmap of online CPUs */
-cpumask_t cpu_possible_map = CPU_MASK_ALL;	/* Bitmap of Present CPUs */
+cpumask_t cpu_online_map   __read_mostly = CPU_MASK_NONE;	/* Bitmap of online CPUs */
+cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;	/* Bitmap of Present CPUs */
 
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
@@ -181,12 +181,19 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		while (ops) {
 			unsigned long which = ffz(~ops);
 
+			ops &= ~(1 << which);
+
 			switch (which) {
+			case IPI_NOP:
+#if (kDEBUG>=100)
+				printk(KERN_DEBUG "CPU%d IPI_NOP\n",this_cpu);
+#endif /* kDEBUG */
+				break;
+				
 			case IPI_RESCHEDULE:
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_RESCHEDULE\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_RESCHEDULE);
 				/*
 				 * Reschedule callback.  Everything to be
 				 * done is done by the interrupt return path.
@@ -197,7 +204,6 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_CALL_FUNC\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CALL_FUNC);
 				{
 					volatile struct smp_call_struct *data;
 					void (*func)(void *info);
@@ -231,7 +237,6 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_CPU_START\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CPU_START);
 #ifdef ENTRY_SYS_CPUS
 				p->state = STATE_RUNNING;
 #endif
@@ -241,7 +246,6 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_CPU_STOP\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CPU_STOP);
 #ifdef ENTRY_SYS_CPUS
 #else
 				halt_processor();
@@ -252,13 +256,11 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d is alive!\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CPU_TEST);
 				break;
 
 			default:
 				printk(KERN_CRIT "Unknown IPI num on CPU%d: %lu\n",
 					this_cpu, which);
-				ops &= ~(1 << which);
 				return IRQ_NONE;
 			} /* Switch */
 		} /* while (ops) */
@@ -312,6 +314,12 @@ smp_send_start(void)	{ send_IPI_allbutself(IPI_CPU_START); }
 void 
 smp_send_reschedule(int cpu) { send_IPI_single(cpu, IPI_RESCHEDULE); }
 
+void
+smp_send_all_nop(void)
+{
+	send_IPI_allbutself(IPI_NOP);
+}
+
 
 /**
  * Run a function on all other CPUs.
@@ -338,6 +346,10 @@ smp_call_function (void (*func) (void *info), void *info, int retry, int wait)
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
+
+	/* can also deadlock if IPIs are disabled */
+	WARN_ON((get_eiem() & (1UL<<(CPU_IRQ_MAX - IPI_IRQ))) == 0);
+
 	
 	data.func = func;
 	data.info = info;
@@ -394,12 +406,10 @@ EXPORT_SYMBOL(smp_call_function);
  * as we want to ensure all TLB's flushed before proceeding.
  */
 
-extern void flush_tlb_all_local(void);
-
 void
 smp_flush_tlb_all(void)
 {
-	on_each_cpu((void (*)(void *))flush_tlb_all_local, NULL, 1, 1);
+	on_each_cpu(flush_tlb_all_local, NULL, 1, 1);
 }
 
 
@@ -475,7 +485,7 @@ void __init smp_callin(void)
 #endif
 
 	flush_cache_all_local(); /* start with known state */
-	flush_tlb_all_local();
+	flush_tlb_all_local(NULL);
 
 	local_irq_enable();  /* Interrupts have been off until now */
 
@@ -507,7 +517,7 @@ int __init smp_boot_one_cpu(int cpuid)
 	if (IS_ERR(idle))
 		panic("SMP: fork failed for CPU:%d", cpuid);
 
-	idle->thread_info->cpu = cpuid;
+	task_thread_info(idle)->cpu = cpuid;
 
 	/* Let _start know what logical CPU we're booting
 	** (offset into init_tasks[],cpu_data[])

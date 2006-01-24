@@ -543,6 +543,8 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	return_VALUE(0);
 }
 
+static void *processor_device_array[NR_CPUS];
+
 static int acpi_processor_start(struct acpi_device *device)
 {
 	int result = 0;
@@ -560,6 +562,19 @@ static int acpi_processor_start(struct acpi_device *device)
 	}
 
 	BUG_ON((pr->id >= NR_CPUS) || (pr->id < 0));
+
+	/*
+	 * Buggy BIOS check
+	 * ACPI id of processors can be reported wrongly by the BIOS.
+	 * Don't trust it blindly
+	 */
+	if (processor_device_array[pr->id] != NULL &&
+	    processor_device_array[pr->id] != (void *)device) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "BIOS reporting wrong ACPI id"
+			"for the processor\n"));
+		return_VALUE(-ENODEV);
+	}
+	processor_device_array[pr->id] = (void *)device;
 
 	processors[pr->id] = pr;
 
@@ -733,7 +748,7 @@ int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
 		return_VALUE(-ENODEV);
 
 	if ((pr->id >= 0) && (pr->id < NR_CPUS)) {
-		kobject_hotplug(&(*device)->kobj, KOBJ_ONLINE);
+		kobject_uevent(&(*device)->kobj, KOBJ_ONLINE);
 	}
 	return_VALUE(0);
 }
@@ -773,13 +788,13 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		}
 
 		if (pr->id >= 0 && (pr->id < NR_CPUS)) {
-			kobject_hotplug(&device->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&device->kobj, KOBJ_OFFLINE);
 			break;
 		}
 
 		result = acpi_processor_start(device);
 		if ((!result) && ((pr->id >= 0) && (pr->id < NR_CPUS))) {
-			kobject_hotplug(&device->kobj, KOBJ_ONLINE);
+			kobject_uevent(&device->kobj, KOBJ_ONLINE);
 		} else {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					  "Device [%s] failed to start\n",
@@ -803,7 +818,7 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		}
 
 		if ((pr->id < NR_CPUS) && (cpu_present(pr->id)))
-			kobject_hotplug(&device->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&device->kobj, KOBJ_OFFLINE);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,

@@ -286,7 +286,7 @@ static void __init do_boot_cpu(int phys_id)
 	/* So we see what's up   */
 	printk("Booting processor %d/%d\n", phys_id, cpu_id);
 	stack_start.spi = (void *)idle->thread.sp;
-	idle->thread_info->cpu = cpu_id;
+	task_thread_info(idle)->cpu = cpu_id;
 
 	/*
 	 * Send Startup IPI

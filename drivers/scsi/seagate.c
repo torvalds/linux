@@ -418,7 +418,7 @@ static inline void borken_wait (void)
 #define ULOOP( i ) for (clock = i*8;;)
 #define TIMEOUT (!(clock--))
 
-int __init seagate_st0x_detect (Scsi_Host_Template * tpnt)
+int __init seagate_st0x_detect (struct scsi_host_template * tpnt)
 {
 	struct Scsi_Host *instance;
 	int i, j;
@@ -1649,7 +1649,7 @@ static int seagate_st0x_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.detect         	= seagate_st0x_detect,
 	.release        	= seagate_st0x_release,
 	.info           	= seagate_st0x_info,

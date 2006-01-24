@@ -18,9 +18,6 @@
 #error "Do not include this directly, instead #include <asm/hardware.h>"
 #endif
 
-#define NSLU2_FLASH_BASE	IXP4XX_EXP_BUS_CS0_BASE_PHYS
-#define NSLU2_FLASH_SIZE	IXP4XX_EXP_BUS_CSX_REGION_SIZE
-
 #define NSLU2_SDA_PIN		7
 #define NSLU2_SCL_PIN		6
 

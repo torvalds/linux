@@ -497,8 +497,6 @@ _sys32_sigreturn(nabi_no_regargs struct pt_regs regs)
 	/*
 	 * Don't let your children do this ...
 	 */
-	if (current_thread_info()->flags & TIF_SYSCALL_TRACE)
-		do_syscall_trace(&regs, 1);
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
@@ -590,7 +588,7 @@ static inline int setup_sigcontext32(struct pt_regs *regs,
 	err |= __put_user(regs->hi, &sc->sc_mdhi);
 	err |= __put_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
-		err |= __put_user(rddsp(DSP_MASK), &sc->sc_hi1);
+		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 		err |= __put_user(mfhi1(), &sc->sc_hi1);
 		err |= __put_user(mflo1(), &sc->sc_lo1);
 		err |= __put_user(mfhi2(), &sc->sc_hi2);

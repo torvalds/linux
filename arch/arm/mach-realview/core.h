@@ -22,11 +22,10 @@
 #ifndef __ASM_ARCH_REALVIEW_H
 #define __ASM_ARCH_REALVIEW_H
 
-#include <asm/hardware/amba.h>
+#include <linux/amba/bus.h>
+
 #include <asm/leds.h>
 #include <asm/io.h>
-
-#define __io_address(n)		__io(IO_ADDRESS(n))
 
 extern struct sys_timer realview_timer;
 

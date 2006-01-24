@@ -1,3 +1,6 @@
+#ifndef _ASM_POWERPC_OHARE_H
+#define _ASM_POWERPC_OHARE_H
+#ifdef __KERNEL__
 /*
  * ohare.h: definitions for using the "O'Hare" I/O controller chip.
  *
@@ -46,3 +49,6 @@
  * Contributed by Harry Eaton.
  */
 #define STARMAX_FEATURES	0xbeff7a
+
+#endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_OHARE_H */

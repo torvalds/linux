@@ -61,11 +61,6 @@ static __inline__ int irq_canonicalize(int irq)
 
 extern void enable_irq(unsigned int);
 extern void disable_irq(unsigned int);
-
-/*
- * Some drivers want these entry points
- */
-#define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
 
 struct irqaction;

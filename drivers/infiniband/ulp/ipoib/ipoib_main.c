@@ -47,6 +47,8 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 
+#include <net/dst.h>
+
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -94,14 +96,16 @@ int ipoib_open(struct net_device *dev)
 	if (ipoib_ib_dev_open(dev))
 		return -EINVAL;
 
-	if (ipoib_ib_dev_up(dev))
+	if (ipoib_ib_dev_up(dev)) {
+		ipoib_ib_dev_stop(dev);
 		return -EINVAL;
+	}
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring up any child interfaces too */
-		down(&priv->vlan_mutex);
+		mutex_lock(&priv->vlan_mutex);
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
@@ -111,7 +115,7 @@ int ipoib_open(struct net_device *dev)
 
 			dev_change_flags(cpriv->dev, flags | IFF_UP);
 		}
-		up(&priv->vlan_mutex);
+		mutex_unlock(&priv->vlan_mutex);
 	}
 
 	netif_start_queue(dev);
@@ -136,7 +140,7 @@ static int ipoib_stop(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring down any child interfaces too */
-		down(&priv->vlan_mutex);
+		mutex_lock(&priv->vlan_mutex);
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
@@ -146,7 +150,7 @@ static int ipoib_stop(struct net_device *dev)
 
 			dev_change_flags(cpriv->dev, flags & ~IFF_UP);
 		}
-		up(&priv->vlan_mutex);
+		mutex_unlock(&priv->vlan_mutex);
 	}
 
 	return 0;
@@ -398,9 +402,9 @@ static void path_rec_completion(int status,
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
 		}
-	} else
-		path->query = NULL;
+	}
 
+	path->query = NULL;
 	complete(&path->done);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -428,7 +432,6 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
-	init_completion(&path->done);
 
 	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
 	path->pathrec.sgid      = priv->local_gid;
@@ -445,6 +448,8 @@ static int path_rec_start(struct net_device *dev,
 
 	ipoib_dbg(priv, "Start path record lookup for " IPOIB_GID_FMT "\n",
 		  IPOIB_GID_ARG(path->pathrec.dgid));
+
+	init_completion(&path->done);
 
 	path->query_id =
 		ib_sa_path_rec_get(priv->ca, priv->port,
@@ -887,8 +892,8 @@ static void ipoib_setup(struct net_device *dev)
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->tx_lock);
 
-	init_MUTEX(&priv->mcast_mutex);
-	init_MUTEX(&priv->vlan_mutex);
+	mutex_init(&priv->mcast_mutex);
+	mutex_init(&priv->vlan_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);

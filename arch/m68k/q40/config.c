@@ -36,8 +36,6 @@
 #include <asm/machdep.h>
 #include <asm/q40_master.h>
 
-extern void floppy_setup(char *str, int *ints);
-
 extern irqreturn_t q40_process_int (int level, struct pt_regs *regs);
 extern irqreturn_t (*q40_default_handler[]) (int, void *, struct pt_regs *);  /* added just for debugging */
 extern void q40_init_IRQ (void);
@@ -194,9 +192,6 @@ void __init config_q40(void)
     mach_heartbeat = q40_heartbeat;
 #endif
     mach_halt = q40_halt;
-#ifdef CONFIG_DUMMY_CONSOLE
-    conswitchp = &dummy_con;
-#endif
 
     /* disable a few things that SMSQ might have left enabled */
     q40_disable_irqs();

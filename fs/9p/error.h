@@ -36,6 +36,7 @@ struct errormap {
 	char *name;
 	int val;
 
+	int namelen;
 	struct hlist_node list;
 };
 
@@ -175,4 +176,3 @@ static struct errormap errmap[] = {
 };
 
 extern int v9fs_error_init(void);
-extern int v9fs_errstr2errno(char *errstr);

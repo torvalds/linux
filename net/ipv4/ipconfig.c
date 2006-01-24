@@ -42,6 +42,7 @@
 #include <linux/in.h>
 #include <linux/if.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
@@ -58,6 +59,7 @@
 #include <net/arp.h>
 #include <net/ip.h>
 #include <net/ipconfig.h>
+#include <net/route.h>
 
 #include <asm/uaccess.h>
 #include <net/checksum.h>

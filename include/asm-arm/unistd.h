@@ -15,10 +15,12 @@
 
 #include <linux/linkage.h>
 
-#if defined(__thumb__)
+#define __NR_OABI_SYSCALL_BASE	0x900000
+
+#if defined(__thumb__) || defined(__ARM_EABI__)
 #define __NR_SYSCALL_BASE	0
 #else
-#define __NR_SYSCALL_BASE	0x900000
+#define __NR_SYSCALL_BASE	__NR_OABI_SYSCALL_BASE
 #endif
 
 /*
@@ -373,13 +375,13 @@
 #define __sys1(x) __sys2(x)
 
 #ifndef __syscall
-#if defined(__thumb__)
-#define __syscall(name)					\
-	"push	{r7}\n\t"				\
-	"mov	r7, #" __sys1(__NR_##name) "\n\t"	\
-	"swi	0\n\t"					\
-	"pop	{r7}"
+#if defined(__thumb__) || defined(__ARM_EABI__)
+#define __SYS_REG(name) register long __sysreg __asm__("r7") = __NR_##name;
+#define __SYS_REG_LIST(regs...) "r" (__sysreg) , ##regs
+#define __syscall(name) "swi\t0"
 #else
+#define __SYS_REG(name)
+#define __SYS_REG_LIST(regs...) regs
 #define __syscall(name) "swi\t" __sys1(__NR_##name) ""
 #endif
 #endif
@@ -395,33 +397,34 @@ do {									\
 
 #define _syscall0(type,name)						\
 type name(void) {							\
+  __SYS_REG(name)							\
   register long __res_r0 __asm__("r0");					\
   long __res;								\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	:								\
-	: "lr");							\
+	: __SYS_REG_LIST() );						\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
 
 #define _syscall1(type,name,type1,arg1) 				\
 type name(type1 arg1) { 						\
+  __SYS_REG(name)							\
   register long __r0 __asm__("r0") = (long)arg1;			\
   register long __res_r0 __asm__("r0");					\
   long __res;								\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: "r" (__r0)							\
-	: "lr");							\
+	: __SYS_REG_LIST( "0" (__r0) ) );				\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
 
 #define _syscall2(type,name,type1,arg1,type2,arg2)			\
 type name(type1 arg1,type2 arg2) {					\
+  __SYS_REG(name)							\
   register long __r0 __asm__("r0") = (long)arg1;			\
   register long __r1 __asm__("r1") = (long)arg2;			\
   register long __res_r0 __asm__("r0");					\
@@ -429,8 +432,7 @@ type name(type1 arg1,type2 arg2) {					\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: "r" (__r0),"r" (__r1) 					\
-	: "lr");							\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1) ) );			\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -438,6 +440,7 @@ type name(type1 arg1,type2 arg2) {					\
 
 #define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3)		\
 type name(type1 arg1,type2 arg2,type3 arg3) {				\
+  __SYS_REG(name)							\
   register long __r0 __asm__("r0") = (long)arg1;			\
   register long __r1 __asm__("r1") = (long)arg2;			\
   register long __r2 __asm__("r2") = (long)arg3;			\
@@ -446,8 +449,7 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: "r" (__r0),"r" (__r1),"r" (__r2)				\
-	: "lr");							\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2) ) );	\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -455,6 +457,7 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
 
 #define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4)\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
+  __SYS_REG(name)							\
   register long __r0 __asm__("r0") = (long)arg1;			\
   register long __r1 __asm__("r1") = (long)arg2;			\
   register long __r2 __asm__("r2") = (long)arg3;			\
@@ -464,8 +467,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: "r" (__r0),"r" (__r1),"r" (__r2),"r" (__r3)			\
-	: "lr");							\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2), "r" (__r3) ) ); \
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -473,6 +475,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 
 #define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5)	\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
+  __SYS_REG(name)							\
   register long __r0 __asm__("r0") = (long)arg1;			\
   register long __r1 __asm__("r1") = (long)arg2;			\
   register long __r2 __asm__("r2") = (long)arg3;			\
@@ -483,14 +486,15 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: "r" (__r0),"r" (__r1),"r" (__r2),"r" (__r3),"r" (__r4)	\
-	: "lr");							\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2),		\
+			  "r" (__r3), "r" (__r4) ) );			\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
 
 #define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5,type6,arg6)	\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6) {	\
+  __SYS_REG(name)							\
   register long __r0 __asm__("r0") = (long)arg1;			\
   register long __r1 __asm__("r1") = (long)arg2;			\
   register long __r2 __asm__("r2") = (long)arg3;			\
@@ -502,30 +506,33 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: "r" (__r0),"r" (__r1),"r" (__r2),"r" (__r3), "r" (__r4),"r" (__r5)		\
-	: "lr");							\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2),		\
+			  "r" (__r3), "r" (__r4), "r" (__r5) ) );	\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
 
 #ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
-#define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_STAT64
-#define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE
-#define __ARCH_WANT_SYS_TIME
-#define __ARCH_WANT_SYS_UTIME
-#define __ARCH_WANT_SYS_SOCKETCALL
 #define __ARCH_WANT_SYS_GETPGRP
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT
-#define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+
+#if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
+#define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_OLDUMOUNT
+#define __ARCH_WANT_SYS_ALARM
+#define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_OLD_READDIR
+#define __ARCH_WANT_SYS_SOCKETCALL
+#endif
 #endif
 
 #ifdef __KERNEL_SYSCALLS__

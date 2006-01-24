@@ -63,10 +63,11 @@ static inline int is_zero_ether_addr(const u8 *addr)
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Return true if the address is a multicast address.
+ * By definition the broadcast address is also a multicast address.
  */
 static inline int is_multicast_ether_addr(const u8 *addr)
 {
-	return ((addr[0] != 0xff) && (0x01 & addr[0]));
+	return (0x01 & addr[0]);
 }
 
 /**

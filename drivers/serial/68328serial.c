@@ -34,6 +34,7 @@
 #include <linux/keyboard.h>
 #include <linux/init.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 
@@ -142,7 +143,6 @@ static int m68328_console_cbaud   = DEFAULT_CBAUD;
  * memory if large numbers of serial ports are open.
  */
 static unsigned char tmp_buf[SERIAL_XMIT_SIZE]; /* This is cheating */
-DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int serial_paranoia_check(struct m68k_serial *info,
 					char *name, const char *routine)
@@ -293,7 +293,7 @@ static _INLINE_ void receive_chars(struct m68k_serial *info, struct pt_regs *reg
 {
 	struct tty_struct *tty = info->tty;
 	m68328_uart *uart = &uart_addr[info->line];
-	unsigned char ch;
+	unsigned char ch, flag;
 
 	/*
 	 * This do { } while() loop will get ALL chars out of Rx FIFO 
@@ -331,26 +331,24 @@ static _INLINE_ void receive_chars(struct m68k_serial *info, struct pt_regs *reg
 		/*
 		 * Make sure that we do not overflow the buffer
 		 */
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
+		if (tty_request_buffer_room(tty, 1) == 0) {
 			schedule_work(&tty->flip.work);
 			return;
 		}
 
+		flag = TTY_NORMAL;
+
 		if(rx & URX_PARITY_ERROR) {
-			*tty->flip.flag_buf_ptr++ = TTY_PARITY;
+			flag = TTY_PARITY;
 			status_handle(info, rx);
 		} else if(rx & URX_OVRUN) {
-			*tty->flip.flag_buf_ptr++ = TTY_OVERRUN;
+			flag = TTY_OVERRUN;
 			status_handle(info, rx);
 		} else if(rx & URX_FRAME_ERROR) {
-			*tty->flip.flag_buf_ptr++ = TTY_FRAME;
+			flag = TTY_FRAME;
 			status_handle(info, rx);
-		} else {
-			*tty->flip.flag_buf_ptr++ = 0; /* XXX */
 		}
-                *tty->flip.char_buf_ptr++ = ch;
-		tty->flip.count++;
-
+		tty_insert_flip_char(tty, ch, flag);
 #ifndef CONFIG_XCOPILOT_BUGS
 	} while((rx = uart->urx.w) & URX_DATA_READY);
 #endif
@@ -1343,7 +1341,7 @@ static void show_serial_version(void)
 	printk("MC68328 serial driver version 1.00\n");
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 /* Serial Power management
  *  The console (currently fixed at line 0) is a special case for power
  *  management because the kernel is so chatty. The console will be 
@@ -1393,7 +1391,7 @@ void startup_console(void)
 	struct m68k_serial *info = &m68k_soft[0];
 	startup(info);
 }
-#endif
+#endif /* CONFIG_PM_LEGACY */
 
 
 static struct tty_operations rs_ops = {
@@ -1486,7 +1484,7 @@ rs68328_init(void)
 			    IRQ_FLG_STD,
 			    "M68328_UART", NULL))
                 panic("Unable to attach 68328 serial interrupt\n");
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 	    serial_pm[i] = pm_register(PM_SYS_DEV, PM_SYS_COM, serial_pm_callback);
 	    if (serial_pm[i])
 		    serial_pm[i]->data = info;

@@ -207,7 +207,6 @@ u8 pciehp_handle_power_fault(u8 hp_slot, void *inst_id)
 		 * power fault Cleared
 		 */
 		info("Power fault cleared on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		p_slot->status = 0x00;
 		taskInfo->event_type = INT_POWER_FAULT_CLEAR;
 	} else {
 		/*
@@ -215,8 +214,6 @@ u8 pciehp_handle_power_fault(u8 hp_slot, void *inst_id)
 		 */
 		info("Power fault on Slot(%d)\n", ctrl->first_slot + hp_slot);
 		taskInfo->event_type = INT_POWER_FAULT;
-		/* set power fault status for this board */
-		p_slot->status = 0xFF;
 		info("power fault bit %x set\n", hp_slot);
 	}
 	if (rc)
@@ -317,13 +314,10 @@ static int board_added(struct slot *p_slot)
 		return rc;
 	}
 
-	dbg("%s: slot status = %x\n", __FUNCTION__, p_slot->status);
-
 	/* Check for a power fault */
-	if (p_slot->status == 0xFF) {
-		/* power fault occurred, but it was benign */
+	if (p_slot->hpc_ops->query_power_fault(p_slot)) {
+		dbg("%s: power fault detected\n", __FUNCTION__);
 		rc = POWER_FAILURE;
-		p_slot->status = 0;
 		goto err_exit;
 	}
 
@@ -333,8 +327,6 @@ static int board_added(struct slot *p_slot)
 				p_slot->device);
 		goto err_exit;
 	}
-
-	p_slot->status = 0;
 
 	/*
 	 * Some PCI Express root ports require fixup after hot-plug operation.
@@ -381,9 +373,6 @@ static int remove_board(struct slot *p_slot)
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	dbg("In %s, hp_slot = %d\n", __FUNCTION__, hp_slot);
-
-	/* Change status to shutdown */
-	p_slot->status = 0x01;
 
 	/* Wait for exclusive access to hardware */
 	down(&ctrl->crit_sect);

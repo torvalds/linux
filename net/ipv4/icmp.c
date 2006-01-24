@@ -73,6 +73,7 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/netfilter_ipv4.h>
@@ -220,7 +221,7 @@ struct icmp_control {
 	short   error;		/* This ICMP is classed as an error message */
 };
 
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -898,8 +899,7 @@ static void icmp_address_reply(struct sk_buff *skb)
 		u32 _mask, *mp;
 
 		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
-		if (mp == NULL)
-			BUG();
+		BUG_ON(mp == NULL);
 		for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
 			if (*mp == ifa->ifa_mask &&
 			    inet_ifa_match(rt->rt_src, ifa))
@@ -994,7 +994,7 @@ error:
 /*
  *	This table is the definition of how we handle ICMP.
  */
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	[ICMP_ECHOREPLY] = {
 		.output_entry = ICMP_MIB_OUTECHOREPS,
 		.input_entry = ICMP_MIB_INECHOREPS,

@@ -112,6 +112,7 @@ SECTIONS
 #endif
 	)
 	SCHED_TEXT
+	LOCK_TEXT
 	*(.fixup)
 	*(.gnu.warning)
 	*(.exitcall.exit)

@@ -149,6 +149,12 @@ void flush_tlb_mm(struct mm_struct *mm)
 		return;
 	}
 
+	/*
+	 * It is safe to go down the mm's list of vmas when called
+	 * from dup_mmap, holding mmap_sem.  It would also be safe from
+	 * unmap_region or exit_mmap, but not from vmtruncate on SMP -
+	 * but it seems dup_mmap is the only SMP case which gets here.
+	 */
 	for (mp = mm->mmap; mp != NULL; mp = mp->vm_next)
 		flush_range(mp->vm_mm, mp->vm_start, mp->vm_end);
 	FINISH_FLUSH;

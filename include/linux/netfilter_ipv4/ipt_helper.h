@@ -1,8 +1,7 @@
 #ifndef _IPT_HELPER_H
 #define _IPT_HELPER_H
 
-struct ipt_helper_info {
-	int invert;
-	char name[30];
-};
+#include <linux/netfilter/xt_helper.h>
+#define ipt_helper_info xt_helper_info
+
 #endif /* _IPT_HELPER_H */

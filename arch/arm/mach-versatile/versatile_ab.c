@@ -23,12 +23,12 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/sysdev.h>
+#include <linux/amba/bus.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/amba.h>
 
 #include <asm/mach/arch.h>
 
@@ -36,7 +36,6 @@
 
 MACHINE_START(VERSATILE_AB, "ARM-Versatile AB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_ram	= 0x00000000,
 	.phys_io	= 0x101f1000,
 	.io_pg_offst	= ((0xf11f1000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,

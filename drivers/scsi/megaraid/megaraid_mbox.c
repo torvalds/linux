@@ -10,12 +10,13 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
- * Version	: v2.20.4.6 (Mar 07 2005)
+ * Version	: v2.20.4.7 (Nov 14 2005)
  *
  * Authors:
  * 	Atul Mukker		<Atul.Mukker@lsil.com>
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
  * 	Manoj Jose		<Manoj.Jose@lsil.com>
+ * 	Seokmann Ju		<Seokmann.Ju@lsil.com>
  *
  * List of supported controllers
  *
@@ -136,7 +137,7 @@ static int wait_till_fw_empty(adapter_t *);
 
 
 
-MODULE_AUTHOR("LSI Logic Corporation");
+MODULE_AUTHOR("sju@lsil.com");
 MODULE_DESCRIPTION("LSI Logic MegaRAID Mailbox Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGARAID_VERSION);
@@ -278,86 +279,20 @@ static struct pci_device_id pci_id_table_g[] =  {
 	{
 		PCI_VENDOR_ID_AMI,
 		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_QC,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
 	},
 	{
-		PCI_VENDOR_ID_AMI,
+		PCI_VENDOR_ID_LSI_LOGIC,
 		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_DC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_SC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_AMI,
-		PCI_SUBSYS_ID_PERC3_SC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_AMI,
-		PCI_SUBSYS_ID_PERC3_DC,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_0,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_0,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_1,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_1,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_2,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_2,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_I4_133_RAID,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_I4_133_RAID,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SATA_150_4,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_4,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SATA_150_6,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_6,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
 	},
 	{
 		PCI_VENDOR_ID_LSI_LOGIC,
 		PCI_DEVICE_ID_LINDSAY,
 		PCI_ANY_ID,
 		PCI_ANY_ID,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_INTEL_RAID_SRCS16,
-		PCI_VENDOR_ID_INTEL,
-		PCI_SUBSYS_ID_INTEL_RAID_SRCS16,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_INTEL_RAID_SRCU41L_LAKE_SHETEK,
-		PCI_VENDOR_ID_INTEL,
-		PCI_SUBSYS_ID_INTEL_RAID_SRCU41L_LAKE_SHETEK,
 	},
 	{0}	/* Terminating entry */
 };
@@ -533,8 +468,6 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	// Initialize the synchronization lock for kernel and LLD
 	spin_lock_init(&adapter->lock);
-	adapter->host_lock = &adapter->lock;
-
 
 	// Initialize the command queues: the list of free SCBs and the list
 	// of pending SCBs.
@@ -714,9 +647,6 @@ megaraid_io_attach(adapter_t *adapter)
 
 	SCSIHOST2ADAP(host)	= (caddr_t)adapter;
 	adapter->host		= host;
-
-	// export the parameters required by the mid-layer
-	scsi_assign_lock(host, adapter->host_lock);
 
 	host->irq		= adapter->irq;
 	host->unique_id		= adapter->unique_id;
@@ -1336,7 +1266,7 @@ megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
  * return the scb from the head of the free list. NULL if there are none
  * available
  **/
-static inline scb_t *
+static scb_t *
 megaraid_alloc_scb(adapter_t *adapter, struct scsi_cmnd *scp)
 {
 	struct list_head	*head = &adapter->kscb_pool;
@@ -1399,7 +1329,7 @@ megaraid_dealloc_scb(adapter_t *adapter, scb_t *scb)
  *
  * prepare the scatter-gather list
  */
-static inline int
+static int
 megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 {
 	struct scatterlist	*sgl;
@@ -1472,7 +1402,7 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
  *
  * post the command to the controller if mailbox is availble.
  */
-static inline int
+static int
 mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 {
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
@@ -1560,10 +1490,6 @@ megaraid_queue_command(struct scsi_cmnd *scp, void (* done)(struct scsi_cmnd *))
 	scp->scsi_done	= done;
 	scp->result	= 0;
 
-	assert_spin_locked(adapter->host_lock);
-
-	spin_unlock(adapter->host_lock);
-
 	/*
 	 * Allocate and build a SCB request
 	 * if_busy flag will be set if megaraid_mbox_build_cmd() command could
@@ -1573,22 +1499,15 @@ megaraid_queue_command(struct scsi_cmnd *scp, void (* done)(struct scsi_cmnd *))
 	 * return 0 in that case, and we would do the callback right away.
 	 */
 	if_busy	= 0;
-	scb	= megaraid_mbox_build_cmd(adapter, scp, &if_busy);
-
-	if (scb) {
-		megaraid_mbox_runpendq(adapter, scb);
-	}
-
-	spin_lock(adapter->host_lock);
-
+	scb = megaraid_mbox_build_cmd(adapter, scp, &if_busy);
 	if (!scb) {	// command already completed
 		done(scp);
 		return 0;
 	}
 
+	megaraid_mbox_runpendq(adapter, scb);
 	return if_busy;
 }
-
 
 /**
  * megaraid_mbox_build_cmd - transform the mid-layer scsi command to megaraid
@@ -2151,7 +2070,7 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
  *
  * Returns:	1 if the interrupt is valid, 0 otherwise
  */
-static inline int
+static int
 megaraid_ack_sequence(adapter_t *adapter)
 {
 	mraid_device_t		*raid_dev = ADAP2RAIDDEV(adapter);
@@ -2289,7 +2208,7 @@ megaraid_isr(int irq, void *devp, struct pt_regs *regs)
  *
  * DMA sync if required.
  */
-static inline void
+static void
 megaraid_mbox_sync_scb(adapter_t *adapter, scb_t *scb)
 {
 	mbox_ccb_t	*ccb;
@@ -2546,9 +2465,7 @@ megaraid_mbox_dpc(unsigned long devp)
 		megaraid_dealloc_scb(adapter, scb);
 
 		// send the scsi packet back to kernel
-		spin_lock(adapter->host_lock);
 		scp->scsi_done(scp);
-		spin_unlock(adapter->host_lock);
 	}
 
 	return;
@@ -2563,7 +2480,7 @@ megaraid_mbox_dpc(unsigned long devp)
  * aborted. All the commands issued to the F/W must complete.
  **/
 static int
-__megaraid_abort_handler(struct scsi_cmnd *scp)
+megaraid_abort_handler(struct scsi_cmnd *scp)
 {
 	adapter_t		*adapter;
 	mraid_device_t		*raid_dev;
@@ -2576,8 +2493,6 @@ __megaraid_abort_handler(struct scsi_cmnd *scp)
 
 	adapter		= SCP2ADAPTER(scp);
 	raid_dev	= ADAP2RAIDDEV(adapter);
-
-	assert_spin_locked(adapter->host_lock);
 
 	con_log(CL_ANN, (KERN_WARNING
 		"megaraid: aborting-%ld cmd=%x <c=%d t=%d l=%d>\n",
@@ -2658,6 +2573,7 @@ __megaraid_abort_handler(struct scsi_cmnd *scp)
 	// traverse through the list of all SCB, since driver does not
 	// maintain these SCBs on any list
 	found = 0;
+	spin_lock_irq(&adapter->lock);
 	for (i = 0; i < MBOX_MAX_SCSI_CMDS; i++) {
 		scb = adapter->kscb_list + i;
 
@@ -2680,6 +2596,7 @@ __megaraid_abort_handler(struct scsi_cmnd *scp)
 			}
 		}
 	}
+	spin_unlock_irq(&adapter->lock);
 
 	if (!found) {
 		con_log(CL_ANN, (KERN_WARNING
@@ -2696,22 +2613,6 @@ __megaraid_abort_handler(struct scsi_cmnd *scp)
 	return FAILED;
 }
 
-static int
-megaraid_abort_handler(struct scsi_cmnd *scp)
-{
-	adapter_t	*adapter;
-	int rc;
-
-	adapter		= SCP2ADAPTER(scp);
-
-	spin_lock_irq(adapter->host_lock);
-	rc = __megaraid_abort_handler(scp);
-	spin_unlock_irq(adapter->host_lock);
-
-	return rc;
-}
-
-
 /**
  * megaraid_reset_handler - device reset hadler for mailbox based driver
  * @scp		: reference command
@@ -2723,7 +2624,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
  * host
  **/
 static int
-__megaraid_reset_handler(struct scsi_cmnd *scp)
+megaraid_reset_handler(struct scsi_cmnd *scp)
 {
 	adapter_t	*adapter;
 	scb_t		*scb;
@@ -2738,10 +2639,6 @@ __megaraid_reset_handler(struct scsi_cmnd *scp)
 
 	adapter		= SCP2ADAPTER(scp);
 	raid_dev	= ADAP2RAIDDEV(adapter);
-
-	assert_spin_locked(adapter->host_lock);
-
-	con_log(CL_ANN, (KERN_WARNING "megaraid: reseting the host...\n"));
 
 	// return failure if adapter is not responding
 	if (raid_dev->hw_error) {
@@ -2779,8 +2676,6 @@ __megaraid_reset_handler(struct scsi_cmnd *scp)
 			adapter->outstanding_cmds, MBOX_RESET_WAIT));
 	}
 
-	spin_unlock(adapter->host_lock);
-
 	recovery_window = MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT;
 
 	recovering = adapter->outstanding_cmds;
@@ -2806,7 +2701,7 @@ __megaraid_reset_handler(struct scsi_cmnd *scp)
 		msleep(1000);
 	}
 
-	spin_lock(adapter->host_lock);
+	spin_lock(&adapter->lock);
 
 	// If still outstanding commands, bail out
 	if (adapter->outstanding_cmds) {
@@ -2815,7 +2710,8 @@ __megaraid_reset_handler(struct scsi_cmnd *scp)
 
 		raid_dev->hw_error = 1;
 
-		return FAILED;
+		rval = FAILED;
+		goto out;
 	}
 	else {
 		con_log(CL_ANN, (KERN_NOTICE
@@ -2824,7 +2720,10 @@ __megaraid_reset_handler(struct scsi_cmnd *scp)
 
 
 	// If the controller supports clustering, reset reservations
-	if (!adapter->ha) return SUCCESS;
+	if (!adapter->ha) {
+		rval = SUCCESS;
+		goto out;
+	}
 
 	// clear reservations if any
 	raw_mbox[0] = CLUSTER_CMD;
@@ -2841,21 +2740,10 @@ __megaraid_reset_handler(struct scsi_cmnd *scp)
 				"megaraid: reservation reset failed\n"));
 	}
 
+ out:
+	spin_unlock_irq(&adapter->lock);
 	return rval;
 }
-
-static int
-megaraid_reset_handler(struct scsi_cmnd *cmd)
-{
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = __megaraid_reset_handler(cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
-}
-
 
 /*
  * START: internal commands library
@@ -3032,6 +2920,7 @@ mbox_post_sync_cmd_fast(adapter_t *adapter, uint8_t raw_mbox[])
 
 	for (i = 0; i < 0xFFFFF; i++) {
 		if (mbox->numstatus != 0xFF) break;
+		rmb();
 	}
 
 	if (i == 0xFFFFF) {
@@ -3776,9 +3665,9 @@ wait_till_fw_empty(adapter_t *adapter)
 	/*
 	 * Set the quiescent flag to stop issuing cmds to FW.
 	 */
-	spin_lock_irqsave(adapter->host_lock, flags);
+	spin_lock_irqsave(&adapter->lock, flags);
 	adapter->quiescent++;
-	spin_unlock_irqrestore(adapter->host_lock, flags);
+	spin_unlock_irqrestore(&adapter->lock, flags);
 
 	/*
 	 * Wait till there are no more cmds outstanding at FW. Try for at most

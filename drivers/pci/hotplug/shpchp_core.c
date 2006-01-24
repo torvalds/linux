@@ -65,6 +65,7 @@ static int get_power_status	(struct hotplug_slot *slot, u8 *value);
 static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
+static int get_address		(struct hotplug_slot *slot, u32 *value);
 static int get_max_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 static int get_cur_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 
@@ -77,6 +78,7 @@ static struct hotplug_slot_ops shpchp_hotplug_slot_ops = {
 	.get_attention_status =	get_attention_status,
 	.get_latch_status =	get_latch_status,
 	.get_adapter_status =	get_adapter_status,
+	.get_address =		get_address,
 	.get_max_bus_speed =	get_max_bus_speed,
 	.get_cur_bus_speed =	get_cur_bus_speed,
 };
@@ -314,6 +316,18 @@ static int get_adapter_status (struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
+static int get_address (struct hotplug_slot *hotplug_slot, u32 *value)
+{
+	struct slot *slot = get_slot (hotplug_slot, __FUNCTION__);
+	struct pci_bus *bus = slot->ctrl->pci_dev->subordinate;
+
+	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
+
+	*value = (pci_domain_nr(bus) << 16) | (slot->bus << 8) | slot->device;
+
+	return 0;
+}
+
 static int get_max_bus_speed (struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)
 {
 	struct slot *slot = get_slot (hotplug_slot, __FUNCTION__);
@@ -376,8 +390,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dbg("%s: controller initialization failed\n", SHPC_MODULE_NAME);
 		goto err_out_free_ctrl;
 	}
-
-	ctrl->pci_dev = pdev;  /* pci_dev of the P2P bridge */
 
 	pci_set_drvdata(pdev, ctrl);
 

@@ -214,12 +214,11 @@ static void fb_cvt_print_name(struct fb_cvt_data *cvt)
 {
 	u32 pixcount, pixcount_mod;
 	int cnt = 255, offset = 0, read = 0;
-	u8 *buf = kmalloc(256, GFP_KERNEL);
+	u8 *buf = kzalloc(256, GFP_KERNEL);
 
 	if (!buf)
 		return;
 
-	memset(buf, 0, 256);
 	pixcount = (cvt->xres * (cvt->yres/cvt->interlace))/1000000;
 	pixcount_mod = (cvt->xres * (cvt->yres/cvt->interlace)) % 1000000;
 	pixcount_mod /= 1000;

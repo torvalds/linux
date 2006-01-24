@@ -34,7 +34,7 @@
  */
 
 /* get the physical page pointer on the given offset */
-static struct page *snd_pcm_get_vmalloc_page(snd_pcm_substream_t *subs, unsigned long offset)
+static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs, unsigned long offset)
 {
 	void *pageptr = subs->runtime->dma_area + offset;
 	return vmalloc_to_page(pageptr);
@@ -44,9 +44,9 @@ static struct page *snd_pcm_get_vmalloc_page(snd_pcm_substream_t *subs, unsigned
  * hw_params callback
  * NOTE: this may be called not only once per pcm open!
  */
-static int snd_pcm_alloc_vmalloc_buffer(snd_pcm_substream_t *subs, size_t size)
+static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs, size_t size)
 {
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_pcm_runtime *runtime = subs->runtime;
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes >= size)
 			return 0; /* already enough large */
@@ -63,9 +63,9 @@ static int snd_pcm_alloc_vmalloc_buffer(snd_pcm_substream_t *subs, size_t size)
  * hw_free callback
  * NOTE: this may be called not only once per pcm open!
  */
-static int snd_pcm_free_vmalloc_buffer(snd_pcm_substream_t *subs)
+static int snd_pcm_free_vmalloc_buffer(struct snd_pcm_substream *subs)
 {
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_pcm_runtime *runtime = subs->runtime;
 	if (runtime->dma_area) {
 		vfree(runtime->dma_area);
 		runtime->dma_area = NULL;
@@ -76,7 +76,7 @@ static int snd_pcm_free_vmalloc_buffer(snd_pcm_substream_t *subs)
 /*
  * clear the SRAM contents
  */
-static int pdacf_pcm_clear_sram(pdacf_t *chip)
+static int pdacf_pcm_clear_sram(struct snd_pdacf *chip)
 {
 	int max_loop = 64 * 1024;
 
@@ -91,10 +91,10 @@ static int pdacf_pcm_clear_sram(pdacf_t *chip)
 /*
  * pdacf_pcm_trigger - trigger callback for capture
  */
-static int pdacf_pcm_trigger(snd_pcm_substream_t *subs, int cmd)
+static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 {
-	pdacf_t *chip = snd_pcm_substream_chip(subs);
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_pdacf *chip = snd_pcm_substream_chip(subs);
+	struct snd_pcm_runtime *runtime = subs->runtime;
 	int inc, ret = 0, rate;
 	unsigned short mask, val, tmp;
 
@@ -146,8 +146,8 @@ static int pdacf_pcm_trigger(snd_pcm_substream_t *subs, int cmd)
 /*
  * pdacf_pcm_hw_params - hw_params callback for playback and capture
  */
-static int pdacf_pcm_hw_params(snd_pcm_substream_t *subs,
-				     snd_pcm_hw_params_t *hw_params)
+static int pdacf_pcm_hw_params(struct snd_pcm_substream *subs,
+				     struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_alloc_vmalloc_buffer(subs, params_buffer_bytes(hw_params));
 }
@@ -155,7 +155,7 @@ static int pdacf_pcm_hw_params(snd_pcm_substream_t *subs,
 /*
  * pdacf_pcm_hw_free - hw_free callback for playback and capture
  */
-static int pdacf_pcm_hw_free(snd_pcm_substream_t *subs)
+static int pdacf_pcm_hw_free(struct snd_pcm_substream *subs)
 {
 	return snd_pcm_free_vmalloc_buffer(subs);
 }
@@ -163,10 +163,10 @@ static int pdacf_pcm_hw_free(snd_pcm_substream_t *subs)
 /*
  * pdacf_pcm_prepare - prepare callback for playback and capture
  */
-static int pdacf_pcm_prepare(snd_pcm_substream_t *subs)
+static int pdacf_pcm_prepare(struct snd_pcm_substream *subs)
 {
-	pdacf_t *chip = snd_pcm_substream_chip(subs);
-	snd_pcm_runtime_t *runtime = subs->runtime;
+	struct snd_pdacf *chip = snd_pcm_substream_chip(subs);
+	struct snd_pcm_runtime *runtime = subs->runtime;
 	u16 val, nval, aval;
 
 	if (chip->chip_status & PDAUDIOCF_STAT_IS_STALE)
@@ -209,7 +209,7 @@ static int pdacf_pcm_prepare(snd_pcm_substream_t *subs)
 	case SNDRV_PCM_FORMAT_S24_3LE:
 	case SNDRV_PCM_FORMAT_S24_3BE:
 		chip->pcm_sample = 3;
-		/* fall trough */
+		/* fall through */
 	default: /* 24-bit */
 		aval = AK4117_DIF_24R;
 		chip->pcm_frame = 3;
@@ -239,7 +239,7 @@ static int pdacf_pcm_prepare(snd_pcm_substream_t *subs)
  * capture hw information
  */
 
-static snd_pcm_hardware_t pdacf_pcm_capture_hw = {
+static struct snd_pcm_hardware pdacf_pcm_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -269,10 +269,10 @@ static snd_pcm_hardware_t pdacf_pcm_capture_hw = {
 /*
  * pdacf_pcm_capture_open - open callback for capture
  */
-static int pdacf_pcm_capture_open(snd_pcm_substream_t *subs)
+static int pdacf_pcm_capture_open(struct snd_pcm_substream *subs)
 {
-	snd_pcm_runtime_t *runtime = subs->runtime;
-	pdacf_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_pcm_runtime *runtime = subs->runtime;
+	struct snd_pdacf *chip = snd_pcm_substream_chip(subs);
 
 	if (chip->chip_status & PDAUDIOCF_STAT_IS_STALE)
 		return -EBUSY;
@@ -287,9 +287,9 @@ static int pdacf_pcm_capture_open(snd_pcm_substream_t *subs)
 /*
  * pdacf_pcm_capture_close - close callback for capture
  */
-static int pdacf_pcm_capture_close(snd_pcm_substream_t *subs)
+static int pdacf_pcm_capture_close(struct snd_pcm_substream *subs)
 {
-	pdacf_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_pdacf *chip = snd_pcm_substream_chip(subs);
 
 	if (!chip)
 		return -EINVAL;
@@ -302,16 +302,16 @@ static int pdacf_pcm_capture_close(snd_pcm_substream_t *subs)
 /*
  * pdacf_pcm_capture_pointer - pointer callback for capture
  */
-static snd_pcm_uframes_t pdacf_pcm_capture_pointer(snd_pcm_substream_t *subs)
+static snd_pcm_uframes_t pdacf_pcm_capture_pointer(struct snd_pcm_substream *subs)
 {
-	pdacf_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_pdacf *chip = snd_pcm_substream_chip(subs);
 	return chip->pcm_hwptr;
 }
 
 /*
  * operators for PCM capture
  */
-static snd_pcm_ops_t pdacf_pcm_capture_ops = {
+static struct snd_pcm_ops pdacf_pcm_capture_ops = {
 	.open =		pdacf_pcm_capture_open,
 	.close =	pdacf_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -325,20 +325,11 @@ static snd_pcm_ops_t pdacf_pcm_capture_ops = {
 
 
 /*
- * free callback for pcm
- */
-static void snd_pdacf_pcm_free(snd_pcm_t *pcm)
-{
-	pdacf_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-}
-
-/*
  * snd_pdacf_pcm_new - create and initialize a pcm
  */
-int snd_pdacf_pcm_new(pdacf_t *chip)
+int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	err = snd_pcm_new(chip->card, "PDAudioCF", 0, 0, 1, &pcm);
@@ -348,7 +339,6 @@ int snd_pdacf_pcm_new(pdacf_t *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pdacf_pcm_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_pdacf_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;

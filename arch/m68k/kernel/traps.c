@@ -169,25 +169,25 @@ void __init trap_init (void)
 
 	if (CPU_IS_060 && !FPU_IS_EMU) {
 		/* set up IFPSP entry points */
-		asmlinkage void snan_vec(void) asm ("_060_fpsp_snan");
-		asmlinkage void operr_vec(void) asm ("_060_fpsp_operr");
-		asmlinkage void ovfl_vec(void) asm ("_060_fpsp_ovfl");
-		asmlinkage void unfl_vec(void) asm ("_060_fpsp_unfl");
-		asmlinkage void dz_vec(void) asm ("_060_fpsp_dz");
-		asmlinkage void inex_vec(void) asm ("_060_fpsp_inex");
-		asmlinkage void fline_vec(void) asm ("_060_fpsp_fline");
-		asmlinkage void unsupp_vec(void) asm ("_060_fpsp_unsupp");
-		asmlinkage void effadd_vec(void) asm ("_060_fpsp_effadd");
+		asmlinkage void snan_vec6(void) asm ("_060_fpsp_snan");
+		asmlinkage void operr_vec6(void) asm ("_060_fpsp_operr");
+		asmlinkage void ovfl_vec6(void) asm ("_060_fpsp_ovfl");
+		asmlinkage void unfl_vec6(void) asm ("_060_fpsp_unfl");
+		asmlinkage void dz_vec6(void) asm ("_060_fpsp_dz");
+		asmlinkage void inex_vec6(void) asm ("_060_fpsp_inex");
+		asmlinkage void fline_vec6(void) asm ("_060_fpsp_fline");
+		asmlinkage void unsupp_vec6(void) asm ("_060_fpsp_unsupp");
+		asmlinkage void effadd_vec6(void) asm ("_060_fpsp_effadd");
 
-		vectors[VEC_FPNAN] = snan_vec;
-		vectors[VEC_FPOE] = operr_vec;
-		vectors[VEC_FPOVER] = ovfl_vec;
-		vectors[VEC_FPUNDER] = unfl_vec;
-		vectors[VEC_FPDIVZ] = dz_vec;
-		vectors[VEC_FPIR] = inex_vec;
-		vectors[VEC_LINE11] = fline_vec;
-		vectors[VEC_FPUNSUP] = unsupp_vec;
-		vectors[VEC_UNIMPEA] = effadd_vec;
+		vectors[VEC_FPNAN] = snan_vec6;
+		vectors[VEC_FPOE] = operr_vec6;
+		vectors[VEC_FPOVER] = ovfl_vec6;
+		vectors[VEC_FPUNDER] = unfl_vec6;
+		vectors[VEC_FPDIVZ] = dz_vec6;
+		vectors[VEC_FPIR] = inex_vec6;
+		vectors[VEC_LINE11] = fline_vec6;
+		vectors[VEC_FPUNSUP] = unsupp_vec6;
+		vectors[VEC_UNIMPEA] = effadd_vec6;
 	}
 
         /* if running on an amiga, make the NMI interrupt do nothing */

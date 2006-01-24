@@ -45,7 +45,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.50.4"
+#define VERSION "version 1.60.0"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -216,10 +216,10 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 
 	do {
 		wrmsr(MSR_FIDVID_CTL, lo, STOP_GRANT_5NS);
-                if (i++ > 100) {
-                        printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
-                        return 1;
-                }
+		if (i++ > 100) {
+			printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
+			return 1;
+		}
 	} while (query_current_values_with_pending_wait(data));
 
 	if (savefid != data->currfid) {
@@ -336,7 +336,7 @@ static int core_voltage_pre_transition(struct powernow_k8_data *data, u32 reqvid
 /* Phase 2 - core frequency transition */
 static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 {
-	u32 vcoreqfid, vcocurrfid, vcofiddiff, savevid = data->currvid;
+	u32 vcoreqfid, vcocurrfid, vcofiddiff, fid_interval, savevid = data->currvid;
 
 	if ((reqfid < HI_FID_TABLE_BOTTOM) && (data->currfid < HI_FID_TABLE_BOTTOM)) {
 		printk(KERN_ERR PFX "ph2: illegal lo-lo transition 0x%x 0x%x\n",
@@ -359,9 +359,11 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 	    : vcoreqfid - vcocurrfid;
 
 	while (vcofiddiff > 2) {
+		(data->currfid & 1) ? (fid_interval = 1) : (fid_interval = 2);
+
 		if (reqfid > data->currfid) {
 			if (data->currfid > LO_FID_TABLE_TOP) {
-				if (write_new_fid(data, data->currfid + 2)) {
+				if (write_new_fid(data, data->currfid + fid_interval)) {
 					return 1;
 				}
 			} else {
@@ -371,7 +373,7 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 				}
 			}
 		} else {
-			if (write_new_fid(data, data->currfid - 2))
+			if (write_new_fid(data, data->currfid - fid_interval))
 				return 1;
 		}
 
@@ -464,7 +466,7 @@ static int check_supported_cpu(unsigned int cpu)
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 
 	if (smp_processor_id() != cpu) {
-		printk(KERN_ERR "limiting to cpu %u failed\n", cpu);
+		printk(KERN_ERR PFX "limiting to cpu %u failed\n", cpu);
 		goto out;
 	}
 
@@ -474,7 +476,7 @@ static int check_supported_cpu(unsigned int cpu)
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
 	if (((eax & CPUID_USE_XFAM_XMOD) != CPUID_USE_XFAM_XMOD) ||
 	    ((eax & CPUID_XFAM) != CPUID_XFAM_K8) ||
-	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_F)) {
+	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_G)) {
 		printk(KERN_INFO PFX "Processor cpuid %x not supported\n", eax);
 		goto out;
 	}
@@ -517,22 +519,24 @@ static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst, u8 
 			printk(KERN_ERR BFX "maxvid exceeded with pstate %d\n", j);
 			return -ENODEV;
 		}
-		if ((pst[j].fid > MAX_FID)
-		    || (pst[j].fid & 1)
-		    || (j && (pst[j].fid < HI_FID_TABLE_BOTTOM))) {
+		if (pst[j].fid > MAX_FID) {
+			printk(KERN_ERR BFX "maxfid exceeded with pstate %d\n", j);
+			return -ENODEV;
+		}
+		if (j && (pst[j].fid < HI_FID_TABLE_BOTTOM)) {
 			/* Only first fid is allowed to be in "low" range */
-			printk(KERN_ERR PFX "two low fids - %d : 0x%x\n", j, pst[j].fid);
+			printk(KERN_ERR BFX "two low fids - %d : 0x%x\n", j, pst[j].fid);
 			return -EINVAL;
 		}
 		if (pst[j].fid < lastfid)
 			lastfid = pst[j].fid;
 	}
 	if (lastfid & 1) {
-		printk(KERN_ERR PFX "lastfid invalid\n");
+		printk(KERN_ERR BFX "lastfid invalid\n");
 		return -EINVAL;
 	}
 	if (lastfid > LO_FID_TABLE_TOP)
-		printk(KERN_INFO PFX  "first fid not from lo freq table\n");
+		printk(KERN_INFO BFX  "first fid not from lo freq table\n");
 
 	return 0;
 }
@@ -631,7 +635,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 
 		dprintk("table vers: 0x%x\n", psb->tableversion);
 		if (psb->tableversion != PSB_VERSION_1_4) {
-			printk(KERN_INFO BFX "PSB table is not v1.4\n");
+			printk(KERN_ERR BFX "PSB table is not v1.4\n");
 			return -ENODEV;
 		}
 
@@ -689,7 +693,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 	 * BIOS and Kernel Developer's Guide, which is available on
 	 * www.amd.com
 	 */
-	printk(KERN_INFO PFX "BIOS error - no PSB or ACPI _PSS objects\n");
+	printk(KERN_ERR PFX "BIOS error - no PSB or ACPI _PSS objects\n");
 	return -ENODEV;
 }
 
@@ -912,7 +916,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
 
 	if (smp_processor_id() != pol->cpu) {
-		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
+		printk(KERN_ERR PFX "limiting to cpu %u failed\n", pol->cpu);
 		goto err_out;
 	}
 
@@ -976,11 +980,14 @@ static int powernowk8_verify(struct cpufreq_policy *pol)
 }
 
 /* per CPU init entry point to the driver */
-static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
+static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = CPU_MASK_ALL;
 	int rc, i;
+
+	if (!cpu_online(pol->cpu))
+		return -ENODEV;
 
 	if (!check_supported_cpu(pol->cpu))
 		return -ENODEV;
@@ -1021,7 +1028,7 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
 
 	if (smp_processor_id() != pol->cpu) {
-		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
+		printk(KERN_ERR PFX "limiting to cpu %u failed\n", pol->cpu);
 		goto err_out;
 	}
 
@@ -1134,7 +1141,7 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 };
 
 /* driver entry point for init */
-static int __init powernowk8_init(void)
+static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
 
@@ -1162,10 +1169,9 @@ static void __exit powernowk8_exit(void)
 	cpufreq_unregister_driver(&cpufreq_amd64_driver);
 }
 
-MODULE_AUTHOR("Paul Devriendt <paul.devriendt@amd.com> and Mark Langsdorf <mark.langsdorf@amd.com.");
+MODULE_AUTHOR("Paul Devriendt <paul.devriendt@amd.com> and Mark Langsdorf <mark.langsdorf@amd.com>");
 MODULE_DESCRIPTION("AMD Athlon 64 and Opteron processor frequency driver.");
 MODULE_LICENSE("GPL");
 
 late_initcall(powernowk8_init);
 module_exit(powernowk8_exit);
-

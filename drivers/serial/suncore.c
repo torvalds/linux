@@ -34,6 +34,7 @@ sunserial_console_termios(struct console *con)
 	char *mode_prop = "ttyX-mode";
 	char *cd_prop = "ttyX-ignore-cd";
 	char *dtr_prop = "ttyX-rts-dtr-off";
+	char *ssp_console_modes_prop = "ssp-console-modes";
 	int baud, bits, stop, cflag;
 	char parity;
 	int carrier = 0;
@@ -43,14 +44,39 @@ sunserial_console_termios(struct console *con)
 	if (!serial_console)
 		return;
 
-	if (serial_console == 1) {
+	switch (serial_console) {
+	case PROMDEV_OTTYA:
 		mode_prop[3] = 'a';
 		cd_prop[3] = 'a';
 		dtr_prop[3] = 'a';
-	} else {
+		break;
+
+	case PROMDEV_OTTYB:
 		mode_prop[3] = 'b';
 		cd_prop[3] = 'b';
 		dtr_prop[3] = 'b';
+		break;
+
+	case PROMDEV_ORSC:
+
+		nd = prom_pathtoinode("rsc");
+		if (!nd) {
+			strcpy(mode, "115200,8,n,1,-");
+			goto no_options;
+		}
+
+		if (!prom_node_has_property(nd, ssp_console_modes_prop)) {
+			strcpy(mode, "115200,8,n,1,-");
+			goto no_options;
+		}
+
+		memset(mode, 0, sizeof(mode));
+		prom_getstring(nd, ssp_console_modes_prop, mode, sizeof(mode));
+		goto no_options;
+
+	default:
+		strcpy(mode, "9600,8,n,1,-");
+		goto no_options;
 	}
 
 	topnd = prom_getchild(prom_root_node);
@@ -110,6 +136,10 @@ no_options:
 		case 9600: cflag |= B9600; break;
 		case 19200: cflag |= B19200; break;
 		case 38400: cflag |= B38400; break;
+		case 57600: cflag |= B57600; break;
+		case 115200: cflag |= B115200; break;
+		case 230400: cflag |= B230400; break;
+		case 460800: cflag |= B460800; break;
 		default: baud = 9600; cflag |= B9600; break;
 	}
 

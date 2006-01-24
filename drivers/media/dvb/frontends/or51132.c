@@ -503,7 +503,7 @@ static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	rcvr_stat = rec_buf[1];
 	usK = (rcvr_stat & 0x10) ? 3 : 0;
 
-        /* The value reported back from the frontend will be FFFF=100% 0000=0% */
+	/* The value reported back from the frontend will be FFFF=100% 0000=0% */
 	signal_strength = (((8952 - i20Log10(snr_equ) - usK*100)/3+5)*65535)/1000;
 	if (signal_strength > 0xffff)
 		*strength = 0xffff;

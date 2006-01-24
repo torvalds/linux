@@ -27,9 +27,6 @@
 #ifndef NOT_CS4281_PM
 #include <linux/pm.h>
 
-#define cs_pm_register(a, b, c) pm_register((a), (b), (c));
-#define cs_pm_unregister_all(a) pm_unregister_all((a));
-
 static int cs4281_suspend(struct cs4281_state *s);
 static int cs4281_resume(struct cs4281_state *s);
 /* 
@@ -40,42 +37,6 @@ static int cs4281_resume(struct cs4281_state *s);
 */
 #define CS4281_SUSPEND_TBL cs4281_suspend_null
 #define CS4281_RESUME_TBL cs4281_resume_null
-
-static int cs4281_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data)
-{
-	struct cs4281_state *state;
-
-	CS_DBGOUT(CS_PM, 2, printk(KERN_INFO 
-		"cs4281: cs4281_pm_callback dev=%p rqst=0x%x state=%p\n",
-			dev,(unsigned)rqst,data));
-	state = (struct cs4281_state *) dev->data;
-	if (state) {
-		switch(rqst) {
-			case PM_SUSPEND:
-				CS_DBGOUT(CS_PM, 2, printk(KERN_INFO
-					"cs4281: PM suspend request\n"));
-				if(cs4281_suspend(state))
-				{
-				    CS_DBGOUT(CS_ERROR, 2, printk(KERN_INFO
-					"cs4281: PM suspend request refused\n"));
-					return 1; 
-				}
-				break;
-			case PM_RESUME:
-				CS_DBGOUT(CS_PM, 2, printk(KERN_INFO
-					"cs4281: PM resume request\n"));
-				if(cs4281_resume(state))
-				{
-				    CS_DBGOUT(CS_ERROR, 2, printk(KERN_INFO
-					"cs4281: PM resume request refused\n"));
-					return 1;
-				}
-				break;
-		}
-	}
-
-	return 0;
-}
 
 #else /* CS4281_PM */
 #define CS4281_SUSPEND_TBL cs4281_suspend_null

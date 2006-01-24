@@ -13,7 +13,7 @@
 #ifndef _ULTRASTOR_H
 #define _ULTRASTOR_H
 
-static int ultrastor_detect(Scsi_Host_Template *);
+static int ultrastor_detect(struct scsi_host_template *);
 static const char *ultrastor_info(struct Scsi_Host * shpnt);
 static int ultrastor_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int ultrastor_abort(Scsi_Cmnd *);

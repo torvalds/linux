@@ -76,11 +76,6 @@ EXPORT_SYMBOL(single_step_exception);
 EXPORT_SYMBOL(sys_sigreturn);
 #endif
 
-#if defined(CONFIG_PPC_PREP)
-EXPORT_SYMBOL(_prep_type);
-EXPORT_SYMBOL(ucSystemType);
-#endif
-
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
@@ -104,6 +99,13 @@ EXPORT_SYMBOL(__copy_tofrom_user);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(__strnlen_user);
+
+#ifndef  __powerpc64__
+EXPORT_SYMBOL(__ide_mm_insl);
+EXPORT_SYMBOL(__ide_mm_outsw);
+EXPORT_SYMBOL(__ide_mm_insw);
+EXPORT_SYMBOL(__ide_mm_outsl);
+#endif
 
 EXPORT_SYMBOL(_insb);
 EXPORT_SYMBOL(_outsb);
@@ -139,9 +141,6 @@ EXPORT_SYMBOL(pci_bus_io_base);
 EXPORT_SYMBOL(pci_bus_io_base_phys);
 EXPORT_SYMBOL(pci_bus_mem_base_phys);
 EXPORT_SYMBOL(pci_bus_to_hose);
-EXPORT_SYMBOL(pci_resource_to_bus);
-EXPORT_SYMBOL(pci_phys_to_bus);
-EXPORT_SYMBOL(pci_bus_to_phys);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
@@ -159,15 +158,13 @@ EXPORT_SYMBOL(giveup_altivec);
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */
 
-#ifdef CONFIG_PPC64
-EXPORT_SYMBOL(__flush_icache_range);
-#else
+#ifndef CONFIG_PPC64
 EXPORT_SYMBOL(flush_instruction_cache);
-EXPORT_SYMBOL(flush_icache_range);
 EXPORT_SYMBOL(flush_tlb_kernel_range);
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(_tlbie);
 #endif
+EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
@@ -233,8 +230,7 @@ EXPORT_SYMBOL(__down_interruptible);
 EXPORT_SYMBOL(cpm_install_handler);
 EXPORT_SYMBOL(cpm_free_handler);
 #endif /* CONFIG_8xx */
-#if defined(CONFIG_8xx) || defined(CONFIG_40x) || defined(CONFIG_85xx) ||\
-	defined(CONFIG_83xx)
+#if defined(CONFIG_8xx) || defined(CONFIG_40x)
 EXPORT_SYMBOL(__res);
 #endif
 
@@ -247,7 +243,6 @@ EXPORT_SYMBOL(set_context);
 extern long mol_trampoline;
 EXPORT_SYMBOL(mol_trampoline); /* For MOL */
 EXPORT_SYMBOL(flush_hash_pages); /* For MOL */
-EXPORT_SYMBOL_GPL(__handle_mm_fault); /* For MOL */
 #ifdef CONFIG_SMP
 extern int mmu_hash_lock;
 EXPORT_SYMBOL(mmu_hash_lock); /* For MOL */

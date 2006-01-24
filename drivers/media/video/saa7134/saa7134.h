@@ -37,6 +37,9 @@
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
+#include <sound/driver.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
 #include <media/video-buf-dvb.h>
 
 #ifndef TRUE
@@ -46,10 +49,6 @@
 # define FALSE (1==0)
 #endif
 #define UNSET (-1U)
-
-#include <sound/driver.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
 
 /* ----------------------------------------------------------- */
 /* enums                                                       */
@@ -208,6 +207,9 @@ struct saa7134_format {
 #define SAA7134_BOARD_SEDNA_PC_TV_CARDBUS     79
 #define SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV 80
 #define SAA7134_BOARD_PHILIPS_TIGER  81
+#define SAA7134_BOARD_MSI_TVATANYWHERE_PLUS  82
+#define SAA7134_BOARD_CINERGY250PCI 83
+#define SAA7134_BOARD_FLYDVB_TRIO 84
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -383,6 +385,7 @@ struct saa7134_dmasound {
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
+	void *			   priv_data;
 	snd_pcm_substream_t 	   *substream;
 };
 
@@ -544,7 +547,6 @@ struct saa7134_dev {
 
 extern struct list_head  saa7134_devlist;
 
-void saa7134_print_ioctl(char *name, unsigned int cmd);
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 
 #define SAA7134_PGTABLE_SIZE 4096
@@ -568,6 +570,10 @@ void saa7134_buffer_timeout(unsigned long data);
 void saa7134_dma_free(struct saa7134_dev *dev,struct saa7134_buf *buf);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
+
+extern int (*dmasound_init)(struct saa7134_dev *dev);
+extern int (*dmasound_exit)(struct saa7134_dev *dev);
+
 
 /* ----------------------------------------------------------- */
 /* saa7134-cards.c                                             */

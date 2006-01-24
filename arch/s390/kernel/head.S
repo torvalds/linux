@@ -30,7 +30,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 #define ARCH_OFFSET	4
 #else
 #define ARCH_OFFSET	0
@@ -539,7 +539,7 @@ ipl_devno:
 	.word 0
 .endm
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 #include "head64.S"
 #else
 #include "head31.S"

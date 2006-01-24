@@ -54,6 +54,7 @@ extern int atomic64_sub_ret(int, atomic64_t *);
  * other cases.
  */
 #define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
+#define atomic64_inc_and_test(v) (atomic64_inc_return(v) == 0)
 
 #define atomic_sub_and_test(i, v) (atomic_sub_ret(i, v) == 0)
 #define atomic64_sub_and_test(i, v) (atomic64_sub_ret(i, v) == 0)
@@ -70,6 +71,19 @@ extern int atomic64_sub_ret(int, atomic64_t *);
 #define atomic_add_negative(i, v) (atomic_add_ret(i, v) < 0)
 #define atomic64_add_negative(i, v) (atomic64_add_ret(i, v) < 0)
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
 /* Atomic operations are already serializing */
 #ifdef CONFIG_SMP
 #define smp_mb__before_atomic_dec()	membar_storeload_loadload();
@@ -83,4 +97,5 @@ extern int atomic64_sub_ret(int, atomic64_t *);
 #define smp_mb__after_atomic_inc()	barrier()
 #endif
 
+#include <asm-generic/atomic.h>
 #endif /* !(__ARCH_SPARC64_ATOMIC__) */

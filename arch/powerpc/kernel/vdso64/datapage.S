@@ -54,12 +54,12 @@ V_FUNCTION_BEGIN(__kernel_get_syscall_map)
   .cfi_startproc
 	mflr	r12
   .cfi_register lr,r12
-
 	mr	r4,r3
 	bl	V_LOCAL_FUNC(__get_datapage)
 	mtlr	r12
 	addi	r3,r3,CFG_SYSCALL_MAP64
 	cmpli	cr0,r4,0
+	crclr	cr0*4+so
 	beqlr
 	li	r0,__NR_syscalls
 	stw	r0,0(r4)
@@ -80,5 +80,7 @@ V_FUNCTION_BEGIN(__kernel_get_tbfreq)
 	bl	V_LOCAL_FUNC(__get_datapage)
 	ld	r3,CFG_TB_TICKS_PER_SEC(r3)
 	mtlr	r12
+	crclr	cr0*4+so
+	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_get_tbfreq)

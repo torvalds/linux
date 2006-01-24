@@ -178,6 +178,83 @@ xlog_trace_iclog(xlog_in_core_t *iclog, uint state)
 #define	xlog_trace_iclog(iclog,state)
 #endif /* XFS_LOG_TRACE */
 
+
+static void
+xlog_ins_ticketq(struct xlog_ticket **qp, struct xlog_ticket *tic)
+{
+	if (*qp) {
+		tic->t_next	    = (*qp);
+		tic->t_prev	    = (*qp)->t_prev;
+		(*qp)->t_prev->t_next = tic;
+		(*qp)->t_prev	    = tic;
+	} else {
+		tic->t_prev = tic->t_next = tic;
+		*qp = tic;
+	}
+
+	tic->t_flags |= XLOG_TIC_IN_Q;
+}
+
+static void
+xlog_del_ticketq(struct xlog_ticket **qp, struct xlog_ticket *tic)
+{
+	if (tic == tic->t_next) {
+		*qp = NULL;
+	} else {
+		*qp = tic->t_next;
+		tic->t_next->t_prev = tic->t_prev;
+		tic->t_prev->t_next = tic->t_next;
+	}
+
+	tic->t_next = tic->t_prev = NULL;
+	tic->t_flags &= ~XLOG_TIC_IN_Q;
+}
+
+static void
+xlog_grant_sub_space(struct log *log, int bytes)
+{
+	log->l_grant_write_bytes -= bytes;
+	if (log->l_grant_write_bytes < 0) {
+		log->l_grant_write_bytes += log->l_logsize;
+		log->l_grant_write_cycle--;
+	}
+
+	log->l_grant_reserve_bytes -= bytes;
+	if ((log)->l_grant_reserve_bytes < 0) {
+		log->l_grant_reserve_bytes += log->l_logsize;
+		log->l_grant_reserve_cycle--;
+	}
+
+}
+
+static void
+xlog_grant_add_space_write(struct log *log, int bytes)
+{
+	log->l_grant_write_bytes += bytes;
+	if (log->l_grant_write_bytes > log->l_logsize) {
+		log->l_grant_write_bytes -= log->l_logsize;
+		log->l_grant_write_cycle++;
+	}
+}
+
+static void
+xlog_grant_add_space_reserve(struct log *log, int bytes)
+{
+	log->l_grant_reserve_bytes += bytes;
+	if (log->l_grant_reserve_bytes > log->l_logsize) {
+		log->l_grant_reserve_bytes -= log->l_logsize;
+		log->l_grant_reserve_cycle++;
+	}
+}
+
+static inline void
+xlog_grant_add_space(struct log *log, int bytes)
+{
+	xlog_grant_add_space_write(log, bytes);
+	xlog_grant_add_space_reserve(log, bytes);
+}
+
+
 /*
  * NOTES:
  *
@@ -326,7 +403,7 @@ xfs_log_release_iclog(xfs_mount_t *mp,
 
 	if (xlog_state_release_iclog(log, iclog)) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
-		return(EIO);
+		return EIO;
 	}
 
 	return 0;
@@ -428,7 +505,7 @@ xfs_log_mount(xfs_mount_t	*mp,
 		if (readonly)
 			vfsp->vfs_flag &= ~VFS_RDONLY;
 
-		error = xlog_recover(mp->m_log, readonly);
+		error = xlog_recover(mp->m_log);
 
 		if (readonly)
 			vfsp->vfs_flag |= VFS_RDONLY;
@@ -479,7 +556,7 @@ xfs_log_unmount(xfs_mount_t *mp)
 
 	error = xfs_log_unmount_write(mp);
 	xfs_log_unmount_dealloc(mp);
-	return (error);
+	return error;
 }
 
 /*
@@ -651,7 +728,7 @@ xfs_log_write(xfs_mount_t *	mp,
 	if ((error = xlog_write(mp, reg, nentries, tic, start_lsn, NULL, 0))) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
 	}
-	return (error);
+	return error;
 }	/* xfs_log_write */
 
 
@@ -759,7 +836,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		needed = 1;
 	}
 	LOG_UNLOCK(log, s);
-	return(needed);
+	return needed;
 }
 
 /******************************************************************************
@@ -926,7 +1003,7 @@ xlog_bdstrat_cb(struct xfs_buf *bp)
 	XFS_BUF_ERROR(bp, EIO);
 	XFS_BUF_STALE(bp);
 	xfs_biodone(bp);
-	return (XFS_ERROR(EIO));
+	return XFS_ERROR(EIO);
 
 
 }
@@ -1186,7 +1263,7 @@ xlog_commit_record(xfs_mount_t  *mp,
 			       iclog, XLOG_COMMIT_TRANS))) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
 	}
-	return (error);
+	return error;
 }	/* xlog_commit_record */
 
 
@@ -1320,8 +1397,7 @@ xlog_sync(xlog_t		*log,
 
 	/* move grant heads by roundoff in sync */
 	s = GRANT_LOCK(log);
-	XLOG_GRANT_ADD_SPACE(log, roundoff, 'w');
-	XLOG_GRANT_ADD_SPACE(log, roundoff, 'r');
+	xlog_grant_add_space(log, roundoff);
 	GRANT_UNLOCK(log, s);
 
 	/* put cycle number in every block */
@@ -1384,7 +1460,7 @@ xlog_sync(xlog_t		*log,
 	if ((error = XFS_bwrite(bp))) {
 		xfs_ioerror_alert("xlog_sync", log->l_mp, bp,
 				  XFS_BUF_ADDR(bp));
-		return (error);
+		return error;
 	}
 	if (split) {
 		bp		= iclog->ic_log->l_xbuf;
@@ -1422,10 +1498,10 @@ xlog_sync(xlog_t		*log,
 		if ((error = XFS_bwrite(bp))) {
 			xfs_ioerror_alert("xlog_sync (split)", log->l_mp,
 					  bp, XFS_BUF_ADDR(bp));
-			return (error);
+			return error;
 		}
 	}
-	return (0);
+	return 0;
 }	/* xlog_sync */
 
 
@@ -1515,7 +1591,6 @@ xlog_state_finish_copy(xlog_t		*log,
  * print out info relating to regions written which consume
  * the reservation
  */
-#if defined(XFS_LOG_RES_DEBUG)
 STATIC void
 xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 {
@@ -1605,11 +1680,11 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 			ticket->t_res_arr_sum, ticket->t_res_o_flow,
 			ticket->t_res_num_ophdrs, ophdr_spc,
 			ticket->t_res_arr_sum + 
-			  ticket->t_res_o_flow + ophdr_spc,
+			ticket->t_res_o_flow + ophdr_spc,
 			ticket->t_res_num);
 
 	for (i = 0; i < ticket->t_res_num; i++) {
-	   	uint r_type = ticket->t_res_arr[i].r_type; 
+		uint r_type = ticket->t_res_arr[i].r_type; 
 		cmn_err(CE_WARN,
 			    "region[%u]: %s - %u bytes\n",
 			    i, 
@@ -1618,9 +1693,6 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 			    ticket->t_res_arr[i].r_len);
 	}
 }
-#else
-#define xlog_print_tic_res(mp, ticket)
-#endif
 
 /*
  * Write some region out to in-core log
@@ -1726,7 +1798,7 @@ xlog_write(xfs_mount_t *	mp,
     for (index = 0; index < nentries; ) {
 	if ((error = xlog_state_get_iclog_space(log, len, &iclog, ticket,
 					       &contwr, &log_offset)))
-		return (error);
+		return error;
 
 	ASSERT(log_offset <= iclog->ic_size - 1);
 	ptr = (__psint_t) ((char *)iclog->ic_datap+log_offset);
@@ -1831,7 +1903,7 @@ xlog_write(xfs_mount_t *	mp,
 		    xlog_state_finish_copy(log, iclog, record_cnt, data_cnt);
 		    record_cnt = data_cnt = 0;
 		    if ((error = xlog_state_release_iclog(log, iclog)))
-			    return (error);
+			    return error;
 		    break;			/* don't increment index */
 	    } else {				/* copied entire region */
 		index++;
@@ -1845,7 +1917,7 @@ xlog_write(xfs_mount_t *	mp,
 			ASSERT(flags & XLOG_COMMIT_TRANS);
 			*commit_iclog = iclog;
 		    } else if ((error = xlog_state_release_iclog(log, iclog)))
-			   return (error);
+			   return error;
 		    if (index == nentries)
 			    return 0;		/* we are done */
 		    else
@@ -1862,7 +1934,7 @@ xlog_write(xfs_mount_t *	mp,
 	*commit_iclog = iclog;
 	return 0;
     }
-    return (xlog_state_release_iclog(log, iclog));
+    return xlog_state_release_iclog(log, iclog);
 }	/* xlog_write */
 
 
@@ -1978,7 +2050,7 @@ xlog_get_lowest_lsn(
 	    }
 	    lsn_log = lsn_log->ic_next;
 	} while (lsn_log != log->l_iclog);
-	return(lowest_lsn);
+	return lowest_lsn;
 }
 
 
@@ -2330,7 +2402,7 @@ restart:
 		if (iclog->ic_refcnt == 1) {
 			LOG_UNLOCK(log, s);
 			if ((error = xlog_state_release_iclog(log, iclog)))
-				return (error);
+				return error;
 		} else {
 			iclog->ic_refcnt--;
 			LOG_UNLOCK(log, s);
@@ -2389,7 +2461,7 @@ xlog_grant_log_space(xlog_t	   *log,
 
 	/* something is already sleeping; insert new transaction at end */
 	if (log->l_reserve_headq) {
-		XLOG_INS_TICKETQ(log->l_reserve_headq, tic);
+		xlog_ins_ticketq(&log->l_reserve_headq, tic);
 		xlog_trace_loggrant(log, tic,
 				    "xlog_grant_log_space: sleep 1");
 		/*
@@ -2422,7 +2494,7 @@ redo:
 				     log->l_grant_reserve_bytes);
 	if (free_bytes < need_bytes) {
 		if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
-			XLOG_INS_TICKETQ(log->l_reserve_headq, tic);
+			xlog_ins_ticketq(&log->l_reserve_headq, tic);
 		xlog_trace_loggrant(log, tic,
 				    "xlog_grant_log_space: sleep 2");
 		XFS_STATS_INC(xs_sleep_logspace);
@@ -2439,11 +2511,10 @@ redo:
 		s = GRANT_LOCK(log);
 		goto redo;
 	} else if (tic->t_flags & XLOG_TIC_IN_Q)
-		XLOG_DEL_TICKETQ(log->l_reserve_headq, tic);
+		xlog_del_ticketq(&log->l_reserve_headq, tic);
 
 	/* we've got enough space */
-	XLOG_GRANT_ADD_SPACE(log, need_bytes, 'w');
-	XLOG_GRANT_ADD_SPACE(log, need_bytes, 'r');
+	xlog_grant_add_space(log, need_bytes);
 #ifdef DEBUG
 	tail_lsn = log->l_tail_lsn;
 	/*
@@ -2464,7 +2535,7 @@ redo:
 
  error_return:
 	if (tic->t_flags & XLOG_TIC_IN_Q)
-		XLOG_DEL_TICKETQ(log->l_reserve_headq, tic);
+		xlog_del_ticketq(&log->l_reserve_headq, tic);
 	xlog_trace_loggrant(log, tic, "xlog_grant_log_space: err_ret");
 	/*
 	 * If we are failing, make sure the ticket doesn't have any
@@ -2498,7 +2569,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 	XLOG_TIC_RESET_RES(tic);
 
 	if (tic->t_cnt > 0)
-		return (0);
+		return 0;
 
 #ifdef DEBUG
 	if (log->l_flags & XLOG_ACTIVE_RECOVERY)
@@ -2533,7 +2604,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 
 		if (ntic != log->l_write_headq) {
 			if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
-				XLOG_INS_TICKETQ(log->l_write_headq, tic);
+				xlog_ins_ticketq(&log->l_write_headq, tic);
 
 			xlog_trace_loggrant(log, tic,
 				    "xlog_regrant_write_log_space: sleep 1");
@@ -2565,7 +2636,7 @@ redo:
 				     log->l_grant_write_bytes);
 	if (free_bytes < need_bytes) {
 		if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
-			XLOG_INS_TICKETQ(log->l_write_headq, tic);
+			xlog_ins_ticketq(&log->l_write_headq, tic);
 		XFS_STATS_INC(xs_sleep_logspace);
 		sv_wait(&tic->t_sema, PINOD|PLTWAIT, &log->l_grant_lock, s);
 
@@ -2581,9 +2652,10 @@ redo:
 		s = GRANT_LOCK(log);
 		goto redo;
 	} else if (tic->t_flags & XLOG_TIC_IN_Q)
-		XLOG_DEL_TICKETQ(log->l_write_headq, tic);
+		xlog_del_ticketq(&log->l_write_headq, tic);
 
-	XLOG_GRANT_ADD_SPACE(log, need_bytes, 'w'); /* we've got enough space */
+	/* we've got enough space */
+	xlog_grant_add_space_write(log, need_bytes);
 #ifdef DEBUG
 	tail_lsn = log->l_tail_lsn;
 	if (CYCLE_LSN(tail_lsn) != log->l_grant_write_cycle) {
@@ -2595,12 +2667,12 @@ redo:
 	xlog_trace_loggrant(log, tic, "xlog_regrant_write_log_space: exit");
 	xlog_verify_grant_head(log, 1);
 	GRANT_UNLOCK(log, s);
-	return (0);
+	return 0;
 
 
  error_return:
 	if (tic->t_flags & XLOG_TIC_IN_Q)
-		XLOG_DEL_TICKETQ(log->l_reserve_headq, tic);
+		xlog_del_ticketq(&log->l_reserve_headq, tic);
 	xlog_trace_loggrant(log, tic, "xlog_regrant_write_log_space: err_ret");
 	/*
 	 * If we are failing, make sure the ticket doesn't have any
@@ -2633,8 +2705,7 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 		ticket->t_cnt--;
 
 	s = GRANT_LOCK(log);
-	XLOG_GRANT_SUB_SPACE(log, ticket->t_curr_res, 'w');
-	XLOG_GRANT_SUB_SPACE(log, ticket->t_curr_res, 'r');
+	xlog_grant_sub_space(log, ticket->t_curr_res);
 	ticket->t_curr_res = ticket->t_unit_res;
 	XLOG_TIC_RESET_RES(ticket);
 	xlog_trace_loggrant(log, ticket,
@@ -2647,7 +2718,7 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 		return;
 	}
 
-	XLOG_GRANT_ADD_SPACE(log, ticket->t_unit_res, 'r');
+	xlog_grant_add_space_reserve(log, ticket->t_unit_res);
 	xlog_trace_loggrant(log, ticket,
 			    "xlog_regrant_reserve_log_space: exit");
 	xlog_verify_grant_head(log, 0);
@@ -2683,8 +2754,7 @@ xlog_ungrant_log_space(xlog_t	     *log,
 	s = GRANT_LOCK(log);
 	xlog_trace_loggrant(log, ticket, "xlog_ungrant_log_space: enter");
 
-	XLOG_GRANT_SUB_SPACE(log, ticket->t_curr_res, 'w');
-	XLOG_GRANT_SUB_SPACE(log, ticket->t_curr_res, 'r');
+	xlog_grant_sub_space(log, ticket->t_curr_res);
 
 	xlog_trace_loggrant(log, ticket, "xlog_ungrant_log_space: sub current");
 
@@ -2693,8 +2763,7 @@ xlog_ungrant_log_space(xlog_t	     *log,
 	 */
 	if (ticket->t_cnt > 0) {
 		ASSERT(ticket->t_flags & XLOG_TIC_PERM_RESERV);
-		XLOG_GRANT_SUB_SPACE(log, ticket->t_unit_res*ticket->t_cnt,'w');
-		XLOG_GRANT_SUB_SPACE(log, ticket->t_unit_res*ticket->t_cnt,'r');
+		xlog_grant_sub_space(log, ticket->t_unit_res*ticket->t_cnt);
 	}
 
 	xlog_trace_loggrant(log, ticket, "xlog_ungrant_log_space: exit");
@@ -2768,7 +2837,7 @@ xlog_state_release_iclog(xlog_t		*log,
 	if (sync) {
 		return xlog_sync(log, iclog);
 	}
-	return (0);
+	return 0;
 
 }	/* xlog_state_release_iclog */
 
@@ -3058,7 +3127,7 @@ try_again:
     } while (iclog != log->l_iclog);
 
     LOG_UNLOCK(log, s);
-    return (0);
+    return 0;
 }	/* xlog_state_sync */
 
 
@@ -3476,12 +3545,12 @@ xlog_state_ioerror(
 			ic->ic_state = XLOG_STATE_IOERROR;
 			ic = ic->ic_next;
 		} while (ic != iclog);
-		return (0);
+		return 0;
 	}
 	/*
 	 * Return non-zero, if state transition has already happened.
 	 */
-	return (1);
+	return 1;
 }
 
 /*
@@ -3518,7 +3587,7 @@ xfs_log_force_umount(
 	    log->l_flags & XLOG_ACTIVE_RECOVERY) {
 		mp->m_flags |= XFS_MOUNT_FS_SHUTDOWN;
 		XFS_BUF_DONE(mp->m_sb_bp);
-		return (0);
+		return 0;
 	}
 
 	/*
@@ -3527,7 +3596,7 @@ xfs_log_force_umount(
 	 */
 	if (logerror && log->l_iclog->ic_state & XLOG_STATE_IOERROR) {
 		ASSERT(XLOG_FORCED_SHUTDOWN(log));
-		return (1);
+		return 1;
 	}
 	retval = 0;
 	/*
@@ -3609,7 +3678,7 @@ xfs_log_force_umount(
 	}
 #endif
 	/* return non-zero if log IOERROR transition had already happened */
-	return (retval);
+	return retval;
 }
 
 STATIC int
@@ -3623,8 +3692,8 @@ xlog_iclogs_empty(xlog_t *log)
 		 * any language.
 		 */
 		if (iclog->ic_header.h_num_logops)
-			return(0);
+			return 0;
 		iclog = iclog->ic_next;
 	} while (iclog != log->l_iclog);
-	return(1);
+	return 1;
 }

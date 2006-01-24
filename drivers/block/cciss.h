@@ -13,8 +13,6 @@
 #define IO_OK		0
 #define IO_ERROR	1
 
-#define MAJOR_NR COMPAQ_CISS_MAJOR
-
 struct ctlr_info;
 typedef struct ctlr_info ctlr_info_t;
 
@@ -44,6 +42,14 @@ typedef struct _drive_info_struct
 				  */
 } drive_info_struct;
 
+#ifdef CONFIG_CISS_SCSI_TAPE
+
+struct sendcmd_reject_list {
+	int ncompletions;
+	unsigned long *complete; /* array of NR_CMDS tags */
+};
+
+#endif
 struct ctlr_info 
 {
 	int	ctlr;
@@ -57,7 +63,6 @@ struct ctlr_info
 	unsigned long io_mem_addr;
 	unsigned long io_mem_length;
 	CfgTable_struct __iomem *cfgtable;
-	unsigned int intr;
 	int	interrupts_enabled;
 	int	major;
 	int 	max_commands;
@@ -66,6 +71,13 @@ struct ctlr_info
 	int	num_luns;
 	int 	highest_lun;
 	int	usage_count;  /* number of opens all all minor devices */
+#	define DOORBELL_INT	0
+#	define PERF_MODE_INT	1
+#	define SIMPLE_MODE_INT	2
+#	define MEMQ_MODE_INT	3
+	unsigned int intr[4];
+	unsigned int msix_vector;
+	unsigned int msi_vector;
 
 	// information about each logical volume
 	drive_info_struct drv[CISS_MAX_LUN];
@@ -100,6 +112,9 @@ struct ctlr_info
 	struct gendisk   *gendisk[NWD];
 #ifdef CONFIG_CISS_SCSI_TAPE
 	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
+	/* list of block side commands the scsi error handling sucked up */
+	/* and saved for later processing */
+	struct sendcmd_reject_list scsi_rejects;
 #endif
 	unsigned char alive;
 };

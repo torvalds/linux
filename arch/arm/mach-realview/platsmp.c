@@ -17,8 +17,7 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/arm_scu.h>
 #include <asm/hardware.h>
-
-#include "core.h"
+#include <asm/io.h>
 
 extern void realview_secondary_startup(void);
 

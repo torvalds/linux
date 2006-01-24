@@ -20,6 +20,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -30,6 +31,7 @@
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
@@ -287,13 +289,13 @@ static int inet_check_attr(struct rtmsg *r, struct rtattr **rta)
 {
 	int i;
 
-	for (i=1; i<=RTA_MAX; i++) {
-		struct rtattr *attr = rta[i-1];
+	for (i=1; i<=RTA_MAX; i++, rta++) {
+		struct rtattr *attr = *rta;
 		if (attr) {
 			if (RTA_PAYLOAD(attr) < 4)
 				return -EINVAL;
 			if (i != RTA_MULTIPATH && i != RTA_METRICS)
-				rta[i-1] = (struct rtattr*)RTA_DATA(attr);
+				*rta = (struct rtattr*)RTA_DATA(attr);
 		}
 	}
 	return 0;
@@ -407,7 +409,7 @@ static void fib_magic(int cmd, int type, u32 dst, int dst_len, struct in_ifaddr 
 		tb->tb_delete(tb, &req.rtm, &rta, &req.nlh, NULL);
 }
 
-static void fib_add_ifaddr(struct in_ifaddr *ifa)
+void fib_add_ifaddr(struct in_ifaddr *ifa)
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
@@ -544,12 +546,16 @@ static void nl_fib_input(struct sock *sk, int len)
 	struct sk_buff *skb = NULL;
         struct nlmsghdr *nlh = NULL;
 	struct fib_result_nl *frn;
-	int err;
 	u32 pid;     
 	struct fib_table *tb;
 	
-	skb = skb_recv_datagram(sk, 0, 0, &err);
+	skb = skb_dequeue(&sk->sk_receive_queue);
 	nlh = (struct nlmsghdr *)skb->data;
+	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
+	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn))) {
+		kfree_skb(skb);
+		return;
+	}
 	
 	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
 	tb = fib_get_table(frn->tb_id_in);

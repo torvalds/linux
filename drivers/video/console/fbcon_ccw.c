@@ -34,7 +34,7 @@ static inline void ccw_update_attr(u8 *dst, u8 *src, int attribute,
 		msk <<= (8 - mod);
 
 	if (offset > mod)
-		set_bit(FBCON_BIT(7), (void *)&msk1);
+		msk1 |= 0x01;
 
 	for (i = 0; i < vc->vc_font.width; i++) {
 		for (j = 0; j < width; j++) {
@@ -63,9 +63,9 @@ static inline void ccw_update_attr(u8 *dst, u8 *src, int attribute,
 static void ccw_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int dy, int dx, int height, int width)
 {
-	struct display *p = &fb_display[vc->vc_num];
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_copyarea area;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	area.sx = sy * vc->vc_font.height;
 	area.sy = vyres - ((sx + width) * vc->vc_font.width);
@@ -80,10 +80,10 @@ static void ccw_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 static void ccw_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int height, int width)
 {
-	struct display *p = &fb_display[vc->vc_num];
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_fillrect region;
 	int bgshift = (vc->vc_hi_font_mask) ? 13 : 12;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	region.color = attr_bgcol_ec(bgshift,vc);
 	region.dx = sy * vc->vc_font.height;
@@ -131,7 +131,6 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 		      int fg, int bg)
 {
 	struct fb_image image;
-	struct display *p = &fb_display[vc->vc_num];
 	struct fbcon_ops *ops = info->fbcon_par;
 	u32 width = (vc->vc_font.height + 7)/8;
 	u32 cellsize = width * vc->vc_font.width;
@@ -141,7 +140,7 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 cnt, pitch, size;
 	u32 attribute = get_attribute(info, scr_readw(s));
 	u8 *dst, *buf = NULL;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -220,19 +219,18 @@ static void ccw_clear_margins(struct vc_data *vc, struct fb_info *info,
 	}
 }
 
-static void ccw_cursor(struct vc_data *vc, struct fb_info *info,
-		      struct display *p, int mode, int softback_lines,
-		      int fg, int bg)
+static void ccw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
+		       int softback_lines, int fg, int bg)
 {
 	struct fb_cursor cursor;
-	struct fbcon_ops *ops = (struct fbcon_ops *) info->fbcon_par;
+	struct fbcon_ops *ops = info->fbcon_par;
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = (vc->vc_font.height + 7) >> 3, c;
-	int y = real_y(p, vc->vc_y);
+	int y = real_y(ops->p, vc->vc_y);
 	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
 	int err = 1, dx, dy;
 	char *src;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -304,7 +302,7 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info,
 	}
 
 	if (cursor.set & FB_CUR_SETSIZE ||
-	    vc->vc_cursor_type != p->cursor_shape ||
+	    vc->vc_cursor_type != ops->p->cursor_shape ||
 	    ops->cursor_state.mask == NULL ||
 	    ops->cursor_reset) {
 		char *tmp, *mask = kmalloc(w*vc->vc_font.width, GFP_ATOMIC);
@@ -324,10 +322,10 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info,
 		kfree(ops->cursor_state.mask);
 		ops->cursor_state.mask = mask;
 
-		p->cursor_shape = vc->vc_cursor_type;
+		ops->p->cursor_shape = vc->vc_cursor_type;
 		cursor.set |= FB_CUR_SETSHAPE;
 
-		switch (p->cursor_shape & CUR_HWMASK) {
+		switch (ops->p->cursor_shape & CUR_HWMASK) {
 		case CUR_NONE:
 			cur_height = 0;
 			break;
@@ -397,9 +395,8 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info,
 int ccw_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *p = &fb_display[ops->currcon];
 	u32 yoffset;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 	int err;
 
 	yoffset = (vyres - info->var.yres) - ops->var.xoffset;

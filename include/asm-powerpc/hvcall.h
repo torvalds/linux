@@ -1,11 +1,15 @@
 #ifndef _ASM_POWERPC_HVCALL_H
 #define _ASM_POWERPC_HVCALL_H
+#ifdef __KERNEL__
 
 #define HVSC			.long 0x44000022
 
 #define H_Success	0
 #define H_Busy		1	/* Hardware busy -- retry later */
+#define H_Closed	2	/* Resource closed */
 #define H_Constrained	4	/* Resource request constrained to max allowed */
+#define H_InProgress   14	/* Kind of like busy */
+#define H_Continue     18	/* Returned from H_Join on success */
 #define H_LongBusyStartRange   9900  /* Start of long busy range */
 #define H_LongBusyOrder1msec   9900  /* Long busy, hint that 1msec is a good time to retry */
 #define H_LongBusyOrder10msec  9901  /* Long busy, hint that 10msec is a good time to retry */
@@ -113,6 +117,8 @@
 #define H_REGISTER_VTERM	0x154
 #define H_FREE_VTERM		0x158
 #define H_POLL_PENDING	        0x1D8
+#define H_JOIN			0x298
+#define H_ENABLE_CRQ		0x2B0
 
 #ifndef __ASSEMBLY__
 
@@ -170,4 +176,5 @@ long plpar_hcall_4out(unsigned long opcode,
 		      unsigned long *out4);
 
 #endif /* __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_HVCALL_H */

@@ -27,6 +27,7 @@
  *   DViCO FusionHDTV 3 Gold-T
  *   DViCO FusionHDTV 5 Gold
  *   DViCO FusionHDTV 5 Lite
+ *   DViCO FusionHDTV 5 USB Gold
  *   Air2PC/AirStar 2 ATSC 3rd generation (HD5000)
  *
  * TODO:
@@ -301,10 +302,10 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 	static u8 lgdt3303_8vsb_44_data[] = {
 		0x04, 0x00,
 		0x0d, 0x40,
-        0x0e, 0x87,
-        0x0f, 0x8e,
-        0x10, 0x01,
-        0x47, 0x8b };
+	0x0e, 0x87,
+	0x0f, 0x8e,
+	0x10, 0x01,
+	0x47, 0x8b };
 
 	/*
 	 * Array of byte pairs <address, value>
@@ -402,6 +403,8 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 		state->config->pll_set(fe, param);
 
 	/* Keep track of the new frequency */
+	/* FIXME this is the wrong way to do this...           */
+	/* The tuner is shared with the video4linux analog API */
 	state->current_frequency = param->frequency;
 
 	lgdt330x_SwReset(state);
@@ -711,10 +714,9 @@ struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 	u8 buf[1];
 
 	/* Allocate memory for the internal state */
-	state = (struct lgdt330x_state*) kmalloc(sizeof(struct lgdt330x_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct lgdt330x_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
-	memset(state,0,sizeof(*state));
 
 	/* Setup the state */
 	state->config = config;

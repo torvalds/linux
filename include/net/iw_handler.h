@@ -327,7 +327,7 @@ struct iw_handler_def
 	__u16			num_private_args;
 
 	/* Array of handlers for standard ioctls
-	 * We will call dev->wireless_handlers->standard[ioctl - SIOCSIWNAME]
+	 * We will call dev->wireless_handlers->standard[ioctl - SIOCSIWCOMMIT]
 	 */
 	const iw_handler *	standard;
 

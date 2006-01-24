@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/signal.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
