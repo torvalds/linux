@@ -8012,6 +8012,10 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 	else
 		IPW_DEBUG_INFO("Auto adhoc creation disabled.\n");
 
+	priv->config &= ~CFG_STATIC_ESSID;
+	priv->essid_len = 0;
+	memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
+
 	if (disable) {
 		priv->status |= STATUS_RF_KILL_SW;
 		IPW_DEBUG_INFO("Radio disabled.\n");
