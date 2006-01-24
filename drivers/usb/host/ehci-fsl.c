@@ -160,8 +160,7 @@ static void mpc83xx_setup_phy(struct ehci_hcd *ehci,
 			      enum fsl_usb2_phy_modes phy_mode,
 			      unsigned int port_offset)
 {
-	u32 portsc = readl(&ehci->regs->port_status[port_offset]);
-	portsc &= ~PORT_PTS_MSK;
+	u32 portsc = 0;
 	switch (phy_mode) {
 	case FSL_USB2_PHY_ULPI:
 		portsc |= PORT_PTS_ULPI;
