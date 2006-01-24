@@ -7030,15 +7030,15 @@ static int ipw_handle_assoc_response(struct net_device *dev,
 static int ipw_send_qos_params_command(struct ipw_priv *priv, struct ieee80211_qos_parameters
 				       *qos_param)
 {
-	return ipw_send_cmd_pdu(priv, IPW_CMD_QOS_PARAMETERS, qos_param,
-					sizeof(*qos_param) * 3);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_QOS_PARAMETERS,
+				sizeof(*qos_param) * 3, qos_param);
 }
 
 static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos_information_element
 				     *qos_param)
 {
-	return ipw_send_cmd_pdu(priv, IPW_CMD_WME_INFO, qos_param,
-					sizeof(*qos_param));
+	return ipw_send_cmd_pdu(priv, IPW_CMD_WME_INFO, sizeof(*qos_param),
+				qos_param);
 }
 
 #endif				/* CONFIG_IPW_QOS */
