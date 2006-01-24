@@ -1485,7 +1485,24 @@ static int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int i, found = 0;
 
-	ap->ops->phy_reset(ap);
+	if (ap->ops->probe_reset) {
+		unsigned int classes[ATA_MAX_DEVICES];
+		int rc;
+
+		ata_port_probe(ap);
+
+		rc = ap->ops->probe_reset(ap, classes);
+		if (rc == 0) {
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
+				ap->device[i].class = classes[i];
+		} else {
+			printk(KERN_ERR "ata%u: probe reset failed, "
+			       "disabling port\n", ap->id);
+			ata_port_disable(ap);
+		}
+	} else
+		ap->ops->phy_reset(ap);
+
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		goto err_out;
 

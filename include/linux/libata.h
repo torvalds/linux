@@ -148,9 +148,9 @@ enum {
 	ATA_FLAG_PORT_DISABLED	= (1 << 2), /* port is disabled, ignore it */
 	ATA_FLAG_SATA		= (1 << 3),
 	ATA_FLAG_NO_LEGACY	= (1 << 4), /* no legacy mode check */
-	ATA_FLAG_SRST		= (1 << 5), /* use ATA SRST, not E.D.D. */
+	ATA_FLAG_SRST		= (1 << 5), /* (obsolete) use ATA SRST, not E.D.D. */
 	ATA_FLAG_MMIO		= (1 << 6), /* use MMIO, not PIO */
-	ATA_FLAG_SATA_RESET	= (1 << 7), /* use COMRESET */
+	ATA_FLAG_SATA_RESET	= (1 << 7), /* (obsolete) use COMRESET */
 	ATA_FLAG_PIO_DMA	= (1 << 8), /* PIO cmds via DMA */
 	ATA_FLAG_NOINTR		= (1 << 9), /* FIXME: Remove this once
 					     * proper HSM is in place. */
@@ -419,7 +419,9 @@ struct ata_port_operations {
 	u8   (*check_altstatus)(struct ata_port *ap);
 	void (*dev_select)(struct ata_port *ap, unsigned int device);
 
-	void (*phy_reset) (struct ata_port *ap);
+	void (*phy_reset) (struct ata_port *ap); /* obsolete */
+	int (*probe_reset) (struct ata_port *ap, unsigned int *classes);
+
 	void (*post_set_mode) (struct ata_port *ap);
 
 	int (*check_atapi_dma) (struct ata_queued_cmd *qc);
