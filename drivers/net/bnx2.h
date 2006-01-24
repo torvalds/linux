@@ -277,19 +277,7 @@ struct statistics_block {
  *  l2_fhdr definition
  */
 struct l2_fhdr {
-#if defined(__BIG_ENDIAN)
-	u16 l2_fhdr_errors;
-	u16 l2_fhdr_status;
-#elif defined(__LITTLE_ENDIAN)
-	u16 l2_fhdr_status;
-	u16 l2_fhdr_errors;
-#endif
-		#define L2_FHDR_ERRORS_BAD_CRC		(1<<1)
-		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<2)
-		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<3)
-		#define L2_FHDR_ERRORS_TOO_SHORT	(1<<4)
-		#define L2_FHDR_ERRORS_GIANT_FRAME	(1<<5)
-
+	u32 l2_fhdr_status;
 		#define L2_FHDR_STATUS_RULE_CLASS	(0x7<<0)
 		#define L2_FHDR_STATUS_RULE_P2		(1<<3)
 		#define L2_FHDR_STATUS_RULE_P3		(1<<4)
@@ -300,6 +288,14 @@ struct l2_fhdr {
 		#define L2_FHDR_STATUS_IP_DATAGRAM	(1<<13)
 		#define L2_FHDR_STATUS_TCP_SEGMENT	(1<<14)
 		#define L2_FHDR_STATUS_UDP_DATAGRAM	(1<<15)
+
+		#define L2_FHDR_ERRORS_BAD_CRC		(1<<17)
+		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<18)
+		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<19)
+		#define L2_FHDR_ERRORS_TOO_SHORT	(1<<20)
+		#define L2_FHDR_ERRORS_GIANT_FRAME	(1<<21)
+		#define L2_FHDR_ERRORS_TCP_XSUM		(1<<28)
+		#define L2_FHDR_ERRORS_UDP_XSUM		(1<<31)
 
 	u32 l2_fhdr_hash;
 #if defined(__BIG_ENDIAN)

@@ -1660,7 +1660,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 	rmb();
 	while (sw_cons != hw_cons) {
 		unsigned int len;
-		u16 status;
+		u32 status;
 		struct sw_bd *rx_buf;
 		struct sk_buff *skb;
 
@@ -1676,7 +1676,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 		rx_hdr = (struct l2_fhdr *) skb->data;
 		len = rx_hdr->l2_fhdr_pkt_len - 4;
 
-		if (rx_hdr->l2_fhdr_errors &
+		if ((status = rx_hdr->l2_fhdr_status) &
 			(L2_FHDR_ERRORS_BAD_CRC |
 			L2_FHDR_ERRORS_PHY_DECODE |
 			L2_FHDR_ERRORS_ALIGNMENT |
@@ -1735,15 +1735,13 @@ reuse_rx:
 
 		}
 
-		status = rx_hdr->l2_fhdr_status;
 		skb->ip_summed = CHECKSUM_NONE;
 		if (bp->rx_csum &&
 			(status & (L2_FHDR_STATUS_TCP_SEGMENT |
 			L2_FHDR_STATUS_UDP_DATAGRAM))) {
 
-			u16 cksum = rx_hdr->l2_fhdr_tcp_udp_xsum;
-
-			if (cksum == 0xffff)
+			if (likely((status & (L2_FHDR_ERRORS_TCP_XSUM |
+					      L2_FHDR_ERRORS_UDP_XSUM)) == 0))
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 
@@ -3978,7 +3976,7 @@ bnx2_test_loopback(struct bnx2 *bp)
 		pci_unmap_addr(rx_buf, mapping),
 		bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
-	if (rx_hdr->l2_fhdr_errors &
+	if (rx_hdr->l2_fhdr_status &
 		(L2_FHDR_ERRORS_BAD_CRC |
 		L2_FHDR_ERRORS_PHY_DECODE |
 		L2_FHDR_ERRORS_ALIGNMENT |
