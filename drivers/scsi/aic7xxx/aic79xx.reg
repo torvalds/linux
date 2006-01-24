@@ -1,7 +1,7 @@
 /*
  * Aic79xx register and scratch ram definitions.
  *
- * Copyright (c) 1994-2001 Justin T. Gibbs.
+ * Copyright (c) 1994-2001, 2004 Justin T. Gibbs.
  * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#76 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#77 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -3715,8 +3715,9 @@ scratch_ram {
 
 	SEQ_FLAGS2 {
 		size		1
-		field	TARGET_MSG_PENDING	  0x02
-		field	SELECTOUT_QFROZEN	  0x04
+		field	PENDING_MK_MESSAGE	0x01
+		field	TARGET_MSG_PENDING	0x02
+		field	SELECTOUT_QFROZEN	0x04
 	}
 
 	ALLOCFIFO_SCBPTR {
@@ -3776,6 +3777,26 @@ scratch_ram {
 	 */
 	CMDSIZE_TABLE {
 		size		8
+	}
+	/*
+	 * When an SCB with the MK_MESSAGE flag is
+	 * queued to the controller, it cannot enter
+	 * the waiting for selection list until the
+	 * selections for any previously queued
+	 * commands to that target complete.  During
+	 * the wait, the MK_MESSAGE SCB is queued
+	 * here.
+	 */
+	MK_MESSAGE_SCB {
+		size		2
+	}
+	/*
+	 * Saved SCSIID of MK_MESSAGE_SCB to avoid
+	 * an extra SCBPTR operation when deciding
+	 * if the MK_MESSAGE_SCB can be run.
+	 */
+	MK_MESSAGE_SCSIID {
+		size		1
 	}
 }
 
