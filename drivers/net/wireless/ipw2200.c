@@ -1953,7 +1953,14 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	IPW_DEBUG_HC("%s command (#%d) %d bytes: 0x%08X\n",
 		     get_cmd_string(cmd->cmd), cmd->cmd, cmd->len,
 		     priv->status);
-	printk_buf(IPW_DL_HOST_COMMAND, (u8 *) cmd->param, cmd->len);
+
+#ifndef DEBUG_CMD_WEP_KEY
+	if (cmd->cmd == IPW_CMD_WEP_KEY)
+		IPW_DEBUG_HC("WEP_KEY command masked out for secure.\n");
+	else
+#endif
+		printk_buf(IPW_DL_HOST_COMMAND, (u8 *) cmd->param, cmd->len);
+
 
 	rc = ipw_queue_tx_hcmd(priv, cmd->cmd, &cmd->param, cmd->len, 0);
 	if (rc) {
