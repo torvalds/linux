@@ -167,7 +167,7 @@ that only one external action is invoked at a time.
 
 #include "ipw2100.h"
 
-#define IPW2100_VERSION "1.1.3"
+#define IPW2100_VERSION "git-1.1.4"
 
 #define DRV_NAME	"ipw2100"
 #define DRV_VERSION	IPW2100_VERSION
