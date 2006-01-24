@@ -1331,6 +1331,38 @@ bnx2_set_mac_loopback(struct bnx2 *bp)
 	return 0;
 }
 
+static int bnx2_test_link(struct bnx2 *);
+
+static int
+bnx2_set_phy_loopback(struct bnx2 *bp)
+{
+	u32 mac_mode;
+	int rc, i;
+
+	spin_lock_bh(&bp->phy_lock);
+	rc = bnx2_write_phy(bp, MII_BMCR, BMCR_LOOPBACK | BMCR_FULLDPLX |
+			    BMCR_SPEED1000);
+	spin_unlock_bh(&bp->phy_lock);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < 10; i++) {
+		if (bnx2_test_link(bp) == 0)
+			break;
+		udelay(10);
+	}
+
+	mac_mode = REG_RD(bp, BNX2_EMAC_MODE);
+	mac_mode &= ~(BNX2_EMAC_MODE_PORT | BNX2_EMAC_MODE_HALF_DUPLEX |
+		      BNX2_EMAC_MODE_MAC_LOOP | BNX2_EMAC_MODE_FORCE_LINK |
+		      BNX2_EMAC_MODE_25G);
+
+	mac_mode |= BNX2_EMAC_MODE_PORT_GMII;
+	REG_WR(bp, BNX2_EMAC_MODE, mac_mode);
+	bp->link_up = 1;
+	return 0;
+}
+
 static int
 bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int silent)
 {
@@ -3907,26 +3939,33 @@ bnx2_test_memory(struct bnx2 *bp)
 	return ret;
 }
 
+#define BNX2_MAC_LOOPBACK	0
+#define BNX2_PHY_LOOPBACK	1
+
 static int
-bnx2_test_loopback(struct bnx2 *bp)
+bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 {
 	unsigned int pkt_size, num_pkts, i;
 	struct sk_buff *skb, *rx_skb;
 	unsigned char *packet;
-	u16 rx_start_idx, rx_idx, send_idx;
-	u32 send_bseq, val;
+	u16 rx_start_idx, rx_idx;
+	u32 val;
 	dma_addr_t map;
 	struct tx_bd *txbd;
 	struct sw_bd *rx_buf;
 	struct l2_fhdr *rx_hdr;
 	int ret = -ENODEV;
 
-	if (!netif_running(bp->dev))
-		return -ENODEV;
-
-	bp->loopback = MAC_LOOPBACK;
-	bnx2_reset_nic(bp, BNX2_DRV_MSG_CODE_DIAG);
-	bnx2_set_mac_loopback(bp);
+	if (loopback_mode == BNX2_MAC_LOOPBACK) {
+		bp->loopback = MAC_LOOPBACK;
+		bnx2_set_mac_loopback(bp);
+	}
+	else if (loopback_mode == BNX2_PHY_LOOPBACK) {
+		bp->loopback = 0;
+		bnx2_set_phy_loopback(bp);
+	}
+	else
+		return -EINVAL;
 
 	pkt_size = 1514;
 	skb = dev_alloc_skb(pkt_size);
@@ -3948,11 +3987,9 @@ bnx2_test_loopback(struct bnx2 *bp)
 	udelay(5);
 	rx_start_idx = bp->status_blk->status_rx_quick_consumer_index0;
 
-	send_idx = 0;
-	send_bseq = 0;
 	num_pkts = 0;
 
-	txbd = &bp->tx_desc_ring[send_idx];
+	txbd = &bp->tx_desc_ring[TX_RING_IDX(bp->tx_prod)];
 
 	txbd->tx_bd_haddr_hi = (u64) map >> 32;
 	txbd->tx_bd_haddr_lo = (u64) map & 0xffffffff;
@@ -3960,13 +3997,11 @@ bnx2_test_loopback(struct bnx2 *bp)
 	txbd->tx_bd_vlan_tag_flags = TX_BD_FLAGS_START | TX_BD_FLAGS_END;
 
 	num_pkts++;
-	send_idx = NEXT_TX_BD(send_idx);
+	bp->tx_prod = NEXT_TX_BD(bp->tx_prod);
+	bp->tx_prod_bseq += pkt_size;
 
-	send_bseq += pkt_size;
-
-	REG_WR16(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BIDX, send_idx);
-	REG_WR(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BSEQ, send_bseq);
-
+	REG_WR16(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BIDX, bp->tx_prod);
+	REG_WR(bp, MB_TX_CID_ADDR + BNX2_L2CTX_TX_HOST_BSEQ, bp->tx_prod_bseq);
 
 	udelay(100);
 
@@ -3979,7 +4014,7 @@ bnx2_test_loopback(struct bnx2 *bp)
 	pci_unmap_single(bp->pdev, map, pkt_size, PCI_DMA_TODEVICE);
 	dev_kfree_skb_irq(skb);
 
-	if (bp->status_blk->status_tx_quick_consumer_index0 != send_idx) {
+	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->tx_prod) {
 		goto loopback_test_done;
 	}
 
@@ -4023,6 +4058,30 @@ bnx2_test_loopback(struct bnx2 *bp)
 loopback_test_done:
 	bp->loopback = 0;
 	return ret;
+}
+
+#define BNX2_MAC_LOOPBACK_FAILED	1
+#define BNX2_PHY_LOOPBACK_FAILED	2
+#define BNX2_LOOPBACK_FAILED		(BNX2_MAC_LOOPBACK_FAILED |	\
+					 BNX2_PHY_LOOPBACK_FAILED)
+
+static int
+bnx2_test_loopback(struct bnx2 *bp)
+{
+	int rc = 0;
+
+	if (!netif_running(bp->dev))
+		return BNX2_LOOPBACK_FAILED;
+
+	bnx2_reset_nic(bp, BNX2_DRV_MSG_CODE_RESET);
+	spin_lock_bh(&bp->phy_lock);
+	bnx2_init_phy(bp);
+	spin_unlock_bh(&bp->phy_lock);
+	if (bnx2_run_loopback(bp, BNX2_MAC_LOOPBACK))
+		rc |= BNX2_MAC_LOOPBACK_FAILED;
+	if (bnx2_run_loopback(bp, BNX2_PHY_LOOPBACK))
+		rc |= BNX2_PHY_LOOPBACK_FAILED;
+	return rc;
 }
 
 #define NVRAM_SIZE 0x200
@@ -5169,10 +5228,8 @@ bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 			buf[1] = 1;
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
-		if (bnx2_test_loopback(bp) != 0) {
-			buf[2] = 1;
+		if ((buf[2] = bnx2_test_loopback(bp)) != 0)
 			etest->flags |= ETH_TEST_FL_FAILED;
-		}
 
 		if (!netif_running(bp->dev)) {
 			bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
