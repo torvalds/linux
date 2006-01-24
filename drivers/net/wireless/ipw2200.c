@@ -1928,7 +1928,8 @@ static char *get_cmd_string(u8 cmd)
 }
 
 #define HOST_COMPLETE_TIMEOUT HZ
-static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
+
+static int __ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 {
 	int rc = 0;
 	unsigned long flags;
@@ -1964,7 +1965,7 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		printk_buf(IPW_DL_HOST_COMMAND, (u8 *) cmd->param, cmd->len);
 
 
-	rc = ipw_queue_tx_hcmd(priv, cmd->cmd, &cmd->param, cmd->len, 0);
+	rc = ipw_queue_tx_hcmd(priv, cmd->cmd, cmd->param, cmd->len, 0);
 	if (rc) {
 		priv->status &= ~STATUS_HCMD_ACTIVE;
 		IPW_ERROR("Failed to send %s: Reason %d\n",
@@ -1999,7 +2000,7 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		goto exit;
 	}
 
-      exit:
+exit:
 	if (priv->cmdlog) {
 		priv->cmdlog[priv->cmdlog_pos++].retcode = rc;
 		priv->cmdlog_pos %= priv->cmdlog_len;
@@ -2007,61 +2008,62 @@ static int ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	return rc;
 }
 
-static int ipw_send_host_complete(struct ipw_priv *priv)
+static int ipw_send_cmd_simple(struct ipw_priv *priv, u8 command)
 {
 	struct host_cmd cmd = {
-		.cmd = IPW_CMD_HOST_COMPLETE,
-		.len = 0
+		.cmd = command,
 	};
 
+	return __ipw_send_cmd(priv, &cmd);
+}
+
+static int ipw_send_cmd_pdu(struct ipw_priv *priv, u8 command, u8 len,
+			    void *data)
+{
+	struct host_cmd cmd = {
+		.cmd = command,
+		.len = len,
+		.param = data,
+	};
+
+	return __ipw_send_cmd(priv, &cmd);
+}
+
+static int ipw_send_host_complete(struct ipw_priv *priv)
+{
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_simple(priv, IPW_CMD_HOST_COMPLETE);
 }
 
 static int ipw_send_system_config(struct ipw_priv *priv,
 				  struct ipw_sys_config *config)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SYSTEM_CONFIG,
-		.len = sizeof(*config)
-	};
-
 	if (!priv || !config) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, config, sizeof(*config));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_SYSTEM_CONFIG, sizeof(*config),
+					config);
 }
 
 static int ipw_send_ssid(struct ipw_priv *priv, u8 * ssid, int len)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SSID,
-		.len = min(len, IW_ESSID_MAX_SIZE)
-	};
-
 	if (!priv || !ssid) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, ssid, cmd.len);
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_SSID, min(len, IW_ESSID_MAX_SIZE),
+					ssid);
 }
 
 static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_ADAPTER_ADDRESS,
-		.len = ETH_ALEN
-	};
-
 	if (!priv || !mac) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
@@ -2070,8 +2072,8 @@ static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
 	IPW_DEBUG_INFO("%s: Setting MAC to " MAC_FMT "\n",
 		       priv->net_dev->name, MAC_ARG(mac));
 
-	memcpy(cmd.param, mac, ETH_ALEN);
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_ADAPTER_ADDRESS, ETH_ALEN,
+					mac);
 }
 
 /*
@@ -2130,51 +2132,40 @@ static void ipw_bg_scan_check(void *data)
 static int ipw_send_scan_request_ext(struct ipw_priv *priv,
 				     struct ipw_scan_request_ext *request)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SCAN_REQUEST_EXT,
-		.len = sizeof(*request)
-	};
-
-	memcpy(cmd.param, request, sizeof(*request));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_SCAN_REQUEST_EXT,
+					sizeof(*request), request);
 }
 
 static int ipw_send_scan_abort(struct ipw_priv *priv)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SCAN_ABORT,
-		.len = 0
-	};
-
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_simple(priv, IPW_CMD_SCAN_ABORT);
 }
 
 static int ipw_set_sensitivity(struct ipw_priv *priv, u16 sens)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SENSITIVITY_CALIB,
-		.len = sizeof(struct ipw_sensitivity_calib)
+	struct ipw_sensitivity_calib calib = {
+		.beacon_rssi_raw = sens,
 	};
-	struct ipw_sensitivity_calib *calib = (struct ipw_sensitivity_calib *)
-	    &cmd.param;
-	calib->beacon_rssi_raw = sens;
-	return ipw_send_cmd(priv, &cmd);
+
+	return ipw_send_cmd_pdu(priv, IPW_CMD_SENSITIVITY_CALIB, sizeof(calib),
+					&calib);
 }
 
 static int ipw_send_associate(struct ipw_priv *priv,
 			      struct ipw_associate *associate)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_ASSOCIATE,
-		.len = sizeof(*associate)
-	};
-
 	struct ipw_associate tmp_associate;
+
+	if (!priv || !associate) {
+		IPW_ERROR("Invalid args\n");
+		return -1;
+	}
+
 	memcpy(&tmp_associate, associate, sizeof(*associate));
 	tmp_associate.policy_support =
 	    cpu_to_le16(tmp_associate.policy_support);
@@ -2187,80 +2178,56 @@ static int ipw_send_associate(struct ipw_priv *priv,
 	    cpu_to_le16(tmp_associate.beacon_interval);
 	tmp_associate.atim_window = cpu_to_le16(tmp_associate.atim_window);
 
-	if (!priv || !associate) {
-		IPW_ERROR("Invalid args\n");
-		return -1;
-	}
-
-	memcpy(cmd.param, &tmp_associate, sizeof(*associate));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_ASSOCIATE, sizeof(tmp_associate),
+					&tmp_associate);
 }
 
 static int ipw_send_supported_rates(struct ipw_priv *priv,
 				    struct ipw_supported_rates *rates)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SUPPORTED_RATES,
-		.len = sizeof(*rates)
-	};
-
 	if (!priv || !rates) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, rates, sizeof(*rates));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_SUPPORTED_RATES, sizeof(*rates),
+					rates);
 }
 
 static int ipw_set_random_seed(struct ipw_priv *priv)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_SEED_NUMBER,
-		.len = sizeof(u32)
-	};
+	u32 val;
 
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	get_random_bytes(&cmd.param, sizeof(u32));
+	get_random_bytes(&val, sizeof(val));
 
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_SEED_NUMBER, sizeof(val), &val);
 }
 
 static int ipw_send_card_disable(struct ipw_priv *priv, u32 phy_off)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_CARD_DISABLE,
-		.len = sizeof(u32)
-	};
-
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	*((u32 *) & cmd.param) = phy_off;
-
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_CARD_DISABLE, sizeof(phy_off),
+					&phy_off);
 }
 
 static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_TX_POWER,
-		.len = sizeof(*power)
-	};
-
 	if (!priv || !power) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, power, sizeof(*power));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_TX_POWER, sizeof(*power),
+					power);
 }
 
 static int ipw_set_tx_power(struct ipw_priv *priv)
@@ -2312,18 +2279,14 @@ static int ipw_send_rts_threshold(struct ipw_priv *priv, u16 rts)
 	struct ipw_rts_threshold rts_threshold = {
 		.rts_threshold = rts,
 	};
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_RTS_THRESHOLD,
-		.len = sizeof(rts_threshold)
-	};
 
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, &rts_threshold, sizeof(rts_threshold));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_RTS_THRESHOLD,
+				sizeof(rts_threshold), &rts_threshold);
 }
 
 static int ipw_send_frag_threshold(struct ipw_priv *priv, u16 frag)
@@ -2331,27 +2294,19 @@ static int ipw_send_frag_threshold(struct ipw_priv *priv, u16 frag)
 	struct ipw_frag_threshold frag_threshold = {
 		.frag_threshold = frag,
 	};
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_FRAG_THRESHOLD,
-		.len = sizeof(frag_threshold)
-	};
 
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, &frag_threshold, sizeof(frag_threshold));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_FRAG_THRESHOLD,
+				sizeof(frag_threshold), &frag_threshold);
 }
 
 static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_POWER_MODE,
-		.len = sizeof(u32)
-	};
-	u32 *param = (u32 *) (&cmd.param);
+	u32 param;
 
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
@@ -2362,17 +2317,18 @@ static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 	 * level */
 	switch (mode) {
 	case IPW_POWER_BATTERY:
-		*param = IPW_POWER_INDEX_3;
+		param = IPW_POWER_INDEX_3;
 		break;
 	case IPW_POWER_AC:
-		*param = IPW_POWER_MODE_CAM;
+		param = IPW_POWER_MODE_CAM;
 		break;
 	default:
-		*param = mode;
+		param = mode;
 		break;
 	}
 
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_POWER_MODE, sizeof(param),
+					&param);
 }
 
 static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
@@ -2381,18 +2337,14 @@ static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
 		.short_retry_limit = slimit,
 		.long_retry_limit = llimit
 	};
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_RETRY_LIMIT,
-		.len = sizeof(retry_limit)
-	};
 
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(cmd.param, &retry_limit, sizeof(retry_limit));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_RETRY_LIMIT, sizeof(retry_limit),
+					&retry_limit);
 }
 
 /*
@@ -5750,54 +5702,44 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 
 static void ipw_send_tgi_tx_key(struct ipw_priv *priv, int type, int index)
 {
-	struct ipw_tgi_tx_key *key;
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_TGI_TX_KEY,
-		.len = sizeof(*key)
-	};
+	struct ipw_tgi_tx_key key;
 
 	if (!(priv->ieee->sec.flags & (1 << index)))
 		return;
 
-	key = (struct ipw_tgi_tx_key *)&cmd.param;
-	key->key_id = index;
-	memcpy(key->key, priv->ieee->sec.keys[index], SCM_TEMPORAL_KEY_LENGTH);
-	key->security_type = type;
-	key->station_index = 0;	/* always 0 for BSS */
-	key->flags = 0;
+	key.key_id = index;
+	memcpy(key.key, priv->ieee->sec.keys[index], SCM_TEMPORAL_KEY_LENGTH);
+	key.security_type = type;
+	key.station_index = 0;	/* always 0 for BSS */
+	key.flags = 0;
 	/* 0 for new key; previous value of counter (after fatal error) */
-	key->tx_counter[0] = 0;
-	key->tx_counter[1] = 0;
+	key.tx_counter[0] = 0;
+	key.tx_counter[1] = 0;
 
-	ipw_send_cmd(priv, &cmd);
+	ipw_send_cmd_pdu(priv, IPW_CMD_TGI_TX_KEY, sizeof(key), &key);
 }
 
 static void ipw_send_wep_keys(struct ipw_priv *priv, int type)
 {
-	struct ipw_wep_key *key;
+	struct ipw_wep_key key;
 	int i;
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_WEP_KEY,
-		.len = sizeof(*key)
-	};
 
-	key = (struct ipw_wep_key *)&cmd.param;
-	key->cmd_id = DINO_CMD_WEP_KEY;
-	key->seq_num = 0;
+	key.cmd_id = DINO_CMD_WEP_KEY;
+	key.seq_num = 0;
 
 	/* Note: AES keys cannot be set for multiple times.
 	 * Only set it at the first time. */
 	for (i = 0; i < 4; i++) {
-		key->key_index = i | type;
+		key.key_index = i | type;
 		if (!(priv->ieee->sec.flags & (1 << i))) {
-			key->key_size = 0;
+			key.key_size = 0;
 			continue;
 		}
 
-		key->key_size = priv->ieee->sec.key_sizes[i];
-		memcpy(key->key, priv->ieee->sec.keys[i], key->key_size);
+		key.key_size = priv->ieee->sec.key_sizes[i];
+		memcpy(key.key, priv->ieee->sec.keys[i], key.key_size);
 
-		ipw_send_cmd(priv, &cmd);
+		ipw_send_cmd_pdu(priv, IPW_CMD_WEP_KEY, sizeof(key), &key);
 	}
 }
 
@@ -6298,15 +6240,10 @@ static void ipw_wpa_assoc_frame(struct ipw_priv *priv, char *wpa_ie,
 static int ipw_set_rsn_capa(struct ipw_priv *priv,
 			    char *capabilities, int length)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_RSN_CAPABILITIES,
-		.len = length,
-	};
-
 	IPW_DEBUG_HC("HOST_CMD_RSN_CAPABILITIES\n");
 
-	memcpy(cmd.param, capabilities, length);
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_RSN_CAPABILITIES, length,
+					capabilities);
 }
 
 /*
@@ -7093,25 +7030,15 @@ static int ipw_handle_assoc_response(struct net_device *dev,
 static int ipw_send_qos_params_command(struct ipw_priv *priv, struct ieee80211_qos_parameters
 				       *qos_param)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_QOS_PARAMETERS,
-		.len = (sizeof(struct ieee80211_qos_parameters) * 3)
-	};
-
-	memcpy(cmd.param, qos_param, sizeof(*qos_param) * 3);
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_QOS_PARAMETERS, qos_param,
+					sizeof(*qos_param) * 3);
 }
 
 static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos_information_element
 				     *qos_param)
 {
-	struct host_cmd cmd = {
-		.cmd = IPW_CMD_WME_INFO,
-		.len = sizeof(*qos_param)
-	};
-
-	memcpy(cmd.param, qos_param, sizeof(*qos_param));
-	return ipw_send_cmd(priv, &cmd);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_WME_INFO, qos_param,
+					sizeof(*qos_param));
 }
 
 #endif				/* CONFIG_IPW_QOS */

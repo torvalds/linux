@@ -1866,7 +1866,7 @@ struct host_cmd {
 	u8 cmd;
 	u8 len;
 	u16 reserved;
-	u32 param[TFD_CMD_IMMEDIATE_PAYLOAD_LENGTH];
+	u32 *param;
 } __attribute__ ((packed));
 
 struct ipw_cmd_log {
