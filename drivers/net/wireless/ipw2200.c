@@ -2772,22 +2772,25 @@ static int ipw_fw_dma_add_buffer(struct ipw_priv *priv,
 
 static int ipw_fw_dma_wait(struct ipw_priv *priv)
 {
-	u32 current_index = 0;
+	u32 current_index = 0, previous_index;
 	u32 watchdog = 0;
 
 	IPW_DEBUG_FW(">> : \n");
 
 	current_index = ipw_fw_dma_command_block_index(priv);
-	IPW_DEBUG_FW_INFO("sram_desc.last_cb_index:0x%8X\n",
+	IPW_DEBUG_FW_INFO("sram_desc.last_cb_index:0x%08X\n",
 			  (int)priv->sram_desc.last_cb_index);
 
 	while (current_index < priv->sram_desc.last_cb_index) {
 		udelay(50);
+		previous_index = current_index;
 		current_index = ipw_fw_dma_command_block_index(priv);
 
-		watchdog++;
-
-		if (watchdog > 400) {
+		if (previous_index < current_index) {
+			watchdog = 0;
+			continue;
+		}
+		if (++watchdog > 400) {
 			IPW_DEBUG_FW_INFO("Timeout\n");
 			ipw_fw_dma_dump_command_block(priv);
 			ipw_fw_dma_abort(priv);
@@ -3276,55 +3279,31 @@ static int ipw_load(struct ipw_priv *priv)
 	const struct firmware *firmware = NULL;
 	const struct firmware *ucode = NULL;
 #endif
+	char *ucode_name;
+	char *fw_name;
 	int rc = 0, retries = 3;
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &bootfw, IPW_FW_NAME("boot"));
-		if (rc)
-			goto error;
-
-		switch (priv->ieee->iw_mode) {
-		case IW_MODE_ADHOC:
-			rc = ipw_get_fw(priv, &ucode,
-					IPW_FW_NAME("ibss_ucode"));
-			if (rc)
-				goto error;
-
-			rc = ipw_get_fw(priv, &firmware, IPW_FW_NAME("ibss"));
-			break;
-
+	switch (priv->ieee->iw_mode) {
+	case IW_MODE_ADHOC:
+		ucode_name = IPW_FW_NAME("ibss_ucode");
+		fw_name = IPW_FW_NAME("ibss");
+		break;
 #ifdef CONFIG_IPW2200_MONITOR
-		case IW_MODE_MONITOR:
-			rc = ipw_get_fw(priv, &ucode,
-					IPW_FW_NAME("sniffer_ucode"));
-			if (rc)
-				goto error;
-
-			rc = ipw_get_fw(priv, &firmware,
-					IPW_FW_NAME("sniffer"));
-			break;
+	case IW_MODE_MONITOR:
+		ucode_name = IPW_FW_NAME("sniffer_ucode");
+		fw_name = IPW_FW_NAME("sniffer");
+		break;
 #endif
-		case IW_MODE_INFRA:
-			rc = ipw_get_fw(priv, &ucode, IPW_FW_NAME("bss_ucode"));
-			if (rc)
-				goto error;
-
-			rc = ipw_get_fw(priv, &firmware, IPW_FW_NAME("bss"));
-			break;
-
-		default:
-			rc = -EINVAL;
-		}
-
-		if (rc)
-			goto error;
-
-#ifdef CONFIG_PM
-		fw_loaded = 1;
+	case IW_MODE_INFRA:
+		ucode_name = IPW_FW_NAME("bss_ucode");
+		fw_name = IPW_FW_NAME("bss");
+		break;
+	default:
+		rc = -EINVAL;
 	}
-#endif
+
+	if (rc < 0)
+		goto error;
 
 	if (!priv->rxq)
 		priv->rxq = ipw_rx_queue_alloc(priv);
@@ -3346,7 +3325,7 @@ static int ipw_load(struct ipw_priv *priv)
 	ipw_stop_nic(priv);
 
 	rc = ipw_reset_nic(priv);
-	if (rc) {
+	if (rc < 0) {
 		IPW_ERROR("Unable to reset NIC\n");
 		goto error;
 	}
@@ -3354,6 +3333,15 @@ static int ipw_load(struct ipw_priv *priv)
 	ipw_zero_memory(priv, IPW_NIC_SRAM_LOWER_BOUND,
 			IPW_NIC_SRAM_UPPER_BOUND - IPW_NIC_SRAM_LOWER_BOUND);
 
+#ifdef CONFIG_PM
+	if (!fw_loaded) {
+#endif
+		rc = ipw_get_fw(priv, &bootfw, IPW_FW_NAME("boot"));
+		if (rc < 0)
+			goto error;
+#ifdef CONFIG_PM
+	}
+#endif
 	/* DMA the initial boot firmware into the device */
 	rc = ipw_load_firmware(priv, bootfw->data + sizeof(struct fw_header),
 			       bootfw->size - sizeof(struct fw_header));
@@ -3377,6 +3365,16 @@ static int ipw_load(struct ipw_priv *priv)
 	/* ack fw init done interrupt */
 	ipw_write32(priv, IPW_INTA_RW, IPW_INTA_BIT_FW_INITIALIZATION_DONE);
 
+#ifdef CONFIG_PM
+	if (!fw_loaded) {
+#endif
+		rc = ipw_get_fw(priv, &ucode, ucode_name);
+		if (rc < 0)
+			goto error;
+#ifdef CONFIG_PM
+	}
+#endif
+			
 	/* DMA the ucode into the device */
 	rc = ipw_load_ucode(priv, ucode->data + sizeof(struct fw_header),
 			    ucode->size - sizeof(struct fw_header));
@@ -3388,6 +3386,16 @@ static int ipw_load(struct ipw_priv *priv)
 	/* stop nic */
 	ipw_stop_nic(priv);
 
+#ifdef CONFIG_PM
+	if (!fw_loaded) {
+#endif
+		rc = ipw_get_fw(priv, &firmware, fw_name);
+		if (rc < 0)
+			goto error;
+#ifdef CONFIG_PM
+	}
+#endif
+
 	/* DMA bss firmware into the device */
 	rc = ipw_load_firmware(priv, firmware->data +
 			       sizeof(struct fw_header),
@@ -3397,10 +3405,14 @@ static int ipw_load(struct ipw_priv *priv)
 		goto error;
 	}
 
+#ifdef CONFIG_PM
+	fw_loaded = 1;
+#endif
+
 	ipw_write32(priv, IPW_EEPROM_LOAD_DISABLE, 0);
 
 	rc = ipw_queue_reset(priv);
-	if (rc) {
+	if (rc < 0) {
 		IPW_ERROR("Unable to initialize queues\n");
 		goto error;
 	}
