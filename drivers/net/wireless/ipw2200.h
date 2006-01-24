@@ -1406,13 +1406,6 @@ do { if (ipw_debug_level & (level)) \
 * Register bit definitions
 */
 
-/* Dino control registers bits */
-
-#define DINO_ENABLE_SYSTEM 0x80
-#define DINO_ENABLE_CS     0x40
-#define DINO_RXFIFO_DATA   0x01
-#define DINO_CONTROL_REG   0x00200000
-
 #define IPW_INTA_RW       0x00000008
 #define IPW_INTA_MASK_R   0x0000000C
 #define IPW_INDIRECT_ADDR 0x00000010
@@ -1459,6 +1452,12 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DOMAIN_0_END 0x1000
 #define CLX_MEM_BAR_SIZE 0x1000
 
+
+/* Dino/baseband control registers bits */
+
+#define DINO_ENABLE_SYSTEM 0x80   /* 1 = baseband processor on, 0 = reset */
+#define DINO_ENABLE_CS     0x40   /* 1 = enable ucode load */
+#define DINO_RXFIFO_DATA   0x01   /* 1 = data available */
 #define IPW_BASEBAND_CONTROL_STATUS	0X00200000
 #define IPW_BASEBAND_TX_FIFO_WRITE	0X00200004
 #define IPW_BASEBAND_RX_FIFO_READ	0X00200004

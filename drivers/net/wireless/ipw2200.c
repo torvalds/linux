@@ -227,12 +227,15 @@ static int snprintk_buf(u8 * output, size_t size, const u8 * data, size_t len)
 	return total;
 }
 
+/* alias for 32-bit indirect read (for SRAM/reg above 4K), with debug wrapper */
 static u32 _ipw_read_reg32(struct ipw_priv *priv, u32 reg);
 #define ipw_read_reg32(a, b) _ipw_read_reg32(a, b)
 
+/* alias for 8-bit indirect read (for SRAM/reg above 4K), with debug wrapper */
 static u8 _ipw_read_reg8(struct ipw_priv *ipw, u32 reg);
 #define ipw_read_reg8(a, b) _ipw_read_reg8(a, b)
 
+/* 8-bit indirect write (for SRAM/reg above 4K), with debug wrapper */
 static void _ipw_write_reg8(struct ipw_priv *priv, u32 reg, u8 value);
 static inline void ipw_write_reg8(struct ipw_priv *a, u32 b, u8 c)
 {
@@ -241,6 +244,7 @@ static inline void ipw_write_reg8(struct ipw_priv *a, u32 b, u8 c)
 	_ipw_write_reg8(a, b, c);
 }
 
+/* 16-bit indirect write (for SRAM/reg above 4K), with debug wrapper */
 static void _ipw_write_reg16(struct ipw_priv *priv, u32 reg, u16 value);
 static inline void ipw_write_reg16(struct ipw_priv *a, u32 b, u16 c)
 {
@@ -249,6 +253,7 @@ static inline void ipw_write_reg16(struct ipw_priv *a, u32 b, u16 c)
 	_ipw_write_reg16(a, b, c);
 }
 
+/* 32-bit indirect write (for SRAM/reg above 4K), with debug wrapper */
 static void _ipw_write_reg32(struct ipw_priv *priv, u32 reg, u32 value);
 static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
 {
@@ -257,48 +262,76 @@ static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
 	_ipw_write_reg32(a, b, c);
 }
 
+/* 8-bit direct write (low 4K) */
 #define _ipw_write8(ipw, ofs, val) writeb((val), (ipw)->hw_base + (ofs))
+
+/* 8-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
 #define ipw_write8(ipw, ofs, val) \
  IPW_DEBUG_IO("%s %d: write_direct8(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
  _ipw_write8(ipw, ofs, val)
 
+
+/* 16-bit direct write (low 4K) */
 #define _ipw_write16(ipw, ofs, val) writew((val), (ipw)->hw_base + (ofs))
+
+/* 16-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
 #define ipw_write16(ipw, ofs, val) \
  IPW_DEBUG_IO("%s %d: write_direct16(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
  _ipw_write16(ipw, ofs, val)
 
+
+/* 32-bit direct write (low 4K) */
 #define _ipw_write32(ipw, ofs, val) writel((val), (ipw)->hw_base + (ofs))
+
+/* 32-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
 #define ipw_write32(ipw, ofs, val) \
  IPW_DEBUG_IO("%s %d: write_direct32(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
  _ipw_write32(ipw, ofs, val)
 
+
+/* 8-bit direct read (low 4K) */
 #define _ipw_read8(ipw, ofs) readb((ipw)->hw_base + (ofs))
+
+/* 8-bit direct read (low 4K), with debug wrapper */
 static inline u8 __ipw_read8(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 {
 	IPW_DEBUG_IO("%s %d: read_direct8(0x%08X)\n", f, l, (u32) (ofs));
 	return _ipw_read8(ipw, ofs);
 }
 
+/* alias to 8-bit direct read (low 4K of SRAM/regs), with debug wrapper */
 #define ipw_read8(ipw, ofs) __ipw_read8(__FILE__, __LINE__, ipw, ofs)
 
+
+/* 16-bit direct read (low 4K) */
 #define _ipw_read16(ipw, ofs) readw((ipw)->hw_base + (ofs))
+
+/* 16-bit direct read (low 4K), with debug wrapper */
 static inline u16 __ipw_read16(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 {
 	IPW_DEBUG_IO("%s %d: read_direct16(0x%08X)\n", f, l, (u32) (ofs));
 	return _ipw_read16(ipw, ofs);
 }
 
+/* alias to 16-bit direct read (low 4K of SRAM/regs), with debug wrapper */
 #define ipw_read16(ipw, ofs) __ipw_read16(__FILE__, __LINE__, ipw, ofs)
 
+
+/* 32-bit direct read (low 4K) */
 #define _ipw_read32(ipw, ofs) readl((ipw)->hw_base + (ofs))
+
+/* 32-bit direct read (low 4K), with debug wrapper */
 static inline u32 __ipw_read32(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 {
 	IPW_DEBUG_IO("%s %d: read_direct32(0x%08X)\n", f, l, (u32) (ofs));
 	return _ipw_read32(ipw, ofs);
 }
 
+/* alias to 32-bit direct read (low 4K of SRAM/regs), with debug wrapper */
 #define ipw_read32(ipw, ofs) __ipw_read32(__FILE__, __LINE__, ipw, ofs)
 
+
+/* multi-byte read (above 4K), with debug wrapper */
 static void _ipw_read_indirect(struct ipw_priv *, u32, u8 *, int);
 static inline void __ipw_read_indirect(const char *f, int l,
 				       struct ipw_priv *a, u32 b, u8 * c, int d)
@@ -308,15 +341,17 @@ static inline void __ipw_read_indirect(const char *f, int l,
 	_ipw_read_indirect(a, b, c, d);
 }
 
+/* alias to multi-byte read (SRAM/regs above 4K), with debug wrapper */
 #define ipw_read_indirect(a, b, c, d) __ipw_read_indirect(__FILE__, __LINE__, a, b, c, d)
 
+/* alias to multi-byte read (SRAM/regs above 4K), with debug wrapper */
 static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * data,
 				int num);
 #define ipw_write_indirect(a, b, c, d) \
 	IPW_DEBUG_IO("%s %d: write_indirect(0x%08X) %d bytes\n", __FILE__, __LINE__, (u32)(b), d); \
 	_ipw_write_indirect(a, b, c, d)
 
-/* indirect write s */
+/* 32-bit indirect write (above 4K) */
 static void _ipw_write_reg32(struct ipw_priv *priv, u32 reg, u32 value)
 {
 	IPW_DEBUG_IO(" %p : reg = 0x%8X : value = 0x%8X\n", priv, reg, value);
@@ -324,22 +359,30 @@ static void _ipw_write_reg32(struct ipw_priv *priv, u32 reg, u32 value)
 	_ipw_write32(priv, IPW_INDIRECT_DATA, value);
 }
 
+/* 8-bit indirect write (above 4K) */
 static void _ipw_write_reg8(struct ipw_priv *priv, u32 reg, u8 value)
 {
+	u32 aligned_addr = reg & IPW_INDIRECT_ADDR_MASK; /* dword align */
+	u32 dif_len = reg - aligned_addr;
+
 	IPW_DEBUG_IO(" reg = 0x%8X : value = 0x%8X\n", reg, value);
-	_ipw_write32(priv, IPW_INDIRECT_ADDR, reg & IPW_INDIRECT_ADDR_MASK);
-	_ipw_write8(priv, IPW_INDIRECT_DATA, value);
+	_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
+	_ipw_write8(priv, IPW_INDIRECT_DATA + dif_len, value);
 }
 
+/* 16-bit indirect write (above 4K) */
 static void _ipw_write_reg16(struct ipw_priv *priv, u32 reg, u16 value)
 {
+	u32 aligned_addr = reg & IPW_INDIRECT_ADDR_MASK; /* dword align */
+	u32 dif_len = (reg - aligned_addr) & (~0x1ul);
+
 	IPW_DEBUG_IO(" reg = 0x%8X : value = 0x%8X\n", reg, value);
-	_ipw_write32(priv, IPW_INDIRECT_ADDR, reg & IPW_INDIRECT_ADDR_MASK);
-	_ipw_write16(priv, IPW_INDIRECT_DATA, value);
+	_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
+	_ipw_write16(priv, IPW_INDIRECT_DATA + dif_len, value);
 }
 
-/* indirect read s */
 
+/* 8-bit indirect read (above 4K) */
 static u8 _ipw_read_reg8(struct ipw_priv *priv, u32 reg)
 {
 	u32 word;
@@ -349,6 +392,7 @@ static u8 _ipw_read_reg8(struct ipw_priv *priv, u32 reg)
 	return (word >> ((reg & 0x3) * 8)) & 0xff;
 }
 
+/* 32-bit indirect read (above 4K) */
 static u32 _ipw_read_reg32(struct ipw_priv *priv, u32 reg)
 {
 	u32 value;
@@ -361,11 +405,12 @@ static u32 _ipw_read_reg32(struct ipw_priv *priv, u32 reg)
 	return value;
 }
 
-/* iterative/auto-increment 32 bit reads and writes */
+/* General purpose, no alignment requirement, iterative (multi-byte) read, */
+/*    for area above 1st 4K of SRAM/reg space */
 static void _ipw_read_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 			       int num)
 {
-	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK;
+	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK; /* dword align */
 	u32 dif_len = addr - aligned_addr;
 	u32 i;
 
@@ -375,7 +420,7 @@ static void _ipw_read_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 		return;
 	}
 
-	/* Read the first nibble byte by byte */
+	/* Read the first dword (or portion) byte by byte */
 	if (unlikely(dif_len)) {
 		_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
 		/* Start reading at aligned_addr + dif_len */
@@ -384,11 +429,12 @@ static void _ipw_read_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 		aligned_addr += 4;
 	}
 
+	/* Read all of the middle dwords as dwords, with auto-increment */
 	_ipw_write32(priv, IPW_AUTOINC_ADDR, aligned_addr);
 	for (; num >= 4; buf += 4, aligned_addr += 4, num -= 4)
 		*(u32 *) buf = _ipw_read32(priv, IPW_AUTOINC_DATA);
 
-	/* Copy the last nibble */
+	/* Read the last dword (or portion) byte by byte */
 	if (unlikely(num)) {
 		_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
 		for (i = 0; num > 0; i++, num--)
@@ -396,10 +442,12 @@ static void _ipw_read_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 	}
 }
 
+/* General purpose, no alignment requirement, iterative (multi-byte) write, */
+/*    for area above 1st 4K of SRAM/reg space */
 static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 				int num)
 {
-	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK;
+	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK; /* dword align */
 	u32 dif_len = addr - aligned_addr;
 	u32 i;
 
@@ -409,20 +457,21 @@ static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 		return;
 	}
 
-	/* Write the first nibble byte by byte */
+	/* Write the first dword (or portion) byte by byte */
 	if (unlikely(dif_len)) {
 		_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
-		/* Start reading at aligned_addr + dif_len */
+		/* Start writing at aligned_addr + dif_len */
 		for (i = dif_len; ((i < 4) && (num > 0)); i++, num--, buf++)
 			_ipw_write8(priv, IPW_INDIRECT_DATA + i, *buf);
 		aligned_addr += 4;
 	}
 
+	/* Write all of the middle dwords as dwords, with auto-increment */
 	_ipw_write32(priv, IPW_AUTOINC_ADDR, aligned_addr);
 	for (; num >= 4; buf += 4, aligned_addr += 4, num -= 4)
 		_ipw_write32(priv, IPW_AUTOINC_DATA, *(u32 *) buf);
 
-	/* Copy the last nibble */
+	/* Write the last dword (or portion) byte by byte */
 	if (unlikely(num)) {
 		_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
 		for (i = 0; num > 0; i++, num--, buf++)
@@ -430,17 +479,21 @@ static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 	}
 }
 
+/* General purpose, no alignment requirement, iterative (multi-byte) write, */
+/*    for 1st 4K of SRAM/regs space */
 static void ipw_write_direct(struct ipw_priv *priv, u32 addr, void *buf,
 			     int num)
 {
 	memcpy_toio((priv->hw_base + addr), buf, num);
 }
 
+/* Set bit(s) in low 4K of SRAM/regs */
 static inline void ipw_set_bit(struct ipw_priv *priv, u32 reg, u32 mask)
 {
 	ipw_write32(priv, reg, ipw_read32(priv, reg) | mask);
 }
 
+/* Clear bit(s) in low 4K of SRAM/regs */
 static inline void ipw_clear_bit(struct ipw_priv *priv, u32 reg, u32 mask)
 {
 	ipw_write32(priv, reg, ipw_read32(priv, reg) & ~mask);
@@ -1076,6 +1129,7 @@ static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
 
 static inline u32 ipw_get_event_log_len(struct ipw_priv *priv)
 {
+	/* length = 1st dword in log */
 	return ipw_read_reg32(priv, ipw_read32(priv, IPW_EVENT_LOG));
 }
 
@@ -2892,8 +2946,8 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 	mdelay(1);
 
 	/* enable ucode store */
-	ipw_write_reg8(priv, DINO_CONTROL_REG, 0x0);
-	ipw_write_reg8(priv, DINO_CONTROL_REG, DINO_ENABLE_CS);
+	ipw_write_reg8(priv, IPW_BASEBAND_CONTROL_STATUS, 0x0);
+	ipw_write_reg8(priv, IPW_BASEBAND_CONTROL_STATUS, DINO_ENABLE_CS);
 	mdelay(1);
 
 	/* write ucode */
