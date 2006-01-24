@@ -2012,7 +2012,6 @@ static int __devinit init_saa7146(struct pci_dev *pdev)
 {
 	struct saa7146 *saa = pci_get_drvdata(pdev);
 
-	memset(saa, 0, sizeof(*saa));
 	saa->user = 0;
 	/* reset the saa7146 */
 	saawrite(0xffff0000, SAA7146_MC1);
@@ -2062,16 +2061,16 @@ static int __devinit init_saa7146(struct pci_dev *pdev)
 	}
 	if (saa->audbuf == NULL && (saa->audbuf = vmalloc(65536)) == NULL) {
 		dev_err(&pdev->dev, "%d: malloc failed\n", saa->nr);
-		goto errvid;
+		goto errfree;
 	}
 	if (saa->osdbuf == NULL && (saa->osdbuf = vmalloc(131072)) == NULL) {
 		dev_err(&pdev->dev, "%d: malloc failed\n", saa->nr);
-		goto erraud;
+		goto errfree;
 	}
 	/* allocate 81920 byte buffer for clipping */
 	if ((saa->dmavid2 = kzalloc(VIDEO_CLIPMAP_SIZE, GFP_KERNEL)) == NULL) {
 		dev_err(&pdev->dev, "%d: clip kmalloc failed\n", saa->nr);
-		goto errosd;
+		goto errfree;
 	}
 	/* setup clipping registers */
 	saawrite(virt_to_bus(saa->dmavid2), SAA7146_BASE_EVEN2);
@@ -2085,15 +2084,11 @@ static int __devinit init_saa7146(struct pci_dev *pdev)
 	I2CBusScan(saa);
 
 	return 0;
-errosd:
+errfree:
 	vfree(saa->osdbuf);
-	saa->osdbuf = NULL;
-erraud:
 	vfree(saa->audbuf);
-	saa->audbuf = NULL;
-errvid:
 	vfree(saa->vidbuf);
-	saa->vidbuf = NULL;
+	saa->audbuf = saa->osdbuf = saa->vidbuf = NULL;
 err:
 	return -ENOMEM;
 }
