@@ -168,10 +168,12 @@ int elevator_init(request_queue_t *q, char *name)
 	if (name && !(e = elevator_get(name)))
 		return -EINVAL;
 
-	if (!e && !(e = elevator_get(chosen_elevator))) {
-		e = elevator_get(CONFIG_DEFAULT_IOSCHED);
-		if (*chosen_elevator)
-			printk("I/O scheduler %s not found\n", chosen_elevator);
+	if (!e && *chosen_elevator && !(e = elevator_get(chosen_elevator)))
+		printk("I/O scheduler %s not found\n", chosen_elevator);
+
+	if (!e && !(e = elevator_get(CONFIG_DEFAULT_IOSCHED))) {
+		printk("Default I/O scheduler not found, using no-op\n");
+		e = elevator_get("noop");
 	}
 
 	eq = kmalloc(sizeof(struct elevator_queue), GFP_KERNEL);
