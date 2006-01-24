@@ -5365,9 +5365,12 @@ static int ipw2100_configure_security(struct ipw2100_priv *priv, int batch_mode)
 						     SEC_LEVEL_0, 0, 1);
 	} else {
 		auth_mode = IPW_AUTH_OPEN;
-		if ((priv->ieee->sec.flags & SEC_AUTH_MODE) &&
-		    (priv->ieee->sec.auth_mode == WLAN_AUTH_SHARED_KEY))
-			auth_mode = IPW_AUTH_SHARED;
+		if (priv->ieee->sec.flags & SEC_AUTH_MODE) {
+			if (priv->ieee->sec.auth_mode == WLAN_AUTH_SHARED_KEY)
+				auth_mode = IPW_AUTH_SHARED;
+			else if (priv->ieee->sec.auth_mode == WLAN_AUTH_LEAP)
+				auth_mode = IPW_AUTH_LEAP_CISCO_ID;
+		}
 
 		sec_level = SEC_LEVEL_0;
 		if (priv->ieee->sec.flags & SEC_LEVEL)
@@ -5759,6 +5762,9 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 		ieee->open_wep = 0;
 	} else if (value & IW_AUTH_ALG_OPEN_SYSTEM) {
 		sec.auth_mode = WLAN_AUTH_OPEN;
+		ieee->open_wep = 1;
+	} else if (value & IW_AUTH_ALG_LEAP) {
+		sec.auth_mode = WLAN_AUTH_LEAP;
 		ieee->open_wep = 1;
 	} else
 		return -EINVAL;
