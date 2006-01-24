@@ -11124,8 +11124,8 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 	/* Free MAC hash list for ADHOC */
 	for (i = 0; i < IPW_IBSS_MAC_HASH_SIZE; i++) {
 		list_for_each_safe(p, q, &priv->ibss_mac_hash[i]) {
-			kfree(list_entry(p, struct ipw_ibss_seq, list));
 			list_del(p);
+			kfree(list_entry(p, struct ipw_ibss_seq, list));
 		}
 	}
 
