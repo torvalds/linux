@@ -1799,7 +1799,7 @@ static irqreturn_t
 bnx2_msi(int irq, void *dev_instance, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_instance;
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	prefetch(bp->status_blk);
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
@@ -1819,7 +1819,7 @@ static irqreturn_t
 bnx2_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_instance;
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	/* When using INTx, it is possible for the interrupt to arrive
 	 * at the CPU before the status block posted prior to the
@@ -1864,7 +1864,7 @@ bnx2_has_work(struct bnx2 *bp)
 static int
 bnx2_poll(struct net_device *dev, int *budget)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if ((bp->status_blk->status_attn_bits &
 		STATUS_ATTN_BITS_LINK_STATE) !=
@@ -1922,7 +1922,7 @@ bnx2_poll(struct net_device *dev, int *budget)
 static void
 bnx2_set_rx_mode(struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	u32 rx_mode, sort_mode;
 	int i;
 
@@ -4194,7 +4194,7 @@ bnx2_restart_timer:
 static int
 bnx2_open(struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
 	bnx2_set_power_state(bp, PCI_D0);
@@ -4307,7 +4307,7 @@ bnx2_reset_task(void *data)
 static void
 bnx2_tx_timeout(struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	/* This allows the netif to be shutdown gracefully before resetting */
 	schedule_work(&bp->reset_task);
@@ -4318,7 +4318,7 @@ bnx2_tx_timeout(struct net_device *dev)
 static void
 bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	bnx2_netif_stop(bp);
 
@@ -4332,7 +4332,7 @@ bnx2_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
 static void
 bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	bnx2_netif_stop(bp);
 
@@ -4353,7 +4353,7 @@ bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 static int
 bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	dma_addr_t mapping;
 	struct tx_bd *txbd;
 	struct sw_bd *tx_buf;
@@ -4482,7 +4482,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int
 bnx2_close(struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	u32 reset_code;
 
 	/* Calling flush_scheduled_work() may deadlock because
@@ -4530,7 +4530,7 @@ bnx2_close(struct net_device *dev)
 static struct net_device_stats *
 bnx2_get_stats(struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	struct statistics_block *stats_blk = bp->stats_blk;
 	struct net_device_stats *net_stats = &bp->net_stats;
 
@@ -4604,7 +4604,7 @@ bnx2_get_stats(struct net_device *dev)
 static int
 bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	cmd->supported = SUPPORTED_Autoneg;
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
@@ -4651,7 +4651,7 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int
 bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	u8 autoneg = bp->autoneg;
 	u8 req_duplex = bp->req_duplex;
 	u16 req_line_speed = bp->req_line_speed;
@@ -4723,7 +4723,7 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void
 bnx2_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	strcpy(info->driver, DRV_MODULE_NAME);
 	strcpy(info->version, DRV_MODULE_VERSION);
@@ -4739,7 +4739,7 @@ bnx2_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 static void
 bnx2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if (bp->flags & NO_WOL_FLAG) {
 		wol->supported = 0;
@@ -4758,7 +4758,7 @@ bnx2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 static int
 bnx2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
@@ -4778,7 +4778,7 @@ bnx2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 static int
 bnx2_nway_reset(struct net_device *dev)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	u32 bmcr;
 
 	if (!(bp->autoneg & AUTONEG_SPEED)) {
@@ -4814,7 +4814,7 @@ bnx2_nway_reset(struct net_device *dev)
 static int
 bnx2_get_eeprom_len(struct net_device *dev)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if (bp->flash_info == NULL)
 		return 0;
@@ -4826,7 +4826,7 @@ static int
 bnx2_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		u8 *eebuf)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
 	/* parameters already validated in ethtool_get_eeprom */
@@ -4840,7 +4840,7 @@ static int
 bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		u8 *eebuf)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
 	/* parameters already validated in ethtool_set_eeprom */
@@ -4853,7 +4853,7 @@ bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 static int
 bnx2_get_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	memset(coal, 0, sizeof(struct ethtool_coalesce));
 
@@ -4875,7 +4875,7 @@ bnx2_get_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 static int
 bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	bp->rx_ticks = (u16) coal->rx_coalesce_usecs;
 	if (bp->rx_ticks > 0x3ff) bp->rx_ticks = 0x3ff;
@@ -4919,7 +4919,7 @@ bnx2_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 static void
 bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	ering->rx_max_pending = MAX_RX_DESC_CNT;
 	ering->rx_mini_max_pending = 0;
@@ -4936,7 +4936,7 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 static int
 bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if ((ering->rx_pending > MAX_RX_DESC_CNT) ||
 		(ering->tx_pending > MAX_TX_DESC_CNT) ||
@@ -4959,7 +4959,7 @@ bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 static void
 bnx2_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	epause->autoneg = ((bp->autoneg & AUTONEG_FLOW_CTRL) != 0);
 	epause->rx_pause = ((bp->flow_ctrl & FLOW_CTRL_RX) != 0);
@@ -4969,7 +4969,7 @@ bnx2_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 static int
 bnx2_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	bp->req_flow_ctrl = 0;
 	if (epause->rx_pause)
@@ -4996,7 +4996,7 @@ bnx2_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 static u32
 bnx2_get_rx_csum(struct net_device *dev)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	return bp->rx_csum;
 }
@@ -5004,7 +5004,7 @@ bnx2_get_rx_csum(struct net_device *dev)
 static int
 bnx2_set_rx_csum(struct net_device *dev, u32 data)
 {
-  	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	bp->rx_csum = data;
 	return 0;
@@ -5153,7 +5153,7 @@ bnx2_self_test_count(struct net_device *dev)
 static void
 bnx2_self_test(struct net_device *dev, struct ethtool_test *etest, u64 *buf)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	memset(buf, 0, sizeof(u64) * BNX2_NUM_TESTS);
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
@@ -5229,7 +5229,7 @@ static void
 bnx2_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *buf)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	int i;
 	u32 *hw_stats = (u32 *) bp->stats_blk;
 	u8 *stats_len_arr = NULL;
@@ -5269,7 +5269,7 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 static int
 bnx2_phys_id(struct net_device *dev, u32 data)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	int i;
 	u32 save;
 
@@ -5341,7 +5341,7 @@ static int
 bnx2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *data = if_mii(ifr);
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	int err;
 
 	switch(cmd) {
@@ -5383,7 +5383,7 @@ static int
 bnx2_change_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EINVAL;
@@ -5399,7 +5399,7 @@ bnx2_change_mac_addr(struct net_device *dev, void *p)
 static int
 bnx2_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if (((new_mtu + ETH_HLEN) > MAX_ETHERNET_JUMBO_PACKET_SIZE) ||
 		((new_mtu + ETH_HLEN) < MIN_ETHERNET_PACKET_SIZE))
@@ -5420,7 +5420,7 @@ bnx2_change_mtu(struct net_device *dev, int new_mtu)
 static void
 poll_bnx2(struct net_device *dev)
 {
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	disable_irq(bp->pdev->irq);
 	bnx2_interrupt(bp->pdev->irq, dev, NULL);
@@ -5438,7 +5438,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	bp = dev->priv;
+	bp = netdev_priv(dev);
 
 	bp->flags = 0;
 	bp->phy_flags = 0;
@@ -5757,7 +5757,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &bnx2_ethtool_ops;
 	dev->weight = 64;
 
-	bp = dev->priv;
+	bp = netdev_priv(dev);
 
 #if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
 	dev->poll_controller = poll_bnx2;
@@ -5816,7 +5816,7 @@ static void __devexit
 bnx2_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	flush_scheduled_work();
 
@@ -5835,7 +5835,7 @@ static int
 bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 	u32 reset_code;
 
 	if (!netif_running(dev))
@@ -5860,7 +5860,7 @@ static int
 bnx2_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct bnx2 *bp = dev->priv;
+	struct bnx2 *bp = netdev_priv(dev);
 
 	if (!netif_running(dev))
 		return 0;
