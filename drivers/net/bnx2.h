@@ -3999,7 +3999,7 @@ struct bnx2 {
 	u16			bus_speed_mhz;
 	u8			wol;
 
-	u8			fw_timed_out;
+	u8			pad;
 
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
@@ -4173,7 +4173,7 @@ struct fw_info {
  * the firmware has timed out, the driver will assume there is no firmware
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. */
-#define FW_ACK_TIME_OUT_MS                  50
+#define FW_ACK_TIME_OUT_MS                  100
 
 
 #define BNX2_DRV_RESET_SIGNATURE		0x00000000

@@ -1327,13 +1327,10 @@ bnx2_set_mac_loopback(struct bnx2 *bp)
 }
 
 static int
-bnx2_fw_sync(struct bnx2 *bp, u32 msg_data)
+bnx2_fw_sync(struct bnx2 *bp, u32 msg_data, int silent)
 {
 	int i;
 	u32 val;
-
-	if (bp->fw_timed_out)
-		return -EBUSY;
 
 	bp->fw_wr_seq++;
 	msg_data |= bp->fw_wr_seq;
@@ -1341,28 +1338,33 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data)
 	REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_MB, msg_data);
 
 	/* wait for an acknowledgement. */
-	for (i = 0; i < (FW_ACK_TIME_OUT_MS * 1000)/5; i++) {
-		udelay(5);
+	for (i = 0; i < (FW_ACK_TIME_OUT_MS / 10); i++) {
+		msleep(10);
 
 		val = REG_RD_IND(bp, bp->shmem_base + BNX2_FW_MB);
 
 		if ((val & BNX2_FW_MSG_ACK) == (msg_data & BNX2_DRV_MSG_SEQ))
 			break;
 	}
+	if ((msg_data & BNX2_DRV_MSG_DATA) == BNX2_DRV_MSG_DATA_WAIT0)
+		return 0;
 
 	/* If we timed out, inform the firmware that this is the case. */
-	if (((val & BNX2_FW_MSG_ACK) != (msg_data & BNX2_DRV_MSG_SEQ)) &&
-		((msg_data & BNX2_DRV_MSG_DATA) != BNX2_DRV_MSG_DATA_WAIT0)) {
+	if ((val & BNX2_FW_MSG_ACK) != (msg_data & BNX2_DRV_MSG_SEQ)) {
+		if (!silent)
+			printk(KERN_ERR PFX "fw sync timeout, reset code = "
+					    "%x\n", msg_data);
 
 		msg_data &= ~BNX2_DRV_MSG_CODE;
 		msg_data |= BNX2_DRV_MSG_CODE_FW_TIMEOUT;
 
 		REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_MB, msg_data);
 
-		bp->fw_timed_out = 1;
-
 		return -EBUSY;
 	}
+
+	if ((val & BNX2_FW_MSG_STATUS_MASK) != BNX2_FW_MSG_STATUS_OK)
+		return -EIO;
 
 	return 0;
 }
@@ -2374,7 +2376,7 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 			wol_msg = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 		}
 
-		bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT3 | wol_msg);
+		bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT3 | wol_msg, 0);
 
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
@@ -3014,15 +3016,13 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 	val = REG_RD(bp, BNX2_MISC_ENABLE_CLR_BITS);
 	udelay(5);
 
+	/* Wait for the firmware to tell us it is ok to issue a reset. */
+	bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT0 | reset_code, 1);
+
 	/* Deposit a driver reset signature so the firmware knows that
 	 * this is a soft reset. */
 	REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_RESET_SIGNATURE,
 		   BNX2_DRV_RESET_SIGNATURE_MAGIC);
-
-	bp->fw_timed_out = 0;
-
-	/* Wait for the firmware to tell us it is ok to issue a reset. */
-	bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT0 | reset_code);
 
 	/* Do a dummy read to force the chip to complete all current transaction
 	 * before we issue a reset. */
@@ -3062,10 +3062,10 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		return -ENODEV;
 	}
 
-	bp->fw_timed_out = 0;
-
 	/* Wait for the firmware to finish its initialization. */
-	bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT1 | reset_code);
+	rc = bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT1 | reset_code, 0);
+	if (rc)
+		return rc;
 
 	if (CHIP_ID(bp) == CHIP_ID_5706_A0) {
 		/* Adjust the voltage regular to two steps lower.  The default
@@ -3083,6 +3083,7 @@ static int
 bnx2_init_chip(struct bnx2 *bp)
 {
 	u32 val;
+	int rc;
 
 	/* Make sure the interrupt is not active. */
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD, BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
@@ -3225,14 +3226,15 @@ bnx2_init_chip(struct bnx2 *bp)
 	/* Initialize the receive filter. */
 	bnx2_set_rx_mode(bp->dev);
 
-	bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT2 | BNX2_DRV_MSG_CODE_RESET);
+	rc = bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT2 | BNX2_DRV_MSG_CODE_RESET,
+			  0);
 
 	REG_WR(bp, BNX2_MISC_ENABLE_SET_BITS, 0x5ffffff);
 	REG_RD(bp, BNX2_MISC_ENABLE_SET_BITS);
 
 	udelay(20);
 
-	return 0;
+	return rc;
 }
 
 
