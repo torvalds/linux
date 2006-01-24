@@ -3769,7 +3769,7 @@ static ssize_t store_memory(struct device *d, struct device_attribute *attr,
 	struct net_device *dev = priv->net_dev;
 	const char *p = buf;
 
-	(void) dev; /* kill unused-var warning for debug-only code */
+	(void)dev;		/* kill unused-var warning for debug-only code */
 
 	if (count < 1)
 		return count;
@@ -4089,7 +4089,7 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 	unsigned long val;
 	char *p = buffer;
 
-	(void) dev; /* kill unused-var warning for debug-only code */
+	(void)dev;		/* kill unused-var warning for debug-only code */
 
 	IPW_DEBUG_INFO("enter\n");
 
