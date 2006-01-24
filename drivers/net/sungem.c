@@ -1653,36 +1653,40 @@ static void gem_init_rings(struct gem *gp)
 /* Init PHY interface and start link poll state machine */
 static void gem_init_phy(struct gem *gp)
 {
-	u32 mifcfg;
+	u32 mif_cfg;
 
 	/* Revert MIF CFG setting done on stop_phy */
-	mifcfg = readl(gp->regs + MIF_CFG);
-	mifcfg &= ~MIF_CFG_BBMODE;
-	writel(mifcfg, gp->regs + MIF_CFG);
+	mif_cfg = readl(gp->regs + MIF_CFG);
+	mif_cfg &= ~(MIF_CFG_PSELECT|MIF_CFG_POLL|MIF_CFG_BBMODE|MIF_CFG_MDI1);
+	mif_cfg |= MIF_CFG_MDI0;
+	writel(mif_cfg, gp->regs + MIF_CFG);
+	writel(PCS_DMODE_MGM, gp->regs + PCS_DMODE);
+	writel(MAC_XIFCFG_OE, gp->regs + MAC_XIFCFG);
 	
 	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE) {
 		int i;
+		u16 ctrl;
 
-		/* Those delay sucks, the HW seem to love them though, I'll
-		 * serisouly consider breaking some locks here to be able
-		 * to schedule instead
-		 */
-		for (i = 0; i < 3; i++) {
 #ifdef CONFIG_PPC_PMAC
-			pmac_call_feature(PMAC_FTR_GMAC_PHY_RESET, gp->of_node, 0, 0);
-			msleep(20);
+		pmac_call_feature(PMAC_FTR_GMAC_PHY_RESET, gp->of_node, 0, 0);
 #endif
-			/* Some PHYs used by apple have problem getting back to us,
-			 * we do an additional reset here
-			 */
-			phy_write(gp, MII_BMCR, BMCR_RESET);
-			msleep(20);
-			if (phy_read(gp, MII_BMCR) != 0xffff)
+
+		/* Some PHYs used by apple have problem getting back
+		 * to us, we do an additional reset here
+		 */
+		phy_write(gp, MII_BMCR, BMCR_RESET);
+		for (i = 0; i < 50; i++) {
+			if ((phy_read(gp, MII_BMCR) & BMCR_RESET) == 0)
 				break;
-			if (i == 2)
-				printk(KERN_WARNING "%s: GMAC PHY not responding !\n",
-				       gp->dev->name);
+			msleep(10);
 		}
+		if (i == 50)
+			printk(KERN_WARNING "%s: GMAC PHY not responding !\n",
+			       gp->dev->name);
+		/* Make sure isolate is off */
+		ctrl = phy_read(gp, MII_BMCR);
+		if (ctrl & BMCR_ISOLATE)
+			phy_write(gp, MII_BMCR, ctrl & ~BMCR_ISOLATE);
 	}
 
 	if (gp->pdev->vendor == PCI_VENDOR_ID_SUN &&
@@ -2119,7 +2123,7 @@ static void gem_reinit_chip(struct gem *gp)
 /* Must be invoked with no lock held. */
 static void gem_stop_phy(struct gem *gp, int wol)
 {
-	u32 mifcfg;
+	u32 mif_cfg;
 	unsigned long flags;
 
 	/* Let the chip settle down a bit, it seems that helps
@@ -2130,9 +2134,9 @@ static void gem_stop_phy(struct gem *gp, int wol)
 	/* Make sure we aren't polling PHY status change. We
 	 * don't currently use that feature though
 	 */
-	mifcfg = readl(gp->regs + MIF_CFG);
-	mifcfg &= ~MIF_CFG_POLL;
-	writel(mifcfg, gp->regs + MIF_CFG);
+	mif_cfg = readl(gp->regs + MIF_CFG);
+	mif_cfg &= ~MIF_CFG_POLL;
+	writel(mif_cfg, gp->regs + MIF_CFG);
 
 	if (wol && gp->has_wol) {
 		unsigned char *e = &gp->dev->dev_addr[0];
@@ -2182,7 +2186,8 @@ static void gem_stop_phy(struct gem *gp, int wol)
 		/* According to Apple, we must set the MDIO pins to this begnign
 		 * state or we may 1) eat more current, 2) damage some PHYs
 		 */
-		writel(mifcfg | MIF_CFG_BBMODE, gp->regs + MIF_CFG);
+		mif_cfg = 0;
+		writel(mif_cfg | MIF_CFG_BBMODE, gp->regs + MIF_CFG);
 		writel(0, gp->regs + MIF_BBCLK);
 		writel(0, gp->regs + MIF_BBDATA);
 		writel(0, gp->regs + MIF_BBOENAB);
