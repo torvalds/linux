@@ -2233,6 +2233,94 @@ err_out:
 	DPRINTK("EXIT\n");
 }
 
+static int do_probe_reset(struct ata_port *ap, ata_reset_fn_t reset,
+			  ata_postreset_fn_t postreset,
+			  unsigned int *classes)
+{
+	int i, rc;
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		classes[i] = ATA_DEV_UNKNOWN;
+
+	rc = reset(ap, 0, classes);
+	if (rc)
+		return rc;
+
+	/* If any class isn't ATA_DEV_UNKNOWN, consider classification
+	 * is complete and convert all ATA_DEV_UNKNOWN to
+	 * ATA_DEV_NONE.
+	 */
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		if (classes[i] != ATA_DEV_UNKNOWN)
+			break;
+
+	if (i < ATA_MAX_DEVICES)
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			if (classes[i] == ATA_DEV_UNKNOWN)
+				classes[i] = ATA_DEV_NONE;
+
+	if (postreset)
+		postreset(ap, classes);
+
+	return classes[0] != ATA_DEV_UNKNOWN ? 0 : -ENODEV;
+}
+
+/**
+ *	ata_drive_probe_reset - Perform probe reset with given methods
+ *	@ap: port to reset
+ *	@softreset: softreset method (can be NULL)
+ *	@hardreset: hardreset method (can be NULL)
+ *	@postreset: postreset method (can be NULL)
+ *	@classes: resulting classes of attached devices
+ *
+ *	Reset the specified port and classify attached devices using
+ *	given methods.  This function prefers softreset but tries all
+ *	possible reset sequences to reset and classify devices.  This
+ *	function is intended to be used for constructing ->probe_reset
+ *	callback by low level drivers.
+ *
+ *	Reset methods should follow the following rules.
+ *
+ *	- Return 0 on sucess, -errno on failure.
+ *	- If classification is supported, fill classes[] with
+ *	  recognized class codes.
+ *	- If classification is not supported, leave classes[] alone.
+ *	- If verbose is non-zero, print error message on failure;
+ *	  otherwise, shut up.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -EINVAL if no reset method is avaliable, -ENODEV
+ *	if classification fails, and any error code from reset
+ *	methods.
+ */
+int ata_drive_probe_reset(struct ata_port *ap,
+			  ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+			  ata_postreset_fn_t postreset, unsigned int *classes)
+{
+	int rc = -EINVAL;
+
+	if (softreset) {
+		rc = do_probe_reset(ap, softreset, postreset, classes);
+		if (rc == 0)
+			return 0;
+	}
+
+	if (!hardreset)
+		return rc;
+
+	rc = do_probe_reset(ap, hardreset, postreset, classes);
+	if (rc == 0 || rc != -ENODEV)
+		return rc;
+
+	if (softreset)
+		rc = do_probe_reset(ap, softreset, postreset, classes);
+
+	return rc;
+}
+
 static void ata_pr_blacklisted(const struct ata_port *ap,
 			       const struct ata_device *dev)
 {
@@ -5180,6 +5268,7 @@ EXPORT_SYMBOL_GPL(ata_port_probe);
 EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
+EXPORT_SYMBOL_GPL(ata_drive_probe_reset);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);

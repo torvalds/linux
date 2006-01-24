@@ -241,6 +241,8 @@ struct ata_queued_cmd;
 
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
+typedef int (*ata_reset_fn_t)(struct ata_port *, int, unsigned int *);
+typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *);
 
 struct ata_ioports {
 	unsigned long		cmd_addr;
@@ -478,6 +480,9 @@ extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
+extern int ata_drive_probe_reset(struct ata_port *ap,
+			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+			ata_postreset_fn_t postreset, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
