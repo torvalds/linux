@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -274,9 +274,8 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	default:
 		/* Invalid field access type */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown field access type %X\n", access));
-		return_VALUE(0);
+		ACPI_REPORT_ERROR(("Unknown field access type %X\n", access));
+		return_UINT32(0);
 	}
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_BUFFER_FIELD) {
@@ -289,7 +288,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	}
 
 	*return_byte_alignment = byte_alignment;
-	return_VALUE(bit_length);
+	return_UINT32(bit_length);
 }
 
 /*******************************************************************************
@@ -422,15 +421,13 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 	if (info->field_type != ACPI_TYPE_LOCAL_INDEX_FIELD) {
 		if (!info->region_node) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null region_node\n"));
+			ACPI_REPORT_ERROR(("Null region_node\n"));
 			return_ACPI_STATUS(AE_AML_NO_OPERAND);
 		}
 
 		type = acpi_ns_get_type(info->region_node);
 		if (type != ACPI_TYPE_REGION) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Needed Region, found type %X (%s)\n",
-					  type, acpi_ut_get_type_name(type)));
+			ACPI_REPORT_ERROR(("Needed Region, found type %X (%s)\n", type, acpi_ut_get_type_name(type)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}

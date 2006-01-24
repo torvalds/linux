@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -292,7 +292,9 @@ acpi_status acpi_tb_get_required_tables(void)
 			  "Hex dump of entire DSDT, size %d (0x%X), Integer width = %d\n",
 			  acpi_gbl_DSDT->length, acpi_gbl_DSDT->length,
 			  acpi_gbl_integer_bit_width));
-	ACPI_DUMP_BUFFER((u8 *) acpi_gbl_DSDT, acpi_gbl_DSDT->length);
+
+	ACPI_DUMP_BUFFER(ACPI_CAST_PTR(u8, acpi_gbl_DSDT),
+			 acpi_gbl_DSDT->length);
 
 	/* Always delete the RSDP mapping, we are done with it */
 

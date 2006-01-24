@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,8 +70,7 @@ acpi_status acpi_enable(void)
 	/* Make sure we have the FADT */
 
 	if (!acpi_gbl_FADT) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "No FADT information present!\n"));
+		ACPI_REPORT_WARNING(("No FADT information present!\n"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -83,7 +82,7 @@ acpi_status acpi_enable(void)
 
 		status = acpi_hw_set_mode(ACPI_SYS_MODE_ACPI);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not transition to ACPI mode.\n"));
+			ACPI_REPORT_ERROR(("Could not transition to ACPI mode\n"));
 			return_ACPI_STATUS(status);
 		}
 
@@ -113,8 +112,7 @@ acpi_status acpi_disable(void)
 	ACPI_FUNCTION_TRACE("acpi_disable");
 
 	if (!acpi_gbl_FADT) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "No FADT information present!\n"));
+		ACPI_REPORT_WARNING(("No FADT information present!\n"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -127,8 +125,7 @@ acpi_status acpi_disable(void)
 		status = acpi_hw_set_mode(ACPI_SYS_MODE_LEGACY);
 
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not exit ACPI mode to legacy mode"));
+			ACPI_REPORT_ERROR(("Could not exit ACPI mode to legacy mode"));
 			return_ACPI_STATUS(status);
 		}
 
@@ -185,9 +182,8 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	}
 
 	if (value != 1) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not enable %s event\n",
-				  acpi_ut_get_event_name(event)));
+		ACPI_REPORT_ERROR(("Could not enable %s event\n",
+				   acpi_ut_get_event_name(event)));
 		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
 
@@ -384,9 +380,8 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	}
 
 	if (value != 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not disable %s events\n",
-				  acpi_ut_get_event_name(event)));
+		ACPI_REPORT_ERROR(("Could not disable %s events\n",
+				   acpi_ut_get_event_name(event)));
 		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
 
@@ -622,6 +617,13 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	status =
 	    acpi_ev_create_gpe_block(node, gpe_block_address, register_count, 0,
 				     interrupt_number, &gpe_block);
+	if (ACPI_FAILURE(status)) {
+		goto unlock_and_exit;
+	}
+
+	/* Run the _PRW methods and enable the GPEs */
+
+	status = acpi_ev_initialize_gpe_block(node, gpe_block);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}

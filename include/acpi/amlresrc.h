@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,182 +92,168 @@ struct asl_resource_node {
 	struct asl_resource_node *next;
 };
 
+/* Macros used to generate AML resource length fields */
+
+#define ACPI_AML_SIZE_LARGE(r)      (sizeof (r) - sizeof (struct aml_resource_large_header))
+#define ACPI_AML_SIZE_SMALL(r)      (sizeof (r) - sizeof (struct aml_resource_small_header))
+
 /*
  * Resource descriptors defined in the ACPI specification.
  *
  * Packing/alignment must be BYTE because these descriptors
- * are used to overlay the AML byte stream.
+ * are used to overlay the raw AML byte stream.
  */
 #pragma pack(1)
 
-struct asl_irq_format_desc {
-	u8 descriptor_type;
-	u16 irq_mask;
+/*
+ * SMALL descriptors
+ */
+#define AML_RESOURCE_SMALL_HEADER_COMMON \
+	u8                                  descriptor_type;
+
+struct aml_resource_small_header {
+AML_RESOURCE_SMALL_HEADER_COMMON};
+
+struct aml_resource_irq {
+	AML_RESOURCE_SMALL_HEADER_COMMON u16 irq_mask;
 	u8 flags;
 };
 
-struct asl_irq_noflags_desc {
-	u8 descriptor_type;
-	u16 irq_mask;
+struct aml_resource_irq_noflags {
+	AML_RESOURCE_SMALL_HEADER_COMMON u16 irq_mask;
 };
 
-struct asl_dma_format_desc {
-	u8 descriptor_type;
-	u8 dma_channel_mask;
+struct aml_resource_dma {
+	AML_RESOURCE_SMALL_HEADER_COMMON u8 dma_channel_mask;
 	u8 flags;
 };
 
-struct asl_start_dependent_desc {
-	u8 descriptor_type;
-	u8 flags;
+struct aml_resource_start_dependent {
+	AML_RESOURCE_SMALL_HEADER_COMMON u8 flags;
 };
 
-struct asl_start_dependent_noprio_desc {
-	u8 descriptor_type;
-};
+struct aml_resource_start_dependent_noprio {
+AML_RESOURCE_SMALL_HEADER_COMMON};
 
-struct asl_end_dependent_desc {
-	u8 descriptor_type;
-};
+struct aml_resource_end_dependent {
+AML_RESOURCE_SMALL_HEADER_COMMON};
 
-struct asl_io_port_desc {
-	u8 descriptor_type;
-	u8 information;
-	u16 address_min;
-	u16 address_max;
+struct aml_resource_io {
+	AML_RESOURCE_SMALL_HEADER_COMMON u8 flags;
+	u16 minimum;
+	u16 maximum;
 	u8 alignment;
-	u8 length;
+	u8 address_length;
 };
 
-struct asl_fixed_io_port_desc {
-	u8 descriptor_type;
-	u16 base_address;
-	u8 length;
+struct aml_resource_fixed_io {
+	AML_RESOURCE_SMALL_HEADER_COMMON u16 address;
+	u8 address_length;
 };
 
-struct asl_small_vendor_desc {
-	u8 descriptor_type;
-	u8 vendor_defined[7];
+struct aml_resource_vendor_small {
+AML_RESOURCE_SMALL_HEADER_COMMON};
+
+struct aml_resource_end_tag {
+	AML_RESOURCE_SMALL_HEADER_COMMON u8 checksum;
 };
 
-struct asl_end_tag_desc {
-	u8 descriptor_type;
-	u8 checksum;
-};
+/*
+ * LARGE descriptors
+ */
+#define AML_RESOURCE_LARGE_HEADER_COMMON \
+	u8                                  descriptor_type;\
+	u16                                 resource_length;
 
-/* LARGE descriptors */
+struct aml_resource_large_header {
+AML_RESOURCE_LARGE_HEADER_COMMON};
 
-struct asl_memory_24_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 information;
-	u16 address_min;
-	u16 address_max;
+struct aml_resource_memory24 {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
+	u16 minimum;
+	u16 maximum;
 	u16 alignment;
-	u16 range_length;
+	u16 address_length;
 };
 
-struct asl_large_vendor_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 vendor_defined[1];
-};
+struct aml_resource_vendor_large {
+AML_RESOURCE_LARGE_HEADER_COMMON};
 
-struct asl_memory_32_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 information;
-	u32 address_min;
-	u32 address_max;
+struct aml_resource_memory32 {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
+	u32 minimum;
+	u32 maximum;
 	u32 alignment;
-	u32 range_length;
+	u32 address_length;
 };
 
-struct asl_fixed_memory_32_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 information;
-	u32 base_address;
-	u32 range_length;
+struct aml_resource_fixed_memory32 {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
+	u32 address;
+	u32 address_length;
 };
 
-struct asl_extended_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
-	u8 flags;
-	u8 specific_flags;
-	u8 revision_iD;
+#define AML_RESOURCE_ADDRESS_COMMON \
+	u8                                  resource_type; \
+	u8                                  flags; \
+	u8                                  specific_flags;
+
+struct aml_resource_address {
+AML_RESOURCE_LARGE_HEADER_COMMON AML_RESOURCE_ADDRESS_COMMON};
+
+struct aml_resource_extended_address64 {
+	AML_RESOURCE_LARGE_HEADER_COMMON
+	    AML_RESOURCE_ADDRESS_COMMON u8 revision_iD;
 	u8 reserved;
 	u64 granularity;
-	u64 address_min;
-	u64 address_max;
+	u64 minimum;
+	u64 maximum;
 	u64 translation_offset;
 	u64 address_length;
-	u64 type_specific_attributes;
-	u8 optional_fields[2];	/* Used for length calculation only */
+	u64 type_specific;
 };
 
-#define ASL_EXTENDED_ADDRESS_DESC_REVISION          1	/* ACPI 3.0 */
+#define AML_RESOURCE_EXTENDED_ADDRESS_REVISION          1	/* ACPI 3.0 */
 
-struct asl_qword_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
-	u8 flags;
-	u8 specific_flags;
-	u64 granularity;
-	u64 address_min;
-	u64 address_max;
+struct aml_resource_address64 {
+	AML_RESOURCE_LARGE_HEADER_COMMON
+	    AML_RESOURCE_ADDRESS_COMMON u64 granularity;
+	u64 minimum;
+	u64 maximum;
 	u64 translation_offset;
 	u64 address_length;
-	u8 optional_fields[2];
 };
 
-struct asl_dword_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
-	u8 flags;
-	u8 specific_flags;
-	u32 granularity;
-	u32 address_min;
-	u32 address_max;
+struct aml_resource_address32 {
+	AML_RESOURCE_LARGE_HEADER_COMMON
+	    AML_RESOURCE_ADDRESS_COMMON u32 granularity;
+	u32 minimum;
+	u32 maximum;
 	u32 translation_offset;
 	u32 address_length;
-	u8 optional_fields[2];
 };
 
-struct asl_word_address_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 resource_type;
-	u8 flags;
-	u8 specific_flags;
-	u16 granularity;
-	u16 address_min;
-	u16 address_max;
+struct aml_resource_address16 {
+	AML_RESOURCE_LARGE_HEADER_COMMON
+	    AML_RESOURCE_ADDRESS_COMMON u16 granularity;
+	u16 minimum;
+	u16 maximum;
 	u16 translation_offset;
 	u16 address_length;
-	u8 optional_fields[2];
 };
 
-struct asl_extended_xrupt_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 flags;
-	u8 table_length;
-	u32 interrupt_number[1];
+struct aml_resource_extended_irq {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
+	u8 interrupt_count;
+	u32 interrupts[1];
 	/* res_source_index, res_source optional fields follow */
 };
 
-struct asl_general_register_desc {
-	u8 descriptor_type;
-	u16 length;
-	u8 address_space_id;
+struct aml_resource_generic_register {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 address_space_id;
 	u8 bit_width;
 	u8 bit_offset;
-	u8 access_size;		/* ACPI 3.0, was Reserved */
+	u8 access_size;		/* ACPI 3.0, was previously Reserved */
 	u64 address;
 };
 
@@ -277,26 +263,39 @@ struct asl_general_register_desc {
 
 /* Union of all resource descriptors, so we can allocate the worst case */
 
-union asl_resource_desc {
-	struct asl_irq_format_desc irq;
-	struct asl_dma_format_desc dma;
-	struct asl_start_dependent_desc std;
-	struct asl_end_dependent_desc end;
-	struct asl_io_port_desc iop;
-	struct asl_fixed_io_port_desc fio;
-	struct asl_small_vendor_desc smv;
-	struct asl_end_tag_desc et;
+union aml_resource {
+	/* Descriptor headers */
 
-	struct asl_memory_24_desc M24;
-	struct asl_large_vendor_desc lgv;
-	struct asl_memory_32_desc M32;
-	struct asl_fixed_memory_32_desc F32;
-	struct asl_qword_address_desc qas;
-	struct asl_dword_address_desc das;
-	struct asl_word_address_desc was;
-	struct asl_extended_address_desc eas;
-	struct asl_extended_xrupt_desc exx;
-	struct asl_general_register_desc grg;
+	struct aml_resource_small_header small_header;
+	struct aml_resource_large_header large_header;
+
+	/* Small resource descriptors */
+
+	struct aml_resource_irq irq;
+	struct aml_resource_dma dma;
+	struct aml_resource_start_dependent start_dpf;
+	struct aml_resource_end_dependent end_dpf;
+	struct aml_resource_io io;
+	struct aml_resource_fixed_io fixed_io;
+	struct aml_resource_vendor_small vendor_small;
+	struct aml_resource_end_tag end_tag;
+
+	/* Large resource descriptors */
+
+	struct aml_resource_memory24 memory24;
+	struct aml_resource_generic_register generic_reg;
+	struct aml_resource_vendor_large vendor_large;
+	struct aml_resource_memory32 memory32;
+	struct aml_resource_fixed_memory32 fixed_memory32;
+	struct aml_resource_address16 address16;
+	struct aml_resource_address32 address32;
+	struct aml_resource_address64 address64;
+	struct aml_resource_extended_address64 ext_address64;
+	struct aml_resource_extended_irq extended_irq;
+
+	/* Utility overlays */
+
+	struct aml_resource_address address;
 	u32 u32_item;
 	u16 u16_item;
 	u8 U8item;

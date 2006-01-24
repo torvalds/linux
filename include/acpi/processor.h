@@ -62,9 +62,6 @@ struct acpi_processor_power {
 	u32 bm_activity;
 	int count;
 	struct acpi_processor_cx states[ACPI_PROCESSOR_MAX_POWER];
-
-	/* the _PDC objects passed by the driver, if any */
-	struct acpi_object_list *pdc;
 };
 
 /* Performance Management */
@@ -96,8 +93,6 @@ struct acpi_processor_performance {
 	unsigned int state_count;
 	struct acpi_processor_px *states;
 
-	/* the _PDC objects passed by the driver, if any */
-	struct acpi_object_list *pdc;
 };
 
 /* Throttling Control */
@@ -151,6 +146,9 @@ struct acpi_processor {
 	struct acpi_processor_performance *performance;
 	struct acpi_processor_throttling throttling;
 	struct acpi_processor_limit limit;
+
+	/* the _PDC objects for this processor, if any */
+	struct acpi_object_list *pdc;
 };
 
 struct acpi_processor_errata {
@@ -178,22 +176,12 @@ int acpi_processor_notify_smm(struct module *calling_module);
 extern struct acpi_processor *processors[NR_CPUS];
 extern struct acpi_processor_errata errata;
 
-int acpi_processor_set_pdc(struct acpi_processor *pr,
-			   struct acpi_object_list *pdc_in);
+void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
 
-#ifdef ARCH_HAS_POWER_PDC_INIT
-void acpi_processor_power_init_pdc(struct acpi_processor_power *pow,
-				   unsigned int cpu);
+#ifdef ARCH_HAS_POWER_INIT
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 					unsigned int cpu);
 #else
-static inline void acpi_processor_power_init_pdc(struct acpi_processor_power
-						 *pow, unsigned int cpu)
-{
-	pow->pdc = NULL;
-	return;
-}
-
 static inline void acpi_processor_power_init_bm_check(struct
 						      acpi_processor_flags
 						      *flags, unsigned int cpu)
@@ -235,9 +223,6 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 /* in processor_throttling.c */
 int acpi_processor_get_throttling_info(struct acpi_processor *pr);
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
-ssize_t acpi_processor_write_throttling(struct file *file,
-					const char __user * buffer,
-					size_t count, loff_t * data);
 extern struct file_operations acpi_processor_throttling_fops;
 
 /* in processor_idle.c */
@@ -249,9 +234,6 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);
-ssize_t acpi_processor_write_limit(struct file *file,
-				   const char __user * buffer,
-				   size_t count, loff_t * data);
 extern struct file_operations acpi_processor_limit_fops;
 
 #ifdef CONFIG_CPU_FREQ

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,7 +92,7 @@ acpi_ns_load_table(struct acpi_table_desc *table_desc,
 	/* Check validity of the AML start and length */
 
 	if (!table_desc->aml_start) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null AML pointer\n"));
+		ACPI_REPORT_ERROR(("Null AML pointer\n"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -263,7 +263,7 @@ acpi_status acpi_ns_load_namespace(void)
 	/* There must be at least a DSDT installed */
 
 	if (acpi_gbl_DSDT == NULL) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "DSDT is not in memory\n"));
+		ACPI_REPORT_ERROR(("DSDT is not in memory\n"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,8 +176,8 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	/* Must have both an Op and a Result Object */
 
 	if (!op) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null Op\n"));
-		return_VALUE(TRUE);
+		ACPI_REPORT_ERROR(("Null Op\n"));
+		return_UINT8(TRUE);
 	}
 
 	/*
@@ -208,7 +208,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 				  "At Method level, result of [%s] not used\n",
 				  acpi_ps_get_opcode_name(op->common.
 							  aml_opcode)));
-		return_VALUE(FALSE);
+		return_UINT8(FALSE);
 	}
 
 	/* Get info on the parent. The root_op is AML_SCOPE */
@@ -216,9 +216,8 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	parent_info =
 	    acpi_ps_get_opcode_info(op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown parent opcode. Op=%p\n", op));
-		return_VALUE(FALSE);
+		ACPI_REPORT_ERROR(("Unknown parent opcode Op=%p\n", op));
+		return_UINT8(FALSE);
 	}
 
 	/*
@@ -304,7 +303,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_VALUE(TRUE);
+	return_UINT8(TRUE);
 
       result_not_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -313,7 +312,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_VALUE(FALSE);
+	return_UINT8(FALSE);
 }
 
 /*******************************************************************************
@@ -344,7 +343,7 @@ acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
 	ACPI_FUNCTION_TRACE_PTR("ds_delete_result_if_not_used", result_obj);
 
 	if (!op) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null Op\n"));
+		ACPI_REPORT_ERROR(("Null Op\n"));
 		return_VOID;
 	}
 
@@ -616,7 +615,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 
 		if (op_info->flags & AML_HAS_RETVAL) {
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-					  "Argument previously created, already stacked \n"));
+					  "Argument previously created, already stacked\n"));
 
 			ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
 					   (walk_state->
@@ -635,10 +634,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 				 * Only error is underflow, and this indicates
 				 * a missing or null operand!
 				 */
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Missing or null operand, %s\n",
-						  acpi_format_exception
-						  (status)));
+				ACPI_REPORT_ERROR(("Missing or null operand, %s\n", acpi_format_exception(status)));
 				return_ACPI_STATUS(status);
 			}
 		} else {
@@ -730,7 +726,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 	 */
 	(void)acpi_ds_obj_stack_pop_and_delete(arg_count, walk_state);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "While creating Arg %d - %s\n",
-			  (arg_count + 1), acpi_format_exception(status)));
+	ACPI_REPORT_ERROR(("While creating Arg %d - %s\n",
+			   (arg_count + 1), acpi_format_exception(status)));
 	return_ACPI_STATUS(status);
 }

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -272,9 +272,8 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 		/* Grandchildren should have all been deleted already */
 
 		if (child_node->child) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Found a grandchild! P=%p C=%p\n",
-					  parent_node, child_node));
+			ACPI_REPORT_ERROR(("Found a grandchild! P=%p C=%p\n",
+					   parent_node, child_node));
 		}
 
 		/* Now we can free this child object */

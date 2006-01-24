@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -221,15 +221,14 @@ void acpi_ut_subsystem_shutdown(void)
 	/* Just exit if subsystem is already shutdown */
 
 	if (acpi_gbl_shutdown) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "ACPI Subsystem is already terminated\n"));
+		ACPI_REPORT_ERROR(("ACPI Subsystem is already terminated\n"));
 		return_VOID;
 	}
 
 	/* Subsystem appears active, go ahead and shut it down */
 
 	acpi_gbl_shutdown = TRUE;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem...\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 	/* Close the acpi_event Handling */
 

@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,11 +123,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 		      && (source_desc->reference.opcode == AML_LOAD_OP))) {
 			/* Conversion successful but still not a valid type */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
-					  acpi_ut_get_object_type_name
-					  (source_desc),
-					  acpi_ut_get_type_name(target_type)));
+			ACPI_REPORT_ERROR(("Cannot assign type %s to %s (must be type Int/Str/Buf)\n", acpi_ut_get_object_type_name(source_desc), acpi_ut_get_type_name(target_type)));
 			status = AE_AML_OPERAND_TYPE;
 		}
 		break;
@@ -280,9 +276,8 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 		/*
 		 * All other types come here.
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Store into type %s not implemented\n",
-				  acpi_ut_get_object_type_name(dest_desc)));
+		ACPI_REPORT_WARNING(("Store into type %s not implemented\n",
+				     acpi_ut_get_object_type_name(dest_desc)));
 
 		status = AE_NOT_IMPLEMENTED;
 		break;

@@ -7,7 +7,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,8 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 
 	info.parameters = NULL;
 	info.return_object = NULL;
-	sleep_state_name = (char *)acpi_gbl_sleep_state_names[sleep_state];
+	sleep_state_name =
+	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
 
 	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
 	if (ACPI_FAILURE(status)) {
@@ -201,12 +202,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "%s While evaluating sleep_state [%s], bad Sleep object %p type %s\n",
-				  acpi_format_exception(status),
-				  sleep_state_name, info.return_object,
-				  acpi_ut_get_object_type_name(info.
-							       return_object)));
+		ACPI_REPORT_ERROR(("%s While evaluating sleep_state [%s], bad Sleep object %p type %s\n", acpi_format_exception(status), sleep_state_name, info.return_object, acpi_ut_get_object_type_name(info.return_object)));
 	}
 
 	acpi_ut_remove_reference(info.return_object);
@@ -229,12 +225,11 @@ EXPORT_SYMBOL(acpi_get_sleep_type_data);
 
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 {
-	ACPI_FUNCTION_NAME("hw_get_bit_register_info");
+	ACPI_FUNCTION_ENTRY();
 
 	if (register_id > ACPI_BITREG_MAX) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid bit_register ID: %X\n",
-				  register_id));
+		ACPI_REPORT_ERROR(("Invalid bit_register ID: %X\n",
+				   register_id));
 		return (NULL);
 	}
 
@@ -569,8 +564,7 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown Register ID: %X\n",
-				  register_id));
+		ACPI_REPORT_ERROR(("Unknown Register ID: %X\n", register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
@@ -765,9 +759,8 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unsupported address space: %X\n",
-				  reg->address_space_id));
+		ACPI_REPORT_ERROR(("Unsupported address space: %X\n",
+				   reg->address_space_id));
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -836,9 +829,8 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unsupported address space: %X\n",
-				  reg->address_space_id));
+		ACPI_REPORT_ERROR(("Unsupported address space: %X\n",
+				   reg->address_space_id));
 		return (AE_BAD_PARAMETER);
 	}
 

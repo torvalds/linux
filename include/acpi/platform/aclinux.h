@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,10 @@
 #include <linux/slab.h>
 #define acpi_cache_t	kmem_cache_t
 #endif
+
+/* Full namespace pathname length limit - arbitrary */
+
+#define ACPI_PATHNAME_MAX              256
 
 #else				/* !__KERNEL__ */
 

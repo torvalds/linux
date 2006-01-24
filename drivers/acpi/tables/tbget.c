@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -362,8 +362,8 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid address flags %X\n",
-				  address->pointer_type));
+		ACPI_REPORT_ERROR(("Invalid address flags %X\n",
+				   address->pointer_type));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
