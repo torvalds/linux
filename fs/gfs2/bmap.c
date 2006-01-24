@@ -841,8 +841,7 @@ static int truncator_journaled(struct gfs2_inode *ip, uint64_t size)
 	return 0;
 }
 
-static int trunc_start(struct gfs2_inode *ip, uint64_t size,
-		       gfs2_truncator_t truncator)
+static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 {
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct buffer_head *dibh;
@@ -873,7 +872,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size,
 			if (do_div(junk, sdp->sd_jbsize))
 				error = truncator_journaled(ip, size);
 		} else if (size & (uint64_t)(sdp->sd_sb.sb_bsize - 1))
-			error = truncator(ip, size);
+			error = gfs2_truncator_page(ip, size);
 
 		if (!error) {
 			ip->i_di.di_size = size;
@@ -980,12 +979,11 @@ static int trunc_end(struct gfs2_inode *ip)
  * Returns: errno
  */
 
-static int do_shrink(struct gfs2_inode *ip, uint64_t size,
-		     gfs2_truncator_t truncator)
+static int do_shrink(struct gfs2_inode *ip, uint64_t size)
 {
 	int error;
 
-	error = trunc_start(ip, size, truncator);
+	error = trunc_start(ip, size);
 	if (error < 0)
 		return error;
 	if (error > 0)
@@ -1009,8 +1007,7 @@ static int do_shrink(struct gfs2_inode *ip, uint64_t size,
  * Returns: errno
  */
 
-int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size,
-		   gfs2_truncator_t truncator)
+int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size)
 {
 	int error;
 
@@ -1020,7 +1017,7 @@ int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size,
 	if (size > ip->i_di.di_size)
 		error = do_grow(ip, size);
 	else
-		error = do_shrink(ip, size, truncator);
+		error = do_shrink(ip, size);
 
 	return error;
 }

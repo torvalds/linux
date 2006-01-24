@@ -23,8 +23,7 @@ int gfs2_block_map(struct gfs2_inode *ip,
 		   uint64_t *dblock, uint32_t *extlen);
 
 typedef int (*gfs2_truncator_t) (struct gfs2_inode * ip, uint64_t size);
-int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size,
-		   gfs2_truncator_t truncator);
+int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size);
 int gfs2_truncatei_resume(struct gfs2_inode *ip);
 int gfs2_file_dealloc(struct gfs2_inode *ip);
 

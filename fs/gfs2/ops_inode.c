@@ -994,7 +994,7 @@ static int setattr_size(struct inode *inode, struct iattr *attr)
 			return error;
 	}
 
-	error = gfs2_truncatei(ip, attr->ia_size, gfs2_truncator_page);
+	error = gfs2_truncatei(ip, attr->ia_size);
 	if (error)
 		return error;
 
