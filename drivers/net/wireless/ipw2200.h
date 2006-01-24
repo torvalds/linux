@@ -1453,12 +1453,11 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DOMAIN_0_END 0x1000
 #define CLX_MEM_BAR_SIZE 0x1000
 
-
 /* Dino/baseband control registers bits */
 
-#define DINO_ENABLE_SYSTEM 0x80   /* 1 = baseband processor on, 0 = reset */
-#define DINO_ENABLE_CS     0x40   /* 1 = enable ucode load */
-#define DINO_RXFIFO_DATA   0x01   /* 1 = data available */
+#define DINO_ENABLE_SYSTEM 0x80	/* 1 = baseband processor on, 0 = reset */
+#define DINO_ENABLE_CS     0x40	/* 1 = enable ucode load */
+#define DINO_RXFIFO_DATA   0x01	/* 1 = data available */
 #define IPW_BASEBAND_CONTROL_STATUS	0X00200000
 #define IPW_BASEBAND_TX_FIFO_WRITE	0X00200004
 #define IPW_BASEBAND_RX_FIFO_READ	0X00200004
@@ -1575,9 +1574,9 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_NIC_TYPE_4 4
 
 /* Bluetooth Coexistence capabilities as found in EEPROM_SKU_CAPABILITY */
-#define EEPROM_SKU_CAP_BT_CHANNEL_SIG  0x01 /* we can tell BT our channel # */
-#define EEPROM_SKU_CAP_BT_PRIORITY     0x02 /* BT can take priority over us */
-#define EEPROM_SKU_CAP_BT_OOB          0x04 /* we can signal BT out-of-band */
+#define EEPROM_SKU_CAP_BT_CHANNEL_SIG  0x01	/* we can tell BT our channel # */
+#define EEPROM_SKU_CAP_BT_PRIORITY     0x02	/* BT can take priority over us */
+#define EEPROM_SKU_CAP_BT_OOB          0x04	/* we can signal BT out-of-band */
 
 #define FW_MEM_REG_LOWER_BOUND          0x00300000
 #define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)
@@ -1877,11 +1876,11 @@ struct ipw_cmd_log {
 
 /* SysConfig command parameters ... */
 /* bt_coexistence param */
-#define CFG_BT_COEXISTENCE_SIGNAL_CHNL  0x01 /* tell BT our chnl # */
-#define CFG_BT_COEXISTENCE_DEFER        0x02 /* defer our Tx if BT traffic */
-#define CFG_BT_COEXISTENCE_KILL         0x04 /* kill our Tx if BT traffic */
-#define CFG_BT_COEXISTENCE_WME_OVER_BT  0x08 /* multimedia extensions */
-#define CFG_BT_COEXISTENCE_OOB          0x10 /* signal BT via out-of-band */
+#define CFG_BT_COEXISTENCE_SIGNAL_CHNL  0x01	/* tell BT our chnl # */
+#define CFG_BT_COEXISTENCE_DEFER        0x02	/* defer our Tx if BT traffic */
+#define CFG_BT_COEXISTENCE_KILL         0x04	/* kill our Tx if BT traffic */
+#define CFG_BT_COEXISTENCE_WME_OVER_BT  0x08	/* multimedia extensions */
+#define CFG_BT_COEXISTENCE_OOB          0x10	/* signal BT via out-of-band */
 
 /* clear-to-send to self param */
 #define CFG_CTS_TO_ITSELF_ENABLED_MIN	0x00
@@ -1889,9 +1888,9 @@ struct ipw_cmd_log {
 #define CFG_CTS_TO_ITSELF_ENABLED_DEF	CFG_CTS_TO_ITSELF_ENABLED_MIN
 
 /* Antenna diversity param (h/w can select best antenna, based on signal) */
-#define CFG_SYS_ANTENNA_BOTH            0x00 /* NIC selects best antenna */
-#define CFG_SYS_ANTENNA_A               0x01 /* force antenna A */
-#define CFG_SYS_ANTENNA_B               0x03 /* force antenna B */
+#define CFG_SYS_ANTENNA_BOTH            0x00	/* NIC selects best antenna */
+#define CFG_SYS_ANTENNA_A               0x01	/* force antenna A */
+#define CFG_SYS_ANTENNA_B               0x03	/* force antenna B */
 
 /*
  * The definitions below were lifted off the ipw2100 driver, which only

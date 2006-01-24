@@ -272,7 +272,6 @@ static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
  IPW_DEBUG_IO("%s %d: write_direct8(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
  _ipw_write8(ipw, ofs, val)
 
-
 /* 16-bit direct write (low 4K) */
 #define _ipw_write16(ipw, ofs, val) writew((val), (ipw)->hw_base + (ofs))
 
@@ -281,7 +280,6 @@ static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
  IPW_DEBUG_IO("%s %d: write_direct16(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
  _ipw_write16(ipw, ofs, val)
 
-
 /* 32-bit direct write (low 4K) */
 #define _ipw_write32(ipw, ofs, val) writel((val), (ipw)->hw_base + (ofs))
 
@@ -289,7 +287,6 @@ static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
 #define ipw_write32(ipw, ofs, val) \
  IPW_DEBUG_IO("%s %d: write_direct32(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
  _ipw_write32(ipw, ofs, val)
-
 
 /* 8-bit direct read (low 4K) */
 #define _ipw_read8(ipw, ofs) readb((ipw)->hw_base + (ofs))
@@ -304,7 +301,6 @@ static inline u8 __ipw_read8(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 /* alias to 8-bit direct read (low 4K of SRAM/regs), with debug wrapper */
 #define ipw_read8(ipw, ofs) __ipw_read8(__FILE__, __LINE__, ipw, ofs)
 
-
 /* 16-bit direct read (low 4K) */
 #define _ipw_read16(ipw, ofs) readw((ipw)->hw_base + (ofs))
 
@@ -318,7 +314,6 @@ static inline u16 __ipw_read16(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 /* alias to 16-bit direct read (low 4K of SRAM/regs), with debug wrapper */
 #define ipw_read16(ipw, ofs) __ipw_read16(__FILE__, __LINE__, ipw, ofs)
 
-
 /* 32-bit direct read (low 4K) */
 #define _ipw_read32(ipw, ofs) readl((ipw)->hw_base + (ofs))
 
@@ -331,7 +326,6 @@ static inline u32 __ipw_read32(char *f, u32 l, struct ipw_priv *ipw, u32 ofs)
 
 /* alias to 32-bit direct read (low 4K of SRAM/regs), with debug wrapper */
 #define ipw_read32(ipw, ofs) __ipw_read32(__FILE__, __LINE__, ipw, ofs)
-
 
 /* multi-byte read (above 4K), with debug wrapper */
 static void _ipw_read_indirect(struct ipw_priv *, u32, u8 *, int);
@@ -364,7 +358,7 @@ static void _ipw_write_reg32(struct ipw_priv *priv, u32 reg, u32 value)
 /* 8-bit indirect write (above 4K) */
 static void _ipw_write_reg8(struct ipw_priv *priv, u32 reg, u8 value)
 {
-	u32 aligned_addr = reg & IPW_INDIRECT_ADDR_MASK; /* dword align */
+	u32 aligned_addr = reg & IPW_INDIRECT_ADDR_MASK;	/* dword align */
 	u32 dif_len = reg - aligned_addr;
 
 	IPW_DEBUG_IO(" reg = 0x%8X : value = 0x%8X\n", reg, value);
@@ -375,14 +369,13 @@ static void _ipw_write_reg8(struct ipw_priv *priv, u32 reg, u8 value)
 /* 16-bit indirect write (above 4K) */
 static void _ipw_write_reg16(struct ipw_priv *priv, u32 reg, u16 value)
 {
-	u32 aligned_addr = reg & IPW_INDIRECT_ADDR_MASK; /* dword align */
+	u32 aligned_addr = reg & IPW_INDIRECT_ADDR_MASK;	/* dword align */
 	u32 dif_len = (reg - aligned_addr) & (~0x1ul);
 
 	IPW_DEBUG_IO(" reg = 0x%8X : value = 0x%8X\n", reg, value);
 	_ipw_write32(priv, IPW_INDIRECT_ADDR, aligned_addr);
 	_ipw_write16(priv, IPW_INDIRECT_DATA + dif_len, value);
 }
-
 
 /* 8-bit indirect read (above 4K) */
 static u8 _ipw_read_reg8(struct ipw_priv *priv, u32 reg)
@@ -412,7 +405,7 @@ static u32 _ipw_read_reg32(struct ipw_priv *priv, u32 reg)
 static void _ipw_read_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 			       int num)
 {
-	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK; /* dword align */
+	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK;	/* dword align */
 	u32 dif_len = addr - aligned_addr;
 	u32 i;
 
@@ -449,7 +442,7 @@ static void _ipw_read_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 static void _ipw_write_indirect(struct ipw_priv *priv, u32 addr, u8 * buf,
 				int num)
 {
-	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK; /* dword align */
+	u32 aligned_addr = addr & IPW_INDIRECT_ADDR_MASK;	/* dword align */
 	u32 dif_len = addr - aligned_addr;
 	u32 i;
 
@@ -1964,7 +1957,6 @@ static int __ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 #endif
 		printk_buf(IPW_DL_HOST_COMMAND, (u8 *) cmd->param, cmd->len);
 
-
 	rc = ipw_queue_tx_hcmd(priv, cmd->cmd, cmd->param, cmd->len, 0);
 	if (rc) {
 		priv->status &= ~STATUS_HCMD_ACTIVE;
@@ -2000,7 +1992,7 @@ static int __ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 		goto exit;
 	}
 
-exit:
+      exit:
 	if (priv->cmdlog) {
 		priv->cmdlog[priv->cmdlog_pos++].retcode = rc;
 		priv->cmdlog_pos %= priv->cmdlog_len;
@@ -2048,7 +2040,7 @@ static int ipw_send_system_config(struct ipw_priv *priv,
 	}
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_SYSTEM_CONFIG, sizeof(*config),
-					config);
+				config);
 }
 
 static int ipw_send_ssid(struct ipw_priv *priv, u8 * ssid, int len)
@@ -2059,7 +2051,7 @@ static int ipw_send_ssid(struct ipw_priv *priv, u8 * ssid, int len)
 	}
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_SSID, min(len, IW_ESSID_MAX_SIZE),
-					ssid);
+				ssid);
 }
 
 static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
@@ -2072,8 +2064,7 @@ static int ipw_send_adapter_address(struct ipw_priv *priv, u8 * mac)
 	IPW_DEBUG_INFO("%s: Setting MAC to " MAC_FMT "\n",
 		       priv->net_dev->name, MAC_ARG(mac));
 
-	return ipw_send_cmd_pdu(priv, IPW_CMD_ADAPTER_ADDRESS, ETH_ALEN,
-					mac);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_ADAPTER_ADDRESS, ETH_ALEN, mac);
 }
 
 /*
@@ -2133,7 +2124,7 @@ static int ipw_send_scan_request_ext(struct ipw_priv *priv,
 				     struct ipw_scan_request_ext *request)
 {
 	return ipw_send_cmd_pdu(priv, IPW_CMD_SCAN_REQUEST_EXT,
-					sizeof(*request), request);
+				sizeof(*request), request);
 }
 
 static int ipw_send_scan_abort(struct ipw_priv *priv)
@@ -2153,7 +2144,7 @@ static int ipw_set_sensitivity(struct ipw_priv *priv, u16 sens)
 	};
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_SENSITIVITY_CALIB, sizeof(calib),
-					&calib);
+				&calib);
 }
 
 static int ipw_send_associate(struct ipw_priv *priv,
@@ -2179,7 +2170,7 @@ static int ipw_send_associate(struct ipw_priv *priv,
 	tmp_associate.atim_window = cpu_to_le16(tmp_associate.atim_window);
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_ASSOCIATE, sizeof(tmp_associate),
-					&tmp_associate);
+				&tmp_associate);
 }
 
 static int ipw_send_supported_rates(struct ipw_priv *priv,
@@ -2191,7 +2182,7 @@ static int ipw_send_supported_rates(struct ipw_priv *priv,
 	}
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_SUPPORTED_RATES, sizeof(*rates),
-					rates);
+				rates);
 }
 
 static int ipw_set_random_seed(struct ipw_priv *priv)
@@ -2216,7 +2207,7 @@ static int ipw_send_card_disable(struct ipw_priv *priv, u32 phy_off)
 	}
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_CARD_DISABLE, sizeof(phy_off),
-					&phy_off);
+				&phy_off);
 }
 
 static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
@@ -2226,8 +2217,7 @@ static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
 		return -1;
 	}
 
-	return ipw_send_cmd_pdu(priv, IPW_CMD_TX_POWER, sizeof(*power),
-					power);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_TX_POWER, sizeof(*power), power);
 }
 
 static int ipw_set_tx_power(struct ipw_priv *priv)
@@ -2328,7 +2318,7 @@ static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 	}
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_POWER_MODE, sizeof(param),
-					&param);
+				&param);
 }
 
 static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
@@ -2344,7 +2334,7 @@ static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
 	}
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_RETRY_LIMIT, sizeof(retry_limit),
-					&retry_limit);
+				&retry_limit);
 }
 
 /*
@@ -3326,7 +3316,7 @@ static int ipw_load(struct ipw_priv *priv)
 #ifdef CONFIG_PM
 	}
 #endif
-			
+
 	/* DMA the ucode into the device */
 	rc = ipw_load_ucode(priv, ucode->data + sizeof(struct fw_header),
 			    ucode->size - sizeof(struct fw_header));
@@ -3356,7 +3346,6 @@ static int ipw_load(struct ipw_priv *priv)
 		IPW_ERROR("Unable to load firmware: %d\n", rc);
 		goto error;
 	}
-
 #ifdef CONFIG_PM
 	fw_loaded = 1;
 #endif
@@ -5291,7 +5280,8 @@ static int ipw_find_adhoc_network(struct ipw_priv *priv,
 				"because of age: %ums.\n",
 				escape_essid(network->ssid, network->ssid_len),
 				MAC_ARG(network->bssid),
-				jiffies_to_msecs(jiffies - network->last_scanned));
+				jiffies_to_msecs(jiffies -
+						 network->last_scanned));
 		return 0;
 	}
 
@@ -5502,7 +5492,8 @@ static int ipw_best_network(struct ipw_priv *priv,
 				"assoc attempt).\n",
 				escape_essid(network->ssid, network->ssid_len),
 				MAC_ARG(network->bssid),
-				jiffies_to_msecs(jiffies - network->last_associate));
+				jiffies_to_msecs(jiffies -
+						 network->last_associate));
 		return 0;
 	}
 
@@ -5513,7 +5504,8 @@ static int ipw_best_network(struct ipw_priv *priv,
 				"because of age: %ums.\n",
 				escape_essid(network->ssid, network->ssid_len),
 				MAC_ARG(network->bssid),
-				jiffies_to_msecs(jiffies - network->last_scanned));
+				jiffies_to_msecs(jiffies -
+						 network->last_scanned));
 		return 0;
 	}
 
@@ -6243,7 +6235,7 @@ static int ipw_set_rsn_capa(struct ipw_priv *priv,
 	IPW_DEBUG_HC("HOST_CMD_RSN_CAPABILITIES\n");
 
 	return ipw_send_cmd_pdu(priv, IPW_CMD_RSN_CAPABILITIES, length,
-					capabilities);
+				capabilities);
 }
 
 /*
@@ -10309,14 +10301,14 @@ static int ipw_config(struct ipw_priv *priv)
 	/* Support Bluetooth if we have BT h/w on board, and user wants to.
 	 * Does not support BT priority yet (don't abort or defer our Tx) */
 	if (bt_coexist) {
-		unsigned char bt_caps = priv->eeprom[EEPROM_SKU_CAPABILITY];	
+		unsigned char bt_caps = priv->eeprom[EEPROM_SKU_CAPABILITY];
 
 		if (bt_caps & EEPROM_SKU_CAP_BT_CHANNEL_SIG)
 			priv->sys_config.bt_coexistence
-				|= CFG_BT_COEXISTENCE_SIGNAL_CHNL;
+			    |= CFG_BT_COEXISTENCE_SIGNAL_CHNL;
 		if (bt_caps & EEPROM_SKU_CAP_BT_OOB)
 			priv->sys_config.bt_coexistence
-				|= CFG_BT_COEXISTENCE_OOB;
+			    |= CFG_BT_COEXISTENCE_OOB;
 	}
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC)
