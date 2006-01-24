@@ -2475,7 +2475,7 @@ static struct hda_verb alc260_init_verbs[] = {
 	/* LINE-2 is used for line-out in rear */
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* select line-out */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x0e, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* LINE-OUT pin */
 	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* enable HP */
