@@ -1657,9 +1657,10 @@ enum {
 	IPW_FW_ERROR_FATAL_ERROR
 };
 
-#define AUTH_OPEN       0
-#define AUTH_SHARED_KEY 1
-#define AUTH_IGNORE     3
+#define AUTH_OPEN	0
+#define AUTH_SHARED_KEY	1
+#define AUTH_LEAP	2
+#define AUTH_IGNORE	3
 
 #define HC_ASSOCIATE      0
 #define HC_REASSOCIATE    1

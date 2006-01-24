@@ -6256,6 +6256,9 @@ static int ipw_wpa_set_auth_algs(struct ipw_priv *priv, int value)
 	} else if (value & IW_AUTH_ALG_OPEN_SYSTEM) {
 		sec.auth_mode = WLAN_AUTH_OPEN;
 		ieee->open_wep = 1;
+	} else if (value & IW_AUTH_ALG_LEAP) {
+		sec.auth_mode = WLAN_AUTH_LEAP;
+		ieee->open_wep = 1;
 	} else
 		return -EINVAL;
 
@@ -7116,19 +7119,22 @@ static int ipw_associate_network(struct ipw_priv *priv,
 
 	memset(&priv->assoc_request, 0, sizeof(priv->assoc_request));
 	priv->assoc_request.channel = network->channel;
+	priv->assoc_request.auth_key = 0;
+
 	if ((priv->capability & CAP_PRIVACY_ON) &&
-	    (priv->capability & CAP_SHARED_KEY)) {
+	    (priv->ieee->sec.auth_mode == WLAN_AUTH_SHARED_KEY)) {
 		priv->assoc_request.auth_type = AUTH_SHARED_KEY;
 		priv->assoc_request.auth_key = priv->ieee->sec.active_key;
 
-		if ((priv->capability & CAP_PRIVACY_ON) &&
-		    (priv->ieee->sec.level == SEC_LEVEL_1) &&
+		if ((priv->ieee->sec.level == SEC_LEVEL_1) &&
 		    !(priv->ieee->host_encrypt || priv->ieee->host_decrypt))
 			ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_WEP);
-	} else {
+
+	} else if ((priv->capability & CAP_PRIVACY_ON) &&
+		   (priv->ieee->sec.auth_mode == WLAN_AUTH_LEAP))
+		priv->assoc_request.auth_type = AUTH_LEAP;
+	else
 		priv->assoc_request.auth_type = AUTH_OPEN;
-		priv->assoc_request.auth_key = 0;
-	}
 
 	if (priv->ieee->wpa_ie_len) {
 		priv->assoc_request.policy_support = 0x02;	/* RSN active */
