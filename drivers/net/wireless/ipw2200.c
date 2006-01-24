@@ -776,9 +776,9 @@ static u32 ipw_register_toggle(u32 reg)
  * - On radio OFF, turn off any LEDs started during radio on
  *
  */
-#define LD_TIME_LINK_ON 300
-#define LD_TIME_LINK_OFF 2700
-#define LD_TIME_ACT_ON 250
+#define LD_TIME_LINK_ON msecs_to_jiffies(300)
+#define LD_TIME_LINK_OFF msecs_to_jiffies(2700)
+#define LD_TIME_ACT_ON msecs_to_jiffies(250)
 
 static void ipw_led_link_on(struct ipw_priv *priv)
 {
