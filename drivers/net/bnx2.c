@@ -316,6 +316,10 @@ bnx2_enable_int(struct bnx2 *bp)
 	u32 val;
 
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
+	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+	       BNX2_PCICFG_INT_ACK_CMD_MASK_INT | bp->last_status_idx);
+
+	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | bp->last_status_idx);
 
 	val = REG_RD(bp, BNX2_HC_COMMAND);
@@ -1892,9 +1896,20 @@ bnx2_poll(struct net_device *dev, int *budget)
 
 	if (!bnx2_has_work(bp)) {
 		netif_rx_complete(dev);
+		if (likely(bp->flags & USING_MSI_FLAG)) {
+			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
+			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+			       bp->last_status_idx);
+			return 0;
+		}
 		REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
-			BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
-			bp->last_status_idx);
+		       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+		       BNX2_PCICFG_INT_ACK_CMD_MASK_INT |
+		       bp->last_status_idx);
+
+		REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
+		       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+		       bp->last_status_idx);
 		return 0;
 	}
 
