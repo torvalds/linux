@@ -1171,7 +1171,8 @@ bnx2_init_5708s_phy(struct bnx2 *bp)
 	}
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
-	    (CHIP_ID(bp) == CHIP_ID_5708_B0)) {
+	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
+	    (CHIP_ID(bp) == CHIP_ID_5708_B1)) {
 		/* increase tx signal amplitude */
 		bnx2_write_phy(bp, BCM5708S_BLK_ADDR,
 			       BCM5708S_BLK_ADDR_TX_MISC);
@@ -2340,7 +2341,6 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 			val |= BNX2_EMAC_MODE_PORT_MII |
 			       BNX2_EMAC_MODE_MPKT_RCVD |
 			       BNX2_EMAC_MODE_ACPI_RCVD |
-			       BNX2_EMAC_MODE_FORCE_LINK |
 			       BNX2_EMAC_MODE_MPKT;
 
 			REG_WR(bp, BNX2_EMAC_MODE, val);
@@ -2376,7 +2376,8 @@ bnx2_set_power_state(struct bnx2 *bp, pci_power_t state)
 			wol_msg = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 		}
 
-		bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT3 | wol_msg, 0);
+		if (!(bp->flags & NO_WOL_FLAG))
+			bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT3 | wol_msg, 0);
 
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
@@ -3099,7 +3100,7 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	val |= (0x2 << 20) | (1 << 11);
 
-	if ((bp->flags & PCIX_FLAG) && (bp->bus_speed_mhz = 133))
+	if ((bp->flags & PCIX_FLAG) && (bp->bus_speed_mhz == 133))
 		val |= (1 << 23);
 
 	if ((CHIP_NUM(bp) == CHIP_NUM_5706) &&
@@ -4473,7 +4474,9 @@ bnx2_close(struct net_device *dev)
 
 	bnx2_netif_stop(bp);
 	del_timer_sync(&bp->timer);
-	if (bp->wol)
+	if (bp->flags & NO_WOL_FLAG)
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD;
+	else if (bp->wol)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
 	else
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
@@ -5635,6 +5638,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		}
 	}
 
+	if (CHIP_NUM(bp) == CHIP_NUM_5708)
+		bp->flags |= NO_WOL_FLAG;
+
 	if (CHIP_ID(bp) == CHIP_ID_5706_A0) {
 		bp->tx_quick_cons_trip_int =
 			bp->tx_quick_cons_trip;
@@ -5818,7 +5824,9 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	bnx2_netif_stop(bp);
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
-	if (bp->wol)
+	if (bp->flags & NO_WOL_FLAG)
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD;
+	else if (bp->wol)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
 	else
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
