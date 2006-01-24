@@ -33,7 +33,7 @@
 #include "ipw2200.h"
 #include <linux/version.h>
 
-#define IPW2200_VERSION "git-1.0.8"
+#define IPW2200_VERSION "git-1.0.10"
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
 #define DRV_VERSION     IPW2200_VERSION
