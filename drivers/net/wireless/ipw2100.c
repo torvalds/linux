@@ -5107,12 +5107,13 @@ static int ipw2100_set_tx_power(struct ipw2100_priv *priv, u32 tx_power)
 		.host_command_length = 4
 	};
 	int err = 0;
+	u32 tmp = tx_power;
 
 	if (tx_power != IPW_TX_POWER_DEFAULT)
-		tx_power = (tx_power - IPW_TX_POWER_MIN_DBM) * 16 /
-		    (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM);
+		tmp = (tx_power - IPW_TX_POWER_MIN_DBM) * 16 /
+		      (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM);
 
-	cmd.host_command_parameters[0] = tx_power;
+	cmd.host_command_parameters[0] = tmp;
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC)
 		err = ipw2100_hw_send_command(priv, &cmd);
