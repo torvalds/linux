@@ -331,7 +331,7 @@ rexmit_timer(ulong vp)
 	spin_lock_irqsave(&d->lock, flags);
 
 	if (d->flags & DEVFL_TKILL) {
-tdie:		spin_unlock_irqrestore(&d->lock, flags);
+		spin_unlock_irqrestore(&d->lock, flags);
 		return;
 	}
 	f = d->frames;
@@ -342,7 +342,7 @@ tdie:		spin_unlock_irqrestore(&d->lock, flags);
 			n /= HZ;
 			if (n > MAXWAIT) { /* waited too long.  device failure. */
 				aoedev_downdev(d);
-				goto tdie;
+				break;
 			}
 			rexmit(d, f);
 		}
