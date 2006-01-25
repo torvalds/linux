@@ -249,7 +249,6 @@ void __init do_init_bootmem(void)
 	bootmap_pages = bootmem_bootmap_pages(total_pages);
 
 	start = lmb_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
-	BUG_ON(!start);
 
 	boot_mapsize = init_bootmem(start >> PAGE_SHIFT, total_pages);
 

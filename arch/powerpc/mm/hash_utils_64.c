@@ -430,7 +430,6 @@ void __init htab_initialize(void)
 		 * the absolute address space.
 		 */
 		table = lmb_alloc(htab_size_bytes, htab_size_bytes);
-		BUG_ON(table == 0);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
