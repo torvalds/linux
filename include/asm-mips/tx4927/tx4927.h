@@ -2,7 +2,7 @@
  * Author: MontaVista Software, Inc.
  *         source@mvista.com
  *
- * Copyright 2001-2002 MontaVista Software Inc.
+ * Copyright 2001-2006 MontaVista Software Inc.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -30,10 +30,10 @@
 #include <asm/tx4927/tx4927_mips.h>
 
 /*
- This register naming came from the intergrate cpu/controoler name TX4927
+ This register naming came from the integrated CPU/controller name TX4927
  followed by the device name from table 4.2.2 on page 4-3 and then followed
  by the register name from table 4.2.3 on pages 4-4 to 4-8.  The manaul
- used is "TMPR4927BT Preliminary Rev 0.1 20.Jul.2001".
+ used was "TMPR4927BT Preliminary Rev 0.1 20.Jul.2001".
  */
 
 #define TX4927_SIO_0_BASE
@@ -251,8 +251,8 @@
 
 /* TX4927 Timer 0 (32-bit registers) */
 #define TX4927_TMR0_BASE                0xf000
-#define TX4927_TMR0_TMTCR0              0xf004
-#define TX4927_TMR0_TMTISR0             0xf008
+#define TX4927_TMR0_TMTCR0              0xf000
+#define TX4927_TMR0_TMTISR0             0xf004
 #define TX4927_TMR0_TMCPRA0             0xf008
 #define TX4927_TMR0_TMCPRB0             0xf00c
 #define TX4927_TMR0_TMITMR0             0xf010
@@ -264,8 +264,8 @@
 
 /* TX4927 Timer 1 (32-bit registers) */
 #define TX4927_TMR1_BASE                0xf100
-#define TX4927_TMR1_TMTCR1              0xf104
-#define TX4927_TMR1_TMTISR1             0xf108
+#define TX4927_TMR1_TMTCR1              0xf100
+#define TX4927_TMR1_TMTISR1             0xf104
 #define TX4927_TMR1_TMCPRA1             0xf108
 #define TX4927_TMR1_TMCPRB1             0xf10c
 #define TX4927_TMR1_TMITMR1             0xf110
@@ -277,13 +277,12 @@
 
 /* TX4927 Timer 2 (32-bit registers) */
 #define TX4927_TMR2_BASE                0xf200
-#define TX4927_TMR2_TMTCR2              0xf104
-#define TX4927_TMR2_TMTISR2             0xf208
+#define TX4927_TMR2_TMTCR2              0xf200
+#define TX4927_TMR2_TMTISR2             0xf204
 #define TX4927_TMR2_TMCPRA2             0xf208
-#define TX4927_TMR2_TMCPRB2             0xf20c
 #define TX4927_TMR2_TMITMR2             0xf210
 #define TX4927_TMR2_TMCCDR2             0xf220
-#define TX4927_TMR2_TMPGMR2             0xf230
+#define TX4927_TMR2_TMWTMR2             0xf240
 #define TX4927_TMR2_TMTRR2              0xf2f0
 #define TX4927_TMR2_LIMIT               0xf2ff
 
