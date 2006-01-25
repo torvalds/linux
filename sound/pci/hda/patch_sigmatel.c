@@ -277,14 +277,14 @@ static unsigned int ref922x_pin_configs[10] = {
 };
 
 static unsigned int d945gtp3_pin_configs[10] = {
-	0x0221401f, 0x01a19022, 0x01813021, 0x01114010,
+	0x0221401f, 0x01a19022, 0x01813021, 0x01014010,
 	0x40000100, 0x40000100, 0x40000100, 0x40000100,
 	0x02a19120, 0x40000100,
 };
 
 static unsigned int d945gtp5_pin_configs[10] = {
-	0x0221401f, 0x01111012, 0x01813024, 0x01114010,
-	0x01a19021, 0x01116011, 0x01452130, 0x40000100,
+	0x0221401f, 0x01011012, 0x01813024, 0x01014010,
+	0x01a19021, 0x01016011, 0x01452130, 0x40000100,
 	0x02a19320, 0x40000100,
 };
 
@@ -855,12 +855,14 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 
 	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL)) < 0)
 		return err;
+	if (! spec->autocfg.line_outs && ! spec->autocfg.hp_pin)
+		return 0; /* can't find valid pin config */
+	stac92xx_auto_init_multi_out(codec);
+	stac92xx_auto_init_hp_out(codec);
 	if ((err = stac92xx_add_dyn_out_pins(codec, &spec->autocfg)) < 0)
 		return err;
 	if ((err = stac92xx_auto_fill_dac_nids(codec, &spec->autocfg)) < 0)
 		return err;
-	if (! spec->autocfg.line_outs && ! spec->autocfg.hp_pin)
-		return 0; /* can't find valid pin config */
 
 	if ((err = stac92xx_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
 	    (err = stac92xx_auto_create_hp_ctls(codec, &spec->autocfg)) < 0 ||
@@ -921,9 +923,6 @@ static int stac92xx_init(struct hda_codec *codec)
 	struct sigmatel_spec *spec = codec->spec;
 
 	snd_hda_sequence_write(codec, spec->init);
-
-	stac92xx_auto_init_multi_out(codec);
-	stac92xx_auto_init_hp_out(codec);
 
 	return 0;
 }
