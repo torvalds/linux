@@ -59,17 +59,16 @@ static void *drm_ati_alloc_pcigart_table(void)
 	int i;
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	address = __get_free_pages(GFP_KERNEL, ATI_PCIGART_TABLE_ORDER);
+	address = __get_free_pages(GFP_KERNEL | __GFP_COMP,
+				   ATI_PCIGART_TABLE_ORDER);
 	if (address == 0UL) {
 		return NULL;
 	}
 
 	page = virt_to_page(address);
 
-	for (i = 0; i < ATI_PCIGART_TABLE_PAGES; i++, page++) {
-		get_page(page);
+	for (i = 0; i < ATI_PCIGART_TABLE_PAGES; i++, page++)
 		SetPageReserved(page);
-	}
 
 	DRM_DEBUG("%s: returning 0x%08lx\n", __FUNCTION__, address);
 	return (void *)address;
@@ -83,10 +82,8 @@ static void drm_ati_free_pcigart_table(void *address)
 
 	page = virt_to_page((unsigned long)address);
 
-	for (i = 0; i < ATI_PCIGART_TABLE_PAGES; i++, page++) {
-		__put_page(page);
+	for (i = 0; i < ATI_PCIGART_TABLE_PAGES; i++, page++)
 		ClearPageReserved(page);
-	}
 
 	free_pages((unsigned long)address, ATI_PCIGART_TABLE_ORDER);
 }
