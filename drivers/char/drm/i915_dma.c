@@ -344,18 +344,20 @@ static int i915_emit_cmds(drm_device_t * dev, int __user * buffer, int dwords)
 	int i;
 	RING_LOCALS;
 
+	if ((dwords+1) * sizeof(int) >= dev_priv->ring.Size - 8)
+		return DRM_ERR(EINVAL);
+
+	BEGIN_LP_RING(((dwords+1)&~1));
+
 	for (i = 0; i < dwords;) {
 		int cmd, sz;
 
 		if (DRM_COPY_FROM_USER_UNCHECKED(&cmd, &buffer[i], sizeof(cmd)))
 			return DRM_ERR(EINVAL);
 
-/* 		printk("%d/%d ", i, dwords); */
-
 		if ((sz = validate_cmd(cmd)) == 0 || i + sz > dwords)
 			return DRM_ERR(EINVAL);
 
-		BEGIN_LP_RING(sz);
 		OUT_RING(cmd);
 
 		while (++i, --sz) {
@@ -365,8 +367,12 @@ static int i915_emit_cmds(drm_device_t * dev, int __user * buffer, int dwords)
 			}
 			OUT_RING(cmd);
 		}
-		ADVANCE_LP_RING();
 	}
+
+	if (dwords & 1)
+		OUT_RING(0);
+
+	ADVANCE_LP_RING();
 
 	return 0;
 }
@@ -401,6 +407,21 @@ static int i915_emit_box(drm_device_t * dev,
 	return 0;
 }
 
+static void i915_emit_breadcrumb(drm_device_t *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	RING_LOCALS;
+
+	dev_priv->sarea_priv->last_enqueue = dev_priv->counter++;
+
+	BEGIN_LP_RING(4);
+	OUT_RING(CMD_STORE_DWORD_IDX);
+	OUT_RING(20);
+	OUT_RING(dev_priv->counter);
+	OUT_RING(0);
+	ADVANCE_LP_RING();
+}
+
 static int i915_dispatch_cmdbuffer(drm_device_t * dev,
 				   drm_i915_cmdbuffer_t * cmd)
 {
@@ -429,6 +450,7 @@ static int i915_dispatch_cmdbuffer(drm_device_t * dev,
 			return ret;
 	}
 
+	i915_emit_breadcrumb(dev);
 	return 0;
 }
 
@@ -475,12 +497,7 @@ static int i915_dispatch_batchbuffer(drm_device_t * dev,
 
 	dev_priv->sarea_priv->last_enqueue = dev_priv->counter++;
 
-	BEGIN_LP_RING(4);
-	OUT_RING(CMD_STORE_DWORD_IDX);
-	OUT_RING(20);
-	OUT_RING(dev_priv->counter);
-	OUT_RING(0);
-	ADVANCE_LP_RING();
+	i915_emit_breadcrumb(dev);
 
 	return 0;
 }
@@ -657,7 +674,7 @@ static int i915_getparam(DRM_IOCTL_ARGS)
 		value = READ_BREADCRUMB(dev_priv);
 		break;
 	default:
-		DRM_ERROR("Unkown parameter %d\n", param.param);
+		DRM_ERROR("Unknown parameter %d\n", param.param);
 		return DRM_ERR(EINVAL);
 	}
 
@@ -742,7 +759,8 @@ drm_ioctl_desc_t i915_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_I915_ALLOC)] = {i915_mem_alloc, DRM_AUTH},
 	[DRM_IOCTL_NR(DRM_I915_FREE)] = {i915_mem_free, DRM_AUTH},
 	[DRM_IOCTL_NR(DRM_I915_INIT_HEAP)] = {i915_mem_init_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
-	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, DRM_AUTH}
+	[DRM_IOCTL_NR(DRM_I915_CMDBUFFER)] = {i915_cmdbuffer, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I915_DESTROY_HEAP)] = { i915_mem_destroy_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY }
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

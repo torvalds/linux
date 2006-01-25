@@ -37,16 +37,17 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20051209"
+#define DRIVER_DATE		"20060119"
 
 /* Interface history:
  *
  * 1.1: Original.
  * 1.2: Add Power Management
  * 1.3: Add vblank support
+ * 1.4: Fix cmdbuffer path, add heap destroy
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		3
+#define DRIVER_MINOR		4
 #define DRIVER_PATCHLEVEL	0
 
 typedef struct _drm_i915_ring_buffer {
@@ -123,6 +124,7 @@ extern void i915_driver_irq_uninstall(drm_device_t * dev);
 extern int i915_mem_alloc(DRM_IOCTL_ARGS);
 extern int i915_mem_free(DRM_IOCTL_ARGS);
 extern int i915_mem_init_heap(DRM_IOCTL_ARGS);
+extern int i915_mem_destroy_heap(DRM_IOCTL_ARGS);
 extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(drm_device_t * dev,
 			     DRMFILE filp, struct mem_block *heap);
