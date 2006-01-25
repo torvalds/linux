@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.02.00-rc4
+ * Version	: v00.00.02.01
  *
  * Authors:
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
@@ -558,112 +558,29 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 }
 
 /**
- * megasas_build_cmd -	Prepares a command packet
- * @instance:		Adapter soft state
- * @scp:		SCSI command
- * @frame_count:	[OUT] Number of frames used to prepare this command
+ * megasas_is_ldio -		Checks if the cmd is for logical drive
+ * @scmd:			SCSI command
+ *	
+ * Called by megasas_queue_command to find out if the command to be queued
+ * is a logical drive command	
  */
-static struct megasas_cmd *megasas_build_cmd(struct megasas_instance
-						    *instance,
-						    struct scsi_cmnd *scp,
-						    int *frame_count)
+static inline int megasas_is_ldio(struct scsi_cmnd *cmd)
 {
-	u32 logical_cmd;
-	struct megasas_cmd *cmd;
-
-	/*
-	 * Find out if this is logical or physical drive command.
-	 */
-	logical_cmd = MEGASAS_IS_LOGICAL(scp);
-
-	/*
-	 * Logical drive command
-	 */
-	if (logical_cmd) {
-
-		if (scp->device->id >= MEGASAS_MAX_LD) {
-			scp->result = DID_BAD_TARGET << 16;
-			return NULL;
-		}
-
-		switch (scp->cmnd[0]) {
-
-		case READ_10:
-		case WRITE_10:
-		case READ_12:
-		case WRITE_12:
-		case READ_6:
-		case WRITE_6:
-		case READ_16:
-		case WRITE_16:
-			/*
-			 * Fail for LUN > 0
-			 */
-			if (scp->device->lun) {
-				scp->result = DID_BAD_TARGET << 16;
-				return NULL;
-			}
-
-			cmd = megasas_get_cmd(instance);
-
-			if (!cmd) {
-				scp->result = DID_IMM_RETRY << 16;
-				return NULL;
-			}
-
-			*frame_count = megasas_build_ldio(instance, scp, cmd);
-
-			if (!(*frame_count)) {
-				megasas_return_cmd(instance, cmd);
-				return NULL;
-			}
-
-			return cmd;
-
-		default:
-			/*
-			 * Fail for LUN > 0
-			 */
-			if (scp->device->lun) {
-				scp->result = DID_BAD_TARGET << 16;
-				return NULL;
-			}
-
-			cmd = megasas_get_cmd(instance);
-
-			if (!cmd) {
-				scp->result = DID_IMM_RETRY << 16;
-				return NULL;
-			}
-
-			*frame_count = megasas_build_dcdb(instance, scp, cmd);
-
-			if (!(*frame_count)) {
-				megasas_return_cmd(instance, cmd);
-				return NULL;
-			}
-
-			return cmd;
-		}
-	} else {
-		cmd = megasas_get_cmd(instance);
-
-		if (!cmd) {
-			scp->result = DID_IMM_RETRY << 16;
-			return NULL;
-		}
-
-		*frame_count = megasas_build_dcdb(instance, scp, cmd);
-
-		if (!(*frame_count)) {
-			megasas_return_cmd(instance, cmd);
-			return NULL;
-		}
-
-		return cmd;
+	if (!MEGASAS_IS_LOGICAL(cmd))
+		return 0;
+	switch (cmd->cmnd[0]) {
+	case READ_10:
+	case WRITE_10:
+	case READ_12:
+	case WRITE_12:
+	case READ_6:
+	case WRITE_6:
+	case READ_16:
+	case WRITE_16:
+		return 1;
+	default:
+		return 0;
 	}
-
-	return NULL;
 }
 
 /**
@@ -684,12 +601,26 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	scmd->scsi_done = done;
 	scmd->result = 0;
 
-	cmd = megasas_build_cmd(instance, scmd, &frame_count);
-
-	if (!cmd) {
-		done(scmd);
-		return 0;
+	if (MEGASAS_IS_LOGICAL(scmd) &&
+	    (scmd->device->id >= MEGASAS_MAX_LD || scmd->device->lun)) {
+		scmd->result = DID_BAD_TARGET << 16;
+		goto out_done;
 	}
+
+	cmd = megasas_get_cmd(instance);
+	if (!cmd)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
+	/*
+	 * Logical drive command
+	 */
+	if (megasas_is_ldio(scmd))
+		frame_count = megasas_build_ldio(instance, scmd, cmd);
+	else
+		frame_count = megasas_build_dcdb(instance, scmd, cmd);
+
+	if (!frame_count)
+		goto out_return_cmd;
 
 	cmd->scmd = scmd;
 	scmd->SCp.ptr = (char *)cmd;
@@ -705,6 +636,12 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	writel(((cmd->frame_phys_addr >> 3) | (cmd->frame_count - 1)),
 	       &instance->reg_set->inbound_queue_port);
 
+	return 0;
+
+ out_return_cmd:
+	megasas_return_cmd(instance, cmd);
+ out_done:
+	done(scmd);
 	return 0;
 }
 
@@ -2681,9 +2618,8 @@ megasas_mgmt_compat_ioctl(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
 	switch (cmd) {
-	case MEGASAS_IOC_FIRMWARE:{
-			return megasas_mgmt_compat_ioctl_fw(file, arg);
-		}
+	case MEGASAS_IOC_FIRMWARE32:
+		return megasas_mgmt_compat_ioctl_fw(file, arg);
 	case MEGASAS_IOC_GET_AEN:
 		return megasas_mgmt_ioctl_aen(file, arg);
 	}

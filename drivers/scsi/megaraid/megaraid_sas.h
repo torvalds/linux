@@ -18,10 +18,9 @@
 /**
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.02.00-rc4"
-#define MEGASAS_RELDATE				"Sep 16, 2005"
-#define MEGASAS_EXT_VERSION			"Fri Sep 16 12:37:08 EDT 2005"
-
+#define MEGASAS_VERSION				"00.00.02.01"
+#define MEGASAS_RELDATE				"Dec 19, 2005"
+#define MEGASAS_EXT_VERSION			"Mon Dec 19 14:36:26 PST 2005"
 /*
  * =====================================
  * MegaRAID SAS MFI firmware definitions
@@ -1125,11 +1124,10 @@ struct compat_megasas_iocpacket {
 	struct compat_iovec sgl[MAX_IOCTL_SGE];
 } __attribute__ ((packed));
 
-#define MEGASAS_IOC_FIRMWARE	_IOWR('M', 1, struct compat_megasas_iocpacket)
-#else
-#define MEGASAS_IOC_FIRMWARE	_IOWR('M', 1, struct megasas_iocpacket)
 #endif
 
+#define MEGASAS_IOC_FIRMWARE	_IOWR('M', 1, struct megasas_iocpacket)
+#define MEGASAS_IOC_FIRMWARE32	_IOWR('M', 1, struct compat_megasas_iocpacket)
 #define MEGASAS_IOC_GET_AEN	_IOW('M', 3, struct megasas_aen)
 
 struct megasas_mgmt_info {
