@@ -137,7 +137,7 @@ objtree		:= $(CURDIR)
 src		:= $(srctree)
 obj		:= $(objtree)
 
-VPATH		:= $(srctree)
+VPATH		:= $(srctree):$(KBUILD_EXTMOD)
 
 export srctree objtree VPATH TOPDIR
 
@@ -849,27 +849,6 @@ prepare prepare-all: prepare0
 
 export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
-# Single targets
-# ---------------------------------------------------------------------------
-
-%.s: %.c scripts FORCE
-	$(Q)$(MAKE) $(build)=$(@D) $@
-%.i: %.c scripts FORCE
-	$(Q)$(MAKE) $(build)=$(@D) $@
-%.o: %.c scripts FORCE
-	$(Q)$(MAKE) $(build)=$(@D) $@
-%.ko: scripts FORCE
-	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) $(build)=$(@D) $(@:.ko=.o)
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
-%/:      scripts prepare FORCE
-	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) $(build)=$(@D)
-%.lst: %.c scripts FORCE
-	$(Q)$(MAKE) $(build)=$(@D) $@
-%.s: %.S scripts FORCE
-	$(Q)$(MAKE) $(build)=$(@D) $@
-%.o: %.S scripts FORCE
-	$(Q)$(MAKE) $(build)=$(@D) $@
-
 # 	FIXME: The asm symlink changes when $(ARCH) changes. That's
 #	hard to detect, but I suppose "make mrproper" is a good idea
 #	before switching between archs anyway.
@@ -1192,6 +1171,11 @@ help:
 	@echo  '  modules_install - install the module'
 	@echo  '  clean           - remove generated files in module directory only'
 	@echo  ''
+
+# Dummies...
+.PHONY: prepare scripts
+prepare: ;
+scripts: ;
 endif # KBUILD_EXTMOD
 
 # Generate tags for editors
@@ -1312,6 +1296,44 @@ kernelrelease:
 	$(error kernelrelease not valid - run 'make *config' to update it))
 kernelversion:
 	@echo $(KERNELVERSION)
+
+# Single targets
+# ---------------------------------------------------------------------------
+# The directory part is taken from first prerequisite, so this
+# works even with external modules
+%.s: %.c scripts FORCE
+	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
+%.i: %.c scripts FORCE
+	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
+%.o: %.c scripts FORCE
+	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
+%.lst: %.c scripts FORCE
+	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
+%.s: %.S scripts FORCE
+	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
+%.o: %.S scripts FORCE
+	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
+
+# For external modules we shall include any directory of the target,
+# but usual case there is no directory part.
+# make M=`pwd` module.o     => $(dir $@)=./
+# make M=`pwd` foo/module.o => $(dir $@)=foo/
+# make M=`pwd` /            => $(dir $@)=/
+ 
+ifeq ($(KBUILD_EXTMOD),)
+        target-dir = $(@D)
+else
+        zap-slash=$(filter-out .,$(patsubst %/,%,$(dir $@)))
+        target-dir = $(KBUILD_EXTMOD)$(if $(zap-slash),/$(zap-slash))
+endif
+
+/ %/:      scripts prepare FORCE
+	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) \
+	$(build)=$(target-dir)
+%.ko: scripts FORCE
+	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1)   \
+	$(build)=$(target-dir) $(@:.ko=.o)
+	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
 
 # FIXME Should go into a make.lib or something 
 # ===========================================================================

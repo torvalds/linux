@@ -13,6 +13,7 @@ In this document you will find information about:
 	   --- 2.2 Available targets
 	   --- 2.3 Available options
 	   --- 2.4 Preparing the kernel tree for module build
+	   --- 2.5 Building separate files for a module
 	=== 3. Example commands
 	=== 4. Creating a kbuild file for an external module
 	=== 5. Include files
@@ -131,6 +132,16 @@ when building an external module.
 	      Therefore a full kernel build needs to be executed to make
 	      module versioning work.
 
+--- 2.5 Building separate files for a module
+	It is possible to build single files which is part of a module.
+	This works equal for the kernel, a module and even for external
+	modules.
+	Examples (module foo.ko, consist of bar.o, baz.o):
+		make -C $KDIR M=`pwd` bar.lst
+		make -C $KDIR M=`pwd` bar.o
+		make -C $KDIR M=`pwd` foo.ko
+		make -C $KDIR M=`pwd` /
+	
 
 === 3. Example commands
 
