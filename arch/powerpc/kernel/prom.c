@@ -491,7 +491,12 @@ void __init finish_device_tree(void)
 	size = 16;
 	finish_node(allnodes, &size, 1);
 	size -= 16;
-	end = start = (unsigned long) __va(lmb_alloc(size, 128));
+
+	if (0 == size)
+		end = start = 0;
+	else
+		end = start = (unsigned long)__va(lmb_alloc(size, 128));
+
 	finish_node(allnodes, &end, 0);
 	BUG_ON(end != start + size);
 
