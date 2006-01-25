@@ -723,7 +723,7 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 	}
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
 		card->shortname, chip->port, xirq, xdma1);
-	if (dma2 >= 0)
+	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", xdma2);
 
 	return snd_card_register(card);
