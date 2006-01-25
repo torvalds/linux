@@ -41,17 +41,16 @@ extern struct lmb lmb;
 
 extern void __init lmb_init(void);
 extern void __init lmb_analyze(void);
-extern long __init lmb_add(unsigned long, unsigned long);
-extern long __init lmb_reserve(unsigned long, unsigned long);
-extern unsigned long __init lmb_alloc(unsigned long, unsigned long);
-extern unsigned long __init lmb_alloc_base(unsigned long, unsigned long,
-					   unsigned long);
-extern unsigned long __init __lmb_alloc_base(unsigned long, unsigned long,
-					   unsigned long);
+extern long __init lmb_add(unsigned long base, unsigned long size);
+extern long __init lmb_reserve(unsigned long base, unsigned long size);
+extern unsigned long __init lmb_alloc(unsigned long size, unsigned long align);
+extern unsigned long __init lmb_alloc_base(unsigned long size,
+		unsigned long align, unsigned long max_addr);
+extern unsigned long __init __lmb_alloc_base(unsigned long size,
+		unsigned long align, unsigned long max_addr);
 extern unsigned long __init lmb_phys_mem_size(void);
 extern unsigned long __init lmb_end_of_DRAM(void);
-extern unsigned long __init lmb_abs_to_phys(unsigned long);
-extern void __init lmb_enforce_memory_limit(unsigned long);
+extern void __init lmb_enforce_memory_limit(unsigned long memory_limit);
 
 extern void lmb_dump_all(void);
 
