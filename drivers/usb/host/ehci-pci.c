@@ -29,7 +29,6 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 {
 	u32			temp;
 	int			retval;
-	unsigned		count = 256/4;
 
 	/* optional debug port, normally in the first BAR */
 	temp = pci_find_capability(pdev, 0x0a);
