@@ -1,3 +1,12 @@
+1 Release Date    : Mon Jan 23 14:09:01 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.02.02
+3 Older Version   : 00.00.02.01 
+
+i.	New template defined to represent each family of controllers (identified by processor used). 
+	The template will have defintions that will be initialised to appropritae values for a specific family of controllers. The template definition has four function pointers. During driver initialisation the function pointers will be set based on the controller family type. This change is done to support new controllers that has different processors and thus different register set.
+
+		-Sumant Patro <Sumant.Patro@lsil.com>
+
 1 Release Date    : Mon Dec 19 14:36:26 PST 2005 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.00-rc4 
 3 Older Version   : 00.00.02.01 

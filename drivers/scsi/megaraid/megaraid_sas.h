@@ -18,9 +18,9 @@
 /**
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.02.01"
-#define MEGASAS_RELDATE				"Dec 19, 2005"
-#define MEGASAS_EXT_VERSION			"Mon Dec 19 14:36:26 PST 2005"
+#define MEGASAS_VERSION				"00.00.02.02"
+#define MEGASAS_RELDATE				"Jan 23, 2006"
+#define MEGASAS_EXT_VERSION			"Mon Jan 23 14:09:01 PST 2006"
 /*
  * =====================================
  * MegaRAID SAS MFI firmware definitions
@@ -1012,6 +1012,16 @@ struct megasas_evt_detail {
 
 } __attribute__ ((packed));
 
+ struct megasas_instance_template {
+	void (*fire_cmd)(dma_addr_t ,u32 ,struct megasas_register_set __iomem *);
+
+	void (*enable_intr)(struct megasas_register_set __iomem *) ;
+
+	int (*clear_intr)(struct megasas_register_set __iomem *);
+
+	u32 (*read_fw_status_reg)(struct megasas_register_set __iomem *);
+ };
+
 struct megasas_instance {
 
 	u32 *producer;
@@ -1055,6 +1065,8 @@ struct megasas_instance {
 	u32 fw_outstanding;
 	u32 hw_crit_error;
 	spinlock_t instance_lock;
+
+	struct megasas_instance_template *instancet;
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\
