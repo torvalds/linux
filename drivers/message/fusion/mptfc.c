@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(pci, mptfc_pci_table);
 
 static struct scsi_transport_template *mptfc_transport_template = NULL;
 
-struct fc_function_template mptfc_transport_functions = {
+static struct fc_function_template mptfc_transport_functions = {
 	.dd_fcrport_size = 8,
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
@@ -514,7 +514,7 @@ mptfc_target_alloc(struct scsi_target *starget)
  *	Return non-zero if allocation fails.
  *	Init memory once per LUN.
  */
-int
+static int
 mptfc_slave_alloc(struct scsi_device *sdev)
 {
 	MPT_SCSI_HOST		*hd;
