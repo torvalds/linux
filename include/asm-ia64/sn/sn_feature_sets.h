@@ -31,7 +31,8 @@ extern int sn_prom_feature_available(int id);
  * 			...
  */
 
-#define PRF_PAL_CACHE_FLUSH_SAFE		0
+#define PRF_PAL_CACHE_FLUSH_SAFE	0
+#define PRF_DEVICE_FLUSH_LIST		1
 
 
 
@@ -48,7 +49,7 @@ extern int sn_prom_feature_available(int id);
  *
  * By default, features are disabled unless explicitly enabled.
  */
-#define  OSF_MCA_SLV_TO_OS_INIT_SLV		0
-#define  OSF_FEAT_LOG_SBES			1
+#define  OSF_MCA_SLV_TO_OS_INIT_SLV	0
+#define  OSF_FEAT_LOG_SBES		1
 
 #endif /* _ASM_IA64_SN_FEATURE_SETS_H */
