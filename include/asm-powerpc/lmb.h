@@ -19,8 +19,6 @@
 
 #define MAX_LMB_REGIONS 128
 
-#define LMB_ALLOC_ANYWHERE	0
-
 struct lmb_property {
 	unsigned long base;
 	unsigned long size;

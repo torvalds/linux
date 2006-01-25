@@ -31,6 +31,8 @@
 #define DBG(fmt...)
 #endif
 
+#define LMB_ALLOC_ANYWHERE	0
+
 struct lmb lmb;
 
 void lmb_dump_all(void)
