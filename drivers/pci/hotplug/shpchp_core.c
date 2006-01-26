@@ -117,22 +117,18 @@ static int init_slots(struct controller *ctrl)
 	u32 sun;
 
 	for (i = 0; i < ctrl->num_slots; i++) {
-		slot = kmalloc(sizeof(struct slot), GFP_KERNEL);
+		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot)
 			goto error;
-		memset(slot, 0, sizeof(struct slot));
 
-		hotplug_slot = kmalloc(sizeof(struct hotplug_slot),
-				       GFP_KERNEL);
+		hotplug_slot = kzalloc(sizeof(*hotplug_slot), GFP_KERNEL);
 		if (!hotplug_slot)
 			goto error_slot;
-		memset(hotplug_slot, 0, sizeof(struct hotplug_slot));
 		slot->hotplug_slot = hotplug_slot;
 
-		info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			goto error_hpslot;
-		memset(info, 0, sizeof (struct hotplug_slot_info));
 		hotplug_slot->info = info;
 
 		name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
@@ -383,12 +379,11 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!is_shpc_capable(pdev))
 		return -ENODEV;
 
-	ctrl = kmalloc(sizeof(struct controller), GFP_KERNEL);
+	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
 		err("%s : out of memory\n", __FUNCTION__);
 		goto err_out_none;
 	}
-	memset(ctrl, 0, sizeof(struct controller));
 	INIT_LIST_HEAD(&ctrl->slot_list);
 
 	rc = shpc_init(ctrl, pdev);
@@ -400,7 +395,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->pci_bus = kmalloc(sizeof (*ctrl->pci_bus), GFP_KERNEL);
+	ctrl->pci_bus = kmalloc(sizeof(*ctrl->pci_bus), GFP_KERNEL);
 	if (!ctrl->pci_bus) {
 		err("out of memory\n");
 		rc = -ENOMEM;

@@ -1390,14 +1390,12 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	ctrl->pci_dev = pdev;  /* pci_dev of the P2P bridge */
 
 	spin_lock_init(&list_lock);
-	php_ctlr = (struct php_ctlr_state_s *) kmalloc(sizeof(struct php_ctlr_state_s), GFP_KERNEL);
+	php_ctlr = kzalloc(sizeof(*php_ctlr), GFP_KERNEL);
 
 	if (!php_ctlr) {	/* allocate controller state data */
 		err("%s: HPC controller memory allocation error!\n", __FUNCTION__);
 		goto abort;
 	}
-
-	memset(php_ctlr, 0, sizeof(struct php_ctlr_state_s));
 
 	php_ctlr->pci_dev = pdev;	/* save pci_dev in context */
 
