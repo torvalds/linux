@@ -233,8 +233,10 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 			*irq = p->interrupts[0];
 			break;
 		}
+		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Resource isn't an IRQ\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Resource %d isn't an IRQ\n", resource->type));
+	case ACPI_RESOURCE_TYPE_END_TAG:
 		return_ACPI_STATUS(AE_OK);
 	}
 	return_ACPI_STATUS(AE_CTRL_TERMINATE);
