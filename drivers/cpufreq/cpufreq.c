@@ -1429,6 +1429,14 @@ int cpufreq_update_policy(unsigned int cpu)
 	policy.policy = data->user_policy.policy;
 	policy.governor = data->user_policy.governor;
 
+	/* BIOS might change freq behind our back
+	  -> ask driver for current freq and notify governors about a change */
+	if (cpufreq_driver->get) {
+		policy.cur = cpufreq_driver->get(cpu);
+		if (data->cur != policy.cur)
+			cpufreq_out_of_sync(cpu, data->cur, policy.cur);
+	}
+
 	ret = __cpufreq_set_policy(data, &policy);
 
 	mutex_unlock(&data->lock);
