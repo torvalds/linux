@@ -56,7 +56,6 @@ extern int shpchp_debug;
 #define SLOT_MAGIC	0x67267321
 struct slot {
 	u32 magic;
-	struct slot *next;
 	u8 bus;
 	u8 device;
 	u16 status;
@@ -87,7 +86,7 @@ struct controller {
 	struct pci_dev *pci_dev;
 	struct pci_bus *pci_bus;
 	struct event_info event_queue[10];
-	struct slot *slot;
+	struct list_head slot_list;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 next_event;
@@ -315,23 +314,19 @@ static inline struct slot *get_slot (struct hotplug_slot *hotplug_slot, const ch
 
 static inline struct slot *shpchp_find_slot (struct controller *ctrl, u8 device)
 {
-	struct slot *p_slot, *tmp_slot = NULL;
+	struct slot *slot;
 
 	if (!ctrl)
 		return NULL;
 
-	p_slot = ctrl->slot;
-
-	while (p_slot && (p_slot->device != device)) {
-		tmp_slot = p_slot;
-		p_slot = p_slot->next;
-	}
-	if (p_slot == NULL) {
-		err("ERROR: shpchp_find_slot device=0x%x\n", device);
-		p_slot = tmp_slot;
+	list_for_each_entry(slot, &ctrl->slot_list, slot_list) {
+		if (slot->device == device)
+			return slot;
 	}
 
-	return (p_slot);
+	err("%s: slot (device=0x%x) not found\n", __FUNCTION__, device);
+
+	return NULL;
 }
 
 static inline int wait_for_ctrl_irq (struct controller *ctrl)
