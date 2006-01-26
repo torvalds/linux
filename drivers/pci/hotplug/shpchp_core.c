@@ -137,7 +137,6 @@ static int init_slots(struct controller *ctrl)
 		hotplug_slot->name = name;
 
 		slot->hp_slot = i;
-		slot->magic = SLOT_MAGIC;
 		slot->ctrl = ctrl;
 		slot->bus = ctrl->slot_bus;
 		slot->device = ctrl->slot_device_offset + i;

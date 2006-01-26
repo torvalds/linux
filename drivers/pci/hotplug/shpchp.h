@@ -53,9 +53,7 @@ extern int shpchp_debug;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-#define SLOT_MAGIC	0x67267321
 struct slot {
-	u32 magic;
 	u8 bus;
 	u8 device;
 	u16 status;
@@ -285,10 +283,6 @@ static inline int slot_paranoia_check (struct slot *slot, const char *function)
 {
 	if (!slot) {
 		dbg("%s - slot == NULL", function);
-		return -1;
-	}
-	if (slot->magic != SLOT_MAGIC) {
-		dbg("%s - bad magic number for slot", function);
 		return -1;
 	}
 	if (!slot->hotplug_slot) {
