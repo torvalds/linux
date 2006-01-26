@@ -94,12 +94,10 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
 
 	kfree(slot->hotplug_slot->info);
-	kfree(slot->hotplug_slot->name);
 	kfree(slot->hotplug_slot);
 	kfree(slot);
 }
 
-#define SLOT_NAME_SIZE 10
 static void make_slot_name(struct slot *slot)
 {
 	snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
@@ -111,7 +109,6 @@ static int init_slots(struct controller *ctrl)
 	struct slot *slot;
 	struct hotplug_slot *hotplug_slot;
 	struct hotplug_slot_info *info;
-	char *name;
 	int retval = -ENOMEM;
 	int i;
 	u32 sun;
@@ -131,10 +128,7 @@ static int init_slots(struct controller *ctrl)
 			goto error_hpslot;
 		hotplug_slot->info = info;
 
-		name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
-		if (!name)
-			goto error_info;
-		hotplug_slot->name = name;
+		hotplug_slot->name = slot->name;
 
 		slot->hp_slot = i;
 		slot->ctrl = ctrl;
@@ -144,7 +138,7 @@ static int init_slots(struct controller *ctrl)
 
 		if (shpchprm_get_physical_slot_number(ctrl, &sun,
 						      slot->bus, slot->device))
-			goto error_name;
+			goto error_info;
 
 		slot->number = sun;
 
@@ -165,15 +159,13 @@ static int init_slots(struct controller *ctrl)
 		retval = pci_hp_register(slot->hotplug_slot);
 		if (retval) {
 			err("pci_hp_register failed with error %d\n", retval);
-			goto error_name;
+			goto error_info;
 		}
 
 		list_add(&slot->slot_list, &ctrl->slot_list);
 	}
 
 	return 0;
-error_name:
-	kfree(name);
 error_info:
 	kfree(info);
 error_hpslot:
