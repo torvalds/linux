@@ -78,7 +78,7 @@ struct event_info {
 };
 
 struct controller {
-	struct controller *next;
+	struct list_head ctrl_list;
 	struct mutex crit_sect;		/* critical section mutex */
 	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
@@ -204,7 +204,7 @@ extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
 
 
 /* Global variables */
-extern struct controller *shpchp_ctrl_list;
+extern struct list_head shpchp_ctrl_list;
 
 struct ctrl_reg {
 	volatile u32 base_offset;

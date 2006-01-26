@@ -688,7 +688,7 @@ static int event_thread(void* data)
 		if (pushbutton_pending)
 			shpchp_pushbutton_thread(pushbutton_pending);
 		else
-			for (ctrl = shpchp_ctrl_list; ctrl; ctrl=ctrl->next)
+			list_for_each_entry(ctrl, &shpchp_ctrl_list, ctrl_list)
 				interrupt_event_handler(ctrl);
 	}
 	dbg("event_thread signals exit\n");

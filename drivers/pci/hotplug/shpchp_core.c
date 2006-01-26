@@ -38,7 +38,7 @@
 int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
-struct controller *shpchp_ctrl_list;	/* = NULL */
+LIST_HEAD(shpchp_ctrl_list);
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -452,13 +452,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Finish setting up the hot plug ctrl device */
 	ctrl->next_event = 0;
 
-	if (!shpchp_ctrl_list) {
-		shpchp_ctrl_list = ctrl;
-		ctrl->next = NULL;
-	} else {
-		ctrl->next = shpchp_ctrl_list;
-		shpchp_ctrl_list = ctrl;
-	}
+	list_add(&ctrl->ctrl_list, &shpchp_ctrl_list);
 
 	shpchp_create_ctrl_files(ctrl);
 
@@ -493,22 +487,17 @@ static int shpc_start_thread(void)
 
 static void __exit unload_shpchpd(void)
 {
+	struct list_head *tmp;
+	struct list_head *next;
 	struct controller *ctrl;
-	struct controller *tctrl;
 
-	ctrl = shpchp_ctrl_list;
-
-	while (ctrl) {
+	list_for_each_safe(tmp, next, &shpchp_ctrl_list) {
+		ctrl = list_entry(tmp, struct controller, ctrl_list);
 		shpchp_remove_ctrl_files(ctrl);
 		cleanup_slots(ctrl);
-
 		kfree (ctrl->pci_bus);
 		ctrl->hpc_ops->release_ctlr(ctrl);
-
-		tctrl = ctrl;
-		ctrl = ctrl->next;
-
-		kfree(tctrl);
+		kfree(ctrl);
 	}
 
 	/* Stop the notification mechanism */
