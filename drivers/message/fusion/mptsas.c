@@ -1534,6 +1534,16 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 	schedule_work(&ev->work);
 }
 
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/* work queue thread to clear the persitency table */
+static void
+mptscsih_sas_persist_clear_table(void * arg)
+{
+	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
+
+	mptbase_sas_persist_operation(ioc, MPI_SAS_OP_CLEAR_NOT_PRESENT);
+}
+
 static int
 mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 {
@@ -1551,6 +1561,12 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	case MPI_EVENT_INTEGRATED_RAID:
 		mptscsih_send_raid_event(ioc,
 			(EVENT_DATA_RAID *)reply->Data);
+		break;
+	case MPI_EVENT_PERSISTENT_TABLE_FULL:
+		INIT_WORK(&ioc->mptscsih_persistTask,
+		    mptscsih_sas_persist_clear_table,
+		    (void *)ioc);
+		schedule_work(&ioc->mptscsih_persistTask);
 		break;
 	default:
 		rc = mptscsih_event_process(ioc, reply);

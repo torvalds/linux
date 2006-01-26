@@ -162,8 +162,6 @@ static void	mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice);
 static void	mptscsih_negotiate_to_asyn_narrow(MPT_SCSI_HOST *hd, VirtTarget *vtarget);
 static int	mptscsih_is_phys_disk(MPT_ADAPTER *ioc, int id);
 
-static struct work_struct   mptscsih_persistTask;
-
 #ifdef MPTSCSIH_ENABLE_DOMAIN_VALIDATION
 static int	mptscsih_do_raid(MPT_SCSI_HOST *hd, u8 action, INTERNAL_CMD *io);
 static void	mptscsih_domainValidation(void *hd);
@@ -2585,16 +2583,6 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/* work queue thread to clear the persitency table */
-static void
-mptscsih_sas_persist_clear_table(void * arg)
-{
-	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
-
-	mptbase_sas_persist_operation(ioc, MPI_SAS_OP_CLEAR_NOT_PRESENT);
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 int
 mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
@@ -2655,13 +2643,6 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 #endif
 		break;
 	}
-
-	/* Persistent table is full. */
-	case MPI_EVENT_PERSISTENT_TABLE_FULL:
-		INIT_WORK(&mptscsih_persistTask,
-		    mptscsih_sas_persist_clear_table,(void *)ioc);
-		schedule_work(&mptscsih_persistTask);
-		break;
 
 	case MPI_EVENT_NONE:				/* 00 */
 	case MPI_EVENT_LOG_DATA:			/* 01 */

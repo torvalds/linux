@@ -631,6 +631,7 @@ typedef struct _MPT_ADAPTER
 	struct mutex		 sas_topology_mutex;
 	MPT_SAS_MGMT		 sas_mgmt;
 	int			 num_ports;
+	struct work_struct	 mptscsih_persistTask;
 
 	struct list_head	 fc_rports;
 	spinlock_t		 fc_rport_lock; /* list and ri flags */
