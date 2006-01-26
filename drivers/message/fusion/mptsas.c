@@ -324,6 +324,7 @@ mptsas_slave_destroy(struct scsi_device *sdev)
 	struct sas_rphy *rphy;
 	struct mptsas_portinfo *p;
 	int i;
+	VirtDevice *vdev;
 
 	/*
 	 * Handle hotplug removal case.
@@ -347,8 +348,29 @@ mptsas_slave_destroy(struct scsi_device *sdev)
  out:
 	mutex_unlock(&hd->ioc->sas_topology_mutex);
 	/*
-	 * TODO: Issue target reset to flush firmware outstanding commands.
+	 * Issue target reset to flush firmware outstanding commands.
 	 */
+	vdev = sdev->hostdata;
+	if (vdev->configured_lun){
+		if (mptscsih_TMHandler(hd,
+		     MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
+		     vdev->bus_id,
+		     vdev->target_id,
+		     0, 0, 5 /* 5 second timeout */)
+		     < 0){
+
+			/* The TM request failed!
+			 * Fatal error case.
+			 */
+			printk(MYIOC_s_WARN_FMT
+		       "Error processing TaskMgmt id=%d TARGET_RESET\n",
+				hd->ioc->name,
+				vdev->target_id);
+
+			hd->tmPending = 0;
+			hd->tmState = TM_STATE_NONE;
+		}
+	}
 	mptscsih_slave_destroy(sdev);
 }
 
