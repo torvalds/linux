@@ -99,89 +99,95 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	kfree(slot);
 }
 
+#define SLOT_NAME_SIZE 10
+static void make_slot_name(struct slot *slot)
+{
+	snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
+		 slot->bus, slot->number);
+}
+
 static int init_slots(struct controller *ctrl)
 {
-	struct slot *new_slot;
-	u8 number_of_slots;
-	u8 slot_device;
-	u32 slot_number, sun;
-	int result = -ENOMEM;
+	struct slot *slot;
+	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot_info *info;
+	char *name;
+	int retval = -ENOMEM;
+	int i;
+	u32 sun;
 
-	number_of_slots = ctrl->num_slots;
-	slot_device = ctrl->slot_device_offset;
-	slot_number = ctrl->first_slot;
-
-	while (number_of_slots) {
-		new_slot = (struct slot *) kmalloc(sizeof(struct slot), GFP_KERNEL);
-		if (!new_slot)
+	for (i = 0; i < ctrl->num_slots; i++) {
+		slot = kmalloc(sizeof(struct slot), GFP_KERNEL);
+		if (!slot)
 			goto error;
+		memset(slot, 0, sizeof(struct slot));
 
-		memset(new_slot, 0, sizeof(struct slot));
-		new_slot->hotplug_slot = kmalloc (sizeof (struct hotplug_slot), GFP_KERNEL);
-		if (!new_slot->hotplug_slot)
+		hotplug_slot = kmalloc(sizeof(struct hotplug_slot),
+				       GFP_KERNEL);
+		if (!hotplug_slot)
 			goto error_slot;
-		memset(new_slot->hotplug_slot, 0, sizeof (struct hotplug_slot));
+		memset(hotplug_slot, 0, sizeof(struct hotplug_slot));
+		slot->hotplug_slot = hotplug_slot;
 
-		new_slot->hotplug_slot->info = kmalloc (sizeof (struct hotplug_slot_info), GFP_KERNEL);
-		if (!new_slot->hotplug_slot->info)
+		info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
+		if (!info)
 			goto error_hpslot;
-		memset(new_slot->hotplug_slot->info, 0, sizeof (struct hotplug_slot_info));
-		new_slot->hotplug_slot->name = kmalloc (SLOT_NAME_SIZE, GFP_KERNEL);
-		if (!new_slot->hotplug_slot->name)
-			goto error_info;
+		memset(info, 0, sizeof (struct hotplug_slot_info));
+		hotplug_slot->info = info;
 
-		new_slot->magic = SLOT_MAGIC;
-		new_slot->ctrl = ctrl;
-		new_slot->bus = ctrl->slot_bus;
-		new_slot->device = slot_device;
-		new_slot->hpc_ops = ctrl->hpc_ops;
+		name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
+		if (!name)
+			goto error_info;
+		hotplug_slot->name = name;
+
+		slot->hp_slot = i;
+		slot->magic = SLOT_MAGIC;
+		slot->ctrl = ctrl;
+		slot->bus = ctrl->slot_bus;
+		slot->device = ctrl->slot_device_offset + i;
+		slot->hpc_ops = ctrl->hpc_ops;
 
 		if (shpchprm_get_physical_slot_number(ctrl, &sun,
-					new_slot->bus, new_slot->device))
+						      slot->bus, slot->device))
 			goto error_name;
 
-		new_slot->number = sun;
-		new_slot->hp_slot = slot_device - ctrl->slot_device_offset;
+		slot->number = sun;
 
 		/* register this slot with the hotplug pci core */
-		new_slot->hotplug_slot->private = new_slot;
-		new_slot->hotplug_slot->release = &release_slot;
-		make_slot_name(new_slot->hotplug_slot->name, SLOT_NAME_SIZE, new_slot);
-		new_slot->hotplug_slot->ops = &shpchp_hotplug_slot_ops;
+		hotplug_slot->private = slot;
+		hotplug_slot->release = &release_slot;
+		make_slot_name(slot);
+		hotplug_slot->ops = &shpchp_hotplug_slot_ops;
 
-		new_slot->hpc_ops->get_power_status(new_slot, &(new_slot->hotplug_slot->info->power_status));
-		new_slot->hpc_ops->get_attention_status(new_slot, &(new_slot->hotplug_slot->info->attention_status));
-		new_slot->hpc_ops->get_latch_status(new_slot, &(new_slot->hotplug_slot->info->latch_status));
-		new_slot->hpc_ops->get_adapter_status(new_slot, &(new_slot->hotplug_slot->info->adapter_status));
+		get_power_status(hotplug_slot, &info->power_status);
+		get_attention_status(hotplug_slot, &info->attention_status);
+		get_latch_status(hotplug_slot, &info->latch_status);
+		get_adapter_status(hotplug_slot, &info->adapter_status);
 
-		dbg("Registering bus=%x dev=%x hp_slot=%x sun=%x slot_device_offset=%x\n", new_slot->bus, 
-			new_slot->device, new_slot->hp_slot, new_slot->number, ctrl->slot_device_offset);
-		result = pci_hp_register (new_slot->hotplug_slot);
-		if (result) {
-			err ("pci_hp_register failed with error %d\n", result);
+		dbg("Registering bus=%x dev=%x hp_slot=%x sun=%x "
+		    "slot_device_offset=%x\n", slot->bus, slot->device,
+		    slot->hp_slot, slot->number, ctrl->slot_device_offset);
+		retval = pci_hp_register(slot->hotplug_slot);
+		if (retval) {
+			err("pci_hp_register failed with error %d\n", retval);
 			goto error_name;
 		}
 
-		new_slot->next = ctrl->slot;
-		ctrl->slot = new_slot;
-
-		number_of_slots--;
-		slot_device++;
-		slot_number += ctrl->slot_num_inc;
+		slot->next = ctrl->slot;
+		ctrl->slot = slot;
 	}
 
 	return 0;
-
 error_name:
-	kfree(new_slot->hotplug_slot->name);
+	kfree(name);
 error_info:
-	kfree(new_slot->hotplug_slot->info);
+	kfree(info);
 error_hpslot:
-	kfree(new_slot->hotplug_slot);
+	kfree(hotplug_slot);
 error_slot:
-	kfree(new_slot);
+	kfree(slot);
 error:
-	return result;
+	return retval;
 }
 
 static void cleanup_slots(struct controller *ctrl)

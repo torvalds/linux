@@ -428,13 +428,6 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 	pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, pcix_misc2_temp);
 }
 
-#define SLOT_NAME_SIZE 10
-
-static inline void make_slot_name(char *buffer, int buffer_size, struct slot *slot)
-{
-	snprintf(buffer, buffer_size, "%04d_%04d", slot->bus, slot->number);
-}
-
 enum php_ctlr_type {
 	PCI,
 	ISA,
