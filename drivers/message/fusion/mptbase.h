@@ -510,9 +510,10 @@ struct mptfc_rport_info
 {
 	struct list_head list;
 	struct fc_rport *rport;
-	VirtDevice	*vdev;
+	struct scsi_target *starget;
 	FCDevicePage0_t pg0;
 	u8		flags;
+	u8		remap_needed;
 };
 
 /*
@@ -802,6 +803,12 @@ typedef struct _mpt_sge {
 #define dreplyprintk(x) printk x
 #else
 #define dreplyprintk(x)
+#endif
+
+#ifdef DMPT_DEBUG_FC
+#define dfcprintk(x) printk x
+#else
+#define dfcprintk(x)
 #endif
 
 #ifdef MPT_DEBUG_TM
