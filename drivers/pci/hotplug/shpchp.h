@@ -80,6 +80,7 @@ struct event_info {
 struct controller {
 	struct list_head ctrl_list;
 	struct mutex crit_sect;		/* critical section mutex */
+	struct mutex cmd_lock;		/* command lock */
 	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */

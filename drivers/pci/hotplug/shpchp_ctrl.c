@@ -242,21 +242,10 @@ static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 	int rc = 0;
 
 	dbg("%s: change to speed %d\n", __FUNCTION__, speed);
-	mutex_lock(&ctrl->crit_sect);
 	if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, speed))) {
 		err("%s: Issue of set bus speed mode command failed\n", __FUNCTION__);
-		mutex_unlock(&ctrl->crit_sect);
 		return WRONG_BUS_FREQUENCY;
 	}
-		
-	if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
-		err("%s: Can't set bus speed/mode in the case of adapter & bus mismatch\n",
-			  __FUNCTION__);
-		err("%s: Error code (%d)\n", __FUNCTION__, rc);
-		mutex_unlock(&ctrl->crit_sect);
-		return WRONG_BUS_FREQUENCY;
-	}
-	mutex_unlock(&ctrl->crit_sect);
 	return rc;
 }
 
@@ -330,15 +319,6 @@ static int board_added(struct slot *p_slot)
 		return -1;
 	}
 	
-	rc = p_slot->hpc_ops->check_cmd_status(ctrl);
-	if (rc) {
-		err("%s: Failed to power on slot, error code(%d)\n", __FUNCTION__, rc);
-		/* Done with exclusive hardware access */
-		mutex_unlock(&ctrl->crit_sect);
-		return -1;
-	}
-
-	
 	if ((ctrl->pci_dev->vendor == 0x8086) && (ctrl->pci_dev->device == 0x0332)) {
 		if (slots_not_empty)
 			return WRONG_BUS_FREQUENCY;
@@ -349,24 +329,11 @@ static int board_added(struct slot *p_slot)
 			return WRONG_BUS_FREQUENCY;
 		}
 		
-		if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
-			err("%s: Can't set bus speed/mode in the case of adapter & bus mismatch\n",
-				  __FUNCTION__);
-			err("%s: Error code (%d)\n", __FUNCTION__, rc);
-			mutex_unlock(&ctrl->crit_sect);
-			return WRONG_BUS_FREQUENCY;
-		}
 		/* turn on board, blink green LED, turn off Amber LED */
 		if ((rc = p_slot->hpc_ops->slot_enable(p_slot))) {
 			err("%s: Issue of Slot Enable command failed\n", __FUNCTION__);
 			mutex_unlock(&ctrl->crit_sect);
 			return rc;
-		}
-
-		if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
-			err("%s: Failed to enable slot, error code(%d)\n", __FUNCTION__, rc);
-			mutex_unlock(&ctrl->crit_sect);
-			return rc;  
 		}
 	}
  
@@ -481,21 +448,11 @@ static int board_added(struct slot *p_slot)
 				return rc;
 	}
 
-	mutex_lock(&ctrl->crit_sect);
 	/* turn on board, blink green LED, turn off Amber LED */
 	if ((rc = p_slot->hpc_ops->slot_enable(p_slot))) {
 		err("%s: Issue of Slot Enable command failed\n", __FUNCTION__);
-		mutex_unlock(&ctrl->crit_sect);
 		return rc;
 	}
-
-	if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
-		err("%s: Failed to enable slot, error code(%d)\n", __FUNCTION__, rc);
-		mutex_unlock(&ctrl->crit_sect);
-		return rc;  
-	}
-
-	mutex_unlock(&ctrl->crit_sect);
 
 	/* Wait for ~1 second */
 	wait_for_ctrl_irq (ctrl);
@@ -520,39 +477,17 @@ static int board_added(struct slot *p_slot)
 	p_slot->is_a_board = 0x01;
 	p_slot->pwr_save = 1;
 
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->crit_sect);
-
 	p_slot->hpc_ops->green_led_on(p_slot);
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->crit_sect);
 
 	return 0;
 
 err_exit:
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->crit_sect);
-
 	/* turn off slot, turn on Amber LED, turn off Green LED */
 	rc = p_slot->hpc_ops->slot_disable(p_slot);
 	if (rc) {
 		err("%s: Issue of Slot Disable command failed\n", __FUNCTION__);
-		/* Done with exclusive hardware access */
-		mutex_unlock(&ctrl->crit_sect);
 		return rc;
 	}
-
-	rc = p_slot->hpc_ops->check_cmd_status(ctrl);
-	if (rc) {
-		err("%s: Failed to disable slot, error code(%d)\n", __FUNCTION__, rc);
-		/* Done with exclusive hardware access */
-		mutex_unlock(&ctrl->crit_sect);
-		return rc;
-	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->crit_sect);
 
 	return(rc);
 }
@@ -580,36 +515,18 @@ static int remove_board(struct slot *p_slot)
 	if (p_slot->is_a_board)
 		p_slot->status = 0x01;
 
-	/* Wait for exclusive access to hardware */
-	mutex_lock(&ctrl->crit_sect);
-
 	/* turn off slot, turn on Amber LED, turn off Green LED */
 	rc = p_slot->hpc_ops->slot_disable(p_slot);
 	if (rc) {
 		err("%s: Issue of Slot Disable command failed\n", __FUNCTION__);
-		/* Done with exclusive hardware access */
-		mutex_unlock(&ctrl->crit_sect);
 		return rc;
-	}
-
-	rc = p_slot->hpc_ops->check_cmd_status(ctrl);
-	if (rc) {
-		err("%s: Failed to disable slot, error code(%d)\n", __FUNCTION__, rc);
-		/* Done with exclusive hardware access */
-		mutex_unlock(&ctrl->crit_sect);
-		return rc;  
 	}
 	
 	rc = p_slot->hpc_ops->set_attention_status(p_slot, 0);
 	if (rc) {
 		err("%s: Issue of Set Attention command failed\n", __FUNCTION__);
-		/* Done with exclusive hardware access */
-		mutex_unlock(&ctrl->crit_sect);
 		return rc;
 	}
-
-	/* Done with exclusive hardware access */
-	mutex_unlock(&ctrl->crit_sect);
 
 	p_slot->pwr_save = 0;
 	p_slot->is_a_board = 0;
@@ -654,15 +571,9 @@ static void shpchp_pushbutton_thread (unsigned long slot)
 	} else {
 		p_slot->state = POWERON_STATE;
 
-		if (shpchp_enable_slot(p_slot)) {
-			/* Wait for exclusive access to hardware */
-			mutex_lock(&p_slot->ctrl->crit_sect);
-
+		if (shpchp_enable_slot(p_slot))
 			p_slot->hpc_ops->green_led_off(p_slot);
 
-			/* Done with exclusive hardware access */
-			mutex_unlock(&p_slot->ctrl->crit_sect);
-		}
 		p_slot->state = STATIC_STATE;
 	}
 
@@ -767,27 +678,12 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 					switch (p_slot->state) {
 					case BLINKINGOFF_STATE:
-						/* Wait for exclusive access to hardware */
-						mutex_lock(&ctrl->crit_sect);
-
 						p_slot->hpc_ops->green_led_on(p_slot);
-
 						p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-						/* Done with exclusive hardware access */
-						mutex_unlock(&ctrl->crit_sect);
 						break;
 					case BLINKINGON_STATE:
-						/* Wait for exclusive access to hardware */
-						mutex_lock(&ctrl->crit_sect);
-
 						p_slot->hpc_ops->green_led_off(p_slot);
-
 						p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-						/* Done with exclusive hardware access */
-						mutex_unlock(&ctrl->crit_sect);
-
 						break;
 					default:
 						warn("Not a valid state\n");
@@ -812,16 +708,9 @@ static void interrupt_event_handler(struct controller *ctrl)
 						info(msg_button_on, p_slot->number);
 					}
 
-					/* Wait for exclusive access to hardware */
-					mutex_lock(&ctrl->crit_sect);
-
 					/* blink green LED and turn off amber */
 					p_slot->hpc_ops->green_led_blink(p_slot);
-					
 					p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-					/* Done with exclusive hardware access */
-					mutex_unlock(&ctrl->crit_sect);
 
 					init_timer(&p_slot->task_event);
 					p_slot->task_event.expires = jiffies + 5 * HZ;   /* 5 second delay */
@@ -833,15 +722,8 @@ static void interrupt_event_handler(struct controller *ctrl)
 				} else if (ctrl->event_queue[loop].event_type == INT_POWER_FAULT) {
 					/***********POWER FAULT********************/
 					dbg("%s: power fault\n", __FUNCTION__);
-					/* Wait for exclusive access to hardware */
-					mutex_lock(&ctrl->crit_sect);
-
 					p_slot->hpc_ops->set_attention_status(p_slot, 1);
-					
 					p_slot->hpc_ops->green_led_off(p_slot);
-
-					/* Done with exclusive hardware access */
-					mutex_unlock(&ctrl->crit_sect);
 				} else {
 					/* refresh notification */
 					if (p_slot)
