@@ -1109,14 +1109,8 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		wake_up_interruptible(&ctrl->queue);
 	}
 
-	if ((intr_loc = (intr_loc >> 1)) == 0) {
-		/* Unmask Global Interrupt Mask */
-		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		temp_dword &= 0xfffffffe;
-		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
-
-		return IRQ_NONE;
-	}
+	if ((intr_loc = (intr_loc >> 1)) == 0)
+		goto out;
 
 	for (hp_slot = 0; hp_slot < ctrl->num_slots; hp_slot++) { 
 	/* To find out which slot has interrupt pending */
@@ -1146,6 +1140,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 			dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
 		}
 	}
+ out:
 	if (!shpchp_poll_mode) {
 		/* Unmask Global Interrupt Mask */
 		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
