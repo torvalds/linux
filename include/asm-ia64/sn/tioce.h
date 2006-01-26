@@ -11,7 +11,7 @@
 
 /* CE ASIC part & mfgr information  */
 #define TIOCE_PART_NUM			0xCE00
-#define TIOCE_MFGR_NUM			0x36
+#define TIOCE_SRC_ID			0x01
 #define TIOCE_REV_A			0x1
 
 /* CE Virtual PPB Vendor/Device IDs */
@@ -20,7 +20,7 @@
 
 /* CE Host Bridge Vendor/Device IDs */
 #define CE_HOST_BRIDGE_VENDOR_ID	0x10a9
-#define CE_HOST_BRIDGE_DEVICE_ID	0x4003
+#define CE_HOST_BRIDGE_DEVICE_ID	0x4001
 
 
 #define TIOCE_NUM_M40_ATES		4096
@@ -463,6 +463,25 @@ typedef volatile struct tioce {
 	u64	ce_end_of_struct;			/* 0x044400 */
 } tioce_t;
 
+/* ce_lsiX_gb_cfg1 register bit masks & shifts */
+#define CE_LSI_GB_CFG1_RXL0S_THS_SHFT	0
+#define CE_LSI_GB_CFG1_RXL0S_THS_MASK	(0xffULL << 0)
+#define CE_LSI_GB_CFG1_RXL0S_SMP_SHFT	8
+#define CE_LSI_GB_CFG1_RXL0S_SMP_MASK	(0xfULL << 8);
+#define CE_LSI_GB_CFG1_RXL0S_ADJ_SHFT	12
+#define CE_LSI_GB_CFG1_RXL0S_ADJ_MASK	(0x7ULL << 12)
+#define CE_LSI_GB_CFG1_RXL0S_FLT_SHFT	15
+#define CE_LSI_GB_CFG1_RXL0S_FLT_MASK	(0x1ULL << 15)
+#define CE_LSI_GB_CFG1_LPBK_SEL_SHFT	16
+#define CE_LSI_GB_CFG1_LPBK_SEL_MASK	(0x3ULL << 16)
+#define CE_LSI_GB_CFG1_LPBK_EN_SHFT	18
+#define CE_LSI_GB_CFG1_LPBK_EN_MASK	(0x1ULL << 18)
+#define CE_LSI_GB_CFG1_RVRS_LB_SHFT	19
+#define CE_LSI_GB_CFG1_RVRS_LB_MASK	(0x1ULL << 19)
+#define CE_LSI_GB_CFG1_RVRS_CLK_SHFT	20
+#define CE_LSI_GB_CFG1_RVRS_CLK_MASK	(0x3ULL << 20)
+#define CE_LSI_GB_CFG1_SLF_TS_SHFT	24
+#define CE_LSI_GB_CFG1_SLF_TS_MASK	(0xfULL << 24)
 
 /* ce_adm_int_mask/ce_adm_int_status register bit defines */
 #define CE_ADM_INT_CE_ERROR_SHFT		0
@@ -592,6 +611,11 @@ typedef volatile struct tioce {
 #define CE_URE_RD_MRG_ENABLE		(0x1ULL << 0)
 #define CE_URE_WRT_MRG_ENABLE1		(0x1ULL << 4)
 #define CE_URE_WRT_MRG_ENABLE2		(0x1ULL << 5)
+#define CE_URE_WRT_MRG_TIMER_SHFT	12
+#define CE_URE_WRT_MRG_TIMER_MASK	(0x7FFULL << CE_URE_WRT_MRG_TIMER_SHFT)
+#define CE_URE_WRT_MRG_TIMER(x)		(((u64)(x) << \
+					  CE_URE_WRT_MRG_TIMER_SHFT) & \
+					 CE_URE_WRT_MRG_TIMER_MASK)
 #define CE_URE_RSPQ_BYPASS_DISABLE	(0x1ULL << 24)
 #define CE_URE_UPS_DAT1_PAR_DISABLE	(0x1ULL << 32)
 #define CE_URE_UPS_HDR1_PAR_DISABLE	(0x1ULL << 33)
@@ -653,8 +677,12 @@ typedef volatile struct tioce {
 #define CE_URE_SI			(0x1ULL << 0)
 #define CE_URE_ELAL_SHFT		4
 #define CE_URE_ELAL_MASK		(0x7ULL << CE_URE_ELAL_SHFT)
+#define CE_URE_ELAL_SET(n)		(((u64)(n) << CE_URE_ELAL_SHFT) & \
+					 CE_URE_ELAL_MASK)
 #define CE_URE_ELAL1_SHFT		8
 #define CE_URE_ELAL1_MASK		(0x7ULL << CE_URE_ELAL1_SHFT)
+#define CE_URE_ELAL1_SET(n)		(((u64)(n) << CE_URE_ELAL1_SHFT) & \
+					 CE_URE_ELAL1_MASK)
 #define CE_URE_SCC			(0x1ULL << 12)
 #define CE_URE_PN1_SHFT			16
 #define CE_URE_PN1_MASK			(0xFFULL << CE_URE_PN1_SHFT)
@@ -675,8 +703,12 @@ typedef volatile struct tioce {
 #define CE_URE_HPC			(0x1ULL << 6)
 #define CE_URE_SPLV_SHFT		7
 #define CE_URE_SPLV_MASK		(0xFFULL << CE_URE_SPLV_SHFT)
+#define CE_URE_SPLV_SET(n)		(((u64)(n) << CE_URE_SPLV_SHFT) & \
+					 CE_URE_SPLV_MASK)
 #define CE_URE_SPLS_SHFT		15
 #define CE_URE_SPLS_MASK		(0x3ULL << CE_URE_SPLS_SHFT)
+#define CE_URE_SPLS_SET(n)		(((u64)(n) << CE_URE_SPLS_SHFT) & \
+					 CE_URE_SPLS_MASK)
 #define CE_URE_PSN1_SHFT		19
 #define CE_URE_PSN1_MASK		(0x1FFFULL << CE_URE_PSN1_SHFT)
 #define CE_URE_PSN2_SHFT		32
