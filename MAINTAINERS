@@ -557,7 +557,8 @@ S:	Supported
 
 CONFIGFS
 P:	Joel Becker
-M:	Joel Becker <joel.becker@oracle.com>
+M:	joel.becker@oracle.com
+L:	linux-kernel@vger.kernel.org
 S:	Supported
 
 CIRRUS LOGIC GENERIC FBDEV DRIVER
