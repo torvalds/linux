@@ -152,4 +152,6 @@ do {							\
 	}						\
 } while (0)
 
+#define __builtin_trap()	__break(0);
+
 #endif /* _ASM_IA64_INTEL_INTRIN_H */
