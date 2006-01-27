@@ -169,11 +169,11 @@ static void mv643xx_eth_rx_task(void *data)
 	if (test_and_set_bit(0, &mp->rx_task_busy))
 		panic("%s: Error in test_set_bit / clear_bit", dev->name);
 
-	while (mp->rx_ring_skbs < (mp->rx_ring_size - 5)) {
+	while (mp->rx_desc_count < (mp->rx_ring_size - 5)) {
 		skb = dev_alloc_skb(RX_SKB_SIZE + DMA_ALIGN);
 		if (!skb)
 			break;
-		mp->rx_ring_skbs++;
+		mp->rx_desc_count++;
 		unaligned = (u32)skb->data & (DMA_ALIGN - 1);
 		if (unaligned)
 			skb_reserve(skb, DMA_ALIGN - unaligned);
@@ -194,7 +194,7 @@ static void mv643xx_eth_rx_task(void *data)
 	 * If RX ring is empty of SKB, set a timer to try allocating
 	 * again in a later time .
 	 */
-	if ((mp->rx_ring_skbs == 0) && (mp->rx_timer_flag == 0)) {
+	if ((mp->rx_desc_count == 0) && (mp->rx_timer_flag == 0)) {
 		printk(KERN_INFO "%s: Rx ring is empty\n", dev->name);
 		/* After 100mSec */
 		mp->timeout.expires = jiffies + (HZ / 10);
@@ -394,7 +394,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
 #else
 	while (eth_port_receive(mp, &pkt_info) == ETH_OK) {
 #endif
-		mp->rx_ring_skbs--;
+		mp->rx_desc_count--;
 		received_packets++;
 
 		/* Update statistics. Note byte count includes 4 byte CRC count */
@@ -494,7 +494,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		/* UDP change : We may need this */
 		if ((eth_int_cause_ext & 0x0000ffff) &&
 		    (mv643xx_eth_free_tx_queue(dev, eth_int_cause_ext) == 0) &&
-		    (mp->tx_ring_size > mp->tx_ring_skbs + MAX_DESCS_PER_SKB))
+		    (mp->tx_ring_size > mp->tx_desc_count + MAX_DESCS_PER_SKB))
 			netif_wake_queue(dev);
 #ifdef MV643XX_NAPI
 	} else {
@@ -778,7 +778,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 	}
 
 	/* Allocate TX ring */
-	mp->tx_ring_skbs = 0;
+	mp->tx_desc_count = 0;
 	size = mp->tx_ring_size * sizeof(struct eth_tx_desc);
 	mp->tx_desc_area_size = size;
 
@@ -803,7 +803,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 	ether_init_tx_desc_ring(mp);
 
 	/* Allocate RX ring */
-	mp->rx_ring_skbs = 0;
+	mp->rx_desc_count = 0;
 	size = mp->rx_ring_size * sizeof(struct eth_rx_desc);
 	mp->rx_desc_area_size = size;
 
@@ -880,17 +880,17 @@ static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
 	/* Free outstanding skb's on TX rings */
-	for (curr = 0; mp->tx_ring_skbs && curr < mp->tx_ring_size; curr++) {
+	for (curr = 0; mp->tx_desc_count && curr < mp->tx_ring_size; curr++) {
 		skb = mp->tx_skb[curr];
 		if (skb) {
-			mp->tx_ring_skbs -= skb_shinfo(skb)->nr_frags;
+			mp->tx_desc_count -= skb_shinfo(skb)->nr_frags;
 			dev_kfree_skb(skb);
-			mp->tx_ring_skbs--;
+			mp->tx_desc_count--;
 		}
 	}
-	if (mp->tx_ring_skbs)
+	if (mp->tx_desc_count)
 		printk("%s: Error on Tx descriptor free - could not free %d"
-				" descriptors\n", dev->name, mp->tx_ring_skbs);
+				" descriptors\n", dev->name, mp->tx_desc_count);
 
 	/* Free TX ring */
 	if (mp->tx_sram_size)
@@ -910,18 +910,18 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
 	/* Free preallocated skb's on RX rings */
-	for (curr = 0; mp->rx_ring_skbs && curr < mp->rx_ring_size; curr++) {
+	for (curr = 0; mp->rx_desc_count && curr < mp->rx_ring_size; curr++) {
 		if (mp->rx_skb[curr]) {
 			dev_kfree_skb(mp->rx_skb[curr]);
-			mp->rx_ring_skbs--;
+			mp->rx_desc_count--;
 		}
 	}
 
-	if (mp->rx_ring_skbs)
+	if (mp->rx_desc_count)
 		printk(KERN_ERR
 			"%s: Error in freeing Rx Ring. %d skb's still"
 			" stuck in RX Ring - ignoring them\n", dev->name,
-			mp->rx_ring_skbs);
+			mp->rx_desc_count);
 	/* Free RX ring */
 	if (mp->rx_sram_size)
 		iounmap(mp->p_rx_desc_area);
@@ -991,7 +991,8 @@ static void mv643xx_tx(struct net_device *dev)
 	}
 
 	if (netif_queue_stopped(dev) &&
-			mp->tx_ring_size > mp->tx_ring_skbs + MAX_DESCS_PER_SKB)
+			mp->tx_ring_size >
+					mp->tx_desc_count + MAX_DESCS_PER_SKB)
 		netif_wake_queue(dev);
 }
 
@@ -1083,7 +1084,7 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* This is a hard error, log it. */
-	if ((mp->tx_ring_size - mp->tx_ring_skbs) <=
+	if ((mp->tx_ring_size - mp->tx_desc_count) <=
 					(skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		printk(KERN_ERR
@@ -1260,7 +1261,7 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Check if TX queue can handle another skb. If not, then
 	 * signal higher layers to stop requesting TX
 	 */
-	if (mp->tx_ring_size <= (mp->tx_ring_skbs + MAX_DESCS_PER_SKB))
+	if (mp->tx_ring_size <= (mp->tx_desc_count + MAX_DESCS_PER_SKB))
 		/*
 		 * Stop getting skb's from upper layers.
 		 * Getting skb's from upper layers will be enabled again after
@@ -2563,8 +2564,8 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		return ETH_ERROR;
 	}
 
-	mp->tx_ring_skbs++;
-	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
+	mp->tx_desc_count++;
+	BUG_ON(mp->tx_desc_count > mp->tx_ring_size);
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_curr = mp->tx_curr_desc_q;
@@ -2632,8 +2633,8 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	if (mp->tx_resource_err)
 		return ETH_QUEUE_FULL;
 
-	mp->tx_ring_skbs++;
-	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
+	mp->tx_desc_count++;
+	BUG_ON(mp->tx_desc_count > mp->tx_ring_size);
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_curr = mp->tx_curr_desc_q;
@@ -2747,8 +2748,8 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 	/* Any Tx return cancels the Tx resource error status */
 	mp->tx_resource_err = 0;
 
-	BUG_ON(mp->tx_ring_skbs == 0);
-	mp->tx_ring_skbs--;
+	BUG_ON(mp->tx_desc_count == 0);
+	mp->tx_desc_count--;
 
 out:
 	spin_unlock_irqrestore(&mp->lock, flags);

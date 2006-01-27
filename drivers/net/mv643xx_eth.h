@@ -371,12 +371,12 @@ struct mv643xx_private {
 	spinlock_t lock;
 	/* Size of Tx Ring per queue */
 	unsigned int tx_ring_size;
-	/* Ammont of SKBs outstanding on Tx queue */
-	unsigned int tx_ring_skbs;
+	/* Number of tx descriptors in use */
+	unsigned int tx_desc_count;
 	/* Size of Rx Ring per queue */
 	unsigned int rx_ring_size;
-	/* Ammount of SKBs allocated to Rx Ring per queue */
-	unsigned int rx_ring_skbs;
+	/* Number of rx descriptors in use */
+	unsigned int rx_desc_count;
 
 	/*
 	 * rx_task used to fill RX ring out of bottom half context
