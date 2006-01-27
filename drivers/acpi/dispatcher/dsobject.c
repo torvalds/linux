@@ -129,8 +129,8 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 
 					return_ACPI_STATUS(AE_OK);
 				} else {
-					ACPI_REPORT_NSERROR(op->common.value.
-							    string, status);
+					ACPI_ERROR_NAMESPACE(op->common.value.
+							     string, status);
 				}
 
 				return_ACPI_STATUS(status);
@@ -214,7 +214,9 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	byte_list = arg->named.next;
 	if (byte_list) {
 		if (byte_list->common.aml_opcode != AML_INT_BYTELIST_OP) {
-			ACPI_REPORT_ERROR(("Expecting bytelist, got AML opcode %X in op %p\n", byte_list->common.aml_opcode, byte_list));
+			ACPI_ERROR((AE_INFO,
+				    "Expecting bytelist, got AML opcode %X in op %p",
+				    byte_list->common.aml_opcode, byte_list));
 
 			acpi_ut_remove_reference(obj_desc);
 			return (AE_TYPE);
@@ -540,7 +542,9 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			default:
 
-				ACPI_REPORT_ERROR(("Unknown constant opcode %X\n", opcode));
+				ACPI_ERROR((AE_INFO,
+					    "Unknown constant opcode %X",
+					    opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
 			}
@@ -555,8 +559,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			break;
 
 		default:
-			ACPI_REPORT_ERROR(("Unknown Integer type %X\n",
-					   op_info->type));
+			ACPI_ERROR((AE_INFO, "Unknown Integer type %X",
+				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
@@ -634,8 +638,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_REPORT_ERROR(("Unimplemented data type: %X\n",
-				   ACPI_GET_OBJECT_TYPE(obj_desc)));
+		ACPI_ERROR((AE_INFO, "Unimplemented data type: %X",
+			    ACPI_GET_OBJECT_TYPE(obj_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		break;

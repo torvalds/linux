@@ -136,7 +136,7 @@ acpi_status acpi_ev_walk_gpe_list(ACPI_GPE_CALLBACK gpe_walk_callback)
 	struct acpi_gpe_block_info *gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
 	acpi_status status = AE_OK;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("ev_walk_gpe_list");
 
@@ -279,7 +279,9 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	default:
 		/* Unknown method type, just ignore it! */
 
-		ACPI_REPORT_ERROR(("Unknown GPE method type: %s (name not of form _Lxx or _Exx)\n", name));
+		ACPI_ERROR((AE_INFO,
+			    "Unknown GPE method type: %s (name not of form _Lxx or _Exx)",
+			    name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -289,7 +291,9 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	if (gpe_number == ACPI_UINT32_MAX) {
 		/* Conversion failed; invalid method, just ignore it */
 
-		ACPI_REPORT_ERROR(("Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)\n", name));
+		ACPI_ERROR((AE_INFO,
+			    "Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)",
+			    name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -476,7 +480,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt;
 	struct acpi_gpe_xrupt_info *gpe_xrupt;
 	acpi_status status;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("ev_get_gpe_xrupt_block");
 
@@ -523,7 +527,9 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 							   acpi_ev_gpe_xrupt_handler,
 							   gpe_xrupt);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not install GPE interrupt handler at level 0x%X\n", interrupt_number));
+			ACPI_ERROR((AE_INFO,
+				    "Could not install GPE interrupt handler at level 0x%X",
+				    interrupt_number));
 			return_PTR(NULL);
 		}
 	}
@@ -548,7 +554,7 @@ static acpi_status
 acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 {
 	acpi_status status;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("ev_delete_gpe_xrupt");
 
@@ -606,7 +612,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
 	struct acpi_gpe_block_info *next_gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_block;
 	acpi_status status;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("ev_install_gpe_block");
 
@@ -659,7 +665,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
 acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 {
 	acpi_status status;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("ev_install_gpe_block");
 
@@ -739,7 +745,8 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 					       sizeof(struct
 						      acpi_gpe_register_info));
 	if (!gpe_register_info) {
-		ACPI_REPORT_ERROR(("Could not allocate the gpe_register_info table\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Could not allocate the gpe_register_info table"));
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
@@ -752,7 +759,8 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 					     ACPI_GPE_REGISTER_WIDTH) *
 					    sizeof(struct acpi_gpe_event_info));
 	if (!gpe_event_info) {
-		ACPI_REPORT_ERROR(("Could not allocate the gpe_event_info table\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Could not allocate the gpe_event_info table"));
 		status = AE_NO_MEMORY;
 		goto error_exit;
 	}
@@ -1032,8 +1040,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not enable GPEs in gpe_block %p\n",
-				   gpe_block));
+		ACPI_ERROR((AE_INFO, "Could not enable GPEs in gpe_block %p",
+			    gpe_block));
 	}
 
 	return_ACPI_STATUS(status);
@@ -1107,8 +1115,8 @@ acpi_status acpi_ev_gpe_initialize(void)
 						  &acpi_gbl_gpe_fadt_blocks[0]);
 
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not create GPE Block 0, %s\n",
-					   acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not create GPE Block 0"));
 		}
 	}
 
@@ -1121,7 +1129,12 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 		if ((register_count0) &&
 		    (gpe_number_max >= acpi_gbl_FADT->gpe1_base)) {
-			ACPI_REPORT_ERROR(("GPE0 block (GPE 0 to %d) overlaps the GPE1 block (GPE %d to %d) - Ignoring GPE1\n", gpe_number_max, acpi_gbl_FADT->gpe1_base, acpi_gbl_FADT->gpe1_base + ((register_count1 * ACPI_GPE_REGISTER_WIDTH) - 1)));
+			ACPI_ERROR((AE_INFO,
+				    "GPE0 block (GPE 0 to %d) overlaps the GPE1 block (GPE %d to %d) - Ignoring GPE1",
+				    gpe_number_max, acpi_gbl_FADT->gpe1_base,
+				    acpi_gbl_FADT->gpe1_base +
+				    ((register_count1 *
+				      ACPI_GPE_REGISTER_WIDTH) - 1)));
 
 			/* Ignore GPE1 block by setting the register count to zero */
 
@@ -1139,7 +1152,8 @@ acpi_status acpi_ev_gpe_initialize(void)
 						     [1]);
 
 			if (ACPI_FAILURE(status)) {
-				ACPI_REPORT_ERROR(("Could not create GPE Block 1, %s\n", acpi_format_exception(status)));
+				ACPI_EXCEPTION((AE_INFO, status,
+						"Could not create GPE Block 1"));
 			}
 
 			/*
@@ -1165,7 +1179,9 @@ acpi_status acpi_ev_gpe_initialize(void)
 	/* Check for Max GPE number out-of-range */
 
 	if (gpe_number_max > ACPI_GPE_MAX) {
-		ACPI_REPORT_ERROR(("Maximum GPE number from FADT is too large: 0x%X\n", gpe_number_max));
+		ACPI_ERROR((AE_INFO,
+			    "Maximum GPE number from FADT is too large: 0x%X",
+			    gpe_number_max));
 		status = AE_BAD_VALUE;
 		goto cleanup;
 	}

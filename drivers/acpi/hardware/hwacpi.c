@@ -68,7 +68,7 @@ acpi_status acpi_hw_initialize(void)
 	/* We must have the ACPI tables by the time we get here */
 
 	if (!acpi_gbl_FADT) {
-		ACPI_REPORT_ERROR(("No FADT is present\n"));
+		ACPI_ERROR((AE_INFO, "No FADT is present"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -107,7 +107,8 @@ acpi_status acpi_hw_set_mode(u32 mode)
 	 * system does not support mode transition.
 	 */
 	if (!acpi_gbl_FADT->smi_cmd) {
-		ACPI_REPORT_ERROR(("No SMI_CMD in FADT, mode transition failed\n"));
+		ACPI_ERROR((AE_INFO,
+			    "No SMI_CMD in FADT, mode transition failed"));
 		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
 
@@ -119,7 +120,8 @@ acpi_status acpi_hw_set_mode(u32 mode)
 	 * transitions are not supported.
 	 */
 	if (!acpi_gbl_FADT->acpi_enable && !acpi_gbl_FADT->acpi_disable) {
-		ACPI_REPORT_ERROR(("No ACPI mode transition supported in this system (enable/disable both zero)\n"));
+		ACPI_ERROR((AE_INFO,
+			    "No ACPI mode transition supported in this system (enable/disable both zero)"));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -153,8 +155,8 @@ acpi_status acpi_hw_set_mode(u32 mode)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not write mode change, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not write ACPI mode change"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -174,7 +176,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		retry--;
 	}
 
-	ACPI_REPORT_ERROR(("Hardware never changed modes\n"));
+	ACPI_ERROR((AE_INFO, "Hardware did not change modes"));
 	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 }
 

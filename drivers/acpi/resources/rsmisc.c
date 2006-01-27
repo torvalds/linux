@@ -84,9 +84,11 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 	ACPI_FUNCTION_TRACE("rs_get_resource");
 
 	if (((acpi_native_uint) resource) & 0x3) {
-		acpi_os_printf
-		    ("**** GET: Misaligned resource pointer: %p Type %2.2X Len %X\n",
-		     resource, resource->type, resource->length);
+		/* Each internal resource struct is expected to be 32-bit aligned */
+
+		ACPI_WARNING((AE_INFO,
+			      "Misaligned resource pointer (get): %p Type %2.2X Len %X",
+			      resource, resource->type, resource->length));
 	}
 
 	/* Extract the resource Length field (does not include header length) */
@@ -274,15 +276,16 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 				break;
 
 			default:
-				acpi_os_printf
-				    ("*** Invalid conversion sub-opcode\n");
+
+				ACPI_ERROR((AE_INFO,
+					    "Invalid conversion sub-opcode"));
 				return_ACPI_STATUS(AE_BAD_PARAMETER);
 			}
 			break;
 
 		default:
 
-			acpi_os_printf("*** Invalid conversion opcode\n");
+			ACPI_ERROR((AE_INFO, "Invalid conversion opcode"));
 			return_ACPI_STATUS(AE_BAD_PARAMETER);
 		}
 
@@ -486,15 +489,16 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 				break;
 
 			default:
-				acpi_os_printf
-				    ("*** Invalid conversion sub-opcode\n");
+
+				ACPI_ERROR((AE_INFO,
+					    "Invalid conversion sub-opcode"));
 				return_ACPI_STATUS(AE_BAD_PARAMETER);
 			}
 			break;
 
 		default:
 
-			acpi_os_printf("*** Invalid conversion opcode\n");
+			ACPI_ERROR((AE_INFO, "Invalid conversion opcode"));
 			return_ACPI_STATUS(AE_BAD_PARAMETER);
 		}
 
@@ -523,7 +527,9 @@ if (((aml->irq.flags & 0x09) == 0x00) || ((aml->irq.flags & 0x09) == 0x09)) {
 	 * polarity/trigger interrupts are allowed (ACPI spec, section
 	 * "IRQ Format"), so 0x00 and 0x09 are illegal.
 	 */
-	ACPI_REPORT_ERROR(("Invalid interrupt polarity/trigger in resource list, %X\n", aml->irq.flags));
+	ACPI_ERROR((AE_INFO,
+		    "Invalid interrupt polarity/trigger in resource list, %X",
+		    aml->irq.flags));
 	return_ACPI_STATUS(AE_BAD_DATA);
 }
 
@@ -535,7 +541,7 @@ if (temp8 < 1) {
 }
 
 if (resource->data.dma.transfer == 0x03) {
-	ACPI_REPORT_ERROR(("Invalid DMA.Transfer preference (3)\n"));
+	ACPI_ERROR((AE_INFO, "Invalid DMA.Transfer preference (3)"));
 	return_ACPI_STATUS(AE_BAD_DATA);
 }
 #endif

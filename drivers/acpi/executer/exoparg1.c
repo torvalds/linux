@@ -111,8 +111,8 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:		/*  Unknown opcode  */
 
-		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
-				   walk_state->opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
 	}
@@ -189,8 +189,8 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 
 	default:		/*  Unknown opcode  */
 
-		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
-				   walk_state->opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
 	}
@@ -229,8 +229,8 @@ acpi_status acpi_ex_opcode_1A_1T_0R(struct acpi_walk_state *walk_state)
 
 	default:		/* Unknown opcode */
 
-		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
-				   walk_state->opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -349,7 +349,9 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 				/* Check the range of the digit */
 
 				if (temp32 > 9) {
-					ACPI_REPORT_ERROR(("BCD digit too large (not decimal): 0x%X\n", temp32));
+					ACPI_ERROR((AE_INFO,
+						    "BCD digit too large (not decimal): 0x%X",
+						    temp32));
 
 					status = AE_AML_NUMERIC_OVERFLOW;
 					goto cleanup;
@@ -394,7 +396,10 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 			/* Overflow if there is any data left in Digit */
 
 			if (digit > 0) {
-				ACPI_REPORT_ERROR(("Integer too large to convert to BCD: %8.8X%8.8X\n", ACPI_FORMAT_UINT64(operand[0]->integer.value)));
+				ACPI_ERROR((AE_INFO,
+					    "Integer too large to convert to BCD: %8.8X%8.8X",
+					    ACPI_FORMAT_UINT64(operand[0]->
+							       integer.value)));
 				status = AE_AML_NUMERIC_OVERFLOW;
 				goto cleanup;
 			}
@@ -521,16 +526,16 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 		/* These are two obsolete opcodes */
 
-		ACPI_REPORT_ERROR(("%s is obsolete and not implemented\n",
-				   acpi_ps_get_opcode_name(walk_state->
-							   opcode)));
+		ACPI_ERROR((AE_INFO,
+			    "%s is obsolete and not implemented",
+			    acpi_ps_get_opcode_name(walk_state->opcode)));
 		status = AE_SUPPORT;
 		goto cleanup;
 
 	default:		/* Unknown opcode */
 
-		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
-				   walk_state->opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -636,10 +641,10 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		    acpi_ex_resolve_operands(AML_LNOT_OP, &temp_desc,
 					     walk_state);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("%s: bad operand(s) %s\n",
-					   acpi_ps_get_opcode_name(walk_state->
-								   opcode),
-					   acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"While resolving operands for [%s]",
+					acpi_ps_get_opcode_name(walk_state->
+								opcode)));
 
 			goto cleanup;
 		}
@@ -738,7 +743,9 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			break;
 
 		default:
-			ACPI_REPORT_ERROR(("Operand is not Buf/Int/Str/Pkg - found type %s\n", acpi_ut_get_type_name(type)));
+			ACPI_ERROR((AE_INFO,
+				    "Operand is not Buf/Int/Str/Pkg - found type %s",
+				    acpi_ut_get_type_name(type)));
 			status = AE_AML_OPERAND_TYPE;
 			goto cleanup;
 		}
@@ -935,7 +942,10 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 				default:
 
-					ACPI_REPORT_ERROR(("Unknown Index target_type %X in obj %p\n", operand[0]->reference.target_type, operand[0]));
+					ACPI_ERROR((AE_INFO,
+						    "Unknown Index target_type %X in obj %p",
+						    operand[0]->reference.
+						    target_type, operand[0]));
 					status = AE_AML_OPERAND_TYPE;
 					goto cleanup;
 				}
@@ -961,7 +971,10 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				break;
 
 			default:
-				ACPI_REPORT_ERROR(("Unknown opcode in ref(%p) - %X\n", operand[0], operand[0]->reference.opcode));
+				ACPI_ERROR((AE_INFO,
+					    "Unknown opcode in ref(%p) - %X",
+					    operand[0],
+					    operand[0]->reference.opcode));
 
 				status = AE_TYPE;
 				goto cleanup;
@@ -971,8 +984,8 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_REPORT_ERROR(("Unknown AML opcode %X\n",
-				   walk_state->opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}

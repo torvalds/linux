@@ -121,8 +121,8 @@ const char *acpi_format_exception(acpi_status status)
 	if (!exception) {
 		/* Exception code was not recognized */
 
-		ACPI_REPORT_ERROR(("Unknown exception code: 0x%8.8X\n",
-				   status));
+		ACPI_ERROR((AE_INFO,
+			    "Unknown exception code: 0x%8.8X", status));
 
 		exception = "UNKNOWN_STATUS_CODE";
 	}

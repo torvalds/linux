@@ -606,7 +606,8 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 		/*
 		 * Packages as external input to control methods are not supported,
 		 */
-		ACPI_REPORT_ERROR(("Packages as parameters not implemented!\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Packages as parameters not implemented!"));
 
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
@@ -869,7 +870,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 							 count +
 							 1) * sizeof(void *));
 	if (!dest_obj->package.elements) {
-		ACPI_REPORT_ERROR(("Package allocation failure\n"));
+		ACPI_ERROR((AE_INFO, "Package allocation failure"));
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 

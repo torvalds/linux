@@ -105,7 +105,10 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 		status = acpi_ds_initialize_region(obj_handle);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Region %p [%4.4s] - Init failure, %s\n", obj_handle, acpi_ut_get_node_name(obj_handle), acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"During Region initialization %p [%4.4s]",
+					obj_handle,
+					acpi_ut_get_node_name(obj_handle)));
 		}
 
 		info->op_region_count++;
@@ -144,7 +147,11 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 		 */
 		status = acpi_ds_parse_method(obj_handle);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("\n+Method %p [%4.4s] - parse failure, %s\n", obj_handle, acpi_ut_get_node_name(obj_handle), acpi_format_exception(status)));
+			ACPI_ERROR((AE_INFO,
+				    "Method %p [%4.4s] - parse failure, %s",
+				    obj_handle,
+				    acpi_ut_get_node_name(obj_handle),
+				    acpi_format_exception(status)));
 
 			/* This parse failed, but we will continue parsing more methods */
 		}
@@ -206,8 +213,7 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
 				     acpi_ds_init_one_object, &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("walk_namespace failed, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,

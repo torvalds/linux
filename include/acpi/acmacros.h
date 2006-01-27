@@ -341,8 +341,12 @@
 /*
  * Rounding macros (Power of two boundaries only)
  */
-#define ACPI_ROUND_DOWN(value,boundary)      (((acpi_native_uint)(value)) & (~(((acpi_native_uint) boundary)-1)))
-#define ACPI_ROUND_UP(value,boundary)        ((((acpi_native_uint)(value)) + (((acpi_native_uint) boundary)-1)) & (~(((acpi_native_uint) boundary)-1)))
+#define ACPI_ROUND_DOWN(value,boundary)      (((acpi_native_uint)(value)) & \
+												(~(((acpi_native_uint) boundary)-1)))
+
+#define ACPI_ROUND_UP(value,boundary)        ((((acpi_native_uint)(value)) + \
+												(((acpi_native_uint) boundary)-1)) & \
+												(~(((acpi_native_uint) boundary)-1)))
 
 #define ACPI_ROUND_DOWN_TO_32_BITS(a)        ACPI_ROUND_DOWN(a,4)
 #define ACPI_ROUND_DOWN_TO_64_BITS(a)        ACPI_ROUND_DOWN(a,8)
@@ -379,10 +383,11 @@
 
 /* Generate a UUID */
 
-#define ACPI_INIT_UUID(a,b,c,d0,d1,d2,d3,d4,d5,d6,d7)   (a) & 0xFF, ((a) >> 8) & 0xFF, ((a) >> 16) & 0xFF, ((a) >> 24) & 0xFF, \
-												  (b) & 0xFF, ((b) >> 8) & 0xFF, \
-												  (c) & 0xFF, ((c) >> 8) & 0xFF, \
-												  (d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7)
+#define ACPI_INIT_UUID(a,b,c,d0,d1,d2,d3,d4,d5,d6,d7) \
+	(a) & 0xFF, ((a) >> 8) & 0xFF, ((a) >> 16) & 0xFF, ((a) >> 24) & 0xFF, \
+	(b) & 0xFF, ((b) >> 8) & 0xFF, \
+	(c) & 0xFF, ((c) >> 8) & 0xFF, \
+	(d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7)
 
 /*
  * An struct acpi_namespace_node * can appear in some contexts,
@@ -442,13 +447,12 @@
 #define GET_CURRENT_ARG_TYPE(list)      (list & ((u32) 0x1F))
 #define INCREMENT_ARG_LIST(list)        (list >>= ((u32) ARG_TYPE_WIDTH))
 
+#if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
 /*
  * Module name is include in both debug and non-debug versions primarily for
  * error messages. The __FILE__ macro is not very useful for this, because it
  * often includes the entire pathname to the module
  */
-#if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
-
 #define ACPI_MODULE_NAME(name)          static char ACPI_UNUSED_VAR *_acpi_module_name = name;
 #else
 #define ACPI_MODULE_NAME(name)
@@ -458,45 +462,31 @@
  * Ascii error messages can be configured out
  */
 #ifndef ACPI_NO_ERROR_MESSAGES
-
-#define ACPI_PARAM_LIST(pl)             pl
-#define ACPI_LOCATION_INFO              _acpi_module_name, __LINE__
+#define AE_INFO                         _acpi_module_name, __LINE__
 
 /*
- * Error reporting. Callers module and line number are inserted automatically
- * These macros are used for both the debug and non-debug versions of the code
+ * Error reporting. Callers module and line number are inserted by AE_INFO,
+ * the plist contains a set of parens to allow variable-length lists.
+ * These macros are used for both the debug and non-debug versions of the code.
  */
-#define ACPI_REPORT_INFO(fp)            {acpi_ut_report_info (ACPI_LOCATION_INFO); \
-											acpi_os_printf ACPI_PARAM_LIST (fp);}
-#define ACPI_REPORT_ERROR(fp)           {acpi_ut_report_error (ACPI_LOCATION_INFO); \
-											acpi_os_printf ACPI_PARAM_LIST (fp);}
-#define ACPI_REPORT_WARNING(fp)         {acpi_ut_report_warning (ACPI_LOCATION_INFO); \
-											acpi_os_printf ACPI_PARAM_LIST (fp);}
-#define ACPI_REPORT_NSERROR(s,e)        acpi_ns_report_error (ACPI_LOCATION_INFO, \
-											s, e);
-#define ACPI_REPORT_MTERROR(s,n,p,e)    acpi_ns_report_method_error (ACPI_LOCATION_INFO, \
-											s, n, p, e);
+#define ACPI_INFO(plist)                acpi_ut_info plist
+#define ACPI_WARNING(plist)             acpi_ut_warning plist
+#define ACPI_EXCEPTION(plist)           acpi_ut_exception plist
+#define ACPI_ERROR(plist)               acpi_ut_error plist
+#define ACPI_ERROR_NAMESPACE(s,e)       acpi_ns_report_error (AE_INFO, s, e);
+#define ACPI_ERROR_METHOD(s,n,p,e)      acpi_ns_report_method_error (AE_INFO, s, n, p, e);
 
-/* Error reporting. These versions pass thru the module and lineno */
-
-#define _ACPI_REPORT_INFO(a,b,fp)       {acpi_ut_report_info (a,b); \
-											acpi_os_printf ACPI_PARAM_LIST (fp);}
-#define _ACPI_REPORT_ERROR(a,b,fp)      {acpi_ut_report_error (a,b); \
-											acpi_os_printf ACPI_PARAM_LIST (fp);}
-#define _ACPI_REPORT_WARNING(a,b,fp)    {acpi_ut_report_warning (a,b); \
-											acpi_os_printf ACPI_PARAM_LIST (fp);}
 #else
 
 /* No error messages */
 
-#define ACPI_REPORT_INFO(fp)
-#define ACPI_REPORT_ERROR(fp)
-#define ACPI_REPORT_WARNING(fp)
-#define ACPI_REPORT_NSERROR(s,e)
-#define ACPI_REPORT_MTERROR(s,n,p,e)
-#define _ACPI_REPORT_INFO(a,b,c,fp)
-#define _ACPI_REPORT_ERROR(a,b,c,fp)
-#define _ACPI_REPORT_WARNING(a,b,c,fp)
+#define ACPI_INFO(plist)
+#define ACPI_WARNING(plist)
+#define ACPI_EXCEPTION(plist)
+#define ACPI_ERROR(plist)
+#define ACPI_ERROR_NAMESPACE(s,e)
+#define ACPI_ERROR_METHOD(s,n,p,e)
+
 #endif
 
 /*
@@ -538,7 +528,7 @@
 #endif
 
 #define ACPI_FUNCTION_TRACE(a)          ACPI_FUNCTION_NAME(a) \
-											acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
+									  acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
 #define ACPI_FUNCTION_TRACE_PTR(a,b)    ACPI_FUNCTION_NAME(a) \
 											acpi_ut_trace_ptr(ACPI_DEBUG_PARAMETERS,(void *)b)
 #define ACPI_FUNCTION_TRACE_U32(a,b)    ACPI_FUNCTION_NAME(a) \
@@ -632,18 +622,6 @@
 #define ACPI_DUMP_PATHNAME(a,b,c,d)     acpi_ns_dump_pathname(a,b,c,d)
 #define ACPI_DUMP_RESOURCE_LIST(a)      acpi_rs_dump_resource_list(a)
 #define ACPI_DUMP_BUFFER(a,b)           acpi_ut_dump_buffer((u8 *)a,b,DB_BYTE_DISPLAY,_COMPONENT)
-#define ACPI_BREAK_MSG(a)               acpi_os_signal (ACPI_SIGNAL_BREAKPOINT,(a))
-
-/*
- * Generate INT3 on ACPI_ERROR (Debug only!)
- */
-#define ACPI_ERROR_BREAK
-#ifdef  ACPI_ERROR_BREAK
-#define ACPI_BREAK_ON_ERROR(lvl)        if ((lvl)&ACPI_ERROR) \
-											acpi_os_signal(ACPI_SIGNAL_BREAKPOINT,"Fatal error encountered\n")
-#else
-#define ACPI_BREAK_ON_ERROR(lvl)
-#endif
 
 /*
  * Master debug print macros
@@ -651,8 +629,8 @@
  *    1) Debug print for the current component is enabled
  *    2) Debug error level or trace level for the print statement is enabled
  */
-#define ACPI_DEBUG_PRINT(pl)            acpi_ut_debug_print ACPI_PARAM_LIST(pl)
-#define ACPI_DEBUG_PRINT_RAW(pl)        acpi_ut_debug_print_raw ACPI_PARAM_LIST(pl)
+#define ACPI_DEBUG_PRINT(plist)         acpi_ut_debug_print plist
+#define ACPI_DEBUG_PRINT_RAW(plist)     acpi_ut_debug_print_raw plist
 
 #else
 /*
@@ -681,7 +659,6 @@
 #define ACPI_DUMP_BUFFER(a,b)
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)
-#define ACPI_BREAK_MSG(a)
 
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)

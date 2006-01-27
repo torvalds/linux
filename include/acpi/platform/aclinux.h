@@ -102,4 +102,6 @@
 
 #include "acgcc.h"
 
+#define acpi_cpu_flags unsigned long
+
 #endif				/* __ACLINUX_H__ */

@@ -143,8 +143,8 @@ acpi_install_fixed_event_handler(u32 event,
 	if (ACPI_SUCCESS(status))
 		status = acpi_enable_event(event, 0);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_WARNING(("Could not enable fixed event %X\n",
-				     event));
+		ACPI_WARNING((AE_INFO, "Could not enable fixed event %X",
+			      event));
 
 		/* Remove the handler */
 
@@ -204,7 +204,9 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 	acpi_gbl_fixed_event_handlers[event].context = NULL;
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_WARNING(("Could not write to fixed event enable register %X\n", event));
+		ACPI_WARNING((AE_INFO,
+			      "Could not write to fixed event enable register %X",
+			      event));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabled fixed event %X\n",
 				  event));
@@ -561,7 +563,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_handler_info *handler;
 	acpi_status status;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("acpi_install_gpe_handler");
 
@@ -652,7 +654,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_handler_info *handler;
 	acpi_status status;
-	acpi_native_uint flags;
+	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE("acpi_remove_gpe_handler");
 

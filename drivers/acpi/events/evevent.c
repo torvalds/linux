@@ -73,7 +73,7 @@ acpi_status acpi_ev_initialize_events(void)
 	/* Make sure we have ACPI tables */
 
 	if (!acpi_gbl_DSDT) {
-		ACPI_REPORT_WARNING(("No ACPI tables present!\n"));
+		ACPI_WARNING((AE_INFO, "No ACPI tables present!"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -84,14 +84,15 @@ acpi_status acpi_ev_initialize_events(void)
 	 */
 	status = acpi_ev_fixed_event_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to initialize fixed events, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to initialize fixed events"));
 		return_ACPI_STATUS(status);
 	}
 
 	status = acpi_ev_gpe_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to initialize general purpose events, %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to initialize general purpose events"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -162,7 +163,8 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 	status = acpi_ev_install_sci_handler();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to install System Control Interrupt Handler, %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to install System Control Interrupt handler"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -170,7 +172,8 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 	status = acpi_ev_init_global_lock_handler();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to initialize Global Lock handler, %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to initialize Global Lock handler"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -304,7 +307,9 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 					enable_register_id, 0,
 					ACPI_MTX_DO_NOT_LOCK);
 
-		ACPI_REPORT_ERROR(("No installed handler for fixed event [%08X]\n", event));
+		ACPI_ERROR((AE_INFO,
+			    "No installed handler for fixed event [%08X]",
+			    event));
 
 		return (ACPI_INTERRUPT_NOT_HANDLED);
 	}

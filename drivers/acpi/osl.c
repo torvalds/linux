@@ -1062,9 +1062,9 @@ EXPORT_SYMBOL(max_cstate);
  * handle is a pointer to the spinlock_t.
  */
 
-acpi_native_uint acpi_os_acquire_lock(acpi_handle handle)
+acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
 {
-	unsigned long flags;
+	acpi_cpu_flags flags;
 	spin_lock_irqsave((spinlock_t *) handle, flags);
 	return flags;
 }
@@ -1073,9 +1073,9 @@ acpi_native_uint acpi_os_acquire_lock(acpi_handle handle)
  * Release a spinlock. See above.
  */
 
-void acpi_os_release_lock(acpi_handle handle, acpi_native_uint flags)
+void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags)
 {
-	spin_unlock_irqrestore((spinlock_t *) handle, (unsigned long) flags);
+	spin_unlock_irqrestore((spinlock_t *) handle, flags);
 }
 
 #ifndef ACPI_USE_LOCAL_CACHE

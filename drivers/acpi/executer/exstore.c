@@ -250,7 +250,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	/* Validate parameters */
 
 	if (!source_desc || !dest_desc) {
-		ACPI_REPORT_ERROR(("Null parameter\n"));
+		ACPI_ERROR((AE_INFO, "Null parameter"));
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
@@ -290,7 +290,10 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 		/* Destination is not a Reference object */
 
-		ACPI_REPORT_ERROR(("Target is not a Reference or Constant object - %s [%p]\n", acpi_ut_get_object_type_name(dest_desc), dest_desc));
+		ACPI_ERROR((AE_INFO,
+			    "Target is not a Reference or Constant object - %s [%p]",
+			    acpi_ut_get_object_type_name(dest_desc),
+			    dest_desc));
 
 		ACPI_DUMP_STACK_ENTRY(source_desc);
 		ACPI_DUMP_STACK_ENTRY(dest_desc);
@@ -357,8 +360,8 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	default:
 
-		ACPI_REPORT_ERROR(("Unknown Reference opcode %X\n",
-				   ref_desc->reference.opcode));
+		ACPI_ERROR((AE_INFO, "Unknown Reference opcode %X",
+			    ref_desc->reference.opcode));
 		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_ERROR);
 
 		status = AE_AML_INTERNAL;
@@ -487,7 +490,9 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 			/* All other types are invalid */
 
-			ACPI_REPORT_ERROR(("Source must be Integer/Buffer/String type, not %s\n", acpi_ut_get_object_type_name(source_desc)));
+			ACPI_ERROR((AE_INFO,
+				    "Source must be Integer/Buffer/String type, not %s",
+				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
@@ -497,7 +502,8 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		break;
 
 	default:
-		ACPI_REPORT_ERROR(("Target is not a Package or buffer_field\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Target is not a Package or buffer_field"));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}

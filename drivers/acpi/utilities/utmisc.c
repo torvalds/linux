@@ -72,8 +72,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	/* Guard against multiple allocations of ID to the same location */
 
 	if (*owner_id) {
-		ACPI_REPORT_ERROR(("Owner ID [%2.2X] already exists\n",
-				   *owner_id));
+		ACPI_ERROR((AE_INFO, "Owner ID [%2.2X] already exists",
+			    *owner_id));
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
 
@@ -143,7 +143,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	 * methods, or there may be a bug where the IDs are not released.
 	 */
 	status = AE_OWNER_ID_LIMIT;
-	ACPI_REPORT_ERROR(("Could not allocate new owner_id (255 max), AE_OWNER_ID_LIMIT\n"));
+	ACPI_ERROR((AE_INFO,
+		    "Could not allocate new owner_id (255 max), AE_OWNER_ID_LIMIT"));
 
       exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -180,7 +181,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Zero is not a valid owner_iD */
 
 	if (owner_id == 0) {
-		ACPI_REPORT_ERROR(("Invalid owner_id: %2.2X\n", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid owner_id: %2.2X", owner_id));
 		return_VOID;
 	}
 
@@ -205,8 +206,9 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	if (acpi_gbl_owner_id_mask[index] & bit) {
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
-		ACPI_REPORT_ERROR(("Release of non-allocated owner_id: %2.2X\n",
-				   owner_id + 1));
+		ACPI_ERROR((AE_INFO,
+			    "Release of non-allocated owner_id: %2.2X",
+			    owner_id + 1));
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -837,7 +839,71 @@ u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_report_error
+ * FUNCTION:    acpi_ut_error, acpi_ut_warning, acpi_ut_info
+ *
+ * PARAMETERS:  module_name         - Caller's module name (for error output)
+ *              line_number         - Caller's line number (for error output)
+ *              Format              - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print message with module/line/version info
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_error(char *module_name, u32 line_number, char *format, ...)
+{
+	va_list args;
+
+	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
+
+	va_start(args, format);
+	acpi_os_vprintf(format, args);
+	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+}
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_exception(char *module_name,
+		  u32 line_number, acpi_status status, char *format, ...)
+{
+	va_list args;
+
+	acpi_os_printf("ACPI Exception (%s-%04d): %s, ", module_name,
+		       line_number, acpi_format_exception(status));
+
+	va_start(args, format);
+	acpi_os_vprintf(format, args);
+	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+}
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_warning(char *module_name, u32 line_number, char *format, ...)
+{
+	va_list args;
+
+	acpi_os_printf("ACPI Warning (%s-%04d): ", module_name, line_number);
+
+	va_start(args, format);
+	acpi_os_vprintf(format, args);
+	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+}
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
+{
+	va_list args;
+
+	acpi_os_printf("ACPI (%s-%04d): ", module_name, line_number);
+
+	va_start(args, format);
+	acpi_os_vprintf(format, args);
+	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_report_error, Warning, Info
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
@@ -845,6 +911,8 @@ u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
  * RETURN:      None
  *
  * DESCRIPTION: Print error message
+ *
+ * Note: Legacy only, should be removed when no longer used by drivers.
  *
  ******************************************************************************/
 
@@ -854,37 +922,11 @@ void acpi_ut_report_error(char *module_name, u32 line_number)
 	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
 }
 
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_report_warning
- *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print warning message
- *
- ******************************************************************************/
-
 void acpi_ut_report_warning(char *module_name, u32 line_number)
 {
 
 	acpi_os_printf("ACPI Warning (%s-%04d): ", module_name, line_number);
 }
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_report_info
- *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print information message
- *
- ******************************************************************************/
 
 void acpi_ut_report_info(char *module_name, u32 line_number)
 {

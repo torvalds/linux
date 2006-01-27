@@ -260,7 +260,9 @@ acpi_ds_method_data_get_node(u16 opcode,
 	case AML_LOCAL_OP:
 
 		if (index > ACPI_METHOD_MAX_LOCAL) {
-			ACPI_REPORT_ERROR(("Local index %d is invalid (max %d)\n", index, ACPI_METHOD_MAX_LOCAL));
+			ACPI_ERROR((AE_INFO,
+				    "Local index %d is invalid (max %d)",
+				    index, ACPI_METHOD_MAX_LOCAL));
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
 
@@ -272,8 +274,9 @@ acpi_ds_method_data_get_node(u16 opcode,
 	case AML_ARG_OP:
 
 		if (index > ACPI_METHOD_MAX_ARG) {
-			ACPI_REPORT_ERROR(("Arg index %d is invalid (max %d)\n",
-					   index, ACPI_METHOD_MAX_ARG));
+			ACPI_ERROR((AE_INFO,
+				    "Arg index %d is invalid (max %d)",
+				    index, ACPI_METHOD_MAX_ARG));
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
 
@@ -283,7 +286,7 @@ acpi_ds_method_data_get_node(u16 opcode,
 		break;
 
 	default:
-		ACPI_REPORT_ERROR(("Opcode %d is invalid\n", opcode));
+		ACPI_ERROR((AE_INFO, "Opcode %d is invalid", opcode));
 		return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 	}
 
@@ -374,7 +377,7 @@ acpi_ds_method_data_get_value(u16 opcode,
 	/* Validate the object descriptor */
 
 	if (!dest_desc) {
-		ACPI_REPORT_ERROR(("Null object descriptor pointer\n"));
+		ACPI_ERROR((AE_INFO, "Null object descriptor pointer"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -419,18 +422,24 @@ acpi_ds_method_data_get_value(u16 opcode,
 			switch (opcode) {
 			case AML_ARG_OP:
 
-				ACPI_REPORT_ERROR(("Uninitialized Arg[%d] at node %p\n", index, node));
+				ACPI_ERROR((AE_INFO,
+					    "Uninitialized Arg[%d] at node %p",
+					    index, node));
 
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
 
 			case AML_LOCAL_OP:
 
-				ACPI_REPORT_ERROR(("Uninitialized Local[%d] at node %p\n", index, node));
+				ACPI_ERROR((AE_INFO,
+					    "Uninitialized Local[%d] at node %p",
+					    index, node));
 
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_LOCAL);
 
 			default:
-				ACPI_REPORT_ERROR(("Not a Arg/Local opcode: %X\n", opcode));
+				ACPI_ERROR((AE_INFO,
+					    "Not a Arg/Local opcode: %X",
+					    opcode));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
 	}

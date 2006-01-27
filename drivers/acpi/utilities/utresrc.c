@@ -486,6 +486,7 @@ u32 acpi_ut_get_descriptor_length(void *aml)
  * RETURN:      Status, pointer to the end tag
  *
  * DESCRIPTION: Find the end_tag resource descriptor in an AML resource template
+ *              Note: allows a buffer length of zero.
  *
  ******************************************************************************/
 
@@ -504,6 +505,13 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 	aml = obj_desc->buffer.pointer;
 	end_aml = aml + obj_desc->buffer.length;
 
+	/* Allow a buffer length of zero */
+
+	if (!obj_desc->buffer.length) {
+		*end_tag = aml;
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	/* Walk the resource template, one descriptor per iteration */
 
 	while (aml < end_aml) {
@@ -518,6 +526,14 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 
 		if (acpi_ut_get_resource_type(aml) ==
 		    ACPI_RESOURCE_NAME_END_TAG) {
+			/*
+			 * There must be at least one more byte in the buffer for
+			 * the 2nd byte of the end_tag
+			 */
+			if ((aml + 1) >= end_aml) {
+				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+			}
+
 			/* Return the pointer to the end_tag */
 
 			*end_tag = aml;

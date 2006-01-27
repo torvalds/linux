@@ -110,7 +110,9 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 	name_buffer[index] = AML_ROOT_PREFIX;
 
 	if (index != 0) {
-		ACPI_REPORT_ERROR(("Could not construct pathname; index=%X, size=%X, Path=%s\n", (u32) index, (u32) size, &name_buffer[size]));
+		ACPI_ERROR((AE_INFO,
+			    "Could not construct pathname; index=%X, size=%X, Path=%s",
+			    (u32) index, (u32) size, &name_buffer[size]));
 	}
 
 	return;
@@ -146,7 +148,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	name_buffer = ACPI_MEM_CALLOCATE(size);
 	if (!name_buffer) {
-		ACPI_REPORT_ERROR(("Allocation failure\n"));
+		ACPI_ERROR((AE_INFO, "Allocation failure"));
 		return_PTR(NULL);
 	}
 

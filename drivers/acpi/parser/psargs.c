@@ -298,7 +298,9 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		acpi_ps_append_arg(arg, name_op);
 
 		if (!method_desc) {
-			ACPI_REPORT_ERROR(("Control Method %p has no attached object\n", node));
+			ACPI_ERROR((AE_INFO,
+				    "Control Method %p has no attached object",
+				    node));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
@@ -348,7 +350,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	/* Final exception check (may have been changed from code above) */
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_NSERROR(path, status);
+		ACPI_ERROR_NAMESPACE(path, status);
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		    ACPI_PARSE_EXECUTE) {
@@ -451,7 +453,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 
 	default:
 
-		ACPI_REPORT_ERROR(("Invalid arg_type %X\n", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid arg_type %X", arg_type));
 		return_VOID;
 	}
 
@@ -709,7 +711,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_REPORT_ERROR(("Invalid arg_type: %X\n", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid arg_type: %X", arg_type));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}

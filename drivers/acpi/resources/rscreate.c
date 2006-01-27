@@ -207,14 +207,20 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* Each element of the top-level package must also be a package */
 
 		if (ACPI_GET_OBJECT_TYPE(*top_object_list) != ACPI_TYPE_PACKAGE) {
-			ACPI_REPORT_ERROR(("(PRT[%X]) Need sub-package, found %s\n", index, acpi_ut_get_object_type_name(*top_object_list)));
+			ACPI_ERROR((AE_INFO,
+				    "(PRT[%X]) Need sub-package, found %s",
+				    index,
+				    acpi_ut_get_object_type_name
+				    (*top_object_list)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		/* Each sub-package must be of length 4 */
 
 		if ((*top_object_list)->package.count != 4) {
-			ACPI_REPORT_ERROR(("(PRT[%X]) Need package of length 4, found length %d\n", index, (*top_object_list)->package.count));
+			ACPI_ERROR((AE_INFO,
+				    "(PRT[%X]) Need package of length 4, found length %d",
+				    index, (*top_object_list)->package.count));
 			return_ACPI_STATUS(AE_AML_PACKAGE_LIMIT);
 		}
 
@@ -231,7 +237,10 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->address = obj_desc->integer.value;
 		} else {
-			ACPI_REPORT_ERROR(("(PRT[%X].Address) Need Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
+			ACPI_ERROR((AE_INFO,
+				    "(PRT[%X].Address) Need Integer, found %s",
+				    index,
+				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
@@ -241,65 +250,83 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->pin = (u32) obj_desc->integer.value;
 		} else {
-			ACPI_REPORT_ERROR(("(PRT[%X].Pin) Need Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
+			ACPI_ERROR((AE_INFO,
+				    "(PRT[%X].Pin) Need Integer, found %s",
+				    index,
+				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
-		/* 3) Third subobject: Dereference the PRT.source_name */
-
+		/*
+		 * 3) Third subobject: Dereference the PRT.source_name
+		 * The name may be unresolved (slack mode), so allow a null object
+		 */
 		obj_desc = sub_object_list[2];
-		switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
-		case ACPI_TYPE_LOCAL_REFERENCE:
+		if (obj_desc) {
+			switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+			case ACPI_TYPE_LOCAL_REFERENCE:
 
-			if (obj_desc->reference.opcode != AML_INT_NAMEPATH_OP) {
-				ACPI_REPORT_ERROR(("(PRT[%X].Source) Need name, found reference op %X\n", index, obj_desc->reference.opcode));
+				if (obj_desc->reference.opcode !=
+				    AML_INT_NAMEPATH_OP) {
+					ACPI_ERROR((AE_INFO,
+						    "(PRT[%X].Source) Need name, found reference op %X",
+						    index,
+						    obj_desc->reference.
+						    opcode));
+					return_ACPI_STATUS(AE_BAD_DATA);
+				}
+
+				node = obj_desc->reference.node;
+
+				/* Use *remaining* length of the buffer as max for pathname */
+
+				path_buffer.length = output_buffer->length -
+				    (u32) ((u8 *) user_prt->source -
+					   (u8 *) output_buffer->pointer);
+				path_buffer.pointer = user_prt->source;
+
+				status =
+				    acpi_ns_handle_to_pathname((acpi_handle)
+							       node,
+							       &path_buffer);
+
+				/* +1 to include null terminator */
+
+				user_prt->length +=
+				    (u32) ACPI_STRLEN(user_prt->source) + 1;
+				break;
+
+			case ACPI_TYPE_STRING:
+
+				ACPI_STRCPY(user_prt->source,
+					    obj_desc->string.pointer);
+
+				/*
+				 * Add to the Length field the length of the string
+				 * (add 1 for terminator)
+				 */
+				user_prt->length += obj_desc->string.length + 1;
+				break;
+
+			case ACPI_TYPE_INTEGER:
+				/*
+				 * If this is a number, then the Source Name is NULL, since the
+				 * entire buffer was zeroed out, we can leave this alone.
+				 *
+				 * Add to the Length field the length of the u32 NULL
+				 */
+				user_prt->length += sizeof(u32);
+				break;
+
+			default:
+
+				ACPI_ERROR((AE_INFO,
+					    "(PRT[%X].Source) Need Ref/String/Integer, found %s",
+					    index,
+					    acpi_ut_get_object_type_name
+					    (obj_desc)));
 				return_ACPI_STATUS(AE_BAD_DATA);
 			}
-
-			node = obj_desc->reference.node;
-
-			/* Use *remaining* length of the buffer as max for pathname */
-
-			path_buffer.length = output_buffer->length -
-			    (u32) ((u8 *) user_prt->source -
-				   (u8 *) output_buffer->pointer);
-			path_buffer.pointer = user_prt->source;
-
-			status =
-			    acpi_ns_handle_to_pathname((acpi_handle) node,
-						       &path_buffer);
-
-			/* +1 to include null terminator */
-
-			user_prt->length +=
-			    (u32) ACPI_STRLEN(user_prt->source) + 1;
-			break;
-
-		case ACPI_TYPE_STRING:
-
-			ACPI_STRCPY(user_prt->source, obj_desc->string.pointer);
-
-			/*
-			 * Add to the Length field the length of the string
-			 * (add 1 for terminator)
-			 */
-			user_prt->length += obj_desc->string.length + 1;
-			break;
-
-		case ACPI_TYPE_INTEGER:
-			/*
-			 * If this is a number, then the Source Name is NULL, since the
-			 * entire buffer was zeroed out, we can leave this alone.
-			 *
-			 * Add to the Length field the length of the u32 NULL
-			 */
-			user_prt->length += sizeof(u32);
-			break;
-
-		default:
-
-			ACPI_REPORT_ERROR(("(PRT[%X].Source) Need Ref/String/Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
-			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
 		/* Now align the current length */
@@ -313,7 +340,10 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
 			user_prt->source_index = (u32) obj_desc->integer.value;
 		} else {
-			ACPI_REPORT_ERROR(("(PRT[%X].source_index) Need Integer, found %s\n", index, acpi_ut_get_object_type_name(obj_desc)));
+			ACPI_ERROR((AE_INFO,
+				    "(PRT[%X].source_index) Need Integer, found %s",
+				    index,
+				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 

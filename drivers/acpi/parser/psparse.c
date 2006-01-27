@@ -512,9 +512,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		} else if ((status != AE_OK) && (walk_state->method_desc)) {
 			/* Either the method parse or actual execution failed */
 
-			ACPI_REPORT_MTERROR("Method parse/execution failed",
-					    walk_state->method_node, NULL,
-					    status);
+			ACPI_ERROR_METHOD("Method parse/execution failed",
+					  walk_state->method_node, NULL,
+					  status);
 
 			/* Check for possible multi-thread reentrancy problem */
 
@@ -558,7 +558,8 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 					walk_state->method_desc->method.
 					    thread_count--;
 				} else {
-					ACPI_REPORT_ERROR(("Invalid zero thread count in method\n"));
+					ACPI_ERROR((AE_INFO,
+						    "Invalid zero thread count in method"));
 				}
 			}
 

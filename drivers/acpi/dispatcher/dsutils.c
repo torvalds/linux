@@ -176,7 +176,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	/* Must have both an Op and a Result Object */
 
 	if (!op) {
-		ACPI_REPORT_ERROR(("Null Op\n"));
+		ACPI_ERROR((AE_INFO, "Null Op"));
 		return_UINT8(TRUE);
 	}
 
@@ -216,7 +216,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	parent_info =
 	    acpi_ps_get_opcode_info(op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
-		ACPI_REPORT_ERROR(("Unknown parent opcode Op=%p\n", op));
+		ACPI_ERROR((AE_INFO, "Unknown parent opcode Op=%p", op));
 		return_UINT8(FALSE);
 	}
 
@@ -343,7 +343,7 @@ acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
 	ACPI_FUNCTION_TRACE_PTR("ds_delete_result_if_not_used", result_obj);
 
 	if (!op) {
-		ACPI_REPORT_ERROR(("Null Op\n"));
+		ACPI_ERROR((AE_INFO, "Null Op"));
 		return_VOID;
 	}
 
@@ -566,7 +566,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			}
 
 			if (ACPI_FAILURE(status)) {
-				ACPI_REPORT_NSERROR(name_string, status);
+				ACPI_ERROR_NAMESPACE(name_string, status);
 			}
 		}
 
@@ -634,7 +634,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 				 * Only error is underflow, and this indicates
 				 * a missing or null operand!
 				 */
-				ACPI_REPORT_ERROR(("Missing or null operand, %s\n", acpi_format_exception(status)));
+				ACPI_EXCEPTION((AE_INFO, status,
+						"Missing or null operand"));
 				return_ACPI_STATUS(status);
 			}
 		} else {
@@ -726,7 +727,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 	 */
 	(void)acpi_ds_obj_stack_pop_and_delete(arg_count, walk_state);
 
-	ACPI_REPORT_ERROR(("While creating Arg %d - %s\n",
-			   (arg_count + 1), acpi_format_exception(status)));
+	ACPI_EXCEPTION((AE_INFO, status, "While creating Arg %d",
+			(arg_count + 1)));
 	return_ACPI_STATUS(status);
 }

@@ -93,8 +93,7 @@ acpi_status acpi_ns_initialize_objects(void)
 				     ACPI_UINT32_MAX, acpi_ns_init_one_object,
 				     &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("walk_namespace failed! %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
@@ -159,12 +158,11 @@ acpi_status acpi_ns_initialize_devices(void)
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("walk_namespace failed! %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\n%hd Devices found containing: %hd _STA, %hd _INI methods\n",
+			      "\n%hd Devices found - executed %hd _STA, %hd _INI methods\n",
 			      info.device_count, info.num_STA, info.num_INI));
 
 	return_ACPI_STATUS(status);
@@ -289,7 +287,10 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("\nCould not execute arguments for [%4.4s] (%s), %s\n", acpi_ut_get_node_name(node), acpi_ut_get_type_name(type), acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not execute arguments for [%4.4s] (%s)",
+				acpi_ut_get_node_name(node),
+				acpi_ut_get_type_name(type)));
 	}
 
 	/*
@@ -416,9 +417,8 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 #ifdef ACPI_DEBUG_OUTPUT
 		char *scope_name = acpi_ns_get_external_pathname(ini_node);
 
-		ACPI_REPORT_WARNING(("%s._INI failed: %s\n",
-				     scope_name,
-				     acpi_format_exception(status)));
+		ACPI_WARNING((AE_INFO, "%s._INI failed: %s",
+			      scope_name, acpi_format_exception(status)));
 
 		ACPI_MEM_FREE(scope_name);
 #endif

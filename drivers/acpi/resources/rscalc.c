@@ -541,13 +541,13 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		for (table_index = 0; table_index < 4 && !name_found;
 		     table_index++) {
-			if ((ACPI_TYPE_STRING ==
-			     ACPI_GET_OBJECT_TYPE(*sub_object_list))
-			    ||
-			    ((ACPI_TYPE_LOCAL_REFERENCE ==
-			      ACPI_GET_OBJECT_TYPE(*sub_object_list))
-			     && ((*sub_object_list)->reference.opcode ==
-				 AML_INT_NAMEPATH_OP))) {
+			if (*sub_object_list &&	/* Null object allowed */
+			    ((ACPI_TYPE_STRING ==
+			      ACPI_GET_OBJECT_TYPE(*sub_object_list)) ||
+			     ((ACPI_TYPE_LOCAL_REFERENCE ==
+			       ACPI_GET_OBJECT_TYPE(*sub_object_list)) &&
+			      ((*sub_object_list)->reference.opcode ==
+			       AML_INT_NAMEPATH_OP)))) {
 				name_found = TRUE;
 			} else {
 				/* Look at the next element */

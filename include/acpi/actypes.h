@@ -237,17 +237,22 @@ typedef char *acpi_physical_address;
 #error unknown ACPI_MACHINE_WIDTH
 #endif
 
+/* Variable-width type, used instead of clib size_t */
+
+typedef acpi_native_uint acpi_size;
+
 /*******************************************************************************
  *
  * OS- or compiler-dependent types
  *
+ * If the defaults below are not appropriate for the host system, they can
+ * be defined in the compiler-specific or OS-specific header, and this will
+ * take precedence.
+ *
  ******************************************************************************/
 
-/*
- * If acpi_uintptr_t was not defined in the OS- or compiler-dependent header,
- * define it now (use C99 uintptr_t for pointer casting if available,
- * "void *" otherwise)
- */
+/* Use C99 uintptr_t for pointer casting if available, "void *" otherwise */
+
 #ifndef acpi_uintptr_t
 #define acpi_uintptr_t                          void *
 #endif
@@ -261,9 +266,31 @@ typedef char *acpi_physical_address;
 #define acpi_cache_t                            struct acpi_memory_list
 #endif
 
-/* Variable-width type, used instead of clib size_t */
+/*
+ * Allow the CPU flags word to be defined per-OS to simplify the use of the
+ * lock and unlock OSL interfaces.
+ */
+#ifndef acpi_cpu_flags
+#define acpi_cpu_flags                          acpi_native_uint
+#endif
 
-typedef acpi_native_uint acpi_size;
+/*
+ * ACPI_PRINTF_LIKE is used to tag functions as "printf-like" because
+ * some compilers can catch printf format string problems
+ */
+#ifndef ACPI_PRINTF_LIKE
+#define ACPI_PRINTF_LIKE(c)
+#endif
+
+/*
+ * Some compilers complain about unused variables. Sometimes we don't want to
+ * use all the variables (for example, _acpi_module_name). This allows us
+ * to to tell the compiler in a per-variable manner that a variable
+ * is unused
+ */
+#ifndef ACPI_UNUSED_VAR
+#define ACPI_UNUSED_VAR
+#endif
 
 /*******************************************************************************
  *

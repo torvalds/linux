@@ -99,8 +99,8 @@ static char *acpi_ex_allocate_name_string(u32 prefix_count, u32 num_name_segs)
 	 */
 	name_string = ACPI_MEM_ALLOCATE(size_needed);
 	if (!name_string) {
-		ACPI_REPORT_ERROR(("Could not allocate size %d\n",
-				   size_needed));
+		ACPI_ERROR((AE_INFO,
+			    "Could not allocate size %d", size_needed));
 		return_PTR(NULL);
 	}
 
@@ -168,7 +168,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 	char_buf[0] = *aml_address;
 
 	if ('0' <= char_buf[0] && char_buf[0] <= '9') {
-		ACPI_REPORT_ERROR(("Invalid leading digit: %c\n", char_buf[0]));
+		ACPI_ERROR((AE_INFO, "Invalid leading digit: %c", char_buf[0]));
 		return_ACPI_STATUS(AE_CTRL_PENDING);
 	}
 
@@ -211,8 +211,9 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		 * the required 4
 		 */
 		status = AE_AML_BAD_NAME;
-		ACPI_REPORT_ERROR(("Bad character %02x in name, at %p\n",
-				   *aml_address, aml_address));
+		ACPI_ERROR((AE_INFO,
+			    "Bad character %02x in name, at %p",
+			    *aml_address, aml_address));
 	}
 
 	*in_aml_address = ACPI_CAST_PTR(u8, aml_address);
@@ -411,7 +412,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 	if (AE_CTRL_PENDING == status && has_prefix) {
 		/* Ran out of segments after processing a prefix */
 
-		ACPI_REPORT_ERROR(("Malformed Name at %p\n", name_string));
+		ACPI_ERROR((AE_INFO, "Malformed Name at %p", name_string));
 		status = AE_AML_BAD_NAME;
 	}
 

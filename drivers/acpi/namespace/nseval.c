@@ -373,7 +373,7 @@ acpi_ns_execute_control_method(struct acpi_parameter_info *info)
 
 	info->obj_desc = acpi_ns_get_attached_object(info->node);
 	if (!info->obj_desc) {
-		ACPI_REPORT_ERROR(("No attached method object\n"));
+		ACPI_ERROR((AE_INFO, "No attached method object"));
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		return_ACPI_STATUS(AE_NULL_OBJECT);

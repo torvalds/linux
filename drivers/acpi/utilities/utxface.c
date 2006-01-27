@@ -75,8 +75,7 @@ acpi_status acpi_initialize_subsystem(void)
 
 	status = acpi_os_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("OSL failed to initialize, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During OSL initialization"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -88,8 +87,8 @@ acpi_status acpi_initialize_subsystem(void)
 
 	status = acpi_ut_mutex_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Global mutex creation failure, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During Global Mutex creation"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -99,15 +98,14 @@ acpi_status acpi_initialize_subsystem(void)
 	 */
 	status = acpi_ns_root_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Namespace initialization failure, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During Namespace initialization"));
 		return_ACPI_STATUS(status);
 	}
 
 	/* If configured, initialize the AML debugger */
 
 	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
-
 	return_ACPI_STATUS(status);
 }
 
@@ -154,7 +152,7 @@ acpi_status acpi_enable_subsystem(u32 flags)
 
 		status = acpi_enable();
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_WARNING(("acpi_enable failed\n"));
+			ACPI_WARNING((AE_INFO, "acpi_enable failed"));
 			return_ACPI_STATUS(status);
 		}
 	}

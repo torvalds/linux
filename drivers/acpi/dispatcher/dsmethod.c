@@ -141,7 +141,8 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node * method_node,
 	/* Prevent wraparound of thread count */
 
 	if (obj_desc->method.thread_count == ACPI_UINT8_MAX) {
-		ACPI_REPORT_ERROR(("Method reached maximum reentrancy limit (255)\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Method reached maximum reentrancy limit (255)"));
 		return_ACPI_STATUS(AE_AML_METHOD_LIMIT);
 	}
 
@@ -470,7 +471,8 @@ void acpi_ds_terminate_control_method(struct acpi_walk_state *walk_state)
 		    acpi_os_signal_semaphore(walk_state->method_desc->method.
 					     semaphore, 1);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not signal method semaphore\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Could not signal method semaphore"));
 
 			/* Ignore error and continue cleanup */
 		}

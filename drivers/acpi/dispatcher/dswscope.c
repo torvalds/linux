@@ -107,14 +107,14 @@ acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
 	if (!node) {
 		/* Invalid scope   */
 
-		ACPI_REPORT_ERROR(("Null scope parameter\n"));
+		ACPI_ERROR((AE_INFO, "Null scope parameter"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Make sure object type is valid */
 
 	if (!acpi_ut_valid_object_type(type)) {
-		ACPI_REPORT_WARNING(("Invalid object type: 0x%X\n", type));
+		ACPI_WARNING((AE_INFO, "Invalid object type: 0x%X", type));
 	}
 
 	/* Allocate a new scope object */

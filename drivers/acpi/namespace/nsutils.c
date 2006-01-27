@@ -85,7 +85,7 @@ acpi_ns_report_error(char *module_name,
 	if (lookup_status == AE_BAD_CHARACTER) {
 		/* There is a non-ascii character in the name */
 
-		acpi_os_printf("[0x%4.4X] (NON-ASCII)\n",
+		acpi_os_printf("[0x%4.4X] (NON-ASCII)",
 			       *(ACPI_CAST_PTR(u32, internal_name)));
 	} else {
 		/* Convert path to external format */
@@ -106,7 +106,7 @@ acpi_ns_report_error(char *module_name,
 		}
 	}
 
-	acpi_os_printf("Namespace lookup failure, %s\n",
+	acpi_os_printf(" Namespace lookup failure, %s\n",
 		       acpi_format_exception(lookup_status));
 }
 
@@ -242,7 +242,7 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
 	ACPI_FUNCTION_TRACE("ns_get_type");
 
 	if (!node) {
-		ACPI_REPORT_WARNING(("Null Node parameter\n"));
+		ACPI_WARNING((AE_INFO, "Null Node parameter"));
 		return_UINT32(ACPI_TYPE_ANY);
 	}
 
@@ -269,7 +269,7 @@ u32 acpi_ns_local(acpi_object_type type)
 	if (!acpi_ut_valid_object_type(type)) {
 		/* Type code out of range  */
 
-		ACPI_REPORT_WARNING(("Invalid Object Type %X\n", type));
+		ACPI_WARNING((AE_INFO, "Invalid Object Type %X", type));
 		return_UINT32(ACPI_NS_NORMAL);
 	}
 
@@ -621,7 +621,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	 * with internal_name (invalid format).
 	 */
 	if (required_length > internal_name_length) {
-		ACPI_REPORT_ERROR(("Invalid internal name\n"));
+		ACPI_ERROR((AE_INFO, "Invalid internal name"));
 		return_ACPI_STATUS(AE_BAD_PATHNAME);
 	}
 
@@ -797,7 +797,7 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 	if (!acpi_ut_valid_object_type(type)) {
 		/* type code out of range  */
 
-		ACPI_REPORT_WARNING(("Invalid Object Type %X\n", type));
+		ACPI_WARNING((AE_INFO, "Invalid Object Type %X", type));
 		return_UINT32(ACPI_NS_NORMAL);
 	}
 

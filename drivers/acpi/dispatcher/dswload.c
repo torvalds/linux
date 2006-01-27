@@ -187,7 +187,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		}
 #endif
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_NSERROR(path, status);
+			ACPI_ERROR_NAMESPACE(path, status);
 			return_ACPI_STATUS(status);
 		}
 
@@ -233,7 +233,9 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 
 			/* All other types are an error */
 
-			ACPI_REPORT_ERROR(("Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)\n", acpi_ut_get_type_name(node->type), path));
+			ACPI_ERROR((AE_INFO,
+				    "Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)",
+				    acpi_ut_get_type_name(node->type), path));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -300,7 +302,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 				   ACPI_IMODE_LOAD_PASS1, flags, walk_state,
 				   &(node));
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_NSERROR(path, status);
+			ACPI_ERROR_NAMESPACE(path, status);
 			return_ACPI_STATUS(status);
 		}
 		break;
@@ -618,10 +620,10 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			if (status == AE_NOT_FOUND) {
 				status = AE_OK;
 			} else {
-				ACPI_REPORT_NSERROR(buffer_ptr, status);
+				ACPI_ERROR_NAMESPACE(buffer_ptr, status);
 			}
 #else
-			ACPI_REPORT_NSERROR(buffer_ptr, status);
+			ACPI_ERROR_NAMESPACE(buffer_ptr, status);
 #endif
 			return_ACPI_STATUS(status);
 		}
@@ -651,7 +653,10 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			 *  Scope (DEB) { ... }
 			 */
 
-			ACPI_REPORT_WARNING(("Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n", buffer_ptr, acpi_ut_get_type_name(node->type)));
+			ACPI_WARNING((AE_INFO,
+				      "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)",
+				      buffer_ptr,
+				      acpi_ut_get_type_name(node->type)));
 
 			node->type = ACPI_TYPE_ANY;
 			walk_state->scope_info->common.value = ACPI_TYPE_ANY;
@@ -661,7 +666,10 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 
 			/* All other types are an error */
 
-			ACPI_REPORT_ERROR(("Invalid type (%s) for target of Scope operator [%4.4s]\n", acpi_ut_get_type_name(node->type), buffer_ptr));
+			ACPI_ERROR((AE_INFO,
+				    "Invalid type (%s) for target of Scope operator [%4.4s]",
+				    acpi_ut_get_type_name(node->type),
+				    buffer_ptr));
 
 			return (AE_AML_OPERAND_TYPE);
 		}
@@ -714,7 +722,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_NSERROR(buffer_ptr, status);
+		ACPI_ERROR_NAMESPACE(buffer_ptr, status);
 		return_ACPI_STATUS(status);
 	}
 
@@ -1112,7 +1120,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			 */
 			op->common.node = new_node;
 		} else {
-			ACPI_REPORT_NSERROR(arg->common.value.string, status);
+			ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
 		}
 		break;
 

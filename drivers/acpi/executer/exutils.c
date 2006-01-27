@@ -91,7 +91,7 @@ acpi_status acpi_ex_enter_interpreter(void)
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EXECUTE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not acquire interpreter mutex\n"));
+		ACPI_ERROR((AE_INFO, "Could not acquire interpreter mutex"));
 	}
 
 	return_ACPI_STATUS(status);
@@ -127,7 +127,7 @@ void acpi_ex_exit_interpreter(void)
 
 	status = acpi_ut_release_mutex(ACPI_MTX_EXECUTE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not release interpreter mutex\n"));
+		ACPI_ERROR((AE_INFO, "Could not release interpreter mutex"));
 	}
 
 	return_VOID;
@@ -200,7 +200,8 @@ u8 acpi_ex_acquire_global_lock(u32 field_flags)
 		if (ACPI_SUCCESS(status)) {
 			locked = TRUE;
 		} else {
-			ACPI_REPORT_ERROR(("Could not acquire Global Lock, %s\n", acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not acquire Global Lock"));
 		}
 	}
 
@@ -235,7 +236,8 @@ void acpi_ex_release_global_lock(u8 locked_by_me)
 		if (ACPI_FAILURE(status)) {
 			/* Report the error, but there isn't much else we can do */
 
-			ACPI_REPORT_ERROR(("Could not release ACPI Global Lock, %s\n", acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not release ACPI Global Lock"));
 		}
 	}
 

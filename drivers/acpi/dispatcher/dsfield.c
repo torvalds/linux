@@ -128,7 +128,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 				   ACPI_IMODE_LOAD_PASS1, flags, walk_state,
 				   &(node));
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_NSERROR(arg->common.value.string, status);
+			ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -232,7 +232,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			    + (acpi_integer) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
-				ACPI_REPORT_ERROR(("Bit offset within field too large (> 0xFFFFFFFF)\n"));
+				ACPI_ERROR((AE_INFO,
+					    "Bit offset within field too large (> 0xFFFFFFFF)"));
 				return_ACPI_STATUS(AE_SUPPORT);
 			}
 
@@ -268,8 +269,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 						ACPI_NS_DONT_OPEN_SCOPE,
 						walk_state, &info->field_node);
 			if (ACPI_FAILURE(status)) {
-				ACPI_REPORT_NSERROR((char *)&arg->named.name,
-						    status);
+				ACPI_ERROR_NAMESPACE((char *)&arg->named.name,
+						     status);
 				if (status != AE_ALREADY_EXISTS) {
 					return_ACPI_STATUS(status);
 				}
@@ -293,7 +294,11 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			    + (acpi_integer) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
-				ACPI_REPORT_ERROR(("Field [%4.4s] bit offset too large (> 0xFFFFFFFF)\n", ACPI_CAST_PTR(char, &info->field_node->name)));
+				ACPI_ERROR((AE_INFO,
+					    "Field [%4.4s] bit offset too large (> 0xFFFFFFFF)",
+					    ACPI_CAST_PTR(char,
+							  &info->field_node->
+							  name)));
 				return_ACPI_STATUS(AE_SUPPORT);
 			}
 
@@ -302,8 +307,9 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 
 		default:
 
-			ACPI_REPORT_ERROR(("Invalid opcode in field list: %X\n",
-					   arg->common.aml_opcode));
+			ACPI_ERROR((AE_INFO,
+				    "Invalid opcode in field list: %X",
+				    arg->common.aml_opcode));
 			return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 		}
 
@@ -348,7 +354,7 @@ acpi_ds_create_field(union acpi_parse_object *op,
 				   ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
 				   walk_state, &region_node);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_NSERROR(arg->common.value.name, status);
+			ACPI_ERROR_NAMESPACE(arg->common.value.name, status);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -430,8 +436,8 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 						ACPI_NS_ERROR_IF_FOUND,
 						walk_state, &node);
 			if (ACPI_FAILURE(status)) {
-				ACPI_REPORT_NSERROR((char *)&arg->named.name,
-						    status);
+				ACPI_ERROR_NAMESPACE((char *)&arg->named.name,
+						     status);
 				if (status != AE_ALREADY_EXISTS) {
 					return_ACPI_STATUS(status);
 				}
@@ -487,7 +493,7 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 				   ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
 				   walk_state, &region_node);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_NSERROR(arg->common.value.name, status);
+			ACPI_ERROR_NAMESPACE(arg->common.value.name, status);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -501,7 +507,7 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 			   ACPI_NS_SEARCH_PARENT, walk_state,
 			   &info.register_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_NSERROR(arg->common.value.string, status);
+		ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
 		return_ACPI_STATUS(status);
 	}
 
@@ -559,7 +565,7 @@ acpi_ds_create_index_field(union acpi_parse_object *op,
 			   ACPI_NS_SEARCH_PARENT, walk_state,
 			   &info.register_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_NSERROR(arg->common.value.string, status);
+		ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
 		return_ACPI_STATUS(status);
 	}
 
@@ -572,7 +578,7 @@ acpi_ds_create_index_field(union acpi_parse_object *op,
 			   ACPI_NS_SEARCH_PARENT, walk_state,
 			   &info.data_register_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_NSERROR(arg->common.value.string, status);
+		ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
 		return_ACPI_STATUS(status);
 	}
 

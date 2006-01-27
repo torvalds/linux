@@ -275,20 +275,22 @@ acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
 		 char *module_name, u32 component_id, u8 * ptr);
 
+void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
+
 void acpi_ut_report_error(char *module_name, u32 line_number);
 
 void acpi_ut_report_info(char *module_name, u32 line_number);
 
 void acpi_ut_report_warning(char *module_name, u32 line_number);
 
-void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
+/* Error and message reporting interfaces */
 
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print(u32 requested_debug_level,
 		    u32 line_number,
 		    const char *function_name,
 		    char *module_name,
-		    u32 component_id, char *format, ...) ACPI_PRINTF_LIKE_FUNC;
+		    u32 component_id, char *format, ...) ACPI_PRINTF_LIKE(6);
 
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw(u32 requested_debug_level,
@@ -296,7 +298,24 @@ acpi_ut_debug_print_raw(u32 requested_debug_level,
 			const char *function_name,
 			char *module_name,
 			u32 component_id,
-			char *format, ...) ACPI_PRINTF_LIKE_FUNC;
+			char *format, ...) ACPI_PRINTF_LIKE(6);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_error(char *module_name,
+	      u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_exception(char *module_name,
+		  u32 line_number,
+		  acpi_status status, char *format, ...) ACPI_PRINTF_LIKE(4);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_warning(char *module_name,
+		u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_info(char *module_name,
+	     u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
 
 /*
  * utdelete - Object deletion and reference counts

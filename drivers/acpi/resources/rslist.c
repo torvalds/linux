@@ -94,7 +94,9 @@ acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
 						    acpi_gbl_get_resource_dispatch
 						    [resource_index]);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not convert AML resource (Type %X) to resource, %s\n", *aml, acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not convert AML resource (Type %X)",
+					*aml));
 			return_ACPI_STATUS(status);
 		}
 
@@ -156,7 +158,9 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		/* Validate the (internal) Resource Type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
-			ACPI_REPORT_ERROR(("Invalid descriptor type (%X) in resource list\n", resource->type));
+			ACPI_ERROR((AE_INFO,
+				    "Invalid descriptor type (%X) in resource list",
+				    resource->type));
 			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
@@ -169,7 +173,9 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 							 acpi_gbl_set_resource_dispatch
 							 [resource->type]);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not convert resource (type %X) to AML, %s\n", resource->type, acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not convert resource (type %X) to AML",
+					resource->type));
 			return_ACPI_STATUS(status);
 		}
 

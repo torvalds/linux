@@ -692,7 +692,11 @@ void acpi_rs_dump_irq_list(u8 * route_table)
 
 static void acpi_rs_out_string(char *title, char *value)
 {
-	acpi_os_printf("%27s : %s\n", title, value);
+	acpi_os_printf("%27s : %s", title, value);
+	if (!*value) {
+		acpi_os_printf("[NULL NAMESTRING]");
+	}
+	acpi_os_printf("\n");
 }
 
 static void acpi_rs_out_integer8(char *title, u8 value)

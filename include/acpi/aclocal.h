@@ -416,13 +416,13 @@ struct acpi_field_info {
 #define ACPI_CONTROL_PREDICATE_FALSE         0xC3
 #define ACPI_CONTROL_PREDICATE_TRUE          0xC4
 
-#define ACPI_STATE_COMMON                  /* Two 32-bit fields and a pointer */\
-	u8                                  data_type;          /* To differentiate various internal objs */\
+#define ACPI_STATE_COMMON   /* Two 32-bit fields and a pointer */\
+	u8                                  data_type;  /* To differentiate various internal objs */\
 	u8                                  flags;      \
 	u16                                 value;      \
 	u16                                 state;      \
 	u16                                 reserved;   \
-	void                                *next;      \
+	void                                *next;
 
 struct acpi_common_state {
 ACPI_STATE_COMMON};
@@ -575,8 +575,7 @@ union acpi_parse_value {
 	char                                aml_op_name[16]) /* Op name (debug only) */\
 			   /* NON-DEBUG members below: */\
 	struct acpi_namespace_node          *node;          /* For use by interpreter */\
-	union acpi_parse_value              value;          /* Value or args associated with the opcode */\
-
+	union acpi_parse_value              value;	/* Value or args associated with the opcode */
 
 #define ACPI_DASM_BUFFER        0x00
 #define ACPI_DASM_RESOURCE      0x01

@@ -298,15 +298,17 @@ acpi_ns_search_and_enter(u32 target_name,
 	/* Parameter validation */
 
 	if (!node || !target_name || !return_node) {
-		ACPI_REPORT_ERROR(("Null param: Node %p Name %X return_node %p\n", node, target_name, return_node));
+		ACPI_ERROR((AE_INFO,
+			    "Null param: Node %p Name %X return_node %p",
+			    node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Name must consist of printable characters */
 
 	if (!acpi_ut_valid_acpi_name(target_name)) {
-		ACPI_REPORT_ERROR(("Bad character in ACPI Name: %X\n",
-				   target_name));
+		ACPI_ERROR((AE_INFO, "Bad character in ACPI Name: %X",
+			    target_name));
 		return_ACPI_STATUS(AE_BAD_CHARACTER);
 	}
 
