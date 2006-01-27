@@ -222,8 +222,7 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 
 	nfs4_save_user(&uid, &gid);
 
-	filp = dentry_open(dget(dir), mntget(rec_dir.mnt),
-			O_RDWR);
+	filp = dentry_open(dget(dir), mntget(rec_dir.mnt), O_RDONLY);
 	status = PTR_ERR(filp);
 	if (IS_ERR(filp))
 		goto out;
@@ -400,9 +399,10 @@ nfsd4_init_recdir(char *rec_dirname)
 
 	nfs4_save_user(&uid, &gid);
 
-	status = path_lookup(rec_dirname, LOOKUP_FOLLOW, &rec_dir);
-	if (status == -ENOENT)
-		printk("NFSD: recovery directory %s doesn't exist\n",
+	status = path_lookup(rec_dirname, LOOKUP_FOLLOW | LOOKUP_DIRECTORY,
+			&rec_dir);
+	if (status)
+		printk("NFSD: unable to find recovery directory %s\n",
 				rec_dirname);
 
 	if (!status)

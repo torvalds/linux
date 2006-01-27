@@ -13,7 +13,7 @@
 #include "asm/pgtable.h"
 #include "asm/uaccess.h"
 #include "kern_util.h"
-#include "user_util.h"
+#include "os.h"
 
 extern void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 			     pte_t *pte_out);

@@ -61,7 +61,7 @@ static inline void
 down (struct semaphore *sem)
 {
 	might_sleep();
-	if (atomic_dec_return(&sem->count) < 0)
+	if (ia64_fetchadd(-1, &sem->count.counter, acq) < 1)
 		__down(sem);
 }
 
@@ -75,7 +75,7 @@ down_interruptible (struct semaphore * sem)
 	int ret = 0;
 
 	might_sleep();
-	if (atomic_dec_return(&sem->count) < 0)
+	if (ia64_fetchadd(-1, &sem->count.counter, acq) < 1)
 		ret = __down_interruptible(sem);
 	return ret;
 }
@@ -85,7 +85,7 @@ down_trylock (struct semaphore *sem)
 {
 	int ret = 0;
 
-	if (atomic_dec_return(&sem->count) < 0)
+	if (ia64_fetchadd(-1, &sem->count.counter, acq) < 1)
 		ret = __down_trylock(sem);
 	return ret;
 }
@@ -93,7 +93,7 @@ down_trylock (struct semaphore *sem)
 static inline void
 up (struct semaphore * sem)
 {
-	if (atomic_inc_return(&sem->count) <= 0)
+	if (ia64_fetchadd(1, &sem->count.counter, rel) <= -1)
 		__up(sem);
 }
 

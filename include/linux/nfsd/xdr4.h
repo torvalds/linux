@@ -145,8 +145,9 @@ struct nfsd4_lock {
 		} ok;
 		struct nfsd4_lock_denied        denied;
 	} u;
-
-	struct nfs4_stateowner *lk_stateowner;
+	/* The lk_replay_owner is the open owner in the open_to_lock_owner
+	 * case and the lock owner otherwise: */
+	struct nfs4_stateowner *lk_replay_owner;
 };
 #define lk_new_open_seqid       v.new.open_seqid
 #define lk_new_open_stateid     v.new.open_stateid

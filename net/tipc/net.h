@@ -49,18 +49,16 @@ struct network {
 };
 
 
-extern struct network net;
-extern rwlock_t net_lock;
+extern struct network tipc_net;
+extern rwlock_t tipc_net_lock;
 
-int net_init(void);
-void net_stop(void);
-void net_remove_as_router(u32 router);
-void net_send_external_routes(u32 dest);
-void net_route_msg(struct sk_buff *buf);
-struct node *net_select_remote_node(u32 addr, u32 ref);
-u32 net_select_router(u32 addr, u32 ref);
+void tipc_net_remove_as_router(u32 router);
+void tipc_net_send_external_routes(u32 dest);
+void tipc_net_route_msg(struct sk_buff *buf);
+struct node *tipc_net_select_remote_node(u32 addr, u32 ref);
+u32 tipc_net_select_router(u32 addr, u32 ref);
 
-int tipc_start_net(void);
-void tipc_stop_net(void);
+int tipc_net_start(void);
+void tipc_net_stop(void);
 
 #endif

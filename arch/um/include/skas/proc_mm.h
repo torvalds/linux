@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -22,13 +22,13 @@ struct mm_mmap {
 
 struct mm_munmap {
 	unsigned long addr;
-	unsigned long len;	
+	unsigned long len;
 };
 
 struct mm_mprotect {
 	unsigned long addr;
 	unsigned long len;
-        unsigned int prot;
+	unsigned int prot;
 };
 
 struct proc_mm_op {
@@ -42,14 +42,3 @@ struct proc_mm_op {
 };
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

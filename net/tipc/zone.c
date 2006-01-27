@@ -42,12 +42,12 @@
 #include "cluster.h"
 #include "node.h"
 
-struct _zone *zone_create(u32 addr)
+struct _zone *tipc_zone_create(u32 addr)
 {
 	struct _zone *z_ptr = 0;
 	u32 z_num;
 
-	if (!addr_domain_valid(addr))
+	if (!tipc_addr_domain_valid(addr))
 		return 0;
 
 	z_ptr = (struct _zone *)kmalloc(sizeof(*z_ptr), GFP_ATOMIC);
@@ -55,24 +55,24 @@ struct _zone *zone_create(u32 addr)
 		memset(z_ptr, 0, sizeof(*z_ptr));
 		z_num = tipc_zone(addr);
 		z_ptr->addr = tipc_addr(z_num, 0, 0);
-		net.zones[z_num] = z_ptr;
+		tipc_net.zones[z_num] = z_ptr;
 	}
 	return z_ptr;
 }
 
-void zone_delete(struct _zone *z_ptr)
+void tipc_zone_delete(struct _zone *z_ptr)
 {
 	u32 c_num;
 
 	if (!z_ptr)
 		return;
 	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
-		cluster_delete(z_ptr->clusters[c_num]);
+		tipc_cltr_delete(z_ptr->clusters[c_num]);
 	}
 	kfree(z_ptr);
 }
 
-void zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr)
+void tipc_zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr)
 {
 	u32 c_num = tipc_cluster(c_ptr->addr);
 
@@ -82,19 +82,19 @@ void zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr)
 	z_ptr->clusters[c_num] = c_ptr;
 }
 
-void zone_remove_as_router(struct _zone *z_ptr, u32 router)
+void tipc_zone_remove_as_router(struct _zone *z_ptr, u32 router)
 {
 	u32 c_num;
 
 	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
 		if (z_ptr->clusters[c_num]) {
-			cluster_remove_as_router(z_ptr->clusters[c_num], 
-						 router);
+			tipc_cltr_remove_as_router(z_ptr->clusters[c_num], 
+						   router);
 		}
 	}
 }
 
-void zone_send_external_routes(struct _zone *z_ptr, u32 dest)
+void tipc_zone_send_external_routes(struct _zone *z_ptr, u32 dest)
 {
 	u32 c_num;
 
@@ -102,12 +102,12 @@ void zone_send_external_routes(struct _zone *z_ptr, u32 dest)
 		if (z_ptr->clusters[c_num]) {
 			if (in_own_cluster(z_ptr->addr))
 				continue;
-			cluster_send_ext_routes(z_ptr->clusters[c_num], dest);
+			tipc_cltr_send_ext_routes(z_ptr->clusters[c_num], dest);
 		}
 	}
 }
 
-struct node *zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref)
+struct node *tipc_zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref)
 {
 	struct cluster *c_ptr;
 	struct node *n_ptr;
@@ -118,7 +118,7 @@ struct node *zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref)
 	c_ptr = z_ptr->clusters[tipc_cluster(addr)];
 	if (!c_ptr)
 		return 0;
-	n_ptr = cluster_select_node(c_ptr, ref);
+	n_ptr = tipc_cltr_select_node(c_ptr, ref);
 	if (n_ptr)
 		return n_ptr;
 
@@ -127,14 +127,14 @@ struct node *zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref)
 		c_ptr = z_ptr->clusters[c_num];
 		if (!c_ptr)
 			return 0;
-		n_ptr = cluster_select_node(c_ptr, ref);
+		n_ptr = tipc_cltr_select_node(c_ptr, ref);
 		if (n_ptr)
 			return n_ptr;
 	}
 	return 0;
 }
 
-u32 zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref)
+u32 tipc_zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref)
 {
 	struct cluster *c_ptr;
 	u32 c_num;
@@ -143,14 +143,14 @@ u32 zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref)
 	if (!z_ptr)
 		return 0;
 	c_ptr = z_ptr->clusters[tipc_cluster(addr)];
-	router = c_ptr ? cluster_select_router(c_ptr, ref) : 0;
+	router = c_ptr ? tipc_cltr_select_router(c_ptr, ref) : 0;
 	if (router)
 		return router;
 
 	/* Links to any other clusters within the zone? */
 	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
 		c_ptr = z_ptr->clusters[c_num];
-		router = c_ptr ? cluster_select_router(c_ptr, ref) : 0;
+		router = c_ptr ? tipc_cltr_select_router(c_ptr, ref) : 0;
 		if (router)
 			return router;
 	}
@@ -158,12 +158,12 @@ u32 zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref)
 }
 
 
-u32 zone_next_node(u32 addr)
+u32 tipc_zone_next_node(u32 addr)
 {
-	struct cluster *c_ptr = cluster_find(addr);
+	struct cluster *c_ptr = tipc_cltr_find(addr);
 
 	if (c_ptr)
-		return cluster_next_node(c_ptr, addr);
+		return tipc_cltr_next_node(c_ptr, addr);
 	return 0;
 }
 

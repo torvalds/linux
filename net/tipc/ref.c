@@ -61,15 +61,15 @@
  * because entry 0's reference field has the form XXXX|1--1.
  */
 
-struct ref_table ref_table = { 0 };
+struct ref_table tipc_ref_table = { 0 };
 
-rwlock_t reftbl_lock = RW_LOCK_UNLOCKED;
+static rwlock_t ref_table_lock = RW_LOCK_UNLOCKED;
 
 /**
- * ref_table_init - create reference table for objects
+ * tipc_ref_table_init - create reference table for objects
  */
 
-int ref_table_init(u32 requested_size, u32 start)
+int tipc_ref_table_init(u32 requested_size, u32 start)
 {
 	struct reference *table;
 	u32 sz = 1 << 4;
@@ -83,43 +83,43 @@ int ref_table_init(u32 requested_size, u32 start)
 	if (table == NULL)
 		return -ENOMEM;
 
-	write_lock_bh(&reftbl_lock);
+	write_lock_bh(&ref_table_lock);
 	index_mask = sz - 1;
 	for (i = sz - 1; i >= 0; i--) {
 		table[i].object = 0;
 		table[i].lock = SPIN_LOCK_UNLOCKED;
 		table[i].data.next_plus_upper = (start & ~index_mask) + i - 1;
 	}
-	ref_table.entries = table;
-	ref_table.index_mask = index_mask;
-	ref_table.first_free = sz - 1;
-	ref_table.last_free = 1;
-	write_unlock_bh(&reftbl_lock);
+	tipc_ref_table.entries = table;
+	tipc_ref_table.index_mask = index_mask;
+	tipc_ref_table.first_free = sz - 1;
+	tipc_ref_table.last_free = 1;
+	write_unlock_bh(&ref_table_lock);
 	return TIPC_OK;
 }
 
 /**
- * ref_table_stop - destroy reference table for objects
+ * tipc_ref_table_stop - destroy reference table for objects
  */
 
-void ref_table_stop(void)
+void tipc_ref_table_stop(void)
 {
-	if (!ref_table.entries)
+	if (!tipc_ref_table.entries)
 		return;
 
-	vfree(ref_table.entries);
-	ref_table.entries = 0;
+	vfree(tipc_ref_table.entries);
+	tipc_ref_table.entries = 0;
 }
 
 /**
- * ref_acquire - create reference to an object
+ * tipc_ref_acquire - create reference to an object
  * 
  * Return a unique reference value which can be translated back to the pointer
  * 'object' at a later time.  Also, pass back a pointer to the lock protecting 
  * the object, but without locking it.
  */
 
-u32 ref_acquire(void *object, spinlock_t **lock)
+u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 {
 	struct reference *entry;
 	u32 index;
@@ -127,17 +127,17 @@ u32 ref_acquire(void *object, spinlock_t **lock)
 	u32 next_plus_upper;
 	u32 reference = 0;
 
-	assert(ref_table.entries && object);
+	assert(tipc_ref_table.entries && object);
 
-	write_lock_bh(&reftbl_lock);
-	if (ref_table.first_free) {
-		index = ref_table.first_free;
-		entry = &(ref_table.entries[index]);
-		index_mask = ref_table.index_mask;
+	write_lock_bh(&ref_table_lock);
+	if (tipc_ref_table.first_free) {
+		index = tipc_ref_table.first_free;
+		entry = &(tipc_ref_table.entries[index]);
+		index_mask = tipc_ref_table.index_mask;
 		/* take lock in case a previous user of entry still holds it */ 
 		spin_lock_bh(&entry->lock);  
 		next_plus_upper = entry->data.next_plus_upper;
-		ref_table.first_free = next_plus_upper & index_mask;
+		tipc_ref_table.first_free = next_plus_upper & index_mask;
 		reference = (next_plus_upper & ~index_mask) + index;
 		entry->data.reference = reference;
 		entry->object = object;
@@ -145,45 +145,45 @@ u32 ref_acquire(void *object, spinlock_t **lock)
                         *lock = &entry->lock;
 		spin_unlock_bh(&entry->lock);
 	}
-	write_unlock_bh(&reftbl_lock);
+	write_unlock_bh(&ref_table_lock);
 	return reference;
 }
 
 /**
- * ref_discard - invalidate references to an object
+ * tipc_ref_discard - invalidate references to an object
  * 
  * Disallow future references to an object and free up the entry for re-use.
  * Note: The entry's spin_lock may still be busy after discard
  */
 
-void ref_discard(u32 ref)
+void tipc_ref_discard(u32 ref)
 {
 	struct reference *entry;
 	u32 index; 
 	u32 index_mask;
 
-	assert(ref_table.entries);
+	assert(tipc_ref_table.entries);
 	assert(ref != 0);
 
-	write_lock_bh(&reftbl_lock);
-	index_mask = ref_table.index_mask;
+	write_lock_bh(&ref_table_lock);
+	index_mask = tipc_ref_table.index_mask;
 	index = ref & index_mask;
-	entry = &(ref_table.entries[index]);
+	entry = &(tipc_ref_table.entries[index]);
 	assert(entry->object != 0);
 	assert(entry->data.reference == ref);
 
 	/* mark entry as unused */
 	entry->object = 0;
-	if (ref_table.first_free == 0)
-		ref_table.first_free = index;
+	if (tipc_ref_table.first_free == 0)
+		tipc_ref_table.first_free = index;
 	else
 		/* next_plus_upper is always XXXX|0--0 for last free entry */
-		ref_table.entries[ref_table.last_free].data.next_plus_upper 
+		tipc_ref_table.entries[tipc_ref_table.last_free].data.next_plus_upper 
 			|= index;
-	ref_table.last_free = index;
+	tipc_ref_table.last_free = index;
 
 	/* increment upper bits of entry to invalidate subsequent references */
 	entry->data.next_plus_upper = (ref & ~index_mask) + (index_mask + 1);
-	write_unlock_bh(&reftbl_lock);
+	write_unlock_bh(&ref_table_lock);
 }
 

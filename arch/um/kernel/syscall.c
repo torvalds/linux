@@ -25,12 +25,12 @@ int record_syscall_start(int syscall)
 	syscall_record[index].syscall = syscall;
 	syscall_record[index].pid = current_pid();
 	syscall_record[index].result = 0xdeadbeef;
-	syscall_record[index].start = os_usecs();
+	syscall_record[index].start = os_nsecs();
 	return(index);
 }
 
 void record_syscall_end(int index, long result)
 {
 	syscall_record[index].result = result;
-	syscall_record[index].end = os_usecs();
+	syscall_record[index].end = os_nsecs();
 }

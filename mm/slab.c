@@ -68,7 +68,7 @@
  * Further notes from the original documentation:
  *
  * 11 April '97.  Started multi-threading - markhe
- *	The global cache-chain is protected by the semaphore 'cache_chain_sem'.
+ *	The global cache-chain is protected by the mutex 'cache_chain_mutex'.
  *	The sem is only needed when accessing/extending the cache-chain, which
  *	can never happen inside an interrupt (kmem_cache_create(),
  *	kmem_cache_shrink() and kmem_cache_reap()).
@@ -103,6 +103,8 @@
 #include	<linux/rcupdate.h>
 #include	<linux/string.h>
 #include	<linux/nodemask.h>
+#include	<linux/mempolicy.h>
+#include	<linux/mutex.h>
 
 #include	<asm/uaccess.h>
 #include	<asm/cacheflush.h>
@@ -631,7 +633,7 @@ static kmem_cache_t cache_cache = {
 };
 
 /* Guard access to the cache-chain. */
-static struct semaphore cache_chain_sem;
+static DEFINE_MUTEX(cache_chain_mutex);
 static struct list_head cache_chain;
 
 /*
@@ -772,6 +774,8 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 }
 
 #ifdef CONFIG_NUMA
+static void *__cache_alloc_node(kmem_cache_t *, gfp_t, int);
+
 static inline struct array_cache **alloc_alien_cache(int node, int limit)
 {
 	struct array_cache **ac_ptr;
@@ -857,7 +861,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
-		down(&cache_chain_sem);
+		mutex_lock(&cache_chain_mutex);
 		/* we need to do this right in the beginning since
 		 * alloc_arraycache's are going to use this list.
 		 * kmalloc_node allows us to add the slab to the right
@@ -912,7 +916,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 				l3->shared = nc;
 			}
 		}
-		up(&cache_chain_sem);
+		mutex_unlock(&cache_chain_mutex);
 		break;
 	case CPU_ONLINE:
 		start_cpu_timer(cpu);
@@ -921,7 +925,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 	case CPU_DEAD:
 		/* fall thru */
 	case CPU_UP_CANCELED:
-		down(&cache_chain_sem);
+		mutex_lock(&cache_chain_mutex);
 
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
@@ -973,13 +977,13 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 			spin_unlock_irq(&cachep->spinlock);
 			kfree(nc);
 		}
-		up(&cache_chain_sem);
+		mutex_unlock(&cache_chain_mutex);
 		break;
 #endif
 	}
 	return NOTIFY_OK;
       bad:
-	up(&cache_chain_sem);
+	mutex_unlock(&cache_chain_mutex);
 	return NOTIFY_BAD;
 }
 
@@ -1047,7 +1051,6 @@ void __init kmem_cache_init(void)
 	 */
 
 	/* 1) create the cache_cache */
-	init_MUTEX(&cache_chain_sem);
 	INIT_LIST_HEAD(&cache_chain);
 	list_add(&cache_cache.next, &cache_chain);
 	cache_cache.colour_off = cache_line_size();
@@ -1168,10 +1171,10 @@ void __init kmem_cache_init(void)
 	/* 6) resize the head arrays to their final sizes */
 	{
 		kmem_cache_t *cachep;
-		down(&cache_chain_sem);
+		mutex_lock(&cache_chain_mutex);
 		list_for_each_entry(cachep, &cache_chain, next)
 		    enable_cpucache(cachep);
-		up(&cache_chain_sem);
+		mutex_unlock(&cache_chain_mutex);
 	}
 
 	/* Done! */
@@ -1590,7 +1593,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 		BUG();
 	}
 
-	down(&cache_chain_sem);
+	mutex_lock(&cache_chain_mutex);
 
 	list_for_each(p, &cache_chain) {
 		kmem_cache_t *pc = list_entry(p, kmem_cache_t, next);
@@ -1856,7 +1859,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	if (!cachep && (flags & SLAB_PANIC))
 		panic("kmem_cache_create(): failed to create slab `%s'\n",
 		      name);
-	up(&cache_chain_sem);
+	mutex_unlock(&cache_chain_mutex);
 	return cachep;
 }
 EXPORT_SYMBOL(kmem_cache_create);
@@ -2044,18 +2047,18 @@ int kmem_cache_destroy(kmem_cache_t *cachep)
 	lock_cpu_hotplug();
 
 	/* Find the cache in the chain of caches. */
-	down(&cache_chain_sem);
+	mutex_lock(&cache_chain_mutex);
 	/*
 	 * the chain is never empty, cache_cache is never destroyed
 	 */
 	list_del(&cachep->next);
-	up(&cache_chain_sem);
+	mutex_unlock(&cache_chain_mutex);
 
 	if (__cache_shrink(cachep)) {
 		slab_error(cachep, "Can't free all objects");
-		down(&cache_chain_sem);
+		mutex_lock(&cache_chain_mutex);
 		list_add(&cachep->next, &cache_chain);
-		up(&cache_chain_sem);
+		mutex_unlock(&cache_chain_mutex);
 		unlock_cpu_hotplug();
 		return 1;
 	}
@@ -2569,6 +2572,15 @@ static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 {
 	void *objp;
 	struct array_cache *ac;
+
+#ifdef CONFIG_NUMA
+	if (unlikely(current->mempolicy && !in_interrupt())) {
+		int nid = slab_node(current->mempolicy);
+
+		if (nid != numa_node_id())
+			return __cache_alloc_node(cachep, flags, nid);
+	}
+#endif
 
 	check_irq_off();
 	ac = ac_data(cachep);
@@ -3314,7 +3326,7 @@ static void drain_array_locked(kmem_cache_t *cachep, struct array_cache *ac,
  * - clear the per-cpu caches for this CPU.
  * - return freeable pages to the main free memory pool.
  *
- * If we cannot acquire the cache chain semaphore then just give up - we'll
+ * If we cannot acquire the cache chain mutex then just give up - we'll
  * try again on the next iteration.
  */
 static void cache_reap(void *unused)
@@ -3322,7 +3334,7 @@ static void cache_reap(void *unused)
 	struct list_head *walk;
 	struct kmem_list3 *l3;
 
-	if (down_trylock(&cache_chain_sem)) {
+	if (!mutex_trylock(&cache_chain_mutex)) {
 		/* Give up. Setup the next iteration. */
 		schedule_delayed_work(&__get_cpu_var(reap_work),
 				      REAPTIMEOUT_CPUC);
@@ -3393,7 +3405,7 @@ static void cache_reap(void *unused)
 		cond_resched();
 	}
 	check_irq_on();
-	up(&cache_chain_sem);
+	mutex_unlock(&cache_chain_mutex);
 	drain_remote_pages();
 	/* Setup the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
@@ -3429,7 +3441,7 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 	loff_t n = *pos;
 	struct list_head *p;
 
-	down(&cache_chain_sem);
+	mutex_lock(&cache_chain_mutex);
 	if (!n)
 		print_slabinfo_header(m);
 	p = cache_chain.next;
@@ -3451,7 +3463,7 @@ static void *s_next(struct seq_file *m, void *p, loff_t *pos)
 
 static void s_stop(struct seq_file *m, void *p)
 {
-	up(&cache_chain_sem);
+	mutex_unlock(&cache_chain_mutex);
 }
 
 static int s_show(struct seq_file *m, void *p)
@@ -3603,7 +3615,7 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 		return -EINVAL;
 
 	/* Find the cache in the chain of caches. */
-	down(&cache_chain_sem);
+	mutex_lock(&cache_chain_mutex);
 	res = -EINVAL;
 	list_for_each(p, &cache_chain) {
 		kmem_cache_t *cachep = list_entry(p, kmem_cache_t, next);
@@ -3620,7 +3632,7 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 			break;
 		}
 	}
-	up(&cache_chain_sem);
+	mutex_unlock(&cache_chain_mutex);
 	if (res >= 0)
 		res = count;
 	return res;

@@ -22,8 +22,10 @@
 #define HFSPLUS_SECTOR_SHIFT         9
 #define HFSPLUS_VOLHEAD_SECTOR       2
 #define HFSPLUS_VOLHEAD_SIG     0x482b
+#define HFSPLUS_VOLHEAD_SIGX    0x4858
 #define HFSPLUS_SUPER_MAGIC     0x482b
-#define HFSPLUS_CURRENT_VERSION      4
+#define HFSPLUS_MIN_VERSION          4
+#define HFSPLUS_CURRENT_VERSION      5
 
 #define HFSP_WRAP_MAGIC         0x4244
 #define HFSP_WRAP_ATTRIB_SLOCK  0x8000
@@ -40,6 +42,9 @@
 
 #define HFSP_HARDLINK_TYPE	0x686c6e6b	/* 'hlnk' */
 #define HFSP_HFSPLUS_CREATOR	0x6866732b	/* 'hfs+' */
+
+#define HFSP_SYMLINK_TYPE	0x736c6e6b	/* 'slnk' */
+#define HFSP_SYMLINK_CREATOR	0x72686170	/* 'rhap' */
 
 #define HFSP_MOUNT_VERSION	0x482b4c78	/* 'H+Lx' */
 
@@ -161,7 +166,7 @@ struct hfs_btree_header_rec {
 	u16 reserved1;
 	__be32 clump_size;
 	u8 btree_type;
-	u8 reserved2;
+	u8 key_type;
 	__be32 attributes;
 	u32 reserved3[16];
 } __packed;
@@ -185,6 +190,10 @@ struct hfs_btree_header_rec {
 #define HFSPLUS_ATTR_CNID		8	/* ATTRibutes file */
 #define HFSPLUS_EXCH_CNID		15	/* ExchangeFiles temp id */
 #define HFSPLUS_FIRSTUSER_CNID		16	/* first available user id */
+
+/* btree key type */
+#define HFSPLUS_KEY_CASEFOLDING		0xCF	/* case-insensitive */
+#define HFSPLUS_KEY_BINARY		0xBC	/* case-sensitive */
 
 /* HFS+ catalog entry key */
 struct hfsplus_cat_key {

@@ -1,0 +1,102 @@
+#
+#	EDAC Kconfig
+#	Copyright (c) 2003 Linux Networx
+#	Licensed and distributed under the GPL
+#
+# $Id: Kconfig,v 1.4.2.7 2005/07/08 22:05:38 dsp_llnl Exp $
+#
+
+menu 'EDAC - error detection and reporting (RAS)'
+
+config EDAC
+	tristate "EDAC core system error reporting"
+	depends on X86
+	default y
+	help
+	  EDAC is designed to report errors in the core system.
+	  These are low-level errors that are reported in the CPU or
+	  supporting chipset: memory errors, cache errors, PCI errors,
+	  thermal throttling, etc..  If unsure, select 'Y'.
+
+
+comment "Reporting subsystems"
+	depends on EDAC
+
+config EDAC_DEBUG
+	bool "Debugging"
+	depends on EDAC
+	help
+	  This turns on debugging information for the entire EDAC
+	  sub-system. You can insert module with "debug_level=x", current
+	  there're four debug levels (x=0,1,2,3 from low to high).
+	  Usually you should select 'N'.
+
+config EDAC_MM_EDAC
+	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
+	depends on EDAC
+	default y
+	help
+	  Some systems are able to detect and correct errors in main
+	  memory.  EDAC can report statistics on memory error
+	  detection and correction (EDAC - or commonly referred to ECC
+	  errors).  EDAC will also try to decode where these errors
+	  occurred so that a particular failing memory module can be
+	  replaced.  If unsure, select 'Y'.
+
+
+config EDAC_AMD76X
+	tristate "AMD 76x (760, 762, 768)"
+	depends on EDAC_MM_EDAC  && PCI
+	help
+	  Support for error detection and correction on the AMD 76x
+	  series of chipsets used with the Athlon processor.
+
+config EDAC_E7XXX
+	tristate "Intel e7xxx (e7205, e7500, e7501, e7505)"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the Intel
+	  E7205, E7500, E7501 and E7505 server chipsets.
+
+config EDAC_E752X
+	tristate "Intel e752x (e7520, e7525, e7320)"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the Intel
+	  E7520, E7525, E7320 server chipsets.
+
+config EDAC_I82875P
+	tristate "Intel 82875p (D82875P, E7210)"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the Intel
+	  DP82785P and E7210 server chipsets.
+
+config EDAC_I82860
+	tristate "Intel 82860"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the Intel
+	  82860 chipset.
+
+config EDAC_R82600
+	tristate "Radisys 82600 embedded chipset"
+	depends on EDAC_MM_EDAC
+	help
+	  Support for error detection and correction on the Radisys
+	  82600 embedded chipset.
+
+choice
+	prompt "Error detecting method"
+	depends on EDAC
+	default EDAC_POLL
+
+config EDAC_POLL
+	bool "Poll for errors"
+	depends on EDAC
+	help
+	  Poll the chipset periodically to detect errors.
+
+endchoice
+
+endmenu

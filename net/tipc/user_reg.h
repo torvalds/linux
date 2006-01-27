@@ -39,10 +39,10 @@
 
 #include "port.h"
 
-int reg_start(void);
-void reg_stop(void);
+int tipc_reg_start(void);
+void tipc_reg_stop(void);
 
-int reg_add_port(struct user_port *up_ptr);
-int reg_remove_port(struct user_port *up_ptr);
+int tipc_reg_add_port(struct user_port *up_ptr);
+int tipc_reg_remove_port(struct user_port *up_ptr);
 
 #endif

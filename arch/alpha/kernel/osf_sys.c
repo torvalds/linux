@@ -960,7 +960,7 @@ osf_utimes(char __user *filename, struct timeval32 __user *tvs)
 			return -EFAULT;
 	}
 
-	return do_utimes(filename, tvs ? ktvs : NULL);
+	return do_utimes(AT_FDCWD, filename, tvs ? ktvs : NULL);
 }
 
 #define MAX_SELECT_SECONDS \

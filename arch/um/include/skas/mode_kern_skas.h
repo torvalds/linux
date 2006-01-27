@@ -18,7 +18,6 @@ extern int copy_thread_skas(int nr, unsigned long clone_flags,
 			    unsigned long sp, unsigned long stack_top,
 			    struct task_struct *p, struct pt_regs *regs);
 extern void release_thread_skas(struct task_struct *task);
-extern void initial_thread_cb_skas(void (*proc)(void *), void *arg);
 extern void init_idle_skas(void);
 extern void flush_tlb_kernel_range_skas(unsigned long start,
 					unsigned long end);
@@ -39,14 +38,3 @@ extern int thread_pid_skas(struct task_struct *task);
 #define kmem_end_skas (host_task_size - 1024 * 1024)
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

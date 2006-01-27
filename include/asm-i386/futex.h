@@ -61,7 +61,7 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (op == FUTEX_OP_SET)
 		__futex_atomic_op1("xchgl %0, %2", ret, oldval, uaddr, oparg);
 	else {
-#if !defined(CONFIG_X86_BSWAP) && !defined(CONFIG_UML)
+#ifndef CONFIG_X86_BSWAP
 		if (boot_cpu_data.x86 == 3)
 			ret = -ENOSYS;
 		else

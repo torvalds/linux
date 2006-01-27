@@ -24,7 +24,7 @@ static void omap2_propagate_rate(struct clk * clk);
 static void omap2_mpu_recalc(struct clk * clk);
 static int omap2_select_table_rate(struct clk * clk, unsigned long rate);
 static long omap2_round_to_table_rate(struct clk * clk, unsigned long rate);
-static void omap2_clk_unuse(struct clk *clk);
+static void omap2_clk_disable(struct clk *clk);
 static void omap2_sys_clk_recalc(struct clk * clk);
 static u32 omap2_clksel_to_divisor(u32 div_sel, u32 field_val);
 static u32 omap2_clksel_get_divisor(struct clk *clk);
@@ -859,7 +859,7 @@ static struct clk core_l3_ck = {	/* Used for ick and fck, interconnect */
 
 static struct clk usb_l4_ick = {	/* FS-USB interface clock */
 	.name		= "usb_l4_ick",
-	.parent		= &core_ck,
+	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_CKCTL | CM_CORE_SEL1 | DELAYED_APP |
 				CONFIG_PARTICIPANT,
@@ -1045,7 +1045,7 @@ static struct clk gpt1_ick = {
 	.name		= "gpt1_ick",
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
-	.enable_reg	= (void __iomem *)&CM_ICLKEN_WKUP,	/* Bit4 */
+	.enable_reg	= (void __iomem *)&CM_ICLKEN_WKUP,	/* Bit0 */
 	.enable_bit	= 0,
 	.recalc		= &omap2_followparent_recalc,
 };
@@ -1055,7 +1055,7 @@ static struct clk gpt1_fck = {
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				CM_WKUP_SEL1,
-	.enable_reg	= (void __iomem *)&CM_FCLKEN_WKUP,
+	.enable_reg	= (void __iomem *)&CM_FCLKEN_WKUP,	/* Bit0 */
 	.enable_bit	= 0,
 	.src_offset	= 0,
 	.recalc		= &omap2_followparent_recalc,
@@ -1065,7 +1065,7 @@ static struct clk gpt2_ick = {
 	.name		= "gpt2_ick",
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
-	.enable_reg	= (void __iomem *)&CM_ICLKEN1_CORE,	/* bit4 */
+	.enable_reg	= (void __iomem *)&CM_ICLKEN1_CORE,	/* Bit4 */
 	.enable_bit	= 0,
 	.recalc		= &omap2_followparent_recalc,
 };
@@ -1839,7 +1839,7 @@ static struct clk usb_fck = {
 
 static struct clk usbhs_ick = {
 	.name		= "usbhs_ick",
-	.parent		= &l4_ck,
+	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.enable_reg	= (void __iomem *)&CM_ICLKEN2_CORE,
 	.enable_bit	= 6,

@@ -111,7 +111,7 @@ static void omap2_clk_fixed_enable(struct clk *clk)
 /* Enables clock without considering parent dependencies or use count
  * REVISIT: Maybe change this to use clk->enable like on omap1?
  */
-static int omap2_clk_enable(struct clk * clk)
+static int _omap2_clk_enable(struct clk * clk)
 {
 	u32 regval32;
 
@@ -150,7 +150,7 @@ static void omap2_clk_fixed_disable(struct clk *clk)
 }
 
 /* Disables clock without considering parent dependencies or use count */
-static void omap2_clk_disable(struct clk *clk)
+static void _omap2_clk_disable(struct clk *clk)
 {
 	u32 regval32;
 
@@ -167,23 +167,23 @@ static void omap2_clk_disable(struct clk *clk)
 	__raw_writel(regval32, clk->enable_reg);
 }
 
-static int omap2_clk_use(struct clk *clk)
+static int omap2_clk_enable(struct clk *clk)
 {
 	int ret = 0;
 
 	if (clk->usecount++ == 0) {
 		if (likely((u32)clk->parent))
-			ret = omap2_clk_use(clk->parent);
+			ret = omap2_clk_enable(clk->parent);
 
 		if (unlikely(ret != 0)) {
 			clk->usecount--;
 			return ret;
 		}
 
-		ret = omap2_clk_enable(clk);
+		ret = _omap2_clk_enable(clk);
 
 		if (unlikely(ret != 0) && clk->parent) {
-			omap2_clk_unuse(clk->parent);
+			omap2_clk_disable(clk->parent);
 			clk->usecount--;
 		}
 	}
@@ -191,12 +191,12 @@ static int omap2_clk_use(struct clk *clk)
 	return ret;
 }
 
-static void omap2_clk_unuse(struct clk *clk)
+static void omap2_clk_disable(struct clk *clk)
 {
 	if (clk->usecount > 0 && !(--clk->usecount)) {
-		omap2_clk_disable(clk);
+		_omap2_clk_disable(clk);
 		if (likely((u32)clk->parent))
-			omap2_clk_unuse(clk->parent);
+			omap2_clk_disable(clk->parent);
 	}
 }
 
@@ -873,7 +873,7 @@ static int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		reg = (void __iomem *)src_sel;
 
 		if (clk->usecount > 0)
-			omap2_clk_disable(clk);
+			_omap2_clk_disable(clk);
 
 		/* Set new source value (previous dividers if any in effect) */
 		reg_val = __raw_readl(reg) & ~(field_mask << src_off);
@@ -884,7 +884,7 @@ static int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 			__raw_writel(0x1, (void __iomem *)&PRCM_CLKCFG_CTRL);
 
 		if (clk->usecount > 0)
-			omap2_clk_enable(clk);
+			_omap2_clk_enable(clk);
 
 		clk->parent = new_parent;
 
@@ -999,8 +999,6 @@ static int omap2_select_table_rate(struct clk * clk, unsigned long rate)
 static struct clk_functions omap2_clk_functions = {
 	.clk_enable		= omap2_clk_enable,
 	.clk_disable		= omap2_clk_disable,
-	.clk_use		= omap2_clk_use,
-	.clk_unuse		= omap2_clk_unuse,
 	.clk_round_rate		= omap2_clk_round_rate,
 	.clk_set_rate		= omap2_clk_set_rate,
 	.clk_set_parent		= omap2_clk_set_parent,
@@ -1045,7 +1043,7 @@ static void __init omap2_disable_unused_clocks(void)
 			continue;
 
 		printk(KERN_INFO "Disabling unused clock \"%s\"\n", ck->name);
-		omap2_clk_disable(ck);
+		_omap2_clk_disable(ck);
 	}
 }
 late_initcall(omap2_disable_unused_clocks);
@@ -1120,10 +1118,10 @@ int __init omap2_clk_init(void)
 	 * Only enable those clocks we will need, let the drivers
 	 * enable other clocks as necessary
 	 */
-	clk_use(&sync_32k_ick);
-	clk_use(&omapctrl_ick);
+	clk_enable(&sync_32k_ick);
+	clk_enable(&omapctrl_ick);
 	if (cpu_is_omap2430())
-		clk_use(&sdrc_ick);
+		clk_enable(&sdrc_ick);
 
 	return 0;
 }

@@ -1103,31 +1103,33 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 	return(-EINVAL);
 }
 
-static int same_backing_files(char *from_cmdline, char *from_cow, char *cow)
+static int path_requires_switch(char *from_cmdline, char *from_cow, char *cow)
 {
 	struct uml_stat buf1, buf2;
 	int err;
 
-	if(from_cmdline == NULL) return(1);
-	if(!strcmp(from_cmdline, from_cow)) return(1);
+	if(from_cmdline == NULL)
+		return 0;
+	if(!strcmp(from_cmdline, from_cow))
+		return 0;
 
 	err = os_stat_file(from_cmdline, &buf1);
 	if(err < 0){
 		printk("Couldn't stat '%s', err = %d\n", from_cmdline, -err);
-		return(1);
+		return 0;
 	}
 	err = os_stat_file(from_cow, &buf2);
 	if(err < 0){
 		printk("Couldn't stat '%s', err = %d\n", from_cow, -err);
-		return(1);
+		return 1;
 	}
 	if((buf1.ust_dev == buf2.ust_dev) && (buf1.ust_ino == buf2.ust_ino))
-		return(1);
+		return 0;
 
 	printk("Backing file mismatch - \"%s\" requested,\n"
 	       "\"%s\" specified in COW header of \"%s\"\n",
 	       from_cmdline, from_cow, cow);
-	return(0);
+	return 1;
 }
 
 static int backing_file_mismatch(char *file, __u64 size, time_t mtime)
@@ -1189,18 +1191,19 @@ int open_ubd_file(char *file, struct openflags *openflags,
 	unsigned long long size;
 	__u32 version, align;
 	char *backing_file;
-	int fd, err, sectorsize, same, mode = 0644;
+	int fd, err, sectorsize, asked_switch, mode = 0644;
 
 	fd = os_open_file(file, *openflags, mode);
-	if(fd < 0){
-		if((fd == -ENOENT) && (create_cow_out != NULL))
+	if (fd < 0) {
+		if ((fd == -ENOENT) && (create_cow_out != NULL))
 			*create_cow_out = 1;
-                if(!openflags->w ||
-                   ((fd != -EROFS) && (fd != -EACCES))) return(fd);
+                if (!openflags->w ||
+                   ((fd != -EROFS) && (fd != -EACCES)))
+			return fd;
 		openflags->w = 0;
 		fd = os_open_file(file, *openflags, mode);
-		if(fd < 0)
-			return(fd);
+		if (fd < 0)
+			return fd;
         }
 
 	err = os_lock_file(fd, openflags->w);
@@ -1209,7 +1212,9 @@ int open_ubd_file(char *file, struct openflags *openflags,
 		goto out_close;
 	}
 
-	if(backing_file_out == NULL) return(fd);
+	/* Succesful return case! */
+	if(backing_file_out == NULL)
+		return(fd);
 
 	err = read_cow_header(file_reader, &fd, &version, &backing_file, &mtime,
 			      &size, &sectorsize, &align, bitmap_offset_out);
@@ -1218,34 +1223,34 @@ int open_ubd_file(char *file, struct openflags *openflags,
 		       "errno = %d\n", file, -err);
 		goto out_close;
 	}
-	if(err) return(fd);
+	if(err)
+		return(fd);
 
-	if(backing_file_out == NULL) return(fd);
+	asked_switch = path_requires_switch(*backing_file_out, backing_file, file);
 
-	same = same_backing_files(*backing_file_out, backing_file, file);
-
-	if(!same && !backing_file_mismatch(*backing_file_out, size, mtime)){
+	/* Allow switching only if no mismatch. */
+	if (asked_switch && !backing_file_mismatch(*backing_file_out, size, mtime)) {
 		printk("Switching backing file to '%s'\n", *backing_file_out);
 		err = write_cow_header(file, fd, *backing_file_out,
 				       sectorsize, align, &size);
-		if(err){
+		if (err) {
 			printk("Switch failed, errno = %d\n", -err);
-			return(err);
+			goto out_close;
 		}
-	}
-	else {
+	} else {
 		*backing_file_out = backing_file;
 		err = backing_file_mismatch(*backing_file_out, size, mtime);
-		if(err) goto out_close;
+		if (err)
+			goto out_close;
 	}
 
 	cow_sizes(version, size, sectorsize, align, *bitmap_offset_out,
 		  bitmap_len_out, data_offset_out);
 
-        return(fd);
+        return fd;
  out_close:
 	os_close_file(fd);
-	return(err);
+	return err;
 }
 
 int create_cow_file(char *cow_file, char *backing_file, struct openflags flags,

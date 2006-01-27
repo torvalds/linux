@@ -436,7 +436,17 @@ A partial list of the supported mount options follows:
 		SFU does).  In the future the bottom 9 bits of the mode
 		mode also will be emulated using queries of the security
 		descriptor (ACL).
-		
+sec		Security mode.  Allowed values are:
+			none	attempt to connection as a null user (no name)
+			krb5    Use Kerberos version 5 authentication
+			krb5i   Use Kerberos authentication and packet signing
+			ntlm    Use NTLM password hashing (default)
+			ntlmi   Use NTLM password hashing with signing (if
+				/proc/fs/cifs/PacketSigningEnabled on or if
+				server requires signing also can be the default) 
+			ntlmv2  Use NTLMv2 password hashing      
+			ntlmv2i Use NTLMv2 password hashing with packet signing
+
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
 

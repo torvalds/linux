@@ -5,6 +5,7 @@
  *
  */
 #include <linux/config.h>
+#include <linux/types.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/sunrpc/svc.h>

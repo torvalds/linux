@@ -11,6 +11,33 @@ struct export_operations export_op_default;
 
 #define dprintk(fmt, args...) do{}while(0)
 
+static struct dentry *
+find_acceptable_alias(struct dentry *result,
+		int (*acceptable)(void *context, struct dentry *dentry),
+		void *context)
+{
+	struct dentry *dentry, *toput = NULL;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(dentry, &result->d_inode->i_dentry, d_alias) {
+		dget_locked(dentry);
+		spin_unlock(&dcache_lock);
+		if (toput)
+			dput(toput);
+		if (dentry != result && acceptable(context, dentry)) {
+			dput(result);
+			return dentry;
+		}
+		spin_lock(&dcache_lock);
+		toput = dentry;
+	}
+	spin_unlock(&dcache_lock);
+
+	if (toput)
+		dput(toput);
+	return NULL;
+}
+
 /**
  * find_exported_dentry - helper routine to implement export_operations->decode_fh
  * @sb:		The &super_block identifying the filesystem
@@ -52,8 +79,7 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 	struct dentry *target_dir;
 	int err;
 	struct export_operations *nops = sb->s_export_op;
-	struct list_head *le, *head;
-	struct dentry *toput = NULL;
+	struct dentry *alias;
 	int noprogress;
 	char nbuf[NAME_MAX+1];
 
@@ -79,27 +105,10 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 			/* there is no other dentry, so fail */
 			goto err_result;
 		}
-		/* try any other aliases */
-		spin_lock(&dcache_lock);
-		head = &result->d_inode->i_dentry;
-		list_for_each(le, head) {
-			struct dentry *dentry = list_entry(le, struct dentry, d_alias);
-			dget_locked(dentry);
-			spin_unlock(&dcache_lock);
-			if (toput)
-				dput(toput);
-			toput = NULL;
-			if (dentry != result &&
-			    acceptable(context, dentry)) {
-				dput(result);
-				return dentry;
-			}
-			spin_lock(&dcache_lock);
-			toput = dentry;
-		}
-		spin_unlock(&dcache_lock);
-		if (toput)
-			dput(toput);
+
+		alias = find_acceptable_alias(result, acceptable, context);
+		if (alias)
+			return alias;
 	}			
 
 	/* It's a directory, or we are required to confirm the file's
@@ -258,26 +267,10 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 	/* now result is properly connected, it is our best bet */
 	if (acceptable(context, result))
 		return result;
-	/* one last try of the aliases.. */
-	spin_lock(&dcache_lock);
-	toput = NULL;
-	head = &result->d_inode->i_dentry;
-	list_for_each(le, head) {
-		struct dentry *dentry = list_entry(le, struct dentry, d_alias);
-		dget_locked(dentry);
-		spin_unlock(&dcache_lock);
-		if (toput) dput(toput);
-		if (dentry != result &&
-		    acceptable(context, dentry)) {
-			dput(result);
-			return dentry;
-		}
-		spin_lock(&dcache_lock);
-		toput = dentry;
-	}
-	spin_unlock(&dcache_lock);
-	if (toput)
-		dput(toput);
+
+	alias = find_acceptable_alias(result, acceptable, context);
+	if (alias)
+		return alias;
 
 	/* drat - I just cannot find anything acceptable */
 	dput(result);

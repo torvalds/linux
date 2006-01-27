@@ -20,6 +20,7 @@
 #include <linux/security.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
+#include <linux/fcntl.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/personality.h>
@@ -383,7 +384,7 @@ asmlinkage long sys_utime(char __user * filename, struct utimbuf __user * times)
 
 		error = get_user(newattrs.ia_atime.tv_sec, &times->actime);
 		newattrs.ia_atime.tv_nsec = 0;
-		if (!error) 
+		if (!error)
 			error = get_user(newattrs.ia_mtime.tv_sec, &times->modtime);
 		newattrs.ia_mtime.tv_nsec = 0;
 		if (error)
@@ -414,14 +415,14 @@ out:
  * must be owner or have write permission.
  * Else, update from *times, must be owner or super user.
  */
-long do_utimes(char __user * filename, struct timeval * times)
+long do_utimes(int dfd, char __user *filename, struct timeval *times)
 {
 	int error;
 	struct nameidata nd;
 	struct inode * inode;
 	struct iattr newattrs;
 
-	error = user_path_walk(filename, &nd);
+	error = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW, &nd);
 
 	if (error)
 		goto out;
@@ -461,13 +462,18 @@ out:
 	return error;
 }
 
-asmlinkage long sys_utimes(char __user * filename, struct timeval __user * utimes)
+asmlinkage long sys_futimesat(int dfd, char __user *filename, struct timeval __user *utimes)
 {
 	struct timeval times[2];
 
 	if (utimes && copy_from_user(&times, utimes, sizeof(times)))
 		return -EFAULT;
-	return do_utimes(filename, utimes ? times : NULL);
+	return do_utimes(dfd, filename, utimes ? times : NULL);
+}
+
+asmlinkage long sys_utimes(char __user *filename, struct timeval __user *utimes)
+{
+	return sys_futimesat(AT_FDCWD, filename, utimes);
 }
 
 
@@ -476,7 +482,7 @@ asmlinkage long sys_utimes(char __user * filename, struct timeval __user * utime
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
-asmlinkage long sys_access(const char __user * filename, int mode)
+asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 {
 	struct nameidata nd;
 	int old_fsuid, old_fsgid;
@@ -506,7 +512,7 @@ asmlinkage long sys_access(const char __user * filename, int mode)
 	else
 		current->cap_effective = current->cap_permitted;
 
-	res = __user_walk(filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
+	res = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
 	if (!res) {
 		res = vfs_permission(&nd, mode);
 		/* SuS v2 requires we report a read only fs too */
@@ -521,6 +527,11 @@ asmlinkage long sys_access(const char __user * filename, int mode)
 	current->cap_effective = old_cap;
 
 	return res;
+}
+
+asmlinkage long sys_access(const char __user *filename, int mode)
+{
+	return sys_faccessat(AT_FDCWD, filename, mode);
 }
 
 asmlinkage long sys_chdir(const char __user * filename)
@@ -635,14 +646,15 @@ out:
 	return err;
 }
 
-asmlinkage long sys_chmod(const char __user * filename, mode_t mode)
+asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
+			     mode_t mode)
 {
 	struct nameidata nd;
 	struct inode * inode;
 	int error;
 	struct iattr newattrs;
 
-	error = user_path_walk(filename, &nd);
+	error = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW, &nd);
 	if (error)
 		goto out;
 	inode = nd.dentry->d_inode;
@@ -667,6 +679,11 @@ dput_and_out:
 	path_release(&nd);
 out:
 	return error;
+}
+
+asmlinkage long sys_chmod(const char __user *filename, mode_t mode)
+{
+	return sys_fchmodat(AT_FDCWD, filename, mode);
 }
 
 static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
@@ -714,6 +731,26 @@ asmlinkage long sys_chown(const char __user * filename, uid_t user, gid_t group)
 		error = chown_common(nd.dentry, user, group);
 		path_release(&nd);
 	}
+	return error;
+}
+
+asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
+			     gid_t group, int flag)
+{
+	struct nameidata nd;
+	int error = -EINVAL;
+	int follow;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	follow = (flag & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	error = __user_walk_fd(dfd, filename, follow, &nd);
+	if (!error) {
+		error = chown_common(nd.dentry, user, group);
+		path_release(&nd);
+	}
+out:
 	return error;
 }
 
@@ -820,7 +857,8 @@ cleanup_file:
  * for the internal routines (ie open_namei()/follow_link() etc). 00 is
  * used by symlinks.
  */
-struct file *filp_open(const char * filename, int flags, int mode)
+static struct file *do_filp_open(int dfd, const char *filename, int flags,
+				 int mode)
 {
 	int namei_flags, error;
 	struct nameidata nd;
@@ -829,11 +867,16 @@ struct file *filp_open(const char * filename, int flags, int mode)
 	if ((namei_flags+1) & O_ACCMODE)
 		namei_flags++;
 
-	error = open_namei(filename, namei_flags, mode, &nd);
+	error = open_namei(dfd, filename, namei_flags, mode, &nd);
 	if (!error)
 		return nameidata_to_filp(&nd, flags);
 
 	return ERR_PTR(error);
+}
+
+struct file *filp_open(const char *filename, int flags, int mode)
+{
+	return do_filp_open(AT_FDCWD, filename, flags, mode);
 }
 EXPORT_SYMBOL(filp_open);
 
@@ -991,7 +1034,7 @@ void fastcall put_unused_fd(unsigned int fd)
 EXPORT_SYMBOL(put_unused_fd);
 
 /*
- * Install a file pointer in the fd array.  
+ * Install a file pointer in the fd array.
  *
  * The VFS is full of places where we drop the files lock between
  * setting the open_fds bitmap and installing the file in the file
@@ -1016,7 +1059,7 @@ void fastcall fd_install(unsigned int fd, struct file * file)
 
 EXPORT_SYMBOL(fd_install);
 
-long do_sys_open(const char __user *filename, int flags, int mode)
+long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 {
 	char *tmp = getname(filename);
 	int fd = PTR_ERR(tmp);
@@ -1024,7 +1067,7 @@ long do_sys_open(const char __user *filename, int flags, int mode)
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd();
 		if (fd >= 0) {
-			struct file *f = filp_open(tmp, flags, mode);
+			struct file *f = do_filp_open(dfd, tmp, flags, mode);
 			if (IS_ERR(f)) {
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
@@ -1043,9 +1086,19 @@ asmlinkage long sys_open(const char __user *filename, int flags, int mode)
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
-	return do_sys_open(filename, flags, mode);
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
 EXPORT_SYMBOL_GPL(sys_open);
+
+asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
+			   int mode)
+{
+	if (force_o_largefile())
+		flags |= O_LARGEFILE;
+
+	return do_sys_open(dfd, filename, flags, mode);
+}
+EXPORT_SYMBOL_GPL(sys_openat);
 
 #ifndef __alpha__
 

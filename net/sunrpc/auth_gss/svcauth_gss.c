@@ -420,7 +420,8 @@ static int rsc_parse(struct cache_detail *cd,
 			gss_mech_put(gm);
 			goto out;
 		}
-		if (gss_import_sec_context(buf, len, gm, &rsci.mechctx)) {
+		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx);
+		if (status) {
 			gss_mech_put(gm);
 			goto out;
 		}
@@ -586,6 +587,20 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 }
 
 static int
+gss_write_null_verf(struct svc_rqst *rqstp)
+{
+	u32     *p;
+
+	svc_putu32(rqstp->rq_res.head, htonl(RPC_AUTH_NULL));
+	p = rqstp->rq_res.head->iov_base + rqstp->rq_res.head->iov_len;
+	/* don't really need to check if head->iov_len > PAGE_SIZE ... */
+	*p++ = 0;
+	if (!xdr_ressize_check(rqstp, p))
+		return -1;
+	return 0;
+}
+
+static int
 gss_write_verf(struct svc_rqst *rqstp, struct gss_ctx *ctx_id, u32 seq)
 {
 	u32			xdr_seq;
@@ -741,6 +756,21 @@ svcauth_gss_set_client(struct svc_rqst *rqstp)
 	return SVC_OK;
 }
 
+static inline int
+gss_write_init_verf(struct svc_rqst *rqstp, struct rsi *rsip)
+{
+	struct rsc *rsci;
+
+	if (rsip->major_status != GSS_S_COMPLETE)
+		return gss_write_null_verf(rqstp);
+	rsci = gss_svc_searchbyctx(&rsip->out_handle);
+	if (rsci == NULL) {
+		rsip->major_status = GSS_S_NO_CONTEXT;
+		return gss_write_null_verf(rqstp);
+	}
+	return gss_write_verf(rqstp, rsci->mechctx, GSS_SEQ_WIN);
+}
+
 /*
  * Accept an rpcsec packet.
  * If context establishment, punt to user space
@@ -876,11 +906,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 		case -ENOENT:
 			goto drop;
 		case 0:
-			rsci = gss_svc_searchbyctx(&rsip->out_handle);
-			if (!rsci) {
-				goto drop;
-			}
-			if (gss_write_verf(rqstp, rsci->mechctx, GSS_SEQ_WIN))
+			if (gss_write_init_verf(rqstp, rsip))
 				goto drop;
 			if (resv->iov_len + 4 > PAGE_SIZE)
 				goto drop;

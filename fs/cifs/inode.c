@@ -229,11 +229,12 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 			 cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc==0) {
+		int buf_type = CIFS_NO_BUFFER;
 			/* Read header */
 		rc = CIFSSMBRead(xid, pTcon,
 			         netfid,
 				 24 /* length */, 0 /* offset */,
-				 &bytes_read, &pbuf);
+				 &bytes_read, &pbuf, &buf_type);
 		if((rc == 0) && (bytes_read >= 8)) {
 			if(memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1,("Block device"));
@@ -267,7 +268,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 		} else {
 			inode->i_mode |= S_IFREG; /* then it is a file */
 			rc = -EOPNOTSUPP; /* or some unknown SFU type */	
-		}
+		}		
 		CIFSSMBClose(xid, pTcon, netfid);
 	}
 	return rc;
@@ -750,8 +751,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 						    mode,
-						    (__u64)current->euid,
-						    (__u64)current->egid,
+						    (__u64)current->fsuid,
+						    (__u64)current->fsgid,
 						    0 /* dev_t */,
 						    cifs_sb->local_nls,
 						    cifs_sb->mnt_cifs_flags &

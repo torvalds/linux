@@ -334,7 +334,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		mov	r1, #0x12
 		orr	r1, r1, #3 << 10
 		add	r2, r3, #16384
-1:		cmp	r1, r8			@ if virt > start of RAM
+1:		cmp	r1, r9			@ if virt > start of RAM
 		orrhs	r1, r1, #0x0c		@ set cacheable, bufferable
 		cmp	r1, r10			@ if virt > end of RAM
 		bichs	r1, r1, #0x0c		@ clear cacheable, bufferable

@@ -7,6 +7,7 @@ menu "Network device support"
 
 config NETDEVICES
 	depends on NET
+	default y if UML
 	bool "Network device support"
 	---help---
 	  You can say N here if you don't intend to connect your Linux box to
@@ -1911,6 +1912,15 @@ config E1000_NAPI
 
 	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
 	  information.
+
+	  If in doubt, say N.
+
+config E1000_DISABLE_PACKET_SPLIT
+	bool "Disable Packet Split for PCI express adapters"
+	depends on E1000
+	help
+	  Say Y here if you want to use the legacy receive path for PCI express
+	  hadware.
 
 	  If in doubt, say N.
 

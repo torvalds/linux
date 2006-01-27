@@ -1,3 +1,11 @@
+Version 1.40
+------------
+Use fsuid (fsgid) more consistently instead of uid (gid). Improve performance
+of readpages by eliminating one extra memcpy. Allow update of file size
+from remote server even if file is open for write as long as mount is
+directio.  Recognize share mode security and send NTLM encrypted password
+on tree connect if share mode negotiated.
+
 Version 1.39
 ------------
 Defer close of a file handle slightly if pending writes depend on that handle
@@ -7,6 +15,8 @@ Fix SFU style symlinks and mknod needed for servers which do not support the
 CIFS Unix Extensions.  Fix setfacl/getfacl on bigendian. Timeout negative
 dentries so files that the client sees as deleted but that later get created
 on the server will be recognized.  Add client side permission check on setattr.
+Timeout stuck requests better (where server has never responded or sent corrupt
+responses)
 
 Version 1.38
 ------------

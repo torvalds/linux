@@ -36,9 +36,6 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-static int do_signal(sigset_t *oldset, struct pt_regs * regs,
-		     unsigned long orig_o0, int ret_from_syscall);
-
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 asmlinkage void sparc64_set_context(struct pt_regs *regs)
 {
@@ -242,114 +239,29 @@ struct rt_signal_frame {
 /* Align macros */
 #define RT_ALIGNEDSZ  (((sizeof(struct rt_signal_frame) + 7) & (~7)))
 
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- * This is really tricky on the Sparc, watch out...
- */
-asmlinkage void _sigpause_common(old_sigset_t set, struct pt_regs *regs)
+static long _sigpause_common(old_sigset_t set)
 {
-	sigset_t saveset;
-
-#ifdef CONFIG_SPARC32_COMPAT
-	if (test_thread_flag(TIF_32BIT)) {
-		extern asmlinkage void _sigpause32_common(compat_old_sigset_t,
-							  struct pt_regs *);
-		_sigpause32_common(set, regs);
-		return;
-	}
-#endif
 	set &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, set);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-	
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc = (regs->tnpc & 0xffffffff);
-		regs->tnpc = (regs->tnpc + 4) & 0xffffffff;
-	} else {
-		regs->tpc = regs->tnpc;
-		regs->tnpc += 4;
-	}
 
-	/* Condition codes and return value where set here for sigpause,
-	 * and so got used by setup_frame, which again causes sigreturn()
-	 * to return -EINTR.
-	 */
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		/*
-		 * Return -EINTR and set condition code here,
-		 * so the interrupted system call actually returns
-		 * these.
-		 */
-		regs->tstate |= (TSTATE_ICARRY|TSTATE_XCARRY);
-		regs->u_regs[UREG_I0] = EINTR;
-		if (do_signal(&saveset, regs, 0, 0))
-			return;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
-asmlinkage void do_sigpause(unsigned int set, struct pt_regs *regs)
+asmlinkage long sys_sigpause(unsigned int set)
 {
-	_sigpause_common(set, regs);
+	return _sigpause_common(set);
 }
 
-asmlinkage void do_sigsuspend(struct pt_regs *regs)
+asmlinkage long sys_sigsuspend(old_sigset_t set)
 {
-	_sigpause_common(regs->u_regs[UREG_I0], regs);
-}
-
-asmlinkage void do_rt_sigsuspend(sigset_t __user *uset, size_t sigsetsize, struct pt_regs *regs)
-{
-	sigset_t oldset, set;
-        
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t)) {
-		regs->tstate |= (TSTATE_ICARRY|TSTATE_XCARRY);
-		regs->u_regs[UREG_I0] = EINVAL;
-		return;
-	}
-	if (copy_from_user(&set, uset, sizeof(set))) {
-		regs->tstate |= (TSTATE_ICARRY|TSTATE_XCARRY);
-		regs->u_regs[UREG_I0] = EFAULT;
-		return;
-	}
-                                                                
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	oldset = current->blocked;
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc = (regs->tnpc & 0xffffffff);
-		regs->tnpc = (regs->tnpc + 4) & 0xffffffff;
-	} else {
-		regs->tpc = regs->tnpc;
-		regs->tnpc += 4;
-	}
-
-	/* Condition codes and return value where set here for sigpause,
-	 * and so got used by setup_frame, which again causes sigreturn()
-	 * to return -EINTR.
-	 */
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		/*
-		 * Return -EINTR and set condition code here,
-		 * so the interrupted system call actually returns
-		 * these.
-		 */
-		regs->tstate |= (TSTATE_ICARRY|TSTATE_XCARRY);
-		regs->u_regs[UREG_I0] = EINTR;
-		if (do_signal(&oldset, regs, 0, 0))
-			return;
-	}
+	return _sigpause_common(set);
 }
 
 static inline int
@@ -607,26 +519,29 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-static int do_signal(sigset_t *oldset, struct pt_regs * regs,
-		     unsigned long orig_i0, int restart_syscall)
+static void do_signal(struct pt_regs *regs, unsigned long orig_i0, int restart_syscall)
 {
 	siginfo_t info;
 	struct signal_deliver_cookie cookie;
 	struct k_sigaction ka;
 	int signr;
+	sigset_t *oldset;
 	
 	cookie.restart_syscall = restart_syscall;
 	cookie.orig_i0 = orig_i0;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 #ifdef CONFIG_SPARC32_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
-		extern int do_signal32(sigset_t *, struct pt_regs *,
-				       unsigned long, int);
-		return do_signal32(oldset, regs, orig_i0,
-				   cookie.restart_syscall);
+		extern void do_signal32(sigset_t *, struct pt_regs *,
+					unsigned long, int);
+		do_signal32(oldset, regs, orig_i0,
+			    cookie.restart_syscall);
+		return;
 	}
 #endif	
 
@@ -635,7 +550,15 @@ static int do_signal(sigset_t *oldset, struct pt_regs * regs,
 		if (cookie.restart_syscall)
 			syscall_restart(orig_i0, regs, &ka.sa);
 		handle_signal(signr, &ka, &info, oldset, regs);
-		return 1;
+
+		/* a signal was successfully delivered; the saved
+		 * sigmask will have been stored in the signal frame,
+		 * and will be restored by sigreturn, so we can simply
+		 * clear the TIF_RESTORE_SIGMASK flag.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		return;
 	}
 	if (cookie.restart_syscall &&
 	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
@@ -652,15 +575,21 @@ static int do_signal(sigset_t *oldset, struct pt_regs * regs,
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
-	return 0;
+
+	/* if there's no signal to deliver, we just put the saved sigmask
+	 * back
+	 */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }
 
-void do_notify_resume(sigset_t *oldset, struct pt_regs *regs,
-		      unsigned long orig_i0, int restart_syscall,
+void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, int restart_syscall,
 		      unsigned long thread_info_flags)
 {
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(oldset, regs, orig_i0, restart_syscall);
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+		do_signal(regs, orig_i0, restart_syscall);
 }
 
 void ptrace_signal_deliver(struct pt_regs *regs, void *cookie)

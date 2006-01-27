@@ -44,10 +44,10 @@ static char print_string[MAX_STRING];
 static spinlock_t print_lock = SPIN_LOCK_UNLOCKED;
 
 static struct print_buf cons_buf = { NULL, 0, NULL, NULL };
-struct print_buf *CONS = &cons_buf;
+struct print_buf *TIPC_CONS = &cons_buf;
 
 static struct print_buf log_buf = { NULL, 0, NULL, NULL };
-struct print_buf *LOG = &log_buf;
+struct print_buf *TIPC_LOG = &log_buf;
 
 
 #define FORMAT(PTR,LEN,FMT) \
@@ -66,15 +66,15 @@ struct print_buf *LOG = &log_buf;
  *    simultaneous use of the print buffer(s) being manipulated.
  * 2) tipc_printf() uses 'print_lock' to prevent simultaneous use of
  *    'print_string' and to protect its print buffer(s).
- * 3) TEE() uses 'print_lock' to protect its print buffer(s).
- * 4) Routines of the form log_XXX() uses 'print_lock' to protect LOG.
+ * 3) TIPC_TEE() uses 'print_lock' to protect its print buffer(s).
+ * 4) Routines of the form log_XXX() uses 'print_lock' to protect TIPC_LOG.
  */
 
 /**
- * printbuf_init - initialize print buffer to empty
+ * tipc_printbuf_init - initialize print buffer to empty
  */
 
-void printbuf_init(struct print_buf *pb, char *raw, u32 sz)
+void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 sz)
 {
 	if (!pb || !raw || (sz < (MAX_STRING + 1)))
 		return;
@@ -87,26 +87,26 @@ void printbuf_init(struct print_buf *pb, char *raw, u32 sz)
 }
 
 /**
- * printbuf_reset - reinitialize print buffer to empty state
+ * tipc_printbuf_reset - reinitialize print buffer to empty state
  */
 
-void printbuf_reset(struct print_buf *pb)
+void tipc_printbuf_reset(struct print_buf *pb)
 {
 	if (pb && pb->buf)
-		printbuf_init(pb, pb->buf, pb->size);
+		tipc_printbuf_init(pb, pb->buf, pb->size);
 }
 
 /**
- * printbuf_empty - test if print buffer is in empty state
+ * tipc_printbuf_empty - test if print buffer is in empty state
  */
 
-int printbuf_empty(struct print_buf *pb)
+int tipc_printbuf_empty(struct print_buf *pb)
 {
 	return (!pb || !pb->buf || (pb->crs == pb->buf));
 }
 
 /**
- * printbuf_validate - check for print buffer overflow
+ * tipc_printbuf_validate - check for print buffer overflow
  * 
  * Verifies that a print buffer has captured all data written to it. 
  * If data has been lost, linearize buffer and prepend an error message
@@ -114,7 +114,7 @@ int printbuf_empty(struct print_buf *pb)
  * Returns length of print buffer data string (including trailing NULL)
  */
 
-int printbuf_validate(struct print_buf *pb)
+int tipc_printbuf_validate(struct print_buf *pb)
 {
         char *err = "             *** PRINT BUFFER WRAPPED AROUND ***\n";
         char *cp_buf;
@@ -126,13 +126,13 @@ int printbuf_validate(struct print_buf *pb)
 	if (pb->buf[pb->size - 1] == '\0') {
                 cp_buf = kmalloc(pb->size, GFP_ATOMIC);
                 if (cp_buf != NULL){
-                        printbuf_init(&cb, cp_buf, pb->size);
-                        printbuf_move(&cb, pb);
-                        printbuf_move(pb, &cb);
+                        tipc_printbuf_init(&cb, cp_buf, pb->size);
+                        tipc_printbuf_move(&cb, pb);
+                        tipc_printbuf_move(pb, &cb);
                         kfree(cp_buf);
                         memcpy(pb->buf, err, strlen(err));
                 } else {
-                        printbuf_reset(pb);
+                        tipc_printbuf_reset(pb);
                         tipc_printf(pb, err);
                 }
 	}
@@ -140,13 +140,13 @@ int printbuf_validate(struct print_buf *pb)
 }
 
 /**
- * printbuf_move - move print buffer contents to another print buffer
+ * tipc_printbuf_move - move print buffer contents to another print buffer
  * 
  * Current contents of destination print buffer (if any) are discarded.
  * Source print buffer becomes empty if a successful move occurs.
  */
 
-void printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from)
+void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from)
 {
 	int len;
 
@@ -156,12 +156,12 @@ void printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from)
 		return;
 
 	if (!pb_from || !pb_from->buf) {
-		printbuf_reset(pb_to);
+		tipc_printbuf_reset(pb_to);
 		return;
 	}
 
 	if (pb_to->size < pb_from->size) {
-		printbuf_reset(pb_to);
+		tipc_printbuf_reset(pb_to);
 		tipc_printf(pb_to, "*** PRINT BUFFER OVERFLOW ***");
 		return;
 	}
@@ -179,7 +179,7 @@ void printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from)
 	strcpy(pb_to->crs, pb_from->buf);
 	pb_to->crs += len;
 
-	printbuf_reset(pb_from);
+	tipc_printbuf_reset(pb_from);
 }
 
 /**
@@ -199,7 +199,7 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 		strcpy(print_string, "*** STRING TOO LONG ***");
 
 	while (pb) {
-		if (pb == CONS)
+		if (pb == TIPC_CONS)
 			printk(print_string);
 		else if (pb->buf) {
 			chars_left = pb->buf + pb->size - pb->crs - 1;
@@ -223,10 +223,10 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 }
 
 /**
- * TEE - perform next output operation on both print buffers  
+ * TIPC_TEE - perform next output operation on both print buffers  
  */
 
-struct print_buf *TEE(struct print_buf *b0, struct print_buf *b1)
+struct print_buf *TIPC_TEE(struct print_buf *b0, struct print_buf *b1)
 {
 	struct print_buf *pb = b0;
 
@@ -294,96 +294,96 @@ void tipc_dump(struct print_buf *pb, const char *fmt, ...)
 	int len;
 
 	spin_lock_bh(&print_lock);
-	FORMAT(CONS->buf, len, fmt);
-	printk(CONS->buf);
+	FORMAT(TIPC_CONS->buf, len, fmt);
+	printk(TIPC_CONS->buf);
 
 	for (; pb; pb = pb->next) {
-		if (pb == CONS)
+		if (pb == TIPC_CONS)
 			continue;
 		printk("\n---- Start of dump,%s log ----\n\n", 
-		       (pb == LOG) ? "global" : "local");
+		       (pb == TIPC_LOG) ? "global" : "local");
 		printbuf_dump(pb);
-		printbuf_reset(pb);
+		tipc_printbuf_reset(pb);
 		printk("\n-------- End of dump --------\n");
 	}
 	spin_unlock_bh(&print_lock);
 }
 
 /**
- * log_stop - free up TIPC log print buffer 
+ * tipc_log_stop - free up TIPC log print buffer 
  */
 
-void log_stop(void)
+void tipc_log_stop(void)
 {
 	spin_lock_bh(&print_lock);
-	if (LOG->buf) {
-		kfree(LOG->buf);
-		LOG->buf = NULL;
+	if (TIPC_LOG->buf) {
+		kfree(TIPC_LOG->buf);
+		TIPC_LOG->buf = NULL;
 	}
 	spin_unlock_bh(&print_lock);
 }
 
 /**
- * log_reinit - set TIPC log print buffer to specified size
+ * tipc_log_reinit - set TIPC log print buffer to specified size
  */
 
-void log_reinit(int log_size)
+void tipc_log_reinit(int log_size)
 {
-	log_stop();
+	tipc_log_stop();
 
 	if (log_size) {
 		if (log_size <= MAX_STRING)
 			log_size = MAX_STRING + 1;
 		spin_lock_bh(&print_lock);
-		printbuf_init(LOG, kmalloc(log_size, GFP_ATOMIC), log_size);
+		tipc_printbuf_init(TIPC_LOG, kmalloc(log_size, GFP_ATOMIC), log_size);
 		spin_unlock_bh(&print_lock);
 	}
 }
 
 /**
- * log_resize - reconfigure size of TIPC log buffer
+ * tipc_log_resize - reconfigure size of TIPC log buffer
  */
 
-struct sk_buff *log_resize(const void *req_tlv_area, int req_tlv_space)
+struct sk_buff *tipc_log_resize(const void *req_tlv_area, int req_tlv_space)
 {
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 0, 32768))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (log size must be 0-32768)");
-	log_reinit(value);
-	return cfg_reply_none();
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (log size must be 0-32768)");
+	tipc_log_reinit(value);
+	return tipc_cfg_reply_none();
 }
 
 /**
- * log_dump - capture TIPC log buffer contents in configuration message
+ * tipc_log_dump - capture TIPC log buffer contents in configuration message
  */
 
-struct sk_buff *log_dump(void)
+struct sk_buff *tipc_log_dump(void)
 {
 	struct sk_buff *reply;
 
 	spin_lock_bh(&print_lock);
-	if (!LOG->buf)
-		reply = cfg_reply_ultra_string("log not activated\n");
-	else if (printbuf_empty(LOG))
-		reply = cfg_reply_ultra_string("log is empty\n");
+	if (!TIPC_LOG->buf)
+		reply = tipc_cfg_reply_ultra_string("log not activated\n");
+	else if (tipc_printbuf_empty(TIPC_LOG))
+		reply = tipc_cfg_reply_ultra_string("log is empty\n");
 	else {
 		struct tlv_desc *rep_tlv;
 		struct print_buf pb;
 		int str_len;
 
-		str_len = min(LOG->size, 32768u);
-		reply = cfg_reply_alloc(TLV_SPACE(str_len));
+		str_len = min(TIPC_LOG->size, 32768u);
+		reply = tipc_cfg_reply_alloc(TLV_SPACE(str_len));
 		if (reply) {
 			rep_tlv = (struct tlv_desc *)reply->data;
-			printbuf_init(&pb, TLV_DATA(rep_tlv), str_len);
-			printbuf_move(&pb, LOG);
+			tipc_printbuf_init(&pb, TLV_DATA(rep_tlv), str_len);
+			tipc_printbuf_move(&pb, TIPC_LOG);
 			str_len = strlen(TLV_DATA(rep_tlv)) + 1;
 			skb_put(reply, TLV_SPACE(str_len));
 			TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);

@@ -37,7 +37,7 @@
 #ifndef _TIPC_PORT_H
 #define _TIPC_PORT_H
 
-#include <net/tipc/tipc_port.h>
+#include "core.h"
 #include "ref.h"
 #include "net.h"
 #include "msg.h"
@@ -110,65 +110,65 @@ struct port {
 	struct node_subscr subscription;
 };
 
-extern spinlock_t port_list_lock;
+extern spinlock_t tipc_port_list_lock;
 struct port_list;
 
-int port_recv_sections(struct port *p_ptr, u32 num_sect, 
-		       struct iovec const *msg_sect);
-int port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
-			 struct iovec const *msg_sect, u32 num_sect,
-			 int err);
-struct sk_buff *port_get_ports(void);
+int tipc_port_recv_sections(struct port *p_ptr, u32 num_sect, 
+			    struct iovec const *msg_sect);
+int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
+			      struct iovec const *msg_sect, u32 num_sect,
+			      int err);
+struct sk_buff *tipc_port_get_ports(void);
 struct sk_buff *port_show_stats(const void *req_tlv_area, int req_tlv_space);
-void port_recv_proto_msg(struct sk_buff *buf);
-void port_recv_mcast(struct sk_buff *buf, struct port_list *dp);
-void port_reinit(void);
+void tipc_port_recv_proto_msg(struct sk_buff *buf);
+void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp);
+void tipc_port_reinit(void);
 
 /**
- * port_lock - lock port instance referred to and return its pointer
+ * tipc_port_lock - lock port instance referred to and return its pointer
  */
 
-static inline struct port *port_lock(u32 ref)
+static inline struct port *tipc_port_lock(u32 ref)
 {
-	return (struct port *)ref_lock(ref);
+	return (struct port *)tipc_ref_lock(ref);
 }
 
 /** 
- * port_unlock - unlock a port instance
+ * tipc_port_unlock - unlock a port instance
  * 
- * Can use pointer instead of ref_unlock() since port is already locked.
+ * Can use pointer instead of tipc_ref_unlock() since port is already locked.
  */
 
-static inline void port_unlock(struct port *p_ptr)
+static inline void tipc_port_unlock(struct port *p_ptr)
 {
 	spin_unlock_bh(p_ptr->publ.lock);
 }
 
-static inline struct port* port_deref(u32 ref)
+static inline struct port* tipc_port_deref(u32 ref)
 {
-	return (struct port *)ref_deref(ref);
+	return (struct port *)tipc_ref_deref(ref);
 }
 
-static inline u32 peer_port(struct port *p_ptr)
+static inline u32 tipc_peer_port(struct port *p_ptr)
 {
 	return msg_destport(&p_ptr->publ.phdr);
 }
 
-static inline u32 peer_node(struct port *p_ptr)
+static inline u32 tipc_peer_node(struct port *p_ptr)
 {
 	return msg_destnode(&p_ptr->publ.phdr);
 }
 
-static inline int port_congested(struct port *p_ptr)
+static inline int tipc_port_congested(struct port *p_ptr)
 {
 	return((p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2));
 }
 
 /** 
- * port_recv_msg - receive message from lower layer and deliver to port user
+ * tipc_port_recv_msg - receive message from lower layer and deliver to port user
  */
 
-static inline int port_recv_msg(struct sk_buff *buf)
+static inline int tipc_port_recv_msg(struct sk_buff *buf)
 {
 	struct port *p_ptr;
 	struct tipc_msg *msg = buf_msg(buf);
@@ -178,24 +178,24 @@ static inline int port_recv_msg(struct sk_buff *buf)
 	
 	/* forward unresolved named message */
 	if (unlikely(!destport)) {
-		net_route_msg(buf);
+		tipc_net_route_msg(buf);
 		return dsz;
 	}
 
 	/* validate destination & pass to port, otherwise reject message */
-	p_ptr = port_lock(destport);
+	p_ptr = tipc_port_lock(destport);
 	if (likely(p_ptr)) {
 		if (likely(p_ptr->publ.connected)) {
-			if ((unlikely(msg_origport(msg) != peer_port(p_ptr))) ||
-			    (unlikely(msg_orignode(msg) != peer_node(p_ptr))) ||
+			if ((unlikely(msg_origport(msg) != tipc_peer_port(p_ptr))) ||
+			    (unlikely(msg_orignode(msg) != tipc_peer_node(p_ptr))) ||
 			    (unlikely(!msg_connected(msg)))) {
 				err = TIPC_ERR_NO_PORT;
-				port_unlock(p_ptr);
+				tipc_port_unlock(p_ptr);
 				goto reject;
 			}
 		}
 		err = p_ptr->dispatcher(&p_ptr->publ, buf);
-		port_unlock(p_ptr);
+		tipc_port_unlock(p_ptr);
 		if (likely(!err))
 			return dsz;
 	} else {

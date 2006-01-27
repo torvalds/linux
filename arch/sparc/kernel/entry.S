@@ -1277,62 +1277,6 @@ sys_sigstack:
 	 mov	%l5, %o7
 
 	.align	4
-	.globl	sys_sigpause
-sys_sigpause:
-	/* Note: %o0 already has correct value... */
-	call	do_sigpause
-	 add	%sp, STACKFRAME_SZ, %o1
-
-	ld	[%curptr + TI_FLAGS], %l5
-	andcc	%l5, _TIF_SYSCALL_TRACE, %g0
-	be	1f
-	 nop
-
-	call	syscall_trace
-	 nop
-
-1:
-	/* We are returning to a signal handler. */
-	RESTORE_ALL
-
-	.align	4
-	.globl	sys_sigsuspend
-sys_sigsuspend:
-	call	do_sigsuspend
-	 add	%sp, STACKFRAME_SZ, %o0
-
-	ld	[%curptr + TI_FLAGS], %l5
-	andcc	%l5, _TIF_SYSCALL_TRACE, %g0
-	be	1f
-	 nop
-
-	call	syscall_trace
-	 nop
-
-1:
-	/* We are returning to a signal handler. */
-	RESTORE_ALL
-
-	.align	4
-	.globl	sys_rt_sigsuspend
-sys_rt_sigsuspend:
-	/* Note: %o0, %o1 already have correct value... */
-	call	do_rt_sigsuspend
-	 add	%sp, STACKFRAME_SZ, %o2
-
-	ld	[%curptr + TI_FLAGS], %l5
-	andcc	%l5, _TIF_SYSCALL_TRACE, %g0
-	be	1f
-	 nop
-
-	call	syscall_trace
-	 nop
-
-1:
-	/* We are returning to a signal handler. */
-	RESTORE_ALL
-
-	.align	4
 	.globl	sys_sigreturn
 sys_sigreturn:
 	call	do_sigreturn

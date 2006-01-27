@@ -18,7 +18,6 @@
 #include "os.h"
 #include "kern.h"
 #include "sigcontext.h"
-#include "time_user.h"
 #include "mem_user.h"
 #include "tlb.h"
 #include "mode.h"
