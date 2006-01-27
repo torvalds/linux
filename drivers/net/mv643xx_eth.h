@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/mii.h>
 
 #include <linux/mv643xx.h>
 
@@ -393,6 +394,7 @@ struct mv643xx_private {
 
 	u32 rx_int_coal;
 	u32 tx_int_coal;
+	struct mii_if_info mii;
 };
 
 /* ethernet.h API list */

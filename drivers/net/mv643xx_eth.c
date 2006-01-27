@@ -79,7 +79,6 @@
 #define PHY_WAIT_MICRO_SECONDS	10
 
 /* Static function declarations */
-static int eth_port_link_is_up(unsigned int eth_port_num);
 static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
 static void eth_port_set_multicast_list(struct net_device *);
@@ -97,8 +96,11 @@ static void eth_port_init_mac_tables(unsigned int eth_port_num);
 #ifdef MV643XX_NAPI
 static int mv643xx_poll(struct net_device *dev, int *budget);
 #endif
+static int ethernet_phy_get(unsigned int eth_port_num);
 static void ethernet_phy_set(unsigned int eth_port_num, int phy_addr);
 static int ethernet_phy_detect(unsigned int eth_port_num);
+static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location);
+static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val);
 static struct ethtool_ops mv643xx_ethtool_ops;
 
 static char mv643xx_driver_name[] = "mv643xx_eth";
@@ -537,14 +539,17 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 	}
 	/* PHY status changed */
 	if (eth_int_cause_ext & (BIT16 | BIT20)) {
-		if (eth_port_link_is_up(port_num)) {
-			netif_carrier_on(dev);
-			netif_wake_queue(dev);
-			/* Start TX queue */
-			mv643xx_eth_port_enable_tx(port_num, mp->port_tx_queue_command);
-		} else {
-			netif_carrier_off(dev);
+		if (mii_link_ok(&mp->mii)) {
+			if (!netif_carrier_ok(dev)) {
+				netif_carrier_on(dev);
+				netif_wake_queue(dev);
+				/* Start TX queue */
+				mv643xx_eth_port_enable_tx(port_num,
+						mp->port_tx_queue_command);
+			}
+		} else if (netif_carrier_ok(dev)) {
 			netif_stop_queue(dev);
+			netif_carrier_off(dev);
 		}
 	}
 
@@ -1434,6 +1439,14 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Hook up MII support for ethtool */
+	mp->mii.dev = dev;
+	mp->mii.mdio_read = mv643xx_mdio_read;
+	mp->mii.mdio_write = mv643xx_mdio_write;
+	mp->mii.phy_id = ethernet_phy_get(port_num);
+	mp->mii.phy_id_mask = 0x3f;
+	mp->mii.reg_num_mask = 0x1f;
+
 	err = ethernet_phy_detect(port_num);
 	if (err) {
 		pr_debug("MV643xx ethernet port %d: "
@@ -1441,6 +1454,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 					port_num, ethernet_phy_get(port_num));
 		return err;
 	}
+
+	mp->mii.supports_gmii = mii_check_gmii_support(&mp->mii);
 
 	err = register_netdev(dev);
 	if (err)
@@ -2416,21 +2431,6 @@ static int eth_port_autoneg_supported(unsigned int eth_port_num)
 	return phy_reg_data0 & 0x1000;
 }
 
-static int eth_port_link_is_up(unsigned int eth_port_num)
-{
-	unsigned int phy_reg_data1;
-
-	eth_port_read_smi_reg(eth_port_num, 1, &phy_reg_data1);
-
-	if (eth_port_autoneg_supported(eth_port_num)) {
-		if (phy_reg_data1 & 0x20)	/* auto-neg complete */
-			return 1;
-	} else if (phy_reg_data1 & 0x4)		/* link up */
-		return 1;
-
-	return 0;
-}
-
 /*
  * eth_port_read_smi_reg - Read PHY registers
  *
@@ -2533,6 +2533,24 @@ static void eth_port_write_smi_reg(unsigned int eth_port_num,
 				ETH_SMI_OPCODE_WRITE | (value & 0xffff));
 out:
 	spin_unlock_irqrestore(&mv643xx_eth_phy_lock, flags);
+}
+
+/*
+ * Wrappers for MII support library.
+ */
+static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location)
+{
+	int val;
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	eth_port_read_smi_reg(mp->port_num, location, &val);
+	return val;
+}
+
+static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	eth_port_write_smi_reg(mp->port_num, location, val);
 }
 
 /*
