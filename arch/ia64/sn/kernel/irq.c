@@ -86,7 +86,7 @@ static void sn_ack_irq(unsigned int irq)
 	      mask);
 	__set_bit(irq, (volatile void *)pda->sn_in_service_ivecs);
 
-	move_irq(irq);
+	move_native_irq(irq);
 }
 
 static void sn_end_irq(unsigned int irq)
