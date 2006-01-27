@@ -101,6 +101,7 @@ static void ethernet_phy_set(unsigned int eth_port_num, int phy_addr);
 static int ethernet_phy_detect(unsigned int eth_port_num);
 static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location);
 static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val);
+static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static struct ethtool_ops mv643xx_ethtool_ops;
 
 static char mv643xx_driver_name[] = "mv643xx_eth";
@@ -457,6 +458,56 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
 	return received_packets;
 }
 
+/* Set the mv643xx port configuration register for the speed/duplex mode. */
+static void mv643xx_eth_update_pscr(struct net_device *dev,
+				    struct ethtool_cmd *ecmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int port_num = mp->port_num;
+	u32 o_pscr, n_pscr;
+	unsigned int channels;
+
+	o_pscr = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
+	n_pscr = o_pscr;
+
+	/* clear speed, duplex and rx buffer size fields */
+	n_pscr &= ~(MV643XX_ETH_SET_MII_SPEED_TO_100  |
+		   MV643XX_ETH_SET_GMII_SPEED_TO_1000 |
+		   MV643XX_ETH_SET_FULL_DUPLEX_MODE   |
+		   MV643XX_ETH_MAX_RX_PACKET_MASK);
+
+	if (ecmd->duplex == DUPLEX_FULL)
+		n_pscr |= MV643XX_ETH_SET_FULL_DUPLEX_MODE;
+
+	if (ecmd->speed == SPEED_1000)
+		n_pscr |= MV643XX_ETH_SET_GMII_SPEED_TO_1000 |
+			  MV643XX_ETH_MAX_RX_PACKET_9700BYTE;
+	else {
+		if (ecmd->speed == SPEED_100)
+			n_pscr |= MV643XX_ETH_SET_MII_SPEED_TO_100;
+		n_pscr |= MV643XX_ETH_MAX_RX_PACKET_1522BYTE;
+	}
+
+	if (n_pscr != o_pscr) {
+		if ((o_pscr & MV643XX_ETH_SERIAL_PORT_ENABLE) == 0)
+			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
+								n_pscr);
+		else {
+			channels = mv643xx_eth_port_disable_tx(port_num);
+
+			o_pscr &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
+			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
+								o_pscr);
+			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
+								n_pscr);
+			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
+								n_pscr);
+			if (channels)
+				mv643xx_eth_port_enable_tx(port_num, channels);
+		}
+	}
+}
+
 /*
  * mv643xx_eth_int_handler
  *
@@ -539,13 +590,19 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 	}
 	/* PHY status changed */
 	if (eth_int_cause_ext & (BIT16 | BIT20)) {
+		struct ethtool_cmd cmd;
+
 		if (mii_link_ok(&mp->mii)) {
+			mii_ethtool_gset(&mp->mii, &cmd);
+			mv643xx_eth_update_pscr(dev, &cmd);
 			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				netif_wake_queue(dev);
-				/* Start TX queue */
-				mv643xx_eth_port_enable_tx(port_num,
-						mp->port_tx_queue_command);
+				if (mp->tx_ring_size > mp->tx_desc_count +
+							MAX_DESCS_PER_SKB) {
+					netif_wake_queue(dev);
+					/* Start TX queue */
+					mv643xx_eth_port_enable_tx(port_num, mp->port_tx_queue_command);
+				}
 			}
 		} else if (netif_carrier_ok(dev)) {
 			netif_stop_queue(dev);
@@ -729,6 +786,34 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
 	mp->port_tx_queue_command = 1;
 }
 
+static int mv643xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int err;
+
+	spin_lock_irq(&mp->lock);
+	err = mii_ethtool_sset(&mp->mii, cmd);
+	spin_unlock_irq(&mp->lock);
+
+	return err;
+}
+
+static int mv643xx_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+	int err;
+
+	spin_lock_irq(&mp->lock);
+	err = mii_ethtool_gset(&mp->mii, cmd);
+	spin_unlock_irq(&mp->lock);
+
+	/* The PHY may support 1000baseT_Half, but the mv643xx does not */
+	cmd->supported &= ~SUPPORTED_1000baseT_Half;
+	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
+
+	return err;
+}
+
 /*
  * mv643xx_eth_open
  *
@@ -842,6 +927,10 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	mv643xx_eth_rx_task(dev);	/* Fill RX ring with skb's */
 
+	/* Clear any pending ethernet port interrupts */
+	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
+	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
+
 	eth_port_start(dev);
 
 	/* Interrupt Coalescing */
@@ -854,16 +943,13 @@ static int mv643xx_eth_open(struct net_device *dev)
 	mp->tx_int_coal =
 		eth_port_set_tx_coal(port_num, 133000000, MV643XX_TX_COAL);
 
-	/* Clear any pending ethernet port interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
-
 	/* Unmask phy and link status changes interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
 						INT_UNMASK_ALL_EXT);
 
 	/* Unmask RX buffer and TX end interrupt */
 	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
+
 	return 0;
 
 out_free_tx_skb:
@@ -1318,6 +1404,35 @@ static void mv643xx_netpoll(struct net_device *netdev)
 }
 #endif
 
+static void mv643xx_init_ethtool_cmd(struct net_device *dev, int phy_address,
+				     int speed, int duplex,
+				     struct ethtool_cmd *cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->port = PORT_MII;
+	cmd->transceiver = XCVR_INTERNAL;
+	cmd->phy_address = phy_address;
+
+	if (speed == 0) {
+		cmd->autoneg = AUTONEG_ENABLE;
+		/* mii lib checks, but doesn't use speed on AUTONEG_ENABLE */
+		cmd->speed = SPEED_100;
+		cmd->advertising = ADVERTISED_10baseT_Half  |
+				   ADVERTISED_10baseT_Full  |
+				   ADVERTISED_100baseT_Half |
+				   ADVERTISED_100baseT_Full;
+		if (mp->mii.supports_gmii)
+			cmd->advertising |= ADVERTISED_1000baseT_Full;
+	} else {
+		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->speed = speed;
+		cmd->duplex = duplex;
+	}
+}
+
 /*/
  * mv643xx_eth_probe
  *
@@ -1338,6 +1453,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	u8 *p;
 	struct resource *res;
 	int err;
+	struct ethtool_cmd cmd;
+	u32 pscr;
+	int duplex;
+	int speed;
 
 	dev = alloc_etherdev(sizeof(struct mv643xx_private));
 	if (!dev)
@@ -1375,6 +1494,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->tx_queue_len = mp->tx_ring_size;
 	dev->base_addr = 0;
 	dev->change_mtu = mv643xx_eth_change_mtu;
+	dev->do_ioctl = mv643xx_eth_do_ioctl;
 	SET_ETHTOOL_OPS(dev, &mv643xx_ethtool_ops);
 
 #ifdef MV643XX_CHECKSUM_OFFLOAD_TX
@@ -1452,10 +1572,35 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		pr_debug("MV643xx ethernet port %d: "
 					"No PHY detected at addr %d\n",
 					port_num, ethernet_phy_get(port_num));
-		return err;
+		goto out;
 	}
 
+	pscr = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
+	pscr &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
+	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
+	pscr = mp->port_serial_control;
+	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
+
+	if (!(pscr & MV643XX_ETH_DISABLE_AUTO_NEG_FOR_DUPLX) &&
+	    !(pscr & MV643XX_ETH_DISABLE_AUTO_NEG_SPEED_GMII))
+		speed = 0;
+	else if (pscr & MV643XX_ETH_PORT_STATUS_GMII_1000)
+		speed = SPEED_1000;
+	else if (pscr & MV643XX_ETH_PORT_STATUS_MII_100)
+		speed = SPEED_100;
+	else
+		speed = SPEED_10;
+
+	if (pscr & MV643XX_ETH_PORT_STATUS_FULL_DUPLEX)
+		duplex = DUPLEX_FULL;
+	else
+		duplex = DUPLEX_HALF;
+
+	ethernet_phy_reset(mp->port_num);
 	mp->mii.supports_gmii = mii_check_gmii_support(&mp->mii);
+	mv643xx_init_ethtool_cmd(dev, mp->mii.phy_id, speed, duplex, &cmd);
+	mv643xx_eth_update_pscr(dev, &cmd);
+	mv643xx_set_settings(dev, &cmd);
 
 	err = register_netdev(dev);
 	if (err)
@@ -1775,8 +1920,6 @@ static void eth_port_init(struct mv643xx_private *mp)
 	eth_port_reset(mp->port_num);
 
 	eth_port_init_mac_tables(mp->port_num);
-
-	ethernet_phy_reset(mp->port_num);
 }
 
 /*
@@ -1811,6 +1954,8 @@ static void eth_port_start(struct net_device *dev)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	int tx_curr_desc, rx_curr_desc;
+	u32 pscr;
+	struct ethtool_cmd ethtool_cmd;
 
 	/* Assignment of Tx CTRP of given queue */
 	tx_curr_desc = mp->tx_curr_desc_q;
@@ -1828,31 +1973,35 @@ static void eth_port_start(struct net_device *dev)
 	/* Assign port configuration and command. */
 	mv_write(MV643XX_ETH_PORT_CONFIG_REG(port_num), mp->port_config);
 
-	mv_write(MV643XX_ETH_PORT_CONFIG_EXTEND_REG(port_num),
-						mp->port_config_extend);
+	pscr = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
+	pscr &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
+	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
 
+	pscr &= ~MV643XX_ETH_FORCE_LINK_PASS;
+	pscr |= MV643XX_ETH_DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
+		MV643XX_ETH_DISABLE_AUTO_NEG_SPEED_GMII    |
+		MV643XX_ETH_DISABLE_AUTO_NEG_FOR_DUPLX     |
+		MV643XX_ETH_DO_NOT_FORCE_LINK_FAIL	   |
+		MV643XX_ETH_SERIAL_PORT_CONTROL_RESERVED;
 
-	/* Increase the Rx side buffer size if supporting GigE */
-	if (mp->port_serial_control & MV643XX_ETH_SET_GMII_SPEED_TO_1000)
-		mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
-			(mp->port_serial_control & 0xfff1ffff) | (0x5 << 17));
-	else
-		mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
-						mp->port_serial_control);
+	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
 
-	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
-		mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num)) |
-						MV643XX_ETH_SERIAL_PORT_ENABLE);
+	pscr |= MV643XX_ETH_SERIAL_PORT_ENABLE;
+	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
 
 	/* Assign port SDMA configuration */
-	mv_write(MV643XX_ETH_SDMA_CONFIG_REG(port_num),
-							mp->port_sdma_config);
+	mv_write(MV643XX_ETH_SDMA_CONFIG_REG(port_num), mp->port_sdma_config);
 
 	/* Enable port Rx. */
 	mv643xx_eth_port_enable_rx(port_num, mp->port_rx_queue_command);
 
 	/* Disable port bandwidth limits by clearing MTU register */
 	mv_write(MV643XX_ETH_MAXIMUM_TRANSMIT_UNIT(port_num), 0);
+
+	/* save phy settings across reset */
+	mv643xx_get_settings(dev, &ethtool_cmd);
+	ethernet_phy_reset(mp->port_num);
+	mv643xx_set_settings(dev, &ethtool_cmd);
 }
 
 /*
@@ -2324,6 +2473,12 @@ static void ethernet_phy_reset(unsigned int eth_port_num)
 	eth_port_read_smi_reg(eth_port_num, 0, &phy_reg_data);
 	phy_reg_data |= 0x8000;	/* Set bit 15 to reset the PHY */
 	eth_port_write_smi_reg(eth_port_num, 0, phy_reg_data);
+
+	/* wait for PHY to come out of reset */
+	do {
+		udelay(1);
+		eth_port_read_smi_reg(eth_port_num, 0, &phy_reg_data);
+	} while (phy_reg_data & 0x8000);
 }
 
 static void mv643xx_eth_port_enable_tx(unsigned int port_num,
@@ -2417,19 +2572,12 @@ static void eth_port_reset(unsigned int port_num)
 
 	/* Reset the Enable bit in the Configuration Register */
 	reg_data = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
-	reg_data &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
+	reg_data &= ~(MV643XX_ETH_SERIAL_PORT_ENABLE		|
+			MV643XX_ETH_DO_NOT_FORCE_LINK_FAIL	|
+			MV643XX_ETH_FORCE_LINK_PASS);
 	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), reg_data);
 }
 
-
-static int eth_port_autoneg_supported(unsigned int eth_port_num)
-{
-	unsigned int phy_reg_data0;
-
-	eth_port_read_smi_reg(eth_port_num, 0, &phy_reg_data0);
-
-	return phy_reg_data0 & 0x1000;
-}
 
 /*
  * eth_port_read_smi_reg - Read PHY registers
@@ -2989,111 +3137,6 @@ static const struct mv643xx_stats mv643xx_gstrings_stats[] = {
 #define MV643XX_STATS_LEN	\
 	sizeof(mv643xx_gstrings_stats) / sizeof(struct mv643xx_stats)
 
-static int
-mv643xx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
-{
-	struct mv643xx_private *mp = netdev->priv;
-	int port_num = mp->port_num;
-	int autoneg = eth_port_autoneg_supported(port_num);
-	int mode_10_bit;
-	int auto_duplex;
-	int half_duplex = 0;
-	int full_duplex = 0;
-	int auto_speed;
-	int speed_10 = 0;
-	int speed_100 = 0;
-	int speed_1000 = 0;
-
-	u32 pcs = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
-	u32 psr = mv_read(MV643XX_ETH_PORT_STATUS_REG(port_num));
-
-	mode_10_bit = psr & MV643XX_ETH_PORT_STATUS_MODE_10_BIT;
-
-	if (mode_10_bit) {
-		ecmd->supported = SUPPORTED_10baseT_Half;
-	} else {
-		ecmd->supported = (SUPPORTED_10baseT_Half		|
-				   SUPPORTED_10baseT_Full		|
-				   SUPPORTED_100baseT_Half		|
-				   SUPPORTED_100baseT_Full		|
-				   SUPPORTED_1000baseT_Full		|
-				   (autoneg ? SUPPORTED_Autoneg : 0)	|
-				   SUPPORTED_TP);
-
-		auto_duplex = !(pcs & MV643XX_ETH_DISABLE_AUTO_NEG_FOR_DUPLX);
-		auto_speed = !(pcs & MV643XX_ETH_DISABLE_AUTO_NEG_SPEED_GMII);
-
-		ecmd->advertising = ADVERTISED_TP;
-
-		if (autoneg) {
-			ecmd->advertising |= ADVERTISED_Autoneg;
-
-			if (auto_duplex) {
-				half_duplex = 1;
-				full_duplex = 1;
-			} else {
-				if (pcs & MV643XX_ETH_SET_FULL_DUPLEX_MODE)
-					full_duplex = 1;
-				else
-					half_duplex = 1;
-			}
-
-			if (auto_speed) {
-				speed_10 = 1;
-				speed_100 = 1;
-				speed_1000 = 1;
-			} else {
-				if (pcs & MV643XX_ETH_SET_GMII_SPEED_TO_1000)
-					speed_1000 = 1;
-				else if (pcs & MV643XX_ETH_SET_MII_SPEED_TO_100)
-					speed_100 = 1;
-				else
-					speed_10 = 1;
-			}
-
-			if (speed_10 & half_duplex)
-				ecmd->advertising |= ADVERTISED_10baseT_Half;
-			if (speed_10 & full_duplex)
-				ecmd->advertising |= ADVERTISED_10baseT_Full;
-			if (speed_100 & half_duplex)
-				ecmd->advertising |= ADVERTISED_100baseT_Half;
-			if (speed_100 & full_duplex)
-				ecmd->advertising |= ADVERTISED_100baseT_Full;
-			if (speed_1000)
-				ecmd->advertising |= ADVERTISED_1000baseT_Full;
-		}
-	}
-
-	ecmd->port = PORT_TP;
-	ecmd->phy_address = ethernet_phy_get(port_num);
-
-	ecmd->transceiver = XCVR_EXTERNAL;
-
-	if (netif_carrier_ok(netdev)) {
-		if (mode_10_bit)
-			ecmd->speed = SPEED_10;
-		else {
-			if (psr & MV643XX_ETH_PORT_STATUS_GMII_1000)
-				ecmd->speed = SPEED_1000;
-			else if (psr & MV643XX_ETH_PORT_STATUS_MII_100)
-				ecmd->speed = SPEED_100;
-			else
-				ecmd->speed = SPEED_10;
-		}
-
-		if (psr & MV643XX_ETH_PORT_STATUS_FULL_DUPLEX)
-			ecmd->duplex = DUPLEX_FULL;
-		else
-			ecmd->duplex = DUPLEX_HALF;
-	} else {
-		ecmd->speed = -1;
-		ecmd->duplex = -1;
-	}
-
-	ecmd->autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
-	return 0;
-}
-
 static void mv643xx_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
@@ -3140,15 +3183,41 @@ static void mv643xx_get_strings(struct net_device *netdev, uint32_t stringset,
 	}
 }
 
+static u32 mv643xx_eth_get_link(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	return mii_link_ok(&mp->mii);
+}
+
+static int mv643xx_eth_nway_restart(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	return mii_nway_restart(&mp->mii);
+}
+
+static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
+}
+
 static struct ethtool_ops mv643xx_ethtool_ops = {
 	.get_settings           = mv643xx_get_settings,
+	.set_settings           = mv643xx_set_settings,
 	.get_drvinfo            = mv643xx_get_drvinfo,
-	.get_link               = ethtool_op_get_link,
+	.get_link               = mv643xx_eth_get_link,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings            = mv643xx_get_strings,
 	.get_stats_count        = mv643xx_get_stats_count,
 	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
+	.get_strings            = mv643xx_get_strings,
+	.get_stats_count        = mv643xx_get_stats_count,
+	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
+	.nway_reset		= mv643xx_eth_nway_restart,
 };
 
 /************* End ethtool support *************************/
