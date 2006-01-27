@@ -935,27 +935,4 @@ int bcm43xx_pci_write_config32(struct bcm43xx_private *bcm, int offset, u32 valu
 	 	__value;				\
 	})
 
-
-/*
- * Compatibility stuff follows
- */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 15)
-# error "The bcm43xx driver does not support kernels < 2.6.15"
-# error "The driver will _NOT_ compile on your kernel. Please upgrade to the latest 2.6 kernel."
-# error "DO NOT COMPLAIN ABOUT BUGS. UPDATE FIRST AND TRY AGAIN."
-#else
-# if !defined(CONFIG_IEEE80211_MODULE) && !defined(CONFIG_IEEE80211)
-#  error "Generic IEEE 802.11 Networking Stack (CONFIG_IEEE80211) not available."
-# endif
-#endif
-#ifdef IEEE80211SOFTMAC_API
-# if IEEE80211SOFTMAC_API != 0
-#  warning "Incompatible SoftMAC subsystem installed."
-# endif
-#else
-# error "The bcm43xx driver requires the SoftMAC subsystem."
-# error "SEE >>>>>>    http://softmac.sipsolutions.net/    <<<<<<"
-#endif
-
 #endif /* BCM43xx_H_ */
