@@ -633,9 +633,13 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 
 	np->phys[0] = 1;		/* Default setting */
 	np->mii_preamble_required++;
+	/*
+	 * It seems some phys doesn't deal well with address 0 being accessed
+	 * first, so leave address zero to the end of the loop (32 & 31).
+	 */
 	for (phy = 1; phy <= 32 && phy_idx < MII_CNT; phy++) {
-		int mii_status = mdio_read(dev, phy, MII_BMSR);
 		int phyx = phy & 0x1f;
+		int mii_status = mdio_read(dev, phyx, MII_BMSR);
 		if (mii_status != 0xffff  &&  mii_status != 0x0000) {
 			np->phys[phy_idx++] = phyx;
 			np->mii_if.advertising = mdio_read(dev, phyx, MII_ADVERTISE);
