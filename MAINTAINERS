@@ -540,7 +540,8 @@ S:	Supported
 
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
-M:	mchehab@brturbo.com.br
+M:	mchehab@infradead.org
+M:	v4l-dvb-maintainer@linuxtv.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
@@ -836,11 +837,12 @@ S:	Maintained
 
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
-M: 	linux-dvb-maintainer@linuxtv.org
+M:	mchehab@infradead.org
+M:	v4l-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
-S:	Supported
+S:	Maintained
 
 EATA-DMA SCSI DRIVER
 P:	Michael Neuffer
@@ -2946,7 +2948,8 @@ S:      Maintained
 
 VIDEO FOR LINUX
 P:	Mauro Carvalho Chehab
-M:	mchehab@brturbo.com.br
+M:	mchehab@infradead.org
+M:	v4l-dvb-maintainer@linuxtv.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
