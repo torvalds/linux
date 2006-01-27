@@ -83,6 +83,12 @@ static int eth_port_link_is_up(unsigned int eth_port_num);
 static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
 static void eth_port_set_multicast_list(struct net_device *);
+static void mv643xx_eth_port_enable_tx(unsigned int port_num,
+						unsigned int channels);
+static void mv643xx_eth_port_enable_rx(unsigned int port_num,
+						unsigned int channels);
+static unsigned int mv643xx_eth_port_disable_tx(unsigned int port_num);
+static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num);
 static int mv643xx_eth_open(struct net_device *);
 static int mv643xx_eth_stop(struct net_device *);
 static int mv643xx_eth_change_mtu(struct net_device *, int);
@@ -535,8 +541,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 			netif_carrier_on(dev);
 			netif_wake_queue(dev);
 			/* Start TX queue */
-			mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG
-								(port_num), 1);
+			mv643xx_eth_port_enable_tx(port_num, mp->port_tx_queue_command);
 		} else {
 			netif_carrier_off(dev);
 			netif_stop_queue(dev);
@@ -668,8 +673,8 @@ static void ether_init_rx_desc_ring(struct mv643xx_private *mp)
 
 	mp->rx_desc_area_size = rx_desc_num * sizeof(struct eth_rx_desc);
 
-	/* Add the queue to the list of RX queues of this port */
-	mp->port_rx_queue_command |= 1;
+	/* Enable queue 0 for this port */
+	mp->port_rx_queue_command = 1;
 }
 
 /*
@@ -715,8 +720,8 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
 
 	mp->tx_desc_area_size = tx_desc_num * sizeof(struct eth_tx_desc);
 
-	/* Add the queue to the list of Tx queues of this port */
-	mp->port_tx_queue_command |= 1;
+	/* Enable queue 0 for this port */
+	mp->port_tx_queue_command = 1;
 }
 
 /*
@@ -746,9 +751,6 @@ static int mv643xx_eth_open(struct net_device *dev)
 								port_num);
 		return -EAGAIN;
 	}
-
-	/* Stop RX Queues */
-	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
 	eth_port_init(mp);
 
@@ -877,7 +879,7 @@ static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 	struct sk_buff *skb;
 
 	/* Stop Tx Queues */
-	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
+	mv643xx_eth_port_disable_tx(port_num);
 
 	/* Free outstanding skb's on TX rings */
 	for (curr = 0; mp->tx_desc_count && curr < mp->tx_ring_size; curr++) {
@@ -907,7 +909,7 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
 	int curr;
 
 	/* Stop RX Queues */
-	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
+	mv643xx_eth_port_disable_rx(port_num);
 
 	/* Free preallocated skb's on RX rings */
 	for (curr = 0; mp->rx_desc_count && curr < mp->rx_ring_size; curr++) {
@@ -1719,13 +1721,6 @@ MODULE_DESCRIPTION("Ethernet driver for Marvell MV643XX");
  *		return_info	Tx/Rx user resource return information.
  */
 
-/* defines */
-/* SDMA command macros */
-#define ETH_ENABLE_TX_QUEUE(eth_port) \
-	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(eth_port), 1)
-
-/* locals */
-
 /* PHY routines */
 static int ethernet_phy_get(unsigned int eth_port_num);
 static void ethernet_phy_set(unsigned int eth_port_num, int phy_addr);
@@ -1759,9 +1754,6 @@ static void eth_port_set_filter_table_entry(int table, unsigned char entry);
  */
 static void eth_port_init(struct mv643xx_private *mp)
 {
-	mp->port_rx_queue_command = 0;
-	mp->port_tx_queue_command = 0;
-
 	mp->rx_resource_err = 0;
 	mp->tx_resource_err = 0;
 
@@ -1842,8 +1834,7 @@ static void eth_port_start(struct net_device *dev)
 							mp->port_sdma_config);
 
 	/* Enable port Rx. */
-	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
-						mp->port_rx_queue_command);
+	mv643xx_eth_port_enable_rx(port_num, mp->port_rx_queue_command);
 
 	/* Disable port bandwidth limits by clearing MTU register */
 	mv_write(MV643XX_ETH_MAXIMUM_TRANSMIT_UNIT(port_num), 0);
@@ -2320,6 +2311,67 @@ static void ethernet_phy_reset(unsigned int eth_port_num)
 	eth_port_write_smi_reg(eth_port_num, 0, phy_reg_data);
 }
 
+static void mv643xx_eth_port_enable_tx(unsigned int port_num,
+					unsigned int channels)
+{
+	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), channels);
+}
+
+static void mv643xx_eth_port_enable_rx(unsigned int port_num,
+					unsigned int channels)
+{
+	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), channels);
+}
+
+static unsigned int mv643xx_eth_port_disable_tx(unsigned int port_num)
+{
+	u32 channels;
+
+	/* Stop Tx port activity. Check port Tx activity. */
+	channels = mv_read(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num))
+							& 0xFF;
+	if (channels) {
+		/* Issue stop command for active channels only */
+		mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num),
+							(channels << 8));
+
+		/* Wait for all Tx activity to terminate. */
+		/* Check port cause register that all Tx queues are stopped */
+		while (mv_read(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num))
+							& 0xFF)
+			udelay(PHY_WAIT_MICRO_SECONDS);
+
+		/* Wait for Tx FIFO to empty */
+		while (mv_read(MV643XX_ETH_PORT_STATUS_REG(port_num)) &
+							ETH_PORT_TX_FIFO_EMPTY)
+			udelay(PHY_WAIT_MICRO_SECONDS);
+	}
+
+	return channels;
+}
+
+static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num)
+{
+	u32 channels;
+
+	/* Stop Rx port activity. Check port Rx activity. */
+	channels = mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num)
+							& 0xFF);
+	if (channels) {
+		/* Issue stop command for active channels only */
+		mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
+							(channels << 8));
+
+		/* Wait for all Rx activity to terminate. */
+		/* Check port cause register that all Rx queues are stopped */
+		while (mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num))
+							& 0xFF)
+			udelay(PHY_WAIT_MICRO_SECONDS);
+	}
+
+	return channels;
+}
+
 /*
  * eth_port_reset - Reset Ethernet port
  *
@@ -2342,35 +2394,8 @@ static void eth_port_reset(unsigned int port_num)
 {
 	unsigned int reg_data;
 
-	/* Stop Tx port activity. Check port Tx activity. */
-	reg_data = mv_read(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num));
-
-	if (reg_data & 0xFF) {
-		/* Issue stop command for active channels only */
-		mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num),
-							(reg_data << 8));
-
-		/* Wait for all Tx activity to terminate. */
-		/* Check port cause register that all Tx queues are stopped */
-		while (mv_read(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num))
-									& 0xFF)
-			udelay(10);
-	}
-
-	/* Stop Rx port activity. Check port Rx activity. */
-	reg_data = mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num));
-
-	if (reg_data & 0xFF) {
-		/* Issue stop command for active channels only */
-		mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
-							(reg_data << 8));
-
-		/* Wait for all Rx activity to terminate. */
-		/* Check port cause register that all Rx queues are stopped */
-		while (mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num))
-									& 0xFF)
-			udelay(10);
-	}
+	mv643xx_eth_port_disable_tx(port_num);
+	mv643xx_eth_port_disable_rx(port_num);
 
 	/* Clear all MIB counters */
 	eth_clear_mib_counters(port_num);
@@ -2599,7 +2624,7 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		first_descriptor->cmd_sts = mp->tx_first_command;
 
 		wmb();
-		ETH_ENABLE_TX_QUEUE(mp->port_num);
+		mv643xx_eth_port_enable_tx(mp->port_num, mp->port_tx_queue_command);
 
 		/*
 		 * Finish Tx packet. Update first desc in case of Tx resource
@@ -2652,7 +2677,7 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 			ETH_BUFFER_OWNED_BY_DMA | ETH_TX_ENABLE_INTERRUPT;
 
 	wmb();
-	ETH_ENABLE_TX_QUEUE(mp->port_num);
+	mv643xx_eth_port_enable_tx(mp->port_num, mp->port_tx_queue_command);
 
 	/* Finish Tx packet. Update first desc in case of Tx resource error */
 	tx_desc_curr = (tx_desc_curr + 1) % mp->tx_ring_size;
