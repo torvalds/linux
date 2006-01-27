@@ -1,3 +1,4 @@
+
 /*
  *  linux/drivers/cpufreq/cpufreq_userspace.c
  *
@@ -34,7 +35,6 @@ static unsigned int	cpu_min_freq[NR_CPUS];
 static unsigned int	cpu_cur_freq[NR_CPUS]; /* current CPU freq */
 static unsigned int	cpu_set_freq[NR_CPUS]; /* CPU freq desired by userspace */
 static unsigned int	cpu_is_managed[NR_CPUS];
-static struct cpufreq_policy current_policy[NR_CPUS];
 
 static DEFINE_MUTEX	(userspace_mutex);
 
@@ -65,22 +65,22 @@ static struct notifier_block userspace_cpufreq_notifier_block = {
  *
  * Sets the CPU frequency to freq.
  */
-static int cpufreq_set(unsigned int freq, unsigned int cpu)
+static int cpufreq_set(unsigned int freq, struct cpufreq_policy *policy)
 {
 	int ret = -EINVAL;
 
-	dprintk("cpufreq_set for cpu %u, freq %u kHz\n", cpu, freq);
+	dprintk("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
 	mutex_lock(&userspace_mutex);
-	if (!cpu_is_managed[cpu])
+	if (!cpu_is_managed[policy->cpu])
 		goto err;
 
-	cpu_set_freq[cpu] = freq;
+	cpu_set_freq[policy->cpu] = freq;
 
-	if (freq < cpu_min_freq[cpu])
-		freq = cpu_min_freq[cpu];
-	if (freq > cpu_max_freq[cpu])
-		freq = cpu_max_freq[cpu];
+	if (freq < cpu_min_freq[policy->cpu])
+		freq = cpu_min_freq[policy->cpu];
+	if (freq > cpu_max_freq[policy->cpu])
+		freq = cpu_max_freq[policy->cpu];
 
 	/*
 	 * We're safe from concurrent calls to ->target() here
@@ -89,8 +89,7 @@ static int cpufreq_set(unsigned int freq, unsigned int cpu)
 	 * A: cpufreq_set (lock userspace_mutex) -> cpufreq_driver_target(lock policy->lock)
 	 * B: cpufreq_set_policy(lock policy->lock) -> __cpufreq_governor -> cpufreq_governor_userspace (lock userspace_mutex)
 	 */
-	ret = __cpufreq_driver_target(&current_policy[cpu], freq, 
-	      CPUFREQ_RELATION_L);
+	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_L);
 
  err:
 	mutex_unlock(&userspace_mutex);
@@ -114,7 +113,7 @@ store_speed (struct cpufreq_policy *policy, const char *buf, size_t count)
 	if (ret != 1)
 		return -EINVAL;
 
-	cpufreq_set(freq, policy->cpu);
+	cpufreq_set(freq, policy);
 
 	return count;
 }
@@ -142,7 +141,6 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 		cpu_cur_freq[cpu] = policy->cur;
 		cpu_set_freq[cpu] = policy->cur;
 		sysfs_create_file (&policy->kobj, &freq_attr_scaling_setspeed.attr);
-		memcpy (&current_policy[cpu], policy, sizeof(struct cpufreq_policy));
 		dprintk("managing cpu %u started (%u - %u kHz, currently %u kHz)\n", cpu, cpu_min_freq[cpu], cpu_max_freq[cpu], cpu_cur_freq[cpu]);
 		mutex_unlock(&userspace_mutex);
 		break;
@@ -158,20 +156,25 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 		break;
 	case CPUFREQ_GOV_LIMITS:
 		mutex_lock(&userspace_mutex);
+		dprintk("limit event for cpu %u: %u - %u kHz,"
+			"currently %u kHz, last set to %u kHz\n",
+			cpu, policy->min, policy->max,
+			cpu_cur_freq[cpu], cpu_set_freq[cpu]);
+		if (policy->max < cpu_set_freq[cpu]) {
+			__cpufreq_driver_target(policy, policy->max,
+						CPUFREQ_RELATION_H);
+		}
+		else if (policy->min > cpu_set_freq[cpu]) {
+			__cpufreq_driver_target(policy, policy->min,
+						CPUFREQ_RELATION_L);
+		}
+		else {
+			__cpufreq_driver_target(policy, cpu_set_freq[cpu],
+						CPUFREQ_RELATION_L);
+		}
 		cpu_min_freq[cpu] = policy->min;
 		cpu_max_freq[cpu] = policy->max;
-		dprintk("limit event for cpu %u: %u - %u kHz, currently %u kHz, last set to %u kHz\n", cpu, cpu_min_freq[cpu], cpu_max_freq[cpu], cpu_cur_freq[cpu], cpu_set_freq[cpu]);
-		if (policy->max < cpu_set_freq[cpu]) {
-			__cpufreq_driver_target(&current_policy[cpu], policy->max, 
-			      CPUFREQ_RELATION_H);
-		} else if (policy->min > cpu_set_freq[cpu]) {
-			__cpufreq_driver_target(&current_policy[cpu], policy->min, 
-			      CPUFREQ_RELATION_L);
-		} else {
-			__cpufreq_driver_target(&current_policy[cpu], cpu_set_freq[cpu],
-			      CPUFREQ_RELATION_L);
-		}
-		memcpy (&current_policy[cpu], policy, sizeof(struct cpufreq_policy));
+		cpu_cur_freq[cpu] = policy->cur;
 		mutex_unlock(&userspace_mutex);
 		break;
 	}
