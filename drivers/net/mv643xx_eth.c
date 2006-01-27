@@ -2617,7 +2617,6 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	struct eth_tx_desc *current_descriptor;
 	struct eth_tx_desc *first_descriptor;
 	u32 command;
-	unsigned long flags;
 
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
@@ -2633,8 +2632,6 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 			mp->port_num);
 		return ETH_ERROR;
 	}
-
-	spin_lock_irqsave(&mp->lock, flags);
 
 	mp->tx_ring_skbs++;
 	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
@@ -2685,14 +2682,10 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		mp->tx_resource_err = 1;
 		mp->tx_curr_desc_q = tx_first_desc;
 
-		spin_unlock_irqrestore(&mp->lock, flags);
-
 		return ETH_QUEUE_LAST_RESOURCE;
 	}
 
 	mp->tx_curr_desc_q = tx_next_desc;
-
-	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }
@@ -2704,13 +2697,10 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	int tx_desc_used;
 	struct eth_tx_desc *current_descriptor;
 	unsigned int command_status;
-	unsigned long flags;
 
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
 		return ETH_QUEUE_FULL;
-
-	spin_lock_irqsave(&mp->lock, flags);
 
 	mp->tx_ring_skbs++;
 	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
@@ -2742,12 +2732,9 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	/* Check for ring index overlap in the Tx desc ring */
 	if (tx_desc_curr == tx_desc_used) {
 		mp->tx_resource_err = 1;
-
-		spin_unlock_irqrestore(&mp->lock, flags);
 		return ETH_QUEUE_LAST_RESOURCE;
 	}
 
-	spin_unlock_irqrestore(&mp->lock, flags);
 	return ETH_OK;
 }
 #endif
