@@ -61,9 +61,6 @@
 
 #include "libata.h"
 
-static unsigned int ata_busy_sleep (struct ata_port *ap,
-				    unsigned long tmout_pat,
-			    	    unsigned long tmout);
 static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
@@ -834,6 +831,7 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
  *	ata_dev_try_classify - Parse returned ATA device signature
  *	@ap: ATA channel to examine
  *	@device: Device to examine (starting at zero)
+ *	@r_err: Value of error register on completion
  *
  *	After an event -- SRST, E.D.D., or SATA COMRESET -- occurs,
  *	an ATA/ATAPI-defined set of values is placed in the ATA
@@ -846,11 +844,14 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
  *
  *	LOCKING:
  *	caller.
+ *
+ *	RETURNS:
+ *	Device type - %ATA_DEV_ATA, %ATA_DEV_ATAPI or %ATA_DEV_NONE.
  */
 
-static u8 ata_dev_try_classify(struct ata_port *ap, unsigned int device)
+static unsigned int
+ata_dev_try_classify(struct ata_port *ap, unsigned int device, u8 *r_err)
 {
-	struct ata_device *dev = &ap->device[device];
 	struct ata_taskfile tf;
 	unsigned int class;
 	u8 err;
@@ -861,8 +862,8 @@ static u8 ata_dev_try_classify(struct ata_port *ap, unsigned int device)
 
 	ap->ops->tf_read(ap, &tf);
 	err = tf.feature;
-
-	dev->class = ATA_DEV_NONE;
+	if (r_err)
+		*r_err = err;
 
 	/* see if device passed diags */
 	if (err == 1)
@@ -870,18 +871,16 @@ static u8 ata_dev_try_classify(struct ata_port *ap, unsigned int device)
 	else if ((device == 0) && (err == 0x81))
 		/* do nothing */ ;
 	else
-		return err;
+		return ATA_DEV_NONE;
 
-	/* determine if device if ATA or ATAPI */
+	/* determine if device is ATA or ATAPI */
 	class = ata_dev_classify(&tf);
+
 	if (class == ATA_DEV_UNKNOWN)
-		return err;
+		return ATA_DEV_NONE;
 	if ((class == ATA_DEV_ATA) && (ata_chk_status(ap) == 0))
-		return err;
-
-	dev->class = class;
-
-	return err;
+		return ATA_DEV_NONE;
+	return class;
 }
 
 /**
@@ -1071,6 +1070,24 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	   you too can get a free iordy field to process. However its the 
 	   speeds not the modes that are supported... Note drivers using the
 	   timing API will get this right anyway */
+}
+
+static inline void
+ata_queue_packet_task(struct ata_port *ap)
+{
+	queue_work(ata_wq, &ap->packet_task);
+}
+
+static inline void
+ata_queue_pio_task(struct ata_port *ap)
+{
+	queue_work(ata_wq, &ap->pio_task);
+}
+
+static inline void
+ata_queue_delayed_pio_task(struct ata_port *ap, unsigned long delay)
+{
+	queue_delayed_work(ata_wq, &ap->pio_task, delay);
 }
 
 void ata_qc_complete_internal(struct ata_queued_cmd *qc)
@@ -1478,7 +1495,24 @@ static int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int i, found = 0;
 
-	ap->ops->phy_reset(ap);
+	if (ap->ops->probe_reset) {
+		unsigned int classes[ATA_MAX_DEVICES];
+		int rc;
+
+		ata_port_probe(ap);
+
+		rc = ap->ops->probe_reset(ap, classes);
+		if (rc == 0) {
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
+				ap->device[i].class = classes[i];
+		} else {
+			printk(KERN_ERR "ata%u: probe reset failed, "
+			       "disabling port\n", ap->id);
+			ata_port_disable(ap);
+		}
+	} else
+		ap->ops->phy_reset(ap);
+
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		goto err_out;
 
@@ -1952,9 +1986,8 @@ err_out:
  *
  */
 
-static unsigned int ata_busy_sleep (struct ata_port *ap,
-				    unsigned long tmout_pat,
-			    	    unsigned long tmout)
+unsigned int ata_busy_sleep (struct ata_port *ap,
+			     unsigned long tmout_pat, unsigned long tmout)
 {
 	unsigned long timer_start, timeout;
 	u8 status;
@@ -2173,9 +2206,9 @@ void ata_bus_reset(struct ata_port *ap)
 	/*
 	 * determine by signature whether we have ATA or ATAPI devices
 	 */
-	err = ata_dev_try_classify(ap, 0);
+	ap->device[0].class = ata_dev_try_classify(ap, 0, &err);
 	if ((slave_possible) && (err != 0x81))
-		ata_dev_try_classify(ap, 1);
+		ap->device[1].class = ata_dev_try_classify(ap, 1, &err);
 
 	/* re-enable interrupts */
 	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
@@ -3598,7 +3631,7 @@ fsm_start:
 	}
 
 	if (timeout)
-		queue_delayed_work(ata_wq, &ap->pio_task, timeout);
+		ata_queue_delayed_pio_task(ap, timeout);
 	else if (has_next)
 		goto fsm_start;
 }
@@ -3960,7 +3993,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_WRITE) {
 			/* PIO data out protocol */
 			ap->hsm_task_state = HSM_ST_FIRST;
-			queue_work(ata_wq, &ap->pio_task);
+			ata_queue_pio_task(ap);
 
 			/* always send first data block using
 			 * the ata_pio_task() codepath.
@@ -3970,7 +4003,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			ap->hsm_task_state = HSM_ST;
 
 			if (qc->tf.flags & ATA_TFLAG_POLLING)
-				queue_work(ata_wq, &ap->pio_task);
+				ata_queue_pio_task(ap);
 
 			/* if polling, ata_pio_task() handles the rest.
 			 * otherwise, interrupt handler takes over from here.
@@ -3985,12 +4018,13 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			ata_qc_set_polling(qc);
 
 		ata_tf_to_host(ap, &qc->tf);
+
 		ap->hsm_task_state = HSM_ST_FIRST;
 
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			queue_work(ata_wq, &ap->pio_task);
+			ata_queue_packet_task(ap);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
@@ -4002,7 +4036,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			queue_work(ata_wq, &ap->pio_task);
+			ata_queue_packet_task(ap);
 		break;
 
 	default:
@@ -5433,6 +5467,7 @@ EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
+EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_error);
