@@ -1219,7 +1219,7 @@ nothing_to_do:
 	return 1;
 }
 
-static int ata_scsi_qc_complete(struct ata_queued_cmd *qc)
+static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
@@ -1256,7 +1256,7 @@ static int ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 
 	qc->scsidone(cmd);
 
-	return 0;
+	ata_qc_free(qc);
 }
 
 /**
@@ -1982,7 +1982,7 @@ void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8
 	done(cmd);
 }
 
-static int atapi_sense_complete(struct ata_queued_cmd *qc)
+static void atapi_sense_complete(struct ata_queued_cmd *qc)
 {
 	if (qc->err_mask && ((qc->err_mask & AC_ERR_DEV) == 0))
 		/* FIXME: not quite right; we don't want the
@@ -1993,7 +1993,7 @@ static int atapi_sense_complete(struct ata_queued_cmd *qc)
 		ata_gen_ata_desc_sense(qc);
 
 	qc->scsidone(qc->scsicmd);
-	return 0;
+	ata_qc_free(qc);
 }
 
 /* is it pointless to prefer PIO for "safety reasons"? */
@@ -2050,7 +2050,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	DPRINTK("EXIT\n");
 }
 
-static int atapi_qc_complete(struct ata_queued_cmd *qc)
+static void atapi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	unsigned int err_mask = qc->err_mask;
@@ -2060,7 +2060,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc)
 	if (unlikely(err_mask & AC_ERR_DEV)) {
 		cmd->result = SAM_STAT_CHECK_CONDITION;
 		atapi_request_sense(qc);
-		return 1;
+		return;
 	}
 
 	else if (unlikely(err_mask))
@@ -2100,7 +2100,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc)
 	}
 
 	qc->scsidone(cmd);
-	return 0;
+	ata_qc_free(qc);
 }
 /**
  *	atapi_xlat - Initialize PACKET taskfile
