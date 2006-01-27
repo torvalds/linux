@@ -75,6 +75,8 @@
 #define DRM_VIA_CMDBUF_SIZE	0x0b
 #define NOT_USED
 #define DRM_VIA_WAIT_IRQ        0x0d
+#define DRM_VIA_DMA_BLIT        0x0e
+#define DRM_VIA_BLIT_SYNC       0x0f
 
 #define DRM_IOCTL_VIA_ALLOCMEM	  DRM_IOWR(DRM_COMMAND_BASE + DRM_VIA_ALLOCMEM, drm_via_mem_t)
 #define DRM_IOCTL_VIA_FREEMEM	  DRM_IOW( DRM_COMMAND_BASE + DRM_VIA_FREEMEM, drm_via_mem_t)
@@ -89,6 +91,8 @@
 #define DRM_IOCTL_VIA_CMDBUF_SIZE DRM_IOWR( DRM_COMMAND_BASE + DRM_VIA_CMDBUF_SIZE, \
 					    drm_via_cmdbuf_size_t)
 #define DRM_IOCTL_VIA_WAIT_IRQ    DRM_IOWR( DRM_COMMAND_BASE + DRM_VIA_WAIT_IRQ, drm_via_irqwait_t)
+#define DRM_IOCTL_VIA_DMA_BLIT    DRM_IOW(DRM_COMMAND_BASE + DRM_VIA_DMA_BLIT, drm_via_dmablit_t)
+#define DRM_IOCTL_VIA_BLIT_SYNC   DRM_IOW(DRM_COMMAND_BASE + DRM_VIA_BLIT_SYNC, drm_via_blitsync_t)
 
 /* Indices into buf.Setup where various bits of state are mirrored per
  * context and per buffer.  These can be fired at the card as a unit,
@@ -103,8 +107,12 @@
 #define VIA_BACK    0x2
 #define VIA_DEPTH   0x4
 #define VIA_STENCIL 0x8
-#define VIDEO 0
-#define AGP 1
+#define VIA_MEM_VIDEO   0	/* matches drm constant */
+#define VIA_MEM_AGP     1	/* matches drm constant */
+#define VIA_MEM_SYSTEM  2
+#define VIA_MEM_MIXED   3
+#define VIA_MEM_UNKNOWN 4
+
 typedef struct {
 	uint32_t offset;
 	uint32_t size;
@@ -192,6 +200,9 @@ typedef struct _drm_via_sarea {
 	unsigned int XvMCSubPicOn[VIA_NR_XVMC_PORTS];
 	unsigned int XvMCCtxNoGrabbed;	/* Last context to hold decoder */
 
+	/* Used by the 3d driver only at this point, for pageflipping:
+	 */
+	unsigned int pfCurrentOffset;
 } drm_via_sarea_t;
 
 typedef struct _drm_via_cmdbuf_size {
@@ -212,6 +223,16 @@ typedef enum {
 
 #define VIA_IRQ_FLAGS_MASK 0xF0000000
 
+enum drm_via_irqs {
+	drm_via_irq_hqv0 = 0,
+	drm_via_irq_hqv1,
+	drm_via_irq_dma0_dd,
+	drm_via_irq_dma0_td,
+	drm_via_irq_dma1_dd,
+	drm_via_irq_dma1_td,
+	drm_via_irq_num
+};
+
 struct drm_via_wait_irq_request {
 	unsigned irq;
 	via_irq_seq_type_t type;
@@ -224,20 +245,25 @@ typedef union drm_via_irqwait {
 	struct drm_wait_vblank_reply reply;
 } drm_via_irqwait_t;
 
-#ifdef __KERNEL__
+typedef struct drm_via_blitsync {
+	uint32_t sync_handle;
+	unsigned engine;
+} drm_via_blitsync_t;
 
-int via_fb_init(DRM_IOCTL_ARGS);
-int via_mem_alloc(DRM_IOCTL_ARGS);
-int via_mem_free(DRM_IOCTL_ARGS);
-int via_agp_init(DRM_IOCTL_ARGS);
-int via_map_init(DRM_IOCTL_ARGS);
-int via_decoder_futex(DRM_IOCTL_ARGS);
-int via_dma_init(DRM_IOCTL_ARGS);
-int via_cmdbuffer(DRM_IOCTL_ARGS);
-int via_flush_ioctl(DRM_IOCTL_ARGS);
-int via_pci_cmdbuffer(DRM_IOCTL_ARGS);
-int via_cmdbuf_size(DRM_IOCTL_ARGS);
-int via_wait_irq(DRM_IOCTL_ARGS);
+typedef struct drm_via_dmablit {
+	uint32_t num_lines;
+	uint32_t line_length;
+	
+	uint32_t fb_addr;
+	uint32_t fb_stride;
 
-#endif
+	unsigned char *mem_addr;
+	uint32_t mem_stride;
+
+	int bounce_buffer;
+	int to_fb;
+
+	drm_via_blitsync_t sync;
+} drm_via_dmablit_t;
+
 #endif				/* _VIA_DRM_H_ */

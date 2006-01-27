@@ -22,6 +22,7 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <linux/netfilter.h>
 #include <linux/module.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -247,11 +248,9 @@ EXPORT_SYMBOL(xfrm_policy_alloc);
 
 void __xfrm_policy_destroy(struct xfrm_policy *policy)
 {
-	if (!policy->dead)
-		BUG();
+	BUG_ON(!policy->dead);
 
-	if (policy->bundles)
-		BUG();
+	BUG_ON(policy->bundles);
 
 	if (del_timer(&policy->timer))
 		BUG();
@@ -951,8 +950,8 @@ xfrm_policy_ok(struct xfrm_tmpl *tmpl, struct sec_path *sp, int start,
 	return start;
 }
 
-static int
-_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family)
+int
+xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family)
 {
 	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 
@@ -963,6 +962,7 @@ _decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family)
 	xfrm_policy_put_afinfo(afinfo);
 	return 0;
 }
+EXPORT_SYMBOL(xfrm_decode_session);
 
 static inline int secpath_has_tunnel(struct sec_path *sp, int k)
 {
@@ -982,8 +982,9 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	u8 fl_dir = policy_to_flow_dir(dir);
 	u32 sk_sid;
 
-	if (_decode_session(skb, &fl, family) < 0)
+	if (xfrm_decode_session(skb, &fl, family) < 0)
 		return 0;
+	nf_nat_decode_session(skb, &fl, family);
 
 	sk_sid = security_sk_sid(sk, &fl, fl_dir);
 
@@ -1055,7 +1056,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 {
 	struct flowi fl;
 
-	if (_decode_session(skb, &fl, family) < 0)
+	if (xfrm_decode_session(skb, &fl, family) < 0)
 		return 0;
 
 	return xfrm_lookup(&skb->dst, &fl, NULL, 0) == 0;

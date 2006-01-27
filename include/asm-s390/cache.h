@@ -13,7 +13,6 @@
 
 #define L1_CACHE_BYTES     256
 #define L1_CACHE_SHIFT     8
-#define L1_CACHE_SHIFT_MAX 8	/* largest L1 which this arch supports */
 
 #define ARCH_KMALLOC_MINALIGN	8
 

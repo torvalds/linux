@@ -608,15 +608,15 @@ struct fb_ops {
 	int (*fb_sync)(struct fb_info *info);
 
 	/* perform fb specific ioctl (optional) */
-	int (*fb_ioctl)(struct inode *inode, struct file *file, unsigned int cmd,
-			unsigned long arg, struct fb_info *info);
+	int (*fb_ioctl)(struct fb_info *info, unsigned int cmd,
+			unsigned long arg);
 
 	/* Handle 32bit compat ioctl (optional) */
-	long (*fb_compat_ioctl)(struct file *f, unsigned cmd, unsigned long arg,
-			       struct fb_info *info);
+	int (*fb_compat_ioctl)(struct fb_info *info, unsigned cmd,
+			unsigned long arg);
 
 	/* perform fb specific mmap */
-	int (*fb_mmap)(struct fb_info *info, struct file *file, struct vm_area_struct *vma);
+	int (*fb_mmap)(struct fb_info *info, struct vm_area_struct *vma);
 
 	/* save current hardware state */
 	void (*fb_save_state)(struct fb_info *info);

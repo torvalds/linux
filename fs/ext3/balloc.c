@@ -13,14 +13,13 @@
 
 #include <linux/config.h>
 #include <linux/time.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/jbd.h>
 #include <linux/ext3_fs.h>
 #include <linux/ext3_jbd.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
-
-#include "bitmap.h"
 
 /*
  * balloc.c contains the blocks allocation and deallocation routines

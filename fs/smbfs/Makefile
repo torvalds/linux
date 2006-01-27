@@ -13,7 +13,6 @@ smbfs-objs := proc.o dir.o cache.o sock.o inode.o file.o ioctl.o getopt.o \
 EXTRA_CFLAGS += -DSMBFS_PARANOIA
 #EXTRA_CFLAGS += -DSMBFS_DEBUG
 #EXTRA_CFLAGS += -DSMBFS_DEBUG_VERBOSE
-#EXTRA_CFLAGS += -DDEBUG_SMB_MALLOC
 #EXTRA_CFLAGS += -DDEBUG_SMB_TIMESTAMP
 #EXTRA_CFLAGS += -Werror
 

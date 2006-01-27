@@ -115,7 +115,7 @@ static int sgivwfb_set_par(struct fb_info *info);
 static int sgivwfb_setcolreg(u_int regno, u_int red, u_int green,
 			     u_int blue, u_int transp,
 			     struct fb_info *info);
-static int sgivwfb_mmap(struct fb_info *info, struct file *file,
+static int sgivwfb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma);
 
 static struct fb_ops sgivwfb_ops = {
@@ -706,7 +706,7 @@ static int sgivwfb_setcolreg(u_int regno, u_int red, u_int green,
 	return 0;
 }
 
-static int sgivwfb_mmap(struct fb_info *info, struct file *file,
+static int sgivwfb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma)
 {
 	unsigned long size = vma->vm_end - vma->vm_start;
@@ -723,7 +723,6 @@ static int sgivwfb_mmap(struct fb_info *info, struct file *file,
 	if (remap_pfn_range(vma, vma->vm_start, offset >> PAGE_SHIFT,
 						size, vma->vm_page_prot))
 		return -EAGAIN;
-	vma->vm_file = file;
 	printk(KERN_DEBUG "sgivwfb: mmap framebuffer P(%lx)->V(%lx)\n",
 	       offset, vma->vm_start);
 	return 0;

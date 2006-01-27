@@ -49,7 +49,7 @@
 MODULE_AUTHOR("Abhay Salunke <abhay_salunke@dell.com>");
 MODULE_DESCRIPTION("Driver for updating BIOS image on DELL systems");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("3.1");
+MODULE_VERSION("3.2");
 
 #define BIOS_SCAN_LIMIT 0xffffffff
 #define MAX_IMAGE_LENGTH 16
@@ -564,12 +564,10 @@ static ssize_t read_rbu_data(struct kobject *kobj, char *buffer,
 
 static void callbackfn_rbu(const struct firmware *fw, void *context)
 {
-	int rc = 0;
+	rbu_data.entry_created = 0;
 
-	if (!fw || !fw->size) {
-		rbu_data.entry_created = 0;
+	if (!fw || !fw->size)
 		return;
-	}
 
 	spin_lock(&rbu_data.lock);
 	if (!strcmp(image_type, "mono")) {
@@ -592,15 +590,6 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 	} else
 		pr_debug("invalid image type specified.\n");
 	spin_unlock(&rbu_data.lock);
-
-	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG,
-		"dell_rbu", &rbu_device->dev, &context, callbackfn_rbu);
-	if (rc)
-		printk(KERN_ERR
-			"dell_rbu:%s request_firmware_nowait failed"
-			" %d\n", __FUNCTION__, rc);
-	else
-		rbu_data.entry_created = 1;
 }
 
 static ssize_t read_rbu_image_type(struct kobject *kobj, char *buffer,
@@ -735,14 +724,7 @@ static int __init dcdrbu_init(void)
 	sysfs_create_bin_file(&rbu_device->dev.kobj,
 		&rbu_packet_size_attr);
 
-	rc = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG,
-		"dell_rbu", &rbu_device->dev, &context, callbackfn_rbu);
-	if (rc)
-		printk(KERN_ERR "dell_rbu:%s:request_firmware_nowait"
-			" failed %d\n", __FUNCTION__, rc);
-	else
-		rbu_data.entry_created = 1;
-
+	rbu_data.entry_created = 0;
 	return rc;
 
 }

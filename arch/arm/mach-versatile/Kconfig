@@ -9,7 +9,6 @@ config ARCH_VERSATILE_PB
 
 config MACH_VERSATILE_AB
 	bool "Support Versatile/AB platform"
-	default n
 	help
 	  Include support for the ARM(R) Versatile/AP platform.
 

@@ -803,21 +803,17 @@ static int snd_pmac_free(struct snd_pmac *chip)
 		iounmap(chip->playback.dma);
 	if (chip->capture.dma)
 		iounmap(chip->capture.dma);
-#ifndef CONFIG_PPC64
+
 	if (chip->node) {
 		int i;
-
 		for (i = 0; i < 3; i++) {
-			if (chip->of_requested & (1 << i)) {
-				if (chip->is_k2)
-					release_OF_resource(chip->node->parent,
-							    i);
-				else
-					release_OF_resource(chip->node, i);
-			}
+			if (chip->requested & (1 << i))
+				release_mem_region(chip->rsrc[i].start,
+						   chip->rsrc[i].end -
+						   chip->rsrc[i].start + 1);
 		}
 	}
-#endif /* CONFIG_PPC64 */
+
 	if (chip->pdev)
 		pci_dev_put(chip->pdev);
 	kfree(chip);
@@ -991,6 +987,11 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 			chip->can_byte_swap = 0; /* FIXME: check this */
 			chip->control_mask = MASK_IEPC | 0x11;/* disable IEE */
 			break;
+		default:
+			printk(KERN_ERR "snd: Unknown layout ID 0x%x\n",
+			       layout_id);
+			return -ENODEV;
+
 		}
 	}
 	prop = (unsigned int *)get_property(sound, "device-id", NULL);
@@ -1175,46 +1176,69 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	}
 
 	np = chip->node;
+	chip->requested = 0;
 	if (chip->is_k2) {
-		if (np->parent->n_addrs < 2 || np->n_intrs < 3) {
+		static char *rnames[] = {
+			"Sound Control", "Sound DMA" };
+		if (np->n_intrs < 3) {
 			err = -ENODEV;
 			goto __error;
 		}
-		for (i = 0; i < 2; i++) {
-#ifndef CONFIG_PPC64
-			static char *name[2] = { "- Control", "- DMA" };
-			if (! request_OF_resource(np->parent, i, name[i])) {
-				snd_printk(KERN_ERR "pmac: can't request resource %d!\n", i);
+		for (i = 0; i < 2; i ++) {
+			if (of_address_to_resource(np->parent, i,
+						   &chip->rsrc[i])) {
+				printk(KERN_ERR "snd: can't translate rsrc "
+				       " %d (%s)\n", i, rnames[i]);
 				err = -ENODEV;
 				goto __error;
 			}
-			chip->of_requested |= (1 << i);
-#endif /* CONFIG_PPC64 */
-			ctrl_addr = np->parent->addrs[0].address;
-			txdma_addr = np->parent->addrs[1].address;
-			rxdma_addr = txdma_addr + 0x100;
+			if (request_mem_region(chip->rsrc[i].start,
+					       chip->rsrc[i].end -
+					       chip->rsrc[i].start + 1,
+					       rnames[i]) == NULL) {
+				printk(KERN_ERR "snd: can't request rsrc "
+				       " %d (%s: 0x%08lx:%08lx)\n",
+				       i, rnames[i], chip->rsrc[i].start,
+				       chip->rsrc[i].end);
+				err = -ENODEV;
+				goto __error;
+			}
+			chip->requested |= (1 << i);
 		}
-
+		ctrl_addr = chip->rsrc[0].start;
+		txdma_addr = chip->rsrc[1].start;
+		rxdma_addr = txdma_addr + 0x100;
 	} else {
-		if (np->n_addrs < 3 || np->n_intrs < 3) {
+		static char *rnames[] = {
+			"Sound Control", "Sound Tx DMA", "Sound Rx DMA" };
+		if (np->n_intrs < 3) {
 			err = -ENODEV;
 			goto __error;
 		}
-
-		for (i = 0; i < 3; i++) {
-#ifndef CONFIG_PPC64
-			static char *name[3] = { "- Control", "- Tx DMA", "- Rx DMA" };
-			if (! request_OF_resource(np, i, name[i])) {
-				snd_printk(KERN_ERR "pmac: can't request resource %d!\n", i);
+		for (i = 0; i < 3; i ++) {
+			if (of_address_to_resource(np->parent, i,
+						   &chip->rsrc[i])) {
+				printk(KERN_ERR "snd: can't translate rsrc "
+				       " %d (%s)\n", i, rnames[i]);
 				err = -ENODEV;
 				goto __error;
 			}
-			chip->of_requested |= (1 << i);
-#endif /* CONFIG_PPC64 */
-			ctrl_addr = np->addrs[0].address;
-			txdma_addr = np->addrs[1].address;
-			rxdma_addr = np->addrs[2].address;
+			if (request_mem_region(chip->rsrc[i].start,
+					       chip->rsrc[i].end -
+					       chip->rsrc[i].start + 1,
+					       rnames[i]) == NULL) {
+				printk(KERN_ERR "snd: can't request rsrc "
+				       " %d (%s: 0x%08lx:%08lx)\n",
+				       i, rnames[i], chip->rsrc[i].start,
+				       chip->rsrc[i].end);
+				err = -ENODEV;
+				goto __error;
+			}
+			chip->requested |= (1 << i);
 		}
+		ctrl_addr = chip->rsrc[0].start;
+		txdma_addr = chip->rsrc[1].start;
+		rxdma_addr = chip->rsrc[2].start;
 	}
 
 	chip->awacs = ioremap(ctrl_addr, 0x1000);
@@ -1266,9 +1290,11 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	} else if (chip->is_pbook_G3) {
 		struct device_node* mio;
 		for (mio = chip->node->parent; mio; mio = mio->parent) {
-			if (strcmp(mio->name, "mac-io") == 0
-			    && mio->n_addrs > 0) {
-				chip->macio_base = ioremap(mio->addrs[0].address, 0x40);
+			if (strcmp(mio->name, "mac-io") == 0) {
+				struct resource r;
+				if (of_address_to_resource(mio, 0, &r) == 0)
+					chip->macio_base =
+						ioremap(r.start, 0x40);
 				break;
 			}
 		}

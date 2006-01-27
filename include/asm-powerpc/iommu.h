@@ -20,6 +20,7 @@
 
 #ifndef _ASM_IOMMU_H
 #define _ASM_IOMMU_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <asm/types.h>
@@ -56,31 +57,12 @@ struct device_node;
 
 /* Walks all buses and creates iommu tables */
 extern void iommu_setup_pSeries(void);
-extern void iommu_setup_u3(void);
+extern void iommu_setup_dart(void);
 
 /* Frees table for an individual device node */
 extern void iommu_free_table(struct device_node *dn);
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */
-
-#ifdef CONFIG_PPC_PSERIES
-
-/* Creates table for an individual device node */
-extern void iommu_devnode_init_pSeries(struct device_node *dn);
-
-#endif /* CONFIG_PPC_PSERIES */
-
-#ifdef CONFIG_PPC_ISERIES
-
-/* Creates table for an individual device node */
-extern void iommu_devnode_init_iSeries(struct device_node *dn);
-/* Get table parameters from HV */
-extern void iommu_table_getparms_iSeries(unsigned long busno,
-					 unsigned char slotno,
-					 unsigned char virtbus,
-					 struct iommu_table* tbl);
-
-#endif /* CONFIG_PPC_ISERIES */
 
 /* Initializes an iommu_table based in values set in the passed-in
  * structure
@@ -104,7 +86,7 @@ extern void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
 
 extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_iSeries(void);
-extern void iommu_init_early_u3(void);
+extern void iommu_init_early_dart(void);
 
 #ifdef CONFIG_PCI
 extern void pci_iommu_init(void);
@@ -113,6 +95,7 @@ extern void pci_direct_iommu_init(void);
 static inline void pci_iommu_init(void) { }
 #endif
 
-extern void alloc_u3_dart_table(void);
+extern void alloc_dart_table(void);
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_IOMMU_H */

@@ -435,7 +435,7 @@ out:
 	read_unlock(&udp_hash_lock);
 }
 
-static int udpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int udpv6_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct sock *sk;

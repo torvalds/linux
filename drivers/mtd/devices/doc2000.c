@@ -138,7 +138,7 @@ static inline int DoC_WaitReady(struct DiskOnChip *doc)
    bypass the internal pipeline. Each of 4 delay cycles (read from the NOP register) is
    required after writing to CDSN Control register, see Software Requirement 11.4 item 3. */
 
-static inline int DoC_Command(struct DiskOnChip *doc, unsigned char command,
+static int DoC_Command(struct DiskOnChip *doc, unsigned char command,
 			      unsigned char xtraflags)
 {
 	void __iomem *docptr = doc->virtadr;

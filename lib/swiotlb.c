@@ -463,7 +463,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 		 */
 		dma_addr_t handle;
 		handle = swiotlb_map_single(NULL, NULL, size, DMA_FROM_DEVICE);
-		if (dma_mapping_error(handle))
+		if (swiotlb_dma_mapping_error(handle))
 			return NULL;
 
 		ret = phys_to_virt(handle);

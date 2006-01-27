@@ -64,7 +64,7 @@ inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_rq_merge_ok);
 
-inline int elv_try_merge(struct request *__rq, struct bio *bio)
+static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 {
 	int ret = ELEVATOR_NO_MERGE;
 
@@ -80,7 +80,6 @@ inline int elv_try_merge(struct request *__rq, struct bio *bio)
 
 	return ret;
 }
-EXPORT_SYMBOL(elv_try_merge);
 
 static struct elevator_type *elevator_find(const char *name)
 {
@@ -150,13 +149,20 @@ static void elevator_setup_default(void)
 	if (!chosen_elevator[0])
 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 
+	/*
+	 * Be backwards-compatible with previous kernels, so users
+	 * won't get the wrong elevator.
+	 */
+	if (!strcmp(chosen_elevator, "as"))
+		strcpy(chosen_elevator, "anticipatory");
+
  	/*
- 	 * If the given scheduler is not available, fall back to no-op.
+ 	 * If the given scheduler is not available, fall back to the default
  	 */
  	if ((e = elevator_find(chosen_elevator)))
 		elevator_put(e);
 	else
- 		strcpy(chosen_elevator, "noop");
+ 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 }
 
 static int __init elevator_setup(char *str)
@@ -611,23 +617,23 @@ void elv_completed_request(request_queue_t *q, struct request *rq)
 	 * request is released from the driver, io must be done
 	 */
 	if (blk_account_rq(rq)) {
-		struct request *first_rq = list_entry_rq(q->queue_head.next);
-
 		q->in_flight--;
+		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
+			e->ops->elevator_completed_req_fn(q, rq);
+	}
 
-		/*
-		 * Check if the queue is waiting for fs requests to be
-		 * drained for flush sequence.
-		 */
-		if (q->ordseq && q->in_flight == 0 &&
+	/*
+	 * Check if the queue is waiting for fs requests to be
+	 * drained for flush sequence.
+	 */
+	if (unlikely(q->ordseq)) {
+		struct request *first_rq = list_entry_rq(q->queue_head.next);
+		if (q->in_flight == 0 &&
 		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
 		    blk_ordered_req_seq(first_rq) > QUEUE_ORDSEQ_DRAIN) {
 			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
 			q->request_fn(q);
 		}
-
-		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
-			e->ops->elevator_completed_req_fn(q, rq);
 	}
 }
 

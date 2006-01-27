@@ -22,6 +22,9 @@
 
 /* Flags for mbind */
 #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
+#define MPOL_MF_MOVE	(1<<1)	/* Move pages owned by this process to conform to mapping */
+#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to mapping */
+#define MPOL_MF_INTERNAL (1<<3)	/* Internal flags start here */
 
 #ifdef __KERNEL__
 
@@ -65,6 +68,7 @@ struct mempolicy {
 		nodemask_t	 nodes;		/* interleave */
 		/* undefined for default */
 	} v;
+	nodemask_t cpuset_mems_allowed;	/* mempolicy relative to these nodes */
 };
 
 /*
@@ -128,12 +132,8 @@ struct shared_policy {
 	spinlock_t lock;
 };
 
-static inline void mpol_shared_policy_init(struct shared_policy *info)
-{
-	info->root = RB_ROOT;
-	spin_lock_init(&info->lock);
-}
-
+void mpol_shared_policy_init(struct shared_policy *info, int policy,
+				nodemask_t *nodes);
 int mpol_set_shared_policy(struct shared_policy *info,
 				struct vm_area_struct *vma,
 				struct mempolicy *new);
@@ -141,15 +141,25 @@ void mpol_free_shared_policy(struct shared_policy *p);
 struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 					    unsigned long idx);
 
-struct mempolicy *get_vma_policy(struct task_struct *task,
-			struct vm_area_struct *vma, unsigned long addr);
-
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
-extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
+extern void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *new);
+extern void mpol_rebind_task(struct task_struct *tsk,
+					const nodemask_t *new);
+extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
+#define set_cpuset_being_rebound(x) (cpuset_being_rebound = (x))
+
+#ifdef CONFIG_CPUSET
+#define current_cpuset_is_being_rebound() \
+				(cpuset_being_rebound == current->cpuset)
+#else
+#define current_cpuset_is_being_rebound() 0
+#endif
+
 extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 		unsigned long addr);
+extern unsigned slab_node(struct mempolicy *policy);
 
 extern int policy_zone;
 
@@ -158,6 +168,11 @@ static inline void check_highest_zone(int k)
 	if (k > policy_zone)
 		policy_zone = k;
 }
+
+int do_migrate_pages(struct mm_struct *mm,
+	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+
+extern void *cpuset_being_rebound;	/* Trigger mpol_copy vma rebind */
 
 #else
 
@@ -193,7 +208,8 @@ static inline int mpol_set_shared_policy(struct shared_policy *info,
 	return -EINVAL;
 }
 
-static inline void mpol_shared_policy_init(struct shared_policy *info)
+static inline void mpol_shared_policy_init(struct shared_policy *info,
+					int policy, nodemask_t *nodes)
 {
 }
 
@@ -218,15 +234,33 @@ static inline void numa_default_policy(void)
 {
 }
 
-static inline void numa_policy_rebind(const nodemask_t *old,
+static inline void mpol_rebind_policy(struct mempolicy *pol,
 					const nodemask_t *new)
 {
 }
+
+static inline void mpol_rebind_task(struct task_struct *tsk,
+					const nodemask_t *new)
+{
+}
+
+static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+{
+}
+
+#define set_cpuset_being_rebound(x) do {} while (0)
 
 static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 		unsigned long addr)
 {
 	return NODE_DATA(0)->node_zonelists + gfp_zone(GFP_HIGHUSER);
+}
+
+static inline int do_migrate_pages(struct mm_struct *mm,
+			const nodemask_t *from_nodes,
+			const nodemask_t *to_nodes, int flags)
+{
+	return 0;
 }
 
 static inline void check_highest_zone(int k)

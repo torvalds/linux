@@ -43,8 +43,6 @@ static int debug;
 #define PL2303_BUF_SIZE		1024
 #define PL2303_TMP_BUF_SIZE	1024
 
-static DECLARE_MUTEX(pl2303_tmp_buf_sem);
-
 struct pl2303_buf {
 	unsigned int	buf_size;
 	char		*buf_buf;
@@ -924,16 +922,12 @@ static void pl2303_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
+		tty_buffer_request_room(tty, urb->actual_length + 1);
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-
-		for (i = 0; i < urb->actual_length; ++i) {
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
+		for (i = 0; i < urb->actual_length; ++i)
 			tty_insert_flip_char (tty, data[i], tty_flag);
-		}
 		tty_flip_buffer_push (tty);
 	}
 

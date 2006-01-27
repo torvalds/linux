@@ -151,13 +151,12 @@ static int saa5249_attach(struct i2c_adapter *adap, int addr, int kind)
         client_template.adapter = adap;
         client_template.addr = addr;
 	memcpy(client, &client_template, sizeof(*client));
-	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if(t==NULL)
 	{
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(t, 0, sizeof(*t));
 	strlcpy(client->name, IF_NAME, I2C_NAME_SIZE);
 	init_MUTEX(&t->lock);
 	
@@ -165,7 +164,7 @@ static int saa5249_attach(struct i2c_adapter *adap, int addr, int kind)
 	 *	Now create a video4linux device
 	 */
 	 
-	vd = (struct video_device *)kmalloc(sizeof(struct video_device), GFP_KERNEL);
+	vd = kmalloc(sizeof(struct video_device), GFP_KERNEL);
 	if(vd==NULL)
 	{
 		kfree(t);
@@ -702,6 +701,7 @@ static struct file_operations saa_fops = {
 	.open		= saa5249_open,
 	.release       	= saa5249_release,
 	.ioctl          = saa5249_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 

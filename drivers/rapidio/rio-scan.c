@@ -24,6 +24,8 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <linux/jiffies.h>
+#include <linux/slab.h>
 
 #include "rio.h"
 

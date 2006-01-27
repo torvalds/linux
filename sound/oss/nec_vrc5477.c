@@ -2045,7 +2045,7 @@ static struct pci_driver vrc5477_ac97_driver = {
 static int __init init_vrc5477_ac97(void)
 {
 	printk("Vrc5477 AC97 driver: version v0.2 time " __TIME__ " " __DATE__ " by Jun Sun\n");
-	return pci_module_init(&vrc5477_ac97_driver);
+	return pci_register_driver(&vrc5477_ac97_driver);
 }
 
 static void __exit cleanup_vrc5477_ac97(void)

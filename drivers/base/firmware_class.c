@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -47,7 +48,7 @@ struct firmware_priv {
 	struct timer_list timeout;
 };
 
-static inline void
+static void
 fw_load_abort(struct firmware_priv *fw_priv)
 {
 	set_bit(FW_STATUS_ABORT, &fw_priv->status);

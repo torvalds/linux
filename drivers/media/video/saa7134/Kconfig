@@ -15,7 +15,7 @@ config VIDEO_SAA7134
 config VIDEO_SAA7134_ALSA
 	tristate "Philips SAA7134 DMA audio support"
 	depends on VIDEO_SAA7134 && SND
-	select SND_PCM_OSS
+	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio in
 	  Philips SAA713x based TV cards using ALSA

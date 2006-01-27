@@ -97,7 +97,7 @@ we simply define out own dvb_usercopy(), which will hopefully become
 generic_usercopy()  someday... */
 
 extern int dvb_usercopy(struct inode *inode, struct file *file,
-		            unsigned int cmd, unsigned long arg,
+			    unsigned int cmd, unsigned long arg,
 			    int (*func)(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg));
 

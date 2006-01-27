@@ -1,6 +1,7 @@
-/* sis_ds.h -- Private header for Direct Rendering Manager -*- linux-c -*-
+/* sis_ds.h -- Private header for Direct Rendering Manager -*- linux-c -*- 
  * Created: Mon Jan  4 10:05:05 1999 by sclin@sis.com.tw
- *
+ */
+/*
  * Copyright 2000 Silicon Integrated Systems Corp, Inc., HsinChu, Taiwan.
  * All rights reserved.
  *
@@ -35,7 +36,7 @@
 
 #define SET_SIZE 5000
 
-typedef unsigned int ITEM_TYPE;
+typedef unsigned long ITEM_TYPE;
 
 typedef struct {
 	ITEM_TYPE val;

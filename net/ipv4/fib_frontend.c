@@ -20,6 +20,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -288,13 +289,13 @@ static int inet_check_attr(struct rtmsg *r, struct rtattr **rta)
 {
 	int i;
 
-	for (i=1; i<=RTA_MAX; i++) {
-		struct rtattr *attr = rta[i-1];
+	for (i=1; i<=RTA_MAX; i++, rta++) {
+		struct rtattr *attr = *rta;
 		if (attr) {
 			if (RTA_PAYLOAD(attr) < 4)
 				return -EINVAL;
 			if (i != RTA_MULTIPATH && i != RTA_METRICS)
-				rta[i-1] = (struct rtattr*)RTA_DATA(attr);
+				*rta = (struct rtattr*)RTA_DATA(attr);
 		}
 	}
 	return 0;

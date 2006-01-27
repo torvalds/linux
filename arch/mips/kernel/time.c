@@ -507,14 +507,38 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+int null_perf_irq(struct pt_regs *regs)
+{
+	return 0;
+}
+
+int (*perf_irq)(struct pt_regs *regs) = null_perf_irq;
+
+EXPORT_SYMBOL(null_perf_irq);
+EXPORT_SYMBOL(perf_irq);
+
 asmlinkage void ll_timer_interrupt(int irq, struct pt_regs *regs)
 {
+	int r2 = cpu_has_mips_r2;
+
 	irq_enter();
 	kstat_this_cpu.irqs[irq]++;
 
-	/* we keep interrupt disabled all the time */
-	timer_interrupt(irq, NULL, regs);
+	/*
+	 * Suckage alert:
+	 * Before R2 of the architecture there was no way to see if a
+	 * performance counter interrupt was pending, so we have to run the
+	 * performance counter interrupt handler anyway.
+	 */
+	if (!r2 || (read_c0_cause() & (1 << 26)))
+		if (perf_irq(regs))
+			goto out;
 
+	/* we keep interrupt disabled all the time */
+	if (!r2 || (read_c0_cause() & (1 << 30)))
+		timer_interrupt(irq, NULL, regs);
+
+out:
 	irq_exit();
 }
 
@@ -628,9 +652,9 @@ void __init time_init(void)
 			mips_hpt_init = c0_hpt_init;
 		}
 
-		if ((current_cpu_data.isa_level == MIPS_CPU_ISA_M32) ||
-			 (current_cpu_data.isa_level == MIPS_CPU_ISA_I) ||
-			 (current_cpu_data.isa_level == MIPS_CPU_ISA_II))
+		if (cpu_has_mips32r1 || cpu_has_mips32r2 ||
+		    (current_cpu_data.isa_level == MIPS_CPU_ISA_I) ||
+		    (current_cpu_data.isa_level == MIPS_CPU_ISA_II))
 			/*
 			 * We need to calibrate the counter but we don't have
 			 * 64-bit division.

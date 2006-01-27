@@ -26,12 +26,56 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
-/* VIDIOC_INT_AUDIO_CLOCK_FREQ */
-enum v4l2_audio_clock_freq {
-	V4L2_AUDCLK_32_KHZ  = 32000,
-	V4L2_AUDCLK_441_KHZ = 44100,
-	V4L2_AUDCLK_48_KHZ  = 48000,
-};
+/* v4l debugging and diagnostics */
+
+/* Common printk constucts for v4l-i2c drivers. These macros create a unique
+   prefix consisting of the driver name, the adapter number and the i2c
+   address. */
+#define v4l_printk(level, name, adapter, addr, fmt, arg...) \
+	printk(level "%s %d-%04x: " fmt, name, i2c_adapter_id(adapter), addr , ## arg)
+
+#define v4l_client_printk(level, client, fmt, arg...)			    \
+	v4l_printk(level, (client)->driver->driver.name, (client)->adapter, \
+		   (client)->addr, fmt , ## arg)
+
+#define v4l_err(client, fmt, arg...) \
+	v4l_client_printk(KERN_ERR, client, fmt , ## arg)
+
+#define v4l_warn(client, fmt, arg...) \
+	v4l_client_printk(KERN_WARNING, client, fmt , ## arg)
+
+#define v4l_info(client, fmt, arg...) \
+	v4l_client_printk(KERN_INFO, client, fmt , ## arg)
+
+/* These three macros assume that the debug level is set with a module
+   parameter called 'debug'. */
+#define v4l_dbg(level, debug, client, fmt, arg...)			     \
+	do { 								     \
+		if (debug >= (level))					     \
+			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
+	} while (0)
+
+/* Prints the ioctl in a human-readable format */
+extern void v4l_printk_ioctl(unsigned int cmd);
+
+/* Use this macro for non-I2C drivers. Pass the driver name as the first arg. */
+#define v4l_print_ioctl(name, cmd)  		 \
+	do {  					 \
+		printk(KERN_DEBUG "%s: ", name); \
+		v4l_printk_ioctl(cmd);		 \
+	} while (0)
+
+/* Use this macro in I2C drivers where 'client' is the struct i2c_client
+   pointer */
+#define v4l_i2c_print_ioctl(client, cmd) 		   \
+	do {      					   \
+		v4l_client_printk(KERN_DEBUG, client, ""); \
+		v4l_printk_ioctl(cmd);			   \
+	} while (0)
+
+/* ------------------------------------------------------------------------- */
+
+/* Internal ioctls */
 
 /* VIDIOC_INT_G_REGISTER and VIDIOC_INT_S_REGISTER */
 struct v4l2_register {
@@ -70,6 +114,27 @@ enum v4l2_chip_ident {
 	V4L2_IDENT_CX25843 = 243,
 };
 
+/* audio ioctls */
+/* v4l device was opened in Radio mode */
+#define AUDC_SET_RADIO        _IO('d',88)
+/* select from TV,radio,extern,MUTE */
+#define AUDC_SET_INPUT        _IOW('d',89,int)
+
+/* msp3400 ioctl: will be removed in the near future */
+struct msp_matrix {
+  int input;
+  int output;
+};
+#define MSP_SET_MATRIX     _IOW('m',17,struct msp_matrix)
+
+/* tuner ioctls */
+/* Sets tuner type and its I2C addr */
+#define TUNER_SET_TYPE_ADDR          _IOW('d',90,int)
+/* Puts tuner on powersaving state, disabling it, except for i2c */
+#define TUNER_SET_STANDBY            _IOW('d',91,int)
+/* Sets tda9887 specific stuff, like port1, port2 and qss */
+#define TDA9887_SET_CONFIG           _IOW('d',92,int)
+
 /* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
 #define	VIDIOC_INT_S_REGISTER 		_IOR ('d', 100, struct v4l2_register)
 #define	VIDIOC_INT_G_REGISTER 		_IOWR('d', 101, struct v4l2_register)
@@ -77,10 +142,12 @@ enum v4l2_chip_ident {
 /* Reset the I2C chip */
 #define VIDIOC_INT_RESET            	_IO  ('d', 102)
 
-/* Set the frequency of the audio clock output.
+/* Set the frequency (in Hz) of the audio clock output.
    Used to slave an audio processor to the video decoder, ensuring that audio
-   and video remain synchronized. */
-#define VIDIOC_INT_AUDIO_CLOCK_FREQ 	_IOR ('d', 103, enum v4l2_audio_clock_freq)
+   and video remain synchronized.
+   Usual values for the frequency are 48000, 44100 or 32000 Hz.
+   If the frequency is not supported, then -EINVAL is returned. */
+#define VIDIOC_INT_AUDIO_CLOCK_FREQ 	_IOW ('d', 103, u32)
 
 /* Video decoders that support sliced VBI need to implement this ioctl.
    Field p of the v4l2_sliced_vbi_line struct is set to the start of the VBI
@@ -106,5 +173,11 @@ enum v4l2_chip_ident {
 /* Returns the chip identifier or V4L2_IDENT_UNKNOWN if no identification can
    be made. */
 #define VIDIOC_INT_G_CHIP_IDENT		_IOR ('d', 107, enum v4l2_chip_ident *)
+
+/* Sets I2S speed in bps. This is used to provide a standard way to select I2S
+   clock used by driving digital audio streams at some board designs.
+   Usual values for the frequency are 1024000 and 2048000.
+   If the frequency is not supported, then -EINVAL is returned. */
+#define VIDIOC_INT_I2S_CLOCK_FREQ 	_IOW ('d', 108, u32)
 
 #endif /* V4L2_COMMON_H_ */

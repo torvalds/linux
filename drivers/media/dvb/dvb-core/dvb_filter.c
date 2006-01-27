@@ -409,16 +409,16 @@ static u8 *skip_pes_header(u8 **bufp)
 
 	if ((inbuf[6] & 0xc0) == 0x80){ /* mpeg2 */
 		if (buf[7] & PTS_ONLY)
-		        pts = buf+9;
+			pts = buf+9;
 		else pts = NULL;
 		buf = inbuf + 9 + inbuf[8];
 	} else {        /* mpeg1 */
 		for (buf = inbuf + 6; *buf == 0xff; buf++)
-		        if (buf == inbuf + 6 + 16) {
-		                break;
-		        }
+			if (buf == inbuf + 6 + 16) {
+				break;
+			}
 		if ((*buf & 0xc0) == 0x40)
-		        buf += 2;
+			buf += 2;
 		skip = mpeg1_skip_table [*buf >> 4];
 		if (skip == 5 || skip == 10) pts = buf;
 		else pts = NULL;
@@ -529,9 +529,9 @@ static void init_mpg_picture( struct mpg_picture *pic, int chan, int32_t field_t
 	pic->picture_header = 0;
 	pic->sequence_header_data
 		= ( INIT_HORIZONTAL_SIZE << 20 )
-		        | ( INIT_VERTICAL_SIZE << 8 )
-		        | ( INIT_ASPECT_RATIO << 4 )
-		        | ( INIT_FRAME_RATE );
+			| ( INIT_VERTICAL_SIZE << 8 )
+			| ( INIT_ASPECT_RATIO << 4 )
+			| ( INIT_FRAME_RATE );
 	pic->mpeg1_flag = 0;
 	pic->vinfo.horizontal_size
 		= INIT_DISP_HORIZONTAL_SIZE;

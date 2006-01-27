@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_SECTIONS_H
 #define _ASM_POWERPC_SECTIONS_H
+#ifdef __KERNEL__
 
 #include <asm-generic/sections.h>
 
@@ -17,4 +18,5 @@ static inline int in_kernel_text(unsigned long addr)
 
 #endif
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_SECTIONS_H */

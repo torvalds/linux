@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 
 #include "STG4000Reg.h"
+#include "STG4000Interface.h"
 
 /* SDRAM fixed settings */
 #define SDRAM_CFG_0   0x49A1

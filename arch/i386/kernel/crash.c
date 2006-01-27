@@ -25,7 +25,6 @@
 #include <mach_ipi.h>
 
 
-note_buf_t crash_notes[NR_CPUS];
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu;
 
@@ -72,7 +71,9 @@ static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
 	 * squirrelled away.  ELF notes happen to provide
 	 * all of that that no need to invent something new.
 	 */
-	buf = &crash_notes[cpu][0];
+	buf = (u32*)per_cpu_ptr(crash_notes, cpu);
+	if (!buf)
+		return;
 	memset(&prstatus, 0, sizeof(prstatus));
 	prstatus.pr_pid = current->pid;
 	elf_core_copy_regs(&prstatus.pr_reg, regs);
@@ -81,51 +82,12 @@ static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
 	final_note(buf);
 }
 
-static void crash_get_current_regs(struct pt_regs *regs)
+static void crash_save_self(struct pt_regs *regs)
 {
-	__asm__ __volatile__("movl %%ebx,%0" : "=m"(regs->ebx));
-	__asm__ __volatile__("movl %%ecx,%0" : "=m"(regs->ecx));
-	__asm__ __volatile__("movl %%edx,%0" : "=m"(regs->edx));
-	__asm__ __volatile__("movl %%esi,%0" : "=m"(regs->esi));
-	__asm__ __volatile__("movl %%edi,%0" : "=m"(regs->edi));
-	__asm__ __volatile__("movl %%ebp,%0" : "=m"(regs->ebp));
-	__asm__ __volatile__("movl %%eax,%0" : "=m"(regs->eax));
-	__asm__ __volatile__("movl %%esp,%0" : "=m"(regs->esp));
-	__asm__ __volatile__("movw %%ss, %%ax;" :"=a"(regs->xss));
-	__asm__ __volatile__("movw %%cs, %%ax;" :"=a"(regs->xcs));
-	__asm__ __volatile__("movw %%ds, %%ax;" :"=a"(regs->xds));
-	__asm__ __volatile__("movw %%es, %%ax;" :"=a"(regs->xes));
-	__asm__ __volatile__("pushfl; popl %0" :"=m"(regs->eflags));
-
-	regs->eip = (unsigned long)current_text_addr();
-}
-
-/* CPU does not save ss and esp on stack if execution is already
- * running in kernel mode at the time of NMI occurrence. This code
- * fixes it.
- */
-static void crash_setup_regs(struct pt_regs *newregs, struct pt_regs *oldregs)
-{
-	memcpy(newregs, oldregs, sizeof(*newregs));
-	newregs->esp = (unsigned long)&(oldregs->esp);
-	__asm__ __volatile__("xorl %eax, %eax;");
-	__asm__ __volatile__ ("movw %%ss, %%ax;" :"=a"(newregs->xss));
-}
-
-/* We may have saved_regs from where the error came from
- * or it is NULL if via a direct panic().
- */
-static void crash_save_self(struct pt_regs *saved_regs)
-{
-	struct pt_regs regs;
 	int cpu;
 
 	cpu = smp_processor_id();
-	if (saved_regs)
-		crash_setup_regs(&regs, saved_regs);
-	else
-		crash_get_current_regs(&regs);
-	crash_save_this_cpu(&regs, cpu);
+	crash_save_this_cpu(regs, cpu);
 }
 
 #ifdef CONFIG_SMP
@@ -144,7 +106,7 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 	local_irq_disable();
 
 	if (!user_mode(regs)) {
-		crash_setup_regs(&fixed_regs, regs);
+		crash_fixup_ss_esp(&fixed_regs, regs);
 		regs = &fixed_regs;
 	}
 	crash_save_this_cpu(regs, cpu);

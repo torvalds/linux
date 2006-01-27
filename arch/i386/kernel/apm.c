@@ -219,6 +219,7 @@
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/pm_legacy.h>
+#include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
@@ -2291,7 +2292,9 @@ static int __init apm_init(void)
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
+#ifdef CONFIG_PM_LEGACY
 	pm_active = 1;
+#endif
 
 	/*
 	 * Set up a segment that references the real mode segment 0x40
@@ -2382,7 +2385,9 @@ static void __exit apm_exit(void)
 	exit_kapmd = 1;
 	while (kapmd_running)
 		schedule();
+#ifdef CONFIG_PM_LEGACY
 	pm_active = 0;
+#endif
 }
 
 module_init(apm_init);

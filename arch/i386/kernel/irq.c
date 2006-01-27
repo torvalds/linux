@@ -19,7 +19,7 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 
-DEFINE_PER_CPU(irq_cpustat_t, irq_stat) ____cacheline_maxaligned_in_smp;
+DEFINE_PER_CPU(irq_cpustat_t, irq_stat) ____cacheline_internodealigned_in_smp;
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
 #ifndef CONFIG_X86_LOCAL_APIC

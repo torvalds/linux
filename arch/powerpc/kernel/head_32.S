@@ -120,10 +120,25 @@ __start:
  * because OF may have I/O devices mapped into that area
  * (particularly on CHRP).
  */
+#ifdef CONFIG_PPC_MULTIPLATFORM
 	cmpwi	0,r5,0
 	beq	1f
 	bl	prom_init
 	trap
+#endif
+
+/*
+ * Check for BootX signature when supporting PowerMac and branch to
+ * appropriate trampoline if it's present
+ */
+#ifdef CONFIG_PPC_PMAC
+1:	lis	r31,0x426f
+	ori	r31,r31,0x6f58
+	cmpw	0,r3,r31
+	bne	1f
+	bl	bootx_init
+	trap
+#endif /* CONFIG_PPC_PMAC */
 
 1:	mr	r31,r3			/* save parameters */
 	mr	r30,r4
@@ -153,6 +168,9 @@ __after_mmu_off:
 	bl	flush_tlbs
 
 	bl	initial_bats
+#if !defined(CONFIG_APUS) && defined(CONFIG_BOOTX_TEXT)
+	bl	setup_disp_bat
+#endif
 
 /*
  * Call setup_cpu for CPU 0 and initialize 6xx Idle
@@ -450,15 +468,10 @@ SystemCall:
  * by executing an altivec instruction.
  */
 	. = 0xf00
-	b	Trap_0f
+	b	PerformanceMonitor
 
 	. = 0xf20
 	b	AltiVecUnavailable
-
-Trap_0f:
-	EXCEPTION_PROLOG
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE(0xf00, unknown_exception)
 
 /*
  * Handle TLB miss for instruction on 603/603e.
@@ -702,6 +715,11 @@ AltiVecUnavailable:
 	bne	load_up_altivec		/* if from user, just load it up */
 #endif /* CONFIG_ALTIVEC */
 	EXC_XFER_EE_LITE(0xf20, altivec_unavailable_exception)
+
+PerformanceMonitor:
+	EXCEPTION_PROLOG
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	EXC_XFER_STD(0xf00, performance_monitor_exception)
 
 #ifdef CONFIG_ALTIVEC
 /* Note that the AltiVec support is closely modeled after the FP
@@ -1305,6 +1323,32 @@ initial_bats:
 	isync
 	blr
 
+
+#if !defined(CONFIG_APUS) && defined(CONFIG_BOOTX_TEXT)
+setup_disp_bat:
+	/*
+	 * setup the display bat prepared for us in prom.c
+	 */
+	mflr	r8
+	bl	reloc_offset
+	mtlr	r8
+	addis	r8,r3,disp_BAT@ha
+	addi	r8,r8,disp_BAT@l
+	cmpwi	cr0,r8,0
+	beqlr
+	lwz	r11,0(r8)
+	lwz	r8,4(r8)
+	mfspr	r9,SPRN_PVR
+	rlwinm	r9,r9,16,16,31		/* r9 = 1 for 601, 4 for 604 */
+	cmpwi	0,r9,1
+	beq	1f
+	mtspr	SPRN_DBAT3L,r8
+	mtspr	SPRN_DBAT3U,r11
+	blr
+1:	mtspr	SPRN_IBAT3L,r8
+	mtspr	SPRN_IBAT3U,r11
+	blr
+#endif /* !defined(CONFIG_APUS) && defined(CONFIG_BOOTX_TEXT) */
 
 #ifdef CONFIG_8260
 /* Jump into the system reset for the rom.

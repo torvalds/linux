@@ -373,6 +373,42 @@ static ssize_t dsp_write(struct file *file, const char __user *buffer,
 	return -EINVAL;
 }
 
+static const char *osspcm_ioctls[] = {
+	"RESET", "SYNC", "SPEED", "STEREO", "GETBLKSIZE", "SETFMT",
+	"CHANNELS", "?", "POST", "SUBDIVIDE", "SETFRAGMENT", "GETFMTS",
+	"GETOSPACE", "GETISPACE", "NONBLOCK", "GETCAPS", "GET/SETTRIGGER",
+	"GETIPTR", "GETOPTR", "MAPINBUF", "MAPOUTBUF", "SETSYNCRO",
+	"SETDUPLEX", "GETODELAY"
+};
+#define OSSPCM_IOCTLS ARRAY_SIZE(osspcm_ioctls)
+
+static void saa7134_oss_print_ioctl(char *name, unsigned int cmd)
+{
+	char *dir;
+
+	switch (_IOC_DIR(cmd)) {
+	case _IOC_NONE:              dir = "--"; break;
+	case _IOC_READ:              dir = "r-"; break;
+	case _IOC_WRITE:             dir = "-w"; break;
+	case _IOC_READ | _IOC_WRITE: dir = "rw"; break;
+	default:                     dir = "??"; break;
+	}
+	switch (_IOC_TYPE(cmd)) {
+	case 'P':
+		printk(KERN_DEBUG "%s: ioctl 0x%08x (oss dsp, %s, SNDCTL_DSP_%s)\n",
+		       name, cmd, dir, (_IOC_NR(cmd) < OSSPCM_IOCTLS) ?
+		       osspcm_ioctls[_IOC_NR(cmd)] : "???");
+		break;
+	case 'M':
+		printk(KERN_DEBUG "%s: ioctl 0x%08x (oss mixer, %s, #%d)\n",
+		       name, cmd, dir, _IOC_NR(cmd));
+		break;
+	default:
+		printk(KERN_DEBUG "%s: ioctl 0x%08x (???, %s, #%d)\n",
+		       name, cmd, dir, _IOC_NR(cmd));
+	}
+}
+
 static int dsp_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -382,7 +418,7 @@ static int dsp_ioctl(struct inode *inode, struct file *file,
 	int val = 0;
 
 	if (debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		saa7134_oss_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case OSS_GETVERSION:
 		return put_user(SOUND_VERSION, p);
@@ -678,7 +714,7 @@ static int mixer_ioctl(struct inode *inode, struct file *file,
 	int __user *p = argp;
 
 	if (debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		saa7134_oss_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case OSS_GETVERSION:
 		return put_user(SOUND_VERSION, p);

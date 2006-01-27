@@ -242,7 +242,7 @@ static signed char UniCaseRangeLff20[27] = {
 /*
  * Lower Case Range
  */
-const static struct UniCaseRange CifsUniLowerRange[] = {
+static const struct UniCaseRange CifsUniLowerRange[] = {
 	0x0380, 0x03ab, UniCaseRangeL0380,
 	0x0400, 0x042f, UniCaseRangeL0400,
 	0x0490, 0x04cb, UniCaseRangeL0490,

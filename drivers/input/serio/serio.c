@@ -59,9 +59,7 @@ static DECLARE_MUTEX(serio_sem);
 
 static LIST_HEAD(serio_list);
 
-static struct bus_type serio_bus = {
-	.name =	"serio",
-};
+static struct bus_type serio_bus;
 
 static void serio_add_port(struct serio *serio);
 static void serio_destroy_port(struct serio *serio);
@@ -750,11 +748,15 @@ static int serio_driver_remove(struct device *dev)
 	return 0;
 }
 
+static struct bus_type serio_bus = {
+	.name =	"serio",
+	.probe = serio_driver_probe,
+	.remove = serio_driver_remove,
+};
+
 void __serio_register_driver(struct serio_driver *drv, struct module *owner)
 {
 	drv->driver.bus = &serio_bus;
-	drv->driver.probe = serio_driver_probe;
-	drv->driver.remove = serio_driver_remove;
 
 	serio_queue_event(drv, owner, SERIO_REGISTER_DRIVER);
 }

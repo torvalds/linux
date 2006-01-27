@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/agp_backend.h>
 #include "agp.h"
 

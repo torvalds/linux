@@ -747,31 +747,32 @@ static int pd_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int pd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct pd_unit *disk = bdev->bd_disk->private_data;
+
+	if (disk->alt_geom) {
+		geo->heads = PD_LOG_HEADS;
+		geo->sectors = PD_LOG_SECTS;
+		geo->cylinders = disk->capacity / (geo->heads * geo->sectors);
+	} else {
+		geo->heads = disk->heads;
+		geo->sectors = disk->sectors;
+		geo->cylinders = disk->cylinders;
+	}
+
+	return 0;
+}
+
 static int pd_ioctl(struct inode *inode, struct file *file,
 	 unsigned int cmd, unsigned long arg)
 {
 	struct pd_unit *disk = inode->i_bdev->bd_disk->private_data;
-	struct hd_geometry __user *geo = (struct hd_geometry __user *) arg;
-	struct hd_geometry g;
 
 	switch (cmd) {
 	case CDROMEJECT:
 		if (disk->access == 1)
 			pd_special_command(disk, pd_eject);
-		return 0;
-	case HDIO_GETGEO:
-		if (disk->alt_geom) {
-			g.heads = PD_LOG_HEADS;
-			g.sectors = PD_LOG_SECTS;
-			g.cylinders = disk->capacity / (g.heads * g.sectors);
-		} else {
-			g.heads = disk->heads;
-			g.sectors = disk->sectors;
-			g.cylinders = disk->cylinders;
-		}
-		g.start = get_start_sect(inode->i_bdev);
-		if (copy_to_user(geo, &g, sizeof(struct hd_geometry)))
-			return -EFAULT;
 		return 0;
 	default:
 		return -EINVAL;
@@ -815,6 +816,7 @@ static struct block_device_operations pd_fops = {
 	.open		= pd_open,
 	.release	= pd_release,
 	.ioctl		= pd_ioctl,
+	.getgeo		= pd_getgeo,
 	.media_changed	= pd_check_media,
 	.revalidate_disk= pd_revalidate
 };

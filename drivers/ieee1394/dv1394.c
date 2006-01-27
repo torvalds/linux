@@ -108,7 +108,6 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/cdev.h>
 

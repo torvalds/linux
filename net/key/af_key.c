@@ -15,6 +15,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/socket.h>
@@ -297,8 +298,7 @@ static int pfkey_error(struct sadb_msg *orig, int err, struct sock *sk)
 		err = EINTR;
 	if (err >= 512)
 		err = EINVAL;
-	if (err <= 0 || err >= 256)
-		BUG();
+	BUG_ON(err <= 0 || err >= 256);
 
 	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
 	pfkey_hdr_dup(hdr, orig);

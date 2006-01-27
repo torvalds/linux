@@ -418,6 +418,8 @@ extern int			ipv6_rcv(struct sk_buff *skb,
 					 struct packet_type *pt,
 					 struct net_device *orig_dev);
 
+extern int			ip6_rcv_finish(struct sk_buff *skb);
+
 /*
  *	upper-layer output functions
  */

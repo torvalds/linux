@@ -118,9 +118,9 @@ struct request_list {
  * try to put the fields that are referenced together in the same cacheline
  */
 struct request {
-	struct list_head queuelist; /* looking for ->queue? you must _not_
-				     * access it directly, use
-				     * blkdev_dequeue_request! */
+	struct list_head queuelist;
+	struct list_head donelist;
+
 	unsigned long flags;		/* see REQ_ bits below */
 
 	/* Maintain bio traversal state for part by part I/O submission.
@@ -141,6 +141,7 @@ struct request {
 	struct bio *biotail;
 
 	void *elevator_private;
+	void *completion_data;
 
 	unsigned short ioprio;
 
@@ -291,6 +292,7 @@ typedef int (merge_bvec_fn) (request_queue_t *, struct bio *, struct bio_vec *);
 typedef void (activity_fn) (void *data, int rw);
 typedef int (issue_flush_fn) (request_queue_t *, struct gendisk *, sector_t *);
 typedef void (prepare_flush_fn) (request_queue_t *, struct request *);
+typedef void (softirq_done_fn)(struct request *);
 
 enum blk_queue_state {
 	Queue_down,
@@ -332,6 +334,7 @@ struct request_queue
 	activity_fn		*activity_fn;
 	issue_flush_fn		*issue_flush_fn;
 	prepare_flush_fn	*prepare_flush_fn;
+	softirq_done_fn		*softirq_done_fn;
 
 	/*
 	 * Dispatch queue sorting
@@ -592,7 +595,6 @@ extern void generic_make_request(struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void __blk_put_request(request_queue_t *, struct request *);
 extern void blk_end_sync_rq(struct request *rq, int error);
-extern void blk_attempt_remerge(request_queue_t *, struct request *);
 extern struct request *blk_get_request(request_queue_t *, int, gfp_t);
 extern void blk_insert_request(request_queue_t *, struct request *, int, void *);
 extern void blk_requeue_request(request_queue_t *, struct request *);
@@ -646,6 +648,17 @@ extern int end_that_request_first(struct request *, int, int);
 extern int end_that_request_chunk(struct request *, int, int);
 extern void end_that_request_last(struct request *, int);
 extern void end_request(struct request *req, int uptodate);
+extern void blk_complete_request(struct request *);
+
+static inline int rq_all_done(struct request *rq, unsigned int nr_bytes)
+{
+	if (blk_fs_request(rq))
+		return (nr_bytes >= (rq->hard_nr_sectors << 9));
+	else if (blk_pc_request(rq))
+		return nr_bytes >= rq->data_len;
+
+	return 0;
+}
 
 /*
  * end_that_request_first/chunk() takes an uptodate argument. we account
@@ -694,6 +707,7 @@ extern void blk_queue_segment_boundary(request_queue_t *, unsigned long);
 extern void blk_queue_prep_rq(request_queue_t *, prep_rq_fn *pfn);
 extern void blk_queue_merge_bvec(request_queue_t *, merge_bvec_fn *);
 extern void blk_queue_dma_alignment(request_queue_t *, int);
+extern void blk_queue_softirq_done(request_queue_t *, softirq_done_fn *);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 extern int blk_queue_ordered(request_queue_t *, unsigned, prepare_flush_fn *);
 extern void blk_queue_issue_flush_fn(request_queue_t *, issue_flush_fn *);

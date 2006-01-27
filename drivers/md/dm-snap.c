@@ -691,7 +691,7 @@ static void copy_callback(int read_err, unsigned int write_err, void *context)
 /*
  * Dispatches the copy operation to kcopyd.
  */
-static inline void start_copy(struct pending_exception *pe)
+static void start_copy(struct pending_exception *pe)
 {
 	struct dm_snapshot *s = pe->snap;
 	struct io_region src, dest;

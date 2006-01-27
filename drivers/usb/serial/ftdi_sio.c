@@ -1610,24 +1610,11 @@ static void ftdi_process_read (void *param)
 			length = 0;
 		}
 
-		/* have to make sure we don't overflow the buffer
-		   with tty_insert_flip_char's */
-		if (tty->flip.count+length > TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
-			need_flip = 0;
-
-			if (tty->flip.count != 0) {
-				/* flip didn't work, this happens when ftdi_process_read() is
-				 * called from ftdi_unthrottle, because TTY_DONT_FLIP is set */
-				dbg("%s - flip buffer push failed", __FUNCTION__);
-				break;
-			}
-		}
 		if (priv->rx_flags & THROTTLED) {
 			dbg("%s - throttled", __FUNCTION__);
 			break;
 		}
-		if (tty->ldisc.receive_room(tty)-tty->flip.count < length) {
+		if (tty_buffer_request_room(tty, length) < length) {
 			/* break out & wait for throttling/unthrottling to happen */
 			dbg("%s - receive room low", __FUNCTION__);
 			break;

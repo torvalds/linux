@@ -55,16 +55,3 @@ unsigned long kernel_map(unsigned long paddr, unsigned long size,
 	return paddr;
 }
 
-#ifdef MAGIC_ROM_PTR
-
-int is_in_rom(unsigned long addr)
-{
-	/* Anything not in operational RAM is returned as in rom! */
-	if (addr < _ramstart || addr >= _ramend)
- 		return 1;
-	else
-		return 0;
-}
-
-#endif
-

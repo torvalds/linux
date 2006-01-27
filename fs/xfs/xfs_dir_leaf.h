@@ -67,34 +67,38 @@ struct xfs_trans;
  */
 #define XFS_DIR_LEAF_MAPSIZE	3	/* how many freespace slots */
 
+typedef struct xfs_dir_leaf_map {	/* RLE map of free bytes */
+	__uint16_t	base;	 	/* base of free region */
+	__uint16_t	size; 		/* run length of free region */
+} xfs_dir_leaf_map_t;
+
+typedef struct xfs_dir_leaf_hdr {	/* constant-structure header block */
+	xfs_da_blkinfo_t info;		/* block type, links, etc. */
+	__uint16_t	count;		/* count of active leaf_entry's */
+	__uint16_t	namebytes;	/* num bytes of name strings stored */
+	__uint16_t	firstused;	/* first used byte in name area */
+	__uint8_t	holes;		/* != 0 if blk needs compaction */
+	__uint8_t	pad1;
+	xfs_dir_leaf_map_t freemap[XFS_DIR_LEAF_MAPSIZE];
+} xfs_dir_leaf_hdr_t;
+
+typedef struct xfs_dir_leaf_entry {	/* sorted on key, not name */
+	xfs_dahash_t	hashval;	/* hash value of name */
+	__uint16_t	nameidx;	/* index into buffer of name */
+	__uint8_t	namelen;	/* length of name string */
+	__uint8_t	pad2;
+} xfs_dir_leaf_entry_t;
+
+typedef struct xfs_dir_leaf_name {
+	xfs_dir_ino_t	inumber;	/* inode number for this key */
+	__uint8_t	name[1];	/* name string itself */
+} xfs_dir_leaf_name_t;
+
 typedef struct xfs_dir_leafblock {
-	struct xfs_dir_leaf_hdr {	/* constant-structure header block */
-		xfs_da_blkinfo_t info;	/* block type, links, etc. */
-		__uint16_t count;	/* count of active leaf_entry's */
-		__uint16_t namebytes;	/* num bytes of name strings stored */
-		__uint16_t firstused;	/* first used byte in name area */
-		__uint8_t  holes;	/* != 0 if blk needs compaction */
-		__uint8_t  pad1;
-		struct xfs_dir_leaf_map {/* RLE map of free bytes */
-			__uint16_t base; /* base of free region */
-			__uint16_t size; /* run length of free region */
-		} freemap[XFS_DIR_LEAF_MAPSIZE]; /* N largest free regions */
-	} hdr;
-	struct xfs_dir_leaf_entry {	/* sorted on key, not name */
-		xfs_dahash_t hashval;	/* hash value of name */
-		__uint16_t nameidx;	/* index into buffer of name */
-		__uint8_t namelen;	/* length of name string */
-		__uint8_t pad2;
-	} entries[1];			/* var sized array */
-	struct xfs_dir_leaf_name {
-		xfs_dir_ino_t inumber;	/* inode number for this key */
-		__uint8_t name[1];	/* name string itself */
-	} namelist[1];			/* grows from bottom of buf */
+	xfs_dir_leaf_hdr_t	hdr;	/* constant-structure header block */
+	xfs_dir_leaf_entry_t	entries[1];	/* var sized array */
+	xfs_dir_leaf_name_t	namelist[1];	/* grows from bottom of buf */
 } xfs_dir_leafblock_t;
-typedef struct xfs_dir_leaf_hdr xfs_dir_leaf_hdr_t;
-typedef struct xfs_dir_leaf_map xfs_dir_leaf_map_t;
-typedef struct xfs_dir_leaf_entry xfs_dir_leaf_entry_t;
-typedef struct xfs_dir_leaf_name xfs_dir_leaf_name_t;
 
 /*
  * Length of name for which a 512-byte block filesystem
@@ -126,11 +130,10 @@ typedef union {
 #define	XFS_PUT_COOKIE(c,mp,bno,entry,hash)	\
 	((c).s.be = XFS_DA_MAKE_BNOENTRY(mp, bno, entry), (c).s.h = (hash))
 
-typedef struct xfs_dir_put_args
-{
+typedef struct xfs_dir_put_args {
 	xfs_dircook_t	cook;		/* cookie of (next) entry */
 	xfs_intino_t	ino;		/* inode number */
-	struct xfs_dirent	*dbp;		/* buffer pointer */
+	struct xfs_dirent *dbp;		/* buffer pointer */
 	char		*name;		/* directory entry name */
 	int		namelen;	/* length of name */
 	int		done;		/* output: set if value was stored */
@@ -138,7 +141,8 @@ typedef struct xfs_dir_put_args
 	struct uio	*uio;		/* uio control structure */
 } xfs_dir_put_args_t;
 
-#define XFS_DIR_LEAF_ENTSIZE_BYNAME(len)	xfs_dir_leaf_entsize_byname(len)
+#define XFS_DIR_LEAF_ENTSIZE_BYNAME(len)	\
+	xfs_dir_leaf_entsize_byname(len)
 static inline int xfs_dir_leaf_entsize_byname(int len)
 {
 	return (uint)sizeof(xfs_dir_leaf_name_t)-1 + len;

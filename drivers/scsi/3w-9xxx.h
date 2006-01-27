@@ -672,7 +672,7 @@ typedef struct TAG_TW_Device_Extension {
 	u32                     ioctl_msec;
 	int			chrdev_request_id;
 	wait_queue_head_t	ioctl_wqueue;
-	struct semaphore	ioctl_sem;
+	struct mutex		ioctl_lock;
 	char			aen_clobber;
 	unsigned short		working_srl;
 	unsigned short		working_branch;

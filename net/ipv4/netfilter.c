@@ -1,17 +1,11 @@
 /* IPv4 specific functions of netfilter core */
-
-#include <linux/config.h>
-#ifdef CONFIG_NETFILTER
-
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
-
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/icmp.h>
-#include <net/route.h>
 #include <linux/ip.h>
+#include <net/route.h>
+#include <net/xfrm.h>
+#include <net/ip.h>
 
 /* route_me_harder function, used by iptable_nat, iptable_mangle + ip_queue */
 int ip_route_me_harder(struct sk_buff **pskb)
@@ -33,7 +27,6 @@ int ip_route_me_harder(struct sk_buff **pskb)
 #ifdef CONFIG_IP_ROUTE_FWMARK
 		fl.nl_u.ip4_u.fwmark = (*pskb)->nfmark;
 #endif
-		fl.proto = iph->protocol;
 		if (ip_route_output_key(&rt, &fl) != 0)
 			return -1;
 
@@ -60,6 +53,13 @@ int ip_route_me_harder(struct sk_buff **pskb)
 	if ((*pskb)->dst->error)
 		return -1;
 
+#ifdef CONFIG_XFRM
+	if (!(IPCB(*pskb)->flags & IPSKB_XFRM_TRANSFORMED) &&
+	    xfrm_decode_session(*pskb, &fl, AF_INET) == 0)
+		if (xfrm_lookup(&(*pskb)->dst, &fl, (*pskb)->sk, 0))
+			return -1;
+#endif
+
 	/* Change in oif may mean change in hh_len. */
 	hh_len = (*pskb)->dst->dev->hard_header_len;
 	if (skb_headroom(*pskb) < hh_len) {
@@ -77,6 +77,9 @@ int ip_route_me_harder(struct sk_buff **pskb)
 	return 0;
 }
 EXPORT_SYMBOL(ip_route_me_harder);
+
+void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
+EXPORT_SYMBOL(ip_nat_decode_session);
 
 /*
  * Extra routing may needed on local out, as the QUEUE target never
@@ -135,5 +138,3 @@ static void fini(void)
 
 module_init(init);
 module_exit(fini);
-
-#endif /* CONFIG_NETFILTER */

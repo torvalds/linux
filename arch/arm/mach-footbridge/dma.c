@@ -15,6 +15,7 @@
 
 #include <asm/dma.h>
 #include <asm/io.h>
+#include <asm/scatterlist.h>
 
 #include <asm/mach/dma.h>
 #include <asm/hardware/dec21285.h>

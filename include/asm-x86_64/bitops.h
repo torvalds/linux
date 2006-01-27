@@ -29,7 +29,7 @@ static __inline__ void set_bit(int nr, volatile void * addr)
 {
 	__asm__ __volatile__( LOCK_PREFIX
 		"btsl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"dIr" (nr) : "memory");
 }
 
@@ -46,7 +46,7 @@ static __inline__ void __set_bit(int nr, volatile void * addr)
 {
 	__asm__ volatile(
 		"btsl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"dIr" (nr) : "memory");
 }
 
@@ -64,7 +64,7 @@ static __inline__ void clear_bit(int nr, volatile void * addr)
 {
 	__asm__ __volatile__( LOCK_PREFIX
 		"btrl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"dIr" (nr));
 }
 
@@ -72,7 +72,7 @@ static __inline__ void __clear_bit(int nr, volatile void * addr)
 {
 	__asm__ __volatile__(
 		"btrl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"dIr" (nr));
 }
 
@@ -92,7 +92,7 @@ static __inline__ void __change_bit(int nr, volatile void * addr)
 {
 	__asm__ __volatile__(
 		"btcl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"dIr" (nr));
 }
 
@@ -109,7 +109,7 @@ static __inline__ void change_bit(int nr, volatile void * addr)
 {
 	__asm__ __volatile__( LOCK_PREFIX
 		"btcl %1,%0"
-		:"=m" (ADDR)
+		:"+m" (ADDR)
 		:"dIr" (nr));
 }
 
@@ -127,7 +127,7 @@ static __inline__ int test_and_set_bit(int nr, volatile void * addr)
 
 	__asm__ __volatile__( LOCK_PREFIX
 		"btsl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"dIr" (nr) : "memory");
 	return oldbit;
 }
@@ -147,7 +147,7 @@ static __inline__ int __test_and_set_bit(int nr, volatile void * addr)
 
 	__asm__(
 		"btsl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"dIr" (nr));
 	return oldbit;
 }
@@ -166,7 +166,7 @@ static __inline__ int test_and_clear_bit(int nr, volatile void * addr)
 
 	__asm__ __volatile__( LOCK_PREFIX
 		"btrl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"dIr" (nr) : "memory");
 	return oldbit;
 }
@@ -186,7 +186,7 @@ static __inline__ int __test_and_clear_bit(int nr, volatile void * addr)
 
 	__asm__(
 		"btrl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"dIr" (nr));
 	return oldbit;
 }
@@ -198,7 +198,7 @@ static __inline__ int __test_and_change_bit(int nr, volatile void * addr)
 
 	__asm__ __volatile__(
 		"btcl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"dIr" (nr) : "memory");
 	return oldbit;
 }
@@ -217,7 +217,7 @@ static __inline__ int test_and_change_bit(int nr, volatile void * addr)
 
 	__asm__ __volatile__( LOCK_PREFIX
 		"btcl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (ADDR)
+		:"=r" (oldbit),"+m" (ADDR)
 		:"dIr" (nr) : "memory");
 	return oldbit;
 }
@@ -397,6 +397,22 @@ static __inline__ int fls64(__u64 x)
 }
 
 /**
+ * fls - find last bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs.
+ */
+static __inline__ int fls(int x)
+{
+	int r;
+
+	__asm__("bsrl %1,%0\n\t"
+		"cmovzl %2,%0"
+		: "=&r" (r) : "rm" (x), "rm" (-1));
+	return r+1;
+}
+
+/**
  * hweightN - returns the hamming weight of a N-bit word
  * @x: the word to weigh
  *
@@ -433,9 +449,6 @@ static __inline__ int fls64(__u64 x)
 #define minix_test_bit(nr,addr) test_bit(nr,(void*)addr)
 #define minix_find_first_zero_bit(addr,size) \
 	find_first_zero_bit((void*)addr,size)
-
-/* find last set bit */
-#define fls(x) generic_fls(x)
 
 #endif /* __KERNEL__ */
 

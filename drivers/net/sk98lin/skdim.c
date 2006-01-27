@@ -180,7 +180,7 @@ SkDimModerate(SK_AC *pAC) {
                 /*
                 ** The number of interrupts per sec is the same as expected.
                 ** Evalulate the descriptor-ratio. If it has changed, a resize 
-                ** in the moderation timer might be usefull
+                ** in the moderation timer might be useful
                 */
                 if (M_DIMINFO.AutoSizing) {
                     ResizeDimTimerDuration(pAC);

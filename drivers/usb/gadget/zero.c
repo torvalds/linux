@@ -1303,9 +1303,6 @@ static struct usb_gadget_driver zero_driver = {
 	.driver 	= {
 		.name		= (char *) shortname,
 		.owner		= THIS_MODULE,
-		// .shutdown = ...
-		// .suspend = ...
-		// .resume = ...
 	},
 };
 

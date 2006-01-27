@@ -103,7 +103,7 @@ static inline int DoC_WaitReady(void __iomem * docptr)
    with the internal pipeline. Each of 4 delay cycles (read from the NOP register) is
    required after writing to CDSN Control register, see Software Requirement 11.4 item 3. */
 
-static inline void DoC_Command(void __iomem * docptr, unsigned char command,
+static void DoC_Command(void __iomem * docptr, unsigned char command,
 			       unsigned char xtraflags)
 {
 	/* Assert the CLE (Command Latch Enable) line to the flash chip */

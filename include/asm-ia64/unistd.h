@@ -269,12 +269,13 @@
 #define __NR_inotify_init		1277
 #define __NR_inotify_add_watch		1278
 #define __NR_inotify_rm_watch		1279
+#define __NR_migrate_pages		1280
 
 #ifdef __KERNEL__
 
 #include <linux/config.h>
 
-#define NR_syscalls			256 /* length of syscall table */
+#define NR_syscalls			270 /* length of syscall table */
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 

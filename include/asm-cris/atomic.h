@@ -136,6 +136,8 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return ret;
 }
 
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+
 static inline int atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int ret;

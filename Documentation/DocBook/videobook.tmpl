@@ -229,7 +229,7 @@ int __init myradio_init(struct video_init *v)
 
 static int users = 0;
 
-static int radio_open(stuct video_device *dev, int flags)
+static int radio_open(struct video_device *dev, int flags)
 {
         if(users)
                 return -EBUSY;
@@ -949,7 +949,7 @@ int __init mycamera_init(struct video_init *v)
 
 static int users = 0;
 
-static int camera_open(stuct video_device *dev, int flags)
+static int camera_open(struct video_device *dev, int flags)
 {
         if(users)
                 return -EBUSY;

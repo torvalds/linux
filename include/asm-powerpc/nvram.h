@@ -55,6 +55,7 @@ struct nvram_header {
 	char name[12];
 };
 
+#ifdef __KERNEL__
 struct nvram_partition {
 	struct list_head partition;
 	struct nvram_header header;
@@ -69,6 +70,7 @@ extern struct nvram_partition *nvram_find_partition(int sig, const char *name);
 
 extern int pSeries_nvram_init(void);
 extern int mmio_nvram_init(void);
+#endif /* __KERNEL__ */
 
 /* PowerMac specific nvram stuffs */
 
@@ -78,6 +80,7 @@ enum {
 	pmac_nvram_NR		/* MacOS Name Registry partition */
 };
 
+#ifdef __KERNEL__
 /* Return partition offset in nvram */
 extern int	pmac_get_partition(int partition);
 
@@ -91,6 +94,7 @@ extern void	nvram_sync(void);
 /* Normal access to NVRAM */
 extern unsigned char nvram_read_byte(int i);
 extern void nvram_write_byte(unsigned char c, int i);
+#endif
 
 /* Some offsets in XPRAM */
 #define PMAC_XPRAM_MACHINE_LOC	0xe4

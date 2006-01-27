@@ -3,7 +3,7 @@
 #
 
 ifeq "$(CONFIG_PCI)" "y"
-obj-y := pci-frv.o pci-irq.o pci-vdk.o
+obj-y := pci-frv.o pci-irq.o pci-vdk.o pci-iomap.o
 
 ifeq "$(CONFIG_MMU)" "y"
 obj-y += pci-dma.o

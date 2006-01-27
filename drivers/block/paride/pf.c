@@ -205,6 +205,7 @@ static int pf_open(struct inode *inode, struct file *file);
 static void do_pf_request(request_queue_t * q);
 static int pf_ioctl(struct inode *inode, struct file *file,
 		    unsigned int cmd, unsigned long arg);
+static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static int pf_release(struct inode *inode, struct file *file);
 
@@ -266,6 +267,7 @@ static struct block_device_operations pf_fops = {
 	.open		= pf_open,
 	.release	= pf_release,
 	.ioctl		= pf_ioctl,
+	.getgeo		= pf_getgeo,
 	.media_changed	= pf_check_media,
 };
 
@@ -313,34 +315,34 @@ static int pf_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct pf_unit *pf = bdev->bd_disk->private_data;
+	sector_t capacity = get_capacity(pf->disk);
+
+	if (capacity < PF_FD_MAX) {
+		geo->cylinders = sector_div(capacity, PF_FD_HDS * PF_FD_SPT);
+		geo->heads = PF_FD_HDS;
+		geo->sectors = PF_FD_SPT;
+	} else {
+		geo->cylinders = sector_div(capacity, PF_HD_HDS * PF_HD_SPT);
+		geo->heads = PF_HD_HDS;
+		geo->sectors = PF_HD_SPT;
+	}
+
+	return 0;
+}
+
 static int pf_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pf_unit *pf = inode->i_bdev->bd_disk->private_data;
-	struct hd_geometry __user *geo = (struct hd_geometry __user *) arg;
-	struct hd_geometry g;
-	sector_t capacity;
 
-	if (cmd == CDROMEJECT) {
-		if (pf->access == 1) {
-			pf_eject(pf);
-			return 0;
-		}
-		return -EBUSY;
-	}
-	if (cmd != HDIO_GETGEO)
+	if (cmd != CDROMEJECT)
 		return -EINVAL;
-	capacity = get_capacity(pf->disk);
-	if (capacity < PF_FD_MAX) {
-		g.cylinders = sector_div(capacity, PF_FD_HDS * PF_FD_SPT);
-		g.heads = PF_FD_HDS;
-		g.sectors = PF_FD_SPT;
-	} else {
-		g.cylinders = sector_div(capacity, PF_HD_HDS * PF_HD_SPT);
-		g.heads = PF_HD_HDS;
-		g.sectors = PF_HD_SPT;
-	}
-	if (copy_to_user(geo, &g, sizeof(g)))
-		return -EFAULT;
+
+	if (pf->access != 1)
+		return -EBUSY;
+	pf_eject(pf);
 	return 0;
 }
 

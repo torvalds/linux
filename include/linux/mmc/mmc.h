@@ -27,14 +27,15 @@ struct mmc_command {
 #define MMC_RSP_MASK	(3 << 0)
 #define MMC_RSP_CRC	(1 << 3)		/* expect valid crc */
 #define MMC_RSP_BUSY	(1 << 4)		/* card may send busy */
+#define MMC_RSP_OPCODE	(1 << 5)		/* response contains opcode */
 
 /*
  * These are the response types, and correspond to valid bit
  * patterns of the above flags.  One additional valid pattern
  * is all zeros, which means we don't expect a response.
  */
-#define MMC_RSP_R1	(MMC_RSP_SHORT|MMC_RSP_CRC)
-#define MMC_RSP_R1B	(MMC_RSP_SHORT|MMC_RSP_CRC|MMC_RSP_BUSY)
+#define MMC_RSP_R1	(MMC_RSP_SHORT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+#define MMC_RSP_R1B	(MMC_RSP_SHORT|MMC_RSP_CRC|MMC_RSP_OPCODE|MMC_RSP_BUSY)
 #define MMC_RSP_R2	(MMC_RSP_LONG|MMC_RSP_CRC)
 #define MMC_RSP_R3	(MMC_RSP_SHORT)
 #define MMC_RSP_R6	(MMC_RSP_SHORT|MMC_RSP_CRC)
@@ -64,6 +65,7 @@ struct mmc_data {
 #define MMC_DATA_WRITE	(1 << 8)
 #define MMC_DATA_READ	(1 << 9)
 #define MMC_DATA_STREAM	(1 << 10)
+#define MMC_DATA_MULTI	(1 << 11)
 
 	unsigned int		bytes_xfered;
 

@@ -19,7 +19,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-extern void free_proc_entry(struct proc_dir_entry *);
+#include "internal.h"
 
 static inline struct proc_dir_entry * de_get(struct proc_dir_entry *de)
 {

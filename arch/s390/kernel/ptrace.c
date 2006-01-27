@@ -52,7 +52,7 @@ FixPerRegisters(struct task_struct *task)
 	struct pt_regs *regs;
 	per_struct *per_info;
 
-	regs = __KSTK_PTREGS(task);
+	regs = task_pt_regs(task);
 	per_info = (per_struct *) &task->thread.per_info;
 	per_info->control_regs.bits.em_instruction_fetch =
 		per_info->single_step | per_info->instruction_fetch;
@@ -150,7 +150,7 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * psw and gprs are stored on the stack
 		 */
-		tmp = *(addr_t *)((addr_t) &__KSTK_PTREGS(child)->psw + addr);
+		tmp = *(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr);
 		if (addr == (addr_t) &dummy->regs.psw.mask)
 			/* Remove per bit from user psw. */
 			tmp &= ~PSW_MASK_PER;
@@ -176,7 +176,7 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * orig_gpr2 is stored on the kernel stack
 		 */
-		tmp = (addr_t) __KSTK_PTREGS(child)->orig_gpr2;
+		tmp = (addr_t) task_pt_regs(child)->orig_gpr2;
 
 	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/* 
@@ -243,7 +243,7 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 			   high order bit but older gdb's rely on it */
 			data |= PSW_ADDR_AMODE;
 #endif
-		*(addr_t *)((addr_t) &__KSTK_PTREGS(child)->psw + addr) = data;
+		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
 		/*
@@ -267,7 +267,7 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * orig_gpr2 is stored on the kernel stack
 		 */
-		__KSTK_PTREGS(child)->orig_gpr2 = data;
+		task_pt_regs(child)->orig_gpr2 = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/*
@@ -393,15 +393,15 @@ peek_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 		 */
 		if (addr == (addr_t) &dummy32->regs.psw.mask) {
 			/* Fake a 31 bit psw mask. */
-			tmp = (__u32)(__KSTK_PTREGS(child)->psw.mask >> 32);
+			tmp = (__u32)(task_pt_regs(child)->psw.mask >> 32);
 			tmp = PSW32_MASK_MERGE(PSW32_USER_BITS, tmp);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Fake a 31 bit psw address. */
-			tmp = (__u32) __KSTK_PTREGS(child)->psw.addr |
+			tmp = (__u32) task_pt_regs(child)->psw.addr |
 				PSW32_ADDR_AMODE31;
 		} else {
 			/* gpr 0-15 */
-			tmp = *(__u32 *)((addr_t) &__KSTK_PTREGS(child)->psw +
+			tmp = *(__u32 *)((addr_t) &task_pt_regs(child)->psw +
 					 addr*2 + 4);
 		}
 	} else if (addr < (addr_t) (&dummy32->regs.orig_gpr2)) {
@@ -415,7 +415,7 @@ peek_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * orig_gpr2 is stored on the kernel stack
 		 */
-		tmp = *(__u32*)((addr_t) &__KSTK_PTREGS(child)->orig_gpr2 + 4);
+		tmp = *(__u32*)((addr_t) &task_pt_regs(child)->orig_gpr2 + 4);
 
 	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
@@ -472,15 +472,15 @@ poke_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 			if (tmp != PSW32_MASK_MERGE(PSW32_USER_BITS, tmp))
 				/* Invalid psw mask. */
 				return -EINVAL;
-			__KSTK_PTREGS(child)->psw.mask =
+			task_pt_regs(child)->psw.mask =
 				PSW_MASK_MERGE(PSW_USER32_BITS, (__u64) tmp << 32);
 		} else if (addr == (addr_t) &dummy32->regs.psw.addr) {
 			/* Build a 64 bit psw address from 31 bit address. */
-			__KSTK_PTREGS(child)->psw.addr = 
+			task_pt_regs(child)->psw.addr =
 				(__u64) tmp & PSW32_ADDR_INSN;
 		} else {
 			/* gpr 0-15 */
-			*(__u32*)((addr_t) &__KSTK_PTREGS(child)->psw
+			*(__u32*)((addr_t) &task_pt_regs(child)->psw
 				  + addr*2 + 4) = tmp;
 		}
 	} else if (addr < (addr_t) (&dummy32->regs.orig_gpr2)) {
@@ -494,7 +494,7 @@ poke_user_emu31(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * orig_gpr2 is stored on the kernel stack
 		 */
-		*(__u32*)((addr_t) &__KSTK_PTREGS(child)->orig_gpr2 + 4) = tmp;
+		*(__u32*)((addr_t) &task_pt_regs(child)->orig_gpr2 + 4) = tmp;
 
 	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
@@ -712,35 +712,18 @@ sys_ptrace(long request, long pid, long addr, long data)
 	int ret;
 
 	lock_kernel();
-
 	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		ret = -EPERM;
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		ret = security_ptrace(current->parent, current);
-		if (ret)
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
+		 ret = ptrace_traceme();
+		 goto out;
+	}
+
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
 		goto out;
 	}
 
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out;
-
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
 	ret = do_ptrace(child, request, addr, data);
-
 	put_task_struct(child);
 out:
 	unlock_kernel();

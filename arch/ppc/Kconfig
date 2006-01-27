@@ -8,9 +8,6 @@ config MMU
 	bool
 	default y
 
-config UID16
-	bool
-
 config GENERIC_HARDIRQS
 	bool
 	default y
@@ -61,11 +58,11 @@ config 6xx
 	help
 	  There are four types of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
-	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the IBM embedded
-	  versions (403 and 405) and the high end 64 bit Power processors
-	  (POWER 3, POWER4, and IBM 970 also known as G5)
+	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the IBM
+	  embedded versions (403 and 405) and the POWER3 processor.
+	  (For support for more recent 64-bit processors, set ARCH=powerpc.)
 	  Unless you are building a kernel for one of the embedded processor
-	  systems, 64 bit IBM RS/6000 or an Apple G5, choose 6xx.
+	  systems or a POWER3-based IBM RS/6000, choose 6xx.
 	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
 	  Also note that because the 52xx, 82xx, & 83xx family has a 603e core,
 	  specific support for that chipset is asked later on.
@@ -79,10 +76,6 @@ config 44x
 config POWER3
 	select PPC_FPU
 	bool "POWER3"
-
-config POWER4
-	select PPC_FPU
-	bool "POWER4 and 970 (G5)"
 
 config 8xx
 	bool "8xx"
@@ -126,7 +119,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4
+	depends on 6xx
 	depends on !8260 && !83xx
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
@@ -238,18 +231,9 @@ config KEXEC
 
 source "drivers/cpufreq/Kconfig"
 
-config CPU_FREQ_PMAC
-	bool "Support for Apple PowerBooks"
-	depends on CPU_FREQ && ADB_PMU
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple PowerBooks,
-	  this currently includes some models of iBook & Titanium
-	  PowerBook.
-
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
-	depends on 6xx && (PPC_PREP || PPC_PMAC)
+	depends on 6xx && PPC_PREP
 	help
 	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
 	  mean that extra synchronization instructions are required near
@@ -261,26 +245,17 @@ config PPC601_SYNC_FIX
 
 	  If in doubt, say Y here.
 
-config HOTPLUG_CPU
-	bool "Support for enabling/disabling CPUs"
-	depends on SMP && HOTPLUG && EXPERIMENTAL && PPC_PMAC
-	---help---
-	  Say Y here to be able to disable and re-enable individual
-	  CPUs at runtime on SMP machines.
-
-	  Say N if you are unsure.
-
 source arch/ppc/platforms/4xx/Kconfig
 source arch/ppc/platforms/85xx/Kconfig
 
 config PPC64BRIDGE
 	bool
-	depends on POWER3 || POWER4
+	depends on POWER3
 	default y
 
 config PPC_STD_MMU
 	bool
-	depends on 6xx || POWER3 || POWER4
+	depends on 6xx || POWER3
 	default y
 
 config NOT_COHERENT_CACHE
@@ -508,7 +483,7 @@ endchoice
 
 choice
 	prompt "Machine Type"
-	depends on 6xx || POWER3 || POWER4
+	depends on 6xx || POWER3
 	default PPC_MULTIPLATFORM
 	---help---
 	  Linux currently supports several different kinds of PowerPC-based
@@ -519,11 +494,15 @@ choice
 	  Platform) machines (including all of the recent IBM RS/6000 and
 	  pSeries machines), and several embedded PowerPC systems containing
 	  4xx, 6xx, 7xx, 8xx, 74xx, and 82xx processors.  Currently, the
-	  default option is to build a kernel which works on the first three.
+	  default option is to build a kernel which works on PReP and CHRP.
 
-	  Select CHRP/PowerMac/PReP if configuring for an IBM RS/6000 or
-	  pSeries machine, a Power Macintosh (including iMacs, iBooks and
-	  Powerbooks), or a PReP machine.
+	  Note that support for Apple machines is now only available with
+	  ARCH=powerpc, and has been removed from this menu.  If you wish
+	  to build a kernel for an Apple machine, exit this configuration
+	  process and re-run it with ARCH=powerpc.
+
+	  Select CHRP/PReP if configuring for an IBM RS/6000 or
+	  pSeries machine, or a PReP machine.
 
 	  Select Gemini if configuring for a Synergy Microsystems' Gemini
 	  series Single Board Computer.  More information is available at:
@@ -533,7 +512,7 @@ choice
 	  available at: <http://linux-apus.sourceforge.net/>.
 
 config PPC_MULTIPLATFORM
-	bool "CHRP/PowerMac/PReP"
+	bool "CHRP/PReP"
 
 config APUS
 	bool "Amiga-APUS"
@@ -746,6 +725,10 @@ config MPC834x
 	bool
 	default y if MPC834x_SYS
 
+config PPC_83xx
+	bool
+	default y if 83xx
+
 config CPM1
 	bool
 	depends on 8xx
@@ -767,25 +750,14 @@ config CPM2
 	  on it (826x, 827x, 8560).
 
 config PPC_CHRP
-	bool
+	bool "Support for CHRP (Common Hardware Reference Platform) machines"
 	depends on PPC_MULTIPLATFORM
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
 
-config PPC_PMAC
-	bool
-	depends on PPC_MULTIPLATFORM
-	select PPC_INDIRECT_PCI
-	default y
-
-config PPC_PMAC64
-	bool
-	depends on PPC_PMAC && POWER4
-	default y
-
 config PPC_PREP
-	bool
+	bool "Support for PReP (PowerPC Reference Platform) machines"
 	depends on PPC_MULTIPLATFORM
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
@@ -793,7 +765,7 @@ config PPC_PREP
 
 config PPC_OF
 	bool
-	depends on PPC_PMAC || PPC_CHRP
+	depends on PPC_CHRP
 	default y
 
 config PPC_GEN550
@@ -1165,7 +1137,7 @@ config ISA
 
 config GENERIC_ISA_DMA
 	bool
-	depends on POWER3 || POWER4 || 6xx && !CPM2
+	depends on POWER3 || 6xx && !CPM2
 	default y
 
 config PPC_I8259

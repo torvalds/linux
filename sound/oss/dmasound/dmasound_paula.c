@@ -34,6 +34,7 @@
 #define DMASOUND_PAULA_REVISION 0
 #define DMASOUND_PAULA_EDITION 4
 
+#define custom amiga_custom
    /*
     *	The minimum period for audio depends on htotal (for OCS/ECS/AGA)
     *	(Imported from arch/m68k/amiga/amisound.c)
@@ -156,7 +157,7 @@ static int AmiStateInfo(char *buffer, size_t space);
      *  Native format
      */
 
-static ssize_t ami_ct_s8(const u_char *userPtr, size_t userCount,
+static ssize_t ami_ct_s8(const u_char __user *userPtr, size_t userCount,
 			 u_char frame[], ssize_t *frameUsed, ssize_t frameLeft)
 {
 	ssize_t count, used;
@@ -189,7 +190,7 @@ static ssize_t ami_ct_s8(const u_char *userPtr, size_t userCount,
      */
 
 #define GENERATE_AMI_CT8(funcname, convsample)				\
-static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
+static ssize_t funcname(const u_char __user *userPtr, size_t userCount,	\
 			u_char frame[], ssize_t *frameUsed,		\
 			ssize_t frameLeft)				\
 {									\
@@ -240,10 +241,11 @@ GENERATE_AMI_CT8(ami_ct_u8, AMI_CT_U8)
      */
 
 #define GENERATE_AMI_CT_16(funcname, convsample)			\
-static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
+static ssize_t funcname(const u_char __user *userPtr, size_t userCount,	\
 			u_char frame[], ssize_t *frameUsed,		\
 			ssize_t frameLeft)				\
 {									\
+	const u_short __user *ptr = (const u_short __user *)userPtr;	\
 	ssize_t count, used;						\
 	u_short data;							\
 									\
@@ -253,7 +255,7 @@ static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
 		count = min_t(size_t, userCount, frameLeft)>>1 & ~1;	\
 		used = count*2;						\
 		while (count > 0) {					\
-			if (get_user(data, ((u_short *)userPtr)++))	\
+			if (get_user(data, ptr++))			\
 				return -EFAULT;				\
 			data = convsample(data);			\
 			*high++ = data>>8;				\
@@ -268,12 +270,12 @@ static ssize_t funcname(const u_char *userPtr, size_t userCount,	\
 		count = min_t(size_t, userCount, frameLeft)>>2 & ~1;	\
 		used = count*4;						\
 		while (count > 0) {					\
-			if (get_user(data, ((u_short *)userPtr)++))	\
+			if (get_user(data, ptr++))			\
 				return -EFAULT;				\
 			data = convsample(data);			\
 			*lefth++ = data>>8;				\
 			*leftl++ = (data>>2) & 0x3f;			\
-			if (get_user(data, ((u_short *)userPtr)++))	\
+			if (get_user(data, ptr++))			\
 				return -EFAULT;				\
 			data = convsample(data);			\
 			*righth++ = data>>8;				\

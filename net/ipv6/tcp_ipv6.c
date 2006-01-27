@@ -67,6 +67,9 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+/* Socket used for sending RSTs and ACKs */
+static struct socket *tcp6_socket;
+
 static void	tcp_v6_send_reset(struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
 static void	tcp_v6_send_check(struct sock *sk, int len, 
@@ -611,7 +614,7 @@ static void tcp_v6_send_reset(struct sk_buff *skb)
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
 
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(NULL, buff, &fl, NULL, 0);
+			ip6_xmit(tcp6_socket->sk, buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
 			return;
@@ -675,7 +678,7 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(NULL, buff, &fl, NULL, 0);
+			ip6_xmit(tcp6_socket->sk, buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			return;
 		}
@@ -1153,7 +1156,7 @@ ipv6_pktoptions:
 	return 0;
 }
 
-static int tcp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int tcp_v6_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct tcphdr *th;	
@@ -1600,8 +1603,21 @@ static struct inet_protosw tcpv6_protosw = {
 
 void __init tcpv6_init(void)
 {
+	int err;
+
 	/* register inet6 protocol */
 	if (inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP) < 0)
 		printk(KERN_ERR "tcpv6_init: Could not register protocol\n");
 	inet6_register_protosw(&tcpv6_protosw);
+
+	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_TCP, &tcp6_socket);
+	if (err < 0)
+		panic("Failed to create the TCPv6 control socket.\n");
+	tcp6_socket->sk->sk_allocation = GFP_ATOMIC;
+
+	/* Unhash it so that IP input processing does not even
+	 * see it, we do not wish this socket to see incoming
+	 * packets.
+	 */
+	tcp6_socket->sk->sk_prot->unhash(tcp6_socket->sk);
 }

@@ -27,6 +27,7 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/apicdef.h>
+#include <asm/idle.h>
 
 /*
  *	Smarter SMP flushing macros. 
@@ -280,11 +281,6 @@ void flush_tlb_all(void)
 	on_each_cpu(do_flush_tlb_all, NULL, 1, 1);
 }
 
-void smp_kdb_stop(void)
-{
-	send_IPI_allbutself(KDB_VECTOR);
-}
-
 /*
  * this function sends a 'reschedule' IPI to another CPU.
  * it goes straight through and wastes no time serializing
@@ -512,6 +508,7 @@ asmlinkage void smp_call_function_interrupt(void)
 	/*
 	 * At this point the info structure may be out of scope unless wait==1
 	 */
+	exit_idle();
 	irq_enter();
 	(*func)(info);
 	irq_exit();

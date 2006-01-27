@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/crypto.h>
 #include <linux/crc32c.h>
+#include <linux/types.h>
 #include <asm/byteorder.h>
 
 #define CHKSUM_BLOCK_SIZE	32

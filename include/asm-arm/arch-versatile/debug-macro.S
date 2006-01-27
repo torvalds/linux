@@ -11,7 +11,7 @@
  *
 */
 
-#include <asm/hardware/amba_serial.h>
+#include <linux/amba/serial.h>
 
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0

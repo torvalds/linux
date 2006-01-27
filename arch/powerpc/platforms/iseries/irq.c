@@ -35,161 +35,131 @@
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 
+#include <asm/paca.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/it_lp_queue.h>
 
 #include "irq.h"
 #include "call_pci.h"
 
-static long Pci_Interrupt_Count;
-static long Pci_Event_Count;
+#if defined(CONFIG_SMP)
+extern void iSeries_smp_message_recv(struct pt_regs *);
+#endif
 
-enum XmPciLpEvent_Subtype {
-	XmPciLpEvent_BusCreated		= 0,	// PHB has been created
-	XmPciLpEvent_BusError		= 1,	// PHB has failed
-	XmPciLpEvent_BusFailed		= 2,	// Msg to Secondary, Primary failed bus
-	XmPciLpEvent_NodeFailed		= 4,	// Multi-adapter bridge has failed
-	XmPciLpEvent_NodeRecovered	= 5,	// Multi-adapter bridge has recovered
-	XmPciLpEvent_BusRecovered	= 12,	// PHB has been recovered
-	XmPciLpEvent_UnQuiesceBus	= 18,	// Secondary bus unqiescing
-	XmPciLpEvent_BridgeError	= 21,	// Bridge Error
-	XmPciLpEvent_SlotInterrupt	= 22	// Slot interrupt
+#ifdef CONFIG_PCI
+
+enum pci_event_type {
+	pe_bus_created		= 0,	/* PHB has been created */
+	pe_bus_error		= 1,	/* PHB has failed */
+	pe_bus_failed		= 2,	/* Msg to Secondary, Primary failed bus */
+	pe_node_failed		= 4,	/* Multi-adapter bridge has failed */
+	pe_node_recovered	= 5,	/* Multi-adapter bridge has recovered */
+	pe_bus_recovered	= 12,	/* PHB has been recovered */
+	pe_unquiese_bus		= 18,	/* Secondary bus unqiescing */
+	pe_bridge_error		= 21,	/* Bridge Error */
+	pe_slot_interrupt	= 22	/* Slot interrupt */
 };
 
-struct XmPciLpEvent_BusInterrupt {
-	HvBusNumber	busNumber;
-	HvSubBusNumber	subBusNumber;
-};
-
-struct XmPciLpEvent_NodeInterrupt {
-	HvBusNumber	busNumber;
-	HvSubBusNumber	subBusNumber;
-	HvAgentId	deviceId;
-};
-
-struct XmPciLpEvent {
-	struct HvLpEvent hvLpEvent;
-
+struct pci_event {
+	struct HvLpEvent event;
 	union {
-		u64 alignData;			// Align on an 8-byte boundary
-
+		u64 __align;		/* Align on an 8-byte boundary */
 		struct {
 			u32		fisr;
-			HvBusNumber	busNumber;
-			HvSubBusNumber	subBusNumber;
-			HvAgentId	deviceId;
-		} slotInterrupt;
-
-		struct XmPciLpEvent_BusInterrupt busFailed;
-		struct XmPciLpEvent_BusInterrupt busRecovered;
-		struct XmPciLpEvent_BusInterrupt busCreated;
-
-		struct XmPciLpEvent_NodeInterrupt nodeFailed;
-		struct XmPciLpEvent_NodeInterrupt nodeRecovered;
-
-	} eventData;
-
+			HvBusNumber	bus_number;
+			HvSubBusNumber	sub_bus_number;
+			HvAgentId	dev_id;
+		} slot;
+		struct {
+			HvBusNumber	bus_number;
+			HvSubBusNumber	sub_bus_number;
+		} bus;
+		struct {
+			HvBusNumber	bus_number;
+			HvSubBusNumber	sub_bus_number;
+			HvAgentId	dev_id;
+		} node;
+	} data;
 };
 
-static void intReceived(struct XmPciLpEvent *eventParm,
-		struct pt_regs *regsParm)
+static DEFINE_SPINLOCK(pending_irqs_lock);
+static int num_pending_irqs;
+static int pending_irqs[NR_IRQS];
+
+static void int_received(struct pci_event *event, struct pt_regs *regs)
 {
 	int irq;
-#ifdef CONFIG_IRQSTACKS
-	struct thread_info *curtp, *irqtp;
-#endif
 
-	++Pci_Interrupt_Count;
-
-	switch (eventParm->hvLpEvent.xSubtype) {
-	case XmPciLpEvent_SlotInterrupt:
-		irq = eventParm->hvLpEvent.xCorrelationToken;
-		/* Dispatch the interrupt handlers for this irq */
-#ifdef CONFIG_IRQSTACKS
-		/* Switch to the irq stack to handle this */
-		curtp = current_thread_info();
-		irqtp = hardirq_ctx[smp_processor_id()];
-		if (curtp != irqtp) {
-			irqtp->task = curtp->task;
-			irqtp->flags = 0;
-			call___do_IRQ(irq, regsParm, irqtp);
-			irqtp->task = NULL;
-			if (irqtp->flags)
-				set_bits(irqtp->flags, &curtp->flags);
-		} else
-#endif
-			__do_IRQ(irq, regsParm);
-		HvCallPci_eoi(eventParm->eventData.slotInterrupt.busNumber,
-			eventParm->eventData.slotInterrupt.subBusNumber,
-			eventParm->eventData.slotInterrupt.deviceId);
+	switch (event->event.xSubtype) {
+	case pe_slot_interrupt:
+		irq = event->event.xCorrelationToken;
+		if (irq < NR_IRQS) {
+			spin_lock(&pending_irqs_lock);
+			pending_irqs[irq]++;
+			num_pending_irqs++;
+			spin_unlock(&pending_irqs_lock);
+		} else {
+			printk(KERN_WARNING "int_received: bad irq number %d\n",
+					irq);
+			HvCallPci_eoi(event->data.slot.bus_number,
+					event->data.slot.sub_bus_number,
+					event->data.slot.dev_id);
+		}
 		break;
 		/* Ignore error recovery events for now */
-	case XmPciLpEvent_BusCreated:
-		printk(KERN_INFO "intReceived: system bus %d created\n",
-			eventParm->eventData.busCreated.busNumber);
+	case pe_bus_created:
+		printk(KERN_INFO "int_received: system bus %d created\n",
+			event->data.bus.bus_number);
 		break;
-	case XmPciLpEvent_BusError:
-	case XmPciLpEvent_BusFailed:
-		printk(KERN_INFO "intReceived: system bus %d failed\n",
-			eventParm->eventData.busFailed.busNumber);
+	case pe_bus_error:
+	case pe_bus_failed:
+		printk(KERN_INFO "int_received: system bus %d failed\n",
+			event->data.bus.bus_number);
 		break;
-	case XmPciLpEvent_BusRecovered:
-	case XmPciLpEvent_UnQuiesceBus:
-		printk(KERN_INFO "intReceived: system bus %d recovered\n",
-			eventParm->eventData.busRecovered.busNumber);
+	case pe_bus_recovered:
+	case pe_unquiese_bus:
+		printk(KERN_INFO "int_received: system bus %d recovered\n",
+			event->data.bus.bus_number);
 		break;
-	case XmPciLpEvent_NodeFailed:
-	case XmPciLpEvent_BridgeError:
+	case pe_node_failed:
+	case pe_bridge_error:
 		printk(KERN_INFO
-			"intReceived: multi-adapter bridge %d/%d/%d failed\n",
-			eventParm->eventData.nodeFailed.busNumber,
-			eventParm->eventData.nodeFailed.subBusNumber,
-			eventParm->eventData.nodeFailed.deviceId);
+			"int_received: multi-adapter bridge %d/%d/%d failed\n",
+			event->data.node.bus_number,
+			event->data.node.sub_bus_number,
+			event->data.node.dev_id);
 		break;
-	case XmPciLpEvent_NodeRecovered:
+	case pe_node_recovered:
 		printk(KERN_INFO
-			"intReceived: multi-adapter bridge %d/%d/%d recovered\n",
-			eventParm->eventData.nodeRecovered.busNumber,
-			eventParm->eventData.nodeRecovered.subBusNumber,
-			eventParm->eventData.nodeRecovered.deviceId);
+			"int_received: multi-adapter bridge %d/%d/%d recovered\n",
+			event->data.node.bus_number,
+			event->data.node.sub_bus_number,
+			event->data.node.dev_id);
 		break;
 	default:
 		printk(KERN_ERR
-			"intReceived: unrecognized event subtype 0x%x\n",
-			eventParm->hvLpEvent.xSubtype);
+			"int_received: unrecognized event subtype 0x%x\n",
+			event->event.xSubtype);
 		break;
 	}
 }
 
-static void XmPciLpEvent_handler(struct HvLpEvent *eventParm,
-		struct pt_regs *regsParm)
+static void pci_event_handler(struct HvLpEvent *event, struct pt_regs *regs)
 {
-#ifdef CONFIG_PCI
-	++Pci_Event_Count;
-
-	if (eventParm && (eventParm->xType == HvLpEvent_Type_PciIo)) {
-		switch (eventParm->xFlags.xFunction) {
-		case HvLpEvent_Function_Int:
-			intReceived((struct XmPciLpEvent *)eventParm, regsParm);
-			break;
-		case HvLpEvent_Function_Ack:
+	if (event && (event->xType == HvLpEvent_Type_PciIo)) {
+		if (hvlpevent_is_int(event))
+			int_received((struct pci_event *)event, regs);
+		else
 			printk(KERN_ERR
-				"XmPciLpEvent_handler: unexpected ack received\n");
-			break;
-		default:
-			printk(KERN_ERR
-				"XmPciLpEvent_handler: unexpected event function %d\n",
-				(int)eventParm->xFlags.xFunction);
-			break;
-		}
-	} else if (eventParm)
+				"pci_event_handler: unexpected ack received\n");
+	} else if (event)
 		printk(KERN_ERR
-			"XmPciLpEvent_handler: Unrecognized PCI event type 0x%x\n",
-			(int)eventParm->xType);
+			"pci_event_handler: Unrecognized PCI event type 0x%x\n",
+			(int)event->xType);
 	else
-		printk(KERN_ERR "XmPciLpEvent_handler: NULL event received\n");
-#endif
+		printk(KERN_ERR "pci_event_handler: NULL event received\n");
 }
 
 /*
@@ -199,20 +169,21 @@ static void XmPciLpEvent_handler(struct HvLpEvent *eventParm,
 void __init iSeries_init_IRQ(void)
 {
 	/* Register PCI event handler and open an event path */
-	int xRc;
+	int ret;
 
-	xRc = HvLpEvent_registerHandler(HvLpEvent_Type_PciIo,
-			&XmPciLpEvent_handler);
-	if (xRc == 0) {
-		xRc = HvLpEvent_openPath(HvLpEvent_Type_PciIo, 0);
-		if (xRc != 0)
-			printk(KERN_ERR "iSeries_init_IRQ: open event path "
-					"failed with rc 0x%x\n", xRc);
+	ret = HvLpEvent_registerHandler(HvLpEvent_Type_PciIo,
+			&pci_event_handler);
+	if (ret == 0) {
+		ret = HvLpEvent_openPath(HvLpEvent_Type_PciIo, 0);
+		if (ret != 0)
+			printk(KERN_ERR "iseries_init_IRQ: open event path "
+					"failed with rc 0x%x\n", ret);
 	} else
-		printk(KERN_ERR "iSeries_init_IRQ: register handler "
-				"failed with rc 0x%x\n", xRc);
+		printk(KERN_ERR "iseries_init_IRQ: register handler "
+				"failed with rc 0x%x\n", ret);
 }
 
+#define REAL_IRQ_TO_SUBBUS(irq)	(((irq) >> 14) & 0xff)
 #define REAL_IRQ_TO_BUS(irq)	((((irq) >> 6) & 0xff) + 1)
 #define REAL_IRQ_TO_IDSEL(irq)	((((irq) >> 3) & 7) + 1)
 #define REAL_IRQ_TO_FUNC(irq)	((irq) & 7)
@@ -221,40 +192,40 @@ void __init iSeries_init_IRQ(void)
  * This will be called by device drivers (via enable_IRQ)
  * to enable INTA in the bridge interrupt status register.
  */
-static void iSeries_enable_IRQ(unsigned int irq)
+static void iseries_enable_IRQ(unsigned int irq)
 {
-	u32 bus, deviceId, function, mask;
-	const u32 subBus = 0;
+	u32 bus, dev_id, function, mask;
+	const u32 sub_bus = 0;
 	unsigned int rirq = virt_irq_to_real_map[irq];
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
-	deviceId = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
+	dev_id = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
 
 	/* Unmask secondary INTA */
 	mask = 0x80000000;
-	HvCallPci_unmaskInterrupts(bus, subBus, deviceId, mask);
+	HvCallPci_unmaskInterrupts(bus, sub_bus, dev_id, mask);
 }
 
-/* This is called by iSeries_activate_IRQs */
-static unsigned int iSeries_startup_IRQ(unsigned int irq)
+/* This is called by iseries_activate_IRQs */
+static unsigned int iseries_startup_IRQ(unsigned int irq)
 {
-	u32 bus, deviceId, function, mask;
-	const u32 subBus = 0;
+	u32 bus, dev_id, function, mask;
+	const u32 sub_bus = 0;
 	unsigned int rirq = virt_irq_to_real_map[irq];
 
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
-	deviceId = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
+	dev_id = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
 
 	/* Link the IRQ number to the bridge */
-	HvCallXm_connectBusUnit(bus, subBus, deviceId, irq);
+	HvCallXm_connectBusUnit(bus, sub_bus, dev_id, irq);
 
 	/* Unmask bridge interrupts in the FISR */
 	mask = 0x01010000 << function;
-	HvCallPci_unmaskFisr(bus, subBus, deviceId, mask);
-	iSeries_enable_IRQ(irq);
+	HvCallPci_unmaskFisr(bus, sub_bus, dev_id, mask);
+	iseries_enable_IRQ(irq);
 	return 0;
 }
 
@@ -279,78 +250,117 @@ void __init iSeries_activate_IRQs()
 }
 
 /*  this is not called anywhere currently */
-static void iSeries_shutdown_IRQ(unsigned int irq)
+static void iseries_shutdown_IRQ(unsigned int irq)
 {
-	u32 bus, deviceId, function, mask;
-	const u32 subBus = 0;
+	u32 bus, dev_id, function, mask;
+	const u32 sub_bus = 0;
 	unsigned int rirq = virt_irq_to_real_map[irq];
 
 	/* irq should be locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
-	deviceId = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
+	dev_id = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
 
 	/* Invalidate the IRQ number in the bridge */
-	HvCallXm_connectBusUnit(bus, subBus, deviceId, 0);
+	HvCallXm_connectBusUnit(bus, sub_bus, dev_id, 0);
 
 	/* Mask bridge interrupts in the FISR */
 	mask = 0x01010000 << function;
-	HvCallPci_maskFisr(bus, subBus, deviceId, mask);
+	HvCallPci_maskFisr(bus, sub_bus, dev_id, mask);
 }
 
 /*
  * This will be called by device drivers (via disable_IRQ)
  * to disable INTA in the bridge interrupt status register.
  */
-static void iSeries_disable_IRQ(unsigned int irq)
+static void iseries_disable_IRQ(unsigned int irq)
 {
-	u32 bus, deviceId, function, mask;
-	const u32 subBus = 0;
+	u32 bus, dev_id, function, mask;
+	const u32 sub_bus = 0;
 	unsigned int rirq = virt_irq_to_real_map[irq];
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
-	deviceId = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
+	dev_id = (REAL_IRQ_TO_IDSEL(rirq) << 4) + function;
 
 	/* Mask secondary INTA   */
 	mask = 0x80000000;
-	HvCallPci_maskInterrupts(bus, subBus, deviceId, mask);
+	HvCallPci_maskInterrupts(bus, sub_bus, dev_id, mask);
 }
 
-/*
- * This does nothing because there is not enough information
- * provided to do the EOI HvCall.  This is done by XmPciLpEvent.c
- */
-static void iSeries_end_IRQ(unsigned int irq)
+static void iseries_end_IRQ(unsigned int irq)
 {
+	unsigned int rirq = virt_irq_to_real_map[irq];
+
+	HvCallPci_eoi(REAL_IRQ_TO_BUS(rirq), REAL_IRQ_TO_SUBBUS(rirq),
+		(REAL_IRQ_TO_IDSEL(rirq) << 4) + REAL_IRQ_TO_FUNC(rirq));
 }
 
 static hw_irq_controller iSeries_IRQ_handler = {
 	.typename = "iSeries irq controller",
-	.startup = iSeries_startup_IRQ,
-	.shutdown = iSeries_shutdown_IRQ,
-	.enable = iSeries_enable_IRQ,
-	.disable = iSeries_disable_IRQ,
-	.end = iSeries_end_IRQ
+	.startup = iseries_startup_IRQ,
+	.shutdown = iseries_shutdown_IRQ,
+	.enable = iseries_enable_IRQ,
+	.disable = iseries_disable_IRQ,
+	.end = iseries_end_IRQ
 };
 
 /*
  * This is called out of iSeries_scan_slot to allocate an IRQ for an EADS slot
  * It calculates the irq value for the slot.
- * Note that subBusNumber is always 0 (at the moment at least).
+ * Note that sub_bus is always 0 (at the moment at least).
  */
-int __init iSeries_allocate_IRQ(HvBusNumber busNumber,
-		HvSubBusNumber subBusNumber, HvAgentId deviceId)
+int __init iSeries_allocate_IRQ(HvBusNumber bus,
+		HvSubBusNumber sub_bus, HvAgentId dev_id)
 {
 	int virtirq;
 	unsigned int realirq;
-	u8 idsel = (deviceId >> 4);
-	u8 function = deviceId & 7;
+	u8 idsel = (dev_id >> 4);
+	u8 function = dev_id & 7;
 
-	realirq = ((busNumber - 1) << 6) + ((idsel - 1) << 3) + function;
+	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
+		+ function;
 	virtirq = virt_irq_create_mapping(realirq);
 
 	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
 	return virtirq;
+}
+
+#endif /* CONFIG_PCI */
+
+/*
+ * Get the next pending IRQ.
+ */
+int iSeries_get_irq(struct pt_regs *regs)
+{
+	/* -2 means ignore this interrupt */
+	int irq = -2;
+
+#ifdef CONFIG_SMP
+	if (get_lppaca()->int_dword.fields.ipi_cnt) {
+		get_lppaca()->int_dword.fields.ipi_cnt = 0;
+		iSeries_smp_message_recv(regs);
+	}
+#endif /* CONFIG_SMP */
+	if (hvlpevent_is_pending())
+		process_hvlpevents(regs);
+
+#ifdef CONFIG_PCI
+	if (num_pending_irqs) {
+		spin_lock(&pending_irqs_lock);
+		for (irq = 0; irq < NR_IRQS; irq++) {
+			if (pending_irqs[irq]) {
+				pending_irqs[irq]--;
+				num_pending_irqs--;
+				break;
+			}
+		}
+		spin_unlock(&pending_irqs_lock);
+		if (irq >= NR_IRQS)
+			irq = -2;
+	}
+#endif
+
+	return irq;
 }

@@ -1316,7 +1316,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 		case S_IFREG:
 			inode->i_op = &shmem_inode_operations;
 			inode->i_fop = &shmem_file_operations;
-			mpol_shared_policy_init(&info->policy);
+			mpol_shared_policy_init(&info->policy, sbinfo->policy,
+							&sbinfo->policy_nodes);
 			break;
 		case S_IFDIR:
 			inode->i_nlink++;
@@ -1330,7 +1331,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 			 * Must not load anything in the rbtree,
 			 * mpol_free_shared_policy will not be called.
 			 */
-			mpol_shared_policy_init(&info->policy);
+			mpol_shared_policy_init(&info->policy, MPOL_DEFAULT,
+						NULL);
 			break;
 		}
 	} else if (sbinfo->max_inodes) {
@@ -1370,7 +1372,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 
 	pos = *ppos;
 	written = 0;
@@ -1455,7 +1457,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (written)
 		err = written;
 out:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 
@@ -1491,7 +1493,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 
 		/*
 		 * We must evaluate after, since reads (unlike writes)
-		 * are called without i_sem protection against truncate
+		 * are called without i_mutex protection against truncate
 		 */
 		nr = PAGE_CACHE_SIZE;
 		i_size = i_size_read(inode);
@@ -1843,7 +1845,9 @@ static struct inode_operations shmem_symlink_inode_operations = {
 	.put_link	= shmem_put_link,
 };
 
-static int shmem_parse_options(char *options, int *mode, uid_t *uid, gid_t *gid, unsigned long *blocks, unsigned long *inodes)
+static int shmem_parse_options(char *options, int *mode, uid_t *uid,
+	gid_t *gid, unsigned long *blocks, unsigned long *inodes,
+	int *policy, nodemask_t *policy_nodes)
 {
 	char *this_char, *value, *rest;
 
@@ -1897,6 +1901,19 @@ static int shmem_parse_options(char *options, int *mode, uid_t *uid, gid_t *gid,
 			*gid = simple_strtoul(value,&rest,0);
 			if (*rest)
 				goto bad_val;
+		} else if (!strcmp(this_char,"mpol")) {
+			if (!strcmp(value,"default"))
+				*policy = MPOL_DEFAULT;
+			else if (!strcmp(value,"preferred"))
+				*policy = MPOL_PREFERRED;
+			else if (!strcmp(value,"bind"))
+				*policy = MPOL_BIND;
+			else if (!strcmp(value,"interleave"))
+				*policy = MPOL_INTERLEAVE;
+			else
+				goto bad_val;
+		} else if (!strcmp(this_char,"mpol_nodelist")) {
+			nodelist_parse(value, *policy_nodes);
 		} else {
 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
 			       this_char);
@@ -1917,12 +1934,14 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
 	unsigned long max_blocks = sbinfo->max_blocks;
 	unsigned long max_inodes = sbinfo->max_inodes;
+	int policy = sbinfo->policy;
+	nodemask_t policy_nodes = sbinfo->policy_nodes;
 	unsigned long blocks;
 	unsigned long inodes;
 	int error = -EINVAL;
 
-	if (shmem_parse_options(data, NULL, NULL, NULL,
-				&max_blocks, &max_inodes))
+	if (shmem_parse_options(data, NULL, NULL, NULL, &max_blocks,
+				&max_inodes, &policy, &policy_nodes))
 		return error;
 
 	spin_lock(&sbinfo->stat_lock);
@@ -1948,6 +1967,8 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	sbinfo->free_blocks = max_blocks - blocks;
 	sbinfo->max_inodes  = max_inodes;
 	sbinfo->free_inodes = max_inodes - inodes;
+	sbinfo->policy = policy;
+	sbinfo->policy_nodes = policy_nodes;
 out:
 	spin_unlock(&sbinfo->stat_lock);
 	return error;
@@ -1972,6 +1993,8 @@ static int shmem_fill_super(struct super_block *sb,
 	struct shmem_sb_info *sbinfo;
 	unsigned long blocks = 0;
 	unsigned long inodes = 0;
+	int policy = MPOL_DEFAULT;
+	nodemask_t policy_nodes = node_online_map;
 
 #ifdef CONFIG_TMPFS
 	/*
@@ -1984,8 +2007,8 @@ static int shmem_fill_super(struct super_block *sb,
 		inodes = totalram_pages - totalhigh_pages;
 		if (inodes > blocks)
 			inodes = blocks;
-		if (shmem_parse_options(data, &mode, &uid, &gid,
-					&blocks, &inodes))
+		if (shmem_parse_options(data, &mode, &uid, &gid, &blocks,
+					&inodes, &policy, &policy_nodes))
 			return -EINVAL;
 	}
 #else
@@ -2003,6 +2026,8 @@ static int shmem_fill_super(struct super_block *sb,
 	sbinfo->free_blocks = blocks;
 	sbinfo->max_inodes = inodes;
 	sbinfo->free_inodes = inodes;
+	sbinfo->policy = policy;
+	sbinfo->policy_nodes = policy_nodes;
 
 	sb->s_fs_info = sbinfo;
 	sb->s_maxbytes = SHMEM_MAX_BYTES;

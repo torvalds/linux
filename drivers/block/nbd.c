@@ -174,7 +174,6 @@ static int sock_xmit(struct socket *sock, int send, void *buf, int size,
 		msg.msg_namelen = 0;
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		msg.msg_namelen = 0;
 		msg.msg_flags = msg_flags | MSG_NOSIGNAL;
 
 		if (send)

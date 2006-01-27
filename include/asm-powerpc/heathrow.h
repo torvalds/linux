@@ -1,3 +1,6 @@
+#ifndef _ASM_POWERPC_HEATHROW_H
+#define _ASM_POWERPC_HEATHROW_H
+#ifdef __KERNEL__
 /*
  * heathrow.h: definitions for using the "Heathrow" I/O controller chip.
  *
@@ -60,3 +63,5 @@
 /* Looks like Heathrow has some sort of GPIOs as well... */
 #define HRW_GPIO_MODEM_RESET	0x6d
 
+#endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_HEATHROW_H */

@@ -500,7 +500,7 @@ static void console_write(struct console *console, const char *string,
 
 static struct console mc_console = { .name	= "mc",
 				     .write	= console_write,
-				     .flags	= CON_PRINTBUFFER | CON_ENABLED,
+				     .flags	= CON_ENABLED,
 				     .index	= -1 };
 
 static int mc_add_console(void)

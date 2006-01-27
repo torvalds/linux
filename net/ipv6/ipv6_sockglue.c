@@ -26,6 +26,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/capability.h>
 #include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -549,7 +550,7 @@ done:
 			retv = -ENOBUFS;
 			break;
 		}
-		gsf = (struct group_filter *)kmalloc(optlen,GFP_KERNEL);
+		gsf = kmalloc(optlen,GFP_KERNEL);
 		if (gsf == 0) {
 			retv = -ENOBUFS;
 			break;

@@ -35,8 +35,10 @@ struct machdep_calls {
 	int		(*get_irq)(struct pt_regs *);
 	
 	/* A general init function, called by ppc_init in init/main.c.
-	   May be NULL. */
+	   May be NULL. DEPRECATED ! */
 	void		(*init)(void);
+	/* For compatibility with merged platforms */
+	void		(*init_early)(void);
 
 	void		(*restart)(char *cmd);
 	void		(*power_off)(void);

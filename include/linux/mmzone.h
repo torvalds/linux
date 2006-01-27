@@ -38,7 +38,7 @@ struct pglist_data;
 #if defined(CONFIG_SMP)
 struct zone_padding {
 	char x[0];
-} ____cacheline_maxaligned_in_smp;
+} ____cacheline_internodealigned_in_smp;
 #define ZONE_PADDING(name)	struct zone_padding name;
 #else
 #define ZONE_PADDING(name)
@@ -98,7 +98,7 @@ struct per_cpu_pageset {
 
 /*
  * On machines where it is needed (eg PCs) we divide physical memory
- * into multiple physical zones. On a PC we have 4 zones:
+ * into multiple physical zones. On a 32bit PC we have 4 zones:
  *
  * ZONE_DMA	  < 16 MB	ISA DMA capable memory
  * ZONE_DMA32	     0 MB 	Empty
@@ -149,13 +149,15 @@ struct zone {
 	unsigned long		pages_scanned;	   /* since last reclaim */
 	int			all_unreclaimable; /* All pages pinned */
 
-	/*
-	 * Does the allocator try to reclaim pages from the zone as soon
-	 * as it fails a watermark_ok() in __alloc_pages?
-	 */
-	int			reclaim_pages;
 	/* A count of how many reclaimers are scanning this zone */
 	atomic_t		reclaim_in_progress;
+
+	/*
+	 * timestamp (in jiffies) of the last zone reclaim that did not
+	 * result in freeing of pages. This is used to avoid repeated scans
+	 * if all memory in the zone is in use.
+	 */
+	unsigned long		last_unsuccessful_zone_reclaim;
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is
@@ -233,7 +235,7 @@ struct zone {
 	 * rarely used fields:
 	 */
 	char			*name;
-} ____cacheline_maxaligned_in_smp;
+} ____cacheline_internodealigned_in_smp;
 
 
 /*
@@ -436,6 +438,8 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
 int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
+					void __user *, size_t *, loff_t *);
+int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 
 #include <linux/topology.h>

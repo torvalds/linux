@@ -255,6 +255,7 @@ int zlib_deflateInit2_(
 }
 
 /* ========================================================================= */
+#if 0
 int zlib_deflateSetDictionary(
 	z_streamp strm,
 	const Byte *dictionary,
@@ -297,6 +298,7 @@ int zlib_deflateSetDictionary(
     if (hash_head) hash_head = 0;  /* to make compiler happy */
     return Z_OK;
 }
+#endif  /*  0  */
 
 /* ========================================================================= */
 int zlib_deflateReset(
@@ -330,6 +332,7 @@ int zlib_deflateReset(
 }
 
 /* ========================================================================= */
+#if 0
 int zlib_deflateParams(
 	z_streamp strm,
 	int level,
@@ -365,6 +368,7 @@ int zlib_deflateParams(
     s->strategy = strategy;
     return err;
 }
+#endif  /*  0  */
 
 /* =========================================================================
  * Put a short in the pending buffer. The 16-bit value is put in MSB order.
@@ -572,6 +576,7 @@ int zlib_deflateEnd(
 /* =========================================================================
  * Copy the source state to the destination state.
  */
+#if 0
 int zlib_deflateCopy (
 	z_streamp dest,
 	z_streamp source
@@ -624,6 +629,7 @@ int zlib_deflateCopy (
     return Z_OK;
 #endif
 }
+#endif  /*  0  */
 
 /* ===========================================================================
  * Read a new buffer from the current input stream, update the adler32

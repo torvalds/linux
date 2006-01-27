@@ -229,11 +229,12 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 			 cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc==0) {
+		int buf_type = CIFS_NO_BUFFER;
 			/* Read header */
 		rc = CIFSSMBRead(xid, pTcon,
 			         netfid,
 				 24 /* length */, 0 /* offset */,
-				 &bytes_read, &pbuf);
+				 &bytes_read, &pbuf, &buf_type);
 		if((rc == 0) && (bytes_read >= 8)) {
 			if(memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1,("Block device"));
@@ -267,7 +268,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 		} else {
 			inode->i_mode |= S_IFREG; /* then it is a file */
 			rc = -EOPNOTSUPP; /* or some unknown SFU type */	
-		}
+		}		
 		CIFSSMBClose(xid, pTcon, netfid);
 	}
 	return rc;
@@ -750,8 +751,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 						    mode,
-						    (__u64)current->euid,
-						    (__u64)current->egid,
+						    (__u64)current->fsuid,
+						    (__u64)current->fsgid,
 						    0 /* dev_t */,
 						    cifs_sb->local_nls,
 						    cifs_sb->mnt_cifs_flags &
@@ -1040,9 +1041,9 @@ int cifs_revalidate(struct dentry *direntry)
 	}
 
 	/* can not grab this sem since kernel filesys locking documentation
-	   indicates i_sem may be taken by the kernel on lookup and rename
-	   which could deadlock if we grab the i_sem here as well */
-/*	down(&direntry->d_inode->i_sem);*/
+	   indicates i_mutex may be taken by the kernel on lookup and rename
+	   which could deadlock if we grab the i_mutex here as well */
+/*	mutex_lock(&direntry->d_inode->i_mutex);*/
 	/* need to write out dirty pages here  */
 	if (direntry->d_inode->i_mapping) {
 		/* do we need to lock inode until after invalidate completes
@@ -1066,7 +1067,7 @@ int cifs_revalidate(struct dentry *direntry)
 			}
 		}
 	}
-/*	up(&direntry->d_inode->i_sem); */
+/*	mutex_unlock(&direntry->d_inode->i_mutex); */
 	
 	kfree(full_path);
 	FreeXid(xid);
@@ -1148,8 +1149,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	/* BB check if we need to refresh inode from server now ? BB */
 
 	/* need to flush data before changing file size on server */
-	filemap_fdatawrite(direntry->d_inode->i_mapping);
-	filemap_fdatawait(direntry->d_inode->i_mapping);
+	filemap_write_and_wait(direntry->d_inode->i_mapping);
 
 	if (attrs->ia_valid & ATTR_SIZE) {
 		/* To avoid spurious oplock breaks from server, in the case of

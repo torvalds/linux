@@ -161,8 +161,8 @@ static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/**
- *	device_subsys - structure to be registered with kobject core.
+/*
+ *	devices_subsys - structure to be registered with kobject core.
  */
 
 decl_subsys(devices, &ktype_device, &device_uevent_ops);

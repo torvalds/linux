@@ -150,7 +150,7 @@ void __init lasi_led_init(unsigned long lasi_hpa)
  * 
  */
 
-static unsigned long lasi_power_off_hpa;
+static unsigned long lasi_power_off_hpa __read_mostly;
 
 static void lasi_power_off(void)
 {

@@ -78,9 +78,9 @@ MODULE_LICENSE("GPL");
 static uid_t asus_uid;
 static gid_t asus_gid;
 module_param(asus_uid, uint, 0);
-MODULE_PARM_DESC(uid, "UID for entries in /proc/acpi/asus.\n");
+MODULE_PARM_DESC(asus_uid, "UID for entries in /proc/acpi/asus.\n");
 module_param(asus_gid, uint, 0);
-MODULE_PARM_DESC(gid, "GID for entries in /proc/acpi/asus.\n");
+MODULE_PARM_DESC(asus_gid, "GID for entries in /proc/acpi/asus.\n");
 
 /* For each model, all features implemented, 
  * those marked with R are relative to HOTK, A for absolute */
@@ -302,7 +302,7 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_set = "SPLV",
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
-	 .display_get = "\\SSTE"},
+	 .display_get = "\\_SB.PCI0.P0P1.VGA.GETD"},
 	{
 	 .name = "M6R",
 	 .mt_mled = "MLED",
@@ -851,6 +851,8 @@ static int __init asus_hotk_add_fs(struct acpi_device *device)
 		mode = S_IFREG | S_IRUGO | S_IWUGO;
 	} else {
 		mode = S_IFREG | S_IRUSR | S_IRGRP | S_IWUSR | S_IWGRP;
+		printk(KERN_WARNING "  asus_uid and asus_gid parameters are "
+		       "deprecated, use chown and chmod instead!\n");
 	}
 
 	acpi_device_dir(device) = asus_proc_dir;
@@ -987,9 +989,21 @@ static int __init asus_hotk_get_info(void)
 		printk(KERN_NOTICE "  BSTS called, 0x%02x returned\n",
 		       bsts_result);
 
-	/* Samsung P30 has a device with a valid _HID whose INIT does not 
-	 * return anything. Catch this one and any similar here */
-	if (buffer.pointer == NULL) {
+	/* This is unlikely with implicit return */
+	if (buffer.pointer == NULL)
+		return -EINVAL;
+
+	model = (union acpi_object *) buffer.pointer;
+	/*
+	 * Samsung P30 has a device with a valid _HID whose INIT does not 
+	 * return anything. It used to be possible to catch this exception,
+	 * but the implicit return code will now happily confuse the 
+	 * driver. We assume that every ACPI_TYPE_STRING is a valid model
+	 * identifier but it's still possible to get completely bogus data.
+	 */
+	if (model->type == ACPI_TYPE_STRING) {
+		printk(KERN_NOTICE "  %s model detected, ", model->string.pointer);
+	} else {
 		if (asus_info &&	/* Samsung P30 */
 		    strncmp(asus_info->oem_table_id, "ODEM", 4) == 0) {
 			hotk->model = P30;
@@ -1002,13 +1016,10 @@ static int __init asus_hotk_get_info(void)
 			       "the developers with your DSDT\n");
 		}
 		hotk->methods = &model_conf[hotk->model];
-		return AE_OK;
-	}
+		
+		acpi_os_free(model);
 
-	model = (union acpi_object *)buffer.pointer;
-	if (model->type == ACPI_TYPE_STRING) {
-		printk(KERN_NOTICE "  %s model detected, ",
-		       model->string.pointer);
+		return AE_OK;
 	}
 
 	hotk->model = END_MODEL;

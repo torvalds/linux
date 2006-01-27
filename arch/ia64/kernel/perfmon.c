@@ -38,7 +38,9 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/rcupdate.h>
+#include <linux/completion.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>
@@ -285,7 +287,7 @@ typedef struct pfm_context {
 
 	unsigned long		ctx_ovfl_regs[4];	/* which registers overflowed (notification) */
 
-	struct semaphore	ctx_restart_sem;   	/* use for blocking notification mode */
+	struct completion	ctx_restart_done;  	/* use for blocking notification mode */
 
 	unsigned long		ctx_used_pmds[4];	/* bitmask of PMD used            */
 	unsigned long		ctx_all_pmds[4];	/* bitmask of all accessible PMDs */
@@ -627,9 +629,11 @@ static int pfm_write_ibr_dbr(int mode, pfm_context_t *ctx, void *arg, int count,
 
 #include "perfmon_itanium.h"
 #include "perfmon_mckinley.h"
+#include "perfmon_montecito.h"
 #include "perfmon_generic.h"
 
 static pmu_config_t *pmu_confs[]={
+	&pmu_conf_mont,
 	&pmu_conf_mck,
 	&pmu_conf_ita,
 	&pmu_conf_gen, /* must be last */
@@ -1709,7 +1713,7 @@ static void
 pfm_syswide_force_stop(void *info)
 {
 	pfm_context_t   *ctx = (pfm_context_t *)info;
-	struct pt_regs *regs = ia64_task_regs(current);
+	struct pt_regs *regs = task_pt_regs(current);
 	struct task_struct *owner;
 	unsigned long flags;
 	int ret;
@@ -1814,7 +1818,7 @@ pfm_flush(struct file *filp)
 	is_system = ctx->ctx_fl_system;
 
 	task = PFM_CTX_TASK(ctx);
-	regs = ia64_task_regs(task);
+	regs = task_pt_regs(task);
 
 	DPRINT(("ctx_state=%d is_current=%d\n",
 		state,
@@ -1944,7 +1948,7 @@ pfm_close(struct inode *inode, struct file *filp)
 	is_system = ctx->ctx_fl_system;
 
 	task = PFM_CTX_TASK(ctx);
-	regs = ia64_task_regs(task);
+	regs = task_pt_regs(task);
 
 	DPRINT(("ctx_state=%d is_current=%d\n", 
 		state,
@@ -1988,7 +1992,7 @@ pfm_close(struct inode *inode, struct file *filp)
 		/*
 		 * force task to wake up from MASKED state
 		 */
-		up(&ctx->ctx_restart_sem);
+		complete(&ctx->ctx_restart_done);
 
 		DPRINT(("waking up ctx_state=%d\n", state));
 
@@ -2703,7 +2707,7 @@ pfm_context_create(pfm_context_t *ctx, void *arg, int count, struct pt_regs *reg
 	/*
 	 * init restart semaphore to locked
 	 */
-	sema_init(&ctx->ctx_restart_sem, 0);
+	init_completion(&ctx->ctx_restart_done);
 
 	/*
 	 * activation is used in SMP only
@@ -3684,7 +3688,7 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 	 */
 	if (CTX_OVFL_NOBLOCK(ctx) == 0 && state == PFM_CTX_MASKED) {
 		DPRINT(("unblocking [%d] \n", task->pid));
-		up(&ctx->ctx_restart_sem);
+		complete(&ctx->ctx_restart_done);
 	} else {
 		DPRINT(("[%d] armed exit trap\n", task->pid));
 
@@ -4051,7 +4055,7 @@ pfm_stop(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 	 	 */
 		ia64_psr(regs)->up = 0;
 	} else {
-		tregs = ia64_task_regs(task);
+		tregs = task_pt_regs(task);
 
 		/*
 	 	 * stop monitoring at the user level
@@ -4133,7 +4137,7 @@ pfm_start(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 		ia64_psr(regs)->up = 1;
 
 	} else {
-		tregs = ia64_task_regs(ctx->ctx_task);
+		tregs = task_pt_regs(ctx->ctx_task);
 
 		/*
 		 * start monitoring at the kernel level the next
@@ -4403,7 +4407,7 @@ pfm_context_load(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 		/*
 		 * when not current, task MUST be stopped, so this is safe
 		 */
-		regs = ia64_task_regs(task);
+		regs = task_pt_regs(task);
 
 		/* force a full reload */
 		ctx->ctx_last_activation = PFM_INVALID_ACTIVATION;
@@ -4529,7 +4533,7 @@ pfm_context_unload(pfm_context_t *ctx, void *arg, int count, struct pt_regs *reg
 	/*
 	 * per-task mode
 	 */
-	tregs = task == current ? regs : ia64_task_regs(task);
+	tregs = task == current ? regs : task_pt_regs(task);
 
 	if (task == current) {
 		/*
@@ -4592,7 +4596,7 @@ pfm_exit_thread(struct task_struct *task)
 {
 	pfm_context_t *ctx;
 	unsigned long flags;
-	struct pt_regs *regs = ia64_task_regs(task);
+	struct pt_regs *regs = task_pt_regs(task);
 	int ret, state;
 	int free_ok = 0;
 
@@ -4925,7 +4929,7 @@ restart_args:
 	if (unlikely(ret)) goto abort_locked;
 
 skip_fd:
-	ret = (*func)(ctx, args_k, count, ia64_task_regs(current));
+	ret = (*func)(ctx, args_k, count, task_pt_regs(current));
 
 	call_made = 1;
 
@@ -5049,7 +5053,7 @@ pfm_handle_work(void)
 
 	pfm_clear_task_notify();
 
-	regs = ia64_task_regs(current);
+	regs = task_pt_regs(current);
 
 	/*
 	 * extract reason for being here and clear
@@ -5086,7 +5090,7 @@ pfm_handle_work(void)
 	 * may go through without blocking on SMP systems
 	 * if restart has been received already by the time we call down()
 	 */
-	ret = down_interruptible(&ctx->ctx_restart_sem);
+	ret = wait_for_completion_interruptible(&ctx->ctx_restart_done);
 
 	DPRINT(("after block sleeping ret=%d\n", ret));
 
@@ -5793,7 +5797,7 @@ pfm_syst_wide_update_task(struct task_struct *task, unsigned long info, int is_c
 	 * on every CPU, so we can rely on the pid to identify the idle task.
 	 */
 	if ((info & PFM_CPUINFO_EXCL_IDLE) == 0 || task->pid) {
-		regs = ia64_task_regs(task);
+		regs = task_pt_regs(task);
 		ia64_psr(regs)->pp = is_ctxswin ? dcr_pp : 0;
 		return;
 	}
@@ -5876,7 +5880,7 @@ pfm_save_regs(struct task_struct *task)
 	flags = pfm_protect_ctx_ctxsw(ctx);
 
 	if (ctx->ctx_state == PFM_CTX_ZOMBIE) {
-		struct pt_regs *regs = ia64_task_regs(task);
+		struct pt_regs *regs = task_pt_regs(task);
 
 		pfm_clear_psr_up();
 
@@ -6076,7 +6080,7 @@ pfm_load_regs (struct task_struct *task)
 	BUG_ON(psr & IA64_PSR_I);
 
 	if (unlikely(ctx->ctx_state == PFM_CTX_ZOMBIE)) {
-		struct pt_regs *regs = ia64_task_regs(task);
+		struct pt_regs *regs = task_pt_regs(task);
 
 		BUG_ON(ctx->ctx_smpl_hdr);
 
@@ -6445,7 +6449,7 @@ pfm_alt_save_pmu_state(void *data)
 {
 	struct pt_regs *regs;
 
-	regs = ia64_task_regs(current);
+	regs = task_pt_regs(current);
 
 	DPRINT(("called\n"));
 
@@ -6471,7 +6475,7 @@ pfm_alt_restore_pmu_state(void *data)
 {
 	struct pt_regs *regs;
 
-	regs = ia64_task_regs(current);
+	regs = task_pt_regs(current);
 
 	DPRINT(("called\n"));
 
@@ -6753,7 +6757,7 @@ dump_pmu_state(const char *from)
 	local_irq_save(flags);
 
 	this_cpu = smp_processor_id();
-	regs     = ia64_task_regs(current);
+	regs     = task_pt_regs(current);
 	info     = PFM_CPUINFO_GET();
 	dcr      = ia64_getreg(_IA64_REG_CR_DCR);
 

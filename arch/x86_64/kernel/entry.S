@@ -41,6 +41,7 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/hw_irq.h>
+#include <asm/page.h>
 
 	.code64
 
@@ -313,6 +314,7 @@ int_with_check:
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
 	jnz   int_careful
+	andl    $~TS_COMPAT,threadinfo_status(%rcx)
 	jmp   retint_swapgs
 
 	/* Either reschedule or signal or syscall exit tracking needed. */
@@ -673,7 +675,7 @@ ENTRY(spurious_interrupt)
 
 	/* error code is on the stack already */
 	/* handle NMI like exceptions that can happen everywhere */
-	.macro paranoidentry sym
+	.macro paranoidentry sym, ist=0
 	SAVE_ALL
 	cld
 	movl $1,%ebx
@@ -683,10 +685,20 @@ ENTRY(spurious_interrupt)
 	js    1f
 	swapgs
 	xorl  %ebx,%ebx
-1:	movq %rsp,%rdi
+1:
+	.if \ist
+	movq	%gs:pda_data_offset, %rbp
+	.endif
+	movq %rsp,%rdi
 	movq ORIG_RAX(%rsp),%rsi
 	movq $-1,ORIG_RAX(%rsp)
+	.if \ist
+	subq	$EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
+	.endif
 	call \sym
+	.if \ist
+	addq	$EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
+	.endif
 	cli
 	.endm
 	
@@ -754,7 +766,7 @@ error_exit:
 	jnz  retint_careful
 	swapgs 
 	RESTORE_ARGS 0,8,0						
-	iretq
+	jmp iret_label
 	CFI_ENDPROC
 
 error_kernelspace:
@@ -904,7 +916,7 @@ KPROBE_ENTRY(debug)
  	INTR_FRAME
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8		
-	paranoidentry do_debug
+	paranoidentry do_debug, DEBUG_STACK
 	jmp paranoid_exit
 	CFI_ENDPROC
 	.previous .text
@@ -959,7 +971,12 @@ paranoid_schedule:
 	CFI_ENDPROC
 
 KPROBE_ENTRY(int3)
-	zeroentry do_int3	
+ 	INTR_FRAME
+ 	pushq $0
+ 	CFI_ADJUST_CFA_OFFSET 8
+ 	paranoidentry do_int3, DEBUG_STACK
+ 	jmp paranoid_exit
+ 	CFI_ENDPROC
 	.previous .text
 
 ENTRY(overflow)
@@ -1021,23 +1038,18 @@ ENTRY(machine_check)
 	CFI_ENDPROC
 #endif
 
-ENTRY(call_debug)
-       zeroentry do_call_debug
-
 ENTRY(call_softirq)
 	CFI_STARTPROC
 	movq %gs:pda_irqstackptr,%rax
-	pushq %r15
-	CFI_ADJUST_CFA_OFFSET 8
-	movq %rsp,%r15
-	CFI_DEF_CFA_REGISTER	r15
+	movq %rsp,%rdx
+	CFI_DEF_CFA_REGISTER	rdx
 	incl %gs:pda_irqcount
 	cmove %rax,%rsp
+	pushq %rdx
+	/*todo CFI_DEF_CFA_EXPRESSION ...*/
 	call __do_softirq
-	movq %r15,%rsp
+	popq %rsp
 	CFI_DEF_CFA_REGISTER	rsp
 	decl %gs:pda_irqcount
-	popq %r15
-	CFI_ADJUST_CFA_OFFSET -8
 	ret
 	CFI_ENDPROC

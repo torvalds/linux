@@ -33,7 +33,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-
+#include <linux/mutex.h>
 #include "dvbdev.h"
 
 static int dvbdev_debug;
@@ -44,7 +44,7 @@ MODULE_PARM_DESC(dvbdev_debug, "Turn on/off device debugging (default:off).");
 #define dprintk if (dvbdev_debug) printk
 
 static LIST_HEAD(dvb_adapter_list);
-static DECLARE_MUTEX(dvbdev_register_lock);
+static DEFINE_MUTEX(dvbdev_register_lock);
 
 static const char * const dnames[] = {
 	"video", "audio", "sec", "frontend", "demux", "dvr", "ca",
@@ -92,10 +92,10 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		old_fops = file->f_op;
 		file->f_op = fops_get(dvbdev->fops);
 		if(file->f_op->open)
-		        err = file->f_op->open(inode,file);
+			err = file->f_op->open(inode,file);
 		if (err) {
-		        fops_put(file->f_op);
-		        file->f_op = fops_get(old_fops);
+			fops_put(file->f_op);
+			file->f_op = fops_get(old_fops);
 		}
 		fops_put(old_fops);
 		return err;
@@ -202,11 +202,11 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	struct dvb_device *dvbdev;
 	int id;
 
-	if (down_interruptible (&dvbdev_register_lock))
+	if (mutex_lock_interruptible(&dvbdev_register_lock))
 		return -ERESTARTSYS;
 
 	if ((id = dvbdev_get_free_id (adap, type)) < 0) {
-		up (&dvbdev_register_lock);
+		mutex_unlock(&dvbdev_register_lock);
 		*pdvbdev = NULL;
 		printk ("%s: could get find free device id...\n", __FUNCTION__);
 		return -ENFILE;
@@ -215,11 +215,11 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	*pdvbdev = dvbdev = kmalloc(sizeof(struct dvb_device), GFP_KERNEL);
 
 	if (!dvbdev) {
-		up(&dvbdev_register_lock);
+		mutex_unlock(&dvbdev_register_lock);
 		return -ENOMEM;
 	}
 
-	up (&dvbdev_register_lock);
+	mutex_unlock(&dvbdev_register_lock);
 
 	memcpy(dvbdev, template, sizeof(struct dvb_device));
 	dvbdev->type = type;
@@ -289,11 +289,11 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct modu
 {
 	int num;
 
-	if (down_interruptible (&dvbdev_register_lock))
+	if (mutex_lock_interruptible(&dvbdev_register_lock))
 		return -ERESTARTSYS;
 
 	if ((num = dvbdev_get_free_adapter_num ()) < 0) {
-		up (&dvbdev_register_lock);
+		mutex_unlock(&dvbdev_register_lock);
 		return -ENFILE;
 	}
 
@@ -309,7 +309,7 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct modu
 
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 
-	up (&dvbdev_register_lock);
+	mutex_unlock(&dvbdev_register_lock);
 
 	return num;
 }
@@ -320,10 +320,10 @@ int dvb_unregister_adapter(struct dvb_adapter *adap)
 {
 	devfs_remove("dvb/adapter%d", adap->num);
 
-	if (down_interruptible (&dvbdev_register_lock))
+	if (mutex_lock_interruptible(&dvbdev_register_lock))
 		return -ERESTARTSYS;
 	list_del (&adap->list_head);
-	up (&dvbdev_register_lock);
+	mutex_unlock(&dvbdev_register_lock);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_adapter);
@@ -356,18 +356,18 @@ int dvb_usercopy(struct inode *inode, struct file *file,
 	case _IOC_WRITE:
 	case (_IOC_WRITE | _IOC_READ):
 		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
-		        parg = sbuf;
+			parg = sbuf;
 		} else {
-		        /* too big to allocate from stack */
-		        mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
-		        if (NULL == mbuf)
-		                return -ENOMEM;
-		        parg = mbuf;
+			/* too big to allocate from stack */
+			mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
+			if (NULL == mbuf)
+				return -ENOMEM;
+			parg = mbuf;
 		}
 
 		err = -EFAULT;
 		if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
-		        goto out;
+			goto out;
 		break;
 	}
 
@@ -384,7 +384,7 @@ int dvb_usercopy(struct inode *inode, struct file *file,
 	case _IOC_READ:
 	case (_IOC_WRITE | _IOC_READ):
 		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
-		        err = -EFAULT;
+			err = -EFAULT;
 		break;
 	}
 

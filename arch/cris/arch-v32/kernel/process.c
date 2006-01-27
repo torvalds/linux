@@ -96,7 +96,7 @@ hard_reset_now(void)
  */
 unsigned long thread_saved_pc(struct task_struct *t)
 {
-	return (unsigned long)user_regs(t->thread_info)->erp;
+	return task_pt_regs(t)->erp;
 }
 
 static void
@@ -148,7 +148,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 * fix it up. Note: the task_struct doubles as the kernel stack for the
 	 * task.
 	 */
-	childregs = user_regs(p->thread_info);
+	childregs = task_pt_regs(p);
 	*childregs = *regs;	/* Struct copy of pt_regs. */
         p->set_child_tid = p->clear_child_tid = NULL;
         childregs->r10 = 0;	/* Child returns 0 after a fork/clone. */
@@ -157,7 +157,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 * The TLS is in $mof beacuse it is the 5th argument to sys_clone.
 	 */
 	if (p->mm && (clone_flags & CLONE_SETTLS)) {
-		p->thread_info->tls = regs->mof;
+		task_thread_info(p)->tls = regs->mof;
 	}
 
 	/* Put the switch stack right below the pt_regs. */

@@ -336,9 +336,9 @@ int configfs_add_file(struct dentry * dir, const struct configfs_attribute * att
 	umode_t mode = (attr->ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) attr, mode, type);
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
 	return error;
 }

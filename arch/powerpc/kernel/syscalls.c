@@ -43,9 +43,6 @@
 #include <asm/time.h>
 #include <asm/unistd.h>
 
-extern unsigned long wall_jiffies;
-
-
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls..
  *
@@ -310,31 +307,6 @@ int sys_olduname(struct oldold_utsname __user *name)
 
 	return error? -EFAULT: 0;
 }
-
-#ifdef CONFIG_PPC64
-time_t sys64_time(time_t __user * tloc)
-{
-	time_t secs;
-	time_t usecs;
-
-	long tb_delta = tb_ticks_since(tb_last_stamp);
-	tb_delta += (jiffies - wall_jiffies) * tb_ticks_per_jiffy;
-
-	secs  = xtime.tv_sec;  
-	usecs = (xtime.tv_nsec/1000) + tb_delta / tb_ticks_per_usec;
-	while (usecs >= USEC_PER_SEC) {
-		++secs;
-		usecs -= USEC_PER_SEC;
-	}
-
-	if (tloc) {
-		if (put_user(secs,tloc))
-			secs = -EFAULT;
-	}
-
-	return secs;
-}
-#endif
 
 long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 		      u32 len_high, u32 len_low)

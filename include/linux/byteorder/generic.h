@@ -156,7 +156,7 @@ extern __be32			htonl(__u32);
 extern __u16			ntohs(__be16);
 extern __be16			htons(__u16);
 
-#if defined(__GNUC__) && (__GNUC__ >= 2) && defined(__OPTIMIZE__)
+#if defined(__GNUC__) && defined(__OPTIMIZE__)
 
 #define ___htonl(x) __cpu_to_be32(x)
 #define ___htons(x) __cpu_to_be16(x)

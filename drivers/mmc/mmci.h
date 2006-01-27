@@ -172,8 +172,8 @@ static inline char *mmci_kmap_atomic(struct mmci_host *host, unsigned long *flag
 	return kmap_atomic(sg->page, KM_BIO_SRC_IRQ) + sg->offset;
 }
 
-static inline void mmci_kunmap_atomic(struct mmci_host *host, unsigned long *flags)
+static inline void mmci_kunmap_atomic(struct mmci_host *host, void *buffer, unsigned long *flags)
 {
-	kunmap_atomic(host->sg_ptr->page, KM_BIO_SRC_IRQ);
+	kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
 	local_irq_restore(*flags);
 }

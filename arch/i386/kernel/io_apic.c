@@ -1649,7 +1649,7 @@ static void __init enable_IO_APIC(void)
 	for(apic = 0; apic < nr_ioapics; apic++) {
 		int pin;
 		/* See if any of the pins is in ExtINT mode */
-		for(pin = 0; pin < nr_ioapic_registers[i]; pin++) {
+		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
 			struct IO_APIC_route_entry entry;
 			spin_lock_irqsave(&ioapic_lock, flags);
 			*(((int *)&entry) + 0) = io_apic_read(apic, 0x10 + 2 * pin);

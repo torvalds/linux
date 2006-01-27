@@ -50,9 +50,7 @@ static DECLARE_MUTEX(gameport_sem);
 
 static LIST_HEAD(gameport_list);
 
-static struct bus_type gameport_bus = {
-	.name =	"gameport",
-};
+static struct bus_type gameport_bus;
 
 static void gameport_add_port(struct gameport *gameport);
 static void gameport_destroy_port(struct gameport *gameport);
@@ -703,11 +701,15 @@ static int gameport_driver_remove(struct device *dev)
 	return 0;
 }
 
+static struct bus_type gameport_bus = {
+	.name =	"gameport",
+	.probe = gameport_driver_probe,
+	.remove = gameport_driver_remove,
+};
+
 void __gameport_register_driver(struct gameport_driver *drv, struct module *owner)
 {
 	drv->driver.bus = &gameport_bus;
-	drv->driver.probe = gameport_driver_probe;
-	drv->driver.remove = gameport_driver_remove;
 	gameport_queue_event(drv, owner, GAMEPORT_REGISTER_DRIVER);
 }
 

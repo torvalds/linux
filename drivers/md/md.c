@@ -1238,6 +1238,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	mdk_rdev_t *same_pdev;
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
 	struct kobject *ko;
+	char *s;
 
 	if (rdev->mddev) {
 		MD_BUG();
@@ -1277,6 +1278,8 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	bdevname(rdev->bdev,b);
 	if (kobject_set_name(&rdev->kobj, "dev-%s", b) < 0)
 		return -ENOMEM;
+	while ( (s=strchr(rdev->kobj.k_name, '/')) != NULL)
+		*s = '!';
 			
 	list_add(&rdev->same_set, &mddev->disks);
 	rdev->mddev = mddev;
@@ -3392,6 +3395,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	mddev->ctime         = get_seconds();
 
 	mddev->level         = info->level;
+	mddev->clevel[0]     = 0;
 	mddev->size          = info->size;
 	mddev->raid_disks    = info->raid_disks;
 	/* don't set md_minor, it is determined by which /dev/md* was
@@ -3460,9 +3464,9 @@ static int update_size(mddev_t *mddev, unsigned long size)
 
 		bdev = bdget_disk(mddev->gendisk, 0);
 		if (bdev) {
-			down(&bdev->bd_inode->i_sem);
+			mutex_lock(&bdev->bd_inode->i_mutex);
 			i_size_write(bdev->bd_inode, mddev->array_size << 10);
-			up(&bdev->bd_inode->i_sem);
+			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}
 	}
@@ -3486,9 +3490,9 @@ static int update_raid_disks(mddev_t *mddev, int raid_disks)
 
 		bdev = bdget_disk(mddev->gendisk, 0);
 		if (bdev) {
-			down(&bdev->bd_inode->i_sem);
+			mutex_lock(&bdev->bd_inode->i_mutex);
 			i_size_write(bdev->bd_inode, mddev->array_size << 10);
-			up(&bdev->bd_inode->i_sem);
+			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}
 	}
@@ -3598,12 +3602,21 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 	return 0;
 }
 
+static int md_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	mddev_t *mddev = bdev->bd_disk->private_data;
+
+	geo->heads = 2;
+	geo->sectors = 4;
+	geo->cylinders = get_capacity(mddev->gendisk) / 8;
+	return 0;
+}
+
 static int md_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	void __user *argp = (void __user *)arg;
-	struct hd_geometry __user *loc = argp;
 	mddev_t *mddev = NULL;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -3765,24 +3778,6 @@ static int md_ioctl(struct inode *inode, struct file *file,
 	 * 4 sectors (with a BIG number of cylinders...). This drives
 	 * dosfs just mad... ;-)
 	 */
-		case HDIO_GETGEO:
-			if (!loc) {
-				err = -EINVAL;
-				goto abort_unlock;
-			}
-			err = put_user (2, (char __user *) &loc->heads);
-			if (err)
-				goto abort_unlock;
-			err = put_user (4, (char __user *) &loc->sectors);
-			if (err)
-				goto abort_unlock;
-			err = put_user(get_capacity(mddev->gendisk)/8,
-					(short __user *) &loc->cylinders);
-			if (err)
-				goto abort_unlock;
-			err = put_user (get_start_sect(inode->i_bdev),
-						(long __user *) &loc->start);
-			goto done_unlock;
 	}
 
 	/*
@@ -3911,6 +3906,7 @@ static struct block_device_operations md_fops =
 	.open		= md_open,
 	.release	= md_release,
 	.ioctl		= md_ioctl,
+	.getgeo		= md_getgeo,
 	.media_changed	= md_media_changed,
 	.revalidate_disk= md_revalidate,
 };

@@ -196,7 +196,7 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
  * @mapping: mapping to truncate
  * @lstart: offset from which to truncate
  *
- * Called under (and serialised by) inode->i_sem.
+ * Called under (and serialised by) inode->i_mutex.
  */
 void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
 {
@@ -249,7 +249,6 @@ unlock:
 				break;
 		}
 		pagevec_release(&pvec);
-		cond_resched();
 	}
 	return ret;
 }

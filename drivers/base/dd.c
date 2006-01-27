@@ -78,7 +78,13 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	pr_debug("%s: Matched Device %s with Driver %s\n",
 		 drv->bus->name, dev->bus_id, drv->name);
 	dev->driver = drv;
-	if (drv->probe) {
+	if (dev->bus->probe) {
+		ret = dev->bus->probe(dev);
+		if (ret) {
+			dev->driver = NULL;
+			goto ProbeFailed;
+		}
+	} else if (drv->probe) {
 		ret = drv->probe(dev);
 		if (ret) {
 			dev->driver = NULL;
@@ -203,7 +209,9 @@ static void __device_release_driver(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "driver");
 		klist_remove(&dev->knode_driver);
 
-		if (drv->remove)
+		if (dev->bus->remove)
+			dev->bus->remove(dev);
+		else if (drv->remove)
 			drv->remove(dev);
 		dev->driver = NULL;
 		put_driver(drv);

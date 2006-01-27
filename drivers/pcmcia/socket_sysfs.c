@@ -98,6 +98,30 @@ static ssize_t pccard_store_insert(struct class_device *dev, const char *buf, si
 }
 static CLASS_DEVICE_ATTR(card_insert, 0200, NULL, pccard_store_insert);
 
+
+static ssize_t pccard_show_card_pm_state(struct class_device *dev, char *buf)
+{
+	struct pcmcia_socket *s = to_socket(dev);
+	return sprintf(buf, "%s\n", s->state & SOCKET_SUSPEND ? "off" : "on");
+}
+
+static ssize_t pccard_store_card_pm_state(struct class_device *dev, const char *buf, size_t count)
+{
+	ssize_t ret = -EINVAL;
+	struct pcmcia_socket *s = to_socket(dev);
+
+	if (!count)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_SUSPEND) && !strncmp(buf, "off", 3))
+		ret = pcmcia_suspend_card(s);
+	else if ((s->state & SOCKET_SUSPEND) && !strncmp(buf, "on", 2))
+		ret = pcmcia_resume_card(s);
+
+	return ret ? -ENODEV : count;
+}
+static CLASS_DEVICE_ATTR(card_pm_state, 0644, pccard_show_card_pm_state, pccard_store_card_pm_state);
+
 static ssize_t pccard_store_eject(struct class_device *dev, const char *buf, size_t count)
 {
 	ssize_t ret;
@@ -320,6 +344,7 @@ static struct class_device_attribute *pccard_socket_attributes[] = {
 	&class_device_attr_card_vpp,
 	&class_device_attr_card_vcc,
 	&class_device_attr_card_insert,
+	&class_device_attr_card_pm_state,
 	&class_device_attr_card_eject,
 	&class_device_attr_card_irq_mask,
 	&class_device_attr_available_resources_setup_done,

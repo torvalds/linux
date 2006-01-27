@@ -48,6 +48,7 @@
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/desc.h>
+#include <asm/vm86.h>
 #ifdef CONFIG_MATH_EMULATION
 #include <asm/math_emu.h>
 #endif
@@ -423,18 +424,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	struct task_struct *tsk;
 	int err;
 
-	childregs = ((struct pt_regs *) (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
-	/*
-	 * The below -8 is to reserve 8 bytes on top of the ring0 stack.
-	 * This is necessary to guarantee that the entire "struct pt_regs"
-	 * is accessable even if the CPU haven't stored the SS/ESP registers
-	 * on the stack (interrupt gate does not save these registers
-	 * when switching to the same priv ring).
-	 * Therefore beware: accessing the xss/esp fields of the
-	 * "struct pt_regs" is possible, but they may contain the
-	 * completely wrong values.
-	 */
-	childregs = (struct pt_regs *) ((unsigned long) childregs - 8);
+	childregs = task_pt_regs(p);
 	*childregs = *regs;
 	childregs->eax = 0;
 	childregs->esp = esp;
@@ -539,12 +529,7 @@ EXPORT_SYMBOL(dump_thread);
  */
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
-	struct pt_regs ptregs;
-	
-	ptregs = *(struct pt_regs *)
-		((unsigned long)tsk->thread_info +
-		/* see comments in copy_thread() about -8 */
-		THREAD_SIZE - sizeof(ptregs) - 8);
+	struct pt_regs ptregs = *task_pt_regs(tsk);
 	ptregs.xcs &= 0xffff;
 	ptregs.xds &= 0xffff;
 	ptregs.xes &= 0xffff;
@@ -600,8 +585,8 @@ static inline void disable_tsc(struct task_struct *prev_p,
 	 * gcc should eliminate the ->thread_info dereference if
 	 * has_secure_computing returns 0 at compile time (SECCOMP=n).
 	 */
-	prev = prev_p->thread_info;
-	next = next_p->thread_info;
+	prev = task_thread_info(prev_p);
+	next = task_thread_info(next_p);
 
 	if (has_secure_computing(prev) || has_secure_computing(next)) {
 		/* slow path here */
@@ -786,7 +771,7 @@ unsigned long get_wchan(struct task_struct *p)
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
-	stack_page = (unsigned long)p->thread_info;
+	stack_page = (unsigned long)task_stack_page(p);
 	esp = p->thread.esp;
 	if (!stack_page || esp < stack_page || esp > top_esp+stack_page)
 		return 0;

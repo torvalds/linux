@@ -309,7 +309,7 @@ int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
 		i2c_writereg(av7110, 0x20, 0x04, volright);
 		return 0;
 
-	case DVB_ADAC_MSP:
+	case DVB_ADAC_MSP34x0:
 		vol  = (volleft > volright) ? volleft : volright;
 		val	= (vol * 0x73 / 255) << 8;
 		if (vol > 0)
@@ -1256,7 +1256,9 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case AUDIO_SET_BYPASS_MODE:
-		ret = -EINVAL;
+		if (FW_VERSION(av7110->arm_app) < 0x2621)
+			ret = -EINVAL;
+		av7110->audiostate.bypass_mode = (int)arg;
 		break;
 
 	case AUDIO_CHANNEL_SELECT:
@@ -1295,7 +1297,11 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case AUDIO_GET_CAPABILITIES:
-		*(int *)parg = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2;
+		if (FW_VERSION(av7110->arm_app) < 0x2621)
+			*(unsigned int *)parg = AUDIO_CAP_LPCM | AUDIO_CAP_MP1 | AUDIO_CAP_MP2;
+		else
+			*(unsigned int *)parg = AUDIO_CAP_LPCM | AUDIO_CAP_DTS | AUDIO_CAP_AC3 |
+						AUDIO_CAP_MP1 | AUDIO_CAP_MP2;
 		break;
 
 	case AUDIO_CLEAR_BUFFER:

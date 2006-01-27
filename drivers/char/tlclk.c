@@ -34,7 +34,6 @@
 #include <linux/kernel.h>	/* printk() */
 #include <linux/fs.h>		/* everything... */
 #include <linux/errno.h>	/* error codes */
-#include <linux/delay.h>	/* udelay */
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -156,6 +155,8 @@ This directory exports the following interfaces.  There operation is
 documented in the MCPBL0010 TPS under the Telecom Clock API section, 11.4.
 alarms				:
 current_ref			:
+received_ref_clk3a		:
+received_ref_clk3b		:
 enable_clk3a_output		:
 enable_clk3b_output		:
 enable_clka0_output		:
@@ -165,7 +166,7 @@ enable_clkb1_output		:
 filter_select			:
 hardware_switching		:
 hardware_switching_mode		:
-interrupt_switch		:
+telclock_version		:
 mode_select			:
 refalign			:
 reset				:
@@ -173,7 +174,6 @@ select_amcb1_transmit_clock	:
 select_amcb2_transmit_clock	:
 select_redundant_clock		:
 select_ref_frequency		:
-test_mode			:
 
 All sysfs interfaces are integers in hex format, i.e echo 99 > refalign
 has the same effect as echo 0x99 > refalign.
@@ -211,7 +211,7 @@ static int tlclk_open(struct inode *inode, struct file *filp)
 	result = request_irq(telclk_interrupt, &tlclk_interrupt,
 			     SA_INTERRUPT, "telco_clock", tlclk_interrupt);
 	if (result == -EBUSY) {
-		printk(KERN_ERR "telco_clock: Interrupt can't be reserved!\n");
+		printk(KERN_ERR "tlclk: Interrupt can't be reserved.\n");
 		return -EBUSY;
 	}
 	inb(TLCLK_REG6);	/* Clear interrupt events */
@@ -226,7 +226,7 @@ static int tlclk_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-ssize_t tlclk_read(struct file *filp, char __user *buf, size_t count,
+static ssize_t tlclk_read(struct file *filp, char __user *buf, size_t count,
 		loff_t *f_pos)
 {
 	if (count < sizeof(struct tlclk_alarms))
@@ -242,7 +242,7 @@ ssize_t tlclk_read(struct file *filp, char __user *buf, size_t count,
 	return  sizeof(struct tlclk_alarms);
 }
 
-ssize_t tlclk_write(struct file *filp, const char __user *buf, size_t count,
+static ssize_t tlclk_write(struct file *filp, const char __user *buf, size_t count,
 	    loff_t *f_pos)
 {
 	return 0;
@@ -278,21 +278,21 @@ static ssize_t show_current_ref(struct device *d,
 static DEVICE_ATTR(current_ref, S_IRUGO, show_current_ref, NULL);
 
 
-static ssize_t show_interrupt_switch(struct device *d,
+static ssize_t show_telclock_version(struct device *d,
 		struct device_attribute *attr, char *buf)
 {
 	unsigned long ret_val;
 	unsigned long flags;
 
 	spin_lock_irqsave(&event_lock, flags);
-	ret_val = inb(TLCLK_REG6);
+	ret_val = inb(TLCLK_REG5);
 	spin_unlock_irqrestore(&event_lock, flags);
 
 	return sprintf(buf, "0x%lX\n", ret_val);
 }
 
-static DEVICE_ATTR(interrupt_switch, S_IRUGO,
-		show_interrupt_switch, NULL);
+static DEVICE_ATTR(telclock_version, S_IRUGO,
+		show_telclock_version, NULL);
 
 static ssize_t show_alarms(struct device *d,
 		struct device_attribute *attr,  char *buf)
@@ -308,6 +308,50 @@ static ssize_t show_alarms(struct device *d,
 }
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+
+static ssize_t store_received_ref_clk3a(struct device *d,
+		 struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long tmp;
+	unsigned char val;
+	unsigned long flags;
+
+	sscanf(buf, "%lX", &tmp);
+	dev_dbg(d, ": tmp = 0x%lX\n", tmp);
+
+	val = (unsigned char)tmp;
+	spin_lock_irqsave(&event_lock, flags);
+	SET_PORT_BITS(TLCLK_REG1, 0xef, val);
+	spin_unlock_irqrestore(&event_lock, flags);
+
+	return strnlen(buf, count);
+}
+
+static DEVICE_ATTR(received_ref_clk3a, S_IWUGO, NULL,
+		store_received_ref_clk3a);
+
+
+static ssize_t store_received_ref_clk3b(struct device *d,
+		 struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long tmp;
+	unsigned char val;
+	unsigned long flags;
+
+	sscanf(buf, "%lX", &tmp);
+	dev_dbg(d, ": tmp = 0x%lX\n", tmp);
+
+	val = (unsigned char)tmp;
+	spin_lock_irqsave(&event_lock, flags);
+	SET_PORT_BITS(TLCLK_REG1, 0xef, val << 1);
+	spin_unlock_irqrestore(&event_lock, flags);
+
+	return strnlen(buf, count);
+}
+
+static DEVICE_ATTR(received_ref_clk3b, S_IWUGO, NULL,
+		store_received_ref_clk3b);
+
 
 static ssize_t store_enable_clk3b_output(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
@@ -436,26 +480,6 @@ static ssize_t store_enable_clka0_output(struct device *d,
 static DEVICE_ATTR(enable_clka0_output, S_IWUGO, NULL,
 		store_enable_clka0_output);
 
-static ssize_t store_test_mode(struct device *d,
-		struct device_attribute *attr,  const char *buf, size_t count)
-{
-	unsigned long flags;
-	unsigned long tmp;
-	unsigned char val;
-
-	sscanf(buf, "%lX", &tmp);
-	dev_dbg(d, "tmp = 0x%lX\n", tmp);
-
-	val = (unsigned char)tmp;
-	spin_lock_irqsave(&event_lock, flags);
-	SET_PORT_BITS(TLCLK_REG4, 0xfd, 2);
-	spin_unlock_irqrestore(&event_lock, flags);
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(test_mode, S_IWUGO, NULL, store_test_mode);
-
 static ssize_t store_select_amcb2_transmit_clock(struct device *d,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -475,7 +499,7 @@ static ssize_t store_select_amcb2_transmit_clock(struct device *d,
 			SET_PORT_BITS(TLCLK_REG3, 0xc7, 0x38);
 			switch (val) {
 			case CLK_8_592MHz:
-				SET_PORT_BITS(TLCLK_REG0, 0xfc, 1);
+				SET_PORT_BITS(TLCLK_REG0, 0xfc, 2);
 				break;
 			case CLK_11_184MHz:
 				SET_PORT_BITS(TLCLK_REG0, 0xfc, 0);
@@ -484,7 +508,7 @@ static ssize_t store_select_amcb2_transmit_clock(struct device *d,
 				SET_PORT_BITS(TLCLK_REG0, 0xfc, 3);
 				break;
 			case CLK_44_736MHz:
-				SET_PORT_BITS(TLCLK_REG0, 0xfc, 2);
+				SET_PORT_BITS(TLCLK_REG0, 0xfc, 1);
 				break;
 			}
 		} else
@@ -653,9 +677,7 @@ static ssize_t store_refalign (struct device *d,
 	dev_dbg(d, "tmp = 0x%lX\n", tmp);
 	spin_lock_irqsave(&event_lock, flags);
 	SET_PORT_BITS(TLCLK_REG0, 0xf7, 0);
-	udelay(2);
 	SET_PORT_BITS(TLCLK_REG0, 0xf7, 0x08);
-	udelay(2);
 	SET_PORT_BITS(TLCLK_REG0, 0xf7, 0);
 	spin_unlock_irqrestore(&event_lock, flags);
 
@@ -706,15 +728,16 @@ static DEVICE_ATTR(reset, S_IWUGO, NULL, store_reset);
 
 static struct attribute *tlclk_sysfs_entries[] = {
 	&dev_attr_current_ref.attr,
-	&dev_attr_interrupt_switch.attr,
+	&dev_attr_telclock_version.attr,
 	&dev_attr_alarms.attr,
+	&dev_attr_received_ref_clk3a.attr,
+	&dev_attr_received_ref_clk3b.attr,
 	&dev_attr_enable_clk3a_output.attr,
 	&dev_attr_enable_clk3b_output.attr,
 	&dev_attr_enable_clkb1_output.attr,
 	&dev_attr_enable_clka1_output.attr,
 	&dev_attr_enable_clkb0_output.attr,
 	&dev_attr_enable_clka0_output.attr,
-	&dev_attr_test_mode.attr,
 	&dev_attr_select_amcb1_transmit_clock.attr,
 	&dev_attr_select_amcb2_transmit_clock.attr,
 	&dev_attr_select_redundant_clock.attr,
@@ -741,7 +764,7 @@ static int __init tlclk_init(void)
 
 	ret = register_chrdev(tlclk_major, "telco_clock", &tlclk_fops);
 	if (ret < 0) {
-		printk(KERN_ERR "telco_clock: can't get major! %d\n", tlclk_major);
+		printk(KERN_ERR "tlclk: can't get major %d.\n", tlclk_major);
 		return ret;
 	}
 	alarm_events = kzalloc( sizeof(struct tlclk_alarms), GFP_KERNEL);
@@ -750,7 +773,7 @@ static int __init tlclk_init(void)
 
 	/* Read telecom clock IRQ number (Set by BIOS) */
 	if (!request_region(TLCLK_BASE, 8, "telco_clock")) {
-		printk(KERN_ERR "tlclk: request_region failed! 0x%X\n",
+		printk(KERN_ERR "tlclk: request_region 0x%X failed.\n",
 			TLCLK_BASE);
 		ret = -EBUSY;
 		goto out2;
@@ -758,7 +781,7 @@ static int __init tlclk_init(void)
 	telclk_interrupt = (inb(TLCLK_REG7) & 0x0f);
 
 	if (0x0F == telclk_interrupt ) { /* not MCPBL0010 ? */
-		printk(KERN_ERR "telclk_interrup = 0x%x non-mcpbl0010 hw\n",
+		printk(KERN_ERR "telclk_interrup = 0x%x non-mcpbl0010 hw.\n",
 			telclk_interrupt);
 		ret = -ENXIO;
 		goto out3;
@@ -768,7 +791,7 @@ static int __init tlclk_init(void)
 
 	ret = misc_register(&tlclk_miscdev);
 	if (ret < 0) {
-		printk(KERN_ERR " misc_register retruns %d\n", ret);
+		printk(KERN_ERR "tlclk: misc_register returns %d.\n", ret);
 		ret = -EBUSY;
 		goto out3;
 	}
@@ -776,8 +799,7 @@ static int __init tlclk_init(void)
 	tlclk_device = platform_device_register_simple("telco_clock",
 				-1, NULL, 0);
 	if (!tlclk_device) {
-		printk(KERN_ERR " platform_device_register retruns 0x%X\n",
-			(unsigned int) tlclk_device);
+		printk(KERN_ERR "tlclk: platform_device_register failed.\n");
 		ret = -EBUSY;
 		goto out4;
 	}
@@ -785,7 +807,7 @@ static int __init tlclk_init(void)
 	ret = sysfs_create_group(&tlclk_device->dev.kobj,
 			&tlclk_attribute_group);
 	if (ret) {
-		printk(KERN_ERR "failed to create sysfs device attributes\n");
+		printk(KERN_ERR "tlclk: failed to create sysfs device attributes.\n");
 		sysfs_remove_group(&tlclk_device->dev.kobj,
 			&tlclk_attribute_group);
 		goto out5;

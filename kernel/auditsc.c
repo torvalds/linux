@@ -30,8 +30,8 @@
  */
 
 #include <linux/init.h>
-#include <asm/atomic.h>
 #include <asm/types.h>
+#include <asm/atomic.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mount.h>

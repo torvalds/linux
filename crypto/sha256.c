@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
 
@@ -279,22 +280,15 @@ static void sha256_update(void *ctx, const u8 *data, unsigned int len)
 static void sha256_final(void* ctx, u8 *out)
 {
 	struct sha256_ctx *sctx = ctx;
-	u8 bits[8];
-	unsigned int index, pad_len, t;
-	int i, j;
+	__be32 *dst = (__be32 *)out;
+	__be32 bits[2];
+	unsigned int index, pad_len;
+	int i;
 	static const u8 padding[64] = { 0x80, };
 
 	/* Save number of bits */
-	t = sctx->count[0];
-	bits[7] = t; t >>= 8;
-	bits[6] = t; t >>= 8;
-	bits[5] = t; t >>= 8;
-	bits[4] = t;
-	t = sctx->count[1];
-	bits[3] = t; t >>= 8;
-	bits[2] = t; t >>= 8;
-	bits[1] = t; t >>= 8;
-	bits[0] = t;
+	bits[1] = cpu_to_be32(sctx->count[0]);
+	bits[0] = cpu_to_be32(sctx->count[1]);
 
 	/* Pad out to 56 mod 64. */
 	index = (sctx->count[0] >> 3) & 0x3f;
@@ -302,16 +296,11 @@ static void sha256_final(void* ctx, u8 *out)
 	sha256_update(sctx, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha256_update(sctx, bits, 8);
+	sha256_update(sctx, (const u8 *)bits, sizeof(bits));
 
 	/* Store state in digest */
-	for (i = j = 0; i < 8; i++, j += 4) {
-		t = sctx->state[i];
-		out[j+3] = t; t >>= 8;
-		out[j+2] = t; t >>= 8;
-		out[j+1] = t; t >>= 8;
-		out[j  ] = t;
-	}
+	for (i = 0; i < 8; i++)
+		dst[i] = cpu_to_be32(sctx->state[i]);
 
 	/* Zeroize sensitive information. */
 	memset(sctx, 0, sizeof(*sctx));

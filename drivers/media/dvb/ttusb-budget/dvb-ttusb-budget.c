@@ -1489,10 +1489,8 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	if (intf->altsetting->desc.bInterfaceNumber != 1) return -ENODEV;
 
-	if (!(ttusb = kmalloc(sizeof(struct ttusb), GFP_KERNEL)))
+	if (!(ttusb = kzalloc(sizeof(struct ttusb), GFP_KERNEL)))
 		return -ENOMEM;
-
-	memset(ttusb, 0, sizeof(struct ttusb));
 
 	ttusb->dev = udev;
 	ttusb->c = 0;

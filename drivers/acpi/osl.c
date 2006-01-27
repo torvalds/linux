@@ -204,11 +204,13 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size,
 
 	return AE_OK;
 }
+EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
 void acpi_os_unmap_memory(void __iomem * virt, acpi_size size)
 {
 	iounmap(virt);
 }
+EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
@@ -836,7 +838,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 			static const int quantum_ms = 1000 / HZ;
 
 			ret = down_trylock(sem);
-			for (i = timeout; (i > 0 && ret < 0); i -= quantum_ms) {
+			for (i = timeout; (i > 0 && ret != 0); i -= quantum_ms) {
 				schedule_timeout_interruptible(1);
 				ret = down_trylock(sem);
 			}

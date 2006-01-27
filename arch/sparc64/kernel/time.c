@@ -280,9 +280,9 @@ static struct sparc64_tick_ops stick_operations __read_mostly = {
  * Since STICK is constantly updating, we have to access it carefully.
  *
  * The sequence we use to read is:
- * 1) read low
- * 2) read high
- * 3) read low again, if it rolled over increment high by 1
+ * 1) read high
+ * 2) read low
+ * 3) read high again, if it rolled re-read both low and high again.
  *
  * Writing STICK safely is also tricky:
  * 1) write low to zero
@@ -295,18 +295,18 @@ static struct sparc64_tick_ops stick_operations __read_mostly = {
 static unsigned long __hbird_read_stick(void)
 {
 	unsigned long ret, tmp1, tmp2, tmp3;
-	unsigned long addr = HBIRD_STICK_ADDR;
+	unsigned long addr = HBIRD_STICK_ADDR+8;
 
-	__asm__ __volatile__("ldxa	[%1] %5, %2\n\t"
-			     "add	%1, 0x8, %1\n\t"
-			     "ldxa	[%1] %5, %3\n\t"
+	__asm__ __volatile__("ldxa	[%1] %5, %2\n"
+			     "1:\n\t"
 			     "sub	%1, 0x8, %1\n\t"
+			     "ldxa	[%1] %5, %3\n\t"
+			     "add	%1, 0x8, %1\n\t"
 			     "ldxa	[%1] %5, %4\n\t"
 			     "cmp	%4, %2\n\t"
-			     "blu,a,pn	%%xcc, 1f\n\t"
-			     " add	%3, 1, %3\n"
-			     "1:\n\t"
-			     "sllx	%3, 32, %3\n\t"
+			     "bne,a,pn	%%xcc, 1b\n\t"
+			     " mov	%4, %2\n\t"
+			     "sllx	%4, 32, %4\n\t"
 			     "or	%3, %4, %0\n\t"
 			     : "=&r" (ret), "=&r" (addr),
 			       "=&r" (tmp1), "=&r" (tmp2), "=&r" (tmp3)

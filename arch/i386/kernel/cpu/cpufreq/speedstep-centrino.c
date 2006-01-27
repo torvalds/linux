@@ -35,8 +35,6 @@
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 
-#include "speedstep-est-common.h"
-
 #define PFX		"speedstep-centrino: "
 #define MAINTAINER	"Jeremy Fitzhardinge <jeremy@goop.org>"
 
@@ -364,21 +362,9 @@ static struct acpi_processor_performance p;
  */
 static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 {
-	union acpi_object		arg0 = {ACPI_TYPE_BUFFER};
-	u32				arg0_buf[3];
-	struct acpi_object_list		arg_list = {1, &arg0};
 	unsigned long			cur_freq;
 	int				result = 0, i;
 	unsigned int			cpu = policy->cpu;
-
-	/* _PDC settings */
-	arg0.buffer.length = 12;
-	arg0.buffer.pointer = (u8 *) arg0_buf;
-	arg0_buf[0] = ACPI_PDC_REVISION_ID;
-	arg0_buf[1] = 1;
-	arg0_buf[2] = ACPI_PDC_EST_CAPABILITY_SMP_MSR;
-
-	p.pdc = &arg_list;
 
 	/* register with ACPI core */
 	if (acpi_processor_register_performance(&p, cpu)) {
@@ -493,12 +479,13 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	unsigned l, h;
 	int ret;
 	int i;
+	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
 
 	/* Only Intel makes Enhanced Speedstep-capable CPUs */
 	if (cpu->x86_vendor != X86_VENDOR_INTEL || !cpu_has(cpu, X86_FEATURE_EST))
 		return -ENODEV;
 
-	if (is_const_loops_cpu(policy->cpu)) {
+	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		centrino_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
 

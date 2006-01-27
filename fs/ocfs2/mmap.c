@@ -80,12 +80,8 @@ static struct vm_operations_struct ocfs2_file_vm_ops = {
 	.nopage = ocfs2_nopage,
 };
 
-int ocfs2_mmap(struct file *file,
-	       struct vm_area_struct *vma)
+int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct address_space *mapping = file->f_dentry->d_inode->i_mapping;
-	struct inode *inode = mapping->host;
-
 	/* We don't want to support shared writable mappings yet. */
 	if (((vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_MAYSHARE))
 	    && ((vma->vm_flags & VM_WRITE) || (vma->vm_flags & VM_MAYWRITE))) {
@@ -95,7 +91,7 @@ int ocfs2_mmap(struct file *file,
 		return -EINVAL;
 	}
 
-	update_atime(inode);
+	file_accessed(file);
 	vma->vm_ops = &ocfs2_file_vm_ops;
 	return 0;
 }

@@ -1345,7 +1345,7 @@ zoran_open (struct inode *inode,
 		ZR_DEVNAME(zr), current->comm, current->pid, zr->user);
 
 	/* now, create the open()-specific file_ops struct */
-	fh = kmalloc(sizeof(struct zoran_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(struct zoran_fh), GFP_KERNEL);
 	if (!fh) {
 		dprintk(1,
 			KERN_ERR
@@ -1354,7 +1354,6 @@ zoran_open (struct inode *inode,
 		res = -ENOMEM;
 		goto open_unlock_and_return;
 	}
-	memset(fh, 0, sizeof(struct zoran_fh));
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
 	fh->overlay_mask =
@@ -4678,6 +4677,7 @@ static struct file_operations zoran_fops = {
 	.open = zoran_open,
 	.release = zoran_close,
 	.ioctl = zoran_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek = no_llseek,
 	.read = zoran_read,
 	.write = zoran_write,

@@ -674,7 +674,7 @@ struct vendor_product
 
 
 /* These are taken from the msmUSB.inf file on the Windows driver CD */
-const static struct vendor_product mts_supported_products[] =
+static const struct vendor_product mts_supported_products[] =
 {
 	{ "Phantom 336CX",	mts_sup_unknown},
 	{ "Phantom 336CX",	mts_sup_unknown},

@@ -55,6 +55,8 @@
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>
+#include <asm/pmac_pfunc.h>
+#include <asm/pmac_low_i2c.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/cputable.h>
@@ -147,6 +149,7 @@ static struct device_node *vias;
 static int pmu_kind = PMU_UNKNOWN;
 static int pmu_fully_inited = 0;
 static int pmu_has_adb;
+static struct device_node *gpio_node;
 static unsigned char __iomem *gpio_reg = NULL;
 static int gpio_irq = -1;
 static int gpio_irq_enabled = -1;
@@ -157,8 +160,8 @@ static int pmu_version;
 static int drop_interrupts;
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 static int option_lid_wakeup = 1;
-static int sleep_in_progress;
 #endif /* CONFIG_PM && CONFIG_PPC32 */
+static int sleep_in_progress;
 static unsigned long async_req_locks;
 static unsigned int pmu_irq_stats[11];
 
@@ -196,7 +199,6 @@ static int pmu_adb_reset_bus(void);
 #endif /* CONFIG_ADB */
 
 static int init_pmu(void);
-static int pmu_queue_request(struct adb_request *req);
 static void pmu_start(void);
 static irqreturn_t via_pmu_interrupt(int irq, void *arg, struct pt_regs *regs);
 static irqreturn_t gpio1_interrupt(int irq, void *arg, struct pt_regs *regs);
@@ -295,22 +297,26 @@ static struct backlight_controller pmu_backlight_controller = {
 };
 #endif /* CONFIG_PMAC_BACKLIGHT */
 
-int
-find_via_pmu(void)
+int __init find_via_pmu(void)
 {
+	u64 taddr;
+	u32 *reg;
+
 	if (via != 0)
 		return 1;
-	vias = find_devices("via-pmu");
-	if (vias == 0)
+	vias = of_find_node_by_name(NULL, "via-pmu");
+	if (vias == NULL)
 		return 0;
-	if (vias->next != 0)
-		printk(KERN_WARNING "Warning: only using 1st via-pmu\n");
 
-	if (vias->n_addrs < 1 || vias->n_intrs < 1) {
-		printk(KERN_ERR "via-pmu: %d addresses, %d interrupts!\n",
-		       vias->n_addrs, vias->n_intrs);
-		if (vias->n_addrs < 1 || vias->n_intrs < 1)
-			return 0;
+	reg = (u32 *)get_property(vias, "reg", NULL);
+	if (reg == NULL) {
+		printk(KERN_ERR "via-pmu: No \"reg\" property !\n");
+		goto fail;
+	}
+	taddr = of_translate_address(vias, reg);
+	if (taddr == OF_BAD_ADDR) {
+		printk(KERN_ERR "via-pmu: Can't translate address !\n");
+		goto fail;
 	}
 
 	spin_lock_init(&pmu_lock);
@@ -331,7 +337,8 @@ find_via_pmu(void)
 		pmu_kind = PMU_HEATHROW_BASED;
 	else if (device_is_compatible(vias->parent, "Keylargo")
 		 || device_is_compatible(vias->parent, "K2-Keylargo")) {
-		struct device_node *gpio, *gpiop;
+		struct device_node *gpiop;
+		u64 gaddr = OF_BAD_ADDR;
 
 		pmu_kind = PMU_KEYLARGO_BASED;
 		pmu_has_adb = (find_type_devices("adb") != NULL);
@@ -341,19 +348,24 @@ find_via_pmu(void)
 				PMU_INT_TICK |
 				PMU_INT_ENVIRONMENT;
 		
-		gpiop = find_devices("gpio");
-		if (gpiop && gpiop->n_addrs) {
-			gpio_reg = ioremap(gpiop->addrs->address, 0x10);
-			gpio = find_devices("extint-gpio1");
-			if (gpio == NULL)
-				gpio = find_devices("pmu-interrupt");
-			if (gpio && gpio->parent == gpiop && gpio->n_intrs)
-				gpio_irq = gpio->intrs[0].line;
+		gpiop = of_find_node_by_name(NULL, "gpio");
+		if (gpiop) {
+			reg = (u32 *)get_property(gpiop, "reg", NULL);
+			if (reg)
+				gaddr = of_translate_address(gpiop, reg);
+			if (gaddr != OF_BAD_ADDR)
+				gpio_reg = ioremap(gaddr, 0x10);
 		}
+		if (gpio_reg == NULL)
+			printk(KERN_ERR "via-pmu: Can't find GPIO reg !\n");
 	} else
 		pmu_kind = PMU_UNKNOWN;
 
-	via = ioremap(vias->addrs->address, 0x2000);
+	via = ioremap(taddr, 0x2000);
+	if (via == NULL) {
+		printk(KERN_ERR "via-pmu: Can't map address !\n");
+		goto fail;
+	}
 	
 	out_8(&via[IER], IER_CLR | 0x7f);	/* disable all intrs */
 	out_8(&via[IFR], 0x7f);			/* clear IFR */
@@ -365,23 +377,25 @@ find_via_pmu(void)
 		return 0;
 	}
 
-	printk(KERN_INFO "PMU driver %d initialized for %s, firmware: %02x\n",
+	printk(KERN_INFO "PMU driver v%d initialized for %s, firmware: %02x\n",
 	       PMU_DRIVER_VERSION, pbook_type[pmu_kind], pmu_version);
 	       
 	sys_ctrler = SYS_CTRLER_PMU;
 	
 	return 1;
+ fail:
+	of_node_put(vias);
+	vias = NULL;
+	return 0;
 }
 
 #ifdef CONFIG_ADB
-static int
-pmu_probe(void)
+static int pmu_probe(void)
 {
 	return vias == NULL? -ENODEV: 0;
 }
 
-static int __init
-pmu_init(void)
+static int __init pmu_init(void)
 {
 	if (vias == NULL)
 		return -ENODEV;
@@ -405,7 +419,7 @@ static int __init via_pmu_start(void)
 	bright_req_2.complete = 1;
 	batt_req.complete = 1;
 
-#if defined(CONFIG_PPC32) && !defined(CONFIG_PPC_MERGE)
+#ifndef CONFIG_PPC_MERGE
 	if (pmu_kind == PMU_KEYLARGO_BASED)
 		openpic_set_irq_priority(vias->intrs[0].line,
 					 OPENPIC_PRIORITY_DEFAULT + 1);
@@ -418,10 +432,22 @@ static int __init via_pmu_start(void)
 		return -EAGAIN;
 	}
 
-	if (pmu_kind == PMU_KEYLARGO_BASED && gpio_irq != -1) {
-		if (request_irq(gpio_irq, gpio1_interrupt, 0, "GPIO1 ADB", (void *)0))
-			printk(KERN_ERR "pmu: can't get irq %d (GPIO1)\n", gpio_irq);
-		gpio_irq_enabled = 1;
+	if (pmu_kind == PMU_KEYLARGO_BASED) {
+		gpio_node = of_find_node_by_name(NULL, "extint-gpio1");
+		if (gpio_node == NULL)
+			gpio_node = of_find_node_by_name(NULL,
+							 "pmu-interrupt");
+		if (gpio_node && gpio_node->n_intrs > 0)
+			gpio_irq = gpio_node->intrs[0].line;
+
+		if (gpio_irq != -1) {
+			if (request_irq(gpio_irq, gpio1_interrupt, 0,
+					"GPIO1 ADB", (void *)0))
+				printk(KERN_ERR "pmu: can't get irq %d"
+				       " (GPIO1)\n", gpio_irq);
+			else
+				gpio_irq_enabled = 1;
+		}
 	}
 
 	/* Enable interrupts */
@@ -454,9 +480,6 @@ static int __init via_pmu_dev_init(void)
 	if (vias == NULL)
 		return -ENODEV;
 
-#ifndef CONFIG_PPC64
-	request_OF_resource(vias, 0, NULL);
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* Enable backlight */
 	register_backlight_controller(&pmu_backlight_controller, NULL, "pmu");
@@ -1371,7 +1394,6 @@ next:
 			}
 			pmu_done(req);
 		} else {
-#if defined(CONFIG_XMON) && !defined(CONFIG_PPC64)
 			if (len == 4 && data[1] == 0x2c) {
 				extern int xmon_wants_key, xmon_adb_keycode;
 				if (xmon_wants_key) {
@@ -1379,7 +1401,6 @@ next:
 					return;
 				}
 			}
-#endif /* defined(CONFIG_XMON) && !defined(CONFIG_PPC64) */
 #ifdef CONFIG_ADB
 			/*
 			 * XXX On the [23]400 the PMU gives us an up
@@ -1782,258 +1803,6 @@ pmu_present(void)
 	return via != 0;
 }
 
-struct pmu_i2c_hdr {
-	u8	bus;
-	u8	mode;
-	u8	bus2;
-	u8	address;
-	u8	sub_addr;
-	u8	comb_addr;
-	u8	count;
-};
-
-int
-pmu_i2c_combined_read(int bus, int addr, int subaddr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr & 0xfe;
-		hdr->mode = PMU_I2C_MODE_COMBINED;
-		hdr->bus2 = 0;
-		hdr->sub_addr = subaddr;
-		hdr->comb_addr = addr | 1;
-		hdr->count = len;
-		
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_DATAREAD) {
-			memcpy(data, &req.reply[1], req.reply_len - 1);
-			return req.reply_len - 1;
-		}
-	}
-	return -1;
-}
-
-int
-pmu_i2c_stdsub_write(int bus, int addr, int subaddr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr & 0xfe;
-		hdr->mode = PMU_I2C_MODE_STDSUB;
-		hdr->bus2 = 0;
-		hdr->sub_addr = subaddr;
-		hdr->comb_addr = addr & 0xfe;
-		hdr->count = len;
-
-		req.data[0] = PMU_I2C_CMD;
-		memcpy(&req.data[sizeof(struct pmu_i2c_hdr) + 1], data, len);
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + len + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			return len;
-	}
-	return -1;
-}
-
-int
-pmu_i2c_simple_read(int bus, int addr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr | 1;
-		hdr->mode = PMU_I2C_MODE_SIMPLE;
-		hdr->bus2 = 0;
-		hdr->sub_addr = 0;
-		hdr->comb_addr = 0;
-		hdr->count = len;
-
-		req.data[0] = PMU_I2C_CMD;
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_DATAREAD) {
-			memcpy(data, &req.reply[1], req.reply_len - 1);
-			return req.reply_len - 1;
-		}
-	}
-	return -1;
-}
-
-int
-pmu_i2c_simple_write(int bus, int addr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr & 0xfe;
-		hdr->mode = PMU_I2C_MODE_SIMPLE;
-		hdr->bus2 = 0;
-		hdr->sub_addr = 0;
-		hdr->comb_addr = 0;
-		hdr->count = len;
-
-		req.data[0] = PMU_I2C_CMD;
-		memcpy(&req.data[sizeof(struct pmu_i2c_hdr) + 1], data, len);
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + len + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			return len;
-	}
-	return -1;
-}
-
 #ifdef CONFIG_PM
 
 static LIST_HEAD(sleep_notifiers);
@@ -2338,8 +2107,9 @@ pmac_suspend_devices(void)
 		return -EBUSY;
 	}
 
-	/* Disable clock spreading on some machines */
-	pmac_tweak_clock_spreading(0);
+	/* Call platform functions marked "on sleep" */
+	pmac_pfunc_i2c_suspend();
+	pmac_pfunc_base_suspend();
 
 	/* Stop preemption */
 	preempt_disable();
@@ -2411,8 +2181,9 @@ pmac_wakeup_devices(void)
 	mdelay(10);
 	preempt_enable();
 
-	/* Re-enable clock spreading on some machines */
-	pmac_tweak_clock_spreading(1);
+	/* Call platform functions marked "on wake" */
+	pmac_pfunc_base_resume();
+	pmac_pfunc_i2c_resume();
 
 	/* Resume devices */
 	device_resume();
@@ -3130,16 +2901,13 @@ static int __init init_pmu_sysfs(void)
 subsys_initcall(init_pmu_sysfs);
 
 EXPORT_SYMBOL(pmu_request);
+EXPORT_SYMBOL(pmu_queue_request);
 EXPORT_SYMBOL(pmu_poll);
 EXPORT_SYMBOL(pmu_poll_adb);
 EXPORT_SYMBOL(pmu_wait_complete);
 EXPORT_SYMBOL(pmu_suspend);
 EXPORT_SYMBOL(pmu_resume);
 EXPORT_SYMBOL(pmu_unlock);
-EXPORT_SYMBOL(pmu_i2c_combined_read);
-EXPORT_SYMBOL(pmu_i2c_stdsub_write);
-EXPORT_SYMBOL(pmu_i2c_simple_read);
-EXPORT_SYMBOL(pmu_i2c_simple_write);
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);

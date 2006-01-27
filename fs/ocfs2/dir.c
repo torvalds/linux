@@ -202,7 +202,7 @@ bail:
 }
 
 /*
- * NOTE: this should always be called with parent dir i_sem taken.
+ * NOTE: this should always be called with parent dir i_mutex taken.
  */
 int ocfs2_find_files_on_disk(const char *name,
 			     int namelen,
@@ -245,7 +245,7 @@ leave:
  * Return 0 if the name does not exist
  * Return -EEXIST if the directory contains the name
  *
- * Callers should have i_sem + a cluster lock on dir
+ * Callers should have i_mutex + a cluster lock on dir
  */
 int ocfs2_check_dir_for_entry(struct inode *dir,
 			      const char *name,

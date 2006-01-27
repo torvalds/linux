@@ -239,7 +239,7 @@ static int adb_iop_write(struct adb_request *req)
 
 	local_irq_save(flags);
 
-	req->next = 0;
+	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
 	req->reply_len = 0;

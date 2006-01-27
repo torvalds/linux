@@ -1,7 +1,7 @@
 /* r128_drv.h -- Private header for r128 driver -*- linux-c -*-
  * Created: Mon Dec 13 09:51:11 1999 by faith@precisioninsight.com
- *
- * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
+ */
+/* Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All rights reserved.
  *
@@ -154,8 +154,8 @@ extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
 extern void r128_driver_irq_preinstall(drm_device_t * dev);
 extern void r128_driver_irq_postinstall(drm_device_t * dev);
 extern void r128_driver_irq_uninstall(drm_device_t * dev);
-extern void r128_driver_pretakedown(drm_device_t * dev);
-extern void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp);
+extern void r128_driver_lastclose(drm_device_t * dev);
+extern void r128_driver_preclose(drm_device_t * dev, DRMFILE filp);
 
 extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);

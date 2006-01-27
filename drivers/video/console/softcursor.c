@@ -17,6 +17,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include "fbcon.h"
+
 int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	unsigned int scan_align = info->pixmap.scan_align - 1;

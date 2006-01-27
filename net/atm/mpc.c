@@ -3,6 +3,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/capability.h>
 #include <linux/seq_file.h>
 
 /* We are an ethernet device */
@@ -552,7 +553,7 @@ static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
 		goto non_ip; /* Multi-Protocol Over ATM :-) */
 
 	while (i < mpc->number_of_mps_macs) {
-		if (memcmp(eth->h_dest, (mpc->mps_macs + i*ETH_ALEN), ETH_ALEN) == 0)
+		if (!compare_ether_addr(eth->h_dest, (mpc->mps_macs + i*ETH_ALEN)))
 			if ( send_via_shortcut(skb, mpc) == 0 )           /* try shortcut */
 				return 0;                                 /* success!     */
 		i++;

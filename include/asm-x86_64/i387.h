@@ -30,7 +30,7 @@ extern int save_i387(struct _fpstate __user *buf);
  */
 
 #define unlazy_fpu(tsk) do { \
-	if ((tsk)->thread_info->status & TS_USEDFPU) \
+	if (task_thread_info(tsk)->status & TS_USEDFPU) \
 		save_init_fpu(tsk); \
 } while (0)
 
@@ -46,9 +46,9 @@ static inline void tolerant_fwait(void)
 }
 
 #define clear_fpu(tsk) do { \
-	if ((tsk)->thread_info->status & TS_USEDFPU) {		\
+	if (task_thread_info(tsk)->status & TS_USEDFPU) {	\
 		tolerant_fwait();				\
-		(tsk)->thread_info->status &= ~TS_USEDFPU;	\
+		task_thread_info(tsk)->status &= ~TS_USEDFPU;	\
 		stts();						\
 	}							\
 } while (0)
@@ -75,7 +75,8 @@ extern int set_fpregs(struct task_struct *tsk,
 static inline int restore_fpu_checking(struct i387_fxsave_struct *fx) 
 { 
 	int err;
-	asm volatile("1:  rex64 ; fxrstor (%[fx])\n\t"
+
+	asm volatile("1:  rex64/fxrstor (%[fx])\n\t"
 		     "2:\n"
 		     ".section .fixup,\"ax\"\n"
 		     "3:  movl $-1,%[err]\n"
@@ -86,7 +87,11 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 		     "   .quad  1b,3b\n"
 		     ".previous"
 		     : [err] "=r" (err)
-		     : [fx] "r" (fx), "0" (0)); 
+#if 0 /* See comment in __fxsave_clear() below. */
+		     : [fx] "r" (fx), "m" (*fx), "0" (0));
+#else
+		     : [fx] "cdaSDb" (fx), "m" (*fx), "0" (0));
+#endif
 	if (unlikely(err))
 		init_fpu(current);
 	return err;
@@ -95,7 +100,8 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 static inline int save_i387_checking(struct i387_fxsave_struct __user *fx) 
 { 
 	int err;
-	asm volatile("1:  rex64 ; fxsave (%[fx])\n\t"
+
+	asm volatile("1:  rex64/fxsave (%[fx])\n\t"
 		     "2:\n"
 		     ".section .fixup,\"ax\"\n"
 		     "3:  movl $-1,%[err]\n"
@@ -105,20 +111,53 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 		     "   .align 8\n"
 		     "   .quad  1b,3b\n"
 		     ".previous"
-		     : [err] "=r" (err)
-		     : [fx] "r" (fx), "0" (0)); 
+		     : [err] "=r" (err), "=m" (*fx)
+#if 0 /* See comment in __fxsave_clear() below. */
+		     : [fx] "r" (fx), "0" (0));
+#else
+		     : [fx] "cdaSDb" (fx), "0" (0));
+#endif
 	if (unlikely(err))
 		__clear_user(fx, sizeof(struct i387_fxsave_struct));
 	return err;
 } 
 
+static inline void __fxsave_clear(struct task_struct *tsk)
+{
+	/* Using "rex64; fxsave %0" is broken because, if the memory operand
+	   uses any extended registers for addressing, a second REX prefix
+	   will be generated (to the assembler, rex64 followed by semicolon
+	   is a separate instruction), and hence the 64-bitness is lost. */
+#if 0
+	/* Using "fxsaveq %0" would be the ideal choice, but is only supported
+	   starting with gas 2.16. */
+	__asm__ __volatile__("fxsaveq %0"
+			     : "=m" (tsk->thread.i387.fxsave));
+#elif 0
+	/* Using, as a workaround, the properly prefixed form below isn't
+	   accepted by any binutils version so far released, complaining that
+	   the same type of prefix is used twice if an extended register is
+	   needed for addressing (fix submitted to mainline 2005-11-21). */
+	__asm__ __volatile__("rex64/fxsave %0"
+			     : "=m" (tsk->thread.i387.fxsave));
+#else
+	/* This, however, we can work around by forcing the compiler to select
+	   an addressing mode that doesn't require extended registers. */
+	__asm__ __volatile__("rex64/fxsave %P2(%1)"
+			     : "=m" (tsk->thread.i387.fxsave)
+			     : "cdaSDb" (tsk),
+				"i" (offsetof(__typeof__(*tsk),
+					      thread.i387.fxsave)));
+#endif
+	__asm__ __volatile__("fnclex");
+}
+
 static inline void kernel_fpu_begin(void)
 {
 	struct thread_info *me = current_thread_info();
 	preempt_disable();
-	if (me->status & TS_USEDFPU) { 
-		asm volatile("rex64 ; fxsave %0 ; fnclex"
-			      : "=m" (me->task->thread.i387.fxsave));
+	if (me->status & TS_USEDFPU) {
+		__fxsave_clear(me->task);
 		me->status &= ~TS_USEDFPU;
 		return;
 	}
@@ -131,11 +170,10 @@ static inline void kernel_fpu_end(void)
 	preempt_enable();
 }
 
-static inline void save_init_fpu( struct task_struct *tsk )
+static inline void save_init_fpu(struct task_struct *tsk)
 {
-	asm volatile( "rex64 ; fxsave %0 ; fnclex"
-		      : "=m" (tsk->thread.i387.fxsave));
-	tsk->thread_info->status &= ~TS_USEDFPU;
+ 	__fxsave_clear(tsk);
+	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 	stts();
 }
 

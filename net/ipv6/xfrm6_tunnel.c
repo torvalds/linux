@@ -259,8 +259,7 @@ try_next_2:;
 	spi = 0;
 	goto out;
 alloc_spi:
-	X6TPRINTK3(KERN_DEBUG "%s(): allocate new spi for "
-			      "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n", 
+	X6TPRINTK3(KERN_DEBUG "%s(): allocate new spi for " NIP6_FMT "\n",
 			      __FUNCTION__, 
 			      NIP6(*(struct in6_addr *)saddr));
 	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, SLAB_ATOMIC);
@@ -323,9 +322,8 @@ void xfrm6_tunnel_free_spi(xfrm_address_t *saddr)
 				  list_byaddr)
 	{
 		if (memcmp(&x6spi->addr, saddr, sizeof(x6spi->addr)) == 0) {
-			X6TPRINTK3(KERN_DEBUG "%s(): x6spi object "
-					      "for %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
-					      "found at %p\n",
+			X6TPRINTK3(KERN_DEBUG "%s(): x6spi object for " NIP6_FMT 
+					      " found at %p\n",
 				   __FUNCTION__, 
 				   NIP6(*(struct in6_addr *)saddr),
 				   x6spi);
@@ -397,7 +395,7 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler)
 
 EXPORT_SYMBOL(xfrm6_tunnel_deregister);
 
-static int xfrm6_tunnel_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int xfrm6_tunnel_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct xfrm6_tunnel *handler = xfrm6_tunnel_handler;
@@ -405,11 +403,11 @@ static int xfrm6_tunnel_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	u32 spi;
 
 	/* device-like_ip6ip6_handler() */
-	if (handler && handler->handler(pskb, nhoffp) == 0)
+	if (handler && handler->handler(pskb) == 0)
 		return 0;
 
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&iph->saddr);
-	return xfrm6_rcv_spi(pskb, nhoffp, spi);
+	return xfrm6_rcv_spi(pskb, spi);
 }
 
 static void xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,

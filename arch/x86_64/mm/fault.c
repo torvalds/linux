@@ -35,6 +35,13 @@
 #include <asm-generic/sections.h>
 #include <asm/kdebug.h>
 
+/* Page fault error code bits */
+#define PF_PROT	(1<<0)		/* or no page found */
+#define PF_WRITE	(1<<1)
+#define PF_USER	(1<<2)
+#define PF_RSVD	(1<<3)
+#define PF_INSTR	(1<<4)
+
 void bust_spinlocks(int yes)
 {
 	int loglevel_save = console_loglevel;
@@ -68,7 +75,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	unsigned char *max_instr;
 
 	/* If it was a exec fault ignore */
-	if (error_code & (1<<4))
+	if (error_code & PF_INSTR)
 		return 0;
 	
 	instr = (unsigned char *)convert_rip_to_linear(current, regs);
@@ -222,17 +229,22 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
 {
 	unsigned long flags = oops_begin();
+	struct task_struct *tsk;
 
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
 	       current->comm, address);
 	dump_pagetable(address);
+	tsk = current;
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
 	__die("Bad pagetable", regs, error_code);
 	oops_end(flags);
 	do_exit(SIGKILL);
 }
 
 /*
- * Handle a fault on the vmalloc or module mapping area
+ * Handle a fault on the vmalloc area
  *
  * This assumes no large pages in there.
  */
@@ -278,7 +290,6 @@ static int vmalloc_fault(unsigned long address)
 	   that. */
 	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
 		BUG();
-	__flush_tlb_all();
 	return 0;
 }
 
@@ -289,12 +300,6 @@ int exception_trace = 1;
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
- *
- * error_code:
- *	bit 0 == 0 means no page found, 1 means protection fault
- *	bit 1 == 0 means read, 1 means write
- *	bit 2 == 0 means kernel, 1 means user-mode
- *      bit 3 == 1 means fault was an instruction fetch
  */
 asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 					unsigned long error_code)
@@ -337,12 +342,16 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 *
 	 * This verifies that the fault happens in kernel space
 	 * (error_code & 4) == 0, and that the fault was not a
-	 * protection error (error_code & 1) == 0.
+	 * protection error (error_code & 9) == 0.
 	 */
 	if (unlikely(address >= TASK_SIZE64)) {
-		if (!(error_code & 5) &&
-		      ((address >= VMALLOC_START && address < VMALLOC_END) ||
-		       (address >= MODULES_VADDR && address < MODULES_END))) {
+		/*
+		 * Don't check for the module range here: its PML4
+		 * is always initialized because it's shared with the main
+		 * kernel text. Only vmalloc may need PML4 syncups.
+		 */
+		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
+		      ((address >= VMALLOC_START && address < VMALLOC_END))) {
 			if (vmalloc_fault(address) < 0)
 				goto bad_area_nosemaphore;
 			return;
@@ -354,7 +363,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area_nosemaphore;
 	}
 
-	if (unlikely(error_code & (1 << 3)))
+	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(address, regs, error_code);
 
 	/*
@@ -381,7 +390,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 * thus avoiding the deadlock.
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
-		if ((error_code & 4) == 0 &&
+		if ((error_code & PF_USER) == 0 &&
 		    !search_exception_tables(regs->rip))
 			goto bad_area_nosemaphore;
 		down_read(&mm->mmap_sem);
@@ -408,17 +417,17 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 good_area:
 	info.si_code = SEGV_ACCERR;
 	write = 0;
-	switch (error_code & 3) {
+	switch (error_code & (PF_PROT|PF_WRITE)) {
 		default:	/* 3: write, present */
 			/* fall through */
-		case 2:		/* write, not present */
+		case PF_WRITE:		/* write, not present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto bad_area;
 			write++;
 			break;
-		case 1:		/* read, present */
+		case PF_PROT:		/* read, present */
 			goto bad_area;
-		case 0:		/* read, not present */
+		case 0:			/* read, not present */
 			if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 				goto bad_area;
 	}
@@ -453,7 +462,7 @@ bad_area:
 
 bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
-	if (error_code & 4) {
+	if (error_code & PF_USER) {
 		if (is_prefetch(regs, address, error_code))
 			return;
 
@@ -521,6 +530,9 @@ no_context:
 	printk_address(regs->rip);
 	printk("\n");
 	dump_pagetable(address);
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
 	__die("Oops", regs, error_code);
 	/* Executive summary in case the body of the oops scrolled away */
 	printk(KERN_EMERG "CR2: %016lx\n", address);
@@ -546,7 +558,7 @@ do_sigbus:
 	up_read(&mm->mmap_sem);
 
 	/* Kernel mode? Handle exceptions or die */
-	if (!(error_code & 4))
+	if (!(error_code & PF_USER))
 		goto no_context;
 
 	tsk->thread.cr2 = address;

@@ -133,8 +133,6 @@ extern int sirdev_put_dongle(struct sir_dev *self);
 
 extern void sirdev_enable_rx(struct sir_dev *dev);
 extern int sirdev_schedule_request(struct sir_dev *dev, int state, unsigned param);
-extern int __init irda_thread_create(void);
-extern void __exit irda_thread_join(void);
 
 /* inline helpers */
 

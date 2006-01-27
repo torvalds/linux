@@ -167,6 +167,7 @@ extern void FASTCALL(lru_cache_add_active(struct page *));
 extern void FASTCALL(activate_page(struct page *));
 extern void FASTCALL(mark_page_accessed(struct page *));
 extern void lru_add_drain(void);
+extern int lru_add_drain_all(void);
 extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
@@ -174,6 +175,29 @@ extern void swap_setup(void);
 extern int try_to_free_pages(struct zone **, gfp_t);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
+
+#ifdef CONFIG_NUMA
+extern int zone_reclaim_mode;
+extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
+#else
+#define zone_reclaim_mode 0
+static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_MIGRATION
+extern int isolate_lru_page(struct page *p);
+extern int putback_lru_pages(struct list_head *l);
+extern int migrate_pages(struct list_head *l, struct list_head *t,
+		struct list_head *moved, struct list_head *failed);
+#else
+static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
+static inline int putback_lru_pages(struct list_head *l) { return 0; }
+static inline int migrate_pages(struct list_head *l, struct list_head *t,
+	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
+#endif
 
 #ifdef CONFIG_MMU
 /* linux/mm/shmem.c */
@@ -192,7 +216,7 @@ extern int rw_swap_page_sync(int, swp_entry_t, struct page *);
 extern struct address_space swapper_space;
 #define total_swapcache_pages  swapper_space.nrpages
 extern void show_swap_cache_info(void);
-extern int add_to_swap(struct page *);
+extern int add_to_swap(struct page *, gfp_t);
 extern void __delete_from_swap_cache(struct page *);
 extern void delete_from_swap_cache(struct page *);
 extern int move_to_swap_cache(struct page *, swp_entry_t);

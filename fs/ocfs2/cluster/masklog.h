@@ -212,11 +212,10 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 	mlog(ML_ENTRY, "ENTRY:\n");					\
 } while (0)
 
-/* We disable this for old compilers since they don't have support for
- * __builtin_types_compatible_p.
+/*
+ * We disable this for sparse.
  */
-#if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)) && \
-    !defined(__CHECKER__)
+#if !defined(__CHECKER__)
 #define mlog_exit(st) do {						     \
 	if (__builtin_types_compatible_p(typeof(st), unsigned long))	     \
 		mlog(ML_EXIT, "EXIT: %lu\n", (unsigned long) (st));	     \

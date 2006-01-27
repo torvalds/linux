@@ -463,10 +463,9 @@ adv7175_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_adv7175;
@@ -483,12 +482,11 @@ adv7175_detect_client (struct i2c_adapter *adapter,
 	}
 	strlcpy(I2C_NAME(client), dname, sizeof(I2C_NAME(client)));
 
-	encoder = kmalloc(sizeof(struct adv7175), GFP_KERNEL);
+	encoder = kzalloc(sizeof(struct adv7175), GFP_KERNEL);
 	if (encoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(encoder, 0, sizeof(struct adv7175));
 	encoder->norm = VIDEO_MODE_PAL;
 	encoder->input = 0;
 	encoder->enable = 1;

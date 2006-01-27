@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/mm.h>

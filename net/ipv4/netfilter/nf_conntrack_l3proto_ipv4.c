@@ -277,7 +277,7 @@ static struct nf_hook_ops ipv4_conntrack_local_in_ops = {
 
 #ifdef CONFIG_SYSCTL
 /* From nf_conntrack_proto_icmp.c */
-extern unsigned long nf_ct_icmp_timeout;
+extern unsigned int nf_ct_icmp_timeout;
 static struct ctl_table_header *nf_ct_ipv4_sysctl_header;
 
 static ctl_table nf_ct_sysctl_table[] = {
@@ -575,7 +575,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	need_nf_conntrack();
+	need_conntrack();
 	return init_or_cleanup(1);
 }
 
@@ -587,9 +587,4 @@ static void __exit fini(void)
 module_init(init);
 module_exit(fini);
 
-void need_ip_conntrack(void)
-{
-}
-
-EXPORT_SYMBOL(need_ip_conntrack);
 EXPORT_SYMBOL(nf_ct_ipv4_gather_frags);

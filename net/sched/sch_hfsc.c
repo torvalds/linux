@@ -208,7 +208,7 @@ struct hfsc_sched
 do {									\
 	struct timeval tv;						\
 	do_gettimeofday(&tv);						\
-	(stamp) = 1000000ULL * tv.tv_sec + tv.tv_usec;			\
+	(stamp) = 1ULL * USEC_PER_SEC * tv.tv_sec + tv.tv_usec;		\
 } while (0)
 #endif
 
@@ -502,8 +502,8 @@ d2dx(u32 d)
 	u64 dx;
 
 	dx = ((u64)d * PSCHED_JIFFIE2US(HZ));
-	dx += 1000000 - 1;
-	do_div(dx, 1000000);
+	dx += USEC_PER_SEC - 1;
+	do_div(dx, USEC_PER_SEC);
 	return dx;
 }
 
@@ -523,7 +523,7 @@ dx2d(u64 dx)
 {
 	u64 d;
 
-	d = dx * 1000000;
+	d = dx * USEC_PER_SEC;
 	do_div(d, PSCHED_JIFFIE2US(HZ));
 	return (u32)d;
 }
@@ -1227,7 +1227,7 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		if (cl->level == 0)
 			return cl;
 
-	*qerr = NET_XMIT_DROP;
+	*qerr = NET_XMIT_BYPASS;
 	tcf = q->root.filter_list;
 	while (tcf && (result = tc_classify(skb, tcf, &res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -1643,7 +1643,7 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	cl = hfsc_classify(skb, sch, &err);
 	if (cl == NULL) {
-		if (err == NET_XMIT_DROP)
+		if (err == NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return err;

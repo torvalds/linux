@@ -166,9 +166,12 @@ static struct tty_struct *alloc_tty_struct(void)
 	return tty;
 }
 
+static void tty_buffer_free_all(struct tty_struct *);
+
 static inline void free_tty_struct(struct tty_struct *tty)
 {
 	kfree(tty->write_buf);
+	tty_buffer_free_all(tty);
 	kfree(tty);
 }
 
@@ -229,6 +232,200 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 #endif
 	return 0;
 }
+
+/*
+ * Tty buffer allocation management
+ */
+
+static void tty_buffer_free_all(struct tty_struct *tty)
+{
+	struct tty_buffer *thead;
+	while((thead = tty->buf.head) != NULL) {
+		tty->buf.head = thead->next;
+		kfree(thead);
+	}
+	while((thead = tty->buf.free) != NULL) {
+		tty->buf.free = thead->next;
+		kfree(thead);
+	}
+	tty->buf.tail = NULL;
+}
+
+static void tty_buffer_init(struct tty_struct *tty)
+{
+	tty->buf.head = NULL;
+	tty->buf.tail = NULL;
+	tty->buf.free = NULL;
+}
+
+static struct tty_buffer *tty_buffer_alloc(size_t size)
+{
+	struct tty_buffer *p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
+	if(p == NULL)
+		return NULL;
+	p->used = 0;
+	p->size = size;
+	p->next = NULL;
+	p->char_buf_ptr = (char *)(p->data);
+	p->flag_buf_ptr = (unsigned char *)p->char_buf_ptr + size;
+/* 	printk("Flip create %p\n", p); */
+	return p;
+}
+
+/* Must be called with the tty_read lock held. This needs to acquire strategy
+   code to decide if we should kfree or relink a given expired buffer */
+
+static void tty_buffer_free(struct tty_struct *tty, struct tty_buffer *b)
+{
+	/* Dumb strategy for now - should keep some stats */
+/* 	printk("Flip dispose %p\n", b); */
+	if(b->size >= 512)
+		kfree(b);
+	else {
+		b->next = tty->buf.free;
+		tty->buf.free = b;
+	}
+}
+
+static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
+{
+	struct tty_buffer **tbh = &tty->buf.free;
+	while((*tbh) != NULL) {
+		struct tty_buffer *t = *tbh;
+		if(t->size >= size) {
+			*tbh = t->next;
+			t->next = NULL;
+			t->used = 0;
+			/* DEBUG ONLY */
+			memset(t->data, '*', size);
+/* 			printk("Flip recycle %p\n", t); */
+			return t;
+		}
+		tbh = &((*tbh)->next);
+	}
+	/* Round the buffer size out */
+	size = (size + 0xFF) & ~ 0xFF;
+	return tty_buffer_alloc(size);
+	/* Should possibly check if this fails for the largest buffer we
+	   have queued and recycle that ? */
+}
+
+int tty_buffer_request_room(struct tty_struct *tty, size_t size)
+{
+	struct tty_buffer *b = tty->buf.tail, *n;
+	int left = 0;
+
+	/* OPTIMISATION: We could keep a per tty "zero" sized buffer to
+	   remove this conditional if its worth it. This would be invisible
+	   to the callers */
+	if(b != NULL)
+		left = b->size - b->used;
+	if(left >= size)
+		return size;
+	/* This is the slow path - looking for new buffers to use */
+	n = tty_buffer_find(tty, size);
+	if(n == NULL)
+		return left;
+	if(b != NULL)
+		b->next = n;
+	else
+		tty->buf.head = n;
+	tty->buf.tail = n;
+	return size;
+}
+
+EXPORT_SYMBOL_GPL(tty_buffer_request_room);
+
+int tty_insert_flip_string(struct tty_struct *tty, unsigned char *chars, size_t size)
+{
+	int copied = 0;
+	do {
+		int space = tty_buffer_request_room(tty, size - copied);
+		struct tty_buffer *tb = tty->buf.tail;
+		/* If there is no space then tb may be NULL */
+		if(unlikely(space == 0))
+			break;
+		memcpy(tb->char_buf_ptr + tb->used, chars, space);
+		memset(tb->flag_buf_ptr + tb->used, TTY_NORMAL, space);
+		tb->used += space;
+		copied += space;
+		chars += space;
+/* 		printk("Flip insert %d.\n", space); */
+	}
+	/* There is a small chance that we need to split the data over
+	   several buffers. If this is the case we must loop */
+	while (unlikely(size > copied));
+	return copied;
+}
+
+EXPORT_SYMBOL_GPL(tty_insert_flip_string);
+
+int tty_insert_flip_string_flags(struct tty_struct *tty, unsigned char *chars, char *flags, size_t size)
+{
+	int copied = 0;
+	do {
+		int space = tty_buffer_request_room(tty, size - copied);
+		struct tty_buffer *tb = tty->buf.tail;
+		/* If there is no space then tb may be NULL */
+		if(unlikely(space == 0))
+			break;
+		memcpy(tb->char_buf_ptr + tb->used, chars, space);
+		memcpy(tb->flag_buf_ptr + tb->used, flags, space);
+		tb->used += space;
+		copied += space;
+		chars += space;
+		flags += space;
+	}
+	/* There is a small chance that we need to split the data over
+	   several buffers. If this is the case we must loop */
+	while (unlikely(size > copied));
+	return copied;
+}
+
+EXPORT_SYMBOL_GPL(tty_insert_flip_string_flags);
+
+
+/*
+ *	Prepare a block of space in the buffer for data. Returns the length
+ *	available and buffer pointer to the space which is now allocated and
+ *	accounted for as ready for normal characters. This is used for drivers
+ *	that need their own block copy routines into the buffer. There is no
+ *	guarantee the buffer is a DMA target!
+ */
+
+int tty_prepare_flip_string(struct tty_struct *tty, unsigned char **chars, size_t size)
+{
+	int space = tty_buffer_request_room(tty, size);
+	struct tty_buffer *tb = tty->buf.tail;
+	*chars = tb->char_buf_ptr + tb->used;
+	memset(tb->flag_buf_ptr + tb->used, TTY_NORMAL, space);
+	tb->used += space;
+	return space;
+}
+
+EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
+
+/*
+ *	Prepare a block of space in the buffer for data. Returns the length
+ *	available and buffer pointer to the space which is now allocated and
+ *	accounted for as ready for characters. This is used for drivers
+ *	that need their own block copy routines into the buffer. There is no
+ *	guarantee the buffer is a DMA target!
+ */
+
+int tty_prepare_flip_string_flags(struct tty_struct *tty, unsigned char **chars, char **flags, size_t size)
+{
+	int space = tty_buffer_request_room(tty, size);
+	struct tty_buffer *tb = tty->buf.tail;
+	*chars = tb->char_buf_ptr + tb->used;
+	*flags = tb->flag_buf_ptr + tb->used;
+	tb->used += space;
+	return space;
+}
+
+EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
+
+
 
 /*
  *	This is probably overkill for real world processors but
@@ -492,6 +689,17 @@ restart:
 	if (ld == NULL)
 		return -EINVAL;
 
+	/*
+	 *	No more input please, we are switching. The new ldisc
+	 *	will update this value in the ldisc open function
+	 */
+
+	tty->receive_room = 0;
+
+	/*
+	 *	Problem: What do we do if this blocks ?
+	 */
+
 	tty_wait_until_sent(tty, 0);
 
 	if (tty->ldisc.num == ldisc) {
@@ -560,9 +768,9 @@ restart:
 	 *	we say so later on.
 	 */
 
-	work = cancel_delayed_work(&tty->flip.work);
+	work = cancel_delayed_work(&tty->buf.work);
 	/*
-	 * Wait for ->hangup_work and ->flip.work handlers to terminate
+	 * Wait for ->hangup_work and ->buf.work handlers to terminate
 	 */
 	 
 	flush_scheduled_work();
@@ -616,7 +824,7 @@ restart:
 	/* Restart it in case no characters kick it off. Safe if
 	   already running */
 	if (work)
-		schedule_delayed_work(&tty->flip.work, 1);
+		schedule_delayed_work(&tty->buf.work, 1);
 	return retval;
 }
 
@@ -1721,10 +1929,10 @@ static void release_dev(struct file * filp)
 	 */
 	clear_bit(TTY_LDISC, &tty->flags);
 	clear_bit(TTY_DONT_FLIP, &tty->flags);
-	cancel_delayed_work(&tty->flip.work);
+	cancel_delayed_work(&tty->buf.work);
 
 	/*
-	 * Wait for ->hangup_work and ->flip.work handlers to terminate
+	 * Wait for ->hangup_work and ->buf.work handlers to terminate
 	 */
 	 
 	flush_scheduled_work();
@@ -2518,17 +2726,15 @@ EXPORT_SYMBOL(do_SAK);
 
 /*
  * This routine is called out of the software interrupt to flush data
- * from the flip buffer to the line discipline. 
+ * from the buffer chain to the line discipline.
  */
  
 static void flush_to_ldisc(void *private_)
 {
 	struct tty_struct *tty = (struct tty_struct *) private_;
-	unsigned char	*cp;
-	char		*fp;
-	int		count;
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
+	struct tty_buffer *tbuf;
 
 	disc = tty_ldisc_ref(tty);
 	if (disc == NULL)	/*  !TTY_LDISC */
@@ -2538,28 +2744,23 @@ static void flush_to_ldisc(void *private_)
 		/*
 		 * Do it after the next timer tick:
 		 */
-		schedule_delayed_work(&tty->flip.work, 1);
+		schedule_delayed_work(&tty->buf.work, 1);
 		goto out;
 	}
 	spin_lock_irqsave(&tty->read_lock, flags);
-	if (tty->flip.buf_num) {
-		cp = tty->flip.char_buf + TTY_FLIPBUF_SIZE;
-		fp = tty->flip.flag_buf + TTY_FLIPBUF_SIZE;
-		tty->flip.buf_num = 0;
-		tty->flip.char_buf_ptr = tty->flip.char_buf;
-		tty->flip.flag_buf_ptr = tty->flip.flag_buf;
-	} else {
-		cp = tty->flip.char_buf;
-		fp = tty->flip.flag_buf;
-		tty->flip.buf_num = 1;
-		tty->flip.char_buf_ptr = tty->flip.char_buf + TTY_FLIPBUF_SIZE;
-		tty->flip.flag_buf_ptr = tty->flip.flag_buf + TTY_FLIPBUF_SIZE;
+	while((tbuf = tty->buf.head) != NULL) {
+		tty->buf.head = tbuf->next;
+		if (tty->buf.head == NULL)
+			tty->buf.tail = NULL;
+		spin_unlock_irqrestore(&tty->read_lock, flags);
+		/* printk("Process buffer %p for %d\n", tbuf, tbuf->used); */
+		disc->receive_buf(tty, tbuf->char_buf_ptr,
+				       tbuf->flag_buf_ptr,
+				       tbuf->used);
+		spin_lock_irqsave(&tty->read_lock, flags);
+		tty_buffer_free(tty, tbuf);
 	}
-	count = tty->flip.count;
-	tty->flip.count = 0;
 	spin_unlock_irqrestore(&tty->read_lock, flags);
-
-	disc->receive_buf(tty, cp, fp, count);
 out:
 	tty_ldisc_deref(disc);
 }
@@ -2654,10 +2855,11 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 	if (tty->low_latency)
 		flush_to_ldisc((void *) tty);
 	else
-		schedule_delayed_work(&tty->flip.work, 1);
+		schedule_delayed_work(&tty->buf.work, 1);
 }
 
 EXPORT_SYMBOL(tty_flip_buffer_push);
+
 
 /*
  * This subroutine initializes a tty structure.
@@ -2669,10 +2871,10 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	tty_ldisc_assign(tty, tty_ldisc_get(N_TTY));
 	tty->pgrp = -1;
 	tty->overrun_time = jiffies;
-	tty->flip.char_buf_ptr = tty->flip.char_buf;
-	tty->flip.flag_buf_ptr = tty->flip.flag_buf;
-	INIT_WORK(&tty->flip.work, flush_to_ldisc, tty);
-	init_MUTEX(&tty->flip.pty_sem);
+	tty->buf.head = tty->buf.tail = NULL;
+	tty_buffer_init(tty);
+	INIT_WORK(&tty->buf.work, flush_to_ldisc, tty);
+	init_MUTEX(&tty->buf.pty_sem);
 	init_MUTEX(&tty->termios_sem);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);

@@ -57,6 +57,7 @@ static int initialized = 0;
 
 #ifdef CONFIG_PROC_FS
 struct proc_dir_entry *proc_ipmi_root = NULL;
+EXPORT_SYMBOL(proc_ipmi_root);
 #endif /* CONFIG_PROC_FS */
 
 #define MAX_EVENTS_IN_QUEUE	25
@@ -3295,6 +3296,5 @@ EXPORT_SYMBOL(ipmi_get_my_address);
 EXPORT_SYMBOL(ipmi_set_my_LUN);
 EXPORT_SYMBOL(ipmi_get_my_LUN);
 EXPORT_SYMBOL(ipmi_smi_add_proc_entry);
-EXPORT_SYMBOL(proc_ipmi_root);
 EXPORT_SYMBOL(ipmi_user_set_run_to_completion);
 EXPORT_SYMBOL(ipmi_free_recv_msg);

@@ -241,104 +241,70 @@ ljumpvector:
 ENTRY(stext)
 ENTRY(_stext)
 
-.org 0x1000
-ENTRY(init_level4_pgt)
+	$page = 0
+#define NEXT_PAGE(name) \
+	$page = $page + 1; \
+	.org $page * 0x1000; \
+	phys_/**/name = $page * 0x1000 + __PHYSICAL_START; \
+ENTRY(name)
+
+NEXT_PAGE(init_level4_pgt)
 	/* This gets initialized in x86_64_start_kernel */
 	.fill	512,8,0
 
-.org 0x2000
-ENTRY(level3_ident_pgt)
-	.quad	0x0000000000004007 + __PHYSICAL_START
+NEXT_PAGE(level3_ident_pgt)
+	.quad	phys_level2_ident_pgt | 0x007
 	.fill	511,8,0
 
-.org 0x3000
-ENTRY(level3_kernel_pgt)
+NEXT_PAGE(level3_kernel_pgt)
 	.fill	510,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
-	.quad	0x0000000000005007 + __PHYSICAL_START	/* -> level2_kernel_pgt */
+	.quad	phys_level2_kernel_pgt | 0x007
 	.fill	1,8,0
 
-.org 0x4000
-ENTRY(level2_ident_pgt)
+NEXT_PAGE(level2_ident_pgt)
 	/* 40MB for bootup. 	*/
-	.quad	0x0000000000000083
-	.quad	0x0000000000200083
-	.quad	0x0000000000400083
-	.quad	0x0000000000600083
-	.quad	0x0000000000800083
-	.quad	0x0000000000A00083
-	.quad	0x0000000000C00083
-	.quad	0x0000000000E00083
-	.quad	0x0000000001000083
-	.quad	0x0000000001200083
-	.quad	0x0000000001400083
-	.quad	0x0000000001600083
-	.quad	0x0000000001800083
-	.quad	0x0000000001A00083
-	.quad	0x0000000001C00083
-	.quad	0x0000000001E00083
-	.quad	0x0000000002000083
-	.quad	0x0000000002200083
-	.quad	0x0000000002400083
-	.quad	0x0000000002600083
+	i = 0
+	.rept 20
+	.quad	i << 21 | 0x083
+	i = i + 1
+	.endr
 	/* Temporary mappings for the super early allocator in arch/x86_64/mm/init.c */
 	.globl temp_boot_pmds
 temp_boot_pmds:
 	.fill	492,8,0
 	
-.org 0x5000
-ENTRY(level2_kernel_pgt)
+NEXT_PAGE(level2_kernel_pgt)
 	/* 40MB kernel mapping. The kernel code cannot be bigger than that.
 	   When you change this change KERNEL_TEXT_SIZE in page.h too. */
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511)-((2^30)*510)) = 0 */
-	.quad	0x0000000000000183
-	.quad	0x0000000000200183
-	.quad	0x0000000000400183
-	.quad	0x0000000000600183
-	.quad	0x0000000000800183
-	.quad	0x0000000000A00183
-	.quad	0x0000000000C00183
-	.quad	0x0000000000E00183
-	.quad	0x0000000001000183
-	.quad	0x0000000001200183
-	.quad	0x0000000001400183
-	.quad	0x0000000001600183
-	.quad	0x0000000001800183
-	.quad	0x0000000001A00183
-	.quad	0x0000000001C00183
-	.quad	0x0000000001E00183
-	.quad	0x0000000002000183
-	.quad	0x0000000002200183
-	.quad	0x0000000002400183
-	.quad	0x0000000002600183
+	i = 0
+	.rept 20
+	.quad	i << 21 | 0x183
+	i = i + 1
+	.endr
 	/* Module mapping starts here */
 	.fill	492,8,0
 
-.org 0x6000
-ENTRY(empty_zero_page)
+NEXT_PAGE(empty_zero_page)
 
-.org 0x7000
-ENTRY(empty_bad_page)
+NEXT_PAGE(level3_physmem_pgt)
+	.quad	phys_level2_kernel_pgt | 0x007	/* so that __va works even before pagetable_init */
+	.fill	511,8,0
 
-.org 0x8000
-ENTRY(empty_bad_pte_table)
+#undef NEXT_PAGE
 
-.org 0x9000
-ENTRY(empty_bad_pmd_table)
+	.data
 
-.org 0xa000
-ENTRY(level3_physmem_pgt)
-	.quad	0x0000000000005007 + __PHYSICAL_START	/* -> level2_kernel_pgt (so that __va works even before pagetable_init) */
-
-	.org 0xb000
 #ifdef CONFIG_ACPI_SLEEP
+	.align PAGE_SIZE
 ENTRY(wakeup_level4_pgt)
-	.quad	0x0000000000002007 + __PHYSICAL_START	/* -> level3_ident_pgt */
+	.quad	phys_level3_ident_pgt | 0x007
 	.fill	255,8,0
-	.quad	0x000000000000a007 + __PHYSICAL_START
+	.quad	phys_level3_physmem_pgt | 0x007
 	.fill	254,8,0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
+	.quad	phys_level3_kernel_pgt | 0x007
 #endif
 
 #ifndef CONFIG_HOTPLUG_CPU
@@ -352,12 +318,12 @@ ENTRY(wakeup_level4_pgt)
 	 */
 	.align PAGE_SIZE
 ENTRY(boot_level4_pgt)
-	.quad	0x0000000000002007 + __PHYSICAL_START	/* -> level3_ident_pgt */
+	.quad	phys_level3_ident_pgt | 0x007
 	.fill	255,8,0
-	.quad	0x000000000000a007 + __PHYSICAL_START
+	.quad	phys_level3_physmem_pgt | 0x007
 	.fill	254,8,0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
+	.quad	phys_level3_kernel_pgt | 0x007
 
 	.data
 
@@ -379,14 +345,14 @@ gdt:
  * Also sysret mandates a special GDT layout 
  */
 		 		
-.align L1_CACHE_BYTES
+.align PAGE_SIZE
 
 /* The TLS descriptors are currently at a different place compared to i386.
    Hopefully nobody expects them at a fixed place (Wine?) */
 	
 ENTRY(cpu_gdt_table)
 	.quad	0x0000000000000000	/* NULL descriptor */
-	.quad	0x008f9a000000ffff	/* __KERNEL_COMPAT32_CS */	
+	.quad	0x0			/* unused */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x00cffa000000ffff	/* __USER32_CS */
@@ -396,15 +362,15 @@ ENTRY(cpu_gdt_table)
 	.quad	0,0			/* TSS */
 	.quad	0,0			/* LDT */
 	.quad   0,0,0			/* three TLS descriptors */ 
-	.quad	0x00009a000000ffff	/* __KERNEL16_CS - 16bit PM for S3 wakeup. */
-					/* base must be patched for real base address. */
+	.quad	0			/* unused */
 gdt_end:	
 	/* asm/segment.h:GDT_ENTRIES must match this */	
 	/* This should be a multiple of the cache line size */
-	/* GDTs of other CPUs: */	
-	.fill (GDT_SIZE * NR_CPUS) - (gdt_end - cpu_gdt_table)
+	/* GDTs of other CPUs are now dynamically allocated */
 
-	.align  L1_CACHE_BYTES
+	/* zero the remaining page */
+	.fill PAGE_SIZE / 8 - GDT_ENTRIES,8,0
+
 ENTRY(idt_table)	
 	.rept   256
 	.quad   0

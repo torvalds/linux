@@ -520,7 +520,7 @@ void __init setup_arch(char **cmdline_p)
 	rd_doload = ((ram_flags & RAMDISK_LOAD_FLAG) != 0);	
 #endif
 
-	init_task.thread_info->kregs = &fake_swapper_regs;
+	task_thread_info(&init_task)->kregs = &fake_swapper_regs;
 
 #ifdef CONFIG_IP_PNP
 	if (!ic_set_manually) {
@@ -561,6 +561,8 @@ static int __init set_preferred_console(void)
 		serial_console = 1;
 	} else if (idev == PROMDEV_ITTYB && odev == PROMDEV_OTTYB) {
 		serial_console = 2;
+	} else if (idev == PROMDEV_IRSC && odev == PROMDEV_ORSC) {
+		serial_console = 3;
 	} else {
 		prom_printf("Inconsistent console: "
 			    "input %d, output %d\n",

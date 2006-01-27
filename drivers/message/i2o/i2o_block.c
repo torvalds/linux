@@ -662,6 +662,13 @@ static int i2o_block_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int i2o_block_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	i2o_block_biosparam(get_capacity(bdev->bd_disk),
+			    &geo->cylinders, &geo->heads, &geo->sectors);
+	return 0;
+}
+
 /**
  *	i2o_block_ioctl - Issue device specific ioctl calls.
  *	@cmd: ioctl command
@@ -676,7 +683,6 @@ static int i2o_block_ioctl(struct inode *inode, struct file *file,
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct i2o_block_device *dev = disk->private_data;
-	void __user *argp = (void __user *)arg;
 
 	/* Anyone capable of this syscall can do *real bad* things */
 
@@ -684,15 +690,6 @@ static int i2o_block_ioctl(struct inode *inode, struct file *file,
 		return -EPERM;
 
 	switch (cmd) {
-	case HDIO_GETGEO:
-		{
-			struct hd_geometry g;
-			i2o_block_biosparam(get_capacity(disk),
-					    &g.cylinders, &g.heads, &g.sectors);
-			g.start = get_start_sect(inode->i_bdev);
-			return copy_to_user(argp, &g, sizeof(g)) ? -EFAULT : 0;
-		}
-
 	case BLKI2OGRSTRAT:
 		return put_user(dev->rcache, (int __user *)arg);
 	case BLKI2OGWSTRAT:
@@ -962,6 +959,7 @@ static struct block_device_operations i2o_block_fops = {
 	.open = i2o_block_open,
 	.release = i2o_block_release,
 	.ioctl = i2o_block_ioctl,
+	.getgeo = i2o_block_getgeo,
 	.media_changed = i2o_block_media_changed
 };
 

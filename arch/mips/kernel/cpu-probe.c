@@ -435,6 +435,9 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	}
 }
 
+static char unknown_isa[] __initdata = KERN_ERR \
+	"Unsupported ISA type, c0.config0: %d.";
+
 static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 {
 	unsigned int config0;
@@ -447,16 +450,37 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 	isa = (config0 & MIPS_CONF_AT) >> 13;
 	switch (isa) {
 	case 0:
-		c->isa_level = MIPS_CPU_ISA_M32;
+		switch ((config0 >> 10) & 7) {
+		case 0:
+			c->isa_level = MIPS_CPU_ISA_M32R1;
+			break;
+		case 1:
+			c->isa_level = MIPS_CPU_ISA_M32R2;
+			break;
+		default:
+			goto unknown;
+		}
 		break;
 	case 2:
-		c->isa_level = MIPS_CPU_ISA_M64;
+		switch ((config0 >> 10) & 7) {
+		case 0:
+			c->isa_level = MIPS_CPU_ISA_M64R1;
+			break;
+		case 1:
+			c->isa_level = MIPS_CPU_ISA_M64R2;
+			break;
+		default:
+			goto unknown;
+		}
 		break;
 	default:
-		panic("Unsupported ISA type, cp0.config0.at: %d.", isa);
+		goto unknown;
 	}
 
 	return config0 & MIPS_CONF_M;
+
+unknown:
+	panic(unknown_isa, config0);
 }
 
 static inline unsigned int decode_config1(struct cpuinfo_mips *c)
@@ -568,7 +592,6 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		break;
 	case PRID_IMP_34K:
 		c->cputype = CPU_34K;
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	}
 }
@@ -647,7 +670,7 @@ static inline void cpu_probe_philips(struct cpuinfo_mips *c)
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_PR4450:
 		c->cputype = CPU_PR4450;
-		c->isa_level = MIPS_CPU_ISA_M32;
+		c->isa_level = MIPS_CPU_ISA_M32R1;
 		break;
 	default:
 		panic("Unknown Philips Core!"); /* REVISIT: die? */
@@ -690,8 +713,10 @@ __init void cpu_probe(void)
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
 
-		if (c->isa_level == MIPS_CPU_ISA_M32 ||
-		    c->isa_level == MIPS_CPU_ISA_M64) {
+		if (c->isa_level == MIPS_CPU_ISA_M32R1 ||
+		    c->isa_level == MIPS_CPU_ISA_M32R2 ||
+		    c->isa_level == MIPS_CPU_ISA_M64R1 ||
+		    c->isa_level == MIPS_CPU_ISA_M64R2) {
 			if (c->fpu_id & MIPS_FPIR_3D)
 				c->ases |= MIPS_ASE_MIPS3D;
 		}

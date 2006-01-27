@@ -293,46 +293,46 @@ void sdla(void *cfg_info, char *dev, struct frad_conf *conf, int quiet);
 #define SDLA_S508_INTEN			0x10
 
 struct sdla_cmd {
-   char  opp_flag		__attribute__((packed));
-   char  cmd			__attribute__((packed));
-   short length			__attribute__((packed));
-   char  retval			__attribute__((packed));
-   short dlci			__attribute__((packed));
-   char  flags			__attribute__((packed));
-   short rxlost_int		__attribute__((packed));
-   long  rxlost_app		__attribute__((packed));
-   char  reserve[2]		__attribute__((packed));
-   char  data[SDLA_MAX_DATA]	__attribute__((packed));	/* transfer data buffer */
-};
+   char  opp_flag;
+   char  cmd;
+   short length;
+   char  retval;
+   short dlci;
+   char  flags;
+   short rxlost_int;
+   long  rxlost_app;
+   char  reserve[2];
+   char  data[SDLA_MAX_DATA];	/* transfer data buffer */
+} __attribute__((packed));
 
 struct intr_info {
-   char  flags		__attribute__((packed));
-   short txlen		__attribute__((packed));
-   char  irq		__attribute__((packed));
-   char  flags2		__attribute__((packed));
-   short timeout	__attribute__((packed));
-};
+   char  flags;
+   short txlen;
+   char  irq;
+   char  flags2;
+   short timeout;
+} __attribute__((packed));
 
 /* found in the 508's control window at RXBUF_INFO */
 struct buf_info {
-   unsigned short rse_num	__attribute__((packed));
-   unsigned long  rse_base	__attribute__((packed));
-   unsigned long  rse_next	__attribute__((packed));
-   unsigned long  buf_base	__attribute__((packed));
-   unsigned short reserved	__attribute__((packed));
-   unsigned long  buf_top	__attribute__((packed));
-};
+   unsigned short rse_num;
+   unsigned long  rse_base;
+   unsigned long  rse_next;
+   unsigned long  buf_base;
+   unsigned short reserved;
+   unsigned long  buf_top;
+} __attribute__((packed));
 
 /* structure pointed to by rse_base in RXBUF_INFO struct */
 struct buf_entry {
-   char  opp_flag	__attribute__((packed));
-   short length		__attribute__((packed));
-   short dlci		__attribute__((packed));
-   char  flags		__attribute__((packed));
-   short timestamp	__attribute__((packed));
-   short reserved[2]	__attribute__((packed));
-   long  buf_addr	__attribute__((packed));
-};
+   char  opp_flag;
+   short length;
+   short dlci;
+   char  flags;
+   short timestamp;
+   short reserved[2];
+   long  buf_addr;
+} __attribute__((packed));
 
 #endif
 

@@ -38,8 +38,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "core_priv.h"
 
@@ -57,13 +56,13 @@ static LIST_HEAD(device_list);
 static LIST_HEAD(client_list);
 
 /*
- * device_sem protects access to both device_list and client_list.
+ * device_mutex protects access to both device_list and client_list.
  * There's no real point to using multiple locks or something fancier
  * like an rwsem: we always access both lists, and we're always
  * modifying one list or the other list.  In any case this is not a
  * hot path so there's no point in trying to optimize.
  */
-static DECLARE_MUTEX(device_sem);
+static DEFINE_MUTEX(device_mutex);
 
 static int ib_device_check_mandatory(struct ib_device *device)
 {
@@ -221,7 +220,7 @@ int ib_register_device(struct ib_device *device)
 {
 	int ret;
 
-	down(&device_sem);
+	mutex_lock(&device_mutex);
 
 	if (strchr(device->name, '%')) {
 		ret = alloc_name(device->name);
@@ -259,7 +258,7 @@ int ib_register_device(struct ib_device *device)
 	}
 
  out:
-	up(&device_sem);
+	mutex_unlock(&device_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(ib_register_device);
@@ -276,7 +275,7 @@ void ib_unregister_device(struct ib_device *device)
 	struct ib_client_data *context, *tmp;
 	unsigned long flags;
 
-	down(&device_sem);
+	mutex_lock(&device_mutex);
 
 	list_for_each_entry_reverse(client, &client_list, list)
 		if (client->remove)
@@ -284,7 +283,7 @@ void ib_unregister_device(struct ib_device *device)
 
 	list_del(&device->core_list);
 
-	up(&device_sem);
+	mutex_unlock(&device_mutex);
 
 	spin_lock_irqsave(&device->client_data_lock, flags);
 	list_for_each_entry_safe(context, tmp, &device->client_data_list, list)
@@ -312,14 +311,14 @@ int ib_register_client(struct ib_client *client)
 {
 	struct ib_device *device;
 
-	down(&device_sem);
+	mutex_lock(&device_mutex);
 
 	list_add_tail(&client->list, &client_list);
 	list_for_each_entry(device, &device_list, core_list)
 		if (client->add && !add_client_context(device, client))
 			client->add(device);
 
-	up(&device_sem);
+	mutex_unlock(&device_mutex);
 
 	return 0;
 }
@@ -339,7 +338,7 @@ void ib_unregister_client(struct ib_client *client)
 	struct ib_device *device;
 	unsigned long flags;
 
-	down(&device_sem);
+	mutex_lock(&device_mutex);
 
 	list_for_each_entry(device, &device_list, core_list) {
 		if (client->remove)
@@ -355,7 +354,7 @@ void ib_unregister_client(struct ib_client *client)
 	}
 	list_del(&client->list);
 
-	up(&device_sem);
+	mutex_unlock(&device_mutex);
 }
 EXPORT_SYMBOL(ib_unregister_client);
 

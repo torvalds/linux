@@ -889,7 +889,7 @@ static void sel_remove_bools(struct dentry *de)
 	spin_lock(&dcache_lock);
 	node = de->d_subdirs.next;
 	while (node != &de->d_subdirs) {
-		struct dentry *d = list_entry(node, struct dentry, d_child);
+		struct dentry *d = list_entry(node, struct dentry, d_u.d_child);
 		list_del_init(node);
 
 		if (d->d_inode) {

@@ -275,6 +275,25 @@ static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds)
 	return;
 }
 
+static inline int shpc_wait_cmd(struct controller *ctrl)
+{
+	int retval = 0;
+	unsigned int timeout_msec = shpchp_poll_mode ? 2000 : 1000;
+	unsigned long timeout = msecs_to_jiffies(timeout_msec);
+	int rc = wait_event_interruptible_timeout(ctrl->queue,
+						  !ctrl->cmd_busy, timeout);
+	if (!rc) {
+		retval = -EIO;
+		err("Command not completed in %d msec\n", timeout_msec);
+	} else if (rc < 0) {
+		retval = -EINTR;
+		info("Command was interrupted by a signal\n");
+	}
+	ctrl->cmd_busy = 0;
+
+	return retval;
+}
+
 static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 {
 	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
@@ -314,7 +333,13 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	/* To make sure the Controller Busy bit is 0 before we send out the
 	 * command. 
 	 */
+	slot->ctrl->cmd_busy = 1;
 	writew(temp_word, php_ctlr->creg + CMD);
+
+	/*
+	 * Wait for command completion.
+	 */
+	retval = shpc_wait_cmd(slot->ctrl);
 
 	DBG_LEAVE_ROUTINE 
 	return retval;
@@ -604,7 +629,7 @@ static int hpc_get_mode1_ECC_cap(struct slot *slot, u8 *mode)
 	sec_bus_status = readw(php_ctlr->creg + SEC_BUS_CONFIG);
 
 	if (pi == 2) {
-		*mode = (sec_bus_status & 0x0100) >> 7;
+		*mode = (sec_bus_status & 0x0100) >> 8;
 	} else {
 		retval = -1;
 	}
@@ -791,7 +816,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	}
 	if (php_ctlr->pci_dev) {
 		iounmap(php_ctlr->creg);
-		release_mem_region(pci_resource_start(php_ctlr->pci_dev, 0), pci_resource_len(php_ctlr->pci_dev, 0));
+		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
 		php_ctlr->pci_dev = NULL;
 	}
 
@@ -1058,12 +1083,13 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 	if (intr_loc & 0x0001) {
 		/* 
 		 * Command Complete Interrupt Pending 
-		 * RO only - clear by writing 0 to the Command Completion
+		 * RO only - clear by writing 1 to the Command Completion
 		 * Detect bit in Controller SERR-INT register
 		 */
 		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		temp_dword &= 0xfffeffff;
+		temp_dword &= 0xfffdffff;
 		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
+		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
@@ -1121,7 +1147,6 @@ static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 	int retval = 0;
 	u8 pi;
 	u32 slot_avail1, slot_avail2;
-	int slot_num;
 
 	DBG_ENTER_ROUTINE 
 
@@ -1140,39 +1165,39 @@ static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 	slot_avail2 = readl(php_ctlr->creg + SLOT_AVAIL2);
 
 	if (pi == 2) {
-		if ((slot_num = ((slot_avail2 & SLOT_133MHZ_PCIX_533) >> 27)  ) != 0 )
+		if (slot_avail2 & SLOT_133MHZ_PCIX_533)
 			bus_speed = PCIX_133MHZ_533;
-		else if ((slot_num = ((slot_avail2 & SLOT_100MHZ_PCIX_533) >> 23)  ) != 0 )
+		else if (slot_avail2 & SLOT_100MHZ_PCIX_533)
 			bus_speed = PCIX_100MHZ_533;
-		else if ((slot_num = ((slot_avail2 & SLOT_66MHZ_PCIX_533) >> 19)  ) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ_PCIX_533)
 			bus_speed = PCIX_66MHZ_533;
-		else if ((slot_num = ((slot_avail2 & SLOT_133MHZ_PCIX_266) >> 15)  ) != 0 )
+		else if (slot_avail2 & SLOT_133MHZ_PCIX_266)
 			bus_speed = PCIX_133MHZ_266;
-		else if ((slot_num = ((slot_avail2 & SLOT_100MHZ_PCIX_266) >> 11)  ) != 0 )
+		else if (slot_avail2 & SLOT_100MHZ_PCIX_266)
 			bus_speed = PCIX_100MHZ_266;
-		else if ((slot_num = ((slot_avail2 & SLOT_66MHZ_PCIX_266) >> 7)  ) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ_PCIX_266)
 			bus_speed = PCIX_66MHZ_266;
-		else if ((slot_num = ((slot_avail1 & SLOT_133MHZ_PCIX) >> 23)  ) != 0 )
+		else if (slot_avail1 & SLOT_133MHZ_PCIX)
 			bus_speed = PCIX_133MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_100MHZ_PCIX) >> 15)  ) != 0 )
+		else if (slot_avail1 & SLOT_100MHZ_PCIX)
 			bus_speed = PCIX_100MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_66MHZ_PCIX) >> 7)  ) != 0 )
+		else if (slot_avail1 & SLOT_66MHZ_PCIX)
 			bus_speed = PCIX_66MHZ;
-		else if ((slot_num = (slot_avail2 & SLOT_66MHZ)) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ)
 			bus_speed = PCI_66MHZ;
-		else if ((slot_num = (slot_avail1 & SLOT_33MHZ)) != 0 )
+		else if (slot_avail1 & SLOT_33MHZ)
 			bus_speed = PCI_33MHZ;
 		else bus_speed = PCI_SPEED_UNKNOWN;
 	} else {
-		if ((slot_num = ((slot_avail1 & SLOT_133MHZ_PCIX) >> 23)  ) != 0 )
+		if (slot_avail1 & SLOT_133MHZ_PCIX)
 			bus_speed = PCIX_133MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_100MHZ_PCIX) >> 15)  ) != 0 )
+		else if (slot_avail1 & SLOT_100MHZ_PCIX)
 			bus_speed = PCIX_100MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_66MHZ_PCIX) >> 7)  ) != 0 )
+		else if (slot_avail1 & SLOT_66MHZ_PCIX)
 			bus_speed = PCIX_66MHZ;
-		else if ((slot_num = (slot_avail2 & SLOT_66MHZ)) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ)
 			bus_speed = PCI_66MHZ;
-		else if ((slot_num = (slot_avail1 & SLOT_33MHZ)) != 0 )
+		else if (slot_avail1 & SLOT_33MHZ)
 			bus_speed = PCI_33MHZ;
 		else bus_speed = PCI_SPEED_UNKNOWN;
 	}
@@ -1321,18 +1346,33 @@ static struct hpc_ops shpchp_hpc_ops = {
 	.check_cmd_status		= hpc_check_cmd_status,
 };
 
+inline static int shpc_indirect_creg_read(struct controller *ctrl, int index,
+					  u32 *value)
+{
+	int rc;
+	u32 cap_offset = ctrl->cap_offset;
+	struct pci_dev *pdev = ctrl->pci_dev;
+
+	rc = pci_write_config_byte(pdev, cap_offset + DWORD_SELECT, index);
+	if (rc)
+		return rc;
+	return pci_read_config_dword(pdev, cap_offset + DWORD_DATA, value);
+}
+
 int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 {
 	struct php_ctlr_state_s *php_ctlr, *p;
 	void *instance_id = ctrl;
-	int rc;
+	int rc, num_slots = 0;
 	u8 hp_slot;
 	static int first = 1;
-	u32 shpc_cap_offset, shpc_base_offset;
+	u32 shpc_base_offset;
 	u32 tempdword, slot_reg;
 	u8 i;
 
 	DBG_ENTER_ROUTINE
+
+	ctrl->pci_dev = pdev;  /* pci_dev of the P2P bridge */
 
 	spin_lock_init(&list_lock);
 	php_ctlr = (struct php_ctlr_state_s *) kmalloc(sizeof(struct php_ctlr_state_s), GFP_KERNEL);
@@ -1348,41 +1388,45 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 
 	if ((pdev->vendor == PCI_VENDOR_ID_AMD) || (pdev->device ==
 				PCI_DEVICE_ID_AMD_GOLAM_7450)) {
-		shpc_base_offset = 0;  /* amd shpc driver doesn't use this; assume 0 */
+		/* amd shpc driver doesn't use Base Offset; assume 0 */
+		ctrl->mmio_base = pci_resource_start(pdev, 0);
+		ctrl->mmio_size = pci_resource_len(pdev, 0);
 	} else {
-		if ((shpc_cap_offset = pci_find_capability(pdev, PCI_CAP_ID_SHPC)) == 0) {
-			err("%s : shpc_cap_offset == 0\n", __FUNCTION__);
+		ctrl->cap_offset = pci_find_capability(pdev, PCI_CAP_ID_SHPC);
+		if (!ctrl->cap_offset) {
+			err("%s : cap_offset == 0\n", __FUNCTION__);
 			goto abort_free_ctlr;
 		}
-		dbg("%s: shpc_cap_offset = %x\n", __FUNCTION__, shpc_cap_offset);	
-	
-		rc = pci_write_config_byte(pdev, (u8)shpc_cap_offset + DWORD_SELECT , BASE_OFFSET);
+		dbg("%s: cap_offset = %x\n", __FUNCTION__, ctrl->cap_offset);
+
+		rc = shpc_indirect_creg_read(ctrl, 0, &shpc_base_offset);
 		if (rc) {
-			err("%s : pci_word_config_byte failed\n", __FUNCTION__);
-			goto abort_free_ctlr;
-		}
-	
-		rc = pci_read_config_dword(pdev, (u8)shpc_cap_offset + DWORD_DATA, &shpc_base_offset);
-		if (rc) {
-			err("%s : pci_read_config_dword failed\n", __FUNCTION__);
+			err("%s: cannot read base_offset\n", __FUNCTION__);
 			goto abort_free_ctlr;
 		}
 
-		for (i = 0; i <= 14; i++) {
-			rc = pci_write_config_byte(pdev, (u8)shpc_cap_offset +  DWORD_SELECT , i);
+		rc = shpc_indirect_creg_read(ctrl, 3, &tempdword);
+		if (rc) {
+			err("%s: cannot read slot config\n", __FUNCTION__);
+			goto abort_free_ctlr;
+		}
+		num_slots = tempdword & SLOT_NUM;
+		dbg("%s: num_slots (indirect) %x\n", __FUNCTION__, num_slots);
+
+		for (i = 0; i < 9 + num_slots; i++) {
+			rc = shpc_indirect_creg_read(ctrl, i, &tempdword);
 			if (rc) {
-				err("%s : pci_word_config_byte failed\n", __FUNCTION__);
-				goto abort_free_ctlr;
-			}
-	
-			rc = pci_read_config_dword(pdev, (u8)shpc_cap_offset + DWORD_DATA, &tempdword);
-			if (rc) {
-				err("%s : pci_read_config_dword failed\n", __FUNCTION__);
+				err("%s: cannot read creg (index = %d)\n",
+				    __FUNCTION__, i);
 				goto abort_free_ctlr;
 			}
 			dbg("%s: offset %d: value %x\n", __FUNCTION__,i,
 					tempdword);
 		}
+
+		ctrl->mmio_base =
+			pci_resource_start(pdev, 0) + shpc_base_offset;
+		ctrl->mmio_size = 0x24 + 0x4 * num_slots;
 	}
 
 	if (first) {
@@ -1396,16 +1440,16 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	if (pci_enable_device(pdev))
 		goto abort_free_ctlr;
 
-	if (!request_mem_region(pci_resource_start(pdev, 0) + shpc_base_offset, pci_resource_len(pdev, 0), MY_NAME)) {
+	if (!request_mem_region(ctrl->mmio_base, ctrl->mmio_size, MY_NAME)) {
 		err("%s: cannot reserve MMIO region\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 
-	php_ctlr->creg = ioremap(pci_resource_start(pdev, 0) + shpc_base_offset, pci_resource_len(pdev, 0));
+	php_ctlr->creg = ioremap(ctrl->mmio_base, ctrl->mmio_size);
 	if (!php_ctlr->creg) {
-		err("%s: cannot remap MMIO region %lx @ %lx\n", __FUNCTION__, pci_resource_len(pdev, 0), 
-			pci_resource_start(pdev, 0) + shpc_base_offset);
-		release_mem_region(pci_resource_start(pdev, 0) + shpc_base_offset, pci_resource_len(pdev, 0));
+		err("%s: cannot remap MMIO region %lx @ %lx\n", __FUNCTION__,
+		    ctrl->mmio_size, ctrl->mmio_base);
+		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
 		goto abort_free_ctlr;
 	}
 	dbg("%s: php_ctlr->creg %p\n", __FUNCTION__, php_ctlr->creg);

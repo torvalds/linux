@@ -19,6 +19,7 @@
 #define KEY_SPEC_USER_KEYRING		-4	/* - key ID for UID-specific keyring */
 #define KEY_SPEC_USER_SESSION_KEYRING	-5	/* - key ID for UID-session keyring */
 #define KEY_SPEC_GROUP_KEYRING		-6	/* - key ID for GID-specific keyring */
+#define KEY_SPEC_REQKEY_AUTH_KEY	-7	/* - key ID for assumed request_key auth key */
 
 /* request-key default keyrings */
 #define KEY_REQKEY_DEFL_NO_CHANGE		-1
@@ -46,5 +47,7 @@
 #define KEYCTL_INSTANTIATE		12	/* instantiate a partially constructed key */
 #define KEYCTL_NEGATE			13	/* negate a partially constructed key */
 #define KEYCTL_SET_REQKEY_KEYRING	14	/* set default request-key keyring */
+#define KEYCTL_SET_TIMEOUT		15	/* set key timeout */
+#define KEYCTL_ASSUME_AUTHORITY		16	/* assume request_key() authorisation */
 
 #endif /*  _LINUX_KEYCTL_H */

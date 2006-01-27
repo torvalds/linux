@@ -469,7 +469,7 @@ ia32_syscall_table:
 	data8 sys32_epoll_wait
 	data8 sys_remap_file_pages
 	data8 sys_set_tid_address
- 	data8 sys32_timer_create
+ 	data8 compat_sys_timer_create
  	data8 compat_sys_timer_settime	/* 260 */
  	data8 compat_sys_timer_gettime
  	data8 sys_timer_getoverrun

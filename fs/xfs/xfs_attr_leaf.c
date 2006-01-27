@@ -128,7 +128,7 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 		return (offset >= minforkoff) ? minforkoff : 0;
 	}
 
-	if (unlikely(mp->m_flags & XFS_MOUNT_COMPAT_ATTR)) {
+	if (!(mp->m_flags & XFS_MOUNT_ATTR2)) {
 		if (bytes <= XFS_IFORK_ASIZE(dp))
 			return mp->m_attroffset >> 3;
 		return 0;
@@ -157,7 +157,7 @@ xfs_sbversion_add_attr2(xfs_mount_t *mp, xfs_trans_t *tp)
 {
 	unsigned long s;
 
-	if (!(mp->m_flags & XFS_MOUNT_COMPAT_ATTR) &&
+	if ((mp->m_flags & XFS_MOUNT_ATTR2) &&
 	    !(XFS_SB_VERSION_HASATTR2(&mp->m_sb))) {
 		s = XFS_SB_LOCK(mp);
 		if (!XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
@@ -311,7 +311,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	 */
 	totsize -= size;
 	if (totsize == sizeof(xfs_attr_sf_hdr_t) && !args->addname &&
-	    !(mp->m_flags & XFS_MOUNT_COMPAT_ATTR)) {
+	    (mp->m_flags & XFS_MOUNT_ATTR2)) {
 		/*
 		 * Last attribute now removed, revert to original
 		 * inode format making all literal area available
@@ -330,7 +330,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 		dp->i_d.di_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
 		ASSERT(dp->i_d.di_forkoff);
 		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) || args->addname ||
-			(mp->m_flags & XFS_MOUNT_COMPAT_ATTR));
+			!(mp->m_flags & XFS_MOUNT_ATTR2));
 		dp->i_afp->if_ext_max =
 			XFS_IFORK_ASIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
 		dp->i_df.if_ext_max =
@@ -739,7 +739,7 @@ xfs_attr_shortform_allfit(xfs_dabuf_t *bp, xfs_inode_t *dp)
 				+ name_loc->namelen
 				+ INT_GET(name_loc->valuelen, ARCH_CONVERT);
 	}
-	if (!(dp->i_mount->m_flags & XFS_MOUNT_COMPAT_ATTR) &&
+	if ((dp->i_mount->m_flags & XFS_MOUNT_ATTR2) &&
 	    (bytes == sizeof(struct xfs_attr_sf_hdr)))
 		return(-1);
 	return(xfs_attr_shortform_bytesfit(dp, bytes));
@@ -778,7 +778,7 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 		goto out;
 
 	if (forkoff == -1) {
-		ASSERT(!(dp->i_mount->m_flags & XFS_MOUNT_COMPAT_ATTR));
+		ASSERT(dp->i_mount->m_flags & XFS_MOUNT_ATTR2);
 
 		/*
 		 * Last attribute was removed, revert to original

@@ -36,22 +36,21 @@
 #include <linux/vmalloc.h>
 #include "drmP.h"
 
-unsigned long drm_get_resource_start(drm_device_t * dev, unsigned int resource)
+unsigned long drm_get_resource_start(drm_device_t *dev, unsigned int resource)
 {
 	return pci_resource_start(dev->pdev, resource);
 }
-
 EXPORT_SYMBOL(drm_get_resource_start);
 
-unsigned long drm_get_resource_len(drm_device_t * dev, unsigned int resource)
+unsigned long drm_get_resource_len(drm_device_t *dev, unsigned int resource)
 {
 	return pci_resource_len(dev->pdev, resource);
 }
 
 EXPORT_SYMBOL(drm_get_resource_len);
 
-static drm_map_list_t *drm_find_matching_map(drm_device_t * dev,
-					     drm_local_map_t * map)
+static drm_map_list_t *drm_find_matching_map(drm_device_t *dev,
+					     drm_local_map_t *map)
 {
 	struct list_head *list;
 
@@ -74,7 +73,7 @@ static drm_map_list_t *drm_find_matching_map(drm_device_t * dev,
 
 #ifdef _LP64
 static __inline__ unsigned int HandleID(unsigned long lhandle,
-					drm_device_t * dev)
+					drm_device_t *dev)
 {
 	static unsigned int map32_handle = START_RANGE;
 	unsigned int hash;
@@ -155,7 +154,7 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	case _DRM_REGISTERS:
 	case _DRM_FRAME_BUFFER:
 #if !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__)
-		if (map->offset + map->size < map->offset ||
+		if (map->offset + (map->size-1) < map->offset ||
 		    map->offset < virt_to_phys(high_memory)) {
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			return -EINVAL;
@@ -301,6 +300,9 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
 		return -EFAULT;
 	}
 
+	if (!(capable(CAP_SYS_ADMIN) || map.type == _DRM_AGP))
+		return -EPERM;
+
 	err = drm_addmap_core(dev, map.offset, map.size, map.type, map.flags,
 			      &maplist);
 
@@ -332,7 +334,7 @@ int drm_addmap_ioctl(struct inode *inode, struct file *filp,
  *
  * \sa drm_addmap
  */
-int drm_rmmap_locked(drm_device_t * dev, drm_local_map_t * map)
+int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
 {
 	struct list_head *list;
 	drm_map_list_t *r_list = NULL;
@@ -384,10 +386,9 @@ int drm_rmmap_locked(drm_device_t * dev, drm_local_map_t * map)
 
 	return 0;
 }
-
 EXPORT_SYMBOL(drm_rmmap_locked);
 
-int drm_rmmap(drm_device_t * dev, drm_local_map_t * map)
+int drm_rmmap(drm_device_t *dev, drm_local_map_t *map)
 {
 	int ret;
 
@@ -397,7 +398,6 @@ int drm_rmmap(drm_device_t * dev, drm_local_map_t * map)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(drm_rmmap);
 
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
@@ -548,7 +548,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	DRM_DEBUG("count:      %d\n", count);
 	DRM_DEBUG("order:      %d\n", order);
 	DRM_DEBUG("size:       %d\n", size);
-	DRM_DEBUG("agp_offset: %lu\n", agp_offset);
+	DRM_DEBUG("agp_offset: %lx\n", agp_offset);
 	DRM_DEBUG("alignment:  %d\n", alignment);
 	DRM_DEBUG("page_order: %d\n", page_order);
 	DRM_DEBUG("total:      %d\n", total);
@@ -649,6 +649,8 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	}
 
 	dma->buf_count += entry->buf_count;
+	dma->seg_count += entry->seg_count;
+	dma->page_count += byte_count >> PAGE_SHIFT;
 	dma->byte_count += byte_count;
 
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
@@ -664,7 +666,6 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_dec(&dev->buf_alloc);
 	return 0;
 }
-
 EXPORT_SYMBOL(drm_addbufs_agp);
 #endif				/* __OS_HAS_AGP */
 
@@ -689,8 +690,12 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 
 	if (!drm_core_check_feature(dev, DRIVER_PCI_DMA))
 		return -EINVAL;
+
 	if (!dma)
 		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	count = request->count;
 	order = drm_order(request->size);
@@ -882,7 +887,6 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	return 0;
 
 }
-
 EXPORT_SYMBOL(drm_addbufs_pci);
 
 static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
@@ -907,6 +911,9 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 
 	if (!dma)
 		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	count = request->count;
 	order = drm_order(request->size);
@@ -1026,6 +1033,8 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	}
 
 	dma->buf_count += entry->buf_count;
+	dma->seg_count += entry->seg_count;
+	dma->page_count += byte_count >> PAGE_SHIFT;
 	dma->byte_count += byte_count;
 
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
@@ -1042,7 +1051,7 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	return 0;
 }
 
-static int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
+int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
@@ -1064,6 +1073,9 @@ static int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 
 	if (!dma)
 		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	count = request->count;
 	order = drm_order(request->size);
@@ -1181,6 +1193,8 @@ static int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	}
 
 	dma->buf_count += entry->buf_count;
+	dma->seg_count += entry->seg_count;
+	dma->page_count += byte_count >> PAGE_SHIFT;
 	dma->byte_count += byte_count;
 
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
@@ -1196,6 +1210,8 @@ static int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_dec(&dev->buf_alloc);
 	return 0;
 }
+EXPORT_SYMBOL(drm_addbufs_fb);
+
 
 /**
  * Add buffers for DMA transfers (ioctl).
@@ -1577,5 +1593,6 @@ int drm_order(unsigned long size)
 
 	return order;
 }
-
 EXPORT_SYMBOL(drm_order);
+
+

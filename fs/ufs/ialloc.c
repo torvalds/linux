@@ -72,7 +72,7 @@ void ufs_free_inode (struct inode * inode)
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	
 	ino = inode->i_ino;
 
@@ -167,7 +167,7 @@ struct inode * ufs_new_inode(struct inode * dir, int mode)
 	ufsi = UFS_I(inode);
 	sbi = UFS_SB(sb);
 	uspi = sbi->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 
 	lock_super (sb);
 

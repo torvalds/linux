@@ -248,7 +248,6 @@ static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 		up(&ctrl->crit_sect);
 		return WRONG_BUS_FREQUENCY;
 	}
-	wait_for_ctrl_irq (ctrl);
 		
 	if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
 		err("%s: Can't set bus speed/mode in the case of adapter & bus mismatch\n",
@@ -330,9 +329,6 @@ static int board_added(struct slot *p_slot)
 		up(&ctrl->crit_sect);
 		return -1;
 	}
-			
-	/* Wait for the command to complete */
-	wait_for_ctrl_irq (ctrl);
 	
 	rc = p_slot->hpc_ops->check_cmd_status(ctrl);
 	if (rc) {
@@ -352,7 +348,6 @@ static int board_added(struct slot *p_slot)
 			up(&ctrl->crit_sect);
 			return WRONG_BUS_FREQUENCY;
 		}
-		wait_for_ctrl_irq (ctrl);
 		
 		if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
 			err("%s: Can't set bus speed/mode in the case of adapter & bus mismatch\n",
@@ -367,7 +362,6 @@ static int board_added(struct slot *p_slot)
 			up(&ctrl->crit_sect);
 			return rc;
 		}
-		wait_for_ctrl_irq (ctrl);
 
 		if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
 			err("%s: Failed to enable slot, error code(%d)\n", __FUNCTION__, rc);
@@ -494,7 +488,6 @@ static int board_added(struct slot *p_slot)
 		up(&ctrl->crit_sect);
 		return rc;
 	}
-	wait_for_ctrl_irq (ctrl);
 
 	if ((rc = p_slot->hpc_ops->check_cmd_status(ctrl))) {
 		err("%s: Failed to enable slot, error code(%d)\n", __FUNCTION__, rc);
@@ -532,9 +525,6 @@ static int board_added(struct slot *p_slot)
 
 	p_slot->hpc_ops->green_led_on(p_slot);
 
-	/* Wait for the command to complete */
-	wait_for_ctrl_irq (ctrl);
-
 	/* Done with exclusive hardware access */
 	up(&ctrl->crit_sect);
 
@@ -552,8 +542,6 @@ err_exit:
 		up(&ctrl->crit_sect);
 		return rc;
 	}
-	/* Wait for the command to complete */
-	wait_for_ctrl_irq (ctrl);
 
 	rc = p_slot->hpc_ops->check_cmd_status(ctrl);
 	if (rc) {
@@ -603,8 +591,6 @@ static int remove_board(struct slot *p_slot)
 		up(&ctrl->crit_sect);
 		return rc;
 	}
-	/* Wait for the command to complete */
-	wait_for_ctrl_irq (ctrl);
 
 	rc = p_slot->hpc_ops->check_cmd_status(ctrl);
 	if (rc) {
@@ -621,8 +607,6 @@ static int remove_board(struct slot *p_slot)
 		up(&ctrl->crit_sect);
 		return rc;
 	}
-	/* Wait for the command to complete */
-	wait_for_ctrl_irq (ctrl);
 
 	/* Done with exclusive hardware access */
 	up(&ctrl->crit_sect);
@@ -675,9 +659,6 @@ static void shpchp_pushbutton_thread (unsigned long slot)
 			down(&p_slot->ctrl->crit_sect);
 
 			p_slot->hpc_ops->green_led_off(p_slot);
-
-			/* Wait for the command to complete */
-			wait_for_ctrl_irq (p_slot->ctrl);
 
 			/* Done with exclusive hardware access */
 			up(&p_slot->ctrl->crit_sect);
@@ -790,13 +771,8 @@ static void interrupt_event_handler(struct controller *ctrl)
 						down(&ctrl->crit_sect);
 
 						p_slot->hpc_ops->green_led_on(p_slot);
-						/* Wait for the command to complete */
-						wait_for_ctrl_irq (ctrl);
 
 						p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-						/* Wait for the command to complete */
-						wait_for_ctrl_irq (ctrl);
 
 						/* Done with exclusive hardware access */
 						up(&ctrl->crit_sect);
@@ -806,12 +782,8 @@ static void interrupt_event_handler(struct controller *ctrl)
 						down(&ctrl->crit_sect);
 
 						p_slot->hpc_ops->green_led_off(p_slot);
-						/* Wait for the command to complete */
-						wait_for_ctrl_irq (ctrl);
 
 						p_slot->hpc_ops->set_attention_status(p_slot, 0);
-						/* Wait for the command to complete */
-						wait_for_ctrl_irq (ctrl);
 
 						/* Done with exclusive hardware access */
 						up(&ctrl->crit_sect);
@@ -845,13 +817,8 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 					/* blink green LED and turn off amber */
 					p_slot->hpc_ops->green_led_blink(p_slot);
-					/* Wait for the command to complete */
-					wait_for_ctrl_irq (ctrl);
 					
 					p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-					/* Wait for the command to complete */
-					wait_for_ctrl_irq (ctrl);
 
 					/* Done with exclusive hardware access */
 					up(&ctrl->crit_sect);
@@ -870,12 +837,8 @@ static void interrupt_event_handler(struct controller *ctrl)
 					down(&ctrl->crit_sect);
 
 					p_slot->hpc_ops->set_attention_status(p_slot, 1);
-					/* Wait for the command to complete */
-					wait_for_ctrl_irq (ctrl);
 					
 					p_slot->hpc_ops->green_led_off(p_slot);
-					/* Wait for the command to complete */
-					wait_for_ctrl_irq (ctrl);
 
 					/* Done with exclusive hardware access */
 					up(&ctrl->crit_sect);

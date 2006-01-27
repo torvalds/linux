@@ -45,6 +45,7 @@
 #include <linux/nodemask.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
+#include <linux/dmi.h>
 
 #include <video/edid.h>
 
@@ -146,7 +147,6 @@ EXPORT_SYMBOL(ist_info);
 struct e820map e820;
 
 extern void early_cpu_init(void);
-extern void dmi_scan_machine(void);
 extern void generic_apic_probe(char *);
 extern int root_mountflags;
 
@@ -898,7 +898,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			}
 		}
 #endif
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_PROC_VMCORE
 		/* elfcorehdr= specifies the location of elf core header
 		 * stored by the crashed kernel.
 		 */
@@ -1584,7 +1584,7 @@ void __init setup_arch(char **cmdline_p)
 		if (s) {
 			extern void setup_early_printk(char *);
 
-			setup_early_printk(s);
+			setup_early_printk(strchr(s, '=') + 1);
 			printk("early console enabled\n");
 		}
 	}

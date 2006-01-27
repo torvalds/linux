@@ -769,12 +769,12 @@ mpsc_rx_intr(struct mpsc_port_info *pi, struct pt_regs *regs)
 		bytes_in = be16_to_cpu(rxre->bytecnt);
 
 		/* Following use of tty struct directly is deprecated */
-		if (unlikely((tty->flip.count + bytes_in) >= TTY_FLIPBUF_SIZE)){
+		if (unlikely(tty_buffer_request_room(tty, bytes_in) < bytes_in)) {
 			if (tty->low_latency)
 				tty_flip_buffer_push(tty);
 			/*
-			 * If this failed then we will throw awa the bytes
-			 * but mst do so to clear interrupts.
+			 * If this failed then we will throw away the bytes
+			 * but must do so to clear interrupts.
 			 */
 		}
 

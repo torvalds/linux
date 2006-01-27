@@ -293,7 +293,7 @@ struct dm_table *dm_get_table(struct mapped_device *md)
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
  */
-static inline void dec_pending(struct dm_io *io, int error)
+static void dec_pending(struct dm_io *io, int error)
 {
 	if (error)
 		io->error = error;
@@ -768,6 +768,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
 	md->queue->backing_dev_info.congested_data = md;
 	blk_queue_make_request(md->queue, dm_request);
+	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	md->queue->issue_flush_fn = dm_flush_all;
 
@@ -837,9 +838,9 @@ static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	down(&md->suspended_bdev->bd_inode->i_sem);
+	mutex_lock(&md->suspended_bdev->bd_inode->i_mutex);
 	i_size_write(md->suspended_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	up(&md->suspended_bdev->bd_inode->i_sem);
+	mutex_unlock(&md->suspended_bdev->bd_inode->i_mutex);
 }
 
 static int __bind(struct mapped_device *md, struct dm_table *t)

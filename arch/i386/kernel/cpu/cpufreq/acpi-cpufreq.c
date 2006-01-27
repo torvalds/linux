@@ -40,8 +40,6 @@
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 
-#include "speedstep-est-common.h"
-
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "acpi-cpufreq", msg)
 
 MODULE_AUTHOR("Paul Diefenbaugh, Dominik Brodowski");
@@ -297,68 +295,6 @@ acpi_cpufreq_guess_freq (
 }
 
 
-/* 
- * acpi_processor_cpu_init_pdc_est - let BIOS know about the SMP capabilities
- * of this driver
- * @perf: processor-specific acpi_io_data struct
- * @cpu: CPU being initialized
- *
- * To avoid issues with legacy OSes, some BIOSes require to be informed of
- * the SMP capabilities of OS P-state driver. Here we set the bits in _PDC 
- * accordingly, for Enhanced Speedstep. Actual call to _PDC is done in
- * driver/acpi/processor.c
- */
-static void 
-acpi_processor_cpu_init_pdc_est(
-		struct acpi_processor_performance *perf, 
-		unsigned int cpu,
-		struct acpi_object_list *obj_list
-		)
-{
-	union acpi_object *obj;
-	u32 *buf;
-	struct cpuinfo_x86 *c = cpu_data + cpu;
-	dprintk("acpi_processor_cpu_init_pdc_est\n");
-
-	if (!cpu_has(c, X86_FEATURE_EST))
-		return;
-
-	/* Initialize pdc. It will be used later. */
-	if (!obj_list)
-		return;
-		
-	if (!(obj_list->count && obj_list->pointer))
-		return;
-
-	obj = obj_list->pointer;
-	if ((obj->buffer.length == 12) && obj->buffer.pointer) {
-		buf = (u32 *)obj->buffer.pointer;
-       		buf[0] = ACPI_PDC_REVISION_ID;
-       		buf[1] = 1;
-       		buf[2] = ACPI_PDC_EST_CAPABILITY_SMP;
-		perf->pdc = obj_list;
-	}
-	return;
-}
- 
-
-/* CPU specific PDC initialization */
-static void 
-acpi_processor_cpu_init_pdc(
-		struct acpi_processor_performance *perf, 
-		unsigned int cpu,
-		struct acpi_object_list *obj_list
-		)
-{
-	struct cpuinfo_x86 *c = cpu_data + cpu;
-	dprintk("acpi_processor_cpu_init_pdc\n");
-	perf->pdc = NULL;
-	if (cpu_has(c, X86_FEATURE_EST))
-		acpi_processor_cpu_init_pdc_est(perf, cpu, obj_list);
-	return;
-}
-
-
 static int
 acpi_cpufreq_cpu_init (
 	struct cpufreq_policy   *policy)
@@ -367,15 +303,9 @@ acpi_cpufreq_cpu_init (
 	unsigned int		cpu = policy->cpu;
 	struct cpufreq_acpi_io	*data;
 	unsigned int		result = 0;
-
-	union acpi_object		arg0 = {ACPI_TYPE_BUFFER};
-	u32				arg0_buf[3];
-	struct acpi_object_list 	arg_list = {1, &arg0};
+	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
 
 	dprintk("acpi_cpufreq_cpu_init\n");
-	/* setup arg_list for _PDC settings */
-        arg0.buffer.length = 12;
-        arg0.buffer.pointer = (u8 *) arg0_buf;
 
 	data = kzalloc(sizeof(struct cpufreq_acpi_io), GFP_KERNEL);
 	if (!data)
@@ -383,14 +313,12 @@ acpi_cpufreq_cpu_init (
 
 	acpi_io_data[cpu] = data;
 
-	acpi_processor_cpu_init_pdc(&data->acpi_data, cpu, &arg_list);
 	result = acpi_processor_register_performance(&data->acpi_data, cpu);
-	data->acpi_data.pdc = NULL;
 
 	if (result)
 		goto err_free;
 
-	if (is_const_loops_cpu(cpu)) {
+	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;
 	}
 

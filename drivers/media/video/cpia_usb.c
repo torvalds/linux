@@ -499,13 +499,11 @@ static int cpia_probe(struct usb_interface *intf,
 
 	printk(KERN_INFO "USB CPiA camera found\n");
 
-	ucpia = kmalloc(sizeof(*ucpia), GFP_KERNEL);
+	ucpia = kzalloc(sizeof(*ucpia), GFP_KERNEL);
 	if (!ucpia) {
 		printk(KERN_ERR "couldn't kmalloc cpia struct\n");
 		return -ENOMEM;
 	}
-
-	memset(ucpia, 0, sizeof(*ucpia));
 
 	ucpia->dev = udev;
 	ucpia->iface = interface->desc.bInterfaceNumber;

@@ -184,7 +184,7 @@ static void __init omap_perseus2_map_io(void)
 	omap_writel(0x00000088, OMAP730_FLASH_ACFG_0);
 
 	/*
-	 * Ethernet support trough the debug board
+	 * Ethernet support through the debug board
 	 * CS1 timings setup
 	 */
 	omap_writel(0x0000fff3, OMAP730_FLASH_CFG_1);
@@ -199,7 +199,6 @@ static void __init omap_perseus2_map_io(void)
 
 MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	/* Maintainer: Kevin Hilman <kjh@hilman.org> */
-	.phys_ram	= 0x10000000,
 	.phys_io	= 0xfff00000,
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,

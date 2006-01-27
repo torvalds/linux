@@ -1247,14 +1247,14 @@ static int sa1111_bus_remove(struct device *dev)
 struct bus_type sa1111_bus_type = {
 	.name		= "sa1111-rab",
 	.match		= sa1111_match,
+	.probe		= sa1111_bus_probe,
+	.remove		= sa1111_bus_remove,
 	.suspend	= sa1111_bus_suspend,
 	.resume		= sa1111_bus_resume,
 };
 
 int sa1111_driver_register(struct sa1111_driver *driver)
 {
-	driver->drv.probe = sa1111_bus_probe;
-	driver->drv.remove = sa1111_bus_remove;
 	driver->drv.bus = &sa1111_bus_type;
 	return driver_register(&driver->drv);
 }

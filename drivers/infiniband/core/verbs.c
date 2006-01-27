@@ -107,9 +107,9 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
 
 	if (wc->wc_flags & IB_WC_GRH) {
 		ah_attr.ah_flags = IB_AH_GRH;
-		ah_attr.grh.dgid = grh->dgid;
+		ah_attr.grh.dgid = grh->sgid;
 
-		ret = ib_find_cached_gid(pd->device, &grh->sgid, &port_num,
+		ret = ib_find_cached_gid(pd->device, &grh->dgid, &port_num,
 					 &gid_index);
 		if (ret)
 			return ERR_PTR(ret);

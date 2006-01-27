@@ -157,9 +157,8 @@ static int intelfb_cursor(struct fb_info *info,
 
 static int intelfb_sync(struct fb_info *info);
 
-static int intelfb_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg,
-			 struct fb_info *info);
+static int intelfb_ioctl(struct fb_info *info,
+			 unsigned int cmd, unsigned long arg);
 
 static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 					  const struct pci_device_id *ent);
@@ -1380,8 +1379,7 @@ intelfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /* When/if we have our own ioctls. */
 static int
-intelfb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	      unsigned long arg, struct fb_info *info)
+intelfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	int retval = 0;
 

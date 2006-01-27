@@ -16,9 +16,9 @@
 #include <linux/init.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/common.h>
 #include <asm/arch/board.h>
@@ -119,14 +119,14 @@ void __init omap_serial_init()
 			if (IS_ERR(uart1_ick))
 				printk("Could not get uart1_ick\n");
 			else {
-				clk_use(uart1_ick);
+				clk_enable(uart1_ick);
 			}
 
 			uart1_fck = clk_get(NULL, "uart1_fck");
 			if (IS_ERR(uart1_fck))
 				printk("Could not get uart1_fck\n");
 			else {
-				clk_use(uart1_fck);
+				clk_enable(uart1_fck);
 			}
 			break;
 		case 1:
@@ -134,14 +134,14 @@ void __init omap_serial_init()
 			if (IS_ERR(uart2_ick))
 				printk("Could not get uart2_ick\n");
 			else {
-				clk_use(uart2_ick);
+				clk_enable(uart2_ick);
 			}
 
 			uart2_fck = clk_get(NULL, "uart2_fck");
 			if (IS_ERR(uart2_fck))
 				printk("Could not get uart2_fck\n");
 			else {
-				clk_use(uart2_fck);
+				clk_enable(uart2_fck);
 			}
 			break;
 		case 2:
@@ -149,14 +149,14 @@ void __init omap_serial_init()
 			if (IS_ERR(uart3_ick))
 				printk("Could not get uart3_ick\n");
 			else {
-				clk_use(uart3_ick);
+				clk_enable(uart3_ick);
 			}
 
 			uart3_fck = clk_get(NULL, "uart3_fck");
 			if (IS_ERR(uart3_fck))
 				printk("Could not get uart3_fck\n");
 			else {
-				clk_use(uart3_fck);
+				clk_enable(uart3_fck);
 			}
 			break;
 		}

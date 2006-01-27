@@ -33,7 +33,7 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 	long long retval;
 	struct inode *inode = file->f_mapping->host;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	switch (origin) {
 		case 2:
 			offset += inode->i_size;
@@ -49,7 +49,7 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 		}
 		retval = offset;
 	}
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
 

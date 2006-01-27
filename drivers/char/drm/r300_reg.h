@@ -797,6 +797,7 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 
 #	define R300_TX_FORMAT_YUV_MODE		0x00800000
 
+#define R300_TX_PITCH_0			    0x4500
 #define R300_TX_OFFSET_0                    0x4540
 /* BEGIN: Guess from R200 */
 #       define R300_TXO_ENDIAN_NO_SWAP           (0 << 0)

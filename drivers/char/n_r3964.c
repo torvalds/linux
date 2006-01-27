@@ -147,7 +147,6 @@ static unsigned int r3964_poll(struct tty_struct * tty, struct file * file,
 		      struct poll_table_struct  *wait);
 static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
                               char *fp, int count);
-static int  r3964_receive_room(struct tty_struct *tty);
 
 static struct tty_ldisc tty_ldisc_N_R3964 = {
 	.owner	 = THIS_MODULE,
@@ -161,7 +160,6 @@ static struct tty_ldisc tty_ldisc_N_R3964 = {
 	.set_termios = r3964_set_termios,
 	.poll	= r3964_poll,            
 	.receive_buf = r3964_receive_buf,
-	.receive_room = r3964_receive_room,
 };
 
 
@@ -1119,6 +1117,7 @@ static int r3964_open(struct tty_struct *tty)
    pInfo->nRetry = 0;
    
    tty->disc_data = pInfo;
+   tty->receive_room = 65536;
 
    init_timer(&pInfo->tmr);
    pInfo->tmr.data = (unsigned long)pInfo;
@@ -1404,13 +1403,6 @@ static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
         
     }
 }
-
-static int r3964_receive_room(struct tty_struct *tty)
-{
-   TRACE_L("receive_room");
-   return -1;
-}
-
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_R3964);

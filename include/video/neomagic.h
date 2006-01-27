@@ -196,6 +196,7 @@ struct neofb_par {
 	int internal_display;
 	int external_display;
 	int libretto;
+	u32 palette[16];
 };
 
 typedef struct {

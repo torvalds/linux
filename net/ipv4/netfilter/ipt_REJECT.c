@@ -282,12 +282,13 @@ static unsigned int reject(struct sk_buff **pskb,
 }
 
 static int check(const char *tablename,
-		 const struct ipt_entry *e,
+		 const void *e_void,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)
 {
  	const struct ipt_reject_info *rejinfo = targinfo;
+	const struct ipt_entry *e = e_void;
 
  	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_reject_info))) {
   		DEBUGP("REJECT: targinfosize %u != 0\n", targinfosize);

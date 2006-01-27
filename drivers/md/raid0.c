@@ -306,9 +306,6 @@ static int raid0_run (mddev_t *mddev)
 	printk("raid0 : conf->hash_spacing is %llu blocks.\n",
 		(unsigned long long)conf->hash_spacing);
 	{
-#if __GNUC__ < 3
-		volatile
-#endif
 		sector_t s = mddev->array_size;
 		sector_t space = conf->hash_spacing;
 		int round;
@@ -439,9 +436,6 @@ static int raid0_make_request (request_queue_t *q, struct bio *bio)
  
 
 	{
-#if __GNUC__ < 3
-		volatile
-#endif
 		sector_t x = block >> conf->preshift;
 		sector_div(x, (u32)conf->hash_spacing);
 		zone = conf->hash_table[x];

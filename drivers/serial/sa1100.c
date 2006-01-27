@@ -201,8 +201,6 @@ sa1100_rx_chars(struct sa1100_port *sport, struct pt_regs *regs)
 	while (status & UTSR1_TO_SM(UTSR1_RNE)) {
 		ch = UART_GET_CHAR(sport);
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			goto ignore_char;
 		sport->port.icount.rx++;
 
 		flg = TTY_NORMAL;

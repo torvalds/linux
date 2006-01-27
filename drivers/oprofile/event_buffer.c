@@ -15,6 +15,7 @@
 #include <linux/vmalloc.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/dcookies.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>

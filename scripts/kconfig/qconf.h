@@ -22,8 +22,8 @@ public:
 
 #if QT_VERSION >= 300
 	void readListSettings();
-	QValueList<int> ConfigSettings::readSizes(const QString& key, bool *ok);
-	bool ConfigSettings::writeSizes(const QString& key, const QValueList<int>& value);
+	QValueList<int> readSizes(const QString& key, bool *ok);
+	bool writeSizes(const QString& key, const QValueList<int>& value);
 #endif
 
 	bool showAll;
@@ -124,7 +124,7 @@ public:
 	void setParentMenu(void);
 
 	template <class P>
-	void ConfigList::updateMenuList(P*, struct menu*);
+	void updateMenuList(P*, struct menu*);
 
 	bool updateAll;
 

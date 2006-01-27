@@ -32,11 +32,6 @@ void __init ixdp425_pci_preinit(void)
 	set_irq_type(IRQ_IXDP425_PCI_INTC, IRQT_LOW);
 	set_irq_type(IRQ_IXDP425_PCI_INTD, IRQT_LOW);
 
-	gpio_line_isr_clear(IXDP425_PCI_INTA_PIN);
-	gpio_line_isr_clear(IXDP425_PCI_INTB_PIN);
-	gpio_line_isr_clear(IXDP425_PCI_INTC_PIN);
-	gpio_line_isr_clear(IXDP425_PCI_INTD_PIN);
-
 	ixp4xx_pci_preinit();
 }
 

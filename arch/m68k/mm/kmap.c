@@ -102,7 +102,7 @@ static inline void free_io_area(void *addr)
  */
 /* Rewritten by Andreas Schwab to remove all races. */
 
-void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
+void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
 {
 	struct vm_struct *area;
 	unsigned long virtaddr, retaddr;
@@ -121,7 +121,7 @@ void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
 	if (MACH_IS_AMIGA) {
 		if ((physaddr >= 0x40000000) && (physaddr + size < 0x60000000)
 		    && (cacheflag == IOMAP_NOCACHE_SER))
-			return (void *)physaddr;
+			return (void __iomem *)physaddr;
 	}
 #endif
 
@@ -218,21 +218,21 @@ void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
 #endif
 	flush_tlb_all();
 
-	return (void *)retaddr;
+	return (void __iomem *)retaddr;
 }
 
 /*
  * Unmap a ioremap()ed region again
  */
-void iounmap(void *addr)
+void iounmap(void __iomem *addr)
 {
 #ifdef CONFIG_AMIGA
 	if ((!MACH_IS_AMIGA) ||
 	    (((unsigned long)addr < 0x40000000) ||
 	     ((unsigned long)addr > 0x60000000)))
-			free_io_area(addr);
+			free_io_area((__force void *)addr);
 #else
-	free_io_area(addr);
+	free_io_area((__force void *)addr);
 #endif
 }
 

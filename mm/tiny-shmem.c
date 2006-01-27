@@ -90,7 +90,7 @@ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 	file->f_mode = FMODE_WRITE | FMODE_READ;
 
 	/* notify everyone as to the change of file size */
-	error = do_truncate(dentry, size, file);
+	error = do_truncate(dentry, size, 0, file);
 	if (error < 0)
 		goto close_file;
 

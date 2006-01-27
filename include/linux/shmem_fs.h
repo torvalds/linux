@@ -26,6 +26,8 @@ struct shmem_sb_info {
 	unsigned long free_blocks;  /* How many are left for allocation */
 	unsigned long max_inodes;   /* How many inodes are allowed */
 	unsigned long free_inodes;  /* How many are left for allocation */
+	int policy;		    /* Default NUMA memory alloc policy */
+	nodemask_t policy_nodes;    /* nodemask for preferred and bind */
 	spinlock_t    stat_lock;
 };
 

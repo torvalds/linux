@@ -33,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
@@ -178,8 +179,8 @@ static int reg_vif_num = -1;
 static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	read_lock(&mrt_lock);
-	((struct net_device_stats*)dev->priv)->tx_bytes += skb->len;
-	((struct net_device_stats*)dev->priv)->tx_packets++;
+	((struct net_device_stats*)netdev_priv(dev))->tx_bytes += skb->len;
+	((struct net_device_stats*)netdev_priv(dev))->tx_packets++;
 	ipmr_cache_report(skb, reg_vif_num, IGMPMSG_WHOLEPKT);
 	read_unlock(&mrt_lock);
 	kfree_skb(skb);
@@ -188,7 +189,7 @@ static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *reg_vif_get_stats(struct net_device *dev)
 {
-	return (struct net_device_stats*)dev->priv;
+	return (struct net_device_stats*)netdev_priv(dev);
 }
 
 static void reg_vif_setup(struct net_device *dev)
@@ -1149,8 +1150,8 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 	if (vif->flags & VIFF_REGISTER) {
 		vif->pkt_out++;
 		vif->bytes_out+=skb->len;
-		((struct net_device_stats*)vif->dev->priv)->tx_bytes += skb->len;
-		((struct net_device_stats*)vif->dev->priv)->tx_packets++;
+		((struct net_device_stats*)netdev_priv(vif->dev))->tx_bytes += skb->len;
+		((struct net_device_stats*)netdev_priv(vif->dev))->tx_packets++;
 		ipmr_cache_report(skb, vifi, IGMPMSG_WHOLEPKT);
 		kfree_skb(skb);
 		return;
@@ -1210,8 +1211,8 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 	if (vif->flags & VIFF_TUNNEL) {
 		ip_encap(skb, vif->local, vif->remote);
 		/* FIXME: extra output firewall step used to be here. --RR */
-		((struct ip_tunnel *)vif->dev->priv)->stat.tx_packets++;
-		((struct ip_tunnel *)vif->dev->priv)->stat.tx_bytes+=skb->len;
+		((struct ip_tunnel *)netdev_priv(vif->dev))->stat.tx_packets++;
+		((struct ip_tunnel *)netdev_priv(vif->dev))->stat.tx_bytes+=skb->len;
 	}
 
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
@@ -1467,8 +1468,8 @@ int pim_rcv_v1(struct sk_buff * skb)
 	skb->pkt_type = PACKET_HOST;
 	dst_release(skb->dst);
 	skb->dst = NULL;
-	((struct net_device_stats*)reg_dev->priv)->rx_bytes += skb->len;
-	((struct net_device_stats*)reg_dev->priv)->rx_packets++;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_bytes += skb->len;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_packets++;
 	nf_reset(skb);
 	netif_rx(skb);
 	dev_put(reg_dev);
@@ -1522,8 +1523,8 @@ static int pim_rcv(struct sk_buff * skb)
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
 	dst_release(skb->dst);
-	((struct net_device_stats*)reg_dev->priv)->rx_bytes += skb->len;
-	((struct net_device_stats*)reg_dev->priv)->rx_packets++;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_bytes += skb->len;
+	((struct net_device_stats*)netdev_priv(reg_dev))->rx_packets++;
 	skb->dst = NULL;
 	nf_reset(skb);
 	netif_rx(skb);

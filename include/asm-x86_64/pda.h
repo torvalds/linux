@@ -5,6 +5,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/cache.h>
+#include <asm/page.h>
 
 /* Per processor datastructure. %gs points to it while the kernel runs */ 
 struct x8664_pda {
@@ -12,6 +13,9 @@ struct x8664_pda {
 	unsigned long data_offset;	/* Per cpu data offset from linker address */
 	unsigned long kernelstack;  /* top of kernel stack for current */ 
 	unsigned long oldrsp; 	    /* user rsp for system call */
+#if DEBUG_STKSZ > EXCEPTION_STKSZ
+	unsigned long debugstack;   /* #DB/#BP stack. */
+#endif
         int irqcount;		    /* Irq nesting counter. Starts with -1 */  	
 	int cpunumber;		    /* Logical CPU number */
 	char *irqstackptr;	/* top of irqstack */
@@ -23,11 +27,10 @@ struct x8664_pda {
 	unsigned apic_timer_irqs;
 } ____cacheline_aligned_in_smp;
 
+extern struct x8664_pda *_cpu_pda[];
+extern struct x8664_pda boot_cpu_pda[];
 
-#define IRQSTACK_ORDER 2
-#define IRQSTACKSIZE (PAGE_SIZE << IRQSTACK_ORDER) 
-
-extern struct x8664_pda cpu_pda[];
+#define cpu_pda(i) (_cpu_pda[i])
 
 /* 
  * There is no fast way to get the base address of the PDA, all the accesses

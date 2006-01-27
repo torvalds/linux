@@ -321,7 +321,7 @@ static int option_write(struct usb_serial_port *port,
 
 static void option_indat_callback(struct urb *urb, struct pt_regs *regs)
 {
-	int i, err;
+	int err;
 	int endpoint;
 	struct usb_serial_port *port;
 	struct tty_struct *tty;
@@ -338,11 +338,8 @@ static void option_indat_callback(struct urb *urb, struct pt_regs *regs)
 	} else {
 		tty = port->tty;
 		if (urb->actual_length) {
-			for (i = 0; i < urb->actual_length ; ++i) {
-				if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-					tty_flip_buffer_push(tty);
-				tty_insert_flip_char(tty, data[i], 0);
-			}
+			tty_buffer_request_room(tty, urb->actual_length);
+			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 		} else {
 			dbg("%s: empty read urb received", __FUNCTION__);

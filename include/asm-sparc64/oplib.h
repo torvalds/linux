@@ -163,6 +163,7 @@ enum prom_input_device {
 	PROMDEV_IKBD,			/* input from keyboard */
 	PROMDEV_ITTYA,			/* input from ttya */
 	PROMDEV_ITTYB,			/* input from ttyb */
+	PROMDEV_IRSC,			/* input from rsc */
 	PROMDEV_I_UNK,
 };
 
@@ -174,6 +175,7 @@ enum prom_output_device {
 	PROMDEV_OSCREEN,		/* to screen */
 	PROMDEV_OTTYA,			/* to ttya */
 	PROMDEV_OTTYB,			/* to ttyb */
+	PROMDEV_ORSC,			/* to rsc */
 	PROMDEV_O_UNK,
 };
 

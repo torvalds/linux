@@ -61,16 +61,14 @@ static struct drm_proc_list {
 	const char *name;	/**< file name */
 	int (*f) (char *, char **, off_t, int, int *, void *);		/**< proc callback*/
 } drm_proc_list[] = {
-	{
-	"name", drm_name_info}, {
-	"mem", drm_mem_info}, {
-	"vm", drm_vm_info}, {
-	"clients", drm_clients_info}, {
-	"queues", drm_queues_info}, {
-	"bufs", drm_bufs_info},
+	{"name", drm_name_info},
+	{"mem", drm_mem_info},
+	{"vm", drm_vm_info},
+	{"clients", drm_clients_info},
+	{"queues", drm_queues_info},
+	{"bufs", drm_bufs_info},
 #if DRM_DEBUG_CODE
-	{
-	"vma", drm_vma_info},
+	{"vma", drm_vma_info},
 #endif
 };
 

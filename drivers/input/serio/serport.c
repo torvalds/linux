@@ -96,6 +96,7 @@ static int serport_ldisc_open(struct tty_struct *tty)
 	init_waitqueue_head(&serport->wait);
 
 	tty->disc_data = serport;
+	tty->receive_room = 256;
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
 	return 0;
@@ -137,17 +138,6 @@ static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *c
 
 out:
 	spin_unlock_irqrestore(&serport->lock, flags);
-}
-
-/*
- * serport_ldisc_room() reports how much room we do have for receiving data.
- * Although we in fact have infinite room, we need to specify some value
- * here, and 256 seems to be reasonable.
- */
-
-static int serport_ldisc_room(struct tty_struct *tty)
-{
-	return 256;
 }
 
 /*
@@ -237,7 +227,6 @@ static struct tty_ldisc serport_ldisc = {
 	.read =		serport_ldisc_read,
 	.ioctl =	serport_ldisc_ioctl,
 	.receive_buf =	serport_ldisc_receive,
-	.receive_room =	serport_ldisc_room,
 	.write_wakeup =	serport_ldisc_write_wakeup
 };
 

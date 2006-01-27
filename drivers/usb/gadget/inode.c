@@ -1562,10 +1562,10 @@ restart:
 		spin_unlock_irq (&dev->lock);
 
 		/* break link to dcache */
-		down (&parent->i_sem);
+		mutex_lock (&parent->i_mutex);
 		d_delete (dentry);
 		dput (dentry);
-		up (&parent->i_sem);
+		mutex_unlock (&parent->i_mutex);
 
 		/* fds may still be open */
 		goto restart;
@@ -1738,9 +1738,6 @@ static struct usb_gadget_driver gadgetfs_driver = {
 
 	.driver 	= {
 		.name		= (char *) shortname,
-		// .shutdown = ...
-		// .suspend = ...
-		// .resume = ...
 	},
 };
 

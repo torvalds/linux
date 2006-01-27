@@ -501,7 +501,7 @@ xfs_reserve_blocks(
 	if (inval == (__uint64_t *)NULL) {
 		outval->resblks = mp->m_resblks;
 		outval->resblks_avail = mp->m_resblks_avail;
-		return(0);
+		return 0;
 	}
 
 	request = *inval;
@@ -537,7 +537,33 @@ xfs_reserve_blocks(
 	outval->resblks = mp->m_resblks;
 	outval->resblks_avail = mp->m_resblks_avail;
 	XFS_SB_UNLOCK(mp, s);
-	return(0);
+	return 0;
+}
+
+void
+xfs_fs_log_dummy(xfs_mount_t *mp)
+{
+	xfs_trans_t *tp;
+	xfs_inode_t *ip;
+
+
+	tp = _xfs_trans_alloc(mp, XFS_TRANS_DUMMY1);
+	atomic_inc(&mp->m_active_trans);
+	if (xfs_trans_reserve(tp, 0, XFS_ICHANGE_LOG_RES(mp), 0, 0, 0)) {
+		xfs_trans_cancel(tp, 0);
+		return;
+	}
+
+	ip = mp->m_rootip;
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	xfs_trans_ihold(tp, ip);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_set_sync(tp);
+	xfs_trans_commit(tp, 0, NULL);
+
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 }
 
 int

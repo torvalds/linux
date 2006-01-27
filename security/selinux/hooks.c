@@ -1019,7 +1019,7 @@ static inline int dentry_has_perm(struct task_struct *tsk,
    has the same SID as the process.  If av is zero, then
    access to the file is not checked, e.g. for cases
    where only the descriptor is affected like seek. */
-static inline int file_has_perm(struct task_struct *tsk,
+static int file_has_perm(struct task_struct *tsk,
 				struct file *file,
 				u32 av)
 {
@@ -1663,7 +1663,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 						continue;
 					}
 					if (devnull) {
-						rcuref_inc(&devnull->f_count);
+						get_file(devnull);
 					} else {
 						devnull = dentry_open(dget(selinux_null), mntget(selinuxfs_mount), O_RDWR);
 						if (!devnull) {

@@ -993,7 +993,7 @@ static int sock_fasync(int fd, struct file *filp, int on)
 
 	if (on)
 	{
-		fna=(struct fasync_struct *)kmalloc(sizeof(struct fasync_struct), GFP_KERNEL);
+		fna = kmalloc(sizeof(struct fasync_struct), GFP_KERNEL);
 		if(fna==NULL)
 			return -ENOMEM;
 	}

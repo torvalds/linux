@@ -3,6 +3,7 @@
 
 # Convinient variables
 comma   := ,
+squote  := '
 empty   :=
 space   := $(empty) $(empty)
 
@@ -10,6 +11,10 @@ space   := $(empty) $(empty)
 # The temporary file to save gcc -MD generated dependencies must not
 # contain a comma
 depfile = $(subst $(comma),_,$(@D)/.$(@F).d)
+
+###
+# Escape single quote for use in echo statements
+escsq = $(subst $(squote),'\$(squote)',$1)
 
 ###
 # filechk is used to check if the content of a generated file is updated.
@@ -47,7 +52,7 @@ build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 
 # If quiet is set, only print short version of command
 cmd = @$(if $($(quiet)cmd_$(1)),\
-      echo '  $(subst ','\'',$($(quiet)cmd_$(1)))' &&) $(cmd_$(1))
+      echo '  $(call escsq,$($(quiet)cmd_$(1)))' &&) $(cmd_$(1))
 
 # Add $(obj)/ for paths that is not absolute
 objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
@@ -68,7 +73,7 @@ endif
 
 # echo command. Short version is $(quiet) equals quiet, otherwise full command
 echo-cmd = $(if $($(quiet)cmd_$(1)), \
-	echo '  $(subst ','\'',$($(quiet)cmd_$(1)))';)
+	echo '  $(call escsq,$($(quiet)cmd_$(1)))';)
 
 # function to only execute the passed command if necessary
 # >'< substitution is for echo to work, >$< substitution to preserve $ when reloading .cmd file
@@ -78,7 +83,7 @@ if_changed = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
 	@set -e; \
 	$(echo-cmd) \
 	$(cmd_$(1)); \
-	echo 'cmd_$@ := $(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).cmd)
+	echo 'cmd_$@ := $(subst $$,$$$$,$(call escsq,$(cmd_$(1))))' > $(@D)/.$(@F).cmd)
 
 # execute the command and also postprocess generated .d dependencies
 # file
@@ -87,7 +92,7 @@ if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
 	@set -e; \
 	$(echo-cmd) \
 	$(cmd_$(1)); \
-	scripts/basic/fixdep $(depfile) $@ '$(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).tmp; \
+	scripts/basic/fixdep $(depfile) $@ '$(subst $$,$$$$,$(call escsq,$(cmd_$(1))))' > $(@D)/.$(@F).tmp; \
 	rm -f $(depfile); \
 	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd)
 

@@ -251,10 +251,7 @@ static struct pending_event *new_pending_event(void)
 	}
 	memset(ev, 0, sizeof(struct pending_event));
 	hev = &ev->event.hp_lp_event;
-	hev->xFlags.xValid = 1;
-	hev->xFlags.xAckType = HvLpEvent_AckType_ImmediateAck;
-	hev->xFlags.xAckInd = HvLpEvent_AckInd_DoAck;
-	hev->xFlags.xFunction = HvLpEvent_Function_Int;
+	hev->flags = HV_LP_EVENT_VALID | HV_LP_EVENT_DO_ACK | HV_LP_EVENT_INT;
 	hev->xType = HvLpEvent_Type_MachineFac;
 	hev->xSourceLp = HvLpConfig_getLpIndex();
 	hev->xTargetLp = primary_lp;
@@ -518,17 +515,10 @@ static void handle_ack(struct io_mf_lp_event *event)
 static void hv_handler(struct HvLpEvent *event, struct pt_regs *regs)
 {
 	if ((event != NULL) && (event->xType == HvLpEvent_Type_MachineFac)) {
-		switch(event->xFlags.xFunction) {
-		case HvLpEvent_Function_Ack:
+		if (hvlpevent_is_ack(event))
 			handle_ack((struct io_mf_lp_event *)event);
-			break;
-		case HvLpEvent_Function_Int:
+		else
 			handle_int((struct io_mf_lp_event *)event);
-			break;
-		default:
-			printk(KERN_ERR "mf.c: non ack/int event received\n");
-			break;
-		}
 	} else
 		printk(KERN_ERR "mf.c: alien event received\n");
 }

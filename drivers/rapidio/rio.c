@@ -23,6 +23,7 @@
 #include <linux/rio_regs.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "rio.h"
 

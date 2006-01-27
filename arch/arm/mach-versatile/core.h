@@ -22,7 +22,7 @@
 #ifndef __ASM_ARCH_VERSATILE_H
 #define __ASM_ARCH_VERSATILE_H
 
-#include <asm/hardware/amba.h>
+#include <linux/amba/bus.h>
 
 extern void __init versatile_init(void);
 extern void __init versatile_init_irq(void);

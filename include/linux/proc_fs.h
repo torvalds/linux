@@ -146,6 +146,11 @@ struct property;
 extern void proc_device_tree_init(void);
 extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);
 extern void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop);
+extern void proc_device_tree_remove_prop(struct proc_dir_entry *pde,
+					 struct property *prop);
+extern void proc_device_tree_update_prop(struct proc_dir_entry *pde,
+					 struct property *newprop,
+					 struct property *oldprop);
 #endif /* CONFIG_PROC_DEVICETREE */
 
 extern struct proc_dir_entry *proc_symlink(const char *,

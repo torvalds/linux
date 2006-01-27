@@ -408,7 +408,7 @@ static int emac_configure(struct ocp_enet_private *dev)
 	/* Mode register */
 	r = EMAC_MR1_BASE(emac_opb_mhz()) | EMAC_MR1_VLE | EMAC_MR1_IST;
 	if (dev->phy.duplex == DUPLEX_FULL)
-		r |= EMAC_MR1_FDE;
+		r |= EMAC_MR1_FDE | EMAC_MR1_MWSW_001;
 	dev->stop_timeout = STOP_TIMEOUT_10;
 	switch (dev->phy.speed) {
 	case SPEED_1000:

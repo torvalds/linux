@@ -140,7 +140,7 @@ ext3_xattr_handler(int name_index)
 /*
  * Inode operation listxattr()
  *
- * dentry->d_inode->i_sem: don't care
+ * dentry->d_inode->i_mutex: don't care
  */
 ssize_t
 ext3_listxattr(struct dentry *dentry, char *buffer, size_t size)
@@ -946,10 +946,6 @@ ext3_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 	};
 	int error;
 
-	if (IS_RDONLY(inode))
-		return -EROFS;
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
 	if (!name)
 		return -EINVAL;
 	if (strlen(name) > 255)

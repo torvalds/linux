@@ -103,7 +103,7 @@ EXPORT_SYMBOL(unw_init_running);
 
 #ifdef ASM_SUPPORTED
 # ifdef CONFIG_SMP
-#  if __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
+#  if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
 /*
  * This is not a normal routine and we don't want a function descriptor for it, so we use
  * a fake declaration here.

@@ -519,7 +519,7 @@ static inline int simulate_llsc(struct pt_regs *regs)
  */
 static inline int simulate_rdhwr(struct pt_regs *regs)
 {
-	struct thread_info *ti = current->thread_info;
+	struct thread_info *ti = task_thread_info(current);
 	unsigned int opcode;
 
 	if (unlikely(get_insn_opcode(regs, &opcode)))

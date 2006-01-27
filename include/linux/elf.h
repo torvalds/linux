@@ -151,6 +151,8 @@ typedef __s64	Elf64_Sxword;
 #define STT_FUNC    2
 #define STT_SECTION 3
 #define STT_FILE    4
+#define STT_COMMON  5
+#define STT_TLS     6
 
 #define ELF_ST_BIND(x)		((x) >> 4)
 #define ELF_ST_TYPE(x)		(((unsigned int) x) & 0xf)

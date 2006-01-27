@@ -40,7 +40,7 @@ MODULE_VERSION(HVCS_ARCH_VERSION);
  * functions aren't performance sensitive, so this conversion isn't an
  * issue.
  */
-int hvcs_convert(long to_convert)
+static int hvcs_convert(long to_convert)
 {
 	switch (to_convert) {
 		case H_Success:
@@ -91,7 +91,7 @@ int hvcs_free_partner_info(struct list_head *head)
 EXPORT_SYMBOL(hvcs_free_partner_info);
 
 /* Helper function for hvcs_get_partner_info */
-int hvcs_next_partner(uint32_t unit_address,
+static int hvcs_next_partner(uint32_t unit_address,
 		unsigned long last_p_partition_ID,
 		unsigned long last_p_unit_address, unsigned long *pi_buff)
 

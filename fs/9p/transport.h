@@ -3,6 +3,7 @@
  *
  * Transport Definition
  *
+ *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -31,14 +32,13 @@ enum v9fs_transport_status {
 
 struct v9fs_transport {
 	enum v9fs_transport_status status;
-	struct semaphore writelock;
-	struct semaphore readlock;
 	void *priv;
 
 	int (*init) (struct v9fs_session_info *, const char *, char *);
 	int (*write) (struct v9fs_transport *, void *, int);
 	int (*read) (struct v9fs_transport *, void *, int);
 	void (*close) (struct v9fs_transport *);
+	unsigned int (*poll)(struct v9fs_transport *, struct poll_table_struct *);
 };
 
 extern struct v9fs_transport v9fs_trans_tcp;

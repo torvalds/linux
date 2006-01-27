@@ -83,15 +83,12 @@ int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
 
 	if (!end_that_request_first(rq, uptodate, nr_sectors)) {
 		add_disk_randomness(rq->rq_disk);
-
-		if (blk_rq_tagged(rq))
-			blk_queue_end_tag(drive->queue, rq);
-
 		blkdev_dequeue_request(rq);
 		HWGROUP(drive)->rq = NULL;
 		end_that_request_last(rq, uptodate);
 		ret = 0;
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(__ide_end_request);
@@ -113,6 +110,10 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 	unsigned long flags;
 	int ret = 1;
 
+	/*
+	 * room for locking improvements here, the calls below don't
+	 * need the queue lock held at all
+	 */
 	spin_lock_irqsave(&ide_lock, flags);
 	rq = HWGROUP(drive)->rq;
 

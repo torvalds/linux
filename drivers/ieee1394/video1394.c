@@ -48,7 +48,6 @@
 #include <linux/vmalloc.h>
 #include <linux/timex.h>
 #include <linux/mm.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/cdev.h>
 

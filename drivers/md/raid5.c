@@ -69,7 +69,7 @@
 
 static void print_raid5_conf (raid5_conf_t *conf);
 
-static inline void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
+static void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 {
 	if (atomic_dec_and_test(&sh->count)) {
 		if (!list_empty(&sh->lru))
@@ -118,7 +118,7 @@ static inline void remove_hash(struct stripe_head *sh)
 	hlist_del_init(&sh->hash);
 }
 
-static inline void insert_hash(raid5_conf_t *conf, struct stripe_head *sh)
+static void insert_hash(raid5_conf_t *conf, struct stripe_head *sh)
 {
 	struct hlist_head *hp = stripe_hash(conf, sh->sector);
 
@@ -178,7 +178,7 @@ static int grow_buffers(struct stripe_head *sh, int num)
 
 static void raid5_build_block (struct stripe_head *sh, int i);
 
-static inline void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx)
+static void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = conf->raid_disks, i;
@@ -1415,7 +1415,7 @@ static void handle_stripe(struct stripe_head *sh)
 	}
 }
 
-static inline void raid5_activate_delayed(raid5_conf_t *conf)
+static void raid5_activate_delayed(raid5_conf_t *conf)
 {
 	if (atomic_read(&conf->preread_active_stripes) < IO_THRESHOLD) {
 		while (!list_empty(&conf->delayed_list)) {
@@ -1431,7 +1431,7 @@ static inline void raid5_activate_delayed(raid5_conf_t *conf)
 	}
 }
 
-static inline void activate_bit_delay(raid5_conf_t *conf)
+static void activate_bit_delay(raid5_conf_t *conf)
 {
 	/* device_lock is held */
 	struct list_head head;

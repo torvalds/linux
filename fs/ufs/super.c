@@ -221,7 +221,7 @@ void ufs_error (struct super_block * sb, const char * function,
 	va_list args;
 
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	
 	if (!(sb->s_flags & MS_RDONLY)) {
 		usb1->fs_clean = UFS_FSBAD;
@@ -253,7 +253,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 	va_list args;
 	
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	
 	if (!(sb->s_flags & MS_RDONLY)) {
 		usb1->fs_clean = UFS_FSBAD;
@@ -420,21 +420,18 @@ static int ufs_read_cylinder_structures (struct super_block *sb) {
 		if (i + uspi->s_fpb > blks)
 			size = (blks - i) * uspi->s_fsize;
 
-		if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
+		if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) 
 			ubh = ubh_bread(sb,
 				fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_csaddr) + i, size);
-			if (!ubh)
-				goto failed;
-			ubh_ubhcpymem (space, ubh, size);
-			sbi->s_csp[ufs_fragstoblks(i)]=(struct ufs_csum *)space;
-		}
-		else {
+		else 
 			ubh = ubh_bread(sb, uspi->s_csaddr + i, size);
-			if (!ubh)
-				goto failed;
-			ubh_ubhcpymem(space, ubh, size);
-			sbi->s_csp[ufs_fragstoblks(i)]=(struct ufs_csum *)space;
-		}
+		
+		if (!ubh)
+			goto failed;
+
+		ubh_ubhcpymem (space, ubh, size);
+		sbi->s_csp[ufs_fragstoblks(i)]=(struct ufs_csum *)space;
+
 		space += size;
 		ubh_brelse (ubh);
 		ubh = NULL;
@@ -539,6 +536,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	unsigned block_size, super_block_size;
 	unsigned flags;
+	unsigned super_block_offset;
 
 	uspi = NULL;
 	ubh = NULL;
@@ -586,10 +584,11 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!uspi)
 		goto failed;
 
+	super_block_offset=UFS_SBLOCK;
+
 	/* Keep 2Gig file limit. Some UFS variants need to override 
 	   this but as I don't know which I'll let those in the know loosen
 	   the rules */
-	   
 	switch (sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) {
 	case UFS_MOUNT_UFSTYPE_44BSD:
 		UFSD(("ufstype=44bsd\n"))
@@ -601,7 +600,8 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		flags |= UFS_DE_44BSD | UFS_UID_44BSD | UFS_ST_44BSD | UFS_CG_44BSD;
 		break;
 	case UFS_MOUNT_UFSTYPE_UFS2:
-		UFSD(("ufstype=ufs2\n"))
+		UFSD(("ufstype=ufs2\n"));
+		super_block_offset=SBLOCK_UFS2;
 		uspi->s_fsize = block_size = 512;
 		uspi->s_fmask = ~(512 - 1);
 		uspi->s_fshift = 9;
@@ -725,19 +725,16 @@ again:
 	/*
 	 * read ufs super block from device
 	 */
-	if ( (flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
-		ubh = ubh_bread_uspi(uspi, sb, uspi->s_sbbase + SBLOCK_UFS2/block_size, super_block_size);
-	}
-	else {
-		ubh = ubh_bread_uspi(uspi, sb, uspi->s_sbbase + UFS_SBLOCK/block_size, super_block_size);
-	}
+
+	ubh = ubh_bread_uspi(uspi, sb, uspi->s_sbbase + super_block_offset/block_size, super_block_size);
+	
 	if (!ubh) 
             goto failed;
 
 	
-	usb1 = ubh_get_usb_first(USPI_UBH);
-	usb2 = ubh_get_usb_second(USPI_UBH);
-	usb3 = ubh_get_usb_third(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
+	usb2 = ubh_get_usb_second(uspi);
+	usb3 = ubh_get_usb_third(uspi);
 	usb  = (struct ufs_super_block *)
 		((struct ufs_buffer_head *)uspi)->bh[0]->b_data ;
 
@@ -1006,8 +1003,8 @@ static void ufs_write_super (struct super_block *sb) {
 	UFSD(("ENTER\n"))
 	flags = UFS_SB(sb)->s_flags;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
-	usb3 = ubh_get_usb_third(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
+	usb3 = ubh_get_usb_third(uspi);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
@@ -1049,8 +1046,8 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	
 	uspi = UFS_SB(sb)->s_uspi;
 	flags = UFS_SB(sb)->s_flags;
-	usb1 = ubh_get_usb_first(USPI_UBH);
-	usb3 = ubh_get_usb_third(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
+	usb3 = ubh_get_usb_third(uspi);
 	
 	/*
 	 * Allow the "check" option to be passed as a remount option.
@@ -1124,7 +1121,7 @@ static int ufs_statfs (struct super_block *sb, struct kstatfs *buf)
 	lock_kernel();
 
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first (USPI_UBH);
+	usb1 = ubh_get_usb_first (uspi);
 	usb  = (struct ufs_super_block *)
 		((struct ufs_buffer_head *)uspi)->bh[0]->b_data ;
 	
@@ -1275,7 +1272,7 @@ static ssize_t ufs_quota_write(struct super_block *sb, int type,
 	size_t towrite = len;
 	struct buffer_head *bh;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;
@@ -1296,14 +1293,16 @@ static ssize_t ufs_quota_write(struct super_block *sb, int type,
 		blk++;
 	}
 out:
-	if (len == towrite)
+	if (len == towrite) {
+		mutex_unlock(&inode->i_mutex);
 		return err;
+	}
 	if (inode->i_size < off+len-towrite)
 		i_size_write(inode, off+len-towrite);
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return len - towrite;
 }
 

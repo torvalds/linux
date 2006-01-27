@@ -1,58 +1,56 @@
 Everything you ever wanted to know about Linux 2.6 -stable releases.
 
-Rules on what kind of patches are accepted, and what ones are not, into
-the "-stable" tree:
+Rules on what kind of patches are accepted, and which ones are not, into the
+"-stable" tree:
 
  - It must be obviously correct and tested.
- - It can not bigger than 100 lines, with context.
+ - It can not be bigger than 100 lines, with context.
  - It must fix only one thing.
  - It must fix a real bug that bothers people (not a, "This could be a
-   problem..." type thing.)
+   problem..." type thing).
  - It must fix a problem that causes a build error (but not for things
    marked CONFIG_BROKEN), an oops, a hang, data corruption, a real
-   security issue, or some "oh, that's not good" issue.  In short,
-   something critical.
- - No "theoretical race condition" issues, unless an explanation of how
-   the race can be exploited.
+   security issue, or some "oh, that's not good" issue.  In short, something
+   critical.
+ - No "theoretical race condition" issues, unless an explanation of how the
+   race can be exploited is also provided.
  - It can not contain any "trivial" fixes in it (spelling changes,
-   whitespace cleanups, etc.)
+   whitespace cleanups, etc).
  - It must be accepted by the relevant subsystem maintainer.
- - It must follow Documentation/SubmittingPatches rules.
+ - It must follow the Documentation/SubmittingPatches rules.
 
 
 Procedure for submitting patches to the -stable tree:
 
  - Send the patch, after verifying that it follows the above rules, to
    stable@kernel.org.
- - The sender will receive an ack when the patch has been accepted into
-   the queue, or a nak if the patch is rejected.  This response might
-   take a few days, according to the developer's schedules.
- - If accepted, the patch will be added to the -stable queue, for review
-   by other developers.
+ - The sender will receive an ACK when the patch has been accepted into the
+   queue, or a NAK if the patch is rejected.  This response might take a few
+   days, according to the developer's schedules.
+ - If accepted, the patch will be added to the -stable queue, for review by
+   other developers.
  - Security patches should not be sent to this alias, but instead to the
-   documented security@kernel.org.
+   documented security@kernel.org address.
 
 
 Review cycle:
 
- - When the -stable maintainers decide for a review cycle, the patches
-   will be sent to the review committee, and the maintainer of the
-   affected area of the patch (unless the submitter is the maintainer of
-   the area) and CC: to the linux-kernel mailing list.
- - The review committee has 48 hours in which to ack or nak the patch.
+ - When the -stable maintainers decide for a review cycle, the patches will be
+   sent to the review committee, and the maintainer of the affected area of
+   the patch (unless the submitter is the maintainer of the area) and CC: to
+   the linux-kernel mailing list.
+ - The review committee has 48 hours in which to ACK or NAK the patch.
  - If the patch is rejected by a member of the committee, or linux-kernel
-   members object to the patch, bringing up issues that the maintainers
-   and members did not realize, the patch will be dropped from the
-   queue.
- - At the end of the review cycle, the acked patches will be added to
-   the latest -stable release, and a new -stable release will happen.
- - Security patches will be accepted into the -stable tree directly from
-   the security kernel team, and not go through the normal review cycle.
+   members object to the patch, bringing up issues that the maintainers and
+   members did not realize, the patch will be dropped from the queue.
+ - At the end of the review cycle, the ACKed patches will be added to the
+   latest -stable release, and a new -stable release will happen.
+ - Security patches will be accepted into the -stable tree directly from the
+   security kernel team, and not go through the normal review cycle.
    Contact the kernel security team for more details on this procedure.
 
 
 Review committe:
 
- - This will be made up of a number of kernel developers who have
-   volunteered for this task, and a few that haven't.
-
+ - This is made up of a number of kernel developers who have volunteered for
+   this task, and a few that haven't.

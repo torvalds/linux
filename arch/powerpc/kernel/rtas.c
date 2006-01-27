@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/capability.h>
 #include <linux/delay.h>
 
 #include <asm/prom.h>
@@ -29,9 +30,15 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/lmb.h>
+#include <asm/udbg.h>
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
+};
+
+struct rtas_suspend_me_data {
+	long waiting;
+	struct rtas_args *args;
 };
 
 EXPORT_SYMBOL(rtas);
@@ -52,7 +59,7 @@ EXPORT_SYMBOL(rtas_flash_term_hook);
  * are designed only for very early low-level debugging, which
  * is why the token is hard-coded to 10.
  */
-void call_rtas_display_status(unsigned char c)
+static void call_rtas_display_status(char c)
 {
 	struct rtas_args *args = &rtas.args;
 	unsigned long s;
@@ -65,14 +72,14 @@ void call_rtas_display_status(unsigned char c)
 	args->nargs = 1;
 	args->nret  = 1;
 	args->rets  = (rtas_arg_t *)&(args->args[1]);
-	args->args[0] = (int)c;
+	args->args[0] = (unsigned char)c;
 
 	enter_rtas(__pa(args));
 
 	spin_unlock_irqrestore(&rtas.lock, s);
 }
 
-void call_rtas_display_status_delay(unsigned char c)
+static void call_rtas_display_status_delay(char c)
 {
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */
 	static int width = 16;
@@ -94,6 +101,11 @@ void call_rtas_display_status_delay(unsigned char c)
 			udelay(10000);
 		}
 	}
+}
+
+void __init udbg_init_rtas(void)
+{
+	udbg_putc = call_rtas_display_status_delay;
 }
 
 void rtas_progress(char *s, unsigned short hex)
@@ -549,6 +561,80 @@ void rtas_os_term(char *str)
 	} while (status == RTAS_BUSY);
 }
 
+static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
+#ifdef CONFIG_PPC_PSERIES
+static void rtas_percpu_suspend_me(void *info)
+{
+	long rc;
+	long flags;
+	struct rtas_suspend_me_data *data =
+		(struct rtas_suspend_me_data *)info;
+
+	/*
+	 * We use "waiting" to indicate our state.  As long
+	 * as it is >0, we are still trying to all join up.
+	 * If it goes to 0, we have successfully joined up and
+	 * one thread got H_Continue.  If any error happens,
+	 * we set it to <0.
+	 */
+	local_irq_save(flags);
+	do {
+		rc = plpar_hcall_norets(H_JOIN);
+		smp_rmb();
+	} while (rc == H_Success && data->waiting > 0);
+	if (rc == H_Success)
+		goto out;
+
+	if (rc == H_Continue) {
+		data->waiting = 0;
+		rtas_call(ibm_suspend_me_token, 0, 1,
+			  data->args->args);
+	} else {
+		data->waiting = -EBUSY;
+		printk(KERN_ERR "Error on H_Join hypervisor call\n");
+	}
+
+out:
+	/* before we restore interrupts, make sure we don't
+	 * generate a spurious soft lockup errors
+	 */
+	touch_softlockup_watchdog();
+	local_irq_restore(flags);
+	return;
+}
+
+static int rtas_ibm_suspend_me(struct rtas_args *args)
+{
+	int i;
+
+	struct rtas_suspend_me_data data;
+
+	data.waiting = 1;
+	data.args = args;
+
+	/* Call function on all CPUs.  One of us will make the
+	 * rtas call
+	 */
+	if (on_each_cpu(rtas_percpu_suspend_me, &data, 1, 0))
+		data.waiting = -EINVAL;
+
+	if (data.waiting != 0)
+		printk(KERN_ERR "Error doing global join\n");
+
+	/* Prod each CPU.  This won't hurt, and will wake
+	 * anyone we successfully put to sleep with H_Join
+	 */
+	for_each_cpu(i)
+		plpar_hcall_norets(H_PROD, i);
+
+	return data.waiting;
+}
+#else /* CONFIG_PPC_PSERIES */
+static int rtas_ibm_suspend_me(struct rtas_args *args)
+{
+	return -ENOSYS;
+}
+#endif
 
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {
@@ -556,6 +642,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	unsigned long flags;
 	char *buff_copy, *errbuf = NULL;
 	int nargs;
+	int rc;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -573,6 +660,17 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	if (copy_from_user(args.args, uargs->args,
 			   nargs * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
+
+	if (args.token == RTAS_UNKNOWN_SERVICE)
+		return -EINVAL;
+
+	/* Need to handle ibm,suspend_me call specially */
+	if (args.token == ibm_suspend_me_token) {
+		rc = rtas_ibm_suspend_me(&args);
+		if (rc)
+			return rc;
+		goto copy_return;
+	}
 
 	buff_copy = get_errorlog_buffer();
 
@@ -597,6 +695,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 		kfree(buff_copy);
 	}
 
+ copy_return:
 	/* Copy out args. */
 	if (copy_to_user(uargs->args + nargs,
 			 args.args + nargs,
@@ -632,7 +731,7 @@ void rtas_stop_self(void)
 }
 
 /*
- * Call early during boot, before mem init or bootmem, to retreive the RTAS
+ * Call early during boot, before mem init or bootmem, to retrieve the RTAS
  * informations from the device-tree and allocate the RMO buffer for userland
  * accesses.
  */
@@ -668,8 +767,10 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (_machine == PLATFORM_PSERIES_LPAR)
+	if (_machine == PLATFORM_PSERIES_LPAR) {
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
+		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
+	}
 #endif
 	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);
 

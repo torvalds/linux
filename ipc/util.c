@@ -7,7 +7,7 @@
  *            Occurs in several places in the IPC code.
  *            Chris Evans, <chris@ferret.lmh.ox.ac.uk>
  * Nov 1999 - ipc helper functions, unified SMP locking
- *	      Manfred Spraul <manfreds@colorfullife.com>
+ *	      Manfred Spraul <manfred@colorfullife.com>
  * Oct 2002 - One lock per IPC id. RCU ipc_free for lock-free grow_ary().
  *            Mingming Cao <cmm@us.ibm.com>
  */
@@ -20,6 +20,7 @@
 #include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
 #include <linux/rcupdate.h>

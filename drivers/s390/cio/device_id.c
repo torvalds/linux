@@ -3,7 +3,7 @@
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
- *    Author(s): Cornelia Huck(cohuck@de.ibm.com)
+ *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  * Sense ID functions.

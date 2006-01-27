@@ -453,7 +453,7 @@ int coda_readdir(struct file *coda_file, void *dirent, filldir_t filldir)
 	coda_vfs_stat.readdir++;
 
 	host_inode = host_file->f_dentry->d_inode;
-	down(&host_inode->i_sem);
+	mutex_lock(&host_inode->i_mutex);
 	host_file->f_pos = coda_file->f_pos;
 
 	if (!host_file->f_op->readdir) {
@@ -475,7 +475,7 @@ int coda_readdir(struct file *coda_file, void *dirent, filldir_t filldir)
 	}
 out:
 	coda_file->f_pos = host_file->f_pos;
-	up(&host_inode->i_sem);
+	mutex_unlock(&host_inode->i_mutex);
 
 	return ret;
 }

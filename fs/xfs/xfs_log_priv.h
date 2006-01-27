@@ -253,7 +253,6 @@ typedef __uint32_t xlog_tid_t;
 
 
 /* Ticket reservation region accounting */ 
-#if defined(XFS_LOG_RES_DEBUG)
 #define XLOG_TIC_LEN_MAX	15
 #define XLOG_TIC_RESET_RES(t) ((t)->t_res_num = \
 				(t)->t_res_arr_sum = (t)->t_res_num_ophdrs = 0)
@@ -278,15 +277,9 @@ typedef __uint32_t xlog_tid_t;
  * we don't care about.
  */
 typedef struct xlog_res {
-	uint	r_len;
-	uint	r_type;
+	uint	r_len;	/* region length		:4 */
+	uint	r_type;	/* region's transaction type	:4 */
 } xlog_res_t;
-#else
-#define XLOG_TIC_RESET_RES(t)
-#define XLOG_TIC_ADD_OPHDR(t)
-#define XLOG_TIC_ADD_REGION(t, len, type)
-#endif
-
 
 typedef struct xlog_ticket {
 	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
@@ -301,14 +294,12 @@ typedef struct xlog_ticket {
 	char		   t_flags;	 /* properties of reservation	 : 1  */
 	uint		   t_trans_type; /* transaction type             : 4  */
 
-#if defined (XFS_LOG_RES_DEBUG)
         /* reservation array fields */
 	uint		   t_res_num;                    /* num in array : 4 */
-	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : X */ 
 	uint		   t_res_num_ophdrs;		 /* num op hdrs  : 4 */
 	uint		   t_res_arr_sum;		 /* array sum    : 4 */
 	uint		   t_res_o_flow;		 /* sum overflow : 4 */
-#endif
+	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : 8 * 15 */ 
 } xlog_ticket_t;
 
 #endif
@@ -494,71 +485,13 @@ typedef struct log {
 
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes -= (bytes);			\
-		if ((log)->l_grant_write_bytes < 0) {			\
-			(log)->l_grant_write_bytes += (log)->l_logsize;	\
-			(log)->l_grant_write_cycle--;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes -= (bytes);		\
-		if ((log)->l_grant_reserve_bytes < 0) {			\
-			(log)->l_grant_reserve_bytes += (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle--;			\
-		}							\
-	 }								\
-    }
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes += (bytes);			\
-		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_write_bytes -= (log)->l_logsize;	\
-			(log)->l_grant_write_cycle++;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes += (bytes);		\
-		if ((log)->l_grant_reserve_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_reserve_bytes -= (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle++;			\
-		}							\
-	 }								\
-    }
-#define XLOG_INS_TICKETQ(q, tic)			\
-    {							\
-	if (q) {					\
-		(tic)->t_next	    = (q);		\
-		(tic)->t_prev	    = (q)->t_prev;	\
-		(q)->t_prev->t_next = (tic);		\
-		(q)->t_prev	    = (tic);		\
-	} else {					\
-		(tic)->t_prev = (tic)->t_next = (tic);	\
-		(q) = (tic);				\
-	}						\
-	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
-    }
-#define XLOG_DEL_TICKETQ(q, tic)			\
-    {							\
-	if ((tic) == (tic)->t_next) {			\
-		(q) = NULL;				\
-	} else {					\
-		(q) = (tic)->t_next;			\
-		(tic)->t_next->t_prev = (tic)->t_prev;	\
-		(tic)->t_prev->t_next = (tic)->t_next;	\
-	}						\
-	(tic)->t_next = (tic)->t_prev = NULL;		\
-	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
-    }
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
 extern int	 xlog_find_tail(xlog_t	*log,
 				xfs_daddr_t *head_blk,
-				xfs_daddr_t *tail_blk,
-				int readonly);
-extern int	 xlog_recover(xlog_t *log, int readonly);
+				xfs_daddr_t *tail_blk);
+extern int	 xlog_recover(xlog_t *log);
 extern int	 xlog_recover_finish(xlog_t *log, int mfsi_flags);
 extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 extern void	 xlog_recover_process_iunlinks(xlog_t *log);

@@ -45,4 +45,4 @@ obj-$(CONFIG_ACT200L_DONGLE)	+= act200l-sir.o
 obj-$(CONFIG_MA600_DONGLE)	+= ma600-sir.o
 
 # The SIR helper module
-sir-dev-objs := sir_core.o sir_dev.o sir_dongle.o sir_kthread.o
+sir-dev-objs := sir_dev.o sir_dongle.o sir_kthread.o

@@ -431,25 +431,25 @@ extern int nf_conntrack_max;
 extern unsigned int nf_conntrack_htable_size;
 
 /* From nf_conntrack_proto_tcp.c */
-extern unsigned long nf_ct_tcp_timeout_syn_sent;
-extern unsigned long nf_ct_tcp_timeout_syn_recv;
-extern unsigned long nf_ct_tcp_timeout_established;
-extern unsigned long nf_ct_tcp_timeout_fin_wait;
-extern unsigned long nf_ct_tcp_timeout_close_wait;
-extern unsigned long nf_ct_tcp_timeout_last_ack;
-extern unsigned long nf_ct_tcp_timeout_time_wait;
-extern unsigned long nf_ct_tcp_timeout_close;
-extern unsigned long nf_ct_tcp_timeout_max_retrans;
+extern unsigned int nf_ct_tcp_timeout_syn_sent;
+extern unsigned int nf_ct_tcp_timeout_syn_recv;
+extern unsigned int nf_ct_tcp_timeout_established;
+extern unsigned int nf_ct_tcp_timeout_fin_wait;
+extern unsigned int nf_ct_tcp_timeout_close_wait;
+extern unsigned int nf_ct_tcp_timeout_last_ack;
+extern unsigned int nf_ct_tcp_timeout_time_wait;
+extern unsigned int nf_ct_tcp_timeout_close;
+extern unsigned int nf_ct_tcp_timeout_max_retrans;
 extern int nf_ct_tcp_loose;
 extern int nf_ct_tcp_be_liberal;
 extern int nf_ct_tcp_max_retrans;
 
 /* From nf_conntrack_proto_udp.c */
-extern unsigned long nf_ct_udp_timeout;
-extern unsigned long nf_ct_udp_timeout_stream;
+extern unsigned int nf_ct_udp_timeout;
+extern unsigned int nf_ct_udp_timeout_stream;
 
 /* From nf_conntrack_proto_generic.c */
-extern unsigned long nf_ct_generic_timeout;
+extern unsigned int nf_ct_generic_timeout;
 
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min = 0;
@@ -821,7 +821,7 @@ module_exit(fini);
 
 /* Some modules need us, but don't depend directly on any symbol.
    They should call this. */
-void need_nf_conntrack(void)
+void need_conntrack(void)
 {
 }
 
@@ -841,7 +841,7 @@ EXPORT_SYMBOL(nf_conntrack_protocol_unregister);
 EXPORT_SYMBOL(nf_ct_invert_tuplepr);
 EXPORT_SYMBOL(nf_conntrack_alter_reply);
 EXPORT_SYMBOL(nf_conntrack_destroyed);
-EXPORT_SYMBOL(need_nf_conntrack);
+EXPORT_SYMBOL(need_conntrack);
 EXPORT_SYMBOL(nf_conntrack_helper_register);
 EXPORT_SYMBOL(nf_conntrack_helper_unregister);
 EXPORT_SYMBOL(nf_ct_iterate_cleanup);

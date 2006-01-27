@@ -213,14 +213,13 @@ static int corgi_mci_init(struct device *dev, irqreturn_t (*corgi_detect_int)(in
 
 	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int, SA_INTERRUPT,
-			     "MMC card detect", data);
+	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int,
+			  SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "corgi_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
 		return -1;
 	}
-
-	set_irq_type(CORGI_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
 
 	return 0;
 }
@@ -343,7 +342,6 @@ static void __init fixup_corgi(struct machine_desc *desc,
 
 #ifdef CONFIG_MACH_CORGI
 MACHINE_START(CORGI, "SHARP Corgi")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
@@ -356,7 +354,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_SHEPHERD
 MACHINE_START(SHEPHERD, "SHARP Shepherd")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
@@ -369,7 +366,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_HUSKY
 MACHINE_START(HUSKY, "SHARP Husky")
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,

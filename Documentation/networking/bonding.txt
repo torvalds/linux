@@ -945,7 +945,6 @@ bond0     Link encap:Ethernet  HWaddr 00:C0:F0:1F:37:B4
           collisions:0 txqueuelen:0
 
 eth0      Link encap:Ethernet  HWaddr 00:C0:F0:1F:37:B4
-          inet addr:XXX.XXX.XXX.YYY  Bcast:XXX.XXX.XXX.255  Mask:255.255.252.0
           UP BROADCAST RUNNING SLAVE MULTICAST  MTU:1500  Metric:1
           RX packets:3573025 errors:0 dropped:0 overruns:0 frame:0
           TX packets:1643167 errors:1 dropped:0 overruns:1 carrier:0
@@ -953,7 +952,6 @@ eth0      Link encap:Ethernet  HWaddr 00:C0:F0:1F:37:B4
           Interrupt:10 Base address:0x1080
 
 eth1      Link encap:Ethernet  HWaddr 00:C0:F0:1F:37:B4
-          inet addr:XXX.XXX.XXX.YYY  Bcast:XXX.XXX.XXX.255  Mask:255.255.252.0
           UP BROADCAST RUNNING SLAVE MULTICAST  MTU:1500  Metric:1
           RX packets:3651769 errors:0 dropped:0 overruns:0 frame:0
           TX packets:1643480 errors:0 dropped:0 overruns:0 carrier:0

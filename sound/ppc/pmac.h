@@ -113,7 +113,8 @@ struct snd_pmac {
 	unsigned int initialized : 1;
 	unsigned int feature_is_set : 1;
 
-	unsigned int of_requested;
+	unsigned int requested;
+	struct resource rsrc[3];
 
 	int num_freqs;
 	int *freq_table;

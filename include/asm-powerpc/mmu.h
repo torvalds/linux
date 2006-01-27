@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_MMU_H_
 #define _ASM_POWERPC_MMU_H_
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/mmu.h>
@@ -33,7 +34,8 @@
 
 /* Location of cpu0's segment table */
 #define STAB0_PAGE	0x6
-#define STAB0_PHYS_ADDR	(STAB0_PAGE<<12)
+#define STAB0_OFFSET	(STAB0_PAGE << 12)
+#define STAB0_PHYS_ADDR	(STAB0_OFFSET + PHYSICAL_START)
 
 #ifndef __ASSEMBLY__
 extern char initial_stab[];
@@ -394,7 +396,12 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
 #define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER) % VSID_MODULUS)
 #define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
+/* Physical address used by some IO functions */
+typedef unsigned long phys_addr_t;
+
+
 #endif /* __ASSEMBLY */
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MMU_H_ */

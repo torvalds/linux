@@ -18,7 +18,6 @@
 #include <asm/checksum.h>
 #include <asm/current.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 /* platform dependent support */
@@ -26,7 +25,6 @@ extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);

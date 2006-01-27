@@ -52,5 +52,12 @@ config GAMEPORT_EMU10K1
 config GAMEPORT_FM801
 	tristate "ForteMedia FM801 gameport support"
 	depends on PCI
+	help
+	  Say Y here if you have ForteMedia FM801 PCI audio controller
+	  (Abit AU10, Genius Sound Maker, HP Workstation zx2000,
+	  and others), and want to use its gameport.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fm801-gp.
 
 endif

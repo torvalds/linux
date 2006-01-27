@@ -361,8 +361,7 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 
 		if ((bridge->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
 			/* PC card has the same IRQ as its cardbridge */
-			pci_read_config_byte(bridge, PCI_INTERRUPT_PIN,
-					     &bridge_pin);
+			bridge_pin = bridge->pin;
 			if (!bridge_pin) {
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 						  "No interrupt pin configured for device %s\n",
@@ -412,7 +411,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	if (!dev)
 		return_VALUE(-EINVAL);
 
-	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+	pin = dev->pin;
 	if (!pin) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "No interrupt pin configured for device %s\n",
@@ -503,7 +502,7 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	if (!dev || !dev->bus)
 		return_VOID;
 
-	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+	pin = dev->pin;
 	if (!pin)
 		return_VOID;
 	pin--;

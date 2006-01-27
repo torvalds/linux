@@ -477,8 +477,8 @@ static int __init input_proc_init(void)
 
 	entry->owner = THIS_MODULE;
 	input_fileops = *entry->proc_fops;
+	input_fileops.poll = input_devices_poll;
 	entry->proc_fops = &input_fileops;
-	entry->proc_fops->poll = input_devices_poll;
 
 	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
 	if (!entry)
@@ -528,40 +528,56 @@ INPUT_DEV_STRING_ATTR_SHOW(name);
 INPUT_DEV_STRING_ATTR_SHOW(phys);
 INPUT_DEV_STRING_ATTR_SHOW(uniq);
 
-static int print_modalias_bits(char *buf, char prefix, unsigned long *arr,
+static int print_modalias_bits(char *buf, int size, char prefix, unsigned long *arr,
 			       unsigned int min, unsigned int max)
 {
 	int len, i;
 
-	len = sprintf(buf, "%c", prefix);
+	len = snprintf(buf, size, "%c", prefix);
 	for (i = min; i < max; i++)
 		if (arr[LONG(i)] & BIT(i))
-			len += sprintf(buf+len, "%X,", i);
+			len += snprintf(buf + len, size - len, "%X,", i);
+	return len;
+}
+
+static int print_modalias(char *buf, int size, struct input_dev *id)
+{
+	int len;
+
+	len = snprintf(buf, size, "input:b%04Xv%04Xp%04Xe%04X-",
+		       id->id.bustype,
+		       id->id.vendor,
+		       id->id.product,
+		       id->id.version);
+
+	len += print_modalias_bits(buf + len, size - len, 'e', id->evbit,
+				   0, EV_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'k', id->keybit,
+				   KEY_MIN_INTERESTING, KEY_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'r', id->relbit,
+				   0, REL_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'a', id->absbit,
+				   0, ABS_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'm', id->mscbit,
+				   0, MSC_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'l', id->ledbit,
+				   0, LED_MAX);
+	len += print_modalias_bits(buf + len, size - len, 's', id->sndbit,
+				   0, SND_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'f', id->ffbit,
+				   0, FF_MAX);
+	len += print_modalias_bits(buf + len, size - len, 'w', id->swbit,
+				   0, SW_MAX);
 	return len;
 }
 
 static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
 {
 	struct input_dev *id = to_input_dev(dev);
-	ssize_t len = 0;
+	ssize_t len;
 
-	len += sprintf(buf+len, "input:b%04Xv%04Xp%04Xe%04X-",
-		       id->id.bustype,
-		       id->id.vendor,
-		       id->id.product,
-		       id->id.version);
-
-	len += print_modalias_bits(buf+len, 'e', id->evbit, 0, EV_MAX);
-	len += print_modalias_bits(buf+len, 'k', id->keybit,
-				   KEY_MIN_INTERESTING, KEY_MAX);
-	len += print_modalias_bits(buf+len, 'r', id->relbit, 0, REL_MAX);
-	len += print_modalias_bits(buf+len, 'a', id->absbit, 0, ABS_MAX);
-	len += print_modalias_bits(buf+len, 'm', id->mscbit, 0, MSC_MAX);
-	len += print_modalias_bits(buf+len, 'l', id->ledbit, 0, LED_MAX);
-	len += print_modalias_bits(buf+len, 's', id->sndbit, 0, SND_MAX);
-	len += print_modalias_bits(buf+len, 'f', id->ffbit, 0, FF_MAX);
-	len += print_modalias_bits(buf+len, 'w', id->swbit, 0, SW_MAX);
-	len += sprintf(buf+len, "\n");
+	len = print_modalias(buf, PAGE_SIZE, id);
+	len += snprintf(buf + len, PAGE_SIZE-len, "\n");
 	return len;
 }
 static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
@@ -728,8 +744,11 @@ static int input_dev_uevent(struct class_device *cdev, char **envp,
 	if (test_bit(EV_SW, dev->evbit))
 		INPUT_ADD_HOTPLUG_BM_VAR("SW=", dev->swbit, SW_MAX);
 
-	envp[i] = NULL;
+	envp[i++] = buffer + len;
+	len += snprintf(buffer + len, buffer_size - len, "MODALIAS=");
+	len += print_modalias(buffer + len, buffer_size - len, dev) + 1;
 
+	envp[i] = NULL;
 	return 0;
 }
 

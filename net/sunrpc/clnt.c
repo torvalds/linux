@@ -118,7 +118,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 		goto out_err;
 
 	err = -ENOMEM;
-	clnt = (struct rpc_clnt *) kmalloc(sizeof(*clnt), GFP_KERNEL);
+	clnt = kmalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
 	memset(clnt, 0, sizeof(*clnt));
@@ -225,7 +225,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 {
 	struct rpc_clnt *new;
 
-	new = (struct rpc_clnt *)kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out_no_clnt;
 	memcpy(new, clnt, sizeof(*new));
@@ -268,7 +268,8 @@ rpc_shutdown_client(struct rpc_clnt *clnt)
 		clnt->cl_oneshot = 0;
 		clnt->cl_dead = 0;
 		rpc_killall_tasks(clnt);
-		sleep_on_timeout(&destroy_wait, 1*HZ);
+		wait_event_timeout(destroy_wait,
+			!atomic_read(&clnt->cl_users), 1*HZ);
 	}
 
 	if (atomic_read(&clnt->cl_users) < 0) {

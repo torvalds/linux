@@ -1236,6 +1236,7 @@ static struct file_operations vicam_fops = {
 	.read		= vicam_read,
 	.mmap		= vicam_mmap,
 	.ioctl		= vicam_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek		= no_llseek,
 };
 

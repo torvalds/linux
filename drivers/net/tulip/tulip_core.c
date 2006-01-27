@@ -1564,7 +1564,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 			    dev->dev_addr, 6);
 		}
 #endif
-#if defined(__i386__)		/* Patch up x86 BIOS bug. */
+#if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
 		if (last_irq)
 			irq = last_irq;
 #endif

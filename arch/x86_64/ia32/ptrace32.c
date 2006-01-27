@@ -28,9 +28,12 @@
 #include <asm/i387.h>
 #include <asm/fpu32.h>
 
-/* determines which flags the user has access to. */
-/* 1 = access 0 = no access */
-#define FLAG_MASK 0x44dd5UL
+/*
+ * Determines which flags the user has access to [1 = access, 0 = no access].
+ * Prohibits changing ID(21), VIP(20), VIF(19), VM(17), IOPL(12-13), IF(9).
+ * Also masks reserved bits (31-22, 15, 5, 3, 1).
+ */
+#define FLAG_MASK 0x54dd5UL
 
 #define R32(l,q) \
 	case offsetof(struct user32, regs.l): stack[offsetof(struct pt_regs, q)/8] = val; break
@@ -38,7 +41,7 @@
 static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 {
 	int i;
-	__u64 *stack = (__u64 *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
+	__u64 *stack = (__u64 *)task_pt_regs(child);
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
@@ -134,7 +137,7 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 
 static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 {
-	__u64 *stack = (__u64 *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
+	__u64 *stack = (__u64 *)task_pt_regs(child);
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
@@ -196,36 +199,6 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 #undef R32
 
-static struct task_struct *find_target(int request, int pid, int *err)
-{ 
-	struct task_struct *child;
-
-	*err = -EPERM; 
-	if (pid == 1)
-		return NULL; 
-
-	*err = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (child) { 
-		*err = -EPERM;
-		if (child->pid == 1) 
-			goto out;
-		*err = ptrace_check_attach(child, request == PTRACE_KILL); 
-		if (*err < 0) 
-			goto out;
-		return child; 
-	} 
- out:
-	if (child)
-	put_task_struct(child);
-	return NULL; 
-	
-} 
-
 asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 {
 	struct task_struct *child;
@@ -254,11 +227,18 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		break;
 	} 
 
-	child = find_target(request, pid, &ret);
-	if (!child)
-		return ret;
+	if (request == PTRACE_TRACEME)
+		return ptrace_traceme();
 
-	childregs = (struct pt_regs *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child))
+		return PTR_ERR(child);
+
+	ret = ptrace_check_attach(child, request == PTRACE_KILL);
+	if (ret < 0)
+		goto out;
+
+	childregs = task_pt_regs(child);
 
 	switch (request) {
 	case PTRACE_PEEKDATA:
@@ -373,6 +353,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		break;
 	}
 
+ out:
 	put_task_struct(child);
 	return ret;
 }

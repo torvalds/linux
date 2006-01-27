@@ -21,7 +21,7 @@ static u32 savagefb_rop[] = {
 
 int savagefb_sync(struct fb_info *info)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 
 	par->SavageWaitIdle(par);
 	return 0;
@@ -29,7 +29,7 @@ int savagefb_sync(struct fb_info *info)
 
 void savagefb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	int sx = region->sx, dx = region->dx;
 	int sy = region->sy, dy = region->dy;
 	int cmd;
@@ -63,7 +63,7 @@ void savagefb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 
 void savagefb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	int cmd, color;
 
 	if (!rect->width || !rect->height)
@@ -90,7 +90,7 @@ void savagefb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 void savagefb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct savagefb_par *par = (struct savagefb_par *)info->par;
+	struct savagefb_par *par = info->par;
 	int fg, bg, size, i, width;
 	int cmd;
 	u32 *src = (u32 *) image->data;

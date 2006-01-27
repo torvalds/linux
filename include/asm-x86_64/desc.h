@@ -25,7 +25,7 @@ struct n_desc_struct {
 	unsigned int a,b;
 }; 	
 
-extern struct desc_struct cpu_gdt_table[NR_CPUS][GDT_ENTRIES];
+extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
 
 enum { 
 	GATE_INTERRUPT = 0xE, 
@@ -79,6 +79,9 @@ extern struct desc_struct default_ldt[];
 extern struct gate_struct idt_table[]; 
 extern struct desc_ptr cpu_gdt_descr[];
 
+/* the cpu gdt accessor */
+#define cpu_gdt(_cpu) ((struct desc_struct *)cpu_gdt_descr[_cpu].address)
+
 static inline void _set_gate(void *adr, unsigned type, unsigned long func, unsigned dpl, unsigned ist)  
 {
 	struct gate_struct s; 	
@@ -114,6 +117,11 @@ static inline void set_system_gate(int nr, void *func)
 	_set_gate(&idt_table[nr], GATE_INTERRUPT, (unsigned long) func, 3, 0); 
 } 
 
+static inline void set_system_gate_ist(int nr, void *func, unsigned ist)
+{
+	_set_gate(&idt_table[nr], GATE_INTERRUPT, (unsigned long) func, 3, ist);
+}
+
 static inline void set_tssldt_descriptor(void *ptr, unsigned long tss, unsigned type, 
 					 unsigned size) 
 { 
@@ -139,20 +147,20 @@ static inline void set_tss_desc(unsigned cpu, void *addr)
 	 * -1? seg base+limit should be pointing to the address of the
 	 * last valid byte
 	 */
-	set_tssldt_descriptor(&cpu_gdt_table[cpu][GDT_ENTRY_TSS],
+	set_tssldt_descriptor(&cpu_gdt(cpu)[GDT_ENTRY_TSS],
 		(unsigned long)addr, DESC_TSS,
 		IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1);
 } 
 
 static inline void set_ldt_desc(unsigned cpu, void *addr, int size)
 { 
-	set_tssldt_descriptor(&cpu_gdt_table[cpu][GDT_ENTRY_LDT], (unsigned long)addr, 
+	set_tssldt_descriptor(&cpu_gdt(cpu)[GDT_ENTRY_LDT], (unsigned long)addr,
 			      DESC_LDT, size * 8 - 1);
 }
 
 static inline void set_seg_base(unsigned cpu, int entry, void *base)
 { 
-	struct desc_struct *d = &cpu_gdt_table[cpu][entry];
+	struct desc_struct *d = &cpu_gdt(cpu)[entry];
 	u32 addr = (u32)(u64)base;
 	BUG_ON((u64)base >> 32); 
 	d->base0 = addr & 0xffff;
@@ -194,7 +202,7 @@ static inline void set_seg_base(unsigned cpu, int entry, void *base)
 
 static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 {
-	u64 *gdt = (u64 *)(cpu_gdt_table[cpu] + GDT_ENTRY_TLS_MIN);
+	u64 *gdt = (u64 *)(cpu_gdt(cpu) + GDT_ENTRY_TLS_MIN);
 	gdt[0] = t->tls_array[0];
 	gdt[1] = t->tls_array[1];
 	gdt[2] = t->tls_array[2];

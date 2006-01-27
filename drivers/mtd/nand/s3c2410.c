@@ -53,6 +53,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -60,7 +61,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/regs-nand.h>
 #include <asm/arch/nand.h>
@@ -460,7 +460,6 @@ static int s3c2410_nand_remove(struct platform_device *pdev)
 
 	if (info->clk != NULL && !IS_ERR(info->clk)) {
 		clk_disable(info->clk);
-		clk_unuse(info->clk);
 		clk_put(info->clk);
 	}
 
@@ -598,7 +597,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev, int is_s3c2440)
 		goto exit_error;
 	}
 
-	clk_use(info->clk);
 	clk_enable(info->clk);
 
 	/* allocate and map the resource */

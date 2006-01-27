@@ -21,10 +21,11 @@
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
+
 #include <asm/mach/time.h>
 #include <asm/delay.h>
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #define OMAP2_GP_TIMER1_BASE	0x48028000
 #define OMAP2_GP_TIMER2_BASE	0x4802a000
@@ -103,7 +104,7 @@ static void __init omap2_gp_timer_init(void)
 	if (IS_ERR(sys_ck))
 		printk(KERN_ERR "Could not get sys_ck\n");
 	else {
-		clk_use(sys_ck);
+		clk_enable(sys_ck);
 		tick_period = clk_get_rate(sys_ck) / 100;
 		clk_put(sys_ck);
 	}

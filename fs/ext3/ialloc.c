@@ -26,7 +26,6 @@
 
 #include <asm/byteorder.h>
 
-#include "bitmap.h"
 #include "xattr.h"
 #include "acl.h"
 
@@ -651,7 +650,7 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 	/* Error cases - e2fsck has already cleaned up for us */
 	if (ino > max_ino) {
 		ext3_warning(sb, __FUNCTION__,
-			     "bad orphan ino %lu!  e2fsck was run?\n", ino);
+			     "bad orphan ino %lu!  e2fsck was run?", ino);
 		goto out;
 	}
 
@@ -660,7 +659,7 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 	bitmap_bh = read_inode_bitmap(sb, block_group);
 	if (!bitmap_bh) {
 		ext3_warning(sb, __FUNCTION__,
-			     "inode bitmap error for orphan %lu\n", ino);
+			     "inode bitmap error for orphan %lu", ino);
 		goto out;
 	}
 
@@ -672,7 +671,7 @@ struct inode *ext3_orphan_get(struct super_block *sb, unsigned long ino)
 			!(inode = iget(sb, ino)) || is_bad_inode(inode) ||
 			NEXT_ORPHAN(inode) > max_ino) {
 		ext3_warning(sb, __FUNCTION__,
-			     "bad orphan inode %lu!  e2fsck was run?\n", ino);
+			     "bad orphan inode %lu!  e2fsck was run?", ino);
 		printk(KERN_NOTICE "ext3_test_bit(bit=%d, block=%llu) = %d\n",
 		       bit, (unsigned long long)bitmap_bh->b_blocknr,
 		       ext3_test_bit(bit, bitmap_bh->b_data));

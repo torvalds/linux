@@ -10,6 +10,8 @@
  * Modifications:
  *     10-Mar-2005 LCVR  Changed S3C2410_VA to S3C24XX_VA
  */
+#include <asm/hardware.h>
+#include <asm/arch/irqs.h>
 
 
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp

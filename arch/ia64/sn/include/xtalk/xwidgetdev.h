@@ -25,28 +25,28 @@
 
 /* widget configuration registers */
 struct widget_cfg{
-	uint32_t	w_id;	/* 0x04 */
-	uint32_t	w_pad_0;	/* 0x00 */
-	uint32_t	w_status;	/* 0x0c */
-	uint32_t	w_pad_1;	/* 0x08 */
-	uint32_t	w_err_upper_addr;	/* 0x14 */
-	uint32_t	w_pad_2;	/* 0x10 */
-	uint32_t	w_err_lower_addr;	/* 0x1c */
-	uint32_t	w_pad_3;	/* 0x18 */
-	uint32_t	w_control;	/* 0x24 */
-	uint32_t	w_pad_4;	/* 0x20 */
-	uint32_t	w_req_timeout;	/* 0x2c */
-	uint32_t	w_pad_5;	/* 0x28 */
-	uint32_t	w_intdest_upper_addr;	/* 0x34 */
-	uint32_t	w_pad_6;	/* 0x30 */
-	uint32_t	w_intdest_lower_addr;	/* 0x3c */
-	uint32_t	w_pad_7;	/* 0x38 */
-	uint32_t	w_err_cmd_word;	/* 0x44 */
-	uint32_t	w_pad_8;	/* 0x40 */
-	uint32_t	w_llp_cfg;	/* 0x4c */
-	uint32_t	w_pad_9;	/* 0x48 */
-	uint32_t	w_tflush;	/* 0x54 */
-	uint32_t	w_pad_10;	/* 0x50 */
+	u32	w_id;	/* 0x04 */
+	u32	w_pad_0;	/* 0x00 */
+	u32	w_status;	/* 0x0c */
+	u32	w_pad_1;	/* 0x08 */
+	u32	w_err_upper_addr;	/* 0x14 */
+	u32	w_pad_2;	/* 0x10 */
+	u32	w_err_lower_addr;	/* 0x1c */
+	u32	w_pad_3;	/* 0x18 */
+	u32	w_control;	/* 0x24 */
+	u32	w_pad_4;	/* 0x20 */
+	u32	w_req_timeout;	/* 0x2c */
+	u32	w_pad_5;	/* 0x28 */
+	u32	w_intdest_upper_addr;	/* 0x34 */
+	u32	w_pad_6;	/* 0x30 */
+	u32	w_intdest_lower_addr;	/* 0x3c */
+	u32	w_pad_7;	/* 0x38 */
+	u32	w_err_cmd_word;	/* 0x44 */
+	u32	w_pad_8;	/* 0x40 */
+	u32	w_llp_cfg;	/* 0x4c */
+	u32	w_pad_9;	/* 0x48 */
+	u32	w_tflush;	/* 0x54 */
+	u32	w_pad_10;	/* 0x50 */
 };
 
 /*
@@ -63,7 +63,7 @@ struct xwidget_info{
 	struct xwidget_hwid	xwi_hwid;	/* Widget Identification */
 	char			xwi_masterxid;	/* Hub's Widget Port Number */
 	void			*xwi_hubinfo;     /* Hub's provider private info */
-	uint64_t		*xwi_hub_provider; /* prom provider functions */
+	u64			*xwi_hub_provider; /* prom provider functions */
 	void			*xwi_vertex;
 };
 

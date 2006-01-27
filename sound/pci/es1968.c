@@ -727,7 +727,7 @@ static void __apu_set_register(struct es1968 *chip, u16 channel, u8 reg, u16 dat
 	apu_data_set(chip, data);
 }
 
-static inline void apu_set_register(struct es1968 *chip, u16 channel, u8 reg, u16 data)
+static void apu_set_register(struct es1968 *chip, u16 channel, u8 reg, u16 data)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -743,7 +743,7 @@ static u16 __apu_get_register(struct es1968 *chip, u16 channel, u8 reg)
 	return __maestro_read(chip, IDR0_DATA_PORT);
 }
 
-static inline u16 apu_get_register(struct es1968 *chip, u16 channel, u8 reg)
+static u16 apu_get_register(struct es1968 *chip, u16 channel, u8 reg)
 {
 	unsigned long flags;
 	u16 v;

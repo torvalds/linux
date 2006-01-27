@@ -30,6 +30,7 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include <media/v4l2-common.h>
 
 /* ----------------------------------------------------------- */
 
@@ -390,9 +391,7 @@ static struct i2c_algorithm saa7134_algo = {
 
 static struct i2c_adapter saa7134_adap_template = {
 	.owner         = THIS_MODULE,
-#ifdef I2C_CLASS_TV_ANALOG
 	.class         = I2C_CLASS_TV_ANALOG,
-#endif
 	.name          = "saa7134",
 	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,

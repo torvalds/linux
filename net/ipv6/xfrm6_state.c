@@ -15,6 +15,7 @@
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 #include <net/ipv6.h>
+#include <net/addrconf.h>
 
 static struct xfrm_state_afinfo xfrm6_state_afinfo;
 
@@ -41,6 +42,22 @@ __xfrm6_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	memcpy(&x->props.saddr, &tmpl->saddr, sizeof(x->props.saddr));
 	if (ipv6_addr_any((struct in6_addr*)&x->props.saddr))
 		memcpy(&x->props.saddr, saddr, sizeof(x->props.saddr));
+	if (tmpl->mode && ipv6_addr_any((struct in6_addr*)&x->props.saddr)) {
+		struct rt6_info *rt;
+		struct flowi fl_tunnel = {
+			.nl_u = {
+				.ip6_u = {
+					.daddr = *(struct in6_addr *)daddr,
+				}
+			}
+		};
+		if (!xfrm_dst_lookup((struct xfrm_dst **)&rt,
+		                     &fl_tunnel, AF_INET6)) {
+			ipv6_get_saddr(&rt->u.dst, (struct in6_addr *)daddr,
+			               (struct in6_addr *)&x->props.saddr);
+			dst_release(&rt->u.dst);
+		}
+	}
 	x->props.mode = tmpl->mode;
 	x->props.reqid = tmpl->reqid;
 	x->props.family = AF_INET6;

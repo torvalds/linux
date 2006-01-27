@@ -185,7 +185,7 @@ VII. Getting Parameters
       ENOMEM      Kernel memory allocation error
 
    A return value of 0 does not mean that the value was actually
-   properly retreived.  The user should check the result list
+   properly retrieved.  The user should check the result list
    to determine the specific status of the transaction.
 
 VIII. Downloading Software

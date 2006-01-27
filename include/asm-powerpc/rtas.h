@@ -1,5 +1,6 @@
 #ifndef _POWERPC_RTAS_H
 #define _POWERPC_RTAS_H
+#ifdef __KERNEL__
 
 #include <linux/spinlock.h>
 #include <asm/page.h>
@@ -160,7 +161,6 @@ extern struct rtas_t rtas;
 extern void enter_rtas(unsigned long);
 extern int rtas_token(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
-extern void call_rtas_display_status(unsigned char);
 extern void rtas_restart(char *cmd);
 extern void rtas_power_off(void);
 extern void rtas_halt(void);
@@ -229,4 +229,5 @@ extern unsigned long rtas_rmo_buf;
 
 #define GLOBAL_INTERRUPT_QUEUE 9005
 
+#endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

@@ -241,6 +241,18 @@ void __init parse_early_param(void);
 #define __cpuexitdata	__exitdata
 #endif
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+#define __meminit
+#define __meminitdata
+#define __memexit
+#define __memexitdata
+#else
+#define __meminit	__init
+#define __meminitdata __initdata
+#define __memexit __exit
+#define __memexitdata	__exitdata
+#endif
+
 /* Functions marked as __devexit may be discarded at kernel link time, depending
    on config options.  Newer versions of binutils detect references from
    retained sections to discarded sections and flag an error.  Pointers to

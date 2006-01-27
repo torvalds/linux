@@ -946,7 +946,7 @@ HDIO_SCAN_HWIF			register and (re)scan interface
 
 	  This ioctl initializes the addresses and irq for a disk
 	  controller, probes for drives, and creates /proc/ide
-	  interfaces as appropiate.
+	  interfaces as appropriate.
 
 
 

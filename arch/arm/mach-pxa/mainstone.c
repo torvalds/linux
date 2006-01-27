@@ -427,6 +427,12 @@ static void __init mainstone_init(void)
 	printk(KERN_NOTICE "Mainstone configured to boot from %s\n",
 	       mst_flash_data[0].name);
 
+	/* system bus arbiter setting
+	 * - Core_Park
+	 * - LCD_wt:DMA_wt:CORE_Wt = 2:3:4
+	 */
+	ARB_CNTRL = ARB_CORE_PARK | 0x234;
+
 	/*
 	 * On Mainstone, we route AC97_SYSCLK via GPIO45 to
 	 * the audio daughter card
@@ -483,7 +489,6 @@ static void __init mainstone_map_io(void)
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	/* Maintainer: MontaVista Software Inc. */
-	.phys_ram	= 0xa0000000,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= mainstone_map_io,

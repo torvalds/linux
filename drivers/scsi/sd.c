@@ -49,6 +49,7 @@
 #include <linux/blkpg.h>
 #include <linux/kref.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>
@@ -111,7 +112,7 @@ static DEFINE_SPINLOCK(sd_index_lock);
 /* This semaphore is used to mediate the 0->1 reference get in the
  * face of object destruction (i.e. we can't allow a get on an
  * object after last put) */
-static DECLARE_MUTEX(sd_ref_sem);
+static DEFINE_MUTEX(sd_ref_mutex);
 
 static int sd_revalidate_disk(struct gendisk *disk);
 static void sd_rw_intr(struct scsi_cmnd * SCpnt);
@@ -193,9 +194,9 @@ static struct scsi_disk *scsi_disk_get(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp;
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	sdkp = __scsi_disk_get(disk);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 	return sdkp;
 }
 
@@ -203,11 +204,11 @@ static struct scsi_disk *scsi_disk_get_from_dev(struct device *dev)
 {
 	struct scsi_disk *sdkp;
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	sdkp = dev_get_drvdata(dev);
 	if (sdkp)
 		sdkp = __scsi_disk_get(sdkp->disk);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 	return sdkp;
 }
 
@@ -215,10 +216,10 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
 {
 	struct scsi_device *sdev = sdkp->device;
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	kref_put(&sdkp->kref, scsi_disk_release);
 	scsi_device_put(sdev);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 }
 
 /**
@@ -231,34 +232,12 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
  **/
 static int sd_init_command(struct scsi_cmnd * SCpnt)
 {
-	unsigned int this_count, timeout;
-	struct gendisk *disk;
-	sector_t block;
 	struct scsi_device *sdp = SCpnt->device;
 	struct request *rq = SCpnt->request;
-
-	timeout = sdp->timeout;
-
-	/*
-	 * SG_IO from block layer already setup, just copy cdb basically
-	 */
-	if (blk_pc_request(rq)) {
-		scsi_setup_blk_pc_cmnd(SCpnt);
-		if (rq->timeout)
-			timeout = rq->timeout;
-
-		goto queue;
-	}
-
-	/*
-	 * we only do REQ_CMD and REQ_BLOCK_PC
-	 */
-	if (!blk_fs_request(rq))
-		return 0;
-
-	disk = rq->rq_disk;
-	block = rq->sector;
-	this_count = SCpnt->request_bufflen >> 9;
+	struct gendisk *disk = rq->rq_disk;
+	sector_t block = rq->sector;
+	unsigned int this_count = SCpnt->request_bufflen >> 9;
+	unsigned int timeout = sdp->timeout;
 
 	SCSI_LOG_HLQUEUE(1, printk("sd_init_command: disk=%s, block=%llu, "
 			    "count=%d\n", disk->disk_name,
@@ -401,8 +380,6 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	SCpnt->transfersize = sdp->sector_size;
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = SD_MAX_RETRIES;
-
-queue:
 	SCpnt->timeout_per_command = timeout;
 
 	/*
@@ -527,7 +504,7 @@ static int sd_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry __user *loc)
+static int sd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct scsi_disk *sdkp = scsi_disk(bdev->bd_disk);
 	struct scsi_device *sdp = sdkp->device;
@@ -545,15 +522,9 @@ static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry __user *
 	else
 		scsicam_bios_param(bdev, sdkp->capacity, diskinfo);
 
-	if (put_user(diskinfo[0], &loc->heads))
-		return -EFAULT;
-	if (put_user(diskinfo[1], &loc->sectors))
-		return -EFAULT;
-	if (put_user(diskinfo[2], &loc->cylinders))
-		return -EFAULT;
-	if (put_user((unsigned)get_start_sect(bdev),
-	             (unsigned long __user *)&loc->start))
-		return -EFAULT;
+	geo->heads = diskinfo[0];
+	geo->sectors = diskinfo[1];
+	geo->cylinders = diskinfo[2];
 	return 0;
 }
 
@@ -592,12 +563,6 @@ static int sd_ioctl(struct inode * inode, struct file * filp,
 	error = scsi_nonblockable_ioctl(sdp, cmd, p, filp);
 	if (!scsi_block_when_processing_errors(sdp) || !error)
 		return error;
-
-	if (cmd == HDIO_GETGEO) {
-		if (!arg)
-			return -EINVAL;
-		return sd_hdio_getgeo(bdev, p);
-	}
 
 	/*
 	 * Send SCSI addressing ioctls directly to mid level, send other
@@ -800,6 +765,7 @@ static struct block_device_operations sd_fops = {
 	.open			= sd_open,
 	.release		= sd_release,
 	.ioctl			= sd_ioctl,
+	.getgeo			= sd_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sd_compat_ioctl,
 #endif
@@ -847,15 +813,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 	   relatively rare error condition, no care is taken to avoid
 	   unnecessary additional work such as memcpy's that could be avoided.
 	 */
-
-	/* 
-	 * If SG_IO from block layer then set good_bytes to stop retries;
-	 * else if errors, check them, and if necessary prepare for
-	 * (partial) retries.
-	 */
-	if (blk_pc_request(SCpnt->request))
-		good_bytes = this_count;
-	else if (driver_byte(result) != 0 &&
+	if (driver_byte(result) != 0 &&
 		 sense_valid && !sense_deferred) {
 		switch (sshdr.sense_key) {
 		case MEDIUM_ERROR:
@@ -1646,10 +1604,10 @@ static int sd_remove(struct device *dev)
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
 
-	down(&sd_ref_sem);
+	mutex_lock(&sd_ref_mutex);
 	dev_set_drvdata(dev, NULL);
 	kref_put(&sdkp->kref, scsi_disk_release);
-	up(&sd_ref_sem);
+	mutex_unlock(&sd_ref_mutex);
 
 	return 0;
 }
@@ -1658,7 +1616,7 @@ static int sd_remove(struct device *dev)
  *	scsi_disk_release - Called to free the scsi_disk structure
  *	@kref: pointer to embedded kref
  *
- *	sd_ref_sem must be held entering this routine.  Because it is
+ *	sd_ref_mutex must be held entering this routine.  Because it is
  *	called on last put, you should always use the scsi_disk_get()
  *	scsi_disk_put() helpers which manipulate the semaphore directly
  *	and never do a direct kref_put().

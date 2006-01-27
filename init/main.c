@@ -54,27 +54,20 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
-/*
- * This is one of the first .c files built. Error out early
- * if we have compiler trouble..
- */
-#if __GNUC__ == 2 && __GNUC_MINOR__ == 96
-#ifdef CONFIG_FRAME_POINTER
-#error This compiler cannot compile correctly with frame pointers enabled
-#endif
-#endif
-
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
 #endif
 
 /*
- * Versions of gcc older than that listed below may actually compile
- * and link okay, but the end product can have subtle run time bugs.
- * To avoid associated bogus bug reports, we flatly refuse to compile
- * with a gcc that is known to be too old from the very beginning.
+ * This is one of the first .c files built. Error out early if we have compiler
+ * trouble.
+ *
+ * Versions of gcc older than that listed below may actually compile and link
+ * okay, but the end product can have subtle run time bugs.  To avoid associated
+ * bogus bug reports, we flatly refuse to compile with a gcc that is known to be
+ * too old from the very beginning.
  */
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95)
+#if (__GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 2)
 #error Sorry, your GCC is too old. It builds incorrect kernels.
 #endif
 
@@ -490,6 +483,7 @@ asmlinkage void __init start_kernel(void)
 	init_IRQ();
 	pidhash_init();
 	init_timers();
+	hrtimers_init();
 	softirq_init();
 	time_init();
 
@@ -512,6 +506,7 @@ asmlinkage void __init start_kernel(void)
 	}
 #endif
 	vfs_caches_init_early();
+	cpuset_init_early();
 	mem_init();
 	kmem_cache_init();
 	setup_per_cpu_pageset();

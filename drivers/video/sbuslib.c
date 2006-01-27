@@ -199,8 +199,7 @@ struct  fbcmap32 {
 #define FBIOPUTCMAP32	_IOW('F', 3, struct fbcmap32)
 #define FBIOGETCMAP32	_IOW('F', 4, struct fbcmap32)
 
-static int fbiogetputcmap(struct file *file, struct fb_info *info,
-		unsigned int cmd, unsigned long arg)
+static int fbiogetputcmap(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct fbcmap32 __user *argp = (void __user *)arg;
 	struct fbcmap __user *p = compat_alloc_user_space(sizeof(*p));
@@ -216,10 +215,10 @@ static int fbiogetputcmap(struct file *file, struct fb_info *info,
 	ret |= put_user(compat_ptr(addr), &p->blue);
 	if (ret)
 		return -EFAULT;
-	return info->fbops->fb_ioctl(file->f_dentry->d_inode, file,
+	return info->fbops->fb_ioctl(info,
 			(cmd == FBIOPUTCMAP32) ?
 			FBIOPUTCMAP_SPARC : FBIOGETCMAP_SPARC,
-			(unsigned long)p, info);
+			(unsigned long)p);
 }
 
 struct fbcursor32 {
@@ -236,8 +235,7 @@ struct fbcursor32 {
 #define FBIOSCURSOR32	_IOW('F', 24, struct fbcursor32)
 #define FBIOGCURSOR32	_IOW('F', 25, struct fbcursor32)
 
-static int fbiogscursor(struct file *file, struct fb_info *info,
-		unsigned long arg)
+static int fbiogscursor(struct fb_info *info, unsigned long arg)
 {
 	struct fbcursor __user *p = compat_alloc_user_space(sizeof(*p));
 	struct fbcursor32 __user *argp =  (void __user *)arg;
@@ -260,12 +258,10 @@ static int fbiogscursor(struct file *file, struct fb_info *info,
 	ret |= put_user(compat_ptr(addr), &p->image);
 	if (ret)
 		return -EFAULT;
-	return info->fbops->fb_ioctl(file->f_dentry->d_inode, file,
-			FBIOSCURSOR, (unsigned long)p, info);
+	return info->fbops->fb_ioctl(info, FBIOSCURSOR, (unsigned long)p);
 }
 
-long sbusfb_compat_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg, struct fb_info *info)
+int sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case FBIOGTYPE:
@@ -278,14 +274,13 @@ long sbusfb_compat_ioctl(struct file *file, unsigned int cmd,
 	case FBIOSCURPOS:
 	case FBIOGCURPOS:
 	case FBIOGCURMAX:
-		return info->fbops->fb_ioctl(file->f_dentry->d_inode,
-				file, cmd, arg, info);
+		return info->fbops->fb_ioctl(info, cmd, arg);
 	case FBIOPUTCMAP32:
-		return fbiogetputcmap(file, info, cmd, arg);
+		return fbiogetputcmap(info, cmd, arg);
 	case FBIOGETCMAP32:
-		return fbiogetputcmap(file, info, cmd, arg);
+		return fbiogetputcmap(info, cmd, arg);
 	case FBIOSCURSOR32:
-		return fbiogscursor(file, info, arg);
+		return fbiogscursor(info, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}

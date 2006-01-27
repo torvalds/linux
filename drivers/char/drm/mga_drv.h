@@ -38,11 +38,11 @@
 
 #define DRIVER_NAME		"mga"
 #define DRIVER_DESC		"Matrox G200/G400"
-#define DRIVER_DATE		"20050607"
+#define DRIVER_DATE		"20051102"
 
 #define DRIVER_MAJOR		3
 #define DRIVER_MINOR		2
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_PATCHLEVEL	1
 
 typedef struct drm_mga_primary_buffer {
 	u8 *start;
@@ -144,22 +144,22 @@ typedef struct drm_mga_private {
 	drm_local_map_t *primary;
 	drm_local_map_t *agp_textures;
 
-	DRM_AGP_MEM *agp_mem;
-	unsigned int agp_pages;
+	unsigned long agp_handle;
+	unsigned int agp_size;
 } drm_mga_private_t;
 
 extern drm_ioctl_desc_t mga_ioctls[];
 extern int mga_max_ioctl;
 
 				/* mga_dma.c */
-extern int mga_driver_preinit(drm_device_t * dev, unsigned long flags);
 extern int mga_dma_bootstrap(DRM_IOCTL_ARGS);
 extern int mga_dma_init(DRM_IOCTL_ARGS);
 extern int mga_dma_flush(DRM_IOCTL_ARGS);
 extern int mga_dma_reset(DRM_IOCTL_ARGS);
 extern int mga_dma_buffers(DRM_IOCTL_ARGS);
-extern int mga_driver_postcleanup(drm_device_t * dev);
-extern void mga_driver_pretakedown(drm_device_t * dev);
+extern int mga_driver_load(drm_device_t *dev, unsigned long flags);
+extern int mga_driver_unload(drm_device_t * dev);
+extern void mga_driver_lastclose(drm_device_t * dev);
 extern int mga_driver_dma_quiescent(drm_device_t * dev);
 
 extern int mga_do_wait_for_idle(drm_mga_private_t * dev_priv);

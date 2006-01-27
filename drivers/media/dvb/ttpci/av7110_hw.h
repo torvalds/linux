@@ -18,7 +18,7 @@ enum av7110_bootstate
 {
 	BOOTSTATE_BUFFER_EMPTY	= 0,
 	BOOTSTATE_BUFFER_FULL	= 1,
-	BOOTSTATE_BOOT_COMPLETE	= 2
+	BOOTSTATE_AV7110_BOOT_COMPLETE	= 2
 };
 
 enum av7110_type_rec_play_format
@@ -167,7 +167,8 @@ enum av7110_encoder_command {
 	LoadVidCode,
 	SetMonitorType,
 	SetPanScanType,
-	SetFreezeMode
+	SetFreezeMode,
+	SetWSSConfig
 };
 
 enum av7110_rec_play_state {
@@ -294,11 +295,11 @@ enum av7110_command_type {
 #define	DPRAM_BASE 0x4000
 
 /* boot protocol area */
-#define BOOT_STATE	(DPRAM_BASE + 0x3F8)
-#define BOOT_SIZE	(DPRAM_BASE + 0x3FA)
-#define BOOT_BASE	(DPRAM_BASE + 0x3FC)
-#define BOOT_BLOCK	(DPRAM_BASE + 0x400)
-#define BOOT_MAX_SIZE	0xc00
+#define AV7110_BOOT_STATE	(DPRAM_BASE + 0x3F8)
+#define AV7110_BOOT_SIZE	(DPRAM_BASE + 0x3FA)
+#define AV7110_BOOT_BASE	(DPRAM_BASE + 0x3FC)
+#define AV7110_BOOT_BLOCK	(DPRAM_BASE + 0x400)
+#define AV7110_BOOT_MAX_SIZE	0xc00
 
 /* firmware command protocol area */
 #define IRQ_STATE	(DPRAM_BASE + 0x0F4)

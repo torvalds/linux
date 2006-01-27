@@ -714,7 +714,7 @@ cciss_scsi_detect(int ctlr)
 	((struct cciss_scsi_adapter_data_t *) 
 		hba[ctlr]->scsi_ctlr)->scsi_host = (void *) sh;
 	sh->hostdata[0] = (unsigned long) hba[ctlr];
-	sh->irq = hba[ctlr]->intr;
+	sh->irq = hba[ctlr]->intr[SIMPLE_MODE_INT];
 	sh->unique_id = sh->irq;
 	error = scsi_add_host(sh, &hba[ctlr]->pdev->dev);
 	if (error)

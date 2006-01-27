@@ -4,6 +4,7 @@
  * Procfs information.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
+ * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -17,9 +18,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include "internal.h"
-
-extern struct list_head crypto_alg_list;
-extern struct rw_semaphore crypto_alg_sem;
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
@@ -53,7 +51,9 @@ static int c_show(struct seq_file *m, void *p)
 	struct crypto_alg *alg = (struct crypto_alg *)p;
 	
 	seq_printf(m, "name         : %s\n", alg->cra_name);
+	seq_printf(m, "driver       : %s\n", alg->cra_driver_name);
 	seq_printf(m, "module       : %s\n", module_name(alg->cra_module));
+	seq_printf(m, "priority     : %d\n", alg->cra_priority);
 	
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_CIPHER:

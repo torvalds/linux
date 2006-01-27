@@ -17,7 +17,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_protocol.h>
 
-unsigned long nf_ct_generic_timeout = 600*HZ;
+unsigned int nf_ct_generic_timeout = 600*HZ;
 
 static int generic_pkt_to_tuple(const struct sk_buff *skb,
 				unsigned int dataoff,

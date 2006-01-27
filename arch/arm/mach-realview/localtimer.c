@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/smp.h>
+#include <linux/jiffies.h>
 
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_twd.h>

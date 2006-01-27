@@ -411,14 +411,12 @@ mpt_lan_open(struct net_device *dev)
 		goto out;
 	priv->mpt_txfidx_tail = -1;
 
-	priv->SendCtl = kmalloc(priv->tx_max_out * sizeof(struct BufferControl),
+	priv->SendCtl = kcalloc(priv->tx_max_out, sizeof(struct BufferControl),
 				GFP_KERNEL);
 	if (priv->SendCtl == NULL)
 		goto out_mpt_txfidx;
-	for (i = 0; i < priv->tx_max_out; i++) {
-		memset(&priv->SendCtl[i], 0, sizeof(struct BufferControl));
+	for (i = 0; i < priv->tx_max_out; i++)
 		priv->mpt_txfidx[++priv->mpt_txfidx_tail] = i;
-	}
 
 	dlprintk((KERN_INFO MYNAM "@lo: Finished initializing SendCtl\n"));
 
@@ -428,15 +426,13 @@ mpt_lan_open(struct net_device *dev)
 		goto out_SendCtl;
 	priv->mpt_rxfidx_tail = -1;
 
-	priv->RcvCtl = kmalloc(priv->max_buckets_out *
-						sizeof(struct BufferControl),
+	priv->RcvCtl = kcalloc(priv->max_buckets_out,
+			       sizeof(struct BufferControl),
 			       GFP_KERNEL);
 	if (priv->RcvCtl == NULL)
 		goto out_mpt_rxfidx;
-	for (i = 0; i < priv->max_buckets_out; i++) {
-		memset(&priv->RcvCtl[i], 0, sizeof(struct BufferControl));
+	for (i = 0; i < priv->max_buckets_out; i++)
 		priv->mpt_rxfidx[++priv->mpt_rxfidx_tail] = i;
-	}
 
 /**/	dlprintk((KERN_INFO MYNAM "/lo: txfidx contains - "));
 /**/	for (i = 0; i < priv->tx_max_out; i++)
@@ -848,7 +844,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static inline void
+static void
 mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 /*
  * @priority: 0 = put it on the timer queue, 1 = put it on the immediate queue
@@ -870,7 +866,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static inline int
+static int
 mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	struct mpt_lan_priv *priv = dev->priv;

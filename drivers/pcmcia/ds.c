@@ -311,8 +311,6 @@ int pcmcia_register_driver(struct pcmcia_driver *driver)
 	/* initialize common fields */
 	driver->drv.bus = &pcmcia_bus_type;
 	driver->drv.owner = driver->owner;
-	driver->drv.probe = pcmcia_device_probe;
-	driver->drv.remove = pcmcia_device_remove;
 
 	return driver_register(&driver->drv);
 }
@@ -920,6 +918,37 @@ pcmcia_device_stringattr(prod_id2, prod_id[1]);
 pcmcia_device_stringattr(prod_id3, prod_id[2]);
 pcmcia_device_stringattr(prod_id4, prod_id[3]);
 
+
+static ssize_t pcmcia_show_pm_state(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+
+	if (p_dev->dev.power.power_state.event != PM_EVENT_ON)
+		return sprintf(buf, "off\n");
+	else
+		return sprintf(buf, "on\n");
+}
+
+static ssize_t pcmcia_store_pm_state(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	int ret = 0;
+
+        if (!count)
+                return -EINVAL;
+
+	if ((p_dev->dev.power.power_state.event == PM_EVENT_ON) &&
+	    (!strncmp(buf, "off", 3)))
+		ret = dpm_runtime_suspend(dev, PMSG_SUSPEND);
+	else if ((p_dev->dev.power.power_state.event != PM_EVENT_ON) &&
+		 (!strncmp(buf, "on", 2)))
+		dpm_runtime_resume(dev);
+
+	return ret ? ret : count;
+}
+
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
@@ -945,8 +974,9 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
-        if (!count)
-                return -EINVAL;
+
+	if (!count)
+		return -EINVAL;
 
 	down(&p_dev->socket->skt_sem);
 	p_dev->allow_func_id_match = 1;
@@ -959,6 +989,7 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 
 static struct device_attribute pcmcia_dev_attrs[] = {
 	__ATTR(function, 0444, func_show, NULL),
+	__ATTR(pm_state, 0644, pcmcia_show_pm_state, pcmcia_store_pm_state),
 	__ATTR_RO(func_id),
 	__ATTR_RO(manf_id),
 	__ATTR_RO(card_id),
@@ -1167,6 +1198,8 @@ struct bus_type pcmcia_bus_type = {
 	.uevent = pcmcia_bus_uevent,
 	.match = pcmcia_bus_match,
 	.dev_attrs = pcmcia_dev_attrs,
+	.probe = pcmcia_device_probe,
+	.remove = pcmcia_device_remove,
 	.suspend = pcmcia_dev_suspend,
 	.resume = pcmcia_dev_resume,
 };

@@ -142,9 +142,7 @@ static void __init pcibios_allocate_resources(int pass)
 	u16 command;
 	struct resource *r, *pr;
 
-	while (dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev),
-	       dev != NULL
-	       ) {
+	for_each_pci_dev(dev) {
 		pci_read_config_word(dev, PCI_COMMAND, &command);
 		for(idx = 0; idx < 6; idx++) {
 			r = &dev->resource[idx];
@@ -188,9 +186,7 @@ static void __init pcibios_assign_resources(void)
 	int idx;
 	struct resource *r;
 
-	while (dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, dev),
-	       dev != NULL
-	       ) {
+	for_each_pci_dev(dev) {
 		int class = dev->class >> 8;
 
 		/* Don't touch classless devices and host bridges */

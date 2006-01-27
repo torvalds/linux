@@ -7,7 +7,10 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-			.macro	disable_fiq
+#include <asm/hardware.h>
+#include <asm/hardware/vic.h>
+
+		.macro	disable_fiq
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp

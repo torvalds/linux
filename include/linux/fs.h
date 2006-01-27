@@ -9,7 +9,6 @@
 #include <linux/config.h>
 #include <linux/limits.h>
 #include <linux/ioctl.h>
-#include <linux/rcuref.h>
 
 /*
  * It's silly to have NR_OPEN bigger than NR_FILE, but you can change
@@ -104,19 +103,18 @@ extern int dir_notify_enable;
 #define MS_MOVE		8192
 #define MS_REC		16384
 #define MS_VERBOSE	32768
+#define MS_POSIXACL	(1<<16)	/* VFS does not apply the umask */
 #define MS_UNBINDABLE	(1<<17)	/* change to unbindable */
 #define MS_PRIVATE	(1<<18)	/* change to private */
 #define MS_SLAVE	(1<<19)	/* change to slave */
 #define MS_SHARED	(1<<20)	/* change to shared */
-#define MS_POSIXACL	(1<<16)	/* VFS does not apply the umask */
 #define MS_ACTIVE	(1<<30)
 #define MS_NOUSER	(1<<31)
 
 /*
  * Superblock flags that can be altered by MS_REMOUNT
  */
-#define MS_RMT_MASK	(MS_RDONLY|MS_SYNCHRONOUS|MS_MANDLOCK|MS_NOATIME|\
-			 MS_NODIRATIME)
+#define MS_RMT_MASK	(MS_RDONLY|MS_SYNCHRONOUS|MS_MANDLOCK)
 
 /*
  * Old magic mount flag and mask
@@ -162,8 +160,6 @@ extern int dir_notify_enable;
 #define IS_NOQUOTA(inode)	((inode)->i_flags & S_NOQUOTA)
 #define IS_APPEND(inode)	((inode)->i_flags & S_APPEND)
 #define IS_IMMUTABLE(inode)	((inode)->i_flags & S_IMMUTABLE)
-#define IS_NOATIME(inode)	(__IS_FLG(inode, MS_NOATIME) || ((inode)->i_flags & S_NOATIME))
-#define IS_NODIRATIME(inode)	__IS_FLG(inode, MS_NODIRATIME)
 #define IS_POSIXACL(inode)	__IS_FLG(inode, MS_POSIXACL)
 
 #define IS_DEADDIR(inode)	((inode)->i_flags & S_DEAD)
@@ -220,11 +216,13 @@ extern int dir_notify_enable;
 #include <linux/prio_tree.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 #include <asm/byteorder.h>
 
+struct hd_geometry;
 struct iovec;
 struct nameidata;
 struct kiocb;
@@ -233,9 +231,6 @@ struct poll_table_struct;
 struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
-
-/* Used to be a macro which just called the function, now just a function */
-extern void update_atime (struct inode *);
 
 extern void __init inode_init(unsigned long);
 extern void __init inode_init_early(void);
@@ -484,7 +479,7 @@ struct inode {
 	unsigned long		i_blocks;
 	unsigned short          i_bytes;
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
-	struct semaphore	i_sem;
+	struct mutex		i_mutex;
 	struct rw_semaphore	i_alloc_sem;
 	struct inode_operations	*i_op;
 	struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
@@ -653,7 +648,7 @@ extern spinlock_t files_lock;
 #define file_list_lock() spin_lock(&files_lock);
 #define file_list_unlock() spin_unlock(&files_lock);
 
-#define get_file(x)	rcuref_inc(&(x)->f_count)
+#define get_file(x)	atomic_inc(&(x)->f_count)
 #define file_count(x)	atomic_read(&(x)->f_count)
 
 #define	MAX_NON_LFS	((1UL<<31) - 1)
@@ -808,7 +803,6 @@ struct super_block {
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
 	unsigned long		s_blocksize;
-	unsigned long		s_old_blocksize;
 	unsigned char		s_blocksize_bits;
 	unsigned char		s_dirt;
 	unsigned long long	s_maxbytes;	/* Max file size */
@@ -821,7 +815,7 @@ struct super_block {
 	unsigned long		s_magic;
 	struct dentry		*s_root;
 	struct rw_semaphore	s_umount;
-	struct semaphore	s_lock;
+	struct mutex		s_lock;
 	int			s_count;
 	int			s_syncing;
 	int			s_need_sync_fs;
@@ -893,13 +887,13 @@ static inline int has_fs_excl(void)
 static inline void lock_super(struct super_block * sb)
 {
 	get_fs_excl();
-	down(&sb->s_lock);
+	mutex_lock(&sb->s_lock);
 }
 
 static inline void unlock_super(struct super_block * sb)
 {
 	put_fs_excl();
-	up(&sb->s_lock);
+	mutex_unlock(&sb->s_lock);
 }
 
 /*
@@ -963,6 +957,7 @@ struct block_device_operations {
 	int (*direct_access) (struct block_device *, sector_t, unsigned long *);
 	int (*media_changed) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
+	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	struct module *owner;
 };
 
@@ -1117,12 +1112,7 @@ static inline void mark_inode_dirty_sync(struct inode *inode)
 	__mark_inode_dirty(inode, I_DIRTY_SYNC);
 }
 
-static inline void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
-{
-	/* per-mountpoint checks will go here */
-	update_atime(dentry->d_inode);
-}
-
+extern void touch_atime(struct vfsmount *mnt, struct dentry *dentry);
 static inline void file_accessed(struct file *file)
 {
 	if (!(file->f_flags & O_NOATIME))
@@ -1191,7 +1181,7 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc);
  *    directory.  The name should be stored in the @name (with the
  *    understanding that it is already pointing to a a %NAME_MAX+1 sized
  *    buffer.   get_name() should return %0 on success, a negative error code
- *    or error.  @get_name will be called without @parent->i_sem held.
+ *    or error.  @get_name will be called without @parent->i_mutex held.
  *
  * get_parent:
  *    @get_parent should find the parent directory for the given @child which
@@ -1213,7 +1203,7 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc);
  *    nfsd_find_fh_dentry() in either the @obj or @parent parameters.
  *
  * Locking rules:
- *    get_parent is called with child->d_inode->i_sem down
+ *    get_parent is called with child->d_inode->i_mutex down
  *    get_name is not (which is possibly inconsistent)
  */
 
@@ -1300,6 +1290,9 @@ extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 
 extern int vfs_statfs(struct super_block *, struct kstatfs *);
 
+/* /sys/fs */
+extern struct subsystem fs_subsys;
+
 #define FLOCK_VERIFY_READ  1
 #define FLOCK_VERIFY_WRITE 2
 
@@ -1345,8 +1338,10 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 
 /* fs/open.c */
 
-extern int do_truncate(struct dentry *, loff_t start, struct file *filp);
-extern long do_sys_open(const char __user *filename, int flags, int mode);
+extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
+		       struct file *filp);
+extern long do_sys_open(int fdf, const char __user *filename, int flags,
+			int mode);
 extern struct file *filp_open(const char *, int, int);
 extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);
 extern int filp_close(struct file *, fl_owner_t id);
@@ -1392,6 +1387,12 @@ extern int register_chrdev(unsigned int, const char *,
 extern int unregister_chrdev(unsigned int, const char *);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern int chrdev_open(struct inode *, struct file *);
+extern int get_chrdev_list(char *);
+extern void *acquire_chrdev_list(void);
+extern int count_chrdev_list(void);
+extern void *get_next_chrdev(void *);
+extern int get_chrdev_info(void *, int *, char **);
+extern void release_chrdev_list(void *);
 
 /* fs/block_dev.c */
 #define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
@@ -1400,6 +1401,11 @@ extern const char *bdevname(struct block_device *bdev, char *buffer);
 extern struct block_device *lookup_bdev(const char *);
 extern struct block_device *open_bdev_excl(const char *, int, void *);
 extern void close_bdev_excl(struct block_device *);
+extern void *acquire_blkdev_list(void);
+extern int count_blkdev_list(void);
+extern void *get_next_blkdev(void *);
+extern int get_blkdev_info(void *, int *, char **);
+extern void release_blkdev_list(void *);
 
 extern void init_special_inode(struct inode *, umode_t, dev_t);
 
@@ -1474,7 +1480,7 @@ static inline void allow_write_access(struct file *file)
 }
 extern int do_pipe(int *);
 
-extern int open_namei(const char *, int, int, struct nameidata *);
+extern int open_namei(int dfd, const char *, int, int, struct nameidata *);
 extern int may_open(struct nameidata *, int, int);
 
 extern int kernel_read(struct file *, unsigned long, char *, unsigned long);
@@ -1672,6 +1678,8 @@ extern int vfs_readdir(struct file *, filldir_t, void *);
 
 extern int vfs_stat(char __user *, struct kstat *);
 extern int vfs_lstat(char __user *, struct kstat *);
+extern int vfs_stat_fd(int dfd, char __user *, struct kstat *);
+extern int vfs_lstat_fd(int dfd, char __user *, struct kstat *);
 extern int vfs_fstat(unsigned int, struct kstat *);
 
 extern int vfs_ioctl(struct file *, unsigned int, unsigned int, unsigned long);
@@ -1714,7 +1722,7 @@ extern ssize_t simple_read_from_buffer(void __user *, size_t, loff_t *, const vo
 extern int inode_change_ok(struct inode *, struct iattr *);
 extern int __must_check inode_setattr(struct inode *, struct iattr *);
 
-extern void inode_update_time(struct inode *inode, int ctime_too);
+extern void file_update_time(struct file *file);
 
 static inline ino_t parent_ino(struct dentry *dentry)
 {

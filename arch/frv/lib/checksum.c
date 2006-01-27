@@ -33,6 +33,7 @@
 
 #include <net/checksum.h>
 #include <asm/checksum.h>
+#include <linux/module.h>
 
 static inline unsigned short from32to16(unsigned long x)
 {
@@ -115,34 +116,52 @@ unsigned int csum_partial(const unsigned char * buff, int len, unsigned int sum)
 	return result;
 }
 
+EXPORT_SYMBOL(csum_partial);
+
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly
  * in icmp.c
  */
 unsigned short ip_compute_csum(const unsigned char * buff, int len)
 {
-	return ~do_csum(buff,len);
+	return ~do_csum(buff, len);
 }
+
+EXPORT_SYMBOL(ip_compute_csum);
 
 /*
  * copy from fs while checksumming, otherwise like csum_partial
  */
-
 unsigned int
-csum_partial_copy_from_user(const char *src, char *dst, int len, int sum, int *csum_err)
+csum_partial_copy_from_user(const char __user *src, char *dst,
+			    int len, int sum, int *csum_err)
 {
-	if (csum_err) *csum_err = 0;
-	memcpy(dst, src, len);
+	int rem;
+
+	if (csum_err)
+		*csum_err = 0;
+
+	rem = copy_from_user(dst, src, len);
+	if (rem != 0) {
+		if (csum_err)
+			*csum_err = -EFAULT;
+		memset(dst + len - rem, 0, rem);
+		len = rem;
+	}
+
 	return csum_partial(dst, len, sum);
 }
+
+EXPORT_SYMBOL(csum_partial_copy_from_user);
 
 /*
  * copy from ds while checksumming, otherwise like csum_partial
  */
-
 unsigned int
 csum_partial_copy(const char *src, char *dst, int len, int sum)
 {
 	memcpy(dst, src, len);
 	return csum_partial(dst, len, sum);
 }
+
+EXPORT_SYMBOL(csum_partial_copy);

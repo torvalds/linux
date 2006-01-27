@@ -23,6 +23,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -492,7 +493,7 @@ restart_all:
 	}
 
 	/* blocks peope in read/write from reading our allocation
-	 * until we're done changing it. We depend on i_sem to block
+	 * until we're done changing it. We depend on i_mutex to block
 	 * other extend/truncate calls while we're here. Ordering wrt
 	 * start_trans is important here -- always do it before! */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
@@ -958,8 +959,8 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		filp->f_flags &= ~O_DIRECT;
 #endif
 
-	down(&inode->i_sem);
-	/* to match setattr's i_sem -> i_alloc_sem -> rw_lock ordering */
+	mutex_lock(&inode->i_mutex);
+	/* to match setattr's i_mutex -> i_alloc_sem -> rw_lock ordering */
 	if (filp->f_flags & O_DIRECT) {
 		have_alloc_sem = 1;
 		down_read(&inode->i_alloc_sem);
@@ -1123,7 +1124,7 @@ out:
 		up_read(&inode->i_alloc_sem);
 	if (rw_level != -1) 
 		ocfs2_rw_unlock(inode, rw_level);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 	mlog_exit(ret);
 	return ret;

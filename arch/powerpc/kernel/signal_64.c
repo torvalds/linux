@@ -67,40 +67,6 @@ struct rt_sigframe {
 	char abigap[288];
 } __attribute__ ((aligned (16)));
 
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize, int p3, int p4,
-		       int p6, int p7, struct pt_regs *regs)
-{
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	regs->result = -EINTR;
-	regs->gpr[3] = EINTR;
-	regs->ccr |= 0x10000000;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs))
-			return 0;
-	}
-}
-
 long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss, unsigned long r5,
 		     unsigned long r6, unsigned long r7, unsigned long r8,
 		     struct pt_regs *regs)
@@ -152,6 +118,14 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
 	err |= __put_user(&sc->gp_regs, &sc->regs);
+	if (!FULL_REGS(regs)) {
+		/* Zero out the unsaved GPRs to avoid information
+		   leak, and set TIF_SAVE_NVGPRS to ensure that the
+		   registers do actually get saved later. */
+		memset(&regs->gpr[14], 0, 18 * sizeof(unsigned long));
+		set_thread_flag(TIF_SAVE_NVGPRS);
+		current_thread_info()->nvgprs_frame = &sc->gp_regs;
+	}
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 	err |= __put_user(signr, &sc->signal);
@@ -197,9 +171,19 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 
 	if (!sig)
 		regs->gpr[13] = save_r13;
-	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 	if (set != NULL)
 		err |=  __get_user(set->sig[0], &sc->oldmask);
+
+	/*
+	 * Do this before updating the thread state in
+	 * current->thread.fpr/vr.  That way, if we get preempted
+	 * and another task grabs the FPU/Altivec, it won't be
+	 * tempted to save the current CPU state into the thread_struct
+	 * and corrupt what we are writing there.
+	 */
+	discard_lazy_cpu_state();
+
+	err |= __copy_from_user(&current->thread.fpr, &sc->fp_regs, FP_REGS_SIZE);
 
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
@@ -219,14 +203,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 		current->thread.vrsave = 0;
 #endif /* CONFIG_ALTIVEC */
 
-#ifndef CONFIG_SMP
-	preempt_disable();
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-	preempt_enable();
-#endif
 	/* Force reload of FP/VEC */
 	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC);
 
@@ -340,6 +316,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 		do_exit(SIGSEGV);
 
 	/* This returns like rt_sigreturn */
+	set_thread_flag(TIF_RESTOREALL);
 	return 0;
 }
 
@@ -372,7 +349,8 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 	 */
 	do_sigaltstack(&uc->uc_stack, NULL, regs->gpr[1]);
 
-	return regs->result;
+	set_thread_flag(TIF_RESTOREALL);
+	return 0;
 
 badframe:
 #if DEBUG_SIG
@@ -454,9 +432,6 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto badframe;
 
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 1;
 
 badframe:
@@ -502,6 +477,8 @@ static inline void syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		 * we only get here if there is a handler, we dont restart.
 		 */
 		regs->result = -EINTR;
+		regs->gpr[3] = EINTR;
+		regs->ccr |= 0x10000000;
 		break;
 	case -ERESTARTSYS:
 		/* ERESTARTSYS means to restart the syscall if there is no
@@ -509,6 +486,8 @@ static inline void syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		 */
 		if (!(ka->sa.sa_flags & SA_RESTART)) {
 			regs->result = -EINTR;
+			regs->gpr[3] = EINTR;
+			regs->ccr |= 0x10000000;
 			break;
 		}
 		/* fallthrough */
@@ -541,11 +520,15 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	if (test_thread_flag(TIF_32BIT))
 		return do_signal32(oldset, regs);
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else if (!oldset)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
+		int ret;
+
 		/* Whee!  Actually deliver the signal.  */
 		if (TRAP(regs) == 0x0C00)
 			syscall_restart(regs, &ka);
@@ -558,7 +541,14 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		if (current->thread.dabr)
 			set_dabr(current->thread.dabr);
 
-		return handle_signal(signr, &ka, &info, oldset, regs);
+		ret = handle_signal(signr, &ka, &info, oldset, regs);
+
+		/* If a signal was successfully delivered, the saved sigmask is in
+		   its frame, and we can clear the TIF_RESTORE_SIGMASK flag */
+		if (ret && test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		return ret;
 	}
 
 	if (TRAP(regs) == 0x0C00) {	/* System Call! */
@@ -573,6 +563,11 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 			regs->nip -= 4;
 			regs->result = 0;
 		}
+	}
+	/* No signal to deliver -- put the saved sigmask back */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 
 	return 0;

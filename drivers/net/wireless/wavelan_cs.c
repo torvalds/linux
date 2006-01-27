@@ -2280,7 +2280,7 @@ static int wavelan_get_essid(struct net_device *dev,
 	extra[IW_ESSID_MAX_SIZE] = '\0';
 
 	/* Set the length */
-	wrqu->data.length = strlen(extra) + 1;
+	wrqu->data.length = strlen(extra);
 
 	return 0;
 }

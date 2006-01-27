@@ -3,15 +3,20 @@
 #
 
 bttv-objs	:=	bttv-driver.o bttv-cards.o bttv-if.o \
-			bttv-risc.o bttv-vbi.o bttv-i2c.o bttv-gpio.o
+			bttv-risc.o bttv-vbi.o bttv-i2c.o bttv-gpio.o \
+			bttv-input.o
 zoran-objs      :=	zr36120.o zr36120_i2c.o zr36120_mem.o
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
-tuner-objs	:=	tuner-core.o tuner-simple.o mt20xx.o tda8290.o tea5767.o
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o v4l1-compat.o
+tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
+			mt20xx.o tda8290.o tea5767.o
+
+msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
+
+obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o v4l1-compat.o compat_ioctl32.o
 
 obj-$(CONFIG_VIDEO_BT848) += bttv.o msp3400.o tvaudio.o \
-	tda7432.o tda9875.o ir-kbd-i2c.o ir-kbd-gpio.o
+	tda7432.o tda9875.o ir-kbd-i2c.o
 obj-$(CONFIG_SOUND_TVMIXER) += tvmixer.o
 
 obj-$(CONFIG_VIDEO_ZR36120) += zoran.o

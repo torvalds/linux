@@ -215,7 +215,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	unsigned offset, bv_offs;
 	int len, ret;
 
-	down(&mapping->host->i_sem);
+	mutex_lock(&mapping->host->i_mutex);
 	index = pos >> PAGE_CACHE_SHIFT;
 	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
 	bv_offs = bvec->bv_offset;
@@ -278,7 +278,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	}
 	ret = 0;
 out:
-	up(&mapping->host->i_sem);
+	mutex_unlock(&mapping->host->i_mutex);
 	return ret;
 unlock:
 	unlock_page(page);
@@ -294,7 +294,7 @@ fail:
  * This helper just factors out common code between do_lo_send_direct_write()
  * and do_lo_send_write().
  */
-static inline int __do_lo_send_write(struct file *file,
+static int __do_lo_send_write(struct file *file,
 		u8 __user *buf, const int len, loff_t pos)
 {
 	ssize_t bw;
@@ -527,12 +527,12 @@ static int loop_make_request(request_queue_t *q, struct bio *old_bio)
 	lo->lo_pending++;
 	loop_add_bio(lo, old_bio);
 	spin_unlock_irq(&lo->lo_lock);
-	up(&lo->lo_bh_mutex);
+	complete(&lo->lo_bh_done);
 	return 0;
 
 out:
 	if (lo->lo_pending == 0)
-		up(&lo->lo_bh_mutex);
+		complete(&lo->lo_bh_done);
 	spin_unlock_irq(&lo->lo_lock);
 	bio_io_error(old_bio, old_bio->bi_size);
 	return 0;
@@ -593,23 +593,20 @@ static int loop_thread(void *data)
 	lo->lo_pending = 1;
 
 	/*
-	 * up sem, we are running
+	 * complete it, we are running
 	 */
-	up(&lo->lo_sem);
+	complete(&lo->lo_done);
 
 	for (;;) {
 		int pending;
 
-		/*
-		 * interruptible just to not contribute to load avg
-		 */
-		if (down_interruptible(&lo->lo_bh_mutex))
+		if (wait_for_completion_interruptible(&lo->lo_bh_done))
 			continue;
 
 		spin_lock_irq(&lo->lo_lock);
 
 		/*
-		 * could be upped because of tear-down, not pending work
+		 * could be completed because of tear-down, not pending work
 		 */
 		if (unlikely(!lo->lo_pending)) {
 			spin_unlock_irq(&lo->lo_lock);
@@ -632,7 +629,7 @@ static int loop_thread(void *data)
 			break;
 	}
 
-	up(&lo->lo_sem);
+	complete(&lo->lo_done);
 	return 0;
 }
 
@@ -843,7 +840,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 	set_blocksize(bdev, lo_blocksize);
 
 	kernel_thread(loop_thread, lo, CLONE_KERNEL);
-	down(&lo->lo_sem);
+	wait_for_completion(&lo->lo_done);
 	return 0;
 
  out_putf:
@@ -909,10 +906,10 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	lo->lo_state = Lo_rundown;
 	lo->lo_pending--;
 	if (!lo->lo_pending)
-		up(&lo->lo_bh_mutex);
+		complete(&lo->lo_bh_done);
 	spin_unlock_irq(&lo->lo_lock);
 
-	down(&lo->lo_sem);
+	wait_for_completion(&lo->lo_done);
 
 	lo->lo_backing_file = NULL;
 
@@ -1289,8 +1286,8 @@ static int __init loop_init(void)
 		if (!lo->lo_queue)
 			goto out_mem4;
 		init_MUTEX(&lo->lo_ctl_mutex);
-		init_MUTEX_LOCKED(&lo->lo_sem);
-		init_MUTEX_LOCKED(&lo->lo_bh_mutex);
+		init_completion(&lo->lo_done);
+		init_completion(&lo->lo_bh_done);
 		lo->lo_number = i;
 		spin_lock_init(&lo->lo_lock);
 		disk->major = LOOP_MAJOR;

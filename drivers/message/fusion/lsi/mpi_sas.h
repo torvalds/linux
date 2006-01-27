@@ -6,7 +6,7 @@
  *          Title:  MPI Serial Attached SCSI structures and definitions
  *  Creation Date:  August 19, 2004
  *
- *    mpi_sas.h Version:  01.05.01
+ *    mpi_sas.h Version:  01.05.02
  *
  *  Version History
  *  ---------------
@@ -14,6 +14,9 @@
  *  Date      Version   Description
  *  --------  --------  ------------------------------------------------------
  *  08-19-04  01.05.01  Original release.
+ *  08-30-05  01.05.02  Added DeviceInfo bit for SEP.
+ *                      Added PrimFlags and Primitive field to SAS IO Unit
+ *                      Control request, and added a new operation code.
  *  --------------------------------------------------------------------------
  */
 
@@ -51,6 +54,7 @@
  * Values for the SAS DeviceInfo field used in SAS Device Status Change Event
  * data and SAS IO Unit Configuration pages.
  */
+#define MPI_SAS_DEVICE_INFO_SEP                 (0x00004000)
 #define MPI_SAS_DEVICE_INFO_ATAPI_DEVICE        (0x00002000)
 #define MPI_SAS_DEVICE_INFO_LSI_DEVICE          (0x00001000)
 #define MPI_SAS_DEVICE_INFO_DIRECT_ATTACH       (0x00000800)
@@ -212,20 +216,26 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REQUEST
     U8                      TargetID;           /* 0Ch */
     U8                      Bus;                /* 0Dh */
     U8                      PhyNum;             /* 0Eh */
-    U8                      Reserved4;          /* 0Fh */
-    U32                     Reserved5;          /* 10h */
+    U8                      PrimFlags;          /* 0Fh */
+    U32                     Primitive;          /* 10h */
     U64                     SASAddress;         /* 14h */
-    U32                     Reserved6;          /* 1Ch */
+    U32                     Reserved4;          /* 1Ch */
 } MSG_SAS_IOUNIT_CONTROL_REQUEST, MPI_POINTER PTR_MSG_SAS_IOUNIT_CONTROL_REQUEST,
   SasIoUnitControlRequest_t, MPI_POINTER pSasIoUnitControlRequest_t;
 
 /* values for the Operation field */
-#define MPI_SAS_OP_CLEAR_NOT_PRESENT             (0x01)
-#define MPI_SAS_OP_CLEAR_ALL_PERSISTENT          (0x02)
-#define MPI_SAS_OP_PHY_LINK_RESET                (0x06)
-#define MPI_SAS_OP_PHY_HARD_RESET                (0x07)
-#define MPI_SAS_OP_PHY_CLEAR_ERROR_LOG           (0x08)
-#define MPI_SAS_OP_MAP_CURRENT                   (0x09)
+#define MPI_SAS_OP_CLEAR_NOT_PRESENT            (0x01)
+#define MPI_SAS_OP_CLEAR_ALL_PERSISTENT         (0x02)
+#define MPI_SAS_OP_PHY_LINK_RESET               (0x06)
+#define MPI_SAS_OP_PHY_HARD_RESET               (0x07)
+#define MPI_SAS_OP_PHY_CLEAR_ERROR_LOG          (0x08)
+#define MPI_SAS_OP_MAP_CURRENT                  (0x09)
+#define MPI_SAS_OP_SEND_PRIMITIVE               (0x0A)
+
+/* values for the PrimFlags field */
+#define MPI_SAS_PRIMFLAGS_SINGLE                (0x08)
+#define MPI_SAS_PRIMFLAGS_TRIPLE                (0x02)
+#define MPI_SAS_PRIMFLAGS_REDUNDANT             (0x01)
 
 
 /* SAS IO Unit Control Reply */

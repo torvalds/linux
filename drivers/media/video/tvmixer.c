@@ -227,13 +227,9 @@ static int tvmixer_release(struct inode *inode, struct file *file)
 }
 
 static struct i2c_driver driver = {
-#ifdef I2C_PEC
 	.driver = {
-		.name    = "tv card mixer driver",
+		.name    = "tvmixer",
 	},
-#else
-	.name            = "tv card mixer driver",
-#endif
 	.id              = I2C_DRIVERID_TVMIXER,
 	.detach_adapter  = tvmixer_adapters,
 	.attach_adapter  = tvmixer_adapters,
@@ -267,22 +263,8 @@ static int tvmixer_clients(struct i2c_client *client)
 	struct video_audio va;
 	int i,minor;
 
-#ifdef I2C_CLASS_TV_ANALOG
 	if (!(client->adapter->class & I2C_CLASS_TV_ANALOG))
 		return -1;
-#else
-	/* TV card ??? */
-	switch (client->adapter->id) {
-	case I2C_HW_SMBUS_VOODOO3:
-	case I2C_HW_B_BT848:
-	case I2C_HW_B_RIVA:
-		/* ok, have a look ... */
-		break;
-	default:
-		/* ignore that one */
-		return -1;
-	}
-#endif
 
 	/* unregister ?? */
 	for (i = 0; i < DEV_MAX; i++) {

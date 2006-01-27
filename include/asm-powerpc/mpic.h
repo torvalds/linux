@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_MPIC_H
 #define _ASM_POWERPC_MPIC_H
+#ifdef __KERNEL__
 
 #include <linux/irq.h>
 
@@ -117,7 +118,9 @@ typedef int (*mpic_cascade_t)(struct pt_regs *regs, void *data);
 struct mpic_irq_fixup
 {
 	u8 __iomem	*base;
-	unsigned int   irq;
+	u8 __iomem	*applebase;
+	u32		data;
+	unsigned int	index;
 };
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
@@ -284,4 +287,5 @@ extern int mpic_get_irq(struct pt_regs *regs);
 /* global mpic for pSeries */
 extern struct mpic *pSeries_mpic;
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_MPIC_H */

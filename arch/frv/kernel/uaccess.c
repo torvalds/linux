@@ -10,6 +10,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <asm/uaccess.h>
 
 /*****************************************************************************/
@@ -58,7 +59,10 @@ long strncpy_from_user(char *dst, const char *src, long count)
 		memset(p, 0, count); /* clear remainder of buffer [security] */
 
 	return err;
+
 } /* end strncpy_from_user() */
+
+EXPORT_SYMBOL(strncpy_from_user);
 
 /*****************************************************************************/
 /*
@@ -92,4 +96,7 @@ long strnlen_user(const char *src, long count)
 	}
 
 	return p - src + 1; /* return length including NUL */
+
 } /* end strnlen_user() */
+
+EXPORT_SYMBOL(strnlen_user);

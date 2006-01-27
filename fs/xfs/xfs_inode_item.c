@@ -271,6 +271,11 @@ xfs_inode_item_format(
 	if (ip->i_update_size)
 		ip->i_update_size = 0;
 
+	/*
+	 * Make sure to get the latest atime from the Linux inode.
+	 */
+	xfs_synchronize_atime(ip);
+
 	vecp->i_addr = (xfs_caddr_t)&ip->i_d;
 	vecp->i_len  = sizeof(xfs_dinode_core_t);
 	XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_ICORE);
@@ -603,7 +608,7 @@ xfs_inode_item_trylock(
 		if (iip->ili_pushbuf_flag == 0) {
 			iip->ili_pushbuf_flag = 1;
 #ifdef DEBUG
-			iip->ili_push_owner = get_thread_id();
+			iip->ili_push_owner = current_pid();
 #endif
 			/*
 			 * Inode is left locked in shared mode.
@@ -782,7 +787,7 @@ xfs_inode_item_pushbuf(
 	 * trying to duplicate our effort.
 	 */
 	ASSERT(iip->ili_pushbuf_flag != 0);
-	ASSERT(iip->ili_push_owner == get_thread_id());
+	ASSERT(iip->ili_push_owner == current_pid());
 
 	/*
 	 * If flushlock isn't locked anymore, chances are that the

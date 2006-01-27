@@ -23,20 +23,15 @@
 #error Sorry, your compiler targets APCS-26 but this kernel requires APCS-32
 #endif
 /*
- * GCC 2.95.1, 2.95.2: ignores register clobber list in asm().
  * GCC 3.0, 3.1: general bad code generation.
  * GCC 3.2.0: incorrect function argument offset calculation.
  * GCC 3.2.x: miscompiles NEW_AUX_ENT in fs/binfmt_elf.c
  *            (http://gcc.gnu.org/PR8896) and incorrect structure
  *	      initialisation in fs/jffs2/erase.c
  */
-#if __GNUC__ < 2 || \
-   (__GNUC__ == 2 && __GNUC_MINOR__ < 95) || \
-   (__GNUC__ == 2 && __GNUC_MINOR__ == 95 && __GNUC_PATCHLEVEL__ != 0 && \
-					     __GNUC_PATCHLEVEL__ < 3) || \
-   (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
+#if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
 #error Your compiler is too buggy; it is known to miscompile kernels.
-#error    Known good compilers: 2.95.3, 2.95.4, 2.96, 3.3
+#error    Known good compilers: 3.3
 #endif
 
 /* Use marker if you need to separate the values later */

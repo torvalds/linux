@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/irq.h>
 
 #include <asm/arch/spitz.h>
 #include <asm/arch/hardware.h>
@@ -407,10 +406,9 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	for (i = 0; i < SPITZ_KEY_SENSE_NUM; i++) {
 		pxa_gpio_mode(spitz_senses[i] | GPIO_IN);
 		if (request_irq(IRQ_GPIO(spitz_senses[i]), spitzkbd_interrupt,
-						SA_INTERRUPT, "Spitzkbd Sense", spitzkbd))
+				SA_INTERRUPT|SA_TRIGGER_RISING,
+				"Spitzkbd Sense", spitzkbd))
 			printk(KERN_WARNING "spitzkbd: Can't get Sense IRQ: %d!\n", i);
-		else
-			set_irq_type(IRQ_GPIO(spitz_senses[i]),IRQT_RISING);
 	}
 
 	/* Set Strobe lines as outputs - set high */
@@ -422,15 +420,18 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	pxa_gpio_mode(SPITZ_GPIO_SWA | GPIO_IN);
 	pxa_gpio_mode(SPITZ_GPIO_SWB | GPIO_IN);
 
-	request_irq(SPITZ_IRQ_GPIO_SYNC, spitzkbd_interrupt, SA_INTERRUPT, "Spitzkbd Sync", spitzkbd);
-	request_irq(SPITZ_IRQ_GPIO_ON_KEY, spitzkbd_interrupt, SA_INTERRUPT, "Spitzkbd PwrOn", spitzkbd);
-	request_irq(SPITZ_IRQ_GPIO_SWA, spitzkbd_hinge_isr, SA_INTERRUPT, "Spitzkbd SWA", spitzkbd);
-	request_irq(SPITZ_IRQ_GPIO_SWB, spitzkbd_hinge_isr, SA_INTERRUPT, "Spitzkbd SWB", spitzkbd);
-
-	set_irq_type(SPITZ_IRQ_GPIO_SYNC, IRQT_BOTHEDGE);
-	set_irq_type(SPITZ_IRQ_GPIO_ON_KEY, IRQT_BOTHEDGE);
-	set_irq_type(SPITZ_IRQ_GPIO_SWA, IRQT_BOTHEDGE);
-	set_irq_type(SPITZ_IRQ_GPIO_SWB, IRQT_BOTHEDGE);
+	request_irq(SPITZ_IRQ_GPIO_SYNC, spitzkbd_interrupt,
+		    SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+		    "Spitzkbd Sync", spitzkbd);
+	request_irq(SPITZ_IRQ_GPIO_ON_KEY, spitzkbd_interrupt,
+		    SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+		    "Spitzkbd PwrOn", spitzkbd);
+	request_irq(SPITZ_IRQ_GPIO_SWA, spitzkbd_hinge_isr,
+		    SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+		    "Spitzkbd SWA", spitzkbd);
+	request_irq(SPITZ_IRQ_GPIO_SWB, spitzkbd_hinge_isr,
+		    SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+		    "Spitzkbd SWB", spitzkbd);
 
 	printk(KERN_INFO "input: Spitz Keyboard Registered\n");
 

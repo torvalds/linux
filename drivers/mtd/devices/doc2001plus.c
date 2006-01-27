@@ -118,7 +118,7 @@ static inline void DoC_CheckASIC(void __iomem * docptr)
 /* DoC_Command: Send a flash command to the flash chip through the Flash
  * command register. Need 2 Write Pipeline Terminates to complete send.
  */
-static inline void DoC_Command(void __iomem * docptr, unsigned char command,
+static void DoC_Command(void __iomem * docptr, unsigned char command,
 			       unsigned char xtraflags)
 {
 	WriteDOC(command, docptr, Mplus_FlashCmd);

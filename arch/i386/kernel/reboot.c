@@ -12,6 +12,7 @@
 #include <linux/efi.h>
 #include <linux/dmi.h>
 #include <linux/ctype.h>
+#include <linux/pm.h>
 #include <asm/uaccess.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
@@ -355,10 +356,10 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	machine_shutdown();
-
-	if (pm_power_off)
+	if (pm_power_off) {
+		machine_shutdown();
 		pm_power_off();
+	}
 }
 
 

@@ -136,8 +136,8 @@ void show_trace(struct task_struct *task, unsigned long * stack)
 	sp = __show_trace(sp, S390_lowcore.async_stack - ASYNC_SIZE,
 			  S390_lowcore.async_stack);
 	if (task)
-		__show_trace(sp, (unsigned long) task->thread_info,
-			     (unsigned long) task->thread_info + THREAD_SIZE);
+		__show_trace(sp, (unsigned long) task_stack_page(task),
+			     (unsigned long) task_stack_page(task) + THREAD_SIZE);
 	else
 		__show_trace(sp, S390_lowcore.thread_info,
 			     S390_lowcore.thread_info + THREAD_SIZE);
@@ -240,7 +240,7 @@ char *task_show_regs(struct task_struct *task, char *buffer)
 {
 	struct pt_regs *regs;
 
-	regs = __KSTK_PTREGS(task);
+	regs = task_pt_regs(task);
 	buffer += sprintf(buffer, "task: %p, ksp: %p\n",
 		       task, (void *)task->thread.ksp);
 	buffer += sprintf(buffer, "User PSW : %p %p\n",

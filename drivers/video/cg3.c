@@ -33,9 +33,8 @@ static int cg3_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int cg3_blank(int, struct fb_info *);
 
-static int cg3_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
-static int cg3_ioctl(struct inode *, struct file *, unsigned int,
-		     unsigned long, struct fb_info *);
+static int cg3_mmap(struct fb_info *, struct vm_area_struct *);
+static int cg3_ioctl(struct fb_info *, unsigned int, unsigned long);
 
 /*
  *  Frame buffer operations
@@ -230,7 +229,7 @@ static struct sbus_mmap_map cg3_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int cg3_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+static int cg3_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct cg3_par *par = (struct cg3_par *)info->par;
 
@@ -240,8 +239,7 @@ static int cg3_mmap(struct fb_info *info, struct file *file, struct vm_area_stru
 				  vma);
 }
 
-static int cg3_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg, struct fb_info *info)
+static int cg3_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct cg3_par *par = (struct cg3_par *) info->par;
 

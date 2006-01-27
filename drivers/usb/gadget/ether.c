@@ -2534,9 +2534,6 @@ static struct usb_gadget_driver eth_driver = {
 	.driver 	= {
 		.name		= (char *) shortname,
 		.owner		= THIS_MODULE,
-		// .shutdown = ...
-		// .suspend = ...
-		// .resume = ...
 	},
 };
 

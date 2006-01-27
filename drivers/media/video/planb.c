@@ -76,9 +76,9 @@ static volatile struct planb_registers *planb_regs;
 static int def_norm = PLANB_DEF_NORM;	/* default norm */
 static int video_nr = -1;
 
-MODULE_PARM(def_norm, "i");
+module_param(def_norm, int, 0);
 MODULE_PARM_DESC(def_norm, "Default startup norm (0=PAL, 1=NTSC, 2=SECAM)");
-MODULE_PARM(video_nr,"i");
+module_param(video_nr, int, 0);
 MODULE_LICENSE("GPL");
 
 

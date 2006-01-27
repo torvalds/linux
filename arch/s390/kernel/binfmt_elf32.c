@@ -112,7 +112,7 @@ static inline int dump_regs32(struct pt_regs *ptregs, elf_gregset_t *regs)
 
 static inline int dump_task_regs32(struct task_struct *tsk, elf_gregset_t *regs)
 {
-	struct pt_regs *ptregs = __KSTK_PTREGS(tsk);
+	struct pt_regs *ptregs = task_pt_regs(tsk);
 	int i;
 
 	memcpy(&regs->psw.mask, &ptregs->psw.mask, 4);

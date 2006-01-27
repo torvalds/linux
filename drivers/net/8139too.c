@@ -505,7 +505,7 @@ enum chip_flags {
 #define HW_REVID_MASK	HW_REVID(1, 1, 1, 1, 1, 1, 1)
 
 /* directly indexed by chip_t, above */
-const static struct {
+static const struct {
 	const char *name;
 	u32 version; /* from RTL8139C/RTL8139D docs */
 	u32 flags;

@@ -418,7 +418,7 @@ static int
 romfs_readpage(struct file *file, struct page * page)
 {
 	struct inode *inode = page->mapping->host;
-	unsigned long offset, avail, readlen;
+	loff_t offset, avail, readlen;
 	void *buf;
 	int result = -EIO;
 
@@ -429,8 +429,8 @@ romfs_readpage(struct file *file, struct page * page)
 		goto err_out;
 
 	/* 32 bit warning -- but not for us :) */
-	offset = page->index << PAGE_CACHE_SHIFT;
-	if (offset < inode->i_size) {
+	offset = page_offset(page);
+	if (offset < i_size_read(inode)) {
 		avail = inode->i_size-offset;
 		readlen = min_t(unsigned long, avail, PAGE_SIZE);
 		if (romfs_copyfrom(inode, buf, ROMFS_I(inode)->i_dataoffset+offset, readlen) == readlen) {

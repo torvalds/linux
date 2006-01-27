@@ -60,7 +60,7 @@ unsigned char cia_set_irq(struct ciabase *base, unsigned char mask)
 	else
 		base->icr_data &= ~mask;
 	if (base->icr_data & base->icr_mask)
-		custom.intreq = IF_SETCLR | base->int_mask;
+		amiga_custom.intreq = IF_SETCLR | base->int_mask;
 	return old & base->icr_mask;
 }
 
@@ -89,7 +89,7 @@ unsigned char cia_able_irq(struct ciabase *base, unsigned char mask)
 		}
 	}
 	if (base->icr_data & base->icr_mask)
-		custom.intreq = IF_SETCLR | base->int_mask;
+		amiga_custom.intreq = IF_SETCLR | base->int_mask;
 	return old;
 }
 
@@ -133,7 +133,7 @@ static irqreturn_t cia_handler(int irq, void *dev_id, struct pt_regs *fp)
 	mach_irq = base->cia_irq;
 	irq = SYS_IRQS + mach_irq;
 	ints = cia_set_irq(base, CIA_ICR_ALL);
-	custom.intreq = base->int_mask;
+	amiga_custom.intreq = base->int_mask;
 	for (i = 0; i < CIA_IRQS; i++, irq++, mach_irq++) {
 		if (ints & 1) {
 			kstat_cpu(0).irqs[irq]++;
@@ -162,7 +162,7 @@ void __init cia_init_IRQ(struct ciabase *base)
 	/* install CIA handler */
 	request_irq(base->handler_irq, cia_handler, 0, base->name, base);
 
-	custom.intena = IF_SETCLR | base->int_mask;
+	amiga_custom.intena = IF_SETCLR | base->int_mask;
 }
 
 int cia_get_irq_list(struct ciabase *base, struct seq_file *p)

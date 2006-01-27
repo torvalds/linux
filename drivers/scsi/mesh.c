@@ -1869,7 +1869,8 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	if (macio_resource_count(mdev) != 2 || macio_irq_count(mdev) != 2) {
        		printk(KERN_ERR "mesh: expected 2 addrs and 2 intrs"
-	       	       " (got %d,%d)\n", mesh->n_addrs, mesh->n_intrs);
+	       	       " (got %d,%d)\n", macio_resource_count(mdev),
+		       macio_irq_count(mdev));
 		return -ENODEV;
 	}
 

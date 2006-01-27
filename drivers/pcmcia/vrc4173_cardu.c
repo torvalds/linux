@@ -6,7 +6,7 @@
  * 	NEC VRC4173 CARDU driver for Socket Services
  *	(This device doesn't support CardBus. it is supporting only 16bit PC Card.)
  *
- * Copyright 2002,2003 Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ * Copyright 2002,2003 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -41,7 +41,7 @@
 #include "vrc4173_cardu.h"
 
 MODULE_DESCRIPTION("NEC VRC4173 CARDU driver for Socket Services");
-MODULE_AUTHOR("Yoichi Yuasa <yuasa@hh.iij4u.or.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
 MODULE_LICENSE("GPL");
 
 static int vrc4173_cardu_slots;
@@ -561,7 +561,7 @@ static int __devinit vrc4173_cardu_init(void)
 {
 	vrc4173_cardu_slots = 0;
 
-	return pci_module_init(&vrc4173_cardu_driver);
+	return pci_register_driver(&vrc4173_cardu_driver);
 }
 
 static void __devexit vrc4173_cardu_exit(void)

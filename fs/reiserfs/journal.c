@@ -3925,10 +3925,13 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 		flush = 1;
 	}
 #ifdef REISERFS_PREALLOCATE
-	/* quota ops might need to nest, setup the journal_info pointer for them */
+	/* quota ops might need to nest, setup the journal_info pointer for them
+	 * and raise the refcount so that it is > 0. */
 	current->journal_info = th;
+	th->t_refcount++;
 	reiserfs_discard_all_prealloc(th);	/* it should not involve new blocks into
 						 * the transaction */
+	th->t_refcount--;
 	current->journal_info = th->t_handle_save;
 #endif
 

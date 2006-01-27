@@ -16,18 +16,10 @@ static int
 user_get(struct inode *inode, const char *name, void *buffer, size_t size)
 {
 
-	int error;
-
 	if (strlen(name) < sizeof(XATTR_USER_PREFIX))
 		return -EINVAL;
-
 	if (!reiserfs_xattrs_user(inode->i_sb))
 		return -EOPNOTSUPP;
-
-	error = reiserfs_permission_locked(inode, MAY_READ, NULL);
-	if (error)
-		return error;
-
 	return reiserfs_xattr_get(inode, name, buffer, size);
 }
 
@@ -36,43 +28,21 @@ user_set(struct inode *inode, const char *name, const void *buffer,
 	 size_t size, int flags)
 {
 
-	int error;
-
 	if (strlen(name) < sizeof(XATTR_USER_PREFIX))
 		return -EINVAL;
 
 	if (!reiserfs_xattrs_user(inode->i_sb))
 		return -EOPNOTSUPP;
-
-	if (!S_ISREG(inode->i_mode) &&
-	    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
-		return -EPERM;
-
-	error = reiserfs_permission_locked(inode, MAY_WRITE, NULL);
-	if (error)
-		return error;
-
 	return reiserfs_xattr_set(inode, name, buffer, size, flags);
 }
 
 static int user_del(struct inode *inode, const char *name)
 {
-	int error;
-
 	if (strlen(name) < sizeof(XATTR_USER_PREFIX))
 		return -EINVAL;
 
 	if (!reiserfs_xattrs_user(inode->i_sb))
 		return -EOPNOTSUPP;
-
-	if (!S_ISREG(inode->i_mode) &&
-	    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
-		return -EPERM;
-
-	error = reiserfs_permission_locked(inode, MAY_WRITE, NULL);
-	if (error)
-		return error;
-
 	return 0;
 }
 

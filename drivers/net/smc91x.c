@@ -88,7 +88,6 @@ static const char version[] =
 #include <linux/skbuff.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 #include "smc91x.h"
 
@@ -2007,11 +2006,9 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	}
 
 	/* Grab the IRQ */
-      	retval = request_irq(dev->irq, &smc_interrupt, 0, dev->name, dev);
+      	retval = request_irq(dev->irq, &smc_interrupt, SMC_IRQ_FLAGS, dev->name, dev);
       	if (retval)
       		goto err_out;
-
-	set_irq_type(dev->irq, SMC_IRQ_TRIGGER_TYPE);
 
 #ifdef SMC_USE_PXA_DMA
 	{

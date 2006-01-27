@@ -94,7 +94,7 @@ static inline int card_wait_for_busy_clear(const int ioaddr[],
 	const char* name);
 static inline int card_wait_for_ready(const int ioaddr[], const char* name,
 	unsigned char in[]);
-static inline int card_send_command(const int ioaddr[], const char* name,
+static int card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[]);
 
 /* SB1000 hardware routines to be used during frame rx interrupt */
@@ -309,7 +309,7 @@ card_wait_for_ready(const int ioaddr[], const char* name, unsigned char in[])
 }
 
 /* Card Send Command (cannot be used during an interrupt) */
-static inline int
+static int
 card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[])
 {

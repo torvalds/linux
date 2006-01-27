@@ -92,7 +92,7 @@ struct pt_regs
 /* The number of bytes used to store each register.  */
 #define _PT_REG_SIZE	4
 
-/* Offset of a general purpose register in a stuct pt_regs.  */
+/* Offset of a general purpose register in a struct pt_regs.  */
 #define PT_GPR(num)	((num) * _PT_REG_SIZE)
 
 /* Offsets of various special registers & fields in a struct pt_regs.  */

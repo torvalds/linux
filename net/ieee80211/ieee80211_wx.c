@@ -42,7 +42,7 @@ static const char *ieee80211_modes[] = {
 };
 
 #define MAX_CUSTOM_LEN 64
-static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
+static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 					   char *start, char *stop,
 					   struct ieee80211_network *network)
 {
@@ -284,7 +284,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	};
 	int i, key, key_provided, len;
 	struct ieee80211_crypt_data **crypt;
-	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
+	int host_crypto = ieee->host_encrypt || ieee->host_decrypt || ieee->host_build_iv;
 
 	IEEE80211_DEBUG_WX("SET_ENCODE\n");
 

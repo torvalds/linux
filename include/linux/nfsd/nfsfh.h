@@ -294,7 +294,7 @@ fill_post_wcc(struct svc_fh *fhp)
 /*
  * Lock a file handle/inode
  * NOTE: both fh_lock and fh_unlock are done "by hand" in
- * vfs.c:nfsd_rename as it needs to grab 2 i_sem's at once
+ * vfs.c:nfsd_rename as it needs to grab 2 i_mutex's at once
  * so, any changes here should be reflected there.
  */
 static inline void
@@ -317,7 +317,7 @@ fh_lock(struct svc_fh *fhp)
 	}
 
 	inode = dentry->d_inode;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	fill_pre_wcc(fhp);
 	fhp->fh_locked = 1;
 }
@@ -333,7 +333,7 @@ fh_unlock(struct svc_fh *fhp)
 
 	if (fhp->fh_locked) {
 		fill_post_wcc(fhp);
-		up(&fhp->fh_dentry->d_inode->i_sem);
+		mutex_unlock(&fhp->fh_dentry->d_inode->i_mutex);
 		fhp->fh_locked = 0;
 	}
 }

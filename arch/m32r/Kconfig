@@ -12,10 +12,6 @@ config M32R
 config SBUS
 	bool
 
-config UID16
-	bool
-	default n
-
 config GENERIC_ISA_DMA
 	bool
 	default y

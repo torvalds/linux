@@ -9,7 +9,8 @@
 #include <linux/poll.h>
 #include <linux/i2c.h>
 #include <linux/types.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-common.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 
@@ -509,11 +510,9 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct saa6752hs_state *h;
 
-	printk("saa6752hs: chip found @ 0x%x\n", addr<<1);
 
-	if (NULL == (h = kmalloc(sizeof(*h), GFP_KERNEL)))
+	if (NULL == (h = kzalloc(sizeof(*h), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(h,0,sizeof(*h));
 	h->client = client_template;
 	h->params = param_defaults;
 	h->client.adapter = adap;
@@ -524,6 +523,8 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 
 	i2c_set_clientdata(&h->client, h);
 	i2c_attach_client(&h->client);
+
+	v4l_info(&h->client,"saa6752hs: chip found @ 0x%x\n", addr<<1);
 
 	return 0;
 }
@@ -598,7 +599,7 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name   = "i2c saa6752hs MPEG encoder",
+		.name   = "saa6752hs",
 	},
 	.id             = I2C_DRIVERID_SAA6752HS,
 	.attach_adapter = saa6752hs_probe,

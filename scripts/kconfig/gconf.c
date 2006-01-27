@@ -276,7 +276,7 @@ void init_main_window(const gchar * glade_file)
 					  NULL);
 
 	sprintf(title, _("Linux Kernel v%s Configuration"),
-		getenv("KERNELRELEASE"));
+		getenv("KERNELVERSION"));
 	gtk_window_set_title(GTK_WINDOW(main_wnd), title);
 
 	gtk_widget_show(main_wnd);

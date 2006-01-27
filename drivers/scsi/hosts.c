@@ -156,16 +156,16 @@ EXPORT_SYMBOL(scsi_host_set_state);
 void scsi_remove_host(struct Scsi_Host *shost)
 {
 	unsigned long flags;
-	down(&shost->scan_mutex);
+	mutex_lock(&shost->scan_mutex);
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_CANCEL))
 		if (scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY)) {
 			spin_unlock_irqrestore(shost->host_lock, flags);
-			up(&shost->scan_mutex);
+			mutex_unlock(&shost->scan_mutex);
 			return;
 		}
 	spin_unlock_irqrestore(shost->host_lock, flags);
-	up(&shost->scan_mutex);
+	mutex_unlock(&shost->scan_mutex);
 	scsi_forget_host(shost);
 	scsi_proc_host_rm(shost);
 
@@ -320,7 +320,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	INIT_LIST_HEAD(&shost->starved_list);
 	init_waitqueue_head(&shost->host_wait);
 
-	init_MUTEX(&shost->scan_mutex);
+	mutex_init(&shost->scan_mutex);
 
 	shost->host_no = scsi_host_next_hn++; /* XXX(hch): still racy */
 	shost->dma_channel = 0xff;

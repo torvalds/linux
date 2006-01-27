@@ -27,18 +27,17 @@ Who To Submit Drivers To
 ------------------------
 
 Linux 2.0:
-	No new drivers are accepted for this kernel tree
+	No new drivers are accepted for this kernel tree.
 
 Linux 2.2:
+	No new drivers are accepted for this kernel tree.
+
+Linux 2.4:
 	If the code area has a general maintainer then please submit it to
 	the maintainer listed in MAINTAINERS in the kernel file. If the
 	maintainer does not respond or you cannot find the appropriate
-	maintainer then please contact the 2.2 kernel maintainer:
-	Marc-Christian Petersen <m.c.p@wolk-project.de>.
-
-Linux 2.4:
-	The same rules apply as 2.2. The final contact point for Linux 2.4
-	submissions is Marcelo Tosatti <marcelo.tosatti@cyclades.com>.
+	maintainer then please contact Marcelo Tosatti
+	<marcelo.tosatti@cyclades.com>.
 
 Linux 2.6:
 	The same rules apply as 2.4 except that you should follow linux-kernel
@@ -53,6 +52,7 @@ Licensing:	The code must be released to us under the
 		of exclusive GPL licensing, and if you wish the driver
 		to be useful to other communities such as BSD you may well
 		wish to release under multiple licenses.
+		See accepted licenses at include/linux/module.h
 
 Copyright:	The copyright owner must agree to use of GPL.
 		It's best if the submitter and copyright owner
@@ -143,5 +143,13 @@ KernelNewbies:
 	http://kernelnewbies.org/
 
 Linux USB project:
-	http://sourceforge.net/projects/linux-usb/
+	http://www.linux-usb.org/
 
+How to NOT write kernel driver by arjanv@redhat.com
+	http://people.redhat.com/arjanv/olspaper.pdf
+
+Kernel Janitor:
+	http://janitor.kernelnewbies.org/
+
+--
+Last updated on 17 Nov 2005.

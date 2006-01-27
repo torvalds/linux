@@ -93,9 +93,6 @@ static u8 gp3_openpic_initsenses[] __initdata = {
 	0x0,				/* External 11: */
 };
 
-static const char *GFAR_PHY_2 = "phy0:2";
-static const char *GFAR_PHY_4 = "phy0:4";
-
 /*
  * Setup the architecture
  */
@@ -130,20 +127,21 @@ gp3_setup_arch(void)
 	mdata->irq[2] = MPC85xx_IRQ_EXT5;
 	mdata->irq[4] = MPC85xx_IRQ_EXT5;
 	mdata->irq[31] = -1;
-	mdata->paddr += binfo->bi_immr_base;
 
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 	/*	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR; */
-		pdata->bus_id = GFAR_PHY_2;
+		pdata->bus_id = 0;
+		pdata->phy_id = 2;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 	/*	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR; */
-		pdata->bus_id = GFAR_PHY_4;
+		pdata->bus_id = 0;
+		pdata->phy_id = 4;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 

@@ -624,6 +624,11 @@ typedef struct drm_radeon_indirect {
 	int discard;
 } drm_radeon_indirect_t;
 
+/* enum for card type parameters */
+#define RADEON_CARD_PCI 0
+#define RADEON_CARD_AGP 1
+#define RADEON_CARD_PCIE 2
+
 /* 1.3: An ioctl to get parameters that aren't available to the 3d
  * client any other way.
  */
@@ -640,6 +645,7 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_SAREA_HANDLE          9
 #define RADEON_PARAM_GART_TEX_HANDLE       10
 #define RADEON_PARAM_SCRATCH_OFFSET        11
+#define RADEON_PARAM_CARD_TYPE             12
 
 typedef struct drm_radeon_getparam {
 	int param;

@@ -130,7 +130,6 @@ int drm_lock(struct inode *inode, struct file *filp,
 	/* dev->driver->kernel_context_switch isn't used by any of the x86
 	 *  drivers but is used by the Sparc driver.
 	 */
-
 	if (dev->driver->kernel_context_switch &&
 	    dev->last_context != lock.context) {
 		dev->driver->kernel_context_switch(dev, dev->last_context,

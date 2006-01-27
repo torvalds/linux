@@ -381,7 +381,7 @@ int xics_get_irq(struct pt_regs *regs)
 
 #ifdef CONFIG_SMP
 
-irqreturn_t xics_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t xics_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 
@@ -407,7 +407,7 @@ irqreturn_t xics_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
 			smp_message_recv(PPC_MSG_MIGRATE_TASK, regs);
 		}
 #endif
-#ifdef CONFIG_DEBUGGER
+#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
 				       &xics_ipi_message[cpu].value)) {
 			mb();

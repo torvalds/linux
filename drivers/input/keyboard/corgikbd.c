@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/irq.h>
 
 #include <asm/arch/corgi.h>
 #include <asm/arch/hardware.h>
@@ -343,10 +342,9 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	for (i = 0; i < CORGI_KEY_SENSE_NUM; i++) {
 		pxa_gpio_mode(CORGI_GPIO_KEY_SENSE(i) | GPIO_IN);
 		if (request_irq(CORGI_IRQ_GPIO_KEY_SENSE(i), corgikbd_interrupt,
-						SA_INTERRUPT, "corgikbd", corgikbd))
+				SA_INTERRUPT | SA_TRIGGER_RISING,
+				"corgikbd", corgikbd))
 			printk(KERN_WARNING "corgikbd: Can't get IRQ: %d!\n", i);
-		else
-			set_irq_type(CORGI_IRQ_GPIO_KEY_SENSE(i),IRQT_RISING);
 	}
 
 	/* Set Strobe lines as outputs - set high */

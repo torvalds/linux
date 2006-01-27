@@ -647,6 +647,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 	struct media_bay_info* bay;
 	u32 __iomem *regbase;
 	struct device_node *ofnode;
+	unsigned long base;
 	int i;
 
 	ofnode = mdev->ofdev.node;
@@ -656,10 +657,11 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 	if (macio_request_resources(mdev, "media-bay"))
 		return -EBUSY;
 	/* Media bay registers are located at the beginning of the
-         * mac-io chip, we get the parent address for now (hrm...)
+         * mac-io chip, for now, we trick and align down the first
+	 * resource passed in
          */
-	regbase = (u32 __iomem *)
-		ioremap(ofnode->parent->addrs[0].address, 0x100);
+	base = macio_resource_start(mdev, 0) & 0xffff0000u;
+	regbase = (u32 __iomem *)ioremap(base, 0x100);
 	if (regbase == NULL) {
 		macio_release_resources(mdev);
 		return -ENOMEM;

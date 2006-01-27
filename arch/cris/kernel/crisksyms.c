@@ -21,7 +21,6 @@
 #include <asm/pgtable.h>
 #include <asm/fasttimer.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern unsigned long get_cmos_time(void);
 extern void __Udiv(void);
 extern void __Umod(void);
@@ -33,7 +32,6 @@ extern void __lshrdi3(void);
 extern void iounmap(volatile void * __iomem);
 
 /* Platform dependent support */
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(get_cmos_time);
 EXPORT_SYMBOL(loops_per_usec);

@@ -559,6 +559,27 @@ void __init parse_memopt(char *p, char **from)
 	end_user_pfn >>= PAGE_SHIFT;	
 } 
 
+void __init parse_memmapopt(char *p, char **from)
+{
+	unsigned long long start_at, mem_size;
+
+	mem_size = memparse(p, from);
+	p = *from;
+	if (*p == '@') {
+		start_at = memparse(p+1, from);
+		add_memory_region(start_at, mem_size, E820_RAM);
+	} else if (*p == '#') {
+		start_at = memparse(p+1, from);
+		add_memory_region(start_at, mem_size, E820_ACPI);
+	} else if (*p == '$') {
+		start_at = memparse(p+1, from);
+		add_memory_region(start_at, mem_size, E820_RESERVED);
+	} else {
+		end_user_pfn = (mem_size >> PAGE_SHIFT);
+	}
+	p = *from;
+}
+
 unsigned long pci_mem_start = 0xaeedbabe;
 
 /*

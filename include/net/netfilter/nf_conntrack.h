@@ -221,9 +221,6 @@ extern void nf_ct_helper_put(struct nf_conntrack_helper *helper);
 extern struct nf_conntrack_helper *
 __nf_conntrack_helper_find_byname(const char *name);
 
-/* call to create an explicit dependency on nf_conntrack. */
-extern void need_nf_conntrack(void);
-
 extern int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 				const struct nf_conntrack_tuple *orig);
 

@@ -127,39 +127,34 @@ struct adb_driver via_cuda_driver = {
 #endif /* CONFIG_ADB */
 
 #ifdef CONFIG_PPC
-int __init
-find_via_cuda(void)
+int __init find_via_cuda(void)
 {
-    int err;
     struct adb_request req;
+    phys_addr_t taddr;
+    u32 *reg;
+    int err;
 
     if (vias != 0)
 	return 1;
-    vias = find_devices("via-cuda");
+    vias = of_find_node_by_name(NULL, "via-cuda");
     if (vias == 0)
 	return 0;
-    if (vias->next != 0)
-	printk(KERN_WARNING "Warning: only using 1st via-cuda\n");
 
-#if 0
-    { int i;
-
-    printk("find_via_cuda: node = %p, addrs =", vias->node);
-    for (i = 0; i < vias->n_addrs; ++i)
-	printk(" %x(%x)", vias->addrs[i].address, vias->addrs[i].size);
-    printk(", intrs =");
-    for (i = 0; i < vias->n_intrs; ++i)
-	printk(" %x", vias->intrs[i].line);
-    printk("\n"); }
-#endif
-
-    if (vias->n_addrs != 1 || vias->n_intrs != 1) {
-	printk(KERN_ERR "via-cuda: expecting 1 address (%d) and 1 interrupt (%d)\n",
-	       vias->n_addrs, vias->n_intrs);
-	if (vias->n_addrs < 1 || vias->n_intrs < 1)
-	    return 0;
+    reg = (u32 *)get_property(vias, "reg", NULL);
+    if (reg == NULL) {
+	    printk(KERN_ERR "via-cuda: No \"reg\" property !\n");
+	    goto fail;
     }
-    via = ioremap(vias->addrs->address, 0x2000);
+    taddr = of_translate_address(vias, reg);
+    if (taddr == 0) {
+	    printk(KERN_ERR "via-cuda: Can't translate address !\n");
+	    goto fail;
+    }
+    via = ioremap(taddr, 0x2000);
+    if (via == NULL) {
+	    printk(KERN_ERR "via-cuda: Can't map address !\n");
+	    goto fail;
+    }
 
     cuda_state = idle;
     sys_ctrler = SYS_CTRLER_CUDA;
@@ -185,6 +180,11 @@ find_via_cuda(void)
 	cuda_poll();
 
     return 1;
+
+ fail:
+    of_node_put(vias);
+    vias = NULL;
+    return 0;
 }
 #endif /* CONFIG_PPC */
 
@@ -192,10 +192,6 @@ static int __init via_cuda_start(void)
 {
     if (via == NULL)
 	return -ENODEV;
-
-#ifdef CONFIG_PPC
-    request_OF_resource(vias, 0, NULL);
-#endif
 
     if (request_irq(CUDA_IRQ, cuda_interrupt, 0, "ADB", cuda_interrupt)) {
 	printk(KERN_ERR "cuda_init: can't get irq %d\n", CUDA_IRQ);

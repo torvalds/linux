@@ -282,26 +282,22 @@ SK_U32 Val)		/* pointer to store the read value */
  * Description:
  *	This function initialize the PCI resources and IO
  *
- * Returns: N/A
- *	
+ * Returns:
+ *	0 - indicate everything worked ok.
+ *	!= 0 - error indication
  */
-int SkGeInitPCI(SK_AC *pAC)
+static __devinit int SkGeInitPCI(SK_AC *pAC)
 {
 	struct SK_NET_DEVICE *dev = pAC->dev[0];
 	struct pci_dev *pdev = pAC->PciDev;
 	int retval;
 
-	if (pci_enable_device(pdev) != 0) {
-		return 1;
-	}
-
 	dev->mem_start = pci_resource_start (pdev, 0);
 	pci_set_master(pdev);
 
-	if (pci_request_regions(pdev, "sk98lin") != 0) {
-		retval = 2;
-		goto out_disable;
-	}
+	retval = pci_request_regions(pdev, "sk98lin");
+	if (retval)
+		goto out;
 
 #ifdef SK_BIG_ENDIAN
 	/*
@@ -320,9 +316,8 @@ int SkGeInitPCI(SK_AC *pAC)
 	 * Remap the regs into kernel space.
 	 */
 	pAC->IoBase = ioremap_nocache(dev->mem_start, 0x4000);
-
-	if (!pAC->IoBase){
-		retval = 3;
+	if (!pAC->IoBase) {
+		retval = -EIO;
 		goto out_release;
 	}
 
@@ -330,8 +325,7 @@ int SkGeInitPCI(SK_AC *pAC)
 
  out_release:
 	pci_release_regions(pdev);
- out_disable:
-	pci_disable_device(pdev);
+ out:
 	return retval;
 }
 
@@ -492,7 +486,7 @@ module_param_array(AutoSizing, charp, NULL, 0);
  *	0, if everything is ok
  *	!=0, on error
  */
-static int __init SkGeBoardInit(struct SK_NET_DEVICE *dev, SK_AC *pAC)
+static int __devinit SkGeBoardInit(struct SK_NET_DEVICE *dev, SK_AC *pAC)
 {
 short	i;
 unsigned long Flags;
@@ -529,7 +523,7 @@ SK_BOOL	DualNet;
 	if (SkGeInit(pAC, pAC->IoBase, SK_INIT_DATA) != 0) {
 		printk("HWInit (0) failed.\n");
 		spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
-		return(-EAGAIN);
+		return -EIO;
 	}
 	SkI2cInit(  pAC, pAC->IoBase, SK_INIT_DATA);
 	SkEventInit(pAC, pAC->IoBase, SK_INIT_DATA);
@@ -551,7 +545,7 @@ SK_BOOL	DualNet;
 	if (SkGeInit(pAC, pAC->IoBase, SK_INIT_IO) != 0) {
 		printk("sk98lin: HWInit (1) failed.\n");
 		spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
-		return(-EAGAIN);
+		return -EIO;
 	}
 	SkI2cInit(  pAC, pAC->IoBase, SK_INIT_IO);
 	SkEventInit(pAC, pAC->IoBase, SK_INIT_IO);
@@ -583,20 +577,20 @@ SK_BOOL	DualNet;
 	} else {
 		printk(KERN_WARNING "sk98lin: Illegal number of ports: %d\n",
 		       pAC->GIni.GIMacsFound);
-		return -EAGAIN;
+		return -EIO;
 	}
 
 	if (Ret) {
 		printk(KERN_WARNING "sk98lin: Requested IRQ %d is busy.\n",
 		       dev->irq);
-		return -EAGAIN;
+		return Ret;
 	}
 	pAC->AllocFlag |= SK_ALLOC_IRQ;
 
 	/* Alloc memory for this board (Mem for RxD/TxD) : */
 	if(!BoardAllocMem(pAC)) {
 		printk("No memory for descriptor rings.\n");
-       		return(-EAGAIN);
+		return -ENOMEM;
 	}
 
 	BoardInitMem(pAC);
@@ -612,7 +606,7 @@ SK_BOOL	DualNet;
 		DualNet)) {
 		BoardFreeMem(pAC);
 		printk("sk98lin: SkGeInitAssignRamToQueues failed.\n");
-		return(-EAGAIN);
+		return -EIO;
 	}
 
 	return (0);
@@ -633,8 +627,7 @@ SK_BOOL	DualNet;
  *	SK_TRUE, if all memory could be allocated
  *	SK_FALSE, if not
  */
-static SK_BOOL BoardAllocMem(
-SK_AC	*pAC)
+static __devinit SK_BOOL BoardAllocMem(SK_AC	*pAC)
 {
 caddr_t		pDescrMem;	/* pointer to descriptor memory area */
 size_t		AllocLength;	/* length of complete descriptor area */
@@ -727,8 +720,7 @@ size_t		AllocLength;	/* length of complete descriptor area */
  *
  * Returns:	N/A
  */
-static void BoardInitMem(
-SK_AC	*pAC)	/* pointer to adapter context */
+static __devinit void BoardInitMem(SK_AC *pAC)
 {
 int	i;		/* loop counter */
 int	RxDescrSize;	/* the size of a rx descriptor rounded up to alignment*/
@@ -2859,7 +2851,7 @@ unsigned long	Flags;			/* for spin lock */
  * Description:
  *	This function is called if an ioctl is issued on the device.
  *	There are three subfunction for reading, writing and test-writing
- *	the private MIB data structure (usefull for SysKonnect-internal tools).
+ *	the private MIB data structure (useful for SysKonnect-internal tools).
  *
  * Returns:
  *	0, if everything is ok
@@ -4776,32 +4768,47 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	struct net_device	*dev = NULL;
 	static int boards_found = 0;
 	int error = -ENODEV;
+	int using_dac = 0;
 	char DeviceStr[80];
 
 	if (pci_enable_device(pdev))
 		goto out;
  
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
-	    pci_set_dma_mask(pdev, DMA_32BIT_MASK))
-		goto out_disable_device;
+	if (sizeof(dma_addr_t) > sizeof(u32) &&
+	    !(error = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+		using_dac = 1;
+		error = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (error < 0) {
+			printk(KERN_ERR "sk98lin %s unable to obtain 64 bit DMA "
+			       "for consistent allocations\n", pci_name(pdev));
+			goto out_disable_device;
+		}
+	} else {
+		error = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (error) {
+			printk(KERN_ERR "sk98lin %s no usable DMA configuration\n",
+			       pci_name(pdev));
+			goto out_disable_device;
+		}
+	}
 
-
-	if ((dev = alloc_etherdev(sizeof(DEV_NET))) == NULL) {
-		printk(KERN_ERR "Unable to allocate etherdev "
+ 	error = -ENOMEM;
+ 	dev = alloc_etherdev(sizeof(DEV_NET));
+ 	if (!dev) {
+		printk(KERN_ERR "sk98lin: unable to allocate etherdev "
 		       "structure!\n");
 		goto out_disable_device;
 	}
 
 	pNet = netdev_priv(dev);
-	pNet->pAC = kmalloc(sizeof(SK_AC), GFP_KERNEL);
+	pNet->pAC = kzalloc(sizeof(SK_AC), GFP_KERNEL);
 	if (!pNet->pAC) {
-		printk(KERN_ERR "Unable to allocate adapter "
+		printk(KERN_ERR "sk98lin: unable to allocate adapter "
 		       "structure!\n");
 		goto out_free_netdev;
 	}
 
-	memset(pNet->pAC, 0, sizeof(SK_AC));
 	pAC = pNet->pAC;
 	pAC->PciDev = pdev;
 
@@ -4810,6 +4817,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	pAC->CheckQueue = SK_FALSE;
 
 	dev->irq = pdev->irq;
+
 	error = SkGeInitPCI(pAC);
 	if (error) {
 		printk(KERN_ERR "sk98lin: PCI setup failed: %i\n", error);
@@ -4844,19 +4852,25 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 #endif
 	}
 
+	if (using_dac)
+		dev->features |= NETIF_F_HIGHDMA;
+
 	pAC->Index = boards_found++;
 
-	if (SkGeBoardInit(dev, pAC))
+	error = SkGeBoardInit(dev, pAC);
+	if (error)
 		goto out_free_netdev;
 
 	/* Read Adapter name from VPD */
 	if (ProductStr(pAC, DeviceStr, sizeof(DeviceStr)) != 0) {
+		error = -EIO;
 		printk(KERN_ERR "sk98lin: Could not read VPD data.\n");
 		goto out_free_resources;
 	}
 
 	/* Register net device */
-	if (register_netdev(dev)) {
+	error = register_netdev(dev);
+	if (error) {
 		printk(KERN_ERR "sk98lin: Could not register device.\n");
 		goto out_free_resources;
 	}
@@ -4883,15 +4897,17 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	boards_found++;
 
+	pci_set_drvdata(pdev, dev);
+
 	/* More then one port found */
 	if ((pAC->GIni.GIMacsFound == 2 ) && (pAC->RlmtNets == 2)) {
-		if ((dev = alloc_etherdev(sizeof(DEV_NET))) == 0) {
-			printk(KERN_ERR "Unable to allocate etherdev "
+		dev = alloc_etherdev(sizeof(DEV_NET));
+		if (!dev) {
+			printk(KERN_ERR "sk98lin: unable to allocate etherdev "
 				"structure!\n");
-			goto out;
+			goto single_port;
 		}
 
-		pAC->dev[1]   = dev;
 		pNet          = netdev_priv(dev);
 		pNet->PortNr  = 1;
 		pNet->NetNr   = 1;
@@ -4920,19 +4936,27 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 #endif
 		}
 
-		if (register_netdev(dev)) {
-			printk(KERN_ERR "sk98lin: Could not register device for seconf port.\n");
+		if (using_dac)
+			dev->features |= NETIF_F_HIGHDMA;
+
+		error = register_netdev(dev);
+		if (error) {
+			printk(KERN_ERR "sk98lin: Could not register device"
+			       " for second port. (%d)\n", error);
 			free_netdev(dev);
-			pAC->dev[1] = pAC->dev[0];
-		} else {
-			memcpy(&dev->dev_addr,
-					&pAC->Addr.Net[1].CurrentMacAddress, 6);
-			memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
-	
-			printk("%s: %s\n", dev->name, DeviceStr);
-			printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");
+			goto single_port;
 		}
+
+		pAC->dev[1]   = dev;
+		memcpy(&dev->dev_addr,
+		       &pAC->Addr.Net[1].CurrentMacAddress, 6);
+		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
+
+		printk("%s: %s\n", dev->name, DeviceStr);
+		printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");
 	}
+
+single_port:
 
 	/* Save the hardware revision */
 	pAC->HWRevision = (((pAC->GIni.GIPciHwRev >> 4) & 0x0F)*10) +
@@ -4945,7 +4969,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	memset(&pAC->PnmiBackup, 0, sizeof(SK_PNMI_STRUCT_DATA));
 	memcpy(&pAC->PnmiBackup, &pAC->PnmiStruct, sizeof(SK_PNMI_STRUCT_DATA));
 
-	pci_set_drvdata(pdev, dev);
 	return 0;
 
  out_free_resources:

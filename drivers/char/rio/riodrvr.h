@@ -33,7 +33,7 @@
 #ifndef __riodrvr_h
 #define __riodrvr_h
 
-#include <asm/param.h>	/* for HZ */
+#include <asm/param.h>		/* for HZ */
 
 #ifdef SCCS_LABELS
 static char *_riodrvr_h_sccs_ = "@(#)riodrvr.h	1.3";
@@ -44,15 +44,15 @@ static char *_riodrvr_h_sccs_ = "@(#)riodrvr.h	1.3";
 
 
 struct rio_info {
-	int			mode;			/* Intr or polled, word/byte */
-	spinlock_t		RIOIntrSem;		/* Interrupt thread sem */
-	int			current_chan;		/* current channel */
-	int			RIOFailed;		/* Not initialised ? */
-	int			RIOInstallAttempts;	/* no. of rio-install() calls */
-	int			RIOLastPCISearch;	/* status of last search */
-	int			RIONumHosts;		/* Number of RIO Hosts */
-	struct Host		* RIOHosts;		/* RIO Host values */
-	struct Port		**RIOPortp;		/* RIO port values */
+	int mode;		/* Intr or polled, word/byte */
+	spinlock_t RIOIntrSem;	/* Interrupt thread sem */
+	int current_chan;	/* current channel */
+	int RIOFailed;		/* Not initialised ? */
+	int RIOInstallAttempts;	/* no. of rio-install() calls */
+	int RIOLastPCISearch;	/* status of last search */
+	int RIONumHosts;	/* Number of RIO Hosts */
+	struct Host *RIOHosts;	/* RIO Host values */
+	struct Port **RIOPortp;	/* RIO port values */
 /*
 ** 02.03.1999 ARG - ESIL 0820 fix
 ** We no longer use RIOBootMode
@@ -60,9 +60,9 @@ struct rio_info {
 	int			RIOBootMode;		* RIO boot mode *
 **
 */
-	int			RIOPrintDisabled;	/* RIO printing disabled ? */
-	int			RIOPrintLogState;	/* RIO printing state ? */
-	int			RIOPolling;		/* Polling ? */
+	int RIOPrintDisabled;	/* RIO printing disabled ? */
+	int RIOPrintLogState;	/* RIO printing state ? */
+	int RIOPolling;		/* Polling ? */
 /*
 ** 09.12.1998 ARG - ESIL 0776 part fix
 ** The 'RIO_QUICK_CHECK' ioctl was using RIOHalted.
@@ -70,61 +70,61 @@ struct rio_info {
 ** updated in RIOConCon() - to keep track of RTA connections/disconnections.
 ** 'RIO_QUICK_CHECK' now returns the value of RIORtaDisCons.
 */
-	int			RIOHalted;		/* halted ? */
-	int			RIORtaDisCons;		/* RTA connections/disconnections */
-	uint			RIOReadCheck;		/* Rio read check */
-	uint			RIONoMessage;		/* To display message or not */
-	uint			RIONumBootPkts;		/* how many packets for an RTA */
-	uint			RIOBootCount; 		/* size of RTA code */
-	uint			RIOBooting;		/* count of outstanding boots */
-	uint			RIOSystemUp;		/* Booted ?? */
-	uint			RIOCounting;		/* for counting interrupts */
-	uint			RIOIntCount;		/* # of intr since last check */
-	uint			RIOTxCount;		/* number of xmit intrs  */
-	uint			RIORxCount;		/* number of rx intrs */
-	uint			RIORupCount;		/* number of rup intrs */
-	int			RIXTimer; 
-	int			RIOBufferSize;		/* Buffersize */
-	int			RIOBufferMask;		/* Buffersize */
+	int RIOHalted;		/* halted ? */
+	int RIORtaDisCons;	/* RTA connections/disconnections */
+	uint RIOReadCheck;	/* Rio read check */
+	uint RIONoMessage;	/* To display message or not */
+	uint RIONumBootPkts;	/* how many packets for an RTA */
+	uint RIOBootCount;	/* size of RTA code */
+	uint RIOBooting;	/* count of outstanding boots */
+	uint RIOSystemUp;	/* Booted ?? */
+	uint RIOCounting;	/* for counting interrupts */
+	uint RIOIntCount;	/* # of intr since last check */
+	uint RIOTxCount;	/* number of xmit intrs  */
+	uint RIORxCount;	/* number of rx intrs */
+	uint RIORupCount;	/* number of rup intrs */
+	int RIXTimer;
+	int RIOBufferSize;	/* Buffersize */
+	int RIOBufferMask;	/* Buffersize */
 
-	int			RIOFirstMajor;		/* First host card's major no */
+	int RIOFirstMajor;	/* First host card's major no */
 
-	uint			RIOLastPortsMapped;	/* highest port number known */
-	uint			RIOFirstPortsMapped;	/* lowest port number known */
+	uint RIOLastPortsMapped;	/* highest port number known */
+	uint RIOFirstPortsMapped;	/* lowest port number known */
 
-	uint			RIOLastPortsBooted;	/* highest port number running */
-	uint			RIOFirstPortsBooted;	/* lowest port number running */
+	uint RIOLastPortsBooted;	/* highest port number running */
+	uint RIOFirstPortsBooted;	/* lowest port number running */
 
-	uint			RIOLastPortsOpened;	/* highest port number running */
-	uint			RIOFirstPortsOpened;	/* lowest port number running */
+	uint RIOLastPortsOpened;	/* highest port number running */
+	uint RIOFirstPortsOpened;	/* lowest port number running */
 
 	/* Flag to say that the topology information has been changed. */
-	uint			RIOQuickCheck; 
-	uint			CdRegister;		/* ??? */
-	int			RIOSignalProcess;	/* Signalling process */
-	int			rio_debug;		/* To debug ... */
-	int			RIODebugWait;		/* For what ??? */
-	int			tpri;			/* Thread prio */
-	int			tid;			/* Thread id */
-	uint			_RIO_Polled;		/* Counter for polling */
-	uint			_RIO_Interrupted;	/* Counter for interrupt */
-	int			intr_tid;		/* iointset return value */
-	int			TxEnSem;		/* TxEnable Semaphore */
+	uint RIOQuickCheck;
+	uint CdRegister;	/* ??? */
+	int RIOSignalProcess;	/* Signalling process */
+	int rio_debug;		/* To debug ... */
+	int RIODebugWait;	/* For what ??? */
+	int tpri;		/* Thread prio */
+	int tid;		/* Thread id */
+	uint _RIO_Polled;	/* Counter for polling */
+	uint _RIO_Interrupted;	/* Counter for interrupt */
+	int intr_tid;		/* iointset return value */
+	int TxEnSem;		/* TxEnable Semaphore */
 
 
-	struct Error		RIOError;		/* to Identify what went wrong */ 
-	struct Conf		RIOConf;		/* Configuration ??? */
-	struct ttystatics	channel[RIO_PORTS];	/* channel information */
-	char			RIOBootPackets[1+(SIXTY_FOUR_K/RTA_BOOT_DATA_SIZE)]
-								[RTA_BOOT_DATA_SIZE];
-	struct Map		RIOConnectTable[TOTAL_MAP_ENTRIES];
-	struct Map		RIOSavedTable[TOTAL_MAP_ENTRIES];
+	struct Error RIOError;	/* to Identify what went wrong */
+	struct Conf RIOConf;	/* Configuration ??? */
+	struct ttystatics channel[RIO_PORTS];	/* channel information */
+	char RIOBootPackets[1 + (SIXTY_FOUR_K / RTA_BOOT_DATA_SIZE)]
+	    [RTA_BOOT_DATA_SIZE];
+	struct Map RIOConnectTable[TOTAL_MAP_ENTRIES];
+	struct Map RIOSavedTable[TOTAL_MAP_ENTRIES];
 
 	/* RTA to host binding table for master/slave operation */
-	ulong			RIOBindTab[MAX_RTA_BINDINGS];
+	ulong RIOBindTab[MAX_RTA_BINDINGS];
 	/* RTA memory dump variable */
-	uchar			RIOMemDump[MEMDUMP_SIZE]; 
-	struct ModuleInfo 	RIOModuleTypes[MAX_MODULE_TYPES];
+	uchar RIOMemDump[MEMDUMP_SIZE];
+	struct ModuleInfo RIOModuleTypes[MAX_MODULE_TYPES];
 
 };
 
@@ -141,4 +141,4 @@ struct rio_info {
 #define WRBYTE(x,y)		*(volatile unsigned char *)((x)) = \
 					(unsigned char)(y)
 
-#endif	/* __riodrvr.h */
+#endif				/* __riodrvr.h */

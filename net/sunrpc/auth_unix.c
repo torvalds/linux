@@ -70,7 +70,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	dprintk("RPC:      allocating UNIX cred for uid %d gid %d\n",
 				acred->uid, acred->gid);
 
-	if (!(cred = (struct unx_cred *) kmalloc(sizeof(*cred), GFP_KERNEL)))
+	if (!(cred = kmalloc(sizeof(*cred), GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);
 
 	atomic_set(&cred->uc_count, 1);

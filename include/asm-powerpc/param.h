@@ -1,8 +1,6 @@
 #ifndef _ASM_POWERPC_PARAM_H
 #define _ASM_POWERPC_PARAM_H
 
-#include <linux/config.h>
-
 #ifdef __KERNEL__
 #define HZ		CONFIG_HZ	/* internal kernel timer frequency */
 #define USER_HZ		100		/* for user interfaces in "ticks" */

@@ -228,7 +228,7 @@ extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
  * FPU lazy state save handling.
  */
 
-extern __inline__ void release_fpu(void)
+static inline void release_fpu(void)
 {
 	unsigned long long __dummy;
 
@@ -240,7 +240,7 @@ extern __inline__ void release_fpu(void)
 			     : "r" (SR_FD));
 }
 
-extern __inline__ void grab_fpu(void)
+static inline void grab_fpu(void)
 {
 	unsigned long long __dummy;
 

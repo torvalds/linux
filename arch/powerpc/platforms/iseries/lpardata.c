@@ -93,10 +93,7 @@ struct ItLpNaca itLpNaca = {
 	.xPirEnvironMode = 0,		/* Piranha stuff */
 	.xPirConsoleMode = 0,
 	.xPirDasdMode = 0,
-	.xLparInstalled = 0,
-	.xSysPartitioned = 0,
-	.xHwSyncedTBs = 0,
-	.xIntProcUtilHmt = 0,
+	.flags = 0,
 	.xSpVpdFormat = 0,
 	.xIntProcRatio = 0,
 	.xPlicVrmIndex = 0,		/* VRM index of PLIC */
@@ -224,4 +221,11 @@ struct ItVpdAreas itVpdAreas = {
 		&hvlpevent_queue,	/*      23 Lp Queue */
 		0,0
 	}
+};
+
+struct ItLpRegSave iseries_reg_save[] = {
+	[0 ... (NR_CPUS-1)] = {
+		.xDesc = 0xd397d9e2,	/* "LpRS" */
+		.xSize = sizeof(struct ItLpRegSave),
+	},
 };

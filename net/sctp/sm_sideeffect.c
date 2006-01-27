@@ -1250,8 +1250,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_TIMER_START:
 			timer = &asoc->timers[cmd->obj.to];
 			timeout = asoc->timeouts[cmd->obj.to];
-			if (!timeout)
-				BUG();
+			BUG_ON(!timeout);
 
 			timer->expires = jiffies + timeout;
 			sctp_association_hold(asoc);
@@ -1301,7 +1300,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 					"T1 INIT Timeout adjustment"
 					" init_err_counter: %d"
 					" cycle: %d"
-					" timeout: %d\n",
+					" timeout: %ld\n",
 					asoc->init_err_counter,
 					asoc->init_cycle,
 					asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT]);
@@ -1329,7 +1328,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			SCTP_DEBUG_PRINTK(
 				"T1 COOKIE Timeout adjustment"
 				" init_err_counter: %d"
-				" timeout: %d\n",
+				" timeout: %ld\n",
 				asoc->init_err_counter,
 				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE]);
 

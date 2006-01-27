@@ -41,6 +41,7 @@ config IP6_NF_QUEUE
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering/masq/NAT)"
+	depends on NETFILTER_XTABLES
 	help
 	  ip6tables is a general, extensible packet identification framework.
 	  Currently only the packet filtering and packet mangling subsystem
@@ -50,25 +51,6 @@ config IP6_NF_IPTABLES
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The simple matches.
-config IP6_NF_MATCH_LIMIT
-	tristate "limit match support"
-	depends on IP6_NF_IPTABLES
-	help
-	  limit matching allows you to control the rate at which a rule can be
-	  matched: mainly useful in combination with the LOG target ("LOG
-	  target support", below) and to avoid some Denial of Service attacks.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP6_NF_MATCH_MAC
-	tristate "MAC address match support"
-	depends on IP6_NF_IPTABLES
-	help
-	  mac matching allows you to match packets based on the source
-	  Ethernet address of the packet.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP6_NF_MATCH_RT
 	tristate "Routing header match support"
 	depends on IP6_NF_IPTABLES
@@ -124,16 +106,6 @@ config IP6_NF_MATCH_OWNER
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP6_NF_MATCH_MARK
-	tristate "netfilter MARK match support"
-	depends on IP6_NF_IPTABLES
-	help
-	  Netfilter mark matching allows you to match packets based on the
-	  `nfmark' value in the packet.  This can be set by the MARK target
-	  (see below).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP6_NF_MATCH_IPV6HEADER
 	tristate "IPv6 Extension Headers Match"
 	depends on IP6_NF_IPTABLES
@@ -151,15 +123,6 @@ config IP6_NF_MATCH_AHESP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP6_NF_MATCH_LENGTH
-	tristate "Packet Length match support"
-	depends on IP6_NF_IPTABLES
-	help
-	  This option allows you to match the length of a packet against a
-	  specific value or range of values.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP6_NF_MATCH_EUI64
 	tristate "EUI64 address check"
 	depends on IP6_NF_IPTABLES
@@ -170,12 +133,13 @@ config IP6_NF_MATCH_EUI64
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP6_NF_MATCH_PHYSDEV
-	tristate "Physdev match support"
-	depends on IP6_NF_IPTABLES && BRIDGE_NETFILTER
+config IP6_NF_MATCH_POLICY
+	tristate "IPsec policy match support"
+	depends on IP6_NF_IPTABLES && XFRM
 	help
-	  Physdev packet matching matches against the physical bridge ports
-	  the IP packet arrived on or will leave by.
+	  Policy matching allows you to match packets based on the
+	  IPsec policy that was used during decapsulation/will
+	  be used during encapsulation.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -209,17 +173,6 @@ config IP6_NF_TARGET_REJECT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP6_NF_TARGET_NFQUEUE
-	tristate "NFQUEUE Target Support"
-	depends on IP6_NF_IPTABLES
-	help
-	  This Target replaced the old obsolete QUEUE target.
-
-	  As opposed to QUEUE, it supports 65535 different queues,
-	  not just one.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP6_NF_MANGLE
 	tristate "Packet mangling"
 	depends on IP6_NF_IPTABLES
@@ -227,19 +180,6 @@ config IP6_NF_MANGLE
 	  This option adds a `mangle' table to iptables: see the man page for
 	  iptables(8).  This table is used for various packet alterations
 	  which can effect how the packet is routed.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP6_NF_TARGET_MARK
-	tristate "MARK target support"
-	depends on IP6_NF_MANGLE
-	help
-	  This option adds a `MARK' target, which allows you to create rules
-	  in the `mangle' table which alter the netfilter mark (nfmark) field
-	  associated with the packet packet prior to routing. This can change
-	  the routing method (see `Use netfilter MARK value as routing
-	  key') and can also be used by other subsystems to change their
-	  behavior.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

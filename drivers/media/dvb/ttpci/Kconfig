@@ -18,9 +18,10 @@ config DVB_AV7110
 	  This driver only supports the fullfeatured cards with
 	  onboard MPEG2 decoder.
 
-          This driver needs an external firmware. Please use the script
-          "<kerneldir>/Documentation/dvb/get_dvb_firmware av7110" to
-          download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+	  This driver needs an external firmware. Please use the script
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware av7110" to
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 	  Say Y if you own such a card and want to use it.
 

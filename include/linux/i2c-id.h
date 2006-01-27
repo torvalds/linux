@@ -103,6 +103,11 @@
 #define I2C_DRIVERID_SAA711X	73	/* saa711x video encoders	*/
 #define I2C_DRIVERID_AKITAIOEXP	74	/* IO Expander on Sharp SL-C1000 */
 #define I2C_DRIVERID_INFRARED	75	/* I2C InfraRed on Video boards */
+#define I2C_DRIVERID_TVP5150	76	/* TVP5150 video decoder        */
+#define I2C_DRIVERID_WM8739	77	/* wm8739 audio processor	*/
+#define I2C_DRIVERID_UPD64083	78	/* upd64083 video processor	*/
+#define I2C_DRIVERID_UPD64031A	79	/* upd64031a video processor	*/
+#define I2C_DRIVERID_SAA717X	80	/* saa717x video encoder	*/
 
 #define I2C_DRIVERID_I2CDEV	900
 #define I2C_DRIVERID_ARP        902    /* SMBus ARP Client              */

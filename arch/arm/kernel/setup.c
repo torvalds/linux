@@ -26,8 +26,6 @@
 
 #include <asm/cpu.h>
 #include <asm/elf.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
 #include <asm/procinfo.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -207,7 +205,7 @@ static const char *proc_arch[] = {
 	"5TE",
 	"5TEJ",
 	"6TEJ",
-	"?(10)",
+	"7",
 	"?(11)",
 	"?(12)",
 	"?(13)",
@@ -260,14 +258,17 @@ int cpu_architecture(void)
 {
 	int cpu_arch;
 
-	if ((processor_id & 0x0000f000) == 0) {
+	if ((processor_id & 0x0008f000) == 0) {
 		cpu_arch = CPU_ARCH_UNKNOWN;
-	} else if ((processor_id & 0x0000f000) == 0x00007000) {
+	} else if ((processor_id & 0x0008f000) == 0x00007000) {
 		cpu_arch = (processor_id & (1 << 23)) ? CPU_ARCH_ARMv4T : CPU_ARCH_ARMv3;
-	} else {
+	} else if ((processor_id & 0x00080000) == 0x00000000) {
 		cpu_arch = (processor_id >> 16) & 7;
 		if (cpu_arch)
 			cpu_arch += CPU_ARCH_ARMv3;
+	} else {
+		/* the revised CPUID */
+		cpu_arch = ((processor_id >> 12) & 0xf) - 0xb + CPU_ARCH_ARMv6;
 	}
 
 	return cpu_arch;
@@ -865,11 +866,11 @@ static int c_show(struct seq_file *m, void *v)
 	seq_printf(m, "\nCPU implementer\t: 0x%02x\n", processor_id >> 24);
 	seq_printf(m, "CPU architecture: %s\n", proc_arch[cpu_architecture()]);
 
-	if ((processor_id & 0x0000f000) == 0x00000000) {
+	if ((processor_id & 0x0008f000) == 0x00000000) {
 		/* pre-ARM7 */
 		seq_printf(m, "CPU part\t\t: %07x\n", processor_id >> 4);
 	} else {
-		if ((processor_id & 0x0000f000) == 0x00007000) {
+		if ((processor_id & 0x0008f000) == 0x00007000) {
 			/* ARM7 */
 			seq_printf(m, "CPU variant\t: 0x%02x\n",
 				   (processor_id >> 16) & 127);

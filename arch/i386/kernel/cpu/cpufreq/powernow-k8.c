@@ -980,7 +980,7 @@ static int powernowk8_verify(struct cpufreq_policy *pol)
 }
 
 /* per CPU init entry point to the driver */
-static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
+static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = CPU_MASK_ALL;
@@ -1141,7 +1141,7 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 };
 
 /* driver entry point for init */
-static int __init powernowk8_init(void)
+static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
 

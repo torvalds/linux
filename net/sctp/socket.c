@@ -63,6 +63,7 @@
 #include <linux/wait.h>
 #include <linux/time.h>
 #include <linux/ip.h>
+#include <linux/capability.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -860,7 +861,7 @@ SCTP_STATIC int sctp_setsockopt_bindx(struct sock* sk,
 		return -EFAULT;
 
 	/* Alloc space for the address array in kernel memory.  */
-	kaddrs = (struct sockaddr *)kmalloc(addrs_size, GFP_KERNEL);
+	kaddrs = kmalloc(addrs_size, GFP_KERNEL);
 	if (unlikely(!kaddrs))
 		return -ENOMEM;
 
@@ -1150,7 +1151,7 @@ SCTP_STATIC int sctp_setsockopt_connectx(struct sock* sk,
 		return -EFAULT;
 
 	/* Alloc space for the address array in kernel memory.  */
-	kaddrs = (struct sockaddr *)kmalloc(addrs_size, GFP_KERNEL);
+	kaddrs = kmalloc(addrs_size, GFP_KERNEL);
 	if (unlikely(!kaddrs))
 		return -ENOMEM;
 
@@ -2994,7 +2995,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->hbinterval  = jiffies_to_msecs(sctp_hb_interval);
 	sp->pathmaxrxt  = sctp_max_retrans_path;
 	sp->pathmtu     = 0; // allow default discovery
-	sp->sackdelay   = sctp_sack_timeout;
+	sp->sackdelay   = jiffies_to_msecs(sctp_sack_timeout);
 	sp->param_flags = SPP_HB_ENABLE |
 	                  SPP_PMTUD_ENABLE |
 	                  SPP_SACKDELAY_ENABLE;
@@ -5601,8 +5602,12 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 */
 	newsp->type = type;
 
+	spin_lock_bh(&oldsk->sk_lock.slock);
+	/* Migrate the backlog from oldsk to newsk. */
+	sctp_backlog_migrate(assoc, oldsk, newsk);
 	/* Migrate the association to the new socket. */
 	sctp_assoc_migrate(assoc, newsk);
+	spin_unlock_bh(&oldsk->sk_lock.slock);
 
 	/* If the association on the newsk is already closed before accept()
 	 * is called, set RCV_SHUTDOWN flag.

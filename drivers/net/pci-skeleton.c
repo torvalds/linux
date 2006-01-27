@@ -415,7 +415,7 @@ typedef enum {
 
 
 /* directly indexed by chip_t, above */
-const static struct {
+static const struct {
 	const char *name;
 	u8 version; /* from RTL8139C docs */
 	u32 RxConfigMask; /* should clear the bits supported by this chip */

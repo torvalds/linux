@@ -417,7 +417,7 @@ static int do_input_entry(const char *filename, struct input_device_id *id,
 		do_input(alias, id->sndbit, 0, SND_MAX);
 	sprintf(alias + strlen(alias), "f*");
 	if (id->flags&INPUT_DEVICE_ID_MATCH_FFBIT)
-		do_input(alias, id->ffbit, 0, SND_MAX);
+		do_input(alias, id->ffbit, 0, FF_MAX);
 	sprintf(alias + strlen(alias), "w*");
 	if (id->flags&INPUT_DEVICE_ID_MATCH_SWBIT)
 		do_input(alias, id->swbit, 0, SW_MAX);

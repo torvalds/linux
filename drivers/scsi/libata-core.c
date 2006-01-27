@@ -611,6 +611,10 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	if (dev->flags & ATA_DFLAG_PIO) {
 		tf->protocol = ATA_PROT_PIO;
 		index = dev->multi_count ? 0 : 8;
+	} else if (lba48 && (qc->ap->flags & ATA_FLAG_PIO_LBA48)) {
+		/* Unable to use DMA due to host limitation */
+		tf->protocol = ATA_PROT_PIO;
+		index = dev->multi_count ? 0 : 4;
 	} else {
 		tf->protocol = ATA_PROT_DMA;
 		index = 16;
@@ -1051,18 +1055,22 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 {
 	u16 modes;
 
-	/* Usual case. Word 53 indicates word 88 is valid */
-	if (adev->id[ATA_ID_FIELD_VALID] & (1 << 2)) {
+	/* Usual case. Word 53 indicates word 64 is valid */
+	if (adev->id[ATA_ID_FIELD_VALID] & (1 << 1)) {
 		modes = adev->id[ATA_ID_PIO_MODES] & 0x03;
 		modes <<= 3;
 		modes |= 0x7;
 		return modes;
 	}
 
-	/* If word 88 isn't valid then Word 51 holds the PIO timing number
-	   for the maximum. Turn it into a mask and return it */
-	modes = (2 << (adev->id[ATA_ID_OLD_PIO_MODES] & 0xFF)) - 1 ;
+	/* If word 64 isn't valid then Word 51 high byte holds the PIO timing
+	   number for the maximum. Turn it into a mask and return it */
+	modes = (2 << ((adev->id[ATA_ID_OLD_PIO_MODES] >> 8) & 0xFF)) - 1 ;
 	return modes;
+	/* But wait.. there's more. Design your standards by committee and
+	   you too can get a free iordy field to process. However its the 
+	   speeds not the modes that are supported... Note drivers using the
+	   timing API will get this right anyway */
 }
 
 struct ata_exec_internal_arg {
@@ -1162,6 +1170,39 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	ata_qc_free(qc);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	return AC_ERR_OTHER;
+}
+
+/**
+ *	ata_pio_need_iordy	-	check if iordy needed
+ *	@adev: ATA device
+ *
+ *	Check if the current speed of the device requires IORDY. Used
+ *	by various controllers for chip configuration.
+ */
+
+unsigned int ata_pio_need_iordy(const struct ata_device *adev)
+{
+	int pio;
+	int speed = adev->pio_mode - XFER_PIO_0;
+
+	if (speed < 2)
+		return 0;
+	if (speed > 2)
+		return 1;
+		
+	/* If we have no drive specific rule, then PIO 2 is non IORDY */
+
+	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE */
+		pio = adev->id[ATA_ID_EIDE_PIO];
+		/* Is the speed faster than the drive allows non IORDY ? */
+		if (pio) {
+			/* This is cycle times not frequency - watch the logic! */
+			if (pio > 240)	/* PIO2 is 240nS per cycle */
+				return 1;
+			return 0;
+		}
+	}
+	return 0;
 }
 
 /**
@@ -1415,7 +1456,7 @@ void ata_dev_config(struct ata_port *ap, unsigned int i)
 		ap->udma_mask &= ATA_UDMA5;
 		ap->host->max_sectors = ATA_MAX_SECTORS;
 		ap->host->hostt->max_sectors = ATA_MAX_SECTORS;
-		ap->device->flags |= ATA_DFLAG_LOCK_SECTORS;
+		ap->device[i].flags |= ATA_DFLAG_LOCK_SECTORS;
 	}
 
 	if (ap->ops->dev_config)
@@ -1747,7 +1788,7 @@ static const struct {
 	{ ATA_SHIFT_PIO,	XFER_PIO_0 },
 };
 
-static inline u8 base_from_shift(unsigned int shift)
+static u8 base_from_shift(unsigned int shift)
 {
 	int i;
 
@@ -3056,10 +3097,21 @@ static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
 static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
 			  unsigned int buflen, int do_write)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		ata_mmio_data_xfer(ap, buf, buflen, do_write);
-	else
-		ata_pio_data_xfer(ap, buf, buflen, do_write);
+	/* Make the crap hardware pay the costs not the good stuff */
+	if (unlikely(ap->flags & ATA_FLAG_IRQ_MASK)) {
+		unsigned long flags;
+		local_irq_save(flags);
+		if (ap->flags & ATA_FLAG_MMIO)
+			ata_mmio_data_xfer(ap, buf, buflen, do_write);
+		else
+			ata_pio_data_xfer(ap, buf, buflen, do_write);
+		local_irq_restore(flags);
+	} else {
+		if (ap->flags & ATA_FLAG_MMIO)
+			ata_mmio_data_xfer(ap, buf, buflen, do_write);
+		else
+			ata_pio_data_xfer(ap, buf, buflen, do_write);
+	}
 }
 
 /**
@@ -5122,6 +5174,7 @@ EXPORT_SYMBOL_GPL(ata_dev_id_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
+EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_compute);
 EXPORT_SYMBOL_GPL(ata_timing_merge);
 

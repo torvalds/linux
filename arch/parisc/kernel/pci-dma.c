@@ -33,10 +33,10 @@
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>	/* for purge_tlb_*() macros */
 
-static struct proc_dir_entry * proc_gsc_root = NULL;
+static struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
 static int pcxl_proc_info(char *buffer, char **start, off_t offset, int length);
-static unsigned long pcxl_used_bytes = 0;
-static unsigned long pcxl_used_pages = 0;
+static unsigned long pcxl_used_bytes __read_mostly = 0;
+static unsigned long pcxl_used_pages __read_mostly = 0;
 
 extern unsigned long pcxl_dma_start; /* Start of pcxl dma mapping area */
 static spinlock_t   pcxl_res_lock;

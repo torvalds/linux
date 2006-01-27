@@ -32,6 +32,7 @@
 #include <linux/in.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
+#include <linux/interrupt.h>
 
 static DEFINE_RWLOCK(ip_ct_gre_lock);
 #define ASSERT_READ_LOCK(x)
@@ -309,7 +310,10 @@ int __init ip_ct_proto_gre_init(void)
 	return ip_conntrack_protocol_register(&gre);
 }
 
-void __exit ip_ct_proto_gre_fini(void)
+/* This cannot be __exit, as it is invoked from ip_conntrack_helper_pptp.c's
+ * init() code on errors.
+ */
+void ip_ct_proto_gre_fini(void)
 {
 	struct list_head *pos, *n;
 

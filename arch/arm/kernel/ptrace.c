@@ -55,23 +55,6 @@
 #endif
 
 /*
- * Get the address of the live pt_regs for the specified task.
- * These are saved onto the top kernel stack when the process
- * is not running.
- *
- * Note: if a user thread is execve'd from kernel space, the
- * kernel stack will not be empty on entry to the kernel, so
- * ptracing these tasks will fail.
- */
-static inline struct pt_regs *
-get_user_regs(struct task_struct *task)
-{
-	return (struct pt_regs *)
-		((unsigned long)task->thread_info + THREAD_SIZE -
-				 8 - sizeof(struct pt_regs));
-}
-
-/*
  * this routine will get a word off of the processes privileged stack.
  * the offset is how far from the base addr as stored in the THREAD.
  * this routine assumes that all the privileged stacks are in our
@@ -79,7 +62,7 @@ get_user_regs(struct task_struct *task)
  */
 static inline long get_user_reg(struct task_struct *task, int offset)
 {
-	return get_user_regs(task)->uregs[offset];
+	return task_pt_regs(task)->uregs[offset];
 }
 
 /*
@@ -91,7 +74,7 @@ static inline long get_user_reg(struct task_struct *task, int offset)
 static inline int
 put_user_reg(struct task_struct *task, int offset, long data)
 {
-	struct pt_regs newregs, *regs = get_user_regs(task);
+	struct pt_regs newregs, *regs = task_pt_regs(task);
 	int ret = -EINVAL;
 
 	newregs = *regs;
@@ -421,7 +404,7 @@ void ptrace_set_bpt(struct task_struct *child)
 	u32 insn;
 	int res;
 
-	regs = get_user_regs(child);
+	regs = task_pt_regs(child);
 	pc = instruction_pointer(regs);
 
 	if (thumb_mode(regs)) {
@@ -572,7 +555,7 @@ static int ptrace_write_user(struct task_struct *tsk, unsigned long off,
  */
 static int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
 {
-	struct pt_regs *regs = get_user_regs(tsk);
+	struct pt_regs *regs = task_pt_regs(tsk);
 
 	return copy_to_user(uregs, regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
 }
@@ -587,7 +570,7 @@ static int ptrace_setregs(struct task_struct *tsk, void __user *uregs)
 
 	ret = -EFAULT;
 	if (copy_from_user(&newregs, uregs, sizeof(struct pt_regs)) == 0) {
-		struct pt_regs *regs = get_user_regs(tsk);
+		struct pt_regs *regs = task_pt_regs(tsk);
 
 		ret = -EINVAL;
 		if (valid_user_regs(&newregs)) {
@@ -604,7 +587,7 @@ static int ptrace_setregs(struct task_struct *tsk, void __user *uregs)
  */
 static int ptrace_getfpregs(struct task_struct *tsk, void __user *ufp)
 {
-	return copy_to_user(ufp, &tsk->thread_info->fpstate,
+	return copy_to_user(ufp, &task_thread_info(tsk)->fpstate,
 			    sizeof(struct user_fp)) ? -EFAULT : 0;
 }
 
@@ -613,7 +596,7 @@ static int ptrace_getfpregs(struct task_struct *tsk, void __user *ufp)
  */
 static int ptrace_setfpregs(struct task_struct *tsk, void __user *ufp)
 {
-	struct thread_info *thread = tsk->thread_info;
+	struct thread_info *thread = task_thread_info(tsk);
 	thread->used_cp[1] = thread->used_cp[2] = 1;
 	return copy_from_user(&thread->fpstate, ufp,
 			      sizeof(struct user_fp)) ? -EFAULT : 0;
@@ -626,7 +609,7 @@ static int ptrace_setfpregs(struct task_struct *tsk, void __user *ufp)
  */
 static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
-	struct thread_info *thread = tsk->thread_info;
+	struct thread_info *thread = task_thread_info(tsk);
 	void *ptr = &thread->fpstate;
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
@@ -643,7 +626,7 @@ static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
  */
 static int ptrace_setwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
-	struct thread_info *thread = tsk->thread_info;
+	struct thread_info *thread = task_thread_info(tsk);
 	void *ptr = &thread->fpstate;
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
@@ -779,8 +762,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 
 		case PTRACE_GET_THREAD_AREA:
-			ret = put_user(child->thread_info->tp_value,
+			ret = put_user(task_thread_info(child)->tp_value,
 				       (unsigned long __user *) data);
+			break;
+
+		case PTRACE_SET_SYSCALL:
+			ret = 0;
+			child->ptrace_message = data;
 			break;
 
 		default:
@@ -791,14 +779,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void syscall_trace(int why, struct pt_regs *regs)
+asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 {
 	unsigned long ip;
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		return scno;
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		return scno;
 
 	/*
 	 * Save IP.  IP is used to denote syscall entry/exit:
@@ -806,6 +794,8 @@ asmlinkage void syscall_trace(int why, struct pt_regs *regs)
 	 */
 	ip = regs->ARM_ip;
 	regs->ARM_ip = why;
+
+	current->ptrace_message = scno;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
@@ -821,4 +811,6 @@ asmlinkage void syscall_trace(int why, struct pt_regs *regs)
 		current->exit_code = 0;
 	}
 	regs->ARM_ip = ip;
+
+	return current->ptrace_message;
 }

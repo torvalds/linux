@@ -41,7 +41,7 @@
 
 #ifndef lint
 #ifdef SCCS
-static char *_rio_bootpkt_h_sccs = "@(#)bootpkt.h	1.1" ;
+static char *_rio_bootpkt_h_sccs = "@(#)bootpkt.h	1.1";
 #endif
 #endif
 
@@ -49,14 +49,13 @@ static char *_rio_bootpkt_h_sccs = "@(#)bootpkt.h	1.1" ;
      * Overlayed onto the Data fields of a regular
      * Packet
      ************************************************/
-typedef struct BOOT_PKT BOOT_PKT ;
+typedef struct BOOT_PKT BOOT_PKT;
 struct BOOT_PKT {
-                    short     seq_num ;
-                    char      data[10] ;
-                } ;
+	short seq_num;
+	char data[10];
+};
 
 
 #endif
 
 /*********** end of file ***********/
-

@@ -3,7 +3,7 @@ How to conserve battery power using laptop-mode
 
 Document Author: Bart Samwel (bart@samwel.tk)
 Date created: January 2, 2004
-Last modified: July 10, 2004
+Last modified: December 06, 2004
 
 Introduction
 ------------
@@ -33,7 +33,7 @@ or anything. Simply install all the files included in this document, and
 laptop mode will automatically be started when you're on battery. For
 your convenience, a tarball containing an installer can be downloaded at:
 
-http://www.xs4all.nl/~bsamwel/laptop_mode/tools
+http://www.xs4all.nl/~bsamwel/laptop_mode/tools/
 
 To configure laptop mode, you need to edit the configuration file, which is
 located in /etc/default/laptop-mode on Debian-based systems, or in
@@ -357,7 +357,7 @@ MAX_AGE=${MAX_AGE:-'600'}
 # Read-ahead, in kilobytes
 READAHEAD=${READAHEAD:-'4096'}
 
-# Shall we remount journaled fs. with appropiate commit interval? (1=yes)
+# Shall we remount journaled fs. with appropriate commit interval? (1=yes)
 DO_REMOUNTS=${DO_REMOUNTS:-'1'}
 
 # And shall we add the "noatime" option to that as well? (1=yes)
@@ -912,7 +912,7 @@ void usage()
     exit(0);
 }
 
-int main(int ac, char **av)
+int main(int argc, char **argv)
 {
     int fd;
     char *disk = 0;

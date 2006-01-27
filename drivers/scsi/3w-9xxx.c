@@ -73,6 +73,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -615,7 +616,7 @@ static int twa_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int
 	void __user *argp = (void __user *)arg;
 
 	/* Only let one of these through at a time */
-	if (down_interruptible(&tw_dev->ioctl_sem)) {
+	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
 		retval = TW_IOCTL_ERROR_OS_EINTR;
 		goto out;
 	}
@@ -852,7 +853,7 @@ out3:
 	/* Now free ioctl buf memory */
 	dma_free_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted+sizeof(TW_Ioctl_Buf_Apache) - 1, cpu_addr, dma_handle);
 out2:
-	up(&tw_dev->ioctl_sem);
+	mutex_unlock(&tw_dev->ioctl_lock);
 out:
 	return retval;
 } /* End twa_chrdev_ioctl() */
@@ -1182,7 +1183,7 @@ static int twa_initialize_device_extension(TW_Device_Extension *tw_dev)
 	tw_dev->error_sequence_id = 1;
 	tw_dev->chrdev_request_id = TW_IOCTL_CHRDEV_FREE;
 
-	init_MUTEX(&tw_dev->ioctl_sem);
+	mutex_init(&tw_dev->ioctl_lock);
 	init_waitqueue_head(&tw_dev->ioctl_wqueue);
 
 	retval = 0;

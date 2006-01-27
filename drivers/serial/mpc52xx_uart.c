@@ -405,17 +405,13 @@ static inline int
 mpc52xx_uart_int_rx_chars(struct uart_port *port, struct pt_regs *regs)
 {
 	struct tty_struct *tty = port->info->tty;
-	unsigned char ch;
+	unsigned char ch, flag;
 	unsigned short status;
 
 	/* While we can read, do so ! */
 	while ( (status = in_be16(&PSC(port)->mpc52xx_psc_status)) &
 	        MPC52xx_PSC_SR_RXRDY) {
 
-		/* If we are full, just stop reading */
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			break;
-		
 		/* Get the char */
 		ch = in_8(&PSC(port)->mpc52xx_psc_buffer_8);
 
@@ -428,45 +424,35 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port, struct pt_regs *regs)
 #endif
 
 		/* Store it */
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = 0;
+
+		flag = TTY_NORMAL;
 		port->icount.rx++;
 	
 		if ( status & (MPC52xx_PSC_SR_PE |
 		               MPC52xx_PSC_SR_FE |
-		               MPC52xx_PSC_SR_RB |
-		               MPC52xx_PSC_SR_OE) ) {
+		               MPC52xx_PSC_SR_RB) ) {
 			
 			if (status & MPC52xx_PSC_SR_RB) {
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 				uart_handle_break(port);
 			} else if (status & MPC52xx_PSC_SR_PE)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (status & MPC52xx_PSC_SR_FE)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
-			if (status & MPC52xx_PSC_SR_OE) {
-				/*
-				 * Overrun is special, since it's
-				 * reported immediately, and doesn't
-				 * affect the current character
-				 */
-				if (tty->flip.count < (TTY_FLIPBUF_SIZE-1)) {
-					tty->flip.flag_buf_ptr++;
-					tty->flip.char_buf_ptr++;
-					tty->flip.count++;
-				}
-				*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			}
+				flag = TTY_FRAME;
 
 			/* Clear error condition */
 			out_8(&PSC(port)->command,MPC52xx_PSC_RST_ERR_STAT);
 
 		}
-
-		tty->flip.char_buf_ptr++;
-		tty->flip.flag_buf_ptr++;
-		tty->flip.count++;
-
+		tty_insert_flip_char(tty, ch, flag);
+		if (status & MPC52xx_PSC_SR_OE) {
+			/*
+			 * Overrun is special, since it's
+			 * reported immediately, and doesn't
+			 * affect the current character
+			 */
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		}
 	}
 
 	tty_flip_buffer_push(tty);

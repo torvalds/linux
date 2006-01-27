@@ -49,7 +49,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	}
 
 	reiserfs_write_lock(inode->i_sb);
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	/* freeing preallocation only involves relogging blocks that
 	 * are already in the current transaction.  preallocation gets
 	 * freed at the end of each transaction, so it is impossible for
@@ -100,7 +100,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		err = reiserfs_truncate_file(inode, 0);
 	}
       out:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	reiserfs_write_unlock(inode->i_sb);
 	return err;
 }
@@ -1342,7 +1342,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (unlikely(!access_ok(VERIFY_READ, buf, count)))
 		return -EFAULT;
 
-	down(&inode->i_sem);	// locks the entire file for just us
+	mutex_lock(&inode->i_mutex);	// locks the entire file for just us
 
 	pos = *ppos;
 
@@ -1360,7 +1360,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (res)
 		goto out;
 
-	inode_update_time(inode, 1);	/* Both mtime and ctime */
+	file_update_time(file);
 
 	// Ok, we are done with all the checks.
 
@@ -1532,12 +1532,12 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 		    generic_osync_inode(inode, file->f_mapping,
 					OSYNC_METADATA | OSYNC_DATA);
 
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	reiserfs_async_progress_wait(inode->i_sb);
 	return (already_written != 0) ? already_written : res;
 
       out:
-	up(&inode->i_sem);	// unlock the file on exit.
+	mutex_unlock(&inode->i_mutex);	// unlock the file on exit.
 	return res;
 }
 

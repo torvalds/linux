@@ -106,7 +106,10 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 		return -EINVAL;
 	if (check_set(&lun, s3))
 		return -EINVAL;
-	res = scsi_scan_host_selected(shost, channel, id, lun, 1);
+	if (shost->transportt->user_scan)
+		res = shost->transportt->user_scan(shost, channel, id, lun);
+	else
+		res = scsi_scan_host_selected(shost, channel, id, lun, 1);
 	return res;
 }
 
@@ -745,9 +748,9 @@ void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 
-	down(&shost->scan_mutex);
+	mutex_lock(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
-	up(&shost->scan_mutex);
+	mutex_unlock(&shost->scan_mutex);
 }
 EXPORT_SYMBOL(scsi_remove_device);
 

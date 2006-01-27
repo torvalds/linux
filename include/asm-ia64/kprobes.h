@@ -68,10 +68,14 @@ struct prev_kprobe {
 	unsigned long status;
 };
 
+#define	MAX_PARAM_RSE_SIZE	(0x60+0x60/0x3f)
 /* per-cpu kprobe control block */
 struct kprobe_ctlblk {
 	unsigned long kprobe_status;
 	struct pt_regs jprobe_saved_regs;
+	unsigned long jprobes_saved_stacked_regs[MAX_PARAM_RSE_SIZE];
+	unsigned long *bsp;
+	unsigned long cfm;
 	struct prev_kprobe prev_kprobe;
 };
 
@@ -89,6 +93,7 @@ struct kprobe_ctlblk {
 #define IP_RELATIVE_PREDICT_OPCODE	(7)
 #define LONG_BRANCH_OPCODE		(0xC)
 #define LONG_CALL_OPCODE		(0xD)
+#define arch_remove_kprobe(p)		do {} while (0)
 
 typedef struct kprobe_opcode {
 	bundle_t bundle;
@@ -110,12 +115,6 @@ struct arch_specific_insn {
  	unsigned short target_br_reg;
 };
 
-/* ia64 does not need this */
-static inline void arch_copy_kprobe(struct kprobe *p)
-{
-}
-
-#ifdef CONFIG_KPROBES
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 
@@ -123,12 +122,7 @@ extern int kprobe_exceptions_notify(struct notifier_block *self,
 static inline void jprobe_return(void)
 {
 }
+extern void invalidate_stacked_regs(void);
+extern void flush_register_stack(void);
 
-#else				/* !CONFIG_KPROBES */
-static inline int kprobe_exceptions_notify(struct notifier_block *self,
-					   unsigned long val, void *data)
-{
-	return 0;
-}
-#endif
 #endif				/* _ASM_KPROBES_H */

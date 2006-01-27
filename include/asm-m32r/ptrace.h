@@ -163,6 +163,9 @@ extern void show_regs(struct pt_regs *);
 
 extern void withdraw_debug_trap(struct pt_regs *regs);
 
+#define task_pt_regs(task) \
+        ((struct pt_regs *)(task_stack_page(task) + THREAD_SIZE) - 1)
+
 #endif /* __KERNEL */
 
 #endif /* _ASM_M32R_PTRACE_H */

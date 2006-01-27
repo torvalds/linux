@@ -74,38 +74,6 @@ icmp_manip_pkt(struct sk_buff **pskb,
 	return 1;
 }
 
-static unsigned int
-icmp_print(char *buffer,
-	   const struct ip_conntrack_tuple *match,
-	   const struct ip_conntrack_tuple *mask)
-{
-	unsigned int len = 0;
-
-	if (mask->src.u.icmp.id)
-		len += sprintf(buffer + len, "id=%u ",
-			       ntohs(match->src.u.icmp.id));
-
-	if (mask->dst.u.icmp.type)
-		len += sprintf(buffer + len, "type=%u ",
-			       ntohs(match->dst.u.icmp.type));
-
-	if (mask->dst.u.icmp.code)
-		len += sprintf(buffer + len, "code=%u ",
-			       ntohs(match->dst.u.icmp.code));
-
-	return len;
-}
-
-static unsigned int
-icmp_print_range(char *buffer, const struct ip_nat_range *range)
-{
-	if (range->min.icmp.id != 0 || range->max.icmp.id != 0xFFFF)
-		return sprintf(buffer, "id %u-%u ",
-			       ntohs(range->min.icmp.id),
-			       ntohs(range->max.icmp.id));
-	else return 0;
-}
-
 struct ip_nat_protocol ip_nat_protocol_icmp = {
 	.name			= "ICMP",
 	.protonum		= IPPROTO_ICMP,
@@ -113,8 +81,6 @@ struct ip_nat_protocol ip_nat_protocol_icmp = {
 	.manip_pkt		= icmp_manip_pkt,
 	.in_range		= icmp_in_range,
 	.unique_tuple		= icmp_unique_tuple,
-	.print			= icmp_print,
-	.print_range		= icmp_print_range,
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 	.range_to_nfattr	= ip_nat_port_range_to_nfattr,

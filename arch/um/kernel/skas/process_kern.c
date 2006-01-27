@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -13,15 +13,12 @@
 #include "asm/uaccess.h"
 #include "asm/atomic.h"
 #include "kern_util.h"
-#include "time_user.h"
-#include "signal_user.h"
 #include "skas.h"
 #include "os.h"
 #include "user_util.h"
 #include "tlb.h"
 #include "kern.h"
 #include "mode.h"
-#include "proc_mm.h"
 #include "registers.h"
 
 void switch_to_skas(void *prev, void *next)
@@ -35,7 +32,7 @@ void switch_to_skas(void *prev, void *next)
 	if(current->pid == 0)
 		switch_timers(0);
 
-	switch_threads(&from->thread.mode.skas.switch_buf, 
+	switch_threads(&from->thread.mode.skas.switch_buf,
 		       to->thread.mode.skas.switch_buf);
 
 	if(current->pid == 0)
@@ -51,8 +48,8 @@ void new_thread_handler(int sig)
 
 	fn = current->thread.request.u.thread.proc;
 	arg = current->thread.request.u.thread.arg;
-	change_sig(SIGUSR1, 1);
-	thread_wait(&current->thread.mode.skas.switch_buf, 
+	os_usr1_signal(1);
+	thread_wait(&current->thread.mode.skas.switch_buf,
 		    current->thread.mode.skas.fork_buf);
 
 	if(current->thread.prev_sched != NULL)
@@ -83,8 +80,8 @@ void release_thread_skas(struct task_struct *task)
 
 void fork_handler(int sig)
 {
-        change_sig(SIGUSR1, 1);
- 	thread_wait(&current->thread.mode.skas.switch_buf, 
+	os_usr1_signal(1);
+	thread_wait(&current->thread.mode.skas.switch_buf,
 		    current->thread.mode.skas.fork_buf);
   	
 	force_flush_all();
@@ -94,13 +91,13 @@ void fork_handler(int sig)
 	schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
 
-	/* Handle any immediate reschedules or signals */
+/* Handle any immediate reschedules or signals */
 	interrupt_end();
 	userspace(&current->thread.regs.regs);
 }
 
 int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
-		     unsigned long stack_top, struct task_struct * p, 
+		     unsigned long stack_top, struct task_struct * p,
 		     struct pt_regs *regs)
 {
   	void (*handler)(int);
@@ -119,31 +116,18 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 		handler = new_thread_handler;
 	}
 
-	new_thread(p->thread_info, &p->thread.mode.skas.switch_buf,
+	new_thread(task_stack_page(p), &p->thread.mode.skas.switch_buf,
 		   &p->thread.mode.skas.fork_buf, handler);
 	return(0);
 }
 
-extern void map_stub_pages(int fd, unsigned long code,
-			   unsigned long data, unsigned long stack);
-int new_mm(int from, unsigned long stack)
+int new_mm(unsigned long stack)
 {
-	struct proc_mm_op copy;
-	int n, fd;
+	int fd;
 
 	fd = os_open_file("/proc/mm", of_cloexec(of_write(OPENFLAGS())), 0);
 	if(fd < 0)
 		return(fd);
-
-	if(from != -1){
-		copy = ((struct proc_mm_op) { .op 	= MM_COPY_SEGMENTS,
-					      .u 	=
-					      { .copy_segments	= from } } );
-		n = os_write_file(fd, &copy, sizeof(copy));
-		if(n != sizeof(copy))
-			printk("new_mm : /proc/mm copy_segments failed, "
-			       "err = %d\n", -n);
-	}
 
 	if(skas_needs_stub)
 		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
@@ -186,7 +170,7 @@ int start_uml_skas(void)
 
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;
-	return(start_idle_thread(init_task.thread_info,
+	return(start_idle_thread(task_stack_page(&init_task),
 				 &init_task.thread.mode.skas.switch_buf,
 				 &init_task.thread.mode.skas.fork_buf));
 }

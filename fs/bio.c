@@ -123,9 +123,10 @@ static void bio_fs_destructor(struct bio *bio)
 	bio_free(bio, fs_bio_set);
 }
 
-inline void bio_init(struct bio *bio)
+void bio_init(struct bio *bio)
 {
 	bio->bi_next = NULL;
+	bio->bi_bdev = NULL;
 	bio->bi_flags = 1 << BIO_UPTODATE;
 	bio->bi_rw = 0;
 	bio->bi_vcnt = 0;
@@ -252,7 +253,7 @@ inline int bio_hw_segments(request_queue_t *q, struct bio *bio)
  *	the actual data it points to. Reference count of returned
  * 	bio will be one.
  */
-inline void __bio_clone(struct bio *bio, struct bio *bio_src)
+void __bio_clone(struct bio *bio, struct bio *bio_src)
 {
 	request_queue_t *q = bdev_get_queue(bio_src->bi_bdev);
 

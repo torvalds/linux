@@ -122,6 +122,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/flow.h>
 #include <asm/system.h>
 #include <asm/ioctls.h>
+#include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>

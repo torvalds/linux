@@ -115,17 +115,10 @@ MODULE_PARM_DESC(osrun_time, "how many seconds to wait for the ICS2115 OS");
 
 #ifdef WF_DEBUG
 
-#if defined(NEW_MACRO_VARARGS) || __GNUC__ >= 3
 #define DPRINT(cond, ...) \
        if ((dev->debug & (cond)) == (cond)) { \
 	     snd_printk (__VA_ARGS__); \
        }
-#else
-#define DPRINT(cond, args...) \
-       if ((dev->debug & (cond)) == (cond)) { \
-	     snd_printk (args); \
-       }
-#endif
 #else
 #define DPRINT(cond, args...)
 #endif /* WF_DEBUG */

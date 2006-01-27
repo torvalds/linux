@@ -395,7 +395,7 @@ static int pxafb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int pxafb_mmap(struct fb_info *info, struct file *file,
+static int pxafb_mmap(struct fb_info *info,
 		      struct vm_area_struct *vma)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;

@@ -644,10 +644,7 @@ int nfs_sync_mapping(struct address_space *mapping)
 	if (mapping->nrpages == 0)
 		return 0;
 	unmap_mapping_range(mapping, 0, 0, 0);
-	ret = filemap_fdatawrite(mapping);
-	if (ret != 0)
-		goto out;
-	ret = filemap_fdatawait(mapping);
+	ret = filemap_write_and_wait(mapping);
 	if (ret != 0)
 		goto out;
 	ret = nfs_wb_all(mapping->host);
@@ -864,8 +861,7 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	nfs_begin_data_update(inode);
 	/* Write all dirty data if we're changing file permissions or size */
 	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE)) != 0) {
-		if (filemap_fdatawrite(inode->i_mapping) == 0)
-			filemap_fdatawait(inode->i_mapping);
+		filemap_write_and_wait(inode->i_mapping);
 		nfs_wb_all(inode);
 	}
 	/*
@@ -954,11 +950,20 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 
 	/* Flush out writes to the server in order to update c/mtime */
 	nfs_sync_inode(inode, 0, 0, FLUSH_WAIT|FLUSH_NOCOMMIT);
-	if (__IS_FLG(inode, MS_NOATIME))
+
+	/*
+	 * We may force a getattr if the user cares about atime.
+	 *
+	 * Note that we only have to check the vfsmount flags here:
+	 *  - NFS always sets S_NOATIME by so checking it would give a
+	 *    bogus result
+	 *  - NFS never sets MS_NOATIME or MS_NODIRATIME so there is
+	 *    no point in checking those.
+	 */
+ 	if ((mnt->mnt_flags & MNT_NOATIME) ||
+ 	    ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		need_atime = 0;
-	else if (__IS_FLG(inode, MS_NODIRATIME) && S_ISDIR(inode->i_mode))
-		need_atime = 0;
-	/* We may force a getattr if the user cares about atime */
+
 	if (need_atime)
 		err = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	else

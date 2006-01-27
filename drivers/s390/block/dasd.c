@@ -18,6 +18,7 @@
 #include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
+#include <linux/hdreg.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -1634,7 +1635,7 @@ dasd_setup_queue(struct dasd_device * device)
 	blk_queue_max_hw_segments(device->request_queue, -1L);
 	blk_queue_max_segment_size(device->request_queue, -1L);
 	blk_queue_segment_boundary(device->request_queue, -1L);
-	blk_queue_ordered(device->request_queue, 1);
+	blk_queue_ordered(device->request_queue, QUEUE_ORDERED_TAG, NULL);
 }
 
 /*
@@ -1723,12 +1724,35 @@ dasd_release(struct inode *inp, struct file *filp)
 	return 0;
 }
 
+/*
+ * Return disk geometry.
+ */
+static int
+dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct dasd_device *device;
+
+	device = bdev->bd_disk->private_data;
+	if (!device)
+		return -ENODEV;
+
+	if (!device->discipline ||
+	    !device->discipline->fill_geometry)
+		return -EINVAL;
+
+	device->discipline->fill_geometry(device, geo);
+	geo->start = get_start_sect(bdev) >> device->s2b_shift;
+	return 0;
+}
+
 struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,
 	.release	= dasd_release,
 	.ioctl		= dasd_ioctl,
+	.compat_ioctl	= dasd_compat_ioctl,
+	.getgeo		= dasd_getgeo,
 };
 
 

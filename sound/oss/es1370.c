@@ -2779,7 +2779,7 @@ static struct pci_driver es1370_driver = {
 static int __init init_es1370(void)
 {
 	printk(KERN_INFO "es1370: version v0.38 time " __TIME__ " " __DATE__ "\n");
-	return pci_module_init(&es1370_driver);
+	return pci_register_driver(&es1370_driver);
 }
 
 static void __exit cleanup_es1370(void)

@@ -166,7 +166,6 @@ static void ipw_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
-	int i;
 	int result;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
@@ -180,14 +179,8 @@ static void ipw_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		for (i = 0; i < urb->actual_length ; ++i) {
-			/* if we insert more than TTY_FLIPBUF_SIZE characters, we drop them. */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
-			/* this doesn't actually push the data through unless tty->low_latency is set */
-			tty_insert_flip_char(tty, data[i], 0);
-		}
+		tty_buffer_request_room(tty, urb->actual_length);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 

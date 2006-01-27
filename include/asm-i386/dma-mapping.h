@@ -6,6 +6,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 #include <asm/scatterlist.h>
+#include <asm/bug.h>
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
@@ -20,7 +21,9 @@ static inline dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
 	       enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	if (direction == DMA_NONE)
+		BUG();
+	WARN_ON(size == 0);
 	flush_write_buffers();
 	return virt_to_phys(ptr);
 }
@@ -29,7 +32,8 @@ static inline void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	if (direction == DMA_NONE)
+		BUG();
 }
 
 static inline int
@@ -38,7 +42,9 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 {
 	int i;
 
-	BUG_ON(direction == DMA_NONE);
+	if (direction == DMA_NONE)
+		BUG();
+	WARN_ON(nents == 0 || sg[0].length == 0);
 
 	for (i = 0; i < nents; i++ ) {
 		BUG_ON(!sg[i].page);
@@ -150,7 +156,7 @@ dma_get_cache_alignment(void)
 {
 	/* no easy way to get cache size on all x86, so return the
 	 * maximum possible, to be safe */
-	return (1 << L1_CACHE_SHIFT_MAX);
+	return (1 << INTERNODE_CACHE_SHIFT);
 }
 
 #define dma_is_consistent(d)	(1)

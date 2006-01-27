@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2002 MontaVista Software Inc.
  *	Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 #include <asm/vr41xx/giu.h>
 #include <asm/vr41xx/vr41xx.h>
 
-MODULE_AUTHOR("Yoichi Yuasa <yuasa@hh.iij4u.or.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
 MODULE_DESCRIPTION("NEC VR4100 series General-purpose I/O Unit driver");
 MODULE_LICENSE("GPL");
 
@@ -718,7 +718,7 @@ static struct platform_driver giu_device_driver = {
 	},
 };
 
-static int __devinit vr41xx_giu_init(void)
+static int __init vr41xx_giu_init(void)
 {
 	int retval;
 
@@ -733,7 +733,7 @@ static int __devinit vr41xx_giu_init(void)
 	return retval;
 }
 
-static void __devexit vr41xx_giu_exit(void)
+static void __exit vr41xx_giu_exit(void)
 {
 	platform_driver_unregister(&giu_device_driver);
 

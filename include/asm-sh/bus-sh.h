@@ -21,6 +21,7 @@ struct sh_dev {
 	void		*mapbase;
 	unsigned int	irq[6];
 	u64		*dma_mask;
+	u64		coherent_dma_mask;
 };
 
 #define to_sh_dev(d)	container_of((d), struct sh_dev, dev)

@@ -33,12 +33,16 @@ extern int zlib_inflate_blocks_free (
     inflate_blocks_statef *,
     z_streamp);
 
+#if 0
 extern void zlib_inflate_set_dictionary (
     inflate_blocks_statef *s,
     const Byte *d,  /* dictionary */
     uInt  n);       /* dictionary length */
+#endif  /*  0  */
 
+#if 0
 extern int zlib_inflate_blocks_sync_point (
     inflate_blocks_statef *s);
+#endif  /*  0  */
 
 #endif /* _INFBLOCK_H */

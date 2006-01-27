@@ -14,6 +14,7 @@ SECTIONS
 	*(.head)
 	*(.text)
 	SCHED_TEXT
+	LOCK_TEXT
 	*(.fixup)
 	*(.gnu.warning)
 	} :text = 0x4e75
@@ -66,7 +67,7 @@ __init_begin = .;
 	__initramfs_end = .;
 	. = ALIGN(8192);
 	__init_end = .;
-	.init.task : { *(init_task) }
+	.data.init.task : { *(.data.init_task) }
 
 
   .bss : { *(.bss) }		/* BSS */

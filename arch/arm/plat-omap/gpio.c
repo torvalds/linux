@@ -19,9 +19,9 @@
 #include <linux/ptrace.h>
 #include <linux/sysdev.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
-#include <asm/hardware/clock.h>
 #include <asm/irq.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>
@@ -853,19 +853,19 @@ static int __init _omap_gpio_init(void)
 		if (IS_ERR(gpio_ick))
 			printk("Could not get arm_gpio_ck\n");
 		else
-			clk_use(gpio_ick);
+			clk_enable(gpio_ick);
 	}
 	if (cpu_is_omap24xx()) {
 		gpio_ick = clk_get(NULL, "gpios_ick");
 		if (IS_ERR(gpio_ick))
 			printk("Could not get gpios_ick\n");
 		else
-			clk_use(gpio_ick);
+			clk_enable(gpio_ick);
 		gpio_fck = clk_get(NULL, "gpios_fck");
 		if (IS_ERR(gpio_ick))
 			printk("Could not get gpios_fck\n");
 		else
-			clk_use(gpio_fck);
+			clk_enable(gpio_fck);
 	}
 
 #ifdef CONFIG_ARCH_OMAP15XX

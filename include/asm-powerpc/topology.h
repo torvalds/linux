@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_TOPOLOGY_H
 #define _ASM_POWERPC_TOPOLOGY_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 
@@ -38,7 +39,6 @@ static inline int node_to_first_cpu(int node)
 	.max_interval		= 32,			\
 	.busy_factor		= 32,			\
 	.imbalance_pct		= 125,			\
-	.cache_hot_time		= (10*1000000),		\
 	.cache_nice_tries	= 1,			\
 	.per_cpu_gain		= 100,			\
 	.busy_idx		= 3,			\
@@ -55,10 +55,15 @@ static inline int node_to_first_cpu(int node)
 	.nr_balance_failed	= 0,			\
 }
 
+extern void __init dump_numa_cpu_topology(void);
+
 #else
+
+static inline void dump_numa_cpu_topology(void) {}
 
 #include <asm-generic/topology.h>
 
 #endif /* CONFIG_NUMA */
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_TOPOLOGY_H */

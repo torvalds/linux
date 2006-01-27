@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/capability.h>
 #include <linux/dnotify.h>
 #include <linux/smp_lock.h>
 #include <linux/slab.h>
@@ -35,7 +36,7 @@ void fastcall set_close_on_exec(unsigned int fd, int flag)
 	spin_unlock(&files->file_lock);
 }
 
-static inline int get_close_on_exec(unsigned int fd)
+static int get_close_on_exec(unsigned int fd)
 {
 	struct files_struct *files = current->files;
 	struct fdtable *fdt;
@@ -457,11 +458,11 @@ static void send_sigio_to_task(struct task_struct *p,
 			else
 				si.si_band = band_table[reason - POLL_IN];
 			si.si_fd    = fd;
-			if (!send_group_sig_info(fown->signum, &si, p))
+			if (!group_send_sig_info(fown->signum, &si, p))
 				break;
 		/* fall-through: fall back on the old plain SIGIO signal */
 		case 0:
-			send_group_sig_info(SIGIO, SEND_SIG_PRIV, p);
+			group_send_sig_info(SIGIO, SEND_SIG_PRIV, p);
 	}
 }
 
@@ -495,7 +496,7 @@ static void send_sigurg_to_task(struct task_struct *p,
                                 struct fown_struct *fown)
 {
 	if (sigio_perm(p, fown, SIGURG))
-		send_group_sig_info(SIGURG, SEND_SIG_PRIV, p);
+		group_send_sig_info(SIGURG, SEND_SIG_PRIV, p);
 }
 
 int send_sigurg(struct fown_struct *fown)

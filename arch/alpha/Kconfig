@@ -18,9 +18,6 @@ config MMU
 	bool
 	default y
 
-config UID16
-	bool
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 

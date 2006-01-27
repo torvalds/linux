@@ -9,7 +9,9 @@
  * Copyright (C) Terry Dawson VK2KTJ (terry@animats.net)
  * Copyright (C) Tomi Manninen OH2BNS (oh2bns@sral.fi)
  */
+
 #include <linux/config.h>
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

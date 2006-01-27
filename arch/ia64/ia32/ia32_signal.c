@@ -255,7 +255,7 @@ save_ia32_fpstate_live (struct _fpstate_ia32 __user *save)
 	 */
 	fp_tos = (fsr>>11)&0x7;
 	fr8_st_map = (8-fp_tos)&0x7;
-	ptp = ia64_task_regs(tsk);
+	ptp = task_pt_regs(tsk);
 	fpregp = (struct _fpreg_ia32 *)(((unsigned long)buf + 15) & ~15);
 	ia64f2ia32f(fpregp, &ptp->f8);
 	copy_to_user(&save->_st[(0+fr8_st_map)&0x7], fpregp, sizeof(struct _fpreg_ia32));
@@ -389,7 +389,7 @@ restore_ia32_fpstate_live (struct _fpstate_ia32 __user *save)
 	fr8_st_map = (8-fp_tos)&0x7;
 	fpregp = (struct _fpreg_ia32 *)(((unsigned long)buf + 15) & ~15);
 
-	ptp = ia64_task_regs(tsk);
+	ptp = task_pt_regs(tsk);
 	copy_from_user(fpregp, &save->_st[(0+fr8_st_map)&0x7], sizeof(struct _fpreg_ia32));
 	ia32f2ia64f(&ptp->f8, fpregp);
 	copy_from_user(fpregp, &save->_st[(1+fr8_st_map)&0x7], sizeof(struct _fpreg_ia32));

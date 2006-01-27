@@ -44,6 +44,8 @@ source "drivers/char/Kconfig"
 
 source "drivers/i2c/Kconfig"
 
+source "drivers/spi/Kconfig"
+
 source "drivers/w1/Kconfig"
 
 source "drivers/hwmon/Kconfig"
@@ -65,5 +67,7 @@ source "drivers/mmc/Kconfig"
 source "drivers/infiniband/Kconfig"
 
 source "drivers/sn/Kconfig"
+
+source "drivers/edac/Kconfig"
 
 endmenu

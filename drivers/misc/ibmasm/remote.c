@@ -203,9 +203,9 @@ void ibmasm_handle_mouse_interrupt(struct service_processor *sp,
 
 		print_input(&input);
 		if (input.type == INPUT_TYPE_MOUSE) {
-			send_mouse_event(&sp->remote->mouse_dev, regs, &input);
+			send_mouse_event(sp->remote.mouse_dev, regs, &input);
 		} else if (input.type == INPUT_TYPE_KEYBOARD) {
-			send_keyboard_event(&sp->remote->keybd_dev, regs, &input);
+			send_keyboard_event(sp->remote.keybd_dev, regs, &input);
 		} else
 			break;
 
@@ -217,56 +217,71 @@ void ibmasm_handle_mouse_interrupt(struct service_processor *sp,
 int ibmasm_init_remote_input_dev(struct service_processor *sp)
 {
 	/* set up the mouse input device */
-	struct ibmasm_remote *remote;
+	struct input_dev *mouse_dev, *keybd_dev;
 	struct pci_dev *pdev = to_pci_dev(sp->dev);
+	int error = -ENOMEM;
 	int i;
 
-	sp->remote = remote = kmalloc(sizeof(*remote), GFP_KERNEL);
-	if (!remote)
-		return -ENOMEM;
+	sp->remote.mouse_dev = mouse_dev = input_allocate_device();
+	sp->remote.keybd_dev = keybd_dev = input_allocate_device();
 
-	memset(remote, 0, sizeof(*remote));
+	if (!mouse_dev || !keybd_dev)
+		goto err_free_devices;
 
-	remote->mouse_dev.private = remote;
-	init_input_dev(&remote->mouse_dev);
-	remote->mouse_dev.id.vendor = pdev->vendor;
-	remote->mouse_dev.id.product = pdev->device;
-	remote->mouse_dev.evbit[0]  = BIT(EV_KEY) | BIT(EV_ABS);
-	remote->mouse_dev.keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) |
+	mouse_dev->id.bustype = BUS_PCI;
+	mouse_dev->id.vendor = pdev->vendor;
+	mouse_dev->id.product = pdev->device;
+	mouse_dev->id.version = 1;
+	mouse_dev->evbit[0]  = BIT(EV_KEY) | BIT(EV_ABS);
+	mouse_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) |
 		BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-	set_bit(BTN_TOUCH, remote->mouse_dev.keybit);
-	remote->mouse_dev.name = remote_mouse_name;
-	input_set_abs_params(&remote->mouse_dev, ABS_X, 0, xmax, 0, 0);
-	input_set_abs_params(&remote->mouse_dev, ABS_Y, 0, ymax, 0, 0);
+	set_bit(BTN_TOUCH, mouse_dev->keybit);
+	mouse_dev->name = remote_mouse_name;
+	input_set_abs_params(mouse_dev, ABS_X, 0, xmax, 0, 0);
+	input_set_abs_params(mouse_dev, ABS_Y, 0, ymax, 0, 0);
 
-	remote->keybd_dev.private = remote;
-	init_input_dev(&remote->keybd_dev);
-	remote->keybd_dev.id.vendor = pdev->vendor;
-	remote->keybd_dev.id.product = pdev->device;
-	remote->keybd_dev.evbit[0]  = BIT(EV_KEY);
-	remote->keybd_dev.name = remote_keybd_name;
+	mouse_dev->id.bustype = BUS_PCI;
+	keybd_dev->id.vendor = pdev->vendor;
+	keybd_dev->id.product = pdev->device;
+	mouse_dev->id.version = 2;
+	keybd_dev->evbit[0]  = BIT(EV_KEY);
+	keybd_dev->name = remote_keybd_name;
 
-	for (i=0; i<XLATE_SIZE; i++) {
+	for (i = 0; i < XLATE_SIZE; i++) {
 		if (xlate_high[i])
-			set_bit(xlate_high[i], remote->keybd_dev.keybit);
+			set_bit(xlate_high[i], keybd_dev->keybit);
 		if (xlate[i])
-			set_bit(xlate[i], remote->keybd_dev.keybit);
+			set_bit(xlate[i], keybd_dev->keybit);
 	}
 
-	input_register_device(&remote->mouse_dev);
-	input_register_device(&remote->keybd_dev);
+	error = input_register_device(mouse_dev);
+	if (error)
+		goto err_free_devices;
+
+	error = input_register_device(keybd_dev);
+	if (error)
+		goto err_unregister_mouse_dev;
+
 	enable_mouse_interrupts(sp);
 
 	printk(KERN_INFO "ibmasm remote responding to events on RSA card %d\n", sp->number);
 
 	return 0;
+
+ err_unregister_mouse_dev:
+	input_unregister_device(mouse_dev);
+	mouse_dev = NULL; /* so we don't try to free it again below */
+ err_free_devices:
+	input_free_device(mouse_dev);
+	input_free_device(keybd_dev);
+
+	return error;
 }
 
 void ibmasm_free_remote_input_dev(struct service_processor *sp)
 {
 	disable_mouse_interrupts(sp);
-	input_unregister_device(&sp->remote->keybd_dev);
-	input_unregister_device(&sp->remote->mouse_dev);
-	kfree(sp->remote);
+	input_unregister_device(sp->remote.mouse_dev);
+	input_unregister_device(sp->remote.keybd_dev);
 }
 

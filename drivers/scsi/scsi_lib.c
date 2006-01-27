@@ -1212,7 +1212,7 @@ static int scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
 	return -EOPNOTSUPP;
 }
 
-static void scsi_generic_done(struct scsi_cmnd *cmd)
+static void scsi_blk_pc_done(struct scsi_cmnd *cmd)
 {
 	BUG_ON(!blk_pc_request(cmd->request));
 	/*
@@ -1224,7 +1224,7 @@ static void scsi_generic_done(struct scsi_cmnd *cmd)
 	scsi_io_completion(cmd, cmd->bufflen, 0);
 }
 
-void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
+static void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
 {
 	struct request *req = cmd->request;
 
@@ -1241,8 +1241,8 @@ void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd)
 	cmd->transfersize = req->data_len;
 	cmd->allowed = req->retries;
 	cmd->timeout_per_command = req->timeout;
+	cmd->done = scsi_blk_pc_done;
 }
-EXPORT_SYMBOL_GPL(scsi_setup_blk_pc_cmnd);
 
 static int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
@@ -1339,7 +1339,6 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * happening now.
 	 */
 	if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
-		struct scsi_driver *drv;
 		int ret;
 
 		/*
@@ -1371,16 +1370,17 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		/*
 		 * Initialize the actual SCSI command for this request.
 		 */
-		if (req->rq_disk) {
+		if (req->flags & REQ_BLOCK_PC) {
+			scsi_setup_blk_pc_cmnd(cmd);
+		} else if (req->rq_disk) {
+			struct scsi_driver *drv;
+
 			drv = *(struct scsi_driver **)req->rq_disk->private_data;
 			if (unlikely(!drv->init_command(cmd))) {
 				scsi_release_buffers(cmd);
 				scsi_put_command(cmd);
 				goto kill;
 			}
-		} else {
-			scsi_setup_blk_pc_cmnd(cmd);
-			cmd->done = scsi_generic_done;
 		}
 	}
 
@@ -1491,6 +1491,41 @@ static void scsi_kill_request(struct request *req, request_queue_t *q)
 	cmd->result = DID_NO_CONNECT << 16;
 	atomic_inc(&cmd->device->iorequest_cnt);
 	__scsi_done(cmd);
+}
+
+static void scsi_softirq_done(struct request *rq)
+{
+	struct scsi_cmnd *cmd = rq->completion_data;
+	unsigned long wait_for = cmd->allowed * cmd->timeout_per_command;
+	int disposition;
+
+	INIT_LIST_HEAD(&cmd->eh_entry);
+
+	disposition = scsi_decide_disposition(cmd);
+	if (disposition != SUCCESS &&
+	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+		sdev_printk(KERN_ERR, cmd->device,
+			    "timing out command, waited %lus\n",
+			    wait_for/HZ);
+		disposition = SUCCESS;
+	}
+			
+	scsi_log_completion(cmd, disposition);
+
+	switch (disposition) {
+		case SUCCESS:
+			scsi_finish_command(cmd);
+			break;
+		case NEEDS_RETRY:
+			scsi_retry_command(cmd);
+			break;
+		case ADD_TO_MLQUEUE:
+			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
+			break;
+		default:
+			if (!scsi_eh_scmd_add(cmd, 0))
+				scsi_finish_command(cmd);
+	}
 }
 
 /*
@@ -1667,6 +1702,7 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	blk_queue_issue_flush_fn(q, scsi_issue_flush_fn);
+	blk_queue_softirq_done(q, scsi_softirq_done);
 
 	if (!shost->use_clustering)
 		clear_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);

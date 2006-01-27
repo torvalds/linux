@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/pm.h>
 #include <asm/io.h>
 #include <asm/kdebug.h>
 #include <asm/delay.h>
@@ -154,10 +155,11 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	if (!reboot_force) {
-		machine_shutdown();
-	}
-	if (pm_power_off)
+	if (pm_power_off) {
+		if (!reboot_force) {
+			machine_shutdown();
+		}
 		pm_power_off();
+	}
 }
 

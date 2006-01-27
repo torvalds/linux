@@ -73,4 +73,4 @@ static char *_pci_h_sccs_ = "@(#)pci.h	1.2";
 
 #define	RIO_PCI_DEFAULT_MODE	0x05
 
-#endif	/* __rio_pci_h__ */
+#endif				/* __rio_pci_h__ */

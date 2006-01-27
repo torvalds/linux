@@ -26,12 +26,6 @@ struct Scsi_Host;
 #define SCSI_SENSE_VALID(scmd) \
 	(((scmd)->sense_buffer[0] & 0x70) == 0x70)
 
-/*
- * Special value for scanning to specify scanning or rescanning of all
- * possible channels, (target) ids, or luns on a given shost.
- */
-#define SCAN_WILD_CARD	~0
-
 /* hosts.c */
 extern int scsi_init_hosts(void);
 extern void scsi_exit_hosts(void);
@@ -44,6 +38,7 @@ extern void scsi_init_cmd_from_req(struct scsi_cmnd *cmd,
 		struct scsi_request *sreq);
 extern void __scsi_release_request(struct scsi_request *sreq);
 extern void __scsi_done(struct scsi_cmnd *cmd);
+extern int scsi_retry_command(struct scsi_cmnd *cmd);
 #ifdef CONFIG_SCSI_LOGGING
 void scsi_log_send(struct scsi_cmnd *cmd);
 void scsi_log_completion(struct scsi_cmnd *cmd, int disposition);

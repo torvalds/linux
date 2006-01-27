@@ -15,11 +15,13 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
+#include <asm/uaccess.h>
 #include "internal.h"
 
 static int request_key_auth_instantiate(struct key *, const void *, size_t);
 static void request_key_auth_describe(const struct key *, struct seq_file *);
 static void request_key_auth_destroy(struct key *);
+static long request_key_auth_read(const struct key *, char __user *, size_t);
 
 /*
  * the request-key authorisation key type definition
@@ -30,51 +32,25 @@ struct key_type key_type_request_key_auth = {
 	.instantiate	= request_key_auth_instantiate,
 	.describe	= request_key_auth_describe,
 	.destroy	= request_key_auth_destroy,
+	.read		= request_key_auth_read,
 };
 
 /*****************************************************************************/
 /*
- * instantiate a request-key authorisation record
+ * instantiate a request-key authorisation key
  */
 static int request_key_auth_instantiate(struct key *key,
 					const void *data,
 					size_t datalen)
 {
-	struct request_key_auth *rka, *irka;
-	struct key *instkey;
-	int ret;
-
-	ret = -ENOMEM;
-	rka = kmalloc(sizeof(*rka), GFP_KERNEL);
-	if (rka) {
-		/* see if the calling process is already servicing the key
-		 * request of another process */
-		instkey = key_get_instantiation_authkey(0);
-		if (!IS_ERR(instkey)) {
-			/* it is - use that instantiation context here too */
-			irka = instkey->payload.data;
-			rka->context = irka->context;
-			rka->pid = irka->pid;
-			key_put(instkey);
-		}
-		else {
-			/* it isn't - use this process as the context */
-			rka->context = current;
-			rka->pid = current->pid;
-		}
-
-		rka->target_key = key_get((struct key *) data);
-		key->payload.data = rka;
-		ret = 0;
-	}
-
-	return ret;
+	key->payload.data = (struct request_key_auth *) data;
+	return 0;
 
 } /* end request_key_auth_instantiate() */
 
 /*****************************************************************************/
 /*
- *
+ * reading a request-key authorisation key retrieves the callout information
  */
 static void request_key_auth_describe(const struct key *key,
 				      struct seq_file *m)
@@ -83,9 +59,37 @@ static void request_key_auth_describe(const struct key *key,
 
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
-	seq_printf(m, " pid:%d", rka->pid);
+	seq_printf(m, " pid:%d ci:%zu", rka->pid, strlen(rka->callout_info));
 
 } /* end request_key_auth_describe() */
+
+/*****************************************************************************/
+/*
+ * read the callout_info data
+ * - the key's semaphore is read-locked
+ */
+static long request_key_auth_read(const struct key *key,
+				  char __user *buffer, size_t buflen)
+{
+	struct request_key_auth *rka = key->payload.data;
+	size_t datalen;
+	long ret;
+
+	datalen = strlen(rka->callout_info);
+	ret = datalen;
+
+	/* we can return the data as is */
+	if (buffer && buflen > 0) {
+		if (buflen > datalen)
+			buflen = datalen;
+
+		if (copy_to_user(buffer, rka->callout_info, buflen) != 0)
+			ret = -EFAULT;
+	}
+
+	return ret;
+
+} /* end request_key_auth_read() */
 
 /*****************************************************************************/
 /*
@@ -104,53 +108,86 @@ static void request_key_auth_destroy(struct key *key)
 
 /*****************************************************************************/
 /*
- * create a session keyring to be for the invokation of /sbin/request-key and
- * stick an authorisation token in it
+ * create an authorisation token for /sbin/request-key or whoever to gain
+ * access to the caller's security data
  */
-struct key *request_key_auth_new(struct key *target, struct key **_rkakey)
+struct key *request_key_auth_new(struct key *target, const char *callout_info)
 {
-	struct key *keyring, *rkakey = NULL;
+	struct request_key_auth *rka, *irka;
+	struct key *authkey = NULL;
 	char desc[20];
 	int ret;
 
 	kenter("%d,", target->serial);
 
-	/* allocate a new session keyring */
-	sprintf(desc, "_req.%u", target->serial);
-
-	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, 1, NULL);
-	if (IS_ERR(keyring)) {
-		kleave("= %ld", PTR_ERR(keyring));
-		return keyring;
+	/* allocate a auth record */
+	rka = kmalloc(sizeof(*rka), GFP_KERNEL);
+	if (!rka) {
+		kleave(" = -ENOMEM");
+		return ERR_PTR(-ENOMEM);
 	}
+
+	/* see if the calling process is already servicing the key request of
+	 * another process */
+	if (current->request_key_auth) {
+		/* it is - use that instantiation context here too */
+		irka = current->request_key_auth->payload.data;
+		rka->context = irka->context;
+		rka->pid = irka->pid;
+	}
+	else {
+		/* it isn't - use this process as the context */
+		rka->context = current;
+		rka->pid = current->pid;
+	}
+
+	rka->target_key = key_get(target);
+	rka->callout_info = callout_info;
 
 	/* allocate the auth key */
 	sprintf(desc, "%x", target->serial);
 
-	rkakey = key_alloc(&key_type_request_key_auth, desc,
-			   current->fsuid, current->fsgid,
-			   KEY_POS_VIEW | KEY_USR_VIEW, 1);
-	if (IS_ERR(rkakey)) {
-		key_put(keyring);
-		kleave("= %ld", PTR_ERR(rkakey));
-		return rkakey;
+	authkey = key_alloc(&key_type_request_key_auth, desc,
+			    current->fsuid, current->fsgid,
+			    KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH |
+			    KEY_USR_VIEW, 1);
+	if (IS_ERR(authkey)) {
+		ret = PTR_ERR(authkey);
+		goto error_alloc;
 	}
 
 	/* construct and attach to the keyring */
-	ret = key_instantiate_and_link(rkakey, target, 0, keyring, NULL);
-	if (ret < 0) {
-		key_revoke(rkakey);
-		key_put(rkakey);
-		key_put(keyring);
-		kleave("= %d", ret);
-		return ERR_PTR(ret);
-	}
+	ret = key_instantiate_and_link(authkey, rka, 0, NULL, NULL);
+	if (ret < 0)
+		goto error_inst;
 
-	*_rkakey = rkakey;
-	kleave(" = {%d} ({%d})", keyring->serial, rkakey->serial);
-	return keyring;
+	kleave(" = {%d})", authkey->serial);
+	return authkey;
+
+error_inst:
+	key_revoke(authkey);
+	key_put(authkey);
+error_alloc:
+	key_put(rka->target_key);
+	kfree(rka);
+	kleave("= %d", ret);
+	return ERR_PTR(ret);
 
 } /* end request_key_auth_new() */
+
+/*****************************************************************************/
+/*
+ * see if an authorisation key is associated with a particular key
+ */
+static int key_get_instantiation_authkey_match(const struct key *key,
+					       const void *_id)
+{
+	struct request_key_auth *rka = key->payload.data;
+	key_serial_t id = (key_serial_t)(unsigned long) _id;
+
+	return rka->target_key->serial == id;
+
+} /* end key_get_instantiation_authkey_match() */
 
 /*****************************************************************************/
 /*
@@ -162,22 +199,27 @@ struct key *request_key_auth_new(struct key *target, struct key **_rkakey)
  */
 struct key *key_get_instantiation_authkey(key_serial_t target_id)
 {
-	struct task_struct *tsk = current;
-	struct key *instkey;
+	struct key *authkey;
+	key_ref_t authkey_ref;
 
-	/* we must have our own personal session keyring */
-	if (!tsk->signal->session_keyring)
-		return ERR_PTR(-EACCES);
+	authkey_ref = search_process_keyrings(
+		&key_type_request_key_auth,
+		(void *) (unsigned long) target_id,
+		key_get_instantiation_authkey_match,
+		current);
 
-	/* and it must contain a suitable request authorisation key
-	 * - lock RCU against session keyring changing
-	 */
-	rcu_read_lock();
+	if (IS_ERR(authkey_ref)) {
+		authkey = ERR_PTR(PTR_ERR(authkey_ref));
+		goto error;
+	}
 
-	instkey = keyring_search_instkey(
-		rcu_dereference(tsk->signal->session_keyring), target_id);
+	authkey = key_ref_to_ptr(authkey_ref);
+	if (test_bit(KEY_FLAG_REVOKED, &authkey->flags)) {
+		key_put(authkey);
+		authkey = ERR_PTR(-EKEYREVOKED);
+	}
 
-	rcu_read_unlock();
-	return instkey;
+error:
+	return authkey;
 
 } /* end key_get_instantiation_authkey() */

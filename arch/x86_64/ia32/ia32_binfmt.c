@@ -197,8 +197,7 @@ static inline void elf_core_copy_regs(elf_gregset_t *elfregs, struct pt_regs *re
 
 static inline int elf_core_copy_task_regs(struct task_struct *t, elf_gregset_t* elfregs)
 {	
-	struct pt_regs *pp = (struct pt_regs *)(t->thread.rsp0);
-	--pp;
+	struct pt_regs *pp = task_pt_regs(t);
 	ELF_CORE_COPY_REGS((*elfregs), pp);
 	/* fix wrong segments */ 
 	(*elfregs)[7] = t->thread.ds; 
@@ -217,7 +216,7 @@ elf_core_copy_task_fpregs(struct task_struct *tsk, struct pt_regs *regs, elf_fpr
 	if (!tsk_used_math(tsk))
 		return 0;
 	if (!regs)
-		regs = ((struct pt_regs *)tsk->thread.rsp0) - 1;
+		regs = task_pt_regs(tsk);
 	if (tsk == current)
 		unlazy_fpu(tsk);
 	set_fs(KERNEL_DS); 
@@ -233,7 +232,7 @@ elf_core_copy_task_fpregs(struct task_struct *tsk, struct pt_regs *regs, elf_fpr
 static inline int 
 elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregset_t *xfpu)
 {
-	struct pt_regs *regs = ((struct pt_regs *)(t->thread.rsp0))-1; 
+	struct pt_regs *regs = task_pt_regs(t);
 	if (!tsk_used_math(t))
 		return 0;
 	if (t == current)
@@ -293,8 +292,6 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int
 	set_fs(USER_DS); \
 } while(0) 
 
-
-#define elf_map elf32_map
 
 #include <linux/module.h>
 
@@ -390,21 +387,6 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
 	return 0;
 }
 EXPORT_SYMBOL(ia32_setup_arg_pages);
-
-static unsigned long
-elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int prot, int type)
-{
-	unsigned long map_addr;
-	struct task_struct *me = current; 
-
-	down_write(&me->mm->mmap_sem);
-	map_addr = do_mmap(filep, ELF_PAGESTART(addr),
-			   eppnt->p_filesz + ELF_PAGEOFFSET(eppnt->p_vaddr), prot, 
-			   type,
-			   eppnt->p_offset - ELF_PAGEOFFSET(eppnt->p_vaddr));
-	up_write(&me->mm->mmap_sem);
-	return(map_addr);
-}
 
 #ifdef CONFIG_SYSCTL
 /* Register vsyscall32 into the ABI table */

@@ -899,8 +899,7 @@ static void icmp_address_reply(struct sk_buff *skb)
 		u32 _mask, *mp;
 
 		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
-		if (mp == NULL)
-			BUG();
+		BUG_ON(mp == NULL);
 		for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
 			if (*mp == ifa->ifa_mask &&
 			    inet_ifa_match(rt->rt_src, ifa))

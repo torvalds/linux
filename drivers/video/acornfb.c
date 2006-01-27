@@ -883,7 +883,7 @@ acornfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
  * Note that we are entered with the kernel locked.
  */
 static int
-acornfb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct *vma)
+acornfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned long off, start;
 	u32 len;
