@@ -1126,10 +1126,9 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
-	if (ata_qc_issue(qc)) {
-		qc->err_mask = AC_ERR_OTHER;
+	qc->err_mask = ata_qc_issue(qc);
+	if (qc->err_mask)
 		ata_qc_complete(qc);
-	}
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
@@ -3860,10 +3859,10 @@ static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  *
  *	RETURNS:
- *	Zero on success, negative on error.
+ *	Zero on success, AC_ERR_* mask on failure
  */
 
-int ata_qc_issue(struct ata_queued_cmd *qc)
+unsigned int ata_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
@@ -3888,7 +3887,7 @@ int ata_qc_issue(struct ata_queued_cmd *qc)
 
 sg_err:
 	qc->flags &= ~ATA_QCFLAG_DMAMAP;
-	return -1;
+	return AC_ERR_SYSTEM;
 }
 
 
@@ -3907,10 +3906,10 @@ sg_err:
  *	spin_lock_irqsave(host_set lock)
  *
  *	RETURNS:
- *	Zero on success, negative on error.
+ *	Zero on success, AC_ERR_* mask on failure
  */
 
-int ata_qc_issue_prot(struct ata_queued_cmd *qc)
+unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
@@ -4015,7 +4014,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 	default:
 		WARN_ON(1);
-		return -1;
+		return AC_ERR_SYSTEM;
 	}
 
 	return 0;

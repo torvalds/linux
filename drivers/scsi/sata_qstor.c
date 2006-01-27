@@ -120,7 +120,7 @@ static void qs_host_stop(struct ata_host_set *host_set);
 static void qs_port_stop(struct ata_port *ap);
 static void qs_phy_reset(struct ata_port *ap);
 static void qs_qc_prep(struct ata_queued_cmd *qc);
-static int qs_qc_issue(struct ata_queued_cmd *qc);
+static unsigned int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
 static void qs_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 qs_bmdma_status(struct ata_port *ap);
@@ -352,7 +352,7 @@ static inline void qs_packet_start(struct ata_queued_cmd *qc)
 	readl(chan + QS_CCT_CFF);          /* flush */
 }
 
-static int qs_qc_issue(struct ata_queued_cmd *qc)
+static unsigned int qs_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct qs_port_priv *pp = qc->ap->private_data;
 

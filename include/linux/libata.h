@@ -430,7 +430,7 @@ struct ata_port_operations {
 	void (*bmdma_start) (struct ata_queued_cmd *qc);
 
 	void (*qc_prep) (struct ata_queued_cmd *qc);
-	int (*qc_issue) (struct ata_queued_cmd *qc);
+	unsigned int (*qc_issue) (struct ata_queued_cmd *qc);
 
 	void (*eng_timeout) (struct ata_port *ap);
 
@@ -518,7 +518,7 @@ extern void ata_port_stop (struct ata_port *ap);
 extern void ata_host_stop (struct ata_host_set *host_set);
 extern irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);
-extern int ata_qc_issue_prot(struct ata_queued_cmd *qc);
+extern unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc);
 extern void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf,
 		unsigned int buflen);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,

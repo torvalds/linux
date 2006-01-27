@@ -1322,10 +1322,9 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		goto early_finish;
 
 	/* select device, send command to hardware */
-	if (ata_qc_issue(qc)) {
-		qc->err_mask |= AC_ERR_OTHER;
+	qc->err_mask = ata_qc_issue(qc);
+	if (qc->err_mask)
 		ata_qc_complete(qc);
-	}
 
 	VPRINTK("EXIT\n");
 	return;
@@ -2044,10 +2043,9 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	qc->complete_fn = atapi_sense_complete;
 
-	if (ata_qc_issue(qc)) {
-		qc->err_mask |= AC_ERR_OTHER;
+	qc->err_mask = ata_qc_issue(qc);
+	if (qc->err_mask)
 		ata_qc_complete(qc);
-	}
 
 	DPRINTK("EXIT\n");
 }

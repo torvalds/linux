@@ -251,7 +251,7 @@ static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
 static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void sil24_phy_reset(struct ata_port *ap);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
-static int sil24_qc_issue(struct ata_queued_cmd *qc);
+static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
 static void sil24_eng_timeout(struct ata_port *ap);
 static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
@@ -557,7 +557,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 		sil24_fill_sg(qc, sge);
 }
 
-static int sil24_qc_issue(struct ata_queued_cmd *qc)
+static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
