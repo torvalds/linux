@@ -89,10 +89,6 @@
  *
  */
 
-/* MAC accepet/reject macros */
-#define ACCEPT_MAC_ADDR				0
-#define REJECT_MAC_ADDR				1
-
 /* Buffer offset from buffer pointer */
 #define RX_BUF_OFFSET				0x2
 

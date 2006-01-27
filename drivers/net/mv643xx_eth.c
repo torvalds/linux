@@ -1730,8 +1730,7 @@ static int ethernet_phy_get(unsigned int eth_port_num);
 static void ethernet_phy_set(unsigned int eth_port_num, int phy_addr);
 
 /* Ethernet Port routines */
-static int eth_port_uc_addr(unsigned int eth_port_num, unsigned char uc_nibble,
-								int option);
+static void eth_port_set_filter_table_entry(int table, unsigned char entry);
 
 /*
  * eth_port_init - Initialize the Ethernet port driver
@@ -1860,8 +1859,9 @@ static void eth_port_start(struct net_device *dev)
  *	char *		p_addr		Address to be set
  *
  * OUTPUT:
- *	Set MAC address low and high registers. also calls eth_port_uc_addr()
- *	To set the unicast table with the proper information.
+ *	Set MAC address low and high registers. also calls
+ *	eth_port_set_filter_table_entry() to set the unicast
+ *	table with the proper information.
  *
  * RETURN:
  *	N/A.
@@ -1872,6 +1872,7 @@ static void eth_port_uc_addr_set(unsigned int eth_port_num,
 {
 	unsigned int mac_h;
 	unsigned int mac_l;
+	int table;
 
 	mac_l = (p_addr[4] << 8) | (p_addr[5]);
 	mac_h = (p_addr[0] << 24) | (p_addr[1] << 16) | (p_addr[2] << 8) |
@@ -1881,9 +1882,8 @@ static void eth_port_uc_addr_set(unsigned int eth_port_num,
 	mv_write(MV643XX_ETH_MAC_ADDR_HIGH(eth_port_num), mac_h);
 
 	/* Accept frames of this address */
-	eth_port_uc_addr(eth_port_num, p_addr[5], ACCEPT_MAC_ADDR);
-
-	return;
+	table = MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE(eth_port_num);
+	eth_port_set_filter_table_entry(table, p_addr[5] & 0x0f);
 }
 
 /*
@@ -1919,72 +1919,6 @@ static void eth_port_uc_addr_get(struct net_device *dev, unsigned char *p_addr)
 	p_addr[3] = mac_h & 0xff;
 	p_addr[4] = (mac_l >> 8) & 0xff;
 	p_addr[5] = mac_l & 0xff;
-}
-
-/*
- * eth_port_uc_addr - This function Set the port unicast address table
- *
- * DESCRIPTION:
- *	This function locates the proper entry in the Unicast table for the
- *	specified MAC nibble and sets its properties according to function
- *	parameters.
- *
- * INPUT:
- *	unsigned int	eth_port_num	Port number.
- *	unsigned char	uc_nibble	Unicast MAC Address last nibble.
- *	int 		option		0 = Add, 1 = remove address.
- *
- * OUTPUT:
- *	This function add/removes MAC addresses from the port unicast address
- *	table.
- *
- * RETURN:
- *	true is output succeeded.
- *	false if option parameter is invalid.
- *
- */
-static int eth_port_uc_addr(unsigned int eth_port_num, unsigned char uc_nibble,
-								int option)
-{
-	unsigned int unicast_reg;
-	unsigned int tbl_offset;
-	unsigned int reg_offset;
-
-	/* Locate the Unicast table entry */
-	uc_nibble = (0xf & uc_nibble);
-	tbl_offset = (uc_nibble / 4) * 4;	/* Register offset from unicast table base */
-	reg_offset = uc_nibble % 4;	/* Entry offset within the above register */
-
-	switch (option) {
-	case REJECT_MAC_ADDR:
-		/* Clear accepts frame bit at given unicast DA table entry */
-		unicast_reg = mv_read((MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE
-						(eth_port_num) + tbl_offset));
-
-		unicast_reg &= (0x0E << (8 * reg_offset));
-
-		mv_write((MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE
-				(eth_port_num) + tbl_offset), unicast_reg);
-		break;
-
-	case ACCEPT_MAC_ADDR:
-		/* Set accepts frame bit at unicast DA filter table entry */
-		unicast_reg =
-			mv_read((MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE
-						(eth_port_num) + tbl_offset));
-
-		unicast_reg |= (0x01 << (8 * reg_offset));
-
-		mv_write((MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE
-				(eth_port_num) + tbl_offset), unicast_reg);
-
-		break;
-
-	default:
-		return 0;
-	}
-
-	return 1;
 }
 
 /*
@@ -2199,8 +2133,8 @@ static void eth_port_init_mac_tables(unsigned int eth_port_num)
 
 	/* Clear DA filter unicast table (Ex_dFUT) */
 	for (table_index = 0; table_index <= 0xC; table_index += 4)
-		mv_write((MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE
-					(eth_port_num) + table_index), 0);
+		mv_write(MV643XX_ETH_DA_FILTER_UNICAST_TABLE_BASE
+					(eth_port_num) + table_index, 0);
 
 	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
 		/* Clear DA filter special multicast table (Ex_dFSMT) */
