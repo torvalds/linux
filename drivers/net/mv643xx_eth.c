@@ -444,6 +444,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
 			netif_rx(skb);
 #endif
 		}
+		dev->last_rx = jiffies;
 	}
 
 	return received_packets;
