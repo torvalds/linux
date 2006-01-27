@@ -703,7 +703,7 @@ int netpoll_setup(struct netpoll *np)
 		}
 	}
 
-	if (!memcmp(np->local_mac, "\0\0\0\0\0\0", 6) && ndev->dev_addr)
+	if (is_zero_ether_addr(np->local_mac) && ndev->dev_addr)
 		memcpy(np->local_mac, ndev->dev_addr, 6);
 
 	if (!np->local_ip) {

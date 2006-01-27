@@ -735,8 +735,11 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * The kernel itself must perform the operation.
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
+	stmfd	sp!, {r7, lr}
+	mov	r7, #0xff00		@ 0xfff0 into r7 for EABI
+	orr	r7, r7, #0xf0
 	swi	#0x9ffff0
-	mov	pc, lr
+	ldmfd	sp!, {r7, pc}
 
 #elif __LINUX_ARM_ARCH__ < 6
 

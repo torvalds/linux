@@ -377,6 +377,7 @@ int32_t e1000_swfw_sync_acquire(struct e1000_hw *hw, uint16_t mask);
 void e1000_swfw_sync_release(struct e1000_hw *hw, uint16_t mask);
 
 /* Filters (multicast, vlan, receive) */
+void e1000_mc_addr_list_update(struct e1000_hw *hw, uint8_t * mc_addr_list, uint32_t mc_addr_count, uint32_t pad, uint32_t rar_used_count);
 uint32_t e1000_hash_mc_addr(struct e1000_hw *hw, uint8_t * mc_addr);
 void e1000_mta_set(struct e1000_hw *hw, uint32_t hash_value);
 void e1000_rar_set(struct e1000_hw *hw, uint8_t * mc_addr, uint32_t rar_index);
@@ -401,7 +402,9 @@ void e1000_read_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t * value);
 void e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t * value);
 /* Port I/O is only supported on 82544 and newer */
 uint32_t e1000_io_read(struct e1000_hw *hw, unsigned long port);
+uint32_t e1000_read_reg_io(struct e1000_hw *hw, uint32_t offset);
 void e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value);
+void e1000_enable_pciex_master(struct e1000_hw *hw);
 int32_t e1000_disable_pciex_master(struct e1000_hw *hw);
 int32_t e1000_get_software_semaphore(struct e1000_hw *hw);
 void e1000_release_software_semaphore(struct e1000_hw *hw);
@@ -439,6 +442,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82546GB_FIBER       0x107A
 #define E1000_DEV_ID_82546GB_SERDES      0x107B
 #define E1000_DEV_ID_82546GB_PCIE        0x108A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER 0x1099
 #define E1000_DEV_ID_82547EI             0x1019
 #define E1000_DEV_ID_82571EB_COPPER      0x105E
 #define E1000_DEV_ID_82571EB_FIBER       0x105F
@@ -449,6 +453,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82573E              0x108B
 #define E1000_DEV_ID_82573E_IAMT         0x108C
 #define E1000_DEV_ID_82573L              0x109A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
 
 
 #define NODE_ADDRESS_SIZE 6
@@ -897,14 +902,14 @@ struct e1000_ffvt_entry {
 #define E1000_TXDCTL   0x03828  /* TX Descriptor Control - RW */
 #define E1000_TADV     0x0382C  /* TX Interrupt Absolute Delay Val - RW */
 #define E1000_TSPMT    0x03830  /* TCP Segmentation PAD & Min Threshold - RW */
-#define E1000_TARC0    0x03840 /* TX Arbitration Count (0) */
-#define E1000_TDBAL1   0x03900 /* TX Desc Base Address Low (1) - RW */
-#define E1000_TDBAH1   0x03904 /* TX Desc Base Address High (1) - RW */
-#define E1000_TDLEN1   0x03908 /* TX Desc Length (1) - RW */
-#define E1000_TDH1     0x03910 /* TX Desc Head (1) - RW */
-#define E1000_TDT1     0x03918 /* TX Desc Tail (1) - RW */
-#define E1000_TXDCTL1  0x03928 /* TX Descriptor Control (1) - RW */
-#define E1000_TARC1    0x03940 /* TX Arbitration Count (1) */
+#define E1000_TARC0    0x03840  /* TX Arbitration Count (0) */
+#define E1000_TDBAL1   0x03900  /* TX Desc Base Address Low (1) - RW */
+#define E1000_TDBAH1   0x03904  /* TX Desc Base Address High (1) - RW */
+#define E1000_TDLEN1   0x03908  /* TX Desc Length (1) - RW */
+#define E1000_TDH1     0x03910  /* TX Desc Head (1) - RW */
+#define E1000_TDT1     0x03918  /* TX Desc Tail (1) - RW */
+#define E1000_TXDCTL1  0x03928  /* TX Descriptor Control (1) - RW */
+#define E1000_TARC1    0x03940  /* TX Arbitration Count (1) */
 #define E1000_CRCERRS  0x04000  /* CRC Error Count - R/clr */
 #define E1000_ALGNERRC 0x04004  /* Alignment Error Count - R/clr */
 #define E1000_SYMERRS  0x04008  /* Symbol Error Count - R/clr */
@@ -1497,6 +1502,7 @@ struct e1000_hw {
 #define E1000_CTRL_EXT_EE_RST    0x00002000 /* Reinitialize from EEPROM */
 #define E1000_CTRL_EXT_IPS       0x00004000 /* Invert Power State */
 #define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
+#define E1000_CTRL_EXT_RO_DIS    0x00020000 /* Relaxed Ordering disable */
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_GMII 0x00000000
 #define E1000_CTRL_EXT_LINK_MODE_TBI  0x00C00000
@@ -1758,7 +1764,6 @@ struct e1000_hw {
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 #define E1000_TXDCTL_COUNT_DESC 0x00400000 /* Enable the counting of desc.
                                               still to be processed. */
-
 /* Transmit Configuration Word */
 #define E1000_TXCW_FD         0x00000020        /* TXCW full duplex */
 #define E1000_TXCW_HD         0x00000040        /* TXCW half duplex */
@@ -1954,6 +1959,23 @@ struct e1000_host_command_info {
 
 #define E1000_MDALIGN          4096
 
+/* PCI-Ex registers */
+
+/* PCI-Ex Control Register */
+#define E1000_GCR_RXD_NO_SNOOP			0x00000001
+#define E1000_GCR_RXDSCW_NO_SNOOP		0x00000002
+#define E1000_GCR_RXDSCR_NO_SNOOP		0x00000004
+#define E1000_GCR_TXD_NO_SNOOP			0x00000008
+#define E1000_GCR_TXDSCW_NO_SNOOP		0x00000010
+#define E1000_GCR_TXDSCR_NO_SNOOP		0x00000020
+
+#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP		| \
+							 E1000_GCR_RXDSCW_NO_SNOOP	| \
+							 E1000_GCR_RXDSCR_NO_SNOOP	| \
+							 E1000_GCR TXD_NO_SNOOP		| \
+							 E1000_GCR_TXDSCW_NO_SNOOP	| \
+							 E1000_GCR_TXDSCR_NO_SNOOP)
+
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */
 #define E1000_FACTPS_FUNC0_POWER_STATE_MASK         0x00000003
@@ -2077,7 +2099,10 @@ struct e1000_host_command_info {
 /* Collision related configuration parameters */
 #define E1000_COLLISION_THRESHOLD       15
 #define E1000_CT_SHIFT                  4
-#define E1000_COLLISION_DISTANCE        64
+/* Collision distance is a 0-based value that applies to
+ * half-duplex-capable hardware only. */
+#define E1000_COLLISION_DISTANCE        63
+#define E1000_COLLISION_DISTANCE_82542  64
 #define E1000_FDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_HDX_COLLISION_DISTANCE    E1000_COLLISION_DISTANCE
 #define E1000_COLD_SHIFT                12

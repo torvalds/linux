@@ -338,7 +338,7 @@ restart:
 	 * done (maybe it's a new transaction, but it fell at the same
 	 * address).
 	 */
- 	if (journal->j_checkpoint_transactions == transaction ||
+ 	if (journal->j_checkpoint_transactions == transaction &&
 			transaction->t_tid == this_tid) {
 		int batch_count = 0;
 		struct buffer_head *bhs[NR_BATCH];

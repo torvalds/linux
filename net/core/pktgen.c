@@ -139,6 +139,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/wait.h>
+#include <linux/etherdevice.h>
 #include <net/checksum.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
@@ -281,8 +282,8 @@ struct pktgen_dev {
         __u32 src_mac_count; /* How many MACs to iterate through */
         __u32 dst_mac_count; /* How many MACs to iterate through */
         
-        unsigned char dst_mac[6];
-        unsigned char src_mac[6];
+        unsigned char dst_mac[ETH_ALEN];
+        unsigned char src_mac[ETH_ALEN];
         
         __u32 cur_dst_mac_offset;
         __u32 cur_src_mac_offset;
@@ -594,16 +595,9 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "     src_mac: ");
 
-	if ((pkt_dev->src_mac[0] == 0) && 
-	    (pkt_dev->src_mac[1] == 0) && 
-	    (pkt_dev->src_mac[2] == 0) && 
-	    (pkt_dev->src_mac[3] == 0) && 
-	    (pkt_dev->src_mac[4] == 0) && 
-	    (pkt_dev->src_mac[5] == 0)) 
-
+	if (is_zero_ether_addr(pkt_dev->src_mac))
 		for (i = 0; i < 6; i++) 
 			seq_printf(seq,  "%02X%s", pkt_dev->odev->dev_addr[i], i == 5 ? "  " : ":");
-
 	else 
 		for (i = 0; i < 6; i++) 
 			seq_printf(seq,  "%02X%s", pkt_dev->src_mac[i], i == 5 ? "  " : ":");
@@ -1189,9 +1183,9 @@ static ssize_t pktgen_if_write(struct file *file, const char __user *user_buffer
 	}
 	if (!strcmp(name, "dst_mac")) {
 		char *v = valstr;
-                unsigned char old_dmac[6];
+		unsigned char old_dmac[ETH_ALEN];
 		unsigned char *m = pkt_dev->dst_mac;
-                memcpy(old_dmac, pkt_dev->dst_mac, 6);
+		memcpy(old_dmac, pkt_dev->dst_mac, ETH_ALEN);
                 
 		len = strn_len(&user_buffer[i], sizeof(valstr) - 1);
                 if (len < 0) { return len; }
@@ -1220,8 +1214,8 @@ static ssize_t pktgen_if_write(struct file *file, const char __user *user_buffer
 		}
 
 		/* Set up Dest MAC */
-                if (memcmp(old_dmac, pkt_dev->dst_mac, 6) != 0) 
-                        memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, 6);
+		if (compare_ether_addr(old_dmac, pkt_dev->dst_mac))
+			memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, ETH_ALEN);
                 
 		sprintf(pg_result, "OK: dstmac");
 		return count;
@@ -1560,17 +1554,11 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
         
         /* Default to the interface's mac if not explicitly set. */
 
-	if ((pkt_dev->src_mac[0] == 0) && 
-	    (pkt_dev->src_mac[1] == 0) && 
-	    (pkt_dev->src_mac[2] == 0) && 
-	    (pkt_dev->src_mac[3] == 0) && 
-	    (pkt_dev->src_mac[4] == 0) && 
-	    (pkt_dev->src_mac[5] == 0)) {
+	if (is_zero_ether_addr(pkt_dev->src_mac))
+	       memcpy(&(pkt_dev->hh[6]), pkt_dev->odev->dev_addr, ETH_ALEN);
 
-	       memcpy(&(pkt_dev->hh[6]), pkt_dev->odev->dev_addr, 6);
-       }
         /* Set up Dest MAC */
-        memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, 6);
+	memcpy(&(pkt_dev->hh[0]), pkt_dev->dst_mac, ETH_ALEN);
 
         /* Set up pkt size */
         pkt_dev->cur_pkt_size = pkt_dev->min_pkt_size;
@@ -1872,13 +1860,14 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	 */
 	mod_cur_headers(pkt_dev);
 
-	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16, GFP_ATOMIC);
+	datalen = (odev->hard_header_len + 16) & ~0xf;
+	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + datalen, GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
 
-	skb_reserve(skb, 16);
+	skb_reserve(skb, datalen);
 
 	/*  Reserve for ethernet and IP header  */
 	eth = (__u8 *) skb_push(skb, 14);

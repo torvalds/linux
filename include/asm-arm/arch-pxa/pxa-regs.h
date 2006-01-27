@@ -108,6 +108,7 @@
 #define DCSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write) */
 #define DCSR_BUSERR	(1 << 0)	/* Bus Error Interrupt (read / write) */
 
+#define DALGN		__REG(0x400000a0)  /* DMA Alignment Register */
 #define DINT		__REG(0x400000f0)  /* DMA Interrupt Register */
 
 #define DRCMR(n)	__REG2(0x40000100, (n)<<2)
@@ -1614,8 +1615,21 @@
 #define SSCR0_National	(0x2 << 4)	/* National Microwire */
 #define SSCR0_ECS	(1 << 6)	/* External clock select */
 #define SSCR0_SSE	(1 << 7)	/* Synchronous Serial Port Enable */
+#if defined(CONFIG_PXA25x)
 #define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
 #define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
+#elif defined(CONFIG_PXA27x)
+#define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
+#define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
+#define SSCR0_EDSS	(1 << 20)	/* Extended data size select */
+#define SSCR0_NCS	(1 << 21)	/* Network clock select */
+#define SSCR0_RIM	(1 << 22)	/* Receive FIFO overrrun interrupt mask */
+#define SSCR0_TUM	(1 << 23)	/* Transmit FIFO underrun interrupt mask */
+#define SSCR0_FRDC	(0x07000000)	/* Frame rate divider control (mask) */
+#define SSCR0_SlotsPerFrm(c) ((x) - 1)	/* Time slots per frame [1..8] */
+#define SSCR0_ADC	(1 << 30)	/* Audio clock select */
+#define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
+#endif
 
 #define SSCR1_RIE	(1 << 0)	/* Receive FIFO Interrupt Enable */
 #define SSCR1_TIE	(1 << 1)	/* Transmit FIFO Interrupt Enable */

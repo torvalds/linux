@@ -233,7 +233,18 @@ static int is_in(struct ip_mc_list *pmc, struct ip_sf_list *psf, int type,
 	case IGMPV3_MODE_IS_EXCLUDE:
 		if (gdeleted || sdeleted)
 			return 0;
-		return !(pmc->gsquery && !psf->sf_gsresp);
+		if (!(pmc->gsquery && !psf->sf_gsresp)) {
+			if (pmc->sfmode == MCAST_INCLUDE)
+				return 1;
+			/* don't include if this source is excluded
+			 * in all filters
+			 */
+			if (psf->sf_count[MCAST_INCLUDE])
+				return type == IGMPV3_MODE_IS_INCLUDE;
+			return pmc->sfcount[MCAST_EXCLUDE] ==
+				psf->sf_count[MCAST_EXCLUDE];
+		}
+		return 0;
 	case IGMPV3_CHANGE_TO_INCLUDE:
 		if (gdeleted || sdeleted)
 			return 0;
@@ -385,7 +396,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 	struct igmpv3_report *pih;
 	struct igmpv3_grec *pgr = NULL;
 	struct ip_sf_list *psf, *psf_next, *psf_prev, **psf_list;
-	int scount, first, isquery, truncate;
+	int scount, stotal, first, isquery, truncate;
 
 	if (pmc->multiaddr == IGMP_ALL_HOSTS)
 		return skb;
@@ -395,25 +406,13 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 	truncate = type == IGMPV3_MODE_IS_EXCLUDE ||
 		    type == IGMPV3_CHANGE_TO_EXCLUDE;
 
+	stotal = scount = 0;
+
 	psf_list = sdeleted ? &pmc->tomb : &pmc->sources;
 
-	if (!*psf_list) {
-		if (type == IGMPV3_ALLOW_NEW_SOURCES ||
-		    type == IGMPV3_BLOCK_OLD_SOURCES)
-			return skb;
-		if (pmc->crcount || isquery) {
-			/* make sure we have room for group header and at
-			 * least one source.
-			 */
-			if (skb && AVAILABLE(skb) < sizeof(struct igmpv3_grec)+
-			    sizeof(__u32)) {
-				igmpv3_sendpack(skb);
-				skb = NULL; /* add_grhead will get a new one */
-			}
-			skb = add_grhead(skb, pmc, type, &pgr);
-		}
-		return skb;
-	}
+	if (!*psf_list)
+		goto empty_source;
+
 	pih = skb ? (struct igmpv3_report *)skb->h.igmph : NULL;
 
 	/* EX and TO_EX get a fresh packet, if needed */
@@ -426,7 +425,6 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 		}
 	}
 	first = 1;
-	scount = 0;
 	psf_prev = NULL;
 	for (psf=*psf_list; psf; psf=psf_next) {
 		u32 *psrc;
@@ -460,7 +458,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 		}
 		psrc = (u32 *)skb_put(skb, sizeof(u32));
 		*psrc = psf->sf_inaddr;
-		scount++;
+		scount++; stotal++;
 		if ((type == IGMPV3_ALLOW_NEW_SOURCES ||
 		     type == IGMPV3_BLOCK_OLD_SOURCES) && psf->sf_crcount) {
 			psf->sf_crcount--;
@@ -474,6 +472,21 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 			}
 		}
 		psf_prev = psf;
+	}
+
+empty_source:
+	if (!stotal) {
+		if (type == IGMPV3_ALLOW_NEW_SOURCES ||
+		    type == IGMPV3_BLOCK_OLD_SOURCES)
+			return skb;
+		if (pmc->crcount || isquery) {
+			/* make sure we have room for group header */
+			if (skb && AVAILABLE(skb)<sizeof(struct igmpv3_grec)) {
+				igmpv3_sendpack(skb);
+				skb = NULL; /* add_grhead will get a new one */
+			}
+			skb = add_grhead(skb, pmc, type, &pgr);
+		}
 	}
 	if (pgr)
 		pgr->grec_nsrcs = htons(scount);
@@ -557,11 +570,11 @@ static void igmpv3_send_cr(struct in_device *in_dev)
 			skb = add_grec(skb, pmc, dtype, 1, 1);
 		}
 		if (pmc->crcount) {
-			pmc->crcount--;
 			if (pmc->sfmode == MCAST_EXCLUDE) {
 				type = IGMPV3_CHANGE_TO_INCLUDE;
 				skb = add_grec(skb, pmc, type, 1, 0);
 			}
+			pmc->crcount--;
 			if (pmc->crcount == 0) {
 				igmpv3_clear_zeros(&pmc->tomb);
 				igmpv3_clear_zeros(&pmc->sources);
@@ -594,12 +607,12 @@ static void igmpv3_send_cr(struct in_device *in_dev)
 
 		/* filter mode changes */
 		if (pmc->crcount) {
-			pmc->crcount--;
 			if (pmc->sfmode == MCAST_EXCLUDE)
 				type = IGMPV3_CHANGE_TO_EXCLUDE;
 			else
 				type = IGMPV3_CHANGE_TO_INCLUDE;
 			skb = add_grec(skb, pmc, type, 0, 0);
+			pmc->crcount--;
 		}
 		spin_unlock_bh(&pmc->lock);
 	}
@@ -735,11 +748,43 @@ static void igmp_timer_expire(unsigned long data)
 	ip_ma_put(im);
 }
 
-static void igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
+/* mark EXCLUDE-mode sources */
+static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
 {
 	struct ip_sf_list *psf;
 	int i, scount;
 
+	scount = 0;
+	for (psf=pmc->sources; psf; psf=psf->sf_next) {
+		if (scount == nsrcs)
+			break;
+		for (i=0; i<nsrcs; i++) {
+			/* skip inactive filters */
+			if (pmc->sfcount[MCAST_INCLUDE] ||
+			    pmc->sfcount[MCAST_EXCLUDE] !=
+			    psf->sf_count[MCAST_EXCLUDE])
+				continue;
+			if (srcs[i] == psf->sf_inaddr) {
+				scount++;
+				break;
+			}
+		}
+	}
+	pmc->gsquery = 0;
+	if (scount == nsrcs)	/* all sources excluded */
+		return 0;
+	return 1;
+}
+
+static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
+{
+	struct ip_sf_list *psf;
+	int i, scount;
+
+	if (pmc->sfmode == MCAST_EXCLUDE)
+		return igmp_xmarksources(pmc, nsrcs, srcs);
+
+	/* mark INCLUDE-mode sources */
 	scount = 0;
 	for (psf=pmc->sources; psf; psf=psf->sf_next) {
 		if (scount == nsrcs)
@@ -751,6 +796,12 @@ static void igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
 				break;
 			}
 	}
+	if (!scount) {
+		pmc->gsquery = 0;
+		return 0;
+	}
+	pmc->gsquery = 1;
+	return 1;
 }
 
 static void igmp_heard_report(struct in_device *in_dev, u32 group)
@@ -845,6 +896,8 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	 */
 	read_lock(&in_dev->mc_list_lock);
 	for (im=in_dev->mc_list; im!=NULL; im=im->next) {
+		int changed;
+
 		if (group && group != im->multiaddr)
 			continue;
 		if (im->multiaddr == IGMP_ALL_HOSTS)
@@ -854,10 +907,11 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 			im->gsquery = im->gsquery && mark;
 		else
 			im->gsquery = mark;
-		if (im->gsquery)
-			igmp_marksources(im, ntohs(ih3->nsrcs), ih3->srcs);
+		changed = !im->gsquery ||
+		    	igmp_marksources(im, ntohs(ih3->nsrcs), ih3->srcs);
 		spin_unlock_bh(&im->lock);
-		igmp_mod_timer(im, max_delay);
+		if (changed)
+			igmp_mod_timer(im, max_delay);
 	}
 	read_unlock(&in_dev->mc_list_lock);
 }
@@ -1510,7 +1564,7 @@ static void sf_markstate(struct ip_mc_list *pmc)
 
 static int sf_setstate(struct ip_mc_list *pmc)
 {
-	struct ip_sf_list *psf;
+	struct ip_sf_list *psf, *dpsf;
 	int mca_xcount = pmc->sfcount[MCAST_EXCLUDE];
 	int qrv = pmc->interface->mr_qrv;
 	int new_in, rv;
@@ -1522,8 +1576,46 @@ static int sf_setstate(struct ip_mc_list *pmc)
 				!psf->sf_count[MCAST_INCLUDE];
 		} else
 			new_in = psf->sf_count[MCAST_INCLUDE] != 0;
-		if (new_in != psf->sf_oldin) {
-			psf->sf_crcount = qrv;
+		if (new_in) {
+			if (!psf->sf_oldin) {
+				struct ip_sf_list *prev = 0;
+
+				for (dpsf=pmc->tomb; dpsf; dpsf=dpsf->sf_next) {
+					if (dpsf->sf_inaddr == psf->sf_inaddr)
+						break;
+					prev = dpsf;
+				}
+				if (dpsf) {
+					if (prev)
+						prev->sf_next = dpsf->sf_next;
+					else
+						pmc->tomb = dpsf->sf_next;
+					kfree(dpsf);
+				}
+				psf->sf_crcount = qrv;
+				rv++;
+			}
+		} else if (psf->sf_oldin) {
+
+			psf->sf_crcount = 0;
+			/*
+			 * add or update "delete" records if an active filter
+			 * is now inactive
+			 */
+			for (dpsf=pmc->tomb; dpsf; dpsf=dpsf->sf_next)
+				if (dpsf->sf_inaddr == psf->sf_inaddr)
+					break;
+			if (!dpsf) {
+				dpsf = (struct ip_sf_list *)
+					kmalloc(sizeof(*dpsf), GFP_ATOMIC);
+				if (!dpsf)
+					continue;
+				*dpsf = *psf;
+				/* pmc->lock held by callers */
+				dpsf->sf_next = pmc->tomb;
+				pmc->tomb = dpsf;
+			}
+			dpsf->sf_crcount = qrv;
 			rv++;
 		}
 	}

@@ -192,6 +192,14 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 	}
 	if (status)
 		goto out;
+
+	/* Openowner is now set, so sequence id will get bumped.  Now we need
+	 * these checks before we do any creates: */
+	if (nfs4_in_grace() && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
+		return nfserr_grace;
+	if (!nfs4_in_grace() && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
+		return nfserr_no_grace;
+
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 			status = nfserr_inval;
@@ -210,6 +218,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 				goto out;
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
+			open->op_stateowner->so_confirmed = 1;
 			/*
 			 * The CURRENT_FH is already set to the file being
 			 * opened.  (1) set open->op_cinfo, (2) set
@@ -221,6 +230,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 				goto out;
 			break;
              	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
+			open->op_stateowner->so_confirmed = 1;
 			printk("NFSD: unsupported OPEN claim type %d\n",
 				open->op_claim_type);
 			status = nfserr_notsupp;
@@ -584,31 +594,23 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_se
 {
 	int status = nfs_ok;
 
-	if (!current_fh->fh_dentry)
-		return nfserr_nofilehandle;
-
-	status = nfs_ok;
 	if (setattr->sa_iattr.ia_valid & ATTR_SIZE) {
 		nfs4_lock_state();
-		if ((status = nfs4_preprocess_stateid_op(current_fh,
-						&setattr->sa_stateid,
-						CHECK_FH | WR_STATE, NULL))) {
-			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!\n");
-			goto out_unlock;
-		}
+		status = nfs4_preprocess_stateid_op(current_fh,
+			&setattr->sa_stateid, CHECK_FH | WR_STATE, NULL);
 		nfs4_unlock_state();
+		if (status) {
+			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!");
+			return status;
+		}
 	}
 	status = nfs_ok;
 	if (setattr->sa_acl != NULL)
 		status = nfsd4_set_nfs4_acl(rqstp, current_fh, setattr->sa_acl);
 	if (status)
-		goto out;
+		return status;
 	status = nfsd_setattr(rqstp, current_fh, &setattr->sa_iattr,
 				0, (time_t)0);
-out:
-	return status;
-out_unlock:
-	nfs4_unlock_state();
 	return status;
 }
 
@@ -626,14 +628,16 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 		return nfserr_inval;
 
 	nfs4_lock_state();
-	if ((status = nfs4_preprocess_stateid_op(current_fh, stateid,
-					CHECK_FH | WR_STATE, &filp))) {
-		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
-		goto out;
-	}
+	status = nfs4_preprocess_stateid_op(current_fh, stateid,
+					CHECK_FH | WR_STATE, &filp);
 	if (filp)
 		get_file(filp);
 	nfs4_unlock_state();
+
+	if (status) {
+		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
+		return status;
+	}
 
 	write->wr_bytes_written = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
@@ -649,9 +653,6 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 
 	if (status == nfserr_symlink)
 		status = nfserr_inval;
-	return status;
-out:
-	nfs4_unlock_state();
 	return status;
 }
 
@@ -768,6 +769,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
 
+		dprintk("nfsv4 compound op #%d: %d\n", resp->opcnt, op->opnum);
+
 		/*
 		 * The XDR decode routines may have pre-set op->status;
 		 * for example, if there is a miscellaneous XDR error
@@ -792,17 +795,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		/* All operations except RENEW, SETCLIENTID, RESTOREFH
 		* SETCLIENTID_CONFIRM, PUTFH and PUTROOTFH
 		* require a valid current filehandle
-		*
-		* SETATTR NOFILEHANDLE error handled in nfsd4_setattr
-		* due to required returned bitmap argument
 		*/
 		if ((!current_fh->fh_dentry) &&
 		   !((op->opnum == OP_PUTFH) || (op->opnum == OP_PUTROOTFH) ||
 		   (op->opnum == OP_SETCLIENTID) ||
 		   (op->opnum == OP_SETCLIENTID_CONFIRM) ||
 		   (op->opnum == OP_RENEW) || (op->opnum == OP_RESTOREFH) ||
-		   (op->opnum == OP_RELEASE_LOCKOWNER) ||
-		   (op->opnum == OP_SETATTR))) {
+		   (op->opnum == OP_RELEASE_LOCKOWNER))) {
 			op->status = nfserr_nofilehandle;
 			goto encode_op;
 		}

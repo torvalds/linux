@@ -56,10 +56,11 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_ACCESS		(0x0400)
 
 extern int FASTCALL(__user_walk(const char __user *, unsigned, struct nameidata *));
+extern int FASTCALL(__user_walk_fd(int dfd, const char __user *, unsigned, struct nameidata *));
 #define user_path_walk(name,nd) \
-	__user_walk(name, LOOKUP_FOLLOW, nd)
+	__user_walk_fd(AT_FDCWD, name, LOOKUP_FOLLOW, nd)
 #define user_path_walk_link(name,nd) \
-	__user_walk(name, 0, nd)
+	__user_walk_fd(AT_FDCWD, name, 0, nd)
 extern int FASTCALL(path_lookup(const char *, unsigned, struct nameidata *));
 extern int FASTCALL(path_walk(const char *, struct nameidata *));
 extern int FASTCALL(link_path_walk(const char *, struct nameidata *));
@@ -67,7 +68,7 @@ extern void path_release(struct nameidata *);
 extern void path_release_on_umount(struct nameidata *);
 
 extern int __user_path_lookup_open(const char __user *, unsigned lookup_flags, struct nameidata *nd, int open_flags);
-extern int path_lookup_open(const char *, unsigned lookup_flags, struct nameidata *, int open_flags);
+extern int path_lookup_open(int dfd, const char *name, unsigned lookup_flags, struct nameidata *, int open_flags);
 extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *));
 extern struct file *nameidata_to_filp(struct nameidata *nd, int flags);

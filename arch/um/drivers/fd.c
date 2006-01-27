@@ -11,6 +11,7 @@
 #include "user.h"
 #include "user_util.h"
 #include "chan_user.h"
+#include "os.h"
 
 struct fd_chan {
 	int fd;

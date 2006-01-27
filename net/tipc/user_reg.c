@@ -114,10 +114,10 @@ static void reg_callback(struct tipc_user *user_ptr)
 }
 
 /**
- * reg_start - activate TIPC user registry
+ * tipc_reg_start - activate TIPC user registry
  */
 
-int reg_start(void)
+int tipc_reg_start(void)
 {
 	u32 u;
 	int res;
@@ -127,17 +127,17 @@ int reg_start(void)
 
 	for (u = 1; u <= MAX_USERID; u++) {
 		if (users[u].callback)
-			k_signal((Handler)reg_callback,
-				 (unsigned long)&users[u]);
+			tipc_k_signal((Handler)reg_callback,
+				      (unsigned long)&users[u]);
 	}
 	return TIPC_OK;
 }
 
 /**
- * reg_stop - shut down & delete TIPC user registry
+ * tipc_reg_stop - shut down & delete TIPC user registry
  */
 
-void reg_stop(void)
+void tipc_reg_stop(void)
 {               
 	int id;
 
@@ -184,7 +184,7 @@ int tipc_attach(u32 *userid, tipc_mode_event cb, void *usr_handle)
 	atomic_inc(&tipc_user_count);
 	
 	if (cb && (tipc_mode != TIPC_NOT_RUNNING))
-		k_signal((Handler)reg_callback, (unsigned long)user_ptr);
+		tipc_k_signal((Handler)reg_callback, (unsigned long)user_ptr);
 	return TIPC_OK;
 }
 
@@ -223,10 +223,10 @@ void tipc_detach(u32 userid)
 }
 
 /**
- * reg_add_port - register a user's driver port
+ * tipc_reg_add_port - register a user's driver port
  */
 
-int reg_add_port(struct user_port *up_ptr)
+int tipc_reg_add_port(struct user_port *up_ptr)
 {
 	struct tipc_user *user_ptr;
 
@@ -245,10 +245,10 @@ int reg_add_port(struct user_port *up_ptr)
 }
 
 /**
- * reg_remove_port - deregister a user's driver port
+ * tipc_reg_remove_port - deregister a user's driver port
  */
 
-int reg_remove_port(struct user_port *up_ptr)
+int tipc_reg_remove_port(struct user_port *up_ptr)
 {
 	if (up_ptr->user_ref == 0)
 		return TIPC_OK;

@@ -66,7 +66,6 @@ struct poll {
 
 extern int svr4_getcontext (svr4_ucontext_t *, struct pt_regs *);
 extern int svr4_setcontext (svr4_ucontext_t *, struct pt_regs *);
-void _sigpause_common (unsigned int set, struct pt_regs *);
 extern void (*__copy_1page)(void *, const void *);
 extern void __memmove(void *, const void *, __kernel_size_t);
 extern void (*bzero_1page)(void *);
@@ -227,7 +226,6 @@ EXPORT_SYMBOL(kunmap_atomic);
 /* Solaris/SunOS binary compatibility */
 EXPORT_SYMBOL(svr4_setcontext);
 EXPORT_SYMBOL(svr4_getcontext);
-EXPORT_SYMBOL(_sigpause_common);
 
 EXPORT_SYMBOL(dump_thread);
 

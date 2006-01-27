@@ -37,51 +37,17 @@
 asmlinkage int
 sys_sigsuspend(int history0, int history1, old_sigset_t mask)
 {
-	struct pt_regs * regs = (struct pt_regs *) &history0;
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs->eax = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset))
-			return -EINTR;
-	}
-}
-
-asmlinkage int
-sys_rt_sigsuspend(struct pt_regs regs)
-{
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (regs.ecx != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, (sigset_t __user *)regs.ebx, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	regs.eax = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&regs, &saveset))
-			return -EINTR;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int 
@@ -433,11 +399,11 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		current->comm, current->pid, frame, regs->eip, frame->pretcode);
 #endif
 
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
-	return 0;
+	return -EFAULT;
 }
 
 static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -527,11 +493,11 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->eip, frame->pretcode);
 #endif
 
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
-	return 0;
+	return -EFAULT;
 }
 
 /*
@@ -581,7 +547,7 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 
-	if (ret) {
+	if (ret == 0) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 		if (!(ka->sa.sa_flags & SA_NODEFER))
@@ -598,11 +564,12 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
+static void fastcall do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
+	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -613,12 +580,14 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
  	 * CS suffices.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
@@ -628,38 +597,55 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 		 * have been cleared if the watchpoint triggered
 		 * inside the kernel.
 		 */
-		if (unlikely(current->thread.debugreg[7])) {
+		if (unlikely(current->thread.debugreg[7]))
 			set_debugreg(current->thread.debugreg[7], 7);
-		}
 
 		/* Whee!  Actually deliver the signal.  */
-		return handle_signal(signr, &info, &ka, oldset, regs);
+		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
+			/* a signal was successfully delivered; the saved
+			 * sigmask will have been stored in the signal frame,
+			 * and will be restored by sigreturn, so we can simply
+			 * clear the TIF_RESTORE_SIGMASK flag */
+			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+				clear_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+
+		return;
 	}
 
- no_signal:
+no_signal:
 	/* Did we come from a system call? */
 	if (regs->orig_eax >= 0) {
 		/* Restart the system call - no handlers present */
-		if (regs->eax == -ERESTARTNOHAND ||
-		    regs->eax == -ERESTARTSYS ||
-		    regs->eax == -ERESTARTNOINTR) {
+		switch (regs->eax) {
+		case -ERESTARTNOHAND:
+		case -ERESTARTSYS:
+		case -ERESTARTNOINTR:
 			regs->eax = regs->orig_eax;
 			regs->eip -= 2;
-		}
-		if (regs->eax == -ERESTART_RESTARTBLOCK){
+			break;
+
+		case -ERESTART_RESTARTBLOCK:
 			regs->eax = __NR_restart_syscall;
 			regs->eip -= 2;
+			break;
 		}
 	}
-	return 0;
+
+	/* if there's no signal to deliver, we just put the saved sigmask
+	 * back */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }
 
 /*
  * notification of userspace execution resumption
- * - triggered by current->work.notify_resume
+ * - triggered by the TIF_WORK_MASK flags
  */
 __attribute__((regparm(3)))
-void do_notify_resume(struct pt_regs *regs, sigset_t *oldset,
+void do_notify_resume(struct pt_regs *regs, void *_unused,
 		      __u32 thread_info_flags)
 {
 	/* Pending single-step? */
@@ -667,9 +653,10 @@ void do_notify_resume(struct pt_regs *regs, sigset_t *oldset,
 		regs->eflags |= TF_MASK;
 		clear_thread_flag(TIF_SINGLESTEP);
 	}
+
 	/* deal with pending signal delivery */
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs,oldset);
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+		do_signal(regs);
 	
 	clear_thread_flag(TIF_IRET);
 }

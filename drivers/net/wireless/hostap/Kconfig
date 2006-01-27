@@ -26,11 +26,25 @@ config HOSTAP_FIRMWARE
 	depends on HOSTAP
 	---help---
 	Configure Host AP driver to include support for firmware image
-	download. Current version supports only downloading to volatile, i.e.,
-	RAM memory. Flash upgrade is not yet supported.
+	download. This option by itself only enables downloading to the
+	volatile memory, i.e. the card RAM. This option is required to
+	support cards that don't have firmware in flash, such as D-Link
+	DWL-520 rev E and D-Link DWL-650 rev P.
 
-	Firmware image downloading needs user space tool, prism2_srec. It is
-	available from http://hostap.epitest.fi/.
+	Firmware image downloading needs a user space tool, prism2_srec.
+	It is available from http://hostap.epitest.fi/.
+
+config HOSTAP_FIRMWARE_NVRAM
+	bool "Support for non-volatile firmware download"
+	depends on HOSTAP_FIRMWARE
+	---help---
+	Allow Host AP driver to write firmware images to the non-volatile
+	card memory, i.e. flash memory that survives power cycling.
+	Enable this option if you want to be able to change card firmware
+	permanently.
+
+	Firmware image downloading needs a user space tool, prism2_srec.
+	It is available from http://hostap.epitest.fi/.
 
 config HOSTAP_PLX
 	tristate "Host AP driver for Prism2/2.5/3 in PLX9052 PCI adaptors"

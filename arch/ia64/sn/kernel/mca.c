@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/mutex.h>
 #include <asm/mca.h>
 #include <asm/sal.h>
 #include <asm/sn/sn_sal.h>
@@ -27,7 +28,7 @@ void sn_init_cpei_timer(void);
 /* Printing oemdata from mca uses data that is not passed through SAL, it is
  * global.  Only one user at a time.
  */
-static DECLARE_MUTEX(sn_oemdata_mutex);
+static DEFINE_MUTEX(sn_oemdata_mutex);
 static u8 **sn_oemdata;
 static u64 *sn_oemdata_size, sn_oemdata_bufsize;
 
@@ -89,7 +90,7 @@ static int
 sn_platform_plat_specific_err_print(const u8 * sect_header, u8 ** oemdata,
 				    u64 * oemdata_size)
 {
-	down(&sn_oemdata_mutex);
+	mutex_lock(&sn_oemdata_mutex);
 	sn_oemdata = oemdata;
 	sn_oemdata_size = oemdata_size;
 	sn_oemdata_bufsize = 0;
@@ -107,7 +108,7 @@ sn_platform_plat_specific_err_print(const u8 * sect_header, u8 ** oemdata,
 		*sn_oemdata_size = 0;
 		ia64_sn_plat_specific_err_print(print_hook, (char *)sect_header);
 	}
-	up(&sn_oemdata_mutex);
+	mutex_unlock(&sn_oemdata_mutex);
 	return 0;
 }
 

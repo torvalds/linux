@@ -122,6 +122,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_RESTOREALL		12	/* Restore all regs (implies NOERROR) */
 #define TIF_SAVE_NVGPRS		13	/* Save r14-r31 in signal frame */
 #define TIF_NOERROR		14	/* Force successful syscall return */
+#define TIF_RESTORE_SIGMASK	15	/* Restore signal mask in do_signal */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -138,10 +139,12 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_RESTOREALL		(1<<TIF_RESTOREALL)
 #define _TIF_SAVE_NVGPRS	(1<<TIF_SAVE_NVGPRS)
 #define _TIF_NOERROR		(1<<TIF_NOERROR)
+#define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
 #define _TIF_SYSCALL_T_OR_A	(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP)
 
 #define _TIF_USER_WORK_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \
-				 _TIF_NEED_RESCHED | _TIF_RESTOREALL)
+				 _TIF_NEED_RESCHED | _TIF_RESTOREALL | \
+				 _TIF_RESTORE_SIGMASK)
 #define _TIF_PERSYSCALL_MASK	(_TIF_RESTOREALL|_TIF_NOERROR|_TIF_SAVE_NVGPRS)
 
 #endif /* __KERNEL__ */

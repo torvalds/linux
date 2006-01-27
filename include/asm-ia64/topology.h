@@ -18,6 +18,10 @@
 #include <asm/smp.h>
 
 #ifdef CONFIG_NUMA
+
+/* Nodes w/o CPUs are preferred for memory allocations, see build_zonelists */
+#define PENALTY_FOR_NODE_WITH_CPUS 255
+
 /*
  * Returns the number of the node containing CPU 'cpu'
  */

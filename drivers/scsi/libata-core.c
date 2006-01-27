@@ -612,6 +612,10 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	if (dev->flags & ATA_DFLAG_PIO) {
 		tf->protocol = ATA_PROT_PIO;
 		index = dev->multi_count ? 0 : 8;
+	} else if (lba48 && (qc->ap->flags & ATA_FLAG_PIO_LBA48)) {
+		/* Unable to use DMA due to host limitation */
+		tf->protocol = ATA_PROT_PIO;
+		index = dev->multi_count ? 0 : 4;
 	} else {
 		tf->protocol = ATA_PROT_DMA;
 		index = 16;
@@ -1462,7 +1466,7 @@ void ata_dev_config(struct ata_port *ap, unsigned int i)
 		ap->udma_mask &= ATA_UDMA5;
 		ap->host->max_sectors = ATA_MAX_SECTORS;
 		ap->host->hostt->max_sectors = ATA_MAX_SECTORS;
-		ap->device->flags |= ATA_DFLAG_LOCK_SECTORS;
+		ap->device[i].flags |= ATA_DFLAG_LOCK_SECTORS;
 	}
 
 	if (ap->ops->dev_config)
@@ -3103,10 +3107,21 @@ static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
 static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
 			  unsigned int buflen, int do_write)
 {
-	if (ap->flags & ATA_FLAG_MMIO)
-		ata_mmio_data_xfer(ap, buf, buflen, do_write);
-	else
-		ata_pio_data_xfer(ap, buf, buflen, do_write);
+	/* Make the crap hardware pay the costs not the good stuff */
+	if (unlikely(ap->flags & ATA_FLAG_IRQ_MASK)) {
+		unsigned long flags;
+		local_irq_save(flags);
+		if (ap->flags & ATA_FLAG_MMIO)
+			ata_mmio_data_xfer(ap, buf, buflen, do_write);
+		else
+			ata_pio_data_xfer(ap, buf, buflen, do_write);
+		local_irq_restore(flags);
+	} else {
+		if (ap->flags & ATA_FLAG_MMIO)
+			ata_mmio_data_xfer(ap, buf, buflen, do_write);
+		else
+			ata_pio_data_xfer(ap, buf, buflen, do_write);
+	}
 }
 
 /**

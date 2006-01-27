@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -29,17 +29,14 @@
 #include "init.h"
 #include "ptrace_user.h"
 #include "uml-config.h"
-
-void stop(void)
-{
-	while(1) sleep(1000000);
-}
+#include "os.h"
+#include "longjmp.h"
 
 void stack_protections(unsigned long address)
 {
 	int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
 
-        if(mprotect((void *) address, page_size(), prot) < 0)
+	if(mprotect((void *) address, page_size(), prot) < 0)
 		panic("protecting stack failed, errno = %d", errno);
 }
 
@@ -59,49 +56,6 @@ void task_protections(unsigned long address)
 		panic("protecting stack failed, errno = %d", errno);
 }
 
-int wait_for_stop(int pid, int sig, int cont_type, void *relay)
-{
-	sigset_t *relay_signals = relay;
-	int status, ret;
-
-	while(1){
-		CATCH_EINTR(ret = waitpid(pid, &status, WUNTRACED));
-		if((ret < 0) ||
-		   !WIFSTOPPED(status) || (WSTOPSIG(status) != sig)){
-			if(ret < 0){
-				printk("wait failed, errno = %d\n",
-				       errno);
-			}
-			else if(WIFEXITED(status)) 
-				printk("process %d exited with status %d\n",
-				       pid, WEXITSTATUS(status));
-			else if(WIFSIGNALED(status))
-				printk("process %d exited with signal %d\n",
-				       pid, WTERMSIG(status));
-			else if((WSTOPSIG(status) == SIGVTALRM) ||
-				(WSTOPSIG(status) == SIGALRM) ||
-				(WSTOPSIG(status) == SIGIO) ||
-				(WSTOPSIG(status) == SIGPROF) ||
-				(WSTOPSIG(status) == SIGCHLD) ||
-				(WSTOPSIG(status) == SIGWINCH) ||
-				(WSTOPSIG(status) == SIGINT)){
-				ptrace(cont_type, pid, 0, WSTOPSIG(status));
-				continue;
-			}
-			else if((relay_signals != NULL) &&
-				sigismember(relay_signals, WSTOPSIG(status))){
-				ptrace(cont_type, pid, 0, WSTOPSIG(status));
-				continue;
-			}
-			else printk("process %d stopped with signal %d\n",
-				    pid, WSTOPSIG(status));
-			panic("wait_for_stop failed to wait for %d to stop "
-			      "with %d\n", pid, sig);
-		}
-		return(status);
-	}
-}
-
 int raw(int fd)
 {
 	struct termios tt;
@@ -113,7 +67,7 @@ int raw(int fd)
 
 	cfmakeraw(&tt);
 
- 	CATCH_EINTR(err = tcsetattr(fd, TCSADRAIN, &tt));
+	CATCH_EINTR(err = tcsetattr(fd, TCSADRAIN, &tt));
 	if(err < 0)
 		return -errno;
 
@@ -149,7 +103,7 @@ void setup_hostinfo(void)
 
 int setjmp_wrapper(void (*proc)(void *, void *), ...)
 {
-        va_list args;
+	va_list args;
 	sigjmp_buf buf;
 	int n;
 
@@ -161,14 +115,3 @@ int setjmp_wrapper(void (*proc)(void *, void *), ...)
 	va_end(args);
 	return(n);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

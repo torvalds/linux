@@ -35,6 +35,8 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/etherdevice.h>
+#include <linux/in.h>
+#include <linux/ip.h>
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -55,13 +57,15 @@
 /* Constants */
 #define VLAN_HLEN		4
 #define FCS_LEN			4
-#define WRAP			NET_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
+#define DMA_ALIGN		8	/* hw requires 8-byte alignment */
+#define HW_IP_ALIGN		2	/* hw aligns IP header */
+#define WRAP			HW_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
 #define RX_SKB_SIZE		((dev->mtu + WRAP + 7) & ~0x7)
 
-#define INT_CAUSE_UNMASK_ALL		0x0007ffff
-#define INT_CAUSE_UNMASK_ALL_EXT	0x0011ffff
-#define INT_CAUSE_MASK_ALL		0x00000000
-#define INT_CAUSE_MASK_ALL_EXT		0x00000000
+#define INT_UNMASK_ALL			0x0007ffff
+#define INT_UNMASK_ALL_EXT		0x0011ffff
+#define INT_MASK_ALL			0x00000000
+#define INT_MASK_ALL_EXT		0x00000000
 #define INT_CAUSE_CHECK_BITS		INT_CAUSE_UNMASK_ALL
 #define INT_CAUSE_CHECK_BITS_EXT	INT_CAUSE_UNMASK_ALL_EXT
 
@@ -78,8 +82,9 @@
 static int eth_port_link_is_up(unsigned int eth_port_num);
 static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
-static int mv643xx_eth_real_open(struct net_device *);
-static int mv643xx_eth_real_stop(struct net_device *);
+static void eth_port_set_multicast_list(struct net_device *);
+static int mv643xx_eth_open(struct net_device *);
+static int mv643xx_eth_stop(struct net_device *);
 static int mv643xx_eth_change_mtu(struct net_device *, int);
 static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *);
 static void eth_port_init_mac_tables(unsigned int eth_port_num);
@@ -124,15 +129,8 @@ static inline void mv_write(int offset, u32 data)
  */
 static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-
-	if ((new_mtu > 9500) || (new_mtu < 64)) {
-		spin_unlock_irqrestore(&mp->lock, flags);
+	if ((new_mtu > 9500) || (new_mtu < 64))
 		return -EINVAL;
-	}
 
 	dev->mtu = new_mtu;
 	/*
@@ -142,17 +140,13 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 	 * to memory is full, which might fail the open function.
 	 */
 	if (netif_running(dev)) {
-		if (mv643xx_eth_real_stop(dev))
-			printk(KERN_ERR
-				"%s: Fatal error on stopping device\n",
-				dev->name);
-		if (mv643xx_eth_real_open(dev))
+		mv643xx_eth_stop(dev);
+		if (mv643xx_eth_open(dev))
 			printk(KERN_ERR
 				"%s: Fatal error on opening device\n",
 				dev->name);
 	}
 
-	spin_unlock_irqrestore(&mp->lock, flags);
 	return 0;
 }
 
@@ -170,15 +164,19 @@ static void mv643xx_eth_rx_task(void *data)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	struct pkt_info pkt_info;
 	struct sk_buff *skb;
+	int unaligned;
 
 	if (test_and_set_bit(0, &mp->rx_task_busy))
 		panic("%s: Error in test_set_bit / clear_bit", dev->name);
 
 	while (mp->rx_ring_skbs < (mp->rx_ring_size - 5)) {
-		skb = dev_alloc_skb(RX_SKB_SIZE);
+		skb = dev_alloc_skb(RX_SKB_SIZE + DMA_ALIGN);
 		if (!skb)
 			break;
 		mp->rx_ring_skbs++;
+		unaligned = (u32)skb->data & (DMA_ALIGN - 1);
+		if (unaligned)
+			skb_reserve(skb, DMA_ALIGN - unaligned);
 		pkt_info.cmd_sts = ETH_RX_ENABLE_INTERRUPT;
 		pkt_info.byte_cnt = RX_SKB_SIZE;
 		pkt_info.buf_ptr = dma_map_single(NULL, skb->data, RX_SKB_SIZE,
@@ -189,7 +187,7 @@ static void mv643xx_eth_rx_task(void *data)
 				"%s: Error allocating RX Ring\n", dev->name);
 			break;
 		}
-		skb_reserve(skb, 2);
+		skb_reserve(skb, HW_IP_ALIGN);
 	}
 	clear_bit(0, &mp->rx_task_busy);
 	/*
@@ -207,7 +205,7 @@ static void mv643xx_eth_rx_task(void *data)
 	else {
 		/* Return interrupts */
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(mp->port_num),
-							INT_CAUSE_UNMASK_ALL);
+							INT_UNMASK_ALL);
 	}
 #endif
 }
@@ -267,6 +265,8 @@ static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 		mp->port_config &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
 
 	mv_write(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num), mp->port_config);
+
+	eth_port_set_multicast_list(dev);
 }
 
 /*
@@ -342,8 +342,6 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 	if (!(eth_int_cause_ext & (BIT0 | BIT8)))
 		return released;
 
-	spin_lock(&mp->lock);
-
 	/* Check only queue 0 */
 	while (eth_tx_return_desc(mp, &pkt_info) == ETH_OK) {
 		if (pkt_info.cmd_sts & BIT0) {
@@ -351,30 +349,20 @@ static int mv643xx_eth_free_tx_queue(struct net_device *dev,
 			stats->tx_errors++;
 		}
 
-		/*
-		 * If return_info is different than 0, release the skb.
-		 * The case where return_info is not 0 is only in case
-		 * when transmitted a scatter/gather packet, where only
-		 * last skb releases the whole chain.
-		 */
-		if (pkt_info.return_info) {
-			if (skb_shinfo(pkt_info.return_info)->nr_frags)
-				dma_unmap_page(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
-			else
-				dma_unmap_single(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
+		if (pkt_info.cmd_sts & ETH_TX_FIRST_DESC)
+			dma_unmap_single(NULL, pkt_info.buf_ptr,
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
+		else
+			dma_unmap_page(NULL, pkt_info.buf_ptr,
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
 
+		if (pkt_info.return_info) {
 			dev_kfree_skb_irq(pkt_info.return_info);
 			released = 0;
-		} else
-			dma_unmap_page(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt, DMA_TO_DEVICE);
+		}
 	}
-
-	spin_unlock(&mp->lock);
 
 	return released;
 }
@@ -482,12 +470,12 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 
 	/* Read interrupt cause registers */
 	eth_int_cause = mv_read(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num)) &
-						INT_CAUSE_UNMASK_ALL;
+						INT_UNMASK_ALL;
 
 	if (eth_int_cause & BIT1)
 		eth_int_cause_ext = mv_read(
 			MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
-						INT_CAUSE_UNMASK_ALL_EXT;
+						INT_UNMASK_ALL_EXT;
 
 #ifdef MV643XX_NAPI
 	if (!(eth_int_cause & 0x0007fffd)) {
@@ -512,9 +500,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 	} else {
 		if (netif_rx_schedule_prep(dev)) {
 			/* Mask all the interrupts */
-			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
-			mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG
-								(port_num), 0);
+			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+								INT_MASK_ALL);
+			/* wait for previous write to complete */
+			mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 			__netif_rx_schedule(dev);
 		}
 #else
@@ -527,9 +516,12 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		 * with skb's.
 		 */
 #ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
-		/* Unmask all interrupts on ethernet port */
+		/* Mask all interrupts on ethernet port */
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-							INT_CAUSE_MASK_ALL);
+							INT_MASK_ALL);
+		/* wait for previous write to take effect */
+		mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
 		queue_task(&mp->rx_task, &tq_immediate);
 		mark_bh(IMMEDIATE_BH);
 #else
@@ -636,56 +628,6 @@ static unsigned int eth_port_set_tx_coal(unsigned int eth_port_num,
 }
 
 /*
- * mv643xx_eth_open
- *
- * This function is called when openning the network device. The function
- * should initialize all the hardware, initialize cyclic Rx/Tx
- * descriptors chain and buffers and allocate an IRQ to the network
- * device.
- *
- * Input :	a pointer to the network device structure
- *
- * Output :	zero of success , nonzero if fails.
- */
-
-static int mv643xx_eth_open(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned int port_num = mp->port_num;
-	int err;
-
-	spin_lock_irq(&mp->lock);
-
-	err = request_irq(dev->irq, mv643xx_eth_int_handler,
-			SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
-
-	if (err) {
-		printk(KERN_ERR "Can not assign IRQ number to MV643XX_eth%d\n",
-								port_num);
-		err = -EAGAIN;
-		goto out;
-	}
-
-	if (mv643xx_eth_real_open(dev)) {
-		printk("%s: Error opening interface\n", dev->name);
-		err = -EBUSY;
-		goto out_free;
-	}
-
-	spin_unlock_irq(&mp->lock);
-
-	return 0;
-
-out_free:
-	free_irq(dev->irq, dev);
-
-out:
-	spin_unlock_irq(&mp->lock);
-
-	return err;
-}
-
-/*
  * ether_init_rx_desc_ring - Curve a Rx chain desc list and buffer in memory.
  *
  * DESCRIPTION:
@@ -777,27 +719,36 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
 	mp->port_tx_queue_command |= 1;
 }
 
-/* Helper function for mv643xx_eth_open */
-static int mv643xx_eth_real_open(struct net_device *dev)
+/*
+ * mv643xx_eth_open
+ *
+ * This function is called when openning the network device. The function
+ * should initialize all the hardware, initialize cyclic Rx/Tx
+ * descriptors chain and buffers and allocate an IRQ to the network
+ * device.
+ *
+ * Input :	a pointer to the network device structure
+ *
+ * Output :	zero of success , nonzero if fails.
+ */
+
+static int mv643xx_eth_open(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	unsigned int size;
+	int err;
+
+	err = request_irq(dev->irq, mv643xx_eth_int_handler,
+			SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
+	if (err) {
+		printk(KERN_ERR "Can not assign IRQ number to MV643XX_eth%d\n",
+								port_num);
+		return -EAGAIN;
+	}
 
 	/* Stop RX Queues */
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
-
-	/* Clear the ethernet port interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
-
-	/* Unmask RX buffer and TX end interrupt */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL);
-
-	/* Unmask phy and link status changes interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL_EXT);
 
 	/* Set the MAC Address */
 	memcpy(mp->port_mac_addr, dev->dev_addr, 6);
@@ -818,14 +769,15 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 								GFP_KERNEL);
 	if (!mp->rx_skb) {
 		printk(KERN_ERR "%s: Cannot allocate Rx skb ring\n", dev->name);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_irq;
 	}
 	mp->tx_skb = kmalloc(sizeof(*mp->tx_skb) * mp->tx_ring_size,
 								GFP_KERNEL);
 	if (!mp->tx_skb) {
 		printk(KERN_ERR "%s: Cannot allocate Tx skb ring\n", dev->name);
-		kfree(mp->rx_skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_rx_skb;
 	}
 
 	/* Allocate TX ring */
@@ -845,9 +797,8 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 	if (!mp->p_tx_desc_area) {
 		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
 							dev->name, size);
-		kfree(mp->rx_skb);
-		kfree(mp->tx_skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_tx_skb;
 	}
 	BUG_ON((u32) mp->p_tx_desc_area & 0xf);	/* check 16-byte alignment */
 	memset((void *)mp->p_tx_desc_area, 0, mp->tx_desc_area_size);
@@ -874,13 +825,12 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 		printk(KERN_ERR "%s: Freeing previously allocated TX queues...",
 							dev->name);
 		if (mp->rx_sram_size)
-			iounmap(mp->p_rx_desc_area);
+			iounmap(mp->p_tx_desc_area);
 		else
 			dma_free_coherent(NULL, mp->tx_desc_area_size,
 					mp->p_tx_desc_area, mp->tx_desc_dma);
-		kfree(mp->rx_skb);
-		kfree(mp->tx_skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out_free_tx_skb;
 	}
 	memset((void *)mp->p_rx_desc_area, 0, size);
 
@@ -900,9 +850,26 @@ static int mv643xx_eth_real_open(struct net_device *dev)
 	mp->tx_int_coal =
 		eth_port_set_tx_coal(port_num, 133000000, MV643XX_TX_COAL);
 
-	netif_start_queue(dev);
+	/* Clear any pending ethernet port interrupts */
+	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
+	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 
+	/* Unmask phy and link status changes interrupts */
+	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
+						INT_UNMASK_ALL_EXT);
+
+	/* Unmask RX buffer and TX end interrupt */
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
 	return 0;
+
+out_free_tx_skb:
+	kfree(mp->tx_skb);
+out_free_rx_skb:
+	kfree(mp->rx_skb);
+out_free_irq:
+	free_irq(dev->irq, dev);
+
+	return err;
 }
 
 static void mv643xx_eth_free_tx_rings(struct net_device *dev)
@@ -910,14 +877,17 @@ static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	unsigned int curr;
+	struct sk_buff *skb;
 
 	/* Stop Tx Queues */
 	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
 	/* Free outstanding skb's on TX rings */
 	for (curr = 0; mp->tx_ring_skbs && curr < mp->tx_ring_size; curr++) {
-		if (mp->tx_skb[curr]) {
-			dev_kfree_skb(mp->tx_skb[curr]);
+		skb = mp->tx_skb[curr];
+		if (skb) {
+			mp->tx_ring_skbs -= skb_shinfo(skb)->nr_frags;
+			dev_kfree_skb(skb);
 			mp->tx_ring_skbs--;
 		}
 	}
@@ -973,44 +943,32 @@ static void mv643xx_eth_free_rx_rings(struct net_device *dev)
  * Output :	zero if success , nonzero if fails
  */
 
-/* Helper function for mv643xx_eth_stop */
-
-static int mv643xx_eth_real_stop(struct net_device *dev)
+static int mv643xx_eth_stop(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 
+	/* Mask all interrupts on ethernet port */
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_MASK_ALL);
+	/* wait for previous write to complete */
+	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
+#ifdef MV643XX_NAPI
+	netif_poll_disable(dev);
+#endif
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
+
+	eth_port_reset(mp->port_num);
 
 	mv643xx_eth_free_tx_rings(dev);
 	mv643xx_eth_free_rx_rings(dev);
 
-	eth_port_reset(mp->port_num);
-
-	/* Disable ethernet port interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
-	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
-
-	/* Mask RX buffer and TX end interrupt */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), 0);
-
-	/* Mask phy and link status changes interrupts */
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num), 0);
-
-	return 0;
-}
-
-static int mv643xx_eth_stop(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	spin_lock_irq(&mp->lock);
-
-	mv643xx_eth_real_stop(dev);
+#ifdef MV643XX_NAPI
+	netif_poll_enable(dev);
+#endif
 
 	free_irq(dev->irq, dev);
-	spin_unlock_irq(&mp->lock);
 
 	return 0;
 }
@@ -1022,20 +980,17 @@ static void mv643xx_tx(struct net_device *dev)
 	struct pkt_info pkt_info;
 
 	while (eth_tx_return_desc(mp, &pkt_info) == ETH_OK) {
-		if (pkt_info.return_info) {
-			if (skb_shinfo(pkt_info.return_info)->nr_frags)
-				dma_unmap_page(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
-			else
-				dma_unmap_single(NULL, pkt_info.buf_ptr,
-						pkt_info.byte_cnt,
-						DMA_TO_DEVICE);
-
-			dev_kfree_skb_irq(pkt_info.return_info);
-		} else
+		if (pkt_info.cmd_sts & ETH_TX_FIRST_DESC)
+			dma_unmap_single(NULL, pkt_info.buf_ptr,
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
+		else
 			dma_unmap_page(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt, DMA_TO_DEVICE);
+					pkt_info.byte_cnt,
+					DMA_TO_DEVICE);
+
+		if (pkt_info.return_info)
+			dev_kfree_skb_irq(pkt_info.return_info);
 	}
 
 	if (netif_queue_stopped(dev) &&
@@ -1053,14 +1008,11 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 	struct mv643xx_private *mp = netdev_priv(dev);
 	int done = 1, orig_budget, work_done;
 	unsigned int port_num = mp->port_num;
-	unsigned long flags;
 
 #ifdef MV643XX_TX_FAST_REFILL
 	if (++mp->tx_clean_threshold > 5) {
-		spin_lock_irqsave(&mp->lock, flags);
 		mv643xx_tx(dev);
 		mp->tx_clean_threshold = 0;
-		spin_unlock_irqrestore(&mp->lock, flags);
 	}
 #endif
 
@@ -1078,20 +1030,35 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 	}
 
 	if (done) {
-		spin_lock_irqsave(&mp->lock, flags);
-		__netif_rx_complete(dev);
+		netif_rx_complete(dev);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL);
-		mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-						INT_CAUSE_UNMASK_ALL_EXT);
-		spin_unlock_irqrestore(&mp->lock, flags);
+						INT_UNMASK_ALL);
 	}
 
 	return done ? 0 : 1;
 }
 #endif
+
+/* Hardware can't handle unaligned fragments smaller than 9 bytes.
+ * This helper function detects that case.
+ */
+
+static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
+{
+        unsigned int frag;
+        skb_frag_t *fragp;
+
+        for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
+                fragp = &skb_shinfo(skb)->frags[frag];
+                if (fragp->size <= 8 && fragp->page_offset & 0x7)
+                        return 1;
+
+        }
+        return 0;
+}
+
 
 /*
  * mv643xx_eth_start_xmit
@@ -1136,12 +1103,19 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 
+#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+	if (has_tiny_unaligned_frags(skb)) {
+		if ((skb_linearize(skb, GFP_ATOMIC) != 0)) {
+			stats->tx_dropped++;
+			printk(KERN_DEBUG "%s: failed to linearize tiny "
+					"unaligned fragment\n", dev->name);
+			return 1;
+		}
+	}
+
 	spin_lock_irqsave(&mp->lock, flags);
 
-	/* Update packet info data structure -- DMA owned, first last */
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
 	if (!skb_shinfo(skb)->nr_frags) {
-linear:
 		if (skb->ip_summed != CHECKSUM_HW) {
 			/* Errata BTS #50, IHL must be 5 if no HW checksum */
 			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
@@ -1150,7 +1124,6 @@ linear:
 					   5 << ETH_TX_IHL_SHIFT;
 			pkt_info.l4i_chk = 0;
 		} else {
-
 			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
 					   ETH_TX_FIRST_DESC |
 					   ETH_TX_LAST_DESC |
@@ -1158,14 +1131,16 @@ linear:
 					   ETH_GEN_IP_V_4_CHECKSUM |
 					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
 			/* CPU already calculated pseudo header checksum. */
-			if (skb->nh.iph->protocol == IPPROTO_UDP) {
+			if ((skb->protocol == ETH_P_IP) &&
+			    (skb->nh.iph->protocol == IPPROTO_UDP) ) {
 				pkt_info.cmd_sts |= ETH_UDP_FRAME;
 				pkt_info.l4i_chk = skb->h.uh->check;
-			} else if (skb->nh.iph->protocol == IPPROTO_TCP)
+			} else if ((skb->protocol == ETH_P_IP) &&
+				   (skb->nh.iph->protocol == IPPROTO_TCP))
 				pkt_info.l4i_chk = skb->h.th->check;
 			else {
 				printk(KERN_ERR
-					"%s: chksum proto != TCP or UDP\n",
+					"%s: chksum proto != IPv4 TCP or UDP\n",
 					dev->name);
 				spin_unlock_irqrestore(&mp->lock, flags);
 				return 1;
@@ -1182,26 +1157,6 @@ linear:
 		stats->tx_bytes += pkt_info.byte_cnt;
 	} else {
 		unsigned int frag;
-
-		/* Since hardware can't handle unaligned fragments smaller
-		 * than 9 bytes, if we find any, we linearize the skb
-		 * and start again.  When I've seen it, it's always been
-		 * the first frag (probably near the end of the page),
-		 * but we check all frags to be safe.
-		 */
-		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-			skb_frag_t *fragp;
-
-			fragp = &skb_shinfo(skb)->frags[frag];
-			if (fragp->size <= 8 && fragp->page_offset & 0x7) {
-				skb_linearize(skb, GFP_ATOMIC);
-				printk(KERN_DEBUG "%s: unaligned tiny fragment"
-						"%d of %d, fixed\n",
-						dev->name, frag,
-						skb_shinfo(skb)->nr_frags);
-				goto linear;
-			}
-		}
 
 		/* first frag which is skb header */
 		pkt_info.byte_cnt = skb_headlen(skb);
@@ -1221,14 +1176,16 @@ linear:
 					   ETH_GEN_IP_V_4_CHECKSUM |
 					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
 			/* CPU already calculated pseudo header checksum. */
-			if (skb->nh.iph->protocol == IPPROTO_UDP) {
+			if ((skb->protocol == ETH_P_IP) &&
+			    (skb->nh.iph->protocol == IPPROTO_UDP)) {
 				pkt_info.cmd_sts |= ETH_UDP_FRAME;
 				pkt_info.l4i_chk = skb->h.uh->check;
-			} else if (skb->nh.iph->protocol == IPPROTO_TCP)
+			} else if ((skb->protocol == ETH_P_IP) &&
+				   (skb->nh.iph->protocol == IPPROTO_TCP))
 				pkt_info.l4i_chk = skb->h.th->check;
 			else {
 				printk(KERN_ERR
-					"%s: chksum proto != TCP or UDP\n",
+					"%s: chksum proto != IPv4 TCP or UDP\n",
 					dev->name);
 				spin_unlock_irqrestore(&mp->lock, flags);
 				return 1;
@@ -1288,6 +1245,8 @@ linear:
 		}
 	}
 #else
+	spin_lock_irqsave(&mp->lock, flags);
+
 	pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT | ETH_TX_FIRST_DESC |
 							ETH_TX_LAST_DESC;
 	pkt_info.l4i_chk = 0;
@@ -1340,39 +1299,18 @@ static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static inline void mv643xx_enable_irq(struct mv643xx_private *mp)
-{
-	int port_num = mp->port_num;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-					INT_CAUSE_UNMASK_ALL);
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-					INT_CAUSE_UNMASK_ALL_EXT);
-	spin_unlock_irqrestore(&mp->lock, flags);
-}
-
-static inline void mv643xx_disable_irq(struct mv643xx_private *mp)
-{
-	int port_num = mp->port_num;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mp->lock, flags);
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-					INT_CAUSE_MASK_ALL);
-	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-					INT_CAUSE_MASK_ALL_EXT);
-	spin_unlock_irqrestore(&mp->lock, flags);
-}
-
 static void mv643xx_netpoll(struct net_device *netdev)
 {
 	struct mv643xx_private *mp = netdev_priv(netdev);
+	int port_num = mp->port_num;
 
-	mv643xx_disable_irq(mp);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_MASK_ALL);
+	/* wait for previous write to complete */
+	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
 	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
-	mv643xx_enable_irq(mp);
+
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
 }
 #endif
 
@@ -1441,7 +1379,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	 * Zero copy can only work if we use Discovery II memory. Else, we will
 	 * have to map the buffers to ISA memory which is only 16 MB
 	 */
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_HW_CSUM;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
 #endif
 #endif
 
@@ -2054,6 +1992,196 @@ static int eth_port_uc_addr(unsigned int eth_port_num, unsigned char uc_nibble,
 }
 
 /*
+ * The entries in each table are indexed by a hash of a packet's MAC
+ * address.  One bit in each entry determines whether the packet is
+ * accepted.  There are 4 entries (each 8 bits wide) in each register
+ * of the table.  The bits in each entry are defined as follows:
+ *	0	Accept=1, Drop=0
+ *	3-1	Queue			(ETH_Q0=0)
+ *	7-4	Reserved = 0;
+ */
+static void eth_port_set_filter_table_entry(int table, unsigned char entry)
+{
+	unsigned int table_reg;
+	unsigned int tbl_offset;
+	unsigned int reg_offset;
+
+	tbl_offset = (entry / 4) * 4;	/* Register offset of DA table entry */
+	reg_offset = entry % 4;		/* Entry offset within the register */
+
+	/* Set "accepts frame bit" at specified table entry */
+	table_reg = mv_read(table + tbl_offset);
+	table_reg |= 0x01 << (8 * reg_offset);
+	mv_write(table + tbl_offset, table_reg);
+}
+
+/*
+ * eth_port_mc_addr - Multicast address settings.
+ *
+ * The MV device supports multicast using two tables:
+ * 1) Special Multicast Table for MAC addresses of the form
+ *    0x01-00-5E-00-00-XX (where XX is between 0x00 and 0x_FF).
+ *    The MAC DA[7:0] bits are used as a pointer to the Special Multicast
+ *    Table entries in the DA-Filter table.
+ * 2) Other Multicast Table for multicast of another type. A CRC-8bit
+ *    is used as an index to the Other Multicast Table entries in the
+ *    DA-Filter table.  This function calculates the CRC-8bit value.
+ * In either case, eth_port_set_filter_table_entry() is then called
+ * to set to set the actual table entry.
+ */
+static void eth_port_mc_addr(unsigned int eth_port_num, unsigned char *p_addr)
+{
+	unsigned int mac_h;
+	unsigned int mac_l;
+	unsigned char crc_result = 0;
+	int table;
+	int mac_array[48];
+	int crc[8];
+	int i;
+
+	if ((p_addr[0] == 0x01) && (p_addr[1] == 0x00) &&
+	    (p_addr[2] == 0x5E) && (p_addr[3] == 0x00) && (p_addr[4] == 0x00)) {
+		table = MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+					(eth_port_num);
+		eth_port_set_filter_table_entry(table, p_addr[5]);
+		return;
+	}
+
+	/* Calculate CRC-8 out of the given address */
+	mac_h = (p_addr[0] << 8) | (p_addr[1]);
+	mac_l = (p_addr[2] << 24) | (p_addr[3] << 16) |
+			(p_addr[4] << 8) | (p_addr[5] << 0);
+
+	for (i = 0; i < 32; i++)
+		mac_array[i] = (mac_l >> i) & 0x1;
+	for (i = 32; i < 48; i++)
+		mac_array[i] = (mac_h >> (i - 32)) & 0x1;
+
+	crc[0] = mac_array[45] ^ mac_array[43] ^ mac_array[40] ^ mac_array[39] ^
+		 mac_array[35] ^ mac_array[34] ^ mac_array[31] ^ mac_array[30] ^
+		 mac_array[28] ^ mac_array[23] ^ mac_array[21] ^ mac_array[19] ^
+		 mac_array[18] ^ mac_array[16] ^ mac_array[14] ^ mac_array[12] ^
+		 mac_array[8]  ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[0];
+
+	crc[1] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[41] ^ mac_array[39] ^ mac_array[36] ^ mac_array[34] ^
+		 mac_array[32] ^ mac_array[30] ^ mac_array[29] ^ mac_array[28] ^
+		 mac_array[24] ^ mac_array[23] ^ mac_array[22] ^ mac_array[21] ^
+		 mac_array[20] ^ mac_array[18] ^ mac_array[17] ^ mac_array[16] ^
+		 mac_array[15] ^ mac_array[14] ^ mac_array[13] ^ mac_array[12] ^
+		 mac_array[9]  ^ mac_array[6]  ^ mac_array[1]  ^ mac_array[0];
+
+	crc[2] = mac_array[47] ^ mac_array[46] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[42] ^ mac_array[39] ^ mac_array[37] ^ mac_array[34] ^
+		 mac_array[33] ^ mac_array[29] ^ mac_array[28] ^ mac_array[25] ^
+		 mac_array[24] ^ mac_array[22] ^ mac_array[17] ^ mac_array[15] ^
+		 mac_array[13] ^ mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^
+		 mac_array[6]  ^ mac_array[2]  ^ mac_array[1]  ^ mac_array[0];
+
+	crc[3] = mac_array[47] ^ mac_array[45] ^ mac_array[44] ^ mac_array[43] ^
+		 mac_array[40] ^ mac_array[38] ^ mac_array[35] ^ mac_array[34] ^
+		 mac_array[30] ^ mac_array[29] ^ mac_array[26] ^ mac_array[25] ^
+		 mac_array[23] ^ mac_array[18] ^ mac_array[16] ^ mac_array[14] ^
+		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[7]  ^
+		 mac_array[3]  ^ mac_array[2]  ^ mac_array[1];
+
+	crc[4] = mac_array[46] ^ mac_array[45] ^ mac_array[44] ^ mac_array[41] ^
+		 mac_array[39] ^ mac_array[36] ^ mac_array[35] ^ mac_array[31] ^
+		 mac_array[30] ^ mac_array[27] ^ mac_array[26] ^ mac_array[24] ^
+		 mac_array[19] ^ mac_array[17] ^ mac_array[15] ^ mac_array[14] ^
+		 mac_array[12] ^ mac_array[10] ^ mac_array[8]  ^ mac_array[4]  ^
+		 mac_array[3]  ^ mac_array[2];
+
+	crc[5] = mac_array[47] ^ mac_array[46] ^ mac_array[45] ^ mac_array[42] ^
+		 mac_array[40] ^ mac_array[37] ^ mac_array[36] ^ mac_array[32] ^
+		 mac_array[31] ^ mac_array[28] ^ mac_array[27] ^ mac_array[25] ^
+		 mac_array[20] ^ mac_array[18] ^ mac_array[16] ^ mac_array[15] ^
+		 mac_array[13] ^ mac_array[11] ^ mac_array[9]  ^ mac_array[5]  ^
+		 mac_array[4]  ^ mac_array[3];
+
+	crc[6] = mac_array[47] ^ mac_array[46] ^ mac_array[43] ^ mac_array[41] ^
+		 mac_array[38] ^ mac_array[37] ^ mac_array[33] ^ mac_array[32] ^
+		 mac_array[29] ^ mac_array[28] ^ mac_array[26] ^ mac_array[21] ^
+		 mac_array[19] ^ mac_array[17] ^ mac_array[16] ^ mac_array[14] ^
+		 mac_array[12] ^ mac_array[10] ^ mac_array[6]  ^ mac_array[5]  ^
+		 mac_array[4];
+
+	crc[7] = mac_array[47] ^ mac_array[44] ^ mac_array[42] ^ mac_array[39] ^
+		 mac_array[38] ^ mac_array[34] ^ mac_array[33] ^ mac_array[30] ^
+		 mac_array[29] ^ mac_array[27] ^ mac_array[22] ^ mac_array[20] ^
+		 mac_array[18] ^ mac_array[17] ^ mac_array[15] ^ mac_array[13] ^
+		 mac_array[11] ^ mac_array[7]  ^ mac_array[6]  ^ mac_array[5];
+
+	for (i = 0; i < 8; i++)
+		crc_result = crc_result | (crc[i] << i);
+
+	table = MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num);
+	eth_port_set_filter_table_entry(table, crc_result);
+}
+
+/*
+ * Set the entire multicast list based on dev->mc_list.
+ */
+static void eth_port_set_multicast_list(struct net_device *dev)
+{
+
+	struct dev_mc_list	*mc_list;
+	int			i;
+	int			table_index;
+	struct mv643xx_private	*mp = netdev_priv(dev);
+	unsigned int		eth_port_num = mp->port_num;
+
+	/* If the device is in promiscuous mode or in all multicast mode,
+	 * we will fully populate both multicast tables with accept.
+	 * This is guaranteed to yield a match on all multicast addresses...
+	 */
+	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI)) {
+		for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+			 /* Set all entries in DA filter special multicast
+			  * table (Ex_dFSMT)
+			  * Set for ETH_Q0 for now
+			  * Bits
+			  * 0	  Accept=1, Drop=0
+			  * 3-1  Queue	 ETH_Q0=0
+			  * 7-4  Reserved = 0;
+			  */
+			 mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+
+			 /* Set all entries in DA filter other multicast
+			  * table (Ex_dFOMT)
+			  * Set for ETH_Q0 for now
+			  * Bits
+			  * 0	  Accept=1, Drop=0
+			  * 3-1  Queue	 ETH_Q0=0
+			  * 7-4  Reserved = 0;
+			  */
+			 mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+       	}
+		return;
+	}
+
+	/* We will clear out multicast tables every time we get the list.
+	 * Then add the entire new list...
+	 */
+	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
+		/* Clear DA filter special multicast table (Ex_dFSMT) */
+		mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+				(eth_port_num) + table_index, 0);
+
+		/* Clear DA filter other multicast table (Ex_dFOMT) */
+		mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE
+				(eth_port_num) + table_index, 0);
+	}
+
+	/* Get pointer to net_device multicast list and add each one... */
+	for (i = 0, mc_list = dev->mc_list;
+			(i < 256) && (mc_list != NULL) && (i < dev->mc_count);
+			i++, mc_list = mc_list->next)
+		if (mc_list->dmi_addrlen == 6)
+			eth_port_mc_addr(eth_port_num, mc_list->dmi_addr);
+}
+
+/*
  * eth_port_init_mac_tables - Clear all entrance in the UC, SMC and OMC tables
  *
  * DESCRIPTION:
@@ -2080,11 +2208,11 @@ static void eth_port_init_mac_tables(unsigned int eth_port_num)
 
 	for (table_index = 0; table_index <= 0xFC; table_index += 4) {
 		/* Clear DA filter special multicast table (Ex_dFSMT) */
-		mv_write((MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
-					(eth_port_num) + table_index), 0);
+		mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE
+					(eth_port_num) + table_index, 0);
 		/* Clear DA filter other multicast table (Ex_dFOMT) */
-		mv_write((MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE
-					(eth_port_num) + table_index), 0);
+		mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE
+					(eth_port_num) + table_index, 0);
 	}
 }
 
@@ -2489,6 +2617,7 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	struct eth_tx_desc *current_descriptor;
 	struct eth_tx_desc *first_descriptor;
 	u32 command;
+	unsigned long flags;
 
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
@@ -2504,6 +2633,8 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 			mp->port_num);
 		return ETH_ERROR;
 	}
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	mp->tx_ring_skbs++;
 	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
@@ -2554,10 +2685,14 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 		mp->tx_resource_err = 1;
 		mp->tx_curr_desc_q = tx_first_desc;
 
+		spin_unlock_irqrestore(&mp->lock, flags);
+
 		return ETH_QUEUE_LAST_RESOURCE;
 	}
 
 	mp->tx_curr_desc_q = tx_next_desc;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }
@@ -2569,10 +2704,13 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	int tx_desc_used;
 	struct eth_tx_desc *current_descriptor;
 	unsigned int command_status;
+	unsigned long flags;
 
 	/* Do not process Tx ring in case of Tx ring resource error */
 	if (mp->tx_resource_err)
 		return ETH_QUEUE_FULL;
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	mp->tx_ring_skbs++;
 	BUG_ON(mp->tx_ring_skbs > mp->tx_ring_size);
@@ -2604,9 +2742,12 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
 	/* Check for ring index overlap in the Tx desc ring */
 	if (tx_desc_curr == tx_desc_used) {
 		mp->tx_resource_err = 1;
+
+		spin_unlock_irqrestore(&mp->lock, flags);
 		return ETH_QUEUE_LAST_RESOURCE;
 	}
 
+	spin_unlock_irqrestore(&mp->lock, flags);
 	return ETH_OK;
 }
 #endif
@@ -2629,23 +2770,27 @@ static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
  *	Tx ring 'first' and 'used' indexes are updated.
  *
  * RETURN:
- *	ETH_ERROR in case the routine can not access Tx desc ring.
- *	ETH_RETRY in case there is transmission in process.
- *	ETH_END_OF_JOB if the routine has nothing to release.
- *	ETH_OK otherwise.
+ *	ETH_OK on success
+ *	ETH_ERROR otherwise.
  *
  */
 static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 						struct pkt_info *p_pkt_info)
 {
 	int tx_desc_used;
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-	int tx_busy_desc = mp->tx_first_desc_q;
-#else
-	int tx_busy_desc = mp->tx_curr_desc_q;
-#endif
+	int tx_busy_desc;
 	struct eth_tx_desc *p_tx_desc_used;
 	unsigned int command_status;
+	unsigned long flags;
+	int err = ETH_OK;
+
+	spin_lock_irqsave(&mp->lock, flags);
+
+#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+	tx_busy_desc = mp->tx_first_desc_q;
+#else
+	tx_busy_desc = mp->tx_curr_desc_q;
+#endif
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_used = mp->tx_used_desc_q;
@@ -2653,22 +2798,30 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 	p_tx_desc_used = &mp->p_tx_desc_area[tx_desc_used];
 
 	/* Sanity check */
-	if (p_tx_desc_used == NULL)
-		return ETH_ERROR;
+	if (p_tx_desc_used == NULL) {
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	/* Stop release. About to overlap the current available Tx descriptor */
-	if (tx_desc_used == tx_busy_desc && !mp->tx_resource_err)
-		return ETH_END_OF_JOB;
+	if (tx_desc_used == tx_busy_desc && !mp->tx_resource_err) {
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	command_status = p_tx_desc_used->cmd_sts;
 
 	/* Still transmitting... */
-	if (command_status & (ETH_BUFFER_OWNED_BY_DMA))
-		return ETH_RETRY;
+	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	/* Pass the packet information to the caller */
 	p_pkt_info->cmd_sts = command_status;
 	p_pkt_info->return_info = mp->tx_skb[tx_desc_used];
+	p_pkt_info->buf_ptr = p_tx_desc_used->buf_ptr;
+	p_pkt_info->byte_cnt = p_tx_desc_used->byte_cnt;
 	mp->tx_skb[tx_desc_used] = NULL;
 
 	/* Update the next descriptor to release. */
@@ -2680,7 +2833,10 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 	BUG_ON(mp->tx_ring_skbs == 0);
 	mp->tx_ring_skbs--;
 
-	return ETH_OK;
+out:
+	spin_unlock_irqrestore(&mp->lock, flags);
+
+	return err;
 }
 
 /*
@@ -2712,10 +2868,13 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	int rx_next_curr_desc, rx_curr_desc, rx_used_desc;
 	volatile struct eth_rx_desc *p_rx_desc;
 	unsigned int command_status;
+	unsigned long flags;
 
 	/* Do not process Rx ring in case of Rx ring resource error */
 	if (mp->rx_resource_err)
 		return ETH_QUEUE_FULL;
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get the Rx Desc ring 'curr and 'used' indexes */
 	rx_curr_desc = mp->rx_curr_desc_q;
@@ -2728,8 +2887,10 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	rmb();
 
 	/* Nothing to receive... */
-	if (command_status & (ETH_BUFFER_OWNED_BY_DMA))
+	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
+		spin_unlock_irqrestore(&mp->lock, flags);
 		return ETH_END_OF_JOB;
+	}
 
 	p_pkt_info->byte_cnt = (p_rx_desc->byte_cnt) - RX_BUF_OFFSET;
 	p_pkt_info->cmd_sts = command_status;
@@ -2748,6 +2909,8 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	/* Rx descriptors exhausted. Set the Rx ring resource error flag */
 	if (rx_next_curr_desc == rx_used_desc)
 		mp->rx_resource_err = 1;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }
@@ -2777,6 +2940,9 @@ static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
 {
 	int used_rx_desc;	/* Where to return Rx resource */
 	volatile struct eth_rx_desc *p_used_rx_desc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mp->lock, flags);
 
 	/* Get 'used' Rx descriptor */
 	used_rx_desc = mp->rx_used_desc_q;
@@ -2799,6 +2965,8 @@ static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
 
 	/* Any Rx return cancels the Rx resource error status */
 	mp->rx_resource_err = 0;
+
+	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return ETH_OK;
 }

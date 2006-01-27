@@ -44,10 +44,6 @@ extern unsigned long brk_start;
 extern int pty_output_sigio;
 extern int pty_close_sigio;
 
-extern void stop(void);
-extern void stack_protections(unsigned long address);
-extern void task_protections(unsigned long address);
-extern int wait_for_stop(int pid, int sig, int cont_type, void *relay);
 extern void *add_signal_handler(int sig, void (*handler)(int));
 extern int linux_main(int argc, char **argv);
 extern void set_cmdline(char *cmd);
@@ -55,8 +51,6 @@ extern void input_cb(void (*proc)(void *), void *arg, int arg_len);
 extern int get_pty(void);
 extern void *um_kmalloc(int size);
 extern int switcheroo(int fd, int prot, void *from, void *to, int size);
-extern void setup_machinename(char *machine_out);
-extern void setup_hostinfo(void);
 extern void do_exec(int old_pid, int new_pid);
 extern void tracer_panic(char *msg, ...);
 extern int detach(int pid, int sig);
@@ -70,18 +64,6 @@ extern int cpu_feature(char *what, char *buf, int len);
 extern int arch_handle_signal(int sig, union uml_pt_regs *regs);
 extern int arch_fixup(unsigned long address, void *sc_ptr);
 extern void arch_init_thread(void);
-extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
 extern int raw(int fd);
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

@@ -120,8 +120,10 @@ extern void machine_halt(void);
 extern int is_syscall(unsigned long addr);
 extern void arch_switch(void);
 extern void free_irq(unsigned int, void *);
-extern int um_in_interrupt(void);
 extern int cpu(void);
+
+/* Are we disallowed to sleep? Used to choose between GFP_KERNEL and GFP_ATOMIC. */
+extern int __cant_sleep(void);
 extern void segv_handler(int sig, union uml_pt_regs *regs);
 extern void sigio_handler(int sig, union uml_pt_regs *regs);
 

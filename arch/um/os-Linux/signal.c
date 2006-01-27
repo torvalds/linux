@@ -12,32 +12,66 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "user_util.h"
-#include "kern_util.h"
 #include "user.h"
 #include "signal_kern.h"
 #include "sysdep/sigcontext.h"
 #include "sysdep/signal.h"
 #include "sigcontext.h"
-#include "time_user.h"
 #include "mode.h"
+#include "os.h"
+
+/* These are the asynchronous signals.  SIGVTALRM and SIGARLM are handled
+ * together under SIGVTALRM_BIT.  SIGPROF is excluded because we want to
+ * be able to profile all of UML, not just the non-critical sections.  If
+ * profiling is not thread-safe, then that is not my problem.  We can disable
+ * profiling when SMP is enabled in that case.
+ */
+#define SIGIO_BIT 0
+#define SIGIO_MASK (1 << SIGIO_BIT)
+
+#define SIGVTALRM_BIT 1
+#define SIGVTALRM_MASK (1 << SIGVTALRM_BIT)
+
+#define SIGALRM_BIT 2
+#define SIGALRM_MASK (1 << SIGALRM_BIT)
+
+static int signals_enabled = 1;
+static int pending = 0;
 
 void sig_handler(ARCH_SIGHDLR_PARAM)
 {
 	struct sigcontext *sc;
+	int enabled;
+
+	/* Must be the first thing that this handler does - x86_64 stores
+	 * the sigcontext in %rdx, and we need to save it before it has a
+	 * chance to get trashed.
+	 */
 
 	ARCH_GET_SIGCONTEXT(sc, sig);
+
+	enabled = signals_enabled;
+	if(!enabled && (sig == SIGIO)){
+		pending |= SIGIO_MASK;
+		return;
+	}
+
+	block_signals();
+
 	CHOOSE_MODE_PROC(sig_handler_common_tt, sig_handler_common_skas,
 			 sig, sc);
+
+	set_signals(enabled);
 }
 
 extern int timer_irq_inited;
 
-void alarm_handler(ARCH_SIGHDLR_PARAM)
+static void real_alarm_handler(int sig, struct sigcontext *sc)
 {
-	struct sigcontext *sc;
-
-	ARCH_GET_SIGCONTEXT(sc, sig);
-	if(!timer_irq_inited) return;
+	if(!timer_irq_inited){
+		signals_enabled = 1;
+		return;
+	}
 
 	if(sig == SIGALRM)
 		switch_timers(0);
@@ -47,6 +81,52 @@ void alarm_handler(ARCH_SIGHDLR_PARAM)
 
 	if(sig == SIGALRM)
 		switch_timers(1);
+
+}
+
+void alarm_handler(ARCH_SIGHDLR_PARAM)
+{
+	struct sigcontext *sc;
+	int enabled;
+
+	ARCH_GET_SIGCONTEXT(sc, sig);
+
+	enabled = signals_enabled;
+	if(!signals_enabled){
+		if(sig == SIGVTALRM)
+			pending |= SIGVTALRM_MASK;
+		else pending |= SIGALRM_MASK;
+
+		return;
+	}
+
+	block_signals();
+
+	real_alarm_handler(sig, sc);
+	set_signals(enabled);
+}
+
+extern void do_boot_timer_handler(struct sigcontext * sc);
+
+void boot_timer_handler(ARCH_SIGHDLR_PARAM)
+{
+	struct sigcontext *sc;
+	int enabled;
+
+	ARCH_GET_SIGCONTEXT(sc, sig);
+
+	enabled = signals_enabled;
+	if(!enabled){
+		if(sig == SIGVTALRM)
+			pending |= SIGVTALRM_MASK;
+		else pending |= SIGALRM_MASK;
+		return;
+	}
+
+	block_signals();
+
+	do_boot_timer_handler(sc);
+	set_signals(enabled);
 }
 
 void set_sigstack(void *sig_stack, int size)
@@ -73,6 +153,7 @@ void set_handler(int sig, void (*handler)(int), int flags, ...)
 {
 	struct sigaction action;
 	va_list ap;
+	sigset_t sig_mask;
 	int mask;
 
 	va_start(ap, flags);
@@ -85,7 +166,12 @@ void set_handler(int sig, void (*handler)(int), int flags, ...)
 	action.sa_flags = flags;
 	action.sa_restorer = NULL;
 	if(sigaction(sig, &action, NULL) < 0)
-		panic("sigaction failed");
+		panic("sigaction failed - errno = %d\n", errno);
+
+	sigemptyset(&sig_mask);
+	sigaddset(&sig_mask, sig);
+	if(sigprocmask(SIG_UNBLOCK, &sig_mask, NULL) < 0)
+		panic("sigprocmask failed - errno = %d\n", errno);
 }
 
 int change_sig(int signal, int on)
@@ -98,89 +184,77 @@ int change_sig(int signal, int on)
 	return(!sigismember(&old, signal));
 }
 
-/* Both here and in set/get_signal we don't touch SIGPROF, because we must not
- * disable profiling; it's safe because the profiling code does not interact
- * with the kernel code at all.*/
-
-static void change_signals(int type)
-{
-	sigset_t mask;
-
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGVTALRM);
-	sigaddset(&mask, SIGALRM);
-	sigaddset(&mask, SIGIO);
-	if(sigprocmask(type, &mask, NULL) < 0)
-		panic("Failed to change signal mask - errno = %d", errno);
-}
-
 void block_signals(void)
 {
-	change_signals(SIG_BLOCK);
+	signals_enabled = 0;
 }
 
 void unblock_signals(void)
 {
-	change_signals(SIG_UNBLOCK);
-}
+	int save_pending;
 
-/* These are the asynchronous signals.  SIGVTALRM and SIGARLM are handled
- * together under SIGVTALRM_BIT.  SIGPROF is excluded because we want to
- * be able to profile all of UML, not just the non-critical sections.  If
- * profiling is not thread-safe, then that is not my problem.  We can disable
- * profiling when SMP is enabled in that case.
- */
-#define SIGIO_BIT 0
-#define SIGVTALRM_BIT 1
+	if(signals_enabled == 1)
+		return;
 
-static int enable_mask(sigset_t *mask)
-{
-	int sigs;
+	/* We loop because the IRQ handler returns with interrupts off.  So,
+	 * interrupts may have arrived and we need to re-enable them and
+	 * recheck pending.
+	 */
+	while(1){
+		/* Save and reset save_pending after enabling signals.  This
+		 * way, pending won't be changed while we're reading it.
+		 */
+		signals_enabled = 1;
 
-	sigs = sigismember(mask, SIGIO) ? 0 : 1 << SIGIO_BIT;
-	sigs |= sigismember(mask, SIGVTALRM) ? 0 : 1 << SIGVTALRM_BIT;
-	sigs |= sigismember(mask, SIGALRM) ? 0 : 1 << SIGVTALRM_BIT;
-	return(sigs);
+		save_pending = pending;
+		if(save_pending == 0)
+			return;
+
+		pending = 0;
+
+		/* We have pending interrupts, so disable signals, as the
+		 * handlers expect them off when they are called.  They will
+		 * be enabled again above.
+		 */
+
+		signals_enabled = 0;
+
+		/* Deal with SIGIO first because the alarm handler might
+		 * schedule, leaving the pending SIGIO stranded until we come
+		 * back here.
+		 */
+		if(save_pending & SIGIO_MASK)
+			CHOOSE_MODE_PROC(sig_handler_common_tt,
+					 sig_handler_common_skas, SIGIO, NULL);
+
+		if(save_pending & SIGALRM_MASK)
+			real_alarm_handler(SIGALRM, NULL);
+
+		if(save_pending & SIGVTALRM_MASK)
+			real_alarm_handler(SIGVTALRM, NULL);
+	}
 }
 
 int get_signals(void)
 {
-	sigset_t mask;
-
-	if(sigprocmask(SIG_SETMASK, NULL, &mask) < 0)
-		panic("Failed to get signal mask");
-	return(enable_mask(&mask));
+	return signals_enabled;
 }
 
 int set_signals(int enable)
 {
-	sigset_t mask;
 	int ret;
+	if(signals_enabled == enable)
+		return enable;
 
-	sigemptyset(&mask);
-	if(enable & (1 << SIGIO_BIT))
-		sigaddset(&mask, SIGIO);
-	if(enable & (1 << SIGVTALRM_BIT)){
-		sigaddset(&mask, SIGVTALRM);
-		sigaddset(&mask, SIGALRM);
-	}
+	ret = signals_enabled;
+	if(enable)
+		unblock_signals();
+	else block_signals();
 
-	/* This is safe - sigprocmask is guaranteed to copy locally the
-	 * value of new_set, do his work and then, at the end, write to
-	 * old_set.
-	 */
-	if(sigprocmask(SIG_UNBLOCK, &mask, &mask) < 0)
-		panic("Failed to enable signals");
-	ret = enable_mask(&mask);
-	sigemptyset(&mask);
-	if((enable & (1 << SIGIO_BIT)) == 0)
-		sigaddset(&mask, SIGIO);
-	if((enable & (1 << SIGVTALRM_BIT)) == 0){
-		sigaddset(&mask, SIGVTALRM);
-		sigaddset(&mask, SIGALRM);
-	}
-	if(sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
-		panic("Failed to block signals");
+	return ret;
+}
 
-	return(ret);
+void os_usr1_signal(int on)
+{
+	change_sig(SIGUSR1, on);
 }

@@ -10,6 +10,7 @@
 #include "user_util.h"
 #include "os.h"
 #include "mode.h"
+#include "longjmp.h"
 
 void usr2_handler(int sig, union uml_pt_regs *regs)
 {
@@ -36,5 +37,5 @@ void do_longjmp(void *b, int val)
 {
 	sigjmp_buf *buf = b;
 
-	siglongjmp(*buf, val);
+	UML_SIGLONGJMP(buf, val);
 }

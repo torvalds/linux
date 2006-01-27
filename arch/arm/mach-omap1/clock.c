@@ -50,10 +50,10 @@ static int omap1_clk_enable_dsp_domain(struct clk *clk)
 {
 	int retval;
 
-	retval = omap1_clk_use(&api_ck.clk);
+	retval = omap1_clk_enable(&api_ck.clk);
 	if (!retval) {
-		retval = omap1_clk_enable(clk);
-		omap1_clk_unuse(&api_ck.clk);
+		retval = omap1_clk_enable_generic(clk);
+		omap1_clk_disable(&api_ck.clk);
 	}
 
 	return retval;
@@ -61,9 +61,9 @@ static int omap1_clk_enable_dsp_domain(struct clk *clk)
 
 static void omap1_clk_disable_dsp_domain(struct clk *clk)
 {
-	if (omap1_clk_use(&api_ck.clk) == 0) {
-		omap1_clk_disable(clk);
-		omap1_clk_unuse(&api_ck.clk);
+	if (omap1_clk_enable(&api_ck.clk) == 0) {
+		omap1_clk_disable_generic(clk);
+		omap1_clk_disable(&api_ck.clk);
 	}
 }
 
@@ -72,7 +72,7 @@ static int omap1_clk_enable_uart_functional(struct clk *clk)
 	int ret;
 	struct uart_clk *uclk;
 
-	ret = omap1_clk_enable(clk);
+	ret = omap1_clk_enable_generic(clk);
 	if (ret == 0) {
 		/* Set smart idle acknowledgement mode */
 		uclk = (struct uart_clk *)clk;
@@ -91,7 +91,7 @@ static void omap1_clk_disable_uart_functional(struct clk *clk)
 	uclk = (struct uart_clk *)clk;
 	omap_writeb((omap_readb(uclk->sysc_addr) & ~0x18), uclk->sysc_addr);
 
-	omap1_clk_disable(clk);
+	omap1_clk_disable_generic(clk);
 }
 
 static void omap1_clk_allow_idle(struct clk *clk)
@@ -230,9 +230,9 @@ static void omap1_ckctl_recalc_dsp_domain(struct clk * clk)
 	 * Note that DSP_CKCTL virt addr = phys addr, so
 	 * we must use __raw_readw() instead of omap_readw().
 	 */
-	omap1_clk_use(&api_ck.clk);
+	omap1_clk_enable(&api_ck.clk);
 	dsor = 1 << (3 & (__raw_readw(DSP_CKCTL) >> clk->rate_offset));
-	omap1_clk_unuse(&api_ck.clk);
+	omap1_clk_disable(&api_ck.clk);
 
 	if (unlikely(clk->rate == clk->parent->rate / dsor))
 		return; /* No change, quick exit */
@@ -412,12 +412,12 @@ static void omap1_init_ext_clk(struct clk * clk)
 	clk-> rate = 96000000 / dsor;
 }
 
-static int omap1_clk_use(struct clk *clk)
+static int omap1_clk_enable(struct clk *clk)
 {
 	int ret = 0;
 	if (clk->usecount++ == 0) {
 		if (likely(clk->parent)) {
-			ret = omap1_clk_use(clk->parent);
+			ret = omap1_clk_enable(clk->parent);
 
 			if (unlikely(ret != 0)) {
 				clk->usecount--;
@@ -432,7 +432,7 @@ static int omap1_clk_use(struct clk *clk)
 		ret = clk->enable(clk);
 
 		if (unlikely(ret != 0) && clk->parent) {
-			omap1_clk_unuse(clk->parent);
+			omap1_clk_disable(clk->parent);
 			clk->usecount--;
 		}
 	}
@@ -440,12 +440,12 @@ static int omap1_clk_use(struct clk *clk)
 	return ret;
 }
 
-static void omap1_clk_unuse(struct clk *clk)
+static void omap1_clk_disable(struct clk *clk)
 {
 	if (clk->usecount > 0 && !(--clk->usecount)) {
 		clk->disable(clk);
 		if (likely(clk->parent)) {
-			omap1_clk_unuse(clk->parent);
+			omap1_clk_disable(clk->parent);
 			if (clk->flags & CLOCK_NO_IDLE_PARENT)
 				if (!cpu_is_omap24xx())
 					omap1_clk_allow_idle(clk->parent);
@@ -453,7 +453,7 @@ static void omap1_clk_unuse(struct clk *clk)
 	}
 }
 
-static int omap1_clk_enable(struct clk *clk)
+static int omap1_clk_enable_generic(struct clk *clk)
 {
 	__u16 regval16;
 	__u32 regval32;
@@ -492,7 +492,7 @@ static int omap1_clk_enable(struct clk *clk)
 	return 0;
 }
 
-static void omap1_clk_disable(struct clk *clk)
+static void omap1_clk_disable_generic(struct clk *clk)
 {
 	__u16 regval16;
 	__u32 regval32;
@@ -654,8 +654,8 @@ late_initcall(omap1_late_clk_reset);
 #endif
 
 static struct clk_functions omap1_clk_functions = {
-	.clk_use		= omap1_clk_use,
-	.clk_unuse		= omap1_clk_unuse,
+	.clk_enable		= omap1_clk_enable,
+	.clk_disable		= omap1_clk_disable,
 	.clk_round_rate		= omap1_clk_round_rate,
 	.clk_set_rate		= omap1_clk_set_rate,
 };
@@ -780,9 +780,9 @@ int __init omap1_clk_init(void)
 	 * Only enable those clocks we will need, let the drivers
 	 * enable other clocks as necessary
 	 */
-	clk_use(&armper_ck.clk);
-	clk_use(&armxor_ck.clk);
-	clk_use(&armtim_ck.clk); /* This should be done by timer code */
+	clk_enable(&armper_ck.clk);
+	clk_enable(&armxor_ck.clk);
+	clk_enable(&armtim_ck.clk); /* This should be done by timer code */
 
 	if (cpu_is_omap1510())
 		clk_enable(&arm_gpio_ck);

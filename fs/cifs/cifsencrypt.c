@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsencrypt.c
  *
- *   Copyright (C) International Business Machines  Corp., 2003
+ *   Copyright (C) International Business Machines  Corp., 2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -80,6 +80,59 @@ int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
 		memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
 
 	return rc;
+}
+
+static int cifs_calc_signature2(const struct kvec * iov, int n_vec,
+				const char * key, char * signature)
+{
+        struct  MD5Context context;
+
+        if((iov == NULL) || (signature == NULL))
+                return -EINVAL;
+
+        MD5Init(&context);
+        MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+
+/*        MD5Update(&context,cifs_pdu->Protocol,cifs_pdu->smb_buf_length); */ /* BB FIXME BB */
+
+        MD5Final(signature,&context);
+
+	return -EOPNOTSUPP;
+/*        return 0; */
+}
+
+
+int cifs_sign_smb2(struct kvec * iov, int n_vec, struct TCP_Server_Info *server,
+		   __u32 * pexpected_response_sequence_number)
+{
+	int rc = 0;
+	char smb_signature[20];
+	struct smb_hdr * cifs_pdu = iov[0].iov_base;
+
+	if((cifs_pdu == NULL) || (server == NULL))
+		return -EINVAL;
+
+	if((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0)
+		return rc;
+
+        spin_lock(&GlobalMid_Lock);
+        cifs_pdu->Signature.Sequence.SequenceNumber = 
+				cpu_to_le32(server->sequence_number);
+        cifs_pdu->Signature.Sequence.Reserved = 0;
+
+        *pexpected_response_sequence_number = server->sequence_number++;
+        server->sequence_number++;
+        spin_unlock(&GlobalMid_Lock);
+
+        rc = cifs_calc_signature2(iov, n_vec, server->mac_signing_key,
+				      smb_signature);
+        if(rc)
+                memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
+        else
+                memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
+
+        return rc;
+
 }
 
 int cifs_verify_signature(struct smb_hdr * cifs_pdu, const char * mac_key,

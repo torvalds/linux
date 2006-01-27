@@ -27,7 +27,6 @@
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"
 #include "ptrace_user.h"
-#include "time_user.h"
 #include "init.h"
 #include "os.h"
 #include "uml-config.h"
@@ -61,6 +60,54 @@ void kill_child_dead(int pid)
 		else
 			break;
 	} while(1);
+}
+
+void stop(void)
+{
+	while(1) sleep(1000000);
+}
+
+int wait_for_stop(int pid, int sig, int cont_type, void *relay)
+{
+	sigset_t *relay_signals = relay;
+	int status, ret;
+
+	while(1){
+		CATCH_EINTR(ret = waitpid(pid, &status, WUNTRACED));
+		if((ret < 0) ||
+		   !WIFSTOPPED(status) || (WSTOPSIG(status) != sig)){
+			if(ret < 0){
+				printk("wait failed, errno = %d\n",
+				       errno);
+			}
+			else if(WIFEXITED(status))
+				printk("process %d exited with status %d\n",
+				       pid, WEXITSTATUS(status));
+			else if(WIFSIGNALED(status))
+				printk("process %d exited with signal %d\n",
+				       pid, WTERMSIG(status));
+			else if((WSTOPSIG(status) == SIGVTALRM) ||
+				(WSTOPSIG(status) == SIGALRM) ||
+				(WSTOPSIG(status) == SIGIO) ||
+				(WSTOPSIG(status) == SIGPROF) ||
+				(WSTOPSIG(status) == SIGCHLD) ||
+				(WSTOPSIG(status) == SIGWINCH) ||
+				(WSTOPSIG(status) == SIGINT)){
+				ptrace(cont_type, pid, 0, WSTOPSIG(status));
+				continue;
+			}
+			else if((relay_signals != NULL) &&
+				sigismember(relay_signals, WSTOPSIG(status))){
+				ptrace(cont_type, pid, 0, WSTOPSIG(status));
+				continue;
+			}
+			else printk("process %d stopped with signal %d\n",
+				    pid, WSTOPSIG(status));
+			panic("wait_for_stop failed to wait for %d to stop "
+			      "with %d\n", pid, sig);
+		}
+		return(status);
+	}
 }
 
 /*

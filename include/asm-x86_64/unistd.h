@@ -573,8 +573,35 @@ __SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
 __SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
 #define __NR_migrate_pages	256
 __SYSCALL(__NR_migrate_pages, sys_migrate_pages)
+#define __NR_openat		257
+__SYSCALL(__NR_openat, sys_openat)
+#define __NR_mkdirat		258
+__SYSCALL(__NR_mkdirat, sys_mkdirat)
+#define __NR_mknodat		259
+__SYSCALL(__NR_mknodat, sys_mknodat)
+#define __NR_fchownat		260
+__SYSCALL(__NR_fchownat, sys_fchownat)
+#define __NR_futimesat		261
+__SYSCALL(__NR_futimesat, sys_futimesat)
+#define __NR_newfstatat		262
+__SYSCALL(__NR_newfstatat, sys_newfstatat)
+#define __NR_unlinkat		263
+__SYSCALL(__NR_unlinkat, sys_unlinkat)
+#define __NR_renameat		264
+__SYSCALL(__NR_renameat, sys_renameat)
+#define __NR_linkat		265
+__SYSCALL(__NR_linkat, sys_linkat)
+#define __NR_symlinkat		266
+__SYSCALL(__NR_symlinkat, sys_symlinkat)
+#define __NR_readlinkat		267
+__SYSCALL(__NR_readlinkat, sys_readlinkat)
+#define __NR_fchmodat		268
+__SYSCALL(__NR_fchmodat, sys_fchmodat)
+#define __NR_faccessat		269
+__SYSCALL(__NR_faccessat, sys_faccessat)
 
-#define __NR_syscall_max __NR_migrate_pages
+#define __NR_syscall_max __NR_faccessat
+
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */

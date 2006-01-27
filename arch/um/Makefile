@@ -32,7 +32,7 @@ um-modes-$(CONFIG_MODE_TT) += tt
 um-modes-$(CONFIG_MODE_SKAS) += skas
 
 MODE_INCLUDE	+= $(foreach mode,$(um-modes-y),\
-		   -I$(srctree)/$(ARCH_DIR)/kernel/$(mode)/include)
+		   -I$(srctree)/$(ARCH_DIR)/include/$(mode))
 
 MAKEFILES-INCL	+= $(foreach mode,$(um-modes-y),\
 		   $(srctree)/$(ARCH_DIR)/Makefile-$(mode))

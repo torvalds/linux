@@ -710,14 +710,15 @@ static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
 {
 	struct inode *inode = dp->d_inode;
 	int (*fsync) (struct file *, struct dentry *, int);
-	int err = nfs_ok;
+	int err;
 
-	filemap_fdatawrite(inode->i_mapping);
-	if (fop && (fsync = fop->fsync))
-		err=fsync(filp, dp, 0);
-	filemap_fdatawait(inode->i_mapping);
+	err = filemap_fdatawrite(inode->i_mapping);
+	if (err == 0 && fop && (fsync = fop->fsync))
+		err = fsync(filp, dp, 0);
+	if (err == 0)
+		err = filemap_fdatawait(inode->i_mapping);
 
-	return nfserrno(err);
+	return err;
 }
 	
 
@@ -734,10 +735,10 @@ nfsd_sync(struct file *filp)
 	return err;
 }
 
-void
+int
 nfsd_sync_dir(struct dentry *dp)
 {
-	nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
+	return nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
 }
 
 /*
@@ -814,7 +815,7 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 	return size;
 }
 
-static inline int
+static int
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
@@ -878,7 +879,7 @@ static void kill_suid(struct dentry *dentry)
 	mutex_unlock(&dentry->d_inode->i_mutex);
 }
 
-static inline int
+static int
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
 	   			unsigned long cnt, int *stablep)
@@ -890,9 +891,9 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int			err = 0;
 	int			stable = *stablep;
 
+#ifdef MSNFS
 	err = nfserr_perm;
 
-#ifdef MSNFS
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		(!lock_may_write(file->f_dentry->d_inode, offset, cnt)))
 		goto out;
@@ -1064,7 +1065,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return err;
 	if (EX_ISSYNC(fhp->fh_export)) {
 		if (file->f_op && file->f_op->fsync) {
-			err = nfsd_sync(file);
+			err = nfserrno(nfsd_sync(file));
 		} else {
 			err = nfserr_notsupp;
 		}
@@ -1132,7 +1133,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				"nfsd_create: parent %s/%s not locked!\n",
 				dentry->d_parent->d_name.name,
 				dentry->d_name.name);
-			err = -EIO;
+			err = nfserr_io;
 			goto out;
 		}
 	}
@@ -1175,7 +1176,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (EX_ISSYNC(fhp->fh_export)) {
-		nfsd_sync_dir(dentry);
+		err = nfserrno(nfsd_sync_dir(dentry));
 		write_inode_now(dchild->d_inode, 1);
 	}
 
@@ -1185,9 +1186,11 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	 * send along the gid when it tries to implement setgid
 	 * directories via NFS.
 	 */
-	err = 0;
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0)
-		err = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0) {
+		int err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		if (err2)
+			err = err2;
+	}
 	/*
 	 * Update the file handle to get the new inode info.
 	 */
@@ -1306,16 +1309,9 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (EX_ISSYNC(fhp->fh_export)) {
-		nfsd_sync_dir(dentry);
+		err = nfserrno(nfsd_sync_dir(dentry));
 		/* setattr will sync the child (or not) */
 	}
-
-	/*
-	 * Update the filehandle to get the new inode info.
-	 */
-	err = fh_update(resfhp);
-	if (err)
-		goto out;
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
 		/* Cram the verifier into atime/mtime/mode */
@@ -1337,8 +1333,17 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	 * implement setgid directories via NFS. Clear out all that cruft.
 	 */
  set_attr:
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0)
- 		err = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID)) != 0) {
+ 		int err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+		if (err2)
+			err = err2;
+	}
+
+	/*
+	 * Update the filehandle to get the new inode info.
+	 */
+	if (!err)
+		err = fh_update(resfhp);
 
  out:
 	fh_unlock(fhp);
@@ -1447,10 +1452,10 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	} else
 		err = vfs_symlink(dentry->d_inode, dnew, path, mode);
 
-	if (!err) {
+	if (!err)
 		if (EX_ISSYNC(fhp->fh_export))
-			nfsd_sync_dir(dentry);
-	} else
+			err = nfsd_sync_dir(dentry);
+	if (err)
 		err = nfserrno(err);
 	fh_unlock(fhp);
 
@@ -1506,7 +1511,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = vfs_link(dold, dirp, dnew);
 	if (!err) {
 		if (EX_ISSYNC(ffhp->fh_export)) {
-			nfsd_sync_dir(ddir);
+			err = nfserrno(nfsd_sync_dir(ddir));
 			write_inode_now(dest, 1);
 		}
 	} else {
@@ -1590,13 +1595,14 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if ((ffhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 		((atomic_read(&odentry->d_count) > 1)
 		 || (atomic_read(&ndentry->d_count) > 1))) {
-			err = nfserr_perm;
+			err = -EPERM;
 	} else
 #endif
 	err = vfs_rename(fdir, odentry, tdir, ndentry);
 	if (!err && EX_ISSYNC(tfhp->fh_export)) {
-		nfsd_sync_dir(tdentry);
-		nfsd_sync_dir(fdentry);
+		err = nfsd_sync_dir(tdentry);
+		if (!err)
+			err = nfsd_sync_dir(fdentry);
 	}
 
  out_dput_new:
@@ -1661,7 +1667,7 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 #ifdef MSNFS
 		if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 			(atomic_read(&rdentry->d_count) > 1)) {
-			err = nfserr_perm;
+			err = -EPERM;
 		} else
 #endif
 		err = vfs_unlink(dirp, rdentry);
@@ -1671,17 +1677,14 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 
 	dput(rdentry);
 
-	if (err)
-		goto out_nfserr;
-	if (EX_ISSYNC(fhp->fh_export)) 
-		nfsd_sync_dir(dentry);
-
-out:
-	return err;
+	if (err == 0 &&
+	    EX_ISSYNC(fhp->fh_export))
+			err = nfsd_sync_dir(dentry);
 
 out_nfserr:
 	err = nfserrno(err);
-	goto out;
+out:
+	return err;
 }
 
 /*

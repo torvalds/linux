@@ -56,8 +56,8 @@ struct node_subscr {
 	struct list_head nodesub_list;
 };
 
-void nodesub_subscribe(struct node_subscr *node_sub, u32 addr,
-		       void *usr_handle, net_ev_handler handle_down);
-void nodesub_unsubscribe(struct node_subscr *node_sub);
+void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr,
+			    void *usr_handle, net_ev_handler handle_down);
+void tipc_nodesub_unsubscribe(struct node_subscr *node_sub);
 
 #endif

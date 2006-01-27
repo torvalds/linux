@@ -302,11 +302,26 @@
 #define __NR_add_key		281
 #define __NR_request_key	282
 #define __NR_keyctl		283
+#define __NR_openat		284
+#define __NR_mkdirat		285
+#define __NR_mknodat		286
+#define __NR_fchownat		287
+#define __NR_futimesat		288
+#define __NR_newfstatat		289
+#define __NR_unlinkat		290
+#define __NR_renameat		291
+#define __NR_linkat		292
+#define __NR_symlinkat		293
+#define __NR_readlinkat		294
+#define __NR_fchmodat		295
+#define __NR_faccessat		296
+#define __NR_pselect6		297
+#define __NR_ppoll		298
 
-/* WARNING: You MAY NOT add syscall numbers larger than 283, since
+/* WARNING: You MAY NOT add syscall numbers larger than 298, since
  *          all of the syscall tables in the Sparc kernel are
- *          sized to have 283 entries (starting at zero).  Therefore
- *          find a free slot in the 0-282 range.
+ *          sized to have 298 entries (starting at zero).  Therefore
+ *          find a free slot in the 0-298 range.
  */
 
 #define _syscall0(type,name) \
@@ -501,6 +516,8 @@ asmlinkage long sys_rt_sigaction(int sig,
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 #endif
 
 /*

@@ -25,6 +25,7 @@
 #include <linux/rmap.h>
 #include <linux/security.h>
 #include <linux/backing-dev.h>
+#include <linux/mutex.h>
 #include <linux/capability.h>
 #include <linux/syscalls.h>
 
@@ -46,12 +47,12 @@ struct swap_list_t swap_list = {-1, -1};
 
 struct swap_info_struct swap_info[MAX_SWAPFILES];
 
-static DECLARE_MUTEX(swapon_sem);
+static DEFINE_MUTEX(swapon_mutex);
 
 /*
  * We need this because the bdev->unplug_fn can sleep and we cannot
  * hold swap_lock while calling the unplug_fn. And swap_lock
- * cannot be turned into a semaphore.
+ * cannot be turned into a mutex.
  */
 static DECLARE_RWSEM(swap_unplug_sem);
 
@@ -1161,7 +1162,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	up_write(&swap_unplug_sem);
 
 	destroy_swap_extents(p);
-	down(&swapon_sem);
+	mutex_lock(&swapon_mutex);
 	spin_lock(&swap_lock);
 	drain_mmlist();
 
@@ -1180,7 +1181,7 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 	p->swap_map = NULL;
 	p->flags = 0;
 	spin_unlock(&swap_lock);
-	up(&swapon_sem);
+	mutex_unlock(&swapon_mutex);
 	vfree(swap_map);
 	inode = mapping->host;
 	if (S_ISBLK(inode->i_mode)) {
@@ -1209,7 +1210,7 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
 	int i;
 	loff_t l = *pos;
 
-	down(&swapon_sem);
+	mutex_lock(&swapon_mutex);
 
 	for (i = 0; i < nr_swapfiles; i++, ptr++) {
 		if (!(ptr->flags & SWP_USED) || !ptr->swap_map)
@@ -1238,7 +1239,7 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
 
 static void swap_stop(struct seq_file *swap, void *v)
 {
-	up(&swapon_sem);
+	mutex_unlock(&swapon_mutex);
 }
 
 static int swap_show(struct seq_file *swap, void *v)
@@ -1540,7 +1541,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		goto bad_swap;
 	}
 
-	down(&swapon_sem);
+	mutex_lock(&swapon_mutex);
 	spin_lock(&swap_lock);
 	p->flags = SWP_ACTIVE;
 	nr_swap_pages += nr_good_pages;
@@ -1566,7 +1567,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		swap_info[prev].next = p - swap_info;
 	}
 	spin_unlock(&swap_lock);
-	up(&swapon_sem);
+	mutex_unlock(&swapon_mutex);
 	error = 0;
 	goto out;
 bad_swap:

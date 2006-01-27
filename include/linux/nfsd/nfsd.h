@@ -124,7 +124,7 @@ int		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 
 int		nfsd_notify_change(struct inode *, struct iattr *);
 int		nfsd_permission(struct svc_export *, struct dentry *, int);
-void		nfsd_sync_dir(struct dentry *dp);
+int		nfsd_sync_dir(struct dentry *dp);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL

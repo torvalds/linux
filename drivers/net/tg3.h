@@ -2275,6 +2275,7 @@ struct tg3 {
 	dma_addr_t			stats_mapping;
 	struct work_struct		reset_task;
 
+	int				nvram_lock_cnt;
 	u32				nvram_size;
 	u32				nvram_pagesize;
 	u32				nvram_jedecnum;

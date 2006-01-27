@@ -1,6 +1,9 @@
 #ifndef HOSTAP_80211_H
 #define HOSTAP_80211_H
 
+#include <linux/types.h>
+#include <net/ieee80211_crypt.h>
+
 struct hostap_ieee80211_mgmt {
 	u16 frame_control;
 	u16 duration;

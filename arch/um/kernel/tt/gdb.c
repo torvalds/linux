@@ -20,6 +20,7 @@
 #include "user_util.h"
 #include "tt.h"
 #include "sysdep/thread.h"
+#include "os.h"
 
 extern int debugger_pid;
 extern int debugger_fd;

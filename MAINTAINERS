@@ -867,6 +867,15 @@ L:	ebtables-devel@lists.sourceforge.net
 W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
+EDAC-CORE
+P:      Doug Thompson
+M:      norsk5@xmission.com, dthompson@linuxnetworx.com
+P:      Dave Peterson
+M:      dsp@llnl.gov, dave_peterson@pobox.com
+L:      bluesmoke-devel@lists.sourceforge.net
+W:      bluesmoke.sourceforge.net
+S:      Maintained
+
 EEPRO100 NETWORK DRIVER
 P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg
@@ -1398,7 +1407,7 @@ IRDA SUBSYSTEM
 P:	Jean Tourrilhes
 L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
-S:	Maintained
+S:	Odd Fixes
 
 ISAPNP
 P:	Jaroslav Kysela
@@ -1696,11 +1705,13 @@ M: mtk-manpages@gmx.net
 W: ftp://ftp.kernel.org/pub/linux/docs/manpages
 S: Maintained
 
-MARVELL MV64340 ETHERNET DRIVER
+MARVELL MV643XX ETHERNET DRIVER
+P:	Dale Farnsworth
+M:	dale@farnsworth.org
 P:	Manish Lachwani
-L:	linux-mips@linux-mips.org
+M:	mlachwani@mvista.com
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Odd Fixes for 2.4; Maintained for 2.6.
 
 MATROX FRAMEBUFFER DRIVER
 P:	Petr Vandrovec
@@ -1841,7 +1852,14 @@ M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
 M:	kaber@coreworks.de
 L:	netdev@vger.kernel.org
-T:	git kernel.org:/pub/scm/linux/kernel/davem/net-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
+S:	Maintained
+
+NETWORKING [WIRELESS]
+P:	John W. Linville
+M:	linville@tuxdriver.com
+L:	netdev@vger.kernel.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 
 IPVS
@@ -2534,11 +2552,11 @@ S:     Maintained
 
 TIPC NETWORK LAYER
 P:	Per Liden
-M:	per.liden@nospam.ericsson.com
+M:	per.liden@ericsson.com
 P:	Jon Maloy
-M:	jon.maloy@nospam.ericsson.com
+M:	jon.maloy@ericsson.com
 P:	Allan Stephens
-M:	allan.stephens@nospam.windriver.com
+M:	allan.stephens@windriver.com
 L:	tipc-discussion@lists.sourceforge.net
 W:	http://tipc.sourceforge.net/
 W:	http://tipc.cslab.ericsson.net/

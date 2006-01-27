@@ -821,7 +821,7 @@ asmlinkage long sys32_utimes(char __user *filename,
 			return -EFAULT;
 	}
 
-	return do_utimes(filename, (tvs ? &ktvs[0] : NULL));
+	return do_utimes(AT_FDCWD, filename, (tvs ? &ktvs[0] : NULL));
 }
 
 /* These are here just in case some old sparc32 binary calls it. */
@@ -1003,7 +1003,7 @@ asmlinkage long sys32_adjtimex(struct timex32 __user *utp)
 asmlinkage long sparc32_open(const char __user *filename,
 			     int flags, int mode)
 {
-	return do_sys_open(filename, flags, mode);
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
 
 extern unsigned long do_mremap(unsigned long addr,
