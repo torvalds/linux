@@ -147,8 +147,7 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 
 	mlog_entry("(max_buffs = %d)\n", max_buffs);
 
-	if (!osb || !osb->journal->j_journal)
-		BUG();
+	BUG_ON(!osb || !osb->journal->j_journal);
 
 	if (ocfs2_is_hard_readonly(osb)) {
 		ret = -EROFS;
@@ -672,8 +671,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	if (!osb)
-		BUG();
+	BUG_ON(!osb);
 
 	journal = osb->journal;
 	if (!journal)
@@ -805,8 +803,7 @@ int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 
 	mlog_entry_void();
 
-	if (!journal)
-		BUG();
+	BUG_ON(!journal);
 
 	status = journal_wipe(journal->j_journal, full);
 	if (status < 0) {
@@ -1271,8 +1268,7 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 
 	/* Should not ever be called to recover ourselves -- in that
 	 * case we should've called ocfs2_journal_load instead. */
-	if (osb->node_num == node_num)
-		BUG();
+	BUG_ON(osb->node_num == node_num);
 
 	slot_num = ocfs2_node_num_to_slot(si, node_num);
 	if (slot_num == OCFS2_INVALID_SLOT) {

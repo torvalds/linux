@@ -1254,8 +1254,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->sb = sb;
 	/* Save off for ocfs2_rw_direct */
 	osb->s_sectsize_bits = blksize_bits(sector_size);
-	if (!osb->s_sectsize_bits)
-		BUG();
+	BUG_ON(!osb->s_sectsize_bits);
 
 	osb->net_response_ids = 0;
 	spin_lock_init(&osb->net_response_lock);
