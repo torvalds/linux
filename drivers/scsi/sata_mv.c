@@ -1865,7 +1865,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 	 	 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		qc->scsidone = scsi_finish_command;
-		qc->err_mask |= AC_ERR_OTHER;
+		qc->err_mask |= AC_ERR_TIMEOUT;
 		ata_qc_complete(qc);
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}

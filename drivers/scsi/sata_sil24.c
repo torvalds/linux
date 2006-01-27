@@ -653,7 +653,7 @@ static void sil24_eng_timeout(struct ata_port *ap)
 	 */
 	printk(KERN_ERR "ata%u: command timeout\n", ap->id);
 	qc->scsidone = scsi_finish_command;
-	qc->err_mask |= AC_ERR_OTHER;
+	qc->err_mask |= AC_ERR_TIMEOUT;
 	ata_qc_complete(qc);
 
 	sil24_reset_controller(ap);

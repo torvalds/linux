@@ -1322,8 +1322,10 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		goto early_finish;
 
 	/* select device, send command to hardware */
-	if (ata_qc_issue(qc))
-		goto err_did;
+	if (ata_qc_issue(qc)) {
+		qc->err_mask |= AC_ERR_OTHER;
+		ata_qc_complete(qc);
+	}
 
 	VPRINTK("EXIT\n");
 	return;

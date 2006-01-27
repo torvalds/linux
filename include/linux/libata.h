@@ -227,10 +227,15 @@ enum hsm_task_states {
 };
 
 enum ata_completion_errors {
-	AC_ERR_OTHER		= (1 << 0),
-	AC_ERR_DEV		= (1 << 1),
-	AC_ERR_ATA_BUS		= (1 << 2),
-	AC_ERR_HOST_BUS		= (1 << 3),
+	AC_ERR_DEV		= (1 << 0), /* device reported error */
+	AC_ERR_HSM		= (1 << 1), /* host state machine violation */
+	AC_ERR_TIMEOUT		= (1 << 2), /* timeout */
+	AC_ERR_MEDIA		= (1 << 3), /* media error */
+	AC_ERR_ATA_BUS		= (1 << 4), /* ATA bus error */
+	AC_ERR_HOST_BUS		= (1 << 5), /* host bus error */
+	AC_ERR_SYSTEM		= (1 << 6), /* system error */
+	AC_ERR_INVALID		= (1 << 7), /* invalid argument */
+	AC_ERR_OTHER		= (1 << 8), /* unknown */
 };
 
 /* forward declarations */
@@ -836,7 +841,7 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 static inline unsigned int ac_err_mask(u8 status)
 {
 	if (status & ATA_BUSY)
-		return AC_ERR_ATA_BUS;
+		return AC_ERR_HSM;
 	if (status & (ATA_ERR | ATA_DF))
 		return AC_ERR_DEV;
 	return 0;

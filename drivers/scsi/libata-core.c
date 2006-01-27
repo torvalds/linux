@@ -1126,8 +1126,10 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
-	if (ata_qc_issue(qc))
-		goto issue_fail;
+	if (ata_qc_issue(qc)) {
+		qc->err_mask = AC_ERR_OTHER;
+		ata_qc_complete(qc);
+	}
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
@@ -1141,7 +1143,7 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 		 * spurious interrupt.  We can live with that.
 		 */
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
-			qc->err_mask = AC_ERR_OTHER;
+			qc->err_mask = AC_ERR_TIMEOUT;
 			ata_qc_complete(qc);
 			printk(KERN_WARNING "ata%u: qc timeout (cmd 0x%x)\n",
 			       ap->id, command);
@@ -1156,11 +1158,6 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	ata_qc_free(qc);
 
 	return err_mask;
-
- issue_fail:
-	ata_qc_free(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-	return AC_ERR_OTHER;
 }
 
 /**
@@ -2929,7 +2926,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
-			qc->err_mask |= AC_ERR_ATA_BUS;
+			qc->err_mask |= AC_ERR_TIMEOUT;
 			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
@@ -3474,7 +3471,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 err_out:
 	printk(KERN_INFO "ata%u: dev %u: ATAPI check failed\n",
 	      ap->id, dev->devno);
-	qc->err_mask |= AC_ERR_ATA_BUS;
+	qc->err_mask |= AC_ERR_HSM;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
 
@@ -3532,7 +3529,7 @@ static void ata_pio_block(struct ata_port *ap)
 	} else {
 		/* handle BSY=0, DRQ=0 as error */
 		if ((status & ATA_DRQ) == 0) {
-			qc->err_mask |= AC_ERR_ATA_BUS;
+			qc->err_mask |= AC_ERR_HSM;
 			ap->hsm_task_state = HSM_ST_ERR;
 			return;
 		}
@@ -3873,10 +3870,10 @@ int ata_qc_issue(struct ata_queued_cmd *qc)
 	if (ata_should_dma_map(qc)) {
 		if (qc->flags & ATA_QCFLAG_SG) {
 			if (ata_sg_setup(qc))
-				goto err_out;
+				goto sg_err;
 		} else if (qc->flags & ATA_QCFLAG_SINGLE) {
 			if (ata_sg_setup_one(qc))
-				goto err_out;
+				goto sg_err;
 		}
 	} else {
 		qc->flags &= ~ATA_QCFLAG_DMAMAP;
@@ -3889,7 +3886,8 @@ int ata_qc_issue(struct ata_queued_cmd *qc)
 
 	return ap->ops->qc_issue(qc);
 
-err_out:
+sg_err:
+	qc->flags &= ~ATA_QCFLAG_DMAMAP;
 	return -1;
 }
 
