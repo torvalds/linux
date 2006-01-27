@@ -1838,7 +1838,6 @@ static void mv_phy_reset(struct ata_port *ap)
 static void mv_eng_timeout(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
-	unsigned long flags;
 
 	printk(KERN_ERR "ata%u: Entering mv_eng_timeout\n",ap->id);
 	DPRINTK("All regs @ start of eng_timeout\n");
@@ -1857,17 +1856,8 @@ static void mv_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
 		       ap->id);
 	} else {
-		/* hack alert!  We cannot use the supplied completion
-	 	 * function from inside the ->eh_strategy_handler() thread.
-	 	 * libata is the only user of ->eh_strategy_handler() in
-	 	 * any kernel, so the default scsi_done() assumes it is
-	 	 * not being called from the SCSI EH.
-	 	 */
-		spin_lock_irqsave(&ap->host_set->lock, flags);
-		qc->scsidone = scsi_finish_command;
 		qc->err_mask |= AC_ERR_TIMEOUT;
-		ata_qc_complete(qc);
-		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+		ata_eh_qc_complete(qc);
 	}
 }
 

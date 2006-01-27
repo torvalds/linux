@@ -738,15 +738,62 @@ int ata_scsi_error(struct Scsi_Host *host)
 	ap = (struct ata_port *) &host->hostdata[0];
 	ap->ops->eng_timeout(ap);
 
-	/* TODO: this is per-command; when queueing is supported
-	 * this code will either change or move to a more
-	 * appropriate place
-	 */
-	host->host_failed--;
-	INIT_LIST_HEAD(&host->eh_cmd_q);
+	assert(host->host_failed == 0 && list_empty(&host->eh_cmd_q));
+
+	scsi_eh_flush_done_q(&ap->eh_done_q);
 
 	DPRINTK("EXIT\n");
 	return 0;
+}
+
+static void ata_eh_scsidone(struct scsi_cmnd *scmd)
+{
+	/* nada */
+}
+
+static void __ata_eh_qc_complete(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	qc->scsidone = ata_eh_scsidone;
+	ata_qc_complete(qc);
+	assert(!ata_tag_valid(qc->tag));
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
+}
+
+/**
+ *	ata_eh_qc_complete - Complete an active ATA command from EH
+ *	@qc: Command to complete
+ *
+ *	Indicate to the mid and upper layers that an ATA command has
+ *	completed.  To be used from EH.
+ */
+void ata_eh_qc_complete(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	scmd->retries = scmd->allowed;
+	__ata_eh_qc_complete(qc);
+}
+
+/**
+ *	ata_eh_qc_retry - Tell midlayer to retry an ATA command after EH
+ *	@qc: Command to retry
+ *
+ *	Indicate to the mid and upper layers that an ATA command
+ *	should be retried.  To be used from EH.
+ *
+ *	SCSI midlayer limits the number of retries to scmd->allowed.
+ *	This function might need to adjust scmd->retries for commands
+ *	which get retried due to unrelated NCQ failures.
+ */
+void ata_eh_qc_retry(struct ata_queued_cmd *qc)
+{
+	__ata_eh_qc_complete(qc);
 }
 
 /**

@@ -3633,14 +3633,6 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
-	/* hack alert!  We cannot use the supplied completion
-	 * function from inside the ->eh_strategy_handler() thread.
-	 * libata is the only user of ->eh_strategy_handler() in
-	 * any kernel, so the default scsi_done() assumes it is
-	 * not being called from the SCSI EH.
-	 */
-	qc->scsidone = scsi_finish_command;
-
 	switch (qc->tf.protocol) {
 
 	case ATA_PROT_DMA:
@@ -3666,11 +3658,12 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 
 		/* complete taskfile transaction */
 		qc->err_mask |= ac_err_mask(drv_stat);
-		ata_qc_complete(qc);
 		break;
 	}
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
+
+	ata_eh_qc_complete(qc);
 
 	DPRINTK("EXIT\n");
 }
@@ -4706,6 +4699,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->last_ctl = 0xFF;
 
 	INIT_WORK(&ap->pio_task, ata_pio_task, ap);
+	INIT_LIST_HEAD(&ap->eh_done_q);
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		ap->device[i].devno = i;
@@ -5449,6 +5443,8 @@ EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_id_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
+EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
+EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
 
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_compute);

@@ -672,19 +672,13 @@ static void ahci_eng_timeout(struct ata_port *ap)
 		       ap->id);
 	} else {
 		ahci_restart_port(ap, readl(port_mmio + PORT_IRQ_STAT));
-
-		/* hack alert!  We cannot use the supplied completion
-	 	 * function from inside the ->eh_strategy_handler() thread.
-	 	 * libata is the only user of ->eh_strategy_handler() in
-	 	 * any kernel, so the default scsi_done() assumes it is
-	 	 * not being called from the SCSI EH.
-	 	 */
-		qc->scsidone = scsi_finish_command;
 		qc->err_mask |= AC_ERR_TIMEOUT;
-		ata_qc_complete(qc);
 	}
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
+
+	if (qc)
+		ata_eh_qc_complete(qc);
 }
 
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)

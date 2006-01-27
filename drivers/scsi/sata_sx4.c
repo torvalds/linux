@@ -872,20 +872,11 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		goto out;
 	}
 
-	/* hack alert!  We cannot use the supplied completion
-	 * function from inside the ->eh_strategy_handler() thread.
-	 * libata is the only user of ->eh_strategy_handler() in
-	 * any kernel, so the default scsi_done() assumes it is
-	 * not being called from the SCSI EH.
-	 */
-	qc->scsidone = scsi_finish_command;
-
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
 		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
 		qc->err_mask |= __ac_err_mask(ata_wait_idle(ap));
-		ata_qc_complete(qc);
 		break;
 
 	default:
@@ -895,12 +886,13 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		       ap->id, qc->tf.command, drv_stat);
 
 		qc->err_mask |= ac_err_mask(drv_stat);
-		ata_qc_complete(qc);
 		break;
 	}
 
 out:
 	spin_unlock_irqrestore(&host_set->lock, flags);
+	if (qc)
+		ata_eh_qc_complete(qc);
 	DPRINTK("EXIT\n");
 }
 
