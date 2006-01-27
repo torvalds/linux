@@ -462,7 +462,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
  */
 
 static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
-							struct pt_regs *regs)
+						struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct mv643xx_private *mp = netdev_priv(dev);
@@ -1048,16 +1048,15 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 
 static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 {
-        unsigned int frag;
-        skb_frag_t *fragp;
+	unsigned int frag;
+	skb_frag_t *fragp;
 
-        for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-                fragp = &skb_shinfo(skb)->frags[frag];
-                if (fragp->size <= 8 && fragp->page_offset & 0x7)
-                        return 1;
-
-        }
-        return 0;
+	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
+		fragp = &skb_shinfo(skb)->frags[frag];
+		if (fragp->size <= 8 && fragp->page_offset & 0x7)
+			return 1;
+	}
+	return 0;
 }
 
 
@@ -2138,26 +2137,26 @@ static void eth_port_set_multicast_list(struct net_device *dev)
 	 */
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI)) {
 		for (table_index = 0; table_index <= 0xFC; table_index += 4) {
-			 /* Set all entries in DA filter special multicast
-			  * table (Ex_dFSMT)
-			  * Set for ETH_Q0 for now
-			  * Bits
-			  * 0	  Accept=1, Drop=0
-			  * 3-1  Queue	 ETH_Q0=0
-			  * 7-4  Reserved = 0;
-			  */
-			 mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+			/* Set all entries in DA filter special multicast
+			 * table (Ex_dFSMT)
+			 * Set for ETH_Q0 for now
+			 * Bits
+			 * 0	  Accept=1, Drop=0
+			 * 3-1  Queue	 ETH_Q0=0
+			 * 7-4  Reserved = 0;
+			 */
+			mv_write(MV643XX_ETH_DA_FILTER_SPECIAL_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
 
-			 /* Set all entries in DA filter other multicast
-			  * table (Ex_dFOMT)
-			  * Set for ETH_Q0 for now
-			  * Bits
-			  * 0	  Accept=1, Drop=0
-			  * 3-1  Queue	 ETH_Q0=0
-			  * 7-4  Reserved = 0;
-			  */
-			 mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
-       	}
+			/* Set all entries in DA filter other multicast
+			 * table (Ex_dFOMT)
+			 * Set for ETH_Q0 for now
+			 * Bits
+			 * 0	  Accept=1, Drop=0
+			 * 3-1  Queue	 ETH_Q0=0
+			 * 7-4  Reserved = 0;
+			 */
+			mv_write(MV643XX_ETH_DA_FILTER_OTHER_MULTICAST_TABLE_BASE(eth_port_num) + table_index, 0x01010101);
+		}
 		return;
 	}
 
@@ -2886,8 +2885,10 @@ static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 	p_pkt_info->return_info = mp->rx_skb[rx_curr_desc];
 	p_pkt_info->l4i_chk = p_rx_desc->buf_size;
 
-	/* Clean the return info field to indicate that the packet has been */
-	/* moved to the upper layers					    */
+	/*
+	 * Clean the return info field to indicate that the
+	 * packet has been moved to the upper layers
+	 */
 	mp->rx_skb[rx_curr_desc] = NULL;
 
 	/* Update current index in data structure */
@@ -2968,7 +2969,7 @@ struct mv643xx_stats {
 };
 
 #define MV643XX_STAT(m) sizeof(((struct mv643xx_private *)0)->m), \
-		      offsetof(struct mv643xx_private, m)
+					offsetof(struct mv643xx_private, m)
 
 static const struct mv643xx_stats mv643xx_gstrings_stats[] = {
 	{ "rx_packets", MV643XX_STAT(stats.rx_packets) },
@@ -3119,9 +3120,8 @@ mv643xx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	return 0;
 }
 
-static void
-mv643xx_get_drvinfo(struct net_device *netdev,
-                       struct ethtool_drvinfo *drvinfo)
+static void mv643xx_get_drvinfo(struct net_device *netdev,
+				struct ethtool_drvinfo *drvinfo)
 {
 	strncpy(drvinfo->driver,  mv643xx_driver_name, 32);
 	strncpy(drvinfo->version, mv643xx_driver_version, 32);
@@ -3130,39 +3130,37 @@ mv643xx_get_drvinfo(struct net_device *netdev,
 	drvinfo->n_stats = MV643XX_STATS_LEN;
 }
 
-static int 
-mv643xx_get_stats_count(struct net_device *netdev)
+static int mv643xx_get_stats_count(struct net_device *netdev)
 {
 	return MV643XX_STATS_LEN;
 }
 
-static void 
-mv643xx_get_ethtool_stats(struct net_device *netdev, 
-		struct ethtool_stats *stats, uint64_t *data)
+static void mv643xx_get_ethtool_stats(struct net_device *netdev,
+				struct ethtool_stats *stats, uint64_t *data)
 {
 	struct mv643xx_private *mp = netdev->priv;
 	int i;
 
 	eth_update_mib_counters(mp);
 
-	for(i = 0; i < MV643XX_STATS_LEN; i++) {
+	for (i = 0; i < MV643XX_STATS_LEN; i++) {
 		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;	
-		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat == 
+		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}
 }
 
-static void 
-mv643xx_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
+static void mv643xx_get_strings(struct net_device *netdev, uint32_t stringset,
+				uint8_t *data)
 {
 	int i;
 
 	switch(stringset) {
 	case ETH_SS_STATS:
 		for (i=0; i < MV643XX_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN, 
-			mv643xx_gstrings_stats[i].stat_string,
-			ETH_GSTRING_LEN);
+			memcpy(data + i * ETH_GSTRING_LEN,
+					mv643xx_gstrings_stats[i].stat_string,
+					ETH_GSTRING_LEN);
 		}
 		break;
 	}
