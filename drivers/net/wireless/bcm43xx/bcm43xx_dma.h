@@ -122,7 +122,6 @@ struct bcm43xx_dmadesc_meta {
 };
 
 struct bcm43xx_dmaring {
-	spinlock_t lock;
 	struct bcm43xx_private *bcm;
 	/* Kernel virtual base address of the ring memory. */
 	struct bcm43xx_dmadesc *vbase;
@@ -166,11 +165,11 @@ int bcm43xx_dmacontroller_rx_reset(struct bcm43xx_private *bcm,
 int bcm43xx_dmacontroller_tx_reset(struct bcm43xx_private *bcm,
 				   u16 dmacontroller_mmio_base);
 
-int FASTCALL(bcm43xx_dma_transfer_txb(struct bcm43xx_private *bcm,
-				      struct ieee80211_txb *txb));
-void FASTCALL(bcm43xx_dma_handle_xmitstatus(struct bcm43xx_private *bcm,
-					    struct bcm43xx_xmitstatus *status));
+void bcm43xx_dma_handle_xmitstatus(struct bcm43xx_private *bcm,
+				   struct bcm43xx_xmitstatus *status);
 
-void FASTCALL(bcm43xx_dma_rx(struct bcm43xx_dmaring *ring));
+int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
+		   struct ieee80211_txb *txb);
+void bcm43xx_dma_rx(struct bcm43xx_dmaring *ring);
 
 #endif /* BCM43xx_DMA_H_ */

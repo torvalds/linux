@@ -4097,7 +4097,6 @@ int fastcall bcm43xx_rx(struct bcm43xx_private *bcm,
 	}
 
 	frame_ctl = le16_to_cpu(wlhdr->frame_ctl);
-	
 	if ((frame_ctl & IEEE80211_FCTL_PROTECTED) && !bcm->ieee->host_decrypt) {
 		frame_ctl &= ~IEEE80211_FCTL_PROTECTED;
 		wlhdr->frame_ctl = cpu_to_le16(frame_ctl);		
@@ -4113,12 +4112,12 @@ int fastcall bcm43xx_rx(struct bcm43xx_private *bcm,
 			skb_trim(skb, skb->len - 4);
 			stats.len -= 8;
 		}
-		/* do _not_ use wlhdr again without reassigning it */
+		wlhdr = (struct ieee80211_hdr_4addr *)(skb->data);
 	}
 	
 	switch (WLAN_FC_GET_TYPE(frame_ctl)) {
 	case IEEE80211_FTYPE_MGMT:
-		ieee80211_rx_mgt(bcm->ieee, skb->data, &stats);
+		ieee80211_rx_mgt(bcm->ieee, wlhdr, &stats);
 		break;
 	case IEEE80211_FTYPE_DATA:
 		if (is_packet_for_us)
@@ -4143,7 +4142,7 @@ static inline int bcm43xx_tx(struct bcm43xx_private *bcm,
 	if (bcm->pio_mode)
 		err = bcm43xx_pio_transfer_txb(bcm, txb);
 	else
-		err = bcm43xx_dma_transfer_txb(bcm, txb);
+		err = bcm43xx_dma_tx(bcm, txb);
 
 	return err;
 }

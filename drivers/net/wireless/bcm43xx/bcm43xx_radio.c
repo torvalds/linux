@@ -467,8 +467,8 @@ static void bcm43xx_calc_nrssi_offset(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0003,
 				  (bcm43xx_phy_read(bcm, 0x0003) & 0xFF9F)
 				  | 0x0040);
-		bcm43xx_phy_write(bcm, 0x007A,
-				  bcm43xx_phy_read(bcm, 0x007A) | 0x000F);
+		bcm43xx_radio_write16(bcm, 0x007A,
+				      bcm43xx_radio_read16(bcm, 0x007A) | 0x000F);
 		bcm43xx_set_all_gains(bcm, 3, 0, 1);
 		bcm43xx_radio_write16(bcm, 0x0043,
 				      (bcm43xx_radio_read16(bcm, 0x0043)
@@ -761,8 +761,8 @@ void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0802,
 				  bcm43xx_phy_read(bcm, 0x0802) | (0x0001 | 0x0002));
 		bcm43xx_set_original_gains(bcm);
-		bcm43xx_phy_write(bcm, 0x0802,
-				  bcm43xx_phy_read(bcm, 0x0802) | 0x8000);
+		bcm43xx_phy_write(bcm, BCM43xx_PHY_G_CRS,
+				  bcm43xx_phy_read(bcm, BCM43xx_PHY_G_CRS) | 0x8000);
 		if (phy->rev >= 3) {
 			bcm43xx_phy_write(bcm, 0x0801, backup[14]);
 			bcm43xx_phy_write(bcm, 0x0060, backup[15]);

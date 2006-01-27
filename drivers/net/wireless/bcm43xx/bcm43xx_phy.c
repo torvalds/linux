@@ -1161,7 +1161,7 @@ void bcm43xx_phy_lo_b_measure(struct bcm43xx_private *bcm)
 	phy->minlowsigpos[1] += 0x0101;
 
 	bcm43xx_phy_write(bcm, 0x002F, phy->minlowsigpos[1]);
-	if (radio->version == 2053) {
+	if (radio->version == 0x2053) {
 		bcm43xx_phy_write(bcm, 0x000A, regstack[2]);
 		bcm43xx_phy_write(bcm, 0x002A, regstack[3]);
 		bcm43xx_phy_write(bcm, 0x0035, regstack[4]);
