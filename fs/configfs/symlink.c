@@ -162,8 +162,7 @@ int configfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (!(sd->s_type & CONFIGFS_ITEM_LINK))
 		goto out;
 
-	if (dentry->d_parent == configfs_sb->s_root)
-		BUG();
+	BUG_ON(dentry->d_parent == configfs_sb->s_root);
 
 	sl = sd->s_element;
 
