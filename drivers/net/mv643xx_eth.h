@@ -324,7 +324,6 @@ struct mv643xx_mib_counters {
 
 struct mv643xx_private {
 	int port_num;			/* User Ethernet port number	*/
-	u8 port_mac_addr[6];		/* User defined port MAC address.*/
 	u32 port_config;		/* User port configuration value*/
 	u32 port_config_extend;		/* User port config extend value*/
 	u32 port_sdma_config;		/* User port SDMA config value	*/
@@ -405,7 +404,7 @@ struct mv643xx_private {
 /* Port operation control routines */
 static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
-static void eth_port_start(struct mv643xx_private *mp);
+static void eth_port_start(struct net_device *dev);
 
 /* Port MAC address routines */
 static void eth_port_uc_addr_set(unsigned int eth_port_num,

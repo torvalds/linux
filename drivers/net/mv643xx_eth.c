@@ -243,8 +243,7 @@ static void mv643xx_eth_update_mac_address(struct net_device *dev)
 	unsigned int port_num = mp->port_num;
 
 	eth_port_init_mac_tables(port_num);
-	memcpy(mp->port_mac_addr, dev->dev_addr, 6);
-	eth_port_uc_addr_set(port_num, mp->port_mac_addr);
+	eth_port_uc_addr_set(port_num, dev->dev_addr);
 }
 
 /*
@@ -320,7 +319,7 @@ static void mv643xx_eth_tx_timeout_task(struct net_device *dev)
 
 	netif_device_detach(dev);
 	eth_port_reset(mp->port_num);
-	eth_port_start(mp);
+	eth_port_start(dev);
 	netif_device_attach(dev);
 }
 
@@ -751,9 +750,6 @@ static int mv643xx_eth_open(struct net_device *dev)
 	/* Stop RX Queues */
 	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), 0x0000ff00);
 
-	/* Set the MAC Address */
-	memcpy(mp->port_mac_addr, dev->dev_addr, 6);
-
 	eth_port_init(mp);
 
 	INIT_WORK(&mp->rx_task, (void (*)(void *))mv643xx_eth_rx_task, dev);
@@ -839,7 +835,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	mv643xx_eth_rx_task(dev);	/* Fill RX ring with skb's */
 
-	eth_port_start(mp);
+	eth_port_start(dev);
 
 	/* Interrupt Coalescing */
 
@@ -1706,7 +1702,6 @@ MODULE_DESCRIPTION("Ethernet driver for Marvell MV643XX");
  *	Prior to calling the initialization routine eth_port_init() the user
  *	must set the following fields under mv643xx_private struct:
  *	port_num		User Ethernet port number.
- *	port_mac_addr[6]	User defined port MAC address.
  *	port_config		User port configuration value.
  *	port_config_extend	User port config extend value.
  *	port_sdma_config	User port SDMA config value.
@@ -1796,7 +1791,7 @@ static void eth_port_init(struct mv643xx_private *mp)
  *	and ether_init_rx_desc_ring for Rx queues).
  *
  * INPUT:
- *	struct mv643xx_private *mp	Ethernet port control struct
+ *	dev - a pointer to the required interface
  *
  * OUTPUT:
  *	Ethernet port is ready to receive and transmit.
@@ -1804,8 +1799,9 @@ static void eth_port_init(struct mv643xx_private *mp)
  * RETURN:
  *	None.
  */
-static void eth_port_start(struct mv643xx_private *mp)
+static void eth_port_start(struct net_device *dev)
 {
+	struct mv643xx_private *mp = netdev_priv(dev);
 	unsigned int port_num = mp->port_num;
 	int tx_curr_desc, rx_curr_desc;
 
@@ -1820,7 +1816,7 @@ static void eth_port_start(struct mv643xx_private *mp)
 		(u32)((struct eth_rx_desc *)mp->rx_desc_dma + rx_curr_desc));
 
 	/* Add the assigned Ethernet address to the port's address table */
-	eth_port_uc_addr_set(port_num, mp->port_mac_addr);
+	eth_port_uc_addr_set(port_num, dev->dev_addr);
 
 	/* Assign port configuration and command. */
 	mv_write(MV643XX_ETH_PORT_CONFIG_REG(port_num), mp->port_config);
