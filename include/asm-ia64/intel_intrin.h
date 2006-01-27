@@ -122,7 +122,8 @@ __s64 _m64_popcnt(__s64 a);
 #define ia64_getreg		__getReg
 #define ia64_setreg		__setReg
 
-#define ia64_hint(x)
+#define ia64_hint		__hint
+#define ia64_hint_pause		__hint_pause
 
 #define ia64_mux1_brcst	 0
 #define ia64_mux1_mix		 8
