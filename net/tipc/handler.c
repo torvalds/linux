@@ -52,7 +52,7 @@ static void process_signal_queue(unsigned long dummy);
 static DECLARE_TASKLET_DISABLED(tipc_tasklet, process_signal_queue, 0);
 
 
-unsigned int k_signal(Handler routine, unsigned long argument)
+unsigned int tipc_k_signal(Handler routine, unsigned long argument)
 {
 	struct queue_item *item;
 
@@ -93,7 +93,7 @@ static void process_signal_queue(unsigned long dummy)
 	spin_unlock_bh(&qitem_lock);
 }
 
-int handler_start(void)
+int tipc_handler_start(void)
 {
 	tipc_queue_item_cache = 
 		kmem_cache_create("tipc_queue_items", sizeof(struct queue_item),
@@ -107,7 +107,7 @@ int handler_start(void)
 	return 0;
 }
 
-void handler_stop(void)
+void tipc_handler_stop(void)
 {
 	struct list_head *l, *n;
 	struct queue_item *item; 

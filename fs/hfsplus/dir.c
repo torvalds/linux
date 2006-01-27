@@ -66,25 +66,32 @@ again:
 		}
 		cnid = be32_to_cpu(entry.file.id);
 		if (entry.file.user_info.fdType == cpu_to_be32(HFSP_HARDLINK_TYPE) &&
-		    entry.file.user_info.fdCreator == cpu_to_be32(HFSP_HFSPLUS_CREATOR)) {
+		    entry.file.user_info.fdCreator == cpu_to_be32(HFSP_HFSPLUS_CREATOR) &&
+		    (entry.file.create_date == HFSPLUS_I(HFSPLUS_SB(sb).hidden_dir).create_date ||
+		     entry.file.create_date == HFSPLUS_I(sb->s_root->d_inode).create_date) &&
+		    HFSPLUS_SB(sb).hidden_dir) {
 			struct qstr str;
 			char name[32];
 
 			if (dentry->d_fsdata) {
-				err = -ENOENT;
-				inode = NULL;
-				goto out;
+				/*
+				 * We found a link pointing to another link,
+				 * so ignore it and treat it as regular file.
+				 */
+				cnid = (unsigned long)dentry->d_fsdata;
+				linkid = 0;
+			} else {
+				dentry->d_fsdata = (void *)(unsigned long)cnid;
+				linkid = be32_to_cpu(entry.file.permissions.dev);
+				str.len = sprintf(name, "iNode%d", linkid);
+				str.name = name;
+				hfsplus_cat_build_key(sb, fd.search_key, HFSPLUS_SB(sb).hidden_dir->i_ino, &str);
+				goto again;
 			}
-			dentry->d_fsdata = (void *)(unsigned long)cnid;
-			linkid = be32_to_cpu(entry.file.permissions.dev);
-			str.len = sprintf(name, "iNode%d", linkid);
-			str.name = name;
-			hfsplus_cat_build_key(sb, fd.search_key, HFSPLUS_SB(sb).hidden_dir->i_ino, &str);
-			goto again;
 		} else if (!dentry->d_fsdata)
 			dentry->d_fsdata = (void *)(unsigned long)cnid;
 	} else {
-		printk("HFS+-fs: Illegal catalog entry type in lookup\n");
+		printk(KERN_ERR "hfs: invalid catalog entry type in lookup\n");
 		err = -EIO;
 		goto fail;
 	}
@@ -132,12 +139,12 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	case 1:
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
 		if (be16_to_cpu(entry.type) != HFSPLUS_FOLDER_THREAD) {
-			printk("HFS+-fs: bad catalog folder thread\n");
+			printk(KERN_ERR "hfs: bad catalog folder thread\n");
 			err = -EIO;
 			goto out;
 		}
 		if (fd.entrylength < HFSPLUS_MIN_THREAD_SZ) {
-			printk("HFS+-fs: truncated catalog thread\n");
+			printk(KERN_ERR "hfs: truncated catalog thread\n");
 			err = -EIO;
 			goto out;
 		}
@@ -156,7 +163,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	for (;;) {
 		if (be32_to_cpu(fd.key->cat.parent) != inode->i_ino) {
-			printk("HFS+-fs: walked past end of dir\n");
+			printk(KERN_ERR "hfs: walked past end of dir\n");
 			err = -EIO;
 			goto out;
 		}
@@ -168,7 +175,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			goto out;
 		if (type == HFSPLUS_FOLDER) {
 			if (fd.entrylength < sizeof(struct hfsplus_cat_folder)) {
-				printk("HFS+-fs: small dir entry\n");
+				printk(KERN_ERR "hfs: small dir entry\n");
 				err = -EIO;
 				goto out;
 			}
@@ -180,7 +187,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				break;
 		} else if (type == HFSPLUS_FILE) {
 			if (fd.entrylength < sizeof(struct hfsplus_cat_file)) {
-				printk("HFS+-fs: small file entry\n");
+				printk(KERN_ERR "hfs: small file entry\n");
 				err = -EIO;
 				goto out;
 			}
@@ -188,7 +195,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				    be32_to_cpu(entry.file.id), DT_REG))
 				break;
 		} else {
-			printk("HFS+-fs: bad catalog entry type\n");
+			printk(KERN_ERR "hfs: bad catalog entry type\n");
 			err = -EIO;
 			goto out;
 		}
@@ -330,7 +337,8 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 	if (res)
 		return res;
 
-	inode->i_nlink--;
+	if (inode->i_nlink > 0)
+		inode->i_nlink--;
 	hfsplus_delete_inode(inode);
 	if (inode->i_ino != cnid && !inode->i_nlink) {
 		if (!atomic_read(&HFSPLUS_I(inode).opencnt)) {
@@ -339,7 +347,8 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 				hfsplus_delete_inode(inode);
 		} else
 			inode->i_flags |= S_DEAD;
-	}
+	} else
+		inode->i_nlink = 0;
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 

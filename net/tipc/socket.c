@@ -42,9 +42,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <linux/version.h>
 #include <linux/fcntl.h>
-#include <linux/version.h>
 #include <asm/semaphore.h>
 #include <asm/string.h>
 #include <asm/atomic.h>
@@ -1185,7 +1183,7 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
 	if (unlikely(msg_errcode(msg) && (sock->state == SS_CONNECTED))) {
 		sock->state = SS_DISCONNECTING;
 		/* Note: Use signal since port lock is already taken! */
-		k_signal((Handler)async_disconnect, tport->ref);
+		tipc_k_signal((Handler)async_disconnect, tport->ref);
 	}
 
 	/* Enqueue message (finally!) */
@@ -1685,11 +1683,11 @@ static struct proto tipc_proto = {
 };
 
 /**
- * socket_init - initialize TIPC socket interface
+ * tipc_socket_init - initialize TIPC socket interface
  * 
  * Returns 0 on success, errno otherwise
  */
-int socket_init(void)
+int tipc_socket_init(void)
 {
 	int res;
 
@@ -1712,9 +1710,9 @@ int socket_init(void)
 }
 
 /**
- * sock_stop - stop TIPC socket interface
+ * tipc_socket_stop - stop TIPC socket interface
  */
-void socket_stop(void)
+void tipc_socket_stop(void)
 {
 	if (!sockets_enabled)
 		return;

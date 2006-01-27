@@ -146,7 +146,7 @@ void pda_init(int cpu)
 	pda->irqstackptr += IRQSTACKSIZE-64;
 } 
 
-char boot_exception_stacks[(N_EXCEPTION_STACKS - 2) * EXCEPTION_STKSZ + DEBUG_STKSZ]
+char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]
 __attribute__((section(".bss.page_aligned")));
 
 /* May not be marked __init: used by software suspend */

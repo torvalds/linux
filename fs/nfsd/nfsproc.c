@@ -36,6 +36,22 @@ nfsd_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 	return nfs_ok;
 }
 
+static int
+nfsd_return_attrs(int err, struct nfsd_attrstat *resp)
+{
+	if (err) return err;
+	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_mnt,
+				    resp->fh.fh_dentry,
+				    &resp->stat));
+}
+static int
+nfsd_return_dirop(int err, struct nfsd_diropres *resp)
+{
+	if (err) return err;
+	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_mnt,
+				    resp->fh.fh_dentry,
+				    &resp->stat));
+}
 /*
  * Get a file's attributes
  * N.B. After this call resp->fh needs an fh_put
@@ -44,10 +60,12 @@ static int
 nfsd_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					  struct nfsd_attrstat *resp)
 {
+	int nfserr;
 	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
-	return fh_verify(rqstp, &resp->fh, 0, MAY_NOP);
+	nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_NOP);
+	return nfsd_return_attrs(nfserr, resp);
 }
 
 /*
@@ -58,12 +76,14 @@ static int
 nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
 					  struct nfsd_attrstat  *resp)
 {
+	int nfserr;
 	dprintk("nfsd: SETATTR  %s, valid=%x, size=%ld\n",
 		SVCFH_fmt(&argp->fh),
 		argp->attrs.ia_valid, (long) argp->attrs.ia_size);
 
 	fh_copy(&resp->fh, &argp->fh);
-	return nfsd_setattr(rqstp, &resp->fh, &argp->attrs,0, (time_t)0);
+	nfserr = nfsd_setattr(rqstp, &resp->fh, &argp->attrs,0, (time_t)0);
+	return nfsd_return_attrs(nfserr, resp);
 }
 
 /*
@@ -86,7 +106,7 @@ nfsd_proc_lookup(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 				 &resp->fh);
 
 	fh_put(&argp->fh);
-	return nfserr;
+	return nfsd_return_dirop(nfserr, resp);
 }
 
 /*
@@ -142,7 +162,10 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 			   	  argp->vec, argp->vlen,
 				  &resp->count);
 
-	return nfserr;
+	if (nfserr) return nfserr;
+	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_mnt,
+				    resp->fh.fh_dentry,
+				    &resp->stat));
 }
 
 /*
@@ -165,7 +188,7 @@ nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 				   argp->vec, argp->vlen,
 				   argp->len,
 				   &stable);
-	return nfserr;
+	return nfsd_return_attrs(nfserr, resp);
 }
 
 /*
@@ -322,7 +345,7 @@ out_unlock:
 
 done:
 	fh_put(dirfhp);
-	return nfserr;
+	return nfsd_return_dirop(nfserr, resp);
 }
 
 static int
@@ -425,7 +448,7 @@ nfsd_proc_mkdir(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	nfserr = nfsd_create(rqstp, &argp->fh, argp->name, argp->len,
 				    &argp->attrs, S_IFDIR, 0, &resp->fh);
 	fh_put(&argp->fh);
-	return nfserr;
+	return nfsd_return_dirop(nfserr, resp);
 }
 
 /*

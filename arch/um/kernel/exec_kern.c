@@ -17,7 +17,6 @@
 #include "irq_user.h"
 #include "tlb.h"
 #include "os.h"
-#include "time_user.h"
 #include "choose-mode.h"
 #include "mode_kern.h"
 

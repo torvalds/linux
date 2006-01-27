@@ -510,9 +510,24 @@ asmlinkage long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,
 asmlinkage long sys_ioprio_set(int which, int who, int ioprio);
 asmlinkage long sys_ioprio_get(int which, int who);
 asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
-					unsigned long maxnode);
+				unsigned long maxnode);
 asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
-			const unsigned long __user *from, const unsigned long __user *to);
+				const unsigned long __user *from,
+				const unsigned long __user *to);
+asmlinkage long sys_mbind(unsigned long start, unsigned long len,
+				unsigned long mode,
+				unsigned long __user *nmask,
+				unsigned long maxnode,
+				unsigned flags);
+asmlinkage long sys_get_mempolicy(int __user *policy,
+				unsigned long __user *nmask,
+				unsigned long maxnode,
+				unsigned long addr, unsigned long flags);
+
+asmlinkage long sys_inotify_init(void);
+asmlinkage long sys_inotify_add_watch(int fd, const char __user *path,
+					u32 mask);
+asmlinkage long sys_inotify_rm_watch(int fd, u32 wd);
 
 asmlinkage long sys_spu_run(int fd, __u32 __user *unpc,
 				 __u32 __user *ustatus);

@@ -78,7 +78,7 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
  	struct mmu_context_skas *from_mm = NULL;
 	struct mmu_context_skas *to_mm = &mm->context.skas;
 	unsigned long stack = 0;
-	int from_fd, ret = -ENOMEM;
+	int ret = -ENOMEM;
 
 	if(skas_needs_stub){
 		stack = get_zeroed_page(GFP_KERNEL);
@@ -108,11 +108,7 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 		from_mm = &current->mm->context.skas;
 
 	if(proc_mm){
-		if(from_mm)
-			from_fd = from_mm->id.u.mm_fd;
-		else from_fd = -1;
-
-		ret = new_mm(from_fd, stack);
+		ret = new_mm(stack);
 		if(ret < 0){
 			printk("init_new_context_skas - new_mm failed, "
 			       "errno = %d\n", ret);

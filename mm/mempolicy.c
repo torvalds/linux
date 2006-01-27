@@ -185,8 +185,8 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 }
 
 static void gather_stats(struct page *, void *);
-static void migrate_page_add(struct vm_area_struct *vma,
-	struct page *page, struct list_head *pagelist, unsigned long flags);
+static void migrate_page_add(struct page *page, struct list_head *pagelist,
+				unsigned long flags);
 
 /* Scan through pages checking if pages follow certain conditions. */
 static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
@@ -208,6 +208,17 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		page = vm_normal_page(vma, addr, *pte);
 		if (!page)
 			continue;
+		/*
+		 * The check for PageReserved here is important to avoid
+		 * handling zero pages and other pages that may have been
+		 * marked special by the system.
+		 *
+		 * If the PageReserved would not be checked here then f.e.
+		 * the location of the zero page could have an influence
+		 * on MPOL_MF_STRICT, zero pages would be counted for
+		 * the per node stats, and there would be useless attempts
+		 * to put zero pages on the migration list.
+		 */
 		if (PageReserved(page))
 			continue;
 		nid = page_to_nid(page);
@@ -216,11 +227,8 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 		if (flags & MPOL_MF_STATS)
 			gather_stats(page, private);
-		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
-			spin_unlock(ptl);
-			migrate_page_add(vma, page, private, flags);
-			spin_lock(ptl);
-		}
+		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+			migrate_page_add(page, private, flags);
 		else
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -308,6 +316,10 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 {
 	int err;
 	struct vm_area_struct *first, *vma, *prev;
+
+	/* Clear the LRU lists so pages can be isolated */
+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+		lru_add_drain_all();
 
 	first = find_vma(mm, start);
 	if (!first)
@@ -519,51 +531,15 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
  * page migration
  */
 
-/* Check if we are the only process mapping the page in question */
-static inline int single_mm_mapping(struct mm_struct *mm,
-			struct address_space *mapping)
-{
-	struct vm_area_struct *vma;
-	struct prio_tree_iter iter;
-	int rc = 1;
-
-	spin_lock(&mapping->i_mmap_lock);
-	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX)
-		if (mm != vma->vm_mm) {
-			rc = 0;
-			goto out;
-		}
-	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
-		if (mm != vma->vm_mm) {
-			rc = 0;
-			goto out;
-		}
-out:
-	spin_unlock(&mapping->i_mmap_lock);
-	return rc;
-}
-
-/*
- * Add a page to be migrated to the pagelist
- */
-static void migrate_page_add(struct vm_area_struct *vma,
-	struct page *page, struct list_head *pagelist, unsigned long flags)
+static void migrate_page_add(struct page *page, struct list_head *pagelist,
+				unsigned long flags)
 {
 	/*
-	 * Avoid migrating a page that is shared by others and not writable.
+	 * Avoid migrating a page that is shared with others.
 	 */
-	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
-	    mapping_writably_mapped(page->mapping) ||
-	    single_mm_mapping(vma->vm_mm, page->mapping)) {
-		int rc = isolate_lru_page(page);
-
-		if (rc == 1)
+	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
+		if (isolate_lru_page(page))
 			list_add(&page->lru, pagelist);
-		/*
-		 * If the isolate attempt was not successful then we just
-		 * encountered an unswappable page. Something must be wrong.
-	 	 */
-		WARN_ON(rc == 0);
 	}
 }
 
@@ -998,6 +974,33 @@ static unsigned interleave_nodes(struct mempolicy *policy)
 		next = first_node(policy->v.nodes);
 	me->il_next = next;
 	return nid;
+}
+
+/*
+ * Depending on the memory policy provide a node from which to allocate the
+ * next slab entry.
+ */
+unsigned slab_node(struct mempolicy *policy)
+{
+	switch (policy->policy) {
+	case MPOL_INTERLEAVE:
+		return interleave_nodes(policy);
+
+	case MPOL_BIND:
+		/*
+		 * Follow bind policy behavior and start allocation at the
+		 * first node.
+		 */
+		return policy->v.zonelist->zones[0]->zone_pgdat->node_id;
+
+	case MPOL_PREFERRED:
+		if (policy->v.preferred_node >= 0)
+			return policy->v.preferred_node;
+		/* Fall through */
+
+	default:
+		return numa_node_id();
+	}
 }
 
 /* Do static interleaving for a VMA with known offset. */

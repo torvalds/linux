@@ -8,6 +8,7 @@ obj-$(CONFIG_9P_FS) := 9p2000.o
 	conv.o \
 	vfs_super.o \
 	vfs_inode.o \
+	vfs_addr.o \
 	vfs_file.o \
 	vfs_dir.o \
 	vfs_dentry.o \

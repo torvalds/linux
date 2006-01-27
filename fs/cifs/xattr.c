@@ -254,7 +254,8 @@ ssize_t cifs_getxattr(struct dentry * direntry, const char * ea_name,
 		rc = CIFSSMBQueryEA(xid,pTcon,full_path,ea_name,ea_value,
 			buf_size, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	} else if(strncmp(ea_name,POSIX_ACL_XATTR_ACCESS,strlen(POSIX_ACL_XATTR_ACCESS)) == 0) {
+	} else if(strncmp(ea_name,POSIX_ACL_XATTR_ACCESS,
+			  strlen(POSIX_ACL_XATTR_ACCESS)) == 0) {
 #ifdef CONFIG_CIFS_POSIX
 		if(sb->s_flags & MS_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
@@ -262,10 +263,27 @@ ssize_t cifs_getxattr(struct dentry * direntry, const char * ea_name,
 				cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags & 
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
+/*		else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
+			__u16 fid;
+			int oplock = FALSE;
+			rc = CIFSSMBOpen(xid, pTcon, full_path,
+					 FILE_OPEN, GENERIC_READ, 0, &fid,
+					 &oplock, NULL, cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags &
+					 CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if(rc == 0) {
+				rc = CIFSSMBGetCIFSACL(xid, pTcon, fid,
+					ea_value, buf_size,
+					ACL_TYPE_ACCESS);
+				CIFSSMBClose(xid, pTcon, fid)
+			}
+		} */  /* BB enable after fixing up return data */
+                  		
 #else 
 		cFYI(1,("query POSIX ACL not supported yet"));
 #endif /* CONFIG_CIFS_POSIX */
-	} else if(strncmp(ea_name,POSIX_ACL_XATTR_DEFAULT,strlen(POSIX_ACL_XATTR_DEFAULT)) == 0) {
+	} else if(strncmp(ea_name,POSIX_ACL_XATTR_DEFAULT,
+			  strlen(POSIX_ACL_XATTR_DEFAULT)) == 0) {
 #ifdef CONFIG_CIFS_POSIX
 		if(sb->s_flags & MS_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,

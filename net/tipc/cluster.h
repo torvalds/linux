@@ -60,29 +60,29 @@ struct cluster {
 };
 
 
-extern struct node **local_nodes;
-extern u32 highest_allowed_slave;
-extern struct node_map cluster_bcast_nodes;
+extern struct node **tipc_local_nodes;
+extern u32 tipc_highest_allowed_slave;
+extern struct node_map tipc_cltr_bcast_nodes;
 
-void cluster_remove_as_router(struct cluster *c_ptr, u32 router);
-void cluster_send_ext_routes(struct cluster *c_ptr, u32 dest);
-struct node *cluster_select_node(struct cluster *c_ptr, u32 selector);
-u32 cluster_select_router(struct cluster *c_ptr, u32 ref);
-void cluster_recv_routing_table(struct sk_buff *buf);
-struct cluster *cluster_create(u32 addr);
-void cluster_delete(struct cluster *c_ptr);
-void cluster_attach_node(struct cluster *c_ptr, struct node *n_ptr);
-void cluster_send_slave_routes(struct cluster *c_ptr, u32 dest);
-void cluster_broadcast(struct sk_buff *buf);
-int cluster_init(void);
-u32 cluster_next_node(struct cluster *c_ptr, u32 addr);
-void cluster_bcast_new_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
-void cluster_send_local_routes(struct cluster *c_ptr, u32 dest);
-void cluster_bcast_lost_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
+void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router);
+void tipc_cltr_send_ext_routes(struct cluster *c_ptr, u32 dest);
+struct node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector);
+u32 tipc_cltr_select_router(struct cluster *c_ptr, u32 ref);
+void tipc_cltr_recv_routing_table(struct sk_buff *buf);
+struct cluster *tipc_cltr_create(u32 addr);
+void tipc_cltr_delete(struct cluster *c_ptr);
+void tipc_cltr_attach_node(struct cluster *c_ptr, struct node *n_ptr);
+void tipc_cltr_send_slave_routes(struct cluster *c_ptr, u32 dest);
+void tipc_cltr_broadcast(struct sk_buff *buf);
+int tipc_cltr_init(void);
+u32 tipc_cltr_next_node(struct cluster *c_ptr, u32 addr);
+void tipc_cltr_bcast_new_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
+void tipc_cltr_send_local_routes(struct cluster *c_ptr, u32 dest);
+void tipc_cltr_bcast_lost_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
 
-static inline struct cluster *cluster_find(u32 addr)
+static inline struct cluster *tipc_cltr_find(u32 addr)
 {
-	struct _zone *z_ptr = zone_find(addr);
+	struct _zone *z_ptr = tipc_zone_find(addr);
 
 	if (z_ptr)
 		return z_ptr->clusters[1];

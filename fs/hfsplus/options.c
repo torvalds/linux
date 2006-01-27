@@ -83,58 +83,58 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 		switch (token) {
 		case opt_creator:
 			if (match_fourchar(&args[0], &sbi->creator)) {
-				printk("HFS+-fs: creator requires a 4 character value\n");
+				printk(KERN_ERR "hfs: creator requires a 4 character value\n");
 				return 0;
 			}
 			break;
 		case opt_type:
 			if (match_fourchar(&args[0], &sbi->type)) {
-				printk("HFS+-fs: type requires a 4 character value\n");
+				printk(KERN_ERR "hfs: type requires a 4 character value\n");
 				return 0;
 			}
 			break;
 		case opt_umask:
 			if (match_octal(&args[0], &tmp)) {
-				printk("HFS+-fs: umask requires a value\n");
+				printk(KERN_ERR "hfs: umask requires a value\n");
 				return 0;
 			}
 			sbi->umask = (umode_t)tmp;
 			break;
 		case opt_uid:
 			if (match_int(&args[0], &tmp)) {
-				printk("HFS+-fs: uid requires an argument\n");
+				printk(KERN_ERR "hfs: uid requires an argument\n");
 				return 0;
 			}
 			sbi->uid = (uid_t)tmp;
 			break;
 		case opt_gid:
 			if (match_int(&args[0], &tmp)) {
-				printk("HFS+-fs: gid requires an argument\n");
+				printk(KERN_ERR "hfs: gid requires an argument\n");
 				return 0;
 			}
 			sbi->gid = (gid_t)tmp;
 			break;
 		case opt_part:
 			if (match_int(&args[0], &sbi->part)) {
-				printk("HFS+-fs: part requires an argument\n");
+				printk(KERN_ERR "hfs: part requires an argument\n");
 				return 0;
 			}
 			break;
 		case opt_session:
 			if (match_int(&args[0], &sbi->session)) {
-				printk("HFS+-fs: session requires an argument\n");
+				printk(KERN_ERR "hfs: session requires an argument\n");
 				return 0;
 			}
 			break;
 		case opt_nls:
 			if (sbi->nls) {
-				printk("HFS+-fs: unable to change nls mapping\n");
+				printk(KERN_ERR "hfs: unable to change nls mapping\n");
 				return 0;
 			}
 			p = match_strdup(&args[0]);
 			sbi->nls = load_nls(p);
 			if (!sbi->nls) {
-				printk("HFS+-fs: unable to load nls mapping \"%s\"\n", p);
+				printk(KERN_ERR "hfs: unable to load nls mapping \"%s\"\n", p);
 				kfree(p);
 				return 0;
 			}

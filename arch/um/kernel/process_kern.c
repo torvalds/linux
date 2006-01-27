@@ -39,7 +39,6 @@
 #include "init.h"
 #include "irq_user.h"
 #include "mem_user.h"
-#include "time_user.h"
 #include "tlb.h"
 #include "frame_kern.h"
 #include "sigcontext.h"
@@ -288,17 +287,27 @@ EXPORT_SYMBOL(disable_hlt);
 
 void *um_kmalloc(int size)
 {
-	return(kmalloc(size, GFP_KERNEL));
+	return kmalloc(size, GFP_KERNEL);
 }
 
 void *um_kmalloc_atomic(int size)
 {
-	return(kmalloc(size, GFP_ATOMIC));
+	return kmalloc(size, GFP_ATOMIC);
 }
 
 void *um_vmalloc(int size)
 {
-	return(vmalloc(size));
+	return vmalloc(size);
+}
+
+void *um_vmalloc_atomic(int size)
+{
+	return __vmalloc(size, GFP_ATOMIC | __GFP_HIGHMEM, PAGE_KERNEL);
+}
+
+int __cant_sleep(void) {
+	return in_atomic() || irqs_disabled() || in_interrupt();
+	/* Is in_interrupt() really needed? */
 }
 
 unsigned long get_fault_addr(void)
@@ -368,11 +377,6 @@ int smp_sigio_handler(void)
 		return(1);
 #endif
 	return(0);
-}
-
-int um_in_interrupt(void)
-{
-	return(in_interrupt());
 }
 
 int cpu(void)

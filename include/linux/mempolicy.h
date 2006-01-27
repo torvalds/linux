@@ -159,6 +159,7 @@ extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
 extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 		unsigned long addr);
+extern unsigned slab_node(struct mempolicy *policy);
 
 extern int policy_zone;
 

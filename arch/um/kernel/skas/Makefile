@@ -1,12 +1,12 @@
-# 
+#
 # Copyright (C) 2002 - 2004 Jeff Dike (jdike@addtoit.com)
 # Licensed under the GPL
 #
 
-obj-y := clone.o exec_kern.o mem.o mem_user.o mmu.o process.o process_kern.o \
+obj-y := clone.o exec_kern.o mem.o mmu.o process_kern.o \
 	syscall.o tlb.o uaccess.o
 
-USER_OBJS := process.o clone.o
+USER_OBJS := clone.o
 
 include arch/um/scripts/Makefile.rules
 

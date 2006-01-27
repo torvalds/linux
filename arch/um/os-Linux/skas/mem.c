@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -32,7 +32,7 @@ extern void wait_stub_done(int pid, int sig, char * fname);
 static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 					      unsigned long *stack)
 {
-	if(stack == NULL){
+	if(stack == NULL) {
 		stack = (unsigned long *) mm_idp->stack + 2;
 		*stack = 0;
 	}
@@ -45,13 +45,14 @@ int single_count = 0;
 int multi_count = 0;
 int multi_op_count = 0;
 
-static long do_syscall_stub(struct mm_id *mm_idp, void **addr)
+static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 {
 	unsigned long regs[MAX_REG_NR];
-	unsigned long *data;
-	unsigned long *syscall;
+	int n;
 	long ret, offset;
-        int n, pid = mm_idp->u.pid;
+	unsigned long * data;
+	unsigned long * syscall;
+	int pid = mm_idp->u.pid;
 
 	if(proc_mm)
 #warning Need to look up userspace_pid by cpu
@@ -59,10 +60,11 @@ static long do_syscall_stub(struct mm_id *mm_idp, void **addr)
 
 	multi_count++;
 
-        get_safe_registers(regs);
-        regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
+	get_safe_registers(regs);
+	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
 		((unsigned long) &batch_syscall_stub -
-                 (unsigned long) &__syscall_stub_start);
+		 (unsigned long) &__syscall_stub_start);
+
 	n = ptrace_setregs(pid, regs);
 	if(n < 0)
 		panic("do_syscall_stub : PTRACE_SETREGS failed, errno = %d\n",
@@ -80,6 +82,8 @@ static long do_syscall_stub(struct mm_id *mm_idp, void **addr)
 	if (offset) {
 		data = (unsigned long *)(mm_idp->stack +
 					 offset - UML_CONFIG_STUB_DATA);
+		printk("do_syscall_stub : ret = %d, offset = %d, "
+		       "data = 0x%x\n", ret, offset, data);
 		syscall = (unsigned long *)((unsigned long)data + data[0]);
 		printk("do_syscall_stub: syscall %ld failed, return value = "
 		       "0x%lx, expected return value = 0x%lx\n",
@@ -107,32 +111,32 @@ static long do_syscall_stub(struct mm_id *mm_idp, void **addr)
 
 long run_syscall_stub(struct mm_id * mm_idp, int syscall,
 		      unsigned long *args, long expected, void **addr,
- 		      int done)
+		      int done)
 {
- 	unsigned long *stack = check_init_stack(mm_idp, *addr);
+	unsigned long *stack = check_init_stack(mm_idp, *addr);
 
 	if(done && *addr == NULL)
 		single_count++;
 
- 	*stack += sizeof(long);
+	*stack += sizeof(long);
 	stack += *stack / sizeof(long);
 
-        *stack++ = syscall;
-        *stack++ = args[0];
-        *stack++ = args[1];
-        *stack++ = args[2];
-        *stack++ = args[3];
-        *stack++ = args[4];
-        *stack++ = args[5];
+	*stack++ = syscall;
+	*stack++ = args[0];
+	*stack++ = args[1];
+	*stack++ = args[2];
+	*stack++ = args[3];
+	*stack++ = args[4];
+	*stack++ = args[5];
 	*stack++ = expected;
-        *stack = 0;
-        multi_op_count++;
+	*stack = 0;
+	multi_op_count++;
 
-        if(!done && ((((unsigned long) stack) & ~PAGE_MASK) <
+	if(!done && ((((unsigned long) stack) & ~PAGE_MASK) <
 		     PAGE_SIZE - 10 * sizeof(long))){
 		*addr = stack;
-                return 0;
-        }
+		return 0;
+	}
 
 	return do_syscall_stub(mm_idp, addr);
 }
@@ -150,7 +154,7 @@ long syscall_stub_data(struct mm_id * mm_idp,
 	if((((unsigned long) *addr) & ~PAGE_MASK) >=
 	   PAGE_SIZE - (10 + data_count) * sizeof(long)) {
 		ret = do_syscall_stub(mm_idp, addr);
- 		/* in case of error, don't overwrite data on stack */
+		/* in case of error, don't overwrite data on stack */
 		if(ret)
 			return ret;
 	}
@@ -172,39 +176,39 @@ int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
 	int r, int w, int x, int phys_fd, unsigned long long offset,
 	int done, void **data)
 {
-        int prot, ret;
+	int prot, ret;
 
-        prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
-                (x ? PROT_EXEC : 0);
+	prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
+		(x ? PROT_EXEC : 0);
 
-        if(proc_mm){
-                struct proc_mm_op map;
-                int fd = mm_idp->u.mm_fd;
+	if(proc_mm){
+		struct proc_mm_op map;
+		int fd = mm_idp->u.mm_fd;
 
-                map = ((struct proc_mm_op) { .op	= MM_MMAP,
-                                             .u		=
-                                             { .mmap	=
-                                               { .addr	= virt,
-                                                 .len	= len,
-                                                 .prot	= prot,
-                                                 .flags	= MAP_SHARED |
-                                                 MAP_FIXED,
-                                                 .fd	= phys_fd,
-                                                 .offset= offset
-                                               } } } );
+		map = ((struct proc_mm_op) { .op	= MM_MMAP,
+				       .u		=
+				       { .mmap	=
+					 { .addr	= virt,
+					   .len	= len,
+					   .prot	= prot,
+					   .flags	= MAP_SHARED |
+					   MAP_FIXED,
+					   .fd	= phys_fd,
+					   .offset= offset
+					 } } } );
 		ret = os_write_file(fd, &map, sizeof(map));
 		if(ret != sizeof(map))
 			printk("map : /proc/mm map failed, err = %d\n", -ret);
 		else ret = 0;
-        }
-        else {
-                unsigned long args[] = { virt, len, prot,
-                                         MAP_SHARED | MAP_FIXED, phys_fd,
-                                         MMAP_OFFSET(offset) };
+	}
+	else {
+		unsigned long args[] = { virt, len, prot,
+					 MAP_SHARED | MAP_FIXED, phys_fd,
+					 MMAP_OFFSET(offset) };
 
 		ret = run_syscall_stub(mm_idp, STUB_MMAP_NR, args, virt,
 				       data, done);
-        }
+	}
 
 	return ret;
 }
@@ -212,68 +216,66 @@ int map(struct mm_id * mm_idp, unsigned long virt, unsigned long len,
 int unmap(struct mm_id * mm_idp, void *addr, unsigned long len, int done,
 	  void **data)
 {
-        int ret;
+	int ret;
 
-        if(proc_mm){
-                struct proc_mm_op unmap;
-                int fd = mm_idp->u.mm_fd;
+	if(proc_mm){
+		struct proc_mm_op unmap;
+		int fd = mm_idp->u.mm_fd;
 
-                unmap = ((struct proc_mm_op) { .op	= MM_MUNMAP,
-                                               .u	=
-                                               { .munmap	=
-                                                 { .addr	=
-                                                   (unsigned long) addr,
-                                                   .len		= len } } } );
+		unmap = ((struct proc_mm_op) { .op	= MM_MUNMAP,
+					 .u	=
+					 { .munmap	=
+					   { .addr	=
+					     (unsigned long) addr,
+					     .len		= len } } } );
 		ret = os_write_file(fd, &unmap, sizeof(unmap));
 		if(ret != sizeof(unmap))
 			printk("unmap - proc_mm write returned %d\n", ret);
 		else ret = 0;
-        }
-        else {
-                unsigned long args[] = { (unsigned long) addr, len, 0, 0, 0,
-                                         0 };
+	}
+	else {
+		unsigned long args[] = { (unsigned long) addr, len, 0, 0, 0,
+					 0 };
 
 		ret = run_syscall_stub(mm_idp, __NR_munmap, args, 0,
 				       data, done);
-                if(ret < 0)
-                        printk("munmap stub failed, errno = %d\n", ret);
-        }
+	}
 
-        return ret;
+	return ret;
 }
 
 int protect(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
 	    int r, int w, int x, int done, void **data)
 {
-        struct proc_mm_op protect;
-        int prot, ret;
+	struct proc_mm_op protect;
+	int prot, ret;
 
-        prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
-                (x ? PROT_EXEC : 0);
+	prot = (r ? PROT_READ : 0) | (w ? PROT_WRITE : 0) |
+		(x ? PROT_EXEC : 0);
+	if(proc_mm){
+		int fd = mm_idp->u.mm_fd;
 
-        if(proc_mm){
-                int fd = mm_idp->u.mm_fd;
-                protect = ((struct proc_mm_op) { .op	= MM_MPROTECT,
-                                                 .u	=
-                                                 { .mprotect	=
-                                                   { .addr	=
-                                                     (unsigned long) addr,
-                                                     .len	= len,
-                                                     .prot	= prot } } } );
+		protect = ((struct proc_mm_op) { .op	= MM_MPROTECT,
+					   .u	=
+					   { .mprotect	=
+					     { .addr	=
+					       (unsigned long) addr,
+					       .len	= len,
+					       .prot	= prot } } } );
 
-                ret = os_write_file(fd, &protect, sizeof(protect));
-                if(ret != sizeof(protect))
-                        printk("protect failed, err = %d", -ret);
-                else ret = 0;
-        }
-        else {
-                unsigned long args[] = { addr, len, prot, 0, 0, 0 };
+		ret = os_write_file(fd, &protect, sizeof(protect));
+		if(ret != sizeof(protect))
+			printk("protect failed, err = %d", -ret);
+		else ret = 0;
+	}
+	else {
+		unsigned long args[] = { addr, len, prot, 0, 0, 0 };
 
-                ret = run_syscall_stub(mm_idp, __NR_mprotect, args, 0,
-                                       data, done);
-        }
+		ret = run_syscall_stub(mm_idp, __NR_mprotect, args, 0,
+				       data, done);
+	}
 
-        return ret;
+	return ret;
 }
 
 void before_mem_skas(unsigned long unused)

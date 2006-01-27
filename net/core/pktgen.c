@@ -1860,13 +1860,14 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	 */
 	mod_cur_headers(pkt_dev);
 
-	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16, GFP_ATOMIC);
+	datalen = (odev->hard_header_len + 16) & ~0xf;
+	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + datalen, GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
 
-	skb_reserve(skb, 16);
+	skb_reserve(skb, datalen);
 
 	/*  Reserve for ethernet and IP header  */
 	eth = (__u8 *) skb_push(skb, 14);

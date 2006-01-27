@@ -38,8 +38,6 @@ struct clk {
 struct clk_functions {
 	int		(*clk_enable)(struct clk *clk);
 	void		(*clk_disable)(struct clk *clk);
-	int		(*clk_use)(struct clk *clk);
-	void		(*clk_unuse)(struct clk *clk);
 	long		(*clk_round_rate)(struct clk *clk, unsigned long rate);
 	int		(*clk_set_rate)(struct clk *clk, unsigned long rate);
 	int		(*clk_set_parent)(struct clk *clk, struct clk *parent);

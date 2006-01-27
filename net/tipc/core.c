@@ -37,7 +37,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/random.h>
 
 #include "core.h"
@@ -49,14 +48,14 @@
 #include "subscr.h"
 #include "config.h"
 
-int  eth_media_start(void);
-void eth_media_stop(void);
-int  handler_start(void);
-void handler_stop(void);
-int  socket_init(void);
-void socket_stop(void);
-int  netlink_start(void);
-void netlink_stop(void);
+int  tipc_eth_media_start(void);
+void tipc_eth_media_stop(void);
+int  tipc_handler_start(void);
+void tipc_handler_stop(void);
+int  tipc_socket_init(void);
+void tipc_socket_stop(void);
+int  tipc_netlink_start(void);
+void tipc_netlink_stop(void);
 
 #define MOD_NAME "tipc_start: "
 
@@ -113,56 +112,56 @@ int tipc_get_mode(void)
 }
 
 /**
- * stop_net - shut down TIPC networking sub-systems
+ * tipc_core_stop_net - shut down TIPC networking sub-systems
  */
 
-void stop_net(void)
+void tipc_core_stop_net(void)
 {
-	eth_media_stop();
-	tipc_stop_net();
+	tipc_eth_media_stop();
+	tipc_net_stop();
 }
 
 /**
  * start_net - start TIPC networking sub-systems
  */
 
-int start_net(void)
+int tipc_core_start_net(void)
 {
 	int res;
 
-	if ((res = tipc_start_net()) ||
-	    (res = eth_media_start())) {
-		stop_net();
+	if ((res = tipc_net_start()) ||
+	    (res = tipc_eth_media_start())) {
+		tipc_core_stop_net();
 	}
 	return res;
 }
 
 /**
- * stop_core - switch TIPC from SINGLE NODE to NOT RUNNING mode
+ * tipc_core_stop - switch TIPC from SINGLE NODE to NOT RUNNING mode
  */
 
-void stop_core(void)
+void tipc_core_stop(void)
 {
 	if (tipc_mode != TIPC_NODE_MODE)
 		return;
 
 	tipc_mode = TIPC_NOT_RUNNING;
 
-	netlink_stop();
-	handler_stop();
-	cfg_stop();
-	subscr_stop();
-	reg_stop();
-	nametbl_stop();
-	ref_table_stop();
-	socket_stop();
+	tipc_netlink_stop();
+	tipc_handler_stop();
+	tipc_cfg_stop();
+	tipc_subscr_stop();
+	tipc_reg_stop();
+	tipc_nametbl_stop();
+	tipc_ref_table_stop();
+	tipc_socket_stop();
 }
 
 /**
- * start_core - switch TIPC from NOT RUNNING to SINGLE NODE mode
+ * tipc_core_start - switch TIPC from NOT RUNNING to SINGLE NODE mode
  */
 
-int start_core(void)
+int tipc_core_start(void)
 {
 	int res;
 
@@ -172,16 +171,16 @@ int start_core(void)
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 	tipc_mode = TIPC_NODE_MODE;
 
-	if ((res = handler_start()) || 
-	    (res = ref_table_init(tipc_max_ports + tipc_max_subscriptions,
-				  tipc_random)) ||
-	    (res = reg_start()) ||
-	    (res = nametbl_init()) ||
-            (res = k_signal((Handler)subscr_start, 0)) ||
-	    (res = k_signal((Handler)cfg_init, 0)) || 
-	    (res = netlink_start()) ||
-	    (res = socket_init())) {
-		stop_core();
+	if ((res = tipc_handler_start()) || 
+	    (res = tipc_ref_table_init(tipc_max_ports + tipc_max_subscriptions,
+				       tipc_random)) ||
+	    (res = tipc_reg_start()) ||
+	    (res = tipc_nametbl_init()) ||
+            (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
+	    (res = tipc_k_signal((Handler)tipc_cfg_init, 0)) || 
+	    (res = tipc_netlink_start()) ||
+	    (res = tipc_socket_init())) {
+		tipc_core_stop();
 	}
 	return res;
 }
@@ -191,7 +190,7 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	log_reinit(CONFIG_TIPC_LOG);
+	tipc_log_reinit(CONFIG_TIPC_LOG);
 	info("Activated (compiled " __DATE__ " " __TIME__ ")\n");
 
 	tipc_own_addr = 0;
@@ -205,7 +204,7 @@ static int __init tipc_init(void)
 	tipc_max_slaves = delimit(CONFIG_TIPC_SLAVE_NODES, 0, 2047);
 	tipc_net_id = 4711;
 
-	if ((res = start_core()))
+	if ((res = tipc_core_start()))
 		err("Unable to start in single node mode\n");
 	else	
 		info("Started in single node mode\n");
@@ -214,10 +213,10 @@ static int __init tipc_init(void)
 
 static void __exit tipc_exit(void)
 {
-	stop_net();
-	stop_core();
+	tipc_core_stop_net();
+	tipc_core_stop();
 	info("Deactivated\n");
-	log_stop();
+	tipc_log_stop();
 }
 
 module_init(tipc_init);

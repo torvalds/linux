@@ -2630,7 +2630,7 @@ static int get_interface(struct slgt_info *info, int __user *if_mode)
 static int set_interface(struct slgt_info *info, int if_mode)
 {
  	unsigned long flags;
-	unsigned char val;
+	unsigned short val;
 
 	DBGINFO(("%s set_interface=%x)\n", info->device_name, if_mode));
 	spin_lock_irqsave(&info->lock,flags);

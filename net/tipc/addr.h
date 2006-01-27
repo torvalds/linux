@@ -122,7 +122,7 @@ static inline char *addr_string_fill(char *string, u32 addr)
 	return string;
 }
 
-int addr_domain_valid(u32);
-int addr_node_valid(u32 addr);
+int tipc_addr_domain_valid(u32);
+int tipc_addr_node_valid(u32 addr);
 
 #endif

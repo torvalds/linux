@@ -222,8 +222,6 @@ static void at91_rx_chars(struct uart_port *port, struct pt_regs *regs)
 	while (status & (AT91_US_RXRDY)) {
 		ch = UART_GET_CHAR(port);
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			goto ignore_char;
 		port->icount.rx++;
 
 		flg = TTY_NORMAL;

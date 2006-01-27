@@ -22,12 +22,16 @@ config TOP_ADDR
  	default 0x80000000 if HOST_2G_2G
 
 config 3_LEVEL_PGTABLES
-	bool "Three-level pagetables"
+	bool "Three-level pagetables (EXPERIMENTAL)"
 	default n
+	depends on EXPERIMENTAL
 	help
 	Three-level pagetables will let UML have more than 4G of physical
 	memory.  All the memory that can't be mapped directly will be treated
 	as high memory.
+
+	However, this it experimental on 32-bit architectures, so if unsure say
+	N (on x86-64 it's automatically enabled, instead, as it's safe there).
 
 config STUB_CODE
 	hex

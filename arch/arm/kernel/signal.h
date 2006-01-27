@@ -9,4 +9,4 @@
  */
 #define KERN_SIGRETURN_CODE	0xffff0500
 
-extern const unsigned long sigreturn_codes[4];
+extern const unsigned long sigreturn_codes[7];

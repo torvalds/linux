@@ -70,13 +70,13 @@ static int req_tlv_space;		/* request message TLV area size */
 static int rep_headroom;		/* reply message headroom to use */
 
 
-void cfg_link_event(u32 addr, char *name, int up)
+void tipc_cfg_link_event(u32 addr, char *name, int up)
 {
 	/* TIPC DOESN'T HANDLE LINK EVENT SUBSCRIPTIONS AT THE MOMENT */
 }
 
 
-struct sk_buff *cfg_reply_alloc(int payload_size)
+struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
 {
 	struct sk_buff *buf;
 
@@ -86,14 +86,14 @@ struct sk_buff *cfg_reply_alloc(int payload_size)
 	return buf;
 }
 
-int cfg_append_tlv(struct sk_buff *buf, int tlv_type, 
-		   void *tlv_data, int tlv_data_size)
+int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type, 
+			void *tlv_data, int tlv_data_size)
 {
 	struct tlv_desc *tlv = (struct tlv_desc *)buf->tail;
 	int new_tlv_space = TLV_SPACE(tlv_data_size);
 
 	if (skb_tailroom(buf) < new_tlv_space) {
-		dbg("cfg_append_tlv unable to append TLV\n");
+		dbg("tipc_cfg_append_tlv unable to append TLV\n");
 		return 0;
 	}
 	skb_put(buf, new_tlv_space);
@@ -104,28 +104,28 @@ int cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 	return 1;
 }
 
-struct sk_buff *cfg_reply_unsigned_type(u16 tlv_type, u32 value)
+struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 {
 	struct sk_buff *buf;
 	u32 value_net;
 
-	buf = cfg_reply_alloc(TLV_SPACE(sizeof(value)));
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(value)));
 	if (buf) {
 		value_net = htonl(value);
-		cfg_append_tlv(buf, tlv_type, &value_net, 
-			       sizeof(value_net));
+		tipc_cfg_append_tlv(buf, tlv_type, &value_net, 
+				    sizeof(value_net));
 	}
 	return buf;
 }
 
-struct sk_buff *cfg_reply_string_type(u16 tlv_type, char *string)
+struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 {
 	struct sk_buff *buf;
 	int string_len = strlen(string) + 1;
 
-	buf = cfg_reply_alloc(TLV_SPACE(string_len));
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(string_len));
 	if (buf)
-		cfg_append_tlv(buf, tlv_type, string, string_len);
+		tipc_cfg_append_tlv(buf, tlv_type, string, string_len);
 	return buf;
 }
 
@@ -246,7 +246,7 @@ static void cfg_cmd_event(struct tipc_cmd_msg *msg,
 	exit:
 	rmsg.result_len = htonl(msg_sect[1].iov_len);
 	rmsg.retval = htonl(rv);
-	cfg_respond(msg_sect, 2u, orig);
+	tipc_cfg_respond(msg_sect, 2u, orig);
 }
 #endif
 
@@ -255,26 +255,26 @@ static struct sk_buff *cfg_enable_bearer(void)
 	struct tipc_bearer_config *args;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_BEARER_CONFIG))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	args = (struct tipc_bearer_config *)TLV_DATA(req_tlv_area);
 	if (tipc_enable_bearer(args->name,
 			       ntohl(args->detect_scope),
 			       ntohl(args->priority)))
-		return cfg_reply_error_string("unable to enable bearer");
+		return tipc_cfg_reply_error_string("unable to enable bearer");
 
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_disable_bearer(void)
 {
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_BEARER_NAME))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	if (tipc_disable_bearer((char *)TLV_DATA(req_tlv_area)))
-		return cfg_reply_error_string("unable to disable bearer");
+		return tipc_cfg_reply_error_string("unable to disable bearer");
 
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_own_addr(void)
@@ -282,25 +282,25 @@ static struct sk_buff *cfg_set_own_addr(void)
 	u32 addr;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	addr = *(u32 *)TLV_DATA(req_tlv_area);
 	addr = ntohl(addr);
 	if (addr == tipc_own_addr)
-		return cfg_reply_none();
-	if (!addr_node_valid(addr))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (node address)");
+		return tipc_cfg_reply_none();
+	if (!tipc_addr_node_valid(addr))
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (node address)");
 	if (tipc_own_addr)
-		return cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-					      " (cannot change node address once assigned)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (cannot change node address once assigned)");
 
 	spin_unlock_bh(&config_lock);
-	stop_net();
+	tipc_core_stop_net();
 	tipc_own_addr = addr;
-	start_net();
+	tipc_core_start_net();
 	spin_lock_bh(&config_lock);
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_remote_mng(void)
@@ -308,12 +308,12 @@ static struct sk_buff *cfg_set_remote_mng(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	tipc_remote_management = (value != 0);
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_publications(void)
@@ -321,15 +321,15 @@ static struct sk_buff *cfg_set_max_publications(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 1, 65535))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (max publications must be 1-65535)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (max publications must be 1-65535)");
 	tipc_max_publications = value;
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_subscriptions(void)
@@ -337,15 +337,15 @@ static struct sk_buff *cfg_set_max_subscriptions(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 1, 65535))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (max subscriptions must be 1-65535");
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (max subscriptions must be 1-65535");
 	tipc_max_subscriptions = value;
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_ports(void)
@@ -354,31 +354,31 @@ static struct sk_buff *cfg_set_max_ports(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 127, 65535))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (max ports must be 127-65535)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (max ports must be 127-65535)");
 
 	if (value == tipc_max_ports)
-		return cfg_reply_none();
+		return tipc_cfg_reply_none();
 
 	if (atomic_read(&tipc_user_count) > 2)
-		return cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-					      " (cannot change max ports while TIPC users exist)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (cannot change max ports while TIPC users exist)");
 
 	spin_unlock_bh(&config_lock);
 	orig_mode = tipc_get_mode();
 	if (orig_mode == TIPC_NET_MODE)
-		stop_net();
-	stop_core();
+		tipc_core_stop_net();
+	tipc_core_stop();
 	tipc_max_ports = value;
-	start_core();
+	tipc_core_start();
 	if (orig_mode == TIPC_NET_MODE)
-		start_net();
+		tipc_core_start_net();
 	spin_lock_bh(&config_lock);
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *set_net_max(int value, int *parameter)
@@ -388,13 +388,13 @@ static struct sk_buff *set_net_max(int value, int *parameter)
 	if (value != *parameter) {
 		orig_mode = tipc_get_mode();
 		if (orig_mode == TIPC_NET_MODE)
-			stop_net();
+			tipc_core_stop_net();
 		*parameter = value;
 		if (orig_mode == TIPC_NET_MODE)
-			start_net();
+			tipc_core_start_net();
 	}
 
-	return cfg_reply_none();
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_zones(void)
@@ -402,12 +402,12 @@ static struct sk_buff *cfg_set_max_zones(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 1, 255))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (max zones must be 1-255)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (max zones must be 1-255)");
 	return set_net_max(value, &tipc_max_zones);
 }
 
@@ -416,13 +416,13 @@ static struct sk_buff *cfg_set_max_clusters(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != 1)
-		return cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-					      " (max clusters fixed at 1)");
-	return cfg_reply_none();
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (max clusters fixed at 1)");
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_nodes(void)
@@ -430,12 +430,12 @@ static struct sk_buff *cfg_set_max_nodes(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 8, 2047))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (max nodes must be 8-2047)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (max nodes must be 8-2047)");
 	return set_net_max(value, &tipc_max_nodes);
 }
 
@@ -444,13 +444,13 @@ static struct sk_buff *cfg_set_max_slaves(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != 0)
-		return cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-					      " (max secondary nodes fixed at 0)");
-	return cfg_reply_none();
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (max secondary nodes fixed at 0)");
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_netid(void)
@@ -458,22 +458,22 @@ static struct sk_buff *cfg_set_netid(void)
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
 	if (value != delimit(value, 1, 9999))
-		return cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-					      " (network id must be 1-9999)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
+						   " (network id must be 1-9999)");
 
 	if (tipc_own_addr)
-		return cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-					      " (cannot change network id once part of network)");
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (cannot change network id once part of network)");
 	
 	return set_net_max(value, &tipc_net_id);
 }
 
-struct sk_buff *cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
-			   int request_space, int reply_headroom)
+struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
+				int request_space, int reply_headroom)
 {
 	struct sk_buff *rep_tlv_buf;
 
@@ -490,19 +490,19 @@ struct sk_buff *cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
 	if (likely(orig_node == tipc_own_addr)) {
 		/* command is permitted */
 	} else if (cmd >= 0x8000) {
-		rep_tlv_buf = cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						     " (cannot be done remotely)");
+		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+							  " (cannot be done remotely)");
 		goto exit;
 	} else if (!tipc_remote_management) {
-		rep_tlv_buf = cfg_reply_error_string(TIPC_CFG_NO_REMOTE);
+		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NO_REMOTE);
 		goto exit;
 	}
 	else if (cmd >= 0x4000) {
 		u32 domain = 0;
 
-		if ((nametbl_translate(TIPC_ZM_SRV, 0, &domain) == 0) ||
+		if ((tipc_nametbl_translate(TIPC_ZM_SRV, 0, &domain) == 0) ||
 		    (domain != orig_node)) {
-			rep_tlv_buf = cfg_reply_error_string(TIPC_CFG_NOT_ZONE_MSTR);
+			rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_ZONE_MSTR);
 			goto exit;
 		}
 	}
@@ -511,50 +511,50 @@ struct sk_buff *cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
 
 	switch (cmd) {
 	case TIPC_CMD_NOOP:
-		rep_tlv_buf = cfg_reply_none();
+		rep_tlv_buf = tipc_cfg_reply_none();
 		break;
 	case TIPC_CMD_GET_NODES:
-		rep_tlv_buf = node_get_nodes(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_node_get_nodes(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_GET_LINKS:
-		rep_tlv_buf = node_get_links(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_node_get_links(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_SHOW_LINK_STATS:
-		rep_tlv_buf = link_cmd_show_stats(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_link_cmd_show_stats(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_RESET_LINK_STATS:
-		rep_tlv_buf = link_cmd_reset_stats(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_link_cmd_reset_stats(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_SHOW_NAME_TABLE:
-		rep_tlv_buf = nametbl_get(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_nametbl_get(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_GET_BEARER_NAMES:
-		rep_tlv_buf = bearer_get_names();
+		rep_tlv_buf = tipc_bearer_get_names();
 		break;
 	case TIPC_CMD_GET_MEDIA_NAMES:
-		rep_tlv_buf = media_get_names();
+		rep_tlv_buf = tipc_media_get_names();
 		break;
 	case TIPC_CMD_SHOW_PORTS:
-		rep_tlv_buf = port_get_ports();
+		rep_tlv_buf = tipc_port_get_ports();
 		break;
 #if 0
 	case TIPC_CMD_SHOW_PORT_STATS:
 		rep_tlv_buf = port_show_stats(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_RESET_PORT_STATS:
-		rep_tlv_buf = cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED);
+		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED);
 		break;
 #endif
 	case TIPC_CMD_SET_LOG_SIZE:
-		rep_tlv_buf = log_resize(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_log_resize(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_DUMP_LOG:
-		rep_tlv_buf = log_dump();
+		rep_tlv_buf = tipc_log_dump();
 		break;
 	case TIPC_CMD_SET_LINK_TOL:
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
-		rep_tlv_buf = link_cmd_config(req_tlv_area, req_tlv_space, cmd);
+		rep_tlv_buf = tipc_link_cmd_config(req_tlv_area, req_tlv_space, cmd);
 		break;
 	case TIPC_CMD_ENABLE_BEARER:
 		rep_tlv_buf = cfg_enable_bearer();
@@ -593,31 +593,31 @@ struct sk_buff *cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
 		rep_tlv_buf = cfg_set_netid();
 		break;
 	case TIPC_CMD_GET_REMOTE_MNG:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_remote_management);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_remote_management);
 		break;
 	case TIPC_CMD_GET_MAX_PORTS:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_ports);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_ports);
 		break;
 	case TIPC_CMD_GET_MAX_PUBL:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_publications);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_publications);
 		break;
 	case TIPC_CMD_GET_MAX_SUBSCR:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_subscriptions);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_subscriptions);
 		break;
 	case TIPC_CMD_GET_MAX_ZONES:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_zones);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_zones);
 		break;
 	case TIPC_CMD_GET_MAX_CLUSTERS:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_clusters);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_clusters);
 		break;
 	case TIPC_CMD_GET_MAX_NODES:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_nodes);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_nodes);
 		break;
 	case TIPC_CMD_GET_MAX_SLAVES:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_max_slaves);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_slaves);
 		break;
 	case TIPC_CMD_GET_NETID:
-		rep_tlv_buf = cfg_reply_unsigned(tipc_net_id);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
 		break;
 	default:
 		rep_tlv_buf = NULL;
@@ -655,11 +655,11 @@ static void cfg_named_msg_event(void *userdata,
 
 	/* Generate reply for request (if can't, return request) */
 
-	rep_buf = cfg_do_cmd(orig->node,
-			     ntohs(req_hdr->tcm_type), 
-			     msg + sizeof(*req_hdr),
-			     size - sizeof(*req_hdr),
-			     BUF_HEADROOM + MAX_H_SIZE + sizeof(*rep_hdr));
+	rep_buf = tipc_cfg_do_cmd(orig->node,
+				  ntohs(req_hdr->tcm_type), 
+				  msg + sizeof(*req_hdr),
+				  size - sizeof(*req_hdr),
+				  BUF_HEADROOM + MAX_H_SIZE + sizeof(*rep_hdr));
 	if (rep_buf) {
 		skb_push(rep_buf, sizeof(*rep_hdr));
 		rep_hdr = (struct tipc_cfg_msg_hdr *)rep_buf->data;
@@ -675,7 +675,7 @@ static void cfg_named_msg_event(void *userdata,
 	tipc_send_buf2port(port_ref, orig, rep_buf, rep_buf->len);
 }
 
-int cfg_init(void)
+int tipc_cfg_init(void)
 {
 	struct tipc_name_seq seq;
 	int res;
@@ -696,7 +696,7 @@ int cfg_init(void)
 
 	seq.type = TIPC_CFG_SRV;
 	seq.lower = seq.upper = tipc_own_addr;
-	res = nametbl_publish_rsv(mng.port_ref, TIPC_ZONE_SCOPE, &seq);
+	res = tipc_nametbl_publish_rsv(mng.port_ref, TIPC_ZONE_SCOPE, &seq);
 	if (res)
 		goto failed;
 
@@ -709,7 +709,7 @@ failed:
 	return res;
 }
 
-void cfg_stop(void)
+void tipc_cfg_stop(void)
 {
 	if (mng.user_ref) {
 		tipc_detach(mng.user_ref);

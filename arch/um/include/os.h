@@ -11,6 +11,7 @@
 #include "../os/include/file.h"
 #include "sysdep/ptrace.h"
 #include "kern_util.h"
+#include "skas/mm_id.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -190,11 +191,12 @@ extern int os_protect_memory(void *addr, unsigned long len,
 			     int r, int w, int x);
 extern int os_unmap_memory(void *addr, int len);
 extern void os_flush_stdout(void);
-extern unsigned long long os_usecs(void);
 
 /* tt.c
  * for tt mode only (will be deleted in future...)
  */
+extern void stop(void);
+extern int wait_for_stop(int pid, int sig, int cont_type, void *relay);
 extern int protect_memory(unsigned long addr, unsigned long len,
 			  int r, int w, int x, int must_succeed);
 extern void forward_pending_sigio(int target);
@@ -230,9 +232,63 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern void os_usr1_signal(int on);
 
 /* trap.c */
 extern void os_fill_handlinfo(struct kern_handlers h);
 extern void do_longjmp(void *p, int val);
+
+/* util.c */
+extern void stack_protections(unsigned long address);
+extern void task_protections(unsigned long address);
+extern int raw(int fd);
+extern void setup_machinename(char *machine_out);
+extern void setup_hostinfo(void);
+extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
+
+/* time.c */
+#define BILLION (1000 * 1000 * 1000)
+
+extern void switch_timers(int to_real);
+extern void idle_sleep(int secs);
+extern void enable_timer(void);
+extern void disable_timer(void);
+extern void user_time_init(void);
+extern void uml_idle_timer(void);
+extern unsigned long long os_nsecs(void);
+
+/* skas/mem.c */
+extern long run_syscall_stub(struct mm_id * mm_idp,
+			     int syscall, unsigned long *args, long expected,
+			     void **addr, int done);
+extern long syscall_stub_data(struct mm_id * mm_idp,
+			      unsigned long *data, int data_count,
+			      void **addr, void **stub_addr);
+extern int map(struct mm_id * mm_idp, unsigned long virt,
+	       unsigned long len, int r, int w, int x, int phys_fd,
+	       unsigned long long offset, int done, void **data);
+extern int unmap(struct mm_id * mm_idp, void *addr, unsigned long len,
+		 int done, void **data);
+extern int protect(struct mm_id * mm_idp, unsigned long addr,
+		   unsigned long len, int r, int w, int x, int done,
+		   void **data);
+
+/* skas/process.c */
+extern int is_skas_winch(int pid, int fd, void *data);
+extern int start_userspace(unsigned long stub_stack);
+extern int copy_context_skas0(unsigned long stack, int pid);
+extern void userspace(union uml_pt_regs *regs);
+extern void map_stub_pages(int fd, unsigned long code,
+			   unsigned long data, unsigned long stack);
+extern void new_thread(void *stack, void **switch_buf_ptr,
+			 void **fork_buf_ptr, void (*handler)(int));
+extern void thread_wait(void *sw, void *fb);
+extern void switch_threads(void *me, void *next);
+extern int start_idle_thread(void *stack, void *switch_buf_ptr,
+			     void **fork_buf_ptr);
+extern void initial_thread_cb_skas(void (*proc)(void *),
+				 void *arg);
+extern void halt_skas(void);
+extern void reboot_skas(void);
 
 #endif

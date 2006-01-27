@@ -218,7 +218,6 @@ static __inline__ int sigfindinword(unsigned long word)
 }
 
 struct pt_regs;
-extern int FASTCALL(do_signal(struct pt_regs *regs, sigset_t *oldset));
 
 #define ptrace_signal_deliver(regs, cookie)		\
 	do {						\

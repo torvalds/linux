@@ -672,6 +672,19 @@ ia32_sys_call_table:
 	.quad sys_inotify_add_watch
 	.quad sys_inotify_rm_watch
 	.quad sys_migrate_pages
+	.quad compat_sys_openat		/* 295 */
+	.quad sys_mkdirat
+	.quad sys_mknodat
+	.quad sys_fchownat
+	.quad sys_futimesat
+	.quad compat_sys_newfstatat	/* 300 */
+	.quad sys_unlinkat
+	.quad sys_renameat
+	.quad sys_linkat
+	.quad sys_symlinkat
+	.quad sys_readlinkat		/* 305 */
+	.quad sys_fchmodat
+	.quad sys_faccessat
 ia32_syscall_end:		
 	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8
 		.quad ni_syscall
