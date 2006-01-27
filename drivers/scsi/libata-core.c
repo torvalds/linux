@@ -1536,6 +1536,41 @@ void ata_port_probe(struct ata_port *ap)
 }
 
 /**
+ *	sata_print_link_status - Print SATA link status
+ *	@ap: SATA port to printk link status about
+ *
+ *	This function prints link speed and status of a SATA link.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void sata_print_link_status(struct ata_port *ap)
+{
+	u32 sstatus, tmp;
+	const char *speed;
+
+	if (!ap->ops->scr_read)
+		return;
+
+	sstatus = scr_read(ap, SCR_STATUS);
+
+	if (sata_dev_present(ap)) {
+		tmp = (sstatus >> 4) & 0xf;
+		if (tmp & (1 << 0))
+			speed = "1.5";
+		else if (tmp & (1 << 1))
+			speed = "3.0";
+		else
+			speed = "<unknown>";
+		printk(KERN_INFO "ata%u: SATA link up %s Gbps (SStatus %X)\n",
+		       ap->id, speed, sstatus);
+	} else {
+		printk(KERN_INFO "ata%u: SATA link down (SStatus %X)\n",
+		       ap->id, sstatus);
+	}
+}
+
+/**
  *	__sata_phy_reset - Wake/reset a low-level SATA PHY
  *	@ap: SATA port associated with target SATA PHY.
  *
@@ -1569,27 +1604,14 @@ void __sata_phy_reset(struct ata_port *ap)
 			break;
 	} while (time_before(jiffies, timeout));
 
-	/* TODO: phy layer with polling, timeouts, etc. */
-	sstatus = scr_read(ap, SCR_STATUS);
-	if (sata_dev_present(ap)) {
-		const char *speed;
-		u32 tmp;
+	/* print link status */
+	sata_print_link_status(ap);
 
-		tmp = (sstatus >> 4) & 0xf;
-		if (tmp & (1 << 0))
-			speed = "1.5";
-		else if (tmp & (1 << 1))
-			speed = "3.0";
-		else
-			speed = "<unknown>";
-		printk(KERN_INFO "ata%u: SATA link up %s Gbps (SStatus %X)\n",
-		       ap->id, speed, sstatus);
+	/* TODO: phy layer with polling, timeouts, etc. */
+	if (sata_dev_present(ap))
 		ata_port_probe(ap);
-	} else {
-		printk(KERN_INFO "ata%u: SATA link down (SStatus %X)\n",
-		       ap->id, sstatus);
+	else
 		ata_port_disable(ap);
-	}
 
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		return;

@@ -101,9 +101,11 @@ enum {
 	ICH5_PCS		= 0x92,	/* port control and status */
 	PIIX_SCC		= 0x0A, /* sub-class code register */
 
-	PIIX_FLAG_AHCI		= (1 << 28), /* AHCI possible */
-	PIIX_FLAG_CHECKINTR	= (1 << 29), /* make sure PCI INTx enabled */
-	PIIX_FLAG_COMBINED	= (1 << 30), /* combined mode possible */
+	PIIX_FLAG_AHCI		= (1 << 27), /* AHCI possible */
+	PIIX_FLAG_CHECKINTR	= (1 << 28), /* make sure PCI INTx enabled */
+	PIIX_FLAG_COMBINED	= (1 << 29), /* combined mode possible */
+	/* ICH6/7 use different scheme for map value */
+	PIIX_FLAG_COMBINED_ICH6	= PIIX_FLAG_COMBINED | (1 << 30),
 
 	/* combined mode.  if set, PATA is channel 0.
 	 * if clear, PATA is channel 1.
@@ -297,8 +299,8 @@ static struct ata_port_info piix_port_info[] = {
 	{
 		.sht		= &piix_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_SRST |
-				  PIIX_FLAG_COMBINED | PIIX_FLAG_CHECKINTR |
-				  ATA_FLAG_SLAVE_POSS,
+				  PIIX_FLAG_COMBINED_ICH6 |
+				  PIIX_FLAG_CHECKINTR | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -309,8 +311,9 @@ static struct ata_port_info piix_port_info[] = {
 	{
 		.sht		= &piix_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_SRST |
-				  PIIX_FLAG_COMBINED | PIIX_FLAG_CHECKINTR |
-				  ATA_FLAG_SLAVE_POSS | PIIX_FLAG_AHCI,
+				  PIIX_FLAG_COMBINED_ICH6 |
+				  PIIX_FLAG_CHECKINTR | ATA_FLAG_SLAVE_POSS |
+				  PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -680,6 +683,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_port_info *port_info[2];
 	unsigned int combined = 0;
 	unsigned int pata_chan = 0, sata_chan = 0;
+	unsigned long host_flags;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
@@ -692,7 +696,9 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	port_info[0] = &piix_port_info[ent->driver_data];
 	port_info[1] = &piix_port_info[ent->driver_data];
 
-	if (port_info[0]->host_flags & PIIX_FLAG_AHCI) {
+	host_flags = port_info[0]->host_flags;
+
+	if (host_flags & PIIX_FLAG_AHCI) {
 		u8 tmp;
 		pci_read_config_byte(pdev, PIIX_SCC, &tmp);
 		if (tmp == PIIX_AHCI_DEVICE) {
@@ -702,16 +708,35 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	if (port_info[0]->host_flags & PIIX_FLAG_COMBINED) {
+	if (host_flags & PIIX_FLAG_COMBINED) {
 		u8 tmp;
 		pci_read_config_byte(pdev, ICH5_PMR, &tmp);
 
-		if (tmp & PIIX_COMB) {
-			combined = 1;
-			if (tmp & PIIX_COMB_PATA_P0)
+		if (host_flags & PIIX_FLAG_COMBINED_ICH6) {
+			switch (tmp) {
+			case 0:
+				break;
+			case 1:
+				combined = 1;
 				sata_chan = 1;
-			else
+				break;
+			case 2:
+				combined = 1;
 				pata_chan = 1;
+				break;
+			case 3:
+				dev_printk(KERN_WARNING, &pdev->dev,
+					   "invalid MAP value %u\n", tmp);
+				break;
+			}
+		} else {
+			if (tmp & PIIX_COMB) {
+				combined = 1;
+				if (tmp & PIIX_COMB_PATA_P0)
+					sata_chan = 1;
+				else
+					pata_chan = 1;
+			}
 		}
 	}
 
@@ -721,7 +746,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * MSI is disabled (and it is disabled, as we don't use
 	 * message-signalled interrupts currently).
 	 */
-	if (port_info[0]->host_flags & PIIX_FLAG_CHECKINTR)
+	if (host_flags & PIIX_FLAG_CHECKINTR)
 		pci_intx(pdev, 1);
 
 	if (combined) {
