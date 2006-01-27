@@ -266,13 +266,14 @@ static void mv643xx_eth_update_mac_address(struct net_device *dev)
 static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
+	u32 config_reg;
 
+	config_reg = mv_read(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num));
 	if (dev->flags & IFF_PROMISC)
-		mp->port_config |= (u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
+		config_reg |= (u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
 	else
-		mp->port_config &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
-
-	mv_write(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num), mp->port_config);
+		config_reg &= ~(u32) MV643XX_ETH_UNICAST_PROMISCUOUS_MODE;
+	mv_write(MV643XX_ETH_PORT_CONFIG_REG(mp->port_num), config_reg);
 
 	eth_port_set_multicast_list(dev);
 }
@@ -1454,9 +1455,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 	struct ethtool_cmd cmd;
-	u32 pscr;
-	int duplex;
-	int speed;
+	int duplex = DUPLEX_HALF;
+	int speed = 0;			/* default to auto-negotiation */
 
 	dev = alloc_etherdev(sizeof(struct mv643xx_private));
 	if (!dev)
@@ -1515,32 +1515,16 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	/* set default config values */
 	eth_port_uc_addr_get(dev, dev->dev_addr);
-	mp->port_config = MV643XX_ETH_PORT_CONFIG_DEFAULT_VALUE;
-	mp->port_config_extend = MV643XX_ETH_PORT_CONFIG_EXTEND_DEFAULT_VALUE;
-	mp->port_sdma_config = MV643XX_ETH_PORT_SDMA_CONFIG_DEFAULT_VALUE;
-	mp->port_serial_control = MV643XX_ETH_PORT_SERIAL_CONTROL_DEFAULT_VALUE;
 	mp->rx_ring_size = MV643XX_ETH_PORT_DEFAULT_RECEIVE_QUEUE_SIZE;
 	mp->tx_ring_size = MV643XX_ETH_PORT_DEFAULT_TRANSMIT_QUEUE_SIZE;
 
 	pd = pdev->dev.platform_data;
 	if (pd) {
-		if (pd->mac_addr != NULL)
+		if (pd->mac_addr)
 			memcpy(dev->dev_addr, pd->mac_addr, 6);
 
 		if (pd->phy_addr || pd->force_phy_addr)
 			ethernet_phy_set(port_num, pd->phy_addr);
-
-		if (pd->port_config || pd->force_port_config)
-			mp->port_config = pd->port_config;
-
-		if (pd->port_config_extend || pd->force_port_config_extend)
-			mp->port_config_extend = pd->port_config_extend;
-
-		if (pd->port_sdma_config || pd->force_port_sdma_config)
-			mp->port_sdma_config = pd->port_sdma_config;
-
-		if (pd->port_serial_control || pd->force_port_serial_control)
-			mp->port_serial_control = pd->port_serial_control;
 
 		if (pd->rx_queue_size)
 			mp->rx_ring_size = pd->rx_queue_size;
@@ -1557,6 +1541,9 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 			mp->rx_sram_size = pd->rx_sram_size;
 			mp->rx_sram_addr = pd->rx_sram_addr;
 		}
+
+		duplex = pd->duplex;
+		speed = pd->speed;
 	}
 
 	/* Hook up MII support for ethtool */
@@ -1575,28 +1562,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	pscr = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
-	pscr &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
-	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
-	pscr = mp->port_serial_control;
-	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
-
-	if (!(pscr & MV643XX_ETH_DISABLE_AUTO_NEG_FOR_DUPLX) &&
-	    !(pscr & MV643XX_ETH_DISABLE_AUTO_NEG_SPEED_GMII))
-		speed = 0;
-	else if (pscr & MV643XX_ETH_PORT_STATUS_GMII_1000)
-		speed = SPEED_1000;
-	else if (pscr & MV643XX_ETH_PORT_STATUS_MII_100)
-		speed = SPEED_100;
-	else
-		speed = SPEED_10;
-
-	if (pscr & MV643XX_ETH_PORT_STATUS_FULL_DUPLEX)
-		duplex = DUPLEX_FULL;
-	else
-		duplex = DUPLEX_HALF;
-
-	ethernet_phy_reset(mp->port_num);
+	ethernet_phy_reset(port_num);
 	mp->mii.supports_gmii = mii_check_gmii_support(&mp->mii);
 	mv643xx_init_ethtool_cmd(dev, mp->mii.phy_id, speed, duplex, &cmd);
 	mv643xx_eth_update_pscr(dev, &cmd);
@@ -1971,13 +1937,17 @@ static void eth_port_start(struct net_device *dev)
 	eth_port_uc_addr_set(port_num, dev->dev_addr);
 
 	/* Assign port configuration and command. */
-	mv_write(MV643XX_ETH_PORT_CONFIG_REG(port_num), mp->port_config);
+	mv_write(MV643XX_ETH_PORT_CONFIG_REG(port_num),
+			  MV643XX_ETH_PORT_CONFIG_DEFAULT_VALUE);
+
+	mv_write(MV643XX_ETH_PORT_CONFIG_EXTEND_REG(port_num),
+			  MV643XX_ETH_PORT_CONFIG_EXTEND_DEFAULT_VALUE);
 
 	pscr = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
-	pscr &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
+
+	pscr &= ~(MV643XX_ETH_SERIAL_PORT_ENABLE | MV643XX_ETH_FORCE_LINK_PASS);
 	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
 
-	pscr &= ~MV643XX_ETH_FORCE_LINK_PASS;
 	pscr |= MV643XX_ETH_DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
 		MV643XX_ETH_DISABLE_AUTO_NEG_SPEED_GMII    |
 		MV643XX_ETH_DISABLE_AUTO_NEG_FOR_DUPLX     |
@@ -1990,7 +1960,8 @@ static void eth_port_start(struct net_device *dev)
 	mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num), pscr);
 
 	/* Assign port SDMA configuration */
-	mv_write(MV643XX_ETH_SDMA_CONFIG_REG(port_num), mp->port_sdma_config);
+	mv_write(MV643XX_ETH_SDMA_CONFIG_REG(port_num),
+			  MV643XX_ETH_PORT_SDMA_CONFIG_DEFAULT_VALUE);
 
 	/* Enable port Rx. */
 	mv643xx_eth_port_enable_rx(port_num, mp->port_rx_queue_command);

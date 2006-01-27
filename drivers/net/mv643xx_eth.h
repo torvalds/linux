@@ -321,10 +321,6 @@ struct mv643xx_mib_counters {
 
 struct mv643xx_private {
 	int port_num;			/* User Ethernet port number	*/
-	u32 port_config;		/* User port configuration value*/
-	u32 port_config_extend;		/* User port config extend value*/
-	u32 port_sdma_config;		/* User port SDMA config value	*/
-	u32 port_serial_control;	/* User port serial control value */
 	u32 port_tx_queue_command;	/* Port active Tx queues summary*/
 	u32 port_rx_queue_command;	/* Port active Rx queues summary*/
 

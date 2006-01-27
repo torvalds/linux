@@ -1288,23 +1288,15 @@ struct mv64xxx_i2c_pdata {
 #define MV643XX_ETH_NAME	"mv643xx_eth"
 
 struct mv643xx_eth_platform_data {
-	/* 
-	 * Non-values for mac_addr, phy_addr, port_config, etc.
-	 * override the default value.  Setting the corresponding
-	 * force_* field, causes the default value to be overridden
-	 * even when zero.
-	 */
-	unsigned int	force_phy_addr:1;
-	unsigned int	force_port_config:1;
-	unsigned int	force_port_config_extend:1;
-	unsigned int	force_port_sdma_config:1;
-	unsigned int	force_port_serial_control:1;
-	int		phy_addr;
 	char		*mac_addr;	/* pointer to mac address */
-	u32		port_config;
-	u32		port_config_extend;
-	u32		port_sdma_config;
-	u32		port_serial_control;
+	u16		force_phy_addr;	/* force override if phy_addr == 0 */
+	u16		phy_addr;
+
+	/* If speed is 0, then speed and duplex are autonegotiated. */
+	int		speed;		/* 0, SPEED_10, SPEED_100, SPEED_1000 */
+	int		duplex;		/* DUPLEX_HALF or DUPLEX_FULL */
+
+	/* non-zero values of the following fields override defaults */
 	u32		tx_queue_size;
 	u32		rx_queue_size;
 	u32		tx_sram_addr;

@@ -319,11 +319,10 @@ static void __init hdpu_fixup_eth_pdata(struct platform_device *pd)
 	struct mv643xx_eth_platform_data *eth_pd;
 	eth_pd = pd->dev.platform_data;
 
-	eth_pd->port_serial_control =
-	    mv64x60_read(&bh, MV643XX_ETH_PORT_SERIAL_CONTROL_REG(pd->id) & ~1);
-
 	eth_pd->force_phy_addr = 1;
 	eth_pd->phy_addr = pd->id;
+	eth_pd->speed = SPEED_100;
+	eth_pd->duplex = DUPLEX_FULL;
 	eth_pd->tx_queue_size = 400;
 	eth_pd->rx_queue_size = 800;
 }
