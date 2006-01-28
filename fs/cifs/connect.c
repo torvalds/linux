@@ -1786,7 +1786,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->wsize = volume_info.wsize;
 		else
 			cifs_sb->wsize = 
-				min(PAGEVEC_SIZE * PAGE_CACHE_SIZE, 127*1024);
+				min_t(const int, PAGEVEC_SIZE * PAGE_CACHE_SIZE,
+					127*1024);
 			/* old default of CIFSMaxBufSize was too small now
 			   that SMB Write2 can send multiple pages in kvec.   
 			   RFC1001 does not describe what happens when frame
