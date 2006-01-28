@@ -39,7 +39,8 @@ include .config
 include scripts/Kbuild.include
 include scripts/Makefile.lib
 
-symverfile := $(objtree)/Module.symvers
+kernelsymfile := $(objtree)/Module.symvers
+modulesymfile := $(KBUILD_EXTMOD)/Modules.symvers
 
 # Step 1), find all modules listed in $(MODVERDIR)/
 __modules := $(sort $(shell grep -h '\.ko' /dev/null $(wildcard $(MODVERDIR)/*.mod)))
@@ -54,7 +55,9 @@ quiet_cmd_modpost = MODPOST
       cmd_modpost = scripts/mod/modpost            \
         $(if $(CONFIG_MODVERSIONS),-m)             \
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a,)  \
-	$(if $(KBUILD_EXTMOD),-i,-o) $(symverfile) \
+	$(if $(KBUILD_EXTMOD),-i,-o) $(kernelsymfile) \
+	$(if $(KBUILD_EXTMOD),-I $(modulesymfile)) \
+	$(if $(KBUILD_EXTMOD),-o $(modulesymfile)) \
 	$(filter-out FORCE,$^)
 
 .PHONY: __modpost

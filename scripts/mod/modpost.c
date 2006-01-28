@@ -20,6 +20,8 @@ int modversions = 0;
 int have_vmlinux = 0;
 /* Is CONFIG_MODULE_SRCVERSION_ALL set? */
 static int all_versions = 0;
+/* If we are modposting external module set to 1 */
+static int external_module = 0;
 
 void fatal(const char *fmt, ...)
 {
@@ -43,6 +45,18 @@ void warn(const char *fmt, ...)
 	va_start(arglist, fmt);
 	vfprintf(stderr, fmt, arglist);
 	va_end(arglist);
+}
+
+static int is_vmlinux(const char *modname)
+{
+	const char *myname;
+
+	if ((myname = strrchr(modname, '/')))
+		myname++;
+	else
+		myname = modname;
+
+	return strcmp(myname, "vmlinux") == 0;
 }
 
 void *do_nofail(void *ptr, const char *expr)
@@ -100,6 +114,9 @@ struct symbol {
 	unsigned int crc;
 	int crc_valid;
 	unsigned int weak:1;
+	unsigned int vmlinux:1;    /* 1 if symbol is defined in vmlinux */
+	unsigned int kernel:1;     /* 1 if symbol is from kernel
+				    *  (only for external modules) **/
 	char name[0];
 };
 
@@ -135,8 +152,7 @@ static struct symbol *alloc_symbol(const char *name, unsigned int weak,
 }
 
 /* For the hash of exported symbols */
-static void new_symbol(const char *name, struct module *module,
-		       unsigned int *crc)
+static struct symbol *new_symbol(const char *name, struct module *module)
 {
 	unsigned int hash;
 	struct symbol *new;
@@ -144,10 +160,7 @@ static void new_symbol(const char *name, struct module *module,
 	hash = tdb_hash(name) % SYMBOL_HASH_SIZE;
 	new = symbolhash[hash] = alloc_symbol(name, 0, symbolhash[hash]);
 	new->module = module;
-	if (crc) {
-		new->crc = *crc;
-		new->crc_valid = 1;
-	}
+	return new;
 }
 
 static struct symbol *find_symbol(const char *name)
@@ -169,19 +182,27 @@ static struct symbol *find_symbol(const char *name)
  * Add an exported symbol - it may have already been added without a
  * CRC, in this case just update the CRC
  **/
-static void add_exported_symbol(const char *name, struct module *module,
-				unsigned int *crc)
+static struct symbol *sym_add_exported(const char *name, struct module *mod)
 {
 	struct symbol *s = find_symbol(name);
 
-	if (!s) {
-		new_symbol(name, module, crc);
-		return;
-	}
-	if (crc) {
-		s->crc = *crc;
-		s->crc_valid = 1;
-	}
+	if (!s)
+		s = new_symbol(name, mod);
+
+	s->vmlinux   = is_vmlinux(mod->name);
+	s->kernel    = 0;
+	return s;
+}
+
+static void sym_update_crc(const char *name, struct module *mod,
+			   unsigned int crc)
+{
+	struct symbol *s = find_symbol(name);
+
+	if (!s)
+		s = new_symbol(name, mod);
+	s->crc = crc;
+	s->crc_valid = 1;
 }
 
 void *grab_file(const char *filename, unsigned long *size)
@@ -332,8 +353,7 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		/* CRC'd symbol */
 		if (memcmp(symname, CRC_PFX, strlen(CRC_PFX)) == 0) {
 			crc = (unsigned int) sym->st_value;
-			add_exported_symbol(symname + strlen(CRC_PFX),
-					    mod, &crc);
+			sym_update_crc(symname + strlen(CRC_PFX), mod, crc);
 		}
 		break;
 	case SHN_UNDEF:
@@ -377,8 +397,7 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 	default:
 		/* All exported symbols */
 		if (memcmp(symname, KSYMTAB_PFX, strlen(KSYMTAB_PFX)) == 0) {
-			add_exported_symbol(symname + strlen(KSYMTAB_PFX),
-					    mod, NULL);
+			sym_add_exported(symname + strlen(KSYMTAB_PFX), mod);
 		}
 		if (strcmp(symname, MODULE_SYMBOL_PREFIX "init_module") == 0)
 			mod->has_init = 1;
@@ -386,18 +405,6 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			mod->has_cleanup = 1;
 		break;
 	}
-}
-
-static int is_vmlinux(const char *modname)
-{
-	const char *myname;
-
-	if ((myname = strrchr(modname, '/')))
-		myname++;
-	else
-		myname = modname;
-
-	return strcmp(myname, "vmlinux") == 0;
 }
 
 /**
@@ -450,9 +457,7 @@ static void read_symbols(char *modname)
 	/* When there's no vmlinux, don't print warnings about
 	 * unresolved symbols (since there'll be too many ;) */
 	if (is_vmlinux(modname)) {
-		unsigned int fake_crc = 0;
 		have_vmlinux = 1;
-		add_exported_symbol("struct_module", mod, &fake_crc);
 		mod->skip = 1;
 	}
 
@@ -665,7 +670,7 @@ static void write_if_changed(struct buffer *b, const char *fname)
 	fclose(file);
 }
 
-static void read_dump(const char *fname)
+static void read_dump(const char *fname, unsigned int kernel)
 {
 	unsigned long size, pos = 0;
 	void *file = grab_file(fname, &size);
@@ -679,6 +684,7 @@ static void read_dump(const char *fname)
 		char *symname, *modname, *d;
 		unsigned int crc;
 		struct module *mod;
+		struct symbol *s;
 
 		if (!(symname = strchr(line, '\t')))
 			goto fail;
@@ -699,13 +705,28 @@ static void read_dump(const char *fname)
 			mod = new_module(NOFAIL(strdup(modname)));
 			mod->skip = 1;
 		}
-		add_exported_symbol(symname, mod, &crc);
+		s = sym_add_exported(symname, mod);
+		s->kernel = kernel;
+		sym_update_crc(symname, mod, crc);
 	}
 	return;
 fail:
 	fatal("parse error in symbol dump file\n");
 }
 
+/* For normal builds always dump all symbols.
+ * For external modules only dump symbols
+ * that are not read from kernel Module.symvers.
+ **/
+static int dump_sym(struct symbol *sym)
+{
+	if (!external_module)
+		return 1;
+	if (sym->vmlinux || sym->kernel)
+		return 0;
+	return 1;
+}
+		
 static void write_dump(const char *fname)
 {
 	struct buffer buf = { };
@@ -715,15 +736,10 @@ static void write_dump(const char *fname)
 	for (n = 0; n < SYMBOL_HASH_SIZE ; n++) {
 		symbol = symbolhash[n];
 		while (symbol) {
-			symbol = symbol->next;
-		}
-	}
-
-	for (n = 0; n < SYMBOL_HASH_SIZE ; n++) {
-		symbol = symbolhash[n];
-		while (symbol) {
-			buf_printf(&buf, "0x%08x\t%s\t%s\n", symbol->crc,
-				symbol->name, symbol->module->name);
+			if (dump_sym(symbol))
+				buf_printf(&buf, "0x%08x\t%s\t%s\n",
+					symbol->crc, symbol->name, 
+					symbol->module->name);
 			symbol = symbol->next;
 		}
 	}
@@ -735,13 +751,18 @@ int main(int argc, char **argv)
 	struct module *mod;
 	struct buffer buf = { };
 	char fname[SZ];
-	char *dump_read = NULL, *dump_write = NULL;
+	char *kernel_read = NULL, *module_read = NULL;
+	char *dump_write = NULL;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:mo:a")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:mo:a")) != -1) {
 		switch(opt) {
 			case 'i':
-				dump_read = optarg;
+				kernel_read = optarg;
+				break;
+			case 'I':
+				module_read = optarg;
+				external_module = 1;
 				break;
 			case 'm':
 				modversions = 1;
@@ -757,8 +778,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (dump_read)
-		read_dump(dump_read);
+	if (kernel_read)
+		read_dump(kernel_read, 1);
+	if (module_read)
+		read_dump(module_read, 0);
 
 	while (optind < argc) {
 		read_symbols(argv[optind++]);
