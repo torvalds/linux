@@ -149,14 +149,20 @@ config HOTPLUG_CPU
 	default y if SMP
 	select HOTPLUG
 
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+	depends on 64BIT
+
 config ARCH_DISCONTIGMEM_ENABLE
-	bool "Discontiguous memory support (EXPERIMENTAL)"
-	depends on 64BIT && EXPERIMENTAL
-	help
-	  Say Y to support efficient handling of discontiguous physical memory,
-	  for architectures which are either NUMA (Non-Uniform Memory Access)
-	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa> for more.
+	def_bool y
+	depends on 64BIT
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
 
 source "kernel/Kconfig.hz"
 source "mm/Kconfig"
