@@ -754,7 +754,14 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		memset(skb->cb, 0, sizeof(skb->cb));
 		skb->dev = dev;
 		skb->ip_summed = CHECKSUM_NONE;	/* 802.11 crc not sufficient */
-		netif_rx(skb);
+		if (netif_rx(skb) == NET_RX_DROP) {
+			/* netif_rx always succeeds, but it might drop
+			 * the packet.  If it drops the packet, we log that
+			 * in our stats. */
+			IEEE80211_DEBUG_DROP
+			    ("RX: netif_rx dropped the packet\n");
+			stats->rx_dropped++;
+		}
 	}
 
       rx_exit:
@@ -930,6 +937,45 @@ static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
 	return rc;
 }
 
+#ifdef CONFIG_IEEE80211_DEBUG
+#define MFIE_STRING(x) case MFIE_TYPE_ ##x: return #x
+
+static const char *get_info_element_string(u16 id)
+{
+	switch (id) {
+		MFIE_STRING(SSID);
+		MFIE_STRING(RATES);
+		MFIE_STRING(FH_SET);
+		MFIE_STRING(DS_SET);
+		MFIE_STRING(CF_SET);
+		MFIE_STRING(TIM);
+		MFIE_STRING(IBSS_SET);
+		MFIE_STRING(COUNTRY);
+		MFIE_STRING(HOP_PARAMS);
+		MFIE_STRING(HOP_TABLE);
+		MFIE_STRING(REQUEST);
+		MFIE_STRING(CHALLENGE);
+		MFIE_STRING(POWER_CONSTRAINT);
+		MFIE_STRING(POWER_CAPABILITY);
+		MFIE_STRING(TPC_REQUEST);
+		MFIE_STRING(TPC_REPORT);
+		MFIE_STRING(SUPP_CHANNELS);
+		MFIE_STRING(CSA);
+		MFIE_STRING(MEASURE_REQUEST);
+		MFIE_STRING(MEASURE_REPORT);
+		MFIE_STRING(QUIET);
+		MFIE_STRING(IBSS_DFS);
+		MFIE_STRING(ERP_INFO);
+		MFIE_STRING(RSN);
+		MFIE_STRING(RATES_EX);
+		MFIE_STRING(GENERIC);
+		MFIE_STRING(QOS_PARAMETER);
+	default:
+		return "UNKNOWN";
+	}
+}
+#endif
+
 static int ieee80211_parse_info_param(struct ieee80211_info_element
 				      *info_element, u16 length,
 				      struct ieee80211_network *network)
@@ -1040,7 +1086,9 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			break;
 
 		case MFIE_TYPE_TIM:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: ignored\n");
+			network->tim.tim_count = info_element->data[0];
+			network->tim.tim_period = info_element->data[1];
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: partially ignored\n");
 			break;
 
 		case MFIE_TYPE_ERP_INFO:
@@ -1091,10 +1139,49 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 			printk(KERN_ERR
 			       "QoS Error need to parse QOS_PARAMETER IE\n");
 			break;
+			/* 802.11h */
+		case MFIE_TYPE_POWER_CONSTRAINT:
+			network->power_constraint = info_element->data[0];
+			network->flags |= NETWORK_HAS_POWER_CONSTRAINT;
+			break;
+
+		case MFIE_TYPE_CSA:
+			network->power_constraint = info_element->data[0];
+			network->flags |= NETWORK_HAS_CSA;
+			break;
+
+		case MFIE_TYPE_QUIET:
+			network->quiet.count = info_element->data[0];
+			network->quiet.period = info_element->data[1];
+			network->quiet.duration = info_element->data[2];
+			network->quiet.offset = info_element->data[3];
+			network->flags |= NETWORK_HAS_QUIET;
+			break;
+
+		case MFIE_TYPE_IBSS_DFS:
+			if (network->ibss_dfs)
+				break;
+			network->ibss_dfs =
+			    kmalloc(info_element->len, GFP_ATOMIC);
+			if (!network->ibss_dfs)
+				return 1;
+			memcpy(network->ibss_dfs, info_element->data,
+			       info_element->len);
+			network->flags |= NETWORK_HAS_IBSS_DFS;
+			break;
+
+		case MFIE_TYPE_TPC_REPORT:
+			network->tpc_report.transmit_power =
+			    info_element->data[0];
+			network->tpc_report.link_margin = info_element->data[1];
+			network->flags |= NETWORK_HAS_TPC_REPORT;
+			break;
 
 		default:
-			IEEE80211_DEBUG_MGMT("unsupported IE %d\n",
-					     info_element->id);
+			IEEE80211_DEBUG_MGMT
+			    ("Unsupported info element: %s (%d)\n",
+			     get_info_element_string(info_element->id),
+			     info_element->id);
 			break;
 		}
 
@@ -1110,7 +1197,9 @@ static int ieee80211_parse_info_param(struct ieee80211_info_element
 static int ieee80211_handle_assoc_resp(struct ieee80211_device *ieee, struct ieee80211_assoc_response
 				       *frame, struct ieee80211_rx_stats *stats)
 {
-	struct ieee80211_network network_resp;
+	struct ieee80211_network network_resp = {
+		.ibss_dfs = NULL,
+	};
 	struct ieee80211_network *network = &network_resp;
 	struct net_device *dev = ieee->dev;
 
@@ -1253,6 +1342,9 @@ static void update_network(struct ieee80211_network *dst,
 	int qos_active;
 	u8 old_param;
 
+	ieee80211_network_reset(dst);
+	dst->ibss_dfs = src->ibss_dfs;
+
 	memcpy(&dst->stats, &src->stats, sizeof(struct ieee80211_rx_stats));
 	dst->capability = src->capability;
 	memcpy(dst->rates, src->rates, src->rates_len);
@@ -1269,6 +1361,7 @@ static void update_network(struct ieee80211_network *dst,
 	dst->listen_interval = src->listen_interval;
 	dst->atim_window = src->atim_window;
 	dst->erp_value = src->erp_value;
+	dst->tim = src->tim;
 
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
 	dst->wpa_ie_len = src->wpa_ie_len;
@@ -1313,7 +1406,9 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 						    *stats)
 {
 	struct net_device *dev = ieee->dev;
-	struct ieee80211_network network;
+	struct ieee80211_network network = {
+		.ibss_dfs = NULL,
+	};
 	struct ieee80211_network *target;
 	struct ieee80211_network *oldest = NULL;
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -1388,6 +1483,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 					     escape_essid(target->ssid,
 							  target->ssid_len),
 					     MAC_ARG(target->bssid));
+			ieee80211_network_reset(target);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -1406,6 +1502,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 				     "BEACON" : "PROBE RESPONSE");
 #endif
 		memcpy(target, &network, sizeof(*target));
+		network.ibss_dfs = NULL;
 		list_add_tail(&target->list, &ieee->network_list);
 	} else {
 		IEEE80211_DEBUG_SCAN("Updating '%s' (" MAC_FMT ") via %s.\n",
@@ -1417,6 +1514,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 						frame_ctl)) ?
 				     "BEACON" : "PROBE RESPONSE");
 		update_network(target, &network);
+		network.ibss_dfs = NULL;
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
@@ -1501,10 +1599,19 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 					      header);
 		break;
 
+	case IEEE80211_STYPE_ACTION:
+		IEEE80211_DEBUG_MGMT("ACTION\n");
+		if (ieee->handle_action)
+			ieee->handle_action(ieee->dev,
+					    (struct ieee80211_action *)
+					    header, stats);
+		break;
+
 	case IEEE80211_STYPE_DEAUTH:
-		printk("DEAUTH from AP\n");
+		IEEE80211_DEBUG_MGMT("DEAUTH\n");
 		if (ieee->handle_deauth != NULL)
-			ieee->handle_deauth(ieee->dev, (struct ieee80211_auth *)
+			ieee->handle_deauth(ieee->dev,
+					    (struct ieee80211_deauth *)
 					    header);
 		break;
 	default:

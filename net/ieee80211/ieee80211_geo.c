@@ -58,13 +58,15 @@ int ieee80211_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
 			 * this is a B only channel, we don't see it
 			 * as valid. */
 			if ((ieee->geo.bg[i].channel == channel) &&
+			    !(ieee->geo.bg[i].flags & IEEE80211_CH_INVALID) &&
 			    (!(ieee->mode & IEEE_G) ||
 			     !(ieee->geo.bg[i].flags & IEEE80211_CH_B_ONLY)))
 				return IEEE80211_24GHZ_BAND;
 
 	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
 		for (i = 0; i < ieee->geo.a_channels; i++)
-			if (ieee->geo.a[i].channel == channel)
+			if ((ieee->geo.a[i].channel == channel) &&
+			    !(ieee->geo.a[i].flags & IEEE80211_CH_INVALID))
 				return IEEE80211_52GHZ_BAND;
 
 	return 0;
@@ -133,6 +135,41 @@ const struct ieee80211_geo *ieee80211_get_geo(struct ieee80211_device *ieee)
 	return &ieee->geo;
 }
 
+u8 ieee80211_get_channel_flags(struct ieee80211_device * ieee, u8 channel)
+{
+	int index = ieee80211_channel_to_index(ieee, channel);
+
+	if (index == -1)
+		return IEEE80211_CH_INVALID;
+
+	if (channel <= IEEE80211_24GHZ_CHANNELS)
+		return ieee->geo.bg[index].flags;
+
+	return ieee->geo.a[index].flags;
+}
+
+static const struct ieee80211_channel bad_channel = {
+	.channel = 0,
+	.flags = IEEE80211_CH_INVALID,
+	.max_power = 0,
+};
+
+const struct ieee80211_channel *ieee80211_get_channel(struct ieee80211_device
+						      *ieee, u8 channel)
+{
+	int index = ieee80211_channel_to_index(ieee, channel);
+
+	if (index == -1)
+		return &bad_channel;
+
+	if (channel <= IEEE80211_24GHZ_CHANNELS)
+		return &ieee->geo.bg[index];
+
+	return &ieee->geo.a[index];
+}
+
+EXPORT_SYMBOL(ieee80211_get_channel);
+EXPORT_SYMBOL(ieee80211_get_channel_flags);
 EXPORT_SYMBOL(ieee80211_is_valid_channel);
 EXPORT_SYMBOL(ieee80211_freq_to_channel);
 EXPORT_SYMBOL(ieee80211_channel_to_index);

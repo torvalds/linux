@@ -149,9 +149,7 @@ static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID |
 		    IW_QUAL_LEVEL_INVALID;
 		iwe.u.qual.qual = 0;
-		iwe.u.qual.level = 0;
 	} else {
-		iwe.u.qual.level = network->stats.rssi;
 		if (ieee->perfect_rssi == ieee->worst_rssi)
 			iwe.u.qual.qual = 100;
 		else
@@ -177,6 +175,13 @@ static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.qual.noise = 0;
 	} else {
 		iwe.u.qual.noise = network->stats.noise;
+	}
+
+	if (!(network->stats.mask & IEEE80211_STATMASK_SIGNAL)) {
+		iwe.u.qual.updated |= IW_QUAL_LEVEL_INVALID;
+		iwe.u.qual.level = 0;
+	} else {
+		iwe.u.qual.level = network->stats.signal;
 	}
 
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
@@ -228,6 +233,28 @@ static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
+
+	/* Add spectrum management information */
+	iwe.cmd = -1;
+	p = custom;
+	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Channel flags: ");
+
+	if (ieee80211_get_channel_flags(ieee, network->channel) &
+	    IEEE80211_CH_INVALID) {
+		iwe.cmd = IWEVCUSTOM;
+		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), "INVALID ");
+	}
+
+	if (ieee80211_get_channel_flags(ieee, network->channel) &
+	    IEEE80211_CH_RADAR_DETECT) {
+		iwe.cmd = IWEVCUSTOM;
+		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), "DFS ");
+	}
+
+	if (iwe.cmd == IWEVCUSTOM) {
+		iwe.u.data.length = p - custom;
+		start = iwe_stream_add_point(start, stop, &iwe, custom);
+	}
 
 	return start;
 }
