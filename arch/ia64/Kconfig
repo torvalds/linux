@@ -194,7 +194,6 @@ config IA64_L1_CACHE_SHIFT
 	default "7" if MCKINLEY
 	default "6" if ITANIUM
 
-# align cache-sensitive data to 64 bytes
 config IA64_CYCLONE
 	bool "Cyclone (EXA) Time Source support"
 	help
