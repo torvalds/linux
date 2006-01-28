@@ -117,6 +117,7 @@ struct symbol {
 	unsigned int vmlinux:1;    /* 1 if symbol is defined in vmlinux */
 	unsigned int kernel:1;     /* 1 if symbol is from kernel
 				    *  (only for external modules) **/
+	unsigned int preloaded:1;  /* 1 if symbol from Module.symvers */
 	char name[0];
 };
 
@@ -186,9 +187,17 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod)
 {
 	struct symbol *s = find_symbol(name);
 
-	if (!s)
+	if (!s) {
 		s = new_symbol(name, mod);
-
+	} else {
+		if (!s->preloaded) {
+			warn("%s: duplicate symbol '%s' previous definition "
+			     "was in %s%s\n", mod->name, name,
+			     s->module->name,
+			     is_vmlinux(s->module->name) ?"":".ko");
+		}
+	}
+	s->preloaded = 0;
 	s->vmlinux   = is_vmlinux(mod->name);
 	s->kernel    = 0;
 	return s;
@@ -706,7 +715,8 @@ static void read_dump(const char *fname, unsigned int kernel)
 			mod->skip = 1;
 		}
 		s = sym_add_exported(symname, mod);
-		s->kernel = kernel;
+		s->kernel    = kernel;
+		s->preloaded = 1;
 		sym_update_crc(symname, mod, crc);
 	}
 	return;
