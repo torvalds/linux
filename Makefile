@@ -1126,6 +1126,7 @@ else # KBUILD_EXTMOD
 KBUILD_MODULES := 1
 .PHONY: crmodverdir
 crmodverdir:
+	$(Q)rm -rf $(MODVERDIR)
 	$(Q)mkdir -p $(MODVERDIR)
 
 .PHONY: $(objtree)/Module.symvers
