@@ -1442,12 +1442,11 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap)
 }
 
 /**
- * 	ata_dev_config - Run device specific handlers and check for
- * 			 SATA->PATA bridges
- * 	@ap: Bus
- * 	@i:  Device
+ * ata_dev_config - Run device specific handlers & check for SATA->PATA bridges
+ * @ap: Bus
+ * @i:  Device
  *
- * 	LOCKING:
+ * LOCKING:
  */
 
 void ata_dev_config(struct ata_port *ap, unsigned int i)
@@ -1794,9 +1793,9 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	ata_timing_quantize(t, t, T, UT);
 
 	/*
-	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
-	 * and some other commands. We have to ensure that the DMA cycle timing is
-	 * slower/equal than the fastest PIO timing.
+	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY,
+	 * S.M.A.R.T * and some other commands. We have to ensure that the
+	 * DMA cycle timing is slower/equal than the fastest PIO timing.
 	 */
 
 	if (speed > XFER_PIO_4) {
@@ -1805,7 +1804,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	}
 
 	/*
-	 * Lenghten active & recovery time so that cycle time is correct.
+	 * Lengthen active & recovery time so that cycle time is correct.
 	 */
 
 	if (t->act8b + t->rec8b < t->cyc8b) {
@@ -1924,7 +1923,6 @@ static void ata_host_set_dma(struct ata_port *ap, u8 xfer_mode,
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
- *
  */
 static void ata_set_mode(struct ata_port *ap)
 {
@@ -1973,7 +1971,6 @@ err_out:
  *	or a timeout occurs.
  *
  *	LOCKING: None.
- *
  */
 
 unsigned int ata_busy_sleep (struct ata_port *ap,
@@ -3200,7 +3197,7 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_pio_poll -
+ *	ata_pio_poll - poll using PIO, depending on current state
  *	@ap: the target ata_port
  *
  *	LOCKING:
@@ -3307,7 +3304,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 
 /**
- *	swap_buf_le16 - swap halves of 16-words in place
+ *	swap_buf_le16 - swap halves of 16-bit words in place
  *	@buf:  Buffer to swap
  *	@buf_words:  Number of 16-bit words in buffer.
  *
@@ -4520,19 +4517,6 @@ err_out:
 }
 
 
-/**
- *	ata_port_start - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table.
- *
- *	May be used as the port_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
 /*
  * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
  * without filling any other registers
@@ -4584,6 +4568,8 @@ static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
 
 /**
  *	ata_device_resume - wakeup a previously suspended devices
+ *	@ap: port the device is connected to
+ *	@dev: the device to resume
  *
  *	Kick the drive back into action, by sending it an idle immediate
  *	command and making sure its transfer mode matches between drive
@@ -4606,10 +4592,11 @@ int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
 
 /**
  *	ata_device_suspend - prepare a device for suspend
+ *	@ap: port the device is connected to
+ *	@dev: the device to suspend
  *
  *	Flush the cache on the drive, if appropriate, then issue a
  *	standbynow command.
- *
  */
 int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
 {
@@ -4622,6 +4609,19 @@ int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
 	ap->flags |= ATA_FLAG_SUSPENDED;
 	return 0;
 }
+
+/**
+ *	ata_port_start - Set port up for dma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Allocates space for PRD table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 
 int ata_port_start (struct ata_port *ap)
 {
@@ -4880,9 +4880,9 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 		ap = host_set->ports[i];
 
-		DPRINTK("ata%u: probe begin\n", ap->id);
+		DPRINTK("ata%u: bus probe begin\n", ap->id);
 		rc = ata_bus_probe(ap);
-		DPRINTK("ata%u: probe end\n", ap->id);
+		DPRINTK("ata%u: bus probe end\n", ap->id);
 
 		if (rc) {
 			/* FIXME: do something useful here?
@@ -4906,7 +4906,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	}
 
 	/* probes are done, now scan each port's disk(s) */
-	DPRINTK("probe begin\n");
+	DPRINTK("host probe begin\n");
 	for (i = 0; i < count; i++) {
 		struct ata_port *ap = host_set->ports[i];
 

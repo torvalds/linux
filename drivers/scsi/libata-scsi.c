@@ -151,7 +151,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	struct scsi_sense_hdr sshdr;
 	enum dma_data_direction data_dir;
 
-	if (NULL == (void *)arg)
+	if (arg == NULL)
 		return -EINVAL;
 
 	if (copy_from_user(args, arg, sizeof(args)))
@@ -201,7 +201,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	/* Need code to retrieve data from check condition? */
 
 	if ((argbuf)
-	 && copy_to_user((void *)(arg + sizeof(args)), argbuf, argsize))
+	 && copy_to_user(arg + sizeof(args), argbuf, argsize))
 		rc = -EFAULT;
 error:
 	if (argbuf)
@@ -228,7 +228,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	u8 args[7];
 	struct scsi_sense_hdr sshdr;
 
-	if (NULL == (void *)arg)
+	if (arg == NULL)
 		return -EINVAL;
 
 	if (copy_from_user(args, arg, sizeof(args)))
@@ -2533,7 +2533,8 @@ out_unlock:
 
 /**
  *	ata_scsi_simulate - simulate SCSI command on ATA device
- *	@id: current IDENTIFY data for target device.
+ *	@ap: port the device is connected to
+ *	@dev: the target device
  *	@cmd: SCSI command being sent to device.
  *	@done: SCSI command completion function.
  *
