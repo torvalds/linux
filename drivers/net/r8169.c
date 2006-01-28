@@ -484,13 +484,12 @@ static void mdio_write(void __iomem *ioaddr, int RegAddr, int value)
 	int i;
 
 	RTL_W32(PHYAR, 0x80000000 | (RegAddr & 0xFF) << 16 | value);
-	udelay(1000);
 
-	for (i = 2000; i > 0; i--) {
+	for (i = 20; i > 0; i--) {
 		/* Check if the RTL8169 has completed writing to the specified MII register */
 		if (!(RTL_R32(PHYAR) & 0x80000000)) 
 			break;
-		udelay(100);
+		udelay(25);
 	}
 }
 
@@ -499,15 +498,14 @@ static int mdio_read(void __iomem *ioaddr, int RegAddr)
 	int i, value = -1;
 
 	RTL_W32(PHYAR, 0x0 | (RegAddr & 0xFF) << 16);
-	udelay(1000);
 
-	for (i = 2000; i > 0; i--) {
+	for (i = 20; i > 0; i--) {
 		/* Check if the RTL8169 has completed retrieving data from the specified MII register */
 		if (RTL_R32(PHYAR) & 0x80000000) {
 			value = (int) (RTL_R32(PHYAR) & 0xFFFF);
 			break;
 		}
-		udelay(100);
+		udelay(25);
 	}
 	return value;
 }
