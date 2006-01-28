@@ -303,8 +303,7 @@ parse_elf(struct elf_info *info, const char *filename)
 			             sechdrs[sechdrs[i].sh_link].sh_offset;
 	}
 	if (!info->symtab_start) {
-		fprintf(stderr, "modpost: %s no symtab?\n", filename);
-		abort();
+		fatal("%s has no symtab?\n", filename);
 	}
 	/* Fix endianness in symbols */
 	for (sym = info->symtab_start; sym < info->symtab_stop; sym++) {
@@ -316,8 +315,7 @@ parse_elf(struct elf_info *info, const char *filename)
 	return;
 
  truncated:
-	fprintf(stderr, "modpost: %s is truncated.\n", filename);
-	abort();
+	fatal("%s is truncated.\n", filename);
 }
 
 void
@@ -337,8 +335,7 @@ handle_modversions(struct module *mod, struct elf_info *info,
 
 	switch (sym->st_shndx) {
 	case SHN_COMMON:
-		fprintf(stderr, "*** Warning: \"%s\" [%s] is COMMON symbol\n",
-			symname, mod->name);
+		warn("\"%s\" [%s] is COMMON symbol\n", symname, mod->name);
 		break;
 	case SHN_ABS:
 		/* CRC'd symbol */
@@ -562,8 +559,8 @@ add_versions(struct buffer *b, struct module *mod)
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
 			if (have_vmlinux && !s->weak)
-				fprintf(stderr, "*** Warning: \"%s\" [%s.ko] "
-				"undefined!\n",	s->name, mod->name);
+				warn("\"%s\" [%s.ko] undefined!\n",
+				     s->name, mod->name);
 			continue;
 		}
 		s->module = exp->module;
@@ -584,8 +581,7 @@ add_versions(struct buffer *b, struct module *mod)
 			continue;
 		}
 		if (!s->crc_valid) {
-			fprintf(stderr, "*** Warning: \"%s\" [%s.ko] "
-				"has no CRC!\n",
+			warn("\"%s\" [%s.ko] has no CRC!\n",
 				s->name, mod->name);
 			continue;
 		}

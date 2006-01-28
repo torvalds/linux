@@ -91,17 +91,22 @@ struct elf_info {
 	unsigned int modinfo_len;
 };
 
+/* file2alias.c */
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname);
-
 void add_moddevtable(struct buffer *buf, struct module *mod);
 
+/* sumversion.c */
 void maybe_frob_rcs_version(const char *modfilename,
 			    char *version,
 			    void *modinfo,
 			    unsigned long modinfo_offset);
 void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
+/* from modpost.c */
 void *grab_file(const char *filename, unsigned long *size);
 char* get_next_line(unsigned long *pos, void *file, unsigned long size);
 void release_file(void *file, unsigned long size);
+
+void fatal(const char *fmt, ...);
+void warn(const char *fmt, ...);

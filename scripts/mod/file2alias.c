@@ -153,8 +153,8 @@ static void do_usb_table(void *symval, unsigned long size,
 	const unsigned long id_size = sizeof(struct usb_device_id);
 
 	if (size % id_size || size < id_size) {
-		fprintf(stderr, "*** Warning: %s ids %lu bad size "
-			"(each on %lu)\n", mod->name, size, id_size);
+		warn("%s ids %lu bad size "
+		     "(each on %lu)\n", mod->name, size, id_size);
 	}
 	/* Leave last one: it's the terminator. */
 	size -= id_size;
@@ -217,9 +217,8 @@ static int do_pci_entry(const char *filename,
 	if ((baseclass_mask != 0 && baseclass_mask != 0xFF)
 	    || (subclass_mask != 0 && subclass_mask != 0xFF)
 	    || (interface_mask != 0 && interface_mask != 0xFF)) {
-		fprintf(stderr,
-			"*** Warning: Can't handle masks in %s:%04X\n",
-			filename, id->class_mask);
+		warn("Can't handle masks in %s:%04X\n",
+		     filename, id->class_mask);
 		return 0;
 	}
 
@@ -445,8 +444,8 @@ static void do_table(void *symval, unsigned long size,
 	int (*do_entry)(const char *, void *entry, char *alias) = function;
 
 	if (size % id_size || size < id_size) {
-		fprintf(stderr, "*** Warning: %s ids %lu bad size "
-			"(each on %lu)\n", mod->name, size, id_size);
+		warn("%s ids %lu bad size "
+		     "(each on %lu)\n", mod->name, size, id_size);
 	}
 	/* Leave last one: it's the terminator. */
 	size -= id_size;
