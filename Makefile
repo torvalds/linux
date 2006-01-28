@@ -1147,8 +1147,27 @@ modules: $(module-dirs)
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
 
 .PHONY: modules_install
-modules_install:
+modules_install: _emodinst_ _emodinst_post
+	
+install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)	
+.PHONY: _emodinst_
+_emodinst_:
+	$(Q)rm -rf $(MODLIB)/$(install-dir)
+	$(Q)mkdir -p $(MODLIB)/$(install-dir)
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modinst
+
+# Run depmod only is we have System.map and depmod is executable
+quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
+      cmd_depmod = if [ -r System.map -a -x $(DEPMOD) ]; then \
+                      $(DEPMOD) -ae -F System.map             \
+                      $(if $(strip $(INSTALL_MOD_PATH)),      \
+		      -b $(INSTALL_MOD_PATH) -r)              \
+		      $(KERNELRELEASE);                       \
+                   fi
+
+.PHONY: _emodinst_post
+_emodinst_post: _emodinst_
+	$(call cmd,depmod)
 
 clean-dirs := $(addprefix _clean_,$(KBUILD_EXTMOD))
 
