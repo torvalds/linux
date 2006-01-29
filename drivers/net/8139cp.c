@@ -352,23 +352,23 @@ struct cp_private {
 	struct net_device_stats net_stats;
 	struct cp_extra_stats	cp_stats;
 
-	unsigned		rx_tail		____cacheline_aligned;
+	unsigned		rx_head		____cacheline_aligned;
+	unsigned		rx_tail;
 	struct cp_desc		*rx_ring;
 	struct sk_buff		*rx_skb[CP_RX_RING_SIZE];
-	unsigned		rx_buf_sz;
 
 	unsigned		tx_head		____cacheline_aligned;
 	unsigned		tx_tail;
-
 	struct cp_desc		*tx_ring;
 	struct ring_info	tx_skb[CP_TX_RING_SIZE];
-	dma_addr_t		ring_dma;
+
+	unsigned		rx_buf_sz;
+	unsigned		wol_enabled : 1; /* Is Wake-on-LAN enabled? */
 
 #if CP_VLAN_TAG_USED
 	struct vlan_group	*vlgrp;
 #endif
-
-	unsigned int		wol_enabled : 1; /* Is Wake-on-LAN enabled? */
+	dma_addr_t		ring_dma;
 
 	struct mii_if_info	mii_if;
 };
