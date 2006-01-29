@@ -571,7 +571,7 @@ rx_status_loop:
 
 		if (netif_msg_rx_status(cp))
 			printk(KERN_DEBUG "%s: rx slot %d status 0x%x len %d\n",
-			       cp->dev->name, rx_tail, status, len);
+			       dev->name, rx_tail, status, len);
 
 		buflen = cp->rx_buf_sz + RX_OFFSET;
 		new_skb = dev_alloc_skb (buflen);
@@ -581,7 +581,7 @@ rx_status_loop:
 		}
 
 		skb_reserve(new_skb, RX_OFFSET);
-		new_skb->dev = cp->dev;
+		new_skb->dev = dev;
 
 		pci_unmap_single(cp->pdev, mapping,
 				 buflen, PCI_DMA_FROMDEVICE);
