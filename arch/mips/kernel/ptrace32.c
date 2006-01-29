@@ -88,7 +88,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;
-		ret = put_user(tmp, (unsigned int *) (unsigned long) data);
+		ret = put_user(tmp, (unsigned int __user *) (unsigned long) data);
 		break;
 	}
 
@@ -174,8 +174,10 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		case FPC_EIR: {	/* implementation / version register */
 			unsigned int flags;
 
-			if (!cpu_has_fpu)
+			if (!cpu_has_fpu) {
+				tmp = 0;
 				break;
+			}
 
 			preempt_disable();
 			if (cpu_has_mipsmt) {
@@ -194,15 +196,18 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			preempt_enable();
 			break;
 		}
-		case DSP_BASE ... DSP_BASE + 5:
+		case DSP_BASE ... DSP_BASE + 5: {
+			dspreg_t *dregs;
+
 			if (!cpu_has_dsp) {
 				tmp = 0;
 				ret = -EIO;
 				goto out_tsk;
 			}
-			dspreg_t *dregs = __get_dsp_regs(child);
+			dregs = __get_dsp_regs(child);
 			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
 			break;
+		}
 		case DSP_CONTROL:
 			if (!cpu_has_dsp) {
 				tmp = 0;
@@ -216,7 +221,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			ret = -EIO;
 			goto out_tsk;
 		}
-		ret = put_user(tmp, (unsigned *) (unsigned long) data);
+		ret = put_user(tmp, (unsigned __user *) (unsigned long) data);
 		break;
 	}
 
@@ -304,15 +309,18 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			else
 				child->thread.fpu.soft.fcr31 = data;
 			break;
-		case DSP_BASE ... DSP_BASE + 5:
+		case DSP_BASE ... DSP_BASE + 5: {
+			dspreg_t *dregs;
+
 			if (!cpu_has_dsp) {
 				ret = -EIO;
 				break;
 			}
 
-			dspreg_t *dregs = __get_dsp_regs(child);
+			dregs = __get_dsp_regs(child);
 			dregs[addr - DSP_BASE] = data;
 			break;
+		}
 		case DSP_CONTROL:
 			if (!cpu_has_dsp) {
 				ret = -EIO;
