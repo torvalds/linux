@@ -170,31 +170,42 @@ void __init sb1250_setup(void)
 		    soc_str, pass_str, zbbus_mhz * 2, sb1_pass);
 	prom_printf("Board type: %s\n", get_system_type());
 
-	switch(war_pass) {
+	switch (war_pass) {
 	case K_SYS_REVISION_BCM1250_PASS1:
 #ifndef CONFIG_SB1_PASS_1_WORKAROUNDS
-		prom_printf("@@@@ This is a BCM1250 A0-A2 (Pass 1) board, and the kernel doesn't have the proper workarounds compiled in. @@@@\n");
+		prom_printf("@@@@ This is a BCM1250 A0-A2 (Pass 1) board, "
+		            "and the kernel doesn't have the proper "
+		            "workarounds compiled in. @@@@\n");
 		bad_config = 1;
 #endif
 		break;
 	case K_SYS_REVISION_BCM1250_PASS2:
 		/* Pass 2 - easiest as default for now - so many numbers */
-#if !defined(CONFIG_SB1_PASS_2_WORKAROUNDS) || !defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS)
-		prom_printf("@@@@ This is a BCM1250 A3-A10 board, and the kernel doesn't have the proper workarounds compiled in. @@@@\n");
+#if !defined(CONFIG_SB1_PASS_2_WORKAROUNDS) || \
+    !defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS)
+		prom_printf("@@@@ This is a BCM1250 A3-A10 board, and the "
+		            "kernel doesn't have the proper workarounds "
+		            "compiled in. @@@@\n");
 		bad_config = 1;
 #endif
 #ifdef CONFIG_CPU_HAS_PREFETCH
-		prom_printf("@@@@ Prefetches may be enabled in this kernel, but are buggy on this board.  @@@@\n");
+		prom_printf("@@@@ Prefetches may be enabled in this kernel, "
+		            "but are buggy on this board.  @@@@\n");
 		bad_config = 1;
 #endif
 		break;
 	case K_SYS_REVISION_BCM1250_PASS2_2:
 #ifndef CONFIG_SB1_PASS_2_WORKAROUNDS
-		prom_printf("@@@@ This is a BCM1250 B1/B2. board, and the kernel doesn't have the proper workarounds compiled in. @@@@\n");
+		prom_printf("@@@@ This is a BCM1250 B1/B2. board, and the "
+		            "kernel doesn't have the proper workarounds "
+		            "compiled in. @@@@\n");
 		bad_config = 1;
 #endif
-#if defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS) || !defined(CONFIG_CPU_HAS_PREFETCH)
-		prom_printf("@@@@ This is a BCM1250 B1/B2, but the kernel is conservatively configured for an 'A' stepping. @@@@\n");
+#if defined(CONFIG_SB1_PASS_2_1_WORKAROUNDS) || \
+    !defined(CONFIG_CPU_HAS_PREFETCH)
+		prom_printf("@@@@ This is a BCM1250 B1/B2, but the kernel is "
+		            "conservatively configured for an 'A' stepping. "
+		            "@@@@\n");
 #endif
 		break;
 	default:
