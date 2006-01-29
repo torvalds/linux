@@ -16,6 +16,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/config.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
@@ -42,7 +43,7 @@ static inline int setup_bcm112x(void);
 
 /* Setup code likely to be common to all SiByte platforms */
 
-static inline int sys_rev_decode(void)
+static int __init sys_rev_decode(void)
 {
 	int ret = 0;
 
@@ -74,7 +75,7 @@ static inline int sys_rev_decode(void)
 	return ret;
 }
 
-static inline int setup_bcm1250(void)
+static int __init setup_bcm1250(void)
 {
 	int ret = 0;
 
@@ -120,7 +121,7 @@ static inline int setup_bcm1250(void)
 	return ret;
 }
 
-static inline int setup_bcm112x(void)
+static int __init setup_bcm112x(void)
 {
 	int ret = 0;
 
@@ -146,7 +147,7 @@ static inline int setup_bcm112x(void)
 	return ret;
 }
 
-void sb1250_setup(void)
+void __init sb1250_setup(void)
 {
 	uint64_t sys_rev;
 	int plldiv;
