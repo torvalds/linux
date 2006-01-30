@@ -30,7 +30,6 @@ gfs2-y := \
 	ops_vm.o \
 	page.o \
 	quota.o \
-	resize.o \
 	recovery.o \
 	rgrp.o \
 	super.o \
