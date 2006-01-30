@@ -658,15 +658,7 @@ ia64_sal_freq_base (unsigned long which, unsigned long *ticks_per_second,
 	return isrv.status;
 }
 
-/* Flush all the processor and platform level instruction and/or data caches */
-static inline s64
-ia64_sal_cache_flush (u64 cache_type)
-{
-	struct ia64_sal_retval isrv;
-	SAL_CALL(isrv, SAL_CACHE_FLUSH, cache_type, 0, 0, 0, 0, 0, 0);
-	return isrv.status;
-}
-
+extern s64 ia64_sal_cache_flush (u64 cache_type);
 
 /* Initialize all the processor and platform level instruction and data caches */
 static inline s64
