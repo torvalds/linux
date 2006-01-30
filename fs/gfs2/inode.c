@@ -1002,7 +1002,8 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	di = (struct gfs2_dinode *)dibh->b_data;
 
-	di->di_num = *inum;
+	di->di_num.no_formal_ino = cpu_to_be64(inum->no_formal_ino);
+	di->di_num.no_addr = cpu_to_be64(inum->no_addr);
 	di->di_mode = cpu_to_be32(mode);
 	di->di_uid = cpu_to_be32(uid);
 	di->di_gid = cpu_to_be32(gid);
