@@ -946,6 +946,12 @@ UNUSUAL_DEV(  0x084d, 0x0011, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_BULK32),
 
+/* Submitted by Jan De Luyck <lkml@kcore.org> */
+UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
+		"CITIZEN",
+		"X1DE-USB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN),
 
 /* Entry needed for flags. Moreover, all devices with this ID use
  * bulk-only transport, but _some_ falsely report Control/Bulk instead.
