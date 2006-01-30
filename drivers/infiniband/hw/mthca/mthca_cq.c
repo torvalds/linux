@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
@@ -150,24 +150,29 @@ struct mthca_err_cqe {
 #define MTHCA_ARBEL_CQ_DB_REQ_NOT      (2 << 24)
 #define MTHCA_ARBEL_CQ_DB_REQ_NOT_MULT (3 << 24)
 
-static inline struct mthca_cqe *get_cqe(struct mthca_cq *cq, int entry)
+static inline struct mthca_cqe *get_cqe_from_buf(struct mthca_cq_buf *buf,
+						 int entry)
 {
-	if (cq->is_direct)
-		return cq->queue.direct.buf + (entry * MTHCA_CQ_ENTRY_SIZE);
+	if (buf->is_direct)
+		return buf->queue.direct.buf + (entry * MTHCA_CQ_ENTRY_SIZE);
 	else
-		return cq->queue.page_list[entry * MTHCA_CQ_ENTRY_SIZE / PAGE_SIZE].buf
+		return buf->queue.page_list[entry * MTHCA_CQ_ENTRY_SIZE / PAGE_SIZE].buf
 			+ (entry * MTHCA_CQ_ENTRY_SIZE) % PAGE_SIZE;
 }
 
-static inline struct mthca_cqe *cqe_sw(struct mthca_cq *cq, int i)
+static inline struct mthca_cqe *get_cqe(struct mthca_cq *cq, int entry)
 {
-	struct mthca_cqe *cqe = get_cqe(cq, i);
+	return get_cqe_from_buf(&cq->buf, entry);
+}
+
+static inline struct mthca_cqe *cqe_sw(struct mthca_cqe *cqe)
+{
 	return MTHCA_CQ_ENTRY_OWNER_HW & cqe->owner ? NULL : cqe;
 }
 
 static inline struct mthca_cqe *next_cqe_sw(struct mthca_cq *cq)
 {
-	return cqe_sw(cq, cq->cons_index & cq->ibcq.cqe);
+	return cqe_sw(get_cqe(cq, cq->cons_index & cq->ibcq.cqe));
 }
 
 static inline void set_cqe_hw(struct mthca_cqe *cqe)
@@ -289,7 +294,7 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 	 * from our QP and therefore don't need to be checked.
 	 */
 	for (prod_index = cq->cons_index;
-	     cqe_sw(cq, prod_index & cq->ibcq.cqe);
+	     cqe_sw(get_cqe(cq, prod_index & cq->ibcq.cqe));
 	     ++prod_index)
 		if (prod_index == cq->cons_index + cq->ibcq.cqe)
 			break;
@@ -322,6 +327,53 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 	spin_unlock_irq(&cq->lock);
 	if (atomic_dec_and_test(&cq->refcount))
 		wake_up(&cq->wait);
+}
+
+void mthca_cq_resize_copy_cqes(struct mthca_cq *cq)
+{
+	int i;
+
+	/*
+	 * In Tavor mode, the hardware keeps the consumer and producer
+	 * indices mod the CQ size.  Since we might be making the CQ
+	 * bigger, we need to deal with the case where the producer
+	 * index wrapped around before the CQ was resized.
+	 */
+	if (!mthca_is_memfree(to_mdev(cq->ibcq.device)) &&
+	    cq->ibcq.cqe < cq->resize_buf->cqe) {
+		cq->cons_index &= cq->ibcq.cqe;
+		if (cqe_sw(get_cqe(cq, cq->ibcq.cqe)))
+			cq->cons_index -= cq->ibcq.cqe + 1;
+	}
+
+	for (i = cq->cons_index; cqe_sw(get_cqe(cq, i & cq->ibcq.cqe)); ++i)
+		memcpy(get_cqe_from_buf(&cq->resize_buf->buf,
+					i & cq->resize_buf->cqe),
+		       get_cqe(cq, i & cq->ibcq.cqe), MTHCA_CQ_ENTRY_SIZE);
+}
+
+int mthca_alloc_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int nent)
+{
+	int ret;
+	int i;
+
+	ret = mthca_buf_alloc(dev, nent * MTHCA_CQ_ENTRY_SIZE,
+			      MTHCA_MAX_DIRECT_CQ_SIZE,
+			      &buf->queue, &buf->is_direct,
+			      &dev->driver_pd, 1, &buf->mr);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < nent; ++i)
+		set_cqe_hw(get_cqe_from_buf(buf, i));
+
+	return 0;
+}
+
+void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int cqe)
+{
+	mthca_buf_free(dev, (cqe + 1) * MTHCA_CQ_ENTRY_SIZE, &buf->queue,
+		       buf->is_direct, &buf->mr);
 }
 
 static void handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
@@ -609,16 +661,55 @@ int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 
 	spin_lock_irqsave(&cq->lock, flags);
 
-	for (npolled = 0; npolled < num_entries; ++npolled) {
+	npolled = 0;
+repoll:
+	while (npolled < num_entries) {
 		err = mthca_poll_one(dev, cq, &qp,
 				     &freed, entry + npolled);
 		if (err)
 			break;
+		++npolled;
 	}
 
 	if (freed) {
 		wmb();
 		update_cons_index(dev, cq, freed);
+	}
+
+	/*
+	 * If a CQ resize is in progress and we discovered that the
+	 * old buffer is empty, then peek in the new buffer, and if
+	 * it's not empty, switch to the new buffer and continue
+	 * polling there.
+	 */
+	if (unlikely(err == -EAGAIN && cq->resize_buf &&
+		     cq->resize_buf->state == CQ_RESIZE_READY)) {
+		/*
+		 * In Tavor mode, the hardware keeps the producer
+		 * index modulo the CQ size.  Since we might be making
+		 * the CQ bigger, we need to mask our consumer index
+		 * using the size of the old CQ buffer before looking
+		 * in the new CQ buffer.
+		 */
+		if (!mthca_is_memfree(dev))
+			cq->cons_index &= cq->ibcq.cqe;
+
+		if (cqe_sw(get_cqe_from_buf(&cq->resize_buf->buf,
+					    cq->cons_index & cq->resize_buf->cqe))) {
+			struct mthca_cq_buf tbuf;
+			int tcqe;
+
+			tbuf         = cq->buf;
+			tcqe         = cq->ibcq.cqe;
+			cq->buf      = cq->resize_buf->buf;
+			cq->ibcq.cqe = cq->resize_buf->cqe;
+
+			cq->resize_buf->buf   = tbuf;
+			cq->resize_buf->cqe   = tcqe;
+			cq->resize_buf->state = CQ_RESIZE_SWAPPED;
+
+			goto repoll;
+		}
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
@@ -679,22 +770,14 @@ int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	return 0;
 }
 
-static void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq *cq)
-{
-	mthca_buf_free(dev, (cq->ibcq.cqe + 1) * MTHCA_CQ_ENTRY_SIZE,
-		       &cq->queue, cq->is_direct, &cq->mr);
-}
-
 int mthca_init_cq(struct mthca_dev *dev, int nent,
 		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq)
 {
-	int size = nent * MTHCA_CQ_ENTRY_SIZE;
 	struct mthca_mailbox *mailbox;
 	struct mthca_cq_context *cq_context;
 	int err = -ENOMEM;
 	u8 status;
-	int i;
 
 	cq->ibcq.cqe  = nent - 1;
 	cq->is_kernel = !ctx;
@@ -732,14 +815,9 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	cq_context = mailbox->buf;
 
 	if (cq->is_kernel) {
-		err = mthca_buf_alloc(dev, size, MTHCA_MAX_DIRECT_CQ_SIZE,
-				      &cq->queue, &cq->is_direct,
-				      &dev->driver_pd, 1, &cq->mr);
+		err = mthca_alloc_cq_buf(dev, &cq->buf, nent);
 		if (err)
 			goto err_out_mailbox;
-
-		for (i = 0; i < nent; ++i)
-			set_cqe_hw(get_cqe(cq, i));
 	}
 
 	spin_lock_init(&cq->lock);
@@ -758,7 +836,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	cq_context->error_eqn       = cpu_to_be32(dev->eq_table.eq[MTHCA_EQ_ASYNC].eqn);
 	cq_context->comp_eqn        = cpu_to_be32(dev->eq_table.eq[MTHCA_EQ_COMP].eqn);
 	cq_context->pd              = cpu_to_be32(pdn);
-	cq_context->lkey            = cpu_to_be32(cq->mr.ibmr.lkey);
+	cq_context->lkey            = cpu_to_be32(cq->buf.mr.ibmr.lkey);
 	cq_context->cqn             = cpu_to_be32(cq->cqn);
 
 	if (mthca_is_memfree(dev)) {
@@ -796,7 +874,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 
 err_out_free_mr:
 	if (cq->is_kernel)
-		mthca_free_cq_buf(dev, cq);
+		mthca_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);
 
 err_out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
@@ -862,7 +940,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 	wait_event(cq->wait, !atomic_read(&cq->refcount));
 
 	if (cq->is_kernel) {
-		mthca_free_cq_buf(dev, cq);
+		mthca_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);
 		if (mthca_is_memfree(dev)) {
 			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
 			mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);

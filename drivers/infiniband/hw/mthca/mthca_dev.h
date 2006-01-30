@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
@@ -470,6 +470,9 @@ void mthca_cq_event(struct mthca_dev *dev, u32 cqn,
 		    enum ib_event_type event_type);
 void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 		    struct mthca_srq *srq);
+void mthca_cq_resize_copy_cqes(struct mthca_cq *cq);
+int mthca_alloc_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int nent);
+void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int cqe);
 
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		    struct ib_srq_attr *attr, struct mthca_srq *srq);

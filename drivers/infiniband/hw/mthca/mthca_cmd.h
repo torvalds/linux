@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -298,6 +299,8 @@ int mthca_SW2HW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
 int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
+int mthca_RESIZE_CQ(struct mthca_dev *dev, int cq_num, u32 lkey, u8 log_size,
+		    u8 *status);
 int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int srq_num, u8 *status);
 int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,

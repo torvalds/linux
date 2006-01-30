@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2005 Cisco Systems. All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -1512,6 +1512,37 @@ int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 	return mthca_cmd_box(dev, 0, mailbox->dma, cq_num, 0,
 			     CMD_HW2SW_CQ,
 			     CMD_TIME_CLASS_A, status);
+}
+
+int mthca_RESIZE_CQ(struct mthca_dev *dev, int cq_num, u32 lkey, u8 log_size,
+		    u8 *status)
+{
+	struct mthca_mailbox *mailbox;
+	__be32 *inbox;
+	int err;
+
+#define RESIZE_CQ_IN_SIZE		0x40
+#define RESIZE_CQ_LOG_SIZE_OFFSET	0x0c
+#define RESIZE_CQ_LKEY_OFFSET		0x1c
+
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
+
+	memset(inbox, 0, RESIZE_CQ_IN_SIZE);
+	/*
+	 * Leave start address fields zeroed out -- mthca assumes that
+	 * MRs for CQs always start at virtual address 0.
+	 */
+	MTHCA_PUT(inbox, log_size, RESIZE_CQ_LOG_SIZE_OFFSET);
+	MTHCA_PUT(inbox, lkey,     RESIZE_CQ_LKEY_OFFSET);
+
+	err = mthca_cmd(dev, mailbox->dma, cq_num, 1, CMD_RESIZE_CQ,
+			CMD_TIME_CLASS_B, status);
+
+	mthca_free_mailbox(dev, mailbox);
+	return err;
 }
 
 int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
