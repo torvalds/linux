@@ -2142,7 +2142,7 @@ static int sky2_reset(struct sky2_hw *hw)
 {
 	u16 status;
 	u8 t8, pmd_type;
-	int i;
+	int i, err;
 
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
@@ -2164,19 +2164,24 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
 	/* clear PCI errors, if any */
-	pci_read_config_word(hw->pdev, PCI_STATUS, &status);
+	err = pci_read_config_word(hw->pdev, PCI_STATUS, &status);
+	if (err)
+		goto pci_err;
+
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-	pci_write_config_word(hw->pdev, PCI_STATUS,
-			      status | PCI_STATUS_ERROR_BITS);
+	err = pci_write_config_word(hw->pdev, PCI_STATUS,
+				    status | PCI_STATUS_ERROR_BITS);
+	if (err)
+		goto pci_err;
 
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* clear any PEX errors */
-	if (is_pciex(hw)) {
-		u16 lstat;
-		pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
-				       0xffffffffUL);
-		pci_read_config_word(hw->pdev, PEX_LNK_STAT, &lstat);
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) {
+		err = pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
+						 0xffffffffUL);
+		if (err)
+			goto pci_err;
 	}
 
 	pmd_type = sky2_read8(hw, B2_PMD_TYP);
@@ -2288,6 +2293,14 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
 
 	return 0;
+
+pci_err:
+	/* This is to catch a BIOS bug workaround where
+	 * mmconfig table doesn't have other buses.
+	 */
+	printk(KERN_ERR PFX "%s: can't access PCI config space\n",
+	       pci_name(hw->pdev));
+	return err;
 }
 
 static u32 sky2_supported_modes(const struct sky2_hw *hw)
