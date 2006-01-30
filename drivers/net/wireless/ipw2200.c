@@ -8392,7 +8392,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 
 	/* Set the Wireless Extension versions */
 	range->we_version_compiled = WIRELESS_EXT;
-	range->we_version_source = 16;
+	range->we_version_source = 18;
 
 	i = 0;
 	if (priv->ieee->mode & (IEEE_B | IEEE_G)) {
@@ -8423,6 +8423,9 @@ static int ipw_wx_get_range(struct net_device *dev,
 				IW_EVENT_CAPA_MASK(SIOCGIWTHRSPY) |
 				IW_EVENT_CAPA_MASK(SIOCGIWAP));
 	range->event_capa[1] = IW_EVENT_CAPA_K_1;
+
+	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
+		IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
 	IPW_DEBUG_WX("GET Range\n");
 	return 0;
