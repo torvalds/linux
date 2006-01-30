@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
+#include <linux/mpage.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -286,7 +287,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 			} else
 				error = zero_readpage(page);
 		} else
-			error = block_read_full_page(page, gfs2_get_block);
+			error = mpage_readpage(page, gfs2_get_block);
 	} else
 		error = jdata_readpage(ip, page);
 
