@@ -706,9 +706,11 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 		sprintf(gc->phys[i], "%s/input%d", gc->pd->port->name, i);
 		err = gc_setup_pad(gc, i, pads[i]);
 		if (err)
-			goto err_free_devs;
+			goto err_unreg_devs;
 
-		input_register_device(gc->dev[i]);
+		err = input_register_device(gc->dev[i]);
+		if (err)
+			goto err_free_dev;
 	}
 
 	if (!gc->pads[0]) {
@@ -720,9 +722,12 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 	parport_put_port(pp);
 	return gc;
 
- err_free_devs:
+ err_free_dev:
+	input_free_device(gc->dev[i]);
+ err_unreg_devs:
 	while (--i >= 0)
-		input_unregister_device(gc->dev[i]);
+		if (gc->dev[i])
+			input_unregister_device(gc->dev[i]);
  err_free_gc:
 	kfree(gc);
  err_unreg_pardev:
@@ -733,7 +738,7 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 	return ERR_PTR(err);
 }
 
-static void __exit gc_remove(struct gc *gc)
+static void gc_remove(struct gc *gc)
 {
 	int i;
 
@@ -771,7 +776,8 @@ static int __init gc_init(void)
 
 	if (err) {
 		while (--i >= 0)
-			gc_remove(gc_base[i]);
+			if (gc_base[i])
+				gc_remove(gc_base[i]);
 		return err;
 	}
 
