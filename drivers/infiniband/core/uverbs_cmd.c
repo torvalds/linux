@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -673,6 +673,46 @@ err:
 		ib_uverbs_release_ucq(file, ev_file, uobj);
 	kfree(uobj);
 	return ret;
+}
+
+ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
+			    const char __user *buf, int in_len,
+			    int out_len)
+{
+	struct ib_uverbs_resize_cq	cmd;
+	struct ib_uverbs_resize_cq_resp	resp;
+	struct ib_udata                 udata;
+	struct ib_cq			*cq;
+	int				ret = -EINVAL;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof cmd,
+		   (unsigned long) cmd.response + sizeof resp,
+		   in_len - sizeof cmd, out_len - sizeof resp);
+
+	mutex_lock(&ib_uverbs_idr_mutex);
+
+	cq = idr_find(&ib_uverbs_cq_idr, cmd.cq_handle);
+	if (!cq || cq->uobject->context != file->ucontext || !cq->device->resize_cq)
+		goto out;
+
+	ret = cq->device->resize_cq(cq, cmd.cqe, &udata);
+	if (ret)
+		goto out;
+
+	memset(&resp, 0, sizeof resp);
+	resp.cqe = cq->cqe;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof resp))
+		ret = -EFAULT;
+
+out:
+	mutex_unlock(&ib_uverbs_idr_mutex);
+
+	return ret ? ret : in_len;
 }
 
 ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,

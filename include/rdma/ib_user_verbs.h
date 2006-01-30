@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -262,6 +262,17 @@ struct ib_uverbs_create_cq {
 
 struct ib_uverbs_create_cq_resp {
 	__u32 cq_handle;
+	__u32 cqe;
+};
+
+struct ib_uverbs_resize_cq {
+	__u64 response;
+	__u32 cq_handle;
+	__u32 cqe;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_resize_cq_resp {
 	__u32 cqe;
 };
 

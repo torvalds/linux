@@ -5,7 +5,7 @@
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -326,7 +326,7 @@ int ib_resize_cq(struct ib_cq *cq,
                  int           cqe)
 {
 	return cq->device->resize_cq ?
-		cq->device->resize_cq(cq, cqe) : -ENOSYS;
+		cq->device->resize_cq(cq, cqe, NULL) : -ENOSYS;
 }
 EXPORT_SYMBOL(ib_resize_cq);
 

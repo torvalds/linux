@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
@@ -178,6 +178,7 @@ IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
 IB_UVERBS_DECLARE_CMD(create_comp_channel);
 IB_UVERBS_DECLARE_CMD(create_cq);
+IB_UVERBS_DECLARE_CMD(resize_cq);
 IB_UVERBS_DECLARE_CMD(poll_cq);
 IB_UVERBS_DECLARE_CMD(req_notify_cq);
 IB_UVERBS_DECLARE_CMD(destroy_cq);
