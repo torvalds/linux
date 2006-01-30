@@ -2555,19 +2555,24 @@ static struct net_device_stats *sky2_get_stats(struct net_device *dev)
 static int sky2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sockaddr *addr = p;
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	const struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	memcpy_toio(sky2->hw->regs + B2_MAC_1 + sky2->port * 8,
+	memcpy_toio(hw->regs + B2_MAC_1 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
-	memcpy_toio(sky2->hw->regs + B2_MAC_2 + sky2->port * 8,
+	memcpy_toio(hw->regs + B2_MAC_2 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
 
-	if (netif_running(dev))
-		sky2_phy_reinit(sky2);
+	/* virtual address for data */
+	gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+
+	/* physical address: used for pause frames */
+	gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
 
 	return 0;
 }
