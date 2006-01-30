@@ -1833,6 +1833,8 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	u16 hwidx;
 	u16 tx_done[2] = { TX_NO_STATUS, TX_NO_STATUS };
 
+	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
 	rmb();
@@ -1912,12 +1914,10 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 exit_loop:
-	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
 	sky2_tx_check(hw, 0, tx_done[0]);
 	sky2_tx_check(hw, 1, tx_done[1]);
 
-	if (sky2_read16(hw, STAT_PUT_IDX) == hw->st_idx) {
+	if (likely(work_done < to_do)) {
 		/* need to restart TX timer */
 		if (is_ec_a1(hw)) {
 			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
