@@ -1943,7 +1943,7 @@ static int dscc4_init_ring(struct net_device *dev)
 					(++i%TX_RING_SIZE)*sizeof(*tx_fd));
 	} while (i < TX_RING_SIZE);
 
-	if (dscc4_init_dummy_skb(dpriv) < 0)
+	if (!dscc4_init_dummy_skb(dpriv))
 		goto err_free_dma_tx;
 
 	memset(dpriv->rx_skbuff, 0, sizeof(struct sk_buff *)*RX_RING_SIZE);
