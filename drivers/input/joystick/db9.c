@@ -616,7 +616,7 @@ static struct db9 __init *db9_probe(int parport, int mode)
 		if (!input_dev) {
 			printk(KERN_ERR "db9.c: Not enough memory for input device\n");
 			err = -ENOMEM;
-			goto err_free_devs;
+			goto err_unreg_devs;
 		}
 
 		sprintf(db9->phys[i], "%s/input%d", db9->pd->port->name, i);
@@ -642,13 +642,17 @@ static struct db9 __init *db9_probe(int parport, int mode)
 				input_set_abs_params(input_dev, db9_abs[j], 1, 255, 0, 0);
 		}
 
-		input_register_device(input_dev);
+		err = input_register_device(input_dev);
+		if (err)
+			goto err_free_dev;
 	}
 
 	parport_put_port(pp);
 	return db9;
 
- err_free_devs:
+ err_free_dev:
+	input_free_device(db9->dev[i]);
+ err_unreg_devs:
 	while (--i >= 0)
 		input_unregister_device(db9->dev[i]);
 	kfree(db9);
@@ -660,7 +664,7 @@ static struct db9 __init *db9_probe(int parport, int mode)
 	return ERR_PTR(err);
 }
 
-static void __exit db9_remove(struct db9 *db9)
+static void db9_remove(struct db9 *db9)
 {
 	int i;
 
@@ -698,7 +702,8 @@ static int __init db9_init(void)
 
 	if (err) {
 		while (--i >= 0)
-			db9_remove(db9_base[i]);
+			if (db9_base[i])
+				db9_remove(db9_base[i]);
 		return err;
 	}
 
