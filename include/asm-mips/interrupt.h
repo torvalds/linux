@@ -114,6 +114,7 @@ __asm__ __volatile__(							\
 
 __asm__ (
 	"	.macro	local_irq_restore flags				\n"
+	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
 #if defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
@@ -141,8 +142,7 @@ __asm__ (
 	"	mtc0	\\flags, $12					\n"
 #endif
 	"	irq_disable_hazard					\n"
-	"	.set	at						\n"
-	"	.set	reorder						\n"
+	"	.set	pop						\n"
 	"	.endm							\n");
 
 #define local_irq_restore(flags)					\
