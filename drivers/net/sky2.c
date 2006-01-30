@@ -26,7 +26,6 @@
 /*
  * TOTEST
  *	- speed setting
- *	- suspend/resume
  */
 
 #include <linux/config.h>
@@ -198,7 +197,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 
 	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_PMC, &power_control);
-	vaux = (sky2_read8(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
+	vaux = (sky2_read16(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
 		(power_control & PCI_PM_CAP_PME_D3cold);
 
 	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_CTRL, &power_control);
@@ -2141,26 +2140,18 @@ static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
 
 static int sky2_reset(struct sky2_hw *hw)
 {
-	u32 ctst;
 	u16 status;
 	u8 t8, pmd_type;
 	int i;
 
-	ctst = sky2_read32(hw, B0_CTST);
-
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
+
 	hw->chip_id = sky2_read8(hw, B2_CHIP_ID);
 	if (hw->chip_id < CHIP_ID_YUKON_XL || hw->chip_id > CHIP_ID_YUKON_FE) {
 		printk(KERN_ERR PFX "%s: unsupported chip type 0x%x\n",
 		       pci_name(hw->pdev), hw->chip_id);
 		return -EOPNOTSUPP;
 	}
-
-	/* ring for status responses */
-	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
-					 &hw->st_dma);
-	if (!hw->st_le)
-		return -ENOMEM;
 
 	/* disable ASF */
 	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
@@ -3135,6 +3126,12 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	}
 	hw->pm_cap = pm_cap;
 
+	/* ring for status responses */
+	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
+					 &hw->st_dma);
+	if (!hw->st_le)
+		goto err_out_iounmap;
+
 	err = sky2_reset(hw);
 	if (err)
 		goto err_out_iounmap;
@@ -3263,25 +3260,33 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 static int sky2_resume(struct pci_dev *pdev)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
-	int i;
+	int i, err;
 
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	sky2_set_power_state(hw, PCI_D0);
+	err = sky2_set_power_state(hw, PCI_D0);
+	if (err)
+		goto out;
 
-	sky2_reset(hw);
+	err = sky2_reset(hw);
+	if (err)
+		goto out;
 
 	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
-		if (dev) {
-			if (netif_running(dev)) {
-				netif_device_attach(dev);
-				if (sky2_up(dev))
-					dev_close(dev);
+		if (dev && netif_running(dev)) {
+			netif_device_attach(dev);
+			err = sky2_up(dev);
+			if (err) {
+				printk(KERN_ERR PFX "%s: could not up: %d\n",
+				       dev->name, err);
+				dev_close(dev);
+				break;
 			}
 		}
 	}
-	return 0;
+out:
+	return err;
 }
 #endif
 
