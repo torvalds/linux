@@ -1451,7 +1451,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		break;
 
 	case IEEE80211_STYPE_PROBE_REQ:
-		IEEE80211_DEBUG_MGMT("recieved auth (%d)\n",
+		IEEE80211_DEBUG_MGMT("received auth (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
 
@@ -1485,7 +1485,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		break;
 	case IEEE80211_STYPE_AUTH:
 
-		IEEE80211_DEBUG_MGMT("recieved auth (%d)\n",
+		IEEE80211_DEBUG_MGMT("received auth (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
 
