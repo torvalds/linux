@@ -271,7 +271,7 @@ int gfs2_do_upgrade(struct gfs2_sbd *sdp, struct gfs2_glock *sb_gl)
 
 int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 {
-	struct gfs2_inode *dip = sdp->sd_jindex;
+	struct gfs2_inode *dip = get_v2ip(sdp->sd_jindex);
 	struct qstr name;
 	char buf[20];
 	struct gfs2_jdesc *jd;
@@ -289,7 +289,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 
 		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
 
-		error = gfs2_dir_search(sdp->sd_jindex, &name, NULL, NULL);
+		error = gfs2_dir_search(get_v2ip(sdp->sd_jindex), &name, NULL, NULL);
 		if (error == -ENOENT) {
 			error = 0;
 			break;
@@ -437,6 +437,7 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 
 int gfs2_lookup_master_dir(struct gfs2_sbd *sdp)
 {
+	struct inode *inode = NULL;
 	struct gfs2_glock *gl;
 	int error;
 
@@ -444,8 +445,8 @@ int gfs2_lookup_master_dir(struct gfs2_sbd *sdp)
 			       sdp->sd_sb.sb_master_dir.no_addr,
 			       &gfs2_inode_glops, CREATE, &gl);
 	if (!error) {
-		error = gfs2_inode_get(gl, &sdp->sd_sb.sb_master_dir, CREATE,
-				       &sdp->sd_master_dir);
+		error = gfs2_lookup_simple(sdp->sd_root_dir, ".gfs2_admin", &inode);
+		sdp->sd_master_dir = inode;
 		gfs2_glock_put(gl);
 	}
 
@@ -549,9 +550,9 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 
 int gfs2_statfs_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *m_ip = sdp->sd_statfs_inode;
+	struct gfs2_inode *m_ip = get_v2ip(sdp->sd_statfs_inode);
 	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
-	struct gfs2_inode *l_ip = sdp->sd_sc_inode;
+	struct gfs2_inode *l_ip = get_v2ip(sdp->sd_sc_inode);
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *m_bh, *l_bh;
 	struct gfs2_holder gh;
@@ -598,7 +599,7 @@ int gfs2_statfs_init(struct gfs2_sbd *sdp)
 void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
 			int64_t dinodes)
 {
-	struct gfs2_inode *l_ip = sdp->sd_sc_inode;
+	struct gfs2_inode *l_ip = get_v2ip(sdp->sd_sc_inode);
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *l_bh;
 	int error;
@@ -624,8 +625,8 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
 
 int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *m_ip = sdp->sd_statfs_inode;
-	struct gfs2_inode *l_ip = sdp->sd_sc_inode;
+	struct gfs2_inode *m_ip = get_v2ip(sdp->sd_statfs_inode);
+	struct gfs2_inode *l_ip = get_v2ip(sdp->sd_sc_inode);
 	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
 	struct gfs2_holder gh;

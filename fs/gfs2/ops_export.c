@@ -81,7 +81,7 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	fh[3] = cpu_to_be32(fh[3]);
 	*len = 4;
 
-	if (!connectable || ip == sdp->sd_root_dir)
+	if (!connectable || ip == get_v2ip(sdp->sd_root_dir))
 		return *len;
 
 	spin_lock(&dentry->d_lock);

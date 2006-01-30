@@ -22,6 +22,13 @@
 #include "meta_io.h"
 #include "trans.h"
 
+int gfs2_internal_read(struct gfs2_inode *ip,
+                       struct file_ra_state *ra_state,
+                       char *buf, loff_t *pos, unsigned size)
+{
+	return gfs2_jdata_read_mem(ip, buf, *pos, size);
+}
+
 int gfs2_jdata_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
 			  struct buffer_head **bhp)
 {

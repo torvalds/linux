@@ -25,7 +25,7 @@
 static int munge_ondisk(struct gfs2_sbd *sdp, unsigned int slot,
 			struct gfs2_unlinked_tag *ut)
 {
-	struct gfs2_inode *ip = sdp->sd_ut_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_ut_inode);
 	unsigned int block, offset;
 	uint64_t dblock;
 	int new = 0;
@@ -312,7 +312,7 @@ int gfs2_unlinked_dealloc(struct gfs2_sbd *sdp)
 
 int gfs2_unlinked_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip = sdp->sd_ut_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_ut_inode);
 	unsigned int blocks = ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift;
 	unsigned int x, slot = 0;
 	unsigned int found = 0;

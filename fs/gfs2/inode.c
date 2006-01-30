@@ -725,7 +725,7 @@ int gfs2_lookupi(struct gfs2_inode *dip, struct qstr *name, int is_root,
 		return -ENAMETOOLONG;
 
 	if (gfs2_filecmp(name, ".", 1) ||
-	    (gfs2_filecmp(name, "..", 2) && dip == sdp->sd_root_dir)) {
+	    (gfs2_filecmp(name, "..", 2) && dip == get_v2ip(sdp->sd_root_dir))) {
 		gfs2_inode_hold(dip);
 		*ipp = dip;
 		return 0;
@@ -764,7 +764,7 @@ int gfs2_lookupi(struct gfs2_inode *dip, struct qstr *name, int is_root,
 
 static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 {
-	struct gfs2_inode *ip = sdp->sd_ir_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_ir_inode);
 	struct buffer_head *bh;
 	struct gfs2_inum_range ir;
 	int error;
@@ -805,8 +805,8 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 
 static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 {
-	struct gfs2_inode *ip = sdp->sd_ir_inode;
-	struct gfs2_inode *m_ip = sdp->sd_inum_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_ir_inode);
+	struct gfs2_inode *m_ip = get_v2ip(sdp->sd_inum_inode);
 	struct gfs2_holder gh;
 	struct buffer_head *bh;
 	struct gfs2_inum_range ir;
@@ -1460,7 +1460,7 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			error = -EINVAL;
 			break;
 		}
-		if (to == sdp->sd_root_dir) {
+		if (to == get_v2ip(sdp->sd_root_dir)) {
 			error = 0;
 			break;
 		}

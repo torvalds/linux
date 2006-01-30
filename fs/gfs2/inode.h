@@ -60,14 +60,23 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 
 int gfs2_repermission(struct inode *inode, int mask, struct nameidata *nd);
 
-static inline int gfs2_lookup_simple(struct gfs2_inode *dip, char *name,
-				     struct gfs2_inode **ipp)
+static inline int gfs2_lookup_simple(struct inode *dip, char *name,
+				     struct inode **ipp)
 {
+	struct gfs2_inode *ip;
 	struct qstr qstr;
+	int err;
 	memset(&qstr, 0, sizeof(struct qstr));
 	qstr.name = name;
 	qstr.len = strlen(name);
-	return gfs2_lookupi(dip, &qstr, 1, ipp);
+	err = gfs2_lookupi(get_v2ip(dip), &qstr, 1, &ip);
+	if (err == 0) {
+		*ipp = gfs2_ip2v(ip);
+		if (*ipp == NULL)
+			err = -ENOMEM;
+		gfs2_inode_put(ip);
+	}
+	return err;
 }
 
 #endif /* __INODE_DOT_H__ */

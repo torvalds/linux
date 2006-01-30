@@ -97,13 +97,13 @@ static void gfs2_put_super(struct super_block *sb)
 
 	/*  Release stuff  */
 
-	gfs2_inode_put(sdp->sd_master_dir);
-	gfs2_inode_put(sdp->sd_jindex);
-	gfs2_inode_put(sdp->sd_inum_inode);
-	gfs2_inode_put(sdp->sd_statfs_inode);
-	gfs2_inode_put(sdp->sd_rindex);
-	gfs2_inode_put(sdp->sd_quota_inode);
-	gfs2_inode_put(sdp->sd_root_dir);
+	iput(sdp->sd_master_dir);
+	iput(sdp->sd_jindex);
+	iput(sdp->sd_inum_inode);
+	iput(sdp->sd_statfs_inode);
+	iput(sdp->sd_rindex);
+	iput(sdp->sd_quota_inode);
+	iput(sdp->sd_root_dir);
 
 	gfs2_glock_put(sdp->sd_rename_gl);
 	gfs2_glock_put(sdp->sd_trans_gl);
@@ -115,10 +115,10 @@ static void gfs2_put_super(struct super_block *sb)
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_ut_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-		gfs2_inode_put(sdp->sd_ir_inode);
-		gfs2_inode_put(sdp->sd_sc_inode);
-		gfs2_inode_put(sdp->sd_ut_inode);
-		gfs2_inode_put(sdp->sd_qc_inode);
+		iput(sdp->sd_ir_inode);
+		iput(sdp->sd_sc_inode);
+		iput(sdp->sd_ut_inode);
+		iput(sdp->sd_qc_inode);
 	}
 
 	gfs2_glock_dq_uninit(&sdp->sd_live_gh);

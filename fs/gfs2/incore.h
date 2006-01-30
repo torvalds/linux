@@ -98,10 +98,13 @@ struct gfs2_rgrpd {
 
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
+	BH_Escaped = BH_PrivateStart + 1,
 };
 
 BUFFER_FNS(Pinned, pinned)
 TAS_BUFFER_FNS(Pinned, pinned)
+BUFFER_FNS(Escaped, escaped)
+TAS_BUFFER_FNS(Escaped, escaped)
 
 struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
@@ -254,7 +257,7 @@ struct gfs2_inode {
 	struct inode *i_vnode;
 
 	struct gfs2_holder i_iopen_gh;
-
+	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc i_alloc;
 	uint64_t i_last_rg_alloc;
 
@@ -511,17 +514,17 @@ struct gfs2_sbd {
 
 	/* Inode Stuff */
 
-	struct gfs2_inode *sd_master_dir;
-	struct gfs2_inode *sd_jindex;
-	struct gfs2_inode *sd_inum_inode;
-	struct gfs2_inode *sd_statfs_inode;
-	struct gfs2_inode *sd_ir_inode;
-	struct gfs2_inode *sd_sc_inode;
-	struct gfs2_inode *sd_ut_inode;
-	struct gfs2_inode *sd_qc_inode;
-	struct gfs2_inode *sd_rindex;
-	struct gfs2_inode *sd_quota_inode;
-	struct gfs2_inode *sd_root_dir;
+	struct inode *sd_master_dir;
+	struct inode *sd_jindex;
+	struct inode *sd_inum_inode;
+	struct inode *sd_statfs_inode;
+	struct inode *sd_ir_inode;
+	struct inode *sd_sc_inode;
+	struct inode *sd_ut_inode;
+	struct inode *sd_qc_inode;
+	struct inode *sd_rindex;
+	struct inode *sd_quota_inode;
+	struct inode *sd_root_dir;
 
 	/* Inum stuff */
 
@@ -615,6 +618,8 @@ struct gfs2_sbd {
 	unsigned int sd_log_num_revoke;
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
+	unsigned int sd_log_num_jdata;
+
 	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
 	struct list_head sd_log_le_revoke;

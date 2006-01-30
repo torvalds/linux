@@ -10,6 +10,10 @@
 #ifndef __OPS_FILE_DOT_H__
 #define __OPS_FILE_DOT_H__
 
+extern int gfs2_internal_read(struct gfs2_inode *ip,
+			      struct file_ra_state *ra_state,
+			      char *buf, loff_t *pos, unsigned size);
+
 extern struct file_operations gfs2_file_fops;
 extern struct file_operations gfs2_dir_fops;
 

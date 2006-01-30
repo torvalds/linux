@@ -56,6 +56,7 @@
 #include "rgrp.h"
 #include "super.h"
 #include "trans.h"
+#include "ops_file.h"
 
 #define QUOTA_USER 1
 #define QUOTA_GROUP 0
@@ -241,7 +242,7 @@ static void slot_put(struct gfs2_quota_data *qd)
 static int bh_get(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-	struct gfs2_inode *ip = sdp->sd_qc_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_qc_inode);
 	unsigned int block, offset;
 	uint64_t dblock;
 	int new = 0;
@@ -522,7 +523,7 @@ static int sort_qd(const void *a, const void *b)
 static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-	struct gfs2_inode *ip = sdp->sd_qc_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_qc_inode);
 	struct gfs2_quota_change *qc = qd->qd_bh_qc;
 	int64_t x;
 
@@ -563,12 +564,13 @@ static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 {
 	struct gfs2_sbd *sdp = (*qda)->qd_gl->gl_sbd;
-	struct gfs2_inode *ip = sdp->sd_quota_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_quota_inode);
 	unsigned int data_blocks, ind_blocks;
+	struct file_ra_state ra_state;
 	struct gfs2_holder *ghs, i_gh;
 	unsigned int qx, x;
 	struct gfs2_quota_data *qd;
-	uint64_t offset;
+	loff_t offset;
 	unsigned int nalloc = 0;
 	struct gfs2_alloc *al = NULL;
 	int error;
@@ -631,6 +633,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 			goto out_gunlock;
 	}
 
+	file_ra_state_init(&ra_state, ip->i_vnode->i_mapping);
 	for (x = 0; x < num_qd; x++) {
 		char buf[sizeof(struct gfs2_quota)];
 		struct gfs2_quota q;
@@ -642,7 +645,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		   sizeof(struct gfs2_quota) bytes. */
 		memset(buf, 0, sizeof(struct gfs2_quota));
 
-		error = gfs2_jdata_read_mem(ip, buf, offset,
+		error = gfs2_internal_read(ip, &ra_state, buf, &offset,
 					    sizeof(struct gfs2_quota));
 		if (error < 0)
 			goto out_end_trans;
@@ -703,8 +706,10 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	struct gfs2_holder i_gh;
 	struct gfs2_quota q;
 	char buf[sizeof(struct gfs2_quota)];
+	struct file_ra_state ra_state;
 	int error;
 
+	file_ra_state_init(&ra_state, sdp->sd_quota_inode->i_mapping);
  restart:
 	error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_SHARED, 0, q_gh);
 	if (error)
@@ -713,6 +718,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	gfs2_quota_lvb_in(&qd->qd_qb, qd->qd_gl->gl_lvb);
 
 	if (force_refresh || qd->qd_qb.qb_magic != GFS2_MAGIC) {
+		loff_t pos;
 		gfs2_glock_dq_uninit(q_gh);
 		error = gfs2_glock_nq_init(qd->qd_gl,
 					  LM_ST_EXCLUSIVE, GL_NOCACHE,
@@ -720,16 +726,17 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 		if (error)
 			return error;
 
-		error = gfs2_glock_nq_init(sdp->sd_quota_inode->i_gl,
+		error = gfs2_glock_nq_init(get_v2ip(sdp->sd_quota_inode)->i_gl,
 					  LM_ST_SHARED, 0,
 					  &i_gh);
 		if (error)
 			goto fail;
 
 		memset(buf, 0, sizeof(struct gfs2_quota));
-
-		error = gfs2_jdata_read_mem(sdp->sd_quota_inode, buf,
-					    qd2offset(qd),
+		pos = qd2offset(qd);
+		error = gfs2_internal_read(get_v2ip(sdp->sd_quota_inode),
+					    &ra_state, buf,
+					    &pos,
 					    sizeof(struct gfs2_quota));
 		if (error < 0)
 			goto fail_gunlock;
@@ -1059,7 +1066,7 @@ int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
 
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip = sdp->sd_qc_inode;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_qc_inode);
 	unsigned int blocks = ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift;
 	unsigned int x, slot = 0;
 	unsigned int found = 0;

@@ -275,14 +275,38 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	return error;
 }
 
+int gfs2_lookup_root(struct gfs2_sbd *sdp)
+{
+        int error;
+	struct gfs2_glock *gl;
+	struct gfs2_inode *ip;
+
+	error = gfs2_glock_get(sdp, sdp->sd_sb.sb_root_dir.no_addr,
+                               &gfs2_inode_glops, CREATE, &gl);
+        if (!error) {
+               	error = gfs2_inode_get(gl, &sdp->sd_sb.sb_root_dir,
+				       CREATE, &ip);
+		if (!error) {
+			if (!error) 
+				gfs2_inode_min_init(ip, DT_DIR);
+			sdp->sd_root_dir = gfs2_ip2v(ip);
+			gfs2_inode_put(ip);
+		}
+                gfs2_glock_put(gl);
+        }
+
+        return error;
+}
+
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
+	struct inode *inode;
 	int error = 0;
 
 	if (undo) {
-		gfs2_inode_put(sdp->sd_master_dir);
+		iput(sdp->sd_master_dir);
 		return 0;
 	}
 	
@@ -321,14 +345,35 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 
 	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
 
-	error = gfs2_lookup_master_dir(sdp);
-	if (error)
-		fs_err(sdp, "can't read in master directory: %d\n", error);
+	/* Get the root inode */
+	error = gfs2_lookup_root(sdp);
+	if (error) {
+		fs_err(sdp, "can't read in root inode: %d\n", error);
+		goto out;
+	}
 
- out:
+	/* Get the root inode/dentry */
+	inode = sdp->sd_root_dir;
+	if (!inode) {
+		fs_err(sdp, "can't get root inode\n");
+		error = -ENOMEM;
+		goto out_rooti;
+	}
+
+	sb->s_root = d_alloc_root(inode);
+	if (!sb->s_root) {
+		fs_err(sdp, "can't get root dentry\n");
+		error = -ENOMEM;
+		goto out_rooti;
+	}
+
+out:
 	gfs2_glock_dq_uninit(&sb_gh);
 
 	return error;
+out_rooti:
+	iput(sdp->sd_root_dir);
+	goto out;
 }
 
 static int init_journal(struct gfs2_sbd *sdp, int undo)
@@ -349,7 +394,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't lookup journal index: %d\n", error);
 		return error;
 	}
-	set_bit(GLF_STICKY, &sdp->sd_jindex->i_gl->gl_flags);
+	set_bit(GLF_STICKY, &get_v2ip(sdp->sd_jindex)->i_gl->gl_flags);
 
 	/* Load in the journal index special file */
 
@@ -465,53 +510,44 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		gfs2_glock_dq_uninit(&ji_gh);
 
  fail:
-	gfs2_inode_put(sdp->sd_jindex);
+	iput(sdp->sd_jindex);
 
 	return error;
-}
-
-int gfs2_lookup_root(struct gfs2_sbd *sdp)
-{
-        int error;
-	struct gfs2_glock *gl;
-
-	error = gfs2_glock_get(sdp, sdp->sd_sb.sb_root_dir.no_addr,
-                               &gfs2_inode_glops, CREATE, &gl);
-        if (!error) {
-               	error = gfs2_inode_get(gl, &sdp->sd_sb.sb_root_dir,
-						CREATE, &sdp->sd_root_dir);
-		if (!error)
-			gfs2_inode_min_init(sdp->sd_root_dir, DT_DIR);
-                gfs2_glock_put(gl);
-        }
-
-        return error;
 }
 
 
 static int init_inodes(struct gfs2_sbd *sdp, int undo)
 {
-	struct inode *inode;
-	struct dentry **dentry = &sdp->sd_vfs->s_root;
 	int error = 0;
 
 	if (undo)
-		goto fail_dput;
+		goto fail_qinode;
+
+	error = gfs2_lookup_master_dir(sdp);
+	if (error) {
+		fs_err(sdp, "can't read in master directory: %d\n", error);
+		goto fail;
+	}
+
+	error = init_journal(sdp, undo);
+	if (error)
+		goto fail_master;
 
 	/* Read in the master inode number inode */
 	error = gfs2_lookup_simple(sdp->sd_master_dir, "inum",
 				   &sdp->sd_inum_inode);
 	if (error) {
 		fs_err(sdp, "can't read in inum inode: %d\n", error);
-		return error;
+		goto fail_journal;
 	}
+
 
 	/* Read in the master statfs inode */
 	error = gfs2_lookup_simple(sdp->sd_master_dir, "statfs",
 				   &sdp->sd_statfs_inode);
 	if (error) {
 		fs_err(sdp, "can't read in statfs inode: %d\n", error);
-		goto fail;
+		goto fail_inum;
 	}
 
 	/* Read in the resource index inode */
@@ -521,8 +557,8 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get resource index inode: %d\n", error);
 		goto fail_statfs;
 	}
-	set_bit(GLF_STICKY, &sdp->sd_rindex->i_gl->gl_flags);
-	sdp->sd_rindex_vn = sdp->sd_rindex->i_gl->gl_vn - 1;
+	set_bit(GLF_STICKY, &get_v2ip(sdp->sd_rindex)->i_gl->gl_flags);
+	sdp->sd_rindex_vn = get_v2ip(sdp->sd_rindex)->i_gl->gl_vn - 1;
 
 	/* Read in the quota inode */
 	error = gfs2_lookup_simple(sdp->sd_master_dir, "quota",
@@ -531,58 +567,31 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get quota file inode: %d\n", error);
 		goto fail_rindex;
 	}
-
-	/* Get the root inode */
-	error = gfs2_lookup_root(sdp);
-	if (error) {
-		fs_err(sdp, "can't read in root inode: %d\n", error);
-		goto fail_qinode;
-	}
-
-	/* Get the root inode/dentry */
-	inode = gfs2_ip2v(sdp->sd_root_dir);
-	if (!inode) {
-		fs_err(sdp, "can't get root inode\n");
-		error = -ENOMEM;
-		goto fail_rooti;
-	}
-
-	*dentry = d_alloc_root(inode);
-	if (!*dentry) {
-		iput(inode);
-		fs_err(sdp, "can't get root dentry\n");
-		error = -ENOMEM;
-		goto fail_rooti;
-	}
-
 	return 0;
 
- fail_dput:
-	dput(*dentry);
-	*dentry = NULL;
+fail_qinode:
+	iput(sdp->sd_quota_inode);
 
- fail_rooti:
-	gfs2_inode_put(sdp->sd_root_dir);
-
- fail_qinode:
-	gfs2_inode_put(sdp->sd_quota_inode);
-
- fail_rindex:
+fail_rindex:
 	gfs2_clear_rgrpd(sdp);
-	gfs2_inode_put(sdp->sd_rindex);
+	iput(sdp->sd_rindex);
 
- fail_statfs:
-	gfs2_inode_put(sdp->sd_statfs_inode);
+fail_statfs:
+	iput(sdp->sd_statfs_inode);
 
- fail:
-	gfs2_inode_put(sdp->sd_inum_inode);
-
+fail_inum:
+	iput(sdp->sd_inum_inode);
+fail_journal:
+	init_journal(sdp, UNDO);
+fail_master:
+	iput(sdp->sd_master_dir);
+fail:
 	return error;
 }
 
 static int init_per_node(struct gfs2_sbd *sdp, int undo)
 {
-	struct gfs2_inode *pn = NULL;
+	struct inode *pn = NULL;
 	char buf[30];
 	int error = 0;
 
@@ -626,10 +635,10 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_ut_i;
 	}
 
-	gfs2_inode_put(pn);
+	iput(pn);
 	pn = NULL;
 
-	error = gfs2_glock_nq_init(sdp->sd_ir_inode->i_gl,
+	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_ir_inode)->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_ir_gh);
 	if (error) {
@@ -637,7 +646,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_qc_i;
 	}
 
-	error = gfs2_glock_nq_init(sdp->sd_sc_inode->i_gl,
+	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_sc_inode)->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_sc_gh);
 	if (error) {
@@ -645,7 +654,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_ir_gh;
 	}
 
-	error = gfs2_glock_nq_init(sdp->sd_ut_inode->i_gl,
+	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_ut_inode)->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_ut_gh);
 	if (error) {
@@ -653,7 +662,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_sc_gh;
 	}
 
-	error = gfs2_glock_nq_init(sdp->sd_qc_inode->i_gl,
+	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_qc_inode)->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_qc_gh);
 	if (error) {
@@ -676,20 +685,20 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
 
  fail_qc_i:
-	gfs2_inode_put(sdp->sd_qc_inode);
+	iput(sdp->sd_qc_inode);
 
  fail_ut_i:
-	gfs2_inode_put(sdp->sd_ut_inode);
+	iput(sdp->sd_ut_inode);
 
  fail_sc_i:
-	gfs2_inode_put(sdp->sd_sc_inode);
+	iput(sdp->sd_sc_inode);
 
  fail_ir_i:
-	gfs2_inode_put(sdp->sd_ir_inode);
+	iput(sdp->sd_ir_inode);
 
  fail:
 	if (pn)
-		gfs2_inode_put(pn);
+		iput(pn);
 	return error;
 }
 
@@ -793,14 +802,10 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	error = init_sb(sdp, silent, DO);
 	if (error)
 		goto fail_locking;
-	
-	error = init_journal(sdp, DO);
-	if (error)
-		goto fail_sb;
 
 	error = init_inodes(sdp, DO);
 	if (error)
-		goto fail_journals;
+		goto fail_sb;
 
 	error = init_per_node(sdp, DO);
 	if (error)
@@ -836,9 +841,6 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 
  fail_inodes:
 	init_inodes(sdp, UNDO);
-
- fail_journals:
-	init_journal(sdp, UNDO);
 
  fail_sb:
 	init_sb(sdp, 0, UNDO);

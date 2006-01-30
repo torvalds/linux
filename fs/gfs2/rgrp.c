@@ -12,19 +12,20 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/fs.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "bits.h"
 #include "glock.h"
 #include "glops.h"
-#include "jdata.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "super.h"
 #include "trans.h"
+#include "ops_file.h"
 
 /**
  * gfs2_rgrp_verify - Verify that a resource group is consistent
@@ -268,8 +269,10 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 static int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct inode *inode = ip->i_vnode;
 	struct gfs2_rgrpd *rgd;
 	char buf[sizeof(struct gfs2_rindex)];
+	struct file_ra_state ra_state;
 	uint64_t junk = ip->i_di.di_size;
 	int error;
 
@@ -280,10 +283,10 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 	clear_rgrpdi(sdp);
 
+	file_ra_state_init(&ra_state, inode->i_mapping);
 	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
-		error = gfs2_jdata_read_mem(ip, buf,
-					    sdp->sd_rgrps *
-					    sizeof(struct gfs2_rindex),
+		loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
+		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
 					    sizeof(struct gfs2_rindex));
 		if (!error)
 			break;
@@ -350,7 +353,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh)
 {
-	struct gfs2_inode *ip = sdp->sd_rindex;
+	struct gfs2_inode *ip = get_v2ip(sdp->sd_rindex);
 	struct gfs2_glock *gl = ip->i_gl;
 	int error;
 
