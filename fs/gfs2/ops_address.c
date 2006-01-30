@@ -28,7 +28,7 @@
 #include "trans.h"
 
 /**
- * get_block - Fills in a buffer head with details about a block
+ * gfs2_get_block - Fills in a buffer head with details about a block
  * @inode: The inode
  * @lblock: The block number to look up
  * @bh_result: The buffer head to return the result in
@@ -37,8 +37,8 @@
  * Returns: errno
  */
 
-static int get_block(struct inode *inode, sector_t lblock,
-		     struct buffer_head *bh_result, int create)
+int gfs2_get_block(struct inode *inode, sector_t lblock,
+	           struct buffer_head *bh_result, int create)
 {
 	struct gfs2_inode *ip = get_v2ip(inode);
 	int new = create;
@@ -286,7 +286,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 			} else
 				error = zero_readpage(page);
 		} else
-			error = block_read_full_page(page, get_block);
+			error = block_read_full_page(page, gfs2_get_block);
 	} else
 		error = jdata_readpage(ip, page);
 
@@ -328,11 +328,11 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 						    page);
 			if (!error)
 				error = block_prepare_write(page, from, to,
-							    get_block);
+							    gfs2_get_block);
 		} else if (!PageUptodate(page))
 			error = stuffed_readpage(ip, page);
 	} else
-		error = block_prepare_write(page, from, to, get_block);
+		error = block_prepare_write(page, from, to, gfs2_get_block);
 
 	return error;
 }
@@ -420,7 +420,7 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 		return 0;
 
 	if (!gfs2_is_stuffed(ip))
-		dblock = generic_block_bmap(mapping, lblock, get_block);
+		dblock = generic_block_bmap(mapping, lblock, gfs2_get_block);
 
 	gfs2_glock_dq_uninit(&i_gh);
 
