@@ -192,6 +192,9 @@ static void grip_poll(struct gameport *gameport)
 	for (i = 0; i < 2; i++) {
 
 		dev = grip->dev[i];
+		if (!dev)
+			continue;
+
 		grip->reads++;
 
 		switch (grip->mode[i]) {
