@@ -3184,7 +3184,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ, DRV_NAME, hw);
+	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ | SA_SAMPLE_RANDOM,
+			  DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
