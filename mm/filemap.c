@@ -981,6 +981,7 @@ success:
 	desc->arg.buf += size;
 	return size;
 }
+EXPORT_SYMBOL(file_read_actor);
 
 /*
  * This is the "read()" routine for all filesystems
