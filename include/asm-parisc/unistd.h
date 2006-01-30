@@ -761,8 +761,27 @@
 #define __NR_keyctl		(__NR_Linux + 266)
 #define __NR_ioprio_set		(__NR_Linux + 267)
 #define __NR_ioprio_get		(__NR_Linux + 268)
+#define __NR_inotify_init	(__NR_Linux + 269)
+#define __NR_inotify_add_watch	(__NR_Linux + 270)
+#define __NR_inotify_rm_watch	(__NR_Linux + 271)
+#define __NR_migrate_pages	(__NR_Linux + 272)
+#define __NR_pselect6		(__NR_Linux + 273)
+#define __NR_ppoll		(__NR_Linux + 274)
+#define __NR_openat		(__NR_Linux + 275)
+#define __NR_mkdirat		(__NR_Linux + 276)
+#define __NR_mknodat		(__NR_Linux + 277)
+#define __NR_fchownat		(__NR_Linux + 278)
+#define __NR_futimesat		(__NR_Linux + 279)
+#define __NR_newfstatat		(__NR_Linux + 280)
+#define __NR_unlinkat		(__NR_Linux + 281)
+#define __NR_renameat		(__NR_Linux + 282)
+#define __NR_linkat		(__NR_Linux + 283)
+#define __NR_symlinkat		(__NR_Linux + 284)
+#define __NR_readlinkat		(__NR_Linux + 285)
+#define __NR_fchmodat		(__NR_Linux + 286)
+#define __NR_faccessat		(__NR_Linux + 287)
 
-#define __NR_Linux_syscalls     269
+#define __NR_Linux_syscalls     288
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100
