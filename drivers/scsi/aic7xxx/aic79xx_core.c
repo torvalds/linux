@@ -8273,11 +8273,6 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 		ahd_setup_data_scb(ahd, scb);
 		scb->flags |= SCB_SENSE;
 		ahd_queue_scb(ahd, scb);
-		/*
-		 * Ensure we have enough time to actually
-		 * retrieve the sense.
-		 */
-		ahd_scb_timer_reset(scb, 5 * 1000000);
 		break;
 	}
 	case SCSI_STATUS_OK:
