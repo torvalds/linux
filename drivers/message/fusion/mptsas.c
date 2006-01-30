@@ -304,9 +304,8 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	}
 	mutex_unlock(&hd->ioc->sas_topology_mutex);
 
-	printk("No matching SAS device found!!\n");
 	kfree(vdev);
-	return -ENODEV;
+	return -ENXIO;
 
  out:
 	vtarget->ioc_id = vdev->ioc_id;
