@@ -65,11 +65,11 @@
 #include "dir.h"
 #include "glock.h"
 #include "inode.h"
-#include "jdata.h"
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "bmap.h"
 
 #define IS_LEAF     1 /* Hashed (leaf) directory */
 #define IS_DINODE   2 /* Linear (stuffed dinode block) directory */
@@ -85,6 +85,252 @@
 typedef int (*leaf_call_t) (struct gfs2_inode *dip,
 			    uint32_t index, uint32_t len, uint64_t leaf_no,
 			    void *data);
+
+static int gfs2_dir_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
+			       struct buffer_head **bhp)
+{
+	struct buffer_head *bh;
+	int error = 0;
+
+	if (new) {
+		bh = gfs2_meta_new(ip->i_gl, block);
+		gfs2_trans_add_bh(ip->i_gl, bh, 1);
+		gfs2_metatype_set(bh, GFS2_METATYPE_JD, GFS2_FORMAT_JD);
+		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
+	} else {
+		error = gfs2_meta_read(ip->i_gl, block, DIO_START | DIO_WAIT, &bh);
+		if (error)
+			return error;
+		if (gfs2_metatype_check(ip->i_sbd, bh, GFS2_METATYPE_JD)) {
+			brelse(bh);
+			return -EIO;
+		}
+	}
+
+	*bhp = bh;
+	return 0;
+}
+
+
+
+static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
+				  unsigned int offset, unsigned int size)
+                               
+{
+	struct buffer_head *dibh;
+	int error;
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		return error;
+
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	memcpy(dibh->b_data + offset + sizeof(struct gfs2_inode), buf, size);
+	if (ip->i_di.di_size < offset + size)
+		ip->i_di.di_size = offset + size;
+	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+
+	brelse(dibh);
+
+	return size;
+}
+
+
+
+/**
+ * gfs2_dir_write_data - Write directory information to the inode
+ * @ip: The GFS2 inode
+ * @buf: The buffer containing information to be written
+ * @offset: The file offset to start writing at
+ * @size: The amount of data to write
+ *
+ * Returns: The number of bytes correctly written or error code
+ */
+static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
+			       uint64_t offset, unsigned int size)
+{
+	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct buffer_head *dibh;
+	uint64_t lblock, dblock;
+	uint32_t extlen = 0;
+	unsigned int o;
+	int copied = 0;
+	int error = 0;
+
+	if (!size)
+		return 0;
+
+	if (gfs2_is_stuffed(ip) &&
+	    offset + size <= sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode))
+		return gfs2_dir_write_stuffed(ip, buf, (unsigned int)offset, size);
+
+	if (gfs2_assert_warn(sdp, gfs2_is_jdata(ip)))
+		return -EINVAL;
+
+	if (gfs2_is_stuffed(ip)) {
+		error = gfs2_unstuff_dinode(ip, NULL, NULL);
+		if (error)
+		return error;
+	}
+
+	lblock = offset;
+	o = do_div(lblock, sdp->sd_jbsize) + sizeof(struct gfs2_meta_header);
+
+	while (copied < size) {
+		unsigned int amount;
+		struct buffer_head *bh;
+		int new;
+
+		amount = size - copied;
+		if (amount > sdp->sd_sb.sb_bsize - o)
+			amount = sdp->sd_sb.sb_bsize - o;
+
+		if (!extlen) {
+			new = 1;
+			error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
+			if (error)
+				goto fail;
+			error = -EIO;
+			if (gfs2_assert_withdraw(sdp, dblock))
+				goto fail;
+		}
+
+		error = gfs2_dir_get_buffer(ip, dblock, (amount == sdp->sd_jbsize) ? 1 : new, &bh);
+		if (error)
+			goto fail;
+
+		gfs2_trans_add_bh(ip->i_gl, bh, 1);
+		memcpy(bh->b_data + o, buf, amount);
+		brelse(bh);
+		if (error)
+			goto fail;
+
+		copied += amount;
+		lblock++;
+		dblock++;
+		extlen--;
+
+		o = sizeof(struct gfs2_meta_header);
+	}
+
+out:
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		return error;
+
+	if (ip->i_di.di_size < offset + copied)
+		ip->i_di.di_size = offset + copied;
+	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
+
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	brelse(dibh);
+
+	return copied;
+fail:
+	if (copied)
+		goto out;
+	return error;
+}
+
+static int gfs2_dir_read_stuffed(struct gfs2_inode *ip, char *buf,
+				unsigned int offset, unsigned int size)
+{
+	struct buffer_head *dibh;
+	int error;
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (!error) {
+		offset += sizeof(struct gfs2_dinode);
+		memcpy(buf, dibh->b_data + offset, size);
+		brelse(dibh);
+	}
+
+	return (error) ? error : size;
+}
+
+
+/**
+ * gfs2_dir_read_data - Read a data from a directory inode
+ * @ip: The GFS2 Inode
+ * @buf: The buffer to place result into
+ * @offset: File offset to begin jdata_readng from
+ * @size: Amount of data to transfer
+ *
+ * Returns: The amount of data actually copied or the error
+ */
+static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
+			      uint64_t offset, unsigned int size)
+{
+	struct gfs2_sbd *sdp = ip->i_sbd;
+	uint64_t lblock, dblock;
+	uint32_t extlen = 0;
+	unsigned int o;
+	int copied = 0;
+	int error = 0;
+
+	if (offset >= ip->i_di.di_size)
+		return 0;
+
+	if ((offset + size) > ip->i_di.di_size)
+		size = ip->i_di.di_size - offset;
+
+	if (!size)
+		return 0;
+
+	if (gfs2_is_stuffed(ip))
+		return gfs2_dir_read_stuffed(ip, buf, (unsigned int)offset, size);
+
+	if (gfs2_assert_warn(sdp, gfs2_is_jdata(ip)))
+		return -EINVAL;
+
+	lblock = offset;
+	o = do_div(lblock, sdp->sd_jbsize) + sizeof(struct gfs2_meta_header);
+
+	while (copied < size) {
+		unsigned int amount;
+		struct buffer_head *bh;
+		int new;
+
+		amount = size - copied;
+		if (amount > sdp->sd_sb.sb_bsize - o)
+			amount = sdp->sd_sb.sb_bsize - o;
+
+		if (!extlen) {
+			new = 0;
+			error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
+			if (error)
+				goto fail;
+		}
+
+		if (extlen > 1)
+			gfs2_meta_ra(ip->i_gl, dblock, extlen);
+
+		if (dblock) {
+			error = gfs2_dir_get_buffer(ip, dblock, new, &bh);
+			if (error)
+				goto fail;
+			dblock++;
+			extlen--;
+		} else
+			bh = NULL;
+
+		memcpy(buf, bh->b_data + o, amount);
+		brelse(bh);
+		if (error)
+			goto fail;
+
+		copied += amount;
+		lblock++;
+
+		o = sizeof(struct gfs2_meta_header);
+	}
+
+	return copied;
+fail:
+	return (copied) ? copied : error;
+}
 
 /**
  * int gfs2_filecmp - Compare two filenames
@@ -428,7 +674,7 @@ static int get_leaf_nr(struct gfs2_inode *dip, uint32_t index,
 	uint64_t leaf_no;
 	int error;
 
-	error = gfs2_jdata_read_mem(dip, (char *)&leaf_no,
+	error = gfs2_dir_read_data(dip, (char *)&leaf_no,
 				    index * sizeof(uint64_t),
 				    sizeof(uint64_t));
 	if (error != sizeof(uint64_t))
@@ -683,7 +929,7 @@ static int dir_split_leaf(struct gfs2_inode *dip, uint32_t index,
 
 	lp = kcalloc(half_len, sizeof(uint64_t), GFP_KERNEL | __GFP_NOFAIL);
 
-	error = gfs2_jdata_read_mem(dip, (char *)lp, start * sizeof(uint64_t),
+	error = gfs2_dir_read_data(dip, (char *)lp, start * sizeof(uint64_t),
 				    half_len * sizeof(uint64_t));
 	if (error != half_len * sizeof(uint64_t)) {
 		if (error >= 0)
@@ -696,7 +942,7 @@ static int dir_split_leaf(struct gfs2_inode *dip, uint32_t index,
 	for (x = 0; x < half_len; x++)
 		lp[x] = cpu_to_be64(bn);
 
-	error = gfs2_jdata_write_mem(dip, (char *)lp, start * sizeof(uint64_t),
+	error = gfs2_dir_write_data(dip, (char *)lp, start * sizeof(uint64_t),
 				     half_len * sizeof(uint64_t));
 	if (error != half_len * sizeof(uint64_t)) {
 		if (error >= 0)
@@ -816,7 +1062,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_KERNEL | __GFP_NOFAIL);
 
 	for (block = dip->i_di.di_size >> sdp->sd_hash_bsize_shift; block--;) {
-		error = gfs2_jdata_read_mem(dip, (char *)buf,
+		error = gfs2_dir_read_data(dip, (char *)buf,
 					    block * sdp->sd_hash_bsize,
 					    sdp->sd_hash_bsize);
 		if (error != sdp->sd_hash_bsize) {
@@ -833,7 +1079,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 			*to++ = *from;
 		}
 
-		error = gfs2_jdata_write_mem(dip,
+		error = gfs2_dir_write_data(dip,
 					     (char *)buf + sdp->sd_hash_bsize,
 					     block * sdp->sd_sb.sb_bsize,
 					     sdp->sd_sb.sb_bsize);
@@ -1424,7 +1670,7 @@ static int dir_e_read(struct gfs2_inode *dip, uint64_t *offset, void *opaque,
 		ht_offset = index - lp_offset;
 
 		if (ht_offset_cur != ht_offset) {
-			error = gfs2_jdata_read_mem(dip, (char *)lp,
+			error = gfs2_dir_read_data(dip, (char *)lp,
 						ht_offset * sizeof(uint64_t),
 						sdp->sd_hash_bsize);
 			if (error != sdp->sd_hash_bsize) {
@@ -1839,7 +2085,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 		ht_offset = index - lp_offset;
 
 		if (ht_offset_cur != ht_offset) {
-			error = gfs2_jdata_read_mem(dip, (char *)lp,
+			error = gfs2_dir_read_data(dip, (char *)lp,
 						ht_offset * sizeof(uint64_t),
 						sdp->sd_hash_bsize);
 			if (error != sdp->sd_hash_bsize) {
@@ -1965,7 +2211,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, uint32_t index, uint32_t len,
 		dip->i_di.di_blocks--;
 	}
 
-	error = gfs2_jdata_write_mem(dip, ht, index * sizeof(uint64_t), size);
+	error = gfs2_dir_write_data(dip, ht, index * sizeof(uint64_t), size);
 	if (error != size) {
 		if (error >= 0)
 			error = -EIO;
