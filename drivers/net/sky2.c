@@ -23,11 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/*
- * TOTEST
- *	- speed setting
- */
-
 #include <linux/config.h>
 #include <linux/crc32.h>
 #include <linux/kernel.h>
@@ -56,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"0.13"
+#define DRV_VERSION		"0.15"
 #define PFX			DRV_NAME " "
 
 /*
