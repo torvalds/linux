@@ -38,6 +38,7 @@ file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
 	ra->ra_pages = mapping->backing_dev_info->ra_pages;
 	ra->prev_page = -1;
 }
+EXPORT_SYMBOL_GPL(file_ra_state_init);
 
 /*
  * Return max readahead size for this inode in number-of-pages.
