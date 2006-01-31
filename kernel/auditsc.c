@@ -966,11 +966,6 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 	if (context->in_syscall) {
 		struct audit_context *newctx;
 
-#if defined(__NR_vm86) && defined(__NR_vm86old)
-		/* vm86 mode should only be entered once */
-		if (major == __NR_vm86 || major == __NR_vm86old)
-			return;
-#endif
 #if AUDIT_DEBUG
 		printk(KERN_ERR
 		       "audit(:%d) pid=%d in syscall=%d;"
