@@ -14,6 +14,7 @@
 #ifndef _LINUX_CPUFREQ_H
 #define _LINUX_CPUFREQ_H
 
+#include <linux/mutex.h>
 #include <linux/config.h>
 #include <linux/notifier.h>
 #include <linux/threads.h>
@@ -82,7 +83,7 @@ struct cpufreq_policy {
         unsigned int		policy; /* see above */
 	struct cpufreq_governor	*governor; /* see below */
 
- 	struct semaphore	lock;   /* CPU ->setpolicy or ->target may
+ 	struct mutex		lock;   /* CPU ->setpolicy or ->target may
 					   only be called once a time */
 
 	struct work_struct	update; /* if update_policy() needs to be
