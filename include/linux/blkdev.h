@@ -392,8 +392,8 @@ struct request_queue
 	unsigned int		nr_congestion_off;
 	unsigned int		nr_batching;
 
-	unsigned short		max_sectors;
-	unsigned short		max_hw_sectors;
+	unsigned int		max_sectors;
+	unsigned int		max_hw_sectors;
 	unsigned short		max_phys_segments;
 	unsigned short		max_hw_segments;
 	unsigned short		hardsect_size;
@@ -697,7 +697,7 @@ extern request_queue_t *blk_init_queue(request_fn_proc *, spinlock_t *);
 extern void blk_cleanup_queue(request_queue_t *);
 extern void blk_queue_make_request(request_queue_t *, make_request_fn *);
 extern void blk_queue_bounce_limit(request_queue_t *, u64);
-extern void blk_queue_max_sectors(request_queue_t *, unsigned short);
+extern void blk_queue_max_sectors(request_queue_t *, unsigned int);
 extern void blk_queue_max_phys_segments(request_queue_t *, unsigned short);
 extern void blk_queue_max_hw_segments(request_queue_t *, unsigned short);
 extern void blk_queue_max_segment_size(request_queue_t *, unsigned int);
