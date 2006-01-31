@@ -410,7 +410,7 @@ static struct uart_port clps711x_ports[UART_NR] = {
 		.fifosize	= 16,
 		.ops		= &clps711x_pops,
 		.line		= 0,
-		.flags		= ASYNC_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF,
 	},
 	{
 		.iobase		= SYSCON2,
@@ -419,7 +419,7 @@ static struct uart_port clps711x_ports[UART_NR] = {
 		.fifosize	= 16,
 		.ops		= &clps711x_pops,
 		.line		= 1,
-		.flags		= ASYNC_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF,
 	}
 };
 
