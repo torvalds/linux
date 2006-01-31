@@ -342,7 +342,7 @@ ieee80211softmac_deauth_req(struct ieee80211softmac_device *mac,
  * This should be registered with ieee80211 as handle_deauth
  */
 int 
-ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_auth *auth)
+ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *deauth)
 {
 	
 	struct ieee80211softmac_network *net = NULL;
@@ -350,16 +350,16 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_auth *auth
 	
 	function_enter();
 	
-	if (!auth) {
+	if (!deauth) {
 		dprintk("deauth without deauth packet. eek!\n");
 		return 0;
 	}
 
-	net = ieee80211softmac_get_network_by_bssid(mac, auth->header.addr2);
+	net = ieee80211softmac_get_network_by_bssid(mac, deauth->header.addr2);
 	
 	if (net == NULL) {
 		printkl(KERN_DEBUG PFX "Received deauthentication packet from "MAC_FMT", but that network is unknown.\n",
-			MAC_ARG(auth->header.addr2));
+			MAC_ARG(deauth->header.addr2));
 		return 0;
 	}
 

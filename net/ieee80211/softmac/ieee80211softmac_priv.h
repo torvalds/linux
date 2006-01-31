@@ -147,7 +147,7 @@ int ieee80211softmac_deauth_req(struct ieee80211softmac_device *mac, struct ieee
 
 /* for use by _module.c to assign to the callbacks */
 int ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth);
-int ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_auth *auth);
+int ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *deauth);
 
 /*** prototypes from _assoc.c */
 void ieee80211softmac_assoc_work(void *d);
