@@ -229,44 +229,53 @@ static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci) {
 
 
 /**
- * cpufreq_notify_transition - call notifier chain and adjust_jiffies on frequency transition
+ * cpufreq_notify_transition - call notifier chain and adjust_jiffies
+ * on frequency transition.
  *
- * This function calls the transition notifiers and the "adjust_jiffies" function. It is called
- * twice on all CPU frequency changes that have external effects. 
+ * This function calls the transition notifiers and the "adjust_jiffies"
+ * function. It is called twice on all CPU frequency changes that have
+ * external effects. 
  */
 void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
 {
+	struct cpufreq_policy *policy;
+
 	BUG_ON(irqs_disabled());
 
 	freqs->flags = cpufreq_driver->flags;
-	dprintk("notification %u of frequency transition to %u kHz\n", state, freqs->new);
+	dprintk("notification %u of frequency transition to %u kHz\n",
+		state, freqs->new);
 
 	down_read(&cpufreq_notifier_rwsem);
+
+	policy = cpufreq_cpu_data[freqs->cpu];
 	switch (state) {
+
 	case CPUFREQ_PRECHANGE:
-		/* detect if the driver reported a value as "old frequency" which
-		 * is not equal to what the cpufreq core thinks is "old frequency".
+		/* detect if the driver reported a value as "old frequency" 
+		 * which is not equal to what the cpufreq core thinks is
+		 * "old frequency".
 		 */
 		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-			if ((likely(cpufreq_cpu_data[freqs->cpu])) &&
-			    (likely(cpufreq_cpu_data[freqs->cpu]->cpu == freqs->cpu)) &&
-			    (likely(cpufreq_cpu_data[freqs->cpu]->cur)) &&
-			    (unlikely(freqs->old != cpufreq_cpu_data[freqs->cpu]->cur)))
-			{
-				dprintk(KERN_WARNING "Warning: CPU frequency is %u, "
-				       "cpufreq assumed %u kHz.\n", freqs->old, cpufreq_cpu_data[freqs->cpu]->cur);
-				freqs->old = cpufreq_cpu_data[freqs->cpu]->cur;
+			if ((policy) && (policy->cpu == freqs->cpu) &&
+			    (policy->cur) && (policy->cur != freqs->old)) {
+				dprintk(KERN_WARNING "Warning: CPU frequency is"
+					" %u, cpufreq assumed %u kHz.\n",
+					freqs->old, policy->cur);
+				freqs->old = policy->cur;
 			}
 		}
-		notifier_call_chain(&cpufreq_transition_notifier_list, CPUFREQ_PRECHANGE, freqs);
+		notifier_call_chain(&cpufreq_transition_notifier_list,
+					CPUFREQ_PRECHANGE, freqs);
 		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
 		break;
+
 	case CPUFREQ_POSTCHANGE:
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
-		notifier_call_chain(&cpufreq_transition_notifier_list, CPUFREQ_POSTCHANGE, freqs);
-		if ((likely(cpufreq_cpu_data[freqs->cpu])) && 
-		    (likely(cpufreq_cpu_data[freqs->cpu]->cpu == freqs->cpu)))
-			cpufreq_cpu_data[freqs->cpu]->cur = freqs->new;
+		notifier_call_chain(&cpufreq_transition_notifier_list,
+					CPUFREQ_POSTCHANGE, freqs);
+		if (likely(policy) && likely(policy->cpu == freqs->cpu))
+			policy->cur = freqs->new;
 		break;
 	}
 	up_read(&cpufreq_notifier_rwsem);
