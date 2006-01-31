@@ -41,6 +41,7 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	softmac->ieee->handle_auth = ieee80211softmac_auth_resp;
 	softmac->ieee->handle_deauth = ieee80211softmac_deauth_resp;
 	softmac->ieee->handle_assoc_response = ieee80211softmac_handle_assoc_response;
+	softmac->ieee->handle_reassoc_request = ieee80211softmac_handle_reassoc_req;
 	softmac->ieee->handle_disassoc = ieee80211softmac_handle_disassoc;
 	softmac->scaninfo = NULL;
 

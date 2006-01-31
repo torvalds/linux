@@ -390,3 +390,21 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 	
 	return 0;
 }
+
+int
+ieee80211softmac_handle_reassoc_req(struct net_device * dev,
+				    struct ieee80211_reassoc_request * resp)
+{
+	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
+	struct ieee80211softmac_network *network;
+
+	function_enter();
+
+	network = ieee80211softmac_get_network_by_bssid(mac, resp->header.addr3);
+	if (!network) {
+		dprintkl(KERN_INFO PFX "reassoc request from unknown network\n");
+		return 0;
+	}
+	ieee80211softmac_assoc(mac, network);
+	return 0;
+}

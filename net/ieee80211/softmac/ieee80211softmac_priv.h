@@ -156,6 +156,8 @@ int ieee80211softmac_handle_assoc_response(struct net_device * dev,
 					   struct ieee80211_network * network);
 int ieee80211softmac_handle_disassoc(struct net_device * dev,
 				     struct ieee80211_disassoc * disassoc);
+int ieee80211softmac_handle_reassoc_req(struct net_device * dev,
+				        struct ieee80211_reassoc_request * reassoc);
 void ieee80211softmac_assoc_timeout(void *d);
 
 /* some helper functions */
