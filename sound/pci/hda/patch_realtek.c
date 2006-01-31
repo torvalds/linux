@@ -3417,12 +3417,12 @@ static struct snd_kcontrol_new alc882_capture_mixer[] = {
  * configuration and preset
  */
 static struct hda_board_config alc882_cfg_tbl[] = {
-	{ .modelname = "3stack-dig", .config = ALC861_3ST_DIG },
-	{ .modelname = "6stack-dig", .config = ALC861_6ST_DIG },
+	{ .modelname = "3stack-dig", .config = ALC882_3ST_DIG },
+	{ .modelname = "6stack-dig", .config = ALC882_6ST_DIG },
 	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668, .config = ALC882_6ST_DIG }, /* MSI  */
 	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668, .config = ALC882_6ST_DIG }, /* Foxconn */
 	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668, .config = ALC882_6ST_DIG }, /* ECS */
-	{ .modelname = "auto", .config = ALC861_AUTO },
+	{ .modelname = "auto", .config = ALC882_AUTO },
 	{}
 };
 
