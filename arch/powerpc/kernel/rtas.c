@@ -22,6 +22,7 @@
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
+#include <asm/hvcall.h>
 #include <asm/semaphore.h>
 #include <asm/machdep.h>
 #include <asm/page.h>
