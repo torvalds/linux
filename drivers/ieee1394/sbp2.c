@@ -643,9 +643,15 @@ static int sbp2_remove(struct device *dev)
 	if (!scsi_id)
 		return 0;
 
-	/* Trigger shutdown functions in scsi's highlevel. */
-	if (scsi_id->scsi_host)
+	if (scsi_id->scsi_host) {
+		/* Get rid of enqueued commands if there is no chance to
+		 * send them. */
+		if (!sbp2util_node_is_available(scsi_id))
+			sbp2scsi_complete_all_commands(scsi_id, DID_NO_CONNECT);
+		/* scsi_remove_device() will trigger shutdown functions of SCSI
+		 * highlevel drivers which would deadlock if blocked. */
 		scsi_unblock_requests(scsi_id->scsi_host);
+	}
 	sdev = scsi_id->sdev;
 	if (sdev) {
 		scsi_id->sdev = NULL;
