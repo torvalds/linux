@@ -385,7 +385,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 			i_size_write(inode, file_size);
 	} else {
 		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED)
-			gfs2_page_add_databufs(sdp, page, from, to);
+			gfs2_page_add_databufs(ip, page, from, to);
 		error = generic_commit_write(file, page, from, to);
 		if (error)
 			goto fail;

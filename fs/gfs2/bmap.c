@@ -872,7 +872,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 			if (do_div(junk, sdp->sd_jbsize))
 				error = truncator_journaled(ip, size);
 		} else if (size & (uint64_t)(sdp->sd_sb.sb_bsize - 1))
-			error = gfs2_truncator_page(ip, size);
+			error = gfs2_block_truncate_page(ip->i_vnode->i_mapping);
 
 		if (!error) {
 			ip->i_di.di_size = size;

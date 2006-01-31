@@ -21,6 +21,7 @@
 #include "inode.h"
 #include "page.h"
 #include "trans.h"
+#include "ops_address.h"
 
 /**
  * gfs2_pte_inval - Sync and invalidate all PTEs associated with a glock
@@ -184,76 +185,81 @@ int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 }
 
 /**
- * gfs2_truncator_page - truncate a partial data block in the page cache
- * @ip: the inode
- * @size: the size the file should be
+ * gfs2_block_truncate_page - Deal with zeroing out data for truncate
  *
- * Returns: errno
+ * This is partly borrowed from ext3.
  */
-
-int gfs2_truncator_page(struct gfs2_inode *ip, uint64_t size)
+int gfs2_block_truncate_page(struct address_space *mapping)
 {
+	struct inode *inode = mapping->host;
+	struct gfs2_inode *ip = get_v2ip(inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
-	struct inode *inode = ip->i_vnode;
-	struct page *page;
+	loff_t from = inode->i_size;
+	unsigned long index = from >> PAGE_CACHE_SHIFT;
+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	unsigned blocksize, iblock, length, pos;
 	struct buffer_head *bh;
+	struct page *page;
 	void *kaddr;
-	uint64_t lbn, dbn;
-	unsigned long index;
-	unsigned int offset;
-	unsigned int bufnum;
-	int new = 0;
-	int error;
+	int err;
 
-	lbn = size >> inode->i_blkbits;
-	error = gfs2_block_map(ip, lbn, &new, &dbn, NULL);
-	if (error || !dbn)
-		return error;
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		return 0;
 
-	index = size >> PAGE_CACHE_SHIFT;
-	offset = size & (PAGE_CACHE_SIZE - 1);
-	bufnum = lbn - (index << (PAGE_CACHE_SHIFT - inode->i_blkbits));
-
-	page = read_cache_page(inode->i_mapping, index,
-			       (filler_t *)inode->i_mapping->a_ops->readpage,
-			       NULL);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
-
-	lock_page(page);
-
-	if (!PageUptodate(page) || PageError(page)) {
-		error = -EIO;
-		goto out;
-	}
-
-	kaddr = kmap(page);
-	memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
-	kunmap(page);
+	blocksize = inode->i_sb->s_blocksize;
+	length = blocksize - (offset & (blocksize - 1));
+	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
 
 	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << inode->i_blkbits,
-				     (1 << BH_Uptodate));
+		create_empty_buffers(page, blocksize, 0);
 
-	for (bh = page_buffers(page); bufnum--; bh = bh->b_this_page)
-		/* Do nothing */;
+	/* Find the buffer that contains "offset" */
+	bh = page_buffers(page);
+	pos = blocksize;
+	while (offset >= pos) {
+		bh = bh->b_this_page;
+		iblock++;
+		pos += blocksize;
+	}
 
-	if (!buffer_mapped(bh))
-		map_bh(bh, inode->i_sb, dbn);
+	err = 0;
 
-	set_buffer_uptodate(bh);
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED)
+	if (!buffer_mapped(bh)) {
+		gfs2_get_block(inode, iblock, bh, 0);
+		/* unmapped? It's a hole - nothing to do */
+		if (!buffer_mapped(bh))
+			goto unlock;
+	}
+
+	/* Ok, it's mapped. Make sure it's up-to-date */
+	if (PageUptodate(page))
+		set_buffer_uptodate(bh);
+
+	if (!buffer_uptodate(bh)) {
+		err = -EIO;
+		ll_rw_block(READ, 1, &bh);
+		wait_on_buffer(bh);
+		/* Uhhuh. Read error. Complain and punt. */
+		if (!buffer_uptodate(bh))
+			goto unlock;
+	}
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED/* || gfs2_is_jdata(ip)*/)
 		gfs2_trans_add_databuf(sdp, bh);
-	mark_buffer_dirty(bh);
 
- out:
+	kaddr = kmap_atomic(page, KM_USER0);
+	memset(kaddr + offset, 0, length);
+	flush_dcache_page(page);
+	kunmap_atomic(kaddr, KM_USER0);
+
+unlock:
 	unlock_page(page);
 	page_cache_release(page);
-
-	return error;
+	return err;
 }
 
-void gfs2_page_add_databufs(struct gfs2_sbd *sdp, struct page *page,
+void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 			    unsigned int from, unsigned int to)
 {
 	struct buffer_head *head = page_buffers(page);
@@ -267,7 +273,7 @@ void gfs2_page_add_databufs(struct gfs2_sbd *sdp, struct page *page,
 		end = start + bsize;
 		if (end <= from || start >= to)
 			continue;
-		gfs2_trans_add_databuf(sdp, bh);
+		gfs2_trans_add_databuf(ip->i_sbd, bh);
 	}
 }
 
