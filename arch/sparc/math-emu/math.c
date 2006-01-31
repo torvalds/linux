@@ -323,11 +323,6 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 		case FMOVS:
 		case FABSS:
 		case FNEGS: TYPE(2,1,0,1,0,0,0); break;
-		default:
-#ifdef DEBUG_MATHEMU
-			printk("unknown FPop1: %03lx\n",(insn>>5)&0x1ff);
-#endif
-			break;
 		}
 	} else if ((insn & 0xc1f80000) == 0x81a80000)	/* FPOP2 */ {
 		switch ((insn >> 5) & 0x1ff) {
@@ -337,11 +332,6 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 		case FCMPED: TYPE(3,0,0,2,1,2,1); break;
 		case FCMPQ: TYPE(3,0,0,3,1,3,1); break;
 		case FCMPEQ: TYPE(3,0,0,3,1,3,1); break;
-		default:
-#ifdef DEBUG_MATHEMU
-			printk("unknown FPop2: %03lx\n",(insn>>5)&0x1ff);
-#endif
-			break;
 		}
 	}
 
