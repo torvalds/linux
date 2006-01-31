@@ -83,13 +83,6 @@ ieee80211softmac_assoc_timeout(void *d)
 	ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_TIMEOUT, NULL);
 }
 
-static void
-ieee80211softmac_reassoc(struct ieee80211softmac_device *mac)
-{
-	function_enter();
-}
-
-
 /* Sends out a disassociation request to the desired AP */
 static void
 ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason)
