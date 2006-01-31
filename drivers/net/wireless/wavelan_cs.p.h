@@ -99,11 +99,7 @@
  * caracteristics of the hardware in a standard way and support for
  * applications for taking advantage of it (like Mobile IP).
  *
- * You will need to enable the CONFIG_NET_RADIO define in the kernel
- * configuration to enable the wireless extensions (this is the one
- * giving access to the radio network device choice).
- *
- * It might also be a good idea as well to fetch the wireless tools to
+ * It might be a good idea as well to fetch the wireless tools to
  * configure the device and play a bit.
  */
 
@@ -440,11 +436,8 @@
 #include <linux/ioport.h>
 #include <linux/fcntl.h>
 #include <linux/ethtool.h>
-
-#ifdef CONFIG_NET_RADIO
 #include <linux/wireless.h>		/* Wireless extensions */
 #include <net/iw_handler.h>		/* New driver API */
-#endif
 
 /* Pcmcia headers that we need */
 #include <pcmcia/cs_types.h>

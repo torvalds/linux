@@ -369,8 +369,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* Put this code here so that we avoid duplicating it in all
 	 * Rx paths. - Jean II */
+#ifdef CONFIG_WIRELESS_EXT
 #ifdef IW_WIRELESS_SPY		/* defined in iw_handler.h */
-#ifdef CONFIG_NET_RADIO
 	/* If spy monitoring on */
 	if (ieee->spy_data.spy_number > 0) {
 		struct iw_quality wstats;
@@ -397,8 +397,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		/* Update spy records */
 		wireless_spy_update(ieee->dev, hdr->addr2, &wstats);
 	}
-#endif				/* CONFIG_NET_RADIO */
 #endif				/* IW_WIRELESS_SPY */
+#endif				/* CONFIG_WIRELESS_EXT */
 
 #ifdef NOT_YET
 	hostap_update_rx_stats(local->ap, hdr, rx_stats);
@@ -574,7 +574,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 	// PR: FIXME: hostap has additional conditions in the "if" below:
 	// ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
-	if ((frag != 0 || (fc & IEEE80211_FCTL_MOREFRAGS))) {
+	if ((frag != 0) || (fc & IEEE80211_FCTL_MOREFRAGS)) {
 		int flen;
 		struct sk_buff *frag_skb = ieee80211_frag_cache_get(ieee, hdr);
 		IEEE80211_DEBUG_FRAG("Rx Fragment received (%u)\n", frag);
@@ -1605,6 +1605,30 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			ieee->handle_action(ieee->dev,
 					    (struct ieee80211_action *)
 					    header, stats);
+		break;
+
+	case IEEE80211_STYPE_REASSOC_REQ:
+		IEEE80211_DEBUG_MGMT("received reassoc (%d)\n",
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
+
+		IEEE80211_WARNING("%s: IEEE80211_REASSOC_REQ received\n",
+				  ieee->dev->name);
+		if (ieee->handle_reassoc_request != NULL)
+			ieee->handle_reassoc_request(ieee->dev,
+						    (struct ieee80211_reassoc_request *)
+						     header);
+		break;
+
+	case IEEE80211_STYPE_ASSOC_REQ:
+		IEEE80211_DEBUG_MGMT("received assoc (%d)\n",
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
+
+		IEEE80211_WARNING("%s: IEEE80211_ASSOC_REQ received\n",
+				  ieee->dev->name);
+		if (ieee->handle_assoc_request != NULL)
+			ieee->handle_assoc_request(ieee->dev);
 		break;
 
 	case IEEE80211_STYPE_DEAUTH:

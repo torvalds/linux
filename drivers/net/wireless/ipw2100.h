@@ -392,8 +392,10 @@ struct ipw2100_notification {
 #define IPW_WEP104_CIPHER (1<<5)
 #define IPW_CKIP_CIPHER   (1<<6)
 
-#define	IPW_AUTH_OPEN     0
-#define	IPW_AUTH_SHARED   1
+#define	IPW_AUTH_OPEN     	0
+#define	IPW_AUTH_SHARED   	1
+#define IPW_AUTH_LEAP	  	2
+#define IPW_AUTH_LEAP_CISCO_ID	0x80
 
 struct statistic {
 	int value;

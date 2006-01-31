@@ -110,10 +110,8 @@
 #include <linux/netpoll.h>
 #include <linux/rcupdate.h>
 #include <linux/delay.h>
-#ifdef CONFIG_NET_RADIO
-#include <linux/wireless.h>		/* Note : will define WIRELESS_EXT */
+#include <linux/wireless.h>
 #include <net/iw_handler.h>
-#endif	/* CONFIG_NET_RADIO */
 #include <asm/current.h>
 
 /*
@@ -2028,7 +2026,7 @@ static struct file_operations softnet_seq_fops = {
 	.release = seq_release,
 };
 
-#ifdef WIRELESS_EXT
+#ifdef CONFIG_WIRELESS_EXT
 extern int wireless_proc_init(void);
 #else
 #define wireless_proc_init() 0
@@ -2581,7 +2579,7 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 					ret = -EFAULT;
 				return ret;
 			}
-#ifdef WIRELESS_EXT
+#ifdef CONFIG_WIRELESS_EXT
 			/* Take care of Wireless Extensions */
 			if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
 				/* If command is `set a parameter', or
@@ -2602,7 +2600,7 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 					ret = -EFAULT;
 				return ret;
 			}
-#endif	/* WIRELESS_EXT */
+#endif	/* CONFIG_WIRELESS_EXT */
 			return -EINVAL;
 	}
 }
