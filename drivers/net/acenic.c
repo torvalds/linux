@@ -1002,6 +1002,8 @@ static int __devinit ace_init(struct net_device *dev)
 
 	mac1 = 0;
 	for(i = 0; i < 4; i++) {
+		int tmp;
+
 		mac1 = mac1 << 8;
 		tmp = read_eeprom_byte(dev, 0x8c+i);
 		if (tmp < 0) {
@@ -1012,6 +1014,8 @@ static int __devinit ace_init(struct net_device *dev)
 	}
 	mac2 = 0;
 	for(i = 4; i < 8; i++) {
+		int tmp;
+
 		mac2 = mac2 << 8;
 		tmp = read_eeprom_byte(dev, 0x8c+i);
 		if (tmp < 0) {
