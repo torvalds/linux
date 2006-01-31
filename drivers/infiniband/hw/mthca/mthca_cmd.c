@@ -199,7 +199,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 {
 	int err = 0;
 
-	down(&dev->cmd.hcr_sem);
+	mutex_lock(&dev->cmd.hcr_mutex);
 
 	if (event) {
 		unsigned long end = jiffies + GO_BIT_TIMEOUT;
@@ -237,7 +237,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 					       op),                       dev->hcr + 6 * 4);
 
 out:
-	up(&dev->cmd.hcr_sem);
+	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
 
@@ -435,7 +435,7 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 
 int mthca_cmd_init(struct mthca_dev *dev)
 {
-	sema_init(&dev->cmd.hcr_sem, 1);
+	mutex_init(&dev->cmd.hcr_mutex);
 	sema_init(&dev->cmd.poll_sem, 1);
 	dev->cmd.use_events = 0;
 
