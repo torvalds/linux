@@ -3499,6 +3499,7 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 	int device_error;
 	uint32_t transfer_len;
 	IPS_DCDB_TABLE_TAPE *tapeDCDB;
+	IPS_SCSI_INQ_DATA inquiryData;
 
 	METHOD_TRACE("ips_map_status", 1);
 
@@ -3557,13 +3558,13 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 				errcode = DID_OK;
 
 				/* Restrict access to physical DASD */
-				if ((scb->scsi_cmd->cmnd[0] == INQUIRY) &&
-				    ((((char *) scb->scsi_cmd->
-				       buffer)[0] & 0x1f) == TYPE_DISK)) {
-					/* underflow -- no error               */
-					/* restrict access to physical DASD    */
-					errcode = DID_TIME_OUT;
-					break;
+				if (scb->scsi_cmd->cmnd[0] == INQUIRY) {
+				    ips_scmd_buf_read(scb->scsi_cmd, 
+                                      &inquiryData, sizeof (inquiryData));
+ 				    if ((inquiryData.DeviceType & 0x1f) == TYPE_DISK) {
+				        errcode = DID_TIME_OUT;
+				        break;
+				    }
 				}
 			} else
 				errcode = DID_ERROR;
@@ -4135,6 +4136,7 @@ ips_chkstatus(ips_ha_t * ha, IPS_STATUS * pstatus)
 	uint8_t basic_status;
 	uint8_t ext_status;
 	int errcode;
+	IPS_SCSI_INQ_DATA inquiryData;
 
 	METHOD_TRACE("ips_chkstatus", 1);
 
@@ -4255,11 +4257,11 @@ ips_chkstatus(ips_ha_t * ha, IPS_STATUS * pstatus)
 			scb->scsi_cmd->result = errcode << 16;
 		} else {	/* bus == 0 */
 			/* restrict access to physical drives */
-			if ((scb->scsi_cmd->cmnd[0] == INQUIRY) &&
-			    ((((char *) scb->scsi_cmd->buffer)[0] & 0x1f) ==
-			     TYPE_DISK)) {
-
-				scb->scsi_cmd->result = DID_TIME_OUT << 16;
+			if (scb->scsi_cmd->cmnd[0] == INQUIRY) { 
+			    ips_scmd_buf_read(scb->scsi_cmd, 
+                                  &inquiryData, sizeof (inquiryData));
+			    if ((inquiryData.DeviceType & 0x1f) == TYPE_DISK) 
+			        scb->scsi_cmd->result = DID_TIME_OUT << 16;
 			}
 		}		/* else */
 	} else {		/* recovered error / success */
