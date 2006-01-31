@@ -1601,5 +1601,18 @@ sys_call_table:
 	data8 sys_inotify_add_watch
 	data8 sys_inotify_rm_watch
 	data8 sys_migrate_pages			// 1280
+	data8 sys_openat
+	data8 sys_mkdirat
+	data8 sys_mknodat
+	data8 sys_fchownat
+	data8 sys_futimesat			// 1285
+	data8 sys_newfstatat
+	data8 sys_unlinkat
+	data8 sys_renameat
+	data8 sys_linkat
+	data8 sys_symlinkat			// 1290
+	data8 sys_readlinkat
+	data8 sys_fchmodat
+	data8 sys_faccessat
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
