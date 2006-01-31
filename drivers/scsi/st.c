@@ -508,7 +508,7 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 	STp->buffer->cmdstat.have_sense = 0;
 	STp->buffer->syscall_result = 0;
 
-	if (scsi_execute_async(STp->device, cmd, direction,
+	if (scsi_execute_async(STp->device, cmd, COMMAND_SIZE(cmd[0]), direction,
 			&((STp->buffer)->sg[0]), bytes, (STp->buffer)->sg_segs,
 			       timeout, retries, SRpnt, st_sleep_done, GFP_KERNEL)) {
 		/* could not allocate the buffer or request was too large */
