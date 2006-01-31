@@ -903,6 +903,99 @@ static int hid_input_report(int type, struct urb *urb, int interrupt, struct pt_
 }
 
 /*
+ * Input submission and I/O error handler.
+ */
+
+static void hid_io_error(struct hid_device *hid);
+
+/* Start up the input URB */
+static int hid_start_in(struct hid_device *hid)
+{
+	unsigned long flags;
+	int rc = 0;
+
+	spin_lock_irqsave(&hid->inlock, flags);
+	if (hid->open > 0 && !test_bit(HID_SUSPENDED, &hid->iofl) &&
+			!test_and_set_bit(HID_IN_RUNNING, &hid->iofl)) {
+		rc = usb_submit_urb(hid->urbin, GFP_ATOMIC);
+		if (rc != 0)
+			clear_bit(HID_IN_RUNNING, &hid->iofl);
+	}
+	spin_unlock_irqrestore(&hid->inlock, flags);
+	return rc;
+}
+
+/* I/O retry timer routine */
+static void hid_retry_timeout(unsigned long _hid)
+{
+	struct hid_device *hid = (struct hid_device *) _hid;
+
+	dev_dbg(&hid->intf->dev, "retrying intr urb\n");
+	if (hid_start_in(hid))
+		hid_io_error(hid);
+}
+
+/* Workqueue routine to reset the device */
+static void hid_reset(void *_hid)
+{
+	struct hid_device *hid = (struct hid_device *) _hid;
+	int rc_lock, rc;
+
+	dev_dbg(&hid->intf->dev, "resetting device\n");
+	rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
+	if (rc_lock >= 0) {
+		rc = usb_reset_device(hid->dev);
+		if (rc_lock)
+			usb_unlock_device(hid->dev);
+	}
+	clear_bit(HID_RESET_PENDING, &hid->iofl);
+
+	if (rc == 0) {
+		hid->retry_delay = 0;
+		if (hid_start_in(hid))
+			hid_io_error(hid);
+	} else if (!(rc == -ENODEV || rc == -EHOSTUNREACH || rc == -EINTR))
+		err("can't reset device, %s-%s/input%d, status %d",
+				hid->dev->bus->bus_name,
+				hid->dev->devpath,
+				hid->ifnum, rc);
+}
+
+/* Main I/O error handler */
+static void hid_io_error(struct hid_device *hid)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&hid->inlock, flags);
+
+	/* Stop when disconnected */
+	if (usb_get_intfdata(hid->intf) == NULL)
+		goto done;
+
+	/* When an error occurs, retry at increasing intervals */
+	if (hid->retry_delay == 0) {
+		hid->retry_delay = 13;	/* Then 26, 52, 104, 104, ... */
+		hid->stop_retry = jiffies + msecs_to_jiffies(1000);
+	} else if (hid->retry_delay < 100)
+		hid->retry_delay *= 2;
+
+	if (time_after(jiffies, hid->stop_retry)) {
+
+		/* Retries failed, so do a port reset */
+		if (!test_and_set_bit(HID_RESET_PENDING, &hid->iofl)) {
+			if (schedule_work(&hid->reset_work))
+				goto done;
+			clear_bit(HID_RESET_PENDING, &hid->iofl);
+		}
+	}
+
+	mod_timer(&hid->io_retry,
+			jiffies + msecs_to_jiffies(hid->retry_delay));
+done:
+	spin_unlock_irqrestore(&hid->inlock, flags);
+}
+
+/*
  * Input interrupt completion handler.
  */
 
@@ -913,25 +1006,35 @@ static void hid_irq_in(struct urb *urb, struct pt_regs *regs)
 
 	switch (urb->status) {
 		case 0:			/* success */
+			hid->retry_delay = 0;
 			hid_input_report(HID_INPUT_REPORT, urb, 1, regs);
 			break;
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
-		case -EPERM:
 		case -ESHUTDOWN:	/* unplug */
-		case -EILSEQ:		/* unplug timeout on uhci */
+			clear_bit(HID_IN_RUNNING, &hid->iofl);
 			return;
+		case -EILSEQ:		/* protocol error or unplug */
+		case -EPROTO:		/* protocol error or unplug */
 		case -ETIMEDOUT:	/* NAK */
-			break;
+			clear_bit(HID_IN_RUNNING, &hid->iofl);
+			hid_io_error(hid);
+			return;
 		default:		/* error */
 			warn("input irq status %d received", urb->status);
 	}
 
 	status = usb_submit_urb(urb, SLAB_ATOMIC);
-	if (status)
-		err("can't resubmit intr, %s-%s/input%d, status %d",
-				hid->dev->bus->bus_name, hid->dev->devpath,
-				hid->ifnum, status);
+	if (status) {
+		clear_bit(HID_IN_RUNNING, &hid->iofl);
+		if (status != -EPERM) {
+			err("can't resubmit intr, %s-%s/input%d, status %d",
+					hid->dev->bus->bus_name,
+					hid->dev->devpath,
+					hid->ifnum, status);
+			hid_io_error(hid);
+		}
+	}
 }
 
 /*
@@ -1093,8 +1196,9 @@ static void hid_irq_out(struct urb *urb, struct pt_regs *regs)
 		case 0:			/* success */
 			break;
 		case -ESHUTDOWN:	/* unplug */
-		case -EILSEQ:		/* unplug timeout on uhci */
 			unplug = 1;
+		case -EILSEQ:		/* protocol error or unplug */
+		case -EPROTO:		/* protocol error or unplug */
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
 			break;
@@ -1141,8 +1245,9 @@ static void hid_ctrl(struct urb *urb, struct pt_regs *regs)
 				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, 0, regs);
 			break;
 		case -ESHUTDOWN:	/* unplug */
-		case -EILSEQ:		/* unplug timectrl on uhci */
 			unplug = 1;
+		case -EILSEQ:		/* protocol error or unplug */
+		case -EPROTO:		/* protocol error or unplug */
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
 		case -EPIPE:		/* report not available */
@@ -1255,14 +1360,9 @@ static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 
 int hid_open(struct hid_device *hid)
 {
-	if (hid->open++)
-		return 0;
-
-	hid->urbin->dev = hid->dev;
-
-	if (usb_submit_urb(hid->urbin, GFP_KERNEL))
-		return -EIO;
-
+	++hid->open;
+	if (hid_start_in(hid))
+		hid_io_error(hid);
 	return 0;
 }
 
@@ -1787,6 +1887,10 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 
 	init_waitqueue_head(&hid->wait);
 
+	INIT_WORK(&hid->reset_work, hid_reset, hid);
+	setup_timer(&hid->io_retry, hid_retry_timeout, (unsigned long) hid);
+
+	spin_lock_init(&hid->inlock);
 	spin_lock_init(&hid->outlock);
 	spin_lock_init(&hid->ctrllock);
 
@@ -1855,10 +1959,15 @@ static void hid_disconnect(struct usb_interface *intf)
 	if (!hid)
 		return;
 
+	spin_lock_irq(&hid->inlock);	/* Sync with error handler */
 	usb_set_intfdata(intf, NULL);
+	spin_unlock_irq(&hid->inlock);
 	usb_kill_urb(hid->urbin);
 	usb_kill_urb(hid->urbout);
 	usb_kill_urb(hid->urbctrl);
+
+	del_timer_sync(&hid->io_retry);
+	flush_scheduled_work();
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_disconnect(hid);
@@ -1934,6 +2043,10 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct hid_device *hid = usb_get_intfdata (intf);
 
+	spin_lock_irq(&hid->inlock);	/* Sync with error handler */
+	set_bit(HID_SUSPENDED, &hid->iofl);
+	spin_unlock_irq(&hid->inlock);
+	del_timer(&hid->io_retry);
 	usb_kill_urb(hid->urbin);
 	dev_dbg(&intf->dev, "suspend\n");
 	return 0;
@@ -1944,10 +2057,8 @@ static int hid_resume(struct usb_interface *intf)
 	struct hid_device *hid = usb_get_intfdata (intf);
 	int status;
 
-	if (hid->open)
-		status = usb_submit_urb(hid->urbin, GFP_NOIO);
-	else
-		status = 0;
+	clear_bit(HID_SUSPENDED, &hid->iofl);
+	status = hid_start_in(hid);
 	dev_dbg(&intf->dev, "resume status %d\n", status);
 	return status;
 }
