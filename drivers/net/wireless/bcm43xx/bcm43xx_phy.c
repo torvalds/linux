@@ -947,7 +947,7 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 	bcm43xx_radio_write16(bcm, 0x0050, 0x0020);
 	if ((bcm->current_core->radio->manufact == 0x17F) &&
 	    (bcm->current_core->radio->version == 0x2050) &&
-	    (bcm->current_core->radio->revision == 2)) {
+	    (bcm->current_core->radio->revision <= 2)) {
 		bcm43xx_radio_write16(bcm, 0x0050, 0x0020);
 		bcm43xx_radio_write16(bcm, 0x005A, 0x0070);
 		bcm43xx_radio_write16(bcm, 0x005B, 0x007B);
@@ -984,10 +984,15 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 		bcm43xx_write16(bcm, 0x03E4, 0x0009);
 	if (phy->type == BCM43xx_PHYTYPE_B) {
 		bcm43xx_write16(bcm, 0x03E6, 0x8140);
-		bcm43xx_phy_write(bcm, 0x0016, 0x5410);
-		bcm43xx_phy_write(bcm, 0x0017, 0xA820);
-		bcm43xx_phy_write(bcm, 0x0007, 0x0062);
-		TODO();//TODO: calibrate stuff.
+		bcm43xx_phy_write(bcm, 0x0016, 0x0410);
+		bcm43xx_phy_write(bcm, 0x0017, 0x0820);
+		bcm43xx_phy_write(bcm, 0x0062, 0x0007);
+		(void) bcm43xx_radio_calibrationvalue(bcm);
+		bcm43xx_phy_lo_b_measure(bcm);
+		if (bcm->sprom.boardflags & BCM43xx_BFL_RSSI) {
+			bcm43xx_calc_nrssi_slope(bcm);
+			bcm43xx_calc_nrssi_threshold(bcm);
+		}
 		bcm43xx_phy_init_pctl(bcm);
 	} else
 		bcm43xx_write16(bcm, 0x03E6, 0x0);

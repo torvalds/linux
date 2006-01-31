@@ -1184,7 +1184,7 @@ int bcm43xx_radio_set_interference_mitigation(struct bcm43xx_private *bcm,
 	return 0;
 }
 
-static u16 bcm43xx_radio_calibrationvalue(struct bcm43xx_private *bcm)
+u16 bcm43xx_radio_calibrationvalue(struct bcm43xx_private *bcm)
 {
 	u16 reg, index, ret;
 
