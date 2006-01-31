@@ -2471,7 +2471,7 @@ static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 	}
 #endif
 	res = request_irq(bcm->irq, bcm43xx_interrupt_handler,
-			  SA_SHIRQ, DRV_NAME, bcm);
+			  SA_SHIRQ, KBUILD_MODNAME, bcm);
 	if (res) {
 		printk(KERN_ERR PFX "Cannot register IRQ%d\n", bcm->irq);
 		return -EFAULT;
@@ -3809,7 +3809,7 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	}
 #endif
 
-	err = pci_request_regions(pci_dev, DRV_NAME);
+	err = pci_request_regions(pci_dev, KBUILD_MODNAME);
 	if (err) {
 		printk(KERN_ERR PFX
 		       "could not access PCI resources (%i)\n", err);
@@ -4389,12 +4389,11 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 #endif
 	net_dev->wireless_handlers = &bcm43xx_wx_handlers_def;
 	net_dev->irq = pdev->irq;
-	net_dev->watchdog_timeo = BCM43xx_TX_TIMEOUT;
 
 	/* initialize the bcm43xx_private struct */
 	bcm = bcm43xx_priv(net_dev);
 	memset(bcm, 0, sizeof(*bcm));
-	wq = create_workqueue(DRV_NAME "_wq");
+	wq = create_workqueue(KBUILD_MODNAME "_wq");
 	if (!wq) {
 		err = -ENOMEM;
 		goto err_free_netdev;
@@ -4567,7 +4566,7 @@ static int bcm43xx_resume(struct pci_dev *pdev)
 #endif				/* CONFIG_PM */
 
 static struct pci_driver bcm43xx_pci_driver = {
-	.name = BCM43xx_DRIVER_NAME,
+	.name = KBUILD_MODNAME,
 	.id_table = bcm43xx_pci_tbl,
 	.probe = bcm43xx_init_one,
 	.remove = __devexit_p(bcm43xx_remove_one),
@@ -4579,7 +4578,7 @@ static struct pci_driver bcm43xx_pci_driver = {
 
 static int __init bcm43xx_init(void)
 {
-	printk(KERN_INFO BCM43xx_DRIVER_NAME "\n");
+	printk(KERN_INFO KBUILD_MODNAME " driver\n");
 	bcm43xx_debugfs_init();
 	return pci_register_driver(&bcm43xx_pci_driver);
 }

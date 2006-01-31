@@ -141,7 +141,7 @@ static ssize_t drvinfo_read_file(struct file *file, char __user *userbuf,
 	down(&big_buffer_sem);
 
 	/* This is where the information is written to the "driver" file */
-	fappend(BCM43xx_DRIVER_NAME "\n");
+	fappend(KBUILD_MODNAME " driver\n");
 	fappend("Compiled at: %s %s\n", __DATE__, __TIME__);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
@@ -433,12 +433,12 @@ void bcm43xx_debugfs_log_txstat(struct bcm43xx_private *bcm,
 void bcm43xx_debugfs_init(void)
 {
 	memset(&fs, 0, sizeof(fs));
-	fs.root = debugfs_create_dir(DRV_NAME, NULL);
+	fs.root = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	if (!fs.root)
-		printk(KERN_ERR PFX "debugfs: creating \"" DRV_NAME "\" subdir failed!\n");
+		printk(KERN_ERR PFX "debugfs: creating \"" KBUILD_MODNAME "\" subdir failed!\n");
 	fs.dentry_driverinfo = debugfs_create_file("driver", 0444, fs.root, NULL, &drvinfo_fops);
 	if (!fs.dentry_driverinfo)
-		printk(KERN_ERR PFX "debugfs: creating \"" DRV_NAME "/driver\" failed!\n");
+		printk(KERN_ERR PFX "debugfs: creating \"" KBUILD_MODNAME "/driver\" failed!\n");
 }
 
 void bcm43xx_debugfs_exit(void)

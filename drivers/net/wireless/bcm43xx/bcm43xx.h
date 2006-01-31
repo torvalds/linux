@@ -17,14 +17,10 @@
 #include "bcm43xx_leds.h"
 
 
-#define DRV_NAME			__stringify(KBUILD_MODNAME)
-#define DRV_VERSION			__stringify(BCM43xx_VERSION)
-#define BCM43xx_DRIVER_NAME		DRV_NAME " driver " DRV_VERSION
-#define PFX				DRV_NAME ": "
+#define PFX				KBUILD_MODNAME ": "
 
 #define BCM43xx_SWITCH_CORE_MAX_RETRIES	10
 #define BCM43xx_IRQWAIT_MAX_RETRIES	50
-#define BCM43xx_TX_TIMEOUT		(10 * HZ)
 
 #define BCM43xx_IO_SIZE			8192
 #define BCM43xx_REG_ACTIVE_CORE		0x80
