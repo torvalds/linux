@@ -304,6 +304,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
  * blk_queue_ordered - does this queue support ordered writes
  * @q:        the request queue
  * @ordered:  one of QUEUE_ORDERED_*
+ * @prepare_flush_fn: rq setup helper for cache flush ordered writes
  *
  * Description:
  *   For journalled file systems, doing ordered writes on a commit
@@ -332,6 +333,7 @@ int blk_queue_ordered(request_queue_t *q, unsigned ordered,
 		return -EINVAL;
 	}
 
+	q->ordered = ordered;
 	q->next_ordered = ordered;
 	q->prepare_flush_fn = prepare_flush_fn;
 
@@ -662,7 +664,7 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
  *    Enables a low level driver to set an upper limit on the size of
  *    received requests.
  **/
-void blk_queue_max_sectors(request_queue_t *q, unsigned short max_sectors)
+void blk_queue_max_sectors(request_queue_t *q, unsigned int max_sectors)
 {
 	if ((max_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
@@ -2632,6 +2634,7 @@ EXPORT_SYMBOL(blk_put_request);
 /**
  * blk_end_sync_rq - executes a completion event on a request
  * @rq: request to complete
+ * @error: end io status of the request
  */
 void blk_end_sync_rq(struct request *rq, int error)
 {
@@ -3153,7 +3156,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	if (blk_fs_request(req) && req->rq_disk) {
 		const int rw = rq_data_dir(req);
 
-		__disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
+		disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
 	}
 
 	total_bytes = bio_nbytes = 0;

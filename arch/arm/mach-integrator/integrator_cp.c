@@ -469,7 +469,9 @@ static void cp_clcd_enable(struct clcd_fb *fb)
 	if (fb->fb.var.bits_per_pixel <= 8)
 		val = CM_CTRL_LCDMUXSEL_VGA_8421BPP;
 	else if (fb->fb.var.bits_per_pixel <= 16)
-		val = CM_CTRL_LCDMUXSEL_VGA_16BPP;
+		val = CM_CTRL_LCDMUXSEL_VGA_16BPP
+			| CM_CTRL_LCDEN0 | CM_CTRL_LCDEN1
+			| CM_CTRL_STATIC1 | CM_CTRL_STATIC2;
 	else
 		val = 0; /* no idea for this, don't trust the docs */
 
