@@ -1607,6 +1607,30 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 					    header, stats);
 		break;
 
+	case IEEE80211_STYPE_REASSOC_REQ:
+		IEEE80211_DEBUG_MGMT("received reassoc (%d)\n",
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
+
+		IEEE80211_WARNING("%s: IEEE80211_REASSOC_REQ received\n",
+				  ieee->dev->name);
+		if (ieee->handle_reassoc_request != NULL)
+			ieee->handle_reassoc_request(ieee->dev,
+						    (struct ieee80211_reassoc_request *)
+						     header);
+		break;
+
+	case IEEE80211_STYPE_ASSOC_REQ:
+		IEEE80211_DEBUG_MGMT("received assoc (%d)\n",
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
+
+		IEEE80211_WARNING("%s: IEEE80211_ASSOC_REQ received\n",
+				  ieee->dev->name);
+		if (ieee->handle_assoc_request != NULL)
+			ieee->handle_assoc_request(ieee->dev);
+		break;
+
 	case IEEE80211_STYPE_DEAUTH:
 		IEEE80211_DEBUG_MGMT("DEAUTH\n");
 		if (ieee->handle_deauth != NULL)
