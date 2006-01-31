@@ -358,7 +358,7 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_auth *auth
 	net = ieee80211softmac_get_network_by_bssid(mac, auth->header.addr2);
 	
 	if (net == NULL) {
-		printkl(KERN_DEBUG PFX "Recieved deauthentication packet from "MAC_FMT", but that network is unknown.\n",
+		printkl(KERN_DEBUG PFX "Received deauthentication packet from "MAC_FMT", but that network is unknown.\n",
 			MAC_ARG(auth->header.addr2));
 		return 0;
 	}

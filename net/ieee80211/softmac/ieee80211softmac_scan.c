@@ -233,5 +233,4 @@ void ieee80211softmac_scan_finished(struct ieee80211softmac_device *sm)
 	
 	ieee80211softmac_call_events(sm, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, NULL);
 }
-
 EXPORT_SYMBOL_GPL(ieee80211softmac_scan_finished);
