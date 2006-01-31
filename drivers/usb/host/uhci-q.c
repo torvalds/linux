@@ -259,7 +259,7 @@ static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
 	/* Fix up the toggle for the URBs in the queue.  Normally this
 	 * loop won't run more than once: When an error or short transfer
 	 * occurs, the queue usually gets emptied. */
-	list_prepare_entry(urbp, &qh->queue, node);
+	urbp = list_prepare_entry(urbp, &qh->queue, node);
 	list_for_each_entry_continue(urbp, &qh->queue, node) {
 
 		/* If the first TD has the right toggle value, we don't
