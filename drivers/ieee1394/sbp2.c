@@ -748,11 +748,6 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 		hi->host = ud->ne->host;
 		INIT_LIST_HEAD(&hi->scsi_ids);
 
-		/* Register our sbp2 status address space... */
-		hpsb_register_addrspace(&sbp2_highlevel, ud->ne->host, &sbp2_ops,
-					SBP2_STATUS_FIFO_ADDRESS,
-					SBP2_STATUS_FIFO_ADDRESS +
-					SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(SBP2_MAX_UDS_PER_NODE+1));
 #ifdef CONFIG_IEEE1394_SBP2_PHYS_DMA
 		/* Handle data movement if physical dma is not
 		 * enabled/supportedon host controller */
@@ -764,6 +759,18 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->hi = hi;
 
 	list_add_tail(&scsi_id->scsi_list, &hi->scsi_ids);
+
+	/* Register the status FIFO address range. We could use the same FIFO
+	 * for targets at different nodes. However we need different FIFOs per
+	 * target in order to support multi-unit devices. */
+	scsi_id->status_fifo_addr = hpsb_allocate_and_register_addrspace(
+			&sbp2_highlevel, ud->ne->host, &sbp2_ops,
+			sizeof(struct sbp2_status_block), sizeof(quadlet_t),
+			~0ULL, ~0ULL);
+	if (!scsi_id->status_fifo_addr) {
+		SBP2_ERR("failed to allocate status FIFO address range");
+		goto failed_alloc;
+	}
 
 	/* Register our host with the SCSI stack. */
 	scsi_host = scsi_host_alloc(&scsi_driver_template,
@@ -1003,6 +1010,10 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 		SBP2_DMA_FREE("single query logins data");
 	}
 
+	if (scsi_id->status_fifo_addr)
+		hpsb_unregister_addrspace(&sbp2_highlevel, hi->host,
+			scsi_id->status_fifo_addr);
+
 	scsi_id->ud->device.driver_data = NULL;
 
 	SBP2_DEBUG("SBP-2 device removed, SCSI ID = %d", scsi_id->ud->id);
@@ -1081,11 +1092,10 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 		ORB_SET_QUERY_LOGINS_RESP_LENGTH(sizeof(struct sbp2_query_logins_response));
 	SBP2_DEBUG("sbp2_query_logins: reserved_resp_length initialized");
 
-	scsi_id->query_logins_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-						    SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->query_logins_orb->status_FIFO_hi = (ORB_SET_NODE_ID(hi->host->node_id) |
-						     SBP2_STATUS_FIFO_ADDRESS_HI);
-	SBP2_DEBUG("sbp2_query_logins: status FIFO initialized");
+	scsi_id->query_logins_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->query_logins_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	sbp2util_cpu_to_be32_buffer(scsi_id->query_logins_orb, sizeof(struct sbp2_query_logins_orb));
 
@@ -1190,11 +1200,10 @@ static int sbp2_login_device(struct scsi_id_instance_data *scsi_id)
 		ORB_SET_LOGIN_RESP_LENGTH(sizeof(struct sbp2_login_response));
 	SBP2_DEBUG("sbp2_login_device: passwd_resp_lengths initialized");
 
-	scsi_id->login_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-					     SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->login_orb->status_FIFO_hi = (ORB_SET_NODE_ID(hi->host->node_id) |
-					      SBP2_STATUS_FIFO_ADDRESS_HI);
-	SBP2_DEBUG("sbp2_login_device: status FIFO initialized");
+	scsi_id->login_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->login_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	/*
 	 * Byte swap ORB if necessary
@@ -1307,10 +1316,10 @@ static int sbp2_logout_device(struct scsi_id_instance_data *scsi_id)
 	scsi_id->logout_orb->login_ID_misc |= ORB_SET_NOTIFY(1);
 
 	scsi_id->logout_orb->reserved5 = 0x0;
-	scsi_id->logout_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-					      SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->logout_orb->status_FIFO_hi = (ORB_SET_NODE_ID(hi->host->node_id) |
-					       SBP2_STATUS_FIFO_ADDRESS_HI);
+	scsi_id->logout_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->logout_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	/*
 	 * Byte swap ORB if necessary
@@ -1372,10 +1381,10 @@ static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id)
 	scsi_id->reconnect_orb->login_ID_misc |= ORB_SET_NOTIFY(1);
 
 	scsi_id->reconnect_orb->reserved5 = 0x0;
-	scsi_id->reconnect_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-						 SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->reconnect_orb->status_FIFO_hi =
-		(ORB_SET_NODE_ID(hi->host->node_id) | SBP2_STATUS_FIFO_ADDRESS_HI);
+	scsi_id->reconnect_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->reconnect_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	/*
 	 * Byte swap ORB if necessary
@@ -2112,7 +2121,6 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 {
 	struct sbp2scsi_host_info *hi;
 	struct scsi_id_instance_data *scsi_id = NULL, *scsi_id_tmp;
-	u32 id;
 	struct scsi_cmnd *SCpnt = NULL;
 	u32 scsi_status = SBP2_SCSI_STATUS_GOOD;
 	struct sbp2_command_info *command;
@@ -2135,12 +2143,12 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 	}
 
 	/*
-	 * Find our scsi_id structure by looking at the status fifo address written to by
-	 * the sbp2 device.
+	 * Find our scsi_id structure by looking at the status fifo address
+	 * written to by the sbp2 device.
 	 */
-	id = SBP2_STATUS_FIFO_OFFSET_TO_ENTRY((u32)(addr - SBP2_STATUS_FIFO_ADDRESS));
 	list_for_each_entry(scsi_id_tmp, &hi->scsi_ids, scsi_list) {
-		if (scsi_id_tmp->ne->nodeid == nodeid && scsi_id_tmp->ud->id == id) {
+		if (scsi_id_tmp->ne->nodeid == nodeid &&
+		    scsi_id_tmp->status_fifo_addr == addr) {
 			scsi_id = scsi_id_tmp;
 			break;
 		}
