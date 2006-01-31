@@ -19,7 +19,21 @@ struct xt_get_revision
 /* For standard target */
 #define XT_RETURN (-NF_REPEAT - 1)
 
-#define XT_ALIGN(s) (((s) + (__alignof__(u_int64_t)-1)) & ~(__alignof__(u_int64_t)-1))
+/* this is a dummy structure to find out the alignment requirement for a struct
+ * containing all the fundamental data types that are used in ipt_entry,
+ * ip6t_entry and arpt_entry.  This sucks, and it is a hack.  It will be my
+ * personal pleasure to remove it -HW
+ */
+struct _xt_align
+{
+	u_int8_t u8;
+	u_int16_t u16;
+	u_int32_t u32;
+	u_int64_t u64;
+};
+
+#define XT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) 	\
+			& ~(__alignof__(struct _xt_align)-1))
 
 /* Standard return verdict, or do jump. */
 #define XT_STANDARD_TARGET ""

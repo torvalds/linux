@@ -230,7 +230,6 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 				tp->snd_cwnd++;
 			tp->snd_cwnd_cnt = 0;
-			ca->ccount++;
 		}
 	}
 }

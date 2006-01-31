@@ -64,7 +64,7 @@ static inline void *load_pointer(struct sk_buff *skb, int k,
 }
 
 /**
- *	sk_run_filter	- 	run a filter on a socket
+ *	sk_run_filter - run a filter on a socket
  *	@skb: buffer to run the filter on
  *	@filter: filter to apply
  *	@flen: length of filter
@@ -78,8 +78,8 @@ unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int 
 {
 	struct sock_filter *fentry;	/* We walk down these */
 	void *ptr;
-	u32 A = 0;	   		/* Accumulator */
-	u32 X = 0;   			/* Index Register */
+	u32 A = 0;			/* Accumulator */
+	u32 X = 0;			/* Index Register */
 	u32 mem[BPF_MEMWORDS];		/* Scratch Memory Store */
 	u32 tmp;
 	int k;

@@ -365,7 +365,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 */
 	 
 	err = -EMSGSIZE;
- 	if(len>dev->mtu+dev->hard_header_len)
+	if (len > dev->mtu + dev->hard_header_len)
 		goto out_unlock;
 
 	err = -ENOBUFS;
@@ -935,7 +935,7 @@ static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr, int add
 	 *	Check legality
 	 */
 	 
-	if(addr_len!=sizeof(struct sockaddr))
+	if (addr_len != sizeof(struct sockaddr))
 		return -EINVAL;
 	strlcpy(name,uaddr->sa_data,sizeof(name));
 
@@ -1092,7 +1092,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	 *	retries.
 	 */
 
-	if(skb==NULL)
+	if (skb == NULL)
 		goto out;
 
 	/*
@@ -1392,8 +1392,8 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 	if (level != SOL_PACKET)
 		return -ENOPROTOOPT;
 
-  	if (get_user(len,optlen))
-  		return -EFAULT;
+	if (get_user(len, optlen))
+		return -EFAULT;
 
 	if (len < 0)
 		return -EINVAL;
@@ -1419,9 +1419,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		return -ENOPROTOOPT;
 	}
 
-  	if (put_user(len, optlen))
-  		return -EFAULT;
-  	return 0;
+	if (put_user(len, optlen))
+		return -EFAULT;
+	return 0;
 }
 
 

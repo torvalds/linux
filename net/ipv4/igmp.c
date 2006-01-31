@@ -970,7 +970,6 @@ int igmp_rcv(struct sk_buff *skb)
 	case IGMP_MTRACE_RESP:
 		break;
 	default:
-		NETDEBUG(KERN_DEBUG "New IGMP type=%d, why we do not know about it?\n", ih->type);
 	}
 
 drop:
