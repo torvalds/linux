@@ -675,6 +675,9 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 
 		if (duplex == DUPLEX_HALF)
 			auto_nego &= ~(PHY_Cap_10_Full | PHY_Cap_100_Full);
+
+		if (duplex == DUPLEX_FULL)
+			auto_nego &= ~(PHY_Cap_10_Half | PHY_Cap_100_Half);
 	}
 
 	tp->phy_auto_nego_reg = auto_nego;
