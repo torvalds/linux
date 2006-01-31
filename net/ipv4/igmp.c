@@ -970,6 +970,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case IGMP_MTRACE_RESP:
 		break;
 	default:
+		break;
 	}
 
 drop:
