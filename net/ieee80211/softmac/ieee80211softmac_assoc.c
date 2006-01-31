@@ -1,11 +1,11 @@
 /*
  * This file contains the softmac's association logic.
  *
- * Copyright (c) 2005 Johannes Berg <johannes@sipsolutions.net>
- *                    Joseph Jezak <josejx@gentoo.org>
- *                    Larry Finger <Larry.Finger@lwfinger.net>
- *                    Danny van Dyk <kugelfang@gentoo.org>
- *                    Michael Buesch <mbuesch@freenet.de>
+ * Copyright (c) 2005, 2006 Johannes Berg <johannes@sipsolutions.net>
+ *                          Joseph Jezak <josejx@gentoo.org>
+ *                          Larry Finger <Larry.Finger@lwfinger.net>
+ *                          Danny van Dyk <kugelfang@gentoo.org>
+ *                          Michael Buesch <mbuesch@freenet.de>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
