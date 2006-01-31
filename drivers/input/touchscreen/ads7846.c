@@ -29,9 +29,6 @@
 #ifdef	CONFIG_ARCH_OMAP
 #include <asm/arch/gpio.h>
 #endif
-
-#else
-#define	set_irq_type(irq,type)	do{}while(0)
 #endif
 
 
@@ -509,14 +506,14 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->msg.complete = ads7846_rx;
 	ts->msg.context = ts;
 
-	if (request_irq(spi->irq, ads7846_irq, SA_SAMPLE_RANDOM,
-				spi->dev.bus_id, ts)) {
+	if (request_irq(spi->irq, ads7846_irq,
+			SA_SAMPLE_RANDOM | SA_TRIGGER_FALLING,
+			spi->dev.bus_id, ts)) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		input_unregister_device(&ts->input);
 		kfree(ts);
 		return -EBUSY;
 	}
-	set_irq_type(spi->irq, IRQT_FALLING);
 
 	dev_info(&spi->dev, "touchscreen, irq %d\n", spi->irq);
 
