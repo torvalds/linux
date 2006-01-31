@@ -304,6 +304,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
  * blk_queue_ordered - does this queue support ordered writes
  * @q:        the request queue
  * @ordered:  one of QUEUE_ORDERED_*
+ * @prepare_flush_fn: rq setup helper for cache flush ordered writes
  *
  * Description:
  *   For journalled file systems, doing ordered writes on a commit
@@ -2633,6 +2634,7 @@ EXPORT_SYMBOL(blk_put_request);
 /**
  * blk_end_sync_rq - executes a completion event on a request
  * @rq: request to complete
+ * @error: end io status of the request
  */
 void blk_end_sync_rq(struct request *rq, int error)
 {
