@@ -481,7 +481,7 @@ retry:
 		if (wdata->verf.committed != NFS_FILE_SYNC) {
 			need_commit = 1;
 			if (memcmp(&first_verf.verifier, &wdata->verf.verifier,
-					sizeof(first_verf.verifier)));
+					sizeof(first_verf.verifier)))
 				goto sync_retry;
 		}
 
