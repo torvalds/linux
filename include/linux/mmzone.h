@@ -98,11 +98,14 @@ struct per_cpu_pageset {
  * of three zone modifier bits, we could require up to eight zonelists.
  * If the left most zone modifier is a "loner" then the highest valid
  * zonelist would be four allowing us to allocate only five zonelists.
+ * Use the first form for GFP_ZONETYPES when the left most bit is not
+ * a "loner", otherwise use the second.
  *
  * NOTE! Make sure this matches the zones in <linux/gfp.h>
  */
 #define GFP_ZONEMASK	0x07
-#define GFP_ZONETYPES	5
+/* #define GFP_ZONETYPES       (GFP_ZONEMASK + 1) */           /* Non-loner */
+#define GFP_ZONETYPES  ((GFP_ZONEMASK + 1) / 2 + 1)            /* Loner */
 
 /*
  * On machines where it is needed (eg PCs) we divide physical memory
