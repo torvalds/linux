@@ -792,6 +792,9 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	if (!s->valid)
 		return -EIO;
 
+	if (unlikely(bio_barrier(bio)))
+		return -EOPNOTSUPP;
+
 	/*
 	 * Write to snapshot - higher level takes care of RW/RO
 	 * flags so we should only get this if we are
@@ -1057,6 +1060,9 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 {
 	struct dm_dev *dev = (struct dm_dev *) ti->private;
 	bio->bi_bdev = dev->bdev;
+
+	if (unlikely(bio_barrier(bio)))
+		return -EOPNOTSUPP;
 
 	/* Only tell snapshots if this is a write */
 	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : 1;
