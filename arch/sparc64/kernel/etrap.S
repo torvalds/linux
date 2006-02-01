@@ -100,7 +100,7 @@ etrap_irq:
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
 		wrpr	%g0, ETRAP_PSTATE2, %pstate
 		mov	%l6, %g6
-		LOAD_PER_CPU_BASE(%g4, %g3)
+		LOAD_PER_CPU_BASE(%g4, %g3, %l1)
 		jmpl	%l2 + 0x4, %g0
 		 ldx	[%g6 + TI_TASK], %g4
 
@@ -250,7 +250,7 @@ scetrap:
 		stx	%i6, [%sp + PTREGS_OFF + PT_V9_I6]
 		mov	%l6, %g6
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
-		LOAD_PER_CPU_BASE(%g4, %g3)
+		LOAD_PER_CPU_BASE(%g4, %g3, %l1)
 		ldx	[%g6 + TI_TASK], %g4
 		done
 

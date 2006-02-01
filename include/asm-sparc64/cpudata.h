@@ -101,20 +101,25 @@ extern void setup_tba(void);
 	ldx	[%g1 + %g6], %g6;
 
 /* Given the current thread info pointer in %g6, load the per-cpu
- * area base of the current processor into %g5.  REG1 and REG2 are
+ * area base of the current processor into %g5.  REG1, REG2, and REG3 are
  * clobbered.
+ *
+ * You absolutely cannot use %g5 as a temporary in this code.  The
+ * reason is that traps can happen during execution, and return from
+ * trap will load the fully resolved %g5 per-cpu base.  This can corrupt
+ * the calculations done by the macro mid-stream.
  */
 #ifdef CONFIG_SMP
-#define LOAD_PER_CPU_BASE(REG1, REG2)			\
+#define LOAD_PER_CPU_BASE(REG1, REG2, REG3)		\
 	ldub	[%g6 + TI_CPU], REG1;			\
-	sethi	%hi(__per_cpu_shift), %g5;		\
+	sethi	%hi(__per_cpu_shift), REG3;		\
 	sethi	%hi(__per_cpu_base), REG2;		\
-	ldx	[%g5 + %lo(__per_cpu_shift)], %g5;	\
+	ldx	[REG3 + %lo(__per_cpu_shift)], REG3;	\
 	ldx	[REG2 + %lo(__per_cpu_base)], REG2;	\
-	sllx	REG1, %g5, %g5;				\
-	add	%g5, REG2, %g5;
+	sllx	REG1, REG3, REG3;			\
+	add	REG3, REG2, %g5;
 #else
-#define LOAD_PER_CPU_BASE(REG1, REG2)
+#define LOAD_PER_CPU_BASE(REG1, REG2, REG3)
 #endif
 
 #endif /* _SPARC64_CPUDATA_H */

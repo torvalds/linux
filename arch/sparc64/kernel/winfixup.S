@@ -86,7 +86,7 @@ fill_fixup:
 	wrpr		%l1, (PSTATE_IE | PSTATE_AG | PSTATE_RMO), %pstate
 	mov		%o7, %g6
 	ldx		[%g6 + TI_TASK], %g4
-	LOAD_PER_CPU_BASE(%g1, %g2)
+	LOAD_PER_CPU_BASE(%g1, %g2, %g3)
 
 	/* This is the same as below, except we handle this a bit special
 	 * since we must preserve %l5 and %l6, see comment above.
@@ -209,7 +209,7 @@ fill_fixup_mna:
 	wrpr		%l1, (PSTATE_IE | PSTATE_AG | PSTATE_RMO), %pstate
 	mov		%o7, %g6			! Get current back.
 	ldx		[%g6 + TI_TASK], %g4		! Finish it.
-	LOAD_PER_CPU_BASE(%g1, %g2)
+	LOAD_PER_CPU_BASE(%g1, %g2, %g3)
 	call		mem_address_unaligned
 	 add		%sp, PTREGS_OFF, %o0
 
@@ -312,7 +312,7 @@ fill_fixup_dax:
 	wrpr		%l1, (PSTATE_IE | PSTATE_AG | PSTATE_RMO), %pstate
 	mov		%o7, %g6			! Get current back.
 	ldx		[%g6 + TI_TASK], %g4		! Finish it.
-	LOAD_PER_CPU_BASE(%g1, %g2)
+	LOAD_PER_CPU_BASE(%g1, %g2, %g3)
 	call		spitfire_data_access_exception
 	 add		%sp, PTREGS_OFF, %o0
 
