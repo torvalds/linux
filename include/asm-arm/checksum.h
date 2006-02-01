@@ -77,7 +77,7 @@ ip_fast_csum(unsigned char * iph, unsigned int ihl)
 	mov	%0, %0, lsr #16"
 	: "=r" (sum), "=r" (iph), "=r" (ihl), "=r" (tmp1)
 	: "1" (iph), "2" (ihl)
-	: "cc");
+	: "cc", "memory");
 	return sum;
 }
 
