@@ -1845,7 +1845,6 @@ void __init tcp_v4_init(struct net_proto_family *ops)
 }
 
 EXPORT_SYMBOL(ipv4_specific);
-EXPORT_SYMBOL(inet_bind_bucket_create);
 EXPORT_SYMBOL(tcp_hashinfo);
 EXPORT_SYMBOL(tcp_prot);
 EXPORT_SYMBOL(tcp_unhash);
