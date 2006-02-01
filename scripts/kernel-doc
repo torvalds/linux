@@ -45,7 +45,7 @@ use strict;
 # Note: This only supports 'c'.
 
 # usage:
-# kerneldoc [ -docbook | -html | -text | -man ]
+# kernel-doc [ -docbook | -html | -text | -man ]
 #           [ -function funcname [ -function funcname ...] ] c file(s)s > outputfile
 # or
 #           [ -nofunction funcname [ -function funcname ...] ] c file(s)s > outputfile
@@ -59,7 +59,7 @@ use strict;
 #  -nofunction funcname
 #	If set, then only generate documentation for the other function(s).  All
 #	other functions are ignored. Cannot be used with -function together
-#	(yes thats a bug - perl hackers can fix it 8))
+#	(yes, that's a bug -- perl hackers can fix it 8))
 #
 #  c files - list of 'c' files to process
 #
@@ -434,7 +434,7 @@ sub output_enum_html(%) {
     print "<hr>\n";
 }
 
-# output tyepdef in html
+# output typedef in html
 sub output_typedef_html(%) {
     my %args = %{$_[0]};
     my ($parameter);
