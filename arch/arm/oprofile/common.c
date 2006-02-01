@@ -137,8 +137,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	if (spec) {
 		init_MUTEX(&op_arm_sem);
 
-		if (spec->init() < 0)
-			return -ENODEV;
+		ret = spec->init();
+		if (ret < 0)
+			return ret;
 
 		op_arm_model = spec;
 		init_driverfs();
