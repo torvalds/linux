@@ -19,36 +19,8 @@ extern unsigned long tlb_context_cache;
 extern unsigned long mmu_context_bmap[];
 
 extern void get_new_mmu_context(struct mm_struct *mm);
-
-/* Initialize a new mmu context.  This is invoked when a new
- * address space instance (unique or shared) is instantiated.
- * This just needs to set mm->context to an invalid context.
- */
-#define init_new_context(__tsk, __mm)	\
-({	unsigned long __pg = get_zeroed_page(GFP_KERNEL); \
-	(__mm)->context.sparc64_ctx_val = 0UL; \
-	(__mm)->context.sparc64_tsb = \
-	  (unsigned long *) __pg; \
-	(__pg ? 0 : -ENOMEM); \
-})
-
-
-/* Destroy a dead context.  This occurs when mmput drops the
- * mm_users count to zero, the mmaps have been released, and
- * all the page tables have been flushed.  Our job is to destroy
- * any remaining processor-specific state, and in the sparc64
- * case this just means freeing up the mmu context ID held by
- * this task if valid.
- */
-#define destroy_context(__mm)					\
-do {	free_page((unsigned long)(__mm)->context.sparc64_tsb);	\
-	spin_lock(&ctx_alloc_lock);				\
-	if (CTX_VALID((__mm)->context)) {			\
-		unsigned long nr = CTX_NRBITS((__mm)->context);	\
-		mmu_context_bmap[nr>>6] &= ~(1UL << (nr & 63));	\
-	}							\
-	spin_unlock(&ctx_alloc_lock);				\
-} while(0)
+extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+extern void destroy_context(struct mm_struct *mm);
 
 extern unsigned long tsb_context_switch(unsigned long pgd_pa, unsigned long *tsb);
 

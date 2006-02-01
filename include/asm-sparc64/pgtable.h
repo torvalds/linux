@@ -116,6 +116,10 @@
 #define _PAGE_W		_AC(0x0000000000000002,UL) /* Writable               */
 #define _PAGE_G		_AC(0x0000000000000001,UL) /* Global                 */
 
+#define _PAGE_ALL_SZ_BITS	\
+	(_PAGE_SZ4MB | _PAGE_SZ512K | _PAGE_SZ64K | \
+	 _PAGE_SZ8K  | _PAGE_SZ32MB | _PAGE_SZ256MB)
+
 /* Here are the SpitFire software bits we use in the TTE's.
  *
  * WARNING: If you are going to try and start using some

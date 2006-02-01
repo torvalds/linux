@@ -55,6 +55,17 @@ tsb_reload:
 	brgez,a,pn	%g5, tsb_do_fault
 	 stx		%g0, [%g1]
 
+	/* If it is larger than the base page size, don't
+	 * bother putting it into the TSB.
+	 */
+	srlx		%g5, 32, %g2
+	sethi		%hi(_PAGE_ALL_SZ_BITS >> 32), %g4
+	sethi		%hi(_PAGE_SZBITS >> 32), %g7
+	and		%g2, %g4, %g2
+	cmp		%g2, %g7
+	bne,a,pn	%xcc, tsb_tlb_reload
+	 stx		%g0, [%g1]
+
 	TSB_WRITE(%g1, %g5, %g6)
 
 	/* Finally, load TLB and return from trap.  */
