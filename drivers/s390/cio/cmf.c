@@ -1,5 +1,5 @@
 /*
- * linux/drivers/s390/cio/cmf.c ($Revision: 1.19 $)
+ * linux/drivers/s390/cio/cmf.c
  *
  * Linux on zSeries Channel Measurement Facility support
  *

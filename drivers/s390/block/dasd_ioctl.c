@@ -7,8 +7,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.50 $
- *
  * i/o controls for the dasd driver.
  */
 #include <linux/config.h>

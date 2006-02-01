@@ -56,8 +56,6 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-#define VERSION_QDIO_C "$Revision: 1.117 $"
-
 /****************** MODULE PARAMETER VARIABLES ********************/
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
 MODULE_DESCRIPTION("QDIO base support version 2, " \
@@ -66,8 +64,7 @@ MODULE_LICENSE("GPL");
 
 /******************** HERE WE GO ***********************************/
 
-static const char version[] = "QDIO base support version 2 ("
-	VERSION_QDIO_C "/" VERSION_QDIO_H  "/" VERSION_CIO_QDIO_H ")";
+static const char version[] = "QDIO base support version 2";
 
 #ifdef QDIO_PERFORMANCE_STATS
 static int proc_perf_file_registration;

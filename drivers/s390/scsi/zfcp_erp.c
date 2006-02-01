@@ -31,8 +31,6 @@
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_ERP
 
-#define ZFCP_ERP_REVISION "$Revision: 1.86 $"
-
 #include "zfcp_ext.h"
 
 static int zfcp_erp_adisc(struct zfcp_port *);

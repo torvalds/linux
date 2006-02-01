@@ -2,8 +2,6 @@
  *  drivers/s390/net/claw.c
  *    ESCON CLAW network driver
  *
- *    $Revision: 1.38 $ $Date: 2005/08/29 09:47:04 $
- *
  *  Linux for zSeries version
  *    Copyright (C) 2002,2005 IBM Corporation
  *  Author(s) Original code written by:
@@ -4391,14 +4389,7 @@ static int __init
 claw_init(void)
 {
 	int ret = 0;
-       printk(KERN_INFO "claw: starting driver "
-#ifdef MODULE
-                "module "
-#else
-                "compiled into kernel "
-#endif
-                " $Revision: 1.38 $ $Date: 2005/08/29 09:47:04 $ \n");
-
+	printk(KERN_INFO "claw: starting driver\n");
 
 #ifdef FUNCTRACE
         printk(KERN_INFO "claw: %s() enter \n",__FUNCTION__);

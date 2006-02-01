@@ -11,7 +11,6 @@
  * functions may not be called from interrupt context. In particular
  * dasd_get_device is a no-no from interrupt context.
  *
- * $Revision: 1.43 $
  */
 
 #include <linux/config.h>

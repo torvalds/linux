@@ -12,11 +12,6 @@
 #ifndef __QETH_FS_H__
 #define __QETH_FS_H__
 
-#define VERSION_QETH_FS_H "$Revision: 1.10 $"
-
-extern const char *VERSION_QETH_PROC_C;
-extern const char *VERSION_QETH_SYS_C;
-
 #ifdef CONFIG_PROC_FS
 extern int
 qeth_create_procfs_entries(void);

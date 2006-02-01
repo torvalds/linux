@@ -32,8 +32,6 @@
 #ifndef ZFCP_EXT_H
 #define ZFCP_EXT_H
 
-#define ZFCP_EXT_REVISION "$Revision: 1.62 $"
-
 #include "zfcp_def.h"
 
 extern struct zfcp_data zfcp_data;
