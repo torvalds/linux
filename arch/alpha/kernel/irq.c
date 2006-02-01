@@ -68,34 +68,32 @@ show_interrupts(struct seq_file *p, void *v)
 #ifdef CONFIG_SMP
 	int j;
 #endif
-	int i = *(loff_t *) v;
+	int irq = *(loff_t *) v;
 	struct irqaction * action;
 	unsigned long flags;
 
 #ifdef CONFIG_SMP
-	if (i == 0) {
+	if (irq == 0) {
 		seq_puts(p, "           ");
-		for (i = 0; i < NR_CPUS; i++)
-			if (cpu_online(i))
-				seq_printf(p, "CPU%d       ", i);
+		for_each_online_cpu(j)
+			seq_printf(p, "CPU%d       ", j);
 		seq_putc(p, '\n');
 	}
 #endif
 
-	if (i < ACTUAL_NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+	if (irq < ACTUAL_NR_IRQS) {
+		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		action = irq_desc[irq].action;
 		if (!action) 
 			goto unlock;
-		seq_printf(p, "%3d: ",i);
+		seq_printf(p, "%3d: ", irq);
 #ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
+		seq_printf(p, "%10u ", kstat_irqs(irq));
 #else
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j))
-				seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", kstat_cpu(j).irqs[irq]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[irq].handler->typename);
 		seq_printf(p, "  %c%s",
 			(action->flags & SA_INTERRUPT)?'+':' ',
 			action->name);
@@ -108,20 +106,18 @@ show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 unlock:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == ACTUAL_NR_IRQS) {
+		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+	} else if (irq == ACTUAL_NR_IRQS) {
 #ifdef CONFIG_SMP
 		seq_puts(p, "IPI: ");
-		for (i = 0; i < NR_CPUS; i++)
-			if (cpu_online(i))
-				seq_printf(p, "%10lu ", cpu_data[i].ipi_count);
+		for_each_online_cpu(j)
+			seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
 		seq_putc(p, '\n');
 #endif
 		seq_printf(p, "ERR: %10lu\n", irq_err_count);
 	}
 	return 0;
 }
-
 
 /*
  * handle_irq handles all normal device IRQ's (the special
