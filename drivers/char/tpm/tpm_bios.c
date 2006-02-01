@@ -220,8 +220,8 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 		}
 		break;
 	case EVENT_TAG:
-		event_id = be32_to_cpu(event_entry);
-		event_data_size = be32_to_cpu(&event_entry[4]);
+		event_id = be32_to_cpu(*((u32 *)event_entry));
+		event_data_size = be32_to_cpu(((u32 *)event_entry)[1]);
 
 		/* ToDo Row data -> Base64 */
 
