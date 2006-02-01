@@ -50,6 +50,7 @@ struct rpc_cred {
 };
 #define RPCAUTH_CRED_LOCKED	0x0001
 #define RPCAUTH_CRED_UPTODATE	0x0002
+#define RPCAUTH_CRED_NEW	0x0004
 
 #define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 
@@ -86,6 +87,10 @@ struct rpc_auth {
 #define RPC_AUTH_PROC_CREDS	0x0010		/* process creds (including
 						 * uid/gid, fs[ug]id, gids)
 						 */
+
+/* Flags for rpcauth_lookupcred() */
+#define RPCAUTH_LOOKUP_NEW		0x01	/* Accept an uninitialised cred */
+#define RPCAUTH_LOOKUP_ROOTCREDS	0x02	/* This really ought to go! */
 
 /*
  * Client authentication ops
