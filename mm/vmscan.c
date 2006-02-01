@@ -492,7 +492,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 				goto keep_locked;
 			if (!may_enter_fs)
 				goto keep_locked;
-			if (laptop_mode && !sc->may_writepage)
+			if (!sc->may_writepage)
 				goto keep_locked;
 
 			/* Page is dirty, try to write it out here */
@@ -1170,7 +1170,7 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 	int i;
 
 	sc.gfp_mask = gfp_mask;
-	sc.may_writepage = 0;
+	sc.may_writepage = !laptop_mode;
 	sc.may_swap = 1;
 
 	inc_page_state(allocstall);
@@ -1273,7 +1273,7 @@ loop_again:
 	total_scanned = 0;
 	total_reclaimed = 0;
 	sc.gfp_mask = GFP_KERNEL;
-	sc.may_writepage = 0;
+	sc.may_writepage = !laptop_mode;
 	sc.may_swap = 1;
 	sc.nr_mapped = read_page_state(nr_mapped);
 
