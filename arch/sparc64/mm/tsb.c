@@ -184,7 +184,7 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
 			: "=r" (tag), "=r" (pte)
 			: "r" (&old_tsb[i]), "i" (ASI_NUCLEUS_QUAD_LDD));
 
-		if (!tag || (tag & TSB_TAG_LOCK))
+		if (!tag || (tag & (1UL << TSB_TAG_LOCK_BIT)))
 			continue;
 
 		/* We only put base page size PTEs into the TSB,

@@ -47,13 +47,14 @@
  * possible solution is to use RCU for the freeing of the TSB.
  */
 
-#define TSB_TAG_LOCK	(1 << (47 - 32))
+#define TSB_TAG_LOCK_BIT	47
+#define TSB_TAG_LOCK_HIGH	(1 << (TSB_TAG_LOCK_BIT - 32))
 
 #define TSB_MEMBAR	membar	#StoreStore
 
 #define TSB_LOCK_TAG(TSB, REG1, REG2)	\
 99:	lduwa	[TSB] ASI_N, REG1;	\
-	sethi	%hi(TSB_TAG_LOCK), REG2;\
+	sethi	%hi(TSB_TAG_LOCK_HIGH), REG2;\
 	andcc	REG1, REG2, %g0;	\
 	bne,pn	%icc, 99b;		\
 	 nop;				\
