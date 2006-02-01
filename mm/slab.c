@@ -1398,7 +1398,7 @@ static void check_poison_obj(kmem_cache_t *cachep, void *objp)
 		struct slab *slabp = page_get_slab(virt_to_page(objp));
 		int objnr;
 
-		objnr = (objp - slabp->s_mem) / cachep->objsize;
+		objnr = (unsigned)(objp - slabp->s_mem) / cachep->objsize;
 		if (objnr) {
 			objp = slabp->s_mem + (objnr - 1) * cachep->objsize;
 			realobj = (char *)objp + obj_dbghead(cachep);
@@ -2341,7 +2341,7 @@ static void *cache_free_debugcheck(kmem_cache_t *cachep, void *objp,
 	if (cachep->flags & SLAB_STORE_USER)
 		*dbg_userword(cachep, objp) = caller;
 
-	objnr = (objp - slabp->s_mem) / cachep->objsize;
+	objnr = (unsigned)(objp - slabp->s_mem) / cachep->objsize;
 
 	BUG_ON(objnr >= cachep->num);
 	BUG_ON(objp != slabp->s_mem + objnr * cachep->objsize);
@@ -2699,7 +2699,7 @@ static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects,
 		slabp = page_get_slab(virt_to_page(objp));
 		l3 = cachep->nodelists[node];
 		list_del(&slabp->list);
-		objnr = (objp - slabp->s_mem) / cachep->objsize;
+		objnr = (unsigned)(objp - slabp->s_mem) / cachep->objsize;
 		check_spinlock_acquired_node(cachep, node);
 		check_slabp(cachep, slabp);
 
