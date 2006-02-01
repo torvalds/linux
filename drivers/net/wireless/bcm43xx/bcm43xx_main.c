@@ -2229,9 +2229,9 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 	return IRQ_HANDLED;
 }
 
-static void bcm43xx_release_firmware(struct bcm43xx_private *bcm)
+static void bcm43xx_release_firmware(struct bcm43xx_private *bcm, int force)
 {
-	if (bcm->firmware_norelease)
+	if (bcm->firmware_norelease && !force)
 		return; /* Suspending or controller reset. */
 	release_firmware(bcm->ucode);
 	bcm->ucode = NULL;
@@ -2361,7 +2361,7 @@ static int bcm43xx_request_firmware(struct bcm43xx_private *bcm)
 out:
 	return err;
 error:
-	bcm43xx_release_firmware(bcm);
+	bcm43xx_release_firmware(bcm, 1);
 	goto out;
 err_noinitval:
 	printk(KERN_ERR PFX "Error: No InitVals available!\n");
@@ -2409,9 +2409,9 @@ static void bcm43xx_upload_microcode(struct bcm43xx_private *bcm)
 #endif
 }
 
-static void bcm43xx_write_initvals(struct bcm43xx_private *bcm,
-				   const struct bcm43xx_initval *data,
-				   const unsigned int len)
+static int bcm43xx_write_initvals(struct bcm43xx_private *bcm,
+				  const struct bcm43xx_initval *data,
+				  const unsigned int len)
 {
 	u16 offset, size;
 	u32 value;
@@ -2422,35 +2422,54 @@ static void bcm43xx_write_initvals(struct bcm43xx_private *bcm,
 		size = be16_to_cpu(data[i].size);
 		value = be32_to_cpu(data[i].value);
 
-		if (size == 2)
-			bcm43xx_write16(bcm, offset, value);
-		else if (size == 4)
+		if (unlikely(offset >= 0x1000))
+			goto err_format;
+		if (size == 2) {
+			if (unlikely(value & 0xFFFF0000))
+				goto err_format;
+			bcm43xx_write16(bcm, offset, (u16)value);
+		} else if (size == 4) {
 			bcm43xx_write32(bcm, offset, value);
-		else
-			printk(KERN_ERR PFX "InitVals fileformat error.\n");
+		} else
+			goto err_format;
 	}
+
+	return 0;
+
+err_format:
+	printk(KERN_ERR PFX "InitVals (bcm43xx_initvalXX.fw) file-format error. "
+			    "Please fix your bcm43xx firmware files.\n");
+	return -EPROTO;
 }
 
-static void bcm43xx_upload_initvals(struct bcm43xx_private *bcm)
+static int bcm43xx_upload_initvals(struct bcm43xx_private *bcm)
 {
+	int err;
+
 #ifdef DEBUG_ENABLE_UCODE_MMIO_PRINT
 	bcm43xx_mmioprint_enable(bcm);
 #else
 	bcm43xx_mmioprint_disable(bcm);
 #endif
 
-	bcm43xx_write_initvals(bcm, (struct bcm43xx_initval *)bcm->initvals0->data,
-			       bcm->initvals0->size / sizeof(struct bcm43xx_initval));
+	err = bcm43xx_write_initvals(bcm, (struct bcm43xx_initval *)bcm->initvals0->data,
+				     bcm->initvals0->size / sizeof(struct bcm43xx_initval));
+	if (err)
+		goto out;
 	if (bcm->initvals1) {
-		bcm43xx_write_initvals(bcm, (struct bcm43xx_initval *)bcm->initvals1->data,
-				       bcm->initvals1->size / sizeof(struct bcm43xx_initval));
+		err = bcm43xx_write_initvals(bcm, (struct bcm43xx_initval *)bcm->initvals1->data,
+					     bcm->initvals1->size / sizeof(struct bcm43xx_initval));
+		if (err)
+			goto out;
 	}
 
+out:
 #ifdef DEBUG_ENABLE_UCODE_MMIO_PRINT
 	bcm43xx_mmioprint_disable(bcm);
 #else
 	bcm43xx_mmioprint_enable(bcm);
 #endif
+	return err;
 }
 
 static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
@@ -2683,7 +2702,7 @@ static void bcm43xx_chip_cleanup(struct bcm43xx_private *bcm)
 		bcm43xx_leds_exit(bcm);
 	bcm43xx_gpio_cleanup(bcm);
 	free_irq(bcm->irq, bcm);
-	bcm43xx_release_firmware(bcm);
+	bcm43xx_release_firmware(bcm, 0);
 }
 
 /* Initialize the chip
@@ -2708,13 +2727,15 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 
 	err = bcm43xx_initialize_irq(bcm);
 	if (err)
-		goto out;
+		goto err_release_fw;
 
 	err = bcm43xx_gpio_init(bcm);
 	if (err)
 		goto err_free_irq;
 
-	bcm43xx_upload_initvals(bcm);
+	err = bcm43xx_upload_initvals(bcm);
+	if (err)
+		goto err_gpio_cleanup;
 	bcm43xx_radio_turn_on(bcm);
 
 	if (modparam_noleds)
@@ -2813,9 +2834,12 @@ out:
 
 err_radio_off:
 	bcm43xx_radio_turn_off(bcm);
+err_gpio_cleanup:
 	bcm43xx_gpio_cleanup(bcm);
 err_free_irq:
 	free_irq(bcm->irq, bcm);
+err_release_fw:
+	bcm43xx_release_firmware(bcm, 1);
 	goto out;
 }
 	
