@@ -1892,8 +1892,8 @@ int usb_resume_device(struct usb_device *udev)
 			status = hub_port_resume(hdev_to_hub(udev->parent),
 					udev->portnum, udev);
 		} else
-			status = 0;
 #endif
+			status = 0;
 	} else
 		status = finish_device_resume(udev);
 	if (status < 0)
