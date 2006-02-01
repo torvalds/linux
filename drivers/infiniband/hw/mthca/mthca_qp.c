@@ -2182,8 +2182,8 @@ out:
 	return err;
 }
 
-int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
-		       int index, int *dbd, __be32 *new_wqe)
+void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
+			int index, int *dbd, __be32 *new_wqe)
 {
 	struct mthca_next_seg *next;
 
@@ -2193,7 +2193,7 @@ int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 	 */
 	if (qp->ibqp.srq) {
 		*new_wqe = 0;
-		return 0;
+		return;
 	}
 
 	if (is_send)
@@ -2207,8 +2207,6 @@ int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 			(next->ee_nds & cpu_to_be32(0x3f));
 	else
 		*new_wqe = 0;
-
-	return 0;
 }
 
 int __devinit mthca_init_qp_table(struct mthca_dev *dev)

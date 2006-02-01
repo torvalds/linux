@@ -324,12 +324,11 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 		wake_up(&cq->wait);
 }
 
-static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
-			    struct mthca_qp *qp, int wqe_index, int is_send,
-			    struct mthca_err_cqe *cqe,
-			    struct ib_wc *entry, int *free_cqe)
+static void handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
+			     struct mthca_qp *qp, int wqe_index, int is_send,
+			     struct mthca_err_cqe *cqe,
+			     struct ib_wc *entry, int *free_cqe)
 {
-	int err;
 	int dbd;
 	__be32 new_wqe;
 
@@ -412,11 +411,9 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	 * error case, so we don't have to check the doorbell count, etc.
 	 */
 	if (mthca_is_memfree(dev))
-		return 0;
+		return;
 
-	err = mthca_free_err_wqe(dev, qp, is_send, wqe_index, &dbd, &new_wqe);
-	if (err)
-		return err;
+	mthca_free_err_wqe(dev, qp, is_send, wqe_index, &dbd, &new_wqe);
 
 	/*
 	 * If we're at the end of the WQE chain, or we've used up our
@@ -424,15 +421,13 @@ static int handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	 * the next poll operation.
 	 */
 	if (!(new_wqe & cpu_to_be32(0x3f)) || (!cqe->db_cnt && dbd))
-		return 0;
+		return;
 
 	cqe->db_cnt   = cpu_to_be16(be16_to_cpu(cqe->db_cnt) - dbd);
 	cqe->wqe      = new_wqe;
 	cqe->syndrome = SYNDROME_WR_FLUSH_ERR;
 
 	*free_cqe = 0;
-
-	return 0;
 }
 
 static inline int mthca_poll_one(struct mthca_dev *dev,
@@ -518,9 +513,9 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 	}
 
 	if (is_error) {
-		err = handle_error_cqe(dev, cq, *cur_qp, wqe_index, is_send,
-				       (struct mthca_err_cqe *) cqe,
-				       entry, &free_cqe);
+		handle_error_cqe(dev, cq, *cur_qp, wqe_index, is_send,
+				 (struct mthca_err_cqe *) cqe,
+				 entry, &free_cqe);
 		goto out;
 	}
 

@@ -495,8 +495,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			  struct ib_send_wr **bad_wr);
 int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			     struct ib_recv_wr **bad_wr);
-int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
-		       int index, int *dbd, __be32 *new_wqe);
+void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
+			int index, int *dbd, __be32 *new_wqe);
 int mthca_alloc_qp(struct mthca_dev *dev,
 		   struct mthca_pd *pd,
 		   struct mthca_cq *send_cq,
