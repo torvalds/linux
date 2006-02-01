@@ -696,8 +696,6 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	u8 status;
 	int i;
 
-	might_sleep();
-
 	cq->ibcq.cqe  = nent - 1;
 	cq->is_kernel = !ctx;
 
@@ -826,8 +824,6 @@ void mthca_free_cq(struct mthca_dev *dev,
 	struct mthca_mailbox *mailbox;
 	int err;
 	u8 status;
-
-	might_sleep();
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox)) {

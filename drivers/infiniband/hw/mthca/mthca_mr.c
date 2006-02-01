@@ -340,8 +340,6 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 	int err;
 	u8 status;
 
-	might_sleep();
-
 	WARN_ON(buffer_size_shift >= 32);
 
 	key = mthca_alloc(&dev->mr_table.mpt_alloc);
@@ -467,8 +465,6 @@ void mthca_free_mr(struct mthca_dev *dev, struct mthca_mr *mr)
 	int err;
 	u8 status;
 
-	might_sleep();
-
 	err = mthca_HW2SW_MPT(dev, NULL,
 			      key_to_hw_index(dev, mr->ibmr.lkey) &
 			      (dev->limits.num_mpts - 1),
@@ -494,8 +490,6 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	int list_len = mr->attr.max_pages;
 	int err = -ENOMEM;
 	int i;
-
-	might_sleep();
 
 	if (mr->attr.page_size < 12 || mr->attr.page_size >= 32)
 		return -EINVAL;
