@@ -513,7 +513,7 @@ qla2x00_eh_wait_on_command(scsi_qla_host_t *ha, struct scsi_cmnd *cmd)
  *    Success (Adapter is online) : 0
  *    Failed  (Adapter is offline/disabled) : 1
  */
-static int
+int
 qla2x00_wait_for_hba_online(scsi_qla_host_t *ha)
 {
 	int		return_status;
@@ -1271,6 +1271,9 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	fc_port_t *fcport;
 	struct scsi_host_template *sht;
 
+if (PCI_FUNC(pdev->devfn))
+	goto probe_out;
+
 	if (pci_enable_device(pdev))
 		goto probe_out;
 
@@ -1313,6 +1316,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->mgmt_svr_loop_id = MANAGEMENT_SERVER;
 	ha->link_data_rate = LDR_UNKNOWN;
+	ha->optrom_size = OPTROM_SIZE_2300;
 
 	/* Assign ISP specific operations. */
 	ha->isp_ops.pci_config		= qla2100_pci_config;
@@ -1340,6 +1344,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->isp_ops.write_nvram		= qla2x00_write_nvram_data;
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
 	ha->isp_ops.ascii_fw_dump	= qla2100_ascii_fw_dump;
+	ha->isp_ops.read_optrom		= qla2x00_read_optrom_data;
+	ha->isp_ops.write_optrom	= qla2x00_write_optrom_data;
 	if (IS_QLA2100(ha)) {
 		host->max_id = MAX_TARGETS_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2100;
@@ -1369,6 +1375,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.beacon_off = qla2x00_beacon_off;
 		ha->isp_ops.beacon_blink = qla2x00_beacon_blink;
 		ha->gid_list_info_size = 6;
+		if (IS_QLA2322(ha) || IS_QLA6322(ha))
+			ha->optrom_size = OPTROM_SIZE_2322;
 	} else if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
@@ -1404,10 +1412,13 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.write_nvram = qla24xx_write_nvram_data;
 		ha->isp_ops.fw_dump = qla24xx_fw_dump;
 		ha->isp_ops.ascii_fw_dump = qla24xx_ascii_fw_dump;
+		ha->isp_ops.read_optrom	= qla24xx_read_optrom_data;
+		ha->isp_ops.write_optrom = qla24xx_write_optrom_data;
 		ha->isp_ops.beacon_on = qla24xx_beacon_on;
 		ha->isp_ops.beacon_off = qla24xx_beacon_off;
 		ha->isp_ops.beacon_blink = qla24xx_beacon_blink;
 		ha->gid_list_info_size = 8;
+		ha->optrom_size = OPTROM_SIZE_24XX;
 	}
 	host->can_queue = ha->request_q_length + 128;
 
@@ -2073,6 +2084,8 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	ha->fw_dumped = 0;
 	ha->fw_dump_reading = 0;
 	ha->fw_dump_buffer = NULL;
+
+	vfree(ha->optrom_buffer);
 }
 
 /*

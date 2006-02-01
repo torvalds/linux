@@ -79,6 +79,8 @@ extern int qla2x00_down_timeout(struct semaphore *, unsigned long);
 
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
+extern int qla2x00_wait_for_hba_online(scsi_qla_host_t *);
+
 /*
  * Global Function Prototypes in qla_iocb.c source file.
  */
@@ -239,6 +241,15 @@ extern void qla2x00_beacon_blink(struct scsi_qla_host *);
 extern int qla24xx_beacon_on(struct scsi_qla_host *);
 extern int qla24xx_beacon_off(struct scsi_qla_host *);
 extern void qla24xx_beacon_blink(struct scsi_qla_host *);
+
+extern uint8_t *qla2x00_read_optrom_data(struct scsi_qla_host *, uint8_t *,
+    uint32_t, uint32_t);
+extern int qla2x00_write_optrom_data(struct scsi_qla_host *, uint8_t *,
+    uint32_t, uint32_t);
+extern uint8_t *qla24xx_read_optrom_data(struct scsi_qla_host *, uint8_t *,
+    uint32_t, uint32_t);
+extern int qla24xx_write_optrom_data(struct scsi_qla_host *, uint8_t *,
+    uint32_t, uint32_t);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.

@@ -2214,6 +2214,11 @@ struct isp_operations {
 	int (*beacon_on) (struct scsi_qla_host *);
 	int (*beacon_off) (struct scsi_qla_host *);
 	void (*beacon_blink) (struct scsi_qla_host *);
+
+	uint8_t * (*read_optrom) (struct scsi_qla_host *, uint8_t *,
+		uint32_t, uint32_t);
+	int (*write_optrom) (struct scsi_qla_host *, uint8_t *, uint32_t,
+		uint32_t);
 };
 
 /*
@@ -2505,6 +2510,14 @@ typedef struct scsi_qla_host {
 	uint8_t		*port_name;
 	uint32_t    isp_abort_cnt;
 
+	/* Option ROM information. */
+	char		*optrom_buffer;
+	uint32_t	optrom_size;
+	int		optrom_state;
+#define QLA_SWAITING	0
+#define QLA_SREADING	1
+#define QLA_SWRITING	2
+
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
 	uint8_t		beacon_color_state;
@@ -2582,7 +2595,9 @@ struct _qla2x00stats  {
 /*
  * Flash support definitions
  */
-#define FLASH_IMAGE_SIZE	131072
+#define OPTROM_SIZE_2300	0x20000
+#define OPTROM_SIZE_2322	0x100000
+#define OPTROM_SIZE_24XX	0x100000
 
 #include "qla_gbl.h"
 #include "qla_dbg.h"

@@ -179,6 +179,135 @@ static struct bin_attribute sysfs_nvram_attr = {
 	.write = qla2x00_sysfs_write_nvram,
 };
 
+static ssize_t
+qla2x00_sysfs_read_optrom(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+
+	if (ha->optrom_state != QLA_SREADING)
+		return 0;
+	if (off > ha->optrom_size)
+		return 0;
+	if (off + count > ha->optrom_size)
+		count = ha->optrom_size - off;
+
+	memcpy(buf, &ha->optrom_buffer[off], count);
+
+	return count;
+}
+
+static ssize_t
+qla2x00_sysfs_write_optrom(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+
+	if (ha->optrom_state != QLA_SWRITING)
+		return -EINVAL;
+	if (off > ha->optrom_size)
+		return -ERANGE;
+	if (off + count > ha->optrom_size)
+		count = ha->optrom_size - off;
+
+	memcpy(&ha->optrom_buffer[off], buf, count);
+
+	return count;
+}
+
+static struct bin_attribute sysfs_optrom_attr = {
+	.attr = {
+		.name = "optrom",
+		.mode = S_IRUSR | S_IWUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = OPTROM_SIZE_24XX,
+	.read = qla2x00_sysfs_read_optrom,
+	.write = qla2x00_sysfs_write_optrom,
+};
+
+static ssize_t
+qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	int val;
+
+	if (off)
+		return 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	switch (val) {
+	case 0:
+		if (ha->optrom_state != QLA_SREADING &&
+		    ha->optrom_state != QLA_SWRITING)
+			break;
+
+		ha->optrom_state = QLA_SWAITING;
+		vfree(ha->optrom_buffer);
+		ha->optrom_buffer = NULL;
+		break;
+	case 1:
+		if (ha->optrom_state != QLA_SWAITING)
+			break;
+
+		ha->optrom_state = QLA_SREADING;
+		ha->optrom_buffer = (uint8_t *)vmalloc(ha->optrom_size);
+		if (ha->optrom_buffer == NULL) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to allocate memory for optrom retrieval "
+			    "(%x).\n", ha->optrom_size);
+
+			ha->optrom_state = QLA_SWAITING;
+			return count;
+		}
+
+		memset(ha->optrom_buffer, 0, ha->optrom_size);
+		ha->isp_ops.read_optrom(ha, ha->optrom_buffer, 0,
+		    ha->optrom_size);
+		break;
+	case 2:
+		if (ha->optrom_state != QLA_SWAITING)
+			break;
+
+		ha->optrom_state = QLA_SWRITING;
+		ha->optrom_buffer = (uint8_t *)vmalloc(ha->optrom_size);
+		if (ha->optrom_buffer == NULL) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to allocate memory for optrom update "
+			    "(%x).\n", ha->optrom_size);
+
+			ha->optrom_state = QLA_SWAITING;
+			return count;
+		}
+		memset(ha->optrom_buffer, 0, ha->optrom_size);
+		break;
+	case 3:
+		if (ha->optrom_state != QLA_SWRITING)
+			break;
+
+		ha->isp_ops.write_optrom(ha, ha->optrom_buffer, 0,
+		    ha->optrom_size);
+		break;
+	}
+	return count;
+}
+
+static struct bin_attribute sysfs_optrom_ctl_attr = {
+	.attr = {
+		.name = "optrom_ctl",
+		.mode = S_IWUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_optrom_ctl,
+};
+
 void
 qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 {
@@ -186,6 +315,9 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
+	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
+	sysfs_create_bin_file(&host->shost_gendev.kobj,
+	    &sysfs_optrom_ctl_attr);
 }
 
 void
@@ -195,6 +327,9 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
+	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
+	sysfs_remove_bin_file(&host->shost_gendev.kobj,
+	    &sysfs_optrom_ctl_attr);
 
 	if (ha->beacon_blink_led == 1)
 		ha->isp_ops.beacon_off(ha);
