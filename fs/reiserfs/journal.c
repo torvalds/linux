@@ -877,6 +877,19 @@ static int write_ordered_buffers(spinlock_t * lock,
 		if (!buffer_uptodate(bh)) {
 			ret = -EIO;
 		}
+		/* ugly interaction with invalidatepage here.
+		 * reiserfs_invalidate_page will pin any buffer that has a valid
+		 * journal head from an older transaction.  If someone else sets
+		 * our buffer dirty after we write it in the first loop, and
+		 * then someone truncates the page away, nobody will ever write
+		 * the buffer. We're safe if we write the page one last time
+		 * after freeing the journal header.
+		 */
+		if (buffer_dirty(bh) && unlikely(bh->b_page->mapping == NULL)) {
+			spin_unlock(lock);
+			ll_rw_block(WRITE, 1, &bh);
+			spin_lock(lock);
+		}
 		put_bh(bh);
 		cond_resched_lock(lock);
 	}

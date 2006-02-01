@@ -2743,6 +2743,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 	int ret = 1;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);
 
+	lock_buffer(bh);
 	spin_lock(&j->j_dirty_buffers_lock);
 	if (!buffer_mapped(bh)) {
 		goto free_jh;
@@ -2758,7 +2759,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 		if (buffer_journaled(bh) || buffer_journal_dirty(bh)) {
 			ret = 0;
 		}
-	} else if (buffer_dirty(bh) || buffer_locked(bh)) {
+	} else  if (buffer_dirty(bh)) {
 		struct reiserfs_journal_list *jl;
 		struct reiserfs_jh *jh = bh->b_private;
 
@@ -2784,6 +2785,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 		reiserfs_free_jh(bh);
 	}
 	spin_unlock(&j->j_dirty_buffers_lock);
+	unlock_buffer(bh);
 	return ret;
 }
 
