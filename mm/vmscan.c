@@ -1599,16 +1599,22 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	struct task_struct *p = current;
 	struct reclaim_state reclaim_state;
 	struct scan_control sc;
+	cpumask_t mask;
+	int node_id;
 
 	if (time_before(jiffies,
 		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
 			return 0;
 
 	if (!(gfp_mask & __GFP_WAIT) ||
-		zone->zone_pgdat->node_id != numa_node_id() ||
 		zone->all_unreclaimable ||
 		atomic_read(&zone->reclaim_in_progress) > 0)
 			return 0;
+
+	node_id = zone->zone_pgdat->node_id;
+	mask = node_to_cpumask(node_id);
+	if (!cpus_empty(mask) && node_id != numa_node_id())
+		return 0;
 
 	sc.may_writepage = 0;
 	sc.may_swap = 0;
