@@ -27,13 +27,6 @@ typedef struct {
 
 extern asmlinkage void __do_softirq(void);
 
-#define irq_exit()                                                      \
-        do {                                                            \
-                preempt_count() -= IRQ_EXIT_OFFSET;                     \
-                if (!in_interrupt() && local_softirq_pending())         \
-                        __do_softirq();                                 \
-                preempt_enable_no_resched();                            \
-        } while (0)
 #endif
 
 
