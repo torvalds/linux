@@ -72,7 +72,8 @@ etrap_irq:
 		sethi	%hi(sparc64_kern_pri_context), %g2
 		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g3
 		stxa	%g3, [%l4] ASI_DMMU
-		flush	%l6
+		sethi	%hi(KERNBASE), %l4
+		flush	%l4
 		wr	%g0, ASI_AIUS, %asi
 2:		wrpr	%g0, 0x0, %tl
 		mov	%g4, %l4
@@ -215,7 +216,8 @@ scetrap:
 		sethi	%hi(sparc64_kern_pri_context), %g2
 		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g3
 		stxa	%g3, [%l4] ASI_DMMU
-		flush	%l6
+		sethi	%hi(KERNBASE), %l4
+		flush	%l4
 
 		mov	ASI_AIUS, %l7
 2:		mov	%g4, %l4

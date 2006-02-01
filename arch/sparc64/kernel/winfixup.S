@@ -20,7 +20,8 @@ set_pcontext:
 	ldx	[%l1 + %lo(sparc64_kern_pri_context)], %l1
 	mov	PRIMARY_CONTEXT, %g1
 	stxa	%l1, [%g1] ASI_DMMU
-	flush	%g6
+	sethi	%hi(KERNBASE), %l1
+	flush	%l1
 	retl
 	 nop
 

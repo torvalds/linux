@@ -259,7 +259,8 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		ldx			[%l1 + %lo(sparc64_kern_pri_nuc_bits)], %l1
 		or			%l0, %l1, %l0
 		stxa			%l0, [%l7] ASI_DMMU
-		flush			%g6
+		sethi			%hi(KERNBASE), %l7
+		flush			%l7
 		rdpr			%wstate, %l1
 		rdpr			%otherwin, %l2
 		srl			%l1, 3, %l1

@@ -9,6 +9,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/spitfire.h>
+#include <asm/head.h>
 
 	/* What we used to do was lock a TLB entry into a specific
 	 * TLB slot, clear the page with interrupts disabled, then
@@ -66,7 +67,8 @@ clear_user_page:	/* %o0=dest, %o1=vaddr */
 	wrpr		%o4, PSTATE_IE, %pstate
 	stxa		%o0, [%g3] ASI_DMMU
 	stxa		%g1, [%g0] ASI_DTLB_DATA_IN
-	flush		%g6
+	sethi		%hi(KERNBASE), %g1
+	flush		%g1
 	wrpr		%o4, 0x0, %pstate
 
 	mov		1, %o4

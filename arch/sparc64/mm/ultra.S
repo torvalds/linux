@@ -36,9 +36,10 @@ __flush_tlb_mm: /* %o0=(ctx & TAG_CONTEXT_BITS), %o1=SECONDARY_CONTEXT */
 	 mov		0x50, %g3
 	stxa		%g0, [%g3] ASI_DMMU_DEMAP
 	stxa		%g0, [%g3] ASI_IMMU_DEMAP
+	sethi		%hi(KERNBASE), %g3
+	flush		%g3
 	retl
-	 flush		%g6
-	nop
+	 nop
 	nop
 	nop
 	nop
@@ -72,7 +73,8 @@ __flush_tlb_pending:
 	brnz,pt		%o1, 1b
 	 nop
 	stxa		%g2, [%o4] ASI_DMMU
-	flush		%g6
+	sethi		%hi(KERNBASE), %o4
+	flush		%o4
 	retl
 	 wrpr		%g7, 0x0, %pstate
 	nop
@@ -94,8 +96,10 @@ __flush_tlb_kernel_range:	/* %o0=start, %o1=end */
 	membar		#Sync
 	brnz,pt		%o3, 1b
 	 sub		%o3, %o4, %o3
-2:	retl
-	 flush		%g6
+2:	sethi		%hi(KERNBASE), %o3
+	flush		%o3
+	retl
+	 nop
 
 __spitfire_flush_tlb_mm_slow:
 	rdpr		%pstate, %g1
@@ -105,7 +109,8 @@ __spitfire_flush_tlb_mm_slow:
 	stxa		%g0, [%g3] ASI_IMMU_DEMAP
 	flush		%g6
 	stxa		%g2, [%o1] ASI_DMMU
-	flush		%g6
+	sethi		%hi(KERNBASE), %o1
+	flush		%o1
 	retl
 	 wrpr		%g1, 0, %pstate
 
@@ -181,7 +186,7 @@ __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 	.previous
 
 	/* Cheetah specific versions, patched at boot time. */
-__cheetah_flush_tlb_mm: /* 18 insns */
+__cheetah_flush_tlb_mm: /* 19 insns */
 	rdpr		%pstate, %g7
 	andn		%g7, PSTATE_IE, %g2
 	wrpr		%g2, 0x0, %pstate
@@ -196,12 +201,13 @@ __cheetah_flush_tlb_mm: /* 18 insns */
 	stxa		%g0, [%g3] ASI_DMMU_DEMAP
 	stxa		%g0, [%g3] ASI_IMMU_DEMAP
 	stxa		%g2, [%o2] ASI_DMMU
-	flush		%g6
+	sethi		%hi(KERNBASE), %o2
+	flush		%o2
 	wrpr		%g0, 0, %tl
 	retl
 	 wrpr		%g7, 0x0, %pstate
 
-__cheetah_flush_tlb_pending:	/* 26 insns */
+__cheetah_flush_tlb_pending:	/* 27 insns */
 	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
 	rdpr		%pstate, %g7
 	sllx		%o1, 3, %o1
@@ -225,7 +231,8 @@ __cheetah_flush_tlb_pending:	/* 26 insns */
 	brnz,pt		%o1, 1b
 	 nop
 	stxa		%g2, [%o4] ASI_DMMU
-	flush		%g6
+	sethi		%hi(KERNBASE), %o4
+	flush		%o4
 	wrpr		%g0, 0, %tl
 	retl
 	 wrpr		%g7, 0x0, %pstate
@@ -265,14 +272,14 @@ cheetah_patch_cachetlbops:
 	sethi		%hi(__cheetah_flush_tlb_mm), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_mm), %o1
 	call		cheetah_patch_one
-	 mov		18, %o2
+	 mov		19, %o2
 
 	sethi		%hi(__flush_tlb_pending), %o0
 	or		%o0, %lo(__flush_tlb_pending), %o0
 	sethi		%hi(__cheetah_flush_tlb_pending), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_pending), %o1
 	call		cheetah_patch_one
-	 mov		26, %o2
+	 mov		27, %o2
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	sethi		%hi(__flush_dcache_page), %o0
