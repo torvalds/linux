@@ -1589,24 +1589,20 @@ int zone_reclaim_mode __read_mostly;
 /*
  * Mininum time between zone reclaim scans
  */
-#define ZONE_RECLAIM_INTERVAL HZ/2
+#define ZONE_RECLAIM_INTERVAL 30*HZ
 /*
  * Try to free up some pages from this zone through reclaim.
  */
 int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 {
-	int nr_pages = 1 << order;
+	int nr_pages;
 	struct task_struct *p = current;
 	struct reclaim_state reclaim_state;
-	struct scan_control sc = {
-		.gfp_mask	= gfp_mask,
-		.may_writepage	= 0,
-		.may_swap	= 0,
-		.nr_mapped	= read_page_state(nr_mapped),
-		.nr_scanned	= 0,
-		.nr_reclaimed	= 0,
-		.priority	= 0
-	};
+	struct scan_control sc;
+
+	if (time_before(jiffies,
+		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
+			return 0;
 
 	if (!(gfp_mask & __GFP_WAIT) ||
 		zone->zone_pgdat->node_id != numa_node_id() ||
@@ -1614,12 +1610,17 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		atomic_read(&zone->reclaim_in_progress) > 0)
 			return 0;
 
-	if (time_before(jiffies,
-		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
-			return 0;
+	sc.may_writepage = 0;
+	sc.may_swap = 0;
+	sc.nr_scanned = 0;
+	sc.nr_reclaimed = 0;
+	sc.priority = 0;
+	sc.nr_mapped = read_page_state(nr_mapped);
+	sc.gfp_mask = gfp_mask;
 
 	disable_swap_token();
 
+	nr_pages = 1 << order;
 	if (nr_pages > SWAP_CLUSTER_MAX)
 		sc.swap_cluster_max = nr_pages;
 	else
