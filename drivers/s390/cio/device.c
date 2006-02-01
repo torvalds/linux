@@ -1012,7 +1012,7 @@ ccw_device_probe_console(void)
 	int ret;
 
 	if (xchg(&console_cdev_in_use, 1) != 0)
-		return NULL;
+		return ERR_PTR(-EBUSY);
 	sch = cio_probe_console();
 	if (IS_ERR(sch)) {
 		console_cdev_in_use = 0;
