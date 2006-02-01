@@ -573,9 +573,13 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
 static int dm_request(request_queue_t *q, struct bio *bio)
 {
 	int r;
+	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
 
 	down_read(&md->io_lock);
+
+	disk_stat_inc(dm_disk(md), ios[rw]);
+	disk_stat_add(dm_disk(md), sectors[rw], bio_sectors(bio));
 
 	/*
 	 * If we're suspended we have to queue
