@@ -191,7 +191,7 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 	const char *name = "";
 	char data[40] = "";
 	int i, n_len = 0, d_len = 0;
-	u32 event_id, event_data_size;
+	u32 event_id;
 
 	switch(event->event_type) {
 	case PREBOOT:
@@ -221,7 +221,6 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 		break;
 	case EVENT_TAG:
 		event_id = be32_to_cpu(*((u32 *)event_entry));
-		event_data_size = be32_to_cpu(((u32 *)event_entry)[1]);
 
 		/* ToDo Row data -> Base64 */
 
