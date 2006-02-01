@@ -2687,7 +2687,8 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	return objp;
 }
 
-static inline void *__cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+static __always_inline void *
+__cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
 {
 	unsigned long save_flags;
 	void *objp;
@@ -2698,7 +2699,7 @@ static inline void *__cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	objp = ____cache_alloc(cachep, flags);
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
-					    __builtin_return_address(0));
+					    caller);
 	prefetchw(objp);
 	return objp;
 }
@@ -2927,7 +2928,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
  */
 void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
-	return __cache_alloc(cachep, flags);
+	return __cache_alloc(cachep, flags, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
@@ -3041,7 +3042,8 @@ EXPORT_SYMBOL(kmalloc_node);
  * platforms.  For example, on i386, it means that the memory must come
  * from the first 16MB.
  */
-void *__kmalloc(size_t size, gfp_t flags)
+static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+					  void *caller)
 {
 	struct kmem_cache *cachep;
 
@@ -3053,9 +3055,26 @@ void *__kmalloc(size_t size, gfp_t flags)
 	cachep = __find_general_cachep(size, flags);
 	if (unlikely(cachep == NULL))
 		return NULL;
-	return __cache_alloc(cachep, flags);
+	return __cache_alloc(cachep, flags, caller);
+}
+
+#ifndef CONFIG_DEBUG_SLAB
+
+void *__kmalloc(size_t size, gfp_t flags)
+{
+	return __do_kmalloc(size, flags, NULL);
 }
 EXPORT_SYMBOL(__kmalloc);
+
+#else
+
+void *__kmalloc_track_caller(size_t size, gfp_t flags, void *caller)
+{
+	return __do_kmalloc(size, flags, caller);
+}
+EXPORT_SYMBOL(__kmalloc_track_caller);
+
+#endif
 
 #ifdef CONFIG_SMP
 /**
