@@ -241,10 +241,6 @@ EXPORT_SYMBOL(verify_compat_iovec);
 #endif
 
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(pte_alloc_one_kernel);
-#ifndef CONFIG_SMP
-EXPORT_SYMBOL(pgt_quicklists);
-#endif
 EXPORT_SYMBOL(put_fs_struct);
 
 /* math-emu wants this */

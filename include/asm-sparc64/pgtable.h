@@ -432,12 +432,7 @@ extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 					  unsigned long);
 #define HAVE_ARCH_FB_UNMAPPED_AREA
 
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
-
-extern void check_pgt_cache(void);
+extern void pgtable_cache_init(void);
 
 #endif /* !(__ASSEMBLY__) */
 

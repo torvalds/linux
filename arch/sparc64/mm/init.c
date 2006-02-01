@@ -141,26 +141,25 @@ unsigned long sparc64_kern_sec_context __read_mostly;
 
 int bigkernel = 0;
 
-/* XXX Tune this... */
-#define PGT_CACHE_LOW	25
-#define PGT_CACHE_HIGH	50
+kmem_cache_t *pgtable_cache __read_mostly;
 
-#ifndef CONFIG_SMP
-struct pgtable_cache_struct pgt_quicklists;
-#endif
-
-void check_pgt_cache(void)
+static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 {
-	preempt_disable();
-	if (pgtable_cache_size > PGT_CACHE_HIGH) {
-		do {
-			if (pgd_quicklist)
-				free_pgd_slow(get_pgd_fast());
-			if (pte_quicklist)
-				free_pte_slow(pte_alloc_one_fast());
-		} while (pgtable_cache_size > PGT_CACHE_LOW);
+	clear_page(addr);
+}
+
+void pgtable_cache_init(void)
+{
+	pgtable_cache = kmem_cache_create("pgtable_cache",
+					  PAGE_SIZE, PAGE_SIZE,
+					  SLAB_HWCACHE_ALIGN |
+					  SLAB_MUST_HWCACHE_ALIGN,
+					  zero_ctor,
+					  NULL);
+	if (!pgtable_cache) {
+		prom_printf("pgtable_cache_init(): Could not create!\n");
+		prom_halt();
 	}
-	preempt_enable();
 }
 
 #ifdef CONFIG_DEBUG_DCFLUSH
@@ -340,7 +339,6 @@ void show_mem(void)
 	       nr_swap_pages << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", num_physpages);
 	printk("%d free pages\n", nr_free_pages());
-	printk("%d pages in page table cache\n",pgtable_cache_size);
 }
 
 void mmu_info(struct seq_file *m)

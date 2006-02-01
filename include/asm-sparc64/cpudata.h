@@ -17,14 +17,7 @@ typedef struct {
 	unsigned long	clock_tick;	/* %tick's per second */
 	unsigned long	udelay_val;
 
-	/* Dcache line 2 */
-	unsigned int	pgcache_size;
-	unsigned int	__pad1;
-	unsigned long	*pte_cache;
-	unsigned long	*pgd_cache;
-	unsigned long	__pad2;
-
-	/* Dcache line 3, rarely used */
+	/* Dcache line 2, rarely used */
 	unsigned int	dcache_size;
 	unsigned int	dcache_line_size;
 	unsigned int	icache_size;
