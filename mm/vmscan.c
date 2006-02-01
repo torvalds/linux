@@ -1636,14 +1636,16 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	p->flags |= PF_MEMALLOC;
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
+
 	shrink_zone(zone, &sc);
+
 	p->reclaim_state = NULL;
 	current->flags &= ~PF_MEMALLOC;
 
 	if (sc.nr_reclaimed == 0)
 		zone->last_unsuccessful_zone_reclaim = jiffies;
 
-	return sc.nr_reclaimed > nr_pages;
+	return sc.nr_reclaimed >= nr_pages;
 }
 #endif
 

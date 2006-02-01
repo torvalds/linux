@@ -878,7 +878,8 @@ static ctl_table vm_table[] = {
 		.maxlen		= sizeof(zone_reclaim_mode),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
-		.strategy	= &zero,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
 	},
 #endif
 	{ .ctl_name = 0 }
