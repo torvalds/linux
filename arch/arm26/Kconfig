@@ -60,7 +60,8 @@ source "init/Kconfig"
 
 menu "System Type"
 
-comment "Archimedes/A5000 Implementations (select only ONE)"
+choice
+	prompt "Archimedes/A5000 Implementations"
 
 config ARCH_ARC
         bool "Archimedes"
@@ -87,6 +88,7 @@ config PAGESIZE_16
           Say Y here if your Archimedes or A5000 system has only 2MB of
           memory, otherwise say N.  The resulting kernel will not run on a
           machine with 4MB of memory.
+endchoice
 endmenu
 
 config ISA_DMA_API
