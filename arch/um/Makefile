@@ -47,13 +47,16 @@ ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include
 endif
 SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
 
-# -Dvmap=kernel_vmap affects everything, and prevents anything from
-# referencing the libpcap.o symbol so named.
+# -Dvmap=kernel_vmap prevents anything from referencing the libpcap.o symbol so
+# named - it's a common symbol in libpcap, so we get a binary which crashes.
 #
-# Same things for in6addr_loopback - found in libc.
+# Same things for in6addr_loopback and mktime - found in libc. For these two we
+# only get link-time error, luckily.
+#
+# These apply to USER_CFLAGS to.
 
-CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
-	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap \
+CFLAGS += $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\"	\
+	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap	\
 	-Din6addr_loopback=kernel_in6addr_loopback
 
 AFLAGS += $(ARCH_INCLUDE)
@@ -66,6 +69,7 @@ USER_CFLAGS := $(patsubst -D__KERNEL__,,$(USER_CFLAGS)) $(ARCH_INCLUDE) \
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
 # in CFLAGS.  Otherwise, it would cause ld to complain about the two different
 # errnos.
+# These apply to kernelspace only.
 
 CFLAGS += -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask \
 	-Dmktime=kernel_mktime
