@@ -22,12 +22,6 @@ extern int vector_irq[NR_VECTORS];
 extern void (*interrupt[NR_IRQS])(void);
 extern int pci_vector_resources(int last, int nr_released);
 
-#ifdef CONFIG_SMP
-#define set_msi_irq_affinity	set_msi_affinity
-#else
-#define set_msi_irq_affinity	NULL
-#endif
-
 /*
  * MSI-X Address Register
  */

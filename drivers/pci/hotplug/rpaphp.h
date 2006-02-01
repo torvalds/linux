@@ -88,16 +88,10 @@ extern int num_slots;
 /* function prototypes */
 
 /* rpaphp_pci.c */
-extern struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn);
-extern int rpaphp_claim_resource(struct pci_dev *dev, int resource);
 extern int rpaphp_enable_pci_slot(struct slot *slot);
-extern int register_pci_slot(struct slot *slot);
+extern int rpaphp_register_pci_slot(struct slot *slot);
 extern int rpaphp_get_pci_adapter_status(struct slot *slot, int is_init, u8 * value);
-extern void rpaphp_init_new_devs(struct pci_bus *bus);
-extern void rpaphp_eeh_init_nodes(struct device_node *dn);
-
-extern int rpaphp_config_pci_adapter(struct pci_bus *bus);
-extern int rpaphp_unconfig_pci_adapter(struct pci_bus *bus);
+extern int rpaphp_get_sensor_state(struct slot *slot, int *state);
 
 /* rpaphp_core.c */
 extern int rpaphp_add_slot(struct device_node *dn);
@@ -108,8 +102,8 @@ extern int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 /* rpaphp_slot.c */
 extern void dealloc_slot_struct(struct slot *slot);
 extern struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_name, int power_domain);
-extern int register_slot(struct slot *slot);
-extern int deregister_slot(struct slot *slot);
+extern int rpaphp_register_slot(struct slot *slot);
+extern int rpaphp_deregister_slot(struct slot *slot);
 extern int rpaphp_get_power_status(struct slot *slot, u8 * value);
 extern int rpaphp_set_attention_status(struct slot *slot, u8 status);
 	
