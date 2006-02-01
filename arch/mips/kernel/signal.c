@@ -340,7 +340,7 @@ int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
-	err |= __put_user(0, &frame->rs_uc.uc_link);
+	err |= __put_user(NULL, &frame->rs_uc.uc_link);
 	err |= __put_user((void *)current->sas_ss_sp,
 	                  &frame->rs_uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[29]),
