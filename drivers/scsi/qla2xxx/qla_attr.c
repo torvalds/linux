@@ -7,7 +7,6 @@
 #include "qla_def.h"
 
 #include <linux/vmalloc.h>
-#include <scsi/scsi_transport_fc.h>
 
 /* SYSFS attributes --------------------------------------------------------- */
 
@@ -555,6 +554,41 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 	return 0;
 }
 
+static struct fc_host_statistics *
+qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+	int rval;
+	uint16_t mb_stat[1];
+	link_stat_t stat_buf;
+	struct fc_host_statistics *pfc_host_stat;
+
+	pfc_host_stat = &ha->fc_host_stat;
+	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
+
+	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
+		    sizeof(stat_buf) / 4, mb_stat);
+	} else {
+		rval = qla2x00_get_link_status(ha, ha->loop_id, &stat_buf,
+		    mb_stat);
+	}
+	if (rval != 0) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to retrieve host statistics (%d).\n", mb_stat[0]);
+		return pfc_host_stat;
+	}
+
+	pfc_host_stat->link_failure_count = stat_buf.link_fail_cnt;
+	pfc_host_stat->loss_of_sync_count = stat_buf.loss_sync_cnt;
+	pfc_host_stat->loss_of_signal_count = stat_buf.loss_sig_cnt;
+	pfc_host_stat->prim_seq_protocol_err_count = stat_buf.prim_seq_err_cnt;
+	pfc_host_stat->invalid_tx_word_count = stat_buf.inval_xmit_word_cnt;
+	pfc_host_stat->invalid_crc_count = stat_buf.inval_crc_cnt;
+
+	return pfc_host_stat;
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -583,6 +617,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 	.issue_fc_host_lip = qla2x00_issue_lip,
+	.get_fc_host_stats = qla2x00_get_fc_host_stats,
 };
 
 void

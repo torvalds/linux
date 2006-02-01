@@ -29,6 +29,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_transport_fc.h>
 
 #if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
 #if defined(CONFIG_SCSI_QLA21XX) || defined(CONFIG_SCSI_QLA21XX_MODULE)
@@ -2496,6 +2497,7 @@ typedef struct scsi_qla_host {
 
 	uint16_t	zio_mode;
 	uint16_t	zio_timer;
+	struct fc_host_statistics fc_host_stat;
 } scsi_qla_host_t;
 
 
