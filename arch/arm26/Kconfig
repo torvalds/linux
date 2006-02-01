@@ -53,7 +53,6 @@ config GENERIC_ISA_DMA
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default y
 
 source "init/Kconfig"
 
@@ -74,6 +73,7 @@ config ARCH_ARC
 
 config ARCH_A5K
         bool "A5000"
+	select ARCH_MAY_HAVE_PC_FDC
         help
           Say Y here to to support the Acorn A5000.
 
