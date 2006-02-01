@@ -241,7 +241,15 @@ ENTRY(xscale_flush_user_cache_range)
  *	it also trashes the mini I-cache used by JTAG debuggers.
  */
 ENTRY(xscale_coherent_kern_range)
-	/* FALLTHROUGH */
+	bic	r0, r0, #CACHELINESIZE - 1
+1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
+	add	r0, r0, #CACHELINESIZE
+	cmp	r0, r1
+	blo	1b
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ Invalidate I cache & BTB
+	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
+	mov	pc, lr
 
 /*
  *	coherent_user_range(start, end)
@@ -252,18 +260,16 @@ ENTRY(xscale_coherent_kern_range)
  *
  *	- start  - virtual start address
  *	- end	 - virtual end address
- *
- *	Note: single I-cache line invalidation isn't used here since
- *	it also trashes the mini I-cache used by JTAG debuggers.
  */
 ENTRY(xscale_coherent_user_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
+	mcr	p15, 0, r0, c7, c5, 1		@ Invalidate I cache entry
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 0		@ Invalidate I cache & BTB
+	mcr	p15, 0, r0, c7, c5, 6		@ Invalidate BTB
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	mov	pc, lr
 
