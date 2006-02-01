@@ -368,15 +368,13 @@ static int __xattr_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if (d_reclen <= 32) {
 			local_buf = small_buf;
 		} else {
-			local_buf =
-			    reiserfs_kmalloc(d_reclen, GFP_NOFS, inode->i_sb);
+			local_buf = kmalloc(d_reclen, GFP_NOFS);
 			if (!local_buf) {
 				pathrelse(&path_to_entry);
 				return -ENOMEM;
 			}
 			if (item_moved(&tmp_ih, &path_to_entry)) {
-				reiserfs_kfree(local_buf, d_reclen,
-					       inode->i_sb);
+				kfree(local_buf);
 
 				/* sigh, must retry.  Do this same offset again */
 				next_pos = d_off;
@@ -399,13 +397,12 @@ static int __xattr_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if (filldir(dirent, local_buf, d_reclen, d_off, d_ino,
 			    DT_UNKNOWN) < 0) {
 			if (local_buf != small_buf) {
-				reiserfs_kfree(local_buf, d_reclen,
-					       inode->i_sb);
+				kfree(local_buf);
 			}
 			goto end;
 		}
 		if (local_buf != small_buf) {
-			reiserfs_kfree(local_buf, d_reclen, inode->i_sb);
+			kfree(local_buf);
 		}
 	}			/* while */
 

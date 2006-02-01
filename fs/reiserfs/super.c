@@ -472,12 +472,6 @@ static void reiserfs_put_super(struct super_block *s)
 
 	print_statistics(s);
 
-	if (REISERFS_SB(s)->s_kmallocs != 0) {
-		reiserfs_warning(s,
-				 "vs-2004: reiserfs_put_super: allocated memory left %d",
-				 REISERFS_SB(s)->s_kmallocs);
-	}
-
 	if (REISERFS_SB(s)->reserved_blocks != 0) {
 		reiserfs_warning(s,
 				 "green-2005: reiserfs_put_super: reserved blocks left %d",
