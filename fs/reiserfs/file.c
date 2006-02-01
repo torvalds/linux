@@ -192,6 +192,8 @@ static int reiserfs_allocate_blocks_for_region(struct reiserfs_transaction_handl
 
 	allocated_blocks = kmalloc((blocks_to_allocate + will_prealloc) *
 				   sizeof(b_blocknr_t), GFP_NOFS);
+	if (!allocated_blocks)
+		return -ENOMEM;
 
 	/* First we compose a key to point at the writing position, we want to do
 	   that outside of any locking region. */
