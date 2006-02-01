@@ -1595,7 +1595,7 @@ int zone_reclaim_mode __read_mostly;
 /*
  * Mininum time between zone reclaim scans
  */
-#define ZONE_RECLAIM_INTERVAL 30*HZ
+int zone_reclaim_interval __read_mostly = 30*HZ;
 
 /*
  * Priority for ZONE_RECLAIM. This determines the fraction of pages
@@ -1617,7 +1617,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	int node_id;
 
 	if (time_before(jiffies,
-		zone->last_unsuccessful_zone_reclaim + ZONE_RECLAIM_INTERVAL))
+		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
 			return 0;
 
 	if (!(gfp_mask & __GFP_WAIT) ||

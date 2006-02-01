@@ -28,6 +28,7 @@ Currently, these files are in /proc/sys/vm:
 - block_dump
 - drop-caches
 - zone_reclaim_mode
+- zone_reclaim_interval
 
 ==============================================================
 
@@ -137,4 +138,15 @@ of memory should be used for caching files from disk.
 
 It may be beneficial to switch this on if one wants to do zone
 reclaim regardless of the numa distances in the system.
+================================================================
+
+zone_reclaim_interval:
+
+The time allowed for off node allocations after zone reclaim
+has failed to reclaim enough pages to allow a local allocation.
+
+Time is set in seconds and set by default to 30 seconds.
+
+Reduce the interval if undesired off node allocations occur. However, too
+frequent scans will have a negative impact onoff node allocation performance.
 

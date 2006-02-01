@@ -178,6 +178,7 @@ extern int vm_swappiness;
 
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
+extern int zone_reclaim_interval;
 extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 #else
 #define zone_reclaim_mode 0
