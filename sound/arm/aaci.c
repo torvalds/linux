@@ -882,14 +882,20 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 	writel(0x1fff, aaci->base + AACI_INTCLR);
 	writel(aaci->maincr, aaci->base + AACI_MAINCR);
 
-	/*
-	 * Size the FIFOs.
-	 */
-	aaci->fifosize = aaci_size_fifo(aaci);
-
 	ret = aaci_probe_ac97(aaci);
 	if (ret)
 		goto out;
+
+	/*
+	 * Size the FIFOs (must be multiple of 16).
+	 */
+	aaci->fifosize = aaci_size_fifo(aaci);
+	if (aaci->fifosize & 15) {
+		printk(KERN_WARNING "AACI: fifosize = %d not supported\n",
+		       aaci->fifosize);
+		ret = -ENODEV;
+		goto out;
+	}
 
 	ret = aaci_init_pcm(aaci);
 	if (ret)
