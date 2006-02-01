@@ -26,7 +26,7 @@ struct mcast_init {
 	int ttl;
 };
 
-void mcast_init(struct net_device *dev, void *data)
+static void mcast_init(struct net_device *dev, void *data)
 {
 	struct uml_net_private *pri;
 	struct mcast_data *dpri;
