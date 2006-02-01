@@ -2446,12 +2446,8 @@ static int journal_read(struct super_block *p_s_sb)
 static struct reiserfs_journal_list *alloc_journal_list(struct super_block *s)
 {
 	struct reiserfs_journal_list *jl;
-      retry:
-	jl = kzalloc(sizeof(struct reiserfs_journal_list), GFP_NOFS);
-	if (!jl) {
-		yield();
-		goto retry;
-	}
+	jl = kzalloc(sizeof(struct reiserfs_journal_list),
+		     GFP_NOFS | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&jl->j_list);
 	INIT_LIST_HEAD(&jl->j_working_list);
 	INIT_LIST_HEAD(&jl->j_tail_bh_list);
