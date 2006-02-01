@@ -72,8 +72,8 @@ huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
 	unsigned long start = vma->vm_start;
 	unsigned long end = vma->vm_end;
 	unsigned long hugepages = (end - start) >> HPAGE_SHIFT;
-	pgoff_t next = vma->vm_pgoff;
-	pgoff_t endpg = next + ((end - start) >> PAGE_SHIFT);
+	pgoff_t next = vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT);
+	pgoff_t endpg = next + hugepages;
 
 	pagevec_init(&pvec, 0);
 	while (next < endpg) {
