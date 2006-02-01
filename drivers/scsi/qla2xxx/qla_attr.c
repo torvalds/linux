@@ -113,7 +113,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 	    struct device, kobj)));
 	unsigned long	flags;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size)
+	if (!capable(CAP_SYS_ADMIN) || off != 0)
 		return 0;
 
 	/* Read NVRAM. */
@@ -122,7 +122,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 	    ha->nvram_size);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	return (count);
+	return ha->nvram_size;
 }
 
 static ssize_t
@@ -174,7 +174,7 @@ static struct bin_attribute sysfs_nvram_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
-	.size = 0,
+	.size = 512,
 	.read = qla2x00_sysfs_read_nvram,
 	.write = qla2x00_sysfs_write_nvram,
 };
@@ -185,7 +185,6 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 	struct Scsi_Host *host = ha->host;
 
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
-	sysfs_nvram_attr.size = ha->nvram_size;
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
 }
 
