@@ -596,6 +596,18 @@ static inline struct slab *page_get_slab(struct page *page)
 	return (struct slab *)page->lru.prev;
 }
 
+static inline struct kmem_cache *virt_to_cache(const void *obj)
+{
+	struct page *page = virt_to_page(obj);
+	return page_get_cache(page);
+}
+
+static inline struct slab *virt_to_slab(const void *obj)
+{
+	struct page *page = virt_to_page(obj);
+	return page_get_slab(page);
+}
+
 /* These are the default caches for kmalloc. Custom caches can have other sizes. */
 struct cache_sizes malloc_sizes[] = {
 #define CACHE(x) { .cs_size = (x) },
@@ -1437,7 +1449,7 @@ static void check_poison_obj(kmem_cache_t *cachep, void *objp)
 		/* Print some data about the neighboring objects, if they
 		 * exist:
 		 */
-		struct slab *slabp = page_get_slab(virt_to_page(objp));
+		struct slab *slabp = virt_to_slab(objp);
 		int objnr;
 
 		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
@@ -2767,7 +2779,7 @@ static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects,
 		void *objp = objpp[i];
 		struct slab *slabp;
 
-		slabp = page_get_slab(virt_to_page(objp));
+		slabp = virt_to_slab(objp);
 		l3 = cachep->nodelists[node];
 		list_del(&slabp->list);
 		check_spinlock_acquired_node(cachep, node);
@@ -2867,7 +2879,7 @@ static inline void __cache_free(kmem_cache_t *cachep, void *objp)
 #ifdef CONFIG_NUMA
 	{
 		struct slab *slabp;
-		slabp = page_get_slab(virt_to_page(objp));
+		slabp = virt_to_slab(objp);
 		if (unlikely(slabp->nodeid != numa_node_id())) {
 			struct array_cache *alien = NULL;
 			int nodeid = slabp->nodeid;
@@ -3130,7 +3142,7 @@ void kfree(const void *objp)
 		return;
 	local_irq_save(flags);
 	kfree_debugcheck(objp);
-	c = page_get_cache(virt_to_page(objp));
+	c = virt_to_cache(objp);
 	mutex_debug_check_no_locks_freed(objp, obj_size(c));
 	__cache_free(c, (void *)objp);
 	local_irq_restore(flags);
@@ -3704,5 +3716,5 @@ unsigned int ksize(const void *objp)
 	if (unlikely(objp == NULL))
 		return 0;
 
-	return obj_size(page_get_cache(virt_to_page(objp)));
+	return obj_size(virt_to_cache(objp));
 }
