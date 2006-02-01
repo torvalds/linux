@@ -290,7 +290,8 @@ void do_schedule_next_timer(struct siginfo *info)
 		info->si_overrun = timr->it_overrun_last;
 	}
 
-	unlock_timer(timr, flags);
+	if (timr)
+		unlock_timer(timr, flags);
 }
 
 int posix_timer_event(struct k_itimer *timr,int si_private)
