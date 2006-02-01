@@ -21,6 +21,12 @@
  *  Credits:
  *	based on kernel/timer.c
  *
+ *	Help, testing, suggestions, bugfixes, improvements were
+ *	provided by:
+ *
+ *	George Anzinger, Andrew Morton, Steven Rostedt, Roman Zippel
+ *	et. al.
+ *
  *  For licencing details see kernel-base/COPYING
  */
 
