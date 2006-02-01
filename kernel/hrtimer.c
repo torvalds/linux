@@ -550,6 +550,7 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 		fn = timer->function;
 		data = timer->data;
 		set_curr_timer(base, timer);
+		timer->state = HRTIMER_RUNNING;
 		__remove_hrtimer(timer, base);
 		spin_unlock_irq(&base->lock);
 
@@ -564,6 +565,10 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 			restart = fn(data);
 
 		spin_lock_irq(&base->lock);
+
+		/* Another CPU has added back the timer */
+		if (timer->state != HRTIMER_RUNNING)
+			continue;
 
 		if (restart == HRTIMER_RESTART)
 			enqueue_hrtimer(timer, base);

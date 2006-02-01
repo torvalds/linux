@@ -40,6 +40,7 @@ enum hrtimer_restart {
 enum hrtimer_state {
 	HRTIMER_INACTIVE,	/* Timer is inactive */
 	HRTIMER_EXPIRED,		/* Timer is expired */
+	HRTIMER_RUNNING,		/* Timer is running the callback function */
 	HRTIMER_PENDING,		/* Timer is pending */
 };
 
