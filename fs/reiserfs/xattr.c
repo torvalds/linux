@@ -1319,9 +1319,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	return err;
 }
 
-static int
-__reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd,
-		      int need_lock)
+int reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	umode_t mode = inode->i_mode;
 
@@ -1357,15 +1355,14 @@ __reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd,
 		if (!(mode & S_IRWXG))
 			goto check_groups;
 
-		if (need_lock) {
-			reiserfs_read_lock_xattr_i(inode);
-			reiserfs_read_lock_xattrs(inode->i_sb);
-		}
+		reiserfs_read_lock_xattr_i(inode);
+		reiserfs_read_lock_xattrs(inode->i_sb);
+
 		acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
-		if (need_lock) {
-			reiserfs_read_unlock_xattrs(inode->i_sb);
-			reiserfs_read_unlock_xattr_i(inode);
-		}
+
+		reiserfs_read_unlock_xattrs(inode->i_sb);
+		reiserfs_read_unlock_xattr_i(inode);
+
 		if (IS_ERR(acl)) {
 			if (PTR_ERR(acl) == -ENODATA)
 				goto check_groups;
@@ -1413,15 +1410,4 @@ __reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd,
 			return 0;
 
 	return -EACCES;
-}
-
-int reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd)
-{
-	return __reiserfs_permission(inode, mask, nd, 1);
-}
-
-int
-reiserfs_permission_locked(struct inode *inode, int mask, struct nameidata *nd)
-{
-	return __reiserfs_permission(inode, mask, nd, 0);
 }
