@@ -2454,35 +2454,27 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		prot = reqprot;
 
 #ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXECUTABLE) &&
-	   (vma->vm_start >= vma->vm_mm->start_brk &&
-	    vma->vm_end <= vma->vm_mm->brk)) {
-	    	/*
-		 * We are making an executable mapping in the brk region.
-		 * This has an additional execheap check.
-		 */
-		rc = task_has_perm(current, current, PROCESS__EXECHEAP);
-		if (rc)
-			return rc;
-	}
-	if (vma->vm_file != NULL && vma->anon_vma != NULL && (prot & PROT_EXEC)) {
-		/*
-		 * We are making executable a file mapping that has
-		 * had some COW done. Since pages might have been written,
-		 * check ability to execute the possibly modified content.
-		 * This typically should only occur for text relocations.
-		 */
-		int rc = file_has_perm(current, vma->vm_file, FILE__EXECMOD);
-		if (rc)
-			return rc;
-	}
-	if (!vma->vm_file && (prot & PROT_EXEC) &&
-		vma->vm_start <= vma->vm_mm->start_stack &&
-		vma->vm_end >= vma->vm_mm->start_stack) {
-		/* Attempt to make the process stack executable.
-		 * This has an additional execstack check.
-		 */
-		rc = task_has_perm(current, current, PROCESS__EXECSTACK);
+	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
+		rc = 0;
+		if (vma->vm_start >= vma->vm_mm->start_brk &&
+		    vma->vm_end <= vma->vm_mm->brk) {
+			rc = task_has_perm(current, current,
+					   PROCESS__EXECHEAP);
+		} else if (!vma->vm_file &&
+			   vma->vm_start <= vma->vm_mm->start_stack &&
+			   vma->vm_end >= vma->vm_mm->start_stack) {
+			rc = task_has_perm(current, current, PROCESS__EXECSTACK);
+		} else if (vma->vm_file && vma->anon_vma) {
+			/*
+			 * We are making executable a file mapping that has
+			 * had some COW done. Since pages might have been
+			 * written, check ability to execute the possibly
+			 * modified content.  This typically should only
+			 * occur for text relocations.
+			 */
+			rc = file_has_perm(current, vma->vm_file,
+					   FILE__EXECMOD);
+		}
 		if (rc)
 			return rc;
 	}
