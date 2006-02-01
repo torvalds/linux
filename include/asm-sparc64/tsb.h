@@ -19,7 +19,7 @@
  * 	stxa		%g5, [%g0] ASI_{D,I}TLB_DATA_IN
  * 	retry
  *
-
+ *
  * Each 16-byte slot of the TSB is the 8-byte tag and then the 8-byte
  * PTE.  The TAG is of the same layout as the TLB TAG TARGET mmu
  * register which is:

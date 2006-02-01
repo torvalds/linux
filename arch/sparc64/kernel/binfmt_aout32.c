@@ -330,8 +330,7 @@ beyond_if:
 
 	current->mm->start_stack =
 		(unsigned long) create_aout32_tables((char __user *)bprm->p, bprm);
-	tsb_context_switch(__pa(current->mm->pgd),
-	                   current->mm->context.sparc64_tsb);
+	tsb_context_switch(mm);
 
 	start_thread32(regs, ex.a_entry, current->mm->start_stack);
 	if (current->ptrace & PT_PTRACED)

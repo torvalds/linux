@@ -90,9 +90,20 @@
 
 #ifndef __ASSEMBLY__
 
+#define TSB_ENTRY_ALIGNMENT	16
+
+struct tsb {
+	unsigned long tag;
+	unsigned long pte;
+} __attribute__((aligned(TSB_ENTRY_ALIGNMENT)));
+
 typedef struct {
 	unsigned long	sparc64_ctx_val;
-	unsigned long	*sparc64_tsb;
+	struct tsb	*tsb;
+	unsigned long	tsb_nentries;
+	unsigned long	tsb_reg_val;
+	unsigned long	tsb_map_vaddr;
+	unsigned long	tsb_map_pte;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */

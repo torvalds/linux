@@ -130,48 +130,36 @@ winfix_trampoline:
 	 * schedule() time.
 	 *
 	 * %o0: page table physical address
-	 * %o1:	TSB address
+	 * %o1:	TSB register value
+	 * %o2:	TSB virtual address
+	 * %o3:	TSB mapping locked PTE
+	 *
+	 * We have to run this whole thing with interrupts
+	 * disabled so that the current cpu doesn't change
+	 * due to preemption.
 	 */
 	.align	32
-	.globl	tsb_context_switch
-tsb_context_switch:
+	.globl	__tsb_context_switch
+__tsb_context_switch:
 	rdpr	%pstate, %o5
 	wrpr	%o5, PSTATE_IE, %pstate
 
-	ldub	[%g6 + TI_CPU], %o3
-	sethi	%hi(trap_block), %o4
-	sllx	%o3, TRAP_BLOCK_SZ_SHIFT, %o3
-	or	%o4, %lo(trap_block), %o4
-	add	%o4, %o3, %o4
-	stx	%o0, [%o4 + TRAP_PER_CPU_PGD_PADDR]
+	ldub	[%g6 + TI_CPU], %g1
+	sethi	%hi(trap_block), %g2
+	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g1
+	or	%g2, %lo(trap_block), %g2
+	add	%g2, %g1, %g2
+	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]
 
-	brgez	%o1, 9f
-	 nop
-
-	/* Lock TSB into D-TLB.  */
-	sethi		%hi(PAGE_SIZE), %o3
-	and		%o3, %o1, %o3
-	sethi		%hi(TSBMAP_BASE), %o2
-	add		%o2, %o3, %o2
-
-	/* XXX handle PAGE_SIZE != 8K correctly...  */
 	mov	TSB_REG, %g1
-	stxa	%o2, [%g1] ASI_DMMU
+	stxa	%o1, [%g1] ASI_DMMU
 	membar	#Sync
 
-	stxa	%o2, [%g1] ASI_IMMU
+	stxa	%o1, [%g1] ASI_IMMU
 	membar	#Sync
 
-#define KERN_HIGHBITS	((_PAGE_VALID|_PAGE_SZBITS)^0xfffff80000000000)
-#define KERN_LOWBITS	(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W | _PAGE_L)
-	sethi		%uhi(KERN_HIGHBITS), %g2
-	or		%g2, %ulo(KERN_HIGHBITS), %g2
-	sllx		%g2, 32, %g2
-	or		%g2, KERN_LOWBITS, %g2
-#undef KERN_HIGHBITS
-#undef KERN_LOWBITS
-
-	xor		%o1, %g2, %o1	
+	brz	%o2, 9f
+	 nop
 
 	/* We use entry 61 for this locked entry.  This is the spitfire
 	 * TLB entry number, and luckily cheetah masks the value with
@@ -184,11 +172,10 @@ tsb_context_switch:
 	stxa		%o2, [%g1] ASI_DMMU
 	membar		#Sync
 	mov		(61 << 3), %g1
-	stxa		%o1, [%g1] ASI_DTLB_DATA_ACCESS
+	stxa		%o3, [%g1] ASI_DTLB_DATA_ACCESS
 	membar		#Sync
-
 9:
 	wrpr	%o5, %pstate
 
 	retl
-	 mov	%o2, %o0
+	 nop

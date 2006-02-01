@@ -441,8 +441,7 @@ void flush_thread(void)
 
 	mm = t->task->mm;
 	if (mm)
-		tsb_context_switch(__pa(mm->pgd),
-				   mm->context.sparc64_tsb);
+		tsb_context_switch(mm);
 
 	set_thread_wsaved(0);
 

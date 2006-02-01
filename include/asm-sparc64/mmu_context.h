@@ -22,7 +22,15 @@ extern void get_new_mmu_context(struct mm_struct *mm);
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
 
-extern unsigned long tsb_context_switch(unsigned long pgd_pa, unsigned long *tsb);
+extern void __tsb_context_switch(unsigned long pgd_pa, unsigned long tsb_reg,
+				 unsigned long tsb_vaddr, unsigned long tsb_pte);
+
+static inline void tsb_context_switch(struct mm_struct *mm)
+{
+	__tsb_context_switch(__pa(mm->pgd), mm->context.tsb_reg_val,
+			     mm->context.tsb_map_vaddr,
+			     mm->context.tsb_map_pte);
+}
 
 /* Set MMU context in the actual hardware. */
 #define load_secondary_context(__mm) \
@@ -52,8 +60,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 
 	if (!ctx_valid || (old_mm != mm)) {
 		load_secondary_context(mm);
-		tsb_context_switch(__pa(mm->pgd),
-				   mm->context.sparc64_tsb);
+		tsb_context_switch(mm);
 	}
 
 	/* Even if (mm == old_mm) we _must_ check
@@ -91,7 +98,7 @@ static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm
 
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT);
-	tsb_context_switch(__pa(mm->pgd), mm->context.sparc64_tsb);
+	tsb_context_switch(mm);
 }
 
 #endif /* !(__ASSEMBLY__) */
