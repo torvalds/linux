@@ -28,6 +28,7 @@ Currently, these files are in /proc/sys/vm:
 - block_dump
 - drop-caches
 - zone_reclaim_mode
+- zone_reclaim_interval
 
 ==============================================================
 
@@ -126,15 +127,54 @@ the high water marks for each per cpu page list.
 
 zone_reclaim_mode:
 
-This is set during bootup to 1 if it is determined that pages from
-remote zones will cause a significant performance reduction. The
+Zone_reclaim_mode allows to set more or less agressive approaches to
+reclaim memory when a zone runs out of memory. If it is set to zero then no
+zone reclaim occurs. Allocations will be satisfied from other zones / nodes
+in the system.
+
+This is value ORed together of
+
+1	= Zone reclaim on
+2	= Zone reclaim writes dirty pages out
+4	= Zone reclaim swaps pages
+8	= Also do a global slab reclaim pass
+
+zone_reclaim_mode is set during bootup to 1 if it is determined that pages
+from remote zones will cause a measurable performance reduction. The
 page allocator will then reclaim easily reusable pages (those page
-cache pages that are currently not used) before going off node.
+cache pages that are currently not used) before allocating off node pages.
 
-The user can override this setting. It may be beneficial to switch
-off zone reclaim if the system is used for a file server and all
-of memory should be used for caching files from disk.
+It may be beneficial to switch off zone reclaim if the system is
+used for a file server and all of memory should be used for caching files
+from disk. In that case the caching effect is more important than
+data locality.
 
-It may be beneficial to switch this on if one wants to do zone
-reclaim regardless of the numa distances in the system.
+Allowing zone reclaim to write out pages stops processes that are
+writing large amounts of data from dirtying pages on other nodes. Zone
+reclaim will write out dirty pages if a zone fills up and so effectively
+throttle the process. This may decrease the performance of a single process
+since it cannot use all of system memory to buffer the outgoing writes
+anymore but it preserve the memory on other nodes so that the performance
+of other processes running on other nodes will not be affected.
+
+Allowing regular swap effectively restricts allocations to the local
+node unless explicitly overridden by memory policies or cpuset
+configurations.
+
+It may be advisable to allow slab reclaim if the system makes heavy
+use of files and builds up large slab caches. However, the slab
+shrink operation is global, may take a long time and free slabs
+in all nodes of the system.
+
+================================================================
+
+zone_reclaim_interval:
+
+The time allowed for off node allocations after zone reclaim
+has failed to reclaim enough pages to allow a local allocation.
+
+Time is set in seconds and set by default to 30 seconds.
+
+Reduce the interval if undesired off node allocations occur. However, too
+frequent scans will have a negative impact onoff node allocation performance.
 

@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#58 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#59 $
  *
  * $FreeBSD$
  */
@@ -804,9 +804,10 @@ ahd_queue_scb(struct ahd_softc *ahd, struct scb *scb)
 		uint64_t host_dataptr;
 
 		host_dataptr = ahd_le64toh(scb->hscb->dataptr);
-		printf("%s: Queueing SCB 0x%x bus addr 0x%x - 0x%x%x/0x%x\n",
+		printf("%s: Queueing SCB %d:0x%x bus addr 0x%x - 0x%x%x/0x%x\n",
 		       ahd_name(ahd),
-		       SCB_GET_TAG(scb), ahd_le32toh(scb->hscb->hscb_busaddr),
+		       SCB_GET_TAG(scb), scb->hscb->scsiid,
+		       ahd_le32toh(scb->hscb->hscb_busaddr),
 		       (u_int)((host_dataptr >> 32) & 0xFFFFFFFF),
 		       (u_int)(host_dataptr & 0xFFFFFFFF),
 		       ahd_le32toh(scb->hscb->datacnt));

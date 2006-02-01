@@ -7,8 +7,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.50 $
- *
  * i/o controls for the dasd driver.
  */
 #include <linux/config.h>
@@ -423,8 +421,15 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 	dasd_info->cu_model = cdev->id.cu_model;
 	dasd_info->dev_type = cdev->id.dev_type;
 	dasd_info->dev_model = cdev->id.dev_model;
-	dasd_info->open_count = atomic_read(&device->open_count);
 	dasd_info->status = device->state;
+	/*
+	 * The open_count is increased for every opener, that includes
+	 * the blkdev_get in dasd_scan_partitions.
+	 * This must be hidden from user-space.
+	 */
+	dasd_info->open_count = atomic_read(&device->open_count);
+	if (!device->bdev)
+		dasd_info->open_count++;
 	
 	/*
 	 * check if device is really formatted

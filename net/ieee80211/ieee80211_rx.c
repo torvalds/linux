@@ -350,6 +350,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	u8 src[ETH_ALEN];
 	struct ieee80211_crypt_data *crypt = NULL;
 	int keyidx = 0;
+	int can_be_decrypted = 0;
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	stats = &ieee->stats;
@@ -410,12 +411,23 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 1;
 	}
 
-	if (is_multicast_ether_addr(hdr->addr1)
-	    ? ieee->host_mc_decrypt : ieee->host_decrypt) {
+	can_be_decrypted = (is_multicast_ether_addr(hdr->addr1) ||
+			    is_broadcast_ether_addr(hdr->addr2)) ?
+	    ieee->host_mc_decrypt : ieee->host_decrypt;
+
+	if (can_be_decrypted) {
 		int idx = 0;
-		if (skb->len >= hdrlen + 3)
+		if (skb->len >= hdrlen + 3) {
+			/* Top two-bits of byte 3 are the key index */
 			idx = skb->data[hdrlen + 3] >> 6;
+		}
+
+		/* ieee->crypt[] is WEP_KEY (4) in length.  Given that idx
+		 * is only allowed 2-bits of storage, no value of idx can
+		 * be provided via above code that would result in idx
+		 * being out of range */
 		crypt = ieee->crypt[idx];
+
 #ifdef NOT_YET
 		sta = NULL;
 
@@ -553,7 +565,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
-	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
+	if ((fc & IEEE80211_FCTL_PROTECTED) && can_be_decrypted &&
 	    (keyidx = ieee80211_rx_frame_decrypt(ieee, skb, crypt)) < 0)
 		goto rx_dropped;
 
@@ -617,7 +629,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated */
-	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
+	if ((fc & IEEE80211_FCTL_PROTECTED) && can_be_decrypted &&
 	    ieee80211_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt))
 		goto rx_dropped;
 
@@ -1439,7 +1451,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		break;
 
 	case IEEE80211_STYPE_PROBE_REQ:
-		IEEE80211_DEBUG_MGMT("recieved auth (%d)\n",
+		IEEE80211_DEBUG_MGMT("received auth (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
 
@@ -1473,7 +1485,7 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		break;
 	case IEEE80211_STYPE_AUTH:
 
-		IEEE80211_DEBUG_MGMT("recieved auth (%d)\n",
+		IEEE80211_DEBUG_MGMT("received auth (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
 

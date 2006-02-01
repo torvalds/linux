@@ -190,7 +190,7 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			msleep(10);
 		}
 		if (wait_time <= 0)
-			printk(KERN_WARNING "%s %s: early BIOS handoff "
+			printk(KERN_WARNING "%s %s: BIOS handoff "
 					"failed (BIOS bug ?)\n",
 					pdev->dev.bus_id, "OHCI");
 
@@ -212,8 +212,9 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 {
 	int wait_time, delta;
 	void __iomem *base, *op_reg_base;
-	u32 hcc_params, val, temp;
-	u8 cap_length;
+	u32	hcc_params, val;
+	u8	offset, cap_length;
+	int	count = 256/4;
 
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
@@ -224,51 +225,80 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 
 	cap_length = readb(base);
 	op_reg_base = base + cap_length;
-	hcc_params = readl(base + EHCI_HCC_PARAMS);
-	hcc_params = (hcc_params >> 8) & 0xff;
-	if (hcc_params) {
-		pci_read_config_dword(pdev,
-					hcc_params + EHCI_USBLEGSUP,
-					&val);
-		if (((val & 0xff) == 1) && (val & EHCI_USBLEGSUP_BIOS)) {
-			/*
-			 * Ok, BIOS is in smm mode, try to hand off...
-			 */
-			pci_read_config_dword(pdev,
-						hcc_params + EHCI_USBLEGCTLSTS,
-						&temp);
-			pci_write_config_dword(pdev,
-						hcc_params + EHCI_USBLEGCTLSTS,
-						temp | EHCI_USBLEGCTLSTS_SOOE);
-			val |= EHCI_USBLEGSUP_OS;
-			pci_write_config_dword(pdev,
-						hcc_params + EHCI_USBLEGSUP,
-						val);
 
-			wait_time = 500;
-			do {
-				msleep(10);
-				wait_time -= 10;
-				pci_read_config_dword(pdev,
-						hcc_params + EHCI_USBLEGSUP,
-						&val);
-			} while (wait_time && (val & EHCI_USBLEGSUP_BIOS));
-			if (!wait_time) {
-				/*
-				 * well, possibly buggy BIOS...
+	/* EHCI 0.96 and later may have "extended capabilities"
+	 * spec section 5.1 explains the bios handoff, e.g. for
+	 * booting from USB disk or using a usb keyboard
+	 */
+	hcc_params = readl(base + EHCI_HCC_PARAMS);
+	offset = (hcc_params >> 8) & 0xff;
+	while (offset && count--) {
+		u32		cap;
+		int		msec;
+
+		pci_read_config_dword(pdev, offset, &cap);
+		switch (cap & 0xff) {
+		case 1:			/* BIOS/SMM/... handoff support */
+			if ((cap & EHCI_USBLEGSUP_BIOS)) {
+				pr_debug("%s %s: BIOS handoff\n",
+						pdev->dev.bus_id, "EHCI");
+
+				/* BIOS workaround (?): be sure the
+				 * pre-Linux code receives the SMI
 				 */
-				printk(KERN_WARNING "%s %s: early BIOS handoff "
+				pci_read_config_dword(pdev,
+						offset + EHCI_USBLEGCTLSTS,
+						&val);
+				pci_write_config_dword(pdev,
+						offset + EHCI_USBLEGCTLSTS,
+						val | EHCI_USBLEGCTLSTS_SOOE);
+			}
+
+			/* always say Linux will own the hardware
+			 * by setting EHCI_USBLEGSUP_OS.
+			 */
+			pci_write_config_byte(pdev, offset + 3, 1);
+
+			/* if boot firmware now owns EHCI, spin till
+			 * it hands it over.
+			 */
+			msec = 5000;
+			while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
+				msleep(10);
+				msec -= 10;
+				pci_read_config_dword(pdev, offset, &cap);
+			}
+
+			if (cap & EHCI_USBLEGSUP_BIOS) {
+				/* well, possibly buggy BIOS... try to shut
+				 * it down, and hope nothing goes too wrong
+				 */
+				printk(KERN_WARNING "%s %s: BIOS handoff "
 						"failed (BIOS bug ?)\n",
 					pdev->dev.bus_id, "EHCI");
-				pci_write_config_dword(pdev,
-						hcc_params + EHCI_USBLEGSUP,
-						EHCI_USBLEGSUP_OS);
-				pci_write_config_dword(pdev,
-						hcc_params + EHCI_USBLEGCTLSTS,
-						0);
+				pci_write_config_byte(pdev, offset + 2, 0);
 			}
+
+			/* just in case, always disable EHCI SMIs */
+			pci_write_config_dword(pdev,
+					offset + EHCI_USBLEGCTLSTS,
+					0);
+			break;
+		case 0:			/* illegal reserved capability */
+			cap = 0;
+			/* FALLTHROUGH */
+		default:
+			printk(KERN_WARNING "%s %s: unrecognized "
+					"capability %02x\n",
+					pdev->dev.bus_id, "EHCI",
+					cap & 0xff);
+			break;
 		}
+		offset = (cap >> 8) & 0xff;
 	}
+	if (!count)
+		printk(KERN_DEBUG "%s %s: capability loop?\n",
+				pdev->dev.bus_id, "EHCI");
 
 	/*
 	 * halt EHCI & disable its interrupts in any case

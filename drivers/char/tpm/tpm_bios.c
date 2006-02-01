@@ -191,7 +191,7 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 	const char *name = "";
 	char data[40] = "";
 	int i, n_len = 0, d_len = 0;
-	u32 event_id, event_data_size;
+	u32 event_id;
 
 	switch(event->event_type) {
 	case PREBOOT:
@@ -220,8 +220,7 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 		}
 		break;
 	case EVENT_TAG:
-		event_id = be32_to_cpu(event_entry);
-		event_data_size = be32_to_cpu(&event_entry[4]);
+		event_id = be32_to_cpu(*((u32 *)event_entry));
 
 		/* ToDo Row data -> Base64 */
 
@@ -376,7 +375,7 @@ static int read_log(struct tpm_bios_log *log)
 {
 	struct acpi_tcpa *buff;
 	acpi_status status;
-	void *virt;
+	struct acpi_table_header *virt;
 
 	if (log->bios_event_log != NULL) {
 		printk(KERN_ERR
@@ -413,7 +412,7 @@ static int read_log(struct tpm_bios_log *log)
 
 	log->bios_event_log_end = log->bios_event_log + buff->log_max_len;
 
-	acpi_os_map_memory(buff->log_start_addr, buff->log_max_len, &virt);
+	acpi_os_map_memory(buff->log_start_addr, buff->log_max_len, (void *) &virt);
 
 	memcpy(log->bios_event_log, virt, buff->log_max_len);
 
@@ -487,26 +486,35 @@ struct file_operations tpm_binary_bios_measurements_ops = {
 	.release = tpm_bios_measurements_release,
 };
 
+static int is_bad(void *p)
+{
+	if (!p)
+		return 1;
+	if (IS_ERR(p) && (PTR_ERR(p) != -ENODEV))
+		return 1;
+	return 0;
+}
+
 struct dentry **tpm_bios_log_setup(char *name)
 {
 	struct dentry **ret = NULL, *tpm_dir, *bin_file, *ascii_file;
 
 	tpm_dir = securityfs_create_dir(name, NULL);
-	if (!tpm_dir)
+	if (is_bad(tpm_dir))
 		goto out;
 
 	bin_file =
 	    securityfs_create_file("binary_bios_measurements",
 				   S_IRUSR | S_IRGRP, tpm_dir, NULL,
 				   &tpm_binary_bios_measurements_ops);
-	if (!bin_file)
+	if (is_bad(bin_file))
 		goto out_tpm;
 
 	ascii_file =
 	    securityfs_create_file("ascii_bios_measurements",
 				   S_IRUSR | S_IRGRP, tpm_dir, NULL,
 				   &tpm_ascii_bios_measurements_ops);
-	if (!ascii_file)
+	if (is_bad(ascii_file))
 		goto out_bin;
 
 	ret = kmalloc(3 * sizeof(struct dentry *), GFP_KERNEL);
@@ -538,3 +546,4 @@ void tpm_bios_log_teardown(struct dentry **lst)
 		securityfs_remove(lst[i]);
 }
 EXPORT_SYMBOL_GPL(tpm_bios_log_teardown);
+MODULE_LICENSE("GPL");

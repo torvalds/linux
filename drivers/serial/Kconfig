@@ -23,7 +23,7 @@ config SERIAL_8250
 	  work.)
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called serial.
+	  module will be called 8250.
 	  [WARNING: Do not compile this driver as a module if you are using
 	  non-standard serial ports, since the configuration information will
 	  be lost when the driver is unloaded.  This limitation may be lifted

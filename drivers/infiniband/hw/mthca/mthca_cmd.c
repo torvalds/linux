@@ -199,8 +199,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 {
 	int err = 0;
 
-	if (down_interruptible(&dev->cmd.hcr_sem))
-		return -EINTR;
+	mutex_lock(&dev->cmd.hcr_mutex);
 
 	if (event) {
 		unsigned long end = jiffies + GO_BIT_TIMEOUT;
@@ -238,7 +237,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 					       op),                       dev->hcr + 6 * 4);
 
 out:
-	up(&dev->cmd.hcr_sem);
+	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
 
@@ -255,8 +254,7 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 	int err = 0;
 	unsigned long end;
 
-	if (down_interruptible(&dev->cmd.poll_sem))
-		return -EINTR;
+	down(&dev->cmd.poll_sem);
 
 	err = mthca_cmd_post(dev, in_param,
 			     out_param ? *out_param : 0,
@@ -333,8 +331,7 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	int err = 0;
 	struct mthca_cmd_context *context;
 
-	if (down_interruptible(&dev->cmd.event_sem))
-		return -EINTR;
+	down(&dev->cmd.event_sem);
 
 	spin_lock(&dev->cmd.context_lock);
 	BUG_ON(dev->cmd.free_head < 0);
@@ -438,7 +435,7 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 
 int mthca_cmd_init(struct mthca_dev *dev)
 {
-	sema_init(&dev->cmd.hcr_sem, 1);
+	mutex_init(&dev->cmd.hcr_mutex);
 	sema_init(&dev->cmd.poll_sem, 1);
 	dev->cmd.use_events = 0;
 

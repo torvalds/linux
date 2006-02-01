@@ -29,6 +29,8 @@
 #  For mptctl:
 #CFLAGS_mptctl.o += -DMPT_DEBUG_IOCTL
 #
+#  For mptfc:
+#CFLAGS_mptfc.o += -DMPT_DEBUG_FC
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-} LSI_LOGIC
 

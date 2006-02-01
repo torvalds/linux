@@ -314,6 +314,21 @@ static uint32_t aic79xx_seltime;
  */
 uint32_t aic79xx_periodic_otag;
 
+/* Some storage boxes are using an LSI chip which has a bug making it
+ * impossible to use aic79xx Rev B chip in 320 speeds.  The following
+ * storage boxes have been reported to be buggy:
+ * EonStor 3U 16-Bay: U16U-G3A3
+ * EonStor 2U 12-Bay: U12U-G3A3
+ * SentinelRAID: 2500F R5 / R6
+ * SentinelRAID: 2500F R1
+ * SentinelRAID: 2500F/1500F
+ * SentinelRAID: 150F
+ * 
+ * To get around this LSI bug, you can set your board to 160 mode
+ * or you can enable the SLOWCRC bit.
+ */
+uint32_t aic79xx_slowcrc;
+
 /*
  * Module information and settable options.
  */
@@ -343,6 +358,7 @@ MODULE_PARM_DESC(aic79xx,
 "	amplitude:<int>		Set the signal amplitude (0-7).\n"
 "	seltime:<int>		Selection Timeout:\n"
 "				(0/256ms,1/128ms,2/64ms,3/32ms)\n"
+"	slowcrc			Turn on the SLOWCRC bit (Rev B only)\n"		 
 "\n"
 "	Sample /etc/modprobe.conf line:\n"
 "		Enable verbose logging\n"
@@ -1003,6 +1019,7 @@ aic79xx_setup(char *s)
 		{ "slewrate", NULL },
 		{ "precomp", NULL },
 		{ "amplitude", NULL },
+		{ "slowcrc", &aic79xx_slowcrc },
 	};
 
 	end = strchr(s, '\0');
@@ -1072,7 +1089,6 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 		return (ENOMEM);
 
 	*((struct ahd_softc **)host->hostdata) = ahd;
-	ahd_lock(ahd, &s);
 	ahd->platform_data->host = host;
 	host->can_queue = AHD_MAX_QUEUE;
 	host->cmd_per_lun = 2;
@@ -1083,7 +1099,9 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	host->max_lun = AHD_NUM_LUNS;
 	host->max_channel = 0;
 	host->sg_tablesize = AHD_NSEG;
+	ahd_lock(ahd, &s);
 	ahd_set_unit(ahd, ahd_linux_unit++);
+	ahd_unlock(ahd, &s);
 	sprintf(buf, "scsi%d", host->host_no);
 	new_name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
 	if (new_name != NULL) {
@@ -1093,7 +1111,6 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	host->unique_id = ahd->unit;
 	ahd_linux_initialize_scsi_bus(ahd);
 	ahd_intr_enable(ahd, TRUE);
-	ahd_unlock(ahd, &s);
 
 	host->transportt = ahd_linux_transport_template;
 
@@ -1127,6 +1144,7 @@ ahd_linux_initialize_scsi_bus(struct ahd_softc *ahd)
 {
 	u_int target_id;
 	u_int numtarg;
+	unsigned long s;
 
 	target_id = 0;
 	numtarg = 0;
@@ -1138,6 +1156,8 @@ ahd_linux_initialize_scsi_bus(struct ahd_softc *ahd)
 		ahd_reset_channel(ahd, 'A', /*initiate_reset*/TRUE);
 	else
 		numtarg = (ahd->features & AHD_WIDE) ? 16 : 8;
+
+	ahd_lock(ahd, &s);
 
 	/*
 	 * Force negotiation to async for all targets that
@@ -1155,16 +1175,12 @@ ahd_linux_initialize_scsi_bus(struct ahd_softc *ahd)
 		ahd_update_neg_request(ahd, &devinfo, tstate,
 				       tinfo, AHD_NEG_ALWAYS);
 	}
+	ahd_unlock(ahd, &s);
 	/* Give the bus some time to recover */
 	if ((ahd->flags & AHD_RESET_BUS_A) != 0) {
 		ahd_freeze_simq(ahd);
-		init_timer(&ahd->platform_data->reset_timer);
-		ahd->platform_data->reset_timer.data = (u_long)ahd;
-		ahd->platform_data->reset_timer.expires =
-		    jiffies + (AIC79XX_RESET_DELAY * HZ)/1000;
-		ahd->platform_data->reset_timer.function =
-		    (ahd_linux_callback_t *)ahd_release_simq;
-		add_timer(&ahd->platform_data->reset_timer);
+		msleep(AIC79XX_RESET_DELAY);
+		ahd_release_simq(ahd);
 	}
 }
 
@@ -2033,6 +2049,9 @@ ahd_linux_sem_timeout(u_long arg)
 void
 ahd_freeze_simq(struct ahd_softc *ahd)
 {
+	unsigned long s;
+
+	ahd_lock(ahd, &s);
 	ahd->platform_data->qfrozen++;
 	if (ahd->platform_data->qfrozen == 1) {
 		scsi_block_requests(ahd->platform_data->host);
@@ -2040,6 +2059,7 @@ ahd_freeze_simq(struct ahd_softc *ahd)
 					CAM_LUN_WILDCARD, SCB_LIST_NULL,
 					ROLE_INITIATOR, CAM_REQUEUE_REQ);
 	}
+	ahd_unlock(ahd, &s);
 }
 
 void
@@ -2344,8 +2364,9 @@ done:
 			       ahd_name(ahd), dev->active);
 			retval = FAILED;
 		}
-	}
-	ahd_unlock(ahd, &flags);
+	} else
+		ahd_unlock(ahd, &flags);
+
 	return (retval);
 }
 

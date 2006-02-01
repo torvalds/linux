@@ -4,7 +4,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 2000
  *
- * $Revision: 1.9 $
  */
 
 #define PRINTK_HEADER "dasd_erp(3370)"

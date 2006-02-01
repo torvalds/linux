@@ -1,6 +1,6 @@
 /* bnx2.h: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004, 2005 Broadcom Corporation
+ * Copyright (c) 2004, 2005, 2006 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -277,19 +277,7 @@ struct statistics_block {
  *  l2_fhdr definition
  */
 struct l2_fhdr {
-#if defined(__BIG_ENDIAN)
-	u16 l2_fhdr_errors;
-	u16 l2_fhdr_status;
-#elif defined(__LITTLE_ENDIAN)
-	u16 l2_fhdr_status;
-	u16 l2_fhdr_errors;
-#endif
-		#define L2_FHDR_ERRORS_BAD_CRC		(1<<1)
-		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<2)
-		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<3)
-		#define L2_FHDR_ERRORS_TOO_SHORT	(1<<4)
-		#define L2_FHDR_ERRORS_GIANT_FRAME	(1<<5)
-
+	u32 l2_fhdr_status;
 		#define L2_FHDR_STATUS_RULE_CLASS	(0x7<<0)
 		#define L2_FHDR_STATUS_RULE_P2		(1<<3)
 		#define L2_FHDR_STATUS_RULE_P3		(1<<4)
@@ -300,6 +288,14 @@ struct l2_fhdr {
 		#define L2_FHDR_STATUS_IP_DATAGRAM	(1<<13)
 		#define L2_FHDR_STATUS_TCP_SEGMENT	(1<<14)
 		#define L2_FHDR_STATUS_UDP_DATAGRAM	(1<<15)
+
+		#define L2_FHDR_ERRORS_BAD_CRC		(1<<17)
+		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<18)
+		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<19)
+		#define L2_FHDR_ERRORS_TOO_SHORT	(1<<20)
+		#define L2_FHDR_ERRORS_GIANT_FRAME	(1<<21)
+		#define L2_FHDR_ERRORS_TCP_XSUM		(1<<28)
+		#define L2_FHDR_ERRORS_UDP_XSUM		(1<<31)
 
 	u32 l2_fhdr_hash;
 #if defined(__BIG_ENDIAN)
@@ -3956,6 +3952,7 @@ struct bnx2 {
 #define NO_WOL_FLAG			8
 #define USING_DAC_FLAG			0x10
 #define USING_MSI_FLAG			0x20
+#define ASF_ENABLE_FLAG			0x40
 
 	u32			phy_flags;
 #define PHY_SERDES_FLAG			1
@@ -3986,6 +3983,7 @@ struct bnx2 {
 #define CHIP_ID_5706_A2			0x57060020
 #define CHIP_ID_5708_A0			0x57080000
 #define CHIP_ID_5708_B0			0x57081000
+#define CHIP_ID_5708_B1			0x57081010
 
 #define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0xf)
 
@@ -3998,7 +3996,7 @@ struct bnx2 {
 	u16			bus_speed_mhz;
 	u8			wol;
 
-	u8			fw_timed_out;
+	u8			pad;
 
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
@@ -4074,6 +4072,7 @@ struct bnx2 {
 	struct net_device_stats net_stats;
 
 	struct flash_spec	*flash_info;
+	u32			flash_size;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
@@ -4172,7 +4171,7 @@ struct fw_info {
  * the firmware has timed out, the driver will assume there is no firmware
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. */
-#define FW_ACK_TIME_OUT_MS                  50
+#define FW_ACK_TIME_OUT_MS                  100
 
 
 #define BNX2_DRV_RESET_SIGNATURE		0x00000000
@@ -4274,6 +4273,9 @@ struct fw_info {
 #define BNX2_SHARED_HW_CFG_LED_MODE_MAC		 0
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY1	 0x100
 #define BNX2_SHARED_HW_CFG_LED_MODE_GPHY2	 0x200
+
+#define BNX2_SHARED_HW_CFG_CONFIG2		0x00000040
+#define BNX2_SHARED_HW_CFG2_NVM_SIZE_MASK	 0x00fff000
 
 #define BNX2_DEV_INFO_BC_REV			0x0000004c
 

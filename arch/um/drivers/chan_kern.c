@@ -403,7 +403,7 @@ int chan_window_size(struct list_head *chans, unsigned short *rows_out,
 	return 0;
 }
 
-void free_one_chan(struct chan *chan, int delay_free_irq)
+static void free_one_chan(struct chan *chan, int delay_free_irq)
 {
 	list_del(&chan->list);
 
@@ -416,7 +416,7 @@ void free_one_chan(struct chan *chan, int delay_free_irq)
 	kfree(chan);
 }
 
-void free_chan(struct list_head *chans, int delay_free_irq)
+static void free_chan(struct list_head *chans, int delay_free_irq)
 {
 	struct list_head *ele, *next;
 	struct chan *chan;
@@ -497,7 +497,7 @@ struct chan_type {
 	struct chan_ops *ops;
 };
 
-struct chan_type chan_table[] = {
+static struct chan_type chan_table[] = {
 	{ "fd", &fd_ops },
 
 #ifdef CONFIG_NULL_CHAN

@@ -1,6 +1,4 @@
 /*
- * $Id: cu3088.c,v 1.38 2006/01/12 14:33:09 cohuck Exp $
- *
  * CTC / LCS ccw_device driver
  *
  * Copyright (C) 2002 IBM Deutschland Entwicklung GmbH, IBM Corporation

@@ -373,16 +373,11 @@ static inline ulong round_up(ulong n, ulong size)
 
 static void read_snapshot_metadata(struct dm_snapshot *s)
 {
-	if (s->have_metadata)
-		return;
-
 	if (s->store.read_metadata(&s->store)) {
 		down_write(&s->lock);
 		s->valid = 0;
 		up_write(&s->lock);
 	}
-
-	s->have_metadata = 1;
 }
 
 /*
@@ -471,7 +466,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->chunk_shift = ffs(chunk_size) - 1;
 
 	s->valid = 1;
-	s->have_metadata = 0;
+	s->active = 0;
 	s->last_percent = 0;
 	init_rwsem(&s->lock);
 	s->table = ti->table;
@@ -506,7 +501,11 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad5;
 	}
 
+	/* Metadata must only be loaded into one table at once */
+	read_snapshot_metadata(s);
+
 	/* Add snapshot to the list of snapshots for this origin */
+	/* Exceptions aren't triggered till snapshot_resume() is called */
 	if (register_snapshot(s)) {
 		r = -EINVAL;
 		ti->error = "Cannot register snapshot origin";
@@ -793,6 +792,9 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	if (!s->valid)
 		return -EIO;
 
+	if (unlikely(bio_barrier(bio)))
+		return -EOPNOTSUPP;
+
 	/*
 	 * Write to snapshot - higher level takes care of RW/RO
 	 * flags so we should only get this if we are
@@ -862,7 +864,9 @@ static void snapshot_resume(struct dm_target *ti)
 {
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
 
-	read_snapshot_metadata(s);
+	down_write(&s->lock);
+	s->active = 1;
+	up_write(&s->lock);
 }
 
 static int snapshot_status(struct dm_target *ti, status_type_t type,
@@ -932,8 +936,8 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 	/* Do all the snapshots on this origin */
 	list_for_each_entry (snap, snapshots, list) {
 
-		/* Only deal with valid snapshots */
-		if (!snap->valid)
+		/* Only deal with valid and active snapshots */
+		if (!snap->valid || !snap->active)
 			continue;
 
 		/* Nothing to do if writing beyond end of snapshot */
@@ -1057,6 +1061,9 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 	struct dm_dev *dev = (struct dm_dev *) ti->private;
 	bio->bi_bdev = dev->bdev;
 
+	if (unlikely(bio_barrier(bio)))
+		return -EOPNOTSUPP;
+
 	/* Only tell snapshots if this is a write */
 	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : 1;
 }
@@ -1104,7 +1111,7 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 0, 1},
+	.version = {1, 1, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -1115,7 +1122,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 0, 1},
+	.version = {1, 1, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,

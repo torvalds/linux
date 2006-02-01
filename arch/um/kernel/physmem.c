@@ -265,7 +265,7 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 	highmem_len = highmem_pages * sizeof(struct page);
 
 	total_pages = phys_pages + iomem_pages + highmem_pages;
-	total_len = phys_len + iomem_pages + highmem_len;
+	total_len = phys_len + iomem_len + highmem_len;
 
 	if(kmalloc_ok){
 		map = kmalloc(total_len, GFP_KERNEL);

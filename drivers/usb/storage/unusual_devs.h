@@ -145,6 +145,11 @@ UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_BULK, NULL,
 		US_FL_NEED_OVERRIDE ),
 
+UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
+		"Rio",
+		"Rio Karma",
+		US_SC_SCSI, US_PR_BULK, rio_karma_init, 0),
+
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
 		"Kyocera",
@@ -424,11 +429,11 @@ UNUSUAL_DEV(  0x054c, 0x0010, 0x0106, 0x0450,
 		US_FL_SINGLE_LUN | US_FL_NOT_LOCKABLE | US_FL_NO_WP_DETECT ),
 
 /* This entry is needed because the device reports Sub=ff */
-UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0500, 
-               "Sony",
-               "DSC-T1", 
-               US_SC_8070, US_PR_DEVICE, NULL,
-               US_FL_SINGLE_LUN ),
+UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0600,
+		"Sony",
+		"DSC-T1/T5",
+		US_SC_8070, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 
 /* Reported by wim@geeks.nl */

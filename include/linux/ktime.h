@@ -10,6 +10,12 @@
  *
  *  Started by: Thomas Gleixner and Ingo Molnar
  *
+ *  Credits:
+ *
+ *  	Roman Zippel provided the ideas and primary code snippets of
+ *  	the ktime_t union and further simplifications of the original
+ *  	code.
+ *
  *  For licencing details see kernel-base/COPYING
  */
 #ifndef _LINUX_KTIME_H

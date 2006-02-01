@@ -53,14 +53,14 @@ config GENERIC_ISA_DMA
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
-	default y
 
 source "init/Kconfig"
 
 
 menu "System Type"
 
-comment "Archimedes/A5000 Implementations (select only ONE)"
+choice
+	prompt "Archimedes/A5000 Implementations"
 
 config ARCH_ARC
         bool "Archimedes"
@@ -73,6 +73,7 @@ config ARCH_ARC
 
 config ARCH_A5K
         bool "A5000"
+	select ARCH_MAY_HAVE_PC_FDC
         help
           Say Y here to to support the Acorn A5000.
 
@@ -87,6 +88,7 @@ config PAGESIZE_16
           Say Y here if your Archimedes or A5000 system has only 2MB of
           memory, otherwise say N.  The resulting kernel will not run on a
           machine with 4MB of memory.
+endchoice
 endmenu
 
 config ISA_DMA_API

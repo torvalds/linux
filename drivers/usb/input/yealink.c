@@ -59,7 +59,7 @@
 #include "map_to_7segment.h"
 #include "yealink.h"
 
-#define DRIVER_VERSION "yld-20050816"
+#define DRIVER_VERSION "yld-20051230"
 #define DRIVER_AUTHOR "Henk Vergonet"
 #define DRIVER_DESC "Yealink phone driver"
 
@@ -786,16 +786,25 @@ static struct attribute_group yld_attr_group = {
  * Linux interface and usb initialisation
  ******************************************************************************/
 
-static const struct yld_device {
-	u16 idVendor;
-	u16 idProduct;
+struct driver_info {
 	char *name;
-} yld_device[] = {
-	{ 0x6993, 0xb001, "Yealink usb-p1k" },
 };
 
-static struct usb_device_id usb_table [] = {
-	{ USB_INTERFACE_INFO(USB_CLASS_HID, 0, 0) },
+static const struct driver_info info_P1K = {
+	.name	= "Yealink usb-p1k",
+};
+
+static const struct usb_device_id usb_table [] = {
+	{
+		.match_flags		= USB_DEVICE_ID_MATCH_DEVICE |
+						USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor		= 0x6993,
+		.idProduct		= 0xb001,
+		.bInterfaceClass	= USB_CLASS_HID,
+		.bInterfaceSubClass	= 0,
+		.bInterfaceProtocol	= 0,
+		.driver_info		= (kernel_ulong_t)&info_P1K
+	},
 	{ }
 };
 
@@ -842,32 +851,15 @@ static void usb_disconnect(struct usb_interface *intf)
 	usb_cleanup(yld, 0);
 }
 
-static int usb_match(struct usb_device *udev)
-{
-	int i;
-	u16 idVendor = le16_to_cpu(udev->descriptor.idVendor);
-	u16 idProduct = le16_to_cpu(udev->descriptor.idProduct);
-
-	for (i = 0; i < ARRAY_SIZE(yld_device); i++) {
-		if ((idVendor == yld_device[i].idVendor) &&
-		    (idProduct == yld_device[i].idProduct))
-			return i;
-	}
-	return -ENODEV;
-}
-
 static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev (intf);
+	struct driver_info *nfo = (struct driver_info *)id->driver_info;
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct yealink_dev *yld;
 	struct input_dev *input_dev;
 	int ret, pipe, i;
-
-	i = usb_match(udev);
-	if (i < 0)
-		return -ENODEV;
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
@@ -915,7 +907,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
 	ret = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
 	if (ret != USB_PKT_LEN)
-		err("invalid payload size %d, expected %d", ret, USB_PKT_LEN);
+		err("invalid payload size %d, expected %zd", ret, USB_PKT_LEN);
 
 	/* initialise irq urb */
 	usb_fill_int_urb(yld->urb_irq, udev, pipe, yld->irq_data,
@@ -948,7 +940,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	strlcat(yld->phys,  "/input0", sizeof(yld->phys));
 
 	/* register settings for the input device */
-	input_dev->name = yld_device[i].name;
+	input_dev->name = nfo->name;
 	input_dev->phys = yld->phys;
 	usb_to_input_id(udev, &input_dev->id);
 	input_dev->cdev.dev = &intf->dev;

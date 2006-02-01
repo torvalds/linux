@@ -1,6 +1,4 @@
 /*
- * $Id: ctcmain.h,v 1.4 2005/03/24 09:04:17 mschwide Exp $
- *
  * CTC / ESCON network driver
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
@@ -28,8 +26,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * RELEASE-TAG: CTC/ESCON network driver $Revision: 1.4 $
  *
  */
 

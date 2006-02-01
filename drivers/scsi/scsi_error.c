@@ -1350,7 +1350,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	cmnd[4] = SCSI_REMOVAL_PREVENT;
 	cmnd[5] = 0;
 
-	scsi_execute_async(sdev, cmnd, DMA_NONE, NULL, 0, 0, 10 * HZ,
+	scsi_execute_async(sdev, cmnd, 6, DMA_NONE, NULL, 0, 0, 10 * HZ,
 			   5, NULL, NULL, GFP_KERNEL);
 }
 

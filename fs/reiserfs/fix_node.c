@@ -2021,38 +2021,6 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 	return CARRY_ON;
 }
 
-#ifdef CONFIG_REISERFS_CHECK
-void *reiserfs_kmalloc(size_t size, gfp_t flags, struct super_block *s)
-{
-	void *vp;
-	static size_t malloced;
-
-	vp = kmalloc(size, flags);
-	if (vp) {
-		REISERFS_SB(s)->s_kmallocs += size;
-		if (REISERFS_SB(s)->s_kmallocs > malloced + 200000) {
-			reiserfs_warning(s,
-					 "vs-8301: reiserfs_kmalloc: allocated memory %d",
-					 REISERFS_SB(s)->s_kmallocs);
-			malloced = REISERFS_SB(s)->s_kmallocs;
-		}
-	}
-	return vp;
-}
-
-void reiserfs_kfree(const void *vp, size_t size, struct super_block *s)
-{
-	kfree(vp);
-
-	REISERFS_SB(s)->s_kmallocs -= size;
-	if (REISERFS_SB(s)->s_kmallocs < 0)
-		reiserfs_warning(s,
-				 "vs-8302: reiserfs_kfree: allocated memory %d",
-				 REISERFS_SB(s)->s_kmallocs);
-
-}
-#endif
-
 static int get_virtual_node_size(struct super_block *sb, struct buffer_head *bh)
 {
 	int max_num_of_items;
@@ -2086,7 +2054,7 @@ static int get_mem_for_virtual_node(struct tree_balance *tb)
 		/* we have to allocate more memory for virtual node */
 		if (tb->vn_buf) {
 			/* free memory allocated before */
-			reiserfs_kfree(tb->vn_buf, tb->vn_buf_size, tb->tb_sb);
+			kfree(tb->vn_buf);
 			/* this is not needed if kfree is atomic */
 			check_fs = 1;
 		}
@@ -2095,24 +2063,15 @@ static int get_mem_for_virtual_node(struct tree_balance *tb)
 		tb->vn_buf_size = size;
 
 		/* get memory for virtual item */
-		buf =
-		    reiserfs_kmalloc(size, GFP_ATOMIC | __GFP_NOWARN,
-				     tb->tb_sb);
+		buf = kmalloc(size, GFP_ATOMIC | __GFP_NOWARN);
 		if (!buf) {
 			/* getting memory with GFP_KERNEL priority may involve
 			   balancing now (due to indirect_to_direct conversion on
 			   dcache shrinking). So, release path and collected
 			   resources here */
 			free_buffers_in_tb(tb);
-			buf = reiserfs_kmalloc(size, GFP_NOFS, tb->tb_sb);
+			buf = kmalloc(size, GFP_NOFS);
 			if (!buf) {
-#ifdef CONFIG_REISERFS_CHECK
-				reiserfs_warning(tb->tb_sb,
-						 "vs-8345: get_mem_for_virtual_node: "
-						 "kmalloc failed. reiserfs kmalloced %d bytes",
-						 REISERFS_SB(tb->tb_sb)->
-						 s_kmallocs);
-#endif
 				tb->vn_buf_size = 0;
 			}
 			tb->vn_buf = buf;
@@ -2619,7 +2578,6 @@ void unfix_nodes(struct tree_balance *tb)
 		}
 	}
 
-	if (tb->vn_buf)
-		reiserfs_kfree(tb->vn_buf, tb->vn_buf_size, tb->tb_sb);
+	kfree(tb->vn_buf);
 
 }

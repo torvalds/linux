@@ -38,6 +38,7 @@ obj-$(CONFIG_USB_XPAD)		+= input/
 
 obj-$(CONFIG_USB_DABUSB)	+= media/
 obj-$(CONFIG_USB_DSBR)		+= media/
+obj-$(CONFIG_USB_ET61X251)	+= media/
 obj-$(CONFIG_USB_IBMCAM)	+= media/
 obj-$(CONFIG_USB_KONICAWC)	+= media/
 obj-$(CONFIG_USB_OV511)		+= media/

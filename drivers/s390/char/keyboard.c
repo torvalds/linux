@@ -440,7 +440,11 @@ do_kdgkb_ioctl(struct kbd_data *kbd, struct kbsentry __user *u_kbs,
 			return -EPERM;
 		len = strnlen_user(u_kbs->kb_string,
 				   sizeof(u_kbs->kb_string) - 1);
-		p = kmalloc(len, GFP_KERNEL);
+		if (!len)
+			return -EFAULT;
+		if (len > sizeof(u_kbs->kb_string) - 1)
+			return -EINVAL;
+		p = kmalloc(len + 1, GFP_KERNEL);
 		if (!p)
 			return -ENOMEM;
 		if (copy_from_user(p, u_kbs->kb_string, len)) {

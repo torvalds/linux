@@ -8,7 +8,7 @@ obj-y	:= process.o signal.o entry.o traps.o irq.o \
 	ptrace.o setup.o time.o sys_sh.o semaphore.o \
 	io.o io_generic.o sh_ksyms.o
 
-obj-y				+= cpu/
+obj-y				+= cpu/ timers/
 
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_CF_ENABLER)	+= cf-enabler.o

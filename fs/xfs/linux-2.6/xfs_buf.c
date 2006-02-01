@@ -822,6 +822,13 @@ xfs_buf_rele(
 
 	XB_TRACE(bp, "rele", bp->b_relse);
 
+	if (unlikely(!hash)) {
+		ASSERT(!bp->b_relse);
+		if (atomic_dec_and_test(&bp->b_hold))
+			xfs_buf_free(bp);
+		return;
+	}
+
 	if (atomic_dec_and_lock(&bp->b_hold, &hash->bh_lock)) {
 		if (bp->b_relse) {
 			atomic_inc(&bp->b_hold);
@@ -1514,6 +1521,7 @@ xfs_mapping_buftarg(
 	struct address_space	*mapping;
 	static struct address_space_operations mapping_aops = {
 		.sync_page = block_sync_page,
+		.migratepage = fail_migrate_page,
 	};
 
 	inode = new_inode(bdev->bd_inode->i_sb);

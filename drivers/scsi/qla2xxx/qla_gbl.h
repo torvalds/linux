@@ -47,9 +47,11 @@ extern int qla2x00_local_device_login(scsi_qla_host_t *, uint16_t);
 extern void qla2x00_restart_queues(scsi_qla_host_t *, uint8_t);
 
 extern void qla2x00_rescan_fcports(scsi_qla_host_t *);
+extern void qla2x00_update_fcports(scsi_qla_host_t *);
 
 extern int qla2x00_abort_isp(scsi_qla_host_t *);
 
+extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 extern void qla2x00_reg_remote_port(scsi_qla_host_t *, fc_port_t *);
 
 /*
@@ -70,8 +72,8 @@ extern char *qla2x00_get_fw_version_str(struct scsi_qla_host *, char *);
 
 extern void qla2x00_cmd_timeout(srb_t *);
 
-extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int);
-extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *);
+extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int, int);
+extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *, int);
 
 extern void qla2x00_blink_led(scsi_qla_host_t *);
 

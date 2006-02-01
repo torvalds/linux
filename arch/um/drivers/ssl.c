@@ -33,7 +33,7 @@ static struct tty_driver *ssl_driver;
 
 #define NR_PORTS 64
 
-void ssl_announce(char *dev_name, int dev)
+static void ssl_announce(char *dev_name, int dev)
 {
 	printk(KERN_INFO "Serial line %d assigned device '%s'\n", dev,
 	       dev_name);
@@ -98,7 +98,7 @@ static int ssl_remove(int n)
 	return line_remove(serial_lines, ARRAY_SIZE(serial_lines), n);
 }
 
-int ssl_open(struct tty_struct *tty, struct file *filp)
+static int ssl_open(struct tty_struct *tty, struct file *filp)
 {
 	return line_open(serial_lines, tty);
 }
@@ -182,7 +182,7 @@ static struct console ssl_cons = {
 	.index		= -1,
 };
 
-int ssl_init(void)
+static int ssl_init(void)
 {
 	char *new_title;
 

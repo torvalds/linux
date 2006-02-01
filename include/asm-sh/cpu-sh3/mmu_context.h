@@ -24,5 +24,15 @@
 #define MMU_NTLB_WAYS		4
 #define MMU_CONTROL_INIT	0x007	/* SV=0, TF=1, IX=1, AT=1 */
 
+#define TRA	0xffffffd0
+#define EXPEVT	0xffffffd4
+
+#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
+#define INTEVT	0xa4000000	/* INTEVTE2(0xa4000000) */
+#else
+#define INTEVT	0xffffffd8
+#endif
+
 #endif /* __ASM_CPU_SH3_MMU_CONTEXT_H */
 

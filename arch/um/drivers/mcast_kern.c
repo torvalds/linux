@@ -26,7 +26,7 @@ struct mcast_init {
 	int ttl;
 };
 
-void mcast_init(struct net_device *dev, void *data)
+static void mcast_init(struct net_device *dev, void *data)
 {
 	struct uml_net_private *pri;
 	struct mcast_data *dpri;
@@ -40,7 +40,7 @@ void mcast_init(struct net_device *dev, void *data)
 	dpri->dev = dev;
 
 	printk("mcast backend ");
-	printk("multicast adddress: %s:%u, TTL:%u ",
+	printk("multicast address: %s:%u, TTL:%u ",
 	       dpri->addr, dpri->port, dpri->ttl);
 
 	printk("\n");

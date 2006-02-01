@@ -25,11 +25,6 @@
 #undef DMA_IPR_POS
 #undef DMA_PRIORITY
 
-#undef NR_IRQS
-
-#undef __irq_demux
-#undef irq_demux
-
 #undef INTC_IMCR0
 #undef INTC_IMCR1
 #undef INTC_IMCR2
@@ -229,33 +224,6 @@
 #define SIU_IPR_POS	1
 #define SIU_PRIORITY	3
 
-
-/* ONCHIP_NR_IRQS */
-#define NR_IRQS 109
-
-/* In a generic kernel, NR_IRQS is an upper bound, and we should use
- * ACTUAL_NR_IRQS (which uses the machine vector) to get the correct value.
- */
-#define ACTUAL_NR_IRQS NR_IRQS
-
-
-extern void disable_irq(unsigned int);
-extern void disable_irq_nosync(unsigned int);
-extern void enable_irq(unsigned int);
-
-/*
- * Simple Mask Register Support
- */
-extern void make_maskreg_irq(unsigned int irq);
-extern unsigned short *irq_mask_register;
-
-/*
- * Function for "on chip support modules".
- */
-extern void make_ipr_irq(unsigned int irq, unsigned int addr,
-			 int pos,  int priority);
-extern void make_imask_irq(unsigned int irq);
-
 #define PORT_PACR	0xA4050100UL
 #define PORT_PBCR	0xA4050102UL
 #define PORT_PCCR	0xA4050104UL
@@ -343,8 +311,6 @@ extern void make_imask_irq(unsigned int irq);
 #define IRQ6_PRIORITY	1
 #define IRQ7_PRIORITY	1
 
-extern int shmse_irq_demux(int irq);
-#define __irq_demux(irq) shmse_irq_demux(irq)
-#define irq_demux(irq) __irq_demux(irq)
+int shmse_irq_demux(int irq);
 
 #endif /* __ASM_SH_IRQ_SH73180_H */

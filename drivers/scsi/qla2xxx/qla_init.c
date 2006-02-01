@@ -32,7 +32,6 @@ static int qla2x00_fw_ready(scsi_qla_host_t *);
 static int qla2x00_configure_hba(scsi_qla_host_t *);
 static int qla2x00_configure_loop(scsi_qla_host_t *);
 static int qla2x00_configure_local_loop(scsi_qla_host_t *);
-static void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 static int qla2x00_configure_fabric(scsi_qla_host_t *);
 static int qla2x00_find_all_fabric_devs(scsi_qla_host_t *, struct list_head *);
 static int qla2x00_device_resync(scsi_qla_host_t *);
@@ -1688,10 +1687,16 @@ static void
 qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
+	struct fc_rport *rport;
+	unsigned long flags;
 
-	if (fcport->rport)
-		fc_remote_port_delete(fcport->rport);
-	fcport->rport = NULL;
+	spin_lock_irqsave(&fcport->rport_lock, flags);
+	rport = fcport->drport;
+	fcport->drport = NULL;
+	spin_unlock_irqrestore(&fcport->rport_lock, flags);
+	if (rport)
+		fc_remote_port_delete(rport);
+
 }
 
 /**
@@ -1719,6 +1724,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
+	spin_lock_init(&fcport->rport_lock);
 	INIT_WORK(&fcport->rport_add_work, qla2x00_rport_add, fcport);
 	INIT_WORK(&fcport->rport_del_work, qla2x00_rport_del, fcport);
 
@@ -2008,7 +2014,7 @@ qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
 {
 	fc_port_t	*fcport;
 
-	qla2x00_mark_all_devices_lost(ha);
+	qla2x00_mark_all_devices_lost(ha, 0);
  	list_for_each_entry(fcport, &ha->fcports, list) {
 		if (fcport->port_type != FCT_TARGET)
 			continue;
@@ -2032,13 +2038,9 @@ qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
  * Context:
  *	Kernel context.
  */
-static void
+void
 qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
-	uint16_t	index;
-	unsigned long flags;
-	srb_t *sp;
-
 	fcport->ha = ha;
 	fcport->login_retry = 0;
 	fcport->port_login_retry_count = ha->port_down_retry_count *
@@ -2046,28 +2048,6 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
 	    PORT_RETRY_TIME);
 	fcport->flags &= ~FCF_LOGIN_NEEDED;
-
-	/*
-	 * Check for outstanding cmd on tape Bypass LUN discovery if active
-	 * command on tape.
-	 */
-	if (fcport->flags & FCF_TAPE_PRESENT) {
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-		for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
-			fc_port_t *sfcp;
-
-			if ((sp = ha->outstanding_cmds[index]) != 0) {
-				sfcp = sp->fcport;
-				if (sfcp == fcport) {
-					atomic_set(&fcport->state, FCS_ONLINE);
-					spin_unlock_irqrestore(
-					    &ha->hardware_lock, flags);
-					return;
-				}
-			}
-		}
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	}
 
 	if (fcport->port_type == FCT_INITIATOR ||
 	    fcport->port_type == FCT_BROADCAST)
@@ -2084,24 +2064,29 @@ qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 	struct fc_rport_identifiers rport_ids;
 	struct fc_rport *rport;
+	unsigned long flags;
 
-	if (fcport->rport) {
-		fc_remote_port_delete(fcport->rport);
-		fcport->rport = NULL;
-	}
+	if (fcport->drport)
+		qla2x00_rport_del(fcport);
+	if (fcport->rport)
+		return;
 
 	rport_ids.node_name = wwn_to_u64(fcport->node_name);
 	rport_ids.port_name = wwn_to_u64(fcport->port_name);
 	rport_ids.port_id = fcport->d_id.b.domain << 16 |
 	    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
-	fcport->rport = rport = fc_remote_port_add(ha->host, 0, &rport_ids);
+	rport = fc_remote_port_add(ha->host, 0, &rport_ids);
 	if (!rport) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to allocate fc remote port!\n");
 		return;
 	}
+	spin_lock_irqsave(&fcport->rport_lock, flags);
+	fcport->rport = rport;
 	*((fc_port_t **)rport->dd_data) = fcport;
+	spin_unlock_irqrestore(&fcport->rport_lock, flags);
+
 	rport->supported_classes = fcport->supported_classes;
 
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
@@ -2217,12 +2202,11 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 
 			if (atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
 				qla2x00_mark_device_lost(ha, fcport,
-				    ql2xplogiabsentdevice);
+				    ql2xplogiabsentdevice, 0);
 				if (fcport->loop_id != FC_NO_LOOP_ID &&
 				    (fcport->flags & FCF_TAPE_PRESENT) == 0 &&
 				    fcport->port_type != FCT_INITIATOR &&
 				    fcport->port_type != FCT_BROADCAST) {
-
 					ha->isp_ops.fabric_logout(ha,
 					    fcport->loop_id,
 					    fcport->d_id.b.domain,
@@ -2694,7 +2678,8 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 			if (atomic_read(&fcport->state) == FCS_ONLINE) {
 				if (format != 3 ||
 				    fcport->port_type != FCT_INITIATOR) {
-					qla2x00_mark_device_lost(ha, fcport, 0);
+					qla2x00_mark_device_lost(ha, fcport,
+					    0, 0);
 				}
 			}
 			fcport->flags &= ~FCF_FARP_DONE;
@@ -2741,8 +2726,7 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 			ha->isp_ops.fabric_logout(ha, fcport->loop_id,
 			    fcport->d_id.b.domain, fcport->d_id.b.area,
 			    fcport->d_id.b.al_pa);
-			qla2x00_mark_device_lost(ha, fcport, 1);
-
+			qla2x00_mark_device_lost(ha, fcport, 1, 0);
 		} else {
 			qla2x00_update_fcport(ha, fcport);
 		}
@@ -2855,7 +2839,7 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
 			ha->isp_ops.fabric_logout(ha, fcport->loop_id,
 			    fcport->d_id.b.domain, fcport->d_id.b.area,
 			    fcport->d_id.b.al_pa);
-			qla2x00_mark_device_lost(ha, fcport, 1);
+			qla2x00_mark_device_lost(ha, fcport, 1, 0);
 
 			rval = 1;
 			break;
@@ -2990,6 +2974,17 @@ qla2x00_rescan_fcports(scsi_qla_host_t *ha)
 	qla2x00_probe_for_all_luns(ha);
 }
 
+void
+qla2x00_update_fcports(scsi_qla_host_t *ha)
+{
+	fc_port_t *fcport;
+
+	/* Go with deferred removal of rport references. */
+	list_for_each_entry(fcport, &ha->fcports, list)
+		if (fcport->drport)
+			qla2x00_rport_del(fcport);
+}
+
 /*
 *  qla2x00_abort_isp
 *      Resets ISP and aborts all outstanding commands.
@@ -3019,7 +3014,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 		atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
-			qla2x00_mark_all_devices_lost(ha);
+			qla2x00_mark_all_devices_lost(ha, 0);
 		} else {
 			if (!atomic_read(&ha->loop_down_timer))
 				atomic_set(&ha->loop_down_timer,

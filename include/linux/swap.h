@@ -178,6 +178,7 @@ extern int vm_swappiness;
 
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
+extern int zone_reclaim_interval;
 extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 #else
 #define zone_reclaim_mode 0
@@ -190,13 +191,20 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 #ifdef CONFIG_MIGRATION
 extern int isolate_lru_page(struct page *p);
 extern int putback_lru_pages(struct list_head *l);
+extern int migrate_page(struct page *, struct page *);
+extern void migrate_page_copy(struct page *, struct page *);
+extern int migrate_page_remove_references(struct page *, struct page *, int);
 extern int migrate_pages(struct list_head *l, struct list_head *t,
 		struct list_head *moved, struct list_head *failed);
+extern int fail_migrate_page(struct page *, struct page *);
 #else
 static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
 static inline int putback_lru_pages(struct list_head *l) { return 0; }
 static inline int migrate_pages(struct list_head *l, struct list_head *t,
 	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
+/* Possible settings for the migrate_page() method in address_operations */
+#define migrate_page NULL
+#define fail_migrate_page NULL
 #endif
 
 #ifdef CONFIG_MMU
@@ -245,6 +253,7 @@ extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
 
 extern spinlock_t swap_lock;
+extern int remove_vma_swap(struct vm_area_struct *vma, struct page *page);
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;

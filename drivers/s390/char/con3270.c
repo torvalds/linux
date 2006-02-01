@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/err.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -597,7 +598,7 @@ con3270_init(void)
 	}
 
 	cdev = ccw_device_probe_console();
-	if (!cdev)
+	if (IS_ERR(cdev))
 		return -ENODEV;
 	rp = raw3270_setup_console(cdev);
 	if (IS_ERR(rp))

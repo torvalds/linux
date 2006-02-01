@@ -1,6 +1,4 @@
 /* 
- * $Id: iucv.c,v 1.47 2005/11/21 11:35:22 mschwide Exp $
- *
  * IUCV network driver
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
@@ -28,8 +26,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * RELEASE-TAG: IUCV lowlevel driver $Revision: 1.47 $
  *
  */
 
@@ -355,17 +351,7 @@ do { \
 static void
 iucv_banner(void)
 {
-	char vbuf[] = "$Revision: 1.47 $";
-	char *version = vbuf;
-
-	if ((version = strchr(version, ':'))) {
-		char *p = strchr(version + 1, '$');
-		if (p)
-			*p = '\0';
-	} else
-		version = " ??? ";
-	printk(KERN_INFO
-	       "IUCV lowlevel driver Version%s initialized\n", version);
+	printk(KERN_INFO "IUCV lowlevel driver initialized\n");
 }
 
 /**

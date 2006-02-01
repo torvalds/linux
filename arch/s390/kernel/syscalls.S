@@ -80,7 +80,7 @@ NI_SYSCALL							/* old sgetmask syscall*/
 NI_SYSCALL							/* old ssetmask syscall*/
 SYSCALL(sys_setreuid16,sys_ni_syscall,sys32_setreuid16_wrapper)	/* old setreuid16 syscall */
 SYSCALL(sys_setregid16,sys_ni_syscall,sys32_setregid16_wrapper)	/* old setregid16 syscall */
-SYSCALL(sys_sigsuspend_glue,sys_sigsuspend_glue,sys32_sigsuspend_glue)
+SYSCALL(sys_sigsuspend,sys_sigsuspend,sys_sigsuspend_wrapper)
 SYSCALL(sys_sigpending,sys_sigpending,compat_sys_sigpending_wrapper)
 SYSCALL(sys_sethostname,sys_sethostname,sys32_sethostname_wrapper)
 SYSCALL(sys_setrlimit,sys_setrlimit,compat_sys_setrlimit_wrapper)	/* 75 */
@@ -187,7 +187,7 @@ SYSCALL(sys_rt_sigprocmask,sys_rt_sigprocmask,sys32_rt_sigprocmask_wrapper)	/* 1
 SYSCALL(sys_rt_sigpending,sys_rt_sigpending,sys32_rt_sigpending_wrapper)
 SYSCALL(sys_rt_sigtimedwait,sys_rt_sigtimedwait,compat_sys_rt_sigtimedwait_wrapper)
 SYSCALL(sys_rt_sigqueueinfo,sys_rt_sigqueueinfo,sys32_rt_sigqueueinfo_wrapper)
-SYSCALL(sys_rt_sigsuspend_glue,sys_rt_sigsuspend_glue,sys32_rt_sigsuspend_glue)
+SYSCALL(sys_rt_sigsuspend,sys_rt_sigsuspend,compat_sys_rt_sigsuspend_wrapper)
 SYSCALL(sys_pread64,sys_pread64,sys32_pread64_wrapper)		/* 180 */
 SYSCALL(sys_pwrite64,sys_pwrite64,sys32_pwrite64_wrapper)
 SYSCALL(sys_chown16,sys_ni_syscall,sys32_chown16_wrapper)	/* old chown16 syscall */
@@ -293,5 +293,21 @@ SYSCALL(sys_waitid,sys_waitid,compat_sys_waitid_wrapper)
 SYSCALL(sys_ioprio_set,sys_ioprio_set,sys_ioprio_set_wrapper)
 SYSCALL(sys_ioprio_get,sys_ioprio_get,sys_ioprio_get_wrapper)
 SYSCALL(sys_inotify_init,sys_inotify_init,sys_inotify_init)
-SYSCALL(sys_inotify_add_watch,sys_inotify_add_watch,sys_inotify_add_watch_wrapper)
+SYSCALL(sys_inotify_add_watch,sys_inotify_add_watch,sys_inotify_add_watch_wrapper)	/* 285 */
 SYSCALL(sys_inotify_rm_watch,sys_inotify_rm_watch,sys_inotify_rm_watch_wrapper)
+NI_SYSCALL							/* 287 sys_migrate_pages */
+SYSCALL(sys_openat,sys_openat,compat_sys_openat_wrapper)
+SYSCALL(sys_mkdirat,sys_mkdirat,sys_mkdirat_wrapper)
+SYSCALL(sys_mknodat,sys_mknodat,sys_mknodat_wrapper)	/* 290 */
+SYSCALL(sys_fchownat,sys_fchownat,sys_fchownat_wrapper)
+SYSCALL(sys_futimesat,sys_futimesat,compat_sys_futimesat_wrapper)
+SYSCALL(sys_newfstatat,sys_newfstatat,compat_sys_newfstatat_wrapper)
+SYSCALL(sys_unlinkat,sys_unlinkat,sys_unlinkat_wrapper)
+SYSCALL(sys_renameat,sys_renameat,sys_renameat_wrapper)	/* 295 */
+SYSCALL(sys_linkat,sys_linkat,sys_linkat_wrapper)
+SYSCALL(sys_symlinkat,sys_symlinkat,sys_symlinkat_wrapper)
+SYSCALL(sys_readlinkat,sys_readlinkat,sys_readlinkat_wrapper)
+SYSCALL(sys_fchmodat,sys_fchmodat,sys_fchmodat_wrapper)
+SYSCALL(sys_faccessat,sys_faccessat,sys_faccessat_wrapper)	/* 300 */
+SYSCALL(sys_pselect6,sys_pselect6,compat_sys_pselect6_wrapper)
+SYSCALL(sys_ppoll,sys_ppoll,compat_sys_ppoll_wrapper)

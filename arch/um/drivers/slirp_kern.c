@@ -21,12 +21,13 @@ void slirp_init(struct net_device *dev, void *data)
 
 	private = dev->priv;
 	spri = (struct slirp_data *) private->user;
-	*spri = ((struct slirp_data)
-		{ .argw 	= init->argw,
-		  .pid  	= -1,
-		  .slave  	= -1,
-		  .slip		= SLIP_PROTO_INIT,
-		  .dev 		= dev });
+
+	spri->argw = init->argw;
+	spri->pid = -1;
+	spri->slave = -1;
+	spri->dev = dev;
+
+	slip_proto_init(&spri->slip);
 
 	dev->init = NULL;
 	dev->hard_header_len = 0;

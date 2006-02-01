@@ -29,8 +29,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define ZFCP_QDIO_C_REVISION "$Revision: 1.20 $"
-
 #include "zfcp_ext.h"
 
 static inline void zfcp_qdio_sbal_limit(struct zfcp_fsf_req *, int);

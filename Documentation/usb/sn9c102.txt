@@ -17,16 +17,15 @@ Index
 7.  Module parameters
 8.  Optional device control through "sysfs"
 9.  Supported devices
-10. How to add plug-in's for new image sensors
-11. Notes for V4L2 application developers
-12. Video frame formats
-13. Contact information
-14. Credits
+10. Notes for V4L2 application developers
+11. Video frame formats
+12. Contact information
+13. Credits
 
 
 1. Copyright
 ============
-Copyright (C) 2004-2005 by Luca Risolia <luca.risolia@studio.unibo.it>
+Copyright (C) 2004-2006 by Luca Risolia <luca.risolia@studio.unibo.it>
 
 
 2. Disclaimer
@@ -54,9 +53,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 4. Overview and features
 ========================
-This driver attempts to support the video and audio streaming capabilities of
-the devices mounting the SONiX SN9C101, SN9C102 and SN9C103 PC Camera
-Controllers.
+This driver attempts to support the video interface of the devices mounting the
+SONiX SN9C101, SN9C102 and SN9C103 PC Camera Controllers.
 
 It's worth to note that SONiX has never collaborated with the author during the
 development of this project, despite several requests for enough detailed
@@ -78,6 +76,7 @@ Some of the features of the driver are:
 - available mmap or read/poll methods for video streaming through isochronous
   data transfers;
 - automatic detection of image sensor;
+- support for built-in microphone interface;
 - support for any window resolutions and optional panning within the maximum
   pixel area of image sensor;
 - image downscaling with arbitrary scaling factors from 1, 2 and 4 in both
@@ -96,7 +95,7 @@ Some of the features of the driver are:
   parameters" paragraph);
 - up to 64 cameras can be handled at the same time; they can be connected and
   disconnected from the host many times without turning off the computer, if
-  your system supports hotplugging;
+  the system supports hotplugging;
 - no known bugs.
 
 
@@ -112,6 +111,12 @@ corresponding modules must be compiled:
 	#
 	CONFIG_VIDEO_DEV=m
 
+To enable advanced debugging functionality on the device through /sysfs:
+
+	# Multimedia devices
+	#
+	CONFIG_VIDEO_ADV_DEBUG=y
+
 	# USB support
 	#
 	CONFIG_USB=m
@@ -124,6 +129,21 @@ necessary:
 	CONFIG_USB_EHCI_HCD=m
 	CONFIG_USB_UHCI_HCD=m
 	CONFIG_USB_OHCI_HCD=m
+
+The SN9C103 controller also provides a built-in microphone interface. It is
+supported by the USB Audio driver thanks to the ALSA API:
+
+	# Sound
+	#
+	CONFIG_SOUND=y
+
+	# Advanced Linux Sound Architecture
+	#
+	CONFIG_SND=m
+
+	# USB devices
+	#
+	CONFIG_SND_USB_AUDIO=m
 
 And finally:
 
@@ -153,7 +173,7 @@ analyze kernel messages and verify that the loading process has gone well:
 Module parameters are listed below:
 -------------------------------------------------------------------------------
 Name:           video_nr
-Type:           int array (min = 0, max = 64)
+Type:           short array (min = 0, max = 64)
 Syntax:         <-1|n[,...]> 
 Description:    Specify V4L2 minor mode number:
                 -1 = use next available
@@ -165,19 +185,19 @@ Description:    Specify V4L2 minor mode number:
                 other camera.
 Default:        -1
 -------------------------------------------------------------------------------
-Name:           force_munmap;
+Name:           force_munmap
 Type:           bool array (min = 0, max = 64)
 Syntax:         <0|1[,...]> 
 Description:    Force the application to unmap previously mapped buffer memory
                 before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
                 all the applications support this feature. This parameter is
                 specific for each detected camera.
-                0 = do not force memory unmapping"
-                1 = force memory unmapping (save memory)"
+                0 = do not force memory unmapping
+                1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
 Name:           debug
-Type:           int
+Type:           ushort
 Syntax:         <n> 
 Description:    Debugging information level, from 0 to 3:
                 0 = none (use carefully)
@@ -187,14 +207,15 @@ Description:    Debugging information level, from 0 to 3:
                 Level 3 is useful for testing only, when only one device
                 is used. It also shows some more informations about the
                 hardware being detected. This parameter can be changed at
-                runtime thanks to the /sys filesystem.
+                runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 
 
 8. Optional device control through "sysfs" [1]
 ==========================================
-It is possible to read and write both the SN9C10x and the image sensor
+If the kernel has been compiled with the CONFIG_VIDEO_ADV_DEBUG option enabled,
+it is possible to read and write both the SN9C10x and the image sensor
 registers by using the "sysfs" filesystem interface.
 
 Every time a supported device is recognized, a write-only file named "green" is
@@ -236,7 +257,7 @@ serialized.
 
 The sysfs interface also provides the "frame_header" entry, which exports the
 frame header of the most recent requested and captured video frame. The header
-is 12-bytes long and is appended to every video frame by the SN9C10x
+is always 18-bytes long and is appended to every video frame by the SN9C10x
 controllers. As an example, this additional information can be used by the user
 application for implementing auto-exposure features via software. 
 
@@ -250,7 +271,8 @@ Byte #  Value         Description
 0x03    0xC4          Frame synchronisation pattern.
 0x04    0xC4          Frame synchronisation pattern.
 0x05    0x96          Frame synchronisation pattern.
-0x06    0x00 or 0x01  Unknown meaning. The exact value depends on the chip.
+0x06    0xXX          Unknown meaning. The exact value depends on the chip;
+                      possible values are 0x00, 0x01 and 0x20.
 0x07    0xXX          Variable value, whose bits are ff00uzzc, where ff is a
                       frame counter, u is unknown, zz is a size indicator
                       (00 = VGA, 01 = SIF, 10 = QSIF) and c stands for
@@ -267,12 +289,23 @@ Byte #  Value         Description
                       times the area outside of the specified AE area. For
                       images that are not pure white, the value scales down
                       according to relative whiteness.
+                      according to relative whiteness.
+
+The following bytes are used by the SN9C103 bridge only:
+
+0x0C    0xXX          Unknown meaning
+0x0D    0xXX          Unknown meaning
+0x0E    0xXX          Unknown meaning
+0x0F    0xXX          Unknown meaning
+0x10    0xXX          Unknown meaning
+0x11    0xXX          Unknown meaning
 
 The AE area (sx, sy, ex, ey) in the active window can be set by programming the
 registers 0x1c, 0x1d, 0x1e and 0x1f of the SN9C10x controllers, where one unit
 corresponds to 32 pixels.
 
-[1] The frame header has been documented by Bertrik Sikken.
+[1] Part of the meaning of the frame header has been documented by Bertrik
+    Sikken.
 
 
 9. Supported devices
@@ -298,6 +331,7 @@ Vendor ID  Product ID
 0x0c45     0x602b
 0x0c45     0x602c
 0x0c45     0x602d
+0x0c45     0x602e
 0x0c45     0x6030
 0x0c45     0x6080
 0x0c45     0x6082
@@ -348,18 +382,7 @@ appreciated. Non-available hardware will not be supported by the author of this
 driver.
 
 
-10. How to add plug-in's for new image sensors
-==============================================
-It should be easy to write plug-in's for new sensors by using the small API
-that has been created for this purpose, which is present in "sn9c102_sensor.h"
-(documentation is included there). As an example, have a look at the code in
-"sn9c102_pas106b.c", which uses the mentioned interface.
-
-At the moment, possible unsupported image sensors are: CIS-VF10 (VGA),
-OV7620 (VGA), OV7630 (VGA).
-
-
-11. Notes for V4L2 application developers
+10. Notes for V4L2 application developers
 =========================================
 This driver follows the V4L2 API specifications. In particular, it enforces two
 rules:
@@ -394,7 +417,7 @@ initialized (as described in the documentation of the API for the image sensors
 supplied by this driver).
 
 
-12. Video frame formats [1]
+11. Video frame formats [1]
 =======================
 The SN9C10x PC Camera Controllers can send images in two possible video
 formats over the USB: either native "Sequential RGB Bayer" or Huffman
@@ -455,7 +478,7 @@ The following Huffman codes have been found:
     documented by Bertrik Sikken.
 
 
-13. Contact information
+12. Contact information
 =======================
 The author may be contacted by e-mail at <luca.risolia@studio.unibo.it>.
 
@@ -464,7 +487,7 @@ GPG/PGP encrypted e-mail's are accepted. The GPG key ID of the author is
 the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
 
 
-14. Credits
+13. Credits
 ===========
 Many thanks to following persons for their contribute (listed in alphabetical
 order):
@@ -480,5 +503,5 @@ order):
 - Bertrik Sikken, who reverse-engineered and documented the Huffman compression
   algorithm used in the SN9C10x controllers and implemented the first decoder;
 - Mizuno Takafumi for the donation of a webcam;
-- An "anonymous" donator (who didn't want his name to be revealed) for the
+- an "anonymous" donator (who didn't want his name to be revealed) for the
   donation of a webcam.

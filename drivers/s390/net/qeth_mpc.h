@@ -14,10 +14,6 @@
 
 #include <asm/qeth.h>
 
-#define VERSION_QETH_MPC_H "$Revision: 1.46 $"
-
-extern const char *VERSION_QETH_MPC_C;
-
 #define IPA_PDU_HEADER_SIZE	0x40
 #define QETH_IPA_PDU_LEN_TOTAL(buffer) (buffer+0x0e)
 #define QETH_IPA_PDU_LEN_PDU1(buffer) (buffer+0x26)

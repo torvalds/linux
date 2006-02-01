@@ -99,7 +99,9 @@ struct dm_snapshot {
 
 	/* You can't use a snapshot if this is 0 (e.g. if full) */
 	int valid;
-	int have_metadata;
+
+	/* Origin writes don't trigger exceptions until this is set */
+	int active;
 
 	/* Used for display of table */
 	char type;

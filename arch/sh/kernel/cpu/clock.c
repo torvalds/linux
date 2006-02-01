@@ -38,9 +38,7 @@ static DECLARE_MUTEX(clock_list_sem);
 static struct clk master_clk = {
 	.name		= "master_clk",
 	.flags		= CLK_ALWAYS_ENABLED | CLK_RATE_PROPAGATES,
-#ifdef CONFIG_SH_PCLK_FREQ_BOOL
 	.rate		= CONFIG_SH_PCLK_FREQ,
-#endif
 };
 
 static struct clk module_clk = {
@@ -227,16 +225,7 @@ int __init clk_init(void)
 {
 	int i, ret = 0;
 
-	if (unlikely(!master_clk.rate))
-		/*
-		 * NOTE: This will break if the default divisor has been
-		 * changed.
-		 *
-		 * No one should be changing the default on us however,
-		 * expect that a sane value for CONFIG_SH_PCLK_FREQ will
-		 * be defined in the event of a different divisor.
-		 */
-		master_clk.rate = get_timer_frequency() * 4;
+	BUG_ON(unlikely(!master_clk.rate));
 
 	for (i = 0; i < ARRAY_SIZE(onchip_clocks); i++) {
 		struct clk *clk = onchip_clocks[i];

@@ -14,8 +14,7 @@ CONFIG_GENERIC_IOMAP=y
 # Code maturity level options
 #
 CONFIG_EXPERIMENTAL=y
-# CONFIG_CLEAN_COMPILE is not set
-CONFIG_BROKEN=y
+CONFIG_CLEAN_COMPILE=y
 CONFIG_BROKEN_ON_SMP=y
 
 #
@@ -360,7 +359,6 @@ CONFIG_BLK_DEV_IDE_BAST=y
 #
 # IEEE 1394 (FireWire) support
 #
-# CONFIG_IEEE1394 is not set
 
 #
 # I2O device support
@@ -781,7 +779,6 @@ CONFIG_SYSFS=y
 # CONFIG_DEVFS_FS is not set
 # CONFIG_DEVPTS_FS_XATTR is not set
 # CONFIG_TMPFS is not set
-# CONFIG_HUGETLBFS is not set
 # CONFIG_HUGETLB_PAGE is not set
 CONFIG_RAMFS=y
 

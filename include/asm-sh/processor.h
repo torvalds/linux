@@ -12,7 +12,6 @@
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/cache.h>
-#include <linux/threads.h>
 #include <asm/ptrace.h>
 
 /*
@@ -30,7 +29,7 @@
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *
  *  Each one of these also needs a CONFIG_CPU_SUBTYPE_xxx entry
- *  in arch/sh/Kconfig, as well as an entry in arch/sh/kernel/setup.c
+ *  in arch/sh/mm/Kconfig, as well as an entry in arch/sh/kernel/setup.c
  *  for parsing the subtype in get_cpu_subtype().
  */
 enum cpu_type {
@@ -44,7 +43,7 @@ enum cpu_type {
 	/* SH-4 types */
 	CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
 	CPU_SH7760, CPU_ST40RA, CPU_ST40GX1, CPU_SH4_202, CPU_SH4_501,
-	CPU_SH73180,
+	CPU_SH73180, CPU_SH7770, CPU_SH7780, CPU_SH7781,
 
 	/* Unknown subtype */
 	CPU_SH_NONE
@@ -52,13 +51,7 @@ enum cpu_type {
 
 struct sh_cpuinfo {
 	enum cpu_type type;
-	char	hard_math;
 	unsigned long loops_per_jiffy;
-
-	unsigned int cpu_clock, master_clock, bus_clock, module_clock;
-#ifdef CONFIG_CPU_SUBTYPE_ST40STB1
-	unsigned int memory_clock;
-#endif
 
 	struct cache_info icache;
 	struct cache_info dcache;
@@ -131,7 +124,7 @@ union sh_fpu_union {
 	struct sh_fpu_soft_struct soft;
 };
 
-/* 
+/*
  * Processor flags
  */
 
@@ -140,6 +133,7 @@ union sh_fpu_union {
 #define CPU_HAS_MMU_PAGE_ASSOC	0x0004	/* SH3: TLB way selection bit support */
 #define CPU_HAS_DSP		0x0008	/* SH-DSP: DSP support */
 #define CPU_HAS_PERF_COUNTER	0x0010	/* Hardware performance counters */
+#define CPU_HAS_PTEA		0x0020	/* PTEA register */
 
 struct thread_struct {
 	unsigned long sp;
@@ -160,10 +154,10 @@ extern int ubc_usercnt;
 #define INIT_THREAD  {						\
 	sizeof(init_stack) + (long) &init_stack, /* sp */	\
 	0,					 /* pc */	\
-	0, 0, 							\
-	0, 							\
-	0, 							\
-	{{{0,}},} 				/* fpu state */	\
+	0, 0,							\
+	0,							\
+	0,							\
+	{{{0,}},}				/* fpu state */	\
 }
 
 /*
@@ -171,7 +165,7 @@ extern int ubc_usercnt;
  */
 #define start_thread(regs, new_pc, new_sp)	 \
 	set_fs(USER_DS);			 \
-	regs->pr = 0;   		 	 \
+	regs->pr = 0;				 \
 	regs->sr = SR_FD;	/* User mode. */ \
 	regs->pc = new_pc;			 \
 	regs->regs[15] = new_sp
@@ -239,16 +233,16 @@ extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
 #define save_fpu(tsk)	do { } while (0)
 #endif
 
-#define unlazy_fpu(tsk, regs) do { 				\
+#define unlazy_fpu(tsk, regs) do {			\
 	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {	\
-		save_fpu(tsk, regs); 				\
+		save_fpu(tsk, regs);			\
 	}						\
 } while (0)
 
-#define clear_fpu(tsk, regs) do { 					\
-	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) { 		\
-		clear_tsk_thread_flag(tsk, TIF_USEDFPU); 	\
-		release_fpu(regs);					\
+#define clear_fpu(tsk, regs) do {				\
+	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {		\
+		clear_tsk_thread_flag(tsk, TIF_USEDFPU);	\
+		release_fpu(regs);				\
 	}							\
 } while (0)
 
