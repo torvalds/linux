@@ -1781,7 +1781,7 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 {
 	compat_sigset_t ss32;
 	sigset_t ksigmask, sigsaved;
-	long timeout = MAX_SCHEDULE_TIMEOUT;
+	s64 timeout = MAX_SCHEDULE_TIMEOUT;
 	struct compat_timespec ts;
 	int ret;
 
