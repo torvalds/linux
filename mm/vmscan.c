@@ -1592,6 +1592,11 @@ module_init(kswapd_init)
  */
 int zone_reclaim_mode __read_mostly;
 
+#define RECLAIM_OFF 0
+#define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
+#define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
+#define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
+
 /*
  * Mininum time between zone reclaim scans
  */
@@ -1630,8 +1635,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	if (!cpus_empty(mask) && node_id != numa_node_id())
 		return 0;
 
-	sc.may_writepage = 0;
-	sc.may_swap = 0;
+	sc.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE);
+	sc.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP);
 	sc.nr_scanned = 0;
 	sc.nr_reclaimed = 0;
 	sc.priority = ZONE_RECLAIM_PRIORITY + 1;
