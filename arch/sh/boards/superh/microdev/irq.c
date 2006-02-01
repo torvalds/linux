@@ -15,7 +15,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/mach/irq.h>
+#include <asm/microdev.h>
 
 #define NUM_EXTERNAL_IRQS 16	/* IRL0 .. IRL15 */
 
