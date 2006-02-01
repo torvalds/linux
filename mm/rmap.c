@@ -206,6 +206,35 @@ out:
 	return anon_vma;
 }
 
+#ifdef CONFIG_MIGRATION
+/*
+ * Remove an anonymous page from swap replacing the swap pte's
+ * through real pte's pointing to valid pages and then releasing
+ * the page from the swap cache.
+ *
+ * Must hold page lock on page.
+ */
+void remove_from_swap(struct page *page)
+{
+	struct anon_vma *anon_vma;
+	struct vm_area_struct *vma;
+
+	if (!PageAnon(page) || !PageSwapCache(page))
+		return;
+
+	anon_vma = page_lock_anon_vma(page);
+	if (!anon_vma)
+		return;
+
+	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
+		remove_vma_swap(vma, page);
+
+	spin_unlock(&anon_vma->lock);
+
+	delete_from_swap_cache(page);
+}
+#endif
+
 /*
  * At what user virtual address is page expected in vma?
  */

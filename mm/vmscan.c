@@ -804,6 +804,15 @@ int migrate_page(struct page *newpage, struct page *page)
 
 	migrate_page_copy(newpage, page);
 
+	/*
+	 * Remove auxiliary swap entries and replace
+	 * them with real ptes.
+	 *
+	 * Note that a real pte entry will allow processes that are not
+	 * waiting on the page lock to use the new page via the page tables
+	 * before the new page is unlocked.
+	 */
+	remove_from_swap(newpage);
 	return 0;
 }
 

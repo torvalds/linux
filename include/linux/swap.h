@@ -248,6 +248,7 @@ extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
 
 extern spinlock_t swap_lock;
+extern int remove_vma_swap(struct vm_area_struct *vma, struct page *page);
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;
