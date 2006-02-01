@@ -110,10 +110,13 @@ tsb_do_itlb_fault:
 
 	.globl	sparc64_realfault_common
 sparc64_realfault_common:
-	stb	%g4, [%g6 + TI_FAULT_CODE]	! Save fault code
-	stx	%g5, [%g6 + TI_FAULT_ADDR]	! Save fault address
+	/* fault code in %g4, fault address in %g5, etrap will
+	 * preserve these two values in %l4 and %l5 respectively
+	 */
 	ba,pt	%xcc, etrap			! Save trap state
 1:	 rd	%pc, %g7			! ...
+	stb	%l4, [%g6 + TI_FAULT_CODE]	! Save fault code
+	stx	%l5, [%g6 + TI_FAULT_ADDR]	! Save fault address
 	call	do_sparc64_fault		! Call fault handler
 	 add	%sp, PTREGS_OFF, %o0		! Compute pt_regs arg
 	ba,pt	%xcc, rtrap_clr_l6		! Restore cpu state
