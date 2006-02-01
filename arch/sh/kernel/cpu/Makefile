@@ -2,7 +2,7 @@
 # Makefile for the Linux/SuperH CPU-specifc backends.
 #
 
-obj-y	+= irq/ init.o bus.o clock.o
+obj-y	+= irq/ init.o clock.o
 
 obj-$(CONFIG_CPU_SH2)		+= sh2/
 obj-$(CONFIG_CPU_SH3)		+= sh3/
