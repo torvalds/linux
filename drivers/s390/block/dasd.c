@@ -674,11 +674,8 @@ dasd_term_IO(struct dasd_ccw_req * cqr)
 		rc = ccw_device_clear(device->cdev, (long) cqr);
 		switch (rc) {
 		case 0:	/* termination successful */
-		        if (cqr->retries > 0) {
-				cqr->retries--;
-				cqr->status = DASD_CQR_CLEAR;
-			} else
-				cqr->status = DASD_CQR_FAILED;
+			cqr->retries--;
+			cqr->status = DASD_CQR_CLEAR;
 			cqr->stopclk = get_clock();
 			DBF_DEV_EVENT(DBF_DEBUG, device,
 				      "terminate cqr %p successful",
@@ -1307,7 +1304,7 @@ dasd_tasklet(struct dasd_device * device)
 	/* Now call the callback function of requests with final status */
 	list_for_each_safe(l, n, &final_queue) {
 		cqr = list_entry(l, struct dasd_ccw_req, list);
-		list_del(&cqr->list);
+		list_del_init(&cqr->list);
 		if (cqr->callback != NULL)
 			(cqr->callback)(cqr, cqr->callback_data);
 	}
@@ -1392,7 +1389,9 @@ _wait_for_wakeup(struct dasd_ccw_req *cqr)
 
 	device = cqr->device;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
-	rc = cqr->status == DASD_CQR_DONE || cqr->status == DASD_CQR_FAILED;
+	rc = ((cqr->status == DASD_CQR_DONE ||
+	       cqr->status == DASD_CQR_FAILED) &&
+	      list_empty(&cqr->list));
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	return rc;
 }
@@ -1456,15 +1455,37 @@ dasd_sleep_on_interruptible(struct dasd_ccw_req * cqr)
 	while (!finished) {
 		rc = wait_event_interruptible(wait_q, _wait_for_wakeup(cqr));
 		if (rc != -ERESTARTSYS) {
-			/* Request status is either done or failed. */
-			rc = (cqr->status == DASD_CQR_FAILED) ? -EIO : 0;
+			/* Request is final (done or failed) */
+			rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
 			break;
 		}
 		spin_lock_irq(get_ccwdev_lock(device->cdev));
-		if (cqr->status == DASD_CQR_IN_IO &&
-		    device->discipline->term_IO(cqr) == 0) {
-			list_del(&cqr->list);
+		switch (cqr->status) {
+		case DASD_CQR_IN_IO:
+                        /* terminate runnig cqr */
+			if (device->discipline->term_IO) {
+				cqr->retries = -1;
+				device->discipline->term_IO(cqr);
+				/*nished =
+				 * wait (non-interruptible) for final status
+				 * because signal ist still pending
+				 */
+				spin_unlock_irq(get_ccwdev_lock(device->cdev));
+				wait_event(wait_q, _wait_for_wakeup(cqr));
+				spin_lock_irq(get_ccwdev_lock(device->cdev));
+				rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+				finished = 1;
+			}
+			break;
+		case DASD_CQR_QUEUED:
+			/* request  */
+			list_del_init(&cqr->list);
+			rc = -EIO;
 			finished = 1;
+			break;
+		default:
+			/* cqr with 'non-interruptable' status - just wait */
+			break;
 		}
 		spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	}
