@@ -194,9 +194,7 @@ static inline int common_clock_set(const clockid_t which_clock,
 
 static int common_timer_create(struct k_itimer *new_timer)
 {
-	hrtimer_init(&new_timer->it.real.timer, new_timer->it_clock);
-	new_timer->it.real.timer.data = new_timer;
-	new_timer->it.real.timer.function = posix_timer_fn;
+	hrtimer_init(&new_timer->it.real.timer, new_timer->it_clock, 0);
 	return 0;
 }
 
@@ -693,6 +691,7 @@ common_timer_set(struct k_itimer *timr, int flags,
 		 struct itimerspec *new_setting, struct itimerspec *old_setting)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
+	enum hrtimer_mode mode;
 
 	if (old_setting)
 		common_timer_get(timr, old_setting);
@@ -714,14 +713,10 @@ common_timer_set(struct k_itimer *timr, int flags,
 	if (!new_setting->it_value.tv_sec && !new_setting->it_value.tv_nsec)
 		return 0;
 
-	/* Posix madness. Only absolute CLOCK_REALTIME timers
-	 * are affected by clock sets. So we must reiniatilize
-	 * the timer.
-	 */
-	if (timr->it_clock == CLOCK_REALTIME && (flags & TIMER_ABSTIME))
-		hrtimer_rebase(timer, CLOCK_REALTIME);
-	else
-		hrtimer_rebase(timer, CLOCK_MONOTONIC);
+	mode = flags & TIMER_ABSTIME ? HRTIMER_ABS : HRTIMER_REL;
+	hrtimer_init(&timr->it.real.timer, timr->it_clock, mode);
+	timr->it.real.timer.data = timr;
+	timr->it.real.timer.function = posix_timer_fn;
 
 	timer->expires = timespec_to_ktime(new_setting->it_value);
 
@@ -732,8 +727,7 @@ common_timer_set(struct k_itimer *timr, int flags,
 	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE))
 		return 0;
 
-	hrtimer_start(timer, timer->expires, (flags & TIMER_ABSTIME) ?
-		      HRTIMER_ABS : HRTIMER_REL);
+	hrtimer_start(timer, timer->expires, mode);
 	return 0;
 }
 
@@ -948,21 +942,8 @@ sys_clock_getres(const clockid_t which_clock, struct timespec __user *tp)
 static int common_nsleep(const clockid_t which_clock, int flags,
 			 struct timespec *tsave, struct timespec __user *rmtp)
 {
-	int mode = flags & TIMER_ABSTIME ? HRTIMER_ABS : HRTIMER_REL;
-	int clockid = which_clock;
-
-	switch (which_clock) {
-	case CLOCK_REALTIME:
-		/* Posix madness. Only absolute timers on clock realtime
-		   are affected by clock set. */
-		if (mode != HRTIMER_ABS)
-			clockid = CLOCK_MONOTONIC;
-	case CLOCK_MONOTONIC:
-		break;
-	default:
-		return -EINVAL;
-	}
-	return hrtimer_nanosleep(tsave, rmtp, mode, clockid);
+	return hrtimer_nanosleep(tsave, rmtp, flags & TIMER_ABSTIME ?
+				 HRTIMER_ABS : HRTIMER_REL, which_clock);
 }
 
 asmlinkage long
