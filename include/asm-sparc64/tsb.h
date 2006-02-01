@@ -37,14 +37,6 @@
  * choose to use bit 47 in the tag.  Also, since we never map anything
  * at page zero in context zero, we use zero as an invalid tag entry.
  * When the lock bit is set, this forces a tag comparison failure.
- *
- * Currently, we allocate an 8K TSB per-process and we use it for both
- * I-TLB and D-TLB misses.  Perhaps at some point we'll add code that
- * monitors the number of active pages in the process as we get
- * major/minor faults, and grow the TSB in response.  The only trick
- * in implementing that is synchronizing the freeing of the old TSB
- * wrt.  parallel TSB updates occuring on other processors.  On
- * possible solution is to use RCU for the freeing of the TSB.
  */
 
 #define TSB_TAG_LOCK_BIT	47
