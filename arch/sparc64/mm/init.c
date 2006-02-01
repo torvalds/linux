@@ -388,7 +388,6 @@ struct linux_prom_translation {
 /* Exported for kernel TLB miss handling in ktlb.S */
 struct linux_prom_translation prom_trans[512] __read_mostly;
 unsigned int prom_trans_ents __read_mostly;
-unsigned int swapper_pgd_zero __read_mostly;
 
 extern unsigned long prom_boot_page;
 extern void prom_remap(unsigned long physpage, unsigned long virtpage, int mmu_ihandle);
@@ -1087,8 +1086,6 @@ void __init paging_init(void)
 	/* Now can init the kernel/bad page tables. */
 	pud_set(pud_offset(&swapper_pg_dir[0], 0),
 		swapper_low_pmd_dir + (shift / sizeof(pgd_t)));
-	
-	swapper_pgd_zero = pgd_val(swapper_pg_dir[0]);
 	
 	inherit_prom_mappings();
 	
