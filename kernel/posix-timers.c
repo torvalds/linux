@@ -724,8 +724,13 @@ common_timer_set(struct k_itimer *timr, int flags,
 	timr->it.real.interval = timespec_to_ktime(new_setting->it_interval);
 
 	/* SIGEV_NONE timers are not queued ! See common_timer_get */
-	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE))
+	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE)) {
+		/* Setup correct expiry time for relative timers */
+		if (mode == HRTIMER_REL)
+			timer->expires = ktime_add(timer->expires,
+						   timer->base->get_time());
 		return 0;
+	}
 
 	hrtimer_start(timer, timer->expires, mode);
 	return 0;
