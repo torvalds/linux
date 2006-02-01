@@ -46,14 +46,17 @@
 #define H8S_SCI_IRQS1 {92, 93, 94,   0 }
 #define H8S_SCI_IRQS2 {96, 97, 98,   0 }
 #define SH5_SCIF_IRQS {39, 40, 42,   0 }
+#define	SH7770_SCIF0_IRQS {61, 61, 61, 61 }
+#define	SH7770_SCIF1_IRQS {62, 62, 62, 62 }
+#define	SH7770_SCIF2_IRQS {63, 63, 63, 63 }
+#define	SH7780_SCIF0_IRQS {40, 41, 43, 42 }
+#define	SH7780_SCIF1_IRQS {76, 77, 79, 78 }
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7708)
-# define SCI_NPORTS 1
 # define SCSPTR 0xffffff7c /* 8 bit */
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define SCI_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709)
-# define SCI_NPORTS 3
 # define SCPCR  0xA4000116 /* 16 bit SCI and SCIF */
 # define SCPDR  0xA4000136 /* 8  bit SCI and SCIF */
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
@@ -61,9 +64,8 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
 # define SCIF0		0xA4400000
 # define SCIF2		0xA4410000
-# define SCSMR_Ir 	0xA44A0000
-# define IRDA_SCIF 	SCIF0
-# define SCI_NPORTS 2
+# define SCSMR_Ir	0xA44A0000
+# define IRDA_SCIF	SCIF0
 # define SCPCR 0xA4000116
 # define SCPDR 0xA4000136
 
@@ -74,14 +76,11 @@
 # define SCSCR_INIT(port) (port->mapbase == SCIF2) ? 0xF3 : 0xF0
 # define SCIF_ONLY
 #elif defined(CONFIG_SH_RTS7751R2D)
-# define SCI_NPORTS 1
-# define SCSPTR1 0xffe0001c /* 8  bit SCI */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define SCSCR_INIT(port) 0x3a /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7751)
-# define SCI_NPORTS 2
 # define SCSPTR1 0xffe0001c /* 8  bit SCI */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
@@ -90,34 +89,29 @@
 	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */ )
 # define SCI_AND_SCIF
 #elif defined(CONFIG_CPU_SUBTYPE_SH7760)
-# define SCI_NPORTS 3
-# define SCSPTR0 0xfe600000 /* 16 bit SCIF */
-# define SCSPTR1 0xfe610000 /* 16 bit SCIF */
-# define SCSPTR2 0xfe620000 /* 16 bit SCIF */
+# define SCSPTR0 0xfe600024 /* 16 bit SCIF */
+# define SCSPTR1 0xfe610024 /* 16 bit SCIF */
+# define SCSPTR2 0xfe620024 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001  /* overrun error bit */
 # define SCSCR_INIT(port)          0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7300)
-# define SCI_NPORTS 1
 # define SCPCR  0xA4050116        /* 16 bit SCIF */
 # define SCPDR  0xA4050136        /* 16 bit SCIF */
 # define SCSCR_INIT(port)  0x0030 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH73180)
-# define SCI_NPORTS 1
 # define SCPDR  0xA4050138        /* 16 bit SCIF */
 # define SCSPTR2 SCPDR
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define SCSCR_INIT(port)  0x0038 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
-# define SCI_NPORTS 1
 # define SCSPTR2 0xffe80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define SCSCR_INIT(port) 0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
-# define SCI_NPORTS 2
 # define SCSPTR1 0xffe00020 /* 16 bit SCIF */
 # define SCSPTR2 0xffe80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
@@ -129,26 +123,32 @@
 # define SCIF_ADDR_SH5     PHYS_PERIPHERAL_BLOCK+SCIF_BASE_ADDR
 # define SCIF_PTR2_OFFS    0x0000020
 # define SCIF_LSR2_OFFS    0x0000024
-# define SCI_NPORTS 1
-# define SCI_INIT { \
-  { {}, PORT_SCIF, 0, \
-     SH5_SCIF_IRQS, sci_init_pins_scif }  \
-}
 # define SCSPTR2           ((port->mapbase)+SCIF_PTR2_OFFS) /* 16 bit SCIF */
 # define SCLSR2            ((port->mapbase)+SCIF_LSR2_OFFS) /* 16 bit SCIF */
 # define SCSCR_INIT(port)  0x38                           /* TIE=0,RIE=0,
 							     TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_H83007) || defined(CONFIG_H83068)
-# define SCI_NPORTS 3
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define SCI_ONLY
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
 #elif defined(CONFIG_H8S2678)
-# define SCI_NPORTS 3
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define SCI_ONLY
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7770)
+# define SCSPTR0 0xff923020 /* 16 bit SCIF */
+# define SCSPTR1 0xff924020 /* 16 bit SCIF */
+# define SCSPTR2 0xff925020 /* 16 bit SCIF */
+# define SCIF_ORER 0x0001  /* overrun error bit */
+# define SCSCR_INIT(port)	0x3c /* TIE=0,RIE=0,TE=1,RE=1,REIE=1,cke=2 */
+# define SCIF_ONLY
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+# define SCSPTR0	0xffe00024	/* 16 bit SCIF */
+# define SCSPTR1	0xffe10024	/* 16 bit SCIF */
+# define SCIF_OPER	0x0001		/* Overrun error bit */
+# define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
+# define SCIF_ONLY
 #else
 # error CPU subtype not defined
 #endif
@@ -158,7 +158,7 @@
 #define SCI_CTRL_FLAGS_RIE  0x40 /* all */
 #define SCI_CTRL_FLAGS_TE   0x20 /* all */
 #define SCI_CTRL_FLAGS_RE   0x10 /* all */
-#if defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7751)
+#if defined(CONFIG_CPU_SUBTYPE_SH7750) || defined(CONFIG_CPU_SUBTYPE_SH7751) || defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define SCI_CTRL_FLAGS_REIE 0x08 /* 7750 SCIF */
 #else
 #define SCI_CTRL_FLAGS_REIE 0
@@ -213,7 +213,7 @@
 # define SCxSR_RDxF_CLEAR(port)		0xbc
 # define SCxSR_ERROR_CLEAR(port)	0xc4
 # define SCxSR_TDxE_CLEAR(port)		0x78
-# define SCxSR_BREAK_CLEAR(port)   	0xc4
+# define SCxSR_BREAK_CLEAR(port)	0xc4
 #elif defined(SCIF_ONLY)
 # define SCxSR_TEND(port)		SCIF_TEND
 # define SCxSR_ERRORS(port)		SCIF_ERRORS
@@ -237,7 +237,7 @@
 # define SCxSR_RDxF_CLEAR(port)		0x00fc
 # define SCxSR_ERROR_CLEAR(port)	0x0073
 # define SCxSR_TDxE_CLEAR(port)		0x00df
-# define SCxSR_BREAK_CLEAR(port)   	0x00e3
+# define SCxSR_BREAK_CLEAR(port)	0x00e3
 #endif
 #else
 # define SCxSR_TEND(port)	 (((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
@@ -285,14 +285,14 @@ struct sci_port {
 
 #define SCI_IN(size, offset)					\
   unsigned int addr = port->mapbase + (offset);			\
-  if ((size) == 8) { 						\
+  if ((size) == 8) {						\
     return ctrl_inb(addr);					\
-  } else {					 		\
+  } else {							\
     return ctrl_inw(addr);					\
   }
 #define SCI_OUT(size, offset, value)				\
   unsigned int addr = port->mapbase + (offset);			\
-  if ((size) == 8) { 						\
+  if ((size) == 8) {						\
     ctrl_outb(value, addr);					\
   } else {							\
     ctrl_outw(value, addr);					\
@@ -301,10 +301,10 @@ struct sci_port {
 #define CPU_SCIx_FNS(name, sci_offset, sci_size, scif_offset, scif_size)\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
-    if (port->type == PORT_SCI) { 					\
+    if (port->type == PORT_SCI) {					\
       SCI_IN(sci_size, sci_offset)					\
     } else {								\
-      SCI_IN(scif_size, scif_offset);		 			\
+      SCI_IN(scif_size, scif_offset);					\
     }									\
   }									\
   static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
@@ -319,7 +319,7 @@ struct sci_port {
 #define CPU_SCIF_FNS(name, scif_offset, scif_size)				\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
-    SCI_IN(scif_size, scif_offset);		 			\
+    SCI_IN(scif_size, scif_offset);					\
   }									\
   static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
   {									\
@@ -329,7 +329,7 @@ struct sci_port {
 #define CPU_SCI_FNS(name, sci_offset, sci_size)				\
   static inline unsigned int sci_##name##_in(struct uart_port* port)	\
   {									\
-    SCI_IN(sci_size, sci_offset);		 			\
+    SCI_IN(sci_size, sci_offset);					\
   }									\
   static inline void sci_##name##_out(struct uart_port* port, unsigned int value) \
   {									\
@@ -385,9 +385,16 @@ SCIx_FNS(SCxTDR, 0x06,  8, 0x0c,  8, 0x06,  8, 0x0C,  8, 0x03,  8)
 SCIx_FNS(SCxSR,  0x08,  8, 0x10,  8, 0x08, 16, 0x10, 16, 0x04,  8)
 SCIx_FNS(SCxRDR, 0x0a,  8, 0x14,  8, 0x0A,  8, 0x14,  8, 0x05,  8)
 SCIF_FNS(SCFCR,                      0x0c,  8, 0x18, 16)
+#if defined(CONFIG_CPU_SUBTYPE_SH7760) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+SCIF_FNS(SCTFDR,		     0x0e, 16, 0x1C, 16)
+SCIF_FNS(SCRFDR,		     0x0e, 16, 0x20, 16)
+SCIF_FNS(SCSPTR,			0,  0, 0x24, 16)
+SCIF_FNS(SCLSR,				0,  0, 0x28, 16)
+#else
 SCIF_FNS(SCFDR,                      0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCSPTR,                        0,  0, 0x20, 16)
 SCIF_FNS(SCLSR,                         0,  0, 0x24, 16)
+#endif
 #endif
 #define sci_in(port, reg) sci_##reg##_in(port)
 #define sci_out(port, reg, value) sci_##reg##_out(port, value)
@@ -518,6 +525,24 @@ static inline int sci_rxd_in(struct uart_port *port)
 	int ch = (port->mapbase - SMR0) >> 3;
 	return (H8300_SCI_DR(ch) & h8300_sci_pins[ch].rx) ? 1 : 0;
 }
+#elif defined(CONFIG_CPU_SUBTYPE_SH7770)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xff923000)
+		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xff924000)
+		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xff925000)
+		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0; /* SCIF */
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xffe00000)
+		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xffe10000)
+		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+}
 #endif
 
 /*
@@ -552,22 +577,15 @@ static inline int sci_rxd_in(struct uart_port *port)
  * -- Mitch Davis - 15 Jul 2000
  */
 
-#define PCLK           (current_cpu_data.module_clock)
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7300)
-#define SCBRR_VALUE(bps) ((PCLK+16*bps)/(16*bps)-1)
+#if defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+#define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(16*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
-#define SCBRR_VALUE(bps) (((PCLK*2)+16*bps)/(32*bps)-1)
-#elif !defined(__H8300H__) && !defined(__H8300S__)
-#define SCBRR_VALUE(bps) ((PCLK+16*bps)/(32*bps)-1)
-#else
+#define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(32*bps)-1)
+#elif defined(__H8300H__) || defined(__H8300S__)
 #define SCBRR_VALUE(bps) (((CONFIG_CPU_CLOCK*1000/32)/bps)-1)
+#elif defined(CONFIG_SUPERH64)
+#define SCBRR_VALUE(bps) ((current_cpu_data.module_clock+16*bps)/(32*bps)-1)
+#else /* Generic SH */
+#define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(32*bps)-1)
 #endif
-#define BPS_2400       SCBRR_VALUE(2400)
-#define BPS_4800       SCBRR_VALUE(4800)
-#define BPS_9600       SCBRR_VALUE(9600)
-#define BPS_19200      SCBRR_VALUE(19200)
-#define BPS_38400      SCBRR_VALUE(38400)
-#define BPS_57600      SCBRR_VALUE(57600)
-#define BPS_115200     SCBRR_VALUE(115200)
 
