@@ -1319,95 +1319,44 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	return err;
 }
 
-int reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int reiserfs_check_acl(struct inode *inode, int mask)
 {
-	umode_t mode = inode->i_mode;
+	struct posix_acl *acl;
+	int error = -EAGAIN; /* do regular unix permission checks by default */
 
-	if (mask & MAY_WRITE) {
-		/*
-		 * Nobody gets write access to a read-only fs.
-		 */
-		if (IS_RDONLY(inode) &&
-		    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)))
-			return -EROFS;
+	reiserfs_read_lock_xattr_i(inode);
+	reiserfs_read_lock_xattrs(inode->i_sb);
 
-		/*
-		 * Nobody gets write access to an immutable file.
-		 */
-		if (IS_IMMUTABLE(inode))
-			return -EACCES;
+	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
+
+	reiserfs_read_unlock_xattrs(inode->i_sb);
+	reiserfs_read_unlock_xattr_i(inode);
+
+	if (acl) {
+		if (!IS_ERR(acl)) {
+			error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+		} else if (PTR_ERR(acl) != -ENODATA)
+			error = PTR_ERR(acl);
 	}
 
-	/* We don't do permission checks on the internal objects.
-	 * Permissions are determined by the "owning" object. */
+	return error;
+}
+
+int reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+{
+	/*
+	 * We don't do permission checks on the internal objects.
+	 * Permissions are determined by the "owning" object.
+	 */
 	if (is_reiserfs_priv_object(inode))
 		return 0;
 
-	if (current->fsuid == inode->i_uid) {
-		mode >>= 6;
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	} else if (reiserfs_posixacl(inode->i_sb) &&
-		   get_inode_sd_version(inode) != STAT_DATA_V1) {
-		struct posix_acl *acl;
-
-		/* ACL can't contain additional permissions if
-		   the ACL_MASK entry is 0 */
-		if (!(mode & S_IRWXG))
-			goto check_groups;
-
-		reiserfs_read_lock_xattr_i(inode);
-		reiserfs_read_lock_xattrs(inode->i_sb);
-
-		acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
-
-		reiserfs_read_unlock_xattrs(inode->i_sb);
-		reiserfs_read_unlock_xattr_i(inode);
-
-		if (IS_ERR(acl)) {
-			if (PTR_ERR(acl) == -ENODATA)
-				goto check_groups;
-			return PTR_ERR(acl);
-		}
-
-		if (acl) {
-			int err = posix_acl_permission(inode, acl, mask);
-			posix_acl_release(acl);
-			if (err == -EACCES) {
-				goto check_capabilities;
-			}
-			return err;
-		} else {
-			goto check_groups;
-		}
-#endif
-	} else {
-	      check_groups:
-		if (in_group_p(inode->i_gid))
-			mode >>= 3;
-	}
-
 	/*
-	 * If the DACs are ok we don't need any capability check.
+	 * Stat data v1 doesn't support ACLs.
 	 */
-	if (((mode & mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == mask))
-		return 0;
-
-      check_capabilities:
-	/*
-	 * Read/write DACs are always overridable.
-	 * Executable DACs are overridable if at least one exec bit is set.
-	 */
-	if (!(mask & MAY_EXEC) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
-		if (capable(CAP_DAC_OVERRIDE))
-			return 0;
-
-	/*
-	 * Searching includes executable on directories, else just read.
-	 */
-	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
-		if (capable(CAP_DAC_READ_SEARCH))
-			return 0;
-
-	return -EACCES;
+	if (get_inode_sd_version(inode) == STAT_DATA_V1)
+		return generic_permission(inode, mask, NULL);
+	else
+		return generic_permission(inode, mask, reiserfs_check_acl);
 }
