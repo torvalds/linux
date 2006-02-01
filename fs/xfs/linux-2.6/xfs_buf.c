@@ -822,6 +822,13 @@ xfs_buf_rele(
 
 	XB_TRACE(bp, "rele", bp->b_relse);
 
+	if (unlikely(!hash)) {
+		ASSERT(!bp->b_relse);
+		if (atomic_dec_and_test(&bp->b_hold))
+			xfs_buf_free(bp);
+		return;
+	}
+
 	if (atomic_dec_and_lock(&bp->b_hold, &hash->bh_lock)) {
 		if (bp->b_relse) {
 			atomic_inc(&bp->b_hold);
