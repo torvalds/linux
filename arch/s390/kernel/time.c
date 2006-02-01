@@ -64,6 +64,15 @@ unsigned long long sched_clock(void)
 	return ((get_clock() - jiffies_timer_cc) * 125) >> 9;
 }
 
+/*
+ * Monotonic_clock - returns # of nanoseconds passed since time_init()
+ */
+unsigned long long monotonic_clock(void)
+{
+	return sched_clock();
+}
+EXPORT_SYMBOL(monotonic_clock);
+
 void tod_to_timeval(__u64 todval, struct timespec *xtime)
 {
 	unsigned long long sec;
