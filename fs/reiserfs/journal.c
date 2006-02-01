@@ -2823,6 +2823,9 @@ int journal_transaction_should_end(struct reiserfs_transaction_handle *th,
 	    journal->j_cnode_free < (journal->j_trans_max * 3)) {
 		return 1;
 	}
+	/* protected by the BKL here */
+	journal->j_len_alloc += new_alloc;
+	th->t_blocks_allocated += new_alloc ;
 	return 0;
 }
 
