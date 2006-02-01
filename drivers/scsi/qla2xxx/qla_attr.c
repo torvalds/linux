@@ -426,6 +426,26 @@ qla2x00_get_host_port_id(struct Scsi_Host *shost)
 }
 
 static void
+qla2x00_get_host_speed(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+	uint32_t speed = 0;
+
+	switch (ha->link_data_rate) {
+	case LDR_1GB:
+		speed = 1;
+		break;
+	case LDR_2GB:
+		speed = 2;
+		break;
+	case LDR_4GB:
+		speed = 4;
+		break;
+	}
+	fc_host_speed(shost) = speed;
+}
+
+static void
 qla2x00_get_starget_node_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
@@ -520,6 +540,8 @@ struct fc_function_template qla2xxx_transport_functions = {
 
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
+	.get_host_speed = qla2x00_get_host_speed,
+	.show_host_speed = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,

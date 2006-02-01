@@ -1312,6 +1312,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->ports = MAX_BUSES;
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->mgmt_svr_loop_id = MANAGEMENT_SERVER;
+	ha->link_data_rate = LDR_UNKNOWN;
 
 	/* Assign ISP specific operations. */
 	ha->isp_ops.pci_config		= qla2100_pci_config;

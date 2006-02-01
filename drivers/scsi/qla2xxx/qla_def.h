@@ -2331,6 +2331,10 @@ typedef struct scsi_qla_host {
 	uint16_t	min_external_loopid;	/* First external loop Id */
 
 	uint16_t	link_data_rate;		/* F/W operating speed */
+#define LDR_1GB		0
+#define LDR_2GB		1
+#define LDR_4GB		3
+#define LDR_UNKNOWN	0xFFFF
 
 	uint8_t		current_topology;
 	uint8_t		prev_topology;
