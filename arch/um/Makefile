@@ -168,10 +168,13 @@ else
 	$(Q)cd $(TOPDIR)/include/asm-um && ln -sf ../asm-$(SUBARCH) arch
 endif
 
-$(ARCH_DIR)/include/sysdep:
+$(objtree)/$(ARCH_DIR)/include:
+	@echo '  MKDIR $@'
+	$(Q)mkdir -p $@
+
+$(ARCH_DIR)/include/sysdep: $(objtree)/$(ARCH_DIR)/include
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p $(ARCH_DIR)/include
 	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/sysdep-$(SUBARCH) $(ARCH_DIR)/include/sysdep
 else
 	$(Q)cd $(ARCH_DIR)/include && ln -sf sysdep-$(SUBARCH) sysdep
@@ -214,7 +217,7 @@ $(ARCH_DIR)/include/user_constants.h: $(ARCH_DIR)/user-offsets.s
 
 CLEAN_FILES += $(ARCH_DIR)/user-offsets.s
 
-$(ARCH_DIR)/include/kern_constants.h:
+$(ARCH_DIR)/include/kern_constants.h: $(objtree)/$(ARCH_DIR)/include
 	@echo '  SYMLINK $@'
 	$(Q) ln -sf ../../../include/asm-um/asm-offsets.h $@
 
