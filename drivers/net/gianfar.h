@@ -682,8 +682,8 @@ struct gfar_private {
 	struct rxbd8 *cur_rx;           /* Next free rx ring entry */
 	struct txbd8 *cur_tx;	        /* Next free ring entry */
 	struct txbd8 *dirty_tx;		/* The Ring entry to be freed. */
-	struct gfar *regs;	/* Pointer to the GFAR memory mapped Registers */
-	u32 *hash_regs[16];
+	struct gfar __iomem *regs;	/* Pointer to the GFAR memory mapped Registers */
+	u32 __iomem *hash_regs[16];
 	int hash_width;
 	struct net_device_stats stats; /* linux network statistics */
 	struct gfar_extra_stats extra_stats;
@@ -718,14 +718,14 @@ struct gfar_private {
 	uint32_t msg_enable;
 };
 
-static inline u32 gfar_read(volatile unsigned *addr)
+static inline u32 gfar_read(volatile unsigned __iomem *addr)
 {
 	u32 val;
 	val = in_be32(addr);
 	return val;
 }
 
-static inline void gfar_write(volatile unsigned *addr, u32 val)
+static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
 {
 	out_be32(addr, val);
 }
