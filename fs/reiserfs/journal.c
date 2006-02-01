@@ -846,6 +846,14 @@ static int write_ordered_buffers(spinlock_t * lock,
 			spin_lock(lock);
 			goto loop_next;
 		}
+		/* in theory, dirty non-uptodate buffers should never get here,
+		 * but the upper layer io error paths still have a few quirks.
+		 * Handle them here as gracefully as we can
+		 */
+		if (!buffer_uptodate(bh) && buffer_dirty(bh)) {
+			clear_buffer_dirty(bh);
+			ret = -EIO;
+		}
 		if (buffer_dirty(bh)) {
 			list_del_init(&jh->list);
 			list_add(&jh->list, &tmp);
@@ -1030,9 +1038,12 @@ static int flush_commit_list(struct super_block *s,
 	}
 
 	if (!list_empty(&jl->j_bh_list)) {
+		int ret;
 		unlock_kernel();
-		write_ordered_buffers(&journal->j_dirty_buffers_lock,
-				      journal, jl, &jl->j_bh_list);
+		ret = write_ordered_buffers(&journal->j_dirty_buffers_lock,
+					    journal, jl, &jl->j_bh_list);
+		if (ret < 0 && retval == 0)
+			retval = ret;
 		lock_kernel();
 	}
 	BUG_ON(!list_empty(&jl->j_bh_list));
