@@ -84,6 +84,7 @@ struct nlm_rqst {
 	struct nlm_args		a_args;		/* arguments */
 	struct nlm_res		a_res;		/* result */
 	struct nlm_wait *	a_block;
+	unsigned int		a_retries;	/* Retry count */
 	char			a_owner[NLMCLNT_OHSIZE];
 };
 

@@ -22,6 +22,7 @@
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 #define NLMCLNT_GRACE_WAIT	(5*HZ)
 #define NLMCLNT_POLL_TIMEOUT	(30*HZ)
+#define NLMCLNT_MAX_RETRIES	3
 
 static int	nlmclnt_test(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_lock(struct nlm_rqst *, struct file_lock *);
@@ -802,6 +803,9 @@ die:
 	return;
 
 retry_cancel:
+	/* Don't ever retry more than 3 times */
+	if (req->a_retries++ >= NLMCLNT_MAX_RETRIES)
+		goto die;
 	nlm_rebind_host(req->a_host);
 	rpc_restart_call(task);
 	rpc_delay(task, 30 * HZ);
