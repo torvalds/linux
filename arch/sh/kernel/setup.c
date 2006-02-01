@@ -186,7 +186,7 @@ static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 
 static int __init sh_mv_setup(char **cmdline_p)
 {
-#if defined(CONFIG_SH_UNKNOWN)
+#ifdef CONFIG_SH_UNKNOWN
 	extern struct sh_machine_vector mv_unknown;
 #endif
 	struct sh_machine_vector *mv = NULL;
@@ -196,7 +196,7 @@ static int __init sh_mv_setup(char **cmdline_p)
 
 	parse_cmdline(cmdline_p, mv_name, &mv, &mv_io_base, &mv_mmio_enable);
 
-#ifdef CONFIG_SH_GENERIC
+#ifdef CONFIG_SH_UNKNOWN
 	if (mv == NULL) {
 		mv = &mv_unknown;
 		if (*mv_name != '\0') {
@@ -205,9 +205,6 @@ static int __init sh_mv_setup(char **cmdline_p)
 		}
 	}
 	sh_mv = *mv;
-#endif
-#ifdef CONFIG_SH_UNKNOWN
-	sh_mv = mv_unknown;
 #endif
 
 	/*
@@ -231,10 +228,8 @@ static int __init sh_mv_setup(char **cmdline_p)
 	mv_set(readb);	mv_set(readw);	mv_set(readl);
 	mv_set(writeb);	mv_set(writew);	mv_set(writel);
 
-	mv_set(ioremap);
-	mv_set(iounmap);
-
-	mv_set(isa_port2addr);
+	mv_set(ioport_map);
+	mv_set(ioport_unmap);
 	mv_set(irq_demux);
 
 #ifdef CONFIG_SH_UNKNOWN
