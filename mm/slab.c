@@ -1559,8 +1559,13 @@ static void set_up_list3s(struct kmem_cache *cachep, int index)
 }
 
 /**
- * calculate_slab_order - calculate size (page order) of slabs and the number
- *                        of objects per slab.
+ * calculate_slab_order - calculate size (page order) of slabs
+ * @cachep: pointer to the cache that is being created
+ * @size: size of objects to be created in this cache.
+ * @align: required alignment for the objects.
+ * @flags: slab allocation flags
+ *
+ * Also calculates the number of objects per slab.
  *
  * This could be made much more intelligent.  For now, try to avoid using
  * high order pages for slabs.  When the gfp() functions are more friendly
