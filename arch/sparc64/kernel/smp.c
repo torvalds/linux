@@ -940,24 +940,19 @@ void smp_release(void)
  * can service tlb flush xcalls...
  */
 extern void prom_world(int);
-extern void save_alternate_globals(unsigned long *);
-extern void restore_alternate_globals(unsigned long *);
+
 void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 {
-	unsigned long global_save[24];
-
 	clear_softint(1 << irq);
 
 	preempt_disable();
 
 	__asm__ __volatile__("flushw");
-	save_alternate_globals(global_save);
 	prom_world(1);
 	atomic_inc(&smp_capture_registry);
 	membar_storeload_storestore();
 	while (penguins_are_doing_time)
 		rmb();
-	restore_alternate_globals(global_save);
 	atomic_dec(&smp_capture_registry);
 	prom_world(0);
 
