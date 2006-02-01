@@ -254,7 +254,7 @@ modalias_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device_id *id = &(cdev->id);
 	int ret;
 
-	ret = sprintf(buf, "ccw:t%04Xm%02x",
+	ret = sprintf(buf, "ccw:t%04Xm%02X",
 			id->cu_type, id->cu_model);
 	if (id->dev_type != 0)
 		ret += sprintf(buf + ret, "dt%04Xdm%02X\n",
