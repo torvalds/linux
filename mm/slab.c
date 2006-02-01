@@ -2928,27 +2928,18 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 	unsigned long save_flags;
 	void *ptr;
 
-	if (nodeid == -1)
-		return __cache_alloc(cachep, flags);
-
-	if (unlikely(!cachep->nodelists[nodeid])) {
-		/* Fall back to __cache_alloc if we run into trouble */
-		printk(KERN_WARNING
-		       "slab: not allocating in inactive node %d for cache %s\n",
-		       nodeid, cachep->name);
-		return __cache_alloc(cachep, flags);
-	}
-
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
-	if (nodeid == numa_node_id())
+
+	if (nodeid == -1 || nodeid == numa_node_id() ||
+	    !cachep->nodelists[nodeid])
 		ptr = ____cache_alloc(cachep, flags);
 	else
 		ptr = __cache_alloc_node(cachep, flags, nodeid);
 	local_irq_restore(save_flags);
-	ptr =
-	    cache_alloc_debugcheck_after(cachep, flags, ptr,
-					 __builtin_return_address(0));
+
+	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr,
+					   __builtin_return_address(0));
 
 	return ptr;
 }
