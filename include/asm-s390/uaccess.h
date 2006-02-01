@@ -61,7 +61,7 @@
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 
 
-static inline int __access_ok(const void *addr, unsigned long size)
+static inline int __access_ok(const void __user *addr, unsigned long size)
 {
 	return 1;
 }
