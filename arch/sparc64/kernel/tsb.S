@@ -178,13 +178,6 @@ __tsb_context_switch:
 	brz	%o2, 9f
 	 nop
 
-	/* We use entry 61 for this locked entry.  This is the spitfire
-	 * TLB entry number, and luckily cheetah masks the value with
-	 * 15 ending us up with entry 13 which is what we want in that
-	 * case too.
-	 *
-	 * XXX Interactions with prom_world()...
-	 */
 	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %o4
 	mov	TLB_TAG_ACCESS, %g1
 	lduw	[%o4 + %lo(sparc64_highest_unlocked_tlb_ent)], %g2

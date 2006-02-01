@@ -116,13 +116,9 @@ static void smp_setup_percpu_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
-extern void inherit_locked_prom_mappings(int save_p);
-
 void __init smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
-
-	inherit_locked_prom_mappings(0);
 
 	__local_per_cpu_offset = __per_cpu_offset(cpuid);
 
