@@ -494,7 +494,7 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		p->mnt_namespace = NULL;
 		list_del_init(&p->mnt_child);
 		if (p->mnt_parent != p)
-			mnt->mnt_mountpoint->d_mounted--;
+			p->mnt_mountpoint->d_mounted--;
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
 }
