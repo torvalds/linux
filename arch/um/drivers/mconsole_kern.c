@@ -273,7 +273,7 @@ void mconsole_proc(struct mc_request *req)
     config <dev> - Query the configuration of a device \n\
     remove <dev> - Remove a device from UML \n\
     sysrq <letter> - Performs the SysRq action controlled by the letter \n\
-    cad - invoke the Ctl-Alt-Del handler \n\
+    cad - invoke the Ctrl-Alt-Del handler \n\
     stop - pause the UML; it will do nothing until it receives a 'go' \n\
     go - continue the UML after a 'stop' \n\
     log <string> - make UML enter <string> into the kernel log\n\
