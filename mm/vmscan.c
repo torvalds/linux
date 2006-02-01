@@ -1596,6 +1596,14 @@ int zone_reclaim_mode __read_mostly;
  * Mininum time between zone reclaim scans
  */
 #define ZONE_RECLAIM_INTERVAL 30*HZ
+
+/*
+ * Priority for ZONE_RECLAIM. This determines the fraction of pages
+ * of a node considered for each zone_reclaim. 4 scans 1/16th of
+ * a zone.
+ */
+#define ZONE_RECLAIM_PRIORITY 4
+
 /*
  * Try to free up some pages from this zone through reclaim.
  */
@@ -1626,7 +1634,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	sc.may_swap = 0;
 	sc.nr_scanned = 0;
 	sc.nr_reclaimed = 0;
-	sc.priority = 0;
+	sc.priority = ZONE_RECLAIM_PRIORITY + 1;
 	sc.nr_mapped = read_page_state(nr_mapped);
 	sc.gfp_mask = gfp_mask;
 
@@ -1643,7 +1651,15 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
-	shrink_zone(zone, &sc);
+	/*
+	 * Free memory by calling shrink zone with increasing priorities
+	 * until we have enough memory freed.
+	 */
+	do {
+		sc.priority--;
+		shrink_zone(zone, &sc);
+
+	} while (sc.nr_reclaimed < nr_pages && sc.priority > 0);
 
 	p->reclaim_state = NULL;
 	current->flags &= ~PF_MEMALLOC;
