@@ -630,7 +630,7 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 		return ERR_PTR(error);
 	dir = nd->dentry->d_inode;
 	mutex_lock(&dir->i_mutex);
-	dentry = lookup_hash(nd);
+	dentry = lookup_one_len(nd->last.name, nd->dentry, nd->last.len);
 	if (IS_ERR(dentry))
 		goto out_err;
 	if (dentry->d_inode) {
@@ -692,7 +692,7 @@ rpc_rmdir(char *path)
 		return error;
 	dir = nd.dentry->d_inode;
 	mutex_lock(&dir->i_mutex);
-	dentry = lookup_hash(&nd);
+	dentry = lookup_one_len(nd.last.name, nd.dentry, nd.last.len);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out_release;
@@ -753,7 +753,7 @@ rpc_unlink(char *path)
 		return error;
 	dir = nd.dentry->d_inode;
 	mutex_lock(&dir->i_mutex);
-	dentry = lookup_hash(&nd);
+	dentry = lookup_one_len(nd.last.name, nd.dentry, nd.last.len);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out_release;
