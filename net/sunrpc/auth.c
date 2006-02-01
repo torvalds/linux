@@ -232,6 +232,14 @@ retry:
 			goto retry;
 		} else
 			cred = new;
+	} else if ((cred->cr_flags & RPCAUTH_CRED_NEW)
+			&& cred->cr_ops->cr_init != NULL
+			&& !(flags & RPCAUTH_LOOKUP_NEW)) {
+		int res = cred->cr_ops->cr_init(auth, cred);
+		if (res < 0) {
+			put_rpccred(cred);
+			cred = ERR_PTR(res);
+		}
 	}
 
 	return (struct rpc_cred *) cred;

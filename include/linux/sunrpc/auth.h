@@ -110,6 +110,7 @@ struct rpc_authops {
 
 struct rpc_credops {
 	const char *		cr_name;	/* Name of the auth flavour */
+	int			(*cr_init)(struct rpc_auth *, struct rpc_cred *);
 	void			(*crdestroy)(struct rpc_cred *);
 
 	int			(*crmatch)(struct auth_cred *, struct rpc_cred *, int);

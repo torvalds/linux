@@ -788,21 +788,25 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	cred->gc_base.cr_ops = &gss_credops;
 	cred->gc_base.cr_flags = RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
-	/* Is the caller prepared to initialise the credential? */
-	if (flags & RPCAUTH_LOOKUP_NEW)
-		goto out;
-	do {
-		err = gss_create_upcall(gss_auth, cred);
-	} while (err == -EAGAIN);
-	if (err < 0)
-		goto out_err;
-out:
 	return &cred->gc_base;
 
 out_err:
 	dprintk("RPC:      gss_create_cred failed with error %d\n", err);
 	if (cred) gss_destroy_cred(&cred->gc_base);
 	return ERR_PTR(err);
+}
+
+static int
+gss_cred_init(struct rpc_auth *auth, struct rpc_cred *cred)
+{
+	struct gss_auth *gss_auth = container_of(auth, struct gss_auth, rpc_auth);
+	struct gss_cred *gss_cred = container_of(cred,struct gss_cred, gc_base);
+	int err;
+
+	do {
+		err = gss_create_upcall(gss_auth, gss_cred);
+	} while (err == -EAGAIN);
+	return err;
 }
 
 static int
@@ -1254,6 +1258,7 @@ static struct rpc_authops authgss_ops = {
 static struct rpc_credops gss_credops = {
 	.cr_name	= "AUTH_GSS",
 	.crdestroy	= gss_destroy_cred,
+	.cr_init	= gss_cred_init,
 	.crmatch	= gss_match,
 	.crmarshal	= gss_marshal,
 	.crrefresh	= gss_refresh,
