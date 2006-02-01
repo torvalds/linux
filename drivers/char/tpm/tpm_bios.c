@@ -487,26 +487,35 @@ struct file_operations tpm_binary_bios_measurements_ops = {
 	.release = tpm_bios_measurements_release,
 };
 
+static int is_bad(void *p)
+{
+	if (!p)
+		return 1;
+	if (IS_ERR(p) && (PTR_ERR(p) != -ENODEV))
+		return 1;
+	return 0;
+}
+
 struct dentry **tpm_bios_log_setup(char *name)
 {
 	struct dentry **ret = NULL, *tpm_dir, *bin_file, *ascii_file;
 
 	tpm_dir = securityfs_create_dir(name, NULL);
-	if (!tpm_dir)
+	if (is_bad(tpm_dir))
 		goto out;
 
 	bin_file =
 	    securityfs_create_file("binary_bios_measurements",
 				   S_IRUSR | S_IRGRP, tpm_dir, NULL,
 				   &tpm_binary_bios_measurements_ops);
-	if (!bin_file)
+	if (is_bad(bin_file))
 		goto out_tpm;
 
 	ascii_file =
 	    securityfs_create_file("ascii_bios_measurements",
 				   S_IRUSR | S_IRGRP, tpm_dir, NULL,
 				   &tpm_ascii_bios_measurements_ops);
-	if (!ascii_file)
+	if (is_bad(ascii_file))
 		goto out_bin;
 
 	ret = kmalloc(3 * sizeof(struct dentry *), GFP_KERNEL);
