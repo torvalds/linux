@@ -160,7 +160,7 @@ spill_fixup:
 	andcc		%g1, TSTATE_PRIV, %g0
 	saved
 	and		%g1, TSTATE_CWP, %g1
-	be,pn		%xcc, window_scheisse_from_user_common
+	be,a,pn		%xcc, window_scheisse_from_user_common
 	 mov		FAULT_CODE_WRITE | FAULT_CODE_DTLB | FAULT_CODE_WINFIXUP, %g4
 	retry
 
