@@ -5,8 +5,8 @@
  * Author: Bodo Stroesser <bstroesser@fujitsu-siemens.com>
  */
 
-#ifndef __ASM_LDT_I386_H
-#define __ASM_LDT_I386_H
+#ifndef __ASM_LDT_X86_64_H
+#define __ASM_LDT_X86_64_H
 
 #include "asm/semaphore.h"
 #include "asm/arch/ldt.h"
