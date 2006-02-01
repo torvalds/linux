@@ -337,7 +337,7 @@ static __always_inline int index_of(const size_t size)
 #define INDEX_AC index_of(sizeof(struct arraycache_init))
 #define INDEX_L3 index_of(sizeof(struct kmem_list3))
 
-static inline void kmem_list3_init(struct kmem_list3 *parent)
+static void kmem_list3_init(struct kmem_list3 *parent)
 {
 	INIT_LIST_HEAD(&parent->slabs_full);
 	INIT_LIST_HEAD(&parent->slabs_partial);
@@ -818,7 +818,7 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 #ifdef CONFIG_NUMA
 static void *__cache_alloc_node(kmem_cache_t *, gfp_t, int);
 
-static inline struct array_cache **alloc_alien_cache(int node, int limit)
+static struct array_cache **alloc_alien_cache(int node, int limit)
 {
 	struct array_cache **ac_ptr;
 	int memsize = sizeof(void *) * MAX_NUMNODES;
@@ -845,7 +845,7 @@ static inline struct array_cache **alloc_alien_cache(int node, int limit)
 	return ac_ptr;
 }
 
-static inline void free_alien_cache(struct array_cache **ac_ptr)
+static void free_alien_cache(struct array_cache **ac_ptr)
 {
 	int i;
 
@@ -858,8 +858,8 @@ static inline void free_alien_cache(struct array_cache **ac_ptr)
 	kfree(ac_ptr);
 }
 
-static inline void __drain_alien_cache(kmem_cache_t *cachep,
-				       struct array_cache *ac, int node)
+static void __drain_alien_cache(kmem_cache_t *cachep,
+				struct array_cache *ac, int node)
 {
 	struct kmem_list3 *rl3 = cachep->nodelists[node];
 
@@ -1534,7 +1534,7 @@ static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
 
 /* For setting up all the kmem_list3s for cache whose buffer_size is same
    as size of kmem_list3. */
-static inline void set_up_list3s(kmem_cache_t *cachep, int index)
+static void set_up_list3s(kmem_cache_t *cachep, int index)
 {
 	int node;
 
@@ -1937,7 +1937,7 @@ static void check_spinlock_acquired(kmem_cache_t *cachep)
 #endif
 }
 
-static inline void check_spinlock_acquired_node(kmem_cache_t *cachep, int node)
+static void check_spinlock_acquired_node(kmem_cache_t *cachep, int node)
 {
 #ifdef CONFIG_SMP
 	check_irq_off();
