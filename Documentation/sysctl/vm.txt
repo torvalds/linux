@@ -137,6 +137,7 @@ This is value ORed together of
 1	= Zone reclaim on
 2	= Zone reclaim writes dirty pages out
 4	= Zone reclaim swaps pages
+8	= Also do a global slab reclaim pass
 
 zone_reclaim_mode is set during bootup to 1 if it is determined that pages
 from remote zones will cause a measurable performance reduction. The
@@ -159,6 +160,11 @@ of other processes running on other nodes will not be affected.
 Allowing regular swap effectively restricts allocations to the local
 node unless explicitly overridden by memory policies or cpuset
 configurations.
+
+It may be advisable to allow slab reclaim if the system makes heavy
+use of files and builds up large slab caches. However, the slab
+shrink operation is global, may take a long time and free slabs
+in all nodes of the system.
 
 ================================================================
 

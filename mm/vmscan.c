@@ -1596,6 +1596,7 @@ int zone_reclaim_mode __read_mostly;
 #define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
 #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
 #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
+#define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
 
 /*
  * Mininum time between zone reclaim scans
@@ -1665,6 +1666,19 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		shrink_zone(zone, &sc);
 
 	} while (sc.nr_reclaimed < nr_pages && sc.priority > 0);
+
+	if (sc.nr_reclaimed < nr_pages && (zone_reclaim_mode & RECLAIM_SLAB)) {
+		/*
+		 * shrink_slab does not currently allow us to determine
+		 * how many pages were freed in the zone. So we just
+		 * shake the slab and then go offnode for a single allocation.
+		 *
+		 * shrink_slab will free memory on all zones and may take
+		 * a long time.
+		 */
+		shrink_slab(sc.nr_scanned, gfp_mask, order);
+		sc.nr_reclaimed = 1;    /* Avoid getting the off node timeout */
+	}
 
 	p->reclaim_state = NULL;
 	current->flags &= ~PF_MEMALLOC;
