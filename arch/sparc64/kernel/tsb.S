@@ -185,12 +185,14 @@ __tsb_context_switch:
 	 *
 	 * XXX Interactions with prom_world()...
 	 */
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o2, [%g1] ASI_DMMU
-	membar		#Sync
-	mov		(61 << 3), %g1
-	stxa		%o3, [%g1] ASI_DTLB_DATA_ACCESS
-	membar		#Sync
+	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %o4
+	mov	TLB_TAG_ACCESS, %g1
+	lduw	[%o4 + %lo(sparc64_highest_unlocked_tlb_ent)], %g2
+	stxa	%o2, [%g1] ASI_DMMU
+	membar	#Sync
+	sllx	%g2, 3, %g2
+	stxa	%o3, [%g2] ASI_DTLB_DATA_ACCESS
+	membar	#Sync
 9:
 	wrpr	%o5, %pstate
 
