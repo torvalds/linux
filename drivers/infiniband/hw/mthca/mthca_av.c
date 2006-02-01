@@ -147,7 +147,7 @@ int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah)
 	switch (ah->type) {
 	case MTHCA_AH_ON_HCA:
 		mthca_free(&dev->av_table.alloc,
- 			   (ah->avdma - dev->av_table.ddr_av_base) /
+			   (ah->avdma - dev->av_table.ddr_av_base) /
 			   MTHCA_AV_SIZE);
 		break;
 

@@ -2,7 +2,7 @@
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems. All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2004 Voltaire, Inc. All rights reserved. 
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -559,9 +559,9 @@ static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
 		path->g_mylmc   |= 1 << 7;
 		path->mgid_index = ah->grh.sgid_index;
 		path->hop_limit  = ah->grh.hop_limit;
-		path->sl_tclass_flowlabel = 
+		path->sl_tclass_flowlabel =
 			cpu_to_be32((ah->sl << 28)                |
-				    (ah->grh.traffic_class << 20) | 
+				    (ah->grh.traffic_class << 20) |
 				    (ah->grh.flow_label));
 		memcpy(path->rgid, ah->grh.dgid.raw, 16);
 	} else
@@ -597,7 +597,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_STATE) {
-               if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR)
+		if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR)
 			return -EINVAL;
 		new_state = attr->qp_state;
 	} else
@@ -630,10 +630,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		return -EINVAL;
 	}
 
-	if ((attr_mask & IB_QP_PKEY_INDEX) && 
+	if ((attr_mask & IB_QP_PKEY_INDEX) &&
 	     attr->pkey_index >= dev->limits.pkey_table_len) {
 		mthca_dbg(dev, "PKey index (%u) too large. max is %d\n",
-			  attr->pkey_index,dev->limits.pkey_table_len-1); 
+			  attr->pkey_index,dev->limits.pkey_table_len-1);
 		return -EINVAL;
 	}
 
@@ -733,7 +733,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	if (attr_mask & IB_QP_RNR_RETRY) {
 		qp_context->alt_path.rnr_retry = qp_context->pri_path.rnr_retry =
 			attr->rnr_retry << 5;
-		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RNR_RETRY | 
+		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RNR_RETRY |
 							MTHCA_QP_OPTPAR_ALT_RNR_RETRY);
 	}
 
@@ -749,13 +749,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	if (attr_mask & IB_QP_ALT_PATH) {
 		if (attr->alt_port_num == 0 || attr->alt_port_num > dev->limits.num_ports) {
-			mthca_dbg(dev, "Alternate port number (%u) is invalid\n", 
+			mthca_dbg(dev, "Alternate port number (%u) is invalid\n",
 				attr->alt_port_num);
 			return -EINVAL;
 		}
 
 		mthca_path_set(&attr->alt_ah_attr, &qp_context->alt_path);
-		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index | 
+		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index |
 							      attr->alt_port_num << 24);
 		qp_context->alt_path.ackto = attr->alt_timeout << 3;
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_ALT_ADDR_PATH);
@@ -1078,10 +1078,10 @@ static int mthca_map_memfree(struct mthca_dev *dev,
 		if (ret)
 			goto err_qpc;
 
- 		ret = mthca_table_get(dev, dev->qp_table.rdb_table,
- 				      qp->qpn << dev->qp_table.rdb_shift);
- 		if (ret)
- 			goto err_eqpc;
+		ret = mthca_table_get(dev, dev->qp_table.rdb_table,
+				      qp->qpn << dev->qp_table.rdb_shift);
+		if (ret)
+			goto err_eqpc;
 
 	}
 
@@ -2115,7 +2115,7 @@ int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	int i;
 	void *wqe;
 
- 	spin_lock_irqsave(&qp->rq.lock, flags);
+	spin_lock_irqsave(&qp->rq.lock, flags);
 
 	/* XXX check that state is OK to post receive */
 

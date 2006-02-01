@@ -517,7 +517,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		BUG_ON(!mr->mem.arbel.mpt);
 	} else
 		mr->mem.tavor.mpt = dev->mr_table.tavor_fmr.mpt_base +
-		       	sizeof *(mr->mem.tavor.mpt) * idx;
+			sizeof *(mr->mem.tavor.mpt) * idx;
 
 	mr->mtt = __mthca_alloc_mtt(dev, list_len, dev->mr_table.fmr_mtt_buddy);
 	if (IS_ERR(mr->mtt))
@@ -779,7 +779,7 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 		}
 
 		dev->mr_table.tavor_fmr.mpt_base =
-		       	ioremap(dev->mr_table.mpt_base,
+			ioremap(dev->mr_table.mpt_base,
 				(1 << i) * sizeof (struct mthca_mpt_entry));
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
@@ -807,7 +807,7 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 			goto err_reserve_fmr;
 
 		dev->mr_table.fmr_mtt_buddy =
-		       	&dev->mr_table.tavor_fmr.mtt_buddy;
+			&dev->mr_table.tavor_fmr.mtt_buddy;
 	} else
 		dev->mr_table.fmr_mtt_buddy = &dev->mr_table.mtt_buddy;
 

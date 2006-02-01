@@ -275,7 +275,7 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 	}
 
 	if (out_is_imm)
-		*out_param = 
+		*out_param =
 			(u64) be32_to_cpu((__force __be32)
 					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET)) << 32 |
 			(u64) be32_to_cpu((__force __be32)

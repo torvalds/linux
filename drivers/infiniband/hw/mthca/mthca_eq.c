@@ -497,7 +497,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 
 	eq->dev  = dev;
 	eq->nent = roundup_pow_of_two(max(nent, 2));
- 	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
+	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
 
 	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
 				GFP_KERNEL);

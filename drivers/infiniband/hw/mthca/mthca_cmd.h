@@ -74,9 +74,9 @@ enum {
 	MTHCA_CMD_STAT_REG_BOUND      = 0x21,
 	/* HCA local attached memory not present: */
 	MTHCA_CMD_STAT_LAM_NOT_PRE    = 0x22,
-        /* Bad management packet (silently discarded): */
+	/* Bad management packet (silently discarded): */
 	MTHCA_CMD_STAT_BAD_PKT 	      = 0x30,
-        /* More outstanding CQEs in CQ than new CQ size: */
+	/* More outstanding CQEs in CQ than new CQ size: */
 	MTHCA_CMD_STAT_BAD_SIZE       = 0x40
 };
 
