@@ -72,7 +72,7 @@ ENTRY(s3c2410_cpu_suspend)
 	@@ prepare cpu to sleep
 
 	ldr	r4, =S3C2410_REFRESH
-	ldr	r5, =S3C2410_MISCCR
+	ldr	r5, =S3C24XX_MISCCR
 	ldr	r6, =S3C2410_CLKCON
 	ldr	r7, [ r4 ]		@ get REFRESH (and ensure in TLB)
 	ldr	r8, [ r5 ]		@ get MISCCR (and ensure in TLB)
