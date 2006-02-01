@@ -61,7 +61,7 @@ extern unsigned long wall_jiffies;
  */
 unsigned long long sched_clock(void)
 {
-	return ((get_clock() - jiffies_timer_cc) * 1000) >> 12;
+	return ((get_clock() - jiffies_timer_cc) * 125) >> 9;
 }
 
 void tod_to_timeval(__u64 todval, struct timespec *xtime)
