@@ -679,7 +679,7 @@ static void enable_cpucache(kmem_cache_t *cachep);
 static void cache_reap(void *unused);
 static int __node_shrink(kmem_cache_t *cachep, int node);
 
-static inline struct array_cache *ac_data(kmem_cache_t *cachep)
+static inline struct array_cache *cpu_cache_get(kmem_cache_t *cachep)
 {
 	return cachep->array[smp_processor_id()];
 }
@@ -1186,8 +1186,8 @@ void __init kmem_cache_init(void)
 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_KERNEL);
 
 		local_irq_disable();
-		BUG_ON(ac_data(&cache_cache) != &initarray_cache.cache);
-		memcpy(ptr, ac_data(&cache_cache),
+		BUG_ON(cpu_cache_get(&cache_cache) != &initarray_cache.cache);
+		memcpy(ptr, cpu_cache_get(&cache_cache),
 		       sizeof(struct arraycache_init));
 		cache_cache.array[smp_processor_id()] = ptr;
 		local_irq_enable();
@@ -1195,9 +1195,9 @@ void __init kmem_cache_init(void)
 		ptr = kmalloc(sizeof(struct arraycache_init), GFP_KERNEL);
 
 		local_irq_disable();
-		BUG_ON(ac_data(malloc_sizes[INDEX_AC].cs_cachep)
+		BUG_ON(cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep)
 		       != &initarray_generic.cache);
-		memcpy(ptr, ac_data(malloc_sizes[INDEX_AC].cs_cachep),
+		memcpy(ptr, cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep),
 		       sizeof(struct arraycache_init));
 		malloc_sizes[INDEX_AC].cs_cachep->array[smp_processor_id()] =
 		    ptr;
@@ -1235,7 +1235,7 @@ void __init kmem_cache_init(void)
 	g_cpucache_up = FULL;
 
 	/* Register a cpu startup notifier callback
-	 * that initializes ac_data for all new cpus
+	 * that initializes cpu_cache_get for all new cpus
 	 */
 	register_cpu_notifier(&cpucache_notifier);
 
@@ -1909,11 +1909,11 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 		    jiffies + REAPTIMEOUT_LIST3 +
 		    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
 
-		BUG_ON(!ac_data(cachep));
-		ac_data(cachep)->avail = 0;
-		ac_data(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
-		ac_data(cachep)->batchcount = 1;
-		ac_data(cachep)->touched = 0;
+		BUG_ON(!cpu_cache_get(cachep));
+		cpu_cache_get(cachep)->avail = 0;
+		cpu_cache_get(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
+		cpu_cache_get(cachep)->batchcount = 1;
+		cpu_cache_get(cachep)->touched = 0;
 		cachep->batchcount = 1;
 		cachep->limit = BOOT_CPUCACHE_ENTRIES;
 	}
@@ -1992,7 +1992,7 @@ static void do_drain(void *arg)
 	int node = numa_node_id();
 
 	check_irq_off();
-	ac = ac_data(cachep);
+	ac = cpu_cache_get(cachep);
 	spin_lock(&cachep->nodelists[node]->list_lock);
 	free_block(cachep, ac->entry, ac->avail, node);
 	spin_unlock(&cachep->nodelists[node]->list_lock);
@@ -2518,7 +2518,7 @@ static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
 	struct array_cache *ac;
 
 	check_irq_off();
-	ac = ac_data(cachep);
+	ac = cpu_cache_get(cachep);
       retry:
 	batchcount = ac->batchcount;
 	if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
@@ -2590,7 +2590,7 @@ static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
 		x = cache_grow(cachep, flags, numa_node_id());
 
 		// cache_grow can reenable interrupts, then ac could change.
-		ac = ac_data(cachep);
+		ac = cpu_cache_get(cachep);
 		if (!x && ac->avail == 0)	// no objects in sight? abort
 			return NULL;
 
@@ -2675,7 +2675,7 @@ static inline void *____cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 #endif
 
 	check_irq_off();
-	ac = ac_data(cachep);
+	ac = cpu_cache_get(cachep);
 	if (likely(ac->avail)) {
 		STATS_INC_ALLOCHIT(cachep);
 		ac->touched = 1;
@@ -2868,7 +2868,7 @@ static void cache_flusharray(kmem_cache_t *cachep, struct array_cache *ac)
  */
 static inline void __cache_free(kmem_cache_t *cachep, void *objp)
 {
-	struct array_cache *ac = ac_data(cachep);
+	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
@@ -3253,7 +3253,7 @@ static void do_ccupdate_local(void *info)
 	struct array_cache *old;
 
 	check_irq_off();
-	old = ac_data(new->cachep);
+	old = cpu_cache_get(new->cachep);
 
 	new->cachep->array[smp_processor_id()] = new->new[smp_processor_id()];
 	new->new[smp_processor_id()] = old;
@@ -3419,7 +3419,7 @@ static void cache_reap(void *unused)
 			drain_alien_cache(searchp, l3);
 		spin_lock_irq(&l3->list_lock);
 
-		drain_array_locked(searchp, ac_data(searchp), 0,
+		drain_array_locked(searchp, cpu_cache_get(searchp), 0,
 				   numa_node_id());
 
 		if (time_after(l3->next_reap, jiffies))
