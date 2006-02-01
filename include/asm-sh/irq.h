@@ -245,6 +245,7 @@
 #endif /* ST40STB1 */
 
 #endif /* 775x / SH4-202 / ST40STB1 */
+#endif /* 7780 */
 
 /* NR_IRQS is made from three components:
  *   1. ONCHIP_NR_IRQS - number of IRLS + on-chip peripherial modules
@@ -274,8 +275,11 @@
 # define ONCHIP_NR_IRQS 72
 #elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
 # define ONCHIP_NR_IRQS 144
-#elif defined(CONFIG_CPU_SUBTYPE_SH7300)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7300) || \
+      defined(CONFIG_CPU_SUBTYPE_SH73180)
 # define ONCHIP_NR_IRQS 109
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+# define ONCHIP_NR_IRQS 111
 #elif defined(CONFIG_SH_UNKNOWN)	/* Most be last */
 # define ONCHIP_NR_IRQS 144
 #endif
@@ -306,6 +310,8 @@
 # define OFFCHIP_NR_IRQS 96
 #elif defined (CONFIG_SH_TITAN)
 # define OFFCHIP_NR_IRQS 4
+#elif defined(CONFIG_SH_R7780RP)
+# define OFFCHIP_NR_IRQS 16
 #elif defined(CONFIG_SH_UNKNOWN)
 # define OFFCHIP_NR_IRQS 16	/* Must also be last */
 #else
@@ -550,7 +556,7 @@ extern int ipr_irq_demux(int irq);
 #define INTC_ICR_IRLM	(1<<7)
 #endif
 
-#else
+#ifdef CONFIG_CPU_SUBTYPE_SH7780
 #include <asm/irq-sh7780.h>
 #endif
 
