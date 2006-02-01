@@ -917,7 +917,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac_adapter_disable_int(aac);
 	free_irq(pdev->irq, aac);
  out_unmap:
-	fib_map_free(aac);
+	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
 	iounmap(aac->regs.sa);
@@ -951,7 +951,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
-	fib_map_free(aac);
+	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr,
 			aac->comm_phys);
 	kfree(aac->queues);
