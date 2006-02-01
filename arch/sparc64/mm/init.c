@@ -145,6 +145,10 @@ int bigkernel = 0;
 #define PGT_CACHE_LOW	25
 #define PGT_CACHE_HIGH	50
 
+#ifndef CONFIG_SMP
+struct pgtable_cache_struct pgt_quicklists;
+#endif
+
 void check_pgt_cache(void)
 {
 	preempt_disable();
@@ -152,10 +156,8 @@ void check_pgt_cache(void)
 		do {
 			if (pgd_quicklist)
 				free_pgd_slow(get_pgd_fast());
-			if (pte_quicklist[0])
-				free_pte_slow(pte_alloc_one_fast(NULL, 0));
-			if (pte_quicklist[1])
-				free_pte_slow(pte_alloc_one_fast(NULL, 1 << (PAGE_SHIFT + 10)));
+			if (pte_quicklist)
+				free_pte_slow(pte_alloc_one_fast());
 		} while (pgtable_cache_size > PGT_CACHE_LOW);
 	}
 	preempt_enable();
@@ -960,67 +962,6 @@ out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
 	spin_unlock(&ctx_alloc_lock);
-}
-
-#ifndef CONFIG_SMP
-struct pgtable_cache_struct pgt_quicklists;
-#endif
-
-/* XXX We don't need to color these things in the D-cache any longer.  */
-#ifdef DCACHE_ALIASING_POSSIBLE
-#define DC_ALIAS_SHIFT	1
-#else
-#define DC_ALIAS_SHIFT	0
-#endif
-pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
-{
-	struct page *page;
-	unsigned long color;
-
-	{
-		pte_t *ptep = pte_alloc_one_fast(mm, address);
-
-		if (ptep)
-			return ptep;
-	}
-
-	color = VPTE_COLOR(address);
-	page = alloc_pages(GFP_KERNEL|__GFP_REPEAT, DC_ALIAS_SHIFT);
-	if (page) {
-		unsigned long *to_free;
-		unsigned long paddr;
-		pte_t *pte;
-
-#ifdef DCACHE_ALIASING_POSSIBLE
-		set_page_count(page, 1);
-		ClearPageCompound(page);
-
-		set_page_count((page + 1), 1);
-		ClearPageCompound(page + 1);
-#endif
-		paddr = (unsigned long) page_address(page);
-		memset((char *)paddr, 0, (PAGE_SIZE << DC_ALIAS_SHIFT));
-
-		if (!color) {
-			pte = (pte_t *) paddr;
-			to_free = (unsigned long *) (paddr + PAGE_SIZE);
-		} else {
-			pte = (pte_t *) (paddr + PAGE_SIZE);
-			to_free = (unsigned long *) paddr;
-		}
-
-#ifdef DCACHE_ALIASING_POSSIBLE
-		/* Now free the other one up, adjust cache size. */
-		preempt_disable();
-		*to_free = (unsigned long) pte_quicklist[color ^ 0x1];
-		pte_quicklist[color ^ 0x1] = to_free;
-		pgtable_cache_size++;
-		preempt_enable();
-#endif
-
-		return pte;
-	}
-	return NULL;
 }
 
 void sparc_ultra_dump_itlb(void)
