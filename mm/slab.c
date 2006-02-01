@@ -1459,15 +1459,13 @@ static void check_poison_obj(kmem_cache_t *cachep, void *objp)
 }
 #endif
 
-/* Destroy all the objs in a slab, and release the mem back to the system.
- * Before calling the slab must have been unlinked from the cache.
- * The cache-lock is not held/needed.
- */
-static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
-{
-	void *addr = slabp->s_mem - slabp->colouroff;
-
 #if DEBUG
+/**
+ * slab_destroy_objs - call the registered destructor for each object in
+ *      a slab that is to be destroyed.
+ */
+static void slab_destroy_objs(kmem_cache_t *cachep, struct slab *slabp)
+{
 	int i;
 	for (i = 0; i < cachep->num; i++) {
 		void *objp = slabp->s_mem + cachep->buffer_size * i;
@@ -1496,7 +1494,10 @@ static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
 		if (cachep->dtor && !(cachep->flags & SLAB_POISON))
 			(cachep->dtor) (objp + obj_offset(cachep), cachep, 0);
 	}
+}
 #else
+static void slab_destroy_objs(kmem_cache_t *cachep, struct slab *slabp)
+{
 	if (cachep->dtor) {
 		int i;
 		for (i = 0; i < cachep->num; i++) {
@@ -1504,8 +1505,19 @@ static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
 			(cachep->dtor) (objp, cachep, 0);
 		}
 	}
+}
 #endif
 
+/**
+ * Destroy all the objs in a slab, and release the mem back to the system.
+ * Before calling the slab must have been unlinked from the cache.
+ * The cache-lock is not held/needed.
+ */
+static void slab_destroy(kmem_cache_t *cachep, struct slab *slabp)
+{
+	void *addr = slabp->s_mem - slabp->colouroff;
+
+	slab_destroy_objs(cachep, slabp);
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU)) {
 		struct slab_rcu *slab_rcu;
 
