@@ -333,7 +333,7 @@ void handle_eeh_events (struct eeh_event *event)
 		rc = eeh_reset_device(frozen_pdn, NULL);
 		if (rc)
 			goto hard_fail;
-		pci_walk_bus(frozen_bus, eeh_report_reset, 0);
+		pci_walk_bus(frozen_bus, eeh_report_reset, NULL);
 	}
 
 	/* If all devices reported they can proceed, the re-enable PIO */
@@ -342,11 +342,11 @@ void handle_eeh_events (struct eeh_event *event)
 		rc = eeh_reset_device(frozen_pdn, NULL);
 		if (rc)
 			goto hard_fail;
-		pci_walk_bus(frozen_bus, eeh_report_reset, 0);
+		pci_walk_bus(frozen_bus, eeh_report_reset, NULL);
 	}
 
 	/* Tell all device drivers that they can resume operations */
-	pci_walk_bus(frozen_bus, eeh_report_resume, 0);
+	pci_walk_bus(frozen_bus, eeh_report_resume, NULL);
 
 	return;
 	
@@ -367,7 +367,7 @@ hard_fail:
 	eeh_slot_error_detail(frozen_pdn, 2 /* Permanent Error */);
 
 	/* Notify all devices that they're about to go down. */
-	pci_walk_bus(frozen_bus, eeh_report_failure, 0);
+	pci_walk_bus(frozen_bus, eeh_report_failure, NULL);
 
 	/* Shut down the device drivers for good. */
 	pcibios_remove_pci_devices(frozen_bus);
