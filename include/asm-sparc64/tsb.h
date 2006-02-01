@@ -143,6 +143,14 @@
 	 add		REG1, (3 * 8), REG1; \
 99:
 
+	/* We use a 32K TSB for the whole kernel, this allows to
+	 * handle about 16MB of modules and vmalloc mappings without
+	 * incurring many hash conflicts.
+	 */
+#define KERNEL_TSB_SIZE_BYTES	(32 * 1024)
+#define KERNEL_TSB_NENTRIES	\
+	(KERNEL_TSB_SIZE_BYTES / 16)
+
 	/* Do a kernel TSB lookup at tl>0 on VADDR+TAG, branch to OK_LABEL
 	 * on TSB hit.  REG1, REG2, REG3, and REG4 are used as temporaries
 	 * and the found TTE will be left in REG1.  REG3 and REG4 must
@@ -150,12 +158,11 @@
 	 *
 	 * VADDR and TAG will be preserved and not clobbered by this macro.
 	 */
-	/* XXX non-8K base page size support... */
 #define KERN_TSB_LOOKUP_TL1(VADDR, TAG, REG1, REG2, REG3, REG4, OK_LABEL) \
 	sethi		%hi(swapper_tsb), REG1; \
 	or		REG1, %lo(swapper_tsb), REG1; \
-	srlx		VADDR, 13, REG2; \
-	and		REG2, (512 - 1), REG2; \
+	srlx		VADDR, PAGE_SHIFT, REG2; \
+	and		REG2, (KERNEL_TSB_NENTRIES - 1), REG2; \
 	sllx		REG2, 4, REG2; \
 	add		REG1, REG2, REG2; \
 	ldda		[REG2] ASI_NUCLEUS_QUAD_LDD, REG3; \

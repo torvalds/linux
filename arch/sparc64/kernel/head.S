@@ -484,16 +484,16 @@ sparc64_boot_end:
 /*
  * The following skip makes sure the trap table in ttable.S is aligned
  * on a 32K boundary as required by the v9 specs for TBA register.
+ *
+ * We align to a 32K boundary, then we have the 32K kernel TSB,
+ * then the 32K aligned trap table.
  */
 1:
 	.skip	0x4000 + _start - 1b
 
-#ifdef CONFIG_SBUS
-/* This is just a hack to fool make depend config.h discovering
-   strategy: As the .S files below need config.h, but
-   make depend does not find it for them, we include config.h
-   in head.S */
-#endif
+	.globl	swapper_tsb
+swapper_tsb:
+	.skip	(32 * 1024)
 
 ! 0x0000000000408000
 

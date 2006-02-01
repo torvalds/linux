@@ -12,14 +12,6 @@
 #include <asm/pgtable.h>
 #include <asm/tsb.h>
 
-/* We use an 8K TSB for the whole kernel, this allows to
- * handle about 4MB of modules and vmalloc mappings without
- * incurring many hash conflicts.
- */
-#define KERNEL_TSB_SIZE_BYTES	8192
-#define KERNEL_TSB_NENTRIES \
-	(KERNEL_TSB_SIZE_BYTES / sizeof(struct tsb))
-
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
 static inline unsigned long tsb_hash(unsigned long vaddr, unsigned long nentries)
