@@ -735,12 +735,21 @@ int ata_scsi_error(struct Scsi_Host *host)
 
 	DPRINTK("ENTER\n");
 
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	assert(!(ap->flags & ATA_FLAG_IN_EH));
+	ap->flags |= ATA_FLAG_IN_EH;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
 	ap = (struct ata_port *) &host->hostdata[0];
 	ap->ops->eng_timeout(ap);
 
 	assert(host->host_failed == 0 && list_empty(&host->eh_cmd_q));
 
 	scsi_eh_flush_done_q(&ap->eh_done_q);
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_IN_EH;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("EXIT\n");
 	return 0;
