@@ -462,7 +462,7 @@ stop_dac(struct au1550_state *s)
 	/* Wait for Transmit Busy to show disabled.
 	*/
 	do {
-		stat = readl((void *)PSC_AC97STAT);
+		stat = au_readl(PSC_AC97STAT);
 		au_sync();
 	} while ((stat & PSC_AC97STAT_TB) != 0);
 
@@ -491,7 +491,7 @@ stop_adc(struct au1550_state *s)
 	/* Wait for Receive Busy to show disabled.
 	*/
 	do {
-		stat = readl((void *)PSC_AC97STAT);
+		stat = au_readl(PSC_AC97STAT);
 		au_sync();
 	} while ((stat & PSC_AC97STAT_RB) != 0);
 
@@ -541,7 +541,7 @@ set_xmit_slots(int num_channels)
 	/* Wait for Device ready.
 	*/
 	do {
-		stat = readl((void *)PSC_AC97STAT);
+		stat = au_readl(PSC_AC97STAT);
 		au_sync();
 	} while ((stat & PSC_AC97STAT_DR) == 0);
 }
@@ -573,7 +573,7 @@ set_recv_slots(int num_channels)
 	/* Wait for Device ready.
 	*/
 	do {
-		stat = readl((void *)PSC_AC97STAT);
+		stat = au_readl(PSC_AC97STAT);
 		au_sync();
 	} while ((stat & PSC_AC97STAT_DR) == 0);
 }
@@ -1995,7 +1995,7 @@ au1550_probe(void)
 	/* Wait for PSC ready.
 	*/
 	do {
-		val = readl((void *)PSC_AC97STAT);
+		val = au_readl(PSC_AC97STAT);
 		au_sync();
 	} while ((val & PSC_AC97STAT_SR) == 0);
 
@@ -2018,7 +2018,7 @@ au1550_probe(void)
 	/* Wait for Device ready.
 	*/
 	do {
-		val = readl((void *)PSC_AC97STAT);
+		val = au_readl(PSC_AC97STAT);
 		au_sync();
 	} while ((val & PSC_AC97STAT_DR) == 0);
 

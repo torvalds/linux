@@ -44,12 +44,10 @@
 #include <asm/msr.h>
 #include "mtrr.h"
 
-#define MTRR_VERSION            "2.0 (20020519)"
-
 u32 num_var_ranges = 0;
 
 unsigned int *usage_table;
-static DECLARE_MUTEX(main_lock);
+static DECLARE_MUTEX(mtrr_sem);
 
 u32 size_or_mask, size_and_mask;
 
@@ -335,7 +333,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	/* No CPU hotplug when we change MTRR entries */
 	lock_cpu_hotplug();
 	/*  Search for existing MTRR  */
-	down(&main_lock);
+	down(&mtrr_sem);
 	for (i = 0; i < num_var_ranges; ++i) {
 		mtrr_if->get(i, &lbase, &lsize, &ltype);
 		if (base >= lbase + lsize)
@@ -373,7 +371,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		printk(KERN_INFO "mtrr: no more MTRRs available\n");
 	error = i;
  out:
-	up(&main_lock);
+	up(&mtrr_sem);
 	unlock_cpu_hotplug();
 	return error;
 }
@@ -466,7 +464,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	max = num_var_ranges;
 	/* No CPU hotplug when we change MTRR entries */
 	lock_cpu_hotplug();
-	down(&main_lock);
+	down(&mtrr_sem);
 	if (reg < 0) {
 		/*  Search for existing MTRR  */
 		for (i = 0; i < max; ++i) {
@@ -505,7 +503,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		set_mtrr(reg, 0, 0, 0);
 	error = reg;
  out:
-	up(&main_lock);
+	up(&mtrr_sem);
 	unlock_cpu_hotplug();
 	return error;
 }
@@ -671,7 +669,6 @@ void __init mtrr_bp_init(void)
 			break;
 		}
 	}
-	printk(KERN_INFO "mtrr: v%s\n",MTRR_VERSION);
 
 	if (mtrr_if) {
 		set_num_var_ranges();
@@ -688,7 +685,7 @@ void mtrr_ap_init(void)
 	if (!mtrr_if || !use_intel())
 		return;
 	/*
-	 * Ideally we should hold main_lock here to avoid mtrr entries changed,
+	 * Ideally we should hold mtrr_sem here to avoid mtrr entries changed,
 	 * but this routine will be called in cpu boot time, holding the lock
 	 * breaks it. This routine is called in two cases: 1.very earily time
 	 * of software resume, when there absolutely isn't mtrr entry changes;

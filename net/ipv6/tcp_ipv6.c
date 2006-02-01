@@ -515,6 +515,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 done:
         if (opt && opt != np->opt)
 		sock_kfree_s(sk, opt, opt->tot_len);
+	dst_release(dst);
 	return err;
 }
 

@@ -112,6 +112,7 @@ pci_claim_resource(struct pci_dev *dev, int resource)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(pci_claim_resource);
 
 int pci_assign_resource(struct pci_dev *dev, int resno)
 {

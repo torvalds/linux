@@ -554,7 +554,6 @@ struct Scsi_Host {
 	/*
 	 * ordered write support
 	 */
-	unsigned ordered_flush:1;
 	unsigned ordered_tag:1;
 
 	/*

@@ -50,7 +50,7 @@ void ibmasm_register_uart(struct service_processor *sp)
 	memset(&uport, 0, sizeof(struct uart_port));
 	uport.irq	= sp->irq;
 	uport.uartclk	= 3686400;
-	uport.flags	= UPF_AUTOPROBE | UPF_SHARE_IRQ;
+	uport.flags	= UPF_SHARE_IRQ;
 	uport.iotype	= UPIO_MEM;
 	uport.membase	= iomem_base;
 

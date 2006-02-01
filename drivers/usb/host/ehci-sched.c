@@ -1063,6 +1063,7 @@ sitd_slot_ok (
 
 		/* for IN, check CSPLIT */
 		if (stream->c_usecs) {
+			uf = uframe & 7;
 			max_used = 100 - stream->c_usecs;
 			do {
 				tmp = 1 << uf;
@@ -1843,8 +1844,7 @@ done:
 #else
 
 static inline int
-sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
-	unsigned mem_flags)
+sitd_submit (struct ehci_hcd *ehci, struct urb *urb, gfp_t mem_flags)
 {
 	ehci_dbg (ehci, "split iso support is disabled\n");
 	return -ENOSYS;

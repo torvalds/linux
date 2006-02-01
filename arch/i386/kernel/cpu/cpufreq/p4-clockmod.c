@@ -52,6 +52,7 @@ enum {
 
 
 static int has_N44_O17_errata[NR_CPUS];
+static int has_N60_errata[NR_CPUS];
 static unsigned int stock_freq;
 static struct cpufreq_driver p4clockmod_driver;
 static unsigned int cpufreq_p4_get(unsigned int cpu);
@@ -226,6 +227,12 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	case 0x0f12:
 		has_N44_O17_errata[policy->cpu] = 1;
 		dprintk("has errata -- disabling low frequencies\n");
+		break;
+
+	case 0x0f29:
+		has_N60_errata[policy->cpu] = 1;
+		dprintk("has errata -- disabling frequencies lower than 2ghz\n");
+		break;
 	}
 	
 	/* get max frequency */
@@ -236,6 +243,8 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	/* table init */
 	for (i=1; (p4clockmod_table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		if ((i<2) && (has_N44_O17_errata[policy->cpu]))
+			p4clockmod_table[i].frequency = CPUFREQ_ENTRY_INVALID;
+		else if (has_N60_errata[policy->cpu] && p4clockmod_table[i].frequency < 2000000)
 			p4clockmod_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 		else
 			p4clockmod_table[i].frequency = (stock_freq * i)/8;

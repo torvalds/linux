@@ -50,7 +50,7 @@ enum {
 };
 
 struct mthca_user_db_table {
-	struct semaphore mutex;
+	struct mutex mutex;
 	struct {
 		u64                uvirt;
 		struct scatterlist mem;
@@ -158,7 +158,7 @@ int mthca_table_get(struct mthca_dev *dev, struct mthca_icm_table *table, int ob
 	int ret = 0;
 	u8 status;
 
-	down(&table->mutex);
+	mutex_lock(&table->mutex);
 
 	if (table->icm[i]) {
 		++table->icm[i]->refcount;
@@ -184,7 +184,7 @@ int mthca_table_get(struct mthca_dev *dev, struct mthca_icm_table *table, int ob
 	++table->icm[i]->refcount;
 
 out:
-	up(&table->mutex);
+	mutex_unlock(&table->mutex);
 	return ret;
 }
 
@@ -198,7 +198,7 @@ void mthca_table_put(struct mthca_dev *dev, struct mthca_icm_table *table, int o
 
 	i = (obj & (table->num_obj - 1)) * table->obj_size / MTHCA_TABLE_CHUNK_SIZE;
 
-	down(&table->mutex);
+	mutex_lock(&table->mutex);
 
 	if (--table->icm[i]->refcount == 0) {
 		mthca_UNMAP_ICM(dev, table->virt + i * MTHCA_TABLE_CHUNK_SIZE,
@@ -207,7 +207,7 @@ void mthca_table_put(struct mthca_dev *dev, struct mthca_icm_table *table, int o
 		table->icm[i] = NULL;
 	}
 
-	up(&table->mutex);
+	mutex_unlock(&table->mutex);
 }
 
 void *mthca_table_find(struct mthca_icm_table *table, int obj)
@@ -220,7 +220,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj)
 	if (!table->lowmem)
 		return NULL;
 
-	down(&table->mutex);
+	mutex_lock(&table->mutex);
 
 	idx = (obj & (table->num_obj - 1)) * table->obj_size;
 	icm = table->icm[idx / MTHCA_TABLE_CHUNK_SIZE];
@@ -240,7 +240,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj)
 	}
 
 out:
-	up(&table->mutex);
+	mutex_unlock(&table->mutex);
 	return page ? lowmem_page_address(page) + offset : NULL;
 }
 
@@ -301,7 +301,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	table->num_obj  = nobj;
 	table->obj_size = obj_size;
 	table->lowmem   = use_lowmem;
-	init_MUTEX(&table->mutex);
+	mutex_init(&table->mutex);
 
 	for (i = 0; i < num_icm; ++i)
 		table->icm[i] = NULL;
@@ -380,7 +380,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	if (index < 0 || index > dev->uar_table.uarc_size / 8)
 		return -EINVAL;
 
-	down(&db_tab->mutex);
+	mutex_lock(&db_tab->mutex);
 
 	i = index / MTHCA_DB_REC_PER_PAGE;
 
@@ -424,7 +424,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	db_tab->page[i].refcount = 1;
 
 out:
-	up(&db_tab->mutex);
+	mutex_unlock(&db_tab->mutex);
 	return ret;
 }
 
@@ -439,11 +439,11 @@ void mthca_unmap_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	 * pages until we clean up the whole db table.
 	 */
 
-	down(&db_tab->mutex);
+	mutex_lock(&db_tab->mutex);
 
 	--db_tab->page[index / MTHCA_DB_REC_PER_PAGE].refcount;
 
-	up(&db_tab->mutex);
+	mutex_unlock(&db_tab->mutex);
 }
 
 struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
@@ -460,7 +460,7 @@ struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
 	if (!db_tab)
 		return ERR_PTR(-ENOMEM);
 
-	init_MUTEX(&db_tab->mutex);
+	mutex_init(&db_tab->mutex);
 	for (i = 0; i < npages; ++i) {
 		db_tab->page[i].refcount = 0;
 		db_tab->page[i].uvirt    = 0;
@@ -499,7 +499,7 @@ int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,
 	int ret = 0;
 	u8 status;
 
-	down(&dev->db_tab->mutex);
+	mutex_lock(&dev->db_tab->mutex);
 
 	switch (type) {
 	case MTHCA_DB_TYPE_CQ_ARM:
@@ -585,7 +585,7 @@ found:
 	*db = (__be32 *) &page->db_rec[j];
 
 out:
-	up(&dev->db_tab->mutex);
+	mutex_unlock(&dev->db_tab->mutex);
 
 	return ret;
 }
@@ -601,7 +601,7 @@ void mthca_free_db(struct mthca_dev *dev, int type, int db_index)
 
 	page = dev->db_tab->page + i;
 
-	down(&dev->db_tab->mutex);
+	mutex_lock(&dev->db_tab->mutex);
 
 	page->db_rec[j] = 0;
 	if (i >= dev->db_tab->min_group2)
@@ -624,7 +624,7 @@ void mthca_free_db(struct mthca_dev *dev, int type, int db_index)
 			++dev->db_tab->min_group2;
 	}
 
-	up(&dev->db_tab->mutex);
+	mutex_unlock(&dev->db_tab->mutex);
 }
 
 int mthca_init_db_tab(struct mthca_dev *dev)
@@ -638,7 +638,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 	if (!dev->db_tab)
 		return -ENOMEM;
 
-	init_MUTEX(&dev->db_tab->mutex);
+	mutex_init(&dev->db_tab->mutex);
 
 	dev->db_tab->npages     = dev->uar_table.uarc_size / 4096;
 	dev->db_tab->max_group1 = 0;

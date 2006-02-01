@@ -357,9 +357,9 @@ static void srp_remove_work(void *target_ptr)
 	target->state = SRP_TARGET_REMOVED;
 	spin_unlock_irq(target->scsi_host->host_lock);
 
-	down(&target->srp_host->target_mutex);
+	mutex_lock(&target->srp_host->target_mutex);
 	list_del(&target->list);
-	up(&target->srp_host->target_mutex);
+	mutex_unlock(&target->srp_host->target_mutex);
 
 	scsi_remove_host(target->scsi_host);
 	ib_destroy_cm_id(target->cm_id);
@@ -1254,9 +1254,9 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	if (scsi_add_host(target->scsi_host, host->dev->dma_device))
 		return -ENODEV;
 
-	down(&host->target_mutex);
+	mutex_lock(&host->target_mutex);
 	list_add_tail(&target->list, &host->target_list);
-	up(&host->target_mutex);
+	mutex_unlock(&host->target_mutex);
 
 	target->state = SRP_TARGET_LIVE;
 
@@ -1525,7 +1525,7 @@ static struct srp_host *srp_add_port(struct ib_device *device, u8 port)
 		return NULL;
 
 	INIT_LIST_HEAD(&host->target_list);
-	init_MUTEX(&host->target_mutex);
+	mutex_init(&host->target_mutex);
 	init_completion(&host->released);
 	host->dev  = device;
 	host->port = port;
@@ -1626,7 +1626,7 @@ static void srp_remove_one(struct ib_device *device)
 		 * Mark all target ports as removed, so we stop queueing
 		 * commands and don't try to reconnect.
 		 */
-		down(&host->target_mutex);
+		mutex_lock(&host->target_mutex);
 		list_for_each_entry_safe(target, tmp_target,
 					 &host->target_list, list) {
 			spin_lock_irqsave(target->scsi_host->host_lock, flags);
@@ -1634,7 +1634,7 @@ static void srp_remove_one(struct ib_device *device)
 				target->state = SRP_TARGET_REMOVED;
 			spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
 		}
-		up(&host->target_mutex);
+		mutex_unlock(&host->target_mutex);
 
 		/*
 		 * Wait for any reconnection tasks that may have

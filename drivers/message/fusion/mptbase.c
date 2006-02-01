@@ -81,6 +81,10 @@ MODULE_LICENSE("GPL");
 /*
  *  cmd line parameters
  */
+static int mpt_msi_enable;
+module_param(mpt_msi_enable, int, 0);
+MODULE_PARM_DESC(mpt_msi_enable, " MSI Support Enable (default=0)");
+
 #ifdef MFCNT
 static int mfcounter = 0;
 #define PRINT_MF_COUNT 20000
@@ -174,7 +178,7 @@ static void	mpt_get_fw_exp_ver(char *buf, MPT_ADAPTER *ioc);
 static int	ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *evReply, int *evHandlers);
 static void	mpt_sp_ioc_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf);
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
-static void	mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info);
+static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
 
 /* module entry point */
@@ -313,7 +317,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 		if (ioc->bus_type == FC)
 			mpt_fc_log_info(ioc, log_info);
 		else if (ioc->bus_type == SPI)
-			mpt_sp_log_info(ioc, log_info);
+			mpt_spi_log_info(ioc, log_info);
 		else if (ioc->bus_type == SAS)
 			mpt_sas_log_info(ioc, log_info);
 	}
@@ -1444,6 +1448,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ioc->pci_irq = -1;
 	if (pdev->irq) {
+		if (mpt_msi_enable && !pci_enable_msi(pdev))
+			printk(MYIOC_s_INFO_FMT "PCI-MSI enabled\n", ioc->name);
+
 		r = request_irq(pdev->irq, mpt_interrupt, SA_SHIRQ, ioc->name, ioc);
 
 		if (r < 0) {
@@ -1483,6 +1490,10 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		list_del(&ioc->list);
 		free_irq(ioc->pci_irq, ioc);
+		if (mpt_msi_enable)
+			pci_disable_msi(pdev);
+		if (ioc->alt_ioc)
+			ioc->alt_ioc->alt_ioc = NULL;
 		iounmap(mem);
 		kfree(ioc);
 		pci_set_drvdata(pdev, NULL);
@@ -2136,6 +2147,8 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 
 	if (ioc->pci_irq != -1) {
 		free_irq(ioc->pci_irq, ioc);
+		if (mpt_msi_enable)
+			pci_disable_msi(ioc->pcidev);
 		ioc->pci_irq = -1;
 	}
 
@@ -2157,6 +2170,10 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 	sz_last = ioc->alloc_total;
 	dprintk((KERN_INFO MYNAM ": %s: free'd %d of %d bytes\n",
 			ioc->name, sz_first-sz_last+(int)sizeof(*ioc), sz_first));
+
+	if (ioc->alt_ioc)
+		ioc->alt_ioc->alt_ioc = NULL;
+
 	kfree(ioc);
 }
 
@@ -2770,13 +2787,16 @@ SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 
 	/* RAID FW may take a long time to enable
 	 */
-	if ( (ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
-			> MPI_FW_HEADER_PID_PROD_TARGET_SCSI ) {
-		rc = mpt_handshake_req_reply_wait(ioc, req_sz, (u32*)&port_enable,
-				reply_sz, (u16*)&reply_buf, 300 /*seconds*/, sleepFlag);
+	if (((ioc->facts.ProductID & MPI_FW_HEADER_PID_PROD_MASK)
+	    > MPI_FW_HEADER_PID_PROD_TARGET_SCSI) ||
+	    (ioc->bus_type == SAS)) {
+		rc = mpt_handshake_req_reply_wait(ioc, req_sz,
+		(u32*)&port_enable, reply_sz, (u16*)&reply_buf,
+		300 /*seconds*/, sleepFlag);
 	} else {
-		rc = mpt_handshake_req_reply_wait(ioc, req_sz, (u32*)&port_enable,
-				reply_sz, (u16*)&reply_buf, 30 /*seconds*/, sleepFlag);
+		rc = mpt_handshake_req_reply_wait(ioc, req_sz,
+		(u32*)&port_enable, reply_sz, (u16*)&reply_buf,
+		30 /*seconds*/, sleepFlag);
 	}
 	return rc;
 }
@@ -4387,6 +4407,138 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+
+static void
+mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
+    MpiEventDataRaid_t * pRaidEventData)
+{
+	int 	volume;
+	int 	reason;
+	int 	disk;
+	int 	status;
+	int 	flags;
+	int 	state;
+
+	volume	= pRaidEventData->VolumeID;
+	reason	= pRaidEventData->ReasonCode;
+	disk	= pRaidEventData->PhysDiskNum;
+	status	= le32_to_cpu(pRaidEventData->SettingsStatus);
+	flags	= (status >> 0) & 0xff;
+	state	= (status >> 8) & 0xff;
+
+	if (reason == MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED) {
+		return;
+	}
+
+	if ((reason >= MPI_EVENT_RAID_RC_PHYSDISK_CREATED &&
+	     reason <= MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED) ||
+	    (reason == MPI_EVENT_RAID_RC_SMART_DATA)) {
+		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for PhysDisk %d\n",
+			ioc->name, disk);
+	} else {
+		printk(MYIOC_s_INFO_FMT "RAID STATUS CHANGE for VolumeID %d\n",
+			ioc->name, volume);
+	}
+
+	switch(reason) {
+	case MPI_EVENT_RAID_RC_VOLUME_CREATED:
+		printk(MYIOC_s_INFO_FMT "  volume has been created\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_DELETED:
+
+		printk(MYIOC_s_INFO_FMT "  volume has been deleted\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_SETTINGS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  volume settings have been changed\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_STATUS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  volume is now %s%s%s%s\n",
+			ioc->name,
+			state == MPI_RAIDVOL0_STATUS_STATE_OPTIMAL
+			 ? "optimal"
+			 : state == MPI_RAIDVOL0_STATUS_STATE_DEGRADED
+			  ? "degraded"
+			  : state == MPI_RAIDVOL0_STATUS_STATE_FAILED
+			   ? "failed"
+			   : "state unknown",
+			flags & MPI_RAIDVOL0_STATUS_FLAG_ENABLED
+			 ? ", enabled" : "",
+			flags & MPI_RAIDVOL0_STATUS_FLAG_QUIESCED
+			 ? ", quiesced" : "",
+			flags & MPI_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS
+			 ? ", resync in progress" : "" );
+		break;
+
+	case MPI_EVENT_RAID_RC_VOLUME_PHYSDISK_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  volume membership of PhysDisk %d has changed\n",
+			ioc->name, disk);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_CREATED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk has been created\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_DELETED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk has been deleted\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_SETTINGS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk settings have been changed\n",
+			ioc->name);
+		break;
+
+	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
+		printk(MYIOC_s_INFO_FMT "  PhysDisk is now %s%s%s\n",
+			ioc->name,
+			state == MPI_PHYSDISK0_STATUS_ONLINE
+			 ? "online"
+			 : state == MPI_PHYSDISK0_STATUS_MISSING
+			  ? "missing"
+			  : state == MPI_PHYSDISK0_STATUS_NOT_COMPATIBLE
+			   ? "not compatible"
+			   : state == MPI_PHYSDISK0_STATUS_FAILED
+			    ? "failed"
+			    : state == MPI_PHYSDISK0_STATUS_INITIALIZING
+			     ? "initializing"
+			     : state == MPI_PHYSDISK0_STATUS_OFFLINE_REQUESTED
+			      ? "offline requested"
+			      : state == MPI_PHYSDISK0_STATUS_FAILED_REQUESTED
+			       ? "failed requested"
+			       : state == MPI_PHYSDISK0_STATUS_OTHER_OFFLINE
+			        ? "offline"
+			        : "state unknown",
+			flags & MPI_PHYSDISK0_STATUS_FLAG_OUT_OF_SYNC
+			 ? ", out of sync" : "",
+			flags & MPI_PHYSDISK0_STATUS_FLAG_QUIESCED
+			 ? ", quiesced" : "" );
+		break;
+
+	case MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED:
+		printk(MYIOC_s_INFO_FMT "  Domain Validation needed for PhysDisk %d\n",
+			ioc->name, disk);
+		break;
+
+	case MPI_EVENT_RAID_RC_SMART_DATA:
+		printk(MYIOC_s_INFO_FMT "  SMART data received, ASC/ASCQ = %02xh/%02xh\n",
+			ioc->name, pRaidEventData->ASC, pRaidEventData->ASCQ);
+		break;
+
+	case MPI_EVENT_RAID_RC_REPLACE_ACTION_STARTED:
+		printk(MYIOC_s_INFO_FMT "  replacement of PhysDisk %d has started\n",
+			ioc->name, disk);
+		break;
+	}
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	GetIoUnitPage2 - Retrieve BIOS version and boot order information.
  *	@ioc: Pointer to MPT_ADAPTER structure
@@ -4597,6 +4749,14 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 			} else {
 				SCSIPortPage2_t *pPP2 = (SCSIPortPage2_t  *) pbuf;
 				MpiDeviceInfo_t	*pdevice = NULL;
+
+				/*
+				 * Save "Set to Avoid SCSI Bus Resets" flag
+				 */
+				ioc->spi_data.bus_reset =
+				    (le32_to_cpu(pPP2->PortFlags) &
+			        MPI_SCSIPORTPAGE2_PORT_FLAGS_AVOID_SCSI_RESET) ?
+				    0 : 1 ;
 
 				/* Save the Port Page 2 data
 				 * (reformat into a 32bit quantity)
@@ -5967,6 +6127,10 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 			}
 		}
 		break;
+	case MPI_EVENT_INTEGRATED_RAID:
+		mptbase_raid_process_event_data(ioc,
+		    (MpiEventDataRaid_t *)pEventReply->Data);
+		break;
 	default:
 		break;
 	}
@@ -6046,7 +6210,7 @@ mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- *	mpt_sp_log_info - Log information returned from SCSI Parallel IOC.
+ *	mpt_spi_log_info - Log information returned from SCSI Parallel IOC.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@mr: Pointer to MPT reply frame
  *	@log_info: U32 LogInfo word from the IOC
@@ -6054,7 +6218,7 @@ mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
  *	Refer to lsi/sp_log.h.
  */
 static void
-mpt_sp_log_info(MPT_ADAPTER *ioc, u32 log_info)
+mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 {
 	u32 info = log_info & 0x00FF0000;
 	char *desc = "unknown";

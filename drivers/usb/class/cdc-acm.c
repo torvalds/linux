@@ -1014,8 +1014,13 @@ static void acm_disconnect(struct usb_interface *intf)
 	}
 
 	down(&open_sem);
+	if (!usb_get_intfdata(intf)) {
+		up(&open_sem);
+		return;
+	}
 	acm->dev = NULL;
-	usb_set_intfdata (intf, NULL);
+	usb_set_intfdata(acm->control, NULL);
+	usb_set_intfdata(acm->data, NULL);
 
 	tasklet_disable(&acm->urb_task);
 
@@ -1036,7 +1041,7 @@ static void acm_disconnect(struct usb_interface *intf)
 	for (i = 0; i < ACM_NRB; i++)
 		usb_buffer_free(usb_dev, acm->readsize, acm->rb[i].base, acm->rb[i].dma);
 
-	usb_driver_release_interface(&acm_driver, acm->data);
+	usb_driver_release_interface(&acm_driver, intf == acm->control ? acm->data : intf);
 
 	if (!acm->used) {
 		acm_tty_unregister(acm);

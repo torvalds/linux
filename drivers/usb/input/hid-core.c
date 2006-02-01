@@ -1307,7 +1307,7 @@ void hid_init_reports(struct hid_device *hid)
 	}
 
 	if (err)
-		warn("timeout initializing reports\n");
+		warn("timeout initializing reports");
 }
 
 #define USB_VENDOR_ID_WACOM		0x056a
@@ -1453,6 +1453,9 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_CHERRY		0x046a
 #define USB_DEVICE_ID_CHERRY_CYMOTION	0x0023
 
+#define USB_VENDOR_ID_HP		0x03f0
+#define USB_DEVICE_ID_HP_USBHUB_KB	0x020c
+
 /*
  * Alphabetically sorted blacklist by quirk type.
  */
@@ -1566,6 +1569,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_BTC, USB_DEVICE_ID_BTC_KEYBOARD, HID_QUIRK_NOGET},
 	{ USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_USBHUB_KB, HID_QUIRK_NOGET},
+	{ USB_VENDOR_ID_HP, USB_DEVICE_ID_HP_USBHUB_KB, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_TANGTOP, USB_DEVICE_ID_TANGTOP_USBPS2, HID_QUIRK_NOGET },
 
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_POWERMOUSE, HID_QUIRK_2WHEEL_POWERMOUSE },
@@ -1827,9 +1831,6 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->urbctrl->setup_dma = hid->cr_dma;
 	hid->urbctrl->transfer_dma = hid->ctrlbuf_dma;
 	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
-
-	/* May be needed for some devices */
-	usb_clear_halt(hid->dev, hid->urbin->pipe);
 
 	return hid;
 

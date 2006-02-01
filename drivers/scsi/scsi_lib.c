@@ -436,6 +436,7 @@ free_bios:
  * scsi_execute_async - insert request
  * @sdev:	scsi device
  * @cmd:	scsi command
+ * @cmd_len:	length of scsi cdb
  * @data_direction: data direction
  * @buffer:	data buffer (this can be a kernel buffer or scatterlist)
  * @bufflen:	len of buffer
@@ -445,7 +446,7 @@ free_bios:
  * @flags:	or into request flags
  **/
 int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
-		       int data_direction, void *buffer, unsigned bufflen,
+		       int cmd_len, int data_direction, void *buffer, unsigned bufflen,
 		       int use_sg, int timeout, int retries, void *privdata,
 		       void (*done)(void *, char *, int, int), gfp_t gfp)
 {
@@ -472,7 +473,7 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	if (err)
 		goto free_req;
 
-	req->cmd_len = COMMAND_SIZE(cmd[0]);
+	req->cmd_len = cmd_len;
 	memcpy(req->cmd, cmd, req->cmd_len);
 	req->sense = sioc->sense;
 	req->sense_len = 0;

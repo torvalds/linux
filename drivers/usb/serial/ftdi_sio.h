@@ -31,8 +31,13 @@
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 
+
 /* www.irtrans.de device */
 #define FTDI_IRTRANS_PID 0xFC60 /* Product Id */
+
+
+/* www.thoughttechnology.com/ TT-USB provide with procomp use ftdi_sio */
+#define FTDI_TTUSB_PID 0xFF20 /* Product Id */
 
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
@@ -49,6 +54,12 @@
 /* broadband internet service.  The following PID is exhibited by the usb device supplied */
 /* (the VID is the standard ftdi vid (FTDI_VID) */
 #define FTDI_VNHCPCUSB_D_PID 0xfe38 /* Product Id */
+
+/*
+ * PCDJ use ftdi based dj-controllers.  The following PID is for their DAC-2 device
+ * http://www.pcdjhardware.com/DAC2.asp (PID sent by Wouter Paesen)
+ * (the VID is the standard ftdi vid (FTDI_VID) */
+#define FTDI_PCDJ_DAC2_PID 0xFA88
 
 /*
  * The following are the values for the Matrix Orbital LCD displays,
@@ -215,8 +226,10 @@
  * Definitions for ATIK Instruments astronomical USB based cameras
  * Check it at http://www.atik-instruments.com/
  */
-#define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Camera */
-#define FTDI_ATIK_ATK16HR_PID	0xDF31	/* ATIK ATK-16HR Camera */
+#define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Grayscale Camera */
+#define FTDI_ATIK_ATK16C_PID	0xDF32	/* ATIK ATK-16C Colour Camera */
+#define FTDI_ATIK_ATK16HR_PID	0xDF31	/* ATIK ATK-16HR Grayscale Camera */
+#define FTDI_ATIK_ATK16HRC_PID	0xDF33	/* ATIK ATK-16HRC Colour Camera */
 
 /*
  * Protego product ids
@@ -364,6 +377,12 @@
  */
 #define POSIFLEX_VID		0x0d3a  /* Vendor ID */
 #define POSIFLEX_PP7000_PID	0x0300  /* PP-7000II thermal printer */
+
+/*
+ * Westrex International devices submitted by Cory Lee
+ */
+#define FTDI_WESTREX_MODEL_777_PID	0xDC00	/* Model 777 */
+#define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

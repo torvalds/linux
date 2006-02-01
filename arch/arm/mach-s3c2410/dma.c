@@ -1152,7 +1152,7 @@ static int __init s3c2410_init_dma(void)
 
 	printk("S3C2410 DMA Driver, (c) 2003-2004 Simtec Electronics\n");
 
-	dma_base = ioremap(S3C2410_PA_DMA, 0x200);
+	dma_base = ioremap(S3C24XX_PA_DMA, 0x200);
 	if (dma_base == NULL) {
 		printk(KERN_ERR "dma failed to remap register block\n");
 		return -ENOMEM;
