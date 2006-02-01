@@ -75,8 +75,6 @@ extern void qla2x00_cmd_timeout(srb_t *);
 extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int, int);
 extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *, int);
 
-extern void qla2x00_blink_led(scsi_qla_host_t *);
-
 extern int qla2x00_down_timeout(struct semaphore *, unsigned long);
 
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
@@ -234,6 +232,13 @@ extern int qla2x00_write_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
     uint32_t);
 extern int qla24xx_write_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
     uint32_t);
+
+extern int qla2x00_beacon_on(struct scsi_qla_host *);
+extern int qla2x00_beacon_off(struct scsi_qla_host *);
+extern void qla2x00_beacon_blink(struct scsi_qla_host *);
+extern int qla24xx_beacon_on(struct scsi_qla_host *);
+extern int qla24xx_beacon_off(struct scsi_qla_host *);
+extern void qla24xx_beacon_blink(struct scsi_qla_host *);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.

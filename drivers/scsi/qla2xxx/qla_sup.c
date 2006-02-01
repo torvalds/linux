@@ -695,3 +695,297 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 
 	return ret;
 }
+
+
+static inline void
+qla2x00_flip_colors(scsi_qla_host_t *ha, uint16_t *pflags)
+{
+	if (IS_QLA2322(ha)) {
+		/* Flip all colors. */
+		if (ha->beacon_color_state == QLA_LED_ALL_ON) {
+			/* Turn off. */
+			ha->beacon_color_state = 0;
+			*pflags = GPIO_LED_ALL_OFF;
+		} else {
+			/* Turn on. */
+			ha->beacon_color_state = QLA_LED_ALL_ON;
+			*pflags = GPIO_LED_RGA_ON;
+		}
+	} else {
+		/* Flip green led only. */
+		if (ha->beacon_color_state == QLA_LED_GRN_ON) {
+			/* Turn off. */
+			ha->beacon_color_state = 0;
+			*pflags = GPIO_LED_GREEN_OFF_AMBER_OFF;
+		} else {
+			/* Turn on. */
+			ha->beacon_color_state = QLA_LED_GRN_ON;
+			*pflags = GPIO_LED_GREEN_ON_AMBER_OFF;
+		}
+	}
+}
+
+void
+qla2x00_beacon_blink(struct scsi_qla_host *ha)
+{
+	uint16_t gpio_enable;
+	uint16_t gpio_data;
+	uint16_t led_color = 0;
+	unsigned long flags;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+
+	if (ha->pio_address)
+		reg = (struct device_reg_2xxx __iomem *)ha->pio_address;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	/* Save the Original GPIOE. */
+	if (ha->pio_address) {
+		gpio_enable = RD_REG_WORD_PIO(&reg->gpioe);
+		gpio_data = RD_REG_WORD_PIO(&reg->gpiod);
+	} else {
+		gpio_enable = RD_REG_WORD(&reg->gpioe);
+		gpio_data = RD_REG_WORD(&reg->gpiod);
+	}
+
+	/* Set the modified gpio_enable values */
+	gpio_enable |= GPIO_LED_MASK;
+
+	if (ha->pio_address) {
+		WRT_REG_WORD_PIO(&reg->gpioe, gpio_enable);
+	} else {
+		WRT_REG_WORD(&reg->gpioe, gpio_enable);
+		RD_REG_WORD(&reg->gpioe);
+	}
+
+	qla2x00_flip_colors(ha, &led_color);
+
+	/* Clear out any previously set LED color. */
+	gpio_data &= ~GPIO_LED_MASK;
+
+	/* Set the new input LED color to GPIOD. */
+	gpio_data |= led_color;
+
+	/* Set the modified gpio_data values */
+	if (ha->pio_address) {
+		WRT_REG_WORD_PIO(&reg->gpiod, gpio_data);
+	} else {
+		WRT_REG_WORD(&reg->gpiod, gpio_data);
+		RD_REG_WORD(&reg->gpiod);
+	}
+
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+int
+qla2x00_beacon_on(struct scsi_qla_host *ha)
+{
+	uint16_t gpio_enable;
+	uint16_t gpio_data;
+	unsigned long flags;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+
+	ha->fw_options[1] &= ~FO1_SET_EMPHASIS_SWING;
+	ha->fw_options[1] |= FO1_DISABLE_GPIO6_7;
+
+	if (qla2x00_set_fw_options(ha, ha->fw_options) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to update fw options (beacon on).\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	if (ha->pio_address)
+		reg = (struct device_reg_2xxx __iomem *)ha->pio_address;
+
+	/* Turn off LEDs. */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	if (ha->pio_address) {
+		gpio_enable = RD_REG_WORD_PIO(&reg->gpioe);
+		gpio_data = RD_REG_WORD_PIO(&reg->gpiod);
+	} else {
+		gpio_enable = RD_REG_WORD(&reg->gpioe);
+		gpio_data = RD_REG_WORD(&reg->gpiod);
+	}
+	gpio_enable |= GPIO_LED_MASK;
+
+	/* Set the modified gpio_enable values. */
+	if (ha->pio_address) {
+		WRT_REG_WORD_PIO(&reg->gpioe, gpio_enable);
+	} else {
+		WRT_REG_WORD(&reg->gpioe, gpio_enable);
+		RD_REG_WORD(&reg->gpioe);
+	}
+
+	/* Clear out previously set LED colour. */
+	gpio_data &= ~GPIO_LED_MASK;
+	if (ha->pio_address) {
+		WRT_REG_WORD_PIO(&reg->gpiod, gpio_data);
+	} else {
+		WRT_REG_WORD(&reg->gpiod, gpio_data);
+		RD_REG_WORD(&reg->gpiod);
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	/*
+	 * Let the per HBA timer kick off the blinking process based on
+	 * the following flags. No need to do anything else now.
+	 */
+	ha->beacon_blink_led = 1;
+	ha->beacon_color_state = 0;
+
+	return QLA_SUCCESS;
+}
+
+int
+qla2x00_beacon_off(struct scsi_qla_host *ha)
+{
+	int rval = QLA_SUCCESS;
+
+	ha->beacon_blink_led = 0;
+
+	/* Set the on flag so when it gets flipped it will be off. */
+	if (IS_QLA2322(ha))
+		ha->beacon_color_state = QLA_LED_ALL_ON;
+	else
+		ha->beacon_color_state = QLA_LED_GRN_ON;
+
+	ha->isp_ops.beacon_blink(ha);	/* This turns green LED off */
+
+	ha->fw_options[1] &= ~FO1_SET_EMPHASIS_SWING;
+	ha->fw_options[1] &= ~FO1_DISABLE_GPIO6_7;
+
+	rval = qla2x00_set_fw_options(ha, ha->fw_options);
+	if (rval != QLA_SUCCESS)
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to update fw options (beacon off).\n");
+	return rval;
+}
+
+
+static inline void
+qla24xx_flip_colors(scsi_qla_host_t *ha, uint16_t *pflags)
+{
+	/* Flip all colors. */
+	if (ha->beacon_color_state == QLA_LED_ALL_ON) {
+		/* Turn off. */
+		ha->beacon_color_state = 0;
+		*pflags = 0;
+	} else {
+		/* Turn on. */
+		ha->beacon_color_state = QLA_LED_ALL_ON;
+		*pflags = GPDX_LED_YELLOW_ON | GPDX_LED_AMBER_ON;
+	}
+}
+
+void
+qla24xx_beacon_blink(struct scsi_qla_host *ha)
+{
+	uint16_t led_color = 0;
+	uint32_t gpio_data;
+	unsigned long flags;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	/* Save the Original GPIOD. */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	gpio_data = RD_REG_DWORD(&reg->gpiod);
+
+	/* Enable the gpio_data reg for update. */
+	gpio_data |= GPDX_LED_UPDATE_MASK;
+
+	WRT_REG_DWORD(&reg->gpiod, gpio_data);
+	gpio_data = RD_REG_DWORD(&reg->gpiod);
+
+	/* Set the color bits. */
+	qla24xx_flip_colors(ha, &led_color);
+
+	/* Clear out any previously set LED color. */
+	gpio_data &= ~GPDX_LED_COLOR_MASK;
+
+	/* Set the new input LED color to GPIOD. */
+	gpio_data |= led_color;
+
+	/* Set the modified gpio_data values. */
+	WRT_REG_DWORD(&reg->gpiod, gpio_data);
+	gpio_data = RD_REG_DWORD(&reg->gpiod);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+int
+qla24xx_beacon_on(struct scsi_qla_host *ha)
+{
+	uint32_t gpio_data;
+	unsigned long flags;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (ha->beacon_blink_led == 0) {
+		/* Enable firmware for update */
+		ha->fw_options[1] |= ADD_FO1_DISABLE_GPIO_LED_CTRL;
+
+		if (qla2x00_set_fw_options(ha, ha->fw_options) != QLA_SUCCESS)
+			return QLA_FUNCTION_FAILED;
+
+		if (qla2x00_get_fw_options(ha, ha->fw_options) !=
+		    QLA_SUCCESS) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to update fw options (beacon on).\n");
+			return QLA_FUNCTION_FAILED;
+		}
+
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+		gpio_data = RD_REG_DWORD(&reg->gpiod);
+
+		/* Enable the gpio_data reg for update. */
+		gpio_data |= GPDX_LED_UPDATE_MASK;
+		WRT_REG_DWORD(&reg->gpiod, gpio_data);
+		RD_REG_DWORD(&reg->gpiod);
+
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	}
+
+	/* So all colors blink together. */
+	ha->beacon_color_state = 0;
+
+	/* Let the per HBA timer kick off the blinking process. */
+	ha->beacon_blink_led = 1;
+
+	return QLA_SUCCESS;
+}
+
+int
+qla24xx_beacon_off(struct scsi_qla_host *ha)
+{
+	uint32_t gpio_data;
+	unsigned long flags;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	ha->beacon_blink_led = 0;
+	ha->beacon_color_state = QLA_LED_ALL_ON;
+
+	ha->isp_ops.beacon_blink(ha);	/* Will flip to all off. */
+
+	/* Give control back to firmware. */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	gpio_data = RD_REG_DWORD(&reg->gpiod);
+
+	/* Disable the gpio_data reg for update. */
+	gpio_data &= ~GPDX_LED_UPDATE_MASK;
+	WRT_REG_DWORD(&reg->gpiod, gpio_data);
+	RD_REG_DWORD(&reg->gpiod);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	ha->fw_options[1] &= ~ADD_FO1_DISABLE_GPIO_LED_CTRL;
+
+	if (qla2x00_set_fw_options(ha, ha->fw_options) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to update fw options (beacon off).\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	if (qla2x00_get_fw_options(ha, ha->fw_options) != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to get fw options (beacon off).\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	return QLA_SUCCESS;
+}

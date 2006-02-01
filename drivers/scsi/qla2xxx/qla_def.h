@@ -182,6 +182,13 @@
 #define WRT_REG_DWORD(addr, data)	writel(data,addr)
 
 /*
+ * The ISP2312 v2 chip cannot access the FLASH/GPIO registers via MMIO in an
+ * 133Mhz slot.
+ */
+#define RD_REG_WORD_PIO(addr)		(inw((unsigned long)addr))
+#define WRT_REG_WORD_PIO(addr, data)	(outw(data,(unsigned long)addr))
+
+/*
  * Fibre Channel device definitions.
  */
 #define WWN_SIZE		8	/* Size of WWPN, WWN & WWNN */
@@ -433,6 +440,9 @@ struct device_reg_2xxx {
 #define GPIO_LED_GREEN_ON_AMBER_OFF	0x0040
 #define GPIO_LED_GREEN_OFF_AMBER_ON	0x0080
 #define GPIO_LED_GREEN_ON_AMBER_ON	0x00C0
+#define GPIO_LED_ALL_OFF		0x0000
+#define GPIO_LED_RED_ON_OTHER_OFF	0x0001	/* isp2322 */
+#define GPIO_LED_RGA_ON			0x00C1	/* isp2322: red green amber */
 
 	union {
 		struct {
@@ -2200,6 +2210,10 @@ struct isp_operations {
 
 	void (*fw_dump) (struct scsi_qla_host *, int);
 	void (*ascii_fw_dump) (struct scsi_qla_host *);
+
+	int (*beacon_on) (struct scsi_qla_host *);
+	int (*beacon_off) (struct scsi_qla_host *);
+	void (*beacon_blink) (struct scsi_qla_host *);
 };
 
 /*
@@ -2493,7 +2507,12 @@ typedef struct scsi_qla_host {
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
-	uint16_t	beacon_green_on;
+	uint8_t		beacon_color_state;
+#define QLA_LED_GRN_ON		0x01
+#define QLA_LED_YLW_ON		0x02
+#define QLA_LED_ABR_ON		0x04
+#define QLA_LED_ALL_ON		0x07	/* yellow, green, amber. */
+					/* ISP2322: red, green, amber. */
 
 	uint16_t	zio_mode;
 	uint16_t	zio_timer;

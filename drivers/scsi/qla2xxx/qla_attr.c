@@ -196,6 +196,9 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
+
+	if (ha->beacon_blink_led == 1)
+		ha->isp_ops.beacon_off(ha);
 }
 
 /* Scsi_Host attributes. */
@@ -383,6 +386,50 @@ qla2x00_zio_timer_store(struct class_device *cdev, const char *buf,
 	return strlen(buf);
 }
 
+static ssize_t
+qla2x00_beacon_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int len = 0;
+
+	if (ha->beacon_blink_led)
+		len += snprintf(buf + len, PAGE_SIZE-len, "Enabled\n");
+	else
+		len += snprintf(buf + len, PAGE_SIZE-len, "Disabled\n");
+	return len;
+}
+
+static ssize_t
+qla2x00_beacon_store(struct class_device *cdev, const char *buf,
+    size_t count)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int val = 0;
+	int rval;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+		return -EPERM;
+
+	if (test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Abort ISP active -- ignoring beacon request.\n");
+		return -EBUSY;
+	}
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val)
+		rval = ha->isp_ops.beacon_on(ha);
+	else
+		rval = ha->isp_ops.beacon_off(ha);
+
+	if (rval != QLA_SUCCESS)
+		count = 0;
+
+	return count;
+}
+
 static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
 	NULL);
 static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
@@ -397,6 +444,8 @@ static CLASS_DEVICE_ATTR(zio, S_IRUGO | S_IWUSR, qla2x00_zio_show,
     qla2x00_zio_store);
 static CLASS_DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
     qla2x00_zio_timer_store);
+static CLASS_DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
+    qla2x00_beacon_store);
 
 struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_driver_version,
@@ -410,6 +459,7 @@ struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_state,
 	&class_device_attr_zio,
 	&class_device_attr_zio_timer,
+	&class_device_attr_beacon,
 	NULL,
 };
 

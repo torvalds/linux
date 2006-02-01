@@ -1365,6 +1365,9 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.intr_handler = qla2300_intr_handler;
 		ha->isp_ops.fw_dump = qla2300_fw_dump;
 		ha->isp_ops.ascii_fw_dump = qla2300_ascii_fw_dump;
+		ha->isp_ops.beacon_on = qla2x00_beacon_on;
+		ha->isp_ops.beacon_off = qla2x00_beacon_off;
+		ha->isp_ops.beacon_blink = qla2x00_beacon_blink;
 		ha->gid_list_info_size = 6;
 	} else if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
@@ -1401,6 +1404,9 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.write_nvram = qla24xx_write_nvram_data;
 		ha->isp_ops.fw_dump = qla24xx_fw_dump;
 		ha->isp_ops.ascii_fw_dump = qla24xx_ascii_fw_dump;
+		ha->isp_ops.beacon_on = qla24xx_beacon_on;
+		ha->isp_ops.beacon_off = qla24xx_beacon_off;
+		ha->isp_ops.beacon_blink = qla24xx_beacon_blink;
 		ha->gid_list_info_size = 8;
 	}
 	host->can_queue = ha->request_q_length + 128;
@@ -2315,6 +2321,9 @@ qla2x00_do_dpc(void *data)
 		if (!ha->interrupts_on)
 			ha->isp_ops.enable_intrs(ha);
 
+		if (test_and_clear_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags))
+			ha->isp_ops.beacon_blink(ha);
+
 		ha->dpc_active = 0;
 	} /* End of while(1) */
 
@@ -2492,6 +2501,12 @@ qla2x00_timer(scsi_qla_host_t *ha)
 		    atomic_read(&ha->loop_down_timer)));
 	}
 
+	/* Check if beacon LED needs to be blinked */
+	if (ha->beacon_blink_led == 1) {
+		set_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags);
+		start_dpc++;
+	}
+
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) ||
 	    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) ||
@@ -2500,6 +2515,7 @@ qla2x00_timer(scsi_qla_host_t *ha)
 	    start_dpc ||
 	    test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) ||
+	    test_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RELOGIN_NEEDED, &ha->dpc_flags)) &&
 	    ha->dpc_wait && !ha->dpc_active) {
 
