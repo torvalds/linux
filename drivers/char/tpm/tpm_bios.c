@@ -547,3 +547,4 @@ void tpm_bios_log_teardown(struct dentry **lst)
 		securityfs_remove(lst[i]);
 }
 EXPORT_SYMBOL_GPL(tpm_bios_log_teardown);
+MODULE_LICENSE("GPL");
