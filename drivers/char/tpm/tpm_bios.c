@@ -376,7 +376,7 @@ static int read_log(struct tpm_bios_log *log)
 {
 	struct acpi_tcpa *buff;
 	acpi_status status;
-	void *virt;
+	struct acpi_table_header *virt;
 
 	if (log->bios_event_log != NULL) {
 		printk(KERN_ERR
@@ -413,7 +413,7 @@ static int read_log(struct tpm_bios_log *log)
 
 	log->bios_event_log_end = log->bios_event_log + buff->log_max_len;
 
-	acpi_os_map_memory(buff->log_start_addr, buff->log_max_len, &virt);
+	acpi_os_map_memory(buff->log_start_addr, buff->log_max_len, (void *) &virt);
 
 	memcpy(log->bios_event_log, virt, buff->log_max_len);
 
