@@ -295,39 +295,6 @@ do_unlock:
 	wrpr		%g5, %tba
 	mov		%o2, %g6
 
-	wrpr		%o1, PSTATE_MG, %pstate
-#define KERN_HIGHBITS		((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
-#define KERN_LOWBITS		(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-
-	mov		TSB_REG, %g1
-	stxa		%g0, [%g1] ASI_DMMU
-	membar		#Sync
-	mov		TLB_SFSR, %g1
-	sethi		%uhi(KERN_HIGHBITS), %g2
-	or		%g2, %ulo(KERN_HIGHBITS), %g2
-	sllx		%g2, 32, %g2
-	or		%g2, KERN_LOWBITS, %g2
-
-	BRANCH_IF_ANY_CHEETAH(g3,g7,9f)
-
-	ba,pt		%xcc, 1f
-	 nop
-
-9:
-	sethi		%uhi(VPTE_BASE_CHEETAH), %g3
-	or		%g3, %ulo(VPTE_BASE_CHEETAH), %g3
-	ba,pt		%xcc, 2f
-	 sllx		%g3, 32, %g3
-1:
-	sethi		%uhi(VPTE_BASE_SPITFIRE), %g3
-	or		%g3, %ulo(VPTE_BASE_SPITFIRE), %g3
-	sllx		%g3, 32, %g3
-
-2:
-	clr	%g7
-#undef KERN_HIGHBITS
-#undef KERN_LOWBITS
-
 	wrpr		%o1, 0x0, %pstate
 	ldx		[%g6 + TI_TASK], %g4
 

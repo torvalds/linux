@@ -85,6 +85,7 @@ fill_fixup:
 	mov		%o7, %g6
 	ldx		[%g6 + TI_TASK], %g4
 #ifdef CONFIG_SMP
+#error IMMU TSB usage must be fixed
 	mov		TSB_REG, %g1
 	ldxa		[%g1] ASI_IMMU, %g5
 #endif
@@ -209,6 +210,7 @@ fill_fixup_mna:
 	mov		%o7, %g6			! Get current back.
 	ldx		[%g6 + TI_TASK], %g4		! Finish it.
 #ifdef CONFIG_SMP
+#error IMMU TSB usage must be fixed
 	mov		TSB_REG, %g1
 	ldxa		[%g1] ASI_IMMU, %g5
 #endif
@@ -278,11 +280,6 @@ window_mna_from_user_common:
 	ba,pt		%xcc, rtrap
 	 clr		%l6
 	
-	/* These are only needed for 64-bit mode processes which
-	 * put their stack pointer into the VPTE area and there
-	 * happens to be a VPTE tlb entry mapped there during
-	 * a spill/fill trap to that stack frame.
-	 */
 	.globl		winfix_dax, fill_fixup_dax, spill_fixup_dax
 winfix_dax:
 	andn		%g3, 0x7f, %g3
@@ -318,6 +315,7 @@ fill_fixup_dax:
 	mov		%o7, %g6			! Get current back.
 	ldx		[%g6 + TI_TASK], %g4		! Finish it.
 #ifdef CONFIG_SMP
+#error IMMU TSB usage must be fixed
 	mov		TSB_REG, %g1
 	ldxa		[%g1] ASI_IMMU, %g5
 #endif

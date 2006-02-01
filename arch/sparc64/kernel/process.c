@@ -44,6 +44,7 @@
 #include <asm/fpumacro.h>
 #include <asm/head.h>
 #include <asm/cpudata.h>
+#include <asm/mmu_context.h>
 #include <asm/unistd.h>
 
 /* #define VERBOSE_SHOWREGS */
@@ -433,30 +434,16 @@ void exit_thread(void)
 void flush_thread(void)
 {
 	struct thread_info *t = current_thread_info();
+	struct mm_struct *mm;
 
 	if (t->flags & _TIF_ABI_PENDING)
 		t->flags ^= (_TIF_ABI_PENDING | _TIF_32BIT);
 
-	if (t->task->mm) {
-		unsigned long pgd_cache = 0UL;
-		if (test_thread_flag(TIF_32BIT)) {
-			struct mm_struct *mm = t->task->mm;
-			pgd_t *pgd0 = &mm->pgd[0];
-			pud_t *pud0 = pud_offset(pgd0, 0);
+	mm = t->task->mm;
+	if (mm)
+		tsb_context_switch(__pa(mm->pgd),
+				   mm->context.sparc64_tsb);
 
-			if (pud_none(*pud0)) {
-				pmd_t *page = pmd_alloc_one(mm, 0);
-				pud_set(pud0, page);
-			}
-			pgd_cache = get_pgd_cache(pgd0);
-		}
-		__asm__ __volatile__("stxa %0, [%1] %2\n\t"
-				     "membar #Sync"
-				     : /* no outputs */
-				     : "r" (pgd_cache),
-				     "r" (TSB_REG),
-				     "i" (ASI_DMMU));
-	}
 	set_thread_wsaved(0);
 
 	/* Turn off performance counters if on. */

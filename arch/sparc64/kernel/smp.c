@@ -123,6 +123,7 @@ extern void inherit_locked_prom_mappings(int save_p);
 
 static inline void cpu_setup_percpu_base(unsigned long cpu_id)
 {
+#error IMMU TSB usage must be fixed
 	__asm__ __volatile__("mov	%0, %%g5\n\t"
 			     "stxa	%0, [%1] %2\n\t"
 			     "membar	#Sync"
@@ -662,8 +663,6 @@ void smp_call_function_client(int irq, struct pt_regs *regs)
 extern unsigned long xcall_flush_tlb_mm;
 extern unsigned long xcall_flush_tlb_pending;
 extern unsigned long xcall_flush_tlb_kernel_range;
-extern unsigned long xcall_flush_tlb_all_spitfire;
-extern unsigned long xcall_flush_tlb_all_cheetah;
 extern unsigned long xcall_report_regs;
 extern unsigned long xcall_receive_signal;
 
@@ -792,15 +791,6 @@ void smp_receive_signal_client(int irq, struct pt_regs *regs)
 void smp_report_regs(void)
 {
 	smp_cross_call(&xcall_report_regs, 0, 0, 0);
-}
-
-void smp_flush_tlb_all(void)
-{
-	if (tlb_type == spitfire)
-		smp_cross_call(&xcall_flush_tlb_all_spitfire, 0, 0, 0);
-	else
-		smp_cross_call(&xcall_flush_tlb_all_cheetah, 0, 0, 0);
-	__flush_tlb_all();
 }
 
 /* We know that the window frames of the user have been flushed

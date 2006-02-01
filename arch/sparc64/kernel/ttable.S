@@ -78,9 +78,9 @@ tl0_vaw:	TRAP(do_vaw)
 tl0_cee:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_cee_trap)
 tl0_iamiss:
-#include	"itlb_base.S"
+#include	"itlb_miss.S"
 tl0_damiss:
-#include	"dtlb_base.S"
+#include	"dtlb_miss.S"
 tl0_daprot:
 #include	"dtlb_prot.S"
 tl0_fecc:	BTRAP(0x70)	/* Fast-ECC on Cheetah */
@@ -241,7 +241,7 @@ tl1_cee:	membar	#Sync
 
 tl1_iamiss:	BTRAPTL1(0x64) BTRAPTL1(0x65) BTRAPTL1(0x66) BTRAPTL1(0x67)
 tl1_damiss:
-#include	"dtlb_backend.S"
+#include	"dtlb_miss.S"
 tl1_daprot:
 #include	"dtlb_prot.S"
 tl1_fecc:	BTRAPTL1(0x70)	/* Fast-ECC on Cheetah */

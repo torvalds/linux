@@ -1,0 +1,169 @@
+/* tsb.S: Sparc64 TSB table handling.
+ *
+ * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
+ */
+
+#include <asm/tsb.h>
+
+	.text
+	.align	32
+
+	/* Invoked from TLB miss handler, we are in the
+	 * MMU global registers and they are setup like
+	 * this:
+	 *
+	 * %g1: TSB entry pointer
+	 * %g2:	available temporary
+	 * %g3:	FAULT_CODE_{D,I}TLB
+	 * %g4:	available temporary
+	 * %g5:	available temporary
+	 * %g6: TAG TARGET
+	 * %g7:	physical address base of the linux page
+	 *      tables for the current address space
+	 */
+	.globl		tsb_miss_dtlb
+tsb_miss_dtlb:
+	mov		TLB_TAG_ACCESS, %g4
+	ldxa		[%g4] ASI_DMMU, %g4
+	ba,pt		%xcc, tsb_miss_page_table_walk
+	 nop
+
+	.globl		tsb_miss_itlb
+tsb_miss_itlb:
+	mov		TLB_TAG_ACCESS, %g4
+	ldxa		[%g4] ASI_IMMU, %g4
+	ba,pt		%xcc, tsb_miss_page_table_walk
+	 nop
+
+tsb_miss_page_table_walk:
+	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
+
+tsb_reload:
+	TSB_LOCK_TAG(%g1, %g2, %g4)
+
+	/* Load and check PTE.  */
+	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
+	brgez,a,pn	%g5, tsb_do_fault
+	 stx		%g0, [%g1]
+
+	TSB_WRITE(%g1, %g5, %g6)
+
+	/* Finally, load TLB and return from trap.  */
+tsb_tlb_reload:
+	cmp		%g3, FAULT_CODE_DTLB
+	bne,pn		%xcc, tsb_itlb_load
+	 nop
+
+tsb_dtlb_load:
+	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
+	retry
+
+tsb_itlb_load:
+	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
+	retry
+
+	/* No valid entry in the page tables, do full fault
+	 * processing.
+	 */
+
+	.globl		tsb_do_fault
+tsb_do_fault:
+	cmp		%g3, FAULT_CODE_DTLB
+	rdpr		%pstate, %g5
+	bne,pn		%xcc, tsb_do_itlb_fault
+	 wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
+
+tsb_do_dtlb_fault:
+	rdpr	%tl, %g4
+	cmp	%g4, 1
+	mov	TLB_TAG_ACCESS, %g4
+	ldxa	[%g4] ASI_DMMU, %g5
+	be,pt	%xcc, sparc64_realfault_common
+	 mov	FAULT_CODE_DTLB, %g4
+	ba,pt	%xcc, winfix_trampoline
+	 nop
+
+tsb_do_itlb_fault:
+	rdpr	%tpc, %g5
+	ba,pt	%xcc, sparc64_realfault_common
+	 mov	FAULT_CODE_ITLB, %g4
+
+	.globl	sparc64_realfault_common
+sparc64_realfault_common:
+	stb	%g4, [%g6 + TI_FAULT_CODE]	! Save fault code
+	stx	%g5, [%g6 + TI_FAULT_ADDR]	! Save fault address
+	ba,pt	%xcc, etrap			! Save trap state
+1:	 rd	%pc, %g7			! ...
+	call	do_sparc64_fault		! Call fault handler
+	 add	%sp, PTREGS_OFF, %o0		! Compute pt_regs arg
+	ba,pt	%xcc, rtrap_clr_l6		! Restore cpu state
+	 nop					! Delay slot (fill me)
+
+	.globl	winfix_trampoline
+winfix_trampoline:
+	rdpr	%tpc, %g3			! Prepare winfixup TNPC
+	or	%g3, 0x7c, %g3			! Compute branch offset
+	wrpr	%g3, %tnpc			! Write it into TNPC
+	done					! Trap return
+
+	/* Reload MMU related context switch state at
+	 * schedule() time.
+	 *
+	 * %o0: page table physical address
+	 * %o1:	TSB address
+	 */
+	.globl	tsb_context_switch
+tsb_context_switch:
+	wrpr	%g0, PSTATE_MG | PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV, %pstate
+
+	/* Set page table base alternate global.  */
+	mov	%o0, %g7
+
+	/* XXX can this happen?  */
+	brz,pn	%o1, 9f
+	 nop
+
+	/* Lock TSB into D-TLB.  */
+	sethi		%hi(PAGE_SIZE), %o3
+	and		%o3, %o1, %o3
+	sethi		%hi(TSBMAP_BASE), %o2
+	add		%o2, %o3, %o2
+
+	/* XXX handle PAGE_SIZE != 8K correctly...  */
+	mov	TSB_REG, %g1
+	stxa	%o2, [%g1] ASI_DMMU
+	membar	#Sync
+
+	stxa	%o2, [%g1] ASI_IMMU
+	membar	#Sync
+
+#define KERN_HIGHBITS	((_PAGE_VALID|_PAGE_SZBITS)^0xfffff80000000000)
+#define KERN_LOWBITS	(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W | _PAGE_L)
+	sethi		%uhi(KERN_HIGHBITS), %g2
+	or		%g2, %ulo(KERN_HIGHBITS), %g2
+	sllx		%g2, 32, %g2
+	or		%g2, KERN_LOWBITS, %g2
+#undef KERN_HIGHBITS
+#undef KERN_LOWBITS
+
+	xor		%o1, %g2, %o1	
+
+	/* We use entry 61 for this locked entry.  This is the spitfire
+	 * TLB entry number, and luckily cheetah masks the value with
+	 * 15 ending us up with entry 13 which is what we want in that
+	 * case too.
+	 *
+	 * XXX Interactions with prom_world()...
+	 */
+	mov		TLB_TAG_ACCESS, %g1
+	stxa		%o2, [%g1] ASI_DMMU
+	membar		#Sync
+	mov		(61 << 3), %g1
+	stxa		%o1, [%g1] ASI_DTLB_DATA_ACCESS
+	membar		#Sync
+
+9:
+	wrpr	%g0, PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV | PSTATE_IE, %pstate
+
+	retl
+	 mov	%o2, %o0

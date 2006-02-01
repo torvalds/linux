@@ -61,6 +61,7 @@ static __inline__ void free_pgd_slow(pgd_t *pgd)
 	free_page((unsigned long)pgd);
 }
 
+/* XXX This crap can die, no longer using virtual page tables... */
 #ifdef DCACHE_ALIASING_POSSIBLE
 #define VPTE_COLOR(address)		(((address) >> (PAGE_SHIFT + 10)) & 1UL)
 #define DCACHE_COLOR(address)		(((address) >> PAGE_SHIFT) & 1UL)

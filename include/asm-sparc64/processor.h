@@ -28,6 +28,8 @@
  * User lives in his very own context, and cannot reference us. Note
  * that TASK_SIZE is a misnomer, it really gives maximum user virtual 
  * address that the kernel will allocate out.
+ *
+ * XXX No longer using virtual page tables, kill this upper limit...
  */
 #define VA_BITS		44
 #ifndef __ASSEMBLY__
@@ -36,18 +38,6 @@
 #define VPTE_SIZE	(1 << (VA_BITS - PAGE_SHIFT + 3))
 #endif
 #define TASK_SIZE	((unsigned long)-VPTE_SIZE)
-
-/*
- * The vpte base must be able to hold the entire vpte, half
- * of which lives above, and half below, the base. And it
- * is placed as close to the highest address range as possible.
- */
-#define VPTE_BASE_SPITFIRE	(-(VPTE_SIZE/2))
-#if 1
-#define VPTE_BASE_CHEETAH	VPTE_BASE_SPITFIRE
-#else
-#define VPTE_BASE_CHEETAH	0xffe0000000000000
-#endif
 
 #ifndef __ASSEMBLY__
 

@@ -429,17 +429,6 @@ setup_trap_table:
 	 *
 	 * %g6			--> current_thread_info()
 	 *
-	 * MMU Globals (PSTATE_MG):
-	 *
-	 * %g1			--> TLB_SFSR
-	 * %g2			--> ((_PAGE_VALID | _PAGE_SZ4MB |
-	 *			      _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-	 *			     ^ 0xfffff80000000000)
-	 * (this %g2 value is used for computing the PAGE_OFFSET kernel
-	 *  TLB entries quickly, the virtual address of the fault XOR'd
-	 *  with this %g2 value is the PTE to load into the TLB)
-	 * %g3			--> VPTE_BASE_CHEETAH or VPTE_BASE_SPITFIRE
-	 *
 	 * Interrupt Globals (PSTATE_IG, setup by init_irqwork_curcpu()):
 	 *
 	 * %g6			--> __irq_work[smp_processor_id()]
@@ -449,40 +438,6 @@ setup_trap_table:
 	mov	%g6, %o2
 	wrpr	%o1, PSTATE_AG, %pstate
 	mov	%o2, %g6
-
-#define KERN_HIGHBITS		((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
-#define KERN_LOWBITS		(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-	wrpr	%o1, PSTATE_MG, %pstate
-	mov	TSB_REG, %g1
-	stxa	%g0, [%g1] ASI_DMMU
-	membar	#Sync
-	stxa	%g0, [%g1] ASI_IMMU
-	membar	#Sync
-	mov	TLB_SFSR, %g1
-	sethi	%uhi(KERN_HIGHBITS), %g2
-	or	%g2, %ulo(KERN_HIGHBITS), %g2
-	sllx	%g2, 32, %g2
-	or	%g2, KERN_LOWBITS, %g2
-
-	BRANCH_IF_ANY_CHEETAH(g3,g7,8f)
-	ba,pt	%xcc, 9f
-	 nop
-
-8:
-	sethi		%uhi(VPTE_BASE_CHEETAH), %g3
-	or		%g3, %ulo(VPTE_BASE_CHEETAH), %g3
-	ba,pt		%xcc, 2f
-	 sllx		%g3, 32, %g3
-
-9:
-	sethi		%uhi(VPTE_BASE_SPITFIRE), %g3
-	or		%g3, %ulo(VPTE_BASE_SPITFIRE), %g3
-	sllx		%g3, 32, %g3
-
-2:
-	clr	%g7
-#undef KERN_HIGHBITS
-#undef KERN_LOWBITS
 
 	/* Kill PROM timer */
 	sethi	%hi(0x80000000), %o2
@@ -538,6 +493,7 @@ sparc64_boot_end:
 
 #include "systbls.S"
 #include "ktlb.S"
+#include "tsb.S"
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"

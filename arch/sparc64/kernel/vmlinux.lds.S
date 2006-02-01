@@ -44,6 +44,9 @@ SECTIONS
   __stop___ex_table = .;
 
   . = ALIGN(8192);
+  swapper_tsb = .;
+  . += 8192;
+  . = ALIGN(8192);
   __init_begin = .;
   .init.text : { 
 	_sinittext = .;

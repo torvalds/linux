@@ -453,64 +453,6 @@ xcall_flush_dcache_page_spitfire: /* %g1 == physical page address
 	nop
 	nop
 
-	.data
-
-errata32_hwbug:
-	.xword	0
-
-	.text
-
-	/* These two are not performance critical... */
-	.globl		xcall_flush_tlb_all_spitfire
-xcall_flush_tlb_all_spitfire:
-	/* Spitfire Errata #32 workaround. */
-	sethi		%hi(errata32_hwbug), %g4
-	stx		%g0, [%g4 + %lo(errata32_hwbug)]
-
-	clr		%g2
-	clr		%g3
-1:	ldxa		[%g3] ASI_DTLB_DATA_ACCESS, %g4
-	and		%g4, _PAGE_L, %g5
-	brnz,pn		%g5, 2f
-	 mov		TLB_TAG_ACCESS, %g7
-
-	stxa		%g0, [%g7] ASI_DMMU
-	membar		#Sync
-	stxa		%g0, [%g3] ASI_DTLB_DATA_ACCESS
-	membar		#Sync
-
-	/* Spitfire Errata #32 workaround. */
-	sethi		%hi(errata32_hwbug), %g4
-	stx		%g0, [%g4 + %lo(errata32_hwbug)]
-
-2:	ldxa		[%g3] ASI_ITLB_DATA_ACCESS, %g4
-	and		%g4, _PAGE_L, %g5
-	brnz,pn		%g5, 2f
-	 mov		TLB_TAG_ACCESS, %g7
-
-	stxa		%g0, [%g7] ASI_IMMU
-	membar		#Sync
-	stxa		%g0, [%g3] ASI_ITLB_DATA_ACCESS
-	membar		#Sync
-
-	/* Spitfire Errata #32 workaround. */
-	sethi		%hi(errata32_hwbug), %g4
-	stx		%g0, [%g4 + %lo(errata32_hwbug)]
-
-2:	add		%g2, 1, %g2
-	cmp		%g2, SPITFIRE_HIGHEST_LOCKED_TLBENT
-	ble,pt		%icc, 1b
-	 sll		%g2, 3, %g3
-	flush		%g6
-	retry
-
-	.globl		xcall_flush_tlb_all_cheetah
-xcall_flush_tlb_all_cheetah:
-	mov		0x80, %g2
-	stxa		%g0, [%g2] ASI_DMMU_DEMAP
-	stxa		%g0, [%g2] ASI_IMMU_DEMAP
-	retry
-
 	/* These just get rescheduled to PIL vectors. */
 	.globl		xcall_call_function
 xcall_call_function:

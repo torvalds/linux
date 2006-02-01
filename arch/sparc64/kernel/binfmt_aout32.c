@@ -31,6 +31,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
+#include <asm/mmu_context.h>
 
 static int load_aout32_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout32_library(struct file*);
@@ -329,15 +330,9 @@ beyond_if:
 
 	current->mm->start_stack =
 		(unsigned long) create_aout32_tables((char __user *)bprm->p, bprm);
-	if (!(orig_thr_flags & _TIF_32BIT)) {
-		unsigned long pgd_cache = get_pgd_cache(current->mm->pgd);
+	tsb_context_switch(__pa(current->mm->pgd),
+	                   current->mm->context.sparc64_tsb);
 
-		__asm__ __volatile__("stxa\t%0, [%1] %2\n\t"
-				     "membar #Sync"
-				     : /* no outputs */
-				     : "r" (pgd_cache),
-				       "r" (TSB_REG), "i" (ASI_DMMU));
-	}
 	start_thread32(regs, ex.a_entry, current->mm->start_stack);
 	if (current->ptrace & PT_PTRACED)
 		send_sig(SIGTRAP, current, 0);

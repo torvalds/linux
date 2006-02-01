@@ -25,7 +25,13 @@ extern void get_new_mmu_context(struct mm_struct *mm);
  * This just needs to set mm->context to an invalid context.
  */
 #define init_new_context(__tsk, __mm)	\
-	(((__mm)->context.sparc64_ctx_val = 0UL), 0)
+({	unsigned long __pg = get_zeroed_page(GFP_KERNEL); \
+	(__mm)->context.sparc64_ctx_val = 0UL; \
+	(__mm)->context.sparc64_tsb = \
+	  (unsigned long *) __pg; \
+	(__pg ? 0 : -ENOMEM); \
+})
+
 
 /* Destroy a dead context.  This occurs when mmput drops the
  * mm_users count to zero, the mmaps have been released, and
@@ -35,7 +41,8 @@ extern void get_new_mmu_context(struct mm_struct *mm);
  * this task if valid.
  */
 #define destroy_context(__mm)					\
-do {	spin_lock(&ctx_alloc_lock);				\
+do {	free_page((unsigned long)(__mm)->context.sparc64_tsb);	\
+	spin_lock(&ctx_alloc_lock);				\
 	if (CTX_VALID((__mm)->context)) {			\
 		unsigned long nr = CTX_NRBITS((__mm)->context);	\
 		mmu_context_bmap[nr>>6] &= ~(1UL << (nr & 63));	\
@@ -43,35 +50,7 @@ do {	spin_lock(&ctx_alloc_lock);				\
 	spin_unlock(&ctx_alloc_lock);				\
 } while(0)
 
-/* Reload the two core values used by TLB miss handler
- * processing on sparc64.  They are:
- * 1) The physical address of mm->pgd, when full page
- *    table walks are necessary, this is where the
- *    search begins.
- * 2) A "PGD cache".  For 32-bit tasks only pgd[0] is
- *    ever used since that maps the entire low 4GB
- *    completely.  To speed up TLB miss processing we
- *    make this value available to the handlers.  This
- *    decreases the amount of memory traffic incurred.
- */
-#define reload_tlbmiss_state(__tsk, __mm) \
-do { \
-	register unsigned long paddr asm("o5"); \
-	register unsigned long pgd_cache asm("o4"); \
-	paddr = __pa((__mm)->pgd); \
-	pgd_cache = 0UL; \
-	if (task_thread_info(__tsk)->flags & _TIF_32BIT) \
-		pgd_cache = get_pgd_cache((__mm)->pgd); \
-	__asm__ __volatile__("wrpr	%%g0, 0x494, %%pstate\n\t" \
-			     "mov	%3, %%g4\n\t" \
-			     "mov	%0, %%g7\n\t" \
-			     "stxa	%1, [%%g4] %2\n\t" \
-			     "membar	#Sync\n\t" \
-			     "wrpr	%%g0, 0x096, %%pstate" \
-			     : /* no outputs */ \
-			     : "r" (paddr), "r" (pgd_cache),\
-			       "i" (ASI_DMMU), "i" (TSB_REG)); \
-} while(0)
+extern unsigned long tsb_context_switch(unsigned long pgd_pa, unsigned long *tsb);
 
 /* Set MMU context in the actual hardware. */
 #define load_secondary_context(__mm) \
@@ -101,7 +80,8 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 
 	if (!ctx_valid || (old_mm != mm)) {
 		load_secondary_context(mm);
-		reload_tlbmiss_state(tsk, mm);
+		tsb_context_switch(__pa(mm->pgd),
+				   mm->context.sparc64_tsb);
 	}
 
 	/* Even if (mm == old_mm) we _must_ check
@@ -139,7 +119,7 @@ static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm
 
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT);
-	reload_tlbmiss_state(current, mm);
+	tsb_context_switch(__pa(mm->pgd), mm->context.sparc64_tsb);
 }
 
 #endif /* !(__ASSEMBLY__) */

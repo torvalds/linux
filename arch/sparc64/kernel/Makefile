@@ -38,5 +38,5 @@ else
   CMODEL_CFLAG := -m64 -mcmodel=medlow
 endif
 
-head.o: head.S ttable.S itlb_base.S dtlb_base.S dtlb_backend.S dtlb_prot.S \
+head.o: head.S ttable.S itlb_miss.S dtlb_miss.S ktlb.S tsb.S \
 	etrap.S rtrap.S winfixup.S entry.S

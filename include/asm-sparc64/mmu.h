@@ -92,6 +92,7 @@
 
 typedef struct {
 	unsigned long	sparc64_ctx_val;
+	unsigned long	*sparc64_tsb;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */

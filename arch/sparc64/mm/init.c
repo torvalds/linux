@@ -408,8 +408,7 @@ unsigned long prom_virt_to_phys(unsigned long promva, int *error)
 
 /* The obp translations are saved based on 8k pagesize, since obp can
  * use a mixture of pagesizes. Misses to the LOW_OBP_ADDRESS ->
- * HI_OBP_ADDRESS range are handled in ktlb.S and do not use the vpte
- * scheme (also, see rant in inherit_locked_prom_mappings()).
+ * HI_OBP_ADDRESS range are handled in ktlb.S.
  */
 static inline int in_obp_range(unsigned long vaddr)
 {
@@ -539,75 +538,6 @@ static void __init inherit_prom_mappings(void)
 	prom_printf("done.\n");
 }
 
-/* The OBP specifications for sun4u mark 0xfffffffc00000000 and
- * upwards as reserved for use by the firmware (I wonder if this
- * will be the same on Cheetah...).  We use this virtual address
- * range for the VPTE table mappings of the nucleus so we need
- * to zap them when we enter the PROM.  -DaveM
- */
-static void __flush_nucleus_vptes(void)
-{
-	unsigned long prom_reserved_base = 0xfffffffc00000000UL;
-	int i;
-
-	/* Only DTLB must be checked for VPTE entries. */
-	if (tlb_type == spitfire) {
-		for (i = 0; i < 63; i++) {
-			unsigned long tag;
-
-			/* Spitfire Errata #32 workaround */
-			/* NOTE: Always runs on spitfire, so no cheetah+
-			 *       page size encodings.
-			 */
-			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-					     "flush	%%g6"
-					     : /* No outputs */
-					     : "r" (0),
-					     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-
-			tag = spitfire_get_dtlb_tag(i);
-			if (((tag & ~(PAGE_MASK)) == 0) &&
-			    ((tag &  (PAGE_MASK)) >= prom_reserved_base)) {
-				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
-						     "membar #Sync"
-						     : /* no outputs */
-						     : "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU));
-				spitfire_put_dtlb_data(i, 0x0UL);
-			}
-		}
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		for (i = 0; i < 512; i++) {
-			unsigned long tag = cheetah_get_dtlb_tag(i, 2);
-
-			if ((tag & ~PAGE_MASK) == 0 &&
-			    (tag & PAGE_MASK) >= prom_reserved_base) {
-				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
-						     "membar #Sync"
-						     : /* no outputs */
-						     : "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU));
-				cheetah_put_dtlb_data(i, 0x0UL, 2);
-			}
-
-			if (tlb_type != cheetah_plus)
-				continue;
-
-			tag = cheetah_get_dtlb_tag(i, 3);
-
-			if ((tag & ~PAGE_MASK) == 0 &&
-			    (tag & PAGE_MASK) >= prom_reserved_base) {
-				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
-						     "membar #Sync"
-						     : /* no outputs */
-						     : "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU));
-				cheetah_put_dtlb_data(i, 0x0UL, 3);
-			}
-		}
-	} else {
-		/* Implement me :-) */
-		BUG();
-	}
-}
-
 static int prom_ditlb_set;
 struct prom_tlb_entry {
 	int		tlb_ent;
@@ -635,9 +565,6 @@ void prom_world(int enter)
 			     : "i" (PSTATE_IE));
 
 	if (enter) {
-		/* Kick out nucleus VPTEs. */
-		__flush_nucleus_vptes();
-
 		/* Install PROM world. */
 		for (i = 0; i < 16; i++) {
 			if (prom_dtlb[i].tlb_ent != -1) {
@@ -1039,18 +966,7 @@ out:
 struct pgtable_cache_struct pgt_quicklists;
 #endif
 
-/* OK, we have to color these pages. The page tables are accessed
- * by non-Dcache enabled mapping in the VPTE area by the dtlb_backend.S
- * code, as well as by PAGE_OFFSET range direct-mapped addresses by 
- * other parts of the kernel. By coloring, we make sure that the tlbmiss 
- * fast handlers do not get data from old/garbage dcache lines that 
- * correspond to an old/stale virtual address (user/kernel) that 
- * previously mapped the pagetable page while accessing vpte range 
- * addresses. The idea is that if the vpte color and PAGE_OFFSET range 
- * color is the same, then when the kernel initializes the pagetable 
- * using the later address range, accesses with the first address
- * range will see the newly initialized data rather than the garbage.
- */
+/* XXX We don't need to color these things in the D-cache any longer.  */
 #ifdef DCACHE_ALIASING_POSSIBLE
 #define DC_ALIAS_SHIFT	1
 #else
@@ -1418,6 +1334,9 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 
 	kernel_map_range(phys_start, phys_end,
 			 (enable ? PAGE_KERNEL : __pgprot(0)));
+
+	flush_tsb_kernel_range(PAGE_OFFSET + phys_start,
+			       PAGE_OFFSET + phys_end);
 
 	/* we should perform an IPI and flush all tlbs,
 	 * but that can deadlock->flush only current cpu.

@@ -223,10 +223,14 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		ldx			[%sp + PTREGS_OFF + PT_V9_G3], %g3
 		ldx			[%sp + PTREGS_OFF + PT_V9_G4], %g4
 		ldx			[%sp + PTREGS_OFF + PT_V9_G5], %g5
+#ifdef CONFIG_SMP
+#error IMMU TSB usage must be fixed
 		mov			TSB_REG, %g6
 		brnz,a,pn		%l3, 1f
 		 ldxa			[%g6] ASI_IMMU, %g5
-1:		ldx			[%sp + PTREGS_OFF + PT_V9_G6], %g6
+#endif
+1:
+		ldx			[%sp + PTREGS_OFF + PT_V9_G6], %g6
 		ldx			[%sp + PTREGS_OFF + PT_V9_G7], %g7
 		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
 		ldx			[%sp + PTREGS_OFF + PT_V9_I0], %i0

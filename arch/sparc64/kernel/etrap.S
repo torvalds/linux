@@ -99,6 +99,7 @@ etrap_irq:
 		wrpr	%g0, ETRAP_PSTATE2, %pstate
 		mov	%l6, %g6
 #ifdef CONFIG_SMP
+#error IMMU TSB usage must be fixed
 		mov	TSB_REG, %g3
 		ldxa	[%g3] ASI_IMMU, %g5
 #endif
@@ -248,6 +249,7 @@ scetrap:	rdpr	%pil, %g2
 		mov	%l6, %g6
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
 #ifdef CONFIG_SMP
+#error IMMU TSB usage must be fixed
 		mov	TSB_REG, %g3
 		ldxa	[%g3] ASI_IMMU, %g5
 #endif

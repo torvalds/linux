@@ -25,7 +25,8 @@
 #include <asm/const.h>
 
 /* The kernel image occupies 0x4000000 to 0x1000000 (4MB --> 32MB).
- * The page copy blockops can use 0x2000000 to 0x10000000.
+ * The page copy blockops can use 0x2000000 to 0x4000000.
+ * The TSB is mapped in the 0x4000000 to 0x6000000 range.
  * The PROM resides in an area spanning 0xf0000000 to 0x100000000.
  * The vmalloc area spans 0x100000000 to 0x200000000.
  * Since modules need to be in the lowest 32-bits of the address space,
@@ -34,6 +35,7 @@
  * 0x400000000.
  */
 #define	TLBTEMP_BASE		_AC(0x0000000002000000,UL)
+#define	TSBMAP_BASE		_AC(0x0000000004000000,UL)
 #define MODULES_VADDR		_AC(0x0000000010000000,UL)
 #define MODULES_LEN		_AC(0x00000000e0000000,UL)
 #define MODULES_END		_AC(0x00000000f0000000,UL)
@@ -295,11 +297,6 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* extract the pgd cache used for optimizing the tlb miss
- * slow path when executing 32-bit compat processes
- */
-#define get_pgd_cache(pgd)	((unsigned long) pgd_val(*pgd) << 11)
 
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pudp, address)	\
