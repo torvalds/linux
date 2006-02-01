@@ -92,22 +92,16 @@ ENTRY(v6_coherent_kern_range)
  *	- the Icache does not read data from the write buffer
  */
 ENTRY(v6_coherent_user_range)
-	bic	r0, r0, #CACHE_LINE_SIZE - 1
-1:
+
 #ifdef HARVARD_CACHE
-	mcr	p15, 0, r0, c7, c10, 1		@ clean D line
+	bic	r0, r0, #CACHE_LINE_SIZE - 1
+1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D line
 	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I line
-#endif
-	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
-	add	r0, r0, #BTB_FLUSH_SIZE
-	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
-	add	r0, r0, #BTB_FLUSH_SIZE
-	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
-	add	r0, r0, #BTB_FLUSH_SIZE
-	mcr	p15, 0, r0, c7, c5, 7		@ invalidate BTB entry
-	add	r0, r0, #BTB_FLUSH_SIZE
+	add	r0, r0, #CACHE_LINE_SIZE
 	cmp	r0, r1
 	blo	1b
+#endif
+	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
 #ifdef HARVARD_CACHE
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
