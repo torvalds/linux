@@ -127,7 +127,6 @@ static int task_alloc_security(struct task_struct *task)
 	if (!tsec)
 		return -ENOMEM;
 
-	tsec->magic = SELINUX_MAGIC;
 	tsec->task = task;
 	tsec->osid = tsec->sid = tsec->ptrace_sid = SECINITSID_UNLABELED;
 	task->security = tsec;
@@ -138,10 +137,6 @@ static int task_alloc_security(struct task_struct *task)
 static void task_free_security(struct task_struct *task)
 {
 	struct task_security_struct *tsec = task->security;
-
-	if (!tsec || tsec->magic != SELINUX_MAGIC)
-		return;
-
 	task->security = NULL;
 	kfree(tsec);
 }
@@ -157,14 +152,10 @@ static int inode_alloc_security(struct inode *inode)
 
 	init_MUTEX(&isec->sem);
 	INIT_LIST_HEAD(&isec->list);
-	isec->magic = SELINUX_MAGIC;
 	isec->inode = inode;
 	isec->sid = SECINITSID_UNLABELED;
 	isec->sclass = SECCLASS_FILE;
-	if (tsec && tsec->magic == SELINUX_MAGIC)
-		isec->task_sid = tsec->sid;
-	else
-		isec->task_sid = SECINITSID_UNLABELED;
+	isec->task_sid = tsec->sid;
 	inode->i_security = isec;
 
 	return 0;
@@ -174,9 +165,6 @@ static void inode_free_security(struct inode *inode)
 {
 	struct inode_security_struct *isec = inode->i_security;
 	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
-
-	if (!isec || isec->magic != SELINUX_MAGIC)
-		return;
 
 	spin_lock(&sbsec->isec_lock);
 	if (!list_empty(&isec->list))
@@ -196,15 +184,9 @@ static int file_alloc_security(struct file *file)
 	if (!fsec)
 		return -ENOMEM;
 
-	fsec->magic = SELINUX_MAGIC;
 	fsec->file = file;
-	if (tsec && tsec->magic == SELINUX_MAGIC) {
-		fsec->sid = tsec->sid;
-		fsec->fown_sid = tsec->sid;
-	} else {
-		fsec->sid = SECINITSID_UNLABELED;
-		fsec->fown_sid = SECINITSID_UNLABELED;
-	}
+	fsec->sid = tsec->sid;
+	fsec->fown_sid = tsec->sid;
 	file->f_security = fsec;
 
 	return 0;
@@ -213,10 +195,6 @@ static int file_alloc_security(struct file *file)
 static void file_free_security(struct file *file)
 {
 	struct file_security_struct *fsec = file->f_security;
-
-	if (!fsec || fsec->magic != SELINUX_MAGIC)
-		return;
-
 	file->f_security = NULL;
 	kfree(fsec);
 }
@@ -233,7 +211,6 @@ static int superblock_alloc_security(struct super_block *sb)
 	INIT_LIST_HEAD(&sbsec->list);
 	INIT_LIST_HEAD(&sbsec->isec_head);
 	spin_lock_init(&sbsec->isec_lock);
-	sbsec->magic = SELINUX_MAGIC;
 	sbsec->sb = sb;
 	sbsec->sid = SECINITSID_UNLABELED;
 	sbsec->def_sid = SECINITSID_FILE;
@@ -245,9 +222,6 @@ static int superblock_alloc_security(struct super_block *sb)
 static void superblock_free_security(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
-
-	if (!sbsec || sbsec->magic != SELINUX_MAGIC)
-		return;
 
 	spin_lock(&sb_security_lock);
 	if (!list_empty(&sbsec->list))
@@ -270,7 +244,6 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	if (!ssec)
 		return -ENOMEM;
 
-	ssec->magic = SELINUX_MAGIC;
 	ssec->sk = sk;
 	ssec->peer_sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
@@ -282,7 +255,7 @@ static void sk_free_security(struct sock *sk)
 {
 	struct sk_security_struct *ssec = sk->sk_security;
 
-	if (sk->sk_family != PF_UNIX || ssec->magic != SELINUX_MAGIC)
+	if (sk->sk_family != PF_UNIX)
 		return;
 
 	sk->sk_security = NULL;
@@ -1483,7 +1456,6 @@ static int selinux_bprm_alloc_security(struct linux_binprm *bprm)
 	if (!bsec)
 		return -ENOMEM;
 
-	bsec->magic = SELINUX_MAGIC;
 	bsec->bprm = bprm;
 	bsec->sid = SECINITSID_UNLABELED;
 	bsec->set = 0;
@@ -3634,14 +3606,9 @@ static int ipc_alloc_security(struct task_struct *task,
 	if (!isec)
 		return -ENOMEM;
 
-	isec->magic = SELINUX_MAGIC;
 	isec->sclass = sclass;
 	isec->ipc_perm = perm;
-	if (tsec) {
-		isec->sid = tsec->sid;
-	} else {
-		isec->sid = SECINITSID_UNLABELED;
-	}
+	isec->sid = tsec->sid;
 	perm->security = isec;
 
 	return 0;
@@ -3650,9 +3617,6 @@ static int ipc_alloc_security(struct task_struct *task,
 static void ipc_free_security(struct kern_ipc_perm *perm)
 {
 	struct ipc_security_struct *isec = perm->security;
-	if (!isec || isec->magic != SELINUX_MAGIC)
-		return;
-
 	perm->security = NULL;
 	kfree(isec);
 }
@@ -3665,7 +3629,6 @@ static int msg_msg_alloc_security(struct msg_msg *msg)
 	if (!msec)
 		return -ENOMEM;
 
-	msec->magic = SELINUX_MAGIC;
 	msec->msg = msg;
 	msec->sid = SECINITSID_UNLABELED;
 	msg->security = msec;
@@ -3676,8 +3639,6 @@ static int msg_msg_alloc_security(struct msg_msg *msg)
 static void msg_msg_free_security(struct msg_msg *msg)
 {
 	struct msg_security_struct *msec = msg->security;
-	if (!msec || msec->magic != SELINUX_MAGIC)
-		return;
 
 	msg->security = NULL;
 	kfree(msec);
