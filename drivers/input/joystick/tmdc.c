@@ -284,13 +284,13 @@ static int tmdc_setup_port(struct tmdc *tmdc, int idx, unsigned char *data)
 	struct tmdc_port *port;
 	struct input_dev *input_dev;
 	int i, j, b = 0;
+	int err;
 
 	tmdc->port[idx] = port = kzalloc(sizeof (struct tmdc_port), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!port || !input_dev) {
-		kfree(port);
-		input_free_device(input_dev);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	port->mode = data[TMDC_BYTE_ID];
@@ -347,9 +347,15 @@ static int tmdc_setup_port(struct tmdc *tmdc, int idx, unsigned char *data)
 		b += port->btnc[i];
 	}
 
-	input_register_device(port->dev);
+	err = input_register_device(port->dev);
+	if (err)
+		goto fail;
 
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	kfree(port);
+	return err;
 }
 
 /*
@@ -424,6 +430,7 @@ static void tmdc_disconnect(struct gameport *gameport)
 static struct gameport_driver tmdc_drv = {
 	.driver		= {
 		.name	= "tmdc",
+		.owner	= THIS_MODULE,
 	},
 	.description	= DRIVER_DESC,
 	.connect	= tmdc_connect,

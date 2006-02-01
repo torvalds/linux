@@ -403,6 +403,7 @@ static int genius_detect(struct psmouse *psmouse, int set_properties)
 		set_bit(REL_WHEEL, psmouse->dev->relbit);
 
 		psmouse->vendor = "Genius";
+		psmouse->name = "Mouse";
 		psmouse->pktsize = 4;
 	}
 
