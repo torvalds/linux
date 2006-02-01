@@ -126,6 +126,23 @@ winfix_trampoline:
 	wrpr	%g3, %tnpc			! Write it into TNPC
 	done					! Trap return
 
+	/* Insert an entry into the TSB.
+	 *
+	 * %o0: TSB entry pointer
+	 * %o1: tag
+	 * %o2:	pte
+	 */
+	.align	32
+	.globl	tsb_insert
+tsb_insert:
+	rdpr	%pstate, %o5
+	wrpr	%o5, PSTATE_IE, %pstate
+	TSB_LOCK_TAG(%o0, %g2, %g3)
+	TSB_WRITE(%o0, %o2, %o1)
+	wrpr	%o5, %pstate
+	retl
+	 nop
+
 	/* Reload MMU related context switch state at
 	 * schedule() time.
 	 *

@@ -277,6 +277,16 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	mm_rss = get_mm_rss(mm);
 	if (mm_rss >= mm->context.tsb_rss_limit)
 		tsb_grow(mm, mm_rss, GFP_ATOMIC);
+
+	if ((pte_val(pte) & _PAGE_ALL_SZ_BITS) == _PAGE_SZBITS) {
+		struct tsb *tsb;
+		unsigned long tag;
+
+		tsb = &mm->context.tsb[(address >> PAGE_SHIFT) &
+				       (mm->context.tsb_nentries - 1UL)];
+		tag = (address >> 22UL) | CTX_HWBITS(mm->context) << 48UL;
+		tsb_insert(tsb, tag, pte_val(pte));
+	}
 }
 
 void flush_dcache_page(struct page *page)

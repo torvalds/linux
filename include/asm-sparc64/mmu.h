@@ -97,6 +97,8 @@ struct tsb {
 	unsigned long pte;
 } __attribute__((aligned(TSB_ENTRY_ALIGNMENT)));
 
+extern void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long pte);
+
 typedef struct {
 	unsigned long	sparc64_ctx_val;
 	struct tsb	*tsb;
