@@ -100,7 +100,6 @@ extern unsigned int user_debug;
  */
 #define prepare_arch_switch(rq,next)	local_irq_enable()
 #define finish_arch_switch(rq,prev)	spin_unlock(&(rq)->lock)
-#define task_running(rq,p)		((rq)->curr == (p))
 
 /*
  * switch_to(prev, next) should switch from task `prev' to `next'
