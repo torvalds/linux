@@ -272,6 +272,10 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	if (val != CPUFREQ_RESUMECHANGE)
 		write_seqlock_irq(&xtime_lock);
 	if (!ref_freq) {
+		if (!freq->old){
+			ref_freq = freq->new;
+			goto end;
+		}
 		ref_freq = freq->old;
 		loops_per_jiffy_ref = cpu_data[freq->cpu].loops_per_jiffy;
 #ifndef CONFIG_SMP
@@ -297,6 +301,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 #endif
 	}
 
+end:
 	if (val != CPUFREQ_RESUMECHANGE)
 		write_sequnlock_irq(&xtime_lock);
 
