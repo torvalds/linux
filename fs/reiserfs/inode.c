@@ -2363,6 +2363,13 @@ static int reiserfs_write_full_page(struct page *page,
 	int bh_per_page = PAGE_CACHE_SIZE / s->s_blocksize;
 	th.t_trans_id = 0;
 
+	/* no logging allowed when nonblocking or from PF_MEMALLOC */
+	if (checked && (current->flags & PF_MEMALLOC)) {
+		redirty_page_for_writepage(wbc, page);
+		unlock_page(page);
+		return 0;
+	}
+
 	/* The page dirty bit is cleared before writepage is called, which
 	 * means we have to tell create_empty_buffers to make dirty buffers
 	 * The page really should be up to date at this point, so tossing

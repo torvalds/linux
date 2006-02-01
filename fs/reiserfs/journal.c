@@ -988,6 +988,7 @@ static int flush_commit_list(struct super_block *s,
 	struct reiserfs_journal *journal = SB_JOURNAL(s);
 	int barrier = 0;
 	int retval = 0;
+	int write_len;
 
 	reiserfs_check_lock_depth(s, "flush_commit_list");
 
@@ -1037,16 +1038,24 @@ static int flush_commit_list(struct super_block *s,
 	BUG_ON(!list_empty(&jl->j_bh_list));
 	/*
 	 * for the description block and all the log blocks, submit any buffers
-	 * that haven't already reached the disk
+	 * that haven't already reached the disk.  Try to write at least 256
+	 * log blocks. later on, we will only wait on blocks that correspond
+	 * to this transaction, but while we're unplugging we might as well
+	 * get a chunk of data on there.
 	 */
 	atomic_inc(&journal->j_async_throttle);
-	for (i = 0; i < (jl->j_len + 1); i++) {
+	write_len = jl->j_len + 1;
+	if (write_len < 256)
+		write_len = 256;
+	for (i = 0 ; i < write_len ; i++) {
 		bn = SB_ONDISK_JOURNAL_1st_BLOCK(s) + (jl->j_start + i) %
 		    SB_ONDISK_JOURNAL_SIZE(s);
 		tbh = journal_find_get_block(s, bn);
-		if (buffer_dirty(tbh))	/* redundant, ll_rw_block() checks */
-			ll_rw_block(SWRITE, 1, &tbh);
-		put_bh(tbh);
+		if (tbh) {
+			if (buffer_dirty(tbh))
+			    ll_rw_block(WRITE, 1, &tbh) ;
+			put_bh(tbh) ;
+		}
 	}
 	atomic_dec(&journal->j_async_throttle);
 
