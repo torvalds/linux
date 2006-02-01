@@ -47,15 +47,6 @@ config DMI
 
 source "init/Kconfig"
 
-config DOUBLEFAULT
-	default y
-	bool "Enable doublefault exception handler" if EMBEDDED
-	help
-          This option allows trapping of rare doublefault exceptions that
-          would otherwise cause a system to silently reboot. Disabling this
-          option saves about 4k and might cause you much additional grey
-          hair.
-
 menu "Processor type and features"
 
 choice
@@ -710,6 +701,15 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu.
 
 	  Say N.
+
+config DOUBLEFAULT
+	default y
+	bool "Enable doublefault exception handler" if EMBEDDED
+	help
+          This option allows trapping of rare doublefault exceptions that
+          would otherwise cause a system to silently reboot. Disabling this
+          option saves about 4k and might cause you much additional grey
+          hair.
 
 endmenu
 
