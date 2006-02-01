@@ -2456,7 +2456,7 @@ static void ipw_eeprom_init_sram(struct ipw_priv *priv)
 	   copy.  Otherwise let the firmware know to perform the operation
 	   on it's own
 	 */
-	if ((priv->eeprom + EEPROM_VERSION) != 0) {
+	if (priv->eeprom[EEPROM_VERSION] != 0) {
 		IPW_DEBUG_INFO("Writing EEPROM data into SRAM\n");
 
 		/* write the eeprom data to sram */
