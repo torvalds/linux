@@ -236,7 +236,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err)
 		goto failure;
 
-	err = ip_route_newports(&rt, inet->sport, inet->dport, sk);
+	err = ip_route_newports(&rt, IPPROTO_TCP, inet->sport, inet->dport, sk);
 	if (err)
 		goto failure;
 
