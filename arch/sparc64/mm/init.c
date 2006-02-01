@@ -1092,15 +1092,8 @@ void __init paging_init(void)
 	
 	inherit_prom_mappings();
 	
-	/* Ok, we can use our TLB miss and window trap handlers safely.
-	 * We need to do a quick peek here to see if we are on StarFire
-	 * or not, so setup_tba can setup the IRQ globals correctly (it
-	 * needs to get the hard smp processor id correctly).
-	 */
-	{
-		extern void setup_tba(int);
-		setup_tba(this_is_starfire);
-	}
+	/* Ok, we can use our TLB miss and window trap handlers safely.  */
+	setup_tba();
 
 	__flush_tlb_all();
 

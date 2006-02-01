@@ -454,7 +454,7 @@ setup_trap_table:
 	 restore
 
 	.globl	setup_tba
-setup_tba:	/* i0 = is_starfire */
+setup_tba:
 	save	%sp, -192, %sp
 
 	/* The boot processor is the only cpu which invokes this

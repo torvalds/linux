@@ -61,6 +61,7 @@ struct trap_per_cpu {
 extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(void);
 extern void per_cpu_patch(void);
+extern void setup_tba(void);
 
 #endif /* !(__ASSEMBLY__) */
 
