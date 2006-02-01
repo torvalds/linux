@@ -396,14 +396,8 @@ source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 
-config SH_PCLK_FREQ_BOOL
-	bool "Set default pclk frequency"
-	default y if !SH_RTC
-	default n
-
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
-	depends on SH_PCLK_FREQ_BOOL
 	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
 	default "60000000" if CPU_SUBTYPE_SH7751
 	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7760
