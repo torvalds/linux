@@ -4,7 +4,7 @@
 	srlx	%g6, 48, %g5			! Get context
 	brz,pn	%g5, kvmap_itlb			! Context 0 processing
 	 nop					! Delay slot (fill me)
-	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4	! Load TSB entry
+	TSB_LOAD_QUAD(%g1, %g4)			! Load TSB entry
 	cmp	%g4, %g6			! Compare TAG
 	sethi	%hi(_PAGE_EXEC), %g4		! Setup exec check
 

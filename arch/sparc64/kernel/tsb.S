@@ -53,7 +53,7 @@ tsb_reload:
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
 	brgez,a,pn	%g5, tsb_do_fault
-	 stx		%g0, [%g1]
+	 TSB_STORE(%g1, %g0)
 
 	/* If it is larger than the base page size, don't
 	 * bother putting it into the TSB.
@@ -64,7 +64,7 @@ tsb_reload:
 	and		%g2, %g4, %g2
 	cmp		%g2, %g7
 	bne,a,pn	%xcc, tsb_tlb_reload
-	 stx		%g0, [%g1]
+	 TSB_STORE(%g1, %g0)
 
 	TSB_WRITE(%g1, %g5, %g6)
 
@@ -131,13 +131,13 @@ winfix_trampoline:
 
 	/* Insert an entry into the TSB.
 	 *
-	 * %o0: TSB entry pointer
+	 * %o0: TSB entry pointer (virt or phys address)
 	 * %o1: tag
 	 * %o2:	pte
 	 */
 	.align	32
-	.globl	tsb_insert
-tsb_insert:
+	.globl	__tsb_insert
+__tsb_insert:
 	rdpr	%pstate, %o5
 	wrpr	%o5, PSTATE_IE, %pstate
 	TSB_LOCK_TAG(%o0, %g2, %g3)
@@ -145,6 +145,31 @@ tsb_insert:
 	wrpr	%o5, %pstate
 	retl
 	 nop
+
+	/* Flush the given TSB entry if it has the matching
+	 * tag.
+	 *
+	 * %o0: TSB entry pointer (virt or phys address)
+	 * %o1:	tag
+	 */
+	.align	32
+	.globl	tsb_flush
+tsb_flush:
+	sethi	%hi(TSB_TAG_LOCK_HIGH), %g2
+1:	TSB_LOAD_TAG(%o0, %g1)
+	srlx	%g1, 32, %o3
+	andcc	%o3, %g2, %g0
+	bne,pn	%icc, 1b
+	 membar	#LoadLoad
+	cmp	%g1, %o1
+	bne,pt	%xcc, 2f
+	 clr	%o3
+	TSB_CAS_TAG(%o0, %g1, %o3)
+	cmp	%g1, %o3
+	bne,pn	%xcc, 1b
+	 nop
+2:	retl
+	 TSB_MEMBAR
 
 	/* Reload MMU related context switch state at
 	 * schedule() time.

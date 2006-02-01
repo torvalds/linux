@@ -39,6 +39,7 @@
 #include <asm/tlb.h>
 #include <asm/spitfire.h>
 #include <asm/sections.h>
+#include <asm/tsb.h>
 
 extern void device_scan(void);
 
@@ -242,6 +243,16 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 			       "i" (PG_dcache_cpu_mask),
 			       "i" (PG_dcache_cpu_shift)
 			     : "g1", "g7");
+}
+
+static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long pte)
+{
+	unsigned long tsb_addr = (unsigned long) ent;
+
+	if (tlb_type == cheetah_plus)
+		tsb_addr = __pa(tsb_addr);
+
+	__tsb_insert(tsb_addr, tag, pte);
 }
 
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
@@ -1040,6 +1051,24 @@ unsigned long __init find_ecache_flush_span(unsigned long size)
 	return ~0UL;
 }
 
+static void __init tsb_phys_patch(void)
+{
+	struct tsb_phys_patch_entry *p;
+
+	p = &__tsb_phys_patch;
+	while (p < &__tsb_phys_patch_end) {
+		unsigned long addr = p->addr;
+
+		*(unsigned int *) addr = p->insn;
+		wmb();
+		__asm__ __volatile__("flush	%0"
+				     : /* no outputs */
+				     : "r" (addr));
+
+		p++;
+	}
+}
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
@@ -1051,6 +1080,9 @@ void __init paging_init(void)
 {
 	unsigned long end_pfn, pages_avail, shift;
 	unsigned long real_end, i;
+
+	if (tlb_type == cheetah_plus)
+		tsb_phys_patch();
 
 	/* Find available physical memory... */
 	read_obp_memory("available", &pavail[0], &pavail_ents);

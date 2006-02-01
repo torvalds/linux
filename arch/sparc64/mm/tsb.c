@@ -20,12 +20,9 @@ static inline unsigned long tsb_hash(unsigned long vaddr, unsigned long nentries
 	return vaddr & (nentries - 1);
 }
 
-static inline int tag_compare(struct tsb *entry, unsigned long vaddr, unsigned long context)
+static inline int tag_compare(unsigned long tag, unsigned long vaddr, unsigned long context)
 {
-	if (context == ~0UL)
-		return 1;
-
-	return (entry->tag == ((vaddr >> 22) | (context << 48)));
+	return (tag == ((vaddr >> 22) | (context << 48)));
 }
 
 /* TSB flushes need only occur on the processor initiating the address
@@ -41,7 +38,7 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 		unsigned long hash = tsb_hash(v, KERNEL_TSB_NENTRIES);
 		struct tsb *ent = &swapper_tsb[hash];
 
-		if (tag_compare(ent, v, 0)) {
+		if (tag_compare(ent->tag, v, 0)) {
 			ent->tag = 0UL;
 			membar_storeload_storestore();
 		}
@@ -52,24 +49,31 @@ void flush_tsb_user(struct mmu_gather *mp)
 {
 	struct mm_struct *mm = mp->mm;
 	struct tsb *tsb = mm->context.tsb;
-	unsigned long ctx = ~0UL;
 	unsigned long nentries = mm->context.tsb_nentries;
+	unsigned long ctx, base;
 	int i;
 
-	if (CTX_VALID(mm->context))
-		ctx = CTX_HWBITS(mm->context);
+	if (unlikely(!CTX_VALID(mm->context)))
+		return;
 
+	ctx = CTX_HWBITS(mm->context);
+
+	if (tlb_type == cheetah_plus)
+		base = __pa(tsb);
+	else
+		base = (unsigned long) tsb;
+	
 	for (i = 0; i < mp->tlb_nr; i++) {
 		unsigned long v = mp->vaddrs[i];
-		struct tsb *ent;
+		unsigned long tag, ent, hash;
 
 		v &= ~0x1UL;
 
-		ent = &tsb[tsb_hash(v, nentries)];
-		if (tag_compare(ent, v, ctx)) {
-			ent->tag = 0UL;
-			membar_storeload_storestore();
-		}
+		hash = tsb_hash(v, nentries);
+		ent = base + (hash * sizeof(struct tsb));
+		tag = (v >> 22UL) | (ctx << 48UL);
+
+		tsb_flush(ent, tag);
 	}
 }
 
@@ -84,6 +88,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 	tte = (_PAGE_VALID | _PAGE_L | _PAGE_CP |
 	       _PAGE_CV    | _PAGE_P | _PAGE_W);
 	tsb_paddr = __pa(mm->context.tsb);
+	BUG_ON(tsb_paddr & (tsb_bytes - 1UL));
 
 	/* Use the smallest page size that can map the whole TSB
 	 * in one TLB entry.
@@ -144,13 +149,23 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 		BUG();
 	};
 
-	tsb_reg |= base;
-	tsb_reg |= (tsb_paddr & (page_sz - 1UL));
-	tte |= (tsb_paddr & ~(page_sz - 1UL));
+	if (tlb_type == cheetah_plus) {
+		/* Physical mapping, no locked TLB entry for TSB.  */
+		tsb_reg |= tsb_paddr;
 
-	mm->context.tsb_reg_val = tsb_reg;
-	mm->context.tsb_map_vaddr = base;
-	mm->context.tsb_map_pte = tte;
+		mm->context.tsb_reg_val = tsb_reg;
+		mm->context.tsb_map_vaddr = 0;
+		mm->context.tsb_map_pte = 0;
+	} else {
+		tsb_reg |= base;
+		tsb_reg |= (tsb_paddr & (page_sz - 1UL));
+		tte |= (tsb_paddr & ~(page_sz - 1UL));
+
+		mm->context.tsb_reg_val = tsb_reg;
+		mm->context.tsb_map_vaddr = base;
+		mm->context.tsb_map_pte = tte;
+	}
+
 }
 
 /* The page tables are locked against modifications while this
@@ -168,13 +183,21 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
 	for (i = 0; i < old_nentries; i++) {
 		register unsigned long tag asm("o4");
 		register unsigned long pte asm("o5");
-		unsigned long v;
-		unsigned int hash;
+		unsigned long v, hash;
 
-		__asm__ __volatile__(
-			"ldda [%2] %3, %0"
-			: "=r" (tag), "=r" (pte)
-			: "r" (&old_tsb[i]), "i" (ASI_NUCLEUS_QUAD_LDD));
+		if (tlb_type == cheetah_plus) {
+			__asm__ __volatile__(
+				"ldda [%2] %3, %0"
+				: "=r" (tag), "=r" (pte)
+				: "r" (__pa(&old_tsb[i])),
+				  "i" (ASI_QUAD_LDD_PHYS));
+		} else {
+			__asm__ __volatile__(
+				"ldda [%2] %3, %0"
+				: "=r" (tag), "=r" (pte)
+				: "r" (&old_tsb[i]),
+				  "i" (ASI_NUCLEUS_QUAD_LDD));
+		}
 
 		if (!tag || (tag & (1UL << TSB_TAG_LOCK_BIT)))
 			continue;
@@ -198,8 +221,20 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
 		v |= (i & (512UL - 1UL)) << 13UL;
 
 		hash = tsb_hash(v, new_nentries);
-		new_tsb[hash].tag = tag;
-		new_tsb[hash].pte = pte;
+		if (tlb_type == cheetah_plus) {
+			__asm__ __volatile__(
+				"stxa	%0, [%1] %2\n\t"
+				"stxa	%3, [%4] %2"
+				: /* no outputs */
+				: "r" (tag),
+				  "r" (__pa(&new_tsb[hash].tag)),
+				  "i" (ASI_PHYS_USE_EC),
+				  "r" (pte),
+				  "r" (__pa(&new_tsb[hash].pte)));
+		} else {
+			new_tsb[hash].tag = tag;
+			new_tsb[hash].pte = pte;
+		}
 	}
 }
 

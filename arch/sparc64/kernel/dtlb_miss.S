@@ -4,7 +4,7 @@
 	srlx	%g6, 48, %g5			! Get context
 	brz,pn	%g5, kvmap_dtlb			! Context 0 processing
 	 nop					! Delay slot (fill me)
-	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4	! Load TSB entry
+	TSB_LOAD_QUAD(%g1, %g4)			! Load TSB entry
 	nop					! Push branch to next I$ line
 	cmp	%g4, %g6			! Compare TAG
 

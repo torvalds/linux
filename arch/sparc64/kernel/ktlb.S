@@ -44,14 +44,14 @@ kvmap_itlb_tsb_miss:
 kvmap_itlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_itlb_longpath)
 
-	TSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g4)
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
 	brgez,a,pn	%g5, kvmap_itlb_longpath
-	 stx		%g0, [%g1]
+	 KTSB_STORE(%g1, %g0)
 
-	TSB_WRITE(%g1, %g5, %g6)
+	KTSB_WRITE(%g1, %g5, %g6)
 
 	/* fallthrough to TLB load */
 
@@ -69,9 +69,9 @@ kvmap_itlb_longpath:
 kvmap_itlb_obp:
 	OBP_TRANS_LOOKUP(%g4, %g5, %g2, %g3, kvmap_itlb_longpath)
 
-	TSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g4)
 
-	TSB_WRITE(%g1, %g5, %g6)
+	KTSB_WRITE(%g1, %g5, %g6)
 
 	ba,pt		%xcc, kvmap_itlb_load
 	 nop
@@ -79,9 +79,9 @@ kvmap_itlb_obp:
 kvmap_dtlb_obp:
 	OBP_TRANS_LOOKUP(%g4, %g5, %g2, %g3, kvmap_dtlb_longpath)
 
-	TSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g4)
 
-	TSB_WRITE(%g1, %g5, %g6)
+	KTSB_WRITE(%g1, %g5, %g6)
 
 	ba,pt		%xcc, kvmap_dtlb_load
 	 nop
@@ -114,14 +114,14 @@ kvmap_linear_patch:
 kvmap_dtlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_dtlb_longpath)
 
-	TSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g4)
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
 	brgez,a,pn	%g5, kvmap_dtlb_longpath
-	 stx		%g0, [%g1]
+	 KTSB_STORE(%g1, %g0)
 
-	TSB_WRITE(%g1, %g5, %g6)
+	KTSB_WRITE(%g1, %g5, %g6)
 
 	/* fallthrough to TLB load */
 

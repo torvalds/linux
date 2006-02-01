@@ -44,7 +44,89 @@
 
 #define TSB_MEMBAR	membar	#StoreStore
 
+/* Some cpus support physical address quad loads.  We want to use
+ * those if possible so we don't need to hard-lock the TSB mapping
+ * into the TLB.  We encode some instruction patching in order to
+ * support this.
+ *
+ * The kernel TSB is locked into the TLB by virtue of being in the
+ * kernel image, so we don't play these games for swapper_tsb access.
+ */
+#ifndef __ASSEMBLY__
+struct tsb_phys_patch_entry {
+	unsigned int	addr;
+	unsigned int	insn;
+};
+extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
+#endif
+#define TSB_LOAD_QUAD(TSB, REG)	\
+661:	ldda		[TSB] ASI_NUCLEUS_QUAD_LDD, REG; \
+	.section	.tsb_phys_patch, "ax"; \
+	.word		661b; \
+	ldda		[TSB] ASI_QUAD_LDD_PHYS, REG; \
+	.previous
+
+#define TSB_LOAD_TAG_HIGH(TSB, REG) \
+661:	lduwa		[TSB] ASI_N, REG; \
+	.section	.tsb_phys_patch, "ax"; \
+	.word		661b; \
+	lduwa		[TSB] ASI_PHYS_USE_EC, REG; \
+	.previous
+
+#define TSB_LOAD_TAG(TSB, REG) \
+661:	ldxa		[TSB] ASI_N, REG; \
+	.section	.tsb_phys_patch, "ax"; \
+	.word		661b; \
+	ldxa		[TSB] ASI_PHYS_USE_EC, REG; \
+	.previous
+
+#define TSB_CAS_TAG_HIGH(TSB, REG1, REG2) \
+661:	casa		[TSB] ASI_N, REG1, REG2; \
+	.section	.tsb_phys_patch, "ax"; \
+	.word		661b; \
+	casa		[TSB] ASI_PHYS_USE_EC, REG1, REG2; \
+	.previous
+
+#define TSB_CAS_TAG(TSB, REG1, REG2) \
+661:	casxa		[TSB] ASI_N, REG1, REG2; \
+	.section	.tsb_phys_patch, "ax"; \
+	.word		661b; \
+	casxa		[TSB] ASI_PHYS_USE_EC, REG1, REG2; \
+	.previous
+
+#define TSB_STORE(ADDR, VAL) \
+661:	stxa		VAL, [ADDR] ASI_N; \
+	.section	.tsb_phys_patch, "ax"; \
+	.word		661b; \
+	stxa		VAL, [ADDR] ASI_PHYS_USE_EC; \
+	.previous
+
 #define TSB_LOCK_TAG(TSB, REG1, REG2)	\
+99:	TSB_LOAD_TAG_HIGH(TSB, REG1);	\
+	sethi	%hi(TSB_TAG_LOCK_HIGH), REG2;\
+	andcc	REG1, REG2, %g0;	\
+	bne,pn	%icc, 99b;		\
+	 nop;				\
+	TSB_CAS_TAG_HIGH(TSB, REG1, REG2);	\
+	cmp	REG1, REG2;		\
+	bne,pn	%icc, 99b;		\
+	 nop;				\
+	TSB_MEMBAR
+
+#define TSB_WRITE(TSB, TTE, TAG) \
+	add	TSB, 0x8, TSB;   \
+	TSB_STORE(TSB, TTE);     \
+	sub	TSB, 0x8, TSB;   \
+	TSB_MEMBAR;              \
+	TSB_STORE(TSB, TAG);
+
+#define KTSB_LOAD_QUAD(TSB, REG) \
+	ldda		[TSB] ASI_NUCLEUS_QUAD_LDD, REG;
+
+#define KTSB_STORE(ADDR, VAL) \
+	stxa		VAL, [ADDR] ASI_N;
+
+#define KTSB_LOCK_TAG(TSB, REG1, REG2)	\
 99:	lduwa	[TSB] ASI_N, REG1;	\
 	sethi	%hi(TSB_TAG_LOCK_HIGH), REG2;\
 	andcc	REG1, REG2, %g0;	\
@@ -56,10 +138,12 @@
 	 nop;				\
 	TSB_MEMBAR
 
-#define TSB_WRITE(TSB, TTE, TAG)	   \
-	stx		TTE, [TSB + 0x08]; \
-	TSB_MEMBAR;			   \
-	stx		TAG, [TSB + 0x00];
+#define KTSB_WRITE(TSB, TTE, TAG) \
+	add	TSB, 0x8, TSB;   \
+	stxa	TTE, [TSB] ASI_N;     \
+	sub	TSB, 0x8, TSB;   \
+	TSB_MEMBAR;              \
+	stxa	TAG, [TSB] ASI_N;
 
 	/* Do a kernel page table walk.  Leaves physical PTE pointer in
 	 * REG1.  Jumps to FAIL_LABEL on early page table walk termination.
@@ -157,7 +241,7 @@
 	and		REG2, (KERNEL_TSB_NENTRIES - 1), REG2; \
 	sllx		REG2, 4, REG2; \
 	add		REG1, REG2, REG2; \
-	ldda		[REG2] ASI_NUCLEUS_QUAD_LDD, REG3; \
+	KTSB_LOAD_QUAD(REG2, REG3); \
 	cmp		REG3, TAG; \
 	be,a,pt		%xcc, OK_LABEL; \
 	 mov		REG4, REG1;
