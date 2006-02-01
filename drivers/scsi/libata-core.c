@@ -1074,19 +1074,66 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 static inline void
 ata_queue_packet_task(struct ata_port *ap)
 {
-	queue_work(ata_wq, &ap->packet_task);
+	if (!(ap->flags & ATA_FLAG_FLUSH_PIO_TASK))
+		queue_work(ata_wq, &ap->packet_task);
 }
 
 static inline void
 ata_queue_pio_task(struct ata_port *ap)
 {
-	queue_work(ata_wq, &ap->pio_task);
+	if (!(ap->flags & ATA_FLAG_FLUSH_PIO_TASK))
+		queue_work(ata_wq, &ap->pio_task);
 }
 
 static inline void
 ata_queue_delayed_pio_task(struct ata_port *ap, unsigned long delay)
 {
-	queue_delayed_work(ata_wq, &ap->pio_task, delay);
+	if (!(ap->flags & ATA_FLAG_FLUSH_PIO_TASK))
+		queue_delayed_work(ata_wq, &ap->pio_task, delay);
+}
+
+/**
+ *	ata_flush_pio_tasks - Flush pio_task and packet_task
+ *	@ap: the target ata_port
+ *
+ *	After this function completes, pio_task and packet_task are
+ *	guranteed not to be running or scheduled.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+
+static void ata_flush_pio_tasks(struct ata_port *ap)
+{
+	int tmp = 0;
+	unsigned long flags;
+
+	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags |= ATA_FLAG_FLUSH_PIO_TASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("flush #1\n");
+	flush_workqueue(ata_wq);
+
+	/*
+	 * At this point, if a task is running, it's guaranteed to see
+	 * the FLUSH flag; thus, it will never queue pio tasks again.
+	 * Cancel and flush.
+	 */
+	tmp |= cancel_delayed_work(&ap->pio_task);
+	tmp |= cancel_delayed_work(&ap->packet_task);
+	if (!tmp) {
+		DPRINTK("flush #2\n");
+		flush_workqueue(ata_wq);
+	}
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_FLUSH_PIO_TASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("EXIT\n");
 }
 
 void ata_qc_complete_internal(struct ata_queued_cmd *qc)
@@ -3766,6 +3813,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	ata_flush_pio_tasks(ap);
+	ap->hsm_task_state = HSM_ST_IDLE;
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
