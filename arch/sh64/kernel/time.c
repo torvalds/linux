@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
+#include <linux/module.h>
 
 #include <asm/registers.h>	 /* required by inline __asm__ stmt. */
 
