@@ -191,6 +191,8 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 #ifdef CONFIG_MIGRATION
 extern int isolate_lru_page(struct page *p);
 extern int putback_lru_pages(struct list_head *l);
+extern int migrate_page(struct page *, struct page *);
+extern void migrate_page_copy(struct page *, struct page *);
 extern int migrate_pages(struct list_head *l, struct list_head *t,
 		struct list_head *moved, struct list_head *failed);
 #else
