@@ -581,11 +581,11 @@ extern unsigned long xcall_call_function;
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int smp_call_function(void (*func)(void *info), void *info,
-		      int nonatomic, int wait)
+static int smp_call_function_mask(void (*func)(void *info), void *info,
+				  int nonatomic, int wait, cpumask_t mask)
 {
 	struct call_data_struct data;
-	int cpus = num_online_cpus() - 1;
+	int cpus = cpus_weight(mask) - 1;
 	long timeout;
 
 	if (!cpus)
@@ -603,7 +603,7 @@ int smp_call_function(void (*func)(void *info), void *info,
 
 	call_data = &data;
 
-	smp_cross_call(&xcall_call_function, 0, 0, 0);
+	smp_cross_call_masked(&xcall_call_function, 0, 0, 0, mask);
 
 	/* 
 	 * Wait for other cpus to complete function or at
@@ -629,6 +629,13 @@ out_timeout:
 	return 0;
 }
 
+int smp_call_function(void (*func)(void *info), void *info,
+		      int nonatomic, int wait)
+{
+	return smp_call_function_mask(func, info, nonatomic, wait,
+				      cpu_online_map);
+}
+
 void smp_call_function_client(int irq, struct pt_regs *regs)
 {
 	void (*func) (void *info) = call_data->func;
@@ -644,6 +651,19 @@ void smp_call_function_client(int irq, struct pt_regs *regs)
 		atomic_inc(&call_data->finished);
 		func(info);
 	}
+}
+
+static void tsb_sync(void *info)
+{
+	struct mm_struct *mm = info;
+
+	if (current->active_mm == mm)
+		tsb_context_switch(mm);
+}
+
+void smp_tsb_sync(struct mm_struct *mm)
+{
+	smp_call_function_mask(tsb_sync, mm, 0, 1, mm->cpu_vm_mask);
 }
 
 extern unsigned long xcall_flush_tlb_mm;

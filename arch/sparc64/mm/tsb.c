@@ -10,6 +10,7 @@
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
+#include <asm/tsb.h>
 
 /* We use an 8K TSB for the whole kernel, this allows to
  * handle about 4MB of modules and vmalloc mappings without
@@ -146,6 +147,9 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 		tte |= _PAGE_SZ4MB;
 		page_sz = 4 * 1024 * 1024;
 		break;
+
+	default:
+		BUG();
 	};
 
 	tsb_reg |= base;
@@ -157,23 +161,158 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 	mm->context.tsb_map_pte = tte;
 }
 
+/* The page tables are locked against modifications while this
+ * runs.
+ *
+ * XXX do some prefetching...
+ */
+static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
+		     struct tsb *new_tsb, unsigned long new_size)
+{
+	unsigned long old_nentries = old_size / sizeof(struct tsb);
+	unsigned long new_nentries = new_size / sizeof(struct tsb);
+	unsigned long i;
+
+	for (i = 0; i < old_nentries; i++) {
+		register unsigned long tag asm("o4");
+		register unsigned long pte asm("o5");
+		unsigned long v;
+		unsigned int hash;
+
+		__asm__ __volatile__(
+			"ldda [%2] %3, %0"
+			: "=r" (tag), "=r" (pte)
+			: "r" (&old_tsb[i]), "i" (ASI_NUCLEUS_QUAD_LDD));
+
+		if (!tag || (tag & TSB_TAG_LOCK))
+			continue;
+
+		/* We only put base page size PTEs into the TSB,
+		 * but that might change in the future.  This code
+		 * would need to be changed if we start putting larger
+		 * page size PTEs into there.
+		 */
+		WARN_ON((pte & _PAGE_ALL_SZ_BITS) != _PAGE_SZBITS);
+
+		/* The tag holds bits 22 to 63 of the virtual address
+		 * and the context.  Clear out the context, and shift
+		 * up to make a virtual address.
+		 */
+		v = (tag & ((1UL << 42UL) - 1UL)) << 22UL;
+
+		/* The implied bits of the tag (bits 13 to 21) are
+		 * determined by the TSB entry index, so fill that in.
+		 */
+		v |= (i & (512UL - 1UL)) << 13UL;
+
+		hash = tsb_hash(v, new_nentries);
+		new_tsb[hash].tag = tag;
+		new_tsb[hash].pte = pte;
+	}
+}
+
+/* When the RSS of an address space exceeds mm->context.tsb_rss_limit,
+ * update_mmu_cache() invokes this routine to try and grow the TSB.
+ * When we reach the maximum TSB size supported, we stick ~0UL into
+ * mm->context.tsb_rss_limit so the grow checks in update_mmu_cache()
+ * will not trigger any longer.
+ *
+ * The TSB can be anywhere from 8K to 1MB in size, in increasing powers
+ * of two.  The TSB must be aligned to it's size, so f.e. a 512K TSB
+ * must be 512K aligned.
+ *
+ * The idea here is to grow the TSB when the RSS of the process approaches
+ * the number of entries that the current TSB can hold at once.  Currently,
+ * we trigger when the RSS hits 3/4 of the TSB capacity.
+ */
+void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
+{
+	unsigned long max_tsb_size = 1 * 1024 * 1024;
+	unsigned long size, old_size;
+	struct page *page;
+	struct tsb *old_tsb;
+
+	if (max_tsb_size > (PAGE_SIZE << MAX_ORDER))
+		max_tsb_size = (PAGE_SIZE << MAX_ORDER);
+
+	for (size = PAGE_SIZE; size < max_tsb_size; size <<= 1UL) {
+		unsigned long n_entries = size / sizeof(struct tsb);
+
+		n_entries = (n_entries * 3) / 4;
+		if (n_entries > rss)
+			break;
+	}
+
+	page = alloc_pages(gfp_flags | __GFP_ZERO, get_order(size));
+	if (unlikely(!page))
+		return;
+
+	if (size == max_tsb_size)
+		mm->context.tsb_rss_limit = ~0UL;
+	else
+		mm->context.tsb_rss_limit =
+			((size / sizeof(struct tsb)) * 3) / 4;
+
+	old_tsb = mm->context.tsb;
+	old_size = mm->context.tsb_nentries * sizeof(struct tsb);
+
+	if (old_tsb)
+		copy_tsb(old_tsb, old_size, page_address(page), size);
+
+	mm->context.tsb = page_address(page);
+	setup_tsb_params(mm, size);
+
+	/* If old_tsb is NULL, we're being invoked for the first time
+	 * from init_new_context().
+	 */
+	if (old_tsb) {
+		/* Now force all other processors to reload the new
+		 * TSB state.
+		 */
+		smp_tsb_sync(mm);
+
+		/* Finally reload it on the local cpu.  No further
+		 * references will remain to the old TSB and we can
+		 * thus free it up.
+		 */
+		tsb_context_switch(mm);
+
+		free_pages((unsigned long) old_tsb, get_order(old_size));
+	}
+}
+
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
-	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	unsigned long initial_rss;
 
 	mm->context.sparc64_ctx_val = 0UL;
-	if (unlikely(!page))
-		return -ENOMEM;
 
-	mm->context.tsb = (struct tsb *) page;
-	setup_tsb_params(mm, PAGE_SIZE);
+	/* copy_mm() copies over the parent's mm_struct before calling
+	 * us, so we need to zero out the TSB pointer or else tsb_grow()
+	 * will be confused and think there is an older TSB to free up.
+	 */
+	mm->context.tsb = NULL;
+
+	/* If this is fork, inherit the parent's TSB size.  We would
+	 * grow it to that size on the first page fault anyways.
+	 */
+	initial_rss = mm->context.tsb_nentries;
+	if (initial_rss)
+		initial_rss -= 1;
+
+	tsb_grow(mm, initial_rss, GFP_KERNEL);
+
+	if (unlikely(!mm->context.tsb))
+		return -ENOMEM;
 
 	return 0;
 }
 
 void destroy_context(struct mm_struct *mm)
 {
-	free_page((unsigned long) mm->context.tsb);
+	unsigned long size = mm->context.tsb_nentries * sizeof(struct tsb);
+
+	free_pages((unsigned long) mm->context.tsb, get_order(size));
 
 	/* We can remove these later, but for now it's useful
 	 * to catch any bogus post-destroy_context() references

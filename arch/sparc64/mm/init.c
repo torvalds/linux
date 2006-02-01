@@ -246,9 +246,11 @@ static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long c
 
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
+	struct mm_struct *mm;
 	struct page *page;
 	unsigned long pfn;
 	unsigned long pg_flags;
+	unsigned long mm_rss;
 
 	pfn = pte_pfn(pte);
 	if (pfn_valid(pfn) &&
@@ -270,6 +272,11 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 		put_cpu();
 	}
+
+	mm = vma->vm_mm;
+	mm_rss = get_mm_rss(mm);
+	if (mm_rss >= mm->context.tsb_rss_limit)
+		tsb_grow(mm, mm_rss, GFP_ATOMIC);
 }
 
 void flush_dcache_page(struct page *page)

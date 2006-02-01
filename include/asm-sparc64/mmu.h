@@ -100,6 +100,7 @@ struct tsb {
 typedef struct {
 	unsigned long	sparc64_ctx_val;
 	struct tsb	*tsb;
+	unsigned long	tsb_rss_limit;
 	unsigned long	tsb_nentries;
 	unsigned long	tsb_reg_val;
 	unsigned long	tsb_map_vaddr;

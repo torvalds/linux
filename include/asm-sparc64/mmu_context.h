@@ -32,6 +32,13 @@ static inline void tsb_context_switch(struct mm_struct *mm)
 			     mm->context.tsb_map_pte);
 }
 
+extern void tsb_grow(struct mm_struct *mm, unsigned long mm_rss, gfp_t gfp_flags);
+#ifdef CONFIG_SMP
+extern void smp_tsb_sync(struct mm_struct *mm);
+#else
+#define smp_tsb_sync(__mm) do { } while (0)
+#endif
+
 /* Set MMU context in the actual hardware. */
 #define load_secondary_context(__mm) \
 	__asm__ __volatile__("stxa	%0, [%1] %2\n\t" \
