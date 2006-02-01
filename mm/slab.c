@@ -1571,8 +1571,8 @@ static void set_up_list3s(struct kmem_cache *cachep, int index)
  * high order pages for slabs.  When the gfp() functions are more friendly
  * towards high-order requests, this should be changed.
  */
-static inline size_t calculate_slab_order(struct kmem_cache *cachep, size_t size,
-					  size_t align, gfp_t flags)
+static inline size_t calculate_slab_order(struct kmem_cache *cachep,
+			size_t size, size_t align, unsigned long flags)
 {
 	size_t left_over = 0;
 
