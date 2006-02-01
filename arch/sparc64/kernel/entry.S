@@ -1475,13 +1475,14 @@ ret_from_syscall:
 
 1:		b,pt		%xcc, ret_sys_call
 		 ldx		[%sp + PTREGS_OFF + PT_V9_I0], %o0
-sparc_exit:	wrpr		%g0, (PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV), %pstate
+sparc_exit:	rdpr		%pstate, %g2
+		wrpr		%g2, PSTATE_IE, %pstate
 		rdpr		%otherwin, %g1
 		rdpr		%cansave, %g3
 		add		%g3, %g1, %g3
 		wrpr		%g3, 0x0, %cansave
 		wrpr		%g0, 0x0, %otherwin
-		wrpr		%g0, (PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV | PSTATE_IE), %pstate
+		wrpr		%g2, 0x0, %pstate
 		ba,pt		%xcc, sys_exit
 		 stb		%g0, [%g6 + TI_WSAVED]
 
