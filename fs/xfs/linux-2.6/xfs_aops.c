@@ -1462,4 +1462,5 @@ struct address_space_operations linvfs_aops = {
 	.commit_write		= generic_commit_write,
 	.bmap			= linvfs_bmap,
 	.direct_IO		= linvfs_direct_IO,
+	.migratepage		= buffer_migrate_page,
 };

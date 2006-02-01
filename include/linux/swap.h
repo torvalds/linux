@@ -193,13 +193,18 @@ extern int isolate_lru_page(struct page *p);
 extern int putback_lru_pages(struct list_head *l);
 extern int migrate_page(struct page *, struct page *);
 extern void migrate_page_copy(struct page *, struct page *);
+extern int migrate_page_remove_references(struct page *, struct page *, int);
 extern int migrate_pages(struct list_head *l, struct list_head *t,
 		struct list_head *moved, struct list_head *failed);
+extern int fail_migrate_page(struct page *, struct page *);
 #else
 static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
 static inline int putback_lru_pages(struct list_head *l) { return 0; }
 static inline int migrate_pages(struct list_head *l, struct list_head *t,
 	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
+/* Possible settings for the migrate_page() method in address_operations */
+#define migrate_page NULL
+#define fail_migrate_page NULL
 #endif
 
 #ifdef CONFIG_MMU

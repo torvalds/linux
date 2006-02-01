@@ -615,6 +615,15 @@ int putback_lru_pages(struct list_head *l)
 }
 
 /*
+ * Non migratable page
+ */
+int fail_migrate_page(struct page *newpage, struct page *page)
+{
+	return -EIO;
+}
+EXPORT_SYMBOL(fail_migrate_page);
+
+/*
  * swapout a single page
  * page is locked upon entry, unlocked on exit
  */
@@ -659,6 +668,7 @@ unlock_retry:
 retry:
 	return -EAGAIN;
 }
+EXPORT_SYMBOL(swap_page);
 
 /*
  * Page migration was first developed in the context of the memory hotplug
@@ -674,7 +684,7 @@ retry:
  * Remove references for a page and establish the new page with the correct
  * basic settings to be able to stop accesses to the page.
  */
-static int migrate_page_remove_references(struct page *newpage,
+int migrate_page_remove_references(struct page *newpage,
 				struct page *page, int nr_refs)
 {
 	struct address_space *mapping = page_mapping(page);
@@ -749,6 +759,7 @@ static int migrate_page_remove_references(struct page *newpage,
 
 	return 0;
 }
+EXPORT_SYMBOL(migrate_page_remove_references);
 
 /*
  * Copy the page to its new location
@@ -788,6 +799,7 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 	if (PageWriteback(newpage))
 		end_page_writeback(newpage);
 }
+EXPORT_SYMBOL(migrate_page_copy);
 
 /*
  * Common logic to directly migrate a single page suitable for
@@ -815,6 +827,7 @@ int migrate_page(struct page *newpage, struct page *page)
 	remove_from_swap(newpage);
 	return 0;
 }
+EXPORT_SYMBOL(migrate_page);
 
 /*
  * migrate_pages
@@ -913,6 +926,11 @@ redo:
 		mapping = page_mapping(page);
 		if (!mapping)
 			goto unlock_both;
+
+		if (mapping->a_ops->migratepage) {
+			rc = mapping->a_ops->migratepage(newpage, page);
+			goto unlock_both;
+                }
 
 		/*
 		 * Trigger writeout if page is dirty

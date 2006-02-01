@@ -233,6 +233,7 @@ void remove_from_swap(struct page *page)
 
 	delete_from_swap_cache(page);
 }
+EXPORT_SYMBOL(remove_from_swap);
 #endif
 
 /*
