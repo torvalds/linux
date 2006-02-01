@@ -2226,6 +2226,42 @@ static void kmem_flagcheck(kmem_cache_t *cachep, gfp_t flags)
 	}
 }
 
+static void *slab_get_obj(kmem_cache_t *cachep, struct slab *slabp, int nodeid)
+{
+	void *objp = slabp->s_mem + (slabp->free * cachep->buffer_size);
+	kmem_bufctl_t next;
+
+	slabp->inuse++;
+	next = slab_bufctl(slabp)[slabp->free];
+#if DEBUG
+	slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
+	WARN_ON(slabp->nodeid != nodeid);
+#endif
+	slabp->free = next;
+
+	return objp;
+}
+
+static void slab_put_obj(kmem_cache_t *cachep, struct slab *slabp, void *objp,
+			  int nodeid)
+{
+	unsigned int objnr = (unsigned)(objp-slabp->s_mem) / cachep->buffer_size;
+
+#if DEBUG
+	/* Verify that the slab belongs to the intended node */
+	WARN_ON(slabp->nodeid != nodeid);
+
+	if (slab_bufctl(slabp)[objnr] != BUFCTL_FREE) {
+		printk(KERN_ERR "slab: double free detected in cache "
+		       "'%s', objp %p\n", cachep->name, objp);
+		BUG();
+	}
+#endif
+	slab_bufctl(slabp)[objnr] = slabp->free;
+	slabp->free = objnr;
+	slabp->inuse--;
+}
+
 static void set_slab_attr(kmem_cache_t *cachep, struct slab *slabp, void *objp)
 {
 	int i;
@@ -2515,22 +2551,12 @@ static void *cache_alloc_refill(kmem_cache_t *cachep, gfp_t flags)
 		check_slabp(cachep, slabp);
 		check_spinlock_acquired(cachep);
 		while (slabp->inuse < cachep->num && batchcount--) {
-			kmem_bufctl_t next;
 			STATS_INC_ALLOCED(cachep);
 			STATS_INC_ACTIVE(cachep);
 			STATS_SET_HIGH(cachep);
 
-			/* get obj pointer */
-			ac->entry[ac->avail++] = slabp->s_mem +
-			    slabp->free * cachep->buffer_size;
-
-			slabp->inuse++;
-			next = slab_bufctl(slabp)[slabp->free];
-#if DEBUG
-			slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
-			WARN_ON(numa_node_id() != slabp->nodeid);
-#endif
-			slabp->free = next;
+			ac->entry[ac->avail++] = slab_get_obj(cachep, slabp,
+							    numa_node_id());
 		}
 		check_slabp(cachep, slabp);
 
@@ -2675,7 +2701,6 @@ static void *__cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 	struct slab *slabp;
 	struct kmem_list3 *l3;
 	void *obj;
-	kmem_bufctl_t next;
 	int x;
 
 	l3 = cachep->nodelists[nodeid];
@@ -2701,14 +2726,7 @@ static void *__cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 
 	BUG_ON(slabp->inuse == cachep->num);
 
-	/* get obj pointer */
-	obj = slabp->s_mem + slabp->free * cachep->buffer_size;
-	slabp->inuse++;
-	next = slab_bufctl(slabp)[slabp->free];
-#if DEBUG
-	slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
-#endif
-	slabp->free = next;
+	obj = slab_get_obj(cachep, slabp, nodeid);
 	check_slabp(cachep, slabp);
 	l3->free_objects--;
 	/* move slabp to correct slabp list: */
@@ -2748,29 +2766,14 @@ static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects,
 	for (i = 0; i < nr_objects; i++) {
 		void *objp = objpp[i];
 		struct slab *slabp;
-		unsigned int objnr;
 
 		slabp = page_get_slab(virt_to_page(objp));
 		l3 = cachep->nodelists[node];
 		list_del(&slabp->list);
-		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
 		check_spinlock_acquired_node(cachep, node);
 		check_slabp(cachep, slabp);
-
-#if DEBUG
-		/* Verify that the slab belongs to the intended node */
-		WARN_ON(slabp->nodeid != node);
-
-		if (slab_bufctl(slabp)[objnr] != BUFCTL_FREE) {
-			printk(KERN_ERR "slab: double free detected in cache "
-			       "'%s', objp %p\n", cachep->name, objp);
-			BUG();
-		}
-#endif
-		slab_bufctl(slabp)[objnr] = slabp->free;
-		slabp->free = objnr;
+		slab_put_obj(cachep, slabp, objp, node);
 		STATS_DEC_ACTIVE(cachep);
-		slabp->inuse--;
 		l3->free_objects++;
 		check_slabp(cachep, slabp);
 
