@@ -477,6 +477,12 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		 * processes. Try to unmap it here.
 		 */
 		if (page_mapped(page) && mapping) {
+			/*
+			 * No unmapping if we do not swap
+			 */
+			if (!sc->may_swap)
+				goto keep_locked;
+
 			switch (try_to_unmap(page)) {
 			case SWAP_FAIL:
 				goto activate_locked;
