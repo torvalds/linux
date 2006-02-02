@@ -244,12 +244,10 @@ iscsi_ctask_cleanup(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		struct iscsi_data_task *dtask, *n;
 		/* WRITE: cleanup Data-Out's if any */
-		spin_lock(&conn->lock);
 		list_for_each_entry_safe(dtask, n, &ctask->dataqueue, item) {
 			list_del(&dtask->item);
 			mempool_free(dtask, ctask->datapool);
 		}
-		spin_unlock(&conn->lock);
 	}
 	ctask->xmstate = XMSTATE_IDLE;
 	ctask->r2t = NULL;
@@ -2452,8 +2450,6 @@ iscsi_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	conn->hdr_size = sizeof(struct iscsi_hdr);
 	conn->data_size = DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH;
 	conn->max_recv_dlength = DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH;
-
-	spin_lock_init(&conn->lock);
 
 	/* initialize general xmit PDU commands queue */
 	conn->xmitqueue = kfifo_alloc(session->cmds_max * sizeof(void*),
