@@ -69,15 +69,14 @@ mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 	const long min_idsel = 0x11, max_idsel = 0x20, irqs_per_slot = 4;
 	return PCI_IRQ_TABLE_LOOKUP;
 }
-#endif /* CONFIG_PCI */
+#endif				/* CONFIG_PCI */
 
 /* ************************************************************************
  *
  * Setup the architecture
  *
  */
-static void __init
-mpc834x_sys_setup_arch(void)
+static void __init mpc834x_sys_setup_arch(void)
 {
 	struct device_node *np;
 
@@ -86,14 +85,14 @@ mpc834x_sys_setup_arch(void)
 
 	np = of_find_node_by_type(NULL, "cpu");
 	if (np != 0) {
-		unsigned int *fp = (int *) get_property(np, "clock-frequency", NULL);
+		unsigned int *fp =
+		    (int *)get_property(np, "clock-frequency", NULL);
 		if (fp != 0)
 			loops_per_jiffy = *fp / HZ;
 		else
 			loops_per_jiffy = 50000000 / HZ;
 		of_node_put(np);
 	}
-
 #ifdef CONFIG_PCI
 	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
 		add_bridge(np);
@@ -104,14 +103,13 @@ mpc834x_sys_setup_arch(void)
 #endif
 
 #ifdef  CONFIG_ROOT_NFS
-		ROOT_DEV = Root_NFS;
+	ROOT_DEV = Root_NFS;
 #else
-		ROOT_DEV = Root_HDA1;
+	ROOT_DEV = Root_HDA1;
 #endif
 }
 
-void __init
-mpc834x_sys_init_IRQ(void)
+void __init mpc834x_sys_init_IRQ(void)
 {
 	u8 senses[8] = {
 		0,			/* EXT 0 */
@@ -140,28 +138,27 @@ mpc834x_sys_init_IRQ(void)
 }
 
 #if defined(CONFIG_I2C_MPC) && defined(CONFIG_SENSORS_DS1374)
-extern ulong	ds1374_get_rtc_time(void);
-extern int	ds1374_set_rtc_time(ulong);
+extern ulong ds1374_get_rtc_time(void);
+extern int ds1374_set_rtc_time(ulong);
 
-static int __init
-mpc834x_rtc_hookup(void)
+static int __init mpc834x_rtc_hookup(void)
 {
-	struct timespec	tv;
+	struct timespec tv;
 
 	ppc_md.get_rtc_time = ds1374_get_rtc_time;
 	ppc_md.set_rtc_time = ds1374_set_rtc_time;
 
 	tv.tv_nsec = 0;
-	tv.tv_sec = (ppc_md.get_rtc_time)();
+	tv.tv_sec = (ppc_md.get_rtc_time) ();
 	do_settimeofday(&tv);
 
 	return 0;
 }
+
 late_initcall(mpc834x_rtc_hookup);
 #endif
 
-void __init
-platform_init(void)
+void __init platform_init(void)
 {
 	/* setup the PowerPC module struct */
 	ppc_md.setup_arch = mpc834x_sys_setup_arch;
