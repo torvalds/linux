@@ -2277,6 +2277,24 @@ err_out:
 	DPRINTK("EXIT\n");
 }
 
+static int sata_phy_resume(struct ata_port *ap)
+{
+	unsigned long timeout = jiffies + (HZ * 5);
+	u32 sstatus;
+
+	scr_write_flush(ap, SCR_CONTROL, 0x300);
+
+	/* Wait for phy to become ready, if necessary. */
+	do {
+		msleep(200);
+		sstatus = scr_read(ap, SCR_STATUS);
+		if ((sstatus & 0xf) != 1)
+			return 0;
+	} while (time_before(jiffies, timeout));
+
+	return -1;
+}
+
 /**
  *	ata_std_softreset - reset host port via ATA SRST
  *	@ap: port to reset
@@ -2357,8 +2375,7 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 {
-	u32 sstatus, serror;
-	unsigned long timeout = jiffies + (HZ * 5);
+	u32 serror;
 
 	DPRINTK("ENTER\n");
 
@@ -2371,15 +2388,8 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 	 */
 	msleep(1);
 
-	scr_write_flush(ap, SCR_CONTROL, 0x300);
-
-	/* Wait for phy to become ready, if necessary. */
-	do {
-		msleep(200);
-		sstatus = scr_read(ap, SCR_STATUS);
-		if ((sstatus & 0xf) != 1)
-			break;
-	} while (time_before(jiffies, timeout));
+	/* Bring phy back */
+	sata_phy_resume(ap);
 
 	/* Clear SError */
 	serror = scr_read(ap, SCR_ERROR);
