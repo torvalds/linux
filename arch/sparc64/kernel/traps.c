@@ -2169,7 +2169,6 @@ void __init trap_init(void)
 	    TI_KERN_CNTD0 != offsetof(struct thread_info, kernel_cntd0) ||
 	    TI_KERN_CNTD1 != offsetof(struct thread_info, kernel_cntd1) ||
 	    TI_PCR != offsetof(struct thread_info, pcr_reg) ||
-	    TI_CEE_STUFF != offsetof(struct thread_info, cee_stuff) ||
 	    TI_PRE_COUNT != offsetof(struct thread_info, preempt_count) ||
 	    TI_NEW_CHILD != offsetof(struct thread_info, new_child) ||
 	    TI_SYS_NOERROR != offsetof(struct thread_info, syscall_noerror) ||

@@ -222,23 +222,7 @@ tl1_resv05c:	BTRAPTL1(0x5c) BTRAPTL1(0x5d) BTRAPTL1(0x5e) BTRAPTL1(0x5f)
 tl1_ivec:	TRAP_IVEC
 tl1_paw:	TRAPTL1(do_paw_tl1)
 tl1_vaw:	TRAPTL1(do_vaw_tl1)
-
-		/* The grotty trick to save %g1 into current->thread.cee_stuff
-		 * is because when we take this trap we could be interrupting
-		 * trap code already using the trap alternate global registers.
-		 *
-		 * We cross our fingers and pray that this store/load does
-		 * not cause yet another CEE trap.
-		 */
-tl1_cee:	membar	#Sync
-		stx	%g1, [%g6 + TI_CEE_STUFF]
-		ldxa	[%g0] ASI_AFSR, %g1
-		membar	#Sync
-		stxa	%g1, [%g0] ASI_AFSR
-		membar	#Sync
-		ldx	[%g6 + TI_CEE_STUFF], %g1
-		retry
-
+tl1_cee:	BTRAPTL1(0x63)
 tl1_iamiss:	BTRAPTL1(0x64) BTRAPTL1(0x65) BTRAPTL1(0x66) BTRAPTL1(0x67)
 tl1_damiss:
 #include	"dtlb_miss.S"
