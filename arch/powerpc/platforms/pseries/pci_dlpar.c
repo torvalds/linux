@@ -58,6 +58,7 @@ pcibios_find_pci_bus(struct device_node *dn)
 
 	return find_bus_among_children(pdn->phb->bus, dn);
 }
+EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
 
 /**
  * pcibios_remove_pci_devices - remove all devices under this bus
@@ -106,6 +107,7 @@ pcibios_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(pcibios_fixup_new_pci_devices);
 
 static int
 pcibios_pci_config_bridge(struct pci_dev *dev)
@@ -172,3 +174,4 @@ pcibios_add_pci_devices(struct pci_bus * bus)
 			pcibios_pci_config_bridge(dev);
 	}
 }
+EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
