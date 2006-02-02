@@ -1161,6 +1161,9 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	sb->cnt_corrected_read = atomic_read(&rdev->corrected_errors);
 
+	sb->raid_disks = cpu_to_le32(mddev->raid_disks);
+	sb->size = cpu_to_le64(mddev->size);
+
 	if (mddev->bitmap && mddev->bitmap_file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
 		sb->feature_map = cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
