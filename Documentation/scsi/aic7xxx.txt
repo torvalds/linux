@@ -309,81 +309,57 @@ The following information is available in this file:
    -----------------------------------------------------------------
 
    Example:
-   'options aic7xxx aic7xxx=verbose,no_probe,tag_info:{{},{,,10}},seltime:1"
+   'options aic7xxx aic7xxx=verbose,no_probe,tag_info:{{},{,,10}},seltime:1'
         enables verbose logging, Disable EISA/VLB probing,
         and set tag depth on Controller 1/Target 2 to 10 tags.
 
-3. Contacting Adaptec
+4. Adaptec Customer Support
 
    A Technical Support Identification (TSID) Number is required for 
    Adaptec technical support.
     - The 12-digit TSID can be found on the white barcode-type label
-      included inside the box with your product. The TSID helps us 
+      included inside the box with your product.  The TSID helps us 
       provide more efficient service by accurately identifying your 
       product and support status.
+
    Support Options
     - Search the Adaptec Support Knowledgebase (ASK) at
       http://ask.adaptec.com for articles, troubleshooting tips, and
-      frequently asked questions for your product.
+      frequently asked questions about your product.
     - For support via Email, submit your question to Adaptec's 
-      Technical Support Specialists at http://ask.adaptec.com.
+      Technical Support Specialists at http://ask.adaptec.com/.
      
    North America
-    - Visit our Web site at http://www.adaptec.com.
-    - To speak with a Fibre Channel/RAID/External Storage Technical
-      Support Specialist, call 1-321-207-2000,
-      Hours: Monday-Friday, 3:00 A.M. to 5:00 P.M., PST.
-      (Not open on holidays)
-    - For Technical Support in all other technologies including 
-      SCSI, call 1-408-934-7274,
-      Hours: Monday-Friday, 6:00 A.M. to 5:00 P.M., PST.
-      (Not open on holidays)
-    - For after hours support, call 1-800-416-8066 ($99/call, 
-      $149/call on holidays)
-    - To order Adaptec products including software and cables, call
-      1-800-442-7274 or 1-408-957-7274. You can also visit our 
-      online store at http://www.adaptecstore.com
+    - Visit our Web site at http://www.adaptec.com/.
+    - For information about Adaptec's support options, call
+      408-957-2550, 24 hours a day, 7 days a week.
+    - To speak with a Technical Support Specialist,
+      * For hardware products, call 408-934-7274,
+        Monday to Friday, 3:00 am to 5:00 pm, PDT.
+      * For RAID and Fibre Channel products, call 321-207-2000,
+        Monday to Friday, 3:00 am to 5:00 pm, PDT.
+      To expedite your service, have your computer with you.
+    - To order Adaptec products, including accessories and cables,
+      call 408-957-7274.  To order cables online go to
+      http://www.adaptec.com/buy-cables/.
 
    Europe
-    - Visit our Web site at http://www.adaptec-europe.com.
-    - English and French: To speak with a Technical Support 
-      Specialist, call one of the following numbers:
-        - English: +32-2-352-3470
-        - French:  +32-2-352-3460
-      Hours: Monday-Thursday, 10:00 to 12:30, 13:30 to 17:30 CET 
-             Friday, 10:00 to 12:30, 13:30 to 16:30 CET
-    - German: To speak with a Technical Support Specialist,
-      call +49-89-456-40660
-      Hours: Monday-Thursday, 09:30 to 12:30, 13:30 to 16:30 CET
-             Friday, 09:30 to 12:30, 13:30 to 15:00 CET
-    - To order Adaptec products, including accessories and cables:
-        - UK: +0800-96-65-26 or fax +0800-731-02-95
-        - Other European countries: +32-11-300-379
-
-   Australia and New Zealand
-    - Visit our Web site at http://www.adaptec.com.au.
-    - To speak with a Technical Support Specialist, call 
-      +612-9416-0698
-      Hours: Monday-Friday, 10:00 A.M. to 4:30 P.M., EAT
-      (Not open on holidays)
+    - Visit our Web site at http://www.adaptec-europe.com/.
+    - To speak with a Technical Support Specialist, call, or email,
+      * German:  +49 89 4366 5522, Monday-Friday, 9:00-17:00 CET,
+        http://ask-de.adaptec.com/.
+      * French:  +49 89 4366 5533, Monday-Friday, 9:00-17:00 CET,
+	http://ask-fr.adaptec.com/.
+      * English: +49 89 4366 5544, Monday-Friday, 9:00-17:00 GMT,
+	http://ask.adaptec.com/.
+    - You can order Adaptec cables online at
+      http://www.adaptec.com/buy-cables/.
 
    Japan
+    - Visit our web site at http://www.adaptec.co.jp/.
     - To speak with a Technical Support Specialist, call 
-      +81-3-5308-6120 
-      Hours: Monday-Friday, 9:00 a.m. to 12:00 p.m., 1:00 p.m. to
-      6:00 p.m. TSC
-
-   Hong Kong and China
-    - To speak with a Technical Support Specialist, call 
-      +852-2869-7200
-      Hours: Monday-Friday, 10:00 to 17:00.
-    - Fax Technical Support at +852-2869-7100.
-
-   Singapore
-    - To speak with a Technical Support Specialist, call 
-      +65-245-7470
-      Hours: Monday-Friday, 10:00 to 17:00.
-    - Fax Technical Support at +852-2869-7100
+      +81 3 5308 6120, Monday-Friday, 9:00 a.m. to 12:00 p.m.,
+      1:00 p.m. to 6:00 p.m.
 
 -------------------------------------------------------------------
 /*

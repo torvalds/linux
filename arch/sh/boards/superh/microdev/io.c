@@ -16,7 +16,7 @@
 #include <linux/pci.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-#include <asm/mach/io.h>
+#include <asm/microdev.h>
 
 	/*
 	 *	we need to have a 'safe' address to re-direct all I/O requests
@@ -52,8 +52,90 @@
 #define	IO_ISP1161_PHYS		0xa7700000ul	/* Physical address of Philips ISP1161x USB chip */
 #define	IO_SUPERIO_PHYS		0xa7800000ul	/* Physical address of SMSC FDC37C93xAPM SuperIO chip */
 
-#define PORT2ADDR(x) (microdev_isa_port2addr(x))
+/*
+ * map I/O ports to memory-mapped addresses
+ */
+static unsigned long microdev_isa_port2addr(unsigned long offset)
+{
+	unsigned long result;
 
+	if ((offset >= IO_LAN91C111_BASE) &&
+	    (offset <  IO_LAN91C111_BASE + IO_LAN91C111_EXTENT)) {
+			/*
+			 *	SMSC LAN91C111 Ethernet chip
+			 */
+		result = IO_LAN91C111_PHYS + offset - IO_LAN91C111_BASE;
+	} else if ((offset >= IO_SUPERIO_BASE) &&
+		   (offset <  IO_SUPERIO_BASE + IO_SUPERIO_EXTENT)) {
+			/*
+			 *	SMSC FDC37C93xAPM SuperIO chip
+			 *
+			 *	Configuration Registers
+			 */
+		result = IO_SUPERIO_PHYS + (offset << 1);
+#if 0
+	} else if (offset == KBD_DATA_REG || offset == KBD_CNTL_REG ||
+		   offset == KBD_STATUS_REG) {
+			/*
+			 *	SMSC FDC37C93xAPM SuperIO chip
+			 *
+			 *	PS/2 Keyboard + Mouse (ports 0x60 and 0x64).
+			 */
+	        result = IO_SUPERIO_PHYS + (offset << 1);
+#endif
+	} else if (((offset >= IO_IDE1_BASE) &&
+		    (offset <  IO_IDE1_BASE + IO_IDE_EXTENT)) ||
+		    (offset == IO_IDE1_MISC)) {
+			/*
+			 *	SMSC FDC37C93xAPM SuperIO chip
+			 *
+			 *	IDE #1
+			 */
+	        result = IO_SUPERIO_PHYS + (offset << 1);
+	} else if (((offset >= IO_IDE2_BASE) &&
+		    (offset <  IO_IDE2_BASE + IO_IDE_EXTENT)) ||
+		    (offset == IO_IDE2_MISC)) {
+			/*
+			 *	SMSC FDC37C93xAPM SuperIO chip
+			 *
+			 *	IDE #2
+			 */
+	        result = IO_SUPERIO_PHYS + (offset << 1);
+	} else if ((offset >= IO_SERIAL1_BASE) &&
+		   (offset <  IO_SERIAL1_BASE + IO_SERIAL_EXTENT)) {
+			/*
+			 *	SMSC FDC37C93xAPM SuperIO chip
+			 *
+			 *	Serial #1
+			 */
+		result = IO_SUPERIO_PHYS + (offset << 1);
+	} else if ((offset >= IO_SERIAL2_BASE) &&
+		   (offset <  IO_SERIAL2_BASE + IO_SERIAL_EXTENT)) {
+			/*
+			 *	SMSC FDC37C93xAPM SuperIO chip
+			 *
+			 *	Serial #2
+			 */
+		result = IO_SUPERIO_PHYS + (offset << 1);
+	} else if ((offset >= IO_ISP1161_BASE) &&
+		   (offset < IO_ISP1161_BASE + IO_ISP1161_EXTENT)) {
+			/*
+			 *	Philips USB ISP1161x chip
+			 */
+		result = IO_ISP1161_PHYS + offset - IO_ISP1161_BASE;
+	} else {
+			/*
+			 *	safe default.
+			 */
+		printk("Warning: unexpected port in %s( offset = 0x%lx )\n",
+		       __FUNCTION__, offset);
+		result = PVR;
+	}
+
+	return result;
+}
+
+#define PORT2ADDR(x) (microdev_isa_port2addr(x))
 
 static inline void delay(void)
 {
@@ -92,6 +174,17 @@ unsigned int microdev_inl(unsigned long port)
 		return microdev_pci_inl(port);
 #endif
 	return *(volatile unsigned int*)PORT2ADDR(port);
+}
+
+void microdev_outw(unsigned short b, unsigned long port)
+{
+#ifdef CONFIG_PCI
+	if (port >= PCIBIOS_MIN_IO) {
+		microdev_pci_outw(b, port);
+		return;
+	}
+#endif
+	*(volatile unsigned short*)PORT2ADDR(port) = b;
 }
 
 void microdev_outb(unsigned char b, unsigned long port)
@@ -156,17 +249,6 @@ void microdev_outb(unsigned char b, unsigned long port)
 	} else {
 		*(volatile unsigned char*)PORT2ADDR(port) = b;
 	}
-}
-
-void microdev_outw(unsigned short b, unsigned long port)
-{
-#ifdef CONFIG_PCI
-	if (port >= PCIBIOS_MIN_IO) {
-		microdev_pci_outw(b, port);
-		return;
-	}
-#endif
-	*(volatile unsigned short*)PORT2ADDR(port) = b;
 }
 
 void microdev_outl(unsigned int b, unsigned long port)
@@ -284,87 +366,3 @@ void microdev_outsl(unsigned long port, const void *buffer, unsigned long count)
 	while (count--)
 		*port_addr = *buf++;
 }
-
-/*
- * map I/O ports to memory-mapped addresses
- */
-unsigned long microdev_isa_port2addr(unsigned long offset)
-{
-	unsigned long result;
-
-	if ((offset >= IO_LAN91C111_BASE) &&
-	    (offset <  IO_LAN91C111_BASE + IO_LAN91C111_EXTENT)) {
-			/*
-			 *	SMSC LAN91C111 Ethernet chip
-			 */
-		result = IO_LAN91C111_PHYS + offset - IO_LAN91C111_BASE;
-	} else if ((offset >= IO_SUPERIO_BASE) &&
-		   (offset <  IO_SUPERIO_BASE + IO_SUPERIO_EXTENT)) {
-			/*
-			 *	SMSC FDC37C93xAPM SuperIO chip
-			 *
-			 *	Configuration Registers
-			 */
-		result = IO_SUPERIO_PHYS + (offset << 1);
-#if 0
-	} else if (offset == KBD_DATA_REG || offset == KBD_CNTL_REG ||
-		   offset == KBD_STATUS_REG) {
-			/*
-			 *	SMSC FDC37C93xAPM SuperIO chip
-			 *
-			 *	PS/2 Keyboard + Mouse (ports 0x60 and 0x64).
-			 */
-	        result = IO_SUPERIO_PHYS + (offset << 1);
-#endif
-	} else if (((offset >= IO_IDE1_BASE) &&
-		    (offset <  IO_IDE1_BASE + IO_IDE_EXTENT)) ||
-		    (offset == IO_IDE1_MISC)) {
-			/*
-			 *	SMSC FDC37C93xAPM SuperIO chip
-			 *
-			 *	IDE #1
-			 */
-	        result = IO_SUPERIO_PHYS + (offset << 1);
-	} else if (((offset >= IO_IDE2_BASE) &&
-		    (offset <  IO_IDE2_BASE + IO_IDE_EXTENT)) ||
-		    (offset == IO_IDE2_MISC)) {
-			/*
-			 *	SMSC FDC37C93xAPM SuperIO chip
-			 *
-			 *	IDE #2
-			 */
-	        result = IO_SUPERIO_PHYS + (offset << 1);
-	} else if ((offset >= IO_SERIAL1_BASE) &&
-		   (offset <  IO_SERIAL1_BASE + IO_SERIAL_EXTENT)) {
-			/*
-			 *	SMSC FDC37C93xAPM SuperIO chip
-			 *
-			 *	Serial #1
-			 */
-		result = IO_SUPERIO_PHYS + (offset << 1);
-	} else if ((offset >= IO_SERIAL2_BASE) &&
-		   (offset <  IO_SERIAL2_BASE + IO_SERIAL_EXTENT)) {
-			/*
-			 *	SMSC FDC37C93xAPM SuperIO chip
-			 *
-			 *	Serial #2
-			 */
-		result = IO_SUPERIO_PHYS + (offset << 1);
-	} else if ((offset >= IO_ISP1161_BASE) &&
-		   (offset < IO_ISP1161_BASE + IO_ISP1161_EXTENT)) {
-			/*
-			 *	Philips USB ISP1161x chip
-			 */
-		result = IO_ISP1161_PHYS + offset - IO_ISP1161_BASE;
-	} else {
-			/*
-			 *	safe default.
-			 */
-		printk("Warning: unexpected port in %s( offset = 0x%lx )\n",
-		       __FUNCTION__, offset);
-		result = PVR;
-	}
-
-	return result;
-}
-

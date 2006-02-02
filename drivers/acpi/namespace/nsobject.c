@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,22 +84,23 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	if (!node) {
 		/* Invalid handle */
 
-		ACPI_REPORT_ERROR(("ns_attach_object: Null named_obj handle\n"));
+		ACPI_ERROR((AE_INFO, "Null named_obj handle"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!object && (ACPI_TYPE_ANY != type)) {
 		/* Null object */
 
-		ACPI_REPORT_ERROR(("ns_attach_object: Null object, but type not ACPI_TYPE_ANY\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Null object, but type not ACPI_TYPE_ANY"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
 		/* Not a name handle */
 
-		ACPI_REPORT_ERROR(("ns_attach_object: Invalid handle %p [%s]\n",
-				   node, acpi_ut_get_descriptor_name(node)));
+		ACPI_ERROR((AE_INFO, "Invalid handle %p [%s]",
+			    node, acpi_ut_get_descriptor_name(node)));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -254,7 +255,7 @@ union acpi_operand_object *acpi_ns_get_attached_object(struct
 	ACPI_FUNCTION_TRACE_PTR("ns_get_attached_object", node);
 
 	if (!node) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Null Node ptr\n"));
+		ACPI_WARNING((AE_INFO, "Null Node ptr"));
 		return_PTR(NULL);
 	}
 

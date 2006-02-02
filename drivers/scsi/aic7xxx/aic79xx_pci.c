@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#89 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#92 $
  */
 
 #ifdef __linux__
@@ -950,11 +950,18 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 		if ((ahd->flags & AHD_HP_BOARD) == 0)
 			AHD_SET_SLEWRATE(ahd, AHD_SLEWRATE_DEF_REVA);
 	} else {
+		/* This is revision B and newer. */
+		extern uint32_t aic79xx_slowcrc;
 		u_int devconfig1;
 
 		ahd->features |= AHD_RTI|AHD_NEW_IOCELL_OPTS
-			      |  AHD_NEW_DFCNTRL_OPTS|AHD_FAST_CDB_DELIVERY;
+			      |  AHD_NEW_DFCNTRL_OPTS|AHD_FAST_CDB_DELIVERY
+			      |  AHD_BUSFREEREV_BUG;
 		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_EARLY_REQ_BUG;
+
+		/* If the user requested the the SLOWCRC bit to be set. */
+		if (aic79xx_slowcrc)
+			ahd->features |= AHD_AIC79XXB_SLOWCRC;
 
 		/*
 		 * Some issues have been resolved in the 7901B.

@@ -200,10 +200,11 @@ rcu_assign_pointer()
 	the new value, and also executes any memory-barrier instructions
 	required for a given CPU architecture.
 
-	Perhaps more important, it serves to document which pointers
-	are protected by RCU.  That said, rcu_assign_pointer() is most
-	frequently used indirectly, via the _rcu list-manipulation
-	primitives such as list_add_rcu().
+	Perhaps just as important, it serves to document (1) which
+	pointers are protected by RCU and (2) the point at which a
+	given structure becomes accessible to other CPUs.  That said,
+	rcu_assign_pointer() is most frequently used indirectly, via
+	the _rcu list-manipulation primitives such as list_add_rcu().
 
 rcu_dereference()
 
@@ -258,9 +259,11 @@ rcu_dereference()
 	locking.
 
 	As with rcu_assign_pointer(), an important function of
-	rcu_dereference() is to document which pointers are protected
-	by RCU.  And, again like rcu_assign_pointer(), rcu_dereference()
-	is typically used indirectly, via the _rcu list-manipulation
+	rcu_dereference() is to document which pointers are protected by
+	RCU, in particular, flagging a pointer that is subject to changing
+	at any time, including immediately after the rcu_dereference().
+	And, again like rcu_assign_pointer(), rcu_dereference() is
+	typically used indirectly, via the _rcu list-manipulation
 	primitives, such as list_for_each_entry_rcu().
 
 The following diagram shows how each API communicates among the
@@ -327,7 +330,7 @@ for specialized uses, but are relatively uncommon.
 3.  WHAT ARE SOME EXAMPLE USES OF CORE RCU API?
 
 This section shows a simple use of the core RCU API to protect a
-global pointer to a dynamically allocated structure.  More typical
+global pointer to a dynamically allocated structure.  More-typical
 uses of RCU may be found in listRCU.txt, arrayRCU.txt, and NMI-RCU.txt.
 
 	struct foo {
@@ -410,6 +413,8 @@ o	Use synchronize_rcu() -after- removing a data element from an
 	data item.
 
 See checklist.txt for additional rules to follow when using RCU.
+And again, more-typical uses of RCU may be found in listRCU.txt,
+arrayRCU.txt, and NMI-RCU.txt.
 
 
 4.  WHAT IF MY UPDATING THREAD CANNOT BLOCK?
@@ -513,7 +518,7 @@ production-quality implementation, and see:
 
 for papers describing the Linux kernel RCU implementation.  The OLS'01
 and OLS'02 papers are a good introduction, and the dissertation provides
-more details on the current implementation.
+more details on the current implementation as of early 2004.
 
 
 5A.  "TOY" IMPLEMENTATION #1: LOCKING
@@ -768,7 +773,6 @@ RCU pointer/list traversal:
 	rcu_dereference
 	list_for_each_rcu		(to be deprecated in favor of
 					 list_for_each_entry_rcu)
-	list_for_each_safe_rcu		(deprecated, not used)
 	list_for_each_entry_rcu
 	list_for_each_continue_rcu	(to be deprecated in favor of new
 					 list_for_each_entry_continue_rcu)
@@ -807,7 +811,8 @@ Quick Quiz #1:	Why is this argument naive?  How could a deadlock
 Answer:		Consider the following sequence of events:
 
 		1.	CPU 0 acquires some unrelated lock, call it
-			"problematic_lock".
+			"problematic_lock", disabling irq via
+			spin_lock_irqsave().
 
 		2.	CPU 1 enters synchronize_rcu(), write-acquiring
 			rcu_gp_mutex.
@@ -894,7 +899,7 @@ Answer:		Just as PREEMPT_RT permits preemption of spinlock
 ACKNOWLEDGEMENTS
 
 My thanks to the people who helped make this human-readable, including
-Jon Walpole, Josh Triplett, Serge Hallyn, and Suzanne Wood.
+Jon Walpole, Josh Triplett, Serge Hallyn, Suzanne Wood, and Alan Stern.
 
 
 For more information, see http://www.rdrop.com/users/paulmck/RCU.

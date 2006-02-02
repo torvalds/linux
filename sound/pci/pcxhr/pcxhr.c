@@ -454,7 +454,7 @@ static int pcxhr_update_r_buffer(struct pcxhr_stream *stream)
 	is_capture = (subs->stream == SNDRV_PCM_STREAM_CAPTURE);
 	stream_num = is_capture ? 0 : subs->number;
 
-	snd_printdd("pcxhr_update_r_buffer(pcm%c%d) : addr(%p) bytes(%x) subs(%d)\n",
+	snd_printdd("pcxhr_update_r_buffer(pcm%c%d) : addr(%p) bytes(%zx) subs(%d)\n",
 		    is_capture ? 'c' : 'p',
 		    chip->chip_idx, (void*)subs->runtime->dma_addr,
 		    subs->runtime->dma_bytes, subs->number);
@@ -744,13 +744,14 @@ static int pcxhr_prepare(struct snd_pcm_substream *subs)
 		/* only the first stream can choose the sample rate */
 		/* the further opened streams will be limited to its frequency (see open) */
 		/* set the clock only once (first stream) */
-		if (mgr->sample_rate == 0) {
+		if (mgr->sample_rate != subs->runtime->rate) {
 			err = pcxhr_set_clock(mgr, subs->runtime->rate);
 			if (err)
 				break;
+			if (mgr->sample_rate == 0)
+				/* start the DSP-timer */
+				err = pcxhr_hardware_timer(mgr, 1);
 			mgr->sample_rate = subs->runtime->rate;
-
-			err = pcxhr_hardware_timer(mgr, 1);	/* start the DSP-timer */
 		}
 	} while(0);	/* do only once (so we can use break instead of goto) */
 

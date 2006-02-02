@@ -44,6 +44,8 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/timer.h>
+#include <linux/mutex.h>
+
 #include <asm/semaphore.h>
 
 #include "mthca_provider.h"
@@ -111,7 +113,7 @@ enum {
 struct mthca_cmd {
 	struct pci_pool          *pool;
 	int                       use_events;
-	struct semaphore          hcr_sem;
+	struct mutex              hcr_mutex;
 	struct semaphore 	  poll_sem;
 	struct semaphore 	  event_sem;
 	int              	  max_cmds;
@@ -256,7 +258,7 @@ struct mthca_av_table {
 };
 
 struct mthca_mcg_table {
-	struct semaphore   	sem;
+	struct mutex		mutex;
 	struct mthca_alloc 	alloc;
 	struct mthca_icm_table *table;
 };
@@ -301,7 +303,7 @@ struct mthca_dev {
 	u64              ddr_end;
 
 	MTHCA_DECLARE_DOORBELL_LOCK(doorbell_lock)
-	struct semaphore cap_mask_mutex;
+	struct mutex cap_mask_mutex;
 
 	void __iomem    *hcr;
 	void __iomem    *kar;

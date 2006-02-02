@@ -2,7 +2,7 @@
  * Plug-in for PAS106B image sensor connected to the SN9C10x PC Camera     *
  * Controllers                                                             *
  *                                                                         *
- * Copyright (C) 2004-2005 by Luca Risolia <luca.risolia@studio.unibo.it>  *
+ * Copyright (C) 2004-2006 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *

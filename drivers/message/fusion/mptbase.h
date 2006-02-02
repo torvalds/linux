@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.06"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.06"
+#define MPT_LINUX_VERSION_COMMON	"3.03.07"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.07"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -123,7 +123,7 @@
 #define  MPT_MAX_FRAME_SIZE		128
 #define  MPT_DEFAULT_FRAME_SIZE		128
 
-#define  MPT_REPLY_FRAME_SIZE		0x40  /* Must be a multiple of 8 */
+#define  MPT_REPLY_FRAME_SIZE		0x50  /* Must be a multiple of 8 */
 
 #define  MPT_SG_REQ_128_SCALE		1
 #define  MPT_SG_REQ_96_SCALE		2
@@ -510,9 +510,10 @@ struct mptfc_rport_info
 {
 	struct list_head list;
 	struct fc_rport *rport;
-	VirtDevice	*vdev;
+	struct scsi_target *starget;
 	FCDevicePage0_t pg0;
 	u8		flags;
+	u8		remap_needed;
 };
 
 /*
@@ -631,6 +632,7 @@ typedef struct _MPT_ADAPTER
 	struct mutex		 sas_topology_mutex;
 	MPT_SAS_MGMT		 sas_mgmt;
 	int			 num_ports;
+	struct work_struct	 mptscsih_persistTask;
 
 	struct list_head	 fc_rports;
 	spinlock_t		 fc_rport_lock; /* list and ri flags */
@@ -801,6 +803,12 @@ typedef struct _mpt_sge {
 #define dreplyprintk(x) printk x
 #else
 #define dreplyprintk(x)
+#endif
+
+#ifdef DMPT_DEBUG_FC
+#define dfcprintk(x) printk x
+#else
+#define dfcprintk(x)
 #endif
 
 #ifdef MPT_DEBUG_TM

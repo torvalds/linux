@@ -1216,7 +1216,7 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 			goto __error;
 		}
 		for (i = 0; i < 3; i ++) {
-			if (of_address_to_resource(np->parent, i,
+			if (of_address_to_resource(np, i,
 						   &chip->rsrc[i])) {
 				printk(KERN_ERR "snd: can't translate rsrc "
 				       " %d (%s)\n", i, rnames[i]);

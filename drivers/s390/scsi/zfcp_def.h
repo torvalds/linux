@@ -34,8 +34,6 @@
 #ifndef ZFCP_DEF_H
 #define ZFCP_DEF_H
 
-#define ZFCP_DEF_REVISION "$Revision: 1.111 $"
-
 /*************************** INCLUDES *****************************************/
 
 #include <linux/init.h>

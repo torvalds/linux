@@ -31,8 +31,6 @@
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_SCSI
 
-#define ZFCP_SCSI_REVISION "$Revision: 1.74 $"
-
 #include "zfcp_ext.h"
 
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdp);

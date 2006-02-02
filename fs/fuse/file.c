@@ -335,9 +335,14 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 	loff_t pos = page_offset(req->pages[0]);
 	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
 	req->out.page_zeroing = 1;
-	req->end = fuse_readpages_end;
 	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
-	request_send_background(fc, req);
+	if (fc->async_read) {
+		req->end = fuse_readpages_end;
+		request_send_background(fc, req);
+	} else {
+		request_send(fc, req);
+		fuse_readpages_end(fc, req);
+	}
 }
 
 struct fuse_readpages_data {

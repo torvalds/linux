@@ -271,6 +271,7 @@ void out_of_memory(gfp_t gfp_mask, int order)
 	if (printk_ratelimit()) {
 		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
 			gfp_mask, order);
+		dump_stack();
 		show_mem();
 	}
 

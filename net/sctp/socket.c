@@ -5426,7 +5426,7 @@ out:
 	return err;
 
 do_error:
-	if (asoc->init_err_counter + 1 >= asoc->max_init_attempts)
+	if (asoc->init_err_counter + 1 > asoc->max_init_attempts)
 		err = -ETIMEDOUT;
 	else
 		err = -ECONNREFUSED;

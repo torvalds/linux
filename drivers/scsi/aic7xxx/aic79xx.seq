@@ -1,7 +1,7 @@
 /*
  * Adaptec U320 device driver firmware for Linux and FreeBSD.
  *
- * Copyright (c) 1994-2001 Justin T. Gibbs.
+ * Copyright (c) 1994-2001, 2004 Justin T. Gibbs.
  * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#119 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#120 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -110,10 +110,8 @@ check_waiting_list:
 	 * one last time.
 	 */
 	test	SSTAT0, SELDO jnz select_out;
-END_CRITICAL;
 	call	start_selection;
 idle_loop_checkbus:
-BEGIN_CRITICAL;
 	test	SSTAT0, SELDO jnz select_out;
 END_CRITICAL;
 	test	SSTAT0, SELDI jnz select_in;
@@ -294,7 +292,6 @@ fetch_new_scb_inprog:
 	test	CCSCBCTL, ARRDONE jz return;
 fetch_new_scb_done:
 	and	CCSCBCTL, ~(CCARREN|CCSCBEN);
-	bmov	REG0, SCBPTR, 2;
 	clr	A;
 	add	CMDS_PENDING, 1;
 	adc	CMDS_PENDING[1], A;
@@ -316,43 +313,117 @@ fetch_new_scb_done:
 	clr	SCB_FIFO_USE_COUNT;
 	/* Update the next SCB address to download. */
 	bmov	NEXT_QUEUED_SCB_ADDR, SCB_NEXT_SCB_BUSADDR, 4;
+	/*
+	 * NULL out the SCB links since these fields
+	 * occupy the same location as SCB_NEXT_SCB_BUSADDR.
+	 */
 	mvi	SCB_NEXT[1], SCB_LIST_NULL;
 	mvi	SCB_NEXT2[1], SCB_LIST_NULL;
 	/* Increment our position in the QINFIFO. */
 	mov	NONE, SNSCB_QOFF;
+
 	/*
-	 * SCBs that want to send messages are always
-	 * queued independently.  This ensures that they
-	 * are at the head of the SCB list to select out
-	 * to a target and we will see the MK_MESSAGE flag.
+	 * Save SCBID of this SCB in REG0 since
+	 * SCBPTR will be clobbered during target
+	 * list updates.  We also record the SCB's
+	 * flags so that we can refer to them even
+	 * after SCBPTR has been changed.
 	 */
-	test	SCB_CONTROL, MK_MESSAGE jnz first_new_target_scb;
+	bmov	REG0, SCBPTR, 2;
+	mov	A, SCB_CONTROL;
+
+	/*
+	 * Find the tail SCB of the execution queue
+	 * for this target.
+	 */
 	shr	SINDEX, 3, SCB_SCSIID;
 	and	SINDEX, ~0x1;
 	mvi	SINDEX[1], (WAITING_SCB_TAILS >> 8);
 	bmov	DINDEX, SINDEX, 2;
 	bmov	SCBPTR, SINDIR, 2;
+
+	/*
+	 * Update the tail to point to the new SCB.
+	 */
 	bmov	DINDIR, REG0, 2;
+
+	/*
+	 * If the queue was empty, queue this SCB as
+	 * the first for this target.
+	 */
 	cmp	SCBPTR[1], SCB_LIST_NULL je first_new_target_scb;
+
+	/*
+	 * SCBs that want to send messages must always be
+	 * at the head of their per-target queue so that
+	 * ATN can be asserted even if the current
+	 * negotiation agreement is packetized.  If the
+	 * target queue is empty, the SCB can be queued
+	 * immediately.  If the queue is not empty, we must
+	 * wait for it to empty before entering this SCB
+	 * into the waiting for selection queue.  Otherwise
+	 * our batching and round-robin selection scheme 
+	 * could allow commands to be queued out of order.
+	 * To simplify the implementation, we stop pulling
+	 * new commands from the host until the MK_MESSAGE
+	 * SCB can be queued to the waiting for selection
+	 * list.
+	 */
+	test	A, MK_MESSAGE jz batch_scb; 
+
+	/*
+	 * If the last SCB is also a MK_MESSAGE SCB, then
+	 * order is preserved even if we batch.
+	 */
+	test	SCB_CONTROL, MK_MESSAGE jz batch_scb; 
+
+	/*
+	 * Defer this SCB and stop fetching new SCBs until
+	 * it can be queued.  Since the SCB_SCSIID of the
+	 * tail SCB must be the same as that of the newly
+	 * queued SCB, there is no need to restore the SCBID
+	 * here.
+	 */
+	or	SEQ_FLAGS2, PENDING_MK_MESSAGE;
+	bmov	MK_MESSAGE_SCB, REG0, 2;
+	mov	MK_MESSAGE_SCSIID, SCB_SCSIID ret;
+
+batch_scb:
+	/*
+	 * Otherwise just update the previous tail SCB to
+	 * point to the new tail.
+	 */
 	bmov	SCB_NEXT, REG0, 2 ret;
+
 first_new_target_scb:
+	/*
+	 * Append SCB to the tail of the waiting for
+	 * selection list.
+	 */
 	cmp	WAITING_TID_HEAD[1], SCB_LIST_NULL je first_new_scb;
 	bmov	SCBPTR, WAITING_TID_TAIL, 2;
 	bmov	SCB_NEXT2, REG0, 2;
 	bmov	WAITING_TID_TAIL, REG0, 2 ret;
 first_new_scb:
+	/*
+	 * Whole list is empty, so the head of
+	 * the list must be initialized too.
+	 */
 	bmov	WAITING_TID_HEAD, REG0, 2;
 	bmov	WAITING_TID_TAIL, REG0, 2 ret;
 END_CRITICAL;
 
 scbdma_idle:
 	/*
-	 * Give precedence to downloading new SCBs to execute
-	 * unless select-outs are currently frozen.
+	 * Don't bother downloading new SCBs to execute
+	 * if select-outs are currently frozen or we have
+	 * a MK_MESSAGE SCB waiting to enter the queue.
 	 */
-	test	SEQ_FLAGS2, SELECTOUT_QFROZEN jnz . + 2;
+	test	SEQ_FLAGS2, SELECTOUT_QFROZEN|PENDING_MK_MESSAGE
+		jnz scbdma_no_new_scbs;
 BEGIN_CRITICAL;
 	test	QOFF_CTLSTA, NEW_SCB_AVAIL jnz fetch_new_scb;
+scbdma_no_new_scbs:
 	cmp	COMPLETE_DMA_SCB_HEAD[1], SCB_LIST_NULL jne dma_complete_scb;
 	cmp	COMPLETE_SCB_HEAD[1], SCB_LIST_NULL je return;
 	/* FALLTHROUGH */
@@ -671,27 +742,41 @@ curscb_ww_done:
 	}
 
 	/*
-	 * Requeue any SCBs not sent, to the tail of the waiting Q.
+	 * The whole list made it.  Clear our tail pointer to indicate
+	 * that the per-target selection queue is now empty.
 	 */
-	cmp	SCB_NEXT[1], SCB_LIST_NULL je select_out_list_done;
+	cmp	SCB_NEXT[1], SCB_LIST_NULL je select_out_clear_tail;
 
 	/*
+	 * Requeue any SCBs not sent, to the tail of the waiting Q.
 	 * We know that neither the per-TID list nor the list of
-	 * TIDs is empty.  Use this knowledge to our advantage.
+	 * TIDs is empty.  Use this knowledge to our advantage and
+	 * queue the remainder to the tail of the global execution
+	 * queue.
 	 */
 	bmov	REG0, SCB_NEXT, 2;
+select_out_queue_remainder:
 	bmov	SCBPTR, WAITING_TID_TAIL, 2;
 	bmov	SCB_NEXT2, REG0, 2;
 	bmov	WAITING_TID_TAIL, REG0, 2;
 	jmp	select_out_inc_tid_q;
 
-select_out_list_done:
+select_out_clear_tail:
 	/*
-	 * The whole list made it.  Just clear our TID's tail pointer
-	 * unless we were queued independently due to our need to
-	 * send a message.
+	 * Queue any pending MK_MESSAGE SCB for this target now
+	 * that the queue is empty.
 	 */
-	test	SCB_CONTROL, MK_MESSAGE jnz select_out_inc_tid_q;
+	test	SEQ_FLAGS2, PENDING_MK_MESSAGE jz select_out_no_mk_message_scb;
+	mov	A, MK_MESSAGE_SCSIID;
+	cmp	SCB_SCSIID, A jne select_out_no_mk_message_scb;
+	and	SEQ_FLAGS2, ~PENDING_MK_MESSAGE;
+	bmov	REG0, MK_MESSAGE_SCB, 2;
+	jmp select_out_queue_remainder;
+
+select_out_no_mk_message_scb:
+	/*
+	 * Clear this target's execution tail and increment the queue.
+	 */
 	shr	DINDEX, 3, SCB_SCSIID;
 	or	DINDEX, 1;	/* Want only the second byte */
 	mvi	DINDEX[1], ((WAITING_SCB_TAILS) >> 8);
@@ -703,8 +788,8 @@ select_out_inc_tid_q:
 	mvi	WAITING_TID_TAIL[1], SCB_LIST_NULL;
 	bmov	SCBPTR, CURRSCB, 2;
 	mvi	CLRSINT0, CLRSELDO;
-	test	LQOSTAT2, LQOPHACHGOUTPKT jnz unexpected_nonpkt_phase;
-	test	LQOSTAT1, LQOPHACHGINPKT jnz unexpected_nonpkt_phase;
+	test	LQOSTAT2, LQOPHACHGOUTPKT jnz unexpected_nonpkt_mode_cleared;
+	test	LQOSTAT1, LQOPHACHGINPKT jnz unexpected_nonpkt_mode_cleared;
 
 	/*
 	 * If this is a packetized connection, return to our
@@ -2127,6 +2212,18 @@ SET_DST_MODE	M_DFF0;
 	mvi	DFFSXFRCTL, CLRCHN;
 unexpected_nonpkt_mode_cleared:
 	mvi	CLRSINT2, CLRNONPACKREQ;
+	if ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0) {
+		/*
+		 * Test to ensure that the bus has not
+		 * already gone free prior to clearing
+		 * any stale busfree status.  This avoids
+		 * a window whereby a busfree just after
+		 * a selection could be missed.
+		 */
+		test	SCSISIGI, BSYI jz . + 2;
+		mvi	CLRSINT1,CLRBUSFREE;
+		or	SIMODE1, ENBUSFREE;
+	}
 	test	SCSIPHASE, ~(MSG_IN_PHASE|MSG_OUT_PHASE) jnz illegal_phase;
 	SET_SEQINTCODE(ENTERING_NONPACK)
 	jmp	ITloop;

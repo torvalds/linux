@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.60 $)
+ * linux/drivers/s390/net/qeth_sys.c
  *
  * Linux on zSeries OSA Express and HiperSockets support
  * This file contains code related to sysfs.
@@ -19,8 +19,6 @@
 #include "qeth.h"
 #include "qeth_mpc.h"
 #include "qeth_fs.h"
-
-const char *VERSION_QETH_SYS_C = "$Revision: 1.60 $";
 
 /*****************************************************************************/
 /*                                                                           */

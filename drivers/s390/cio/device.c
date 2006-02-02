@@ -1,7 +1,6 @@
 /*
  *  drivers/s390/cio/device.c
  *  bus driver for ccw devices
- *   $Revision: 1.140 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -255,7 +254,7 @@ modalias_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct ccw_device_id *id = &(cdev->id);
 	int ret;
 
-	ret = sprintf(buf, "ccw:t%04Xm%02x",
+	ret = sprintf(buf, "ccw:t%04Xm%02X",
 			id->cu_type, id->cu_model);
 	if (id->dev_type != 0)
 		ret += sprintf(buf + ret, "dt%04Xdm%02X\n",
@@ -1013,7 +1012,7 @@ ccw_device_probe_console(void)
 	int ret;
 
 	if (xchg(&console_cdev_in_use, 1) != 0)
-		return NULL;
+		return ERR_PTR(-EBUSY);
 	sch = cio_probe_console();
 	if (IS_ERR(sch)) {
 		console_cdev_in_use = 0;

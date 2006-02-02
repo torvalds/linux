@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -199,8 +199,8 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 
 	status = acpi_evaluate_object(NULL, METHOD_NAME__SST, &arg_list, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		ACPI_REPORT_ERROR(("Method _SST failed, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"While executing method _SST"));
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -232,9 +232,8 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 
 	if ((acpi_gbl_sleep_type_a > ACPI_SLEEP_TYPE_MAX) ||
 	    (acpi_gbl_sleep_type_b > ACPI_SLEEP_TYPE_MAX)) {
-		ACPI_REPORT_ERROR(("Sleep values out of range: A=%X B=%X\n",
-				   acpi_gbl_sleep_type_a,
-				   acpi_gbl_sleep_type_b));
+		ACPI_ERROR((AE_INFO, "Sleep values out of range: A=%X B=%X",
+			    acpi_gbl_sleep_type_a, acpi_gbl_sleep_type_b));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
@@ -533,21 +532,18 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	arg.integer.value = ACPI_SST_WAKING;
 	status = acpi_evaluate_object(NULL, METHOD_NAME__SST, &arg_list, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		ACPI_REPORT_ERROR(("Method _SST failed, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During Method _SST"));
 	}
 
 	arg.integer.value = sleep_state;
 	status = acpi_evaluate_object(NULL, METHOD_NAME__BFS, &arg_list, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		ACPI_REPORT_ERROR(("Method _BFS failed, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During Method _BFS"));
 	}
 
 	status = acpi_evaluate_object(NULL, METHOD_NAME__WAK, &arg_list, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		ACPI_REPORT_ERROR(("Method _WAK failed, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During Method _WAK"));
 	}
 	/* TBD: _WAK "sometimes" returns stuff - do we want to look at it? */
 
@@ -582,8 +578,7 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	arg.integer.value = ACPI_SST_WORKING;
 	status = acpi_evaluate_object(NULL, METHOD_NAME__SST, &arg_list, NULL);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		ACPI_REPORT_ERROR(("Method _SST failed, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During Method _SST"));
 	}
 
 	return_ACPI_STATUS(status);

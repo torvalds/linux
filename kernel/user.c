@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/key.h>
+#include <linux/interrupt.h>
 
 /*
  * UID task count cache, to get fast user lookup in "alloc_uid"
@@ -27,6 +28,16 @@
 
 static kmem_cache_t *uid_cachep;
 static struct list_head uidhash_table[UIDHASH_SZ];
+
+/*
+ * The uidhash_lock is mostly taken from process context, but it is
+ * occasionally also taken from softirq/tasklet context, when
+ * task-structs get RCU-freed. Hence all locking must be softirq-safe.
+ * But free_uid() is also called with local interrupts disabled, and running
+ * local_bh_enable() with local interrupts disabled is an error - we'll run
+ * softirq callbacks, and they can unconditionally enable interrupts, and
+ * the caller of free_uid() didn't expect that..
+ */
 static DEFINE_SPINLOCK(uidhash_lock);
 
 struct user_struct root_user = {
@@ -82,15 +93,19 @@ static inline struct user_struct *uid_hash_find(uid_t uid, struct list_head *has
 struct user_struct *find_user(uid_t uid)
 {
 	struct user_struct *ret;
+	unsigned long flags;
 
-	spin_lock(&uidhash_lock);
+	spin_lock_irqsave(&uidhash_lock, flags);
 	ret = uid_hash_find(uid, uidhashentry(uid));
-	spin_unlock(&uidhash_lock);
+	spin_unlock_irqrestore(&uidhash_lock, flags);
 	return ret;
 }
 
 void free_uid(struct user_struct *up)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
 	if (up && atomic_dec_and_lock(&up->__count, &uidhash_lock)) {
 		uid_hash_remove(up);
 		key_put(up->uid_keyring);
@@ -98,6 +113,7 @@ void free_uid(struct user_struct *up)
 		kmem_cache_free(uid_cachep, up);
 		spin_unlock(&uidhash_lock);
 	}
+	local_irq_restore(flags);
 }
 
 struct user_struct * alloc_uid(uid_t uid)
@@ -105,9 +121,9 @@ struct user_struct * alloc_uid(uid_t uid)
 	struct list_head *hashent = uidhashentry(uid);
 	struct user_struct *up;
 
-	spin_lock(&uidhash_lock);
+	spin_lock_irq(&uidhash_lock);
 	up = uid_hash_find(uid, hashent);
-	spin_unlock(&uidhash_lock);
+	spin_unlock_irq(&uidhash_lock);
 
 	if (!up) {
 		struct user_struct *new;
@@ -137,7 +153,7 @@ struct user_struct * alloc_uid(uid_t uid)
 		 * Before adding this, check whether we raced
 		 * on adding the same user already..
 		 */
-		spin_lock(&uidhash_lock);
+		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
 			key_put(new->uid_keyring);
@@ -147,7 +163,7 @@ struct user_struct * alloc_uid(uid_t uid)
 			uid_hash_insert(new, hashent);
 			up = new;
 		}
-		spin_unlock(&uidhash_lock);
+		spin_unlock_irq(&uidhash_lock);
 
 	}
 	return up;
@@ -183,9 +199,9 @@ static int __init uid_cache_init(void)
 		INIT_LIST_HEAD(uidhash_table + n);
 
 	/* Insert the root user immediately (init already runs as root) */
-	spin_lock(&uidhash_lock);
+	spin_lock_irq(&uidhash_lock);
 	uid_hash_insert(&root_user, uidhashentry(0));
-	spin_unlock(&uidhash_lock);
+	spin_unlock_irq(&uidhash_lock);
 
 	return 0;
 }

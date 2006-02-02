@@ -1580,11 +1580,6 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 	if (! is_new_interface(-1, addr_space, spmi->addr.address))
 		return -ENODEV;
 
-	if (! spmi->addr.register_bit_width) {
-		acpi_failure = 1;
-		return -ENODEV;
-	}
-
 	/* Figure out the interface type. */
 	switch (spmi->InterfaceType)
 	{
@@ -1634,9 +1629,6 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 		regspacings[intf_num] = spmi->addr.register_bit_width / 8;
 		info->io.regspacing = spmi->addr.register_bit_width / 8;
 	} else {
-		/* Some broken systems get this wrong and set the value
-		 * to zero.  Assume it is the default spacing.  If that
-		 * is wrong, too bad, the vendor should fix the tables. */
 		regspacings[intf_num] = DEFAULT_REGSPACING;
 		info->io.regspacing = DEFAULT_REGSPACING;
 	}

@@ -14,7 +14,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 5
+#define FUSE_KERNEL_MINOR_VERSION 6
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -58,6 +58,9 @@ struct fuse_kstatfs {
 	__u32	spare[6];
 };
 
+/**
+ * Bitmasks for fuse_setattr_in.valid
+ */
 #define FATTR_MODE	(1 << 0)
 #define FATTR_UID	(1 << 1)
 #define FATTR_GID	(1 << 2)
@@ -74,6 +77,11 @@ struct fuse_kstatfs {
  */
 #define FOPEN_DIRECT_IO		(1 << 0)
 #define FOPEN_KEEP_CACHE	(1 << 1)
+
+/**
+ * INIT request/reply flags
+ */
+#define FUSE_ASYNC_READ		(1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -247,12 +255,16 @@ struct fuse_access_in {
 struct fuse_init_in {
 	__u32	major;
 	__u32	minor;
+	__u32	max_readahead;
+	__u32	flags;
 };
 
 struct fuse_init_out {
 	__u32	major;
 	__u32	minor;
-	__u32	unused[3];
+	__u32	max_readahead;
+	__u32	flags;
+	__u32	unused;
 	__u32	max_write;
 };
 

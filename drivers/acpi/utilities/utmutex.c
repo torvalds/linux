@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -214,23 +214,22 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		 * the ACPI subsystem code.
 		 */
 		for (i = mutex_id; i < MAX_MUTEX; i++) {
-			if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
+			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
-					ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-							  "Mutex [%s] already acquired by this thread [%X]\n",
-							  acpi_ut_get_mutex_name
-							  (mutex_id),
-							  this_thread_id));
+					ACPI_ERROR((AE_INFO,
+						    "Mutex [%s] already acquired by this thread [%X]",
+						    acpi_ut_get_mutex_name
+						    (mutex_id),
+						    this_thread_id));
 
 					return (AE_ALREADY_ACQUIRED);
 				}
 
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Invalid acquire order: Thread %X owns [%s], wants [%s]\n",
-						  this_thread_id,
-						  acpi_ut_get_mutex_name(i),
-						  acpi_ut_get_mutex_name
-						  (mutex_id)));
+				ACPI_ERROR((AE_INFO,
+					    "Invalid acquire order: Thread %X owns [%s], wants [%s]",
+					    this_thread_id,
+					    acpi_ut_get_mutex_name(i),
+					    acpi_ut_get_mutex_name(mutex_id)));
 
 				return (AE_ACQUIRE_DEADLOCK);
 			}
@@ -253,11 +252,9 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		acpi_gbl_mutex_info[mutex_id].use_count++;
 		acpi_gbl_mutex_info[mutex_id].thread_id = this_thread_id;
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Thread %X could not acquire Mutex [%s] %s\n",
-				  this_thread_id,
-				  acpi_ut_get_mutex_name(mutex_id),
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Thread %X could not acquire Mutex [%X]",
+				this_thread_id, mutex_id));
 	}
 
 	return (status);
@@ -295,9 +292,9 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 	 * Mutex must be acquired in order to release it!
 	 */
 	if (acpi_gbl_mutex_info[mutex_id].thread_id == ACPI_MUTEX_NOT_ACQUIRED) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Mutex [%s] is not acquired, cannot release\n",
-				  acpi_ut_get_mutex_name(mutex_id)));
+		ACPI_ERROR((AE_INFO,
+			    "Mutex [%X] is not acquired, cannot release",
+			    mutex_id));
 
 		return (AE_NOT_ACQUIRED);
 	}
@@ -313,16 +310,15 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 		 * the ACPI subsystem code.
 		 */
 		for (i = mutex_id; i < MAX_MUTEX; i++) {
-			if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
+			if (acpi_gbl_mutex_info[i].thread_id == this_thread_id) {
 				if (i == mutex_id) {
 					continue;
 				}
 
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Invalid release order: owns [%s], releasing [%s]\n",
-						  acpi_ut_get_mutex_name(i),
-						  acpi_ut_get_mutex_name
-						  (mutex_id)));
+				ACPI_ERROR((AE_INFO,
+					    "Invalid release order: owns [%s], releasing [%s]",
+					    acpi_ut_get_mutex_name(i),
+					    acpi_ut_get_mutex_name(mutex_id)));
 
 				return (AE_RELEASE_DEADLOCK);
 			}
@@ -338,11 +334,9 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 	    acpi_os_signal_semaphore(acpi_gbl_mutex_info[mutex_id].mutex, 1);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Thread %X could not release Mutex [%s] %s\n",
-				  this_thread_id,
-				  acpi_ut_get_mutex_name(mutex_id),
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Thread %X could not release Mutex [%X]",
+				this_thread_id, mutex_id));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 				  "Thread %X released Mutex [%s]\n",

@@ -14,7 +14,6 @@
  *  -- special case some senses, e.g. 3a/0 -> no media present, reduce retries
  *  -- verify the 13 conditions and do bulk resets
  *  -- kill last_pipe and simply do two-state clearing on both pipes
- *  -- verify protocol (bulk) from USB descriptors (maybe...)
  *  -- highmem
  *  -- move top_sense and work_bcs into separate allocations (if they survive)
  *     for cache purists and esoteric architectures.
@@ -355,7 +354,7 @@ struct ub_lun {
  * The USB device instance.
  */
 struct ub_dev {
-	spinlock_t lock;
+	spinlock_t *lock;
 	atomic_t poison;		/* The USB device is disconnected */
 	int openc;			/* protected by ub_lock! */
 					/* kref is too implicit for our taste */
@@ -420,11 +419,13 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
 static int ub_submit_clear_stall(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
     int stalled_pipe);
 static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd);
-static void ub_reset_enter(struct ub_dev *sc);
+static void ub_reset_enter(struct ub_dev *sc, int try);
 static void ub_reset_task(void *arg);
 static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun);
 static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_capacity *ret);
+static int ub_sync_reset(struct ub_dev *sc);
+static int ub_probe_clear_stall(struct ub_dev *sc, int stalled_pipe);
 static int ub_probe_lun(struct ub_dev *sc, int lnum);
 
 /*
@@ -451,6 +452,10 @@ MODULE_DEVICE_TABLE(usb, ub_usb_ids);
  */
 #define UB_MAX_HOSTS  26
 static char ub_hostv[UB_MAX_HOSTS];
+
+#define UB_QLOCK_NUM 5
+static spinlock_t ub_qlockv[UB_QLOCK_NUM];
+static int ub_qlock_next = 0;
 
 static DEFINE_SPINLOCK(ub_lock);	/* Locks globals and ->openc */
 
@@ -531,7 +536,7 @@ static ssize_t ub_diag_show(struct device *dev, struct device_attribute *attr,
 		return 0;
 
 	cnt = 0;
-	spin_lock_irqsave(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
 
 	cnt += sprintf(page + cnt,
 	    "poison %d reset %d\n",
@@ -579,7 +584,7 @@ static ssize_t ub_diag_show(struct device *dev, struct device_attribute *attr,
 		if (++nc == SCMD_TRACE_SZ) nc = 0;
 	}
 
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 	return cnt;
 }
 
@@ -624,6 +629,24 @@ static void ub_id_put(int id)
 	}
 	ub_hostv[id] = 0;
 	spin_unlock_irqrestore(&ub_lock, flags);
+}
+
+/*
+ * This is necessitated by the fact that blk_cleanup_queue does not
+ * necesserily destroy the queue. Instead, it may merely decrease q->refcnt.
+ * Since our blk_init_queue() passes a spinlock common with ub_dev,
+ * we have life time issues when ub_cleanup frees ub_dev.
+ */
+static spinlock_t *ub_next_lock(void)
+{
+	unsigned long flags;
+	spinlock_t *ret;
+
+	spin_lock_irqsave(&ub_lock, flags);
+	ret = &ub_qlockv[ub_qlock_next];
+	ub_qlock_next = (ub_qlock_next + 1) % UB_QLOCK_NUM;
+	spin_unlock_irqrestore(&ub_lock, flags);
+	return ret;
 }
 
 /*
@@ -961,7 +984,7 @@ static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
 	if (atomic_read(&sc->poison))
 		return -ENXIO;
 
-	ub_reset_enter(sc);
+	ub_reset_enter(sc, urq->current_try);
 
 	if (urq->current_try >= 3)
 		return -EIO;
@@ -997,8 +1020,6 @@ static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
  * No exceptions.
  *
  * Host is assumed locked.
- *
- * XXX We only support Bulk for the moment.
  */
 static int ub_submit_scsi(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 {
@@ -1083,9 +1104,10 @@ static void ub_urb_timeout(unsigned long arg)
 	struct ub_dev *sc = (struct ub_dev *) arg;
 	unsigned long flags;
 
-	spin_lock_irqsave(&sc->lock, flags);
-	usb_unlink_urb(&sc->work_urb);
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
+	if (!ub_is_completed(&sc->work_done))
+		usb_unlink_urb(&sc->work_urb);
+	spin_unlock_irqrestore(sc->lock, flags);
 }
 
 /*
@@ -1108,10 +1130,9 @@ static void ub_scsi_action(unsigned long _dev)
 	struct ub_dev *sc = (struct ub_dev *) _dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&sc->lock, flags);
-	del_timer(&sc->work_timer);
+	spin_lock_irqsave(sc->lock, flags);
 	ub_scsi_dispatch(sc);
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 }
 
 static void ub_scsi_dispatch(struct ub_dev *sc)
@@ -1133,6 +1154,7 @@ static void ub_scsi_dispatch(struct ub_dev *sc)
 		} else {
 			if (!ub_is_completed(&sc->work_done))
 				break;
+			del_timer(&sc->work_timer);
 			ub_scsi_urb_compl(sc, cmd);
 		}
 	}
@@ -1680,16 +1702,18 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 
 /*
  * Reset management
+ * XXX Move usb_reset_device to khubd. Hogging kevent is not a good thing.
+ * XXX Make usb_sync_reset asynchronous.
  */
 
-static void ub_reset_enter(struct ub_dev *sc)
+static void ub_reset_enter(struct ub_dev *sc, int try)
 {
 
 	if (sc->reset) {
 		/* This happens often on multi-LUN devices. */
 		return;
 	}
-	sc->reset = 1;
+	sc->reset = try + 1;
 
 #if 0 /* Not needed because the disconnect waits for us. */
 	unsigned long flags;
@@ -1727,6 +1751,11 @@ static void ub_reset_task(void *arg)
 	if (atomic_read(&sc->poison)) {
 		printk(KERN_NOTICE "%s: Not resetting disconnected device\n",
 		    sc->name); /* P3 This floods. Remove soon. XXX */
+	} else if ((sc->reset & 1) == 0) {
+		ub_sync_reset(sc);
+		msleep(700);	/* usb-storage sleeps 6s (!) */
+		ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
+		ub_probe_clear_stall(sc, sc->send_bulk_pipe);
 	} else if (sc->dev->actconfig->desc.bNumInterfaces != 1) {
 		printk(KERN_NOTICE "%s: Not resetting multi-interface device\n",
 		    sc->name); /* P3 This floods. Remove soon. XXX */
@@ -1754,7 +1783,7 @@ static void ub_reset_task(void *arg)
 	 * queues of resets or anything. We do need a spinlock though,
 	 * to interact with block layer.
 	 */
-	spin_lock_irqsave(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
 	sc->reset = 0;
 	tasklet_schedule(&sc->tasklet);
 	list_for_each(p, &sc->luns) {
@@ -1762,7 +1791,7 @@ static void ub_reset_task(void *arg)
 		blk_start_queue(lun->disk->queue);
 	}
 	wake_up(&sc->reset_wait);
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 }
 
 /*
@@ -1990,11 +2019,11 @@ static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun)
 	cmd->done = ub_probe_done;
 	cmd->back = &compl;
 
-	spin_lock_irqsave(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
 	cmd->tag = sc->tagcnt++;
 
 	rc = ub_submit_scsi(sc, cmd);
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 
 	if (rc != 0) {
 		printk("ub: testing ready: submit error (%d)\n", rc); /* P3 */
@@ -2052,11 +2081,11 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->done = ub_probe_done;
 	cmd->back = &compl;
 
-	spin_lock_irqsave(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
 	cmd->tag = sc->tagcnt++;
 
 	rc = ub_submit_scsi(sc, cmd);
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 
 	if (rc != 0) {
 		printk("ub: reading capacity: submit error (%d)\n", rc); /* P3 */
@@ -2115,6 +2144,52 @@ static void ub_probe_timeout(unsigned long arg)
 {
 	struct completion *cop = (struct completion *) arg;
 	complete(cop);
+}
+
+/*
+ * Reset with a Bulk reset.
+ */
+static int ub_sync_reset(struct ub_dev *sc)
+{
+	int ifnum = sc->intf->cur_altsetting->desc.bInterfaceNumber;
+	struct usb_ctrlrequest *cr;
+	struct completion compl;
+	struct timer_list timer;
+	int rc;
+
+	init_completion(&compl);
+
+	cr = &sc->work_cr;
+	cr->bRequestType = USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+	cr->bRequest = US_BULK_RESET_REQUEST;
+	cr->wValue = cpu_to_le16(0);
+	cr->wIndex = cpu_to_le16(ifnum);
+	cr->wLength = cpu_to_le16(0);
+
+	usb_fill_control_urb(&sc->work_urb, sc->dev, sc->send_ctrl_pipe,
+	    (unsigned char*) cr, NULL, 0, ub_probe_urb_complete, &compl);
+	sc->work_urb.actual_length = 0;
+	sc->work_urb.error_count = 0;
+	sc->work_urb.status = 0;
+
+	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0) {
+		printk(KERN_WARNING
+		     "%s: Unable to submit a bulk reset (%d)\n", sc->name, rc);
+		return rc;
+	}
+
+	init_timer(&timer);
+	timer.function = ub_probe_timeout;
+	timer.data = (unsigned long) &compl;
+	timer.expires = jiffies + UB_CTRL_TIMEOUT;
+	add_timer(&timer);
+
+	wait_for_completion(&compl);
+
+	del_timer_sync(&timer);
+	usb_kill_urb(&sc->work_urb);
+
+	return sc->work_urb.status;
 }
 
 /*
@@ -2333,7 +2408,7 @@ static int ub_probe(struct usb_interface *intf,
 	if ((sc = kmalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
 		goto err_core;
 	memset(sc, 0, sizeof(struct ub_dev));
-	spin_lock_init(&sc->lock);
+	sc->lock = ub_next_lock();
 	INIT_LIST_HEAD(&sc->luns);
 	usb_init_urb(&sc->work_urb);
 	tasklet_init(&sc->tasklet, ub_scsi_action, (unsigned long)sc);
@@ -2483,7 +2558,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	disk->driverfs_dev = &sc->intf->dev;
 
 	rc = -ENOMEM;
-	if ((q = blk_init_queue(ub_request_fn, &sc->lock)) == NULL)
+	if ((q = blk_init_queue(ub_request_fn, sc->lock)) == NULL)
 		goto err_blkqinit;
 
 	disk->queue = q;
@@ -2554,7 +2629,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	 * and the whole queue drains. So, we just use this code to
 	 * print warnings.
 	 */
-	spin_lock_irqsave(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
 	{
 		struct ub_scsi_cmd *cmd;
 		int cnt = 0;
@@ -2571,7 +2646,7 @@ static void ub_disconnect(struct usb_interface *intf)
 			    "%d was queued after shutdown\n", sc->name, cnt);
 		}
 	}
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 
 	/*
 	 * Unregister the upper layer.
@@ -2590,19 +2665,15 @@ static void ub_disconnect(struct usb_interface *intf)
 	}
 
 	/*
-	 * Taking a lock on a structure which is about to be freed
-	 * is very nonsensual. Here it is largely a way to do a debug freeze,
-	 * and a bracket which shows where the nonsensual code segment ends.
-	 *
 	 * Testing for -EINPROGRESS is always a bug, so we are bending
 	 * the rules a little.
 	 */
-	spin_lock_irqsave(&sc->lock, flags);
+	spin_lock_irqsave(sc->lock, flags);
 	if (sc->work_urb.status == -EINPROGRESS) {	/* janitors: ignore */
 		printk(KERN_WARNING "%s: "
 		    "URB is active after disconnect\n", sc->name);
 	}
-	spin_unlock_irqrestore(&sc->lock, flags);
+	spin_unlock_irqrestore(sc->lock, flags);
 
 	/*
 	 * There is virtually no chance that other CPU runs times so long
@@ -2636,6 +2707,10 @@ static struct usb_driver ub_driver = {
 static int __init ub_init(void)
 {
 	int rc;
+	int i;
+
+	for (i = 0; i < UB_QLOCK_NUM; i++)
+		spin_lock_init(&ub_qlockv[i]);
 
 	if ((rc = register_blkdev(UB_MAJOR, DRV_NAME)) != 0)
 		goto err_regblkdev;

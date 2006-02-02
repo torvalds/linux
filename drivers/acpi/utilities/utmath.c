@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,7 @@ acpi_ut_short_divide(acpi_integer dividend,
 	/* Always check for a zero divisor */
 
 	if (divisor == 0) {
-		ACPI_REPORT_ERROR(("acpi_ut_short_divide: Divide by zero\n"));
+		ACPI_ERROR((AE_INFO, "Divide by zero"));
 		return_ACPI_STATUS(AE_AML_DIVIDE_BY_ZERO);
 	}
 
@@ -144,7 +144,7 @@ acpi_ut_divide(acpi_integer in_dividend,
 	/* Always check for a zero divisor */
 
 	if (in_divisor == 0) {
-		ACPI_REPORT_ERROR(("acpi_ut_divide: Divide by zero\n"));
+		ACPI_ERROR((AE_INFO, "Divide by zero"));
 		return_ACPI_STATUS(AE_AML_DIVIDE_BY_ZERO);
 	}
 
@@ -266,7 +266,7 @@ acpi_ut_short_divide(acpi_integer in_dividend,
 	/* Always check for a zero divisor */
 
 	if (divisor == 0) {
-		ACPI_REPORT_ERROR(("acpi_ut_short_divide: Divide by zero\n"));
+		ACPI_ERROR((AE_INFO, "Divide by zero"));
 		return_ACPI_STATUS(AE_AML_DIVIDE_BY_ZERO);
 	}
 
@@ -292,7 +292,7 @@ acpi_ut_divide(acpi_integer in_dividend,
 	/* Always check for a zero divisor */
 
 	if (in_divisor == 0) {
-		ACPI_REPORT_ERROR(("acpi_ut_divide: Divide by zero\n"));
+		ACPI_ERROR((AE_INFO, "Divide by zero"));
 		return_ACPI_STATUS(AE_AML_DIVIDE_BY_ZERO);
 	}
 

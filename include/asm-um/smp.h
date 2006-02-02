@@ -23,6 +23,8 @@ extern inline void smp_cpus_done(unsigned int maxcpus)
 {
 }
 
+extern struct task_struct *idle_threads[NR_CPUS];
+
 #endif
 
 #endif

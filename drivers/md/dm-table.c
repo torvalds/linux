@@ -508,7 +508,7 @@ int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
 		if (q->merge_bvec_fn)
 			rs->max_sectors =
 				min_not_zero(rs->max_sectors,
-					     (unsigned short)(PAGE_SIZE >> 9));
+					     (unsigned int) (PAGE_SIZE >> 9));
 
 		rs->max_phys_segments =
 			min_not_zero(rs->max_phys_segments,

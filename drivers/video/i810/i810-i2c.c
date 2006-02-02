@@ -191,11 +191,11 @@ int i810_probe_i2c_connector(struct fb_info *info, u8 **out_edid, int conn)
         u8 *edid = NULL;
         int i;
 
-	DPRINTK("i810-i2c: Probe DDC%i Bus\n", conn);
-	if (conn < 4) {
+	DPRINTK("i810-i2c: Probe DDC%i Bus\n", conn+1);
+	if (conn < par->ddc_num) {
 		for (i = 0; i < 3; i++) {
 			/* Do the real work */
-			edid = i810_do_probe_i2c_edid(&par->chan[conn-1]);
+			edid = i810_do_probe_i2c_edid(&par->chan[conn]);
 			if (edid)
 				break;
 		}

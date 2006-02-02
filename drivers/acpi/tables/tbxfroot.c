@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -251,7 +251,7 @@ acpi_get_firmware_table(acpi_string signature,
 
 	acpi_tb_get_rsdt_address(&address);
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "RSDP located at %p, RSDT physical=%8.8X%8.8X \n",
+			  "RSDP located at %p, RSDT physical=%8.8X%8.8X\n",
 			  acpi_gbl_RSDP,
 			  ACPI_FORMAT_UINT64(address.pointer.value)));
 
@@ -396,9 +396,8 @@ acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
 
 	status = acpi_tb_find_rsdp(&table_info, flags);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "RSDP structure not found, %s Flags=%X\n",
-				  acpi_format_exception(status), flags));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"RSDP structure not found - Flags=%X", flags));
 
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
@@ -503,10 +502,10 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 					    ACPI_EBDA_PTR_LENGTH,
 					    (void *)&table_ptr);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not map memory at %8.8X for length %X\n",
-					  ACPI_EBDA_PTR_LOCATION,
-					  ACPI_EBDA_PTR_LENGTH));
+			ACPI_ERROR((AE_INFO,
+				    "Could not map memory at %8.8X for length %X",
+				    ACPI_EBDA_PTR_LOCATION,
+				    ACPI_EBDA_PTR_LENGTH));
 
 			return_ACPI_STATUS(status);
 		}
@@ -530,10 +529,10 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 						    ACPI_EBDA_WINDOW_SIZE,
 						    (void *)&table_ptr);
 			if (ACPI_FAILURE(status)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Could not map memory at %8.8X for length %X\n",
-						  physical_address,
-						  ACPI_EBDA_WINDOW_SIZE));
+				ACPI_ERROR((AE_INFO,
+					    "Could not map memory at %8.8X for length %X",
+					    physical_address,
+					    ACPI_EBDA_WINDOW_SIZE));
 
 				return_ACPI_STATUS(status);
 			}
@@ -563,10 +562,10 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 					    (void *)&table_ptr);
 
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not map memory at %8.8X for length %X\n",
-					  ACPI_HI_RSDP_WINDOW_BASE,
-					  ACPI_HI_RSDP_WINDOW_SIZE));
+			ACPI_ERROR((AE_INFO,
+				    "Could not map memory at %8.8X for length %X",
+				    ACPI_HI_RSDP_WINDOW_BASE,
+				    ACPI_HI_RSDP_WINDOW_SIZE));
 
 			return_ACPI_STATUS(status);
 		}
@@ -635,7 +634,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 
 	/* A valid RSDP was not found */
 
-	ACPI_REPORT_ERROR(("No valid RSDP was found\n"));
+	ACPI_ERROR((AE_INFO, "No valid RSDP was found"));
 	return_ACPI_STATUS(AE_NOT_FOUND);
 }
 

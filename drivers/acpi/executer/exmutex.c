@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -153,7 +153,9 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 	/* Sanity check -- we must have a valid thread ID */
 
 	if (!walk_state->thread) {
-		ACPI_REPORT_ERROR(("Cannot acquire Mutex [%4.4s], null thread info\n", acpi_ut_get_node_name(obj_desc->mutex.node)));
+		ACPI_ERROR((AE_INFO,
+			    "Cannot acquire Mutex [%4.4s], null thread info",
+			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
@@ -162,7 +164,9 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 	 * mutex.  This mechanism provides some deadlock prevention
 	 */
 	if (walk_state->thread->current_sync_level > obj_desc->mutex.sync_level) {
-		ACPI_REPORT_ERROR(("Cannot acquire Mutex [%4.4s], incorrect sync_level\n", acpi_ut_get_node_name(obj_desc->mutex.node)));
+		ACPI_ERROR((AE_INFO,
+			    "Cannot acquire Mutex [%4.4s], incorrect sync_level",
+			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 
@@ -237,14 +241,18 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	/* The mutex must have been previously acquired in order to release it */
 
 	if (!obj_desc->mutex.owner_thread) {
-		ACPI_REPORT_ERROR(("Cannot release Mutex [%4.4s], not acquired\n", acpi_ut_get_node_name(obj_desc->mutex.node)));
+		ACPI_ERROR((AE_INFO,
+			    "Cannot release Mutex [%4.4s], not acquired",
+			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_MUTEX_NOT_ACQUIRED);
 	}
 
 	/* Sanity check -- we must have a valid thread ID */
 
 	if (!walk_state->thread) {
-		ACPI_REPORT_ERROR(("Cannot release Mutex [%4.4s], null thread info\n", acpi_ut_get_node_name(obj_desc->mutex.node)));
+		ACPI_ERROR((AE_INFO,
+			    "Cannot release Mutex [%4.4s], null thread info",
+			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
@@ -255,7 +263,11 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	if ((obj_desc->mutex.owner_thread->thread_id !=
 	     walk_state->thread->thread_id)
 	    && (obj_desc->mutex.semaphore != acpi_gbl_global_lock_semaphore)) {
-		ACPI_REPORT_ERROR(("Thread %X cannot release Mutex [%4.4s] acquired by thread %X\n", walk_state->thread->thread_id, acpi_ut_get_node_name(obj_desc->mutex.node), obj_desc->mutex.owner_thread->thread_id));
+		ACPI_ERROR((AE_INFO,
+			    "Thread %X cannot release Mutex [%4.4s] acquired by thread %X",
+			    walk_state->thread->thread_id,
+			    acpi_ut_get_node_name(obj_desc->mutex.node),
+			    obj_desc->mutex.owner_thread->thread_id));
 		return_ACPI_STATUS(AE_AML_NOT_OWNER);
 	}
 
@@ -264,7 +276,9 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 * equal to the current sync level
 	 */
 	if (obj_desc->mutex.sync_level > walk_state->thread->current_sync_level) {
-		ACPI_REPORT_ERROR(("Cannot release Mutex [%4.4s], incorrect sync_level\n", acpi_ut_get_node_name(obj_desc->mutex.node)));
+		ACPI_ERROR((AE_INFO,
+			    "Cannot release Mutex [%4.4s], incorrect sync_level",
+			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 

@@ -343,6 +343,12 @@ static struct mem_types mem_types[] __initdata = {
 				PMD_SECT_AP_WRITE | PMD_SECT_BUFFERABLE |
 				PMD_SECT_TEX(1),
 		.domain    = DOMAIN_IO,
+	},
+	[MT_NONSHARED_DEVICE] = {
+		.prot_l1   = PMD_TYPE_TABLE,
+		.prot_sect = PMD_TYPE_SECT | PMD_SECT_NONSHARED_DEV |
+				PMD_SECT_AP_WRITE,
+		.domain    = DOMAIN_IO,
 	}
 };
 

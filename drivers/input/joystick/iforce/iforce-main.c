@@ -345,7 +345,7 @@ int iforce_init_device(struct iforce *iforce)
 	int i;
 
 	input_dev = input_allocate_device();
-	if (input_dev)
+	if (!input_dev)
 		return -ENOMEM;
 
 	init_waitqueue_head(&iforce->wait);

@@ -31,8 +31,6 @@ extern int timer_irq_inited;
 extern int jail;
 extern int nsyscalls;
 
-extern struct task_struct *idle_threads[NR_CPUS];
-
 #define UML_ROUND_DOWN(addr) ((void *)(((unsigned long) addr) & PAGE_MASK))
 #define UML_ROUND_UP(addr) \
 	UML_ROUND_DOWN(((unsigned long) addr) + PAGE_SIZE - 1)

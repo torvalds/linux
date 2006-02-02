@@ -232,7 +232,7 @@ entry does not exist.  For this to be helpful, the search function must
 return holding the per-entry spinlock, as ipc_lock() does in fact do.
 
 Quick Quiz:  Why does the search function need to return holding the
-per-entry lock for this deleted-flag technique to be helpful?
+	per-entry lock for this deleted-flag technique to be helpful?
 
 If the system-call audit module were to ever need to reject stale data,
 one way to accomplish this would be to add a "deleted" flag and a "lock"
@@ -275,8 +275,8 @@ flag under the spinlock as follows:
 	{
 		struct audit_entry  *e;
 
-		/* Do not use the _rcu iterator here, since this is the only
-		 * deletion routine. */
+		/* Do not need to use the _rcu iterator here, since this
+		 * is the only deletion routine. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
 				spin_lock(&e->lock);
@@ -304,9 +304,12 @@ function to reject newly deleted data.
 
 
 Answer to Quick Quiz
+	Why does the search function need to return holding the per-entry
+	lock for this deleted-flag technique to be helpful?
 
-If the search function drops the per-entry lock before returning, then
-the caller will be processing stale data in any case.  If it is really
-OK to be processing stale data, then you don't need a "deleted" flag.
-If processing stale data really is a problem, then you need to hold the
-per-entry lock across all of the code that uses the value looked up.
+	If the search function drops the per-entry lock before returning,
+	then the caller will be processing stale data in any case.  If it
+	is really OK to be processing stale data, then you don't need a
+	"deleted" flag.  If processing stale data really is a problem,
+	then you need to hold the per-entry lock across all of the code
+	that uses the value that was returned.

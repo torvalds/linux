@@ -4,7 +4,7 @@
 
 CFLAGS_csum-partial.o := -funroll-loops
 
-obj-y := io.o
+obj-y := io.o iomap_copy.o
 
 lib-y := csum-partial.o csum-copy.o csum-wrappers.o delay.o \
 	usercopy.o getuser.o putuser.o  \

@@ -402,10 +402,10 @@ static int imx_startup(struct uart_port *port)
 			     DRIVER_NAME, sport);
 	if (retval) goto error_out2;
 
-	retval = request_irq(sport->rtsirq, imx_rtsint, 0,
+	retval = request_irq(sport->rtsirq, imx_rtsint,
+			     SA_TRIGGER_FALLING | SA_TRIGGER_RISING,
 			     DRIVER_NAME, sport);
 	if (retval) goto error_out3;
-	set_irq_type(sport->rtsirq, IRQT_BOTHEDGE);
 
 	/*
 	 * Finally, clear and enable interrupts
@@ -674,7 +674,7 @@ static struct imx_port imx_ports[] = {
 		.irq		= UART1_MINT_RX,
 		.uartclk	= 16000000,
 		.fifosize	= 8,
-		.flags		= ASYNC_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF,
 		.ops		= &imx_pops,
 		.line		= 0,
 	},
@@ -690,7 +690,7 @@ static struct imx_port imx_ports[] = {
 		.irq		= UART2_MINT_RX,
 		.uartclk	= 16000000,
 		.fifosize	= 8,
-		.flags		= ASYNC_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF,
 		.ops		= &imx_pops,
 		.line		= 1,
 	},

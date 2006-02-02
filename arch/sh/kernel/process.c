@@ -15,27 +15,29 @@
 #include <linux/unistd.h>
 #include <linux/mm.h>
 #include <linux/elfcore.h>
-#include <linux/slab.h>
 #include <linux/a.out.h>
+#include <linux/slab.h>
+#include <linux/pm.h>
 #include <linux/ptrace.h>
 #include <linux/platform.h>
 #include <linux/kallsyms.h>
+#include <linux/kexec.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/elf.h>
-#if defined(CONFIG_SH_HS7751RVOIP)
-#include <asm/hs7751rvoip/hs7751rvoip.h>
-#elif defined(CONFIG_SH_RTS7751R2D)
-#include <asm/rts7751r2d/rts7751r2d.h>
-#endif
 
 static int hlt_counter=0;
 
 int ubc_usercnt = 0;
 
 #define HARD_IDLE_TIMEOUT (HZ / 3)
+
+void (*pm_idle)(void);
+
+void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 void disable_hlt(void)
 {
@@ -51,17 +53,25 @@ void enable_hlt(void)
 
 EXPORT_SYMBOL(enable_hlt);
 
+void default_idle(void)
+{
+	if (!hlt_counter)
+		cpu_sleep();
+	else
+		cpu_relax();
+}
+
 void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		if (hlt_counter) {
-			while (!need_resched())
-				cpu_relax();
-		} else {
-			while (!need_resched())
-				cpu_sleep();
-		}
+		void (*idle)(void) = pm_idle;
+
+		if (!idle)
+			idle = default_idle;
+
+		while (!need_resched())
+			idle();
 
 		preempt_enable_no_resched();
 		schedule();
@@ -88,28 +98,16 @@ void machine_restart(char * __unused)
 
 void machine_halt(void)
 {
-#if defined(CONFIG_SH_HS7751RVOIP)
-	unsigned short value;
+	local_irq_disable();
 
-	value = ctrl_inw(PA_OUTPORTR);
-	ctrl_outw((value & 0xffdf), PA_OUTPORTR);
-#elif defined(CONFIG_SH_RTS7751R2D)
-	ctrl_outw(0x0001, PA_POWOFF);
-#endif
 	while (1)
 		cpu_sleep();
 }
 
 void machine_power_off(void)
 {
-#if defined(CONFIG_SH_HS7751RVOIP)
-	unsigned short value;
-
-	value = ctrl_inw(PA_OUTPORTR);
-	ctrl_outw((value & 0xffdf), PA_OUTPORTR);
-#elif defined(CONFIG_SH_RTS7751R2D)
-	ctrl_outw(0x0001, PA_POWOFF);
-#endif
+	if (pm_power_off)
+		pm_power_off();
 }
 
 void show_regs(struct pt_regs * regs)

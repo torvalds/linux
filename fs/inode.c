@@ -1179,7 +1179,7 @@ EXPORT_SYMBOL(bmap);
 /**
  *	touch_atime	-	update the access time
  *	@mnt: mount the inode is accessed on
- *	@inode: inode accessed
+ *	@dentry: dentry accessed
  *
  *	Update the accessed time on an inode and mark it for writeback.
  *	This function automatically handles read only file systems and media,

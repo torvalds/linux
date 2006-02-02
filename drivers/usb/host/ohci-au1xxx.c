@@ -67,7 +67,7 @@ static void au1xxx_stop_hc(struct platform_device *dev)
 	       ": stopping Au1xxx OHCI USB Controller\n");
 
 	/* Disable clock */
-	au_writel(readl((void *)USB_HOST_CONFIG) & ~USBH_ENABLE_CE, USB_HOST_CONFIG);
+	au_writel(au_readl(USB_HOST_CONFIG) & ~USBH_ENABLE_CE, USB_HOST_CONFIG);
 }
 
 

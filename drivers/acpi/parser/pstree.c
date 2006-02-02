@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -132,7 +132,8 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 	if (op_info->class == AML_CLASS_UNKNOWN) {
 		/* Invalid opcode */
 
-		ACPI_REPORT_ERROR(("ps_append_arg: Invalid AML Opcode: 0x%2.2X\n", op->common.aml_opcode));
+		ACPI_ERROR((AE_INFO, "Invalid AML Opcode: 0x%2.2X",
+			    op->common.aml_opcode));
 		return;
 	}
 

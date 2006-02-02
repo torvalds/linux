@@ -33,7 +33,7 @@ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 extern void log_exec(char **argv, void *tty);
 
 static long execve1(char *file, char __user * __user *argv,
-		    char *__user __user *env)
+		    char __user *__user *env)
 {
         long error;
 

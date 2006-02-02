@@ -384,6 +384,14 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_mptspi_probe;
 	}
 
+	/*
+	 * issue internal bus reset
+	 */
+	if (ioc->spi_data.bus_reset)
+		mptscsih_TMHandler(hd,
+		    MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
+		    0, 0, 0, 0, 5);
+
 	scsi_scan_host(sh);
 	return 0;
 
@@ -445,7 +453,7 @@ static void __exit
 mptspi_exit(void)
 {
 	pci_unregister_driver(&mptspi_driver);
-	
+
 	mpt_reset_deregister(mptspiDoneCtx);
 	dprintk((KERN_INFO MYNAM
 	  ": Deregistered for IOC reset notifications\n"));

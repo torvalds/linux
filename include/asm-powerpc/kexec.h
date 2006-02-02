@@ -33,6 +33,7 @@
 
 #ifdef CONFIG_KEXEC
 
+#ifndef __ASSEMBLY__
 #ifdef __powerpc64__
 /*
  * This function is responsible for capturing register states if coming
@@ -104,7 +105,6 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 					struct pt_regs *oldregs) { }
 #endif /* !__powerpc64 __ */
 
-#ifndef __ASSEMBLY__
 #define MAX_NOTE_BYTES 1024
 
 #ifdef __powerpc64__
@@ -120,6 +120,8 @@ struct pt_regs;
 extern void default_machine_kexec(struct kimage *image);
 extern int default_machine_kexec_prepare(struct kimage *image);
 extern void default_machine_crash_shutdown(struct pt_regs *regs);
+
+extern void machine_kexec_simple(struct kimage *image);
 
 #endif /* ! __ASSEMBLY__ */
 #endif /* CONFIG_KEXEC */

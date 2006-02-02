@@ -920,8 +920,8 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unable to create 'state' fs entry\n"));
 	else {
+		acpi_video_device_state_fops.write = acpi_video_device_write_state;
 		entry->proc_fops = &acpi_video_device_state_fops;
-		entry->proc_fops->write = acpi_video_device_write_state;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
@@ -934,8 +934,8 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unable to create 'brightness' fs entry\n"));
 	else {
+		acpi_video_device_brightness_fops.write = acpi_video_device_write_brightness;
 		entry->proc_fops = &acpi_video_device_brightness_fops;
-		entry->proc_fops->write = acpi_video_device_write_brightness;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
@@ -1239,8 +1239,8 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unable to create 'POST' fs entry\n"));
 	else {
+		acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
 		entry->proc_fops = &acpi_video_bus_POST_fops;
-		entry->proc_fops->write = acpi_video_bus_write_POST;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
@@ -1253,8 +1253,8 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unable to create 'DOS' fs entry\n"));
 	else {
+		acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
 		entry->proc_fops = &acpi_video_bus_DOS_fops;
-		entry->proc_fops->write = acpi_video_bus_write_DOS;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}

@@ -63,11 +63,12 @@
 #include <linux/ctype.h>
 #include <linux/kthread.h>
 #include <linux/version.h>
+#include <linux/mutex.h>
 #include <asm/unaligned.h>
 
 #include "usbatm.h"
 
-#define EAGLEUSBVERSION "ueagle 1.1"
+#define EAGLEUSBVERSION "ueagle 1.2"
 
 
 /*
@@ -358,16 +359,19 @@ struct intr_pkt {
 #define INTR_PKT_SIZE 28
 
 static struct usb_driver uea_driver;
-static DECLARE_MUTEX(uea_semaphore);
+static DEFINE_MUTEX(uea_mutex);
 static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III"};
 
 static int modem_index;
 static unsigned int debug;
+static int use_iso[NB_MODEM] = {[0 ... (NB_MODEM - 1)] = 1};
 static int sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "module debug level (0=off,1=on,2=verbose)");
+module_param_array(use_iso, bool, NULL, 0644);
+MODULE_PARM_DESC(use_iso, "use isochronous usb pipe for incoming traffic");
 module_param_array(sync_wait, bool, NULL, 0644);
 MODULE_PARM_DESC(sync_wait, "wait the synchronisation before starting ATM");
 module_param_array(cmv_file, charp, NULL, 0644);
@@ -628,8 +632,7 @@ static int request_dsp(struct uea_softc *sc)
 			dsp_name = FW_DIR "DSPep.bin";
 	}
 
-	ret = request_firmware(&sc->dsp_firm,
-				dsp_name, &sc->usb_dev->dev);
+	ret = request_firmware(&sc->dsp_firm, dsp_name, &sc->usb_dev->dev);
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
 		       "requesting firmware %s failed with error %d\n",
@@ -744,7 +747,6 @@ static inline int wait_cmv_ack(struct uea_softc *sc)
 		return ret;
 
 	return (ret == 0) ? -ETIMEDOUT : 0;
-
 }
 
 #define UCDC_SEND_ENCAPSULATED_COMMAND 0x00
@@ -935,6 +937,7 @@ static int uea_stat(struct uea_softc *sc)
 	 * ADI930 don't support it (-EPIPE error).
 	 */
 	if (UEA_CHIP_VERSION(sc) != ADI930
+		    && !use_iso[sc->modem_index]
 		    && sc->stats.phy.dsrate != (data >> 16) * 32) {
 		/* Original timming from ADI(used in windows driver)
 		 * 0x20ffff>>16 * 32 = 32 * 32 = 1Mbits
@@ -1010,7 +1013,7 @@ static int request_cmvs(struct uea_softc *sc,
 	int ret, size;
 	u8 *data;
 	char *file;
-	static char cmv_name[256] = FW_DIR;
+	char cmv_name[FIRMWARE_NAME_MAX]; /* 30 bytes stack variable */
 
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
@@ -1184,8 +1187,7 @@ static int load_XILINX_firmware(struct uea_softc *sc)
 		}
 	}
 
-	/* finish to send the fpga
-	 */
+	/* finish to send the fpga */
 	ret = uea_request(sc, 0xe, 1, 0, NULL);
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
@@ -1193,9 +1195,7 @@ static int load_XILINX_firmware(struct uea_softc *sc)
 		goto err1;
 	}
 
-	/*
-	 * Tell the modem we finish : de-assert reset
-	 */
+	/* Tell the modem we finish : de-assert reset */
 	value = 0;
 	ret = uea_send_modem_cmd(sc->usb_dev, 0xe, 1, &value);
 	if (ret < 0)
@@ -1209,6 +1209,7 @@ err0:
 	return ret;
 }
 
+/* The modem send us an ack. First with check if it right */
 static void uea_dispatch_cmv(struct uea_softc *sc, struct cmv* cmv)
 {
 	uea_enters(INS_TO_USBDEV(sc));
@@ -1268,23 +1269,19 @@ bad1:
  */
 static void uea_intr(struct urb *urb, struct pt_regs *regs)
 {
-	struct uea_softc *sc = (struct uea_softc *)urb->context;
-	struct intr_pkt *intr;
+	struct uea_softc *sc = urb->context;
+	struct intr_pkt *intr = urb->transfer_buffer;
 	uea_enters(INS_TO_USBDEV(sc));
 
-	if (urb->status < 0) {
+	if (unlikely(urb->status < 0)) {
 		uea_err(INS_TO_USBDEV(sc), "uea_intr() failed with %d\n",
 		       urb->status);
 		return;
 	}
 
-	intr = (struct intr_pkt *) urb->transfer_buffer;
-
 	/* device-to-host interrupt */
 	if (intr->bType != 0x08 || sc->booting) {
-		uea_err(INS_TO_USBDEV(sc), "wrong intr\n");
-		// rebooting ?
-		// sc->reset = 1;
+		uea_err(INS_TO_USBDEV(sc), "wrong interrupt\n");
 		goto resubmit;
 	}
 
@@ -1300,7 +1297,7 @@ static void uea_intr(struct urb *urb, struct pt_regs *regs)
 		break;
 
 	default:
-		uea_err(INS_TO_USBDEV(sc), "unknown intr %u\n",
+		uea_err(INS_TO_USBDEV(sc), "unknown interrupt %u\n",
 		       le16_to_cpu(intr->wInterrupt));
 	}
 
@@ -1379,7 +1376,7 @@ static void uea_stop(struct uea_softc *sc)
 	int ret;
 	uea_enters(INS_TO_USBDEV(sc));
 	ret = kthread_stop(sc->kthread);
-	uea_info(INS_TO_USBDEV(sc), "kthread finish with status %d\n", ret);
+	uea_dbg(INS_TO_USBDEV(sc), "kthread finish with status %d\n", ret);
 
 	/* stop any pending boot process */
 	flush_scheduled_work();
@@ -1418,13 +1415,13 @@ static ssize_t read_status(struct device *dev, struct device_attribute *attr,
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
 	ret = snprintf(buf, 10, "%08x\n", sc->stats.phy.state);
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1434,14 +1431,14 @@ static ssize_t reboot(struct device *dev, struct device_attribute *attr,
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
 	sc->reset = 1;
 	ret = count;
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1453,7 +1450,7 @@ static ssize_t read_human_status(struct device *dev, struct device_attribute *at
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
@@ -1473,7 +1470,7 @@ static ssize_t read_human_status(struct device *dev, struct device_attribute *at
 		break;
 	}
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1485,7 +1482,7 @@ static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
 	int ret = -ENODEV;
 	struct uea_softc *sc;
 
-	down(&uea_semaphore);
+	mutex_lock(&uea_mutex);
 	sc = dev_to_uea(dev);
 	if (!sc)
 		goto out;
@@ -1497,7 +1494,7 @@ static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
 	else
 		ret = sprintf(buf, "GOOD\n");
 out:
-	up(&uea_semaphore);
+	mutex_unlock(&uea_mutex);
 	return ret;
 }
 
@@ -1511,7 +1508,7 @@ static ssize_t read_##name(struct device *dev, 			\
 	int ret = -ENODEV; 					\
 	struct uea_softc *sc; 					\
  								\
-	down(&uea_semaphore); 					\
+	mutex_lock(&uea_mutex); 					\
 	sc = dev_to_uea(dev);					\
 	if (!sc) 						\
 		goto out; 					\
@@ -1519,7 +1516,7 @@ static ssize_t read_##name(struct device *dev, 			\
 	if (reset)						\
 		sc->stats.phy.name = 0;				\
 out: 								\
-	up(&uea_semaphore); 					\
+	mutex_unlock(&uea_mutex); 					\
 	return ret; 						\
 } 								\
 								\
@@ -1617,7 +1614,7 @@ static void create_fs_entries(struct uea_softc *sc, struct usb_interface *intf)
 }
 
 static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
-		   const struct usb_device_id *id, int *heavy)
+		   const struct usb_device_id *id)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct uea_softc *sc;
@@ -1629,16 +1626,14 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	if (ifnum != UEA_INTR_IFACE_NO)
 		return -ENODEV;
 
-	*heavy = sync_wait[modem_index];
+	usbatm->flags = (sync_wait[modem_index] ? 0 : UDSL_SKIP_HEAVY_INIT);
 
 	/* interface 1 is for outbound traffic */
 	ret = claim_interface(usb, usbatm, UEA_US_IFACE_NO);
 	if (ret < 0)
 		return ret;
 
-	/* ADI930 has only 2 interfaces and inbound traffic
-	 * is on interface 1
-	 */
+	/* ADI930 has only 2 interfaces and inbound traffic is on interface 1 */
 	if (UEA_CHIP_VERSION(id) != ADI930) {
 		/* interface 2 is for inbound traffic */
 		ret = claim_interface(usb, usbatm, UEA_DS_IFACE_NO);
@@ -1657,6 +1652,25 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	sc->usbatm = usbatm;
 	sc->modem_index = (modem_index < NB_MODEM) ? modem_index++ : 0;
 	sc->driver_info = id->driver_info;
+
+	/* ADI930 don't support iso */
+	if (UEA_CHIP_VERSION(id) != ADI930 && use_iso[sc->modem_index]) {
+		int i;
+
+		/* try set fastest alternate for inbound traffic interface */
+		for (i = FASTEST_ISO_INTF; i > 0; i--)
+			if (usb_set_interface(usb, UEA_DS_IFACE_NO, i) == 0)
+				break;
+
+		if (i > 0) {
+			uea_dbg(usb, "set alternate %d for 2 interface\n", i);
+			uea_info(usb, "using iso mode\n");
+			usbatm->flags |= UDSL_USE_ISOC | UDSL_IGNORE_EILSEQ;
+		} else {
+			uea_err(usb, "setting any alternate failed for "
+					"2 interface, using bulk mode\n");
+		}
+	}
 
 	ret = uea_boot(sc);
 	if (ret < 0) {
@@ -1701,13 +1715,13 @@ static void uea_unbind(struct usbatm_data *usbatm, struct usb_interface *intf)
 
 static struct usbatm_driver uea_usbatm_driver = {
 	.driver_name = "ueagle-atm",
-	.owner = THIS_MODULE,
 	.bind = uea_bind,
 	.atm_start = uea_atm_open,
 	.unbind = uea_unbind,
 	.heavy_init = uea_heavy,
-	.in = UEA_BULK_DATA_PIPE,
-	.out = UEA_BULK_DATA_PIPE,
+	.bulk_in = UEA_BULK_DATA_PIPE,
+	.bulk_out = UEA_BULK_DATA_PIPE,
+	.isoc_in = UEA_ISO_DATA_PIPE,
 };
 
 static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -1738,9 +1752,9 @@ static void uea_disconnect(struct usb_interface *intf)
 	 * Pre-firmware device has one interface
 	 */
 	if (usb->config->desc.bNumInterfaces != 1 && ifnum == 0) {
-		down(&uea_semaphore);
+		mutex_lock(&uea_mutex);
 		usbatm_usb_disconnect(intf);
-		up(&uea_semaphore);
+		mutex_unlock(&uea_mutex);
 		uea_info(usb, "ADSL device removed\n");
 	}
 

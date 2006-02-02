@@ -7,6 +7,7 @@
  * Copyright (c) 2000 Vojtech Pavlik	<vojtech@suse.cz>
  # Copyright (c) 2001 Pete Zaitcev	<zaitcev@redhat.com>
  # Copyright (c) 2001 David Paschal	<paschal@rcsis.com>
+ * Copyright (c) 2006 Oliver Neukum	<oliver@neukum.name>
  *
  * USB Printer Device Class driver for USB printers and printer cables
  *
@@ -273,13 +274,16 @@ static void usblp_bulk_read(struct urb *urb, struct pt_regs *regs)
 {
 	struct usblp *usblp = urb->context;
 
-	if (!usblp || !usblp->dev || !usblp->used || !usblp->present)
+	if (unlikely(!usblp || !usblp->dev || !usblp->used))
 		return;
 
+	if (unlikely(!usblp->present))
+		goto unplug;
 	if (unlikely(urb->status))
 		warn("usblp%d: nonzero read/write bulk status received: %d",
 			usblp->minor, urb->status);
 	usblp->rcomplete = 1;
+unplug:
 	wake_up_interruptible(&usblp->wait);
 }
 
@@ -287,13 +291,15 @@ static void usblp_bulk_write(struct urb *urb, struct pt_regs *regs)
 {
 	struct usblp *usblp = urb->context;
 
-	if (!usblp || !usblp->dev || !usblp->used || !usblp->present)
+	if (unlikely(!usblp || !usblp->dev || !usblp->used))
 		return;
-
+	if (unlikely(!usblp->present))
+		goto unplug;
 	if (unlikely(urb->status))
 		warn("usblp%d: nonzero read/write bulk status received: %d",
 			usblp->minor, urb->status);
 	usblp->wcomplete = 1;
+unplug:
 	wake_up_interruptible(&usblp->wait);
 }
 
@@ -627,9 +633,8 @@ done:
 
 static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct usblp *usblp = file->private_data;
-	int timeout, err = 0, transfer_length = 0;
+	int timeout, rv, err = 0, transfer_length = 0;
 	size_t writecount = 0;
 
 	while (writecount < count) {
@@ -641,24 +646,11 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 			}
 
 			timeout = USBLP_WRITE_TIMEOUT;
-			add_wait_queue(&usblp->wait, &wait);
-			while ( 1==1 ) {
 
-				if (signal_pending(current)) {
-					remove_wait_queue(&usblp->wait, &wait);
-					return writecount ? writecount : -EINTR;
-				}
-				set_current_state(TASK_INTERRUPTIBLE);
-				if (timeout && !usblp->wcomplete) {
-					timeout = schedule_timeout(timeout);
-				} else {
-					set_current_state(TASK_RUNNING);
-					break;
-				}
-			}
-			remove_wait_queue(&usblp->wait, &wait);
+			rv = wait_event_interruptible_timeout(usblp->wait, usblp->wcomplete || !usblp->present , timeout);
+			if (rv < 0)
+				return writecount ? writecount : -EINTR;
 		}
-
 		down (&usblp->sem);
 		if (!usblp->present) {
 			up (&usblp->sem);
@@ -724,7 +716,7 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 static ssize_t usblp_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct usblp *usblp = file->private_data;
-	DECLARE_WAITQUEUE(wait, current);
+	int rv;
 
 	if (!usblp->bidir)
 		return -EINVAL;
@@ -742,26 +734,13 @@ static ssize_t usblp_read(struct file *file, char __user *buffer, size_t count, 
 			count = -EAGAIN;
 			goto done;
 		}
-
-		add_wait_queue(&usblp->wait, &wait);
-		while (1==1) {
-			if (signal_pending(current)) {
-				count = -EINTR;
-				remove_wait_queue(&usblp->wait, &wait);
-				goto done;
-			}
-			up (&usblp->sem);
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (!usblp->rcomplete) {
-				schedule();
-			} else {
-				set_current_state(TASK_RUNNING);
-				down(&usblp->sem);
-				break;
-			}
-			down (&usblp->sem);
+		up(&usblp->sem);
+		rv = wait_event_interruptible(usblp->wait, usblp->rcomplete || !usblp->present);
+		down(&usblp->sem);
+		if (rv < 0) {
+			count = -EINTR;
+			goto done;
 		}
-		remove_wait_queue(&usblp->wait, &wait);
 	}
 
 	if (!usblp->present) {
@@ -874,11 +853,10 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Malloc and start initializing usblp structure so we can use it
 	 * directly. */
-	if (!(usblp = kmalloc(sizeof(struct usblp), GFP_KERNEL))) {
+	if (!(usblp = kzalloc(sizeof(struct usblp), GFP_KERNEL))) {
 		err("out of memory for usblp");
 		goto abort;
 	}
-	memset(usblp, 0, sizeof(struct usblp));
 	usblp->dev = dev;
 	init_MUTEX (&usblp->sem);
 	init_waitqueue_head(&usblp->wait);
@@ -1214,10 +1192,9 @@ static int __init usblp_init(void)
 {
 	int retval;
 	retval = usb_register(&usblp_driver);
-	if (retval)
-		goto out;
-	info(DRIVER_VERSION ": " DRIVER_DESC);
-out:
+	if (!retval)
+		info(DRIVER_VERSION ": " DRIVER_DESC);
+
 	return retval;
 }
 

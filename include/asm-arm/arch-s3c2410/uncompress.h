@@ -35,13 +35,13 @@
 #undef S3C2410_GPIOREG
 #undef S3C2410_WDOGREG
 
-#define S3C2410_GPIOREG(x) ((S3C2410_PA_GPIO + (x)))
-#define S3C2410_WDOGREG(x) ((S3C2410_PA_WATCHDOG + (x)))
+#define S3C2410_GPIOREG(x) ((S3C24XX_PA_GPIO + (x)))
+#define S3C2410_WDOGREG(x) ((S3C24XX_PA_WATCHDOG + (x)))
 
 /* how many bytes we allow into the FIFO at a time in FIFO mode */
 #define FIFO_MAX	 (14)
 
-#define uart_base S3C2410_PA_UART + (0x4000*CONFIG_S3C2410_LOWLEVEL_UART_PORT)
+#define uart_base S3C24XX_PA_UART + (0x4000*CONFIG_S3C2410_LOWLEVEL_UART_PORT)
 
 static __inline__ void
 uart_wr(unsigned int reg, unsigned int val)

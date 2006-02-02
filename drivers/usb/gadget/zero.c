@@ -165,8 +165,8 @@ static unsigned buflen = 4096;
 static unsigned qlen = 32;
 static unsigned pattern = 0;
 
-module_param (buflen, uint, S_IRUGO|S_IWUSR);
-module_param (qlen, uint, S_IRUGO|S_IWUSR);
+module_param (buflen, uint, S_IRUGO);
+module_param (qlen, uint, S_IRUGO);
 module_param (pattern, uint, S_IRUGO|S_IWUSR);
 
 /*
@@ -1127,8 +1127,10 @@ zero_unbind (struct usb_gadget *gadget)
 	DBG (dev, "unbind\n");
 
 	/* we've already been disconnected ... no i/o is active */
-	if (dev->req)
+	if (dev->req) {
+		dev->req->length = USB_BUFSIZ;
 		free_ep_req (gadget->ep0, dev->req);
+	}
 	del_timer_sync (&dev->resume);
 	kfree (dev);
 	set_gadget_data (gadget, NULL);

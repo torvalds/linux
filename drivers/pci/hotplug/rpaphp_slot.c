@@ -35,16 +35,16 @@
 
 static ssize_t location_read_file (struct hotplug_slot *php_slot, char *buf)
 {
-        char *value;
-        int retval = -ENOENT;
+	char *value;
+	int retval = -ENOENT;
 	struct slot *slot = (struct slot *)php_slot->private;
 
 	if (!slot)
 		return retval;
 
-        value = slot->location;
-        retval = sprintf (buf, "%s\n", value);
-        return retval;
+	value = slot->location;
+	retval = sprintf (buf, "%s\n", value);
+	return retval;
 }
 
 static struct hotplug_slot_attribute hotplug_slot_attr_location = {
@@ -137,7 +137,7 @@ static int is_registered(struct slot *slot)
 	return 0;
 }
 
-int deregister_slot(struct slot *slot)
+int rpaphp_deregister_slot(struct slot *slot)
 {
 	int retval = 0;
 	struct hotplug_slot *php_slot = slot->hotplug_slot;
@@ -159,8 +159,9 @@ int deregister_slot(struct slot *slot)
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
 	return retval;
 }
+EXPORT_SYMBOL_GPL(rpaphp_deregister_slot);
 
-int register_slot(struct slot *slot)
+int rpaphp_register_slot(struct slot *slot)
 {
 	int retval;
 
@@ -169,7 +170,7 @@ int register_slot(struct slot *slot)
 		slot->power_domain, slot->type);
 	/* should not try to register the same slot twice */
 	if (is_registered(slot)) { /* should't be here */
-		err("register_slot: slot[%s] is already registered\n", slot->name);
+		err("rpaphp_register_slot: slot[%s] is already registered\n", slot->name);
 		rpaphp_release_slot(slot->hotplug_slot);
 		return -EAGAIN;
 	}	

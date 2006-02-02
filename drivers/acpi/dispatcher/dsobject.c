@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsobject")
 
+/* Local prototypes */
 static acpi_status
 acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			      union acpi_parse_object *op,
@@ -85,7 +86,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 	*obj_desc_ptr = NULL;
 	if (op->common.aml_opcode == AML_INT_NAMEPATH_OP) {
 		/*
-		 * This is an named object reference.  If this name was
+		 * This is a named object reference. If this name was
 		 * previously looked up in the namespace, it was stored in this op.
 		 * Otherwise, go ahead and look it up now
 		 */
@@ -96,18 +97,48 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 						ACPI_IMODE_EXECUTE,
 						ACPI_NS_SEARCH_PARENT |
 						ACPI_NS_DONT_OPEN_SCOPE, NULL,
-						(struct acpi_namespace_node **)
-						&(op->common.node));
-
+						ACPI_CAST_INDIRECT_PTR(struct
+								       acpi_namespace_node,
+								       &(op->
+									 common.
+									 node)));
 			if (ACPI_FAILURE(status)) {
-				ACPI_REPORT_NSERROR(op->common.value.string,
-						    status);
+				/* Check if we are resolving a named reference within a package */
+
+				if ((status == AE_NOT_FOUND)
+				    && (acpi_gbl_enable_interpreter_slack)
+				    &&
+				    ((op->common.parent->common.aml_opcode ==
+				      AML_PACKAGE_OP)
+				     || (op->common.parent->common.aml_opcode ==
+					 AML_VAR_PACKAGE_OP))) {
+					/*
+					 * We didn't find the target and we are populating elements
+					 * of a package - ignore if slack enabled. Some ASL code
+					 * contains dangling invalid references in packages and
+					 * expects that no exception will be issued. Leave the
+					 * element as a null element. It cannot be used, but it
+					 * can be overwritten by subsequent ASL code - this is
+					 * typically the case.
+					 */
+					ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+							  "Ignoring unresolved reference in package [%4.4s]\n",
+							  walk_state->
+							  scope_info->scope.
+							  node->name.ascii));
+
+					return_ACPI_STATUS(AE_OK);
+				} else {
+					ACPI_ERROR_NAMESPACE(op->common.value.
+							     string, status);
+				}
+
 				return_ACPI_STATUS(status);
 			}
 		}
 	}
 
-	/* Create and init the internal ACPI object */
+	/* Create and init a new internal ACPI object */
 
 	obj_desc = acpi_ut_create_internal_object((acpi_ps_get_opcode_info
 						   (op->common.aml_opcode))->
@@ -157,13 +188,13 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE("ds_build_internal_buffer_obj");
 
+	/*
+	 * If we are evaluating a Named buffer object "Name (xxxx, Buffer)".
+	 * The buffer object already exists (from the NS node), otherwise it must
+	 * be created.
+	 */
 	obj_desc = *obj_desc_ptr;
-	if (obj_desc) {
-		/*
-		 * We are evaluating a Named buffer object "Name (xxxx, Buffer)".
-		 * The buffer object already exists (from the NS node)
-		 */
-	} else {
+	if (!obj_desc) {
 		/* Create a new buffer object */
 
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_BUFFER);
@@ -183,10 +214,9 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	byte_list = arg->named.next;
 	if (byte_list) {
 		if (byte_list->common.aml_opcode != AML_INT_BYTELIST_OP) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Expecting bytelist, got AML opcode %X in op %p\n",
-					  byte_list->common.aml_opcode,
-					  byte_list));
+			ACPI_ERROR((AE_INFO,
+				    "Expecting bytelist, got AML opcode %X in op %p",
+				    byte_list->common.aml_opcode, byte_list));
 
 			acpi_ut_remove_reference(obj_desc);
 			return (AE_TYPE);
@@ -259,7 +289,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *obj_desc = NULL;
 	u32 package_list_length;
 	acpi_status status = AE_OK;
-	u32 i;
+	acpi_native_uint i;
 
 	ACPI_FUNCTION_TRACE("ds_build_internal_package_obj");
 
@@ -271,13 +301,12 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		parent = parent->common.parent;
 	}
 
+	/*
+	 * If we are evaluating a Named package object "Name (xxxx, Package)",
+	 * the package object already exists, otherwise it must be created.
+	 */
 	obj_desc = *obj_desc_ptr;
-	if (obj_desc) {
-		/*
-		 * We are evaluating a Named package object "Name (xxxx, Package)".
-		 * Get the existing package object from the NS node
-		 */
-	} else {
+	if (!obj_desc) {
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_PACKAGE);
 		*obj_desc_ptr = obj_desc;
 		if (!obj_desc) {
@@ -291,11 +320,9 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 
 	/* Count the number of items in the package list */
 
-	package_list_length = 0;
 	arg = op->common.value.arg;
 	arg = arg->common.next;
-	while (arg) {
-		package_list_length++;
+	for (package_list_length = 0; arg; package_list_length++) {
 		arg = arg->common.next;
 	}
 
@@ -322,12 +349,11 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * Now init the elements of the package
+	 * Initialize all elements of the package
 	 */
-	i = 0;
 	arg = op->common.value.arg;
 	arg = arg->common.next;
-	while (arg) {
+	for (i = 0; arg; i++) {
 		if (arg->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
 			/* Object (package or buffer) is already built */
 
@@ -340,8 +366,6 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 							       package.
 							       elements[i]);
 		}
-
-		i++;
 		arg = arg->common.next;
 	}
 
@@ -518,9 +542,9 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			default:
 
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Unknown constant opcode %X\n",
-						  opcode));
+				ACPI_ERROR((AE_INFO,
+					    "Unknown constant opcode %X",
+					    opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
 			}
@@ -535,9 +559,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			break;
 
 		default:
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unknown Integer type %X\n",
-					  op_info->type));
+			ACPI_ERROR((AE_INFO, "Unknown Integer type %X",
+				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
 		}
@@ -615,9 +638,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unimplemented data type: %X\n",
-				  ACPI_GET_OBJECT_TYPE(obj_desc)));
+		ACPI_ERROR((AE_INFO, "Unimplemented data type: %X",
+			    ACPI_GET_OBJECT_TYPE(obj_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		break;

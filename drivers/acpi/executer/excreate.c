@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -300,8 +300,8 @@ acpi_ex_create_region(u8 * aml_start,
 	 */
 	if ((region_space >= ACPI_NUM_PREDEFINED_REGIONS) &&
 	    (region_space < ACPI_USER_REGION_BEGIN)) {
-		ACPI_REPORT_ERROR(("Invalid address_space type %X\n",
-				   region_space));
+		ACPI_ERROR((AE_INFO, "Invalid address_space type %X",
+			    region_space));
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
 

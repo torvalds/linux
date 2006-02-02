@@ -192,7 +192,7 @@ late_initcall(acpi_wakeup_device_init);
  * RUNTIME GPEs, we simply mark all GPES that
  * are not enabled for wakeup from S5 as RUNTIME.
  */
-void acpi_wakeup_gpe_poweroff_prepare(void)
+void acpi_gpe_sleep_prepare(u32 sleep_state)
 {
 	struct list_head *node, *next;
 
@@ -201,8 +201,8 @@ void acpi_wakeup_gpe_poweroff_prepare(void)
 						       struct acpi_device,
 						       wakeup_list);
 
-		/* The GPE can wakeup system from S5, don't touch it */
-		if ((u32) dev->wakeup.sleep_state == ACPI_STATE_S5)
+		/* The GPE can wakeup system from this state, don't touch it */
+		if ((u32) dev->wakeup.sleep_state >= sleep_state)
 			continue;
 		/* acpi_set_gpe_type will automatically disable GPE */
 		acpi_set_gpe_type(dev->wakeup.gpe_device,

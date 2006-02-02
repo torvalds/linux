@@ -468,6 +468,7 @@ int usb_unlink_urb(struct urb *urb)
  */
 void usb_kill_urb(struct urb *urb)
 {
+	might_sleep();
 	if (!(urb && urb->dev && urb->dev->bus && urb->dev->bus->op))
 		return;
 	spin_lock_irq(&urb->lock);

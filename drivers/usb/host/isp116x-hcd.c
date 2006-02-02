@@ -1420,20 +1420,22 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 	int ret = 0;
 
 	spin_lock_irqsave(&isp116x->lock, flags);
-
 	val = isp116x_read_reg32(isp116x, HCCONTROL);
+
 	switch (val & HCCONTROL_HCFS) {
 	case HCCONTROL_USB_OPER:
+		spin_unlock_irqrestore(&isp116x->lock, flags);
 		val &= (~HCCONTROL_HCFS & ~HCCONTROL_RWE);
 		val |= HCCONTROL_USB_SUSPEND;
 		if (device_may_wakeup(&hcd->self.root_hub->dev))
 			val |= HCCONTROL_RWE;
 		/* Wait for usb transfers to finish */
-		mdelay(2);
+		msleep(2);
+		spin_lock_irqsave(&isp116x->lock, flags);
 		isp116x_write_reg32(isp116x, HCCONTROL, val);
+		spin_unlock_irqrestore(&isp116x->lock, flags);
 		/* Wait for devices to suspend */
-		mdelay(5);
-	case HCCONTROL_USB_SUSPEND:
+		msleep(5);
 		break;
 	case HCCONTROL_USB_RESUME:
 		isp116x_write_reg32(isp116x, HCCONTROL,
@@ -1441,12 +1443,11 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 				    HCCONTROL_USB_RESET);
 	case HCCONTROL_USB_RESET:
 		ret = -EBUSY;
+	default:		/* HCCONTROL_USB_SUSPEND */
+		spin_unlock_irqrestore(&isp116x->lock, flags);
 		break;
-	default:
-		ret = -EINVAL;
 	}
 
-	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return ret;
 }
 
@@ -1715,9 +1716,9 @@ static struct platform_driver isp116x_driver = {
 	.remove = isp116x_remove,
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
-	.driver	= {
-		.name = (char *)hcd_name,
-	},
+	.driver = {
+		   .name = (char *)hcd_name,
+		   },
 };
 
 /*-----------------------------------------------------------------*/

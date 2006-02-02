@@ -300,7 +300,7 @@
 #define __NR_ia32_inotify_add_watch	292
 #define __NR_ia32_inotify_rm_watch	293
 #define __NR_ia32_migrate_pages		294
-#define __NR_ia32_opanat		295
+#define __NR_ia32_openat		295
 #define __NR_ia32_mkdirat		296
 #define __NR_ia32_mknodat		297
 #define __NR_ia32_fchownat		298

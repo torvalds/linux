@@ -167,6 +167,7 @@ struct pmf_irq_client {
 	void			*data;
 	struct module		*owner;
 	struct list_head	link;
+	struct pmf_function	*func;
 };
 
 
@@ -187,9 +188,7 @@ extern int pmf_register_irq_client(struct device_node *np,
 				   const char *name,
 				   struct pmf_irq_client *client);
 
-extern void pmf_unregister_irq_client(struct device_node *np,
-				      const char *name,
-				      struct pmf_irq_client *client);
+extern void pmf_unregister_irq_client(struct pmf_irq_client *client);
 
 /*
  * Called by the handlers when an irq happens

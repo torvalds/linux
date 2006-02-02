@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -413,9 +413,9 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	    (!ACPI_STRNCMP(table_ptr->signature,
 			   acpi_gbl_table_data[ACPI_TABLE_SSDT].signature,
 			   acpi_gbl_table_data[ACPI_TABLE_SSDT].sig_length))) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Table has invalid signature [%4.4s], must be SSDT or PSDT\n",
-				  table_ptr->signature));
+		ACPI_ERROR((AE_INFO,
+			    "Table has invalid signature [%4.4s], must be SSDT or PSDT",
+			    table_ptr->signature));
 		status = AE_BAD_SIGNATURE;
 		goto cleanup;
 	}

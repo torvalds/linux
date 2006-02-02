@@ -154,10 +154,7 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		return PTR_ERR(mailbox);
 	mgm = mailbox->buf;
 
-	if (down_interruptible(&dev->mcg_table.sem)) {
-		err = -EINTR;
-		goto err_sem;
-	}
+	mutex_lock(&dev->mcg_table.mutex);
 
 	err = find_mgm(dev, gid->raw, mailbox, &hash, &prev, &index);
 	if (err)
@@ -241,8 +238,8 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		BUG_ON(index < dev->limits.num_mgms);
 		mthca_free(&dev->mcg_table.alloc, index);
 	}
-	up(&dev->mcg_table.sem);
- err_sem:
+	mutex_unlock(&dev->mcg_table.mutex);
+
 	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
@@ -263,10 +260,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		return PTR_ERR(mailbox);
 	mgm = mailbox->buf;
 
-	if (down_interruptible(&dev->mcg_table.sem)) {
-		err = -EINTR;
-		goto err_sem;
-	}
+	mutex_lock(&dev->mcg_table.mutex);
 
 	err = find_mgm(dev, gid->raw, mailbox, &hash, &prev, &index);
 	if (err)
@@ -371,8 +365,8 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
  out:
-	up(&dev->mcg_table.sem);
- err_sem:
+	mutex_unlock(&dev->mcg_table.mutex);
+
 	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
@@ -389,7 +383,7 @@ int __devinit mthca_init_mcg_table(struct mthca_dev *dev)
 	if (err)
 		return err;
 
-	init_MUTEX(&dev->mcg_table.sem);
+	mutex_init(&dev->mcg_table.mutex);
 
 	return 0;
 }

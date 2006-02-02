@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,8 +112,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	if (return_buffer->length == 0) {
 		/* Error because caller specifically asked for a return value */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "No return value\n"));
-
+		ACPI_ERROR((AE_INFO, "No return value"));
 		return_ACPI_STATUS(AE_NULL_OBJECT);
 	}
 
@@ -125,11 +124,11 @@ acpi_evaluate_object_typed(acpi_handle handle,
 
 	/* Return object type does not match requested type */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Incorrect return type [%s] requested [%s]\n",
-			  acpi_ut_get_type_name(((union acpi_object *)
-						 return_buffer->pointer)->type),
-			  acpi_ut_get_type_name(return_type)));
+	ACPI_ERROR((AE_INFO,
+		    "Incorrect return type [%s] requested [%s]",
+		    acpi_ut_get_type_name(((union acpi_object *)return_buffer->
+					   pointer)->type),
+		    acpi_ut_get_type_name(return_type)));
 
 	if (must_free) {
 		/* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
@@ -236,11 +235,11 @@ acpi_evaluate_object(acpi_handle handle,
 		 * qualified names above, this is an error
 		 */
 		if (!pathname) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Both Handle and Pathname are NULL\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Both Handle and Pathname are NULL"));
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Handle is NULL and Pathname is relative\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Handle is NULL and Pathname is relative"));
 		}
 
 		status = AE_BAD_PARAMETER;
@@ -399,7 +398,7 @@ acpi_walk_namespace(acpi_object_type type,
 
 	/* Parameter validation */
 
-	if ((type > ACPI_TYPE_EXTERNAL_MAX) || (!max_depth) || (!user_function)) {
+	if ((type > ACPI_TYPE_LOCAL_MAX) || (!max_depth) || (!user_function)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -473,8 +472,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 		return (AE_CTRL_DEPTH);
 	}
 
-	if (!(flags & 0x01)) {
-		/* Don't return at the device or children of the device if not there */
+	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
+		/* Don't examine children of the device if not present */
 
 		return (AE_CTRL_DEPTH);
 	}
