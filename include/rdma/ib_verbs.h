@@ -222,11 +222,13 @@ struct ib_port_attr {
 };
 
 enum ib_device_modify_flags {
-	IB_DEVICE_MODIFY_SYS_IMAGE_GUID	= 1
+	IB_DEVICE_MODIFY_SYS_IMAGE_GUID	= 1 << 0,
+	IB_DEVICE_MODIFY_NODE_DESC	= 1 << 1
 };
 
 struct ib_device_modify {
 	u64	sys_image_guid;
+	char	node_desc[64];
 };
 
 enum ib_port_modify_flags {
@@ -951,6 +953,7 @@ struct ib_device {
 	u64			     uverbs_cmd_mask;
 	int			     uverbs_abi_ver;
 
+	char			     node_desc[64];
 	__be64			     node_guid;
 	u8                           node_type;
 	u8                           phys_port_cnt;
