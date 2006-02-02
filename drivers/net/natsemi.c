@@ -1498,6 +1498,31 @@ static void natsemi_reset(struct net_device *dev)
 	writel(rfcr, ioaddr + RxFilterAddr);
 }
 
+static void reset_rx(struct net_device *dev)
+{
+	int i;
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = ns_ioaddr(dev);
+
+	np->intr_status &= ~RxResetDone;
+
+	writel(RxReset, ioaddr + ChipCmd);
+
+	for (i=0;i<NATSEMI_HW_TIMEOUT;i++) {
+		np->intr_status |= readl(ioaddr + IntrStatus);
+		if (np->intr_status & RxResetDone)
+			break;
+		udelay(15);
+	}
+	if (i==NATSEMI_HW_TIMEOUT) {
+		printk(KERN_WARNING "%s: RX reset did not complete in %d usec.\n",
+		       dev->name, i*15);
+	} else if (netif_msg_hw(np)) {
+		printk(KERN_WARNING "%s: RX reset took %d usec.\n",
+		       dev->name, i*15);
+	}
+}
+
 static void natsemi_reload_eeprom(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
@@ -2292,6 +2317,23 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 						"status %#08x.\n", dev->name,
 						np->cur_rx, desc_status);
 				np->stats.rx_length_errors++;
+
+				/* The RX state machine has probably
+				 * locked up beneath us.  Follow the
+				 * reset procedure documented in
+				 * AN-1287. */
+
+				spin_lock_irq(&np->lock);
+				reset_rx(dev);
+				reinit_rx(dev);
+				writel(np->ring_dma, ioaddr + RxRingPtr);
+				check_link(dev);
+				spin_unlock_irq(&np->lock);
+
+				/* We'll enable RX on exit from this
+				 * function. */
+				break;
+
 			} else {
 				/* There was an error. */
 				np->stats.rx_errors++;
