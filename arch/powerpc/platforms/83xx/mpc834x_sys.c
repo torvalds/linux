@@ -24,22 +24,15 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
-#include <linux/module.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/system.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
 #include <asm/atomic.h>
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/ipic.h>
 #include <asm/bootinfo.h>
-#include <asm/pci-bridge.h>
-#include <asm/mpc83xx.h>
 #include <asm/irq.h>
-#include <mm/mmu_decl.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <sysdev/fsl_soc.h>
@@ -52,8 +45,6 @@ unsigned long isa_mem_base = 0;
 #endif
 
 #ifdef CONFIG_PCI
-extern int mpc83xx_pci2_busno;
-
 static int
 mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 {
@@ -77,17 +68,6 @@ mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 
 	const long min_idsel = 0x11, max_idsel = 0x20, irqs_per_slot = 4;
 	return PCI_IRQ_TABLE_LOOKUP;
-}
-
-static int
-mpc83xx_exclude_device(u_char bus, u_char devfn)
-{
-	if (bus == 0 && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (mpc83xx_pci2_busno)
-		if (bus == (mpc83xx_pci2_busno) && PCI_SLOT(devfn) == 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
-	return PCIBIOS_SUCCESSFUL;
 }
 #endif /* CONFIG_PCI */
 
@@ -180,42 +160,6 @@ mpc834x_rtc_hookup(void)
 late_initcall(mpc834x_rtc_hookup);
 #endif
 
-static void
-mpc83xx_restart(char *cmd)
-{
-#define RST_OFFSET	0x00000900
-#define RST_PROT_REG	0x00000018
-#define RST_CTRL_REG	0x0000001c
-	__be32 __iomem *reg;
-
-	// map reset register space
-	reg = ioremap(get_immrbase() + 0x900, 0xff);
-
-	local_irq_disable();
-
-	/* enable software reset "RSTE" */
-	out_be32(reg + (RST_PROT_REG >> 2), 0x52535445);
-
-	/* set software hard reset */
-	out_be32(reg + (RST_CTRL_REG >> 2), 0x52535445);
-	for(;;);
-}
-
-static long __init
-mpc83xx_time_init(void)
-{
-#define SPCR_OFFSET	0x00000110
-#define SPCR_TBEN	0x00400000
-	__be32 __iomem *spcr = ioremap(get_immrbase() + SPCR_OFFSET, 4);
-	__be32 tmp;
-
-	tmp = in_be32(spcr);
-	out_be32(spcr, tmp|SPCR_TBEN);
-
-	iounmap(spcr);
-
-	return 0;
-}
 void __init
 platform_init(void)
 {
@@ -239,5 +183,3 @@ platform_init(void)
 
 	return;
 }
-
-

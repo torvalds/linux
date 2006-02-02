@@ -36,7 +36,16 @@
 
 int mpc83xx_pci2_busno;
 
-#ifdef CONFIG_PCI
+int mpc83xx_exclude_device(u_char bus, u_char devfn)
+{
+	if (bus == 0 && PCI_SLOT(devfn) == 0)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	if (mpc83xx_pci2_busno)
+		if (bus == (mpc83xx_pci2_busno) && PCI_SLOT(devfn) == 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_SUCCESSFUL;
+}
+
 int __init add_bridge(struct device_node *dev)
 {
 	int len;
@@ -95,5 +104,3 @@ int __init add_bridge(struct device_node *dev)
 
 	return 0;
 }
-
-#endif
