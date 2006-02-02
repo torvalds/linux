@@ -2485,7 +2485,8 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
 		hardreset = sata_std_hardreset;
 
-	return ata_drive_probe_reset(ap, ata_std_softreset, hardreset,
+	return ata_drive_probe_reset(ap, NULL,
+				     ata_std_softreset, hardreset,
 				     ata_std_postreset, classes);
 }
 
@@ -2524,6 +2525,7 @@ static int do_probe_reset(struct ata_port *ap, ata_reset_fn_t reset,
 /**
  *	ata_drive_probe_reset - Perform probe reset with given methods
  *	@ap: port to reset
+ *	@probeinit: probeinit method (can be NULL)
  *	@softreset: softreset method (can be NULL)
  *	@hardreset: hardreset method (can be NULL)
  *	@postreset: postreset method (can be NULL)
@@ -2552,11 +2554,14 @@ static int do_probe_reset(struct ata_port *ap, ata_reset_fn_t reset,
  *	if classification fails, and any error code from reset
  *	methods.
  */
-int ata_drive_probe_reset(struct ata_port *ap,
+int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 			  ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			  ata_postreset_fn_t postreset, unsigned int *classes)
 {
 	int rc = -EINVAL;
+
+	if (probeinit)
+		probeinit(ap);
 
 	if (softreset) {
 		rc = do_probe_reset(ap, softreset, postreset, classes);

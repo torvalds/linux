@@ -244,6 +244,7 @@ struct ata_queued_cmd;
 
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
+typedef void (*ata_probeinit_fn_t)(struct ata_port *);
 typedef int (*ata_reset_fn_t)(struct ata_port *, int, unsigned int *);
 typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *);
 
@@ -484,6 +485,7 @@ extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
 extern int ata_drive_probe_reset(struct ata_port *ap,
+			ata_probeinit_fn_t probeinit,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset, unsigned int *classes);
 extern int ata_std_softreset(struct ata_port *ap, int verbose,
