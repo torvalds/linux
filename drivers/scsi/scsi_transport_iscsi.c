@@ -530,19 +530,18 @@ mempool_zone_init(unsigned max, unsigned size, unsigned hiwat)
 	if (!zp)
 		return NULL;
 
+	zp->size = size;
+	zp->hiwat = hiwat;
+	INIT_LIST_HEAD(&zp->freequeue);
+	spin_lock_init(&zp->freelock);
+	atomic_set(&zp->allocated, 0);
+
 	zp->pool = mempool_create(max, mempool_zone_alloc_skb,
 				  mempool_zone_free_skb, zp);
 	if (!zp->pool) {
 		kfree(zp);
 		return NULL;
 	}
-
-	zp->size = size;
-	zp->hiwat = hiwat;
-
-	INIT_LIST_HEAD(&zp->freequeue);
-	spin_lock_init(&zp->freelock);
-	atomic_set(&zp->allocated, 0);
 
 	return zp;
 }
