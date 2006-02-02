@@ -56,7 +56,7 @@ static int drm_hash_magic(drm_magic_t magic)
  * \param magic magic number.
  *
  * Searches in drm_device::magiclist within all files with the same hash key
- * the one with matching magic number, while holding the drm_device::struct_sem
+ * the one with matching magic number, while holding the drm_device::struct_mutex
  * lock.
  */
 static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
@@ -65,14 +65,14 @@ static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
 	drm_magic_entry_t *pt;
 	int hash = drm_hash_magic(magic);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	for (pt = dev->magiclist[hash].head; pt; pt = pt->next) {
 		if (pt->magic == magic) {
 			retval = pt->priv;
 			break;
 		}
 	}
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 	return retval;
 }
 
@@ -85,7 +85,7 @@ static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
  *
  * Creates a drm_magic_entry structure and appends to the linked list
  * associated the magic number hash key in drm_device::magiclist, while holding
- * the drm_device::struct_sem lock.
+ * the drm_device::struct_mutex lock.
  */
 static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
 			 drm_magic_t magic)
@@ -104,7 +104,7 @@ static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
 	entry->priv = priv;
 	entry->next = NULL;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	if (dev->magiclist[hash].tail) {
 		dev->magiclist[hash].tail->next = entry;
 		dev->magiclist[hash].tail = entry;
@@ -112,7 +112,7 @@ static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
 		dev->magiclist[hash].head = entry;
 		dev->magiclist[hash].tail = entry;
 	}
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -124,7 +124,7 @@ static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
  * \param magic magic number.
  *
  * Searches and unlinks the entry in drm_device::magiclist with the magic
- * number hash key, while holding the drm_device::struct_sem lock.
+ * number hash key, while holding the drm_device::struct_mutex lock.
  */
 static int drm_remove_magic(drm_device_t * dev, drm_magic_t magic)
 {
@@ -135,7 +135,7 @@ static int drm_remove_magic(drm_device_t * dev, drm_magic_t magic)
 	DRM_DEBUG("%d\n", magic);
 	hash = drm_hash_magic(magic);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	for (pt = dev->magiclist[hash].head; pt; prev = pt, pt = pt->next) {
 		if (pt->magic == magic) {
 			if (dev->magiclist[hash].head == pt) {
@@ -147,11 +147,11 @@ static int drm_remove_magic(drm_device_t * dev, drm_magic_t magic)
 			if (prev) {
 				prev->next = pt->next;
 			}
-			up(&dev->struct_sem);
+			mutex_unlock(&dev->struct_mutex);
 			return 0;
 		}
 	}
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
 
