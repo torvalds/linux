@@ -351,3 +351,143 @@ nodev:
 
 arch_initcall(mpc83xx_wdt_init);
 #endif
+
+static enum fsl_usb2_phy_modes determine_usb_phy(char * phy_type)
+{
+	if (!phy_type)
+		return FSL_USB2_PHY_NONE;
+	if (!strcasecmp(phy_type, "ulpi"))
+		return FSL_USB2_PHY_ULPI;
+	if (!strcasecmp(phy_type, "utmi"))
+		return FSL_USB2_PHY_UTMI;
+	if (!strcasecmp(phy_type, "utmi_wide"))
+		return FSL_USB2_PHY_UTMI_WIDE;
+	if (!strcasecmp(phy_type, "serial"))
+		return FSL_USB2_PHY_SERIAL;
+
+	return FSL_USB2_PHY_NONE;
+}
+
+static int __init fsl_usb_of_init(void)
+{
+	struct device_node *np;
+	unsigned int i;
+	struct platform_device *usb_dev;
+	int ret;
+
+	for (np = NULL, i = 0;
+	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-mph")) != NULL;
+	     i++) {
+		struct resource r[2];
+		struct fsl_usb2_platform_data usb_data;
+		unsigned char *prop = NULL;
+
+		memset(&r, 0, sizeof(r));
+		memset(&usb_data, 0, sizeof(usb_data));
+
+		ret = of_address_to_resource(np, 0, &r[0]);
+		if (ret)
+			goto err;
+
+		r[1].start = np->intrs[0].line;
+		r[1].end = np->intrs[0].line;
+		r[1].flags = IORESOURCE_IRQ;
+
+		usb_dev =
+		    platform_device_register_simple("fsl-usb2-mph", i, r, 2);
+		if (IS_ERR(usb_dev)) {
+			ret = PTR_ERR(usb_dev);
+			goto err;
+		}
+
+		usb_dev->dev.coherent_dma_mask = 0xffffffffUL;
+		usb_dev->dev.dma_mask = &usb_dev->dev.coherent_dma_mask;
+
+		usb_data.operating_mode = FSL_USB2_MPH_HOST;
+
+		prop = get_property(np, "port0", NULL);
+		if (prop)
+			usb_data.port_enables |= FSL_USB2_PORT0_ENABLED;
+
+		prop = get_property(np, "port1", NULL);
+		if (prop)
+			usb_data.port_enables |= FSL_USB2_PORT1_ENABLED;
+
+		prop = get_property(np, "phy_type", NULL);
+		usb_data.phy_mode = determine_usb_phy(prop);
+
+		ret =
+		    platform_device_add_data(usb_dev, &usb_data,
+					     sizeof(struct
+						    fsl_usb2_platform_data));
+		if (ret)
+			goto unreg;
+	}
+
+	return 0;
+
+unreg:
+	platform_device_unregister(usb_dev);
+err:
+	return ret;
+}
+
+arch_initcall(fsl_usb_of_init);
+
+static int __init fsl_usb_dr_of_init(void)
+{
+	struct device_node *np;
+	unsigned int i;
+	struct platform_device *usb_dev;
+	int ret;
+
+	for (np = NULL, i = 0;
+	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-dr")) != NULL;
+	     i++) {
+		struct resource r[2];
+		struct fsl_usb2_platform_data usb_data;
+		unsigned char *prop = NULL;
+
+		memset(&r, 0, sizeof(r));
+		memset(&usb_data, 0, sizeof(usb_data));
+
+		ret = of_address_to_resource(np, 0, &r[0]);
+		if (ret)
+			goto err;
+
+		r[1].start = np->intrs[0].line;
+		r[1].end = np->intrs[0].line;
+		r[1].flags = IORESOURCE_IRQ;
+
+		usb_dev =
+		    platform_device_register_simple("fsl-usb2-dr", i, r, 2);
+		if (IS_ERR(usb_dev)) {
+			ret = PTR_ERR(usb_dev);
+			goto err;
+		}
+
+		usb_dev->dev.coherent_dma_mask = 0xffffffffUL;
+		usb_dev->dev.dma_mask = &usb_dev->dev.coherent_dma_mask;
+
+		usb_data.operating_mode = FSL_USB2_DR_HOST;
+
+		prop = get_property(np, "phy_type", NULL);
+		usb_data.phy_mode = determine_usb_phy(prop);
+
+		ret =
+		    platform_device_add_data(usb_dev, &usb_data,
+					     sizeof(struct
+						    fsl_usb2_platform_data));
+		if (ret)
+			goto unreg;
+	}
+
+	return 0;
+
+unreg:
+	platform_device_unregister(usb_dev);
+err:
+	return ret;
+}
+
+arch_initcall(fsl_usb_dr_of_init);
