@@ -651,7 +651,7 @@ struct ib_mw_bind {
 struct ib_fmr_attr {
 	int	max_pages;
 	int	max_maps;
-	u8	page_size;
+	u8	page_shift;
 };
 
 struct ib_ucontext {

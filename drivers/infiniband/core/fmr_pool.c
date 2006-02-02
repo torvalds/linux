@@ -278,9 +278,9 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 	{
 		struct ib_pool_fmr *fmr;
 		struct ib_fmr_attr attr = {
-			.max_pages = params->max_pages_per_fmr,
-			.max_maps  = IB_FMR_MAX_REMAPS,
-			.page_size = PAGE_SHIFT
+			.max_pages  = params->max_pages_per_fmr,
+			.max_maps   = IB_FMR_MAX_REMAPS,
+			.page_shift = params->page_shift
 		};
 
 		for (i = 0; i < params->pool_size; ++i) {

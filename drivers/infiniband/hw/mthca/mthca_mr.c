@@ -491,7 +491,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	int err = -ENOMEM;
 	int i;
 
-	if (mr->attr.page_size < 12 || mr->attr.page_size >= 32)
+	if (mr->attr.page_shift < 12 || mr->attr.page_shift >= 32)
 		return -EINVAL;
 
 	/* For Arbel, all MTTs must fit in the same page. */
@@ -543,7 +543,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 				       MTHCA_MPT_FLAG_REGION      |
 				       access);
 
-	mpt_entry->page_size = cpu_to_be32(mr->attr.page_size - 12);
+	mpt_entry->page_size = cpu_to_be32(mr->attr.page_shift - 12);
 	mpt_entry->key       = cpu_to_be32(key);
 	mpt_entry->pd        = cpu_to_be32(pd);
 	memset(&mpt_entry->start, 0,
@@ -611,7 +611,7 @@ static inline int mthca_check_fmr(struct mthca_fmr *fmr, u64 *page_list,
 	if (list_len > fmr->attr.max_pages)
 		return -EINVAL;
 
-	page_mask = (1 << fmr->attr.page_size) - 1;
+	page_mask = (1 << fmr->attr.page_shift) - 1;
 
 	/* We are getting page lists, so va must be page aligned. */
 	if (iova & page_mask)
@@ -659,7 +659,7 @@ int mthca_tavor_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	}
 
 	mpt_entry.lkey   = cpu_to_be32(key);
-	mpt_entry.length = cpu_to_be64(list_len * (1ull << fmr->attr.page_size));
+	mpt_entry.length = cpu_to_be64(list_len * (1ull << fmr->attr.page_shift));
 	mpt_entry.start  = cpu_to_be64(iova);
 
 	__raw_writel((__force u32) mpt_entry.lkey, &fmr->mem.tavor.mpt->key);
@@ -700,7 +700,7 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 
 	fmr->mem.arbel.mpt->key    = cpu_to_be32(key);
 	fmr->mem.arbel.mpt->lkey   = cpu_to_be32(key);
-	fmr->mem.arbel.mpt->length = cpu_to_be64(list_len * (1ull << fmr->attr.page_size));
+	fmr->mem.arbel.mpt->length = cpu_to_be64(list_len * (1ull << fmr->attr.page_shift));
 	fmr->mem.arbel.mpt->start  = cpu_to_be64(iova);
 
 	wmb();
