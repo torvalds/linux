@@ -82,10 +82,6 @@ static int modparam_locale = -1;
 module_param_named(locale, modparam_locale, int, 0444);
 MODULE_PARM_DESC(country, "Select LocaleCode 0-11 (For travelers)");
 
-static int modparam_outdoor;
-module_param_named(outdoor, modparam_outdoor, int, 0444);
-MODULE_PARM_DESC(outdoor, "Set to 1, if you are using the device outdoor, 0 otherwise.");
-
 static int modparam_noleds;
 module_param_named(noleds, modparam_noleds, int, 0444);
 MODULE_PARM_DESC(noleds, "Turn off all LED activity");
@@ -1088,163 +1084,13 @@ static int bcm43xx_read_sprom(struct bcm43xx_private *bcm)
 	return 0;
 }
 
-static int bcm43xx_channel_is_allowed(struct bcm43xx_private *bcm, u8 channel,
-				      u8 *max_power, u8 *flags)
-{
-	/* THIS FUNCTION DOES _NOT_ ENFORCE REGULATORY DOMAIN COMPLIANCE.
-	 * It is only a helper function to make life easier to
-	 * select legal channels and transmission powers.
-	 */
-
-	u8 phytype = bcm->current_core->phy->type;
-	int allowed = 0;
-
-	*max_power = 0;
-	*flags = 0;
-
-	//FIXME: Set max_power and maybe flags
-	/*FIXME: Allowed channels are sometimes different for outdoor
-	 *       or indoor use. See modparam_outdoor.
-	 */
-	/* From b specs Max Power BPHY:
-	 *	USA:	1000mW
-	 *	Europe:	100mW
-	 *	Japan:	10mW/MHz
-	 */
-
-	switch (bcm->sprom.locale) {
-	case BCM43xx_LOCALE_WORLD:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_THAILAND:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 1 && channel <= 14)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 14)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_ISRAEL:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 5 && channel <= 7)
-				allowed = 1;
-		} else {
-			if (channel >= 5 && channel <= 7)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_JORDAN:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 10 && channel <= 13)
-				allowed = 1;
-		} else {
-			if (channel >= 10 && channel <= 13)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_CHINA:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_JAPAN:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			//FIXME: This seems to be wrong.
-			if (channel >= 1 && channel <= 14)
-				allowed = 1;
-		} else {
-			//FIXME: This seems to be wrong.
-			if (channel >= 1 && channel <= 14)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_USA_CANADA_ANZ:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 11)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_EUROPE:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_USA_LOW:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			if (channel >= 1 && channel <= 13)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 11)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_JAPAN_HIGH:
-		if (phytype == BCM43xx_PHYTYPE_A) {
-			allowed = 1;//FIXME
-		} else if (phytype == BCM43xx_PHYTYPE_B) {
-			//FIXME?
-			if (channel >= 1 && channel <= 14)
-				allowed = 1;
-		} else {
-			if (channel >= 1 && channel <= 14)
-				allowed = 1;
-		}
-		break;
-	case BCM43xx_LOCALE_ALL:
-		allowed = 1;
-		break;
-	case BCM43xx_LOCALE_NONE:
-		break;
-	default:
-		assert(0);
-	}
-
-	return allowed;
-}
-
 static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 {
 	struct ieee80211_geo geo;
 	struct ieee80211_channel *chan;
 	int have_a = 0, have_bg = 0;
 	int i, num80211;
-	u8 channel, flags, max_power;
+	u8 channel;
 	struct bcm43xx_phyinfo *phy;
 	const char *iso_country;
 
@@ -1268,27 +1114,17 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 
  	if (have_a) {
 		for (i = 0, channel = 0; channel < 201; channel++) {
-			if (!bcm43xx_channel_is_allowed(bcm, channel,
-							&max_power, &flags))
-				continue;
 			chan = &geo.a[i++];
 			chan->freq = bcm43xx_channel_to_freq(bcm, channel);
 			chan->channel = channel;
-			chan->flags = flags;
-			chan->max_power = max_power;
 		}
 		geo.a_channels = i;
 	}
 	if (have_bg) {
 		for (i = 0, channel = 1; channel < 15; channel++) {
-			if (!bcm43xx_channel_is_allowed(bcm, channel,
-							&max_power, &flags))
-				continue;
 			chan = &geo.bg[i++];
 			chan->freq = bcm43xx_channel_to_freq(bcm, channel);
 			chan->channel = channel;
-			chan->flags = flags;
-			chan->max_power = max_power;
 		}
 		geo.bg_channels = i;
 	}
