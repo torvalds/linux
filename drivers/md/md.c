@@ -3465,7 +3465,7 @@ static int update_size(mddev_t *mddev, unsigned long size)
 		bdev = bdget_disk(mddev->gendisk, 0);
 		if (bdev) {
 			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, mddev->array_size << 10);
+			i_size_write(bdev->bd_inode, (loff_t)mddev->array_size << 10);
 			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}
@@ -3485,17 +3485,6 @@ static int update_raid_disks(mddev_t *mddev, int raid_disks)
 	if (mddev->sync_thread)
 		return -EBUSY;
 	rv = mddev->pers->reshape(mddev, raid_disks);
-	if (!rv) {
-		struct block_device *bdev;
-
-		bdev = bdget_disk(mddev->gendisk, 0);
-		if (bdev) {
-			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, mddev->array_size << 10);
-			mutex_unlock(&bdev->bd_inode->i_mutex);
-			bdput(bdev);
-		}
-	}
 	return rv;
 }
 
