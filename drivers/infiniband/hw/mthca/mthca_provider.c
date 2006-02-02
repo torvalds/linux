@@ -176,6 +176,23 @@ static int mthca_query_port(struct ib_device *ibdev,
 	return err;
 }
 
+static int mthca_modify_device(struct ib_device *ibdev,
+			       int mask,
+			       struct ib_device_modify *props)
+{
+	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
+		return -EOPNOTSUPP;
+
+	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
+		if (mutex_lock_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
+			return -ERESTARTSYS;
+		memcpy(ibdev->node_desc, props->node_desc, 64);
+		mutex_unlock(&to_mdev(ibdev)->cap_mask_mutex);
+	}
+
+	return 0;
+}
+
 static int mthca_modify_port(struct ib_device *ibdev,
 			     u8 port, int port_modify_mask,
 			     struct ib_port_modify *props)
@@ -1187,6 +1204,20 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 		goto out;
 
 	init_query_mad(in_mad);
+	in_mad->attr_id = IB_SMP_ATTR_NODE_DESC;
+
+	err = mthca_MAD_IFC(dev, 1, 1,
+			    1, NULL, NULL, in_mad, out_mad,
+			    &status);
+	if (err)
+		goto out;
+	if (status) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	memcpy(dev->ib_dev.node_desc, out_mad->data, 64);
+
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
 	err = mthca_MAD_IFC(dev, 1, 1,
@@ -1246,6 +1277,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.class_dev.dev        = &dev->pdev->dev;
 	dev->ib_dev.query_device         = mthca_query_device;
 	dev->ib_dev.query_port           = mthca_query_port;
+	dev->ib_dev.modify_device        = mthca_modify_device;
 	dev->ib_dev.modify_port          = mthca_modify_port;
 	dev->ib_dev.query_pkey           = mthca_query_pkey;
 	dev->ib_dev.query_gid            = mthca_query_gid;
