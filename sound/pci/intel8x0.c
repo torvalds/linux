@@ -427,6 +427,7 @@ static struct pci_device_id snd_intel8x0_ids[] = {
 	{ 0x10de, 0x008a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_NFORCE },	/* CK8 */
 	{ 0x10de, 0x00da, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_NFORCE },	/* NFORCE3 */
 	{ 0x10de, 0x00ea, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_NFORCE },	/* CK8S */
+	{ 0x10de, 0x026b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_NFORCE },	/* MCP51 */
 	{ 0x1022, 0x746d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* AMD8111 */
 	{ 0x1022, 0x7445, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* AMD768 */
 	{ 0x10b9, 0x5455, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_ALI },   /* Ali5455 */
@@ -1805,6 +1806,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x1028,
+		.subdevice = 0x0151,
+		.name = "Dell Optiplex GX270",  /* AD1981B */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1028,
 		.subdevice = 0x0163,
 		.name = "Dell Unknown",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
@@ -1847,12 +1854,6 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x103c,
-		.subdevice = 0x099c,
-		.name = "HP nx6110",	/* AD1981B */
-		.type = AC97_TUNE_HP_ONLY
-	},
-	{
-		.subvendor = 0x103c,
 		.subdevice = 0x129d,
 		.name = "HP xw8000",
 		.type = AC97_TUNE_HP_ONLY
@@ -1866,7 +1867,7 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	{
 		.subvendor = 0x103c,
 		.subdevice = 0x099c,
-		.name = "HP nc6120",
+		.name = "HP nx6110/nc6120",
 		.type = AC97_TUNE_HP_MUTE_LED
 	},
 	{

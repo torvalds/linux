@@ -1349,7 +1349,7 @@ static int snd_opti93x_pcm(struct snd_opti93x *codec, int device, struct snd_pcm
 	int error;
 	struct snd_pcm *pcm;
 
-	if ((error = snd_pcm_new(codec->card, "OPTi 82C93X", device, 1, 1, &pcm)))
+	if ((error = snd_pcm_new(codec->card, "OPTi 82C93X", device, 1, 1, &pcm)) < 0)
 		return error;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_opti93x_playback_ops);

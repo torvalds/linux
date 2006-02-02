@@ -69,9 +69,9 @@ module_param_array(dma, int, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
-static int pnp_registered;
   
 #ifdef CONFIG_PNP
+static int pnp_registered;
 static struct pnp_card_device_id sscape_pnpids[] = {
 	{ .id = "ENS3081", .devs = { { "ENS0000" } } },
 	{ .id = "" }	/* end */
@@ -1391,8 +1391,10 @@ static void __init_or_module sscape_unregister_all(void)
 {
 	int i;
 
+#ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&sscape_pnpc_driver);
+#endif
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
 	platform_driver_unregister(&snd_sscape_driver);
@@ -1466,8 +1468,10 @@ static int __init sscape_init(void)
 	ret = sscape_manual_probe();
 	if (ret < 0)
 		return ret;
+#ifdef CONFIG_PNP
 	if (pnp_register_card_driver(&sscape_pnpc_driver) >= 0)
 		pnp_registered = 1;
+#endif
 	return 0;
 }
 

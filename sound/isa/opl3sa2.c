@@ -91,8 +91,10 @@ module_param_array(opl3sa3_ymode, int, NULL, 0444);
 MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Notebook/Small Notebook/HiFi.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
+#ifdef CONFIG_PNP
 static int pnp_registered;
 static int pnpc_registered;
+#endif
 
 /* control ports */
 #define OPL3SA2_PM_CTRL		0x01
@@ -721,7 +723,7 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 	}
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
 		card->shortname, chip->port, xirq, xdma1);
-	if (dma2 >= 0)
+	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", xdma2);
 
 	return snd_card_register(card);
@@ -779,7 +781,7 @@ static int snd_opl3sa2_pnp_resume(struct pnp_dev *pdev)
 #endif
 
 static struct pnp_driver opl3sa2_pnp_driver = {
-	.name = "opl3sa2-pnpbios",
+	.name = "snd-opl3sa2-pnpbios",
 	.id_table = snd_opl3sa2_pnpbiosids,
 	.probe = snd_opl3sa2_pnp_detect,
 	.remove = __devexit_p(snd_opl3sa2_pnp_remove),
@@ -846,7 +848,7 @@ static int snd_opl3sa2_pnp_cresume(struct pnp_card_link *pcard)
 
 static struct pnp_card_driver opl3sa2_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
-	.name = "opl3sa2",
+	.name = "snd-opl3sa2-cpnp",
 	.id_table = snd_opl3sa2_pnpids,
 	.probe = snd_opl3sa2_pnp_cdetect,
 	.remove = __devexit_p(snd_opl3sa2_pnp_cremove),
@@ -929,10 +931,12 @@ static void __init_or_module snd_opl3sa2_unregister_all(void)
 {
 	int i;
 
+#ifdef CONFIG_PNP
 	if (pnpc_registered)
 		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
 	if (pnp_registered)
 		pnp_unregister_driver(&opl3sa2_pnp_driver);
+#endif
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
 	platform_driver_unregister(&snd_opl3sa2_nonpnp_driver);
@@ -961,6 +965,7 @@ static int __init alsa_card_opl3sa2_init(void)
 		cards++;
 	}
 
+#ifdef CONFIG_PNP
 	err = pnp_register_driver(&opl3sa2_pnp_driver);
 	if (err >= 0) {
 		pnp_registered = 1;
@@ -971,6 +976,7 @@ static int __init alsa_card_opl3sa2_init(void)
 		pnpc_registered = 1;
 		cards += err;
 	}
+#endif
 
 	if (!cards) {
 #ifdef MODULE

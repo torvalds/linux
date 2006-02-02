@@ -1668,6 +1668,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x8196, .config = ALC880_6ST }, /* ASUS P5GD1-HVM */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81b4, .config = ALC880_6ST },
 	{ .pci_subvendor = 0x1019, .pci_subdevice = 0xa884, .config = ALC880_6ST }, /* Acer APFV */
+	{ .pci_subvendor = 0x1458, .pci_subdevice = 0xa102, .config = ALC880_6ST }, /* Gigabyte K8N51 */
 
 	{ .modelname = "6stack-digout", .config = ALC880_6ST_DIG },
 	{ .pci_subvendor = 0x2668, .pci_subdevice = 0x8086, .config = ALC880_6ST_DIG },
@@ -2475,7 +2476,7 @@ static struct hda_verb alc260_init_verbs[] = {
 	/* LINE-2 is used for line-out in rear */
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* select line-out */
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x0e, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* LINE-OUT pin */
 	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* enable HP */
@@ -2945,6 +2946,8 @@ static int alc260_auto_init(struct hda_codec *codec)
  */
 static struct hda_board_config alc260_cfg_tbl[] = {
 	{ .modelname = "basic", .config = ALC260_BASIC },
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81bb,
+	  .config = ALC260_BASIC }, /* Sony VAIO */
 	{ .modelname = "hp", .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3010, .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3011, .config = ALC260_HP },
@@ -3414,12 +3417,12 @@ static struct snd_kcontrol_new alc882_capture_mixer[] = {
  * configuration and preset
  */
 static struct hda_board_config alc882_cfg_tbl[] = {
-	{ .modelname = "3stack-dig", .config = ALC861_3ST_DIG },
-	{ .modelname = "6stack-dig", .config = ALC861_6ST_DIG },
+	{ .modelname = "3stack-dig", .config = ALC882_3ST_DIG },
+	{ .modelname = "6stack-dig", .config = ALC882_6ST_DIG },
 	{ .pci_subvendor = 0x1462, .pci_subdevice = 0x6668, .config = ALC882_6ST_DIG }, /* MSI  */
 	{ .pci_subvendor = 0x105b, .pci_subdevice = 0x6668, .config = ALC882_6ST_DIG }, /* Foxconn */
 	{ .pci_subvendor = 0x1019, .pci_subdevice = 0x6668, .config = ALC882_6ST_DIG }, /* ECS */
-	{ .modelname = "auto", .config = ALC861_AUTO },
+	{ .modelname = "auto", .config = ALC882_AUTO },
 	{}
 };
 
