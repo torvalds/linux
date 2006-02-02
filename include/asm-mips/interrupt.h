@@ -47,6 +47,17 @@ static inline void local_irq_enable(void)
  * R4000/R4400 need three nops, the R4600 two nops and the R10000 needs
  * no nops at all.
  */
+/*
+ * For TX49, operating only IE bit is not enough.
+ *
+ * If mfc0 $12 follows store and the mfc0 is last instruction of a
+ * page and fetching the next instruction causes TLB miss, the result
+ * of the mfc0 might wrongly contain EXL bit.
+ *
+ * ERT-TX49H2-027, ERT-TX49H3-012, ERT-TX49HL3-006, ERT-TX49H4-008
+ *
+ * Workaround: mask EXL bit of the result or place a nop before mfc0.
+ */
 __asm__ (
 	"	.macro	local_irq_disable\n"
 	"	.set	push						\n"
@@ -55,8 +66,8 @@ __asm__ (
 	"	di							\n"
 #else
 	"	mfc0	$1,$12						\n"
-	"	ori	$1,1						\n"
-	"	xori	$1,1						\n"
+	"	ori	$1,0x1f						\n"
+	"	xori	$1,0x1f						\n"
 	"	.set	noreorder					\n"
 	"	mtc0	$1,$12						\n"
 #endif
@@ -96,8 +107,8 @@ __asm__ (
 	"	andi	\\result, 1					\n"
 #else
 	"	mfc0	\\result, $12					\n"
-	"	ori	$1, \\result, 1					\n"
-	"	xori	$1, 1						\n"
+	"	ori	$1, \\result, 0x1f				\n"
+	"	xori	$1, 0x1f					\n"
 	"	.set	noreorder					\n"
 	"	mtc0	$1, $12						\n"
 #endif
@@ -136,8 +147,8 @@ __asm__ (
 #else
 	"	mfc0	$1, $12						\n"
 	"	andi	\\flags, 1					\n"
-	"	ori	$1, 1						\n"
-	"	xori	$1, 1						\n"
+	"	ori	$1, 0x1f					\n"
+	"	xori	$1, 0x1f					\n"
 	"	or	\\flags, $1					\n"
 	"	mtc0	\\flags, $12					\n"
 #endif
