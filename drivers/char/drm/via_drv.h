@@ -110,11 +110,6 @@ extern int via_mem_free(DRM_IOCTL_ARGS);
 extern int via_agp_init(DRM_IOCTL_ARGS);
 extern int via_map_init(DRM_IOCTL_ARGS);
 extern int via_decoder_futex(DRM_IOCTL_ARGS);
-extern int via_dma_init(DRM_IOCTL_ARGS);
-extern int via_cmdbuffer(DRM_IOCTL_ARGS);
-extern int via_flush_ioctl(DRM_IOCTL_ARGS);
-extern int via_pci_cmdbuffer(DRM_IOCTL_ARGS);
-extern int via_cmdbuf_size(DRM_IOCTL_ARGS);
 extern int via_wait_irq(DRM_IOCTL_ARGS);
 extern int via_dma_blit_sync( DRM_IOCTL_ARGS );
 extern int via_dma_blit( DRM_IOCTL_ARGS );
@@ -139,8 +134,6 @@ extern int via_driver_dma_quiescent(drm_device_t * dev);
 extern void via_init_futex(drm_via_private_t * dev_priv);
 extern void via_cleanup_futex(drm_via_private_t * dev_priv);
 extern void via_release_futex(drm_via_private_t * dev_priv, int context);
-extern int via_driver_irq_wait(drm_device_t * dev, unsigned int irq,
-			       int force_sequence, unsigned int *sequence);
 
 extern void via_dmablit_handler(drm_device_t *dev, int engine, int from_irq);
 extern void via_init_dmablit(drm_device_t *dev);

@@ -167,7 +167,7 @@ via_map_blit_for_device(struct pci_dev *pdev,
  */
 
 
-void
+static void
 via_free_sg_info(struct pci_dev *pdev, drm_via_sg_info_t *vsg) 
 {
 	struct page *page;

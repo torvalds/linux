@@ -222,7 +222,7 @@ static int via_initialize(drm_device_t * dev,
 	return 0;
 }
 
-int via_dma_init(DRM_IOCTL_ARGS)
+static int via_dma_init(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
@@ -321,7 +321,7 @@ int via_driver_dma_quiescent(drm_device_t * dev)
 	return 0;
 }
 
-int via_flush_ioctl(DRM_IOCTL_ARGS)
+static int via_flush_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
@@ -330,7 +330,7 @@ int via_flush_ioctl(DRM_IOCTL_ARGS)
 	return via_driver_dma_quiescent(dev);
 }
 
-int via_cmdbuffer(DRM_IOCTL_ARGS)
+static int via_cmdbuffer(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_via_cmdbuffer_t cmdbuf;
@@ -375,7 +375,7 @@ static int via_dispatch_pci_cmdbuffer(drm_device_t * dev,
 	return ret;
 }
 
-int via_pci_cmdbuffer(DRM_IOCTL_ARGS)
+static int via_pci_cmdbuffer(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_via_cmdbuffer_t cmdbuf;
@@ -665,7 +665,7 @@ static void via_cmdbuf_reset(drm_via_private_t * dev_priv)
  * User interface to the space and lag functions.
  */
 
-int via_cmdbuf_size(DRM_IOCTL_ARGS)
+static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_via_cmdbuf_size_t d_siz;
