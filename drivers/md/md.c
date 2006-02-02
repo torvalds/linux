@@ -2689,14 +2689,6 @@ static int do_md_stop(mddev_t * mddev, int ro)
 			set_disk_ro(disk, 1);
 	}
 
-	bitmap_destroy(mddev);
-	if (mddev->bitmap_file) {
-		atomic_set(&mddev->bitmap_file->f_dentry->d_inode->i_writecount, 1);
-		fput(mddev->bitmap_file);
-		mddev->bitmap_file = NULL;
-	}
-	mddev->bitmap_offset = 0;
-
 	/*
 	 * Free resources if final stop
 	 */
@@ -2705,6 +2697,14 @@ static int do_md_stop(mddev_t * mddev, int ro)
 		struct list_head *tmp;
 		struct gendisk *disk;
 		printk(KERN_INFO "md: %s stopped.\n", mdname(mddev));
+
+		bitmap_destroy(mddev);
+		if (mddev->bitmap_file) {
+			atomic_set(&mddev->bitmap_file->f_dentry->d_inode->i_writecount, 1);
+			fput(mddev->bitmap_file);
+			mddev->bitmap_file = NULL;
+		}
+		mddev->bitmap_offset = 0;
 
 		ITERATE_RDEV(mddev,rdev,tmp)
 			if (rdev->raid_disk >= 0) {
