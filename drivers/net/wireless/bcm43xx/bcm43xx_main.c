@@ -49,6 +49,7 @@
 #include "bcm43xx_pio.h"
 #include "bcm43xx_power.h"
 #include "bcm43xx_wx.h"
+#include "bcm43xx_ethtool.h"
 
 
 MODULE_DESCRIPTION("Broadcom BCM43xx wireless driver");
@@ -4249,6 +4250,7 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 #endif
 	net_dev->wireless_handlers = &bcm43xx_wx_handlers_def;
 	net_dev->irq = pdev->irq;
+	SET_ETHTOOL_OPS(net_dev, &bcm43xx_ethtool_ops);
 
 	/* initialize the bcm43xx_private struct */
 	bcm = bcm43xx_priv(net_dev);
