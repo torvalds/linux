@@ -113,7 +113,10 @@ struct iscsi_tcp_recv {
 	int			datadgst;
 };
 
+struct iscsi_cls_conn;
+
 struct iscsi_conn {
+	struct iscsi_cls_conn	*cls_conn;	/* ptr to class connection */
 	struct iscsi_hdr	hdr;		/* header placeholder */
 	char			hdrext[4*sizeof(__u16) +
 				    sizeof(__u32)];
