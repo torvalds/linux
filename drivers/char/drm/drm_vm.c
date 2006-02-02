@@ -188,7 +188,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 
 	map = vma->vm_private_data;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	for (pt = dev->vmalist, prev = NULL; pt; pt = next) {
 		next = pt->next;
 		if (pt->vma->vm_private_data == map)
@@ -248,7 +248,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		}
 	}
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -404,12 +404,12 @@ static void drm_vm_open(struct vm_area_struct *vma)
 
 	vma_entry = drm_alloc(sizeof(*vma_entry), DRM_MEM_VMAS);
 	if (vma_entry) {
-		down(&dev->struct_sem);
+		mutex_lock(&dev->struct_mutex);
 		vma_entry->vma = vma;
 		vma_entry->next = dev->vmalist;
 		vma_entry->pid = current->pid;
 		dev->vmalist = vma_entry;
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 	}
 }
 
@@ -431,7 +431,7 @@ static void drm_vm_close(struct vm_area_struct *vma)
 		  vma->vm_start, vma->vm_end - vma->vm_start);
 	atomic_dec(&dev->vma_count);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	for (pt = dev->vmalist, prev = NULL; pt; prev = pt, pt = pt->next) {
 		if (pt->vma == vma) {
 			if (prev) {
@@ -443,7 +443,7 @@ static void drm_vm_close(struct vm_area_struct *vma)
 			break;
 		}
 	}
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 /**
