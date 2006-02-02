@@ -208,7 +208,7 @@ static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
  * sn_fixup_ionodes() - This routine initializes the HUB data strcuture for
  *	each node in the system.
  */
-static void sn_fixup_ionodes(void)
+static void __init sn_fixup_ionodes(void)
 {
 	struct sn_flush_device_kernel *sn_flush_device_kernel;
 	struct sn_flush_device_kernel *dev_entry;

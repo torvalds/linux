@@ -209,7 +209,7 @@ void __init early_sn_setup(void)
 }
 
 extern int platform_intr_list[];
-static int __initdata shub_1_1_found = 0;
+static int __initdata shub_1_1_found;
 
 /*
  * sn_check_for_wars
@@ -578,13 +578,17 @@ void __init sn_cpu_init(void)
 			sn_prom_type = 2;
 		else
 			sn_prom_type = 1;
-		printk("Running on medusa with %s PROM\n", (sn_prom_type == 1) ? "real" : "fake");
+		printk(KERN_INFO "Running on medusa with %s PROM\n",
+		       (sn_prom_type == 1) ? "real" : "fake");
 	}
 
 	memset(pda, 0, sizeof(pda));
-	if (ia64_sn_get_sn_info(0, &sn_hub_info->shub2, &sn_hub_info->nasid_bitmask, &sn_hub_info->nasid_shift,
-				&sn_system_size, &sn_sharing_domain_size, &sn_partition_id,
-				&sn_coherency_id, &sn_region_size))
+	if (ia64_sn_get_sn_info(0, &sn_hub_info->shub2,
+				&sn_hub_info->nasid_bitmask,
+				&sn_hub_info->nasid_shift,
+				&sn_system_size, &sn_sharing_domain_size,
+				&sn_partition_id, &sn_coherency_id,
+				&sn_region_size))
 		BUG();
 	sn_hub_info->as_shift = sn_hub_info->nasid_shift - 2;
 
@@ -716,7 +720,8 @@ void __init build_cnode_tables(void)
 	for_each_online_node(node) {
 		kl_config_hdr_t *klgraph_header;
 		nasid = cnodeid_to_nasid(node);
-		if ((klgraph_header = ia64_sn_get_klconfig_addr(nasid)) == NULL)
+		klgraph_header = ia64_sn_get_klconfig_addr(nasid);
+		if (klgraph_header == NULL)
 			BUG();
 		brd = NODE_OFFSET_TO_LBOARD(nasid, klgraph_header->ch_board_info);
 		while (brd) {
@@ -734,7 +739,7 @@ nasid_slice_to_cpuid(int nasid, int slice)
 {
 	long cpu;
 
-	for (cpu=0; cpu < NR_CPUS; cpu++)
+	for (cpu = 0; cpu < NR_CPUS; cpu++)
 		if (cpuid_to_nasid(cpu) == nasid &&
 					cpuid_to_slice(cpu) == slice)
 			return cpu;
