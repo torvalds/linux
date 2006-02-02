@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,7 @@ acpi_status acpi_ex_enter_interpreter(void)
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EXECUTE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not acquire interpreter mutex\n"));
+		ACPI_ERROR((AE_INFO, "Could not acquire interpreter mutex"));
 	}
 
 	return_ACPI_STATUS(status);
@@ -127,7 +127,7 @@ void acpi_ex_exit_interpreter(void)
 
 	status = acpi_ut_release_mutex(ACPI_MTX_EXECUTE);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not release interpreter mutex\n"));
+		ACPI_ERROR((AE_INFO, "Could not release interpreter mutex"));
 	}
 
 	return_VOID;
@@ -200,13 +200,12 @@ u8 acpi_ex_acquire_global_lock(u32 field_flags)
 		if (ACPI_SUCCESS(status)) {
 			locked = TRUE;
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not acquire Global Lock, %s\n",
-					  acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not acquire Global Lock"));
 		}
 	}
 
-	return_VALUE(locked);
+	return_UINT8(locked);
 }
 
 /*******************************************************************************
@@ -237,7 +236,8 @@ void acpi_ex_release_global_lock(u8 locked_by_me)
 		if (ACPI_FAILURE(status)) {
 			/* Report the error, but there isn't much else we can do */
 
-			ACPI_REPORT_ERROR(("Could not release ACPI Global Lock, %s\n", acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not release ACPI Global Lock"));
 		}
 	}
 
@@ -268,7 +268,7 @@ static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
 	/* acpi_integer is unsigned, so we don't worry about a '-' prefix */
 
 	if (value == 0) {
-		return_VALUE(1);
+		return_UINT32(1);
 	}
 
 	current_value = value;
@@ -282,7 +282,7 @@ static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
 		num_digits++;
 	}
 
-	return_VALUE(num_digits);
+	return_UINT32(num_digits);
 }
 
 /*******************************************************************************

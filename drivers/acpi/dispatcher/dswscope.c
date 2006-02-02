@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,14 +107,14 @@ acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
 	if (!node) {
 		/* Invalid scope   */
 
-		ACPI_REPORT_ERROR(("ds_scope_stack_push: null scope passed\n"));
+		ACPI_ERROR((AE_INFO, "Null scope parameter"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Make sure object type is valid */
 
 	if (!acpi_ut_valid_object_type(type)) {
-		ACPI_REPORT_WARNING(("ds_scope_stack_push: Invalid object type: 0x%X\n", type));
+		ACPI_WARNING((AE_INFO, "Invalid object type: 0x%X", type));
 	}
 
 	/* Allocate a new scope object */

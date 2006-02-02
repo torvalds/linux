@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,6 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              component_id        - Caller's component ID (for error output)
  *              internal_name       - Name or path of the namespace node
  *              lookup_status       - Exception code from NS lookup
  *
@@ -76,19 +75,17 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
 void
 acpi_ns_report_error(char *module_name,
 		     u32 line_number,
-		     u32 component_id,
 		     char *internal_name, acpi_status lookup_status)
 {
 	acpi_status status;
 	char *name = NULL;
 
-	acpi_os_printf("%8s-%04d: *** Error: Looking up ",
-		       module_name, line_number);
+	acpi_ut_report_error(module_name, line_number);
 
 	if (lookup_status == AE_BAD_CHARACTER) {
 		/* There is a non-ascii character in the name */
 
-		acpi_os_printf("[0x%4.4X] (NON-ASCII)\n",
+		acpi_os_printf("[0x%4.4X] (NON-ASCII)",
 			       *(ACPI_CAST_PTR(u32, internal_name)));
 	} else {
 		/* Convert path to external format */
@@ -109,7 +106,7 @@ acpi_ns_report_error(char *module_name,
 		}
 	}
 
-	acpi_os_printf(" in namespace, %s\n",
+	acpi_os_printf(" Namespace lookup failure, %s\n",
 		       acpi_format_exception(lookup_status));
 }
 
@@ -119,10 +116,9 @@ acpi_ns_report_error(char *module_name,
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              component_id        - Caller's component ID (for error output)
  *              Message             - Error message to use on failure
  *              prefix_node         - Prefix relative to the path
- *              Path                - Path to the node
+ *              Path                - Path to the node (optional)
  *              method_status       - Execution status
  *
  * RETURN:      None
@@ -134,7 +130,6 @@ acpi_ns_report_error(char *module_name,
 void
 acpi_ns_report_method_error(char *module_name,
 			    u32 line_number,
-			    u32 component_id,
 			    char *message,
 			    struct acpi_namespace_node *prefix_node,
 			    char *path, acpi_status method_status)
@@ -142,17 +137,16 @@ acpi_ns_report_method_error(char *module_name,
 	acpi_status status;
 	struct acpi_namespace_node *node = prefix_node;
 
+	acpi_ut_report_error(module_name, line_number);
+
 	if (path) {
 		status = acpi_ns_get_node_by_path(path, prefix_node,
 						  ACPI_NS_NO_UPSEARCH, &node);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf
-			    ("report_method_error: Could not get node\n");
-			return;
+			acpi_os_printf("[Could not get node by pathname]");
 		}
 	}
 
-	acpi_os_printf("%8s-%04d: *** Error: ", module_name, line_number);
 	acpi_ns_print_node_pathname(node, message);
 	acpi_os_printf(", %s\n", acpi_format_exception(method_status));
 }
@@ -248,11 +242,11 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
 	ACPI_FUNCTION_TRACE("ns_get_type");
 
 	if (!node) {
-		ACPI_REPORT_WARNING(("ns_get_type: Null Node input pointer\n"));
-		return_VALUE(ACPI_TYPE_ANY);
+		ACPI_WARNING((AE_INFO, "Null Node parameter"));
+		return_UINT32(ACPI_TYPE_ANY);
 	}
 
-	return_VALUE((acpi_object_type) node->type);
+	return_UINT32((acpi_object_type) node->type);
 }
 
 /*******************************************************************************
@@ -275,11 +269,11 @@ u32 acpi_ns_local(acpi_object_type type)
 	if (!acpi_ut_valid_object_type(type)) {
 		/* Type code out of range  */
 
-		ACPI_REPORT_WARNING(("ns_local: Invalid Object Type\n"));
-		return_VALUE(ACPI_NS_NORMAL);
+		ACPI_WARNING((AE_INFO, "Invalid Object Type %X", type));
+		return_UINT32(ACPI_NS_NORMAL);
 	}
 
-	return_VALUE((u32) acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
+	return_UINT32((u32) acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
 }
 
 /*******************************************************************************
@@ -627,7 +621,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	 * with internal_name (invalid format).
 	 */
 	if (required_length > internal_name_length) {
-		ACPI_REPORT_ERROR(("ns_externalize_name: Invalid internal name\n"));
+		ACPI_ERROR((AE_INFO, "Invalid internal name"));
 		return_ACPI_STATUS(AE_BAD_PATHNAME);
 	}
 
@@ -803,12 +797,11 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 	if (!acpi_ut_valid_object_type(type)) {
 		/* type code out of range  */
 
-		ACPI_REPORT_WARNING(("ns_opens_scope: Invalid Object Type %X\n",
-				     type));
-		return_VALUE(ACPI_NS_NORMAL);
+		ACPI_WARNING((AE_INFO, "Invalid Object Type %X", type));
+		return_UINT32(ACPI_NS_NORMAL);
 	}
 
-	return_VALUE(((u32) acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
+	return_UINT32(((u32) acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
 }
 
 /*******************************************************************************

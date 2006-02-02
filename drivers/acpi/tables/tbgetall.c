@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -152,7 +152,9 @@ acpi_tb_get_secondary_table(struct acpi_pointer *address,
 	/* Signature must match request */
 
 	if (ACPI_STRNCMP(header.signature, signature, ACPI_NAME_SIZE)) {
-		ACPI_REPORT_ERROR(("Incorrect table signature - wanted [%s] found [%4.4s]\n", signature, header.signature));
+		ACPI_ERROR((AE_INFO,
+			    "Incorrect table signature - wanted [%s] found [%4.4s]",
+			    signature, header.signature));
 		return_ACPI_STATUS(AE_BAD_SIGNATURE);
 	}
 
@@ -231,14 +233,18 @@ acpi_status acpi_tb_get_required_tables(void)
 		 */
 		status = acpi_tb_get_primary_table(&address, &table_info);
 		if ((status != AE_OK) && (status != AE_TABLE_NOT_SUPPORTED)) {
-			ACPI_REPORT_WARNING(("%s, while getting table at %8.8X%8.8X\n", acpi_format_exception(status), ACPI_FORMAT_UINT64(address.pointer.value)));
+			ACPI_WARNING((AE_INFO,
+				      "%s, while getting table at %8.8X%8.8X",
+				      acpi_format_exception(status),
+				      ACPI_FORMAT_UINT64(address.pointer.
+							 value)));
 		}
 	}
 
 	/* We must have a FADT to continue */
 
 	if (!acpi_gbl_FADT) {
-		ACPI_REPORT_ERROR(("No FADT present in RSDT/XSDT\n"));
+		ACPI_ERROR((AE_INFO, "No FADT present in RSDT/XSDT"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -248,7 +254,8 @@ acpi_status acpi_tb_get_required_tables(void)
 	 */
 	status = acpi_tb_convert_table_fadt();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not convert FADT to internal common format\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Could not convert FADT to internal common format"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -258,8 +265,8 @@ acpi_status acpi_tb_get_required_tables(void)
 
 	status = acpi_tb_get_secondary_table(&address, FACS_SIG, &table_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not get/install the FACS, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not get/install the FACS"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -278,7 +285,7 @@ acpi_status acpi_tb_get_required_tables(void)
 
 	status = acpi_tb_get_secondary_table(&address, DSDT_SIG, &table_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not get/install the DSDT\n"));
+		ACPI_ERROR((AE_INFO, "Could not get/install the DSDT"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -292,7 +299,9 @@ acpi_status acpi_tb_get_required_tables(void)
 			  "Hex dump of entire DSDT, size %d (0x%X), Integer width = %d\n",
 			  acpi_gbl_DSDT->length, acpi_gbl_DSDT->length,
 			  acpi_gbl_integer_bit_width));
-	ACPI_DUMP_BUFFER((u8 *) acpi_gbl_DSDT, acpi_gbl_DSDT->length);
+
+	ACPI_DUMP_BUFFER(ACPI_CAST_PTR(u8, acpi_gbl_DSDT),
+			 acpi_gbl_DSDT->length);
 
 	/* Always delete the RSDP mapping, we are done with it */
 

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,9 +100,8 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	if (result_obj) {
 		status = acpi_ds_result_pop(&obj_desc, walk_state);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not get result from predicate evaluation, %s\n",
-					  acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not get result from predicate evaluation"));
 
 			return_ACPI_STATUS(status);
 		}
@@ -123,9 +122,9 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	}
 
 	if (!obj_desc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "No predicate obj_desc=%p State=%p\n",
-				  obj_desc, walk_state));
+		ACPI_ERROR((AE_INFO,
+			    "No predicate obj_desc=%p State=%p",
+			    obj_desc, walk_state));
 
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
@@ -140,10 +139,10 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	}
 
 	if (ACPI_GET_OBJECT_TYPE(local_obj_desc) != ACPI_TYPE_INTEGER) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Bad predicate (not an integer) obj_desc=%p State=%p Type=%X\n",
-				  obj_desc, walk_state,
-				  ACPI_GET_OBJECT_TYPE(obj_desc)));
+		ACPI_ERROR((AE_INFO,
+			    "Bad predicate (not an integer) obj_desc=%p State=%p Type=%X",
+			    obj_desc, walk_state,
+			    ACPI_GET_OBJECT_TYPE(obj_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
 		goto cleanup;
@@ -314,12 +313,13 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 	case AML_CLASS_EXECUTE:
 	case AML_CLASS_CREATE:
-
 		/*
 		 * Most operators with arguments.
 		 * Start a new result/operand state
 		 */
-		status = acpi_ds_result_stack_push(walk_state);
+		if (walk_state->opcode != AML_CREATE_FIELD_OP) {
+			status = acpi_ds_result_stack_push(walk_state);
+		}
 		break;
 
 	default:
@@ -361,8 +361,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	op_class = walk_state->op_info->class;
 
 	if (op_class == AML_CLASS_UNKNOWN) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown opcode %X\n",
-				  op->common.aml_opcode));
+		ACPI_ERROR((AE_INFO, "Unknown opcode %X",
+			    op->common.aml_opcode));
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
 
@@ -452,12 +452,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				walk_state->operands[1]->reference.offset)) {
 				status = AE_OK;
 			} else {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "[%s]: Could not resolve operands, %s\n",
-						  acpi_ps_get_opcode_name
-						  (walk_state->opcode),
-						  acpi_format_exception
-						  (status)));
+				ACPI_EXCEPTION((AE_INFO, status,
+						"While resolving operands for [%s]",
+						acpi_ps_get_opcode_name
+						(walk_state->opcode)));
 			}
 		}
 
@@ -676,8 +674,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 		case AML_TYPE_UNDEFINED:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Undefined opcode type Op=%p\n", op));
+			ACPI_ERROR((AE_INFO,
+				    "Undefined opcode type Op=%p", op));
 			return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 
 		case AML_TYPE_BOGUS:
@@ -689,10 +687,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 		default:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p\n",
-					  op_class, op_type,
-					  op->common.aml_opcode, op));
+			ACPI_ERROR((AE_INFO,
+				    "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p",
+				    op_class, op_type, op->common.aml_opcode,
+				    op));
 
 			status = AE_NOT_IMPLEMENTED;
 			break;
@@ -723,20 +721,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
       cleanup:
 
-	/* Invoke exception handler on error */
-
-	if (ACPI_FAILURE(status) &&
-	    acpi_gbl_exception_handler && !(status & AE_CODE_CONTROL)) {
-		acpi_ex_exit_interpreter();
-		status = acpi_gbl_exception_handler(status,
-						    walk_state->method_node->
-						    name.integer,
-						    walk_state->opcode,
-						    walk_state->aml_offset,
-						    NULL);
-		(void)acpi_ex_enter_interpreter();
-	}
-
 	if (walk_state->result_obj) {
 		/* Break to debugger to display result */
 
@@ -758,18 +742,14 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	}
 #endif
 
+	/* Invoke exception handler on error */
+
+	if (ACPI_FAILURE(status)) {
+		status = acpi_ds_method_error(status, walk_state);
+	}
+
 	/* Always clear the object stack */
 
 	walk_state->num_operands = 0;
-
-#ifdef ACPI_DISASSEMBLER
-
-	/* On error, display method locals/args */
-
-	if (ACPI_FAILURE(status)) {
-		acpi_dm_dump_method_info(status, walk_state, op);
-	}
-#endif
-
 	return_ACPI_STATUS(status);
 }

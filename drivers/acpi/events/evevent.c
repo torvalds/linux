@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ acpi_status acpi_ev_initialize_events(void)
 	/* Make sure we have ACPI tables */
 
 	if (!acpi_gbl_DSDT) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "No ACPI tables present!\n"));
+		ACPI_WARNING((AE_INFO, "No ACPI tables present!"));
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
@@ -84,18 +84,61 @@ acpi_status acpi_ev_initialize_events(void)
 	 */
 	status = acpi_ev_fixed_event_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to initialize fixed events, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to initialize fixed events"));
 		return_ACPI_STATUS(status);
 	}
 
 	status = acpi_ev_gpe_initialize();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to initialize general purpose events, %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to initialize general purpose events"));
 		return_ACPI_STATUS(status);
 	}
 
 	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_install_fadt_gpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Completes initialization of the FADT-defined GPE blocks
+ *              (0 and 1). This causes the _PRW methods to be run, so the HW
+ *              must be fully initialized at this point, including global lock
+ *              support.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_ev_install_fadt_gpes(void)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE("ev_install_fadt_gpes");
+
+	/* Namespace must be locked */
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	/* FADT GPE Block 0 */
+
+	(void)acpi_ev_initialize_gpe_block(acpi_gbl_fadt_gpe_device,
+					   acpi_gbl_gpe_fadt_blocks[0]);
+
+	/* FADT GPE Block 1 */
+
+	(void)acpi_ev_initialize_gpe_block(acpi_gbl_fadt_gpe_device,
+					   acpi_gbl_gpe_fadt_blocks[1]);
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -120,7 +163,8 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 	status = acpi_ev_install_sci_handler();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to install System Control Interrupt Handler, %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to install System Control Interrupt handler"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -128,7 +172,8 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 	status = acpi_ev_init_global_lock_handler();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Unable to initialize Global Lock handler, %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to initialize Global Lock handler"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -262,7 +307,9 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 					enable_register_id, 0,
 					ACPI_MTX_DO_NOT_LOCK);
 
-		ACPI_REPORT_ERROR(("No installed handler for fixed event [%08X]\n", event));
+		ACPI_ERROR((AE_INFO,
+			    "No installed handler for fixed event [%08X]",
+			    event));
 
 		return (ACPI_INTERRUPT_NOT_HANDLED);
 	}

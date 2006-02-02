@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -234,8 +234,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 
 		if ((operand[1]->integer.value > MAX_MATCH_OPERATOR) ||
 		    (operand[3]->integer.value > MAX_MATCH_OPERATOR)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Match operator out of range\n"));
+			ACPI_ERROR((AE_INFO, "Match operator out of range"));
 			status = AE_AML_OPERAND_VALUE;
 			goto cleanup;
 		}
@@ -244,10 +243,10 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 
 		index = operand[5]->integer.value;
 		if (index >= operand[0]->package.count) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Index (%X%8.8X) beyond package end (%X)\n",
-					  ACPI_FORMAT_UINT64(index),
-					  operand[0]->package.count));
+			ACPI_ERROR((AE_INFO,
+				    "Index (%X%8.8X) beyond package end (%X)",
+				    ACPI_FORMAT_UINT64(index),
+				    operand[0]->package.count));
 			status = AE_AML_PACKAGE_LIMIT;
 			goto cleanup;
 		}
@@ -316,7 +315,8 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 
 	default:
 
-		ACPI_REPORT_ERROR(("acpi_ex_opcode_6A_0T_1R: Unknown opcode %X\n", walk_state->opcode));
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}

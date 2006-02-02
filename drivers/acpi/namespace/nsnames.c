@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 	acpi_size index;
 	struct acpi_namespace_node *parent_node;
 
-	ACPI_FUNCTION_NAME("ns_build_external_path");
+	ACPI_FUNCTION_ENTRY();
 
 	/* Special case for root */
 
@@ -110,9 +110,9 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 	name_buffer[index] = AML_ROOT_PREFIX;
 
 	if (index != 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not construct pathname; index=%X, size=%X, Path=%s\n",
-				  (u32) index, (u32) size, &name_buffer[size]));
+		ACPI_ERROR((AE_INFO,
+			    "Could not construct pathname; index=%X, size=%X, Path=%s",
+			    (u32) index, (u32) size, &name_buffer[size]));
 	}
 
 	return;
@@ -148,7 +148,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	name_buffer = ACPI_MEM_CALLOCATE(size);
 	if (!name_buffer) {
-		ACPI_REPORT_ERROR(("ns_get_table_pathname: allocation failure\n"));
+		ACPI_ERROR((AE_INFO, "Allocation failure"));
 		return_PTR(NULL);
 	}
 
@@ -241,7 +241,7 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	acpi_ns_build_external_path(node, required_size, buffer->pointer);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X] \n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));
 	return_ACPI_STATUS(AE_OK);
 }
