@@ -41,6 +41,11 @@
 #include "bcm43xx_main.h"
 #include "bcm43xx_radio.h"
 
+
+/* The WIRELESS_EXT version, which is implemented by this driver. */
+#define BCM43xx_WX_VERSION	18
+
+
 /* Define to enable a printk on each wx handler function invocation */
 //#define BCM43xx_WX_DEBUG
 
@@ -282,7 +287,12 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 	range->max_encoding_tokens = WEP_KEYS;
 
 	range->we_version_compiled = WIRELESS_EXT;
-	range->we_version_source = 16;
+	range->we_version_source = BCM43xx_WX_VERSION;
+
+	range->enc_capa = IW_ENC_CAPA_WPA |
+			  IW_ENC_CAPA_WPA2 |
+			  IW_ENC_CAPA_CIPHER_TKIP |
+			  IW_ENC_CAPA_CIPHER_CCMP;
 
 	spin_lock_irqsave(&bcm->lock, flags);
 
