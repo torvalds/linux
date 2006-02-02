@@ -39,10 +39,6 @@ struct iscsi_internal {
 	struct iscsi_transport *iscsi_transport;
 	struct list_head list;
 	/*
-	 * List of sessions for this transport
-	 */
-	struct list_head sessions;
-	/*
 	 * based on transport capabilities, at register time we set these
 	 * bits to tell the transport class it wants attributes displayed
 	 * in sysfs or that it can support different iSCSI Data-Path
@@ -1126,7 +1122,6 @@ iscsi_register_transport(struct iscsi_transport *tt)
 		return NULL;
 	memset(priv, 0, sizeof(*priv));
 	INIT_LIST_HEAD(&priv->list);
-	INIT_LIST_HEAD(&priv->sessions);
 	priv->iscsi_transport = tt;
 
 	priv->cdev.class = &iscsi_transport_class;
