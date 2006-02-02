@@ -194,7 +194,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
-	switch(cmd->flags) {
+	switch (mmc_rsp_type(cmd->flags)) {
 	case MMC_RSP_R1:
 		mmccmd |= SD_CMD_RT_1;
 		break;
@@ -483,34 +483,35 @@ static void au1xmmc_cmd_complete(struct au1xmmc_host *host, u32 status)
 	cmd = mrq->cmd;
 	cmd->error = MMC_ERR_NONE;
 
-	if ((cmd->flags & MMC_RSP_MASK) == MMC_RSP_SHORT) {
+	if (cmd->flags & MMC_RSP_PRESENT) {
+		if (cmd->flags & MMC_RSP_136) {
+			u32 r[4];
+			int i;
 
-		/* Techincally, we should be getting all 48 bits of the response
-		 * (SD_RESP1 + SD_RESP2), but because our response omits the CRC,
-		 * our data ends up being shifted 8 bits to the right.  In this case,
-		 * that means that the OSR data starts at bit 31, so we can just
-		 * read RESP0 and return that
-		 */
+			r[0] = au_readl(host->iobase + SD_RESP3);
+			r[1] = au_readl(host->iobase + SD_RESP2);
+			r[2] = au_readl(host->iobase + SD_RESP1);
+			r[3] = au_readl(host->iobase + SD_RESP0);
 
-		cmd->resp[0] = au_readl(host->iobase + SD_RESP0);
-	}
-	else if ((cmd->flags & MMC_RSP_MASK) == MMC_RSP_LONG) {
-		u32 r[4];
-		int i;
+			/* The CRC is omitted from the response, so really
+			 * we only got 120 bytes, but the engine expects
+			 * 128 bits, so we have to shift things up
+			 */
 
-		r[0] = au_readl(host->iobase + SD_RESP3);
-		r[1] = au_readl(host->iobase + SD_RESP2);
-		r[2] = au_readl(host->iobase + SD_RESP1);
-		r[3] = au_readl(host->iobase + SD_RESP0);
-
-		/* The CRC is omitted from the response, so really we only got
-		 * 120 bytes, but the engine expects 128 bits, so we have to shift
-		 * things up
-		 */
-
-		for(i = 0; i < 4; i++) {
-			cmd->resp[i] = (r[i] & 0x00FFFFFF) << 8;
-			if (i != 3) cmd->resp[i] |= (r[i + 1] & 0xFF000000) >> 24;
+			for(i = 0; i < 4; i++) {
+				cmd->resp[i] = (r[i] & 0x00FFFFFF) << 8;
+				if (i != 3)
+					cmd->resp[i] |= (r[i + 1] & 0xFF000000) >> 24;
+			}
+		} else {
+			/* Techincally, we should be getting all 48 bits of
+			 * the response (SD_RESP1 + SD_RESP2), but because
+			 * our response omits the CRC, our data ends up
+			 * being shifted 8 bits to the right.  In this case,
+			 * that means that the OSR data starts at bit 31,
+			 * so we can just read RESP0 and return that
+			 */
+			cmd->resp[0] = au_readl(host->iobase + SD_RESP0);
 		}
 	}
 

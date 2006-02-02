@@ -459,7 +459,7 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 	/*
 	 * Do we expect a reply?
 	 */
-	if ((cmd->flags & MMC_RSP_MASK) != MMC_RSP_NONE) {
+	if (cmd->flags & MMC_RSP_PRESENT) {
 		/*
 		 * Read back status.
 		 */
@@ -476,10 +476,10 @@ static void wbsd_send_command(struct wbsd_host *host, struct mmc_command *cmd)
 			cmd->error = MMC_ERR_BADCRC;
 		/* All ok */
 		else {
-			if ((cmd->flags & MMC_RSP_MASK) == MMC_RSP_SHORT)
-				wbsd_get_short_reply(host, cmd);
-			else
+			if (cmd->flags & MMC_RSP_136)
 				wbsd_get_long_reply(host, cmd);
+			else
+				wbsd_get_short_reply(host, cmd);
 		}
 	}
 

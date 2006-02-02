@@ -171,14 +171,14 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.mrq.data = &brq.data;
 
 		brq.cmd.arg = req->sector << 9;
-		brq.cmd.flags = MMC_RSP_R1;
+		brq.cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		brq.data.timeout_ns = card->csd.tacc_ns * 10;
 		brq.data.timeout_clks = card->csd.tacc_clks * 10;
 		brq.data.blksz_bits = md->block_bits;
 		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
 		brq.stop.arg = 0;
-		brq.stop.flags = MMC_RSP_R1B;
+		brq.stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 
 		if (rq_data_dir(req) == READ) {
 			brq.cmd.opcode = brq.data.blocks > 1 ? MMC_READ_MULTIPLE_BLOCK : MMC_READ_SINGLE_BLOCK;
@@ -223,7 +223,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 			cmd.opcode = MMC_SEND_STATUS;
 			cmd.arg = card->rca << 16;
-			cmd.flags = MMC_RSP_R1;
+			cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 			err = mmc_wait_for_cmd(card->host, &cmd, 5);
 			if (err) {
 				printk(KERN_ERR "%s: error %d requesting status\n",
@@ -430,7 +430,7 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 	mmc_card_claim_host(card);
 	cmd.opcode = MMC_SET_BLOCKLEN;
 	cmd.arg = 1 << md->block_bits;
-	cmd.flags = MMC_RSP_R1;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 5);
 	mmc_card_release_host(card);
 
