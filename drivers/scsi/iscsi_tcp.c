@@ -3316,8 +3316,8 @@ iscsi_session_create(struct scsi_transport_template *scsit,
 r2tpool_alloc_fail:
 	for (cmd_i = 0; cmd_i < session->mgmtpool_max; cmd_i++)
 		kfree(session->mgmt_cmds[cmd_i]->data);
-	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
 immdata_alloc_fail:
+	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
 mgmtpool_alloc_fail:
 	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
 cmdpool_alloc_fail:
