@@ -1162,6 +1162,13 @@ UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999,
 		US_FL_SINGLE_LUN),
 #endif
 
+/* Reported by Andrew Simmons <andrew.simmons@gmail.com> */
+UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
+		"DataStor",
+		"USB4500 FW1.04",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),
 USUAL_DEV(US_SC_8020, US_PR_CB, USB_US_TYPE_STOR),
