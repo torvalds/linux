@@ -559,12 +559,12 @@ asmlinkage long sys_newfstatat(int dfd, char __user *filename,
 			       struct stat __user *statbuf, int flag);
 asmlinkage long sys_readlinkat(int dfd, const char __user *path, char __user *buf,
 			       int bufsiz);
-asmlinkage long compat_sys_futimesat(int dfd, char __user *filename,
+asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,
 				     struct compat_timeval __user *t);
-asmlinkage long compat_sys_newfstatat(int dfd, char __user * filename,
+asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
 				      struct compat_stat __user *statbuf,
 				      int flag);
-asmlinkage long compat_sys_openat(int dfd, const char __user *filename,
+asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
 				   int flags, int mode);
 
 #endif
