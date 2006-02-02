@@ -846,9 +846,6 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct iscsi_cls_session *session;
 	struct iscsi_cls_conn *conn;
 
-	if (NETLINK_CREDS(skb)->uid)
-		return -EPERM;
-
 	priv = iscsi_if_transport_lookup(iscsi_ptr(ev->transport_handle));
 	if (!priv)
 		return -EINVAL;
@@ -856,8 +853,6 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if (!try_module_get(transport->owner))
 		return -EINVAL;
-
-	daemon_pid = NETLINK_CREDS(skb)->pid;
 
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
@@ -934,7 +929,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 /* Get message from skb (based on rtnetlink_rcv_skb).  Each message is
  * processed by iscsi_if_recv_msg.  Malformed skbs with wrong length are
- * discarded silently.  */
+ * or invalid creds discarded silently.  */
 static void
 iscsi_if_rx(struct sock *sk, int len)
 {
@@ -942,6 +937,12 @@ iscsi_if_rx(struct sock *sk, int len)
 
 	mutex_lock(&rx_queue_mutex);
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		if (NETLINK_CREDS(skb)->uid) {
+			skb_pull(skb, skb->len);
+			goto free_skb;
+		}
+		daemon_pid = NETLINK_CREDS(skb)->pid;
+
 		while (skb->len >= NLMSG_SPACE(0)) {
 			int err;
 			uint32_t rlen;
@@ -953,10 +954,12 @@ iscsi_if_rx(struct sock *sk, int len)
 			    skb->len < nlh->nlmsg_len) {
 				break;
 			}
+
 			ev = NLMSG_DATA(nlh);
 			rlen = NLMSG_ALIGN(nlh->nlmsg_len);
 			if (rlen > skb->len)
 				rlen = skb->len;
+
 			err = iscsi_if_recv_msg(skb, nlh);
 			if (err) {
 				ev->type = ISCSI_KEVENT_IF_ERROR;
@@ -980,6 +983,7 @@ iscsi_if_rx(struct sock *sk, int len)
 			} while (err < 0 && err != -ECONNREFUSED);
 			skb_pull(skb, rlen);
 		}
+free_skb:
 		kfree_skb(skb);
 	}
 	mutex_unlock(&rx_queue_mutex);
