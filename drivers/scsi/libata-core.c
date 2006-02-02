@@ -2472,7 +2472,7 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 	ata_reset_fn_t hardreset;
 
 	hardreset = NULL;
-	if (ap->cbl == ATA_CBL_SATA && ap->ops->scr_read)
+	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
 		hardreset = sata_std_hardreset;
 
 	return ata_drive_probe_reset(ap, ata_std_softreset, hardreset,
