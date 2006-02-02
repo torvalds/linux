@@ -488,6 +488,7 @@ extern int ata_drive_probe_reset(struct ata_port *ap,
 			ata_probeinit_fn_t probeinit,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset, unsigned int *classes);
+extern void ata_std_probeinit(struct ata_port *ap);
 extern int ata_std_softreset(struct ata_port *ap, int verbose,
 			     unsigned int *classes);
 extern int sata_std_hardreset(struct ata_port *ap, int verbose,

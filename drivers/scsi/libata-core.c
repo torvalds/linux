@@ -2296,6 +2296,19 @@ static int sata_phy_resume(struct ata_port *ap)
 }
 
 /**
+ *	ata_std_probeinit - initialize probing
+ *	@ap: port to be probed
+ *
+ *	@ap is about to be probed.  Initialize it.  This function is
+ *	to be used as standard callback for ata_drive_probe_reset().
+ */
+extern void ata_std_probeinit(struct ata_port *ap)
+{
+	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+		sata_phy_resume(ap);
+}
+
+/**
  *	ata_std_softreset - reset host port via ATA SRST
  *	@ap: port to reset
  *	@verbose: fail verbosely
@@ -2485,7 +2498,7 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
 		hardreset = sata_std_hardreset;
 
-	return ata_drive_probe_reset(ap, NULL,
+	return ata_drive_probe_reset(ap, ata_std_probeinit,
 				     ata_std_softreset, hardreset,
 				     ata_std_postreset, classes);
 }
@@ -5535,6 +5548,7 @@ EXPORT_SYMBOL_GPL(ata_port_probe);
 EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
+EXPORT_SYMBOL_GPL(ata_std_probeinit);
 EXPORT_SYMBOL_GPL(ata_std_softreset);
 EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);
