@@ -135,7 +135,12 @@ void __init
 acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 {
 	int pxm, node;
-	if (srat_disabled() || pa->flags.enabled == 0)
+	if (srat_disabled())
+		return;
+	if (pa->header.length != sizeof(struct acpi_table_processor_affinity)) {		bad_srat();
+		return;
+	}
+	if (pa->flags.enabled == 0)
 		return;
 	pxm = pa->proximity_domain;
 	node = setup_node(pxm);
@@ -159,8 +164,16 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	int node, pxm;
 	int i;
 
-	if (srat_disabled() || ma->flags.enabled == 0)
+	if (srat_disabled())
 		return;
+	if (ma->header.length != sizeof(struct acpi_table_memory_affinity)) {
+		bad_srat();
+		return;
+	}
+	if (ma->flags.enabled == 0)
+		return;
+	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
+	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
 	pxm = ma->proximity_domain;
 	node = setup_node(pxm);
 	if (node < 0) {
@@ -168,8 +181,6 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 		bad_srat();
 		return;
 	}
-	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
-	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
 	/* It is fine to add this area to the nodes data it will be used later*/
 	if (ma->flags.hot_pluggable == 1)
 		printk(KERN_INFO "SRAT: hot plug zone found %lx - %lx \n",
