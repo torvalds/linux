@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.02.02
+ * Version	: v00.00.02.04
  *
  * Authors:
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
@@ -1983,6 +1983,7 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	host->max_channel = MEGASAS_MAX_CHANNELS - 1;
 	host->max_id = MEGASAS_MAX_DEV_PER_CHANNEL;
 	host->max_lun = MEGASAS_MAX_LUN;
+	host->max_cmd_len = 16;
 
 	/*
 	 * Notify the mid-layer about the new controller

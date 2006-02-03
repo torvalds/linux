@@ -18,9 +18,9 @@
 /**
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.02.02"
-#define MEGASAS_RELDATE				"Jan 23, 2006"
-#define MEGASAS_EXT_VERSION			"Mon Jan 23 14:09:01 PST 2006"
+#define MEGASAS_VERSION				"00.00.02.04"
+#define MEGASAS_RELDATE				"Feb 03, 2006"
+#define MEGASAS_EXT_VERSION			"Fri Feb 03 14:16:25 PST 2006"
 /*
  * =====================================
  * MegaRAID SAS MFI firmware definitions
