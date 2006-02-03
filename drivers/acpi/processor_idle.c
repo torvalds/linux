@@ -899,7 +899,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		case ACPI_STATE_C3:
 			acpi_processor_power_verify_c3(pr, cx);
 #ifdef ARCH_APICTIMER_STOPS_ON_C3
-			if (c->x86_vendor == X86_VENDOR_INTEL) {
+			if (cx->valid && c->x86_vendor == X86_VENDOR_INTEL) {
 				on_each_cpu(switch_APIC_timer_to_ipi,
 						&mask, 1, 1);
 			}
