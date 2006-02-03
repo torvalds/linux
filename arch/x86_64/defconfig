@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.15-git12
-# Mon Jan 16 13:09:08 2006
+# Linux kernel version: 2.6.16-rc1-git2
+# Thu Jan 19 10:05:21 2006
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -310,6 +310,11 @@ CONFIG_IPV6=y
 # SCTP Configuration (EXPERIMENTAL)
 #
 # CONFIG_IP_SCTP is not set
+
+#
+# TIPC Configuration (EXPERIMENTAL)
+#
+# CONFIG_TIPC is not set
 # CONFIG_ATM is not set
 # CONFIG_BRIDGE is not set
 # CONFIG_VLAN_8021Q is not set
@@ -319,11 +324,6 @@ CONFIG_IPV6=y
 # CONFIG_ATALK is not set
 # CONFIG_X25 is not set
 # CONFIG_LAPB is not set
-
-#
-# TIPC Configuration (EXPERIMENTAL)
-#
-# CONFIG_TIPC is not set
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
@@ -1098,6 +1098,12 @@ CONFIG_USB_MON=y
 #
 
 #
+# EDAC - error detection and reporting (RAS)
+#
+# CONFIG_EDAC is not set
+# CONFIG_EDAC_POLL is not set
+
+#
 # Firmware Drivers
 #
 # CONFIG_EDD is not set
@@ -1290,6 +1296,7 @@ CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
 # CONFIG_FRAME_POINTER is not set
 # CONFIG_FORCED_INLINING is not set
+# CONFIG_UNWIND_INFO is not set
 # CONFIG_RCU_TORTURE_TEST is not set
 CONFIG_INIT_DEBUG=y
 # CONFIG_DEBUG_RODATA is not set
