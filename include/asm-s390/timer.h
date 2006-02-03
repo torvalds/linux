@@ -1,7 +1,7 @@
 /*
  *  include/asm-s390/timer.h
  *
- *  (C) Copyright IBM Corp. 2003
+ *  (C) Copyright IBM Corp. 2003,2006
  *  Virtual CPU timer
  *
  *  Author: Jan Glauber (jang@de.ibm.com)
@@ -9,6 +9,8 @@
 
 #ifndef _ASM_S390_TIMER_H
 #define _ASM_S390_TIMER_H
+
+#ifdef __KERNEL__
 
 #include <linux/timer.h>
 
@@ -43,4 +45,6 @@ extern void add_virt_timer_periodic(void *new);
 extern int mod_virt_timer(struct vtimer_list *timer, __u64 expires);
 extern int del_virt_timer(struct vtimer_list *timer);
 
-#endif
+#endif /* __KERNEL__ */
+
+#endif /* _ASM_S390_TIMER_H */
