@@ -385,7 +385,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	u32 daddr;
 
 	if (ip_options_echo(&icmp_param->replyopts, skb))
-		goto out;
+		return;
 
 	if (icmp_xmit_lock())
 		return;
@@ -416,7 +416,6 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock();
-out:;
 }
 
 
