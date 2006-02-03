@@ -1233,7 +1233,7 @@ cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
                             }
                              info->idle_stats.recv_idle = jiffies;
                         }
-                        schedule_delayed_work(&tty->buf.work, 1);
+			tty_schedule_flip(tty);
                     }
                     /* end of service */
                     cy_writeb(base_addr+(CyRIR<<index), (save_xir & 0x3f));
@@ -1606,7 +1606,7 @@ cyz_handle_rx(struct cyclades_port *info,
 	    }
 #endif
 	    info->idle_stats.recv_idle = jiffies;
-	    schedule_delayed_work(&tty->buf.work, 1);
+	    tty_schedule_flip(tty);
 	}
 	/* Update rx_get */
 	cy_writel(&buf_ctrl->rx_get, new_rx_get);
@@ -1809,7 +1809,7 @@ cyz_handle_cmd(struct cyclades_card *cinfo)
 	if(delta_count)
 	    cy_sched_event(info, Cy_EVENT_DELTA_WAKEUP);
 	if(special_count)
-	    schedule_delayed_work(&tty->buf.work, 1);
+	    tty_schedule_flip(tty);
     }
 }
 
