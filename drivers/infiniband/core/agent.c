@@ -84,9 +84,6 @@ int smi_check_local_dr_smp(struct ib_smp *smp,
 {
 	struct ib_agent_port_private *port_priv;
 
-	if (smp->mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
-		return 1;
-
 	port_priv = ib_get_agent_port(device, port_num);
 	if (!port_priv) {
 		printk(KERN_DEBUG SPFX "smi_check_local_dr_smp %s port %d "
