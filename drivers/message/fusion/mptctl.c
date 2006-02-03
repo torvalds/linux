@@ -1839,7 +1839,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 				goto done_free_mem;
 			}
 
-			pScsiReq->MsgFlags = mpt_msg_flags();
+			pScsiReq->MsgFlags &= ~MPI_SCSIIO_MSGFLGS_SENSE_WIDTH;
+			pScsiReq->MsgFlags |= mpt_msg_flags();
+
 
 			/* verify that app has not requested
 			 *	more sense data than driver
@@ -1921,7 +1923,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			int scsidir = MPI_SCSIIO_CONTROL_READ;
 			int dataSize;
 
-			pScsiReq->MsgFlags = mpt_msg_flags();
+			pScsiReq->MsgFlags &= ~MPI_SCSIIO_MSGFLGS_SENSE_WIDTH;
+			pScsiReq->MsgFlags |= mpt_msg_flags();
+
 
 			/* verify that app has not requested
 			 *	more sense data than driver
