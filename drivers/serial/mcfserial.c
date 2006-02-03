@@ -350,8 +350,7 @@ static inline void receive_chars(struct mcf_serial *info)
 		}
 		tty_insert_flip_char(tty, ch, flag);
 	}
-
-	schedule_work(&tty->flip.work);
+	tty_flip_buffer_push(tty);
 	return;
 }
 
