@@ -2271,13 +2271,16 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	hp_host_info_t	__user *uarg = (void __user *) arg;
 	MPT_ADAPTER		*ioc;
 	struct pci_dev		*pdev;
-	char			*pbuf;
+	char                    *pbuf=NULL;
 	dma_addr_t		buf_dma;
 	hp_host_info_t		karg;
 	CONFIGPARMS		cfg;
 	ConfigPageHeader_t	hdr;
 	int			iocnum;
 	int			rc, cim_rev;
+	ToolboxIstwiReadWriteRequest_t	*IstwiRWRequest;
+	MPT_FRAME_HDR		*mf = NULL;
+	MPIHeader_t		*mpi_hdr;
 
 	dctlprintk((": mptctl_hp_hostinfo called.\n"));
 	/* Reset long to int. Should affect IA64 and SPARC only
@@ -2413,19 +2416,66 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 		}
 	}
 
-	cfg.pageAddr = 0;
-	cfg.action = MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL;
-	cfg.dir = MPI_TB_ISTWI_FLAGS_READ;
-	cfg.timeout = 10;
-	pbuf = pci_alloc_consistent(ioc->pcidev, 4, &buf_dma);
-	if (pbuf) {
-		cfg.physAddr = buf_dma;
-		if ((mpt_toolbox(ioc, &cfg)) == 0) {
-			karg.rsvd = *(u32 *)pbuf;
-		}
-		pci_free_consistent(ioc->pcidev, 4, pbuf, buf_dma);
-		pbuf = NULL;
+	/* 
+	 * Gather ISTWI(Industry Standard Two Wire Interface) Data
+	 */
+	if ((mf = mpt_get_msg_frame(mptctl_id, ioc)) == NULL) {
+		dfailprintk((MYIOC_s_WARN_FMT "%s, no msg frames!!\n",
+		    ioc->name,__FUNCTION__));
+		goto out;
 	}
+
+	IstwiRWRequest = (ToolboxIstwiReadWriteRequest_t *)mf;
+	mpi_hdr = (MPIHeader_t *) mf;
+	memset(IstwiRWRequest,0,sizeof(ToolboxIstwiReadWriteRequest_t));
+	IstwiRWRequest->Function = MPI_FUNCTION_TOOLBOX;
+	IstwiRWRequest->Tool = MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL;
+	IstwiRWRequest->MsgContext = mpi_hdr->MsgContext;
+	IstwiRWRequest->Flags = MPI_TB_ISTWI_FLAGS_READ;
+	IstwiRWRequest->NumAddressBytes = 0x01;
+	IstwiRWRequest->DataLength = cpu_to_le16(0x04);
+	if (pdev->devfn & 1)
+		IstwiRWRequest->DeviceAddr = 0xB2;
+	else
+		IstwiRWRequest->DeviceAddr = 0xB0;
+
+	pbuf = pci_alloc_consistent(ioc->pcidev, 4, &buf_dma);
+	if (!pbuf)
+		goto out;
+	mpt_add_sge((char *)&IstwiRWRequest->SGL,
+	    (MPT_SGE_FLAGS_SSIMPLE_READ|4), buf_dma);
+
+	ioc->ioctl->wait_done = 0;
+	mpt_put_msg_frame(mptctl_id, ioc, mf);
+
+	rc = wait_event_timeout(mptctl_wait,
+	     ioc->ioctl->wait_done == 1,
+	     HZ*MPT_IOCTL_DEFAULT_TIMEOUT /* 10 sec */);
+
+	if(rc <=0 && (ioc->ioctl->wait_done != 1 )) {
+		/* 
+		 * Now we need to reset the board
+		 */
+		mpt_free_msg_frame(ioc, mf);
+		mptctl_timeout_expired(ioc->ioctl);
+		goto out;
+	}
+
+	/* 
+	 *ISTWI Data Definition
+	 * pbuf[0] = FW_VERSION = 0x4
+	 * pbuf[1] = Bay Count = 6 or 4 or 2, depending on
+	 *  the config, you should be seeing one out of these three values
+	 * pbuf[2] = Drive Installed Map = bit pattern depend on which
+	 *   bays have drives in them
+	 * pbuf[3] = Checksum (0x100 = (byte0 + byte2 + byte3)
+	 */
+	if (ioc->ioctl->status & MPT_IOCTL_STATUS_RF_VALID)
+		karg.rsvd = *(u32 *)pbuf;
+
+ out:
+	if (pbuf)
+		pci_free_consistent(ioc->pcidev, 4, pbuf, buf_dma);
 
 	/* Copy the data from kernel memory to user memory
 	 */
