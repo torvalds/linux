@@ -2942,6 +2942,8 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 	info.ctime         = mddev->ctime;
 	info.level         = mddev->level;
 	info.size          = mddev->size;
+	if (info.size != mddev->size) /* overflow */
+		info.size = -1;
 	info.nr_disks      = nr;
 	info.raid_disks    = mddev->raid_disks;
 	info.md_minor      = mddev->md_minor;
@@ -3523,7 +3525,7 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		)
 		return -EINVAL;
 	/* Check there is only one change */
-	if (mddev->size != info->size) cnt++;
+	if (info->size >= 0 && mddev->size != info->size) cnt++;
 	if (mddev->raid_disks != info->raid_disks) cnt++;
 	if (mddev->layout != info->layout) cnt++;
 	if ((state ^ info->state) & (1<<MD_SB_BITMAP_PRESENT)) cnt++;
@@ -3540,7 +3542,7 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		else
 			return mddev->pers->reconfig(mddev, info->layout, -1);
 	}
-	if (mddev->size != info->size)
+	if (info->size >= 0 && mddev->size != info->size)
 		rv = update_size(mddev, info->size);
 
 	if (mddev->raid_disks    != info->raid_disks)
