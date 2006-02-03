@@ -631,12 +631,12 @@ void __kprobes unregister_kretprobe(struct kretprobe *rp)
 	unregister_kprobe(&rp->kp);
 	/* No race here */
 	spin_lock_irqsave(&kretprobe_lock, flags);
-	free_rp_inst(rp);
 	while ((ri = get_used_rp_inst(rp)) != NULL) {
 		ri->rp = NULL;
 		hlist_del(&ri->uflist);
 	}
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	free_rp_inst(rp);
 }
 
 static int __init init_kprobes(void)
