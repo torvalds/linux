@@ -94,10 +94,28 @@ next:			bs = bm->bad_shift[text[shift-i]];
 	return UINT_MAX;
 }
 
+static int subpattern(u8 *pattern, int i, int j, int g)
+{
+	int x = i+g-1, y = j+g-1, ret = 0;
+
+	while(pattern[x--] == pattern[y--]) {
+		if (y < 0) {
+			ret = 1;
+			break;
+		}
+		if (--g == 0) {
+			ret = pattern[i-1] != pattern[j-1];
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static void compute_prefix_tbl(struct ts_bm *bm, const u8 *pattern,
 			       unsigned int len)
 {
-	int i, j, ended, l[ASIZE];
+	int i, j, g;
 
 	for (i = 0; i < ASIZE; i++)
 		bm->bad_shift[i] = len;
@@ -106,23 +124,15 @@ static void compute_prefix_tbl(struct ts_bm *bm, const u8 *pattern,
 
 	/* Compute the good shift array, used to match reocurrences 
 	 * of a subpattern */
-	for (i = 1; i < bm->patlen; i++) {
-		for (j = 0; j < bm->patlen && bm->pattern[bm->patlen - 1 - j]
-				== bm->pattern[bm->patlen - 1 - i - j]; j++);
-		l[i] = j;
-	}  
-
 	bm->good_shift[0] = 1;
 	for (i = 1; i < bm->patlen; i++)
 		bm->good_shift[i] = bm->patlen;
-	for (i = bm->patlen - 1; i > 0; i--)
-		bm->good_shift[l[i]] = i;
-	ended = 0;
-	for (i = 0; i < bm->patlen; i++) {
-		if (l[i] == bm->patlen - 1 - i)
-			ended = i;
-		if (ended)
-			bm->good_shift[i] = ended;
+        for (i = bm->patlen-1, g = 1; i > 0; g++, i--) {
+		for (j = i-1; j >= 1-g ; j--)
+			if (subpattern(bm->pattern, i, j, g)) {
+				bm->good_shift[g] = bm->patlen-j-g;
+				break;
+			}
 	}
 }
 
