@@ -168,6 +168,24 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	c->in_port = c->base.virt + I2O_IN_PORT;
 	c->out_port = c->base.virt + I2O_OUT_PORT;
 
+	/* Motorola/Freescale chip does not follow spec */
+	if (pdev->vendor == PCI_VENDOR_ID_MOTOROLA && pdev->device == 0x18c0) {
+		/* Check if CPU is enabled */
+		if (be32_to_cpu(readl(c->base.virt + 0x10000)) & 0x10000000) {
+			printk(KERN_INFO "%s: MPC82XX needs CPU running to "
+			       "service I2O.\n", c->name);
+			i2o_pci_free(c);
+			return -ENODEV;
+		} else {
+			c->irq_status += I2O_MOTOROLA_PORT_OFFSET;
+			c->irq_mask += I2O_MOTOROLA_PORT_OFFSET;
+			c->in_port += I2O_MOTOROLA_PORT_OFFSET;
+			c->out_port += I2O_MOTOROLA_PORT_OFFSET;
+			printk(KERN_INFO "%s: MPC82XX workarounds activated.\n",
+			       c->name);
+		}
+	}
+
 	if (i2o_dma_alloc(dev, &c->status, 8, GFP_KERNEL)) {
 		i2o_pci_free(c);
 		return -ENOMEM;
