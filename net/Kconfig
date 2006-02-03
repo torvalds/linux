@@ -27,6 +27,13 @@ if NET
 
 menu "Networking options"
 
+config NETDEBUG
+	bool "Network packet debugging"
+	help
+	  You can say Y here if you want to get additional messages useful in
+	  debugging bad packets, but can overwhelm logs under denial of service
+	  attacks.
+
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
 source "net/xfrm/Kconfig"
