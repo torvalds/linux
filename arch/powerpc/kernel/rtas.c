@@ -599,10 +599,6 @@ static void rtas_percpu_suspend_me(void *info)
 	}
 
 out:
-	/* before we restore interrupts, make sure we don't
-	 * generate a spurious soft lockup errors
-	 */
-	touch_softlockup_watchdog();
 	local_irq_restore(flags);
 	return;
 }
