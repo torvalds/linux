@@ -912,6 +912,7 @@ extern int ufs_sync_inode (struct inode *);
 extern void ufs_delete_inode (struct inode *);
 extern struct buffer_head * ufs_getfrag (struct inode *, unsigned, int, int *);
 extern struct buffer_head * ufs_bread (struct inode *, unsigned, int, int *);
+extern int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create);
 
 /* namei.c */
 extern struct file_operations ufs_dir_operations;
