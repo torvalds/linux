@@ -310,7 +310,6 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
-	unsigned long initial_rss;
 
 	mm->context.sparc64_ctx_val = 0UL;
 
@@ -319,15 +318,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	 * will be confused and think there is an older TSB to free up.
 	 */
 	mm->context.tsb = NULL;
-
-	/* If this is fork, inherit the parent's TSB size.  We would
-	 * grow it to that size on the first page fault anyways.
-	 */
-	initial_rss = mm->context.tsb_nentries;
-	if (initial_rss)
-		initial_rss -= 1;
-
-	tsb_grow(mm, initial_rss, GFP_KERNEL);
+	tsb_grow(mm, 0, GFP_KERNEL);
 
 	if (unlikely(!mm->context.tsb))
 		return -ENOMEM;

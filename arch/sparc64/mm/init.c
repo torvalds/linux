@@ -261,7 +261,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	struct page *page;
 	unsigned long pfn;
 	unsigned long pg_flags;
-	unsigned long mm_rss;
 
 	pfn = pte_pfn(pte);
 	if (pfn_valid(pfn) &&
@@ -285,10 +284,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	}
 
 	mm = vma->vm_mm;
-	mm_rss = get_mm_rss(mm);
-	if (mm_rss >= mm->context.tsb_rss_limit)
-		tsb_grow(mm, mm_rss, GFP_ATOMIC);
-
 	if ((pte_val(pte) & _PAGE_ALL_SZ_BITS) == _PAGE_SZBITS) {
 		struct tsb *tsb;
 		unsigned long tag;
