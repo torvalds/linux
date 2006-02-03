@@ -28,6 +28,7 @@ void foo(void)
         DEFINE(TASK_GID, offsetof(struct task_struct, gid));
         DEFINE(TASK_EGID, offsetof(struct task_struct, egid));
         DEFINE(TASK_REAL_PARENT, offsetof(struct task_struct, real_parent));
+        DEFINE(TASK_GROUP_LEADER, offsetof(struct task_struct, group_leader));
         DEFINE(TASK_TGID, offsetof(struct task_struct, tgid));
         BLANK();
 

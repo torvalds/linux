@@ -433,7 +433,7 @@ static void rp_do_receive(struct r_port *info,
 		count += ToRecv;
 	}
 	/*  Push the data up to the tty layer */
-	ld->receive_buf(tty, cbuf, fbuf, count);
+	ld->receive_buf(tty, chead, fhead, count);
 done:
 	tty_ldisc_deref(ld);
 }

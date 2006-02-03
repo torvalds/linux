@@ -837,8 +837,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for AC'97 motherboards from Intel and compatibles.
 			* Intel i810/810E, i815, i820, i830, i84x, MX440
+				ICH5, ICH6, ICH7, ESB2
 			* SiS 7012 (SiS 735)
-			* NVidia NForce, NForce2
+			* NVidia NForce, NForce2, NForce3, MCP04, CK804
+				 CK8, CK8S, MCP501
 			* AMD AMD768, AMD8111
 			* ALi m5455
 
@@ -868,6 +870,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   --------------------
 
     Module for Intel ICH (i8x0) chipset MC97 modems.
+			* Intel i810/810E, i815, i820, i830, i84x, MX440
+				ICH5, ICH6, ICH7
+			* SiS 7013 (SiS 735)
+			* NVidia NForce, NForce2, NForce2s, NForce3
+			* AMD AMD8111
+			* ALi m5455
 
     ac97_clock	  - AC'97 codec clock base (0 = auto-detect)
 

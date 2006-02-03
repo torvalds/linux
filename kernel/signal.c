@@ -283,7 +283,7 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 	return(q);
 }
 
-static inline void __sigqueue_free(struct sigqueue *q)
+static void __sigqueue_free(struct sigqueue *q)
 {
 	if (q->flags & SIGQUEUE_PREALLOC)
 		return;

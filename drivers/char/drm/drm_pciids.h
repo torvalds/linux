@@ -3,6 +3,7 @@
    Please contact dri-devel@lists.sf.net to add new cards to this list
 */
 #define radeon_PCI_IDS \
+	{0x1002, 0x3150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RV350},\
 	{0x1002, 0x4136, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RS100|CHIP_IS_IGP}, \
 	{0x1002, 0x4137, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RS200|CHIP_IS_IGP}, \
 	{0x1002, 0x4144, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_R300}, \
@@ -242,5 +243,6 @@
 	{0x8086, 0x2582, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0x8086, 0x2592, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0x8086, 0x2772, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
+	{0x8086, 0x27a2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0, 0, 0}
 

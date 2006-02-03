@@ -1359,16 +1359,11 @@ static int ctl_ioctl(struct inode *inode, struct file *file,
 	 * Copy the parameters into kernel space.
 	 */
 	r = copy_params(user, &param);
-	if (r) {
-		current->flags &= ~PF_MEMALLOC;
-		return r;
-	}
 
-	/*
-	 * FIXME: eventually we will remove the PF_MEMALLOC flag
-	 * here.  However the tools still do nasty things like
-	 * 'load' while a device is suspended.
-	 */
+	current->flags &= ~PF_MEMALLOC;
+
+	if (r)
+		return r;
 
 	r = validate_params(cmd, param);
 	if (r)
@@ -1386,7 +1381,6 @@ static int ctl_ioctl(struct inode *inode, struct file *file,
 
  out:
 	free_params(param);
-	current->flags &= ~PF_MEMALLOC;
 	return r;
 }
 

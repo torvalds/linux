@@ -8,7 +8,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,9 +108,9 @@ acpi_status acpi_os_create_lock(acpi_handle * out_handle);
 
 void acpi_os_delete_lock(acpi_handle handle);
 
-unsigned long acpi_os_acquire_lock(acpi_handle handle);
+acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle);
 
-void acpi_os_release_lock(acpi_handle handle, unsigned long flags);
+void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags);
 
 /*
  * Memory allocation and mapping

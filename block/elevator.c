@@ -139,35 +139,16 @@ static int elevator_attach(request_queue_t *q, struct elevator_type *e,
 
 static char chosen_elevator[16];
 
-static void elevator_setup_default(void)
+static int __init elevator_setup(char *str)
 {
-	struct elevator_type *e;
-
-	/*
-	 * If default has not been set, use the compiled-in selection.
-	 */
-	if (!chosen_elevator[0])
-		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
-
 	/*
 	 * Be backwards-compatible with previous kernels, so users
 	 * won't get the wrong elevator.
 	 */
-	if (!strcmp(chosen_elevator, "as"))
+	if (!strcmp(str, "as"))
 		strcpy(chosen_elevator, "anticipatory");
-
- 	/*
- 	 * If the given scheduler is not available, fall back to the default
- 	 */
- 	if ((e = elevator_find(chosen_elevator)))
-		elevator_put(e);
 	else
- 		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
-}
-
-static int __init elevator_setup(char *str)
-{
-	strncpy(chosen_elevator, str, sizeof(chosen_elevator) - 1);
+		strncpy(chosen_elevator, str, sizeof(chosen_elevator) - 1);
 	return 0;
 }
 
@@ -184,14 +165,16 @@ int elevator_init(request_queue_t *q, char *name)
 	q->end_sector = 0;
 	q->boundary_rq = NULL;
 
-	elevator_setup_default();
-
-	if (!name)
-		name = chosen_elevator;
-
-	e = elevator_get(name);
-	if (!e)
+	if (name && !(e = elevator_get(name)))
 		return -EINVAL;
+
+	if (!e && *chosen_elevator && !(e = elevator_get(chosen_elevator)))
+		printk("I/O scheduler %s not found\n", chosen_elevator);
+
+	if (!e && !(e = elevator_get(CONFIG_DEFAULT_IOSCHED))) {
+		printk("Default I/O scheduler not found, using no-op\n");
+		e = elevator_get("noop");
+	}
 
 	eq = kmalloc(sizeof(struct elevator_queue), GFP_KERNEL);
 	if (!eq) {
@@ -669,8 +652,10 @@ int elv_register(struct elevator_type *e)
 	spin_unlock_irq(&elv_list_lock);
 
 	printk(KERN_INFO "io scheduler %s registered", e->elevator_name);
-	if (!strcmp(e->elevator_name, chosen_elevator))
-		printk(" (default)");
+	if (!strcmp(e->elevator_name, chosen_elevator) ||
+			(!*chosen_elevator &&
+			 !strcmp(e->elevator_name, CONFIG_DEFAULT_IOSCHED)))
+				printk(" (default)");
 	printk("\n");
 	return 0;
 }

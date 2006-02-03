@@ -56,25 +56,6 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, 0644);
 
-static int enable_slot(struct hotplug_slot *slot);
-static int disable_slot(struct hotplug_slot *slot);
-static int set_attention_status(struct hotplug_slot *slot, u8 value);
-static int get_power_status(struct hotplug_slot *slot, u8 * value);
-static int get_attention_status(struct hotplug_slot *slot, u8 * value);
-static int get_adapter_status(struct hotplug_slot *slot, u8 * value);
-static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value);
-
-struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
-	.owner = THIS_MODULE,
-	.enable_slot = enable_slot,
-	.disable_slot = disable_slot,
-	.set_attention_status = set_attention_status,
-	.get_power_status = get_power_status,
-	.get_attention_status = get_attention_status,
-	.get_adapter_status = get_adapter_status,
-	.get_max_bus_speed = get_max_bus_speed,
-};
-
 static int rpaphp_get_attention_status(struct slot *slot)
 {
 	return slot->hotplug_slot->info->attention_status;
@@ -196,11 +177,6 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	return 0;
 }
 
-int rpaphp_remove_slot(struct slot *slot)
-{
-	return deregister_slot(slot);
-}
-
 static int get_children_props(struct device_node *dn, int **drc_indexes,
 		int **drc_names, int **drc_types, int **drc_power_domains)
 {
@@ -307,13 +283,15 @@ static int is_php_dn(struct device_node *dn, int **indexes, int **names,
 	return 0;
 }
 
-/****************************************************************
+/**
+ * rpaphp_add_slot -- add hotplug or dlpar slot
+ *
  *	rpaphp not only registers PCI hotplug slots(HOTPLUG), 
  *	but also logical DR slots(EMBEDDED).
  *	HOTPLUG slot: An adapter can be physically added/removed. 
  *	EMBEDDED slot: An adapter can be logically removed/added
  *		  from/to a partition with the slot.
- ***************************************************************/
+ */
 int rpaphp_add_slot(struct device_node *dn)
 {
 	struct slot *slot;
@@ -344,7 +322,7 @@ int rpaphp_add_slot(struct device_node *dn)
 			dbg("Found drc-index:0x%x drc-name:%s drc-type:%s\n",
 					indexes[i + 1], name, type);
 
-			retval = register_pci_slot(slot);
+			retval = rpaphp_register_pci_slot(slot);
 		}
 	}
 exit:
@@ -393,53 +371,85 @@ static void __exit rpaphp_exit(void)
 	cleanup_slots();
 }
 
+static int __enable_slot(struct slot *slot)
+{
+	int state;
+	int retval;
+
+	if (slot->state == CONFIGURED)
+		return 0;
+
+	retval = rpaphp_get_sensor_state(slot, &state);
+	if (retval)
+		return retval;
+
+	if (state == PRESENT) {
+		pcibios_add_pci_devices(slot->bus);
+		slot->state = CONFIGURED;
+	} else if (state == EMPTY) {
+		slot->state = EMPTY;
+	} else {
+		err("%s: slot[%s] is in invalid state\n", __FUNCTION__, slot->name);
+		slot->state = NOT_VALID;
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
-	int retval = 0;
+	int retval;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
-	if (slot->state == CONFIGURED) {
-		dbg("%s: %s is already enabled\n", __FUNCTION__, slot->name);
-		goto exit;
+	down(&rpaphp_sem);
+	retval = __enable_slot(slot);
+	up(&rpaphp_sem);
+
+	return retval;
+}
+
+static int __disable_slot(struct slot *slot)
+{
+	struct pci_dev *dev, *tmp;
+
+	if (slot->state == NOT_CONFIGURED)
+		return -EINVAL;
+
+	list_for_each_entry_safe(dev, tmp, &slot->bus->devices, bus_list) {
+		eeh_remove_bus_device(dev);
+		pci_remove_bus_device(dev);
 	}
 
-	dbg("ENABLING SLOT %s\n", slot->name);
-	down(&rpaphp_sem);
-	retval = rpaphp_enable_pci_slot(slot);
-	up(&rpaphp_sem);
-exit:
-	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
-	return retval;
+	slot->state = NOT_CONFIGURED;
+	return 0;
 }
 
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	int retval = -EINVAL;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
+	int retval;
 
-	dbg("%s - Entry: slot[%s]\n", __FUNCTION__, slot->name);
-
-	if (slot->state == NOT_CONFIGURED) {
-		dbg("%s: %s is already disabled\n", __FUNCTION__, slot->name);
-		goto exit;
-	}
-
-	dbg("DISABLING SLOT %s\n", slot->name);
 	down(&rpaphp_sem);
-	retval = rpaphp_unconfig_pci_adapter(slot->bus);
+	retval = __disable_slot (slot);
 	up(&rpaphp_sem);
-	slot->state = NOT_CONFIGURED;
-	info("%s: devices in slot[%s] unconfigured.\n", __FUNCTION__,
-	     slot->name);
-exit:
-	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
+
 	return retval;
 }
+
+struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
+	.owner = THIS_MODULE,
+	.enable_slot = enable_slot,
+	.disable_slot = disable_slot,
+	.set_attention_status = set_attention_status,
+	.get_power_status = get_power_status,
+	.get_attention_status = get_attention_status,
+	.get_adapter_status = get_adapter_status,
+	.get_max_bus_speed = get_max_bus_speed,
+};
 
 module_init(rpaphp_init);
 module_exit(rpaphp_exit);
 
 EXPORT_SYMBOL_GPL(rpaphp_add_slot);
-EXPORT_SYMBOL_GPL(rpaphp_remove_slot);
 EXPORT_SYMBOL_GPL(rpaphp_slot_head);
 EXPORT_SYMBOL_GPL(rpaphp_get_drc_props);

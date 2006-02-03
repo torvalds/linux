@@ -2906,65 +2906,16 @@ ip2_ipl_ioctl ( struct inode *pInode, struct file *pFile, UINT cmd, ULONG arg )
 		rc = -EINVAL;
 		break;
 	case 3:	    // Trace device
-		if ( cmd == 1 ) {
-			rc = put_user(iiSendPendingMail, pIndex++ );
-			rc = put_user(i2InitChannels, pIndex++ );
-			rc = put_user(i2QueueNeeds, pIndex++ );
-			rc = put_user(i2QueueCommands, pIndex++ );
-			rc = put_user(i2GetStatus, pIndex++ );
-			rc = put_user(i2Input, pIndex++ );
-			rc = put_user(i2InputFlush, pIndex++ );
-			rc = put_user(i2Output, pIndex++ );
-			rc = put_user(i2FlushOutput, pIndex++ );
-			rc = put_user(i2DrainWakeup, pIndex++ );
-			rc = put_user(i2DrainOutput, pIndex++ );
-			rc = put_user(i2OutputFree, pIndex++ );
-			rc = put_user(i2StripFifo, pIndex++ );
-			rc = put_user(i2StuffFifoBypass, pIndex++ );
-			rc = put_user(i2StuffFifoFlow, pIndex++ );
-			rc = put_user(i2StuffFifoInline, pIndex++ );
-			rc = put_user(i2ServiceBoard, pIndex++ );
-			rc = put_user(serviceOutgoingFifo, pIndex++ );
-			// rc = put_user(ip2_init, pIndex++ );
-			rc = put_user(ip2_init_board, pIndex++ );
-			rc = put_user(find_eisa_board, pIndex++ );
-			rc = put_user(set_irq, pIndex++ );
-			rc = put_user(ip2_interrupt, pIndex++ );
-			rc = put_user(ip2_poll, pIndex++ );
-			rc = put_user(service_all_boards, pIndex++ );
-			rc = put_user(do_input, pIndex++ );
-			rc = put_user(do_status, pIndex++ );
-#ifndef IP2DEBUG_OPEN
-			rc = put_user(0, pIndex++ );
-#else
-			rc = put_user(open_sanity_check, pIndex++ );
-#endif
-			rc = put_user(ip2_open, pIndex++ );
-			rc = put_user(ip2_close, pIndex++ );
-			rc = put_user(ip2_hangup, pIndex++ );
-			rc = put_user(ip2_write, pIndex++ );
-			rc = put_user(ip2_putchar, pIndex++ );
-			rc = put_user(ip2_flush_chars, pIndex++ );
-			rc = put_user(ip2_write_room, pIndex++ );
-			rc = put_user(ip2_chars_in_buf, pIndex++ );
-			rc = put_user(ip2_flush_buffer, pIndex++ );
-
-			//rc = put_user(ip2_wait_until_sent, pIndex++ );
-			rc = put_user(0, pIndex++ );
-
-			rc = put_user(ip2_throttle, pIndex++ );
-			rc = put_user(ip2_unthrottle, pIndex++ );
-			rc = put_user(ip2_ioctl, pIndex++ );
-			rc = put_user(0, pIndex++ );
-			rc = put_user(get_serial_info, pIndex++ );
-			rc = put_user(set_serial_info, pIndex++ );
-			rc = put_user(ip2_set_termios, pIndex++ );
-			rc = put_user(ip2_set_line_discipline, pIndex++ );
-			rc = put_user(set_params, pIndex++ );
-		} else {
+		/*
+		 * akpm: This used to write a whole bunch of function addresses
+		 * to userspace, which generated lots of put_user() warnings.
+		 * I killed it all.  Just return "success" and don't do
+		 * anything.
+		 */
+		if (cmd == 1)
+			rc = 0;
+		else
 			rc = -EINVAL;
-		}
-
 		break;
 
 	default:

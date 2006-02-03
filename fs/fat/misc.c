@@ -196,19 +196,9 @@ EXPORT_SYMBOL_GPL(fat_date_unix2dos);
 
 int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs)
 {
-	int i, e, err = 0;
+	int i, err = 0;
 
-	for (i = 0; i < nr_bhs; i++) {
-		lock_buffer(bhs[i]);
-		if (test_clear_buffer_dirty(bhs[i])) {
-			get_bh(bhs[i]);
-			bhs[i]->b_end_io = end_buffer_write_sync;
-			e = submit_bh(WRITE, bhs[i]);
-			if (!err && e)
-				err = e;
-		} else
-			unlock_buffer(bhs[i]);
-	}
+	ll_rw_block(SWRITE, nr_bhs, bhs);
 	for (i = 0; i < nr_bhs; i++) {
 		wait_on_buffer(bhs[i]);
 		if (buffer_eopnotsupp(bhs[i])) {

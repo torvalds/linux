@@ -84,10 +84,9 @@ module_param_array(use_cs4232_midi, bool, NULL, 0444);
 MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly located inside your computer)");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
-static int pnp_registered;
-
 
 #ifdef CONFIG_PNP
+static int pnp_registered;
 
 static struct pnp_card_device_id snd_wavefront_pnpids[] = {
 	/* Tropez */
@@ -695,8 +694,10 @@ static void __init_or_module snd_wavefront_unregister_all(void)
 {
 	int i;
 
+#ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&wavefront_pnpc_driver);
+#endif
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
 	platform_driver_unregister(&snd_wavefront_driver);
@@ -725,11 +726,13 @@ static int __init alsa_card_wavefront_init(void)
 		cards++;
 	}
 
+#ifdef CONFIG_PNP
 	i = pnp_register_card_driver(&wavefront_pnpc_driver);
 	if (i >= 0) {
 		pnp_registered = 1;
 		cards += i;
 	}
+#endif
 
 	if (!cards) {
 #ifdef MODULE

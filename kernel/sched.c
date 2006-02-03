@@ -4031,7 +4031,7 @@ long sched_getaffinity(pid_t pid, cpumask_t *mask)
 		goto out_unlock;
 
 	retval = 0;
-	cpus_and(*mask, p->cpus_allowed, cpu_possible_map);
+	cpus_and(*mask, p->cpus_allowed, cpu_online_map);
 
 out_unlock:
 	read_unlock(&tasklist_lock);
@@ -5141,7 +5141,7 @@ static void init_sched_build_groups(struct sched_group groups[], cpumask_t span,
 #define SEARCH_SCOPE		2
 #define MIN_CACHE_SIZE		(64*1024U)
 #define DEFAULT_CACHE_SIZE	(5*1024*1024U)
-#define ITERATIONS		2
+#define ITERATIONS		1
 #define SIZE_THRESH		130
 #define COST_THRESH		130
 
@@ -5480,9 +5480,9 @@ static unsigned long long measure_migration_cost(int cpu1, int cpu2)
 				break;
 			}
 		/*
-		 * Increase the cachesize in 5% steps:
+		 * Increase the cachesize in 10% steps:
 		 */
-		size = size * 20 / 19;
+		size = size * 10 / 9;
 	}
 
 	if (migration_debug)

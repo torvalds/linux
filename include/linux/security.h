@@ -2617,6 +2617,25 @@ static inline int security_netlink_recv (struct sk_buff *skb)
 	return cap_netlink_recv (skb);
 }
 
+static inline struct dentry *securityfs_create_dir(const char *name,
+					struct dentry *parent)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *securityfs_create_file(const char *name,
+						mode_t mode,
+						struct dentry *parent,
+						void *data,
+						struct file_operations *fops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void securityfs_remove(struct dentry *dentry)
+{
+}
+
 #endif	/* CONFIG_SECURITY */
 
 #ifdef CONFIG_SECURITY_NETWORK

@@ -273,7 +273,7 @@ void mconsole_proc(struct mc_request *req)
     config <dev> - Query the configuration of a device \n\
     remove <dev> - Remove a device from UML \n\
     sysrq <letter> - Performs the SysRq action controlled by the letter \n\
-    cad - invoke the Ctl-Alt-Del handler \n\
+    cad - invoke the Ctrl-Alt-Del handler \n\
     stop - pause the UML; it will do nothing until it receives a 'go' \n\
     go - continue the UML after a 'stop' \n\
     log <string> - make UML enter <string> into the kernel log\n\
@@ -327,7 +327,7 @@ void mconsole_stop(struct mc_request *req)
 
 /* This list is populated by __initcall routines. */
 
-LIST_HEAD(mconsole_devices);
+static LIST_HEAD(mconsole_devices);
 
 void mconsole_register_dev(struct mc_device *new)
 {
@@ -561,6 +561,8 @@ void mconsole_sysrq(struct mc_request *req)
 }
 #endif
 
+#ifdef CONFIG_MODE_SKAS
+
 static void stack_proc(void *arg)
 {
 	struct task_struct *from = current, *to = arg;
@@ -574,7 +576,7 @@ static void stack_proc(void *arg)
  *  Dumps a stacks registers to the linux console.
  *  Usage stack <pid>.
  */
-void do_stack(struct mc_request *req)
+static void do_stack_trace(struct mc_request *req)
 {
 	char *ptr = req->request.data;
 	int pid_requested= -1;
@@ -605,6 +607,7 @@ void do_stack(struct mc_request *req)
 	}
 	with_console(req, stack_proc, to);
 }
+#endif /* CONFIG_MODE_SKAS */
 
 void mconsole_stack(struct mc_request *req)
 {
@@ -613,7 +616,7 @@ void mconsole_stack(struct mc_request *req)
 	 */
 	CHOOSE_MODE(mconsole_reply(req, "Sorry, this doesn't work in TT mode",
 				   1, 0),
-		    do_stack(req));
+		    do_stack_trace(req));
 }
 
 /* Changed by mconsole_setup, which is __setup, and called before SMP is

@@ -1190,7 +1190,6 @@ retry:
 					/* BB what if continued retry is
 					   requested via mount flags? */
 					set_bit(AS_EIO, &mapping->flags);
-					SetPageError(page);
 				} else {
 					cifs_stats_bytes_written(cifs_sb->tcon,
 								 bytes_written);
@@ -1198,6 +1197,13 @@ retry:
 			}
 			for (i = 0; i < n_iov; i++) {
 				page = pvec.pages[first + i];
+				/* Should we also set page error on
+				success rc but too little data written? */
+				/* BB investigate retry logic on temporary
+				server crash cases and how recovery works
+				when page marked as error */ 
+				if(rc)
+					SetPageError(page);
 				kunmap(page);
 				unlock_page(page);
 				page_cache_release(page);

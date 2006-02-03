@@ -2,7 +2,7 @@
  *  include/asm-s390/thread_info.h
  *
  *  S390 version
- *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 2002,2006
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
@@ -88,7 +88,7 @@ static inline struct thread_info *current_thread_info(void)
  * thread information flags bit numbers
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
+#define TIF_RESTORE_SIGMASK	1	/* restore signal mask in do_signal() */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_RESTART_SVC		4	/* restart svc with new svc number */
@@ -102,7 +102,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_MEMDIE		19
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_RESTART_SVC	(1<<TIF_RESTART_SVC)

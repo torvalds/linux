@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -276,6 +276,37 @@ struct acpi_create_field_info {
 	u8 field_type;
 };
 
+/*
+ * Bitmapped ACPI types.  Used internally only
+ */
+#define ACPI_BTYPE_ANY                  0x00000000
+#define ACPI_BTYPE_INTEGER              0x00000001
+#define ACPI_BTYPE_STRING               0x00000002
+#define ACPI_BTYPE_BUFFER               0x00000004
+#define ACPI_BTYPE_PACKAGE              0x00000008
+#define ACPI_BTYPE_FIELD_UNIT           0x00000010
+#define ACPI_BTYPE_DEVICE               0x00000020
+#define ACPI_BTYPE_EVENT                0x00000040
+#define ACPI_BTYPE_METHOD               0x00000080
+#define ACPI_BTYPE_MUTEX                0x00000100
+#define ACPI_BTYPE_REGION               0x00000200
+#define ACPI_BTYPE_POWER                0x00000400
+#define ACPI_BTYPE_PROCESSOR            0x00000800
+#define ACPI_BTYPE_THERMAL              0x00001000
+#define ACPI_BTYPE_BUFFER_FIELD         0x00002000
+#define ACPI_BTYPE_DDB_HANDLE           0x00004000
+#define ACPI_BTYPE_DEBUG_OBJECT         0x00008000
+#define ACPI_BTYPE_REFERENCE            0x00010000
+#define ACPI_BTYPE_RESOURCE             0x00020000
+
+#define ACPI_BTYPE_COMPUTE_DATA         (ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_BUFFER)
+
+#define ACPI_BTYPE_DATA                 (ACPI_BTYPE_COMPUTE_DATA  | ACPI_BTYPE_PACKAGE)
+#define ACPI_BTYPE_DATA_REFERENCE       (ACPI_BTYPE_DATA | ACPI_BTYPE_REFERENCE | ACPI_BTYPE_DDB_HANDLE)
+#define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
+#define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF	/* ARG or LOCAL */
+#define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
+
 /*****************************************************************************
  *
  * Event typedefs and structs
@@ -385,13 +416,13 @@ struct acpi_field_info {
 #define ACPI_CONTROL_PREDICATE_FALSE         0xC3
 #define ACPI_CONTROL_PREDICATE_TRUE          0xC4
 
-#define ACPI_STATE_COMMON                  /* Two 32-bit fields and a pointer */\
-	u8                                  data_type;          /* To differentiate various internal objs */\
+#define ACPI_STATE_COMMON   /* Two 32-bit fields and a pointer */\
+	u8                                  data_type;  /* To differentiate various internal objs */\
 	u8                                  flags;      \
 	u16                                 value;      \
 	u16                                 state;      \
 	u16                                 reserved;   \
-	void                                *next;      \
+	void                                *next;
 
 struct acpi_common_state {
 ACPI_STATE_COMMON};
@@ -544,8 +575,7 @@ union acpi_parse_value {
 	char                                aml_op_name[16]) /* Op name (debug only) */\
 			   /* NON-DEBUG members below: */\
 	struct acpi_namespace_node          *node;          /* For use by interpreter */\
-	union acpi_parse_value              value;          /* Value or args associated with the opcode */\
-
+	union acpi_parse_value              value;	/* Value or args associated with the opcode */
 
 #define ACPI_DASM_BUFFER        0x00
 #define ACPI_DASM_RESOURCE      0x01
@@ -573,6 +603,8 @@ struct acpi_parse_obj_named {
 
 /* The parse node is the fundamental element of the parse tree */
 
+#define ACPI_MAX_PARSEOP_NAME   20
+
 struct acpi_parse_obj_asl {
 	ACPI_PARSE_COMMON union acpi_parse_object *child;
 	union acpi_parse_object *parent_method;
@@ -597,7 +629,7 @@ struct acpi_parse_obj_asl {
 	u8 aml_opcode_length;
 	u8 aml_pkg_len_bytes;
 	u8 extra;
-	char parse_op_name[12];
+	char parse_op_name[ACPI_MAX_PARSEOP_NAME];
 };
 
 union acpi_parse_object {
@@ -735,44 +767,52 @@ struct acpi_bit_register_info {
 
 /* resource_type values */
 
-#define ACPI_RESOURCE_TYPE_MEMORY_RANGE         0
-#define ACPI_RESOURCE_TYPE_IO_RANGE             1
-#define ACPI_RESOURCE_TYPE_BUS_NUMBER_RANGE     2
+#define ACPI_ADDRESS_TYPE_MEMORY_RANGE          0
+#define ACPI_ADDRESS_TYPE_IO_RANGE              1
+#define ACPI_ADDRESS_TYPE_BUS_NUMBER_RANGE      2
 
 /* Resource descriptor types and masks */
 
-#define ACPI_RDESC_TYPE_LARGE                   0x80
-#define ACPI_RDESC_TYPE_SMALL                   0x00
+#define ACPI_RESOURCE_NAME_LARGE                0x80
+#define ACPI_RESOURCE_NAME_SMALL                0x00
 
-#define ACPI_RDESC_TYPE_MASK                    0x80
-#define ACPI_RDESC_SMALL_MASK                   0x78	/* Only bits 6:3 contain the type */
-
-/*
- * Small resource descriptor types
- * Note: The 3 length bits (2:0) must be zero
- */
-#define ACPI_RDESC_TYPE_IRQ_FORMAT              0x20
-#define ACPI_RDESC_TYPE_DMA_FORMAT              0x28
-#define ACPI_RDESC_TYPE_START_DEPENDENT         0x30
-#define ACPI_RDESC_TYPE_END_DEPENDENT           0x38
-#define ACPI_RDESC_TYPE_IO_PORT                 0x40
-#define ACPI_RDESC_TYPE_FIXED_IO_PORT           0x48
-#define ACPI_RDESC_TYPE_SMALL_VENDOR            0x70
-#define ACPI_RDESC_TYPE_END_TAG                 0x78
+#define ACPI_RESOURCE_NAME_SMALL_MASK           0x78	/* Bits 6:3 contain the type */
+#define ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK    0x07	/* Bits 2:0 contain the length */
+#define ACPI_RESOURCE_NAME_LARGE_MASK           0x7F	/* Bits 6:0 contain the type */
 
 /*
- * Large resource descriptor types
+ * Small resource descriptor "names" as defined by the ACPI specification.
+ * Note: Bits 2:0 are used for the descriptor length
  */
-#define ACPI_RDESC_TYPE_MEMORY_24               0x81
-#define ACPI_RDESC_TYPE_GENERAL_REGISTER        0x82
-#define ACPI_RDESC_TYPE_LARGE_VENDOR            0x84
-#define ACPI_RDESC_TYPE_MEMORY_32               0x85
-#define ACPI_RDESC_TYPE_FIXED_MEMORY_32         0x86
-#define ACPI_RDESC_TYPE_DWORD_ADDRESS_SPACE     0x87
-#define ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE      0x88
-#define ACPI_RDESC_TYPE_EXTENDED_XRUPT          0x89
-#define ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE     0x8A
-#define ACPI_RDESC_TYPE_EXTENDED_ADDRESS_SPACE  0x8B
+#define ACPI_RESOURCE_NAME_IRQ                  0x20
+#define ACPI_RESOURCE_NAME_DMA                  0x28
+#define ACPI_RESOURCE_NAME_START_DEPENDENT      0x30
+#define ACPI_RESOURCE_NAME_END_DEPENDENT        0x38
+#define ACPI_RESOURCE_NAME_IO                   0x40
+#define ACPI_RESOURCE_NAME_FIXED_IO             0x48
+#define ACPI_RESOURCE_NAME_RESERVED_S1          0x50
+#define ACPI_RESOURCE_NAME_RESERVED_S2          0x58
+#define ACPI_RESOURCE_NAME_RESERVED_S3          0x60
+#define ACPI_RESOURCE_NAME_RESERVED_S4          0x68
+#define ACPI_RESOURCE_NAME_VENDOR_SMALL         0x70
+#define ACPI_RESOURCE_NAME_END_TAG              0x78
+
+/*
+ * Large resource descriptor "names" as defined by the ACPI specification.
+ * Note: includes the Large Descriptor bit in bit[7]
+ */
+#define ACPI_RESOURCE_NAME_MEMORY24             0x81
+#define ACPI_RESOURCE_NAME_GENERIC_REGISTER     0x82
+#define ACPI_RESOURCE_NAME_RESERVED_L1          0x83
+#define ACPI_RESOURCE_NAME_VENDOR_LARGE         0x84
+#define ACPI_RESOURCE_NAME_MEMORY32             0x85
+#define ACPI_RESOURCE_NAME_FIXED_MEMORY32       0x86
+#define ACPI_RESOURCE_NAME_ADDRESS32            0x87
+#define ACPI_RESOURCE_NAME_ADDRESS16            0x88
+#define ACPI_RESOURCE_NAME_EXTENDED_IRQ         0x89
+#define ACPI_RESOURCE_NAME_ADDRESS64            0x8A
+#define ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64   0x8B
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8B
 
 /*****************************************************************************
  *
@@ -780,7 +820,7 @@ struct acpi_bit_register_info {
  *
  ****************************************************************************/
 
-#define ACPI_ASCII_ZERO                      0x30
+#define ACPI_ASCII_ZERO                         0x30
 
 /*****************************************************************************
  *

@@ -1799,7 +1799,7 @@ void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
 	memmap_init_zone((size), (nid), (zone), (start_pfn))
 #endif
 
-static int __meminit zone_batchsize(struct zone *zone)
+static int __cpuinit zone_batchsize(struct zone *zone)
 {
 	int batch;
 
@@ -1893,7 +1893,7 @@ static struct per_cpu_pageset
  * Dynamically allocate memory for the
  * per cpu pageset array in struct zone.
  */
-static int __meminit process_zones(int cpu)
+static int __cpuinit process_zones(int cpu)
 {
 	struct zone *zone, *dzone;
 
@@ -1934,7 +1934,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int __meminit pageset_cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {

@@ -52,9 +52,9 @@ config IDE
 
 if IDE
 
-config IDE_MAX_HWIFS 
+config IDE_MAX_HWIFS
 	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH
+	depends on ALPHA || SUPERH || IA64
 	default 4
 	help
 	  This is the maximum number of IDE hardware interfaces that will
@@ -162,8 +162,8 @@ config BLK_DEV_IDECS
 	tristate "PCMCIA IDE support"
 	depends on PCMCIA
 	help
-	  Support for outboard IDE disks, tape drives, and CD-ROM drives
-	  connected through a  PCMCIA card.
+	  Support for Compact Flash cards, outboard IDE disks, tape drives,
+	  and CD-ROM drives connected through a PCMCIA card.
 
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
@@ -267,7 +267,7 @@ config IDE_TASK_IOCTL
 	help
 	  This is a direct raw access to the media.  It is a complex but
 	  elegant solution to test and validate the domain of the hardware and
-	  perform below the driver data recover if needed.  This is the most
+	  perform below the driver data recovery if needed.  This is the most
 	  basic form of media-forensics.
 
 	  If you are unsure, say N here.
@@ -525,7 +525,7 @@ config BLK_DEV_CS5520
 	tristate "Cyrix CS5510/20 MediaGX chipset support (VERY EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
-	  Include support for PIO tuning an virtual DMA on the Cyrix MediaGX 
+	  Include support for PIO tuning and virtual DMA on the Cyrix MediaGX
 	  5510/5520 chipset. This will automatically be detected and
 	  configured if found.
 
@@ -662,7 +662,7 @@ config PDC202XX_BURST
 
 	  It was originally designed for the PDC20246/Ultra33, whose BIOS will
 	  only setup UDMA on the first two PDC20246 cards.  It has also been
-	  used succesfully on a PDC20265/Ultra100, allowing use of UDMA modes
+	  used successfully on a PDC20265/Ultra100, allowing use of UDMA modes
 	  when the PDC20265 BIOS has been disabled (for faster boot up).
 
 	  Please read the comments at the top of
@@ -672,13 +672,6 @@ config PDC202XX_BURST
 
 config BLK_DEV_PDC202XX_NEW
 	tristate "PROMISE PDC202{68|69|70|71|75|76|77} support"
-
-# FIXME - probably wants to be one for old and for new
-config PDC202XX_FORCE
-	bool "Enable controller even if disabled by BIOS"
-	depends on BLK_DEV_PDC202XX_NEW
-	help
-	  Enable the PDC202xx controller even if it has been disabled in the BIOS setup.
 
 config BLK_DEV_SVWKS
 	tristate "ServerWorks OSB4/CSB5/CSB6 chipsets support"
@@ -722,7 +715,7 @@ config BLK_DEV_SIS5513
 config BLK_DEV_SLC90E66
 	tristate "SLC90E66 chipset support"
 	help
-	  This driver ensures (U)DMA support for Victroy66 SouthBridges for
+	  This driver ensures (U)DMA support for Victory66 SouthBridges for
 	  SMsC with Intel NorthBridges.  This is an Ultra66 based chipset.
 	  The nice thing about it is that you can mix Ultra/DMA/PIO devices
 	  and it will handle timing cycles.  Since this is an improved
@@ -1060,7 +1053,7 @@ config IDEDMA_IVB
 	  in that mode with an 80c ribbon.
 
 	  If you are experiencing compatibility or performance problems, you
-	  MAY try to answering Y here. However, it does not necessarily solve
+	  MAY try to answer Y here. However, it does not necessarily solve
 	  any of your problems, it could even cause more of them.
 
 	  It is normally safe to answer Y; however, the default is N.

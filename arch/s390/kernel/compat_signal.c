@@ -1,8 +1,7 @@
 /*
- *  arch/s390/kernel/signal32.c
+ *  arch/s390/kernel/compat_signal.c
  *
- *  S390 version
- *    Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 2000,2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
  *               Gerhard Tonn (ton@de.ibm.com)                  
  *
@@ -51,8 +50,6 @@ typedef struct
 	compat_siginfo_t info;
 	struct ucontext32 uc;
 } rt_sigframe32;
-
-asmlinkage int FASTCALL(do_signal(struct pt_regs *regs, sigset_t *oldset));
 
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 {
@@ -159,66 +156,6 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 		}
 	}
 	return err;
-}
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys32_sigsuspend(struct pt_regs * regs,int history0, int history1, old_sigset_t mask)
-{
-	sigset_t saveset;
-
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	regs->gprs[2] = -EINTR;
-
-	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-		if (do_signal(regs, &saveset))
-			return -EINTR;
-	}
-}
-
-asmlinkage int
-sys32_rt_sigsuspend(struct pt_regs * regs, compat_sigset_t __user *unewset,
-								size_t sigsetsize)
-{
-	sigset_t saveset, newset;
-	compat_sigset_t set32;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&set32, unewset, sizeof(set32)))
-		return -EFAULT;
-	switch (_NSIG_WORDS) {
-	case 4: newset.sig[3] = set32.sig[6] + (((long)set32.sig[7]) << 32);
-	case 3: newset.sig[2] = set32.sig[4] + (((long)set32.sig[5]) << 32);
-	case 2: newset.sig[1] = set32.sig[2] + (((long)set32.sig[3]) << 32);
-	case 1: newset.sig[0] = set32.sig[0] + (((long)set32.sig[1]) << 32);
-	}
-        sigdelsetmask(&newset, ~_BLOCKABLE);
-
-        spin_lock_irq(&current->sighand->siglock);
-        saveset = current->blocked;
-        current->blocked = newset;
-        recalc_sigpending();
-        spin_unlock_irq(&current->sighand->siglock);
-        regs->gprs[2] = -EINTR;
-
-        while (1) {
-                set_current_state(TASK_INTERRUPTIBLE);
-                schedule();
-                if (do_signal(regs, &saveset))
-                        return -EINTR;
-        }
 }
 
 asmlinkage long
@@ -520,7 +457,7 @@ static inline int map_signal(int sig)
 		return sig;
 }
 
-static void setup_frame32(int sig, struct k_sigaction *ka,
+static int setup_frame32(int sig, struct k_sigaction *ka,
 			sigset_t *set, struct pt_regs * regs)
 {
 	sigframe32 __user *frame = get_sigframe(ka, regs, sizeof(sigframe32));
@@ -565,13 +502,14 @@ static void setup_frame32(int sig, struct k_sigaction *ka,
 	/* Place signal number on stack to allow backtrace from handler.  */
 	if (__put_user(regs->gprs[2], (int __user *) &frame->signo))
 		goto give_sigsegv;
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
-static void setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 			   sigset_t *set, struct pt_regs * regs)
 {
 	int err = 0;
@@ -615,31 +553,37 @@ static void setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->gprs[2] = map_signal(sig);
 	regs->gprs[3] = (__u64) &frame->info;
 	regs->gprs[4] = (__u64) &frame->uc;
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
 /*
  * OK, we're invoking a handler
  */	
 
-void
+int
 handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		siginfo_t *info, sigset_t *oldset, struct pt_regs * regs)
 {
+	int ret;
+
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame32(sig, ka, info, oldset, regs);
+		ret = setup_rt_frame32(sig, ka, info, oldset, regs);
 	else
-		setup_frame32(sig, ka, oldset, regs);
+		ret = setup_frame32(sig, ka, oldset, regs);
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked,sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	if (ret == 0) {
+		spin_lock_irq(&current->sighand->siglock);
+		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked,sig);
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+	return ret;
 }
 

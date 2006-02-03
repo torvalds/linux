@@ -42,8 +42,13 @@ static struct subsys_attribute _name##_attr = {	\
 
 extern struct subsystem power_subsys;
 
+#ifdef SUSPEND_CONSOLE
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
+#else
+static int pm_prepare_console(void) { return 0; }
+static void pm_restore_console(void) {}
+#endif
 
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
@@ -51,8 +56,8 @@ extern const void __nosave_begin, __nosave_end;
 extern unsigned int nr_copy_pages;
 extern struct pbe *pagedir_nosave;
 
-/* Preferred image size in MB (default 500) */
-extern unsigned int image_size;
+/* Preferred image size in bytes (default 500 MB) */
+extern unsigned long image_size;
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);

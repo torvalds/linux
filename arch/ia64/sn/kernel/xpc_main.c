@@ -55,6 +55,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
+#include <linux/completion.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/kdebug.h>
@@ -177,10 +178,10 @@ static DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
 static unsigned long xpc_hb_check_timeout;
 
 /* notification that the xpc_hb_checker thread has exited */
-static DECLARE_MUTEX_LOCKED(xpc_hb_checker_exited);
+static DECLARE_COMPLETION(xpc_hb_checker_exited);
 
 /* notification that the xpc_discovery thread has exited */
-static DECLARE_MUTEX_LOCKED(xpc_discovery_exited);
+static DECLARE_COMPLETION(xpc_discovery_exited);
 
 
 static struct timer_list xpc_hb_timer;
@@ -321,7 +322,7 @@ xpc_hb_checker(void *ignore)
 
 
 	/* mark this thread as having exited */
-	up(&xpc_hb_checker_exited);
+	complete(&xpc_hb_checker_exited);
 	return 0;
 }
 
@@ -341,7 +342,7 @@ xpc_initiate_discovery(void *ignore)
 	dev_dbg(xpc_part, "discovery thread is exiting\n");
 
 	/* mark this thread as having exited */
-	up(&xpc_discovery_exited);
+	complete(&xpc_discovery_exited);
 	return 0;
 }
 
@@ -893,7 +894,7 @@ xpc_disconnect_wait(int ch_number)
 			continue;
 		}
 
-		(void) down(&ch->wdisconnect_sema);
+		wait_for_completion(&ch->wdisconnect_wait);
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
 		DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
@@ -946,10 +947,10 @@ xpc_do_exit(enum xpc_retval reason)
 	free_irq(SGI_XPC_ACTIVATE, NULL);
 
 	/* wait for the discovery thread to exit */
-	down(&xpc_discovery_exited);
+	wait_for_completion(&xpc_discovery_exited);
 
 	/* wait for the heartbeat checker thread to exit */
-	down(&xpc_hb_checker_exited);
+	wait_for_completion(&xpc_hb_checker_exited);
 
 
 	/* sleep for a 1/3 of a second or so */
@@ -1367,7 +1368,7 @@ xpc_init(void)
 		dev_err(xpc_part, "failed while forking discovery thread\n");
 
 		/* mark this new thread as a non-starter */
-		up(&xpc_discovery_exited);
+		complete(&xpc_discovery_exited);
 
 		xpc_do_exit(xpcUnloading);
 		return -EBUSY;

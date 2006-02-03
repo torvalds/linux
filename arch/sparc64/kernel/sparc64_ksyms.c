@@ -69,7 +69,6 @@ struct poll {
 
 extern void die_if_kernel(char *str, struct pt_regs *regs);
 extern pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-void _sigpause_common (unsigned int set, struct pt_regs *);
 extern void *__bzero(void *, size_t);
 extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
@@ -236,9 +235,10 @@ EXPORT_SYMBOL(pci_dma_supported);
 /* I/O device mmaping on Sparc64. */
 EXPORT_SYMBOL(io_remap_pfn_range);
 
+#ifdef CONFIG_COMPAT
 /* Solaris/SunOS binary compatibility */
-EXPORT_SYMBOL(_sigpause_common);
 EXPORT_SYMBOL(verify_compat_iovec);
+#endif
 
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(pte_alloc_one_kernel);

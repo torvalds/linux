@@ -405,10 +405,6 @@ static void __init init_centaur(struct cpuinfo_x86 *c)
 				winchip2_protect_mcr();
 #endif
 				break;
-			case 10:
-				name="4";
-				/* no info on the WC4 yet */
-				break;
 			default:
 				name="??";
 			}

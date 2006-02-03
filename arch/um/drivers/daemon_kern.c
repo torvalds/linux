@@ -18,7 +18,7 @@ struct daemon_init {
 	char *ctl_sock;
 };
 
-void daemon_init(struct net_device *dev, void *data)
+static void daemon_init(struct net_device *dev, void *data)
 {
 	struct uml_net_private *pri;
 	struct daemon_data *dpri;
@@ -64,7 +64,7 @@ static struct net_kern_info daemon_kern_info = {
 	.write			= daemon_write,
 };
 
-int daemon_setup(char *str, char **mac_out, void *data)
+static int daemon_setup(char *str, char **mac_out, void *data)
 {
 	struct daemon_init *init = data;
 	char *remain;

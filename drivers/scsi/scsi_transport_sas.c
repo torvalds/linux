@@ -377,7 +377,7 @@ static void sas_phy_release(struct device *dev)
 /**
  * sas_phy_alloc  --  allocates and initialize a SAS PHY structure
  * @parent:	Parent device
- * @number:	Port number
+ * @number:	Phy index
  *
  * Allocates an SAS PHY structure.  It will be added in the device tree
  * below the device specified by @parent, which has to be either a Scsi_Host
@@ -595,8 +595,8 @@ struct sas_rphy *sas_rphy_alloc(struct sas_phy *parent)
 	device_initialize(&rphy->dev);
 	rphy->dev.parent = get_device(&parent->dev);
 	rphy->dev.release = sas_rphy_release;
-	sprintf(rphy->dev.bus_id, "rphy-%d:%d",
-		shost->host_no, parent->number);
+	sprintf(rphy->dev.bus_id, "rphy-%d:%d-%d",
+		shost->host_no, parent->port_identifier, parent->number);
 	transport_setup_device(&rphy->dev);
 
 	return rphy;

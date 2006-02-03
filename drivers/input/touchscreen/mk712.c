@@ -154,7 +154,7 @@ static void mk712_close(struct input_dev *dev)
 	spin_unlock_irqrestore(&mk712_lock, flags);
 }
 
-int __init mk712_init(void)
+static int __init mk712_init(void)
 {
 	int err;
 

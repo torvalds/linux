@@ -1,6 +1,4 @@
 /*
- * $Id: ctctty.h,v 1.4 2003/09/18 08:01:10 mschwide Exp $
- *
  * CTC / ESCON network driver, tty interface.
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation

@@ -139,7 +139,6 @@ static UCHAR ct79[] = { 2, BYP,     0x4F,0                   }; // XMIT_NOW
 //static UCHAR ct86[]={ 2, BTH,     0x56,0                   }; // RCV_ENABLE
 static UCHAR ct87[] = { 1, BYP,     0x57                     }; // HW_TEST
 //static UCHAR ct88[]={ 3, BTH,     0x58,0,0                 }; // RCV_THRESHOLD
-static UCHAR ct89[]={ 1, BYP,     0x59                     }; // DSS_NOW
 //static UCHAR ct90[]={ 3, BYP,     0x5A,0,0                 }; // Set SILO
 //static UCHAR ct91[]={ 2, BYP,     0x5B,0                   }; // timed break
 

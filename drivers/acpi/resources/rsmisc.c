@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,481 +47,501 @@
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rsmisc")
 
+#define INIT_RESOURCE_TYPE(i)       i->resource_offset
+#define INIT_RESOURCE_LENGTH(i)     i->aml_offset
+#define INIT_TABLE_LENGTH(i)        i->value
+#define COMPARE_OPCODE(i)           i->resource_offset
+#define COMPARE_TARGET(i)           i->aml_offset
+#define COMPARE_VALUE(i)            i->value
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_end_tag_resource
+ * FUNCTION:    acpi_rs_convert_aml_to_resource
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
+ *              Info                - Pointer to appropriate conversion table
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert an external AML resource descriptor to the corresponding
+ *              internal resource descriptor
  *
  ******************************************************************************/
 acpi_status
-acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
-			 acpi_size * bytes_consumed,
-			 u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
+				union aml_resource *aml,
+				struct acpi_rsconvert_info *info)
 {
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	acpi_size struct_size = ACPI_RESOURCE_LENGTH;
+	acpi_rs_length aml_resource_length;
+	void *source;
+	void *destination;
+	char *target;
+	u8 count;
+	u8 flags_mode = FALSE;
+	u16 item_count = 0;
+	u16 temp16 = 0;
 
-	ACPI_FUNCTION_TRACE("rs_end_tag_resource");
+	ACPI_FUNCTION_TRACE("rs_get_resource");
 
-	/* The number of bytes consumed is static */
+	if (((acpi_native_uint) resource) & 0x3) {
+		/* Each internal resource struct is expected to be 32-bit aligned */
 
-	*bytes_consumed = 2;
+		ACPI_WARNING((AE_INFO,
+			      "Misaligned resource pointer (get): %p Type %2.2X Len %X",
+			      resource, resource->type, resource->length));
+	}
 
-	/*  Fill out the structure */
+	/* Extract the resource Length field (does not include header length) */
 
-	output_struct->id = ACPI_RSTYPE_END_TAG;
-
-	/* Set the Length parameter */
-
-	output_struct->length = 0;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_end_tag_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_end_tag_stream(struct acpi_resource *linked_list,
-		       u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u8 temp8 = 0;
-
-	ACPI_FUNCTION_TRACE("rs_end_tag_stream");
-
-	/* The descriptor field is static */
-
-	*buffer = 0x79;
-	buffer += 1;
+	aml_resource_length = acpi_ut_get_resource_length(aml);
 
 	/*
-	 * Set the Checksum - zero means that the resource data is treated as if
-	 * the checksum operation succeeded (ACPI Spec 1.0b Section 6.4.2.8)
+	 * First table entry must be ACPI_RSC_INITxxx and must contain the
+	 * table length (# of table entries)
 	 */
-	temp8 = 0;
+	count = INIT_TABLE_LENGTH(info);
 
-	*buffer = temp8;
-	buffer += 1;
+	while (count) {
+		/*
+		 * Source is the external AML byte stream buffer,
+		 * destination is the internal resource descriptor
+		 */
+		source = ACPI_ADD_PTR(void, aml, info->aml_offset);
+		destination =
+		    ACPI_ADD_PTR(void, resource, info->resource_offset);
 
-	/* Return the number of bytes consumed in this operation */
+		switch (info->opcode) {
+		case ACPI_RSC_INITGET:
+			/*
+			 * Get the resource type and the initial (minimum) length
+			 */
+			ACPI_MEMSET(resource, 0, INIT_RESOURCE_LENGTH(info));
+			resource->type = INIT_RESOURCE_TYPE(info);
+			resource->length = INIT_RESOURCE_LENGTH(info);
+			break;
 
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
-}
+		case ACPI_RSC_INITSET:
+			break;
 
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_vendor_resource
- *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
- *
- ******************************************************************************/
+		case ACPI_RSC_FLAGINIT:
 
-acpi_status
-acpi_rs_vendor_resource(u8 * byte_stream_buffer,
-			acpi_size * bytes_consumed,
-			u8 ** output_buffer, acpi_size * structure_size)
-{
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	u8 index;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor);
+			flags_mode = TRUE;
+			break;
 
-	ACPI_FUNCTION_TRACE("rs_vendor_resource");
+		case ACPI_RSC_1BITFLAG:
+			/*
+			 * Mask and shift the flag bit
+			 */
+			ACPI_SET8(destination) = (u8)
+			    ((ACPI_GET8(source) >> info->value) & 0x01);
+			break;
 
-	/* Dereference the Descriptor to find if this is a large or small item. */
+		case ACPI_RSC_2BITFLAG:
+			/*
+			 * Mask and shift the flag bits
+			 */
+			ACPI_SET8(destination) = (u8)
+			    ((ACPI_GET8(source) >> info->value) & 0x03);
+			break;
 
-	temp8 = *buffer;
+		case ACPI_RSC_COUNT:
 
-	if (temp8 & 0x80) {
-		/* Large Item, point to the length field */
+			item_count = ACPI_GET8(source);
+			ACPI_SET8(destination) = (u8) item_count;
 
-		buffer += 1;
+			resource->length = resource->length +
+			    (info->value * (item_count - 1));
+			break;
 
-		/* Dereference */
+		case ACPI_RSC_COUNT16:
 
-		ACPI_MOVE_16_TO_16(&temp16, buffer);
+			item_count = aml_resource_length;
+			ACPI_SET16(destination) = item_count;
 
-		/* Calculate bytes consumed */
+			resource->length = resource->length +
+			    (info->value * (item_count - 1));
+			break;
 
-		*bytes_consumed = (acpi_size) temp16 + 3;
+		case ACPI_RSC_LENGTH:
 
-		/* Point to the first vendor byte */
+			resource->length = resource->length + info->value;
+			break;
 
-		buffer += 2;
-	} else {
-		/* Small Item, dereference the size */
+		case ACPI_RSC_MOVE8:
+		case ACPI_RSC_MOVE16:
+		case ACPI_RSC_MOVE32:
+		case ACPI_RSC_MOVE64:
+			/*
+			 * Raw data move. Use the Info value field unless item_count has
+			 * been previously initialized via a COUNT opcode
+			 */
+			if (info->value) {
+				item_count = info->value;
+			}
+			acpi_rs_move_data(destination, source, item_count,
+					  info->opcode);
+			break;
 
-		temp16 = (u8) (*buffer & 0x07);
+		case ACPI_RSC_SET8:
 
-		/* Calculate bytes consumed */
+			ACPI_MEMSET(destination, info->aml_offset, info->value);
+			break;
 
-		*bytes_consumed = (acpi_size) temp16 + 1;
+		case ACPI_RSC_DATA8:
 
-		/* Point to the first vendor byte */
+			target = ACPI_ADD_PTR(char, resource, info->value);
+			ACPI_MEMCPY(destination, source, ACPI_GET16(target));
+			break;
 
-		buffer += 1;
-	}
+		case ACPI_RSC_ADDRESS:
+			/*
+			 * Common handler for address descriptor flags
+			 */
+			if (!acpi_rs_get_address_common(resource, aml)) {
+				return_ACPI_STATUS
+				    (AE_AML_INVALID_RESOURCE_TYPE);
+			}
+			break;
 
-	output_struct->id = ACPI_RSTYPE_VENDOR;
-	output_struct->data.vendor_specific.length = temp16;
+		case ACPI_RSC_SOURCE:
+			/*
+			 * Optional resource_source (Index and String)
+			 */
+			resource->length +=
+			    acpi_rs_get_resource_source(aml_resource_length,
+							info->value,
+							destination, aml, NULL);
+			break;
 
-	for (index = 0; index < temp16; index++) {
-		output_struct->data.vendor_specific.reserved[index] = *buffer;
-		buffer += 1;
-	}
+		case ACPI_RSC_SOURCEX:
+			/*
+			 * Optional resource_source (Index and String). This is the more
+			 * complicated case used by the Interrupt() macro
+			 */
+			target =
+			    ACPI_ADD_PTR(char, resource,
+					 info->aml_offset + (item_count * 4));
 
-	/*
-	 * In order for the struct_size to fall on a 32-bit boundary,
-	 * calculate the length of the vendor string and expand the
-	 * struct_size to the next 32-bit boundary.
-	 */
-	struct_size += ACPI_ROUND_UP_to_32_bITS(temp16);
+			resource->length +=
+			    acpi_rs_get_resource_source(aml_resource_length,
+							(acpi_rs_length) (((item_count - 1) * sizeof(u32)) + info->value), destination, aml, target);
+			break;
 
-	/* Set the Length parameter */
+		case ACPI_RSC_BITMASK:
+			/*
+			 * 8-bit encoded bitmask (DMA macro)
+			 */
+			item_count =
+			    acpi_rs_decode_bitmask(ACPI_GET8(source),
+						   destination);
+			if (item_count) {
+				resource->length += (item_count - 1);
+			}
 
-	output_struct->length = (u32) struct_size;
+			target = ACPI_ADD_PTR(char, resource, info->value);
+			ACPI_SET8(target) = (u8) item_count;
+			break;
 
-	/* Return the final size of the structure */
+		case ACPI_RSC_BITMASK16:
+			/*
+			 * 16-bit encoded bitmask (IRQ macro)
+			 */
+			ACPI_MOVE_16_TO_16(&temp16, source);
 
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
+			item_count =
+			    acpi_rs_decode_bitmask(temp16, destination);
+			if (item_count) {
+				resource->length += (item_count - 1);
+			}
 
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_vendor_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
+			target = ACPI_ADD_PTR(char, resource, info->value);
+			ACPI_SET8(target) = (u8) item_count;
+			break;
 
-acpi_status
-acpi_rs_vendor_stream(struct acpi_resource *linked_list,
-		      u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	u8 index;
+		case ACPI_RSC_EXIT_NE:
+			/*
+			 * Control - Exit conversion if not equal
+			 */
+			switch (info->resource_offset) {
+			case ACPI_RSC_COMPARE_AML_LENGTH:
+				if (aml_resource_length != info->value) {
+					goto exit;
+				}
+				break;
 
-	ACPI_FUNCTION_TRACE("rs_vendor_stream");
+			case ACPI_RSC_COMPARE_VALUE:
+				if (ACPI_GET8(source) != info->value) {
+					goto exit;
+				}
+				break;
 
-	/* Dereference the length to find if this is a large or small item. */
+			default:
 
-	if (linked_list->data.vendor_specific.length > 7) {
-		/* Large Item, Set the descriptor field and length bytes */
+				ACPI_ERROR((AE_INFO,
+					    "Invalid conversion sub-opcode"));
+				return_ACPI_STATUS(AE_BAD_PARAMETER);
+			}
+			break;
 
-		*buffer = 0x84;
-		buffer += 1;
+		default:
 
-		temp16 = (u16) linked_list->data.vendor_specific.length;
-
-		ACPI_MOVE_16_TO_16(buffer, &temp16);
-		buffer += 2;
-	} else {
-		/* Small Item, Set the descriptor field */
-
-		temp8 = 0x70;
-		temp8 |= (u8) linked_list->data.vendor_specific.length;
-
-		*buffer = temp8;
-		buffer += 1;
-	}
-
-	/* Loop through all of the Vendor Specific fields */
-
-	for (index = 0; index < linked_list->data.vendor_specific.length;
-	     index++) {
-		temp8 = linked_list->data.vendor_specific.reserved[index];
-
-		*buffer = temp8;
-		buffer += 1;
-	}
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_start_depend_fns_resource
- *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_start_depend_fns_resource(u8 * byte_stream_buffer,
-				  acpi_size * bytes_consumed,
-				  u8 ** output_buffer,
-				  acpi_size * structure_size)
-{
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u8 temp8 = 0;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_start_dpf);
-
-	ACPI_FUNCTION_TRACE("rs_start_depend_fns_resource");
-
-	/* The number of bytes consumed are found in the descriptor (Bits:0-1) */
-
-	temp8 = *buffer;
-
-	*bytes_consumed = (temp8 & 0x01) + 1;
-
-	output_struct->id = ACPI_RSTYPE_START_DPF;
-
-	/* Point to Byte 1 if it is used */
-
-	if (2 == *bytes_consumed) {
-		buffer += 1;
-		temp8 = *buffer;
-
-		/* Check Compatibility priority */
-
-		output_struct->data.start_dpf.compatibility_priority =
-		    temp8 & 0x03;
-
-		if (3 == output_struct->data.start_dpf.compatibility_priority) {
-			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_VALUE);
+			ACPI_ERROR((AE_INFO, "Invalid conversion opcode"));
+			return_ACPI_STATUS(AE_BAD_PARAMETER);
 		}
 
-		/* Check Performance/Robustness preference */
-
-		output_struct->data.start_dpf.performance_robustness =
-		    (temp8 >> 2) & 0x03;
-
-		if (3 == output_struct->data.start_dpf.performance_robustness) {
-			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_VALUE);
-		}
-	} else {
-		output_struct->data.start_dpf.compatibility_priority =
-		    ACPI_ACCEPTABLE_CONFIGURATION;
-
-		output_struct->data.start_dpf.performance_robustness =
-		    ACPI_ACCEPTABLE_CONFIGURATION;
+		count--;
+		info++;
 	}
 
-	/* Set the Length parameter */
+      exit:
+	if (!flags_mode) {
+		/* Round the resource struct length up to the next 32-bit boundary */
 
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
+		resource->length = ACPI_ROUND_UP_to_32_bITS(resource->length);
+	}
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_end_depend_fns_resource
+ * FUNCTION:    acpi_rs_convert_resource_to_aml
  *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Aml                 - Where the AML descriptor is returned
+ *              Info                - Pointer to appropriate conversion table
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * DESCRIPTION: Convert an internal resource descriptor to the corresponding
+ *              external AML resource descriptor.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_end_depend_fns_resource(u8 * byte_stream_buffer,
-				acpi_size * bytes_consumed,
-				u8 ** output_buffer, acpi_size * structure_size)
+acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
+				union aml_resource *aml,
+				struct acpi_rsconvert_info *info)
 {
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	acpi_size struct_size = ACPI_RESOURCE_LENGTH;
+	void *source = NULL;
+	void *destination;
+	acpi_rsdesc_size aml_length = 0;
+	u8 count;
+	u16 temp16 = 0;
+	u16 item_count = 0;
 
-	ACPI_FUNCTION_TRACE("rs_end_depend_fns_resource");
-
-	/* The number of bytes consumed is static */
-
-	*bytes_consumed = 1;
-
-	/*  Fill out the structure */
-
-	output_struct->id = ACPI_RSTYPE_END_DPF;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_start_depend_fns_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - u32 pointer that is filled with
- *                                        the number of bytes of the
- *                                        output_buffer used
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
-
-acpi_status
-acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
-				u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u8 temp8 = 0;
-
-	ACPI_FUNCTION_TRACE("rs_start_depend_fns_stream");
+	ACPI_FUNCTION_TRACE("rs_convert_resource_to_aml");
 
 	/*
-	 * The descriptor field is set based upon whether a byte is needed
-	 * to contain Priority data.
+	 * First table entry must be ACPI_RSC_INITxxx and must contain the
+	 * table length (# of table entries)
 	 */
-	if (ACPI_ACCEPTABLE_CONFIGURATION ==
-	    linked_list->data.start_dpf.compatibility_priority &&
-	    ACPI_ACCEPTABLE_CONFIGURATION ==
-	    linked_list->data.start_dpf.performance_robustness) {
-		*buffer = 0x30;
-	} else {
-		*buffer = 0x31;
-		buffer += 1;
+	count = INIT_TABLE_LENGTH(info);
 
-		/* Set the Priority Byte Definition */
+	while (count) {
+		/*
+		 * Source is the internal resource descriptor,
+		 * destination is the external AML byte stream buffer
+		 */
+		source = ACPI_ADD_PTR(void, resource, info->resource_offset);
+		destination = ACPI_ADD_PTR(void, aml, info->aml_offset);
 
-		temp8 = 0;
-		temp8 =
-		    (u8) ((linked_list->data.start_dpf.
-			   performance_robustness & 0x03) << 2);
-		temp8 |=
-		    (linked_list->data.start_dpf.compatibility_priority & 0x03);
-		*buffer = temp8;
+		switch (info->opcode) {
+		case ACPI_RSC_INITSET:
+
+			ACPI_MEMSET(aml, 0, INIT_RESOURCE_LENGTH(info));
+			aml_length = INIT_RESOURCE_LENGTH(info);
+			acpi_rs_set_resource_header(INIT_RESOURCE_TYPE(info),
+						    aml_length, aml);
+			break;
+
+		case ACPI_RSC_INITGET:
+			break;
+
+		case ACPI_RSC_FLAGINIT:
+			/*
+			 * Clear the flag byte
+			 */
+			ACPI_SET8(destination) = 0;
+			break;
+
+		case ACPI_RSC_1BITFLAG:
+			/*
+			 * Mask and shift the flag bit
+			 */
+			ACPI_SET8(destination) |= (u8)
+			    ((ACPI_GET8(source) & 0x01) << info->value);
+			break;
+
+		case ACPI_RSC_2BITFLAG:
+			/*
+			 * Mask and shift the flag bits
+			 */
+			ACPI_SET8(destination) |= (u8)
+			    ((ACPI_GET8(source) & 0x03) << info->value);
+			break;
+
+		case ACPI_RSC_COUNT:
+
+			item_count = ACPI_GET8(source);
+			ACPI_SET8(destination) = (u8) item_count;
+
+			aml_length =
+			    (u16) (aml_length +
+				   (info->value * (item_count - 1)));
+			break;
+
+		case ACPI_RSC_COUNT16:
+
+			item_count = ACPI_GET16(source);
+			aml_length = (u16) (aml_length + item_count);
+			acpi_rs_set_resource_length(aml_length, aml);
+			break;
+
+		case ACPI_RSC_LENGTH:
+
+			acpi_rs_set_resource_length(info->value, aml);
+			break;
+
+		case ACPI_RSC_MOVE8:
+		case ACPI_RSC_MOVE16:
+		case ACPI_RSC_MOVE32:
+		case ACPI_RSC_MOVE64:
+
+			if (info->value) {
+				item_count = info->value;
+			}
+			acpi_rs_move_data(destination, source, item_count,
+					  info->opcode);
+			break;
+
+		case ACPI_RSC_ADDRESS:
+
+			/* Set the Resource Type, General Flags, and Type-Specific Flags */
+
+			acpi_rs_set_address_common(aml, resource);
+			break;
+
+		case ACPI_RSC_SOURCEX:
+			/*
+			 * Optional resource_source (Index and String)
+			 */
+			aml_length =
+			    acpi_rs_set_resource_source(aml,
+							(acpi_rs_length)
+							aml_length, source);
+			acpi_rs_set_resource_length(aml_length, aml);
+			break;
+
+		case ACPI_RSC_SOURCE:
+			/*
+			 * Optional resource_source (Index and String). This is the more
+			 * complicated case used by the Interrupt() macro
+			 */
+			aml_length =
+			    acpi_rs_set_resource_source(aml, info->value,
+							source);
+			acpi_rs_set_resource_length(aml_length, aml);
+			break;
+
+		case ACPI_RSC_BITMASK:
+			/*
+			 * 8-bit encoded bitmask (DMA macro)
+			 */
+			ACPI_SET8(destination) = (u8)
+			    acpi_rs_encode_bitmask(source,
+						   *ACPI_ADD_PTR(u8, resource,
+								 info->value));
+			break;
+
+		case ACPI_RSC_BITMASK16:
+			/*
+			 * 16-bit encoded bitmask (IRQ macro)
+			 */
+			temp16 = acpi_rs_encode_bitmask(source,
+							*ACPI_ADD_PTR(u8,
+								      resource,
+								      info->
+								      value));
+			ACPI_MOVE_16_TO_16(destination, &temp16);
+			break;
+
+		case ACPI_RSC_EXIT_LE:
+			/*
+			 * Control - Exit conversion if less than or equal
+			 */
+			if (item_count <= info->value) {
+				goto exit;
+			}
+			break;
+
+		case ACPI_RSC_EXIT_NE:
+			/*
+			 * Control - Exit conversion if not equal
+			 */
+			switch (COMPARE_OPCODE(info)) {
+			case ACPI_RSC_COMPARE_VALUE:
+
+				if (*ACPI_ADD_PTR(u8, resource,
+						  COMPARE_TARGET(info)) !=
+				    COMPARE_VALUE(info)) {
+					goto exit;
+				}
+				break;
+
+			default:
+
+				ACPI_ERROR((AE_INFO,
+					    "Invalid conversion sub-opcode"));
+				return_ACPI_STATUS(AE_BAD_PARAMETER);
+			}
+			break;
+
+		default:
+
+			ACPI_ERROR((AE_INFO, "Invalid conversion opcode"));
+			return_ACPI_STATUS(AE_BAD_PARAMETER);
+		}
+
+		count--;
+		info++;
 	}
 
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+      exit:
 	return_ACPI_STATUS(AE_OK);
 }
 
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_end_depend_fns_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
- *
- ******************************************************************************/
+#if 0
+/* Previous resource validations */
 
-acpi_status
-acpi_rs_end_depend_fns_stream(struct acpi_resource *linked_list,
-			      u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-
-	ACPI_FUNCTION_TRACE("rs_end_depend_fns_stream");
-
-	/* The descriptor field is static */
-
-	*buffer = 0x38;
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
+if (aml->ext_address64.revision_iD != AML_RESOURCE_EXTENDED_ADDRESS_REVISION) {
+	return_ACPI_STATUS(AE_SUPPORT);
 }
+
+if (resource->data.start_dpf.performance_robustness >= 3) {
+	return_ACPI_STATUS(AE_AML_BAD_RESOURCE_VALUE);
+}
+
+if (((aml->irq.flags & 0x09) == 0x00) || ((aml->irq.flags & 0x09) == 0x09)) {
+	/*
+	 * Only [active_high, edge_sensitive] or [active_low, level_sensitive]
+	 * polarity/trigger interrupts are allowed (ACPI spec, section
+	 * "IRQ Format"), so 0x00 and 0x09 are illegal.
+	 */
+	ACPI_ERROR((AE_INFO,
+		    "Invalid interrupt polarity/trigger in resource list, %X",
+		    aml->irq.flags));
+	return_ACPI_STATUS(AE_BAD_DATA);
+}
+
+resource->data.extended_irq.interrupt_count = temp8;
+if (temp8 < 1) {
+	/* Must have at least one IRQ */
+
+	return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
+}
+
+if (resource->data.dma.transfer == 0x03) {
+	ACPI_ERROR((AE_INFO, "Invalid DMA.Transfer preference (3)"));
+	return_ACPI_STATUS(AE_BAD_DATA);
+}
+#endif

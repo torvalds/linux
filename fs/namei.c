@@ -1161,6 +1161,7 @@ static int __path_lookup_intent_open(int dfd, const char *name,
 
 /**
  * path_lookup_open - lookup a file path with open intent
+ * @dfd: the directory to use as base, or AT_FDCWD
  * @name: pointer to file name
  * @lookup_flags: lookup intent flags
  * @nd: pointer to nameidata
@@ -1175,6 +1176,7 @@ int path_lookup_open(int dfd, const char *name, unsigned int lookup_flags,
 
 /**
  * path_lookup_create - lookup a file path with open + create intent
+ * @dfd: the directory to use as base, or AT_FDCWD
  * @name: pointer to file name
  * @lookup_flags: lookup intent flags
  * @nd: pointer to nameidata

@@ -5206,14 +5206,14 @@ struct _snd_pcm_runtime {
         You need to pass the <function>snd_dma_pci_data(pci)</function>,
         where pci is the struct <structname>pci_dev</structname> pointer
         of the chip as well.
-        The <type>snd_sg_buf_t</type> instance is created as
+        The <type>struct snd_sg_buf</type> instance is created as
         substream-&gt;dma_private. You can cast
         the pointer like: 
 
         <informalexample>
           <programlisting>
 <![CDATA[
-  struct snd_sg_buf *sgbuf = (struct snd_sg_buf_t*)substream->dma_private;
+  struct snd_sg_buf *sgbuf = (struct snd_sg_buf *)substream->dma_private;
 ]]>
           </programlisting>
         </informalexample>

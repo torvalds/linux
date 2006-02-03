@@ -2543,13 +2543,14 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 		case SIOCBONDENSLAVE:
 		case SIOCBONDRELEASE:
 		case SIOCBONDSETHWADDR:
-		case SIOCBONDSLAVEINFOQUERY:
-		case SIOCBONDINFOQUERY:
 		case SIOCBONDCHANGEACTIVE:
 		case SIOCBRADDIF:
 		case SIOCBRDELIF:
 			if (!capable(CAP_NET_ADMIN))
 				return -EPERM;
+			/* fall through */
+		case SIOCBONDSLAVEINFOQUERY:
+		case SIOCBONDINFOQUERY:
 			dev_load(ifr.ifr_name);
 			rtnl_lock();
 			ret = dev_ifsioc(&ifr, cmd);

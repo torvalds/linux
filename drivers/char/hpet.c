@@ -927,9 +927,9 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 	if (ACPI_SUCCESS(status)) {
 		unsigned long size;
 
-		size = addr.max_address_range - addr.min_address_range + 1;
-		hdp->hd_phys_address = addr.min_address_range;
-		hdp->hd_address = ioremap(addr.min_address_range, size);
+		size = addr.maximum - addr.minimum + 1;
+		hdp->hd_phys_address = addr.minimum;
+		hdp->hd_address = ioremap(addr.minimum, size);
 
 		if (hpet_is_known(hdp)) {
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
@@ -937,15 +937,15 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 			iounmap(hdp->hd_address);
 			return -EBUSY;
 		}
-	} else if (res->id == ACPI_RSTYPE_FIXED_MEM32) {
-		struct acpi_resource_fixed_mem32 *fixmem32;
+	} else if (res->type == ACPI_RESOURCE_TYPE_FIXED_MEMORY32) {
+		struct acpi_resource_fixed_memory32 *fixmem32;
 
 		fixmem32 = &res->data.fixed_memory32;
 		if (!fixmem32)
 			return -EINVAL;
 
-		hdp->hd_phys_address = fixmem32->range_base_address;
-		hdp->hd_address = ioremap(fixmem32->range_base_address,
+		hdp->hd_phys_address = fixmem32->address;
+		hdp->hd_address = ioremap(fixmem32->address,
 						HPET_RANGE_SIZE);
 
 		if (hpet_is_known(hdp)) {
@@ -954,20 +954,20 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 			iounmap(hdp->hd_address);
 			return -EBUSY;
 		}
-	} else if (res->id == ACPI_RSTYPE_EXT_IRQ) {
-		struct acpi_resource_ext_irq *irqp;
+	} else if (res->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
+		struct acpi_resource_extended_irq *irqp;
 		int i;
 
 		irqp = &res->data.extended_irq;
 
-		if (irqp->number_of_interrupts > 0) {
-			hdp->hd_nirqs = irqp->number_of_interrupts;
+		if (irqp->interrupt_count > 0) {
+			hdp->hd_nirqs = irqp->interrupt_count;
 
 			for (i = 0; i < hdp->hd_nirqs; i++) {
 				int rc =
 				    acpi_register_gsi(irqp->interrupts[i],
-						      irqp->edge_level,
-						      irqp->active_high_low);
+						      irqp->triggering,
+						      irqp->polarity);
 				if (rc < 0)
 					return AE_ERROR;
 				hdp->hd_irq[i] = rc;

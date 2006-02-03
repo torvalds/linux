@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ acpi_status
 acpi_ut_create_pkg_state_and_push(void *internal_object,
 				  void *external_object,
 				  u16 index,
-				  union acpi_generic_state ** state_list)
+				  union acpi_generic_state **state_list)
 {
 	union acpi_generic_state *state;
 

@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/xp.h>
@@ -136,13 +137,13 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 
 	registration = &xpc_registrations[ch_number];
 
-	if (down_interruptible(&registration->sema) != 0) {
+	if (mutex_lock_interruptible(&registration->mutex) != 0) {
 		return xpcInterrupted;
 	}
 
 	/* if XPC_CHANNEL_REGISTERED(ch_number) */
 	if (registration->func != NULL) {
-		up(&registration->sema);
+		mutex_unlock(&registration->mutex);
 		return xpcAlreadyRegistered;
 	}
 
@@ -154,7 +155,7 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 	registration->key = key;
 	registration->func = func;
 
-	up(&registration->sema);
+	mutex_unlock(&registration->mutex);
 
 	xpc_interface.connect(ch_number);
 
@@ -190,11 +191,11 @@ xpc_disconnect(int ch_number)
 	 * figured XPC's users will just turn around and call xpc_disconnect()
 	 * again anyways, so we might as well wait, if need be.
 	 */
-	down(&registration->sema);
+	mutex_lock(&registration->mutex);
 
 	/* if !XPC_CHANNEL_REGISTERED(ch_number) */
 	if (registration->func == NULL) {
-		up(&registration->sema);
+		mutex_unlock(&registration->mutex);
 		return;
 	}
 
@@ -208,7 +209,7 @@ xpc_disconnect(int ch_number)
 
 	xpc_interface.disconnect(ch_number);
 
-	up(&registration->sema);
+	mutex_unlock(&registration->mutex);
 
 	return;
 }
@@ -250,9 +251,9 @@ xp_init(void)
 		xp_nofault_PIOR_target = SH1_IPI_ACCESS;
 	}
 
-	/* initialize the connection registration semaphores */
+	/* initialize the connection registration mutex */
 	for (ch_number = 0; ch_number < XPC_NCHANNELS; ch_number++) {
-		sema_init(&xpc_registrations[ch_number].sema, 1);  /* mutex */
+		mutex_init(&xpc_registrations[ch_number].mutex);
 	}
 
 	return 0;

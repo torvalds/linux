@@ -38,14 +38,6 @@
 #include "z90crypt.h"
 #include "z90common.h"
 
-#define VERSION_Z90MAIN_C "$Revision: 1.62 $"
-
-static char z90main_version[] __initdata =
-	"z90main.o (" VERSION_Z90MAIN_C "/"
-                      VERSION_Z90COMMON_H "/" VERSION_Z90CRYPT_H ")";
-
-extern char z90hardware_version[];
-
 /**
  * Defaults that may be modified.
  */
@@ -594,8 +586,6 @@ z90crypt_init_module(void)
 		PRINTKN("Version %d.%d.%d loaded, built on %s %s\n",
 			z90crypt_VERSION, z90crypt_RELEASE, z90crypt_VARIANT,
 			__DATE__, __TIME__);
-		PRINTKN("%s\n", z90main_version);
-		PRINTKN("%s\n", z90hardware_version);
 		PDEBUG("create_z90crypt (domain index %d) successful.\n",
 		       domain);
 	} else

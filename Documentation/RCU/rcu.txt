@@ -111,6 +111,11 @@ o	What are all these files in this directory?
 
 		You are reading it!
 
+	rcuref.txt
+
+		Describes how to combine use of reference counts
+		with RCU.
+
 	whatisRCU.txt
 
 		Overview of how the RCU implementation works.  Along
