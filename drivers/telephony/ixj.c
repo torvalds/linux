@@ -3558,10 +3558,16 @@ static void ixj_write_frame(IXJ *j)
 				}
 			/* Add word 0 to G.729 frames for the 8021.  Right now we don't do VAD/CNG  */
 				if (j->play_codec == G729 && (cnt == 0 || cnt == 10 || cnt == 20)) {
-					if(j->write_buffer_rp + cnt == 0 && j->write_buffer_rp + cnt + 1 == 0 && j->write_buffer_rp + cnt + 2 == 0 &&
-					   j->write_buffer_rp + cnt + 3 == 0 && j->write_buffer_rp + cnt + 4 == 0 && j->write_buffer_rp + cnt + 5 == 0 &&
-					   j->write_buffer_rp + cnt + 6 == 0 && j->write_buffer_rp + cnt + 7 == 0 && j->write_buffer_rp + cnt + 8 == 0 &&
-					   j->write_buffer_rp + cnt + 9 == 0) {
+					if (j->write_buffer_rp[cnt] == 0 &&
+					    j->write_buffer_rp[cnt + 1] == 0 &&
+					    j->write_buffer_rp[cnt + 2] == 0 &&
+					    j->write_buffer_rp[cnt + 3] == 0 &&
+					    j->write_buffer_rp[cnt + 4] == 0 &&
+					    j->write_buffer_rp[cnt + 5] == 0 &&
+					    j->write_buffer_rp[cnt + 6] == 0 &&
+					    j->write_buffer_rp[cnt + 7] == 0 &&
+					    j->write_buffer_rp[cnt + 8] == 0 &&
+					    j->write_buffer_rp[cnt + 9] == 0) {
 					/* someone is trying to write silence lets make this a type 0 frame. */
 						outb_p(0x00, j->DSPbase + 0x0C);
 						outb_p(0x00, j->DSPbase + 0x0D);
