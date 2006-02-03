@@ -508,7 +508,6 @@ void jsm_input(struct jsm_channel *ch)
 	int flip_len = 0;
 	int len = 0;
 	int n = 0;
-	char *buf = NULL;
 	int s = 0;
 	int i = 0;
 
