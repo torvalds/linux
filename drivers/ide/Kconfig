@@ -52,9 +52,9 @@ config IDE
 
 if IDE
 
-config IDE_MAX_HWIFS 
+config IDE_MAX_HWIFS
 	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH
+	depends on ALPHA || SUPERH || IA64
 	default 4
 	help
 	  This is the maximum number of IDE hardware interfaces that will
