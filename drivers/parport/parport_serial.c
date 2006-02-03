@@ -329,9 +329,9 @@ static int __devinit parport_register (struct pci_dev *dev,
 
 		if (priv->num_par == ARRAY_SIZE (priv->port)) {
 			printk (KERN_WARNING
-				"parport_serial: %s: only %u parallel ports "
+				"parport_serial: %s: only %zu parallel ports "
 				"supported (%d reported)\n", pci_name (dev),
-				ARRAY_SIZE (priv->port), card->numports);
+				ARRAY_SIZE(priv->port), card->numports);
 			break;
 		}
 
