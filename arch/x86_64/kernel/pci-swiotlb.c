@@ -35,8 +35,8 @@ void pci_swiotlb_init(void)
 	    (end_pfn > MAX_DMA32_PFN || force_iommu))
 	       swiotlb = 1;
 	if (swiotlb) {
-		swiotlb_init();
 		printk(KERN_INFO "PCI-DMA: Using software bounce buffering for IO (SWIOTLB)\n");
+		swiotlb_init();
 		dma_ops = &swiotlb_dma_ops;
 	}
 }

@@ -645,9 +645,18 @@ static int __init pci_iommu_init(void)
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		no_iommu = 1;
 		no_iommu_init();
+		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
+		if (end_pfn > MAX_DMA32_PFN) {
+			printk(KERN_ERR "WARNING more than 4GB of memory "
+					"but IOMMU not compiled in.\n"
+			       KERN_ERR "WARNING 32bit PCI may malfunction.\n"
+			       KERN_ERR "You might want to enable "
+					"CONFIG_GART_IOMMU\n");
+		}
 		return -1;
 	}
 
+	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
 	aper_size = info.aper_size * 1024 * 1024;	
 	iommu_size = check_iommu_size(info.aper_base, aper_size); 
 	iommu_pages = iommu_size >> PAGE_SHIFT; 
@@ -721,7 +730,6 @@ static int __init pci_iommu_init(void)
 		     
 	flush_gart(NULL);
 
-	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
 	dma_ops = &gart_dma_ops;
 
 	return 0;
