@@ -81,7 +81,7 @@ static inline int generic_fls64(__u64 x)
 {
 	__u32 h = x >> 32;
 	if (h)
-		return fls(x) + 32;
+		return fls(h) + 32;
 	return fls(x);
 }
 
