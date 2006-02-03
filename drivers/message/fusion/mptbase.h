@@ -616,6 +616,7 @@ typedef struct _MPT_ADAPTER
 	 * increments by 32 bytes
 	 */
 	int			 errata_flag_1064;
+	int			 aen_event_read_flag; /* flag to indicate event log was read*/
 	u8			 FirstWhoInit;
 	u8			 upload_fw;	/* If set, do a fw upload */
 	u8			 reload_fw;	/* Force a FW Reload on next reset */

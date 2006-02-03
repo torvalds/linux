@@ -136,6 +136,12 @@ static void mptctl_free_tm_flags(MPT_ADAPTER *ioc);
  */
 static int  mptctl_ioc_reset(MPT_ADAPTER *ioc, int reset_phase);
 
+/*
+ * Event Handler function
+ */
+static int mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply);
+struct fasync_struct *async_queue=NULL;
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  * Scatter gather list (SGL) sizes and limits...
@@ -469,6 +475,69 @@ mptctl_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	}
 
 	return 1;
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/* ASYNC Event Notification Support */
+static int
+mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
+{
+	u8 event;
+
+	event = le32_to_cpu(pEvReply->Event) & 0xFF;
+
+	dctlprintk(("%s() called\n", __FUNCTION__));
+	if(async_queue == NULL)
+		return 1;
+
+	/* Raise SIGIO for persistent events.
+	 * TODO - this define is not in MPI spec yet,
+	 * but they plan to set it to 0x21
+	 */
+	 if (event == 0x21 ) {
+		ioc->aen_event_read_flag=1;
+		dctlprintk(("Raised SIGIO to application\n"));
+		devtprintk(("Raised SIGIO to application\n"));
+		kill_fasync(&async_queue, SIGIO, POLL_IN);
+		return 1;
+	 }
+
+	/* This flag is set after SIGIO was raised, and
+	 * remains set until the application has read
+	 * the event log via ioctl=MPTEVENTREPORT
+	 */
+	if(ioc->aen_event_read_flag)
+		return 1;
+
+	/* Signal only for the events that are
+	 * requested for by the application
+	 */
+	if (ioc->events && (ioc->eventTypes & ( 1 << event))) {
+		ioc->aen_event_read_flag=1;
+		dctlprintk(("Raised SIGIO to application\n"));
+		devtprintk(("Raised SIGIO to application\n"));
+		kill_fasync(&async_queue, SIGIO, POLL_IN);
+	}
+	return 1;
+}
+
+static int
+mptctl_fasync(int fd, struct file *filep, int mode)
+{
+	MPT_ADAPTER	*ioc;
+
+	list_for_each_entry(ioc, &ioc_list, list)
+		ioc->aen_event_read_flag=0;
+
+	dctlprintk(("%s() called\n", __FUNCTION__));
+	return fasync_helper(fd, filep, mode, &async_queue);
+}
+
+static int
+mptctl_release(struct inode *inode, struct file *filep)
+{
+	dctlprintk(("%s() called\n", __FUNCTION__));
+	return fasync_helper(-1, filep, 0, &async_queue);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1603,6 +1672,9 @@ mptctl_eventreport (unsigned long arg)
 	if ((max < 1) || !ioc->events)
 		return -ENODATA;
 
+	/* reset this flag so SIGIO can restart */
+	ioc->aen_event_read_flag=0;
+
 	/* Copy the data from kernel memory to user memory
 	 */
 	numBytes = max * sizeof(MPT_IOCTL_EVENTS);
@@ -2649,6 +2721,8 @@ mptctl_hp_targetinfo(unsigned long arg)
 static struct file_operations mptctl_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
+	.release =	mptctl_release,
+	.fasync = 	mptctl_fasync,
 	.unlocked_ioctl = mptctl_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_mpctl_ioctl,
@@ -2891,6 +2965,11 @@ static int __init mptctl_init(void)
 		dprintk((KERN_INFO MYNAM ": Registered for IOC reset notifications\n"));
 	} else {
 		/* FIXME! */
+	}
+
+	if (mpt_event_register(mptctl_id, mptctl_event_process) == 0) {
+		devtprintk((KERN_INFO MYNAM
+		  ": Registered for IOC event notifications\n"));
 	}
 
 	return 0;
