@@ -1501,7 +1501,7 @@ mptctl_eventquery (unsigned long arg)
 		return -ENODEV;
 	}
 
-	karg.eventEntries = ioc->eventLogSize;
+	karg.eventEntries = MPTCTL_EVENT_LOG_SIZE;
 	karg.eventTypes = ioc->eventTypes;
 
 	/* Copy the data from kernel memory to user memory
@@ -1551,7 +1551,6 @@ mptctl_eventenable (unsigned long arg)
 		memset(ioc->events, 0, sz);
 		ioc->alloc_total += sz;
 
-		ioc->eventLogSize = MPTCTL_EVENT_LOG_SIZE;
 		ioc->eventContext = 0;
         }
 
@@ -1591,7 +1590,7 @@ mptctl_eventreport (unsigned long arg)
 	maxEvents = numBytes/sizeof(MPT_IOCTL_EVENTS);
 
 
-	max = ioc->eventLogSize < maxEvents ? ioc->eventLogSize : maxEvents;
+	max = MPTCTL_EVENT_LOG_SIZE < maxEvents ? MPTCTL_EVENT_LOG_SIZE : maxEvents;
 
 	/* If fewer than 1 event is requested, there must have
 	 * been some type of error.

@@ -6142,7 +6142,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	if (ioc->events && (ioc->eventTypes & ( 1 << event))) {
 		int idx;
 
-		idx = ioc->eventContext % ioc->eventLogSize;
+		idx = ioc->eventContext % MPTCTL_EVENT_LOG_SIZE;
 
 		ioc->events[idx].event = event;
 		ioc->events[idx].eventContext = ioc->eventContext;
