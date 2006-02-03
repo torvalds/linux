@@ -889,11 +889,7 @@ static void idedisk_setup (ide_drive_t *drive)
 	if (drive->id_read == 0)
 		return;
 
-	/*
-	 * CompactFlash cards and their brethern look just like hard drives
-	 * to us, but they are removable and don't have a doorlock mechanism.
-	 */
-	if (drive->removable && !(drive->is_flash)) {
+	if (drive->removable) {
 		/*
 		 * Removable disks (eg. SYQUEST); ignore 'WD' drives 
 		 */
