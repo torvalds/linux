@@ -679,8 +679,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		goto out;
 	}
 	/* Check to post send on QP or process locally */
-	ret = smi_check_local_dr_smp(smp, device, port_num);
-	if (!ret || !device->process_mad)
+	ret = smi_check_local_smp(smp, device);
+	if (!ret)
 		goto out;
 
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
@@ -1661,9 +1661,7 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 					    port_priv->device->node_type,
 					    port_priv->port_num))
 			goto out;
-		if (!smi_check_local_dr_smp(&recv->mad.smp,
-					    port_priv->device,
-					    port_priv->port_num))
+		if (!smi_check_local_smp(&recv->mad.smp, port_priv->device))
 			goto out;
 	}
 
