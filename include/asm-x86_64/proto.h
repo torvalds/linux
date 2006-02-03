@@ -42,7 +42,11 @@ extern void iommu_hole_init(void);
 extern void time_init_gtod(void);
 extern int pmtimer_mark_offset(void);
 extern unsigned int do_gettimeoffset_pm(void);
+#ifdef CONFIG_X86_PM_TIMER
 extern u32 pmtmr_ioport;
+#else
+#define pmtmr_ioport 0
+#endif
 extern unsigned long long monotonic_base;
 extern int sysctl_vsyscall;
 
