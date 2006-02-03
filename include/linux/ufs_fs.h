@@ -502,8 +502,7 @@ struct ufs_super_block {
 /*
  * Convert cylinder group to base address of its global summary info.
  */
-#define fs_cs(indx) \
-	s_csp[(indx) >> uspi->s_csshift][(indx) & ~uspi->s_csmask]
+#define fs_cs(indx) s_csp[(indx)]
 
 /*
  * Cylinder group block for a file system.

@@ -388,7 +388,8 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 /*
  * Read on-disk structures associated with cylinder groups
  */
-static int ufs_read_cylinder_structures (struct super_block *sb) {
+static int ufs_read_cylinder_structures (struct super_block *sb)
+{
 	struct ufs_sb_info * sbi = UFS_SB(sb);
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block *usb;
@@ -415,6 +416,7 @@ static int ufs_read_cylinder_structures (struct super_block *sb) {
 	base = space = kmalloc(size, GFP_KERNEL);
 	if (!base)
 		goto failed; 
+	sbi->s_csp = (struct ufs_csum *)space;
 	for (i = 0; i < blks; i += uspi->s_fpb) {
 		size = uspi->s_bsize;
 		if (i + uspi->s_fpb > blks)
@@ -430,7 +432,6 @@ static int ufs_read_cylinder_structures (struct super_block *sb) {
 			goto failed;
 
 		ubh_ubhcpymem (space, ubh, size);
-		sbi->s_csp[ufs_fragstoblks(i)]=(struct ufs_csum *)space;
 
 		space += size;
 		ubh_brelse (ubh);
@@ -486,7 +487,8 @@ failed:
  * Put on-disk structures associated with cylinder groups and 
  * write them back to disk
  */
-static void ufs_put_cylinder_structures (struct super_block *sb) {
+static void ufs_put_cylinder_structures (struct super_block *sb)
+{
 	struct ufs_sb_info * sbi = UFS_SB(sb);
 	struct ufs_sb_private_info * uspi;
 	struct ufs_buffer_head * ubh;
@@ -499,7 +501,7 @@ static void ufs_put_cylinder_structures (struct super_block *sb) {
 
 	size = uspi->s_cssize;
 	blks = (size + uspi->s_fsize - 1) >> uspi->s_fshift;
-	base = space = (char*) sbi->s_csp[0];
+	base = space = (char*) sbi->s_csp;
 	for (i = 0; i < blks; i += uspi->s_fpb) {
 		size = uspi->s_bsize;
 		if (i + uspi->s_fpb > blks)
