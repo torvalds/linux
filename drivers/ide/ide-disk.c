@@ -776,7 +776,7 @@ static void update_ordered(ide_drive_t *drive)
 			 ide_id_has_flush_cache_ext(id));
 
 		printk(KERN_INFO "%s: cache flushes %ssupported\n",
-		       drive->name, barrier ? "" : "not");
+		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
 			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
