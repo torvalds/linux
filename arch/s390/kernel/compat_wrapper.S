@@ -1486,7 +1486,7 @@ sys_inotify_rm_watch_wrapper:
 
 	.globl compat_sys_openat_wrapper
 compat_sys_openat_wrapper:
-	lgfr	%r2,%r2			# int
+	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# const char *
 	lgfr	%r4,%r4			# int
 	lgfr	%r5,%r5			# int
@@ -1518,14 +1518,14 @@ sys_fchownat_wrapper:
 
 	.globl compat_sys_futimesat_wrapper
 compat_sys_futimesat_wrapper:
-	lgfr	%r2,%r2			# int
+	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# char *
 	llgtr	%r4,%r4			# struct timeval *
 	jg	compat_sys_futimesat
 
 	.globl compat_sys_newfstatat_wrapper
 compat_sys_newfstatat_wrapper:
-	lgfr	%r2,%r2			# int
+	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# char *
 	llgtr	%r4,%r4			# struct stat *
 	lgfr	%r5,%r5			# int
