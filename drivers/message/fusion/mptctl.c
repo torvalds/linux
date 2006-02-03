@@ -385,18 +385,18 @@ static int mptctl_bus_reset(MPT_IOCTL *ioctl)
 	}
 
 	/* Now wait for the command to complete */
-	ii = wait_event_interruptible_timeout(mptctl_wait,
+	ii = wait_event_timeout(mptctl_wait,
 	     ioctl->wait_done == 1,
 	     HZ*5 /* 5 second timeout */);
 
 	if(ii <=0 && (ioctl->wait_done != 1 ))  {
+		mpt_free_msg_frame(hd->ioc, mf);
 		ioctl->wait_done = 0;
 		retval = -1; /* return failure */
 	}
 
 mptctl_bus_reset_done:
 
-	mpt_free_msg_frame(hd->ioc, mf);
 	mptctl_free_tm_flags(ioctl->ioc);
 	return retval;
 }
@@ -807,7 +807,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	mpt_put_msg_frame(mptctl_id, iocp, mf);
 
 	/* Now wait for the command to complete */
-	ret = wait_event_interruptible_timeout(mptctl_wait,
+	ret = wait_event_timeout(mptctl_wait,
 	     iocp->ioctl->wait_done == 1,
 	     HZ*60);
 
@@ -1172,11 +1172,10 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 		karg->pciInfo.u.bits.deviceNumber = PCI_SLOT( pdev->devfn );
 		karg->pciInfo.u.bits.functionNumber = PCI_FUNC( pdev->devfn );
 	} else if (cim_rev == 2) {
-		/* Get the PCI bus, device, function and segment ID numbers 
+		/* Get the PCI bus, device, function and segment ID numbers
 		   for the IOC */
 		karg->pciInfo.u.bits.busNumber = pdev->bus->number;
 		karg->pciInfo.u.bits.deviceNumber = PCI_SLOT( pdev->devfn );
-		karg->pciInfo.u.bits.functionNumber = PCI_FUNC( pdev->devfn );
 		karg->pciInfo.u.bits.functionNumber = PCI_FUNC( pdev->devfn );
 		karg->pciInfo.segmentID = pci_domain_nr(pdev->bus);
 	}
@@ -2153,7 +2152,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 	/* Now wait for the command to complete */
 	timeout = (karg.timeout > 0) ? karg.timeout : MPT_IOCTL_DEFAULT_TIMEOUT;
-	timeout = wait_event_interruptible_timeout(mptctl_wait,
+	timeout = wait_event_timeout(mptctl_wait,
 	     ioc->ioctl->wait_done == 1,
 	     HZ*timeout);
 
