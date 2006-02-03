@@ -588,8 +588,8 @@ static void rtas_percpu_suspend_me(void *info)
 
 	if (rc == H_Continue) {
 		data->waiting = 0;
-		rtas_call(ibm_suspend_me_token, 0, 1,
-			  data->args->args);
+		data->args->args[data->args->nargs] =
+			rtas_call(ibm_suspend_me_token, 0, 1, NULL);
 	} else {
 		data->waiting = -EBUSY;
 		printk(KERN_ERR "Error on H_Join hypervisor call\n");
