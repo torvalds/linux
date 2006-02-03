@@ -199,7 +199,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 
 		if (port->physport->ieee1284.phase != IEEE1284_PH_HBUSY_DAVAIL) {
 			if (belen != len) {
-				printk (KERN_DEBUG "%s: Device ID was %d bytes"
+				printk (KERN_DEBUG "%s: Device ID was %zd bytes"
 					" while device told it would be %d"
 					" bytes\n",
 					port->name, len, belen);
@@ -214,7 +214,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		if (buffer[len-1] == ';') {
  			printk (KERN_DEBUG "%s: Device ID reading stopped"
 				" before device told data not available. "
-				"Current idlen %d of %d, len bytes %02X %02X\n",
+				"Current idlen %u of %u, len bytes %02X %02X\n",
 				port->name, current_idlen, numidlens,
 				length[0], length[1]);
 			goto done;
