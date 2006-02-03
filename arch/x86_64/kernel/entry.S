@@ -499,7 +499,9 @@ ENTRY(stub_rt_sigreturn)
 	movq %gs:pda_irqstackptr,%rax
 	cmoveq %rax,%rsp /*todo This needs CFI annotation! */
 	pushq %rdi			# save old stack	
+#ifndef CONFIG_DEBUG_INFO
 	CFI_ADJUST_CFA_OFFSET	8
+#endif
 	call \func
 	.endm
 
@@ -509,7 +511,9 @@ ENTRY(common_interrupt)
 	/* 0(%rsp): oldrsp-ARGOFFSET */
 ret_from_intr:
 	popq  %rdi
+#ifndef CONFIG_DEBUG_INFO
 	CFI_ADJUST_CFA_OFFSET	-8
+#endif
 	cli	
 	decl %gs:pda_irqcount
 #ifdef CONFIG_DEBUG_INFO
