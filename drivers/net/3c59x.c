@@ -753,9 +753,11 @@ enum tx_desc_status {
 enum ChipCaps { CapBusMaster=0x20, CapPwrMgmt=0x2000 };
 
 struct vortex_extra_stats {
-        unsigned long tx_deferred;
-        unsigned long tx_multiple_collisions;
-        unsigned long rx_bad_ssd;
+	unsigned long tx_deferred;
+	unsigned long tx_max_collisions;
+	unsigned long tx_multiple_collisions;
+	unsigned long tx_single_collisions;
+	unsigned long rx_bad_ssd;
 };
 
 struct vortex_private {
@@ -863,12 +865,14 @@ static struct {
 	const char str[ETH_GSTRING_LEN];
 } ethtool_stats_keys[] = {
 	{ "tx_deferred" },
+	{ "tx_max_collisions" },
 	{ "tx_multiple_collisions" },
+	{ "tx_single_collisions" },
 	{ "rx_bad_ssd" },
 };
 
 /* number of ETHTOOL_GSTATS u64's */
-#define VORTEX_NUM_STATS     3
+#define VORTEX_NUM_STATS    5
 
 static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 				   int chip_idx, int card_idx);
@@ -2108,9 +2112,12 @@ vortex_error(struct net_device *dev, int status)
 		iowrite8(0, ioaddr + TxStatus);
 		if (tx_status & 0x30) {			/* txJabber or txUnderrun */
 			do_tx_reset = 1;
-		} else if ((tx_status & 0x08) && (vp->drv_flags & MAX_COLLISION_RESET)) {	/* maxCollisions */
-			do_tx_reset = 1;
-			reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
+		} else if (tx_status & 0x08) {	/* maxCollisions */
+			vp->xstats.tx_max_collisions++;
+			if (vp->drv_flags & MAX_COLLISION_RESET) {
+				do_tx_reset = 1;
+				reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
+			}
 		} else {						/* Merely re-enable the transmitter. */
 			iowrite16(TxEnable, ioaddr + EL3_CMD);
 		}
@@ -2926,7 +2933,6 @@ static void update_stats(void __iomem *ioaddr, struct net_device *dev)
 	EL3WINDOW(6);
 	vp->stats.tx_carrier_errors		+= ioread8(ioaddr + 0);
 	vp->stats.tx_heartbeat_errors		+= ioread8(ioaddr + 1);
-	vp->stats.collisions			+= ioread8(ioaddr + 3);
 	vp->stats.tx_window_errors		+= ioread8(ioaddr + 4);
 	vp->stats.rx_fifo_errors		+= ioread8(ioaddr + 5);
 	vp->stats.tx_packets			+= ioread8(ioaddr + 6);
@@ -2939,9 +2945,14 @@ static void update_stats(void __iomem *ioaddr, struct net_device *dev)
 	vp->stats.tx_bytes 			+= ioread16(ioaddr + 12);
 	/* Extra stats for get_ethtool_stats() */
 	vp->xstats.tx_multiple_collisions	+= ioread8(ioaddr + 2);
+	vp->xstats.tx_single_collisions         += ioread8(ioaddr + 3);
 	vp->xstats.tx_deferred			+= ioread8(ioaddr + 8);
 	EL3WINDOW(4);
 	vp->xstats.rx_bad_ssd			+= ioread8(ioaddr + 12);
+
+	vp->stats.collisions = vp->xstats.tx_multiple_collisions
+		+ vp->xstats.tx_single_collisions
+		+ vp->xstats.tx_max_collisions;
 
 	{
 		u8 up = ioread8(ioaddr + 13);
@@ -3036,8 +3047,10 @@ static void vortex_get_ethtool_stats(struct net_device *dev,
 	spin_unlock_irqrestore(&vp->lock, flags);
 
 	data[0] = vp->xstats.tx_deferred;
-	data[1] = vp->xstats.tx_multiple_collisions;
-	data[2] = vp->xstats.rx_bad_ssd;
+	data[1] = vp->xstats.tx_max_collisions;
+	data[2] = vp->xstats.tx_multiple_collisions;
+	data[3] = vp->xstats.tx_single_collisions;
+	data[4] = vp->xstats.rx_bad_ssd;
 }
 
 
