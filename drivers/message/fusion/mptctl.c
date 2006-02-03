@@ -1145,7 +1145,9 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	/* Fill in the data and return the structure to the calling
 	 * program
 	 */
-	if (ioc->bus_type == FC)
+	if (ioc->bus_type == SAS)
+		karg->adapterType = MPT_IOCTL_INTERFACE_SAS;
+	else if (ioc->bus_type == FC)
 		karg->adapterType = MPT_IOCTL_INTERFACE_FC;
 	else
 		karg->adapterType = MPT_IOCTL_INTERFACE_SCSI;
@@ -2391,7 +2393,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 
 	karg.base_io_addr = pci_resource_start(pdev, 0);
 
-	if (ioc->bus_type == FC)
+	if ((ioc->bus_type == SAS) || (ioc->bus_type == FC))
 		karg.bus_phys_width = HP_BUS_WIDTH_UNK;
 	else
 		karg.bus_phys_width = HP_BUS_WIDTH_16;
@@ -2480,7 +2482,7 @@ mptctl_hp_targetinfo(unsigned long arg)
 
 	/*  There is nothing to do for FCP parts.
 	 */
-	if (ioc->bus_type == FC)
+	if ((ioc->bus_type == SAS) || (ioc->bus_type == FC))
 		return 0;
 
 	if ((ioc->spi_data.sdp0length == 0) || (ioc->sh == NULL))
