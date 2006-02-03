@@ -64,6 +64,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include <asm/div64.h>
 
 /* local include */
 #include "s2io.h"
@@ -5110,6 +5111,7 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	int i = 0;
 	nic_t *sp = dev->priv;
 	StatInfo_t *stat_info = sp->mac_control.stats_info;
+	u64 tmp;
 
 	s2io_updt_stats(sp);
 	tmp_stats[i++] =
@@ -5205,12 +5207,12 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	tmp_stats[i++] = stat_info->sw_stat.sending_both;
 	tmp_stats[i++] = stat_info->sw_stat.outof_sequence_pkts;
 	tmp_stats[i++] = stat_info->sw_stat.flush_max_pkts;
-	if (stat_info->sw_stat.num_aggregations)
-		tmp_stats[i++] = stat_info->sw_stat.sum_avg_pkts_aggregated /
-					stat_info->sw_stat.num_aggregations;
-	else
-		tmp_stats[i++] = 0;
-
+	tmp = 0;
+	if (stat_info->sw_stat.num_aggregations) {
+		tmp = stat_info->sw_stat.sum_avg_pkts_aggregated;
+		do_div(tmp, stat_info->sw_stat.num_aggregations);
+	}
+	tmp_stats[i++] = tmp;
 }
 
 static int s2io_ethtool_get_regs_len(struct net_device *dev)
