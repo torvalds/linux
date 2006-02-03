@@ -1,50 +1,43 @@
 The Linux Kernel Device Model
 
-Patrick Mochel	<mochel@osdl.org>
+Patrick Mochel	<mochel@digitalimplant.org>
 
-26 August 2002
+Drafted 26 August 2002
+Updated 31 January 2006
 
 
 Overview
 ~~~~~~~~
 
-This driver model is a unification of all the current, disparate driver models
-that are currently in the kernel. It is intended to augment the
+The Linux Kernel Driver Model is a unification of all the disparate driver
+models that were previously used in the kernel. It is intended to augment the
 bus-specific drivers for bridges and devices by consolidating a set of data
 and operations into globally accessible data structures.
 
-Current driver models implement some sort of tree-like structure (sometimes
-just a list) for the devices they control. But, there is no linkage between
-the different bus types.
+Traditional driver models implemented some sort of tree-like structure
+(sometimes just a list) for the devices they control. There wasn't any
+uniformity across the different bus types.
 
-A common data structure can provide this linkage with little overhead: when a
-bus driver discovers a particular device, it can insert it into the global
-tree as well as its local tree. In fact, the local tree becomes just a subset
-of the global tree.
+The current driver model provides a comon, uniform data model for describing
+a bus and the devices that can appear under the bus. The unified bus
+model includes a set of common attributes which all busses carry, and a set
+of common callbacks, such as device discovery during bus probing, bus
+shutdown, bus power management, etc.
 
-Common data fields can also be moved out of the local bus models into the
-global model. Some of the manipulations of these fields can also be
-consolidated. Most likely, manipulation functions will become a set
-of helper functions, which the bus drivers wrap around to include any
-bus-specific items.
-
-The common device and bridge interface currently reflects the goals of the
-modern PC: namely the ability to do seamless Plug and Play, power management,
-and hot plug. (The model dictated by Intel and Microsoft (read: ACPI) ensures
-us that any device in the system may fit any of these criteria.)
-
-In reality, not every bus will be able to support such operations. But, most
-buses will support a majority of those operations, and all future buses will.
-In other words, a bus that doesn't support an operation is the exception,
-instead of the other way around.
-
+The common device and bridge interface reflects the goals of the modern
+computer: namely the ability to do seamless device "plug and play", power
+management, and hot plug. In particular, the model dictated by Intel and
+Microsoft (namely ACPI) ensures that almost every device on almost any bus
+on an x86-compatible system can work within this paradigm.  Of course,
+not every bus is able to support all such operations, although most
+buses support a most of those operations.
 
 
 Downstream Access
 ~~~~~~~~~~~~~~~~~
 
 Common data fields have been moved out of individual bus layers into a common
-data structure. But, these fields must still be accessed by the bus layers,
+data structure. These fields must still be accessed by the bus layers,
 and sometimes by the device-specific drivers.
 
 Other bus layers are encouraged to do what has been done for the PCI layer.
@@ -53,7 +46,7 @@ struct pci_dev now looks like this:
 struct pci_dev {
 	...
 
-	struct device device;
+	struct device dev;
 };
 
 Note first that it is statically allocated. This means only one allocation on
@@ -64,9 +57,9 @@ the two.
 
 The PCI bus layer freely accesses the fields of struct device. It knows about
 the structure of struct pci_dev, and it should know the structure of struct
-device. PCI devices that have been converted generally do not touch the fields
-of struct device. More precisely, device-specific drivers should not touch
-fields of struct device unless there is a strong compelling reason to do so.
+device. Individual PCI device drivers that have been converted the the current
+driver model generally do not and should not touch the fields of struct device,
+unless there is a strong compelling reason to do so.
 
 This abstraction is prevention of unnecessary pain during transitional phases.
 If the name of the field changes or is removed, then every downstream driver
