@@ -6634,8 +6634,9 @@ static void aggregate_new_rx(lro_t *lro, struct iphdr *ip,
 static int verify_l3_l4_lro_capable(lro_t *l_lro, struct iphdr *ip,
 				    struct tcphdr *tcp, u32 tcp_pyld_len)
 {
-	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
 	u8 *ptr;
+
+	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
 
 	if (!tcp_pyld_len) {
 		/* Runt frame or a pure ack */
