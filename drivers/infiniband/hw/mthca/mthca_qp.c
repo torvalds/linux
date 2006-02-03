@@ -415,6 +415,12 @@ static const struct {
 		},
 		[IB_QPS_SQD]   = {
 			.trans = MTHCA_TRANS_RTS2SQD,
+			.opt_param = {
+				[UD]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
+				[UC]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
+				[RC]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
+				[MLX] = IB_QP_EN_SQD_ASYNC_NOTIFY
+			}
 		},
 	},
 	[IB_QPS_SQD]   = {
@@ -577,6 +583,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *qp_context;
 	u32 req_param, opt_param;
+	u32 sqd_event = 0;
 	u8 status;
 	int err;
 
@@ -841,8 +848,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->srqn = cpu_to_be32(1 << 24 |
 					       to_msrq(ibqp->srq)->srqn);
 
+	if (cur_state == IB_QPS_RTS && new_state == IB_QPS_SQD	&&
+	    attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY		&&
+	    attr->en_sqd_async_notify)
+		sqd_event = 1 << 31;
+
 	err = mthca_MODIFY_QP(dev, state_table[cur_state][new_state].trans,
-			      qp->qpn, 0, mailbox, 0, &status);
+			      qp->qpn, 0, mailbox, sqd_event, &status);
 	if (status) {
 		mthca_warn(dev, "modify QP %d returned status %02x.\n",
 			   state_table[cur_state][new_state].trans, status);

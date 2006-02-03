@@ -1638,7 +1638,8 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 		}
 
 	} else
-		err = mthca_cmd(dev, mailbox->dma, (!!is_ee << 24) | num,
+		err = mthca_cmd(dev, mailbox->dma,
+				optmask | (!!is_ee << 24) | num,
 				op_mod, op[trans], CMD_TIME_CLASS_C, status);
 
 	if (my_mailbox)
