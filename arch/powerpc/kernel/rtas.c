@@ -566,6 +566,7 @@ static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
 #ifdef CONFIG_PPC_PSERIES
 static void rtas_percpu_suspend_me(void *info)
 {
+	int i;
 	long rc;
 	long flags;
 	struct rtas_suspend_me_data *data =
@@ -590,6 +591,8 @@ static void rtas_percpu_suspend_me(void *info)
 		data->waiting = 0;
 		data->args->args[data->args->nargs] =
 			rtas_call(ibm_suspend_me_token, 0, 1, NULL);
+		for_each_cpu(i)
+			plpar_hcall_norets(H_PROD,i);
 	} else {
 		data->waiting = -EBUSY;
 		printk(KERN_ERR "Error on H_Join hypervisor call\n");
