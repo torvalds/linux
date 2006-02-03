@@ -47,6 +47,11 @@ APICs
    noapicmaintimer  Don't do time keeping using the APIC timer.
 		 Useful when this option was auto selected, but doesn't work.
 
+   apicpmtimer
+		 Do APIC timer calibration using the pmtimer. Implies
+		 apicmaintimer. Useful when your PIT timer is totally
+		 broken.
+
 Early Console
 
    syntax: earlyprintk=vga

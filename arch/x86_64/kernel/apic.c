@@ -40,6 +40,7 @@
 
 int apic_verbosity;
 int apic_runs_main_timer;
+int apic_calibrate_pmtmr __initdata;
 
 int disable_apic_timer __initdata;
 
@@ -746,14 +747,27 @@ static int __init calibrate_APIC_clock(void)
 	__setup_APIC_LVTT(1000000000);
 
 	apic_start = apic_read(APIC_TMCCT);
-	rdtscl(tsc_start);
-
-	do {
+#ifdef CONFIG_X86_PM_TIMER
+	if (apic_calibrate_pmtmr && pmtmr_ioport) {
+		pmtimer_wait(5000);  /* 5ms wait */
 		apic = apic_read(APIC_TMCCT);
-		rdtscl(tsc);
-	} while ((tsc - tsc_start) < TICK_COUNT && (apic - apic_start) < TICK_COUNT);
+		result = (apic_start - apic) * 1000L / 5;
+	} else
+#endif
+	{
+		rdtscl(tsc_start);
 
-	result = (apic_start - apic) * 1000L * cpu_khz / (tsc - tsc_start);
+		do {
+			apic = apic_read(APIC_TMCCT);
+			rdtscl(tsc);
+		} while ((tsc - tsc_start) < TICK_COUNT &&
+				(apic - apic_start) < TICK_COUNT);
+
+		result = (apic_start - apic) * 1000L * cpu_khz /
+					(tsc - tsc_start);
+	}
+	printk("result %d\n", result);
+
 
 	printk(KERN_INFO "Detected %d.%03d MHz APIC timer.\n",
 		result / 1000 / 1000, result / 1000 % 1000);
@@ -1114,6 +1128,13 @@ static __init int setup_noapicmaintimer(char *str)
 	return 0;
 }
 __setup("noapicmaintimer", setup_noapicmaintimer);
+
+static __init int setup_apicpmtimer(char *s)
+{
+	apic_calibrate_pmtmr = 1;
+	return setup_apicmaintimer(NULL);
+}
+__setup("apicpmtimer", setup_apicpmtimer);
 
 /* dummy parsing: see setup.c */
 
