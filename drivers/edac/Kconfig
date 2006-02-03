@@ -46,7 +46,7 @@ config EDAC_MM_EDAC
 
 config EDAC_AMD76X
 	tristate "AMD 76x (760, 762, 768)"
-	depends on EDAC_MM_EDAC  && PCI
+	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the AMD 76x
 	  series of chipsets used with the Athlon processor.
