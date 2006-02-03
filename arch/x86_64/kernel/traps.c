@@ -372,7 +372,7 @@ void out_of_line_bug(void)
 static DEFINE_SPINLOCK(die_lock);
 static int die_owner = -1;
 
-unsigned long oops_begin(void)
+unsigned __kprobes long oops_begin(void)
 {
 	int cpu = safe_smp_processor_id();
 	unsigned long flags;
@@ -391,7 +391,7 @@ unsigned long oops_begin(void)
 	return flags;
 }
 
-void oops_end(unsigned long flags)
+void __kprobes oops_end(unsigned long flags)
 { 
 	die_owner = -1;
 	bust_spinlocks(0);
@@ -400,7 +400,7 @@ void oops_end(unsigned long flags)
 		panic("Oops");
 }
 
-void __die(const char * str, struct pt_regs * regs, long err)
+void __kprobes __die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
 	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff,++die_counter);
@@ -432,7 +432,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	do_exit(SIGSEGV); 
 }
 
-void die_nmi(char *str, struct pt_regs *regs)
+void __kprobes die_nmi(char *str, struct pt_regs *regs)
 {
 	unsigned long flags = oops_begin();
 
@@ -575,7 +575,8 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 	}
 }
 
-static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk("Uhhuh. NMI received. Dazed and confused, but trying to continue\n");
 	printk("You probably have a hardware problem with your RAM chips\n");
@@ -585,7 +586,8 @@ static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
 	outb(reason, 0x61);
 }
 
-static void io_check_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+io_check_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk("NMI: IOCK error (debug interrupt?)\n");
 	show_registers(regs);
@@ -598,7 +600,8 @@ static void io_check_error(unsigned char reason, struct pt_regs * regs)
 	outb(reason, 0x61);
 }
 
-static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 {	printk("Uhhuh. NMI received for unknown reason %02x.\n", reason);
 	printk("Dazed and confused, but trying to continue\n");
 	printk("Do you have a strange power saving mode enabled?\n");
@@ -606,7 +609,7 @@ static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 
 /* Runs on IST stack. This code must keep interrupts off all the time.
    Nested NMIs are prevented by the CPU. */
-asmlinkage void default_do_nmi(struct pt_regs *regs)
+asmlinkage __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int cpu;
@@ -658,7 +661,7 @@ asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 /* Help handler running on IST stack to switch back to user stack
    for scheduling or signal handling. The actual stack switch is done in
    entry.S */
-asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
+asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = eregs;
 	/* Did already sync */
