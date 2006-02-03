@@ -471,10 +471,13 @@ static void v9fs_write_work(void *a)
 		}
 
 		spin_lock(&m->lock);
-		req =
-		    list_entry(m->unsent_req_list.next, struct v9fs_req,
+again:
+		req = list_entry(m->unsent_req_list.next, struct v9fs_req,
 			       req_list);
 		list_move_tail(&req->req_list, &m->req_list);
+		if (req->err == ERREQFLUSH)
+			goto again;
+
 		m->wbuf = req->tcall->sdata;
 		m->wsize = req->tcall->size;
 		m->wpos = 0;
@@ -525,7 +528,7 @@ static void process_request(struct v9fs_mux_data *m, struct v9fs_req *req)
 	struct v9fs_str *ename;
 
 	tag = req->tag;
-	if (req->rcall->id == RERROR && !req->err) {
+	if (!req->err && req->rcall->id == RERROR) {
 		ecode = req->rcall->params.rerror.errno;
 		ename = &req->rcall->params.rerror.error;
 
@@ -551,7 +554,10 @@ static void process_request(struct v9fs_mux_data *m, struct v9fs_req *req)
 			req->err = -EIO;
 	}
 
-	if (req->cb && req->err != ERREQFLUSH) {
+	if (req->err == ERREQFLUSH)
+		return;
+
+	if (req->cb) {
 		dprintk(DEBUG_MUX, "calling callback tcall %p rcall %p\n",
 			req->tcall, req->rcall);
 
@@ -812,6 +818,7 @@ v9fs_mux_rpc_cb(void *a, struct v9fs_fcall *tc, struct v9fs_fcall *rc, int err)
 	struct v9fs_mux_rpc *r;
 
 	if (err == ERREQFLUSH) {
+		kfree(rc);
 		dprintk(DEBUG_MUX, "err req flush\n");
 		return;
 	}
