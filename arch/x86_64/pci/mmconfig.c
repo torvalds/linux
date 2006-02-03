@@ -46,7 +46,7 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 	if (pci_mmcfg_config_num == 1 &&
 		cfg->pci_segment_group_number == 0 &&
 		(cfg->start_bus_number | cfg->end_bus_number) == 0)
-		return cfg->base_address;
+		return pci_mmcfg_virt[0].virt;
 
 	/* Fall back to type 0 */
 	return 0;
