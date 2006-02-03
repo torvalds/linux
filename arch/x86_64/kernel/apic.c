@@ -35,8 +35,11 @@
 #include <asm/mach_apic.h>
 #include <asm/nmi.h>
 #include <asm/idle.h>
+#include <asm/proto.h>
+#include <asm/timex.h>
 
 int apic_verbosity;
+int apic_runs_main_timer;
 
 int disable_apic_timer __initdata;
 
@@ -702,9 +705,17 @@ static void setup_APIC_timer(unsigned int clocks)
 			c2 |= inb_p(0x40) << 8;
 		} while (c2 - c1 < 300);
 	}
-
 	__setup_APIC_LVTT(clocks);
-
+	/* Turn off PIT interrupt if we use APIC timer as main timer.
+	   Only works with the PM timer right now
+	   TBD fix it for HPET too. */
+	if (vxtime.mode == VXTIME_PMTMR &&
+		smp_processor_id() == boot_cpu_id &&
+		apic_runs_main_timer == 1 &&
+		!cpu_isset(boot_cpu_id, timer_interrupt_broadcast_ipi_mask)) {
+		stop_timer_interrupt();
+		apic_runs_main_timer++;
+	}
 	local_irq_restore(flags);
 }
 
@@ -872,6 +883,8 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif
+	if (apic_runs_main_timer > 1 && smp_processor_id() == boot_cpu_id)
+		main_timer_handler(regs);
 	/*
 	 * We take the 'long' return path, and there every subsystem
 	 * grabs the appropriate locks (kernel lock/ irq lock).
@@ -1081,9 +1094,26 @@ static __init int setup_nolapic(char *str)
 
 static __init int setup_noapictimer(char *str) 
 { 
+	if (str[0] != ' ' && str[0] != 0)
+		return -1;
 	disable_apic_timer = 1;
 	return 0;
 } 
+
+static __init int setup_apicmaintimer(char *str)
+{
+	apic_runs_main_timer = 1;
+	nohpet = 1;
+	return 0;
+}
+__setup("apicmaintimer", setup_apicmaintimer);
+
+static __init int setup_noapicmaintimer(char *str)
+{
+	apic_runs_main_timer = -1;
+	return 0;
+}
+__setup("noapicmaintimer", setup_noapicmaintimer);
 
 /* dummy parsing: see setup.c */
 

@@ -51,7 +51,7 @@ extern int using_apic_timer;
 DEFINE_SPINLOCK(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
 
-static int nohpet __initdata = 0;
+int nohpet __initdata = 0;
 static int notsc __initdata = 0;
 
 #undef HPET_HACK_ENABLE_DANGEROUS
@@ -345,7 +345,7 @@ static noinline void handle_lost_ticks(int lost, struct pt_regs *regs)
 #endif
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+void main_timer_handler(struct pt_regs *regs)
 {
 	static unsigned long rtc_update = 0;
 	unsigned long tsc;
@@ -458,12 +458,17 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
  
 	write_sequnlock(&xtime_lock);
+}
 
+static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+{
+	if (apic_runs_main_timer > 1)
+		return IRQ_HANDLED;
+	main_timer_handler(regs);
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (using_apic_timer)
 		smp_send_timer_broadcast_ipi();
 #endif
-
 	return IRQ_HANDLED;
 }
 
@@ -843,15 +848,41 @@ static int hpet_reenable(void)
 	return hpet_timer_stop_set_go(hpet_tick);
 }
 
-void __init pit_init(void)
+#define PIT_MODE 0x43
+#define PIT_CH0  0x40
+
+static void __init __pit_init(int val, u8 mode)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8253_lock, flags);
-	outb_p(0x34, 0x43);		/* binary, mode 2, LSB/MSB, ch 0 */
-	outb_p(LATCH & 0xff, 0x40);	/* LSB */
-	outb_p(LATCH >> 8, 0x40);	/* MSB */
+	outb_p(mode, PIT_MODE);
+	outb_p(val & 0xff, PIT_CH0);	/* LSB */
+	outb_p(val >> 8, PIT_CH0);	/* MSB */
 	spin_unlock_irqrestore(&i8253_lock, flags);
+}
+
+void __init pit_init(void)
+{
+	__pit_init(LATCH, 0x34); /* binary, mode 2, LSB/MSB, ch 0 */
+}
+
+void __init pit_stop_interrupt(void)
+{
+	__pit_init(0, 0x30); /* mode 0 */
+}
+
+void __init stop_timer_interrupt(void)
+{
+	char *name;
+	if (vxtime.hpet_address) {
+		name = "HPET";
+		hpet_timer_stop_set_go(0);
+	} else {
+		name = "PIT";
+		pit_stop_interrupt();
+	}
+	printk(KERN_INFO "timer: %s interrupt stopped.\n", name);
 }
 
 int __init time_setup(char *str)

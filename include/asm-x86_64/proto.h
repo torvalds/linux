@@ -49,6 +49,8 @@ extern u32 pmtmr_ioport;
 #endif
 extern unsigned long long monotonic_base;
 extern int sysctl_vsyscall;
+extern int nohpet;
+extern unsigned long vxtime_hz;
 
 extern void do_softirq_thunk(void);
 
@@ -68,6 +70,9 @@ extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
 extern void free_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void load_gs_index(unsigned gs);
+
+extern void stop_timer_interrupt(void);
+extern void main_timer_handler(struct pt_regs *regs);
 
 extern unsigned long end_pfn_map; 
 
