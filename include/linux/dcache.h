@@ -108,7 +108,9 @@ struct dentry {
 	struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
 	void *d_fsdata;			/* fs-specific data */
+#ifdef CONFIG_PROFILING
 	struct dcookie_struct *d_cookie; /* cookie, if any */
+#endif
 	int d_mounted;
 	unsigned char d_iname[DNAME_INLINE_LEN_MIN];	/* small names */
 };
