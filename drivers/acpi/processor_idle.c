@@ -94,7 +94,9 @@ static int set_max_cstate(struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id __initdata processor_power_dmi_table[] = {
+/* Actually this shouldn't be __cpuinitdata, would be better to fix the
+   callers to only run once -AK */
+static struct dmi_system_id __cpuinitdata processor_power_dmi_table[] = {
 	{ set_max_cstate, "IBM ThinkPad R40e", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"IBM"),
 	  DMI_MATCH(DMI_BIOS_VERSION,"1SET60WW")}, (void *)1},
