@@ -148,11 +148,11 @@ typedef __u16 __bitwise __fs16;
 #define UFS_USEEFT  ((__u16)65535)
 
 #define UFS_FSOK      0x7c269d38
-#define UFS_FSACTIVE  ((char)0x00)
-#define UFS_FSCLEAN   ((char)0x01)
-#define UFS_FSSTABLE  ((char)0x02)
-#define UFS_FSOSF1    ((char)0x03)	/* is this correct for DEC OSF/1? */
-#define UFS_FSBAD     ((char)0xff)
+#define UFS_FSACTIVE  ((__s8)0x00)
+#define UFS_FSCLEAN   ((__s8)0x01)
+#define UFS_FSSTABLE  ((__s8)0x02)
+#define UFS_FSOSF1    ((__s8)0x03)	/* is this correct for DEC OSF/1? */
+#define UFS_FSBAD     ((__s8)0xff)
 
 /* From here to next blank line, s_flags for ufs_sb_info */
 /* directory entry encoding */
