@@ -937,7 +937,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
  * multi-chassis. Use available data to take a good guess.
  * If in doubt, go HPET.
  */
-__init int oem_force_hpet_timer(void)
+__cpuinit int oem_force_hpet_timer(void)
 {
 	int i, clusters, zeros;
 	unsigned id;

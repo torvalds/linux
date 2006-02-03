@@ -963,7 +963,7 @@ void __init time_init(void)
  * Make an educated guess if the TSC is trustworthy and synchronized
  * over all CPUs.
  */
-__init int unsynchronized_tsc(void)
+__cpuinit int unsynchronized_tsc(void)
 {
 #ifdef CONFIG_SMP
 	if (oem_force_hpet_timer())
