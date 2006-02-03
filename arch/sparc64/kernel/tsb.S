@@ -36,14 +36,7 @@ tsb_miss_itlb:
 	 nop
 
 tsb_miss_page_table_walk:
-	/* This clobbers %g1 and %g6, preserve them... */
-	mov		%g1, %g5
-	mov		%g6, %g2
-
-	TRAP_LOAD_PGD_PHYS
-
-	mov		%g2, %g6
-	mov		%g5, %g1
+	TRAP_LOAD_PGD_PHYS(%g7, %g5)
 
 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
 

@@ -31,7 +31,7 @@
 		.globl	etrap, etrap_irq, etraptl1
 etrap:		rdpr	%pil, %g2
 etrap_irq:
-		TRAP_LOAD_THREAD_REG
+		TRAP_LOAD_THREAD_REG(%g6, %g1)
 		rdpr	%tstate, %g1
 		sllx	%g2, 20, %g3
 		andcc	%g1, TSTATE_PRIV, %g0
@@ -100,7 +100,7 @@ etrap_irq:
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
 		wrpr	%g0, ETRAP_PSTATE2, %pstate
 		mov	%l6, %g6
-		LOAD_PER_CPU_BASE(%g4, %g3, %l1)
+		LOAD_PER_CPU_BASE(%g5, %g6, %g4, %g3, %l1)
 		jmpl	%l2 + 0x4, %g0
 		 ldx	[%g6 + TI_TASK], %g4
 
@@ -124,7 +124,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		 *	0x58	TL4's TT
 		 *	0x60	TL
 		 */
-		TRAP_LOAD_THREAD_REG
+		TRAP_LOAD_THREAD_REG(%g6, %g1)
 		sub	%sp, ((4 * 8) * 4) + 8, %g2
 		rdpr	%tl, %g1
 
@@ -179,7 +179,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		.align	64
 		.globl	scetrap
 scetrap:
-		TRAP_LOAD_THREAD_REG
+		TRAP_LOAD_THREAD_REG(%g6, %g1)
 		rdpr	%pil, %g2
 		rdpr	%tstate, %g1
 		sllx	%g2, 20, %g3
@@ -250,7 +250,7 @@ scetrap:
 		stx	%i6, [%sp + PTREGS_OFF + PT_V9_I6]
 		mov	%l6, %g6
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
-		LOAD_PER_CPU_BASE(%g4, %g3, %l1)
+		LOAD_PER_CPU_BASE(%g5, %g6, %g4, %g3, %l1)
 		ldx	[%g6 + TI_TASK], %g4
 		done
 

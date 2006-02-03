@@ -50,7 +50,7 @@ do_fpdis:
 	add		%g0, %g0, %g0
 	ba,a,pt		%xcc, rtrap_clr_l6
 
-1:	TRAP_LOAD_THREAD_REG
+1:	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldub		[%g6 + TI_FPSAVED], %g5
 	wr		%g0, FPRS_FEF, %fprs
 	andcc		%g5, FPRS_FEF, %g0
@@ -190,7 +190,7 @@ fp_other_bounce:
 	.globl		do_fpother_check_fitos
 	.align		32
 do_fpother_check_fitos:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	sethi		%hi(fp_other_bounce - 4), %g7
 	or		%g7, %lo(fp_other_bounce - 4), %g7
 
@@ -378,7 +378,7 @@ do_ivec:
 	sllx		%g2, %g4, %g2
 	sllx		%g4, 2, %g4
 
-	TRAP_LOAD_IRQ_WORK
+	TRAP_LOAD_IRQ_WORK(%g6, %g1)
 
 	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
@@ -422,7 +422,7 @@ setcc:
 
 	.globl		utrap_trap
 utrap_trap:		/* %g3=handler,%g4=level */
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldx		[%g6 + TI_UTRAPS], %g1
 	brnz,pt		%g1, invoke_utrap
 	 nop

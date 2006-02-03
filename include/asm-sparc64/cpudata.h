@@ -107,67 +107,67 @@ extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
 	lduwa		[REG] ASI_PHYS_BYPASS_EC_E, REG;\
 	.previous;
 
-/* Clobbers %g1, current address space PGD phys address into %g7.  */
-#define TRAP_LOAD_PGD_PHYS			\
-	__GET_CPUID(%g1)			\
-	sethi	%hi(trap_block), %g7;		\
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g1;	\
-	or	%g7, %lo(trap_block), %g7;	\
-	add	%g7, %g1, %g7;			\
-	ldx	[%g7 + TRAP_PER_CPU_PGD_PADDR], %g7;
+/* Clobbers TMP, current address space PGD phys address into DEST.  */
+#define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\
+	__GET_CPUID(TMP)			\
+	sethi	%hi(trap_block), DEST;		\
+	sllx	TMP, TRAP_BLOCK_SZ_SHIFT, TMP;	\
+	or	DEST, %lo(trap_block), DEST;	\
+	add	DEST, TMP, DEST;		\
+	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
 
-/* Clobbers %g1, loads local processor's IRQ work area into %g6.  */
-#define TRAP_LOAD_IRQ_WORK			\
-	__GET_CPUID(%g1)			\
-	sethi	%hi(__irq_work), %g6;		\
-	sllx	%g1, 6, %g1;			\
-	or	%g6, %lo(__irq_work), %g6;	\
-	add	%g6, %g1, %g6;
+/* Clobbers TMP, loads local processor's IRQ work area into DEST.  */
+#define TRAP_LOAD_IRQ_WORK(DEST, TMP)		\
+	__GET_CPUID(TMP)			\
+	sethi	%hi(__irq_work), DEST;		\
+	sllx	TMP, 6, TMP;			\
+	or	DEST, %lo(__irq_work), DEST;	\
+	add	DEST, TMP, DEST;
 
-/* Clobbers %g1, loads %g6 with current thread info pointer.  */
-#define TRAP_LOAD_THREAD_REG			\
-	__GET_CPUID(%g1)			\
-	sethi	%hi(trap_block), %g6;		\
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g1;	\
-	or	%g6, %lo(trap_block), %g6;	\
-	ldx	[%g6 + %g1], %g6;
+/* Clobbers TMP, loads DEST with current thread info pointer.  */
+#define TRAP_LOAD_THREAD_REG(DEST, TMP)		\
+	__GET_CPUID(TMP)			\
+	sethi	%hi(trap_block), DEST;		\
+	sllx	TMP, TRAP_BLOCK_SZ_SHIFT, TMP;	\
+	or	DEST, %lo(trap_block), DEST;	\
+	ldx	[DEST + TMP], DEST;
 
-/* Given the current thread info pointer in %g6, load the per-cpu
- * area base of the current processor into %g5.  REG1, REG2, and REG3 are
+/* Given the current thread info pointer in THR, load the per-cpu
+ * area base of the current processor into DEST.  REG1, REG2, and REG3 are
  * clobbered.
  *
- * You absolutely cannot use %g5 as a temporary in this code.  The
+ * You absolutely cannot use DEST as a temporary in this code.  The
  * reason is that traps can happen during execution, and return from
- * trap will load the fully resolved %g5 per-cpu base.  This can corrupt
+ * trap will load the fully resolved DEST per-cpu base.  This can corrupt
  * the calculations done by the macro mid-stream.
  */
-#define LOAD_PER_CPU_BASE(REG1, REG2, REG3)		\
-	ldub	[%g6 + TI_CPU], REG1;			\
+#define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)	\
+	ldub	[THR + TI_CPU], REG1;			\
 	sethi	%hi(__per_cpu_shift), REG3;		\
 	sethi	%hi(__per_cpu_base), REG2;		\
 	ldx	[REG3 + %lo(__per_cpu_shift)], REG3;	\
 	ldx	[REG2 + %lo(__per_cpu_base)], REG2;	\
 	sllx	REG1, REG3, REG3;			\
-	add	REG3, REG2, %g5;
+	add	REG3, REG2, DEST;
 
 #else
 
 /* Uniprocessor versions, we know the cpuid is zero.  */
-#define TRAP_LOAD_PGD_PHYS			\
-	sethi	%hi(trap_block), %g7;		\
-	or	%g7, %lo(trap_block), %g7;	\
-	ldx	[%g7 + TRAP_PER_CPU_PGD_PADDR], %g7;
+#define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\
+	sethi	%hi(trap_block), DEST;		\
+	or	DEST, %lo(trap_block), DEST;	\
+	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
 
-#define TRAP_LOAD_IRQ_WORK			\
-	sethi	%hi(__irq_work), %g6;		\
-	or	%g6, %lo(__irq_work), %g6;
+#define TRAP_LOAD_IRQ_WORK(DEST, TMP)		\
+	sethi	%hi(__irq_work), DEST;		\
+	or	DEST, %lo(__irq_work), DEST;
 
-#define TRAP_LOAD_THREAD_REG			\
-	sethi	%hi(trap_block), %g6;		\
-	ldx	[%g6 + %lo(trap_block)], %g6;
+#define TRAP_LOAD_THREAD_REG(DEST, TMP)		\
+	sethi	%hi(trap_block), DEST;		\
+	ldx	[DEST + %lo(trap_block)], DEST;
 
-/* No per-cpu areas on uniprocessor, so no need to load %g5.  */
-#define LOAD_PER_CPU_BASE(REG1, REG2, REG3)
+/* No per-cpu areas on uniprocessor, so no need to load DEST.  */
+#define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)
 
 #endif /* !(CONFIG_SMP) */
 

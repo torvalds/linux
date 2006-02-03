@@ -226,7 +226,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		brz,pt			%l3, 1f
 		 nop
 		/* Must do this before thread reg is clobbered below.  */
-		LOAD_PER_CPU_BASE(%i0, %i1, %i2)
+		LOAD_PER_CPU_BASE(%g5, %g6, %i0, %i1, %i2)
 1:
 		ldx			[%sp + PTREGS_OFF + PT_V9_G6], %g6
 		ldx			[%sp + PTREGS_OFF + PT_V9_G7], %g7

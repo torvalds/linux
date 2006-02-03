@@ -40,7 +40,7 @@ set_pcontext:
 	 */
 	.globl	fill_fixup, spill_fixup
 fill_fixup:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	rdpr		%tstate, %g1
 	andcc		%g1, TSTATE_PRIV, %g0
 	or		%g4, FAULT_CODE_WINFIXUP, %g4
@@ -86,7 +86,7 @@ fill_fixup:
 	wrpr		%l1, (PSTATE_IE | PSTATE_AG | PSTATE_RMO), %pstate
 	mov		%o7, %g6
 	ldx		[%g6 + TI_TASK], %g4
-	LOAD_PER_CPU_BASE(%g1, %g2, %g3)
+	LOAD_PER_CPU_BASE(%g5, %g6, %g1, %g2, %g3)
 
 	/* This is the same as below, except we handle this a bit special
 	 * since we must preserve %l5 and %l6, see comment above.
@@ -105,7 +105,7 @@ fill_fixup:
 	 * do not touch %g7 or %g2 so we handle the two cases fine.
 	 */
 spill_fixup:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldx		[%g6 + TI_FLAGS], %g1
 	andcc		%g1, _TIF_32BIT, %g0
 	ldub		[%g6 + TI_WSAVED], %g1
@@ -181,7 +181,7 @@ winfix_mna:
 	wrpr		%g3, %tnpc
 	done
 fill_fixup_mna:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	rdpr		%tstate, %g1
 	andcc		%g1, TSTATE_PRIV, %g0
 	be,pt		%xcc, window_mna_from_user_common
@@ -209,14 +209,14 @@ fill_fixup_mna:
 	wrpr		%l1, (PSTATE_IE | PSTATE_AG | PSTATE_RMO), %pstate
 	mov		%o7, %g6			! Get current back.
 	ldx		[%g6 + TI_TASK], %g4		! Finish it.
-	LOAD_PER_CPU_BASE(%g1, %g2, %g3)
+	LOAD_PER_CPU_BASE(%g5, %g6, %g1, %g2, %g3)
 	call		mem_address_unaligned
 	 add		%sp, PTREGS_OFF, %o0
 
 	b,pt		%xcc, rtrap
 	 nop						! yes, the nop is correct
 spill_fixup_mna:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldx		[%g6 + TI_FLAGS], %g1
 	andcc		%g1, _TIF_32BIT, %g0
 	ldub		[%g6 + TI_WSAVED], %g1
@@ -284,7 +284,7 @@ winfix_dax:
 	wrpr		%g3, %tnpc
 	done
 fill_fixup_dax:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	rdpr		%tstate, %g1
 	andcc		%g1, TSTATE_PRIV, %g0
 	be,pt		%xcc, window_dax_from_user_common
@@ -312,14 +312,14 @@ fill_fixup_dax:
 	wrpr		%l1, (PSTATE_IE | PSTATE_AG | PSTATE_RMO), %pstate
 	mov		%o7, %g6			! Get current back.
 	ldx		[%g6 + TI_TASK], %g4		! Finish it.
-	LOAD_PER_CPU_BASE(%g1, %g2, %g3)
+	LOAD_PER_CPU_BASE(%g5, %g6, %g1, %g2, %g3)
 	call		spitfire_data_access_exception
 	 add		%sp, PTREGS_OFF, %o0
 
 	b,pt		%xcc, rtrap
 	 nop						! yes, the nop is correct
 spill_fixup_dax:
-	TRAP_LOAD_THREAD_REG
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldx		[%g6 + TI_FLAGS], %g1
 	andcc		%g1, _TIF_32BIT, %g0
 	ldub		[%g6 + TI_WSAVED], %g1
