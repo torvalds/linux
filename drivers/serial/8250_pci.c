@@ -439,6 +439,20 @@ static int pci_siig_init(struct pci_dev *dev)
 	return -ENODEV;
 }
 
+static int pci_siig_setup(struct serial_private *priv,
+			  struct pciserial_board *board,
+			  struct uart_port *port, int idx)
+{
+	unsigned int bar = FL_GET_BASE(board->flags) + idx, offset = 0;
+
+	if (idx > 3) {
+		bar = 4;
+		offset = (idx - 4) * 8;
+	}
+
+	return setup_port(priv, port, bar, offset, 0);
+}
+
 /*
  * Timedia has an explosion of boards, and to avoid the PCI table from
  * growing *huge*, we use this function to collapse some 70 entries
@@ -748,7 +762,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_siig_init,
-		.setup		= pci_default_setup,
+		.setup		= pci_siig_setup,
 	},
 	/*
 	 * Titan cards
@@ -2141,6 +2155,15 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_4S_20x_850,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b0_bt_4_921600 },
+	{	PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_8S_20x_550,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_8_921600 },
+	{	PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_8S_20x_650,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_8_921600 },
+	{	PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_8S_20x_850,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_8_921600 },
 
 	/*
 	 * Computone devices submitted by Doug McNash dmcnash@computone.com

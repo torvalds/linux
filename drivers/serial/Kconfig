@@ -98,6 +98,7 @@ config SERIAL_8250_NR_UARTS
 config SERIAL_8250_RUNTIME_UARTS
 	int "Number of 8250/16550 serial ports to register at runtime"
 	depends on SERIAL_8250
+	range 0 SERIAL_8250_NR_UARTS
 	default "4"
 	help
 	  Set this to the maximum number of serial ports you want
