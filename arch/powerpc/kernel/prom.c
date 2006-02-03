@@ -1922,3 +1922,30 @@ int prom_update_property(struct device_node *np,
 
 	return 0;
 }
+
+#ifdef CONFIG_KEXEC
+/* We may have allocated the flat device tree inside the crash kernel region
+ * in prom_init. If so we need to move it out into regular memory. */
+void kdump_move_device_tree(void)
+{
+	unsigned long start, end;
+	struct boot_param_header *new;
+
+	start = __pa((unsigned long)initial_boot_params);
+	end = start + initial_boot_params->totalsize;
+
+	if (end < crashk_res.start || start > crashk_res.end)
+		return;
+
+	new = (struct boot_param_header*)
+		__va(lmb_alloc(initial_boot_params->totalsize, PAGE_SIZE));
+
+	memcpy(new, initial_boot_params, initial_boot_params->totalsize);
+
+	initial_boot_params = new;
+
+	DBG("Flat device tree blob moved to %p\n", initial_boot_params);
+
+	/* XXX should we unreserve the old DT? */
+}
+#endif /* CONFIG_KEXEC */
