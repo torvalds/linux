@@ -917,8 +917,9 @@ static int o2hb_thread(void *data)
 		elapsed_msec = o2hb_elapsed_msecs(&before_hb, &after_hb);
 
 		mlog(0, "start = %lu.%lu, end = %lu.%lu, msec = %u\n",
-		     before_hb.tv_sec, before_hb.tv_usec,
-		     after_hb.tv_sec, after_hb.tv_usec, elapsed_msec);
+		     before_hb.tv_sec, (unsigned long) before_hb.tv_usec,
+		     after_hb.tv_sec, (unsigned long) after_hb.tv_usec,
+		     elapsed_msec);
 
 		if (elapsed_msec < reg->hr_timeout_ms) {
 			/* the kthread api has blocked signals for us so no

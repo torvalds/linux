@@ -147,8 +147,7 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 
 	mlog_entry("(max_buffs = %d)\n", max_buffs);
 
-	if (!osb || !osb->journal->j_journal)
-		BUG();
+	BUG_ON(!osb || !osb->journal->j_journal);
 
 	if (ocfs2_is_hard_readonly(osb)) {
 		ret = -EROFS;
@@ -401,7 +400,7 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	 * j_trans_barrier for us. */
 	ocfs2_set_inode_lock_trans(OCFS2_SB(inode->i_sb)->journal, inode);
 
-	down(&OCFS2_I(inode)->ip_io_sem);
+	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
@@ -416,7 +415,7 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 		status = -EINVAL;
 		mlog(ML_ERROR, "Uknown access type!\n");
 	}
-	up(&OCFS2_I(inode)->ip_io_sem);
+	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
 	if (status < 0)
 		mlog(ML_ERROR, "Error %d getting %d access to buffer!\n",
@@ -561,7 +560,11 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	SET_INODE_JOURNAL(inode);
 	OCFS2_I(inode)->ip_open_count++;
 
-	status = ocfs2_meta_lock(inode, NULL, &bh, 1);
+	/* Skip recovery waits here - journal inode metadata never
+	 * changes in a live cluster so it can be considered an
+	 * exception to the rule. */
+	status = ocfs2_meta_lock_full(inode, NULL, &bh, 1,
+				      OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		if (status != -ERESTARTSYS)
 			mlog(ML_ERROR, "Could not get lock on journal!\n");
@@ -672,8 +675,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	if (!osb)
-		BUG();
+	BUG_ON(!osb);
 
 	journal = osb->journal;
 	if (!journal)
@@ -805,8 +807,7 @@ int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 
 	mlog_entry_void();
 
-	if (!journal)
-		BUG();
+	BUG_ON(!journal);
 
 	status = journal_wipe(journal->j_journal, full);
 	if (status < 0) {
@@ -1072,10 +1073,10 @@ restart:
 					NULL);
 
 bail:
-	down(&osb->recovery_lock);
+	mutex_lock(&osb->recovery_lock);
 	if (!status &&
 	    !ocfs2_node_map_is_empty(osb, &osb->recovery_map)) {
-		up(&osb->recovery_lock);
+		mutex_unlock(&osb->recovery_lock);
 		goto restart;
 	}
 
@@ -1083,7 +1084,7 @@ bail:
 	mb(); /* sync with ocfs2_recovery_thread_running */
 	wake_up(&osb->recovery_event);
 
-	up(&osb->recovery_lock);
+	mutex_unlock(&osb->recovery_lock);
 
 	mlog_exit(status);
 	/* no one is callint kthread_stop() for us so the kthread() api
@@ -1098,7 +1099,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 	mlog_entry("(node_num=%d, osb->node_num = %d)\n",
 		   node_num, osb->node_num);
 
-	down(&osb->recovery_lock);
+	mutex_lock(&osb->recovery_lock);
 	if (osb->disable_recovery)
 		goto out;
 
@@ -1120,7 +1121,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 	}
 
 out:
-	up(&osb->recovery_lock);
+	mutex_unlock(&osb->recovery_lock);
 	wake_up(&osb->recovery_event);
 
 	mlog_exit_void();
@@ -1271,8 +1272,7 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 
 	/* Should not ever be called to recover ourselves -- in that
 	 * case we should've called ocfs2_journal_load instead. */
-	if (osb->node_num == node_num)
-		BUG();
+	BUG_ON(osb->node_num == node_num);
 
 	slot_num = ocfs2_node_num_to_slot(si, node_num);
 	if (slot_num == OCFS2_INVALID_SLOT) {
