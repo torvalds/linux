@@ -102,30 +102,14 @@
 /*
 ** LED stuff
 */
-#if defined(RTA)
-#define LED_OFF            ((ushort) 0)	/* LED off */
-#define LED_RED            ((ushort) 1)	/* LED Red */
-#define LED_GREEN          ((ushort) 2)	/* LED Green */
-#define LED_ORANGE         ((ushort) 4)	/* LED Orange */
-#define LED_1TO8_OPEN      ((ushort) 1)	/* Port 1->8 LED on */
-#define LED_9TO16_OPEN     ((ushort) 2)	/* Port 9->16 LED on */
-#define LED_SET_COLOUR(colour)	(link->led = (colour))
-#define LED_OR_COLOUR(colour)	(link->led |= (colour))
-#define LED_TIMEOUT(time)    (link->led_timeout = RioTimePlus(RioTime(),(time)))
-#else
 #define LED_SET_COLOUR(colour)
 #define LED_OR_COLOUR(colour)
 #define LED_TIMEOUT(time)
-#endif				/* RTA */
 
 struct LPB {
 	WORD link_number;	/* Link Number */
 	Channel_ptr in_ch;	/* Link In Channel */
 	Channel_ptr out_ch;	/* Link Out Channel */
-#ifdef RTA
-	uchar stat_led;		/* Port open leds */
-	uchar led;		/* True, light led! */
-#endif
 	BYTE attached_serial[4];	/* Attached serial number */
 	BYTE attached_host_serial[4];
 	/* Serial number of Host who
@@ -144,30 +128,12 @@ struct LPB {
 	WORD WaitNoBoot;	/* Secs to hold off booting */
 	PKT_ptr add_packet_list;	/* Add packets to here */
 	PKT_ptr remove_packet_list;	/* Send packets from here */
-#ifdef RTA
-#ifdef DCIRRUS
-#define    QBUFS_PER_REDIRECT (4 / PKTS_PER_BUFFER + 1)
-#else
-#define    QBUFS_PER_REDIRECT (8 / PKTS_PER_BUFFER + 1)
-#endif
-	PKT_ptr_ptr rd_add;	/* Add a new Packet here */
-	Q_BUF_ptr rd_add_qb;	/* Pointer to the add Q buf */
-	PKT_ptr_ptr rd_add_st_qbb;	/* Pointer to start of the Q's buf */
-	PKT_ptr_ptr rd_add_end_qbb;	/* Pointer to the end of the Q's buf */
-	PKT_ptr_ptr rd_remove;	/* Remove a Packet here */
-	Q_BUF_ptr rd_remove_qb;	/* Pointer to the remove Q buf */
-	PKT_ptr_ptr rd_remove_st_qbb;	/* Pointer to the start of the Q buf */
-	PKT_ptr_ptr rd_remove_end_qbb;	/* Pointer to the end of the Q buf */
-	ushort pkts_in_q;	/* Packets in queue */
-#endif
 
 	Channel_ptr lrt_fail_chan;	/* Lrt's failure channel */
 	Channel_ptr ltt_fail_chan;	/* Ltt's failure channel */
 
-#if defined (HOST) || defined (INKERNEL)
 	/* RUP structure for HOST to driver communications */
 	struct RUP rup;
-#endif
 	struct RUP link_rup;	/* RUP for the link (POLL,
 				   topology etc.) */
 	WORD attached_link;	/* Number of attached link */
