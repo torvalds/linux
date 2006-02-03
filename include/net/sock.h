@@ -1354,12 +1354,12 @@ extern int sock_get_timestamp(struct sock *, struct timeval __user *);
  *	Enable debug/info messages 
  */
 
-#if 0
-#define NETDEBUG(fmt, args...)	do { } while (0)
-#define LIMIT_NETDEBUG(fmt, args...) do { } while(0)
-#else
+#ifdef CONFIG_NETDEBUG
 #define NETDEBUG(fmt, args...)	printk(fmt,##args)
 #define LIMIT_NETDEBUG(fmt, args...) do { if (net_ratelimit()) printk(fmt,##args); } while(0)
+#else
+#define NETDEBUG(fmt, args...)	do { } while (0)
+#define LIMIT_NETDEBUG(fmt, args...) do { } while(0)
 #endif
 
 /*
