@@ -1024,7 +1024,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		rdev-> sb_size = (rdev->sb_size | bmask)+1;
 
 	if (refdev == 0)
-		return 1;
+		ret = 1;
 	else {
 		__u64 ev1, ev2;
 		struct mdp_superblock_1 *refsb = 
@@ -1044,7 +1044,9 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		ev2 = le64_to_cpu(refsb->events);
 
 		if (ev1 > ev2)
-			return 1;
+			ret = 1;
+		else
+			ret = 0;
 	}
 	if (minor_version) 
 		rdev->size = ((rdev->bdev->bd_inode->i_size>>9) - le64_to_cpu(sb->data_offset)) / 2;
@@ -1058,7 +1060,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 
 	if (le32_to_cpu(sb->size) > rdev->size*2)
 		return -EINVAL;
-	return 0;
+	return ret;
 }
 
 static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
