@@ -457,9 +457,12 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 error:
 	flush_gart(NULL);
 	gart_unmap_sg(dev, sg, nents, dir);
-	/* When it was forced try again unforced */
-	if (force_iommu) 
-		return dma_map_sg_nonforce(dev, sg, nents, dir);
+	/* When it was forced or merged try again in a dumb way */
+	if (force_iommu || iommu_merge) {
+		out = dma_map_sg_nonforce(dev, sg, nents, dir);
+		if (out > 0)
+			return out;
+	}
 	if (panic_on_overflow)
 		panic("dma_map_sg: overflow on %lu pages\n", pages);
 	iommu_full(dev, pages << PAGE_SHIFT, dir);
