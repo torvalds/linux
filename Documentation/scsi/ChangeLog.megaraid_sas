@@ -1,3 +1,14 @@
+1 Release Date    : Wed Feb 03 14:31:44 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.02.04
+3 Older Version   : 00.00.02.04 
+
+i.	Support for 1078 type (ppc IOP) controller, device id : 0x60 added.
+	During initialization, depending on the device id, the template members 
+	are initialized with function pointers specific to the ppc or 
+	xscale controllers.  
+
+		-Sumant Patro <Sumant.Patro@lsil.com>
+		
 1 Release Date    : Fri Feb 03 14:16:25 PST 2006 - Sumant Patro 
 							<Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.04
