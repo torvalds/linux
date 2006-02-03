@@ -1047,9 +1047,21 @@ static int timer_resume(struct sys_device *dev)
 	write_seqlock_irqsave(&xtime_lock,flags);
 	xtime.tv_sec = sec;
 	xtime.tv_nsec = 0;
+	if (vxtime.mode == VXTIME_HPET) {
+		if (hpet_use_timer)
+			vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
+		else
+			vxtime.last = hpet_readl(HPET_COUNTER);
+#ifdef CONFIG_X86_PM_TIMER
+	} else if (vxtime.mode == VXTIME_PMTMR) {
+		pmtimer_resume();
+#endif
+	} else
+		vxtime.last_tsc = get_cycles_sync();
 	write_sequnlock_irqrestore(&xtime_lock,flags);
 	jiffies += sleep_length;
 	wall_jiffies += sleep_length;
+	monotonic_base += sleep_length * (NSEC_PER_SEC/HZ);
 	touch_softlockup_watchdog();
 	return 0;
 }

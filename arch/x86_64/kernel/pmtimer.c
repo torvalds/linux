@@ -80,6 +80,11 @@ int pmtimer_mark_offset(void)
 	return lost - 1;
 }
 
+void pmtimer_resume(void)
+{
+	last_pmtmr_tick = inl(pmtmr_ioport);
+}
+
 unsigned int do_gettimeoffset_pm(void)
 {
 	u32 now, offset, delta = 0;

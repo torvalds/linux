@@ -41,6 +41,7 @@ extern void iommu_hole_init(void);
 
 extern void time_init_gtod(void);
 extern int pmtimer_mark_offset(void);
+extern void pmtimer_resume(void);
 extern unsigned int do_gettimeoffset_pm(void);
 #ifdef CONFIG_X86_PM_TIMER
 extern u32 pmtmr_ioport;
