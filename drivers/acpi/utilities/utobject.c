@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -177,7 +177,8 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 
 		buffer = ACPI_MEM_CALLOCATE(buffer_size);
 		if (!buffer) {
-			ACPI_REPORT_ERROR(("create_buffer: could not allocate size %X\n", (u32) buffer_size));
+			ACPI_ERROR((AE_INFO, "Could not allocate size %X",
+				    (u32) buffer_size));
 			acpi_ut_remove_reference(buffer_desc);
 			return_PTR(NULL);
 		}
@@ -228,7 +229,8 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 	 */
 	string = ACPI_MEM_CALLOCATE(string_size + 1);
 	if (!string) {
-		ACPI_REPORT_ERROR(("create_string: could not allocate size %X\n", (u32) string_size));
+		ACPI_ERROR((AE_INFO, "Could not allocate size %X",
+			    (u32) string_size));
 		acpi_ut_remove_reference(string_desc);
 		return_PTR(NULL);
 	}
@@ -310,8 +312,8 @@ void *acpi_ut_allocate_object_desc_dbg(char *module_name,
 
 	object = acpi_os_acquire_object(acpi_gbl_operand_cache);
 	if (!object) {
-		_ACPI_REPORT_ERROR(module_name, line_number, component_id,
-				   ("Could not allocate an object descriptor\n"));
+		ACPI_ERROR((module_name, line_number,
+			    "Could not allocate an object descriptor"));
 
 		return_PTR(NULL);
 	}
@@ -345,9 +347,9 @@ void acpi_ut_delete_object_desc(union acpi_operand_object *object)
 	/* Object must be an union acpi_operand_object    */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "%p is not an ACPI Operand object [%s]\n",
-				  object, acpi_ut_get_descriptor_name(object)));
+		ACPI_ERROR((AE_INFO,
+			    "%p is not an ACPI Operand object [%s]", object,
+			    acpi_ut_get_descriptor_name(object)));
 		return_VOID;
 	}
 
@@ -449,10 +451,10 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			 * Notably, Locals and Args are not supported, but this may be
 			 * required eventually.
 			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unsupported Reference opcode=%X in object %p\n",
-					  internal_object->reference.opcode,
-					  internal_object));
+			ACPI_ERROR((AE_INFO,
+				    "Unsupported Reference opcode=%X in object %p",
+				    internal_object->reference.opcode,
+				    internal_object));
 			status = AE_TYPE;
 			break;
 		}
@@ -460,10 +462,9 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unsupported type=%X in object %p\n",
-				  ACPI_GET_OBJECT_TYPE(internal_object),
-				  internal_object));
+		ACPI_ERROR((AE_INFO, "Unsupported type=%X in object %p",
+			    ACPI_GET_OBJECT_TYPE(internal_object),
+			    internal_object));
 		status = AE_TYPE;
 		break;
 	}

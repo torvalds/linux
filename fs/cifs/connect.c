@@ -1785,7 +1785,16 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		} else if(volume_info.wsize)
 			cifs_sb->wsize = volume_info.wsize;
 		else
-			cifs_sb->wsize = CIFSMaxBufSize; /* default */
+			cifs_sb->wsize = 
+				min_t(const int, PAGEVEC_SIZE * PAGE_CACHE_SIZE,
+					127*1024);
+			/* old default of CIFSMaxBufSize was too small now
+			   that SMB Write2 can send multiple pages in kvec.   
+			   RFC1001 does not describe what happens when frame
+			   bigger than 128K is sent so use that as max in
+			   conjunction with 52K kvec constraint on arch with 4K
+			   page size  */
+
 		if(cifs_sb->rsize < PAGE_CACHE_SIZE) {
 			cifs_sb->rsize = PAGE_CACHE_SIZE; 
 			/* Windows ME does this */

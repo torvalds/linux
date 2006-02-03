@@ -452,6 +452,11 @@ running once the system is up.
 
 	eata=		[HW,SCSI]
 
+	ec_intr=	[HW,ACPI] ACPI Embedded Controller interrupt mode
+			Format: <int>
+			0: polling mode
+			non-0: interrupt mode (default)
+
 	eda=		[HW,PS2]
 
 	edb=		[HW,PS2]

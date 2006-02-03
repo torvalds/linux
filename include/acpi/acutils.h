@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,39 @@
 
 #ifndef _ACUTILS_H
 #define _ACUTILS_H
+
+extern const u8 acpi_gbl_resource_aml_sizes[];
+
+/* Strings used by the disassembler and debugger resource dump routines */
+
+#if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
+
+extern const char *acpi_gbl_BMdecode[2];
+extern const char *acpi_gbl_config_decode[4];
+extern const char *acpi_gbl_consume_decode[2];
+extern const char *acpi_gbl_DECdecode[2];
+extern const char *acpi_gbl_HEdecode[2];
+extern const char *acpi_gbl_io_decode[2];
+extern const char *acpi_gbl_LLdecode[2];
+extern const char *acpi_gbl_max_decode[2];
+extern const char *acpi_gbl_MEMdecode[4];
+extern const char *acpi_gbl_min_decode[2];
+extern const char *acpi_gbl_MTPdecode[4];
+extern const char *acpi_gbl_RNGdecode[4];
+extern const char *acpi_gbl_RWdecode[2];
+extern const char *acpi_gbl_SHRdecode[2];
+extern const char *acpi_gbl_SIZdecode[4];
+extern const char *acpi_gbl_TRSdecode[2];
+extern const char *acpi_gbl_TTPdecode[2];
+extern const char *acpi_gbl_TYPdecode[4];
+#endif
+
+/* Types for Resource descriptor entries */
+
+#define ACPI_INVALID_RESOURCE           0
+#define ACPI_FIXED_LENGTH               1
+#define ACPI_VARIABLE_LENGTH            2
+#define ACPI_SMALL_VARIABLE_LENGTH      3
 
 typedef
 acpi_status(*acpi_pkg_callback) (u8 object_type,
@@ -159,7 +192,6 @@ extern const u8 _acpi_ctype[];
 #define ACPI_IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
 #define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_SP | _ACPI_PU))
 #define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
-#define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
 
@@ -243,21 +275,22 @@ acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
 		 char *module_name, u32 component_id, u8 * ptr);
 
-void acpi_ut_report_info(char *module_name, u32 line_number, u32 component_id);
-
-void acpi_ut_report_error(char *module_name, u32 line_number, u32 component_id);
-
-void
-acpi_ut_report_warning(char *module_name, u32 line_number, u32 component_id);
-
 void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
+
+void acpi_ut_report_error(char *module_name, u32 line_number);
+
+void acpi_ut_report_info(char *module_name, u32 line_number);
+
+void acpi_ut_report_warning(char *module_name, u32 line_number);
+
+/* Error and message reporting interfaces */
 
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print(u32 requested_debug_level,
 		    u32 line_number,
 		    const char *function_name,
 		    char *module_name,
-		    u32 component_id, char *format, ...) ACPI_PRINTF_LIKE_FUNC;
+		    u32 component_id, char *format, ...) ACPI_PRINTF_LIKE(6);
 
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw(u32 requested_debug_level,
@@ -265,7 +298,24 @@ acpi_ut_debug_print_raw(u32 requested_debug_level,
 			const char *function_name,
 			char *module_name,
 			u32 component_id,
-			char *format, ...) ACPI_PRINTF_LIKE_FUNC;
+			char *format, ...) ACPI_PRINTF_LIKE(6);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_error(char *module_name,
+	      u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_exception(char *module_name,
+		  u32 line_number,
+		  acpi_status status, char *format, ...) ACPI_PRINTF_LIKE(4);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_warning(char *module_name,
+		u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_info(char *module_name,
+	     u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
 
 /*
  * utdelete - Object deletion and reference counts
@@ -419,7 +469,19 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
 
 #define ACPI_ANY_BASE        0
 
-u8 *acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc);
+acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
+
+u32 acpi_ut_get_descriptor_length(void *aml);
+
+u16 acpi_ut_get_resource_length(void *aml);
+
+u8 acpi_ut_get_resource_header_length(void *aml);
+
+u8 acpi_ut_get_resource_type(void *aml);
+
+acpi_status
+acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc,
+			     u8 ** end_tag);
 
 u8 acpi_ut_generate_checksum(u8 * buffer, u32 length);
 

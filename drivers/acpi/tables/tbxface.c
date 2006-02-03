@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,8 +75,7 @@ acpi_status acpi_load_tables(void)
 	status = acpi_os_get_root_pointer(ACPI_LOGICAL_ADDRESSING,
 					  &rsdp_address);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("acpi_load_tables: Could not get RSDP, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Could not get the RSDP"));
 		goto error_exit;
 	}
 
@@ -86,7 +85,7 @@ acpi_status acpi_load_tables(void)
 
 	status = acpi_tb_verify_rsdp(&rsdp_address);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("acpi_load_tables: RSDP Failed validation: %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During RSDP validation"));
 		goto error_exit;
 	}
 
@@ -94,7 +93,7 @@ acpi_status acpi_load_tables(void)
 
 	status = acpi_tb_get_table_rsdt();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("acpi_load_tables: Could not load RSDT: %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Could not load RSDT"));
 		goto error_exit;
 	}
 
@@ -102,7 +101,8 @@ acpi_status acpi_load_tables(void)
 
 	status = acpi_tb_get_required_tables();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("acpi_load_tables: Error getting required tables (DSDT/FADT/FACS): %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not get all required tables (DSDT/FADT/FACS)"));
 		goto error_exit;
 	}
 
@@ -112,16 +112,14 @@ acpi_status acpi_load_tables(void)
 
 	status = acpi_ns_load_namespace();
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("acpi_load_tables: Could not load namespace: %s\n", acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Could not load namespace"));
 		goto error_exit;
 	}
 
 	return_ACPI_STATUS(AE_OK);
 
       error_exit:
-	ACPI_REPORT_ERROR(("acpi_load_tables: Could not load tables: %s\n",
-			   acpi_format_exception(status)));
-
+	ACPI_EXCEPTION((AE_INFO, status, "Could not load tables"));
 	return_ACPI_STATUS(status);
 }
 

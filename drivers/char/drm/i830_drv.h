@@ -123,9 +123,6 @@ typedef struct drm_i830_private {
 extern drm_ioctl_desc_t i830_ioctls[];
 extern int i830_max_ioctl;
 
-/* i830_dma.c */
-extern void i830_reclaim_buffers(drm_device_t * dev, struct file *filp);
-
 /* i830_irq.c */
 extern int i830_irq_emit(struct inode *inode, struct file *filp,
 			 unsigned int cmd, unsigned long arg);

@@ -306,9 +306,9 @@ static int acpi_processor_throttling_open_fs(struct inode *inode,
 			   PDE(inode)->data);
 }
 
-ssize_t acpi_processor_write_throttling(struct file * file,
-					const char __user * buffer,
-					size_t count, loff_t * data)
+static ssize_t acpi_processor_write_throttling(struct file * file,
+					       const char __user * buffer,
+					       size_t count, loff_t * data)
 {
 	int result = 0;
 	struct seq_file *m = (struct seq_file *)file->private_data;
@@ -337,6 +337,7 @@ ssize_t acpi_processor_write_throttling(struct file * file,
 struct file_operations acpi_processor_throttling_fops = {
 	.open = acpi_processor_throttling_open_fs,
 	.read = seq_read,
+	.write = acpi_processor_write_throttling,
 	.llseek = seq_lseek,
 	.release = single_release,
 };

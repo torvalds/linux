@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,8 +129,8 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
 		 * (ACPI specifies 100 usec as max, but this gives some slack in
 		 * order to support existing BIOSs)
 		 */
-		ACPI_REPORT_ERROR(("Stall: Time parameter is too large (%d)\n",
-				   how_long));
+		ACPI_ERROR((AE_INFO, "Time parameter is too large (%d)",
+			    how_long));
 		status = AE_AML_OPERAND_VALUE;
 	} else {
 		acpi_os_stall(how_long);

@@ -193,12 +193,12 @@ add_io_space (struct pci_root_info *info, struct acpi_resource_address64 *addr)
 		goto free_resource;
 	}
 
-	min = addr->min_address_range;
+	min = addr->minimum;
 	max = min + addr->address_length - 1;
-	if (addr->attribute.io.translation_attribute == ACPI_SPARSE_TRANSLATION)
+	if (addr->info.io.translation_type == ACPI_SPARSE_TRANSLATION)
 		sparse = 1;
 
-	space_nr = new_space(addr->address_translation_offset, sparse);
+	space_nr = new_space(addr->translation_offset, sparse);
 	if (space_nr == ~0)
 		goto free_name;
 
@@ -285,7 +285,7 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	if (addr.resource_type == ACPI_MEMORY_RANGE) {
 		flags = IORESOURCE_MEM;
 		root = &iomem_resource;
-		offset = addr.address_translation_offset;
+		offset = addr.translation_offset;
 	} else if (addr.resource_type == ACPI_IO_RANGE) {
 		flags = IORESOURCE_IO;
 		root = &ioport_resource;
@@ -298,7 +298,7 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window = &info->controller->window[info->controller->windows++];
 	window->resource.name = info->name;
 	window->resource.flags = flags;
-	window->resource.start = addr.min_address_range + offset;
+	window->resource.start = addr.minimum + offset;
 	window->resource.end = window->resource.start + addr.address_length - 1;
 	window->resource.child = NULL;
 	window->offset = offset;

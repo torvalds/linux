@@ -1239,7 +1239,7 @@ static int i830_flush_queue(drm_device_t * dev)
 }
 
 /* Must be called with the lock held */
-void i830_reclaim_buffers(drm_device_t * dev, struct file *filp)
+static void i830_reclaim_buffers(drm_device_t * dev, struct file *filp)
 {
 	drm_device_dma_t *dma = dev->dma;
 	int i;

@@ -7,7 +7,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,8 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 
 	info.parameters = NULL;
 	info.return_object = NULL;
-	sleep_state_name = (char *)acpi_gbl_sleep_state_names[sleep_state];
+	sleep_state_name =
+	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
 
 	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
 	if (ACPI_FAILURE(status)) {
@@ -159,15 +160,16 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	/* Must have a return object */
 
 	if (!info.return_object) {
-		ACPI_REPORT_ERROR(("No Sleep State object returned from [%s]\n",
-				   sleep_state_name));
+		ACPI_ERROR((AE_INFO, "No Sleep State object returned from [%s]",
+			    sleep_state_name));
 		status = AE_NOT_EXIST;
 	}
 
 	/* It must be of type Package */
 
 	else if (ACPI_GET_OBJECT_TYPE(info.return_object) != ACPI_TYPE_PACKAGE) {
-		ACPI_REPORT_ERROR(("Sleep State return object is not a Package\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
 	}
 
@@ -179,7 +181,8 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	 * one per sleep type (A/B).
 	 */
 	else if (info.return_object->package.count < 2) {
-		ACPI_REPORT_ERROR(("Sleep State return package does not have at least two elements\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Sleep State return package does not have at least two elements"));
 		status = AE_AML_NO_OPERAND;
 	}
 
@@ -189,7 +192,12 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 		  != ACPI_TYPE_INTEGER) ||
 		 (ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[1])
 		  != ACPI_TYPE_INTEGER)) {
-		ACPI_REPORT_ERROR(("Sleep State return package elements are not both Integers (%s, %s)\n", acpi_ut_get_object_type_name(info.return_object->package.elements[0]), acpi_ut_get_object_type_name(info.return_object->package.elements[1])));
+		ACPI_ERROR((AE_INFO,
+			    "Sleep State return package elements are not both Integers (%s, %s)",
+			    acpi_ut_get_object_type_name(info.return_object->
+							 package.elements[0]),
+			    acpi_ut_get_object_type_name(info.return_object->
+							 package.elements[1])));
 		status = AE_AML_OPERAND_TYPE;
 	} else {
 		/* Valid _Sx_ package size, type, and value */
@@ -201,12 +209,11 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "%s While evaluating sleep_state [%s], bad Sleep object %p type %s\n",
-				  acpi_format_exception(status),
-				  sleep_state_name, info.return_object,
-				  acpi_ut_get_object_type_name(info.
-							       return_object)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"While evaluating sleep_state [%s], bad Sleep object %p type %s",
+				sleep_state_name, info.return_object,
+				acpi_ut_get_object_type_name(info.
+							     return_object)));
 	}
 
 	acpi_ut_remove_reference(info.return_object);
@@ -229,12 +236,11 @@ EXPORT_SYMBOL(acpi_get_sleep_type_data);
 
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 {
-	ACPI_FUNCTION_NAME("hw_get_bit_register_info");
+	ACPI_FUNCTION_ENTRY();
 
 	if (register_id > ACPI_BITREG_MAX) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid bit_register ID: %X\n",
-				  register_id));
+		ACPI_ERROR((AE_INFO, "Invalid bit_register ID: %X",
+			    register_id));
 		return (NULL);
 	}
 
@@ -334,8 +340,8 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 
 	bit_reg_info = acpi_hw_get_bit_register_info(register_id);
 	if (!bit_reg_info) {
-		ACPI_REPORT_ERROR(("Bad ACPI HW register_id: %X\n",
-				   register_id));
+		ACPI_ERROR((AE_INFO, "Bad ACPI HW register_id: %X",
+			    register_id));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -569,8 +575,7 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown Register ID: %X\n",
-				  register_id));
+		ACPI_ERROR((AE_INFO, "Unknown Register ID: %X", register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
@@ -765,9 +770,9 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unsupported address space: %X\n",
-				  reg->address_space_id));
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported address space: %X",
+			    reg->address_space_id));
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -836,9 +841,9 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unsupported address space: %X\n",
-				  reg->address_space_id));
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported address space: %X",
+			    reg->address_space_id));
 		return (AE_BAD_PARAMETER);
 	}
 

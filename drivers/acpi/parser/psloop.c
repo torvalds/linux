@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,16 +123,12 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				    && ((status & AE_CODE_MASK) !=
 					AE_CODE_CONTROL)) {
 					if (status == AE_AML_NO_RETURN_VALUE) {
-						ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-								  "Invoked method did not return a value, %s\n",
-								  acpi_format_exception
-								  (status)));
+						ACPI_EXCEPTION((AE_INFO, status,
+								"Invoked method did not return a value"));
 
 					}
-					ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-							  "get_predicate Failed, %s\n",
-							  acpi_format_exception
-							  (status)));
+					ACPI_EXCEPTION((AE_INFO, status,
+							"get_predicate Failed"));
 					return_ACPI_STATUS(status);
 				}
 
@@ -190,11 +186,11 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 				/* The opcode is unrecognized.  Just skip unknown opcodes */
 
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Found unknown opcode %X at AML address %p offset %X, ignoring\n",
-						  walk_state->opcode,
-						  parser_state->aml,
-						  walk_state->aml_offset));
+				ACPI_ERROR((AE_INFO,
+					    "Found unknown opcode %X at AML address %p offset %X, ignoring",
+					    walk_state->opcode,
+					    parser_state->aml,
+					    walk_state->aml_offset));
 
 				ACPI_DUMP_BUFFER(parser_state->aml, 128);
 
@@ -281,10 +277,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				    walk_state->descending_callback(walk_state,
 								    &op);
 				if (ACPI_FAILURE(status)) {
-					ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-							  "During name lookup/catalog, %s\n",
-							  acpi_format_exception
-							  (status)));
+					ACPI_EXCEPTION((AE_INFO, status,
+							"During name lookup/catalog"));
 					goto close_this_op;
 				}
 
@@ -704,6 +698,15 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				acpi_ps_pop_scope(parser_state, &op,
 						  &walk_state->arg_types,
 						  &walk_state->arg_count);
+
+				if (op->common.aml_opcode != AML_WHILE_OP) {
+					status2 =
+					    acpi_ds_result_stack_pop
+					    (walk_state);
+					if (ACPI_FAILURE(status2)) {
+						return_ACPI_STATUS(status2);
+					}
+				}
 			}
 
 			/* Close this iteration of the While loop */

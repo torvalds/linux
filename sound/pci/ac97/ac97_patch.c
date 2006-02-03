@@ -1621,8 +1621,27 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
 	AC97_SINGLE("Line Jack Sense", AC97_AD_JACK_SPDIF, 12, 1, 0),
 };
 
+/* black list to avoid HP/Line jack-sense controls
+ * (SS vendor << 16 | device)
+ */
+static unsigned int ad1981_jacks_blacklist[] = {
+	0x10140554, /* Thinkpad T42p/R50p */
+	0 /* end */
+};
+
+static int check_list(struct snd_ac97 *ac97, const unsigned int *list)
+{
+	u32 subid = ((u32)ac97->subsystem_vendor << 16) | ac97->subsystem_device;
+	for (; *list; list++)
+		if (*list == subid)
+			return 1;
+	return 0;
+}
+
 static int patch_ad1981a_specific(struct snd_ac97 * ac97)
 {
+	if (check_list(ac97, ad1981_jacks_blacklist))
+		return 0;
 	return patch_build_controls(ac97, snd_ac97_ad1981x_jack_sense,
 				    ARRAY_SIZE(snd_ac97_ad1981x_jack_sense));
 }
@@ -1635,22 +1654,26 @@ static struct snd_ac97_build_ops patch_ad1981a_build_ops = {
 #endif
 };
 
+/* white list to enable HP jack-sense bits
+ * (SS vendor << 16 | device)
+ */
+static unsigned int ad1981_jacks_whitelist[] = {
+	0x0e11005a, /* HP nc4000/4010 */
+	0x103c0890, /* HP nc6000 */
+	0x103c0938, /* HP nc4220 */
+	0x103c099c, /* HP nx6110 */
+	0x103c0944, /* HP nc6220 */
+	0x103c0934, /* HP nc8220 */
+	0x103c006d, /* HP nx9105 */
+	0x17340088, /* FSC Scenic-W */
+	0 /* end */
+};
+
 static void check_ad1981_hp_jack_sense(struct snd_ac97 *ac97)
 {
-	u32 subid = ((u32)ac97->subsystem_vendor << 16) | ac97->subsystem_device;
-	switch (subid) {
-	case 0x0e11005a: /* HP nc4000/4010 */
-	case 0x103c0890: /* HP nc6000 */
-	case 0x103c0938: /* HP nc4220 */
-	case 0x103c099c: /* HP nx6110 */
-	case 0x103c0944: /* HP nc6220 */
-	case 0x103c0934: /* HP nc8220 */
-	case 0x103c006d: /* HP nx9105 */
-	case 0x17340088: /* FSC Scenic-W */
+	if (check_list(ac97, ad1981_jacks_whitelist))
 		/* enable headphone jack sense */
 		snd_ac97_update_bits(ac97, AC97_AD_JACK_SPDIF, 1<<11, 1<<11);
-		break;
-	}
 }
 
 int patch_ad1981a(struct snd_ac97 *ac97)
@@ -1672,6 +1695,8 @@ static int patch_ad1981b_specific(struct snd_ac97 *ac97)
 
 	if ((err = patch_build_controls(ac97, &snd_ac97_ad198x_2cmic, 1)) < 0)
 		return err;
+	if (check_list(ac97, ad1981_jacks_blacklist))
+		return 0;
 	return patch_build_controls(ac97, snd_ac97_ad1981x_jack_sense,
 				    ARRAY_SIZE(snd_ac97_ad1981x_jack_sense));
 }
@@ -2210,9 +2235,9 @@ static void alc850_update_jacks(struct snd_ac97 *ac97)
 	/* Vref disable (bit12), 1kOhm (bit13) */
 	snd_ac97_update_bits(ac97, AC97_ALC850_MISC1, (1<<12)|(1<<13),
 			     shared ? (1<<12) : (1<<13));
-	/* MIC-IN = 1, CENTER-LFE = 2 */
+	/* MIC-IN = 1, CENTER-LFE = 5 */
 	snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 4,
-			     shared ? (2<<4) : (1<<4));
+			     shared ? (5<<4) : (1<<4));
 }
 
 static const struct snd_kcontrol_new snd_ac97_controls_alc850[] = {

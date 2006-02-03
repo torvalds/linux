@@ -109,7 +109,9 @@ module_param_array(wssdma, int, NULL, 0444);
 MODULE_PARM_DESC(wssdma, "DMA for CMI8330 WSS driver.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
+#ifdef CONFIG_PNP
 static int pnp_registered;
+#endif
 
 #define CMI8330_RMUX3D    16
 #define CMI8330_MUTEMUX   17
@@ -672,8 +674,10 @@ static void __init_or_module snd_cmi8330_unregister_all(void)
 {
 	int i;
 
+#ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&cmi8330_pnpc_driver);
+#endif
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
 	platform_driver_unregister(&snd_cmi8330_driver);
@@ -700,11 +704,13 @@ static int __init alsa_card_cmi8330_init(void)
 		cards++;
 	}
 
+#ifdef CONFIG_PNP
 	err = pnp_register_card_driver(&cmi8330_pnpc_driver);
 	if (err >= 0) {
 		pnp_registered = 1;
 		cards += err;
 	}
+#endif
 
 	if (!cards) {
 #ifdef MODULE

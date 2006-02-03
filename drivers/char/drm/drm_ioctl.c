@@ -194,9 +194,9 @@ int drm_getmap(struct inode *inode, struct file *filp,
 		return -EFAULT;
 	idx = map.offset;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	if (idx < 0) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -209,7 +209,7 @@ int drm_getmap(struct inode *inode, struct file *filp,
 		i++;
 	}
 	if (!r_list || !r_list->map) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -219,7 +219,7 @@ int drm_getmap(struct inode *inode, struct file *filp,
 	map.flags = r_list->map->flags;
 	map.handle = (void *)(unsigned long)r_list->user_token;
 	map.mtrr = r_list->map->mtrr;
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (copy_to_user(argp, &map, sizeof(map)))
 		return -EFAULT;
@@ -253,11 +253,11 @@ int drm_getclient(struct inode *inode, struct file *filp,
 	if (copy_from_user(&client, argp, sizeof(client)))
 		return -EFAULT;
 	idx = client.idx;
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	for (i = 0, pt = dev->file_first; i < idx && pt; i++, pt = pt->next) ;
 
 	if (!pt) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 	client.auth = pt->authenticated;
@@ -265,7 +265,7 @@ int drm_getclient(struct inode *inode, struct file *filp,
 	client.uid = pt->uid;
 	client.magic = pt->magic;
 	client.iocs = pt->ioctl_count;
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (copy_to_user(argp, &client, sizeof(client)))
 		return -EFAULT;
@@ -292,7 +292,7 @@ int drm_getstats(struct inode *inode, struct file *filp,
 
 	memset(&stats, 0, sizeof(stats));
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 
 	for (i = 0; i < dev->counters; i++) {
 		if (dev->types[i] == _DRM_STAT_LOCK)
@@ -305,7 +305,7 @@ int drm_getstats(struct inode *inode, struct file *filp,
 
 	stats.count = dev->counters;
 
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (copy_to_user((drm_stats_t __user *) arg, &stats, sizeof(stats)))
 		return -EFAULT;

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -128,8 +128,8 @@ acpi_status acpi_tb_install_table(struct acpi_table_desc *table_info)
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not acquire table mutex, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not acquire table mutex"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -146,9 +146,9 @@ acpi_status acpi_tb_install_table(struct acpi_table_desc *table_info)
 
 	status = acpi_tb_init_table_descriptor(table_info->type, table_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not install table [%4.4s], %s\n",
-				   table_info->pointer->signature,
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not install table [%4.4s]",
+				table_info->pointer->signature));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s located at %p\n",
