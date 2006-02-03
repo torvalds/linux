@@ -674,22 +674,23 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	u16			 iocstat;
 	pFWDownloadReply_t	 ReplyMsg = NULL;
 
-	dctlprintk((KERN_INFO "mptctl_do_fwdl called. mptctl_id = %xh.\n", mptctl_id));
+	dctlprintk(("mptctl_do_fwdl called. mptctl_id = %xh.\n", mptctl_id));
 
-	dctlprintk((KERN_INFO "DbG: kfwdl.bufp  = %p\n", ufwbuf));
-	dctlprintk((KERN_INFO "DbG: kfwdl.fwlen = %d\n", (int)fwlen));
-	dctlprintk((KERN_INFO "DbG: kfwdl.ioc   = %04xh\n", ioc));
+	dctlprintk(("DbG: kfwdl.bufp  = %p\n", ufwbuf));
+	dctlprintk(("DbG: kfwdl.fwlen = %d\n", (int)fwlen));
+	dctlprintk(("DbG: kfwdl.ioc   = %04xh\n", ioc));
 
-	if ((ioc = mpt_verify_adapter(ioc, &iocp)) < 0) {
-		dctlprintk(("%s@%d::_ioctl_fwdl - ioc%d not found!\n",
-				__FILE__, __LINE__, ioc));
+	if (mpt_verify_adapter(ioc, &iocp) < 0) {
+		dctlprintk(("ioctl_fwdl - ioc%d not found!\n",
+				 ioc));
 		return -ENODEV; /* (-6) No such device or address */
-	}
+	} else {
 
-	/*  Valid device. Get a message frame and construct the FW download message.
-	 */
-	if ((mf = mpt_get_msg_frame(mptctl_id, iocp)) == NULL)
-		return -EAGAIN;
+		/*  Valid device. Get a message frame and construct the FW download message.
+	 	*/
+		if ((mf = mpt_get_msg_frame(mptctl_id, iocp)) == NULL)
+			return -EAGAIN;
+	}
 	dlmsg = (FWDownload_t*) mf;
 	ptsge = (FWDownloadTCSGE_t *) &dlmsg->SGL;
 	sgOut = (char *) (ptsge + 1);
@@ -702,7 +703,11 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	dlmsg->ChainOffset = 0;
 	dlmsg->Function = MPI_FUNCTION_FW_DOWNLOAD;
 	dlmsg->Reserved1[0] = dlmsg->Reserved1[1] = dlmsg->Reserved1[2] = 0;
-	dlmsg->MsgFlags = 0;
+	if (iocp->facts.MsgVersion >= MPI_VERSION_01_05)
+		dlmsg->MsgFlags = MPI_FW_DOWNLOAD_MSGFLGS_LAST_SEGMENT;
+	else
+		dlmsg->MsgFlags = 0;
+
 
 	/* Set up the Transaction SGE.
 	 */
@@ -754,7 +759,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 		goto fwdl_out;
 	}
 
-	dctlprintk((KERN_INFO "DbG: sgl buffer  = %p, sgfrags = %d\n", sgl, numfrags));
+	dctlprintk(("DbG: sgl buffer  = %p, sgfrags = %d\n", sgl, numfrags));
 
 	/*
 	 * Parse SG list, copying sgl itself,
@@ -803,7 +808,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	/*
 	 * Finally, perform firmware download.
 	 */
-	iocp->ioctl->wait_done = 0;
+	ReplyMsg = NULL;
 	mpt_put_msg_frame(mptctl_id, iocp, mf);
 
 	/* Now wait for the command to complete */
