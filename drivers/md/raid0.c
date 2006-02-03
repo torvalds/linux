@@ -372,7 +372,7 @@ out_free_conf:
 	kfree(conf);
 	mddev->private = NULL;
 out:
-	return 1;
+	return -ENOMEM;
 }
 
 static int raid0_stop (mddev_t *mddev)

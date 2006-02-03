@@ -565,6 +565,8 @@ rb_out:
 
 	if (disk >= 0 && (rdev=rcu_dereference(conf->mirrors[disk].rdev))!= NULL)
 		atomic_inc(&conf->mirrors[disk].rdev->nr_pending);
+	else
+		disk = -1;
 	rcu_read_unlock();
 
 	return disk;

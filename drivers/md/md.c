@@ -1081,7 +1081,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
 		mddev->bitmap_offset = 0;
-		mddev->default_bitmap_offset = 1024;
+		mddev->default_bitmap_offset = 1024 >> 9;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
@@ -1162,7 +1162,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	sb->cnt_corrected_read = atomic_read(&rdev->corrected_errors);
 
 	sb->raid_disks = cpu_to_le32(mddev->raid_disks);
-	sb->size = cpu_to_le64(mddev->size);
+	sb->size = cpu_to_le64(mddev->size<<1);
 
 	if (mddev->bitmap && mddev->bitmap_file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
