@@ -228,7 +228,7 @@ static void wrandom_set_nhinfo(__u32 network,
 	struct multipath_dest *d, *target_dest = NULL;
 
 	/* store the weight information for a certain route */
-	spin_lock(&state[state_idx].lock);
+	spin_lock_bh(&state[state_idx].lock);
 
 	/* find state entry for gateway or add one if necessary */
 	list_for_each_entry_rcu(r, &state[state_idx].head, list) {
@@ -276,7 +276,7 @@ static void wrandom_set_nhinfo(__u32 network,
 	 * we are finished
 	 */
 
-	spin_unlock(&state[state_idx].lock);
+	spin_unlock_bh(&state[state_idx].lock);
 }
 
 static void __multipath_free(struct rcu_head *head)
@@ -302,7 +302,7 @@ static void wrandom_flush(void)
 	for (i = 0; i < MULTIPATH_STATE_SIZE; ++i) {
 		struct multipath_route *r;
 
-		spin_lock(&state[i].lock);
+		spin_lock_bh(&state[i].lock);
 		list_for_each_entry_rcu(r, &state[i].head, list) {
 			struct multipath_dest *d;
 			list_for_each_entry_rcu(d, &r->dests, list) {
@@ -315,7 +315,7 @@ static void wrandom_flush(void)
 				 __multipath_free);
 		}
 
-		spin_unlock(&state[i].lock);
+		spin_unlock_bh(&state[i].lock);
 	}
 }
 
