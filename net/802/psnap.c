@@ -59,8 +59,10 @@ static int snap_rcv(struct sk_buff *skb, struct net_device *dev,
 	proto = find_snap_client(skb->h.raw);
 	if (proto) {
 		/* Pass the frame on. */
+		u8 *hdr = skb->data;
 		skb->h.raw  += 5;
 		skb_pull(skb, 5);
+		skb_postpull_rcsum(skb, hdr, 5);
 		rc = proto->rcvfunc(skb, dev, &snap_packet_type, orig_dev);
 	} else {
 		skb->sk = NULL;
