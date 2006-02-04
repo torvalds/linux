@@ -15,6 +15,7 @@
 #include <asm/head.h>
 #include <asm/thread_info.h>
 #include <asm/cacheflush.h>
+#include <asm/hypervisor.h>
 
 	/* Basically, most of the Spitfire vs. Cheetah madness
 	 * has to do with the fact that Cheetah does not support
@@ -29,7 +30,8 @@
 	.text
 	.align		32
 	.globl		__flush_tlb_mm
-__flush_tlb_mm: /* %o0=(ctx & TAG_CONTEXT_BITS), %o1=SECONDARY_CONTEXT */
+__flush_tlb_mm:		/* 18 insns */
+	/* %o0=(ctx & TAG_CONTEXT_BITS), %o1=SECONDARY_CONTEXT */
 	ldxa		[%o1] ASI_DMMU, %g2
 	cmp		%g2, %o0
 	bne,pn		%icc, __spitfire_flush_tlb_mm_slow
@@ -52,7 +54,7 @@ __flush_tlb_mm: /* %o0=(ctx & TAG_CONTEXT_BITS), %o1=SECONDARY_CONTEXT */
 
 	.align		32
 	.globl		__flush_tlb_pending
-__flush_tlb_pending:
+__flush_tlb_pending:	/* 26 insns */
 	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
 	rdpr		%pstate, %g7
 	sllx		%o1, 3, %o1
@@ -84,7 +86,8 @@ __flush_tlb_pending:
 
 	.align		32
 	.globl		__flush_tlb_kernel_range
-__flush_tlb_kernel_range:	/* %o0=start, %o1=end */
+__flush_tlb_kernel_range:	/* 14 insns */
+	/* %o0=start, %o1=end */
 	cmp		%o0, %o1
 	be,pn		%xcc, 2f
 	 sethi		%hi(PAGE_SIZE), %o4
@@ -100,6 +103,7 @@ __flush_tlb_kernel_range:	/* %o0=start, %o1=end */
 	flush		%o3
 	retl
 	 nop
+	nop
 
 __spitfire_flush_tlb_mm_slow:
 	rdpr		%pstate, %g1
@@ -252,7 +256,63 @@ __cheetah_flush_dcache_page: /* 11 insns */
 	 nop
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
-cheetah_patch_one:
+	/* Hypervisor specific versions, patched at boot time.  */
+__hypervisor_flush_tlb_mm: /* 8 insns */
+	mov		%o0, %o2	/* ARG2: mmu context */
+	mov		0, %o0		/* ARG0: CPU lists unimplemented */
+	mov		0, %o1		/* ARG1: CPU lists unimplemented */
+	mov		HV_MMU_ALL, %o3	/* ARG3: flags */
+	mov		HV_FAST_MMU_DEMAP_CTX, %o5
+	ta		HV_FAST_TRAP
+	retl
+	 nop
+
+__hypervisor_flush_tlb_pending: /* 15 insns */
+	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
+	sllx		%o1, 3, %g1
+	mov		%o2, %g2
+	mov		%o0, %g3
+1:	sub		%g1, (1 << 3), %g1
+	ldx		[%g2 + %g1], %o0      /* ARG0: vaddr + IMMU-bit */
+	mov		%g3, %o1	      /* ARG1: mmu context */
+	mov		HV_MMU_DMMU, %o2
+	andcc		%o0, 1, %g0
+	movne		%icc, HV_MMU_ALL, %o2 /* ARG2: flags */
+	andn		%o0, 1, %o0
+	ta		HV_MMU_UNMAP_ADDR_TRAP
+	brnz,pt		%g1, 1b
+	 nop
+	retl
+	 nop
+
+__hypervisor_flush_tlb_kernel_range: /* 14 insns */
+	/* %o0=start, %o1=end */
+	cmp		%o0, %o1
+	be,pn		%xcc, 2f
+	 sethi		%hi(PAGE_SIZE), %g3
+	mov		%o0, %g1
+	sub		%o1, %g1, %g2
+	sub		%g2, %g3, %g2
+1:	add		%g1, %g2, %o0	/* ARG0: virtual address */
+	mov		0, %o1		/* ARG1: mmu context */
+	mov		HV_MMU_ALL, %o2	/* ARG2: flags */
+	ta		HV_MMU_UNMAP_ADDR_TRAP
+	brnz,pt		%g2, 1b
+	 sub		%g2, %g3, %g2
+2:	retl
+	 nop
+
+#ifdef DCACHE_ALIASING_POSSIBLE
+	/* XXX Niagara and friends have an 8K cache, so no aliasing is
+	 * XXX possible, but nothing explicit in the Hypervisor API
+	 * XXX guarantees this.
+	 */
+__hypervisor_flush_dcache_page:	/* 2 insns */
+	retl
+	 nop
+#endif
+
+tlb_patch_one:
 1:	lduw		[%o1], %g1
 	stw		%g1, [%o0]
 	flush		%o0
@@ -271,14 +331,14 @@ cheetah_patch_cachetlbops:
 	or		%o0, %lo(__flush_tlb_mm), %o0
 	sethi		%hi(__cheetah_flush_tlb_mm), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_mm), %o1
-	call		cheetah_patch_one
+	call		tlb_patch_one
 	 mov		19, %o2
 
 	sethi		%hi(__flush_tlb_pending), %o0
 	or		%o0, %lo(__flush_tlb_pending), %o0
 	sethi		%hi(__cheetah_flush_tlb_pending), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_pending), %o1
-	call		cheetah_patch_one
+	call		tlb_patch_one
 	 mov		27, %o2
 
 #ifdef DCACHE_ALIASING_POSSIBLE
@@ -286,7 +346,7 @@ cheetah_patch_cachetlbops:
 	or		%o0, %lo(__flush_dcache_page), %o0
 	sethi		%hi(__cheetah_flush_dcache_page), %o1
 	or		%o1, %lo(__cheetah_flush_dcache_page), %o1
-	call		cheetah_patch_one
+	call		tlb_patch_one
 	 mov		11, %o2
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
@@ -309,7 +369,7 @@ cheetah_patch_cachetlbops:
 	 */
 	.align		32
 	.globl		xcall_flush_tlb_mm
-xcall_flush_tlb_mm:
+xcall_flush_tlb_mm:	/* 18 insns */
 	mov		PRIMARY_CONTEXT, %g2
 	ldxa		[%g2] ASI_DMMU, %g3
 	srlx		%g3, CTX_PGSZ1_NUC_SHIFT, %g4
@@ -321,9 +381,16 @@ xcall_flush_tlb_mm:
 	stxa		%g0, [%g4] ASI_IMMU_DEMAP
 	stxa		%g3, [%g2] ASI_DMMU
 	retry
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 
 	.globl		xcall_flush_tlb_pending
-xcall_flush_tlb_pending:
+xcall_flush_tlb_pending:	/* 20 insns */
 	/* %g5=context, %g1=nr, %g7=vaddrs[] */
 	sllx		%g1, 3, %g1
 	mov		PRIMARY_CONTEXT, %g4
@@ -348,7 +415,7 @@ xcall_flush_tlb_pending:
 	retry
 
 	.globl		xcall_flush_tlb_kernel_range
-xcall_flush_tlb_kernel_range:
+xcall_flush_tlb_kernel_range:	/* 22 insns */
 	sethi		%hi(PAGE_SIZE - 1), %g2
 	or		%g2, %lo(PAGE_SIZE - 1), %g2
 	andn		%g1, %g2, %g1
@@ -363,6 +430,12 @@ xcall_flush_tlb_kernel_range:
 	brnz,pt		%g3, 1b
 	 sub		%g3, %g2, %g3
 	retry
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 	nop
 	nop
 
@@ -458,6 +531,76 @@ xcall_flush_dcache_page_spitfire: /* %g1 == physical page address
 	nop
 	nop
 
+	.globl		__hypervisor_xcall_flush_tlb_mm
+__hypervisor_xcall_flush_tlb_mm: /* 18 insns */
+	/* %g5=ctx, g1,g2,g3,g4,g7=scratch, %g6=unusable */
+	mov		%o0, %g2
+	mov		%o1, %g3
+	mov		%o2, %g4
+	mov		%o3, %g1
+	mov		%o5, %g7
+	clr		%o0		/* ARG0: CPU lists unimplemented */
+	clr		%o1		/* ARG1: CPU lists unimplemented */
+	mov		%g5, %o2	/* ARG2: mmu context */
+	mov		HV_MMU_ALL, %o3	/* ARG3: flags */
+	mov		HV_FAST_MMU_DEMAP_CTX, %o5
+	ta		HV_FAST_TRAP
+	mov		%g2, %o0
+	mov		%g3, %o1
+	mov		%g4, %o2
+	mov		%g1, %o3
+	mov		%g7, %o5
+	membar		#Sync
+	retry
+
+	.globl		__hypervisor_xcall_flush_tlb_pending
+__hypervisor_xcall_flush_tlb_pending: /* 18 insns */
+	/* %g5=ctx, %g1=nr, %g7=vaddrs[], %g2,%g3,%g4=scratch, %g6=unusable */
+	sllx		%g1, 3, %g1
+	mov		%o0, %g2
+	mov		%o1, %g3
+	mov		%o2, %g4
+1:	sub		%g1, (1 << 3), %g1
+	ldx		[%g7 + %g1], %o0	/* ARG0: virtual address */
+	mov		%g5, %o1		/* ARG1: mmu context */
+	mov		HV_MMU_DMMU, %o2
+	andcc		%o0, 1, %g0
+	movne		%icc, HV_MMU_ALL, %o2	/* ARG2: flags */
+	ta		HV_MMU_UNMAP_ADDR_TRAP
+	brnz,pt		%g1, 1b
+	 nop
+	mov		%g2, %o0
+	mov		%g3, %o1
+	mov		%g4, %o2
+	membar		#Sync
+	retry
+
+	.globl		__hypervisor_xcall_flush_tlb_kernel_range
+__hypervisor_xcall_flush_tlb_kernel_range: /* 22 insns */
+	/* %g1=start, %g7=end, g2,g3,g4,g5=scratch, g6=unusable */
+	sethi		%hi(PAGE_SIZE - 1), %g2
+	or		%g2, %lo(PAGE_SIZE - 1), %g2
+	andn		%g1, %g2, %g1
+	andn		%g7, %g2, %g7
+	sub		%g7, %g1, %g3
+	add		%g2, 1, %g2
+	sub		%g3, %g2, %g3
+	mov		%o0, %g2
+	mov		%o1, %g4
+	mov		%o2, %g5
+1:	add		%g1, %g3, %o0	/* ARG0: virtual address */
+	mov		0, %o1		/* ARG1: mmu context */
+	mov		HV_MMU_ALL, %o2	/* ARG2: flags */
+	ta		HV_MMU_UNMAP_ADDR_TRAP
+	sethi		%hi(PAGE_SIZE), %o2
+	brnz,pt		%g3, 1b
+	 sub		%g3, %o2, %g3
+	mov		%g2, %o0
+	mov		%g4, %o1
+	mov		%g5, %o2
+	membar		#Sync
+	retry
+
 	/* These just get rescheduled to PIL vectors. */
 	.globl		xcall_call_function
 xcall_call_function:
@@ -475,3 +618,64 @@ xcall_capture:
 	retry
 
 #endif /* CONFIG_SMP */
+
+
+	.globl		hypervisor_patch_cachetlbops
+hypervisor_patch_cachetlbops:
+	save		%sp, -128, %sp
+
+	sethi		%hi(__flush_tlb_mm), %o0
+	or		%o0, %lo(__flush_tlb_mm), %o0
+	sethi		%hi(__hypervisor_flush_tlb_mm), %o1
+	or		%o1, %lo(__hypervisor_flush_tlb_mm), %o1
+	call		tlb_patch_one
+	 mov		8, %o2
+
+	sethi		%hi(__flush_tlb_pending), %o0
+	or		%o0, %lo(__flush_tlb_pending), %o0
+	sethi		%hi(__hypervisor_flush_tlb_pending), %o1
+	or		%o1, %lo(__hypervisor_flush_tlb_pending), %o1
+	call		tlb_patch_one
+	 mov		15, %o2
+
+	sethi		%hi(__flush_tlb_kernel_range), %o0
+	or		%o0, %lo(__flush_tlb_kernel_range), %o0
+	sethi		%hi(__hypervisor_flush_tlb_kernel_range), %o1
+	or		%o1, %lo(__hypervisor_flush_tlb_kernel_range), %o1
+	call		tlb_patch_one
+	 mov		14, %o2
+
+#ifdef DCACHE_ALIASING_POSSIBLE
+	sethi		%hi(__flush_dcache_page), %o0
+	or		%o0, %lo(__flush_dcache_page), %o0
+	sethi		%hi(__hypervisor_flush_dcache_page), %o1
+	or		%o1, %lo(__hypervisor_flush_dcache_page), %o1
+	call		tlb_patch_one
+	 mov		2, %o2
+#endif /* DCACHE_ALIASING_POSSIBLE */
+
+#ifdef CONFIG_SMP
+	sethi		%hi(xcall_flush_tlb_mm), %o0
+	or		%o0, %lo(xcall_flush_tlb_mm), %o0
+	sethi		%hi(__hypervisor_xcall_flush_tlb_mm), %o1
+	or		%o1, %lo(__hypervisor_xcall_flush_tlb_mm), %o1
+	call		tlb_patch_one
+	 mov		18, %o2
+
+	sethi		%hi(xcall_flush_tlb_pending), %o0
+	or		%o0, %lo(xcall_flush_tlb_pending), %o0
+	sethi		%hi(__hypervisor_xcall_flush_tlb_pending), %o1
+	or		%o1, %lo(__hypervisor_xcall_flush_tlb_pending), %o1
+	call		tlb_patch_one
+	 mov		18, %o2
+
+	sethi		%hi(xcall_flush_tlb_kernel_range), %o0
+	or		%o0, %lo(xcall_flush_tlb_kernel_range), %o0
+	sethi		%hi(__hypervisor_xcall_flush_tlb_kernel_range), %o1
+	or		%o1, %lo(__hypervisor_xcall_flush_tlb_kernel_range), %o1
+	call		tlb_patch_one
+	 mov		22, %o2
+#endif /* CONFIG_SMP */
+
+	ret
+	 restore
