@@ -17,8 +17,6 @@ obj-$(CONFIG_USB_SL811_HCD)	+= host/
 obj-$(CONFIG_ETRAX_USB_HOST)	+= host/
 
 obj-$(CONFIG_USB_ACM)		+= class/
-obj-$(CONFIG_USB_AUDIO)		+= class/
-obj-$(CONFIG_USB_MIDI)		+= class/
 obj-$(CONFIG_USB_PRINTER)	+= class/
 
 obj-$(CONFIG_USB_STORAGE)	+= storage/
