@@ -30,13 +30,22 @@
  */
 #define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cachable		*/
 #define ASI_PHYS_BYPASS_EC_E	0x15 /* PADDR, E-bit			*/
+#define ASI_BLK_AIUP_4V		0x16 /* (4V) Prim, user, block ld/st	*/
+#define ASI_BLK_AIUS_4V		0x17 /* (4V) Sec, user, block ld/st	*/
 #define ASI_PHYS_USE_EC_L	0x1c /* PADDR, E-cachable, little endian*/
 #define ASI_PHYS_BYPASS_EC_E_L	0x1d /* PADDR, E-bit, little endian	*/
+#define ASI_BLK_AIUP_L_4V	0x1e /* (4V) Prim, user, block, l-endian*/
+#define ASI_BLK_AIUS_L_4V	0x1f /* (4V) Sec, user, block, l-endian	*/
+#define ASI_SCRATCHPAD		0x20 /* (4V) Scratch Pad Registers	*/
+#define ASI_MMU			0x21 /* (4V) MMU Context Registers	*/
 #define ASI_BLK_INIT_QUAD_LDD_AIUS 0x23 /* (NG) init-store, twin load,
 					 * secondary, user
 					 */
 #define ASI_NUCLEUS_QUAD_LDD	0x24 /* Cachable, qword load		*/
+#define ASI_QUEUE		0x25 /* (4V) Interrupt Queue Registers	*/
+#define ASI_QUAD_LDD_PHYS_4V	0x26 /* (4V) Physical, qword load	*/
 #define ASI_NUCLEUS_QUAD_LDD_L	0x2c /* Cachable, qword load, l-endian 	*/
+#define ASI_QUAD_LDD_PHYS_L_4V	0x2e /* (4V) Phys, qword load, l-endian	*/
 #define ASI_PCACHE_DATA_STATUS	0x30 /* (III) PCache data stat RAM diag	*/
 #define ASI_PCACHE_DATA		0x31 /* (III) PCache data RAM diag	*/
 #define ASI_PCACHE_TAG		0x32 /* (III) PCache tag RAM diag	*/
