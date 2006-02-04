@@ -1,10 +1,6 @@
 #ifndef _ASM_PARISC_RT_SIGFRAME_H
 #define _ASM_PARISC_RT_SIGFRAME_H
 
-#ifdef CONFIG_COMPAT
-#include <asm/compat_rt_sigframe.h>
-#endif
-
 #define SIGRETURN_TRAMP 4
 #define SIGRESTARTBLOCK_TRAMP 5 
 #define TRAMP_SIZE (SIGRETURN_TRAMP + SIGRESTARTBLOCK_TRAMP)

@@ -48,9 +48,6 @@ EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strpbrk);
 
-#include <linux/pm.h>
-EXPORT_SYMBOL(pm_power_off);
-
 #include <asm/atomic.h>
 EXPORT_SYMBOL(__xchg8);
 EXPORT_SYMBOL(__xchg32);

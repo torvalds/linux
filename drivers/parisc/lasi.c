@@ -166,11 +166,12 @@ static void lasi_power_off(void)
 int __init
 lasi_init_chip(struct parisc_device *dev)
 {
+	extern void (*chassis_power_off)(void);
 	struct gsc_asic *lasi;
 	struct gsc_irq gsc_irq;
 	int ret;
 
-	lasi = kmalloc(sizeof(*lasi), GFP_KERNEL);
+	lasi = kzalloc(sizeof(*lasi), GFP_KERNEL);
 	if (!lasi)
 		return -ENOMEM;
 
@@ -222,7 +223,7 @@ lasi_init_chip(struct parisc_device *dev)
 	 * ensure that only the first LASI (the one controlling the power off)
 	 * should set the HPA here */
 	lasi_power_off_hpa = lasi->hpa;
-	pm_power_off = lasi_power_off;
+	chassis_power_off = lasi_power_off;
 	
 	return ret;
 }
