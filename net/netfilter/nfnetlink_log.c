@@ -37,7 +37,7 @@
 #include "../bridge/br_private.h"
 #endif
 
-#define NFULNL_NLBUFSIZ_DEFAULT	4096
+#define NFULNL_NLBUFSIZ_DEFAULT	NLMSG_GOODSIZE
 #define NFULNL_TIMEOUT_DEFAULT 	100	/* every second */
 #define NFULNL_QTHRESH_DEFAULT 	100	/* 100 packets */
 

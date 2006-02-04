@@ -46,7 +46,7 @@
 #define PRINTR(format, args...) do { if (net_ratelimit()) \
                                 printk(format , ## args); } while (0)
 
-static unsigned int nlbufsiz = 4096;
+static unsigned int nlbufsiz = NLMSG_GOODSIZE;
 module_param(nlbufsiz, uint, 0600);
 MODULE_PARM_DESC(nlbufsiz, "netlink buffer size (number of bytes) "
                            "(defaults to 4096)");

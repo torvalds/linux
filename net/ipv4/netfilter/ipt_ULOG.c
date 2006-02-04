@@ -35,6 +35,10 @@
  * each nlgroup you are using, so the total kernel memory usage increases
  * by that factor.
  *
+ * Actually you should use nlbufsiz a bit smaller than PAGE_SIZE, since
+ * nlbufsiz is used with alloc_skb, which adds another
+ * sizeof(struct skb_shared_info).  Use NLMSG_GOODSIZE instead.
+ *
  * flushtimeout:
  *   Specify, after how many hundredths of a second the queue should be
  *   flushed even if it is not full yet.
@@ -76,7 +80,7 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 
 #define PRINTR(format, args...) do { if (net_ratelimit()) printk(format , ## args); } while (0)
 
-static unsigned int nlbufsiz = 4096;
+static unsigned int nlbufsiz = NLMSG_GOODSIZE;
 module_param(nlbufsiz, uint, 0400);
 MODULE_PARM_DESC(nlbufsiz, "netlink buffer size");
 
