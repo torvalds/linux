@@ -104,6 +104,7 @@
  *	0.49: 10 Dec 2005: Fix tso for large buffers.
  *	0.50: 20 Jan 2006: Add 8021pq tagging support.
  *	0.51: 20 Jan 2006: Add 64bit consistent memory allocation for rings.
+ *	0.52: 20 Jan 2006: Add MSI/MSIX support.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -115,7 +116,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.51"
+#define FORCEDETH_VERSION		"0.52"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -156,6 +157,8 @@
 #define DEV_HAS_HIGH_DMA        0x0008  /* device supports 64bit dma */
 #define DEV_HAS_CHECKSUM        0x0010  /* device supports tx and rx checksum offloads */
 #define DEV_HAS_VLAN            0x0020  /* device supports vlan tagging and striping */
+#define DEV_HAS_MSI             0x0040  /* device supports MSI */
+#define DEV_HAS_MSI_X           0x0080  /* device supports MSI-X */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -169,14 +172,17 @@ enum {
 #define NVREG_IRQ_TX_OK			0x0010
 #define NVREG_IRQ_TIMER			0x0020
 #define NVREG_IRQ_LINK			0x0040
-#define NVREG_IRQ_TX_ERROR		0x0080
-#define NVREG_IRQ_TX1			0x0100
+#define NVREG_IRQ_RX_FORCED		0x0080
+#define NVREG_IRQ_TX_FORCED		0x0100
 #define NVREG_IRQMASK_THROUGHPUT	0x00df
 #define NVREG_IRQMASK_CPU		0x0040
+#define NVREG_IRQ_TX_ALL		(NVREG_IRQ_TX_ERR|NVREG_IRQ_TX_OK|NVREG_IRQ_TX_FORCED)
+#define NVREG_IRQ_RX_ALL		(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_RX_FORCED)
+#define NVREG_IRQ_OTHER			(NVREG_IRQ_TIMER|NVREG_IRQ_LINK)
 
 #define NVREG_IRQ_UNKNOWN	(~(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_TX_ERR| \
-					NVREG_IRQ_TX_OK|NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_TX_ERROR| \
-					NVREG_IRQ_TX1))
+					NVREG_IRQ_TX_OK|NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_RX_FORCED| \
+					NVREG_IRQ_TX_FORCED))
 
 	NvRegUnknownSetupReg6 = 0x008,
 #define NVREG_UNKSETUP6_VAL		3
@@ -188,6 +194,10 @@ enum {
 	NvRegPollingInterval = 0x00c,
 #define NVREG_POLL_DEFAULT_THROUGHPUT	970
 #define NVREG_POLL_DEFAULT_CPU	13
+	NvRegMSIMap0 = 0x020,
+	NvRegMSIMap1 = 0x024,
+	NvRegMSIIrqMask = 0x030,
+#define NVREG_MSI_VECTOR_0_ENABLED 0x01
 	NvRegMisc1 = 0x080,
 #define NVREG_MISC1_HD		0x02
 #define NVREG_MISC1_FORCE	0x3b0f3c
@@ -312,6 +322,9 @@ enum {
 #define NVREG_POWERSTATE_D3		0x0003
 	NvRegVlanControl = 0x300,
 #define NVREG_VLANCONTROL_ENABLE	0x2000
+	NvRegMSIXMap0 = 0x3e0,
+	NvRegMSIXMap1 = 0x3e4,
+	NvRegMSIXIrqStatus = 0x3f0,
 };
 
 /* Big endian: should work, but is untested */
@@ -489,6 +502,18 @@ typedef union _ring_type {
 #define LPA_1000FULL	0x0800
 #define LPA_1000HALF	0x0400
 
+/* MSI/MSI-X defines */
+#define NV_MSI_X_MAX_VECTORS  8
+#define NV_MSI_X_VECTORS_MASK 0x000f
+#define NV_MSI_CAPABLE        0x0010
+#define NV_MSI_X_CAPABLE      0x0020
+#define NV_MSI_ENABLED        0x0040
+#define NV_MSI_X_ENABLED      0x0080
+
+#define NV_MSI_X_VECTOR_ALL   0x0
+#define NV_MSI_X_VECTOR_RX    0x0
+#define NV_MSI_X_VECTOR_TX    0x1
+#define NV_MSI_X_VECTOR_OTHER 0x2
 
 /*
  * SMP locking:
@@ -540,6 +565,7 @@ struct fe_priv {
 	unsigned int pkt_limit;
 	struct timer_list oom_kick;
 	struct timer_list nic_poll;
+	u32 nic_poll_irq;
 
 	/* media detection workaround.
 	 * Locking: Within irq hander or disable_irq+spin_lock(&np->lock);
@@ -558,6 +584,10 @@ struct fe_priv {
 
 	/* vlan fields */
 	struct vlan_group *vlangrp;
+
+	/* msi/msi-x fields */
+	u32 msi_flags;
+	struct msix_entry msi_x_entry[NV_MSI_X_MAX_VECTORS];
 };
 
 /*
@@ -584,6 +614,16 @@ static int optimization_mode = NV_OPTIMIZATION_MODE_THROUGHPUT;
  * Min = 0, and Max = 65535
  */
 static int poll_interval = -1;
+
+/*
+ * Disable MSI interrupts
+ */
+static int disable_msi = 0;
+
+/*
+ * Disable MSIX interrupts
+ */
+static int disable_msix = 0;
 
 static inline struct fe_priv *get_nvpriv(struct net_device *dev)
 {
@@ -948,14 +988,27 @@ static void nv_do_rx_refill(unsigned long data)
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
 
-	disable_irq(dev->irq);
+
+	if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
+	    ((np->msi_flags & NV_MSI_X_ENABLED) && 
+	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))) {
+		disable_irq(dev->irq);
+	} else {
+		disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+	}
 	if (nv_alloc_rx(dev)) {
 		spin_lock(&np->lock);
 		if (!np->in_shutdown)
 			mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 		spin_unlock(&np->lock);
 	}
-	enable_irq(dev->irq);
+	if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
+	    ((np->msi_flags & NV_MSI_X_ENABLED) && 
+	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))) {
+		enable_irq(dev->irq);
+	} else {
+		enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+	}
 }
 
 static void nv_init_rx(struct net_device *dev) 
@@ -1010,7 +1063,7 @@ static int nv_release_txskb(struct net_device *dev, unsigned int skbnr)
 	}
 
 	if (np->tx_skbuff[skbnr]) {
-		dev_kfree_skb_irq(np->tx_skbuff[skbnr]);
+		dev_kfree_skb_any(np->tx_skbuff[skbnr]);
 		np->tx_skbuff[skbnr] = NULL;
 		return 1;
 	} else {
@@ -1261,9 +1314,14 @@ static void nv_tx_timeout(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 status;
 
-	printk(KERN_INFO "%s: Got tx_timeout. irq: %08x\n", dev->name,
-			readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK);
+	if (np->msi_flags & NV_MSI_X_ENABLED)
+		status = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+	else
+		status = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+
+	printk(KERN_INFO "%s: Got tx_timeout. irq: %08x\n", dev->name, status);
 
 	{
 		int i;
@@ -1579,7 +1637,15 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		 * guessed, there is probably a simpler approach.
 		 * Changing the MTU is a rare event, it shouldn't matter.
 		 */
-		disable_irq(dev->irq);
+		if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
+		    ((np->msi_flags & NV_MSI_X_ENABLED) && 
+		     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))) {
+			disable_irq(dev->irq);
+		} else {
+			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+		}
 		spin_lock_bh(&dev->xmit_lock);
 		spin_lock(&np->lock);
 		/* stop engines */
@@ -1612,7 +1678,15 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		nv_start_tx(dev);
 		spin_unlock(&np->lock);
 		spin_unlock_bh(&dev->xmit_lock);
-		enable_irq(dev->irq);
+		if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
+		    ((np->msi_flags & NV_MSI_X_ENABLED) && 
+		     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))) {
+			enable_irq(dev->irq);
+		} else {
+			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+		}
 	}
 	return 0;
 }
@@ -1918,8 +1992,13 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 	dprintk(KERN_DEBUG "%s: nv_nic_irq\n", dev->name);
 
 	for (i=0; ; i++) {
-		events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
-		writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+		if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
+			events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
+			writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+		} else {
+			events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
+			writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
+		}
 		pci_push(base);
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
@@ -1959,11 +2038,16 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 		if (i > max_interrupt_work) {
 			spin_lock(&np->lock);
 			/* disable interrupts on the nic */
-			writel(0, base + NvRegIrqMask);
+			if (!(np->msi_flags & NV_MSI_X_ENABLED))
+				writel(0, base + NvRegIrqMask);
+			else
+				writel(np->irqmask, base + NvRegIrqMask);
 			pci_push(base);
 
-			if (!np->in_shutdown)
+			if (!np->in_shutdown) {
+				np->nic_poll_irq = np->irqmask;
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
 			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq.\n", dev->name, i);
 			spin_unlock(&np->lock);
 			break;
@@ -1975,22 +2059,212 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 	return IRQ_RETVAL(i);
 }
 
+static irqreturn_t nv_nic_irq_tx(int foo, void *data, struct pt_regs *regs)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	u32 events;
+	int i;
+
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_tx\n", dev->name);
+
+	for (i=0; ; i++) {
+		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_TX_ALL;
+		writel(NVREG_IRQ_TX_ALL, base + NvRegMSIXIrqStatus);
+		pci_push(base);
+		dprintk(KERN_DEBUG "%s: tx irq: %08x\n", dev->name, events);
+		if (!(events & np->irqmask))
+			break;
+
+		spin_lock(&np->lock);
+		nv_tx_done(dev);
+		spin_unlock(&np->lock);
+		
+		if (events & (NVREG_IRQ_TX_ERR)) {
+			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
+						dev->name, events);
+		}
+		if (i > max_interrupt_work) {
+			spin_lock(&np->lock);
+			/* disable interrupts on the nic */
+			writel(NVREG_IRQ_TX_ALL, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq |= NVREG_IRQ_TX_ALL;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_tx.\n", dev->name, i);
+			spin_unlock(&np->lock);
+			break;
+		}
+
+	}
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_tx completed\n", dev->name);
+
+	return IRQ_RETVAL(i);
+}
+
+static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	u32 events;
+	int i;
+
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_rx\n", dev->name);
+
+	for (i=0; ; i++) {
+		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_RX_ALL;
+		writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
+		pci_push(base);
+		dprintk(KERN_DEBUG "%s: rx irq: %08x\n", dev->name, events);
+		if (!(events & np->irqmask))
+			break;
+		
+		nv_rx_process(dev);
+		if (nv_alloc_rx(dev)) {
+			spin_lock(&np->lock);
+			if (!np->in_shutdown)
+				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+			spin_unlock(&np->lock);
+		}
+		
+		if (i > max_interrupt_work) {
+			spin_lock(&np->lock);
+			/* disable interrupts on the nic */
+			writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq |= NVREG_IRQ_RX_ALL;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_rx.\n", dev->name, i);
+			spin_unlock(&np->lock);
+			break;
+		}
+
+	}
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_rx completed\n", dev->name);
+
+	return IRQ_RETVAL(i);
+}
+
+static irqreturn_t nv_nic_irq_other(int foo, void *data, struct pt_regs *regs)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	u32 events;
+	int i;
+
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_other\n", dev->name);
+
+	for (i=0; ; i++) {
+		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_OTHER;
+		writel(NVREG_IRQ_OTHER, base + NvRegMSIXIrqStatus);
+		pci_push(base);
+		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
+		if (!(events & np->irqmask))
+			break;
+		
+		if (events & NVREG_IRQ_LINK) {
+			spin_lock(&np->lock);
+			nv_link_irq(dev);
+			spin_unlock(&np->lock);
+		}
+		if (np->need_linktimer && time_after(jiffies, np->link_timeout)) {
+			spin_lock(&np->lock);
+			nv_linkchange(dev);
+			spin_unlock(&np->lock);
+			np->link_timeout = jiffies + LINK_TIMEOUT;
+		}
+		if (events & (NVREG_IRQ_UNKNOWN)) {
+			printk(KERN_DEBUG "%s: received irq with unknown events 0x%x. Please report\n",
+						dev->name, events);
+		}
+		if (i > max_interrupt_work) {
+			spin_lock(&np->lock);
+			/* disable interrupts on the nic */
+			writel(NVREG_IRQ_OTHER, base + NvRegIrqMask);
+			pci_push(base);
+
+			if (!np->in_shutdown) {
+				np->nic_poll_irq |= NVREG_IRQ_OTHER;
+				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
+			}
+			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_other.\n", dev->name, i);
+			spin_unlock(&np->lock);
+			break;
+		}
+
+	}
+	dprintk(KERN_DEBUG "%s: nv_nic_irq_other completed\n", dev->name);
+
+	return IRQ_RETVAL(i);
+}
+
 static void nv_do_nic_poll(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 mask = 0;
 
-	disable_irq(dev->irq);
-	/* FIXME: Do we need synchronize_irq(dev->irq) here? */
 	/*
+	 * First disable irq(s) and then
 	 * reenable interrupts on the nic, we have to do this before calling
 	 * nv_nic_irq because that may decide to do otherwise
 	 */
-	writel(np->irqmask, base + NvRegIrqMask);
+
+	if (!(np->msi_flags & NV_MSI_X_ENABLED) ||
+	    ((np->msi_flags & NV_MSI_X_ENABLED) && 
+	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))) {
+		disable_irq(dev->irq);
+		mask = np->irqmask;
+	} else {
+		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
+			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+			mask |= NVREG_IRQ_RX_ALL;
+		}
+		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
+			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+			mask |= NVREG_IRQ_TX_ALL;
+		}
+		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
+			disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+			mask |= NVREG_IRQ_OTHER;
+		}
+	}
+	np->nic_poll_irq = 0;
+
+	/* FIXME: Do we need synchronize_irq(dev->irq) here? */
+	
+	writel(mask, base + NvRegIrqMask);
 	pci_push(base);
-	nv_nic_irq((int) 0, (void *) data, (struct pt_regs *) NULL);
-	enable_irq(dev->irq);
+
+	if (!(np->msi_flags & NV_MSI_X_ENABLED) || 
+	    ((np->msi_flags & NV_MSI_X_ENABLED) && 
+	     ((np->msi_flags & NV_MSI_X_VECTORS_MASK) == 0x1))) {
+		nv_nic_irq((int) 0, (void *) data, (struct pt_regs *) NULL);
+		enable_irq(dev->irq);
+	} else {
+		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
+			nv_nic_irq_rx((int) 0, (void *) data, (struct pt_regs *) NULL);
+			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
+		}
+		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
+			nv_nic_irq_tx((int) 0, (void *) data, (struct pt_regs *) NULL);
+			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
+		}
+		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
+			nv_nic_irq_other((int) 0, (void *) data, (struct pt_regs *) NULL);
+			enable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
+		}
+	}
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2297,11 +2571,38 @@ static void nv_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	/* nothing to do */
 };
 
+static void set_msix_vector_map(struct net_device *dev, u32 vector, u32 irqmask)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	int i;
+	u32 msixmap = 0;
+
+	/* Each interrupt bit can be mapped to a MSIX vector (4 bits).
+	 * MSIXMap0 represents the first 8 interrupts and MSIXMap1 represents
+	 * the remaining 8 interrupts.
+	 */
+	for (i = 0; i < 8; i++) {
+		if ((irqmask >> i) & 0x1) {
+			msixmap |= vector << (i << 2);
+		}
+	}
+	writel(readl(base + NvRegMSIXMap0) | msixmap, base + NvRegMSIXMap0);
+
+	msixmap = 0;
+	for (i = 0; i < 8; i++) {
+		if ((irqmask >> (i + 8)) & 0x1) {
+			msixmap |= vector << (i << 2);
+		}
+	}
+	writel(readl(base + NvRegMSIXMap1) | msixmap, base + NvRegMSIXMap1);
+}
+
 static int nv_open(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int ret, oom, i;
+	int ret = 1;
+	int oom, i;
 
 	dprintk(KERN_DEBUG "nv_open: begin\n");
 
@@ -2392,9 +2693,77 @@ static int nv_open(struct net_device *dev)
 	writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 	pci_push(base);
 
-	ret = request_irq(dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev);
-	if (ret)
-		goto out_drain;
+	if (np->msi_flags & NV_MSI_X_CAPABLE) {
+		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
+			np->msi_x_entry[i].entry = i;
+		}
+		if ((ret = pci_enable_msix(np->pci_dev, np->msi_x_entry, (np->msi_flags & NV_MSI_X_VECTORS_MASK))) == 0) {
+			np->msi_flags |= NV_MSI_X_ENABLED;
+			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT) {
+				/* Request irq for rx handling */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, &nv_nic_irq_rx, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed for rx %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_drain;
+				}
+				/* Request irq for tx handling */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, &nv_nic_irq_tx, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed for tx %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_drain;
+				}
+				/* Request irq for link and timer handling */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector, &nv_nic_irq_other, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed for link %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_drain;
+				}
+
+				/* map interrupts to their respective vector */
+				writel(0, base + NvRegMSIXMap0);
+				writel(0, base + NvRegMSIXMap1);
+				set_msix_vector_map(dev, NV_MSI_X_VECTOR_RX, NVREG_IRQ_RX_ALL);
+				set_msix_vector_map(dev, NV_MSI_X_VECTOR_TX, NVREG_IRQ_TX_ALL);
+				set_msix_vector_map(dev, NV_MSI_X_VECTOR_OTHER, NVREG_IRQ_OTHER);
+			} else {
+				/* Request irq for all interrupts */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_drain;
+				}
+
+				/* map interrupts to vector 0 */
+				writel(0, base + NvRegMSIXMap0);
+				writel(0, base + NvRegMSIXMap1);
+			}
+		}
+	}
+	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
+		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
+			np->msi_flags |= NV_MSI_ENABLED;
+			if (request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) {
+				printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
+				pci_disable_msi(np->pci_dev);
+				np->msi_flags &= ~NV_MSI_ENABLED;
+				goto out_drain;
+			}
+
+			/* map interrupts to vector 0 */
+			writel(0, base + NvRegMSIMap0);
+			writel(0, base + NvRegMSIMap1);
+			/* enable msi vector 0 */
+			writel(NVREG_MSI_VECTOR_0_ENABLED, base + NvRegMSIIrqMask);
+		}
+	}
+	if (ret != 0) {
+		if (request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0)
+			goto out_drain;
+	}
 
 	/* ask for interrupts */
 	writel(np->irqmask, base + NvRegIrqMask);
@@ -2441,6 +2810,7 @@ static int nv_close(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base;
+	int i;
 
 	spin_lock_irq(&np->lock);
 	np->in_shutdown = 1;
@@ -2458,13 +2828,31 @@ static int nv_close(struct net_device *dev)
 
 	/* disable interrupts on the nic or we will lock up */
 	base = get_hwbase(dev);
-	writel(0, base + NvRegIrqMask);
+	if (np->msi_flags & NV_MSI_X_ENABLED) {
+		writel(np->irqmask, base + NvRegIrqMask);
+	} else {
+		if (np->msi_flags & NV_MSI_ENABLED)
+			writel(0, base + NvRegMSIIrqMask);
+		writel(0, base + NvRegIrqMask);
+	}
 	pci_push(base);
 	dprintk(KERN_INFO "%s: Irqmask is zero again\n", dev->name);
 
 	spin_unlock_irq(&np->lock);
 
-	free_irq(dev->irq, dev);
+	if (np->msi_flags & NV_MSI_X_ENABLED) {
+		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
+			free_irq(np->msi_x_entry[i].vector, dev);
+		}
+		pci_disable_msix(np->pci_dev);
+		np->msi_flags &= ~NV_MSI_X_ENABLED;
+	} else {
+		free_irq(np->pci_dev->irq, dev);
+		if (np->msi_flags & NV_MSI_ENABLED) {
+			pci_disable_msi(np->pci_dev);
+			np->msi_flags &= ~NV_MSI_ENABLED;
+		}
+	}
 
 	drain_ring(dev);
 
@@ -2588,6 +2976,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		dev->vlan_rx_kill_vid = nv_vlan_rx_kill_vid;
 	}
 
+	np->msi_flags = 0;
+	if ((id->driver_data & DEV_HAS_MSI) && !disable_msi) {
+		np->msi_flags |= NV_MSI_CAPABLE;
+	}
+	if ((id->driver_data & DEV_HAS_MSI_X) && !disable_msix) {
+		np->msi_flags |= NV_MSI_X_CAPABLE;
+	}
+
 	err = -ENOMEM;
 	np->base = ioremap(addr, NV_PCI_REGSZ);
 	if (!np->base)
@@ -2670,10 +3066,15 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	} else {
 		np->tx_flags = NV_TX2_VALID;
 	}
-	if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT)
+	if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT) {
 		np->irqmask = NVREG_IRQMASK_THROUGHPUT;
-	else
+		if (np->msi_flags & NV_MSI_X_CAPABLE) /* set number of vectors */
+			np->msi_flags |= 0x0003;
+	} else {
 		np->irqmask = NVREG_IRQMASK_CPU;
+		if (np->msi_flags & NV_MSI_X_CAPABLE) /* set number of vectors */
+			np->msi_flags |= 0x0001;
+	}
 
 	if (id->driver_data & DEV_NEED_TIMERIRQ)
 		np->irqmask |= NVREG_IRQ_TIMER;
@@ -2829,11 +3230,11 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X,
 	},
 	{0,},
 };
@@ -2863,6 +3264,10 @@ module_param(optimization_mode, int, 0);
 MODULE_PARM_DESC(optimization_mode, "In throughput mode (0), every tx & rx packet will generate an interrupt. In CPU mode (1), interrupts are controlled by a timer.");
 module_param(poll_interval, int, 0);
 MODULE_PARM_DESC(poll_interval, "Interval determines how frequent timer interrupt is generated by [(time_in_micro_secs * 100) / (2^10)]. Min is 0 and Max is 65535.");
+module_param(disable_msi, int, 0);
+MODULE_PARM_DESC(disable_msi, "Disable MSI interrupts by setting to 1.");
+module_param(disable_msix, int, 0);
+MODULE_PARM_DESC(disable_msix, "Disable MSIX interrupts by setting to 1.");
 
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
