@@ -89,7 +89,7 @@ match_policy_out(const struct sk_buff *skb, const struct ipt_policy_info *info)
 			return 0;
 	}
 
-	return strict ? 1 : 0;
+	return strict ? i == info->len : 0;
 }
 
 static int match(const struct sk_buff *skb,
