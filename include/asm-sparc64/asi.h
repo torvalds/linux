@@ -25,12 +25,16 @@
 
 /* SpitFire and later extended ASIs.  The "(III)" marker designates
  * UltraSparc-III and later specific ASIs.  The "(CMT)" marker designates
- * Chip Multi Threading specific ASIs.
+ * Chip Multi Threading specific ASIs.  "(NG)" designates Niagara specific
+ * ASIs, "(4V)" designates SUN4V specific ASIs.
  */
 #define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cachable		*/
 #define ASI_PHYS_BYPASS_EC_E	0x15 /* PADDR, E-bit			*/
 #define ASI_PHYS_USE_EC_L	0x1c /* PADDR, E-cachable, little endian*/
 #define ASI_PHYS_BYPASS_EC_E_L	0x1d /* PADDR, E-bit, little endian	*/
+#define ASI_BLK_INIT_QUAD_LDD_AIUS 0x23 /* (NG) init-store, twin load,
+					 * secondary, user
+					 */
 #define ASI_NUCLEUS_QUAD_LDD	0x24 /* Cachable, qword load		*/
 #define ASI_NUCLEUS_QUAD_LDD_L	0x2c /* Cachable, qword load, l-endian 	*/
 #define ASI_PCACHE_DATA_STATUS	0x30 /* (III) PCache data stat RAM diag	*/
@@ -137,6 +141,9 @@
 #define ASI_FL16_SL		0xdb /* Secondary, 1 16-bit, fpu ld/st,L*/
 #define ASI_BLK_COMMIT_P	0xe0 /* Primary, blk store commit	*/
 #define ASI_BLK_COMMIT_S	0xe1 /* Secondary, blk store commit	*/
+#define ASI_BLK_INIT_QUAD_LDD_P	0xe2 /* (NG) init-store, twin load,
+				      * primary, implicit
+				      */
 #define ASI_BLK_P		0xf0 /* Primary, blk ld/st		*/
 #define ASI_BLK_S		0xf1 /* Secondary, blk ld/st		*/
 #define ASI_BLK_PL		0xf8 /* Primary, blk ld/st, little	*/
