@@ -520,6 +520,9 @@ static void __init per_cpu_patch(void)
 			else
 				insns = &p->cheetah_safari[0];
 			break;
+		case hypervisor:
+			insns = &p->sun4v[0];
+			break;
 		default:
 			prom_printf("Unknown cpu type, halting.\n");
 			prom_halt();

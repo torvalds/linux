@@ -68,6 +68,7 @@ struct cpuid_patch_entry {
 	unsigned int	cheetah_safari[4];
 	unsigned int	cheetah_jbus[4];
 	unsigned int	starfire[4];
+	unsigned int	sun4v[4];
 };
 extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
 #endif
@@ -78,6 +79,8 @@ extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
 #define TRAP_PER_CPU_PGD_PADDR	0x08
 
 #define TRAP_BLOCK_SZ_SHIFT	6
+
+#include <asm/scratchpad.h>
 
 #ifdef CONFIG_SMP
 
@@ -105,6 +108,11 @@ extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
 	sllx		REG, 9, REG;			\
 	or		REG, 0xd0, REG;			\
 	lduwa		[REG] ASI_PHYS_BYPASS_EC_E, REG;\
+	/* sun4v implementation. */			\
+	mov		SCRATCHPAD_CPUID, REG;		\
+	nop;						\
+	ldxa		[REG] ASI_SCRATCHPAD, REG;	\
+	nop;						\
 	.previous;
 
 /* Clobbers TMP, current address space PGD phys address into DEST.  */
