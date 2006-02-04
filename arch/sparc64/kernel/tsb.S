@@ -115,7 +115,6 @@ sparc64_realfault_common:
 	ba,pt	%xcc, rtrap_clr_l6		! Restore cpu state
 	 nop					! Delay slot (fill me)
 
-	.globl	winfix_trampoline
 winfix_trampoline:
 	rdpr	%tpc, %g3			! Prepare winfixup TNPC
 	or	%g3, 0x7c, %g3			! Compute branch offset

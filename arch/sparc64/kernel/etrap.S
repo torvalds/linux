@@ -55,7 +55,31 @@ etrap_irq:
 		rd	%y, %g3
 		stx	%g1, [%g2 + STACKFRAME_SZ + PT_V9_TNPC]
 		st	%g3, [%g2 + STACKFRAME_SZ + PT_V9_Y]
-		save	%g2, -STACK_BIAS, %sp	! Ordering here is critical
+
+		rdpr	%cansave, %g1
+		brnz,pt %g1, etrap_save
+		 nop
+
+		rdpr	%cwp, %g1
+		add	%g1, 2, %g1
+		wrpr	%g1, %cwp
+		be,pt	%xcc, etrap_user_spill
+		 mov	ASI_AIUP, %g3
+
+		rdpr	%otherwin, %g3
+		brz	%g3, etrap_kernel_spill
+		 mov	ASI_AIUS, %g3
+
+etrap_user_spill:
+
+		wr	%g3, 0x0, %asi
+		ldx	[%g6 + TI_FLAGS], %g3
+		and	%g3, _TIF_32BIT, %g3
+		brnz,pt	%g3, etrap_user_spill_32bit
+		 nop
+		ba,a,pt	%xcc, etrap_user_spill_64bit
+
+etrap_save:	save	%g2, -STACK_BIAS, %sp
 		mov	%g6, %l6
 
 		bne,pn	%xcc, 3f
@@ -175,84 +199,6 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		sub	%g2, STACKFRAME_SZ + TRACEREG_SZ - STACK_BIAS, %g2
 		ba,pt	%xcc, 1b
 		 andcc	%g1, TSTATE_PRIV, %g0
-
-		.align	64
-		.globl	scetrap
-scetrap:
-		TRAP_LOAD_THREAD_REG(%g6, %g1)
-		rdpr	%pil, %g2
-		rdpr	%tstate, %g1
-		sllx	%g2, 20, %g3
-		andcc	%g1, TSTATE_PRIV, %g0
-		or	%g1, %g3, %g1
-		bne,pn	%xcc, 1f
-		 sub	%sp, (STACKFRAME_SZ+TRACEREG_SZ-STACK_BIAS), %g2
-		wrpr	%g0, 7, %cleanwin
-
-		sllx	%g1, 51, %g3
-		sethi	%hi(TASK_REGOFF), %g2
-		or	%g2, %lo(TASK_REGOFF), %g2
-		brlz,pn	%g3, 1f
-		 add	%g6, %g2, %g2
-		wr	%g0, 0, %fprs
-1:		rdpr	%tpc, %g3
-		stx	%g1, [%g2 + STACKFRAME_SZ + PT_V9_TSTATE]
-
-		rdpr	%tnpc, %g1
-		stx	%g3, [%g2 + STACKFRAME_SZ + PT_V9_TPC]
-		stx	%g1, [%g2 + STACKFRAME_SZ + PT_V9_TNPC]
-		save	%g2, -STACK_BIAS, %sp	! Ordering here is critical
-		mov	%g6, %l6
-		bne,pn	%xcc, 2f
-		 mov	ASI_P, %l7
-		rdpr	%canrestore, %g3
-
-		rdpr	%wstate, %g2
-		wrpr	%g0, 0, %canrestore
-		sll	%g2, 3, %g2
-		mov	PRIMARY_CONTEXT, %l4
-		wrpr	%g3, 0, %otherwin
-		wrpr	%g2, 0, %wstate
-		sethi	%hi(sparc64_kern_pri_context), %g2
-		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g3
-		stxa	%g3, [%l4] ASI_DMMU
-		sethi	%hi(KERNBASE), %l4
-		flush	%l4
-
-		mov	ASI_AIUS, %l7
-2:		mov	%g4, %l4
-		mov	%g5, %l5
-		add	%g7, 0x4, %l2
-		wrpr	%g0, ETRAP_PSTATE1, %pstate
-		stx	%g1, [%sp + PTREGS_OFF + PT_V9_G1]
-		stx	%g2, [%sp + PTREGS_OFF + PT_V9_G2]
-		sllx	%l7, 24, %l7
-
-		stx	%g3, [%sp + PTREGS_OFF + PT_V9_G3]
-		rdpr	%cwp, %l0
-		stx	%g4, [%sp + PTREGS_OFF + PT_V9_G4]
-		stx	%g5, [%sp + PTREGS_OFF + PT_V9_G5]
-		stx	%g6, [%sp + PTREGS_OFF + PT_V9_G6]
-		stx	%g7, [%sp + PTREGS_OFF + PT_V9_G7]
-		or	%l7, %l0, %l7
-		sethi	%hi(TSTATE_RMO | TSTATE_PEF), %l0
-
-		or	%l7, %l0, %l7
-		wrpr	%l2, %tnpc
-		wrpr	%l7, (TSTATE_PRIV | TSTATE_IE), %tstate
-		stx	%i0, [%sp + PTREGS_OFF + PT_V9_I0]
-		stx	%i1, [%sp + PTREGS_OFF + PT_V9_I1]
-		stx	%i2, [%sp + PTREGS_OFF + PT_V9_I2]
-		stx	%i3, [%sp + PTREGS_OFF + PT_V9_I3]
-		stx	%i4, [%sp + PTREGS_OFF + PT_V9_I4]
-
-		stx	%i5, [%sp + PTREGS_OFF + PT_V9_I5]
-		stx	%i6, [%sp + PTREGS_OFF + PT_V9_I6]
-		mov	%l6, %g6
-		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
-		LOAD_PER_CPU_BASE(%g5, %g6, %g4, %g3, %l1)
-		ldx	[%g6 + TI_TASK], %g4
-		done
 
 #undef TASK_REGOFF
 #undef ETRAP_PSTATE1

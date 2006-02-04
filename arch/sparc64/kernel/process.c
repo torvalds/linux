@@ -541,6 +541,18 @@ void synchronize_user_stack(void)
 	}
 }
 
+static void stack_unaligned(unsigned long sp)
+{
+	siginfo_t info;
+
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_ADRALN;
+	info.si_addr = (void __user *) sp;
+	info.si_trapno = 0;
+	force_sig_info(SIGBUS, &info, current);
+}
+
 void fault_in_user_windows(void)
 {
 	struct thread_info *t = current_thread_info();
@@ -556,13 +568,17 @@ void fault_in_user_windows(void)
 	flush_user_windows();
 	window = get_thread_wsaved();
 
-	if (window != 0) {
+	if (likely(window != 0)) {
 		window -= 1;
 		do {
 			unsigned long sp = (t->rwbuf_stkptrs[window] + bias);
 			struct reg_window *rwin = &t->reg_window[window];
 
-			if (copy_to_user((char __user *)sp, rwin, winsize))
+			if (unlikely(sp & 0x7UL))
+				stack_unaligned(sp);
+
+			if (unlikely(copy_to_user((char __user *)sp,
+						  rwin, winsize)))
 				goto barf;
 		} while (window--);
 	}
