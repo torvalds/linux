@@ -102,6 +102,7 @@
  *	0.47: 26 Oct 2005: Add phyaddr 0 in phy scan.
  *	0.48: 24 Dec 2005: Disable TSO, bugfix for pci_map_single
  *	0.49: 10 Dec 2005: Fix tso for large buffers.
+ *	0.50: 20 Jan 2006: Add 8021pq tagging support.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -113,7 +114,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.49"
+#define FORCEDETH_VERSION		"0.50"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -153,6 +154,7 @@
 #define DEV_HAS_LARGEDESC	0x0004	/* device supports jumbo frames and needs packet format 2 */
 #define DEV_HAS_HIGH_DMA        0x0008  /* device supports 64bit dma */
 #define DEV_HAS_CHECKSUM        0x0010  /* device supports tx and rx checksum offloads */
+#define DEV_HAS_VLAN            0x0020  /* device supports vlan tagging and striping */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -254,6 +256,8 @@ enum {
 #define NVREG_TXRXCTL_DESC_1	0
 #define NVREG_TXRXCTL_DESC_2	0x02100
 #define NVREG_TXRXCTL_DESC_3	0x02200
+#define NVREG_TXRXCTL_VLANSTRIP 0x00040
+#define NVREG_TXRXCTL_VLANINS	0x00080
 	NvRegMIIStatus = 0x180,
 #define NVREG_MIISTAT_ERROR		0x0001
 #define NVREG_MIISTAT_LINKCHANGE	0x0008
@@ -303,6 +307,8 @@ enum {
 #define NVREG_POWERSTATE_D1		0x0001
 #define NVREG_POWERSTATE_D2		0x0002
 #define NVREG_POWERSTATE_D3		0x0003
+	NvRegVlanControl = 0x300,
+#define NVREG_VLANCONTROL_ENABLE	0x2000
 };
 
 /* Big endian: should work, but is untested */
@@ -314,7 +320,7 @@ struct ring_desc {
 struct ring_desc_ex {
 	u32 PacketBufferHigh;
 	u32 PacketBufferLow;
-	u32 Reserved;
+	u32 TxVlan;
 	u32 FlagLen;
 };
 
@@ -355,6 +361,8 @@ typedef union _ring_type {
 #define NV_TX2_CHECKSUM_L3	(1<<27)
 #define NV_TX2_CHECKSUM_L4	(1<<26)
 
+#define NV_TX3_VLAN_TAG_PRESENT (1<<18)
+
 #define NV_RX_DESCRIPTORVALID	(1<<16)
 #define NV_RX_MISSEDFRAME	(1<<17)
 #define NV_RX_SUBSTRACT1	(1<<18)
@@ -384,6 +392,9 @@ typedef union _ring_type {
 /* error and avail are the same for both */
 #define NV_RX2_ERROR		(1<<30)
 #define NV_RX2_AVAIL		(1<<31)
+
+#define NV_RX3_VLAN_TAG_PRESENT (1<<16)
+#define NV_RX3_VLAN_TAG_MASK	(0x0000FFFF)
 
 /* Miscelaneous hardware related defines: */
 #define NV_PCI_REGSZ		0x270
@@ -511,6 +522,7 @@ struct fe_priv {
 	u32 irqmask;
 	u32 desc_ver;
 	u32 txrxctl_bits;
+	u32 vlanctl_bits;
 
 	void __iomem *base;
 
@@ -540,6 +552,9 @@ struct fe_priv {
 	dma_addr_t tx_dma[TX_RING];
 	unsigned int tx_dma_len[TX_RING];
 	u32 tx_flags;
+
+	/* vlan fields */
+	struct vlan_group *vlangrp;
 };
 
 /*
@@ -1031,6 +1046,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 bcnt;
 	u32 size = skb->len-skb->data_len;
 	u32 entries = (size >> NV_TX2_TSO_MAX_SHIFT) + ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+	u32 tx_flags_vlan = 0;
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
@@ -1111,10 +1127,16 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	tx_flags_extra = (skb->ip_summed == CHECKSUM_HW ? (NV_TX2_CHECKSUM_L3|NV_TX2_CHECKSUM_L4) : 0);
 
+	/* vlan tag */
+	if (np->vlangrp && vlan_tx_tag_present(skb)) {
+		tx_flags_vlan = NV_TX3_VLAN_TAG_PRESENT | vlan_tx_tag_get(skb);
+	}
+
 	/* set tx flags */
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->tx_ring.orig[start_nr].FlagLen |= cpu_to_le32(tx_flags | tx_flags_extra);
 	} else {
+		np->tx_ring.ex[start_nr].TxVlan = cpu_to_le32(tx_flags_vlan);
 		np->tx_ring.ex[start_nr].FlagLen |= cpu_to_le32(tx_flags | tx_flags_extra);
 	}	
 
@@ -1342,6 +1364,8 @@ static void nv_rx_process(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 Flags;
+	u32 vlanflags = 0;
+
 
 	for (;;) {
 		struct sk_buff *skb;
@@ -1357,6 +1381,7 @@ static void nv_rx_process(struct net_device *dev)
 		} else {
 			Flags = le32_to_cpu(np->rx_ring.ex[i].FlagLen);
 			len = nv_descr_getlength_ex(&np->rx_ring.ex[i], np->desc_ver);
+			vlanflags = le32_to_cpu(np->rx_ring.ex[i].PacketBufferLow);
 		}
 
 		dprintk(KERN_DEBUG "%s: nv_rx_process: looking at packet %d, Flags 0x%x.\n",
@@ -1474,7 +1499,11 @@ static void nv_rx_process(struct net_device *dev)
 		skb->protocol = eth_type_trans(skb, dev);
 		dprintk(KERN_DEBUG "%s: nv_rx_process: packet %d with %d bytes, proto %d accepted.\n",
 					dev->name, np->cur_rx, len, skb->protocol);
-		netif_rx(skb);
+		if (np->vlangrp && (vlanflags & NV_RX3_VLAN_TAG_PRESENT)) {
+			vlan_hwaccel_rx(skb, np->vlangrp, vlanflags & NV_RX3_VLAN_TAG_MASK);
+		} else {
+			netif_rx(skb);
+		}
 		dev->last_rx = jiffies;
 		np->stats.rx_packets++;
 		np->stats.rx_bytes += len;
@@ -2217,6 +2246,34 @@ static struct ethtool_ops ops = {
 	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
+static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+
+	spin_lock_irq(&np->lock);
+
+	/* save vlan group */
+	np->vlangrp = grp;
+
+	if (grp) {
+		/* enable vlan on MAC */
+		np->txrxctl_bits |= NVREG_TXRXCTL_VLANSTRIP | NVREG_TXRXCTL_VLANINS;
+	} else {
+		/* disable vlan on MAC */
+		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANSTRIP;
+		np->txrxctl_bits &= ~NVREG_TXRXCTL_VLANINS;
+	}
+
+	writel(np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
+
+	spin_unlock_irq(&np->lock);
+};
+
+static void nv_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+{
+	/* nothing to do */
+};
+
 static int nv_open(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
@@ -2265,6 +2322,7 @@ static int nv_open(struct net_device *dev)
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	writel(NVREG_UNKSETUP3_VAL1, base + NvRegUnknownSetupReg3);
 	writel(np->txrxctl_bits, base + NvRegTxRxControl);
+	writel(np->vlanctl_bits, base + NvRegVlanControl);
 	pci_push(base);
 	writel(NVREG_TXRXCTL_BIT1|np->txrxctl_bits, base + NvRegTxRxControl);
 	reg_delay(dev, NvRegUnknownSetupReg5, NVREG_UNKSETUP5_BIT31, NVREG_UNKSETUP5_BIT31,
@@ -2495,6 +2553,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		dev->features |= NETIF_F_TSO;
 #endif
  	}
+
+	np->vlanctl_bits = 0;
+	if (id->driver_data & DEV_HAS_VLAN) {
+		np->vlanctl_bits = NVREG_VLANCONTROL_ENABLE;
+		dev->features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
+		dev->vlan_rx_register = nv_vlan_rx_register;
+		dev->vlan_rx_kill_vid = nv_vlan_rx_kill_vid;
+	}
 
 	err = -ENOMEM;
 	np->base = ioremap(addr, NV_PCI_REGSZ);
@@ -2737,11 +2803,11 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN,
 	},
 	{0,},
 };
