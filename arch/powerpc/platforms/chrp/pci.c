@@ -204,9 +204,11 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 	struct device_node *root = find_path_device("/");
 	struct device_node *rtas;
 
+	of_node_get(root);
 	rtas = of_find_node_by_name (root, "rtas");
 	if (rtas) {
 		hose->ops = &rtas_pci_ops;
+		of_node_put(rtas);
 	} else {
 		printk ("RTAS supporting Pegasos OF not found, please upgrade"
 			" your firmware\n");
