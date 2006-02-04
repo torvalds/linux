@@ -528,6 +528,11 @@ retry:
 	}
 }
 
+static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
+{
+	/* XXX implement me */
+}
+
 /* Send cross call to all processors mentioned in MASK
  * except self.
  */
@@ -541,8 +546,10 @@ static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 d
 
 	if (tlb_type == spitfire)
 		spitfire_xcall_deliver(data0, data1, data2, mask);
-	else
+	else if (tlb_type == cheetah || tlb_type == cheetah_plus)
 		cheetah_xcall_deliver(data0, data1, data2, mask);
+	else
+		hypervisor_xcall_deliver(data0, data1, data2, mask);
 	/* NOTE: Caller runs local copy on master. */
 
 	put_cpu();
@@ -695,11 +702,17 @@ static __inline__ void __local_flush_dcache_page(struct page *page)
 void smp_flush_dcache_page_impl(struct page *page, int cpu)
 {
 	cpumask_t mask = cpumask_of_cpu(cpu);
-	int this_cpu = get_cpu();
+	int this_cpu;
+
+	if (tlb_type == hypervisor)
+		return;
 
 #ifdef CONFIG_DEBUG_DCFLUSH
 	atomic_inc(&dcpage_flushes);
 #endif
+
+	this_cpu = get_cpu();
+
 	if (cpu == this_cpu) {
 		__local_flush_dcache_page(page);
 	} else if (cpu_online(cpu)) {
@@ -715,7 +728,7 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 					       __pa(pg_addr),
 					       (u64) pg_addr,
 					       mask);
-		} else {
+		} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 #ifdef DCACHE_ALIASING_POSSIBLE
 			data0 =
 				((u64)&xcall_flush_dcache_page_cheetah);
@@ -737,7 +750,12 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	void *pg_addr = page_address(page);
 	cpumask_t mask = cpu_online_map;
 	u64 data0;
-	int this_cpu = get_cpu();
+	int this_cpu;
+
+	if (tlb_type == hypervisor)
+		return;
+
+	this_cpu = get_cpu();
 
 	cpu_clear(this_cpu, mask);
 
@@ -754,7 +772,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 				       __pa(pg_addr),
 				       (u64) pg_addr,
 				       mask);
-	} else {
+	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 #ifdef DCACHE_ALIASING_POSSIBLE
 		data0 = ((u64)&xcall_flush_dcache_page_cheetah);
 		cheetah_xcall_deliver(data0,
@@ -780,8 +798,10 @@ void smp_receive_signal(int cpu)
 
 		if (tlb_type == spitfire)
 			spitfire_xcall_deliver(data0, 0, 0, mask);
-		else
+		else if (tlb_type == cheetah || tlb_type == cheetah_plus)
 			cheetah_xcall_deliver(data0, 0, 0, mask);
+		else if (tlb_type == hypervisor)
+			hypervisor_xcall_deliver(data0, 0, 0, mask);
 	}
 }
 

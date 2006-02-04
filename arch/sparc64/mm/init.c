@@ -335,7 +335,7 @@ out:
 
 void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 {
-	/* Cheetah has coherent I-cache. */
+	/* Cheetah and Hypervisor platform cpus have coherent I-cache. */
 	if (tlb_type == spitfire) {
 		unsigned long kaddr;
 
@@ -372,6 +372,8 @@ void mmu_info(struct seq_file *m)
 		seq_printf(m, "MMU Type\t: Cheetah+\n");
 	else if (tlb_type == spitfire)
 		seq_printf(m, "MMU Type\t: Spitfire\n");
+	else if (tlb_type == hypervisor)
+		seq_printf(m, "MMU Type\t: Hypervisor (sun4v)\n");
 	else
 		seq_printf(m, "MMU Type\t: ???\n");
 
@@ -581,7 +583,7 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 			if (++n >= 512)
 				break;
 		}
-	} else {
+	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 		start = __pa(start);
 		end = __pa(end);
 		for (va = start; va < end; va += 32)
