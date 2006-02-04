@@ -1216,7 +1216,7 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 
 	b = skb->tail;
 
-	type |= NFNL_SUBSYS_CTNETLINK << 8;
+	type |= NFNL_SUBSYS_CTNETLINK_EXP << 8;
 	nlh   = NLMSG_PUT(skb, 0, 0, type, sizeof(struct nfgenmsg));
 	nfmsg = NLMSG_DATA(nlh);
 
