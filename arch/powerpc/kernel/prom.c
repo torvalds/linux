@@ -1403,8 +1403,8 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 
 	read_lock(&devtree_lock);
 	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (np->name != 0 && strcasecmp(np->name, name) == 0
+	for (; np != NULL; np = np->allnext)
+		if (np->name != NULL && strcasecmp(np->name, name) == 0
 		    && of_node_get(np))
 			break;
 	if (from)
