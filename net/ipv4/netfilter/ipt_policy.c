@@ -26,10 +26,13 @@ MODULE_LICENSE("GPL");
 static inline int
 match_xfrm_state(struct xfrm_state *x, const struct ipt_policy_elem *e)
 {
-#define MATCH(x,y)	(!e->match.x || ((e->x == (y)) ^ e->invert.x))
+#define MATCH_ADDR(x,y,z)	(!e->match.x ||				     \
+		                 ((e->x.a4.s_addr == (e->y.a4.s_addr & (z))) \
+				  ^ e->invert.x))
+#define MATCH(x,y)		(!e->match.x || ((e->x == (y)) ^ e->invert.x))
 
-	return MATCH(saddr, x->props.saddr.a4 & e->smask) &&
-	       MATCH(daddr, x->id.daddr.a4 & e->dmask) &&
+	return MATCH_ADDR(saddr, smask, x->props.saddr.a4) &&
+	       MATCH_ADDR(daddr, dmask, x->id.daddr.a4) &&
 	       MATCH(proto, x->id.proto) &&
 	       MATCH(mode, x->props.mode) &&
 	       MATCH(spi, x->id.spi) &&
