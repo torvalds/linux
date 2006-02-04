@@ -103,6 +103,7 @@
  *	0.48: 24 Dec 2005: Disable TSO, bugfix for pci_map_single
  *	0.49: 10 Dec 2005: Fix tso for large buffers.
  *	0.50: 20 Jan 2006: Add 8021pq tagging support.
+ *	0.51: 20 Jan 2006: Add 64bit consistent memory allocation for rings.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -114,7 +115,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.50"
+#define FORCEDETH_VERSION		"0.51"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -258,6 +259,8 @@ enum {
 #define NVREG_TXRXCTL_DESC_3	0x02200
 #define NVREG_TXRXCTL_VLANSTRIP 0x00040
 #define NVREG_TXRXCTL_VLANINS	0x00080
+	NvRegTxRingPhysAddrHigh = 0x148,
+	NvRegRxRingPhysAddrHigh = 0x14C,
 	NvRegMIIStatus = 0x180,
 #define NVREG_MIISTAT_ERROR		0x0001
 #define NVREG_MIISTAT_LINKCHANGE	0x0008
@@ -625,6 +628,33 @@ static int reg_delay(struct net_device *dev, int offset, u32 mask, u32 target,
 		}
 	} while ((readl(base + offset) & mask) != target);
 	return 0;
+}
+
+#define NV_SETUP_RX_RING 0x01
+#define NV_SETUP_TX_RING 0x02
+
+static void setup_hw_rings(struct net_device *dev, int rxtx_flags)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if (rxtx_flags & NV_SETUP_RX_RING) {
+			writel((u32) cpu_to_le64(np->ring_addr), base + NvRegRxRingPhysAddr);
+		}
+		if (rxtx_flags & NV_SETUP_TX_RING) {
+			writel((u32) cpu_to_le64(np->ring_addr + RX_RING*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
+		}
+	} else {
+		if (rxtx_flags & NV_SETUP_RX_RING) {
+			writel((u32) cpu_to_le64(np->ring_addr), base + NvRegRxRingPhysAddr);
+			writel((u32) (cpu_to_le64(np->ring_addr) >> 32), base + NvRegRxRingPhysAddrHigh);
+		}
+		if (rxtx_flags & NV_SETUP_TX_RING) {
+			writel((u32) cpu_to_le64(np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
+			writel((u32) (cpu_to_le64(np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)) >> 32), base + NvRegTxRingPhysAddrHigh);
+		}
+	}
 }
 
 #define MII_READ	(-1)
@@ -1295,10 +1325,7 @@ static void nv_tx_timeout(struct net_device *dev)
 		printk(KERN_DEBUG "%s: tx_timeout: dead entries!\n", dev->name);
 		nv_drain_tx(dev);
 		np->next_tx = np->nic_tx = 0;
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
-			writel((u32) (np->ring_addr + RX_RING*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
-		else
-			writel((u32) (np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
+		setup_hw_rings(dev, NV_SETUP_TX_RING);
 		netif_wake_queue(dev);
 	}
 
@@ -1573,11 +1600,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		}
 		/* reinit nic view of the rx queue */
 		writel(np->rx_buf_sz, base + NvRegOffloadConfig);
-		writel((u32) np->ring_addr, base + NvRegRxRingPhysAddr);
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
-			writel((u32) (np->ring_addr + RX_RING*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
-		else
-			writel((u32) (np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
+		setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
 		writel( ((RX_RING-1) << NVREG_RINGSZ_RXSHIFT) + ((TX_RING-1) << NVREG_RINGSZ_TXSHIFT),
 			base + NvRegRingSizes);
 		pci_push(base);
@@ -2310,11 +2333,7 @@ static int nv_open(struct net_device *dev)
 	nv_copy_mac_to_hw(dev);
 
 	/* 4) give hw rings */
-	writel((u32) np->ring_addr, base + NvRegRxRingPhysAddr);
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
-		writel((u32) (np->ring_addr + RX_RING*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
-	else
-		writel((u32) (np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
+	setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
 	writel( ((RX_RING-1) << NVREG_RINGSZ_RXSHIFT) + ((TX_RING-1) << NVREG_RINGSZ_TXSHIFT),
 		base + NvRegRingSizes);
 
@@ -2529,7 +2548,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 			printk(KERN_INFO "forcedeth: 64-bit DMA failed, using 32-bit addressing for device %s.\n",
 					pci_name(pci_dev));
 		} else {
-			dev->features |= NETIF_F_HIGHDMA;
+			if (pci_set_consistent_dma_mask(pci_dev, 0x0000007fffffffffULL)) {
+				printk(KERN_INFO "forcedeth: 64-bit DMA (consistent) failed for device %s.\n",
+					pci_name(pci_dev));
+				goto out_relreg;
+			} else {
+				dev->features |= NETIF_F_HIGHDMA;
+				printk(KERN_INFO "forcedeth: using HIGHDMA\n");
+			}
 		}
 		np->txrxctl_bits = NVREG_TXRXCTL_DESC_3;
 	} else if (id->driver_data & DEV_HAS_LARGEDESC) {
