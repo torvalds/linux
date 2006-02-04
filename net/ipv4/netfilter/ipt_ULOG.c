@@ -147,22 +147,26 @@ static void ulog_timer(unsigned long data)
 static struct sk_buff *ulog_alloc_skb(unsigned int size)
 {
 	struct sk_buff *skb;
+	unsigned int n;
 
 	/* alloc skb which should be big enough for a whole
 	 * multipart message. WARNING: has to be <= 131000
 	 * due to slab allocator restrictions */
 
-	skb = alloc_skb(nlbufsiz, GFP_ATOMIC);
+	n = max(size, nlbufsiz);
+	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
-		PRINTR("ipt_ULOG: can't alloc whole buffer %ub!\n",
-			nlbufsiz);
+		PRINTR("ipt_ULOG: can't alloc whole buffer %ub!\n", n);
 
-		/* try to allocate only as much as we need for 
-		 * current packet */
+		if (n > size) {
+			/* try to allocate only as much as we need for 
+			 * current packet */
 
-		skb = alloc_skb(size, GFP_ATOMIC);
-		if (!skb)
-			PRINTR("ipt_ULOG: can't even allocate %ub\n", size);
+			skb = alloc_skb(size, GFP_ATOMIC);
+			if (!skb)
+				PRINTR("ipt_ULOG: can't even allocate %ub\n",
+				       size);
+		}
 	}
 
 	return skb;

@@ -98,12 +98,14 @@ static void ulog_timer(unsigned long data)
 static struct sk_buff *ulog_alloc_skb(unsigned int size)
 {
 	struct sk_buff *skb;
+	unsigned int n;
 
-	skb = alloc_skb(nlbufsiz, GFP_ATOMIC);
+	n = max(size, nlbufsiz);
+	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
 		PRINTR(KERN_ERR "ebt_ulog: can't alloc whole buffer "
-		       "of size %ub!\n", nlbufsiz);
-		if (size < nlbufsiz) {
+		       "of size %ub!\n", n);
+		if (n > size) {
 			/* try to allocate only as much as we need for
 			 * current packet */
 			skb = alloc_skb(size, GFP_ATOMIC);
