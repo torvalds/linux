@@ -82,7 +82,7 @@ static void __init serial_init(void)
 #endif
 	s.irq = ATLASINT_UART;
 	s.uartclk = ATLAS_BASE_BAUD * 16;
-	s.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
+	s.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_AUTO_IRQ;
 	s.iotype = UPIO_PORT;
 	s.regshift = 3;
 

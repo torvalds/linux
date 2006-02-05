@@ -134,7 +134,7 @@ void __init serial_init(void)
 
 	memset(&s, 0, sizeof(s));
 
-	s.flags = STD_COM_FLAGS;
+	s.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	s.iotype = UPIO_MEM;
 
 	if (mips_machtype == MACH_LASAT_100) {
