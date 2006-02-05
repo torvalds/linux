@@ -294,6 +294,7 @@ struct kmem_list3 {
 	unsigned long next_reap;
 	int free_touched;
 	unsigned int free_limit;
+	unsigned int colour_next;	/* Per-node cache coloring */
 	spinlock_t list_lock;
 	struct array_cache *shared;	/* shared per node */
 	struct array_cache **alien;	/* on other nodes */
@@ -344,6 +345,7 @@ static void kmem_list3_init(struct kmem_list3 *parent)
 	INIT_LIST_HEAD(&parent->slabs_free);
 	parent->shared = NULL;
 	parent->alien = NULL;
+	parent->colour_next = 0;
 	spin_lock_init(&parent->list_lock);
 	parent->free_objects = 0;
 	parent->free_touched = 0;
@@ -390,7 +392,6 @@ struct kmem_cache {
 
 	size_t colour;		/* cache colouring range */
 	unsigned int colour_off;	/* colour offset */
-	unsigned int colour_next;	/* cache colouring */
 	struct kmem_cache *slabp_cache;
 	unsigned int slab_size;
 	unsigned int dflags;	/* dynamic flags */
@@ -1119,7 +1120,6 @@ void __init kmem_cache_init(void)
 		BUG();
 
 	cache_cache.colour = left_over / cache_cache.colour_off;
-	cache_cache.colour_next = 0;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
 				      sizeof(struct slab), cache_line_size());
 
@@ -2324,18 +2324,19 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		 */
 		ctor_flags |= SLAB_CTOR_ATOMIC;
 
-	/* About to mess with non-constant members - lock. */
+	/* Take the l3 list lock to change the colour_next on this node */
 	check_irq_off();
-	spin_lock(&cachep->spinlock);
+	l3 = cachep->nodelists[nodeid];
+	spin_lock(&l3->list_lock);
 
 	/* Get colour for the slab, and cal the next value. */
-	offset = cachep->colour_next;
-	cachep->colour_next++;
-	if (cachep->colour_next >= cachep->colour)
-		cachep->colour_next = 0;
-	offset *= cachep->colour_off;
+	offset = l3->colour_next;
+	l3->colour_next++;
+	if (l3->colour_next >= cachep->colour)
+		l3->colour_next = 0;
+	spin_unlock(&l3->list_lock);
 
-	spin_unlock(&cachep->spinlock);
+	offset *= cachep->colour_off;
 
 	check_irq_off();
 	if (local_flags & __GFP_WAIT)
@@ -2367,7 +2368,6 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	if (local_flags & __GFP_WAIT)
 		local_irq_disable();
 	check_irq_off();
-	l3 = cachep->nodelists[nodeid];
 	spin_lock(&l3->list_lock);
 
 	/* Make slab active. */
