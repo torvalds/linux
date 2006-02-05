@@ -2987,14 +2987,14 @@ err_out_now:
  * strings of the maximum length allowed by NTFS, which is NTFS_MAX_NAME_LEN
  * (255) Unicode characters + a terminating NULL Unicode character.
  */
-kmem_cache_t *ntfs_name_cache;
+struct kmem_cache *ntfs_name_cache;
 
 /* Slab caches for efficient allocation/deallocation of inodes. */
-kmem_cache_t *ntfs_inode_cache;
-kmem_cache_t *ntfs_big_inode_cache;
+struct kmem_cache *ntfs_inode_cache;
+struct kmem_cache *ntfs_big_inode_cache;
 
 /* Init once constructor for the inode slab cache. */
-static void ntfs_big_inode_init_once(void *foo, kmem_cache_t *cachep,
+static void ntfs_big_inode_init_once(void *foo, struct kmem_cache *cachep,
 		unsigned long flags)
 {
 	ntfs_inode *ni = (ntfs_inode *)foo;
@@ -3008,8 +3008,8 @@ static void ntfs_big_inode_init_once(void *foo, kmem_cache_t *cachep,
  * Slab caches to optimize allocations and deallocations of attribute search
  * contexts and index contexts, respectively.
  */
-kmem_cache_t *ntfs_attr_ctx_cache;
-kmem_cache_t *ntfs_index_ctx_cache;
+struct kmem_cache *ntfs_attr_ctx_cache;
+struct kmem_cache *ntfs_index_ctx_cache;
 
 /* Driver wide semaphore. */
 DECLARE_MUTEX(ntfs_lock);
