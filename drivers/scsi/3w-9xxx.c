@@ -61,6 +61,7 @@
                  Add support for embedded firmware error strings.
    2.26.02.003 - Correctly handle single sgl's with use_sg=1.
    2.26.02.004 - Add support for 9550SX controllers.
+   2.26.02.005 - Fix use_sg == 0 mapping on systems with 4GB or higher.
 */
 
 #include <linux/module.h>
@@ -84,7 +85,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.004"
+#define TW_DRIVER_VERSION "2.26.02.005"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -1408,7 +1409,7 @@ static dma_addr_t twa_map_scsi_single_data(TW_Device_Extension *tw_dev, int requ
 	dma_addr_t mapping;
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
 	struct pci_dev *pdev = tw_dev->tw_pci_dev;
-	int retval = 0;
+	dma_addr_t retval = 0;
 
 	if (cmd->request_bufflen == 0) {
 		retval = 0;
@@ -1798,7 +1799,7 @@ static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, 
 	int i, sg_count;
 	struct scsi_cmnd *srb = NULL;
 	struct scatterlist *sglist = NULL;
-	u32 buffaddr = 0x0;
+	dma_addr_t buffaddr = 0x0;
 	int retval = 1;
 
 	if (tw_dev->srb[request_id]) {
