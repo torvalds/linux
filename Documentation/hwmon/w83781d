@@ -36,6 +36,11 @@ Module parameters
   Use 'init=0' to bypass initializing the chip.
   Try this if your computer crashes when you load the module.
 
+* reset int
+  (default 0)
+  The driver used to reset the chip on load, but does no more. Use
+  'reset=1' to restore the old behavior. Report if you need to do this.
+
 force_subclients=bus,caddr,saddr,saddr
   This is used to force the i2c addresses for subclients of
   a certain chip. Typical usage is `force_subclients=0,0x2d,0x4a,0x4b'

@@ -57,6 +57,10 @@ I2C_CLIENT_INSMOD_5(w83781d, w83782d, w83783s, w83627hf, as99127f);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
 		    "{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
+static int reset;
+module_param(reset, bool, 0);
+MODULE_PARM_DESC(reset, "Set to one to reset chip on load");
+
 static int init = 1;
 module_param(init, bool, 0);
 MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
@@ -1460,8 +1464,17 @@ w83781d_init_client(struct i2c_client *client)
 	int type = data->type;
 	u8 tmp;
 
-	if (init && type != as99127f) {	/* this resets registers we don't have
+	if (reset && type != as99127f) { /* this resets registers we don't have
 					   documentation for on the as99127f */
+		/* Resetting the chip has been the default for a long time,
+		   but it causes the BIOS initializations (fan clock dividers,
+		   thermal sensor types...) to be lost, so it is now optional.
+		   It might even go away if nobody reports it as being useful,
+		   as I see very little reason why this would be needed at
+		   all. */
+		dev_info(&client->dev, "If reset=1 solved a problem you were "
+			 "having, please report!\n");
+
 		/* save these registers */
 		i = w83781d_read_value(client, W83781D_REG_BEEP_CONFIG);
 		p = w83781d_read_value(client, W83781D_REG_PWMCLK12);
@@ -1476,6 +1489,13 @@ w83781d_init_client(struct i2c_client *client)
 		   Individual beep_mask should be reset to off but for some reason
 		   disabling this bit helps some people not get beeped */
 		w83781d_write_value(client, W83781D_REG_BEEP_INTS2, 0);
+	}
+
+	/* Disable power-on abnormal beep, as advised by the datasheet.
+	   Already done if reset=1. */
+	if (init && !reset && type != as99127f) {
+		i = w83781d_read_value(client, W83781D_REG_BEEP_CONFIG);
+		w83781d_write_value(client, W83781D_REG_BEEP_CONFIG, i | 0x80);
 	}
 
 	data->vrm = vid_which_vrm();
