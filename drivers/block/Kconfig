@@ -433,8 +433,8 @@ config CDROM_PKTCDVD_BUFFERS
 	  This controls the maximum number of active concurrent packets. More
 	  concurrent packets can increase write performance, but also require
 	  more memory. Each concurrent packet will require approximately 64Kb
-	  of non-swappable kernel memory, memory which will be allocated at
-	  pktsetup time.
+	  of non-swappable kernel memory, memory which will be allocated when
+	  a disc is opened for writing.
 
 config CDROM_PKTCDVD_WCACHE
 	bool "Enable write caching (EXPERIMENTAL)"
