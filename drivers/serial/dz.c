@@ -650,7 +650,7 @@ static void __init dz_init_ports(void)
 	for (i = 0, dport = dz_ports; i < DZ_NB_PORT; i++, dport++) {
 		spin_lock_init(&dport->port.lock);
 		dport->port.membase	= (char *) base;
-		dport->port.iotype	= SERIAL_IO_PORT;
+		dport->port.iotype	= UPIO_PORT;
 		dport->port.irq		= dec_interrupt[DEC_IRQ_DZ11];
 		dport->port.line	= i;
 		dport->port.fifosize	= 1;

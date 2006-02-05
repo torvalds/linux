@@ -908,7 +908,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SMC1_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.flags = FLAG_SMC,
@@ -922,7 +922,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SMC2_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.flags = FLAG_SMC,
@@ -939,7 +939,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC1_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
@@ -953,7 +953,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC2_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
@@ -967,7 +967,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC3_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
@@ -981,7 +981,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC4_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
