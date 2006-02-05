@@ -1872,7 +1872,7 @@ static int atmel_set_encodeext(struct net_device *dev,
 	struct atmel_private *priv = netdev_priv(dev);
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-	int idx, key_len;
+	int idx, key_len, alg = ext->alg, set_key = 1;
 
 	/* Determine and validate the key index */
 	idx = encoding->flags & IW_ENCODE_INDEX;
@@ -1883,39 +1883,42 @@ static int atmel_set_encodeext(struct net_device *dev,
 	} else
 		idx = priv->default_key;
 
-	if ((encoding->flags & IW_ENCODE_DISABLED) ||
-	    ext->alg == IW_ENCODE_ALG_NONE) {
-		priv->wep_is_on = 0;
-		priv->encryption_level = 0;
-		priv->pairwise_cipher_suite = CIPHER_SUITE_NONE;
+	if (encoding->flags & IW_ENCODE_DISABLED)
+	    alg = IW_ENCODE_ALG_NONE;
+
+	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		priv->default_key = idx;
+		set_key = ext->key_len > 0 ? 1 : 0;
 	}
 
-	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
-		priv->default_key = idx;
-
-	/* Set the requested key */
-	switch (ext->alg) {
-	case IW_ENCODE_ALG_NONE:
-		break;
-	case IW_ENCODE_ALG_WEP:
-		if (ext->key_len > 5) {
-			priv->wep_key_len[idx] = 13;
-			priv->pairwise_cipher_suite = CIPHER_SUITE_WEP_128;
-			priv->encryption_level = 2;
-		} else if (ext->key_len > 0) {
-			priv->wep_key_len[idx] = 5;
-			priv->pairwise_cipher_suite = CIPHER_SUITE_WEP_64;
-			priv->encryption_level = 1;
-		} else {
+	if (set_key) {
+		/* Set the requested key first */
+		switch (alg) {
+		case IW_ENCODE_ALG_NONE:
+			priv->wep_is_on = 0;
+			priv->encryption_level = 0;
+			priv->pairwise_cipher_suite = CIPHER_SUITE_NONE;
+			break;
+		case IW_ENCODE_ALG_WEP:
+			if (ext->key_len > 5) {
+				priv->wep_key_len[idx] = 13;
+				priv->pairwise_cipher_suite = CIPHER_SUITE_WEP_128;
+				priv->encryption_level = 2;
+			} else if (ext->key_len > 0) {
+				priv->wep_key_len[idx] = 5;
+				priv->pairwise_cipher_suite = CIPHER_SUITE_WEP_64;
+				priv->encryption_level = 1;
+			} else {
+				return -EINVAL;
+			}
+			priv->wep_is_on = 1;
+			memset(priv->wep_keys[idx], 0, 13);
+			key_len = min ((int)ext->key_len, priv->wep_key_len[idx]);
+			memcpy(priv->wep_keys[idx], ext->key, key_len);
+			break;
+		default:
 			return -EINVAL;
 		}
-		priv->wep_is_on = 1;
-		memset(priv->wep_keys[idx], 0, 13);
-		key_len = min ((int)ext->key_len, priv->wep_key_len[idx]);
-		memcpy(priv->wep_keys[idx], ext->key, key_len);
-		break;
-	default:
-		return -EINVAL;
 	}
 
 	return -EINPROGRESS;
