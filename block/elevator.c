@@ -323,7 +323,8 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		/*
 		 * toggle ordered color
 		 */
-		q->ordcolor ^= 1;
+		if (blk_barrier_rq(rq))
+			q->ordcolor ^= 1;
 
 		/*
 		 * barriers implicitly indicate back insertion
