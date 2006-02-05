@@ -166,7 +166,8 @@ static void show_trace_log_lvl(struct task_struct *task,
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
-		printk(KERN_EMERG " =======================\n");
+		printk(log_lvl);
+		printk(" =======================\n");
 	}
 }
 
