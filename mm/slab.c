@@ -987,7 +987,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 			cpumask_t mask;
 
 			mask = node_to_cpumask(node);
-			spin_lock_irq(&cachep->spinlock);
+			spin_lock(&cachep->spinlock);
 			/* cpu is dead; no one can alloc from it. */
 			nc = cachep->array[cpu];
 			cachep->array[cpu] = NULL;
@@ -996,7 +996,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 			if (!l3)
 				goto unlock_cache;
 
-			spin_lock(&l3->list_lock);
+			spin_lock_irq(&l3->list_lock);
 
 			/* Free limit for this kmem_list3 */
 			l3->free_limit -= cachep->batchcount;
@@ -1004,7 +1004,7 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 				free_block(cachep, nc->entry, nc->avail, node);
 
 			if (!cpus_empty(mask)) {
-				spin_unlock(&l3->list_lock);
+				spin_unlock_irq(&l3->list_lock);
 				goto unlock_cache;
 			}
 
@@ -1023,13 +1023,13 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 			/* free slabs belonging to this node */
 			if (__node_shrink(cachep, node)) {
 				cachep->nodelists[node] = NULL;
-				spin_unlock(&l3->list_lock);
+				spin_unlock_irq(&l3->list_lock);
 				kfree(l3);
 			} else {
-				spin_unlock(&l3->list_lock);
+				spin_unlock_irq(&l3->list_lock);
 			}
 		      unlock_cache:
-			spin_unlock_irq(&cachep->spinlock);
+			spin_unlock(&cachep->spinlock);
 			kfree(nc);
 		}
 		mutex_unlock(&cache_chain_mutex);
@@ -2011,18 +2011,18 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 
 	smp_call_function_all_cpus(do_drain, cachep);
 	check_irq_on();
-	spin_lock_irq(&cachep->spinlock);
+	spin_lock(&cachep->spinlock);
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
 		if (l3) {
-			spin_lock(&l3->list_lock);
+			spin_lock_irq(&l3->list_lock);
 			drain_array_locked(cachep, l3->shared, 1, node);
-			spin_unlock(&l3->list_lock);
+			spin_unlock_irq(&l3->list_lock);
 			if (l3->alien)
 				drain_alien_cache(cachep, l3);
 		}
 	}
-	spin_unlock_irq(&cachep->spinlock);
+	spin_unlock(&cachep->spinlock);
 }
 
 static int __node_shrink(struct kmem_cache *cachep, int node)
@@ -2338,7 +2338,6 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 
 	offset *= cachep->colour_off;
 
-	check_irq_off();
 	if (local_flags & __GFP_WAIT)
 		local_irq_enable();
 
@@ -2725,6 +2724,7 @@ static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int node
 	BUG_ON(!l3);
 
       retry:
+	check_irq_off();
 	spin_lock(&l3->list_lock);
 	entry = l3->slabs_partial.next;
 	if (entry == &l3->slabs_partial) {
@@ -3304,11 +3304,11 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit, int batchcount
 	smp_call_function_all_cpus(do_ccupdate_local, (void *)&new);
 
 	check_irq_on();
-	spin_lock_irq(&cachep->spinlock);
+	spin_lock(&cachep->spinlock);
 	cachep->batchcount = batchcount;
 	cachep->limit = limit;
 	cachep->shared = shared;
-	spin_unlock_irq(&cachep->spinlock);
+	spin_unlock(&cachep->spinlock);
 
 	for_each_online_cpu(i) {
 		struct array_cache *ccold = new.new[i];
@@ -3564,8 +3564,7 @@ static int s_show(struct seq_file *m, void *p)
 	int node;
 	struct kmem_list3 *l3;
 
-	check_irq_on();
-	spin_lock_irq(&cachep->spinlock);
+	spin_lock(&cachep->spinlock);
 	active_objs = 0;
 	num_slabs = 0;
 	for_each_online_node(node) {
@@ -3573,7 +3572,8 @@ static int s_show(struct seq_file *m, void *p)
 		if (!l3)
 			continue;
 
-		spin_lock(&l3->list_lock);
+		check_irq_on();
+		spin_lock_irq(&l3->list_lock);
 
 		list_for_each(q, &l3->slabs_full) {
 			slabp = list_entry(q, struct slab, list);
@@ -3600,7 +3600,7 @@ static int s_show(struct seq_file *m, void *p)
 		free_objects += l3->free_objects;
 		shared_avail += l3->shared->avail;
 
-		spin_unlock(&l3->list_lock);
+		spin_unlock_irq(&l3->list_lock);
 	}
 	num_slabs += active_slabs;
 	num_objs = num_slabs * cachep->num;
@@ -3644,7 +3644,7 @@ static int s_show(struct seq_file *m, void *p)
 	}
 #endif
 	seq_putc(m, '\n');
-	spin_unlock_irq(&cachep->spinlock);
+	spin_unlock(&cachep->spinlock);
 	return 0;
 }
 
