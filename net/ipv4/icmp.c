@@ -524,7 +524,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 					  iph->tos;
 
 	if (ip_options_echo(&icmp_param.replyopts, skb_in))
-		goto ende;
+		goto out_unlock;
 
 
 	/*
