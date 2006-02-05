@@ -2298,7 +2298,7 @@ S:	Supported
 
 SELINUX SECURITY MODULE
 P:	Stephen Smalley
-M:	sds@epoch.ncsc.mil
+M:	sds@tycho.nsa.gov
 P:	James Morris
 M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org (kernel issues)
