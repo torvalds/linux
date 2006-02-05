@@ -793,6 +793,10 @@ static int bcm43xx_read_radioinfo(struct bcm43xx_private *bcm)
 		bcm->current_core->radio->txpower[2] = 3;
 	else
 		bcm->current_core->radio->txpower[2] = 0;
+	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+		bcm->current_core->radio->txpower_desired = bcm->sprom.maxpower_aphy;
+	else
+		bcm->current_core->radio->txpower_desired = bcm->sprom.maxpower_bgphy;
 
 	/* Initialize the in-memory nrssi Lookup Table. */
 	for (i = 0; i < 64; i++)

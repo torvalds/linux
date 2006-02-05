@@ -1768,14 +1768,9 @@ void bcm43xx_phy_xmitpower(struct bcm43xx_private *bcm)
 			where REG is the max power as per the regulatory domain
 		*/
 
-		/*TODO: Get desired_pwr from wx_handlers or the stack
-		limit_value(desired_pwr, 0, max_pwr);
-		*/
-
-		desired_pwr = max_pwr; /* remove this when we have a real desired_pwr */
-
+		desired_pwr = limit_value(radio->txpower_desired, 0, max_pwr);
+		/* Check if we need to adjust the current power. */
 		pwr_adjust = desired_pwr - estimated_pwr;
-
 		radio_att_delta = -(pwr_adjust + 7) >> 3;
 		baseband_att_delta = -(pwr_adjust >> 1) - (4 * radio_att_delta);
 		if ((radio_att_delta == 0) && (baseband_att_delta == 0)) {

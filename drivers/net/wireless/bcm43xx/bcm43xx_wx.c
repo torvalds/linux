@@ -484,21 +484,40 @@ static int bcm43xx_wx_set_xmitpower(struct net_device *net_dev,
 				    char *extra)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	struct bcm43xx_radioinfo *radio;
+	struct bcm43xx_phyinfo *phy;
 	unsigned long flags;
 	int err = -ENODEV;
+	u16 maxpower;
 
 	wx_enter();
+
+	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM) {
+		printk(PFX KERN_ERR "TX power not in dBm.\n");
+		return -EOPNOTSUPP;
+	}
 
 	spin_lock_irqsave(&bcm->lock, flags);
 	if (!bcm->initialized)
 		goto out_unlock;
-	if (data->power.disabled != (!(bcm->current_core->radio->enabled))) {
-		if (data->power.disabled)
+	radio = bcm->current_core->radio;
+	phy = bcm->current_core->phy;
+	if (data->txpower.disabled != (!(radio->enabled))) {
+		if (data->txpower.disabled)
 			bcm43xx_radio_turn_off(bcm);
 		else
 			bcm43xx_radio_turn_on(bcm);
 	}
-	//TODO: set txpower.
+	if (data->txpower.value > 0) {
+		/* desired and maxpower dBm values are in Q5.2 */
+		if (phy->type == BCM43xx_PHYTYPE_A)
+			maxpower = bcm->sprom.maxpower_aphy;
+		else
+			maxpower = bcm->sprom.maxpower_bgphy;
+		radio->txpower_desired = limit_value(data->txpower.value << 2,
+						     0, maxpower);
+		bcm43xx_phy_xmitpower(bcm);
+	}
 	err = 0;
 
 out_unlock:
@@ -513,18 +532,27 @@ static int bcm43xx_wx_get_xmitpower(struct net_device *net_dev,
 				    char *extra)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	struct bcm43xx_radioinfo *radio;
 	unsigned long flags;
+	int err = -ENODEV;
 
 	wx_enter();
 
 	spin_lock_irqsave(&bcm->lock, flags);
-//TODO	data->power.value = ???
-	data->power.fixed = 1;
-	data->power.flags = IW_TXPOW_DBM;
-	data->power.disabled = !(bcm->current_core->radio->enabled);
+	if (!bcm->initialized)
+		goto out_unlock;
+	radio = bcm->current_core->radio;
+	/* desired dBm value is in Q5.2 */
+	data->txpower.value = radio->txpower_desired >> 2;
+	data->txpower.fixed = 1;
+	data->txpower.flags = IW_TXPOW_DBM;
+	data->txpower.disabled = !(radio->enabled);
+
+	err = 0;
+out_unlock:
 	spin_unlock_irqrestore(&bcm->lock, flags);
 
-	return 0;
+	return err;
 }
 
 static int bcm43xx_wx_set_retry(struct net_device *net_dev,

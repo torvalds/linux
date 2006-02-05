@@ -525,6 +525,8 @@ struct bcm43xx_radioinfo {
 	 * 3: tx_CTL2
 	 */
 	u16 txpower[4];
+	/* Desired TX power in dBm Q5.2 */
+	u16 txpower_desired;
 	/* Current Interference Mitigation mode */
 	int interfmode;
 	/* Stack of saved values from the Interference Mitigation code */
