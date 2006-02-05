@@ -900,12 +900,18 @@ static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **al
 	}
 }
 #else
-#define alloc_alien_cache(node, limit) do { } while (0)
+
 #define drain_alien_cache(cachep, alien) do { } while (0)
+
+static inline struct array_cache **alloc_alien_cache(int node, int limit)
+{
+	return (struct array_cache **) 0x01020304ul;
+}
 
 static inline void free_alien_cache(struct array_cache **ac_ptr)
 {
 }
+
 #endif
 
 static int __devinit cpuup_callback(struct notifier_block *nfb,
@@ -970,11 +976,10 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 					0xbaadf00d);
 			if (!shared)
 				goto bad;
-#ifdef CONFIG_NUMA
+
 			alien = alloc_alien_cache(node, cachep->limit);
 			if (!alien)
 				goto bad;
-#endif
 			cachep->array[cpu] = nc;
 
 			l3 = cachep->nodelists[node];
