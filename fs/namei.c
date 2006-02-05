@@ -1070,6 +1070,8 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
+	int fput_needed;
+	struct file *file;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
@@ -1091,29 +1093,22 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		nd->mnt = mntget(current->fs->pwdmnt);
 		nd->dentry = dget(current->fs->pwd);
 	} else {
-		struct file *file;
-		int fput_needed;
 		struct dentry *dentry;
 
 		file = fget_light(dfd, &fput_needed);
-		if (!file) {
-			retval = -EBADF;
-			goto out_fail;
-		}
+		retval = -EBADF;
+		if (!file)
+			goto unlock_fail;
 
 		dentry = file->f_dentry;
 
-		if (!S_ISDIR(dentry->d_inode->i_mode)) {
-			retval = -ENOTDIR;
-			fput_light(file, fput_needed);
-			goto out_fail;
-		}
+		retval = -ENOTDIR;
+		if (!S_ISDIR(dentry->d_inode->i_mode))
+			goto fput_unlock_fail;
 
 		retval = file_permission(file, MAY_EXEC);
-		if (retval) {
-			fput_light(file, fput_needed);
-			goto out_fail;
-		}
+		if (retval)
+			goto fput_unlock_fail;
 
 		nd->mnt = mntget(file->f_vfsmnt);
 		nd->dentry = dget(dentry);
@@ -1127,7 +1122,12 @@ out:
 	if (unlikely(current->audit_context
 		     && nd && nd->dentry && nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode, flags);
-out_fail:
+	return retval;
+
+fput_unlock_fail:
+	fput_light(file, fput_needed);
+unlock_fail:
+	read_unlock(&current->fs->lock);
 	return retval;
 }
 
