@@ -169,7 +169,7 @@ struct packet_iosched
 #if (PAGE_SIZE % CD_FRAMESIZE) != 0
 #error "PAGE_SIZE must be a multiple of CD_FRAMESIZE"
 #endif
-#define PACKET_MAX_SIZE		32
+#define PACKET_MAX_SIZE		128
 #define FRAMES_PER_PAGE		(PAGE_SIZE / CD_FRAMESIZE)
 #define PACKET_MAX_SECTORS	(PACKET_MAX_SIZE * CD_FRAMESIZE >> 9)
 
