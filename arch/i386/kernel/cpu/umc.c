@@ -31,3 +31,11 @@ int __init umc_init_cpu(void)
 }
 
 //early_arch_initcall(umc_init_cpu);
+
+static int __init umc_exit_cpu(void)
+{
+	cpu_devs[X86_VENDOR_UMC] = NULL;
+	return 0;
+}
+
+late_initcall(umc_exit_cpu);
