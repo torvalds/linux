@@ -3064,17 +3064,26 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 	}
 
 	if (status == C80211_MGMT_SC_Success && priv->wep_is_on) {
+		int should_associate = 0;
 		/* WEP */
 		if (trans_seq_no != priv->ExpectedAuthentTransactionSeqNum)
 			return;
 
-		if (trans_seq_no == 0x0002 &&
-		    auth->el_id == C80211_MGMT_ElementID_ChallengeText) {
-			send_authentication_request(priv, system, auth->chall_text, auth->chall_text_len);
-			return;
+		if (system == C80211_MGMT_AAN_OPENSYSTEM) {
+			if (trans_seq_no == 0x0002) {
+				should_associate = 1;
+			}
+		} else if (system == C80211_MGMT_AAN_SHAREDKEY) {
+			if (trans_seq_no == 0x0002 &&
+			    auth->el_id == C80211_MGMT_ElementID_ChallengeText) {
+				send_authentication_request(priv, system, auth->chall_text, auth->chall_text_len);
+				return;
+			} else if (trans_seq_no == 0x0004) {
+				should_associate = 1;
+			}
 		}
 
-		if (trans_seq_no == 0x0004) {
+		if (should_associate) {
 			if(priv->station_was_associated) {
 				atmel_enter_state(priv, STATION_STATE_REASSOCIATING);
 				send_association_request(priv, 1);
@@ -3087,11 +3096,13 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 		}
 	}
 
-	if (status == C80211_MGMT_SC_AuthAlgNotSupported) {
+	if (status == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG) {
 		/* Do opensystem first, then try sharedkey */
-		if (system ==  C80211_MGMT_AAN_OPENSYSTEM) {
+		if (system == WLAN_AUTH_OPEN) {
 			priv->CurrentAuthentTransactionSeqNum = 0x001;
-			send_authentication_request(priv, C80211_MGMT_AAN_SHAREDKEY, NULL, 0);
+			priv->exclude_unencrypted = 1;
+			send_authentication_request(priv, WLAN_AUTH_SHARED_KEY, NULL, 0);
+			return;
 		} else if (priv->connect_to_any_BSS) {
 			int bss_index;
 
@@ -3442,10 +3453,13 @@ static void atmel_management_timer(u_long a)
 			priv->AuthenticationRequestRetryCnt = 0;
 			restart_search(priv);
 		} else {
+			int auth = C80211_MGMT_AAN_OPENSYSTEM;
 			priv->AuthenticationRequestRetryCnt++;
 			priv->CurrentAuthentTransactionSeqNum = 0x0001;
 			mod_timer(&priv->management_timer, jiffies + MGMT_JIFFIES);
-			send_authentication_request(priv, C80211_MGMT_AAN_OPENSYSTEM, NULL, 0);
+			if (priv->wep_is_on && priv->exclude_unencrypted)
+				auth = C80211_MGMT_AAN_SHAREDKEY;
+			send_authentication_request(priv, auth, NULL, 0);
 	  }
 	  break;
 
@@ -3544,12 +3558,15 @@ static void atmel_command_irq(struct atmel_private *priv)
 				priv->station_was_associated = priv->station_is_associated;
 				atmel_enter_state(priv, STATION_STATE_READY);
 			} else {
+				int auth = C80211_MGMT_AAN_OPENSYSTEM;
 				priv->AuthenticationRequestRetryCnt = 0;
 				atmel_enter_state(priv, STATION_STATE_AUTHENTICATING);
 
 				mod_timer(&priv->management_timer, jiffies + MGMT_JIFFIES);
 				priv->CurrentAuthentTransactionSeqNum = 0x0001;
-				send_authentication_request(priv, C80211_MGMT_AAN_SHAREDKEY, NULL, 0);
+				if (priv->wep_is_on && priv->exclude_unencrypted)
+					auth = C80211_MGMT_AAN_SHAREDKEY;
+				send_authentication_request(priv, auth, NULL, 0);
 			}
 			return;
 		}
