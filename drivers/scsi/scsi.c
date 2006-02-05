@@ -1245,7 +1245,7 @@ static int __init init_scsi(void)
 	if (error)
 		goto cleanup_sysctl;
 
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
 	devfs_mk_dir("scsi");

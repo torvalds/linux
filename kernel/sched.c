@@ -6109,7 +6109,7 @@ void __init sched_init(void)
 	runqueue_t *rq;
 	int i, j, k;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		prio_array_t *array;
 
 		rq = cpu_rq(i);
