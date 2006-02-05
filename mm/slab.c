@@ -884,14 +884,14 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 	}
 }
 
-static void drain_alien_cache(struct kmem_cache *cachep, struct kmem_list3 *l3)
+static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **alien)
 {
 	int i = 0;
 	struct array_cache *ac;
 	unsigned long flags;
 
 	for_each_online_node(i) {
-		ac = l3->alien[i];
+		ac = alien[i];
 		if (ac) {
 			spin_lock_irqsave(&ac->lock, flags);
 			__drain_alien_cache(cachep, ac, i);
@@ -901,8 +901,11 @@ static void drain_alien_cache(struct kmem_cache *cachep, struct kmem_list3 *l3)
 }
 #else
 #define alloc_alien_cache(node, limit) do { } while (0)
-#define free_alien_cache(ac_ptr) do { } while (0)
-#define drain_alien_cache(cachep, l3) do { } while (0)
+#define drain_alien_cache(cachep, alien) do { } while (0)
+
+static inline void free_alien_cache(struct array_cache **ac_ptr)
+{
+}
 #endif
 
 static int __devinit cpuup_callback(struct notifier_block *nfb,
@@ -936,6 +939,11 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 				l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
 				    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
 
+				/*
+				 * The l3s don't come and go as CPUs come and
+				 * go.  cache_chain_mutex is sufficient
+				 * protection here.
+				 */
 				cachep->nodelists[node] = l3;
 			}
 
@@ -950,26 +958,47 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 		   & array cache's */
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
+			struct array_cache *shared;
+			struct array_cache **alien;
 
 			nc = alloc_arraycache(node, cachep->limit,
-					      cachep->batchcount);
+						cachep->batchcount);
 			if (!nc)
 				goto bad;
+			shared = alloc_arraycache(node,
+					cachep->shared * cachep->batchcount,
+					0xbaadf00d);
+			if (!shared)
+				goto bad;
+#ifdef CONFIG_NUMA
+			alien = alloc_alien_cache(node, cachep->limit);
+			if (!alien)
+				goto bad;
+#endif
 			cachep->array[cpu] = nc;
 
 			l3 = cachep->nodelists[node];
 			BUG_ON(!l3);
-			if (!l3->shared) {
-				if (!(nc = alloc_arraycache(node,
-							    cachep->shared *
-							    cachep->batchcount,
-							    0xbaadf00d)))
-					goto bad;
 
-				/* we are serialised from CPU_DEAD or
-				   CPU_UP_CANCELLED by the cpucontrol lock */
-				l3->shared = nc;
+			spin_lock_irq(&l3->list_lock);
+			if (!l3->shared) {
+				/*
+				 * We are serialised from CPU_DEAD or
+				 * CPU_UP_CANCELLED by the cpucontrol lock
+				 */
+				l3->shared = shared;
+				shared = NULL;
 			}
+#ifdef CONFIG_NUMA
+			if (!l3->alien) {
+				l3->alien = alien;
+				alien = NULL;
+			}
+#endif
+			spin_unlock_irq(&l3->list_lock);
+
+			kfree(shared);
+			free_alien_cache(alien);
 		}
 		mutex_unlock(&cache_chain_mutex);
 		break;
@@ -978,23 +1007,32 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
+		/*
+		 * Even if all the cpus of a node are down, we don't free the
+		 * kmem_list3 of any cache. This to avoid a race between
+		 * cpu_down, and a kmalloc allocation from another cpu for
+		 * memory from the node of the cpu going down.  The list3
+		 * structure is usually allocated from kmem_cache_create() and
+		 * gets destroyed at kmem_cache_destroy().
+		 */
 		/* fall thru */
 	case CPU_UP_CANCELED:
 		mutex_lock(&cache_chain_mutex);
 
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
+			struct array_cache *shared;
+			struct array_cache **alien;
 			cpumask_t mask;
 
 			mask = node_to_cpumask(node);
-			spin_lock(&cachep->spinlock);
 			/* cpu is dead; no one can alloc from it. */
 			nc = cachep->array[cpu];
 			cachep->array[cpu] = NULL;
 			l3 = cachep->nodelists[node];
 
 			if (!l3)
-				goto unlock_cache;
+				goto free_array_cache;
 
 			spin_lock_irq(&l3->list_lock);
 
@@ -1005,32 +1043,42 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 
 			if (!cpus_empty(mask)) {
 				spin_unlock_irq(&l3->list_lock);
-				goto unlock_cache;
+				goto free_array_cache;
 			}
 
-			if (l3->shared) {
+			shared = l3->shared;
+			if (shared) {
 				free_block(cachep, l3->shared->entry,
 					   l3->shared->avail, node);
-				kfree(l3->shared);
 				l3->shared = NULL;
 			}
-			if (l3->alien) {
-				drain_alien_cache(cachep, l3);
-				free_alien_cache(l3->alien);
-				l3->alien = NULL;
-			}
 
-			/* free slabs belonging to this node */
-			if (__node_shrink(cachep, node)) {
-				cachep->nodelists[node] = NULL;
-				spin_unlock_irq(&l3->list_lock);
-				kfree(l3);
-			} else {
-				spin_unlock_irq(&l3->list_lock);
+			alien = l3->alien;
+			l3->alien = NULL;
+
+			spin_unlock_irq(&l3->list_lock);
+
+			kfree(shared);
+			if (alien) {
+				drain_alien_cache(cachep, alien);
+				free_alien_cache(alien);
 			}
-		      unlock_cache:
-			spin_unlock(&cachep->spinlock);
+free_array_cache:
 			kfree(nc);
+		}
+		/*
+		 * In the previous loop, all the objects were freed to
+		 * the respective cache's slabs,  now we can go ahead and
+		 * shrink each nodelist to its limit.
+		 */
+		list_for_each_entry(cachep, &cache_chain, next) {
+			l3 = cachep->nodelists[node];
+			if (!l3)
+				continue;
+			spin_lock_irq(&l3->list_lock);
+			/* free slabs belonging to this node */
+			__node_shrink(cachep, node);
+			spin_unlock_irq(&l3->list_lock);
 		}
 		mutex_unlock(&cache_chain_mutex);
 		break;
@@ -2011,7 +2059,6 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 
 	smp_call_function_all_cpus(do_drain, cachep);
 	check_irq_on();
-	spin_lock(&cachep->spinlock);
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
 		if (l3) {
@@ -2019,10 +2066,9 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 			drain_array_locked(cachep, l3->shared, 1, node);
 			spin_unlock_irq(&l3->list_lock);
 			if (l3->alien)
-				drain_alien_cache(cachep, l3);
+				drain_alien_cache(cachep, l3->alien);
 		}
 	}
-	spin_unlock(&cachep->spinlock);
 }
 
 static int __node_shrink(struct kmem_cache *cachep, int node)
@@ -3440,7 +3486,7 @@ static void cache_reap(void *unused)
 
 		l3 = searchp->nodelists[numa_node_id()];
 		if (l3->alien)
-			drain_alien_cache(searchp, l3);
+			drain_alien_cache(searchp, l3->alien);
 		spin_lock_irq(&l3->list_lock);
 
 		drain_array_locked(searchp, cpu_cache_get(searchp), 0,
@@ -3598,7 +3644,8 @@ static int s_show(struct seq_file *m, void *p)
 			num_slabs++;
 		}
 		free_objects += l3->free_objects;
-		shared_avail += l3->shared->avail;
+		if (l3->shared)
+			shared_avail += l3->shared->avail;
 
 		spin_unlock_irq(&l3->list_lock);
 	}
