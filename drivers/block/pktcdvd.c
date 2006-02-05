@@ -43,8 +43,6 @@
  *
  *************************************************************************/
 
-#define VERSION_CODE	"v0.2.0a 2004-07-14 Jens Axboe (axboe@suse.de) and petero2@telia.com"
-
 #include <linux/pktcdvd.h>
 #include <linux/config.h>
 #include <linux/module.h>
@@ -2678,7 +2676,6 @@ static int __init pkt_init(void)
 
 	pkt_proc = proc_mkdir("pktcdvd", proc_root_driver);
 
-	DPRINTK("pktcdvd: %s\n", VERSION_CODE);
 	return 0;
 
 out:
