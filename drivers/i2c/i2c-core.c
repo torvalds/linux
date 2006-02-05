@@ -288,9 +288,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 {
 	struct list_head   *item;
 	struct i2c_adapter *adapter;
-	int res = 0;
-
-	mutex_lock(&core_lists);
+	int res;
 
 	/* add the driver to the list of i2c drivers in the driver core */
 	driver->driver.owner = owner;
@@ -298,8 +296,10 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	res = driver_register(&driver->driver);
 	if (res)
-		goto out_unlock;
+		return res;
 	
+	mutex_lock(&core_lists);
+
 	list_add_tail(&driver->list,&drivers);
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
@@ -311,9 +311,8 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 		}
 	}
 
- out_unlock:
 	mutex_unlock(&core_lists);
-	return res;
+	return 0;
 }
 EXPORT_SYMBOL(i2c_register_driver);
 
