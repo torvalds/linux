@@ -415,15 +415,61 @@ static int pcmcia_device_probe(struct device * dev)
 }
 
 
+/*
+ * Removes a PCMCIA card from the device tree and socket list.
+ */
+static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *leftover)
+{
+	struct pcmcia_device	*p_dev;
+	struct pcmcia_device	*tmp;
+	unsigned long		flags;
+
+	ds_dbg(2, "unbind_request(%d)\n", s->sock);
+
+
+	if (!leftover)
+		s->device_count = 0;
+	else
+		s->device_count = 1;
+
+	/* unregister all pcmcia_devices registered with this socket, except leftover */
+	list_for_each_entry_safe(p_dev, tmp, &s->devices_list, socket_device_list) {
+		if (p_dev == leftover)
+			continue;
+
+		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+		list_del(&p_dev->socket_device_list);
+		p_dev->_removed=1;
+		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+		device_unregister(&p_dev->dev);
+	}
+
+	return;
+}
+
+
 static int pcmcia_device_remove(struct device * dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
+	struct pcmcia_device_id *did;
 	int i;
 
-	/* detach the "instance" */
 	p_dev = to_pcmcia_dev(dev);
 	p_drv = to_pcmcia_drv(dev->driver);
+
+	/* If we're removing the primary module driving a
+	 * pseudo multi-function card, we need to unbind
+	 * all devices
+	 */
+	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
+	if ((did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
+	    (p_dev->socket->device_count != 0) &&
+	    (p_dev->device_no == 0))
+		pcmcia_card_remove(p_dev->socket, p_dev);
+
+	/* detach the "instance" */
 	if (!p_drv)
 		return 0;
 
@@ -446,37 +492,6 @@ static int pcmcia_device_remove(struct device * dev)
 
 	return 0;
 }
-
-
-/*
- * Removes a PCMCIA card from the device tree and socket list.
- */
-static void pcmcia_card_remove(struct pcmcia_socket *s)
-{
-	struct pcmcia_device	*p_dev;
-	unsigned long		flags;
-
-	ds_dbg(2, "unbind_request(%d)\n", s->sock);
-
-	s->device_count = 0;
-
-	for (;;) {
-		/* unregister all pcmcia_devices registered with this socket*/
-		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-		if (list_empty(&s->devices_list)) {
-			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
- 			return;
-		}
-		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
-		list_del(&p_dev->socket_device_list);
-		p_dev->_removed=1;
-		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
-
-		device_unregister(&p_dev->dev);
-	}
-
-	return;
-} /* unbind_request */
 
 
 /*
@@ -1136,7 +1151,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
 		s->pcmcia_state.present = 0;
-		pcmcia_card_remove(skt);
+		pcmcia_card_remove(skt, NULL);
 		handle_event(skt, event);
 		break;
 
