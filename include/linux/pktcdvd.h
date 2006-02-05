@@ -114,7 +114,7 @@ struct pkt_ctrl_command {
 
 struct packet_settings
 {
-	__u8			size;		/* packet size in (512 byte) sectors */
+	__u32			size;		/* packet size in (512 byte) sectors */
 	__u8			fp;		/* fixed packets */
 	__u8			link_loss;	/* the rest is specified
 						 * as per Mt Fuji */
