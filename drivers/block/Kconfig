@@ -437,8 +437,8 @@ config CDROM_PKTCDVD_BUFFERS
 	  pktsetup time.
 
 config CDROM_PKTCDVD_WCACHE
-	bool "Enable write caching"
-	depends on CDROM_PKTCDVD
+	bool "Enable write caching (EXPERIMENTAL)"
+	depends on CDROM_PKTCDVD && EXPERIMENTAL
 	help
 	  If enabled, write caching will be set for the CD-R/W device. For now
 	  this option is dangerous unless the CD-RW media is known good, as we
