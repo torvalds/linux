@@ -5533,8 +5533,8 @@ static int ipw_best_network(struct ipw_priv *priv,
 		return 0;
 	}
 
-	if (!priv->ieee->wpa_enabled && (network->wpa_ie_len > 0 ||
-					 network->rsn_ie_len > 0)) {
+	if (priv->ieee->wpa_enabled &&
+	    network->wpa_ie_len == 0 && network->rsn_ie_len == 0) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
 				"because of WPA capability mismatch.\n",
 				escape_essid(network->ssid, network->ssid_len),
