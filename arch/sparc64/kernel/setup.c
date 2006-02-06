@@ -529,15 +529,19 @@ static void __init per_cpu_patch(void)
 		};
 
 		*(unsigned int *) (addr +  0) = insns[0];
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
 
 		*(unsigned int *) (addr +  4) = insns[1];
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
 
 		*(unsigned int *) (addr +  8) = insns[2];
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  8));
 
 		*(unsigned int *) (addr + 12) = insns[3];
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr + 12));
 
 		p++;
@@ -558,6 +562,7 @@ static void __init gl_patch(void)
 		unsigned long addr = p1->addr;
 
 		*(unsigned int *) (addr +  0) = p1->insn;
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
 
 		p1++;
@@ -568,9 +573,11 @@ static void __init gl_patch(void)
 		unsigned long addr = p2->addr;
 
 		*(unsigned int *) (addr +  0) = p2->insns[0];
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
 
 		*(unsigned int *) (addr +  3) = p2->insns[1];
+		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
 
 		p2++;
