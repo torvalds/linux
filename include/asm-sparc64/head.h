@@ -4,6 +4,10 @@
 
 #include <asm/pstate.h>
 
+	/* wrpr	%g0, val, %gl */
+#define SET_GL(val)	\
+	.word	0xa1902000 | val
+
 #define KERNBASE	0x400000
 
 #define	PTREGS_OFF	(STACK_BIAS + STACKFRAME_SZ)

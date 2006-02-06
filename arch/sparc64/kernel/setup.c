@@ -545,6 +545,24 @@ static void __init per_cpu_patch(void)
 #endif
 }
 
+static void __init gl_patch(void)
+{
+	struct gl_1insn_patch_entry *p;
+
+	if (tlb_type != hypervisor)
+		return;
+
+	p = &__gl_1insn_patch;
+	while (p < &__gl_1insn_patch_end) {
+		unsigned long addr = p->addr;
+
+		*(unsigned int *) (addr +  0) = p->insn;
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		p++;
+	}
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	/* Initialize PROM console and command line. */
@@ -566,6 +584,8 @@ void __init setup_arch(char **cmdline_p)
 	 * used by trap code.
 	 */
 	per_cpu_patch();
+
+	gl_patch();
 
 	boot_flags_init(*cmdline_p);
 

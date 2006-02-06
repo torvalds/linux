@@ -73,6 +73,11 @@ struct cpuid_patch_entry {
 extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
 #endif
 
+struct gl_1insn_patch_entry {
+	unsigned int	addr;
+	unsigned int	insn;
+};
+extern struct gl_1insn_patch_entry __gl_1insn_patch, __gl_1insn_patch_end;
 #endif /* !(__ASSEMBLY__) */
 
 #define TRAP_PER_CPU_THREAD	0x00

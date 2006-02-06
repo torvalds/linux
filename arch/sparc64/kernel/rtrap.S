@@ -230,7 +230,14 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 1:
 		ldx			[%sp + PTREGS_OFF + PT_V9_G6], %g6
 		ldx			[%sp + PTREGS_OFF + PT_V9_G7], %g7
-		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
+
+		/* Normal globals are restored, go to trap globals.  */
+661:		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
+		.section		.gl_1insn_patch, "ax"
+		.word			661b
+		SET_GL(1)
+		.previous
+
 		ldx			[%sp + PTREGS_OFF + PT_V9_I0], %i0
 		ldx			[%sp + PTREGS_OFF + PT_V9_I1], %i1
 
@@ -304,6 +311,13 @@ user_rtt_fill_fixup:
 		mov	%g6, %l1
 		wrpr	%g0, 0x0, %tl
 		wrpr	%g0, RTRAP_PSTATE, %pstate
+
+661:		nop
+		.section		.gl_1insn_patch, "ax"
+		.word			661b
+		SET_GL(0)
+		.previous
+
 		mov	%l1, %g6
 		ldx	[%g6 + TI_TASK], %g4
 		LOAD_PER_CPU_BASE(%g5, %g6, %g1, %g2, %g3)

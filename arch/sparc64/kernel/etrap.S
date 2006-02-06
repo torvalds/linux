@@ -102,7 +102,14 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 2:		mov	%g4, %l4
 		mov	%g5, %l5
 		add	%g7, 4, %l2
-		wrpr	%g0, ETRAP_PSTATE1, %pstate
+
+		/* Go to trap time globals so we can save them.  */
+661:		wrpr	%g0, ETRAP_PSTATE1, %pstate
+		.section .gl_1insn_patch, "ax"
+		.word	661b
+		SET_GL(0)
+		.previous
+
 		stx	%g1, [%sp + PTREGS_OFF + PT_V9_G1]
 		stx	%g2, [%sp + PTREGS_OFF + PT_V9_G2]
 		sllx	%l7, 24, %l7
@@ -195,8 +202,14 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		rdpr	%tt, %g3
 		stx	%g3, [%g2 + STACK_BIAS + 0x78]
 
-		wrpr	%g1, %tl
 		stx	%g1, [%g2 + STACK_BIAS + 0x80]
+
+		wrpr	%g0, 1, %tl
+661:		nop
+		.section .gl_1insn_patch, "ax"
+		.word	661b
+		SET_GL(1)
+		.previous
 
 		rdpr	%tstate, %g1
 		sub	%g2, STACKFRAME_SZ + TRACEREG_SZ - STACK_BIAS, %g2
