@@ -48,6 +48,7 @@ obj-$(CONFIG_USB_SN9C102)	+= media/
 obj-$(CONFIG_USB_STV680)	+= media/
 obj-$(CONFIG_USB_VICAM)		+= media/
 obj-$(CONFIG_USB_W9968CF)	+= media/
+obj-$(CONFIG_USB_ZC0301)	+= media/
 
 obj-$(CONFIG_USB_CATC)		+= net/
 obj-$(CONFIG_USB_KAWETH)	+= net/

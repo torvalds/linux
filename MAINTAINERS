@@ -2902,6 +2902,14 @@ L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
+USB ZC0301 DRIVER
+P:	Luca Risolia
+M:	luca.risolia@studio.unibo.it
+L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
+W:	http://www.linux-projects.org
+S:	Maintained
+
 USB ZD1201 DRIVER
 P:	Jeroen Vreeken
 M:	pe1rxq@amsat.org
