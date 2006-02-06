@@ -880,6 +880,10 @@ address which can extend beyond that limit.
     - device_type : Should be "soc"
     - ranges : Should be defined as specified in 1) to describe the
       translation of SOC addresses for memory mapped SOC registers.
+    - bus-frequency: Contains the bus frequency for the SOC node.
+      Typically, the value of this field is filled in by the boot
+      loader. 
+
 
   Recommended properties:
 
@@ -919,6 +923,7 @@ SOC.
 		device_type = "soc";
 		ranges = <00000000 e0000000 00100000>
 		reg = <e0000000 00003000>;
+		bus-frequency = <0>;
 	}
 
 
@@ -1170,6 +1175,8 @@ platforms are moved over to use the flattened-device-tree model.
 
 	mdio@24520 {
 		reg = <24520 20>;
+		device_type = "mdio"; 
+		compatible = "gianfar";
 
 		ethernet-phy@0 {
 			......
@@ -1317,6 +1324,7 @@ not necessary as they are usually the same as the root node.
 		device_type = "soc";
 		ranges = <00000000 e0000000 00100000>
 		reg = <e0000000 00003000>;
+		bus-frequency = <0>;
 
 		mdio@24520 {
 			reg = <24520 20>;
