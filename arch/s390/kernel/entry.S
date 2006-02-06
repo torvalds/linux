@@ -2,8 +2,7 @@
  *  arch/s390/kernel/entry.S
  *    S390 low-level entry points.
  *
- *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 1999,2006
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *               Hartmut Penner (hp@de.ibm.com),
  *               Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
@@ -50,9 +49,10 @@ SP_ILC       =  STACK_FRAME_OVERHEAD + __PT_ILC
 SP_TRAP      =  STACK_FRAME_OVERHEAD + __PT_TRAP
 SP_SIZE      =  STACK_FRAME_OVERHEAD + __PT_SIZE
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING | \
-		 _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
+_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NEED_RESCHED | \
+		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
+_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NEED_RESCHED | \
+		 _TIF_MCCK_PENDING)
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
@@ -251,8 +251,8 @@ sysc_work:
 	bo	BASED(sysc_mcck_pending)
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bo	BASED(sysc_reschedule)
-	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
-	bo	BASED(sysc_sigpending)
+	tm	__TI_flags+3(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
+	bnz	BASED(sysc_sigpending)
 	tm	__TI_flags+3(%r9),_TIF_RESTART_SVC
 	bo	BASED(sysc_restart)
 	tm	__TI_flags+3(%r9),_TIF_SINGLE_STEP
@@ -276,12 +276,11 @@ sysc_mcck_pending:
 	br	%r1			# TIF bit will be cleared by handler
 
 #
-# _TIF_SIGPENDING is set, call do_signal
+# _TIF_SIGPENDING or _TIF_RESTORE_SIGMASK is set, call do_signal
 #
 sysc_sigpending:     
 	ni	__TI_flags+3(%r9),255-_TIF_SINGLE_STEP # clear TIF_SINGLE_STEP
         la      %r2,SP_PTREGS(%r15)    # load pt_regs
-        sr      %r3,%r3                # clear *oldset
         l       %r1,BASED(.Ldo_signal)
 	basr	%r14,%r1               # call do_signal
 	tm	__TI_flags+3(%r9),_TIF_RESTART_SVC
@@ -396,30 +395,6 @@ sys_rt_sigreturn_glue:
         la      %r2,SP_PTREGS(%r15)   # load pt_regs as parameter
         l       %r1,BASED(.Lrt_sigreturn)
         br      %r1                   # branch to sys_sigreturn
-
-#
-# sigsuspend and rt_sigsuspend need pt_regs as an additional
-# parameter and they have to skip the store of %r2 into the
-# user register %r2 because the return value was set in 
-# sigsuspend and rt_sigsuspend already and must not be overwritten!
-#
-
-sys_sigsuspend_glue:    
-        lr      %r5,%r4               # move mask back
-        lr      %r4,%r3               # move history1 parameter
-        lr      %r3,%r2               # move history0 parameter
-        la      %r2,SP_PTREGS(%r15)   # load pt_regs as first parameter
-        l       %r1,BASED(.Lsigsuspend)
-	la      %r14,4(%r14)          # skip store of return value
-        br      %r1                   # branch to sys_sigsuspend
-
-sys_rt_sigsuspend_glue: 
-        lr      %r4,%r3               # move sigsetsize parameter
-        lr      %r3,%r2               # move unewset parameter
-        la      %r2,SP_PTREGS(%r15)   # load pt_regs as first parameter
-        l       %r1,BASED(.Lrt_sigsuspend)
-	la      %r14,4(%r14)          # skip store of return value
-        br      %r1                   # branch to sys_rt_sigsuspend
 
 sys_sigaltstack_glue:
         la      %r4,SP_PTREGS(%r15)   # load pt_regs as parameter
@@ -604,15 +579,16 @@ io_work:
 	lr	%r15,%r1
 #
 # One of the work bits is on. Find out which one.
-# Checked are: _TIF_SIGPENDING, _TIF_NEED_RESCHED and _TIF_MCCK_PENDING
+# Checked are: _TIF_SIGPENDING, _TIF_RESTORE_SIGMASK, _TIF_NEED_RESCHED
+#	        and _TIF_MCCK_PENDING
 #
 io_work_loop:
 	tm	__TI_flags+3(%r9),_TIF_MCCK_PENDING
 	bo      BASED(io_mcck_pending)
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bo	BASED(io_reschedule)
-	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
-	bo	BASED(io_sigpending)
+	tm	__TI_flags+3(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
+	bnz	BASED(io_sigpending)
 	b	BASED(io_leave)
 
 #
@@ -636,12 +612,11 @@ io_reschedule:
 	b	BASED(io_work_loop)
 
 #
-# _TIF_SIGPENDING is set, call do_signal
+# _TIF_SIGPENDING or _TIF_RESTORE_SIGMASK is set, call do_signal
 #
 io_sigpending:     
         stosm   __SF_EMPTY(%r15),0x03  # reenable interrupts
         la      %r2,SP_PTREGS(%r15)    # load pt_regs
-        sr      %r3,%r3                # clear *oldset
         l       %r1,BASED(.Ldo_signal)
 	basr    %r14,%r1	       # call do_signal
         stnsm   __SF_EMPTY(%r15),0xfc  # disable I/O and ext. interrupts

@@ -179,7 +179,7 @@ extern void acpi_reserve_bootmem(void);
 
 extern u8 x86_acpiid_to_apicid[];
 
-#define ARCH_HAS_POWER_PDC_INIT	1
+#define ARCH_HAS_POWER_INIT	1
 
 #endif /*__KERNEL__*/
 

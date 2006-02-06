@@ -95,6 +95,7 @@ struct controller {
 	u8 function;
 	u8 slot_device_offset;
 	u8 add_support;
+	u32 pcix_misc2_reg;	/* for amd pogo errata */
 	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
@@ -113,6 +114,26 @@ struct hotplug_params {
 
 /* Define AMD SHPC ID  */
 #define PCI_DEVICE_ID_AMD_GOLAM_7450	0x7450 
+#define PCI_DEVICE_ID_AMD_POGO_7458	0x7458
+
+/* AMD PCIX bridge registers */
+
+#define PCIX_MEM_BASE_LIMIT_OFFSET	0x1C
+#define PCIX_MISCII_OFFSET		0x48
+#define PCIX_MISC_BRIDGE_ERRORS_OFFSET	0x80
+
+/* AMD PCIX_MISCII masks and offsets */
+#define PERRNONFATALENABLE_MASK		0x00040000
+#define PERRFATALENABLE_MASK		0x00080000
+#define PERRFLOODENABLE_MASK		0x00100000
+#define SERRNONFATALENABLE_MASK		0x00200000
+#define SERRFATALENABLE_MASK		0x00400000
+
+/* AMD PCIX_MISC_BRIDGE_ERRORS masks and offsets */
+#define PERR_OBSERVED_MASK		0x00000001
+
+/* AMD PCIX_MEM_BASE_LIMIT masks */
+#define RSE_MASK			0x40000000
 
 #define INT_BUTTON_IGNORE		0
 #define INT_PRESENCE_ON			1
@@ -331,6 +352,79 @@ static inline int wait_for_ctrl_irq (struct controller *ctrl)
 		retval =  -EINTR;
 
 	return retval;
+}
+
+static inline void amd_pogo_errata_save_misc_reg(struct slot *p_slot)
+{
+	u32 pcix_misc2_temp;
+
+	/* save MiscII register */
+	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp);
+
+	p_slot->ctrl->pcix_misc2_reg = pcix_misc2_temp;
+
+	/* clear SERR/PERR enable bits */
+	pcix_misc2_temp &= ~SERRFATALENABLE_MASK;
+	pcix_misc2_temp &= ~SERRNONFATALENABLE_MASK;
+	pcix_misc2_temp &= ~PERRFLOODENABLE_MASK;
+	pcix_misc2_temp &= ~PERRFATALENABLE_MASK;
+	pcix_misc2_temp &= ~PERRNONFATALENABLE_MASK;
+	pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, pcix_misc2_temp);
+}
+
+static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
+{
+	u32 pcix_misc2_temp;
+	u32 pcix_bridge_errors_reg;
+	u32 pcix_mem_base_reg;
+	u8  perr_set;
+	u8  rse_set;
+
+	/* write-one-to-clear Bridge_Errors[ PERR_OBSERVED ] */
+	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MISC_BRIDGE_ERRORS_OFFSET, &pcix_bridge_errors_reg);
+	perr_set = pcix_bridge_errors_reg & PERR_OBSERVED_MASK;
+	if (perr_set) {
+		dbg ("%s  W1C: Bridge_Errors[ PERR_OBSERVED = %08X]\n",__FUNCTION__ , perr_set);
+
+		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISC_BRIDGE_ERRORS_OFFSET, perr_set);
+	}
+
+	/* write-one-to-clear Memory_Base_Limit[ RSE ] */
+	pci_read_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, &pcix_mem_base_reg);
+	rse_set = pcix_mem_base_reg & RSE_MASK;
+	if (rse_set) {
+		dbg ("%s  W1C: Memory_Base_Limit[ RSE ]\n",__FUNCTION__ );
+
+		pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MEM_BASE_LIMIT_OFFSET, rse_set);
+	}
+	/* restore MiscII register */
+	pci_read_config_dword( p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, &pcix_misc2_temp );
+
+	if (p_slot->ctrl->pcix_misc2_reg & SERRFATALENABLE_MASK)
+		pcix_misc2_temp |= SERRFATALENABLE_MASK;
+	else
+		pcix_misc2_temp &= ~SERRFATALENABLE_MASK;
+
+	if (p_slot->ctrl->pcix_misc2_reg & SERRNONFATALENABLE_MASK)
+		pcix_misc2_temp |= SERRNONFATALENABLE_MASK;
+	else
+		pcix_misc2_temp &= ~SERRNONFATALENABLE_MASK;
+
+	if (p_slot->ctrl->pcix_misc2_reg & PERRFLOODENABLE_MASK)
+		pcix_misc2_temp |= PERRFLOODENABLE_MASK;
+	else
+		pcix_misc2_temp &= ~PERRFLOODENABLE_MASK;
+
+	if (p_slot->ctrl->pcix_misc2_reg & PERRFATALENABLE_MASK)
+		pcix_misc2_temp |= PERRFATALENABLE_MASK;
+	else
+		pcix_misc2_temp &= ~PERRFATALENABLE_MASK;
+
+	if (p_slot->ctrl->pcix_misc2_reg & PERRNONFATALENABLE_MASK)
+		pcix_misc2_temp |= PERRNONFATALENABLE_MASK;
+	else
+		pcix_misc2_temp &= ~PERRNONFATALENABLE_MASK;
+	pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, pcix_misc2_temp);
 }
 
 #define SLOT_NAME_SIZE 10

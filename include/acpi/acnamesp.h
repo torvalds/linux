@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -263,13 +263,11 @@ u32 acpi_ns_local(acpi_object_type type);
 void
 acpi_ns_report_error(char *module_name,
 		     u32 line_number,
-		     u32 component_id,
 		     char *internal_name, acpi_status lookup_status);
 
 void
 acpi_ns_report_method_error(char *module_name,
 			    u32 line_number,
-			    u32 component_id,
 			    char *message,
 			    struct acpi_namespace_node *node,
 			    char *path, acpi_status lookup_status);

@@ -23,16 +23,20 @@ void syscall_handler_tt(int sig, struct pt_regs *regs)
 	int syscall;
 #ifdef CONFIG_SYSCALL_DEBUG
 	int index;
-  	index = record_syscall_start(syscall);
 #endif
 	sc = UPT_SC(&regs->regs);
 	SC_START_SYSCALL(sc);
+
+	syscall = UPT_SYSCALL_NR(&regs->regs);
+
+#ifdef CONFIG_SYSCALL_DEBUG
+	index = record_syscall_start(syscall);
+#endif
 
 	syscall_trace(&regs->regs, 0);
 
 	current->thread.nsyscalls++;
 	nsyscalls++;
-	syscall = UPT_SYSCALL_NR(&regs->regs);
 
 	if((syscall >= NR_syscalls) || (syscall < 0))
 		result = -ENOSYS;

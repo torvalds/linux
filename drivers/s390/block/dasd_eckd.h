@@ -5,7 +5,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.10 $
  */
 
 #ifndef DASD_ECKD_H
@@ -30,6 +29,7 @@
 #define DASD_ECKD_CCW_PSF		 0x27
 #define DASD_ECKD_CCW_RSSD		 0x3e
 #define DASD_ECKD_CCW_LOCATE_RECORD	 0x47
+#define DASD_ECKD_CCW_SNSS               0x54
 #define DASD_ECKD_CCW_DEFINE_EXTENT	 0x63
 #define DASD_ECKD_CCW_WRITE_MT		 0x85
 #define DASD_ECKD_CCW_READ_MT		 0x86

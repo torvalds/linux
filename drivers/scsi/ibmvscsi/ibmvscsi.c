@@ -87,7 +87,7 @@ static int max_channel = 3;
 static int init_timeout = 5;
 static int max_requests = 50;
 
-#define IBMVSCSI_VERSION "1.5.7"
+#define IBMVSCSI_VERSION "1.5.8"
 
 MODULE_DESCRIPTION("IBM Virtual SCSI");
 MODULE_AUTHOR("Dave Boutcher");
@@ -534,7 +534,6 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
 static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 				   struct ibmvscsi_host_data *hostdata)
 {
-	struct scsi_cmnd *cmnd;
 	u64 *crq_as_u64 = (u64 *) &evt_struct->crq;
 	int rc;
 
@@ -544,19 +543,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	 * can handle more requests (can_queue) when we actually can't
 	 */
 	if ((evt_struct->crq.format == VIOSRP_SRP_FORMAT) &&
-	    (atomic_dec_if_positive(&hostdata->request_limit) < 0)) {
-		/* See if the adapter is disabled */
-		if (atomic_read(&hostdata->request_limit) < 0)
-			goto send_error;
-	
-		printk(KERN_WARNING 
-		       "ibmvscsi: Warning, request_limit exceeded\n");
-		unmap_cmd_data(&evt_struct->iu.srp.cmd,
-			       evt_struct,
-			       hostdata->dev);
-		free_event_struct(&hostdata->pool, evt_struct);
-		return SCSI_MLQUEUE_HOST_BUSY;
-	}
+	    (atomic_dec_if_positive(&hostdata->request_limit) < 0))
+		goto send_error;
 
 	/* Copy the IU into the transfer area */
 	*evt_struct->xfer_iu = evt_struct->iu;
@@ -572,7 +560,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	     ibmvscsi_send_crq(hostdata, crq_as_u64[0], crq_as_u64[1])) != 0) {
 		list_del(&evt_struct->list);
 
-		printk(KERN_ERR "ibmvscsi: failed to send event struct rc %d\n",
+		printk(KERN_ERR "ibmvscsi: send error %d\n",
 		       rc);
 		goto send_error;
 	}
@@ -582,14 +570,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
  send_error:
 	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
 
-	if ((cmnd = evt_struct->cmnd) != NULL) {
-		cmnd->result = DID_ERROR << 16;
-		evt_struct->cmnd_done(cmnd);
-	} else if (evt_struct->done)
-		evt_struct->done(evt_struct);
-	
 	free_event_struct(&hostdata->pool, evt_struct);
-	return 0;
+ 	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 /**
@@ -802,7 +784,8 @@ static void login_rsp(struct srp_event_struct *evt_struct)
 	case SRP_LOGIN_RSP_TYPE:	/* it worked! */
 		break;
 	case SRP_LOGIN_REJ_TYPE:	/* refused! */
-		printk(KERN_INFO "ibmvscsi: SRP_LOGIN_REQ rejected\n");
+		printk(KERN_INFO "ibmvscsi: SRP_LOGIN_REJ reason %u\n",
+		       evt_struct->xfer_iu->srp.login_rej.reason);
 		/* Login failed.  */
 		atomic_set(&hostdata->request_limit, -1);
 		return;
@@ -834,6 +817,9 @@ static void login_rsp(struct srp_event_struct *evt_struct)
 		return;
 	}
 
+	/* If we had any pending I/Os, kick them */
+	scsi_unblock_requests(hostdata->host);
+
 	send_mad_adapter_info(hostdata);
 	return;
 }
@@ -862,6 +848,7 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 			  init_timeout * HZ);
 
 	login = &evt_struct->iu.srp.login_req;
+	memset(login, 0x00, sizeof(struct srp_login_req));
 	login->type = SRP_LOGIN_REQ_TYPE;
 	login->max_requested_initiator_to_target_iulen = sizeof(union srp_iu);
 	login->required_buffer_formats = 0x0006;
@@ -1122,7 +1109,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
  * purge_requests: Our virtual adapter just shut down.  purge any sent requests
  * @hostdata:    the adapter
  */
-static void purge_requests(struct ibmvscsi_host_data *hostdata)
+static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
 {
 	struct srp_event_struct *tmp_evt, *pos;
 	unsigned long flags;
@@ -1131,7 +1118,7 @@ static void purge_requests(struct ibmvscsi_host_data *hostdata)
 	list_for_each_entry_safe(tmp_evt, pos, &hostdata->sent, list) {
 		list_del(&tmp_evt->list);
 		if (tmp_evt->cmnd) {
-			tmp_evt->cmnd->result = (DID_ERROR << 16);
+			tmp_evt->cmnd->result = (error_code << 16);
 			unmap_cmd_data(&tmp_evt->iu.srp.cmd, 
 				       tmp_evt,	
 				       tmp_evt->hostdata->dev);
@@ -1186,12 +1173,30 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			printk(KERN_ERR "ibmvscsi: unknown crq message type\n");
 		}
 		return;
-	case 0xFF:		/* Hypervisor telling us the connection is closed */
-		printk(KERN_INFO "ibmvscsi: Virtual adapter failed!\n");
+	case 0xFF:	/* Hypervisor telling us the connection is closed */
+		scsi_block_requests(hostdata->host);
+		if (crq->format == 0x06) {
+			/* We need to re-setup the interpartition connection */
+			printk(KERN_INFO
+			       "ibmvscsi: Re-enabling adapter!\n");
+			purge_requests(hostdata, DID_REQUEUE);
+			if (ibmvscsi_reenable_crq_queue(&hostdata->queue,
+							hostdata) == 0)
+				if (ibmvscsi_send_crq(hostdata,
+						      0xC001000000000000LL, 0))
+					printk(KERN_ERR
+					       "ibmvscsi: transmit error after"
+					       " enable\n");
+		} else {
+			printk(KERN_INFO
+			       "ibmvscsi: Virtual adapter failed rc %d!\n",
+			       crq->format);
 
-		atomic_set(&hostdata->request_limit, -1);
-		purge_requests(hostdata);
-		ibmvscsi_reset_crq_queue(&hostdata->queue, hostdata);
+			atomic_set(&hostdata->request_limit, -1);
+			purge_requests(hostdata, DID_ERROR);
+			ibmvscsi_reset_crq_queue(&hostdata->queue, hostdata);
+		}
+		scsi_unblock_requests(hostdata->host);
 		return;
 	case 0x80:		/* real payload */
 		break;

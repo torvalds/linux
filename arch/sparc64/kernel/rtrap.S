@@ -53,14 +53,13 @@ __handle_user_windows:
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 		ldx			[%g6 + TI_FLAGS], %l0
 
-1:		andcc			%l0, (_TIF_NOTIFY_RESUME | _TIF_SIGPENDING), %g0
+1:		andcc			%l0, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), %g0
 		be,pt			%xcc, __handle_user_windows_continue
 		 nop
-		clr			%o0
-		mov			%l5, %o2
-		mov			%l6, %o3
-		add			%sp, PTREGS_OFF, %o1
-		mov			%l0, %o4
+		mov			%l5, %o1
+		mov			%l6, %o2
+		add			%sp, PTREGS_OFF, %o0
+		mov			%l0, %o3
 
 		call			do_notify_resume
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
@@ -96,15 +95,14 @@ __handle_perfctrs:
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 		ldx			[%g6 + TI_FLAGS], %l0
-1:		andcc			%l0, (_TIF_NOTIFY_RESUME | _TIF_SIGPENDING), %g0
+1:		andcc			%l0, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), %g0
 
 		be,pt			%xcc, __handle_perfctrs_continue
 		 sethi			%hi(TSTATE_PEF), %o0
-		clr			%o0
-		mov			%l5, %o2
-		mov			%l6, %o3
-		add			%sp, PTREGS_OFF, %o1
-		mov			%l0, %o4
+		mov			%l5, %o1
+		mov			%l6, %o2
+		add			%sp, PTREGS_OFF, %o0
+		mov			%l0, %o3
 		call			do_notify_resume
 
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
@@ -129,11 +127,10 @@ __handle_userfpu:
 		ba,a,pt			%xcc, __handle_userfpu_continue
 
 __handle_signal:
-		clr			%o0
-		mov			%l5, %o2
-		mov			%l6, %o3
-		add			%sp, PTREGS_OFF, %o1
-		mov			%l0, %o4
+		mov			%l5, %o1
+		mov			%l6, %o2
+		add			%sp, PTREGS_OFF, %o0
+		mov			%l0, %o3
 		call			do_notify_resume
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
@@ -200,7 +197,7 @@ __handle_preemption_continue:
 		 andcc			%l1, %o0, %g0
 		andcc			%l0, _TIF_NEED_RESCHED, %g0
 		bne,pn			%xcc, __handle_preemption
-		 andcc			%l0, (_TIF_NOTIFY_RESUME | _TIF_SIGPENDING), %g0
+		 andcc			%l0, (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), %g0
 		bne,pn			%xcc, __handle_signal
 __handle_signal_continue:
 		 ldub			[%g6 + TI_WSAVED], %o2

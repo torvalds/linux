@@ -1,0 +1,41 @@
+
+Export cpu topology info by sysfs. Items (attributes) are similar
+to /proc/cpuinfo.
+
+1) /sys/devices/system/cpu/cpuX/topology/physical_package_id:
+represent the physical package id of  cpu X;
+2) /sys/devices/system/cpu/cpuX/topology/core_id:
+represent the cpu core id to cpu X;
+3) /sys/devices/system/cpu/cpuX/topology/thread_siblings:
+represent the thread siblings to cpu X in the same core;
+4) /sys/devices/system/cpu/cpuX/topology/core_siblings:
+represent the thread siblings to cpu X in the same physical package;
+
+To implement it in an architecture-neutral way, a new source file,
+driver/base/topology.c, is to export the 5 attributes.
+
+If one architecture wants to support this feature, it just needs to
+implement 4 defines, typically in file include/asm-XXX/topology.h.
+The 4 defines are:
+#define topology_physical_package_id(cpu)
+#define topology_core_id(cpu)
+#define topology_thread_siblings(cpu)
+#define topology_core_siblings(cpu)
+
+The type of **_id is int.
+The type of siblings is cpumask_t.
+
+To be consistent on all architectures, the 4 attributes should have
+deafult values if their values are unavailable. Below is the rule.
+1) physical_package_id: If cpu has no physical package id, -1 is the
+default value.
+2) core_id: If cpu doesn't support multi-core, its core id is 0.
+3) thread_siblings: Just include itself, if the cpu doesn't support
+HT/multi-thread.
+4) core_siblings: Just include itself, if the cpu doesn't support
+multi-core and HT/Multi-thread.
+
+So be careful when declaring the 4 defines in include/asm-XXX/topology.h.
+
+If an attribute isn't defined on an architecture, it won't be exported.
+

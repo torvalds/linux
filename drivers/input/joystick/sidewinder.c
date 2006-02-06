@@ -736,7 +736,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		sprintf(sw->name, "Microsoft SideWinder %s", sw_name[sw->type]);
 		sprintf(sw->phys[i], "%s/input%d", gameport->phys, i);
 
-		input_dev = input_allocate_device();
+		sw->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
 			err = -ENOMEM;
 			goto fail3;
@@ -771,12 +771,15 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 		dbg("%s%s [%d-bit id %d data %d]\n", sw->name, comment, m, l, k);
 
-		input_register_device(sw->dev[i]);
+		err = input_register_device(sw->dev[i]);
+		if (err)
+			goto fail4;
 	}
 
 	return 0;
 
- fail3: while (--i >= 0)
+ fail4:	input_free_device(sw->dev[i]);
+ fail3:	while (--i >= 0)
 		input_unregister_device(sw->dev[i]);
  fail2:	gameport_close(gameport);
  fail1:	gameport_set_drvdata(gameport, NULL);
@@ -801,6 +804,7 @@ static void sw_disconnect(struct gameport *gameport)
 static struct gameport_driver sw_drv = {
 	.driver		= {
 		.name	= "sidewinder",
+		.owner	= THIS_MODULE,
 	},
 	.description	= DRIVER_DESC,
 	.connect	= sw_connect,

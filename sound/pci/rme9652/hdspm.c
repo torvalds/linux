@@ -3324,11 +3324,11 @@ static int __devinit snd_hdspm_preallocate_memory(struct hdspm * hdspm)
 						   snd_dma_pci_data(hdspm->pci),
 						   wanted,
 						   wanted)) < 0) {
-		snd_printdd("Could not preallocate %d  Bytes\n", wanted);
+		snd_printdd("Could not preallocate %zd Bytes\n", wanted);
 
 		return err;
 	} else
-		snd_printdd(" Preallocated %d  Bytes\n", wanted);
+		snd_printdd(" Preallocated %zd Bytes\n", wanted);
 
 	return 0;
 }
@@ -3510,7 +3510,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card, struct hdspm * hdsp
 
 	hdspm->monitor_outs = enable_monitor;
 
-	snd_printdd("kmalloc Mixer memory of %d Bytes\n",
+	snd_printdd("kmalloc Mixer memory of %zd Bytes\n",
 		   sizeof(struct hdspm_mixer));
 	if ((hdspm->mixer = kmalloc(sizeof(struct hdspm_mixer), GFP_KERNEL))
 	    == NULL) {

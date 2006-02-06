@@ -42,10 +42,6 @@ extern void mark_free_pages(struct zone *zone);
 #ifdef CONFIG_PM
 /* kernel/power/swsusp.c */
 extern int software_suspend(void);
-
-extern int pm_prepare_console(void);
-extern void pm_restore_console(void);
-
 #else
 static inline int software_suspend(void)
 {

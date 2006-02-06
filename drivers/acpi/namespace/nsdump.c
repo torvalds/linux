@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,12 +198,13 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		/* Check the node type and name */
 
 		if (type > ACPI_TYPE_LOCAL_MAX) {
-			ACPI_REPORT_WARNING(("Invalid ACPI Type %08X\n", type));
+			ACPI_WARNING((AE_INFO, "Invalid ACPI Object Type %08X",
+				      type));
 		}
 
 		if (!acpi_ut_valid_acpi_name(this_node->name.integer)) {
-			ACPI_REPORT_WARNING(("Invalid ACPI Name %08X\n",
-					     this_node->name.integer));
+			ACPI_WARNING((AE_INFO, "Invalid ACPI Name %08X",
+				      this_node->name.integer));
 		}
 
 		acpi_os_printf("%4.4s", acpi_ut_get_node_name(this_node));
@@ -212,7 +213,9 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	/*
 	 * Now we can print out the pertinent information
 	 */
-	acpi_os_printf(" %-12s %p ", acpi_ut_get_type_name(type), this_node);
+	acpi_os_printf(" %-12s %p %2.2X ",
+		       acpi_ut_get_type_name(type), this_node,
+		       this_node->owner_id);
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;

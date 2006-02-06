@@ -576,7 +576,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 	slave->duplex = DUPLEX_FULL;
 
 	if (slave_dev->ethtool_ops) {
-		u32 res;
+		int res;
 
 		if (!slave_dev->ethtool_ops->get_settings) {
 			return -1;

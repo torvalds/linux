@@ -374,5 +374,24 @@
 	ENTRY_SAME(keyctl)
 	ENTRY_SAME(ioprio_set)
 	ENTRY_SAME(ioprio_get)
+	ENTRY_SAME(inotify_init)
+	ENTRY_SAME(inotify_add_watch)	/* 270 */
+	ENTRY_SAME(inotify_rm_watch)
+	ENTRY_COMP(pselect6)
+	ENTRY_COMP(ppoll)
+	ENTRY_SAME(migrate_pages)
+	ENTRY_COMP(openat)		/* 275 */
+	ENTRY_SAME(mkdirat)
+	ENTRY_SAME(mknodat)
+	ENTRY_SAME(fchownat)
+	ENTRY_COMP(futimesat)
+	ENTRY_COMP(newfstatat)		/* 280 */
+	ENTRY_SAME(unlinkat)
+	ENTRY_SAME(renameat)
+	ENTRY_SAME(linkat)
+	ENTRY_SAME(symlinkat)
+	ENTRY_SAME(readlinkat)		/* 285 */
+	ENTRY_SAME(fchmodat)
+	ENTRY_SAME(faccessat)
 	/* Nothing yet */
 

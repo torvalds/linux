@@ -2093,6 +2093,8 @@ static void auerswald_disconnect (struct usb_interface *intf)
 static struct usb_device_id auerswald_ids [] = {
 	{ USB_DEVICE (ID_AUERSWALD, 0x00C0) },          /* COMpact 2104 USB */
 	{ USB_DEVICE (ID_AUERSWALD, 0x00DB) },          /* COMpact 4410/2206 USB */
+	{ USB_DEVICE (ID_AUERSWALD, 0x00DC) }, /* COMpact 4406 DSL */
+	{ USB_DEVICE (ID_AUERSWALD, 0x00DD) }, /* COMpact 2204 USB */
 	{ USB_DEVICE (ID_AUERSWALD, 0x00F1) },          /* Comfort 2000 System Telephone */
 	{ USB_DEVICE (ID_AUERSWALD, 0x00F2) },          /* Comfort 1200 System Telephone */
         { }			                        /* Terminating entry */

@@ -499,7 +499,9 @@ ENTRY(stub_rt_sigreturn)
 	movq %gs:pda_irqstackptr,%rax
 	cmoveq %rax,%rsp /*todo This needs CFI annotation! */
 	pushq %rdi			# save old stack	
+#ifndef CONFIG_DEBUG_INFO
 	CFI_ADJUST_CFA_OFFSET	8
+#endif
 	call \func
 	.endm
 
@@ -509,7 +511,9 @@ ENTRY(common_interrupt)
 	/* 0(%rsp): oldrsp-ARGOFFSET */
 ret_from_intr:
 	popq  %rdi
+#ifndef CONFIG_DEBUG_INFO
 	CFI_ADJUST_CFA_OFFSET	-8
+#endif
 	cli	
 	decl %gs:pda_irqcount
 #ifdef CONFIG_DEBUG_INFO
@@ -922,7 +926,7 @@ KPROBE_ENTRY(debug)
 	.previous .text
 
 	/* runs on exception stack */	
-ENTRY(nmi)
+KPROBE_ENTRY(nmi)
 	INTR_FRAME
 	pushq $-1
 	CFI_ADJUST_CFA_OFFSET 8
@@ -969,6 +973,7 @@ paranoid_schedule:
 	cli
 	jmp paranoid_userspace
 	CFI_ENDPROC
+	.previous .text
 
 KPROBE_ENTRY(int3)
  	INTR_FRAME

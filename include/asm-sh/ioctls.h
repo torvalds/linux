@@ -94,6 +94,6 @@
 #define TIOCSERSETMULTI _IOW('T', 91, struct serial_multiport_struct) /* 0x545B */ /* Set multiport config */
 
 #define TIOCMIWAIT	_IO('T', 92) /* 0x545C */	/* wait for a change on serial input line(s) */
-#define TIOCGICOUNT	_IOR('T', 93, struct async_icount) /* 0x545D */	/* read serial port inline interrupt counts */
+#define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
 
 #endif /* __ASM_SH_IOCTLS_H */

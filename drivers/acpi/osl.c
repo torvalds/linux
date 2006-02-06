@@ -838,7 +838,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 			static const int quantum_ms = 1000 / HZ;
 
 			ret = down_trylock(sem);
-			for (i = timeout; (i > 0 && ret < 0); i -= quantum_ms) {
+			for (i = timeout; (i > 0 && ret != 0); i -= quantum_ms) {
 				schedule_timeout_interruptible(1);
 				ret = down_trylock(sem);
 			}
@@ -1060,13 +1060,11 @@ EXPORT_SYMBOL(max_cstate);
  * Acquire a spinlock.
  *
  * handle is a pointer to the spinlock_t.
- * flags is *not* the result of save_flags - it is an ACPI-specific flag variable
- *   that indicates whether we are at interrupt level.
  */
 
-unsigned long acpi_os_acquire_lock(acpi_handle handle)
+acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
 {
-	unsigned long flags;
+	acpi_cpu_flags flags;
 	spin_lock_irqsave((spinlock_t *) handle, flags);
 	return flags;
 }
@@ -1075,7 +1073,7 @@ unsigned long acpi_os_acquire_lock(acpi_handle handle)
  * Release a spinlock. See above.
  */
 
-void acpi_os_release_lock(acpi_handle handle, unsigned long flags)
+void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags)
 {
 	spin_unlock_irqrestore((spinlock_t *) handle, flags);
 }

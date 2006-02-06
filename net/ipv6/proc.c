@@ -38,7 +38,7 @@ static int fold_prot_inuse(struct proto *proto)
 	int res = 0;
 	int cpu;
 
-	for (cpu=0; cpu<NR_CPUS; cpu++)
+	for_each_cpu(cpu)
 		res += proto->stats[cpu].inuse;
 
 	return res;

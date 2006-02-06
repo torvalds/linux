@@ -57,6 +57,7 @@
 #include <linux/smp_lock.h>	/* For (un)lock_kernel */
 #include <linux/mm.h>
 #include <linux/cdev.h>
+#include <linux/mutex.h>
 #if defined(__alpha__) || defined(__powerpc__)
 #include <asm/pgtable.h>	/* For pte_wrprotect */
 #endif
@@ -623,7 +624,7 @@ typedef struct drm_device {
 	/** \name Locks */
 	/*@{ */
 	spinlock_t count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
-	struct semaphore struct_sem;	/**< For others */
+	struct mutex struct_mutex;	/**< For others */
 	/*@} */
 
 	/** \name Usage Counters */
@@ -658,7 +659,7 @@ typedef struct drm_device {
 	/*@{ */
 	drm_ctx_list_t *ctxlist;	/**< Linked list of context handles */
 	int ctx_count;			/**< Number of context handles */
-	struct semaphore ctxlist_sem;	/**< For ctxlist */
+	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
 	drm_map_t **context_sareas;	    /**< per-context SAREA's */
 	int max_context;

@@ -76,7 +76,14 @@ struct cache_sizes {
 	kmem_cache_t	*cs_dmacachep;
 };
 extern struct cache_sizes malloc_sizes[];
+
+#ifndef CONFIG_DEBUG_SLAB
 extern void *__kmalloc(size_t, gfp_t);
+#else
+extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
+#define __kmalloc(size, flags) \
+    __kmalloc_track_caller(size, flags, __builtin_return_address(0))
+#endif
 
 static inline void *kmalloc(size_t size, gfp_t flags)
 {

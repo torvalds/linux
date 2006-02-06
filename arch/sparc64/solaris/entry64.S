@@ -180,6 +180,8 @@ solaris_sigsuspend:
 	 nop
 	call		sys_sigsuspend
 	 stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
+	b,pt		%xcc, ret_from_solaris
+	 nop
 
 	.globl		solaris_getpid
 solaris_getpid:

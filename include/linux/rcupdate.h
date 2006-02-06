@@ -240,11 +240,14 @@ extern int rcu_pending(int cpu);
  * This means that all preempt_disable code sequences, including NMI and
  * hardware-interrupt handlers, in progress on entry will have completed
  * before this primitive returns.  However, this does not guarantee that
- * softirq handlers will have completed, since in some kernels
+ * softirq handlers will have completed, since in some kernels, these
+ * handlers can run in process context, and can block.
  *
  * This primitive provides the guarantees made by the (deprecated)
  * synchronize_kernel() API.  In contrast, synchronize_rcu() only
  * guarantees that rcu_read_lock() sections will have completed.
+ * In "classic RCU", these two guarantees happen to be one and
+ * the same, but can differ in realtime RCU implementations.
  */
 #define synchronize_sched() synchronize_rcu()
 

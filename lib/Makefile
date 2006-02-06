@@ -9,7 +9,7 @@ lib-y := errno.o ctype.o string.o vsprintf.o cmdline.o \
 
 lib-y	+= kobject.o kref.o kobject_uevent.o klist.o
 
-obj-y += sort.o parser.o halfmd4.o
+obj-y += sort.o parser.o halfmd4.o iomap_copy.o
 
 ifeq ($(CONFIG_DEBUG_KOBJECT),y)
 CFLAGS_kobject.o += -DDEBUG

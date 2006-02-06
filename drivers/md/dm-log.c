@@ -112,7 +112,7 @@ void dm_destroy_dirty_log(struct dirty_log *log)
 /*
  * The on-disk version of the metadata.
  */
-#define MIRROR_DISK_VERSION 1
+#define MIRROR_DISK_VERSION 2
 #define LOG_OFFSET 2
 
 struct log_header {
@@ -157,7 +157,6 @@ struct log_c {
 	struct log_header *disk_header;
 
 	struct io_region bits_location;
-	uint32_t *disk_bits;
 };
 
 /*
@@ -166,20 +165,20 @@ struct log_c {
  */
 static  inline int log_test_bit(uint32_t *bs, unsigned bit)
 {
-	return test_bit(bit, (unsigned long *) bs) ? 1 : 0;
+	return ext2_test_bit(bit, (unsigned long *) bs) ? 1 : 0;
 }
 
 static inline void log_set_bit(struct log_c *l,
 			       uint32_t *bs, unsigned bit)
 {
-	set_bit(bit, (unsigned long *) bs);
+	ext2_set_bit(bit, (unsigned long *) bs);
 	l->touched = 1;
 }
 
 static inline void log_clear_bit(struct log_c *l,
 				 uint32_t *bs, unsigned bit)
 {
-	clear_bit(bit, (unsigned long *) bs);
+	ext2_clear_bit(bit, (unsigned long *) bs);
 	l->touched = 1;
 }
 
@@ -219,6 +218,11 @@ static int read_header(struct log_c *log)
 		log->header.nr_regions = 0;
 	}
 
+#ifdef __LITTLE_ENDIAN
+	if (log->header.version == 1)
+		log->header.version = 2;
+#endif
+
 	if (log->header.version != MIRROR_DISK_VERSION) {
 		DMWARN("incompatible disk log version");
 		return -EINVAL;
@@ -239,45 +243,24 @@ static inline int write_header(struct log_c *log)
 /*----------------------------------------------------------------
  * Bits IO
  *--------------------------------------------------------------*/
-static inline void bits_to_core(uint32_t *core, uint32_t *disk, unsigned count)
-{
-	unsigned i;
-
-	for (i = 0; i < count; i++)
-		core[i] = le32_to_cpu(disk[i]);
-}
-
-static inline void bits_to_disk(uint32_t *core, uint32_t *disk, unsigned count)
-{
-	unsigned i;
-
-	/* copy across the clean/dirty bitset */
-	for (i = 0; i < count; i++)
-		disk[i] = cpu_to_le32(core[i]);
-}
-
 static int read_bits(struct log_c *log)
 {
 	int r;
 	unsigned long ebits;
 
 	r = dm_io_sync_vm(1, &log->bits_location, READ,
-			  log->disk_bits, &ebits);
+			  log->clean_bits, &ebits);
 	if (r)
 		return r;
 
-	bits_to_core(log->clean_bits, log->disk_bits,
-		     log->bitset_uint32_count);
 	return 0;
 }
 
 static int write_bits(struct log_c *log)
 {
 	unsigned long ebits;
-	bits_to_disk(log->clean_bits, log->disk_bits,
-		     log->bitset_uint32_count);
 	return dm_io_sync_vm(1, &log->bits_location, WRITE,
-			     log->disk_bits, &ebits);
+			     log->clean_bits, &ebits);
 }
 
 /*----------------------------------------------------------------
@@ -433,11 +416,6 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 	size = dm_round_up(lc->bitset_uint32_count * sizeof(uint32_t),
 			   1 << SECTOR_SHIFT);
 	lc->bits_location.count = size >> SECTOR_SHIFT;
-	lc->disk_bits = vmalloc(size);
-	if (!lc->disk_bits) {
-		vfree(lc->disk_header);
-		goto bad;
-	}
 	return 0;
 
  bad:
@@ -451,7 +429,6 @@ static void disk_dtr(struct dirty_log *log)
 	struct log_c *lc = (struct log_c *) log->context;
 	dm_put_device(lc->ti, lc->log_dev);
 	vfree(lc->disk_header);
-	vfree(lc->disk_bits);
 	core_dtr(log);
 }
 
@@ -568,7 +545,8 @@ static int core_get_resync_work(struct dirty_log *log, region_t *region)
 		return 0;
 
 	do {
-		*region = find_next_zero_bit((unsigned long *) lc->sync_bits,
+		*region = ext2_find_next_zero_bit(
+					     (unsigned long *) lc->sync_bits,
 					     lc->region_count,
 					     lc->sync_search);
 		lc->sync_search = *region + 1;

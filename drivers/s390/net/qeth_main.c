@@ -1,6 +1,5 @@
 /*
- *
- * linux/drivers/s390/net/qeth_main.c ($Revision: 1.251 $)
+ * linux/drivers/s390/net/qeth_main.c
  *
  * Linux on zSeries OSA Express and HiperSockets support
  *
@@ -11,8 +10,6 @@
  *		 Rewritten by
  *			  Frank Pavlic (fpavlic@de.ibm.com) and
  *		 	  Thomas Spatzier <tspat@de.ibm.com>
- *
- *    $Revision: 1.251 $	 $Date: 2005/05/04 20:19:18 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +70,6 @@
 #include "qeth_eddp.h"
 #include "qeth_tso.h"
 
-#define VERSION_QETH_C "$Revision: 1.251 $"
 static const char *version = "qeth S/390 OSA-Express driver";
 
 /**
@@ -8626,12 +8622,7 @@ qeth_init(void)
 {
 	int rc=0;
 
-	PRINT_INFO("loading %s (%s/%s/%s/%s/%s/%s/%s %s %s)\n",
-		   version, VERSION_QETH_C, VERSION_QETH_H,
-		   VERSION_QETH_MPC_H, VERSION_QETH_MPC_C,
-		   VERSION_QETH_FS_H, VERSION_QETH_PROC_C,
-		   VERSION_QETH_SYS_C, QETH_VERSION_IPV6,
-		   QETH_VERSION_VLAN);
+	PRINT_INFO("loading %s\n", version);
 
 	INIT_LIST_HEAD(&qeth_card_list.list);
 	INIT_LIST_HEAD(&qeth_notify_list);

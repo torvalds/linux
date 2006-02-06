@@ -114,16 +114,16 @@ rcu_torture_alloc(void)
 {
 	struct list_head *p;
 
-	spin_lock(&rcu_torture_lock);
+	spin_lock_bh(&rcu_torture_lock);
 	if (list_empty(&rcu_torture_freelist)) {
 		atomic_inc(&n_rcu_torture_alloc_fail);
-		spin_unlock(&rcu_torture_lock);
+		spin_unlock_bh(&rcu_torture_lock);
 		return NULL;
 	}
 	atomic_inc(&n_rcu_torture_alloc);
 	p = rcu_torture_freelist.next;
 	list_del_init(p);
-	spin_unlock(&rcu_torture_lock);
+	spin_unlock_bh(&rcu_torture_lock);
 	return container_of(p, struct rcu_torture, rtort_free);
 }
 
@@ -134,9 +134,9 @@ static void
 rcu_torture_free(struct rcu_torture *p)
 {
 	atomic_inc(&n_rcu_torture_free);
-	spin_lock(&rcu_torture_lock);
+	spin_lock_bh(&rcu_torture_lock);
 	list_add_tail(&p->rtort_free, &rcu_torture_freelist);
-	spin_unlock(&rcu_torture_lock);
+	spin_unlock_bh(&rcu_torture_lock);
 }
 
 static void

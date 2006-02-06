@@ -11,7 +11,6 @@ menu 'EDAC - error detection and reporting (RAS)'
 config EDAC
 	tristate "EDAC core system error reporting"
 	depends on X86
-	default y
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -46,7 +45,7 @@ config EDAC_MM_EDAC
 
 config EDAC_AMD76X
 	tristate "AMD 76x (760, 762, 768)"
-	depends on EDAC_MM_EDAC  && PCI
+	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the AMD 76x
 	  series of chipsets used with the Athlon processor.

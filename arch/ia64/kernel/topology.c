@@ -71,31 +71,33 @@ static int __init topology_init(void)
 	int i, err = 0;
 
 #ifdef CONFIG_NUMA
-	sysfs_nodes = kmalloc(sizeof(struct node) * MAX_NUMNODES, GFP_KERNEL);
+	sysfs_nodes = kzalloc(sizeof(struct node) * MAX_NUMNODES, GFP_KERNEL);
 	if (!sysfs_nodes) {
 		err = -ENOMEM;
 		goto out;
 	}
-	memset(sysfs_nodes, 0, sizeof(struct node) * MAX_NUMNODES);
 
-	/* MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes? */
-	for_each_online_node(i)
+	/*
+	 * MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes?
+	 */
+	for_each_online_node(i) {
 		if ((err = register_node(&sysfs_nodes[i], i, 0)))
 			goto out;
+	}
 #endif
 
-	sysfs_cpus = kmalloc(sizeof(struct ia64_cpu) * NR_CPUS, GFP_KERNEL);
+	sysfs_cpus = kzalloc(sizeof(struct ia64_cpu) * NR_CPUS, GFP_KERNEL);
 	if (!sysfs_cpus) {
 		err = -ENOMEM;
 		goto out;
 	}
-	memset(sysfs_cpus, 0, sizeof(struct ia64_cpu) * NR_CPUS);
 
-	for_each_present_cpu(i)
+	for_each_present_cpu(i) {
 		if((err = arch_register_cpu(i)))
 			goto out;
+	}
 out:
 	return err;
 }
 
-__initcall(topology_init);
+subsys_initcall(topology_init);

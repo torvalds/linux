@@ -313,7 +313,7 @@ static struct platform_device mpsc1_device = {
 };
 #endif
 
-#ifdef CONFIG_MV643XX_ETH
+#if defined(CONFIG_MV643XX_ETH) || defined(CONFIG_MV643XX_ETH_MODULE)
 static struct resource mv64x60_eth_shared_resources[] = {
 	[0] = {
 		.name	= "ethernet shared base",
@@ -456,7 +456,7 @@ static struct platform_device *mv64x60_pd_devs[] __initdata = {
 	&mpsc0_device,
 	&mpsc1_device,
 #endif
-#ifdef CONFIG_MV643XX_ETH
+#if defined(CONFIG_MV643XX_ETH) || defined(CONFIG_MV643XX_ETH_MODULE)
 	&mv64x60_eth_shared_device,
 #endif
 #ifdef CONFIG_MV643XX_ETH_0

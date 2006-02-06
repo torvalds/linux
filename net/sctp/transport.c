@@ -350,7 +350,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	tp->rto_pending = 0;
 
 	SCTP_DEBUG_PRINTK("%s: transport: %p, rtt: %d, srtt: %d "
-			  "rttvar: %d, rto: %d\n", __FUNCTION__,
+			  "rttvar: %d, rto: %ld\n", __FUNCTION__,
 			  tp, rtt, tp->srtt, tp->rttvar, tp->rto);
 }
 

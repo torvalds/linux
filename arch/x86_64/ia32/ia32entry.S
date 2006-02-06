@@ -676,7 +676,7 @@ ia32_sys_call_table:
 	.quad sys_mkdirat
 	.quad sys_mknodat
 	.quad sys_fchownat
-	.quad sys_futimesat
+	.quad compat_sys_futimesat
 	.quad compat_sys_newfstatat	/* 300 */
 	.quad sys_unlinkat
 	.quad sys_renameat
