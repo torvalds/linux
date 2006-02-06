@@ -970,8 +970,8 @@ static struct tuner_params tuner_tnf_5335mf_params[] = {
 /* ------------ TUNER_SAMSUNG_TCPN_2121P30A - Samsung NTSC ------------ */
 
 static struct tuner_range tuner_samsung_tcpn_2121p30a_ntsc_ranges[] = {
-	{ 16 * 175.75 /*MHz*/, 0xce, 0x01, },
-	{ 16 * 410.25 /*MHz*/, 0xce, 0x02, },
+	{ 16 * 130.00 /*MHz*/, 0xce, 0x01, },
+	{ 16 * 364.50 /*MHz*/, 0xce, 0x02, },
 	{ 16 * 999.99        , 0xce, 0x08, },
 };
 
