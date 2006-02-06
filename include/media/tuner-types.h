@@ -46,6 +46,7 @@ struct tuner_params {
 
 struct tunertype {
 	char *name;
+	unsigned int count;
 	struct tuner_params *params;
 };
 
