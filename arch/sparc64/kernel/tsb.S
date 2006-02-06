@@ -82,9 +82,17 @@ tsb_itlb_load:
 	.globl		tsb_do_fault
 tsb_do_fault:
 	cmp		%g3, FAULT_CODE_DTLB
-	rdpr		%pstate, %g5
+
+661:	rdpr		%pstate, %g5
+	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
+	.section	.gl_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
 	bne,pn		%xcc, tsb_do_itlb_fault
-	 wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
+	 nop
 
 tsb_do_dtlb_fault:
 	rdpr	%tl, %g4

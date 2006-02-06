@@ -60,8 +60,15 @@ kvmap_itlb_load:
 	retry
 
 kvmap_itlb_longpath:
-	rdpr	%pstate, %g5
+
+661:	rdpr	%pstate, %g5
 	wrpr	%g5, PSTATE_AG | PSTATE_MG, %pstate
+	.section .gl_2insn_patch, "ax"
+	.word	661b
+	nop
+	nop
+	.previous
+
 	rdpr	%tpc, %g5
 	ba,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_ITLB, %g4
@@ -161,8 +168,15 @@ kvmap_check_obp:
 	 nop
 
 kvmap_dtlb_longpath:
-	rdpr	%pstate, %g5
+
+661:	rdpr	%pstate, %g5
 	wrpr	%g5, PSTATE_AG | PSTATE_MG, %pstate
+	.section .gl_2insn_patch, "ax"
+	.word	661b
+	nop
+	nop
+	.previous
+
 	rdpr	%tl, %g4
 	cmp	%g4, 1
 	mov	TLB_TAG_ACCESS, %g4

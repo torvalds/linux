@@ -547,19 +547,33 @@ static void __init per_cpu_patch(void)
 
 static void __init gl_patch(void)
 {
-	struct gl_1insn_patch_entry *p;
+	struct gl_1insn_patch_entry *p1;
+	struct gl_2insn_patch_entry *p2;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	p = &__gl_1insn_patch;
-	while (p < &__gl_1insn_patch_end) {
-		unsigned long addr = p->addr;
+	p1 = &__gl_1insn_patch;
+	while (p1 < &__gl_1insn_patch_end) {
+		unsigned long addr = p1->addr;
 
-		*(unsigned int *) (addr +  0) = p->insn;
+		*(unsigned int *) (addr +  0) = p1->insn;
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
 
-		p++;
+		p1++;
+	}
+
+	p2 = &__gl_2insn_patch;
+	while (p2 < &__gl_2insn_patch_end) {
+		unsigned long addr = p2->addr;
+
+		*(unsigned int *) (addr +  0) = p2->insns[0];
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  3) = p2->insns[1];
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		p2++;
 	}
 }
 

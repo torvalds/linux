@@ -78,6 +78,12 @@ struct gl_1insn_patch_entry {
 	unsigned int	insn;
 };
 extern struct gl_1insn_patch_entry __gl_1insn_patch, __gl_1insn_patch_end;
+
+struct gl_2insn_patch_entry {
+	unsigned int	addr;
+	unsigned int	insns[2];
+};
+extern struct gl_2insn_patch_entry __gl_2insn_patch, __gl_2insn_patch_end;
 #endif /* !(__ASSEMBLY__) */
 
 #define TRAP_PER_CPU_THREAD	0x00

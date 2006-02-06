@@ -444,8 +444,15 @@ xcall_flush_tlb_kernel_range:	/* 22 insns */
 	 */
 	.globl		xcall_sync_tick
 xcall_sync_tick:
-	rdpr		%pstate, %g2
+
+661:	rdpr		%pstate, %g2
 	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
+	.section	.gl_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
 	rdpr		%pil, %g2
 	wrpr		%g0, 15, %pil
 	sethi		%hi(109f), %g7
@@ -468,8 +475,15 @@ xcall_sync_tick:
 	 */
 	.globl		xcall_report_regs
 xcall_report_regs:
-	rdpr		%pstate, %g2
+
+661:	rdpr		%pstate, %g2
 	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
+	.section	.gl_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
 	rdpr		%pil, %g2
 	wrpr		%g0, 15, %pil
 	sethi		%hi(109f), %g7

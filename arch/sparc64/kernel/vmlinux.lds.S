@@ -80,6 +80,9 @@ SECTIONS
   __gl_1insn_patch = .;
   .gl_1insn_patch : { *(.gl_1insn_patch) }
   __gl_1insn_patch_end = .;
+  __gl_2insn_patch = .;
+  .gl_2insn_patch : { *(.gl_2insn_patch) }
+  __gl_2insn_patch_end = .;
   . = ALIGN(8192); 
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
