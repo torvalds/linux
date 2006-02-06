@@ -98,37 +98,40 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		stxa	%g3, [%l4] ASI_DMMU
 		sethi	%hi(KERNBASE), %l4
 		flush	%l4
-		wr	%g0, ASI_AIUS, %asi
-2:		wrpr	%g0, 0x0, %tl
-		mov	%g4, %l4
+		mov	ASI_AIUS, %l7
+2:		mov	%g4, %l4
 		mov	%g5, %l5
-
-		mov	%g7, %l2
+		add	%g7, 4, %l2
 		wrpr	%g0, ETRAP_PSTATE1, %pstate
 		stx	%g1, [%sp + PTREGS_OFF + PT_V9_G1]
 		stx	%g2, [%sp + PTREGS_OFF + PT_V9_G2]
+		sllx	%l7, 24, %l7
 		stx	%g3, [%sp + PTREGS_OFF + PT_V9_G3]
+		rdpr	%cwp, %l0
 		stx	%g4, [%sp + PTREGS_OFF + PT_V9_G4]
 		stx	%g5, [%sp + PTREGS_OFF + PT_V9_G5]
 		stx	%g6, [%sp + PTREGS_OFF + PT_V9_G6]
-
 		stx	%g7, [%sp + PTREGS_OFF + PT_V9_G7]
+		or	%l7, %l0, %l7
+		sethi	%hi(TSTATE_RMO | TSTATE_PEF), %l0
+		or	%l7, %l0, %l7
+		wrpr	%l2, %tnpc
+		wrpr	%l7, (TSTATE_PRIV | TSTATE_IE), %tstate
 		stx	%i0, [%sp + PTREGS_OFF + PT_V9_I0]
 		stx	%i1, [%sp + PTREGS_OFF + PT_V9_I1]
 		stx	%i2, [%sp + PTREGS_OFF + PT_V9_I2]
 		stx	%i3, [%sp + PTREGS_OFF + PT_V9_I3]
 		stx	%i4, [%sp + PTREGS_OFF + PT_V9_I4]
 		stx	%i5, [%sp + PTREGS_OFF + PT_V9_I5]
-
 		stx	%i6, [%sp + PTREGS_OFF + PT_V9_I6]
-		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
-		wrpr	%g0, ETRAP_PSTATE2, %pstate
 		mov	%l6, %g6
+		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
 		LOAD_PER_CPU_BASE(%g5, %g6, %g4, %g3, %l1)
-		jmpl	%l2 + 0x4, %g0
-		 ldx	[%g6 + TI_TASK], %g4
+		ldx	[%g6 + TI_TASK], %g4
+		done
 
-3:		ldub	[%l6 + TI_FPDEPTH], %l5
+3:		mov	ASI_P, %l7
+		ldub	[%l6 + TI_FPDEPTH], %l5
 		add	%l6, TI_FPSAVED + 1, %l4
 		srl	%l5, 1, %l3
 		add	%l5, 2, %l5
