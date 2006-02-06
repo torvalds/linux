@@ -224,7 +224,8 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		ldx			[%sp + PTREGS_OFF + PT_V9_G4], %g4
 		ldx			[%sp + PTREGS_OFF + PT_V9_G5], %g5
 		brz,pt			%l3, 1f
-		 nop
+		mov			%g6, %l2
+
 		/* Must do this before thread reg is clobbered below.  */
 		LOAD_PER_CPU_BASE(%g5, %g6, %i0, %i1, %i2)
 1:
@@ -237,6 +238,8 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		.word			661b
 		SET_GL(1)
 		.previous
+
+		mov			%l2, %g6
 
 		ldx			[%sp + PTREGS_OFF + PT_V9_I0], %i0
 		ldx			[%sp + PTREGS_OFF + PT_V9_I1], %i1
