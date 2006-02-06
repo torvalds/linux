@@ -242,7 +242,6 @@ static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
 		drive->name[2]			= 'a' + (index * MAX_DRIVES) + unit;
 		drive->max_failures		= IDE_DEFAULT_MAX_FAILURES;
 		drive->using_dma		= 0;
-		drive->is_flash			= 0;
 		drive->vdma			= 0;
 		INIT_LIST_HEAD(&drive->list);
 		init_completion(&drive->gendev_rel_comp);

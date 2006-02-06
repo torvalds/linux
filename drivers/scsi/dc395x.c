@@ -246,6 +246,7 @@ struct ScsiReqBlk {
 	 * total_xfer_length in xferred. These values are restored in
 	 * pci_unmap_srb_sense. This is the only place xferred is used.
 	 */
+	unsigned char *virt_addr_req;	/* Saved virtual address of the request buffer */
 	u32 xferred;		        /* Saved copy of total_xfer_length */
 
 	u16 state;
@@ -2017,7 +2018,7 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 	sg_verify_length(srb);
 
 	/* we need the corresponding virtual address */
-	if (!segment) {
+	if (!segment || (srb->flag & AUTO_REQSENSE)) {
 		srb->virt_addr += xferred;
 		return;
 	}
@@ -3318,6 +3319,7 @@ static void pci_unmap_srb_sense(struct AdapterCtlBlk *acb,
 	    srb->segment_x[DC395x_MAX_SG_LISTENTRY - 1].address;
 	srb->segment_x[0].length =
 	    srb->segment_x[DC395x_MAX_SG_LISTENTRY - 1].length;
+	srb->virt_addr = srb->virt_addr_req;
 }
 
 
@@ -3711,6 +3713,8 @@ static void request_sense(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 	srb->xferred = srb->total_xfer_length;
 	/* srb->segment_x : a one entry of S/G list table */
 	srb->total_xfer_length = sizeof(cmd->sense_buffer);
+	srb->virt_addr_req = srb->virt_addr;
+	srb->virt_addr = cmd->sense_buffer;
 	srb->segment_x[0].length = sizeof(cmd->sense_buffer);
 	/* Map sense buffer */
 	srb->segment_x[0].address =

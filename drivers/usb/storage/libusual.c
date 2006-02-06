@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(usb_usual_check_type);
 static int usu_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
-	int type;
+	unsigned long type;
 	int rc;
 	unsigned long flags;
 

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -110,10 +110,9 @@ acpi_status acpi_ns_root_initialize(void)
 					ACPI_NS_NO_UPSEARCH, NULL, &new_node);
 
 		if (ACPI_FAILURE(status) || (!new_node)) {	/* Must be on same line for code converter */
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not create predefined name %s, %s\n",
-					  init_val->name,
-					  acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not create predefined name %s",
+					init_val->name));
 		}
 
 		/*
@@ -124,9 +123,9 @@ acpi_status acpi_ns_root_initialize(void)
 		if (init_val->val) {
 			status = acpi_os_predefined_override(init_val, &val);
 			if (ACPI_FAILURE(status)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Could not override predefined %s\n",
-						  init_val->name));
+				ACPI_ERROR((AE_INFO,
+					    "Could not override predefined %s",
+					    init_val->name));
 			}
 
 			if (!val) {
@@ -233,7 +232,9 @@ acpi_status acpi_ns_root_initialize(void)
 
 			default:
 
-				ACPI_REPORT_ERROR(("Unsupported initial type value %X\n", init_val->type));
+				ACPI_ERROR((AE_INFO,
+					    "Unsupported initial type value %X",
+					    init_val->type));
 				acpi_ut_remove_reference(obj_desc);
 				obj_desc = NULL;
 				continue;
@@ -339,7 +340,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		prefix_node = scope_info->scope.node;
 		if (ACPI_GET_DESCRIPTOR_TYPE(prefix_node) !=
 		    ACPI_DESC_TYPE_NAMED) {
-			ACPI_REPORT_ERROR(("ns_lookup: %p is not a namespace node [%s]\n", prefix_node, acpi_ut_get_descriptor_name(prefix_node)));
+			ACPI_ERROR((AE_INFO, "%p is not a namespace node [%s]",
+				    prefix_node,
+				    acpi_ut_get_descriptor_name(prefix_node)));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
@@ -429,7 +432,8 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				if (!this_node) {
 					/* Current scope has no parent scope */
 
-					ACPI_REPORT_ERROR(("ACPI path has too many parent prefixes (^) - reached beyond root node\n"));
+					ACPI_ERROR((AE_INFO,
+						    "ACPI path has too many parent prefixes (^) - reached beyond root node"));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}
@@ -498,7 +502,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			path++;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "Multi Pathname (%d Segments, Flags=%X) \n",
+					  "Multi Pathname (%d Segments, Flags=%X)\n",
 					  num_segments, flags));
 			break;
 
@@ -600,7 +604,12 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		    (this_node->type != type_to_check_for)) {
 			/* Complain about a type mismatch */
 
-			ACPI_REPORT_WARNING(("ns_lookup: Type mismatch on %4.4s (%s), searching for (%s)\n", (char *)&simple_name, acpi_ut_get_type_name(this_node->type), acpi_ut_get_type_name(type_to_check_for)));
+			ACPI_WARNING((AE_INFO,
+				      "ns_lookup: Type mismatch on %4.4s (%s), searching for (%s)",
+				      ACPI_CAST_PTR(char, &simple_name),
+				      acpi_ut_get_type_name(this_node->type),
+				      acpi_ut_get_type_name
+				      (type_to_check_for)));
 		}
 
 		/*

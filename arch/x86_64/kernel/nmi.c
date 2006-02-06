@@ -24,6 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/nmi.h>
 #include <linux/sysctl.h>
+#include <linux/kprobes.h>
 
 #include <asm/smp.h>
 #include <asm/mtrr.h>
@@ -468,7 +469,7 @@ void touch_nmi_watchdog (void)
  	touch_softlockup_watchdog();
 }
 
-void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
+void __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 {
 	int sum;
 	int touched = 0;
@@ -512,14 +513,14 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 	}
 }
 
-static int dummy_nmi_callback(struct pt_regs * regs, int cpu)
+static __kprobes int dummy_nmi_callback(struct pt_regs * regs, int cpu)
 {
 	return 0;
 }
  
 static nmi_callback_t nmi_callback = dummy_nmi_callback;
  
-asmlinkage void do_nmi(struct pt_regs * regs, long error_code)
+asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu = safe_smp_processor_id();
 

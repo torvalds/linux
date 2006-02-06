@@ -24,21 +24,21 @@
 #ifndef	_USBATM_H_
 #define	_USBATM_H_
 
-#include <linux/config.h>
-
-/*
-#define VERBOSE_DEBUG
-*/
-
 #include <asm/semaphore.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/completion.h>
 #include <linux/device.h>
+#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/stringify.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
+
+/*
+#define VERBOSE_DEBUG
+*/
 
 #ifdef DEBUG
 #define UDSL_ASSERT(x)	BUG_ON(!(x))
@@ -52,8 +52,13 @@
 	dev_info(&(instance)->usb_intf->dev , format , ## arg)
 #define usb_warn(instance, format, arg...)	\
 	dev_warn(&(instance)->usb_intf->dev , format , ## arg)
+#ifdef DEBUG
 #define usb_dbg(instance, format, arg...)	\
-	dev_dbg(&(instance)->usb_intf->dev , format , ## arg)
+        dev_printk(KERN_DEBUG , &(instance)->usb_intf->dev , format , ## arg)
+#else
+#define usb_dbg(instance, format, arg...)	\
+	do {} while (0)
+#endif
 
 /* FIXME: move to dev_* once ATM is driver model aware */
 #define atm_printk(level, instance, format, arg...)	\
@@ -69,10 +74,22 @@
 #ifdef DEBUG
 #define atm_dbg(instance, format, arg...)	\
 	atm_printk(KERN_DEBUG, instance , format , ## arg)
+#define atm_rldbg(instance, format, arg...)	\
+	if (printk_ratelimit())				\
+		atm_printk(KERN_DEBUG, instance , format , ## arg)
 #else
 #define atm_dbg(instance, format, arg...)	\
 	do {} while (0)
+#define atm_rldbg(instance, format, arg...)	\
+	do {} while (0)
 #endif
+
+
+/* flags, set by mini-driver in bind() */
+
+#define UDSL_SKIP_HEAVY_INIT	(1<<0)
+#define UDSL_USE_ISOC		(1<<1)
+#define UDSL_IGNORE_EILSEQ	(1<<2)
 
 
 /* mini driver */
@@ -86,16 +103,11 @@ struct usbatm_data;
 */
 
 struct usbatm_driver {
-	struct module *owner;
-
 	const char *driver_name;
 
-	/*
-	*  init device ... can sleep, or cause probe() failure.  Drivers with a heavy_init
-	*  method can avoid having it called by setting need_heavy_init to zero.
-	*/
+	/* init device ... can sleep, or cause probe() failure */
         int (*bind) (struct usbatm_data *, struct usb_interface *,
-		     const struct usb_device_id *id, int *need_heavy_init);
+		     const struct usb_device_id *id);
 
 	/* additional device initialization that is too slow to be done in probe() */
         int (*heavy_init) (struct usbatm_data *, struct usb_interface *);
@@ -109,8 +121,9 @@ struct usbatm_driver {
 	/* cleanup ATM device ... can sleep, but can't fail */
 	void (*atm_stop) (struct usbatm_data *, struct atm_dev *);
 
-        int in;		/* rx endpoint */
-        int out;	/* tx endpoint */
+        int bulk_in;	/* bulk rx endpoint */
+        int isoc_in;	/* isochronous rx endpoint */
+        int bulk_out;	/* bulk tx endpoint */
 
 	unsigned rx_padding;
 	unsigned tx_padding;
@@ -125,6 +138,7 @@ struct usbatm_channel {
 	int endpoint;			/* usb pipe */
 	unsigned int stride;		/* ATM cell size + padding */
 	unsigned int buf_size;		/* urb buffer size */
+	unsigned int packet_size;	/* endpoint maxpacket */
 	spinlock_t lock;
 	struct list_head list;
 	struct tasklet_struct tasklet;
@@ -143,6 +157,7 @@ struct usbatm_data {
 	struct usbatm_driver *driver;
 	void *driver_data;
 	char driver_name[16];
+	unsigned int flags; /* set by mini-driver in bind() */
 
 	/* USB device */
 	struct usb_device *usb_dev;
@@ -157,7 +172,8 @@ struct usbatm_data {
         ********************************/
 
 	struct kref refcount;
-	struct semaphore serialize;
+	struct mutex serialize;
+	int disconnected;
 
 	/* heavy init */
 	int thread_pid;
@@ -171,7 +187,14 @@ struct usbatm_data {
 	struct usbatm_channel tx_channel;
 
 	struct sk_buff_head sndqueue;
-	struct sk_buff *current_skb;			/* being emptied */
+	struct sk_buff *current_skb;	/* being emptied */
+
+	struct usbatm_vcc_data *cached_vcc;
+	int cached_vci;
+	short cached_vpi;
+
+	unsigned char *cell_buf;	/* holds partial rx cell */
+	unsigned int buf_usage;
 
 	struct urb *urbs[0];
 };

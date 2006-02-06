@@ -37,7 +37,7 @@
 #include "../bridge/br_private.h"
 #endif
 
-#define NFULNL_NLBUFSIZ_DEFAULT	4096
+#define NFULNL_NLBUFSIZ_DEFAULT	NLMSG_GOODSIZE
 #define NFULNL_TIMEOUT_DEFAULT 	100	/* every second */
 #define NFULNL_QTHRESH_DEFAULT 	100	/* 100 packets */
 
@@ -314,24 +314,28 @@ static struct sk_buff *nfulnl_alloc_skb(unsigned int inst_size,
 					unsigned int pkt_size)
 {
 	struct sk_buff *skb;
+	unsigned int n;
 
 	UDEBUG("entered (%u, %u)\n", inst_size, pkt_size);
 
 	/* alloc skb which should be big enough for a whole multipart
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
-	skb = alloc_skb(inst_size, GFP_ATOMIC);
+	n = max(inst_size, pkt_size);
+	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
 		PRINTR("nfnetlink_log: can't alloc whole buffer (%u bytes)\n",
 			inst_size);
 
-		/* try to allocate only as much as we need for current
-		 * packet */
+		if (n > pkt_size) {
+			/* try to allocate only as much as we need for current
+			 * packet */
 
-		skb = alloc_skb(pkt_size, GFP_ATOMIC);
-		if (!skb)
-			PRINTR("nfnetlink_log: can't even alloc %u bytes\n",
-				pkt_size);
+			skb = alloc_skb(pkt_size, GFP_ATOMIC);
+			if (!skb)
+				PRINTR("nfnetlink_log: can't even alloc %u "
+				       "bytes\n", pkt_size);
+		}
 	}
 
 	return skb;

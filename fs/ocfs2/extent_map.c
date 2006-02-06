@@ -262,8 +262,7 @@ static int ocfs2_extent_map_find_leaf(struct inode *inode,
 		el = &eb->h_list;
 	}
 
-	if (el->l_tree_depth)
-		BUG();
+	BUG_ON(el->l_tree_depth);
 
 	for (i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
 		rec = &el->l_recs[i];
@@ -364,8 +363,8 @@ static int ocfs2_extent_map_lookup_read(struct inode *inode,
 		return ret;
 	}
 
-	if (ent->e_tree_depth)
-		BUG();  /* FIXME: Make sure this isn't a corruption */
+	/* FIXME: Make sure this isn't a corruption */
+	BUG_ON(ent->e_tree_depth);
 
 	*ret_ent = ent;
 
@@ -423,8 +422,7 @@ static int ocfs2_extent_map_try_insert(struct inode *inode,
 					  le32_to_cpu(rec->e_clusters), NULL,
 					  NULL);
 
-	if (!old_ent)
-		BUG();
+	BUG_ON(!old_ent);
 
 	ret = -EEXIST;
 	if (old_ent->e_tree_depth < tree_depth)
@@ -988,7 +986,7 @@ int __init init_ocfs2_extent_maps(void)
 	return 0;
 }
 
-void __exit exit_ocfs2_extent_maps(void)
+void exit_ocfs2_extent_maps(void)
 {
 	kmem_cache_destroy(ocfs2_em_ent_cachep);
 }

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,8 +93,7 @@ acpi_status acpi_ns_initialize_objects(void)
 				     ACPI_UINT32_MAX, acpi_ns_init_one_object,
 				     &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed! %s\n",
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
@@ -159,12 +158,11 @@ acpi_status acpi_ns_initialize_devices(void)
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed! %s\n",
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\n%hd Devices found containing: %hd _STA, %hd _INI methods\n",
+			      "\n%hd Devices found - executed %hd _STA, %hd _INI methods\n",
 			      info.device_count, info.num_STA, info.num_INI));
 
 	return_ACPI_STATUS(status);
@@ -289,12 +287,10 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_ERROR, "\n"));
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not execute arguments for [%4.4s] (%s), %s\n",
-				  acpi_ut_get_node_name(node),
-				  acpi_ut_get_type_name(type),
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not execute arguments for [%4.4s] (%s)",
+				acpi_ut_get_node_name(node),
+				acpi_ut_get_type_name(type)));
 	}
 
 	/*
@@ -336,23 +332,22 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	struct acpi_parameter_info pinfo;
 	u32 flags;
 	acpi_status status;
+	struct acpi_namespace_node *ini_node;
+	struct acpi_namespace_node *device_node;
 
 	ACPI_FUNCTION_TRACE("ns_init_one_device");
 
-	pinfo.parameters = NULL;
-	pinfo.parameter_type = ACPI_PARAM_ARGS;
-
-	pinfo.node = acpi_ns_map_handle_to_node(obj_handle);
-	if (!pinfo.node) {
+	device_node = acpi_ns_map_handle_to_node(obj_handle);
+	if (!device_node) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/*
 	 * We will run _STA/_INI on Devices, Processors and thermal_zones only
 	 */
-	if ((pinfo.node->type != ACPI_TYPE_DEVICE) &&
-	    (pinfo.node->type != ACPI_TYPE_PROCESSOR) &&
-	    (pinfo.node->type != ACPI_TYPE_THERMAL)) {
+	if ((device_node->type != ACPI_TYPE_DEVICE) &&
+	    (device_node->type != ACPI_TYPE_PROCESSOR) &&
+	    (device_node->type != ACPI_TYPE_THERMAL)) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -364,57 +359,69 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	info->device_count++;
 
 	/*
-	 * Run _STA to determine if we can run _INI on the device.
+	 * Check if the _INI method exists for this device -
+	 * if _INI does not exist, there is no need to run _STA
+	 * No _INI means device requires no initialization
 	 */
-	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname(ACPI_TYPE_METHOD,
-						      pinfo.node,
-						      METHOD_NAME__STA));
-	status = acpi_ut_execute_STA(pinfo.node, &flags);
-
+	status = acpi_ns_search_node(*ACPI_CAST_PTR(u32, METHOD_NAME__INI),
+				     device_node, ACPI_TYPE_METHOD, &ini_node);
 	if (ACPI_FAILURE(status)) {
-		if (pinfo.node->type == ACPI_TYPE_DEVICE) {
-			/* Ignore error and move on to next device */
+		/* No _INI method found - move on to next device */
 
-			return_ACPI_STATUS(AE_OK);
-		}
-
-		/* _STA is not required for Processor or thermal_zone objects */
-	} else {
-		info->num_STA++;
-
-		if (!(flags & 0x01)) {
-			/* Don't look at children of a not present device */
-
-			return_ACPI_STATUS(AE_CTRL_DEPTH);
-		}
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/*
-	 * The device is present. Run _INI.
+	 * Run _STA to determine if we can run _INI on the device -
+	 * the device must be present before _INI can be run.
+	 * However, _STA is not required - assume device present if no _STA
+	 */
+	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname(ACPI_TYPE_METHOD,
+						      device_node,
+						      METHOD_NAME__STA));
+
+	pinfo.node = device_node;
+	pinfo.parameters = NULL;
+	pinfo.parameter_type = ACPI_PARAM_ARGS;
+
+	status = acpi_ut_execute_STA(pinfo.node, &flags);
+	if (ACPI_FAILURE(status)) {
+		/* Ignore error and move on to next device */
+
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	if (flags != ACPI_UINT32_MAX) {
+		info->num_STA++;
+	}
+
+	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
+		/* Don't look at children of a not present device */
+
+		return_ACPI_STATUS(AE_CTRL_DEPTH);
+	}
+
+	/*
+	 * The device is present and _INI exists. Run the _INI method.
+	 * (We already have the _INI node from above)
 	 */
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname(ACPI_TYPE_METHOD,
 						      pinfo.node,
 						      METHOD_NAME__INI));
-	status = acpi_ns_evaluate_relative(METHOD_NAME__INI, &pinfo);
-	if (ACPI_FAILURE(status)) {
-		/* No _INI (AE_NOT_FOUND) means device requires no initialization */
 
-		if (status != AE_NOT_FOUND) {
-			/* Ignore error and move on to next device */
+	pinfo.node = ini_node;
+	status = acpi_ns_evaluate_by_handle(&pinfo);
+	if (ACPI_FAILURE(status)) {
+		/* Ignore error and move on to next device */
 
 #ifdef ACPI_DEBUG_OUTPUT
-			char *scope_name =
-			    acpi_ns_get_external_pathname(pinfo.node);
+		char *scope_name = acpi_ns_get_external_pathname(ini_node);
 
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN, "%s._INI failed: %s\n",
-					  scope_name,
-					  acpi_format_exception(status)));
+		ACPI_WARNING((AE_INFO, "%s._INI failed: %s",
+			      scope_name, acpi_format_exception(status)));
 
-			ACPI_MEM_FREE(scope_name);
+		ACPI_MEM_FREE(scope_name);
 #endif
-		}
-
-		status = AE_OK;
 	} else {
 		/* Delete any return object (especially if implicit_return is enabled) */
 
@@ -434,5 +441,5 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 		    acpi_gbl_init_handler(pinfo.node, ACPI_INIT_DEVICE_INI);
 	}
 
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }

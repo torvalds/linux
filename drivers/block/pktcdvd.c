@@ -43,8 +43,6 @@
  *
  *************************************************************************/
 
-#define VERSION_CODE	"v0.2.0a 2004-07-14 Jens Axboe (axboe@suse.de) and petero2@telia.com"
-
 #include <linux/pktcdvd.h>
 #include <linux/config.h>
 #include <linux/module.h>
@@ -131,7 +129,7 @@ static struct bio *pkt_bio_alloc(int nr_iovecs)
 /*
  * Allocate a packet_data struct
  */
-static struct packet_data *pkt_alloc_packet_data(void)
+static struct packet_data *pkt_alloc_packet_data(int frames)
 {
 	int i;
 	struct packet_data *pkt;
@@ -140,11 +138,12 @@ static struct packet_data *pkt_alloc_packet_data(void)
 	if (!pkt)
 		goto no_pkt;
 
-	pkt->w_bio = pkt_bio_alloc(PACKET_MAX_SIZE);
+	pkt->frames = frames;
+	pkt->w_bio = pkt_bio_alloc(frames);
 	if (!pkt->w_bio)
 		goto no_bio;
 
-	for (i = 0; i < PAGES_PER_PACKET; i++) {
+	for (i = 0; i < frames / FRAMES_PER_PAGE; i++) {
 		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
 		if (!pkt->pages[i])
 			goto no_page;
@@ -152,7 +151,7 @@ static struct packet_data *pkt_alloc_packet_data(void)
 
 	spin_lock_init(&pkt->lock);
 
-	for (i = 0; i < PACKET_MAX_SIZE; i++) {
+	for (i = 0; i < frames; i++) {
 		struct bio *bio = pkt_bio_alloc(1);
 		if (!bio)
 			goto no_rd_bio;
@@ -162,14 +161,14 @@ static struct packet_data *pkt_alloc_packet_data(void)
 	return pkt;
 
 no_rd_bio:
-	for (i = 0; i < PACKET_MAX_SIZE; i++) {
+	for (i = 0; i < frames; i++) {
 		struct bio *bio = pkt->r_bios[i];
 		if (bio)
 			bio_put(bio);
 	}
 
 no_page:
-	for (i = 0; i < PAGES_PER_PACKET; i++)
+	for (i = 0; i < frames / FRAMES_PER_PAGE; i++)
 		if (pkt->pages[i])
 			__free_page(pkt->pages[i]);
 	bio_put(pkt->w_bio);
@@ -186,12 +185,12 @@ static void pkt_free_packet_data(struct packet_data *pkt)
 {
 	int i;
 
-	for (i = 0; i < PACKET_MAX_SIZE; i++) {
+	for (i = 0; i < pkt->frames; i++) {
 		struct bio *bio = pkt->r_bios[i];
 		if (bio)
 			bio_put(bio);
 	}
-	for (i = 0; i < PAGES_PER_PACKET; i++)
+	for (i = 0; i < pkt->frames / FRAMES_PER_PAGE; i++)
 		__free_page(pkt->pages[i]);
 	bio_put(pkt->w_bio);
 	kfree(pkt);
@@ -206,17 +205,17 @@ static void pkt_shrink_pktlist(struct pktcdvd_device *pd)
 	list_for_each_entry_safe(pkt, next, &pd->cdrw.pkt_free_list, list) {
 		pkt_free_packet_data(pkt);
 	}
+	INIT_LIST_HEAD(&pd->cdrw.pkt_free_list);
 }
 
 static int pkt_grow_pktlist(struct pktcdvd_device *pd, int nr_packets)
 {
 	struct packet_data *pkt;
 
-	INIT_LIST_HEAD(&pd->cdrw.pkt_free_list);
-	INIT_LIST_HEAD(&pd->cdrw.pkt_active_list);
-	spin_lock_init(&pd->cdrw.active_list_lock);
+	BUG_ON(!list_empty(&pd->cdrw.pkt_free_list));
+
 	while (nr_packets > 0) {
-		pkt = pkt_alloc_packet_data();
+		pkt = pkt_alloc_packet_data(pd->settings.size >> 2);
 		if (!pkt) {
 			pkt_shrink_pktlist(pd);
 			return 0;
@@ -951,7 +950,7 @@ try_next_bio:
 
 	pd->current_sector = zone + pd->settings.size;
 	pkt->sector = zone;
-	pkt->frames = pd->settings.size >> 2;
+	BUG_ON(pkt->frames != pd->settings.size >> 2);
 	pkt->write_size = 0;
 
 	/*
@@ -1639,7 +1638,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	pd->settings.size = be32_to_cpu(ti.fixed_packet_size) << 2;
 	if (pd->settings.size == 0) {
 		printk("pktcdvd: detected zero packet size!\n");
-		pd->settings.size = 128;
+		return -ENXIO;
 	}
 	if (pd->settings.size > PACKET_MAX_SECTORS) {
 		printk("pktcdvd: packet size is too big\n");
@@ -1987,8 +1986,14 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	if ((ret = pkt_set_segment_merging(pd, q)))
 		goto out_unclaim;
 
-	if (write)
+	if (write) {
+		if (!pkt_grow_pktlist(pd, CONFIG_CDROM_PKTCDVD_BUFFERS)) {
+			printk("pktcdvd: not enough memory for buffers\n");
+			ret = -ENOMEM;
+			goto out_unclaim;
+		}
 		printk("pktcdvd: %lukB available on disc\n", lba << 1);
+	}
 
 	return 0;
 
@@ -2014,6 +2019,8 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 	pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
 	bd_release(pd->bdev);
 	blkdev_put(pd->bdev);
+
+	pkt_shrink_pktlist(pd);
 }
 
 static struct pktcdvd_device *pkt_find_dev_from_minor(int dev_minor)
@@ -2379,12 +2386,6 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	/* This is safe, since we have a reference from open(). */
 	__module_get(THIS_MODULE);
 
-	if (!pkt_grow_pktlist(pd, CONFIG_CDROM_PKTCDVD_BUFFERS)) {
-		printk("pktcdvd: not enough memory for buffers\n");
-		ret = -ENOMEM;
-		goto out_mem;
-	}
-
 	pd->bdev = bdev;
 	set_blocksize(bdev, CD_FRAMESIZE);
 
@@ -2395,7 +2396,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	if (IS_ERR(pd->cdrw.thread)) {
 		printk("pktcdvd: can't start kernel thread\n");
 		ret = -ENOMEM;
-		goto out_thread;
+		goto out_mem;
 	}
 
 	proc = create_proc_entry(pd->name, 0, pkt_proc);
@@ -2406,8 +2407,6 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	DPRINTK("pktcdvd: writer %s mapped to %s\n", pd->name, bdevname(bdev, b));
 	return 0;
 
-out_thread:
-	pkt_shrink_pktlist(pd);
 out_mem:
 	blkdev_put(bdev);
 	/* This is safe: open() is still holding a reference. */
@@ -2503,6 +2502,10 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 		goto out_mem;
 	pd->disk = disk;
 
+	INIT_LIST_HEAD(&pd->cdrw.pkt_free_list);
+	INIT_LIST_HEAD(&pd->cdrw.pkt_active_list);
+	spin_lock_init(&pd->cdrw.active_list_lock);
+
 	spin_lock_init(&pd->lock);
 	spin_lock_init(&pd->iosched.lock);
 	sprintf(pd->name, "pktcdvd%d", idx);
@@ -2566,8 +2569,6 @@ static int pkt_remove_dev(struct pkt_ctrl_command *ctrl_cmd)
 		kthread_stop(pd->cdrw.thread);
 
 	blkdev_put(pd->bdev);
-
-	pkt_shrink_pktlist(pd);
 
 	remove_proc_entry(pd->name, pkt_proc);
 	DPRINTK("pktcdvd: writer %s unmapped\n", pd->name);
@@ -2678,7 +2679,6 @@ static int __init pkt_init(void)
 
 	pkt_proc = proc_mkdir("pktcdvd", proc_root_driver);
 
-	DPRINTK("pktcdvd: %s\n", VERSION_CODE);
 	return 0;
 
 out:

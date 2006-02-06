@@ -126,7 +126,7 @@ extern struct config_item *config_group_find_obj(struct config_group *, const ch
 
 
 struct configfs_attribute {
-	char			*ca_name;
+	const char		*ca_name;
 	struct module 		*ca_owner;
 	mode_t			ca_mode;
 };

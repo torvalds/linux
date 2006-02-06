@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,6 +80,15 @@ extern u32 acpi_dbg_layer;
 
 extern u32 acpi_gbl_nesting_level;
 
+/* Support for dynamic control method tracing mechanism */
+
+ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
+ACPI_EXTERN acpi_name acpi_gbl_trace_method_name;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
+ACPI_EXTERN u32 acpi_gbl_trace_flags;
+
 /*****************************************************************************
  *
  * Runtime configuration (static defaults that can be overriden at runtime)
@@ -89,11 +98,15 @@ extern u32 acpi_gbl_nesting_level;
 /*
  * Enable "slack" in the AML interpreter?  Default is FALSE, and the
  * interpreter strictly follows the ACPI specification.  Setting to TRUE
- * allows the interpreter to forgive certain bad AML constructs.  Currently:
+ * allows the interpreter to ignore certain errors and/or bad AML constructs.
+ *
+ * Currently, these features are enabled by this flag:
+ *
  * 1) Allow "implicit return" of last value in a control method
- * 2) Allow access beyond end of operation region
+ * 2) Allow access beyond the end of an operation region
  * 3) Allow access to uninitialized locals/args (auto-init to integer 0)
  * 4) Allow ANY object type to be a source operand for the Store() operator
+ * 5) Allow unresolved references (invalid target name) in package objects
  */
 ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_interpreter_slack, FALSE);
 
@@ -211,9 +224,11 @@ ACPI_EXTERN u32 acpi_gbl_original_mode;
 ACPI_EXTERN u32 acpi_gbl_rsdp_original_location;
 ACPI_EXTERN u32 acpi_gbl_ns_lookup_count;
 ACPI_EXTERN u32 acpi_gbl_ps_find_count;
-ACPI_EXTERN u64 acpi_gbl_owner_id_mask;
+ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
 ACPI_EXTERN u16 acpi_gbl_pm1_enable_register_save;
 ACPI_EXTERN u16 acpi_gbl_global_lock_handle;
+ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
+ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
 ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
 ACPI_EXTERN u8 acpi_gbl_global_lock_acquired;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;

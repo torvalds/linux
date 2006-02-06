@@ -5,7 +5,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 2000, 2001
  *
- * $Revision: 1.36 $
  */
 
 #include <linux/timer.h>
@@ -1109,6 +1108,9 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		case 0x0B:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
 				    "FORMAT F - Volume is suspended duplex");
+			/* call extended error reporting (EER) */
+			dasd_write_eer_trigger(DASD_EER_PPRCSUSPEND, device,
+					       erp->refers);
 			break;
 		case 0x0C:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",

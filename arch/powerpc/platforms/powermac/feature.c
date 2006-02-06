@@ -910,18 +910,16 @@ core99_gmac_phy_reset(struct device_node *node, long param, long value)
 	    macio->type != macio_intrepid)
 		return -ENODEV;
 
-	printk(KERN_DEBUG "Hard reset of PHY chip ...\n");
-
 	LOCK(flags);
 	MACIO_OUT8(KL_GPIO_ETH_PHY_RESET, KEYLARGO_GPIO_OUTPUT_ENABLE);
 	(void)MACIO_IN8(KL_GPIO_ETH_PHY_RESET);
 	UNLOCK(flags);
-	msleep(10);
+	mdelay(10);
 	LOCK(flags);
 	MACIO_OUT8(KL_GPIO_ETH_PHY_RESET, /*KEYLARGO_GPIO_OUTPUT_ENABLE | */
 		KEYLARGO_GPIO_OUTOUT_DATA);
 	UNLOCK(flags);
-	msleep(10);
+	mdelay(10);
 
 	return 0;
 }

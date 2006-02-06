@@ -220,7 +220,7 @@ ext2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	int name_index;
 	void *value = NULL;
-	size_t size;
+	size_t size = 0;
 	int error;
 
 	if (S_ISLNK(inode->i_mode))

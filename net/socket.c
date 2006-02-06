@@ -2078,7 +2078,7 @@ void socket_seq_show(struct seq_file *seq)
 	int cpu;
 	int counter = 0;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for_each_cpu(cpu)
 		counter += per_cpu(sockets_in_use, cpu);
 
 	/* It can be negative, by the way. 8) */

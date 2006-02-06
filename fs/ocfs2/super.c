@@ -932,7 +932,7 @@ static void ocfs2_inode_init_once(void *data,
 		oi->ip_dir_start_lookup = 0;
 
 		init_rwsem(&oi->ip_alloc_sem);
-		init_MUTEX(&(oi->ip_io_sem));
+		mutex_init(&oi->ip_io_mutex);
 
 		oi->ip_blkno = 0ULL;
 		oi->ip_clusters = 0;
@@ -1137,9 +1137,9 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	/* disable any new recovery threads and wait for any currently
 	 * running ones to exit. Do this before setting the vol_state. */
-	down(&osb->recovery_lock);
+	mutex_lock(&osb->recovery_lock);
 	osb->disable_recovery = 1;
-	up(&osb->recovery_lock);
+	mutex_unlock(&osb->recovery_lock);
 	wait_event(osb->recovery_event, !ocfs2_recovery_thread_running(osb));
 
 	/* At this point, we know that no more recovery threads can be
@@ -1254,8 +1254,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->sb = sb;
 	/* Save off for ocfs2_rw_direct */
 	osb->s_sectsize_bits = blksize_bits(sector_size);
-	if (!osb->s_sectsize_bits)
-		BUG();
+	BUG_ON(!osb->s_sectsize_bits);
 
 	osb->net_response_ids = 0;
 	spin_lock_init(&osb->net_response_lock);
@@ -1283,7 +1282,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	snprintf(osb->dev_str, sizeof(osb->dev_str), "%u,%u",
 		 MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
 
-	init_MUTEX(&osb->recovery_lock);
+	mutex_init(&osb->recovery_lock);
 
 	osb->disable_recovery = 0;
 	osb->recovery_thread_task = NULL;

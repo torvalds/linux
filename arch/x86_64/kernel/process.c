@@ -516,8 +516,10 @@ out:
  * This could still be optimized: 
  * - fold all the options into a flag word and test it with a single test.
  * - could test fs/gs bitsliced
+ *
+ * Kprobes not supported here. Set the probe on schedule instead.
  */
-struct task_struct *
+__kprobes struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,

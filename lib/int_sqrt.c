@@ -15,7 +15,7 @@ unsigned long int_sqrt(unsigned long x)
 	op = x;
 	res = 0;
 
-	one = 1 << 30;
+	one = 1UL << (BITS_PER_LONG - 2);
 	while (one > op)
 		one >>= 2;
 

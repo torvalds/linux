@@ -280,6 +280,7 @@ struct i810fb_par {
 	u32 blit_bpp;
 	u32 ovract;
 	u32 cur_state;
+	u32 ddc_num;
 	int mtrr_reg;
 	u16 bltcntl;
 	u8 interlace;

@@ -29,8 +29,6 @@
 
 #include <linux/ioctl.h>
 
-#define VERSION_Z90CRYPT_H "$Revision: 1.2.2.4 $"
-
 #define z90crypt_VERSION 1
 #define z90crypt_RELEASE 3	// 2 = PCIXCC, 3 = rewrite for coding standards
 #define z90crypt_VARIANT 3	// 3 = CEX2A support

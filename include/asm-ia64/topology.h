@@ -102,6 +102,13 @@ void build_cpu_to_node_map(void);
 
 #endif /* CONFIG_NUMA */
 
+#ifdef CONFIG_SMP
+#define topology_physical_package_id(cpu)	(cpu_data(cpu)->socket_id)
+#define topology_core_id(cpu)			(cpu_data(cpu)->core_id)
+#define topology_core_siblings(cpu)		(cpu_core_map[cpu])
+#define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
+#endif
+
 #include <asm-generic/topology.h>
 
 #endif /* _ASM_IA64_TOPOLOGY_H */

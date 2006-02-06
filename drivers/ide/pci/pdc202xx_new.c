@@ -420,9 +420,6 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifndef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
-#endif
 		.bootable	= OFF_BOARD,
 	},{	/* 3 */
 		.name		= "PDC20271",
@@ -447,9 +444,6 @@ static ide_pci_device_t pdcnew_chipsets[] __devinitdata = {
 		.init_hwif	= init_hwif_pdc202new,
 		.channels	= 2,
 		.autodma	= AUTODMA,
-#ifndef CONFIG_PDC202XX_FORCE
-		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x04,0x04}},
-#endif
 		.bootable	= OFF_BOARD,
 	},{	/* 6 */
 		.name		= "PDC20277",

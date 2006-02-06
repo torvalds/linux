@@ -137,6 +137,8 @@ static void set_msi_affinity(unsigned int vector, cpumask_t cpu_mask)
 		break;
 	}
 }
+#else
+#define set_msi_affinity NULL
 #endif /* CONFIG_SMP */
 
 static void mask_MSI_irq(unsigned int vector)
@@ -214,7 +216,7 @@ static struct hw_interrupt_type msix_irq_type = {
 	.disable	= mask_MSI_irq,
 	.ack		= mask_MSI_irq,
 	.end		= end_msi_irq_w_maskbit,
-	.set_affinity	= set_msi_irq_affinity
+	.set_affinity	= set_msi_affinity
 };
 
 /*
@@ -230,7 +232,7 @@ static struct hw_interrupt_type msi_irq_w_maskbit_type = {
 	.disable	= mask_MSI_irq,
 	.ack		= mask_MSI_irq,
 	.end		= end_msi_irq_w_maskbit,
-	.set_affinity	= set_msi_irq_affinity
+	.set_affinity	= set_msi_affinity
 };
 
 /*
@@ -246,7 +248,7 @@ static struct hw_interrupt_type msi_irq_wo_maskbit_type = {
 	.disable	= do_nothing,
 	.ack		= do_nothing,
 	.end		= end_msi_irq_wo_maskbit,
-	.set_affinity	= set_msi_irq_affinity
+	.set_affinity	= set_msi_affinity
 };
 
 static void msi_data_init(struct msg_data *msi_data,

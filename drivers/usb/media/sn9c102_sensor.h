@@ -1,7 +1,7 @@
 /***************************************************************************
  * API for image sensors connected to the SN9C10x PC Camera Controllers    *
  *                                                                         *
- * Copyright (C) 2004-2005 by Luca Risolia <luca.risolia@studio.unibo.it>  *
+ * Copyright (C) 2004-2006 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -92,7 +92,18 @@ extern void
 sn9c102_attach_sensor(struct sn9c102_device* cam,
                       struct sn9c102_sensor* sensor);
 
-/* Each SN9C10X camera has proper PID/VID identifiers. Add them here in case.*/
+/*
+   Each SN9C10x camera has proper PID/VID identifiers.
+   SN9C103 supports multiple interfaces, but we only handle the video class
+   interface.
+*/
+#define SN9C102_USB_DEVICE(vend, prod, intclass)                              \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |                           \
+	               USB_DEVICE_ID_MATCH_INT_CLASS,                         \
+	.idVendor = (vend),                                                   \
+	.idProduct = (prod),                                                  \
+	.bInterfaceClass = (intclass)
+
 #define SN9C102_ID_TABLE                                                      \
 static const struct usb_device_id sn9c102_id_table[] = {                      \
 	{ USB_DEVICE(0x0c45, 0x6001), }, /* TAS5110C1B */                     \
@@ -107,33 +118,34 @@ static const struct usb_device_id sn9c102_id_table[] = {                      \
 	{ USB_DEVICE(0x0c45, 0x602b), }, /* MI-0343 */                        \
 	{ USB_DEVICE(0x0c45, 0x602c), }, /* OV7630 */                         \
 	{ USB_DEVICE(0x0c45, 0x602d), },                                      \
+	{ USB_DEVICE(0x0c45, 0x602e), }, /* OV7630 */                         \
 	{ USB_DEVICE(0x0c45, 0x6030), }, /* MI03x */                          \
-	{ USB_DEVICE(0x0c45, 0x6080), },                                      \
-	{ USB_DEVICE(0x0c45, 0x6082), }, /* MI0343 and MI0360 */              \
-	{ USB_DEVICE(0x0c45, 0x6083), }, /* HV7131[D|E1] */                   \
-	{ USB_DEVICE(0x0c45, 0x6088), },                                      \
-	{ USB_DEVICE(0x0c45, 0x608a), },                                      \
-	{ USB_DEVICE(0x0c45, 0x608b), },                                      \
-	{ USB_DEVICE(0x0c45, 0x608c), }, /* HV7131x */                        \
-	{ USB_DEVICE(0x0c45, 0x608e), }, /* CIS-VF10 */                       \
-	{ USB_DEVICE(0x0c45, 0x608f), }, /* OV7630 */                         \
-	{ USB_DEVICE(0x0c45, 0x60a0), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60a2), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60a3), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60a8), }, /* PAS106B */                        \
-	{ USB_DEVICE(0x0c45, 0x60aa), }, /* TAS5130D1B */                     \
-	{ USB_DEVICE(0x0c45, 0x60ab), }, /* TAS5110C1B */                     \
-	{ USB_DEVICE(0x0c45, 0x60ac), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60ae), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60af), }, /* PAS202BCB */                      \
-	{ USB_DEVICE(0x0c45, 0x60b0), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60b2), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60b3), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60b8), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60ba), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60bb), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60bc), },                                      \
-	{ USB_DEVICE(0x0c45, 0x60be), },                                      \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6080, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6082, 0xff), }, /* MI0343 & MI0360 */  \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6083, 0xff), }, /* HV7131[D|E1] */     \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x6088, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x608a, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x608b, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x608c, 0xff), }, /* HV7131x */          \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x608e, 0xff), }, /* CIS-VF10 */         \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x608f, 0xff), }, /* OV7630 */           \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60a0, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60a2, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60a3, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60a8, 0xff), }, /* PAS106B */          \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60aa, 0xff), }, /* TAS5130D1B */       \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60ab, 0xff), }, /* TAS5110C1B */       \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60ac, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60ae, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60af, 0xff), }, /* PAS202BCB */        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60b0, 0xff), }, /* OV7630 (?) */       \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60b2, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60b3, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60b8, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60ba, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60bb, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60bc, 0xff), },                        \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x60be, 0xff), },                        \
 	{ }                                                                   \
 };
 
@@ -177,16 +189,18 @@ extern int sn9c102_i2c_write(struct sn9c102_device*, u8 address, u8 value);
 extern int sn9c102_i2c_read(struct sn9c102_device*, u8 address);
 
 /* I/O on registers in the bridge. Could be used by the sensor methods too */
+extern int sn9c102_write_regs(struct sn9c102_device*, u8* buff, u16 index);
 extern int sn9c102_write_reg(struct sn9c102_device*, u8 value, u16 index);
 extern int sn9c102_pread_reg(struct sn9c102_device*, u16 index);
 
 /*
    NOTE: there are no exported debugging functions. To uniform the output you
    must use the dev_info()/dev_warn()/dev_err() macros defined in device.h,
-   already included here, the argument being the struct device 'dev' of the
-   sensor structure. Do NOT use these macros before the sensor is attached or
-   the kernel will crash! However, you should not need to notify the user about
-   common errors or other messages, since this is done by the master module.
+   already included here, the argument being the struct device '&usbdev->dev'
+   of the sensor structure. Do NOT use these macros before the sensor is
+   attached or the kernel will crash! However, you should not need to notify
+   the user about common errors or other messages, since this is done by the
+   master module.
 */
 
 /*****************************************************************************/
@@ -343,13 +357,6 @@ struct sn9c102_sensor {
 	   To be called on VIDIOC_S_FMT, when switching from the SBGGR8 to
 	   SN9C10X pixel format or viceversa. On error return the corresponding
 	   error code without rolling back.
-	*/
-
-	const struct device* dev;
-	/*
-	   This is the argument for dev_err(), dev_info() and dev_warn(). It
-	   is used for debugging purposes. You must not access the struct
-	   before the sensor is attached.
 	*/
 
 	const struct usb_device* usbdev;

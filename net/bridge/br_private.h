@@ -68,6 +68,7 @@ struct net_bridge_port
 	/* STP */
 	u8				priority;
 	u8				state;
+	u8				deleted;
 	u16				port_no;
 	unsigned char			topology_change_ack;
 	unsigned char			config_pending;

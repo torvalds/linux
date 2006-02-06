@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,14 @@
 
 #define ACPI_GET_FUNCTION_NAME          __FUNCTION__
 
-/* This macro is used to tag functions as "printf-like" because
+/*
+ * This macro is used to tag functions as "printf-like" because
  * some compilers (like GCC) can catch printf format string problems.
  */
-#define ACPI_PRINTF_LIKE_FUNC __attribute__ ((__format__ (__printf__, 6, 7)))
+#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__ (__printf__, c, c+1)))
 
-/* Some compilers complain about unused variables. Sometimes we don't want to
+/*
+ * Some compilers complain about unused variables. Sometimes we don't want to
  * use all the variables (for example, _acpi_module_name). This allows us
  * to to tell the compiler warning in a per-variable manner that a variable
  * is unused.

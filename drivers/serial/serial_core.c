@@ -2237,7 +2237,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
 	 */
-	if (!uart_console(port))
+	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED)))
 		spin_lock_init(&port->lock);
 
 	uart_configure_port(drv, state, port);

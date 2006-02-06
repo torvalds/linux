@@ -714,7 +714,7 @@ struct winch {
 	struct tty_struct *tty;
 };
 
-irqreturn_t winch_interrupt(int irq, void *data, struct pt_regs *unused)
+static irqreturn_t winch_interrupt(int irq, void *data, struct pt_regs *unused)
 {
 	struct winch *winch = data;
 	struct tty_struct *tty;

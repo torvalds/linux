@@ -272,6 +272,9 @@ struct fuse_conn {
 	    reply, before any other request, and never cleared */
 	unsigned conn_error : 1;
 
+	/** Do readpages asynchronously?  Only set in INIT */
+	unsigned async_read : 1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction

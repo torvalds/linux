@@ -56,8 +56,6 @@ PORT  SIZE ACTION MEANING
 All other communication is through memory!
 */
 
-#define SLOW_DOWN_IO udelay(5)
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>

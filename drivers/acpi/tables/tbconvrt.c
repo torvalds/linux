@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -501,8 +501,8 @@ acpi_status acpi_tb_convert_table_fadt(void)
 	 * at least as long as the version 1.0 FADT
 	 */
 	if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor_rev1)) {
-		ACPI_REPORT_ERROR(("FADT is invalid, too short: 0x%X\n",
-				   acpi_gbl_FADT->length));
+		ACPI_ERROR((AE_INFO, "FADT is invalid, too short: 0x%X",
+			    acpi_gbl_FADT->length));
 		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 	}
 
@@ -517,7 +517,10 @@ acpi_status acpi_tb_convert_table_fadt(void)
 		if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor_rev2)) {
 			/* Length is too short to be a V2.0 table */
 
-			ACPI_REPORT_WARNING(("Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table\n", acpi_gbl_FADT->length, acpi_gbl_FADT->revision));
+			ACPI_WARNING((AE_INFO,
+				      "Inconsistent FADT length (0x%X) and revision (0x%X), using FADT V1.0 portion of table",
+				      acpi_gbl_FADT->length,
+				      acpi_gbl_FADT->revision));
 
 			acpi_tb_convert_fadt1(local_fadt,
 					      (void *)acpi_gbl_FADT);
@@ -554,7 +557,9 @@ acpi_status acpi_tb_convert_table_fadt(void)
 	ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
 			  "Hex dump of common internal FADT, size %d (%X)\n",
 			  acpi_gbl_FADT->length, acpi_gbl_FADT->length));
-	ACPI_DUMP_BUFFER((u8 *) (acpi_gbl_FADT), acpi_gbl_FADT->length);
+
+	ACPI_DUMP_BUFFER(ACPI_CAST_PTR(u8, acpi_gbl_FADT),
+			 acpi_gbl_FADT->length);
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -580,13 +585,15 @@ acpi_status acpi_tb_build_common_facs(struct acpi_table_desc *table_info)
 	/* Absolute minimum length is 24, but the ACPI spec says 64 */
 
 	if (acpi_gbl_FACS->length < 24) {
-		ACPI_REPORT_ERROR(("Invalid FACS table length: 0x%X\n",
-				   acpi_gbl_FACS->length));
+		ACPI_ERROR((AE_INFO, "Invalid FACS table length: 0x%X",
+			    acpi_gbl_FACS->length));
 		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 	}
 
 	if (acpi_gbl_FACS->length < 64) {
-		ACPI_REPORT_WARNING(("FACS is shorter than the ACPI specification allows: 0x%X, using anyway\n", acpi_gbl_FACS->length));
+		ACPI_WARNING((AE_INFO,
+			      "FACS is shorter than the ACPI specification allows: 0x%X, using anyway",
+			      acpi_gbl_FACS->length));
 	}
 
 	/* Copy fields to the new FACS */

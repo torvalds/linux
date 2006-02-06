@@ -155,6 +155,13 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 		return -ENODEV;
 	}
 
+	if (dev_lim->uar_size > pci_resource_len(mdev->pdev, 2)) {
+		mthca_err(mdev, "HCA reported UAR size of 0x%x bigger than "
+			  "PCI resource 2 size of 0x%lx, aborting.\n",
+			  dev_lim->uar_size, pci_resource_len(mdev->pdev, 2));
+		return -ENODEV;
+	}
+
 	mdev->limits.num_ports      	= dev_lim->num_ports;
 	mdev->limits.vl_cap             = dev_lim->max_vl;
 	mdev->limits.mtu_cap            = dev_lim->max_mtu;
@@ -976,8 +983,7 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 		err = -ENODEV;
 		goto err_disable_pdev;
 	}
-	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM) ||
-	    pci_resource_len(pdev, 2) != 1 << 23) {
+	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Missing UAR, aborting.\n");
 		err = -ENODEV;
 		goto err_disable_pdev;

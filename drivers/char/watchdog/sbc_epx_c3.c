@@ -25,6 +25,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -181,11 +182,14 @@ static int __init watchdog_init(void)
 {
 	int ret;
 
+	if (!request_region(EPXC3_WATCHDOG_CTL_REG, 2, "epxc3_watchdog"))
+		return -EBUSY;
+
 	ret = register_reboot_notifier(&epx_c3_notifier);
 	if (ret) {
 		printk(KERN_ERR PFX "cannot register reboot notifier "
 			"(err=%d)\n", ret);
-		return ret;
+		goto out;
 	}
 
 	ret = misc_register(&epx_c3_miscdev);
@@ -193,18 +197,23 @@ static int __init watchdog_init(void)
 		printk(KERN_ERR PFX "cannot register miscdev on minor=%d "
 			"(err=%d)\n", WATCHDOG_MINOR, ret);
 		unregister_reboot_notifier(&epx_c3_notifier);
-		return ret;
+		goto out;
 	}
 
 	printk(banner);
 
 	return 0;
+
+out:
+	release_region(EPXC3_WATCHDOG_CTL_REG, 2);
+	return ret;
 }
 
 static void __exit watchdog_exit(void)
 {
 	misc_deregister(&epx_c3_miscdev);
 	unregister_reboot_notifier(&epx_c3_notifier);
+	release_region(EPXC3_WATCHDOG_CTL_REG, 2);
 }
 
 module_init(watchdog_init);

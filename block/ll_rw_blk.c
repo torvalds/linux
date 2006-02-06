@@ -508,7 +508,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 
 int blk_do_ordered(request_queue_t *q, struct request **rqp)
 {
-	struct request *rq = *rqp, *allowed_rq;
+	struct request *rq = *rqp;
 	int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
 	if (!q->ordseq) {
@@ -532,31 +532,25 @@ int blk_do_ordered(request_queue_t *q, struct request **rqp)
 		}
 	}
 
+	/*
+	 * Ordered sequence in progress
+	 */
+
+	/* Special requests are not subject to ordering rules. */
+	if (!blk_fs_request(rq) &&
+	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
+		return 1;
+
 	if (q->ordered & QUEUE_ORDERED_TAG) {
+		/* Ordered by tag.  Blocking the next barrier is enough. */
 		if (is_barrier && rq != &q->bar_rq)
 			*rqp = NULL;
-		return 1;
+	} else {
+		/* Ordered by draining.  Wait for turn. */
+		WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
+		if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
+			*rqp = NULL;
 	}
-
-	switch (blk_ordered_cur_seq(q)) {
-	case QUEUE_ORDSEQ_PREFLUSH:
-		allowed_rq = &q->pre_flush_rq;
-		break;
-	case QUEUE_ORDSEQ_BAR:
-		allowed_rq = &q->bar_rq;
-		break;
-	case QUEUE_ORDSEQ_POSTFLUSH:
-		allowed_rq = &q->post_flush_rq;
-		break;
-	default:
-		allowed_rq = NULL;
-		break;
-	}
-
-	if (rq != allowed_rq &&
-	    (blk_fs_request(rq) || rq == &q->pre_flush_rq ||
-	     rq == &q->post_flush_rq))
-		*rqp = NULL;
 
 	return 1;
 }
@@ -2579,6 +2573,8 @@ void disk_round_stats(struct gendisk *disk)
 	disk->stamp = now;
 }
 
+EXPORT_SYMBOL_GPL(disk_round_stats);
+
 /*
  * queue lock must be held
  */
@@ -3451,7 +3447,7 @@ int __init blk_dev_init(void)
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
 
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);

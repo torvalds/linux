@@ -33,9 +33,7 @@ int acpi_sleep_prepare(u32 acpi_state)
 	ACPI_FLUSH_CPU_CACHE();
 	acpi_enable_wakeup_device_prep(acpi_state);
 #endif
-	if (acpi_state == ACPI_STATE_S5) {
-		acpi_wakeup_gpe_poweroff_prepare();
-	}
+	acpi_gpe_sleep_prepare(acpi_state);
 	acpi_enter_sleep_state_prep(acpi_state);
 	return 0;
 }
@@ -53,11 +51,16 @@ void acpi_power_off(void)
 
 static int acpi_shutdown(struct sys_device *x)
 {
-	if (system_state == SYSTEM_POWER_OFF) {
-		/* Prepare if we are going to power off the system */
+	switch (system_state) {
+	case SYSTEM_POWER_OFF:
+		/* Prepare to power off the system */
 		return acpi_sleep_prepare(ACPI_STATE_S5);
+	case SYSTEM_SUSPEND_DISK:
+		/* Prepare to suspend the system to disk */
+		return acpi_sleep_prepare(ACPI_STATE_S4);
+	default:
+		return 0;
 	}
-	return 0;
 }
 
 static struct sysdev_class acpi_sysclass = {

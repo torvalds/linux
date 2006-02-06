@@ -177,3 +177,9 @@ over a rather long period of time, but improvements are always welcome!
 
 	If you want to wait for some of these other things, you might
 	instead need to use synchronize_irq() or synchronize_sched().
+
+12.	Any lock acquired by an RCU callback must be acquired elsewhere
+	with irq disabled, e.g., via spin_lock_irqsave().  Failing to
+	disable irq on a given acquisition of that lock will result in
+	deadlock as soon as the RCU callback happens to interrupt that
+	acquisition's critical section.

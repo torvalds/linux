@@ -76,7 +76,7 @@ wax_init_chip(struct parisc_device *dev)
 	struct gsc_irq gsc_irq;
 	int ret;
 
-	wax = kmalloc(sizeof(*wax), GFP_KERNEL);
+	wax = kzalloc(sizeof(*wax), GFP_KERNEL);
 	if (!wax)
 		return -ENOMEM;
 

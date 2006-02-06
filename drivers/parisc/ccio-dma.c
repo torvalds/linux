@@ -1423,7 +1423,7 @@ static void __init ccio_init_resources(struct ioc *ioc)
 	struct resource *res = ioc->mmio_region;
 	char *name = kmalloc(14, GFP_KERNEL);
 
-	sprintf(name, "GSC Bus [%d/]", ioc->hw_path);
+	snprintf(name, 14, "GSC Bus [%d/]", ioc->hw_path);
 
 	ccio_init_resource(res, name, &ioc->ioc_regs->io_io_low);
 	ccio_init_resource(res + 1, name, &ioc->ioc_regs->io_io_low_hv);
@@ -1557,12 +1557,11 @@ static int ccio_probe(struct parisc_device *dev)
 	int i;
 	struct ioc *ioc, **ioc_p = &ioc_list;
 	
-	ioc = kmalloc(sizeof(struct ioc), GFP_KERNEL);
+	ioc = kzalloc(sizeof(struct ioc), GFP_KERNEL);
 	if (ioc == NULL) {
 		printk(KERN_ERR MODULE_NAME ": memory allocation failure\n");
 		return 1;
 	}
-	memset(ioc, 0, sizeof(struct ioc));
 
 	ioc->name = dev->id.hversion == U2_IOA_RUNWAY ? "U2" : "UTurn";
 
@@ -1578,7 +1577,7 @@ static int ccio_probe(struct parisc_device *dev)
 	ccio_ioc_init(ioc);
 	ccio_init_resources(ioc);
 	hppa_dma_ops = &ccio_ops;
-	dev->dev.platform_data = kmalloc(sizeof(struct pci_hba_data), GFP_KERNEL);
+	dev->dev.platform_data = kzalloc(sizeof(struct pci_hba_data), GFP_KERNEL);
 
 	/* if this fails, no I/O cards will work, so may as well bug */
 	BUG_ON(dev->dev.platform_data == NULL);

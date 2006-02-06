@@ -212,7 +212,6 @@ extern int savage_driver_load(drm_device_t *dev, unsigned long chipset);
 extern int savage_driver_firstopen(drm_device_t *dev);
 extern void savage_driver_lastclose(drm_device_t *dev);
 extern int savage_driver_unload(drm_device_t *dev);
-extern int savage_do_cleanup_bci(drm_device_t * dev);
 extern void savage_reclaim_buffers(drm_device_t * dev, DRMFILE filp);
 
 /* state functions */
