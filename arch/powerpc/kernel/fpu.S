@@ -66,7 +66,7 @@ _GLOBAL(load_up_fpu)
 #else
 	ld	r4,PACACURRENT(r13)
 	addi	r5,r4,THREAD		/* Get THREAD */
-	ld	r4,THREAD_FPEXC_MODE(r5)
+	lwz	r4,THREAD_FPEXC_MODE(r5)
 	ori	r12,r12,MSR_FP
 	or	r12,r12,r4
 	std	r12,_MSR(r1)
