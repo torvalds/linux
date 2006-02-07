@@ -178,6 +178,7 @@ int ieee80211softmac_start_scan_implementation(struct net_device *dev)
 	dprintk(PFX "Scanning %d channels\n", sm->scaninfo->number_channels);
 	sm->scaninfo->current_channel_idx = 0;
 	sm->scaninfo->started = 1;
+	sm->scaninfo->stop = 0;
 	INIT_COMPLETION(sm->scaninfo->finished);
 	schedule_work(&sm->scaninfo->softmac_scan);
 	spin_unlock_irqrestore(&sm->lock, flags);
