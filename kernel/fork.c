@@ -1388,16 +1388,21 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 }
 
 /*
- * Unsharing of namespace for tasks created without CLONE_NEWNS is not
- * supported yet
+ * Unshare the namespace structure if it is being shared
  */
-static int unshare_namespace(unsigned long unshare_flags, struct namespace **new_nsp)
+static int unshare_namespace(unsigned long unshare_flags, struct namespace **new_nsp, struct fs_struct *new_fs)
 {
 	struct namespace *ns = current->namespace;
 
 	if ((unshare_flags & CLONE_NEWNS) &&
-	    (ns && atomic_read(&ns->count) > 1))
-		return -EINVAL;
+	    (ns && atomic_read(&ns->count) > 1)) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		*new_nsp = dup_namespace(current, new_fs ? new_fs : current->fs);
+		if (!*new_nsp)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -1482,7 +1487,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		goto bad_unshare_out;
 	if ((err = unshare_fs(unshare_flags, &new_fs)))
 		goto bad_unshare_cleanup_thread;
-	if ((err = unshare_namespace(unshare_flags, &new_ns)))
+	if ((err = unshare_namespace(unshare_flags, &new_ns, new_fs)))
 		goto bad_unshare_cleanup_fs;
 	if ((err = unshare_sighand(unshare_flags, &new_sigh)))
 		goto bad_unshare_cleanup_ns;
