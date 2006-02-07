@@ -142,6 +142,29 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	tun = &tuners[t->type];
 	j = TUNER_PARAM_ANALOG;
 
+	/* IFPCoff = Video Intermediate Frequency - Vif:
+		940  =16*58.75  NTSC/J (Japan)
+		732  =16*45.75  M/N STD
+		704  =16*44     ATSC (at DVB code)
+		632  =16*39.50  I U.K.
+		622.4=16*38.90  B/G D/K I, L STD
+		592  =16*37.00  D China
+		590  =16.36.875 B Australia
+		543.2=16*33.95  L' STD
+		171.2=16*10.70  FM Radio (at set_radio_freq)
+	*/
+
+	if (t->std == V4L2_STD_NTSC_M_JP) {
+		IFPCoff = 940;
+	} else if ((t->std & V4L2_STD_MN) &&
+		  !(t->std & ~V4L2_STD_MN)) {
+		IFPCoff = 732;
+	} else if (t->std == V4L2_STD_SECAM_LC) {
+		IFPCoff = 543;
+	} else {
+		IFPCoff = 623;
+	}
+
 	for (i = 0; i < tun->params[j].count; i++) {
 		if (freq > tun->params[j].ranges[i].limit)
 			continue;
@@ -154,10 +177,18 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	}
 	config = tun->params[j].ranges[i].config;
 	cb     = tun->params[j].ranges[i].cb;
-	/*  i == 0 -> VHF_LO  */
-	/*  i == 1 -> VHF_HI  */
-	/*  i == 2 -> UHF     */
+	/*  i == 0 -> VHF_LO
+	 *  i == 1 -> VHF_HI
+	 *  i == 2 -> UHF     */
 	tuner_dbg("tv: range %d\n",i);
+
+	div=freq + IFPCoff + offset;
+
+	tuner_dbg("Freq= %d.%02d MHz, V_IF=%d.%02d MHz, Offset=%d.%02d MHz, div=%0d\n",
+					freq / 16, freq % 16 * 100 / 16,
+					IFPCoff / 16, IFPCoff % 16 * 100 / 16,
+					offset / 16, offset % 16 * 100 / 16,
+					div);
 
 	/* tv norm specific stuff for multi-norm tuners */
 	switch (t->type) {
@@ -244,37 +275,6 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* FIXME: input */
 		break;
 	}
-
-	/* IFPCoff = Video Intermediate Frequency - Vif:
-		940  =16*58.75  NTSC/J (Japan)
-		732  =16*45.75  M/N STD
-		704  =16*44     ATSC (at DVB code)
-		632  =16*39.50  I U.K.
-		622.4=16*38.90  B/G D/K I, L STD
-		592  =16*37.00  D China
-		590  =16.36.875 B Australia
-		543.2=16*33.95  L' STD
-		171.2=16*10.70  FM Radio (at set_radio_freq)
-	*/
-
-	if (t->std == V4L2_STD_NTSC_M_JP) {
-		IFPCoff = 940;
-	} else if ((t->std & V4L2_STD_MN) &&
-		  !(t->std & ~V4L2_STD_MN)) {
-		IFPCoff = 732;
-	} else if (t->std == V4L2_STD_SECAM_LC) {
-		IFPCoff = 543;
-	} else {
-		IFPCoff = 623;
-	}
-
-	div=freq + IFPCoff + offset;
-
-	tuner_dbg("Freq= %d.%02d MHz, V_IF=%d.%02d MHz, Offset=%d.%02d MHz, div=%0d\n",
-					freq / 16, freq % 16 * 100 / 16,
-					IFPCoff / 16, IFPCoff % 16 * 100 / 16,
-					offset / 16, offset % 16 * 100 / 16,
-					div);
 
 	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = config;
