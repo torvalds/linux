@@ -1131,7 +1131,7 @@ int spi_print_msg(const unsigned char *msg)
 				(int) msg[2]);
 		switch (msg[2]) {
 		case EXTENDED_MODIFY_DATA_POINTER:
-			printk("pointer = %d", (int) (msg[3] << 24) |
+			printk("pointer = %d ", (msg[3] << 24) |
 				(msg[4] << 16) | (msg[5] << 8) | msg[6]);
 			break;
 		case EXTENDED_SDTR:
@@ -1157,7 +1157,7 @@ int spi_print_msg(const unsigned char *msg)
 	/* Normal One byte */
 	} else if (msg[0] < 0x1f) {
 		if (msg[0] < ARRAY_SIZE(one_byte_msgs))
-			printk(one_byte_msgs[msg[0]]);
+			printk("%s ", one_byte_msgs[msg[0]]);
 		else
 			printk("reserved (%02x) ", msg[0]);
 		len = 1;
@@ -1171,7 +1171,7 @@ int spi_print_msg(const unsigned char *msg)
 				msg[0], msg[1]);
 		len = 2;
 	} else 
-		printk("reserved");
+		printk("reserved ");
 	return len;
 }
 EXPORT_SYMBOL(spi_print_msg);
