@@ -446,6 +446,55 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
 	}
 }
 
+/*
+ * Allocate a new mm structure and copy contents from the
+ * mm structure of the passed in task structure.
+ */
+static struct mm_struct *dup_mm(struct task_struct *tsk)
+{
+	struct mm_struct *mm, *oldmm = current->mm;
+	int err;
+
+	if (!oldmm)
+		return NULL;
+
+	mm = allocate_mm();
+	if (!mm)
+		goto fail_nomem;
+
+	memcpy(mm, oldmm, sizeof(*mm));
+
+	if (!mm_init(mm))
+		goto fail_nomem;
+
+	if (init_new_context(tsk, mm))
+		goto fail_nocontext;
+
+	err = dup_mmap(mm, oldmm);
+	if (err)
+		goto free_pt;
+
+	mm->hiwater_rss = get_mm_rss(mm);
+	mm->hiwater_vm = mm->total_vm;
+
+	return mm;
+
+free_pt:
+	mmput(mm);
+
+fail_nomem:
+	return NULL;
+
+fail_nocontext:
+	/*
+	 * If init_new_context() failed, we cannot use mmput() to free the mm
+	 * because it calls destroy_context()
+	 */
+	mm_free_pgd(mm);
+	free_mm(mm);
+	return NULL;
+}
+
 static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 {
 	struct mm_struct * mm, *oldmm;
@@ -473,42 +522,16 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 	}
 
 	retval = -ENOMEM;
-	mm = allocate_mm();
+	mm = dup_mm(tsk);
 	if (!mm)
 		goto fail_nomem;
-
-	/* Copy the current MM stuff.. */
-	memcpy(mm, oldmm, sizeof(*mm));
-	if (!mm_init(mm))
-		goto fail_nomem;
-
-	if (init_new_context(tsk,mm))
-		goto fail_nocontext;
-
-	retval = dup_mmap(mm, oldmm);
-	if (retval)
-		goto free_pt;
-
-	mm->hiwater_rss = get_mm_rss(mm);
-	mm->hiwater_vm = mm->total_vm;
 
 good_mm:
 	tsk->mm = mm;
 	tsk->active_mm = mm;
 	return 0;
 
-free_pt:
-	mmput(mm);
 fail_nomem:
-	return retval;
-
-fail_nocontext:
-	/*
-	 * If init_new_context() failed, we cannot use mmput() to free the mm
-	 * because it calls destroy_context()
-	 */
-	mm_free_pgd(mm);
-	free_mm(mm);
 	return retval;
 }
 
@@ -1423,18 +1446,20 @@ static int unshare_sighand(unsigned long unshare_flags, struct sighand_struct **
 }
 
 /*
- * Unsharing of vm for tasks created with CLONE_VM is not supported yet
+ * Unshare vm if it is being shared
  */
 static int unshare_vm(unsigned long unshare_flags, struct mm_struct **new_mmp)
 {
 	struct mm_struct *mm = current->mm;
 
 	if ((unshare_flags & CLONE_VM) &&
-	    (mm && atomic_read(&mm->mm_users) > 1))
-		return -EINVAL;
+	    (mm && atomic_read(&mm->mm_users) > 1)) {
+		*new_mmp = dup_mm(current);
+		if (!*new_mmp)
+			return -ENOMEM;
+	}
 
 	return 0;
-
 }
 
 /*
