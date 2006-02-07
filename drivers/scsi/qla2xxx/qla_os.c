@@ -366,6 +366,12 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		goto qc_fail_command;
 	}
 
+	/* Close window on fcport/rport state-transitioning. */
+	if (!*(fc_port_t **)rport->dd_data) {
+		cmd->result = DID_IMM_RETRY << 16;
+		goto qc_fail_command;
+	}
+
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
 		    atomic_read(&ha->loop_state) == LOOP_DEAD) {
@@ -418,6 +424,12 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		cmd->result = rval;
+		goto qc24_fail_command;
+	}
+
+	/* Close window on fcport/rport state-transitioning. */
+	if (!*(fc_port_t **)rport->dd_data) {
+		cmd->result = DID_IMM_RETRY << 16;
 		goto qc24_fail_command;
 	}
 
@@ -1675,11 +1687,13 @@ qla2x00_schedule_rport_del(struct scsi_qla_host *ha, fc_port_t *fcport,
 		spin_lock_irqsave(&fcport->rport_lock, flags);
 		fcport->drport = rport;
 		fcport->rport = NULL;
+		*(fc_port_t **)rport->dd_data = NULL;
 		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		set_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags);
 	} else {
 		spin_lock_irqsave(&fcport->rport_lock, flags);
 		fcport->rport = NULL;
+		*(fc_port_t **)rport->dd_data = NULL;
 		spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		fc_remote_port_delete(rport);
 	}
