@@ -1283,9 +1283,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	fc_port_t *fcport;
 	struct scsi_host_template *sht;
 
-if (PCI_FUNC(pdev->devfn))
-	goto probe_out;
-
 	if (pci_enable_device(pdev))
 		goto probe_out;
 
