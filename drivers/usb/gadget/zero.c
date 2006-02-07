@@ -1224,12 +1224,6 @@ autoconf_fail:
 		loopback_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	if (gadget->is_otg) {
-		otg_descriptor.bmAttributes |= USB_OTG_HNP,
-		source_sink_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-		loopback_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-	}
-
 	usb_gadget_set_selfpowered (gadget);
 
 	init_timer (&dev->resume);
