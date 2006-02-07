@@ -620,32 +620,17 @@ out:
 	return newf;
 }
 
-static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
+/*
+ * Allocate a new files structure and copy contents from the
+ * passed in files structure.
+ */
+static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 {
-	struct files_struct *oldf, *newf;
+	struct files_struct *newf;
 	struct file **old_fds, **new_fds;
-	int open_files, size, i, error = 0, expand;
+	int open_files, size, i, expand;
 	struct fdtable *old_fdt, *new_fdt;
 
-	/*
-	 * A background process may not have any files ...
-	 */
-	oldf = current->files;
-	if (!oldf)
-		goto out;
-
-	if (clone_flags & CLONE_FILES) {
-		atomic_inc(&oldf->count);
-		goto out;
-	}
-
-	/*
-	 * Note: we may be using current for both targets (See exec.c)
-	 * This works because we cache current->files (old) as oldf. Don't
-	 * break this.
-	 */
-	tsk->files = NULL;
-	error = -ENOMEM;
 	newf = alloc_files();
 	if (!newf)
 		goto out;
@@ -674,9 +659,9 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 	if (expand) {
 		spin_unlock(&oldf->file_lock);
 		spin_lock(&newf->file_lock);
-		error = expand_files(newf, open_files-1);
+		*errorp = expand_files(newf, open_files-1);
 		spin_unlock(&newf->file_lock);
-		if (error < 0)
+		if (*errorp < 0)
 			goto out_release;
 		new_fdt = files_fdtable(newf);
 		/*
@@ -725,10 +710,8 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 		memset(&new_fdt->close_on_exec->fds_bits[start], 0, left);
 	}
 
-	tsk->files = newf;
-	error = 0;
 out:
-	return error;
+	return newf;
 
 out_release:
 	free_fdset (new_fdt->close_on_exec, new_fdt->max_fdset);
@@ -736,6 +719,40 @@ out_release:
 	free_fd_array(new_fdt->fd, new_fdt->max_fds);
 	kmem_cache_free(files_cachep, newf);
 	goto out;
+}
+
+static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
+{
+	struct files_struct *oldf, *newf;
+	int error = 0;
+
+	/*
+	 * A background process may not have any files ...
+	 */
+	oldf = current->files;
+	if (!oldf)
+		goto out;
+
+	if (clone_flags & CLONE_FILES) {
+		atomic_inc(&oldf->count);
+		goto out;
+	}
+
+	/*
+	 * Note: we may be using current for both targets (See exec.c)
+	 * This works because we cache current->files (old) as oldf. Don't
+	 * break this.
+	 */
+	tsk->files = NULL;
+	error = -ENOMEM;
+	newf = dup_fd(oldf, &error);
+	if (!newf)
+		goto out;
+
+	tsk->files = newf;
+	error = 0;
+out:
+	return error;
 }
 
 /*
@@ -1463,15 +1480,19 @@ static int unshare_vm(unsigned long unshare_flags, struct mm_struct **new_mmp)
 }
 
 /*
- * Unsharing of files for tasks created with CLONE_FILES is not supported yet
+ * Unshare file descriptor table if it is being shared
  */
 static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp)
 {
 	struct files_struct *fd = current->files;
+	int error = 0;
 
 	if ((unshare_flags & CLONE_FILES) &&
-	    (fd && atomic_read(&fd->count) > 1))
-		return -EINVAL;
+	    (fd && atomic_read(&fd->count) > 1)) {
+		*new_fdp = dup_fd(fd, &error);
+		if (!*new_fdp)
+			return error;
+	}
 
 	return 0;
 }
