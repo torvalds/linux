@@ -52,10 +52,27 @@ enum audit_state {
 };
 
 /* Rule lists */
+struct audit_field {
+	u32			type;
+	u32			val;
+	u32			op;
+};
+
+struct audit_krule {
+	int			vers_ops;
+	u32			flags;
+	u32			listnr;
+	u32			action;
+	u32			mask[AUDIT_BITMASK_SIZE];
+	u32			buflen; /* for data alloc on list rules */
+	u32			field_count;
+	struct audit_field	*fields;
+};
+
 struct audit_entry {
-	struct list_head  list;
-	struct rcu_head   rcu;
-	struct audit_rule rule;
+	struct list_head	list;
+	struct rcu_head		rcu;
+	struct audit_krule	rule;
 };
 
 

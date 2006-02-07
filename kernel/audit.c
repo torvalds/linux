@@ -52,6 +52,7 @@
 #include <linux/audit.h>
 
 #include <net/sock.h>
+#include <net/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 
@@ -361,9 +362,12 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 	switch (msg_type) {
 	case AUDIT_GET:
 	case AUDIT_LIST:
+	case AUDIT_LIST_RULES:
 	case AUDIT_SET:
 	case AUDIT_ADD:
+	case AUDIT_ADD_RULE:
 	case AUDIT_DEL:
+	case AUDIT_DEL_RULE:
 	case AUDIT_SIGNAL_INFO:
 		if (!cap_raised(eff_cap, CAP_AUDIT_CONTROL))
 			err = -EPERM;
@@ -470,12 +474,23 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_ADD:
 	case AUDIT_DEL:
-		if (nlh->nlmsg_len < sizeof(struct audit_rule))
+		if (nlmsg_len(nlh) < sizeof(struct audit_rule))
 			return -EINVAL;
 		/* fallthrough */
 	case AUDIT_LIST:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
-					   uid, seq, data, loginuid);
+					   uid, seq, data, nlmsg_len(nlh),
+					   loginuid);
+		break;
+	case AUDIT_ADD_RULE:
+	case AUDIT_DEL_RULE:
+		if (nlmsg_len(nlh) < sizeof(struct audit_rule_data))
+			return -EINVAL;
+		/* fallthrough */
+	case AUDIT_LIST_RULES:
+		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
+					   uid, seq, data, nlmsg_len(nlh),
+					   loginuid);
 		break;
 	case AUDIT_SIGNAL_INFO:
 		sig_data.uid = audit_sig_uid;

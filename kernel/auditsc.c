@@ -162,70 +162,68 @@ struct audit_context {
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise. */
 static int audit_filter_rules(struct task_struct *tsk,
-			      struct audit_rule *rule,
+			      struct audit_krule *rule,
 			      struct audit_context *ctx,
 			      enum audit_state *state)
 {
 	int i, j;
 
 	for (i = 0; i < rule->field_count; i++) {
-		u32 field  = rule->fields[i] & ~AUDIT_OPERATORS;
-		u32 op  = rule->fields[i] & AUDIT_OPERATORS;
-		u32 value  = rule->values[i];
+		struct audit_field *f = &rule->fields[i];
 		int result = 0;
 
-		switch (field) {
+		switch (f->type) {
 		case AUDIT_PID:
-			result = audit_comparator(tsk->pid, op, value);
+			result = audit_comparator(tsk->pid, f->op, f->val);
 			break;
 		case AUDIT_UID:
-			result = audit_comparator(tsk->uid, op, value);
+			result = audit_comparator(tsk->uid, f->op, f->val);
 			break;
 		case AUDIT_EUID:
-			result = audit_comparator(tsk->euid, op, value);
+			result = audit_comparator(tsk->euid, f->op, f->val);
 			break;
 		case AUDIT_SUID:
-			result = audit_comparator(tsk->suid, op, value);
+			result = audit_comparator(tsk->suid, f->op, f->val);
 			break;
 		case AUDIT_FSUID:
-			result = audit_comparator(tsk->fsuid, op, value);
+			result = audit_comparator(tsk->fsuid, f->op, f->val);
 			break;
 		case AUDIT_GID:
-			result = audit_comparator(tsk->gid, op, value);
+			result = audit_comparator(tsk->gid, f->op, f->val);
 			break;
 		case AUDIT_EGID:
-			result = audit_comparator(tsk->egid, op, value);
+			result = audit_comparator(tsk->egid, f->op, f->val);
 			break;
 		case AUDIT_SGID:
-			result = audit_comparator(tsk->sgid, op, value);
+			result = audit_comparator(tsk->sgid, f->op, f->val);
 			break;
 		case AUDIT_FSGID:
-			result = audit_comparator(tsk->fsgid, op, value);
+			result = audit_comparator(tsk->fsgid, f->op, f->val);
 			break;
 		case AUDIT_PERS:
-			result = audit_comparator(tsk->personality, op, value);
+			result = audit_comparator(tsk->personality, f->op, f->val);
 			break;
 		case AUDIT_ARCH:
  			if (ctx)
-				result = audit_comparator(ctx->arch, op, value);
+				result = audit_comparator(ctx->arch, f->op, f->val);
 			break;
 
 		case AUDIT_EXIT:
 			if (ctx && ctx->return_valid)
-				result = audit_comparator(ctx->return_code, op, value);
+				result = audit_comparator(ctx->return_code, f->op, f->val);
 			break;
 		case AUDIT_SUCCESS:
 			if (ctx && ctx->return_valid) {
-				if (value)
-					result = audit_comparator(ctx->return_valid, op, AUDITSC_SUCCESS);
+				if (f->val)
+					result = audit_comparator(ctx->return_valid, f->op, AUDITSC_SUCCESS);
 				else
-					result = audit_comparator(ctx->return_valid, op, AUDITSC_FAILURE);
+					result = audit_comparator(ctx->return_valid, f->op, AUDITSC_FAILURE);
 			}
 			break;
 		case AUDIT_DEVMAJOR:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (audit_comparator(MAJOR(ctx->names[j].dev),	op, value)) {
+					if (audit_comparator(MAJOR(ctx->names[j].dev),	f->op, f->val)) {
 						++result;
 						break;
 					}
@@ -235,7 +233,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_DEVMINOR:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (audit_comparator(MINOR(ctx->names[j].dev), op, value)) {
+					if (audit_comparator(MINOR(ctx->names[j].dev), f->op, f->val)) {
 						++result;
 						break;
 					}
@@ -245,8 +243,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_INODE:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (audit_comparator(ctx->names[j].ino, op, value) ||
-					    audit_comparator(ctx->names[j].pino, op, value)) {
+					if (audit_comparator(ctx->names[j].ino, f->op, f->val) ||
+					    audit_comparator(ctx->names[j].pino, f->op, f->val)) {
 						++result;
 						break;
 					}
@@ -256,14 +254,14 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_LOGINUID:
 			result = 0;
 			if (ctx)
-				result = audit_comparator(ctx->loginuid, op, value);
+				result = audit_comparator(ctx->loginuid, f->op, f->val);
 			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
 			if (ctx)
-				result = audit_comparator(ctx->argv[field-AUDIT_ARG0], op, value);
+				result = audit_comparator(ctx->argv[f->type-AUDIT_ARG0], f->op, f->val);
 			break;
 		}
 

@@ -50,15 +50,18 @@
  */
 #define AUDIT_GET		1000	/* Get status */
 #define AUDIT_SET		1001	/* Set status (enable/disable/auditd) */
-#define AUDIT_LIST		1002	/* List syscall filtering rules */
-#define AUDIT_ADD		1003	/* Add syscall filtering rule */
-#define AUDIT_DEL		1004	/* Delete syscall filtering rule */
+#define AUDIT_LIST		1002	/* List syscall rules -- deprecated */
+#define AUDIT_ADD		1003	/* Add syscall rule -- deprecated */
+#define AUDIT_DEL		1004	/* Delete syscall rule -- deprecated */
 #define AUDIT_USER		1005	/* Message from userspace -- deprecated */
 #define AUDIT_LOGIN		1006	/* Define the login id and information */
 #define AUDIT_WATCH_INS		1007	/* Insert file/dir watch entry */
 #define AUDIT_WATCH_REM		1008	/* Remove file/dir watch entry */
 #define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
 #define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
+#define AUDIT_ADD_RULE		1011	/* Add syscall filtering rule */
+#define AUDIT_DEL_RULE		1012	/* Delete syscall filtering rule */
+#define AUDIT_LIST_RULES	1013	/* List syscall filtering rules */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
@@ -229,6 +232,26 @@ struct audit_status {
 	__u32		backlog;	/* messages waiting in queue */
 };
 
+/* audit_rule_data supports filter rules with both integer and string
+ * fields.  It corresponds with AUDIT_ADD_RULE, AUDIT_DEL_RULE and
+ * AUDIT_LIST_RULES requests.
+ */
+struct audit_rule_data {
+	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
+	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
+	__u32		field_count;
+	__u32		mask[AUDIT_BITMASK_SIZE];
+	__u32		fields[AUDIT_MAX_FIELDS];
+	__u32		values[AUDIT_MAX_FIELDS];
+	__u32		fieldflags[AUDIT_MAX_FIELDS];
+	__u32		buflen;	/* total length of string fields */
+	char		buf[0];	/* string fields buffer */
+};
+
+/* audit_rule is supported to maintain backward compatibility with
+ * userspace.  It supports integer fields only and corresponds to
+ * AUDIT_ADD, AUDIT_DEL and AUDIT_LIST requests.
+ */
 struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
 	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
@@ -338,7 +361,7 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				 void *data, uid_t loginuid);
+				 void *data, size_t datasz, uid_t loginuid);
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)
 #define audit_log_start(c,g,t) ({ NULL; })
