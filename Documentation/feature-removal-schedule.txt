@@ -148,3 +148,9 @@ Why:	The 8250 serial driver now has the ability to deal with the differences
 	brother on Alchemy SOCs.  The loss of features is not considered an
 	issue.
 Who:	Ralf Baechle <ralf@linux-mips.org>
+---------------------------
+
+What:   eepro100 network driver
+When:   January 2007
+Why:    replaced by the e100 driver
+Who:    Adrian Bunk <bunk@stusta.de>
