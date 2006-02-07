@@ -43,13 +43,11 @@ static const struct av_perm_to_string
 #undef S_
 };
 
-#ifdef CONFIG_AUDIT
 static const char *class_to_string[] = {
 #define S_(s) s,
 #include "class_to_string.h"
 #undef S_
 };
-#endif
 
 #define TB_(s) static const char * s [] = {
 #define TE_(s) };
