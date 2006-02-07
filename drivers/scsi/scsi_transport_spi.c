@@ -401,8 +401,7 @@ static int period_to_str(char *buf, int period)
 }
 
 static ssize_t
-show_spi_transport_period_helper(struct class_device *cdev, char *buf,
-				 int period)
+show_spi_transport_period_helper(char *buf, int period)
 {
 	int len = period_to_str(buf, period);
 	buf[len++] = '\n';
@@ -459,7 +458,7 @@ show_spi_transport_period(struct class_device *cdev, char *buf)
 	if (i->f->get_period)
 		i->f->get_period(starget);
 
-	return show_spi_transport_period_helper(cdev, buf, tp->period);
+	return show_spi_transport_period_helper(buf, tp->period);
 }
 
 static ssize_t
@@ -494,7 +493,7 @@ show_spi_transport_min_period(struct class_device *cdev, char *buf)
 	struct spi_transport_attrs *tp =
 		(struct spi_transport_attrs *)&starget->starget_data;
 
-	return show_spi_transport_period_helper(cdev, buf, tp->min_period);
+	return show_spi_transport_period_helper(buf, tp->min_period);
 }
 
 static ssize_t
