@@ -72,6 +72,24 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		}},
 	},
+	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
+		.name         = "Unknown EM2820/2840 video grabber",
+		.is_em2800    = 0,
+		.vchannels    = 2,
+		.norm         = VIDEO_MODE_PAL,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM28XX_SAA7113,
+		.input           = {{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
 	[EM2820_BOARD_TERRATEC_CINERGY_250] = {
 		.name         = "Terratec Cinergy 250 USB",
 		.vchannels    = 3,
@@ -136,8 +154,30 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		}},
 	},
-	[EM2880_BOARD_WINTV_HVR_900] = {
-		.name         = "WinTV HVR 900",
+	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
+		.name         = "Hauppauge WinTV HVR 900",
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.has_tuner    = 0,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM28XX_TVP5150,
+		.input          = {{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 2,
+			.amux     = 0,
+		},{
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
+	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
+		.name         = "Terratec Hybrid XS",
 		.vchannels    = 3,
 		.norm         = VIDEO_MODE_PAL,
 		.has_tuner    = 0,
@@ -276,7 +316,8 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x2304, 0x0208), .driver_info = EM2820_BOARD_PINNACLE_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
 	{ USB_DEVICE(0x2304, 0x0207), .driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
-	{ USB_DEVICE(0x2040, 0x6500), .driver_info = EM2880_BOARD_WINTV_HVR_900 },
+	{ USB_DEVICE(0x2040, 0x6500), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
+	{ USB_DEVICE(0x0ccd, 0x0042), .driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
 	{ },
 };
 
@@ -284,7 +325,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
 	switch(dev->model){
-		case EM2880_BOARD_WINTV_HVR_900:
+		case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+		case EM2880_BOARD_TERRATEC_HYBRID_XS:
 			{
 				em28xx_write_regs_req(dev, 0x00, 0x08, "\x7d", 1); // reset through GPIO?
 				break;
@@ -317,6 +359,12 @@ void em28xx_card_setup(struct em28xx *dev)
 					dev->has_msp34xx=0;
 				break;
 			}
+		case EM2820_BOARD_KWORLD_PVRTV2800RF:
+			{
+				em28xx_write_regs_req(dev,0x00,0x08, "\xf9", 1); // GPIO enables sound on KWORLD PVR TV 2800RF
+				break;
+			}
+
 	}
 }
 
