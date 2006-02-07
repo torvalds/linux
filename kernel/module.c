@@ -1670,6 +1670,9 @@ static struct module *load_module(void __user *umod,
 		goto free_mod;
 	}
 
+	/* Userspace could have altered the string after the strlen_user() */
+	args[arglen - 1] = '\0';
+
 	if (find_module(mod->name)) {
 		err = -EEXIST;
 		goto free_mod;
