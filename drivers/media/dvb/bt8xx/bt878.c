@@ -381,6 +381,23 @@ bt878_device_control(struct bt878 *bt, unsigned int cmd, union dst_gpio_packet *
 
 EXPORT_SYMBOL(bt878_device_control);
 
+
+struct cards card_list[] __devinitdata = {
+
+	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV,			"Nebula Electronics DigiTV" },
+	{ 0x07611461, BTTV_BOARD_AVDVBT_761,			"AverMedia AverTV DVB-T 761" },
+	{ 0x001c11bd, BTTV_BOARD_PINNACLESAT,			"Pinnacle PCTV Sat" },
+	{ 0x002611bd, BTTV_BOARD_TWINHAN_DST,			"Pinnacle PCTV SAT CI" },
+	{ 0x00011822, BTTV_BOARD_TWINHAN_DST,			"Twinhan VisionPlus DVB" },
+	{ 0xfc00270f, BTTV_BOARD_TWINHAN_DST,			"ChainTech digitop DST-1000 DVB-S" },
+	{ 0x07711461, BTTV_BOARD_AVDVBT_771,			"AVermedia AverTV DVB-T 771" },
+	{ 0xdb1018ac, BTTV_BOARD_DVICO_DVBT_LITE,		"DViCO FusionHDTV DVB-T Lite" },
+	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,	"DViCO FusionHDTV 5 Lite" },
+	{ 0x20007063, BTTV_BOARD_PC_HDTV,			"pcHDTV HD-2000 TV"},
+	{ 0, -1, NULL }
+};
+
+
 /***********************/
 /* PCI device handling */
 /***********************/
@@ -388,17 +405,40 @@ EXPORT_SYMBOL(bt878_device_control);
 static int __devinit bt878_probe(struct pci_dev *dev,
 				 const struct pci_device_id *pci_id)
 {
-	int result;
+	int result = 0, has_dvb = 0, i;
 	unsigned char lat;
 	struct bt878 *bt;
 #if defined(__powerpc__)
 	unsigned int cmd;
 #endif
+	unsigned int cardid;
+	unsigned short id;
+	struct cards *dvb_cards;
 
 	printk(KERN_INFO "bt878: Bt878 AUDIO function found (%d).\n",
 	       bt878_num);
 	if (pci_enable_device(dev))
 		return -EIO;
+
+	pci_read_config_word(dev, PCI_SUBSYSTEM_ID, &id);
+	cardid = id << 16;
+	pci_read_config_word(dev, PCI_SUBSYSTEM_VENDOR_ID, &id);
+	cardid |= id;
+
+	for (i = 0, dvb_cards = card_list; i < ARRAY_SIZE(card_list); i++, dvb_cards++) {
+		if (cardid == dvb_cards->pci_id) {
+			printk("%s: card id=[0x%x],[ %s ] has DVB functions.\n",
+				__func__, cardid, dvb_cards->name);
+			has_dvb = 1;
+		}
+	}
+
+	if (!has_dvb) {
+		printk("%s: card id=[0x%x], Unknown card.\nExiting..\n", __func__, cardid);
+		result = -EINVAL;
+
+		goto fail0;
+	}
 
 	bt = &bt878[bt878_num];
 	bt->dev = dev;
@@ -416,6 +456,8 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 
 	pci_read_config_byte(dev, PCI_CLASS_REVISION, &bt->revision);
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
+
+
 	printk(KERN_INFO "bt878(%d): Bt%x (rev %d) at %02x:%02x.%x, ",
 	       bt878_num, bt->id, bt->revision, dev->bus->number,
 	       PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
