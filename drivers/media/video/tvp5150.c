@@ -1182,7 +1182,7 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 		return rv;
 	}
 
-//	if (debug > 1)
+	if (debug > 1)
 		dump_reg(c);
 	return 0;
 }
