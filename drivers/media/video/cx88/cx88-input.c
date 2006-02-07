@@ -482,6 +482,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	switch (core->board) {
 	case CX88_BOARD_DNTV_LIVE_DVB_T:
 	case CX88_BOARD_KWORLD_DVB_T:
+	case CX88_BOARD_KWORLD_DVB_T_CX22702:
 		ir_codes = ir_codes_dntv_live_dvb_t;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keycode = 0x1f;

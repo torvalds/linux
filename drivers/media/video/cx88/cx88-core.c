@@ -787,12 +787,14 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 
 int cx88_start_audio_dma(struct cx88_core *core)
 {
+	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
+	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
 	/* setup fifo + format */
-	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], 128, 0);
-	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], 128, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], bpl, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], bpl, 0);
 
-	cx_write(MO_AUDD_LNGTH,    128); /* fifo bpl size */
-	cx_write(MO_AUDR_LNGTH,    128); /* fifo bpl size */
+	cx_write(MO_AUDD_LNGTH, bpl); /* fifo bpl size */
+	cx_write(MO_AUDR_LNGTH, bpl); /* fifo bpl size */
 
 	/* start dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
