@@ -164,8 +164,11 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		break;
 	}
 	/* use default tuner_params if desired_type not available */
-	if (desired_type != tun->params[j].type)
+	if (desired_type != tun->params[j].type) {
+		tuner_dbg("IFPCoff = %d: tuner_params undefined for tuner %d\n",
+			  IFPCoff,t->type);
 		j = 0;
+	}
 
 	for (i = 0; i < tun->params[j].count; i++) {
 		if (freq > tun->params[j].ranges[i].limit)
