@@ -2674,6 +2674,33 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x00200000,
 		}},
 	},
+	[SAA7134_BOARD_TEVION_DVBT_220RF] = {
+		.name           = "Tevion DVB-T 220RF",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 0,
+			.amux   = LINE1,
+		}},
+		.radio = {
+			.name   = name_radio,
+			.amux   = LINE1,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3163,6 +3190,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x1421,
 		.driver_data  = SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x17de,
+		.subdevice    = 0x7201,
+		.driver_data  = SAA7134_BOARD_TEVION_DVBT_220RF,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3431,8 +3464,11 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
+	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
-		/* this is a hybrid board, initialize to analog mode */
+		/* this is a hybrid board, initialize to analog mode
+		 * and configure firmware eeprom address
+		 */
 		{
 		u8 data[] = { 0x3c, 0x33, 0x68};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};

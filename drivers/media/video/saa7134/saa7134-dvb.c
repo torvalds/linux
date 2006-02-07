@@ -885,6 +885,38 @@ static struct tda1004x_config ads_tech_duo_config = {
 	.request_firmware = NULL,
 };
 
+/* ------------------------------------------------------------------ */
+
+static int tevion_dvb220rf_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+{
+	int ret;
+	ret = philips_tda827xa_pll_set(0x60, fe, params);
+	return ret;
+}
+
+static int tevion_dvb220rf_pll_init(struct dvb_frontend *fe)
+{
+	return 0;
+}
+
+static void tevion_dvb220rf_pll_sleep(struct dvb_frontend *fe)
+{
+	philips_tda827xa_pll_sleep( 0x61, fe);
+}
+
+static struct tda1004x_config tevion_dvbt220rf_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.if_freq       = TDA10046_FREQ_045,
+	.pll_init      = tevion_dvb220rf_pll_init,
+	.pll_set       = tevion_dvb220rf_pll_set,
+	.pll_sleep     = tevion_dvb220rf_pll_sleep,
+	.request_firmware = NULL,
+};
+
 #endif
 
 /* ------------------------------------------------------------------ */
@@ -969,6 +1001,10 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
 		dev->dvb.frontend = tda10046_attach(&ads_tech_duo_config,
+						    &dev->i2c_adap);
+		break;
+	case SAA7134_BOARD_TEVION_DVBT_220RF:
+		dev->dvb.frontend = tda10046_attach(&tevion_dvbt220rf_config,
 						    &dev->i2c_adap);
 		break;
 #endif
