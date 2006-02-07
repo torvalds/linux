@@ -2637,6 +2637,27 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_FLYDVBT_LR301] = {
+		/* LifeView FlyDVB-T */
+		/* Giampiero Giancipoli <gianci@libero.it> */
+		.name           = "LifeView FlyDVB-T",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs         = {{
+			.name = name_comp1,	/* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,	/* S-Video signal on S-Video input */
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+	},
+
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3114,6 +3135,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x2c05,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x5168,
+		.subdevice    = 0x0301,
+		.driver_data  = SAA7134_BOARD_FLYDVBT_LR301,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3213,6 +3240,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_GOTVIEW_7135:
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
 	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
+	case SAA7134_BOARD_FLYDVBT_LR301:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_MD5044:

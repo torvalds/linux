@@ -924,6 +924,10 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = tda10046_attach(&philips_tiger_config,
 						    &dev->i2c_adap);
 		break;
+	case SAA7134_BOARD_FLYDVBT_LR301:
+		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
+						    &dev->i2c_adap);
+		break;
 #endif
 #ifdef HAVE_NXT200X
 	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:

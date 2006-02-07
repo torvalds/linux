@@ -230,6 +230,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x003F00;
 		mask_keyup   = 0x040000;
 		break;
+	case SAA7134_BOARD_FLYDVBT_LR301:
+		ir_codes     = ir_codes_flydvb;
+		mask_keycode = 0x0001F00;
+		mask_keydown = 0x0040000;
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
