@@ -2619,6 +2619,24 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x000000,	/* GPIO21=Low for FM radio antenna */
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_777] = {
+		.name           = "AverTV DVB-T 777",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3089,6 +3107,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x5168,
 		.subdevice    = 0x0319,
 		.driver_data  = SAA7134_BOARD_FLYDVB_TRIO,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,	/* SAA 7131E */
+		.subvendor    = 0x1461,
+		.subdevice    = 0x2c05,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,

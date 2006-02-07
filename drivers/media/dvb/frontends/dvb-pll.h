@@ -40,6 +40,7 @@ extern struct dvb_pll_desc dvb_pll_tuv1236d;
 extern struct dvb_pll_desc dvb_pll_tdhu2;
 extern struct dvb_pll_desc dvb_pll_samsung_tbmv;
 extern struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261;
+extern struct dvb_pll_desc dvb_pll_philips_td1316;
 
 int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 		      u32 freq, int bandwidth);

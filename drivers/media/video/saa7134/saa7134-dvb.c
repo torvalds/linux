@@ -32,6 +32,7 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 #include <media/v4l2-common.h>
+#include "dvb-pll.h"
 
 #ifdef HAVE_MT352
 # include "mt352.h"
@@ -42,7 +43,6 @@
 #endif
 #ifdef HAVE_NXT200X
 # include "nxt200x.h"
-# include "dvb-pll.h"
 #endif
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -113,6 +113,24 @@ static int mt352_pinnacle_init(struct dvb_frontend* fe)
 	return 0;
 }
 
+static int mt352_aver777_init(struct dvb_frontend* fe)
+{
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x2d };
+	static u8 reset []         = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0xa0 };
+	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x33 };
+
+	mt352_write(fe, clock_config,   sizeof(clock_config));
+	udelay(200);
+	mt352_write(fe, reset,          sizeof(reset));
+	mt352_write(fe, adc_ctl_1_cfg,  sizeof(adc_ctl_1_cfg));
+	mt352_write(fe, agc_cfg,        sizeof(agc_cfg));
+	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
+
+	return 0;
+}
+
 static int mt352_pinnacle_pll_set(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters* params,
 				  u8* pllbuf)
@@ -142,6 +160,15 @@ static int mt352_pinnacle_pll_set(struct dvb_frontend* fe,
 	return 0;
 }
 
+static int mt352_aver777_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8* pllbuf)
+{
+	pllbuf[0] = 0xc2;
+	dvb_pll_configure(&dvb_pll_philips_td1316, pllbuf+1,
+			  params->frequency,
+			  params->u.ofdm.bandwidth);
+	return 0;
+}
+
 static struct mt352_config pinnacle_300i = {
 	.demod_address = 0x3c >> 1,
 	.adc_clock     = 20333,
@@ -149,6 +176,12 @@ static struct mt352_config pinnacle_300i = {
 	.no_tuner      = 1,
 	.demod_init    = mt352_pinnacle_init,
 	.pll_set       = mt352_pinnacle_pll_set,
+};
+
+static struct mt352_config avermedia_777 = {
+	.demod_address = 0xf,
+	.demod_init    = mt352_aver777_init,
+	.pll_set       = mt352_aver777_pll_set,
 };
 #endif
 
@@ -845,6 +878,12 @@ static int dvb_init(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
 		printk("%s: pinnacle 300i dvb setup\n",dev->name);
 		dev->dvb.frontend = mt352_attach(&pinnacle_300i,
+						 &dev->i2c_adap);
+		break;
+
+	case SAA7134_BOARD_AVERMEDIA_777:
+		printk("%s: avertv 777 dvb setup\n",dev->name);
+		dev->dvb.frontend = mt352_attach(&avermedia_777,
 						 &dev->i2c_adap);
 		break;
 #endif
