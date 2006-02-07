@@ -967,6 +967,17 @@ static int tvp5150_command(struct i2c_client *c,
 		}
 	case DECODER_GET_STATUS:
 		{
+			int *iarg = arg;
+			int status;
+			int res=0;
+			status = tvp5150_read(c, 0x88);
+			if(status&0x08){
+				res |= DECODER_STATUS_COLOR;
+			}
+			if(status&0x04 && status&0x02){
+				res |= DECODER_STATUS_GOOD;
+			}
+			*iarg=res;
 			break;
 		}
 
