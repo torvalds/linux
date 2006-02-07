@@ -1048,6 +1048,25 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
+		/* FIXME: This card is shipped without a windows tv app,
+		 * so I haven't been able to use regspy to figure out the GPIO
+		 * settings. Standard video using the cx88 broadcast decoder is
+		 * working, but blackbird isn't working yet, audio is only
+		 * working correctly for television mode. S-Video and Composite
+		 * are working for video-only, so I have them disabled for now.
+		 */
+		.name           = "KWorld HardwareMpegTV XPert",
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x07fa,
+		}},
+	},
 
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
@@ -1254,6 +1273,10 @@ struct cx88_subid cx88_subids[] = {
 		.subdevice = 0xdb11,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
 		/* Re-branded DViCO: UltraView DVB-T Plus */
+	},{
+		.subvendor = 0x17de,
+		.subdevice = 0x0840,
+		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
