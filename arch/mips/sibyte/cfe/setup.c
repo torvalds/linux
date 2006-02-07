@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/bootmem.h>
+#include <linux/pm.h>
 #include <linux/smp.h>
 
 #include <asm/bootinfo.h>
@@ -248,7 +249,7 @@ void __init prom_init(void)
 
 	_machine_restart   = cfe_linux_restart;
 	_machine_halt      = cfe_linux_halt;
-	_machine_power_off = cfe_linux_halt;
+	pm_power_off = cfe_linux_halt;
 
 	/*
 	 * Check if a loader was used; if NOT, the 4 arguments are

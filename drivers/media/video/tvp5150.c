@@ -746,24 +746,27 @@ static int tvp5150_set_std(struct i2c_client *c, v4l2_std_id std)
 
 static inline void tvp5150_reset(struct i2c_client *c)
 {
-	u8 type, ver_656, msb_id, lsb_id, msb_rom, lsb_rom;
+	u8 msb_id, lsb_id, msb_rom, lsb_rom;
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
 
-	type=tvp5150_read(c,TVP5150_AUTOSW_MSK);
 	msb_id=tvp5150_read(c,TVP5150_MSB_DEV_ID);
 	lsb_id=tvp5150_read(c,TVP5150_LSB_DEV_ID);
 	msb_rom=tvp5150_read(c,TVP5150_ROM_MAJOR_VER);
 	lsb_rom=tvp5150_read(c,TVP5150_ROM_MINOR_VER);
 
-	if (type==0xdc) {
-		ver_656=tvp5150_read(c,TVP5150_REV_SELECT);
-		tvp5150_info("tvp%02x%02xam1 detected 656 version is %d.\n",msb_id, lsb_id,ver_656);
-	} else if (type==0xfc) {
-		tvp5150_info("tvp%02x%02xa detected.\n",msb_id, lsb_id);
+	if ((msb_rom==4)&&(lsb_rom==0)) { /* Is TVP5150AM1 */
+		tvp5150_info("tvp%02x%02xam1 detected.\n",msb_id, lsb_id);
+
+		/* ITU-T BT.656.4 timing */
+		tvp5150_write(c,TVP5150_REV_SELECT,0);
 	} else {
-		tvp5150_info("unknown tvp%02x%02x chip detected(%d).\n",msb_id,lsb_id,type);
+		if ((msb_rom==3)||(lsb_rom==0x21)) { /* Is TVP5150A */
+			tvp5150_info("tvp%02x%02xa detected.\n",msb_id, lsb_id);
+		} else {
+			tvp5150_info("*** unknown tvp%02x%02x chip detected.\n",msb_id,lsb_id);
+			tvp5150_info("*** Rom ver is %d.%d\n",msb_rom,lsb_rom);
+		}
 	}
-	tvp5150_info("Rom ver is %d.%d\n",msb_rom,lsb_rom);
 
 	/* Initializes TVP5150 to its default values */
 	tvp5150_write_inittab(c, tvp5150_init_default);
@@ -893,6 +896,17 @@ static int tvp5150_command(struct i2c_client *c,
 		}
 	case DECODER_GET_STATUS:
 		{
+			int *iarg = arg;
+			int status;
+			int res=0;
+			status = tvp5150_read(c, 0x88);
+			if(status&0x08){
+				res |= DECODER_STATUS_COLOR;
+			}
+			if(status&0x04 && status&0x02){
+				res |= DECODER_STATUS_GOOD;
+			}
+			*iarg=res;
 			break;
 		}
 

@@ -1,7 +1,7 @@
   0 -> UNKNOWN/GENERIC
   1 -> Proteus Pro [philips reference design]   [1131:2001,1131:2001]
   2 -> LifeView FlyVIDEO3000                    [5168:0138,4e42:0138]
-  3 -> LifeView FlyVIDEO2000                    [5168:0138]
+  3 -> LifeView/Typhoon FlyVIDEO2000            [5168:0138,4e42:0138]
   4 -> EMPRESS                                  [1131:6752]
   5 -> SKNet Monster TV                         [1131:4e85]
   6 -> Tevion MD 9717
@@ -53,12 +53,12 @@
  52 -> AverMedia AverTV/305                     [1461:2108]
  53 -> ASUS TV-FM 7135                          [1043:4845]
  54 -> LifeView FlyTV Platinum FM               [5168:0214,1489:0214]
- 55 -> LifeView FlyDVB-T DUO                    [5168:0502,5168:0306]
+ 55 -> LifeView FlyDVB-T DUO                    [5168:0306]
  56 -> Avermedia AVerTV 307                     [1461:a70a]
  57 -> Avermedia AVerTV GO 007 FM               [1461:f31f]
  58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0351,1421:0370,1421:1370]
  59 -> Kworld/Tevion V-Stream Xpert TV PVR7134
- 60 -> Typhoon DVB-T Duo Digital/Analog Cardbus [4e42:0502]
+ 60 -> LifeView/Typhoon FlyDVB-T Duo Cardbus    [5168:0502,4e42:0502]
  61 -> Philips TOUGH DVB-T reference design     [1131:2004]
  62 -> Compro VideoMate TV Gold+II
  63 -> Kworld Xpert TV PVR7134

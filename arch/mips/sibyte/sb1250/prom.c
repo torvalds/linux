@@ -24,6 +24,7 @@
 #include <linux/bootmem.h>
 #include <linux/smp.h>
 #include <linux/initrd.h>
+#include <linux/pm.h>
 
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
@@ -79,7 +80,7 @@ void __init prom_init(void)
 {
 	_machine_restart   = (void (*)(char *))prom_linux_exit;
 	_machine_halt      = prom_linux_exit;
-	_machine_power_off = prom_linux_exit;
+	pm_power_off = prom_linux_exit;
 
 	strcpy(arcs_cmdline, "root=/dev/ram0 ");
 

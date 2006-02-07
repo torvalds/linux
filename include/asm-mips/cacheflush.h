@@ -49,8 +49,7 @@ static inline void flush_dcache_page(struct page *page)
 
 extern void (*flush_icache_page)(struct vm_area_struct *vma,
 	struct page *page);
-extern void (*flush_icache_range)(unsigned long __user start,
-	unsigned long __user end);
+extern void (*flush_icache_range)(unsigned long start, unsigned long end);
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 

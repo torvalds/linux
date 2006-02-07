@@ -202,49 +202,49 @@ struct __large_struct { unsigned long buf[100]; };
  * Yuck.  We need two variants, one for 64bit operation and one
  * for 32 bit mode and old iron.
  */
-#ifdef __mips64
-#define __GET_USER_DW(ptr) __get_user_asm("ld", ptr)
-#else
-#define __GET_USER_DW(ptr) __get_user_asm_ll32(ptr)
+#ifdef CONFIG_32BIT
+#define __GET_USER_DW(val, ptr) __get_user_asm_ll32(val, ptr)
 #endif
+#ifdef CONFIG_64BIT
+#define __GET_USER_DW(val, ptr) __get_user_asm(val, "ld", ptr)
+#endif
+
+extern void __get_user_unknown(void);
+
+#define __get_user_common(val, size, ptr)				\
+do {									\
+	switch (size) {							\
+	case 1: __get_user_asm(val, "lb", ptr); break;			\
+	case 2: __get_user_asm(val, "lh", ptr); break;			\
+	case 4: __get_user_asm(val, "lw", ptr); break;			\
+	case 8: __GET_USER_DW(val, ptr); break;				\
+	default: __get_user_unknown(); break;				\
+	}								\
+} while (0)
 
 #define __get_user_nocheck(x,ptr,size)					\
 ({									\
-	__typeof(*(ptr)) __gu_val =  (__typeof(*(ptr))) 0;		\
-	long __gu_err = 0;						\
+	long __gu_err;							\
 									\
-	switch (size) {							\
-	case 1: __get_user_asm("lb", ptr); break;			\
-	case 2: __get_user_asm("lh", ptr); break;			\
-	case 4: __get_user_asm("lw", ptr); break;			\
-	case 8: __GET_USER_DW(ptr); break;				\
-	default: __get_user_unknown(); break;				\
-	}								\
-	(x) = (__typeof__(*(ptr))) __gu_val;				\
+	__get_user_common((x), size, ptr);				\
 	__gu_err;							\
 })
 
 #define __get_user_check(x,ptr,size)					\
 ({									\
-	const __typeof__(*(ptr)) __user * __gu_addr = (ptr);		\
-	__typeof__(*(ptr)) __gu_val = 0;				\
 	long __gu_err = -EFAULT;					\
+	const void __user * __gu_ptr = (ptr);				\
 									\
-	if (likely(access_ok(VERIFY_READ,  __gu_addr, size))) {		\
-		switch (size) {						\
-		case 1: __get_user_asm("lb", __gu_addr); break;		\
-		case 2: __get_user_asm("lh", __gu_addr); break;		\
-		case 4: __get_user_asm("lw", __gu_addr); break;		\
-		case 8: __GET_USER_DW(__gu_addr); break;		\
-		default: __get_user_unknown(); break;			\
-		}							\
-	}								\
-	(x) = (__typeof__(*(ptr))) __gu_val;				\
+	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size)))		\
+		__get_user_common((x), size, __gu_ptr);			\
+									\
 	__gu_err;							\
 })
 
-#define __get_user_asm(insn, addr)					\
+#define __get_user_asm(val, insn, addr)					\
 {									\
+	long __gu_tmp;							\
+									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%1, %3				\n"	\
 	"2:							\n"	\
@@ -255,14 +255,16 @@ struct __large_struct { unsigned long buf[100]; };
 	"	.section __ex_table,\"a\"			\n"	\
 	"	"__UA_ADDR "\t1b, 3b				\n"	\
 	"	.previous					\n"	\
-	: "=r" (__gu_err), "=r" (__gu_val)				\
+	: "=r" (__gu_err), "=r" (__gu_tmp)				\
 	: "0" (0), "o" (__m(addr)), "i" (-EFAULT));			\
+									\
+	(val) = (__typeof__(val)) __gu_tmp;				\
 }
 
 /*
  * Get a long long 64 using 32 bit registers.
  */
-#define __get_user_asm_ll32(addr)					\
+#define __get_user_asm_ll32(val, addr)					\
 {									\
 	__asm__ __volatile__(						\
 	"1:	lw	%1, (%3)				\n"	\
@@ -278,20 +280,19 @@ struct __large_struct { unsigned long buf[100]; };
 	"	" __UA_ADDR "	1b, 4b				\n"	\
 	"	" __UA_ADDR "	2b, 4b				\n"	\
 	"	.previous					\n"	\
-	: "=r" (__gu_err), "=&r" (__gu_val)				\
+	: "=r" (__gu_err), "=&r" (val)					\
 	: "0" (0), "r" (addr), "i" (-EFAULT));				\
 }
-
-extern void __get_user_unknown(void);
 
 /*
  * Yuck.  We need two variants, one for 64bit operation and one
  * for 32 bit mode and old iron.
  */
-#ifdef __mips64
-#define __PUT_USER_DW(ptr) __put_user_asm("sd", ptr)
-#else
+#ifdef CONFIG_32BIT
 #define __PUT_USER_DW(ptr) __put_user_asm_ll32(ptr)
+#endif
+#ifdef CONFIG_64BIT
+#define __PUT_USER_DW(ptr) __put_user_asm("sd", ptr)
 #endif
 
 #define __put_user_nocheck(x,ptr,size)					\

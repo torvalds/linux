@@ -60,7 +60,6 @@ void __init prom_init_cmdline(void)
 
 void __init prom_init(void)
 {
-	const char* toshiba_name_list[] = GROUP_TOSHIBA_NAMES;
 	extern int tx4927_get_mem_size(void);
 	extern char* toshiba_name;
 	int msize;
@@ -69,12 +68,13 @@ void __init prom_init(void)
 
 	mips_machgroup = MACH_GROUP_TOSHIBA;
 
-	if ((read_c0_prid() & 0xff) == PRID_REV_TX4927)
+	if ((read_c0_prid() & 0xff) == PRID_REV_TX4927) {
 		mips_machtype = MACH_TOSHIBA_RBTX4927;
-	else
+ 		toshiba_name  = "TX4927";
+	} else {
 		mips_machtype = MACH_TOSHIBA_RBTX4937;
-
-        toshiba_name = toshiba_name_list[mips_machtype];
+ 		toshiba_name  = "TX4937";
+	}
 
 	msize = tx4927_get_mem_size();
 	add_memory_region(0, msize << 20, BOOT_MEM_RAM);
