@@ -53,6 +53,14 @@
  * kernel image, so we don't play these games for swapper_tsb access.
  */
 #ifndef __ASSEMBLY__
+struct tsb_ldquad_phys_patch_entry {
+	unsigned int	addr;
+	unsigned int	sun4u_insn;
+	unsigned int	sun4v_insn;
+};
+extern struct tsb_ldquad_phys_patch_entry __tsb_ldquad_phys_patch,
+	__tsb_ldquad_phys_patch_end;
+
 struct tsb_phys_patch_entry {
 	unsigned int	addr;
 	unsigned int	insn;
@@ -61,9 +69,10 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 #endif
 #define TSB_LOAD_QUAD(TSB, REG)	\
 661:	ldda		[TSB] ASI_NUCLEUS_QUAD_LDD, REG; \
-	.section	.tsb_phys_patch, "ax"; \
+	.section	.tsb_ldquad_phys_patch, "ax"; \
 	.word		661b; \
 	ldda		[TSB] ASI_QUAD_LDD_PHYS, REG; \
+	ldda		[TSB] ASI_QUAD_LDD_PHYS_4V, REG; \
 	.previous
 
 #define TSB_LOAD_TAG_HIGH(TSB, REG) \

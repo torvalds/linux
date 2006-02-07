@@ -6,6 +6,8 @@
 #ifndef _SPARC64_CPUDATA_H
 #define _SPARC64_CPUDATA_H
 
+#include <asm/hypervisor.h>
+
 #ifndef __ASSEMBLY__
 
 #include <linux/percpu.h>
@@ -57,6 +59,9 @@ struct trap_per_cpu {
 
 /* D-cache line 2 */
 	unsigned long		__pad2[4];
+
+/* Dcache lines 3 and 4 */
+	struct hv_fault_status	fault_info;
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(void);
@@ -88,8 +93,9 @@ extern struct gl_2insn_patch_entry __gl_2insn_patch, __gl_2insn_patch_end;
 
 #define TRAP_PER_CPU_THREAD	0x00
 #define TRAP_PER_CPU_PGD_PADDR	0x08
+#define TRAP_PER_CPU_FAULT_INFO	0x20
 
-#define TRAP_BLOCK_SZ_SHIFT	6
+#define TRAP_BLOCK_SZ_SHIFT	7
 
 #include <asm/scratchpad.h>
 

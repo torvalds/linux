@@ -71,6 +71,9 @@ SECTIONS
   __con_initcall_end = .;
   SECURITY_INIT
   . = ALIGN(4);
+  __tsb_ldquad_phys_patch = .;
+  .tsb_ldquad_phys_patch : { *(.tsb_ldquad_phys_patch) }
+  __tsb_ldquad_phys_patch_end = .;
   __tsb_phys_patch = .;
   .tsb_phys_patch : { *(.tsb_phys_patch) }
   __tsb_phys_patch_end = .;

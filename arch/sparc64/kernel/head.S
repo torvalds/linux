@@ -474,6 +474,7 @@ setup_tba:
 sparc64_boot_end:
 
 #include "systbls.S"
+#include "sun4v_tlb_miss.S"
 #include "ktlb.S"
 #include "tsb.S"
 #include "etrap.S"

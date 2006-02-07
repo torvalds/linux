@@ -18,30 +18,33 @@
 	 * %g4:	available temporary
 	 * %g5:	available temporary
 	 * %g6: TAG TARGET
-	 * %g7:	physical address base of the linux page
+	 * %g7:	available temporary, will be loaded by us with
+	 *      the physical address base of the linux page
 	 *      tables for the current address space
 	 */
-	.globl		tsb_miss_dtlb
 tsb_miss_dtlb:
 	mov		TLB_TAG_ACCESS, %g4
 	ldxa		[%g4] ASI_DMMU, %g4
 	ba,pt		%xcc, tsb_miss_page_table_walk
 	 nop
 
-	.globl		tsb_miss_itlb
 tsb_miss_itlb:
 	mov		TLB_TAG_ACCESS, %g4
 	ldxa		[%g4] ASI_IMMU, %g4
 	ba,pt		%xcc, tsb_miss_page_table_walk
 	 nop
 
+	/* The sun4v TLB miss handlers jump directly here instead
+	 * of tsb_miss_{d,i}tlb with the missing virtual address
+	 * already loaded into %g4.
+	 */
 tsb_miss_page_table_walk:
 	TRAP_LOAD_PGD_PHYS(%g7, %g5)
 
 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
 
 tsb_reload:
-	TSB_LOCK_TAG(%g1, %g2, %g4)
+	TSB_LOCK_TAG(%g1, %g2, %g7)
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
@@ -52,9 +55,9 @@ tsb_reload:
 	 * bother putting it into the TSB.
 	 */
 	srlx		%g5, 32, %g2
-	sethi		%hi(_PAGE_ALL_SZ_BITS >> 32), %g4
+	sethi		%hi(_PAGE_ALL_SZ_BITS >> 32), %g7
+	and		%g2, %g7, %g2
 	sethi		%hi(_PAGE_SZBITS >> 32), %g7
-	and		%g2, %g4, %g2
 	cmp		%g2, %g7
 	bne,a,pn	%xcc, tsb_tlb_reload
 	 TSB_STORE(%g1, %g0)
@@ -68,12 +71,54 @@ tsb_tlb_reload:
 	 nop
 
 tsb_dtlb_load:
-	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
+
+661:	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
 	retry
+	.section	.gl_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
+	/* For sun4v the ASI_DTLB_DATA_IN store and the retry
+	 * instruction get nop'd out and we get here to branch
+	 * to the sun4v tlb load code.  The registers are setup
+	 * as follows:
+	 *
+	 * %g4: vaddr
+	 * %g5: PTE
+	 * %g6:	TAG
+	 *
+	 * The sun4v TLB load wants the PTE in %g3 so we fix that
+	 * up here.
+	 */
+	ba,pt		%xcc, sun4v_dtlb_load
+	 mov		%g5, %g3
 
 tsb_itlb_load:
-	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
+
+661:	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
+	.section	.gl_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
+	/* For sun4v the ASI_ITLB_DATA_IN store and the retry
+	 * instruction get nop'd out and we get here to branch
+	 * to the sun4v tlb load code.  The registers are setup
+	 * as follows:
+	 *
+	 * %g4: vaddr
+	 * %g5: PTE
+	 * %g6:	TAG
+	 *
+	 * The sun4v TLB load wants the PTE in %g3 so we fix that
+	 * up here.
+	 */
+	ba,pt		%xcc, sun4v_itlb_load
+	 mov		%g5, %g3
 
 	/* No valid entry in the page tables, do full fault
 	 * processing.
@@ -95,10 +140,17 @@ tsb_do_fault:
 	 nop
 
 tsb_do_dtlb_fault:
-	rdpr	%tl, %g4
-	cmp	%g4, 1
-	mov	TLB_TAG_ACCESS, %g4
+	rdpr	%tl, %g3
+	cmp	%g3, 1
+
+661:	mov	TLB_TAG_ACCESS, %g4
 	ldxa	[%g4] ASI_DMMU, %g5
+	.section .gl_2insn_patch, "ax"
+	.word	661b
+	mov	%g4, %g5
+	nop
+	.previous
+
 	be,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_DTLB, %g4
 	ba,pt	%xcc, winfix_trampoline
@@ -196,12 +248,23 @@ __tsb_context_switch:
 	add	%g2, %g1, %g2
 	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]
 
-	mov	TSB_REG, %g1
+661:	mov	TSB_REG, %g1
 	stxa	%o1, [%g1] ASI_DMMU
+	.section .gl_2insn_patch, "ax"
+	.word	661b
+	mov	SCRATCHPAD_UTSBREG1, %g1
+	stxa	%o1, [%g1] ASI_SCRATCHPAD
+	.previous
+
 	membar	#Sync
 
-	stxa	%o1, [%g1] ASI_IMMU
+661:	stxa	%o1, [%g1] ASI_IMMU
 	membar	#Sync
+	.section .gl_2insn_patch, "ax"
+	.word	661b
+	nop
+	nop
+	.previous
 
 	brz	%o2, 9f
 	 nop

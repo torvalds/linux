@@ -1050,7 +1050,24 @@ unsigned long __init find_ecache_flush_span(unsigned long size)
 
 static void __init tsb_phys_patch(void)
 {
+	struct tsb_ldquad_phys_patch_entry *pquad;
 	struct tsb_phys_patch_entry *p;
+
+	pquad = &__tsb_ldquad_phys_patch;
+	while (pquad < &__tsb_ldquad_phys_patch_end) {
+		unsigned long addr = pquad->addr;
+
+		if (tlb_type == hypervisor)
+			*(unsigned int *) addr = pquad->sun4v_insn;
+		else
+			*(unsigned int *) addr = pquad->sun4u_insn;
+		wmb();
+		__asm__ __volatile__("flush	%0"
+				     : /* no outputs */
+				     : "r" (addr));
+
+		pquad++;
+	}
 
 	p = &__tsb_phys_patch;
 	while (p < &__tsb_phys_patch_end) {
@@ -1069,6 +1086,7 @@ static void __init tsb_phys_patch(void)
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
+extern void sun4v_patch_tlb_handlers(void);
 
 static unsigned long last_valid_pfn;
 pgd_t swapper_pg_dir[2048];
@@ -1078,8 +1096,12 @@ void __init paging_init(void)
 	unsigned long end_pfn, pages_avail, shift;
 	unsigned long real_end, i;
 
-	if (tlb_type == cheetah_plus)
+	if (tlb_type == cheetah_plus ||
+	    tlb_type == hypervisor)
 		tsb_phys_patch();
+
+	if (tlb_type == hypervisor)
+		sun4v_patch_tlb_handlers();
 
 	/* Find available physical memory... */
 	read_obp_memory("available", &pavail[0], &pavail_ents);

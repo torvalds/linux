@@ -16,11 +16,15 @@
 	.text
 	.align		32
 
-	.globl		kvmap_itlb
 kvmap_itlb:
 	/* g6: TAG TARGET */
 	mov		TLB_TAG_ACCESS, %g4
 	ldxa		[%g4] ASI_IMMU, %g4
+
+	/* sun4v_itlb_miss branches here with the missing virtual
+	 * address already loaded into %g4
+	 */
+kvmap_itlb_4v:
 
 kvmap_itlb_nonlinear:
 	/* Catch kernel NULL pointer calls.  */
@@ -94,11 +98,15 @@ kvmap_dtlb_obp:
 	 nop
 
 	.align		32
-	.globl		kvmap_dtlb
 kvmap_dtlb:
 	/* %g6: TAG TARGET */
 	mov		TLB_TAG_ACCESS, %g4
 	ldxa		[%g4] ASI_DMMU, %g4
+
+	/* sun4v_dtlb_miss branches here with the missing virtual
+	 * address already loaded into %g4
+	 */
+kvmap_dtlb_4v:
 	brgez,pn	%g4, kvmap_dtlb_nonlinear
 	 nop
 
