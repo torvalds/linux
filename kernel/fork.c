@@ -1371,15 +1371,18 @@ static int unshare_thread(unsigned long unshare_flags)
 }
 
 /*
- * Unsharing of fs info for tasks created with CLONE_FS is not supported yet
+ * Unshare the filesystem structure if it is being shared
  */
 static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
 {
 	struct fs_struct *fs = current->fs;
 
 	if ((unshare_flags & CLONE_FS) &&
-	    (fs && atomic_read(&fs->count) > 1))
-		return -EINVAL;
+	    (fs && atomic_read(&fs->count) > 1)) {
+		*new_fsp = __copy_fs_struct(current->fs);
+		if (!*new_fsp)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
