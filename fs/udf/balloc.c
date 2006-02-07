@@ -579,10 +579,9 @@ static void udf_table_free_blocks(struct super_block * sb,
 			{
 				loffset = nextoffset;
 				aed->lengthAllocDescs = cpu_to_le32(adsize);
-				if (obh)
-					sptr = UDF_I_DATA(inode) + nextoffset -  udf_file_entry_alloc_offset(inode) + UDF_I_LENEATTR(inode) - adsize;
-				else
-					sptr = obh->b_data + nextoffset - adsize;
+				sptr = UDF_I_DATA(inode) + nextoffset -
+					udf_file_entry_alloc_offset(inode) +
+					UDF_I_LENEATTR(inode) - adsize;
 				dptr = nbh->b_data + sizeof(struct allocExtDesc);
 				memcpy(dptr, sptr, adsize);
 				nextoffset = sizeof(struct allocExtDesc) + adsize;

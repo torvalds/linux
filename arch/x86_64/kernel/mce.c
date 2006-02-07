@@ -380,7 +380,7 @@ static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
  */
 void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 {
-	static cpumask_t mce_cpus __initdata = CPU_MASK_NONE;
+	static cpumask_t mce_cpus = CPU_MASK_NONE;
 
 	mce_cpu_quirks(c); 
 

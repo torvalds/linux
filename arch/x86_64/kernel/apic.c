@@ -35,8 +35,12 @@
 #include <asm/mach_apic.h>
 #include <asm/nmi.h>
 #include <asm/idle.h>
+#include <asm/proto.h>
+#include <asm/timex.h>
 
 int apic_verbosity;
+int apic_runs_main_timer;
+int apic_calibrate_pmtmr __initdata;
 
 int disable_apic_timer __initdata;
 
@@ -66,6 +70,26 @@ int get_maxlvt(void)
 	v = apic_read(APIC_LVR);
 	maxlvt = GET_APIC_MAXLVT(v);
 	return maxlvt;
+}
+
+/*
+ * 'what should we do if we get a hw irq event on an illegal vector'.
+ * each architecture has to answer this themselves.
+ */
+void ack_bad_irq(unsigned int irq)
+{
+	printk("unexpected IRQ trap at vector %02x\n", irq);
+	/*
+	 * Currently unexpected vectors happen only on SMP and APIC.
+	 * We _must_ ack these because every local APIC has only N
+	 * irq slots per priority level, and a 'hanging, unacked' IRQ
+	 * holds up an irq slot - in excessive cases (when multiple
+	 * unexpected vectors occur) that might lock up the APIC
+	 * completely.
+  	 * But don't ack when the APIC is disabled. -AK
+	 */
+	if (!disable_apic)
+		ack_APIC_irq();
 }
 
 void clear_local_APIC(void)
@@ -702,9 +726,17 @@ static void setup_APIC_timer(unsigned int clocks)
 			c2 |= inb_p(0x40) << 8;
 		} while (c2 - c1 < 300);
 	}
-
 	__setup_APIC_LVTT(clocks);
-
+	/* Turn off PIT interrupt if we use APIC timer as main timer.
+	   Only works with the PM timer right now
+	   TBD fix it for HPET too. */
+	if (vxtime.mode == VXTIME_PMTMR &&
+		smp_processor_id() == boot_cpu_id &&
+		apic_runs_main_timer == 1 &&
+		!cpu_isset(boot_cpu_id, timer_interrupt_broadcast_ipi_mask)) {
+		stop_timer_interrupt();
+		apic_runs_main_timer++;
+	}
 	local_irq_restore(flags);
 }
 
@@ -735,14 +767,27 @@ static int __init calibrate_APIC_clock(void)
 	__setup_APIC_LVTT(1000000000);
 
 	apic_start = apic_read(APIC_TMCCT);
-	rdtscl(tsc_start);
-
-	do {
+#ifdef CONFIG_X86_PM_TIMER
+	if (apic_calibrate_pmtmr && pmtmr_ioport) {
+		pmtimer_wait(5000);  /* 5ms wait */
 		apic = apic_read(APIC_TMCCT);
-		rdtscl(tsc);
-	} while ((tsc - tsc_start) < TICK_COUNT && (apic - apic_start) < TICK_COUNT);
+		result = (apic_start - apic) * 1000L / 5;
+	} else
+#endif
+	{
+		rdtscl(tsc_start);
 
-	result = (apic_start - apic) * 1000L * cpu_khz / (tsc - tsc_start);
+		do {
+			apic = apic_read(APIC_TMCCT);
+			rdtscl(tsc);
+		} while ((tsc - tsc_start) < TICK_COUNT &&
+				(apic - apic_start) < TICK_COUNT);
+
+		result = (apic_start - apic) * 1000L * cpu_khz /
+					(tsc - tsc_start);
+	}
+	printk("result %d\n", result);
+
 
 	printk(KERN_INFO "Detected %d.%03d MHz APIC timer.\n",
 		result / 1000 / 1000, result / 1000 % 1000);
@@ -872,6 +917,8 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif
+	if (apic_runs_main_timer > 1 && smp_processor_id() == boot_cpu_id)
+		main_timer_handler(regs);
 	/*
 	 * We take the 'long' return path, and there every subsystem
 	 * grabs the appropriate locks (kernel lock/ irq lock).
@@ -924,7 +971,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
  * multi-chassis. Use available data to take a good guess.
  * If in doubt, go HPET.
  */
-__init int oem_force_hpet_timer(void)
+__cpuinit int oem_force_hpet_timer(void)
 {
 	int i, clusters, zeros;
 	unsigned id;
@@ -1081,9 +1128,33 @@ static __init int setup_nolapic(char *str)
 
 static __init int setup_noapictimer(char *str) 
 { 
+	if (str[0] != ' ' && str[0] != 0)
+		return -1;
 	disable_apic_timer = 1;
 	return 0;
 } 
+
+static __init int setup_apicmaintimer(char *str)
+{
+	apic_runs_main_timer = 1;
+	nohpet = 1;
+	return 0;
+}
+__setup("apicmaintimer", setup_apicmaintimer);
+
+static __init int setup_noapicmaintimer(char *str)
+{
+	apic_runs_main_timer = -1;
+	return 0;
+}
+__setup("noapicmaintimer", setup_noapicmaintimer);
+
+static __init int setup_apicpmtimer(char *s)
+{
+	apic_calibrate_pmtmr = 1;
+	return setup_apicmaintimer(NULL);
+}
+__setup("apicpmtimer", setup_apicpmtimer);
 
 /* dummy parsing: see setup.c */
 

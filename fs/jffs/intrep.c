@@ -1965,7 +1965,7 @@ retry:
 		iovec_cnt++;
 
 		if (JFFS_GET_PAD_BYTES(raw_inode->nsize)) {
-			static char allff[3]={255,255,255};
+			static unsigned char allff[3]={255,255,255};
 			/* Add some extra padding if necessary */
 			node_iovec[iovec_cnt].iov_base = allff;
 			node_iovec[iovec_cnt].iov_len =

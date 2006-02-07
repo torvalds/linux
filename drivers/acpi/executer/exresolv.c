@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,7 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 	ACPI_FUNCTION_TRACE_PTR("ex_resolve_to_value", stack_ptr);
 
 	if (!stack_ptr || !*stack_ptr) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Internal - null pointer\n"));
+		ACPI_ERROR((AE_INFO, "Internal - null pointer"));
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
@@ -97,8 +97,7 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 		}
 
 		if (!*stack_ptr) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Internal - null pointer\n"));
+			ACPI_ERROR((AE_INFO, "Internal - null pointer"));
 			return_ACPI_STATUS(AE_AML_NO_OPERAND);
 		}
 	}
@@ -228,9 +227,9 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					 * A NULL object descriptor means an unitialized element of
 					 * the package, can't dereference it
 					 */
-					ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-							  "Attempt to deref an Index to NULL pkg element Idx=%p\n",
-							  stack_desc));
+					ACPI_ERROR((AE_INFO,
+						    "Attempt to deref an Index to NULL pkg element Idx=%p",
+						    stack_desc));
 					status = AE_AML_UNINITIALIZED_ELEMENT;
 				}
 				break;
@@ -239,7 +238,10 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 				/* Invalid reference object */
 
-				ACPI_REPORT_ERROR(("During resolve, Unknown target_type %X in Index/Reference obj %p\n", stack_desc->reference.target_type, stack_desc));
+				ACPI_ERROR((AE_INFO,
+					    "Unknown target_type %X in Index/Reference obj %p",
+					    stack_desc->reference.target_type,
+					    stack_desc));
 				status = AE_AML_INTERNAL;
 				break;
 			}
@@ -264,7 +266,10 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 		default:
 
-			ACPI_REPORT_ERROR(("During resolve, Unknown Reference opcode %X (%s) in %p\n", opcode, acpi_ps_get_opcode_name(opcode), stack_desc));
+			ACPI_ERROR((AE_INFO,
+				    "Unknown Reference opcode %X (%s) in %p",
+				    opcode, acpi_ps_get_opcode_name(opcode),
+				    stack_desc));
 			status = AE_AML_INTERNAL;
 			break;
 		}
@@ -386,7 +391,9 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
 			    ACPI_DESC_TYPE_NAMED) {
-				ACPI_REPORT_ERROR(("acpi_ex_resolve_multiple: Not a NS node %p [%s]\n", node, acpi_ut_get_descriptor_name(node)));
+				ACPI_ERROR((AE_INFO, "Not a NS node %p [%s]",
+					    node,
+					    acpi_ut_get_descriptor_name(node)));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
 
@@ -442,7 +449,9 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
 			    ACPI_DESC_TYPE_NAMED) {
-				ACPI_REPORT_ERROR(("acpi_ex_resolve_multiple: Not a NS node %p [%s]\n", node, acpi_ut_get_descriptor_name(node)));
+				ACPI_ERROR((AE_INFO, "Not a NS node %p [%s]",
+					    node,
+					    acpi_ut_get_descriptor_name(node)));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
 
@@ -511,7 +520,9 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 		default:
 
-			ACPI_REPORT_ERROR(("acpi_ex_resolve_multiple: Unknown Reference subtype %X\n", obj_desc->reference.opcode));
+			ACPI_ERROR((AE_INFO,
+				    "Unknown Reference subtype %X",
+				    obj_desc->reference.opcode));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 	}

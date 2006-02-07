@@ -23,7 +23,7 @@ config SERIAL_8250
 	  work.)
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called serial.
+	  module will be called 8250.
 	  [WARNING: Do not compile this driver as a module if you are using
 	  non-standard serial ports, since the configuration information will
 	  be lost when the driver is unloaded.  This limitation may be lifted
@@ -98,6 +98,7 @@ config SERIAL_8250_NR_UARTS
 config SERIAL_8250_RUNTIME_UARTS
 	int "Number of 8250/16550 serial ports to register at runtime"
 	depends on SERIAL_8250
+	range 0 SERIAL_8250_NR_UARTS
 	default "4"
 	help
 	  Set this to the maximum number of serial ports you want
@@ -892,20 +893,20 @@ config SERIAL_VR41XX_CONSOLE
 	  a console on a serial port, say Y.  Otherwise, say N.
 
 config SERIAL_JSM
-        tristate "Digi International NEO PCI Support"
-	depends on PCI && BROKEN
-        select SERIAL_CORE
-        help
-          This is a driver for Digi International's Neo series
-          of cards which provide multiple serial ports. You would need
-          something like this to connect more than two modems to your Linux
-          box, for instance in order to become a dial-in server. This driver
-          supports PCI boards only.
-          If you have a card like this, say Y here and read the file
-          <file:Documentation/jsm.txt>.
+	tristate "Digi International NEO PCI Support"
+	depends on PCI
+	select SERIAL_CORE
+	help
+	  This is a driver for Digi International's Neo series
+	  of cards which provide multiple serial ports. You would need
+	  something like this to connect more than two modems to your Linux
+	  box, for instance in order to become a dial-in server. This driver
+	  supports PCI boards only.
+	  If you have a card like this, say Y here and read the file
+	  <file:Documentation/jsm.txt>.
 
-          To compile this driver as a module, choose M here: the
-          module will be called jsm.
+	  To compile this driver as a module, choose M here: the
+	  module will be called jsm.
 
 config SERIAL_SGI_IOC4
 	tristate "SGI IOC4 controller serial support"

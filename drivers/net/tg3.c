@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.48"
-#define DRV_MODULE_RELDATE	"Jan 16, 2006"
+#define DRV_MODULE_VERSION	"3.49"
+#define DRV_MODULE_RELDATE	"Feb 2, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3482,6 +3482,17 @@ static void tg3_reset_task(void *_data)
 	struct tg3 *tp = _data;
 	unsigned int restart_timer;
 
+	tg3_full_lock(tp, 0);
+	tp->tg3_flags |= TG3_FLAG_IN_RESET_TASK;
+
+	if (!netif_running(tp->dev)) {
+		tp->tg3_flags &= ~TG3_FLAG_IN_RESET_TASK;
+		tg3_full_unlock(tp);
+		return;
+	}
+
+	tg3_full_unlock(tp);
+
 	tg3_netif_stop(tp);
 
 	tg3_full_lock(tp, 1);
@@ -3494,10 +3505,12 @@ static void tg3_reset_task(void *_data)
 
 	tg3_netif_start(tp);
 
-	tg3_full_unlock(tp);
-
 	if (restart_timer)
 		mod_timer(&tp->timer, jiffies + 1);
+
+	tp->tg3_flags &= ~TG3_FLAG_IN_RESET_TASK;
+
+	tg3_full_unlock(tp);
 }
 
 static void tg3_tx_timeout(struct net_device *dev)
@@ -6785,6 +6798,13 @@ static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *);
 static int tg3_close(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
+
+	/* Calling flush_scheduled_work() may deadlock because
+	 * linkwatch_event() may be on the workqueue and it will try to get
+	 * the rtnl_lock which we are holding.
+	 */
+	while (tp->tg3_flags & TG3_FLAG_IN_RESET_TASK)
+		msleep(1);
 
 	netif_stop_queue(dev);
 
@@ -10880,6 +10900,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 	if (dev) {
 		struct tg3 *tp = netdev_priv(dev);
 
+		flush_scheduled_work();
 		unregister_netdev(dev);
 		if (tp->regs) {
 			iounmap(tp->regs);
@@ -10901,6 +10922,7 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
+	flush_scheduled_work();
 	tg3_netif_stop(tp);
 
 	del_timer_sync(&tp->timer);

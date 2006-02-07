@@ -1024,7 +1024,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		rdev-> sb_size = (rdev->sb_size | bmask)+1;
 
 	if (refdev == 0)
-		return 1;
+		ret = 1;
 	else {
 		__u64 ev1, ev2;
 		struct mdp_superblock_1 *refsb = 
@@ -1044,7 +1044,9 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		ev2 = le64_to_cpu(refsb->events);
 
 		if (ev1 > ev2)
-			return 1;
+			ret = 1;
+		else
+			ret = 0;
 	}
 	if (minor_version) 
 		rdev->size = ((rdev->bdev->bd_inode->i_size>>9) - le64_to_cpu(sb->data_offset)) / 2;
@@ -1058,7 +1060,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 
 	if (le32_to_cpu(sb->size) > rdev->size*2)
 		return -EINVAL;
-	return 0;
+	return ret;
 }
 
 static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
@@ -1081,7 +1083,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
 		mddev->bitmap_offset = 0;
-		mddev->default_bitmap_offset = 1024;
+		mddev->default_bitmap_offset = 1024 >> 9;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
 		memcpy(mddev->uuid, sb->set_uuid, 16);
@@ -1160,6 +1162,9 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->resync_offset = cpu_to_le64(0);
 
 	sb->cnt_corrected_read = atomic_read(&rdev->corrected_errors);
+
+	sb->raid_disks = cpu_to_le32(mddev->raid_disks);
+	sb->size = cpu_to_le64(mddev->size<<1);
 
 	if (mddev->bitmap && mddev->bitmap_file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
@@ -2686,14 +2691,6 @@ static int do_md_stop(mddev_t * mddev, int ro)
 			set_disk_ro(disk, 1);
 	}
 
-	bitmap_destroy(mddev);
-	if (mddev->bitmap_file) {
-		atomic_set(&mddev->bitmap_file->f_dentry->d_inode->i_writecount, 1);
-		fput(mddev->bitmap_file);
-		mddev->bitmap_file = NULL;
-	}
-	mddev->bitmap_offset = 0;
-
 	/*
 	 * Free resources if final stop
 	 */
@@ -2702,6 +2699,14 @@ static int do_md_stop(mddev_t * mddev, int ro)
 		struct list_head *tmp;
 		struct gendisk *disk;
 		printk(KERN_INFO "md: %s stopped.\n", mdname(mddev));
+
+		bitmap_destroy(mddev);
+		if (mddev->bitmap_file) {
+			atomic_set(&mddev->bitmap_file->f_dentry->d_inode->i_writecount, 1);
+			fput(mddev->bitmap_file);
+			mddev->bitmap_file = NULL;
+		}
+		mddev->bitmap_offset = 0;
 
 		ITERATE_RDEV(mddev,rdev,tmp)
 			if (rdev->raid_disk >= 0) {
@@ -2939,6 +2944,8 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 	info.ctime         = mddev->ctime;
 	info.level         = mddev->level;
 	info.size          = mddev->size;
+	if (info.size != mddev->size) /* overflow */
+		info.size = -1;
 	info.nr_disks      = nr;
 	info.raid_disks    = mddev->raid_disks;
 	info.md_minor      = mddev->md_minor;
@@ -3465,7 +3472,7 @@ static int update_size(mddev_t *mddev, unsigned long size)
 		bdev = bdget_disk(mddev->gendisk, 0);
 		if (bdev) {
 			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, mddev->array_size << 10);
+			i_size_write(bdev->bd_inode, (loff_t)mddev->array_size << 10);
 			mutex_unlock(&bdev->bd_inode->i_mutex);
 			bdput(bdev);
 		}
@@ -3485,17 +3492,6 @@ static int update_raid_disks(mddev_t *mddev, int raid_disks)
 	if (mddev->sync_thread)
 		return -EBUSY;
 	rv = mddev->pers->reshape(mddev, raid_disks);
-	if (!rv) {
-		struct block_device *bdev;
-
-		bdev = bdget_disk(mddev->gendisk, 0);
-		if (bdev) {
-			mutex_lock(&bdev->bd_inode->i_mutex);
-			i_size_write(bdev->bd_inode, mddev->array_size << 10);
-			mutex_unlock(&bdev->bd_inode->i_mutex);
-			bdput(bdev);
-		}
-	}
 	return rv;
 }
 
@@ -3531,7 +3527,7 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		)
 		return -EINVAL;
 	/* Check there is only one change */
-	if (mddev->size != info->size) cnt++;
+	if (info->size >= 0 && mddev->size != info->size) cnt++;
 	if (mddev->raid_disks != info->raid_disks) cnt++;
 	if (mddev->layout != info->layout) cnt++;
 	if ((state ^ info->state) & (1<<MD_SB_BITMAP_PRESENT)) cnt++;
@@ -3548,7 +3544,7 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		else
 			return mddev->pers->reconfig(mddev, info->layout, -1);
 	}
-	if (mddev->size != info->size)
+	if (info->size >= 0 && mddev->size != info->size)
 		rv = update_size(mddev, info->size);
 
 	if (mddev->raid_disks    != info->raid_disks)

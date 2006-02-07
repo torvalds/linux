@@ -575,18 +575,21 @@ xpc_activate_partition(struct xpc_partition *part)
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
-	pid = kernel_thread(xpc_activating, (void *) ((u64) partid), 0);
-
 	DBUG_ON(part->act_state != XPC_P_INACTIVE);
 
-	if (pid > 0) {
-		part->act_state = XPC_P_ACTIVATION_REQ;
-		XPC_SET_REASON(part, xpcCloneKThread, __LINE__);
-	} else {
-		XPC_SET_REASON(part, xpcCloneKThreadFailed, __LINE__);
-	}
+	part->act_state = XPC_P_ACTIVATION_REQ;
+	XPC_SET_REASON(part, xpcCloneKThread, __LINE__);
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
+
+	pid = kernel_thread(xpc_activating, (void *) ((u64) partid), 0);
+
+	if (unlikely(pid <= 0)) {
+		spin_lock_irqsave(&part->act_lock, irq_flags);
+		part->act_state = XPC_P_INACTIVE;
+		XPC_SET_REASON(part, xpcCloneKThreadFailed, __LINE__);
+		spin_unlock_irqrestore(&part->act_lock, irq_flags);
+	}
 }
 
 

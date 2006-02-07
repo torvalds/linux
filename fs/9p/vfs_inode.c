@@ -886,8 +886,8 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	}
 
 	/* copy extension buffer into buffer */
-	if (fcall->params.rstat.stat.extension.len < buflen)
-		buflen = fcall->params.rstat.stat.extension.len;
+	if (fcall->params.rstat.stat.extension.len+1 < buflen)
+		buflen = fcall->params.rstat.stat.extension.len + 1;
 
 	memcpy(buffer, fcall->params.rstat.stat.extension.str, buflen - 1);
 	buffer[buflen-1] = 0;
@@ -951,7 +951,7 @@ static void *v9fs_vfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (!link)
 		link = ERR_PTR(-ENOMEM);
 	else {
-		len = v9fs_readlink(dentry, link, strlen(link));
+		len = v9fs_readlink(dentry, link, PATH_MAX);
 
 		if (len < 0) {
 			__putname(link);

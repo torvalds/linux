@@ -73,17 +73,17 @@ asmlinkage long compat_sys_utime(char __user *filename, struct compat_utimbuf __
 	return do_utimes(AT_FDCWD, filename, t ? tv : NULL);
 }
 
-asmlinkage long compat_sys_futimesat(int dfd, char __user *filename, struct compat_timeval __user *t)
+asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename, struct compat_timeval __user *t)
 {
 	struct timeval tv[2];
 
-	if (t) { 
+	if (t) {
 		if (get_user(tv[0].tv_sec, &t[0].tv_sec) ||
 		    get_user(tv[0].tv_usec, &t[0].tv_usec) ||
 		    get_user(tv[1].tv_sec, &t[1].tv_sec) ||
 		    get_user(tv[1].tv_usec, &t[1].tv_usec))
-			return -EFAULT; 
-	} 
+			return -EFAULT;
+	}
 	return do_utimes(dfd, filename, t ? tv : NULL);
 }
 
@@ -114,7 +114,7 @@ asmlinkage long compat_sys_newlstat(char __user * filename,
 	return error;
 }
 
-asmlinkage long compat_sys_newfstatat(int dfd, char __user *filename,
+asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user *filename,
 		struct compat_stat __user *statbuf, int flag)
 {
 	struct kstat stat;
@@ -1326,7 +1326,7 @@ compat_sys_open(const char __user *filename, int flags, int mode)
  * O_LARGEFILE flag.
  */
 asmlinkage long
-compat_sys_openat(int dfd, const char __user *filename, int flags, int mode)
+compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, int mode)
 {
 	return do_sys_open(dfd, filename, flags, mode);
 }
@@ -1781,7 +1781,7 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 {
 	compat_sigset_t ss32;
 	sigset_t ksigmask, sigsaved;
-	long timeout = MAX_SCHEDULE_TIMEOUT;
+	s64 timeout = MAX_SCHEDULE_TIMEOUT;
 	struct compat_timespec ts;
 	int ret;
 

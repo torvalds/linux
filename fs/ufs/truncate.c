@@ -29,6 +29,11 @@
  * Idea from Pierre del Perugia <delperug@gla.ecoledoc.ibp.fr>
  */
 
+/*
+ * Modified to avoid infinite loop on 2006 by
+ * Evgeniy Dushistov <dushistov@mail.ru>
+ */
+
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/ufs_fs.h>
@@ -65,19 +70,16 @@
 #define DIRECT_BLOCK ((inode->i_size + uspi->s_bsize - 1) >> uspi->s_bshift)
 #define DIRECT_FRAGMENT ((inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift)
 
-#define DATA_BUFFER_USED(bh) \
-	(atomic_read(&bh->b_count)>1 || buffer_locked(bh))
 
 static int ufs_trunc_direct (struct inode * inode)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
-	struct buffer_head * bh;
 	__fs32 * p;
 	unsigned frag1, frag2, frag3, frag4, block1, block2;
 	unsigned frag_to_free, free_count;
-	unsigned i, j, tmp;
+	unsigned i, tmp;
 	int retry;
 	
 	UFSD(("ENTER\n"))
@@ -117,15 +119,7 @@ static int ufs_trunc_direct (struct inode * inode)
 		ufs_panic (sb, "ufs_trunc_direct", "internal error");
 	frag1 = ufs_fragnum (frag1);
 	frag2 = ufs_fragnum (frag2);
-	for (j = frag1; j < frag2; j++) {
-		bh = sb_find_get_block (sb, tmp + j);
-		if ((bh && DATA_BUFFER_USED(bh)) || tmp != fs32_to_cpu(sb, *p)) {
-			retry = 1;
-			brelse (bh);
-			goto next1;
-		}
-		bforget (bh);
-	}
+
 	inode->i_blocks -= (frag2-frag1) << uspi->s_nspfshift;
 	mark_inode_dirty(inode);
 	ufs_free_fragments (inode, tmp + frag1, frag2 - frag1);
@@ -140,15 +134,7 @@ next1:
 		tmp = fs32_to_cpu(sb, *p);
 		if (!tmp)
 			continue;
-		for (j = 0; j < uspi->s_fpb; j++) {
-			bh = sb_find_get_block(sb, tmp + j);
-			if ((bh && DATA_BUFFER_USED(bh)) || tmp != fs32_to_cpu(sb, *p)) {
-				retry = 1;
-				brelse (bh);
-				goto next2;
-			}
-			bforget (bh);
-		}
+
 		*p = 0;
 		inode->i_blocks -= uspi->s_nspb;
 		mark_inode_dirty(inode);
@@ -162,7 +148,6 @@ next1:
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
 		}
-next2:;
 	}
 	
 	if (free_count > 0)
@@ -179,15 +164,7 @@ next2:;
 	if (!tmp )
 		ufs_panic(sb, "ufs_truncate_direct", "internal error");
 	frag4 = ufs_fragnum (frag4);
-	for (j = 0; j < frag4; j++) {
-		bh = sb_find_get_block (sb, tmp + j);
-		if ((bh && DATA_BUFFER_USED(bh)) || tmp != fs32_to_cpu(sb, *p)) {
-			retry = 1;
-			brelse (bh);
-			goto next1;
-		}
-		bforget (bh);
-	}
+
 	*p = 0;
 	inode->i_blocks -= frag4 << uspi->s_nspfshift;
 	mark_inode_dirty(inode);
@@ -204,9 +181,8 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_buffer_head * ind_ubh;
-	struct buffer_head * bh;
 	__fs32 * ind;
-	unsigned indirect_block, i, j, tmp;
+	unsigned indirect_block, i, tmp;
 	unsigned frag_to_free, free_count;
 	int retry;
 
@@ -238,15 +214,7 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 		tmp = fs32_to_cpu(sb, *ind);
 		if (!tmp)
 			continue;
-		for (j = 0; j < uspi->s_fpb; j++) {
-			bh = sb_find_get_block(sb, tmp + j);
-			if ((bh && DATA_BUFFER_USED(bh)) || tmp != fs32_to_cpu(sb, *ind)) {
-				retry = 1;
-				brelse (bh);
-				goto next;
-			}
-			bforget (bh);
-		}	
+
 		*ind = 0;
 		ubh_mark_buffer_dirty(ind_ubh);
 		if (free_count == 0) {
@@ -261,7 +229,6 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 		}
 		inode->i_blocks -= uspi->s_nspb;
 		mark_inode_dirty(inode);
-next:;
 	}
 
 	if (free_count > 0) {
@@ -430,9 +397,7 @@ void ufs_truncate (struct inode * inode)
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
-	struct buffer_head * bh;
-	unsigned offset;
-	int err, retry;
+	int retry;
 	
 	UFSD(("ENTER\n"))
 	sb = inode->i_sb;
@@ -442,6 +407,9 @@ void ufs_truncate (struct inode * inode)
 		return;
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
+
+	block_truncate_page(inode->i_mapping,	inode->i_size, ufs_getfrag_block);
+
 	lock_kernel();
 	while (1) {
 		retry = ufs_trunc_direct(inode);
@@ -457,15 +425,7 @@ void ufs_truncate (struct inode * inode)
 		blk_run_address_space(inode->i_mapping);
 		yield();
 	}
-	offset = inode->i_size & uspi->s_fshift;
-	if (offset) {
-		bh = ufs_bread (inode, inode->i_size >> uspi->s_fshift, 0, &err);
-		if (bh) {
-			memset (bh->b_data + offset, 0, uspi->s_fsize - offset);
-			mark_buffer_dirty (bh);
-			brelse (bh);
-		}
-	}
+
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	unlock_kernel();

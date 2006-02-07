@@ -444,6 +444,15 @@ retry:
 		page = alloc_huge_page(vma, address);
 		if (!page) {
 			hugetlb_put_quota(mapping);
+			/*
+		 	 * No huge pages available. So this is an OOM
+			 * condition but we do not want to trigger the OOM
+			 * killer, so we return VM_FAULT_SIGBUS.
+			 *
+			 * A program using hugepages may fault with Bus Error
+			 * because no huge pages are available in the cpuset, per
+			 * memory policy or because all are in use!
+			 */
 			goto out;
 		}
 

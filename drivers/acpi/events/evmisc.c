@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -303,7 +303,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_global_lock_thread(void *context)
 		    acpi_os_signal_semaphore(acpi_gbl_global_lock_semaphore,
 					     acpi_gbl_global_lock_thread_count);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not signal Global Lock semaphore\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Could not signal Global Lock semaphore"));
 		}
 	}
 }
@@ -344,7 +345,8 @@ static u32 acpi_ev_global_lock_handler(void *context)
 						     acpi_ev_global_lock_thread,
 						     context);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not queue Global Lock thread, %s\n", acpi_format_exception(status)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Could not queue Global Lock thread"));
 
 			return (ACPI_INTERRUPT_NOT_HANDLED);
 		}
@@ -384,7 +386,8 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 	 * with an error.
 	 */
 	if (status == AE_NO_HARDWARE_RESPONSE) {
-		ACPI_REPORT_ERROR(("No response from Global Lock hardware, disabling lock\n"));
+		ACPI_ERROR((AE_INFO,
+			    "No response from Global Lock hardware, disabling lock"));
 
 		acpi_gbl_global_lock_present = FALSE;
 		status = AE_OK;
@@ -480,7 +483,8 @@ acpi_status acpi_ev_release_global_lock(void)
 	ACPI_FUNCTION_TRACE("ev_release_global_lock");
 
 	if (!acpi_gbl_global_lock_thread_count) {
-		ACPI_REPORT_WARNING(("Cannot release HW Global Lock, it has not been acquired\n"));
+		ACPI_WARNING((AE_INFO,
+			      "Cannot release HW Global Lock, it has not been acquired"));
 		return_ACPI_STATUS(AE_NOT_ACQUIRED);
 	}
 
@@ -542,9 +546,9 @@ void acpi_ev_terminate(void)
 		for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
 			status = acpi_disable_event((u32) i, 0);
 			if (ACPI_FAILURE(status)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Could not disable fixed event %d\n",
-						  (u32) i));
+				ACPI_ERROR((AE_INFO,
+					    "Could not disable fixed event %d",
+					    (u32) i));
 			}
 		}
 
@@ -556,8 +560,7 @@ void acpi_ev_terminate(void)
 
 		status = acpi_ev_remove_sci_handler();
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not remove SCI handler\n"));
+			ACPI_ERROR((AE_INFO, "Could not remove SCI handler"));
 		}
 	}
 
@@ -570,8 +573,7 @@ void acpi_ev_terminate(void)
 	if (acpi_gbl_original_mode == ACPI_SYS_MODE_LEGACY) {
 		status = acpi_disable();
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-					  "acpi_disable failed\n"));
+			ACPI_WARNING((AE_INFO, "acpi_disable failed"));
 		}
 	}
 	return_VOID;

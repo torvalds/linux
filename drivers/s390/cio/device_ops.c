@@ -1,8 +1,6 @@
 /*
  *  drivers/s390/cio/device_ops.c
  *
- *   $Revision: 1.61 $
- *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)

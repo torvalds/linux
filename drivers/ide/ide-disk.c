@@ -776,7 +776,7 @@ static void update_ordered(ide_drive_t *drive)
 			 ide_id_has_flush_cache_ext(id));
 
 		printk(KERN_INFO "%s: cache flushes %ssupported\n",
-		       drive->name, barrier ? "" : "not");
+		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
 			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
@@ -889,11 +889,7 @@ static void idedisk_setup (ide_drive_t *drive)
 	if (drive->id_read == 0)
 		return;
 
-	/*
-	 * CompactFlash cards and their brethern look just like hard drives
-	 * to us, but they are removable and don't have a doorlock mechanism.
-	 */
-	if (drive->removable && !(drive->is_flash)) {
+	if (drive->removable) {
 		/*
 		 * Removable disks (eg. SYQUEST); ignore 'WD' drives 
 		 */

@@ -344,23 +344,6 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
 }
 
-/*
- * This kprobe pre_handler is registered with every kretprobe. When probe
- * hits it will set up the return probe.
- */
-static int __kprobes pre_handler_kretprobe(struct kprobe *p,
-					   struct pt_regs *regs)
-{
-	struct kretprobe *rp = container_of(p, struct kretprobe, kp);
-	unsigned long flags = 0;
-
-	/*TODO: consider to only swap the RA after the last pre_handler fired */
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	arch_prepare_kretprobe(rp, regs);
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
-	return 0;
-}
-
 static inline void free_rp_inst(struct kretprobe *rp)
 {
 	struct kretprobe_instance *ri;
@@ -578,6 +561,23 @@ void __kprobes unregister_jprobe(struct jprobe *jp)
 
 #ifdef ARCH_SUPPORTS_KRETPROBES
 
+/*
+ * This kprobe pre_handler is registered with every kretprobe. When probe
+ * hits it will set up the return probe.
+ */
+static int __kprobes pre_handler_kretprobe(struct kprobe *p,
+					   struct pt_regs *regs)
+{
+	struct kretprobe *rp = container_of(p, struct kretprobe, kp);
+	unsigned long flags = 0;
+
+	/*TODO: consider to only swap the RA after the last pre_handler fired */
+	spin_lock_irqsave(&kretprobe_lock, flags);
+	arch_prepare_kretprobe(rp, regs);
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	return 0;
+}
+
 int __kprobes register_kretprobe(struct kretprobe *rp)
 {
 	int ret = 0;
@@ -631,12 +631,12 @@ void __kprobes unregister_kretprobe(struct kretprobe *rp)
 	unregister_kprobe(&rp->kp);
 	/* No race here */
 	spin_lock_irqsave(&kretprobe_lock, flags);
-	free_rp_inst(rp);
 	while ((ri = get_used_rp_inst(rp)) != NULL) {
 		ri->rp = NULL;
 		hlist_del(&ri->uflist);
 	}
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	free_rp_inst(rp);
 }
 
 static int __init init_kprobes(void)

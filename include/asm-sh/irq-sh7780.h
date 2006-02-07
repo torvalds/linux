@@ -299,29 +299,6 @@
 #define	GPIO_IPR_POS	2
 #define	GPIO_PRIORITY	3
 
-/* ONCHIP_NR_IRQS */
-#define NR_IRQS 150	/* 111 + 16 */
-
-/* In a generic kernel, NR_IRQS is an upper bound, and we should use
- * ACTUAL_NR_IRQS (which uses the machine vector) to get the correct value.
- */
-#define ACTUAL_NR_IRQS NR_IRQS
-
-extern void disable_irq(unsigned int);
-extern void disable_irq_nosync(unsigned int);
-extern void enable_irq(unsigned int);
-
-/*
- * Simple Mask Register Support
- */
-extern void make_maskreg_irq(unsigned int irq);
-extern unsigned short *irq_mask_register;
-
-/*
- * Function for "on chip support modules".
- */
-extern void make_imask_irq(unsigned int irq);
-
 #define	INTC_TMU0_MSK	0
 #define	INTC_TMU3_MSK	1
 #define	INTC_RTC_MSK	2

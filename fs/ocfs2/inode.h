@@ -46,10 +46,10 @@ struct ocfs2_inode_info
 	struct list_head		ip_io_markers;
 	int				ip_orphaned_slot;
 
-	struct semaphore		ip_io_sem;
+	struct mutex			ip_io_mutex;
 
 	/* Used by the journalling code to attach an inode to a
-	 * handle.  These are protected by ip_io_sem in order to lock
+	 * handle.  These are protected by ip_io_mutex in order to lock
 	 * out other I/O to the inode until we either commit or
 	 * abort. */
 	struct list_head		ip_handle_list;

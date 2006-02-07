@@ -23,8 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define ZFCP_DBF_REVISION "$Revision$"
-
 #include <asm/debug.h>
 #include <linux/ctype.h>
 #include "zfcp_ext.h"

@@ -87,7 +87,11 @@ ENTRY(ret_from_fork)
 	b	ret_slow_syscall
 	
 
+	.equ NR_syscalls,0
+#define CALL(x) .equ NR_syscalls,NR_syscalls+1
 #include "calls.S"
+#undef CALL
+#define CALL(x) .long x
 
 /*=============================================================================
  * SWI handler

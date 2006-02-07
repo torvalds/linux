@@ -33,6 +33,7 @@
 #include <linux/rbtree.h>
 #include <linux/workqueue.h>
 #include <linux/kref.h>
+#include <linux/mutex.h>
 
 #include "cluster/nodemanager.h"
 #include "cluster/heartbeat.h"
@@ -233,7 +234,7 @@ struct ocfs2_super
 	struct proc_dir_entry *proc_sub_dir; /* points to /proc/fs/ocfs2/<maj_min> */
 
 	atomic_t vol_state;
-	struct semaphore recovery_lock;
+	struct mutex recovery_lock;
 	struct task_struct *recovery_thread_task;
 	int disable_recovery;
 	wait_queue_head_t checkpoint_event;

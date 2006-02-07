@@ -368,8 +368,8 @@ static int seclvl_capable(struct task_struct *tsk, int cap)
  */
 static int seclvl_settime(struct timespec *tv, struct timezone *tz)
 {
-	struct timespec now;
-	if (seclvl > 1) {
+	if (tv && seclvl > 1) {
+		struct timespec now;
 		now = current_kernel_time();
 		if (tv->tv_sec < now.tv_sec ||
 		    (tv->tv_sec == now.tv_sec && tv->tv_nsec < now.tv_nsec)) {

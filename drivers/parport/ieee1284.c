@@ -61,10 +61,10 @@ static void timeout_waiting_on_port (unsigned long cookie)
  *	set to zero, it returns immediately.
  *
  *	If an interrupt occurs before the timeout period elapses, this
- *	function returns one immediately.  If it times out, it returns
- *	a value greater than zero.  An error code less than zero
- *	indicates an error (most likely a pending signal), and the
- *	calling code should finish what it's doing as soon as it can.
+ *	function returns zero immediately.  If it times out, it returns
+ *	one.  An error code less than zero indicates an error (most
+ *	likely a pending signal), and the calling code should finish
+ *	what it's doing as soon as it can.
  */
 
 int parport_wait_event (struct parport *port, signed long timeout)
@@ -110,7 +110,7 @@ int parport_wait_event (struct parport *port, signed long timeout)
  *
  *	If the status lines take on the desired values before the
  *	timeout period elapses, parport_poll_peripheral() returns zero
- *	immediately.  A zero return value greater than zero indicates
+ *	immediately.  A return value greater than zero indicates
  *	a timeout.  An error code (less than zero) indicates an error,
  *	most likely a signal that arrived, and the caller should
  *	finish what it is doing as soon as possible.

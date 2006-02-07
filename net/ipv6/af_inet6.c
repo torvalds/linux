@@ -369,12 +369,6 @@ int inet6_destroy_sock(struct sock *sk)
 	struct sk_buff *skb;
 	struct ipv6_txoptions *opt;
 
-	/*
-	 *	Release destination entry
-	 */
-
-	sk_dst_reset(sk);
-
 	/* Release rx options */
 
 	if ((skb = xchg(&np->pktoptions, NULL)) != NULL)

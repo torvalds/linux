@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,9 +91,9 @@ acpi_tb_get_table(struct acpi_pointer *address,
 
 	status = acpi_tb_get_table_body(address, &header, table_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not get ACPI table (size %X), %s\n",
-				   header.length,
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not get ACPI table (size %X)",
+				header.length));
 		return_ACPI_STATUS(status);
 	}
 
@@ -148,7 +148,6 @@ acpi_tb_get_table_header(struct acpi_pointer *address,
 					    sizeof(struct acpi_table_header),
 					    (void *)&header);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not map memory at %8.8X%8.8X for length %X\n", ACPI_FORMAT_UINT64(address->pointer.physical), sizeof(struct acpi_table_header)));
 			return_ACPI_STATUS(status);
 		}
 
@@ -161,8 +160,8 @@ acpi_tb_get_table_header(struct acpi_pointer *address,
 
 	default:
 
-		ACPI_REPORT_ERROR(("Invalid address flags %X\n",
-				   address->pointer_type));
+		ACPI_ERROR((AE_INFO, "Invalid address flags %X",
+			    address->pointer_type));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -253,8 +252,8 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	if (ACPI_FAILURE(status)) {
 		/* Some severe error from the OSL, but we basically ignore it */
 
-		ACPI_REPORT_ERROR(("Could not override ACPI table, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not override ACPI table"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -273,15 +272,14 @@ acpi_tb_table_override(struct acpi_table_header *header,
 
 	status = acpi_tb_get_this_table(&address, new_table, table_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Could not copy override ACPI table, %s\n",
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Could not copy ACPI table"));
 		return_ACPI_STATUS(status);
 	}
 
 	/* Copy the table info */
 
-	ACPI_REPORT_INFO(("Table [%4.4s] replaced by host OS\n",
-			  table_info->pointer->signature));
+	ACPI_INFO((AE_INFO, "Table [%4.4s] replaced by host OS",
+		   table_info->pointer->signature));
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -327,7 +325,9 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 		full_table = ACPI_MEM_ALLOCATE(header->length);
 		if (!full_table) {
-			ACPI_REPORT_ERROR(("Could not allocate table memory for [%4.4s] length %X\n", header->signature, header->length));
+			ACPI_ERROR((AE_INFO,
+				    "Could not allocate table memory for [%4.4s] length %X",
+				    header->signature, header->length));
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
@@ -351,7 +351,12 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 					    (acpi_size) header->length,
 					    (void *)&full_table);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n", header->signature, ACPI_FORMAT_UINT64(address->pointer.physical), header->length));
+			ACPI_ERROR((AE_INFO,
+				    "Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X",
+				    header->signature,
+				    ACPI_FORMAT_UINT64(address->pointer.
+						       physical),
+				    header->length));
 			return (status);
 		}
 
@@ -362,8 +367,8 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid address flags %X\n",
-				  address->pointer_type));
+		ACPI_ERROR((AE_INFO, "Invalid address flags %X",
+			    address->pointer_type));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 

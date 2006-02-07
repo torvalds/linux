@@ -2,13 +2,6 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config INIT_DEBUG
-	bool "Debug __init statements"
-	depends on DEBUG_KERNEL
-	help
-	  Fill __init and __initdata at the end of boot. This helps debugging
-	  illegal uses of __init and __initdata after initialization.
-
 config DEBUG_RODATA
        bool "Write protect kernel read-only data structures"
        depends on DEBUG_KERNEL

@@ -380,7 +380,6 @@ struct neo_uart_struct {
 extern struct	uart_driver jsm_uart_driver;
 extern struct	board_ops jsm_neo_ops;
 extern int	jsm_debug;
-extern int	jsm_rawreadok;
 
 /*************************************************************************
  *

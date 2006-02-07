@@ -133,10 +133,10 @@ static int suspend_enter(suspend_state_t state)
 static void suspend_finish(suspend_state_t state)
 {
 	device_resume();
-	if (pm_ops && pm_ops->finish)
-		pm_ops->finish(state);
 	thaw_processes();
 	enable_nonboot_cpus();
+	if (pm_ops && pm_ops->finish)
+		pm_ops->finish(state);
 	pm_restore_console();
 }
 

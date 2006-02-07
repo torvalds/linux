@@ -70,12 +70,12 @@
 #include "power.h"
 
 /*
- * Preferred image size in MB (tunable via /sys/power/image_size).
+ * Preferred image size in bytes (tunable via /sys/power/image_size).
  * When it is set to N, swsusp will do its best to ensure the image
- * size will not exceed N MB, but if that is impossible, it will
+ * size will not exceed N bytes, but if that is impossible, it will
  * try to create the smallest image possible.
  */
-unsigned int image_size = 500;
+unsigned long image_size = 500 * 1024 * 1024;
 
 #ifdef CONFIG_HIGHMEM
 unsigned int count_highmem_pages(void);
@@ -590,7 +590,7 @@ int swsusp_shrink_memory(void)
 			if (!tmp)
 				return -ENOMEM;
 			pages += tmp;
-		} else if (size > (image_size * 1024 * 1024) / PAGE_SIZE) {
+		} else if (size > image_size / PAGE_SIZE) {
 			tmp = shrink_all_memory(SHRINK_BITE);
 			pages += tmp;
 		}
