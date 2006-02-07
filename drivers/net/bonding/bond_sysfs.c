@@ -260,7 +260,7 @@ static ssize_t bonding_store_slaves(struct class_device *cd, const char *buffer,
 	char *ifname;
 	int i, res, found, ret = count;
 	struct slave *slave;
-	struct net_device *dev = 0;
+	struct net_device *dev = NULL;
 	struct bonding *bond = to_bond(cd);
 
 	/* Quick sanity check -- is the bond interface up? */
@@ -995,7 +995,7 @@ static ssize_t bonding_store_primary(struct class_device *cd, const char *buf, s
 			printk(KERN_INFO DRV_NAME
 			       ": %s: Setting primary slave to None.\n",
 			       bond->dev->name);
-			bond->primary_slave = 0;
+			bond->primary_slave = NULL;
 				bond_select_active_slave(bond);
 		} else {
 			printk(KERN_INFO DRV_NAME
@@ -1123,7 +1123,7 @@ static ssize_t bonding_store_active_slave(struct class_device *cd, const char *b
 			printk(KERN_INFO DRV_NAME
 			       ": %s: Setting active slave to None.\n",
 			       bond->dev->name);
-			bond->primary_slave = 0;
+			bond->primary_slave = NULL;
 				bond_select_active_slave(bond);
 		} else {
 			printk(KERN_INFO DRV_NAME

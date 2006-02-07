@@ -2752,8 +2752,6 @@ static int e100_resume(struct pci_dev *pdev)
 	retval = pci_enable_wake(pdev, 0, 0);
 	if (retval)
 		DPRINTK(PROBE,ERR, "Error clearing wake events\n");
-	if(e100_hw_init(nic))
-		DPRINTK(HW, ERR, "e100_hw_init failed\n");
 
 	netif_device_attach(netdev);
 	if(netif_running(netdev))
