@@ -517,6 +517,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	ahout = (struct aoe_atahdr *) (f->data + sizeof(struct aoe_hdr));
 	buf = f->buf;
 
+	if (ahout->cmdstat == WIN_IDENTIFY)
+		d->flags &= ~DEVFL_PAUSE;
 	if (ahin->cmdstat & 0xa9) {	/* these bits cleared on success */
 		printk(KERN_CRIT "aoe: aoecmd_ata_rsp: ata error cmd=%2.2Xh "
 			"stat=%2.2Xh from e%ld.%ld\n", 
@@ -549,7 +551,6 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 				return;
 			}
 			ataid_complete(d, (char *) (ahin+1));
-			d->flags &= ~DEVFL_PAUSE;
 			break;
 		default:
 			printk(KERN_INFO "aoe: aoecmd_ata_rsp: unrecognized "
