@@ -391,12 +391,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	if (!new_page) {
 		page_cache_release(old_page);
-
-		/* Logically this is OOM, not a SIGBUS, but an OOM
-		 * could cause the kernel to go killing other
-		 * processes which won't help the hugepage situation
-		 * at all (?) */
-		return VM_FAULT_SIGBUS;
+		return VM_FAULT_OOM;
 	}
 
 	spin_unlock(&mm->page_table_lock);
@@ -444,15 +439,7 @@ retry:
 		page = alloc_huge_page(vma, address);
 		if (!page) {
 			hugetlb_put_quota(mapping);
-			/*
-		 	 * No huge pages available. So this is an OOM
-			 * condition but we do not want to trigger the OOM
-			 * killer, so we return VM_FAULT_SIGBUS.
-			 *
-			 * A program using hugepages may fault with Bus Error
-			 * because no huge pages are available in the cpuset, per
-			 * memory policy or because all are in use!
-			 */
+			ret = VM_FAULT_OOM;
 			goto out;
 		}
 
