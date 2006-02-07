@@ -98,9 +98,9 @@ lcs_register_debug_facility(void)
 		return -ENOMEM;
 	}
 	debug_register_view(lcs_dbf_setup, &debug_hex_ascii_view);
-	debug_set_level(lcs_dbf_setup, 4);
+	debug_set_level(lcs_dbf_setup, 2);
 	debug_register_view(lcs_dbf_trace, &debug_hex_ascii_view);
-	debug_set_level(lcs_dbf_trace, 4);
+	debug_set_level(lcs_dbf_trace, 2);
 	return 0;
 }
 
@@ -1292,9 +1292,8 @@ lcs_set_multicast_list(struct net_device *dev)
         LCS_DBF_TEXT(4, trace, "setmulti");
         card = (struct lcs_card *) dev->priv;
 
-        if (!lcs_set_thread_start_bit(card, LCS_SET_MC_THREAD)) {
+        if (!lcs_set_thread_start_bit(card, LCS_SET_MC_THREAD)) 
 		schedule_work(&card->kernel_thread_starter);
-	}
 }
 
 #endif /* CONFIG_IP_MULTICAST */
@@ -1459,6 +1458,8 @@ lcs_txbuffer_cb(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	lcs_release_buffer(channel, buffer);
 	card = (struct lcs_card *)
 		((char *) channel - offsetof(struct lcs_card, write));
+	if (netif_queue_stopped(card->dev))
+		netif_wake_queue(card->dev);
 	spin_lock(&card->lock);
 	card->tx_emitted--;
 	if (card->tx_emitted <= 0 && card->tx_buffer != NULL)
@@ -1478,6 +1479,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 		 struct net_device *dev)
 {
 	struct lcs_header *header;
+	int rc = 0;
 
 	LCS_DBF_TEXT(5, trace, "hardxmit");
 	if (skb == NULL) {
@@ -1492,10 +1494,8 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 		card->stats.tx_carrier_errors++;
 		return 0;
 	}
-	if (netif_queue_stopped(dev) ) {
-		card->stats.tx_dropped++;
-		return -EBUSY;
-	}
+	netif_stop_queue(card->dev);
+	spin_lock(&card->lock);
 	if (card->tx_buffer != NULL &&
 	    card->tx_buffer->count + sizeof(struct lcs_header) +
 	    skb->len + sizeof(u16) > LCS_IOBUFFERSIZE)
@@ -1506,7 +1506,8 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 		card->tx_buffer = lcs_get_buffer(&card->write);
 		if (card->tx_buffer == NULL) {
 			card->stats.tx_dropped++;
-			return -EBUSY;
+			rc = -EBUSY;
+			goto out;
 		}
 		card->tx_buffer->callback = lcs_txbuffer_cb;
 		card->tx_buffer->count = 0;
@@ -1518,13 +1519,18 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 	header->type = card->lan_type;
 	header->slot = card->portno;
 	memcpy(header + 1, skb->data, skb->len);
+	spin_unlock(&card->lock);
 	card->stats.tx_bytes += skb->len;
 	card->stats.tx_packets++;
 	dev_kfree_skb(skb);
-	if (card->tx_emitted <= 0)
+	netif_wake_queue(card->dev);
+	spin_lock(&card->lock);
+	if (card->tx_emitted <= 0 && card->tx_buffer != NULL)
 		/* If this is the first tx buffer emit it immediately. */
 		__lcs_emit_txbuffer(card);
-	return 0;
+out:
+	spin_unlock(&card->lock);
+	return rc;
 }
 
 static int
@@ -1535,9 +1541,7 @@ lcs_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	LCS_DBF_TEXT(5, trace, "pktxmit");
 	card = (struct lcs_card *) dev->priv;
-	spin_lock(&card->lock);
 	rc = __lcs_start_xmit(card, skb, dev);
-	spin_unlock(&card->lock);
 	return rc;
 }
 
@@ -2319,7 +2323,6 @@ __init lcs_init_module(void)
 		PRINT_ERR("Initialization failed\n");
 		return rc;
 	}
-
 	return 0;
 }
 
