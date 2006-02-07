@@ -74,7 +74,7 @@ tsb_dtlb_load:
 
 661:	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
 	retry
-	.section	.gl_2insn_patch, "ax"
+	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	nop
 	nop
@@ -99,7 +99,7 @@ tsb_itlb_load:
 
 661:	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
-	.section	.gl_2insn_patch, "ax"
+	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	nop
 	nop
@@ -130,7 +130,7 @@ tsb_do_fault:
 
 661:	rdpr		%pstate, %g5
 	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
-	.section	.gl_2insn_patch, "ax"
+	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	nop
 	nop
@@ -145,7 +145,7 @@ tsb_do_dtlb_fault:
 
 661:	mov	TLB_TAG_ACCESS, %g4
 	ldxa	[%g4] ASI_DMMU, %g5
-	.section .gl_2insn_patch, "ax"
+	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	mov	%g4, %g5
 	nop
@@ -250,7 +250,7 @@ __tsb_context_switch:
 
 661:	mov	TSB_REG, %g1
 	stxa	%o1, [%g1] ASI_DMMU
-	.section .gl_2insn_patch, "ax"
+	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	mov	SCRATCHPAD_UTSBREG1, %g1
 	stxa	%o1, [%g1] ASI_SCRATCHPAD
@@ -260,7 +260,7 @@ __tsb_context_switch:
 
 661:	stxa	%o1, [%g1] ASI_IMMU
 	membar	#Sync
-	.section .gl_2insn_patch, "ax"
+	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	nop
 	nop

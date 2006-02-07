@@ -105,7 +105,7 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 
 		/* Go to trap time globals so we can save them.  */
 661:		wrpr	%g0, ETRAP_PSTATE1, %pstate
-		.section .gl_1insn_patch, "ax"
+		.section .sun4v_1insn_patch, "ax"
 		.word	661b
 		SET_GL(0)
 		.previous
@@ -206,7 +206,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 
 		wrpr	%g0, 1, %tl
 661:		nop
-		.section .gl_1insn_patch, "ax"
+		.section .sun4v_1insn_patch, "ax"
 		.word	661b
 		SET_GL(1)
 		.previous

@@ -447,7 +447,7 @@ xcall_sync_tick:
 
 661:	rdpr		%pstate, %g2
 	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	.section	.gl_2insn_patch, "ax"
+	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	nop
 	nop
@@ -478,7 +478,7 @@ xcall_report_regs:
 
 661:	rdpr		%pstate, %g2
 	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	.section	.gl_2insn_patch, "ax"
+	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	nop
 	nop

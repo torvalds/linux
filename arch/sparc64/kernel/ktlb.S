@@ -67,7 +67,7 @@ kvmap_itlb_longpath:
 
 661:	rdpr	%pstate, %g5
 	wrpr	%g5, PSTATE_AG | PSTATE_MG, %pstate
-	.section .gl_2insn_patch, "ax"
+	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	nop
 	nop
@@ -179,7 +179,7 @@ kvmap_dtlb_longpath:
 
 661:	rdpr	%pstate, %g5
 	wrpr	%g5, PSTATE_AG | PSTATE_MG, %pstate
-	.section .gl_2insn_patch, "ax"
+	.section .sun4v_2insn_patch, "ax"
 	.word	661b
 	nop
 	nop

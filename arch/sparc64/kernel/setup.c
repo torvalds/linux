@@ -549,16 +549,16 @@ static void __init per_cpu_patch(void)
 #endif
 }
 
-static void __init gl_patch(void)
+static void __init sun4v_patch(void)
 {
-	struct gl_1insn_patch_entry *p1;
-	struct gl_2insn_patch_entry *p2;
+	struct sun4v_1insn_patch_entry *p1;
+	struct sun4v_2insn_patch_entry *p2;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	p1 = &__gl_1insn_patch;
-	while (p1 < &__gl_1insn_patch_end) {
+	p1 = &__sun4v_1insn_patch;
+	while (p1 < &__sun4v_1insn_patch_end) {
 		unsigned long addr = p1->addr;
 
 		*(unsigned int *) (addr +  0) = p1->insn;
@@ -568,8 +568,8 @@ static void __init gl_patch(void)
 		p1++;
 	}
 
-	p2 = &__gl_2insn_patch;
-	while (p2 < &__gl_2insn_patch_end) {
+	p2 = &__sun4v_2insn_patch;
+	while (p2 < &__sun4v_2insn_patch_end) {
 		unsigned long addr = p2->addr;
 
 		*(unsigned int *) (addr +  0) = p2->insns[0];
@@ -606,7 +606,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	per_cpu_patch();
 
-	gl_patch();
+	sun4v_patch();
 
 	boot_flags_init(*cmdline_p);
 
