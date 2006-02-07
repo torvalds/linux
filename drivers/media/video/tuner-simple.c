@@ -188,7 +188,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	/*  i == 0 -> VHF_LO
 	 *  i == 1 -> VHF_HI
 	 *  i == 2 -> UHF     */
-	tuner_dbg("tv: range %d\n",i);
+	tuner_dbg("tv: param %d, range %d\n",j,i);
 
 	div=freq + IFPCoff + offset;
 
