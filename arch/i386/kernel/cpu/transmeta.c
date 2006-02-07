@@ -84,7 +84,7 @@ static void __init init_transmeta(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void transmeta_identify(struct cpuinfo_x86 * c)
+static void __init transmeta_identify(struct cpuinfo_x86 * c)
 {
 	u32 xlvl;
 	generic_identify(c);
@@ -111,3 +111,11 @@ int __init transmeta_init_cpu(void)
 }
 
 //early_arch_initcall(transmeta_init_cpu);
+
+static int __init transmeta_exit_cpu(void)
+{
+	cpu_devs[X86_VENDOR_TRANSMETA] = NULL;
+	return 0;
+}
+
+late_initcall(transmeta_exit_cpu);

@@ -1275,7 +1275,12 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	unsigned int keylen;
 	char *key;
 
-	headersize = sizeof(sctp_paramhdr_t) + SCTP_SECRET_SIZE;
+	/* Header size is static data prior to the actual cookie, including
+	 * any padding.
+	 */
+	headersize = sizeof(sctp_paramhdr_t) + 
+		     (sizeof(struct sctp_signed_cookie) - 
+		      sizeof(struct sctp_cookie));
 	bodysize = sizeof(struct sctp_cookie)
 		+ ntohs(init_chunk->chunk_hdr->length) + addrs_len;
 
@@ -1354,7 +1359,7 @@ struct sctp_association *sctp_unpack_cookie(
 	struct sctp_signed_cookie *cookie;
 	struct sctp_cookie *bear_cookie;
 	int headersize, bodysize, fixed_size;
-	__u8 digest[SCTP_SIGNATURE_SIZE];
+	__u8 *digest = ep->digest;
 	struct scatterlist sg;
 	unsigned int keylen, len;
 	char *key;
@@ -1362,7 +1367,12 @@ struct sctp_association *sctp_unpack_cookie(
 	struct sk_buff *skb = chunk->skb;
 	struct timeval tv;
 
-	headersize = sizeof(sctp_chunkhdr_t) + SCTP_SECRET_SIZE;
+	/* Header size is static data prior to the actual cookie, including
+	 * any padding.
+	 */
+	headersize = sizeof(sctp_chunkhdr_t) +
+		     (sizeof(struct sctp_signed_cookie) - 
+		      sizeof(struct sctp_cookie));
 	bodysize = ntohs(chunk->chunk_hdr->length) - headersize;
 	fixed_size = headersize + sizeof(struct sctp_cookie);
 

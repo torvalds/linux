@@ -1,6 +1,4 @@
 /**
- * $Id: fsm.c,v 1.6 2003/10/15 11:37:29 mschwide Exp $
- *
  * A generic FSM based on fsm used in isdn4linux
  *
  */

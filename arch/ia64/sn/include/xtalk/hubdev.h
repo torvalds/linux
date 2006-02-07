@@ -51,6 +51,15 @@ struct sn_flush_device_kernel {
 	struct sn_flush_device_common *common;
 };
 
+/* 01/16/06 This struct is the old PROM/kernel struct and needs to be included
+ * for older official PROMs to function on the new kernel base.  This struct
+ * will be removed when the next official PROM release occurs. */
+
+struct sn_flush_device_war {
+	struct sn_flush_device_common common;
+	u32 filler; /* older PROMs expect the default size of a spinlock_t */
+};
+
 /*
  * **widget_p - Used as an array[wid_num][device] of sn_flush_device_kernel.
  */

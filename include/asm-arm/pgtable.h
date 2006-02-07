@@ -168,6 +168,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define PMD_SECT_WB		(PMD_SECT_CACHEABLE | PMD_SECT_BUFFERABLE)
 #define PMD_SECT_MINICACHE	(PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE)
 #define PMD_SECT_WBWA		(PMD_SECT_TEX(1) | PMD_SECT_CACHEABLE | PMD_SECT_BUFFERABLE)
+#define PMD_SECT_NONSHARED_DEV	(PMD_SECT_TEX(2))
 
 /*
  *   - coarse table (not used)

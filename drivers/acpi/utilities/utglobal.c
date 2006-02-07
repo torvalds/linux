@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,8 +67,11 @@ const char *acpi_format_exception(acpi_status status)
 	acpi_status sub_status;
 	const char *exception = NULL;
 
-	ACPI_FUNCTION_NAME("format_exception");
+	ACPI_FUNCTION_ENTRY();
 
+	/*
+	 * Status is composed of two parts, a "type" and an actual code
+	 */
 	sub_status = (status & ~AE_CODE_MASK);
 
 	switch (status & AE_CODE_MASK) {
@@ -118,13 +121,13 @@ const char *acpi_format_exception(acpi_status status)
 	if (!exception) {
 		/* Exception code was not recognized */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown exception code: 0x%8.8X\n", status));
+		ACPI_ERROR((AE_INFO,
+			    "Unknown exception code: 0x%8.8X", status));
 
-		return ((const char *)"UNKNOWN_STATUS_CODE");
+		exception = "UNKNOWN_STATUS_CODE";
 	}
 
-	return ((const char *)exception);
+	return (ACPI_CAST_PTR(const char, exception));
 }
 
 /*******************************************************************************
@@ -217,23 +220,23 @@ const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
  * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
  *    perform a Notify() operation on it.
  */
-const struct acpi_predefined_names acpi_gbl_pre_defined_names[] =
-    { {"_GPE", ACPI_TYPE_LOCAL_SCOPE, NULL},
-{"_PR_", ACPI_TYPE_LOCAL_SCOPE, NULL},
-{"_SB_", ACPI_TYPE_DEVICE, NULL},
-{"_SI_", ACPI_TYPE_LOCAL_SCOPE, NULL},
-{"_TZ_", ACPI_TYPE_THERMAL, NULL},
-{"_REV", ACPI_TYPE_INTEGER, (char *)ACPI_CA_SUPPORT_LEVEL},
-{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
-{"_GL_", ACPI_TYPE_MUTEX, (char *)1},
+const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
+	{"_GPE", ACPI_TYPE_LOCAL_SCOPE, NULL},
+	{"_PR_", ACPI_TYPE_LOCAL_SCOPE, NULL},
+	{"_SB_", ACPI_TYPE_DEVICE, NULL},
+	{"_SI_", ACPI_TYPE_LOCAL_SCOPE, NULL},
+	{"_TZ_", ACPI_TYPE_THERMAL, NULL},
+	{"_REV", ACPI_TYPE_INTEGER, (char *)ACPI_CA_SUPPORT_LEVEL},
+	{"_OS_", ACPI_TYPE_STRING, ACPI_OS_NAME},
+	{"_GL_", ACPI_TYPE_MUTEX, (char *)1},
 
 #if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
-{"_OSI", ACPI_TYPE_METHOD, (char *)1},
+	{"_OSI", ACPI_TYPE_METHOD, (char *)1},
 #endif
 
 	/* Table terminator */
 
-{NULL, ACPI_TYPE_ANY, NULL}
+	{NULL, ACPI_TYPE_ANY, NULL}
 };
 
 /*
@@ -485,7 +488,7 @@ char *acpi_ut_get_region_name(u8 space_id)
 		return ("invalid_space_id");
 	}
 
-	return ((char *)acpi_gbl_region_types[space_id]);
+	return (ACPI_CAST_PTR(char, acpi_gbl_region_types[space_id]));
 }
 
 /*******************************************************************************
@@ -503,11 +506,13 @@ char *acpi_ut_get_region_name(u8 space_id)
 /* Event type decoding */
 
 static const char *acpi_gbl_event_types[ACPI_NUM_FIXED_EVENTS] = {
+/*! [Begin] no source code translation (keep these strings as-is) */
 	"PM_Timer",
-	"global_lock",
-	"power_button",
-	"sleep_button",
-	"real_time_clock",
+	"GlobalLock",
+	"PowerButton",
+	"SleepButton",
+	"RealTimeClock",
+/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_event_name(u32 event_id)
@@ -517,7 +522,7 @@ char *acpi_ut_get_event_name(u32 event_id)
 		return ("invalid_event_iD");
 	}
 
-	return ((char *)acpi_gbl_event_types[event_id]);
+	return (ACPI_CAST_PTR(char, acpi_gbl_event_types[event_id]));
 }
 
 /*******************************************************************************
@@ -545,12 +550,13 @@ static const char acpi_gbl_bad_type[] = "UNDEFINED";
 /* Printable names of the ACPI object types */
 
 static const char *acpi_gbl_ns_type_names[] = {
+/*! [Begin] no source code translation (keep these strings as-is) */
 	/* 00 */ "Untyped",
 	/* 01 */ "Integer",
 	/* 02 */ "String",
 	/* 03 */ "Buffer",
 	/* 04 */ "Package",
-	/* 05 */ "field_unit",
+	/* 05 */ "FieldUnit",
 	/* 06 */ "Device",
 	/* 07 */ "Event",
 	/* 08 */ "Method",
@@ -559,33 +565,34 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 11 */ "Power",
 	/* 12 */ "Processor",
 	/* 13 */ "Thermal",
-	/* 14 */ "buffer_field",
-	/* 15 */ "ddb_handle",
-	/* 16 */ "debug_object",
-	/* 17 */ "region_field",
-	/* 18 */ "bank_field",
-	/* 19 */ "index_field",
+	/* 14 */ "BufferField",
+	/* 15 */ "DdbHandle",
+	/* 16 */ "DebugObject",
+	/* 17 */ "RegionField",
+	/* 18 */ "BankField",
+	/* 19 */ "IndexField",
 	/* 20 */ "Reference",
 	/* 21 */ "Alias",
-	/* 22 */ "method_alias",
+	/* 22 */ "MethodAlias",
 	/* 23 */ "Notify",
-	/* 24 */ "addr_handler",
-	/* 25 */ "resource_desc",
-	/* 26 */ "resource_fld",
+	/* 24 */ "AddrHandler",
+	/* 25 */ "ResourceDesc",
+	/* 26 */ "ResourceFld",
 	/* 27 */ "Scope",
 	/* 28 */ "Extra",
 	/* 29 */ "Data",
 	/* 30 */ "Invalid"
+/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_type_name(acpi_object_type type)
 {
 
 	if (type > ACPI_TYPE_INVALID) {
-		return ((char *)acpi_gbl_bad_type);
+		return (ACPI_CAST_PTR(char, acpi_gbl_bad_type));
 	}
 
-	return ((char *)acpi_gbl_ns_type_names[type]);
+	return (ACPI_CAST_PTR(char, acpi_gbl_ns_type_names[type]));
 }
 
 char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
@@ -634,7 +641,7 @@ char *acpi_ut_get_node_name(void *object)
 
 	/* Name must be a valid ACPI name */
 
-	if (!acpi_ut_valid_acpi_name(*(u32 *) node->name.ascii)) {
+	if (!acpi_ut_valid_acpi_name(node->name.integer)) {
 		return ("????");
 	}
 
@@ -658,15 +665,16 @@ char *acpi_ut_get_node_name(void *object)
 /* Printable names of object descriptor types */
 
 static const char *acpi_gbl_desc_type_names[] = {
+/*! [Begin] no source code translation (keep these ASL Keywords as-is) */
 	/* 00 */ "Invalid",
 	/* 01 */ "Cached",
 	/* 02 */ "State-Generic",
 	/* 03 */ "State-Update",
 	/* 04 */ "State-Package",
 	/* 05 */ "State-Control",
-	/* 06 */ "State-root_parse_scope",
-	/* 07 */ "State-parse_scope",
-	/* 08 */ "State-walk_scope",
+	/* 06 */ "State-RootParseScope",
+	/* 07 */ "State-ParseScope",
+	/* 08 */ "State-WalkScope",
 	/* 09 */ "State-Result",
 	/* 10 */ "State-Notify",
 	/* 11 */ "State-Thread",
@@ -674,6 +682,7 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 13 */ "Parser",
 	/* 14 */ "Operand",
 	/* 15 */ "Node"
+/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_descriptor_name(void *object)
@@ -684,11 +693,12 @@ char *acpi_ut_get_descriptor_name(void *object)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) > ACPI_DESC_TYPE_MAX) {
-		return ((char *)acpi_gbl_bad_type);
+		return (ACPI_CAST_PTR(char, acpi_gbl_bad_type));
 	}
 
-	return ((char *)
-		acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE(object)]);
+	return (ACPI_CAST_PTR(char,
+			      acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE
+						       (object)]));
 
 }
 
@@ -787,6 +797,11 @@ void acpi_ut_init_globals(void)
 		acpi_gbl_mutex_info[i].use_count = 0;
 	}
 
+	for (i = 0; i < ACPI_NUM_OWNERID_MASKS; i++) {
+		acpi_gbl_owner_id_mask[i] = 0;
+	}
+	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;	/* Last ID is never valid */
+
 	/* GPE support */
 
 	acpi_gbl_gpe_xrupt_list_head = NULL;
@@ -824,7 +839,11 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_ns_lookup_count = 0;
 	acpi_gbl_ps_find_count = 0;
 	acpi_gbl_acpi_hardware_present = TRUE;
-	acpi_gbl_owner_id_mask = 0;
+	acpi_gbl_last_owner_id_index = 0;
+	acpi_gbl_next_owner_id_offset = 0;
+	acpi_gbl_trace_method_name = 0;
+	acpi_gbl_trace_dbg_level = 0;
+	acpi_gbl_trace_dbg_layer = 0;
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
 
@@ -836,7 +855,6 @@ void acpi_ut_init_globals(void)
 	/* Namespace */
 
 	acpi_gbl_root_node = NULL;
-
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
 	acpi_gbl_root_node_struct.descriptor = ACPI_DESC_TYPE_NAMED;
 	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;

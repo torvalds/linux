@@ -44,6 +44,7 @@ static void default_init(struct cpuinfo_x86 * c)
 
 static struct cpu_dev default_cpu = {
 	.c_init	= default_init,
+	.c_vendor = "Unknown",
 };
 static struct cpu_dev * this_cpu = &default_cpu;
 
@@ -150,6 +151,7 @@ static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 {
 	char *v = c->x86_vendor_id;
 	int i;
+	static int printed;
 
 	for (i = 0; i < X86_VENDOR_NUM; i++) {
 		if (cpu_devs[i]) {
@@ -159,10 +161,17 @@ static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 				c->x86_vendor = i;
 				if (!early)
 					this_cpu = cpu_devs[i];
-				break;
+				return;
 			}
 		}
 	}
+	if (!printed) {
+		printed++;
+		printk(KERN_ERR "CPU: Vendor unknown, using generic init.\n");
+		printk(KERN_ERR "CPU: Your system may be unstable.\n");
+	}
+	c->x86_vendor = X86_VENDOR_UNKNOWN;
+	this_cpu = &default_cpu;
 }
 
 

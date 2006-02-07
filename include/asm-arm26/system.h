@@ -98,9 +98,8 @@ extern unsigned int user_debug;
  * spin_unlock_irq() and friends are implemented.  This avoids
  * us needlessly decrementing and incrementing the preempt count.
  */
-#define prepare_arch_switch(rq,next)	local_irq_enable()
-#define finish_arch_switch(rq,prev)	spin_unlock(&(rq)->lock)
-#define task_running(rq,p)		((rq)->curr == (p))
+#define prepare_arch_switch(next)	local_irq_enable()
+#define finish_arch_switch(prev)	spin_unlock(&(rq)->lock)
 
 /*
  * switch_to(prev, next) should switch from task `prev' to `next'

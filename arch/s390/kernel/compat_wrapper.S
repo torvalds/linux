@@ -1,9 +1,8 @@
 /*
-*  arch/s390/kernel/sys_wrapper31.S
+*  arch/s390/kernel/compat_wrapper.S
 *    wrapper for 31 bit compatible system calls.
 *
-*  S390 version
-*    Copyright (C) 2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+*    Copyright (C) IBM Corp. 2000,2006
 *    Author(s): Gerhard Tonn (ton@de.ibm.com),
 *               Thomas Spatzier (tspat@de.ibm.com)
 */ 
@@ -288,7 +287,12 @@ sys32_setregid16_wrapper:
 	llgfr	%r3,%r3			# __kernel_old_gid_emu31_t 
 	jg	sys32_setregid16	# branch to system call
 
-#sys32_sigsuspend_wrapper		# done in sigsuspend_glue 
+	.globl sys_sigsuspend_wrapper
+sys_sigsuspend_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	llgfr	%r4,%r4			# old_sigset_t
+	jg	sys_sigsuspend
 
 	.globl  compat_sys_sigpending_wrapper 
 compat_sys_sigpending_wrapper:
@@ -855,7 +859,11 @@ sys32_rt_sigqueueinfo_wrapper:
 	llgtr	%r4,%r4			# siginfo_emu31_t *
 	jg	sys32_rt_sigqueueinfo	# branch to system call
 
-#sys32_rt_sigsuspend_wrapper		# done in rt_sigsuspend_glue 
+	.globl compat_sys_rt_sigsuspend_wrapper
+compat_sys_rt_sigsuspend_wrapper:
+	llgtr	%r2,%r2			# compat_sigset_t *
+	llgfr	%r3,%r3			# compat_size_t
+	jg	compat_sys_rt_sigsuspend
 
 	.globl  sys32_pread64_wrapper 
 sys32_pread64_wrapper:
@@ -1475,3 +1483,122 @@ sys_inotify_rm_watch_wrapper:
 	lgfr	%r2,%r2			# int
 	llgfr	%r3,%r3			# u32
 	jg	sys_inotify_rm_watch
+
+	.globl compat_sys_openat_wrapper
+compat_sys_openat_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	lgfr	%r5,%r5			# int
+	jg	compat_sys_openat
+
+	.globl sys_mkdirat_wrapper
+sys_mkdirat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	jg	sys_mkdirat
+
+	.globl sys_mknodat_wrapper
+sys_mknodat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	llgfr	%r5,%r5			# unsigned int
+	jg	sys_mknodat
+
+	.globl sys_fchownat_wrapper
+sys_fchownat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	llgfr	%r4,%r4			# uid_t
+	llgfr	%r5,%r5			# gid_t
+	lgfr	%r6,%r6			# int
+	jg	sys_fchownat
+
+	.globl compat_sys_futimesat_wrapper
+compat_sys_futimesat_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgtr	%r3,%r3			# char *
+	llgtr	%r4,%r4			# struct timeval *
+	jg	compat_sys_futimesat
+
+	.globl compat_sys_newfstatat_wrapper
+compat_sys_newfstatat_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgtr	%r3,%r3			# char *
+	llgtr	%r4,%r4			# struct stat *
+	lgfr	%r5,%r5			# int
+	jg	compat_sys_newfstatat
+
+	.globl sys_unlinkat_wrapper
+sys_unlinkat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	jg	sys_unlinkat
+
+	.globl sys_renameat_wrapper
+sys_renameat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	llgtr	%r5,%r5			# const char *
+	jg	sys_renameat
+
+	.globl sys_linkat_wrapper
+sys_linkat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	llgtr	%r5,%r5			# const char *
+	jg	sys_linkat
+
+	.globl sys_symlinkat_wrapper
+sys_symlinkat_wrapper:
+	llgtr	%r2,%r2			# const char *
+	lgfr	%r3,%r3			# int
+	llgtr	%r4,%r4			# const char *
+	jg	sys_symlinkat
+
+	.globl sys_readlinkat_wrapper
+sys_readlinkat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	llgtr	%r4,%r4			# char *
+	lgfr	%r5,%r5			# int
+	jg	sys_readlinkat
+
+	.globl sys_fchmodat_wrapper
+sys_fchmodat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	llgfr	%r4,%r4			# mode_t
+	jg	sys_fchmodat
+
+	.globl sys_faccessat_wrapper
+sys_faccessat_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char *
+	lgfr	%r4,%r4			# int
+	jg	sys_faccessat
+
+	.globl compat_sys_pselect6_wrapper
+compat_sys_pselect6_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# fd_set *
+	llgtr	%r4,%r4			# fd_set *
+	llgtr	%r5,%r5			# fd_set *
+	llgtr	%r6,%r6			# struct timespec *
+	llgt	%r0,164(%r15)		# void *
+	stg	%r0,160(%r15)
+	jg	compat_sys_pselect6
+
+	.globl compat_sys_ppoll_wrapper
+compat_sys_ppoll_wrapper:
+	llgtr	%r2,%r2			# struct pollfd *
+	llgfr	%r3,%r3			# unsigned int
+	llgtr	%r4,%r4			# struct timespec *
+	llgtr	%r5,%r5			# const sigset_t *
+	llgfr	%r6,%r6			# size_t
+	jg	compat_sys_ppoll

@@ -903,10 +903,10 @@ void ocfs2_clear_inode(struct inode *inode)
 			"Clear inode of %"MLFu64", inode is locked\n",
 			oi->ip_blkno);
 
-	mlog_bug_on_msg(down_trylock(&oi->ip_io_sem),
-			"Clear inode of %"MLFu64", io_sem is locked\n",
+	mlog_bug_on_msg(!mutex_trylock(&oi->ip_io_mutex),
+			"Clear inode of %"MLFu64", io_mutex is locked\n",
 			oi->ip_blkno);
-	up(&oi->ip_io_sem);
+	mutex_unlock(&oi->ip_io_mutex);
 
 	/*
 	 * down_trylock() returns 0, down_write_trylock() returns 1

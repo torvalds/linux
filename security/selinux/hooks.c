@@ -127,7 +127,6 @@ static int task_alloc_security(struct task_struct *task)
 	if (!tsec)
 		return -ENOMEM;
 
-	tsec->magic = SELINUX_MAGIC;
 	tsec->task = task;
 	tsec->osid = tsec->sid = tsec->ptrace_sid = SECINITSID_UNLABELED;
 	task->security = tsec;
@@ -138,10 +137,6 @@ static int task_alloc_security(struct task_struct *task)
 static void task_free_security(struct task_struct *task)
 {
 	struct task_security_struct *tsec = task->security;
-
-	if (!tsec || tsec->magic != SELINUX_MAGIC)
-		return;
-
 	task->security = NULL;
 	kfree(tsec);
 }
@@ -157,14 +152,10 @@ static int inode_alloc_security(struct inode *inode)
 
 	init_MUTEX(&isec->sem);
 	INIT_LIST_HEAD(&isec->list);
-	isec->magic = SELINUX_MAGIC;
 	isec->inode = inode;
 	isec->sid = SECINITSID_UNLABELED;
 	isec->sclass = SECCLASS_FILE;
-	if (tsec && tsec->magic == SELINUX_MAGIC)
-		isec->task_sid = tsec->sid;
-	else
-		isec->task_sid = SECINITSID_UNLABELED;
+	isec->task_sid = tsec->sid;
 	inode->i_security = isec;
 
 	return 0;
@@ -174,9 +165,6 @@ static void inode_free_security(struct inode *inode)
 {
 	struct inode_security_struct *isec = inode->i_security;
 	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
-
-	if (!isec || isec->magic != SELINUX_MAGIC)
-		return;
 
 	spin_lock(&sbsec->isec_lock);
 	if (!list_empty(&isec->list))
@@ -192,19 +180,13 @@ static int file_alloc_security(struct file *file)
 	struct task_security_struct *tsec = current->security;
 	struct file_security_struct *fsec;
 
-	fsec = kzalloc(sizeof(struct file_security_struct), GFP_ATOMIC);
+	fsec = kzalloc(sizeof(struct file_security_struct), GFP_KERNEL);
 	if (!fsec)
 		return -ENOMEM;
 
-	fsec->magic = SELINUX_MAGIC;
 	fsec->file = file;
-	if (tsec && tsec->magic == SELINUX_MAGIC) {
-		fsec->sid = tsec->sid;
-		fsec->fown_sid = tsec->sid;
-	} else {
-		fsec->sid = SECINITSID_UNLABELED;
-		fsec->fown_sid = SECINITSID_UNLABELED;
-	}
+	fsec->sid = tsec->sid;
+	fsec->fown_sid = tsec->sid;
 	file->f_security = fsec;
 
 	return 0;
@@ -213,10 +195,6 @@ static int file_alloc_security(struct file *file)
 static void file_free_security(struct file *file)
 {
 	struct file_security_struct *fsec = file->f_security;
-
-	if (!fsec || fsec->magic != SELINUX_MAGIC)
-		return;
-
 	file->f_security = NULL;
 	kfree(fsec);
 }
@@ -233,7 +211,6 @@ static int superblock_alloc_security(struct super_block *sb)
 	INIT_LIST_HEAD(&sbsec->list);
 	INIT_LIST_HEAD(&sbsec->isec_head);
 	spin_lock_init(&sbsec->isec_lock);
-	sbsec->magic = SELINUX_MAGIC;
 	sbsec->sb = sb;
 	sbsec->sid = SECINITSID_UNLABELED;
 	sbsec->def_sid = SECINITSID_FILE;
@@ -246,9 +223,6 @@ static void superblock_free_security(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
 
-	if (!sbsec || sbsec->magic != SELINUX_MAGIC)
-		return;
-
 	spin_lock(&sb_security_lock);
 	if (!list_empty(&sbsec->list))
 		list_del_init(&sbsec->list);
@@ -258,7 +232,6 @@ static void superblock_free_security(struct super_block *sb)
 	kfree(sbsec);
 }
 
-#ifdef CONFIG_SECURITY_NETWORK
 static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
 	struct sk_security_struct *ssec;
@@ -270,7 +243,6 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	if (!ssec)
 		return -ENOMEM;
 
-	ssec->magic = SELINUX_MAGIC;
 	ssec->sk = sk;
 	ssec->peer_sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
@@ -282,13 +254,12 @@ static void sk_free_security(struct sock *sk)
 {
 	struct sk_security_struct *ssec = sk->sk_security;
 
-	if (sk->sk_family != PF_UNIX || ssec->magic != SELINUX_MAGIC)
+	if (sk->sk_family != PF_UNIX)
 		return;
 
 	sk->sk_security = NULL;
 	kfree(ssec);
 }
-#endif	/* CONFIG_SECURITY_NETWORK */
 
 /* The security server must be initialized before
    any labeling or access decisions can be provided. */
@@ -1483,7 +1454,6 @@ static int selinux_bprm_alloc_security(struct linux_binprm *bprm)
 	if (!bsec)
 		return -ENOMEM;
 
-	bsec->magic = SELINUX_MAGIC;
 	bsec->bprm = bprm;
 	bsec->sid = SECINITSID_UNLABELED;
 	bsec->set = 0;
@@ -2454,35 +2424,27 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		prot = reqprot;
 
 #ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXECUTABLE) &&
-	   (vma->vm_start >= vma->vm_mm->start_brk &&
-	    vma->vm_end <= vma->vm_mm->brk)) {
-	    	/*
-		 * We are making an executable mapping in the brk region.
-		 * This has an additional execheap check.
-		 */
-		rc = task_has_perm(current, current, PROCESS__EXECHEAP);
-		if (rc)
-			return rc;
-	}
-	if (vma->vm_file != NULL && vma->anon_vma != NULL && (prot & PROT_EXEC)) {
-		/*
-		 * We are making executable a file mapping that has
-		 * had some COW done. Since pages might have been written,
-		 * check ability to execute the possibly modified content.
-		 * This typically should only occur for text relocations.
-		 */
-		int rc = file_has_perm(current, vma->vm_file, FILE__EXECMOD);
-		if (rc)
-			return rc;
-	}
-	if (!vma->vm_file && (prot & PROT_EXEC) &&
-		vma->vm_start <= vma->vm_mm->start_stack &&
-		vma->vm_end >= vma->vm_mm->start_stack) {
-		/* Attempt to make the process stack executable.
-		 * This has an additional execstack check.
-		 */
-		rc = task_has_perm(current, current, PROCESS__EXECSTACK);
+	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
+		rc = 0;
+		if (vma->vm_start >= vma->vm_mm->start_brk &&
+		    vma->vm_end <= vma->vm_mm->brk) {
+			rc = task_has_perm(current, current,
+					   PROCESS__EXECHEAP);
+		} else if (!vma->vm_file &&
+			   vma->vm_start <= vma->vm_mm->start_stack &&
+			   vma->vm_end >= vma->vm_mm->start_stack) {
+			rc = task_has_perm(current, current, PROCESS__EXECSTACK);
+		} else if (vma->vm_file && vma->anon_vma) {
+			/*
+			 * We are making executable a file mapping that has
+			 * had some COW done. Since pages might have been
+			 * written, check ability to execute the possibly
+			 * modified content.  This typically should only
+			 * occur for text relocations.
+			 */
+			rc = file_has_perm(current, vma->vm_file,
+					   FILE__EXECMOD);
+		}
 		if (rc)
 			return rc;
 	}
@@ -2771,8 +2733,6 @@ static void selinux_task_to_inode(struct task_struct *p,
 	isec->initialized = 1;
 	return;
 }
-
-#ifdef CONFIG_SECURITY_NETWORK
 
 /* Returns error only if unable to parse addresses */
 static int selinux_parse_skb_ipv4(struct sk_buff *skb, struct avc_audit_data *ad)
@@ -3592,15 +3552,6 @@ static unsigned int selinux_ipv6_postroute_last(unsigned int hooknum,
 
 #endif	/* CONFIG_NETFILTER */
 
-#else
-
-static inline int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
-{
-	return 0;
-}
-
-#endif	/* CONFIG_SECURITY_NETWORK */
-
 static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	struct task_security_struct *tsec;
@@ -3642,14 +3593,9 @@ static int ipc_alloc_security(struct task_struct *task,
 	if (!isec)
 		return -ENOMEM;
 
-	isec->magic = SELINUX_MAGIC;
 	isec->sclass = sclass;
 	isec->ipc_perm = perm;
-	if (tsec) {
-		isec->sid = tsec->sid;
-	} else {
-		isec->sid = SECINITSID_UNLABELED;
-	}
+	isec->sid = tsec->sid;
 	perm->security = isec;
 
 	return 0;
@@ -3658,9 +3604,6 @@ static int ipc_alloc_security(struct task_struct *task,
 static void ipc_free_security(struct kern_ipc_perm *perm)
 {
 	struct ipc_security_struct *isec = perm->security;
-	if (!isec || isec->magic != SELINUX_MAGIC)
-		return;
-
 	perm->security = NULL;
 	kfree(isec);
 }
@@ -3673,7 +3616,6 @@ static int msg_msg_alloc_security(struct msg_msg *msg)
 	if (!msec)
 		return -ENOMEM;
 
-	msec->magic = SELINUX_MAGIC;
 	msec->msg = msg;
 	msec->sid = SECINITSID_UNLABELED;
 	msg->security = msec;
@@ -3684,8 +3626,6 @@ static int msg_msg_alloc_security(struct msg_msg *msg)
 static void msg_msg_free_security(struct msg_msg *msg)
 {
 	struct msg_security_struct *msec = msg->security;
-	if (!msec || msec->magic != SELINUX_MAGIC)
-		return;
 
 	msg->security = NULL;
 	kfree(msec);
@@ -4387,7 +4327,6 @@ static struct security_operations selinux_ops = {
 	.getprocattr =                  selinux_getprocattr,
 	.setprocattr =                  selinux_setprocattr,
 
-#ifdef CONFIG_SECURITY_NETWORK
         .unix_stream_connect =		selinux_socket_unix_stream_connect,
 	.unix_may_send =		selinux_socket_unix_may_send,
 
@@ -4409,7 +4348,6 @@ static struct security_operations selinux_ops = {
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
 	.sk_getsid = 			selinux_sk_getsid_security,
-#endif
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,
@@ -4487,7 +4425,7 @@ next_sb:
    all processes and objects when they are created. */
 security_initcall(selinux_init);
 
-#if defined(CONFIG_SECURITY_NETWORK) && defined(CONFIG_NETFILTER)
+#if defined(CONFIG_NETFILTER)
 
 static struct nf_hook_ops selinux_ipv4_op = {
 	.hook =		selinux_ipv4_postroute_last,
@@ -4548,13 +4486,13 @@ static void selinux_nf_ip_exit(void)
 }
 #endif
 
-#else /* CONFIG_SECURITY_NETWORK && CONFIG_NETFILTER */
+#else /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 #define selinux_nf_ip_exit()
 #endif
 
-#endif /* CONFIG_SECURITY_NETWORK && CONFIG_NETFILTER */
+#endif /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 int selinux_disable(void)

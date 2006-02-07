@@ -641,7 +641,7 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * task has been modifying its cpuset.
  */
 
-void cpuset_update_task_memory_state()
+void cpuset_update_task_memory_state(void)
 {
 	int my_cpusets_mem_gen;
 	struct task_struct *tsk = current;

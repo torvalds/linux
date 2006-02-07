@@ -669,7 +669,7 @@ static int sunsu_startup(struct uart_port *port)
 	 * if it is, then bail out, because there's likely no UART
 	 * here.
 	 */
-	if (!(up->port.flags & ASYNC_BUGGY_UART) &&
+	if (!(up->port.flags & UPF_BUGGY_UART) &&
 	    (serial_inp(up, UART_LSR) == 0xff)) {
 		printk("ttyS%d: LSR safety check engaged!\n", up->port.line);
 		return -ENODEV;
@@ -707,7 +707,7 @@ static int sunsu_startup(struct uart_port *port)
 	up->ier = UART_IER_RLSI | UART_IER_RDI;
 	serial_outp(up, UART_IER, up->ier);
 
-	if (up->port.flags & ASYNC_FOURPORT) {
+	if (up->port.flags & UPF_FOURPORT) {
 		unsigned int icp;
 		/*
 		 * Enable interrupts on the AST Fourport board
@@ -740,7 +740,7 @@ static void sunsu_shutdown(struct uart_port *port)
 	serial_outp(up, UART_IER, 0);
 
 	spin_lock_irqsave(&up->port.lock, flags);
-	if (up->port.flags & ASYNC_FOURPORT) {
+	if (up->port.flags & UPF_FOURPORT) {
 		/* reset interrupts on the AST Fourport board */
 		inb((up->port.iobase & 0xfe0) | 0x1f);
 		up->port.mctrl |= TIOCM_OUT1;
@@ -1132,7 +1132,7 @@ ebus_done:
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	if (!(up->port.flags & ASYNC_BUGGY_UART)) {
+	if (!(up->port.flags & UPF_BUGGY_UART)) {
 		/*
 		 * Do a simple existence test first; if we fail this, there's
 		 * no point trying anything else.
@@ -1170,7 +1170,7 @@ ebus_done:
 	 * manufacturer would be stupid enough to design a board
 	 * that conflicts with COM 1-4 --- we hope!
 	 */
-	if (!(up->port.flags & ASYNC_SKIP_TEST)) {
+	if (!(up->port.flags & UPF_SKIP_TEST)) {
 		serial_outp(up, UART_MCR, UART_MCR_LOOP | 0x0A);
 		status1 = serial_inp(up, UART_MSR) & 0xF0;
 		serial_outp(up, UART_MCR, save_mcr);
@@ -1371,7 +1371,7 @@ static __inline__ void wait_for_xmitr(struct uart_sunsu_port *up)
 	} while ((status & BOTH_EMPTY) != BOTH_EMPTY);
 
 	/* Wait up to 1s for flow control if necessary */
-	if (up->port.flags & ASYNC_CONS_FLOW) {
+	if (up->port.flags & UPF_CONS_FLOW) {
 		tmout = 1000000;
 		while (--tmout &&
 		       ((serial_in(up, UART_MSR) & UART_MSR_CTS) == 0))
@@ -1513,7 +1513,7 @@ static int __init sunsu_serial_init(void)
 		    up->su_type == SU_PORT_KBD)
 			continue;
 
-		up->port.flags |= ASYNC_BOOT_AUTOCONF;
+		up->port.flags |= UPF_BOOT_AUTOCONF;
 		up->port.type = PORT_UNKNOWN;
 		up->port.uartclk = (SU_BASE_BAUD * 16);
 

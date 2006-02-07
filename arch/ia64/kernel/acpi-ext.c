@@ -33,33 +33,33 @@ acpi_vendor_resource_match(struct acpi_resource *resource, void *context)
 	struct acpi_vendor_info *info = (struct acpi_vendor_info *)context;
 	struct acpi_resource_vendor *vendor;
 	struct acpi_vendor_descriptor *descriptor;
-	u32 length;
+	u32 byte_length;
 
-	if (resource->id != ACPI_RSTYPE_VENDOR)
+	if (resource->type != ACPI_RESOURCE_TYPE_VENDOR)
 		return AE_OK;
 
 	vendor = (struct acpi_resource_vendor *)&resource->data;
-	descriptor = (struct acpi_vendor_descriptor *)vendor->reserved;
-	if (vendor->length <= sizeof(*info->descriptor) ||
+	descriptor = (struct acpi_vendor_descriptor *)vendor->byte_data;
+	if (vendor->byte_length <= sizeof(*info->descriptor) ||
 	    descriptor->guid_id != info->descriptor->guid_id ||
 	    efi_guidcmp(descriptor->guid, info->descriptor->guid))
 		return AE_OK;
 
-	length = vendor->length - sizeof(struct acpi_vendor_descriptor);
-	info->data = acpi_os_allocate(length);
+	byte_length = vendor->byte_length - sizeof(struct acpi_vendor_descriptor);
+	info->data = acpi_os_allocate(byte_length);
 	if (!info->data)
 		return AE_NO_MEMORY;
 
 	memcpy(info->data,
-	       vendor->reserved + sizeof(struct acpi_vendor_descriptor),
-	       length);
-	info->length = length;
+	       vendor->byte_data + sizeof(struct acpi_vendor_descriptor),
+	       byte_length);
+	info->length = byte_length;
 	return AE_CTRL_TERMINATE;
 }
 
 acpi_status
 acpi_find_vendor_resource(acpi_handle obj, struct acpi_vendor_descriptor * id,
-			  u8 ** data, u32 * length)
+			  u8 ** data, u32 * byte_length)
 {
 	struct acpi_vendor_info info;
 
@@ -72,7 +72,7 @@ acpi_find_vendor_resource(acpi_handle obj, struct acpi_vendor_descriptor * id,
 		return AE_NOT_FOUND;
 
 	*data = info.data;
-	*length = info.length;
+	*byte_length = info.length;
 	return AE_OK;
 }
 

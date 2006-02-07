@@ -573,8 +573,11 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
 	spin_lock(&dlm_domain_lock);
 	dlm = __dlm_lookup_domain_full(query->domain, query->name_len);
 	/* Once the dlm ctxt is marked as leaving then we don't want
-	 * to be put in someone's domain map. */
+	 * to be put in someone's domain map. 
+	 * Also, explicitly disallow joining at certain troublesome
+	 * times (ie. during recovery). */
 	if (dlm && dlm->dlm_state != DLM_CTXT_LEAVING) {
+		int bit = query->node_idx;
 		spin_lock(&dlm->spinlock);
 
 		if (dlm->dlm_state == DLM_CTXT_NEW &&
@@ -585,6 +588,19 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data)
 			response = JOIN_OK_NO_MAP;
 		} else if (dlm->joining_node != DLM_LOCK_RES_OWNER_UNKNOWN) {
 			/* Disallow parallel joins. */
+			response = JOIN_DISALLOW;
+		} else if (dlm->reco.state & DLM_RECO_STATE_ACTIVE) {
+			mlog(ML_NOTICE, "node %u trying to join, but recovery "
+			     "is ongoing.\n", bit);
+			response = JOIN_DISALLOW;
+		} else if (test_bit(bit, dlm->recovery_map)) {
+			mlog(ML_NOTICE, "node %u trying to join, but it "
+			     "still needs recovery.\n", bit);
+			response = JOIN_DISALLOW;
+		} else if (test_bit(bit, dlm->domain_map)) {
+			mlog(ML_NOTICE, "node %u trying to join, but it "
+			     "is still in the domain! needs recovery?\n",
+			     bit);
 			response = JOIN_DISALLOW;
 		} else {
 			/* Alright we're fully a part of this domain

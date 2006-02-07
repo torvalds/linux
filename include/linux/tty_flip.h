@@ -17,7 +17,7 @@ _INLINE_ int tty_insert_flip_char(struct tty_struct *tty,
 				   unsigned char ch, char flag)
 {
 	struct tty_buffer *tb = tty->buf.tail;
-	if (tb && tb->used < tb->size) {
+	if (tb && tb->active && tb->used < tb->size) {
 		tb->flag_buf_ptr[tb->used] = flag;
 		tb->char_buf_ptr[tb->used++] = ch;
 		return 1;
@@ -27,6 +27,11 @@ _INLINE_ int tty_insert_flip_char(struct tty_struct *tty,
 
 _INLINE_ void tty_schedule_flip(struct tty_struct *tty)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&tty->buf.lock, flags);
+	if (tty->buf.tail != NULL)
+		tty->buf.tail->active = 0;
+	spin_unlock_irqrestore(&tty->buf.lock, flags);
 	schedule_delayed_work(&tty->buf.work, 1);
 }
 

@@ -255,14 +255,14 @@ static int drm_addmap_core(drm_device_t * dev, unsigned int offset,
 	memset(list, 0, sizeof(*list));
 	list->map = map;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	list_add(&list->head, &dev->maplist->head);
 	/* Assign a 32-bit handle */
-	/* We do it here so that dev->struct_sem protects the increment */
+	/* We do it here so that dev->struct_mutex protects the increment */
 	list->user_token = HandleID(map->type == _DRM_SHM
 				    ? (unsigned long)map->handle
 				    : map->offset, dev);
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	*maplist = list;
 	return 0;
@@ -392,9 +392,9 @@ int drm_rmmap(drm_device_t *dev, drm_local_map_t *map)
 {
 	int ret;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	ret = drm_rmmap_locked(dev, map);
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -423,7 +423,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 		return -EFAULT;
 	}
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	list_for_each(list, &dev->maplist->head) {
 		drm_map_list_t *r_list = list_entry(list, drm_map_list_t, head);
 
@@ -439,7 +439,7 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 	 * find anything.
 	 */
 	if (list == (&dev->maplist->head)) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -448,13 +448,13 @@ int drm_rmmap_ioctl(struct inode *inode, struct file *filp,
 
 	/* Register and framebuffer maps are permanent */
 	if ((map->type == _DRM_REGISTERS) || (map->type == _DRM_FRAME_BUFFER)) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
 
 	ret = drm_rmmap_locked(dev, map);
 
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -566,16 +566,16 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->count_lock);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
@@ -583,7 +583,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	entry->buflist = drm_alloc(count * sizeof(*entry->buflist),
 				   DRM_MEM_BUFS);
 	if (!entry->buflist) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -616,7 +616,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			drm_cleanup_buf_error(dev, entry);
-			up(&dev->struct_sem);
+			mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -638,7 +638,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	if (!temp_buflist) {
 		/* Free the entry because it isn't valid */
 		drm_cleanup_buf_error(dev, entry);
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -656,7 +656,7 @@ int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request)
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
 	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
 
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;
@@ -722,16 +722,16 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->count_lock);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
@@ -739,7 +739,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	entry->buflist = drm_alloc(count * sizeof(*entry->buflist),
 				   DRM_MEM_BUFS);
 	if (!entry->buflist) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -750,7 +750,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	if (!entry->seglist) {
 		drm_free(entry->buflist,
 			 count * sizeof(*entry->buflist), DRM_MEM_BUFS);
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -766,7 +766,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 			 count * sizeof(*entry->buflist), DRM_MEM_BUFS);
 		drm_free(entry->seglist,
 			 count * sizeof(*entry->seglist), DRM_MEM_SEGS);
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -790,7 +790,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 			drm_free(temp_pagelist,
 				 (dma->page_count + (count << page_order))
 				 * sizeof(*dma->pagelist), DRM_MEM_PAGES);
-			up(&dev->struct_sem);
+			mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -831,7 +831,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 					  (count << page_order))
 					 * sizeof(*dma->pagelist),
 					 DRM_MEM_PAGES);
-				up(&dev->struct_sem);
+				mutex_unlock(&dev->struct_mutex);
 				atomic_dec(&dev->buf_alloc);
 				return -ENOMEM;
 			}
@@ -853,7 +853,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 		drm_free(temp_pagelist,
 			 (dma->page_count + (count << page_order))
 			 * sizeof(*dma->pagelist), DRM_MEM_PAGES);
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -878,7 +878,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	dma->page_count += entry->seg_count << page_order;
 	dma->byte_count += PAGE_SIZE * (entry->seg_count << page_order);
 
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;
@@ -948,16 +948,16 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->count_lock);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
@@ -965,7 +965,7 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	entry->buflist = drm_alloc(count * sizeof(*entry->buflist),
 				   DRM_MEM_BUFS);
 	if (!entry->buflist) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -999,7 +999,7 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			drm_cleanup_buf_error(dev, entry);
-			up(&dev->struct_sem);
+			mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -1022,7 +1022,7 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	if (!temp_buflist) {
 		/* Free the entry because it isn't valid */
 		drm_cleanup_buf_error(dev, entry);
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -1040,7 +1040,7 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
 	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
 
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;
@@ -1110,16 +1110,16 @@ int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->count_lock);
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
@@ -1127,7 +1127,7 @@ int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	entry->buflist = drm_alloc(count * sizeof(*entry->buflist),
 				   DRM_MEM_BUFS);
 	if (!entry->buflist) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -1160,7 +1160,7 @@ int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			drm_cleanup_buf_error(dev, entry);
-			up(&dev->struct_sem);
+			mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -1182,7 +1182,7 @@ int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	if (!temp_buflist) {
 		/* Free the entry because it isn't valid */
 		drm_cleanup_buf_error(dev, entry);
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -1200,7 +1200,7 @@ int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
 	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
 
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;

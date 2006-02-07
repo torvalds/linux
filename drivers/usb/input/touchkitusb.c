@@ -337,6 +337,9 @@ static int touchkit_probe(struct usb_interface *intf,
 			 touchkit->data, TOUCHKIT_REPORT_DATA_SIZE,
 			 touchkit_irq, touchkit, endpoint->bInterval);
 
+	touchkit->irq->transfer_dma = touchkit->data_dma;
+	touchkit->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
 	input_register_device(touchkit->input);
 
 	usb_set_intfdata(intf, touchkit);

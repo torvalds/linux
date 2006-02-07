@@ -226,7 +226,7 @@ ext3_set_acl(handle_t *handle, struct inode *inode, int type,
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	int name_index;
 	void *value = NULL;
-	size_t size;
+	size_t size = 0;
 	int error;
 
 	if (S_ISLNK(inode->i_mode))

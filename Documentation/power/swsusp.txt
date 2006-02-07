@@ -27,7 +27,7 @@ echo shutdown > /sys/power/disk; echo disk > /sys/power/state
 
 echo platform > /sys/power/disk; echo disk > /sys/power/state
 
-If you want to limit the suspend image size to N megabytes, do
+If you want to limit the suspend image size to N bytes, do
 
 echo N > /sys/power/image_size
 

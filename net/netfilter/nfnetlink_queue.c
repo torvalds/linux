@@ -825,7 +825,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfqa[NFQA_MARK-1])
-		skb->nfmark = ntohl(*(u_int32_t *)NFA_DATA(nfqa[NFQA_MARK-1]));
+		entry->skb->nfmark = ntohl(*(u_int32_t *)
+		                           NFA_DATA(nfqa[NFQA_MARK-1]));
 		
 	issue_verdict(entry, verdict);
 	instance_put(queue);

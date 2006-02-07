@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,914 +49,544 @@ ACPI_MODULE_NAME("rsdump")
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 /* Local prototypes */
-static void acpi_rs_dump_irq(union acpi_resource_data *data);
+static void acpi_rs_out_string(char *title, char *value);
 
-static void acpi_rs_dump_address16(union acpi_resource_data *data);
+static void acpi_rs_out_integer8(char *title, u8 value);
 
-static void acpi_rs_dump_address32(union acpi_resource_data *data);
+static void acpi_rs_out_integer16(char *title, u16 value);
 
-static void acpi_rs_dump_address64(union acpi_resource_data *data);
+static void acpi_rs_out_integer32(char *title, u32 value);
 
-static void acpi_rs_dump_dma(union acpi_resource_data *data);
+static void acpi_rs_out_integer64(char *title, u64 value);
 
-static void acpi_rs_dump_io(union acpi_resource_data *data);
+static void acpi_rs_out_title(char *title);
 
-static void acpi_rs_dump_extended_irq(union acpi_resource_data *data);
+static void acpi_rs_dump_byte_list(u16 length, u8 * data);
 
-static void acpi_rs_dump_fixed_io(union acpi_resource_data *data);
+static void acpi_rs_dump_dword_list(u8 length, u32 * data);
 
-static void acpi_rs_dump_fixed_memory32(union acpi_resource_data *data);
+static void acpi_rs_dump_short_byte_list(u8 length, u8 * data);
 
-static void acpi_rs_dump_memory24(union acpi_resource_data *data);
+static void
+acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source);
 
-static void acpi_rs_dump_memory32(union acpi_resource_data *data);
+static void acpi_rs_dump_address_common(union acpi_resource_data *resource);
 
-static void acpi_rs_dump_start_depend_fns(union acpi_resource_data *data);
+static void
+acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table);
 
-static void acpi_rs_dump_vendor_specific(union acpi_resource_data *data);
+#define ACPI_RSD_OFFSET(f)          (u8) ACPI_OFFSET (union acpi_resource_data,f)
+#define ACPI_PRT_OFFSET(f)          (u8) ACPI_OFFSET (struct acpi_pci_routing_table,f)
+#define ACPI_RSD_TABLE_SIZE(name)   (sizeof(name) / sizeof (struct acpi_rsdump_info))
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_dump_irq
+ * Resource Descriptor info tables
  *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
+ * Note: The first table entry must be a Title or Literal and must contain
+ * the table length (number of table entries)
+ *
+ ******************************************************************************/
+
+struct acpi_rsdump_info acpi_rs_dump_irq[6] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_irq), "IRQ", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.triggering), "Triggering",
+	 acpi_gbl_HEdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.polarity), "Polarity",
+	 acpi_gbl_LLdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.sharable), "Sharing",
+	 acpi_gbl_SHRdecode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(irq.interrupt_count),
+	 "Interrupt Count", NULL},
+	{ACPI_RSD_SHORTLIST, ACPI_RSD_OFFSET(irq.interrupts[0]),
+	 "Interrupt List", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_dma[6] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_dma), "DMA", NULL},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(dma.type), "Speed",
+	 acpi_gbl_TYPdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(dma.bus_master), "Mastering",
+	 acpi_gbl_BMdecode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(dma.transfer), "Transfer Type",
+	 acpi_gbl_SIZdecode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(dma.channel_count), "Channel Count",
+	 NULL},
+	{ACPI_RSD_SHORTLIST, ACPI_RSD_OFFSET(dma.channels[0]), "Channel List",
+	 NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_start_dpf[3] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_start_dpf),
+	 "Start-Dependent-Functions", NULL},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(start_dpf.compatibility_priority),
+	 "Compatibility Priority", acpi_gbl_config_decode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(start_dpf.performance_robustness),
+	 "Performance/Robustness", acpi_gbl_config_decode}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_end_dpf[1] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_end_dpf),
+	 "End-Dependent-Functions", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_io[6] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_io), "I/O", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(io.io_decode), "Address Decoding",
+	 acpi_gbl_io_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(io.minimum), "Address Minimum", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(io.maximum), "Address Maximum", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(io.alignment), "Alignment", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(io.address_length), "Address Length",
+	 NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_fixed_io[3] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_io),
+	 "Fixed I/O", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(fixed_io.address), "Address", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(fixed_io.address_length),
+	 "Address Length", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_vendor[3] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_vendor),
+	 "Vendor Specific", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(vendor.byte_length), "Length", NULL},
+	{ACPI_RSD_LONGLIST, ACPI_RSD_OFFSET(vendor.byte_data[0]), "Vendor Data",
+	 NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_end_tag[1] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_end_tag), "end_tag",
+	 NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_memory24[6] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory24),
+	 "24-Bit Memory Range", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(memory24.write_protect),
+	 "Write Protect", acpi_gbl_RWdecode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(memory24.minimum), "Address Minimum",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(memory24.maximum), "Address Maximum",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(memory24.alignment), "Alignment",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(memory24.address_length),
+	 "Address Length", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_memory32[6] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory32),
+	 "32-Bit Memory Range", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(memory32.write_protect),
+	 "Write Protect", acpi_gbl_RWdecode},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(memory32.minimum), "Address Minimum",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(memory32.maximum), "Address Maximum",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(memory32.alignment), "Alignment",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(memory32.address_length),
+	 "Address Length", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_fixed_memory32[4] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_memory32),
+	 "32-Bit Fixed Memory Range", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(fixed_memory32.write_protect),
+	 "Write Protect", acpi_gbl_RWdecode},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(fixed_memory32.address), "Address",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(fixed_memory32.address_length),
+	 "Address Length", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_address16[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_address16),
+	 "16-Bit WORD Address Space", NULL},
+	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.granularity), "Granularity",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.minimum), "Address Minimum",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.maximum), "Address Maximum",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.translation_offset),
+	 "Translation Offset", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(address16.address_length),
+	 "Address Length", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(address16.resource_source), NULL, NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_address32[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_address32),
+	 "32-Bit DWORD Address Space", NULL},
+	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.granularity), "Granularity",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.minimum), "Address Minimum",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.maximum), "Address Maximum",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.translation_offset),
+	 "Translation Offset", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(address32.address_length),
+	 "Address Length", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(address32.resource_source), NULL, NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_address64[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_address64),
+	 "64-Bit QWORD Address Space", NULL},
+	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.granularity), "Granularity",
+	 NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.minimum), "Address Minimum",
+	 NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.maximum), "Address Maximum",
+	 NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.translation_offset),
+	 "Translation Offset", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(address64.address_length),
+	 "Address Length", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(address64.resource_source), NULL, NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_ext_address64[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_ext_address64),
+	 "64-Bit Extended Address Space", NULL},
+	{ACPI_RSD_ADDRESS, 0, NULL, NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.granularity),
+	 "Granularity", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.minimum),
+	 "Address Minimum", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.maximum),
+	 "Address Maximum", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.translation_offset),
+	 "Translation Offset", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.address_length),
+	 "Address Length", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(ext_address64.type_specific),
+	 "Type-Specific Attribute", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_ext_irq[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_ext_irq),
+	 "Extended IRQ", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.producer_consumer),
+	 "Type", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.triggering),
+	 "Triggering", acpi_gbl_HEdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.polarity), "Polarity",
+	 acpi_gbl_LLdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.sharable), "Sharing",
+	 acpi_gbl_SHRdecode},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(extended_irq.resource_source), NULL,
+	 NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(extended_irq.interrupt_count),
+	 "Interrupt Count", NULL},
+	{ACPI_RSD_DWORDLIST, ACPI_RSD_OFFSET(extended_irq.interrupts[0]),
+	 "Interrupt List", NULL}
+};
+
+struct acpi_rsdump_info acpi_rs_dump_generic_reg[6] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_generic_reg),
+	 "Generic Register", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(generic_reg.space_id), "Space ID",
+	 NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(generic_reg.bit_width), "Bit Width",
+	 NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(generic_reg.bit_offset), "Bit Offset",
+	 NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(generic_reg.access_size),
+	 "Access Size", NULL},
+	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(generic_reg.address), "Address", NULL}
+};
+
+/*
+ * Tables used for common address descriptor flag fields
+ */
+static struct acpi_rsdump_info acpi_rs_dump_general_flags[5] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_general_flags), NULL,
+	 NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.producer_consumer),
+	 "Consumer/Producer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.decode), "Address Decode",
+	 acpi_gbl_DECdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.min_address_fixed),
+	 "Min Relocatability", acpi_gbl_min_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.max_address_fixed),
+	 "Max Relocatability", acpi_gbl_max_decode}
+};
+
+static struct acpi_rsdump_info acpi_rs_dump_memory_flags[5] = {
+	{ACPI_RSD_LITERAL, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory_flags),
+	 "Resource Type", (void *)"Memory Range"},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.mem.write_protect),
+	 "Write Protect", acpi_gbl_RWdecode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.mem.caching),
+	 "Caching", acpi_gbl_MEMdecode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.mem.range_type),
+	 "Range Type", acpi_gbl_MTPdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.mem.translation),
+	 "Translation", acpi_gbl_TTPdecode}
+};
+
+static struct acpi_rsdump_info acpi_rs_dump_io_flags[4] = {
+	{ACPI_RSD_LITERAL, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_io_flags),
+	 "Resource Type", (void *)"I/O Range"},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.io.range_type),
+	 "Range Type", acpi_gbl_RNGdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.io.translation),
+	 "Translation", acpi_gbl_TTPdecode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.io.translation_type),
+	 "Translation Type", acpi_gbl_TRSdecode}
+};
+
+/*
+ * Table used to dump _PRT contents
+ */
+static struct acpi_rsdump_info acpi_rs_dump_prt[5] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_prt), NULL, NULL},
+	{ACPI_RSD_UINT64, ACPI_PRT_OFFSET(address), "Address", NULL},
+	{ACPI_RSD_UINT32, ACPI_PRT_OFFSET(pin), "Pin", NULL},
+	{ACPI_RSD_STRING, ACPI_PRT_OFFSET(source[0]), "Source", NULL},
+	{ACPI_RSD_UINT32, ACPI_PRT_OFFSET(source_index), "Source Index", NULL}
+};
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_dump_descriptor
+ *
+ * PARAMETERS:  Resource
  *
  * RETURN:      None
  *
- * DESCRIPTION: Prints out the various members of the Data structure type.
+ * DESCRIPTION:
  *
  ******************************************************************************/
 
-static void acpi_rs_dump_irq(union acpi_resource_data *data)
+static void
+acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 {
-	struct acpi_resource_irq *irq_data = (struct acpi_resource_irq *)data;
-	u8 index = 0;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("IRQ Resource\n");
-
-	acpi_os_printf("  %s Triggered\n",
-		       ACPI_LEVEL_SENSITIVE ==
-		       irq_data->edge_level ? "Level" : "Edge");
-
-	acpi_os_printf("  Active %s\n",
-		       ACPI_ACTIVE_LOW ==
-		       irq_data->active_high_low ? "Low" : "High");
-
-	acpi_os_printf("  %s\n",
-		       ACPI_SHARED ==
-		       irq_data->shared_exclusive ? "Shared" : "Exclusive");
-
-	acpi_os_printf("  %X Interrupts ( ", irq_data->number_of_interrupts);
-
-	for (index = 0; index < irq_data->number_of_interrupts; index++) {
-		acpi_os_printf("%X ", irq_data->interrupts[index]);
-	}
-
-	acpi_os_printf(")\n");
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_dma
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_dma(union acpi_resource_data *data)
-{
-	struct acpi_resource_dma *dma_data = (struct acpi_resource_dma *)data;
-	u8 index = 0;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("DMA Resource\n");
-
-	switch (dma_data->type) {
-	case ACPI_COMPATIBILITY:
-		acpi_os_printf("  Compatibility mode\n");
-		break;
-
-	case ACPI_TYPE_A:
-		acpi_os_printf("  Type A\n");
-		break;
-
-	case ACPI_TYPE_B:
-		acpi_os_printf("  Type B\n");
-		break;
-
-	case ACPI_TYPE_F:
-		acpi_os_printf("  Type F\n");
-		break;
-
-	default:
-		acpi_os_printf("  Invalid DMA type\n");
-		break;
-	}
-
-	acpi_os_printf("  %sBus Master\n",
-		       ACPI_BUS_MASTER == dma_data->bus_master ? "" : "Not a ");
-
-	switch (dma_data->transfer) {
-	case ACPI_TRANSFER_8:
-		acpi_os_printf("  8-bit only transfer\n");
-		break;
-
-	case ACPI_TRANSFER_8_16:
-		acpi_os_printf("  8 and 16-bit transfer\n");
-		break;
-
-	case ACPI_TRANSFER_16:
-		acpi_os_printf("  16 bit only transfer\n");
-		break;
-
-	default:
-		acpi_os_printf("  Invalid transfer preference\n");
-		break;
-	}
-
-	acpi_os_printf("  Number of Channels: %X ( ",
-		       dma_data->number_of_channels);
-
-	for (index = 0; index < dma_data->number_of_channels; index++) {
-		acpi_os_printf("%X ", dma_data->channels[index]);
-	}
-
-	acpi_os_printf(")\n");
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_start_depend_fns
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_start_depend_fns(union acpi_resource_data *data)
-{
-	struct acpi_resource_start_dpf *sdf_data =
-	    (struct acpi_resource_start_dpf *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("Start Dependent Functions Resource\n");
-
-	switch (sdf_data->compatibility_priority) {
-	case ACPI_GOOD_CONFIGURATION:
-		acpi_os_printf("  Good configuration\n");
-		break;
-
-	case ACPI_ACCEPTABLE_CONFIGURATION:
-		acpi_os_printf("  Acceptable configuration\n");
-		break;
-
-	case ACPI_SUB_OPTIMAL_CONFIGURATION:
-		acpi_os_printf("  Sub-optimal configuration\n");
-		break;
-
-	default:
-		acpi_os_printf("  Invalid compatibility priority\n");
-		break;
-	}
-
-	switch (sdf_data->performance_robustness) {
-	case ACPI_GOOD_CONFIGURATION:
-		acpi_os_printf("  Good configuration\n");
-		break;
-
-	case ACPI_ACCEPTABLE_CONFIGURATION:
-		acpi_os_printf("  Acceptable configuration\n");
-		break;
-
-	case ACPI_SUB_OPTIMAL_CONFIGURATION:
-		acpi_os_printf("  Sub-optimal configuration\n");
-		break;
-
-	default:
-		acpi_os_printf("  Invalid performance robustness preference\n");
-		break;
-	}
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_io
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_io(union acpi_resource_data *data)
-{
-	struct acpi_resource_io *io_data = (struct acpi_resource_io *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("Io Resource\n");
-
-	acpi_os_printf("  %d bit decode\n",
-		       ACPI_DECODE_16 == io_data->io_decode ? 16 : 10);
-
-	acpi_os_printf("  Range minimum base: %08X\n",
-		       io_data->min_base_address);
-
-	acpi_os_printf("  Range maximum base: %08X\n",
-		       io_data->max_base_address);
-
-	acpi_os_printf("  Alignment: %08X\n", io_data->alignment);
-
-	acpi_os_printf("  Range Length: %08X\n", io_data->range_length);
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_fixed_io
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_fixed_io(union acpi_resource_data *data)
-{
-	struct acpi_resource_fixed_io *fixed_io_data =
-	    (struct acpi_resource_fixed_io *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("Fixed Io Resource\n");
-	acpi_os_printf("  Range base address: %08X",
-		       fixed_io_data->base_address);
-
-	acpi_os_printf("  Range length: %08X", fixed_io_data->range_length);
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_vendor_specific
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_vendor_specific(union acpi_resource_data *data)
-{
-	struct acpi_resource_vendor *vendor_data =
-	    (struct acpi_resource_vendor *)data;
-	u16 index = 0;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("Vendor Specific Resource\n");
-
-	acpi_os_printf("  Length: %08X\n", vendor_data->length);
-
-	for (index = 0; index < vendor_data->length; index++) {
-		acpi_os_printf("  Byte %X: %08X\n",
-			       index, vendor_data->reserved[index]);
-	}
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_memory24
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_memory24(union acpi_resource_data *data)
-{
-	struct acpi_resource_mem24 *memory24_data =
-	    (struct acpi_resource_mem24 *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("24-Bit Memory Range Resource\n");
-
-	acpi_os_printf("  Read%s\n",
-		       ACPI_READ_WRITE_MEMORY ==
-		       memory24_data->read_write_attribute ?
-		       "/Write" : " only");
-
-	acpi_os_printf("  Range minimum base: %08X\n",
-		       memory24_data->min_base_address);
-
-	acpi_os_printf("  Range maximum base: %08X\n",
-		       memory24_data->max_base_address);
-
-	acpi_os_printf("  Alignment: %08X\n", memory24_data->alignment);
-
-	acpi_os_printf("  Range length: %08X\n", memory24_data->range_length);
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_memory32
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_memory32(union acpi_resource_data *data)
-{
-	struct acpi_resource_mem32 *memory32_data =
-	    (struct acpi_resource_mem32 *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("32-Bit Memory Range Resource\n");
-
-	acpi_os_printf("  Read%s\n",
-		       ACPI_READ_WRITE_MEMORY ==
-		       memory32_data->read_write_attribute ?
-		       "/Write" : " only");
-
-	acpi_os_printf("  Range minimum base: %08X\n",
-		       memory32_data->min_base_address);
-
-	acpi_os_printf("  Range maximum base: %08X\n",
-		       memory32_data->max_base_address);
-
-	acpi_os_printf("  Alignment: %08X\n", memory32_data->alignment);
-
-	acpi_os_printf("  Range length: %08X\n", memory32_data->range_length);
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_fixed_memory32
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_fixed_memory32(union acpi_resource_data *data)
-{
-	struct acpi_resource_fixed_mem32 *fixed_memory32_data =
-	    (struct acpi_resource_fixed_mem32 *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("32-Bit Fixed Location Memory Range Resource\n");
-
-	acpi_os_printf("  Read%s\n",
-		       ACPI_READ_WRITE_MEMORY ==
-		       fixed_memory32_data->
-		       read_write_attribute ? "/Write" : " Only");
-
-	acpi_os_printf("  Range base address: %08X\n",
-		       fixed_memory32_data->range_base_address);
-
-	acpi_os_printf("  Range length: %08X\n",
-		       fixed_memory32_data->range_length);
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_address16
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_address16(union acpi_resource_data *data)
-{
-	struct acpi_resource_address16 *address16_data =
-	    (struct acpi_resource_address16 *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("16-Bit Address Space Resource\n");
-	acpi_os_printf("  Resource Type: ");
-
-	switch (address16_data->resource_type) {
-	case ACPI_MEMORY_RANGE:
-
-		acpi_os_printf("Memory Range\n");
-
-		switch (address16_data->attribute.memory.cache_attribute) {
-		case ACPI_NON_CACHEABLE_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Noncacheable memory\n");
+	u8 *target = NULL;
+	u8 *previous_target;
+	char *name;
+	u8 count;
+
+	/* First table entry must contain the table length (# of table entries) */
+
+	count = table->offset;
+
+	while (count) {
+		previous_target = target;
+		target = ACPI_ADD_PTR(u8, resource, table->offset);
+		name = table->name;
+
+		switch (table->opcode) {
+		case ACPI_RSD_TITLE:
+			/*
+			 * Optional resource title
+			 */
+			if (table->name) {
+				acpi_os_printf("%s Resource\n", name);
+			}
 			break;
 
-		case ACPI_CACHABLE_MEMORY:
-			acpi_os_printf("  Type Specific: Cacheable memory\n");
+			/* Strings */
+
+		case ACPI_RSD_LITERAL:
+			acpi_rs_out_string(name,
+					   ACPI_CAST_PTR(char, table->pointer));
 			break;
 
-		case ACPI_WRITE_COMBINING_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Write-combining memory\n");
+		case ACPI_RSD_STRING:
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char, target));
 			break;
 
-		case ACPI_PREFETCHABLE_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Prefetchable memory\n");
+			/* Data items, 8/16/32/64 bit */
+
+		case ACPI_RSD_UINT8:
+			acpi_rs_out_integer8(name, ACPI_GET8(target));
+			break;
+
+		case ACPI_RSD_UINT16:
+			acpi_rs_out_integer16(name, ACPI_GET16(target));
+			break;
+
+		case ACPI_RSD_UINT32:
+			acpi_rs_out_integer32(name, ACPI_GET32(target));
+			break;
+
+		case ACPI_RSD_UINT64:
+			acpi_rs_out_integer64(name, ACPI_GET64(target));
+			break;
+
+			/* Flags: 1-bit and 2-bit flags supported */
+
+		case ACPI_RSD_1BITFLAG:
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
+							       table->
+							       pointer[*target &
+								       0x01]));
+			break;
+
+		case ACPI_RSD_2BITFLAG:
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
+							       table->
+							       pointer[*target &
+								       0x03]));
+			break;
+
+		case ACPI_RSD_SHORTLIST:
+			/*
+			 * Short byte list (single line output) for DMA and IRQ resources
+			 * Note: The list length is obtained from the previous table entry
+			 */
+			if (previous_target) {
+				acpi_rs_out_title(name);
+				acpi_rs_dump_short_byte_list(*previous_target,
+							     target);
+			}
+			break;
+
+		case ACPI_RSD_LONGLIST:
+			/*
+			 * Long byte list for Vendor resource data
+			 * Note: The list length is obtained from the previous table entry
+			 */
+			if (previous_target) {
+				acpi_rs_dump_byte_list(ACPI_GET16
+						       (previous_target),
+						       target);
+			}
+			break;
+
+		case ACPI_RSD_DWORDLIST:
+			/*
+			 * Dword list for Extended Interrupt resources
+			 * Note: The list length is obtained from the previous table entry
+			 */
+			if (previous_target) {
+				acpi_rs_dump_dword_list(*previous_target,
+							ACPI_CAST_PTR(u32,
+								      target));
+			}
+			break;
+
+		case ACPI_RSD_ADDRESS:
+			/*
+			 * Common flags for all Address resources
+			 */
+			acpi_rs_dump_address_common(ACPI_CAST_PTR
+						    (union acpi_resource_data,
+						     target));
+			break;
+
+		case ACPI_RSD_SOURCE:
+			/*
+			 * Optional resource_source for Address resources
+			 */
+			acpi_rs_dump_resource_source(ACPI_CAST_PTR
+						     (struct
+						      acpi_resource_source,
+						      target));
 			break;
 
 		default:
-			acpi_os_printf
-			    ("  Type Specific: Invalid cache attribute\n");
-			break;
+			acpi_os_printf("**** Invalid table opcode [%X] ****\n",
+				       table->opcode);
+			return;
 		}
 
-		acpi_os_printf("  Type Specific: Read%s\n",
-			       ACPI_READ_WRITE_MEMORY ==
-			       address16_data->attribute.memory.
-			       read_write_attribute ? "/Write" : " Only");
+		table++;
+		count--;
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_dump_resource_source
+ *
+ * PARAMETERS:  resource_source     - Pointer to a Resource Source struct
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Common routine for dumping the optional resource_source and the
+ *              corresponding resource_source_index.
+ *
+ ******************************************************************************/
+
+static void
+acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	if (resource_source->index == 0xFF) {
+		return;
+	}
+
+	acpi_rs_out_integer8("Resource Source Index", resource_source->index);
+
+	acpi_rs_out_string("Resource Source",
+			   resource_source->string_ptr ?
+			   resource_source->string_ptr : "[Not Specified]");
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_dump_address_common
+ *
+ * PARAMETERS:  Resource        - Pointer to an internal resource descriptor
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Dump the fields that are common to all Address resource
+ *              descriptors
+ *
+ ******************************************************************************/
+
+static void acpi_rs_dump_address_common(union acpi_resource_data *resource)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	/* Decode the type-specific flags */
+
+	switch (resource->address.resource_type) {
+	case ACPI_MEMORY_RANGE:
+
+		acpi_rs_dump_descriptor(resource, acpi_rs_dump_memory_flags);
 		break;
 
 	case ACPI_IO_RANGE:
 
-		acpi_os_printf("I/O Range\n");
-
-		switch (address16_data->attribute.io.range_attribute) {
-		case ACPI_NON_ISA_ONLY_RANGES:
-			acpi_os_printf
-			    ("  Type Specific: Non-ISA Io Addresses\n");
-			break;
-
-		case ACPI_ISA_ONLY_RANGES:
-			acpi_os_printf("  Type Specific: ISA Io Addresses\n");
-			break;
-
-		case ACPI_ENTIRE_RANGE:
-			acpi_os_printf
-			    ("  Type Specific: ISA and non-ISA Io Addresses\n");
-			break;
-
-		default:
-			acpi_os_printf
-			    ("  Type Specific: Invalid range attribute\n");
-			break;
-		}
-
-		acpi_os_printf("  Type Specific: %s Translation\n",
-			       ACPI_SPARSE_TRANSLATION ==
-			       address16_data->attribute.io.
-			       translation_attribute ? "Sparse" : "Dense");
+		acpi_rs_dump_descriptor(resource, acpi_rs_dump_io_flags);
 		break;
 
 	case ACPI_BUS_NUMBER_RANGE:
 
-		acpi_os_printf("Bus Number Range\n");
+		acpi_rs_out_string("Resource Type", "Bus Number Range");
 		break;
 
 	default:
 
-		acpi_os_printf("0x%2.2X\n", address16_data->resource_type);
+		acpi_rs_out_integer8("Resource Type",
+				     (u8) resource->address.resource_type);
 		break;
 	}
 
-	acpi_os_printf("  Resource %s\n",
-		       ACPI_CONSUMER == address16_data->producer_consumer ?
-		       "Consumer" : "Producer");
+	/* Decode the general flags */
 
-	acpi_os_printf("  %s decode\n",
-		       ACPI_SUB_DECODE == address16_data->decode ?
-		       "Subtractive" : "Positive");
-
-	acpi_os_printf("  Min address is %s fixed\n",
-		       ACPI_ADDRESS_FIXED == address16_data->min_address_fixed ?
-		       "" : "not");
-
-	acpi_os_printf("  Max address is %s fixed\n",
-		       ACPI_ADDRESS_FIXED == address16_data->max_address_fixed ?
-		       "" : "not");
-
-	acpi_os_printf("  Granularity: %08X\n", address16_data->granularity);
-
-	acpi_os_printf("  Address range min: %08X\n",
-		       address16_data->min_address_range);
-
-	acpi_os_printf("  Address range max: %08X\n",
-		       address16_data->max_address_range);
-
-	acpi_os_printf("  Address translation offset: %08X\n",
-		       address16_data->address_translation_offset);
-
-	acpi_os_printf("  Address Length: %08X\n",
-		       address16_data->address_length);
-
-	if (0xFF != address16_data->resource_source.index) {
-		acpi_os_printf("  Resource Source Index: %X\n",
-			       address16_data->resource_source.index);
-
-		acpi_os_printf("  Resource Source: %s\n",
-			       address16_data->resource_source.string_ptr);
-	}
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_address32
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_address32(union acpi_resource_data *data)
-{
-	struct acpi_resource_address32 *address32_data =
-	    (struct acpi_resource_address32 *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("32-Bit Address Space Resource\n");
-
-	switch (address32_data->resource_type) {
-	case ACPI_MEMORY_RANGE:
-
-		acpi_os_printf("  Resource Type: Memory Range\n");
-
-		switch (address32_data->attribute.memory.cache_attribute) {
-		case ACPI_NON_CACHEABLE_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Noncacheable memory\n");
-			break;
-
-		case ACPI_CACHABLE_MEMORY:
-			acpi_os_printf("  Type Specific: Cacheable memory\n");
-			break;
-
-		case ACPI_WRITE_COMBINING_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Write-combining memory\n");
-			break;
-
-		case ACPI_PREFETCHABLE_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Prefetchable memory\n");
-			break;
-
-		default:
-			acpi_os_printf
-			    ("  Type Specific: Invalid cache attribute\n");
-			break;
-		}
-
-		acpi_os_printf("  Type Specific: Read%s\n",
-			       ACPI_READ_WRITE_MEMORY ==
-			       address32_data->attribute.memory.
-			       read_write_attribute ? "/Write" : " Only");
-		break;
-
-	case ACPI_IO_RANGE:
-
-		acpi_os_printf("  Resource Type: Io Range\n");
-
-		switch (address32_data->attribute.io.range_attribute) {
-		case ACPI_NON_ISA_ONLY_RANGES:
-			acpi_os_printf
-			    ("  Type Specific: Non-ISA Io Addresses\n");
-			break;
-
-		case ACPI_ISA_ONLY_RANGES:
-			acpi_os_printf("  Type Specific: ISA Io Addresses\n");
-			break;
-
-		case ACPI_ENTIRE_RANGE:
-			acpi_os_printf
-			    ("  Type Specific: ISA and non-ISA Io Addresses\n");
-			break;
-
-		default:
-			acpi_os_printf
-			    ("  Type Specific: Invalid Range attribute");
-			break;
-		}
-
-		acpi_os_printf("  Type Specific: %s Translation\n",
-			       ACPI_SPARSE_TRANSLATION ==
-			       address32_data->attribute.io.
-			       translation_attribute ? "Sparse" : "Dense");
-		break;
-
-	case ACPI_BUS_NUMBER_RANGE:
-
-		acpi_os_printf("  Resource Type: Bus Number Range\n");
-		break;
-
-	default:
-
-		acpi_os_printf("  Resource Type: 0x%2.2X\n",
-			       address32_data->resource_type);
-		break;
-	}
-
-	acpi_os_printf("  Resource %s\n",
-		       ACPI_CONSUMER == address32_data->producer_consumer ?
-		       "Consumer" : "Producer");
-
-	acpi_os_printf("  %s decode\n",
-		       ACPI_SUB_DECODE == address32_data->decode ?
-		       "Subtractive" : "Positive");
-
-	acpi_os_printf("  Min address is %s fixed\n",
-		       ACPI_ADDRESS_FIXED == address32_data->min_address_fixed ?
-		       "" : "not ");
-
-	acpi_os_printf("  Max address is %s fixed\n",
-		       ACPI_ADDRESS_FIXED == address32_data->max_address_fixed ?
-		       "" : "not ");
-
-	acpi_os_printf("  Granularity: %08X\n", address32_data->granularity);
-
-	acpi_os_printf("  Address range min: %08X\n",
-		       address32_data->min_address_range);
-
-	acpi_os_printf("  Address range max: %08X\n",
-		       address32_data->max_address_range);
-
-	acpi_os_printf("  Address translation offset: %08X\n",
-		       address32_data->address_translation_offset);
-
-	acpi_os_printf("  Address Length: %08X\n",
-		       address32_data->address_length);
-
-	if (0xFF != address32_data->resource_source.index) {
-		acpi_os_printf("  Resource Source Index: %X\n",
-			       address32_data->resource_source.index);
-
-		acpi_os_printf("  Resource Source: %s\n",
-			       address32_data->resource_source.string_ptr);
-	}
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_address64
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_address64(union acpi_resource_data *data)
-{
-	struct acpi_resource_address64 *address64_data =
-	    (struct acpi_resource_address64 *)data;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("64-Bit Address Space Resource\n");
-
-	switch (address64_data->resource_type) {
-	case ACPI_MEMORY_RANGE:
-
-		acpi_os_printf("  Resource Type: Memory Range\n");
-
-		switch (address64_data->attribute.memory.cache_attribute) {
-		case ACPI_NON_CACHEABLE_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Noncacheable memory\n");
-			break;
-
-		case ACPI_CACHABLE_MEMORY:
-			acpi_os_printf("  Type Specific: Cacheable memory\n");
-			break;
-
-		case ACPI_WRITE_COMBINING_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Write-combining memory\n");
-			break;
-
-		case ACPI_PREFETCHABLE_MEMORY:
-			acpi_os_printf
-			    ("  Type Specific: Prefetchable memory\n");
-			break;
-
-		default:
-			acpi_os_printf
-			    ("  Type Specific: Invalid cache attribute\n");
-			break;
-		}
-
-		acpi_os_printf("  Type Specific: Read%s\n",
-			       ACPI_READ_WRITE_MEMORY ==
-			       address64_data->attribute.memory.
-			       read_write_attribute ? "/Write" : " Only");
-		break;
-
-	case ACPI_IO_RANGE:
-
-		acpi_os_printf("  Resource Type: Io Range\n");
-
-		switch (address64_data->attribute.io.range_attribute) {
-		case ACPI_NON_ISA_ONLY_RANGES:
-			acpi_os_printf
-			    ("  Type Specific: Non-ISA Io Addresses\n");
-			break;
-
-		case ACPI_ISA_ONLY_RANGES:
-			acpi_os_printf("  Type Specific: ISA Io Addresses\n");
-			break;
-
-		case ACPI_ENTIRE_RANGE:
-			acpi_os_printf
-			    ("  Type Specific: ISA and non-ISA Io Addresses\n");
-			break;
-
-		default:
-			acpi_os_printf
-			    ("  Type Specific: Invalid Range attribute");
-			break;
-		}
-
-		acpi_os_printf("  Type Specific: %s Translation\n",
-			       ACPI_SPARSE_TRANSLATION ==
-			       address64_data->attribute.io.
-			       translation_attribute ? "Sparse" : "Dense");
-		break;
-
-	case ACPI_BUS_NUMBER_RANGE:
-
-		acpi_os_printf("  Resource Type: Bus Number Range\n");
-		break;
-
-	default:
-
-		acpi_os_printf("  Resource Type: 0x%2.2X\n",
-			       address64_data->resource_type);
-		break;
-	}
-
-	acpi_os_printf("  Resource %s\n",
-		       ACPI_CONSUMER == address64_data->producer_consumer ?
-		       "Consumer" : "Producer");
-
-	acpi_os_printf("  %s decode\n",
-		       ACPI_SUB_DECODE == address64_data->decode ?
-		       "Subtractive" : "Positive");
-
-	acpi_os_printf("  Min address is %s fixed\n",
-		       ACPI_ADDRESS_FIXED == address64_data->min_address_fixed ?
-		       "" : "not ");
-
-	acpi_os_printf("  Max address is %s fixed\n",
-		       ACPI_ADDRESS_FIXED == address64_data->max_address_fixed ?
-		       "" : "not ");
-
-	acpi_os_printf("  Granularity: %8.8X%8.8X\n",
-		       ACPI_FORMAT_UINT64(address64_data->granularity));
-
-	acpi_os_printf("  Address range min: %8.8X%8.8X\n",
-		       ACPI_FORMAT_UINT64(address64_data->min_address_range));
-
-	acpi_os_printf("  Address range max: %8.8X%8.8X\n",
-		       ACPI_FORMAT_UINT64(address64_data->max_address_range));
-
-	acpi_os_printf("  Address translation offset: %8.8X%8.8X\n",
-		       ACPI_FORMAT_UINT64(address64_data->
-					  address_translation_offset));
-
-	acpi_os_printf("  Address Length: %8.8X%8.8X\n",
-		       ACPI_FORMAT_UINT64(address64_data->address_length));
-
-	acpi_os_printf("  Type Specific Attributes: %8.8X%8.8X\n",
-		       ACPI_FORMAT_UINT64(address64_data->
-					  type_specific_attributes));
-
-	if (0xFF != address64_data->resource_source.index) {
-		acpi_os_printf("  Resource Source Index: %X\n",
-			       address64_data->resource_source.index);
-
-		acpi_os_printf("  Resource Source: %s\n",
-			       address64_data->resource_source.string_ptr);
-	}
-
-	return;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_dump_extended_irq
- *
- * PARAMETERS:  Data            - pointer to the resource structure to dump.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Prints out the various members of the Data structure type.
- *
- ******************************************************************************/
-
-static void acpi_rs_dump_extended_irq(union acpi_resource_data *data)
-{
-	struct acpi_resource_ext_irq *ext_irq_data =
-	    (struct acpi_resource_ext_irq *)data;
-	u8 index = 0;
-
-	ACPI_FUNCTION_ENTRY();
-
-	acpi_os_printf("Extended IRQ Resource\n");
-
-	acpi_os_printf("  Resource %s\n",
-		       ACPI_CONSUMER == ext_irq_data->producer_consumer ?
-		       "Consumer" : "Producer");
-
-	acpi_os_printf("  %s\n",
-		       ACPI_LEVEL_SENSITIVE == ext_irq_data->edge_level ?
-		       "Level" : "Edge");
-
-	acpi_os_printf("  Active %s\n",
-		       ACPI_ACTIVE_LOW == ext_irq_data->active_high_low ?
-		       "low" : "high");
-
-	acpi_os_printf("  %s\n",
-		       ACPI_SHARED == ext_irq_data->shared_exclusive ?
-		       "Shared" : "Exclusive");
-
-	acpi_os_printf("  Interrupts : %X ( ",
-		       ext_irq_data->number_of_interrupts);
-
-	for (index = 0; index < ext_irq_data->number_of_interrupts; index++) {
-		acpi_os_printf("%X ", ext_irq_data->interrupts[index]);
-	}
-
-	acpi_os_printf(")\n");
-
-	if (0xFF != ext_irq_data->resource_source.index) {
-		acpi_os_printf("  Resource Source Index: %X",
-			       ext_irq_data->resource_source.index);
-
-		acpi_os_printf("  Resource Source: %s",
-			       ext_irq_data->resource_source.string_ptr);
-	}
-
-	return;
+	acpi_rs_dump_descriptor(resource, acpi_rs_dump_general_flags);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_dump_resource_list
  *
- * PARAMETERS:  Resource        - pointer to the resource structure to dump.
+ * PARAMETERS:  resource_list       - Pointer to a resource descriptor list
  *
  * RETURN:      None
  *
@@ -964,148 +594,175 @@ static void acpi_rs_dump_extended_irq(union acpi_resource_data *data)
  *
  ******************************************************************************/
 
-void acpi_rs_dump_resource_list(struct acpi_resource *resource)
+void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 {
-	u8 count = 0;
-	u8 done = FALSE;
+	u32 count = 0;
+	u32 type;
 
 	ACPI_FUNCTION_ENTRY();
 
-	if (acpi_dbg_level & ACPI_LV_RESOURCES && _COMPONENT & acpi_dbg_layer) {
-		while (!done) {
-			acpi_os_printf("Resource structure %X.\n", count++);
-
-			switch (resource->id) {
-			case ACPI_RSTYPE_IRQ:
-				acpi_rs_dump_irq(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_DMA:
-				acpi_rs_dump_dma(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_START_DPF:
-				acpi_rs_dump_start_depend_fns(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_END_DPF:
-				acpi_os_printf
-				    ("end_dependent_functions Resource\n");
-				/* acpi_rs_dump_end_dependent_functions (Resource->Data); */
-				break;
-
-			case ACPI_RSTYPE_IO:
-				acpi_rs_dump_io(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_FIXED_IO:
-				acpi_rs_dump_fixed_io(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_VENDOR:
-				acpi_rs_dump_vendor_specific(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_END_TAG:
-				/*rs_dump_end_tag (Resource->Data); */
-				acpi_os_printf("end_tag Resource\n");
-				done = TRUE;
-				break;
-
-			case ACPI_RSTYPE_MEM24:
-				acpi_rs_dump_memory24(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_MEM32:
-				acpi_rs_dump_memory32(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_FIXED_MEM32:
-				acpi_rs_dump_fixed_memory32(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_ADDRESS16:
-				acpi_rs_dump_address16(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_ADDRESS32:
-				acpi_rs_dump_address32(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_ADDRESS64:
-				acpi_rs_dump_address64(&resource->data);
-				break;
-
-			case ACPI_RSTYPE_EXT_IRQ:
-				acpi_rs_dump_extended_irq(&resource->data);
-				break;
-
-			default:
-				acpi_os_printf("Invalid resource type\n");
-				break;
-
-			}
-
-			resource =
-			    ACPI_PTR_ADD(struct acpi_resource, resource,
-					 resource->length);
-		}
+	if (!(acpi_dbg_level & ACPI_LV_RESOURCES)
+	    || !(_COMPONENT & acpi_dbg_layer)) {
+		return;
 	}
 
-	return;
+	/* Walk list and dump all resource descriptors (END_TAG terminates) */
+
+	do {
+		acpi_os_printf("\n[%02X] ", count);
+		count++;
+
+		/* Validate Type before dispatch */
+
+		type = resource_list->type;
+		if (type > ACPI_RESOURCE_TYPE_MAX) {
+			acpi_os_printf
+			    ("Invalid descriptor type (%X) in resource list\n",
+			     resource_list->type);
+			return;
+		}
+
+		/* Dump the resource descriptor */
+
+		acpi_rs_dump_descriptor(&resource_list->data,
+					acpi_gbl_dump_resource_dispatch[type]);
+
+		/* Point to the next resource structure */
+
+		resource_list =
+		    ACPI_ADD_PTR(struct acpi_resource, resource_list,
+				 resource_list->length);
+
+		/* Exit when END_TAG descriptor is reached */
+
+	} while (type != ACPI_RESOURCE_TYPE_END_TAG);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_dump_irq_list
  *
- * PARAMETERS:  route_table     - pointer to the routing table to dump.
+ * PARAMETERS:  route_table     - Pointer to the routing table to dump.
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dispatches the structures to the correct dump routine.
+ * DESCRIPTION: Print IRQ routing table
  *
  ******************************************************************************/
 
 void acpi_rs_dump_irq_list(u8 * route_table)
 {
-	u8 *buffer = route_table;
-	u8 count = 0;
-	u8 done = FALSE;
 	struct acpi_pci_routing_table *prt_element;
+	u8 count;
 
 	ACPI_FUNCTION_ENTRY();
 
-	if (acpi_dbg_level & ACPI_LV_RESOURCES && _COMPONENT & acpi_dbg_layer) {
-		prt_element =
-		    ACPI_CAST_PTR(struct acpi_pci_routing_table, buffer);
-
-		while (!done) {
-			acpi_os_printf("PCI IRQ Routing Table structure %X.\n",
-				       count++);
-
-			acpi_os_printf("  Address: %8.8X%8.8X\n",
-				       ACPI_FORMAT_UINT64(prt_element->
-							  address));
-
-			acpi_os_printf("  Pin: %X\n", prt_element->pin);
-
-			acpi_os_printf("  Source: %s\n", prt_element->source);
-
-			acpi_os_printf("  source_index: %X\n",
-				       prt_element->source_index);
-
-			buffer += prt_element->length;
-			prt_element =
-			    ACPI_CAST_PTR(struct acpi_pci_routing_table,
-					  buffer);
-			if (0 == prt_element->length) {
-				done = TRUE;
-			}
-		}
+	if (!(acpi_dbg_level & ACPI_LV_RESOURCES)
+	    || !(_COMPONENT & acpi_dbg_layer)) {
+		return;
 	}
 
-	return;
+	prt_element = ACPI_CAST_PTR(struct acpi_pci_routing_table, route_table);
+
+	/* Dump all table elements, Exit on zero length element */
+
+	for (count = 0; prt_element->length; count++) {
+		acpi_os_printf("\n[%02X] PCI IRQ Routing Table Package\n",
+			       count);
+		acpi_rs_dump_descriptor(prt_element, acpi_rs_dump_prt);
+
+		prt_element = ACPI_ADD_PTR(struct acpi_pci_routing_table,
+					   prt_element, prt_element->length);
+	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_out*
+ *
+ * PARAMETERS:  Title       - Name of the resource field
+ *              Value       - Value of the resource field
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Miscellaneous helper functions to consistently format the
+ *              output of the resource dump routines
+ *
+ ******************************************************************************/
+
+static void acpi_rs_out_string(char *title, char *value)
+{
+	acpi_os_printf("%27s : %s", title, value);
+	if (!*value) {
+		acpi_os_printf("[NULL NAMESTRING]");
+	}
+	acpi_os_printf("\n");
+}
+
+static void acpi_rs_out_integer8(char *title, u8 value)
+{
+	acpi_os_printf("%27s : %2.2X\n", title, value);
+}
+
+static void acpi_rs_out_integer16(char *title, u16 value)
+{
+	acpi_os_printf("%27s : %4.4X\n", title, value);
+}
+
+static void acpi_rs_out_integer32(char *title, u32 value)
+{
+	acpi_os_printf("%27s : %8.8X\n", title, value);
+}
+
+static void acpi_rs_out_integer64(char *title, u64 value)
+{
+	acpi_os_printf("%27s : %8.8X%8.8X\n", title, ACPI_FORMAT_UINT64(value));
+}
+
+static void acpi_rs_out_title(char *title)
+{
+	acpi_os_printf("%27s : ", title);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_dump*List
+ *
+ * PARAMETERS:  Length      - Number of elements in the list
+ *              Data        - Start of the list
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Miscellaneous functions to dump lists of raw data
+ *
+ ******************************************************************************/
+
+static void acpi_rs_dump_byte_list(u16 length, u8 * data)
+{
+	u8 i;
+
+	for (i = 0; i < length; i++) {
+		acpi_os_printf("%25s%2.2X : %2.2X\n", "Byte", i, data[i]);
+	}
+}
+
+static void acpi_rs_dump_short_byte_list(u8 length, u8 * data)
+{
+	u8 i;
+
+	for (i = 0; i < length; i++) {
+		acpi_os_printf("%X ", data[i]);
+	}
+	acpi_os_printf("\n");
+}
+
+static void acpi_rs_dump_dword_list(u8 length, u32 * data)
+{
+	u8 i;
+
+	for (i = 0; i < length; i++) {
+		acpi_os_printf("%25s%2.2X : %8.8X\n", "Dword", i, data[i]);
+	}
 }
 
 #endif

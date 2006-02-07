@@ -163,7 +163,12 @@ int voyagergx_irq_demux(int irq)
 	return irq;
 }
 
-static struct irqaction irq0  = { voyagergx_interrupt, SA_INTERRUPT, 0, "VOYAGERGX", NULL, NULL};
+static struct irqaction irq0  = {
+	.name		= "voyagergx",
+	.handler	= voyagergx_interrupt,
+	.flags		= SA_INTERRUPT,
+	.mask		= CPU_MASK_NONE,
+};
 
 void __init setup_voyagergx_irq(void)
 {

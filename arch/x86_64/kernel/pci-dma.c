@@ -107,6 +107,9 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 				goto again;
 			}
 
+			/* Let low level make its own zone decisions */
+			gfp &= ~(GFP_DMA32|GFP_DMA);
+
 			if (dma_ops->alloc_coherent)
 				return dma_ops->alloc_coherent(dev, size,
 							   dma_handle, gfp);

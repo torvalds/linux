@@ -498,7 +498,6 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			else
 				*pRespBufType = CIFS_SMALL_BUFFER;
 			iov[0].iov_len = receive_len + 4;
-			iov[1].iov_len = 0;
 
 			dump_smb(midQ->resp_buf, 80);
 			/* convert the length into a more usable form */

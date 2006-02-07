@@ -894,7 +894,17 @@ int shpchp_enable_slot (struct slot *p_slot)
 	dbg("%s: p_slot->pwr_save %x\n", __FUNCTION__, p_slot->pwr_save);
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 
-	rc = board_added(p_slot);
+	if(((p_slot->ctrl->pci_dev->vendor == PCI_VENDOR_ID_AMD) ||
+	    (p_slot->ctrl->pci_dev->device == PCI_DEVICE_ID_AMD_POGO_7458))
+	     && p_slot->ctrl->num_slots == 1) {
+		/* handle amd pogo errata; this must be done before enable  */
+		amd_pogo_errata_save_misc_reg(p_slot);
+		rc = board_added(p_slot);
+		/* handle amd pogo errata; this must be done after enable  */
+		amd_pogo_errata_restore_misc_reg(p_slot);
+	} else
+		rc = board_added(p_slot);
+
 	if (rc) {
 		p_slot->hpc_ops->get_adapter_status(p_slot,
 				&(p_slot->presence_save));

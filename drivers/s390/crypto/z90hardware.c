@@ -32,12 +32,6 @@
 #include "z90crypt.h"
 #include "z90common.h"
 
-#define VERSION_Z90HARDWARE_C "$Revision: 1.34 $"
-
-char z90hardware_version[] __initdata =
-	"z90hardware.o (" VERSION_Z90HARDWARE_C "/"
-	                  VERSION_Z90COMMON_H "/" VERSION_Z90CRYPT_H ")";
-
 struct cca_token_hdr {
 	unsigned char  token_identifier;
 	unsigned char  version;

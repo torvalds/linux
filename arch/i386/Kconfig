@@ -47,15 +47,6 @@ config DMI
 
 source "init/Kconfig"
 
-config DOUBLEFAULT
-	default y
-	bool "Enable doublefault exception handler" if EMBEDDED
-	help
-          This option allows trapping of rare doublefault exceptions that
-          would otherwise cause a system to silently reboot. Disabling this
-          option saves about 4k and might cause you much additional grey
-          hair.
-
 menu "Processor type and features"
 
 choice
@@ -451,11 +442,49 @@ config HIGHMEM4G
 
 config HIGHMEM64G
 	bool "64GB"
+	depends on X86_CMPXCHG64
 	help
 	  Select this if you have a 32-bit processor and more than 4
 	  gigabytes of physical RAM.
 
 endchoice
+
+choice
+	depends on EXPERIMENTAL && !X86_PAE
+	prompt "Memory split"
+	default VMSPLIT_3G
+	help
+	  Select the desired split between kernel and user memory.
+
+	  If the address range available to the kernel is less than the
+	  physical memory installed, the remaining memory will be available
+	  as "high memory". Accessing high memory is a little more costly
+	  than low memory, as it needs to be mapped into the kernel first.
+	  Note that increasing the kernel address space limits the range
+	  available to user programs, making the address space there
+	  tighter.  Selecting anything other than the default 3G/1G split
+	  will also likely make your kernel incompatible with binary-only
+	  kernel modules.
+
+	  If you are not absolutely sure what you are doing, leave this
+	  option alone!
+
+	config VMSPLIT_3G
+		bool "3G/1G user/kernel split"
+	config VMSPLIT_3G_OPT
+		bool "3G/1G user/kernel split (for full 1G low memory)"
+	config VMSPLIT_2G
+		bool "2G/2G user/kernel split"
+	config VMSPLIT_1G
+		bool "1G/3G user/kernel split"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0xB0000000 if VMSPLIT_3G_OPT
+	default 0x78000000 if VMSPLIT_2G
+	default 0x40000000 if VMSPLIT_1G
+	default 0xC0000000
 
 config HIGHMEM
 	bool
@@ -710,6 +739,15 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu.
 
 	  Say N.
+
+config DOUBLEFAULT
+	default y
+	bool "Enable doublefault exception handler" if EMBEDDED
+	help
+          This option allows trapping of rare doublefault exceptions that
+          would otherwise cause a system to silently reboot. Disabling this
+          option saves about 4k and might cause you much additional grey
+          hair.
 
 endmenu
 

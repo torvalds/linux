@@ -40,6 +40,7 @@
 
 #include "cpu.h"
 #include "clock.h"
+#include "s3c2400.h"
 #include "s3c2410.h"
 #include "s3c2440.h"
 
@@ -55,6 +56,7 @@ struct cpu_table {
 
 /* table of supported CPUs */
 
+static const char name_s3c2400[]  = "S3C2400";
 static const char name_s3c2410[]  = "S3C2410";
 static const char name_s3c2440[]  = "S3C2440";
 static const char name_s3c2410a[] = "S3C2410A";
@@ -96,7 +98,16 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s3c2440_init_uarts,
 		.init		= s3c2440_init,
 		.name		= name_s3c2440a
-	}
+	},
+	{
+		.idcode		= 0x0,   /* S3C2400 doesn't have an idcode */
+		.idmask		= 0xffffffff,
+		.map_io		= s3c2400_map_io,
+		.init_clocks	= s3c2400_init_clocks,
+		.init_uarts	= s3c2400_init_uarts,
+		.init		= s3c2400_init,
+		.name		= name_s3c2400
+	},
 };
 
 /* minimal IO mapping */
@@ -148,12 +159,15 @@ static struct cpu_table *cpu;
 
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
-	unsigned long idcode;
+	unsigned long idcode = 0x0;
 
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 
+#ifndef CONFIG_CPU_S3C2400
 	idcode = __raw_readl(S3C2410_GSTATUS1);
+#endif
+
 	cpu = s3c_lookup_cpu(idcode);
 
 	if (cpu == NULL) {

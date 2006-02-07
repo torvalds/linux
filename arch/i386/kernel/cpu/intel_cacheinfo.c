@@ -43,13 +43,23 @@ static struct _cache_table cache_table[] __cpuinitdata =
 	{ 0x2c, LVL_1_DATA, 32 },	/* 8-way set assoc, 64 byte line size */
 	{ 0x30, LVL_1_INST, 32 },	/* 8-way set assoc, 64 byte line size */
 	{ 0x39, LVL_2,      128 },	/* 4-way set assoc, sectored cache, 64 byte line size */
+	{ 0x3a, LVL_2,      192 },	/* 6-way set assoc, sectored cache, 64 byte line size */
 	{ 0x3b, LVL_2,      128 },	/* 2-way set assoc, sectored cache, 64 byte line size */
 	{ 0x3c, LVL_2,      256 },	/* 4-way set assoc, sectored cache, 64 byte line size */
+	{ 0x3d, LVL_2,      384 },	/* 6-way set assoc, sectored cache, 64 byte line size */
+	{ 0x3e, LVL_2,      512 },	/* 4-way set assoc, sectored cache, 64 byte line size */
 	{ 0x41, LVL_2,      128 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x42, LVL_2,      256 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x43, LVL_2,      512 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x44, LVL_2,      1024 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x45, LVL_2,      2048 },	/* 4-way set assoc, 32 byte line size */
+	{ 0x46, LVL_3,      4096 },	/* 4-way set assoc, 64 byte line size */
+	{ 0x47, LVL_3,      8192 },	/* 8-way set assoc, 64 byte line size */
+	{ 0x49, LVL_3,      4096 },	/* 16-way set assoc, 64 byte line size */
+	{ 0x4a, LVL_3,      6144 },	/* 12-way set assoc, 64 byte line size */
+	{ 0x4b, LVL_3,      8192 },	/* 16-way set assoc, 64 byte line size */
+	{ 0x4c, LVL_3,     12288 },	/* 12-way set assoc, 64 byte line size */
+	{ 0x4d, LVL_3,     16384 },	/* 16-way set assoc, 64 byte line size */
 	{ 0x60, LVL_1_DATA, 16 },	/* 8-way set assoc, sectored cache, 64 byte line size */
 	{ 0x66, LVL_1_DATA, 8 },	/* 4-way set assoc, sectored cache, 64 byte line size */
 	{ 0x67, LVL_1_DATA, 16 },	/* 4-way set assoc, sectored cache, 64 byte line size */
@@ -57,6 +67,7 @@ static struct _cache_table cache_table[] __cpuinitdata =
 	{ 0x70, LVL_TRACE,  12 },	/* 8-way set assoc */
 	{ 0x71, LVL_TRACE,  16 },	/* 8-way set assoc */
 	{ 0x72, LVL_TRACE,  32 },	/* 8-way set assoc */
+	{ 0x73, LVL_TRACE,  64 },	/* 8-way set assoc */
 	{ 0x78, LVL_2,    1024 },	/* 4-way set assoc, 64 byte line size */
 	{ 0x79, LVL_2,     128 },	/* 8-way set assoc, sectored cache, 64 byte line size */
 	{ 0x7a, LVL_2,     256 },	/* 8-way set assoc, sectored cache, 64 byte line size */
@@ -141,6 +152,7 @@ static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_le
 	return 0;
 }
 
+/* will only be called once; __init is safe here */
 static int __init find_num_cache_leaves(void)
 {
 	unsigned int		eax, ebx, ecx, edx;

@@ -406,7 +406,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		 * chunks that are not yet acked should be added to the
 		 * retransmit queue.
 		 */
-		if ((fast_retransmit && chunk->fast_retransmit) ||
+		if ((fast_retransmit && (chunk->fast_retransmit > 0)) ||
 		   (!fast_retransmit && !chunk->tsn_gap_acked)) {
 			/* RFC 2960 6.2.1 Processing a Received SACK
 			 *
@@ -603,7 +603,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			/* Mark the chunk as ineligible for fast retransmit 
 			 * after it is retransmitted.
 			 */
-			chunk->fast_retransmit = 0;
+			if (chunk->fast_retransmit > 0)
+				chunk->fast_retransmit = -1;
 
 			*start_timer = 1;
 			q->empty = 0;
@@ -621,7 +622,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			list_for_each(lchunk1, lqueue) {
 				chunk1 = list_entry(lchunk1, struct sctp_chunk,
 						    transmitted_list);
-				chunk1->fast_retransmit = 0;
+				if (chunk1->fast_retransmit > 0)
+					chunk1->fast_retransmit = -1;
 			}
 		}
 	}
@@ -1562,11 +1564,11 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		/*
 		 * M4) If any DATA chunk is found to have a
 		 * 'TSN.Missing.Report'
-		 * value larger than or equal to 4, mark that chunk for
+		 * value larger than or equal to 3, mark that chunk for
 		 * retransmission and start the fast retransmit procedure.
 		 */
 
-		if (chunk->tsn_missing_report >= 4) {
+		if (chunk->tsn_missing_report >= 3) {
 			chunk->fast_retransmit = 1;
 			do_fast_retransmit = 1;
 		}

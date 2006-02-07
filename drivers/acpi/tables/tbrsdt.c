@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,7 +176,7 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 {
 	int no_match;
 
-	ACPI_FUNCTION_NAME("tb_validate_rsdt");
+	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * Search for appropriate signature, RSDT or XSDT
@@ -192,24 +192,24 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 	if (no_match) {
 		/* Invalid RSDT or XSDT signature */
 
-		ACPI_REPORT_ERROR(("Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Invalid signature where RSDP indicates RSDT/XSDT should be located. RSDP:"));
 
 		ACPI_DUMP_BUFFER(acpi_gbl_RSDP, 20);
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_ERROR,
-				      "RSDT/XSDT signature at %X (%p) is invalid\n",
-				      acpi_gbl_RSDP->rsdt_physical_address,
-				      (void *)(acpi_native_uint) acpi_gbl_RSDP->
-				      rsdt_physical_address));
+		ACPI_ERROR((AE_INFO,
+			    "RSDT/XSDT signature at %X (%p) is invalid",
+			    acpi_gbl_RSDP->rsdt_physical_address,
+			    (void *)(acpi_native_uint) acpi_gbl_RSDP->
+			    rsdt_physical_address));
 
 		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
-			ACPI_REPORT_ERROR(("Looking for RSDT\n"))
+			ACPI_ERROR((AE_INFO, "Looking for RSDT"));
 		} else {
-			ACPI_REPORT_ERROR(("Looking for XSDT\n"))
+			ACPI_ERROR((AE_INFO, "Looking for XSDT"));
 		}
 
 		ACPI_DUMP_BUFFER((char *)table_ptr, 48);
-
 		return (AE_BAD_SIGNATURE);
 	}
 
@@ -243,15 +243,13 @@ acpi_status acpi_tb_get_table_rsdt(void)
 	table_info.type = ACPI_TABLE_XSDT;
 	status = acpi_tb_get_table(&address, &table_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Could not get the RSDT/XSDT, %s\n",
-				  acpi_format_exception(status)));
-
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not get the RSDT/XSDT"));
 		return_ACPI_STATUS(status);
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "RSDP located at %p, points to RSDT physical=%8.8X%8.8X \n",
+			  "RSDP located at %p, points to RSDT physical=%8.8X%8.8X\n",
 			  acpi_gbl_RSDP,
 			  ACPI_FORMAT_UINT64(address.pointer.value)));
 

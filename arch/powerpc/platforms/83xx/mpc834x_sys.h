@@ -20,4 +20,4 @@
 #define PIRQC	MPC83xx_IRQ_EXT6
 #define PIRQD	MPC83xx_IRQ_EXT7
 
-#endif                /* __MACH_MPC83XX_SYS_H__ */
+#endif				/* __MACH_MPC83XX_SYS_H__ */

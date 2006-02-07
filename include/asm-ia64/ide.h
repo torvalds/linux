@@ -17,14 +17,6 @@
 
 #include <linux/irq.h>
 
-#ifndef MAX_HWIFS
-# ifdef CONFIG_PCI
-#define MAX_HWIFS	10
-# else
-#define MAX_HWIFS	6
-# endif
-#endif
-
 #define IDE_ARCH_OBSOLETE_DEFAULTS
 
 static inline int ide_default_irq(unsigned long base)

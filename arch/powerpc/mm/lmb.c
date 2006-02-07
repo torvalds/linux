@@ -31,6 +31,8 @@
 #define DBG(fmt...)
 #endif
 
+#define LMB_ALLOC_ANYWHERE	0
+
 struct lmb lmb;
 
 void lmb_dump_all(void)
@@ -197,6 +199,8 @@ long __init lmb_reserve(unsigned long base, unsigned long size)
 {
 	struct lmb_region *_rgn = &(lmb.reserved);
 
+	BUG_ON(0 == size);
+
 	return lmb_add_region(_rgn, base, size);
 }
 
@@ -224,8 +228,24 @@ unsigned long __init lmb_alloc(unsigned long size, unsigned long align)
 unsigned long __init lmb_alloc_base(unsigned long size, unsigned long align,
 				    unsigned long max_addr)
 {
+	unsigned long alloc;
+
+	alloc = __lmb_alloc_base(size, align, max_addr);
+
+	if (alloc < 0)
+		panic("ERROR: Failed to allocate 0x%lx bytes below 0x%lx.\n",
+				size, max_addr);
+
+	return alloc;
+}
+
+unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
+				    unsigned long max_addr)
+{
 	long i, j;
 	unsigned long base = 0;
+
+	BUG_ON(0 == size);
 
 #ifdef CONFIG_PPC32
 	/* On 32-bit, make sure we allocate lowmem */

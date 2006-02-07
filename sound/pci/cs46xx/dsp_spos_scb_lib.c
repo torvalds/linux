@@ -675,7 +675,7 @@ cs46xx_dsp_create_src_task_scb(struct snd_cs46xx * chip, char * scb_name,
 		if (pass_through) {
 			/* wont work with any other rate than
 			   the native DSP rate */
-			snd_assert (rate = 48000);
+			snd_assert (rate == 48000);
 
 			scb = cs46xx_dsp_create_generic_scb(chip,scb_name,(u32 *)&src_task_scb,
 							    dest,"DMAREADER",parent_scb,

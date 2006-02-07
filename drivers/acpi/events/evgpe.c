@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -372,14 +372,14 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 
 u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 {
-	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
-	u8 enabled_status_byte;
-	struct acpi_gpe_register_info *gpe_register_info;
-	u32 status_reg;
-	u32 enable_reg;
-	u32 flags;
 	acpi_status status;
 	struct acpi_gpe_block_info *gpe_block;
+	struct acpi_gpe_register_info *gpe_register_info;
+	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
+	u8 enabled_status_byte;
+	u32 status_reg;
+	u32 enable_reg;
+	acpi_cpu_flags flags;
 	acpi_native_uint i;
 	acpi_native_uint j;
 
@@ -546,7 +546,11 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 		status = acpi_ns_evaluate_by_handle(&info);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("%s while evaluating method [%4.4s] for GPE[%2X]\n", acpi_format_exception(status), acpi_ut_get_node_name(local_gpe_event_info.dispatch.method_node), gpe_number));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"While evaluating method [%4.4s] for GPE[%2X]",
+					acpi_ut_get_node_name
+					(local_gpe_event_info.dispatch.
+					 method_node), gpe_number));
 		}
 	}
 
@@ -599,8 +603,10 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 	    ACPI_GPE_EDGE_TRIGGERED) {
 		status = acpi_hw_clear_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to clear GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Unable to clear GPE[%2X]",
+					gpe_number));
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 	}
 
@@ -637,8 +643,10 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		    ACPI_GPE_LEVEL_TRIGGERED) {
 			status = acpi_hw_clear_gpe(gpe_event_info);
 			if (ACPI_FAILURE(status)) {
-				ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to clear GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-				return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+				ACPI_EXCEPTION((AE_INFO, status,
+						"Unable to clear GPE[%2X]",
+						gpe_number));
+				return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 			}
 		}
 		break;
@@ -651,8 +659,10 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		 */
 		status = acpi_ev_disable_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to disable GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Unable to disable GPE[%2X]",
+					gpe_number));
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 
 		/*
@@ -663,7 +673,9 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 						     acpi_ev_asynch_execute_gpe_method,
 						     gpe_event_info);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to queue handler for GPE[%2X] - event disabled\n", acpi_format_exception(status), gpe_number));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Unable to queue handler for GPE[%2X] - event disabled",
+					gpe_number));
 		}
 		break;
 
@@ -671,7 +683,9 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 
 		/* No handler or method to run! */
 
-		ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: No handler or method for GPE[%2X], disabling event\n", gpe_number));
+		ACPI_ERROR((AE_INFO,
+			    "No handler or method for GPE[%2X], disabling event",
+			    gpe_number));
 
 		/*
 		 * Disable the GPE.  The GPE will remain disabled until the ACPI
@@ -679,13 +693,15 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		 */
 		status = acpi_ev_disable_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("acpi_ev_gpe_dispatch: %s, Unable to disable GPE[%2X]\n", acpi_format_exception(status), gpe_number));
-			return_VALUE(ACPI_INTERRUPT_NOT_HANDLED);
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Unable to disable GPE[%2X]",
+					gpe_number));
+			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 		break;
 	}
 
-	return_VALUE(ACPI_INTERRUPT_HANDLED);
+	return_UINT32(ACPI_INTERRUPT_HANDLED);
 }
 
 #ifdef ACPI_GPE_NOTIFY_CHECK
@@ -722,7 +738,9 @@ acpi_ev_check_for_wake_only_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 		acpi_ev_set_gpe_type(gpe_event_info, ACPI_GPE_TYPE_WAKE);
 
-		ACPI_REPORT_INFO(("GPE %p was updated from wake/run to wake-only\n", gpe_event_info));
+		ACPI_INFO((AE_INFO,
+			   "GPE %p was updated from wake/run to wake-only",
+			   gpe_event_info));
 
 		/* This was a wake-only GPE */
 

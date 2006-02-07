@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/interrupt.h>
+#include <linux/err.h>
 
 #include <linux/slab.h>
 #include <linux/bootmem.h>
@@ -864,7 +865,7 @@ con3215_init(void)
 	}
 
 	cdev = ccw_device_probe_console();
-	if (!cdev)
+	if (IS_ERR(cdev))
 		return -ENODEV;
 
 	raw3215[0] = raw = (struct raw3215_info *)

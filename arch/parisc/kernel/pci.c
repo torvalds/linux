@@ -47,18 +47,17 @@
  * this makes the boot time much longer than necessary.
  * 20ms seems to work for all the HP PCI implementations to date.
  *
- * XXX: turn into a #defined constant in <asm/pci.h> ?
+ * #define pci_post_reset_delay 50
  */
-int pci_post_reset_delay = 50;
 
-struct pci_port_ops *pci_port;
-struct pci_bios_ops *pci_bios;
+struct pci_port_ops *pci_port __read_mostly;
+struct pci_bios_ops *pci_bios __read_mostly;
 
-int pci_hba_count = 0;
+static int pci_hba_count __read_mostly;
 
 /* parisc_pci_hba used by pci_port->in/out() ops to lookup bus data.  */
 #define PCI_HBA_MAX 32
-struct pci_hba_data *parisc_pci_hba[PCI_HBA_MAX];
+static struct pci_hba_data *parisc_pci_hba[PCI_HBA_MAX] __read_mostly;
 
 
 /********************************************************************
@@ -259,8 +258,10 @@ void __devinit pcibios_resource_to_bus(struct pci_dev *dev,
 void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 			      struct pci_bus_region *region)
 {
+#ifdef CONFIG_64BIT
 	struct pci_bus *bus = dev->bus;
 	struct pci_hba_data *hba = HBA_DATA(bus->bridge->platform_data);
+#endif
 
 	if (res->flags & IORESOURCE_MEM) {
 		res->start = PCI_HOST_ADDR(hba, region->start);

@@ -570,11 +570,11 @@ static void __init *careful_allocation(int nid, unsigned long size,
 				       unsigned long end_pfn)
 {
 	int new_nid;
-	unsigned long ret = lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
+	unsigned long ret = __lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
 
 	/* retry over all memory */
 	if (!ret)
-		ret = lmb_alloc_base(size, align, lmb_end_of_DRAM());
+		ret = __lmb_alloc_base(size, align, lmb_end_of_DRAM());
 
 	if (!ret)
 		panic("numa.c: cannot allocate %lu bytes on node %d",

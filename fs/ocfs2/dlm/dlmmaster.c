@@ -1050,17 +1050,10 @@ static int dlm_restart_lock_mastery(struct dlm_ctxt *dlm,
 	node = dlm_bitmap_diff_iter_next(&bdi, &sc);
 	while (node >= 0) {
 		if (sc == NODE_UP) {
-			/* a node came up.  easy.  might not even need
-			 * to talk to it if its node number is higher
-			 * or if we are already blocked. */
-			mlog(0, "node up! %d\n", node);
-			if (blocked)
-				goto next;
-
-			if (node > dlm->node_num) {
-				mlog(0, "node > this node. skipping.\n");
-				goto next;
-			}
+			/* a node came up.  clear any old vote from
+			 * the response map and set it in the vote map
+			 * then restart the mastery. */
+			mlog(ML_NOTICE, "node %d up while restarting\n", node);
 
 			/* redo the master request, but only for the new node */
 			mlog(0, "sending request to new node\n");
@@ -2005,6 +1998,15 @@ fail:
 				break;
 
 			mlog(0, "timed out during migration\n");
+			/* avoid hang during shutdown when migrating lockres 
+			 * to a node which also goes down */
+			if (dlm_is_node_dead(dlm, target)) {
+				mlog(0, "%s:%.*s: expected migration target %u "
+				     "is no longer up.  restarting.\n",
+				     dlm->name, res->lockname.len,
+				     res->lockname.name, target);
+				ret = -ERESTARTSYS;
+			}
 		}
 		if (ret == -ERESTARTSYS) {
 			/* migration failed, detach and clean up mle */

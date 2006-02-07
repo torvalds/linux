@@ -55,13 +55,21 @@ config DASD_DIAG
 	  Disks under VM.  If you are not running under VM or unsure what it is,
 	  say "N".
 
+config DASD_EER
+	tristate "Extended error reporting (EER)"
+	depends on DASD
+	help
+	  This driver provides a character device interface to the
+          DASD extended error reporting. This is only needed if you want to
+          use applications written for the EER facility.
+
 config DASD_CMB
 	tristate "Compatibility interface for DASD channel measurement blocks"
 	depends on DASD
 	help
-	  This driver provides an additional interface to the channel measurement
-	  facility, which is normally accessed though sysfs, with a set of
-	  ioctl functions specific to the dasd driver.
+	  This driver provides an additional interface to the channel
+          measurement facility, which is normally accessed though sysfs, with
+          a set of ioctl functions specific to the dasd driver.
 	  This is only needed if you want to use applications written for
 	  linux-2.4 dasd channel measurement facility interface.
 

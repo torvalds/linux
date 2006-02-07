@@ -116,9 +116,10 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 	int ret = 0;
 
 	memset(&var->transp, 0, sizeof(var->transp));
-	memset(&var->red, 0, sizeof(var->red));
-	memset(&var->green, 0, sizeof(var->green));
-	memset(&var->blue, 0, sizeof(var->blue));
+
+	var->red.msb_right = 0;
+	var->green.msb_right = 0;
+	var->blue.msb_right = 0;
 
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -133,39 +134,42 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 		var->blue.offset	= 0;
 		break;
 	case 16:
-		var->red.length		= 5;
-		var->green.length	= 6;
-		var->blue.length	= 5;
-		if (fb->panel->cntl & CNTL_BGR) {
-			var->red.offset		= 11;
-			var->green.offset	= 5;
-			var->blue.offset	= 0;
-		} else {
-			var->red.offset		= 0;
-			var->green.offset	= 5;
-			var->blue.offset	= 11;
-		}
+		var->red.length = 5;
+		var->blue.length = 5;
+		/*
+		 * Green length can be 5 or 6 depending whether
+		 * we're operating in RGB555 or RGB565 mode.
+		 */
+		if (var->green.length != 5 && var->green.length != 6)
+			var->green.length = 6;
 		break;
 	case 32:
 		if (fb->panel->cntl & CNTL_LCDTFT) {
 			var->red.length		= 8;
 			var->green.length	= 8;
 			var->blue.length	= 8;
-
-			if (fb->panel->cntl & CNTL_BGR) {
-				var->red.offset		= 16;
-				var->green.offset	= 8;
-				var->blue.offset	= 0;
-			} else {
-				var->red.offset		= 0;
-				var->green.offset	= 8;
-				var->blue.offset	= 16;
-			}
 			break;
 		}
 	default:
 		ret = -EINVAL;
 		break;
+	}
+
+	/*
+	 * >= 16bpp displays have separate colour component bitfields
+	 * encoded in the pixel data.  Calculate their position from
+	 * the bitfield length defined above.
+	 */
+	if (ret == 0 && var->bits_per_pixel >= 16) {
+		if (fb->panel->cntl & CNTL_BGR) {
+			var->blue.offset = 0;
+			var->green.offset = var->blue.offset + var->blue.length;
+			var->red.offset = var->green.offset + var->green.length;
+		} else {
+			var->red.offset = 0;
+			var->green.offset = var->red.offset + var->red.length;
+			var->blue.offset = var->green.offset + var->green.length;
+		}
 	}
 
 	return ret;
