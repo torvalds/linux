@@ -4105,17 +4105,11 @@ static int ncr_prepare_nego(struct ncb *np, struct ccb *cp, u_char *msgptr)
 
 	switch (nego) {
 	case NS_SYNC:
-		msgptr[msglen++] = EXTENDED_MESSAGE;
-		msgptr[msglen++] = 3;
-		msgptr[msglen++] = EXTENDED_SDTR;
-		msgptr[msglen++] = tp->maxoffs ? tp->minsync : 0;
-		msgptr[msglen++] = tp->maxoffs;
+		msglen += spi_populate_sync_msg(msgptr + msglen,
+				tp->maxoffs ? tp->minsync : 0, tp->maxoffs);
 		break;
 	case NS_WIDE:
-		msgptr[msglen++] = EXTENDED_MESSAGE;
-		msgptr[msglen++] = 2;
-		msgptr[msglen++] = EXTENDED_WDTR;
-		msgptr[msglen++] = tp->usrwide;
+		msglen += spi_populate_width_msg(msgptr + msglen, tp->usrwide);
 		break;
 	}
 
@@ -6989,12 +6983,7 @@ void ncr_int_sir (struct ncb *np)
 		spi_offset(starget) = ofs;
 		ncr_setsync(np, cp, scntl3, (fak<<5)|ofs);
 
-		np->msgout[0] = EXTENDED_MESSAGE;
-		np->msgout[1] = 3;
-		np->msgout[2] = EXTENDED_SDTR;
-		np->msgout[3] = per;
-		np->msgout[4] = ofs;
-
+		spi_populate_sync_msg(np->msgout, per, ofs);
 		cp->nego_status = NS_SYNC;
 
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
@@ -7080,11 +7069,7 @@ void ncr_int_sir (struct ncb *np)
 
 		spi_width(starget) = wide;
 		ncr_setwide(np, cp, wide, 1);
-
-		np->msgout[0] = EXTENDED_MESSAGE;
-		np->msgout[1] = 2;
-		np->msgout[2] = EXTENDED_WDTR;
-		np->msgout[3] = wide;
+		spi_populate_width_msg(np->msgout, wide);
 
 		np->msgin [0] = NOP;
 

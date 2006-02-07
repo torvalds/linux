@@ -1051,6 +1051,39 @@ void spi_display_xfer_agreement(struct scsi_target *starget)
 }
 EXPORT_SYMBOL(spi_display_xfer_agreement);
 
+int spi_populate_width_msg(unsigned char *msg, int width)
+{
+	msg[0] = EXTENDED_MESSAGE;
+	msg[1] = 2;
+	msg[2] = EXTENDED_WDTR;
+	msg[3] = width;
+	return 4;
+}
+
+int spi_populate_sync_msg(unsigned char *msg, int period, int offset)
+{
+	msg[0] = EXTENDED_MESSAGE;
+	msg[1] = 3;
+	msg[2] = EXTENDED_SDTR;
+	msg[3] = period;
+	msg[4] = offset;
+	return 5;
+}
+
+int spi_populate_ppr_msg(unsigned char *msg, int period, int offset,
+		int width, int options)
+{
+	msg[0] = EXTENDED_MESSAGE;
+	msg[1] = 6;
+	msg[2] = EXTENDED_PPR;
+	msg[3] = period;
+	msg[4] = 0;
+	msg[5] = offset;
+	msg[6] = width;
+	msg[7] = options;
+	return 8;
+}
+
 #ifdef CONFIG_SCSI_CONSTANTS
 static const char * const one_byte_msgs[] = {
 /* 0x00 */ "Command Complete", NULL, "Save Pointers",
