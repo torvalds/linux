@@ -128,7 +128,7 @@ MODULE_PARM_DESC(debug,"enable debug messages");
  * BOARD Specific: Sets audio DMA
  */
 
-int _cx88_start_audio_dma(snd_cx88_card_t *chip)
+static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 {
 	struct cx88_buffer   *buf = chip->buf;
 	struct cx88_core *core=chip->core;
@@ -173,7 +173,7 @@ int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 /*
  * BOARD Specific: Resets audio DMA
  */
-int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
+static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 {
 	struct cx88_core *core=chip->core;
 	dprintk(1, "Stopping audio DMA\n");
@@ -613,7 +613,7 @@ static snd_kcontrol_new_t snd_cx88_capture_volume = {
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-struct pci_device_id cx88_audio_pci_tbl[] = {
+static struct pci_device_id cx88_audio_pci_tbl[] = {
 	{0x14f1,0x8801,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0x14f1,0x8811,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0, }

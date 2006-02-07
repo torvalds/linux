@@ -234,7 +234,7 @@ static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 
 static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 {
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x38 };
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
 	static u8 reset []         = { RESET,      0x80 };
 	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
 	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
@@ -255,7 +255,7 @@ static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 
 static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 {	/* used in both lgz201 and th7579 */
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x29 };
 	static u8 reset []         = { RESET,      0x80 };
 	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
 	static u8 agc_cfg []       = { AGC_TARGET, 0x24, 0x20 };
