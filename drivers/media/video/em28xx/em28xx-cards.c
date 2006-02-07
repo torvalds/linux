@@ -198,6 +198,30 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		}},
 	},
+	/* maybe there's a reason behind it why Terratec sells the Hybrid XS as Prodigy XS with a
+	 * different PID, let's keep it separated for now maybe we'll need it lateron */
+	[EM2880_BOARD_TERRATEC_PRODIGY_XS] = {
+		.name         = "Terratec Prodigy XS",
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.tuner_type   = TUNER_XCEIVE_XC3028,
+		.decoder      = EM28XX_TVP5150,
+		.input          = {{
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = 0,
+			.amux     = 0,
+		},{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 2,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {
 		.name		= "MSI VOX USB 2.0",
 		.vchannels	= 3,
@@ -318,6 +342,7 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x2304, 0x0207), .driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2040, 0x6500), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
 	{ USB_DEVICE(0x0ccd, 0x0042), .driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
+	{ USB_DEVICE(0x0ccd, 0x0047), .driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ },
 };
 
@@ -325,6 +350,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
 	switch(dev->model){
+		case EM2880_BOARD_TERRATEC_PRODIGY_XS:
 		case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 		case EM2880_BOARD_TERRATEC_HYBRID_XS:
 			{
