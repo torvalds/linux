@@ -458,7 +458,7 @@ efi_init (void)
 	/* Show what we know for posterity */
 	c16 = __va(efi.systab->fw_vendor);
 	if (c16) {
-		for (i = 0;i < (int) sizeof(vendor) && *c16; ++i)
+		for (i = 0;i < (int) sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = *c16++;
 		vendor[i] = '\0';
 	}
