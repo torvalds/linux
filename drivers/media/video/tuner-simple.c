@@ -163,6 +163,10 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 			continue;
 		break;
 	}
+	/* use default tuner_params if desired_type not available */
+	if (desired_type != tun->params[j].type)
+		j = 0;
+
 	for (i = 0; i < tun->params[j].count; i++) {
 		if (freq > tun->params[j].ranges[i].limit)
 			continue;
@@ -340,6 +344,9 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			continue;
 		break;
 	}
+	/* use default tuner_params if desired_type not available */
+	if (desired_type != tun->params[j].type)
+		j = 0;
 
 	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
 	buffer[2] = (tun->params[j].ranges[0].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
