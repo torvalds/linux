@@ -214,7 +214,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		   we can capture, of the first and second field. */
 		.vbistart	= { 7,320 },
 	},{
-		.v4l2_id        = V4L2_STD_NTSC_M,
+		.v4l2_id        = V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR,
 		.name           = "NTSC",
 		.Fsc            = 28636363,
 		.swidth         = 768,

@@ -366,6 +366,11 @@ static int tuner_fixup_std(struct tuner *t)
 			tuner_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
 			t->std = V4L2_STD_NTSC_M_JP;
 			break;
+		case 'k':
+		case 'K':
+			tuner_dbg("insmod fixup: NTSC => NTSC_M_KR\n");
+			t->std = V4L2_STD_NTSC_M_KR;
+			break;
 		case '-':
 			/* default parameter, do nothing */
 			break;
