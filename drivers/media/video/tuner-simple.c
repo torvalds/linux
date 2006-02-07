@@ -79,14 +79,13 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 #define TUNER_PLL_LOCKED   0x40
 #define TUNER_STEREO_MK3   0x04
 
-#define TUNER_PARAM_ANALOG 0  /* to be removed */
 /* FIXME:
  * Right now, all tuners are using the first tuner_params[] array element
  * for analog mode. In the future, we will be merging similar tuner
  * definitions together, such that each tuner definition will have a
  * tuner_params struct for each available video standard. At that point,
- * TUNER_PARAM_ANALOG will be removed, and the tuner_params[] array
- * element will be chosen based on the video standard in use.
+ * the tuner_params[] array element will be chosen based on the video
+ * standard in use.
  *
  */
 
@@ -138,9 +137,9 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	struct tunertype *tun;
 	u8 buffer[4];
 	int rc, IFPCoff, i, j;
+	enum param_type desired_type;
 
 	tun = &tuners[t->type];
-	j = TUNER_PARAM_ANALOG;
 
 	/* IFPCoff = Video Intermediate Frequency - Vif:
 		940  =16*58.75  NTSC/J (Japan)
@@ -155,16 +154,25 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	*/
 
 	if (t->std == V4L2_STD_NTSC_M_JP) {
-		IFPCoff = 940;
+		IFPCoff      = 940;
+		desired_type = TUNER_PARAM_TYPE_NTSC;
 	} else if ((t->std & V4L2_STD_MN) &&
 		  !(t->std & ~V4L2_STD_MN)) {
-		IFPCoff = 732;
+		IFPCoff      = 732;
+		desired_type = TUNER_PARAM_TYPE_NTSC;
 	} else if (t->std == V4L2_STD_SECAM_LC) {
-		IFPCoff = 543;
+		IFPCoff      = 543;
+		desired_type = TUNER_PARAM_TYPE_SECAM;
 	} else {
-		IFPCoff = 623;
+		IFPCoff      = 623;
+		desired_type = TUNER_PARAM_TYPE_PAL;
 	}
 
+	for (j = 0; j < tun->count-1; j++) {
+		if (desired_type != tun->params[j].type)
+			continue;
+		break;
+	}
 	for (i = 0; i < tun->params[j].count; i++) {
 		if (freq > tun->params[j].ranges[i].limit)
 			continue;
@@ -333,9 +341,15 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	u8 buffer[4];
 	u16 div;
 	int rc, j;
+	enum param_type desired_type = TUNER_PARAM_TYPE_RADIO;
 
 	tun = &tuners[t->type];
-	j = TUNER_PARAM_ANALOG;
+
+	for (j = 0; j < tun->count-1; j++) {
+		if (desired_type != tun->params[j].type)
+			continue;
+		break;
+	}
 
 	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
 	buffer[2] = (tun->params[j].ranges[0].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
