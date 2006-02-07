@@ -231,7 +231,7 @@ static struct tvnorm tvnorms[] = {
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
 	},{
-		.std   = V4L2_STD_NTSC_M,
+		.std   = V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR,
 		.name  = "NTSC-M",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
@@ -618,6 +618,11 @@ static int tda9887_fixup_std(struct tda9887 *t)
 		case 'J':
 			tda9887_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
 			t->std = V4L2_STD_NTSC_M_JP;
+			break;
+		case 'k':
+		case 'K':
+			tda9887_dbg("insmod fixup: NTSC => NTSC_M_KR\n");
+			t->std = V4L2_STD_NTSC_M_KR;
 			break;
 		case '-':
 			/* default parameter, do nothing */
