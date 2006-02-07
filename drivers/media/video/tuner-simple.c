@@ -79,16 +79,6 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 #define TUNER_PLL_LOCKED   0x40
 #define TUNER_STEREO_MK3   0x04
 
-/* FIXME:
- * Right now, all tuners are using the first tuner_params[] array element
- * for analog mode. In the future, we will be merging similar tuner
- * definitions together, such that each tuner definition will have a
- * tuner_params struct for each available video standard. At that point,
- * the tuner_params[] array element will be chosen based on the video
- * standard in use.
- *
- */
-
 /* ---------------------------------------------------------------------- */
 
 static int tuner_getstatus(struct i2c_client *c)

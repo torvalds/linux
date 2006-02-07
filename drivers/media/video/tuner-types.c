@@ -23,13 +23,16 @@
  *	Each tuner_params array may contain one or more elements, one
  *	for each video standard.
  *
- *	FIXME: Some tuner_range definitions are duplicated, and
- *	should be eliminated.
+ *	FIXME: tuner_params struct contains an element, tda988x. We must
+ *	set this for all tuners that contain a tda988x chip, and then we
+ *	can remove this setting from the various card structs.
  *
- *	FIXME: tunertype struct contains an element, has_tda988x.
- *	We must set this for all tunertypes that contain a tda988x
- *	chip, and then we can remove this setting from the various
- *	card structs.
+ *	FIXME: Right now, all tuners are using the first tuner_params[]
+ *	array element for analog mode. In the future, we will be merging
+ *	similar tuner definitions together, such that each tuner definition
+ *	will have a tuner_params struct for each available video standard.
+ *	At that point, the tuner_params[] array element will be chosen
+ *	based on the video standard in use.
  */
 
 /* 0-9 */
