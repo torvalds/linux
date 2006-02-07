@@ -107,7 +107,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 	set_page_count(page, 1);
 	page[1].mapping = (void *)free_huge_page;
 	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
-		clear_highpage(&page[i]);
+		clear_user_highpage(&page[i], addr);
 	return page;
 }
 
