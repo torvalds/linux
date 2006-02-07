@@ -1873,7 +1873,8 @@ qla2x00_get_id_list(scsi_qla_host_t *ha, void *id_list, dma_addr_t id_list_dma,
 		mcp->mb[3] = LSW(id_list_dma);
 		mcp->mb[6] = MSW(MSD(id_list_dma));
 		mcp->mb[7] = LSW(MSD(id_list_dma));
-		mcp->out_mb |= MBX_7|MBX_6|MBX_3|MBX_2;
+		mcp->mb[8] = 0;
+		mcp->out_mb |= MBX_8|MBX_7|MBX_6|MBX_3|MBX_2;
 	} else {
 		mcp->mb[1] = MSW(id_list_dma);
 		mcp->mb[2] = LSW(id_list_dma);
