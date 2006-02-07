@@ -749,11 +749,12 @@ iSeries_secondary_smp_loop:
 
 	.globl decrementer_iSeries_masked
 decrementer_iSeries_masked:
+	/* We may not have a valid TOC pointer in here. */
 	li	r11,1
 	ld	r12,PACALPPACAPTR(r13)
 	stb	r11,LPPACADECRINT(r12)
-	LOAD_REG_ADDRBASE(r12,tb_ticks_per_jiffy)
-	lwz	r12,ADDROFF(tb_ticks_per_jiffy)(r12)
+	LOAD_REG_IMMEDIATE(r12, tb_ticks_per_jiffy)
+	lwz	r12,0(r12)
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
