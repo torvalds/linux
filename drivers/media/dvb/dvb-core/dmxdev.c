@@ -175,12 +175,12 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 
 	dprintk ("function : %s\n", __FUNCTION__);
 
-	if (down_interruptible (&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	if ((file->f_flags&O_ACCMODE)==O_RDWR) {
 		if (!(dmxdev->capabilities&DMXDEV_CAP_DUPLEX)) {
-			up(&dmxdev->mutex);
+			mutex_unlock(&dmxdev->mutex);
 			return -EOPNOTSUPP;
 		}
 	}
@@ -190,7 +190,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	      dmxdev->dvr_buffer.size=DVR_BUFFER_SIZE;
 	      dmxdev->dvr_buffer.data=vmalloc(DVR_BUFFER_SIZE);
 	      if (!dmxdev->dvr_buffer.data) {
-		      up(&dmxdev->mutex);
+		      mutex_unlock(&dmxdev->mutex);
 		      return -ENOMEM;
 	      }
 	}
@@ -199,20 +199,20 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 		dmxdev->dvr_orig_fe=dmxdev->demux->frontend;
 
 		if (!dmxdev->demux->write) {
-			up(&dmxdev->mutex);
+			mutex_unlock(&dmxdev->mutex);
 			return -EOPNOTSUPP;
 		}
 
 		front=get_fe(dmxdev->demux, DMX_MEMORY_FE);
 
 		if (!front) {
-			up(&dmxdev->mutex);
+			mutex_unlock(&dmxdev->mutex);
 			return -EINVAL;
 		}
 		dmxdev->demux->disconnect_frontend(dmxdev->demux);
 		dmxdev->demux->connect_frontend(dmxdev->demux, front);
 	}
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return 0;
 }
 
@@ -221,7 +221,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
 
-	if (down_interruptible (&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	if ((file->f_flags&O_ACCMODE)==O_WRONLY) {
@@ -239,7 +239,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 			vfree(mem);
 		}
 	}
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return 0;
 }
 
@@ -254,10 +254,10 @@ static ssize_t dvb_dvr_write(struct file *file, const char __user *buf,
 		return -EOPNOTSUPP;
 	if ((file->f_flags&O_ACCMODE)!=O_WRONLY)
 		return -EINVAL;
-	if (down_interruptible (&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 	ret=dmxdev->demux->write(dmxdev->demux, buf, count);
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return ret;
 }
 
@@ -268,11 +268,11 @@ static ssize_t dvb_dvr_read(struct file *file, char __user *buf, size_t count,
 	struct dmxdev *dmxdev = dvbdev->priv;
 	int ret;
 
-	//down(&dmxdev->mutex);
+	//mutex_lock(&dmxdev->mutex);
 	ret= dvb_dmxdev_buffer_read(&dmxdev->dvr_buffer,
 			      file->f_flags&O_NONBLOCK,
 			      buf, count, ppos);
-	//up(&dmxdev->mutex);
+	//mutex_unlock(&dmxdev->mutex);
 	return ret;
 }
 
@@ -688,7 +688,7 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	if (!dmxdev->filter)
 		return -EINVAL;
 
-	if (down_interruptible(&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	for (i=0; i<dmxdev->filternum; i++)
@@ -696,12 +696,12 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 			break;
 
 	if (i==dmxdev->filternum) {
-		up(&dmxdev->mutex);
+		mutex_unlock(&dmxdev->mutex);
 		return -EMFILE;
 	}
 
 	dmxdevfilter=&dmxdev->filter[i];
-	sema_init(&dmxdevfilter->mutex, 1);
+	mutex_init(&dmxdevfilter->mutex);
 	dmxdevfilter->dvbdev=dmxdev->dvbdev;
 	file->private_data=dmxdevfilter;
 
@@ -711,18 +711,18 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	dmxdevfilter->feed.ts=NULL;
 	init_timer(&dmxdevfilter->timer);
 
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return 0;
 }
 
 
 static int dvb_dmxdev_filter_free(struct dmxdev *dmxdev, struct dmxdev_filter *dmxdevfilter)
 {
-	if (down_interruptible(&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
-	if (down_interruptible(&dmxdevfilter->mutex)) {
-		up(&dmxdev->mutex);
+	if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+		mutex_unlock(&dmxdev->mutex);
 		return -ERESTARTSYS;
 	}
 
@@ -740,8 +740,8 @@ static int dvb_dmxdev_filter_free(struct dmxdev *dmxdev, struct dmxdev_filter *d
 
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_FREE);
 	wake_up(&dmxdevfilter->buffer.queue);
-	up(&dmxdevfilter->mutex);
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdevfilter->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return 0;
 }
 
@@ -841,7 +841,7 @@ dvb_demux_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct dmxdev_filter *dmxdevfilter= file->private_data;
 	int ret=0;
 
-	if (down_interruptible(&dmxdevfilter->mutex))
+	if (mutex_lock_interruptible(&dmxdevfilter->mutex))
 		return -ERESTARTSYS;
 
 	if (dmxdevfilter->type==DMXDEV_TYPE_SEC)
@@ -851,7 +851,7 @@ dvb_demux_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 				     file->f_flags&O_NONBLOCK,
 				     buf, count, ppos);
 
-	up(&dmxdevfilter->mutex);
+	mutex_unlock(&dmxdevfilter->mutex);
 	return ret;
 }
 
@@ -864,58 +864,58 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 	unsigned long arg=(unsigned long) parg;
 	int ret=0;
 
-	if (down_interruptible (&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	switch (cmd) {
 	case DMX_START:
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdev->mutex);
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
 		if (dmxdevfilter->state<DMXDEV_STATE_SET)
 			ret = -EINVAL;
 		else
 			ret = dvb_dmxdev_filter_start(dmxdevfilter);
-		up(&dmxdevfilter->mutex);
+		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_STOP:
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdev->mutex);
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
 		ret=dvb_dmxdev_filter_stop(dmxdevfilter);
-		up(&dmxdevfilter->mutex);
+		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_SET_FILTER:
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdev->mutex);
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
 		ret = dvb_dmxdev_filter_set(dmxdev, dmxdevfilter,
 				    (struct dmx_sct_filter_params *)parg);
-		up(&dmxdevfilter->mutex);
+		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_SET_PES_FILTER:
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdev->mutex);
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
 		ret=dvb_dmxdev_pes_filter_set(dmxdev, dmxdevfilter,
 					       (struct dmx_pes_filter_params *)parg);
-		up(&dmxdevfilter->mutex);
+		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_SET_BUFFER_SIZE:
-		if (down_interruptible(&dmxdevfilter->mutex)) {
-			up(&dmxdev->mutex);
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
 			return -ERESTARTSYS;
 		}
 		ret=dvb_dmxdev_set_buffer_size(dmxdevfilter, arg);
-		up(&dmxdevfilter->mutex);
+		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
 	case DMX_GET_EVENT:
@@ -959,7 +959,7 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 	default:
 		ret=-EINVAL;
 	}
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return ret;
 }
 
@@ -1030,7 +1030,7 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 
 	int ret=0;
 
-	if (down_interruptible (&dmxdev->mutex))
+	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
 
 	switch (cmd) {
@@ -1042,7 +1042,7 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 	default:
 		ret=-EINVAL;
 	}
-	up(&dmxdev->mutex);
+	mutex_unlock(&dmxdev->mutex);
 	return ret;
 }
 
@@ -1113,7 +1113,7 @@ dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 		return -ENOMEM;
 	}
 
-	sema_init(&dmxdev->mutex, 1);
+	mutex_init(&dmxdev->mutex);
 	spin_lock_init(&dmxdev->lock);
 	for (i=0; i<dmxdev->filternum; i++) {
 		dmxdev->filter[i].dev=dmxdev;

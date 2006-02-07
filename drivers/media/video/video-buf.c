@@ -385,7 +385,7 @@ void videobuf_queue_init(struct videobuf_queue* q,
 	q->ops     = ops;
 	q->priv_data = priv;
 
-	init_MUTEX(&q->lock);
+	mutex_init(&q->lock);
 	INIT_LIST_HEAD(&q->stream);
 }
 
@@ -549,7 +549,7 @@ videobuf_reqbufs(struct videobuf_queue *q,
 	if (!list_empty(&q->stream))
 		return -EBUSY;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	count = req->count;
 	if (count > VIDEO_MAX_FRAME)
 		count = VIDEO_MAX_FRAME;
@@ -566,7 +566,7 @@ videobuf_reqbufs(struct videobuf_queue *q,
 	req->count = count;
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -592,7 +592,7 @@ videobuf_qbuf(struct videobuf_queue *q,
 	unsigned long flags;
 	int retval;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	retval = -EBUSY;
 	if (q->reading)
 		goto done;
@@ -652,7 +652,7 @@ videobuf_qbuf(struct videobuf_queue *q,
 	retval = 0;
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -663,7 +663,7 @@ videobuf_dqbuf(struct videobuf_queue *q,
 	struct videobuf_buffer *buf;
 	int retval;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	retval = -EBUSY;
 	if (q->reading)
 		goto done;
@@ -693,7 +693,7 @@ videobuf_dqbuf(struct videobuf_queue *q,
 	videobuf_status(b,buf,q->type);
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -704,7 +704,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 	unsigned long flags;
 	int retval;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	retval = -EBUSY;
 	if (q->reading)
 		goto done;
@@ -721,7 +721,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 	spin_unlock_irqrestore(q->irqlock,flags);
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -729,7 +729,7 @@ int videobuf_streamoff(struct videobuf_queue *q)
 {
 	int retval = -EINVAL;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	if (!q->streaming)
 		goto done;
 	videobuf_queue_cancel(q);
@@ -737,7 +737,7 @@ int videobuf_streamoff(struct videobuf_queue *q)
 	retval = 0;
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -792,7 +792,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	unsigned size, nbufs, bytes;
 	int retval;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 
 	nbufs = 1; size = 0;
 	q->ops->buf_setup(q,&nbufs,&size);
@@ -860,7 +860,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -922,7 +922,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 	unsigned long flags;
 
 	dprintk(2,"%s\n",__FUNCTION__);
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	retval = -EBUSY;
 	if (q->streaming)
 		goto done;
@@ -996,7 +996,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 	}
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 
@@ -1007,7 +1007,7 @@ unsigned int videobuf_poll_stream(struct file *file,
 	struct videobuf_buffer *buf = NULL;
 	unsigned int rc = 0;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	if (q->streaming) {
 		if (!list_empty(&q->stream))
 			buf = list_entry(q->stream.next,
@@ -1035,7 +1035,7 @@ unsigned int videobuf_poll_stream(struct file *file,
 		    buf->state == STATE_ERROR)
 			rc = POLLIN|POLLRDNORM;
 	}
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return rc;
 }
 
@@ -1064,7 +1064,7 @@ videobuf_vm_close(struct vm_area_struct *vma)
 	map->count--;
 	if (0 == map->count) {
 		dprintk(1,"munmap %p q=%p\n",map,q);
-		down(&q->lock);
+		mutex_lock(&q->lock);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -1076,7 +1076,7 @@ videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q,q->bufs[i]);
 		}
-		up(&q->lock);
+		mutex_unlock(&q->lock);
 		kfree(map);
 	}
 	return;
@@ -1170,7 +1170,7 @@ int videobuf_mmap_mapper(struct videobuf_queue *q,
 	unsigned int first,last,size,i;
 	int retval;
 
-	down(&q->lock);
+	mutex_lock(&q->lock);
 	retval = -EINVAL;
 	if (!(vma->vm_flags & VM_WRITE)) {
 		dprintk(1,"mmap app bug: PROT_WRITE please\n");
@@ -1238,7 +1238,7 @@ int videobuf_mmap_mapper(struct videobuf_queue *q,
 	retval = 0;
 
  done:
-	up(&q->lock);
+	mutex_unlock(&q->lock);
 	return retval;
 }
 

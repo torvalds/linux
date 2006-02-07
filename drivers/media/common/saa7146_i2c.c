@@ -279,7 +279,7 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 	int address_err = 0;
 	int short_delay = 0;
 
-	if (down_interruptible (&dev->i2c_lock))
+	if (mutex_lock_interruptible(&dev->i2c_lock))
 		return -ERESTARTSYS;
 
 	for(i=0;i<num;i++) {
@@ -366,7 +366,7 @@ out:
 		}
 	}
 
-	up(&dev->i2c_lock);
+	mutex_unlock(&dev->i2c_lock);
 	return err;
 }
 

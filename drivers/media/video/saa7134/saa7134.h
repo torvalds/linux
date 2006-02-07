@@ -29,6 +29,7 @@
 #include <linux/input.h>
 #include <linux/notifier.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 
@@ -364,7 +365,7 @@ struct saa7134_fh {
 
 /* dmasound dsp status */
 struct saa7134_dmasound {
-	struct semaphore           lock;
+	struct mutex               lock;
 	int                        minor_mixer;
 	int                        minor_dsp;
 	unsigned int               users_dsp;
@@ -428,7 +429,7 @@ struct saa7134_mpeg_ops {
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
-	struct semaphore           lock;
+	struct mutex               lock;
 	spinlock_t                 slock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;

@@ -362,12 +362,12 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	init_MUTEX(&dev->fileop_lock);	/* to 1 == available */
+	mutex_init(&dev->fileop_lock);	/* to 1 == available */
 	spin_lock_init(&dev->queue_lock);
 	init_waitqueue_head(&dev->wait_frame);
 	init_waitqueue_head(&dev->wait_stream);
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 
 	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		em28xx_set_alternate(dev);
@@ -404,8 +404,8 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 
 	dev->state |= DEV_INITIALIZED;
 
-      err:
-	up(&dev->lock);
+err:
+	mutex_unlock(&dev->lock);
 	up_read(&em28xx_disconnect);
 	return errCode;
 }
@@ -447,7 +447,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 
 	em28xx_videodbg("users=%d\n", dev->users);
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 
 	em28xx_uninit_isoc(dev);
 
@@ -456,7 +456,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 	/* the device is already disconnect, free the remaining resources */
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_release_resources(dev);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		kfree(dev);
 		return 0;
 	}
@@ -472,7 +472,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 
 	dev->users--;
 	wake_up_interruptible_nr(&dev->open, 1);
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -496,7 +496,7 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		em28xx_videodbg("V4L2_BUF_TYPE_VBI_CAPTURE is set\n");
 		em28xx_videodbg("not supported yet! ...\n");
 		if (copy_to_user(buf, "", 1)) {
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return -EFAULT;
 		}
 		return (1);
@@ -505,38 +505,38 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		em28xx_videodbg("V4L2_BUF_TYPE_SLICED_VBI_CAPTURE is set\n");
 		em28xx_videodbg("not supported yet! ...\n");
 		if (copy_to_user(buf, "", 1)) {
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return -EFAULT;
 		}
 		return (1);
 	}
 
-	if (down_interruptible(&dev->fileop_lock))
+	if (mutex_lock_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_videodbg("device not present\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
 		em28xx_videodbg("device misconfigured; close and open it again\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EIO;
 	}
 
 	if (dev->io == IO_MMAP) {
 		em28xx_videodbg ("IO method is set to mmap; close and open"
 				" the device again to choose the read method\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EINVAL;
 	}
 
 	if (dev->io == IO_NONE) {
 		if (!em28xx_request_buffers(dev, EM28XX_NUM_READ_FRAMES)) {
 			em28xx_errdev("read failed, not enough memory\n");
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return -ENOMEM;
 		}
 		dev->io = IO_READ;
@@ -545,13 +545,13 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 	}
 
 	if (!count) {
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return 0;
 	}
 
 	if (list_empty(&dev->outqueue)) {
 		if (filp->f_flags & O_NONBLOCK) {
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return -EAGAIN;
 		}
 		ret = wait_event_interruptible
@@ -559,11 +559,11 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		     (!list_empty(&dev->outqueue)) ||
 		     (dev->state & DEV_DISCONNECTED));
 		if (ret) {
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return ret;
 		}
 		if (dev->state & DEV_DISCONNECTED) {
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return -ENODEV;
 		}
 	}
@@ -582,12 +582,12 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		count = f->buf.length;
 
 	if (copy_to_user(buf, f->bufmem, count)) {
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EFAULT;
 	}
 	*f_pos += count;
 
-	up(&dev->fileop_lock);
+	mutex_unlock(&dev->fileop_lock);
 
 	return count;
 }
@@ -601,7 +601,7 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 	unsigned int mask = 0;
 	struct em28xx *dev = filp->private_data;
 
-	if (down_interruptible(&dev->fileop_lock))
+	if (mutex_lock_interruptible(&dev->fileop_lock))
 		return POLLERR;
 
 	if (dev->state & DEV_DISCONNECTED) {
@@ -627,13 +627,13 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 			if (!list_empty(&dev->outqueue))
 				mask |= POLLIN | POLLRDNORM;
 
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 
 			return mask;
 		}
 	}
 
-	up(&dev->fileop_lock);
+	mutex_unlock(&dev->fileop_lock);
 	return POLLERR;
 }
 
@@ -673,25 +673,25 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	struct em28xx *dev = filp->private_data;
 
-	if (down_interruptible(&dev->fileop_lock))
+	if (mutex_lock_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_videodbg("mmap: device not present\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
 		em28xx_videodbg ("mmap: Device is misconfigured; close and "
 						"open it again\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EIO;
 	}
 
 	if (dev->io != IO_MMAP || !(vma->vm_flags & VM_WRITE) ||
 	    size != PAGE_ALIGN(dev->frame[0].buf.length)) {
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EINVAL;
 	}
 
@@ -701,7 +701,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 	if (i == dev->num_frames) {
 		em28xx_videodbg("mmap: user supplied mapping address is out of range\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EINVAL;
 	}
 
@@ -713,7 +713,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	while (size > 0) {	/* size is page-aligned */
 		if (vm_insert_page(vma, start, vmalloc_to_page(pos))) {
 			em28xx_videodbg("mmap: vm_insert_page failed\n");
-			up(&dev->fileop_lock);
+			mutex_unlock(&dev->fileop_lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -725,7 +725,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = &dev->frame[i];
 
 	em28xx_vm_open(vma);
-	up(&dev->fileop_lock);
+	mutex_unlock(&dev->fileop_lock);
 	return 0;
 }
 
@@ -1125,7 +1125,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		if (i == TVNORMS)
 			return -EINVAL;
 
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		dev->tvnorm = &tvnorms[i];
 
 		em28xx_set_norm(dev, dev->width, dev->height);
@@ -1135,7 +1135,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		em28xx_i2c_call_clients(dev, VIDIOC_S_STD,
 					&dev->tvnorm->id);
 
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 
 		return 0;
 	}
@@ -1189,9 +1189,9 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		if (0 == INPUT(*index)->type)
 			return -EINVAL;
 
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		video_mux(dev, *index);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 
 		return 0;
 	}
@@ -1338,10 +1338,10 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 /*		t->signal = 0xffff;*/
 /*		em28xx_i2c_call_clients(dev,VIDIOC_G_TUNER,t);*/
 		/* No way to get signal strength? */
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		em28xx_i2c_call_clients(dev, DECODER_GET_STATUS,
 					&status);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		t->signal =
 			(status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
 
@@ -1363,10 +1363,10 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		t->rangehigh = 0xffffffffUL;	/* FIXME: set correct range */
 /*		t->signal = 0xffff; */
 		/* No way to get signal strength? */
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		em28xx_i2c_call_clients(dev, DECODER_GET_STATUS,
 					&status);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		t->signal =
 			(status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
 
@@ -1394,10 +1394,10 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		if (V4L2_TUNER_ANALOG_TV != f->type)
 			return -EINVAL;
 
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		dev->ctl_freq = f->frequency;
 		em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	case VIDIOC_CROPCAP:
@@ -1660,25 +1660,25 @@ static int em28xx_v4l2_ioctl(struct inode *inode, struct file *filp,
 	int ret = 0;
 	struct em28xx *dev = filp->private_data;
 
-	if (down_interruptible(&dev->fileop_lock))
+	if (mutex_lock_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_errdev("v4l2 ioctl: device not present\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
 		em28xx_errdev
 		    ("v4l2 ioctl: device is misconfigured; close and open it again\n");
-		up(&dev->fileop_lock);
+		mutex_unlock(&dev->fileop_lock);
 		return -EIO;
 	}
 
 	ret = video_usercopy(inode, filp, cmd, arg, em28xx_video_do_ioctl);
 
-	up(&dev->fileop_lock);
+	mutex_unlock(&dev->fileop_lock);
 
 	return ret;
 }
@@ -1712,7 +1712,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	dev->udev = udev;
 	dev->model = model;
-	init_MUTEX(&dev->lock);
+	mutex_init(&dev->lock);
 	init_waitqueue_head(&dev->open);
 
 	dev->em28xx_write_regs = em28xx_write_regs;
@@ -1788,7 +1788,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		return -ENOMEM;
 	}
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	/* register i2c bus */
 	em28xx_i2c_register(dev);
 
@@ -1798,7 +1798,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	/* configure the device */
 	em28xx_config_i2c(dev);
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 
 	errCode = em28xx_config(dev);
 
@@ -1849,12 +1849,12 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	list_add_tail(&dev->devlist,&em28xx_devlist);
 
 	/* register v4l2 device */
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	if ((retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
 					 video_nr[dev->devno]))) {
 		em28xx_errdev("unable to register video device (error=%i).\n",
 			      retval);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		list_del(&dev->devlist);
 		video_device_release(dev->vdev);
 		kfree(dev);
@@ -1865,7 +1865,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	if (video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 					vbi_nr[dev->devno]) < 0) {
 		printk("unable to register vbi device\n");
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		list_del(&dev->devlist);
 		video_device_release(dev->vbi_dev);
 		video_device_release(dev->vdev);
@@ -1886,7 +1886,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 	video_mux(dev, 0);
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 
 	em28xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
 				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
@@ -2035,7 +2035,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	down_write(&em28xx_disconnect);
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 
 	em28xx_info("disconnecting %s\n", dev->vdev->name);
 
@@ -2057,7 +2057,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		em28xx_release_resources(dev);
 	}
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size);

@@ -625,9 +625,9 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 		}
 		
 		/* fixme: locke das setzen des inputs mit hilfe des mutexes
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		video_mux(dev,*i);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		*/
 				
 		/* fixme: check if streaming capture

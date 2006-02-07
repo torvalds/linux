@@ -37,7 +37,6 @@
 #include <linux/suspend.h>
 #include <linux/jiffies.h>
 #include <asm/processor.h>
-#include <asm/semaphore.h>
 
 #include "dvb_frontend.h"
 #include "dvbdev.h"
@@ -88,7 +87,7 @@ MODULE_PARM_DESC(dvb_powerdown_on_sleep, "0: do not power down, 1: turn LNB vola
  * FESTATE_LOSTLOCK. When the lock has been lost, and we're searching it again.
  */
 
-static DECLARE_MUTEX(frontend_mutex);
+static DEFINE_MUTEX(frontend_mutex);
 
 struct dvb_frontend_private {
 
@@ -1021,12 +1020,12 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if (down_interruptible (&frontend_mutex))
+	if (mutex_lock_interruptible(&frontend_mutex))
 		return -ERESTARTSYS;
 
 	fe->frontend_priv = kzalloc(sizeof(struct dvb_frontend_private), GFP_KERNEL);
 	if (fe->frontend_priv == NULL) {
-		up(&frontend_mutex);
+		mutex_unlock(&frontend_mutex);
 		return -ENOMEM;
 	}
 	fepriv = fe->frontend_priv;
@@ -1045,7 +1044,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	dvb_register_device (fe->dvb, &fepriv->dvbdev, &dvbdev_template,
 			     fe, DVB_DEVICE_FRONTEND);
 
-	up (&frontend_mutex);
+	mutex_unlock(&frontend_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_register_frontend);
@@ -1055,7 +1054,7 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	dprintk ("%s\n", __FUNCTION__);
 
-	down (&frontend_mutex);
+	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
 	if (fe->ops->release)
@@ -1064,7 +1063,7 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 		printk("dvb_frontend: Demodulator (%s) does not have a release callback!\n", fe->ops->info.name);
 	/* fe is invalid now */
 	kfree(fepriv);
-	up (&frontend_mutex);
+	mutex_unlock(&frontend_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);

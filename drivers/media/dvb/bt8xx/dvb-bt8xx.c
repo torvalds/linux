@@ -76,13 +76,13 @@ static int dvb_bt8xx_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
-	down(&card->lock);
+	mutex_lock(&card->lock);
 	card->nfeeds++;
 	rc = card->nfeeds;
 	if (card->nfeeds == 1)
 		bt878_start(card->bt, card->gpio_mode,
 			    card->op_sync_orin, card->irq_err_ignore);
-	up(&card->lock);
+	mutex_unlock(&card->lock);
 	return rc;
 }
 
@@ -96,11 +96,11 @@ static int dvb_bt8xx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (!dvbdmx->dmx.frontend)
 		return -EINVAL;
 
-	down(&card->lock);
+	mutex_lock(&card->lock);
 	card->nfeeds--;
 	if (card->nfeeds == 0)
 		bt878_stop(card->bt);
-	up(&card->lock);
+	mutex_unlock(&card->lock);
 
 	return 0;
 }
@@ -788,7 +788,7 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	if (!(card = kzalloc(sizeof(struct dvb_bt8xx_card), GFP_KERNEL)))
 		return -ENOMEM;
 
-	init_MUTEX(&card->lock);
+	mutex_init(&card->lock);
 	card->bttv_nr = sub->core->nr;
 	strncpy(card->card_name, sub->core->name, sizeof(sub->core->name));
 	card->i2c_adapter = &sub->core->i2c_adap;
@@ -881,7 +881,7 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 		return -EFAULT;
 	}
 
-	init_MUTEX(&card->bt->gpio_lock);
+	mutex_init(&card->bt->gpio_lock);
 	card->bt->bttv_nr = sub->core->nr;
 
 	if ( (ret = dvb_bt8xx_load_card(card, sub->core->type)) ) {

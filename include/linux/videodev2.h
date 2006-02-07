@@ -17,6 +17,7 @@
 #include <linux/time.h> /* need struct timeval */
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #endif
 #include <linux/compiler.h> /* need __user */
 
@@ -90,7 +91,7 @@ struct video_device
 
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
-	struct semaphore lock;         /* ... helper function uses these   */
+	struct mutex lock;             /* ... helper function uses these   */
 	char devfs_name[64];           /* devfs */
 	struct class_device class_dev; /* sysfs */
 };

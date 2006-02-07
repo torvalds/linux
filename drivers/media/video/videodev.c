@@ -224,13 +224,13 @@ int video_exclusive_open(struct inode *inode, struct file *file)
 	struct  video_device *vfl = video_devdata(file);
 	int retval = 0;
 
-	down(&vfl->lock);
+	mutex_lock(&vfl->lock);
 	if (vfl->users) {
 		retval = -EBUSY;
 	} else {
 		vfl->users++;
 	}
-	up(&vfl->lock);
+	mutex_unlock(&vfl->lock);
 	return retval;
 }
 
@@ -328,7 +328,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	sprintf(vfd->devfs_name, "v4l/%s%d", name_base, i - base);
 	devfs_mk_cdev(MKDEV(VIDEO_MAJOR, vfd->minor),
 			S_IFCHR | S_IRUSR | S_IWUSR, vfd->devfs_name);
-	init_MUTEX(&vfd->lock);
+	mutex_init(&vfd->lock);
 
 	/* sysfs class */
 	memset(&vfd->class_dev, 0x00, sizeof(vfd->class_dev));

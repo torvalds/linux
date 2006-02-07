@@ -54,7 +54,6 @@
 #include <linux/i2c.h>
 
 #include <asm/system.h>
-#include <asm/semaphore.h>
 
 #include <linux/dvb/frontend.h>
 
@@ -242,10 +241,10 @@ static int arm_thread(void *data)
 		if (!av7110->arm_ready)
 			continue;
 
-		if (down_interruptible(&av7110->dcomlock))
+		if (mutex_lock_interruptible(&av7110->dcomlock))
 			break;
 		newloops = rdebi(av7110, DEBINOSWAP, STATUS_LOOPS, 0, 2);
-		up(&av7110->dcomlock);
+		mutex_unlock(&av7110->dcomlock);
 
 		if (newloops == av7110->arm_loops || av7110->arm_errors > 3) {
 			printk(KERN_ERR "dvb-ttpci: ARM crashed @ card %d\n",
@@ -253,10 +252,10 @@ static int arm_thread(void *data)
 
 			recover_arm(av7110);
 
-			if (down_interruptible(&av7110->dcomlock))
+			if (mutex_lock_interruptible(&av7110->dcomlock))
 				break;
 			newloops = rdebi(av7110, DEBINOSWAP, STATUS_LOOPS, 0, 2) - 1;
-			up(&av7110->dcomlock);
+			mutex_unlock(&av7110->dcomlock);
 		}
 		av7110->arm_loops = newloops;
 		av7110->arm_errors = 0;
@@ -741,7 +740,7 @@ int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 	int ret = 0;
 	dprintk(4, "%p\n", av7110);
 
-	if (down_interruptible(&av7110->pid_mutex))
+	if (mutex_lock_interruptible(&av7110->pid_mutex))
 		return -ERESTARTSYS;
 
 	if (!(vpid & 0x8000))
@@ -760,7 +759,7 @@ int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		ret = SetPIDs(av7110, vpid, apid, ttpid, subpid, pcrpid);
 	}
 
-	up(&av7110->pid_mutex);
+	mutex_unlock(&av7110->pid_mutex);
 	return ret;
 }
 
@@ -2096,7 +2095,7 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	if (av7110->playing)
 		return 0;
 
-	if (down_interruptible(&av7110->pid_mutex))
+	if (mutex_lock_interruptible(&av7110->pid_mutex))
 		return -ERESTARTSYS;
 
 	if (synced) {
@@ -2118,7 +2117,7 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	if (!ret)
 		av7110->fe_synced = synced;
 
-	up(&av7110->pid_mutex);
+	mutex_unlock(&av7110->pid_mutex);
 	return ret;
 }
 
@@ -2713,16 +2712,16 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 	tasklet_init (&av7110->debi_tasklet, debiirq, (unsigned long) av7110);
 	tasklet_init (&av7110->gpio_tasklet, gpioirq, (unsigned long) av7110);
 
-	sema_init(&av7110->pid_mutex, 1);
+	mutex_init(&av7110->pid_mutex);
 
 	/* locks for data transfers from/to AV7110 */
 	spin_lock_init(&av7110->debilock);
-	sema_init(&av7110->dcomlock, 1);
+	mutex_init(&av7110->dcomlock);
 	av7110->debitype = -1;
 
 	/* default OSD window */
 	av7110->osdwin = 1;
-	sema_init(&av7110->osd_sema, 1);
+	mutex_init(&av7110->osd_mutex);
 
 	/* ARM "watchdog" */
 	init_waitqueue_head(&av7110->arm_wait);

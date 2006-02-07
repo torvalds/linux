@@ -613,7 +613,7 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, 0);
-	init_MUTEX(&dev->lock);
+	mutex_init(&dev->lock);
 	spin_lock_init(&dev->slock);
 
 	saa7134_track_gpio(dev,"pre-init");

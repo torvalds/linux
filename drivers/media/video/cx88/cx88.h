@@ -35,6 +35,7 @@
 #include "cx88-reg.h"
 
 #include <linux/version.h>
+#include <linux/mutex.h>
 #define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
 
 #ifndef TRUE
@@ -309,8 +310,7 @@ struct cx88_core {
 	/* IR remote control state */
 	struct cx88_IR             *ir;
 
-	struct semaphore           lock;
-
+	struct mutex               lock;
 	/* various v4l controls */
 	u32                        freq;
 

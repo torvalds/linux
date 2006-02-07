@@ -410,7 +410,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 			    V4L2_FIELD_SEQ_TB, // FIXME: does this really work?
 			    sizeof(struct saa7146_buf),
 			    file);
-	init_MUTEX(&fh->vbi_q.lock);
+	mutex_init(&fh->vbi_q.lock);
 
 	init_timer(&fh->vbi_read_timeout);
 	fh->vbi_read_timeout.function = vbi_read_timeout;

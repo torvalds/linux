@@ -27,6 +27,7 @@
 
 #include <linux/videodev.h>
 #include <linux/i2c.h>
+#include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
 
 /* Boards supported by driver */
@@ -260,7 +261,7 @@ struct em28xx {
 	enum em28xx_stream_state stream;
 	enum em28xx_io_method io;
 	/* locks */
-	struct semaphore lock, fileop_lock;
+	struct mutex lock, fileop_lock;
 	spinlock_t queue_lock;
 	struct list_head inqueue, outqueue;
 	wait_queue_head_t open, wait_frame, wait_stream;

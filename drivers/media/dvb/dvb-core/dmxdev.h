@@ -30,7 +30,7 @@
 #include <linux/wait.h>
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include <linux/dvb/dmx.h>
 
@@ -83,7 +83,7 @@ struct dmxdev_filter {
 	struct dmxdev *dev;
 	struct dmxdev_buffer buffer;
 
-	struct semaphore mutex;
+	struct mutex mutex;
 
 	/* only for sections */
 	struct timer_list timer;
@@ -117,7 +117,7 @@ struct dmxdev {
 	struct dmxdev_buffer dvr_buffer;
 #define DVR_BUFFER_SIZE (10*188*1024)
 
-	struct semaphore mutex;
+	struct mutex mutex;
 	spinlock_t lock;
 };
 

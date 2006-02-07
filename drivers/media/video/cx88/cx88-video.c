@@ -336,17 +336,17 @@ static int res_get(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bi
 		return 1;
 
 	/* is it free? */
-	down(&core->lock);
+	mutex_lock(&core->lock);
 	if (dev->resources & bit) {
 		/* no, someone else uses it */
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	dev->resources |= bit;
 	dprintk(1,"res: get %d\n",bit);
-	up(&core->lock);
+	mutex_unlock(&core->lock);
 	return 1;
 }
 
@@ -369,11 +369,11 @@ void res_free(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bits)
 	if ((fh->resources & bits) != bits)
 		BUG();
 
-	down(&core->lock);
+	mutex_lock(&core->lock);
 	fh->resources  &= ~bits;
 	dev->resources &= ~bits;
 	dprintk(1,"res: put %d\n",bits);
-	up(&core->lock);
+	mutex_unlock(&core->lock);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1291,9 +1291,9 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		if (i == ARRAY_SIZE(tvnorms))
 			return -EINVAL;
 
-		down(&core->lock);
+		mutex_lock(&core->lock);
 		cx88_set_tvnorm(core,&tvnorms[i]);
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 
@@ -1343,10 +1343,10 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 
 		if (*i >= 4)
 			return -EINVAL;
-		down(&core->lock);
+		mutex_lock(&core->lock);
 		cx88_newstation(core);
 		video_mux(core,*i);
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 
@@ -1438,7 +1438,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 			return -EINVAL;
 		if (1 == radio && f->type != V4L2_TUNER_RADIO)
 			return -EINVAL;
-		down(&core->lock);
+		mutex_lock(&core->lock);
 		core->freq = f->frequency;
 		cx88_newstation(core);
 		cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
@@ -1447,7 +1447,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		msleep (10);
 		cx88_set_tvaudio(core);
 
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 
@@ -1921,11 +1921,11 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	pci_set_drvdata(pci_dev,dev);
 
 	/* initial device configuration */
-	down(&core->lock);
+	mutex_lock(&core->lock);
 	cx88_set_tvnorm(core,tvnorms);
 	init_controls(core);
 	video_mux(core,0);
-	up(&core->lock);
+	mutex_unlock(&core->lock);
 
 	/* start tvaudio thread */
 	if (core->tuner_type != TUNER_ABSENT)
