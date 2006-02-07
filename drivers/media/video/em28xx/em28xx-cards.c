@@ -73,7 +73,7 @@ struct em28xx_board em28xx_boards[] = {
 		}},
 	},
 	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
-		.name         = "Unknown EM2820/2840 video grabber",
+		.name         = "Kworld PVR TV 2800 RF",
 		.is_em2800    = 0,
 		.vchannels    = 2,
 		.norm         = VIDEO_MODE_PAL,
