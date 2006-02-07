@@ -1537,22 +1537,24 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Miditech devices */
 {
 	USB_DEVICE(0x4752, 0x0011),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Miditech",
 		.product_name = "Midistart-2",
 		.ifnum = 0,
-		.type = QUIRK_MIDI_MIDITECH
+		.type = QUIRK_MIDI_CME
 	}
 },
+
+/* Central Music devices */
 {
+	/* this ID used by both Miditech MidiStudio-2 and CME UF-x */
 	USB_DEVICE(0x7104, 0x2202),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Miditech",
-		.product_name = "MidiStudio-2",
 		.ifnum = 0,
-		.type = QUIRK_MIDI_MIDITECH
+		.type = QUIRK_MIDI_CME
 	}
 },
 

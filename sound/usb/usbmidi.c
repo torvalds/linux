@@ -1576,7 +1576,7 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 		       sizeof(struct snd_usb_midi_endpoint_info));
 		err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
 		break;
-	case QUIRK_MIDI_MIDITECH:
+	case QUIRK_MIDI_CME:
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
 	default:
