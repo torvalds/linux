@@ -201,8 +201,19 @@ static int __init mipsxx_init(void)
 		op_model_mipsxx.cpu_type = "mips/25K";
 		break;
 
+#ifndef CONFIG_SMP
+	case CPU_34K:
+		op_model_mipsxx.cpu_type = "mips/34K";
+		break;
+#endif
+
 	case CPU_5KC:
 		op_model_mipsxx.cpu_type = "mips/5K";
+		break;
+
+	case CPU_SB1:
+	case CPU_SB1A:
+		op_model_mipsxx.cpu_type = "mips/sb1";
 		break;
 
 	default:

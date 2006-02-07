@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 1997, 2004 by Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 1996, 1997, 2004, 05 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2001, 2002, 2003 by Liam Davies (ldavies@agile.tv)
  *
  */
@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/pm.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 
@@ -25,7 +26,7 @@
 #include <asm/gt64120.h>
 #include <asm/serial.h>
 
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
@@ -99,7 +100,7 @@ void __init plat_setup(void)
 
 	_machine_restart = cobalt_machine_restart;
 	_machine_halt = cobalt_machine_halt;
-	_machine_power_off = cobalt_machine_power_off;
+	pm_power_off = cobalt_machine_power_off;
 
 	board_timer_setup = cobalt_timer_setup;
 

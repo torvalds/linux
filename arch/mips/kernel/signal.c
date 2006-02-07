@@ -199,10 +199,10 @@ save_static_function(sys_sigreturn);
 __attribute_used__ noinline static void
 _sys_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
-	struct sigframe *frame;
+	struct sigframe __user *frame;
 	sigset_t blocked;
 
-	frame = (struct sigframe *) regs.regs[29];
+	frame = (struct sigframe __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&blocked, &frame->sf_mask, sizeof(blocked)))
@@ -236,11 +236,11 @@ save_static_function(sys_rt_sigreturn);
 __attribute_used__ noinline static void
 _sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	sigset_t set;
 	stack_t st;
 
-	frame = (struct rt_sigframe *) regs.regs[29];
+	frame = (struct rt_sigframe __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
@@ -259,7 +259,7 @@ _sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 		goto badframe;
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs.regs[29]);
+	do_sigaltstack((stack_t __user *)&st, NULL, regs.regs[29]);
 
 	/*
 	 * Don't let your children do this ...
@@ -279,7 +279,7 @@ badframe:
 int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
-	struct sigframe *frame;
+	struct sigframe __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
@@ -326,7 +326,7 @@ give_sigsegv:
 int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set, siginfo_t *info)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
@@ -340,7 +340,7 @@ int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
-	err |= __put_user(0, &frame->rs_uc.uc_link);
+	err |= __put_user(NULL, &frame->rs_uc.uc_link);
 	err |= __put_user((void *)current->sas_ss_sp,
 	                  &frame->rs_uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[29]),

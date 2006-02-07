@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/serial_ip3106.h>
+#include <linux/pm.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -90,7 +91,7 @@ void __init plat_setup(void)
 
         _machine_restart = pnx8550_machine_restart;
         _machine_halt = pnx8550_machine_halt;
-        _machine_power_off = pnx8550_machine_power_off;
+        pm_power_off = pnx8550_machine_power_off;
 
 	board_time_init = pnx8550_time_init;
 	board_timer_setup = pnx8550_timer_setup;
