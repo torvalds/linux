@@ -175,11 +175,13 @@ static int digitv_probe(struct usb_interface *intf,
 	if ((ret = dvb_usb_device_init(intf,&digitv_properties,THIS_MODULE,&d)) == 0) {
 		u8 b[4] = { 0 };
 
-		b[0] = 1;
-		digitv_ctrl_msg(d,USB_WRITE_REMOTE_TYPE,0,b,4,NULL,0);
+		if (d != NULL) { /* do that only when the firmware is loaded */
+			b[0] = 1;
+			digitv_ctrl_msg(d,USB_WRITE_REMOTE_TYPE,0,b,4,NULL,0);
 
-		b[0] = 0;
-		digitv_ctrl_msg(d,USB_WRITE_REMOTE,0,b,4,NULL,0);
+			b[0] = 0;
+			digitv_ctrl_msg(d,USB_WRITE_REMOTE,0,b,4,NULL,0);
+		}
 	}
 	return ret;
 }
@@ -194,7 +196,7 @@ static struct dvb_usb_properties digitv_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "dvb-usb-digitv-01.fw",
+	.firmware = "dvb-usb-digitv-02.fw",
 
 	.size_of_priv     = 0,
 
@@ -229,6 +231,7 @@ static struct dvb_usb_properties digitv_properties = {
 			{ &digitv_table[0], NULL },
 			{ NULL },
 		},
+		{ NULL },
 	}
 };
 
