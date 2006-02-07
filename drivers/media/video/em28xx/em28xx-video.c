@@ -383,12 +383,14 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		em28xx_capture_start(dev, 1);
 		em28xx_resolution_set(dev);
 
+		/* device needs to be initialized before isoc transfer */
+		video_mux(dev, 0);
+
 		/* start the transfer */
 		errCode = em28xx_init_isoc(dev);
 		if (errCode)
 			goto err;
 
-		video_mux(dev, 0);
 	}
 
 	dev->users++;
