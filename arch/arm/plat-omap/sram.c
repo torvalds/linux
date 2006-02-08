@@ -17,6 +17,7 @@
 #include <linux/init.h>
 
 #include <asm/mach/map.h>
+#include <asm/tlb.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 
@@ -94,6 +95,14 @@ void __init omap_map_sram(void)
 	printk(KERN_INFO "SRAM: Mapped pa 0x%08lx to va 0x%08lx size: 0x%lx\n",
 	       omap_sram_io_desc[0].pfn, omap_sram_io_desc[0].virtual,
 	       omap_sram_io_desc[0].length);
+
+	/*
+	 * Normally devicemaps_init() would flush caches and tlb after
+	 * mdesc->map_io(), but since we're called from map_io(), we
+	 * must do it here.
+	 */
+	local_flush_tlb_all();
+	flush_cache_all();
 
 	/*
 	 * Looks like we need to preserve some bootloader code at the
