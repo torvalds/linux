@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001,2002,2003 Broadcom Corporation
+ * Copyright (C) 2001,2002,2003,2004 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,6 +43,7 @@
 #define SBMAC_ETH0_HWADDR "40:00:00:00:01:00"
 #define SBMAC_ETH1_HWADDR "40:00:00:00:01:01"
 #define SBMAC_ETH2_HWADDR "40:00:00:00:01:02"
+#define SBMAC_ETH3_HWADDR "40:00:00:00:01:03"
 #endif
 
 
@@ -57,7 +58,7 @@ static char version1[] __devinitdata =
 
 #define CONFIG_SBMAC_COALESCE
 
-#define MAX_UNITS 3		/* More are supported, limit only on options */
+#define MAX_UNITS 4		/* More are supported, limit only on options */
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (2*HZ)
@@ -85,11 +86,11 @@ MODULE_PARM_DESC(noisy_mii, "MII status messages");
    The media type is usually passed in 'options[]'.
 */
 #ifdef MODULE
-static int options[MAX_UNITS] = {-1, -1, -1};
+static int options[MAX_UNITS] = {-1, -1, -1, -1};
 module_param_array(options, int, NULL, S_IRUGO);
 MODULE_PARM_DESC(options, "1-" __MODULE_STRING(MAX_UNITS));
 
-static int full_duplex[MAX_UNITS] = {-1, -1, -1};
+static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1};
 module_param_array(full_duplex, int, NULL, S_IRUGO);
 MODULE_PARM_DESC(full_duplex, "1-" __MODULE_STRING(MAX_UNITS));
 #endif
@@ -105,13 +106,26 @@ MODULE_PARM_DESC(int_timeout, "Timeout value");
 #endif
 
 #include <asm/sibyte/sb1250.h>
-#include <asm/sibyte/sb1250_defs.h>
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#include <asm/sibyte/bcm1480_regs.h>
+#include <asm/sibyte/bcm1480_int.h>
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #include <asm/sibyte/sb1250_regs.h>
+#include <asm/sibyte/sb1250_int.h>
+#else
+#error invalid SiByte MAC configuation
+#endif
+#include <asm/sibyte/sb1250_scd.h>
 #include <asm/sibyte/sb1250_mac.h>
 #include <asm/sibyte/sb1250_dma.h>
-#include <asm/sibyte/sb1250_int.h>
-#include <asm/sibyte/sb1250_scd.h>
 
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#define UNIT_INT(n)		(K_BCM1480_INT_MAC_0 + ((n) * 2))
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
+#define UNIT_INT(n)		(K_INT_MAC_0 + (n))
+#else
+#error invalid SiByte MAC configuation
+#endif
 
 /**********************************************************************
  *  Simple types
@@ -1476,10 +1490,10 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	 * and make sure that RD_THRSH + WR_THRSH <=128 for pass2 and above
 	 * Use a larger RD_THRSH for gigabit
 	 */
-	if (periph_rev >= 2)
-		th_value = 64;
-	else
+	if (soc_type == K_SYS_SOC_TYPE_BCM1250 && periph_rev < 2)
 		th_value = 28;
+	else
+		th_value = 64;
 
 	fifo = V_MAC_TX_WR_THRSH(4) |	/* Must be '4' or '8' */
 		((s->sbm_speed == sbmac_speed_1000)
@@ -1589,13 +1603,17 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	 * Turn on the rest of the bits in the enable register
 	 */
 
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	__raw_writeq(M_MAC_RXDMA_EN0 |
+		       M_MAC_TXDMA_EN0, s->sbm_macenable);
+#elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 	__raw_writeq(M_MAC_RXDMA_EN0 |
 		       M_MAC_TXDMA_EN0 |
 		       M_MAC_RX_ENABLE |
 		       M_MAC_TX_ENABLE, s->sbm_macenable);
-
-
-
+#else
+#error invalid SiByte MAC configuation
+#endif
 
 #ifdef CONFIG_SBMAC_COALESCE
 	/*
@@ -1786,11 +1804,12 @@ static void sbmac_set_iphdr_offset(struct sbmac_softc *sc)
 	reg &= ~M_MAC_IPHDR_OFFSET | V_MAC_IPHDR_OFFSET(15);
 	__raw_writeq(reg, sc->sbm_rxfilter);
 
-	/* read system identification to determine revision */
-	if (periph_rev >= 2) {
-		sc->rx_hw_checksum = ENABLE;
-	} else {
+	/* BCM1250 pass1 didn't have hardware checksum.  Everything
+	   later does.  */
+	if (soc_type == K_SYS_SOC_TYPE_BCM1250 && periph_rev < 2) {
 		sc->rx_hw_checksum = DISABLE;
+	} else {
+		sc->rx_hw_checksum = ENABLE;
 	}
 }
 
@@ -2220,7 +2239,7 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 
 
 
-#if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR)
+#if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR) || defined(SBMAC_ETH3_HWADDR)
 /**********************************************************************
  *  SBMAC_PARSE_XDIGIT(str)
  *
@@ -2792,7 +2811,7 @@ static int sbmac_close(struct net_device *dev)
 
 
 
-#if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR)
+#if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR) || defined(SBMAC_ETH3_HWADDR)
 static void
 sbmac_setup_hwaddr(int chan,char *addr)
 {
@@ -2818,25 +2837,7 @@ sbmac_init_module(void)
 	unsigned long port;
 	int chip_max_units;
 
-	/*
-	 * For bringup when not using the firmware, we can pre-fill
-	 * the MAC addresses using the environment variables
-	 * specified in this file (or maybe from the config file?)
-	 */
-#ifdef SBMAC_ETH0_HWADDR
-	sbmac_setup_hwaddr(0,SBMAC_ETH0_HWADDR);
-#endif
-#ifdef SBMAC_ETH1_HWADDR
-	sbmac_setup_hwaddr(1,SBMAC_ETH1_HWADDR);
-#endif
-#ifdef SBMAC_ETH2_HWADDR
-	sbmac_setup_hwaddr(2,SBMAC_ETH2_HWADDR);
-#endif
-
-	/*
-	 * Walk through the Ethernet controllers and find
-	 * those who have their MAC addresses set.
-	 */
+	/* Set the number of available units based on the SOC type.  */
 	switch (soc_type) {
 	case K_SYS_SOC_TYPE_BCM1250:
 	case K_SYS_SOC_TYPE_BCM1250_ALT:
@@ -2848,6 +2849,10 @@ sbmac_init_module(void)
 	case K_SYS_SOC_TYPE_BCM1250_ALT2: /* Hybrid */
 		chip_max_units = 2;
 		break;
+	case K_SYS_SOC_TYPE_BCM1x55:
+	case K_SYS_SOC_TYPE_BCM1x80:
+		chip_max_units = 4;
+		break;
 	default:
 		chip_max_units = 0;
 		break;
@@ -2855,6 +2860,32 @@ sbmac_init_module(void)
 	if (chip_max_units > MAX_UNITS)
 		chip_max_units = MAX_UNITS;
 
+	/*
+	 * For bringup when not using the firmware, we can pre-fill
+	 * the MAC addresses using the environment variables
+	 * specified in this file (or maybe from the config file?)
+	 */
+#ifdef SBMAC_ETH0_HWADDR
+	if (chip_max_units > 0)
+	  sbmac_setup_hwaddr(0,SBMAC_ETH0_HWADDR);
+#endif
+#ifdef SBMAC_ETH1_HWADDR
+	if (chip_max_units > 1)
+	  sbmac_setup_hwaddr(1,SBMAC_ETH1_HWADDR);
+#endif
+#ifdef SBMAC_ETH2_HWADDR
+	if (chip_max_units > 2)
+	  sbmac_setup_hwaddr(2,SBMAC_ETH2_HWADDR);
+#endif
+#ifdef SBMAC_ETH3_HWADDR
+	if (chip_max_units > 3)
+	  sbmac_setup_hwaddr(3,SBMAC_ETH3_HWADDR);
+#endif
+
+	/*
+	 * Walk through the Ethernet controllers and find
+	 * those who have their MAC addresses set.
+	 */
 	for (idx = 0; idx < chip_max_units; idx++) {
 
 	        /*
@@ -2886,7 +2917,7 @@ sbmac_init_module(void)
 
 		printk(KERN_DEBUG "sbmac: configuring MAC at %lx\n", port);
 
-		dev->irq = K_INT_MAC_0 + idx;
+		dev->irq = UNIT_INT(idx);
 		dev->base_addr = port;
 		dev->mem_end = 0;
 		if (sbmac_init(dev, idx)) {
