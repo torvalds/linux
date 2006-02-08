@@ -2473,16 +2473,13 @@ void bcm43xx_mac_suspend(struct bcm43xx_private *bcm)
 	                bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD)
 			& ~BCM43xx_SBF_MAC_ENABLED);
 	bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON); /* dummy read */
-	for (i = 1000; i > 0; i--) {
+	for (i = 100000; i; i--) {
 		tmp = bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON);
-		if (tmp & BCM43xx_IRQ_READY) {
-			i = -1;
-			break;
-		}
+		if (tmp & BCM43xx_IRQ_READY)
+			return;
 		udelay(10);
 	}
-	if (!i)
-		printkl(KERN_ERR PFX "Failed to suspend mac!\n");
+	printkl(KERN_ERR PFX "MAC suspend failed\n");
 }
 
 void bcm43xx_set_iwmode(struct bcm43xx_private *bcm,
