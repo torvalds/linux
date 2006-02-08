@@ -316,6 +316,24 @@ sun4u_init:
 	ba,pt	%xcc, spitfire_tlb_fixup
 	 nop
 
+	/* XXX Nothing branches to here yet, when %ver register indicates
+	 * XXX Niagara we should do this.
+	 */
+niagara_tlb_fixup:
+	mov	3, %g2		/* Set TLB type to hypervisor. */
+	sethi	%hi(tlb_type), %g1
+	stw	%g2, [%g1 + %lo(tlb_type)]
+
+	/* Patch copy/clear ops.  */
+	call	niagara_patch_copyops
+	 nop
+	call	niagara_patch_pageops
+	 nop
+
+	/* Patch TLB/cache ops.  */
+	call	hypervisor_patch_cachetlbops
+	 nop
+
 cheetah_tlb_fixup:
 	mov	2, %g2		/* Set TLB type to cheetah+. */
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,1f)

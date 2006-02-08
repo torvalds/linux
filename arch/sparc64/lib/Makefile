@@ -12,6 +12,7 @@ lib-y := PeeCeeI.o copy_page.o clear_page.o strlen.o strncmp.o \
 	 U1memcpy.o U1copy_from_user.o U1copy_to_user.o \
 	 U3memcpy.o U3copy_from_user.o U3copy_to_user.o U3patch.o \
 	 NGmemcpy.o NGcopy_from_user.o NGcopy_to_user.o NGpatch.o \
+	 NGpage.o \
 	 copy_in_user.o user_fixup.o memmove.o \
 	 mcount.o ipcsum.o rwsem.o xor.o find_bit.o delay.o
 
