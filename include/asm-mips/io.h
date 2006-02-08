@@ -342,7 +342,7 @@ static inline void pfx##write##bwlq(type val,				\
 		BUG();							\
 }									\
 									\
-static inline type pfx##read##bwlq(volatile void __iomem *mem)		\
+static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 {									\
 	volatile type *__mem;						\
 	type __val;							\

@@ -369,3 +369,20 @@ EXPORT(sysn32_call_table)
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch
 	PTR	sys_inotify_rm_watch
+	PTR	sys_migrate_pages		/* 6250 */
+	PTR	sys_openat
+	PTR	sys_mkdirat
+	PTR	sys_mknodat
+	PTR	sys_fchownat
+	PTR	sys_futimesat			/* 6255 */
+	PTR	sys_newfstatat
+	PTR	sys_unlinkat
+	PTR	sys_renameat
+	PTR	sys_linkat
+	PTR	sys_symlinkat			/* 6260 */
+	PTR	sys_readlinkat
+	PTR	sys_fchmodat
+	PTR	sys_faccessat
+	PTR	sys_pselect6
+	PTR	sys_ppoll			/* 6265 */
+	PTR	sys_unshare

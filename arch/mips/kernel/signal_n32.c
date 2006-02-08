@@ -186,9 +186,9 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 #endif
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
-	return 0;
+	return -EFAULT;
 }
