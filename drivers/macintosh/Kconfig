@@ -190,7 +190,7 @@ config WINDFARM_PM91
 config WINDFARM_PM112
 	tristate "Support for thermal management on PowerMac11,2"
 	depends on WINDFARM && I2C && PMAC_SMU
-	select I2C_PMAC_SMU
+	select I2C_POWERMAC
 	help
 	  This driver provides thermal control for the PowerMac11,2
 	  which are the recent dual and quad G5 machines using the
