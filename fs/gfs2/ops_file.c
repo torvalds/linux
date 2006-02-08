@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/gfs2_ioctl.h>
+#include <linux/fs.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
@@ -27,7 +28,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "jdata.h"
 #include "lm.h"
 #include "log.h"
 #include "meta_io.h"
@@ -67,10 +67,37 @@ struct filldir_reg {
 	void *fdr_opaque;
 };
 
-typedef ssize_t(*do_rw_t) (struct file *file,
-		   char __user *buf,
-		   size_t size, loff_t *offset,
-		   unsigned int num_gh, struct gfs2_holder *ghs);
+static int gfs2_read_actor(read_descriptor_t *desc, struct page *page,
+			   unsigned long offset, unsigned long size)
+{
+	char *kaddr;
+	unsigned long count = desc->count;
+
+	if (size > count)
+		size = count;
+
+	kaddr = kmap(page);
+	memcpy(desc->arg.buf, kaddr + offset, size);
+        kunmap(page);
+
+        desc->count = count - size;
+        desc->written += size;
+        desc->arg.buf += size;
+        return size;
+}
+
+int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
+		       char *buf, loff_t *pos, unsigned size)
+{
+	struct inode *inode = ip->i_vnode;
+	read_descriptor_t desc;
+	desc.written = 0;
+	desc.arg.buf = buf;
+	desc.count = size;
+	desc.error = 0;
+	do_generic_mapping_read(inode->i_mapping, ra_state, NULL, pos, &desc, gfs2_read_actor);
+	return desc.written ? desc.written : desc.error;
+}
 
 /**
  * gfs2_llseek - seek to a location in a file
@@ -105,247 +132,114 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
 	return error;
 }
 
-static inline unsigned int vma2state(struct vm_area_struct *vma)
+
+static ssize_t gfs2_direct_IO_read(struct kiocb *iocb, const struct iovec *iov,
+				   loff_t offset, unsigned long nr_segs)
 {
-	if ((vma->vm_flags & (VM_MAYWRITE | VM_MAYSHARE)) ==
-	    (VM_MAYWRITE | VM_MAYSHARE))
-		return LM_ST_EXCLUSIVE;
-	return LM_ST_SHARED;
-}
+	struct file *file = iocb->ki_filp;
+	struct address_space *mapping = file->f_mapping;
+	ssize_t retval;
 
-static ssize_t walk_vm_hard(struct file *file, const char __user *buf, size_t size,
-		    loff_t *offset, do_rw_t operation)
-{
-	struct gfs2_holder *ghs;
-	unsigned int num_gh = 0;
-	ssize_t count;
-	struct super_block *sb = file->f_dentry->d_inode->i_sb;
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-	unsigned long start = (unsigned long)buf;
-	unsigned long end = start + size;
-	int dumping = (current->flags & PF_DUMPCORE);
-	unsigned int x = 0;
-
-	for (vma = find_vma(mm, start); vma; vma = vma->vm_next) {
-		if (end <= vma->vm_start)
-			break;
-		if (vma->vm_file &&
-		    vma->vm_file->f_dentry->d_inode->i_sb == sb) {
-			num_gh++;
-		}
+	retval = filemap_write_and_wait(mapping);
+	if (retval == 0) {
+		retval = mapping->a_ops->direct_IO(READ, iocb, iov, offset,
+						   nr_segs);
 	}
-
-	ghs = kcalloc((num_gh + 1), sizeof(struct gfs2_holder), GFP_KERNEL);
-	if (!ghs) {
-		if (!dumping)
-			up_read(&mm->mmap_sem);
-		return -ENOMEM;
-	}
-
-	for (vma = find_vma(mm, start); vma; vma = vma->vm_next) {
-		if (end <= vma->vm_start)
-			break;
-		if (vma->vm_file) {
-			struct inode *inode = vma->vm_file->f_dentry->d_inode;
-			if (inode->i_sb == sb)
-				gfs2_holder_init(get_v2ip(inode)->i_gl,
-						 vma2state(vma), 0, &ghs[x++]);
-		}
-	}
-
-	if (!dumping)
-		up_read(&mm->mmap_sem);
-
-	gfs2_assert(get_v2sdp(sb), x == num_gh);
-
-	count = operation(file, buf, size, offset, num_gh, ghs);
-
-	while (num_gh--)
-		gfs2_holder_uninit(&ghs[num_gh]);
-	kfree(ghs);
-
-	return count;
+	return retval;
 }
 
 /**
- * walk_vm - Walk the vmas associated with a buffer for read or write.
- *    If any of them are gfs2, pass the gfs2 inode down to the read/write
- *    worker function so that locks can be acquired in the correct order.
- * @file: The file to read/write from/to
- * @buf: The buffer to copy to/from
- * @size: The amount of data requested
- * @offset: The current file offset
- * @operation: The read or write worker function
- *
- * Outputs: Offset - updated according to number of bytes written
- *
- * Returns: The number of bytes written, errno on failure
+ * __gfs2_file_aio_read - The main GFS2 read function
+ * 
+ * N.B. This is almost, but not quite the same as __generic_file_aio_read()
+ * the important subtle different being that inode->i_size isn't valid
+ * unless we are holding a lock, and we do this _only_ on the O_DIRECT
+ * path since otherwise locking is done entirely at the page cache
+ * layer.
  */
-
-static ssize_t walk_vm(struct file *file, const char __user *buf, size_t size,
-	       loff_t *offset, do_rw_t operation)
+static ssize_t __gfs2_file_aio_read(struct kiocb *iocb,
+				    const struct iovec *iov,
+				    unsigned long nr_segs, loff_t *ppos)
 {
+	struct file *filp = iocb->ki_filp;
+	struct gfs2_inode *ip = get_v2ip(filp->f_mapping->host);
 	struct gfs2_holder gh;
+	ssize_t retval;
+	unsigned long seg;
+	size_t count;
 
-	if (current->mm) {
-		struct super_block *sb = file->f_dentry->d_inode->i_sb;
-		struct mm_struct *mm = current->mm;
-		struct vm_area_struct *vma;
-		unsigned long start = (unsigned long)buf;
-		unsigned long end = start + size;
-		int dumping = (current->flags & PF_DUMPCORE);
+	count = 0;
+	for (seg = 0; seg < nr_segs; seg++) {
+		const struct iovec *iv = &iov[seg];
 
-		if (!dumping)
-			down_read(&mm->mmap_sem);
-
-		for (vma = find_vma(mm, start); vma; vma = vma->vm_next) {
-			if (end <= vma->vm_start)
-				break;
-			if (vma->vm_file &&
-			    vma->vm_file->f_dentry->d_inode->i_sb == sb)
-				goto do_locks;
-		}
-
-		if (!dumping)
-			up_read(&mm->mmap_sem);
-	}
-
-	return operation(file, buf, size, offset, 0, &gh);
-
-do_locks:
-	return walk_vm_hard(file, buf, size, offset, operation);
-}
-
-static ssize_t do_jdata_read(struct file *file, char __user *buf, size_t size,
-			     loff_t *offset)
-{
-	struct gfs2_inode *ip = get_v2ip(file->f_mapping->host);
-	ssize_t count = 0;
-
-	if (*offset < 0)
+		/*
+		 * If any segment has a negative length, or the cumulative
+		 * length ever wraps negative then return -EINVAL.
+		 */
+	count += iv->iov_len;
+	if (unlikely((ssize_t)(count|iv->iov_len) < 0))
 		return -EINVAL;
-	if (!access_ok(VERIFY_WRITE, buf, size))
+	if (access_ok(VERIFY_WRITE, iv->iov_base, iv->iov_len))
+		continue;
+	if (seg == 0)
 		return -EFAULT;
-
-	if (!(file->f_flags & O_LARGEFILE)) {
-		if (*offset >= MAX_NON_LFS)
-			return -EFBIG;
-		if (*offset + size > MAX_NON_LFS)
-			size = MAX_NON_LFS - *offset;
+	nr_segs = seg;
+	count -= iv->iov_len;   /* This segment is no good */
+	break;
 	}
 
-	count = gfs2_jdata_read(ip, buf, *offset, size, gfs2_copy2user);
+	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
+	if (filp->f_flags & O_DIRECT) {
+		loff_t pos = *ppos, size;
+		struct address_space *mapping;
+		struct inode *inode;
 
-	if (count > 0)
-		*offset += count;
+		mapping = filp->f_mapping;
+		inode = mapping->host;
+		retval = 0;
+		if (!count)
+			goto out; /* skip atime */
 
-	return count;
-}
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+		retval = gfs2_glock_nq_m_atime(1, &gh);
+		if (retval)
+			goto out;
 
-/**
- * do_read_direct - Read bytes from a file
- * @file: The file to read from
- * @buf: The buffer to copy into
- * @size: The amount of data requested
- * @offset: The current file offset
- * @num_gh: The number of other locks we need to do the read
- * @ghs: the locks we need plus one for our lock
- *
- * Outputs: Offset - updated according to number of bytes read
- *
- * Returns: The number of bytes read, errno on failure
- */
-
-static ssize_t do_read_direct(struct file *file, char __user *buf, size_t size,
-			      loff_t *offset, unsigned int num_gh,
-			      struct gfs2_holder *ghs)
-{
-	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
-	unsigned int state = LM_ST_DEFERRED;
-	int flags = 0;
-	unsigned int x;
-	ssize_t count = 0;
-	int error;
-
-	for (x = 0; x < num_gh; x++)
-		if (ghs[x].gh_gl == ip->i_gl) {
-			state = LM_ST_SHARED;
-			flags |= GL_LOCAL_EXCL;
-			break;
+		size = i_size_read(inode);
+		if (pos < size) {
+			 retval = gfs2_direct_IO_read(iocb, iov, pos, nr_segs);
+			if (retval > 0 && !is_sync_kiocb(iocb))
+				retval = -EIOCBQUEUED;
+			if (retval > 0)
+				*ppos = pos + retval;
 		}
-
-	gfs2_holder_init(ip->i_gl, state, flags, &ghs[num_gh]);
-
-	error = gfs2_glock_nq_m(num_gh + 1, ghs);
-	if (error)
+		file_accessed(filp);
+		gfs2_glock_dq_m(1, &gh);
+		gfs2_holder_uninit(&gh);
 		goto out;
+	}
 
-	error = -EINVAL;
-	if (gfs2_is_jdata(ip))
-		goto out_gunlock;
+	retval = 0;
+	if (count) {
+		for (seg = 0; seg < nr_segs; seg++) {
+			read_descriptor_t desc;
 
-	if (gfs2_is_stuffed(ip)) {
-		size_t mask = bdev_hardsect_size(inode->i_sb->s_bdev) - 1;
-
-		if (((*offset) & mask) || (((unsigned long)buf) & mask))
-			goto out_gunlock;
-
-		count = do_jdata_read(file, buf, size & ~mask, offset);
-	} else
-		count = generic_file_read(file, buf, size, offset);
-
-	error = 0;
-
- out_gunlock:
-	gfs2_glock_dq_m(num_gh + 1, ghs);
-
- out:
-	gfs2_holder_uninit(&ghs[num_gh]);
-
-	return (count) ? count : error;
-}
-
-/**
- * do_read_buf - Read bytes from a file
- * @file: The file to read from
- * @buf: The buffer to copy into
- * @size: The amount of data requested
- * @offset: The current file offset
- * @num_gh: The number of other locks we need to do the read
- * @ghs: the locks we need plus one for our lock
- *
- * Outputs: Offset - updated according to number of bytes read
- *
- * Returns: The number of bytes read, errno on failure
- */
-
-static ssize_t do_read_buf(struct file *file, char __user *buf, size_t size,
-			   loff_t *offset, unsigned int num_gh,
-			   struct gfs2_holder *ghs)
-{
-	struct gfs2_inode *ip = get_v2ip(file->f_mapping->host);
-	ssize_t count = 0;
-	int error;
-
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &ghs[num_gh]);
-
-	error = gfs2_glock_nq_m_atime(num_gh + 1, ghs);
-	if (error)
-		goto out;
-
-	if (gfs2_is_jdata(ip))
-		count = do_jdata_read(file, buf, size, offset);
-	else
-		count = generic_file_read(file, buf, size, offset);
-
-	gfs2_glock_dq_m(num_gh + 1, ghs);
-
- out:
-	gfs2_holder_uninit(&ghs[num_gh]);
-
-	return (count) ? count : error;
+			desc.written = 0;
+			desc.arg.buf = iov[seg].iov_base;
+			desc.count = iov[seg].iov_len;
+			if (desc.count == 0)
+				continue;
+			desc.error = 0;
+			do_generic_file_read(filp,ppos,&desc,file_read_actor);
+			retval += desc.written;
+			if (desc.error) {
+				retval = retval ?: desc.error;
+				 break;
+			}
+		}
+	}
+out:
+	return retval;
 }
 
 /**
@@ -360,550 +254,49 @@ static ssize_t do_read_buf(struct file *file, char __user *buf, size_t size,
  * Returns: The number of bytes read, errno on failure
  */
 
-static ssize_t gfs2_read(struct file *file, char __user *buf, size_t size,
+static ssize_t gfs2_read(struct file *filp, char __user *buf, size_t size,
 			 loff_t *offset)
 {
-	atomic_inc(&get_v2sdp(file->f_mapping->host->i_sb)->sd_ops_file);
-
-	if (file->f_flags & O_DIRECT)
-		return walk_vm(file, buf, size, offset, do_read_direct);
-	else
-		return walk_vm(file, buf, size, offset, do_read_buf);
-}
-
-/**
- * grope_mapping - feel up a mapping that needs to be written
- * @buf: the start of the memory to be written
- * @size: the size of the memory to be written
- *
- * We do this after acquiring the locks on the mapping,
- * but before starting the write transaction.  We need to make
- * sure that we don't cause recursive transactions if blocks
- * need to be allocated to the file backing the mapping.
- *
- * Returns: errno
- */
-
-static int grope_mapping(const char __user *buf, size_t size)
-{
-	const char __user *stop = buf + size;
-	char c;
-
-	while (buf < stop) {
-		if (copy_from_user(&c, buf, 1))
-			return -EFAULT;
-		buf += PAGE_CACHE_SIZE;
-		buf = (const char __user *)PAGE_ALIGN((unsigned long)buf);
-	}
-
-	return 0;
-}
-
-/**
- * do_write_direct_alloc - Write bytes to a file
- * @file: The file to write to
- * @buf: The buffer to copy from
- * @size: The amount of data requested
- * @offset: The current file offset
- *
- * Outputs: Offset - updated according to number of bytes written
- *
- * Returns: The number of bytes written, errno on failure
- */
-
-static ssize_t do_write_direct_alloc(struct file *file, const char __user *buf, size_t size,
-				     loff_t *offset)
-{
-	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
-	struct gfs2_sbd *sdp = ip->i_sbd;
-	struct gfs2_alloc *al = NULL;
 	struct iovec local_iov = { .iov_base = buf, .iov_len = size };
-	struct buffer_head *dibh;
-	unsigned int data_blocks, ind_blocks;
-	ssize_t count;
-	int error;
+	struct kiocb kiocb;
+	ssize_t ret;
 
-	gfs2_write_calc_reserv(ip, size, &data_blocks, &ind_blocks);
+	atomic_inc(&get_v2sdp(filp->f_mapping->host->i_sb)->sd_ops_file);
 
-	al = gfs2_alloc_get(ip);
-
-	error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
-	if (error)
-		goto fail;
-
-	error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
-	if (error)
-		goto fail_gunlock_q;
-
-	al->al_requested = data_blocks + ind_blocks;
-
-	error = gfs2_inplace_reserve(ip);
-	if (error)
-		goto fail_gunlock_q;
-
-	error = gfs2_trans_begin(sdp,
-				 al->al_rgd->rd_ri.ri_length + ind_blocks +
-				 RES_DINODE + RES_STATFS + RES_QUOTA, 0);
-	if (error)
-		goto fail_ipres;
-
-	if ((ip->i_di.di_mode & (S_ISUID | S_ISGID)) && !capable(CAP_FSETID)) {
-		error = gfs2_meta_inode_buffer(ip, &dibh);
-		if (error)
-			goto fail_end_trans;
-
-		ip->i_di.di_mode &= (ip->i_di.di_mode & S_IXGRP) ?
-			(~(S_ISUID | S_ISGID)) : (~S_ISUID);
-
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
-		brelse(dibh);
-	}
-
-	if (gfs2_is_stuffed(ip)) {
-		error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_sync, NULL);
-		if (error)
-			goto fail_end_trans;
-	}
-
-	count = generic_file_write_nolock(file, &local_iov, 1, offset);
-	if (count < 0) {
-		error = count;
-		goto fail_end_trans;
-	}
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (error)
-		goto fail_end_trans;
-
-	if (ip->i_di.di_size < inode->i_size)
-		ip->i_di.di_size = inode->i_size;
-	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
-
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
-	brelse(dibh);
-
-	gfs2_trans_end(sdp);
-
-	if (file->f_flags & O_SYNC)
-		gfs2_log_flush_glock(ip->i_gl);
-
-	gfs2_inplace_release(ip);
-	gfs2_quota_unlock(ip);
-	gfs2_alloc_put(ip);
-
-	if (file->f_mapping->nrpages) {
-		error = filemap_fdatawrite(file->f_mapping);
-		if (!error)
-			error = filemap_fdatawait(file->f_mapping);
-	}
-	if (error)
-		return error;
-
-	return count;
-
- fail_end_trans:
-	gfs2_trans_end(sdp);
-
- fail_ipres:
-	gfs2_inplace_release(ip);
-
- fail_gunlock_q:
-	gfs2_quota_unlock(ip);
-
- fail:
-	gfs2_alloc_put(ip);
-
-	return error;
+	init_sync_kiocb(&kiocb, filp);
+	ret = __gfs2_file_aio_read(&kiocb, &local_iov, 1, offset);
+	if (-EIOCBQUEUED == ret)
+		ret = wait_on_sync_kiocb(&kiocb);
+	return ret;
 }
 
-/**
- * do_write_direct - Write bytes to a file
- * @file: The file to write to
- * @buf: The buffer to copy from
- * @size: The amount of data requested
- * @offset: The current file offset
- * @num_gh: The number of other locks we need to do the read
- * @gh: the locks we need plus one for our lock
- *
- * Outputs: Offset - updated according to number of bytes written
- *
- * Returns: The number of bytes written, errno on failure
- */
-
-static ssize_t do_write_direct(struct file *file, const char __user *buf, size_t size,
-			       loff_t *offset, unsigned int num_gh,
-			       struct gfs2_holder *ghs)
+static ssize_t gfs2_file_readv(struct file *filp, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t *ppos)
 {
-	struct gfs2_inode *ip = get_v2ip(file->f_mapping->host);
-	struct gfs2_sbd *sdp = ip->i_sbd;
-	struct gfs2_file *fp = get_v2fp(file);
-	unsigned int state = LM_ST_DEFERRED;
-	int alloc_required;
-	unsigned int x;
-	size_t s;
-	ssize_t count = 0;
-	int error;
+	struct kiocb kiocb;
+	ssize_t ret;
 
-	if (test_bit(GFF_DID_DIRECT_ALLOC, &fp->f_flags))
-		state = LM_ST_EXCLUSIVE;
-	else
-		for (x = 0; x < num_gh; x++)
-			if (ghs[x].gh_gl == ip->i_gl) {
-				state = LM_ST_EXCLUSIVE;
-				break;
-			}
+	atomic_inc(&get_v2sdp(filp->f_mapping->host->i_sb)->sd_ops_file);
 
- restart:
-	gfs2_holder_init(ip->i_gl, state, 0, &ghs[num_gh]);
-
-	error = gfs2_glock_nq_m(num_gh + 1, ghs);
-	if (error)
-		goto out;
-
-	error = -EINVAL;
-	if (gfs2_is_jdata(ip))
-		goto out_gunlock;
-
-	if (num_gh) {
-		error = grope_mapping(buf, size);
-		if (error)
-			goto out_gunlock;
-	}
-
-	if (file->f_flags & O_APPEND)
-		*offset = ip->i_di.di_size;
-
-	if (!(file->f_flags & O_LARGEFILE)) {
-		error = -EFBIG;
-		if (*offset >= MAX_NON_LFS)
-			goto out_gunlock;
-		if (*offset + size > MAX_NON_LFS)
-			size = MAX_NON_LFS - *offset;
-	}
-
-	if (gfs2_is_stuffed(ip) ||
-	    *offset + size > ip->i_di.di_size ||
-	    ((ip->i_di.di_mode & (S_ISUID | S_ISGID)) && !capable(CAP_FSETID)))
-		alloc_required = 1;
-	else {
-		error = gfs2_write_alloc_required(ip, *offset, size,
-						 &alloc_required);
-		if (error)
-			goto out_gunlock;
-	}
-
-	if (alloc_required && state != LM_ST_EXCLUSIVE) {
-		gfs2_glock_dq_m(num_gh + 1, ghs);
-		gfs2_holder_uninit(&ghs[num_gh]);
-		state = LM_ST_EXCLUSIVE;
-		goto restart;
-	}
-
-	if (alloc_required) {
-		set_bit(GFF_DID_DIRECT_ALLOC, &fp->f_flags);
-
-		/* split large writes into smaller atomic transactions */
-		while (size) {
-			s = gfs2_tune_get(sdp, gt_max_atomic_write);
-			if (s > size)
-				s = size;
-
-			error = do_write_direct_alloc(file, buf, s, offset);
-			if (error < 0)
-				goto out_gunlock;
-
-			buf += error;
-			size -= error;
-			count += error;
-		}
-	} else {
-		struct iovec local_iov = { .iov_base = buf, .iov_len = size };
-		struct gfs2_holder t_gh;
-
-		clear_bit(GFF_DID_DIRECT_ALLOC, &fp->f_flags);
-
-		error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
-					   GL_NEVER_RECURSE, &t_gh);
-		if (error)
-			goto out_gunlock;
-
-		count = generic_file_write_nolock(file, &local_iov, 1, offset);
-
-		gfs2_glock_dq_uninit(&t_gh);
-	}
-
-	error = 0;
-
- out_gunlock:
-	gfs2_glock_dq_m(num_gh + 1, ghs);
-
- out:
-	gfs2_holder_uninit(&ghs[num_gh]);
-
-	return (count) ? count : error;
+	init_sync_kiocb(&kiocb, filp);
+	ret = __gfs2_file_aio_read(&kiocb, iov, nr_segs, ppos);
+	if (-EIOCBQUEUED == ret)
+		ret = wait_on_sync_kiocb(&kiocb);
+	return ret;
 }
 
-/**
- * do_do_write_buf - Write bytes to a file
- * @file: The file to write to
- * @buf: The buffer to copy from
- * @size: The amount of data requested
- * @offset: The current file offset
- *
- * Outputs: Offset - updated according to number of bytes written
- *
- * Returns: The number of bytes written, errno on failure
- */
-
-static ssize_t do_do_write_buf(struct file *file, const char __user *buf, size_t size,
-			       loff_t *offset)
+static ssize_t gfs2_file_aio_read(struct kiocb *iocb, char __user *buf,
+				  size_t count, loff_t pos)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
-	struct gfs2_sbd *sdp = ip->i_sbd;
-	struct gfs2_alloc *al = NULL;
-	struct buffer_head *dibh;
-	unsigned int data_blocks, ind_blocks;
-	int alloc_required, journaled;
-	ssize_t count;
-	int error;
+	struct file *filp = iocb->ki_filp;
+        struct iovec local_iov = { .iov_base = buf, .iov_len = count };
 
-	journaled = gfs2_is_jdata(ip);
+	atomic_inc(&get_v2sdp(filp->f_mapping->host->i_sb)->sd_ops_file);
 
-	gfs2_write_calc_reserv(ip, size, &data_blocks, &ind_blocks);
-
-	error = gfs2_write_alloc_required(ip, *offset, size, &alloc_required);
-	if (error)
-		return error;
-
-	if (alloc_required) {
-		al = gfs2_alloc_get(ip);
-
-		error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
-		if (error)
-			goto fail;
-
-		error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
-		if (error)
-			goto fail_gunlock_q;
-
-		al->al_requested = data_blocks + ind_blocks;
-
-		error = gfs2_inplace_reserve(ip);
-		if (error)
-			goto fail_gunlock_q;
-
-		error = gfs2_trans_begin(sdp,
-					 al->al_rgd->rd_ri.ri_length +
-					 ind_blocks +
-					 ((journaled) ? data_blocks : 0) +
-					 RES_DINODE + RES_STATFS + RES_QUOTA,
-					 0);
-		if (error)
-			goto fail_ipres;
-	} else {
-		error = gfs2_trans_begin(sdp,
-					((journaled) ? data_blocks : 0) +
-					RES_DINODE,
-					0);
-		if (error)
-			goto fail_ipres;
-	}
-
-	if ((ip->i_di.di_mode & (S_ISUID | S_ISGID)) && !capable(CAP_FSETID)) {
-		error = gfs2_meta_inode_buffer(ip, &dibh);
-		if (error)
-			goto fail_end_trans;
-
-		ip->i_di.di_mode &= (ip->i_di.di_mode & S_IXGRP) ?
-					  (~(S_ISUID | S_ISGID)) : (~S_ISUID);
-
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
-		brelse(dibh);
-	}
-
-	if (journaled) {
-		count = gfs2_jdata_write(ip, buf, *offset, size,
-					 gfs2_copy_from_user);
-		if (count < 0) {
-			error = count;
-			goto fail_end_trans;
-		}
-
-		*offset += count;
-	} else {
-		struct iovec local_iov = { .iov_base = buf, .iov_len = size };
-
-		count = generic_file_write_nolock(file, &local_iov, 1, offset);
-		if (count < 0) {
-			error = count;
-			goto fail_end_trans;
-		}
-
-		error = gfs2_meta_inode_buffer(ip, &dibh);
-		if (error)
-			goto fail_end_trans;
-
-		if (ip->i_di.di_size < inode->i_size)
-			ip->i_di.di_size = inode->i_size;
-		ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
-
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
-		brelse(dibh);
-	}
-
-	gfs2_trans_end(sdp);
-
-	if (file->f_flags & O_SYNC || IS_SYNC(inode)) {
-		gfs2_log_flush_glock(ip->i_gl);
-		error = filemap_fdatawrite(file->f_mapping);
-		if (error == 0)
-			error = filemap_fdatawait(file->f_mapping);
-		if (error)
-			goto fail_ipres;
-	}
-
-	if (alloc_required) {
-		gfs2_assert_warn(sdp, count != size ||
-				 al->al_alloced);
-		gfs2_inplace_release(ip);
-		gfs2_quota_unlock(ip);
-		gfs2_alloc_put(ip);
-	}
-
-	return count;
-
- fail_end_trans:
-	gfs2_trans_end(sdp);
-
- fail_ipres:
-	if (alloc_required)
-		gfs2_inplace_release(ip);
-
- fail_gunlock_q:
-	if (alloc_required)
-		gfs2_quota_unlock(ip);
-
- fail:
-	if (alloc_required)
-		gfs2_alloc_put(ip);
-
-	return error;
+        BUG_ON(iocb->ki_pos != pos);
+        return __gfs2_file_aio_read(iocb, &local_iov, 1, &iocb->ki_pos);
 }
 
-/**
- * do_write_buf - Write bytes to a file
- * @file: The file to write to
- * @buf: The buffer to copy from
- * @size: The amount of data requested
- * @offset: The current file offset
- * @num_gh: The number of other locks we need to do the read
- * @gh: the locks we need plus one for our lock
- *
- * Outputs: Offset - updated according to number of bytes written
- *
- * Returns: The number of bytes written, errno on failure
- */
-
-static ssize_t do_write_buf(struct file *file, const char __user *buf, size_t size,
-			    loff_t *offset, unsigned int num_gh,
-			    struct gfs2_holder *ghs)
-{
-	struct gfs2_inode *ip = get_v2ip(file->f_mapping->host);
-	struct gfs2_sbd *sdp = ip->i_sbd;
-	size_t s;
-	ssize_t count = 0;
-	int error;
-
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ghs[num_gh]);
-
-	error = gfs2_glock_nq_m(num_gh + 1, ghs);
-	if (error)
-		goto out;
-
-	if (num_gh) {
-		error = grope_mapping(buf, size);
-		if (error)
-			goto out_gunlock;
-	}
-
-	if (file->f_flags & O_APPEND)
-		*offset = ip->i_di.di_size;
-
-	if (!(file->f_flags & O_LARGEFILE)) {
-		error = -EFBIG;
-		if (*offset >= MAX_NON_LFS)
-			goto out_gunlock;
-		if (*offset + size > MAX_NON_LFS)
-			size = MAX_NON_LFS - *offset;
-	}
-
-	/* split large writes into smaller atomic transactions */
-	while (size) {
-		s = gfs2_tune_get(sdp, gt_max_atomic_write);
-		if (s > size)
-			s = size;
-
-		error = do_do_write_buf(file, buf, s, offset);
-		if (error < 0)
-			goto out_gunlock;
-
-		buf += error;
-		size -= error;
-		count += error;
-	}
-
-	error = 0;
-
- out_gunlock:
-	gfs2_glock_dq_m(num_gh + 1, ghs);
-
- out:
-	gfs2_holder_uninit(&ghs[num_gh]);
-
-	return (count) ? count : error;
-}
-
-/**
- * gfs2_write - Write bytes to a file
- * @file: The file to write to
- * @buf: The buffer to copy from
- * @size: The amount of data requested
- * @offset: The current file offset
- *
- * Outputs: Offset - updated according to number of bytes written
- *
- * Returns: The number of bytes written, errno on failure
- */
-
-static ssize_t gfs2_write(struct file *file, const char __user *buf,
-			  size_t size, loff_t *offset)
-{
-	struct inode *inode = file->f_mapping->host;
-	ssize_t count;
-
-	atomic_inc(&get_v2sdp(inode->i_sb)->sd_ops_file);
-
-	if (*offset < 0)
-		return -EINVAL;
-	if (!access_ok(VERIFY_READ, buf, size))
-		return -EFAULT;
-
-	mutex_lock(&inode->i_mutex);
-	if (file->f_flags & O_DIRECT)
-		count = walk_vm(file, buf, size, offset,
-				do_write_direct);
-	else
-		count = walk_vm(file, buf, size, offset, do_write_buf);
-	mutex_unlock(&inode->i_mutex);
-
-	return count;
-}
 
 /**
  * filldir_reg_func - Report a directory entry to the caller of gfs2_dir_read()
@@ -1158,9 +551,6 @@ static int gfs2_ioctl_flags(struct gfs2_inode *ip, unsigned int cmd, unsigned lo
 		if (flags & (GFS2_DIF_JDATA|GFS2_DIF_DIRECTIO)) {
 			if (!S_ISREG(ip->i_di.di_mode))
 				goto out;
-			/* FIXME: Would be nice not to require the following test */
-			if ((flags & GFS2_DIF_JDATA) && ip->i_di.di_size)
-				goto out;
 		}
 		if (flags & (GFS2_DIF_INHERIT_JDATA|GFS2_DIF_INHERIT_DIRECTIO)) {
 			if (!S_ISDIR(ip->i_di.di_mode))
@@ -1246,21 +636,14 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 		return error;
 	}
 
-	if (gfs2_is_jdata(ip)) {
-		if (vma->vm_flags & VM_MAYSHARE)
-			error = -EOPNOTSUPP;
-		else
-			vma->vm_ops = &gfs2_vm_ops_private;
-	} else {
-		/* This is VM_MAYWRITE instead of VM_WRITE because a call
-		   to mprotect() can turn on VM_WRITE later. */
+	/* This is VM_MAYWRITE instead of VM_WRITE because a call
+	   to mprotect() can turn on VM_WRITE later. */
 
-		if ((vma->vm_flags & (VM_MAYSHARE | VM_MAYWRITE)) ==
-		    (VM_MAYSHARE | VM_MAYWRITE))
-			vma->vm_ops = &gfs2_vm_ops_sharewrite;
-		else
-			vma->vm_ops = &gfs2_vm_ops_private;
-	}
+	if ((vma->vm_flags & (VM_MAYSHARE | VM_MAYWRITE)) ==
+	    (VM_MAYSHARE | VM_MAYWRITE))
+		vma->vm_ops = &gfs2_vm_ops_sharewrite;
+	else
+		vma->vm_ops = &gfs2_vm_ops_private;
 
 	gfs2_glock_dq_uninit(&i_gh);
 
@@ -1312,13 +695,6 @@ static int gfs2_open(struct inode *inode, struct file *file)
 
 		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
 			file->f_flags |= O_DIRECT;
-
-		/* Don't let the user open O_DIRECT on a jdata file */
-
-		if ((file->f_flags & O_DIRECT) && gfs2_is_jdata(ip)) {
-			error = -EINVAL;
-			goto fail_gunlock;
-		}
 
 		gfs2_glock_dq_uninit(&i_gh);
 	}
@@ -1446,29 +822,10 @@ static ssize_t gfs2_sendfile(struct file *in_file, loff_t *offset, size_t count,
 			     read_actor_t actor, void *target)
 {
 	struct gfs2_inode *ip = get_v2ip(in_file->f_mapping->host);
-	struct gfs2_holder gh;
-	ssize_t retval;
 
 	atomic_inc(&ip->i_sbd->sd_ops_file);
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-
-	retval = gfs2_glock_nq_atime(&gh);
-	if (retval)
-		goto out;
-
-	if (gfs2_is_jdata(ip))
-		retval = -EOPNOTSUPP;
-	else
-		retval = generic_file_sendfile(in_file, offset, count, actor,
-					       target);
-
-	gfs2_glock_dq(&gh);
-
- out:
-	gfs2_holder_uninit(&gh);
-
-	return retval;
+	return generic_file_sendfile(in_file, offset, count, actor, target);
 }
 
 static int do_flock(struct file *file, int cmd, struct file_lock *fl)
@@ -1567,7 +924,11 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 struct file_operations gfs2_file_fops = {
 	.llseek = gfs2_llseek,
 	.read = gfs2_read,
-	.write = gfs2_write,
+	.readv = gfs2_file_readv,
+	.aio_read = gfs2_file_aio_read,
+	.write = generic_file_write,
+	.writev = generic_file_writev,
+	.aio_write = generic_file_aio_write,
 	.ioctl = gfs2_ioctl,
 	.mmap = gfs2_mmap,
 	.open = gfs2_open,

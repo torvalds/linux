@@ -154,14 +154,13 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 		gfs2_attach_bufdata(gl, bh, meta);
 		bd = get_v2bd(bh);
 	}
-
 	lops_add(sdp, &bd->bd_le);
 }
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, uint64_t blkno)
 {
 	struct gfs2_revoke *rv = kmalloc(sizeof(struct gfs2_revoke),
-					 GFP_KERNEL | __GFP_NOFAIL);
+					 GFP_NOFS | __GFP_NOFAIL);
 	lops_init_le(&rv->rv_le, &gfs2_revoke_lops);
 	rv->rv_blkno = blkno;
 	lops_add(sdp, &rv->rv_le);
@@ -195,21 +194,5 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, uint64_t blkno)
 void gfs2_trans_add_rg(struct gfs2_rgrpd *rgd)
 {
 	lops_add(rgd->rd_sbd, &rgd->rd_le);
-}
-
-void gfs2_trans_add_databuf(struct gfs2_sbd *sdp, struct buffer_head *bh)
-{
-	struct gfs2_bufdata *bd;
-
-	bd = get_v2bd(bh);
-	if (!bd) {
-		bd = kmalloc(sizeof(struct gfs2_bufdata),
-			     GFP_NOFS | __GFP_NOFAIL);
-		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
-		get_bh(bh);
-		bd->bd_bh = bh;
-		set_v2bd(bh, bd);
-		lops_add(sdp, &bd->bd_le);
-	}
 }
 

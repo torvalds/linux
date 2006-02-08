@@ -336,6 +336,10 @@ struct gfs2_log_header {
 /* ld_data1 is the number of revoke blocks in the descriptor.
    ld_data2 is unused. */
 
+#define GFS2_LOG_DESC_JDATA	302
+/* ld_data1 is the number of data blocks in the descriptor.
+   ld_data2 is unused. */
+
 struct gfs2_log_descriptor {
 	struct gfs2_meta_header ld_header;
 
@@ -400,6 +404,7 @@ struct gfs2_quota_change {
 	__be32 qc_id;
 };
 
+#ifdef __KERNEL__
 /* Translation functions */
 
 extern void gfs2_inum_in(struct gfs2_inum *no, char *buf);
@@ -443,5 +448,7 @@ extern void gfs2_inum_range_print(struct gfs2_inum_range *ir);
 extern void gfs2_statfs_change_print(struct gfs2_statfs_change *sc);
 extern void gfs2_unlinked_tag_print(struct gfs2_unlinked_tag *ut);
 extern void gfs2_quota_change_print(struct gfs2_quota_change *qc);
+
+#endif /* __KERNEL__ */
 
 #endif /* __GFS2_ONDISK_DOT_H__ */

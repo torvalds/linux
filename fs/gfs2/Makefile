@@ -10,7 +10,6 @@ gfs2-y := \
 	glock.o \
 	glops.o \
 	inode.o \
-	jdata.o \
 	lm.o \
 	log.o \
 	lops.o \

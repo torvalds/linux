@@ -18,12 +18,12 @@
 #include "bmap.h"
 #include "glock.h"
 #include "inode.h"
-#include "jdata.h"
 #include "meta_io.h"
 #include "page.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "dir.h"
 
 /* This doesn't need to be that large as max 64 bit pointers in a 4k
  * block is 512, so __u16 is fine for that. It saves stack space to
@@ -90,7 +90,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 {
 	struct buffer_head *bh, *dibh;
 	uint64_t block = 0;
-	int journaled = gfs2_is_jdata(ip);
+	int isdir = gfs2_is_dir(ip);
 	int error;
 
 	down_write(&ip->i_rw_mutex);
@@ -103,10 +103,10 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 		/* Get a free block, fill it with the stuffed data,
 		   and write it out to disk */
 
-		if (journaled) {
+		if (isdir) {
 			block = gfs2_alloc_meta(ip);
 
-			error = gfs2_jdata_get_buffer(ip, block, 1, &bh);
+			error = gfs2_dir_get_buffer(ip, block, 1, &bh);
 			if (error)
 				goto out_brelse;
 			gfs2_buffer_copy_tail(bh,
@@ -168,7 +168,7 @@ static unsigned int calc_tree_height(struct gfs2_inode *ip, uint64_t size)
 	if (ip->i_di.di_size > size)
 		size = ip->i_di.di_size;
 
-	if (gfs2_is_jdata(ip)) {
+	if (gfs2_is_dir(ip)) {
 		arr = sdp->sd_jheightsize;
 		max = sdp->sd_max_jheight;
 	} else {
@@ -377,7 +377,7 @@ static void lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 		return;
 
 	if (height == ip->i_di.di_height - 1 &&
-	    !gfs2_is_jdata(ip))
+	    !gfs2_is_dir(ip))
 		*block = gfs2_alloc_data(ip);
 	else
 		*block = gfs2_alloc_meta(ip);
@@ -430,7 +430,7 @@ int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
 	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
 		goto out;
 
-	bsize = (gfs2_is_jdata(ip)) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
+	bsize = (gfs2_is_dir(ip)) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
 
 	height = calc_tree_height(ip, (lblock + 1) * bsize);
 	if (ip->i_di.di_height < height) {
@@ -618,7 +618,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		sm->sm_first = 0;
 	}
 
-	metadata = (height != ip->i_di.di_height - 1) || gfs2_is_jdata(ip);
+	metadata = (height != ip->i_di.di_height - 1);
 	if (metadata)
 		revokes = (height) ? sdp->sd_inptrs : sdp->sd_diptrs;
 
@@ -814,33 +814,6 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 	return error;
 }
 
-static int truncator_journaled(struct gfs2_inode *ip, uint64_t size)
-{
-	uint64_t lbn, dbn;
-	uint32_t off;
-	struct buffer_head *bh;
-	int new = 0;
-	int error;
-
-	lbn = size;
-	off = do_div(lbn, ip->i_sbd->sd_jbsize);
-
-	error = gfs2_block_map(ip, lbn, &new, &dbn, NULL);
-	if (error || !dbn)
-		return error;
-
-	error = gfs2_jdata_get_buffer(ip, dbn, 0, &bh);
-	if (error)
-		return error;
-
-	gfs2_trans_add_bh(ip->i_gl, bh, 1);
-	gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header) + off);
-
-	brelse(bh);
-
-	return 0;
-}
-
 static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 {
 	struct gfs2_sbd *sdp = ip->i_sbd;
@@ -866,12 +839,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 		error = 1;
 
 	} else {
-		if (journaled) {
-			uint64_t junk = size;
-			/* we're just interested in the modulus */
-			if (do_div(junk, sdp->sd_jbsize))
-				error = truncator_journaled(ip, size);
-		} else if (size & (uint64_t)(sdp->sd_sb.sb_bsize - 1))
+		if (size & (uint64_t)(sdp->sd_sb.sb_bsize - 1))
 			error = gfs2_block_truncate_page(ip->i_vnode->i_mapping);
 
 		if (!error) {
@@ -900,10 +868,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, uint64_t size)
 
 	if (!size)
 		lblock = 0;
-	else if (gfs2_is_jdata(ip)) {
-		lblock = size - 1;
-		do_div(lblock, ip->i_sbd->sd_jbsize);
-	} else
+	else
 		lblock = (size - 1) >> ip->i_sbd->sd_sb.sb_bsize_shift;
 
 	find_metapath(ip, lblock, &mp);
@@ -1051,7 +1016,7 @@ void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	unsigned int tmp;
 
-	if (gfs2_is_jdata(ip)) {
+	if (gfs2_is_dir(ip)) {
 		*data_blocks = DIV_RU(len, sdp->sd_jbsize) + 2;
 		*ind_blocks = 3 * (sdp->sd_max_jheight - 1);
 	} else {
@@ -1096,7 +1061,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
 		return 0;
 	}
 
-	if (gfs2_is_jdata(ip)) {
+	if (gfs2_is_dir(ip)) {
 		unsigned int bsize = sdp->sd_jbsize;
 		lblock = offset;
 		do_div(lblock, bsize);

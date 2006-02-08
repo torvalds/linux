@@ -155,9 +155,6 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	if (error)
 		return NULL;
 
-	if (gfs2_is_jdata(ip))
-		goto out;
-
 	set_bit(GIF_PAGED, &ip->i_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 

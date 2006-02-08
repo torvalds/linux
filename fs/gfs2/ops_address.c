@@ -20,13 +20,13 @@
 #include "bmap.h"
 #include "glock.h"
 #include "inode.h"
-#include "jdata.h"
 #include "log.h"
 #include "meta_io.h"
 #include "ops_address.h"
 #include "page.h"
 #include "quota.h"
 #include "trans.h"
+#include "rgrp.h"
 
 /**
  * gfs2_get_block - Fills in a buffer head with details about a block
@@ -149,33 +149,55 @@ static int get_blocks_noalloc(struct inode *inode, sector_t lblock,
  *
  * Returns: errno
  *
- * Use Linux VFS block_write_full_page() to write one page,
- *   using GFS2's get_block_noalloc to find which blocks to write.
+ * Some of this is copied from block_write_full_page() although we still
+ * call it to do most of the work.
  */
 
 static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
+	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = get_v2ip(page->mapping->host);
 	struct gfs2_sbd *sdp = ip->i_sbd;
+	loff_t i_size = i_size_read(inode);
+	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	unsigned offset;
 	int error;
+	int done_trans = 0;
 
 	atomic_inc(&sdp->sd_ops_address);
-
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl))) {
 		unlock_page(page);
 		return -EIO;
 	}
-	if (get_transaction) {
-		redirty_page_for_writepage(wbc, page);
+	if (get_transaction)
+		goto out_ignore;
+
+	/* Is the page fully outside i_size? (truncate in progress) */
+        offset = i_size & (PAGE_CACHE_SIZE-1);
+	if (page->index >= end_index+1 || !offset) {
+		page->mapping->a_ops->invalidatepage(page, 0);
 		unlock_page(page);
-		return 0;
+		return 0; /* don't care */
+	}
+
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip)) {
+		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
+		if (error)
+			goto out_ignore;
+		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
+		done_trans = 1;
 	}
 
 	error = block_write_full_page(page, get_block_noalloc, wbc);
-
+	if (done_trans)
+		gfs2_trans_end(sdp);
 	gfs2_meta_cache_flush(ip);
-
 	return error;
+
+out_ignore:
+	redirty_page_for_writepage(wbc, page);
+	unlock_page(page);
+	return 0;
 }
 
 /**
@@ -227,40 +249,9 @@ static int zero_readpage(struct page *page)
 }
 
 /**
- * jdata_readpage - readpage that goes through gfs2_jdata_read_mem()
- * @ip:
- * @page: The page to read
- *
- * Returns: errno
- */
-
-static int jdata_readpage(struct gfs2_inode *ip, struct page *page)
-{
-	void *kaddr;
-	int ret;
-
-	kaddr = kmap(page);
-
-	ret = gfs2_jdata_read_mem(ip, kaddr,
-				  (uint64_t)page->index << PAGE_CACHE_SHIFT,
-				  PAGE_CACHE_SIZE);
-	if (ret >= 0) {
-		if (ret < PAGE_CACHE_SIZE)
-			memset(kaddr + ret, 0, PAGE_CACHE_SIZE - ret);
-		SetPageUptodate(page);
-		ret = 0;
-	}
-
-	kunmap(page);
-
-	unlock_page(page);
-
-	return ret;
-}
-
-/**
  * gfs2_readpage - readpage with locking
- * @file: The file to read a page for
+ * @file: The file to read a page for. N.B. This may be NULL if we are
+ * reading an internal file.
  * @page: The page to read
  *
  * Returns: errno
@@ -270,31 +261,35 @@ static int gfs2_readpage(struct file *file, struct page *page)
 {
 	struct gfs2_inode *ip = get_v2ip(page->mapping->host);
 	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_holder gh;
 	int error;
 
 	atomic_inc(&sdp->sd_ops_address);
 
-	if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl))) {
-		unlock_page(page);
-		return -EOPNOTSUPP;
-	}
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+	error = gfs2_glock_nq_m_atime(1, &gh);
+	if (error)
+		goto out_unlock;
 
-	if (!gfs2_is_jdata(ip)) {
-		if (gfs2_is_stuffed(ip)) {
-			if (!page->index) {
-				error = stuffed_readpage(ip, page);
-				unlock_page(page);
-			} else
-				error = zero_readpage(page);
+	if (gfs2_is_stuffed(ip)) {
+		if (!page->index) {
+			error = stuffed_readpage(ip, page);
+			unlock_page(page);
 		} else
-			error = mpage_readpage(page, gfs2_get_block);
+			error = zero_readpage(page);
 	} else
-		error = jdata_readpage(ip, page);
+		error = mpage_readpage(page, gfs2_get_block);
 
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = -EIO;
 
+	gfs2_glock_dq_m(1, &gh);
+	gfs2_holder_uninit(&gh);
+out:
 	return error;
+out_unlock:
+	unlock_page(page);
+	goto out;
 }
 
 /**
@@ -312,28 +307,82 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 {
 	struct gfs2_inode *ip = get_v2ip(page->mapping->host);
 	struct gfs2_sbd *sdp = ip->i_sbd;
+	unsigned int data_blocks, ind_blocks, rblocks;
+	int alloc_required;
 	int error = 0;
+	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + from;
+	loff_t end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
+	struct gfs2_alloc *al;
 
 	atomic_inc(&sdp->sd_ops_address);
 
-	if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)))
-		return -EOPNOTSUPP;
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME, &ip->i_gh);
+	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
+	if (error)
+		goto out_uninit;
+
+	gfs2_write_calc_reserv(ip, to - from, &data_blocks, &ind_blocks);
+
+	error = gfs2_write_alloc_required(ip, pos, from - to, &alloc_required);
+	if (error)
+		goto out_unlock;
+
+
+	if (alloc_required) {
+		al = gfs2_alloc_get(ip);
+
+		error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		if (error)
+			goto out_alloc_put;
+
+		error = gfs2_quota_check(ip, ip->i_di.di_uid, ip->i_di.di_gid);
+		if (error)
+			goto out_qunlock;
+
+		al->al_requested = data_blocks + ind_blocks;
+		error = gfs2_inplace_reserve(ip);
+		if (error)
+			goto out_qunlock;
+	}
+
+	rblocks = RES_DINODE + ind_blocks;
+	if (gfs2_is_jdata(ip))
+		rblocks += data_blocks ? data_blocks : 1;
+	if (ind_blocks || data_blocks)
+		rblocks += RES_STATFS + RES_QUOTA;
+
+	error = gfs2_trans_begin(sdp, rblocks, 0);
+	if (error)
+		goto out;
 
 	if (gfs2_is_stuffed(ip)) {
-		uint64_t file_size;
-		file_size = ((uint64_t)page->index << PAGE_CACHE_SHIFT) + to;
-
-		if (file_size > sdp->sd_sb.sb_bsize -
-				sizeof(struct gfs2_dinode)) {
-			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page,
-						    page);
-			if (!error)
-				error = block_prepare_write(page, from, to,
-							    gfs2_get_block);
-		} else if (!PageUptodate(page))
+		if (end > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
+			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page, page);
+			if (error)
+				goto out;
+		} else if (!PageUptodate(page)) {
 			error = stuffed_readpage(ip, page);
-	} else
-		error = block_prepare_write(page, from, to, gfs2_get_block);
+			goto out;
+		}
+	}
+
+	error = block_prepare_write(page, from, to, gfs2_get_block);
+
+out:
+	if (error) {
+		gfs2_trans_end(sdp);
+		if (alloc_required) {
+			gfs2_inplace_release(ip);
+out_qunlock:
+			gfs2_quota_unlock(ip);
+out_alloc_put:
+			gfs2_alloc_put(ip);
+		}
+out_unlock:
+		gfs2_glock_dq_m(1, &ip->i_gh);
+out_uninit:
+		gfs2_holder_uninit(&ip->i_gh);
+	}
 
 	return error;
 }
@@ -354,48 +403,73 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = get_v2ip(inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
-	int error;
+	int error = -EOPNOTSUPP;
+	struct buffer_head *dibh;
+	struct gfs2_alloc *al = &ip->i_alloc;;
 
 	atomic_inc(&sdp->sd_ops_address);
 
+
+	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)))
+                goto fail_nounlock;
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		goto fail_endtrans;
+
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+
 	if (gfs2_is_stuffed(ip)) {
-		struct buffer_head *dibh;
 		uint64_t file_size;
 		void *kaddr;
 
 		file_size = ((uint64_t)page->index << PAGE_CACHE_SHIFT) + to;
 
-		error = gfs2_meta_inode_buffer(ip, &dibh);
-		if (error)
-			goto fail;
-
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-
-		kaddr = kmap(page);
+		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode) + from,
-		       (char *)kaddr + from,
-		       to - from);
-		kunmap(page);
-
-		brelse(dibh);
+		       (char *)kaddr + from, to - from);
+		kunmap_atomic(page, KM_USER0);
 
 		SetPageUptodate(page);
 
 		if (inode->i_size < file_size)
 			i_size_write(inode, file_size);
 	} else {
-		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED)
+		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
 			gfs2_page_add_databufs(ip, page, from, to);
 		error = generic_commit_write(file, page, from, to);
 		if (error)
 			goto fail;
 	}
 
+	if (ip->i_di.di_size < inode->i_size)
+		ip->i_di.di_size = inode->i_size;
+
+	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	brelse(dibh);
+	gfs2_trans_end(sdp);
+	if (al->al_requested) {
+		gfs2_inplace_release(ip);
+		gfs2_quota_unlock(ip);
+		gfs2_alloc_put(ip);
+	}
+	gfs2_glock_dq_m(1, &ip->i_gh);
+	gfs2_holder_uninit(&ip->i_gh);
 	return 0;
 
- fail:
+fail:
+	brelse(dibh);
+fail_endtrans:
+	gfs2_trans_end(sdp);
+	if (al->al_requested) {
+		gfs2_inplace_release(ip);
+		gfs2_quota_unlock(ip);
+		gfs2_alloc_put(ip);
+	}
+	gfs2_glock_dq_m(1, &ip->i_gh);
+	gfs2_holder_uninit(&ip->i_gh);
+fail_nounlock:
 	ClearPageUptodate(page);
-
 	return error;
 }
 
@@ -492,12 +566,16 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb, const struct iovec *io
 
 	atomic_inc(&sdp->sd_ops_address);
 
-	if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)) ||
-	    gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
+	if (gfs2_is_jdata(ip))
 		return -EINVAL;
 
-	if (rw == WRITE && !get_transaction)
-		gb = get_blocks_noalloc;
+	if (rw == WRITE) {
+		return -EOPNOTSUPP; /* for now */
+	} else {
+		if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)) ||
+		    gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
+			return -EINVAL;
+	}
 
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
 				  offset, nr_segs, gb, NULL);

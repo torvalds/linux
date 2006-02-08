@@ -86,8 +86,8 @@ typedef int (*leaf_call_t) (struct gfs2_inode *dip,
 			    uint32_t index, uint32_t len, uint64_t leaf_no,
 			    void *data);
 
-static int gfs2_dir_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
-			       struct buffer_head **bhp)
+int gfs2_dir_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
+		         struct buffer_head **bhp)
 {
 	struct buffer_head *bh;
 	int error = 0;

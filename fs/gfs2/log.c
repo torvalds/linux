@@ -387,8 +387,7 @@ struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 	bh = lb->lb_bh = alloc_buffer_head(GFP_NOFS | __GFP_NOFAIL);
 	atomic_set(&bh->b_count, 1);
 	bh->b_state = (1 << BH_Mapped) | (1 << BH_Uptodate);
-	set_bh_page(bh, virt_to_page(real->b_data),
-		    ((unsigned long)real->b_data) & (PAGE_SIZE - 1));
+	set_bh_page(bh, real->b_page, bh_offset(real));
 	bh->b_blocknr = blkno;
 	bh->b_size = sdp->sd_sb.sb_bsize;
 	bh->b_bdev = sdp->sd_vfs->s_bdev;
@@ -634,6 +633,7 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_blks_reserved);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_gl);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_buf);
+	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_jdata);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_rg);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_databuf);

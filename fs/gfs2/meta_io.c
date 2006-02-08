@@ -547,10 +547,12 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta
 {
 	struct gfs2_bufdata *bd;
 
-	lock_page(bh->b_page);
+	if (meta)
+		lock_page(bh->b_page);
 
 	if (get_v2bd(bh)) {
-		unlock_page(bh->b_page);
+		if (meta)
+			unlock_page(bh->b_page);
 		return;
 	}
 
@@ -563,14 +565,16 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta
 	bd->bd_gl = gl;
 
 	INIT_LIST_HEAD(&bd->bd_list_tr);
-	if (meta)
+	if (meta) {
 		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
-	else
+	} else {
 		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
-
+		get_bh(bh);
+	}
 	set_v2bd(bh, bd);
 
-	unlock_page(bh->b_page);
+	if (meta)
+		unlock_page(bh->b_page);
 }
 
 /**

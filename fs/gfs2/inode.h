@@ -20,6 +20,11 @@ static inline int gfs2_is_jdata(struct gfs2_inode *ip)
 	return ip->i_di.di_flags & GFS2_DIF_JDATA;
 }
 
+static inline int gfs2_is_dir(struct gfs2_inode *ip)
+{
+	return S_ISDIR(ip->i_di.di_mode);
+}
+
 void gfs2_inode_attr_in(struct gfs2_inode *ip);
 void gfs2_inode_attr_out(struct gfs2_inode *ip);
 struct inode *gfs2_ip2v_lookup(struct gfs2_inode *ip);
@@ -72,9 +77,9 @@ static inline int gfs2_lookup_simple(struct inode *dip, char *name,
 	err = gfs2_lookupi(get_v2ip(dip), &qstr, 1, &ip);
 	if (err == 0) {
 		*ipp = gfs2_ip2v(ip);
+		gfs2_inode_put(ip);
 		if (*ipp == NULL)
 			err = -ENOMEM;
-		gfs2_inode_put(ip);
 	}
 	return err;
 }

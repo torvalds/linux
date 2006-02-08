@@ -172,8 +172,8 @@ int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		map_bh(bh, inode->i_sb, block);
 
 	set_buffer_uptodate(bh);
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED)
-		gfs2_trans_add_databuf(sdp, bh);
+	if ((sdp->sd_args.ar_data == GFS2_DATA_ORDERED) || gfs2_is_jdata(ip))
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 	mark_buffer_dirty(bh);
 
 	if (release) {
@@ -245,8 +245,8 @@ int gfs2_block_truncate_page(struct address_space *mapping)
 			goto unlock;
 	}
 
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED/* || gfs2_is_jdata(ip)*/)
-		gfs2_trans_add_databuf(sdp, bh);
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	memset(kaddr + offset, 0, length);
@@ -273,7 +273,7 @@ void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 		end = start + bsize;
 		if (end <= from || start >= to)
 			continue;
-		gfs2_trans_add_databuf(ip->i_sbd, bh);
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 	}
 }
 

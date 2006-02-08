@@ -43,20 +43,22 @@
 #include <linux/buffer_head.h>
 #include <linux/tty.h>
 #include <linux/sort.h>
+#include <linux/fs.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
-#include "jdata.h"
 #include "log.h"
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "super.h"
 #include "trans.h"
+#include "inode.h"
 #include "ops_file.h"
+#include "ops_address.h"
 
 #define QUOTA_USER 1
 #define QUOTA_GROUP 0
@@ -561,6 +563,81 @@ static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 	up(&sdp->sd_quota_mutex);
 }
 
+/**
+ * gfs2_adjust_quota
+ *
+ * This function was mostly borrowed from gfs2_block_truncate_page which was
+ * in turn mostly borrowed from ext3
+ */
+static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
+			     int64_t change, struct gfs2_quota_data *qd)
+{
+	struct inode *inode = gfs2_ip2v(ip);
+	struct address_space *mapping = inode->i_mapping;
+	unsigned long index = loc >> PAGE_CACHE_SHIFT;
+	unsigned offset = loc & (PAGE_CACHE_SHIFT - 1);
+	unsigned blocksize, iblock, pos;
+	struct buffer_head *bh;
+	struct page *page;
+	void *kaddr;
+	__be64 *ptr;
+	u64 value;
+	int err = -EIO;
+
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		return -ENOMEM;
+
+	blocksize = inode->i_sb->s_blocksize;
+	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
+
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, blocksize, 0);
+
+	bh = page_buffers(page);
+	pos = blocksize;
+	while (offset >= pos) {
+		bh = bh->b_this_page;
+		iblock++;
+		pos += blocksize;
+	}
+
+	if (!buffer_mapped(bh)) {
+		gfs2_get_block(inode, iblock, bh, 1);
+		if (!buffer_mapped(bh))
+			goto unlock;
+	}
+
+	if (PageUptodate(page))
+		set_buffer_uptodate(bh);
+
+	if (!buffer_uptodate(bh)) {
+		ll_rw_block(READ, 1, &bh);
+		wait_on_buffer(bh);
+		if (!buffer_uptodate(bh))
+			goto unlock;
+	}
+
+	gfs2_trans_add_bh(ip->i_gl, bh, 0);
+
+	kaddr = kmap_atomic(page, KM_USER0);
+	ptr = (__be64 *)(kaddr + offset);
+	value = *ptr = cpu_to_be64(be64_to_cpu(*ptr) + change);
+	flush_dcache_page(page);
+	kunmap_atomic(kaddr, KM_USER0);
+	err = 0;
+	qd->qd_qb.qb_magic = cpu_to_be32(GFS2_MAGIC);
+#if 0
+	qd->qd_qb.qb_limit = cpu_to_be64(q.qu_limit);
+	qd->qd_qb.qb_warn = cpu_to_be64(q.qu_warn);
+#endif
+	qd->qd_qb.qb_value = cpu_to_be64(value);
+unlock:
+	unlock_page(page);
+	page_cache_release(page);
+	return err;
+}
+
 static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 {
 	struct gfs2_sbd *sdp = (*qda)->qd_gl->gl_sbd;
@@ -635,43 +712,14 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 
 	file_ra_state_init(&ra_state, ip->i_vnode->i_mapping);
 	for (x = 0; x < num_qd; x++) {
-		char buf[sizeof(struct gfs2_quota)];
-		struct gfs2_quota q;
-
 		qd = qda[x];
 		offset = qd2offset(qd);
-
-		/* The quota file may not be a multiple of
-		   sizeof(struct gfs2_quota) bytes. */
-		memset(buf, 0, sizeof(struct gfs2_quota));
-
-		error = gfs2_internal_read(ip, &ra_state, buf, &offset,
-					    sizeof(struct gfs2_quota));
-		if (error < 0)
+		error = gfs2_adjust_quota(ip, offset, qd->qd_change_sync,
+					  (struct gfs2_quota_data *)qd->qd_gl->gl_lvb);
+		if (error)
 			goto out_end_trans;
-
-		gfs2_quota_in(&q, buf);
-		q.qu_value += qda[x]->qd_change_sync;
-		gfs2_quota_out(&q, buf);
-
-		error = gfs2_jdata_write_mem(ip, buf, offset,
-					     sizeof(struct gfs2_quota));
-		if (error < 0)
-			goto out_end_trans;
-		else if (error != sizeof(struct gfs2_quota)) {
-			error = -EIO;
-			goto out_end_trans;
-		}
 
 		do_qc(qd, -qd->qd_change_sync);
-
-		memset(&qd->qd_qb, 0, sizeof(struct gfs2_quota_lvb));
-		qd->qd_qb.qb_magic = GFS2_MAGIC;
-		qd->qd_qb.qb_limit = q.qu_limit;
-		qd->qd_qb.qb_warn = q.qu_warn;
-		qd->qd_qb.qb_value = q.qu_value;
-
-		gfs2_quota_lvb_out(&qd->qd_qb, qd->qd_gl->gl_lvb);
 	}
 
 	error = 0;

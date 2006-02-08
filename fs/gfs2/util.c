@@ -50,6 +50,7 @@ int gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname, assertion,
 		sdp->sd_fsname, function, file, line);
+	dump_stack();
 	return (me) ? -1 : -2;
 }
 
@@ -75,6 +76,8 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 
 	if (sdp->sd_args.ar_debug)
 		BUG();
+	else
+		dump_stack();
 
 	sdp->sd_last_warning = jiffies;
 
