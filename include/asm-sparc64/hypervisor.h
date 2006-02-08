@@ -272,17 +272,19 @@
  *		EBADALIGN	Base real address is not correctly aligned
  *				for size.
  *
- * Configure the given queue to be placed at the givem base real
+ * Configure the given queue to be placed at the given base real
  * address, with the given number of entries.  The number of entries
  * must be a power of 2.  The base real address must be aligned
  * exactly to match the queue size.  Each queue entry is 64 bytes
  * long, so for example a 32 entry queue must be aligned on a 2048
  * byte real address boundary.
  *
- * The specified queue is unconfigured is number of entries is given as zero.
+ * The specified queue is unconfigured if the number of entries is given
+ * as zero.
  *
  * For the current version of this API service, the argument queue is defined
  * as follows:
+ *
  *	queue		description
  *	-----		-------------------------
  *	0x3c		cpu mondo queue
