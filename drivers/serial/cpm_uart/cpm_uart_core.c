@@ -252,12 +252,9 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 		/* If we have not enough room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
-		if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE) {
-			tty->flip.work.func((void *)tty);
-			if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE) {
-				printk(KERN_WARNING "TTY_DONT_FLIP set\n");
-				return;
-			}
+		if(tty_buffer_request_room(tty, i) < i) {
+			printk(KERN_WARNING "No room in flip buffer\n");
+			return;
 		}
 
 		/* get pointer */
@@ -276,9 +273,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 				continue;
 
 		      error_return:
-			*tty->flip.char_buf_ptr++ = ch;
-			*tty->flip.flag_buf_ptr++ = flg;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, ch, flg);
 
 		}		/* End while (i--) */
 
