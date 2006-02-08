@@ -976,7 +976,7 @@ static int bcm43xx_wx_sprom_write(struct net_device *net_dev,
 			printk("75%%");
 		else if (i % 2)
 			printk(".");
-//TODO		bcm43xx_write16(bcm, BCM43xx_SPROM_BASE + (i * 2), sprom[i]);
+		bcm43xx_write16(bcm, BCM43xx_SPROM_BASE + (i * 2), sprom[i]);
 		mdelay(20);
 	}
 	spromctl &= ~0x10; /* SPROM WRITE enable. */
