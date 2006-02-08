@@ -212,6 +212,7 @@ void __init ixdp2x01_pci_preinit(void)
 {
 	ixp2000_reg_write(IXP2000_PCI_ADDR_EXT, 0x00000000);
 	ixp2000_pci_preinit();
+	pcibios_setup("firmware");
 }
 
 #define DEVPIN(dev, pin) ((pin) | ((dev) << 3))

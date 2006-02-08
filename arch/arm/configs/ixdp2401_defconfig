@@ -172,7 +172,7 @@ CONFIG_ALIGNMENT_TRAP=y
 #
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="console=ttyS0,115200 root=/dev/nfs ip=bootp mem=64M@0x0 pci=firmware"
+CONFIG_CMDLINE="console=ttyS0,115200 root=/dev/nfs ip=bootp mem=64M@0x0"
 # CONFIG_XIP_KERNEL is not set
 
 #
