@@ -53,16 +53,17 @@ DECLARE_PER_CPU(cpuinfo_sparc, __cpu_data);
  */
 struct thread_info;
 struct trap_per_cpu {
-/* D-cache line 1: Basic thread information */
+/* D-cache line 1: Basic thread information, cpu and device mondo queues */
 	struct thread_info	*thread;
 	unsigned long		pgd_paddr;
-	unsigned long		__pad1[2];
-
-/* D-cache line 2: Sun4V Mondo Queue pointers */
 	unsigned long		cpu_mondo_pa;
 	unsigned long		dev_mondo_pa;
+
+/* D-cache line 2: Error Mondo Queue and kernel buffer pointers */
 	unsigned long		resum_mondo_pa;
+	unsigned long		resum_kernel_buf_pa;
 	unsigned long		nonresum_mondo_pa;
+	unsigned long		nonresum_kernel_buf_pa;
 
 /* Dcache lines 3 and 4: Hypervisor Fault Status */
 	struct hv_fault_status	fault_info;
@@ -100,10 +101,12 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 
 #define TRAP_PER_CPU_THREAD		0x00
 #define TRAP_PER_CPU_PGD_PADDR		0x08
-#define TRAP_PER_CPU_CPU_MONDO_PA	0x20
-#define TRAP_PER_CPU_DEV_MONDO_PA	0x28
-#define TRAP_PER_CPU_RESUM_MONDO_PA	0x30
-#define TRAP_PER_CPU_NONRESUM_MONDO_PA	0x38
+#define TRAP_PER_CPU_CPU_MONDO_PA	0x10
+#define TRAP_PER_CPU_DEV_MONDO_PA	0x18
+#define TRAP_PER_CPU_RESUM_MONDO_PA	0x20
+#define TRAP_PER_CPU_RESUM_KBUF_PA	0x28
+#define TRAP_PER_CPU_NONRESUM_MONDO_PA	0x30
+#define TRAP_PER_CPU_NONRESUM_KBUF_PA	0x38
 #define TRAP_PER_CPU_FAULT_INFO		0x40
 
 #define TRAP_BLOCK_SZ_SHIFT		7
@@ -187,6 +190,9 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	add	REG3, REG2, DEST;
 
 #else
+
+#define __GET_CPUID(REG)				\
+	mov	0, REG;
 
 /* Uniprocessor versions, we know the cpuid is zero.  */
 #define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\

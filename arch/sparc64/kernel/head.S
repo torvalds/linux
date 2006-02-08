@@ -511,13 +511,14 @@ setup_tba:
 sparc64_boot_end:
 
 #include "systbls.S"
-#include "sun4v_tlb_miss.S"
 #include "ktlb.S"
 #include "tsb.S"
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"
 #include "entry.S"
+#include "sun4v_tlb_miss.S"
+#include "sun4v_ivec.S"
 
 /*
  * The following skip makes sure the trap table in ttable.S is aligned

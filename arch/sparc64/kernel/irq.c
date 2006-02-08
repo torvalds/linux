@@ -888,7 +888,19 @@ static void __cpuinit init_one_mondo(unsigned long *pa_ptr, unsigned long type)
 	}
 }
 
-/* Allocate and init the mondo queues for this cpu.  */
+static void __cpuinit init_one_kbuf(unsigned long *pa_ptr)
+{
+	unsigned long page = get_zeroed_page(GFP_ATOMIC);
+
+	if (!page) {
+		prom_printf("SUN4V: Error, cannot allocate kbuf page.\n");
+		prom_halt();
+	}
+
+	*pa_ptr = __pa(page);
+}
+
+/* Allocate and init the mondo and error queues for this cpu.  */
 void __cpuinit sun4v_init_mondo_queues(void)
 {
 	int cpu = hard_smp_processor_id();
@@ -897,7 +909,9 @@ void __cpuinit sun4v_init_mondo_queues(void)
 	init_one_mondo(&tb->cpu_mondo_pa, HV_CPU_QUEUE_CPU_MONDO);
 	init_one_mondo(&tb->dev_mondo_pa, HV_CPU_QUEUE_DEVICE_MONDO);
 	init_one_mondo(&tb->resum_mondo_pa, HV_CPU_QUEUE_RES_ERROR);
+	init_one_kbuf(&tb->resum_kernel_buf_pa);
 	init_one_mondo(&tb->nonresum_mondo_pa, HV_CPU_QUEUE_NONRES_ERROR);
+	init_one_kbuf(&tb->nonresum_kernel_buf_pa);
 }
 
 /* Only invoked on boot processor. */

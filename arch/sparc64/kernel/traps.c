@@ -1668,6 +1668,186 @@ void cheetah_plus_parity_error(int type, struct pt_regs *regs)
 	       regs->tpc);
 }
 
+struct sun4v_error_entry {
+	u64		err_handle;
+	u64		err_stick;
+
+	u32		err_type;
+#define SUN4V_ERR_TYPE_UNDEFINED	0
+#define SUN4V_ERR_TYPE_UNCORRECTED_RES	1
+#define SUN4V_ERR_TYPE_PRECISE_NONRES	2
+#define SUN4V_ERR_TYPE_DEFERRED_NONRES	3
+#define SUN4V_ERR_TYPE_WARNING_RES	4
+
+	u32		err_attrs;
+#define SUN4V_ERR_ATTRS_PROCESSOR	0x00000001
+#define SUN4V_ERR_ATTRS_MEMORY		0x00000002
+#define SUN4V_ERR_ATTRS_PIO		0x00000004
+#define SUN4V_ERR_ATTRS_INT_REGISTERS	0x00000008
+#define SUN4V_ERR_ATTRS_FPU_REGISTERS	0x00000010
+#define SUN4V_ERR_ATTRS_USER_MODE	0x01000000
+#define SUN4V_ERR_ATTRS_PRIV_MODE	0x02000000
+#define SUN4V_ERR_ATTRS_RES_QUEUE_FULL	0x80000000
+
+	u64		err_raddr;
+	u32		err_size;
+	u16		err_cpu;
+	u16		err_pad;
+};
+
+static atomic_t sun4v_resum_oflow_cnt = ATOMIC_INIT(0);
+static atomic_t sun4v_nonresum_oflow_cnt = ATOMIC_INIT(0);
+
+static const char *sun4v_err_type_to_str(u32 type)
+{
+	switch (type) {
+	case SUN4V_ERR_TYPE_UNDEFINED:
+		return "undefined";
+	case SUN4V_ERR_TYPE_UNCORRECTED_RES:
+		return "uncorrected resumable";
+	case SUN4V_ERR_TYPE_PRECISE_NONRES:
+		return "precise nonresumable";
+	case SUN4V_ERR_TYPE_DEFERRED_NONRES:
+		return "deferred nonresumable";
+	case SUN4V_ERR_TYPE_WARNING_RES:
+		return "warning resumable";
+	default:
+		return "unknown";
+	};
+}
+
+static void sun4v_log_error(struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
+{
+	int cnt;
+
+	printk("%s: Reporting on cpu %d\n", pfx, cpu);
+	printk("%s: err_handle[%lx] err_stick[%lx] err_type[%08x:%s]\n",
+	       pfx,
+	       ent->err_handle, ent->err_stick,
+	       ent->err_type,
+	       sun4v_err_type_to_str(ent->err_type));
+	printk("%s: err_attrs[%08x:%s %s %s %s %s %s %s %s]\n",
+	       pfx,
+	       ent->err_attrs,
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PROCESSOR) ?
+		"processor" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_MEMORY) ?
+		"memory" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PIO) ?
+		"pio" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_INT_REGISTERS) ?
+		"integer-regs" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_FPU_REGISTERS) ?
+		"fpu-regs" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_USER_MODE) ?
+		"user" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PRIV_MODE) ?
+		"privileged" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_RES_QUEUE_FULL) ?
+		"queue-full" : ""));
+	printk("%s: err_raddr[%016lx] err_size[%u] err_cpu[%u]\n",
+	       pfx,
+	       ent->err_raddr, ent->err_size, ent->err_cpu);
+
+	if ((cnt = atomic_read(ocnt)) != 0) {
+		atomic_set(ocnt, 0);
+		wmb();
+		printk("%s: Queue overflowed %d times.\n",
+		       pfx, cnt);
+	}
+}
+
+/* We run with %pil set to 15 and PSTATE_IE enabled in %pstate.
+ * Log the event and clear the first word of the entry.
+ */
+void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
+{
+	struct sun4v_error_entry *ent, local_copy;
+	struct trap_per_cpu *tb;
+	unsigned long paddr;
+	int cpu;
+
+	cpu = get_cpu();
+
+	tb = &trap_block[cpu];
+	paddr = tb->resum_kernel_buf_pa + offset;
+	ent = __va(paddr);
+
+	memcpy(&local_copy, ent, sizeof(struct sun4v_error_entry));
+
+	/* We have a local copy now, so release the entry.  */
+	ent->err_handle = 0;
+	wmb();
+
+	put_cpu();
+
+	sun4v_log_error(&local_copy, cpu,
+			KERN_ERR "RESUMABLE ERROR",
+			&sun4v_resum_oflow_cnt);
+}
+
+/* If we try to printk() we'll probably make matters worse, by trying
+ * to retake locks this cpu already holds or causing more errors. So
+ * just bump a counter, and we'll report these counter bumps above.
+ */
+void sun4v_resum_overflow(struct pt_regs *regs)
+{
+	atomic_inc(&sun4v_resum_oflow_cnt);
+}
+
+/* We run with %pil set to 15 and PSTATE_IE enabled in %pstate.
+ * Log the event, clear the first word of the entry, and die.
+ */
+void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
+{
+	struct sun4v_error_entry *ent, local_copy;
+	struct trap_per_cpu *tb;
+	unsigned long paddr;
+	int cpu;
+
+	cpu = get_cpu();
+
+	tb = &trap_block[cpu];
+	paddr = tb->nonresum_kernel_buf_pa + offset;
+	ent = __va(paddr);
+
+	memcpy(&local_copy, ent, sizeof(struct sun4v_error_entry));
+
+	/* We have a local copy now, so release the entry.  */
+	ent->err_handle = 0;
+	wmb();
+
+	put_cpu();
+
+#ifdef CONFIG_PCI
+	/* Check for the special PCI poke sequence. */
+	if (pci_poke_in_progress && pci_poke_cpu == cpu) {
+		pci_poke_faulted = 1;
+		regs->tpc += 4;
+		regs->tnpc = regs->tpc + 4;
+		return;
+	}
+#endif
+
+	sun4v_log_error(&local_copy, cpu,
+			KERN_EMERG "NON-RESUMABLE ERROR",
+			&sun4v_nonresum_oflow_cnt);
+
+	panic("Non-resumable error.");
+}
+
+/* If we try to printk() we'll probably make matters worse, by trying
+ * to retake locks this cpu already holds or causing more errors. So
+ * just bump a counter, and we'll report these counter bumps above.
+ */
+void sun4v_nonresum_overflow(struct pt_regs *regs)
+{
+	/* XXX Actually even this can make not that much sense.  Perhaps
+	 * XXX we should just pull the plug and panic directly from here?
+	 */
+	atomic_inc(&sun4v_nonresum_oflow_cnt);
+}
+
 void do_fpe_common(struct pt_regs *regs)
 {
 	if (regs->tstate & TSTATE_PRIV) {
@@ -2190,8 +2370,12 @@ void __init trap_init(void)
 	     offsetof(struct trap_per_cpu, dev_mondo_pa)) ||
 	    (TRAP_PER_CPU_RESUM_MONDO_PA !=
 	     offsetof(struct trap_per_cpu, resum_mondo_pa)) ||
+	    (TRAP_PER_CPU_RESUM_KBUF_PA !=
+	     offsetof(struct trap_per_cpu, resum_kernel_buf_pa)) ||
 	    (TRAP_PER_CPU_NONRESUM_MONDO_PA !=
 	     offsetof(struct trap_per_cpu, nonresum_mondo_pa)) ||
+	    (TRAP_PER_CPU_NONRESUM_KBUF_PA !=
+	     offsetof(struct trap_per_cpu, nonresum_kernel_buf_pa)) ||
 	    (TRAP_PER_CPU_FAULT_INFO !=
 	     offsetof(struct trap_per_cpu, fault_info)))
 		trap_per_cpu_offsets_are_bolixed_dave();
