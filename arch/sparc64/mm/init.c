@@ -40,6 +40,7 @@
 #include <asm/spitfire.h>
 #include <asm/sections.h>
 #include <asm/tsb.h>
+#include <asm/hypervisor.h>
 
 extern void device_scan(void);
 
@@ -1083,6 +1084,24 @@ static void __init tsb_phys_patch(void)
 	}
 }
 
+/* Register this cpu's fault status area with the hypervisor.  */
+void __cpuinit sun4v_register_fault_status(void)
+{
+	register unsigned long arg0 asm("%o0");
+	register unsigned long arg1 asm("%o1");
+	int cpu = hard_smp_processor_id();
+	struct trap_per_cpu *tb = &trap_block[cpu];
+	unsigned long pa;
+
+	pa = kern_base + ((unsigned long) tb - KERNBASE);
+	arg0 = HV_FAST_MMU_FAULT_AREA_CONF;
+	arg1 = pa;
+	__asm__ __volatile__("ta	%4"
+			     : "=&r" (arg0), "=&r" (arg1)
+			     : "0" (arg0), "1" (arg1),
+			       "i" (HV_FAST_TRAP));
+}
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
@@ -1096,12 +1115,17 @@ void __init paging_init(void)
 	unsigned long end_pfn, pages_avail, shift;
 	unsigned long real_end, i;
 
+	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
+	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
+
 	if (tlb_type == cheetah_plus ||
 	    tlb_type == hypervisor)
 		tsb_phys_patch();
 
-	if (tlb_type == hypervisor)
+	if (tlb_type == hypervisor) {
 		sun4v_patch_tlb_handlers();
+		sun4v_register_fault_status();
+	}
 
 	/* Find available physical memory... */
 	read_obp_memory("available", &pavail[0], &pavail_ents);
@@ -1111,9 +1135,6 @@ void __init paging_init(void)
 		phys_base = min(phys_base, pavail[i].phys_addr);
 
 	pfn_base = phys_base >> PAGE_SHIFT;
-
-	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
-	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	set_bit(0, mmu_context_bmap);
 
