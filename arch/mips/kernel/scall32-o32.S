@@ -617,6 +617,23 @@ einval:	li	v0, -EINVAL
 	sys	sys_inotify_init	0
 	sys	sys_inotify_add_watch	3	/* 4285 */
 	sys	sys_inotify_rm_watch	2
+	sys	sys_migrate_pages	4
+	sys	sys_openat		4
+	sys	sys_mkdirat		3
+	sys	sys_mknodat		4	/* 4290 */
+	sys	sys_fchownat		5
+	sys	sys_futimesat		3
+	sys	sys_newfstatat		4
+	sys	sys_unlinkat		3
+	sys	sys_renameat		4	/* 4295 */
+	sys	sys_linkat		4
+	sys	sys_symlinkat		3
+	sys	sys_readlinkat		4
+	sys	sys_fchmodat		3
+	sys	sys_faccessat		3	/* 4300 */
+	sys	sys_pselect6		6
+	sys	sys_ppoll		5
+	sys	sys_unshare		1
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to
