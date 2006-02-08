@@ -7,6 +7,7 @@
 #define _SPARC64_CPUDATA_H
 
 #include <asm/hypervisor.h>
+#include <asm/asi.h>
 
 #ifndef __ASSEMBLY__
 
@@ -130,8 +131,8 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	lduwa		[REG] ASI_PHYS_BYPASS_EC_E, REG;\
 	/* sun4v implementation. */			\
 	mov		SCRATCHPAD_CPUID, REG;		\
-	nop;						\
 	ldxa		[REG] ASI_SCRATCHPAD, REG;	\
+	nop;						\
 	nop;						\
 	.previous;
 
