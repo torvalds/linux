@@ -27,22 +27,30 @@
 
 static ssize_t state_show(struct device * dev, struct device_attribute *attr, char * buf)
 {
-	return sprintf(buf, "%u\n", dev->power.power_state.event);
+	if (dev->power.power_state.event)
+		return sprintf(buf, "2\n");
+	else
+		return sprintf(buf, "0\n");
 }
 
 static ssize_t state_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t n)
 {
 	pm_message_t state;
-	char * rest;
-	int error = 0;
+	int error = -EINVAL;
 
-	state.event = simple_strtoul(buf, &rest, 10);
-	if (*rest)
-		return -EINVAL;
-	if (state.event)
+	state.event = PM_EVENT_SUSPEND;
+	/* Older apps expected to write "3" here - confused with PCI D3 */
+	if ((n == 1) && !strcmp(buf, "3"))
 		error = dpm_runtime_suspend(dev, state);
-	else
+
+	if ((n == 1) && !strcmp(buf, "2"))
+		error = dpm_runtime_suspend(dev, state);
+
+	if ((n == 1) && !strcmp(buf, "0")) {
 		dpm_runtime_resume(dev);
+		error = 0;
+	}
+
 	return error ? error : n;
 }
 
