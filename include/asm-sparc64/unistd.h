@@ -317,11 +317,12 @@
 #define __NR_faccessat		296
 #define __NR_pselect6		297
 #define __NR_ppoll		298
+#define __NR_unshare		299
 
-/* WARNING: You MAY NOT add syscall numbers larger than 298, since
+/* WARNING: You MAY NOT add syscall numbers larger than 299, since
  *          all of the syscall tables in the Sparc kernel are
- *          sized to have 298 entries (starting at zero).  Therefore
- *          find a free slot in the 0-298 range.
+ *          sized to have 299 entries (starting at zero).  Therefore
+ *          find a free slot in the 0-299 range.
  */
 
 #define _syscall0(type,name) \
