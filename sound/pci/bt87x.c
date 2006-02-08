@@ -783,6 +783,8 @@ static struct pci_device_id snd_bt87x_ids[] = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, 44100),
 	/* AVerMedia Studio No. 103, 203, ...? */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
+	/* Leadtek Winfast tv 2000xp delux */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, 32000),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
@@ -816,13 +818,13 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	for (i = 0; i < ARRAY_SIZE(blacklist); ++i)
 		if (blacklist[i].subvendor == pci->subsystem_vendor &&
 		    blacklist[i].subdevice == pci->subsystem_device) {
-			snd_printdd(KERN_INFO "card %#04x:%#04x has no audio\n",
-				    pci->subsystem_vendor, pci->subsystem_device);
+			snd_printdd(KERN_INFO "card %#04x-%#04x:%#04x has no audio\n",
+				    pci->device, pci->subsystem_vendor, pci->subsystem_device);
 			return -EBUSY;
 		}
 
-	snd_printk(KERN_INFO "unknown card %#04x:%#04x, using default rate 32000\n",
-		   pci->subsystem_vendor, pci->subsystem_device);
+	snd_printk(KERN_INFO "unknown card %#04x-%#04x:%#04x, using default rate 32000\n",
+	           pci->device, pci->subsystem_vendor, pci->subsystem_device);
 	snd_printk(KERN_DEBUG "please mail id, board name, and, "
 		   "if it works, the correct digital_rate option to "
 		   "<alsa-devel@lists.sf.net>\n");
