@@ -122,8 +122,8 @@ out:
 #ifndef CONFIG_64BIT
 struct sel_arg_struct {
 	unsigned long n;
-	fd_set *inp, *outp, *exp;
-	struct timeval *tvp;
+	fd_set __user *inp, *outp, *exp;
+	struct timeval __user *tvp;
 };
 
 asmlinkage long old_select(struct sel_arg_struct __user *arg)
