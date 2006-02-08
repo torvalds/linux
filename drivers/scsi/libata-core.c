@@ -4510,19 +4510,6 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 	return IRQ_RETVAL(handled);
 }
 
-/**
- *	ata_port_start - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table.
- *
- *	May be used as the port_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
 /*
  * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
  * without filling any other registers
@@ -4612,6 +4599,19 @@ int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
 	ap->flags |= ATA_FLAG_SUSPENDED;
 	return 0;
 }
+
+/**
+ *	ata_port_start - Set port up for dma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Allocates space for PRD table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 
 int ata_port_start (struct ata_port *ap)
 {
