@@ -56,6 +56,10 @@ static unsigned int wf_overtemp;
 static unsigned int wf_overtemp_counter;
 struct task_struct *wf_thread;
 
+static struct platform_device wf_platform_device = {
+	.name	= "windfarm",
+};
+
 /*
  * Utilities & tick thread
  */
@@ -157,6 +161,40 @@ static void wf_control_release(struct kref *kref)
 		kfree(ct);
 }
 
+static ssize_t wf_show_control(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct wf_control *ctrl = container_of(attr, struct wf_control, attr);
+	s32 val = 0;
+	int err;
+
+	err = ctrl->ops->get_value(ctrl, &val);
+	if (err < 0)
+		return err;
+	return sprintf(buf, "%d\n", val);
+}
+
+/* This is really only for debugging... */
+static ssize_t wf_store_control(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct wf_control *ctrl = container_of(attr, struct wf_control, attr);
+	int val;
+	int err;
+	char *endp;
+
+	val = simple_strtoul(buf, &endp, 0);
+	while (endp < buf + count && (*endp == ' ' || *endp == '\n'))
+		++endp;
+	if (endp - buf < count)
+		return -EINVAL;
+	err = ctrl->ops->set_value(ctrl, val);
+	if (err < 0)
+		return err;
+	return count;
+}
+
 int wf_register_control(struct wf_control *new_ct)
 {
 	struct wf_control *ct;
@@ -172,6 +210,13 @@ int wf_register_control(struct wf_control *new_ct)
 	}
 	kref_init(&new_ct->ref);
 	list_add(&new_ct->link, &wf_controls);
+
+	new_ct->attr.attr.name = new_ct->name;
+	new_ct->attr.attr.owner = THIS_MODULE;
+	new_ct->attr.attr.mode = 0644;
+	new_ct->attr.show = wf_show_control;
+	new_ct->attr.store = wf_store_control;
+	device_create_file(&wf_platform_device.dev, &new_ct->attr);
 
 	DBG("wf: Registered control %s\n", new_ct->name);
 
@@ -247,6 +292,19 @@ static void wf_sensor_release(struct kref *kref)
 		kfree(sr);
 }
 
+static ssize_t wf_show_sensor(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct wf_sensor *sens = container_of(attr, struct wf_sensor, attr);
+	s32 val = 0;
+	int err;
+
+	err = sens->ops->get_value(sens, &val);
+	if (err < 0)
+		return err;
+	return sprintf(buf, "%d.%03d\n", FIX32TOPRINT(val));
+}
+
 int wf_register_sensor(struct wf_sensor *new_sr)
 {
 	struct wf_sensor *sr;
@@ -262,6 +320,13 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 	}
 	kref_init(&new_sr->ref);
 	list_add(&new_sr->link, &wf_sensors);
+
+	new_sr->attr.attr.name = new_sr->name;
+	new_sr->attr.attr.owner = THIS_MODULE;
+	new_sr->attr.attr.mode = 0444;
+	new_sr->attr.show = wf_show_sensor;
+	new_sr->attr.store = NULL;
+	device_create_file(&wf_platform_device.dev, &new_sr->attr);
 
 	DBG("wf: Registered sensor %s\n", new_sr->name);
 
@@ -395,10 +460,6 @@ int wf_is_overtemp(void)
 	return (wf_overtemp != 0);
 }
 EXPORT_SYMBOL_GPL(wf_is_overtemp);
-
-static struct platform_device wf_platform_device = {
-	.name	= "windfarm",
-};
 
 static int __init windfarm_core_init(void)
 {
