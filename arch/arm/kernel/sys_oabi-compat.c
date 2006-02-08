@@ -59,6 +59,16 @@
  *   struct sembuf loses its padding with EABI.  Since arrays of them are
  *   used they have to be copyed to remove the padding. Compatibility wrappers
  *   provided below.
+ *
+ * sys_bind:
+ * sys_connect:
+ * sys_sendmsg:
+ * sys_sendto:
+ *
+ *   struct sockaddr_un loses its padding with EABI.  Since the size of the
+ *   structure is used as a validation test in unix_mkname(), we need to
+ *   change the length argument to 110 whenever it is 112.  Compatibility
+ *   wrappers provided below.
  */
 
 #include <linux/syscalls.h>
@@ -67,6 +77,7 @@
 #include <linux/fcntl.h>
 #include <linux/eventpoll.h>
 #include <linux/sem.h>
+#include <linux/socket.h>
 #include <asm/ipc.h>
 #include <asm/uaccess.h>
 
@@ -337,3 +348,63 @@ asmlinkage int sys_oabi_ipc(uint call, int first, int second, int third,
 		return sys_ipc(call, first, second, third, ptr, fifth);
 	}
 }
+
+asmlinkage long sys_oabi_bind(int fd, struct sockaddr __user *addr, int addrlen)
+{
+	sa_family_t sa_family;
+	if (addrlen == 112 &&
+	    get_user(sa_family, &addr->sa_family) == 0 &&
+	    sa_family == AF_UNIX)
+			addrlen = 110;
+	return sys_bind(fd, addr, addrlen);
+}
+
+asmlinkage long sys_oabi_connect(int fd, struct sockaddr __user *addr, int addrlen)
+{
+	sa_family_t sa_family;
+	if (addrlen == 112 &&
+	    get_user(sa_family, &addr->sa_family) == 0 &&
+	    sa_family == AF_UNIX)
+			addrlen = 110;
+	return sys_connect(fd, addr, addrlen);
+}
+
+asmlinkage long sys_oabi_sendto(int fd, void __user *buff,
+				size_t len, unsigned flags,
+				struct sockaddr __user *addr,
+				int addrlen)
+{
+	sa_family_t sa_family;
+	if (addrlen == 112 &&
+	    get_user(sa_family, &addr->sa_family) == 0 &&
+	    sa_family == AF_UNIX)
+			addrlen = 110;
+	return sys_sendto(fd, buff, len, flags, addr, addrlen);
+}
+
+asmlinkage long sys_oabi_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
+{
+	struct sockaddr __user *addr;
+	int msg_namelen;
+	sa_family_t sa_family;
+	if (msg &&
+	    get_user(msg_namelen, &msg->msg_namelen) == 0 &&
+	    msg_namelen == 112 &&
+	    get_user(addr, &msg->msg_name) == 0 &&
+	    get_user(sa_family, &addr->sa_family) == 0 &&
+	    sa_family == AF_UNIX)
+	{
+		/*
+		 * HACK ALERT: there is a limit to how much backward bending
+		 * we should do for what is actually a transitional
+		 * compatibility layer.  This already has known flaws with
+		 * a few ioctls that we don't intend to fix.  Therefore
+		 * consider this blatent hack as another one... and take care
+		 * to run for cover.  In most cases it will "just work fine".
+		 * If it doesn't, well, tough.
+		 */
+		put_user(110, &msg->msg_namelen);
+	}
+	return sys_sendmsg(fd, msg, flags);
+}
+
