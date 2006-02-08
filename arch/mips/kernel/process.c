@@ -58,8 +58,8 @@ ATTRIB_NORET void cpu_idle(void)
 	}
 }
 
-extern int do_signal(sigset_t *oldset, struct pt_regs *regs);
-extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
+extern int do_signal(struct pt_regs *regs);
+extern int do_signal32(struct pt_regs *regs);
 
 /*
  * Native o32 and N64 ABI without DSP ASE
