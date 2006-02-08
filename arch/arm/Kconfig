@@ -445,7 +445,7 @@ config AEABI
 	  To use this you need GCC version 4.0.0 or later.
 
 config OABI_COMPAT
-	bool "Allow old ABI binaries to run with this kernel"
+	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
 	depends on AEABI && EXPERIMENTAL
 	default y
 	help
