@@ -1614,5 +1614,8 @@ sys_call_table:
 	data8 sys_readlinkat
 	data8 sys_fchmodat
 	data8 sys_faccessat
+	data8 sys_ni_syscall			// reserved for pselect
+	data8 sys_ni_syscall			// 1295 reserved for ppoll
+	data8 sys_unshare
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
