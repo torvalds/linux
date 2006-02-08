@@ -53,15 +53,18 @@ DECLARE_PER_CPU(cpuinfo_sparc, __cpu_data);
  */
 struct thread_info;
 struct trap_per_cpu {
-/* D-cache line 1 */
+/* D-cache line 1: Basic thread information */
 	struct thread_info	*thread;
 	unsigned long		pgd_paddr;
 	unsigned long		__pad1[2];
 
-/* D-cache line 2 */
-	unsigned long		__pad2[4];
+/* D-cache line 2: Sun4V Mondo Queue pointers */
+	unsigned long		cpu_mondo_pa;
+	unsigned long		dev_mondo_pa;
+	unsigned long		resum_mondo_pa;
+	unsigned long		nonresum_mondo_pa;
 
-/* Dcache lines 3 and 4 */
+/* Dcache lines 3 and 4: Hypervisor Fault Status */
 	struct hv_fault_status	fault_info;
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
@@ -95,11 +98,15 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 
 #endif /* !(__ASSEMBLY__) */
 
-#define TRAP_PER_CPU_THREAD	0x00
-#define TRAP_PER_CPU_PGD_PADDR	0x08
-#define TRAP_PER_CPU_FAULT_INFO	0x20
+#define TRAP_PER_CPU_THREAD		0x00
+#define TRAP_PER_CPU_PGD_PADDR		0x08
+#define TRAP_PER_CPU_CPU_MONDO_PA	0x20
+#define TRAP_PER_CPU_DEV_MONDO_PA	0x28
+#define TRAP_PER_CPU_RESUM_MONDO_PA	0x30
+#define TRAP_PER_CPU_NONRESUM_MONDO_PA	0x38
+#define TRAP_PER_CPU_FAULT_INFO		0x40
 
-#define TRAP_BLOCK_SZ_SHIFT	7
+#define TRAP_BLOCK_SZ_SHIFT		7
 
 #include <asm/scratchpad.h>
 
