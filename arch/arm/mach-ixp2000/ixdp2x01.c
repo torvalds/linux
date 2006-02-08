@@ -299,7 +299,9 @@ struct hw_pci ixdp2x01_pci __initdata = {
 
 int __init ixdp2x01_pci_init(void)
 {
-	pci_common_init(&ixdp2x01_pci);
+	if (machine_is_ixdp2401() || machine_is_ixdp2801())
+		pci_common_init(&ixdp2x01_pci);
+
 	return 0;
 }
 
