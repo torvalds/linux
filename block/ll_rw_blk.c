@@ -454,7 +454,7 @@ static void queue_flush(request_queue_t *q, unsigned which)
 	rq->end_io = end_io;
 	q->prepare_flush_fn(q, rq);
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
 static inline struct request *start_ordered(request_queue_t *q,
@@ -490,7 +490,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 	else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 
 	if (q->ordered & QUEUE_ORDERED_PREFLUSH) {
 		queue_flush(q, QUEUE_ORDERED_PREFLUSH);
