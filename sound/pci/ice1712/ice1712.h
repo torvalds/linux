@@ -325,6 +325,7 @@ struct snd_ice1712 {
 
 	unsigned int pro_volumes[20];
 	unsigned int omni: 1;		/* Delta Omni I/O */
+	unsigned int dxr_enable: 1;	/* Terratec DXR enable for DMX6FIRE */
 	unsigned int vt1724: 1;
 	unsigned int vt1720: 1;
 	unsigned int has_spdif: 1;	/* VT1720/4 - has SPDIF I/O */

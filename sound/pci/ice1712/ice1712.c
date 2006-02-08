@@ -87,6 +87,7 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;		/* Enable this card 
 static char *model[SNDRV_CARDS];
 static int omni[SNDRV_CARDS];	/* Delta44 & 66 Omni I/O support */
 static int cs8427_timeout[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* CS8427 S/PDIF transciever reset timeout value in msec */
+static int dxr_enable[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* DXR enable for DMX6FIRE */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for ICE1712 soundcard.");
@@ -100,6 +101,8 @@ module_param_array(cs8427_timeout, int, NULL, 0444);
 MODULE_PARM_DESC(cs8427_timeout, "Define reset timeout for cs8427 chip in msec resolution.");
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
+module_param_array(dxr_enable, int, NULL, 0444);
+MODULE_PARM_DESC(dsr_enable, "Enable DXR support for Terratec DMX6FIRE.");
 
 
 static struct pci_device_id snd_ice1712_ids[] = {
@@ -2390,7 +2393,13 @@ static int __devinit snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	udelay(200);
 	outb(ICE1712_NATIVE, ICEREG(ice, CONTROL));
 	udelay(200);
-	pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
+	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE && !ice->dxr_enable) {
+                /* Limit active ADCs and DACs to 6;  */
+                /* Note: DXR extension not supported */
+		pci_write_config_byte(ice->pci, 0x60, 0x0a);
+	} else {
+		pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
+	}
 	pci_write_config_byte(ice->pci, 0x61, ice->eeprom.data[ICE_EEP1_ACLINK]);
 	pci_write_config_byte(ice->pci, 0x62, ice->eeprom.data[ICE_EEP1_I2SID]);
 	pci_write_config_byte(ice->pci, 0x63, ice->eeprom.data[ICE_EEP1_SPDIF]);
@@ -2526,6 +2535,7 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 					const char *modelname,
 					int omni,
 					int cs8427_timeout,
+					int dxr_enable,
 					struct snd_ice1712 ** r_ice1712)
 {
 	struct snd_ice1712 *ice;
@@ -2558,6 +2568,7 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	else if (cs8427_timeout > 1000)
 		cs8427_timeout = 1000;
 	ice->cs8427_timeout = cs8427_timeout;
+	ice->dxr_enable = dxr_enable;
 	spin_lock_init(&ice->reg_lock);
 	mutex_init(&ice->gpio_mutex);
 	mutex_init(&ice->i2c_mutex);
@@ -2660,7 +2671,8 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 	strcpy(card->shortname, "ICEnsemble ICE1712");
 	
 	if ((err = snd_ice1712_create(card, pci, model[dev], omni[dev],
-				      cs8427_timeout[dev], &ice)) < 0) {
+				      cs8427_timeout[dev], dxr_enable[dev],
+				      &ice)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
