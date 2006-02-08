@@ -40,6 +40,7 @@
 #include "bcm43xx_wx.h"
 #include "bcm43xx_main.h"
 #include "bcm43xx_radio.h"
+#include "bcm43xx_phy.h"
 
 
 /* The WIRELESS_EXT version, which is implemented by this driver. */
