@@ -1073,12 +1073,6 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 }
 
 static inline void
-ata_queue_packet_task(struct ata_port *ap)
-{
-	queue_work(ata_wq, &ap->packet_task);
-}
-
-static inline void
 ata_queue_pio_task(struct ata_port *ap)
 {
 	queue_work(ata_wq, &ap->pio_task);
@@ -3971,7 +3965,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			queue_work(ata_wq, &ap->pio_task);
+			ata_queue_pio_task(ap);
 
 		break;
 
@@ -4024,7 +4018,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			ata_queue_packet_task(ap);
+			ata_queue_pio_task(ap);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
@@ -4036,7 +4030,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			ata_queue_packet_task(ap);
+			ata_queue_pio_task(ap);
 		break;
 
 	default:
