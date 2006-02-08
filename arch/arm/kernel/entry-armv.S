@@ -709,7 +709,12 @@ __kuser_memory_barrier:				@ 0xffff0fa0
  * The C flag is also set if *ptr was changed to allow for assembly
  * optimization in the calling code.
  *
- * Note: this routine already includes memory barriers as needed.
+ * Notes:
+ *
+ *    - This routine already includes memory barriers as needed.
+ *
+ *    - A failure might be transient, i.e. it is possible, although unlikely,
+ *      that "failure" be returned even if *ptr == oldval.
  *
  * For example, a user space atomic_add implementation could look like this:
  *
