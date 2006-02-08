@@ -855,12 +855,60 @@ void init_irqwork_curcpu(void)
 	memset(__irq_work + cpu, 0, sizeof(struct irq_work_struct));
 }
 
+static void __cpuinit init_one_mondo(unsigned long *pa_ptr, unsigned long type)
+{
+	register unsigned long func __asm__("%o0");
+	register unsigned long arg0 __asm__("%o1");
+	register unsigned long arg1 __asm__("%o2");
+	register unsigned long arg2 __asm__("%o3");
+	unsigned long page = get_zeroed_page(GFP_ATOMIC);
+
+	if (!page) {
+		prom_printf("SUN4V: Error, cannot allocate mondo queue.\n");
+		prom_halt();
+	}
+
+	*pa_ptr = __pa(page);
+
+	func = HV_FAST_CPU_QCONF;
+	arg0 = type;
+	arg1 = *pa_ptr;
+	arg2 = 128; /* XXX Implied by Niagara queue offsets. XXX */
+	__asm__ __volatile__("ta	%8"
+			     : "=&r" (func), "=&r" (arg0),
+			       "=&r" (arg1), "=&r" (arg2)
+			     : "0" (func), "1" (arg0),
+			       "2" (arg1), "3" (arg2),
+			       "i" (HV_FAST_TRAP));
+
+	if (func != HV_EOK) {
+		prom_printf("SUN4V: cpu_qconf(%lu) failed with error %lu\n",
+			    type, func);
+		prom_halt();
+	}
+}
+
+/* Allocate and init the mondo queues for this cpu.  */
+void __cpuinit sun4v_init_mondo_queues(void)
+{
+	int cpu = hard_smp_processor_id();
+	struct trap_per_cpu *tb = &trap_block[cpu];
+
+	init_one_mondo(&tb->cpu_mondo_pa, HV_CPU_QUEUE_CPU_MONDO);
+	init_one_mondo(&tb->dev_mondo_pa, HV_CPU_QUEUE_DEVICE_MONDO);
+	init_one_mondo(&tb->resum_mondo_pa, HV_CPU_QUEUE_RES_ERROR);
+	init_one_mondo(&tb->nonresum_mondo_pa, HV_CPU_QUEUE_NONRES_ERROR);
+}
+
 /* Only invoked on boot processor. */
 void __init init_IRQ(void)
 {
 	map_prom_timers();
 	kill_prom_timer();
 	memset(&ivector_table[0], 0, sizeof(ivector_table));
+
+	if (tlb_type == hypervisor)
+		sun4v_init_mondo_queues();
 
 	/* We need to clear any IRQ's pending in the soft interrupt
 	 * registers, a spurious one could be left around from the

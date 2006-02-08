@@ -309,7 +309,17 @@ do_unlock:
 
 	call		init_irqwork_curcpu
 	 nop
-	call		init_cur_cpu_trap
+
+	sethi		%hi(tlb_type), %g3
+	lduw		[%g3 + %lo(tlb_type)], %g2
+	cmp		%g2, 3
+	bne,pt		%icc, 1f
+	 nop
+
+	call		sun4v_init_mondo_queues
+	 nop
+
+1:	call		init_cur_cpu_trap
 	 nop
 
 	/* Start using proper page size encodings in ctx register.  */
