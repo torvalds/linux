@@ -446,7 +446,7 @@ config AEABI
 
 config OABI_COMPAT
 	bool "Allow old ABI binaries to run with this kernel"
-	depends on AEABI
+	depends on AEABI && EXPERIMENTAL
 	default y
 	help
 	  This option preserves the old syscall interface along with the
