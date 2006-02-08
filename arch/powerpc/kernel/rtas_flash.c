@@ -672,8 +672,7 @@ static void rtas_flash_firmware(int reboot_type)
 static void remove_flash_pde(struct proc_dir_entry *dp)
 {
 	if (dp) {
-		if (dp->data != NULL)
-			kfree(dp->data);
+		kfree(dp->data);
 		dp->owner = NULL;
 		remove_proc_entry(dp->name, dp->parent);
 	}
