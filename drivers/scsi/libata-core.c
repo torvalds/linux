@@ -3315,7 +3315,7 @@ static int ata_pio_first_block(struct ata_port *ap)
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
 	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT)) {
-		qc->err_mask |= AC_ERR_ATA_BUS;
+		qc->err_mask |= AC_ERR_TIMEOUT;
 		ap->hsm_task_state = HSM_ST_TMOUT;
 		goto err_out;
 	}
@@ -3324,7 +3324,7 @@ static int ata_pio_first_block(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ) {
 		/* device status error */
-		qc->err_mask |= AC_ERR_ATA_BUS;
+		qc->err_mask |= AC_ERR_HSM;
 		ap->hsm_task_state = HSM_ST_ERR;
 		goto err_out;
 	}
@@ -3684,7 +3684,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_IDLE;
 
 		/* complete taskfile transaction */
-		qc->err_mask |= ac_err_mask(drv_stat);
+		qc->err_mask |= AC_ERR_TIMEOUT;
 		break;
 	}
 
@@ -4365,7 +4365,7 @@ fsm_start:
 		/* check device status */
 		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
 			/* Wrong status. Let EH handle this */
-			qc->err_mask |= AC_ERR_ATA_BUS;
+			qc->err_mask |= AC_ERR_HSM;
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -4394,7 +4394,7 @@ fsm_start:
 			/* ATA PIO protocol */
 			if (unlikely((status & ATA_DRQ) == 0)) {
 				/* handle BSY=0, DRQ=0 as error */
-				qc->err_mask |= AC_ERR_ATA_BUS;
+				qc->err_mask |= AC_ERR_HSM;
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -4416,7 +4416,7 @@ fsm_start:
 	case HSM_ST_LAST:
 		if (unlikely(status & ATA_DRQ)) {
 			/* handle DRQ=1 as error */
-			qc->err_mask |= AC_ERR_ATA_BUS;
+			qc->err_mask |= AC_ERR_HSM;
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
