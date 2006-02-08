@@ -57,4 +57,4 @@
 /* Offset of CPM register space */
 #define CPM_MAP_ADDR	(CCSRBAR + MPC85xx_CPM_OFFSET)
 
-#endif /* __MACH_MPC8540ADS_H__ */
+#endif				/* __MACH_MPC8540ADS_H__ */

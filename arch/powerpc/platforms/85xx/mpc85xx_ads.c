@@ -38,7 +38,6 @@ unsigned long isa_io_base = 0;
 unsigned long isa_mem_base = 0;
 #endif
 
-
 /*
  * Internal interrupts are all Level Sensitive, and Positive Polarity
  *
@@ -47,27 +46,26 @@ unsigned long isa_mem_base = 0;
  */
 static u_char mpc85xx_ads_openpic_initsenses[] __initdata = {
 	MPC85XX_INTERNAL_IRQ_SENSES,
-	0x0,						/* External  0: */
+	0x0,			/* External  0: */
 #if defined(CONFIG_PCI)
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* Ext 1: PCI slot 0 */
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* Ext 2: PCI slot 1 */
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* Ext 3: PCI slot 2 */
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* Ext 4: PCI slot 3 */
 #else
-	0x0,				/* External  1: */
-	0x0,				/* External  2: */
-	0x0,				/* External  3: */
-	0x0,				/* External  4: */
+	0x0,			/* External  1: */
+	0x0,			/* External  2: */
+	0x0,			/* External  3: */
+	0x0,			/* External  4: */
 #endif
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* External 5: PHY */
-	0x0,				/* External  6: */
+	0x0,			/* External  6: */
 	(IRQ_SENSE_LEVEL | IRQ_POLARITY_NEGATIVE),	/* External 7: PHY */
-	0x0,				/* External  8: */
-	0x0,				/* External  9: */
-	0x0,				/* External 10: */
-	0x0,				/* External 11: */
+	0x0,			/* External  8: */
+	0x0,			/* External  9: */
+	0x0,			/* External 10: */
+	0x0,			/* External 11: */
 };
-
 
 void __init mpc85xx_ads_pic_init(void)
 {
@@ -78,10 +76,11 @@ void __init mpc85xx_ads_pic_init(void)
 	OpenPIC_PAddr = get_immrbase() + MPC85xx_OPENPIC_OFFSET;
 
 	mpic1 = mpic_alloc(OpenPIC_PAddr,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			4, MPC85xx_OPENPIC_IRQ_OFFSET, 0, 250,
-			mpc85xx_ads_openpic_initsenses,
-			sizeof(mpc85xx_ads_openpic_initsenses), " OpenPIC  ");
+			   MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
+			   4, MPC85xx_OPENPIC_IRQ_OFFSET, 0, 250,
+			   mpc85xx_ads_openpic_initsenses,
+			   sizeof(mpc85xx_ads_openpic_initsenses),
+			   " OpenPIC  ");
 	BUG_ON(mpic1 == NULL);
 	mpic_assign_isu(mpic1, 0, OpenPIC_PAddr + 0x10200);
 	mpic_assign_isu(mpic1, 1, OpenPIC_PAddr + 0x10280);
@@ -105,12 +104,10 @@ void __init mpc85xx_ads_pic_init(void)
 	mpic_init(mpic1);
 }
 
-
 /*
  * Setup the architecture
  */
-static void __init
-mpc85xx_ads_setup_arch(void)
+static void __init mpc85xx_ads_setup_arch(void)
 {
 	struct device_node *cpu;
 
@@ -128,7 +125,6 @@ mpc85xx_ads_setup_arch(void)
 			loops_per_jiffy = 50000000 / HZ;
 		of_node_put(cpu);
 	}
-
 #ifdef  CONFIG_ROOT_NFS
 	ROOT_DEV = Root_NFS;
 #else
@@ -136,9 +132,7 @@ mpc85xx_ads_setup_arch(void)
 #endif
 }
 
-
-void
-mpc85xx_ads_show_cpuinfo(struct seq_file *m)
+void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 {
 	uint pvid, svid, phid1;
 	uint memsize = total_memory;
@@ -159,9 +153,7 @@ mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
-
-void __init
-platform_init(void)
+void __init platform_init(void)
 {
 	ppc_md.setup_arch = mpc85xx_ads_setup_arch;
 	ppc_md.show_cpuinfo = mpc85xx_ads_show_cpuinfo;
@@ -183,5 +175,3 @@ platform_init(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ads platform_init(): exit", 0);
 }
-
-
