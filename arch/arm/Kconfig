@@ -10,9 +10,9 @@ config ARM
 	default y
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
-	  licensed by ARM ltd and targeted at embedded applications and
+	  licensed by ARM Ltd and targeted at embedded applications and
 	  handhelds such as the Compaq IPAQ.  ARM-based PCs are no longer
-	  manufactured, but  legacy ARM-based PC hardware remains popular in
+	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
@@ -101,7 +101,7 @@ config ARCH_EBSA110
 	select ISA
 	help
 	  This is an evaluation board for the StrongARM processor available
-	  from Digital. It has limited hardware on-board, including an onboard
+	  from Digital. It has limited hardware on-board, including an
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
@@ -179,7 +179,7 @@ config ARCH_S3C2410
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
-	  the Samsung SMDK2410 development board (and derviatives).
+	  the Samsung SMDK2410 development board (and derivatives).
 
 config ARCH_SHARK
 	bool "Shark"
