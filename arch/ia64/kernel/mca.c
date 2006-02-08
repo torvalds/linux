@@ -281,11 +281,6 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 		ia64_sal_clear_state_info(sal_info_type);
 }
 
-/*
- * platform dependent error handling
- */
-#ifndef PLATFORM_MCA_HANDLERS
-
 #ifdef CONFIG_ACPI
 
 int cpe_vector = -1;
@@ -376,8 +371,6 @@ ia64_mca_register_cpev (int cpev)
 		       "vector %#x registered\n", __FUNCTION__, cpev);
 }
 #endif /* CONFIG_ACPI */
-
-#endif /* PLATFORM_MCA_HANDLERS */
 
 /*
  * ia64_mca_cmc_vector_setup
