@@ -2182,7 +2182,18 @@ void __init trap_init(void)
 		thread_info_offsets_are_bolixed_dave();
 
 	if (TRAP_PER_CPU_THREAD != offsetof(struct trap_per_cpu, thread) ||
-	    TRAP_PER_CPU_PGD_PADDR != offsetof(struct trap_per_cpu, pgd_paddr))
+	    (TRAP_PER_CPU_PGD_PADDR !=
+	     offsetof(struct trap_per_cpu, pgd_paddr)) ||
+	    (TRAP_PER_CPU_CPU_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, cpu_mondo_pa)) ||
+	    (TRAP_PER_CPU_DEV_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, dev_mondo_pa)) ||
+	    (TRAP_PER_CPU_RESUM_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, resum_mondo_pa)) ||
+	    (TRAP_PER_CPU_NONRESUM_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, nonresum_mondo_pa)) ||
+	    (TRAP_PER_CPU_FAULT_INFO !=
+	     offsetof(struct trap_per_cpu, fault_info)))
 		trap_per_cpu_offsets_are_bolixed_dave();
 
 	/* Attach to the address space of init_task.  On SMP we
