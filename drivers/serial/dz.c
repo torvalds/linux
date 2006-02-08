@@ -262,6 +262,7 @@ static inline void dz_receive_chars(struct dz_port *dport)
 		}
 		tty_insert_flip_char(tty, ch, flag);
 	      ignore_char:
+			;
 	} while (status & DZ_DVAL);
 
 	if (tty)
