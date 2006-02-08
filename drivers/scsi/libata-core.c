@@ -611,7 +611,7 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	} else if (lba48 && (qc->ap->flags & ATA_FLAG_PIO_LBA48)) {
 		/* Unable to use DMA due to host limitation */
 		tf->protocol = ATA_PROT_PIO;
-		index = dev->multi_count ? 0 : 4;
+		index = dev->multi_count ? 0 : 8;
 	} else {
 		tf->protocol = ATA_PROT_DMA;
 		index = 16;
