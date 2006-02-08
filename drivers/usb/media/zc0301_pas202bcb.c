@@ -318,7 +318,7 @@ static struct zc0301_sensor pas202bcb = {
 		.width = 640,
 		.height = 480,
 		.pixelformat = V4L2_PIX_FMT_JPEG,
-		.priv = 16,
+		.priv = 8,
 	},
 };
 

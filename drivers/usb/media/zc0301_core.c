@@ -3,9 +3,9 @@
  *                                                                         *
  * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
  *                                                                         *
- * Informations about the chip internals to enable the I2C protocol have   *
- * been taken from the documentation of the ZC030x Video4Linux1 driver     *
- * written by Andrew Birkett <andy@nobugs.org>                             *
+ * Informations about the chip internals needed to enable the I2C protocol *
+ * have been taken from the documentation of the ZC030x Video4Linux1       *
+ * driver written by Andrew Birkett <andy@nobugs.org>                      *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -54,8 +54,8 @@
 #define ZC0301_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ZC0301_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ZC0301_MODULE_LICENSE "GPL"
-#define ZC0301_MODULE_VERSION "1:1.00"
-#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 0)
+#define ZC0301_MODULE_VERSION "1:1.01"
+#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 1)
 
 /*****************************************************************************/
 
@@ -314,7 +314,7 @@ static void zc0301_urb_complete(struct urb *urb, struct pt_regs* regs)
 		if ((*f))
 			(*f)->state = F_QUEUED;
 		DBG(3, "Stream interrupted");
-		wake_up_interruptible(&cam->wait_stream);
+		wake_up(&cam->wait_stream);
 	}
 
 	if (cam->state & DEV_DISCONNECTED)
@@ -526,7 +526,7 @@ static int zc0301_stream_interrupt(struct zc0301_device* cam)
 	                             ZC0301_URB_TIMEOUT);
 	if (cam->state & DEV_DISCONNECTED)
 		return -ENODEV;
-	else if (!timeout) {
+	else if (cam->stream != STREAM_OFF) {
 		cam->state |= DEV_MISCONFIGURED;
 		DBG(1, "URB timeout reached. The camera is misconfigured. To "
 		       "use it, close and open /dev/video%d again.",
@@ -547,8 +547,7 @@ zc0301_set_compression(struct zc0301_device* cam,
 
 	if ((r = zc0301_read_reg(cam, 0x0008)) < 0)
 		err += r;
-	err += zc0301_write_reg(cam, 0x0008,
-	                        r | 0x11 | (compression->quality >> 1));
+	err += zc0301_write_reg(cam, 0x0008, r | 0x11 | compression->quality);
 
 	return err ? -EIO : 0;
 }
@@ -737,8 +736,7 @@ static int zc0301_release(struct inode* inode, struct file* filp)
 
 
 static ssize_t
-zc0301_read(struct file* filp, char __user * buf,
-              size_t count, loff_t* f_pos)
+zc0301_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 {
 	struct zc0301_device* cam = video_get_drvdata(video_devdata(filp));
 	struct zc0301_frame_t* f, * i;
@@ -1019,6 +1017,7 @@ zc0301_vidioc_enuminput(struct zc0301_device* cam, void __user * arg)
 
 	memset(&i, 0, sizeof(i));
 	strcpy(i.name, "Camera");
+	i.type = V4L2_INPUT_TYPE_CAMERA;
 
 	if (copy_to_user(arg, &i, sizeof(i)))
 		return -EFAULT;
@@ -1028,7 +1027,19 @@ zc0301_vidioc_enuminput(struct zc0301_device* cam, void __user * arg)
 
 
 static int
-zc0301_vidioc_gs_input(struct zc0301_device* cam, void __user * arg)
+zc0301_vidioc_g_input(struct zc0301_device* cam, void __user * arg)
+{
+	int index = 0;
+
+	if (copy_to_user(arg, &index, sizeof(index)))
+		return -EFAULT;
+
+	return 0;
+}
+
+
+static int
+zc0301_vidioc_s_input(struct zc0301_device* cam, void __user * arg)
 {
 	int index;
 
@@ -1446,7 +1457,7 @@ zc0301_vidioc_s_jpegcomp(struct zc0301_device* cam, void __user * arg)
 	if (copy_from_user(&jc, arg, sizeof(jc)))
 		return -EFAULT;
 
-	if (jc.quality < 0 || jc.quality > 3)
+	if (jc.quality != 0)
 		return -EINVAL;
 
 	if (cam->stream == STREAM_ON)
@@ -1738,8 +1749,10 @@ static int zc0301_ioctl_v4l2(struct inode* inode, struct file* filp,
 		return zc0301_vidioc_enuminput(cam, arg);
 
 	case VIDIOC_G_INPUT:
+		return zc0301_vidioc_g_input(cam, arg);
+
 	case VIDIOC_S_INPUT:
-		return zc0301_vidioc_gs_input(cam, arg);
+		return zc0301_vidioc_s_input(cam, arg);
 
 	case VIDIOC_QUERYCTRL:
 		return zc0301_vidioc_query_ctrl(cam, arg);
@@ -1980,7 +1993,7 @@ static void zc0301_usb_disconnect(struct usb_interface* intf)
 		zc0301_stop_transfer(cam);
 		cam->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&cam->wait_frame);
-		wake_up_interruptible(&cam->wait_stream);
+		wake_up(&cam->wait_stream);
 	} else {
 		cam->state |= DEV_DISCONNECTED;
 		zc0301_release_resources(cam);

@@ -45,7 +45,7 @@
 #define ZC0301_MAX_DEVICES         64
 #define ZC0301_FORCE_MUNMAP        0
 #define ZC0301_MAX_FRAMES          32
-#define ZC0301_COMPRESSION_QUALITY 2
+#define ZC0301_COMPRESSION_QUALITY 0
 #define ZC0301_URBS                2
 #define ZC0301_ISO_PACKETS         7
 #define ZC0301_ALTERNATE_SETTING   7

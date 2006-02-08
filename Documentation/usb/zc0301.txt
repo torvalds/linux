@@ -67,8 +67,7 @@ Some of the features of the driver are:
 - available mmap or read/poll methods for video streaming through isochronous
   data transfers;
 - automatic detection of image sensor;
-- video formats is standard JPEG in various compression qualities
-  (see also "Notes for V4L2 application developers" paragraph);
+- video format is standard JPEG;
 - full support for the capabilities of every possible image sensors that can
   be connected to the ZC0301 bridges, including, for istance, red, green,
   blue and global gain adjustments and exposure control (see "Supported
@@ -226,10 +225,6 @@ The same number of buffers as before will be allocated again to match the size
 of the new video frames, so you have to map the buffers again before any I/O
 attempts on them.
 
-This driver supports the standard JPEG video format. The current compression
-quality may vary from 0 to 3 and can be selected or queried thanks to the
-VIDIOC_S_JPEGCOMP and VIDIOC_G_JPEGCOMP V4L2 ioctl's.
-
 
 10. Contact information
 =======================
@@ -242,9 +237,9 @@ the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
 
 11. Credits
 ===========
-- Informations about the chip internals to enable the I2C protocol have been
-  taken from the documentation of the ZC030x Video4Linux1 driver written by
-  Andrew Birkett <andy@nobugs.org>;
-- Initialization values of the ZC0301 connected to the PAS202BCB image sensor
-  have been taken from the SPCA5XX driver maintained by
-  Michel Xhaard  <mxhaard@magic.fr>
+- Informations about the chip internals needed to enable the I2C protocol have
+  been taken from the documentation of the ZC030x Video4Linux1 driver written
+  by Andrew Birkett <andy@nobugs.org>;
+- Initialization values of the ZC0301 controller connected to the PAS202BCB
+  image sensor have been taken from the SPCA5XX driver maintained by
+  Michel Xhaard <mxhaard@magic.fr>.
