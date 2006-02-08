@@ -701,7 +701,7 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	 */
 	spin_lock(&priv->lock);
 
-	if (!test_bit(IPOIB_MCAST_STARTED, &priv->flags)) {
+	if (!test_bit(IPOIB_MCAST_STARTED, &priv->flags) || !priv->broadcast) {
 		++priv->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 		goto unlock;
