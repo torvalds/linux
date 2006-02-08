@@ -1507,6 +1507,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.type = QUIRK_MIDI_STANDARD_INTERFACE
 	}
 },
+{
+	USB_DEVICE(0x0ccd, 0x0035),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Miditech",
+		.product_name = "Play'n Roll",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_CME
+	}
+},
 
 /* Novation EMS devices */
 {
