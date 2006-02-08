@@ -1487,7 +1487,7 @@ static void __init sunzilog_prepare(void)
 		up[(chip * 2) + 1].port.membase = (void __iomem *)&rp->channelB;
 
 		/* Channel A */
-		up[(chip * 2) + 0].port.iotype = SERIAL_IO_MEM;
+		up[(chip * 2) + 0].port.iotype = UPIO_MEM;
 		up[(chip * 2) + 0].port.irq = zilog_irq;
 		up[(chip * 2) + 0].port.uartclk = ZS_CLOCK;
 		up[(chip * 2) + 0].port.fifosize = 1;
@@ -1498,7 +1498,7 @@ static void __init sunzilog_prepare(void)
 		up[(chip * 2) + 0].flags |= SUNZILOG_FLAG_IS_CHANNEL_A;
 
 		/* Channel B */
-		up[(chip * 2) + 1].port.iotype = SERIAL_IO_MEM;
+		up[(chip * 2) + 1].port.iotype = UPIO_MEM;
 		up[(chip * 2) + 1].port.irq = zilog_irq;
 		up[(chip * 2) + 1].port.uartclk = ZS_CLOCK;
 		up[(chip * 2) + 1].port.fifosize = 1;

@@ -140,7 +140,7 @@ void __init plat_setup(void)
 		uart.type	= PORT_UNKNOWN;
 		uart.uartclk	= 18432000;
 		uart.irq	= COBALT_SERIAL_IRQ;
-		uart.flags	= STD_COM_FLAGS;
+		uart.flags	= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 		uart.iobase	= 0xc800000;
 		uart.iotype	= UPIO_PORT;
 

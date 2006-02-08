@@ -27,7 +27,6 @@
 #include <asm/mach/arch.h>
 #include <linux/interrupt.h>
 #include "generic.h"
-#include <asm/serial.h>
 
 static struct resource cs89x0_resources[] = {
 	[0] = {
