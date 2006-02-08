@@ -303,12 +303,24 @@ jump_to_sun4u_init:
 
 sun4u_init:
 	/* Set ctx 0 */
-	mov	PRIMARY_CONTEXT, %g7
-	stxa	%g0, [%g7] ASI_DMMU
-	membar	#Sync
+	mov		PRIMARY_CONTEXT, %g7
 
-	mov	SECONDARY_CONTEXT, %g7
-	stxa	%g0, [%g7] ASI_DMMU
+661:	stxa		%g0, [%g7] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g0, [%g7] ASI_MMU
+	.previous
+
+	membar		#Sync
+
+	mov		SECONDARY_CONTEXT, %g7
+
+661:	stxa		%g0, [%g7] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g0, [%g7] ASI_MMU
+	.previous
+
 	membar	#Sync
 
 	BRANCH_IF_ANY_CHEETAH(g1,g7,cheetah_tlb_fixup)
@@ -436,8 +448,15 @@ setup_trap_table:
 	/* Start using proper page size encodings in ctx register.  */
 	sethi	%hi(sparc64_kern_pri_context), %g3
 	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
-	mov	PRIMARY_CONTEXT, %g1
-	stxa	%g2, [%g1] ASI_DMMU
+
+	mov		PRIMARY_CONTEXT, %g1
+
+661:	stxa		%g2, [%g1] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g1] ASI_MMU
+	.previous
+
 	membar	#Sync
 
 	/* Kill PROM timer */

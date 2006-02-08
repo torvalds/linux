@@ -189,26 +189,30 @@ int prom_callback(long *args)
 		}
 
 		if ((va >= KERNBASE) && (va < (KERNBASE + (4 * 1024 * 1024)))) {
-			extern unsigned long sparc64_kern_pri_context;
+			if (tlb_type == spitfire) {
+				extern unsigned long sparc64_kern_pri_context;
 
-			/* Spitfire Errata #32 workaround */
-			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-					     "flush	%%g6"
-					     : /* No outputs */
-					     : "r" (sparc64_kern_pri_context),
-					       "r" (PRIMARY_CONTEXT),
-					       "i" (ASI_DMMU));
+				/* Spitfire Errata #32 workaround */
+				__asm__ __volatile__(
+					"stxa 	%0, [%1] %2\n\t"
+					"flush	%%g6"
+					: /* No outputs */
+					: "r" (sparc64_kern_pri_context),
+					  "r" (PRIMARY_CONTEXT),
+					  "i" (ASI_DMMU));
+			}
 
 			/*
 			 * Locked down tlb entry.
 			 */
 
-			if (tlb_type == spitfire)
+			if (tlb_type == spitfire) {
 				tte = spitfire_get_dtlb_data(SPITFIRE_HIGHEST_LOCKED_TLBENT);
-			else if (tlb_type == cheetah || tlb_type == cheetah_plus)
+				res = PROM_TRUE;
+			} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 				tte = cheetah_get_ldtlb_data(CHEETAH_HIGHEST_LOCKED_TLBENT);
-
-			res = PROM_TRUE;
+				res = PROM_TRUE;
+			}
 			goto done;
 		}
 

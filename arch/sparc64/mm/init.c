@@ -792,15 +792,6 @@ void sparc_ultra_dump_dtlb(void)
 	}
 }
 
-static inline void spitfire_errata32(void)
-{
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-			     "flush	%%g6"
-			     : /* No outputs */
-			     : "r" (0),
-			       "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-}
-
 extern unsigned long cmdline_memory_size;
 
 unsigned long __init bootmem_init(unsigned long *pages_avail)

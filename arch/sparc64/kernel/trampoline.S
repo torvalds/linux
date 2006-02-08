@@ -272,10 +272,22 @@ do_unlock:
 	wr		%g0, ASI_P, %asi
 
 	mov		PRIMARY_CONTEXT, %g7
-	stxa		%g0, [%g7] ASI_DMMU
+
+661:	stxa		%g0, [%g7] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g0, [%g7] ASI_MMU
+	.previous
+
 	membar		#Sync
 	mov		SECONDARY_CONTEXT, %g7
-	stxa		%g0, [%g7] ASI_DMMU
+
+661:	stxa		%g0, [%g7] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g0, [%g7] ASI_MMU
+	.previous
+
 	membar		#Sync
 
 	mov		1, %g5
@@ -301,11 +313,17 @@ do_unlock:
 	 nop
 
 	/* Start using proper page size encodings in ctx register.  */
-	sethi	%hi(sparc64_kern_pri_context), %g3
-	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
-	mov	PRIMARY_CONTEXT, %g1
-	stxa	%g2, [%g1] ASI_DMMU
-	membar	#Sync
+	sethi		%hi(sparc64_kern_pri_context), %g3
+	ldx		[%g3 + %lo(sparc64_kern_pri_context)], %g2
+	mov		PRIMARY_CONTEXT, %g1
+
+661:	stxa		%g2, [%g1] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g1] ASI_MMU
+	.previous
+
+	membar		#Sync
 
 	rdpr		%pstate, %o1
 	or		%o1, PSTATE_IE, %o1

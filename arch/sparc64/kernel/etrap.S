@@ -95,7 +95,13 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		wrpr	%g2, 0, %wstate
 		sethi	%hi(sparc64_kern_pri_context), %g2
 		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g3
-		stxa	%g3, [%l4] ASI_DMMU
+
+661:		stxa	%g3, [%l4] ASI_DMMU
+		.section .sun4v_1insn_patch, "ax"
+		.word	661b
+		stxa	%g3, [%l4] ASI_MMU
+		.previous
+
 		sethi	%hi(KERNBASE), %l4
 		flush	%l4
 		mov	ASI_AIUS, %l7

@@ -264,11 +264,23 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 
 		brnz,pn			%l3, kern_rtt
 		 mov			PRIMARY_CONTEXT, %l7
-		ldxa			[%l7 + %l7] ASI_DMMU, %l0
+
+661:		ldxa			[%l7 + %l7] ASI_DMMU, %l0
+		.section		.sun4v_1insn_patch, "ax"
+		.word			661b
+		ldxa			[%l7 + %l7] ASI_MMU, %l0
+		.previous
+
 		sethi			%hi(sparc64_kern_pri_nuc_bits), %l1
 		ldx			[%l1 + %lo(sparc64_kern_pri_nuc_bits)], %l1
 		or			%l0, %l1, %l0
-		stxa			%l0, [%l7] ASI_DMMU
+
+661:		stxa			%l0, [%l7] ASI_DMMU
+		.section		.sun4v_1insn_patch, "ax"
+		.word			661b
+		stxa			%l0, [%l7] ASI_MMU
+		.previous
+
 		sethi			%hi(KERNBASE), %l7
 		flush			%l7
 		rdpr			%wstate, %l1
@@ -303,7 +315,13 @@ user_rtt_fill_fixup:
 		sethi	%hi(sparc64_kern_pri_context), %g2
 		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g2
 		mov	PRIMARY_CONTEXT, %g1
-		stxa	%g2, [%g1] ASI_DMMU
+
+661:		stxa	%g2, [%g1] ASI_DMMU
+		.section .sun4v_1insn_patch, "ax"
+		.word	661b
+		stxa	%g2, [%g1] ASI_MMU
+		.previous
+
 		sethi	%hi(KERNBASE), %g1
 		flush	%g1
 

@@ -41,11 +41,16 @@ extern void smp_tsb_sync(struct mm_struct *mm);
 
 /* Set MMU context in the actual hardware. */
 #define load_secondary_context(__mm) \
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t" \
-			     "flush	%%g6" \
-			     : /* No outputs */ \
-			     : "r" (CTX_HWBITS((__mm)->context)), \
-			       "r" (SECONDARY_CONTEXT), "i" (ASI_DMMU))
+	__asm__ __volatile__( \
+	"\n661:	stxa		%0, [%1] %2\n" \
+	"	.section	.sun4v_1insn_patch, \"ax\"\n" \
+	"	.word		661b\n" \
+	"	stxa		%0, [%1] %3\n" \
+	"	.previous\n" \
+	"	flush		%%g6\n" \
+	: /* No outputs */ \
+	: "r" (CTX_HWBITS((__mm)->context)), \
+	  "r" (SECONDARY_CONTEXT), "i" (ASI_DMMU), "i" (ASI_MMU))
 
 extern void __flush_tlb_mm(unsigned long, unsigned long);
 

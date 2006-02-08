@@ -97,10 +97,22 @@ do_fpdis:
 	add		%g6, TI_FPREGS + 0x80, %g1
 	faddd		%f0, %f2, %f4
 	fmuld		%f0, %f2, %f6
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0xc0, %g2
 	faddd		%f0, %f2, %f8
@@ -126,11 +138,23 @@ do_fpdis:
 	 fzero		%f32
 	mov		SECONDARY_CONTEXT, %g3
 	fzero		%f34
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	add		%g6, TI_FPREGS, %g1
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0x40, %g2
 	faddd		%f32, %f34, %f36
@@ -155,10 +179,22 @@ do_fpdis:
 	 nop
 3:	mov		SECONDARY_CONTEXT, %g3
 	add		%g6, TI_FPREGS, %g1
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	mov		0x40, %g2
 	membar		#Sync
@@ -169,7 +205,13 @@ do_fpdis:
 	ldda		[%g1 + %g2] ASI_BLK_S, %f48
 	membar		#Sync
 fpdis_exit:
-	stxa		%g5, [%g3] ASI_DMMU
+
+661:	stxa		%g5, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g5, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 fpdis_exit2:
 	wr		%g7, 0, %gsr
@@ -323,10 +365,22 @@ do_fptrap_after_fsr:
 	rd		%gsr, %g3
 	stx		%g3, [%g6 + TI_GSR]
 	mov		SECONDARY_CONTEXT, %g3
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	add		%g6, TI_FPREGS, %g2
 	andcc		%g1, FPRS_DL, %g0
@@ -341,7 +395,13 @@ do_fptrap_after_fsr:
 	stda		%f48, [%g2 + %g3] ASI_BLK_S
 5:	mov		SECONDARY_CONTEXT, %g1
 	membar		#Sync
-	stxa		%g5, [%g1] ASI_DMMU
+
+661:	stxa		%g5, [%g1] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g5, [%g1] ASI_MMU
+	.previous
+
 	membar		#Sync
 	ba,pt		%xcc, etrap
 	 wr		%g0, 0, %fprs
