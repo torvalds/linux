@@ -507,7 +507,7 @@ struct alt_instr {
 #define smp_rmb()	rmb()
 #define smp_wmb()	wmb()
 #define smp_read_barrier_depends()	read_barrier_depends()
-#define set_mb(var, value) do { xchg(&var, value); } while (0)
+#define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
 #else
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()

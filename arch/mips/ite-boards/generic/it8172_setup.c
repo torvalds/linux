@@ -34,6 +34,7 @@
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <linux/root_dev.h>
+#include <linux/pm.h>
 
 #include <asm/cpu.h>
 #include <asm/time.h>
@@ -125,7 +126,7 @@ void __init plat_setup(void)
 
 	_machine_restart = it8172_restart;
 	_machine_halt = it8172_halt;
-	_machine_power_off = it8172_power_off;
+	pm_power_off = it8172_power_off;
 
 	/*
 	 * IO/MEM resources.

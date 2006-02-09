@@ -931,8 +931,8 @@ struct compat_sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	int err, i;
-	sg_req_info_t *r;
-	struct compat_sg_req_info *o = (struct compat_sg_req_info *)arg;
+	sg_req_info_t __user *r;
+	struct compat_sg_req_info __user *o = (void __user *)arg;
 	r = compat_alloc_user_space(sizeof(sg_req_info_t)*SG_MAX_QUEUE);
 	err = sys_ioctl(fd,cmd,(unsigned long)r);
 	if (err < 0)
@@ -2739,8 +2739,8 @@ static int do_ncp_setprivatedata(unsigned int fd, unsigned int cmd, unsigned lon
 static int
 lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
-	struct compat_timeval *tc = (struct compat_timeval *)arg;
-	struct timeval *tn = compat_alloc_user_space(sizeof(struct timeval));
+	struct compat_timeval __user *tc = (struct compat_timeval __user *)arg;
+	struct timeval __user *tn = compat_alloc_user_space(sizeof(struct timeval));
 	struct timeval ts;
 	if (get_user(ts.tv_sec, &tc->tv_sec) ||
 	    get_user(ts.tv_usec, &tc->tv_usec) ||

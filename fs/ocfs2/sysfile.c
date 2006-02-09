@@ -77,8 +77,7 @@ struct inode *ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 	if (arr && ((inode = *arr) != NULL)) {
 		/* get a ref in addition to the array ref */
 		inode = igrab(inode);
-		if (!inode)
-			BUG();
+		BUG_ON(!inode);
 
 		return inode;
 	}
@@ -89,8 +88,7 @@ struct inode *ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 	/* add one more if putting into array for first time */
 	if (arr && inode) {
 		*arr = igrab(inode);
-		if (!*arr)
-			BUG();
+		BUG_ON(!*arr);
 	}
 	return inode;
 }

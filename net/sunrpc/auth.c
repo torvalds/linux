@@ -184,7 +184,7 @@ rpcauth_gc_credcache(struct rpc_auth *auth, struct hlist_head *free)
  */
 struct rpc_cred *
 rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
-		int taskflags)
+		int flags)
 {
 	struct rpc_cred_cache *cache = auth->au_credcache;
 	HLIST_HEAD(free);
@@ -193,7 +193,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 			*cred = NULL;
 	int		nr = 0;
 
-	if (!(taskflags & RPC_TASK_ROOTCREDS))
+	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS))
 		nr = acred->uid & RPC_CREDCACHE_MASK;
 retry:
 	spin_lock(&rpc_credcache_lock);
@@ -202,7 +202,7 @@ retry:
 	hlist_for_each_safe(pos, next, &cache->hashtable[nr]) {
 		struct rpc_cred *entry;
 	       	entry = hlist_entry(pos, struct rpc_cred, cr_hash);
-		if (entry->cr_ops->crmatch(acred, entry, taskflags)) {
+		if (entry->cr_ops->crmatch(acred, entry, flags)) {
 			hlist_del(&entry->cr_hash);
 			cred = entry;
 			break;
@@ -224,7 +224,7 @@ retry:
 	rpcauth_destroy_credlist(&free);
 
 	if (!cred) {
-		new = auth->au_ops->crcreate(auth, acred, taskflags);
+		new = auth->au_ops->crcreate(auth, acred, flags);
 		if (!IS_ERR(new)) {
 #ifdef RPC_DEBUG
 			new->cr_magic = RPCAUTH_CRED_MAGIC;
@@ -232,13 +232,21 @@ retry:
 			goto retry;
 		} else
 			cred = new;
+	} else if ((cred->cr_flags & RPCAUTH_CRED_NEW)
+			&& cred->cr_ops->cr_init != NULL
+			&& !(flags & RPCAUTH_LOOKUP_NEW)) {
+		int res = cred->cr_ops->cr_init(auth, cred);
+		if (res < 0) {
+			put_rpccred(cred);
+			cred = ERR_PTR(res);
+		}
 	}
 
 	return (struct rpc_cred *) cred;
 }
 
 struct rpc_cred *
-rpcauth_lookupcred(struct rpc_auth *auth, int taskflags)
+rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 {
 	struct auth_cred acred = {
 		.uid = current->fsuid,
@@ -250,7 +258,7 @@ rpcauth_lookupcred(struct rpc_auth *auth, int taskflags)
 	dprintk("RPC:     looking up %s cred\n",
 		auth->au_ops->au_name);
 	get_group_info(acred.group_info);
-	ret = auth->au_ops->lookup_cred(auth, &acred, taskflags);
+	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
 	put_group_info(acred.group_info);
 	return ret;
 }
@@ -265,11 +273,14 @@ rpcauth_bindcred(struct rpc_task *task)
 		.group_info = current->group_info,
 	};
 	struct rpc_cred *ret;
+	int flags = 0;
 
 	dprintk("RPC: %4d looking up %s cred\n",
 		task->tk_pid, task->tk_auth->au_ops->au_name);
 	get_group_info(acred.group_info);
-	ret = auth->au_ops->lookup_cred(auth, &acred, task->tk_flags);
+	if (task->tk_flags & RPC_TASK_ROOTCREDS)
+		flags |= RPCAUTH_LOOKUP_ROOTCREDS;
+	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
 	if (!IS_ERR(ret))
 		task->tk_msg.rpc_cred = ret;
 	else

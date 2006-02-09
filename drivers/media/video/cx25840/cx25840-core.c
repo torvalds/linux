@@ -220,33 +220,23 @@ static void input_change(struct i2c_client *client)
 		cx25840_write(client, 0x808, 0xff);
 		cx25840_write(client, 0x80b, 0x10);
 	} else if (std & V4L2_STD_NTSC) {
-		/* NTSC */
-		if (state->pvr150_workaround) {
-			/* Certain Hauppauge PVR150 models have a hardware bug
-			   that causes audio to drop out. For these models the
-			   audio standard must be set explicitly.
-			   To be precise: it affects cards with tuner models
-			   85, 99 and 112 (model numbers from tveeprom). */
-			if (std == V4L2_STD_NTSC_M_JP) {
-				/* Japan uses EIAJ audio standard */
-				cx25840_write(client, 0x808, 0x2f);
-			} else {
-				/* Others use the BTSC audio standard */
-				cx25840_write(client, 0x808, 0x1f);
-			}
-			/* South Korea uses the A2-M (aka Zweiton M) audio
-			   standard, and should set 0x808 to 0x3f, but I don't
-			   know how to detect this. */
-		} else if (std == V4L2_STD_NTSC_M_JP) {
+		/* Certain Hauppauge PVR150 models have a hardware bug
+		   that causes audio to drop out. For these models the
+		   audio standard must be set explicitly.
+		   To be precise: it affects cards with tuner models
+		   85, 99 and 112 (model numbers from tveeprom). */
+		int hw_fix = state->pvr150_workaround;
+
+		if (std == V4L2_STD_NTSC_M_JP) {
 			/* Japan uses EIAJ audio standard */
-			cx25840_write(client, 0x808, 0xf7);
+			cx25840_write(client, 0x808, hw_fix ? 0x2f : 0xf7);
+		} else if (std == V4L2_STD_NTSC_M_KR) {
+			/* South Korea uses A2 audio standard */
+			cx25840_write(client, 0x808, hw_fix ? 0x3f : 0xf8);
 		} else {
 			/* Others use the BTSC audio standard */
-			cx25840_write(client, 0x808, 0xf6);
+			cx25840_write(client, 0x808, hw_fix ? 0x1f : 0xf6);
 		}
-		/* South Korea uses the A2-M (aka Zweiton M) audio standard,
-		   and should set 0x808 to 0xf8, but I don't know how to
-		   detect this. */
 		cx25840_write(client, 0x80b, 0x00);
 	}
 
@@ -330,17 +320,17 @@ static int set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	u8 fmt=0; 	/* zero is autodetect */
 
 	/* First tests should be against specific std */
-	if (std & V4L2_STD_NTSC_M_JP) {
+	if (std == V4L2_STD_NTSC_M_JP) {
 		fmt=0x2;
-	} else if (std & V4L2_STD_NTSC_443) {
+	} else if (std == V4L2_STD_NTSC_443) {
 		fmt=0x3;
-	} else if (std & V4L2_STD_PAL_M) {
+	} else if (std == V4L2_STD_PAL_M) {
 		fmt=0x5;
-	} else if (std & V4L2_STD_PAL_N) {
+	} else if (std == V4L2_STD_PAL_N) {
 		fmt=0x6;
-	} else if (std & V4L2_STD_PAL_Nc) {
+	} else if (std == V4L2_STD_PAL_Nc) {
 		fmt=0x7;
-	} else if (std & V4L2_STD_PAL_60) {
+	} else if (std == V4L2_STD_PAL_60) {
 		fmt=0x8;
 	} else {
 		/* Then, test against generic ones */
@@ -369,7 +359,7 @@ v4l2_std_id cx25840_get_v4lstd(struct i2c_client * client)
 	}
 
 	switch (fmt) {
-	case 0x1: return V4L2_STD_NTSC_M;
+	case 0x1: return V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR;
 	case 0x2: return V4L2_STD_NTSC_M_JP;
 	case 0x3: return V4L2_STD_NTSC_443;
 	case 0x4: return V4L2_STD_PAL;

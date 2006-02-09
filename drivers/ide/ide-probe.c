@@ -125,45 +125,6 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 }
 
 /**
- *	drive_is_flashcard	-	check for compact flash
- *	@drive: drive to check
- *
- *	CompactFlash cards and their brethern pretend to be removable
- *	hard disks, except:
- * 		(1) they never have a slave unit, and
- *		(2) they don't have doorlock mechanisms.
- *	This test catches them, and is invoked elsewhere when setting
- *	appropriate config bits.
- *
- *	FIXME: This treatment is probably applicable for *all* PCMCIA (PC CARD)
- *	devices, so in linux 2.3.x we should change this to just treat all
- *	PCMCIA  drives this way, and get rid of the model-name tests below
- *	(too big of an interface change for 2.4.x).
- *	At that time, we might also consider parameterizing the timeouts and
- *	retries, since these are MUCH faster than mechanical drives. -M.Lord
- */
- 
-static inline int drive_is_flashcard (ide_drive_t *drive)
-{
-	struct hd_driveid *id = drive->id;
-
-	if (drive->removable) {
-		if (id->config == 0x848a) return 1;	/* CompactFlash */
-		if (!strncmp(id->model, "KODAK ATA_FLASH", 15)	/* Kodak */
-		 || !strncmp(id->model, "Hitachi CV", 10)	/* Hitachi */
-		 || !strncmp(id->model, "SunDisk SDCFB", 13)	/* old SanDisk */
-		 || !strncmp(id->model, "SanDisk SDCFB", 13)	/* SanDisk */
-		 || !strncmp(id->model, "HAGIWARA HPC", 12)	/* Hagiwara */
-		 || !strncmp(id->model, "LEXAR ATA_FLASH", 15)	/* Lexar */
-		 || !strncmp(id->model, "ATA_FLASH", 9))	/* Simple Tech */
-		{
-			return 1;	/* yes, it is a flash memory card */
-		}
-	}
-	return 0;	/* no, it is not a flash memory card */
-}
-
-/**
  *	do_identify	-	identify a drive
  *	@drive: drive to identify 
  *	@cmd: command used
@@ -278,13 +239,17 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	/*
 	 * Not an ATAPI device: looks like a "regular" hard disk
 	 */
-	if (id->config & (1<<7))
+
+	/*
+	 * 0x848a = CompactFlash device
+	 * These are *not* removable in Linux definition of the term
+	 */
+
+	if ((id->config != 0x848a) && (id->config & (1<<7)))
 		drive->removable = 1;
 
-	if (drive_is_flashcard(drive))
-		drive->is_flash = 1;
 	drive->media = ide_disk;
-	printk("%s DISK drive\n", (drive->is_flash) ? "CFA" : "ATA" );
+	printk("%s DISK drive\n", (id->config == 0x848a) ? "CFA" : "ATA" );
 	QUIRK_LIST(drive);
 	return;
 

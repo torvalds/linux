@@ -53,14 +53,17 @@ CROSS_COMPILE		:= $(tool-prefix)
 endif
 
 CHECKFLAGS-y				+= -D__linux__ -D__mips__ \
+					   -D_MIPS_SZINT=32 \
 					   -D_ABIO32=1 \
 					   -D_ABIN32=2 \
 					   -D_ABI64=3
 CHECKFLAGS-$(CONFIG_32BIT)		+= -D_MIPS_SIM=_ABIO32 \
 					   -D_MIPS_SZLONG=32 \
+					   -D_MIPS_SZPTR=32 \
 					   -D__PTRDIFF_TYPE__=int
 CHECKFLAGS-$(CONFIG_64BIT)		+= -m64 -D_MIPS_SIM=_ABI64 \
 					   -D_MIPS_SZLONG=64 \
+					   -D_MIPS_SZPTR=64 \
 					   -D__PTRDIFF_TYPE__="long int"
 CHECKFLAGS-$(CONFIG_CPU_BIG_ENDIAN)	+= -D__MIPSEB__
 CHECKFLAGS-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -D__MIPSEL__
@@ -166,79 +169,97 @@ echo $$gcc_abi $$gcc_opt$$gcc_cpu $$gcc_isa $$gas_abi $$gas_opt$$gas_cpu $$gas_i
 #
 cflags-$(CONFIG_CPU_R3000)	+= \
 			$(call set_gccflags,r3000,mips1,r3000,mips1,mips1)
+CHECKFLAGS-$(CONFIG_CPU_R3000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS1
 
 cflags-$(CONFIG_CPU_TX39XX)	+= \
 			$(call set_gccflags,r3900,mips1,r3000,mips1,mips1)
+CHECKFLAGS-$(CONFIG_CPU_TX39XX)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS1
 
 cflags-$(CONFIG_CPU_R6000)	+= \
 			$(call set_gccflags,r6000,mips2,r6000,mips2,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R6000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS2
 
 cflags-$(CONFIG_CPU_R4300)	+= \
 			$(call set_gccflags,r4300,mips3,r4300,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R4300)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
 
 cflags-$(CONFIG_CPU_VR41XX)	+= \
 			$(call set_gccflags,r4100,mips3,r4600,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_VR41XX)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
 
 cflags-$(CONFIG_CPU_R4X00)	+= \
 			$(call set_gccflags,r4600,mips3,r4600,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R4X00)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
 
 cflags-$(CONFIG_CPU_TX49XX)	+= \
 			$(call set_gccflags,r4600,mips3,r4600,mips3,mips2)  \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_TX49XX)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
 
 cflags-$(CONFIG_CPU_MIPS32_R1)	+= \
 			$(call set_gccflags,mips32,mips32,r4600,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_MIPS32_R1)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS32
 
 cflags-$(CONFIG_CPU_MIPS32_R2)	+= \
 			$(call set_gccflags,mips32r2,mips32r2,r4600,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_MIPS32_R2)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS32
 
 cflags-$(CONFIG_CPU_MIPS64_R1)	+= \
 			$(call set_gccflags,mips64,mips64,r4600,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_MIPS64_R1)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS64
 
 cflags-$(CONFIG_CPU_MIPS64_R2)	+= \
 			$(call set_gccflags,mips64r2,mips64r2,r4600,mips3,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_MIPS64_R2)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS64
 
 cflags-$(CONFIG_CPU_R5000)	+= \
 			$(call set_gccflags,r5000,mips4,r5000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R5000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 cflags-$(CONFIG_CPU_R5432)	+= \
 			$(call set_gccflags,r5400,mips4,r5000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R5432)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 cflags-$(CONFIG_CPU_NEVADA)	+= \
 			$(call set_gccflags,rm5200,mips4,r5000,mips4,mips2) \
 			-Wa,--trap
-#			$(call cc-option,-mmad)
+CHECKFLAGS-$(CONFIG_CPU_NEVADA)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 cflags-$(CONFIG_CPU_RM7000)	+= \
 			$(call set_gccflags,rm7000,mips4,r5000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_RM7000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 cflags-$(CONFIG_CPU_RM9000)	+= \
 			$(call set_gccflags,rm9000,mips4,r5000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_RM9000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 
 cflags-$(CONFIG_CPU_SB1)	+= \
 			$(call set_gccflags,sb1,mips64,r5000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_SB1)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS64
 
 cflags-$(CONFIG_CPU_R8000)	+= \
 			$(call set_gccflags,r8000,mips4,r8000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R8000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 cflags-$(CONFIG_CPU_R10000)	+= \
 			$(call set_gccflags,r10000,mips4,r8000,mips4,mips2) \
 			-Wa,--trap
+CHECKFLAGS-$(CONFIG_CPU_R10000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 ifdef CONFIG_CPU_SB1
 ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
@@ -369,7 +390,7 @@ load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 # Cobalt Server
 #
 core-$(CONFIG_MIPS_COBALT)	+= arch/mips/cobalt/
-cflags-$(CONFIG_MIPS_COBALT)	+= -Iinclude/asm-mips/cobalt
+cflags-$(CONFIG_MIPS_COBALT)	+= -Iinclude/asm-mips/mach-cobalt
 load-$(CONFIG_MIPS_COBALT)	+= 0xffffffff80080000
 
 #

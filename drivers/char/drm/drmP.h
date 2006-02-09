@@ -57,6 +57,7 @@
 #include <linux/smp_lock.h>	/* For (un)lock_kernel */
 #include <linux/mm.h>
 #include <linux/cdev.h>
+#include <linux/mutex.h>
 #if defined(__alpha__) || defined(__powerpc__)
 #include <asm/pgtable.h>	/* For pte_wrprotect */
 #endif
@@ -623,7 +624,7 @@ typedef struct drm_device {
 	/** \name Locks */
 	/*@{ */
 	spinlock_t count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
-	struct semaphore struct_sem;	/**< For others */
+	struct mutex struct_mutex;	/**< For others */
 	/*@} */
 
 	/** \name Usage Counters */
@@ -658,7 +659,7 @@ typedef struct drm_device {
 	/*@{ */
 	drm_ctx_list_t *ctxlist;	/**< Linked list of context handles */
 	int ctx_count;			/**< Number of context handles */
-	struct semaphore ctxlist_sem;	/**< For ctxlist */
+	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
 	drm_map_t **context_sareas;	    /**< per-context SAREA's */
 	int max_context;
@@ -979,7 +980,7 @@ extern int drm_put_head(drm_head_t * head);
 extern unsigned int drm_debug;
 extern unsigned int drm_cards_limit;
 extern drm_head_t **drm_heads;
-extern struct drm_sysfs_class *drm_class;
+extern struct class *drm_class;
 extern struct proc_dir_entry *drm_proc_root;
 
 				/* Proc support (drm_proc.h) */
@@ -1010,11 +1011,9 @@ extern void __drm_pci_free(drm_device_t * dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(drm_device_t * dev, drm_dma_handle_t * dmah);
 
 			       /* sysfs support (drm_sysfs.c) */
-struct drm_sysfs_class;
-extern struct drm_sysfs_class *drm_sysfs_create(struct module *owner,
-						char *name);
-extern void drm_sysfs_destroy(struct drm_sysfs_class *cs);
-extern struct class_device *drm_sysfs_device_add(struct drm_sysfs_class *cs,
+extern struct class *drm_sysfs_create(struct module *owner, char *name);
+extern void drm_sysfs_destroy(struct class *cs);
+extern struct class_device *drm_sysfs_device_add(struct class *cs,
 						 drm_head_t *head);
 extern void drm_sysfs_device_remove(struct class_device *class_dev);
 

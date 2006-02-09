@@ -35,7 +35,6 @@
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
-#include <asm/bug.h>
 
 #include <net/ip.h>
 #include <net/sock.h>

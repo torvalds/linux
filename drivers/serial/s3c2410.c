@@ -161,7 +161,11 @@ s3c24xx_serial_dbg(const char *fmt, ...)
 
 /* we can support 3 uarts, but not always use them */
 
+#ifdef CONFIG_CPU_S3C2400
+#define NR_PORTS (2)
+#else
 #define NR_PORTS (3)
+#endif
 
 /* port irq numbers */
 

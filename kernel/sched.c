@@ -5551,13 +5551,15 @@ static void calibrate_migration_costs(const cpumask_t *cpu_map)
 			-1
 #endif
 		);
-	printk("migration_cost=");
-	for (distance = 0; distance <= max_distance; distance++) {
-		if (distance)
-			printk(",");
-		printk("%ld", (long)migration_cost[distance] / 1000);
+	if (system_state == SYSTEM_BOOTING) {
+		printk("migration_cost=");
+		for (distance = 0; distance <= max_distance; distance++) {
+			if (distance)
+				printk(",");
+			printk("%ld", (long)migration_cost[distance] / 1000);
+		}
+		printk("\n");
 	}
-	printk("\n");
 	j1 = jiffies;
 	if (migration_debug)
 		printk("migration: %ld seconds\n", (j1-j0)/HZ);
@@ -6109,7 +6111,7 @@ void __init sched_init(void)
 	runqueue_t *rq;
 	int i, j, k;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		prio_array_t *array;
 
 		rq = cpu_rq(i);

@@ -390,6 +390,14 @@ static void tda9840_setmode(struct CHIPSTATE *chip, int mode)
 		chip_write(chip, TDA9840_SW, t);
 }
 
+static int tda9840_checkit(struct CHIPSTATE *chip)
+{
+	int rc;
+	rc = chip_read(chip);
+	/* lower 5 bits should be 0 */
+	return ((rc & 0x1f) == 0) ? 1 : 0;
+}
+
 /* ---------------------------------------------------------------------- */
 /* audio chip descriptions - defines+functions for tda985x                */
 
@@ -1264,6 +1272,7 @@ static struct CHIPDESC chiplist[] = {
 		.addr_hi    = I2C_TDA9840 >> 1,
 		.registers  = 5,
 
+		.checkit    = tda9840_checkit,
 		.getmode    = tda9840_getmode,
 		.setmode    = tda9840_setmode,
 		.checkmode  = generic_checkmode,

@@ -88,8 +88,8 @@ EXPORT_SYMBOL_GPL(wf_cpu_pid_init);
 
 s32 wf_cpu_pid_run(struct wf_cpu_pid_state *st, s32 new_power, s32 new_temp)
 {
-	s64	error, integ, deriv, prop;
-	s32	target, sval, adj;
+	s64	integ, deriv, prop;
+	s32	error, target, sval, adj;
 	int	i, hlen = st->param.history_len;
 
 	/* Calculate error term */
@@ -117,7 +117,7 @@ s32 wf_cpu_pid_run(struct wf_cpu_pid_state *st, s32 new_power, s32 new_temp)
 		integ += st->errors[(st->index + hlen - i) % hlen];
 	integ *= st->param.interval;
 	integ *= st->param.gr;
-	sval = st->param.tmax - ((integ >> 20) & 0xffffffff);
+	sval = st->param.tmax - (s32)(integ >> 20);
 	adj = min(st->param.ttarget, sval);
 
 	DBG("integ: %lx, sval: %lx, adj: %lx\n", integ, sval, adj);
@@ -129,7 +129,7 @@ s32 wf_cpu_pid_run(struct wf_cpu_pid_state *st, s32 new_power, s32 new_temp)
 	deriv *= st->param.gd;
 
 	/* Calculate proportional term */
-	prop = (new_temp - adj);
+	prop = st->last_delta = (new_temp - adj);
 	prop *= st->param.gp;
 
 	DBG("deriv: %lx, prop: %lx\n", deriv, prop);

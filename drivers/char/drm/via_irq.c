@@ -190,7 +190,7 @@ int via_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
 	return ret;
 }
 
-int
+static int
 via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
 		    unsigned int *sequence)
 {

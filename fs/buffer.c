@@ -2867,22 +2867,22 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 		else if (test_set_buffer_locked(bh))
 			continue;
 
-		get_bh(bh);
 		if (rw == WRITE || rw == SWRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
+				get_bh(bh);
 				submit_bh(WRITE, bh);
 				continue;
 			}
 		} else {
 			if (!buffer_uptodate(bh)) {
 				bh->b_end_io = end_buffer_read_sync;
+				get_bh(bh);
 				submit_bh(rw, bh);
 				continue;
 			}
 		}
 		unlock_buffer(bh);
-		put_bh(bh);
 	}
 }
 

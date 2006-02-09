@@ -66,7 +66,7 @@ static int snd_pmac_dbdma_alloc(struct snd_pmac *chip, struct pmac_dbdma *rec, i
 
 static void snd_pmac_dbdma_free(struct snd_pmac *chip, struct pmac_dbdma *rec)
 {
-	if (rec) {
+	if (rec->space) {
 		unsigned int rsize = sizeof(struct dbdma_cmd) * (rec->size + 1);
 
 		dma_free_coherent(&chip->pdev->dev, rsize, rec->space, rec->dma_base);
@@ -881,6 +881,7 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 	chip->can_capture = 1;
 	chip->num_freqs = ARRAY_SIZE(awacs_freqs);
 	chip->freq_table = awacs_freqs;
+	chip->pdev = NULL;
 
 	chip->control_mask = MASK_IEPC | MASK_IEE | 0x11; /* default */
 

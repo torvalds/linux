@@ -273,8 +273,6 @@ struct av7110 {
 extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		       u16 subpid, u16 pcrpid);
 
-extern int av7110_setup_irc_config (struct av7110 *av7110, u32 ir_config);
-
 extern int av7110_ir_init(struct av7110 *av7110);
 extern void av7110_ir_exit(struct av7110 *av7110);
 

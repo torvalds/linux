@@ -17,7 +17,6 @@
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
-#include <asm/bug.h>
 #include <asm/errno.h>
 #include <asm/io.h>
 #include <asm/paccess.h>

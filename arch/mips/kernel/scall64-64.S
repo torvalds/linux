@@ -443,3 +443,20 @@ sys_call_table:
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch
 	PTR	sys_inotify_rm_watch		/* 5245 */
+	PTR	sys_migrate_pages
+	PTR	sys_openat
+	PTR	sys_mkdirat
+	PTR	sys_mknodat
+	PTR	sys_fchownat			/* 5250 */
+	PTR	sys_futimesat
+	PTR	sys_newfstatat
+	PTR	sys_unlinkat
+	PTR	sys_renameat
+	PTR	sys_linkat			/* 5255 */
+	PTR	sys_symlinkat
+	PTR	sys_readlinkat
+	PTR	sys_fchmodat
+	PTR	sys_faccessat
+	PTR	sys_pselect6			/* 5260 */
+	PTR	sys_ppoll
+	PTR	sys_unshare

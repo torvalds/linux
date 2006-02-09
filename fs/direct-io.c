@@ -857,6 +857,7 @@ do_holes:
 			/* Handle holes */
 			if (!buffer_mapped(map_bh)) {
 				char *kaddr;
+				loff_t i_size_aligned;
 
 				/* AKPM: eargh, -ENOTBLK is a hack */
 				if (dio->rw == WRITE) {
@@ -864,8 +865,14 @@ do_holes:
 					return -ENOTBLK;
 				}
 
+				/*
+				 * Be sure to account for a partial block as the
+				 * last block in the file
+				 */
+				i_size_aligned = ALIGN(i_size_read(dio->inode),
+							1 << blkbits);
 				if (dio->block_in_file >=
-					i_size_read(dio->inode)>>blkbits) {
+						i_size_aligned >> blkbits) {
 					/* We hit eof */
 					page_cache_release(page);
 					goto out;

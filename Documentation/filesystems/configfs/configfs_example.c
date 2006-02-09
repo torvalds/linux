@@ -320,6 +320,7 @@ static struct config_item_type simple_children_type = {
 	.ct_item_ops	= &simple_children_item_ops,
 	.ct_group_ops	= &simple_children_group_ops,
 	.ct_attrs	= simple_children_attrs,
+	.ct_owner	= THIS_MODULE,
 };
 
 static struct configfs_subsystem simple_children_subsys = {
@@ -403,6 +404,7 @@ static struct config_item_type group_children_type = {
 	.ct_item_ops	= &group_children_item_ops,
 	.ct_group_ops	= &group_children_group_ops,
 	.ct_attrs	= group_children_attrs,
+	.ct_owner	= THIS_MODULE,
 };
 
 static struct configfs_subsystem group_children_subsys = {

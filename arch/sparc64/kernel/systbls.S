@@ -79,7 +79,7 @@ sys_call_table32:
 /*280*/	.word sys_ni_syscall, sys_add_key, sys_request_key, sys_keyctl, compat_sys_openat
 	.word sys_mkdirat, sys_mknodat, sys_fchownat, compat_sys_futimesat, compat_sys_newfstatat
 /*285*/	.word sys_unlinkat, sys_renameat, sys_linkat, sys_symlinkat, sys_readlinkat
-	.word sys_fchmodat, sys_faccessat, compat_sys_pselect6, compat_sys_ppoll
+	.word sys_fchmodat, sys_faccessat, compat_sys_pselect6, compat_sys_ppoll, sys_unshare
 
 #endif /* CONFIG_COMPAT */
 
@@ -148,7 +148,7 @@ sys_call_table:
 /*280*/	.word sys_nis_syscall, sys_add_key, sys_request_key, sys_keyctl, sys_openat
 	.word sys_mkdirat, sys_mknodat, sys_fchownat, sys_futimesat, compat_sys_newfstatat
 /*285*/	.word sys_unlinkat, sys_renameat, sys_linkat, sys_symlinkat, sys_readlinkat
-	.word sys_fchmodat, sys_faccessat, sys_pselect6, sys_ppoll
+	.word sys_fchmodat, sys_faccessat, sys_pselect6, sys_ppoll, sys_unshare
 
 #if defined(CONFIG_SUNOS_EMUL) || defined(CONFIG_SOLARIS_EMUL) || \
     defined(CONFIG_SOLARIS_EMUL_MODULE)
@@ -261,4 +261,5 @@ sunos_sys_table:
 /*290*/	.word sunos_nosys, sunos_nosys, sunos_nosys
 	.word sunos_nosys, sunos_nosys, sunos_nosys
 	.word sunos_nosys, sunos_nosys, sunos_nosys
+	.word sunos_nosys
 #endif

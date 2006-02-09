@@ -25,8 +25,7 @@ void (*flush_cache_range)(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end);
 void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page,
 	unsigned long pfn);
-void (*flush_icache_range)(unsigned long __user start,
-	unsigned long __user end);
+void (*flush_icache_range)(unsigned long start, unsigned long end);
 void (*flush_icache_page)(struct vm_area_struct *vma, struct page *page);
 
 /* MIPS specific cache operations */
@@ -53,7 +52,7 @@ EXPORT_SYMBOL(_dma_cache_inv);
  * We could optimize the case where the cache argument is not BCACHE but
  * that seems very atypical use ...
  */
-asmlinkage int sys_cacheflush(unsigned long __user addr,
+asmlinkage int sys_cacheflush(unsigned long addr,
 	unsigned long bytes, unsigned int cache)
 {
 	if (bytes == 0)

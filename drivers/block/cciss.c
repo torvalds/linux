@@ -2183,6 +2183,7 @@ static void cciss_softirq_done(struct request *rq)
 {
 	CommandList_struct *cmd = rq->completion_data;
 	ctlr_info_t *h = hba[cmd->ctlr];
+	unsigned long flags;
 	u64bit temp64;
 	int i, ddir;
 
@@ -2205,10 +2206,10 @@ static void cciss_softirq_done(struct request *rq)
 	printk("Done with %p\n", rq);
 #endif /* CCISS_DEBUG */ 
 
-	spin_lock_irq(&h->lock);
+	spin_lock_irqsave(&h->lock, flags);
 	end_that_request_last(rq, rq->errors);
 	cmd_free(h, cmd,1);
-	spin_unlock_irq(&h->lock);
+	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 /* checks the status of the job and calls complete buffers to mark all 

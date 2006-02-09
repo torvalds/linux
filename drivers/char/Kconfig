@@ -222,7 +222,7 @@ config SYNCLINKMP
 
 config SYNCLINK_GT
 	tristate "SyncLink GT/AC support"
-	depends on SERIAL_NONSTANDARD
+	depends on SERIAL_NONSTANDARD && PCI
 	help
 	  Support for SyncLink GT and SyncLink AC families of
 	  synchronous and asynchronous serial adapters

@@ -283,32 +283,3 @@ solaris_sys_table:
 	.word solaris_unimplemented	/* 			253	*/
 	.word solaris_unimplemented	/* 			254	*/
 	.word solaris_unimplemented	/* 			255	*/
-	.word solaris_unimplemented	/* 			256	*/
-	.word solaris_unimplemented	/* 			257	*/
-	.word solaris_unimplemented	/* 			258	*/
-	.word solaris_unimplemented	/* 			259	*/
-	.word solaris_unimplemented	/* 			260	*/
-	.word solaris_unimplemented	/* 			261	*/
-	.word solaris_unimplemented	/* 			262	*/
-	.word solaris_unimplemented	/* 			263	*/
-	.word solaris_unimplemented	/* 			264	*/
-	.word solaris_unimplemented	/* 			265	*/
-	.word solaris_unimplemented	/* 			266	*/
-	.word solaris_unimplemented	/* 			267	*/
-	.word solaris_unimplemented	/* 			268	*/
-	.word solaris_unimplemented	/* 			269	*/
-	.word solaris_unimplemented	/* 			270	*/
-	.word solaris_unimplemented	/* 			271	*/
-	.word solaris_unimplemented	/* 			272	*/
-	.word solaris_unimplemented	/* 			273	*/
-	.word solaris_unimplemented	/* 			274	*/
-	.word solaris_unimplemented	/* 			275	*/
-	.word solaris_unimplemented	/* 			276	*/
-	.word solaris_unimplemented	/* 			277	*/
-	.word solaris_unimplemented	/* 			278	*/
-	.word solaris_unimplemented	/* 			279	*/
-	.word solaris_unimplemented	/* 			280	*/
-	.word solaris_unimplemented	/* 			281	*/
-	.word solaris_unimplemented	/* 			282	*/
-	.word solaris_unimplemented	/* 			283	*/
-

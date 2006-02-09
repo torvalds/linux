@@ -163,20 +163,19 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 	struct butterfly	*pp = spidev_to_pp(spi);
 
 	/* set default clock polarity */
-	if (value)
+	if (value != BITBANG_CS_INACTIVE)
 		setsck(spi, spi->mode & SPI_CPOL);
 
 	/* no chipselect on this USI link config */
 	if (is_usidev(spi))
 		return;
 
-	/* here, value == "activate or not" */
-
-	/* most PARPORT_CONTROL_* bits are negated */
+	/* here, value == "activate or not";
+	 * most PARPORT_CONTROL_* bits are negated, so we must
+	 * morph it to value == "bit value to write in control register"
+	 */
 	if (spi_cs_bit == PARPORT_CONTROL_INIT)
 		value = !value;
-
-	/* here, value == "bit value to write in control register"  */
 
 	parport_frob_control(pp->port, spi_cs_bit, value ? spi_cs_bit : 0);
 }
@@ -202,7 +201,9 @@ butterfly_txrx_word_mode0(struct spi_device *spi,
 
 /* override default partitioning with cmdlinepart */
 static struct mtd_partition partitions[] = { {
-	/* JFFS2 wants partitions of 4*N blocks for this device ... */
+	/* JFFS2 wants partitions of 4*N blocks for this device,
+	 * so sectors 0 and 1 can't be partitions by themselves.
+	 */
 
 	/* sector 0 = 8 pages * 264 bytes/page (1 block)
 	 * sector 1 = 248 pages * 264 bytes/page
@@ -316,8 +317,9 @@ static void butterfly_attach(struct parport *p)
 	if (status < 0)
 		goto clean2;
 
-	/* Bus 1 lets us talk to at45db041b (firmware disables AVR)
-	 * or AVR (firmware resets at45, acts as spi slave)
+	/* Bus 1 lets us talk to at45db041b (firmware disables AVR SPI), AVR
+	 * (firmware resets at45, acts as spi slave) or neither (we ignore
+	 * both, AVR uses AT45).  Here we expect firmware for the first option.
 	 */
 	pp->info[0].max_speed_hz = 15 * 1000 * 1000;
 	strcpy(pp->info[0].modalias, "mtd_dataflash");
@@ -330,7 +332,9 @@ static void butterfly_attach(struct parport *p)
 				pp->dataflash->dev.bus_id);
 
 #ifdef	HAVE_USI
-	/* even more custom AVR firmware */
+	/* Bus 2 is only for talking to the AVR, and it can work no
+	 * matter who masters bus 1; needs appropriate AVR firmware.
+	 */
 	pp->info[1].max_speed_hz = 10 /* ?? */ * 1000 * 1000;
 	strcpy(pp->info[1].modalias, "butterfly");
 	// pp->info[1].platform_data = ... TBD ... ;
@@ -378,13 +382,8 @@ static void butterfly_detach(struct parport *p)
 	pp = butterfly;
 	butterfly = NULL;
 
-#ifdef	HAVE_USI
-	spi_unregister_device(pp->butterfly);
-	pp->butterfly = NULL;
-#endif
-	spi_unregister_device(pp->dataflash);
-	pp->dataflash = NULL;
-
+	/* stop() unregisters child devices too */
+	pdev = to_platform_device(pp->bitbang.master->cdev.dev);
 	status = spi_bitbang_stop(&pp->bitbang);
 
 	/* turn off VCC */
@@ -393,8 +392,6 @@ static void butterfly_detach(struct parport *p)
 
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
-
-	pdev = to_platform_device(pp->bitbang.master->cdev.dev);
 
 	(void) spi_master_put(pp->bitbang.master);
 
@@ -420,4 +417,5 @@ static void __exit butterfly_exit(void)
 }
 module_exit(butterfly_exit);
 
+MODULE_DESCRIPTION("Parport Adapter driver for AVR Butterfly");
 MODULE_LICENSE("GPL");

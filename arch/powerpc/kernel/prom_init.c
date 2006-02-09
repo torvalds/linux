@@ -2098,6 +2098,10 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_stdout();
 
+	/* Bail if this is a kdump kernel. */
+	if (PHYSICAL_START > 0)
+		prom_panic("Error: You can't boot a kdump kernel from OF!\n");
+
 	/*
 	 * Check for an initrd
 	 */

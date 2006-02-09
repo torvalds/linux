@@ -107,7 +107,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 	set_page_count(page, 1);
 	page[1].mapping = (void *)free_huge_page;
 	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
-		clear_highpage(&page[i]);
+		clear_user_highpage(&page[i], addr);
 	return page;
 }
 
@@ -391,12 +391,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	if (!new_page) {
 		page_cache_release(old_page);
-
-		/* Logically this is OOM, not a SIGBUS, but an OOM
-		 * could cause the kernel to go killing other
-		 * processes which won't help the hugepage situation
-		 * at all (?) */
-		return VM_FAULT_SIGBUS;
+		return VM_FAULT_OOM;
 	}
 
 	spin_unlock(&mm->page_table_lock);
@@ -444,6 +439,7 @@ retry:
 		page = alloc_huge_page(vma, address);
 		if (!page) {
 			hugetlb_put_quota(mapping);
+			ret = VM_FAULT_OOM;
 			goto out;
 		}
 

@@ -5,7 +5,7 @@
  *
  * Reset an IP27.
  *
- * Copyright (C) 1997, 1998, 1999, 2000 by Ralf Baechle
+ * Copyright (C) 1997, 1998, 1999, 2000, 06 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/config.h>
@@ -15,6 +15,7 @@
 #include <linux/smp.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
+#include <linux/pm.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -77,5 +78,5 @@ void ip27_reboot_setup(void)
 {
 	_machine_restart = ip27_machine_restart;
 	_machine_halt = ip27_machine_halt;
-	_machine_power_off = ip27_machine_power_off;
+	pm_power_off = ip27_machine_power_off;
 }

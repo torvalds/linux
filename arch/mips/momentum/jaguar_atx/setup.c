@@ -50,6 +50,7 @@
 #include <linux/pci.h>
 #include <linux/swap.h>
 #include <linux/ioport.h>
+#include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
@@ -365,7 +366,7 @@ void __init plat_setup(void)
 
 	_machine_restart = momenco_jaguar_restart;
 	_machine_halt = momenco_jaguar_halt;
-	_machine_power_off = momenco_jaguar_power_off;
+	pm_power_off = momenco_jaguar_power_off;
 
 	/*
 	 * initrd_start = (ulong)jaguar_initrd_start;

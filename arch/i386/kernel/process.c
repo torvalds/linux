@@ -297,8 +297,10 @@ void show_regs(struct pt_regs * regs)
 
 	if (user_mode(regs))
 		printk(" ESP: %04x:%08lx",0xffff & regs->xss,regs->esp);
-	printk(" EFLAGS: %08lx    %s  (%s)\n",
-	       regs->eflags, print_tainted(), system_utsname.release);
+	printk(" EFLAGS: %08lx    %s  (%s %.*s)\n",
+	       regs->eflags, print_tainted(), system_utsname.release,
+	       (int)strcspn(system_utsname.version, " "),
+	       system_utsname.version);
 	printk("EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",

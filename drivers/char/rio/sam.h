@@ -43,10 +43,6 @@
 #endif
 
 
-#if !defined( HOST ) && !defined( INKERNEL )
-#define RTA 1
-#endif
-
 #define NUM_FREE_LIST_UNITS     500
 
 #ifndef FALSE

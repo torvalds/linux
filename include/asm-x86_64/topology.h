@@ -57,6 +57,15 @@ extern int __node_distance(int, int);
 
 #endif
 
+#ifdef CONFIG_SMP
+#define topology_physical_package_id(cpu)				\
+	(phys_proc_id[cpu] == BAD_APICID ? -1 : phys_proc_id[cpu])
+#define topology_core_id(cpu)						\
+	(cpu_core_id[cpu] == BAD_APICID ? 0 : cpu_core_id[cpu])
+#define topology_core_siblings(cpu)		(cpu_core_map[cpu])
+#define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
+#endif
+
 #include <asm-generic/topology.h>
 
 #endif

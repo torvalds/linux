@@ -509,7 +509,7 @@ static _INLINE_ void receive_chars(ser_info_t *info)
 
 	info->rx_cur = (QUICC_BD *)bdp;
 
-	schedule_work(&tty->flip.work);
+	tty_schedule_flip(tty);
 }
 
 static _INLINE_ void receive_break(ser_info_t *info)
@@ -521,7 +521,7 @@ static _INLINE_ void receive_break(ser_info_t *info)
 	 * the break.  If not, we exit now, losing the break.  FIXME
 	 */
 	tty_insert_flip_char(tty, 0, TTY_BREAK);
-	schedule_work(&tty->flip.work);
+	tty_schedule_flip(tty);
 }
 
 static _INLINE_ void transmit_chars(ser_info_t *info)

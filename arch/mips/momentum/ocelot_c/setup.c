@@ -51,8 +51,10 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/pm.h>
 #include <linux/timex.h>
 #include <linux/vmalloc.h>
+
 #include <asm/time.h>
 #include <asm/bootinfo.h>
 #include <asm/page.h>
@@ -236,7 +238,7 @@ void __init plat_setup(void)
 
 	_machine_restart = momenco_ocelot_restart;
 	_machine_halt = momenco_ocelot_halt;
-	_machine_power_off = momenco_ocelot_power_off;
+	pm_power_off = momenco_ocelot_power_off;
 
 	/*
 	 * initrd_start = (ulong)ocelot_initrd_start;

@@ -94,7 +94,6 @@ unsigned long saved_video_mode;
 /*
  * Setup options
  */
-struct drive_info_struct { char dummy[32]; } drive_info;
 struct screen_info screen_info;
 struct sys_desc_table_struct {
 	unsigned short length;
@@ -572,7 +571,6 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long kernel_end;
 
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
- 	drive_info = DRIVE_INFO;
  	screen_info = SCREEN_INFO;
 	edid_info = EDID_INFO;
 	saved_video_mode = SAVED_VIDEO_MODE;
@@ -741,7 +739,7 @@ void __init setup_arch(char **cmdline_p)
 	e820_setup_gap();
 
 #ifdef CONFIG_GART_IOMMU
-       iommu_hole_init();
+	iommu_hole_init();
 #endif
 
 #ifdef CONFIG_VT
@@ -877,6 +875,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 static int __init init_amd(struct cpuinfo_x86 *c)
 {
 	int r;
+	unsigned level;
 
 #ifdef CONFIG_SMP
 	unsigned long value;
@@ -899,6 +898,11 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
 	clear_bit(0*32+31, &c->x86_capability);
 	
+	/* On C+ stepping K8 rep microcode works well for copy/memset */
+	level = cpuid_eax(1);
+	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
+		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+
 	r = get_model_name(c);
 	if (!r) { 
 		switch (c->x86) { 

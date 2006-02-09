@@ -333,9 +333,13 @@ __pabt_svc:
 					@ from the exception stack
 
 #if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
+#ifndef CONFIG_MMU
+#warning "NPTL on non MMU needs fixing"
+#else
 	@ make sure our user space atomic helper is aborted
 	cmp	r2, #TASK_SIZE
 	bichs	r3, r3, #PSR_Z_BIT
+#endif
 #endif
 
 	@
@@ -705,7 +709,12 @@ __kuser_memory_barrier:				@ 0xffff0fa0
  * The C flag is also set if *ptr was changed to allow for assembly
  * optimization in the calling code.
  *
- * Note: this routine already includes memory barriers as needed.
+ * Notes:
+ *
+ *    - This routine already includes memory barriers as needed.
+ *
+ *    - A failure might be transient, i.e. it is possible, although unlikely,
+ *      that "failure" be returned even if *ptr == oldval.
  *
  * For example, a user space atomic_add implementation could look like this:
  *
@@ -756,12 +765,18 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * exception happening just after the str instruction which would
 	 * clear the Z flag although the exchange was done.
 	 */
+#ifdef CONFIG_MMU
 	teq	ip, ip			@ set Z flag
 	ldr	ip, [r2]		@ load current val
 	add	r3, r2, #1		@ prepare store ptr
 	teqeq	ip, r0			@ compare with oldval if still allowed
 	streq	r1, [r3, #-1]!		@ store newval if still allowed
 	subs	r0, r2, r3		@ if r2 == r3 the str occured
+#else
+#warning "NPTL on non MMU needs fixing"
+	mov	r0, #-1
+	adds	r0, r0, #0
+#endif
 	mov	pc, lr
 
 #else

@@ -131,9 +131,8 @@ static int uml_net_open(struct net_device *dev)
 			     SA_INTERRUPT | SA_SHIRQ, dev->name, dev);
 	if(err != 0){
 		printk(KERN_ERR "uml_net_open: failed to get irq(%d)\n", err);
-		if(lp->close != NULL) (*lp->close)(lp->fd, &lp->user);
-		lp->fd = -1;
 		err = -ENETUNREACH;
+		goto out_close;
 	}
 
 	lp->tl.data = (unsigned long) &lp->user;
@@ -145,9 +144,19 @@ static int uml_net_open(struct net_device *dev)
 	 */
 	while((err = uml_net_rx(dev)) > 0) ;
 
- out:
 	spin_unlock(&lp->lock);
-	return(err);
+
+	spin_lock(&opened_lock);
+	list_add(&lp->list, &opened);
+	spin_unlock(&opened_lock);
+
+	return 0;
+out_close:
+	if(lp->close != NULL) (*lp->close)(lp->fd, &lp->user);
+	lp->fd = -1;
+out:
+	spin_unlock(&lp->lock);
+	return err;
 }
 
 static int uml_net_close(struct net_device *dev)
@@ -161,9 +170,13 @@ static int uml_net_close(struct net_device *dev)
 	if(lp->close != NULL)
 		(*lp->close)(lp->fd, &lp->user);
 	lp->fd = -1;
-	list_del(&lp->list);
 
 	spin_unlock(&lp->lock);
+
+	spin_lock(&opened_lock);
+	list_del(&lp->list);
+	spin_unlock(&opened_lock);
+
 	return 0;
 }
 
@@ -410,11 +423,7 @@ static int eth_configure(int n, void *init, char *mac,
 	if (device->have_mac)
 		set_ether_mac(dev, device->mac);
 
-	spin_lock(&opened_lock);
-	list_add(&lp->list, &opened);
-	spin_unlock(&opened_lock);
-
-	return(0);
+	return 0;
 }
 
 static struct uml_net *find_device(int n)

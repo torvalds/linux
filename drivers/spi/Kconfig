@@ -75,16 +75,6 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
-config SPI_BUTTERFLY
-	tristate "Parallel port adapter for AVR Butterfly (DEVELOPMENT)"
-	depends on SPI_MASTER && PARPORT && EXPERIMENTAL
-	select SPI_BITBANG
-	help
-	  This uses a custom parallel port cable to connect to an AVR
-	  Butterfly <http://www.atmel.com/products/avr/butterfly>, an
-	  inexpensive battery powered microcontroller evaluation board.
-	  This same cable can be used to flash new firmware.
-
 #
 # Add new SPI master controllers in alphabetical order above this line
 #

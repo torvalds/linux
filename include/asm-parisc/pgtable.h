@@ -213,7 +213,7 @@ extern  void *vmalloc_start;
 #define PAGE_COPY       PAGE_EXECREAD
 #define PAGE_RWX        __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC |_PAGE_ACCESSED)
 #define PAGE_KERNEL	__pgprot(_PAGE_KERNEL)
-#define PAGE_KERNEL_RO	__pgprot(_PAGE_PRESENT | _PAGE_EXEC | _PAGE_READ | _PAGE_DIRTY | _PAGE_ACCESSED)
+#define PAGE_KERNEL_RO	__pgprot(_PAGE_KERNEL & ~_PAGE_WRITE)
 #define PAGE_KERNEL_UNC	__pgprot(_PAGE_KERNEL | _PAGE_NO_CACHE)
 #define PAGE_GATEWAY    __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_GATEWAY| _PAGE_READ)
 #define PAGE_FLUSH      __pgprot(_PAGE_FLUSH)

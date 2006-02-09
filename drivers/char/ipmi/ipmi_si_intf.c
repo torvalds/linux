@@ -1270,36 +1270,36 @@ static int try_init_port(int intf_num, struct smi_info **new_info)
 	return 0;
 }
 
-static unsigned char mem_inb(struct si_sm_io *io, unsigned int offset)
+static unsigned char intf_mem_inb(struct si_sm_io *io, unsigned int offset)
 {
 	return readb((io->addr)+(offset * io->regspacing));
 }
 
-static void mem_outb(struct si_sm_io *io, unsigned int offset,
+static void intf_mem_outb(struct si_sm_io *io, unsigned int offset,
 		     unsigned char b)
 {
 	writeb(b, (io->addr)+(offset * io->regspacing));
 }
 
-static unsigned char mem_inw(struct si_sm_io *io, unsigned int offset)
+static unsigned char intf_mem_inw(struct si_sm_io *io, unsigned int offset)
 {
 	return (readw((io->addr)+(offset * io->regspacing)) >> io->regshift)
 		&& 0xff;
 }
 
-static void mem_outw(struct si_sm_io *io, unsigned int offset,
+static void intf_mem_outw(struct si_sm_io *io, unsigned int offset,
 		     unsigned char b)
 {
 	writeb(b << io->regshift, (io->addr)+(offset * io->regspacing));
 }
 
-static unsigned char mem_inl(struct si_sm_io *io, unsigned int offset)
+static unsigned char intf_mem_inl(struct si_sm_io *io, unsigned int offset)
 {
 	return (readl((io->addr)+(offset * io->regspacing)) >> io->regshift)
 		&& 0xff;
 }
 
-static void mem_outl(struct si_sm_io *io, unsigned int offset,
+static void intf_mem_outl(struct si_sm_io *io, unsigned int offset,
 		     unsigned char b)
 {
 	writel(b << io->regshift, (io->addr)+(offset * io->regspacing));
@@ -1349,16 +1349,16 @@ static int mem_setup(struct smi_info *info)
 	   upon the register size. */
 	switch (info->io.regsize) {
 	case 1:
-		info->io.inputb = mem_inb;
-		info->io.outputb = mem_outb;
+		info->io.inputb = intf_mem_inb;
+		info->io.outputb = intf_mem_outb;
 		break;
 	case 2:
-		info->io.inputb = mem_inw;
-		info->io.outputb = mem_outw;
+		info->io.inputb = intf_mem_inw;
+		info->io.outputb = intf_mem_outw;
 		break;
 	case 4:
-		info->io.inputb = mem_inl;
-		info->io.outputb = mem_outl;
+		info->io.inputb = intf_mem_inl;
+		info->io.outputb = intf_mem_outl;
 		break;
 #ifdef readq
 	case 8:

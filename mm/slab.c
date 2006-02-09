@@ -294,6 +294,7 @@ struct kmem_list3 {
 	unsigned long next_reap;
 	int free_touched;
 	unsigned int free_limit;
+	unsigned int colour_next;	/* Per-node cache coloring */
 	spinlock_t list_lock;
 	struct array_cache *shared;	/* shared per node */
 	struct array_cache **alien;	/* on other nodes */
@@ -344,6 +345,7 @@ static void kmem_list3_init(struct kmem_list3 *parent)
 	INIT_LIST_HEAD(&parent->slabs_free);
 	parent->shared = NULL;
 	parent->alien = NULL;
+	parent->colour_next = 0;
 	spin_lock_init(&parent->list_lock);
 	parent->free_objects = 0;
 	parent->free_touched = 0;
@@ -390,7 +392,6 @@ struct kmem_cache {
 
 	size_t colour;		/* cache colouring range */
 	unsigned int colour_off;	/* colour offset */
-	unsigned int colour_next;	/* cache colouring */
 	struct kmem_cache *slabp_cache;
 	unsigned int slab_size;
 	unsigned int dflags;	/* dynamic flags */
@@ -883,14 +884,14 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 	}
 }
 
-static void drain_alien_cache(struct kmem_cache *cachep, struct kmem_list3 *l3)
+static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **alien)
 {
 	int i = 0;
 	struct array_cache *ac;
 	unsigned long flags;
 
 	for_each_online_node(i) {
-		ac = l3->alien[i];
+		ac = alien[i];
 		if (ac) {
 			spin_lock_irqsave(&ac->lock, flags);
 			__drain_alien_cache(cachep, ac, i);
@@ -899,9 +900,18 @@ static void drain_alien_cache(struct kmem_cache *cachep, struct kmem_list3 *l3)
 	}
 }
 #else
-#define alloc_alien_cache(node, limit) do { } while (0)
-#define free_alien_cache(ac_ptr) do { } while (0)
-#define drain_alien_cache(cachep, l3) do { } while (0)
+
+#define drain_alien_cache(cachep, alien) do { } while (0)
+
+static inline struct array_cache **alloc_alien_cache(int node, int limit)
+{
+	return (struct array_cache **) 0x01020304ul;
+}
+
+static inline void free_alien_cache(struct array_cache **ac_ptr)
+{
+}
+
 #endif
 
 static int __devinit cpuup_callback(struct notifier_block *nfb,
@@ -935,6 +945,11 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 				l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
 				    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
 
+				/*
+				 * The l3s don't come and go as CPUs come and
+				 * go.  cache_chain_mutex is sufficient
+				 * protection here.
+				 */
 				cachep->nodelists[node] = l3;
 			}
 
@@ -949,26 +964,46 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 		   & array cache's */
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
+			struct array_cache *shared;
+			struct array_cache **alien;
 
 			nc = alloc_arraycache(node, cachep->limit,
-					      cachep->batchcount);
+						cachep->batchcount);
 			if (!nc)
+				goto bad;
+			shared = alloc_arraycache(node,
+					cachep->shared * cachep->batchcount,
+					0xbaadf00d);
+			if (!shared)
+				goto bad;
+
+			alien = alloc_alien_cache(node, cachep->limit);
+			if (!alien)
 				goto bad;
 			cachep->array[cpu] = nc;
 
 			l3 = cachep->nodelists[node];
 			BUG_ON(!l3);
-			if (!l3->shared) {
-				if (!(nc = alloc_arraycache(node,
-							    cachep->shared *
-							    cachep->batchcount,
-							    0xbaadf00d)))
-					goto bad;
 
-				/* we are serialised from CPU_DEAD or
-				   CPU_UP_CANCELLED by the cpucontrol lock */
-				l3->shared = nc;
+			spin_lock_irq(&l3->list_lock);
+			if (!l3->shared) {
+				/*
+				 * We are serialised from CPU_DEAD or
+				 * CPU_UP_CANCELLED by the cpucontrol lock
+				 */
+				l3->shared = shared;
+				shared = NULL;
 			}
+#ifdef CONFIG_NUMA
+			if (!l3->alien) {
+				l3->alien = alien;
+				alien = NULL;
+			}
+#endif
+			spin_unlock_irq(&l3->list_lock);
+
+			kfree(shared);
+			free_alien_cache(alien);
 		}
 		mutex_unlock(&cache_chain_mutex);
 		break;
@@ -977,25 +1012,34 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
+		/*
+		 * Even if all the cpus of a node are down, we don't free the
+		 * kmem_list3 of any cache. This to avoid a race between
+		 * cpu_down, and a kmalloc allocation from another cpu for
+		 * memory from the node of the cpu going down.  The list3
+		 * structure is usually allocated from kmem_cache_create() and
+		 * gets destroyed at kmem_cache_destroy().
+		 */
 		/* fall thru */
 	case CPU_UP_CANCELED:
 		mutex_lock(&cache_chain_mutex);
 
 		list_for_each_entry(cachep, &cache_chain, next) {
 			struct array_cache *nc;
+			struct array_cache *shared;
+			struct array_cache **alien;
 			cpumask_t mask;
 
 			mask = node_to_cpumask(node);
-			spin_lock_irq(&cachep->spinlock);
 			/* cpu is dead; no one can alloc from it. */
 			nc = cachep->array[cpu];
 			cachep->array[cpu] = NULL;
 			l3 = cachep->nodelists[node];
 
 			if (!l3)
-				goto unlock_cache;
+				goto free_array_cache;
 
-			spin_lock(&l3->list_lock);
+			spin_lock_irq(&l3->list_lock);
 
 			/* Free limit for this kmem_list3 */
 			l3->free_limit -= cachep->batchcount;
@@ -1003,33 +1047,43 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 				free_block(cachep, nc->entry, nc->avail, node);
 
 			if (!cpus_empty(mask)) {
-				spin_unlock(&l3->list_lock);
-				goto unlock_cache;
+				spin_unlock_irq(&l3->list_lock);
+				goto free_array_cache;
 			}
 
-			if (l3->shared) {
+			shared = l3->shared;
+			if (shared) {
 				free_block(cachep, l3->shared->entry,
 					   l3->shared->avail, node);
-				kfree(l3->shared);
 				l3->shared = NULL;
 			}
-			if (l3->alien) {
-				drain_alien_cache(cachep, l3);
-				free_alien_cache(l3->alien);
-				l3->alien = NULL;
-			}
 
-			/* free slabs belonging to this node */
-			if (__node_shrink(cachep, node)) {
-				cachep->nodelists[node] = NULL;
-				spin_unlock(&l3->list_lock);
-				kfree(l3);
-			} else {
-				spin_unlock(&l3->list_lock);
+			alien = l3->alien;
+			l3->alien = NULL;
+
+			spin_unlock_irq(&l3->list_lock);
+
+			kfree(shared);
+			if (alien) {
+				drain_alien_cache(cachep, alien);
+				free_alien_cache(alien);
 			}
-		      unlock_cache:
-			spin_unlock_irq(&cachep->spinlock);
+free_array_cache:
 			kfree(nc);
+		}
+		/*
+		 * In the previous loop, all the objects were freed to
+		 * the respective cache's slabs,  now we can go ahead and
+		 * shrink each nodelist to its limit.
+		 */
+		list_for_each_entry(cachep, &cache_chain, next) {
+			l3 = cachep->nodelists[node];
+			if (!l3)
+				continue;
+			spin_lock_irq(&l3->list_lock);
+			/* free slabs belonging to this node */
+			__node_shrink(cachep, node);
+			spin_unlock_irq(&l3->list_lock);
 		}
 		mutex_unlock(&cache_chain_mutex);
 		break;
@@ -1119,7 +1173,6 @@ void __init kmem_cache_init(void)
 		BUG();
 
 	cache_cache.colour = left_over / cache_cache.colour_off;
-	cache_cache.colour_next = 0;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
 				      sizeof(struct slab), cache_line_size());
 
@@ -2011,18 +2064,16 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 
 	smp_call_function_all_cpus(do_drain, cachep);
 	check_irq_on();
-	spin_lock_irq(&cachep->spinlock);
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
 		if (l3) {
-			spin_lock(&l3->list_lock);
+			spin_lock_irq(&l3->list_lock);
 			drain_array_locked(cachep, l3->shared, 1, node);
-			spin_unlock(&l3->list_lock);
+			spin_unlock_irq(&l3->list_lock);
 			if (l3->alien)
-				drain_alien_cache(cachep, l3);
+				drain_alien_cache(cachep, l3->alien);
 		}
 	}
-	spin_unlock_irq(&cachep->spinlock);
 }
 
 static int __node_shrink(struct kmem_cache *cachep, int node)
@@ -2324,20 +2375,20 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		 */
 		ctor_flags |= SLAB_CTOR_ATOMIC;
 
-	/* About to mess with non-constant members - lock. */
+	/* Take the l3 list lock to change the colour_next on this node */
 	check_irq_off();
-	spin_lock(&cachep->spinlock);
+	l3 = cachep->nodelists[nodeid];
+	spin_lock(&l3->list_lock);
 
 	/* Get colour for the slab, and cal the next value. */
-	offset = cachep->colour_next;
-	cachep->colour_next++;
-	if (cachep->colour_next >= cachep->colour)
-		cachep->colour_next = 0;
+	offset = l3->colour_next;
+	l3->colour_next++;
+	if (l3->colour_next >= cachep->colour)
+		l3->colour_next = 0;
+	spin_unlock(&l3->list_lock);
+
 	offset *= cachep->colour_off;
 
-	spin_unlock(&cachep->spinlock);
-
-	check_irq_off();
 	if (local_flags & __GFP_WAIT)
 		local_irq_enable();
 
@@ -2367,7 +2418,6 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	if (local_flags & __GFP_WAIT)
 		local_irq_disable();
 	check_irq_off();
-	l3 = cachep->nodelists[nodeid];
 	spin_lock(&l3->list_lock);
 
 	/* Make slab active. */
@@ -2725,6 +2775,7 @@ static void *__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int node
 	BUG_ON(!l3);
 
       retry:
+	check_irq_off();
 	spin_lock(&l3->list_lock);
 	entry = l3->slabs_partial.next;
 	if (entry == &l3->slabs_partial) {
@@ -3304,11 +3355,11 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit, int batchcount
 	smp_call_function_all_cpus(do_ccupdate_local, (void *)&new);
 
 	check_irq_on();
-	spin_lock_irq(&cachep->spinlock);
+	spin_lock(&cachep->spinlock);
 	cachep->batchcount = batchcount;
 	cachep->limit = limit;
 	cachep->shared = shared;
-	spin_unlock_irq(&cachep->spinlock);
+	spin_unlock(&cachep->spinlock);
 
 	for_each_online_cpu(i) {
 		struct array_cache *ccold = new.new[i];
@@ -3440,7 +3491,7 @@ static void cache_reap(void *unused)
 
 		l3 = searchp->nodelists[numa_node_id()];
 		if (l3->alien)
-			drain_alien_cache(searchp, l3);
+			drain_alien_cache(searchp, l3->alien);
 		spin_lock_irq(&l3->list_lock);
 
 		drain_array_locked(searchp, cpu_cache_get(searchp), 0,
@@ -3564,8 +3615,7 @@ static int s_show(struct seq_file *m, void *p)
 	int node;
 	struct kmem_list3 *l3;
 
-	check_irq_on();
-	spin_lock_irq(&cachep->spinlock);
+	spin_lock(&cachep->spinlock);
 	active_objs = 0;
 	num_slabs = 0;
 	for_each_online_node(node) {
@@ -3573,7 +3623,8 @@ static int s_show(struct seq_file *m, void *p)
 		if (!l3)
 			continue;
 
-		spin_lock(&l3->list_lock);
+		check_irq_on();
+		spin_lock_irq(&l3->list_lock);
 
 		list_for_each(q, &l3->slabs_full) {
 			slabp = list_entry(q, struct slab, list);
@@ -3598,9 +3649,10 @@ static int s_show(struct seq_file *m, void *p)
 			num_slabs++;
 		}
 		free_objects += l3->free_objects;
-		shared_avail += l3->shared->avail;
+		if (l3->shared)
+			shared_avail += l3->shared->avail;
 
-		spin_unlock(&l3->list_lock);
+		spin_unlock_irq(&l3->list_lock);
 	}
 	num_slabs += active_slabs;
 	num_objs = num_slabs * cachep->num;
@@ -3644,7 +3696,7 @@ static int s_show(struct seq_file *m, void *p)
 	}
 #endif
 	seq_putc(m, '\n');
-	spin_unlock_irq(&cachep->spinlock);
+	spin_unlock(&cachep->spinlock);
 	return 0;
 }
 

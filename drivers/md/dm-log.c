@@ -545,7 +545,8 @@ static int core_get_resync_work(struct dirty_log *log, region_t *region)
 		return 0;
 
 	do {
-		*region = find_next_zero_bit((unsigned long *) lc->sync_bits,
+		*region = ext2_find_next_zero_bit(
+					     (unsigned long *) lc->sync_bits,
 					     lc->region_count,
 					     lc->sync_search);
 		lc->sync_search = *region + 1;

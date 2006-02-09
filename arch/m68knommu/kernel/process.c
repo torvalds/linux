@@ -39,6 +39,14 @@
 
 asmlinkage void ret_from_fork(void);
 
+/*
+ * The following aren't currently used.
+ */
+void (*pm_idle)(void);
+EXPORT_SYMBOL(pm_idle);
+
+void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 /*
  * The idle loop on an m68knommu..

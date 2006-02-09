@@ -43,12 +43,7 @@
 #endif
 #endif
 
-#if defined( HOST ) || defined( INKERNEL )
 #define MAX_RUP          ((short) 16)
-#endif
-#ifdef RTA
-#define MAX_RUP          ((short) 1)
-#endif
 
 #define PKTS_PER_RUP     ((short) 2)	/* They are always used in pairs */
 

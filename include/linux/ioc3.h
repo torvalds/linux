@@ -27,7 +27,7 @@ struct ioc3_driver_data {
 	int id;				/* IOC3 sequence number */
 	/* PCI mapping */
 	unsigned long pma;		/* physical address */
-	struct __iomem ioc3 *vma;	/* pointer to registers */
+	struct ioc3 __iomem *vma;	/* pointer to registers */
 	struct pci_dev *pdev;		/* PCI device */
 	/* IRQ stuff */
 	int dual_irq;			/* set if separate IRQs are used */
