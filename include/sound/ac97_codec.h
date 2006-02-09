@@ -444,6 +444,12 @@ struct snd_ac97_template {
 	DECLARE_BITMAP(reg_accessed, 0x80); /* bit flags */
 };
 
+/* static resolution table */
+struct snd_ac97_res_table {
+	unsigned short reg;	/* register */
+	unsigned short bits;	/* resolution bitmask */
+};
+
 struct snd_ac97 {
 	/* -- lowlevel (hardware) driver specific -- */
 	struct snd_ac97_build_ops * build_ops;
@@ -464,6 +470,7 @@ struct snd_ac97 {
 	unsigned short caps;	/* capabilities (register 0) */
 	unsigned short ext_id;	/* extended feature identification (register 28) */
 	unsigned short ext_mid;	/* extended modem ID (register 3C) */
+	const struct snd_ac97_res_table *res_table;	/* static resolution */
 	unsigned int scaps;	/* driver capabilities */
 	unsigned int flags;	/* specific code */
 	unsigned int rates[6];	/* see AC97_RATES_* defines */

@@ -1030,6 +1030,18 @@ static void check_volume_resolution(struct snd_ac97 *ac97, int reg, unsigned cha
 	unsigned char max[3] = { 63, 31, 15 };
 	int i;
 
+	/* first look up the static resolution table */
+	if (ac97->res_table) {
+		const struct snd_ac97_res_table *tbl;
+		for (tbl = ac97->res_table; tbl->reg; tbl++) {
+			if (tbl->reg == reg) {
+				*lo_max = tbl->bits & 0xff;
+				*hi_max = (tbl->bits >> 8) & 0xff;
+				return;
+			}
+		}
+	}
+
 	*lo_max = *hi_max = 0;
 	for (i = 0 ; i < ARRAY_SIZE(cbit); i++) {
 		unsigned short val;
