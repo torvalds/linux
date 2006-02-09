@@ -95,12 +95,17 @@ sparc64_boot:
 	wrpr	%g1, 0x0, %pstate
 	ba,a,pt	%xcc, 1f
 
-	.globl	prom_finddev_name, prom_chosen_path
-	.globl	prom_getprop_name, prom_mmu_name
-	.globl	prom_callmethod_name, prom_translate_name
+	.globl	prom_finddev_name, prom_chosen_path, prom_root_node
+	.globl	prom_getprop_name, prom_mmu_name, prom_peer_name
+	.globl	prom_callmethod_name, prom_translate_name, prom_root_compatible
 	.globl	prom_map_name, prom_unmap_name, prom_mmu_ihandle_cache
 	.globl	prom_boot_mapped_pc, prom_boot_mapping_mode
 	.globl	prom_boot_mapping_phys_high, prom_boot_mapping_phys_low
+	.globl	is_sun4v
+prom_peer_name:
+	.asciz	"peer"
+prom_compatible_name:
+	.asciz	"compatible"
 prom_finddev_name:
 	.asciz	"finddevice"
 prom_chosen_path:
@@ -117,7 +122,13 @@ prom_map_name:
 	.asciz	"map"
 prom_unmap_name:
 	.asciz	"unmap"
+prom_sun4v_name:
+	.asciz	"SUNW,sun4v"
 	.align	4
+prom_root_compatible:
+	.skip	64
+prom_root_node:
+	.word	0
 prom_mmu_ihandle_cache:
 	.word	0
 prom_boot_mapped_pc:
@@ -129,8 +140,54 @@ prom_boot_mapping_phys_high:
 	.xword	0
 prom_boot_mapping_phys_low:
 	.xword	0
+is_sun4v:
+	.word	0
 1:
 	rd	%pc, %l0
+
+	mov	(1b - prom_peer_name), %l1
+	sub	%l0, %l1, %l1
+	mov	0, %l2
+
+	/* prom_root_node = prom_peer(0) */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "peer"
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 1
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1, 0
+	stx	%g0, [%sp + 2047 + 128 + 0x20]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! prom root node
+	mov	(1b - prom_root_node), %l1
+	sub	%l0, %l1, %l1
+	stw	%l4, [%l1]
+
+	mov	(1b - prom_getprop_name), %l1
+	mov	(1b - prom_compatible_name), %l2
+	mov	(1b - prom_root_compatible), %l5
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	sub	%l0, %l5, %l5
+
+	/* prom_getproperty(prom_root_node, "compatible",
+	 *                  &prom_root_compatible, 64)
+	 */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
+	mov	4, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, prom_root_node
+	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "compatible"
+	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_root_compatible
+	mov	64, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4, size
+	stx	%g0, [%sp + 2047 + 128 + 0x38]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
 	mov	(1b - prom_finddev_name), %l1
 	mov	(1b - prom_chosen_path), %l2
 	mov	(1b - prom_boot_mapped_pc), %l3
@@ -239,6 +296,27 @@ prom_boot_mapping_phys_low:
 	add	%sp, (192 + 128), %sp
 
 sparc64_boot_after_remap:
+	sethi	%hi(prom_root_compatible), %g1
+	or	%g1, %lo(prom_root_compatible), %g1
+	sethi	%hi(prom_sun4v_name), %g7
+	or	%g7, %lo(prom_sun4v_name), %g7
+	mov	10, %g3
+1:	ldub	[%g7], %g2
+	ldub	[%g1], %g4
+	cmp	%g2, %g4
+	bne,pn	%icc, 2f
+	 add	%g7, 1, %g7
+	subcc	%g3, 1, %g3
+	bne,pt	%xcc, 1b
+	 add	%g1, 1, %g1
+
+	sethi	%hi(is_sun4v), %g1
+	or	%g1, %lo(is_sun4v), %g1
+	mov	1, %g7
+	stw	%g7, [%g1]
+
+2:
+	BRANCH_IF_SUN4V(g1, jump_to_sun4u_init)
 	BRANCH_IF_CHEETAH_BASE(g1,g7,cheetah_boot)
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,cheetah_plus_boot)
 	ba,pt	%xcc, spitfire_boot
@@ -323,14 +401,12 @@ sun4u_init:
 
 	membar	#Sync
 
-	BRANCH_IF_ANY_CHEETAH(g1,g7,cheetah_tlb_fixup)
+	BRANCH_IF_SUN4V(g1, niagara_tlb_fixup)
+	BRANCH_IF_ANY_CHEETAH(g1, g7, cheetah_tlb_fixup)
 
 	ba,pt	%xcc, spitfire_tlb_fixup
 	 nop
 
-	/* XXX Nothing branches to here yet, when %ver register indicates
-	 * XXX Niagara we should do this.
-	 */
 niagara_tlb_fixup:
 	mov	3, %g2		/* Set TLB type to hypervisor. */
 	sethi	%hi(tlb_type), %g1
@@ -344,6 +420,9 @@ niagara_tlb_fixup:
 
 	/* Patch TLB/cache ops.  */
 	call	hypervisor_patch_cachetlbops
+	 nop
+
+	ba,pt	%xcc, tlb_fixup_done
 	 nop
 
 cheetah_tlb_fixup:
@@ -464,7 +543,8 @@ setup_trap_table:
 	sllx	%o2, 32, %o2
 	wr	%o2, 0, %tick_cmpr
 
-	BRANCH_IF_ANY_CHEETAH(o2,o3,1f)
+	BRANCH_IF_SUN4V(o2, 1f)
+	BRANCH_IF_ANY_CHEETAH(o2, o3, 1f)
 
 	ba,pt	%xcc, 2f
 	 nop

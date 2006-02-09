@@ -24,6 +24,12 @@
 #define PANTHER_IMPL		0x0019 /* Ultra-IV+   */
 #define SERRANO_IMPL		0x0022 /* Ultra-IIIi+ */
 
+#define BRANCH_IF_SUN4V(tmp1,label)		\
+	sethi	%hi(is_sun4v), %tmp1;		\
+	lduw	[%tmp1 + %lo(is_sun4v)], %tmp1; \
+	brnz,pn	%tmp1, label;			\
+	 nop
+
 #define BRANCH_IF_CHEETAH_BASE(tmp1,tmp2,label)	\
 	rdpr	%ver, %tmp1;			\
 	sethi	%hi(__CHEETAH_ID), %tmp2;	\

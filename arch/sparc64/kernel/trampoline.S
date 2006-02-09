@@ -16,6 +16,7 @@
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/mmu.h>
+#include <asm/hypervisor.h>
 
 	.data
 	.align	8
@@ -34,8 +35,9 @@ dtlb_load:
 sparc64_cpu_startup:
 	flushw
 
-	BRANCH_IF_CHEETAH_BASE(g1,g5,cheetah_startup)
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g5,cheetah_plus_startup)
+	BRANCH_IF_SUN4V(g1, niagara_startup)
+	BRANCH_IF_CHEETAH_BASE(g1, g5, cheetah_startup)
+	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1, g5, cheetah_plus_startup)
 
 	ba,pt	%xcc, spitfire_startup
 	 nop
@@ -70,7 +72,9 @@ cheetah_generic_startup:
 	stxa	%g0, [%g3] ASI_DMMU
 	stxa	%g0, [%g3] ASI_IMMU
 	membar	#Sync
+	/* fallthru */
 
+niagara_startup:
 	/* Disable STICK_INT interrupts. */
 	sethi		%hi(0x80000000), %g5
 	sllx		%g5, 32, %g5
@@ -90,6 +94,8 @@ startup_continue:
 	sethi		%hi(0x80000000), %g2
 	sllx		%g2, 32, %g2
 	wr		%g2, 0, %tick_cmpr
+
+	BRANCH_IF_SUN4V(g1, niagara_lock_tlb)
 
 	/* Call OBP by hand to lock KERNBASE into i/d tlbs.
 	 * We lock 2 consequetive entries if we are 'bigkernel'.
@@ -142,8 +148,7 @@ startup_continue:
 
 	sethi		%hi(bigkernel), %g2
 	lduw		[%g2 + %lo(bigkernel)], %g2
-	cmp		%g2, 0
-	be,pt		%icc, do_dtlb
+	brz,pt		%g2, do_dtlb
 	 nop
 
 	sethi		%hi(call_method), %g2
@@ -214,8 +219,7 @@ do_dtlb:
 
 	sethi		%hi(bigkernel), %g2
 	lduw		[%g2 + %lo(bigkernel)], %g2
-	cmp		%g2, 0
-	be,pt		%icc, do_unlock
+	brz,pt		%g2, do_unlock
 	 nop
 
 	sethi		%hi(call_method), %g2
@@ -257,6 +261,52 @@ do_unlock:
 	stb		%g0, [%g2 + %lo(prom_entry_lock)]
 	membar		#StoreStore | #StoreLoad
 
+	ba,pt		%xcc, after_lock_tlb
+	 nop
+
+niagara_lock_tlb:
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
+	sethi		%hi(KERNBASE), %o1
+	clr		%o2
+	sethi		%hi(kern_locked_tte_data), %o3
+	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
+	mov		HV_MMU_IMMU, %o4
+	ta		HV_FAST_TRAP
+
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
+	sethi		%hi(KERNBASE), %o1
+	clr		%o2
+	sethi		%hi(kern_locked_tte_data), %o3
+	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
+	mov		HV_MMU_DMMU, %o4
+	ta		HV_FAST_TRAP
+
+	sethi		%hi(bigkernel), %g2
+	lduw		[%g2 + %lo(bigkernel)], %g2
+	brz,pt		%g2, after_lock_tlb
+	 nop
+
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
+	sethi		%hi(KERNBASE + 0x400000), %o1
+	clr		%o2
+	sethi		%hi(kern_locked_tte_data), %o3
+	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
+	sethi		%hi(0x400000), %o4
+	add		%o3, %o4, %o3
+	mov		HV_MMU_IMMU, %o4
+	ta		HV_FAST_TRAP
+
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
+	sethi		%hi(KERNBASE + 0x400000), %o1
+	clr		%o2
+	sethi		%hi(kern_locked_tte_data), %o3
+	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
+	sethi		%hi(0x400000), %o4
+	add		%o3, %o4, %o3
+	mov		HV_MMU_DMMU, %o4
+	ta		HV_FAST_TRAP
+
+after_lock_tlb:
 	mov		%l1, %sp
 	flushw
 

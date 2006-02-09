@@ -39,6 +39,9 @@ extern int prom_stdin, prom_stdout;
 extern int prom_chosen_node;
 
 /* Helper values and strings in arch/sparc64/kernel/head.S */
+extern const char prom_peer_name[];
+extern const char prom_compatible_name[];
+extern const char prom_root_compatible[];
 extern const char prom_finddev_name[];
 extern const char prom_chosen_path[];
 extern const char prom_getprop_name[];

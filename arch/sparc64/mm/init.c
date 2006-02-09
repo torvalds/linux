@@ -514,6 +514,29 @@ static void __init read_obp_translations(void)
 	}
 }
 
+static void __init hypervisor_tlb_lock(unsigned long vaddr,
+				       unsigned long pte,
+				       unsigned long mmu)
+{
+	register unsigned long func asm("%o0");
+	register unsigned long arg0 asm("%o1");
+	register unsigned long arg1 asm("%o2");
+	register unsigned long arg2 asm("%o3");
+	register unsigned long arg3 asm("%o4");
+
+	func = HV_FAST_MMU_MAP_PERM_ADDR;
+	arg0 = vaddr;
+	arg1 = 0;
+	arg2 = pte;
+	arg3 = mmu;
+	__asm__ __volatile__("ta	0x80"
+			     : "=&r" (func), "=&r" (arg0),
+			       "=&r" (arg1), "=&r" (arg2),
+			       "=&r" (arg3)
+			     : "0" (func), "1" (arg0), "2" (arg1),
+			       "3" (arg2), "4" (arg3));
+}
+
 static void __init remap_kernel(void)
 {
 	unsigned long phys_page, tte_vaddr, tte_data;
@@ -527,19 +550,30 @@ static void __init remap_kernel(void)
 
 	kern_locked_tte_data = tte_data;
 
-	/* Now lock us into the TLBs via OBP. */
-	prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
-	prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
-	if (bigkernel) {
-		tlb_ent -= 1;
-		prom_dtlb_load(tlb_ent,
-			       tte_data + 0x400000, 
-			       tte_vaddr + 0x400000);
-		prom_itlb_load(tlb_ent,
-			       tte_data + 0x400000, 
-			       tte_vaddr + 0x400000);
+	/* Now lock us into the TLBs via Hypervisor or OBP. */
+	if (tlb_type == hypervisor) {
+		hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_DMMU);
+		hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_IMMU);
+		if (bigkernel) {
+			tte_vaddr += 0x400000;
+			tte_data += 0x400000;
+			hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_DMMU);
+			hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_IMMU);
+		}
+	} else {
+		prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
+		prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
+		if (bigkernel) {
+			tlb_ent -= 1;
+			prom_dtlb_load(tlb_ent,
+				       tte_data + 0x400000, 
+				       tte_vaddr + 0x400000);
+			prom_itlb_load(tlb_ent,
+				       tte_data + 0x400000, 
+				       tte_vaddr + 0x400000);
+		}
+		sparc64_highest_unlocked_tlb_ent = tlb_ent - 1;
 	}
-	sparc64_highest_unlocked_tlb_ent = tlb_ent - 1;
 	if (tlb_type == cheetah_plus) {
 		sparc64_kern_pri_context = (CTX_CHEETAH_PLUS_CTX0 |
 					    CTX_CHEETAH_PLUS_NUC);

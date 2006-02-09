@@ -504,9 +504,12 @@ static void __init per_cpu_patch(void)
 	if (tlb_type == spitfire && !this_is_starfire)
 		return;
 
-	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-	is_jbus = ((ver >> 32) == __JALAPENO_ID ||
-		   (ver >> 32) == __SERRANO_ID);
+	is_jbus = 0;
+	if (tlb_type != hypervisor) {
+		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+		is_jbus = ((ver >> 32) == __JALAPENO_ID ||
+			   (ver >> 32) == __SERRANO_ID);
+	}
 
 	p = &__cpuid_patch;
 	while (p < &__cpuid_patch_end) {

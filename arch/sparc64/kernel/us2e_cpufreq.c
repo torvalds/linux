@@ -346,6 +346,9 @@ static int __init us2e_freq_init(void)
 	unsigned long manuf, impl, ver;
 	int ret;
 
+	if (tlb_type != spitfire)
+		return -ENODEV;
+
 	__asm__("rdpr %%ver, %0" : "=r" (ver));
 	manuf = ((ver >> 48) & 0xffff);
 	impl  = ((ver >> 32) & 0xffff);

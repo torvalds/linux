@@ -150,47 +150,53 @@ void enable_irq(unsigned int irq)
 
 	preempt_disable();
 
-	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		unsigned long ver;
-
-		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-		if ((ver >> 32) == __JALAPENO_ID ||
-		    (ver >> 32) == __SERRANO_ID) {
-			/* We set it to our JBUS ID. */
-			__asm__ __volatile__("ldxa [%%g0] %1, %0"
-					     : "=r" (tid)
-					     : "i" (ASI_JBUS_CONFIG));
-			tid = ((tid & (0x1fUL<<17)) << 9);
-			tid &= IMAP_TID_JBUS;
-		} else {
-			/* We set it to our Safari AID. */
-			__asm__ __volatile__("ldxa [%%g0] %1, %0"
-					     : "=r" (tid)
-					     : "i" (ASI_SAFARI_CONFIG));
-			tid = ((tid & (0x3ffUL<<17)) << 9);
-			tid &= IMAP_AID_SAFARI;
-		}
-	} else if (this_is_starfire == 0) {
-		/* We set it to our UPA MID. */
-		__asm__ __volatile__("ldxa [%%g0] %1, %0"
-				     : "=r" (tid)
-				     : "i" (ASI_UPA_CONFIG));
-		tid = ((tid & UPA_CONFIG_MID) << 9);
-		tid &= IMAP_TID_UPA;
+	if (tlb_type == hypervisor) {
+		/* XXX SUN4V: implement me... XXX */
 	} else {
-		tid = (starfire_translate(imap, smp_processor_id()) << 26);
-		tid &= IMAP_TID_UPA;
-	}
+		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+			unsigned long ver;
 
-	/* NOTE NOTE NOTE, IGN and INO are read-only, IGN is a product
-	 * of this SYSIO's preconfigured IGN in the SYSIO Control
-	 * Register, the hardware just mirrors that value here.
-	 * However for Graphics and UPA Slave devices the full
-	 * IMAP_INR field can be set by the programmer here.
-	 *
-	 * Things like FFB can now be handled via the new IRQ mechanism.
-	 */
-	upa_writel(tid | IMAP_VALID, imap);
+			__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+			if ((ver >> 32) == __JALAPENO_ID ||
+			    (ver >> 32) == __SERRANO_ID) {
+				/* We set it to our JBUS ID. */
+				__asm__ __volatile__("ldxa [%%g0] %1, %0"
+						     : "=r" (tid)
+						     : "i" (ASI_JBUS_CONFIG));
+				tid = ((tid & (0x1fUL<<17)) << 9);
+				tid &= IMAP_TID_JBUS;
+			} else {
+				/* We set it to our Safari AID. */
+				__asm__ __volatile__("ldxa [%%g0] %1, %0"
+						     : "=r" (tid)
+						     : "i"(ASI_SAFARI_CONFIG));
+				tid = ((tid & (0x3ffUL<<17)) << 9);
+				tid &= IMAP_AID_SAFARI;
+			}
+		} else if (this_is_starfire == 0) {
+			/* We set it to our UPA MID. */
+			__asm__ __volatile__("ldxa [%%g0] %1, %0"
+					     : "=r" (tid)
+					     : "i" (ASI_UPA_CONFIG));
+			tid = ((tid & UPA_CONFIG_MID) << 9);
+			tid &= IMAP_TID_UPA;
+		} else {
+			tid = (starfire_translate(imap,
+						  smp_processor_id()) << 26);
+			tid &= IMAP_TID_UPA;
+		}
+
+		/* NOTE NOTE NOTE, IGN and INO are read-only, IGN is a product
+		 * of this SYSIO's preconfigured IGN in the SYSIO Control
+		 * Register, the hardware just mirrors that value here.
+		 * However for Graphics and UPA Slave devices the full
+		 * IMAP_INR field can be set by the programmer here.
+		 *
+		 * Things like FFB can now be handled via the new IRQ
+		 * mechanism.
+		 */
+		upa_writel(tid | IMAP_VALID, imap);
+	}
 
 	preempt_enable();
 }
