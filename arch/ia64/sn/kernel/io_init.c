@@ -623,6 +623,8 @@ sn_sysdata_free_start:
 	list_for_each(list, &sn_sysdata_list) {
 		element = list_entry(list, struct sysdata_el, entry);
 		list_del(&element->entry);
+		list_del(&(((struct pcidev_info *)
+			     (element->sysdata))->pdi_list));
 		kfree(element->sysdata);
 		kfree(element);
 		goto sn_sysdata_free_start;
