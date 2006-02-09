@@ -900,6 +900,24 @@ static void __cpuinit init_one_kbuf(unsigned long *pa_ptr)
 	*pa_ptr = __pa(page);
 }
 
+static void __cpuinit init_cpu_send_mondo_info(struct trap_per_cpu *tb)
+{
+#ifdef CONFIG_SMP
+	unsigned long page;
+
+	BUILD_BUG_ON((NR_CPUS * sizeof(u16)) > (PAGE_SIZE - 64));
+
+	page = get_zeroed_page(GFP_ATOMIC);
+	if (!page) {
+		prom_printf("SUN4V: Error, cannot allocate cpu mondo page.\n");
+		prom_halt();
+	}
+
+	tb->cpu_mondo_block_pa = __pa(page);
+	tb->cpu_list_pa = __pa(page + 64);
+#endif
+}
+
 /* Allocate and init the mondo and error queues for this cpu.  */
 void __cpuinit sun4v_init_mondo_queues(void)
 {
@@ -908,10 +926,14 @@ void __cpuinit sun4v_init_mondo_queues(void)
 
 	init_one_mondo(&tb->cpu_mondo_pa, HV_CPU_QUEUE_CPU_MONDO);
 	init_one_mondo(&tb->dev_mondo_pa, HV_CPU_QUEUE_DEVICE_MONDO);
+
 	init_one_mondo(&tb->resum_mondo_pa, HV_CPU_QUEUE_RES_ERROR);
 	init_one_kbuf(&tb->resum_kernel_buf_pa);
+
 	init_one_mondo(&tb->nonresum_mondo_pa, HV_CPU_QUEUE_NONRES_ERROR);
 	init_one_kbuf(&tb->nonresum_kernel_buf_pa);
+
+	init_cpu_send_mondo_info(tb);
 }
 
 /* Only invoked on boot processor. */

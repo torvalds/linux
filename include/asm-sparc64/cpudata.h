@@ -65,8 +65,16 @@ struct trap_per_cpu {
 	unsigned long		nonresum_mondo_pa;
 	unsigned long		nonresum_kernel_buf_pa;
 
-/* Dcache lines 3 and 4: Hypervisor Fault Status */
+/* Dcache lines 3, 4, 5, and 6: Hypervisor Fault Status */
 	struct hv_fault_status	fault_info;
+
+/* Dcache line 7: Physical addresses of CPU send mondo block and CPU list.  */
+	unsigned long		cpu_mondo_block_pa;
+	unsigned long		cpu_list_pa;
+	unsigned long		__pad1[2];
+
+/* Dcache line 8: Unused, needed to keep trap_block a power-of-2 in size.  */
+	unsigned long		__pad2[4];
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(void);
@@ -108,8 +116,10 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 #define TRAP_PER_CPU_NONRESUM_MONDO_PA	0x30
 #define TRAP_PER_CPU_NONRESUM_KBUF_PA	0x38
 #define TRAP_PER_CPU_FAULT_INFO		0x40
+#define TRAP_PER_CPU_CPU_MONDO_BLOCK_PA	0xc0
+#define TRAP_PER_CPU_CPU_LIST_PA	0xc8
 
-#define TRAP_BLOCK_SZ_SHIFT		7
+#define TRAP_BLOCK_SZ_SHIFT		8
 
 #include <asm/scratchpad.h>
 

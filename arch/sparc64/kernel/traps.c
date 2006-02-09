@@ -2377,7 +2377,11 @@ void __init trap_init(void)
 	    (TRAP_PER_CPU_NONRESUM_KBUF_PA !=
 	     offsetof(struct trap_per_cpu, nonresum_kernel_buf_pa)) ||
 	    (TRAP_PER_CPU_FAULT_INFO !=
-	     offsetof(struct trap_per_cpu, fault_info)))
+	     offsetof(struct trap_per_cpu, fault_info)) ||
+	    (TRAP_PER_CPU_CPU_MONDO_BLOCK_PA !=
+	     offsetof(struct trap_per_cpu, cpu_mondo_block_pa)) ||
+	    (TRAP_PER_CPU_CPU_LIST_PA !=
+	     offsetof(struct trap_per_cpu, cpu_list_pa)))
 		trap_per_cpu_offsets_are_bolixed_dave();
 
 	/* Attach to the address space of init_task.  On SMP we
