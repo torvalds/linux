@@ -1087,10 +1087,10 @@ ata_queue_delayed_pio_task(struct ata_port *ap, unsigned long delay)
 }
 
 /**
- *	ata_flush_pio_tasks - Flush pio_task and packet_task
+ *	ata_flush_pio_tasks - Flush pio_task
  *	@ap: the target ata_port
  *
- *	After this function completes, pio_task and packet_task are
+ *	After this function completes, pio_task is
  *	guranteed not to be running or scheduled.
  *
  *	LOCKING:
@@ -1117,7 +1117,6 @@ static void ata_flush_pio_tasks(struct ata_port *ap)
 	 * Cancel and flush.
 	 */
 	tmp |= cancel_delayed_work(&ap->pio_task);
-	tmp |= cancel_delayed_work(&ap->packet_task);
 	if (!tmp) {
 		DPRINTK("flush #2\n");
 		flush_workqueue(ata_wq);
