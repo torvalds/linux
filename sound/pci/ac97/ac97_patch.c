@@ -2840,7 +2840,6 @@ static struct snd_ac97_res_table lm4550_restbl[] = {
 	{ AC97_MASTER_MONO, 0x001f },
 	{ AC97_PC_BEEP, 0x001f },	/* LSB is ignored */
 	{ AC97_PHONE, 0x001f },
-	{ AC97_PHONE, 0x001f },
 	{ AC97_MIC, 0x001f },
 	{ AC97_LINE, 0x1f1f },
 	{ AC97_CD, 0x1f1f },
