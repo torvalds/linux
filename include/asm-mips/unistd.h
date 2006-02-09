@@ -1184,10 +1184,8 @@ type name (atype a,btype b,ctype c,dtype d,etype e,ftype f) \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-# ifndef __mips64
-#  define __ARCH_WANT_STAT64
-# endif
 # ifdef CONFIG_32BIT
+#  define __ARCH_WANT_STAT64
 #  define __ARCH_WANT_SYS_TIME
 # endif
 # ifdef CONFIG_MIPS32_O32
