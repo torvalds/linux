@@ -1075,13 +1075,59 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 static inline void
 ata_queue_pio_task(struct ata_port *ap)
 {
-	queue_work(ata_wq, &ap->pio_task);
+	if (!(ap->flags & ATA_FLAG_FLUSH_PIO_TASK))
+		queue_work(ata_wq, &ap->pio_task);
 }
 
 static inline void
 ata_queue_delayed_pio_task(struct ata_port *ap, unsigned long delay)
 {
-	queue_delayed_work(ata_wq, &ap->pio_task, delay);
+	if (!(ap->flags & ATA_FLAG_FLUSH_PIO_TASK))
+		queue_delayed_work(ata_wq, &ap->pio_task, delay);
+}
+
+/**
+ *	ata_flush_pio_tasks - Flush pio_task and packet_task
+ *	@ap: the target ata_port
+ *
+ *	After this function completes, pio_task and packet_task are
+ *	guranteed not to be running or scheduled.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+
+static void ata_flush_pio_tasks(struct ata_port *ap)
+{
+	int tmp = 0;
+	unsigned long flags;
+
+	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags |= ATA_FLAG_FLUSH_PIO_TASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("flush #1\n");
+	flush_workqueue(ata_wq);
+
+	/*
+	 * At this point, if a task is running, it's guaranteed to see
+	 * the FLUSH flag; thus, it will never queue pio tasks again.
+	 * Cancel and flush.
+	 */
+	tmp |= cancel_delayed_work(&ap->pio_task);
+	tmp |= cancel_delayed_work(&ap->packet_task);
+	if (!tmp) {
+		DPRINTK("flush #2\n");
+		flush_workqueue(ata_wq);
+	}
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_FLUSH_PIO_TASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("EXIT\n");
 }
 
 void ata_qc_complete_internal(struct ata_queued_cmd *qc)
@@ -1446,12 +1492,11 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap)
 }
 
 /**
- * 	ata_dev_config - Run device specific handlers and check for
- * 			 SATA->PATA bridges
- * 	@ap: Bus
- * 	@i:  Device
+ * ata_dev_config - Run device specific handlers & check for SATA->PATA bridges
+ * @ap: Bus
+ * @i:  Device
  *
- * 	LOCKING:
+ * LOCKING:
  */
 
 void ata_dev_config(struct ata_port *ap, unsigned int i)
@@ -1798,9 +1843,9 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	ata_timing_quantize(t, t, T, UT);
 
 	/*
-	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
-	 * and some other commands. We have to ensure that the DMA cycle timing is
-	 * slower/equal than the fastest PIO timing.
+	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY,
+	 * S.M.A.R.T * and some other commands. We have to ensure that the
+	 * DMA cycle timing is slower/equal than the fastest PIO timing.
 	 */
 
 	if (speed > XFER_PIO_4) {
@@ -1809,7 +1854,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	}
 
 	/*
-	 * Lenghten active & recovery time so that cycle time is correct.
+	 * Lengthen active & recovery time so that cycle time is correct.
 	 */
 
 	if (t->act8b + t->rec8b < t->cyc8b) {
@@ -1928,7 +1973,6 @@ static void ata_host_set_dma(struct ata_port *ap, u8 xfer_mode,
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
- *
  */
 static void ata_set_mode(struct ata_port *ap)
 {
@@ -1977,7 +2021,6 @@ err_out:
  *	or a timeout occurs.
  *
  *	LOCKING: None.
- *
  */
 
 unsigned int ata_busy_sleep (struct ata_port *ap,
@@ -2235,6 +2278,324 @@ err_out:
 	ap->ops->port_disable(ap);
 
 	DPRINTK("EXIT\n");
+}
+
+static int sata_phy_resume(struct ata_port *ap)
+{
+	unsigned long timeout = jiffies + (HZ * 5);
+	u32 sstatus;
+
+	scr_write_flush(ap, SCR_CONTROL, 0x300);
+
+	/* Wait for phy to become ready, if necessary. */
+	do {
+		msleep(200);
+		sstatus = scr_read(ap, SCR_STATUS);
+		if ((sstatus & 0xf) != 1)
+			return 0;
+	} while (time_before(jiffies, timeout));
+
+	return -1;
+}
+
+/**
+ *	ata_std_probeinit - initialize probing
+ *	@ap: port to be probed
+ *
+ *	@ap is about to be probed.  Initialize it.  This function is
+ *	to be used as standard callback for ata_drive_probe_reset().
+ */
+extern void ata_std_probeinit(struct ata_port *ap)
+{
+	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+		sata_phy_resume(ap);
+}
+
+/**
+ *	ata_std_softreset - reset host port via ATA SRST
+ *	@ap: port to reset
+ *	@verbose: fail verbosely
+ *	@classes: resulting classes of attached devices
+ *
+ *	Reset host port using ATA SRST.  This function is to be used
+ *	as standard callback for ata_drive_*_reset() functions.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
+{
+	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
+	unsigned int devmask = 0, err_mask;
+	u8 err;
+
+	DPRINTK("ENTER\n");
+
+	/* determine if device 0/1 are present */
+	if (ata_devchk(ap, 0))
+		devmask |= (1 << 0);
+	if (slave_possible && ata_devchk(ap, 1))
+		devmask |= (1 << 1);
+
+	/* devchk reports device presence without actual device on
+	 * most SATA controllers.  Check SStatus and turn devmask off
+	 * if link is offline.  Note that we should continue resetting
+	 * even when it seems like there's no device.
+	 */
+	if (ap->ops->scr_read && !sata_dev_present(ap))
+		devmask = 0;
+
+	/* select device 0 again */
+	ap->ops->dev_select(ap, 0);
+
+	/* issue bus reset */
+	DPRINTK("about to softreset, devmask=%x\n", devmask);
+	err_mask = ata_bus_softreset(ap, devmask);
+	if (err_mask) {
+		if (verbose)
+			printk(KERN_ERR "ata%u: SRST failed (err_mask=0x%x)\n",
+			       ap->id, err_mask);
+		else
+			DPRINTK("EXIT, softreset failed (err_mask=0x%x)\n",
+				err_mask);
+		return -EIO;
+	}
+
+	/* determine by signature whether we have ATA or ATAPI devices */
+	classes[0] = ata_dev_try_classify(ap, 0, &err);
+	if (slave_possible && err != 0x81)
+		classes[1] = ata_dev_try_classify(ap, 1, &err);
+
+	DPRINTK("EXIT, classes[0]=%u [1]=%u\n", classes[0], classes[1]);
+	return 0;
+}
+
+/**
+ *	sata_std_hardreset - reset host port via SATA phy reset
+ *	@ap: port to reset
+ *	@verbose: fail verbosely
+ *	@class: resulting class of attached device
+ *
+ *	SATA phy-reset host port using DET bits of SControl register.
+ *	This function is to be used as standard callback for
+ *	ata_drive_*_reset().
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
+{
+	u32 serror;
+
+	DPRINTK("ENTER\n");
+
+	/* Issue phy wake/reset */
+	scr_write_flush(ap, SCR_CONTROL, 0x301);
+
+	/*
+	 * Couldn't find anything in SATA I/II specs, but AHCI-1.1
+	 * 10.4.2 says at least 1 ms.
+	 */
+	msleep(1);
+
+	/* Bring phy back */
+	sata_phy_resume(ap);
+
+	/* Clear SError */
+	serror = scr_read(ap, SCR_ERROR);
+	scr_write(ap, SCR_ERROR, serror);
+
+	/* TODO: phy layer with polling, timeouts, etc. */
+	if (!sata_dev_present(ap)) {
+		*class = ATA_DEV_NONE;
+		DPRINTK("EXIT, link offline\n");
+		return 0;
+	}
+
+	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
+		if (verbose)
+			printk(KERN_ERR "ata%u: COMRESET failed "
+			       "(device not ready)\n", ap->id);
+		else
+			DPRINTK("EXIT, device not ready\n");
+		return -EIO;
+	}
+
+	*class = ata_dev_try_classify(ap, 0, NULL);
+
+	DPRINTK("EXIT, class=%u\n", *class);
+	return 0;
+}
+
+/**
+ *	ata_std_postreset - standard postreset callback
+ *	@ap: the target ata_port
+ *	@classes: classes of attached devices
+ *
+ *	This function is invoked after a successful reset.  Note that
+ *	the device might have been reset more than once using
+ *	different reset methods before postreset is invoked.
+ *	postreset is also reponsible for setting cable type.
+ *
+ *	This function is to be used as standard callback for
+ *	ata_drive_*_reset().
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
+{
+	DPRINTK("ENTER\n");
+
+	/* set cable type */
+	if (ap->cbl == ATA_CBL_NONE && ap->flags & ATA_FLAG_SATA)
+		ap->cbl = ATA_CBL_SATA;
+
+	/* print link status */
+	if (ap->cbl == ATA_CBL_SATA)
+		sata_print_link_status(ap);
+
+	/* bail out if no device is present */
+	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
+		DPRINTK("EXIT, no device\n");
+		return;
+	}
+
+	/* is double-select really necessary? */
+	if (classes[0] != ATA_DEV_NONE)
+		ap->ops->dev_select(ap, 1);
+	if (classes[1] != ATA_DEV_NONE)
+		ap->ops->dev_select(ap, 0);
+
+	/* re-enable interrupts & set up device control */
+	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
+		ata_irq_on(ap);
+
+	DPRINTK("EXIT\n");
+}
+
+/**
+ *	ata_std_probe_reset - standard probe reset method
+ *	@ap: prot to perform probe-reset
+ *	@classes: resulting classes of attached devices
+ *
+ *	The stock off-the-shelf ->probe_reset method.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
+{
+	ata_reset_fn_t hardreset;
+
+	hardreset = NULL;
+	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+		hardreset = sata_std_hardreset;
+
+	return ata_drive_probe_reset(ap, ata_std_probeinit,
+				     ata_std_softreset, hardreset,
+				     ata_std_postreset, classes);
+}
+
+static int do_probe_reset(struct ata_port *ap, ata_reset_fn_t reset,
+			  ata_postreset_fn_t postreset,
+			  unsigned int *classes)
+{
+	int i, rc;
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		classes[i] = ATA_DEV_UNKNOWN;
+
+	rc = reset(ap, 0, classes);
+	if (rc)
+		return rc;
+
+	/* If any class isn't ATA_DEV_UNKNOWN, consider classification
+	 * is complete and convert all ATA_DEV_UNKNOWN to
+	 * ATA_DEV_NONE.
+	 */
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		if (classes[i] != ATA_DEV_UNKNOWN)
+			break;
+
+	if (i < ATA_MAX_DEVICES)
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			if (classes[i] == ATA_DEV_UNKNOWN)
+				classes[i] = ATA_DEV_NONE;
+
+	if (postreset)
+		postreset(ap, classes);
+
+	return classes[0] != ATA_DEV_UNKNOWN ? 0 : -ENODEV;
+}
+
+/**
+ *	ata_drive_probe_reset - Perform probe reset with given methods
+ *	@ap: port to reset
+ *	@probeinit: probeinit method (can be NULL)
+ *	@softreset: softreset method (can be NULL)
+ *	@hardreset: hardreset method (can be NULL)
+ *	@postreset: postreset method (can be NULL)
+ *	@classes: resulting classes of attached devices
+ *
+ *	Reset the specified port and classify attached devices using
+ *	given methods.  This function prefers softreset but tries all
+ *	possible reset sequences to reset and classify devices.  This
+ *	function is intended to be used for constructing ->probe_reset
+ *	callback by low level drivers.
+ *
+ *	Reset methods should follow the following rules.
+ *
+ *	- Return 0 on sucess, -errno on failure.
+ *	- If classification is supported, fill classes[] with
+ *	  recognized class codes.
+ *	- If classification is not supported, leave classes[] alone.
+ *	- If verbose is non-zero, print error message on failure;
+ *	  otherwise, shut up.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -EINVAL if no reset method is avaliable, -ENODEV
+ *	if classification fails, and any error code from reset
+ *	methods.
+ */
+int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
+			  ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+			  ata_postreset_fn_t postreset, unsigned int *classes)
+{
+	int rc = -EINVAL;
+
+	if (probeinit)
+		probeinit(ap);
+
+	if (softreset) {
+		rc = do_probe_reset(ap, softreset, postreset, classes);
+		if (rc == 0)
+			return 0;
+	}
+
+	if (!hardreset)
+		return rc;
+
+	rc = do_probe_reset(ap, hardreset, postreset, classes);
+	if (rc == 0 || rc != -ENODEV)
+		return rc;
+
+	if (softreset)
+		rc = do_probe_reset(ap, softreset, postreset, classes);
+
+	return rc;
 }
 
 static void ata_pr_blacklisted(const struct ata_port *ap,
@@ -2913,7 +3274,7 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_pio_poll -
+ *	ata_pio_poll - poll using PIO, depending on current state
  *	@ap: the target ata_port
  *
  *	LOCKING:
@@ -3021,7 +3382,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 
 /**
- *	swap_buf_le16 - swap halves of 16-words in place
+ *	swap_buf_le16 - swap halves of 16-bit words in place
  *	@buf:  Buffer to swap
  *	@buf_words:  Number of 16-bit words in buffer.
  *
@@ -3657,6 +4018,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	ata_flush_pio_tasks(ap);
+	ap->hsm_task_state = HSM_ST_IDLE;
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
@@ -4561,6 +4925,8 @@ static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
 
 /**
  *	ata_device_resume - wakeup a previously suspended devices
+ *	@ap: port the device is connected to
+ *	@dev: the device to resume
  *
  *	Kick the drive back into action, by sending it an idle immediate
  *	command and making sure its transfer mode matches between drive
@@ -4583,10 +4949,11 @@ int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
 
 /**
  *	ata_device_suspend - prepare a device for suspend
+ *	@ap: port the device is connected to
+ *	@dev: the device to suspend
  *
  *	Flush the cache on the drive, if appropriate, then issue a
  *	standbynow command.
- *
  */
 int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
 {
@@ -4869,9 +5236,9 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 		ap = host_set->ports[i];
 
-		DPRINTK("ata%u: probe begin\n", ap->id);
+		DPRINTK("ata%u: bus probe begin\n", ap->id);
 		rc = ata_bus_probe(ap);
-		DPRINTK("ata%u: probe end\n", ap->id);
+		DPRINTK("ata%u: bus probe end\n", ap->id);
 
 		if (rc) {
 			/* FIXME: do something useful here?
@@ -4895,7 +5262,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	}
 
 	/* probes are done, now scan each port's disk(s) */
-	DPRINTK("probe begin\n");
+	DPRINTK("host probe begin\n");
 	for (i = 0; i < count; i++) {
 		struct ata_port *ap = host_set->ports[i];
 
@@ -5459,6 +5826,12 @@ EXPORT_SYMBOL_GPL(ata_port_probe);
 EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
+EXPORT_SYMBOL_GPL(ata_std_probeinit);
+EXPORT_SYMBOL_GPL(ata_std_softreset);
+EXPORT_SYMBOL_GPL(sata_std_hardreset);
+EXPORT_SYMBOL_GPL(ata_std_postreset);
+EXPORT_SYMBOL_GPL(ata_std_probe_reset);
+EXPORT_SYMBOL_GPL(ata_drive_probe_reset);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);

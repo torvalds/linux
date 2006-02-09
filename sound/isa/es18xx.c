@@ -1878,9 +1878,9 @@ module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA 2 # for ES18xx driver.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
-static int pnp_registered;
 
 #ifdef CONFIG_PNP
+static int pnp_registered;
 
 static struct pnp_card_device_id snd_audiodrive_pnpids[] = {
 	/* ESS 1868 (integrated on Compaq dual P-Pro motherboard and Genius 18PnP 3D) */
@@ -2209,8 +2209,10 @@ static void __init_or_module snd_es18xx_unregister_all(void)
 {
 	int i;
 
+#ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_card_driver(&es18xx_pnpc_driver);
+#endif
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
 	platform_driver_unregister(&snd_es18xx_nonpnp_driver);
@@ -2237,11 +2239,13 @@ static int __init alsa_card_es18xx_init(void)
 		cards++;
 	}
 
+#ifdef CONFIG_PNP
 	i = pnp_register_card_driver(&es18xx_pnpc_driver);
 	if (i >= 0) {
 		pnp_registered = 1;
 		cards += i;
 	}
+#endif
 
 	if(!cards) {
 #ifdef MODULE

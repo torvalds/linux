@@ -1152,45 +1152,6 @@ int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
  /* End of Add-Ons                                    */
  /* ************************************************* */
 
-/* Linux 2.5.something and 2.6 pass direct pointers to arguments of
-   ioctl() calls. With 2.4, you have to do tedious copy_from_user()
-   and copy_to_user() calls. With these macros we circumvent this,
-   and let me maintain only one source file. The functionality is
-   exactly the same otherwise.
- */   
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-
-/* define local variable for arg */
-#define ARG_DEF(ARG_type, ARG_name)\
-	ARG_type *ARG_name = arg;
-/* copy arg to local variable */	
-#define ARG_IN(ARG_name) /* nothing */
-/* argument itself (referenced) */
-#define ARGR(ARG_name) (*ARG_name)
-/* argument address */
-#define ARGA(ARG_name) ARG_name
-/* copy local variable to arg */
-#define ARG_OUT(ARG_name) /* nothing */
-
-#else
-
-#define ARG_DEF(ARG_type, ARG_name)\
-	ARG_type ARG_name;
-#define ARG_IN(ARG_name)\
-	if (copy_from_user(&ARG_name, arg, sizeof(ARG_name))) {\
-		ret = -EFAULT;\
-		break;\
-	}
-#define ARGR(ARG_name) ARG_name
-#define ARGA(ARG_name) &ARG_name
-#define ARG_OUT(ARG_name)\
-	if (copy_to_user(arg, &ARG_name, sizeof(ARG_name))) {\
-		ret = -EFAULT;\
-		break;\
-	}
-
-#endif
 
 int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 {
@@ -1220,243 +1181,206 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 	
 	case VIDIOCPWCSCQUAL:
 	{	
-		ARG_DEF(int, qual)
+		int *qual = arg;
 
-		ARG_IN(qual)
-		if (ARGR(qual) < 0 || ARGR(qual) > 3)
+		if (*qual < 0 || *qual > 3)
 			ret = -EINVAL;
 		else
-			ret = pwc_try_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, ARGR(qual), pdev->vsnapshot);
+			ret = pwc_try_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, *qual, pdev->vsnapshot);
 		if (ret >= 0)
-			pdev->vcompression = ARGR(qual);
+			pdev->vcompression = *qual;
 		break;
 	}
 	
 	case VIDIOCPWCGCQUAL:
 	{
-		ARG_DEF(int, qual)
-		
-		ARGR(qual) = pdev->vcompression;
-		ARG_OUT(qual)
+		int *qual = arg;
+		*qual = pdev->vcompression;
 		break;
 	}
 	
 	case VIDIOCPWCPROBE:
 	{
-		ARG_DEF(struct pwc_probe, probe)
-		
-		strcpy(ARGR(probe).name, pdev->vdev->name);
-		ARGR(probe).type = pdev->type;
-		ARG_OUT(probe)
+		struct pwc_probe *probe = arg;
+		strcpy(probe->name, pdev->vdev->name);
+		probe->type = pdev->type;
 		break;
 	}
 
 	case VIDIOCPWCGSERIAL:
 	{
-		ARG_DEF(struct pwc_serial, serial)
-		
-		strcpy(ARGR(serial).serial, pdev->serial);
-		ARG_OUT(serial)
+		struct pwc_serial *serial = arg;
+		strcpy(serial->serial, pdev->serial);
 		break;
 	}
 
 	case VIDIOCPWCSAGC:
 	{
-		ARG_DEF(int, agc)
-
-		ARG_IN(agc)
-		if (pwc_set_agc(pdev, ARGR(agc) < 0 ? 1 : 0, ARGR(agc)))
+		int *agc = arg;
+		if (pwc_set_agc(pdev, *agc < 0 ? 1 : 0, *agc))
 			ret = -EINVAL;
 		break;
 	}
 	
 	case VIDIOCPWCGAGC:
 	{
-		ARG_DEF(int, agc)
+		int *agc = arg;
 		
-		if (pwc_get_agc(pdev, ARGA(agc)))
+		if (pwc_get_agc(pdev, agc))
 			ret = -EINVAL;
-		ARG_OUT(agc)
 		break;
 	}
 	
 	case VIDIOCPWCSSHUTTER:
 	{
-		ARG_DEF(int, shutter_speed)
-
-		ARG_IN(shutter_speed)
-		ret = pwc_set_shutter_speed(pdev, ARGR(shutter_speed) < 0 ? 1 : 0, ARGR(shutter_speed));
+		int *shutter_speed = arg;
+		ret = pwc_set_shutter_speed(pdev, *shutter_speed < 0 ? 1 : 0, *shutter_speed);
 		break;
 	}
 	
         case VIDIOCPWCSAWB:
 	{
-		ARG_DEF(struct pwc_whitebalance, wb)
+		struct pwc_whitebalance *wb = arg;
 		
-		ARG_IN(wb)
-		ret = pwc_set_awb(pdev, ARGR(wb).mode);
-		if (ret >= 0 && ARGR(wb).mode == PWC_WB_MANUAL) {
-			pwc_set_red_gain(pdev, ARGR(wb).manual_red);
-			pwc_set_blue_gain(pdev, ARGR(wb).manual_blue);
+		ret = pwc_set_awb(pdev, wb->mode);
+		if (ret >= 0 && wb->mode == PWC_WB_MANUAL) {
+			pwc_set_red_gain(pdev, wb->manual_red);
+			pwc_set_blue_gain(pdev, wb->manual_blue);
 		}
 		break;
 	}
 
 	case VIDIOCPWCGAWB:
 	{
-		ARG_DEF(struct pwc_whitebalance, wb)
+		struct pwc_whitebalance *wb = arg;
 
-		memset(ARGA(wb), 0, sizeof(struct pwc_whitebalance));
-		ARGR(wb).mode = pwc_get_awb(pdev);
-		if (ARGR(wb).mode < 0)
+		memset(wb, 0, sizeof(struct pwc_whitebalance));
+		wb->mode = pwc_get_awb(pdev);
+		if (wb->mode < 0)
 			ret = -EINVAL;
 		else {
-			if (ARGR(wb).mode == PWC_WB_MANUAL) {
-				ret = pwc_get_red_gain(pdev, &ARGR(wb).manual_red);
+			if (wb->mode == PWC_WB_MANUAL) {
+				ret = pwc_get_red_gain(pdev, &wb->manual_red);
 				if (ret < 0)
 					break;
-				ret = pwc_get_blue_gain(pdev, &ARGR(wb).manual_blue);
+				ret = pwc_get_blue_gain(pdev, &wb->manual_blue);
 				if (ret < 0)
 					break;
 			}
-			if (ARGR(wb).mode == PWC_WB_AUTO) {
-				ret = pwc_read_red_gain(pdev, &ARGR(wb).read_red);
+			if (wb->mode == PWC_WB_AUTO) {
+				ret = pwc_read_red_gain(pdev, &wb->read_red);
 				if (ret < 0)
 					break;
- 				ret =pwc_read_blue_gain(pdev, &ARGR(wb).read_blue);
+ 				ret = pwc_read_blue_gain(pdev, &wb->read_blue);
  				if (ret < 0)
  					break;
 			}
 		}
-		ARG_OUT(wb)
 		break;
 	}
 	
 	case VIDIOCPWCSAWBSPEED:
 	{
-		ARG_DEF(struct pwc_wb_speed, wbs)
+		struct pwc_wb_speed *wbs = arg;
 		
-		if (ARGR(wbs).control_speed > 0) {
-			ret = pwc_set_wb_speed(pdev, ARGR(wbs).control_speed);
+		if (wbs->control_speed > 0) {
+			ret = pwc_set_wb_speed(pdev, wbs->control_speed);
 		}
-		if (ARGR(wbs).control_delay > 0) {
-			ret = pwc_set_wb_delay(pdev, ARGR(wbs).control_delay);
+		if (wbs->control_delay > 0) {
+			ret = pwc_set_wb_delay(pdev, wbs->control_delay);
 		}
 		break;
 	}
 	
 	case VIDIOCPWCGAWBSPEED:
 	{
-		ARG_DEF(struct pwc_wb_speed, wbs)
+		struct pwc_wb_speed *wbs = arg;
 		
-		ret = pwc_get_wb_speed(pdev, &ARGR(wbs).control_speed);
+		ret = pwc_get_wb_speed(pdev, &wbs->control_speed);
 		if (ret < 0)
 			break;
-		ret = pwc_get_wb_delay(pdev, &ARGR(wbs).control_delay);
+		ret = pwc_get_wb_delay(pdev, &wbs->control_delay);
 		if (ret < 0)
 			break;
-		ARG_OUT(wbs)
 		break;
 	}
 
         case VIDIOCPWCSLED:
 	{
-		ARG_DEF(struct pwc_leds, leds)
-
-		ARG_IN(leds)
-		ret = pwc_set_leds(pdev, ARGR(leds).led_on, ARGR(leds).led_off);
+		struct pwc_leds *leds = arg;
+		ret = pwc_set_leds(pdev, leds->led_on, leds->led_off);
 	    	break;
 	}
 
 
 	case VIDIOCPWCGLED:
 	{
-		ARG_DEF(struct pwc_leds, leds)
-		
-		ret = pwc_get_leds(pdev, &ARGR(leds).led_on, &ARGR(leds).led_off);
-		ARG_OUT(leds)
+		struct pwc_leds *leds = arg;
+		ret = pwc_get_leds(pdev, &leds->led_on, &leds->led_off);
 		break;
 	}
 
 	case VIDIOCPWCSCONTOUR:
 	{
-		ARG_DEF(int, contour)
-
-		ARG_IN(contour)
-		ret = pwc_set_contour(pdev, ARGR(contour));
+		int *contour = arg;
+		ret = pwc_set_contour(pdev, *contour);
 		break;
 	}
 			
 	case VIDIOCPWCGCONTOUR:
 	{
-		ARG_DEF(int, contour)
-		
-		ret = pwc_get_contour(pdev, ARGA(contour));
-		ARG_OUT(contour)
+		int *contour = arg;
+		ret = pwc_get_contour(pdev, contour);
 		break;
 	}
 	
 	case VIDIOCPWCSBACKLIGHT:
 	{
-		ARG_DEF(int, backlight)
-		
-		ARG_IN(backlight)
-		ret = pwc_set_backlight(pdev, ARGR(backlight));
+		int *backlight = arg;
+		ret = pwc_set_backlight(pdev, *backlight);
 		break;
 	}
 
 	case VIDIOCPWCGBACKLIGHT:
 	{
-		ARG_DEF(int, backlight)
-		
-		ret = pwc_get_backlight(pdev, ARGA(backlight));
-		ARG_OUT(backlight)
+		int *backlight = arg;
+		ret = pwc_get_backlight(pdev, backlight);
 		break;
 	}
 	
 	case VIDIOCPWCSFLICKER:
 	{
-		ARG_DEF(int, flicker)
-		
-		ARG_IN(flicker)
-		ret = pwc_set_flicker(pdev, ARGR(flicker));
+		int *flicker = arg;
+		ret = pwc_set_flicker(pdev, *flicker);
 		break;
 	}
 
 	case VIDIOCPWCGFLICKER:
 	{
-		ARG_DEF(int, flicker)
-		
-		ret = pwc_get_flicker(pdev, ARGA(flicker));
-		ARG_OUT(flicker)
+		int *flicker = arg;
+		ret = pwc_get_flicker(pdev, flicker);
 		break;
 	}
 	
 	case VIDIOCPWCSDYNNOISE:
 	{
-		ARG_DEF(int, dynnoise)
-		
-		ARG_IN(dynnoise)
-		ret = pwc_set_dynamic_noise(pdev, ARGR(dynnoise));
+		int *dynnoise = arg;
+		ret = pwc_set_dynamic_noise(pdev, *dynnoise);
 		break;
 	}
 	
 	case VIDIOCPWCGDYNNOISE:
 	{
-		ARG_DEF(int, dynnoise)
-
-		ret = pwc_get_dynamic_noise(pdev, ARGA(dynnoise));
-		ARG_OUT(dynnoise);
+		int *dynnoise = arg;
+		ret = pwc_get_dynamic_noise(pdev, dynnoise);
 		break;
 	}
 
 	case VIDIOCPWCGREALSIZE:
 	{
-		ARG_DEF(struct pwc_imagesize, size)
-		
-		ARGR(size).width = pdev->image.x;
-		ARGR(size).height = pdev->image.y;
-		ARG_OUT(size)
+		struct pwc_imagesize *size = arg;
+		size->width = pdev->image.x;
+		size->height = pdev->image.y;
 		break;
  	}
  	
@@ -1464,10 +1388,9 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
  	{
  		if (pdev->features & FEATURE_MOTOR_PANTILT)
  		{
-	 		ARG_DEF(int, flags)
+	 		int *flags = arg;
 
- 			ARG_IN(flags)
-			ret = pwc_mpt_reset(pdev, ARGR(flags));
+			ret = pwc_mpt_reset(pdev, *flags);
  			if (ret >= 0)
  			{
  				pdev->pan_angle = 0;
@@ -1485,10 +1408,8 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
  	{
  		if (pdev->features & FEATURE_MOTOR_PANTILT)
  		{
- 			ARG_DEF(struct pwc_mpt_range, range)
- 			
- 			ARGR(range) = pdev->angle_range;
- 			ARG_OUT(range)
+ 			struct pwc_mpt_range *range = arg;
+ 			*range = pdev->angle_range;
  		}
  		else
  		{	
@@ -1503,21 +1424,19 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
  		
  		if (pdev->features & FEATURE_MOTOR_PANTILT)
  		{
-	 		ARG_DEF(struct pwc_mpt_angles, angles)
-
-	 		ARG_IN(angles)
+	 		struct pwc_mpt_angles *angles = arg;
 			/* The camera can only set relative angles, so
 			   do some calculations when getting an absolute angle .
 			 */
-			if (ARGR(angles).absolute)
+			if (angles->absolute)
 			{
- 				new_pan  = ARGR(angles).pan; 
- 				new_tilt = ARGR(angles).tilt;
+ 				new_pan  = angles->pan;
+ 				new_tilt = angles->tilt;
  			}
  			else
  			{
- 				new_pan  = pdev->pan_angle  + ARGR(angles).pan;
- 				new_tilt = pdev->tilt_angle + ARGR(angles).tilt;
+ 				new_pan  = pdev->pan_angle  + angles->pan;
+ 				new_tilt = pdev->tilt_angle + angles->tilt;
 			}
 			/* check absolute ranges */
 			if (new_pan  < pdev->angle_range.pan_min  ||
@@ -1560,12 +1479,11 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
  		
  		if (pdev->features & FEATURE_MOTOR_PANTILT)
  		{
-	 		ARG_DEF(struct pwc_mpt_angles, angles)
+	 		struct pwc_mpt_angles *angles = arg;
 
- 			ARGR(angles).absolute = 1;
- 			ARGR(angles).pan  = pdev->pan_angle;
- 			ARGR(angles).tilt = pdev->tilt_angle;
- 			ARG_OUT(angles)
+ 			angles->absolute = 1;
+ 			angles->pan  = pdev->pan_angle;
+ 			angles->tilt = pdev->tilt_angle;
  		}
  		else
  		{
@@ -1578,10 +1496,8 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
  	{
  		if (pdev->features & FEATURE_MOTOR_PANTILT)
  		{
- 			ARG_DEF(struct pwc_mpt_status, status)
- 			
- 			ret = pwc_mpt_get_status(pdev, ARGA(status));
- 			ARG_OUT(status)
+ 			struct pwc_mpt_status *status = arg;
+ 			ret = pwc_mpt_get_status(pdev, status);
  		}
  		else
  		{
@@ -1592,24 +1508,22 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 
 	case VIDIOCPWCGVIDCMD:
 	{
-		ARG_DEF(struct pwc_video_command, cmd);
+		struct pwc_video_command *cmd = arg;
 		
-                ARGR(cmd).type = pdev->type;
-		ARGR(cmd).release = pdev->release;
-		ARGR(cmd).command_len = pdev->cmd_len;
-		memcpy(&ARGR(cmd).command_buf, pdev->cmd_buf, pdev->cmd_len);
-		ARGR(cmd).bandlength = pdev->vbandlength;
-		ARGR(cmd).frame_size = pdev->frame_size;
-		ARG_OUT(cmd)
+                cmd->type = pdev->type;
+		cmd->release = pdev->release;
+		cmd->command_len = pdev->cmd_len;
+		memcpy(&cmd->command_buf, pdev->cmd_buf, pdev->cmd_len);
+		cmd->bandlength = pdev->vbandlength;
+		cmd->frame_size = pdev->frame_size;
 		break;
 	}
        /*
 	case VIDIOCPWCGVIDTABLE:
 	{
-		ARG_DEF(struct pwc_table_init_buffer, table);
-		ARGR(table).len = pdev->cmd_len;
-		memcpy(&ARGR(table).buffer, pdev->decompress_data, pdev->decompressor->table_size);
-		ARG_OUT(table)
+		struct pwc_table_init_buffer *table = arg;
+		table->len = pdev->cmd_len;
+		memcpy(&table->buffer, pdev->decompress_data, pdev->decompressor->table_size);
 		break;
 	}
 	*/

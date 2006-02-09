@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -504,18 +504,12 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		}
 
 		/*
-		 * Perform the conversion.
+		 * Create a new string object and string buffer
 		 * (-1 because of extra separator included in string_length from above)
 		 */
-		string_length--;
-		if (string_length > ACPI_MAX_STRING_CONVERSION) {	/* ACPI limit */
-			return_ACPI_STATUS(AE_AML_STRING_LIMIT);
-		}
-
-		/* Create a new string object and string buffer */
-
 		return_desc =
-		    acpi_ut_create_string_object((acpi_size) string_length);
+		    acpi_ut_create_string_object((acpi_size)
+						 (string_length - 1));
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -647,7 +641,9 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			break;
 
 		default:
-			ACPI_REPORT_ERROR(("Bad destination type during conversion: %X\n", destination_type));
+			ACPI_ERROR((AE_INFO,
+				    "Bad destination type during conversion: %X",
+				    destination_type));
 			status = AE_AML_INTERNAL;
 			break;
 		}
@@ -660,17 +656,13 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown Target type ID 0x%X Op %s dest_type %s\n",
-				  GET_CURRENT_ARG_TYPE(walk_state->op_info->
-						       runtime_args),
-				  walk_state->op_info->name,
-				  acpi_ut_get_type_name(destination_type)));
-
-		ACPI_REPORT_ERROR(("Bad Target Type (ARGI): %X\n",
-				   GET_CURRENT_ARG_TYPE(walk_state->op_info->
-							runtime_args)))
-		    status = AE_AML_INTERNAL;
+		ACPI_ERROR((AE_INFO,
+			    "Unknown Target type ID 0x%X aml_opcode %X dest_type %s",
+			    GET_CURRENT_ARG_TYPE(walk_state->op_info->
+						 runtime_args),
+			    walk_state->opcode,
+			    acpi_ut_get_type_name(destination_type)));
+		status = AE_AML_INTERNAL;
 	}
 
 	/*

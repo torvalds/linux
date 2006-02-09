@@ -178,14 +178,15 @@ static void pxamci_start_cmd(struct pxamci_host *host, struct mmc_command *cmd, 
 	if (cmd->flags & MMC_RSP_BUSY)
 		cmdat |= CMDAT_BUSY;
 
-	switch (cmd->flags & (MMC_RSP_MASK | MMC_RSP_CRC)) {
-	case MMC_RSP_SHORT | MMC_RSP_CRC:
+#define RSP_TYPE(x)	((x) & ~(MMC_RSP_BUSY|MMC_RSP_OPCODE))
+	switch (RSP_TYPE(mmc_resp_type(cmd))) {
+	case RSP_TYPE(MMC_RSP_R1): /* r1, r1b, r6 */
 		cmdat |= CMDAT_RESP_SHORT;
 		break;
-	case MMC_RSP_SHORT:
+	case RSP_TYPE(MMC_RSP_R3):
 		cmdat |= CMDAT_RESP_R3;
 		break;
-	case MMC_RSP_LONG | MMC_RSP_CRC:
+	case RSP_TYPE(MMC_RSP_R2):
 		cmdat |= CMDAT_RESP_R2;
 		break;
 	default:

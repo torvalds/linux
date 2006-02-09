@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004-2006 Silicon Graphics, Inc. All rights reserved.
  *
  * SGI Altix topology and hardware performance monitoring API.
  * Mark Goodwin <markgw@sgi.com>. 
@@ -972,6 +972,9 @@ int sn_hwperf_get_nearest_node(cnodeid_t node,
 static int __devinit sn_hwperf_misc_register_init(void)
 {
 	int e;
+
+	if (!ia64_platform_is("sn2"))
+		return 0;
 
 	sn_hwperf_init();
 

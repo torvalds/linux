@@ -8,7 +8,6 @@
  * 	
  */
 
-#include <asm/bug.h>
 #include <linux/compiler.h>
 #include <linux/config.h>
 #include <linux/inetdevice.h>

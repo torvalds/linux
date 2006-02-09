@@ -192,6 +192,8 @@ static int reiserfs_allocate_blocks_for_region(struct reiserfs_transaction_handl
 
 	allocated_blocks = kmalloc((blocks_to_allocate + will_prealloc) *
 				   sizeof(b_blocknr_t), GFP_NOFS);
+	if (!allocated_blocks)
+		return -ENOMEM;
 
 	/* First we compose a key to point at the writing position, we want to do
 	   that outside of any locking region. */
@@ -1284,6 +1286,23 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	struct page *prepared_pages[REISERFS_WRITE_PAGES_AT_A_TIME];
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
+
+	/* If a filesystem is converted from 3.5 to 3.6, we'll have v3.5 items
+	* lying around (most of the disk, in fact). Despite the filesystem
+	* now being a v3.6 format, the old items still can't support large
+	* file sizes. Catch this case here, as the rest of the VFS layer is
+	* oblivious to the different limitations between old and new items.
+	* reiserfs_setattr catches this for truncates. This chunk is lifted
+	* from generic_write_checks. */
+	if (get_inode_item_key_version (inode) == KEY_FORMAT_3_5 &&
+	    *ppos + count > MAX_NON_LFS) {
+		if (*ppos >= MAX_NON_LFS) {
+			send_sig(SIGXFSZ, current, 0);
+			return -EFBIG;
+		}
+		if (count > MAX_NON_LFS - (unsigned long)*ppos)
+			count = MAX_NON_LFS - (unsigned long)*ppos;
+	}
 
 	if (file->f_flags & O_DIRECT) {	// Direct IO needs treatment
 		ssize_t result, after_file_end = 0;

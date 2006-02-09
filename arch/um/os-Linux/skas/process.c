@@ -310,16 +310,12 @@ void userspace(union uml_pt_regs *regs)
 		}
 	}
 }
-#define INIT_JMP_NEW_THREAD 0
-#define INIT_JMP_REMOVE_SIGSTACK 1
-#define INIT_JMP_CALLBACK 2
-#define INIT_JMP_HALT 3
-#define INIT_JMP_REBOOT 4
 
 int copy_context_skas0(unsigned long new_stack, int pid)
 {
 	int err;
-	unsigned long regs[MAX_REG_NR];
+	unsigned long regs[HOST_FRAME_SIZE];
+	unsigned long fp_regs[HOST_FP_SIZE];
 	unsigned long current_stack = current_stub_stack();
 	struct stub_data *data = (struct stub_data *) current_stack;
 	struct stub_data *child_data = (struct stub_data *) new_stack;
@@ -334,7 +330,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 				      .timer    = ((struct itimerval)
 					            { { 0, 1000000 / hz() },
 						      { 0, 1000000 / hz() }})});
-	get_safe_registers(regs);
+	get_safe_registers(regs, fp_regs);
 
 	/* Set parent's instruction pointer to start of clone-stub */
 	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
@@ -348,6 +344,11 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	err = ptrace_setregs(pid, regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
+		      "pid = %d, errno = %d\n", pid, errno);
+
+	err = ptrace_setfpregs(pid, fp_regs);
+	if(err < 0)
+		panic("copy_context_skas0 : PTRACE_SETFPREGS failed, "
 		      "pid = %d, errno = %d\n", pid, errno);
 
 	/* set a well known return code for detection of child write failure */
@@ -456,6 +457,12 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 
 	set_signals(flags);
 }
+
+#define INIT_JMP_NEW_THREAD 0
+#define INIT_JMP_REMOVE_SIGSTACK 1
+#define INIT_JMP_CALLBACK 2
+#define INIT_JMP_HALT 3
+#define INIT_JMP_REBOOT 4
 
 void thread_wait(void *sw, void *fb)
 {

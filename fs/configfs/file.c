@@ -26,7 +26,6 @@
 
 #include <linux/fs.h>
 #include <linux/module.h>
-#include <linux/dnotify.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
@@ -150,7 +149,7 @@ out:
 /**
  *	fill_write_buffer - copy buffer from userspace.
  *	@buffer:	data buffer for file.
- *	@userbuf:	data from user.
+ *	@buf:		data from user.
  *	@count:		number of bytes in @userbuf.
  *
  *	Allocate @buffer->page if it hasn't been already, then
@@ -177,8 +176,9 @@ fill_write_buffer(struct configfs_buffer * buffer, const char __user * buf, size
 
 /**
  *	flush_write_buffer - push buffer to config_item.
- *	@file:		file pointer.
+ *	@dentry:	dentry to the attribute
  *	@buffer:	data buffer for file.
+ *	@count:		number of bytes
  *
  *	Get the correct pointers for the config_item and the attribute we're
  *	dealing with, then call the store() method for the attribute,
@@ -217,15 +217,16 @@ static ssize_t
 configfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct configfs_buffer * buffer = file->private_data;
+	ssize_t len;
 
 	down(&buffer->sem);
-	count = fill_write_buffer(buffer,buf,count);
-	if (count > 0)
-		count = flush_write_buffer(file->f_dentry,buffer,count);
-	if (count > 0)
-		*ppos += count;
+	len = fill_write_buffer(buffer, buf, count);
+	if (len > 0)
+		len = flush_write_buffer(file->f_dentry, buffer, count);
+	if (len > 0)
+		*ppos += len;
 	up(&buffer->sem);
-	return count;
+	return len;
 }
 
 static int check_perm(struct inode * inode, struct file * file)

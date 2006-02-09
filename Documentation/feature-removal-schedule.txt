@@ -148,3 +148,26 @@ Why:	The 8250 serial driver now has the ability to deal with the differences
 	brother on Alchemy SOCs.  The loss of features is not considered an
 	issue.
 Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Legacy /proc/pci interface (PCI_LEGACY_PROC)
+When:	March 2006
+Why:	deprecated since 2.5.53 in favor of lspci(8)
+Who:	Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
+What:	pci_module_init(driver)
+When:	January 2007
+Why:	Is replaced by pci_register_driver(pci_driver).
+Who:	Richard Knutsson <ricknu-0@student.ltu.se> and Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------
+
+What:	I2C interface of the it87 driver
+When:	January 2007
+Why:	The ISA interface is faster and should be always available. The I2C
+	probing is also known to cause trouble in at least one case (see
+	bug #5889.)
+Who:	Jean Delvare <khali@linux-fr.org>

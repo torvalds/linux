@@ -882,7 +882,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	       card->card_number, dev->bus->number, dev->devfn);
 
 	if (pci_set_dma_mask(dev, 0xffffffffffffffffLL) &&
-	    !pci_set_dma_mask(dev, 0xffffffffLL)) {
+	    pci_set_dma_mask(dev, 0xffffffffLL)) {
 		printk(KERN_WARNING "MM%d: NO suitable DMA found\n",num_cards);
 		return  -ENOMEM;
 	}

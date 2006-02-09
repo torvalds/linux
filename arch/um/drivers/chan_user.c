@@ -9,6 +9,7 @@
 #include <termios.h>
 #include <string.h>
 #include <signal.h>
+#include <sched.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -73,7 +74,6 @@ static void winch_handler(int sig)
 struct winch_data {
 	int pty_fd;
 	int pipe_fd;
-	int close_me;
 };
 
 static int winch_thread(void *arg)
@@ -84,7 +84,6 @@ static int winch_thread(void *arg)
 	int count, err;
 	char c = 1;
 
-	os_close_file(data->close_me);
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;
 	count = os_write_file(pipe_fd, &c, sizeof(c));
@@ -153,15 +152,16 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 	}
 
 	data = ((struct winch_data) { .pty_fd 		= fd,
-				      .pipe_fd 		= fds[1],
-				      .close_me 	= fds[0] } );
-	err = run_helper_thread(winch_thread, &data, 0, &stack, 0);
+				      .pipe_fd 		= fds[1] } );
+	/* CLONE_FILES so this thread doesn't hold open files which are open
+	 * now, but later closed.  This is a problem with /dev/net/tun.
+	 */
+	err = run_helper_thread(winch_thread, &data, CLONE_FILES, &stack, 0);
 	if(err < 0){
 		printk("fork of winch_thread failed - errno = %d\n", errno);
 		goto out_close;
 	}
 
-	os_close_file(fds[1]);
 	*fd_out = fds[0];
 	n = os_read_file(fds[0], &c, sizeof(c));
 	if(n != sizeof(c)){
@@ -169,13 +169,12 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 		printk("read failed, err = %d\n", -n);
 		printk("fd %d will not support SIGWINCH\n", fd);
                 err = -EINVAL;
-		goto out_close1;
+		goto out_close;
 	}
 	return err ;
 
  out_close:
 	os_close_file(fds[1]);
- out_close1:
 	os_close_file(fds[0]);
  out:
 	return err;

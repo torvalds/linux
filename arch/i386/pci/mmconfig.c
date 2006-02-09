@@ -36,8 +36,7 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 	while (1) {
 		++cfg_num;
 		if (cfg_num >= pci_mmcfg_config_num) {
-			/* Not found - fallback to type 1 */
-			return 0;
+			break;
 		}
 		cfg = &pci_mmcfg_config[cfg_num];
 		if (cfg->pci_segment_group_number != seg)
@@ -46,6 +45,18 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 		    (cfg->end_bus_number >= bus))
 			return cfg->base_address;
 	}
+
+	/* Handle more broken MCFG tables on Asus etc.
+	   They only contain a single entry for bus 0-0. Assume
+ 	   this applies to all busses. */
+	cfg = &pci_mmcfg_config[0];
+	if (pci_mmcfg_config_num == 1 &&
+		cfg->pci_segment_group_number == 0 &&
+		(cfg->start_bus_number | cfg->end_bus_number) == 0)
+		return cfg->base_address;
+
+	/* Fall back to type 0 */
+	return 0;
 }
 
 static inline void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)

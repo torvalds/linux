@@ -38,10 +38,10 @@ static inline unsigned mcr_pack(unsigned pulse, unsigned sample)
 
 static int nic_wait(struct ioc3_driver_data *idd)
 {
-	volatile unsigned mcr;
+	unsigned mcr;
 
         do {
-                mcr = (volatile unsigned)idd->vma->mcr;
+                mcr = readl(&idd->vma->mcr);
         } while (!(mcr & 2));
 
         return mcr & 1;
@@ -53,7 +53,7 @@ static int nic_reset(struct ioc3_driver_data *idd)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	idd->vma->mcr = mcr_pack(500, 65);
+	writel(mcr_pack(500, 65), &idd->vma->mcr);
 	presence = nic_wait(idd);
 	local_irq_restore(flags);
 
@@ -68,7 +68,7 @@ static inline int nic_read_bit(struct ioc3_driver_data *idd)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	idd->vma->mcr = mcr_pack(6, 13);
+	writel(mcr_pack(6, 13), &idd->vma->mcr);
 	result = nic_wait(idd);
 	local_irq_restore(flags);
 
@@ -80,9 +80,9 @@ static inline int nic_read_bit(struct ioc3_driver_data *idd)
 static inline void nic_write_bit(struct ioc3_driver_data *idd, int bit)
 {
 	if (bit)
-		idd->vma->mcr = mcr_pack(6, 110);
+		writel(mcr_pack(6, 110), &idd->vma->mcr);
 	else
-		idd->vma->mcr = mcr_pack(80, 30);
+		writel(mcr_pack(80, 30), &idd->vma->mcr);
 
 	nic_wait(idd);
 }
@@ -337,7 +337,7 @@ static void probe_nic(struct ioc3_driver_data *idd)
         int save = 0, loops = 3;
         unsigned long first, addr;
 
-        idd->vma->gpcr_s = GPCR_MLAN_EN;
+        writel(GPCR_MLAN_EN, &idd->vma->gpcr_s);
 
         while(loops>0) {
                 idd->nic_part[0] = 0;
@@ -408,7 +408,7 @@ static irqreturn_t ioc3_intr_io(int irq, void *arg, struct pt_regs *regs)
 
 	read_lock_irqsave(&ioc3_submodules_lock, flags);
 
-	if(idd->dual_irq && idd->vma->eisr) {
+	if(idd->dual_irq && readb(&idd->vma->eisr)) {
 		/* send Ethernet IRQ to the driver */
 		if(ioc3_ethernet && idd->active[ioc3_ethernet->id] &&
 						ioc3_ethernet->intr) {
@@ -682,7 +682,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	idd->id = ioc3_counter++;
 	up_write(&ioc3_devices_rwsem);
 
-	idd->gpdr_shadow = idd->vma->gpdr;
+	idd->gpdr_shadow = readl(&idd->vma->gpdr);
 
 	/* Read IOC3 NIC contents */
 	probe_nic(idd);
@@ -843,9 +843,9 @@ MODULE_AUTHOR("Stanislaw Skowronek <skylark@linux-mips.org>");
 MODULE_DESCRIPTION("PCI driver for SGI IOC3");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(ioc3_register_submodule);
-EXPORT_SYMBOL(ioc3_unregister_submodule);
-EXPORT_SYMBOL(ioc3_ack);
-EXPORT_SYMBOL(ioc3_gpcr_set);
-EXPORT_SYMBOL(ioc3_disable);
-EXPORT_SYMBOL(ioc3_enable);
+EXPORT_SYMBOL_GPL(ioc3_register_submodule);
+EXPORT_SYMBOL_GPL(ioc3_unregister_submodule);
+EXPORT_SYMBOL_GPL(ioc3_ack);
+EXPORT_SYMBOL_GPL(ioc3_gpcr_set);
+EXPORT_SYMBOL_GPL(ioc3_disable);
+EXPORT_SYMBOL_GPL(ioc3_enable);

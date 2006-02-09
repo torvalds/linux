@@ -862,21 +862,28 @@ int pmf_register_irq_client(struct device_node *target,
 		spin_unlock_irqrestore(&pmf_lock, flags);
 		return -ENODEV;
 	}
+	if (list_empty(&func->irq_clients))
+		func->dev->handlers->irq_enable(func);
 	list_add(&client->link, &func->irq_clients);
+	client->func = func;
 	spin_unlock_irqrestore(&pmf_lock, flags);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pmf_register_irq_client);
 
-void pmf_unregister_irq_client(struct device_node *np,
-			      const char *name,
-			      struct pmf_irq_client *client)
+void pmf_unregister_irq_client(struct pmf_irq_client *client)
 {
+	struct pmf_function *func = client->func;
 	unsigned long flags;
 
+	BUG_ON(func == NULL);
+
 	spin_lock_irqsave(&pmf_lock, flags);
+	client->func = NULL;
 	list_del(&client->link);
+	if (list_empty(&func->irq_clients))
+		func->dev->handlers->irq_disable(func);
 	spin_unlock_irqrestore(&pmf_lock, flags);
 }
 EXPORT_SYMBOL_GPL(pmf_unregister_irq_client);

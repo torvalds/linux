@@ -53,6 +53,8 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/timex.h>
+#include <linux/pm.h>
+
 #include <asm/bootinfo.h>
 #include <asm/page.h>
 #include <asm/io.h>
@@ -537,19 +539,10 @@ void tx4927_pci_setup(void)
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
 				       "0x%08lx=mips_io_port_base",
 				       mips_io_port_base);
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "setup pci_io_resource  to 0x%08lx 0x%08lx\n",
-				       pci_io_resource.start,
-				       pci_io_resource.end);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "setup pci_mem_resource to 0x%08lx 0x%08lx\n",
-				       pci_mem_resource.start,
-				       pci_mem_resource.end);
-
 	if (!called) {
 		printk
-		    ("TX4927 PCIC -- DID:%04x VID:%04x RID:%02x Arbiter:%s\n",
+		    ("%s PCIC -- DID:%04x VID:%04x RID:%02x Arbiter:%s\n",
+		     toshiba_name,
 		     (unsigned short) (tx4927_pcicptr->pciid >> 16),
 		     (unsigned short) (tx4927_pcicptr->pciid & 0xffff),
 		     (unsigned short) (tx4927_pcicptr->pciccrev & 0xff),
@@ -562,21 +555,52 @@ void tx4927_pci_setup(void)
 	       (tx4927_ccfgptr->ccfg & TX4927_CCFG_PCI66) ? " PCI66" : "");
 	if (tx4927_ccfgptr->pcfg & TX4927_PCFG_PCICLKEN_ALL) {
 		int pciclk = 0;
-		switch ((unsigned long) tx4927_ccfgptr->
-			ccfg & TX4927_CCFG_PCIDIVMODE_MASK) {
-		case TX4927_CCFG_PCIDIVMODE_2_5:
-			pciclk = tx4927_cpu_clock * 2 / 5;
-			break;
-		case TX4927_CCFG_PCIDIVMODE_3:
-			pciclk = tx4927_cpu_clock / 3;
-			break;
-		case TX4927_CCFG_PCIDIVMODE_5:
-			pciclk = tx4927_cpu_clock / 5;
-			break;
-		case TX4927_CCFG_PCIDIVMODE_6:
-			pciclk = tx4927_cpu_clock / 6;
-			break;
-		}
+		if (mips_machtype == MACH_TOSHIBA_RBTX4937)
+			switch ((unsigned long) tx4927_ccfgptr->
+				ccfg & TX4937_CCFG_PCIDIVMODE_MASK) {
+			case TX4937_CCFG_PCIDIVMODE_4:
+				pciclk = tx4927_cpu_clock / 4;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_4_5:
+				pciclk = tx4927_cpu_clock * 2 / 9;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_5:
+				pciclk = tx4927_cpu_clock / 5;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_5_5:
+				pciclk = tx4927_cpu_clock * 2 / 11;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_8:
+				pciclk = tx4927_cpu_clock / 8;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_9:
+				pciclk = tx4927_cpu_clock / 9;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_10:
+				pciclk = tx4927_cpu_clock / 10;
+				break;
+			case TX4937_CCFG_PCIDIVMODE_11:
+				pciclk = tx4927_cpu_clock / 11;
+				break;
+			}
+
+		else
+			switch ((unsigned long) tx4927_ccfgptr->
+				ccfg & TX4927_CCFG_PCIDIVMODE_MASK) {
+			case TX4927_CCFG_PCIDIVMODE_2_5:
+				pciclk = tx4927_cpu_clock * 2 / 5;
+				break;
+			case TX4927_CCFG_PCIDIVMODE_3:
+				pciclk = tx4927_cpu_clock / 3;
+				break;
+			case TX4927_CCFG_PCIDIVMODE_5:
+				pciclk = tx4927_cpu_clock / 5;
+				break;
+			case TX4927_CCFG_PCIDIVMODE_6:
+				pciclk = tx4927_cpu_clock / 6;
+				break;
+			}
+
 		printk("Internal(%dMHz)", pciclk / 1000000);
 	} else {
 		int pciclk = 0;
@@ -814,24 +838,40 @@ void __init toshiba_rbtx4927_setup(void)
 				       ":ResetRoutines\n");
 	_machine_restart = toshiba_rbtx4927_restart;
 	_machine_halt = toshiba_rbtx4927_halt;
-	_machine_power_off = toshiba_rbtx4927_power_off;
+	pm_power_off = toshiba_rbtx4927_power_off;
 
 #ifdef CONFIG_PCI
 
 	/* PCIC */
 	/*
 	   * ASSUMPTION: PCIDIVMODE is configured for PCI 33MHz or 66MHz.
-	   * PCIDIVMODE[12:11]'s initial value are given by S9[4:3] (ON:0, OFF:1).
+	   *
+	   * For TX4927:
+	   * PCIDIVMODE[12:11]'s initial value is given by S9[4:3] (ON:0, OFF:1).
 	   * CPU 166MHz: PCI 66MHz : PCIDIVMODE: 00 (1/2.5)
 	   * CPU 200MHz: PCI 66MHz : PCIDIVMODE: 01 (1/3)
 	   * CPU 166MHz: PCI 33MHz : PCIDIVMODE: 10 (1/5)
 	   * CPU 200MHz: PCI 33MHz : PCIDIVMODE: 11 (1/6)
 	   * i.e. S9[3]: ON (83MHz), OFF (100MHz)
+	   *
+	   * For TX4937:
+	   * PCIDIVMODE[12:11]'s initial value is given by S1[5:4] (ON:0, OFF:1)
+	   * PCIDIVMODE[10] is 0.
+	   * CPU 266MHz: PCI 33MHz : PCIDIVMODE: 000 (1/8)
+	   * CPU 266MHz: PCI 66MHz : PCIDIVMODE: 001 (1/4)
+	   * CPU 300MHz: PCI 33MHz : PCIDIVMODE: 010 (1/9)
+	   * CPU 300MHz: PCI 66MHz : PCIDIVMODE: 011 (1/4.5)
+	   * CPU 333MHz: PCI 33MHz : PCIDIVMODE: 100 (1/10)
+	   * CPU 333MHz: PCI 66MHz : PCIDIVMODE: 101 (1/5)
+	   *
 	 */
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI1,
-				       "ccfg is %lx, DIV is %x\n",
-				       (unsigned long) tx4927_ccfgptr->
-				       ccfg, TX4927_CCFG_PCIDIVMODE_MASK);
+				       "ccfg is %lx, PCIDIVMODE is %x\n",
+				       (unsigned long) tx4927_ccfgptr->ccfg,
+				       (unsigned long) tx4927_ccfgptr->ccfg &
+				       (mips_machtype == MACH_TOSHIBA_RBTX4937 ?
+					TX4937_CCFG_PCIDIVMODE_MASK :
+					TX4927_CCFG_PCIDIVMODE_MASK));
 
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI1,
 				       "PCI66 mode is %lx, PCI mode is %lx, pci arb is %lx\n",
@@ -842,20 +882,30 @@ void __init toshiba_rbtx4927_setup(void)
 				       (unsigned long) tx4927_ccfgptr->
 				       ccfg & TX4927_CCFG_PCIXARB);
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI1,
-				       "PCIDIVMODE is %lx\n",
-				       (unsigned long) tx4927_ccfgptr->
-				       ccfg & TX4927_CCFG_PCIDIVMODE_MASK);
-
-	switch ((unsigned long) tx4927_ccfgptr->
-		ccfg & TX4927_CCFG_PCIDIVMODE_MASK) {
-	case TX4927_CCFG_PCIDIVMODE_2_5:
-	case TX4927_CCFG_PCIDIVMODE_5:
-		tx4927_cpu_clock = 166000000;	/* 166MHz */
-		break;
-	default:
-		tx4927_cpu_clock = 200000000;	/* 200MHz */
-	}
+	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
+		switch ((unsigned long)tx4927_ccfgptr->
+			ccfg & TX4937_CCFG_PCIDIVMODE_MASK) {
+		case TX4937_CCFG_PCIDIVMODE_8:
+		case TX4937_CCFG_PCIDIVMODE_4:
+			tx4927_cpu_clock = 266666666;	/* 266MHz */
+			break;
+		case TX4937_CCFG_PCIDIVMODE_9:
+		case TX4937_CCFG_PCIDIVMODE_4_5:
+			tx4927_cpu_clock = 300000000;	/* 300MHz */
+			break;
+		default:
+			tx4927_cpu_clock = 333333333;	/* 333MHz */
+		}
+	else
+		switch ((unsigned long)tx4927_ccfgptr->
+			ccfg & TX4927_CCFG_PCIDIVMODE_MASK) {
+		case TX4927_CCFG_PCIDIVMODE_2_5:
+		case TX4927_CCFG_PCIDIVMODE_5:
+			tx4927_cpu_clock = 166666666;	/* 166MHz */
+			break;
+		default:
+			tx4927_cpu_clock = 200000000;	/* 200MHz */
+		}
 
 	/* CCFG */
 	/* enable Timeout BusError */

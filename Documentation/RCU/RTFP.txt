@@ -90,16 +90,20 @@ at OLS.  The resulting abundance of RCU patches was presented the
 following year [McKenney02a], and use of RCU in dcache was first
 described that same year [Linder02a].
 
-Also in 2002, Michael [Michael02b,Michael02a] presented techniques
-that defer the destruction of data structures to simplify non-blocking
-synchronization (wait-free synchronization, lock-free synchronization,
-and obstruction-free synchronization are all examples of non-blocking
-synchronization).  In particular, this technique eliminates locking,
-reduces contention, reduces memory latency for readers, and parallelizes
-pipeline stalls and memory latency for writers.  However, these
-techniques still impose significant read-side overhead in the form of
-memory barriers.  Researchers at Sun worked along similar lines in the
-same timeframe [HerlihyLM02,HerlihyLMS03].
+Also in 2002, Michael [Michael02b,Michael02a] presented "hazard-pointer"
+techniques that defer the destruction of data structures to simplify
+non-blocking synchronization (wait-free synchronization, lock-free
+synchronization, and obstruction-free synchronization are all examples of
+non-blocking synchronization).  In particular, this technique eliminates
+locking, reduces contention, reduces memory latency for readers, and
+parallelizes pipeline stalls and memory latency for writers.  However,
+these techniques still impose significant read-side overhead in the
+form of memory barriers.  Researchers at Sun worked along similar lines
+in the same timeframe [HerlihyLM02,HerlihyLMS03].  These techniques
+can be thought of as inside-out reference counts, where the count is
+represented by the number of hazard pointers referencing a given data
+structure (rather than the more conventional counter field within the
+data structure itself).
 
 In 2003, the K42 group described how RCU could be used to create
 hot-pluggable implementations of operating-system functions.  Later that
@@ -112,7 +116,6 @@ different CPUs [McKenney04b], a dissertation describing use of RCU in a
 number of operating-system kernels [PaulEdwardMcKenneyPhD], a paper
 describing how to make RCU safe for soft-realtime applications [Sarma04c],
 and a paper describing SELinux performance with RCU [JamesMorris04b].
-
 
 2005 has seen further adaptation of RCU to realtime use, permitting
 preemption of RCU realtime critical sections [PaulMcKenney05a,

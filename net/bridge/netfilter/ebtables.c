@@ -934,6 +934,13 @@ static int do_replace(void __user *user, unsigned int len)
 		BUGPRINT("Entries_size never zero\n");
 		return -EINVAL;
 	}
+	/* overflow check */
+	if (tmp.nentries >= ((INT_MAX - sizeof(struct ebt_table_info)) / NR_CPUS -
+			SMP_CACHE_BYTES) / sizeof(struct ebt_counter))
+		return -ENOMEM;
+	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
+		return -ENOMEM;
+
 	countersize = COUNTER_OFFSET(tmp.nentries) * 
 					(highest_possible_processor_id()+1);
 	newinfo = (struct ebt_table_info *)

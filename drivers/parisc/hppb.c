@@ -60,12 +60,11 @@ static int hppb_probe(struct parisc_device *dev)
 	}
 
 	if(card->hpa) {
-		card->next = kmalloc(sizeof(struct hppb_card), GFP_KERNEL);
+		card->next = kzalloc(sizeof(struct hppb_card), GFP_KERNEL);
 		if(!card->next) {
 			printk(KERN_ERR "HP-PB: Unable to allocate memory.\n");
 			return 1;
 		}
-		memset(card->next, '\0', sizeof(struct hppb_card));
 		card = card->next;
 	}
         printk(KERN_INFO "Found GeckoBoa at 0x%lx\n", dev->hpa.start);

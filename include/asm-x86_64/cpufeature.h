@@ -61,7 +61,7 @@
 #define X86_FEATURE_K6_MTRR	(3*32+ 1) /* AMD K6 nonstandard MTRRs */
 #define X86_FEATURE_CYRIX_ARR	(3*32+ 2) /* Cyrix ARRs (= MTRRs) */
 #define X86_FEATURE_CENTAUR_MCR	(3*32+ 3) /* Centaur MCRs (= MTRRs) */
-/* 4 free */
+#define X86_FEATURE_REP_GOOD	(3*32+ 4) /* rep microcode works well on this CPU */
 #define X86_FEATURE_CONSTANT_TSC (3*32+5) /* TSC runs at constant rate */
 #define X86_FEATURE_SYNC_RDTSC  (3*32+6)  /* RDTSC syncs CPU core */
 

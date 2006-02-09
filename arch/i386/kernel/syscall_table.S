@@ -309,3 +309,4 @@ ENTRY(sys_call_table)
 	.long sys_faccessat
 	.long sys_pselect6
 	.long sys_ppoll
+	.long sys_unshare		/* 310 */

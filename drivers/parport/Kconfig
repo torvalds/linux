@@ -90,6 +90,15 @@ config PARPORT_ARC
 	depends on ARM && PARPORT
 	select PARPORT_NOT_PC
 
+config PARPORT_IP32
+	tristate "SGI IP32 builtin port (EXPERIMENTAL)"
+	depends on SGI_IP32 && PARPORT && EXPERIMENTAL
+	select PARPORT_NOT_PC
+	help
+	  Say Y here if you need support for the parallel port on
+	  SGI O2 machines. This code is also available as a module (say M),
+	  called parport_ip32.  If in doubt, saying N is the safe plan.
+
 config PARPORT_AMIGA
 	tristate "Amiga builtin port"
 	depends on AMIGA && PARPORT

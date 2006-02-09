@@ -208,8 +208,11 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	struct inode * inode = filp->f_dentry->d_inode;
 	int error = 0;
 
-	/* O_APPEND cannot be cleared if the file is marked as append-only */
-	if (!(arg & O_APPEND) && IS_APPEND(inode))
+	/*
+	 * O_APPEND cannot be cleared if the file is marked as append-only
+	 * and the file is open for write.
+	 */
+	if (((arg ^ filp->f_flags) & O_APPEND) && IS_APPEND(inode))
 		return -EPERM;
 
 	/* O_NOATIME can only be set by the owner or superuser */

@@ -45,10 +45,10 @@ How to extract the documentation
 
 If you just want to read the ready-made books on the various
 subsystems (see Documentation/DocBook/*.tmpl), just type 'make
-psdocs', or 'make pdfdocs', or 'make htmldocs', depending on your 
-preference.  If you would rather read a different format, you can type 
-'make sgmldocs' and then use DocBook tools to convert 
-Documentation/DocBook/*.sgml to a format of your choice (for example, 
+psdocs', or 'make pdfdocs', or 'make htmldocs', depending on your
+preference.  If you would rather read a different format, you can type
+'make sgmldocs' and then use DocBook tools to convert
+Documentation/DocBook/*.sgml to a format of your choice (for example,
 'db2html ...' if 'make htmldocs' was not defined).
 
 If you want to see man pages instead, you can do this:
@@ -124,6 +124,36 @@ patterns, which are highlighted appropriately.
 Take a look around the source tree for examples.
 
 
+kernel-doc for structs, unions, enums, and typedefs
+---------------------------------------------------
+
+Beside functions you can also write documentation for structs, unions,
+enums and typedefs. Instead of the function name you must write the name
+of the declaration;  the struct/union/enum/typedef must always precede
+the name. Nesting of declarations is not supported.
+Use the argument mechanism to document members or constants.
+
+Inside a struct description, you can use the "private:" and "public:"
+comment tags.  Structure fields that are inside a "private:" area
+are not listed in the generated output documentation.
+
+Example:
+
+/**
+ * struct my_struct - short description
+ * @a: first member
+ * @b: second member
+ *
+ * Longer description
+ */
+struct my_struct {
+    int a;
+    int b;
+/* private: */
+    int c;
+};
+
+
 How to make new SGML template files
 -----------------------------------
 
@@ -147,4 +177,3 @@ documentation, in <filename>, for the functions listed.
 
 Tim.
 */ <twaugh@redhat.com>
-

@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/bitops.h>
+#include <linux/generic_serial.h>
 
 #ifdef CONFIG_CPU_FREQ
 #include <linux/notifier.h>
@@ -53,7 +54,9 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-#include <linux/generic_serial.h>
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#include <asm/clock.h>
+#endif
 
 #ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>
@@ -86,8 +89,10 @@ static void sci_stop_rx(struct uart_port *port);
 static int sci_request_irq(struct sci_port *port);
 static void sci_free_irq(struct sci_port *port);
 
-static struct sci_port sci_ports[SCI_NPORTS];
+static struct sci_port sci_ports[];
 static struct uart_driver sci_uart_driver;
+
+#define SCI_NPORTS sci_uart_driver.nr
 
 #if defined(CONFIG_SH_STANDARD_BIOS) || defined(CONFIG_SH_KGDB)
 
@@ -168,7 +173,7 @@ static void put_string(struct sci_port *sci_port, const char *buffer, int count)
 	int usegdb=0;
 
 #ifdef CONFIG_SH_STANDARD_BIOS
-    	/* This call only does a trap the first time it is
+	/* This call only does a trap the first time it is
 	 * called, and so is safe to do here unconditionally
 	 */
 	usegdb |= sh_bios_in_gdb_mode();
@@ -324,47 +329,46 @@ static void sci_init_pins_sci(struct uart_port* port, unsigned int cflag)
 	/* tx mark output*/
 	H8300_SCI_DR(ch) |= h8300_sci_pins[ch].tx;
 }
-#else
-static void sci_init_pins_sci(struct uart_port *port, unsigned int cflag)
-{
-}
 #endif
 #endif
 
 #if defined(SCIF_ONLY) || defined(SCI_AND_SCIF)
-#if defined(CONFIG_CPU_SH3)
-/* For SH7705, SH7707, SH7709, SH7709A, SH7729, SH7300*/
+#if defined(CONFIG_CPU_SUBTYPE_SH7300)
+/* SH7300 doesn't use RTS/CTS */
+static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+{
+	sci_out(port, SCFCR, 0);
+}
+#elif defined(CONFIG_CPU_SH3)
+/* For SH7705, SH7707, SH7709, SH7709A, SH7729 */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 {
 	unsigned int fcr_val = 0;
-#if !defined(CONFIG_CPU_SUBTYPE_SH7300) /* SH7300 doesn't use RTS/CTS */
-	{
-		unsigned short data;
+	unsigned short data;
 
-		/* We need to set SCPCR to enable RTS/CTS */
-		data = ctrl_inw(SCPCR);
-		/* Clear out SCP7MD1,0, SCP6MD1,0, SCP4MD1,0*/
-		ctrl_outw(data&0x0fcf, SCPCR);
-	}
+	/* We need to set SCPCR to enable RTS/CTS */
+	data = ctrl_inw(SCPCR);
+	/* Clear out SCP7MD1,0, SCP6MD1,0, SCP4MD1,0*/
+	ctrl_outw(data & 0x0fcf, SCPCR);
+
 	if (cflag & CRTSCTS)
 		fcr_val |= SCFCR_MCE;
 	else {
-		unsigned short data;
-
 		/* We need to set SCPCR to enable RTS/CTS */
 		data = ctrl_inw(SCPCR);
 		/* Clear out SCP7MD1,0, SCP4MD1,0,
 		   Set SCP6MD1,0 = {01} (output)  */
-		ctrl_outw((data&0x0fcf)|0x1000, SCPCR);
+		ctrl_outw((data & 0x0fcf) | 0x1000, SCPCR);
 
 		data = ctrl_inb(SCPDR);
 		/* Set /RTS2 (bit6) = 0 */
-		ctrl_outb(data&0xbf, SCPDR);
+		ctrl_outb(data & 0xbf, SCPDR);
 	}
-#endif
+
 	sci_out(port, SCFCR, fcr_val);
 }
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709)
 static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
 {
 	unsigned int fcr_val = 0;
@@ -374,7 +378,7 @@ static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
 
 	sci_out(port, SCFCR, fcr_val);
 }
-
+#endif
 #else
 
 /* For SH7750 */
@@ -385,7 +389,11 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	if (cflag & CRTSCTS) {
 		fcr_val |= SCFCR_MCE;
 	} else {
+#ifdef CONFIG_CPU_SUBTYPE_SH7780
+		ctrl_outw(0x0080, SCSPTR0); /* Set RTS = 1 */
+#else
 		ctrl_outw(0x0080, SCSPTR2); /* Set RTS = 1 */
+#endif
 	}
 	sci_out(port, SCFCR, fcr_val);
 }
@@ -422,7 +430,11 @@ static void sci_transmit_chars(struct uart_port *port)
 
 #if !defined(SCI_ONLY)
 	if (port->type == PORT_SCIF) {
+#if defined(CONFIG_CPU_SUBTYPE_SH7760) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+		txroom = SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0x7f);
+#else
 		txroom = SCIF_TXROOM_MAX - (sci_in(port, SCFDR)>>8);
+#endif
 	} else {
 		txroom = (sci_in(port, SCxSR) & SCI_TDRE)?1:0;
 	}
@@ -491,7 +503,11 @@ static inline void sci_receive_chars(struct uart_port *port,
 	while (1) {
 #if !defined(SCI_ONLY)
 		if (port->type == PORT_SCIF) {
+#if defined(CONFIG_CPU_SUBTYPE_SH7760) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+			count = sci_in(port, SCRFDR) & 0x7f;
+#else
 			count = sci_in(port, SCFDR)&SCIF_RFDC_MASK ;
+#endif
 		} else {
 			count = (sci_in(port, SCxSR)&SCxSR_RDxF(port))?1:0;
 		}
@@ -652,7 +668,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	struct tty_struct *tty = port->info->tty;
 	struct sci_port *s = &sci_ports[port->line];
 
-	if (!s->break_flag && status & SCxSR_BRK(port))
+	if (!s->break_flag && status & SCxSR_BRK(port)) {
 #if defined(CONFIG_CPU_SH3)
 		/* Debounce break */
 		s->break_flag = 1;
@@ -783,6 +799,7 @@ static int sci_notifier(struct notifier_block *self, unsigned long phase, void *
 	    (phase == CPUFREQ_RESUMECHANGE)){
 		for (i = 0; i < SCI_NPORTS; i++) {
 			struct uart_port *port = &sci_ports[i].port;
+			struct clk *clk;
 
 			/*
 			 * Update the uartclk per-port if frequency has
@@ -795,7 +812,9 @@ static int sci_notifier(struct notifier_block *self, unsigned long phase, void *
 			 *
 			 * Clean this up later..
 			 */
-			port->uartclk = current_cpu_data.module_clock * 16;
+			clk = clk_get("module_clk");
+			port->uartclk = clk_get_rate(clk) * 16;
+			clk_put(clk);
 		}
 
 		printk("%s: got a postchange notification for cpu %d (old %d, new %d)\n",
@@ -1008,15 +1027,20 @@ static void sci_set_termios(struct uart_port *port, struct termios *termios,
 	sci_out(port, SCSMR, smr_val);
 
 	switch (baud) {
-		case 0:		t = -1;		break;
-		case 2400:	t = BPS_2400;	break;
-		case 4800:	t = BPS_4800;	break;
-		case 9600:	t = BPS_9600;	break;
-		case 19200:	t = BPS_19200;	break;
-		case 38400:	t = BPS_38400;	break;
-		case 57600:	t = BPS_57600;	break;
-		case 115200:	t = BPS_115200;	break;
-		default:	t = SCBRR_VALUE(baud); break;
+		case 0:
+			t = -1;
+			break;
+		default:
+		{
+#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+			struct clk *clk = clk_get("module_clk");
+			t = SCBRR_VALUE(baud, clk_get_rate(clk));
+			clk_put(clk);
+#else
+			t = SCBRR_VALUE(baud);
+#endif
+		}
+			break;
 	}
 
 	if (t > 0) {
@@ -1030,7 +1054,9 @@ static void sci_set_termios(struct uart_port *port, struct termios *termios,
 		udelay((1000000+(baud-1)) / baud); /* Wait one bit interval */
 	}
 
-	s->init_pins(port, termios->c_cflag);
+	if (likely(s->init_pins))
+		s->init_pins(port, termios->c_cflag);
+
 	sci_out(port, SCSCR, SCSCR_INIT(port));
 
 	if ((termios->c_cflag & CREAD) != 0)
@@ -1107,31 +1133,30 @@ static struct uart_ops sci_uart_ops = {
 	.verify_port	= sci_verify_port,
 };
 
-static struct sci_port sci_ports[SCI_NPORTS] = {
+static struct sci_port sci_ports[] = {
 #if defined(CONFIG_CPU_SUBTYPE_SH7708)
 	{
 		.port	= {
 			.membase	= (void *)0xfffffe80,
 			.mapbase	= 0xfffffe80,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 25,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCI,
 		.irqs		= SCI_IRQS,
-		.init_pins	= sci_init_pins_sci,
 	},
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
 	{
 		.port	= {
 			.membase	= (void *)SCIF0,
 			.mapbase	= SCIF0,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 55,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
@@ -1142,10 +1167,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)SCIF2,
 			.mapbase	= SCIF2,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 59,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCIF,
@@ -1157,24 +1182,23 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xfffffe80,
 			.mapbase	= 0xfffffe80,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 25,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCI,
 		.irqs		= SCI_IRQS,
-		.init_pins	= sci_init_pins_sci,
 	},
 	{
 		.port	= {
 			.membase	= (void *)0xa4000150,
 			.mapbase	= 0xa4000150,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 59,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCIF,
@@ -1185,10 +1209,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xa4000140,
 			.mapbase	= 0xa4000140,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 55,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 2,
 		},
 		.type		= PORT_IRDA,
@@ -1200,10 +1224,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xA4430000,
 			.mapbase	= 0xA4430000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 25,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
@@ -1215,25 +1239,25 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xffe00000,
 			.mapbase	= 0xffe00000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 25,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
 		.irqs		= SH73180_SCIF_IRQS,
 		.init_pins	= sci_init_pins_scif,
 	},
-#elif defined(CONFIG_SH_RTS7751R2D)
+#elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
 	{
 		.port	= {
 			.membase	= (void *)0xffe80000,
 			.mapbase	= 0xffe80000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 43,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
@@ -1245,24 +1269,23 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xffe00000,
 			.mapbase	= 0xffe00000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 25,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCI,
 		.irqs		= SCI_IRQS,
-		.init_pins	= sci_init_pins_sci,
 	},
 	{
 		.port	= {
 			.membase	= (void *)0xffe80000,
 			.mapbase	= 0xffe80000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 43,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCIF,
@@ -1274,10 +1297,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xfe600000,
 			.mapbase	= 0xfe600000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 55,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
@@ -1288,10 +1311,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xfe610000,
 			.mapbase	= 0xfe610000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 75,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCIF,
@@ -1302,29 +1325,14 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xfe620000,
 			.mapbase	= 0xfe620000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 79,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 2,
 		},
 		.type		= PORT_SCIF,
 		.irqs		= SH7760_SCIF2_IRQS,
-		.init_pins	= sci_init_pins_scif,
-	},
-#elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
-	{
-		.port	= {
-			.membase	= (void *)0xffe80000,
-			.mapbase	= 0xffe80000,
-			.iotype		= SERIAL_IO_MEM,
-			.irq		= 43,
-			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
-			.line		= 0,
-		},
-		.type		= PORT_SCIF,
-		.irqs		= SH4_SCIF_IRQS,
 		.init_pins	= sci_init_pins_scif,
 	},
 #elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
@@ -1332,10 +1340,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xffe00000,
 			.mapbase	= 0xffe00000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 26,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
@@ -1346,10 +1354,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0xffe80000,
 			.mapbase	= 0xffe80000,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 43,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCIF,
@@ -1359,10 +1367,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 #elif defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
 	{
 		.port	= {
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 42,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCIF,
@@ -1374,10 +1382,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0x00ffffb0,
 			.mapbase	= 0x00ffffb0,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 54,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCI,
@@ -1388,10 +1396,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0x00ffffb8,
 			.mapbase	= 0x00ffffb8,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 58,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCI,
@@ -1402,10 +1410,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0x00ffffc0,
 			.mapbase	= 0x00ffffc0,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 62,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 2,
 		},
 		.type		= PORT_SCI,
@@ -1417,10 +1425,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0x00ffff78,
 			.mapbase	= 0x00ffff78,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 90,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 		.type		= PORT_SCI,
@@ -1431,10 +1439,10 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0x00ffff80,
 			.mapbase	= 0x00ffff80,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 94,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
 		.type		= PORT_SCI,
@@ -1445,15 +1453,87 @@ static struct sci_port sci_ports[SCI_NPORTS] = {
 		.port	= {
 			.membase	= (void *)0x00ffff88,
 			.mapbase	= 0x00ffff88,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.irq		= 98,
 			.ops		= &sci_uart_ops,
-			.flags		= ASYNC_BOOT_AUTOCONF,
+			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 2,
 		},
 		.type		= PORT_SCI,
 		.irqs		= H8S_SCI_IRQS2,
 		.init_pins	= sci_init_pins_sci,
+	},
+#elif defined(CONFIG_CPU_SUBTYPE_SH7770)
+	{
+		.port   = {
+			.membase	= (void *)0xff923000,
+			.mapbase	= 0xff923000,
+			.iotype		= UPIO_MEM,
+			.irq		= 61,
+			.ops		= &sci_uart_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 0,
+		},
+		.type		= PORT_SCIF,
+		.irqs		= SH7770_SCIF0_IRQS,
+		.init_pins	= sci_init_pins_scif,
+	},
+	{
+		.port   = {
+			.membase	= (void *)0xff924000,
+			.mapbase	= 0xff924000,
+			.iotype		= UPIO_MEM,
+			.irq		= 62,
+			.ops		= &sci_uart_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 1,
+		},
+		.type		= PORT_SCIF,
+		.irqs		= SH7770_SCIF1_IRQS,
+		.init_pins	= sci_init_pins_scif,
+	},
+	{
+		.port   = {
+			.membase	= (void *)0xff925000,
+			.mapbase	= 0xff925000,
+			.iotype		= UPIO_MEM,
+			.irq		= 63,
+			.ops		= &sci_uart_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 2,
+		},
+		.type		= PORT_SCIF,
+		.irqs		= SH7770_SCIF2_IRQS,
+		.init_pins	= sci_init_pins_scif,
+	},
+#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+	{
+		.port   = {
+			.membase	= (void *)0xffe00000,
+			.mapbase	= 0xffe00000,
+			.iotype		= UPIO_MEM,
+			.irq		= 43,
+			.ops		= &sci_uart_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 0,
+		},
+		.type		= PORT_SCIF,
+		.irqs		= SH7780_SCIF0_IRQS,
+		.init_pins	= sci_init_pins_scif,
+	},
+	{
+		.port   = {
+			.membase	= (void *)0xffe10000,
+			.mapbase	= 0xffe10000,
+			.iotype		= UPIO_MEM,
+			.irq		= 79,
+			.ops		= &sci_uart_ops,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 1,
+		},
+		.type		= PORT_SCIF,
+		.irqs		= SH7780_SCIF1_IRQS,
+		.init_pins	= sci_init_pins_scif,
 	},
 #else
 #error "CPU subtype not defined"
@@ -1480,9 +1560,6 @@ static int __init serial_console_setup(struct console *co, char *options)
 	int flow = 'n';
 	int ret;
 
-	if (co->index >= SCI_NPORTS)
-		co->index = 0;
-
 	serial_console_port = &sci_ports[co->index];
 	port = &serial_console_port->port;
 	port->type = serial_console_port->type;
@@ -1496,13 +1573,20 @@ static int __init serial_console_setup(struct console *co, char *options)
 	 * We need to set the initial uartclk here, since otherwise it will
 	 * only ever be setup at sci_init() time.
 	 */
-#if !defined(__H8300H__) && !defined(__H8300S__)
-	port->uartclk = current_cpu_data.module_clock * 16;
-#else
+#if defined(__H8300H__) || defined(__H8300S__)
 	port->uartclk = CONFIG_CPU_CLOCK;
-#endif
+
 #if defined(__H8300S__)
 	h8300_sci_enable(port, sci_enable);
+#endif
+#elif defined(CONFIG_SUPERH64)
+	port->uartclk = current_cpu_info.module_clock * 16;
+#else
+	{
+		struct clk *clk = clk_get("module_clk");
+		port->uartclk = clk_get_rate(clk) * 16;
+		clk_put(clk);
+	}
 #endif
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1566,7 +1650,7 @@ int __init kgdb_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	if (co->index >= SCI_NPORTS || co->index != kgdb_portnum)
+	if (co->index != kgdb_portnum)
 		co->index = kgdb_portnum;
 
 	if (options)
@@ -1606,7 +1690,7 @@ console_initcall(kgdb_console_init);
 #elif defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
 #define SCI_CONSOLE	&serial_console
 #else
-#define SCI_CONSOLE 	0
+#define SCI_CONSOLE	0
 #endif
 
 static char banner[] __initdata =
@@ -1621,7 +1705,6 @@ static struct uart_driver sci_uart_driver = {
 	.dev_name	= "ttySC",
 	.major		= SCI_MAJOR,
 	.minor		= SCI_MINOR_START,
-	.nr		= SCI_NPORTS,
 	.cons		= SCI_CONSOLE,
 };
 
@@ -1631,15 +1714,21 @@ static int __init sci_init(void)
 
 	printk("%s", banner);
 
+	sci_uart_driver.nr = ARRAY_SIZE(sci_ports);
+
 	ret = uart_register_driver(&sci_uart_driver);
 	if (ret == 0) {
 		for (chan = 0; chan < SCI_NPORTS; chan++) {
 			struct sci_port *sciport = &sci_ports[chan];
 
-#if !defined(__H8300H__) && !defined(__H8300S__)
-			sciport->port.uartclk = (current_cpu_data.module_clock * 16);
-#else
+#if defined(__H8300H__) || defined(__H8300S__)
 			sciport->port.uartclk = CONFIG_CPU_CLOCK;
+#elif defined(CONFIG_SUPERH64)
+			sciport->port.uartclk = current_cpu_info.module_clock * 16;
+#else
+			struct clk *clk = clk_get("module_clk");
+			sciport->port.uartclk = clk_get_rate(clk) * 16;
+			clk_put(clk);
 #endif
 			uart_add_one_port(&sci_uart_driver, &sciport->port);
 			sciport->break_timer.data = (unsigned long)sciport;

@@ -110,8 +110,9 @@ static void dc21285_copy_to_32(struct map_info *map, unsigned long to, const voi
 {
 	while (len > 0) {
 		map_word d;
-		d.x[0] = *((uint32_t*)from)++;
+		d.x[0] = *((uint32_t*)from);
 		dc21285_write32(map, d, to);
+		from += 4;
 		to += 4;
 		len -= 4;
 	}
@@ -121,8 +122,9 @@ static void dc21285_copy_to_16(struct map_info *map, unsigned long to, const voi
 {
 	while (len > 0) {
 		map_word d;
-		d.x[0] = *((uint16_t*)from)++;
+		d.x[0] = *((uint16_t*)from);
 		dc21285_write16(map, d, to);
+		from += 2;
 		to += 2;
 		len -= 2;
 	}
@@ -131,8 +133,9 @@ static void dc21285_copy_to_16(struct map_info *map, unsigned long to, const voi
 static void dc21285_copy_to_8(struct map_info *map, unsigned long to, const void *from, ssize_t len)
 {
 	map_word d;
-	d.x[0] = *((uint8_t*)from)++;
+	d.x[0] = *((uint8_t*)from);
 	dc21285_write8(map, d, to);
+	from++;
 	to++;
 	len--;
 }

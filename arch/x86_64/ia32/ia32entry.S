@@ -676,7 +676,7 @@ ia32_sys_call_table:
 	.quad sys_mkdirat
 	.quad sys_mknodat
 	.quad sys_fchownat
-	.quad sys_futimesat
+	.quad compat_sys_futimesat
 	.quad compat_sys_newfstatat	/* 300 */
 	.quad sys_unlinkat
 	.quad sys_renameat
@@ -685,6 +685,9 @@ ia32_sys_call_table:
 	.quad sys_readlinkat		/* 305 */
 	.quad sys_fchmodat
 	.quad sys_faccessat
+	.quad sys_ni_syscall		/* pselect6 for now */
+	.quad sys_ni_syscall		/* ppoll for now */
+	.quad sys_unshare		/* 310 */
 ia32_syscall_end:		
 	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8
 		.quad ni_syscall

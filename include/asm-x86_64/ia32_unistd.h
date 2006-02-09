@@ -300,7 +300,7 @@
 #define __NR_ia32_inotify_add_watch	292
 #define __NR_ia32_inotify_rm_watch	293
 #define __NR_ia32_migrate_pages		294
-#define __NR_ia32_opanat		295
+#define __NR_ia32_openat		295
 #define __NR_ia32_mkdirat		296
 #define __NR_ia32_mknodat		297
 #define __NR_ia32_fchownat		298
@@ -313,7 +313,10 @@
 #define __NR_ia32_readlinkat		305
 #define __NR_ia32_fchmodat		306
 #define __NR_ia32_faccessat		307
+#define __NR_ia32_pselect6		308
+#define __NR_ia32_ppoll			309
+#define __NR_ia32_unshare		310
 
-#define IA32_NR_syscalls 308	/* must be > than biggest syscall! */
+#define IA32_NR_syscalls 315	/* must be > than biggest syscall! */
 
 #endif /* _ASM_X86_64_IA32_UNISTD_H_ */

@@ -315,8 +315,9 @@
 #define __NR_faccessat		307
 #define __NR_pselect6		308
 #define __NR_ppoll		309
+#define __NR_unshare		310
 
-#define NR_syscalls 310
+#define NR_syscalls 311
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

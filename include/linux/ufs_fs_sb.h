@@ -25,7 +25,7 @@ struct ufs_csum;
 
 struct ufs_sb_info {
 	struct ufs_sb_private_info * s_uspi;	
-	struct ufs_csum	* s_csp[UFS_MAXCSBUFS];
+	struct ufs_csum	* s_csp;
 	unsigned s_bytesex;
 	unsigned s_flags;
 	struct buffer_head ** s_ucg;

@@ -10,9 +10,9 @@ config ARM
 	default y
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
-	  licensed by ARM ltd and targeted at embedded applications and
+	  licensed by ARM Ltd and targeted at embedded applications and
 	  handhelds such as the Compaq IPAQ.  ARM-based PCs are no longer
-	  manufactured, but  legacy ARM-based PC hardware remains popular in
+	  manufactured, but legacy ARM-based PC hardware remains popular in
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
@@ -69,6 +69,9 @@ config GENERIC_ISA_DMA
 config FIQ
 	bool
 
+config ARCH_MTD_XIP
+	bool
+
 source "init/Kconfig"
 
 menu "System Type"
@@ -81,45 +84,62 @@ config ARCH_CLPS7500
 	bool "Cirrus-CL-PS7500FE"
 	select TIMER_ACORN
 	select ISA
+	help
+	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
 
 config ARCH_CLPS711X
 	bool "CLPS711x/EP721x-based"
+	help
+	  Support for Cirrus Logic 711x/721x based boards.
 
 config ARCH_CO285
 	bool "Co-EBSA285"
 	select FOOTBRIDGE
 	select FOOTBRIDGE_ADDIN
+	help
+	  Support for Intel's EBSA285 companion chip.
 
 config ARCH_EBSA110
 	bool "EBSA-110"
 	select ISA
 	help
 	  This is an evaluation board for the StrongARM processor available
-	  from Digital. It has limited hardware on-board, including an onboard
+	  from Digital. It has limited hardware on-board, including an
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select FOOTBRIDGE
+	help
+	  Support for systems based on the DC21285 companion chip
+	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
 config ARCH_INTEGRATOR
 	bool "Integrator"
 	select ARM_AMBA
 	select ICST525
+	help
+	  Support for ARM's Integrator platform.
 
 config ARCH_IOP3XX
 	bool "IOP3xx-based"
 	select PCI
+	help
+	  Support for Intel's IOP3XX (XScale) family of processors.
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	select DMABOUNCE
 	select PCI
+	help
+	  Support for Intel's IXP4XX (XScale) family of processors.
 
 config ARCH_IXP2000
 	bool "IXP2400/2800-based"
 	select PCI
+	help
+	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
 config ARCH_L7200
 	bool "LinkUp-L7200"
@@ -136,6 +156,9 @@ config ARCH_L7200
 
 config ARCH_PXA
 	bool "PXA2xx-based"
+	select ARCH_MTD_XIP
+	help
+	  Support for Intel's PXA2XX processor line.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -152,19 +175,25 @@ config ARCH_SA1100
 	bool "SA1100-based"
 	select ISA
 	select ARCH_DISCONTIGMEM_ENABLE
+	select ARCH_MTD_XIP
+	help
+	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
 	bool "Samsung S3C2410"
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
-	  the Samsung SMDK2410 development board (and derviatives).
+	  the Samsung SMDK2410 development board (and derivatives).
 
 config ARCH_SHARK
 	bool "Shark"
 	select ISA
 	select ISA_DMA
 	select PCI
+	help
+	  Support for the StrongARM based Digital DNARD machine, also known
+	  as "Shark" (<http://www.shark-linux.de/shark.html>).
 
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
@@ -176,6 +205,8 @@ config ARCH_LH7A40X
 
 config ARCH_OMAP
 	bool "TI OMAP"
+	help
+	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
 config ARCH_VERSATILE
 	bool "Versatile"
@@ -194,6 +225,8 @@ config ARCH_REALVIEW
 
 config ARCH_IMX
 	bool "IMX"
+	help
+	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
 config ARCH_H720X
 	bool "Hynix-HMS720x-based"
@@ -210,8 +243,8 @@ config ARCH_AAEC2000
 config ARCH_AT91RM9200
 	bool "AT91RM9200"
 	help
-	  Say Y here if you intend to run this kernel on an AT91RM9200-based
-	  board.
+	  Say Y here if you intend to run this kernel on an Atmel
+	  AT91RM9200-based board.
 
 endchoice
 
@@ -417,8 +450,8 @@ config AEABI
 	  To use this you need GCC version 4.0.0 or later.
 
 config OABI_COMPAT
-	bool "Allow old ABI binaries to run with this kernel"
-	depends on AEABI
+	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
+	depends on AEABI && EXPERIMENTAL
 	default y
 	help
 	  This option preserves the old syscall interface along with the

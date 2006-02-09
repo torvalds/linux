@@ -16,6 +16,7 @@
 #include <linux/config.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
+#include <asm/cpu/mmu_context.h>
 #include <asm/unistd.h>
 
 #if !defined(CONFIG_NFSD) && !defined(CONFIG_NFSD_MODULE)
@@ -74,23 +75,6 @@
 
 ENOSYS = 38
 EINVAL = 22
-
-#if defined(CONFIG_CPU_SH3)
-TRA     = 0xffffffd0
-EXPEVT  = 0xffffffd4
-#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
-INTEVT  = 0xa4000000		! INTEVTE2(0xa4000000)
-#else
-INTEVT  = 0xffffffd8
-#endif
-MMU_TEA = 0xfffffffc		! TLB Exception Address Register
-#elif defined(CONFIG_CPU_SH4)
-TRA     = 0xff000020
-EXPEVT  = 0xff000024
-INTEVT  = 0xff000028
-MMU_TEA = 0xff00000c		! TLB Exception Address Register
-#endif
 
 #if defined(CONFIG_KGDB_NMI)
 NMI_VEC = 0x1c0			! Must catch early for debounce

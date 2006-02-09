@@ -1499,15 +1499,11 @@ static inline void security_sb_post_pivotroot (struct nameidata *old_nd,
 
 static inline int security_inode_alloc (struct inode *inode)
 {
-	if (unlikely (IS_PRIVATE (inode)))
-		return 0;
 	return security_ops->inode_alloc_security (inode);
 }
 
 static inline void security_inode_free (struct inode *inode)
 {
-	if (unlikely (IS_PRIVATE (inode)))
-		return;
 	security_ops->inode_free_security (inode);
 }
 
@@ -2615,6 +2611,25 @@ static inline int security_netlink_send (struct sock *sk, struct sk_buff *skb)
 static inline int security_netlink_recv (struct sk_buff *skb)
 {
 	return cap_netlink_recv (skb);
+}
+
+static inline struct dentry *securityfs_create_dir(const char *name,
+					struct dentry *parent)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *securityfs_create_file(const char *name,
+						mode_t mode,
+						struct dentry *parent,
+						void *data,
+						struct file_operations *fops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void securityfs_remove(struct dentry *dentry)
+{
 }
 
 #endif	/* CONFIG_SECURITY */

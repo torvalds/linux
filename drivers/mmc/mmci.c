@@ -124,15 +124,10 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 	}
 
 	c |= cmd->opcode | MCI_CPSM_ENABLE;
-	switch (cmd->flags & MMC_RSP_MASK) {
-	case MMC_RSP_NONE:
-	default:
-		break;
-	case MMC_RSP_LONG:
-		c |= MCI_CPSM_LONGRSP;
-	case MMC_RSP_SHORT:
+	if (cmd->flags & MMC_RSP_PRESENT) {
+		if (cmd->flags & MMC_RSP_136)
+			c |= MCI_CPSM_LONGRSP;
 		c |= MCI_CPSM_RESPONSE;
-		break;
 	}
 	if (/*interrupt*/0)
 		c |= MCI_CPSM_INTERRUPT;

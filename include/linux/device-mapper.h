@@ -91,7 +91,7 @@ struct target_type {
 };
 
 struct io_restrictions {
-	unsigned short		max_sectors;
+	unsigned int		max_sectors;
 	unsigned short		max_phys_segments;
 	unsigned short		max_hw_segments;
 	unsigned short		hardsect_size;

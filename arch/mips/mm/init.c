@@ -24,6 +24,7 @@
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
+#include <linux/proc_fs.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cachectl.h>
@@ -200,6 +201,11 @@ static inline int page_is_ram(unsigned long pagenr)
 	return 0;
 }
 
+static struct kcore_list kcore_mem, kcore_vmalloc;
+#ifdef CONFIG_64BIT
+static struct kcore_list kcore_kseg0;
+#endif
+
 void __init mem_init(void)
 {
 	unsigned long codesize, reservedpages, datasize, initsize;
@@ -248,6 +254,16 @@ void __init mem_init(void)
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+
+#ifdef CONFIG_64BIT
+	if ((unsigned long) &_text > (unsigned long) CKSEG0)
+		/* The -4 is a hack so that user tools don't have to handle
+		   the overflow.  */
+		kclist_add(&kcore_kseg0, (void *) CKSEG0, 0x80000000 - 4);
+#endif
+	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
+		   VMALLOC_END-VMALLOC_START);
 
 	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
 	       "%ldk reserved, %ldk data, %ldk init, %ldk highmem)\n",

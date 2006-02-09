@@ -46,7 +46,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"1.03"
+#define DRV_VERSION	"1.04"
 
 
 enum {
@@ -58,6 +58,7 @@ enum {
 	PDC_GLOBAL_CTL		= 0x48, /* Global control/status (per port) */
 	PDC_CTLSTAT		= 0x60,	/* IDE control and status (per port) */
 	PDC_SATA_PLUG_CSR	= 0x6C, /* SATA Plug control/status reg */
+	PDC2_SATA_PLUG_CSR	= 0x60, /* SATAII Plug control/status reg */
 	PDC_SLEW_CTL		= 0x470, /* slew rate control reg */
 
 	PDC_ERR_MASK		= (1<<19) | (1<<20) | (1<<21) | (1<<22) |
@@ -67,8 +68,10 @@ enum {
 	board_20319		= 1,	/* FastTrak S150 TX4 */
 	board_20619		= 2,	/* FastTrak TX4000 */
 	board_20771		= 3,	/* FastTrak TX2300 */
+	board_2057x		= 4,	/* SATAII150 Tx2plus */
+	board_40518		= 5,	/* SATAII150 Tx4 */
 
-	PDC_HAS_PATA		= (1 << 1), /* PDC20375 has PATA */
+	PDC_HAS_PATA		= (1 << 1), /* PDC20375/20575 has PATA */
 
 	PDC_RESET		= (1 << 11), /* HDMA reset */
 
@@ -81,6 +84,10 @@ enum {
 struct pdc_port_priv {
 	u8			*pkt;
 	dma_addr_t		pkt_dma;
+};
+
+struct pdc_host_priv {
+	int			hotplug_offset;
 };
 
 static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg);
@@ -97,6 +104,7 @@ static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_irq_clear(struct ata_port *ap);
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
+static void pdc_host_stop(struct ata_host_set *host_set);
 
 
 static struct scsi_host_template pdc_ata_sht = {
@@ -138,7 +146,7 @@ static const struct ata_port_operations pdc_sata_ops = {
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_port_start,
 	.port_stop		= pdc_port_stop,
-	.host_stop		= ata_pci_host_stop,
+	.host_stop		= pdc_host_stop,
 };
 
 static const struct ata_port_operations pdc_pata_ops = {
@@ -159,7 +167,7 @@ static const struct ata_port_operations pdc_pata_ops = {
 
 	.port_start		= pdc_port_start,
 	.port_stop		= pdc_port_stop,
-	.host_stop		= ata_pci_host_stop,
+	.host_stop		= pdc_host_stop,
 };
 
 static const struct ata_port_info pdc_port_info[] = {
@@ -202,6 +210,26 @@ static const struct ata_port_info pdc_port_info[] = {
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &pdc_sata_ops,
 	},
+
+	/* board_2057x */
+	{
+		.sht		= &pdc_ata_sht,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.pio_mask	= 0x1f, /* pio0-4 */
+		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.port_ops	= &pdc_sata_ops,
+	},
+
+	/* board_40518 */
+	{
+		.sht		= &pdc_ata_sht,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
+		.pio_mask	= 0x1f, /* pio0-4 */
+		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
+		.port_ops	= &pdc_sata_ops,
+	},
 };
 
 static const struct pci_device_id pdc_ata_pci_tbl[] = {
@@ -218,9 +246,9 @@ static const struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x3376, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_2037x },
 	{ PCI_VENDOR_ID_PROMISE, 0x3574, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
+	  board_2057x },
 	{ PCI_VENDOR_ID_PROMISE, 0x3d75, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
+	  board_2057x },
 	{ PCI_VENDOR_ID_PROMISE, 0x3d73, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_2037x },
 
@@ -233,7 +261,7 @@ static const struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x3d17, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20319 },
 	{ PCI_VENDOR_ID_PROMISE, 0x3d18, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
+	  board_40518 },
 
 	{ PCI_VENDOR_ID_PROMISE, 0x6629, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20619 },
@@ -262,12 +290,11 @@ static int pdc_port_start(struct ata_port *ap)
 	if (rc)
 		return rc;
 
-	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp) {
 		rc = -ENOMEM;
 		goto err_out;
 	}
-	memset(pp, 0, sizeof(*pp));
 
 	pp->pkt = dma_alloc_coherent(dev, 128, &pp->pkt_dma, GFP_KERNEL);
 	if (!pp->pkt) {
@@ -296,6 +323,16 @@ static void pdc_port_stop(struct ata_port *ap)
 	dma_free_coherent(dev, 128, pp->pkt, pp->pkt_dma);
 	kfree(pp);
 	ata_port_stop(ap);
+}
+
+
+static void pdc_host_stop(struct ata_host_set *host_set)
+{
+	struct pdc_host_priv *hp = host_set->private_data;
+
+	ata_pci_host_stop(host_set);
+
+	kfree(hp);
 }
 
 
@@ -488,13 +525,14 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 		VPRINTK("QUICK EXIT 2\n");
 		return IRQ_NONE;
 	}
+
+	spin_lock(&host_set->lock);
+
 	mask &= 0xffff;		/* only 16 tags possible */
 	if (!mask) {
 		VPRINTK("QUICK EXIT 3\n");
-		return IRQ_NONE;
+		goto done_irq;
 	}
-
-	spin_lock(&host_set->lock);
 
 	writel(mask, mmio_base + PDC_INT_SEQMASK);
 
@@ -512,10 +550,10 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *r
 		}
 	}
 
-        spin_unlock(&host_set->lock);
-
 	VPRINTK("EXIT\n");
 
+done_irq:
+	spin_unlock(&host_set->lock);
 	return IRQ_RETVAL(handled);
 }
 
@@ -593,6 +631,8 @@ static void pdc_ata_setup_port(struct ata_ioports *port, unsigned long base)
 static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 {
 	void __iomem *mmio = pe->mmio_base;
+	struct pdc_host_priv *hp = pe->private_data;
+	int hotplug_offset = hp->hotplug_offset;
 	u32 tmp;
 
 	/*
@@ -607,12 +647,12 @@ static void pdc_host_init(unsigned int chip_id, struct ata_probe_ent *pe)
 	writel(tmp, mmio + PDC_FLASH_CTL);
 
 	/* clear plug/unplug flags for all ports */
-	tmp = readl(mmio + PDC_SATA_PLUG_CSR);
-	writel(tmp | 0xff, mmio + PDC_SATA_PLUG_CSR);
+	tmp = readl(mmio + hotplug_offset);
+	writel(tmp | 0xff, mmio + hotplug_offset);
 
 	/* mask plug/unplug ints */
-	tmp = readl(mmio + PDC_SATA_PLUG_CSR);
-	writel(tmp | 0xff0000, mmio + PDC_SATA_PLUG_CSR);
+	tmp = readl(mmio + hotplug_offset);
+	writel(tmp | 0xff0000, mmio + hotplug_offset);
 
 	/* reduce TBG clock to 133 Mhz. */
 	tmp = readl(mmio + PDC_TBG_MODE);
@@ -634,6 +674,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 {
 	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
+	struct pdc_host_priv *hp;
 	unsigned long base;
 	void __iomem *mmio_base;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
@@ -664,13 +705,12 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	if (rc)
 		goto err_out_regions;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (probe_ent == NULL) {
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
 
-	memset(probe_ent, 0, sizeof(*probe_ent));
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
@@ -680,6 +720,16 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		goto err_out_free_ent;
 	}
 	base = (unsigned long) mmio_base;
+
+	hp = kzalloc(sizeof(*hp), GFP_KERNEL);
+	if (hp == NULL) {
+		rc = -ENOMEM;
+		goto err_out_free_ent;
+	}
+
+	/* Set default hotplug offset */
+	hp->hotplug_offset = PDC_SATA_PLUG_CSR;
+	probe_ent->private_data = hp;
 
 	probe_ent->sht		= pdc_port_info[board_idx].sht;
 	probe_ent->host_flags	= pdc_port_info[board_idx].host_flags;
@@ -700,6 +750,10 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* notice 4-port boards */
 	switch (board_idx) {
+	case board_40518:
+		/* Override hotplug offset for SATAII150 */
+		hp->hotplug_offset = PDC2_SATA_PLUG_CSR;
+		/* Fall through */
 	case board_20319:
        		probe_ent->n_ports = 4;
 
@@ -709,6 +763,10 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		probe_ent->port[2].scr_addr = base + 0x600;
 		probe_ent->port[3].scr_addr = base + 0x700;
 		break;
+	case board_2057x:
+		/* Override hotplug offset for SATAII150 */
+		hp->hotplug_offset = PDC2_SATA_PLUG_CSR;
+		/* Fall through */
 	case board_2037x:
 		probe_ent->n_ports = 2;
 		break;
@@ -734,8 +792,10 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	/* initialize adapter */
 	pdc_host_init(board_idx, probe_ent);
 
-	/* FIXME: check ata_device_add return value */
-	ata_device_add(probe_ent);
+	/* FIXME: Need any other frees than hp? */
+	if (!ata_device_add(probe_ent))
+		kfree(hp);
+
 	kfree(probe_ent);
 
 	return 0;

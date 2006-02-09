@@ -151,7 +151,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	struct scsi_sense_hdr sshdr;
 	enum dma_data_direction data_dir;
 
-	if (NULL == (void *)arg)
+	if (arg == NULL)
 		return -EINVAL;
 
 	if (copy_from_user(args, arg, sizeof(args)))
@@ -201,7 +201,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	/* Need code to retrieve data from check condition? */
 
 	if ((argbuf)
-	 && copy_to_user((void *)(arg + sizeof(args)), argbuf, argsize))
+	 && copy_to_user(arg + sizeof(args), argbuf, argsize))
 		rc = -EFAULT;
 error:
 	if (argbuf)
@@ -228,7 +228,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	u8 args[7];
 	struct scsi_sense_hdr sshdr;
 
-	if (NULL == (void *)arg)
+	if (arg == NULL)
 		return -EINVAL;
 
 	if (copy_from_user(args, arg, sizeof(args)))
@@ -732,15 +732,26 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 int ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
 	ap = (struct ata_port *) &host->hostdata[0];
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	assert(!(ap->flags & ATA_FLAG_IN_EH));
+	ap->flags |= ATA_FLAG_IN_EH;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
 	ap->ops->eng_timeout(ap);
 
 	assert(host->host_failed == 0 && list_empty(&host->eh_cmd_q));
 
 	scsi_eh_flush_done_q(&ap->eh_done_q);
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_IN_EH;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("EXIT\n");
 	return 0;
@@ -1742,6 +1753,31 @@ static unsigned int ata_msense_rw_recovery(u8 **ptr_io, const u8 *last)
 	return sizeof(def_rw_recovery_mpage);
 }
 
+/*
+ * We can turn this into a real blacklist if it's needed, for now just
+ * blacklist any Maxtor BANC1G10 revision firmware
+ */
+static int ata_dev_supports_fua(u16 *id)
+{
+	unsigned char model[41], fw[9];
+
+	if (!ata_id_has_fua(id))
+		return 0;
+
+	model[40] = '\0';
+	fw[8] = '\0';
+
+	ata_dev_id_string(id, model, ATA_ID_PROD_OFS, sizeof(model) - 1);
+	ata_dev_id_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw) - 1);
+
+	if (strncmp(model, "Maxtor", 6))
+		return 1;
+	if (strncmp(fw, "BANC1G10", 8))
+		return 1;
+
+	return 0; /* blacklisted */
+}
+
 /**
  *	ata_scsiop_mode_sense - Simulate MODE SENSE 6, 10 commands
  *	@args: device IDENTIFY data / SCSI command of interest.
@@ -1839,7 +1875,7 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 		return 0;
 
 	dpofua = 0;
-	if (ata_id_has_fua(args->id) && dev->flags & ATA_DFLAG_LBA48 &&
+	if (ata_dev_supports_fua(args->id) && dev->flags & ATA_DFLAG_LBA48 &&
 	    (!(dev->flags & ATA_DFLAG_PIO) || dev->multi_count))
 		dpofua = 1 << 4;
 
@@ -2533,7 +2569,8 @@ out_unlock:
 
 /**
  *	ata_scsi_simulate - simulate SCSI command on ATA device
- *	@id: current IDENTIFY data for target device.
+ *	@ap: port the device is connected to
+ *	@dev: the target device
  *	@cmd: SCSI command being sent to device.
  *	@done: SCSI command completion function.
  *

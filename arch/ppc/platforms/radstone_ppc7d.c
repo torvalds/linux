@@ -100,7 +100,7 @@ static void __init ppc7d_early_serial_map(void)
 	serial_req.uartclk = UART_CLK;
 	serial_req.irq = 4;
 	serial_req.flags = STD_COM_FLAGS;
-	serial_req.iotype = SERIAL_IO_MEM;
+	serial_req.iotype = UPIO_MEM;
 	serial_req.membase = (u_char *) PPC7D_SERIAL_0;
 
 	gen550_init(0, &serial_req);

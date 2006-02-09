@@ -133,6 +133,8 @@ static struct kobj_type ktype_bus = {
 decl_subsys(bus, &ktype_bus, NULL);
 
 
+#ifdef CONFIG_HOTPLUG
+
 /* Manually detach a device from its associated driver. */
 static int driver_helper(struct device *dev, void *data)
 {
@@ -193,6 +195,7 @@ static ssize_t driver_bind(struct device_driver *drv,
 }
 static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
 
+#endif
 
 static struct device * next_device(struct klist_iter * i)
 {

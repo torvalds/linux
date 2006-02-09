@@ -21,6 +21,12 @@
  *  Credits:
  *	based on kernel/timer.c
  *
+ *	Help, testing, suggestions, bugfixes, improvements were
+ *	provided by:
+ *
+ *	George Anzinger, Andrew Morton, Steven Rostedt, Roman Zippel
+ *	et. al.
+ *
  *  For licencing details see kernel-base/COPYING
  */
 
@@ -66,6 +72,12 @@ EXPORT_SYMBOL_GPL(ktime_get_real);
 
 /*
  * The timer bases:
+ *
+ * Note: If we want to add new timer bases, we have to skip the two
+ * clock ids captured by the cpu-timers. We do this by holding empty
+ * entries rather than doing math adjustment of the clock ids.
+ * This ensures that we capture erroneous accesses to these clock ids
+ * rather than moving them into the range of valid clock id's.
  */
 
 #define MAX_HRTIMER_BASES 2
@@ -483,29 +495,25 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 }
 
 /**
- * hrtimer_rebase - rebase an initialized hrtimer to a different base
- *
- * @timer:	the timer to be rebased
- * @clock_id:	the clock to be used
- */
-void hrtimer_rebase(struct hrtimer *timer, const clockid_t clock_id)
-{
-	struct hrtimer_base *bases;
-
-	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
-	timer->base = &bases[clock_id];
-}
-
-/**
  * hrtimer_init - initialize a timer to the given clock
  *
  * @timer:	the timer to be initialized
  * @clock_id:	the clock to be used
+ * @mode:	timer mode abs/rel
  */
-void hrtimer_init(struct hrtimer *timer, const clockid_t clock_id)
+void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
+		  enum hrtimer_mode mode)
 {
+	struct hrtimer_base *bases;
+
 	memset(timer, 0, sizeof(struct hrtimer));
-	hrtimer_rebase(timer, clock_id);
+
+	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
+
+	if (clock_id == CLOCK_REALTIME && mode != HRTIMER_ABS)
+		clock_id = CLOCK_MONOTONIC;
+
+	timer->base = &bases[clock_id];
 }
 
 /**
@@ -550,6 +558,7 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 		fn = timer->function;
 		data = timer->data;
 		set_curr_timer(base, timer);
+		timer->state = HRTIMER_RUNNING;
 		__remove_hrtimer(timer, base);
 		spin_unlock_irq(&base->lock);
 
@@ -564,6 +573,10 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 			restart = fn(data);
 
 		spin_lock_irq(&base->lock);
+
+		/* Another CPU has added back the timer */
+		if (timer->state != HRTIMER_RUNNING)
+			continue;
 
 		if (restart == HRTIMER_RESTART)
 			enqueue_hrtimer(timer, base);
@@ -638,8 +651,7 @@ schedule_hrtimer_interruptible(struct hrtimer *timer,
 	return schedule_hrtimer(timer, mode);
 }
 
-static long __sched
-nanosleep_restart(struct restart_block *restart, clockid_t clockid)
+static long __sched nanosleep_restart(struct restart_block *restart)
 {
 	struct timespec __user *rmtp;
 	struct timespec tu;
@@ -649,7 +661,7 @@ nanosleep_restart(struct restart_block *restart, clockid_t clockid)
 
 	restart->fn = do_no_restart_syscall;
 
-	hrtimer_init(&timer, clockid);
+	hrtimer_init(&timer, (clockid_t) restart->arg3, HRTIMER_ABS);
 
 	timer.expires.tv64 = ((u64)restart->arg1 << 32) | (u64) restart->arg0;
 
@@ -669,16 +681,6 @@ nanosleep_restart(struct restart_block *restart, clockid_t clockid)
 	return -ERESTART_RESTARTBLOCK;
 }
 
-static long __sched nanosleep_restart_mono(struct restart_block *restart)
-{
-	return nanosleep_restart(restart, CLOCK_MONOTONIC);
-}
-
-static long __sched nanosleep_restart_real(struct restart_block *restart)
-{
-	return nanosleep_restart(restart, CLOCK_REALTIME);
-}
-
 long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
@@ -687,7 +689,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	struct timespec tu;
 	ktime_t rem;
 
-	hrtimer_init(&timer, clockid);
+	hrtimer_init(&timer, clockid, mode);
 
 	timer.expires = timespec_to_ktime(*rqtp);
 
@@ -695,7 +697,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	if (rem.tv64 <= 0)
 		return 0;
 
-	/* Absolute timers do not update the rmtp value: */
+	/* Absolute timers do not update the rmtp value and restart: */
 	if (mode == HRTIMER_ABS)
 		return -ERESTARTNOHAND;
 
@@ -705,11 +707,11 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		return -EFAULT;
 
 	restart = &current_thread_info()->restart_block;
-	restart->fn = (clockid == CLOCK_MONOTONIC) ?
-		nanosleep_restart_mono : nanosleep_restart_real;
+	restart->fn = nanosleep_restart;
 	restart->arg0 = timer.expires.tv64 & 0xFFFFFFFF;
 	restart->arg1 = timer.expires.tv64 >> 32;
 	restart->arg2 = (unsigned long) rmtp;
+	restart->arg3 = (unsigned long) timer.base->index;
 
 	return -ERESTART_RESTARTBLOCK;
 }
@@ -736,10 +738,8 @@ static void __devinit init_hrtimers_cpu(int cpu)
 	struct hrtimer_base *base = per_cpu(hrtimer_bases, cpu);
 	int i;
 
-	for (i = 0; i < MAX_HRTIMER_BASES; i++) {
+	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++)
 		spin_lock_init(&base->lock);
-		base++;
-	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

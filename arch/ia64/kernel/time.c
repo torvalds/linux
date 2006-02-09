@@ -278,3 +278,30 @@ udelay (unsigned long usecs)
 	}
 }
 EXPORT_SYMBOL(udelay);
+
+static unsigned long long ia64_itc_printk_clock(void)
+{
+	if (ia64_get_kr(IA64_KR_PER_CPU_DATA))
+		return sched_clock();
+	return 0;
+}
+
+static unsigned long long ia64_default_printk_clock(void)
+{
+	return (unsigned long long)(jiffies_64 - INITIAL_JIFFIES) *
+		(1000000000/HZ);
+}
+
+unsigned long long (*ia64_printk_clock)(void) = &ia64_default_printk_clock;
+
+unsigned long long printk_clock(void)
+{
+	return ia64_printk_clock();
+}
+
+void __init
+ia64_setup_printk_clock(void)
+{
+	if (!(sal_platform_features & IA64_SAL_PLATFORM_FEATURE_ITC_DRIFT))
+		ia64_printk_clock = ia64_itc_printk_clock;
+}

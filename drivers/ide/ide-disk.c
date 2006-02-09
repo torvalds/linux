@@ -190,7 +190,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		if (lba48) {
 			task_ioreg_t tasklets[10];
 
-			pr_debug("%s: LBA=0x%012llx\n", drive->name, block);
+			pr_debug("%s: LBA=0x%012llx\n", drive->name,
+					(unsigned long long)block);
 
 			tasklets[0] = 0;
 			tasklets[1] = 0;
@@ -317,7 +318,8 @@ static ide_startstop_t ide_do_rw_disk (ide_drive_t *drive, struct request *rq, s
 
 	pr_debug("%s: %sing: block=%llu, sectors=%lu, buffer=0x%08lx\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
-		 block, rq->nr_sectors, (unsigned long)rq->buffer);
+		 (unsigned long long)block, rq->nr_sectors,
+		 (unsigned long)rq->buffer);
 
 	if (hwif->rw_disk)
 		hwif->rw_disk(drive, rq);
@@ -776,7 +778,7 @@ static void update_ordered(ide_drive_t *drive)
 			 ide_id_has_flush_cache_ext(id));
 
 		printk(KERN_INFO "%s: cache flushes %ssupported\n",
-		       drive->name, barrier ? "" : "not");
+		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
 			ordered = QUEUE_ORDERED_DRAIN_FLUSH;
@@ -889,11 +891,7 @@ static void idedisk_setup (ide_drive_t *drive)
 	if (drive->id_read == 0)
 		return;
 
-	/*
-	 * CompactFlash cards and their brethern look just like hard drives
-	 * to us, but they are removable and don't have a doorlock mechanism.
-	 */
-	if (drive->removable && !(drive->is_flash)) {
+	if (drive->removable) {
 		/*
 		 * Removable disks (eg. SYQUEST); ignore 'WD' drives 
 		 */

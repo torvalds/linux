@@ -512,7 +512,7 @@ ia64_state_save:
 	st8 [temp1]=r12		// os_status, default is cold boot
 	mov r6=IA64_MCA_SAME_CONTEXT
 	;;
-	st8 [temp1]=r6		// context, default is same context
+	st8 [temp2]=r6		// context, default is same context
 
 	// Save the pt_regs data that is not in minstate.  The previous code
 	// left regs at sos.

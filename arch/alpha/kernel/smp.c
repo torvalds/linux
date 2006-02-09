@@ -73,9 +73,6 @@ cpumask_t cpu_online_map;
 
 EXPORT_SYMBOL(cpu_online_map);
 
-/* cpus reported in the hwrpb */
-static unsigned long hwrpb_cpu_present_mask __initdata = 0;
-
 int smp_num_probed;		/* Internal processor count */
 int smp_num_cpus = 1;		/* Number that came online.  */
 
@@ -442,7 +439,7 @@ setup_smp(void)
 			if ((cpu->flags & 0x1cc) == 0x1cc) {
 				smp_num_probed++;
 				/* Assume here that "whami" == index */
-				hwrpb_cpu_present_mask |= (1UL << i);
+				cpu_set(i, cpu_possible_map);
 				cpu->pal_revision = boot_cpu_palrev;
 			}
 
@@ -453,12 +450,12 @@ setup_smp(void)
 		}
 	} else {
 		smp_num_probed = 1;
-		hwrpb_cpu_present_mask = (1UL << boot_cpuid);
+		cpu_set(boot_cpuid, cpu_possible_map);
 	}
 	cpu_present_mask = cpumask_of_cpu(boot_cpuid);
 
 	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
-	       smp_num_probed, hwrpb_cpu_present_mask);
+	       smp_num_probed, cpu_possible_map.bits[0]);
 }
 
 /*
@@ -467,8 +464,6 @@ setup_smp(void)
 void __init
 smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu_count, i;
-
 	/* Take care of some initial bookkeeping.  */
 	memset(ipi_data, 0, sizeof(ipi_data));
 
@@ -486,19 +481,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 
 	printk(KERN_INFO "SMP starting up secondaries.\n");
 
-	cpu_count = 1;
-	for (i = 0; (i < NR_CPUS) && (cpu_count < max_cpus); i++) {
-		if (i == boot_cpuid)
-			continue;
-
-		if (((hwrpb_cpu_present_mask >> i) & 1) == 0)
-			continue;
-
-		cpu_set(i, cpu_possible_map);
-		cpu_count++;
-	}
-
-	smp_num_cpus = cpu_count;
+	smp_num_cpus = smp_num_probed;
 }
 
 void __devinit

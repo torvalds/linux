@@ -4,9 +4,9 @@
 #
 
 menu "Network device support"
+	depends on NET
 
 config NETDEVICES
-	depends on NET
 	default y if UML
 	bool "Network device support"
 	---help---
@@ -24,9 +24,6 @@ config NETDEVICES
 
 	  If unsure, say Y.
 
-# All the following symbols are dependent on NETDEVICES - do not repeat
-# that for each of the symbols.
-if NETDEVICES
 
 config IFB
 	tristate "Intermediate Functional Block support"
@@ -2034,13 +2031,28 @@ config SKGE
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.
 
+	  This driver supports adapters based on the original Yukon chipset:
+	  Marvell 88E8001, Belkin F5D5005, CNet GigaCard, DLink DGE-530T,
+	  Linksys EG1032/EG1064, 3Com 3C940/3C940B, SysKonnect SK-9871/9872.
+
+	  It does not support the newer Yukon2 chipset: a separate driver,
+	  sky2, is provided for Yukon2-based adapters.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called skge.  This is recommended.
 
 config SKY2
 	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
 	select CRC32
 	---help---
-	  This driver support the Marvell Yukon 2 Gigabit Ethernet adapter.
+	  This driver supports Gigabit Ethernet adapters based on the the
+	  Marvell Yukon 2 chipset:
+	  Marvell 88E8021/88E8022/88E8035/88E8036/88E8038/88E8050/88E8052/
+	  88E8053/88E8055/88E8061/88E8062, SysKonnect SK-9E21D/SK-9S21
+
+	  This driver does not support the original Yukon chipset: a seperate
+	  driver, skge, is provided for Yukon-based adapters.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called sky2.  This is recommended.
@@ -2050,8 +2062,15 @@ config SK98LIN
 	depends on PCI
 	---help---
 	  Say Y here if you have a Marvell Yukon or SysKonnect SK-98xx/SK-95xx
-	  compliant Gigabit Ethernet Adapter. The following adapters are supported
-	  by this driver:
+	  compliant Gigabit Ethernet Adapter.
+
+	  This driver supports the original Yukon chipset. A cleaner driver is 
+	  also available (skge) which seems to work better than this one.
+
+	  This driver does not support the newer Yukon2 chipset. A seperate
+	  driver, sky2, is provided to support Yukon2-based adapters.
+
+	  The following adapters are supported by this driver:
 	    - 3Com 3C940 Gigabit LOM Ethernet Adapter
 	    - 3Com 3C941 Gigabit LOM Ethernet Adapter
 	    - Allied Telesyn AT-2970LX Gigabit Ethernet Adapter
@@ -2695,8 +2714,6 @@ config NETCONSOLE
 	---help---
 	If you want to log kernel messages over the network, enable this.
 	See <file:Documentation/networking/netconsole.txt> for details.
-
-endif #NETDEVICES
 
 config NETPOLL
 	def_bool NETCONSOLE

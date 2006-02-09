@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -300,8 +300,7 @@ acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
 
 		status = acpi_ut_execute_CID(node, &cid_list);
 		if (ACPI_SUCCESS(status)) {
-			size += ((acpi_size) cid_list->count - 1) *
-			    sizeof(struct acpi_compatible_id);
+			size += cid_list->size;
 			info->valid |= ACPI_VALID_CID;
 		}
 

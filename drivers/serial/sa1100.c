@@ -628,7 +628,7 @@ static void __init sa1100_init_ports(void)
 		sa1100_ports[i].port.ops       = &sa1100_pops;
 		sa1100_ports[i].port.fifosize  = 8;
 		sa1100_ports[i].port.line      = i;
-		sa1100_ports[i].port.iotype    = SERIAL_IO_MEM;
+		sa1100_ports[i].port.iotype    = UPIO_MEM;
 		init_timer(&sa1100_ports[i].timer);
 		sa1100_ports[i].timer.function = sa1100_timeout;
 		sa1100_ports[i].timer.data     = (unsigned long)&sa1100_ports[i];
@@ -665,21 +665,21 @@ void __init sa1100_register_uart(int idx, int port)
 		sa1100_ports[idx].port.membase = (void __iomem *)&Ser1UTCR0;
 		sa1100_ports[idx].port.mapbase = _Ser1UTCR0;
 		sa1100_ports[idx].port.irq     = IRQ_Ser1UART;
-		sa1100_ports[idx].port.flags   = ASYNC_BOOT_AUTOCONF;
+		sa1100_ports[idx].port.flags   = UPF_BOOT_AUTOCONF;
 		break;
 
 	case 2:
 		sa1100_ports[idx].port.membase = (void __iomem *)&Ser2UTCR0;
 		sa1100_ports[idx].port.mapbase = _Ser2UTCR0;
 		sa1100_ports[idx].port.irq     = IRQ_Ser2ICP;
-		sa1100_ports[idx].port.flags   = ASYNC_BOOT_AUTOCONF;
+		sa1100_ports[idx].port.flags   = UPF_BOOT_AUTOCONF;
 		break;
 
 	case 3:
 		sa1100_ports[idx].port.membase = (void __iomem *)&Ser3UTCR0;
 		sa1100_ports[idx].port.mapbase = _Ser3UTCR0;
 		sa1100_ports[idx].port.irq     = IRQ_Ser3UART;
-		sa1100_ports[idx].port.flags   = ASYNC_BOOT_AUTOCONF;
+		sa1100_ports[idx].port.flags   = UPF_BOOT_AUTOCONF;
 		break;
 
 	default:

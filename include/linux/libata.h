@@ -163,6 +163,9 @@ enum {
 	ATA_FLAG_PIO_LBA48	= (1 << 13), /* Host DMA engine is LBA28 only */
 	ATA_FLAG_IRQ_MASK	= (1 << 14), /* Mask IRQ in PIO xfers */
 
+	ATA_FLAG_FLUSH_PIO_TASK	= (1 << 15), /* Flush PIO task */
+	ATA_FLAG_IN_EH		= (1 << 16), /* EH in progress */
+
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
 	ATA_QCFLAG_SINGLE	= (1 << 4), /* no s/g, just a single buffer */
@@ -246,6 +249,9 @@ struct ata_queued_cmd;
 
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
+typedef void (*ata_probeinit_fn_t)(struct ata_port *);
+typedef int (*ata_reset_fn_t)(struct ata_port *, int, unsigned int *);
+typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *);
 
 struct ata_ioports {
 	unsigned long		cmd_addr;
@@ -481,6 +487,16 @@ extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
+extern int ata_drive_probe_reset(struct ata_port *ap,
+			ata_probeinit_fn_t probeinit,
+			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+			ata_postreset_fn_t postreset, unsigned int *classes);
+extern void ata_std_probeinit(struct ata_port *ap);
+extern int ata_std_softreset(struct ata_port *ap, int verbose,
+			     unsigned int *classes);
+extern int sata_std_hardreset(struct ata_port *ap, int verbose,
+			      unsigned int *class);
+extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
@@ -521,6 +537,7 @@ extern void ata_std_dev_select (struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
 extern u8 ata_altstatus(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
+extern int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes);
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
 extern void ata_host_stop (struct ata_host_set *host_set);

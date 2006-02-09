@@ -155,7 +155,7 @@ int do_sys_settimeofday(struct timespec *tv, struct timezone *tz)
 	static int firsttime = 1;
 	int error = 0;
 
-	if (!timespec_valid(tv))
+	if (tv && !timespec_valid(tv))
 		return -EINVAL;
 
 	error = security_settime(tv, tz);
@@ -637,15 +637,16 @@ void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec)
  *
  * Returns the timespec representation of the nsec parameter.
  */
-inline struct timespec ns_to_timespec(const nsec_t nsec)
+struct timespec ns_to_timespec(const nsec_t nsec)
 {
 	struct timespec ts;
 
-	if (nsec)
-		ts.tv_sec = div_long_long_rem_signed(nsec, NSEC_PER_SEC,
-						     &ts.tv_nsec);
-	else
-		ts.tv_sec = ts.tv_nsec = 0;
+	if (!nsec)
+		return (struct timespec) {0, 0};
+
+	ts.tv_sec = div_long_long_rem_signed(nsec, NSEC_PER_SEC, &ts.tv_nsec);
+	if (unlikely(nsec < 0))
+		set_normalized_timespec(&ts, ts.tv_sec, ts.tv_nsec);
 
 	return ts;
 }

@@ -142,11 +142,7 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 	return 0;
 }
 
-static inline compat_uptr_t to_user_ptr(void *kp)
-{
-	return (compat_uptr_t)(u64)kp;
-}
-
+#define to_user_ptr(p)		ptr_to_compat(p)
 #define from_user_ptr(p)	compat_ptr(p)
 
 static inline int save_general_regs(struct pt_regs *regs,
@@ -213,8 +209,8 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 	return 0;
 }
 
-#define to_user_ptr(p)		(p)
-#define from_user_ptr(p)	(p)
+#define to_user_ptr(p)		((unsigned long)(p))
+#define from_user_ptr(p)	((void __user *)(p))
 
 static inline int save_general_regs(struct pt_regs *regs,
 		struct mcontext __user *frame)
@@ -254,11 +250,9 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs);
  */
 long sys_sigsuspend(old_sigset_t mask)
 {
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
@@ -528,7 +522,7 @@ long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
 
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 	if (!ret && oact) {
-		ret = put_user((long)old_ka.sa.sa_handler, &oact->sa_handler);
+		ret = put_user(to_user_ptr(old_ka.sa.sa_handler), &oact->sa_handler);
 		ret |= put_sigset_t(&oact->sa_mask, &old_ka.sa.sa_mask);
 		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 	}
@@ -677,8 +671,8 @@ long compat_sys_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo
 int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 		      int r6, int r7, int r8, struct pt_regs *regs)
 {
-	stack_32_t __user * newstack = (stack_32_t __user *)(long) __new;
-	stack_32_t __user * oldstack = (stack_32_t __user *)(long) __old;
+	stack_32_t __user * newstack = compat_ptr(__new);
+	stack_32_t __user * oldstack = compat_ptr(__old);
 	stack_t uss, uoss;
 	int ret;
 	mm_segment_t old_fs;
@@ -710,7 +704,7 @@ int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 	set_fs(old_fs);
 	/* Copy the stack information to the user output buffer */
 	if (!ret && oldstack  &&
-		(put_user((long)uoss.ss_sp, &oldstack->ss_sp) ||
+		(put_user(ptr_to_compat(uoss.ss_sp), &oldstack->ss_sp) ||
 		 __put_user(uoss.ss_flags, &oldstack->ss_flags) ||
 		 __put_user(uoss.ss_size, &oldstack->ss_size)))
 		return -EFAULT;

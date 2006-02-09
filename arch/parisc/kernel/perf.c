@@ -68,20 +68,20 @@ struct rdr_tbl_ent {
 };
 
 static int perf_processor_interface __read_mostly = UNKNOWN_INTF;
-static int perf_enabled __read_mostly = 0;
+static int perf_enabled __read_mostly;
 static spinlock_t perf_lock;
-struct parisc_device *cpu_device __read_mostly = NULL;
+struct parisc_device *cpu_device __read_mostly;
 
 /* RDRs to write for PCX-W */
-static int perf_rdrs_W[] = 
+static const int perf_rdrs_W[] =
 	{ 0, 1, 4, 5, 6, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, -1 };
 
 /* RDRs to write for PCX-U */
-static int perf_rdrs_U[] =
+static const int perf_rdrs_U[] =
 	{ 0, 1, 4, 5, 6, 7, 16, 17, 18, 20, 21, 22, 23, 24, 25, -1 };
 
 /* RDR register descriptions for PCX-W */
-static struct rdr_tbl_ent perf_rdr_tbl_W[] = {
+static const struct rdr_tbl_ent perf_rdr_tbl_W[] = {
 	{ 19,	1,	8 },   /* RDR 0 */
 	{ 16,	1,	16 },  /* RDR 1 */
 	{ 72,	2,	0 },   /* RDR 2 */
@@ -117,7 +117,7 @@ static struct rdr_tbl_ent perf_rdr_tbl_W[] = {
 };
 
 /* RDR register descriptions for PCX-U */
-static struct rdr_tbl_ent perf_rdr_tbl_U[] = {
+static const struct rdr_tbl_ent perf_rdr_tbl_U[] = {
 	{ 19,	1,	8 },              /* RDR 0 */
 	{ 32,	1,	16 },             /* RDR 1 */
 	{ 20,	1,	0 },              /* RDR 2 */
@@ -156,7 +156,7 @@ static struct rdr_tbl_ent perf_rdr_tbl_U[] = {
  * A non-zero write_control in the above tables is a byte offset into
  * this array.
  */
-static uint64_t perf_bitmasks[] = {
+static const uint64_t perf_bitmasks[] = {
 	0x0000000000000000ul,     /* first dbl word must be zero */
 	0xfdffe00000000000ul,     /* RDR0 bitmask */
 	0x003f000000000000ul,     /* RDR1 bitmask */
@@ -173,7 +173,7 @@ static uint64_t perf_bitmasks[] = {
  * Write control bitmasks for Pa-8700 processor given
  * somethings have changed slightly.
  */
-static uint64_t perf_bitmasks_piranha[] = {
+static const uint64_t perf_bitmasks_piranha[] = {
 	0x0000000000000000ul,     /* first dbl word must be zero */
 	0xfdffe00000000000ul,     /* RDR0 bitmask */
 	0x003f000000000000ul,     /* RDR1 bitmask */
@@ -186,7 +186,7 @@ static uint64_t perf_bitmasks_piranha[] = {
 	0xfffc000000000000ul
 };
 
-static uint64_t *bitmask_array;   /* array of bitmasks to use */
+static const uint64_t *bitmask_array;   /* array of bitmasks to use */
 
 /******************************************************************************
  * Function Prototypes
@@ -200,7 +200,7 @@ static ssize_t perf_write(struct file *file, const char __user *buf, size_t coun
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static void perf_start_counters(void);
 static int perf_stop_counters(uint32_t *raddr);
-static struct rdr_tbl_ent * perf_rdr_get_entry(uint32_t rdr_num);
+static const struct rdr_tbl_ent * perf_rdr_get_entry(uint32_t rdr_num);
 static int perf_rdr_read_ubuf(uint32_t	rdr_num, uint64_t *buffer);
 static int perf_rdr_clear(uint32_t rdr_num);
 static int perf_write_image(uint64_t *memaddr);
@@ -444,7 +444,6 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	uint32_t raddr[4];
 	int error = 0;
 
-	lock_kernel();
 	switch (cmd) {
 
 	    case PA_PERF_ON:
@@ -476,8 +475,6 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	    default:
   	 		error = -ENOTTY;
 	}
-
-	unlock_kernel();
 
 	return error;
 }
@@ -655,7 +652,7 @@ static int perf_stop_counters(uint32_t *raddr)
  * Retrieve a pointer to the description of what this
  * RDR contains.
  */
-static struct rdr_tbl_ent * perf_rdr_get_entry(uint32_t rdr_num)
+static const struct rdr_tbl_ent * perf_rdr_get_entry(uint32_t rdr_num)
 {
 	if (perf_processor_interface == ONYX_INTF) {
 		return &perf_rdr_tbl_U[rdr_num];
@@ -673,7 +670,7 @@ static int perf_rdr_read_ubuf(uint32_t	rdr_num, uint64_t *buffer)
 {
 	uint64_t	data, data_mask = 0;
 	uint32_t	width, xbits, i;
-	struct rdr_tbl_ent *tentry;
+	const struct rdr_tbl_ent *tentry;
 
 	tentry = perf_rdr_get_entry(rdr_num);
 	if ((width = tentry->width) == 0)
@@ -721,7 +718,7 @@ static int perf_rdr_read_ubuf(uint32_t	rdr_num, uint64_t *buffer)
  */
 static int perf_rdr_clear(uint32_t	rdr_num)
 {
-	struct rdr_tbl_ent *tentry;
+	const struct rdr_tbl_ent *tentry;
 	int32_t		i;
 
 	tentry = perf_rdr_get_entry(rdr_num);
@@ -753,10 +750,11 @@ static int perf_write_image(uint64_t *memaddr)
 	uint64_t buffer[MAX_RDR_WORDS];
 	uint64_t *bptr;
 	uint32_t dwords;
-	uint32_t *intrigue_rdr;
-	uint64_t *intrigue_bitmask, tmp64;
+	const uint32_t *intrigue_rdr;
+	const uint64_t *intrigue_bitmask;
+	uint64_t tmp64;
 	void __iomem *runway;
-	struct rdr_tbl_ent *tentry;
+	const struct rdr_tbl_ent *tentry;
 	int i;
 
 	/* Clear out counters */
@@ -830,7 +828,7 @@ static int perf_write_image(uint64_t *memaddr)
  */
 static void perf_rdr_write(uint32_t rdr_num, uint64_t *buffer)
 {
-	struct rdr_tbl_ent *tentry;
+	const struct rdr_tbl_ent *tentry;
 	int32_t		i;
 
 printk("perf_rdr_write\n");

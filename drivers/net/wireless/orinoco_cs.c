@@ -261,13 +261,13 @@ orinoco_cs_config(dev_link_t *link)
 		/* Note that the CIS values need to be rescaled */
 		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
 			if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-				DEBUG(2, "orinoco_cs_config: Vcc mismatch (conf.Vcc = %d, CIS = %d)\n",  conf.Vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
+				DEBUG(2, "orinoco_cs_config: Vcc mismatch (conf.Vcc = %d, cfg CIS = %d)\n",  conf.Vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
 				if (!ignore_cis_vcc)
 					goto next_entry;
 			}
 		} else if (dflt.vcc.present & (1 << CISTPL_POWER_VNOM)) {
 			if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM] / 10000) {
-				DEBUG(2, "orinoco_cs_config: Vcc mismatch (conf.Vcc = %d, CIS = %d)\n",  conf.Vcc, dflt.vcc.param[CISTPL_POWER_VNOM] / 10000);
+				DEBUG(2, "orinoco_cs_config: Vcc mismatch (conf.Vcc = %d, dflt CIS = %d)\n",  conf.Vcc, dflt.vcc.param[CISTPL_POWER_VNOM] / 10000);
 				if(!ignore_cis_vcc)
 					goto next_entry;
 			}

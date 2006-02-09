@@ -24,6 +24,8 @@ config ARCH_CEIVA
 
 config ARCH_CLEP7312
 	bool "CLEP7312"
+	help
+	  Boards based on the Cirrus Logic 7212/7312 chips.
 
 config ARCH_EDB7211
 	bool "EDB7211"

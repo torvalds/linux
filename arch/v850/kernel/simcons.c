@@ -117,6 +117,7 @@ late_initcall(simcons_tty_init);
    tty driver.  */
 void simcons_poll_tty (struct tty_struct *tty)
 {
+	char buf[32];	/* Not the nicest way to do it but I need it correct first */
 	int flip = 0, send_break = 0;
 	struct pollfd pfd;
 	pfd.fd = 0;
@@ -124,21 +125,15 @@ void simcons_poll_tty (struct tty_struct *tty)
 
 	if (V850_SIM_SYSCALL (poll, &pfd, 1, 0) > 0) {
 		if (pfd.revents & POLLIN) {
-			int left = TTY_FLIPBUF_SIZE - tty->flip.count;
-
-			if (left > 0) {
-				unsigned char *buf = tty->flip.char_buf_ptr;
-				int rd = V850_SIM_SYSCALL (read, 0, buf, left);
-
-				if (rd > 0) {
-					tty->flip.count += rd;
-					tty->flip.char_buf_ptr += rd;
-					memset (tty->flip.flag_buf_ptr, 0, rd);
-					tty->flip.flag_buf_ptr += rd;
-					flip = 1;
-				} else
-					send_break = 1;
-			}
+			/* Real block hardware knows the transfer size before
+			   transfer so the new tty buffering doesn't try to handle
+			   this rather weird simulator specific case well */
+			int rd = V850_SIM_SYSCALL (read, 0, buf, 32);
+			if (rd > 0) {
+				tty_insert_flip_string(tty, buf, rd);
+				flip = 1;
+			} else
+				send_break = 1;
 		} else if (pfd.revents & POLLERR)
 			send_break = 1;
 	}

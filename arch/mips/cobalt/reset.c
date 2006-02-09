@@ -16,7 +16,7 @@
 #include <asm/reboot.h>
 #include <asm/system.h>
 #include <asm/mipsregs.h>
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 
 void cobalt_machine_halt(void)
 {

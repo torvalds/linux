@@ -2329,6 +2329,17 @@ static int frontend_init(struct av7110 *av7110)
 			av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
 			break;
 
+		case 0x0004: // Galaxis DVB-S rev1.3
+			/* ALPS BSRV2 */
+			av7110->fe = ves1x93_attach(&alps_bsrv2_config, &av7110->i2c_adap);
+			if (av7110->fe) {
+				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
+				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
+				av7110->fe->ops->set_tone = av7110_set_tone;
+				av7110->recover = dvb_s_recover;
+			}
+			break;
+
 		case 0x0006: /* Fujitsu-Siemens DVB-S rev 1.6 */
 			/* Grundig 29504-451 */
 			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
@@ -2930,6 +2941,7 @@ MAKE_AV7110_INFO(tts_1_3se,  "Technotrend/Hauppauge WinTV DVB-S rev1.3 SE");
 MAKE_AV7110_INFO(ttt,        "Technotrend/Hauppauge DVB-T");
 MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
+MAKE_AV7110_INFO(gxs_1_3,    "Galaxis DVB-S rev1.3");
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(fsc,         0x110a, 0x0000),
@@ -2937,13 +2949,13 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttt_1_X,     0x13c2, 0x0001),
 	MAKE_EXTENSION_PCI(ttc_2_X,     0x13c2, 0x0002),
 	MAKE_EXTENSION_PCI(tts_2_X,     0x13c2, 0x0003),
+	MAKE_EXTENSION_PCI(gxs_1_3,     0x13c2, 0x0004),
 	MAKE_EXTENSION_PCI(fss,         0x13c2, 0x0006),
 	MAKE_EXTENSION_PCI(ttt,         0x13c2, 0x0008),
 	MAKE_EXTENSION_PCI(ttc_1_X,     0x13c2, 0x000a),
 	MAKE_EXTENSION_PCI(tts_2_3,     0x13c2, 0x000e),
 	MAKE_EXTENSION_PCI(tts_1_3se,   0x13c2, 0x1002),
 
-/*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0004), UNDEFINED CARD */ // Galaxis DVB PC-Sat-Carte
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0005), UNDEFINED CARD */ // Technisat SkyStar1
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0009), UNDEFINED CARD */ // TT/Hauppauge WinTV Nexus-CA v????
 

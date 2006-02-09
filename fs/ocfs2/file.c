@@ -1022,8 +1022,9 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		}
 		newsize = count + saved_pos;
 
-		mlog(0, "pos=%lld newsize=%"MLFu64" cursize=%lld\n",
-		     saved_pos, newsize, i_size_read(inode));
+		mlog(0, "pos=%lld newsize=%lld cursize=%lld\n",
+		     (long long) saved_pos, (long long) newsize,
+		     (long long) i_size_read(inode));
 
 		/* No need for a higher level metadata lock if we're
 		 * never going past i_size. */
@@ -1042,8 +1043,9 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 		mlog(0, "Writing at EOF, may need more allocation: "
-		     "i_size = %lld, newsize = %"MLFu64", need %u clusters\n",
-		     i_size_read(inode), newsize, clusters);
+		     "i_size = %lld, newsize = %lld, need %u clusters\n",
+		     (long long) i_size_read(inode), (long long) newsize,
+		     clusters);
 
 		/* We only want to continue the rest of this loop if
 		 * our extend will actually require more

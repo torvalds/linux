@@ -35,12 +35,14 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/usb_ch9.h>
 #include <linux/workqueue.h>
 
 #include "usbatm.h"
 
 #define DRIVER_AUTHOR	"Johan Verrept, Duncan Sands <duncan.sands@free.fr>"
-#define DRIVER_VERSION	"1.9"
+#define DRIVER_VERSION	"1.10"
 #define DRIVER_DESC	"Alcatel SpeedTouch USB driver version " DRIVER_VERSION
 
 static const char speedtch_driver_name[] = "speedtch";
@@ -66,37 +68,50 @@ static const char speedtch_driver_name[] = "speedtch";
 
 #define RESUBMIT_DELAY		1000	/* milliseconds */
 
-#define DEFAULT_ALTSETTING	1
+#define DEFAULT_BULK_ALTSETTING	1
+#define DEFAULT_ISOC_ALTSETTING	2
 #define DEFAULT_DL_512_FIRST	0
+#define DEFAULT_ENABLE_ISOC	0
 #define DEFAULT_SW_BUFFERING	0
 
-static int altsetting = DEFAULT_ALTSETTING;
+static unsigned int altsetting = 0; /* zero means: use the default */
 static int dl_512_first = DEFAULT_DL_512_FIRST;
+static int enable_isoc = DEFAULT_ENABLE_ISOC;
 static int sw_buffering = DEFAULT_SW_BUFFERING;
 
-module_param(altsetting, int, S_IRUGO | S_IWUSR);
+module_param(altsetting, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(altsetting,
-		 "Alternative setting for data interface (default: "
-		 __MODULE_STRING(DEFAULT_ALTSETTING) ")");
+		"Alternative setting for data interface (bulk_default: "
+		__MODULE_STRING(DEFAULT_BULK_ALTSETTING) "; isoc_default: "
+		__MODULE_STRING(DEFAULT_ISOC_ALTSETTING) ")");
 
 module_param(dl_512_first, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dl_512_first,
 		 "Read 512 bytes before sending firmware (default: "
 		 __MODULE_STRING(DEFAULT_DL_512_FIRST) ")");
 
+module_param(enable_isoc, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_isoc,
+		"Use isochronous transfers if available (default: "
+		__MODULE_STRING(DEFAULT_ENABLE_ISOC) ")");
+
 module_param(sw_buffering, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(sw_buffering,
 		 "Enable software buffering (default: "
 		 __MODULE_STRING(DEFAULT_SW_BUFFERING) ")");
 
+#define INTERFACE_DATA		1
 #define ENDPOINT_INT		0x81
-#define ENDPOINT_DATA		0x07
+#define ENDPOINT_BULK_DATA	0x07
+#define ENDPOINT_ISOC_DATA	0x07
 #define ENDPOINT_FIRMWARE	0x05
 
 #define hex2int(c) ( (c >= '0') && (c <= '9') ? (c - '0') : ((c & 0xf) + 9) )
 
 struct speedtch_instance_data {
 	struct usbatm_data *usbatm;
+
+	unsigned int altsetting;
 
 	struct work_struct status_checker;
 
@@ -205,7 +220,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 				   buffer, 0x200, &actual_length, 2000);
 
 		if (ret < 0 && ret != -ETIMEDOUT)
-			usb_dbg(usbatm, "%s: read BLOCK0 from modem failed (%d)!\n", __func__, ret);
+			usb_warn(usbatm, "%s: read BLOCK0 from modem failed (%d)!\n", __func__, ret);
 		else
 			usb_dbg(usbatm, "%s: BLOCK0 downloaded (%d bytes)\n", __func__, ret);
 	}
@@ -219,7 +234,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 				   buffer, thislen, &actual_length, DATA_TIMEOUT);
 
 		if (ret < 0) {
-			usb_dbg(usbatm, "%s: write BLOCK1 to modem failed (%d)!\n", __func__, ret);
+			usb_err(usbatm, "%s: write BLOCK1 to modem failed (%d)!\n", __func__, ret);
 			goto out_free;
 		}
 		usb_dbg(usbatm, "%s: BLOCK1 uploaded (%zu bytes)\n", __func__, fw1->size);
@@ -232,7 +247,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 			   buffer, 0x200, &actual_length, DATA_TIMEOUT);
 
 	if (ret < 0) {
-		usb_dbg(usbatm, "%s: read BLOCK2 from modem failed (%d)!\n", __func__, ret);
+		usb_err(usbatm, "%s: read BLOCK2 from modem failed (%d)!\n", __func__, ret);
 		goto out_free;
 	}
 	usb_dbg(usbatm, "%s: BLOCK2 downloaded (%d bytes)\n", __func__, actual_length);
@@ -246,7 +261,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 				   buffer, thislen, &actual_length, DATA_TIMEOUT);
 
 		if (ret < 0) {
-			usb_dbg(usbatm, "%s: write BLOCK3 to modem failed (%d)!\n", __func__, ret);
+			usb_err(usbatm, "%s: write BLOCK3 to modem failed (%d)!\n", __func__, ret);
 			goto out_free;
 		}
 	}
@@ -259,7 +274,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 			   buffer, 0x200, &actual_length, DATA_TIMEOUT);
 
 	if (ret < 0) {
-		usb_dbg(usbatm, "%s: read BLOCK4 from modem failed (%d)!\n", __func__, ret);
+		usb_err(usbatm, "%s: read BLOCK4 from modem failed (%d)!\n", __func__, ret);
 		goto out_free;
 	}
 
@@ -269,6 +284,11 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 	/* Delay to allow firmware to start up. We can do this here
 	   because we're in our own kernel thread anyway. */
 	msleep_interruptible(1000);
+
+	if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
+		usb_err(usbatm, "%s: setting interface to %d failed (%d)!\n", __func__, instance->altsetting, ret);
+		goto out_free;
+	}
 
 	/* Enable software buffering, if requested */
 	if (sw_buffering)
@@ -285,8 +305,8 @@ out:
 	return ret;
 }
 
-static int speedtch_find_firmware(struct usb_interface *intf, int phase,
-				  const struct firmware **fw_p)
+static int speedtch_find_firmware(struct usbatm_data *usbatm, struct usb_interface *intf,
+				  int phase, const struct firmware **fw_p)
 {
 	struct device *dev = &intf->dev;
 	const u16 bcdDevice = le16_to_cpu(interface_to_usbdev(intf)->descriptor.bcdDevice);
@@ -295,24 +315,24 @@ static int speedtch_find_firmware(struct usb_interface *intf, int phase,
 	char buf[24];
 
 	sprintf(buf, "speedtch-%d.bin.%x.%02x", phase, major_revision, minor_revision);
-	dev_dbg(dev, "%s: looking for %s\n", __func__, buf);
+	usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
 	if (request_firmware(fw_p, buf, dev)) {
 		sprintf(buf, "speedtch-%d.bin.%x", phase, major_revision);
-		dev_dbg(dev, "%s: looking for %s\n", __func__, buf);
+		usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
 		if (request_firmware(fw_p, buf, dev)) {
 			sprintf(buf, "speedtch-%d.bin", phase);
-			dev_dbg(dev, "%s: looking for %s\n", __func__, buf);
+			usb_dbg(usbatm, "%s: looking for %s\n", __func__, buf);
 
 			if (request_firmware(fw_p, buf, dev)) {
-				dev_warn(dev, "no stage %d firmware found!\n", phase);
+				usb_err(usbatm, "%s: no stage %d firmware found!\n", __func__, phase);
 				return -ENOENT;
 			}
 		}
 	}
 
-	dev_info(dev, "found stage %d firmware %s\n", phase, buf);
+	usb_info(usbatm, "found stage %d firmware %s\n", phase, buf);
 
 	return 0;
 }
@@ -323,15 +343,16 @@ static int speedtch_heavy_init(struct usbatm_data *usbatm, struct usb_interface 
 	struct speedtch_instance_data *instance = usbatm->driver_data;
 	int ret;
 
-	if ((ret = speedtch_find_firmware(intf, 1, &fw1)) < 0)
-			return ret;
+	if ((ret = speedtch_find_firmware(usbatm, intf, 1, &fw1)) < 0)
+		return ret;
 
-	if ((ret = speedtch_find_firmware(intf, 2, &fw2)) < 0) {
+	if ((ret = speedtch_find_firmware(usbatm, intf, 2, &fw2)) < 0) {
 		release_firmware(fw1);
 		return ret;
 	}
 
-	ret = speedtch_upload_firmware(instance, fw1, fw2);
+	if ((ret = speedtch_upload_firmware(instance, fw1, fw2)) < 0)
+		usb_err(usbatm, "%s: firmware upload failed (%d)!\n", __func__, ret);
 
 	release_firmware(fw2);
 	release_firmware(fw1);
@@ -428,7 +449,9 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 	int down_speed, up_speed, ret;
 	unsigned char status;
 
+#ifdef VERBOSE_DEBUG
 	atm_dbg(usbatm, "%s entered\n", __func__);
+#endif
 
 	ret = speedtch_read_status(instance);
 	if (ret < 0) {
@@ -441,9 +464,9 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 
 	status = buf[OFFSET_7];
 
-	atm_dbg(usbatm, "%s: line state %02x\n", __func__, status);
-
 	if ((status != instance->last_status) || !status) {
+		atm_dbg(usbatm, "%s: line state 0x%02x\n", __func__, status);
+
 		switch (status) {
 		case 0:
 			atm_dev->signal = ATM_PHY_SIG_LOST;
@@ -484,7 +507,7 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 
 		default:
 			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
-			atm_info(usbatm, "Unknown line state %02x\n", status);
+			atm_info(usbatm, "unknown line state %02x\n", status);
 			break;
 		}
 
@@ -583,11 +606,6 @@ static int speedtch_atm_start(struct usbatm_data *usbatm, struct atm_dev *atm_de
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
-	if ((ret = usb_set_interface(usb_dev, 1, altsetting)) < 0) {
-		atm_dbg(usbatm, "%s: usb_set_interface returned %d!\n", __func__, ret);
-		return ret;
-	}
-
 	/* Set MAC address, it is stored in the serial number */
 	memset(atm_dev->esi, 0, sizeof(atm_dev->esi));
 	if (usb_string(usb_dev, usb_dev->descriptor.iSerialNumber, mac_str, sizeof(mac_str)) == 12) {
@@ -678,20 +696,27 @@ static void speedtch_release_interfaces(struct usb_device *usb_dev, int num_inte
 
 static int speedtch_bind(struct usbatm_data *usbatm,
 			 struct usb_interface *intf,
-			 const struct usb_device_id *id,
-			 int *need_heavy_init)
+			 const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	struct usb_interface *cur_intf;
+	struct usb_interface *cur_intf, *data_intf;
 	struct speedtch_instance_data *instance;
 	int ifnum = intf->altsetting->desc.bInterfaceNumber;
 	int num_interfaces = usb_dev->actconfig->desc.bNumInterfaces;
 	int i, ret;
+	int use_isoc;
 
 	usb_dbg(usbatm, "%s entered\n", __func__);
 
+	/* sanity checks */
+
 	if (usb_dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC) {
-		usb_dbg(usbatm, "%s: wrong device class %d\n", __func__, usb_dev->descriptor.bDeviceClass);
+		usb_err(usbatm, "%s: wrong device class %d\n", __func__, usb_dev->descriptor.bDeviceClass);
+		return -ENODEV;
+	}
+
+	if (!(data_intf = usb_ifnum_to_if(usb_dev, INTERFACE_DATA))) {
+		usb_err(usbatm, "%s: data interface not found!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -704,24 +729,70 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			ret = usb_driver_claim_interface(&speedtch_usb_driver, cur_intf, usbatm);
 
 			if (ret < 0) {
-				usb_dbg(usbatm, "%s: failed to claim interface %d (%d)\n", __func__, i, ret);
+				usb_err(usbatm, "%s: failed to claim interface %2d (%d)!\n", __func__, i, ret);
 				speedtch_release_interfaces(usb_dev, i);
 				return ret;
 			}
 		}
 	}
 
-	instance = kmalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 
 	if (!instance) {
-		usb_dbg(usbatm, "%s: no memory for instance data!\n", __func__);
+		usb_err(usbatm, "%s: no memory for instance data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail_release;
 	}
 
-	memset(instance, 0, sizeof(struct speedtch_instance_data));
-
 	instance->usbatm = usbatm;
+
+	/* altsetting and enable_isoc may change at any moment, so take a snapshot */
+	instance->altsetting = altsetting;
+	use_isoc = enable_isoc;
+
+	if (instance->altsetting)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
+			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, instance->altsetting, ret);
+			instance->altsetting = 0; /* fall back to default */
+		}
+
+	if (!instance->altsetting && use_isoc)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_ISOC_ALTSETTING)) < 0) {
+			usb_dbg(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_ISOC_ALTSETTING, ret);
+			use_isoc = 0; /* fall back to bulk */
+		}
+
+	if (use_isoc) {
+		const struct usb_host_interface *desc = data_intf->cur_altsetting;
+		const __u8 target_address = USB_DIR_IN | usbatm->driver->isoc_in;
+		int i;
+
+		use_isoc = 0; /* fall back to bulk if endpoint not found */
+
+		for (i=0; i<desc->desc.bNumEndpoints; i++) {
+			const struct usb_endpoint_descriptor *endpoint_desc = &desc->endpoint[i].desc;
+
+			if ((endpoint_desc->bEndpointAddress == target_address)) {
+				use_isoc = (endpoint_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+					USB_ENDPOINT_XFER_ISOC;
+				break;
+			}
+		}
+
+		if (!use_isoc)
+			usb_info(usbatm, "isochronous transfer not supported - using bulk\n");
+	}
+
+	if (!use_isoc && !instance->altsetting)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_BULK_ALTSETTING)) < 0) {
+			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_BULK_ALTSETTING, ret);
+			goto fail_free;
+		}
+
+	if (!instance->altsetting)
+		instance->altsetting = use_isoc ? DEFAULT_ISOC_ALTSETTING : DEFAULT_BULK_ALTSETTING;
+
+	usbatm->flags |= (use_isoc ? UDSL_USE_ISOC : 0);
 
 	INIT_WORK(&instance->status_checker, (void *)speedtch_check_status, instance);
 
@@ -749,13 +820,15 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			      0x12, 0xc0, 0x07, 0x00,
 			      instance->scratch_buffer + OFFSET_7, SIZE_7, 500);
 
-	*need_heavy_init = (ret != SIZE_7);
+	usbatm->flags |= (ret == SIZE_7 ? UDSL_SKIP_HEAVY_INIT : 0);
 
-	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, need_heavy_init ? "not" : "already");
+	usb_dbg(usbatm, "%s: firmware %s loaded\n", __func__, usbatm->flags & UDSL_SKIP_HEAVY_INIT ? "already" : "not");
 
-	if (*need_heavy_init)
-		if ((ret = usb_reset_device(usb_dev)) < 0)
+	if (!(usbatm->flags & UDSL_SKIP_HEAVY_INIT))
+		if ((ret = usb_reset_device(usb_dev)) < 0) {
+			usb_err(usbatm, "%s: device reset failed (%d)!\n", __func__, ret);
 			goto fail_free;
+		}
 
         usbatm->driver_data = instance;
 
@@ -787,15 +860,15 @@ static void speedtch_unbind(struct usbatm_data *usbatm, struct usb_interface *in
 ***********/
 
 static struct usbatm_driver speedtch_usbatm_driver = {
-	.owner		= THIS_MODULE,
 	.driver_name	= speedtch_driver_name,
 	.bind		= speedtch_bind,
 	.heavy_init	= speedtch_heavy_init,
 	.unbind		= speedtch_unbind,
 	.atm_start	= speedtch_atm_start,
 	.atm_stop	= speedtch_atm_stop,
-	.in		= ENDPOINT_DATA,
-	.out		= ENDPOINT_DATA
+	.bulk_in	= ENDPOINT_BULK_DATA,
+	.bulk_out	= ENDPOINT_BULK_DATA,
+	.isoc_in	= ENDPOINT_ISOC_DATA
 };
 
 static int speedtch_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)

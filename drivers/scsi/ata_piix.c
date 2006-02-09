@@ -630,6 +630,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 
 /**
  *	piix_check_450nx_errata	-	Check for problem 450NX setup
+ *	@ata_dev: the PCI device to check
  *	
  *	Check for the present of 450NX errata #19 and errata #25. If
  *	they are found return an error code so we can turn off DMA
@@ -713,7 +714,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_read_config_byte(pdev, ICH5_PMR, &tmp);
 
 		if (host_flags & PIIX_FLAG_COMBINED_ICH6) {
-			switch (tmp) {
+			switch (tmp & 0x3) {
 			case 0:
 				break;
 			case 1:

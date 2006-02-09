@@ -849,7 +849,7 @@ static int
 snd_vortex_peaks_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
-	int i, count;
+	int i, count = 0;
 	u16 peaks[20];
 
 	vortex_Eqlzr_GetAllPeaks(vortex, peaks, &count);

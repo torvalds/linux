@@ -3586,7 +3586,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Buffer_Pointer = (u64) pci_map_page
 		    (sp->pdev, frag->page, frag->page_offset,
 		     frag->size, PCI_DMA_TODEVICE);
-		txdp->Control_1 |= TXD_BUFFER0_SIZE(frag->size);
+		txdp->Control_1 = TXD_BUFFER0_SIZE(frag->size);
 		if (skb_shinfo(skb)->ufo_size)
 			txdp->Control_1 |= TXD_UFO_EN;
 	}

@@ -447,7 +447,7 @@ xpc_allocate_local_msgqueue(struct xpc_channel *ch)
 
 		nbytes = nentries * ch->msg_size;
 		ch->local_msgqueue = xpc_kmalloc_cacheline_aligned(nbytes,
-						(GFP_KERNEL | GFP_DMA),
+						GFP_KERNEL,
 						&ch->local_msgqueue_base);
 		if (ch->local_msgqueue == NULL) {
 			continue;
@@ -455,7 +455,7 @@ xpc_allocate_local_msgqueue(struct xpc_channel *ch)
 		memset(ch->local_msgqueue, 0, nbytes);
 
 		nbytes = nentries * sizeof(struct xpc_notify);
-		ch->notify_queue = kmalloc(nbytes, (GFP_KERNEL | GFP_DMA));
+		ch->notify_queue = kmalloc(nbytes, GFP_KERNEL);
 		if (ch->notify_queue == NULL) {
 			kfree(ch->local_msgqueue_base);
 			ch->local_msgqueue = NULL;
@@ -502,7 +502,7 @@ xpc_allocate_remote_msgqueue(struct xpc_channel *ch)
 
 		nbytes = nentries * ch->msg_size;
 		ch->remote_msgqueue = xpc_kmalloc_cacheline_aligned(nbytes,
-						(GFP_KERNEL | GFP_DMA),
+						GFP_KERNEL,
 						&ch->remote_msgqueue_base);
 		if (ch->remote_msgqueue == NULL) {
 			continue;
