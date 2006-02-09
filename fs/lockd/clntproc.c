@@ -22,12 +22,14 @@
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 #define NLMCLNT_GRACE_WAIT	(5*HZ)
 #define NLMCLNT_POLL_TIMEOUT	(30*HZ)
+#define NLMCLNT_MAX_RETRIES	3
 
 static int	nlmclnt_test(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_lock(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_unlock(struct nlm_rqst *, struct file_lock *);
 static int	nlm_stat_to_errno(u32 stat);
 static void	nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *host);
+static int	nlmclnt_cancel(struct nlm_host *, int , struct file_lock *);
 
 static const struct rpc_call_ops nlmclnt_unlock_ops;
 static const struct rpc_call_ops nlmclnt_cancel_ops;
@@ -598,7 +600,7 @@ out_unblock:
 	nlmclnt_finish_block(req);
 	/* Cancel the blocked request if it is still pending */
 	if (resp->status == NLM_LCK_BLOCKED)
-		nlmclnt_cancel(host, fl);
+		nlmclnt_cancel(host, req->a_args.block, fl);
 out:
 	nlmclnt_release_lockargs(req);
 	return status;
@@ -728,8 +730,7 @@ static const struct rpc_call_ops nlmclnt_unlock_ops = {
  * We always use an async RPC call for this in order not to hang a
  * process that has been Ctrl-C'ed.
  */
-int
-nlmclnt_cancel(struct nlm_host *host, struct file_lock *fl)
+static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl)
 {
 	struct nlm_rqst	*req;
 	unsigned long	flags;
@@ -750,6 +751,7 @@ nlmclnt_cancel(struct nlm_host *host, struct file_lock *fl)
 	req->a_flags = RPC_TASK_ASYNC;
 
 	nlmclnt_setlockargs(req, fl);
+	req->a_args.block = block;
 
 	status = nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
 	if (status < 0) {
@@ -801,6 +803,9 @@ die:
 	return;
 
 retry_cancel:
+	/* Don't ever retry more than 3 times */
+	if (req->a_retries++ >= NLMCLNT_MAX_RETRIES)
+		goto die;
 	nlm_rebind_host(req->a_host);
 	rpc_restart_call(task);
 	rpc_delay(task, 30 * HZ);

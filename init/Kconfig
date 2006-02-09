@@ -31,19 +31,8 @@ config EXPERIMENTAL
 	  you say Y here, you will be offered the choice of using features or
 	  drivers that are currently considered to be in the alpha-test phase.
 
-config CLEAN_COMPILE
-	bool "Select only drivers expected to compile cleanly" if EXPERIMENTAL
-	default y
-	help
-	  Select this option if you don't even want to see the option
-	  to configure known-broken drivers.
-
-	  If unsure, say Y
-
 config BROKEN
 	bool
-	depends on !CLEAN_COMPILE
-	default y
 
 config BROKEN_ON_SMP
 	bool
@@ -180,7 +169,6 @@ config SYSCTL
 config AUDIT
 	bool "Auditing support"
 	depends on NET
-	default y if SECURITY_SELINUX
 	help
 	  Enable auditing infrastructure that can be used with another
 	  kernel subsystem, such as SELinux (which requires this for

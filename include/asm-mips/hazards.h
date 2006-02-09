@@ -100,7 +100,7 @@
 
 __asm__(
 	"	.macro	_ssnop					\n\t"
-	"	sll	$0, $2, 1				\n\t"
+	"	sll	$0, $0, 1				\n\t"
 	"	.endm						\n\t"
 	"							\n\t"
 	"	.macro	_ehb					\n\t"

@@ -26,6 +26,10 @@ static nodemask_t nodes_found __initdata;
 static struct node nodes[MAX_NUMNODES] __initdata;
 static u8 pxm2node[256] = { [0 ... 255] = 0xff };
 
+/* Too small nodes confuse the VM badly. Usually they result
+   from BIOS bugs. */
+#define NODE_MIN_SIZE (4*1024*1024)
+
 static int node_to_pxm(int n);
 
 int pxm_to_node(int pxm)
@@ -131,7 +135,12 @@ void __init
 acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 {
 	int pxm, node;
-	if (srat_disabled() || pa->flags.enabled == 0)
+	if (srat_disabled())
+		return;
+	if (pa->header.length != sizeof(struct acpi_table_processor_affinity)) {		bad_srat();
+		return;
+	}
+	if (pa->flags.enabled == 0)
 		return;
 	pxm = pa->proximity_domain;
 	node = setup_node(pxm);
@@ -155,8 +164,16 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	int node, pxm;
 	int i;
 
-	if (srat_disabled() || ma->flags.enabled == 0)
+	if (srat_disabled())
 		return;
+	if (ma->header.length != sizeof(struct acpi_table_memory_affinity)) {
+		bad_srat();
+		return;
+	}
+	if (ma->flags.enabled == 0)
+		return;
+	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
+	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
 	pxm = ma->proximity_domain;
 	node = setup_node(pxm);
 	if (node < 0) {
@@ -164,8 +181,6 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 		bad_srat();
 		return;
 	}
-	start = ma->base_addr_lo | ((u64)ma->base_addr_hi << 32);
-	end = start + (ma->length_lo | ((u64)ma->length_hi << 32));
 	/* It is fine to add this area to the nodes data it will be used later*/
 	if (ma->flags.hot_pluggable == 1)
 		printk(KERN_INFO "SRAT: hot plug zone found %lx - %lx \n",
@@ -223,6 +238,16 @@ static int nodes_cover_memory(void)
 	return 1;
 }
 
+static void unparse_node(int node)
+{
+	int i;
+	node_clear(node, nodes_parsed);
+	for (i = 0; i < MAX_LOCAL_APIC; i++) {
+		if (apicid_to_node[i] == node)
+			apicid_to_node[i] = NUMA_NO_NODE;
+	}
+}
+
 void __init acpi_numa_arch_fixup(void) {}
 
 /* Use the information discovered above to actually set up the nodes. */
@@ -230,15 +255,15 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 {
 	int i;
 
+	/* First clean up the node list */
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		cutoff_node(i, start, end);
+		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE)
+			unparse_node(i);
+	}
+
 	if (acpi_numa <= 0)
 		return -1;
-
-	/* First clean up the node list */
-	for_each_node_mask(i, nodes_parsed) {
-		cutoff_node(i, start, end);
-		if (nodes[i].start == nodes[i].end)
-			node_clear(i, nodes_parsed);
-	}
 
 	if (!nodes_cover_memory()) {
 		bad_srat();

@@ -27,7 +27,7 @@
 #define OCFS2_UPTODATE_H
 
 int __init init_ocfs2_uptodate_cache(void);
-void __exit exit_ocfs2_uptodate_cache(void);
+void exit_ocfs2_uptodate_cache(void);
 
 void ocfs2_metadata_cache_init(struct inode *inode);
 void ocfs2_metadata_cache_purge(struct inode *inode);

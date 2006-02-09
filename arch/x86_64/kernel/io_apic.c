@@ -304,6 +304,14 @@ void __init check_ioapic(void)
 #endif
 					/* RED-PEN skip them on mptables too? */
 					return;
+				case PCI_VENDOR_ID_ATI:
+					if (apic_runs_main_timer != 0)
+						break;
+					printk(KERN_INFO
+	     "ATI board detected. Using APIC/PM timer.\n");
+					apic_runs_main_timer = 1;
+					nohpet = 1;
+					return;
 				} 
 
 				/* No multi-function device? */

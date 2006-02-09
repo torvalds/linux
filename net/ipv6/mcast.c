@@ -1978,7 +1978,7 @@ static int sf_setstate(struct ifmcaddr6 *pmc)
 			new_in = psf->sf_count[MCAST_INCLUDE] != 0;
 		if (new_in) {
 			if (!psf->sf_oldin) {
-				struct ip6_sf_list *prev = 0;
+				struct ip6_sf_list *prev = NULL;
 
 				for (dpsf=pmc->mca_tomb; dpsf;
 				     dpsf=dpsf->sf_next) {

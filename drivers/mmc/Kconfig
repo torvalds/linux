@@ -65,7 +65,7 @@ config MMC_AU1X
 	depends on SOC_AU1X00 && MMC
 	help
 	  This selects the AMD Alchemy(R) Multimedia card interface.
-	  iIf you have a Alchemy platform with a MMC slot, say Y or M here.
+	  If you have a Alchemy platform with a MMC slot, say Y or M here.
 
 	  If unsure, say N.
 

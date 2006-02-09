@@ -491,4 +491,21 @@ sys_call_table:
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch		/* 4285 */
 	PTR	sys_inotify_rm_watch
+	PTR	sys_migrate_pages
+	PTR	compat_sys_openat
+	PTR	sys_mkdirat
+	PTR	sys_mknodat			/* 4290 */
+	PTR	sys_fchownat
+	PTR	compat_sys_futimesat
+	PTR	compat_sys_newfstatat
+	PTR	sys_unlinkat
+	PTR	sys_renameat			/* 4295 */
+	PTR	sys_linkat
+	PTR	sys_symlinkat
+	PTR	sys_readlinkat
+	PTR	sys_fchmodat
+	PTR	sys_faccessat			/* 4300 */
+	PTR	sys_pselect6
+	PTR	sys_ppoll
+	PTR	sys_unshare
 	.size	sys_call_table,.-sys_call_table

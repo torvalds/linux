@@ -71,6 +71,7 @@ static int tftp_help(struct sk_buff **pskb,
 
 		exp->tuple = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
 		exp->mask.src.ip = 0xffffffff;
+		exp->mask.src.u.udp.port = 0;
 		exp->mask.dst.ip = 0xffffffff;
 		exp->mask.dst.u.udp.port = 0xffff;
 		exp->mask.dst.protonum = 0xff;

@@ -1,10 +1,10 @@
 #ifndef _IPT_CONNBYTES_H
 #define _IPT_CONNBYTES_H
 
-#include <net/netfilter/xt_connbytes.h>
+#include <linux/netfilter/xt_connbytes.h>
 #define ipt_connbytes_what xt_connbytes_what
 
-#define IPT_CONNBYTES_PKTS	XT_CONNBYTES_PACKETS
+#define IPT_CONNBYTES_PKTS	XT_CONNBYTES_PKTS
 #define IPT_CONNBYTES_BYTES	XT_CONNBYTES_BYTES
 #define IPT_CONNBYTES_AVGPKT	XT_CONNBYTES_AVGPKT
 

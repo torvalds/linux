@@ -388,7 +388,7 @@ out_free:
 	}
 }
 
-/* Item insertion is guarded by ip_io_sem, so the insertion path takes
+/* Item insertion is guarded by ip_io_mutex, so the insertion path takes
  * advantage of this by not rechecking for a duplicate insert during
  * the slow case. Additionally, if the cache needs to be bumped up to
  * a tree, the code will not recheck after acquiring the lock --
@@ -418,7 +418,7 @@ void ocfs2_set_buffer_uptodate(struct inode *inode,
 	     (unsigned long long) bh->b_blocknr);
 
 	/* No need to recheck under spinlock - insertion is guarded by
-	 * ip_io_sem */
+	 * ip_io_mutex */
 	spin_lock(&oi->ip_lock);
 	if (ocfs2_insert_can_use_array(oi, ci)) {
 		/* Fast case - it's an array and there's a free
@@ -440,7 +440,7 @@ void ocfs2_set_buffer_uptodate(struct inode *inode,
 
 /* Called against a newly allocated buffer. Most likely nobody should
  * be able to read this sort of metadata while it's still being
- * allocated, but this is careful to take ip_io_sem anyway. */
+ * allocated, but this is careful to take ip_io_mutex anyway. */
 void ocfs2_set_new_buffer_uptodate(struct inode *inode,
 				   struct buffer_head *bh)
 {
@@ -451,9 +451,9 @@ void ocfs2_set_new_buffer_uptodate(struct inode *inode,
 
 	set_buffer_uptodate(bh);
 
-	down(&oi->ip_io_sem);
+	mutex_lock(&oi->ip_io_mutex);
 	ocfs2_set_buffer_uptodate(inode, bh);
-	up(&oi->ip_io_sem);
+	mutex_unlock(&oi->ip_io_mutex);
 }
 
 /* Requires ip_lock. */
@@ -537,7 +537,7 @@ int __init init_ocfs2_uptodate_cache(void)
 	return 0;
 }
 
-void __exit exit_ocfs2_uptodate_cache(void)
+void exit_ocfs2_uptodate_cache(void)
 {
 	if (ocfs2_uptodate_cachep)
 		kmem_cache_destroy(ocfs2_uptodate_cachep);

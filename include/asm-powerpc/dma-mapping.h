@@ -15,7 +15,6 @@
 #include <linux/mm.h>
 #include <asm/scatterlist.h>
 #include <asm/io.h>
-#include <asm/bug.h>
 
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
 

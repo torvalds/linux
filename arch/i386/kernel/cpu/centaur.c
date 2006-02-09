@@ -470,3 +470,11 @@ int __init centaur_init_cpu(void)
 }
 
 //early_arch_initcall(centaur_init_cpu);
+
+static int __init centaur_exit_cpu(void)
+{
+	cpu_devs[X86_VENDOR_CENTAUR] = NULL;
+	return 0;
+}
+
+late_initcall(centaur_exit_cpu);

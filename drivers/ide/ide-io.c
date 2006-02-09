@@ -55,8 +55,8 @@
 #include <asm/io.h>
 #include <asm/bitops.h>
 
-int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
-		      int nr_sectors)
+static int __ide_end_request(ide_drive_t *drive, struct request *rq,
+			     int uptodate, int nr_sectors)
 {
 	int ret = 1;
 
@@ -91,7 +91,6 @@ int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
 
 	return ret;
 }
-EXPORT_SYMBOL(__ide_end_request);
 
 /**
  *	ide_end_request		-	complete an IDE I/O

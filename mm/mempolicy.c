@@ -1159,6 +1159,7 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 		return interleave_nodes(pol);
 }
 
+#ifdef CONFIG_HUGETLBFS
 /* Return a zonelist suitable for a huge page allocation. */
 struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
 {
@@ -1172,6 +1173,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
 	}
 	return zonelist_policy(GFP_HIGHUSER, pol);
 }
+#endif
 
 /* Allocate a page in interleaved policy.
    Own path because it needs to do special accounting. */

@@ -54,7 +54,7 @@ void (*pm_idle)(void);
  * This is done via auxio, but could be used as a fallback
  * handler when auxio is not present-- unused for now...
  */
-void (*pm_power_off)(void);
+void (*pm_power_off)(void) = machine_power_off;
 
 /*
  * sysctl - toggle power-off restriction for serial console 

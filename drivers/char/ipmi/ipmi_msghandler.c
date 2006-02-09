@@ -481,7 +481,7 @@ int ipmi_validate_addr(struct ipmi_addr *addr, int len)
 	}
 
 	if ((addr->channel == IPMI_BMC_CHANNEL)
-	    || (addr->channel >= IPMI_NUM_CHANNELS)
+	    || (addr->channel >= IPMI_MAX_CHANNELS)
 	    || (addr->channel < 0))
 		return -EINVAL;
 
@@ -1321,7 +1321,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 		unsigned char         ipmb_seq;
 		long                  seqid;
 
-		if (addr->channel >= IPMI_NUM_CHANNELS) {
+		if (addr->channel >= IPMI_MAX_CHANNELS) {
 			spin_lock_irqsave(&intf->counter_lock, flags);
 			intf->sent_invalid_commands++;
 			spin_unlock_irqrestore(&intf->counter_lock, flags);

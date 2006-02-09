@@ -199,8 +199,7 @@ static int gfar_probe(struct platform_device *pdev)
 
 	/* get a pointer to the register memory */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = (struct gfar *)
-		ioremap(r->start, sizeof (struct gfar));
+	priv->regs = ioremap(r->start, sizeof (struct gfar));
 
 	if (NULL == priv->regs) {
 		err = -ENOMEM;
@@ -369,7 +368,7 @@ static int gfar_probe(struct platform_device *pdev)
 	return 0;
 
 register_fail:
-	iounmap((void *) priv->regs);
+	iounmap(priv->regs);
 regs_fail:
 	free_netdev(dev);
 	return err;
@@ -382,7 +381,7 @@ static int gfar_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	iounmap((void *) priv->regs);
+	iounmap(priv->regs);
 	free_netdev(dev);
 
 	return 0;
@@ -454,8 +453,7 @@ static void init_registers(struct net_device *dev)
 
 	/* Zero out the rmon mib registers if it has them */
 	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
-		memset((void *) &(priv->regs->rmon), 0,
-		       sizeof (struct rmon_mib));
+		memset_io(&(priv->regs->rmon), 0, sizeof (struct rmon_mib));
 
 		/* Mask off the CAM interrupts */
 		gfar_write(&priv->regs->rmon.cam1, 0xffffffff);
@@ -477,7 +475,7 @@ static void init_registers(struct net_device *dev)
 void gfar_halt(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar *regs = priv->regs;
+	struct gfar __iomem *regs = priv->regs;
 	u32 tempval;
 
 	/* Mask all interrupts */
@@ -507,7 +505,7 @@ void gfar_halt(struct net_device *dev)
 void stop_gfar(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar *regs = priv->regs;
+	struct gfar __iomem *regs = priv->regs;
 	unsigned long flags;
 
 	phy_stop(priv->phydev);
@@ -590,7 +588,7 @@ static void free_skb_resources(struct gfar_private *priv)
 void gfar_start(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar *regs = priv->regs;
+	struct gfar __iomem *regs = priv->regs;
 	u32 tempval;
 
 	/* Enable Rx and Tx in MACCFG1 */
@@ -624,7 +622,7 @@ int startup_gfar(struct net_device *dev)
 	unsigned long vaddr;
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar *regs = priv->regs;
+	struct gfar __iomem *regs = priv->regs;
 	int err = 0;
 	u32 rctrl = 0;
 	u32 attrs = 0;
@@ -1622,7 +1620,7 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static void adjust_link(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar *regs = priv->regs;
+	struct gfar __iomem *regs = priv->regs;
 	unsigned long flags;
 	struct phy_device *phydev = priv->phydev;
 	int new_state = 0;
@@ -1703,7 +1701,7 @@ static void gfar_set_multi(struct net_device *dev)
 {
 	struct dev_mc_list *mc_ptr;
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar *regs = priv->regs;
+	struct gfar __iomem *regs = priv->regs;
 	u32 tempval;
 
 	if(dev->flags & IFF_PROMISC) {
@@ -1842,7 +1840,7 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr)
 	int idx;
 	char tmpbuf[MAC_ADDR_LEN];
 	u32 tempval;
-	u32 *macptr = &priv->regs->macstnaddr1;
+	u32 __iomem *macptr = &priv->regs->macstnaddr1;
 
 	macptr += num*2;
 

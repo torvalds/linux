@@ -68,6 +68,7 @@ void __init ixdp2400_pci_preinit(void)
 {
 	ixp2000_reg_write(IXP2000_PCI_ADDR_EXT, 0x00100000);
 	ixp2000_pci_preinit();
+	pcibios_setup("firmware");
 }
 
 int ixdp2400_pci_setup(int nr, struct pci_sys_data *sys)

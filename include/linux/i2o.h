@@ -1115,9 +1115,11 @@ static inline struct i2o_message *i2o_msg_get(struct i2o_controller *c)
 		return ERR_PTR(-ENOMEM);
 
 	mmsg->mfa = readl(c->in_port);
-	if (mmsg->mfa == I2O_QUEUE_EMPTY) {
+	if (unlikely(mmsg->mfa >= c->in_queue.len)) {
 		mempool_free(mmsg, c->in_msg.mempool);
-		return ERR_PTR(-EBUSY);
+		if(mmsg->mfa == I2O_QUEUE_EMPTY)
+			return ERR_PTR(-EBUSY);
+		return ERR_PTR(-EFAULT);
 	}
 
 	return &mmsg->msg;

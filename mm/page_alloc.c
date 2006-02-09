@@ -1213,18 +1213,21 @@ static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
 	int cpu = 0;
 
-	memset(ret, 0, sizeof(*ret));
+	memset(ret, 0, nr * sizeof(unsigned long));
 	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
 	cpu = first_cpu(*cpumask);
 	while (cpu < NR_CPUS) {
 		unsigned long *in, *out, off;
 
+		if (!cpu_isset(cpu, *cpumask))
+			continue;
+
 		in = (unsigned long *)&per_cpu(page_states, cpu);
 
 		cpu = next_cpu(cpu, *cpumask);
 
-		if (cpu < NR_CPUS)
+		if (likely(cpu < NR_CPUS))
 			prefetch(&per_cpu(page_states, cpu));
 
 		out = (unsigned long *)ret;
@@ -1886,8 +1889,7 @@ static void setup_pagelist_highmark(struct per_cpu_pageset *p,
  * not check if the processor is online before following the pageset pointer.
  * Other parts of the kernel may not check if the zone is available.
  */
-static struct per_cpu_pageset
-	boot_pageset[NR_CPUS];
+static struct per_cpu_pageset boot_pageset[NR_CPUS];
 
 /*
  * Dynamically allocate memory for the

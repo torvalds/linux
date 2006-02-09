@@ -1670,6 +1670,9 @@ static struct module *load_module(void __user *umod,
 		goto free_mod;
 	}
 
+	/* Userspace could have altered the string after the strlen_user() */
+	args[arglen - 1] = '\0';
+
 	if (find_module(mod->name)) {
 		err = -EEXIST;
 		goto free_mod;
@@ -2092,7 +2095,8 @@ static unsigned long mod_find_symname(struct module *mod, const char *name)
 	unsigned int i;
 
 	for (i = 0; i < mod->num_symtab; i++)
-		if (strcmp(name, mod->strtab+mod->symtab[i].st_name) == 0)
+		if (strcmp(name, mod->strtab+mod->symtab[i].st_name) == 0 &&
+		    mod->symtab[i].st_info != 'U')
 			return mod->symtab[i].st_value;
 	return 0;
 }

@@ -700,7 +700,7 @@ struct sctp_chunk {
 	__u8 ecn_ce_done;	/* Have we processed the ECN CE bit? */
 	__u8 pdiscard;		/* Discard the whole packet now? */
 	__u8 tsn_gap_acked;	/* Is this chunk acked by a GAP ACK? */
-	__u8 fast_retransmit;	 /* Is this chunk fast retransmitted? */
+	__s8 fast_retransmit;	 /* Is this chunk fast retransmitted? */
 	__u8 tsn_missing_report; /* Data chunk missing counter. */
 };
 

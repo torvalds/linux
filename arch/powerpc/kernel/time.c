@@ -612,10 +612,10 @@ void __init generic_calibrate_decr(void)
 
 	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
 	node_found = 0;
-	if (cpu != 0) {
+	if (cpu) {
 		fp = (unsigned int *)get_property(cpu, "timebase-frequency",
 						  NULL);
-		if (fp != 0) {
+		if (fp) {
 			node_found = 1;
 			ppc_tb_freq = *fp;
 		}
@@ -626,10 +626,10 @@ void __init generic_calibrate_decr(void)
 
 	ppc_proc_freq = DEFAULT_PROC_FREQ;
 	node_found = 0;
-	if (cpu != 0) {
+	if (cpu) {
 		fp = (unsigned int *)get_property(cpu, "clock-frequency",
 						  NULL);
-		if (fp != 0) {
+		if (fp) {
 			node_found = 1;
 			ppc_proc_freq = *fp;
 		}

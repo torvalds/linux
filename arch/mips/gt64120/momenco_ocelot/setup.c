@@ -4,7 +4,7 @@
  * BRIEF MODULE DESCRIPTION
  * Momentum Computer Ocelot (CP7000) - board dependent boot routines
  *
- * Copyright (C) 1996, 1997, 2001  Ralf Baechle
+ * Copyright (C) 1996, 1997, 2001, 06  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2000 RidgeRun, Inc.
  * Copyright (C) 2001 Red Hat, Inc.
  * Copyright (C) 2002 Momentum Computer
@@ -47,6 +47,8 @@
 #include <linux/pci.h>
 #include <linux/timex.h>
 #include <linux/vmalloc.h>
+#include <linux/pm.h>
+
 #include <asm/time.h>
 #include <asm/bootinfo.h>
 #include <asm/page.h>
@@ -159,7 +161,7 @@ void __init plat_setup(void)
 
 	_machine_restart = momenco_ocelot_restart;
 	_machine_halt = momenco_ocelot_halt;
-	_machine_power_off = momenco_ocelot_power_off;
+	pm_power_off = momenco_ocelot_power_off;
 
 	/*
 	 * initrd_start = (ulong)ocelot_initrd_start;

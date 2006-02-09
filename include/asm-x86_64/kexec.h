@@ -1,8 +1,9 @@
 #ifndef _X86_64_KEXEC_H
 #define _X86_64_KEXEC_H
 
+#include <linux/string.h>
+
 #include <asm/page.h>
-#include <asm/proto.h>
 #include <asm/ptrace.h>
 
 /*

@@ -71,14 +71,14 @@ int sc_ioctl(int card, scs_ioctl *data)
 		/*
 		 * Get the SRec from user space
 		 */
-		if (copy_from_user(srec, data->dataptr, sizeof(srec))) {
+		if (copy_from_user(srec, data->dataptr, SCIOC_SRECSIZE)) {
 			kfree(rcvmsg);
 			kfree(srec);
 			return -EFAULT;
 		}
 
 		status = send_and_receive(card, CMPID, cmReqType2, cmReqClass0, cmReqLoadProc,
-				0, sizeof(srec), srec, rcvmsg, SAR_TIMEOUT);
+				0, SCIOC_SRECSIZE, srec, rcvmsg, SAR_TIMEOUT);
 		kfree(rcvmsg);
 		kfree(srec);
 

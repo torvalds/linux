@@ -496,7 +496,7 @@ static int __init v850e_uart_init (void)
 
 			port->ops = &v850e_uart_ops;
 			port->line = chan;
-			port->iotype = SERIAL_IO_MEM;
+			port->iotype = UPIO_MEM;
 			port->flags = UPF_BOOT_AUTOCONF;
 
 			/* We actually use multiple IRQs, but the serial

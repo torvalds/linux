@@ -93,7 +93,7 @@ static void inline ja_console_probe(void)
 	up.uartclk	= JAGUAR_ATX_UART_CLK;
 	up.regshift	= 2;
 	up.iotype	= UPIO_MEM;
-	up.flags	= ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+	up.flags	= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	up.line		= 0;
 
 	if (early_serial_setup(&up))

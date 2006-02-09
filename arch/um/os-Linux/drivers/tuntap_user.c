@@ -122,6 +122,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 		return(-EINVAL);
 	}
 	*fd_out = ((int *) CMSG_DATA(cmsg))[0];
+	os_set_exec_close(*fd_out, 1);
 	return(0);
 }
 
@@ -137,7 +138,8 @@ static int tuntap_open(void *data)
 		return(err);
 
 	if(pri->fixed_config){
-		pri->fd = os_open_file("/dev/net/tun", of_rdwr(OPENFLAGS()), 0);
+		pri->fd = os_open_file("/dev/net/tun",
+				       of_cloexec(of_rdwr(OPENFLAGS())), 0);
 		if(pri->fd < 0){
 			printk("Failed to open /dev/net/tun, err = %d\n",
 			       -pri->fd);

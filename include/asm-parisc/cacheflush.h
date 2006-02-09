@@ -183,4 +183,10 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr);
 
 }
+
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void);
 #endif
+
+#endif /* _PARISC_CACHEFLUSH_H */
+
