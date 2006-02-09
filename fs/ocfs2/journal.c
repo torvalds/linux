@@ -1584,10 +1584,9 @@ static int ocfs2_commit_thread(void *arg)
 	while (!(kthread_should_stop() &&
 		 atomic_read(&journal->j_num_trans) == 0)) {
 
-		wait_event_interruptible_timeout(osb->checkpoint_event,
-						 atomic_read(&journal->j_num_trans)
-						 || kthread_should_stop(),
-						 OCFS2_CHECKPOINT_INTERVAL);
+		wait_event_interruptible(osb->checkpoint_event,
+					 atomic_read(&journal->j_num_trans)
+					 || kthread_should_stop());
 
 		status = ocfs2_commit_cache(osb);
 		if (status < 0)
