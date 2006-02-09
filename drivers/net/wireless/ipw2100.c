@@ -2201,6 +2201,17 @@ static int ipw2100_alloc_skb(struct ipw2100_priv *priv,
 #define SEARCH_SNAPSHOT 1
 
 #define SNAPSHOT_ADDR(ofs) (priv->snapshot[((ofs) >> 12) & 0xff] + ((ofs) & 0xfff))
+static void ipw2100_snapshot_free(struct ipw2100_priv *priv)
+{
+	int i;
+	if (!priv->snapshot[0])
+		return;
+	for (i = 0; i < 0x30; i++)
+		kfree(priv->snapshot[i]);
+	priv->snapshot[0] = NULL;
+}
+
+#ifdef CONFIG_IPW2100_DEBUG_C3
 static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 {
 	int i;
@@ -2219,16 +2230,6 @@ static int ipw2100_snapshot_alloc(struct ipw2100_priv *priv)
 	}
 
 	return 1;
-}
-
-static void ipw2100_snapshot_free(struct ipw2100_priv *priv)
-{
-	int i;
-	if (!priv->snapshot[0])
-		return;
-	for (i = 0; i < 0x30; i++)
-		kfree(priv->snapshot[i]);
-	priv->snapshot[0] = NULL;
 }
 
 static u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
@@ -2269,6 +2270,7 @@ static u32 ipw2100_match_buf(struct ipw2100_priv *priv, u8 * in_buf,
 
 	return ret;
 }
+#endif
 
 /*
  *
@@ -7112,11 +7114,17 @@ static int ipw2100_wx_set_txpow(struct net_device *dev,
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	int err = 0, value;
+	
+	if (ipw_radio_kill_sw(priv, wrqu->txpower.disabled))
+		return -EINPROGRESS;
 
 	if (priv->ieee->iw_mode != IW_MODE_ADHOC)
+		return 0;
+
+	if ((wrqu->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
 		return -EINVAL;
 
-	if (wrqu->txpower.disabled == 1 || wrqu->txpower.fixed == 0)
+	if (wrqu->txpower.fixed == 0)
 		value = IPW_TX_POWER_DEFAULT;
 	else {
 		if (wrqu->txpower.value < IPW_TX_POWER_MIN_DBM ||
@@ -7151,24 +7159,19 @@ static int ipw2100_wx_get_txpow(struct net_device *dev,
 
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 
-	if (priv->ieee->iw_mode != IW_MODE_ADHOC) {
-		wrqu->power.disabled = 1;
-		return 0;
-	}
+	wrqu->txpower.disabled = (priv->status & STATUS_RF_KILL_MASK) ? 1 : 0;
 
 	if (priv->tx_power == IPW_TX_POWER_DEFAULT) {
-		wrqu->power.fixed = 0;
-		wrqu->power.value = IPW_TX_POWER_MAX_DBM;
-		wrqu->power.disabled = 1;
+		wrqu->txpower.fixed = 0;
+		wrqu->txpower.value = IPW_TX_POWER_MAX_DBM;
 	} else {
-		wrqu->power.disabled = 0;
-		wrqu->power.fixed = 1;
-		wrqu->power.value = priv->tx_power;
+		wrqu->txpower.fixed = 1;
+		wrqu->txpower.value = priv->tx_power;
 	}
 
-	wrqu->power.flags = IW_TXPOW_DBM;
+	wrqu->txpower.flags = IW_TXPOW_DBM;
 
-	IPW_DEBUG_WX("GET TX Power -> %d \n", wrqu->power.value);
+	IPW_DEBUG_WX("GET TX Power -> %d \n", wrqu->txpower.value);
 
 	return 0;
 }

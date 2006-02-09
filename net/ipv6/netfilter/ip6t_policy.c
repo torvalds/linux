@@ -26,8 +26,9 @@ MODULE_LICENSE("GPL");
 static inline int
 match_xfrm_state(struct xfrm_state *x, const struct ip6t_policy_elem *e)
 {
-#define MATCH_ADDR(x,y,z)	(!e->match.x || \
-				 ((ip6_masked_addrcmp((z), &e->x, &e->y)) == 0) ^ e->invert.x)
+#define MATCH_ADDR(x,y,z)	(!e->match.x ||				       \
+				 ((!ip6_masked_addrcmp(&e->x.a6, &e->y.a6, z)) \
+				  ^ e->invert.x))
 #define MATCH(x,y)		(!e->match.x || ((e->x == (y)) ^ e->invert.x))
 	
 	return MATCH_ADDR(saddr, smask, (struct in6_addr *)&x->props.saddr.a6) &&
@@ -91,7 +92,7 @@ match_policy_out(const struct sk_buff *skb, const struct ip6t_policy_info *info)
 			return 0;
 	}
 
-	return strict ? 1 : 0;
+	return strict ? i == info->len : 0;
 }
 
 static int match(const struct sk_buff *skb,

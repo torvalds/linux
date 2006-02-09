@@ -441,7 +441,7 @@ static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
 
 		if ((ioh << 8 | iol) != tpm_inf.base) {
 			dev_err(&dev->dev,
-				"Could not set IO-ports to %04x\n",
+				"Could not set IO-ports to 0x%lx\n",
 				tpm_inf.base);
 			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
 			return -EIO;

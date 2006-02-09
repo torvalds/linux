@@ -1283,8 +1283,9 @@ within_logging_rate_limit (void)
 
 	if (jiffies - last_time > 5*HZ)
 		count = 0;
-	if (++count < 5) {
+	if (count < 5) {
 		last_time = jiffies;
+		count++;
 		return 1;
 	}
 	return 0;

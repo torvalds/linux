@@ -34,6 +34,8 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/timex.h>
+#include <linux/pm.h>
+
 #include <asm/bootinfo.h>
 #include <asm/page.h>
 #include <asm/io.h>
@@ -73,7 +75,7 @@ void __init plat_setup(void)
 {
 	_machine_restart = galileo_machine_restart;
 	_machine_halt = galileo_machine_halt;
-	_machine_power_off = galileo_machine_power_off;
+	pm_power_off = galileo_machine_power_off;
 
 	board_time_init = gt64120_time_init;
 	set_io_port_base(KSEG1);

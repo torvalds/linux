@@ -48,16 +48,22 @@ ieee754dp ieee754dp_neg(ieee754dp x)
 	CLEARCX;
 	FLUSHXDP;
 
+	/*
+	 * Invert the sign ALWAYS to prevent an endless recursion on
+	 * pow() in libc.
+	 */
+	/* quick fix up */
+	DPSIGN(x) ^= 1;
+
 	if (xc == IEEE754_CLASS_SNAN) {
+		ieee754dp y = ieee754dp_indef();
 		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef(), "neg");
+		DPSIGN(y) = DPSIGN(x);
+		return ieee754dp_nanxcpt(y, "neg");
 	}
 
 	if (ieee754dp_isnan(x))	/* but not infinity */
 		return ieee754dp_nanxcpt(x, "neg", x);
-
-	/* quick fix up */
-	DPSIGN(x) ^= 1;
 	return x;
 }
 

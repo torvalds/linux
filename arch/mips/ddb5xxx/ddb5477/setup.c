@@ -26,6 +26,7 @@
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <linux/root_dev.h>
+#include <linux/pm.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -182,7 +183,7 @@ void __init plat_setup(void)
 
 	_machine_restart = ddb_machine_restart;
 	_machine_halt = ddb_machine_halt;
-	_machine_power_off = ddb_machine_power_off;
+	pm_power_off = ddb_machine_power_off;
 
 	/* setup resource limits */
 	ioport_resource.end = DDB_PCI0_IO_SIZE + DDB_PCI1_IO_SIZE - 1;

@@ -114,7 +114,7 @@ struct pkt_ctrl_command {
 
 struct packet_settings
 {
-	__u8			size;		/* packet size in (512 byte) sectors */
+	__u32			size;		/* packet size in (512 byte) sectors */
 	__u8			fp;		/* fixed packets */
 	__u8			link_loss;	/* the rest is specified
 						 * as per Mt Fuji */
@@ -169,8 +169,8 @@ struct packet_iosched
 #if (PAGE_SIZE % CD_FRAMESIZE) != 0
 #error "PAGE_SIZE must be a multiple of CD_FRAMESIZE"
 #endif
-#define PACKET_MAX_SIZE		32
-#define PAGES_PER_PACKET	(PACKET_MAX_SIZE * CD_FRAMESIZE / PAGE_SIZE)
+#define PACKET_MAX_SIZE		128
+#define FRAMES_PER_PAGE		(PAGE_SIZE / CD_FRAMESIZE)
 #define PACKET_MAX_SECTORS	(PACKET_MAX_SIZE * CD_FRAMESIZE >> 9)
 
 enum packet_data_state {
@@ -219,7 +219,7 @@ struct packet_data
 	atomic_t		io_errors;	/* Number of read/write errors during IO */
 
 	struct bio		*r_bios[PACKET_MAX_SIZE]; /* bios to use during data gathering */
-	struct page		*pages[PAGES_PER_PACKET];
+	struct page		*pages[PACKET_MAX_SIZE / FRAMES_PER_PAGE];
 
 	int			cache_valid;	/* If non-zero, the data for the zone defined */
 						/* by the sector variable is completely cached */

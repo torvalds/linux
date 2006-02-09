@@ -32,6 +32,7 @@ config VIDEO_CX88_DVB
 config VIDEO_CX88_ALSA
 	tristate "ALSA DMA audio support"
 	depends on VIDEO_CX88 && SND && EXPERIMENTAL
+	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 2388x based TV cards.
@@ -48,6 +49,7 @@ config VIDEO_CX88_DVB_ALL_FRONTENDS
 	default y
 	depends on VIDEO_CX88_DVB
 	select DVB_MT352
+	select VIDEO_CX88_VP3054
 	select DVB_OR51132
 	select DVB_CX22702
 	select DVB_LGDT330X
@@ -68,6 +70,16 @@ config VIDEO_CX88_DVB_MT352
 	---help---
 	  This adds DVB-T support for cards based on the
 	  Connexant 2388x chip and the MT352 demodulator.
+
+config VIDEO_CX88_VP3054
+	tristate "VP-3054 Secondary I2C Bus Support"
+	default m
+	depends on DVB_MT352
+	---help---
+	  This adds DVB-T support for cards based on the
+	  Connexant 2388x chip and the MT352 demodulator,
+	  which also require support for the VP-3054
+	  Secondary I2C bus, such at DNTV Live! DVB-T Pro.
 
 config VIDEO_CX88_DVB_OR51132
 	bool "OR51132 ATSC Support"

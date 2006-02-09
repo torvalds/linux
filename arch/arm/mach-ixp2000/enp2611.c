@@ -106,6 +106,7 @@ static void __init enp2611_pci_preinit(void)
 {
 	ixp2000_reg_write(IXP2000_PCI_ADDR_EXT, 0x00100000);
 	ixp2000_pci_preinit();
+	pcibios_setup("firmware");
 }
 
 static inline int enp2611_pci_valid_device(struct pci_bus *bus,

@@ -491,7 +491,12 @@ void __init finish_device_tree(void)
 	size = 16;
 	finish_node(allnodes, &size, 1);
 	size -= 16;
-	end = start = (unsigned long) __va(lmb_alloc(size, 128));
+
+	if (0 == size)
+		end = start = 0;
+	else
+		end = start = (unsigned long)__va(lmb_alloc(size, 128));
+
 	finish_node(allnodes, &end, 0);
 	BUG_ON(end != start + size);
 
@@ -1398,8 +1403,8 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 
 	read_lock(&devtree_lock);
 	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (np->name != 0 && strcasecmp(np->name, name) == 0
+	for (; np != NULL; np = np->allnext)
+		if (np->name != NULL && strcasecmp(np->name, name) == 0
 		    && of_node_get(np))
 			break;
 	if (from)
@@ -1917,3 +1922,30 @@ int prom_update_property(struct device_node *np,
 
 	return 0;
 }
+
+#ifdef CONFIG_KEXEC
+/* We may have allocated the flat device tree inside the crash kernel region
+ * in prom_init. If so we need to move it out into regular memory. */
+void kdump_move_device_tree(void)
+{
+	unsigned long start, end;
+	struct boot_param_header *new;
+
+	start = __pa((unsigned long)initial_boot_params);
+	end = start + initial_boot_params->totalsize;
+
+	if (end < crashk_res.start || start > crashk_res.end)
+		return;
+
+	new = (struct boot_param_header*)
+		__va(lmb_alloc(initial_boot_params->totalsize, PAGE_SIZE));
+
+	memcpy(new, initial_boot_params, initial_boot_params->totalsize);
+
+	initial_boot_params = new;
+
+	DBG("Flat device tree blob moved to %p\n", initial_boot_params);
+
+	/* XXX should we unreserve the old DT? */
+}
+#endif /* CONFIG_KEXEC */

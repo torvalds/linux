@@ -576,7 +576,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 	slave->duplex = DUPLEX_FULL;
 
 	if (slave_dev->ethtool_ops) {
-		u32 res;
+		int res;
 
 		if (!slave_dev->ethtool_ops->get_settings) {
 			return -1;
@@ -1145,7 +1145,8 @@ int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev)
 }
 
 #define BOND_INTERSECT_FEATURES \
-	(NETIF_F_SG|NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM)
+	(NETIF_F_SG|NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM|\
+	NETIF_F_TSO|NETIF_F_UFO)
 
 /* 
  * Compute the common dev->feature set available to all slaves.  Some
@@ -1167,6 +1168,16 @@ static int bond_compute_features(struct bonding *bond)
 			  NETIF_F_NO_CSUM |
 			  NETIF_F_HW_CSUM)))
 		features &= ~NETIF_F_SG;
+
+	/* 
+	 * features will include NETIF_F_TSO (NETIF_F_UFO) iff all 
+	 * slave devices support NETIF_F_TSO (NETIF_F_UFO), which 
+	 * implies that all slaves also support scatter-gather 
+	 * (NETIF_F_SG), which implies that features also includes 
+	 * NETIF_F_SG. So no need to check whether we have an  
+	 * illegal combination of NETIF_F_{TSO,UFO} and 
+	 * !NETIF_F_SG 
+	 */
 
 	features |= (bond_dev->features & ~BOND_INTERSECT_FEATURES);
 	bond_dev->features = features;
@@ -4080,6 +4091,8 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 
 static struct ethtool_ops bond_ethtool_ops = {
 	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.get_tso		= ethtool_op_get_tso,
+	.get_ufo		= ethtool_op_get_ufo,
 	.get_sg			= ethtool_op_get_sg,
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
 };

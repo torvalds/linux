@@ -51,6 +51,13 @@ config UNIX98_PTY_COUNT
 	  When not in use, each additional set of 256 PTYs occupy
 	  approximately 8 KB of kernel memory on 32-bit architectures.
 
+config HANGCHECK_TIMER
+	tristate "Hangcheck timer"
+	help
+	  The hangcheck-timer module detects when the system has gone
+	  out to lunch past a certain margin.  It can reboot the system
+	  or merely print a warning.
+
 source "drivers/char/watchdog/Kconfig"
 
 comment "S/390 character device drivers"

@@ -253,31 +253,21 @@ static int acpi_processor_errata(struct acpi_processor *pr)
  * _PDC is required for a BIOS-OS handshake for most of the newer
  * ACPI processor features.
  */
-
-int acpi_processor_set_pdc(struct acpi_processor *pr,
-			   struct acpi_object_list *pdc_in)
+static int acpi_processor_set_pdc(struct acpi_processor *pr)
 {
+	struct acpi_object_list *pdc_in = pr->pdc;
 	acpi_status status = AE_OK;
-	u32 arg0_buf[3];
-	union acpi_object arg0 = { ACPI_TYPE_BUFFER };
-	struct acpi_object_list no_object = { 1, &arg0 };
-	struct acpi_object_list *pdc;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_set_pdc");
 
-	arg0.buffer.length = 12;
-	arg0.buffer.pointer = (u8 *) arg0_buf;
-	arg0_buf[0] = ACPI_PDC_REVISION_ID;
-	arg0_buf[1] = 0;
-	arg0_buf[2] = 0;
+	if (!pdc_in)
+		return_VALUE(status);
 
-	pdc = (pdc_in) ? pdc_in : &no_object;
+	status = acpi_evaluate_object(pr->handle, "_PDC", pdc_in, NULL);
 
-	status = acpi_evaluate_object(pr->handle, "_PDC", pdc, NULL);
-
-	if ((ACPI_FAILURE(status)) && (pdc_in))
+	if (ACPI_FAILURE(status))
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Error evaluating _PDC, using legacy perf. control...\n"));
+		    "Could not evaluate _PDC, using legacy perf. control...\n"));
 
 	return_VALUE(status);
 }
@@ -357,7 +347,6 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 				  ACPI_PROCESSOR_FILE_THROTTLING));
 	else {
 		entry->proc_fops = &acpi_processor_throttling_fops;
-		entry->proc_fops->write = acpi_processor_write_throttling;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
@@ -372,7 +361,6 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 				  ACPI_PROCESSOR_FILE_LIMIT));
 	else {
 		entry->proc_fops = &acpi_processor_limit_fops;
-		entry->proc_fops->write = acpi_processor_write_limit;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
@@ -588,6 +576,10 @@ static int acpi_processor_start(struct acpi_device *device)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Error installing device notify handler\n"));
 	}
+
+	/* _PDC call should be done before doing anything else (if reqd.). */
+	arch_acpi_processor_init_pdc(pr);
+	acpi_processor_set_pdc(pr);
 
 	acpi_processor_power_init(pr, device);
 

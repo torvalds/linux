@@ -781,6 +781,8 @@ static struct pci_device_id snd_bt87x_ids[] = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, 0x0070, 0x13eb, 32000),
 	/* Viewcast Osprey 200 */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, 44100),
+	/* AVerMedia Studio No. 103, 203, ...? */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
@@ -808,7 +810,7 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	const struct pci_device_id *supported;
 
 	supported = pci_match_device(&driver, pci);
-	if (supported)
+	if (supported && supported->driver_data > 0)
 		return supported->driver_data;
 
 	for (i = 0; i < ARRAY_SIZE(blacklist); ++i)

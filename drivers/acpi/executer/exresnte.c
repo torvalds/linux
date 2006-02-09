@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,8 +122,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	}
 
 	if (!source_desc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "No object attached to node %p\n", node));
+		ACPI_ERROR((AE_INFO, "No object attached to node %p", node));
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
 	}
 
@@ -135,10 +134,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_PACKAGE:
 
 		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_PACKAGE) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Object not a Package, type %s\n",
-					  acpi_ut_get_object_type_name
-					  (source_desc)));
+			ACPI_ERROR((AE_INFO, "Object not a Package, type %s",
+				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
@@ -154,10 +151,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_BUFFER:
 
 		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_BUFFER) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Object not a Buffer, type %s\n",
-					  acpi_ut_get_object_type_name
-					  (source_desc)));
+			ACPI_ERROR((AE_INFO, "Object not a Buffer, type %s",
+				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
@@ -173,10 +168,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_STRING:
 
 		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_STRING) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Object not a String, type %s\n",
-					  acpi_ut_get_object_type_name
-					  (source_desc)));
+			ACPI_ERROR((AE_INFO, "Object not a String, type %s",
+				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
@@ -189,10 +182,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_INTEGER:
 
 		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_INTEGER) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Object not a Integer, type %s\n",
-					  acpi_ut_get_object_type_name
-					  (source_desc)));
+			ACPI_ERROR((AE_INFO, "Object not a Integer, type %s",
+				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
@@ -236,9 +227,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	case ACPI_TYPE_ANY:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Untyped entry %p, no attached object!\n",
-				  node));
+		ACPI_ERROR((AE_INFO,
+			    "Untyped entry %p, no attached object!", node));
 
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);	/* Cannot be AE_TYPE */
 
@@ -257,12 +247,11 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 		default:
 			/* No named references are allowed here */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unsupported Reference opcode %X (%s)\n",
-					  source_desc->reference.opcode,
-					  acpi_ps_get_opcode_name(source_desc->
-								  reference.
-								  opcode)));
+			ACPI_ERROR((AE_INFO,
+				    "Unsupported Reference opcode %X (%s)",
+				    source_desc->reference.opcode,
+				    acpi_ps_get_opcode_name(source_desc->
+							    reference.opcode)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -272,9 +261,9 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		/* Default case is for unknown types */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Node %p - Unknown object type %X\n",
-				  node, entry_type));
+		ACPI_ERROR((AE_INFO,
+			    "Node %p - Unknown object type %X",
+			    node, entry_type));
 
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 

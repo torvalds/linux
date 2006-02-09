@@ -57,6 +57,7 @@ struct tty_buffer {
 	unsigned char *flag_buf_ptr;
 	int used;
 	int size;
+	int active;
 	/* Data points here */
 	unsigned long data[0];
 };
@@ -64,6 +65,7 @@ struct tty_buffer {
 struct tty_bufhead {
 	struct work_struct		work;
 	struct semaphore pty_sem;
+	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */
 	struct tty_buffer *free;	/* Free queue head */

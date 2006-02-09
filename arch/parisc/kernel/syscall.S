@@ -650,6 +650,8 @@ end_linux_gateway_page:
 #define LWS_ENTRY(_name_) .word  (lws_##_name_ - linux_gateway_page)
 #endif
 
+	.section .rodata,"a"
+
 	.align 4096
 	/* Light-weight-syscall table */
 	/* Start of lws table. */

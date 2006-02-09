@@ -71,6 +71,8 @@ unsigned long __per_cpu_offset[NR_CPUS];
 EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
+extern void ia64_setup_printk_clock(void);
+
 DEFINE_PER_CPU(struct cpuinfo_ia64, cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
 DEFINE_PER_CPU(unsigned long, ia64_phys_stacked_size_p8);
@@ -444,6 +446,8 @@ setup_arch (char **cmdline_p)
 
 	/* process SAL system table: */
 	ia64_sal_init(efi.sal_systab);
+
+	ia64_setup_printk_clock();
 
 #ifdef CONFIG_SMP
 	cpu_physical_id(0) = hard_smp_processor_id();

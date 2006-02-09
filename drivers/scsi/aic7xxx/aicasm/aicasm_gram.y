@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#29 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#30 $
  *
  * $FreeBSD$
  */
@@ -157,6 +157,8 @@ static int  is_download_const(expression_t *immed);
 
 %token T_END_CS
 
+%token T_PAD_PAGE
+
 %token T_FIELD
 
 %token T_ENUM
@@ -189,6 +191,10 @@ static int  is_download_const(expression_t *immed);
 
 %token <value> T_OR
 
+/* 16 bit extensions */
+%token <value> T_OR16 T_AND16 T_XOR16 T_ADD16
+%token <value> T_ADC16 T_MVI16 T_TEST16 T_CMP16 T_CMPXCHG
+
 %token T_RET
 
 %token T_NOP
@@ -207,7 +213,7 @@ static int  is_download_const(expression_t *immed);
 
 %type <expression> expression immediate immediate_or_a
 
-%type <value> export ret f1_opcode f2_opcode jmp_jc_jnc_call jz_jnz je_jne
+%type <value> export ret f1_opcode f2_opcode f4_opcode jmp_jc_jnc_call jz_jnz je_jne
 
 %type <value> mode_value mode_list macro_arglist
 
@@ -1302,6 +1308,15 @@ f2_opcode:
 |	T_SHR { $$ = AIC_OP_SHR; }
 |	T_ROL { $$ = AIC_OP_ROL; }
 |	T_ROR { $$ = AIC_OP_ROR; }
+;
+
+f4_opcode:
+	T_OR16	{ $$ = AIC_OP_OR16; }
+|	T_AND16 { $$ = AIC_OP_AND16; }
+|	T_XOR16 { $$ = AIC_OP_XOR16; }
+|	T_ADD16 { $$ = AIC_OP_ADD16; }
+|	T_ADC16 { $$ = AIC_OP_ADC16; }
+|	T_MVI16 { $$ = AIC_OP_MVI16; }
 ;
 
 code:

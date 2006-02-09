@@ -38,7 +38,7 @@
 
 #define curptr      g6
 
-#define NR_SYSCALLS 284      /* Each OS is different... */
+#define NR_SYSCALLS 300      /* Each OS is different... */
 
 /* These are just handy. */
 #define _SV	save	%sp, -STACKFRAME_SZ, %sp

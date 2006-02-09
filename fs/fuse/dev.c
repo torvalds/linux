@@ -120,9 +120,9 @@ struct fuse_req *fuse_get_request(struct fuse_conn *fc)
 	return do_get_request(fc);
 }
 
+/* Must be called with fuse_lock held */
 static void fuse_putback_request(struct fuse_conn *fc, struct fuse_req *req)
 {
-	spin_lock(&fuse_lock);
 	if (req->preallocated) {
 		atomic_dec(&fc->num_waiting);
 		list_add(&req->list, &fc->unused_list);
@@ -134,10 +134,18 @@ static void fuse_putback_request(struct fuse_conn *fc, struct fuse_req *req)
 		fc->outstanding_debt--;
 	else
 		up(&fc->outstanding_sem);
-	spin_unlock(&fuse_lock);
 }
 
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
+{
+	if (atomic_dec_and_test(&req->count)) {
+		spin_lock(&fuse_lock);
+		fuse_putback_request(fc, req);
+		spin_unlock(&fuse_lock);
+	}
+}
+
+static void fuse_put_request_locked(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (atomic_dec_and_test(&req->count))
 		fuse_putback_request(fc, req);
@@ -163,26 +171,36 @@ void fuse_release_background(struct fuse_req *req)
  * still waiting), the 'end' callback is called if given, else the
  * reference to the request is released
  *
+ * Releasing extra reference for foreground requests must be done
+ * within the same locked region as setting state to finished.  This
+ * is because fuse_reset_request() may be called after request is
+ * finished and it must be the sole possessor.  If request is
+ * interrupted and put in the background, it will return with an error
+ * and hence never be reset and reused.
+ *
  * Called with fuse_lock, unlocks it
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
-	req->end = NULL;
 	list_del(&req->list);
 	req->state = FUSE_REQ_FINISHED;
-	spin_unlock(&fuse_lock);
-	if (req->background) {
+	if (!req->background) {
+		wake_up(&req->waitq);
+		fuse_put_request_locked(fc, req);
+		spin_unlock(&fuse_lock);
+	} else {
+		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+		req->end = NULL;
+		spin_unlock(&fuse_lock);
 		down_read(&fc->sbput_sem);
 		if (fc->mounted)
 			fuse_release_background(req);
 		up_read(&fc->sbput_sem);
+		if (end)
+			end(fc, req);
+		else
+			fuse_put_request(fc, req);
 	}
-	wake_up(&req->waitq);
-	if (end)
-		end(fc, req);
-	else
-		fuse_put_request(fc, req);
 }
 
 /*

@@ -989,13 +989,11 @@ static int __init dino_probe(struct parisc_device *dev)
 */
 	}
 
-	dino_dev = kmalloc(sizeof(struct dino_device), GFP_KERNEL);
+	dino_dev = kzalloc(sizeof(struct dino_device), GFP_KERNEL);
 	if (!dino_dev) {
 		printk("dino_init_chip - couldn't alloc dino_device\n");
 		return 1;
 	}
-
-	memset(dino_dev, 0, sizeof(struct dino_device));
 
 	dino_dev->hba.dev = dev;
 	dino_dev->hba.base_addr = ioremap(hpa, 4096);

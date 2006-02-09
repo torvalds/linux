@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_fs.c ($Revision: 1.16 $)
+ * linux/drivers/s390/net/qeth_fs.c
  *
  * Linux on zSeries OSA Express and HiperSockets support
  * This file contains code related to procfs.
@@ -20,8 +20,6 @@
 #include "qeth.h"
 #include "qeth_mpc.h"
 #include "qeth_fs.h"
-
-const char *VERSION_QETH_PROC_C = "$Revision: 1.16 $";
 
 /***** /proc/qeth *****/
 #define QETH_PROCFILE_NAME "qeth"

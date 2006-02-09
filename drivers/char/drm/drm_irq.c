@@ -98,20 +98,20 @@ static int drm_irq_install(drm_device_t * dev)
 	if (dev->irq == 0)
 		return -EINVAL;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 
 	/* Driver must have been initialized */
 	if (!dev->dev_private) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
 	if (dev->irq_enabled) {
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return -EBUSY;
 	}
 	dev->irq_enabled = 1;
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("%s: irq=%d\n", __FUNCTION__, dev->irq);
 
@@ -135,9 +135,9 @@ static int drm_irq_install(drm_device_t * dev)
 	ret = request_irq(dev->irq, dev->driver->irq_handler,
 			  sh_flags, dev->devname, dev);
 	if (ret < 0) {
-		down(&dev->struct_sem);
+		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
-		up(&dev->struct_sem);
+		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
@@ -161,10 +161,10 @@ int drm_irq_uninstall(drm_device_t * dev)
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
-	down(&dev->struct_sem);
+	mutex_lock(&dev->struct_mutex);
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = 0;
-	up(&dev->struct_sem);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (!irq_enabled)
 		return -EINVAL;

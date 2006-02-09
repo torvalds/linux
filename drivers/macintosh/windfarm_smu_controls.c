@@ -24,7 +24,7 @@
 
 #include "windfarm.h"
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 
 #undef DEBUG
 
@@ -33,6 +33,8 @@
 #else
 #define DBG(args...)	do { } while(0)
 #endif
+
+static int smu_supports_new_fans_ops = 1;
 
 /*
  * SMU fans control object
@@ -59,23 +61,49 @@ static int smu_set_fan(int pwm, u8 id, u16 value)
 
 	/* Fill SMU command structure */
 	cmd.cmd = SMU_CMD_FAN_COMMAND;
-	cmd.data_len = 14;
+
+	/* The SMU has an "old" and a "new" way of setting the fan speed
+	 * Unfortunately, I found no reliable way to know which one works
+	 * on a given machine model. After some investigations it appears
+	 * that MacOS X just tries the new one, and if it fails fallbacks
+	 * to the old ones ... Ugh.
+	 */
+ retry:
+	if (smu_supports_new_fans_ops) {
+		buffer[0] = 0x30;
+		buffer[1] = id;
+		*((u16 *)(&buffer[2])) = value;
+		cmd.data_len = 4;
+	} else {
+		if (id > 7)
+			return -EINVAL;
+		/* Fill argument buffer */
+		memset(buffer, 0, 16);
+		buffer[0] = pwm ? 0x10 : 0x00;
+		buffer[1] = 0x01 << id;
+		*((u16 *)&buffer[2 + id * 2]) = value;
+		cmd.data_len = 14;
+	}
+
 	cmd.reply_len = 16;
 	cmd.data_buf = cmd.reply_buf = buffer;
 	cmd.status = 0;
 	cmd.done = smu_done_complete;
 	cmd.misc = &comp;
 
-	/* Fill argument buffer */
-	memset(buffer, 0, 16);
-	buffer[0] = pwm ? 0x10 : 0x00;
-	buffer[1] = 0x01 << id;
-	*((u16 *)&buffer[2 + id * 2]) = value;
-
 	rc = smu_queue_cmd(&cmd);
 	if (rc)
 		return rc;
 	wait_for_completion(&comp);
+
+	/* Handle fallback (see coment above) */
+	if (cmd.status != 0 && smu_supports_new_fans_ops) {
+		printk(KERN_WARNING "windfarm: SMU failed new fan command "
+		       "falling back to old method\n");
+		smu_supports_new_fans_ops = 0;
+		goto retry;
+	}
+
 	return cmd.status;
 }
 
@@ -158,19 +186,29 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 
 	/* Names used on desktop models */
 	if (!strcmp(l, "Rear Fan 0") || !strcmp(l, "Rear Fan") ||
-	    !strcmp(l, "Rear fan 0") || !strcmp(l, "Rear fan"))
+	    !strcmp(l, "Rear fan 0") || !strcmp(l, "Rear fan") ||
+	    !strcmp(l, "CPU A EXHAUST"))
 		fct->ctrl.name = "cpu-rear-fan-0";
-	else if (!strcmp(l, "Rear Fan 1") || !strcmp(l, "Rear fan 1"))
+	else if (!strcmp(l, "Rear Fan 1") || !strcmp(l, "Rear fan 1") ||
+		 !strcmp(l, "CPU B EXHAUST"))
 		fct->ctrl.name = "cpu-rear-fan-1";
 	else if (!strcmp(l, "Front Fan 0") || !strcmp(l, "Front Fan") ||
-		 !strcmp(l, "Front fan 0") || !strcmp(l, "Front fan"))
+		 !strcmp(l, "Front fan 0") || !strcmp(l, "Front fan") ||
+		 !strcmp(l, "CPU A INTAKE"))
 		fct->ctrl.name = "cpu-front-fan-0";
-	else if (!strcmp(l, "Front Fan 1") || !strcmp(l, "Front fan 1"))
+	else if (!strcmp(l, "Front Fan 1") || !strcmp(l, "Front fan 1") ||
+		 !strcmp(l, "CPU B INTAKE"))
 		fct->ctrl.name = "cpu-front-fan-1";
-	else if (!strcmp(l, "Slots Fan") || !strcmp(l, "Slots fan"))
+	else if (!strcmp(l, "CPU A PUMP"))
+		fct->ctrl.name = "cpu-pump-0";
+	else if (!strcmp(l, "Slots Fan") || !strcmp(l, "Slots fan") ||
+		 !strcmp(l, "EXPANSION SLOTS INTAKE"))
 		fct->ctrl.name = "slots-fan";
-	else if (!strcmp(l, "Drive Bay") || !strcmp(l, "Drive bay"))
+	else if (!strcmp(l, "Drive Bay") || !strcmp(l, "Drive bay") ||
+		 !strcmp(l, "DRIVE BAY A INTAKE"))
 		fct->ctrl.name = "drive-bay-fan";
+	else if (!strcmp(l, "BACKSIDE"))
+		fct->ctrl.name = "backside-fan";
 
 	/* Names used on iMac models */
 	if (!strcmp(l, "System Fan") || !strcmp(l, "System fan"))
@@ -223,7 +261,8 @@ static int __init smu_controls_init(void)
 
 	/* Look for RPM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (!strcmp(fans->name, "rpm-fans"))
+		if (!strcmp(fans->name, "rpm-fans") ||
+		    device_is_compatible(fans, "smu-rpm-fans"))
 			break;
 	for (fan = NULL;
 	     fans && (fan = of_get_next_child(fans, fan)) != NULL;) {

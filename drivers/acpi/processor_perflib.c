@@ -315,8 +315,6 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	if (!pr || !pr->performance || !pr->handle)
 		return_VALUE(-EINVAL);
 
-	acpi_processor_set_pdc(pr, pr->performance->pdc);
-
 	status = acpi_get_handle(pr->handle, "_PCT", &handle);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -520,8 +518,8 @@ static void acpi_cpufreq_add_file(struct acpi_processor *pr)
 				  "Unable to create '%s' fs entry\n",
 				  ACPI_PROCESSOR_FILE_PERFORMANCE));
 	else {
+		acpi_processor_perf_fops.write = acpi_processor_write_performance;
 		entry->proc_fops = &acpi_processor_perf_fops;
-		entry->proc_fops->write = acpi_processor_write_performance;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}

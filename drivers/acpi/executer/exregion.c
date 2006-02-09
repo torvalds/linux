@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 	struct acpi_mem_space_context *mem_info = region_context;
 	u32 length;
 	acpi_size window_size;
-#ifndef ACPI_MISALIGNED_TRANSFERS
+#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
 	u32 remainder;
 #endif
 
@@ -103,13 +103,12 @@ acpi_ex_system_memory_space_handler(u32 function,
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid system_memory width %d\n",
-				  bit_width));
+		ACPI_ERROR((AE_INFO, "Invalid system_memory width %d",
+			    bit_width));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
-#ifndef ACPI_MISALIGNED_TRANSFERS
+#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
 	/*
 	 * Hardware does not support non-aligned data transfers, we must verify
 	 * the request.
@@ -159,10 +158,10 @@ acpi_ex_system_memory_space_handler(u32 function,
 					    (void **)&mem_info->
 					    mapped_logical_address);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Could not map memory at %8.8X%8.8X, size %X\n",
-					  ACPI_FORMAT_UINT64(address),
-					  (u32) window_size));
+			ACPI_ERROR((AE_INFO,
+				    "Could not map memory at %8.8X%8.8X, size %X",
+				    ACPI_FORMAT_UINT64(address),
+				    (u32) window_size));
 			mem_info->mapped_length = 0;
 			return_ACPI_STATUS(status);
 		}
@@ -199,20 +198,20 @@ acpi_ex_system_memory_space_handler(u32 function,
 		*value = 0;
 		switch (bit_width) {
 		case 8:
-			*value = (acpi_integer) * ((u8 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET8(logical_addr_ptr);
 			break;
 
 		case 16:
-			*value = (acpi_integer) * ((u16 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET16(logical_addr_ptr);
 			break;
 
 		case 32:
-			*value = (acpi_integer) * ((u32 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET32(logical_addr_ptr);
 			break;
 
 #if ACPI_MACHINE_WIDTH != 16
 		case 64:
-			*value = (acpi_integer) * ((u64 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET64(logical_addr_ptr);
 			break;
 #endif
 		default:
@@ -225,20 +224,20 @@ acpi_ex_system_memory_space_handler(u32 function,
 
 		switch (bit_width) {
 		case 8:
-			*(u8 *) logical_addr_ptr = (u8) * value;
+			ACPI_SET8(logical_addr_ptr) = (u8) * value;
 			break;
 
 		case 16:
-			*(u16 *) logical_addr_ptr = (u16) * value;
+			ACPI_SET16(logical_addr_ptr) = (u16) * value;
 			break;
 
 		case 32:
-			*(u32 *) logical_addr_ptr = (u32) * value;
+			ACPI_SET32(logical_addr_ptr) = (u32) * value;
 			break;
 
 #if ACPI_MACHINE_WIDTH != 16
 		case 64:
-			*(u64 *) logical_addr_ptr = (u64) * value;
+			ACPI_SET64(logical_addr_ptr) = (u64) * value;
 			break;
 #endif
 

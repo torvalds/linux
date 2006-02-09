@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -398,14 +398,17 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 		 * Build a simple object (no nested objects)
 		 */
 		status = acpi_ut_copy_isimple_to_esimple(internal_object,
-							 (union acpi_object *)
-							 ret_buffer->pointer,
-							 ((u8 *) ret_buffer->
-							  pointer +
-							  ACPI_ROUND_UP_TO_NATIVE_WORD
-							  (sizeof
-							   (union
-							    acpi_object))),
+							 ACPI_CAST_PTR(union
+								       acpi_object,
+								       ret_buffer->
+								       pointer),
+							 ACPI_ADD_PTR(u8,
+								      ret_buffer->
+								      pointer,
+								      ACPI_ROUND_UP_TO_NATIVE_WORD
+								      (sizeof
+								       (union
+									acpi_object))),
 							 &ret_buffer->length);
 		/*
 		 * build simple does not include the object size in the length
@@ -603,8 +606,8 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 		/*
 		 * Packages as external input to control methods are not supported,
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Packages as parameters not implemented!\n"));
+		ACPI_ERROR((AE_INFO,
+			    "Packages as parameters not implemented!"));
 
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
@@ -867,7 +870,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 							 count +
 							 1) * sizeof(void *));
 	if (!dest_obj->package.elements) {
-		ACPI_REPORT_ERROR(("aml_build_copy_internal_package_object: Package allocation failure\n"));
+		ACPI_ERROR((AE_INFO, "Package allocation failure"));
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 

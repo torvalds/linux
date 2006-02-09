@@ -104,6 +104,7 @@ static void destroy_nbp(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
 
+	dev->br_port = NULL;
 	p->br = NULL;
 	p->dev = NULL;
 	dev_put(dev);
@@ -118,13 +119,24 @@ static void destroy_nbp_rcu(struct rcu_head *head)
 	destroy_nbp(p);
 }
 
-/* called with RTNL */
+/* Delete port(interface) from bridge is done in two steps.
+ * via RCU. First step, marks device as down. That deletes
+ * all the timers and stops new packets from flowing through.
+ *
+ * Final cleanup doesn't occur until after all CPU's finished
+ * processing packets.
+ *
+ * Protected from multiple admin operations by RTNL mutex
+ */
 static void del_nbp(struct net_bridge_port *p)
 {
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
-	dev->br_port = NULL;
+	/* Race between RTNL notify and RCU callback */
+	if (p->deleted)
+		return;
+
 	dev_set_promiscuity(dev, -1);
 
 	cancel_delayed_work(&p->carrier_check);
@@ -132,16 +144,13 @@ static void del_nbp(struct net_bridge_port *p)
 
 	spin_lock_bh(&br->lock);
 	br_stp_disable_port(p);
+	p->deleted = 1;
 	spin_unlock_bh(&br->lock);
 
 	br_fdb_delete_by_port(br, p);
 
 	list_del_rcu(&p->list);
 
-	del_timer_sync(&p->message_age_timer);
-	del_timer_sync(&p->forward_delay_timer);
-	del_timer_sync(&p->hold_timer);
-	
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 

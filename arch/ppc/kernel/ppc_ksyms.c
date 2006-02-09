@@ -186,11 +186,15 @@ EXPORT_SYMBOL(flush_tlb_kernel_range);
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(_tlbie);
 #ifdef CONFIG_ALTIVEC
+#ifndef CONFIG_SMP
 EXPORT_SYMBOL(last_task_used_altivec);
+#endif
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_SPE
+#ifndef CONFIG_SMP
 EXPORT_SYMBOL(last_task_used_spe);
+#endif
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */
 #ifdef CONFIG_SMP

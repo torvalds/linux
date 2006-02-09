@@ -248,10 +248,17 @@ acpi_parse_lapic(acpi_table_entry_header * header, const unsigned long end)
 
 	acpi_table_print_madt_entry(header);
 
-	/* Register even disabled CPUs for cpu hotplug */
+	/* Record local apic id only when enabled */
+	if (processor->flags.enabled)
+		x86_acpiid_to_apicid[processor->acpi_id] = processor->id;
 
-	x86_acpiid_to_apicid[processor->acpi_id] = processor->id;
-
+	/*
+	 * We need to register disabled CPU as well to permit
+	 * counting disabled CPUs. This allows us to size
+	 * cpus_possible_map more accurately, to permit
+	 * to not preallocating memory for all NR_CPUS
+	 * when we use CPU hotplug.
+	 */
 	mp_register_lapic(processor->id,	/* APIC ID */
 			  processor->flags.enabled);	/* Enabled? */
 
@@ -464,7 +471,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
  * success: return IRQ number (>=0)
  * failure: return < 0
  */
-int acpi_register_gsi(u32 gsi, int edge_level, int active_high_low)
+int acpi_register_gsi(u32 gsi, int triggering, int polarity)
 {
 	unsigned int irq;
 	unsigned int plat_gsi = gsi;
@@ -476,14 +483,14 @@ int acpi_register_gsi(u32 gsi, int edge_level, int active_high_low)
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PIC) {
 		extern void eisa_set_level_irq(unsigned int irq);
 
-		if (edge_level == ACPI_LEVEL_SENSITIVE)
+		if (triggering == ACPI_LEVEL_SENSITIVE)
 			eisa_set_level_irq(gsi);
 	}
 #endif
 
 #ifdef CONFIG_X86_IO_APIC
 	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC) {
-		plat_gsi = mp_register_gsi(gsi, edge_level, active_high_low);
+		plat_gsi = mp_register_gsi(gsi, triggering, polarity);
 	}
 #endif
 	acpi_gsi_to_irq(plat_gsi, &irq);

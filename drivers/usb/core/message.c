@@ -13,6 +13,7 @@
 #include <linux/ctype.h>
 #include <linux/device.h>
 #include <asm/byteorder.h>
+#include <asm/scatterlist.h>
 
 #include "hcd.h"	/* for usbcore internals */
 #include "usb.h"

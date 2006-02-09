@@ -159,7 +159,7 @@ enum i82875p_chips {
 
 struct i82875p_pvt {
 	struct pci_dev *ovrfl_pdev;
-	void *ovrfl_window;
+	void __iomem *ovrfl_window;
 };
 
 

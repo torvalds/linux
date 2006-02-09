@@ -75,8 +75,10 @@ void ack_bad_irq(unsigned int irq)
 	 * holds up an irq slot - in excessive cases (when multiple
 	 * unexpected vectors occur) that might lock up the APIC
 	 * completely.
+	 * But only ack when the APIC is enabled -AK
 	 */
-	ack_APIC_irq();
+	if (cpu_has_apic)
+		ack_APIC_irq();
 }
 
 void __init apic_intr_init(void)
@@ -1303,6 +1305,7 @@ int __init APIC_init_uniprocessor (void)
 	if (!cpu_has_apic && APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 			boot_cpu_physical_apicid);
+		clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
 		return -1;
 	}
 

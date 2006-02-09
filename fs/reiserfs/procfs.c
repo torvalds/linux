@@ -88,7 +88,6 @@ static int show_super(struct seq_file *m, struct super_block *sb)
 	seq_printf(m, "state: \t%s\n"
 		   "mount options: \t%s%s%s%s%s%s%s%s%s%s%s\n"
 		   "gen. counter: \t%i\n"
-		   "s_kmallocs: \t%i\n"
 		   "s_disk_reads: \t%i\n"
 		   "s_disk_writes: \t%i\n"
 		   "s_fix_nodes: \t%i\n"
@@ -128,7 +127,7 @@ static int show_super(struct seq_file *m, struct super_block *sb)
 		   "SMALL_TAILS " : "NO_TAILS ",
 		   replay_only(sb) ? "REPLAY_ONLY " : "",
 		   convert_reiserfs(sb) ? "CONV " : "",
-		   atomic_read(&r->s_generation_counter), SF(s_kmallocs),
+		   atomic_read(&r->s_generation_counter),
 		   SF(s_disk_reads), SF(s_disk_writes), SF(s_fix_nodes),
 		   SF(s_do_balance), SF(s_unneeded_left_neighbor),
 		   SF(s_good_search_by_key_reada), SF(s_bmaps),

@@ -209,8 +209,8 @@ ip_nat_in(unsigned int hooknum,
 	    && (ct = ip_conntrack_get(*pskb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 
-		if (ct->tuplehash[dir].tuple.src.ip !=
-		    ct->tuplehash[!dir].tuple.dst.ip) {
+		if (ct->tuplehash[dir].tuple.dst.ip !=
+		    ct->tuplehash[!dir].tuple.src.ip) {
 			dst_release((*pskb)->dst);
 			(*pskb)->dst = NULL;
 		}

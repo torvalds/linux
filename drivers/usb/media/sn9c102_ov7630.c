@@ -2,7 +2,7 @@
  * Plug-in for OV7630 image sensor connected to the SN9C10x PC Camera      *
  * Controllers                                                             *
  *                                                                         *
- * Copyright (C) 2005 by Luca Risolia <luca.risolia@studio.unibo.it>       *
+ * Copyright (C) 2005-2006 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -375,8 +375,10 @@ int sn9c102_probe_ov7630(struct sn9c102_device* cam)
 
 	sn9c102_attach_sensor(cam, &ov7630);
 
-	if (le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x608f &&
-	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x602c)
+	if (le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x602c &&
+	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x602d &&
+	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x608f &&
+	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x60b0)
 		return -ENODEV;
 
 	err += sn9c102_write_reg(cam, 0x01, 0x01);

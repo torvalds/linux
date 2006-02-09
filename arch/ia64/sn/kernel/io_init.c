@@ -10,6 +10,7 @@
 #include <linux/nodemask.h>
 #include <asm/sn/types.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/sn_feature_sets.h>
 #include <asm/sn/geo.h>
 #include <asm/sn/io.h>
 #include <asm/sn/pcibr_provider.h>
@@ -173,8 +174,8 @@ sn_pcidev_info_get(struct pci_dev *dev)
  */
 static u8 war_implemented = 0;
 
-static void sn_device_fixup_war(u64 nasid, u64 widget, int device,
-				struct sn_flush_device_common *common)
+static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
+			       struct sn_flush_device_common *common)
 {
 	struct sn_flush_device_war *war_list;
 	struct sn_flush_device_war *dev_entry;
@@ -198,15 +199,16 @@ static void sn_device_fixup_war(u64 nasid, u64 widget, int device,
 
 	dev_entry = war_list + device;
 	memcpy(common,dev_entry, sizeof(*common));
-
 	kfree(war_list);
+
+	return isrv.status;
 }
 
 /*
  * sn_fixup_ionodes() - This routine initializes the HUB data strcuture for
  *	each node in the system.
  */
-static void sn_fixup_ionodes(void)
+static void __init sn_fixup_ionodes(void)
 {
 	struct sn_flush_device_kernel *sn_flush_device_kernel;
 	struct sn_flush_device_kernel *dev_entry;
@@ -279,23 +281,21 @@ static void sn_fixup_ionodes(void)
 				memset(dev_entry->common, 0x0, sizeof(struct
 					     	       sn_flush_device_common));
 
-				status = sal_get_device_dmaflush_list(nasid,
-									widget,
-								       	device,
+				if (sn_prom_feature_available(
+						       PRF_DEVICE_FLUSH_LIST))
+					status = sal_get_device_dmaflush_list(
+									  nasid,
+									 widget,
+								       	 device,
 						      (u64)(dev_entry->common));
-				if (status) {
-					if (sn_sal_rev() < 0x0450) {
-						/* shortlived WAR for older
-						 * PROM images
-						 */
-						sn_device_fixup_war(nasid,
-								    widget,
-								    device,
+				else
+					status = sn_device_fixup_war(nasid,
+								     widget,
+							    	     device,
 							     dev_entry->common);
-					}
-					else
-						BUG();
-				}
+				if (status != SALRET_OK)
+					panic("SAL call failed: %s\n",
+					      ia64_sal_strerror(status));
 
 				spin_lock_init(&dev_entry->sfdl_flush_lock);
 			}
@@ -467,6 +467,13 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 		pcidev_info->pdi_sn_irq_info = NULL;
 		kfree(sn_irq_info);
 	}
+
+	/*
+	 * MSI currently not supported on altix.  Remove this when
+	 * the MSI abstraction patches are integrated into the kernel
+	 * (sometime after 2.6.16 releases)
+	 */
+	dev->no_msi = 1;
 }
 
 /*

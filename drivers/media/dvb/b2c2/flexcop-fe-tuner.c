@@ -9,7 +9,7 @@
 
 #include "stv0299.h"
 #include "mt352.h"
-#include "nxt2002.h"
+#include "nxt200x.h"
 #include "bcm3510.h"
 #include "stv0297.h"
 #include "mt312.h"
@@ -343,9 +343,10 @@ static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 	.clock_polarity_flip = 1,
 };
 
-static struct nxt2002_config samsung_tbmv_config = {
+static struct nxt200x_config samsung_tbmv_config = {
 	.demod_address    = 0x0a,
-	.request_firmware = flexcop_fe_request_firmware,
+	.pll_address      = 0xc2,
+	.pll_desc         = &dvb_pll_samsung_tbmv,
 };
 
 static struct bcm3510_config air2pc_atsc_first_gen_config = {
@@ -505,7 +506,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		info("found the mt352 at i2c address: 0x%02x",samsung_tdtc9251dh0_config.demod_address);
 	} else
 	/* try the air atsc 2nd generation (nxt2002) */
-	if ((fc->fe = nxt2002_attach(&samsung_tbmv_config, &fc->i2c_adap)) != NULL) {
+	if ((fc->fe = nxt200x_attach(&samsung_tbmv_config, &fc->i2c_adap)) != NULL) {
 		fc->dev_type          = FC_AIR_ATSC2;
 		info("found the nxt2002 at i2c address: 0x%02x",samsung_tbmv_config.demod_address);
 	} else

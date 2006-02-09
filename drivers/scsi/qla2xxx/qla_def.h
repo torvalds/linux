@@ -1680,7 +1680,8 @@ typedef struct fc_port {
 	uint8_t mp_byte;		/* multi-path byte (not used) */
     	uint8_t cur_path;		/* current path id */
 
-	struct fc_rport *rport;
+	spinlock_t rport_lock;
+	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 	struct work_struct rport_add_work;
 	struct work_struct rport_del_work;
@@ -2270,6 +2271,7 @@ typedef struct scsi_qla_host {
 #define LOOP_RESET_NEEDED	24
 #define BEACON_BLINK_NEEDED	25
 #define REGISTER_FDMI_NEEDED	26
+#define FCPORT_UPDATE_NEEDED	27
 
 	uint32_t	device_flags;
 #define DFLG_LOCAL_DEVICES		BIT_0

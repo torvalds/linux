@@ -2,8 +2,8 @@
  * Processor capabilities determination functions.
  *
  * Copyright (C) xxxx  the Anonymous
+ * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 1994 - 2003 Ralf Baechle
  * Copyright (C) 2001, 2004  MIPS Inc.
  *
  * This program is free software; you can redistribute it and/or
@@ -641,10 +641,9 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
-#ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
 		/* FPU in pass1 is known to have issues. */
-		c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
-#endif
+		if ((c->processor_id & 0xff) < 0x20)
+			c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
 		break;
 	case PRID_IMP_SB1A:
 		c->cputype = CPU_SB1A;

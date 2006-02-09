@@ -185,7 +185,7 @@ static int mthca_modify_port(struct ib_device *ibdev,
 	int err;
 	u8 status;
 
-	if (down_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
+	if (mutex_lock_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
 		return -ERESTARTSYS;
 
 	err = mthca_query_port(ibdev, port, &attr);
@@ -207,7 +207,7 @@ static int mthca_modify_port(struct ib_device *ibdev,
 	}
 
 out:
-	up(&to_mdev(ibdev)->cap_mask_mutex);
+	mutex_unlock(&to_mdev(ibdev)->cap_mask_mutex);
 	return err;
 }
 
@@ -1185,7 +1185,7 @@ int mthca_register_device(struct mthca_dev *dev)
 		dev->ib_dev.post_recv     = mthca_tavor_post_receive;
 	}
 
-	init_MUTEX(&dev->cap_mask_mutex);
+	mutex_init(&dev->cap_mask_mutex);
 
 	ret = ib_register_device(&dev->ib_dev);
 	if (ret)

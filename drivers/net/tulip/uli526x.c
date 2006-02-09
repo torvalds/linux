@@ -214,7 +214,7 @@ static u32 uli526x_cr6_user_set;
 /* For module input parameter */
 static int debug;
 static u32 cr6set;
-static unsigned char mode = 8;
+static int mode = 8;
 
 /* function declaration ------------------------------------- */
 static int uli526x_open(struct net_device *);

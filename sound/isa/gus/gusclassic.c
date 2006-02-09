@@ -195,7 +195,7 @@ static int __init snd_gusclassic_probe(struct platform_device *pdev)
 			goto _err;
 	}
 	sprintf(card->longname + strlen(card->longname), " at 0x%lx, irq %d, dma %d", gus->gf1.port, xirq, xdma1);
-	if (dma2 >= 0)
+	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", xdma2);
 
 	snd_card_set_dev(card, &pdev->dev);

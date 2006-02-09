@@ -931,7 +931,7 @@ static int sx_set_real_termios (void *ptr)
 	case CS6:sx_write_channel_byte (port, hi_mask, 0x3f);break;
 	case CS5:sx_write_channel_byte (port, hi_mask, 0x1f);break;
 	default:
-		printk (KERN_INFO "sx: Invalid wordsize: %d\n", CFLAG & CSIZE);
+		printk (KERN_INFO "sx: Invalid wordsize: %u\n", CFLAG & CSIZE);
 		break;
 	}
 
@@ -958,7 +958,7 @@ static int sx_set_real_termios (void *ptr)
 	} else {
 		set_bit(TTY_HW_COOK_IN, &port->gs.tty->flags);
 	}
-	sx_dprintk (SX_DEBUG_TERMIOS, "iflags: %x(%d) ", 
+	sx_dprintk (SX_DEBUG_TERMIOS, "iflags: %x(%d) ",
 	            port->gs.tty->termios->c_iflag, 
 	            I_OTHER(port->gs.tty));
 
@@ -973,7 +973,7 @@ static int sx_set_real_termios (void *ptr)
 	} else {
 		clear_bit(TTY_HW_COOK_OUT, &port->gs.tty->flags);
 	}
-	sx_dprintk (SX_DEBUG_TERMIOS, "oflags: %x(%d)\n", 
+	sx_dprintk (SX_DEBUG_TERMIOS, "oflags: %x(%d)\n",
 	            port->gs.tty->termios->c_oflag, 
 	            O_OTHER(port->gs.tty));
 	/* port->c_dcd = sx_get_CD (port); */

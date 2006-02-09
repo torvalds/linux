@@ -176,8 +176,8 @@ spruce_early_serial_map(void)
 	memset(&serial_req, 0, sizeof(serial_req));
 	serial_req.uartclk = uart_clk;
 	serial_req.irq = UART0_INT;
-	serial_req.flags = ASYNC_BOOT_AUTOCONF;
-	serial_req.iotype = SERIAL_IO_MEM;
+	serial_req.flags = UPF_BOOT_AUTOCONF;
+	serial_req.iotype = UPIO_MEM;
 	serial_req.membase = (u_char *)UART0_IO_BASE;
 	serial_req.regshift = 0;
 

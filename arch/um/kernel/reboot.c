@@ -5,6 +5,7 @@
 
 #include "linux/module.h"
 #include "linux/sched.h"
+#include "asm/smp.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"

@@ -20,6 +20,8 @@
 #include <linux/interrupt.h>
 #include <linux/console.h>
 #include <linux/pci.h>
+#include <linux/pm.h>
+
 #include <asm/wbflush.h>
 #include <asm/reboot.h>
 #include <asm/irq.h>
@@ -1003,7 +1005,7 @@ void __init toshiba_rbtx4938_setup(void)
 
 	_machine_restart = rbtx4938_machine_restart;
 	_machine_halt = rbtx4938_machine_halt;
-	_machine_power_off = rbtx4938_machine_power_off;
+	pm_power_off = rbtx4938_machine_power_off;
 
 	*rbtx4938_led_ptr = 0xff;
 	printk("RBTX4938 --- FPGA(Rev %02x)", *rbtx4938_fpga_rev_ptr);

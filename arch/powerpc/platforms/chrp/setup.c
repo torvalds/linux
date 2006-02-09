@@ -506,7 +506,7 @@ void __init chrp_init(void)
 	ppc_md.halt           = rtas_halt;
 
 	ppc_md.time_init      = chrp_time_init;
-	ppc_md.calibrate_decr = chrp_calibrate_decr;
+	ppc_md.calibrate_decr = generic_calibrate_decr;
 
 	/* this may get overridden with rtas routines later... */
 	ppc_md.set_rtc_time   = chrp_set_rtc_time;

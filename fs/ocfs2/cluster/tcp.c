@@ -1285,14 +1285,16 @@ static void o2net_idle_timer(unsigned long data)
 	mlog(ML_NOTICE, "here are some times that might help debug the "
 	     "situation: (tmr %ld.%ld now %ld.%ld dr %ld.%ld adv "
 	     "%ld.%ld:%ld.%ld func (%08x:%u) %ld.%ld:%ld.%ld)\n",
-	     sc->sc_tv_timer.tv_sec, sc->sc_tv_timer.tv_usec, 
-	     now.tv_sec, now.tv_usec,
-	     sc->sc_tv_data_ready.tv_sec, sc->sc_tv_data_ready.tv_usec, 
-	     sc->sc_tv_advance_start.tv_sec, sc->sc_tv_advance_start.tv_usec, 
-	     sc->sc_tv_advance_stop.tv_sec, sc->sc_tv_advance_stop.tv_usec, 
+	     sc->sc_tv_timer.tv_sec, (long) sc->sc_tv_timer.tv_usec, 
+	     now.tv_sec, (long) now.tv_usec,
+	     sc->sc_tv_data_ready.tv_sec, (long) sc->sc_tv_data_ready.tv_usec,
+	     sc->sc_tv_advance_start.tv_sec,
+	     (long) sc->sc_tv_advance_start.tv_usec,
+	     sc->sc_tv_advance_stop.tv_sec,
+	     (long) sc->sc_tv_advance_stop.tv_usec,
 	     sc->sc_msg_key, sc->sc_msg_type,
-	     sc->sc_tv_func_start.tv_sec, sc->sc_tv_func_start.tv_usec,
-	     sc->sc_tv_func_stop.tv_sec, sc->sc_tv_func_stop.tv_usec);
+	     sc->sc_tv_func_start.tv_sec, (long) sc->sc_tv_func_start.tv_usec,
+	     sc->sc_tv_func_stop.tv_sec, (long) sc->sc_tv_func_stop.tv_usec);
 
 	o2net_sc_queue_work(sc, &sc->sc_shutdown_work);
 }

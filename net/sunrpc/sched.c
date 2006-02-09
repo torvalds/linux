@@ -908,10 +908,10 @@ void rpc_release_task(struct rpc_task *task)
 
 /**
  * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
- * @clnt - pointer to RPC client
- * @flags - RPC flags
- * @ops - RPC call ops
- * @data - user call data
+ * @clnt: pointer to RPC client
+ * @flags: RPC flags
+ * @ops: RPC call ops
+ * @data: user call data
  */
 struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 					const struct rpc_call_ops *ops,
@@ -930,6 +930,7 @@ EXPORT_SYMBOL(rpc_run_task);
 /**
  * rpc_find_parent - find the parent of a child task.
  * @child: child task
+ * @parent: parent task
  *
  * Checks that the parent task is still sleeping on the
  * queue 'childq'. If so returns a pointer to the parent.

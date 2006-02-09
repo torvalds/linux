@@ -23,6 +23,7 @@
 #define jfs_debug jbd_debug
 #else
 
+#include <linux/types.h>
 #include <linux/buffer_head.h>
 #include <linux/journal-head.h>
 #include <linux/stddef.h>
@@ -238,7 +239,6 @@ typedef struct journal_superblock_s
 
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <asm/bug.h>
 
 #define JBD_ASSERTIONS
 #ifdef JBD_ASSERTIONS
@@ -618,6 +618,7 @@ struct transaction_s
  * @j_wbuf: array of buffer_heads for journal_commit_transaction
  * @j_wbufsize: maximum number of buffer_heads allowed in j_wbuf, the
  *	number that will fit in j_blocksize
+ * @j_last_sync_writer: most recent pid which did a synchronous write
  * @j_private: An opaque pointer to fs-private information.
  */
 
@@ -806,6 +807,8 @@ struct journal_s
 	 */
 	struct buffer_head	**j_wbuf;
 	int			j_wbufsize;
+
+	pid_t			j_last_sync_writer;
 
 	/*
 	 * An opaque pointer to fs-private information.  ext3 puts its

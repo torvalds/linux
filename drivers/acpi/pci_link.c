@@ -70,8 +70,8 @@ static struct acpi_driver acpi_pci_link_driver = {
  */
 struct acpi_pci_link_irq {
 	u8 active;		/* Current IRQ */
-	u8 edge_level;		/* All IRQs */
-	u8 active_high_low;	/* All IRQs */
+	u8 triggering;		/* All IRQs */
+	u8 polarity;	/* All IRQs */
 	u8 resource_type;
 	u8 possible_count;
 	u8 possible[ACPI_PCI_LINK_MAX_POSSIBLE];
@@ -108,19 +108,19 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 
 	ACPI_FUNCTION_TRACE("acpi_pci_link_check_possible");
 
-	switch (resource->id) {
-	case ACPI_RSTYPE_START_DPF:
+	switch (resource->type) {
+	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 		return_ACPI_STATUS(AE_OK);
-	case ACPI_RSTYPE_IRQ:
+	case ACPI_RESOURCE_TYPE_IRQ:
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
-			if (!p || !p->number_of_interrupts) {
+			if (!p || !p->interrupt_count) {
 				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 						  "Blank IRQ resource\n"));
 				return_ACPI_STATUS(AE_OK);
 			}
 			for (i = 0;
-			     (i < p->number_of_interrupts
+			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
 					ACPI_DEBUG_PRINT((ACPI_DB_WARN,
@@ -131,22 +131,22 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 				link->irq.possible[i] = p->interrupts[i];
 				link->irq.possible_count++;
 			}
-			link->irq.edge_level = p->edge_level;
-			link->irq.active_high_low = p->active_high_low;
-			link->irq.resource_type = ACPI_RSTYPE_IRQ;
+			link->irq.triggering = p->triggering;
+			link->irq.polarity = p->polarity;
+			link->irq.resource_type = ACPI_RESOURCE_TYPE_IRQ;
 			break;
 		}
-	case ACPI_RSTYPE_EXT_IRQ:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		{
-			struct acpi_resource_ext_irq *p =
+			struct acpi_resource_extended_irq *p =
 			    &resource->data.extended_irq;
-			if (!p || !p->number_of_interrupts) {
+			if (!p || !p->interrupt_count) {
 				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 						  "Blank EXT IRQ resource\n"));
 				return_ACPI_STATUS(AE_OK);
 			}
 			for (i = 0;
-			     (i < p->number_of_interrupts
+			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
 					ACPI_DEBUG_PRINT((ACPI_DB_WARN,
@@ -157,9 +157,9 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 				link->irq.possible[i] = p->interrupts[i];
 				link->irq.possible_count++;
 			}
-			link->irq.edge_level = p->edge_level;
-			link->irq.active_high_low = p->active_high_low;
-			link->irq.resource_type = ACPI_RSTYPE_EXT_IRQ;
+			link->irq.triggering = p->triggering;
+			link->irq.polarity = p->polarity;
+			link->irq.resource_type = ACPI_RESOURCE_TYPE_EXTENDED_IRQ;
 			break;
 		}
 	default:
@@ -201,11 +201,11 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 
 	ACPI_FUNCTION_TRACE("acpi_pci_link_check_current");
 
-	switch (resource->id) {
-	case ACPI_RSTYPE_IRQ:
+	switch (resource->type) {
+	case ACPI_RESOURCE_TYPE_IRQ:
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
-			if (!p || !p->number_of_interrupts) {
+			if (!p || !p->interrupt_count) {
 				/*
 				 * IRQ descriptors may have no IRQ# bits set,
 				 * particularly those those w/ _STA disabled
@@ -217,11 +217,11 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 			*irq = p->interrupts[0];
 			break;
 		}
-	case ACPI_RSTYPE_EXT_IRQ:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		{
-			struct acpi_resource_ext_irq *p =
+			struct acpi_resource_extended_irq *p =
 			    &resource->data.extended_irq;
-			if (!p || !p->number_of_interrupts) {
+			if (!p || !p->interrupt_count) {
 				/*
 				 * extended IRQ descriptors must
 				 * return at least 1 IRQ
@@ -233,8 +233,10 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 			*irq = p->interrupts[0];
 			break;
 		}
+		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Resource isn't an IRQ\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Resource %d isn't an IRQ\n", resource->type));
+	case ACPI_RESOURCE_TYPE_END_TAG:
 		return_ACPI_STATUS(AE_OK);
 	}
 	return_ACPI_STATUS(AE_CTRL_TERMINATE);
@@ -325,36 +327,36 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	buffer.pointer = resource;
 
 	switch (link->irq.resource_type) {
-	case ACPI_RSTYPE_IRQ:
-		resource->res.id = ACPI_RSTYPE_IRQ;
+	case ACPI_RESOURCE_TYPE_IRQ:
+		resource->res.type = ACPI_RESOURCE_TYPE_IRQ;
 		resource->res.length = sizeof(struct acpi_resource);
-		resource->res.data.irq.edge_level = link->irq.edge_level;
-		resource->res.data.irq.active_high_low =
-		    link->irq.active_high_low;
-		if (link->irq.edge_level == ACPI_EDGE_SENSITIVE)
-			resource->res.data.irq.shared_exclusive =
+		resource->res.data.irq.triggering = link->irq.triggering;
+		resource->res.data.irq.polarity =
+		    link->irq.polarity;
+		if (link->irq.triggering == ACPI_EDGE_SENSITIVE)
+			resource->res.data.irq.sharable =
 			    ACPI_EXCLUSIVE;
 		else
-			resource->res.data.irq.shared_exclusive = ACPI_SHARED;
-		resource->res.data.irq.number_of_interrupts = 1;
+			resource->res.data.irq.sharable = ACPI_SHARED;
+		resource->res.data.irq.interrupt_count = 1;
 		resource->res.data.irq.interrupts[0] = irq;
 		break;
 
-	case ACPI_RSTYPE_EXT_IRQ:
-		resource->res.id = ACPI_RSTYPE_EXT_IRQ;
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+		resource->res.type = ACPI_RESOURCE_TYPE_EXTENDED_IRQ;
 		resource->res.length = sizeof(struct acpi_resource);
 		resource->res.data.extended_irq.producer_consumer =
 		    ACPI_CONSUMER;
-		resource->res.data.extended_irq.edge_level =
-		    link->irq.edge_level;
-		resource->res.data.extended_irq.active_high_low =
-		    link->irq.active_high_low;
-		if (link->irq.edge_level == ACPI_EDGE_SENSITIVE)
-			resource->res.data.irq.shared_exclusive =
+		resource->res.data.extended_irq.triggering =
+		    link->irq.triggering;
+		resource->res.data.extended_irq.polarity =
+		    link->irq.polarity;
+		if (link->irq.triggering == ACPI_EDGE_SENSITIVE)
+			resource->res.data.irq.sharable =
 			    ACPI_EXCLUSIVE;
 		else
-			resource->res.data.irq.shared_exclusive = ACPI_SHARED;
-		resource->res.data.extended_irq.number_of_interrupts = 1;
+			resource->res.data.irq.sharable = ACPI_SHARED;
+		resource->res.data.extended_irq.interrupt_count = 1;
 		resource->res.data.extended_irq.interrupts[0] = irq;
 		/* ignore resource_source, it's optional */
 		break;
@@ -364,7 +366,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		goto end;
 
 	}
-	resource->end.id = ACPI_RSTYPE_END_TAG;
+	resource->end.type = ACPI_RESOURCE_TYPE_END_TAG;
 
 	/* Attempt to set the resource */
 	status = acpi_set_current_resources(link->handle, &buffer);
@@ -613,7 +615,7 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 int
 acpi_pci_link_allocate_irq(acpi_handle handle,
 			   int index,
-			   int *edge_level, int *active_high_low, char **name)
+			   int *triggering, int *polarity, char **name)
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
@@ -653,10 +655,10 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 	link->refcnt++;
 	up(&acpi_link_lock);
 
-	if (edge_level)
-		*edge_level = link->irq.edge_level;
-	if (active_high_low)
-		*active_high_low = link->irq.active_high_low;
+	if (triggering)
+		*triggering = link->irq.triggering;
+	if (polarity)
+		*polarity = link->irq.polarity;
 	if (name)
 		*name = acpi_device_bid(link->device);
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,

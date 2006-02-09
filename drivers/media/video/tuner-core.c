@@ -216,6 +216,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
 		default_tuner_init(c);
+		break;
 	default:
 		default_tuner_init(c);
 		break;
@@ -365,6 +366,11 @@ static int tuner_fixup_std(struct tuner *t)
 			tuner_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
 			t->std = V4L2_STD_NTSC_M_JP;
 			break;
+		case 'k':
+		case 'K':
+			tuner_dbg("insmod fixup: NTSC => NTSC_M_KR\n");
+			t->std = V4L2_STD_NTSC_M_KR;
+			break;
 		case '-':
 			/* default parameter, do nothing */
 			break;
@@ -448,7 +454,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			printk("%02x ",buffer[i]);
 		printk("\n");
 	}
-	/* TEA5767 autodetection code - only for addr = 0xc0 */
+	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
 		switch (addr) {
 		case 0x42:

@@ -31,7 +31,6 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
-#include <linux/mca.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/tty.h>
@@ -2027,12 +2026,6 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	int ret;
 
 	/*
-	 * Don't probe for MCA ports on non-MCA machines.
-	 */
-	if (up->port.flags & UPF_BOOT_ONLYMCA && !MCA_bus)
-		return;
-
-	/*
 	 * Find the region that we can probe for.  This in turn
 	 * tells us whether we can probe for the type of port.
 	 */
@@ -2164,7 +2157,7 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 /*
  *	Wait for transmitter & holding register to empty
  */
-static inline void wait_for_xmitr(struct uart_8250_port *up)
+static inline void wait_for_xmitr(struct uart_8250_port *up, int bits)
 {
 	unsigned int status, tmout = 10000;
 
@@ -2178,7 +2171,7 @@ static inline void wait_for_xmitr(struct uart_8250_port *up)
 		if (--tmout == 0)
 			break;
 		udelay(1);
-	} while ((status & BOTH_EMPTY) != BOTH_EMPTY);
+	} while ((status & bits) != bits);
 
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {
@@ -2218,7 +2211,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Now, do each character
 	 */
 	for (i = 0; i < count; i++, s++) {
-		wait_for_xmitr(up);
+		wait_for_xmitr(up, UART_LSR_THRE);
 
 		/*
 		 *	Send the character out.
@@ -2226,7 +2219,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 		 */
 		serial_out(up, UART_TX, *s);
 		if (*s == 10) {
-			wait_for_xmitr(up);
+			wait_for_xmitr(up, UART_LSR_THRE);
 			serial_out(up, UART_TX, 13);
 		}
 	}
@@ -2235,8 +2228,9 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(up);
-	serial_out(up, UART_IER, ier);
+	wait_for_xmitr(up, BOTH_EMPTY);
+	up->ier |= UART_IER_THRI;
+	serial_out(up, UART_IER, ier | UART_IER_THRI);
 }
 
 static int serial8250_console_setup(struct console *co, char *options)

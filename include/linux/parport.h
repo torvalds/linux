@@ -128,6 +128,11 @@ struct amiga_parport_state {
        unsigned char statusdir;/* ciab.ddrb & 7 */
 };
 
+struct ip32_parport_state {
+	unsigned int dcr;
+	unsigned int ecr;
+};
+
 struct parport_state {
 	union {
 		struct pc_parport_state pc;
@@ -135,6 +140,7 @@ struct parport_state {
 		struct ax_parport_state ax;
 		struct amiga_parport_state amiga;
 		/* Atari has not state. */
+		struct ip32_parport_state ip32;
 		void *misc; 
 	} u;
 };

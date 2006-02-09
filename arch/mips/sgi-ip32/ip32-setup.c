@@ -66,11 +66,6 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
-extern int early_serial_setup(struct uart_port *port);
-
-#define STD_COM_FLAGS (ASYNC_SKIP_TEST)
-#define BASE_BAUD (1843200 / 16)
-
 #endif /* CONFIG_SERIAL_8250 */
 
 /* An arbitrary time; this can be decreased if reliability looks good */
@@ -110,8 +105,8 @@ void __init plat_setup(void)
 		o2_serial[0].type	= PORT_16550A;
 		o2_serial[0].line	= 0;
 		o2_serial[0].irq	= MACEISA_SERIAL1_IRQ;
-		o2_serial[0].flags	= STD_COM_FLAGS;
-		o2_serial[0].uartclk	= BASE_BAUD * 16;
+		o2_serial[0].flags	= UPF_SKIP_TEST;
+		o2_serial[0].uartclk	= 1843200;
 		o2_serial[0].iotype	= UPIO_MEM;
 		o2_serial[0].membase	= (char *)&mace->isa.serial1;
 		o2_serial[0].fifosize	= 14;
@@ -121,8 +116,8 @@ void __init plat_setup(void)
 		o2_serial[1].type	= PORT_16550A;
 		o2_serial[1].line	= 1;
 		o2_serial[1].irq	= MACEISA_SERIAL2_IRQ;
-		o2_serial[1].flags	= STD_COM_FLAGS;
-		o2_serial[1].uartclk	= BASE_BAUD * 16;
+		o2_serial[1].flags	= UPF_SKIP_TEST;
+		o2_serial[1].uartclk	= 1843200;
 		o2_serial[1].iotype	= UPIO_MEM;
 		o2_serial[1].membase	= (char *)&mace->isa.serial2;
 		o2_serial[1].fifosize	= 14;

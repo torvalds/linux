@@ -861,7 +861,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
 						    &dev->i2c_adap);
 		break;
-	case SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS:
+	case SAA7134_BOARD_FLYDVBT_DUO_CARDBUS:
 		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
 						    &dev->i2c_adap);
 		break;

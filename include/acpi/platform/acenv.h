@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@
 #define ACPI_APPLICATION
 #define ACPI_DEBUGGER
 #define ACPI_DISASSEMBLER
+#define ACPI_MUTEX_DEBUG
 #endif
 
 #ifdef ACPI_ASL_COMPILER
@@ -148,6 +149,9 @@
 #elif defined(NETWARE)
 #include "acnetware.h"
 
+#elif defined(__sun)
+#include "acsolaris.h"
+
 #else
 
 /* All other environments */
@@ -156,13 +160,6 @@
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
-
-/*
- * This macro is used to tag functions as "printf-like" because
- * some compilers can catch printf format string problems. MSVC
- * doesn't, so this is proprocessed away.
- */
-#define ACPI_PRINTF_LIKE_FUNC
 
 #endif
 
@@ -205,6 +202,8 @@
  *
  *****************************************************************************/
 
+#define ACPI_IS_ASCII(c)  ((c) < 0x80)
+
 #ifdef ACPI_USE_SYSTEM_CLIBRARY
 /*
  * Use the standard C library headers.
@@ -234,7 +233,7 @@
 #define ACPI_STRCAT(d,s)        (void) strcat((d), (s))
 #define ACPI_STRNCAT(d,s,n)     strncat((d), (s), (acpi_size)(n))
 #define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (acpi_size)(n))
-#define ACPI_MEMCMP(s1,s2,n)    memcmp((s1), (s2), (acpi_size)(n))
+#define ACPI_MEMCMP(s1,s2,n)    memcmp((const char *)(s1), (const char *)(s2), (acpi_size)(n))
 #define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (acpi_size)(n))
 #define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (acpi_size)(n))
 
@@ -246,7 +245,6 @@
 #define ACPI_IS_UPPER(i)        isupper((int) (i))
 #define ACPI_IS_PRINT(i)        isprint((int) (i))
 #define ACPI_IS_ALPHA(i)        isalpha((int) (i))
-#define ACPI_IS_ASCII(i)        isascii((int) (i))
 
 #else
 
@@ -273,8 +271,8 @@ typedef char *va_list;
 /*
  * Storage alignment properties
  */
-#define  _AUPBND                (sizeof (acpi_native_int) - 1)
-#define  _ADNBND                (sizeof (acpi_native_int) - 1)
+#define  _AUPBND                (sizeof (acpi_native_uint) - 1)
+#define  _ADNBND                (sizeof (acpi_native_uint) - 1)
 
 /*
  * Variable argument list macro definitions
@@ -296,7 +294,7 @@ typedef char *va_list;
 #define ACPI_STRCAT(d,s)        (void) acpi_ut_strcat ((d), (s))
 #define ACPI_STRNCAT(d,s,n)     acpi_ut_strncat ((d), (s), (acpi_size)(n))
 #define ACPI_STRTOUL(d,s,n)     acpi_ut_strtoul ((d), (s), (acpi_size)(n))
-#define ACPI_MEMCMP(s1,s2,n)    acpi_ut_memcmp((s1), (s2), (acpi_size)(n))
+#define ACPI_MEMCMP(s1,s2,n)    acpi_ut_memcmp((const char *)(s1), (const char *)(s2), (acpi_size)(n))
 #define ACPI_MEMCPY(d,s,n)      (void) acpi_ut_memcpy ((d), (s), (acpi_size)(n))
 #define ACPI_MEMSET(d,v,n)      (void) acpi_ut_memset ((d), (v), (acpi_size)(n))
 #define ACPI_TOUPPER            acpi_ut_to_upper

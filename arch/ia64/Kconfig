@@ -194,7 +194,6 @@ config IA64_L1_CACHE_SHIFT
 	default "7" if MCKINLEY
 	default "6" if ITANIUM
 
-# align cache-sensitive data to 64 bytes
 config IA64_CYCLONE
 	bool "Cyclone (EXA) Time Source support"
 	help
@@ -373,6 +372,9 @@ config IA64_PALINFO
 
 	  To use this option, you have to ensure that the "/proc file system
 	  support" (CONFIG_PROC_FS) is enabled, too.
+
+config SGI_SN
+	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
 
 source "drivers/firmware/Kconfig"
 

@@ -60,8 +60,7 @@ extern void machine_crash_shutdown(struct pt_regs *);
  */
 
 extern void kernel_restart_prepare(char *cmd);
-extern void kernel_halt_prepare(void);
-extern void kernel_power_off_prepare(void);
+extern void kernel_shutdown_prepare(enum system_states state);
 
 extern void kernel_restart(char *cmd);
 extern void kernel_halt(void);

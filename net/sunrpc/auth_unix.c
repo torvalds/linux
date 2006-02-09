@@ -75,7 +75,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 
 	atomic_set(&cred->uc_count, 1);
 	cred->uc_flags = RPCAUTH_CRED_UPTODATE;
-	if (flags & RPC_TASK_ROOTCREDS) {
+	if (flags & RPCAUTH_LOOKUP_ROOTCREDS) {
 		cred->uc_uid = 0;
 		cred->uc_gid = 0;
 		cred->uc_gids[0] = NOGROUP;
@@ -108,12 +108,12 @@ unx_destroy_cred(struct rpc_cred *cred)
  * request root creds (e.g. for NFS swapping).
  */
 static int
-unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int taskflags)
+unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 {
 	struct unx_cred	*cred = (struct unx_cred *) rcred;
 	int		i;
 
-	if (!(taskflags & RPC_TASK_ROOTCREDS)) {
+	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS)) {
 		int groups;
 
 		if (cred->uc_uid != acred->uid

@@ -605,7 +605,7 @@ got:
 	insert_inode_hash(inode);
 
 	if (DQUOT_ALLOC_INODE(inode)) {
-		err = -ENOSPC;
+		err = -EDQUOT;
 		goto fail_drop;
 	}
 

@@ -49,11 +49,8 @@ struct uart_driver jsm_uart_driver = {
 };
 
 int jsm_debug;
-int jsm_rawreadok;
 module_param(jsm_debug, int, 0);
-module_param(jsm_rawreadok, int, 0);
 MODULE_PARM_DESC(jsm_debug, "Driver debugging level");
-MODULE_PARM_DESC(jsm_rawreadok, "Bypass flip buffers on input");
 
 static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {

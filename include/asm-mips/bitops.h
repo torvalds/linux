@@ -644,44 +644,6 @@ static inline unsigned long ffz(unsigned long word)
 }
 
 /*
- * flz - find last zero in word.
- * @word: The word to search
- *
- * Returns 0..SZLONG-1
- * Undefined if no zero exists, so code should check against ~0UL first.
- */
-static inline unsigned long flz(unsigned long word)
-{
-#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
-	return __ilog2(~word);
-#else
-#ifdef CONFIG_32BIT
-	int r = 31, s;
-	word = ~word;
-	s = 16; if ((word & 0xffff0000)) s = 0; r -= s; word <<= s;
-	s = 8;  if ((word & 0xff000000)) s = 0; r -= s; word <<= s;
-	s = 4;  if ((word & 0xf0000000)) s = 0; r -= s; word <<= s;
-	s = 2;  if ((word & 0xc0000000)) s = 0; r -= s; word <<= s;
-	s = 1;  if ((word & 0x80000000)) s = 0; r -= s;
-
-	return r;
-#endif
-#ifdef CONFIG_64BIT
-	int r = 63, s;
-	word = ~word;
-	s = 32; if ((word & 0xffffffff00000000UL)) s = 0; r -= s; word <<= s;
-	s = 16; if ((word & 0xffff000000000000UL)) s = 0; r -= s; word <<= s;
-	s = 8;  if ((word & 0xff00000000000000UL)) s = 0; r -= s; word <<= s;
-	s = 4;  if ((word & 0xf000000000000000UL)) s = 0; r -= s; word <<= s;
-	s = 2;  if ((word & 0xc000000000000000UL)) s = 0; r -= s; word <<= s;
-	s = 1;  if ((word & 0x8000000000000000UL)) s = 0; r -= s;
-
-	return r;
-#endif
-#endif
-}
-
-/*
  * fls - find last bit set.
  * @word: The word to search
  *
@@ -690,11 +652,55 @@ static inline unsigned long flz(unsigned long word)
  */
 static inline unsigned long fls(unsigned long word)
 {
+#ifdef CONFIG_32BIT
+#ifdef CONFIG_CPU_MIPS32
+	__asm__ ("clz %0, %1" : "=r" (word) : "r" (word));
+
+	return 32 - word;
+#else
+	{
+	int r = 32, s;
+
 	if (word == 0)
 		return 0;
 
-	return flz(~word) + 1;
+	s = 16; if ((word & 0xffff0000)) s = 0; r -= s; word <<= s;
+	s = 8;  if ((word & 0xff000000)) s = 0; r -= s; word <<= s;
+	s = 4;  if ((word & 0xf0000000)) s = 0; r -= s; word <<= s;
+	s = 2;  if ((word & 0xc0000000)) s = 0; r -= s; word <<= s;
+	s = 1;  if ((word & 0x80000000)) s = 0; r -= s;
+
+	return r;
+	}
+#endif
+#endif /* CONFIG_32BIT */
+
+#ifdef CONFIG_64BIT
+#ifdef CONFIG_CPU_MIPS64
+
+	__asm__ ("dclz %0, %1" : "=r" (word) : "r" (word));
+
+	return 64 - word;
+#else
+	{
+	int r = 64, s;
+
+	if (word == 0)
+		return 0;
+
+	s = 32; if ((word & 0xffffffff00000000UL)) s = 0; r -= s; word <<= s;
+	s = 16; if ((word & 0xffff000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 8;  if ((word & 0xff00000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 4;  if ((word & 0xf000000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 2;  if ((word & 0xc000000000000000UL)) s = 0; r -= s; word <<= s;
+	s = 1;  if ((word & 0x8000000000000000UL)) s = 0; r -= s;
+
+	return r;
+	}
+#endif
+#endif /* CONFIG_64BIT */
 }
+
 #define fls64(x)   generic_fls64(x)
 
 /*

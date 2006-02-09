@@ -572,7 +572,7 @@ __cmpxchg_u64(volatile long *m, unsigned long old, unsigned long new)
    if something tries to do an invalid cmpxchg().  */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-static inline unsigned long
+static __always_inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 {
 	switch (size) {

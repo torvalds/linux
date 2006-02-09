@@ -326,11 +326,11 @@ struct dvb_pll_desc dvb_pll_tuv1236d = {
 };
 EXPORT_SYMBOL(dvb_pll_tuv1236d);
 
-/* Samsung TBMV30111IN
+/* Samsung TBMV30111IN / TBMV30712IN1
  * used in Air2PC ATSC - 2nd generation (nxt2002)
  */
-struct dvb_pll_desc dvb_pll_tbmv30111in = {
-	.name = "Samsung TBMV30111IN",
+struct dvb_pll_desc dvb_pll_samsung_tbmv = {
+	.name = "Samsung TBMV30111IN / TBMV30712IN1",
 	.min = 54000000,
 	.max = 860000000,
 	.count = 6,
@@ -343,7 +343,7 @@ struct dvb_pll_desc dvb_pll_tbmv30111in = {
 		{ 999999999, 44000000, 166666, 0xfc, 0x02 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_tbmv30111in);
+EXPORT_SYMBOL(dvb_pll_samsung_tbmv);
 
 /*
  * Philips SD1878 Tuner.

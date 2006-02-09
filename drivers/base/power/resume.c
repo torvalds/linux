@@ -9,9 +9,8 @@
  */
 
 #include <linux/device.h>
+#include "../base.h"
 #include "power.h"
-
-extern int sysdev_resume(void);
 
 
 /**

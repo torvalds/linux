@@ -37,7 +37,4 @@ struct w9968cf_vpp_t {
 	u8 busy; /* read-only flag: module is/is not in use */
 };
 
-extern int w9968cf_vppmod_register(struct w9968cf_vpp_t*);
-extern int w9968cf_vppmod_deregister(struct w9968cf_vpp_t*);
-
 #endif /* _W9968CF_VPP_H_ */

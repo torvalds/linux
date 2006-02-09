@@ -790,7 +790,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 
 	inode = nd->dentry->d_inode;
 	if (nd->depth)
-		lookup_flags = LOOKUP_FOLLOW;
+		lookup_flags = LOOKUP_FOLLOW | (nd->flags & LOOKUP_CONTINUE);
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
@@ -885,7 +885,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 last_with_slashes:
 		lookup_flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 last_component:
-		nd->flags &= ~LOOKUP_CONTINUE;
+		/* Clear LOOKUP_CONTINUE iff it was previously unset */
+		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
 		if (this.name[0] == '.') switch (this.len) {
@@ -1069,6 +1070,8 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
+	int fput_needed;
+	struct file *file;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
@@ -1090,29 +1093,22 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		nd->mnt = mntget(current->fs->pwdmnt);
 		nd->dentry = dget(current->fs->pwd);
 	} else {
-		struct file *file;
-		int fput_needed;
 		struct dentry *dentry;
 
 		file = fget_light(dfd, &fput_needed);
-		if (!file) {
-			retval = -EBADF;
-			goto out_fail;
-		}
+		retval = -EBADF;
+		if (!file)
+			goto unlock_fail;
 
 		dentry = file->f_dentry;
 
-		if (!S_ISDIR(dentry->d_inode->i_mode)) {
-			retval = -ENOTDIR;
-			fput_light(file, fput_needed);
-			goto out_fail;
-		}
+		retval = -ENOTDIR;
+		if (!S_ISDIR(dentry->d_inode->i_mode))
+			goto fput_unlock_fail;
 
 		retval = file_permission(file, MAY_EXEC);
-		if (retval) {
-			fput_light(file, fput_needed);
-			goto out_fail;
-		}
+		if (retval)
+			goto fput_unlock_fail;
 
 		nd->mnt = mntget(file->f_vfsmnt);
 		nd->dentry = dget(dentry);
@@ -1123,10 +1119,17 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
 out:
-	if (unlikely(current->audit_context
-		     && nd && nd->dentry && nd->dentry->d_inode))
+	if (likely(retval == 0)) {
+		if (unlikely(current->audit_context && nd && nd->dentry &&
+				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode, flags);
-out_fail:
+	}
+	return retval;
+
+fput_unlock_fail:
+	fput_light(file, fput_needed);
+unlock_fail:
+	read_unlock(&current->fs->lock);
 	return retval;
 }
 
@@ -1161,6 +1164,7 @@ static int __path_lookup_intent_open(int dfd, const char *name,
 
 /**
  * path_lookup_open - lookup a file path with open intent
+ * @dfd: the directory to use as base, or AT_FDCWD
  * @name: pointer to file name
  * @lookup_flags: lookup intent flags
  * @nd: pointer to nameidata
@@ -1175,6 +1179,7 @@ int path_lookup_open(int dfd, const char *name, unsigned int lookup_flags,
 
 /**
  * path_lookup_create - lookup a file path with open + create intent
+ * @dfd: the directory to use as base, or AT_FDCWD
  * @name: pointer to file name
  * @lookup_flags: lookup intent flags
  * @nd: pointer to nameidata

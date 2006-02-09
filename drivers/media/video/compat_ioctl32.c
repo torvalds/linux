@@ -167,29 +167,32 @@ static int get_v4l2_window32(struct v4l2_window *kp, struct v4l2_window32 __user
 	if (kp->clipcount > 2048)
 		return -EINVAL;
 	if (kp->clipcount) {
-		struct v4l2_clip32 *uclips = compat_ptr(up->clips);
-		struct v4l2_clip *kclips;
+		struct v4l2_clip32 __user *uclips;
+		struct v4l2_clip __user *kclips;
 		int n = kp->clipcount;
+		compat_caddr_t p;
 
+		if (get_user(p, &up->clips))
+			return -EFAULT;
+		uclips = compat_ptr(p);
 		kclips = compat_alloc_user_space(n * sizeof(struct v4l2_clip));
 		kp->clips = kclips;
 		while (--n >= 0) {
-			if (!access_ok(VERIFY_READ, &uclips->c, sizeof(uclips->c)) ||
-				copy_from_user(&kclips->c, &uclips->c, sizeof(uclips->c)))
+			if (copy_in_user(&kclips->c, &uclips->c, sizeof(uclips->c)))
 				return -EFAULT;
-			kclips->next = n ? kclips + 1 : 0;
+			if (put_user(n ? kclips + 1 : NULL, &kclips->next))
+				return -EFAULT;
 			uclips += 1;
 			kclips += 1;
 		}
 	} else
-		kp->clips = 0;
+		kp->clips = NULL;
 	return 0;
 }
 
 static int put_v4l2_window32(struct v4l2_window *kp, struct v4l2_window32 __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_window32)) ||
-		copy_to_user(&up->w, &kp->w, sizeof(up->w)) ||
+	if (copy_to_user(&up->w, &kp->w, sizeof(up->w)) ||
 		put_user(kp->field, &up->field) ||
 		put_user(kp->chromakey, &up->chromakey) ||
 		put_user(kp->clipcount, &up->clipcount))
@@ -199,33 +202,29 @@ static int put_v4l2_window32(struct v4l2_window *kp, struct v4l2_window32 __user
 
 static inline int get_v4l2_pix_format(struct v4l2_pix_format *kp, struct v4l2_pix_format __user *up)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_pix_format)) ||
-		copy_from_user(kp, up, sizeof(struct v4l2_pix_format)))
-			return -EFAULT;
+	if (copy_from_user(kp, up, sizeof(struct v4l2_pix_format)))
+		return -EFAULT;
 	return 0;
 }
 
 static inline int put_v4l2_pix_format(struct v4l2_pix_format *kp, struct v4l2_pix_format __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_pix_format)) ||
-		copy_to_user(up, kp, sizeof(struct v4l2_pix_format)))
-			return -EFAULT;
+	if (copy_to_user(up, kp, sizeof(struct v4l2_pix_format)))
+		return -EFAULT;
 	return 0;
 }
 
 static inline int get_v4l2_vbi_format(struct v4l2_vbi_format *kp, struct v4l2_vbi_format __user *up)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_vbi_format)) ||
-		copy_from_user(kp, up, sizeof(struct v4l2_vbi_format)))
-			return -EFAULT;
+	if (copy_from_user(kp, up, sizeof(struct v4l2_vbi_format)))
+		return -EFAULT;
 	return 0;
 }
 
 static inline int put_v4l2_vbi_format(struct v4l2_vbi_format *kp, struct v4l2_vbi_format __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_vbi_format)) ||
-		copy_to_user(up, kp, sizeof(struct v4l2_vbi_format)))
-			return -EFAULT;
+	if (copy_to_user(up, kp, sizeof(struct v4l2_vbi_format)))
+		return -EFAULT;
 	return 0;
 }
 
@@ -279,18 +278,16 @@ static int put_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 
 static inline int get_v4l2_standard(struct v4l2_standard *kp, struct v4l2_standard __user *up)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_standard)) ||
-		copy_from_user(kp, up, sizeof(struct v4l2_standard)))
-			return -EFAULT;
+	if (copy_from_user(kp, up, sizeof(struct v4l2_standard)))
+		return -EFAULT;
 	return 0;
 
 }
 
 static inline int put_v4l2_standard(struct v4l2_standard *kp, struct v4l2_standard __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_standard)) ||
-		copy_to_user(up, kp, sizeof(struct v4l2_standard)))
-			return -EFAULT;
+	if (copy_to_user(up, kp, sizeof(struct v4l2_standard)))
+		return -EFAULT;
 	return 0;
 }
 
@@ -328,18 +325,16 @@ static int put_v4l2_standard32(struct v4l2_standard *kp, struct v4l2_standard32 
 
 static inline int get_v4l2_tuner(struct v4l2_tuner *kp, struct v4l2_tuner __user *up)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_tuner)) ||
-		copy_from_user(kp, up, sizeof(struct v4l2_tuner)))
-			return -EFAULT;
+	if (copy_from_user(kp, up, sizeof(struct v4l2_tuner)))
+		return -EFAULT;
 	return 0;
 
 }
 
 static inline int put_v4l2_tuner(struct v4l2_tuner *kp, struct v4l2_tuner __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_tuner)) ||
-		copy_to_user(up, kp, sizeof(struct v4l2_tuner)))
-			return -EFAULT;
+	if (copy_to_user(up, kp, sizeof(struct v4l2_tuner)))
+		return -EFAULT;
 	return 0;
 }
 
@@ -380,11 +375,13 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		break;
 	case V4L2_MEMORY_USERPTR:
 		{
-		unsigned long tmp = (unsigned long)compat_ptr(up->m.userptr);
+		compat_long_t tmp;
 
-		if(get_user(kp->length, &up->length) ||
-			get_user(kp->m.userptr, &tmp))
-				return -EFAULT;
+		if (get_user(kp->length, &up->length) ||
+		    get_user(tmp, &up->m.userptr))
+			return -EFAULT;
+
+		kp->m.userptr = (unsigned long)compat_ptr(tmp);
 		}
 		break;
 	case V4L2_MEMORY_OVERLAY:
@@ -468,33 +465,29 @@ static int put_v4l2_framebuffer32(struct v4l2_framebuffer *kp, struct v4l2_frame
 
 static inline int get_v4l2_input32(struct v4l2_input *kp, struct v4l2_input __user *up)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_input) - 4) ||
-		copy_from_user(kp, up, sizeof(struct v4l2_input) - 4))
-			return -EFAULT;
+	if (copy_from_user(kp, up, sizeof(struct v4l2_input) - 4))
+		return -EFAULT;
 	return 0;
 }
 
 static inline int put_v4l2_input32(struct v4l2_input *kp, struct v4l2_input __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_input) - 4) ||
-		copy_to_user(up, kp, sizeof(struct v4l2_input) - 4))
-			return -EFAULT;
+	if (copy_to_user(up, kp, sizeof(struct v4l2_input) - 4))
+		return -EFAULT;
 	return 0;
 }
 
 static inline int get_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user *up)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_input)) ||
-		copy_from_user(kp, up, sizeof(struct v4l2_input)))
-			return -EFAULT;
+	if (copy_from_user(kp, up, sizeof(struct v4l2_input)))
+		return -EFAULT;
 	return 0;
 }
 
 static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_input)) ||
-		copy_to_user(up, kp, sizeof(struct v4l2_input)))
-			return -EFAULT;
+	if (copy_to_user(up, kp, sizeof(struct v4l2_input)))
+		return -EFAULT;
 	return 0;
 }
 

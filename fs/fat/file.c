@@ -210,10 +210,30 @@ static int fat_free(struct inode *inode, int skip)
 	if (MSDOS_I(inode)->i_start == 0)
 		return 0;
 
-	/*
-	 * Write a new EOF, and get the remaining cluster chain for freeing.
-	 */
+	fat_cache_inval_inode(inode);
+
 	wait = IS_DIRSYNC(inode);
+	i_start = free_start = MSDOS_I(inode)->i_start;
+	i_logstart = MSDOS_I(inode)->i_logstart;
+
+	/* First, we write the new file size. */
+	if (!skip) {
+		MSDOS_I(inode)->i_start = 0;
+		MSDOS_I(inode)->i_logstart = 0;
+	}
+	MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
+	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
+	if (wait) {
+		err = fat_sync_inode(inode);
+		if (err) {
+			MSDOS_I(inode)->i_start = i_start;
+			MSDOS_I(inode)->i_logstart = i_logstart;
+			return err;
+		}
+	} else
+		mark_inode_dirty(inode);
+
+	/* Write a new EOF, and get the remaining cluster chain for freeing. */
 	if (skip) {
 		struct fat_entry fatent;
 		int ret, fclus, dclus;
@@ -244,35 +264,11 @@ static int fat_free(struct inode *inode, int skip)
 			return ret;
 
 		free_start = ret;
-		i_start = i_logstart = 0;
-		fat_cache_inval_inode(inode);
-	} else {
-		fat_cache_inval_inode(inode);
-
-		i_start = free_start = MSDOS_I(inode)->i_start;
-		i_logstart = MSDOS_I(inode)->i_logstart;
-		MSDOS_I(inode)->i_start = 0;
-		MSDOS_I(inode)->i_logstart = 0;
 	}
-	MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
-	if (wait) {
-		err = fat_sync_inode(inode);
-		if (err)
-			goto error;
-	} else
-		mark_inode_dirty(inode);
 	inode->i_blocks = skip << (MSDOS_SB(sb)->cluster_bits - 9);
 
 	/* Freeing the remained cluster chain */
 	return fat_free_clusters(inode, free_start);
-
-error:
-	if (i_start) {
-		MSDOS_I(inode)->i_start = i_start;
-		MSDOS_I(inode)->i_logstart = i_logstart;
-	}
-	return err;
 }
 
 void fat_truncate(struct inode *inode)
