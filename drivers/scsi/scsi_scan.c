@@ -853,6 +853,19 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		goto out_free_result;
 	}
 
+	/*
+	 * Non-standard SCSI targets may set the PDT to 0x1f (unknown or
+	 * no device type) instead of using the Peripheral Qualifier to
+	 * indicate that no LUN is present.  For example, USB UFI does this.
+	 */
+	if (starget->pdt_1f_for_no_lun && (result[0] & 0x1f) == 0x1f) {
+		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO
+					"scsi scan: peripheral device type"
+					" of 31, no device added\n"));
+		res = SCSI_SCAN_TARGET_PRESENT;
+		goto out_free_result;
+	}
+
 	res = scsi_add_lun(sdev, result, &bflags);
 	if (res == SCSI_SCAN_LUN_PRESENT) {
 		if (bflags & BLIST_KEY) {

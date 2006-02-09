@@ -167,7 +167,10 @@ struct scsi_target {
 	unsigned int		channel;
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
-	unsigned long		create:1; /* signal that it needs to be added */
+	unsigned int		create:1; /* signal that it needs to be added */
+	unsigned int		pdt_1f_for_no_lun;	/* PDT = 0x1f */
+						/* means no lun present */
+
 	char			scsi_level;
 	void 			*hostdata; /* available to low-level driver */
 	unsigned long		starget_data[0]; /* for the transport */
