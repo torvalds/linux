@@ -1718,17 +1718,10 @@ static int hp100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	hp100_outw(i, FRAGMENT_LEN);	/* and first/only fragment length    */
 
 	if (lp->mode == 2) {	/* memory mapped */
-		if (lp->mem_ptr_virt) {	/* high pci memory was remapped */
-			/* Note: The J2585B needs alignment to 32bits here!  */
-			memcpy_toio(lp->mem_ptr_virt, skb->data, (skb->len + 3) & ~3);
-			if (!ok_flag)
-				memset_io(lp->mem_ptr_virt, 0, HP100_MIN_PACKET_SIZE - skb->len);
-		} else {
-			/* Note: The J2585B needs alignment to 32bits here!  */
-			isa_memcpy_toio(lp->mem_ptr_phys, skb->data, (skb->len + 3) & ~3);
-			if (!ok_flag)
-				isa_memset_io(lp->mem_ptr_phys, 0, HP100_MIN_PACKET_SIZE - skb->len);
-		}
+		/* Note: The J2585B needs alignment to 32bits here!  */
+		memcpy_toio(lp->mem_ptr_virt, skb->data, (skb->len + 3) & ~3);
+		if (!ok_flag)
+			memset_io(lp->mem_ptr_virt, 0, HP100_MIN_PACKET_SIZE - skb->len);
 	} else {		/* programmed i/o */
 		outsl(ioaddr + HP100_REG_DATA32, skb->data,
 		      (skb->len + 3) >> 2);
@@ -1798,10 +1791,7 @@ static void hp100_rx(struct net_device *dev)
 		/* First we get the header, which contains information about the */
 		/* actual length of the received packet. */
 		if (lp->mode == 2) {	/* memory mapped mode */
-			if (lp->mem_ptr_virt)	/* if memory was remapped */
-				header = readl(lp->mem_ptr_virt);
-			else
-				header = isa_readl(lp->mem_ptr_phys);
+			header = readl(lp->mem_ptr_virt);
 		} else		/* programmed i/o */
 			header = hp100_inl(DATA32);
 
@@ -1833,13 +1823,9 @@ static void hp100_rx(struct net_device *dev)
 			ptr = skb->data;
 
 			/* Now transfer the data from the card into that area */
-			if (lp->mode == 2) {
-				if (lp->mem_ptr_virt)
-					memcpy_fromio(ptr, lp->mem_ptr_virt,pkt_len);
-				/* Note alignment to 32bit transfers */
-				else
-					isa_memcpy_fromio(ptr, lp->mem_ptr_phys, pkt_len);
-			} else	/* io mapped */
+			if (lp->mode == 2)
+				memcpy_fromio(ptr, lp->mem_ptr_virt,pkt_len);
+			else	/* io mapped */
 				insl(ioaddr + HP100_REG_DATA32, ptr, pkt_len >> 2);
 
 			skb->protocol = eth_type_trans(skb, dev);
