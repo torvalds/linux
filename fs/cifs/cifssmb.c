@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifssmb.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Contains the routines for constructing the SMB PDUs themselves
@@ -187,6 +187,31 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 
 	return rc;
 }  
+int
+small_smb_init_no_tcon(int smb_command, int wct, struct cifsSesInfo *ses,
+		       void **request_buf)
+{
+	int rc;
+	struct smb_hdr * buffer;
+
+	rc = small_smb_init(smb_command, wct, 0, request_buf);
+	if(rc)
+		return rc;
+
+	buffer->Mid = GetNextMid(ses->server);
+	if (ses->capabilities & CAP_UNICODE)
+		buffer->Flags2 |= SMBFLG2_UNICODE;
+	if (ses->capabilities & CAP_STATUS32) {
+		buffer->Flags2 |= SMBFLG2_ERR_STATUS;
+
+	/* uid, tid can stay at zero as set in header assemble */
+
+	/* BB add support for turning on the signing when 
+	this function is used after 1st of session setup requests */
+
+	return rc;
+}
+
 
 /* If the return code is zero, this function must fill in request_buf pointer */
 static int

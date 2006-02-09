@@ -1,3 +1,9 @@
+Version 1.41
+------------
+Fix NTLMv2 security (can be enabled in /proc/fs/cifs) so customers can
+configure stronger authentication.  Fix sfu symlinks so they can
+be followed (not just recognized).
+
 Version 1.40
 ------------
 Use fsuid (fsgid) more consistently instead of uid (gid). Improve performance

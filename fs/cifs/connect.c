@@ -2525,7 +2525,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	__u32 negotiate_flags, capabilities;
 	__u16 count;
 
-	cFYI(1, ("In NTLMSSP sesssetup (negotiate) "));
+	cFYI(1, ("In NTLMSSP sesssetup (negotiate)"));
 	if(ses == NULL)
 		return -EINVAL;
 	domain = ses->domainName;
@@ -2575,7 +2575,8 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	SecurityBlob->MessageType = NtLmNegotiate;
 	negotiate_flags =
 	    NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_NEGOTIATE_OEM |
-	    NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM | 0x80000000 |
+	    NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM |
+	    NTLMSSP_NEGOTIATE_56 |
 	    /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN | */ NTLMSSP_NEGOTIATE_128;
 	if(sign_CIFS_PDUs)
 		negotiate_flags |= NTLMSSP_NEGOTIATE_SIGN;
@@ -2588,26 +2589,11 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	SecurityBlob->WorkstationName.Length = 0;
 	SecurityBlob->WorkstationName.MaximumLength = 0;
 
-	if (domain == NULL) {
-		SecurityBlob->DomainName.Buffer = 0;
-		SecurityBlob->DomainName.Length = 0;
-		SecurityBlob->DomainName.MaximumLength = 0;
-	} else {
-		__u16 len;
-		negotiate_flags |= NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED;
-		strncpy(bcc_ptr, domain, 63);
-		len = strnlen(domain, 64);
-		SecurityBlob->DomainName.MaximumLength =
-		    cpu_to_le16(len);
-		SecurityBlob->DomainName.Buffer =
-		    cpu_to_le32((long) &SecurityBlob->
-				DomainString -
-				(long) &SecurityBlob->Signature);
-		bcc_ptr += len;
-		SecurityBlobLength += len;
-		SecurityBlob->DomainName.Length =
-		    cpu_to_le16(len);
-	}
+	/* Domain not sent on first Sesssetup in NTLMSSP, instead it is sent
+	along with username on auth request (ie the response to challenge) */
+	SecurityBlob->DomainName.Buffer = 0;
+	SecurityBlob->DomainName.Length = 0;
+	SecurityBlob->DomainName.MaximumLength = 0;
 	if (ses->capabilities & CAP_UNICODE) {
 		if ((long) bcc_ptr % 2) {
 			*bcc_ptr = 0;
@@ -2677,7 +2663,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 			      SecurityBlob2->MessageType));
 		} else if (ses) {
 			ses->Suid = smb_buffer_response->Uid; /* UID left in le format */ 
-			cFYI(1, ("UID = %d ", ses->Suid));
+			cFYI(1, ("UID = %d", ses->Suid));
 			if ((pSMBr->resp.hdr.WordCount == 3)
 			    || ((pSMBr->resp.hdr.WordCount == 4)
 				&& (blob_len <
@@ -2685,17 +2671,17 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 
 				if (pSMBr->resp.hdr.WordCount == 4) {
 					bcc_ptr += blob_len;
-					cFYI(1,
-					     ("Security Blob Length %d ",
+					cFYI(1, ("Security Blob Length %d",
 					      blob_len));
 				}
 
-				cFYI(1, ("NTLMSSP Challenge rcvd "));
+				cFYI(1, ("NTLMSSP Challenge rcvd"));
 
 				memcpy(ses->server->cryptKey,
 				       SecurityBlob2->Challenge,
 				       CIFS_CRYPTO_KEY_SIZE);
-				if(SecurityBlob2->NegotiateFlags & cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
+				if(SecurityBlob2->NegotiateFlags & 
+					cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
 					*pNTLMv2_flag = TRUE;
 
 				if((SecurityBlob2->NegotiateFlags & 
@@ -2818,7 +2804,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						bcc_ptr++;
 					} else
 						cFYI(1,
-						     ("Variable field of length %d extends beyond end of smb ",
+						     ("Variable field of length %d extends beyond end of smb",
 						      len));
 				}
 			} else {

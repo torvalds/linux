@@ -64,6 +64,8 @@ extern int map_smb_to_linux_error(struct smb_hdr *smb);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifsTconInfo *, int /* length of
 			    fixed section (word count) in two byte units */);
+extern int small_smb_init_no_tc(int smb_cmd, int wct, struct cifsSesInfo *ses,
+				void ** request_buf);
 extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry * AllocOplockQEntry(struct inode *, u16, 
 						 struct cifsTconInfo *);

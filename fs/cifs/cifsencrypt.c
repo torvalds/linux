@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsencrypt.c
  *
- *   Copyright (C) International Business Machines  Corp., 2005
+ *   Copyright (C) International Business Machines  Corp., 2005,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -36,7 +36,8 @@
 extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
 	
-static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, const char * key, char * signature)
+static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, 
+				    const char * key, char * signature)
 {
 	struct	MD5Context context;
 

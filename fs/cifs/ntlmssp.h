@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/ntlmssp.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002
+ *   Copyright (c) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
