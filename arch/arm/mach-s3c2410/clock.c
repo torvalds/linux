@@ -40,7 +40,6 @@
 #include <linux/mutex.h>
 
 #include <asm/hardware.h>
-#include <asm/atomic.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
@@ -59,22 +58,18 @@ static DEFINE_MUTEX(clocks_mutex);
 void inline s3c24xx_clk_enable(unsigned int clocks, unsigned int enable)
 {
 	unsigned long clkcon;
-	unsigned long flags;
-
-	local_irq_save(flags);
 
 	clkcon = __raw_readl(S3C2410_CLKCON);
-	clkcon &= ~clocks;
 
 	if (enable)
 		clkcon |= clocks;
+	else
+		clkcon &= ~clocks;
 
 	/* ensure none of the special function bits set */
 	clkcon &= ~(S3C2410_CLKCON_IDLE|S3C2410_CLKCON_POWER);
 
 	__raw_writel(clkcon, S3C2410_CLKCON);
-
-	local_irq_restore(flags);
 }
 
 /* enable and disable calls for use with the clk struct */
@@ -138,16 +133,32 @@ void clk_put(struct clk *clk)
 
 int clk_enable(struct clk *clk)
 {
-	if (IS_ERR(clk))
+	if (IS_ERR(clk) || clk == NULL)
 		return -EINVAL;
 
-	return (clk->enable)(clk, 1);
+	clk_enable(clk->parent);
+
+	mutex_lock(&clocks_mutex);
+
+	if ((clk->usage++) == 0)
+		(clk->enable)(clk, 1);
+
+	mutex_unlock(&clocks_mutex);
+	return 0;
 }
 
 void clk_disable(struct clk *clk)
 {
-	if (!IS_ERR(clk))
+	if (IS_ERR(clk) || clk == NULL)
+		return;
+
+	mutex_lock(&clocks_mutex);
+
+	if ((--clk->usage) == 0)
 		(clk->enable)(clk, 0);
+
+	mutex_unlock(&clocks_mutex);
+	clk_disable(clk->parent);
 }
 
 
@@ -361,6 +372,14 @@ int s3c24xx_register_clock(struct clk *clk)
 	if (clk->enable == NULL)
 		clk->enable = clk_null_enable;
 
+	/* if this is a standard clock, set the usage state */
+
+	if (clk->ctrlbit) {
+		unsigned long clkcon = __raw_readl(S3C2410_CLKCON);
+
+		clk->usage = (clkcon & clk->ctrlbit) ? 1 : 0;
+	}
+
 	/* add to the list of available clocks */
 
 	mutex_lock(&clocks_mutex);
@@ -402,12 +421,16 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	 * the LCD clock if it is not needed.
 	*/
 
+	mutex_lock(&clocks_mutex);
+
 	s3c24xx_clk_enable(S3C2410_CLKCON_NAND, 0);
 	s3c24xx_clk_enable(S3C2410_CLKCON_USBH, 0);
 	s3c24xx_clk_enable(S3C2410_CLKCON_USBD, 0);
 	s3c24xx_clk_enable(S3C2410_CLKCON_ADC, 0);
 	s3c24xx_clk_enable(S3C2410_CLKCON_IIC, 0);
 	s3c24xx_clk_enable(S3C2410_CLKCON_SPI, 0);
+
+	mutex_unlock(&clocks_mutex);
 
 	/* assume uart clocks are correctly setup */
 

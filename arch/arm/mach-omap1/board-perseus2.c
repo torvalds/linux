@@ -144,6 +144,7 @@ static void __init perseus2_init_smc91x(void)
 
 void omap_perseus2_init_irq(void)
 {
+	omap1_init_common_hw();
 	omap_init_irq();
 	omap_gpio_init();
 	perseus2_init_smc91x();
@@ -160,7 +161,7 @@ static struct map_desc omap_perseus2_io_desc[] __initdata = {
 
 static void __init omap_perseus2_map_io(void)
 {
-	omap_map_common_io();
+	omap1_map_common_io();
 	iotable_init(omap_perseus2_io_desc,
 		     ARRAY_SIZE(omap_perseus2_io_desc));
 

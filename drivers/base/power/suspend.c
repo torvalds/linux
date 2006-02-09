@@ -9,9 +9,8 @@
  */
 
 #include <linux/device.h>
+#include "../base.h"
 #include "power.h"
-
-extern int sysdev_suspend(pm_message_t state);
 
 /*
  * The entries in the dpm_active list are in a depth first order, simply

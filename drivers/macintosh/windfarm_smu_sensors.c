@@ -220,14 +220,29 @@ static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 	    !strcmp(l, "CPU T-Diode")) {
 		ads->sens.ops = &smu_cputemp_ops;
 		ads->sens.name = "cpu-temp";
+		if (cpudiode == NULL) {
+			DBG("wf: cpudiode partition (%02x) not found\n",
+			    SMU_SDB_CPUDIODE_ID);
+			goto fail;
+		}
 	} else if (!strcmp(c, "current-sensor") &&
 		   !strcmp(l, "CPU Current")) {
 		ads->sens.ops = &smu_cpuamp_ops;
 		ads->sens.name = "cpu-current";
+		if (cpuvcp == NULL) {
+			DBG("wf: cpuvcp partition (%02x) not found\n",
+			    SMU_SDB_CPUVCP_ID);
+			goto fail;
+		}
 	} else if (!strcmp(c, "voltage-sensor") &&
 		   !strcmp(l, "CPU Voltage")) {
 		ads->sens.ops = &smu_cpuvolt_ops;
 		ads->sens.name = "cpu-voltage";
+		if (cpuvcp == NULL) {
+			DBG("wf: cpuvcp partition (%02x) not found\n",
+			    SMU_SDB_CPUVCP_ID);
+			goto fail;
+		}
 	} else if (!strcmp(c, "power-sensor") &&
 		   !strcmp(l, "Slots Power")) {
 		ads->sens.ops = &smu_slotspow_ops;
@@ -365,29 +380,22 @@ smu_cpu_power_create(struct wf_sensor *volts, struct wf_sensor *amps)
 	return NULL;
 }
 
-static int smu_fetch_param_partitions(void)
+static void smu_fetch_param_partitions(void)
 {
 	struct smu_sdbp_header *hdr;
 
 	/* Get CPU voltage/current/power calibration data */
 	hdr = smu_get_sdb_partition(SMU_SDB_CPUVCP_ID, NULL);
-	if (hdr == NULL) {
-		DBG("wf: cpuvcp partition (%02x) not found\n",
-		    SMU_SDB_CPUVCP_ID);
-		return -ENODEV;
+	if (hdr != NULL) {
+		cpuvcp = (struct smu_sdbp_cpuvcp *)&hdr[1];
+		/* Keep version around */
+		cpuvcp_version = hdr->version;
 	}
-	cpuvcp = (struct smu_sdbp_cpuvcp *)&hdr[1];
-	/* Keep version around */
-	cpuvcp_version = hdr->version;
 
 	/* Get CPU diode calibration data */
 	hdr = smu_get_sdb_partition(SMU_SDB_CPUDIODE_ID, NULL);
-	if (hdr == NULL) {
-		DBG("wf: cpudiode partition (%02x) not found\n",
-		    SMU_SDB_CPUDIODE_ID);
-		return -ENODEV;
-	}
-	cpudiode = (struct smu_sdbp_cpudiode *)&hdr[1];
+	if (hdr != NULL)
+		cpudiode = (struct smu_sdbp_cpudiode *)&hdr[1];
 
 	/* Get slots power calibration data if any */
 	hdr = smu_get_sdb_partition(SMU_SDB_SLOTSPOW_ID, NULL);
@@ -398,23 +406,18 @@ static int smu_fetch_param_partitions(void)
 	hdr = smu_get_sdb_partition(SMU_SDB_DEBUG_SWITCHES_ID, NULL);
 	if (hdr != NULL)
 		debugswitches = (u8 *)&hdr[1];
-
-	return 0;
 }
 
 static int __init smu_sensors_init(void)
 {
 	struct device_node *smu, *sensors, *s;
 	struct smu_ad_sensor *volt_sensor = NULL, *curr_sensor = NULL;
-	int rc;
 
 	if (!smu_present())
 		return -ENODEV;
 
 	/* Get parameters partitions */
-	rc = smu_fetch_param_partitions();
-	if (rc)
-		return rc;
+	smu_fetch_param_partitions();
 
 	smu = of_find_node_by_type(NULL, "smu");
 	if (smu == NULL)

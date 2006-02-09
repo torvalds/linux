@@ -90,7 +90,7 @@ mpc85xx_early_serial_map(void)
 
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
 	memset(&serial_req, 0, sizeof (serial_req));
-	serial_req.iotype = SERIAL_IO_MEM;
+	serial_req.iotype = UPIO_MEM;
 	serial_req.mapbase = pdata[0].mapbase;
 	serial_req.membase = pdata[0].membase;
 	serial_req.regshift = 0;

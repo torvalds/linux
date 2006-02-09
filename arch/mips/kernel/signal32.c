@@ -694,11 +694,11 @@ int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, frame->sf_code);
 #endif
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
-	return 0;
+	return -EFAULT;
 }
 
 int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
@@ -765,11 +765,11 @@ int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, frame->rs_code);
 #endif
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
-	return 0;
+	return -EFAULT;
 }
 
 static inline int handle_signal(unsigned long sig, siginfo_t *info,

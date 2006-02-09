@@ -428,7 +428,7 @@ void kernel_kexec(void)
 {
 #ifdef CONFIG_KEXEC
 	struct kimage *image;
-	image = xchg(&kexec_image, 0);
+	image = xchg(&kexec_image, NULL);
 	if (!image) {
 		return;
 	}

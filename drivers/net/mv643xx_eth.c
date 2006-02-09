@@ -32,6 +32,8 @@
  */
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/etherdevice.h>

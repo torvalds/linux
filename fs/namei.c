@@ -1119,9 +1119,11 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
 out:
-	if (unlikely(current->audit_context
-		     && nd && nd->dentry && nd->dentry->d_inode))
+	if (likely(retval == 0)) {
+		if (unlikely(current->audit_context && nd && nd->dentry &&
+				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode, flags);
+	}
 	return retval;
 
 fput_unlock_fail:

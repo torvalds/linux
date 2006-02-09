@@ -49,7 +49,7 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 		return pci_mmcfg_virt[0].virt;
 
 	/* Fall back to type 0 */
-	return 0;
+	return NULL;
 }
 
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)

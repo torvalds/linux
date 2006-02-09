@@ -549,7 +549,7 @@ struct v4l2_framebuffer
 struct v4l2_clip
 {
 	struct v4l2_rect        c;
-	struct v4l2_clip	*next;
+	struct v4l2_clip	__user *next;
 };
 
 struct v4l2_window

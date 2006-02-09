@@ -67,6 +67,7 @@ extern unsigned long last_time_offset;
 extern void (*ia64_mark_idle) (int);
 extern void snidle(int);
 extern unsigned char acpi_kbd_controller_present;
+extern unsigned long long (*ia64_printk_clock)(void);
 
 unsigned long sn_rtc_cycles_per_second;
 EXPORT_SYMBOL(sn_rtc_cycles_per_second);
@@ -123,20 +124,6 @@ struct screen_info sn_screen_info = {
 	.orig_video_isVGA = 1,
 	.orig_video_points = 16
 };
-
-/*
- * This is here so we can use the CMOS detection in ide-probe.c to
- * determine what drives are present.  In theory, we don't need this
- * as the auto-detection could be done via ide-probe.c:do_probe() but
- * in practice that would be much slower, which is painful when
- * running in the simulator.  Note that passing zeroes in DRIVE_INFO
- * is sufficient (the IDE driver will autodetect the drive geometry).
- */
-#ifdef CONFIG_IA64_GENERIC
-extern char drive_info[4 * 16];
-#else
-char drive_info[4 * 16];
-#endif
 
 /*
  * This routine can only be used during init, since
@@ -372,6 +359,16 @@ sn_scan_pcdp(void)
 	}
 }
 
+static unsigned long sn2_rtc_initial;
+
+static unsigned long long ia64_sn2_printk_clock(void)
+{
+	unsigned long rtc_now = rtc_time();
+
+	return (rtc_now - sn2_rtc_initial) *
+		(1000000000 / sn_rtc_cycles_per_second);
+}
+
 /**
  * sn_setup - SN platform setup routine
  * @cmdline_p: kernel command line
@@ -386,6 +383,7 @@ void __init sn_setup(char **cmdline_p)
 	u32 version = sn_sal_rev();
 	extern void sn_cpu_init(void);
 
+	sn2_rtc_initial = rtc_time();
 	ia64_sn_plat_set_error_handling_features();	// obsolete
 	ia64_sn_set_os_feature(OSF_MCA_SLV_TO_OS_INIT_SLV);
 	ia64_sn_set_os_feature(OSF_FEAT_LOG_SBES);
@@ -437,19 +435,6 @@ void __init sn_setup(char **cmdline_p)
 	 */
 	build_cnode_tables();
 
-	/*
-	 * Old PROMs do not provide an ACPI FADT. Disable legacy keyboard
-	 * support here so we don't have to listen to failed keyboard probe
-	 * messages.
-	 */
-	if (version <= 0x0209 && acpi_kbd_controller_present) {
-		printk(KERN_INFO "Disabling legacy keyboard support as prom "
-		       "is too old and doesn't provide FADT\n");
-		acpi_kbd_controller_present = 0;
-	}
-
-	printk("SGI SAL version %x.%02x\n", version >> 8, version & 0x00FF);
-
 	status =
 	    ia64_sal_freq_base(SAL_FREQ_BASE_REALTIME_CLOCK, &ticks_per_sec,
 			       &drift);
@@ -462,6 +447,21 @@ void __init sn_setup(char **cmdline_p)
 		sn_rtc_cycles_per_second = ticks_per_sec;
 
 	platform_intr_list[ACPI_INTERRUPT_CPEI] = IA64_CPE_VECTOR;
+
+	ia64_printk_clock = ia64_sn2_printk_clock;
+
+	/*
+	 * Old PROMs do not provide an ACPI FADT. Disable legacy keyboard
+	 * support here so we don't have to listen to failed keyboard probe
+	 * messages.
+	 */
+	if (version <= 0x0209 && acpi_kbd_controller_present) {
+		printk(KERN_INFO "Disabling legacy keyboard support as prom "
+		       "is too old and doesn't provide FADT\n");
+		acpi_kbd_controller_present = 0;
+	}
+
+	printk("SGI SAL version %x.%02x\n", version >> 8, version & 0x00FF);
 
 	/*
 	 * we set the default root device to /dev/hda

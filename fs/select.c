@@ -510,9 +510,9 @@ asmlinkage long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,
 
 	if (sig) {
 		if (!access_ok(VERIFY_READ, sig, sizeof(void *)+sizeof(size_t))
-		    || __get_user(up, (sigset_t * __user *)sig)
+		    || __get_user(up, (sigset_t __user * __user *)sig)
 		    || __get_user(sigsetsize,
-				(size_t * __user)(sig+sizeof(void *))))
+				(size_t __user *)(sig+sizeof(void *))))
 			return -EFAULT;
 	}
 

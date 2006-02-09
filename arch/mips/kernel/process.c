@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1994 - 1999, 2000 by Ralf Baechle and others.
+ * Copyright (C) 2005, 2006 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004 Thiemo Seufer
  */
@@ -58,8 +59,8 @@ ATTRIB_NORET void cpu_idle(void)
 	}
 }
 
-extern int do_signal(sigset_t *oldset, struct pt_regs *regs);
-extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
+extern void do_signal(struct pt_regs *regs);
+extern void do_signal32(struct pt_regs *regs);
 
 /*
  * Native o32 and N64 ABI without DSP ASE

@@ -892,7 +892,7 @@ serial8250_request_std_resource(struct uart_8250_port *up, struct resource **res
 	int ret = 0;
 
 	switch (up->port.iotype) {
-	case SERIAL_IO_MEM:
+	case UPIO_MEM:
 		if (up->port.mapbase) {
 			*res = request_mem_region(up->port.mapbase, size, "serial");
 			if (!*res)
@@ -900,8 +900,8 @@ serial8250_request_std_resource(struct uart_8250_port *up, struct resource **res
 		}
 		break;
 
-	case SERIAL_IO_HUB6:
-	case SERIAL_IO_PORT:
+	case UPIO_HUB6:
+	case UPIO_PORT:
 		*res = request_region(up->port.iobase, size, "serial");
 		if (!*res)
 			ret = -EBUSY;
@@ -919,7 +919,7 @@ static void serial8250_release_port(struct uart_port *port)
 	size <<= up->port.regshift;
 
 	switch (up->port.iotype) {
-	case SERIAL_IO_MEM:
+	case UPIO_MEM:
 		if (up->port.mapbase) {
 			/*
 			 * Unmap the area.
@@ -935,8 +935,8 @@ static void serial8250_release_port(struct uart_port *port)
 		}
 		break;
 
-	case SERIAL_IO_HUB6:
-	case SERIAL_IO_PORT:
+	case UPIO_HUB6:
+	case UPIO_PORT:
 		start = up->port.iobase;
 
 		if (size)

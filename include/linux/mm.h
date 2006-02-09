@@ -303,7 +303,7 @@ struct page {
  */
 #define put_page_testzero(p)				\
 	({						\
-		BUG_ON(page_count(p) == 0);		\
+		BUG_ON(atomic_read(&(p)->_count) == -1);\
 		atomic_add_negative(-1, &(p)->_count);	\
 	})
 

@@ -1,14 +1,6 @@
 #include <linux/suspend.h>
 #include <linux/utsname.h>
 
-/* With SUSPEND_CONSOLE defined suspend looks *really* cool, but
-   we probably do not take enough locks for switching consoles, etc,
-   so bad things might happen.
-*/
-#if defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
-#define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
-#endif
-
 struct swsusp_info {
 	struct new_utsname	uts;
 	u32			version_code;
@@ -41,14 +33,6 @@ static struct subsys_attribute _name##_attr = {	\
 }
 
 extern struct subsystem power_subsys;
-
-#ifdef SUSPEND_CONSOLE
-extern int pm_prepare_console(void);
-extern void pm_restore_console(void);
-#else
-static int pm_prepare_console(void) { return 0; }
-static void pm_restore_console(void) {}
-#endif
 
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;

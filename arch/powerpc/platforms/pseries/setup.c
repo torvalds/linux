@@ -585,7 +585,7 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	/* Don't risk a hypervisor call if we're crashing */
-	if (!crash_shutdown) {
+	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
 		unsigned long vpa = __pa(get_lppaca());
 
 		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
