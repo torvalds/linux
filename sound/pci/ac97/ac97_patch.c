@@ -2825,3 +2825,34 @@ int mpatch_si3036(struct snd_ac97 * ac97)
 	snd_ac97_write_cache(ac97, 0x68, 0);
 	return 0;
 }
+
+/*
+ * LM 4550 Codec
+ *
+ * We use a static resolution table since LM4550 codec cannot be
+ * properly autoprobed to determine the resolution via
+ * check_volume_resolution().
+ */
+
+static struct snd_ac97_res_table lm4550_restbl[] = {
+	{ AC97_MASTER, 0x1f1f },
+	{ AC97_HEADPHONE, 0x1f1f },
+	{ AC97_MASTER_MONO, 0x001f },
+	{ AC97_PC_BEEP, 0x001f },	/* LSB is ignored */
+	{ AC97_PHONE, 0x001f },
+	{ AC97_PHONE, 0x001f },
+	{ AC97_MIC, 0x001f },
+	{ AC97_LINE, 0x1f1f },
+	{ AC97_CD, 0x1f1f },
+	{ AC97_VIDEO, 0x1f1f },
+	{ AC97_AUX, 0x1f1f },
+	{ AC97_PCM, 0x1f1f },
+	{ AC97_REC_GAIN, 0x0f0f },
+	{ } /* terminator */
+};
+
+int patch_lm4550(struct snd_ac97 *ac97)
+{
+	ac97->res_table = lm4550_restbl;
+	return 0;
+}
