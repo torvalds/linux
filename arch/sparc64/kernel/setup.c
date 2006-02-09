@@ -597,7 +597,10 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = prom_getbootargs();
 	strcpy(saved_command_line, *cmdline_p);
 
-	printk("ARCH: SUN4U\n");
+	if (tlb_type == hypervisor)
+		printk("ARCH: SUN4V\n");
+	else
+		printk("ARCH: SUN4U\n");
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
