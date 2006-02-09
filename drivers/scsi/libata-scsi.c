@@ -732,15 +732,17 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 int ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
+
+	ap = (struct ata_port *) &host->hostdata[0];
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	assert(!(ap->flags & ATA_FLAG_IN_EH));
 	ap->flags |= ATA_FLAG_IN_EH;
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
-	ap = (struct ata_port *) &host->hostdata[0];
 	ap->ops->eng_timeout(ap);
 
 	assert(host->host_failed == 0 && list_empty(&host->eh_cmd_q));
