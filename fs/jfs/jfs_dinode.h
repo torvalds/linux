@@ -139,13 +139,36 @@ struct dinode {
 
 /* more extended mode bits: attributes for OS/2 */
 #define IREADONLY	0x02000000	/* no write access to file */
-#define IARCHIVE	0x40000000	/* file archive bit */
-#define ISYSTEM		0x08000000	/* system file */
 #define IHIDDEN		0x04000000	/* hidden file */
-#define IRASH		0x4E000000	/* mask for changeable attributes */
-#define INEWNAME	0x80000000	/* non-8.3 filename format */
+#define ISYSTEM		0x08000000	/* system file */
+
 #define IDIRECTORY	0x20000000	/* directory (shadow of real bit) */
+#define IARCHIVE	0x40000000	/* file archive bit */
+#define INEWNAME	0x80000000	/* non-8.3 filename format */
+
+#define IRASH		0x4E000000	/* mask for changeable attributes */
 #define ATTRSHIFT	25	/* bits to shift to move attribute
 				   specification to mode position */
+
+/* extended attributes for Linux */
+
+#define JFS_NOATIME_FL		0x00080000 /* do not update atime */
+
+#define JFS_DIRSYNC_FL		0x00100000 /* dirsync behaviour */
+#define JFS_SYNC_FL		0x00200000 /* Synchronous updates */
+#define JFS_SECRM_FL		0x00400000 /* Secure deletion */
+#define JFS_UNRM_FL		0x00800000 /* allow for undelete */
+
+#define JFS_APPEND_FL		0x01000000 /* writes to file may only append */
+#define JFS_IMMUTABLE_FL	0x02000000 /* Immutable file */
+
+#define JFS_FL_USER_VISIBLE	0x03F80000
+#define JFS_FL_USER_MODIFIABLE	0x03F80000
+#define JFS_FL_INHERIT		0x03C80000
+
+/* These are identical to EXT[23]_IOC_GETFLAGS/SETFLAGS */
+#define JFS_IOC_GETFLAGS	_IOR('f', 1, long)
+#define JFS_IOC_SETFLAGS	_IOW('f', 2, long)
+
 
 #endif /*_H_JFS_DINODE */

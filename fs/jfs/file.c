@@ -113,4 +113,5 @@ struct file_operations jfs_file_operations = {
  	.sendfile	= generic_file_sendfile,
 	.fsync		= jfs_fsync,
 	.release	= jfs_release,
+	.ioctl		= jfs_ioctl,
 };

@@ -55,6 +55,7 @@ void jfs_read_inode(struct inode *inode)
 		inode->i_op = &jfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	}
+	jfs_set_inode_flags(inode);
 }
 
 /*
