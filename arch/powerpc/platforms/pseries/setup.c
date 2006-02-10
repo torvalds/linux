@@ -60,7 +60,6 @@
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include "xics.h"
-#include <asm/firmware.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
 #include <asm/ppc-pci.h>
@@ -70,6 +69,7 @@
 
 #include "plpar_wrappers.h"
 #include "ras.h"
+#include "firmware.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -261,49 +261,6 @@ static int __init pSeries_init_panel(void)
 	return 0;
 }
 arch_initcall(pSeries_init_panel);
-
-
-/* Build up the firmware features bitmask using the contents of
- * device-tree/ibm,hypertas-functions.  Ultimately this functionality may
- * be moved into prom.c prom_init().
- */
-static void __init fw_feature_init(void)
-{
-	struct device_node *dn;
-	char *hypertas, *s;
-	int len, i;
-
-	DBG(" -> fw_feature_init()\n");
-
-	dn = of_find_node_by_path("/rtas");
-	if (dn == NULL) {
-		printk(KERN_ERR "WARNING! Cannot find RTAS in device-tree!\n");
-		goto out;
-	}
-
-	hypertas = get_property(dn, "ibm,hypertas-functions", &len);
-	if (hypertas == NULL)
-		goto out;
-
-	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
-		for (i = 0; i < FIRMWARE_MAX_FEATURES; i++) {
-			/* check value against table of strings */
-			if (!firmware_features_table[i].name ||
-			    strcmp(firmware_features_table[i].name, s))
-				continue;
-
-			/* we have a match */
-			ppc64_firmware_features |=
-				firmware_features_table[i].val;
-			break;
-		}
-	}
-
-out:
-	of_node_put(dn);
-	DBG(" <- fw_feature_init()\n");
-}
-
 
 static  void __init pSeries_discover_pic(void)
 {

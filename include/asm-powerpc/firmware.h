@@ -89,15 +89,6 @@ static inline unsigned long firmware_has_feature(unsigned long feature)
 		(FW_FEATURE_POSSIBLE & ppc64_firmware_features & feature);
 }
 
-#ifdef CONFIG_PPC_PSERIES
-typedef struct {
-    unsigned long val;
-    char * name;
-} firmware_feature_t;
-
-extern firmware_feature_t firmware_features_table[];
-#endif
-
 extern void system_reset_fwnmi(void);
 extern void machine_check_fwnmi(void);
 
