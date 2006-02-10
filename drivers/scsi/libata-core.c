@@ -1924,11 +1924,20 @@ static int sata_phy_resume(struct ata_port *ap)
  *
  *	@ap is about to be probed.  Initialize it.  This function is
  *	to be used as standard callback for ata_drive_probe_reset().
+ *
+ *	NOTE!!! Do not use this function as probeinit if a low level
+ *	driver implements only hardreset.  Just pass NULL as probeinit
+ *	in that case.  Using this function is probably okay but doing
+ *	so makes reset sequence different from the original
+ *	->phy_reset implementation and Jeff nervous.  :-P
  */
 extern void ata_std_probeinit(struct ata_port *ap)
 {
-	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read) {
 		sata_phy_resume(ap);
+		if (sata_dev_present(ap))
+			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
+	}
 }
 
 /**
@@ -1954,19 +1963,16 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 
 	DPRINTK("ENTER\n");
 
+	if (ap->ops->scr_read && !sata_dev_present(ap)) {
+		classes[0] = ATA_DEV_NONE;
+		goto out;
+	}
+
 	/* determine if device 0/1 are present */
 	if (ata_devchk(ap, 0))
 		devmask |= (1 << 0);
 	if (slave_possible && ata_devchk(ap, 1))
 		devmask |= (1 << 1);
-
-	/* devchk reports device presence without actual device on
-	 * most SATA controllers.  Check SStatus and turn devmask off
-	 * if link is offline.  Note that we should continue resetting
-	 * even when it seems like there's no device.
-	 */
-	if (ap->ops->scr_read && !sata_dev_present(ap))
-		devmask = 0;
 
 	/* select device 0 again */
 	ap->ops->dev_select(ap, 0);
@@ -1989,6 +1995,7 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 	if (slave_possible && err != 0x81)
 		classes[1] = ata_dev_try_classify(ap, 1, &err);
 
+ out:
 	DPRINTK("EXIT, classes[0]=%u [1]=%u\n", classes[0], classes[1]);
 	return 0;
 }
@@ -2047,6 +2054,8 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 		return -EIO;
 	}
 
+	ap->ops->dev_select(ap, 0);	/* probably unnecessary */
+
 	*class = ata_dev_try_classify(ap, 0, NULL);
 
 	DPRINTK("EXIT, class=%u\n", *class);
@@ -2081,11 +2090,9 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	if (ap->cbl == ATA_CBL_SATA)
 		sata_print_link_status(ap);
 
-	/* bail out if no device is present */
-	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
-		DPRINTK("EXIT, no device\n");
-		return;
-	}
+	/* re-enable interrupts */
+	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
+		ata_irq_on(ap);
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
@@ -2093,9 +2100,19 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	if (classes[1] != ATA_DEV_NONE)
 		ap->ops->dev_select(ap, 0);
 
-	/* re-enable interrupts & set up device control */
-	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
-		ata_irq_on(ap);
+	/* bail out if no device is present */
+	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
+		DPRINTK("EXIT, no device\n");
+		return;
+	}
+
+	/* set up device control */
+	if (ap->ioaddr.ctl_addr) {
+		if (ap->flags & ATA_FLAG_MMIO)
+			writeb(ap->ctl, (void __iomem *) ap->ioaddr.ctl_addr);
+		else
+			outb(ap->ctl, ap->ioaddr.ctl_addr);
+	}
 
 	DPRINTK("EXIT\n");
 }
