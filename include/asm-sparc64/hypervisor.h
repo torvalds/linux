@@ -1300,6 +1300,9 @@ struct hv_trap_trace_entry {
  *			a tsbnum and a tsbindex.  Bits 63:32 contain the
  *			tsbnum and bits 31:00 contain the tsbindex.
  *
+ *			Use the HV_PCI_TSBID() macro to construct such
+ * 			values.
+ *
  *	io_attributes	IO attributes for IOMMU mappings.  One of more
  *			of the attritbute bits are stores in a 64-bit
  *			value.  The values are defined below.
@@ -1353,6 +1356,9 @@ struct hv_trap_trace_entry {
 	((((b) & 0xff) << 16) | \
 	 (((d) & 0x1f) << 11) | \
 	 (((f) & 0x07) <<  8))
+
+#define HV_PCI_TSBID(__tsb_num, __tsb_index) \
+	((((u64)(__tsb_num)) << 32UL) | ((u64)(__tsb_index)))
 
 #define HV_PCI_SYNC_FOR_DEVICE		0x01
 #define HV_PCI_SYNC_FOR_CPU		0x02
