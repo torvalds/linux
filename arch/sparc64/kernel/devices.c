@@ -29,11 +29,28 @@ DEFINE_SPINLOCK(ns87303_lock);
 extern void cpu_probe(void);
 extern void central_probe(void);
 
-static char *cpu_mid_prop(void)
+static const char *cpu_mid_prop(void)
 {
 	if (tlb_type == spitfire)
 		return "upa-portid";
 	return "portid";
+}
+
+static int get_cpu_mid(int prom_node)
+{
+	if (tlb_type == hypervisor) {
+		struct linux_prom64_registers reg;
+
+		if (prom_getproplen(prom_node, "cpuid") == 4)
+			return prom_getintdefault(prom_node, "cpuid", 0);
+
+		prom_getproperty(prom_node, "reg", (char *) &reg, sizeof(reg));
+		return (reg.phys_addr >> 32) & 0x0fffffffUL;
+	} else {
+		const char *prop_name = cpu_mid_prop();
+
+		return prom_getintdefault(prom_node, prop_name, 0);
+	}
 }
 
 static int check_cpu_node(int nd, int *cur_inst,
@@ -50,7 +67,7 @@ static int check_cpu_node(int nd, int *cur_inst,
 		if (prom_node)
 			*prom_node = nd;
 		if (mid)
-			*mid = prom_getintdefault(nd, cpu_mid_prop(), 0);
+			*mid = get_cpu_mid(nd);
 		return 0;
 	}
 
@@ -105,7 +122,7 @@ static int cpu_mid_compare(int nd, int instance, void *_arg)
 	int desired_mid = (int) (long) _arg;
 	int this_mid;
 
-	this_mid = prom_getintdefault(nd, cpu_mid_prop(), 0);
+	this_mid = get_cpu_mid(nd);
 	if (this_mid == desired_mid)
 		return 0;
 	return -ENODEV;
