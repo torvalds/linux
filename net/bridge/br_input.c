@@ -45,18 +45,20 @@ static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 int br_handle_frame_finish(struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	struct net_bridge_port *p = skb->dev->br_port;
-	struct net_bridge *br = p->br;
+	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge *br;
 	struct net_bridge_fdb_entry *dst;
 	int passedup = 0;
 
-	/* insert into forwarding database after filtering to avoid spoofing */
-	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+	if (!p || p->state == BR_STATE_DISABLED)
+		goto drop;
 
-	if (p->state == BR_STATE_LEARNING) {
-		kfree_skb(skb);
-		goto out;
-	}
+	/* insert into forwarding database after filtering to avoid spoofing */
+	br = p->br;
+	br_fdb_update(br, p, eth_hdr(skb)->h_source);
+
+	if (p->state == BR_STATE_LEARNING)
+		goto drop;
 
 	if (br->dev->flags & IFF_PROMISC) {
 		struct sk_buff *skb2;
@@ -93,6 +95,9 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 out:
 	return 0;
+drop:
+	kfree_skb(skb);
+	goto out;
 }
 
 /*

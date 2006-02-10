@@ -79,9 +79,14 @@ static int port_cost(struct net_device *dev)
  */
 static void port_carrier_check(void *arg)
 {
-	struct net_bridge_port *p = arg;
+	struct net_device *dev = arg;
+	struct net_bridge_port *p;
 
 	rtnl_lock();
+	p = dev->br_port;
+	if (!p)
+		goto done;
+
 	if (netif_carrier_ok(p->dev)) {
 		u32 cost = port_cost(p->dev);
 
@@ -97,6 +102,7 @@ static void port_carrier_check(void *arg)
 			br_stp_disable_port(p);
 		spin_unlock_bh(&p->br->lock);
 	}
+done:
 	rtnl_unlock();
 }
 
@@ -104,7 +110,6 @@ static void destroy_nbp(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
 
-	dev->br_port = NULL;
 	p->br = NULL;
 	p->dev = NULL;
 	dev_put(dev);
@@ -133,23 +138,19 @@ static void del_nbp(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
-	/* Race between RTNL notify and RCU callback */
-	if (p->deleted)
-		return;
-
 	dev_set_promiscuity(dev, -1);
 
 	cancel_delayed_work(&p->carrier_check);
-	flush_scheduled_work();
 
 	spin_lock_bh(&br->lock);
 	br_stp_disable_port(p);
-	p->deleted = 1;
 	spin_unlock_bh(&br->lock);
 
 	br_fdb_delete_by_port(br, p);
 
 	list_del_rcu(&p->list);
+
+	rcu_assign_pointer(dev->br_port, NULL);
 
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
@@ -254,11 +255,10 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
  	p->priority = 0x8000 >> BR_PORT_BITS;
-	dev->br_port = p;
 	p->port_no = index;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
-	INIT_WORK(&p->carrier_check, port_carrier_check, p);
+	INIT_WORK(&p->carrier_check, port_carrier_check, dev);
 	kobject_init(&p->kobj);
 
 	return p;
@@ -397,6 +397,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	else if ((err = br_sysfs_addif(p)))
 		del_nbp(p);
 	else {
+		rcu_assign_pointer(dev->br_port, p);
 		dev_set_promiscuity(dev, 1);
 
 		list_add_rcu(&p->list, &br->port_list);
