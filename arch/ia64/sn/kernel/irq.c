@@ -299,7 +299,9 @@ void sn_irq_unfixup(struct pci_dev *pci_dev)
 		return;
 
 	sn_irq_info = SN_PCIDEV_INFO(pci_dev)->pdi_sn_irq_info;
-	if (!sn_irq_info || !sn_irq_info->irq_irq) {
+	if (!sn_irq_info)
+		return;
+	if (!sn_irq_info->irq_irq) {
 		kfree(sn_irq_info);
 		return;
 	}

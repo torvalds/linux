@@ -123,17 +123,7 @@ KBUILD_HAVE_NLS := $(shell \
      then echo yes ; \
      else echo no ; fi)
 ifeq ($(KBUILD_HAVE_NLS),no)
-  HOSTCFLAGS   += -DKBUILD_NO_NLS
-else
-  KBUILD_NEED_LINTL := $(shell \
-    if echo -e "\#include <libintl.h>\nint main(int a, char** b) { gettext(\"\"); return 0; }\n" | \
-      $(HOSTCC) $(HOSTCFLAGS) -x c - -o /dev/null> /dev/null 2>&1 ; \
-    then echo no ; \
-    else echo yes ; fi)
-  ifeq ($(KBUILD_NEED_LINTL),yes)
-    HOSTLOADLIBES_conf += -lintl
-    HOSTLOADLIBES_mconf        += -lintl
-  endif
+HOSTCFLAGS	+= -DKBUILD_NO_NLS
 endif
 
 # generated files seem to need this to find local include files
