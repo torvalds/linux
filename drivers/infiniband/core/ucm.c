@@ -1319,15 +1319,6 @@ static struct class ucm_class = {
 	.release = ib_ucm_release_class_dev
 };
 
-static ssize_t show_dev(struct class_device *class_dev, char *buf)
-{
-	struct ib_ucm_device *dev;
-	
-	dev = container_of(class_dev, struct ib_ucm_device, class_dev);
-	return print_dev_t(buf, dev->dev.dev);
-}
-static CLASS_DEVICE_ATTR(dev, S_IRUGO, show_dev, NULL);
-
 static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
 {
 	struct ib_ucm_device *dev;
@@ -1364,14 +1355,12 @@ static void ib_ucm_add_one(struct ib_device *device)
 
 	ucm_dev->class_dev.class = &ucm_class;
 	ucm_dev->class_dev.dev = device->dma_device;
+	ucm_dev->class_dev.devt = ucm_dev->dev.dev;
 	snprintf(ucm_dev->class_dev.class_id, BUS_ID_SIZE, "ucm%d",
 		 ucm_dev->devnum);
 	if (class_device_register(&ucm_dev->class_dev))
 		goto err_cdev;
 
-	if (class_device_create_file(&ucm_dev->class_dev,
-				     &class_device_attr_dev))
-		goto err_class;
 	if (class_device_create_file(&ucm_dev->class_dev,
 				     &class_device_attr_ibdev))
 		goto err_class;

@@ -167,6 +167,8 @@ endef
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+
+archmrproper:
 	$(Q)rm -rf arch/$(ARCH)/include
 
 archprepare: checkbin

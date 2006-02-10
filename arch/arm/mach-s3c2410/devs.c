@@ -275,6 +275,11 @@ static struct resource s3c_adc_resource[] = {
 	},
 	[1] = {
 		.start = IRQ_TC,
+		.end   = IRQ_TC,
+		.flags = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start = IRQ_ADC,
 		.end   = IRQ_ADC,
 		.flags = IORESOURCE_IRQ,
 	}

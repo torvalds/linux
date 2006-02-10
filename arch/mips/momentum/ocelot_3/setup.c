@@ -57,6 +57,8 @@
 #include <linux/timex.h>
 #include <linux/bootmem.h>
 #include <linux/mv643xx.h>
+#include <linux/pm.h>
+
 #include <asm/time.h>
 #include <asm/page.h>
 #include <asm/bootinfo.h>
@@ -321,7 +323,7 @@ void __init plat_setup(void)
 
 	_machine_restart = momenco_ocelot_restart;
 	_machine_halt = momenco_ocelot_halt;
-	_machine_power_off = momenco_ocelot_power_off;
+	pm_power_off = momenco_ocelot_power_off;
 
 	/* Wired TLB entries */
 	setup_wired_tlb_entries();

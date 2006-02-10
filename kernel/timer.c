@@ -495,7 +495,7 @@ unsigned long next_timer_interrupt(void)
 	base = &__get_cpu_var(tvec_bases);
 	spin_lock(&base->t_base.lock);
 	expires = base->timer_jiffies + (LONG_MAX >> 1);
-	list = 0;
+	list = NULL;
 
 	/* Look for timer events in tv1. */
 	j = base->timer_jiffies & TVR_MASK;

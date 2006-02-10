@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/reiserfs_fs.h>
 #include <asm/types.h>
-#include <asm/bug.h>
 
 #define DELTA 0x9E3779B9
 #define FULLROUNDS 10		/* 32 is overkill, 16 is strong crypto */

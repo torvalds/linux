@@ -42,8 +42,8 @@ static volatile long cmm_timed_pages_target = 0;
 static long cmm_timeout_pages = 0;
 static long cmm_timeout_seconds = 0;
 
-static struct cmm_page_array *cmm_page_list = 0;
-static struct cmm_page_array *cmm_timed_page_list = 0;
+static struct cmm_page_array *cmm_page_list = NULL;
+static struct cmm_page_array *cmm_timed_page_list = NULL;
 
 static unsigned long cmm_thread_active = 0;
 static struct work_struct cmm_thread_starter;
@@ -259,7 +259,7 @@ static struct ctl_table cmm_table[];
 
 static int
 cmm_pages_handler(ctl_table *ctl, int write, struct file *filp,
-		  void *buffer, size_t *lenp, loff_t *ppos)
+		  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[16], *p;
 	long pages;
@@ -300,7 +300,7 @@ cmm_pages_handler(ctl_table *ctl, int write, struct file *filp,
 
 static int
 cmm_timeout_handler(ctl_table *ctl, int write, struct file *filp,
-		    void *buffer, size_t *lenp, loff_t *ppos)
+		    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[64], *p;
 	long pages, seconds;
@@ -419,7 +419,7 @@ cmm_init (void)
 #ifdef CONFIG_CMM_IUCV
 	smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
-	INIT_WORK(&cmm_thread_starter, (void *) cmm_start_thread, 0);
+	INIT_WORK(&cmm_thread_starter, (void *) cmm_start_thread, NULL);
 	init_waitqueue_head(&cmm_thread_wait);
 	init_timer(&cmm_timer);
 	return 0;

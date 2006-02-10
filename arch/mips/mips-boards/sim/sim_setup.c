@@ -88,8 +88,8 @@ static void __init serial_init(void)
 	 but poll for now */
 	s.irq =  0;
 	s.uartclk = BASE_BAUD * 16;
-	s.flags = ASYNC_BOOT_AUTOCONF | UPF_SKIP_TEST;
-	s.iotype = SERIAL_IO_PORT | ASYNC_SKIP_TEST;
+	s.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
+	s.iotype = UPIO_PORT;
 	s.regshift = 0;
 	s.timeout = 4;
 

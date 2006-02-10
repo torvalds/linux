@@ -148,7 +148,7 @@ config IPW2100
 	  In order to use this driver, you will need a firmware image for it.
           You can obtain the firmware from
 	  <http://ipw2100.sf.net/>.  Once you have the firmware image, you 
-	  will need to place it in /etc/firmware.
+	  will need to place it in /lib/firmware.
 
           You will also very likely need the Wireless Tools in order to
           configure your card:

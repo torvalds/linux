@@ -208,7 +208,7 @@ static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
  * sn_fixup_ionodes() - This routine initializes the HUB data strcuture for
  *	each node in the system.
  */
-static void sn_fixup_ionodes(void)
+static void __init sn_fixup_ionodes(void)
 {
 	struct sn_flush_device_kernel *sn_flush_device_kernel;
 	struct sn_flush_device_kernel *dev_entry;
@@ -467,6 +467,13 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 		pcidev_info->pdi_sn_irq_info = NULL;
 		kfree(sn_irq_info);
 	}
+
+	/*
+	 * MSI currently not supported on altix.  Remove this when
+	 * the MSI abstraction patches are integrated into the kernel
+	 * (sometime after 2.6.16 releases)
+	 */
+	dev->no_msi = 1;
 }
 
 /*
@@ -610,15 +617,15 @@ void sn_bus_store_sysdata(struct pci_dev *dev)
 void sn_bus_free_sysdata(void)
 {
 	struct sysdata_el *element;
-	struct list_head *list;
+	struct list_head *list, *safe;
 
-sn_sysdata_free_start:
-	list_for_each(list, &sn_sysdata_list) {
+	list_for_each_safe(list, safe, &sn_sysdata_list) {
 		element = list_entry(list, struct sysdata_el, entry);
 		list_del(&element->entry);
+		list_del(&(((struct pcidev_info *)
+			     (element->sysdata))->pdi_list));
 		kfree(element->sysdata);
 		kfree(element);
-		goto sn_sysdata_free_start;
 	}
 	return;
 }

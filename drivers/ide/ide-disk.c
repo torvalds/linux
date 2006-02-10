@@ -190,7 +190,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		if (lba48) {
 			task_ioreg_t tasklets[10];
 
-			pr_debug("%s: LBA=0x%012llx\n", drive->name, block);
+			pr_debug("%s: LBA=0x%012llx\n", drive->name,
+					(unsigned long long)block);
 
 			tasklets[0] = 0;
 			tasklets[1] = 0;
@@ -317,7 +318,8 @@ static ide_startstop_t ide_do_rw_disk (ide_drive_t *drive, struct request *rq, s
 
 	pr_debug("%s: %sing: block=%llu, sectors=%lu, buffer=0x%08lx\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
-		 block, rq->nr_sectors, (unsigned long)rq->buffer);
+		 (unsigned long long)block, rq->nr_sectors,
+		 (unsigned long)rq->buffer);
 
 	if (hwif->rw_disk)
 		hwif->rw_disk(drive, rq);

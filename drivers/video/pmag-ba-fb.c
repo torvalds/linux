@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include <asm/bug.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

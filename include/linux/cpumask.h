@@ -84,7 +84,6 @@
 #include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/bitmap.h>
-#include <asm/bug.h>
 
 typedef struct { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 extern cpumask_t _unused_cpumask_arg_;
@@ -329,7 +328,7 @@ static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
  * bitmap of size NR_CPUS.
  *
  *  #ifdef CONFIG_HOTPLUG_CPU
- *     cpu_possible_map - all NR_CPUS bits set
+ *     cpu_possible_map - has bit 'cpu' set iff cpu is populatable
  *     cpu_present_map  - has bit 'cpu' set iff cpu is populated
  *     cpu_online_map   - has bit 'cpu' set iff cpu available to scheduler
  *  #else

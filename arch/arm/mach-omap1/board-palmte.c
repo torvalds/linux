@@ -34,6 +34,7 @@
 
 static void __init omap_generic_init_irq(void)
 {
+	omap1_init_common_hw();
 	omap_init_irq();
 }
 
@@ -72,7 +73,7 @@ static void __init omap_generic_init(void)
 
 static void __init omap_generic_map_io(void)
 {
-	omap_map_common_io();
+	omap1_map_common_io();
 }
 
 MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")

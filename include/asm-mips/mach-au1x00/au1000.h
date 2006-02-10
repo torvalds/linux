@@ -1198,7 +1198,11 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
 
 /* UARTS 0-3 */
 #define UART_BASE                 UART0_ADDR
+#ifdef	CONFIG_SOC_AU1200
+#define UART_DEBUG_BASE           UART1_ADDR
+#else
 #define UART_DEBUG_BASE           UART3_ADDR
+#endif
 
 #define UART_RX		0	/* Receive buffer */
 #define UART_TX		4	/* Transmit buffer */

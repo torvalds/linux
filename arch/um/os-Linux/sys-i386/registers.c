@@ -122,9 +122,12 @@ void init_registers(int pid)
 		      err);
 }
 
-void get_safe_registers(unsigned long *regs)
+void get_safe_registers(unsigned long *regs, unsigned long *fp_regs)
 {
 	memcpy(regs, exec_regs, HOST_FRAME_SIZE * sizeof(unsigned long));
+	if(fp_regs != NULL)
+		memcpy(fp_regs, exec_fp_regs,
+		       HOST_FP_SIZE * sizeof(unsigned long));
 }
 
 void get_thread_regs(union uml_pt_regs *uml_regs, void *buffer)

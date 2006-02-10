@@ -38,7 +38,7 @@ extern struct dvb_pll_desc dvb_pll_tded4;
 
 extern struct dvb_pll_desc dvb_pll_tuv1236d;
 extern struct dvb_pll_desc dvb_pll_tdhu2;
-extern struct dvb_pll_desc dvb_pll_tbmv30111in;
+extern struct dvb_pll_desc dvb_pll_samsung_tbmv;
 extern struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261;
 
 int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,

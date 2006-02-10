@@ -144,11 +144,11 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 	u64 *extra = (u64 *) & priv->extra_stats;
 
 	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
-		u32 *rmon = (u32 *) & priv->regs->rmon;
+		u32 __iomem *rmon = (u32 __iomem *) & priv->regs->rmon;
 		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
 		for (i = 0; i < GFAR_RMON_LEN; i++)
-			stats->rmon[i] = (u64) (rmon[i]);
+			stats->rmon[i] = (u64) gfar_read(&rmon[i]);
 
 		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
 			stats->extra[i] = extra[i];
@@ -221,11 +221,11 @@ static void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs, voi
 {
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 *theregs = (u32 *) priv->regs;
+	u32 __iomem *theregs = (u32 __iomem *) priv->regs;
 	u32 *buf = (u32 *) regbuf;
 
 	for (i = 0; i < sizeof (struct gfar) / sizeof (u32); i++)
-		buf[i] = theregs[i];
+		buf[i] = gfar_read(&theregs[i]);
 }
 
 /* Convert microseconds to ethernet clock ticks, which changes

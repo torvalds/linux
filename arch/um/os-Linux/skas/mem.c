@@ -60,7 +60,7 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 
 	multi_count++;
 
-	get_safe_registers(regs);
+	get_safe_registers(regs, NULL);
 	regs[REGS_IP_INDEX] = UML_CONFIG_STUB_CODE +
 		((unsigned long) &batch_syscall_stub -
 		 (unsigned long) &__syscall_stub_start);

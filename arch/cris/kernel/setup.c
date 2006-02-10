@@ -24,7 +24,6 @@
 /*
  * Setup options
  */
-struct drive_info_struct { char dummy[32]; } drive_info;
 struct screen_info screen_info;
 
 extern int root_mountflags;

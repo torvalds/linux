@@ -155,6 +155,19 @@ static void input_repeat_key(unsigned long data)
 }
 
 
+static int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
+{
+	int ret = 0;
+
+	dprintk(4, "%p\n", av7110);
+	if (av7110) {
+		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
+		av7110->ir_config = ir_config;
+	}
+	return ret;
+}
+
+
 static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 				unsigned long count, void *data)
 {
@@ -184,19 +197,6 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 		av7110_setup_irc_config(av_list[i], ir_config);
 	input_register_keys();
 	return count;
-}
-
-
-int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
-{
-	int ret = 0;
-
-	dprintk(4, "%p\n", av7110);
-	if (av7110) {
-		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
-		av7110->ir_config = ir_config;
-	}
-	return ret;
 }
 
 

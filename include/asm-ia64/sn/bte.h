@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -100,13 +100,28 @@
 #define BTE_LNSTAT_STORE(_bte, _x)					\
 			HUB_S(_bte->bte_base_addr, (_x))
 #define BTE_SRC_STORE(_bte, _x)						\
-			HUB_S(_bte->bte_source_addr, (_x))
+({									\
+		u64 __addr = ((_x) & ~AS_MASK);				\
+		if (is_shub2()) 					\
+			__addr = SH2_TIO_PHYS_TO_DMA(__addr);		\
+		HUB_S(_bte->bte_source_addr, __addr);			\
+})
 #define BTE_DEST_STORE(_bte, _x)					\
-			HUB_S(_bte->bte_destination_addr, (_x))
+({									\
+		u64 __addr = ((_x) & ~AS_MASK);				\
+		if (is_shub2()) 					\
+			__addr = SH2_TIO_PHYS_TO_DMA(__addr);		\
+		HUB_S(_bte->bte_destination_addr, __addr);		\
+})
 #define BTE_CTRL_STORE(_bte, _x)					\
 			HUB_S(_bte->bte_control_addr, (_x))
 #define BTE_NOTIF_STORE(_bte, _x)					\
-			HUB_S(_bte->bte_notify_addr, (_x))
+({									\
+		u64 __addr = ia64_tpa((_x) & ~AS_MASK);			\
+		if (is_shub2()) 					\
+			__addr = SH2_TIO_PHYS_TO_DMA(__addr);		\
+		HUB_S(_bte->bte_notify_addr, __addr);			\
+})
 
 #define BTE_START_TRANSFER(_bte, _len, _mode)				\
 	is_shub2() ? BTE_CTRL_STORE(_bte, IBLS_BUSY | (_mode << 24) | _len) \

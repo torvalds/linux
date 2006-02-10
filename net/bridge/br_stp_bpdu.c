@@ -133,28 +133,34 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
 
 static const unsigned char header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};
 
-/* NO locks */
+/* NO locks, but rcu_read_lock (preempt_disabled)  */
 int br_stp_handle_bpdu(struct sk_buff *skb)
 {
-	struct net_bridge_port *p = skb->dev->br_port;
-	struct net_bridge *br = p->br;
+	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge *br;
 	unsigned char *buf;
 
+	if (!p)
+		goto err;
+
+	br = p->br;
+	spin_lock(&br->lock);
+
+	if (p->state == BR_STATE_DISABLED || !(br->dev->flags & IFF_UP))
+		goto out;
+
 	/* insert into forwarding database after filtering to avoid spoofing */
-	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+	br_fdb_update(br, p, eth_hdr(skb)->h_source);
+
+	if (!br->stp_enabled)
+		goto out;
 
 	/* need at least the 802 and STP headers */
 	if (!pskb_may_pull(skb, sizeof(header)+1) ||
 	    memcmp(skb->data, header, sizeof(header)))
-		goto err;
+		goto out;
 
 	buf = skb_pull(skb, sizeof(header));
-
-	spin_lock_bh(&br->lock);
-	if (p->state == BR_STATE_DISABLED 
-	    || !(br->dev->flags & IFF_UP)
-	    || !br->stp_enabled)
-		goto out;
 
 	if (buf[0] == BPDU_TYPE_CONFIG) {
 		struct br_config_bpdu bpdu;
@@ -201,7 +207,7 @@ int br_stp_handle_bpdu(struct sk_buff *skb)
 		br_received_tcn_bpdu(p);
 	}
  out:
-	spin_unlock_bh(&br->lock);
+	spin_unlock(&br->lock);
  err:
 	kfree_skb(skb);
 	return 0;

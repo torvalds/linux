@@ -33,6 +33,7 @@
 #include <linux/reboot.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/mutex.h>
 
 #include "windfarm.h"
 
@@ -48,12 +49,16 @@
 
 static LIST_HEAD(wf_controls);
 static LIST_HEAD(wf_sensors);
-static DECLARE_MUTEX(wf_lock);
+static DEFINE_MUTEX(wf_lock);
 static struct notifier_block *wf_client_list;
 static int wf_client_count;
 static unsigned int wf_overtemp;
 static unsigned int wf_overtemp_counter;
 struct task_struct *wf_thread;
+
+static struct platform_device wf_platform_device = {
+	.name	= "windfarm",
+};
 
 /*
  * Utilities & tick thread
@@ -156,26 +161,67 @@ static void wf_control_release(struct kref *kref)
 		kfree(ct);
 }
 
+static ssize_t wf_show_control(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct wf_control *ctrl = container_of(attr, struct wf_control, attr);
+	s32 val = 0;
+	int err;
+
+	err = ctrl->ops->get_value(ctrl, &val);
+	if (err < 0)
+		return err;
+	return sprintf(buf, "%d\n", val);
+}
+
+/* This is really only for debugging... */
+static ssize_t wf_store_control(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct wf_control *ctrl = container_of(attr, struct wf_control, attr);
+	int val;
+	int err;
+	char *endp;
+
+	val = simple_strtoul(buf, &endp, 0);
+	while (endp < buf + count && (*endp == ' ' || *endp == '\n'))
+		++endp;
+	if (endp - buf < count)
+		return -EINVAL;
+	err = ctrl->ops->set_value(ctrl, val);
+	if (err < 0)
+		return err;
+	return count;
+}
+
 int wf_register_control(struct wf_control *new_ct)
 {
 	struct wf_control *ct;
 
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	list_for_each_entry(ct, &wf_controls, link) {
 		if (!strcmp(ct->name, new_ct->name)) {
 			printk(KERN_WARNING "windfarm: trying to register"
 			       " duplicate control %s\n", ct->name);
-			up(&wf_lock);
+			mutex_unlock(&wf_lock);
 			return -EEXIST;
 		}
 	}
 	kref_init(&new_ct->ref);
 	list_add(&new_ct->link, &wf_controls);
 
+	new_ct->attr.attr.name = new_ct->name;
+	new_ct->attr.attr.owner = THIS_MODULE;
+	new_ct->attr.attr.mode = 0644;
+	new_ct->attr.show = wf_show_control;
+	new_ct->attr.store = wf_store_control;
+	device_create_file(&wf_platform_device.dev, &new_ct->attr);
+
 	DBG("wf: Registered control %s\n", new_ct->name);
 
 	wf_notify(WF_EVENT_NEW_CONTROL, new_ct);
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 
 	return 0;
 }
@@ -183,9 +229,9 @@ EXPORT_SYMBOL_GPL(wf_register_control);
 
 void wf_unregister_control(struct wf_control *ct)
 {
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	list_del(&ct->link);
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 
 	DBG("wf: Unregistered control %s\n", ct->name);
 
@@ -197,16 +243,16 @@ struct wf_control * wf_find_control(const char *name)
 {
 	struct wf_control *ct;
 
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	list_for_each_entry(ct, &wf_controls, link) {
 		if (!strcmp(ct->name, name)) {
 			if (wf_get_control(ct))
 				ct = NULL;
-			up(&wf_lock);
+			mutex_unlock(&wf_lock);
 			return ct;
 		}
 	}
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(wf_find_control);
@@ -246,26 +292,46 @@ static void wf_sensor_release(struct kref *kref)
 		kfree(sr);
 }
 
+static ssize_t wf_show_sensor(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct wf_sensor *sens = container_of(attr, struct wf_sensor, attr);
+	s32 val = 0;
+	int err;
+
+	err = sens->ops->get_value(sens, &val);
+	if (err < 0)
+		return err;
+	return sprintf(buf, "%d.%03d\n", FIX32TOPRINT(val));
+}
+
 int wf_register_sensor(struct wf_sensor *new_sr)
 {
 	struct wf_sensor *sr;
 
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	list_for_each_entry(sr, &wf_sensors, link) {
 		if (!strcmp(sr->name, new_sr->name)) {
 			printk(KERN_WARNING "windfarm: trying to register"
 			       " duplicate sensor %s\n", sr->name);
-			up(&wf_lock);
+			mutex_unlock(&wf_lock);
 			return -EEXIST;
 		}
 	}
 	kref_init(&new_sr->ref);
 	list_add(&new_sr->link, &wf_sensors);
 
+	new_sr->attr.attr.name = new_sr->name;
+	new_sr->attr.attr.owner = THIS_MODULE;
+	new_sr->attr.attr.mode = 0444;
+	new_sr->attr.show = wf_show_sensor;
+	new_sr->attr.store = NULL;
+	device_create_file(&wf_platform_device.dev, &new_sr->attr);
+
 	DBG("wf: Registered sensor %s\n", new_sr->name);
 
 	wf_notify(WF_EVENT_NEW_SENSOR, new_sr);
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 
 	return 0;
 }
@@ -273,9 +339,9 @@ EXPORT_SYMBOL_GPL(wf_register_sensor);
 
 void wf_unregister_sensor(struct wf_sensor *sr)
 {
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	list_del(&sr->link);
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 
 	DBG("wf: Unregistered sensor %s\n", sr->name);
 
@@ -287,16 +353,16 @@ struct wf_sensor * wf_find_sensor(const char *name)
 {
 	struct wf_sensor *sr;
 
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	list_for_each_entry(sr, &wf_sensors, link) {
 		if (!strcmp(sr->name, name)) {
 			if (wf_get_sensor(sr))
 				sr = NULL;
-			up(&wf_lock);
+			mutex_unlock(&wf_lock);
 			return sr;
 		}
 	}
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(wf_find_sensor);
@@ -329,7 +395,7 @@ int wf_register_client(struct notifier_block *nb)
 	struct wf_control *ct;
 	struct wf_sensor *sr;
 
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	rc = notifier_chain_register(&wf_client_list, nb);
 	if (rc != 0)
 		goto bail;
@@ -341,19 +407,19 @@ int wf_register_client(struct notifier_block *nb)
 	if (wf_client_count == 1)
 		wf_start_thread();
  bail:
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(wf_register_client);
 
 int wf_unregister_client(struct notifier_block *nb)
 {
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	notifier_chain_unregister(&wf_client_list, nb);
 	wf_client_count++;
 	if (wf_client_count == 0)
 		wf_stop_thread();
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 
 	return 0;
 }
@@ -361,23 +427,23 @@ EXPORT_SYMBOL_GPL(wf_unregister_client);
 
 void wf_set_overtemp(void)
 {
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	wf_overtemp++;
 	if (wf_overtemp == 1) {
 		printk(KERN_WARNING "windfarm: Overtemp condition detected !\n");
 		wf_overtemp_counter = 0;
 		wf_notify(WF_EVENT_OVERTEMP, NULL);
 	}
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 }
 EXPORT_SYMBOL_GPL(wf_set_overtemp);
 
 void wf_clear_overtemp(void)
 {
-	down(&wf_lock);
+	mutex_lock(&wf_lock);
 	WARN_ON(wf_overtemp == 0);
 	if (wf_overtemp == 0) {
-		up(&wf_lock);
+		mutex_unlock(&wf_lock);
 		return;
 	}
 	wf_overtemp--;
@@ -385,7 +451,7 @@ void wf_clear_overtemp(void)
 		printk(KERN_WARNING "windfarm: Overtemp condition cleared !\n");
 		wf_notify(WF_EVENT_NORMALTEMP, NULL);
 	}
-	up(&wf_lock);
+	mutex_unlock(&wf_lock);
 }
 EXPORT_SYMBOL_GPL(wf_clear_overtemp);
 
@@ -394,10 +460,6 @@ int wf_is_overtemp(void)
 	return (wf_overtemp != 0);
 }
 EXPORT_SYMBOL_GPL(wf_is_overtemp);
-
-static struct platform_device wf_platform_device = {
-	.name	= "windfarm",
-};
 
 static int __init windfarm_core_init(void)
 {

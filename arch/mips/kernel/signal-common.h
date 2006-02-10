@@ -11,7 +11,7 @@
 #include <linux/config.h>
 
 static inline int
-setup_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
+setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int err = 0;
 
@@ -82,7 +82,7 @@ out:
 }
 
 static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	unsigned int used_math;
 	unsigned long treg;
@@ -157,7 +157,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 /*
  * Determine which stack to use..
  */
-static inline void *
+static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 {
 	unsigned long sp;
@@ -176,7 +176,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
-	return (void *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? 32 : ALMASK));
+	return (void __user *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? 32 : ALMASK));
 }
 
 static inline int install_sigtramp(unsigned int __user *tramp,

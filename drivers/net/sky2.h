@@ -1841,6 +1841,7 @@ struct sky2_hw {
 	struct net_device    *dev[2];
 
 	int		     pm_cap;
+	int		     msi;
 	u8	     	     chip_id;
 	u8		     chip_rev;
 	u8		     copper;
@@ -1865,14 +1866,6 @@ static inline u16 sky2_read16(const struct sky2_hw *hw, unsigned reg)
 static inline u8 sky2_read8(const struct sky2_hw *hw, unsigned reg)
 {
 	return readb(hw->regs + reg);
-}
-
-/* This should probably go away, bus based tweeks suck */
-static inline int is_pciex(const struct sky2_hw *hw)
-{
-	u32 status;
-	pci_read_config_dword(hw->pdev, PCI_DEV_STATUS, &status);
-	return (status & PCI_OS_PCI_X) == 0;
 }
 
 static inline void sky2_write32(const struct sky2_hw *hw, unsigned reg, u32 val)

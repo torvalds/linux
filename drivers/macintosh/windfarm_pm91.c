@@ -458,45 +458,6 @@ static void wf_smu_slots_fans_tick(struct wf_smu_slots_fans_state *st)
 
 
 /*
- * ****** Attributes ******
- *
- */
-
-#define BUILD_SHOW_FUNC_FIX(name, data)				\
-static ssize_t show_##name(struct device *dev,                  \
-			   struct device_attribute *attr,       \
-			   char *buf)	                        \
-{								\
-	ssize_t r;						\
-	s32 val = 0;                                            \
-	data->ops->get_value(data, &val);                       \
-	r = sprintf(buf, "%d.%03d", FIX32TOPRINT(val)); 	\
-	return r;						\
-}                                                               \
-static DEVICE_ATTR(name,S_IRUGO,show_##name, NULL);
-
-
-#define BUILD_SHOW_FUNC_INT(name, data)				\
-static ssize_t show_##name(struct device *dev,                  \
-			   struct device_attribute *attr,       \
-			   char *buf)	                        \
-{								\
-	s32 val = 0;                                            \
-	data->ops->get_value(data, &val);                       \
-	return sprintf(buf, "%d", val);  			\
-}                                                               \
-static DEVICE_ATTR(name,S_IRUGO,show_##name, NULL);
-
-BUILD_SHOW_FUNC_INT(cpu_fan, fan_cpu_main);
-BUILD_SHOW_FUNC_INT(hd_fan, fan_hd);
-BUILD_SHOW_FUNC_INT(slots_fan, fan_slots);
-
-BUILD_SHOW_FUNC_FIX(cpu_temp, sensor_cpu_temp);
-BUILD_SHOW_FUNC_FIX(cpu_power, sensor_cpu_power);
-BUILD_SHOW_FUNC_FIX(hd_temp, sensor_hd_temp);
-BUILD_SHOW_FUNC_FIX(slots_power, sensor_slots_power);
-
-/*
  * ****** Setup / Init / Misc ... ******
  *
  */
@@ -581,10 +542,8 @@ static void wf_smu_new_control(struct wf_control *ct)
 		return;
 
 	if (fan_cpu_main == NULL && !strcmp(ct->name, "cpu-rear-fan-0")) {
-		if (wf_get_control(ct) == 0) {
+		if (wf_get_control(ct) == 0)
 			fan_cpu_main = ct;
-			device_create_file(wf_smu_dev, &dev_attr_cpu_fan);
-		}
 	}
 
 	if (fan_cpu_second == NULL && !strcmp(ct->name, "cpu-rear-fan-1")) {
@@ -603,17 +562,13 @@ static void wf_smu_new_control(struct wf_control *ct)
 	}
 
 	if (fan_hd == NULL && !strcmp(ct->name, "drive-bay-fan")) {
-		if (wf_get_control(ct) == 0) {
+		if (wf_get_control(ct) == 0)
 			fan_hd = ct;
-			device_create_file(wf_smu_dev, &dev_attr_hd_fan);
-		}
 	}
 
 	if (fan_slots == NULL && !strcmp(ct->name, "slots-fan")) {
-		if (wf_get_control(ct) == 0) {
+		if (wf_get_control(ct) == 0)
 			fan_slots = ct;
-			device_create_file(wf_smu_dev, &dev_attr_slots_fan);
-		}
 	}
 
 	if (fan_cpu_main && (fan_cpu_second || fan_cpu_third) && fan_hd &&
@@ -627,31 +582,23 @@ static void wf_smu_new_sensor(struct wf_sensor *sr)
 		return;
 
 	if (sensor_cpu_power == NULL && !strcmp(sr->name, "cpu-power")) {
-		if (wf_get_sensor(sr) == 0) {
+		if (wf_get_sensor(sr) == 0)
 			sensor_cpu_power = sr;
-			device_create_file(wf_smu_dev, &dev_attr_cpu_power);
-		}
 	}
 
 	if (sensor_cpu_temp == NULL && !strcmp(sr->name, "cpu-temp")) {
-		if (wf_get_sensor(sr) == 0) {
+		if (wf_get_sensor(sr) == 0)
 			sensor_cpu_temp = sr;
-			device_create_file(wf_smu_dev, &dev_attr_cpu_temp);
-		}
 	}
 
 	if (sensor_hd_temp == NULL && !strcmp(sr->name, "hd-temp")) {
-		if (wf_get_sensor(sr) == 0) {
+		if (wf_get_sensor(sr) == 0)
 			sensor_hd_temp = sr;
-			device_create_file(wf_smu_dev, &dev_attr_hd_temp);
-		}
 	}
 
 	if (sensor_slots_power == NULL && !strcmp(sr->name, "slots-power")) {
-		if (wf_get_sensor(sr) == 0) {
+		if (wf_get_sensor(sr) == 0)
 			sensor_slots_power = sr;
-			device_create_file(wf_smu_dev, &dev_attr_slots_power);
-		}
 	}
 
 	if (sensor_cpu_power && sensor_cpu_temp &&
@@ -720,40 +667,26 @@ static int wf_smu_remove(struct device *ddev)
 	 * with that except by adding locks all over... I'll do that
 	 * eventually but heh, who ever rmmod this module anyway ?
 	 */
-	if (sensor_cpu_power) {
-		device_remove_file(wf_smu_dev, &dev_attr_cpu_power);
+	if (sensor_cpu_power)
 		wf_put_sensor(sensor_cpu_power);
-	}
-	if (sensor_cpu_temp) {
-		device_remove_file(wf_smu_dev, &dev_attr_cpu_temp);
+	if (sensor_cpu_temp)
 		wf_put_sensor(sensor_cpu_temp);
-	}
-	if (sensor_hd_temp) {
-		device_remove_file(wf_smu_dev, &dev_attr_hd_temp);
+	if (sensor_hd_temp)
 		wf_put_sensor(sensor_hd_temp);
-	}
-	if (sensor_slots_power) {
-		device_remove_file(wf_smu_dev, &dev_attr_slots_power);
+	if (sensor_slots_power)
 		wf_put_sensor(sensor_slots_power);
-	}
 
 	/* Release all controls */
-	if (fan_cpu_main) {
-		device_remove_file(wf_smu_dev, &dev_attr_cpu_fan);
+	if (fan_cpu_main)
 		wf_put_control(fan_cpu_main);
-	}
 	if (fan_cpu_second)
 		wf_put_control(fan_cpu_second);
 	if (fan_cpu_third)
 		wf_put_control(fan_cpu_third);
-	if (fan_hd) {
-		device_remove_file(wf_smu_dev, &dev_attr_hd_fan);
+	if (fan_hd)
 		wf_put_control(fan_hd);
-	}
-	if (fan_slots) {
-		device_remove_file(wf_smu_dev, &dev_attr_slots_fan);
+	if (fan_slots)
 		wf_put_control(fan_slots);
-	}
 	if (cpufreq_clamp)
 		wf_put_control(cpufreq_clamp);
 

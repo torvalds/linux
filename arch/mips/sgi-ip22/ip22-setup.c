@@ -56,6 +56,7 @@ extern void ip22_time_init(void) __init;
 void __init plat_setup(void)
 {
 	char *ctype;
+	char *cserial;
 
 	board_be_init = ip22_be_init;
 	ip22_time_init();
@@ -81,9 +82,14 @@ void __init plat_setup(void)
 	/* ARCS console environment variable is set to "g?" for
 	 * graphics console, it is set to "d" for the first serial
 	 * line and "d2" for the second serial line.
+	 *
+	 * Need to check if the case is 'g' but no keyboard:
+	 * (ConsoleIn/Out = serial)
 	 */
 	ctype = ArcGetEnvironmentVariable("console");
-	if (ctype && *ctype == 'd') {
+	cserial = ArcGetEnvironmentVariable("ConsoleOut");
+
+	if ((ctype && *ctype == 'd') || (cserial && *cserial == 's')) {
 		static char options[8];
 		char *baud = ArcGetEnvironmentVariable("dbaud");
 		if (baud)
@@ -91,7 +97,7 @@ void __init plat_setup(void)
 		add_preferred_console("ttyS", *(ctype + 1) == '2' ? 1 : 0,
 				      baud ? options : NULL);
 	} else if (!ctype || *ctype != 'g') {
-		/* Use ARC if we don't want serial ('d') or Newport ('g'). */
+		/* Use ARC if we don't want serial ('d') or graphics ('g'). */
 		prom_flags |= PROM_FLAG_USE_AS_CONSOLE;
 		add_preferred_console("arc", 0, NULL);
 	}

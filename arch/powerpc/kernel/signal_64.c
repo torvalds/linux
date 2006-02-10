@@ -60,8 +60,8 @@ struct rt_sigframe {
 	struct ucontext uc;
 	unsigned long _unused[2];
 	unsigned int tramp[TRAMP_SIZE];
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	struct siginfo info;
 	/* 64 bit ABI allows for 288 bytes below sp before decrementing it. */
 	char abigap[288];

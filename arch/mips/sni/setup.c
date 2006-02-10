@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 97, 98, 2000, 03, 04 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 1996, 97, 98, 2000, 03, 04, 06 Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/config.h>
 #include <linux/eisa.h>
@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/mc146818rtc.h>
+#include <linux/pm.h>
 #include <linux/pci.h>
 #include <linux/console.h>
 #include <linux/fb.h>
@@ -189,7 +190,7 @@ void __init plat_setup(void)
 
 	_machine_restart = sni_machine_restart;
 	_machine_halt = sni_machine_halt;
-	_machine_power_off = sni_machine_power_off;
+	pm_power_off = sni_machine_power_off;
 
 	sni_display_setup();
 
