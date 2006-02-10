@@ -782,6 +782,7 @@ int ata_scsi_error(struct Scsi_Host *host)
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	assert(!(ap->flags & ATA_FLAG_IN_EH));
 	ap->flags |= ATA_FLAG_IN_EH;
+	assert(ata_qc_from_tag(ap, ap->active_tag) != NULL);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	ap->ops->eng_timeout(ap);

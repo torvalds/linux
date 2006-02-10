@@ -432,11 +432,6 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	spin_lock_irqsave(&host_set->lock, flags);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	if (!qc) {
-		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
-		       ap->id);
-		goto out;
-	}
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
@@ -456,10 +451,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		break;
 	}
 
-out:
 	spin_unlock_irqrestore(&host_set->lock, flags);
-	if (qc)
-		ata_eh_qc_complete(qc);
+	ata_eh_qc_complete(qc);
 	DPRINTK("EXIT\n");
 }
 
