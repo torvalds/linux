@@ -74,15 +74,47 @@ struct pci_iommu_ops pci_sun4v_iommu_ops = {
 static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 				  int where, int size, u32 *value)
 {
-	/* XXX Implement me! XXX */
-	return 0;
+	struct pci_pbm_info *pbm = bus_dev->sysdata;
+	unsigned long devhandle = pbm->devhandle;
+	unsigned int bus = bus_dev->number;
+	unsigned int device = PCI_SLOT(devfn);
+	unsigned int func = PCI_FUNC(devfn);
+	unsigned long ret;
+
+	ret = pci_sun4v_config_get(devhandle,
+				   HV_PCI_DEVICE_BUILD(bus, device, func),
+				   where, size);
+	switch (size) {
+	case 1:
+		*value = ret & 0xff;
+		break;
+	case 2:
+		*value = ret & 0xffff;
+		break;
+	case 4:
+		*value = ret & 0xffffffff;
+		break;
+	};
+
+
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static int pci_sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 				   int where, int size, u32 value)
 {
-	/* XXX Implement me! XXX */
-	return 0;
+	struct pci_pbm_info *pbm = bus_dev->sysdata;
+	unsigned long devhandle = pbm->devhandle;
+	unsigned int bus = bus_dev->number;
+	unsigned int device = PCI_SLOT(devfn);
+	unsigned int func = PCI_FUNC(devfn);
+	unsigned long ret;
+
+	ret = pci_sun4v_config_put(devhandle,
+				   HV_PCI_DEVICE_BUILD(bus, device, func),
+				   where, size, value);
+
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops pci_sun4v_ops = {
