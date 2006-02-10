@@ -122,4 +122,7 @@
 
 #define MANFID_XIRCOM			0x0105
 
+#define MANFID_POSSIO			0x030c
+#define PRODID_POSSIO_GCC		0x0003
+
 #endif /* _LINUX_CISCODE_H */

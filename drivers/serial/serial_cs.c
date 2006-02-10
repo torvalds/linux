@@ -41,6 +41,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/serial_core.h>
+#include <linux/delay.h>
 #include <linux/major.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -102,6 +103,8 @@ struct serial_info {
 	int			multi;
 	int			slave;
 	int			manfid;
+	int			prodid;
+	int			c950ctrl;
 	dev_node_t		node[4];
 	int			line[4];
 };
@@ -115,6 +118,33 @@ struct serial_cfg_mem {
 
 static int serial_config(struct pcmcia_device * link);
 
+
+static void wakeup_card(struct serial_info *info)
+{
+	int ctrl = info->c950ctrl;
+
+	if (info->manfid == MANFID_OXSEMI) {
+		outb(12, ctrl + 1);
+	} else if (info->manfid == MANFID_POSSIO && info->prodid == PRODID_POSSIO_GCC) {
+		/* request_region? oxsemi branch does no request_region too... */
+		/* This sequence is needed to properly initialize MC45 attached to OXCF950.
+		 * I tried decreasing these msleep()s, but it worked properly (survived
+		 * 1000 stop/start operations) with these timeouts (or bigger). */
+		outb(0xA, ctrl + 1);
+		msleep(100);
+		outb(0xE, ctrl + 1);
+		msleep(300);
+		outb(0xC, ctrl + 1);
+		msleep(100);
+		outb(0xE, ctrl + 1);
+		msleep(200);
+		outb(0xF, ctrl + 1);
+		msleep(100);
+		outb(0xE, ctrl + 1);
+		msleep(100);
+		outb(0xC, ctrl + 1);
+	}
+}
 
 /*======================================================================
 
@@ -161,6 +191,7 @@ static int serial_resume(struct pcmcia_device *link)
 
 		for (i = 0; i < info->ndev; i++)
 			serial8250_resume_port(info->line[i]);
+		wakeup_card(info);
 	}
 
 	return 0;
@@ -503,15 +534,23 @@ static int multi_config(struct pcmcia_device * link)
 	}
 
 	/* The Oxford Semiconductor OXCF950 cards are in fact single-port:
-	   8 registers are for the UART, the others are extra registers */
-	if (info->manfid == MANFID_OXSEMI) {
+	 * 8 registers are for the UART, the others are extra registers.
+	 * Siemen's MC45 PCMCIA (Possio's GCC) is OXCF950 based too.
+	 */
+	if (info->manfid == MANFID_OXSEMI || (info->manfid == MANFID_POSSIO &&
+				info->prodid == PRODID_POSSIO_GCC)) {
+		int err;
+
 		if (cf->index == 1 || cf->index == 3) {
-			setup_serial(link, info, base2, link->irq.AssignedIRQ);
-			outb(12, link->io.BasePort1 + 1);
+			err = setup_serial(link, info, base2,
+					link->irq.AssignedIRQ);
+			base2 = link->io.BasePort1;
 		} else {
-			setup_serial(link, info, link->io.BasePort1, link->irq.AssignedIRQ);
-			outb(12, base2 + 1);
+			err = setup_serial(link, info, link->io.BasePort1,
+					link->irq.AssignedIRQ);
 		}
+		info->c950ctrl = base2;
+		wakeup_card(info);
 		rc = 0;
 		goto free_cfg_mem;
 	}
@@ -583,6 +622,7 @@ static int serial_config(struct pcmcia_device * link)
 	tuple->DesiredTuple = CISTPL_MANFID;
 	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 		info->manfid = parse->manfid.manf;
+		info->prodid = le16_to_cpu(buf[1]);
 		for (i = 0; i < MULTI_COUNT; i++)
 			if ((info->manfid == multi_id[i].manfid) &&
 			    (parse->manfid.card == multi_id[i].prodid))
