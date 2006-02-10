@@ -187,6 +187,57 @@ sun4v_dtlb_prot:
 	ba,pt		%xcc, sparc64_realfault_common
 	 mov		FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 
+	/* Called from trap table with &trap_block[smp_processor_id()] in
+	 * %g5 and SCRATCHPAD_UTSBREG1 contents in %g1.
+	 */
+sun4v_itsb_miss:
+	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
+	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
+
+	srlx	%g4, 22, %g7
+	sllx	%g5, 48, %g6
+	or	%g6, %g7, %g6
+	brz,pn	%g5, kvmap_itlb_4v
+	 nop
+
+	ba,pt	%xcc, sun4v_tsb_miss_common
+	 mov	FAULT_CODE_ITLB, %g3
+
+	/* Called from trap table with &trap_block[smp_processor_id()] in
+	 * %g5 and SCRATCHPAD_UTSBREG1 contents in %g1.
+	 */
+sun4v_dtsb_miss:
+	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+
+	srlx	%g4, 22, %g7
+	sllx	%g5, 48, %g6
+	or	%g6, %g7, %g6
+	brz,pn	%g5, kvmap_dtlb_4v
+	 nop
+
+	mov	FAULT_CODE_DTLB, %g3
+
+	/* Create TSB pointer into %g1.  This is something like:
+	 *
+	 * index_mask = (512 << (tsb_reg & 0x7UL)) - 1UL;
+	 * tsb_base = tsb_reg & ~0x7UL;
+	 * tsb_index = ((vaddr >> PAGE_SHIFT) & tsb_mask);
+	 * tsb_ptr = tsb_base + (tsb_index * 16);
+	 */
+sun4v_tsb_miss_common:
+	and	%g1, 0x7, %g2
+	andn	%g1, 0x7, %g1
+	mov	512, %g7
+	sllx	%g7, %g2, %g7
+	sub	%g7, 1, %g7
+	srlx	%g4, PAGE_SHIFT, %g2
+	and	%g2, %g7, %g2
+	sllx	%g2, 4, %g2
+	ba,pt	%xcc, tsb_miss_page_table_walk
+	 add	%g1, %g2, %g1
+
+
 #define BRANCH_ALWAYS	0x10680000
 #define NOP		0x01000000
 #define SUN4V_DO_PATCH(OLD, NEW)	\

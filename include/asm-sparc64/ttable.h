@@ -180,6 +180,26 @@
 #define KPROBES_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
 #endif
 
+#define SUN4V_ITSB_MISS				\
+	mov	SCRATCHPAD_CPUID, %g1;		\
+	ldxa	[%g1] ASI_SCRATCHPAD, %g2;	\
+	ldxa	[%g1 + %g1] ASI_SCRATCHPAD, %g1;\
+	sethi	%hi(trap_block), %g5;		\
+	sllx	%g2, TRAP_BLOCK_SZ_SHIFT, %g2;	\
+	or	%g5, %lo(trap_block), %g5;	\
+	ba,pt	%xcc, sun4v_itsb_miss;		\
+	 add	%g5, %g2, %g5;
+
+#define SUN4V_DTSB_MISS				\
+	mov	SCRATCHPAD_CPUID, %g1;		\
+	ldxa	[%g1] ASI_SCRATCHPAD, %g2;	\
+	ldxa	[%g1 + %g1] ASI_SCRATCHPAD, %g1;\
+	sethi	%hi(trap_block), %g5;		\
+	sllx	%g2, TRAP_BLOCK_SZ_SHIFT, %g2;	\
+	or	%g5, %lo(trap_block), %g5;	\
+	ba,pt	%xcc, sun4v_dtsb_miss;		\
+	 add	%g5, %g2, %g5;
+
 /* Before touching these macros, you owe it to yourself to go and
  * see how arch/sparc64/kernel/winfixup.S works... -DaveM
  *

@@ -35,8 +35,11 @@ tsb_miss_itlb:
 	 nop
 
 	/* The sun4v TLB miss handlers jump directly here instead
-	 * of tsb_miss_{d,i}tlb with the missing virtual address
-	 * already loaded into %g4.
+	 * of tsb_miss_{d,i}tlb with registers setup as follows:
+	 *
+	 * %g4:	missing virtual address
+	 * %g1:	TSB entry address loaded
+	 * %g6:	TAG TARGET ((vaddr >> 22) | (ctx << 48))
 	 */
 tsb_miss_page_table_walk:
 	TRAP_LOAD_PGD_PHYS(%g7, %g5)

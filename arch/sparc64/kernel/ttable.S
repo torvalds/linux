@@ -1,7 +1,6 @@
-/* $Id: ttable.S,v 1.38 2002/02/09 19:49:30 davem Exp $
- * ttable.S: Sparc V9 Trap Table(s) with SpitFire/Cheetah extensions.
+/* ttable.S: Sparc V9 Trap Table(s) with SpitFire/Cheetah/SUN4V extensions.
  *
- * Copyright (C) 1996, 2001 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2001, 2006 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/config.h>
@@ -22,7 +21,8 @@ tl0_iax:	membar #Sync
 tl0_resv009:	BTRAP(0x9)
 tl0_iae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
-tl0_resv00b:	BTRAP(0xb) BTRAP(0xc) BTRAP(0xd) BTRAP(0xe) BTRAP(0xf)
+tl0_itsb_4v:	SUN4V_ITSB_MISS
+tl0_resv00c:	BTRAP(0xc) BTRAP(0xd) BTRAP(0xe) BTRAP(0xf)
 tl0_ill:	membar #Sync
 		TRAP_7INSNS(do_illegal_instruction)
 tl0_privop:	TRAP(do_privop)
@@ -38,7 +38,7 @@ tl0_div0:	TRAP(do_div0)
 tl0_resv029:	BTRAP(0x29) BTRAP(0x2a) BTRAP(0x2b) BTRAP(0x2c) BTRAP(0x2d) BTRAP(0x2e)
 tl0_resv02f:	BTRAP(0x2f)
 tl0_dax:	TRAP_NOSAVE(__spitfire_data_access_exception)
-tl0_resv031:	BTRAP(0x31)
+tl0_dtsb_4v:	SUN4V_DTSB_MISS
 tl0_dae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
 tl0_resv033:	BTRAP(0x33)
@@ -185,7 +185,8 @@ tl1_iax:	TRAP_NOSAVE(__spitfire_insn_access_exception_tl1)
 tl1_resv009:	BTRAPTL1(0x9)
 tl1_iae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
-tl1_resv00b:	BTRAPTL1(0xb) BTRAPTL1(0xc) BTRAPTL1(0xd) BTRAPTL1(0xe) BTRAPTL1(0xf)
+tl1_itsb_4v:	SUN4V_ITSB_MISS
+tl1_resv00c:	BTRAPTL1(0xc) BTRAPTL1(0xd) BTRAPTL1(0xe) BTRAPTL1(0xf)
 tl1_ill:	TRAPTL1(do_ill_tl1)
 tl1_privop:	BTRAPTL1(0x11)
 tl1_resv012:	BTRAPTL1(0x12) BTRAPTL1(0x13) BTRAPTL1(0x14) BTRAPTL1(0x15)
@@ -201,7 +202,7 @@ tl1_div0:	TRAPTL1(do_div0_tl1)
 tl1_resv029:	BTRAPTL1(0x29) BTRAPTL1(0x2a) BTRAPTL1(0x2b) BTRAPTL1(0x2c)
 tl1_resv02d:	BTRAPTL1(0x2d) BTRAPTL1(0x2e) BTRAPTL1(0x2f)
 tl1_dax:	TRAP_NOSAVE(__spitfire_data_access_exception_tl1)
-tl1_resv031:	BTRAPTL1(0x31)
+tl1_dtsb_4v:	SUN4V_DTSB_MISS
 tl1_dae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
 tl1_resv033:	BTRAPTL1(0x33)
