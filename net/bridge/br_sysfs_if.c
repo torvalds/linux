@@ -195,22 +195,10 @@ static ssize_t brport_store(struct kobject * kobj,
 	return ret;
 }
 
-/* called from kobject_put when port ref count goes to zero. */
-static void brport_release(struct kobject *kobj)
-{
-	kfree(container_of(kobj, struct net_bridge_port, kobj));
-}
-
-static struct sysfs_ops brport_sysfs_ops = {
+struct sysfs_ops brport_sysfs_ops = {
 	.show = brport_show,
 	.store = brport_store,
 };
-
-static struct kobj_type brport_ktype = {
-	.sysfs_ops = &brport_sysfs_ops,
-	.release = brport_release,
-};
-
 
 /*
  * Add sysfs entries to ethernet device added to a bridge.
@@ -223,17 +211,6 @@ int br_sysfs_addif(struct net_bridge_port *p)
 	struct brport_attribute **a;
 	int err;
 
-	ASSERT_RTNL();
-
-	kobject_set_name(&p->kobj, SYSFS_BRIDGE_PORT_ATTR);
-	p->kobj.ktype = &brport_ktype;
-	p->kobj.parent = &(p->dev->class_dev.kobj);
-	p->kobj.kset = NULL;
-
-	err = kobject_add(&p->kobj);
-	if(err)
-		goto out1;
-
 	err = sysfs_create_link(&p->kobj, &br->dev->class_dev.kobj, 
 				SYSFS_BRIDGE_PORT_LINK);
 	if (err)
@@ -245,28 +222,7 @@ int br_sysfs_addif(struct net_bridge_port *p)
 			goto out2;
 	}
 
-	err = sysfs_create_link(&br->ifobj, &p->kobj, p->dev->name);
-	if (err)
-		goto out2;
-
-	kobject_uevent(&p->kobj, KOBJ_ADD);
-	return 0;
- out2:
-	kobject_del(&p->kobj);
- out1:
+	err= sysfs_create_link(&br->ifobj, &p->kobj, p->dev->name);
+out2:
 	return err;
-}
-
-void br_sysfs_removeif(struct net_bridge_port *p)
-{
-	pr_debug("br_sysfs_removeif\n");
-	sysfs_remove_link(&p->br->ifobj, p->dev->name);
-	kobject_uevent(&p->kobj, KOBJ_REMOVE);
-	kobject_del(&p->kobj);
-}
-
-void br_sysfs_freeif(struct net_bridge_port *p)
-{
-	pr_debug("br_sysfs_freeif\n");
-	kobject_put(&p->kobj);
 }
