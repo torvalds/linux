@@ -68,6 +68,8 @@ void __init sanitize_tlb_entries(void)
 
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
+	back_to_back_c0_hazard();
+
 	/* Disable TLB sharing */
 	clear_c0_mvpcontrol(MVPCONTROL_STLB);
 
