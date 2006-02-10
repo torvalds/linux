@@ -151,7 +151,7 @@ void au1000_restart(char *command)
 	}
 
 	set_c0_status(ST0_BEV | ST0_ERL);
-	set_c0_config(CONF_CM_UNCACHED);
+	change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
 	flush_cache_all();
 	write_c0_wired(0);
 

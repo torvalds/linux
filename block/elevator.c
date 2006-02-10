@@ -293,7 +293,7 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 
 	rq->flags &= ~REQ_STARTED;
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_REQUEUE, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_REQUEUE);
 }
 
 static void elv_drain_elevator(request_queue_t *q)
@@ -310,40 +310,10 @@ static void elv_drain_elevator(request_queue_t *q)
 	}
 }
 
-void __elv_add_request(request_queue_t *q, struct request *rq, int where,
-		       int plug)
+void elv_insert(request_queue_t *q, struct request *rq, int where)
 {
 	struct list_head *pos;
 	unsigned ordseq;
-
-	if (q->ordcolor)
-		rq->flags |= REQ_ORDERED_COLOR;
-
-	if (rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
-		/*
-		 * toggle ordered color
-		 */
-		if (blk_barrier_rq(rq))
-			q->ordcolor ^= 1;
-
-		/*
-		 * barriers implicitly indicate back insertion
-		 */
-		if (where == ELEVATOR_INSERT_SORT)
-			where = ELEVATOR_INSERT_BACK;
-
-		/*
-		 * this request is scheduling boundary, update end_sector
-		 */
-		if (blk_fs_request(rq)) {
-			q->end_sector = rq_end_sector(rq);
-			q->boundary_rq = rq;
-		}
-	} else if (!(rq->flags & REQ_ELVPRIV) && where == ELEVATOR_INSERT_SORT)
-		where = ELEVATOR_INSERT_BACK;
-
-	if (plug)
-		blk_plug_device(q);
 
 	rq->q = q;
 
@@ -423,6 +393,42 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		if (nrq >= q->unplug_thresh)
 			__generic_unplug_device(q);
 	}
+}
+
+void __elv_add_request(request_queue_t *q, struct request *rq, int where,
+		       int plug)
+{
+	if (q->ordcolor)
+		rq->flags |= REQ_ORDERED_COLOR;
+
+	if (rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
+		/*
+		 * toggle ordered color
+		 */
+		if (blk_barrier_rq(rq))
+			q->ordcolor ^= 1;
+
+		/*
+		 * barriers implicitly indicate back insertion
+		 */
+		if (where == ELEVATOR_INSERT_SORT)
+			where = ELEVATOR_INSERT_BACK;
+
+		/*
+		 * this request is scheduling boundary, update
+		 * end_sector
+		 */
+		if (blk_fs_request(rq)) {
+			q->end_sector = rq_end_sector(rq);
+			q->boundary_rq = rq;
+		}
+	} else if (!(rq->flags & REQ_ELVPRIV) && where == ELEVATOR_INSERT_SORT)
+		where = ELEVATOR_INSERT_BACK;
+
+	if (plug)
+		blk_plug_device(q);
+
+	elv_insert(q, rq, where);
 }
 
 void elv_add_request(request_queue_t *q, struct request *rq, int where,

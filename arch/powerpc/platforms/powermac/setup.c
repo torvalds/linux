@@ -82,8 +82,6 @@
 
 #undef SHOW_GATWICK_IRQS
 
-unsigned char drive_info;
-
 int ppc_override_l2cr = 0;
 int ppc_override_l2cr_value;
 int has_l2cache = 0;

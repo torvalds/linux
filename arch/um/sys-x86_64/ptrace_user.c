@@ -24,6 +24,13 @@ int ptrace_setregs(long pid, unsigned long *regs)
 	return(0);
 }
 
+int ptrace_setfpregs(long pid, unsigned long *regs)
+{
+	if (ptrace(PTRACE_SETFPREGS, pid, 0, regs) < 0)
+		return -errno;
+	return 0;
+}
+
 void ptrace_pokeuser(unsigned long addr, unsigned long data)
 {
 	panic("ptrace_pokeuser");

@@ -185,7 +185,7 @@ static void __init py_uart_setup(void)
 	up.uartclk      = TITAN_UART_CLK;
 	up.regshift     = 0;
 	up.iotype       = UPIO_MEM;
-	up.flags        = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+	up.flags        = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	up.line         = 0;
 
 	if (early_serial_setup(&up))

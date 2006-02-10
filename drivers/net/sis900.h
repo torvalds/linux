@@ -33,7 +33,6 @@ enum sis900_registers {
         rxcfg=0x34,             //Receive Configuration Register
         flctrl=0x38,            //Flow Control Register
         rxlen=0x3c,             //Receive Packet Length Register
-        cfgpmcsr=0x44,          //Configuration Power Management Control/Status Register
         rfcr=0x48,              //Receive Filter Control Register
         rfdr=0x4C,              //Receive Filter Data Register
         pmctrl=0xB0,            //Power Management Control Register

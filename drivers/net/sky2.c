@@ -23,12 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/*
- * TOTEST
- *	- speed setting
- *	- suspend/resume
- */
-
 #include <linux/config.h>
 #include <linux/crc32.h>
 #include <linux/kernel.h>
@@ -57,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"0.13"
+#define DRV_VERSION		"0.15"
 #define PFX			DRV_NAME " "
 
 /*
@@ -101,6 +95,10 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 static int copybreak __read_mostly = 256;
 module_param(copybreak, int, 0);
 MODULE_PARM_DESC(copybreak, "Receive copy threshold");
+
+static int disable_msi = 0;
+module_param(disable_msi, int, 0);
+MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
@@ -198,7 +196,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 
 	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_PMC, &power_control);
-	vaux = (sky2_read8(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
+	vaux = (sky2_read16(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
 		(power_control & PCI_PM_CAP_PME_D3cold);
 
 	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_CTRL, &power_control);
@@ -1834,6 +1832,8 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	u16 hwidx;
 	u16 tx_done[2] = { TX_NO_STATUS, TX_NO_STATUS };
 
+	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
 	rmb();
@@ -1913,12 +1913,10 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 exit_loop:
-	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
 	sky2_tx_check(hw, 0, tx_done[0]);
 	sky2_tx_check(hw, 1, tx_done[1]);
 
-	if (sky2_read16(hw, STAT_PUT_IDX) == hw->st_idx) {
+	if (likely(work_done < to_do)) {
 		/* need to restart TX timer */
 		if (is_ec_a1(hw)) {
 			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
@@ -2141,26 +2139,18 @@ static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
 
 static int sky2_reset(struct sky2_hw *hw)
 {
-	u32 ctst;
 	u16 status;
 	u8 t8, pmd_type;
-	int i;
-
-	ctst = sky2_read32(hw, B0_CTST);
+	int i, err;
 
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
+
 	hw->chip_id = sky2_read8(hw, B2_CHIP_ID);
 	if (hw->chip_id < CHIP_ID_YUKON_XL || hw->chip_id > CHIP_ID_YUKON_FE) {
 		printk(KERN_ERR PFX "%s: unsupported chip type 0x%x\n",
 		       pci_name(hw->pdev), hw->chip_id);
 		return -EOPNOTSUPP;
 	}
-
-	/* ring for status responses */
-	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
-					 &hw->st_dma);
-	if (!hw->st_le)
-		return -ENOMEM;
 
 	/* disable ASF */
 	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
@@ -2173,19 +2163,24 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
 	/* clear PCI errors, if any */
-	pci_read_config_word(hw->pdev, PCI_STATUS, &status);
+	err = pci_read_config_word(hw->pdev, PCI_STATUS, &status);
+	if (err)
+		goto pci_err;
+
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-	pci_write_config_word(hw->pdev, PCI_STATUS,
-			      status | PCI_STATUS_ERROR_BITS);
+	err = pci_write_config_word(hw->pdev, PCI_STATUS,
+				    status | PCI_STATUS_ERROR_BITS);
+	if (err)
+		goto pci_err;
 
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* clear any PEX errors */
-	if (is_pciex(hw)) {
-		u16 lstat;
-		pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
-				       0xffffffffUL);
-		pci_read_config_word(hw->pdev, PEX_LNK_STAT, &lstat);
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) {
+		err = pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
+						 0xffffffffUL);
+		if (err)
+			goto pci_err;
 	}
 
 	pmd_type = sky2_read8(hw, B2_PMD_TYP);
@@ -2297,6 +2292,14 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
 
 	return 0;
+
+pci_err:
+	/* This is to catch a BIOS bug workaround where
+	 * mmconfig table doesn't have other buses.
+	 */
+	printk(KERN_ERR PFX "%s: can't access PCI config space\n",
+	       pci_name(hw->pdev));
+	return err;
 }
 
 static u32 sky2_supported_modes(const struct sky2_hw *hw)
@@ -2551,19 +2554,24 @@ static struct net_device_stats *sky2_get_stats(struct net_device *dev)
 static int sky2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sockaddr *addr = p;
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	const struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	memcpy_toio(sky2->hw->regs + B2_MAC_1 + sky2->port * 8,
+	memcpy_toio(hw->regs + B2_MAC_1 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
-	memcpy_toio(sky2->hw->regs + B2_MAC_2 + sky2->port * 8,
+	memcpy_toio(hw->regs + B2_MAC_2 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
 
-	if (netif_running(dev))
-		sky2_phy_reinit(sky2);
+	/* virtual address for data */
+	gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+
+	/* physical address: used for pause frames */
+	gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
 
 	return 0;
 }
@@ -2843,7 +2851,7 @@ static int sky2_set_coalesce(struct net_device *dev,
 	if (ecmd->rx_coalesce_usecs_irq == 0)
 		sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_STOP);
 	else {
-		sky2_write32(hw, STAT_TX_TIMER_INI,
+		sky2_write32(hw, STAT_ISR_TIMER_INI,
 			     sky2_us2clk(hw, ecmd->rx_coalesce_usecs_irq));
 		sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
 	}
@@ -3055,6 +3063,61 @@ static void __devinit sky2_show_addr(struct net_device *dev)
 		       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 }
 
+/* Handle software interrupt used during MSI test */
+static irqreturn_t __devinit sky2_test_intr(int irq, void *dev_id,
+					    struct pt_regs *regs)
+{
+	struct sky2_hw *hw = dev_id;
+	u32 status = sky2_read32(hw, B0_Y2_SP_ISRC2);
+
+	if (status == 0)
+		return IRQ_NONE;
+
+	if (status & Y2_IS_IRQ_SW) {
+		sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
+		hw->msi = 1;
+	}
+	sky2_write32(hw, B0_Y2_SP_ICR, 2);
+
+	sky2_read32(hw, B0_IMSK);
+	return IRQ_HANDLED;
+}
+
+/* Test interrupt path by forcing a a software IRQ */
+static int __devinit sky2_test_msi(struct sky2_hw *hw)
+{
+	struct pci_dev *pdev = hw->pdev;
+	int i, err;
+
+	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
+
+	err = request_irq(pdev->irq, sky2_test_intr, SA_SHIRQ, DRV_NAME, hw);
+	if (err) {
+		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
+		       pci_name(pdev), pdev->irq);
+		return err;
+	}
+
+	sky2_write8(hw, B0_CTST, CS_ST_SW_IRQ);
+	wmb();
+
+	for (i = 0; i < 10; i++) {
+		barrier();
+		if (hw->msi)
+			goto found;
+		mdelay(1);
+	}
+
+	err = -EOPNOTSUPP;
+	sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
+ found:
+	sky2_write32(hw, B0_IMSK, 0);
+
+	free_irq(pdev->irq, hw);
+
+	return err;
+}
+
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
@@ -3135,6 +3198,12 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	}
 	hw->pm_cap = pm_cap;
 
+	/* ring for status responses */
+	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
+					 &hw->st_dma);
+	if (!hw->st_le)
+		goto err_out_iounmap;
+
 	err = sky2_reset(hw);
 	if (err)
 		goto err_out_iounmap;
@@ -3169,7 +3238,22 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ, DRV_NAME, hw);
+	if (!disable_msi && pci_enable_msi(pdev) == 0) {
+		err = sky2_test_msi(hw);
+		if (err == -EOPNOTSUPP) {
+			/* MSI test failed, go back to INTx mode */
+			printk(KERN_WARNING PFX "%s: No interrupt was generated using MSI, "
+			       "switching to INTx mode. Please report this failure to "
+			       "the PCI maintainer and include system chipset information.\n",
+			       pci_name(pdev));
+			pci_disable_msi(pdev);
+		}
+		else if (err)
+			goto err_out_unregister;
+	}
+
+	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ | SA_SAMPLE_RANDOM,
+			  DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
@@ -3184,6 +3268,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	return 0;
 
 err_out_unregister:
+	if (hw->msi)
+		pci_disable_msi(pdev);
 	if (dev1) {
 		unregister_netdev(dev1);
 		free_netdev(dev1);
@@ -3226,6 +3312,8 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	sky2_read8(hw, B0_CTST);
 
 	free_irq(pdev->irq, hw);
+	if (hw->msi)
+		pci_disable_msi(pdev);
 	pci_free_consistent(pdev, STATUS_LE_BYTES, hw->st_le, hw->st_dma);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -3263,25 +3351,33 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 static int sky2_resume(struct pci_dev *pdev)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
-	int i;
+	int i, err;
 
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	sky2_set_power_state(hw, PCI_D0);
+	err = sky2_set_power_state(hw, PCI_D0);
+	if (err)
+		goto out;
 
-	sky2_reset(hw);
+	err = sky2_reset(hw);
+	if (err)
+		goto out;
 
 	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
-		if (dev) {
-			if (netif_running(dev)) {
-				netif_device_attach(dev);
-				if (sky2_up(dev))
-					dev_close(dev);
+		if (dev && netif_running(dev)) {
+			netif_device_attach(dev);
+			err = sky2_up(dev);
+			if (err) {
+				printk(KERN_ERR PFX "%s: could not up: %d\n",
+				       dev->name, err);
+				dev_close(dev);
+				break;
 			}
 		}
 	}
-	return 0;
+out:
+	return err;
 }
 #endif
 

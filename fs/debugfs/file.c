@@ -56,7 +56,7 @@ static u64 debugfs_u8_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(fops_u8, debugfs_u8_get, debugfs_u8_set, "%llu\n");
 
 /**
- * debugfs_create_u8 - create a file in the debugfs filesystem that is used to read and write a unsigned 8 bit value.
+ * debugfs_create_u8 - create a file in the debugfs filesystem that is used to read and write an unsigned 8 bit value.
  *
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have
@@ -98,7 +98,7 @@ static u64 debugfs_u16_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(fops_u16, debugfs_u16_get, debugfs_u16_set, "%llu\n");
 
 /**
- * debugfs_create_u16 - create a file in the debugfs filesystem that is used to read and write a unsigned 8 bit value.
+ * debugfs_create_u16 - create a file in the debugfs filesystem that is used to read and write an unsigned 16 bit value.
  *
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have
@@ -140,7 +140,7 @@ static u64 debugfs_u32_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(fops_u32, debugfs_u32_get, debugfs_u32_set, "%llu\n");
 
 /**
- * debugfs_create_u32 - create a file in the debugfs filesystem that is used to read and write a unsigned 8 bit value.
+ * debugfs_create_u32 - create a file in the debugfs filesystem that is used to read and write an unsigned 32 bit value.
  *
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have

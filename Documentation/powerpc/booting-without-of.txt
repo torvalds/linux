@@ -44,7 +44,6 @@
                            compiler and the textural representation of
                            the tree that can be "compiled" by dtc.
 
-
    November 21, 2005: Rev 0.5
 			 - Additions/generalizations for 32-bit
 			 - Changed to reflect the new arch/powerpc
@@ -1304,6 +1303,65 @@ platforms are moved over to use the flattened-device-tree model.
 		device_type = "i2c";
 		compatible  = "fsl-i2c";
 		dfsrr;
+	};
+
+
+   f) Freescale SOC USB controllers
+
+   The device node for a USB controller that is part of a Freescale
+   SOC is as described in the document "Open Firmware Recommended
+   Practice : Universal Serial Bus" with the following modifications
+   and additions :  
+
+   Required properties :
+    - compatible : Should be "fsl-usb2-mph" for multi port host usb
+      controllers, or "fsl-usb2-dr" for dual role usb controllers
+    - phy_type : For multi port host usb controllers, should be one of
+      "ulpi", or "serial". For dual role usb controllers, should be
+      one of "ulpi", "utmi", "utmi_wide", or "serial".
+    - reg : Offset and length of the register set for the device
+    - port0 : boolean; if defined, indicates port0 is connected for
+      fsl-usb2-mph compatible controllers.  Either this property or
+      "port1" (or both) must be defined for "fsl-usb2-mph" compatible 
+      controllers.
+    - port1 : boolean; if defined, indicates port1 is connected for
+      fsl-usb2-mph compatible controllers.  Either this property or
+      "port0" (or both) must be defined for "fsl-usb2-mph" compatible 
+      controllers.
+
+   Recommended properties :
+    - interrupts : <a b> where a is the interrupt number and b is a
+      field that represents an encoding of the sense and level
+      information for the interrupt.  This should be encoded based on
+      the information in section 2) depending on the type of interrupt
+      controller you have.
+    - interrupt-parent : the phandle for the interrupt controller that
+      services interrupts for this device.
+
+   Example multi port host usb controller device node : 
+	usb@22000 {
+	        device_type = "usb";
+		compatible = "fsl-usb2-mph";
+		reg = <22000 1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <700>;
+		interrupts = <27 1>;
+		phy_type = "ulpi";
+		port0;
+		port1;
+	};
+
+   Example dual role usb controller device node : 
+	usb@23000 {
+		device_type = "usb";
+		compatible = "fsl-usb2-dr";
+		reg = <23000 1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <700>;
+		interrupts = <26 1>;
+		phy = "ulpi";
 	};
 
 

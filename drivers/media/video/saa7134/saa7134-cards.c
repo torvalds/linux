@@ -136,7 +136,7 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_FLYVIDEO2000] = {
 		/* "TC Wan" <tcwan@cs.usm.my> */
-		.name           = "LifeView FlyVIDEO2000",
+		.name           = "LifeView/Typhoon FlyVIDEO2000",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_LG_PAL_NEW_TAPC,
 		.radio_type     = UNSET,
@@ -1884,44 +1884,38 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x000,
 		},
 	},
-	[SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS] = {
-		.name		= "Typhoon DVB-T Duo Digital/Analog Cardbus",
+	[SAA7134_BOARD_FLYDVBT_DUO_CARDBUS] = {
+		.name		= "LifeView/Typhoon FlyDVB-T Duo Cardbus",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.mpeg           = SAA7134_MPEG_DVB,
-		/* .gpiomask       = 0xe000, */
+		.gpiomask	= 0x00200000,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
-		/*	.gpio = 0x0000,      */
+			.gpio = 0x200000,	/* GPIO21=High for TV input */
 			.tv   = 1,
-		},{
-			.name = name_comp1,	/* Composite signal on S-Video input */
-			.vmux = 0,
-			.amux = LINE2,
-		/*	.gpio = 0x4000,      */
-		},{
-			.name = name_comp2,	/* Composite input */
-			.vmux = 3,
-			.amux = LINE2,
-		/*	.gpio = 0x4000,      */
 		},{
 			.name = name_svideo,	/* S-Video signal on S-Video input */
 			.vmux = 8,
 			.amux = LINE2,
-		/*	.gpio = 0x4000,      */
+		},{
+			.name = name_comp1,	/* Composite signal on S-Video input */
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,	/* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
 		}},
 		.radio = {
 			.name = name_radio,
-			.amux = LINE2,
-		},
-		.mute = {
-			.name = name_mute,
-			.amux = LINE1,
+			.amux = TV,
+			.gpio = 0x000000,	/* GPIO21=Low for FM radio antenna */
 		},
 	},
 	[SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII] = {
@@ -2701,6 +2695,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_FLYVIDEO2000,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x4e42,		/* Typhoon */
+		.subdevice    = 0x0138,		/* LifeView FlyTV Prime30 OEM */
+		.driver_data  = SAA7134_BOARD_FLYVIDEO2000,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x5168,
 		.subdevice    = 0x0212, /* minipci, LR212 */
@@ -2935,7 +2935,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x5168,
 		.subdevice    = 0x0502,                /* Cardbus version */
-		.driver_data  = SAA7134_BOARD_FLYDVBTDUO,
+		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
@@ -2980,12 +2980,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x1370,        /* cardbus version */
 		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
 
-	},{     /* Typhoon DVB-T Duo Digital/Analog Cardbus */
+	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x4e42,
-		.subdevice    = 0x0502,
-		.driver_data  = SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS,
+		.subvendor    = 0x4e42,		/* Typhoon */
+		.subdevice    = 0x0502,		/* LifeView LR502 OEM */
+		.driver_data  = SAA7134_BOARD_FLYDVBT_DUO_CARDBUS,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
@@ -3206,8 +3206,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x00040000, 0x00040000);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00040000, 0x00000004);
 		break;
-	case SAA7134_BOARD_FLYDVBTDUO:
-	case SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS:
+	case SAA7134_BOARD_FLYDVBT_DUO_CARDBUS:
 		/* turn the fan on */
 		saa_writeb(SAA7134_GPIO_GPMODE3, 0x08);
 		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x06);

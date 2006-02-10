@@ -17,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
-#include <asm/bug.h>
 #include <asm/scatterlist.h>
 #include "internal.h"
 #include "scatterwalk.h"

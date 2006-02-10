@@ -559,6 +559,23 @@ ia64_eoi (void)
 
 #define cpu_relax()	ia64_hint(ia64_hint_pause)
 
+static inline int
+ia64_get_irr(unsigned int vector)
+{
+	unsigned int reg = vector / 64;
+	unsigned int bit = vector % 64;
+	u64 irr;
+
+	switch (reg) {
+	case 0: irr = ia64_getreg(_IA64_REG_CR_IRR0); break;
+	case 1: irr = ia64_getreg(_IA64_REG_CR_IRR1); break;
+	case 2: irr = ia64_getreg(_IA64_REG_CR_IRR2); break;
+	case 3: irr = ia64_getreg(_IA64_REG_CR_IRR3); break;
+	}
+
+	return test_bit(bit, &irr);
+}
+
 static inline void
 ia64_set_lrr0 (unsigned long val)
 {

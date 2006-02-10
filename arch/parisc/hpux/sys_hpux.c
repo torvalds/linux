@@ -468,18 +468,22 @@ int hpux_sysfs(int opcode, unsigned long arg1, unsigned long arg2)
 	if ( opcode == 1 ) { /* GETFSIND */	
 		len = strlen_user((char *)arg1);
 		printk(KERN_DEBUG "len of arg1 = %d\n", len);
-
-		fsname = (char *) kmalloc(len+1, GFP_KERNEL);
+		if (len == 0)
+			return 0;
+		fsname = (char *) kmalloc(len, GFP_KERNEL);
 		if ( !fsname ) {
 			printk(KERN_DEBUG "failed to kmalloc fsname\n");
 			return 0;
 		}
 
-		if ( copy_from_user(fsname, (char *)arg1, len+1) ) {
+		if ( copy_from_user(fsname, (char *)arg1, len) ) {
 			printk(KERN_DEBUG "failed to copy_from_user fsname\n");
 			kfree(fsname);
 			return 0;
 		}
+
+		/* String could be altered by userspace after strlen_user() */
+		fsname[len] = '\0';
 
 		printk(KERN_DEBUG "that is '%s' as (char *)\n", fsname);
 		if ( !strcmp(fsname, "hfs") ) {

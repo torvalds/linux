@@ -21,7 +21,10 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/pm.h>
+#include <linux/device.h>
 #include <asm/semaphore.h>
+
+#include "base.h"
 
 extern struct subsystem devices_subsys;
 

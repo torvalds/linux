@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
+#include <linux/pm.h>
 #include <linux/smp.h>
 #include <linux/types.h>
 
@@ -114,7 +115,7 @@ static int __init vr41xx_pmu_init(void)
 
 	_machine_restart = vr41xx_restart;
 	_machine_halt = vr41xx_halt;
-	_machine_power_off = vr41xx_power_off;
+	pm_power_off = vr41xx_power_off;
 
 	return 0;
 }

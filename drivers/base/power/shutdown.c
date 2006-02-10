@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <asm/semaphore.h>
 
+#include "../base.h"
 #include "power.h"
 
 #define to_dev(node) container_of(node, struct device, kobj.entry)
@@ -28,7 +29,6 @@ extern struct subsystem devices_subsys;
  * they only get one called once when interrupts are disabled.
  */
 
-extern int sysdev_shutdown(void);
 
 /**
  * device_shutdown - call ->shutdown() on each device to shutdown.

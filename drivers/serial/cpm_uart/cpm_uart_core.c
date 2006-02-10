@@ -252,12 +252,9 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 		/* If we have not enough room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
-		if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE) {
-			tty->flip.work.func((void *)tty);
-			if ((tty->flip.count + i) >= TTY_FLIPBUF_SIZE) {
-				printk(KERN_WARNING "TTY_DONT_FLIP set\n");
-				return;
-			}
+		if(tty_buffer_request_room(tty, i) < i) {
+			printk(KERN_WARNING "No room in flip buffer\n");
+			return;
 		}
 
 		/* get pointer */
@@ -276,9 +273,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 				continue;
 
 		      error_return:
-			*tty->flip.char_buf_ptr++ = ch;
-			*tty->flip.flag_buf_ptr++ = flg;
-			tty->flip.count++;
+			tty_insert_flip_char(tty, ch, flg);
 
 		}		/* End while (i--) */
 
@@ -908,7 +903,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SMC1_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.flags = FLAG_SMC,
@@ -922,7 +917,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SMC2_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.flags = FLAG_SMC,
@@ -939,7 +934,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC1_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
@@ -953,7 +948,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC2_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
@@ -967,7 +962,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC3_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,
@@ -981,7 +976,7 @@ struct uart_cpm_port cpm_uart_ports[UART_NR] = {
 		.port = {
 			.irq		= SCC4_IRQ,
 			.ops		= &cpm_uart_pops,
-			.iotype		= SERIAL_IO_MEM,
+			.iotype		= UPIO_MEM,
 			.lock		= SPIN_LOCK_UNLOCKED,
 		},
 		.tx_nrfifos = TX_NUM_FIFO,

@@ -59,7 +59,7 @@ static unsigned long dart_tablesize;
 static u32 *dart_vbase;
 
 /* Mapped base address for the dart */
-static unsigned int *__iomem dart;
+static unsigned int __iomem *dart;
 
 /* Dummy val that entries are set to when unused */
 static unsigned int dart_emptyval;

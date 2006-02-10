@@ -34,19 +34,22 @@
 /* How many pages do we try to swap or page in/out together? */
 int page_cluster;
 
+static void put_compound_page(struct page *page)
+{
+	page = (struct page *)page_private(page);
+	if (put_page_testzero(page)) {
+		void (*dtor)(struct page *page);
+
+		dtor = (void (*)(struct page *))page[1].mapping;
+		(*dtor)(page);
+	}
+}
+
 void put_page(struct page *page)
 {
-	if (unlikely(PageCompound(page))) {
-		page = (struct page *)page_private(page);
-		if (put_page_testzero(page)) {
-			void (*dtor)(struct page *page);
-
-			dtor = (void (*)(struct page *))page[1].mapping;
-			(*dtor)(page);
-		}
-		return;
-	}
-	if (put_page_testzero(page))
+	if (unlikely(PageCompound(page)))
+		put_compound_page(page);
+	else if (put_page_testzero(page))
 		__page_cache_release(page);
 }
 EXPORT_SYMBOL(put_page);
@@ -243,6 +246,15 @@ void release_pages(struct page **pages, int nr, int cold)
 	for (i = 0; i < nr; i++) {
 		struct page *page = pages[i];
 		struct zone *pagezone;
+
+		if (unlikely(PageCompound(page))) {
+			if (zone) {
+				spin_unlock_irq(&zone->lru_lock);
+				zone = NULL;
+			}
+			put_compound_page(page);
+			continue;
+		}
 
 		if (!put_page_testzero(page))
 			continue;

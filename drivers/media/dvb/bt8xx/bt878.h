@@ -88,6 +88,23 @@
 
 #define BT878_RISC_SYNC_MASK	(1 << 15)
 
+
+#define BTTV_BOARD_UNKNOWN                 0x00
+#define BTTV_BOARD_PINNACLESAT             0x5e
+#define BTTV_BOARD_NEBULA_DIGITV           0x68
+#define BTTV_BOARD_PC_HDTV                 0x70
+#define BTTV_BOARD_TWINHAN_DST             0x71
+#define BTTV_BOARD_AVDVBT_771              0x7b
+#define BTTV_BOARD_AVDVBT_761              0x7c
+#define BTTV_BOARD_DVICO_DVBT_LITE         0x80
+#define BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE 0x87
+
+struct cards {
+	__u32 pci_id;
+	__u16 card_id;
+	char  *name;
+};
+
 extern int bt878_num;
 
 struct bt878 {

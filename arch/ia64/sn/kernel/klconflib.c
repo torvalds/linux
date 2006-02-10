@@ -78,31 +78,30 @@ format_module_id(char *buffer, moduleid_t m, int fmt)
 	position = MODULE_GET_BPOS(m);
 
 	if ((fmt == MODULE_FORMAT_BRIEF) || (fmt == MODULE_FORMAT_LCD)) {
-	    /* Brief module number format, eg. 002c15 */
+		/* Brief module number format, eg. 002c15 */
 
-	    /* Decompress the rack number */
-	    *buffer++ = '0' + RACK_GET_CLASS(rack);
-	    *buffer++ = '0' + RACK_GET_GROUP(rack);
-	    *buffer++ = '0' + RACK_GET_NUM(rack);
+		/* Decompress the rack number */
+		*buffer++ = '0' + RACK_GET_CLASS(rack);
+		*buffer++ = '0' + RACK_GET_GROUP(rack);
+		*buffer++ = '0' + RACK_GET_NUM(rack);
 
-	    /* Add the brick type */
-	    *buffer++ = brickchar;
+		/* Add the brick type */
+		*buffer++ = brickchar;
 	}
 	else if (fmt == MODULE_FORMAT_LONG) {
-	    /* Fuller hwgraph format, eg. rack/002/bay/15 */
+		/* Fuller hwgraph format, eg. rack/002/bay/15 */
 
-	    strcpy(buffer, "rack" "/");  buffer += strlen(buffer);
+		strcpy(buffer, "rack" "/");  buffer += strlen(buffer);
 
-	    *buffer++ = '0' + RACK_GET_CLASS(rack);
-	    *buffer++ = '0' + RACK_GET_GROUP(rack);
-	    *buffer++ = '0' + RACK_GET_NUM(rack);
+		*buffer++ = '0' + RACK_GET_CLASS(rack);
+		*buffer++ = '0' + RACK_GET_GROUP(rack);
+		*buffer++ = '0' + RACK_GET_NUM(rack);
 
-	    strcpy(buffer, "/" "bay" "/");  buffer += strlen(buffer);
+		strcpy(buffer, "/" "bay" "/");  buffer += strlen(buffer);
 	}
 
 	/* Add the bay position, using at least two digits */
 	if (position < 10)
-	    *buffer++ = '0';
+		*buffer++ = '0';
 	sprintf(buffer, "%d", position);
-
 }

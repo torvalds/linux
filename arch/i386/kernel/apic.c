@@ -77,7 +77,7 @@ void ack_bad_irq(unsigned int irq)
 	 * completely.
 	 * But only ack when the APIC is enabled -AK
 	 */
-	if (!cpu_has_apic)
+	if (cpu_has_apic)
 		ack_APIC_irq();
 }
 

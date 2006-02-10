@@ -463,7 +463,7 @@ static inline struct list_head *skb_to_lh(struct sk_buff *skb)
 }
 
 static void*
-mempool_zone_alloc_skb(unsigned int gfp_mask, void *pool_data)
+mempool_zone_alloc_skb(gfp_t gfp_mask, void *pool_data)
 {
 	struct mempool_zone *zone = pool_data;
 

@@ -13,7 +13,6 @@
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/fb.h>
-#include <asm/bug.h>
 
 static ssize_t backlight_show_power(struct class_device *cdev, char *buf)
 {
