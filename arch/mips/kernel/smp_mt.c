@@ -195,6 +195,9 @@ void prom_prepare_cpus(unsigned int max_cpus)
 
 				/* set config to be the same as vpe0, particularly kseg0 coherency alg */
 				write_vpe_c0_config( read_c0_config());
+
+				/* Propagate Config7 */
+				write_vpe_c0_config7(read_c0_config7());
 			}
 
 		}
