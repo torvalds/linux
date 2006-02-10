@@ -863,10 +863,10 @@ void init_irqwork_curcpu(void)
 
 static void __cpuinit init_one_mondo(unsigned long *pa_ptr, unsigned long type)
 {
-	register unsigned long func __asm__("%o0");
-	register unsigned long arg0 __asm__("%o1");
-	register unsigned long arg1 __asm__("%o2");
-	register unsigned long arg2 __asm__("%o3");
+	register unsigned long func __asm__("%o5");
+	register unsigned long arg0 __asm__("%o0");
+	register unsigned long arg1 __asm__("%o1");
+	register unsigned long arg2 __asm__("%o2");
 	unsigned long page = get_zeroed_page(GFP_ATOMIC);
 
 	if (!page) {

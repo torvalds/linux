@@ -518,11 +518,11 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 				       unsigned long pte,
 				       unsigned long mmu)
 {
-	register unsigned long func asm("%o0");
-	register unsigned long arg0 asm("%o1");
-	register unsigned long arg1 asm("%o2");
-	register unsigned long arg2 asm("%o3");
-	register unsigned long arg3 asm("%o4");
+	register unsigned long func asm("%o5");
+	register unsigned long arg0 asm("%o0");
+	register unsigned long arg1 asm("%o1");
+	register unsigned long arg2 asm("%o2");
+	register unsigned long arg3 asm("%o3");
 
 	func = HV_FAST_MMU_MAP_PERM_ADDR;
 	arg0 = vaddr;
@@ -1112,18 +1112,18 @@ static void __init tsb_phys_patch(void)
 /* Register this cpu's fault status area with the hypervisor.  */
 void __cpuinit sun4v_register_fault_status(void)
 {
+	register unsigned long func asm("%o5");
 	register unsigned long arg0 asm("%o0");
-	register unsigned long arg1 asm("%o1");
 	int cpu = hard_smp_processor_id();
 	struct trap_per_cpu *tb = &trap_block[cpu];
 	unsigned long pa;
 
 	pa = kern_base + ((unsigned long) tb - KERNBASE);
-	arg0 = HV_FAST_MMU_FAULT_AREA_CONF;
-	arg1 = pa;
+	func = HV_FAST_MMU_FAULT_AREA_CONF;
+	arg0 = pa;
 	__asm__ __volatile__("ta	%4"
-			     : "=&r" (arg0), "=&r" (arg1)
-			     : "0" (arg0), "1" (arg1),
+			     : "=&r" (func), "=&r" (arg0)
+			     : "0" (func), "1" (arg0),
 			       "i" (HV_FAST_TRAP));
 }
 

@@ -265,20 +265,20 @@ do_unlock:
 	 nop
 
 niagara_lock_tlb:
-	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
-	sethi		%hi(KERNBASE), %o1
-	clr		%o2
-	sethi		%hi(kern_locked_tte_data), %o3
-	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
-	mov		HV_MMU_IMMU, %o4
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	mov		HV_MMU_IMMU, %o3
 	ta		HV_FAST_TRAP
 
-	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
-	sethi		%hi(KERNBASE), %o1
-	clr		%o2
-	sethi		%hi(kern_locked_tte_data), %o3
-	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
-	mov		HV_MMU_DMMU, %o4
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	mov		HV_MMU_DMMU, %o3
 	ta		HV_FAST_TRAP
 
 	sethi		%hi(bigkernel), %g2
@@ -286,24 +286,24 @@ niagara_lock_tlb:
 	brz,pt		%g2, after_lock_tlb
 	 nop
 
-	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
-	sethi		%hi(KERNBASE + 0x400000), %o1
-	clr		%o2
-	sethi		%hi(kern_locked_tte_data), %o3
-	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
-	sethi		%hi(0x400000), %o4
-	add		%o3, %o4, %o3
-	mov		HV_MMU_IMMU, %o4
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE + 0x400000), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	sethi		%hi(0x400000), %o3
+	add		%o2, %o3, %o2
+	mov		HV_MMU_IMMU, %o3
 	ta		HV_FAST_TRAP
 
-	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o0
-	sethi		%hi(KERNBASE + 0x400000), %o1
-	clr		%o2
-	sethi		%hi(kern_locked_tte_data), %o3
-	ldx		[%o3 + %lo(kern_locked_tte_data)], %o3
-	sethi		%hi(0x400000), %o4
-	add		%o3, %o4, %o3
-	mov		HV_MMU_DMMU, %o4
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE + 0x400000), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	sethi		%hi(0x400000), %o3
+	add		%o2, %o3, %o2
+	mov		HV_MMU_DMMU, %o3
 	ta		HV_FAST_TRAP
 
 after_lock_tlb:

@@ -572,10 +572,10 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 	retries = 0;
 	cnt = init_cpu_list(cpu_list, mask);
 	do {
-		register unsigned long func __asm__("%o0");
-		register unsigned long arg0 __asm__("%o1");
-		register unsigned long arg1 __asm__("%o2");
-		register unsigned long arg2 __asm__("%o3");
+		register unsigned long func __asm__("%o5");
+		register unsigned long arg0 __asm__("%o0");
+		register unsigned long arg1 __asm__("%o1");
+		register unsigned long arg2 __asm__("%o2");
 
 		func = HV_FAST_CPU_MONDO_SEND;
 		arg0 = cnt;
@@ -624,10 +624,10 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 		int retries = 0;
 
 		do {
-			register unsigned long func __asm__("%o0");
-			register unsigned long arg0 __asm__("%o1");
-			register unsigned long arg1 __asm__("%o2");
-			register unsigned long arg2 __asm__("%o3");
+			register unsigned long func __asm__("%o5");
+			register unsigned long arg0 __asm__("%o0");
+			register unsigned long arg1 __asm__("%o1");
+			register unsigned long arg2 __asm__("%o2");
 
 			cpu_list[0] = i;
 			func = HV_FAST_CPU_MONDO_SEND;

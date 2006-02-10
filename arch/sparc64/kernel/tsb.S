@@ -266,9 +266,9 @@ __tsb_context_switch:
 	mov	SCRATCHPAD_UTSBREG2, %g1
 	stxa	%g2, [%g1] ASI_SCRATCHPAD
 
-	mov	HV_FAST_MMU_TSB_CTXNON0, %o0
-	mov	1, %o1
-	mov	%o4, %o2
+	mov	HV_FAST_MMU_TSB_CTXNON0, %o5
+	mov	1, %o0
+	mov	%o4, %o1
 	ta	HV_FAST_TRAP
 
 	ba,pt	%xcc, 9f
