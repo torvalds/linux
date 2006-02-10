@@ -58,6 +58,8 @@ struct tty_buffer {
 	int used;
 	int size;
 	int active;
+	int commit;
+	int read;
 	/* Data points here */
 	unsigned long data[0];
 };
