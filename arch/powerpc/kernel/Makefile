@@ -12,10 +12,10 @@ endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   irq.o align.o signal_32.o pmc.o vdso.o \
-				   init_task.o process.o
+				   init_task.o process.o systbl.o
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
-				   signal_64.o ptrace32.o systbl.o \
+				   signal_64.o ptrace32.o \
 				   paca.o cpu_setup_power4.o \
 				   firmware.o sysfs.o idle_64.o
 obj-$(CONFIG_PPC64)		+= vdso64/
@@ -46,7 +46,7 @@ extra-$(CONFIG_8xx)		:= head_8xx.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= time.o prom.o traps.o setup-common.o udbg.o
-obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o systbl.o
+obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
 obj-$(CONFIG_PPC64)		+= misc_64.o dma_64.o iommu.o
 obj-$(CONFIG_PPC_MULTIPLATFORM)	+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
